@@ -1994,12 +1994,20 @@ export async function envoyerQuestionnaire({ cle, portee, version, reponses, com
   if (error) throw new Error(messageErreurQuestionnaire(error));
 }
 
+// Erreur de gestion levée avec le message lisible ET le code de la base (42501 : refus de droit), que la page Qualiopi lit
+// pour ne pas dire « vérifie ta connexion » à un compte qui n'a pas le droit.
+function erreurQuestionnaire(error) {
+  const erreur = new Error(messageErreurQuestionnaire(error));
+  if (error?.code) erreur.code = String(error.code);
+  return erreur;
+}
+
 // Comptes par question (gestion). Rien sous le seuil : `reponses` est nul et `questions` vide. Fonction absente : même forme.
 export async function lireResultatsQuestionnaire(cle, portee) {
   const { data, error } = await supabase.rpc("resultats_questionnaire", { p_cle: cle, p_portee: portee });
   if (error) {
     if (fonctionAbsente(error)) return { cle, public: null, seuil: null, reponses: null, questions: {} };
-    throw new Error(messageErreurQuestionnaire(error));
+    throw erreurQuestionnaire(error);
   }
   return data;
 }
@@ -2009,19 +2017,20 @@ export async function lireCommentairesQuestionnaire(cle, portee) {
   const { data, error } = await supabase.rpc("commentaires_questionnaire", { p_cle: cle, p_portee: portee });
   if (error) {
     if (fonctionAbsente(error)) return [];
-    throw new Error(messageErreurQuestionnaire(error));
+    throw erreurQuestionnaire(error);
   }
   return Array.isArray(data) ? data : [];
 }
 
 // Ouvertures posées à la main (gestion : la politique de lecture de la table est peut_gerer_qualite()) :
 // [{ cle, promo_id, lieu_id, annee, ouvert }]. Table absente (migration pas encore appliquée) : null, sans bruit ;
-// autre erreur : levée avec un message de lecture.
+// refus de droit (42501) : levée avec une phrase de droit ; autre erreur : levée avec un message de lecture.
 export async function lireOuverturesQuestionnaires() {
   const { data, error } = await supabase.from("questionnaire_ouvertures").select("cle, promo_id, lieu_id, annee, ouvert");
   if (error) {
     const code = String(error.code ?? "");
     if (code === "PGRST205" || code === "42P01" || /could not find the table|relation .* does not exist/i.test(String(error.message ?? ""))) return null;
+    if (code === "42501") throw new Error("Réservé à la gestion de la qualité : ce compte n'a pas ce droit.");
     throw new Error("Les questionnaires n'ont pas pu être lus : vérifie ta connexion, puis réessaie.");
   }
   return Array.isArray(data) ? data : [];
@@ -2030,5 +2039,5 @@ export async function lireOuverturesQuestionnaires() {
 // Ouvre (true), ferme (false) à la main, ou revient aux dates (null).
 export async function ouvrirQuestionnaire(cle, portee, ouvert) {
   const { error } = await supabase.rpc("ouvrir_questionnaire", { p_cle: cle, p_portee: portee, p_ouvert: ouvert });
-  if (error) throw new Error(messageErreurQuestionnaire(error));
+  if (error) throw erreurQuestionnaire(error);
 }

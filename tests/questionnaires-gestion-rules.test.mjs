@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import {
   QUESTIONNAIRES_GESTION, porteeGestion, anneesFormateur, libellePorteeFormateur, ouvertureDe, etatOuverture, actionsOuverture,
   messageOuverture, questionnairesAbsents, resumeReponses, texteAccord, satisfactionGlobale, lignesResultats,
-  commentairesMontrables, messageLectureGestion, messageEchecOuverture,
+  commentairesMontrables, messageLectureGestion, messageEchecOuverture, jourParis,
 } from "../js/questionnaires-gestion-rules.js";
 import { QUESTIONNAIRES } from "../js/questionnaires-data.js";
 
@@ -202,6 +202,48 @@ test("messages : une lecture n'est pas un envoi ; la phrase de la base est gard�
   assert.match(messageLectureGestion(new TypeError("Failed to fetch")), /^Les questionnaires n'ont pas pu être lus/);
   assert.match(messageEchecOuverture(new Error("L'envoi n'a pas abouti : vérifie ta connexion et réessaie.")), /^Le changement n'a pas abouti/);
   assert.equal(messageEchecOuverture(new Error("Promo introuvable.")), "Promo introuvable.");
+});
+
+test("jour de Paris : celui de la base (_questionnaire_jour), pas celui de l'appareil", () => {
+  // Juste après minuit à Paris, encore la veille en UTC (hiver, UTC+1).
+  assert.equal(jourParis(new Date("2026-12-03T23:30:00Z")), "2026-12-04", "00 h 30 à Paris : déjà le 4, premier jour de la fenêtre de Nîmes");
+  assert.equal(jourParis(new Date("2026-12-03T22:59:59Z")), "2026-12-03", "23 h 59 à Paris : encore le 3");
+  // Été (UTC+2) : 22 h 30 UTC est déjà le lendemain à Paris.
+  assert.equal(jourParis(new Date("2026-07-14T22:30:00Z")), "2026-07-15");
+  assert.equal(jourParis(new Date("2026-07-14T21:59:00Z")), "2026-07-14");
+  // Changements d'heure : 29/03/2026 (passage à l'été, 2 h devient 3 h) et 25/10/2026 (retour à l'hiver).
+  assert.equal(jourParis(new Date("2026-03-28T22:59:00Z")), "2026-03-28", "veille du passage à l'heure d'été, 23 h 59 à Paris");
+  assert.equal(jourParis(new Date("2026-03-28T23:00:00Z")), "2026-03-29", "minuit à Paris (UTC+1)");
+  assert.equal(jourParis(new Date("2026-03-29T21:59:00Z")), "2026-03-29", "soir du passage, 23 h 59 à Paris (UTC+2)");
+  assert.equal(jourParis(new Date("2026-03-29T22:00:00Z")), "2026-03-30");
+  assert.equal(jourParis(new Date("2026-10-24T22:00:00Z")), "2026-10-25", "minuit à Paris (UTC+2) la nuit du retour");
+  assert.equal(jourParis(new Date("2026-10-25T22:59:00Z")), "2026-10-25", "23 h 59 à Paris (UTC+1) après le retour");
+  assert.equal(jourParis(new Date("2026-10-25T23:00:00Z")), "2026-10-26");
+  assert.equal(jourParis(Date.UTC(2026, 11, 3, 23, 30)), "2026-12-04", "un nombre de millisecondes est accepté");
+  assert.equal(jourParis(new Date("pas une date")), null);
+});
+
+test("état et boutons suivent le jour de Paris : à 00 h 30, la fenêtre de Nîmes est ouverte et le bouton propose de fermer", () => {
+  const jour = jourParis(new Date("2026-12-03T23:30:00Z"));
+  const etat = etatOuverture({ cle: "fin_stagiaire", promo: NIMES, ouverture: null, aujourdhui: jour });
+  assert.equal(etat.ouvert, true);
+  assert.deepEqual(actionsOuverture(etat), [{ libelle: "Fermer le questionnaire", valeur: false }]);
+  const veille = etatOuverture({ cle: "fin_stagiaire", promo: NIMES, ouverture: null, aujourdhui: jourParis(new Date("2026-12-03T22:30:00Z")) });
+  assert.deepEqual(actionsOuverture(veille), [{ libelle: "Ouvrir le questionnaire", valeur: true }]);
+});
+
+test("messages : droit, panne brute, et phrases légitimes de la base gardées telles quelles", () => {
+  const droit = "Réservé à la gestion de la qualité : ce compte n'a pas ce droit.";
+  assert.equal(messageLectureGestion({ code: "42501", message: "permission denied for table questionnaire_ouvertures" }), droit);
+  assert.equal(messageLectureGestion(new Error("permission denied for function resultats_questionnaire")), droit);
+  assert.equal(messageEchecOuverture({ code: "42501", message: "x" }), droit);
+  assert.equal(messageLectureGestion(new Error("Réservé à l'éditeur.")), "Réservé à l'éditeur.");
+  for (const panne of ["Failed to fetch", "TypeError: Failed to fetch", "NetworkError when attempting to fetch resource.", "Load failed"]) {
+    assert.match(messageLectureGestion(new Error(panne)), /^Les questionnaires n'ont pas pu être lus/, panne);
+  }
+  for (const phrase of ["Le délai de réponse (timeout) de la promo est dépassé.", "Promo introuvable sur le network du centre.", "Impossible de fetch la portée."]) {
+    assert.equal(messageLectureGestion(new Error(phrase)), phrase, "une phrase de la base qui contient ces mots passe telle quelle");
+  }
 });
 
 test("aucun tiret cadratin dans le module", () => {

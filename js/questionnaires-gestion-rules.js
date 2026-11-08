@@ -1,14 +1,14 @@
 // Règles de la section « Questionnaires » de la page Qualiopi (gestion, fondateur) : portée lue pour une promo, années du
 // questionnaire des formateurs, état de l'ouverture (selon les dates, ouvert ou fermé à la main) et boutons qui en découlent,
 // résumé des réponses, lignes de résultats question par question, commentaires montrables. PUR : ni DOM, ni réseau, ni horloge
-// (`aujourdhui` est passé en « AAAA-MM-JJ »). Testé en node (tests/questionnaires-gestion-rules.test.mjs).
+// (`aujourdhui` est passé en « AAAA-MM-JJ », `jourParis` reçoit l'instant). Testé en node (tests/questionnaires-gestion-rules.test.mjs).
 //
 // L'affichage part du catalogue (QUESTIONNAIRES[cle].questions), jamais des comptes rendus par la base : une question sans
 // aucune réponse s'affiche donc « moins de N réponses », comme une question sous le seuil.
 
 import { QUESTIONNAIRES, ECHELLE, seuilDe } from "./questionnaires-data.js?v=20261108a";
 import { fenetreQuestionnaire, resultatsAffichables, tauxSatisfaction, texteSousSeuil } from "./questionnaires-rules.js?v=20261108a";
-import { phraseDeLaBase } from "./questionnaires-erreurs.js?v=20261108a";
+import { phraseDeLaBase, PHRASE_RESEAU } from "./questionnaires-erreurs.js?v=20261108a";
 
 const ESPACE_INSECABLE = String.fromCharCode(0xa0);
 const FORMAT_JOUR = /^(\d{4})-(\d{2})-(\d{2})/;
@@ -20,6 +20,18 @@ const dateFr = (jour) => `${jour.slice(8, 10)}/${jour.slice(5, 7)}/${jour.slice(
 const periode = (fenetre) => `du ${dateFr(fenetre.du)} au ${dateFr(fenetre.au)}`;
 const entier = (v) => Number.isInteger(v) && v > 0;
 const pluriel = (n, singulier, pluriel_ = singulier + "s") => `${n} ${n > 1 ? pluriel_ : singulier}`;
+
+// Le jour « AAAA-MM-JJ » à Paris pour un instant donné. La base décide de l'ouverture avec le même jour :
+// _questionnaire_jour() vaut (now() at time zone 'Europe/Paris')::date (supabase/migrations/20261108_questionnaires.sql),
+// indépendamment du fuseau de la session. La page calcule donc l'état « selon les dates » avec ce jour-là, jamais avec le
+// fuseau de l'appareil, et le recalcule à chaque lecture. Nul si l'instant est illisible.
+const FORMAT_PARIS = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" });
+export function jourParis(instant) {
+  const date = instant instanceof Date ? instant : new Date(instant);
+  if (Number.isNaN(date.getTime())) return null;
+  const parties = Object.fromEntries(FORMAT_PARIS.formatToParts(date).map((p) => [p.type, p.value]));
+  return `${parties.year}-${parties.month}-${parties.day}`;
+}
 
 // Les trois questionnaires, dans l'ordre de la page, avec leur nom côté gestion (le titre du catalogue tutoie la personne
 // qui répond : « Ton avis sur la formation »).
@@ -185,13 +197,19 @@ export function commentairesMontrables(commentaires, { sansNoms, assez }) {
 }
 
 // Message d'une action de gestion qui échoue. Les fonctions de js/db.js lèvent déjà une Error au message lisible (la phrase de
-// la base, sans son préfixe) ; une erreur brute de la base est lue par phraseDeLaBase. La phrase de panne de js/db.js parle d'un
-// envoi : pour une lecture ou un changement d'ouverture, on dit ce qui n'a pas abouti (de même pour une panne brute du réseau).
+// la base, sans son préfixe) ; une erreur brute de la base est lue par phraseDeLaBase. Trois cas sont réécrits, et eux seuls :
+// un refus de droit (42501, ou une phrase « Réservé à... » qui reste telle quelle), la phrase de panne de js/db.js (elle parle d'un
+// envoi) et une panne brute du réseau (« Failed to fetch » et ses équivalents, seuls dans le message). Toute autre phrase de la
+// base passe telle quelle, même si elle contient « réseau » ou « délai ».
+const PHRASE_DROIT = "Réservé à la gestion de la qualité : ce compte n'a pas ce droit.";
+const PANNE_BRUTE = /^(TypeError:\s*)?(Failed to fetch|NetworkError when attempting to fetch resource\.?|Load failed|The network connection was lost\.?|Network request failed)$/i;
 function messageGestion(erreur, defaut) {
+  if (String(erreur?.code ?? "") === "42501") return PHRASE_DROIT;
   const brute = phraseDeLaBase(erreur);
   if (brute) return brute;
   const texte = String(erreur?.message ?? "").trim();
-  if (!texte || /^L'envoi n'a pas abouti|fetch|network|load failed|timeout/i.test(texte)) return defaut;
+  if (!texte || texte === PHRASE_RESEAU || PANNE_BRUTE.test(texte)) return defaut;
+  if (/permission denied/i.test(texte)) return PHRASE_DROIT;
   return texte;
 }
 

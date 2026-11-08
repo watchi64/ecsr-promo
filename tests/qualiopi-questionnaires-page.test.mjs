@@ -21,7 +21,7 @@ test("la page prend les lectures et l'ouverture de js/db.js, et ses règles du m
   const regles = lire("js/questionnaires-gestion-rules.js");
   const imports = [...regles.matchAll(/from "(\.\.?\/[^"]+)"/g)].map((m) => m[1]);
   assert.ok(imports.length === 3 && imports.every((a) => a.endsWith(`.js?v=${jeton}`)), "le module pur importe au jeton de l'app");
-  assert.ok(!/document\.|window\.|fetch\(|new Date\(/.test(sansCommentaires(regles)), "le module de règles est pur");
+  assert.ok(!/document\.|window\.|fetch\(|new Date\(\)|Date\.now/.test(sansCommentaires(regles)), "le module de règles est pur : il reçoit l'instant, il ne lit pas l'horloge");
 });
 
 test("la section se place entre les documents et les critères, et se lit sans retenir la page", () => {
@@ -55,6 +55,29 @@ test("ouverture : les trois états, et un retour au clavier après l'action", ()
   assert.match(codeVue, /messageEchecOuverture\(e\)/);
 });
 
+test("jour de Paris recalculé à chaque lecture, et jamais celui de l'appareil pour l'état des questionnaires", () => {
+  const section = codeVue.slice(codeVue.indexOf("const zoneQuestionnaires"), codeVue.indexOf("function recalculerInventaire()"));
+  assert.match(section, /qq\.jour = jourParis\(new Date\(\)\);/, "recalculé au début de chaque lecture");
+  assert.match(section, /aujourdhui: qq\.jour/, "l'état « selon les dates » prend ce jour");
+  assert.ok(!/\baujourdhui\b(?!: qq\.jour)/.test(section), "la section n'utilise jamais le jour de l'appareil (aujourdhui)");
+  assert.match(section, /if \(jourParis\(new Date\(\)\) !== qq\.jour\) \{/, "une action après minuit relit l'état au lieu d'agir");
+});
+
+test("année des formateurs : l'ancienne carte est vidée et les boutons attendent la nouvelle lecture", () => {
+  const fonction = codeVue.slice(codeVue.indexOf("function changerAnnee("), codeVue.indexOf("function ligneQui("));
+  assert.match(fonction, /fin_formateur: \{ chargement: true \}/);
+  assert.match(fonction, /b\.disabled = true;/);
+  assert.match(codeVue, /choixAnnee\.disabled = enAttente;/);
+});
+
+test("une lecture qui échoue reste dans sa carte ; message annoncé par une zone posée une fois", () => {
+  const lire = codeVue.slice(codeVue.indexOf("async function lireCarte("), codeVue.indexOf("function annoncer("));
+  assert.match(lire, /catch \(e\) \{[\s\S]*return \{ portee, erreur: messageLectureGestion\(e\) \};/);
+  assert.match(codeVue, /const annonceQq = el\("p", \{ class: "qq-annonce", role: "status", "aria-live": "polite" \}\);/);
+  assert.equal((codeVue.match(/role: "status"/g) || []).length, 2, "la zone annoncée et la ligne d'état des documents, rien de recréé dans les cartes");
+  assert.match(codeVue, /function afficherQuestionnaires\(\) \{\s*clear\(contenuQq\);/, "seul le contenu est redessiné, pas la zone annoncée");
+});
+
 test("migration absente : la section le dit sans erreur ; une lecture qui échoue dit « lus », pas « envoi »", () => {
   assert.match(codeVue, /"Les questionnaires ne sont pas encore en service\."/);
   assert.match(codeVue, /lu = \{ erreur: messageLectureGestion\(e\) \};/);
@@ -63,6 +86,10 @@ test("migration absente : la section le dit sans erreur ; une lecture qui échou
   assert.match(fonction, /PGRST205/);
   assert.match(fonction, /return null;/);
   assert.ok(!/L'envoi n'a pas abouti/.test(fonction));
+  // Les erreurs de gestion gardent le code de la base, pour qu'un refus de droit (42501) soit dit comme tel.
+  assert.match(db, /function erreurQuestionnaire\(error\) \{[\s\S]*?if \(error\?\.code\) erreur\.code = String\(error\.code\);/);
+  const gestion = db.slice(db.indexOf("export async function lireResultatsQuestionnaire("), db.indexOf("// --- ", db.indexOf("export async function ouvrirQuestionnaire(")) >>> 0);
+  assert.equal((gestion.match(/throw erreurQuestionnaire\(error\);/g) || []).length, 3, "résultats, commentaires, ouverture");
 });
 
 test("feuille de style : cibles de 44 px, pas de rouge, pas de défilement de côté", () => {

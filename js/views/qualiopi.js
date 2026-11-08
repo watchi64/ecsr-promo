@@ -43,7 +43,7 @@ import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261108a";
 import {
   QUESTIONNAIRES_GESTION, porteeGestion, anneesFormateur, libellePorteeFormateur, ouvertureDe, etatOuverture, actionsOuverture,
   messageOuverture, questionnairesAbsents, resumeReponses, satisfactionGlobale, lignesResultats, commentairesMontrables,
-  messageLectureGestion, messageEchecOuverture,
+  messageLectureGestion, messageEchecOuverture, jourParis,
 } from "../questionnaires-gestion-rules.js?v=20261108a";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
@@ -296,29 +296,46 @@ export async function renderQualiopi(container) {
   racine.appendChild(corps);
 
   // --- Questionnaires de satisfaction (Q3) : lus à part, sans retenir le reste de la page ---
+  // Le jour des questionnaires est celui de Paris, comme celui de la base (jourParis) ; il est recalculé à chaque lecture, pour
+  // qu'une page restée ouverte depuis la veille, ou un appareil réglé sur un autre fuseau, montre l'état que la base applique.
   const zoneQuestionnaires = el("section", { class: "qualiopi-questionnaires", "aria-labelledby": "qualiopi-titre-questionnaires" });
-  const anneeDuJour = Number(aujourdhui.slice(0, 4));
+  // Une seule zone annoncée (role="status"), posée une fois et jamais recréée : les cartes sont redessinées, pas elle.
+  const annonceQq = el("p", { class: "qq-annonce", role: "status", "aria-live": "polite" });
   // lu : null pendant la première lecture, { erreur }, { absent: true } (migration pas encore appliquée), ou { ouvertures, cartes }.
-  const qq = { lu: null, anneeFormateur: anneeDuJour, occupe: false };
+  // Une carte est { portee, resultats, commentaires }, { portee, erreur } si sa lecture échoue, ou { chargement: true }.
+  const qq = { lu: null, jour: jourParis(new Date()), anneeFormateur: null, occupe: false };
+  qq.anneeFormateur = Number(qq.jour.slice(0, 4));
   const statutsQq = new Map();       // clé du questionnaire : { texte, erreur }, le message de la dernière action, gardé au redessin
   let lectureQq = 0;                 // numéro de la dernière lecture des questionnaires
   const promosDuLieu = (promo) => promos.filter((p) => p.lieu_id != null && p.lieu_id === promo.lieu_id);
 
   // Une carte : sa portée, ses résultats, et ses commentaires lus seulement à partir du seuil (la base n'en rend aucun dessous).
+  // Une lecture qui échoue reste dans sa carte : les deux autres s'affichent.
   async function lireCarte(cle, promo) {
     const portee = porteeGestion(cle, promo, qq.anneeFormateur);
     if (!portee) return { portee: null, resultats: null, commentaires: [] };
-    const resultats = await lireResultatsQuestionnaire(cle, portee);
-    const commentaires = resumeReponses(cle, resultats).assez ? await lireCommentairesQuestionnaire(cle, portee) : [];
-    return { portee, resultats, commentaires };
+    try {
+      const resultats = await lireResultatsQuestionnaire(cle, portee);
+      const commentaires = resumeReponses(cle, resultats).assez ? await lireCommentairesQuestionnaire(cle, portee) : [];
+      return { portee, resultats, commentaires };
+    } catch (e) {
+      console.error(e);
+      return { portee, erreur: messageLectureGestion(e) };
+    }
+  }
+
+  function annoncer(texte) {
+    annonceQq.textContent = "";
+    if (texte) setTimeout(() => { annonceQq.textContent = texte; }, 50);   // vidée puis remplie : le même message est relu
   }
 
   // Lit les trois questionnaires de la promo. `focus` (après une action ou un changement d'année) : la section reste affichée
   // pendant la relecture, puis le focus revient à l'élément qui l'avait (clavier).
   async function chargerQuestionnaires(promo, focus = null) {
     const moi = ++lectureQq;
-    const annees = anneesFormateur(promosDuLieu(promo), aujourdhui);
-    if (!annees.includes(qq.anneeFormateur)) qq.anneeFormateur = annees[0] ?? anneeDuJour;
+    qq.jour = jourParis(new Date());
+    const annees = anneesFormateur(promosDuLieu(promo), qq.jour);
+    if (!annees.includes(qq.anneeFormateur)) qq.anneeFormateur = annees[0] ?? Number(qq.jour.slice(0, 4));
     if (!focus) {
       qq.lu = null;
       afficherQuestionnaires();
@@ -327,13 +344,13 @@ export async function renderQualiopi(container) {
     try {
       const [ouvertures, ...cartes] = await Promise.all([
         lireOuverturesQuestionnaires(), ...QUESTIONNAIRES_GESTION.map((q) => lireCarte(q.cle, promo))]);
-      const resultats = cartes.filter((c) => c.portee).map((c) => c.resultats);
+      const resultats = cartes.filter((c) => c.portee && !c.erreur).map((c) => c.resultats);
       lu = questionnairesAbsents({ ouvertures, resultats })
         ? { absent: true }
         : { ouvertures, cartes: Object.fromEntries(QUESTIONNAIRES_GESTION.map((q, i) => [q.cle, cartes[i]])) };
     } catch (e) {
       console.error(e);
-      lu = { erreur: messageLectureGestion(e) };
+      lu = { erreur: messageLectureGestion(e) };   // les ouvertures ne se lisent pas : aucun état n'est sûr, aucune carte
     }
     if (moi !== lectureQq || !pageVivante() || etat.promo !== promo) return;
     qq.lu = lu;
@@ -343,8 +360,17 @@ export async function renderQualiopi(container) {
 
   async function basculerQuestionnaire(cle, portee, valeur) {
     if (qq.occupe) return;
-    qq.occupe = true;
     const promo = etat.promo;
+    // Le jour a changé depuis l'affichage (page restée ouverte) : l'état montré n'est peut-être plus celui de la base. On relit
+    // sans rien changer, et on le dit.
+    if (jourParis(new Date()) !== qq.jour) {
+      statutsQq.clear();
+      statutsQq.set(cle, { texte: "Le jour a changé depuis l'affichage : l'état vient d'être relu, vérifie-le avant d'agir.", erreur: true });
+      annoncer(statutsQq.get(cle).texte);
+      await chargerQuestionnaires(promo, `button[data-cle="${cle}"]`);
+      return;
+    }
+    qq.occupe = true;
     zoneQuestionnaires.querySelectorAll("button[data-cle], select").forEach((b) => { b.disabled = true; });
     statutsQq.clear();
     try {
@@ -358,6 +384,37 @@ export async function renderQualiopi(container) {
     }
     if (!pageVivante() || etat.promo !== promo) return;
     await chargerQuestionnaires(promo, `button[data-cle="${cle}"]`);
+    annoncer(statutsQq.get(cle)?.texte);
+  }
+
+  // Changement d'année des formateurs : la carte de l'ancienne année est vidée et les boutons attendent la nouvelle lecture,
+  // pour qu'aucun clic n'agisse sur l'année d'avant.
+  function changerAnnee(annee) {
+    const promo = etat.promo;
+    qq.anneeFormateur = annee;
+    statutsQq.clear();
+    if (qq.lu?.cartes) {
+      qq.lu = { ...qq.lu, cartes: { ...qq.lu.cartes, fin_formateur: { chargement: true } } };
+      afficherQuestionnaires();
+      zoneQuestionnaires.querySelectorAll("button[data-cle]").forEach((b) => { b.disabled = true; });
+    }
+    chargerQuestionnaires(promo, "#qq-annee");
+  }
+
+  // Ligne « qui répond » ; pour les formateurs, le centre et l'année (au choix quand la fin des promos touche deux années).
+  function ligneQui(cle, qui, promo, enAttente) {
+    if (cle !== "fin_formateur") return el("p", { class: "qq-qui" }, qui);
+    const annees = anneesFormateur(promosDuLieu(promo), qq.jour);
+    const ligne = el("div", { class: "qq-qui" }, el("p", {}, libellePorteeFormateur(promo.lieu_nom, qq.anneeFormateur)));
+    if (annees.length > 1) {
+      const choixAnnee = el("select", { id: "qq-annee", class: "qualiopi-select qq-annee" },
+        ...annees.map((a) => el("option", { value: String(a) }, String(a))));
+      choixAnnee.value = String(qq.anneeFormateur);
+      choixAnnee.disabled = enAttente;
+      choixAnnee.addEventListener("change", () => changerAnnee(Number(choixAnnee.value)));
+      ligne.appendChild(el("p", { class: "qq-annee-ligne" }, el("label", { for: "qq-annee" }, "Année"), choixAnnee));
+    }
+    return ligne;
   }
 
   function carteQuestionnaire({ cle, titre, qui }) {
@@ -365,35 +422,23 @@ export async function renderQualiopi(container) {
     const carte = qq.lu.cartes[cle];
     const idTitre = "qq-titre-" + cle;
     const tete = el("div", { class: "qq-tete" }, el("h4", { id: idTitre, class: "qq-titre" }, titre));
+    const article = (...enfants) => el("article", { class: "qq-carte", "aria-labelledby": idTitre }, tete, ...enfants);
+    if (carte.chargement) return article(ligneQui(cle, qui, promo, true), el("div", { class: "loading" }, "Chargement"));
     if (!carte.portee) {
-      return el("article", { class: "qq-carte", "aria-labelledby": idTitre }, tete,
-        el("p", { class: "qq-qui" }, "Cette promo n'a pas de centre : le questionnaire des formateurs se lit par centre."));
+      return article(el("p", { class: "qq-qui" }, "Cette promo n'a pas de centre : le questionnaire des formateurs se lit par centre."));
+    }
+    if (carte.erreur) {
+      return article(ligneQui(cle, qui, promo, false),
+        el("div", { class: "qq-erreur" }, el("p", {}, carte.erreur),
+          el("button", { class: "btn", type: "button", "data-cle": cle, onClick: () => chargerQuestionnaires(etat.promo, `button[data-cle="${cle}"]`) }, "Réessayer")));
     }
     const etatO = etatOuverture({
-      cle, promo, promosDuLieu: promosDuLieu(promo), annee: qq.anneeFormateur, aujourdhui,
+      cle, promo, promosDuLieu: promosDuLieu(promo), annee: qq.anneeFormateur, aujourdhui: qq.jour,
       ouverture: ouvertureDe(qq.lu.ouvertures, cle, carte.portee),
     });
     tete.appendChild(el("span", { class: "qq-etat " + (etatO.ouvert ? "ouvert" : "ferme") }, etatO.etiquette));
     const resume = resumeReponses(cle, carte.resultats);
     const seuil = carte.resultats?.seuil;
-
-    // Qui répond ; pour les formateurs, le centre et l'année (au choix quand la fin des promos touche deux années).
-    let quiLigne = el("p", { class: "qq-qui" }, qui);
-    if (cle === "fin_formateur") {
-      const annees = anneesFormateur(promosDuLieu(promo), aujourdhui);
-      quiLigne = el("div", { class: "qq-qui" }, el("p", {}, libellePorteeFormateur(promo.lieu_nom, qq.anneeFormateur)));
-      if (annees.length > 1) {
-        const choixAnnee = el("select", { id: "qq-annee", class: "qualiopi-select qq-annee" },
-          ...annees.map((a) => el("option", { value: String(a) }, String(a))));
-        choixAnnee.value = String(qq.anneeFormateur);
-        choixAnnee.addEventListener("change", () => {
-          qq.anneeFormateur = Number(choixAnnee.value);
-          statutsQq.clear();
-          chargerQuestionnaires(promo, "#qq-annee");
-        });
-        quiLigne.appendChild(el("p", { class: "qq-annee-ligne" }, el("label", { for: "qq-annee" }, "Année"), choixAnnee));
-      }
-    }
 
     const chiffres = el("dl", { class: "qq-chiffres" },
       el("div", {}, el("dt", {}, "Ouverture"), el("dd", {}, etatO.detail)),
@@ -406,14 +451,15 @@ export async function renderQualiopi(container) {
           : el("dd", {}, `moins de ${seuil} notes à la question globale : pas de taux`)));
     }
 
+    // Les boutons suivent l'état effectif, calculé avec le jour de Paris de cette lecture (actionsOuverture).
     const statut = statutsQq.get(cle);
     const actions = el("div", { class: "qq-actions" },
       el("div", { class: "qualiopi-boutons" }, ...actionsOuverture(etatO).map((a) => el("button", {
         class: "btn", type: "button", "data-cle": cle, onClick: () => basculerQuestionnaire(cle, carte.portee, a.valeur),
       }, a.libelle))),
-      el("p", { class: "qq-statut" + (statut?.erreur ? " erreur" : ""), role: "status" }, statut?.texte ?? ""));
+      el("p", { class: "qq-statut" + (statut?.erreur ? " erreur" : "") }, statut?.texte ?? ""));
 
-    const corpsCarte = [tete, quiLigne, chiffres, actions];
+    const corpsCarte = [ligneQui(cle, qui, promo, false), chiffres, actions];
     if (!resume.assez) {
       corpsCarte.push(el("p", { class: "qq-aide" }, `Les résultats et les commentaires s'affichent à partir de ${seuil} réponses.`));
     } else {
@@ -433,20 +479,25 @@ export async function renderQualiopi(container) {
           : el("p", { class: "qq-aide qualiopi-commentaires" }, "Aucun commentaire écrit."));
       }
     }
-    return el("article", { class: "qq-carte", "aria-labelledby": idTitre }, ...corpsCarte);
+    return article(...corpsCarte);
   }
 
+  // L'en-tête de la section et la zone annoncée sont posés une fois ; seul le contenu est redessiné.
+  const contenuQq = el("div", { class: "qq-contenu" });
+  zoneQuestionnaires.append(
+    el("h3", { class: "qualiopi-titre", id: "qualiopi-titre-questionnaires" }, "Questionnaires de satisfaction"),
+    el("p", { class: "qualiopi-intro" },
+      "Réponses anonymes. Rien ne s'affiche sous le seuil : 5 réponses de stagiaires, 3 de formateurs."),
+    annonceQq,
+    contenuQq);
+
   function afficherQuestionnaires() {
-    clear(zoneQuestionnaires);
-    zoneQuestionnaires.append(
-      el("h3", { class: "qualiopi-titre", id: "qualiopi-titre-questionnaires" }, "Questionnaires de satisfaction"),
-      el("p", { class: "qualiopi-intro" },
-        "Réponses anonymes. Rien ne s'affiche sous le seuil : 5 réponses de stagiaires, 3 de formateurs."));
+    clear(contenuQq);
     const lu = qq.lu;
-    if (lu === null) zoneQuestionnaires.appendChild(el("div", { class: "loading" }, "Chargement"));
-    else if (lu.erreur) zoneQuestionnaires.appendChild(boiteErreur(lu.erreur, () => chargerQuestionnaires(etat.promo)));
-    else if (lu.absent) zoneQuestionnaires.appendChild(el("p", { class: "qualiopi-vide" }, "Les questionnaires ne sont pas encore en service."));
-    else zoneQuestionnaires.appendChild(el("div", { class: "qq-cartes" }, ...QUESTIONNAIRES_GESTION.map(carteQuestionnaire)));
+    if (lu === null) contenuQq.appendChild(el("div", { class: "loading" }, "Chargement"));
+    else if (lu.erreur) contenuQq.appendChild(boiteErreur(lu.erreur, () => chargerQuestionnaires(etat.promo)));
+    else if (lu.absent) contenuQq.appendChild(el("p", { class: "qualiopi-vide" }, "Les questionnaires ne sont pas encore en service."));
+    else contenuQq.appendChild(el("div", { class: "qq-cartes" }, ...QUESTIONNAIRES_GESTION.map(carteQuestionnaire)));
   }
 
   function recalculerInventaire() {

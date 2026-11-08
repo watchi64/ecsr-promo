@@ -249,7 +249,23 @@
 /* --- Questionnaires de satisfaction (Q3) : une carte par questionnaire, état en pastille, chiffres en mots ---
    Jamais de rouge : « Fermé » est gris, les réponses basses sont sable, les hautes vertes ; les nombres sont toujours écrits. */
 
-.qualiopi-questionnaires { display: flex; flex-direction: column; gap: 0.6rem; margin: 0 0 1.75rem; }
+.qualiopi-questionnaires { position: relative; display: flex; flex-direction: column; gap: 0.6rem; margin: 0 0 1.75rem; }
+/* Zone lue par les lecteurs d'écran après une action (le même message est écrit, visible, dans la carte). */
+.qq-annonce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+/* Une carte dont la lecture a échoué : fond doux, jamais rouge ; les autres cartes restent. */
+.qq-erreur { margin-top: 0.75rem; padding: 0.6rem 0.75rem; border-radius: var(--r-sm); background: var(--c-wait-soft); }
+.qq-erreur p { margin: 0 0 0.5rem; font-size: 0.9rem; line-height: 1.45; color: var(--text); }
 .qq-cartes {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
