@@ -489,6 +489,64 @@ la branche n'est pas fusionnée dans `main`.
   WebKit joué par Playwright (montage, nettoyage, largeur) sauf la pagination PDF, vue dans Chromium seulement ; page
   réservée au fondateur jusqu'à la refonte du lot 5.
 
+## Questionnaires anonymes (Qualiopi Q3, novembre 2026, branche `qualiopi-q3`)
+
+Spec : `docs/superpowers/specs/2026-11-08-qualiopi-q3-q5-design.md` (§ 4) · plan :
+`docs/superpowers/plans/2026-11-08-qualiopi-q3-questionnaires.md` · textes à valider :
+`docs/superpowers/specs/2026-11-08-qualiopi-q3-textes.md` (section « Points à trancher » en tête). État au 09/11/2026 :
+construit et prouvé en local, **migration non appliquée**, branche non fusionnée.
+
+- **Trois questionnaires** (`js/questionnaires-data.js`, versionnés) : fin de formation (stagiaires, de J-7 à J+30 de la
+  fin de la promo), six mois après (de +6 à +7 mois), formateurs (par centre et par année civile). Échelle de 1 à 4 plus
+  « Sans avis » (null), une question « globalement » qui donne le taux de satisfaction (réponses 3 ou 4 parmi les notes).
+- **Écran** (`js/questionnaire.js`, règles pures `js/questionnaire-ecran-rules.js`) : bandeau sur l'Accueil (deux
+  navigations) et dans Mon espace, « Plus tard » remis au lendemain (mémoire de l'appareil, par compte et par portée),
+  fenêtre à une question par écran sur la mécanique de `js/nav-fenetre.js` (focus, Tab gardé, Échap ; progression
+  annoncée en `aria-live` ; focus rendu au point de retour quand « Répondre » manque), lien direct
+  `#/questionnaire/<clé>` (ouvre la fenêtre sur l'Accueil, ou un mot doux ; rien si la personne a quitté l'Accueil avant
+  l'arrivée de la liste). Brouillon en mémoire de la session seulement.
+- **Gestion** : section « Questionnaires de satisfaction » de la page Qualiopi (`js/views/qualiopi.js`, règles
+  `js/questionnaires-gestion-rules.js`) : état (selon les dates, au jour de Paris comme la base, ou ouvert ou fermé à la
+  main), résultats question par question, commentaires (écran seulement, masqués par « Sans aucun nom », jamais
+  imprimés). Branchements Qualiopi (`js/qualiopi-preuves.js`, `-documents.js`, `-resultats.js`) : pièce
+  « appréciations » (indicateurs 30 et 32), taux par promo ; une lecture en échec dit « non lue », seule la fonction absente
+  (migration non appliquée) dit « pas encore en service » (décision R9).
+- **Anonymat par construction** (migration `supabase/migrations/20261108_questionnaires.sql`) : la réponse n'a ni compte,
+  ni date, ni numéro d'ordre ; la participation (compte et portée, sans date) est une table à part qui sert seulement à
+  refuser une deuxième réponse. Aucune politique de lecture sur les réponses : tout passe par des fonctions. Contre le
+  recoupement par l'ordre ou par la transaction (xmin) : chaque réponse réécrit toutes celles de sa portée dans un ordre
+  aléatoire avec de nouveaux identifiants (rebrassage), sous un **verrou consultatif par portée** (deux envois simultanés
+  ne laissent pas l'un hors du rebrassage), et le commentaire est recopié (`commentaire || ''`) pour qu'un texte long,
+  rangé à part (TOAST), ne garde pas le xmin de son envoi. Limite écrite : un compte supprimé puis recréé pourrait répondre
+  deux fois (repris avec la conservation, lot Q5).
+- **Seuils** : rien sous 5 réponses de stagiaires, 3 de formateurs (`seuilDe`), ni taux, ni compte, ni commentaire, à
+  l'écran, dans un document ou dans le CSV ; la base applique le seuil elle-même. Commentaires : fondateur seul, ordre
+  aléatoire, à partir du seuil.
+- **Droits (lot 4)** : stagiaire = sa fiche (non anonymisée) dans la promo, hors aperçu ou en aperçu stagiaire sur la
+  promo affichée ; formateur = hors aperçu, sans fiche, rôle formateur (`roles_reels`) sur au moins une promo du centre
+  (décision R1 : le planning ne relie pas les formateurs aux comptes) ; gestion = `peut_gerer_qualite()`, qui vaut
+  `est_fondateur()` (fondateur réel, hors aperçu) ; commentaires = `est_fondateur()`. La direction et le siège attendent
+  le lot 5, qui élargira `peut_gerer_qualite()` en un seul endroit.
+- **Banc** (faux Supabase `_harness_supabase.js`, non versionné, section « Questionnaires anonymes ») : les cinq fonctions
+  simulées avec les mêmes refus et les mêmes droits (aperçu lu dans `ecsr_view_as`). Leviers :
+  `questionnaires=absent` (migration non appliquée), `questionnaires_jour=AAAA-MM-JJ` (jour de la base, défaut
+  2026-12-05), `questionnaires_n` et `questionnaires_n_formateur` (réponses semées), `questionnaires_ouverture=ferme|ouvert`,
+  `questionnaires_panne=lecture|ouvrir|commentaires|droit`, `questionnaires_lenteur=<ms>` (liste en retard),
+  `fiche=<id>` avec `centre=1&role=stagiaire&fondateur=0` (stagiaire de la promo de démonstration 7, par exemple 1634).
+  Fondateur : `centre=1&demo=1&qualiopi=1&role=fondateur&questionnaires_n=8` puis `#/qualiopi`. Robot : parcours
+  `repondre-au-questionnaire` (`outils/parcours/questionnaires.py`).
+- **Preuve locale** (`tests/sql/questionnaires-preuve.sql`, recette dans son en-tête) : Postgres jetable de scoop, schéma
+  minimal du lot 4 (`tests/sql/questionnaires-schema-minimal.sql`, `-v lot4_fonctions=`), migration et retour joués par
+  `EXECUTE` entre deux empreintes, levée finale qui annule tout. Attendu : VERT 209/0 (207/0 sur une base où la migration
+  est déjà appliquée). **Piège** : appliquer la migration par `psql -f` sous Windows sans `PGCLIENTENCODING=UTF8`
+  enregistre les messages d'erreur en mauvais encodage (chaque lettre accentuée devient deux caractères), et l'app
+  les montre tels quels.
+- **Attend l'accord de Timy** : les textes (questions, conditions d'utilisation version 2026-11-08 et ses huit points à
+  trancher) ; l'application de la migration en production, puis un contrôle sur la base réelle ; la date de l'entrée
+  Nouveautés (écrite au 04/12/2026, à corriger au jour réel de mise en ligne avant la poussée, décision R3). Tant que la
+  migration n'est pas appliquée, l'app ne montre rien et n'affiche aucune erreur (décision R2) : fusion et poussée après
+  l'application seulement.
+
 ## Émargement signé (octobre 2026)
 
 Spec : `docs/superpowers/specs/2026-10-23-emargement-design.md` · plan :
