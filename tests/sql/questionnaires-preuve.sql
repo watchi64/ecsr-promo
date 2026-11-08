@@ -18,18 +18,30 @@
 -- (pg_read_file lit les deux fichiers côté serveur : superutilisateur local seulement. Sur une autre base, remplacer
 -- les deux pg_read_file par le texte des fichiers.)
 --
+-- Envois simultanés (hors de ce fichier : une preuve ne joue qu'une session). Sur la base locale, migration appliquée,
+-- une promo à J+3 et quatre stagiaires : S1 puis S2 répondent ; puis, en même temps, S3 dans une session qui garde sa
+-- transaction ouverte 4 s après son envoi (pg_sleep) et S4 dans une seconde session lancée 1 s plus tard. On relève
+-- ensuite « select xmin, count(*) from questionnaire_reponses group by 1 » et le xmin de chaque participation.
+-- Attendu : une seule ligne de réponses (4 réponses, xmin de S4, le dernier servi). Sans verrou, la réponse de S4
+-- resterait seule avec le xmin de sa participation.
+--
 -- Résultats du 08/11/2026 (Postgres 18.4 local, port 55441, base recréée à chaque passage) :
 --   - avant la migration (fichiers de migration et de retour vides) : échec, « relation questionnaire_questions does
 --     not exist » ;
---   - migration du dépôt : VERT 124/0 (trois passages) ; base où la migration est déjà appliquée : VERT 122/0 (les deux
---     cas du retour ne se jouent pas), aucune ligne laissée ;
---   - contre-épreuve 1 (colonne created_at ajoutée aux réponses) : ROUGE 121/3, sur « colonnes des réponses »,
+--   - correction 1 (relecture du 08/11) : VERT 144/0 (trois passages) ; base où la migration est déjà appliquée :
+--     VERT 142/0 (les deux cas du retour ne se jouent pas), aucune ligne laissée ;
+--   - contre-épreuve 1 (colonne created_at ajoutée aux réponses) : ROUGE 141/3, sur « colonnes des réponses »,
 --     « aucune colonne de date… » et « seule valeur par défaut… » ;
---   - contre-épreuve 2 (règle et droit de lecture des réponses pour tout compte connecté) : ROUGE 119/5, sur « aucune
+--   - contre-épreuve 2 (règle et droit de lecture des réponses pour tout compte connecté) : ROUGE 139/5, sur « aucune
 --     règle de lecture », « aucun droit des rôles de l'API » et la lecture directe par A1, F1 et T ;
---   - contre-épreuve 3 (brassage retiré) : ROUGE 123/1, sur le seul cas « xmin » (5 numéros pour 5 réponses) ;
---   - contre-épreuve 4 (seuil ramené à 1) : ROUGE 118/6, sur les seuls cas de seuil (stagiaires et formateurs) ;
---   - retour joué hors preuve (psql -f) : empreinte du schéma 66ec4630… avant, 65c53fdf… migration appliquée,
+--   - contre-épreuve 3 (brassage retiré) : ROUGE 142/2, sur « xmin » (5 numéros pour 5 réponses) et « TOAST » ;
+--   - contre-épreuve 4 (seuil ramené à 1) : ROUGE 138/6, sur les seuls cas de seuil (stagiaires et formateurs) ;
+--   - contre-épreuve 5 (verrou par portée retiré) : ROUGE 143/1, sur le seul cas « verrou » ; au test à deux sessions,
+--     deux passages : réponses xmin S3 x3 et xmin S4 x1 (S4 reliée à sa participation) ; avec le verrou, deux
+--     passages : un seul xmin pour les 4 réponses, celui de S4 ;
+--   - contre-épreuve 6 (commentaire non recopié au brassage) : ROUGE 143/1, sur le seul cas « TOAST » (morceaux au
+--     xmin de l'envoi de A2, lignes au xmin de A5) ;
+--   - retour joué hors preuve (psql -f) : empreinte du schéma 66ec4630… avant, 24c0efd4… migration appliquée,
 --     66ec4630… après le retour ; plus aucune table ni fonction des questionnaires.
 
 select length(set_config('preuve.migration', pg_read_file(:'migration'), false)) as migration_lue,
@@ -79,6 +91,7 @@ declare
   pP1 jsonb; pP2 jsonb; pP3 jsonb; pP5 jsonb; pL1 jsonb; pL2 jsonb; pL3 jsonb;
   r text; j jsonb; n bigint; m bigint; t text;
   c record; v_ok integer; v_ko integer; v_detail text; v_ordres text[];
+  Pb1 integer; Pb2 integer; Pb3 integer; Pb4 integer; v_long text; v_toast text; v_xmin text; f record;
 begin
   -- 0. Outils de la preuve (schéma temporaire, annulés avec le reste) ------------------------------------------------
   execute $q$
@@ -135,6 +148,14 @@ begin
   insert into promos (lieu_id, nom, date_debut, date_fin) values (L2, 'Preuve P4', v_jour - 50, null) returning id into P4;
   insert into promos (lieu_id, nom, date_debut, date_fin)
     values (L2, 'Preuve P5', v_jour - 700, (v_jour - interval '6 months' - interval '5 days')::date) returning id into P5;
+  -- Bornes de la fin de formation : J+7 et J-30 ouvertes (premier et dernier jour), J+8 et J-31 fermées.
+  insert into promos (lieu_id, nom, date_debut, date_fin) values (L1, 'Preuve borne J+7', v_jour - 300, v_jour + 7) returning id into Pb1;
+  insert into promos (lieu_id, nom, date_debut, date_fin) values (L1, 'Preuve borne J+8', v_jour - 300, v_jour + 8) returning id into Pb2;
+  insert into promos (lieu_id, nom, date_debut, date_fin) values (L1, 'Preuve borne J-30', v_jour - 300, v_jour - 30) returning id into Pb3;
+  insert into promos (lieu_id, nom, date_debut, date_fin) values (L1, 'Preuve borne J-31', v_jour - 300, v_jour - 31) returning id into Pb4;
+  -- Commentaire long et incompressible (2 000 idéogrammes pseudo-aléatoires, 6 000 octets) : rangé dans la table TOAST.
+  select string_agg(chr(19968 + (('x' || substr(md5(i::text), 1, 4))::bit(16)::integer % 20000)), '' order by i)
+    into v_long from generate_series(1, 2000) i;
   pP1 := jsonb_build_object('promo_id', P1); pP2 := jsonb_build_object('promo_id', P2);
   pP3 := jsonb_build_object('promo_id', P3); pP5 := jsonb_build_object('promo_id', P5);
   pL1 := jsonb_build_object('lieu_id', L1, 'annee', y); pL2 := jsonb_build_object('lieu_id', L2, 'annee', y);
@@ -224,6 +245,48 @@ begin
     to_regclass('public.questionnaire_reponses') is not null and n = 0, n::text);
   select count(*) into n from questionnaire_questions where version = 1;
   perform pg_temp.cas('19 questions en version 1 (miroir de questionnaires-data.js)', n = 19, n::text);
+  -- Envois simultanés : la preuve ne joue qu'une session ; le test à deux sessions est décrit dans l'en-tête. Ici, le
+  -- verrou par portée doit être pris avant l'écriture de la participation.
+  t := pg_get_functiondef(to_regprocedure('public.repondre_questionnaire(text, jsonb, integer, jsonb, text)'));
+  perform pg_temp.cas('verrou par portée pris avant l''écriture de la participation',
+    position('pg_advisory_xact_lock(' in t) > 0
+    and position('pg_advisory_xact_lock(' in t) < position('insert into questionnaire_participations' in t),
+    coalesce(position('pg_advisory_xact_lock(' in t), -1) || ' / ' || coalesce(position('insert into questionnaire_participations' in t), -1));
+  select string_agg(confdeltype::text, ',') into t from pg_constraint
+   where conrelid = to_regclass('public.questionnaire_reponses') and contype = 'f';
+  perform pg_temp.cas('supprimer une promo ou un lieu qui porte des réponses est refusé (on delete restrict)', t = 'r,r', t);
+  select count(*) into n
+    from (values ('anon'), ('service_role')) ro(rol),
+         (values ('public.questionnaire_reponses'), ('public.questionnaire_participations'),
+                 ('public.questionnaire_ouvertures'), ('public.questionnaire_questions')) ta(tab),
+         (values ('select'), ('insert'), ('update'), ('delete'), ('truncate')) pr(priv)
+   where to_regclass(ta.tab) is not null and has_table_privilege(ro.rol, ta.tab, pr.priv);
+  perform pg_temp.cas('anon et service_role : aucun droit sur les quatre tables',
+    to_regclass('public.questionnaire_questions') is not null and n = 0, n::text);
+  select string_agg(ta.tab || ':' || pr.priv, ',' order by ta.tab, pr.priv) into t
+    from (values ('public.questionnaire_ouvertures'), ('public.questionnaire_questions')) ta(tab),
+         (values ('select'), ('insert'), ('update'), ('delete'), ('truncate')) pr(priv)
+   where to_regclass(ta.tab) is not null and has_table_privilege('authenticated', ta.tab, pr.priv);
+  perform pg_temp.cas('authenticated : la seule lecture des ouvertures, rien sur les questions',
+    t = 'public.questionnaire_ouvertures:select', t);
+
+  -- Fenêtres : dates fixes (fin de mois, année bissextile, Nîmes), comme fenetreQuestionnaire() en JS
+  for f in select * from (values
+      ('six_mois_stagiaire', date '2026-08-31', date '2027-02-28', date '2027-03-31'),
+      ('six_mois_stagiaire', date '2027-08-31', date '2028-02-29', date '2028-03-31'),
+      ('six_mois_stagiaire', date '2026-12-11', date '2027-06-11', date '2027-07-11'),
+      ('fin_stagiaire', date '2026-12-11', date '2026-12-04', date '2027-01-10'),
+      ('fin_formateur', date '2026-03-03', date '2026-02-24', date '2026-04-02')) v(cle, fin, du, au) loop
+    select w.du || '/' || w.au into t from _questionnaire_fenetre(f.cle, f.fin) w;
+    perform pg_temp.cas(format('fenêtre %s pour une fin au %s', f.cle, f.fin), t = f.du || '/' || f.au, t);
+  end loop;
+  select count(*) into n from _questionnaire_fenetre('fin_stagiaire', null) w where w.du is null and w.au is null;
+  perform pg_temp.cas('aucune fenêtre sans date de fin', n = 1, n::text);
+  -- Bornes au jour près, sur des promos réelles (aucune ouverture manuelle)
+  perform pg_temp.cas('fin de formation ouverte à J+7 (premier jour)', _questionnaire_ouvert('fin_stagiaire', Pb1, null, null), null);
+  perform pg_temp.cas('fin de formation fermée à J+8 (la veille)', not _questionnaire_ouvert('fin_stagiaire', Pb2, null, null), null);
+  perform pg_temp.cas('fin de formation ouverte à J-30 (dernier jour)', _questionnaire_ouvert('fin_stagiaire', Pb3, null, null), null);
+  perform pg_temp.cas('fin de formation fermée à J-31 (le lendemain)', not _questionnaire_ouvert('fin_stagiaire', Pb4, null, null), null);
 
   -- 4. Aucune lecture ni écriture directe, pour aucun rôle --------------------------------------------------------
   set local role authenticated;
@@ -248,6 +311,14 @@ begin
   perform pg_temp.cas('questionnaires_a_remplir refusé à anon', r like '42501%', r);
   r := pg_temp.essai('fin_stagiaire', pP1, 1, pg_temp.rep_fin('3'));
   perform pg_temp.cas('repondre_questionnaire refusé à anon', r like '42501%', r);
+  foreach t in array array[
+      format('select public.resultats_questionnaire(%L, %L::jsonb)', 'fin_stagiaire', pP1),
+      format('select public.commentaires_questionnaire(%L, %L::jsonb)', 'fin_stagiaire', pP1),
+      format('select public.ouvrir_questionnaire(%L, %L::jsonb, true)', 'fin_stagiaire', pP1),
+      'select public.peut_gerer_qualite()'] loop
+    r := pg_temp.tente(t);
+    perform pg_temp.cas('refusé à anon : ' || split_part(split_part(t, 'public.', 2), '(', 1), r like '42501%', r);
+  end loop;
   reset role;
 
   -- 5. Ce que chacun a à remplir, au départ -------------------------------------------------------------------------
@@ -319,8 +390,8 @@ begin
   select count(*) into n from questionnaires_a_remplir();
   perform pg_temp.cas('après sa réponse, A1 n''a plus rien à remplir', n = 0, n::text);
   perform pg_temp.qui('A2');
-  r := pg_temp.essai('fin_stagiaire', pP1, 1, pg_temp.rep_fin('4', '3'), null);
-  perform pg_temp.cas('A2 répond', r = 'ok', r);
+  r := pg_temp.essai('fin_stagiaire', pP1, 1, pg_temp.rep_fin('4', '3'), v_long);
+  perform pg_temp.cas('A2 répond (commentaire long, rangé à part)', r = 'ok', r);
   perform pg_temp.qui('A3');
   r := pg_temp.essai('fin_stagiaire', pP1, 1, pg_temp.rep_fin('3', 'null'), 'Salle froide');
   perform pg_temp.cas('A3 répond', r = 'ok', r);
@@ -347,7 +418,8 @@ begin
     (select count(*) from jsonb_object_keys(j -> 'questions')) = 8, (j -> 'questions')::text);
   perform pg_temp.cas('question facultative à 3 réponses masquée', not ((j -> 'questions') ? 'app'), (j -> 'questions')::text);
   select string_agg(x, '|' order by x) into t from commentaires_questionnaire('fin_stagiaire', pP1) x;
-  perform pg_temp.cas('à 5 réponses, les commentaires non vides sont rendus au fondateur', t = 'Bien|Merci|Salle froide', t);
+  perform pg_temp.cas('à 5 réponses, les commentaires non vides sont rendus au fondateur',
+    t = (select string_agg(e, '|' order by e) from unnest(array['Bien', 'Merci', 'Salle froide', v_long]) e), left(t, 60));
   v_ordres := '{}';
   for i in 1..20 loop
     select string_agg(x, '|') into t from commentaires_questionnaire('fin_stagiaire', pP1) x;
@@ -361,6 +433,21 @@ begin
   select count(distinct xmin::text), count(*) into n, m from questionnaire_reponses where cle = 'fin_stagiaire' and promo_id = P1;
   perform pg_temp.cas('xmin : les 5 réponses de la portée partagent un seul numéro de transaction (aucun appariement)',
     n = 1 and m = 5, n || ' numéros pour ' || m || ' réponses');
+  -- Le commentaire long de A2 (écrit dans la sous-transaction de A2) est dans la table TOAST : ses morceaux doivent
+  -- porter le numéro de la dernière transaction (celle de A5), comme les lignes, et non celui de l'envoi de A2.
+  select min(xmin::text) into v_xmin from questionnaire_reponses where cle = 'fin_stagiaire' and promo_id = P1;
+  select reltoastrelid::regclass::text into v_toast from pg_class where oid = 'public.questionnaire_reponses'::regclass;
+  -- Postgres 17 et plus : les seuls morceaux des réponses de P1 ; avant : toute la table TOAST (aucun autre commentaire
+  -- long attendu dans la base où l'on joue la preuve).
+  if to_regproc('pg_column_toast_chunk_id') is not null then
+    execute format('select count(*), count(distinct xmin::text), min(xmin::text) from %s where chunk_id in (
+      select pg_column_toast_chunk_id(commentaire) from public.questionnaire_reponses
+       where cle = %L and promo_id = %s)', v_toast, 'fin_stagiaire', P1) into n, m, t;
+  else
+    execute format('select count(*), count(distinct xmin::text), min(xmin::text) from %s', v_toast) into n, m, t;
+  end if;
+  perform pg_temp.cas('TOAST : le commentaire long est rangé à part, et ses morceaux portent le numéro des lignes',
+    n > 0 and m = 1 and t = v_xmin, n || ' morceaux, ' || m || ' numéro(s), ' || coalesce(t, 'aucun') || ' / lignes ' || v_xmin);
 
   -- 8. Non-ayants droit et fenêtres ------------------------------------------------------------------------------------
   set local role authenticated;
@@ -401,6 +488,10 @@ begin
   select count(*) into n from questionnaire_participations p join pg_temp.preuve_comptes k on k.uid = p.user_id
    where k.nom in ('B', 'X', 'N', 'Z', 'C') or (k.nom = 'F1' and p.cle <> 'fin_formateur');
   perform pg_temp.cas('aucun refus n''a laissé de participation', n = 0, n::text);
+  select string_agg(p.cle, ',' order by p.cle) into t
+    from questionnaire_participations p join pg_temp.preuve_comptes k on k.uid = p.user_id where k.nom = 'D';
+  perform pg_temp.cas('D : une seule participation, au questionnaire à six mois (ses refus n''ont rien laissé)',
+    t = 'six_mois_stagiaire', t);
 
   -- 9. Ouverture manuelle : gestion seulement ; elle prime dans les deux sens --------------------------------------
   set local role authenticated;

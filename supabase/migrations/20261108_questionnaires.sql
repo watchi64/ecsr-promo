@@ -21,11 +21,26 @@
 --    participation écrites ensemble porteraient le même, et l'ordre de ces numéros (comme l'ordre physique des lignes)
 --    suivrait l'ordre d'arrivée. Chaque nouvelle réponse réécrit donc toutes les réponses de sa portée, une à une dans
 --    un ordre tiré au hasard et avec un nouvel identifiant : elles partagent alors toutes le numéro de la dernière
---    transaction, et leur rang physique ne dit plus rien de leur arrivée.
+--    transaction. Le commentaire et les réponses sont recopiés au passage (commentaire || '', reponses || '{}') : une
+--    valeur longue, rangée à part dans la table TOAST de Postgres, y garderait sinon le numéro de transaction de son
+--    envoi et un identifiant de morceau croissant (l'ordre d'arrivée).
+--  - Deux envois simultanés dans une même portée : sans précaution, le brassage du second sauterait les lignes que le
+--    premier tient verrouillées, et la réponse du second resterait seule avec son numéro, celui de sa participation.
+--    Un verrou consultatif par portée (pg_advisory_xact_lock), pris avant le contrôle de la fenêtre et de la première
+--    réponse, met donc les envois d'une portée en file : le second attend la fin du premier, puis voit et brasse
+--    toutes les réponses.
 --  - Reste hors de portée de la base : les sauvegardes et le journal des transactions gardent l'historique ; les
 --    anciennes versions des lignes restent lisibles par un superutilisateur (extension pageinspect) jusqu'au passage du
---    nettoyage automatique ; et quelqu'un qui relèverait les résultats après chaque réponse en déduirait la dernière
---    par différence (le seuil limite ce risque sans l'annuler).
+--    nettoyage automatique ; quelqu'un qui relèverait les résultats après chaque réponse en déduirait la dernière par
+--    différence (le seuil limite ce risque sans l'annuler) ; pour qui lit les tables elles-mêmes (éditeur SQL), une
+--    portée qui n'a qu'une participation relie celle-ci à son unique réponse (une chance sur deux à deux répondants) :
+--    c'est inhérent au modèle, seuls les écrans et les documents appliquent le seuil ; enfin le rang physique n'est
+--    brassé qu'à peu près : une ligne réécrite reste sur sa page quand il y a de la place, et sur plusieurs pages, la
+--    page d'une réponse garde un lien grossier avec l'époque de son arrivée.
+--  - La participation est liée au compte (auth.users, effacée avec lui) : un compte supprimé puis recréé (nouvel
+--    identifiant, même adresse) pourrait répondre une seconde fois. À reprendre avec la conservation (lot Q5).
+--  - Les réponses sont des preuves Qualiopi (3 ans) : supprimer une promo ou un lieu qui en porte est refusé
+--    (on delete restrict) ; l'app ne supprime ni promo ni lieu.
 --
 -- Écart à la spec (décision R1 du contrôleur, 08/11) : le § 10 désigne les formateurs du planning (prof_ids), mais la
 -- liste profs du planning n'est reliée à aucun compte. Est donc ayant droit au questionnaire fin_formateur d'un lieu
@@ -106,8 +121,8 @@ create table public.questionnaire_reponses (
   id uuid primary key default gen_random_uuid(),
   cle text not null check (cle in ('fin_stagiaire', 'six_mois_stagiaire', 'fin_formateur')),
   version integer not null check (version >= 1),
-  promo_id integer references public.promos(id) on delete cascade,
-  lieu_id integer references public.lieux(id) on delete cascade,
+  promo_id integer references public.promos(id) on delete restrict,
+  lieu_id integer references public.lieux(id) on delete restrict,
   annee integer check (annee between 2000 and 2100),
   reponses jsonb not null check (jsonb_typeof(reponses) = 'object'),
   commentaire text check (commentaire is null or char_length(commentaire) between 1 and 2000),
@@ -214,28 +229,38 @@ returns boolean language sql stable set search_path to 'public', 'pg_temp' as $f
     else false end;
 $function$;
 
+-- Fenêtre d'un questionnaire pour une date de fin, bornes comprises (fenetreQuestionnaire() de
+-- js/questionnaires-rules.js) : fin_stagiaire et fin_formateur de J-7 à J+30 ; six_mois_stagiaire de +6 mois à +7 mois,
+-- ramené au dernier jour du mois quand le jour n'existe pas (31/08 + 6 mois = 28/02). Nulle sans date de fin.
+create function public._questionnaire_fenetre(p_cle text, p_date_fin date, out du date, out au date)
+language sql immutable set search_path to 'public', 'pg_temp' as $function$
+  select case when p_cle = 'six_mois_stagiaire' then (p_date_fin + interval '6 months')::date
+              when p_cle in ('fin_stagiaire', 'fin_formateur') then p_date_fin - 7 end,
+         case when p_cle = 'six_mois_stagiaire' then (p_date_fin + interval '7 months')::date
+              when p_cle in ('fin_stagiaire', 'fin_formateur') then p_date_fin + 30 end;
+$function$;
+
 -- Le questionnaire est-il ouvert aujourd'hui pour cette portée ? Comme estOuvert() de js/questionnaires-rules.js :
--- l'ouverture manuelle prime ; sinon la fenêtre (bornes comprises) d'une promo à date de fin connue. Pour les
--- formateurs : l'année de la portée est celle du jour, et une promo du lieu au moins est dans sa fenêtre.
+-- l'ouverture manuelle prime ; sinon la fenêtre d'une promo à date de fin connue. Pour les formateurs : l'année de la
+-- portée est celle du jour, et une promo du lieu au moins est dans sa fenêtre.
 create function public._questionnaire_ouvert(p_cle text, p_promo integer, p_lieu integer, p_annee integer)
 returns boolean language sql stable set search_path to 'public', 'pg_temp' as $function$
   select coalesce(
     (select o.ouvert from questionnaire_ouvertures o
       where o.cle = p_cle and o.promo_id is not distinct from p_promo
         and o.lieu_id is not distinct from p_lieu and o.annee is not distinct from p_annee),
-    case p_cle
-      when 'fin_stagiaire' then exists (
-        select 1 from promos pr where pr.id = p_promo and d.jour between pr.date_fin - 7 and pr.date_fin + 30)
-      when 'six_mois_stagiaire' then exists (
-        select 1 from promos pr where pr.id = p_promo
-           and d.jour between (pr.date_fin + interval '6 months')::date and (pr.date_fin + interval '7 months')::date)
-      when 'fin_formateur' then p_annee = extract(year from d.jour)::integer and exists (
-        select 1 from promos pr where pr.lieu_id = p_lieu and d.jour between pr.date_fin - 7 and pr.date_fin + 30)
-      else false end)
+    case when p_cle in ('fin_stagiaire', 'six_mois_stagiaire') then exists (
+           select 1 from promos pr, _questionnaire_fenetre(p_cle, pr.date_fin) f
+            where pr.id = p_promo and d.jour between f.du and f.au)
+         when p_cle = 'fin_formateur' then p_annee = extract(year from d.jour)::integer and exists (
+           select 1 from promos pr, _questionnaire_fenetre(p_cle, pr.date_fin) f
+            where pr.lieu_id = p_lieu and d.jour between f.du and f.au)
+         else false end)
   from (select _questionnaire_jour() as jour) d;
 $function$;
 
 revoke all on function public._questionnaire_jour(), public._questionnaire_public(text),
+  public._questionnaire_fenetre(text, date),
   public._questionnaire_seuil(text), public._questionnaire_version(text),
   public._questionnaire_portee(text, jsonb), public._questionnaire_ayant_droit(text, integer, integer),
   public._questionnaire_ouvert(text, integer, integer, integer)
@@ -304,6 +329,10 @@ begin
   if not _questionnaire_ayant_droit(p_cle, v_portee.promo_id, v_portee.lieu_id) then
     raise exception 'questionnaire: Ce questionnaire ne te concerne pas.';
   end if;
+  -- Une portée à la fois (voir l'en-tête) : un envoi simultané dans la même portée attend la fin de celui-ci ; les
+  -- instructions suivantes, chacune avec un instantané neuf, voient alors ses lignes validées.
+  perform pg_advisory_xact_lock(hashtext('questionnaire:' || p_cle || ':'
+    || coalesce(v_portee.promo_id::text, v_portee.lieu_id::text || '/' || v_portee.annee::text)));
   if not _questionnaire_ouvert(p_cle, v_portee.promo_id, v_portee.lieu_id, v_portee.annee) then
     raise exception 'questionnaire: Ce questionnaire est fermé.';
   end if;
@@ -353,14 +382,16 @@ begin
   values (p_cle, v_version, v_portee.promo_id, v_portee.lieu_id, v_portee.annee, p_reponses, v_commentaire);
 
   -- Brassage (voir l'en-tête) : toutes les réponses de la portée sont réécrites, dans un ordre tiré au hasard et avec
-  -- un nouvel identifiant ; aucune ne garde le numéro de transaction ni le rang de son arrivée.
+  -- un nouvel identifiant ; commentaire et réponses recopiés pour que leurs morceaux TOAST soient réécrits aussi.
   for v_id in
     select r.id from questionnaire_reponses r
      where r.cle = p_cle and r.promo_id is not distinct from v_portee.promo_id
        and r.lieu_id is not distinct from v_portee.lieu_id and r.annee is not distinct from v_portee.annee
      order by random()
   loop
-    update questionnaire_reponses set id = gen_random_uuid() where id = v_id;
+    update questionnaire_reponses
+       set id = gen_random_uuid(), commentaire = commentaire || '', reponses = reponses || '{}'::jsonb
+     where id = v_id;
   end loop;
 end;
 $function$;

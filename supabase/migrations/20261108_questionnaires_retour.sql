@@ -7,6 +7,7 @@ drop function if exists public.resultats_questionnaire(text, jsonb);
 drop function if exists public.repondre_questionnaire(text, jsonb, integer, jsonb, text);
 drop function if exists public.questionnaires_a_remplir();
 drop function if exists public._questionnaire_ouvert(text, integer, integer, integer);
+drop function if exists public._questionnaire_fenetre(text, date);
 drop function if exists public._questionnaire_ayant_droit(text, integer, integer);
 drop function if exists public._questionnaire_portee(text, jsonb);
 drop function if exists public._questionnaire_version(text);
