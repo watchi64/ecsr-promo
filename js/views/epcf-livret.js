@@ -328,7 +328,7 @@ export async function renderEpcfLivret(container, opts = {}) {
     clear(container);
     if (!trouve) { container.appendChild(el("p", { class: "muted" }, "Stagiaire introuvable.")); return; }
     // La date de naissance n'est plus dans la liste des stagiaires (table privée).
-    showDoc(container, { ...trouve, date_naissance: naissance }, full, { readOnly: false });
+    showDoc(container, { ...trouve, date_naissance: naissance }, full, { readOnly: !isAdmin() });
     return;
   }
 
@@ -365,7 +365,7 @@ function showListe(container) {
       cell.appendChild(el("span", { class: "lv-statut" }, "vierge"));
     }
     cell.appendChild(el("button", {
-      class: "btn small " + (row ? "ghost" : "primary"),
+      class: "btn small " + (row || !isAdmin() ? "ghost" : "primary"),
       style: "margin-left:10px",
       onClick: async () => {
         let full = null;
@@ -373,9 +373,9 @@ function showListe(container) {
           try { full = await getEpcfLivret(s.id); } catch (e) { console.error(e); toast(e?.message || String(e), "error"); return; }
         }
         const naissance = await getDateNaissance(s.id).catch((e) => { console.error(e); return null; });
-        showDoc(container, { ...s, date_naissance: naissance }, full, { readOnly: false, back: () => renderReload(container) });
+        showDoc(container, { ...s, date_naissance: naissance }, full, { readOnly: !isAdmin(), back: () => renderReload(container) });
       },
-    }, row ? "Ouvrir" : "Créer"));
+    }, row || !isAdmin() ? "Ouvrir" : "Créer"));
     tbody.appendChild(el("tr", {},
       el("td", {}, el("div", { class: "lv-name-cell" }, el("span", {}, displayStagiaire(s)))),
       cell));

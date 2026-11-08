@@ -49,6 +49,10 @@ export function construirePastille() {
   );
 }
 
+// Ouvre la fenêtre du choix de promo (la pastille s'en sert ; la coquille du stagiaire, qui n'a pas de pastille, la
+// propose depuis le menu du compte).
+export function ouvrirChoixPromo() { ouvrirChoix(); }
+
 function ouvrirChoix() {
   const promos = getMesPromos();
   const courante = getPromoCourante();

@@ -20,7 +20,7 @@ import {
 } from "../db.js?v=20261108a";
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261108a";
 import { icon } from "../icons.js?v=20261108a";
-import { isAdmin, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261108a";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261108a";
 import { peutInviterFormateur, peutRetirerCompte } from "../roles-rules.js?v=20261108a";
 import { moduleVisible } from "../modules-etat.js?v=20261108a";
 import { renderModulesSection } from "./modules-reglage.js?v=20261108a";
@@ -342,7 +342,8 @@ function messageErreurStagiaire(e) {
 }
 
 async function renderPromoSection(rerender) {
-  const admin = isAdmin();
+  // Gérer la liste de la promo : formateur et direction (la base le permet à l'équipe de la promo).
+  const admin = isEquipe();
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.users()),
@@ -613,7 +614,9 @@ async function renderPromoSection(rerender) {
 // tout (droit admin, délais) ; ici on montre l'état et on déclenche.
 
 async function renderDonneesSection(rerender) {
-  if (!isAdmin()) return null;
+  if (!isEquipe()) return null;
+  // L'anonymisation est ouverte à l'équipe de la promo ; la suppression des élèves bénévoles, au formateur seul.
+  const avecBenevoles = isAdmin();
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.trash()),
@@ -625,7 +628,7 @@ async function renderDonneesSection(rerender) {
 
   const [etat, benevoles] = await Promise.all([
     etatAnonymisationPromo().catch((e) => { console.error(e); return undefined; }),
-    listBenevolesAPurger().catch((e) => { console.error(e); return undefined; }),
+    avecBenevoles ? listBenevolesAPurger().catch((e) => { console.error(e); return undefined; }) : Promise.resolve(undefined),
   ]);
 
   // Fin de promo
@@ -687,7 +690,7 @@ async function renderDonneesSection(rerender) {
       } catch (err) { toast(err.message, "error"); rerender(); }
     } }, benevoles.length > 1 ? `Supprimer ces ${benevoles.length} élèves` : "Supprimer cet élève"));
   }
-  section.appendChild(blocBnv);
+  if (avecBenevoles) section.appendChild(blocBnv);
   return section;
 }
 
@@ -764,7 +767,8 @@ async function rerender(container) {
         el("h2", {}, titre),
         el("p", { class: "subtitle" }, v2
           ? "Ce que voient les stagiaires, la promo et les accès."
-          : "Accès, gestion de la promo, infos. Connecte-toi en admin pour inviter ou modifier."),
+          : (isEquipe() ? "Accès, gestion de la promo, infos."
+            : "Accès, gestion de la promo, infos. Connecte-toi en admin pour inviter ou modifier.")),
       ),
     ));
 

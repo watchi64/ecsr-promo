@@ -15,11 +15,11 @@
 import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
-  chargerMesPromos, oublierPromo, getPromoCourante, rechargerApresEnregistrements,
+  chargerMesPromos, mesRolesAffectes, oublierPromo, getPromoCourante, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache,
 } from "./db.js?v=20261108a";
 import {
-  LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches,
+  LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo,
 } from "./roles-rules.js?v=20261108a";
 import { el, toast, displayStagiaire } from "./utils.js?v=20261108a";
 import { icon } from "./icons.js?v=20261108a";
@@ -61,6 +61,9 @@ function droits() {
 export function isAdmin()     { return droits().admin; }
 export function isProf()      { return droits().prof; }
 export function isStagiaire() { return droits().stagiaire; }
+// Gérer la promo (stagiaires, modules, équipe, données personnelles) : formateur, direction, administrateur. Écrire dans le
+// planning, les notes, les évaluations ou les examens reste isAdmin() : la direction lit sans y écrire.
+export function isEquipe()    { return droits().equipe; }
 
 // Aperçus ouverts à la personne connectée sur la promo affichée.
 export function apercusOuverts() {
@@ -147,7 +150,6 @@ async function refreshProfile() {
   loadViewAs();
 }
 
-const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à un formateur.";
 const MESSAGE_PROMOS_NON_CHARGEES = "Promos non chargées : la promo par défaut est affichée.";
 // Un stagiaire n'a qu'une promo : « promo par défaut » ne lui dit rien.
 const MESSAGE_PROMOS_NON_CHARGEES_STAGIAIRE = "Connexion instable : certaines informations peuvent manquer.";
@@ -183,6 +185,14 @@ async function chargerContextePromo(user) {
   return true;
 }
 
+// Phrase de la porte pour un compte sans promo : le siège et la direction (affectations lisibles par leur titulaire) ont la
+// leur ; toute autre situation, ou une lecture qui échoue, garde la phrase générale.
+async function messageDeLaPorteSansPromo() {
+  let roles = [];
+  try { roles = await mesRolesAffectes(); } catch (e) { roles = []; }
+  return messageSansPromo(roles);
+}
+
 // Refus de la session (aucune promo, profil absent) : contexte oublié, motif envoyé à la porte,
 // déconnexion, puis message dans l'app. Le toast seul ne suffit pas : pendant la porte il est
 // caché avec #app, et la carte de connexion resterait sur « Connexion… ». gate.js écoute donc
@@ -215,7 +225,7 @@ export async function initAuth() {
     } else if (!contexte) {
       // Le rappel onAuthChange n'est pas encore branché : la déconnexion ne lui dira pas
       // d'oublier le contexte, refuserSession s'en charge (comme pour le profil absent).
-      await refuserSession(MESSAGE_SANS_PROMO);
+      await refuserSession(await messageDeLaPorteSansPromo());
     } else {
       // Les annuaires ne sont lisibles qu'authentifié (RLS) → charger après l'auth.
       await loadDirectories();
@@ -238,7 +248,7 @@ export async function initAuth() {
       // qui frapperait une session ouverte entre-temps).
       if (contexte === null) return;
       if (!contexte) {
-        await refuserSession(MESSAGE_SANS_PROMO);
+        await refuserSession(await messageDeLaPorteSansPromo());
       } else if (avant !== null && getPromoCourante()?.id !== avant) {
         // La promo affichée n'est plus accessible (ou le compte a changé) : les vues déjà
         // dessinées sont celles de l'autre promo. On repart de zéro plutôt que de les mélanger.

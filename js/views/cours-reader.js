@@ -490,9 +490,9 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
   const fermer = el("button", { class: "cours-close", type: "button", "aria-label": "Fermer le cours" });
   fermer.appendChild(icon.close ? icon.close() : document.createTextNode("×"));
 
-  // Édition réservée au formateur et à l'admin : le stagiaire ne voit jamais
-  // ce bouton. L'import dynamique évite de charger l'éditeur pour lui.
-  const modifier = (isAdmin() || isProf())
+  // Édition réservée au formateur et à l'admin (la direction lit les cours sans les modifier : la base refuserait) :
+  // le stagiaire ne voit jamais ce bouton. L'import dynamique évite de charger l'éditeur pour lui.
+  const modifier = isAdmin()
     ? el("button", { class: "btn cours-modifier", type: "button", onClick: async () => {
         const { openCoursEditeur } = await import("./cours-editeur.js?v=20261108a");
         close();

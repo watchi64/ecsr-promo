@@ -8615,3 +8615,10 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 @media screen and (max-width: 699.98px) {
   .passages-table .btn { min-width: 44px; min-height: 44px; }   /* zones à toucher du téléphone */
 }
+
+/* Porte de connexion sur téléphone : cibles de 44 px. C'est l'écran que voient un compte du siège ou sans promo, avec
+   la phrase qui leur dit pourquoi ils n'entrent pas (lot 4, comptes réels). */
+@media (max-width: 760px) {
+  .gate-tab, .gate-form .btn, .gate-link { min-height: 44px; }
+  .gate-link { display: block; margin-left: auto; margin-right: auto; padding: 0 0.5rem; }
+}

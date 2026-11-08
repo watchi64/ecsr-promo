@@ -26,7 +26,8 @@ function rolesDe(promo) {
   return promo && Array.isArray(promo.roles) ? promo.roles : null;
 }
 
-// Droits réels, hors aperçu. `equipe` : formateur ou direction (ou siège) sur la promo affichée.
+// Droits réels, hors aperçu. `equipe` : administrateur, formateur ou direction sur la promo affichée (ceux qui lisent
+// la promo entière et gèrent ses stagiaires, ses modules et son équipe).
 function droitsReels(profil, promo) {
   if (!profil) return { admin: false, prof: false, stagiaire: false, equipe: false, direction: false };
   const roles = rolesDe(promo);
@@ -34,18 +35,33 @@ function droitsReels(profil, promo) {
     const formateur = roles.includes("formateur");
     const direction = roles.includes("direction");
     const siege = roles.includes("siege");
+    // Le fondateur est administrateur (is_admin) ; un drapeau de fondateur sans is_admin n'ouvre pas l'espace de l'équipe,
+    // comme avant le lot 4 (le banc a un tel compte, l'aperçu du fondateur lui reste ouvert).
+    const admin = (!!profil.is_founder && !!profil.is_admin) || formateur;
     return {
-      // Le fondateur est administrateur (is_admin) ; un drapeau de fondateur sans is_admin n'ouvre pas l'espace de l'équipe,
-      // comme avant le lot 4 (le banc a un tel compte, l'aperçu du fondateur lui reste ouvert).
-      admin: (!!profil.is_founder && !!profil.is_admin) || formateur,
+      admin,
       prof: formateur || direction || siege,
       stagiaire: roles.includes("stagiaire"),
-      equipe: formateur || direction,
+      equipe: admin || direction,
       direction,
     };
   }
-  // État dégradé : l'ancien modèle.
   const prof = profil.role === "prof";
+  if (!promo) {
+    // Aucune promo en place (mes_promos n'a pas répondu, l'app tourne en état dégradé) : la base ne confirme aucun rôle
+    // et l'en-tête de promo manque. Un compte de l'équipe y garde sa lecture mais aucune écriture (ni saisie, ni gestion de la promo) : seul le
+    // fondateur reste administrateur. Ainsi un ancien formateur sans affectation (is_admin vrai, aucune promo en base) n'obtient jamais
+    // d'espace d'équipe aux boutons actifs. Un stagiaire garde son accès (une seule promo, sa fiche).
+    const fondateur = !!profil.is_founder && !!profil.is_admin;
+    return {
+      admin: fondateur,
+      prof: prof || !!profil.is_admin,
+      stagiaire: profil.role === "stagiaire",
+      equipe: fondateur,
+      direction: false,
+    };
+  }
+  // Promo sans colonne `roles` (base pas encore migrée) : l'ancien modèle.
   return {
     admin: !!profil.is_admin,
     prof,
@@ -69,13 +85,14 @@ function apercuRetenu({ profil, promo, apercu }) {
 }
 
 const DROITS_APERCU = {
-  formateur: { admin: true, prof: true, stagiaire: false },
-  direction: { admin: false, prof: true, stagiaire: false },
-  siege: { admin: false, prof: true, stagiaire: false },
-  stagiaire: { admin: false, prof: false, stagiaire: true },
+  formateur: { admin: true, prof: true, stagiaire: false, equipe: true },
+  direction: { admin: false, prof: true, stagiaire: false, equipe: true },
+  siege: { admin: false, prof: true, stagiaire: false, equipe: false },
+  stagiaire: { admin: false, prof: false, stagiaire: true, equipe: false },
 };
 
-// Ce que l'app montre : les drapeaux isAdmin / isProf / isStagiaire et l'espace de la coquille.
+// Ce que l'app montre : les drapeaux isAdmin (écrire comme un formateur) / isProf / isStagiaire / isEquipe (gérer la
+// promo : formateur ou direction) et l'espace de la coquille.
 export function droitsAffiches({ profil, promo, apercu } = {}) {
   const a = apercuRetenu({ profil, promo, apercu });
   const d = a ? DROITS_APERCU[a] : droitsReels(profil, promo);
@@ -83,6 +100,7 @@ export function droitsAffiches({ profil, promo, apercu } = {}) {
     admin: !!d.admin,
     prof: !!d.prof,
     stagiaire: !!d.stagiaire,
+    equipe: !!d.equipe,
     espace: d.admin || d.prof ? "equipe" : "stagiaire",
   };
 }
@@ -112,4 +130,14 @@ export function messageInvitation(message, code) {
   if (code === "PGRST202" || /could not find the function/i.test(brut)) return MESSAGE_INVITATION_INDISPONIBLE;
   const texte = brut.replace(/^\s*invitation:\s*/i, "").trim();
   return texte || "Erreur d'invitation";
+}
+
+// Phrase du refus à la porte, quand le compte n'a aucune promo : selon ses affectations (liste de rôles lue en base, vide
+// ou absente si la lecture a échoué), le siège et la direction ne sont pas renvoyés vers « un formateur ».
+export const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à ta direction ou à un formateur de t'ajouter.";
+export function messageSansPromo(roles) {
+  const r = Array.isArray(roles) ? roles : [];
+  if (r.includes("siege")) return "Ton compte est rattaché au siège du réseau. Son espace n'est pas encore ouvert : il arrive bientôt.";
+  if (r.includes("direction")) return "Ton centre n'a pas encore de promo. L'espace de la direction, qui permettra d'en créer une, arrive bientôt.";
+  return MESSAGE_SANS_PROMO;
 }

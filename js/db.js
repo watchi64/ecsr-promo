@@ -1442,6 +1442,16 @@ export async function setMyAnonymousNotes(val) {
   return data;
 }
 
+// Rôles d'équipe de la personne connectée, lus dans ses affectations (chacun lit les siennes). Sert à la seule porte
+// « aucune promo » : le siège n'a pas de promo. Liste vide si la table manque (base pas migrée) ou si la lecture échoue.
+export async function mesRolesAffectes() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return [];
+  const { data, error } = await supabase.from("affectations").select("role").eq("email", user.email.toLowerCase());
+  if (error) return [];
+  return [...new Set((data || []).map((a) => a.role))];
+}
+
 export async function getMyProfile() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return null;

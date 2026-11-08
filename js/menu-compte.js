@@ -16,7 +16,8 @@ import { icon, deco } from "./icons.js?v=20261108a";
 import {
   getProfile, getProfileWho, monStagiaireId, buildViewAsBlock, seDeconnecter,
 } from "./auth-admin.js?v=20261108a";
-import { getPromoCourante } from "./db.js?v=20261108a";
+import { getPromoCourante, getMesPromos } from "./db.js?v=20261108a";
+import { ouvrirChoixPromo } from "./promo-pastille.js?v=20261108a";
 import { pagePersonnelle } from "./route-rules.js?v=20261108a";
 import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261108a";
 import { libellePastille } from "./nouveautes.js?v=20261108a";
@@ -81,6 +82,12 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
       ligne("a", { href: "#/preferences" }, icon.settings(), "Mes préférences"),
       actualiser
         ? ligne("button", { type: "button", onClick: () => { fermerFenetre(); actualiser(); } }, icon.refresh(), "Actualiser")
+        : null,
+      // Un compte qui a plusieurs promos (stagiaire dans l'une, formateur dans l'autre) doit pouvoir passer de l'une à l'autre : la
+      // barre du stagiaire n'a pas de pastille de promo, la ligne est ici. L'équipe a la sienne dans sa colonne.
+      espace === "stagiaire" && getMesPromos().length >= 2
+        ? ligne("button", { type: "button", "aria-haspopup": "dialog", onClick: () => { fermerFenetre({ focus: false }); ouvrirChoixPromo(); } },
+          icon.users(), "Changer de promo")
         : null,
       espace === "stagiaire" ? ligneSignaler(ancre) : null,
       // Fondateur : cinq rôles ; formateur et direction : « Voir comme un stagiaire » ; null sinon. Choisir ferme le menu,

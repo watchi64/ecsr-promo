@@ -708,7 +708,7 @@ function rendrePartie(panel, partie, d, opts, ctx) {
       evals: d.epcfEvals,
       moyennes: { salle: moySalle, vehicule: moyVehicule },
       // Les outils du formateur sur la fiche d'un autre ; jamais sur sa propre fiche.
-      outils: !soi && (isAdmin() || isProf()),
+      outils: !soi && isAdmin(),
       onEnregistre: (evals) => {
         d.epcfEvals = evals;
         if (opts.onEpcfEnregistre) opts.onEpcfEnregistre(evals);

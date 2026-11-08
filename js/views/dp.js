@@ -55,6 +55,8 @@ export async function renderDp(container, opts = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   const formateur = isAdmin() || isProf();
+  // Écrire dans le dossier d'un stagiaire : le formateur de la promo (la direction le lit, la base refuserait l'écriture).
+  const ecrit = isAdmin();
   const monId = getProfile()?.stagiaire_id ?? null;
 
   if (opts.stagiaireId != null) {
@@ -62,7 +64,7 @@ export async function renderDp(container, opts = {}) {
     // Son propre dossier, ou celui d'un stagiaire quand on est formateur : dans
     // les deux cas en écriture. Un stagiaire qui regarde le dossier d'un autre
     // ne passe jamais ici, la RLS ne le lui renverrait pas.
-    await ouvrirDossier(container, id, { readOnly: !(formateur || id === monId), isActive: opts.isActive });
+    await ouvrirDossier(container, id, { readOnly: !(ecrit || id === monId), isActive: opts.isActive });
     return;
   }
 
@@ -126,11 +128,11 @@ function showListe(container) {
         try { full = await getDpDossier(s.id); }
         catch (e) { console.error(e); toast(e?.message || String(e), "error"); return; }
         showDoc(container, s, full, {
-          readOnly: false, stagiaireId: s.id, back: () => renderReload(container),
+          readOnly: !(isAdmin() || cestMoi), stagiaireId: s.id, back: () => renderReload(container),
         });
       },
     }, cestMoi ? (row ? "Remplir mon dossier" : "Commencer mon dossier")
-               : (row ? "Ouvrir" : "Commencer")));
+               : (row || !isAdmin() ? "Ouvrir" : "Commencer")));
     const nom = el("div", { class: "lv-name-cell" }, el("span", {}, displayStagiaire(s)));
     if (cestMoi) nom.appendChild(el("span", { class: "lv-statut" }, "moi"));
     tbody.appendChild(el("tr", {}, el("td", {}, nom), cell));

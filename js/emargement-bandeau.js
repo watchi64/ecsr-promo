@@ -103,7 +103,7 @@ function dessiner(b, seances, actifs) {
   }
 
   // Formateur : rappel, sauf sur la page Émargement elle-même.
-  if ((isAdmin() || isProf()) && tries.length) {
+  if (isAdmin() && tries.length) {
     const s = tries[0];
     const adresse = adresseSeance(s.jour, s.demi_journee);
     if (location.hash.startsWith("#/emargement")) { b.hidden = true; return; }

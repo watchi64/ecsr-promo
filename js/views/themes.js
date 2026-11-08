@@ -205,7 +205,9 @@ function sampleN(arr, n) {
   return (n && n < a.length) ? a.slice(0, n) : a;
 }
 
-function canManageExam() { return isAdmin() || isProf(); }
+// Gérer l'examen, éditer la banque, lire les signalements : le formateur de la promo (la direction ne le fait pas : la base
+// refuserait).
+function canManageExam() { return isAdmin(); }
 
 // Fiche QCM dédiée, ouverte depuis la colonne QCM de la liste.
 // Regroupe : mes notes, l'entraînement, l'examen (stagiaire) et la gestion (formateur).

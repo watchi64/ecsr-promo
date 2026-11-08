@@ -41,8 +41,9 @@ export async function renderEmargement(container) {
   arreterRelecture();
   const jeton = ++rendu;
   clear(container);
-  if (!(isAdmin() || isProf())) {
-    container.appendChild(el("p", { class: "muted" }, "L'émargement se gère par les formateurs."));
+  // Ouvrir une séance et lire la feuille : le formateur de la promo (la direction n'y écrit pas, la base refuserait).
+  if (!isAdmin()) {
+    container.appendChild(el("p", { class: "muted" }, "L'émargement se gère par les formateurs de la promo."));
     return;
   }
   if (!emargementActif()) {
