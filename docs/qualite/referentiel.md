@@ -61,10 +61,15 @@ d'usage), livret et dossier pro (1 mise à jour chacun).
 
 ## 3. Quand on mesure
 
-- **Avant chaque fusion dans main** : `python outils/robot_parcours.py` (une commande, environ 5 minutes,
+- **Avant chaque fusion dans main** : `python outils/robot_parcours.py` (une commande, environ 2 minutes,
   Chromium et WebKit, téléphone et ordinateur, ancienne et nouvelle navigation). Code de sortie 0 = vert.
   Un échec qui bloque (colonne « Conséquence ») arrête la fusion ; les autres vont dans la liste du lot
-  de corrections suivant.
+  de corrections suivant. Les défauts bloquants déjà présents sur main (voir `echecs-main-2026-11-08.md`)
+  sont listés dans `outils/parcours/connus.py` : le rapport les montre à part et ils ne bloquent pas la fusion
+  d'un autre chantier ; un défaut **nouveau** la bloque. Qui corrige un défaut connu retire sa ligne.
+  Le rapport (`outils/robot_rapports/<date-heure>/rapport.md`), la planche des écrans de fin et les captures
+  restent sur la machine (données fictives du banc, jamais versionnées). Un parcours neuf s'écrit dans
+  `outils/parcours/` (une fonction décorée par `@parcours`), une page neuve dans `outils/parcours/navigation.py`.
 - **Après une refonte** (lots 2B et 4, puis 5) : audit par testeurs, des agents frais qui jouent un
   stagiaire sur iPhone, une formatrice sur l'ordinateur de la salle, un formateur sur téléphone, une
   direction de centre ; ils ne voient que les captures et notent le premier clic, l'assurance et l'attrait

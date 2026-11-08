@@ -87,14 +87,20 @@ JS_CONTROLES = r"""
     const ox = getComputedStyle(el).overflowX;
     if (ox === 'auto' || ox === 'scroll') res.defilement.push(`${decrire(el)} défile (${el.scrollWidth} px pour ${el.clientWidth})`);
   }
-  // 2. Ce qui sort de l'écran à droite sans conteneur qui le coupe.
-  const coupe = (el) => { for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
+  // 2. Ce qui sort de l'écran à droite. La page coupe ce qui dépasse (overflow-x: clip sur body) : rien ne défile,
+  // mais le contenu est tronqué et inatteignable, c'est un défaut. Seule une coupe posée par un composant (un
+  // conteneur sous body qui défile ou masque) est voulue, comme ce qui est fixé à l'écran.
+  const voulu = (el) => { for (let n = el.parentElement; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
+    if (n.id === 'app' || n.id === 'view') continue;
     const s = getComputedStyle(n); if (s.overflowX !== 'visible' || s.position === 'fixed') return true; } return false; };
+  const signales = [];
   for (const el of document.querySelectorAll('body *')) {
     if (res.deborde.length > 5) break;
-    if (!el.childElementCount && (el.innerText || '').trim() && visible(el)) {
-      const r = el.getBoundingClientRect();
-      if (r.right > vw + 2 && !coupe(el) && !dansMatrice(el)) res.deborde.push(`${decrire(el)} « ${court(el.innerText)} » sort de l'écran (${Math.round(r.right)} px)`);
+    if (signales.some((s) => s.contains(el)) || dansMatrice(el) || !visible(el)) continue;
+    const r = el.getBoundingClientRect();
+    if (r.right > vw + 2 && getComputedStyle(el).position !== 'fixed' && !voulu(el)) {
+      signales.push(el);
+      res.deborde.push(`${decrire(el)} « ${court(el.innerText)} » sort de l'écran (bord droit à ${Math.round(r.right)} px pour ${vw})`);
     }
   }
   // 3. Boutons et liens : un nom, une taille de cible.
@@ -353,6 +359,8 @@ class Visite:
             calme = self._attendre_calme()
             if calme["mutations"] == 0 and self.page.evaluate("location.hash") == hash_avant:
                 self.constat("E", BLOQUE, "toucher « %s » ne change rien à l'écran (deux essais)" % quoi, capture=True)
+                # La personne est bloquée là : le parcours s'arrête (sinon une boucle de réponses tournerait à vide).
+                self.echec("bloqué : « %s » ne répond pas" % quoi)
             else:
                 self.constat("E", LISTE, "il a fallu toucher deux fois « %s »" % quoi)
         if not self.but_atteint and self.clics == self.budget + 1:
@@ -492,8 +500,8 @@ class Visite:
             return
         for d in r["defilement"]:
             self.constat("G", BLOQUE, "défilement de côté : " + d, capture=not any(c.get("capture") for c in self.constats if c["critere"] == "G"))
-        for d in r["deborde"]:
-            self.constat("G", BLOQUE, "déborde : " + d)
+        for i, d in enumerate(r["deborde"]):
+            self.constat("G", BLOQUE, "déborde : " + d, capture=(i == 0))
         for d in r["sansNom"]:
             self.constat("F", LISTE, "bouton ou lien sans nom : " + d)
         for d in r["petites"]:

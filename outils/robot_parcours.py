@@ -46,6 +46,7 @@ if hasattr(sys.stdout, "reconfigure"):
 from parcours import charger_tous  # noqa: E402
 from parcours import banc  # noqa: E402
 from parcours.visite import Visite, Echec, CRITERES, BLOQUE, LISTE  # noqa: E402
+from parcours.connus import connu, attendu_dans, DEFAUTS_CONNUS  # noqa: E402
 
 MOTEURS = ("chromium", "webkit")
 FORMATS = ("ordinateur", "telephone")
@@ -115,7 +116,9 @@ def travailleur(moteur, format_, scenarios, base_url, dossier):
         for sc in scenarios:
             r = jouer_un(navigateur, registre[sc["parcours"]], {k: sc[k] for k in ("moteur", "format", "navigation")}, base_url, dossier)
             resultats.append(r)
-            marque = "ok  " if r["abouti"] and not any(c["gravite"] == BLOQUE for c in r["constats"]) else "ÉCHEC"
+            bloquants = [c for c in r["constats"] if c["gravite"] == BLOQUE]
+            nouveaux = [c for c in bloquants if not connu(r["parcours"], c)]
+            marque = "ÉCHEC" if nouveaux or not r["abouti"] else ("connu" if bloquants else "ok  ")
             print("  %s %-32s %-34s %s/%s clics  %4.1f s" % (marque, r["parcours"], libelle(r), r["clics_au_but"] if r["clics_au_but"] is not None else "-",
                                                         r["budget"], r["duree"]), flush=True)
         navigateur.close()
@@ -146,7 +149,10 @@ def git_info():
 
 def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs):
     branche, tete = git_info()
-    bloquants = [(r, c) for r in resultats for c in r["constats"] if c["gravite"] == BLOQUE]
+    tous_bloquants = [(r, c) for r in resultats for c in r["constats"] if c["gravite"] == BLOQUE]
+    # Un défaut déjà présent sur main (parcours/connus.py) est montré à part et ne bloque pas.
+    bloquants = [(r, c) for r, c in tous_bloquants if not connu(r["parcours"], c)]
+    deja_connus = [(r, c, connu(r["parcours"], c)) for r, c in tous_bloquants if connu(r["parcours"], c)]
     a_lister = [(r, c) for r in resultats for c in r["constats"] if c["gravite"] == LISTE]
     vert = not bloquants and not erreurs_moteurs
     L = []
@@ -155,8 +161,10 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs):
     L.append("Banc : `%s`, branche `%s`, dernier commit `%s`. %d passages (%d parcours), %.1f min." % (
         banc.RACINE, branche, tete, len(resultats), len({r["parcours"] for r in resultats}), duree / 60))
     L.append("")
-    L.append("**Résultat : %s** : %d défaut(s) bloquant(s) dans %d passage(s) ; %d constat(s) à corriger par lot." % (
-        "VERT" if vert else "ROUGE", len(bloquants), len({id(r) for r, _ in bloquants}), len(a_lister)))
+    L.append("**Résultat : %s** : %d défaut(s) bloquant(s) nouveau(x) dans %d passage(s) ; %d défaut(s) connu(s) de main "
+             "(ne bloquent pas) ; %d constat(s) distinct(s) à corriger par lot." % (
+        "VERT" if vert else "ROUGE", len(bloquants), len({id(r) for r, _ in bloquants}),
+        len({d["contient"] for _, _, d in deja_connus}), len({(c["critere"], c["message"]) for _, c in a_lister})))
     for e in erreurs_moteurs:
         L.append("")
         L.append("**Moteur indisponible** : %s" % e)
@@ -206,6 +214,18 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs):
             if cliq:
                 L.append("  Visible à ce moment : %s." % " | ".join(cliq[:25]))
         L.append("")
+    L.append("## Défauts connus de main (ne bloquent pas)")
+    L.append("")
+    L.append("Listés dans `outils/parcours/connus.py` ; un chantier qui en corrige un retire sa ligne dans la même fusion.")
+    L.append("")
+    for d in DEFAUTS_CONNUS:
+        occ = [(r, c) for r, c, dd in deja_connus if dd is d]
+        if occ:
+            L.append("- **%s** (%s, %s) : vu dans %d passage(s) : %s." % (d["parcours"], d["critere"], d["note"], len(occ),
+                     ", ".join(sorted({libelle(r) for r, _ in occ}))))
+        elif any(attendu_dans(d, r) for r in resultats):
+            L.append("- **%s** (%s, %s) : **revu dans aucun passage : peut-être corrigé, ligne à retirer**." % (d["parcours"], d["critere"], d["note"]))
+    L.append("")
     L.append("## À corriger par lot")
     L.append("")
     if not a_lister:
