@@ -3177,7 +3177,7 @@ OU_TROUVER = {
     "Les cours des 57 thèmes sont ouverts à toute la promo": ("Cours et QCM", "Cours et QCM", "Cours", "#/themes"),
     "Ta progression d'entraînement se voit d'un coup d'œil": ("Cours et QCM, colonne QCM", "Cours et QCM, colonne QCM", "Cours, colonne QCM", "#/themes"),
     # Lot 2B : l'Accueil de l'équipe s'appelle Aujourd'hui dans sa barre (même adresse) ; la journée n'existe pas avec l'ancienne barre (carte cachée).
-    "Ta journée sur l'Accueil": ("Accueil", "Aujourd'hui", "(carte cachée avec l'ancienne barre)", "#/home"),
+    "Ta journée sur l'Accueil": ("Accueil", "Accueil", "(carte cachée avec l'ancienne barre)", "#/home"),
     "Les cours se lisent mieux sur téléphone": ("Cours et QCM", "Cours et QCM", "Cours", "#/themes"),
 }
 # Celles que seule l'équipe lit (puce « Formateurs ») : (libellé sous la nouvelle navigation, libellé de main, adresse).
@@ -3237,13 +3237,16 @@ CTRL_Z = {"ancienne": "Ctrl + Z annule la dernière action. Sur Notes, Passages,
 SOCLE = {"ancienne": "Toujours ouverts : Accueil, Mon espace personnel (Passages), Paramètres, Nouveautés.",
          "nouvelle": "Toujours ouverts : Accueil, Mon suivi (Passages), Mes préférences, Nouveautés."}
 LIEN_DOSSIER_PRO = "Ton dossier professionnel, à remplir dans l'app"
-# Les trois Nouveautés du lot 2B (tâche 8), datées du jour de la fusion : à changer avec les dates de js/nouveautes-data.js si elle se fait un autre jour. La
-# journée et Aujourd'hui sont propres à la nouvelle navigation (la première pour tous, la seconde pour l'équipe) ; les cours se lisent dans les deux, masqués à un
+# Les trois Nouveautés du lot 2B (tâche 8), datées du jour de la fusion, lu dans js/nouveautes-data.js (rien à changer ici si elle se fait un autre jour). La
+# journée et Aujourd'hui sont propres à la nouvelle navigation (la première pour les stagiaires, la seconde pour l'équipe) ; les cours se lisent dans les deux, masqués à un
 # stagiaire dont la promo n'a pas ouvert la lecture des cours.
 TITRE_JOURNEE = "Ta journée sur l'Accueil"
 TITRE_AUJOURDHUI_EQUIPE = "Aujourd'hui remplace l'Accueil"
 TITRE_COURS_TELEPHONE = "Les cours se lisent mieux sur téléphone"
-DATE_DE_LA_FUSION = "10/11/2026"
+# La date vient de js/nouveautes-data.js, seule source : l'id de l'entrée de la journée porte AAAA-MM-JJ.
+_ID_JOURNEE = re.search(r'id:\s*"(\d{4})-(\d{2})-(\d{2})-ta-journee-accueil"',
+                        (pathlib.Path(__file__).resolve().parent.parent / "js" / "nouveautes-data.js").read_text(encoding="utf-8"))
+DATE_DE_LA_FUSION = "%s/%s/%s" % (_ID_JOURNEE.group(3), _ID_JOURNEE.group(2), _ID_JOURNEE.group(1)) if _ID_JOURNEE else "?"
 
 
 def verifier_liens_et_guides(res, vue, cartes, equipe, nouvelle, depart=False):
@@ -3344,13 +3347,13 @@ def verifier_nouveautes(page, res, sc):
 
 
 def verifier_nouveautes_du_lot_2b(page, res, sc, vue, cartes, nouvelle):
-    """Les trois Nouveautés du lot 2B (tâche 8). Nouvelle navigation : « Ta journée sur l'Accueil » pour tous (sans puce « Formateurs »), « Aujourd'hui remplace
+    """Les trois Nouveautés du lot 2B (tâche 8). Nouvelle navigation : « Ta journée sur l'Accueil » pour les stagiaires seuls (sans puce « Formateurs »), « Aujourd'hui remplace
     l'Accueil » pour l'équipe seulement (avec la puce), « Les cours se lisent mieux sur téléphone » pour tous quand la lecture des cours est ouverte (toujours chez
     l'équipe) ; ancienne : les cours seuls. Toutes datées du jour de la fusion, avec un « Où le trouver » et un « Comment faire » d'au moins trois étapes (leurs
     textes sont contrôlés par verifier_liens_et_guides). Puis le geste : chaque lien « Où le trouver » ouvre sa page."""
     equipe = sc.espace == "equipe"
     cours_ouvert = equipe or page.evaluate("(cle) => window.__verifNav.moduleOuvert(cle)", "cours")
-    attendues = {TITRE_JOURNEE: nouvelle, TITRE_AUJOURDHUI_EQUIPE: nouvelle and equipe, TITRE_COURS_TELEPHONE: cours_ouvert}
+    attendues = {TITRE_JOURNEE: nouvelle and not equipe, TITRE_AUJOURDHUI_EQUIPE: nouvelle and equipe, TITRE_COURS_TELEPHONE: cours_ouvert}
     for titre, la in attendues.items():
         carte = cartes.get(titre)
         ou = "%s, %s" % ("équipe" if equipe else "stagiaire", "nouvelle navigation" if nouvelle else "ancienne navigation")
@@ -3428,7 +3431,7 @@ def verifier_nouveautes_de_l_accueil(page, res, vue, equipe):
     """Accueil, nouvelle navigation : la carte « Nouveauté » de l'Accueil du stagiaire montre la plus récente, « Ta journée sur l'Accueil » (lot 2B ; avant lui,
     celles du lancement). Appelé depuis l'accueil déjà ouvert."""
     titres = [c["titre"] for c in page.evaluate("() => window.__verifNav.nouveautes()")]
-    attendus = [TITRE_JOURNEE] + ([TITRE_AUJOURDHUI_EQUIPE] if equipe else [])
+    attendus = [TITRE_AUJOURDHUI_EQUIPE] if equipe else [TITRE_JOURNEE]
     if titres[:len(attendus)] != attendus:
         res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu « %s »" % (" », « ".join(titres[:len(attendus)]), " », « ".join(attendus)))
 

@@ -5,7 +5,7 @@
 // le champ `date` (cf. js/nouveautes.js).
 //
 // Champs : id (unique, date en préfixe), date (AAAA-MM-JJ), pour
-// ("tous" | "formateurs"), titre, resume. Facultatifs : ou (le chemin dans
+// ("tous" | "formateurs" | "stagiaires"), titre, resume. Facultatifs : ou (le chemin dans
 // l'app, rendu cliquable), guide (étapes numérotées) et module (clé de
 // js/modules-data.js : la nouveauté est masquée aux stagiaires d'une promo où ce
 // module est fermé). Sans `module`, il est déduit du lien `ou` ; le préciser
@@ -29,7 +29,7 @@ export const NOUVEAUTES = [
   {
     id: "2026-11-10-ta-journee-accueil",
     date: "2026-11-10",
-    pour: "tous",
+    pour: "stagiaires",
     navigation: "nouvelle",
     titre: "Ta journée sur l'Accueil",
     resume: "L'Accueil s'ouvre maintenant sur ta journée : ce que tu fais le matin et l'après-midi, avec qui, et le "
@@ -49,7 +49,6 @@ export const NOUVEAUTES = [
         + "fiche : S'entraîner, Revoir mes erreurs et, quand un formateur l'a ouvert, Passer l'examen.",
       "Dans Mon suivi, partie Résultats : « Moi » montre l'évolution de tes notes, « La classe » le tableau de la classe. "
         + "Sur téléphone, le sommaire dit où tu en es dans chaque partie.",
-      "Côté formateurs, cette page est celle des stagiaires : la tienne s'appelle Aujourd'hui.",
     ],
   },
   {
@@ -60,8 +59,7 @@ export const NOUVEAUTES = [
     titre: "Aujourd'hui remplace l'Accueil",
     resume: "Ta première page s'appelle maintenant Aujourd'hui et montre la journée de la promo : la feuille "
           + "d'émargement du jour, qui passe au tableau, qui est en voiture, ce qui est à traiter dans Cours et QCM, "
-          + "et les stagiaires à suivre de près. Les questions proposées par l'IA ont aussi leur sous-onglet, "
-          + "Propositions IA, dans Cours et QCM.",
+          + "et les stagiaires à suivre de près.",
     ou: { label: "Aujourd'hui", route: "home" },
     guide: [
       "Ouvre Aujourd'hui, en haut de la barre de gauche sur ordinateur, en bas de l'écran sur téléphone.",
@@ -71,8 +69,8 @@ export const NOUVEAUTES = [
         + "bénévoles), le matin et l'après-midi. Au tableau, touche un nom pour ouvrir la fiche du stagiaire.",
       "« À traiter » : les signalements sur des QCM et les questions proposées par l'IA. Chaque ligne ouvre le bon "
         + "sous-onglet de Cours et QCM.",
-      "Propositions IA (pour les administrateurs de l'app) : « Relire » ouvre l'éditeur du QCM, où tu acceptes ou "
-        + "rejettes chaque question.",
+      "Si tu administres l'app, Cours et QCM a aussi un sous-onglet Propositions IA : « Relire » ouvre l'éditeur du "
+        + "QCM, où tu acceptes ou rejettes chaque question.",
       "« À suivre de près » : les stagiaires qui cumulent au moins deux signaux. « Tout voir » ouvre Indicateurs.",
     ],
   },

@@ -53,10 +53,7 @@ function libelleNouvelle(ou, espace) {
     case "config": return espace === "equipe" ? "Réglages" : "Mes préférences";
     case "stagiaires": return label.startsWith("Accueil, tuile") ? "Stagiaires" : label;   // la tuile de l'Accueil n'existe plus
     // La promo est en tête de la barre de gauche sur ordinateur, en haut de l'écran sur téléphone : « en tête de la barre » dit vrai des deux.
-    // L'Accueil de l'équipe s'appelle Aujourd'hui dans sa barre (lot 2B) : même adresse, le nom de son menu.
-    case "home":
-      if (label === "Pastille en haut, à côté de ton nom") return "La promo, en tête de la barre";
-      return label === "Accueil" && espace === "equipe" ? "Aujourd'hui" : label;
+    case "home": return label === "Pastille en haut, à côté de ton nom" ? "La promo, en tête de la barre" : label;
     default: return label;
   }
 }

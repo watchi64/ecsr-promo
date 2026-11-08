@@ -38,12 +38,14 @@ export function triees(entrees) {
   return [...entrees].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 }
 
-// Une entrée « formateurs » n'est visible que d'un formateur ou d'un admin. Une entrée qui porte
+// Une entrée « formateurs » n'est visible que d'un formateur ou d'un admin, une entrée « stagiaires » que d'un stagiaire (elle
+// décrit des pages que l'équipe n'a pas). Une entrée qui porte
 // `navigation: "nouvelle"` n'est visible que nouvelle navigation allumée (`navigationV2`, js/nav-etat.js), une entrée
 // `navigation: "ancienne"` que si elle est éteinte (elle ne décrit que l'ancienne barre) ; sans ce champ, l'entrée se lit
 // dans les deux. Le défaut est l'ancienne navigation : un appelant d'avant la refonte ne voit rien changer.
 export function visibles(entrees, formateur, navigationV2 = false) {
   return entrees.filter((e) => (e.pour !== "formateurs" || !!formateur)
+    && (e.pour !== "stagiaires" || !formateur)
     && (e.navigation !== "nouvelle" || !!navigationV2)
     && (e.navigation !== "ancienne" || !navigationV2));
 }
