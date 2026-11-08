@@ -8,19 +8,19 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
   avantChangementPromo,
-} from "../db.js?v=20261108b";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261108b";
-import { icon, deco } from "../icons.js?v=20261108b";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261108b";
-import { isAdmin, isProf, getAdminEmail } from "../auth-admin.js?v=20261108b";
-import { recordUndo } from "../undo.js?v=20261108b";
-import { getCurrentWho } from "../identity.js?v=20261108b";
-import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261108b";
-import { meilleurResultat } from "../passage-rules.js?v=20261108b";
-import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261108b";
-import { emargementActif } from "../emargement-etat.js?v=20261108b";
-import { navigationV2Active } from "../nav-etat.js?v=20261108b";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261108b";
+} from "../db.js?v=20261108c";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261108c";
+import { icon, deco } from "../icons.js?v=20261108c";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261108c";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261108c";
+import { recordUndo } from "../undo.js?v=20261108c";
+import { getCurrentWho } from "../identity.js?v=20261108c";
+import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261108c";
+import { meilleurResultat } from "../passage-rules.js?v=20261108c";
+import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261108c";
+import { emargementActif } from "../emargement-etat.js?v=20261108c";
+import { navigationV2Active } from "../nav-etat.js?v=20261108c";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261108c";
 
 let stagiaires = [];
 let profs = [];
@@ -2864,8 +2864,9 @@ function renderInto(container) {
             onClick: () => { location.hash = "#/dashboard"; } },
             icon.target(), "Priorités"), routeMasquee("dashboard"))
         : null,
-      // Émargement (spec 2026-10-23) : page des formateurs, si le fondateur l'a activé pour la promo.
-      (admin || isProf()) && emargementActif()
+      // Émargement (spec 2026-10-23) : page des formateurs, si le fondateur l'a activé pour la promo (pas la direction
+      // avant le lot 5 : la page lui répondrait par un refus).
+      admin && emargementActif()
         ? el("button", { class: "btn small", type: "button",
             title: "Ouvrir l'émargement du jour, imprimer les feuilles",
             onClick: () => { location.hash = "#/emargement"; } },

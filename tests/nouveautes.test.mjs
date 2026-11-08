@@ -174,7 +174,8 @@ for (const [formateur, v2] of [[false, false], [false, true], [true, false], [tr
 // À date égale, l'ordre du fichier est gardé : les entrées de lancement ouvrent la section de l'Accueil (3 cartes), la Nouveauté commune vient ensuite.
 eq(ids(triees(visibles(NOUVEAUTES, false, true))).slice(0, 2), ["2026-10-29-nouvelle-navigation", "2026-10-29-affichage-telephone"],
   "un stagiaire, nouvelle navigation : le lancement d'abord, puis les corrections communes");
-eq(ids(triees(visibles(NOUVEAUTES, true, true))).slice(0, 3),
+// (L'entrée plus récente des rôles par promo, lot 4, est écartée : ce test porte sur le lancement de la navigation.)
+eq(ids(triees(visibles(NOUVEAUTES, true, true))).filter((id) => id !== "2026-11-08-roles-par-promo").slice(0, 3),
   ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs", "2026-10-29-affichage-telephone"],
   "un formateur, nouvelle navigation : les deux lancements, puis les corrections communes");
 eq(ids(triees(visibles(NOUVEAUTES, false, false)))[0], "2026-10-29-affichage-telephone", "ancienne navigation : les corrections communes sont la plus récente");

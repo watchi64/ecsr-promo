@@ -3026,6 +3026,7 @@ def verifier_benevoles_eteint(page, res, sc):
 # Les deux Nouveautés de lancement, propres à la nouvelle navigation : la première pour tous, la seconde pour les formateurs seulement.
 TITRE_LANCEMENT = "Une navigation plus simple"
 TITRE_LANCEMENT_EQUIPE = "Côté formateurs, la barre passe à gauche"
+TITRE_ROLES = "Chacun ne voit que les promos où il intervient"   # lot 4 : Nouveauté pour les formateurs, plus récente que celles du lancement
 # La Nouveauté pour tous des corrections communes aux deux navigations (vague finale, F3) : sans champ `navigation`, elle se lit avec les deux barres. Les
 # trois entrées du jour de la mise en ligne portent la même date (29/10/2026) ; la première ajoute que certaines parties s'ouvrent au fil de la formation (F5).
 TITRE_AFFICHAGE = "Des pages mieux tenues sur le téléphone"
@@ -3243,10 +3244,10 @@ def verifier_nouveautes_eteint(page, res, sc):
 
 
 def verifier_nouveautes_de_l_accueil(page, res, vue, equipe):
-    """Accueil, nouvelle navigation : les trois plus récentes Nouveautés de la section commencent par celles du lancement (la première pour tous, la
+    """Accueil, nouvelle navigation : les plus récentes Nouveautés de la section commencent, chez l'équipe, par celle du lot 4 (rôles par promo), puis par celles du lancement (la première pour tous, la
     seconde pour l'équipe). Appelé depuis l'accueil déjà ouvert."""
     titres = [c["titre"] for c in page.evaluate("() => window.__verifNav.nouveautes()")]
-    attendus = [TITRE_LANCEMENT] + ([TITRE_LANCEMENT_EQUIPE] if equipe else [])
+    attendus = ([TITRE_ROLES] if equipe else []) + [TITRE_LANCEMENT] + ([TITRE_LANCEMENT_EQUIPE] if equipe else [])
     if titres[:len(attendus)] != attendus:
         res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu « %s »" % (" », « ".join(titres[:len(attendus)]), " », « ".join(attendus)))
 

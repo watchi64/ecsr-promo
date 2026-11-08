@@ -11,21 +11,22 @@
 // Popover sur ordinateur et tablette, tiroir en bas de l'écran sur téléphone (css/navigation.css),
 // mécanique de fenêtre de js/nav-fenetre.js.
 
-import { el } from "./utils.js?v=20261108b";
-import { icon, deco } from "./icons.js?v=20261108b";
+import { el } from "./utils.js?v=20261108c";
+import { icon, deco } from "./icons.js?v=20261108c";
 import {
   getProfile, getProfileWho, monStagiaireId, buildViewAsBlock, seDeconnecter,
-} from "./auth-admin.js?v=20261108b";
-import { getPromoCourante } from "./db.js?v=20261108b";
-import { pagePersonnelle } from "./route-rules.js?v=20261108b";
-import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261108b";
-import { libellePastille } from "./nouveautes.js?v=20261108b";
-import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261108b";
-import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261108b";
-import { fondateurHorsApercu } from "./auth-admin.js?v=20261108b";
-import { ouvrirSignalement } from "./signalement.js?v=20261108b";
-import { etatSignalements } from "./signalement-etat.js?v=20261108b";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261108b";
+} from "./auth-admin.js?v=20261108c";
+import { getPromoCourante, getMesPromos } from "./db.js?v=20261108c";
+import { ouvrirChoixPromo } from "./promo-pastille.js?v=20261108c";
+import { pagePersonnelle } from "./route-rules.js?v=20261108c";
+import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261108c";
+import { libellePastille } from "./nouveautes.js?v=20261108c";
+import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261108c";
+import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261108c";
+import { fondateurHorsApercu } from "./auth-admin.js?v=20261108c";
+import { ouvrirSignalement } from "./signalement.js?v=20261108c";
+import { etatSignalements } from "./signalement-etat.js?v=20261108c";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261108c";
 
 // Une ligne du menu : un lien (page) ou un bouton (geste), icône et libellé, `fin` à droite.
 const ligne = (tag, attrs, icone, texte, fin = null) => el(tag, { class: "nav-fenetre-lien", ...attrs },
@@ -82,13 +83,20 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
       actualiser
         ? ligne("button", { type: "button", onClick: () => { fermerFenetre(); actualiser(); } }, icon.refresh(), "Actualiser")
         : null,
+      // Un compte qui a plusieurs promos (stagiaire dans l'une, formateur dans l'autre) doit pouvoir passer de l'une à l'autre : la
+      // barre du stagiaire n'a pas de pastille de promo, la ligne est ici. L'équipe a la sienne dans sa colonne.
+      espace === "stagiaire" && getMesPromos().length >= 2
+        ? ligne("button", { type: "button", "aria-haspopup": "dialog", onClick: () => { fermerFenetre({ focus: false }); ouvrirChoixPromo(); } },
+          icon.users(), "Changer de promo")
+        : null,
       espace === "stagiaire" ? ligneSignaler(ancre) : null,
-      // Fondateur seulement (null sinon) : choisir un rôle ferme le menu, la coquille change d'espace.
+      // Fondateur : cinq rôles ; formateur et direction : « Voir comme un stagiaire » ; null sinon. Choisir ferme le menu,
+      // la coquille change d'espace.
       buildViewAsBlock(() => fermerFenetre()),
       filet(),
       ligne("button", { type: "button", onClick: () => {
         fermerFenetre({ focus: false });
-        import("./legal.js?v=20261108b").then((m) => m.ouvrirInformationsLegales());
+        import("./legal.js?v=20261108c").then((m) => m.ouvrirInformationsLegales());
       } }, icon.shield(), "Informations légales"),
       ligne("button", { type: "button", onClick: () => seDeconnecter(() => fermerFenetre({ focus: false })) },
         icon.logout(), "Se déconnecter"),

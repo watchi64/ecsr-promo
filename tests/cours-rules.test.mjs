@@ -125,3 +125,14 @@ test("coursVisibleEnApercu rejoue la règle de lecture de la base pour le rôle 
   assert.deepEqual([theme, themeBrouillon, competence, competenceBrouillon].map((c) => coursVisibleEnApercu(c, "prof")),
     [true, true, true, false]);
 });
+
+test("coursVisibleEnApercu : formateur, direction et siège voient les cours de thème non publiés, pas les compétences non publiées", () => {
+  const theme = { numero: 12, code: null, published: true };
+  const themeBrouillon = { numero: 58, code: null, published: false };
+  const competence = { numero: null, code: "C2.4", published: true };
+  const competenceBrouillon = { numero: null, code: "C2.6", published: false };
+  for (const apercu of ["formateur", "direction", "siege"]) {
+    assert.deepEqual([theme, themeBrouillon, competence, competenceBrouillon].map((c) => coursVisibleEnApercu(c, apercu)),
+      [true, true, true, false], apercu);
+  }
+});
