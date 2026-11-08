@@ -37,8 +37,10 @@ test("satisfactionDe : au seuil, sous le seuil, sans avis exclu, migration absen
   assert.deepEqual(satisfactionDe(resultats({ 4: 2, 3: 1, sans_avis: 2 }), 8), { etat: "sous_seuil" });
   // migration pas appliquée, lecture refusée ou absente
   assert.deepEqual(satisfactionDe(ABSENT, 8), { etat: "absente" });
-  assert.deepEqual(satisfactionDe(null, 8), { etat: "absente" });
-  assert.deepEqual(satisfactionDe(undefined, 8), { etat: "absente" });
+  // seule la fonction manquante est « absente » ; une lecture en échec (réseau, droit) est « non lue », jamais « absente »
+  assert.deepEqual(satisfactionDe({ echec: true }, 8), { etat: "non_lue" });
+  assert.deepEqual(satisfactionDe(null, 8), { etat: "non_lue" });
+  assert.deepEqual(satisfactionDe(undefined, 8), { etat: "non_lue" });
 });
 
 test("pièce « appreciations » : servie aux indicateurs 30 et 32, présente à partir du seuil", () => {
@@ -60,10 +62,20 @@ test("pièce « appreciations » : sous le seuil, une raison fixe sans chiffre",
 });
 
 test("pièce « appreciations » : migration absente ou rien lu, absente avec une raison calme", () => {
-  for (const s of [{ etat: "absente" }, undefined, null]) {
-    const p = pieceDe(inv(s), 30);
-    assert.equal(p.presente, false);
-    assert.equal(p.raison, "questionnaire de fin de formation pas encore en service");
+  const p = pieceDe(inv({ etat: "absente" }), 30);
+  assert.equal(p.presente, false);
+  assert.equal(p.raison, "questionnaire de fin de formation pas encore en service");
+});
+
+const RAISON_NON_LUE = "questionnaire de fin de formation non lu (erreur de lecture)";
+
+test("pièce « appreciations » : une lecture en échec est « non lue », pas « absente », y compris sans lecture faite", () => {
+  for (const s of [{ etat: "non_lue" }, undefined, null]) {
+    for (const numero of [30, 32]) {
+      const p = pieceDe(inv(s), numero);
+      assert.equal(p.presente, false);
+      assert.equal(p.raison, RAISON_NON_LUE);
+    }
   }
 });
 
@@ -103,6 +115,10 @@ test("fiche résultats : sous le seuil, « moins de 5 réponses » et aucun chif
   assert.equal(sous.effectif, "sans objet");
   assert.equal(ligneSat({ etat: "absente" }).valeur, "non mesurée");
   assert.equal(ligneSat(null).valeur, "non mesurée");
+  const nonLue = ligneSat({ etat: "non_lue" });
+  assert.equal(nonLue.valeur, "non lue (erreur de lecture)");
+  assert.equal(nonLue.effectif, "sans objet");
+  assert.ok(!/non mesurée/.test(ficheResultatsTexte(fiche({ etat: "non_lue" }))), "jamais « non mesurée » pour une lecture en échec");
   const texte = ficheResultatsTexte(fiche({ etat: "sous_seuil" }));
   assert.match(texte, /Satisfaction des stagiaires : moins de 5 réponses/);
   assert.ok(!/Satisfaction des stagiaires : \d/.test(texte));
@@ -142,6 +158,9 @@ test("dossier de la formation : sous le seuil, la phrase fixe sans chiffre ; mig
   const absente = sectionApp(modeleFormation({ etat: "absente" })).paragraphes.join("\n");
   assert.match(absente, /questionnaire de fin de formation pas encore en service/);
   assert.ok(!/undefined|null|NaN/.test(absente));
+  const nonLue = sectionApp(modeleFormation({ etat: "non_lue" })).paragraphes.join(" ");
+  assert.ok(nonLue.includes(`Appréciations : ${RAISON_NON_LUE}.`));
+  assert.ok(!/pas encore en service/.test(nonLue) && !nonLue.includes(METHODES_PUBLIQUES.satisfaction));
 });
 
 // --- Dossier du centre ---
@@ -156,6 +175,7 @@ const modeleCentre = (sansNoms) => modeleDossierCentre({
     promoCentre(7, "Promo A", { etat: "mesuree", taux: 80, repondants: 8, inscrits: 10 }),
     promoCentre(8, "Promo B", { etat: "sous_seuil" }),
     promoCentre(9, "Promo C", { etat: "absente" }),
+    promoCentre(10, "Promo D", { etat: "non_lue" }),
   ],
   lieu: "Nîmes", periode: { du: "2026-01-01", au: "2026-12-31" }, aujourdhui: AUJOURDHUI, sansNoms,
 });
@@ -165,11 +185,12 @@ test("dossier du centre : un taux par promo, jamais de total, la raison sous le 
   for (const sansNoms of [false, true]) {
     const t = tableSat(modeleCentre(sansNoms));
     assert.ok(t, "tableau de la satisfaction");
-    assert.equal(t.lignes.length, 3);
+    assert.equal(t.lignes.length, 4);
     assert.match(t.lignes[0][1], /^questionnaire de fin de formation, 80\s% de réponses favorables \(8 répondants sur 10 inscrits\)$/);
     assert.equal(t.lignes[1][1], "moins de 5 réponses au questionnaire de fin de formation");
     assert.equal(t.lignes[2][1], "questionnaire de fin de formation pas encore en service");
-    assert.deepEqual(t.lignes.map((l) => l[0]), ["Promo A", "Promo B", "Promo C"]);
+    assert.equal(t.lignes[3][1], RAISON_NON_LUE);
+    assert.deepEqual(t.lignes.map((l) => l[0]), ["Promo A", "Promo B", "Promo C", "Promo D"]);
   }
 });
 
@@ -200,4 +221,20 @@ test("aucun modèle ne lit les commentaires, aucun tiret cadratin, texte imperso
   const tout = formation + JSON.stringify([modeleCentre(false), modeleCentre(true)]) + ficheResultatsTexte(fiche({ taux: 80, repondants: 8, inscrits: 10 }));
   assert.ok(!tout.includes(TIRET_CADRATIN));
   assert.ok(!/\b(tu|ton|ta|tes|vous|votre)\b/i.test(formation), "document impersonnel");
+});
+
+// --- Page : une lecture en échec n'est jamais gardée, et « réessayer » relit ---
+
+const vueCode = () => readFileSync(new URL("../js/views/qualiopi.js", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+
+test("page : l'échec de lecture donne un résultat « échec », la lecture mémorisée l'oublie, un bouton relit", () => {
+  const code = vueCode();
+  const lecture = code.slice(code.indexOf("async function lireSatisfaction"), code.indexOf("const lire = "));
+  assert.match(lecture, /catch \{\s*return LECTURE_ECHOUEE;/, "toute erreur de lecture est un échec, pas une absence");
+  const lire = code.slice(code.indexOf("const lire = "), code.indexOf("const lire = ") + 900);
+  assert.match(lire, /Promise\.all\(\[lireDonneesQualiopi\(id\), lireSatisfaction\(id\)\]\)/, "les deux lectures partent ensemble");
+  assert.match(lire, /etat === "non_lue"\) lectures\.delete\(id\)/, "une satisfaction non lue n'est pas gardée en mémoire");
+  assert.match(code, /function noteSatisfaction\(\)/);
+  assert.match(code, /Relire la satisfaction/, "bouton visible à l'écran");
+  assert.match(code, /lectures\.delete\(etat\.promo\.id\);\s*charger\(etat\.promo\)/, "le bouton relit la promo");
 });

@@ -261,24 +261,40 @@ export async function renderQualiopi(container) {
   const chargementVivant = (numero) => numero === chargement && pageVivante();
   const actionVivante = (numero) => numero === action && pageVivante();
 
-  // La satisfaction d'une promo, pour l'inventaire, les dossiers et la fiche : les comptes du questionnaire de fin de formation
-  // (jamais les commentaires), réduits par satisfactionDe. Migration pas appliquée, droit refusé ou panne de lecture : « absente »,
-  // sans erreur ; la pièce le dit calmement et le reste de la page se lit comme avant.
-  async function lireSatisfaction(promoId, donnees) {
+  // Les résultats du questionnaire de fin de formation d'une promo (jamais les commentaires). Toute erreur de lecture (réseau, droit
+  // refusé) rend LECTURE_ECHOUEE : satisfactionDe en fait « non lue », jamais « absente » (seule la fonction manquante l'est).
+  const LECTURE_ECHOUEE = { echec: true };
+  async function lireSatisfaction(promoId) {
     try {
-      return satisfactionDe(await lireResultatsQuestionnaire("fin_stagiaire", { promo_id: promoId }), tableau(donnees.stagiaires).length);
+      return await lireResultatsQuestionnaire("fin_stagiaire", { promo_id: promoId });
     } catch {
-      return { etat: "absente" };
+      return LECTURE_ECHOUEE;
     }
   }
 
+  // Les deux lectures partent ensemble. Une satisfaction non lue n'est jamais gardée en mémoire : la lecture suivante (rendu, dossier,
+  // bouton « Relire ») la refait.
   const lire = (id) => {
     if (!lectures.has(id)) {
-      lectures.set(id, lireDonneesQualiopi(id).then(async (donnees) => ({ ...donnees, satisfaction: await lireSatisfaction(id, donnees) }))
+      lectures.set(id, Promise.all([lireDonneesQualiopi(id), lireSatisfaction(id)])
+        .then(([donnees, resultats]) => {
+          const satisfaction = satisfactionDe(resultats, tableau(donnees.stagiaires).length);
+          if (satisfaction.etat === "non_lue") lectures.delete(id);
+          return { ...donnees, satisfaction };
+        })
         .catch((e) => { lectures.delete(id); throw e; }));
     }
     return lectures.get(id);
   };
+
+  // À l'écran seulement : quand la satisfaction de la promo affichée n'a pas pu être lue, une phrase et un bouton qui relisent la promo.
+  function noteSatisfaction() {
+    const note = el("div", { class: "qualiopi-note-satisfaction" });
+    if (etat.donnees?.satisfaction?.etat !== "non_lue") return note;
+    note.append(el("p", { class: "qualiopi-aide" }, "La satisfaction des stagiaires n'a pas pu être lue. Les documents l'indiquent « non lue »."),
+      el("button", { class: "btn", type: "button", onClick: () => { lectures.delete(etat.promo.id); charger(etat.promo); } }, "Relire la satisfaction"));
+    return note;
+  }
 
   // --- Fiche : centre, promo, référentiel, catégorie, alternance ---
   const texteCentre = el("span");
@@ -747,7 +763,7 @@ export async function renderQualiopi(container) {
       return;
     }
     clear(corps);
-    corps.append(construireActions(), zoneQuestionnaires, zoneCriteres);
+    corps.append(construireActions(), noteSatisfaction(), zoneQuestionnaires, zoneCriteres);
     afficherCriteres();
   }
 

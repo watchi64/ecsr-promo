@@ -76,6 +76,7 @@ export function ficheResultats({ promo, ind, aujourdhui, presence = null, obtent
   // La satisfaction du questionnaire de fin de formation : le taux est un entier de 0 à 100, l'effectif est celui des répondants,
   // dit avec celui des inscrits (`effectifTexte`). Sous le seuil, la phrase fixe et aucun chiffre ; sinon l'ancienne forme.
   const satisfactionMesure = () => {
+    if (satisfaction?.etat === "non_lue") return ligne("satisfaction", "non lue (erreur de lecture)", SANS_OBJET, MESURE_NON_DISPONIBLE);
     if (satisfaction?.etat === "sous_seuil") return ligne("satisfaction", texteSousSeuil("stagiaire"), SANS_OBJET, MESURE_NON_DISPONIBLE);
     const t = Number.isInteger(satisfaction?.repondants) && Number.isInteger(satisfaction?.taux) && satisfaction.taux >= 0 && satisfaction.taux <= 100
       ? satisfaction.taux / 100 : null;

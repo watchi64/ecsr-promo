@@ -25,7 +25,7 @@ test("la page prend les lectures et l'ouverture de js/db.js, et ses règles du m
 });
 
 test("la section se place entre les documents et les critères, et se lit sans retenir la page", () => {
-  assert.match(codeVue, /corps\.append\(construireActions\(\), zoneQuestionnaires, zoneCriteres\);/);
+  assert.match(codeVue, /corps\.append\(construireActions\(\), noteSatisfaction\(\), zoneQuestionnaires, zoneCriteres\);/);
   assert.match(codeVue, /chargerQuestionnaires\(promo\);\s+try \{/, "lancée sans attendre, avant la lecture de la promo");
   assert.match(codeVue, /if \(moi !== lectureQq \|\| !pageVivante\(\) \|\| etat\.promo !== promo\) return;/, "une lecture caduque n'écrit rien");
 });

@@ -598,11 +598,11 @@ eq(lignesDe(f, "examen"), [
 ], "examen : par stagiaire en formation");
 
 // --- Appréciations
-// Sans lecture de la satisfaction (donnees.satisfaction absent), la pièce est « pas encore en service » et le centre fournit le reste.
+// Sans lecture de la satisfaction (donnees.satisfaction absent), la pièce est « non lue (erreur de lecture) » et le centre fournit le reste.
 eq(section(f, "appreciations").paragraphes, [
-  "Appréciations : questionnaire de fin de formation pas encore en service.",
+  "Appréciations : questionnaire de fin de formation non lu (erreur de lecture).",
   "Les réponses sont anonymes et aucun commentaire n'est repris dans ce dossier. Les avis des financeurs et des entreprises sont hors de l'application : à joindre.",
-], "appréciations : questionnaire pas encore en service, avis des financeurs à joindre");
+], "appréciations : questionnaire non lu, avis des financeurs à joindre");
 
 // --- Nominatif : les noms y sont ; les bénévoles et les auto-écoles n'y sont qu'en nombres
 const jsonFormation = JSON.stringify(f);

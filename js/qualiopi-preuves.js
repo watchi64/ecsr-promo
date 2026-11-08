@@ -34,9 +34,9 @@
 //                 import, les autres sont ses modifications.
 //   signalements  [{ traite_at }]
 //   autoEcoles    [{ actif, lieu_id }]
-//   satisfaction  { etat: "mesuree", taux, repondants, inscrits } | { etat: "sous_seuil" } | { etat: "absente" } : le résultat du
+//   satisfaction  { etat: "mesuree", taux, repondants, inscrits } | { etat: "sous_seuil" } | { etat: "absente" } | { etat: "non_lue" } : le résultat du
 //                 questionnaire de fin de formation, tel que le rend `satisfactionDe` (lu par la page, hors de l'inventaire) ;
-//                 une clé absente vaut « absente ». Jamais un commentaire : seuls des comptes entrent ici.
+//                 une clé absente vaut « non_lue ». Jamais un commentaire : seuls des comptes entrent ici.
 // Ne sont pas lus : `profs` et `entete` (les noms) et l'émargement, pas encore branché (voir la pièce `assiduite`).
 //
 // Exports : les aides du planning (`lignesDuPlanning`, `demiJournees`, `intervenantsDistincts`) et les petits outils de
@@ -238,9 +238,12 @@ const GLOBALE_FIN_STAGIAIRE = QUESTIONNAIRES.fin_stagiaire.questions.find((q) =>
 // (lireResultatsQuestionnaire : comptes par question, rien sous le seuil), `inscrits` le nombre de fiches de la promo.
 //   { etat: "mesuree", taux, repondants, inscrits } : taux entier en pourcent, « sans avis » exclu, au moins 5 répondants notés ;
 //   { etat: "sous_seuil" } : moins de 5 réponses notées, aucun chiffre ;
-//   { etat: "absente" } : rien de lisible (migration pas appliquée, lecture refusée) ; ce n'est pas une erreur, la pièce le dit calmement.
+//   { etat: "absente" } : la fonction de la base n'existe pas (migration pas appliquée), seuil nul ; la pièce le dit calmement ;
+//   { etat: "non_lue" } : la lecture a échoué (réseau, droit) ou n'a pas eu lieu (`{ echec: true }`, rien) : le questionnaire peut
+//   être en service avec des réponses, la pièce dit seulement qu'il n'a pas été lu. Jamais confondue avec « absente ».
 export function satisfactionDe(resultats, inscrits) {
-  if (!resultats || resultats.seuil === null || resultats.seuil === undefined) return { etat: "absente" };
+  if (!resultats || resultats.echec === true) return { etat: "non_lue" };
+  if (resultats.seuil === null || resultats.seuil === undefined) return { etat: "absente" };
   const mesure = tauxSatisfaction(resultats.questions?.[GLOBALE_FIN_STAGIAIRE], inscrits, "stagiaire");
   return mesure ? { etat: "mesuree", ...mesure } : { etat: "sous_seuil" };
 }
@@ -248,6 +251,7 @@ export function satisfactionDe(resultats, inscrits) {
 // « moins de 5 réponses au questionnaire de fin de formation » : la raison fixe d'une pièce sous le seuil.
 const RAISON_SOUS_SEUIL = `${texteSousSeuil("stagiaire")} au questionnaire de fin de formation`;
 const RAISON_SANS_QUESTIONNAIRE = "questionnaire de fin de formation pas encore en service";
+export const RAISON_NON_LUE = "questionnaire de fin de formation non lu (erreur de lecture)";
 
 // --- Cours : leurs modifications ---
 
@@ -408,7 +412,8 @@ const CONSTRUCTEURS = {
       const sur = satisfaction.inscrits > 0 ? ` sur ${nb(satisfaction.inscrits, "inscrit")}` : "";
       return presente(`questionnaire de fin de formation, ${pct(satisfaction.taux / 100)} de réponses favorables (${nb(satisfaction.repondants, "répondant")}${sur})`);
     }
-    return absente(satisfaction?.etat === "sous_seuil" ? RAISON_SOUS_SEUIL : RAISON_SANS_QUESTIONNAIRE);
+    if (satisfaction?.etat === "sous_seuil") return absente(RAISON_SOUS_SEUIL);
+    return absente(satisfaction?.etat === "absente" ? RAISON_SANS_QUESTIONNAIRE : RAISON_NON_LUE);
   },
 
   // Des nombres seulement : la liste des stagiaires à suivre de près porte des noms, elle n'est que comptée. Les listes
@@ -444,7 +449,7 @@ function contexte(donnees, referentiel, { promo, aujourdhui, nouveautes }) {
   const fin = jourDe(promo.date_fin) ?? jourDe(aujourdhui);
   return {
     promo, referentiel, liste,
-    satisfaction: donnees.satisfaction ?? { etat: "absente" },
+    satisfaction: donnees.satisfaction ?? { etat: "non_lue" },   // aucune lecture faite : honnêtement « non lue »
     terminee: promoTerminee(promo, aujourdhui),
     nouveautes: nouveautesCitables(nouveautes),
     ind: indicateursPromo(donnees, referentiel, { aujourdhui }),
