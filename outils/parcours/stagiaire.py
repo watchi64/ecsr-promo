@@ -131,8 +131,9 @@ def passer_un_qcm(v):
 
 # Évolution d'abord : c'est le but (« mes résultats ») ; les autres parties sont visitées ensuite, hors budget.
 PARTIES_MON_SUIVI = ("Évolution", "Passages", "EPCF", "Livret", "Dossier pro")
-# Nouvelle navigation (lot 2B) : Évolution et La classe sont les deux vues de Résultats, qui s'ouvre sur « Moi ».
-PARTIES_MON_SUIVI_V2 = ("Résultats", "Passages", "EPCF", "Livret", "Dossier pro")
+# Nouvelle navigation (lot 2B) : Évolution et La classe sont les deux vues de Résultats, qui s'ouvre sur « Moi » ; le livret
+# s'y appelle « Livret EPCF » (décision de Timy du 08/11).
+PARTIES_MON_SUIVI_V2 = ("Résultats", "Passages", "EPCF", "Livret EPCF", "Dossier pro")
 
 
 @parcours("mon-suivi", "Voir mes résultats et mes passages (Mon suivi)", role="stagiaire", budget=2)

@@ -178,7 +178,7 @@ Contrôles par vue
   * Planning > Semaine : chez le stagiaire, ni « Lecture seule... » ni « Cette semaine » (« Aujourd'hui », en tête de la page, le remplace) ; chez
     l'équipe, « Cette semaine » reste ;
   * Mon suivi aux libellés clairs (lot 2B, tâche 7), pour toute personne qui a une fiche, à 1 280 et 375 px : les parties dans l'ordre (Résultats, Passages, EPCF,
-    Livret, Dossier pro), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« EPCF : 0 sur 2 », « Dossier pro :
+    Livret EPCF, Dossier pro), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« EPCF : 0 épreuve sur 2 », « Dossier pro :
     0 exemple sur 6 »), sans date « 02/10 », jamais coupée, la dernière au-dessus de la barre du bas (à l'ouverture, et page défilée au bout) ; Résultats et son
     groupe « Moi / La classe » (boutons de 44 px, « Moi » par défaut, le choix gardé sur l'appareil, même après un rechargement) ; #/mon-suivi/classe,
     #/mon-suivi/evolution et #/notes (stagiaire) ouvrent Résultats sur la bonne vue, l'adresse devenue #/mon-suivi/resultats, sans étape d'historique ; sur
@@ -1553,6 +1553,7 @@ class Scenario:
     a_traiter: str = ""         # scénario « à traiter » (A_TRAITER_DU_BANC) : "ia", "beaucoup", "panne" ou "lent" ; vide pour tous les autres (lot 2A, tâche 6)
     reglage_illisible: str = ""       # la lecture du réglage de la promo échoue : la case du fondateur, une clé de CASES_DU_FONDATEUR (lot 2A, tâche 6, ruling R54)
     ressources_fermees: bool = False  # le module Ressources est fermé pour la promo : la ligne « Contacts du centre » du menu du compte (lot 2A, tâche 1)
+    compte: str = ""            # ?compte= du banc : un compte réel du lot 4 ("direction" : lit sans écrire), joué par jouer_direction (relecture finale du lot 2B)
 
     @property
     def nom(self):
@@ -1567,6 +1568,7 @@ class Scenario:
         variante += "-agenda-vide" if self.agenda_vide else ""
         variante += ("-a-traiter-" + self.a_traiter) if self.a_traiter else ""
         variante += ("-reglage-illisible-" + self.reglage_illisible) if self.reglage_illisible else ""
+        variante += ("-compte-" + self.compte) if self.compte else ""
         return "%s/%s/%s%s@%d" % (self.moteur, self.passe, self.role, variante, self.largeur)
 
 
@@ -1646,6 +1648,9 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
                                                     ("panne", 1280, ""), ("panne", 375, ""), ("lent", 375, ""), ("signaler", 375, "")):
                     if largeur in largeurs:
                         scenarios.append(Scenario(moteur, "allume", "prof", largeur, "reglage", "equipe", modules=modules, a_traiter=a_traiter))
+                # La direction du centre (relecture finale du lot 2B) : l'espace de l'équipe, en lecture seule ; ni Émargement, ni À traiter, ni QCM du stagiaire.
+                for l in etroit:
+                    scenarios.append(Scenario(moteur, "allume", "prof", l, "reglage", "equipe", compte="direction"))
         if "eteint" in passes:
             for role in roles:
                 for l in largeurs:
@@ -1842,6 +1847,9 @@ def adresse_de_page(url, sc):
     q.pop("modules", None)
     if sc.modules:
         q["modules"] = sc.modules
+    q.pop("compte", None)
+    if sc.compte:
+        q["compte"] = sc.compte
     q.pop("mes_promos", None)
     if sc.promos_en_panne:
         q["mes_promos"] = "erreur"
@@ -2007,7 +2015,7 @@ def plancher_sous_onglets(route, sc, res):
         # Stagiaire : Thèmes, Compétences, QCM, Documents ; équipe : Thèmes, Compétences, Signalements, Propositions IA, Documents (lot 2B, tâche 6).
         return 0 if depart else (4 if sc.espace == "stagiaire" else 5)
     if route == "mon-suivi" and res.profil_stagiaire:
-        return 0 if depart else 5      # Résultats, Passages, EPCF, Livret, Dossier pro (lot 2B, tâche 7)
+        return 0 if depart else 5      # Résultats, Passages, EPCF, Livret EPCF, Dossier pro (lot 2B, tâche 7)
     if route == "stagiaires":
         return 2                       # Stagiaires, Élèves bénévoles (équipe seulement, lot 2A)
     return 0
@@ -3169,7 +3177,7 @@ OU_TROUVER = {
     "Ton Dossier Professionnel se remplit dans l'app":
         ("Mon suivi, partie Dossier pro", "Mon suivi, partie Dossier pro", "Mon espace personnel, partie Dossier pro", "#/mon-suivi/dp"),
     "Ton livret officiel TP-01303 se remplit dans l'app":
-        ("Mon suivi, partie Livret", "Mon suivi, partie Livret", "Mon espace personnel, partie Livret", "#/mon-suivi/livret"),
+        ("Mon suivi, partie Livret EPCF", "Mon suivi, partie Livret EPCF", "Mon espace personnel, partie Livret", "#/mon-suivi/livret"),
     "Des vidéos conseillées dans la boîte à outils CCP2":
         ("Cours et QCM, Documents", "Cours et QCM, Documents", "Ressources, Examens", "#/ressources"),
     "Une boîte à outils numérique pour ton CCP2": ("Cours et QCM, Documents", "Cours et QCM, Documents", "Ressources", "#/ressources"),
@@ -3211,7 +3219,7 @@ GUIDES = {
     "Ton Dossier Professionnel se remplit dans l'app":
         ("Ouvre Mon suivi, dans la barre.", "Ouvre ton espace personnel avec le logo en haut à gauche."),
     "Ton livret officiel TP-01303 se remplit dans l'app":
-        ("Ouvre Mon suivi, partie Livret.", "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait."),
+        ("Ouvre Mon suivi, partie Livret EPCF.", "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait."),
     "Ta journée sur l'Accueil":
         ("Sur l'Accueil, la carte « Aujourd'hui » montre ton matin et ton après-midi. Quand la feuille d'émargement est ouverte, touche « Signer pour ce "
          "matin » (ou « Signer pour cet après-midi ») : la carte affiche ensuite l'heure de ta signature.", "(carte cachée avec l'ancienne barre)"),
@@ -3964,7 +3972,7 @@ def verifier_accueil(page, res, sc):
 JOURS_DE_LA_SEMAINE = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
 MOIS_DE_L_ANNEE = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre")
 ZONES_DE_L_ACCUEIL = (("aujourdhui", "Aujourd'hui"), ("afaire", "À faire"), ("rendez-vous", "Prochain rendez-vous"), ("nouveaute", "Nouveauté"))
-LIGNES_A_FAIRE = ("Examen ouvert", "QCM du thème", "Dossier professionnel", "Livret")   # l'ordre de la page : examen, QCM, dossier, livret
+LIGNES_A_FAIRE = ("Examen ouvert", "QCM du thème", "Dossier professionnel", "Livret EPCF")   # l'ordre de la page : examen, QCM, dossier, livret
 
 
 def verifier_accueil_stagiaire(page, res, sc, vue, jour=None):
@@ -4013,7 +4021,7 @@ def verifier_accueil_stagiaire(page, res, sc, vue, jour=None):
     rang = [next((i for i, t in enumerate(LIGNES_A_FAIRE) if x.startswith(t)), None) for x in titres]
     if None in rang or rang != sorted(rang) or len(titres) > 4:
         res.echec("accueil du stagiaire", vue, "les lignes de « À faire » sont %s : au plus 4, dans l'ordre %s" % (titres, " ; ".join(LIGNES_A_FAIRE)))
-    adresses = {"Examen ouvert": "#/themes", "QCM du thème": "#/themes", "Dossier professionnel": "#/mon-suivi/dp", "Livret": "#/mon-suivi/livret"}
+    adresses = {"Examen ouvert": "#/themes", "QCM du thème": "#/themes", "Dossier professionnel": "#/mon-suivi/dp", "Livret EPCF": "#/mon-suivi/livret"}
     for l in m["lignes"]:
         for debut, href in adresses.items():
             if l["titre"].startswith(debut) and l["href"] != href:
@@ -4021,7 +4029,7 @@ def verifier_accueil_stagiaire(page, res, sc, vue, jour=None):
     if sc.modules == "depart":
         if titres or "Rien à faire pour le moment." not in par["afaire"]["texte"]:
             res.echec("accueil du stagiaire", vue, "QCM, Dossier et Livret sont fermés : « À faire » ne propose plus de ligne (%s)" % (titres or par["afaire"]["texte"]))
-    elif not any(t.startswith("Livret") or t.startswith("Dossier") for t in titres):
+    elif not any(t.startswith("Livret EPCF") or t.startswith("Dossier") for t in titres):
         res.echec("accueil du stagiaire", vue, "« À faire » ne propose ni le dossier ni le livret alors que ces modules sont ouverts (%s)" % (titres or par["afaire"]["texte"]))
     # La journée : une rangée Matin avec le bouton, aucun bouton ailleurs ; le bandeau ne dit pas « Signer » sur cette page.
     if jour.weekday() < 5:
@@ -4277,6 +4285,89 @@ def jouer_accueil_du_stagiaire(page, res, sc):
     verifier_accueil_stagiaire(page, res, replace(sc, largeur=LARGEUR_ETROITE), vue + "/320")
     page.set_viewport_size({"width": sc.largeur, "height": 800})
     vider_console(res, vue)
+
+
+# Ce que dit une page à qui n'est pas pour elle (js/views/emargement.js...) : un lien qui y mène est une impasse.
+REFUS_DE_PAGE = ("se gère par les formateurs", "n'est pas pour toi", "réservé aux formateurs", "réservée aux formateurs", "accès refusé")
+
+
+def jouer_direction(page, res, sc):
+    """La direction du centre (`?compte=direction` : rôle prof, ni administrateur ni fondateur), nouvelle navigation (relecture finale du lot 2B, B1, B2, I1). Elle lit
+    sans écrire : Aujourd'hui sans carte Émargement ni À traiter (« À suivre de près » prend alors toute la dernière ligne sur ordinateur), Cours et QCM sans le
+    sous-onglet QCM du stagiaire, ni Signalements, ni Propositions IA, et aucun lien de la barre ou d'Aujourd'hui ne mène à une page qui la refuse. Le siège
+    emprunte les mêmes chemins de code (isProf vrai, isAdmin faux)."""
+    vue = "%s/direction" % sc.nom
+    preparer_coquille(page, res, sc, regles_de_la_page(page, res, sc))
+    # 1. Aujourd'hui.
+    aller_a(page, "#/home")
+    attendre(page)
+    try:
+        attendre_accueil(page)
+    except DelaiDepasse:
+        res.echec("direction, aujourd'hui", vue, "une carte reste en « Chargement… »")
+    verifier_vue(page, res, sc, "direction/aujourdhui", {})
+    m = page.evaluate("""() => {
+      const g = document.querySelector('#view .auj-grille');
+      const cartes = [...document.querySelectorAll('#view .auj-grille > .acc-carte')];
+      const suivre = cartes.find((c) => c.dataset.zone === 'a-suivre');
+      return { grille: !!g, zones: cartes.map((c) => c.dataset.zone),
+               largeurGrille: g ? Math.round(g.getBoundingClientRect().width) : 0,
+               largeurSuivre: suivre ? Math.round(suivre.getBoundingClientRect().width) : 0,
+               defile: document.documentElement.scrollWidth > innerWidth + 1 };
+    }""")
+    if not m["grille"]:
+        res.echec("direction, aujourd'hui", vue, "la page Aujourd'hui ne s'affiche pas")
+    else:
+        if "emargement" in m["zones"]:
+            res.echec("direction, aujourd'hui", vue, "la carte Émargement s'affiche : elle mène à une page réservée aux formateurs de la promo")
+        if "a-traiter" in m["zones"]:
+            res.echec("direction, aujourd'hui", vue, "la carte « À traiter » s'affiche : la direction ne traite ni signalement ni proposition de l'IA")
+        if m["zones"] != ["tableau", "voiture", "a-suivre"]:
+            res.echec("direction, aujourd'hui", vue, "cartes attendues : tableau, voiture, à suivre (lu : %s)" % m["zones"])
+        if sc.largeur >= 1080 and abs(m["largeurSuivre"] - m["largeurGrille"]) > 1:
+            res.echec("direction, aujourd'hui", vue, "« À suivre de près » ne prend pas toute la ligne (%d px pour %d px)" % (m["largeurSuivre"], m["largeurGrille"]))
+        if m["defile"]:
+            res.echec("direction, aujourd'hui", vue, "la page défile de côté")
+    # 2. Aucun lien vers une page qui la refuse : chaque lien d'Aujourd'hui, cliqué (il peut écrire un sous-onglet), puis chaque entrée de la barre et du tiroir.
+    liens = page.evaluate("() => [...document.querySelectorAll('#view a[href^=\"#/\"]')].filter((a) => a.getClientRects().length).map((a) => a.getAttribute('href'))")
+    for i, href in enumerate(liens):
+        aller_a(page, "#/home")
+        attendre(page)
+        try:
+            attendre_accueil(page)
+        except DelaiDepasse:
+            pass
+        try:
+            page.locator('#view a[href^="#/"]:visible').nth(i).click(timeout=4000)
+        except (DelaiDepasse, ErreurPlaywright) as e:
+            res.echec("clic impossible", vue, "lien %s d'Aujourd'hui : %s" % (href, motif_du_clic(e)))
+            continue
+        attendre(page, calme=200)
+        verifier_refus(page, res, vue, "lien %s d'Aujourd'hui" % href)
+    routes = page.evaluate("() => [...new Set([...document.querySelectorAll('[data-nav-coquille] a[href^=\"#/\"]')].map((a) => a.getAttribute('href')))]")
+    for href in routes:
+        aller_a(page, href)
+        attendre(page, calme=200)
+        verifier_refus(page, res, vue, "entrée %s de la barre" % href)
+    # 3. Cours et QCM : Thèmes, Compétences, Documents ; ni le QCM du stagiaire, ni Signalements, ni Propositions IA.
+    aller_a(page, "#/themes")
+    attendre(page, calme=200)
+    onglets = page.evaluate("() => [...document.querySelectorAll('#view [role=tab]')].filter((t) => t.getClientRects().length).map((t) => t.textContent.trim())")
+    for interdit in ("QCM", "Signalements", "Propositions IA"):
+        if interdit in onglets:
+            res.echec("direction, cours et qcm", vue, "le sous-onglet « %s » s'affiche (sous-onglets : %s)" % (interdit, ", ".join(onglets)))
+    if "Thèmes" not in onglets:
+        res.echec("direction, cours et qcm", vue, "le sous-onglet « Thèmes » manque (sous-onglets : %s)" % ", ".join(onglets))
+    res.vues += 1
+    vider_console(res, vue)
+
+
+def verifier_refus(page, res, vue, quoi):
+    texte = page.evaluate("() => (document.getElementById('view') || document.body).innerText")
+    trouve = [r for r in REFUS_DE_PAGE if r in texte.lower()]
+    res.vues += 1
+    if trouve:
+        res.echec("direction, lien vers une page refusée", vue, "%s ouvre #/%s, qui dit « %s »" % (quoi, route_courante(page), trouve[0]))
 
 
 def jouer_aujourdhui_cas_limites(page, res, sc):
@@ -4793,12 +4884,12 @@ def verifier_la_classe(page, res, sc):
 # --------------------------------------------------------------------------------------
 
 # Mon suivi, nouvelle navigation : les parties dans l'ordre (sous-onglets sur ordinateur, lignes du sommaire sur téléphone).
-PARTIES_MON_SUIVI = ["Résultats", "Passages", "EPCF", "Livret", "Dossier pro"]
+PARTIES_MON_SUIVI = ["Résultats", "Passages", "EPCF", "Livret EPCF", "Dossier pro"]   # « Livret EPCF » : décision de Timy du 08/11
 # La fiche de main : Mon espace éteint, et la fiche d'un stagiaire chez l'équipe dans les deux navigations.
 PARTIES_FICHE_DE_MAIN = ["Passages", "EPCF", "Évolution", "Livret", "Dossier pro"]
 # Les lignes du sommaire du stagiaire du banc (Timy, id 1, le 27/10/2026) : aucun passage à venir, aucune épreuve EPCF, pas de livret, un dossier ouvert le 02/10
 # sans exemple rempli (que main écrivait « Dossier pro 02/10 »).
-LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : aucun à venir", "EPCF : 0 sur 2", "Livret : pas encore commencé",
+LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : aucun à venir", "EPCF : 0 épreuve sur 2", "Livret EPCF : pas encore commencé",
                             "Dossier pro : 0 exemple sur 6"]
 CLE_VUE_RESULTATS = "ecsr_resultats_vue"
 # La fiche d'un stagiaire chez l'équipe : Valentin (id 4), EPCF 1 sur 2, livret et dossier.
@@ -5930,6 +6021,8 @@ def jouer_scenario(navigateur, url, sc, options):
             jouer_case_du_fondateur(page, res, sc)
         elif sc.ressources_fermees:
             jouer_ressources_fermees(page, res, sc, options)
+        elif sc.compte == "direction":
+            jouer_direction(page, res, sc)
         elif sc.passe == "allume":
             jouer_allume(page, res, sc, options)
         else:
