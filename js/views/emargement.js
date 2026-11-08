@@ -7,22 +7,24 @@ import {
   listStagiaires, listProfs, getPlanning, getHalfMetaForWeek, getJoursOff, getPromoCourante,
   listEmargementSeances, ouvrirEmargement, signerEmargement, signerEmargementFormateur,
   annoterEmargement, cloreEmargement, rouvrirEmargement, getEnteteEmargement, setEnteteEmargement,
-} from "../db.js?v=20261106a";
-import { el, clear, toast, isoDate } from "../utils.js?v=20261106a";
-import { icon } from "../icons.js?v=20261106a";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261106a";
+} from "../db.js?v=20261108b";
+import { el, clear, toast, isoDate } from "../utils.js?v=20261108b";
+import { icon } from "../icons.js?v=20261108b";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261108b";
 import {
   etatLigne, resumeSeance, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
   demiVoisine, notesProposees, roleAuPlanning,
-} from "../emargement-rules.js?v=20261106a";
-import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261106a";
+} from "../emargement-rules.js?v=20261108b";
+import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261108b";
 import {
   feuilleSeance, feuilleSemaine, imprimer, nomComplet, jourLong, DEMI_LONG, stagiairesDeFeuille,
-} from "../emargement-feuilles.js?v=20261106a";
-import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261106a";
-import { emargementActif } from "../emargement-etat.js?v=20261106a";
-import { navigationV2Active } from "../nav-etat.js?v=20261106a";
+} from "../emargement-feuilles.js?v=20261108b";
+import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261108b";
+import { emargementActif } from "../emargement-etat.js?v=20261108b";
+import { navigationV2Active } from "../nav-etat.js?v=20261108b";
+import { estAdresseAttestations } from "../attestations-rules.js?v=20261108b";
+import { renderAttestations } from "./attestations.js?v=20261108b";
 
 // Horaires par défaut, comme DEFAULT_HALF_META du planning.
 const HORAIRES_DEFAUT = { matin: { debut: "09:00", fin: "12:30" }, aprem: { debut: "13:30", fin: "17:00" } };
@@ -47,6 +49,10 @@ export async function renderEmargement(container) {
   }
   if (!emargementActif()) {
     container.appendChild(el("p", { class: "muted" }, "L'émargement n'est pas activé pour cette promo."));
+    return;
+  }
+  if (estAdresseAttestations(location.hash)) {
+    await renderAttestations(container, { estCourant: () => jeton === rendu, ouvrirEntete });
     return;
   }
   const { jour: jourAdresse, demi } = lireAdresseEmargement(location.hash);
@@ -148,9 +154,12 @@ function dessinerSemaine(ctx) {
     icon.list(), "Feuille de la semaine");
   const reglerEntete = el("button", { class: "btn small", type: "button", onClick: () => ouvrirEntete(ctx) },
     "En-tête");
+  const attestations = el("a", { class: "btn small", href: "#/emargement/attestations" },
+    icon.clipboard(), "Attestations");
+  // La base n'accepte l'écriture des réglages que d'un administrateur : le bouton « En-tête » suit.
   page.appendChild(el("div", { class: "em-barre" },
     el("div", { class: "em-barre-nav" }, el("span", { class: "em-barre-titre" }, titre), prev, choixDate, next, cette),
-    el("div", { class: "em-barre-actions" }, imprimerSemaine, reglerEntete),
+    el("div", { class: "em-barre-actions" }, imprimerSemaine, attestations, isAdmin() ? reglerEntete : null),
   ));
 
   const actifs = stagiaireIdsActifs(ctx);
@@ -198,26 +207,44 @@ function dessinerSemaine(ctx) {
   }
 }
 
-function ouvrirEntete(ctx) {
-  const organisme = el("input", { type: "text", value: ctx.entete.organisme, maxlength: "120" });
-  const intitule = el("input", { type: "text", value: ctx.entete.intitule, maxlength: "200" });
+// Exporté pour la page Attestations, qui règle le même en-tête (signataire, lieu).
+export function ouvrirEntete(ctx, { apres = null } = {}) {
+  const champ = (k, max, attrs = {}) => el("input", { type: "text", value: ctx.entete[k] || "", maxlength: String(max), ...attrs });
+  const organisme = champ("organisme", 120);
+  const intitule = champ("intitule", 200);
+  const adresse1 = champ("adresse1", 120, { placeholder: "Rue" });
+  const adresse2 = champ("adresse2", 120, { placeholder: "Code postal et ville" });
+  const signataire = champ("signataire", 80, { placeholder: "Prénom et nom" });
+  const qualite = champ("qualite", 80, { placeholder: "Directeur, responsable pédagogique…" });
+  const lieu = champ("lieu", 60, { placeholder: ctx.promo?.lieu_nom || "" });
   const fond = el("div", { class: "modal-backdrop" });
   const fermer = () => fond.remove();
   const enregistrer = el("button", { class: "btn primary", type: "button", onClick: async () => {
     enregistrer.disabled = true;
     try {
-      await setEnteteEmargement({ organisme: organisme.value, intitule: intitule.value });
+      await setEnteteEmargement({
+        organisme: organisme.value, intitule: intitule.value, adresse1: adresse1.value, adresse2: adresse2.value,
+        signataire: signataire.value, qualite: qualite.value, lieu: lieu.value,
+      });
       ctx.entete = await getEnteteEmargement();
       toast("En-tête enregistré pour cette promo.", "success");
       fermer();
+      if (apres) apres(ctx.entete);
     } catch (e) { enregistrer.disabled = false; enErreur(e); }
   } }, "Enregistrer");
-  fond.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "En-tête de la feuille" },
-    el("h3", {}, "En-tête de la feuille"),
+  fond.appendChild(el("div", { class: "modal em-modal-entete", role: "dialog", "aria-modal": "true", "aria-label": "En-tête des documents" },
+    el("h3", {}, "En-tête des documents"),
     el("div", { class: "modal-form" },
       el("label", {}, "Organisme de formation", organisme),
       el("label", {}, "Intitulé de la formation", intitule),
-      el("p", { class: "muted em-note" }, "Imprimé en haut de chaque feuille de cette promo."),
+      el("p", { class: "muted em-note" }, "Imprimés en haut des feuilles, des certificats et des attestations de cette promo."),
+      el("label", {}, "Adresse de l'organisme", adresse1, adresse2),
+      el("label", {}, "Signataire des certificats", signataire),
+      el("label", {}, "Qualité du signataire", qualite),
+      el("label", {}, "Fait à", lieu),
+      el("p", { class: "muted em-note" },
+        "Facultatifs : laissés vides, ils s'impriment en pointillés à compléter à la main. "
+        + "Sans lieu, le certificat porte celui de la promo."),
     ),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"), enregistrer),

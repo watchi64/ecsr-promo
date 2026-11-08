@@ -62,6 +62,7 @@ eq(entreeActive("calendrier", eqp), "planning", "alias calendrier");
 eq(entreeActive("dashboard", eqp), "planning", "alias dashboard");
 eq(entreeActive("ressources", eqp), "themes", "alias ressources");
 eq(entreeActive("nouveautes", eqp), "home", "alias nouveautes");
+eq(entreeActive("qualiopi", eqp), "centre", "alias qualiopi : la page s'ouvre depuis le tableau de bord du centre");
 eq(entreeActive("notes", stag), "mon-suivi", "stagiaire : la classe vit sous Mon suivi");
 eq(entreeActive("notes", eqp), "notes", "équipe : Notes a son entrée");
 eq(entreeActive("mon-suivi", eqp), null, "équipe : Mon espace sans entrée");

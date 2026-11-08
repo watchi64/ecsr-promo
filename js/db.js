@@ -1,11 +1,11 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261106a";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261106a";
-import { compteDansEquite } from "./passage-rules.js?v=20261106a";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261106a";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261108b";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261108b";
+import { compteDansEquite } from "./passage-rules.js?v=20261108b";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261108b";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261106a";
+} from "./promo-rules.js?v=20261108b";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -1632,12 +1632,19 @@ async function toutesLesLignes(fabrique) {
   }
 }
 
-// promoId nul (liste des promos non chargée) : promo courante, sans en-tête de lecture.
-export async function lireDonneesCentre(promoId) {
-  const lire = (table, colonnes, ordre) => toutesLesLignes(() => {
+// Toutes les lignes d'une table, lues par pages et triées sur une colonne à valeurs distinctes (sinon deux pages
+// pourraient se chevaucher). promoId : la promo à lire, portée par l'en-tête interne de lecture ; nul : pas
+// d'en-tête, donc la promo courante pour une table par promo, et aucun effet pour une table commune à toutes les promos.
+function lireTable(table, colonnes, ordre, promoId) {
+  return toutesLesLignes(() => {
     const q = supabase.from(table).select(colonnes).order(ordre);
     return promoId == null ? q : q.setHeader(ENTETE_LECTURE_PROMO, String(promoId));
   });
+}
+
+// promoId nul (liste des promos non chargée) : promo courante, sans en-tête de lecture.
+export async function lireDonneesCentre(promoId) {
+  const lire = (table, colonnes, ordre) => lireTable(table, colonnes, ordre, promoId);
   const [stagiaires, passages, evaluations, tentatives, epcf] = await Promise.all([
     lire("stagiaires", "id, prenom, nom, actif, ordre, anonymise_le", "id"),
     lire("passages", "id, stagiaire_id, type, resultat, date", "id"),
@@ -1657,6 +1664,49 @@ export async function lireReferentielCentre() {
     ]);
     return { qcm, themes };
   });
+}
+
+// Dossier Qualiopi : tout ce que l'inventaire des preuves d'une promo lit (forme de `donnees` en tête de
+// js/qualiopi-preuves.js) : les lectures du tableau de bord du centre, plus le planning et ses jours désactivés, le
+// calendrier, les livrets, les dossiers, les signalements de QCM, les cours et leurs versions, les auto-écoles, les
+// formateurs et l'en-tête des feuilles d'émargement. Lecture seule.
+// Les tables par promo (planning, jours désactivés, calendrier, livrets, dossiers, auto-écoles, réglages) se lisent AVEC
+// l'en-tête de lecture de la promo demandée : sans lui, la base rendrait celles de la promo courante, et pour les
+// auto-écoles celles du lieu de la promo courante, donc d'un autre centre. Les tables communes à toutes les promos
+// (signalements, cours, versions de cours, formateurs) se lisent SANS. Les signalements n'ont pas de promo : ils sont
+// gardés quand leur auteur est un stagiaire de la promo lue. Les cours et leurs versions sont lus en entier, sans filtre :
+// l'inventaire retire la plus ancienne date de chaque cours (sa création), qu'une lecture bornée ferait confondre avec
+// une modification. Ni `email`, ni `corps_md`, ni `saved_by` ne sont lus.
+// promoId nul : erreur, jamais de repli sur la promo courante (ses chiffres s'afficheraient sous le nom d'une autre).
+export async function lireDonneesQualiopi(promoId) {
+  if (promoId == null) throw new Error("Dossier Qualiopi : aucune promo choisie, lecture impossible.");
+  const parPromo = (table, colonnes, ordre) => lireTable(table, colonnes, ordre, promoId);
+  const communes = (table, colonnes, ordre) => lireTable(table, colonnes, ordre, null);
+  // Le réglage n'a qu'une ligne au plus (clé unique par promo) : il se lit en maybeSingle, une ligne ne se tronque pas.
+  // Une erreur de lecture lève : des valeurs par défaut afficheraient sur le dossier l'organisme d'une autre promo.
+  const lireEntete = async () => {
+    const { data, error } = await supabase.from("settings").select("value").eq("key", "emargement_entete")
+      .setHeader(ENTETE_LECTURE_PROMO, String(promoId)).maybeSingle();
+    if (error) throw error;
+    return enteteEmargementDuReglage(data?.value ?? null);
+  };
+  const [centre, planning, agenda, livrets, dossiers, signalementsLus, cours, autoEcoles, profs, entete, joursOff, versions] = await Promise.all([
+    lireDonneesCentre(promoId),
+    parPromo("planning_entries", "id, semaine_lundi, day_index, half_day, activite, sujet, sujet_2, salle_double, prof_ids, prof_autre, autonomie, benevoles_ids, promo_id", "id"),
+    parPromo("agenda_events", "id, type, date_start, date_end", "id"),
+    parPromo("epcf_livrets", "stagiaire_id, updated_at", "id"),
+    parPromo("dp_dossiers", "stagiaire_id, updated_at", "id"),
+    communes("qcm_signalements", "id, stagiaire_id, statut, created_at, traite_at", "id"),
+    communes("cours", "id, published, updated_at", "id"),
+    parPromo("auto_ecoles", "id, actif, lieu_id", "id"),
+    communes("profs", "id, nom", "id"),
+    lireEntete(),
+    parPromo("planning_jours_off", "semaine_lundi, day_index", "id"),
+    communes("cours_versions", "cours_id, saved_at", "id"),
+  ]);
+  const stagiairesDeLaPromo = new Set(centre.stagiaires.map((s) => s.id));
+  const signalements = signalementsLus.filter((s) => stagiairesDeLaPromo.has(s.stagiaire_id));
+  return { ...centre, planning, agenda, livrets, dossiers, signalements, cours, autoEcoles, profs, entete, joursOff, versions };
 }
 
 // --- Signalements sur les questions de QCM ---
@@ -1860,6 +1910,21 @@ export async function listEmargementSeances(jourDebut, jourFin) {
   return (data || []).map((s) => ({ ...s, lignes: s.lignes || [], formateurs: s.formateurs || [] }));
 }
 
+// Feuilles d'une période, légères (sans tracé ni signature de formateur) : sert aux
+// certificats et attestations (spec 2026-10-24), qui peuvent couvrir toute une formation.
+// Une ligne est signée quand `signe_le` est posé (la base lie tracé et heure).
+export async function listEmargementPresences(jourDebut, jourFin) {
+  const { data, error } = await supabase
+    .from("emargement_seances")
+    .select("id, promo_id, jour, demi_journee, debut, fin, statut, "
+      + "lignes:emargement_lignes(stagiaire_id, signe_le, absent, absence_origine, observation, sur_appareil_formateur)")
+    .gte("jour", jourDebut)
+    .lte("jour", jourFin)
+    .order("jour");
+  if (error) throw error;
+  return (data || []).map((s) => ({ ...s, lignes: s.lignes || [] }));
+}
+
 // Feuilles ouvertes d'un jour, légères (sans tracé) : sert au bandeau, relu souvent.
 export async function getEmargementsOuverts(jour) {
   const { data, error } = await supabase
@@ -1899,23 +1964,41 @@ export function rouvrirEmargement(seanceId) {
   return rpcEmargement("emargement_rouvrir", { p_seance: seanceId });
 }
 
-// En-tête des feuilles, propre à la promo (réglage `emargement_entete`, JSON).
+// En-tête des feuilles, propre à la promo (réglage `emargement_entete`, JSON). Les champs
+// facultatifs (adresse, signataire, qualité, lieu) servent aux certificats et attestations
+// (spec 2026-10-24) : vides, ils s'impriment en pointillés à compléter à la main.
 export const ENTETE_EMARGEMENT_DEFAUT = {
   organisme: "ECF BOUSCAREN",
   intitule: "Titre professionnel Enseignant de la conduite et de la sécurité routière (ECSR)",
 };
+const ENTETE_FACULTATIF = { adresse1: 120, adresse2: 120, signataire: 80, qualite: 80, lieu: 60 };
 
-export async function getEnteteEmargement() {
+// La règle, écrite une seule fois : la valeur brute du réglage `emargement_entete` (JSON, ou nulle) donne l'organisme,
+// l'intitulé (valeur par défaut quand il manque, n'est pas un texte ou est vide) et les champs facultatifs des
+// attestations (vides par défaut). Partagée par
+// getEnteteEmargement (promo courante) et lireDonneesQualiopi (promo lue).
+function enteteEmargementDuReglage(valeur) {
   let lu = null;
-  try { lu = JSON.parse(await getSetting("emargement_entete") || "null"); } catch (e) { lu = null; }
-  return {
-    organisme: (lu && typeof lu.organisme === "string" && lu.organisme.trim()) || ENTETE_EMARGEMENT_DEFAUT.organisme,
-    intitule: (lu && typeof lu.intitule === "string" && lu.intitule.trim()) || ENTETE_EMARGEMENT_DEFAUT.intitule,
+  try { lu = JSON.parse(valeur || "null"); } catch (e) { lu = null; }
+  const texte = (k) => (lu && typeof lu[k] === "string" ? lu[k].trim() : "");
+  const entete = {
+    organisme: texte("organisme") || ENTETE_EMARGEMENT_DEFAUT.organisme,
+    intitule: texte("intitule") || ENTETE_EMARGEMENT_DEFAUT.intitule,
   };
+  for (const k of Object.keys(ENTETE_FACULTATIF)) entete[k] = texte(k);
+  return entete;
 }
 
-export async function setEnteteEmargement({ organisme, intitule }) {
-  await setSetting("emargement_entete", JSON.stringify({
-    organisme: String(organisme || "").trim(), intitule: String(intitule || "").trim(),
-  }));
+// Une lecture ratée lève (elle n'est plus remplacée par les valeurs par défaut) : imprimer
+// « ECF BOUSCAREN » sur une autre promo, ou réenregistrer ces valeurs par-dessus le vrai en-tête,
+// serait pire qu'une page en erreur. Un réglage absent, lui, donne les valeurs par défaut.
+export async function getEnteteEmargement() {
+  return enteteEmargementDuReglage(await getSetting("emargement_entete"));
+}
+
+export async function setEnteteEmargement(entete) {
+  const net = (k, max) => String(entete?.[k] || "").trim().slice(0, max);
+  const valeur = { organisme: net("organisme", 120), intitule: net("intitule", 200) };
+  for (const [k, max] of Object.entries(ENTETE_FACULTATIF)) valeur[k] = net(k, max);
+  await setSetting("emargement_entete", JSON.stringify(valeur));
 }

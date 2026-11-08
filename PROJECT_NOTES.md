@@ -449,6 +449,46 @@ Spec : `docs/superpowers/specs/2026-10-23-tableau-de-bord-centre-design.md` · p
 - **Limites dites sur la page** : pas de date d'abandon en base ; absences = seulement les passages
   prévus (l'émargement couvrira la présence) ; réussite au titre non saisie.
 
+## Dossier Qualiopi (octobre-novembre 2026, branche `qualiopi`)
+
+Spec : `docs/superpowers/specs/2026-10-28-dossier-qualiopi-design.md` · plan :
+`docs/superpowers/plans/2026-10-28-dossier-qualiopi-q1-q2.md`. Aucune migration, aucune écriture en base. État au 06/11/2026 :
+la branche n'est pas fusionnée dans `main`.
+
+- **Page** `#/qualiopi` (`js/views/qualiopi.js`, `css/qualiopi.css`), chargée à la demande (`import()` dans `main.js`,
+  boîte d'erreur lisible si le module ne vient pas). **Garde : `fondateurHorsApercu()`**, comme la page Problèmes :
+  un autre profil, ou le fondateur en aperçu « Voir en tant que », est ramené à `#/home` sans un mot. Aucune entrée
+  de barre ; seul le bouton « Qualiopi » du tableau de bord (`js/views/centre.js`) y mène.
+- **Modules purs** (un test node chacun) : `js/qualiopi-referentiel.js` (33 indicateurs du décret n° 2026-728, dont 27
+  applicables à un centre de formation continue, 28 avec l'alternance ; textes recopiés tels quels, empreinte épinglée), `js/qualiopi-preuves.js` (inventaire : ce que l'app prouve, par
+  indicateur et par promo), `js/qualiopi-documents.js` (dossier de la formation, dossier du centre avec ou sans noms,
+  CSV), `js/qualiopi-resultats.js` (fiche des résultats à publier, texte à copier), `js/qualiopi-page-rules.js` (règles
+  de la page). `js/qualiopi-impression.js` n'est pas un module pur : il touche le DOM (montage et nettoyage de l'impression),
+  testé avec un faux document, et c'est le seul module Qualiopi chargé au démarrage.
+- **Lecture** : `lireDonneesQualiopi(promoId)` (`js/db.js`) lit les tables par `toutesLesLignes` (PostgREST rend 1 000 lignes
+  au plus), avec l'en-tête interne `x-promo-lecture` ; promo nulle : erreur, jamais de repli sur la promo courante. Tables
+  communes (signalements, cours, versions, formateurs) lues sans en-tête ; jamais `email`, `corps_md`, `saved_by`.
+- **Version sans noms** : agrégats seulement ; bénévoles et auto-écoles en nombres dans toutes les versions ; ni nom
+  d'« Autre », ni sujet de séance, ni titre d'événement.
+- **Impression** : `@page` A4 portrait injectée au clic, retirée à `afterprint` et dans `navigate()`
+  (`teardownQualiopiPrint`) ; `html:has(body.qualiopi-printable)` blanc pour que le bas d'une fiche courte ne prenne pas
+  le fond de l'app. **Copie du texte** : `navigator.clipboard.write` avec un `ClipboardItem` d'une promesse, appelé dans le
+  geste du clic avant toute lecture (Safari, Firefox) ; repli `writeText` après les lectures.
+- **Banc** : `_harness.html?centre=1&qualiopi=1[&demo=1][&date=AAAA-MM-JJ][&qualiopi_noms=1]` (fondateur, sans `role`).
+  `_banc_qualiopi_demo.js` (non versionné, relevé en lecture seule le 06/11/2026) porte le planning, le calendrier, le
+  livret, le dossier pro, les auto-écoles, les formateurs, les cours et leurs versions de la promo 7 ; `qualiopi_noms=1`
+  inscrit des formateurs au planning et met un prénom dans un sujet pour éprouver la version sans noms. La promo 7 finit le
+  10/12/2026 : pour une fiche « publiable », geler la date après (`?date=2026-12-15`). Vérifié au 06/11 : chiffres de la
+  promo 7 égaux aux requêtes de lecture, trois documents et deux fiches en PDF A4 (Chromium), 375 px sans défilement de côté.
+- **Règles de comptage** : le déroulé réalisé ne compte que les jours de la promo jusqu'à la plus proche de sa fin et d'aujourd'hui,
+  sans jour férié ni jour désactivé (`lignesDuPlanning`) ; sujets et bénévoles suivent la forme de l'activité, comme le planning ;
+  la colonne du niveau s'intitule « Apport de l'application » (légende `PHRASE_NIVEAU`, absente du CSV pour garder 1 + 27 lignes) ;
+  les annonces `navigation: "nouvelle"` ne sont ni comptées ni citées tant que la nouvelle barre est éteinte.
+- **Limites connues** : émargement pas encore branché (l'assiduité reste « pas encore branché ») ; résultats de jury non
+  saisis (« non saisi ») ; population « stagiaires en formation » (fiches actives) pour passages, notes, QCM, EPCF, livrets ;
+  WebKit joué par Playwright (montage, nettoyage, largeur) sauf la pagination PDF, vue dans Chromium seulement ; page
+  réservée au fondateur jusqu'à la refonte du lot 5.
+
 ## Émargement signé (octobre 2026)
 
 Spec : `docs/superpowers/specs/2026-10-23-emargement-design.md` · plan :
@@ -484,6 +524,41 @@ Spec : `docs/superpowers/specs/2026-10-23-emargement-design.md` · plan :
   ou `..._demo_retour.sql`.
 - **Banc** : `?emargement=1` (interrupteur allumé, semaine précédente close, matin du jour ouvert) ; les six
   fonctions sont jouées en mémoire par `_harness_supabase.js` avec les mêmes règles et messages.
+
+### Certificats de réalisation et attestations d'assiduité (octobre 2026)
+
+Spec : `docs/superpowers/specs/2026-10-24-attestations-design.md` · plan :
+`docs/superpowers/plans/2026-10-26-attestations.md`.
+
+- **Page** `#/emargement/attestations` (bouton « Attestations » de la semaine), mêmes portes que
+  l'Émargement (formateurs, interrupteur allumé) : période (toute la formation par défaut, un bouton par
+  mois), heures par stagiaire, certificat et attestation un à un ou pour toute la promo.
+- **Calcul** (`js/attestations-rules.js`, testé) : seules les feuilles **closes** comptent ; prévues = durée
+  des feuilles où le stagiaire a une ligne, réalisées = lignes signées (`signe_le`), une demi-journée signée
+  compte en entier (décision de Timy du 24/10). Feuilles ouvertes et demi-journées sans feuille : signalées
+  à l'écran, jamais comptées. Lecture légère sans tracés : `listEmargementPresences` (`js/db.js`).
+- **Certificat** (`js/attestations-documents.js`) : texte du modèle du ministère du Travail (version au
+  1er juin 2020) mot pour mot, sur l'en-tête de l'organisme, sans logo ; dates = premier et dernier jour
+  signés ; durée = heures réalisées ; champs inconnus (employeur, signataire) en pointillés. Bouton grisé
+  pour un stagiaire sans demi-journée signée.
+- **Attestation** : résumé (prévues, réalisées, absences, taux), détail par semaine, chaque absence et
+  chaque note avec sa date.
+- **En-tête** : le réglage `emargement_entete` gagne adresse (deux lignes), signataire, qualité, lieu
+  « Fait à » (défaut : lieu de la promo). Aucune migration.
+- **Impression** : marge de page 0, comme les feuilles (une marge `@page` laisserait Chrome imprimer
+  l'adresse de l'app et la date, case cochée par défaut). L'attestation, qui peut courir sur plusieurs
+  pages, porte ses marges dans l'en-tête et le pied d'un tableau que l'impression répète sur chaque page
+  (`avecMarges`). Preuve du 08/11 : Chrome sans tête, réglages par défaut, sur `_apercu_attestations.html`
+  (non versionné : 30 semaines, 300 demi-journées) : 6 pages d'attestation marges comprises, puis le
+  certificat sur une page, aucune adresse ni date ajoutée.
+- **Robustesse** (relecture du 26/10) : la saisie d'une date au clavier ne redessine jamais les champs
+  (seule la partie sous les dates) et ignore les années hors 2000-2099 ; une lecture plus ancienne
+  arrivée après une plus récente est ignorée ; rien n'est peint si l'on a quitté la page. Bouton
+  « En-tête et signataire » réservé aux administrateurs (seuls à pouvoir écrire un réglage en base).
+- **Nouveautés** : aucune entrée (même règle que l'émargement) ; texte prêt dans la spec (§ 8).
+- **Banc** : `?role=prof&centre=1&demo=1&emargement=7` charge les 20 feuilles de la promo 7, relevées en
+  lecture seule (`_banc_emargement_demo.js`, non versionné). Contrôle du 26/10 : MERCIER Kevin 59 h 30 sur
+  70 h (85 %), LAURENT Sarah 63 h (90 %), les huit autres 70 h, conformes au recomptage sur la base.
 
 ## Décisions UX importantes (à respecter)
 
