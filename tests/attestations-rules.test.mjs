@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   bilanStagiaire, stagiairesDeLaPeriode, feuillesOuvertes, demiJourneesSansFeuille, periodeParDefaut,
   moisDeLaPeriode, dureeEnToutesLettres, dateFr, estAdresseAttestations, seancesDeLaPromo, LIBELLE_ORIGINE,
+  datePeriodeValide,
 } from "../js/attestations-rules.js";
 
 const signe = (sid, quand, observation = null) => ({ stagiaire_id: sid, signe_le: quand, absent: false, absence_origine: null, observation });
@@ -123,4 +124,11 @@ test("adresse de la page", () => {
   assert.equal(estAdresseAttestations("#/emargement/attestations"), true);
   assert.equal(estAdresseAttestations("#/emargement/2026-10-12"), false);
   assert.equal(estAdresseAttestations("#/emargement"), false);
+});
+
+test("date de période : saisie clavier en cours refusée", () => {
+  assert.equal(datePeriodeValide("2026-10-12"), true);
+  for (const d of ["0002-10-12", "0202-10-12", "1999-12-31", "2026-02-30", "2026-1-5", "", null]) {
+    assert.equal(datePeriodeValide(d), false, String(d));
+  }
 });

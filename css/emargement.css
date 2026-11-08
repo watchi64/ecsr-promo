@@ -306,12 +306,13 @@ body.sig-ouverte { overflow: hidden; }
 /* Pièces sobres, sur l'en-tête de l'organisme : le certificat suit le modèle du ministère. */
 
 .at-doc {
-  box-sizing: border-box; width: 210mm; padding: 16mm 20mm 14mm;
+  box-sizing: border-box; width: 210mm; padding: 4mm 20mm 2mm;
   background: #fff; color: #111; font-family: var(--font); font-size: 10.5pt; line-height: 1.45;
 }
-/* Le certificat tient sur une page, notes de bas de page en pied ; l'attestation peut en
-   prendre plusieurs (bloc ordinaire, que l'impression découpe sans peine). */
-.at-certificat { display: flex; flex-direction: column; min-height: 296mm; }
+/* Imprimées avec une marge @page de 12 mm en haut et en bas (imprimer(..., { marge })), répétée
+   sur chaque page : 273 mm utiles. Le certificat tient sur une page, notes de bas de page en
+   pied ; l'attestation peut en prendre plusieurs (bloc ordinaire, découpé par l'impression). */
+.at-certificat { display: flex; flex-direction: column; min-height: 272mm; }
 .at-doc + .at-doc { break-before: page; page-break-before: always; }
 .at-doc p { margin: 0 0 2mm; }
 .at-entete { margin-bottom: 12mm; padding-bottom: 3mm; border-bottom: 0.4mm solid #556641; }

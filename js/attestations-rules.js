@@ -118,6 +118,15 @@ export function dateFr(iso) {
   return `${j}/${m}/${a}`;
 }
 
+// Date de période utilisable : bien formée et entre 2000 et 2099. Une saisie au clavier passe
+// par « 0002-10-12 », « 0020-10-12 »… : sans cette borne, l'app relirait des siècles de feuilles.
+export function datePeriodeValide(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+  if (!m || Number(m[1]) < 2000 || Number(m[1]) > 2099) return false;
+  const d = new Date(iso + "T00:00:00Z");
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === iso;
+}
+
 export function estAdresseAttestations(hash) {
   return /^#?\/?emargement\/attestations\/?$/.test(String(hash ?? ""));
 }

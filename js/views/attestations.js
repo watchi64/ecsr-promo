@@ -5,18 +5,23 @@
 
 import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261024d";
 import { el, clear, toast, isoDate } from "../utils.js?v=20261024d";
+import { isAdmin } from "../auth-admin.js?v=20261024d";
 import { libelleDuree, jourDe } from "../emargement-rules.js?v=20261024d";
 import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261024d";
 import {
   bilanStagiaire, stagiairesDeLaPeriode, feuillesOuvertes, demiJourneesSansFeuille, periodeParDefaut,
-  moisDeLaPeriode, seancesDeLaPromo, dateFr,
+  moisDeLaPeriode, seancesDeLaPromo, dateFr, datePeriodeValide, estAdresseAttestations,
 } from "../attestations-rules.js?v=20261024d";
 import { certificatRealisation, attestationAssiduite, liasse } from "../attestations-documents.js?v=20261024d";
 
 // Période choisie, gardée par promo le temps de la visite (retour depuis la semaine).
 const periodes = new Map();
 
-// `estCourant()` : faux dès qu'un autre affichage a été demandé entre-temps (lecture lente).
+// La page affichée est encore celle-ci : `estCourant()` (fourni par la page Émargement) devient
+// faux quand elle se redessine, et l'adresse change quand on part ailleurs (le conteneur de vue
+// est partagé par toutes les pages : une lecture lente ne doit rien y peindre).
+const vivant = (ctx) => ctx.estCourant() && estAdresseAttestations(location.hash);
+
 export async function renderAttestations(container, { estCourant = () => true, ouvrirEntete } = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
@@ -26,30 +31,34 @@ export async function renderAttestations(container, { estCourant = () => true, o
   const ctx = {
     container, promo, aujourdhui, formation, estCourant, ouvrirEntete,
     periode: periodes.get(promo?.id) || { ...formation },
-    charge: null,
+    charge: null, lecture: 0,
   };
   try {
     const [stagiairesTous, entete] = await Promise.all([listStagiaires({ includeInactive: true }), getEnteteEmargement()]);
     Object.assign(ctx, { stagiairesTous, entete });
     await charger(ctx);
   } catch (e) {
-    if (!estCourant()) return;
+    if (!vivant(ctx)) return;
     clear(container);
     container.appendChild(el("p", { class: "em-alerte" }, "Lecture impossible : " + (e?.message || e)));
     return;
   }
-  if (!estCourant()) return;
+  if (!vivant(ctx)) return;
   dessiner(ctx);
 }
 
 // Les feuilles de toute la formation sont lues une fois (sans tracés) ; une période qui en
-// sort élargit la lecture.
+// sort élargit la lecture. Rend faux si une lecture plus récente a été demandée entre-temps :
+// sa réponse fera foi (deux périodes choisies coup sur coup).
 async function charger(ctx) {
   const du = ctx.periode.du < ctx.formation.du ? ctx.periode.du : ctx.formation.du;
   const au = ctx.periode.au > ctx.formation.au ? ctx.periode.au : ctx.formation.au;
-  if (ctx.charge && ctx.charge.du <= du && ctx.charge.au >= au) return;
+  if (ctx.charge && ctx.charge.du <= du && ctx.charge.au >= au) return true;
+  const numero = ++ctx.lecture;
   const seances = seancesDeLaPromo(await listEmargementPresences(du, au), ctx.promo?.id);
+  if (numero !== ctx.lecture) return false;
   ctx.charge = { du, au, seances };
+  return true;
 }
 
 function seancesDeLaPeriode(ctx) {
@@ -57,12 +66,19 @@ function seancesDeLaPeriode(ctx) {
   return ctx.charge.seances.filter((s) => s.jour >= du && s.jour <= au);
 }
 
-async function changerPeriode(ctx, du, au) {
-  if (!du || !au) return;
+// Saisie au clavier : le champ émet une date à chaque chiffre (« 0002-10-12 »…) ; seules les
+// dates plausibles sont prises, et les champs ne sont jamais redessinés pendant la frappe.
+async function changerPeriode(ctx, du, au, { depuisChamps = false } = {}) {
+  if (!datePeriodeValide(du) || !datePeriodeValide(au)) return;
   ctx.periode = du <= au ? { du, au } : { du: au, au: du };
   periodes.set(ctx.promo?.id, ctx.periode);
-  try { await charger(ctx); } catch (e) { toast("Lecture impossible : " + (e?.message || e), "error"); return; }
-  if (ctx.estCourant()) dessiner(ctx);
+  if (!depuisChamps) { ctx.champDu.value = ctx.periode.du; ctx.champAu.value = ctx.periode.au; }
+  let aJour;
+  try { aJour = await charger(ctx); } catch (e) {
+    if (vivant(ctx)) toast("Lecture impossible : " + (e?.message || e), "error");
+    return;
+  }
+  if (aJour && vivant(ctx)) dessinerCorps(ctx);
 }
 
 function dessiner(ctx) {
@@ -85,14 +101,24 @@ function dessiner(ctx) {
   page.appendChild(el("div", { class: "em-barre" },
     el("div", { class: "em-barre-nav" },
       el("a", { class: "btn small", href: "#/emargement" }, "Feuilles de la semaine")),
-    el("div", { class: "em-barre-actions" },
+    // La base n'accepte l'écriture des réglages que d'un administrateur : le bouton suit.
+    isAdmin() ? el("div", { class: "em-barre-actions" },
       el("button", { class: "btn small", type: "button",
-        onClick: () => ctx.ouvrirEntete?.({ entete: ctx.entete, promo }, { apres: (e) => { ctx.entete = e; dessiner(ctx); } }) },
-      "En-tête et signataire")),
+        onClick: () => ctx.ouvrirEntete?.({ entete: ctx.entete, promo }, { apres: (e) => { ctx.entete = e; } }) },
+      "En-tête et signataire")) : null,
   ));
 
   page.appendChild(dessinerPeriode(ctx));
+  ctx.corps = el("div", { class: "at-corps" });
+  page.appendChild(ctx.corps);
+  dessinerCorps(ctx);
+}
 
+// Tout ce qui dépend de la période : raccourcis, alertes, liste.
+function dessinerCorps(ctx) {
+  majRaccourcis(ctx);
+  const page = ctx.corps;
+  clear(page);
   const seances = seancesDeLaPeriode(ctx);
   const ouvertes = feuillesOuvertes(seances);
   // Jusqu'à la veille : la journée en cours n'a peut-être pas encore sa feuille.
@@ -146,23 +172,29 @@ function dessiner(ctx) {
 }
 
 function dessinerPeriode(ctx) {
-  const du = el("input", { type: "date", value: ctx.periode.du, "aria-label": "Début de la période" });
-  const au = el("input", { type: "date", value: ctx.periode.au, "aria-label": "Fin de la période" });
-  const appliquer = () => changerPeriode(ctx, du.value, au.value);
+  const borne = { min: "2000-01-01", max: "2099-12-31" };
+  const du = el("input", { type: "date", value: ctx.periode.du, ...borne, "aria-label": "Début de la période" });
+  const au = el("input", { type: "date", value: ctx.periode.au, ...borne, "aria-label": "Fin de la période" });
+  const appliquer = () => changerPeriode(ctx, du.value, au.value, { depuisChamps: true });
   du.addEventListener("change", appliquer);
   au.addEventListener("change", appliquer);
+  Object.assign(ctx, { champDu: du, champAu: au, raccourcis: el("div", { class: "at-periode-raccourcis" }) });
+  return el("div", { class: "at-periode" },
+    el("div", { class: "at-periode-dates" },
+      el("label", {}, "Du", du), el("label", {}, "Au", au)),
+    ctx.raccourcis,
+  );
+}
+
+function majRaccourcis(ctx) {
   const estPeriode = (p) => p.du === ctx.periode.du && p.au === ctx.periode.au;
   const raccourci = (libelle, p) => el("button", {
     class: "em-puce" + (estPeriode(p) ? " at-puce-active" : ""), type: "button", "aria-pressed": String(estPeriode(p)),
     onClick: () => changerPeriode(ctx, p.du, p.au),
   }, libelle);
-  return el("div", { class: "at-periode" },
-    el("div", { class: "at-periode-dates" },
-      el("label", {}, "Du", du), el("label", {}, "Au", au)),
-    el("div", { class: "at-periode-raccourcis" },
-      raccourci("Toute la formation", ctx.formation),
-      ...moisDeLaPeriode(ctx.charge.seances).map((m) => raccourci(m.libelle, m))),
-  );
+  clear(ctx.raccourcis);
+  ctx.raccourcis.append(raccourci("Toute la formation", ctx.formation),
+    ...moisDeLaPeriode(ctx.charge.seances).map((m) => raccourci(m.libelle, m)));
 }
 
 const certificat = (ctx, { stagiaire, bilan }) => certificatRealisation({
@@ -172,5 +204,6 @@ const attestation = (ctx, { stagiaire, bilan }) => attestationAssiduite({
 
 function imprimerPieces(ctx, lignes, fabrique) {
   if (lignes.length === 0) return;
-  imprimer(liasse(lignes.map((l) => fabrique(ctx, l))), { ancre: ctx.page, page: "A4 portrait" });
+  // Marge de 12 mm en haut et en bas de chaque page : une attestation peut en prendre plusieurs.
+  imprimer(liasse(lignes.map((l) => fabrique(ctx, l))), { ancre: ctx.page, page: "A4 portrait", marge: "12mm 0" });
 }
