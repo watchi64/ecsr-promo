@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  journeeDuJour, semaineEnGrille, jourParDefaut, lundiEnCours, etiquetteSemaine, DEFAULT_HALF_META,
+  journeeDuJour, semaineEnGrille, jourParDefaut, lundiEnCours, etiquetteSemaine, vuePlanningInitiale, DEFAULT_HALF_META,
 } from "../js/journee-rules.js";
 import { sujetsDe, entryHasContent, effPedagogueId } from "../js/planning-roles.js";
 
@@ -284,4 +284,14 @@ test("planning-roles : les fonctions déplacées gardent leur comportement", () 
   assert.equal(effPedagogueId({ activite: "Cours", pedagogue_id: 2 }), null);
   assert.equal(entryHasContent({ activite: "", prof_ids: [], notes: " " }), false);
   assert.equal(!!entryHasContent({ activite: "Cours" }), true);
+});
+
+test("vuePlanningInitiale : la grille, sauf une liste mémorisée sur l'appareil", () => {
+  assert.equal(vuePlanningInitiale(null), "grille");
+  assert.equal(vuePlanningInitiale(undefined), "grille");
+  assert.equal(vuePlanningInitiale(""), "grille");
+  assert.equal(vuePlanningInitiale("liste"), "liste");
+  assert.equal(vuePlanningInitiale("grille"), "grille");
+  assert.equal(vuePlanningInitiale("Liste"), "grille");
+  assert.equal(vuePlanningInitiale("tableau"), "grille");
 });

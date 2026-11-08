@@ -266,3 +266,158 @@
 }
 .acc-repere-ok { background: var(--c-go-soft); color: var(--c-go); }
 .acc-repere-suivre { background: var(--c-wait-soft); color: var(--c-wait); }
+
+/* ============================================================
+   Planning en grille (lot 2B) : la semaine en colonnes de jours, Matin et Après-midi en lignes, et la bascule
+   Grille / Liste. Ordinateur et tablette (700 px et plus) : la grille. Téléphone : la bande de cinq jours puis le jour
+   choisi ; les deux formes sont dans le DOM, une seule est affichée, pour suivre une rotation d'écran.
+   ============================================================ */
+.wsem { margin: 0 0 1.5rem; scroll-margin-top: calc(var(--haut-entete) + 12px); }
+.wtel { display: none; }
+
+.wgrid {
+  display: grid;
+  grid-template-columns: auto repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.wg-day {
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: var(--r);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-soft);
+}
+.wg-day small, .daystrip small {
+  display: block;
+  font: 500 0.72rem/1.3 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.wg-day.auj { background: var(--accent-soft); color: var(--accent-strong); }
+.wg-day.auj small { color: var(--accent-strong); }
+.wg-half {
+  align-self: center;
+  padding-right: 6px;
+  font: 500 0.72rem/1.3 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.wg-cell {
+  min-width: 0;
+  min-height: 112px;
+  padding: 10px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wg-cell.auj { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.wg-repos { align-items: center; justify-content: center; text-align: center; background: var(--bg-subtle); color: var(--text-soft); font-weight: 500; overflow-wrap: anywhere; }
+
+/* Une carte du planning dans une case : l'étiquette de son genre, le sujet, les personnes, puis « Toi au tableau ». */
+.wg-carte { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.wg-carte b { font-size: 0.86rem; line-height: 1.3; overflow-wrap: anywhere; }
+.wg-sub { font-size: 0.8rem; color: var(--text-muted); line-height: 1.35; overflow-wrap: anywhere; }
+.wg-vide { font-size: 0.8rem; color: var(--text-muted); }
+.wg-tag {
+  align-self: flex-start;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+}
+.wg-genre-salle { background: var(--act-peda); }
+.wg-genre-voiture { background: var(--act-voiture); }
+.wg-genre-cours { background: var(--act-cours); }
+.wg-genre-controle { background: var(--act-controle); }
+.wg-moi {
+  align-self: flex-start;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+/* La bascule Grille / Liste : à droite des sous-onglets (dans leur barre), ou sur sa propre ligne à droite. */
+.plan-bar { display: flex; justify-content: flex-end; margin-bottom: 0.75rem; }
+.vue-toggle { display: inline-flex; padding: 3px; gap: 2px; border-radius: var(--r); background: var(--bg-subtle); }
+.vue-toggle.dans-barre { margin: 0 0 6px auto; align-self: center; }
+.vue-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.vue-toggle button[aria-pressed="true"] { background: var(--bg-elev); color: var(--text); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
+.vue-toggle svg { width: 16px; height: 16px; flex: none; }
+.vue-court { display: none; }
+
+@media (max-width: 699.98px) {
+  .wgrid { display: none; }
+  .wtel { display: block; }
+  .vue-long { display: none; }
+  .vue-court { display: inline; }
+  .vue-toggle button { min-height: 44px; min-width: 44px; }
+}
+
+/* Téléphone : la bande de cinq jours (cibles de 44 px et plus), puis le jour en carte. */
+.daystrip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }
+.daystrip button {
+  position: relative;
+  min-height: 58px;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.daystrip button[aria-selected="true"] { background: var(--accent); border-color: transparent; color: var(--bg-elev); }
+.daystrip button[aria-selected="true"] small { color: var(--bg-elev); }
+.daystrip button.auj::after {
+  content: "";
+  position: absolute;
+  bottom: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.daystrip button.auj[aria-selected="true"]::after { background: var(--bg-elev); }
+
+.wg-jour { background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px; }
+.wg-jour-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-bottom: 12px; }
+.wg-jour-tete h3 { margin: 0; font-family: var(--font); font-size: 1.05rem; font-weight: 600; }
+.wg-auj { padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-strong); font-size: 0.8rem; font-weight: 500; }
+.wg-demi { display: flex; flex-direction: column; gap: 12px; }
+.wg-demi + .wg-demi { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.wg-demi h4 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: 0; font-size: 0.95rem; font-weight: 600; }
+.wg-demi h4 span { font: 500 0.78rem/1.3 var(--font-mono); color: var(--text-muted); }
+.wg-repos-tel { margin: 0; color: var(--text-soft); font-weight: 500; }

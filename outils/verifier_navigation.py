@@ -2199,6 +2199,10 @@ JS_SEMAINE_AFFICHEE = """() => {
     const s = document.querySelector('#view .subtabs-bar > .subtab.active');
     return { lundi: d ? d.value : null, sousOnglet: s ? (s.childNodes[0] ? s.childNodes[0].textContent : s.textContent).trim() : null,
              cartes: [...document.querySelectorAll('#view .p-day-card')].map((c) => Math.round(c.getBoundingClientRect().top)),
+             grille: document.querySelector('#view .wsem') ? Math.round(document.querySelector('#view .wsem').getBoundingClientRect().top) : null,
+             repere: [...document.querySelectorAll('#view .wg-day')].findIndex((j) => j.classList.contains('auj')),
+             choisi: [...document.querySelectorAll('#view .daystrip button')].findIndex((b) => b.getAttribute('aria-selected') === 'true'),
+             grilleVisible: !!document.querySelector('#view .wgrid') && document.querySelector('#view .wgrid').getClientRects().length > 0,
              hauteur: innerHeight };
 }"""
 
@@ -2232,7 +2236,15 @@ def verifier_aujourdhui(page, res, sc):
     attendre(page)
     page.wait_for_timeout(400)   # le saut vers le jour : défilement fluide, puis direct après 250 ms (scrollToDay)
     m = page.evaluate(JS_SEMAINE_AFFICHEE)
-    haut = m["cartes"][jour] if len(m["cartes"]) > jour else None
+    # En grille (nouvelle navigation, lot 2B, tâche 5), la grille tient la place des cartes : son haut est amené à l'écran et le jour du jour est repéré
+    # (la colonne sur ordinateur, le jour choisi sur téléphone).
+    if m["grille"] is not None:
+        haut = m["grille"]
+        repere = m["repere"] if m["grilleVisible"] else m["choisi"]
+        if repere != jour:
+            res.echec("bouton « Aujourd'hui »", vue, "le jour du jour n'est pas repéré dans la grille (repère %s, attendu %s)" % (repere, jour))
+    else:
+        haut = m["cartes"][jour] if len(m["cartes"]) > jour else None
     if route_courante(page) != "planning" or m["lundi"] != lundi or m["sousOnglet"] not in (None, "Semaine"):
         res.echec("bouton « Aujourd'hui »", vue, "après le clic : #/%s, semaine du %s, sous-onglet %s ; attendu Planning > Semaine, semaine du %s"
                   % (route_courante(page), m["lundi"], m["sousOnglet"], lundi))
@@ -4211,6 +4223,215 @@ def verifier_planning_semaine(page, res, sc):
     vider_console(res, vue)
 
 
+# Planning en grille (lot 2B, tâche 5) : ce que la page montre de la semaine, mesuré d'un coup (la grille, la bande de jours du téléphone, la bascule,
+# les cartes de la liste, les étiquettes « Toi ... »). `visible` : le nœud occupe de la place (display ne le cache pas).
+JS_MESURE_GRILLE = """() => {
+  const vue = document.getElementById("view"), net = (t) => (t || "").replace(/\\s+/g, " ").trim();
+  const visible = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== "hidden";
+  const grille = vue.querySelector(".wgrid"), bande = vue.querySelector(".daystrip"), racine = vue.querySelector(".wsem");
+  const bascule = [...document.querySelectorAll(".vue-toggle")];
+  const jours = grille ? [...grille.querySelectorAll(".wg-day")] : [];
+  const rect = (e) => { const r = e.getBoundingClientRect(); return { x: Math.round(r.x), w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10 }; };
+  const onglets = bande ? [...bande.querySelectorAll("button")] : [];
+  const choisi = onglets.findIndex((b) => b.getAttribute("aria-selected") === "true");
+  const panneau = vue.querySelector(".wg-jour");
+  return {
+    racine: !!racine, grilleVisible: visible(grille), bandeVisible: visible(bande),
+    colonnes: grille ? getComputedStyle(grille).gridTemplateColumns.split(" ").length : 0,
+    xDesJours: [...new Set(jours.map((j) => Math.round(j.getBoundingClientRect().x)))].length,
+    jourRepere: jours.findIndex((j) => j.classList.contains("auj")),
+    debordeGrille: grille ? grille.scrollWidth > grille.clientWidth + 1 : false,
+    debordePage: document.documentElement.scrollWidth > window.innerWidth + 1,
+    bascule: bascule.map((b) => ({ boutons: [...b.querySelectorAll("button")].map((x) => ({ texte: net(x.innerText), actif: x.getAttribute("aria-pressed") })), h: rect(b).h })),
+    onglets: onglets.map((b) => ({ ...rect(b), selectionne: b.getAttribute("aria-selected"), auj: b.classList.contains("auj") })),
+    choisi, jourAujourdhui: onglets.findIndex((b) => b.classList.contains("auj")),
+    jourMontre: panneau ? net(panneau.querySelector("h3").textContent) : "",
+    cartesListe: vue.querySelectorAll(".p-day-card").length, impression: !!document.getElementById("print-container"),
+    repos: [...vue.querySelectorAll(".wg-repos")].filter(visible).map((e) => net(e.textContent)), reposTel: [...vue.querySelectorAll(".wg-repos-tel")].filter(visible).map((e) => net(e.textContent)),
+    vides: [...vue.querySelectorAll(".wg-vide")].filter(visible).length, cartesGrille: [...vue.querySelectorAll(".wg-carte")].filter(visible).length,
+    toi: [...vue.querySelectorAll(".wg-moi")].map((e) => net(e.textContent)), erreur: !!vue.querySelector(".view-error-box"),
+    modifier: [...vue.querySelectorAll("button")].filter((b) => /Modifier$/.test(net(b.textContent))).length,
+  };
+}"""
+
+
+def ouvrir_semaine(page):
+    """Planning > Semaine, ouverte (le sous-onglet cliqué quand la barre en a)."""
+    aller_a(page, "#/planning")
+    attendre(page)
+    semaine = page.locator("#view .subtabs-bar > .subtab", has_text="Semaine")
+    if semaine.count():
+        semaine.first.click()
+        attendre(page)
+
+
+def choisir_vue_du_planning(page, res, vue, cible):
+    """Touche « Grille » (ou « Jour » sur téléphone) ou « Liste » ; faux, et un échec, si le bouton manque."""
+    return cliquer(page, res, vue, '.vue-toggle button[data-vue="%s"]' % cible, "la bascule « %s »" % cible)
+
+
+def verifier_planning_grille(page, res, sc, complet=False):
+    """Planning > Semaine, nouvelle navigation, hors mode Modifier (lot 2B, tâche 5) : la grille de la semaine. 1280, 1100, 900 px : cinq colonnes sans
+    débordement, aujourd'hui repéré ; 375 et 320 px : la bande de cinq jours aux cibles de 44 px, aujourd'hui choisi, un jour touché change la carte. La bascule
+    (« Jour » sur téléphone) mène à la liste (cinq cartes), qui se garde au rechargement. `complet` : la liste et le rechargement, le mode Modifier de l'équipe, la
+    semaine vide, un jour de repos, la semaine verrouillée, l'impression, un aller-retour vers Dates clés."""
+    vue = "%s/planning/grille" % sc.nom
+    telephone = sc.largeur < SEUIL_TELEPHONE
+    ouvrir_semaine(page)
+    res.vues += 1
+    m = page.evaluate(JS_MESURE_GRILLE)
+    if not m["racine"] and m["cartesListe"]:
+        # La liste est restée choisie sur l'appareil : on revient à la grille avant de mesurer.
+        choisir_vue_du_planning(page, res, vue, "grille")
+        m = page.evaluate(JS_MESURE_GRILLE)
+    if not m["racine"]:
+        res.echec("planning en grille", vue, "aucune grille de la semaine à l'ouverture de Planning > Semaine (%d carte(s) de liste)" % m["cartesListe"])
+        return
+    if m["cartesListe"]:
+        res.echec("planning en grille", vue, "la liste (%d cartes de jour) est montrée en même temps que la grille" % m["cartesListe"])
+    if m["erreur"]:
+        res.echec("planning en grille", vue, "la semaine est en erreur")
+    if m["debordePage"] or m["debordeGrille"]:
+        res.echec("planning en grille", vue, "la page ou la grille défile de côté (page : %s, grille : %s)" % (m["debordePage"], m["debordeGrille"]))
+    if len(m["bascule"]) != 1:
+        res.echec("planning en grille", vue, "%d bascule(s) Grille / Liste, 1 attendue" % len(m["bascule"]))
+    else:
+        textes = [b["texte"] for b in m["bascule"][0]["boutons"]]
+        attendu = ["Jour" if telephone else "Grille", "Liste"]
+        if textes != attendu:
+            res.echec("planning en grille", vue, "boutons de la bascule %s, attendu %s" % (textes, attendu))
+        if [b["actif"] for b in m["bascule"][0]["boutons"]] != ["true", "false"]:
+            res.echec("planning en grille", vue, "la grille n'est pas le bouton actif de la bascule (%s)" % [b["actif"] for b in m["bascule"][0]["boutons"]])
+        if telephone and m["bascule"][0]["h"] < 43.5:
+            res.echec("zones à toucher sous 44 px sur téléphone", vue, "la bascule Grille / Liste mesure %s px" % m["bascule"][0]["h"])
+    if telephone:
+        if m["grilleVisible"] or not m["bandeVisible"]:
+            res.echec("planning en grille", vue, "sur téléphone la bande de jours doit remplacer la grille (grille %s, bande %s)" % (m["grilleVisible"], m["bandeVisible"]))
+        if len(m["onglets"]) != 5 or any(o["h"] < 43.5 or o["w"] < 43.5 for o in m["onglets"]):
+            res.echec("zones à toucher sous 44 px sur téléphone", vue, "bande de jours : %s" % [(o["w"], o["h"]) for o in m["onglets"]])
+        if m["choisi"] != 1 or m["jourAujourdhui"] != 1:
+            res.echec("planning en grille", vue, "le jour d'aujourd'hui (mardi) doit être choisi : choisi %s, repéré %s" % (m["choisi"], m["jourAujourdhui"]))
+        if not m["jourMontre"].startswith("Mardi 27 octobre"):
+            res.echec("planning en grille", vue, "le jour montré est « %s », « Mardi 27 octobre » attendu" % m["jourMontre"])
+        if cliquer(page, res, vue, '.daystrip button:nth-child(4)', "le jeudi de la bande de jours"):
+            n = page.evaluate(JS_MESURE_GRILLE)
+            if n["choisi"] != 3 or not n["jourMontre"].startswith("Jeudi 29 octobre"):
+                res.echec("planning en grille", vue, "toucher le jeudi montre « %s » (choisi %s)" % (n["jourMontre"], n["choisi"]))
+    else:
+        if not m["grilleVisible"] or m["bandeVisible"]:
+            res.echec("planning en grille", vue, "sur ordinateur la grille doit remplacer la bande de jours (grille %s, bande %s)" % (m["grilleVisible"], m["bandeVisible"]))
+        if m["colonnes"] != 6 or m["xDesJours"] != 5:
+            res.echec("planning en grille", vue, "%d colonnes déclarées et %d colonnes de jours, 6 et 5 attendues" % (m["colonnes"], m["xDesJours"]))
+        if m["jourRepere"] != 1:
+            res.echec("planning en grille", vue, "le jour repéré est la colonne %s, la deuxième (mardi) attendue" % m["jourRepere"])
+    if sc.espace == "stagiaire" and res.profil_stagiaire and "Toi au tableau" not in m["toi"]:
+        res.echec("planning en grille", vue, "aucune étiquette « Toi au tableau » dans la semaine du stagiaire (étiquettes : %s)" % m["toi"])
+    if sc.espace == "equipe" and m["toi"]:
+        res.echec("planning en grille", vue, "l'équipe voit des étiquettes « Toi » : %s" % m["toi"])
+    if not m["impression"]:
+        res.echec("impression du planning", vue, "la cible d'impression (#print-container) manque en vue grille")
+    vider_console(res, vue)
+    if not complet:
+        return
+
+    # La liste : cinq cartes, plus de grille ; elle se garde au rechargement.
+    if choisir_vue_du_planning(page, res, vue, "liste"):
+        n = page.evaluate(JS_MESURE_GRILLE)
+        if n["cartesListe"] != 5 or n["racine"]:
+            res.echec("planning en liste", vue, "la liste montre %d cartes de jour (5 attendues) et la grille %s" % (n["cartesListe"], "reste" if n["racine"] else "est partie"))
+        recharger_au_banc(page, "#/planning")
+        attendre(page, calme=250)
+        n = page.evaluate(JS_MESURE_GRILLE)
+        if n["cartesListe"] != 5 or n["racine"]:
+            res.echec("planning en liste", vue, "la liste ne se garde pas au rechargement (%d cartes, grille %s)" % (n["cartesListe"], n["racine"]))
+        if not choisir_vue_du_planning(page, res, vue, "grille"):
+            return
+        n = page.evaluate(JS_MESURE_GRILLE)
+        if not n["racine"] or n["cartesListe"]:
+            res.echec("planning en grille", vue, "« Grille » ne rend pas la grille (grille %s, %d cartes de liste)" % (n["racine"], n["cartesListe"]))
+        if page.evaluate("() => localStorage.getItem('planning.vue')") != "grille":
+            res.echec("planning en grille", vue, "le choix de la grille n'est pas gardé sur l'appareil")
+
+    # L'équipe : « Modifier » montre l'éditeur et ni grille ni bascule ; « Terminer » rend la grille.
+    if sc.espace == "equipe":
+        modifier = page.locator("#view button", has_text="Modifier")
+        if not modifier.count():
+            res.echec("planning en grille", vue, "le bouton « Modifier » manque chez l'équipe")
+        else:
+            modifier.first.click()
+            page.wait_for_timeout(150)
+            n = page.evaluate(JS_MESURE_GRILLE)
+            if n["racine"] or n["cartesListe"] != 5 or n["bascule"]:
+                res.echec("planning en grille", vue, "en mode Modifier : grille %s, %d cartes de jour, %d bascule(s) (aucune grille, 5 cartes et aucune bascule attendues)"
+                          % (n["racine"], n["cartesListe"], len(n["bascule"])))
+            termine = page.locator("#view .week-bar-actions button", has_text="Terminer")
+            if termine.count():
+                termine.first.click()
+                page.wait_for_timeout(150)
+                n = page.evaluate(JS_MESURE_GRILLE)
+                if not n["racine"] or n["cartesListe"] or len(n["bascule"]) != 1:
+                    res.echec("planning en grille", vue, "« Terminer » ne rend pas la grille (grille %s, %d cartes, %d bascule(s))" % (n["racine"], n["cartesListe"], len(n["bascule"])))
+            else:
+                res.echec("planning en grille", vue, "le bouton « Terminer » manque en mode Modifier")
+
+    # Une semaine vide, puis la semaine du 11 novembre (repos) : les flèches de la barre de semaine gardent leur effet.
+    if cliquer(page, res, vue, '#view button[aria-label="Semaine suivante"]', "la flèche « Semaine suivante »"):
+        page.wait_for_timeout(250)
+        n = page.evaluate(JS_MESURE_GRILLE)
+        if not n["racine"] or n["erreur"]:
+            res.echec("planning en grille", vue, "la semaine vide casse la grille (grille %s, erreur %s)" % (n["racine"], n["erreur"]))
+        if n["cartesGrille"] != 0 or (not telephone and n["vides"] != 10):
+            res.echec("planning en grille", vue, "semaine vide : %d carte(s) et %d case(s) « Rien de prévu » visibles (0 et 10 attendues)" % (n["cartesGrille"], n["vides"]))
+        if cliquer(page, res, vue, '#view button[aria-label="Semaine suivante"]', "la flèche « Semaine suivante »"):
+            page.wait_for_timeout(250)
+            if telephone:
+                cliquer(page, res, vue, '.daystrip button:nth-child(3)', "le mercredi de la bande de jours")
+            n = page.evaluate(JS_MESURE_GRILLE)
+            repos = n["reposTel"] if telephone else n["repos"]
+            if repos != ["Armistice"]:
+                res.echec("planning en grille", vue, "le mercredi 11 novembre doit porter le libellé « Armistice » (vu : %s)" % repos)
+            if n["debordePage"] or n["debordeGrille"]:
+                res.echec("planning en grille", vue, "la semaine du 11 novembre défile de côté")
+            cliquer(page, res, vue, '#view button[aria-label="Semaine précédente"]', "la flèche « Semaine précédente »")
+        cliquer(page, res, vue, '#view button[aria-label="Semaine précédente"]', "la flèche « Semaine précédente »")
+        page.wait_for_timeout(250)
+
+    # La semaine verrouillée : la grille reste (lecture seule), sans bouton « Modifier ».
+    page.evaluate("""() => { const r = window.__FIXTURES_DU_BANC.settings.find((x) => x.key === 'semaines_verrouillees'); r.value = JSON.stringify(['2026-10-26']); }""")
+    aller_a(page, "#/home")
+    ouvrir_semaine(page)
+    n = page.evaluate(JS_MESURE_GRILLE)
+    if not n["racine"] or n["cartesListe"] or n["modifier"] or len(n["bascule"]) != 1:
+        res.echec("planning en grille", vue, "semaine verrouillée : grille %s, %d cartes de jour, %d bouton(s) Modifier, %d bascule(s)"
+                  % (n["racine"], n["cartesListe"], n["modifier"], len(n["bascule"])))
+    page.evaluate("""() => { const r = window.__FIXTURES_DU_BANC.settings.find((x) => x.key === 'semaines_verrouillees'); r.value = '[]'; }""")
+
+    # Dates clés puis retour : la bascule suit la semaine (elle n'est pas posée sur les autres sous-onglets).
+    dates = page.locator("#view .subtabs-bar > .subtab", has_text="Dates clés")
+    if dates.count():
+        dates.first.click()
+        page.wait_for_timeout(250)
+        if page.evaluate("() => document.querySelectorAll('.vue-toggle').length"):
+            res.echec("planning en grille", vue, "la bascule Grille / Liste reste sur Dates clés")
+        aller_a(page, "#/home")
+        ouvrir_semaine(page)
+        n = page.evaluate(JS_MESURE_GRILLE)
+        if not n["racine"] or len(n["bascule"]) != 1:
+            res.echec("planning en grille", vue, "après Dates clés puis retour : grille %s, %d bascule(s) (1 attendue)" % (n["racine"], len(n["bascule"])))
+    vider_console(res, vue)
+
+
+def jouer_planning_etroit(page, res, sc):
+    """La grille sur le plus petit téléphone (320 px) : la bande de cinq jours tient sans défiler de côté, aux cibles de 44 px."""
+    vue = "%s/planning/grille-320" % sc.nom
+    page.set_viewport_size({"width": LARGEUR_ETROITE, "height": 800})
+    recharger_au_banc(page, "#/planning")
+    attendre(page, calme=250)
+    verifier_planning_grille(page, res, replace(sc, largeur=LARGEUR_ETROITE), complet=False)
+    page.set_viewport_size({"width": sc.largeur, "height": 800})
+    vider_console(res, vue)
+
+
 def verifier_planning_eteint(page, res, sc):
     """Interrupteur éteint : le Planning de main, « Cette semaine » et la phrase « Lecture seule... » pour tous."""
     vue = "%s/planning/semaine" % sc.nom
@@ -4222,6 +4443,20 @@ def verifier_planning_eteint(page, res, sc):
         res.echec("planning, interrupteur éteint", vue, "%d bouton(s) « Cette semaine », main en a 1 pour tous" % m["cetteSemaine"])
     if not m["lecture"]:
         res.echec("planning, interrupteur éteint", vue, "la phrase « Lecture seule... » de main manque")
+    vider_console(res, vue)
+
+
+def verifier_planning_grille_eteint(page, res, sc):
+    """Interrupteur éteint : le planning de main, sans bascule Grille / Liste ni grille, avec ses cinq cartes de jour."""
+    vue = "%s/planning/grille-eteint" % sc.nom
+    aller_a(page, "#/planning")
+    attendre(page)
+    res.vues += 1
+    m = page.evaluate(JS_MESURE_GRILLE)
+    if m["bascule"] or m["racine"]:
+        res.echec("planning, interrupteur éteint", vue, "%d bascule(s) et grille %s : main n'en a aucune" % (len(m["bascule"]), m["racine"]))
+    if m["cartesListe"] != 5:
+        res.echec("planning, interrupteur éteint", vue, "%d cartes de jour, main en a 5" % m["cartesListe"])
     vider_console(res, vue)
 
 
@@ -4401,6 +4636,8 @@ def jouer_allume(page, res, sc, options):
         verifier_planning_semaine(page, res, sc)
         if sc.espace == "equipe":
             verifier_bouton_benevoles(page, res, sc)
+        # Lot 2B, tâche 5 : la grille de la semaine ; les cas qui modifient le banc (liste mémorisée, semaines voisines, verrou) pour les parcours ordinaires.
+        verifier_planning_grille(page, res, sc, complet=not (sc.modules or sc.ressources_fermees or sc.voir_en_tant_que or sc.a_traiter))
     if res.coquille:
         verifier_accueil(page, res, sc)
         verifier_bandeau_emargement(page, res, sc)
@@ -4422,6 +4659,8 @@ def jouer_allume(page, res, sc, options):
             jouer_accueil_du_stagiaire(page, res, sc)
         if sc.largeur in (375, 1280):
             jouer_signature_de_l_accueil(page, res, sc)
+        if sc.largeur == 375:
+            jouer_planning_etroit(page, res, sc)
     # Lot 2B, tâche 4 : de même pour Aujourd'hui du formateur (la signature n'existe que pour qui a une fiche de stagiaire).
     if res.coquille and sc.espace == "equipe" and not (sc.modules or sc.ressources_fermees or sc.voir_en_tant_que or sc.a_traiter):
         if sc.largeur == 375:
@@ -4690,6 +4929,7 @@ def jouer_eteint(page, res, sc, options):
     verifier_ccp2(page, res, sc)
     verifier_accueil_eteint(page, res, sc)
     verifier_planning_eteint(page, res, sc)
+    verifier_planning_grille_eteint(page, res, sc)
     if sc.role == "stagiaire":
         verifier_notes_eteint(page, res, sc)
     verifier_bandeau_emargement(page, res, sc)

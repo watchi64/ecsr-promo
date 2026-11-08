@@ -228,3 +228,9 @@ export function etiquetteSemaine(moi) {
   if (moi.role === "voiture") return "Toi en voiture";
   return "Toi en salle";
 }
+
+// La forme du planning à l'ouverture, d'après ce que l'appareil a mémorisé (`planning.vue`) : la
+// grille, sauf si la liste a été choisie. Une valeur inconnue ou abîmée ne bloque rien.
+export function vuePlanningInitiale(valeurMemorisee) {
+  return valeurMemorisee === "liste" ? "liste" : "grille";
+}

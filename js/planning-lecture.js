@@ -10,7 +10,7 @@ export { lundiEnCours } from "./journee-rules.js?v=20261106a";
 
 // Prénom seul, sauf s'il est porté par au moins deux stagiaires : « Initiale. Prénom », comme
 // l'impression du planning.
-function nomsStagiaires(liste) {
+export function nomsStagiaires(liste) {
   const compte = {};
   liste.forEach((s) => {
     const p = (s.prenom || "").trim().toLowerCase();

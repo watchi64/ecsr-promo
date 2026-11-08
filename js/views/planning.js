@@ -12,7 +12,7 @@ import {
 import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261106a";
 import { icon, deco } from "../icons.js?v=20261106a";
 import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261106a";
-import { isAdmin, isProf, getAdminEmail } from "../auth-admin.js?v=20261106a";
+import { isAdmin, isProf, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261106a";
 import { recordUndo } from "../undo.js?v=20261106a";
 import { getCurrentWho } from "../identity.js?v=20261106a";
 import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261106a";
@@ -24,7 +24,11 @@ import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261106a";
 import {
   entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe,
 } from "../planning-roles.js?v=20261106a";
-import { DEFAULT_HALF_META } from "../journee-rules.js?v=20261106a";
+import {
+  DEFAULT_HALF_META, semaineEnGrille, jourParDefaut, lundiEnCours, vuePlanningInitiale,
+} from "../journee-rules.js?v=20261106a";
+import { nomsStagiaires } from "../planning-lecture.js?v=20261106a";
+import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261106a";
 
 let stagiaires = [];
 let profs = [];
@@ -49,6 +53,75 @@ function isLocked(lundi) { return lockedWeeks.has(lundi); }
 // Prédicat central d'édition : admin + mode édition actif + semaine non verrouillée.
 // Remplace les gardes isAdmin() partout où il s'agit d'ÉDITER la semaine affichée.
 function canEditWeek() { return isAdmin() && editMode && !isLocked(semaineLundi); }
+
+// === La semaine en grille (nouvelle navigation, lot 2B) ===
+// Hors mode Modifier, la semaine se lit en grille (jours en colonnes) ou en liste (les cartes du planning d'avant).
+// La forme choisie se garde sur l'appareil ; le jour montré sur téléphone se garde le temps de la visite.
+let vuePlanning = null;       // "grille" | "liste", lue une fois de la mémoire de l'appareil
+let jourTelephone = null;     // l'index du jour choisi sur téléphone ; null : aujourd'hui, sinon lundi
+let basculeNoeud = null;      // le groupe « Grille / Liste » posé à côté des sous-onglets, à retirer en les quittant
+
+function vueChoisie() {
+  if (vuePlanning === null) {
+    let memorisee = null;
+    try { memorisee = localStorage.getItem(CLE_VUE_PLANNING); } catch (e) { /* mémoire indisponible : la grille */ }
+    vuePlanning = vuePlanningInitiale(memorisee);
+  }
+  return vuePlanning;
+}
+
+// La grille remplace les cartes dès qu'on ne modifie pas : stagiaires, formateur hors mode Modifier, semaine verrouillée.
+function grilleAffichee() { return navigationV2Active() && !canEditWeek() && vueChoisie() === "grille"; }
+
+function retirerBascule() {
+  if (basculeNoeud) basculeNoeud.remove();
+  basculeNoeud = null;
+}
+
+// À droite des sous-onglets de la page ; sans barre de sous-onglets (un seul reste ouvert), sur une ligne en tête de la semaine.
+function poserBascule(container) {
+  retirerBascule();
+  if (!navigationV2Active() || canEditWeek()) return;
+  basculeNoeud = bascule({
+    vue: vueChoisie(),
+    onChange: (vue) => {
+      vuePlanning = vue;
+      try { localStorage.setItem(CLE_VUE_PLANNING, vue); } catch (e) { /* mémoire indisponible : valable jusqu'au rechargement */ }
+      renderInto(currentContainer);
+    },
+  });
+  const barre = container.closest(".subtabs")?.querySelector(":scope > .subtabs-bar");
+  if (barre) {
+    basculeNoeud.classList.add("dans-barre");
+    barre.appendChild(basculeNoeud);
+  } else {
+    container.appendChild(el("div", { class: "plan-bar" }, basculeNoeud));
+  }
+}
+
+// Les noms de la grille viennent de l'état déjà chargé (ni relecture, ni nouvelle requête), comme chargerSemaine.
+function nomsDeLaSemaine() {
+  return {
+    stagiaires: nomsStagiaires(stagiaires),
+    formateurs: new Map(profs.map((p) => [p.id, p.nom])),
+    benevoles: new Map(benevoles.map((b) => [b.id, b.display])),
+    autres: [],
+    titres: themes.map((t) => t.titre),
+  };
+}
+
+function grilleDeLaSemaine() {
+  const equipe = formateurConnecte();
+  const jours = semaineEnGrille({
+    entries, metas: halfMetas, joursOff, lundi: semaineLundi,
+    moi: equipe ? null : monStagiaireId(), noms: nomsDeLaSemaine(), aujourdhui: isoDate(new Date()),
+  });
+  return grilleSemaine({
+    jours, equipe,
+    jourChoisi: jourTelephone ?? jourParDefaut(jours, isoDate(new Date())),
+    onChoisirJour: (k) => { jourTelephone = k; },
+  });
+}
 
 async function setWeekLock(lundi, locked) {
   if (locked) lockedWeeks.add(lundi); else lockedWeeks.delete(lundi);
@@ -2221,6 +2294,7 @@ function openHalfMetaEditor(d, half, anchorEl) {
 
 async function changeWeek(dateStr) {
   editMode = false;   // chaque semaine se rouvre en lecture seule (spec 2026-07-20)
+  jourTelephone = null;   // une autre semaine : le jour du téléphone repart d'aujourd'hui ou du lundi
   semaineLundi = dateStr;
   // La « semaine affichée » est persistée comme réglage GLOBAL de la promo (table settings,
   // écriture admin-only en RLS) : c'est la semaine que tout le monde retrouve à l'ouverture.
@@ -2782,6 +2856,9 @@ function renderInto(container) {
   container.classList.toggle("p-compact", !editing);
   // Liseré du mode édition : la zone des jours est visiblement « ouverte » (volet 4).
   container.classList.toggle("p-editing", editing);
+  // Nouvelle navigation : « Grille / Liste » à côté des sous-onglets, absent en mode Modifier (l'éditeur est la liste).
+  poserBascule(container);
+  const enGrille = grilleAffichee();
 
   const monday = new Date(semaineLundi + "T00:00:00");
   const longLabel = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
@@ -2937,10 +3014,11 @@ function renderInto(container) {
   // Barre de jours COLLÉE à la barre de semaine : les deux forment le bloc de
   // navigation. Le mémo des règles, qui s'intercalait ici, passe sous les jours :
   // c'est de la documentation, pas de la navigation.
-  container.appendChild(buildDayNav(monday));
+  // En grille, les jours sont les colonnes (ou la bande de cinq jours du téléphone) : ni barre de jours, ni cartes.
+  if (!enGrille) container.appendChild(buildDayNav(monday));
 
   const wrap = el("div", { class: "p-days" });
-  JOURS.forEach((_, d) => wrap.appendChild(renderDayCard(d, monday)));
+  if (!enGrille) JOURS.forEach((_, d) => wrap.appendChild(renderDayCard(d, monday)));
   // Hint découvrabilité (volet 4) : un admin qui clique en lecture seule n'obtient
   // aucune réaction des cartes (pointer-events coupés) : on lui dit pourquoi.
   if (admin && !editing) {
@@ -2955,7 +3033,7 @@ function renderInto(container) {
         : "Semaine en lecture seule : clique « ✏️ Modifier » pour éditer", "info", 3200);
     });
   }
-  container.appendChild(wrap);
+  container.appendChild(enGrille ? grilleDeLaSemaine() : wrap);
 
   // Pill flottante (volet 4) : signal permanent du mode édition + sortie à portée
   // de clic sans remonter à la barre d'outils.
@@ -3338,6 +3416,7 @@ function mountPrintTarget() {
 // pour qu'un print natif depuis une autre vue n'imprime pas un planning périmé.
 export function teardownPrintTarget() {
   detachDayNavHighlight();   // la vue quitte l'écran : plus rien à surveiller
+  retirerBascule();          // posée dans la barre des sous-onglets, qui reste : elle ne regarde que la semaine
   document.getElementById("print-container")?.remove();
   document.body.classList.remove("planning-printable");
 }
@@ -3388,17 +3467,23 @@ export async function renderPlanning(container, { aujourdhui = null } = {}) {
   // stagiaire qui feuillette les semaines).
   const jump = pendingTodayJump ? todayJumpTarget() : null;
   pendingTodayJump = false;
-  const weekSetting = await getSetting("current_week_lundi");
+  // Nouvelle navigation (ruling R59) : le Planning s'ouvre sur la semaine en cours (la suivante le week-end), et non sur
+  // la semaine que le formateur a épinglée pour la promo. Les flèches de la barre de semaine gardent leur effet.
+  const nouvelle = navigationV2Active();
+  const weekSetting = nouvelle ? null : await getSetting("current_week_lundi");
   if (!container.isConnected) return;
   semaineLundi = jump
     ? isoDate(getMonday(jump.date))
-    : (weekSetting || isoDate(getMonday(new Date())));
+    : nouvelle ? lundiEnCours(new Date()) : (weekSetting || isoDate(getMonday(new Date())));
+  jourTelephone = jump ? jump.dayIndex : null;
   await loadPlanning();
   if (!container.isConnected) return;
   gesteAujourdhui = aujourdhui;
   renderInto(container);
   if (jump) {
-    scrollToDay(jump.dayIndex);
+    // En grille, le jour est déjà repéré (colonne, ou jour choisi sur téléphone) : on amène la grille à l'écran.
+    if (grilleAffichee()) container.querySelector(".wsem")?.scrollIntoView({ block: "start" });
+    else scrollToDay(jump.dayIndex);
     if (jump.weekend) toast("Week-end : on t'emmène au lundi qui suit.", "info", 3000);
   }
 }
