@@ -4242,7 +4242,8 @@ JS_MESURE_GRILLE = """() => {
     jourRepere: jours.findIndex((j) => j.classList.contains("auj")),
     debordeGrille: grille ? grille.scrollWidth > grille.clientWidth + 1 : false,
     debordePage: document.documentElement.scrollWidth > window.innerWidth + 1,
-    bascule: bascule.map((b) => ({ boutons: [...b.querySelectorAll("button")].map((x) => ({ texte: net(x.innerText), actif: x.getAttribute("aria-pressed") })), h: rect(b).h })),
+    basculeDansOnglets: bascule.some((b) => !!b.closest("[role=tablist]")),
+    bascule: bascule.map((b) => ({ boutons: [...b.querySelectorAll("button")].map((x) => ({ texte: net(x.innerText), actif: x.getAttribute("aria-pressed") })), h: Math.min(...[...b.querySelectorAll("button")].map((x) => rect(x).h)) })),
     onglets: onglets.map((b) => ({ ...rect(b), selectionne: b.getAttribute("aria-selected"), auj: b.classList.contains("auj") })),
     choisi, jourAujourdhui: onglets.findIndex((b) => b.classList.contains("auj")),
     jourMontre: panneau ? net(panneau.querySelector("h3").textContent) : "",
@@ -4293,6 +4294,8 @@ def verifier_planning_grille(page, res, sc, complet=False):
         res.echec("planning en grille", vue, "la semaine est en erreur")
     if m["debordePage"] or m["debordeGrille"]:
         res.echec("planning en grille", vue, "la page ou la grille défile de côté (page : %s, grille : %s)" % (m["debordePage"], m["debordeGrille"]))
+    if m["basculeDansOnglets"]:
+        res.echec("planning en grille", vue, "la bascule Grille / Liste est dans une tablist (la barre des sous-onglets ne contient que des onglets)")
     if len(m["bascule"]) != 1:
         res.echec("planning en grille", vue, "%d bascule(s) Grille / Liste, 1 attendue" % len(m["bascule"]))
     else:
@@ -4302,8 +4305,8 @@ def verifier_planning_grille(page, res, sc, complet=False):
             res.echec("planning en grille", vue, "boutons de la bascule %s, attendu %s" % (textes, attendu))
         if [b["actif"] for b in m["bascule"][0]["boutons"]] != ["true", "false"]:
             res.echec("planning en grille", vue, "la grille n'est pas le bouton actif de la bascule (%s)" % [b["actif"] for b in m["bascule"][0]["boutons"]])
-        if telephone and m["bascule"][0]["h"] < 43.5:
-            res.echec("zones à toucher sous 44 px sur téléphone", vue, "la bascule Grille / Liste mesure %s px" % m["bascule"][0]["h"])
+        if m["bascule"][0]["h"] < 43.5:
+            res.echec("zones à toucher sous 44 px", vue, "la bascule Grille / Liste mesure %s px" % m["bascule"][0]["h"])
     if telephone:
         if m["grilleVisible"] or not m["bandeVisible"]:
             res.echec("planning en grille", vue, "sur téléphone la bande de jours doit remplacer la grille (grille %s, bande %s)" % (m["grilleVisible"], m["bandeVisible"]))

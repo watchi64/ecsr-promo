@@ -78,11 +78,11 @@ function retirerBascule() {
   basculeNoeud = null;
 }
 
-// À droite des sous-onglets de la page ; sans barre de sous-onglets (un seul reste ouvert), sur une ligne en tête de la semaine.
+// Sur une ligne à droite, sous les sous-onglets de la page ; sans barre de sous-onglets (un seul reste ouvert), en tête de la semaine.
 function poserBascule(container) {
   retirerBascule();
   if (!navigationV2Active() || canEditWeek()) return;
-  basculeNoeud = bascule({
+  const groupe = bascule({
     vue: vueChoisie(),
     onChange: (vue) => {
       vuePlanning = vue;
@@ -90,13 +90,11 @@ function poserBascule(container) {
       renderInto(currentContainer);
     },
   });
+  // Dans une ligne à elle, jamais dans la barre : la barre est une tablist, qui ne contient que des onglets.
+  basculeNoeud = el("div", { class: "plan-bar" }, groupe);
   const barre = container.closest(".subtabs")?.querySelector(":scope > .subtabs-bar");
-  if (barre) {
-    basculeNoeud.classList.add("dans-barre");
-    barre.appendChild(basculeNoeud);
-  } else {
-    container.appendChild(el("div", { class: "plan-bar" }, basculeNoeud));
-  }
+  if (barre) barre.after(basculeNoeud);
+  else container.appendChild(basculeNoeud);
 }
 
 // Les noms de la grille viennent de l'état déjà chargé (ni relecture, ni nouvelle requête), comme chargerSemaine.
@@ -3416,7 +3414,7 @@ function mountPrintTarget() {
 // pour qu'un print natif depuis une autre vue n'imprime pas un planning périmé.
 export function teardownPrintTarget() {
   detachDayNavHighlight();   // la vue quitte l'écran : plus rien à surveiller
-  retirerBascule();          // posée dans la barre des sous-onglets, qui reste : elle ne regarde que la semaine
+  retirerBascule();          // posée sous la barre des sous-onglets, qui reste : elle ne regarde que la semaine
   document.getElementById("print-container")?.remove();
   document.body.classList.remove("planning-printable");
 }
