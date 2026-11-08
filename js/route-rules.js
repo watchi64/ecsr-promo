@@ -24,6 +24,15 @@ export function lireAdresse(hash) {
   return { route, id: null, partie: null };
 }
 
+// Lien direct vers un questionnaire anonyme (envoyé par WhatsApp) : "#/questionnaire/fin_stagiaire" →
+// "fin_stagiaire". Toute autre adresse, ou une clé illisible, vaut null. La clé n'est pas vérifiée ici : la
+// liste lue en base dit si la personne a ce questionnaire à remplir.
+export function cleQuestionnaire(hash) {
+  const segments = String(hash ?? "").replace(/^#\/?/, "").split("/").filter(Boolean);
+  if (segments[0] !== "questionnaire") return null;
+  return /^[a-z0-9_]{1,40}$/.test(segments[1] || "") ? segments[1] : null;
+}
+
 // Adresse d'une fiche, d'une partie, ou de la page elle-même.
 export function adresseFiche(route, id, partie) {
   let h = "#/" + route;

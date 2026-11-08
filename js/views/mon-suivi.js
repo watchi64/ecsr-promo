@@ -11,6 +11,7 @@ import { renderDp } from "./dp.js?v=20261108a";
 import { renderEpcfLivret } from "./epcf-livret.js?v=20261108a";
 import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261108a";
 import { bandeauAvis } from "../avis.js?v=20261108a";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261108a";
 import { statsPassages } from "../passages-stats.js?v=20261108a";
 import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261108a";
 import { icon } from "../icons.js?v=20261108a";
@@ -762,7 +763,10 @@ export async function renderMonSuivi(container) {
   );
   const corps = el("div", { class: "ms-body" });
   const bandeau = bandeauAvis();
+  // Questionnaire anonyme à remplir (Qualiopi) : Mon espace est la page d'ouverture des stagiaires.
+  const questionnaire = bandeauQuestionnaire();
   container.appendChild(header);
+  container.appendChild(questionnaire);
   if (bandeau) container.appendChild(bandeau);
   container.appendChild(corps);
   if (monId == null) {
@@ -782,6 +786,7 @@ export async function renderMonSuivi(container) {
     // navigation) remplace l'en-tête.
     header.hidden = affiche === "partie";
     if (bandeau) bandeau.hidden = affiche === "partie";
+    questionnaire.hidden = affiche === "partie";
     if (disposition === "sommaire") window.scrollTo(0, 0);
   };
   const charger = async () => {

@@ -172,12 +172,27 @@ for (const [formateur, v2] of [[false, false], [false, true], [true, false], [tr
     `affichage : lue ${formateur ? "par un formateur" : "par un stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"}`);
 }
 // À date égale, l'ordre du fichier est gardé : les entrées de lancement ouvrent la section de l'Accueil (3 cartes), la Nouveauté commune vient ensuite.
-eq(ids(triees(visibles(NOUVEAUTES, false, true))).slice(0, 2), ["2026-10-29-nouvelle-navigation", "2026-10-29-affichage-telephone"],
+// (Ordre vérifié parmi les entrées jusqu'au lancement du 29/10 : les suivantes passent devant, par leur date.)
+const jusquAuLancement = (liste) => liste.filter((e) => e.date <= "2026-10-29");
+eq(ids(triees(jusquAuLancement(visibles(NOUVEAUTES, false, true)))).slice(0, 2), ["2026-10-29-nouvelle-navigation", "2026-10-29-affichage-telephone"],
   "un stagiaire, nouvelle navigation : le lancement d'abord, puis les corrections communes");
-eq(ids(triees(visibles(NOUVEAUTES, true, true))).slice(0, 3),
+eq(ids(triees(jusquAuLancement(visibles(NOUVEAUTES, true, true)))).slice(0, 3),
   ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs", "2026-10-29-affichage-telephone"],
   "un formateur, nouvelle navigation : les deux lancements, puis les corrections communes");
-eq(ids(triees(visibles(NOUVEAUTES, false, false)))[0], "2026-10-29-affichage-telephone", "ancienne navigation : les corrections communes sont la plus récente");
+eq(ids(triees(jusquAuLancement(visibles(NOUVEAUTES, false, false))))[0], "2026-10-29-affichage-telephone", "ancienne navigation : les corrections communes sont la plus récente");
+
+// Questionnaires anonymes (plan Qualiopi Q3, tâche 5) : pour tous, dans les deux navigations, datée de la mise en ligne prévue.
+const questionnaires = NOUVEAUTES.find((e) => e.id === "2026-12-04-questionnaires-anonymes");
+ok(!!questionnaires && questionnaires.pour === "tous" && questionnaires.date === "2026-12-04" && questionnaires.navigation === undefined,
+  "questionnaires : pour tous, du 04/12, sans champ navigation");
+ok(/sans ton nom/.test(questionnaires.resume) && /Sans avis/.test(questionnaires.resume) && /Plus tard/.test(questionnaires.resume),
+  "questionnaires : anonymat, « Sans avis » et « Plus tard » expliqués");
+ok(!/profs?/i.test(tout(questionnaires)) && !tout(questionnaires).includes(String.fromCharCode(0x2014)),
+  "questionnaires : « formateur », jamais « prof », et aucun tiret cadratin");
+for (const [formateur, v2] of [[false, false], [false, true], [true, false], [true, true]]) {
+  ok(ids(visibles(NOUVEAUTES, formateur, v2)).includes("2026-12-04-questionnaires-anonymes"),
+    `questionnaires : lue ${formateur ? "par un formateur" : "par un stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"}`);
+}
 
 // Les Nouveautés qui ne décrivent que l'ancienne barre : cachées sous la nouvelle.
 const ANCIENNES = ["2026-10-03-barre-simple", "2026-07-23-espace-personnel", "2026-10-03-sommaire-iphone"];

@@ -25,6 +25,19 @@
 
 export const NOUVEAUTES = [
   {
+    // Date de mise en ligne prévue (ruling R3 du plan Q3) : à corriger au jour réel, avant la poussée.
+    id: "2026-12-04-questionnaires-anonymes",
+    date: "2026-12-04",
+    pour: "tous",
+    titre: "Ton avis sur la formation, sans ton nom",
+    resume: "À la fin de la formation, un court questionnaire s'affiche en haut de l'Accueil : "
+          + "quelques questions sur la formation elle-même, à noter de 1 à 4, avec « Sans avis » quand tu ne sais "
+          + "pas. Ta réponse est enregistrée sans ton nom et sans date : personne ne peut savoir qui a répondu quoi. "
+          + "« Plus tard » le fait revenir le lendemain. Les formateurs ont leur propre questionnaire, et quelques "
+          + "questions reviendront six mois après la fin de la formation.",
+    ou: { label: "Accueil", route: "home" },
+  },
+  {
     id: "2026-10-29-nouvelle-navigation",
     date: "2026-10-29",
     pour: "tous",

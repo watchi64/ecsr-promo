@@ -3245,7 +3245,12 @@ def verifier_nouveautes_eteint(page, res, sc):
 def verifier_nouveautes_de_l_accueil(page, res, vue, equipe):
     """Accueil, nouvelle navigation : les trois plus récentes Nouveautés de la section commencent par celles du lancement (la première pour tous, la
     seconde pour l'équipe). Appelé depuis l'accueil déjà ouvert."""
-    titres = [c["titre"] for c in page.evaluate("() => window.__verifNav.nouveautes()")]
+    # Ordre vérifié parmi les Nouveautés jusqu'au lancement (dates « JJ/MM/AAAA ») : les suivantes passent devant, par leur date.
+    def jour(date):
+        j, m, a = (date or "00/00/0000").split("/")
+        return a + m + j
+    lancement = jour(DATE_DU_LANCEMENT)
+    titres = [c["titre"] for c in page.evaluate("() => window.__verifNav.nouveautes()") if jour(c.get("date")) <= lancement]
     attendus = [TITRE_LANCEMENT] + ([TITRE_LANCEMENT_EQUIPE] if equipe else [])
     if titres[:len(attendus)] != attendus:
         res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu « %s »" % (" », « ".join(titres[:len(attendus)]), " », « ".join(attendus)))

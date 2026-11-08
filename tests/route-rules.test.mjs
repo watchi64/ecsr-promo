@@ -1,7 +1,7 @@
 // Adresses à segments (chantier D, lot 2) : lecture, construction, liens « Où le
 // trouver » et page « à soi ».
 import assert from "node:assert/strict";
-import { PARTIES, lireAdresse, adresseFiche, hrefLien, pagePersonnelle } from "../js/route-rules.js";
+import { PARTIES, lireAdresse, adresseFiche, hrefLien, pagePersonnelle, cleQuestionnaire } from "../js/route-rules.js";
 
 let n = 0;
 const eq = (a, b, msg) => { assert.deepEqual(a, b, msg); n++; };
@@ -47,5 +47,14 @@ eq(pagePersonnelle({ formateur: false, stagiaireId: null }), "mon-suivi", "compt
 
 eq(PARTIES, ["passages", "epcf", "evolution", "livret", "dp", "classe"], "parties dans l'ordre de la fiche");
 eq(PARTIES[PARTIES.length - 1], "classe", "la classe ferme la fiche (Mon espace, nouvelle navigation)");
+
+// 5. Lien direct vers un questionnaire (WhatsApp)
+eq(cleQuestionnaire("#/questionnaire/fin_stagiaire"), "fin_stagiaire", "clé lue");
+eq(cleQuestionnaire("#questionnaire/fin_formateur/"), "fin_formateur", "sans barre initiale, barre finale tolérée");
+eq(cleQuestionnaire("#/questionnaire"), null, "sans clé");
+eq(cleQuestionnaire("#/questionnaire/Fin-Stagiaire"), null, "clé illisible");
+eq(cleQuestionnaire("#/home/fin_stagiaire"), null, "autre page");
+eq(cleQuestionnaire(undefined), null, "adresse absente");
+eq(lireAdresse("#/questionnaire/fin_stagiaire").route, "questionnaire", "la route reste lisible");
 
 console.log(`route-rules : ${n} assertions OK`);

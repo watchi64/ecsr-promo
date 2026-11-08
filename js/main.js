@@ -40,7 +40,8 @@ import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=
 import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261108a";
 import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261108a";
 import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261108a";
-import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261108a";
+import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261108a";
+import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261108a";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
@@ -314,6 +315,15 @@ async function navigate({ force = false } = {}) {
   // page lit le reste. Page de repli : « Mon suivi », où chacun retrouve ce qui
   // l'attend, son planning à venir et ses résultats.
   let route = lireAdresse(location.hash).route;
+  // Lien direct vers un questionnaire anonyme (#/questionnaire/<clé>, envoyé par WhatsApp) : l'Accueil s'affiche,
+  // puis la fenêtre du questionnaire s'ouvre par-dessus si la personne l'a à remplir, sinon un mot doux. L'adresse
+  // devient #/home : un rechargement ne rouvre pas la fenêtre.
+  let lienQuestionnaire = null;
+  if (route === "questionnaire") {
+    lienQuestionnaire = cleQuestionnaire(location.hash) || "";
+    try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
+    route = "home";
+  }
   if (!routes[route]) route = "mon-suivi";
   // Module fermé pour la promo (lien, adresse saisie, nouveauté ancienne) : un
   // stagiaire est ramené sur Mon suivi, avec un mot d'explication.
@@ -384,6 +394,7 @@ async function navigate({ force = false } = {}) {
   teardownQualiopiPrint();
   try {
     await routes[route](view);
+    if (lienQuestionnaire !== null) ouvrirQuestionnaireDuLien(lienQuestionnaire);
   } catch (e) {
     console.error(e);
     view.innerHTML = "";
@@ -572,7 +583,8 @@ async function bootApp() {
   // sur « Mon suivi ». replaceState plutôt que location.hash : pas de
   // `hashchange` (donc pas de double rendu avec le navigate() ci-dessous) et pas
   // d'entrée d'historique parasite.
-  if (!location.hash || isColdStart()) {
+  // Exception : un lien vers un questionnaire (#/questionnaire/<clé>, WhatsApp) s'ouvre aussi à froid.
+  if (!location.hash || (isColdStart() && !cleQuestionnaire(location.hash))) {
     const cible = "#/" + (derniereRoute() || "mon-suivi");
     try { history.replaceState(null, "", cible); }
     catch (e) { location.hash = cible; }

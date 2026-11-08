@@ -13,6 +13,7 @@ import { carteNouveaute } from "./nouveautes.js?v=20261108a";
 import { emargementActif } from "../emargement-etat.js?v=20261108a";
 import { navigationV2Active } from "../nav-etat.js?v=20261108a";
 import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte } from "../accueil-rules.js?v=20261108a";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261108a";
 
 function greetingByHour() {
   const h = new Date().getHours();
@@ -125,6 +126,10 @@ export async function renderHome(container) {
           "Tout au même endroit, à jour en temps réel."
         ),
   ));
+
+  // Questionnaire anonyme à remplir (Qualiopi), sous la salutation, dans les deux navigations : l'emplacement est posé
+  // tout de suite et se remplit à l'arrivée de la liste lue en base (vide : rien ne s'affiche).
+  container.appendChild(bandeauQuestionnaire());
 
   // Placée avant les tuiles : quelqu'un qui arrive en cliquant sur la pastille
   // doit tomber dessus sans défiler.

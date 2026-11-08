@@ -1,0 +1,195 @@
+/* Questionnaires anonymes (Qualiopi, indicateur 30) : le bandeau d'Accueil et de Mon espace, et la fenêtre qui
+   pose les questions (js/questionnaire.js). Valable avec l'ancienne barre comme avec la nouvelle : rien n'est rangé
+   sous body[data-nav="v2"], et le sélecteur de la fenêtre bat ceux des fenêtres de la coquille (css/navigation.css),
+   dont elle reprend la mécanique, comme « Signaler un problème ». Cibles de 44 px au moins, aucune couleur d'alerte. */
+
+/* ----- Bandeau ----- */
+.questionnaire-place:empty { display: none; }
+.questionnaire-place[hidden] { display: none; }
+
+.questionnaire-bandeau {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem 1.2rem;
+  flex-wrap: wrap;
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--accent-soft-2);
+  border-radius: var(--r-lg);
+  background: var(--accent-soft);
+}
+.questionnaire-bandeau-texte { flex: 1 1 18rem; min-width: 0; }
+.questionnaire-bandeau-titre { margin: 0; font-weight: 600; color: var(--accent-strong); }
+.questionnaire-bandeau-sous-titre { margin: 0.2rem 0 0; font-size: 0.88rem; line-height: 1.4; color: var(--text-soft); }
+.questionnaire-bandeau-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.questionnaire-bandeau-btn { min-height: 44px; padding-inline: 1.1rem; }
+
+/* ----- La fenêtre ----- */
+/* Calque : au-dessus des bandeaux du bas (1400, 1500) et du panneau de l'assistant, sous les messages (2000). */
+.modal-backdrop[data-nav-coquille="questionnaire"] { z-index: 1600; }
+
+body .modal-backdrop[data-nav-coquille="questionnaire"] > .nav-fenetre.questionnaire-fenetre {
+  position: relative;
+  inset: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 22px 22px;
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-3);
+}
+.questionnaire-fenetre:focus { outline: none; }
+/* La fenêtre porte son propre en-tête (titre et « Fermer »), à toute taille. */
+.questionnaire-fenetre .nav-fenetre-haut { display: none !important; }
+
+.qn-tete { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.qn-titre {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.qn-fermer {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.qn-fermer:hover { background: var(--bg-subtle); }
+
+.qn-corps { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+.qn-question {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.qn-question:focus { outline: none; }
+.qn-question:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+.qn-intro { margin: 0; line-height: 1.5; color: var(--text); }
+.qn-intro-detail { color: var(--text-soft); font-size: 0.92rem; }
+.qn-facultative { margin: -6px 0 0; font-size: 0.88rem; color: var(--text-soft); }
+
+/* Progression : « Question 3 sur 10 » et une barre fine. */
+.qn-progression { display: flex; flex-direction: column; gap: 6px; }
+.qn-progression-texte { margin: 0; font-size: 0.85rem; font-weight: 600; color: var(--text-soft); }
+.qn-barre { height: 6px; border-radius: 999px; background: var(--bg-subtle); overflow: hidden; }
+.qn-barre-remplie { height: 100%; border-radius: inherit; background: var(--accent); transition: width 0.25s ease; }
+@media (prefers-reduced-motion: reduce) { .qn-barre-remplie { transition: none; } }
+
+/* Réponses : une ligne par choix, toutes de même poids (« Sans avis » compris). */
+.qn-options { display: flex; flex-direction: column; gap: 8px; }
+.qn-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg-elev);
+  cursor: pointer;
+  line-height: 1.35;
+}
+.qn-option:hover { border-color: var(--accent); }
+.qn-option:has(.qn-radio:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.qn-option:has(.qn-radio:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.qn-radio {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.qn-chiffre {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.qn-option:has(.qn-radio:checked) .qn-chiffre { background: var(--accent); color: var(--bg-elev); }
+.qn-libelle { min-width: 0; overflow-wrap: anywhere; }
+/* « Sans avis » : même ligne, même taille ; une place vide aligne son libellé sur ceux des chiffres. */
+.qn-sans-avis .qn-libelle { padding-left: 40px; }
+
+.qn-champ-texte { display: flex; flex-direction: column; gap: 6px; }
+.qn-commentaire {
+  width: 100%;
+  min-height: 7.5rem;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg-elev);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.45;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.qn-commentaire:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.qn-compteur { margin: 0; font-size: 0.82rem; color: var(--text-soft); text-align: right; }
+
+/* Aide et erreurs d'envoi : un mot posé, jamais une couleur d'alerte. */
+.qn-aide { margin: 0; color: var(--text); font-size: 0.92rem; line-height: 1.45; }
+.qn-aide:empty { display: none; }
+.qn-aide:not(:empty) {
+  padding: 10px 12px;
+  border-radius: var(--r);
+  background: var(--bg-subtle);
+}
+
+.qn-actions { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.qn-actions .btn { min-height: 44px; min-width: 7rem; }
+.qn-actions .qn-suivant { margin-left: auto; }
+
+.qn-merci-bloc { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; }
+.qn-merci { font-family: var(--font-display); font-size: 1.35rem; font-weight: 500; }
+
+/* Téléphone : la fenêtre monte du bas et prend presque tout l'écran ; boutons sur toute la largeur. */
+@media (max-width: 699.98px) {
+  .modal-backdrop[data-nav-coquille="questionnaire"] {
+    align-items: flex-end;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  body .modal-backdrop[data-nav-coquille="questionnaire"] > .nav-fenetre.questionnaire-fenetre {
+    width: 100%;
+    max-height: 94vh;
+    max-height: 94dvh;
+    padding: 14px 14px 16px;
+  }
+  .qn-titre { font-size: 1.2rem; }
+  .qn-actions .btn { flex: 1 1 0; min-width: 0; }
+  .qn-actions .qn-suivant { margin-left: 0; }
+  .questionnaire-bandeau-actions { width: 100%; }
+  .questionnaire-bandeau-btn { flex: 1 1 0; }
+}
