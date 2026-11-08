@@ -7,21 +7,21 @@
  */
 import {
   listAgendaEvents, getPromoCourante, listQcmIndex, listMyQcmAttempts, listThemes, getDpDossier, getEpcfLivret,
-} from "../db.js?v=20261029b";
-import { el, clear } from "../utils.js?v=20261029b";
-import { icon } from "../icons.js?v=20261029b";
-import { getProfileWho, monStagiaireId } from "../auth-admin.js?v=20261029b";
-import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261029b";
-import { carteNouveaute } from "./nouveautes.js?v=20261029b";
-import { prenomDe } from "../nav-rules.js?v=20261029b";
-import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe } from "../accueil-rules.js?v=20261029b";
-import { journeeDuJour } from "../journee-rules.js?v=20261029b";
-import { effSujets, sujetsDe } from "../planning-roles.js?v=20261029b";
-import { exemplesRemplis } from "../dp-rules.js?v=20261029b";
-import { heureLocale } from "../emargement-rules.js?v=20261029b";
-import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261029b";
-import { ouvrirSignalement } from "../signalement.js?v=20261029b";
-import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261029b";
+} from "../db.js?v=20261106a";
+import { el, clear } from "../utils.js?v=20261106a";
+import { icon } from "../icons.js?v=20261106a";
+import { getProfileWho, monStagiaireId } from "../auth-admin.js?v=20261106a";
+import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261106a";
+import { carteNouveaute } from "./nouveautes.js?v=20261106a";
+import { prenomDe } from "../nav-rules.js?v=20261106a";
+import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe } from "../accueil-rules.js?v=20261106a";
+import { journeeDuJour } from "../journee-rules.js?v=20261106a";
+import { effSujets, sujetsDe } from "../planning-roles.js?v=20261106a";
+import { exemplesRemplis } from "../dp-rules.js?v=20261106a";
+import { heureLocale } from "../emargement-rules.js?v=20261106a";
+import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261106a";
+import { ouvrirSignalement } from "../signalement.js?v=20261106a";
+import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261106a";
 
 const RELECTURE_SEANCES_MS = 60000;
 

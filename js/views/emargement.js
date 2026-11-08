@@ -7,22 +7,22 @@ import {
   listStagiaires, listProfs, getPlanning, getHalfMetaForWeek, getJoursOff, getPromoCourante,
   listEmargementSeances, ouvrirEmargement, signerEmargement, signerEmargementFormateur,
   annoterEmargement, cloreEmargement, rouvrirEmargement, getEnteteEmargement, setEnteteEmargement,
-} from "../db.js?v=20261029b";
-import { el, clear, toast, isoDate } from "../utils.js?v=20261029b";
-import { icon } from "../icons.js?v=20261029b";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261029b";
+} from "../db.js?v=20261106a";
+import { el, clear, toast, isoDate } from "../utils.js?v=20261106a";
+import { icon } from "../icons.js?v=20261106a";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261106a";
 import {
   etatLigne, resumeSeance, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
   demiVoisine, notesProposees, roleAuPlanning,
-} from "../emargement-rules.js?v=20261029b";
-import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261029b";
+} from "../emargement-rules.js?v=20261106a";
+import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261106a";
 import {
   feuilleSeance, feuilleSemaine, imprimer, nomComplet, jourLong, DEMI_LONG, stagiairesDeFeuille,
-} from "../emargement-feuilles.js?v=20261029b";
-import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261029b";
-import { emargementActif } from "../emargement-etat.js?v=20261029b";
-import { navigationV2Active } from "../nav-etat.js?v=20261029b";
+} from "../emargement-feuilles.js?v=20261106a";
+import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261106a";
+import { emargementActif } from "../emargement-etat.js?v=20261106a";
+import { navigationV2Active } from "../nav-etat.js?v=20261106a";
 
 // Horaires par défaut, comme DEFAULT_HALF_META du planning.
 const HORAIRES_DEFAUT = { matin: { debut: "09:00", fin: "12:30" }, aprem: { debut: "13:30", fin: "17:00" } };

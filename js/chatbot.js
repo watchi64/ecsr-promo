@@ -5,11 +5,12 @@
  * Nouvelle navigation : plus de bulle (masquee par css/navigation.css), le panneau s'ouvre par les
  * boutons « Assistant » de la coquille (js/nav-shell.js), qui appellent basculerAssistant().
  */
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261029b";
-import { supabase } from "./db.js?v=20261029b";
-import { icon } from "./icons.js?v=20261029b";
-import { fenetreMessages, pageDepuisHash, extraireEvenements } from "./chatbot-rules.js?v=20261029b";
-import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261029b";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261106a";
+import { supabase } from "./db.js?v=20261106a";
+import { icon } from "./icons.js?v=20261106a";
+import { corpsRequete, extraireEvenements } from "./chatbot-rules.js?v=20261106a";
+import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261106a";
+import { navigationV2Active } from "./nav-etat.js?v=20261106a";
 
 const CLE_HISTO = "chatbot_histo";
 let histo = [];
@@ -77,7 +78,7 @@ function sauverHisto() {
 
 async function rendreEnMarkdown(noeud, texte) {
   try {
-    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261029b");
+    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261106a");
     // blocs: false : une réponse qui recopie un bloc de cours (schéma, quiz, cartes) le laisse en texte brut,
     // elle ne monte ni schéma animé ni quiz dans la bulle.
     const { noeuds } = rendreMarkdown(texte, { blocs: false });
@@ -123,10 +124,7 @@ async function envoyerQuestion(question, msgs) {
         apikey: SUPABASE_KEY,
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({
-        messages: fenetreMessages(histo),
-        page: pageDepuisHash(location.hash),
-      }),
+      body: JSON.stringify(corpsRequete(histo, location.hash, navigationV2Active())),
     });
 
     if (resp.status === 429) {
@@ -241,7 +239,7 @@ export function initChatbot() {
   // Signaler un problème (spec 2026-10-28) : la fenêtre s'ouvre par-dessus le panneau, qui reste ouvert.
   const signaler = panneau.querySelector(".chatbot-signaler-btn");
   signaler.addEventListener("click", () => {
-    import("./signalement.js?v=20261029b").then((m) => m.ouvrirSignalement({ ancre: signaler }));
+    import("./signalement.js?v=20261106a").then((m) => m.ouvrirSignalement({ ancre: signaler }));
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") fermerPanneau();
