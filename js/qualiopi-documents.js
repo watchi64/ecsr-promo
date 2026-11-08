@@ -22,7 +22,7 @@
 
 import { SOURCE } from "./qualiopi-referentiel.js?v=20261108a";
 import { jourDe, rempli, tableau, nb, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261108a";
-import { ligneComparaison, METHODES } from "./centre-stats.js?v=20261108a";
+import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261108a";
 import { estNotee, score20 } from "./notes-stats.js?v=20261108a";
 import { cellule, nombre, slug } from "./centre-csv.js?v=20261108a";
 import { compareByNom } from "./utils.js?v=20261108a";
@@ -218,6 +218,7 @@ const RESULTATS = [
   ["reussiteQcm", "Réussite aux QCM d'entraînement"], ["examensQcm", "Examens QCM"], ["notes", "Notes"], ["epcf", "EPCF"],
 ];
 const LIBELLE_TITRE = "Réussite au titre";   // les résultats de jury ne sont pas saisis : jamais de chiffre, mais sa méthode
+const LIBELLE_SATISFACTION = "Satisfaction des stagiaires";   // questionnaire de fin de formation : ses chiffres viennent de l'inventaire
 const LIGNES_METHODES = [...RESULTATS.map(([cle, libelle]) => [libelle, METHODES[cle]]), [LIBELLE_TITRE, METHODES.titre]];
 const lignesResultats = (ind) => {
   const comparaison = ligneComparaison(ind);
@@ -387,6 +388,22 @@ function sectionExamen({ inv, donnees, enFormation, stagiaires }) {
   };
 }
 
+// Les appréciations des stagiaires (indicateurs 30 et 32) : la phrase de la pièce, la méthode du calcul quand il a eu lieu, puis ce
+// que le centre apporte lui-même. Jamais un commentaire : la pièce ne porte que des comptes. Sans la pièce (inventaire écrit à
+// la main), l'ancienne phrase : l'enquête est hors de l'application.
+function sectionAppreciations({ inv }) {
+  const piece = pieceDe(inv, "appreciations");
+  if (!piece) return { paragraphes: ["Enquête hors de l'application, à joindre."], tableaux: [] };
+  return {
+    paragraphes: [
+      phrase(piece),
+      ...(piece.presente ? [`Méthode de calcul : ${METHODES_PUBLIQUES.satisfaction}`] : []),
+      "Les réponses sont anonymes et aucun commentaire n'est repris dans ce dossier. Les avis des financeurs et des entreprises sont hors de l'application : à joindre.",
+    ],
+    tableaux: [],
+  };
+}
+
 // inv : inventairePromo(...) ; donnees : lireDonneesQualiopi(...) ; ind : indicateursPromo(...) ; promo : { id, nom,
 // date_debut, date_fin } ; lieu : nom du centre ; intitule : intitulé de la formation (en-tête des feuilles d'émargement) ;
 // aujourdhui : « AAAA-MM-JJ ».
@@ -415,7 +432,7 @@ export function modeleDossierFormation({ inv, donnees, ind, promo, lieu, intitul
       effectif: sectionEffectif(contexte), deroule: sectionDeroule(contexte), assiduite: sectionAssiduite(contexte),
       passages: sectionPassages(contexte), evaluations: sectionEvaluations(contexte), ressources: sectionRessources(contexte),
       signalements: sectionSignalements(contexte), examen: sectionExamen(contexte),
-      appreciations: { paragraphes: ["Enquête hors de l'application, à joindre."], tableaux: [] },
+      appreciations: sectionAppreciations(contexte),
     },
     indicateurs: tableau(inv?.indicateurs),
   });
@@ -448,6 +465,7 @@ function sectionResultatsCentre({ promos, aujourdhui }) {
     paragraphes: [
       `Résultats donnés promo par promo, sans total : ${nb(promos.length, "promo")}, dont ${nb(terminees, "terminée")} et ${promos.length - terminees} en cours.`,
       "Une promo est terminée quand sa date de fin est renseignée et passée ; les chiffres d'une promo en cours sont provisoires.",
+      `Satisfaction des stagiaires, méthode de calcul : ${METHODES_PUBLIQUES.satisfaction}`,
     ],
     tableaux: [
       ...table(["Promo", "Période", "État", "Inscrits", "Abandons", "Absences", "Passages"], lignes.map(({ nom, terminee, promo, chiffres: c }) => [
@@ -455,6 +473,8 @@ function sectionResultatsCentre({ promos, aujourdhui }) {
         c.effectif, c.abandon, c.absences, c.passages,
       ])),
       ...table(["Promo", "QCM d'entraînement", "Examens QCM", "Notes", "EPCF"], lignes.map(({ nom, chiffres: c }) => [nom, c.reussiteQcm, c.examensQcm, c.notes, c.epcf])),
+      // Le taux de chaque promo, jamais cumulé ; sous le seuil, la raison fixe de la pièce (aucun chiffre).
+      ...table(["Promo", LIBELLE_SATISFACTION], promos.map(({ promo, inv }) => [libellePromo(promo), contenuPiece(pieceDe(inv, "appreciations"))])),
       ...table(["Indicateur", "Méthode de calcul"], LIGNES_METHODES),
     ],
   };

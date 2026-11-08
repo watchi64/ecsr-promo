@@ -74,10 +74,11 @@ const TABLE_PIECES = [
   ["intervenants", "Intervenants et partenaires", [17, 18, 28]],
   ["resultats", "Résultats et méthodes", [2, 3, 32]],
   ["suivi", "Suivi", [10, 12, 32]],
+  ["appreciations", "Appréciations", [30, 32]],
 ];
 const LIBELLE = Object.fromEntries(TABLE_PIECES.map(([cle, libelle]) => [cle, libelle]));
 eq(PIECES, TABLE_PIECES.map(([cle, libelle, indicateurs]) => ({ cle, libelle, indicateurs })),
-  "13 pièces, dans l'ordre du tableau du § 6.2");
+  "14 pièces, dans l'ordre du tableau du § 6.2 et de la tâche Q3b");
 ok(PIECES.every((p) => p.indicateurs.every((num) => num in NIVEAUX)), "chaque pièce sert des indicateurs de l'annexe A");
 
 // =====================================================================================================
@@ -287,7 +288,7 @@ const PIECES_PAR_INDICATEUR = {
   12: ["effectif", "assiduite", "passages", "suivi"], 16: ["assiduite", "evaluations", "dossierPro"],
   17: ["deroule", "intervenants"], 18: ["deroule", "intervenants"], 19: ["ressources", "misesAJour"],
   23: ["misesAJour"], 25: ["innovations"], 28: ["datesCles", "intervenants"], 31: ["misesAJour"],
-  32: ["resultats", "suivi"],
+  30: ["appreciations"], 32: ["resultats", "suivi", "appreciations"],
 };
 inv.indicateurs.forEach((i) => {
   const ref = INDICATEURS.find((x) => x.numero === i.numero);
@@ -711,7 +712,7 @@ const raisonsDe = (i) => PIECES.map((p) => piece(i, p.cle)).filter((p) => !p.pre
 const memesFiches = (promo) => raisonsDe(inventairePromo({ stagiaires: STAG }, REF, { promo, aujourdhui: AUJOURDHUI }));
 const raisonsFixes = raisonsDe(fiches);
 eq(raisonsFixes.map(([cle]) => cle), ["deroule", "datesCles", "assiduite", "passages", "evaluations", "dossierPro", "ressources",
-  "misesAJour", "innovations", "intervenants", "suivi"], "onze pièces absentes sur une promo qui n'a que ses fiches");
+  "misesAJour", "innovations", "intervenants", "suivi", "appreciations"], "douze pièces absentes sur une promo qui n'a que ses fiches");
 [{ ...PROMO, date_debut: "2025-01-06", date_fin: "2025-06-27" }, { ...PROMO, date_fin: null }, { ...PROMO, date_debut: null },
   future, { ...PROMO, id: 12, lieu_id: 5 }].forEach((promo, k) =>
   eq(memesFiches(promo), raisonsFixes, `autre promo ou autre période (${k}) : les mêmes raisons, mot pour mot`));

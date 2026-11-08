@@ -598,7 +598,11 @@ eq(lignesDe(f, "examen"), [
 ], "examen : par stagiaire en formation");
 
 // --- Appréciations
-eq(section(f, "appreciations").paragraphes, ["Enquête hors de l'application, à joindre."], "appréciations : l'enquête est hors de l'application");
+// Sans lecture de la satisfaction (donnees.satisfaction absent), la pièce est « pas encore en service » et le centre fournit le reste.
+eq(section(f, "appreciations").paragraphes, [
+  "Appréciations : questionnaire de fin de formation pas encore en service.",
+  "Les réponses sont anonymes et aucun commentaire n'est repris dans ce dossier. Les avis des financeurs et des entreprises sont hors de l'application : à joindre.",
+], "appréciations : questionnaire pas encore en service, avis des financeurs à joindre");
 
 // --- Nominatif : les noms y sont ; les bénévoles et les auto-écoles n'y sont qu'en nombres
 const jsonFormation = JSON.stringify(f);
@@ -656,7 +660,8 @@ eq(cSans.aFournir, c.aFournir, "les mêmes sans les noms");
 eq(section(c, "resultats").paragraphes, [
   "Résultats donnés promo par promo, sans total : 2 promos, dont 1 terminée et 1 en cours.",
   "Une promo est terminée quand sa date de fin est renseignée et passée ; les chiffres d'une promo en cours sont provisoires.",
-], "résultats : promo par promo, jamais en total");
+  "Satisfaction des stagiaires, méthode de calcul : Avis des stagiaires recueillis par le questionnaire de fin de formation, anonyme : part des réponses favorables, calculée sur les stagiaires qui ont donné un avis. Aucun résultat n'est publié sous 5 réponses.",
+], "résultats : promo par promo, jamais en total, puis la méthode publique de la satisfaction");
 eq(entetesDe(c, "resultats", 0), ["Promo", "Période", "État", "Inscrits", "Abandons", "Absences", "Passages"], "résultats : effectif et parcours");
 eq(lignesDe(c, "resultats", 0), [
   ["Promo de test", "du 28/09/2026 au 23/10/2026", "Terminée", "4 inscrits", pc(25) + " (1)", pc(33), "2,0 par stagiaire"],
@@ -667,10 +672,11 @@ eq(lignesDe(c, "resultats", 1), [
   ["Promo de test", pc(70), pc(50) + " (1/2)", "11,8/20", pc(60) + " acquis"],
   ["Promo en cours", "aucune donnée", "aucune donnée", "14,0/20", "aucune donnée"],
 ], "résultats : une ligne par promo, « aucune donnée » quand il n'y en a pas");
-eq(entetesDe(c, "resultats", 2), ["Indicateur", "Méthode de calcul"], "résultats : méthodes");
-eq(lignesDe(c, "resultats", 2), lignesDe(f, "effectif", 1).map((l) => [l[0], l[2]]),
+eq(entetesDe(c, "resultats", 2), ["Promo", "Satisfaction des stagiaires"], "résultats : satisfaction, un taux par promo");
+eq(entetesDe(c, "resultats", 3), ["Indicateur", "Méthode de calcul"], "résultats : méthodes");
+eq(lignesDe(c, "resultats", 3), lignesDe(f, "effectif", 1).map((l) => [l[0], l[2]]),
   "résultats : les mêmes indicateurs et les mêmes méthodes que le dossier de la formation, celles du tableau de bord mot pour mot");
-eq(lignesDe(c, "resultats", 2).map((l) => l[1]),
+eq(lignesDe(c, "resultats", 3).map((l) => l[1]),
   [METHODES.effectif, METHODES.abandon, METHODES.absences, METHODES.passages, METHODES.reussiteQcm, METHODES.examensQcm,
     METHODES.notes, METHODES.epcf, METHODES.titre], "résultats : neuf méthodes, la réussite au titre comprise");
 eq(lignesDe(c, "resultats", 0).map((l) => /provisoire/.test(l.join(" "))), [false, true], "« provisoire » pour la seule promo en cours");

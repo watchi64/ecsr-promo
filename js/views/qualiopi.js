@@ -26,7 +26,7 @@ import {
 } from "../db.js?v=20261108a";
 import { el, clear, isoDate, toast } from "../utils.js?v=20261108a";
 import { indicateursPromo } from "../centre-stats.js?v=20261108a";
-import { inventairePromo, nb } from "../qualiopi-preuves.js?v=20261108a";
+import { inventairePromo, nb, tableau, satisfactionDe } from "../qualiopi-preuves.js?v=20261108a";
 import {
   modeleDossierFormation, modeleDossierCentre, inventaireCsv, nomFichierQualiopi, periodeEnMots, LIBELLES_NIVEAU, PHRASE_NIVEAU, PHRASE_DE_GARDE,
 } from "../qualiopi-documents.js?v=20261108a";
@@ -261,8 +261,22 @@ export async function renderQualiopi(container) {
   const chargementVivant = (numero) => numero === chargement && pageVivante();
   const actionVivante = (numero) => numero === action && pageVivante();
 
+  // La satisfaction d'une promo, pour l'inventaire, les dossiers et la fiche : les comptes du questionnaire de fin de formation
+  // (jamais les commentaires), réduits par satisfactionDe. Migration pas appliquée, droit refusé ou panne de lecture : « absente »,
+  // sans erreur ; la pièce le dit calmement et le reste de la page se lit comme avant.
+  async function lireSatisfaction(promoId, donnees) {
+    try {
+      return satisfactionDe(await lireResultatsQuestionnaire("fin_stagiaire", { promo_id: promoId }), tableau(donnees.stagiaires).length);
+    } catch {
+      return { etat: "absente" };
+    }
+  }
+
   const lire = (id) => {
-    if (!lectures.has(id)) lectures.set(id, lireDonneesQualiopi(id).catch((e) => { lectures.delete(id); throw e; }));
+    if (!lectures.has(id)) {
+      lectures.set(id, lireDonneesQualiopi(id).then(async (donnees) => ({ ...donnees, satisfaction: await lireSatisfaction(id, donnees) }))
+        .catch((e) => { lectures.delete(id); throw e; }));
+    }
     return lectures.get(id);
   };
 
@@ -624,9 +638,9 @@ export async function renderQualiopi(container) {
       // Les fiches : celle de la promo choisie sur-le-champ, celles du centre après la lecture de ses promos (rien si une promo ne se
       // lit pas ou si l'action devient caduque : le message est alors déjà écrit).
       const lesFiches = portee === "formation"
-        ? Promise.resolve([ficheResultats({ promo, ind: etat.ind, aujourdhui })])
+        ? Promise.resolve([ficheResultats({ promo, ind: etat.ind, aujourdhui, satisfaction: etat.donnees.satisfaction })])
         : lirePromosDuCentre(moi, promosEtPeriodeDuCentre().retenues, "les résultats du centre ne sont pas préparés",
-          (p, donnees) => ficheResultats({ promo: p, ind: indicateursPromo(donnees, referentiel, { aujourdhui }), aujourdhui }));
+          (p, donnees) => ficheResultats({ promo: p, ind: indicateursPromo(donnees, referentiel, { aujourdhui }), aujourdhui, satisfaction: donnees.satisfaction }));
       const copie = sortie === "copier" ? copierTexte(lesFiches.then(texteDesFiches)) : null;   // sans await : dans le geste du clic
       const fiches = await lesFiches;
       if (!fiches) return;

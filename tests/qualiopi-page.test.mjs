@@ -209,7 +209,7 @@ ok(!/Résultats provisoires : la formation|"non mesuré"|"non saisi"|"non mesur�
 ok(!/navigator\.clipboard|ClipboardItem/.test(codeVue), "la page ne parle jamais au presse-papiers : copierTexte le fait");
 const sortir = codeVue.slice(codeVue.indexOf("async function sortirFiches("), codeVue.indexOf("function construireActions()"));
 ok(sortir.length > 200, "sortirFiches est lisible");
-ok(/ficheResultats\(\{ promo, ind: etat\.ind, aujourdhui \}\)/.test(sortir), "Cette formation : la fiche de la promo choisie, avec ses indicateurs déjà calculés");
+ok(/ficheResultats\(\{ promo, ind: etat\.ind, aujourdhui, satisfaction: etat\.donnees\.satisfaction \}\)/.test(sortir), "Cette formation : la fiche de la promo choisie, avec ses indicateurs déjà calculés");
 ok(/if \(!fiches\.length\) \{[^}]*ecrireStatut\(AUCUNE_FORMATION\);\s*return;/.test(sortir), "Le centre sans promo dans la période : un message, ni page blanche à imprimer ni phrase vide à copier");
 ok(/promosEtPeriodeDuCentre\(\)/.test(sortir) && /lirePromosDuCentre\(/.test(sortir), "Le centre : les promos retenues pour le dossier du centre (même lieu, même période), lues une à une");
 ok(!/reduce\(|\+=|Math\.(sum|max|min)/.test(sortir), "aucun total, aucune somme : une fiche par promo");

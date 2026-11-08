@@ -50,7 +50,7 @@ export const METHODES_PUBLIQUES = {
   abandon: "Nombre de stagiaires qui ont quitté la formation avant la fin, divisé par le nombre de stagiaires inscrits. Le taux porte sur toute la durée de la formation : la date du départ n'est pas retenue.",
   presence: "Heures réalisées divisées par les heures prévues, d'après les feuilles d'émargement clôturées de la formation. Un stagiaire qui a quitté la formation compte jusqu'à son départ.",
   titre: "Nombre de stagiaires déclarés admis par le jury du titre professionnel, divisé par le nombre de stagiaires présentés à l'examen.",
-  satisfaction: "Avis des stagiaires recueillis par le questionnaire de fin de formation, anonyme : part des réponses favorables, calculée sur le nombre de réponses reçues.",
+  satisfaction: "Avis des stagiaires recueillis par le questionnaire de fin de formation, anonyme : part des réponses favorables, calculée sur les stagiaires qui ont donné un avis. Aucun résultat n'est publié sous 5 réponses.",
 };
 
 const somme = (l) => l.reduce((a, b) => a + b, 0);
