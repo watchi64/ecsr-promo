@@ -120,7 +120,8 @@ ok(!!lancement && lancement.pour === "tous" && lancement.date === "2026-10-29" &
 ok(!!lancementEquipe && lancementEquipe.pour === "formateurs" && lancementEquipe.date === "2026-10-29"
   && lancementEquipe.titre === "Côté formateurs, la barre passe à gauche", "lancement des formateurs : « Côté formateurs, la barre passe à gauche »");
 eq(NOUVEAUTES.filter((e) => e.navigation === "nouvelle").map((e) => e.id).sort(),
-  ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs"], "seules les deux entrées de lancement sont propres à la nouvelle navigation");
+  ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs", "2026-11-10-aujourdhui-formateurs", "2026-11-10-ta-journee-accueil"],
+  "propres à la nouvelle navigation : les deux entrées de lancement et les deux pages d'ouverture du lot 2B");
 eq(ids(visibles(NOUVEAUTES, false, true)).filter((id) => id.startsWith("2026-10-29-nouvelle")), ["2026-10-29-nouvelle-navigation"],
   "allumée, un stagiaire voit la première, pas la seconde");
 eq(ids(visibles(NOUVEAUTES, true, true)).filter((id) => id.startsWith("2026-10-29-nouvelle")),
@@ -171,13 +172,55 @@ for (const [formateur, v2] of [[false, false], [false, true], [true, false], [tr
   ok(ids(visibles(NOUVEAUTES, formateur, v2)).includes("2026-10-29-affichage-telephone"),
     `affichage : lue ${formateur ? "par un formateur" : "par un stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"}`);
 }
-// À date égale, l'ordre du fichier est gardé : les entrées de lancement ouvrent la section de l'Accueil (3 cartes), la Nouveauté commune vient ensuite.
-eq(ids(triees(visibles(NOUVEAUTES, false, true))).slice(0, 2), ["2026-10-29-nouvelle-navigation", "2026-10-29-affichage-telephone"],
+// À date égale, l'ordre du fichier est gardé : le jour du lancement, les entrées de lancement passent avant la Nouveauté commune.
+const DU_LANCEMENT = (l) => ids(l).filter((id) => id.startsWith("2026-10-29-"));
+eq(DU_LANCEMENT(triees(visibles(NOUVEAUTES, false, true))).slice(0, 2), ["2026-10-29-nouvelle-navigation", "2026-10-29-affichage-telephone"],
   "un stagiaire, nouvelle navigation : le lancement d'abord, puis les corrections communes");
-eq(ids(triees(visibles(NOUVEAUTES, true, true))).slice(0, 3),
+eq(DU_LANCEMENT(triees(visibles(NOUVEAUTES, true, true))).slice(0, 3),
   ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs", "2026-10-29-affichage-telephone"],
   "un formateur, nouvelle navigation : les deux lancements, puis les corrections communes");
-eq(ids(triees(visibles(NOUVEAUTES, false, false)))[0], "2026-10-29-affichage-telephone", "ancienne navigation : les corrections communes sont la plus récente");
+eq(DU_LANCEMENT(triees(visibles(NOUVEAUTES, false, false)))[0], "2026-10-29-affichage-telephone", "ancienne navigation, le 29/10 : les corrections communes");
+
+// === Lot 2B (date de la fusion) : la journée sur l'Accueil, Aujourd'hui chez l'équipe, les cours sur téléphone ===
+const journee = par("2026-11-10-ta-journee-accueil");
+const aujourdhui = par("2026-11-10-aujourdhui-formateurs");
+const coursTel = par("2026-11-10-cours-telephone");
+ok(!!journee && journee.pour === "tous" && journee.navigation === "nouvelle" && journee.titre === "Ta journée sur l'Accueil", "lot 2B : « Ta journée sur l'Accueil », pour tous, nouvelle navigation");
+ok(!!aujourdhui && aujourdhui.pour === "formateurs" && aujourdhui.navigation === "nouvelle" && aujourdhui.titre === "Aujourd'hui remplace l'Accueil",
+  "lot 2B : « Aujourd'hui remplace l'Accueil », pour les formateurs, nouvelle navigation");
+ok(!!coursTel && coursTel.pour === "tous" && coursTel.navigation === undefined && coursTel.module === "cours" && coursTel.titre === "Les cours se lisent mieux sur téléphone",
+  "lot 2B : « Les cours se lisent mieux sur téléphone », pour tous, dans les deux navigations, masquée si la lecture des cours est fermée");
+for (const e of [journee, aujourdhui, coursTel]) {
+  ok(e.date === "2026-11-10" && e.id.startsWith(e.date + "-"), e.id + " : datée du jour de la fusion, id préfixé par la date");
+  ok(!!e.ou && typeof e.ou.label === "string" && typeof e.ou.route === "string", e.id + " : un « Où le trouver »");
+  ok(Array.isArray(e.guide) && e.guide.length >= 3 && !e.guideNouvelle, e.id + " : un « Comment faire » d'au moins trois étapes, le même dans les deux navigations");
+  ok(!/vous|votre|vos/i.test(tout(e)), e.id + " : tutoiement, jamais de vouvoiement");
+}
+// La journée : la carte de l'Accueil, la signature, À faire, la grille du planning, les QCM et Mon suivi ; le bouton d'une ligne de QCM s'appelle « Ouvrir ».
+for (const motif of [/« Aujourd'hui »/, /Signer pour ce matin/, /« À faire »/, /grille/, /sous-onglet QCM/, /« Ouvrir »/, /Mon suivi, partie Résultats/, /« Moi »/, /« La classe »/]) {
+  ok(motif.test(tout(journee)), `journée : dit ${motif}`);
+}
+ok(/Aujourd'hui/.test(journee.guide[journee.guide.length - 1]) && /formateurs/.test(journee.guide[journee.guide.length - 1]),
+  "journée : la dernière étape dit aux formateurs que leur page s'appelle Aujourd'hui");
+eq(journee.ou, { label: "Accueil", route: "home" }, "journée : Où le trouver, l'Accueil");
+// Aujourd'hui : émargement, tableau, voiture, à traiter, à suivre, Propositions IA.
+for (const motif of [/« Émargement »/, /« Voir la feuille »/, /« Au tableau »/, /« En voiture »/, /« À traiter »/, /« À suivre de près »/, /Propositions IA/, /« Relire »/, /Indicateurs/]) {
+  ok(motif.test(tout(aujourdhui)), `Aujourd'hui : dit ${motif}`);
+}
+eq(aujourdhui.ou, { label: "Aujourd'hui", route: "home" }, "Aujourd'hui : Où le trouver, Aujourd'hui");
+ok(/barre de gauche/.test(aujourdhui.guide[0]) && /téléphone/.test(aujourdhui.guide[0]), "Aujourd'hui : où est l'entrée, sur ordinateur et sur téléphone");
+// Les cours : sommaire à la ligne, tableaux en listes sur téléphone ; le lien vers Cours (Cours et QCM sous la nouvelle barre).
+ok(/sommaire/.test(coursTel.resume) && /à la ligne/.test(coursTel.resume) && /tableaux/.test(coursTel.resume) && /listes/.test(coursTel.resume), "cours : sommaire à la ligne, tableaux en listes");
+eq(coursTel.ou, { label: "Cours", route: "themes" }, "cours : Où le trouver, Cours (réécrit Cours et QCM sous la nouvelle barre)");
+// Qui les voit : la journée et les cours pour tous, nouvelle navigation ; Aujourd'hui pour l'équipe seulement ; éteinte, les cours seuls.
+const DU_LOT = (l) => ids(l).filter((id) => id.startsWith("2026-11-10-"));
+eq(DU_LOT(triees(visibles(NOUVEAUTES, false, true))), ["2026-11-10-ta-journee-accueil", "2026-11-10-cours-telephone"], "stagiaire, nouvelle navigation : la journée d'abord (carte de l'Accueil), puis les cours");
+eq(DU_LOT(triees(visibles(NOUVEAUTES, true, true))), ["2026-11-10-ta-journee-accueil", "2026-11-10-aujourdhui-formateurs", "2026-11-10-cours-telephone"],
+  "formateur, nouvelle navigation : les trois");
+eq(DU_LOT(triees(visibles(NOUVEAUTES, false, false))), ["2026-11-10-cours-telephone"], "stagiaire, ancienne navigation : les cours seuls");
+eq(DU_LOT(triees(visibles(NOUVEAUTES, true, false))), ["2026-11-10-cours-telephone"], "formateur, ancienne navigation : les cours seuls");
+eq(ids(triees(visibles(NOUVEAUTES, false, true)))[0], "2026-11-10-ta-journee-accueil", "stagiaire, nouvelle navigation : la plus récente est la journée");
+eq(ids(triees(visibles(NOUVEAUTES, false, false)))[0], "2026-11-10-cours-telephone", "ancienne navigation : la plus récente est celle des cours");
 
 // Les Nouveautés qui ne décrivent que l'ancienne barre : cachées sous la nouvelle.
 const ANCIENNES = ["2026-10-03-barre-simple", "2026-07-23-espace-personnel", "2026-10-03-sommaire-iphone"];

@@ -24,6 +24,76 @@
 // pas de numéro de version, pas de nom de fichier.
 
 export const NOUVEAUTES = [
+  // Lot 2B de la refonte (date de la fusion). À date égale, l'ordre du fichier est gardé : la journée du stagiaire
+  // d'abord, c'est elle que montre la carte « Nouveauté » de son Accueil.
+  {
+    id: "2026-11-10-ta-journee-accueil",
+    date: "2026-11-10",
+    pour: "tous",
+    navigation: "nouvelle",
+    titre: "Ta journée sur l'Accueil",
+    resume: "L'Accueil s'ouvre maintenant sur ta journée : ce que tu fais le matin et l'après-midi, avec qui, et le "
+          + "bouton pour signer l'émargement. Juste dessous, « À faire » rassemble ce qui t'attend, puis vient ton "
+          + "prochain rendez-vous. Le Planning montre la semaine en grille, tes QCM ont leur sous-onglet dans Cours "
+          + "et QCM, et Mon suivi réunit tes notes et celles de la classe dans une seule partie, Résultats.",
+    ou: { label: "Accueil", route: "home" },
+    guide: [
+      "Sur l'Accueil, la carte « Aujourd'hui » montre ton matin et ton après-midi. Quand la feuille d'émargement est "
+        + "ouverte, touche « Signer pour ce matin » (ou « Signer pour cet après-midi ») : la carte affiche ensuite l'heure "
+        + "de ta signature.",
+      "« À faire » liste au plus quatre choses : un examen ouvert, le QCM d'un thème vu cette semaine et pas "
+        + "encore fait, ton dossier professionnel, ton livret. Touche une ligne pour y aller.",
+      "Dans Planning, Semaine, la grille montre les cinq jours, aujourd'hui repéré. Sur téléphone, touche un jour dans "
+        + "la bande du haut. « Liste » remet l'affichage d'avant, et l'app retient ton choix.",
+      "Dans Cours et QCM, sous-onglet QCM : chaque QCM avec la note de ton dernier entraînement. « Ouvrir » affiche sa "
+        + "fiche : S'entraîner, Revoir mes erreurs et, quand un formateur l'a ouvert, Passer l'examen.",
+      "Dans Mon suivi, partie Résultats : « Moi » montre l'évolution de tes notes, « La classe » le tableau de la classe. "
+        + "Sur téléphone, le sommaire dit où tu en es dans chaque partie.",
+      "Côté formateurs, cette page est celle des stagiaires : la tienne s'appelle Aujourd'hui.",
+    ],
+  },
+  {
+    id: "2026-11-10-aujourdhui-formateurs",
+    date: "2026-11-10",
+    pour: "formateurs",
+    navigation: "nouvelle",
+    titre: "Aujourd'hui remplace l'Accueil",
+    resume: "Ta première page s'appelle maintenant Aujourd'hui et montre la journée de la promo : la feuille "
+          + "d'émargement du jour, qui passe au tableau, qui est en voiture, ce qui est à traiter dans Cours et QCM, "
+          + "et les stagiaires à suivre de près. Les questions proposées par l'IA ont aussi leur sous-onglet, "
+          + "Propositions IA, dans Cours et QCM.",
+    ou: { label: "Aujourd'hui", route: "home" },
+    guide: [
+      "Ouvre Aujourd'hui, en haut de la barre de gauche sur ordinateur, en bas de l'écran sur téléphone.",
+      "« Émargement » : combien de stagiaires ont signé, qui est en attente, et « Voir la feuille ». La carte n'apparaît "
+        + "que si l'émargement est activé pour la promo.",
+      "« Au tableau » et « En voiture » : qui passe au tableau et sur quel sujet, qui conduit (stagiaires et élèves "
+        + "bénévoles), le matin et l'après-midi. Au tableau, touche un nom pour ouvrir la fiche du stagiaire.",
+      "« À traiter » : les signalements sur des QCM et les questions proposées par l'IA. Chaque ligne ouvre le bon "
+        + "sous-onglet de Cours et QCM.",
+      "Propositions IA (pour les administrateurs de l'app) : « Relire » ouvre l'éditeur du QCM, où tu acceptes ou "
+        + "rejettes chaque question.",
+      "« À suivre de près » : les stagiaires qui cumulent au moins deux signaux. « Tout voir » ouvre Indicateurs.",
+    ],
+  },
+  {
+    id: "2026-11-10-cours-telephone",
+    date: "2026-11-10",
+    pour: "tous",
+    module: "cours",
+    titre: "Les cours se lisent mieux sur téléphone",
+    resume: "Dans un cours, le sommaire passe à la ligne au lieu de défiler de côté, et ses boutons sont plus "
+          + "grands sur téléphone. Les grands tableaux y deviennent des listes : une fiche par ligne, chaque valeur "
+          + "sous le nom de sa colonne. Plus rien ne dépasse de l'écran. Les informations légales de l'app suivent "
+          + "la même présentation.",
+    ou: { label: "Cours", route: "themes" },
+    guide: [
+      "Ouvre un cours : touche le titre d'un thème, ou son bouton « Cours ».",
+      "Le sommaire, en haut du cours, passe à la ligne : touche une partie pour y aller.",
+      "Sur téléphone, chaque ligne d'un grand tableau devient une fiche : le nom de la colonne est écrit au-dessus de "
+        + "chaque valeur.",
+    ],
+  },
   {
     id: "2026-10-29-nouvelle-navigation",
     date: "2026-10-29",

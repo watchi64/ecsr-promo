@@ -463,3 +463,32 @@ body[data-nav="v2"] .view-header[hidden] { display: none; }
 /* Même cas : le retour, le titre de la partie et la partie se tiennent, au lieu des 2rem qui séparent ailleurs les blocs de la page. */
 body[data-nav="v2"] .ms-body.ms-body-partie { gap: 0.5rem; margin-top: 0.25rem; }
 body[data-nav="v2"] .ms-body.ms-body-partie > .fiche-titre { margin-top: 0.25rem; }
+
+/* Page CCP2 ouverte sur le parcours (lot 2B, tâche 8). Tes dates, les étapes, puis « L'épreuve en bref » repliée en bas : une carte
+   du même dessin que les étapes (pastille, titre, résumé), une icône à la place du numéro. Un chevron dit qu'elles s'ouvrent. */
+body[data-nav="v2"] .ccp2-etape > summary { grid-template-columns: 2.1rem minmax(0, 1fr) auto; }
+body[data-nav="v2"] .ccp2-etape-titre,
+body[data-nav="v2"] .ccp2-etape-bref { grid-column: 2; }
+.ccp2-chevron {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  color: var(--text-muted);
+  transition: transform 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+.ccp2-chevron svg { width: 20px; height: 20px; }
+.ccp2-etape > summary:hover .ccp2-chevron { background: var(--accent-soft); color: var(--accent-strong); }
+.ccp2-etape[open] > summary .ccp2-chevron { transform: rotate(180deg); color: var(--accent-strong); }
+body[data-nav="v2"] .ccp2-etape > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-lg); }
+@media (prefers-reduced-motion: reduce) { .ccp2-chevron { transition: none; } }
+/* L'épreuve : à distance des étapes, comme le titre des étapes l'est des dates. */
+.ccp2-epreuve-repliee { margin-top: 1.4rem; }
+.ccp2-epreuve-ico svg { width: 1.15rem; height: 1.15rem; }
+.ccp2-epreuve-repliee .ccp2-epreuve-points { margin-top: 0.2rem; }
+/* Sans dates (aucun événement CCP2, Calendrier fermé, lecture en échec), la section reste masquée : le titre des étapes suit
+   l'en-tête sans la marge prévue pour le séparer des dates. */
+body[data-nav="v2"] .view-header + .ccp2-dates[hidden] + .ccp2-etapes-titre { margin-top: 0; }

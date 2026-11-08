@@ -930,6 +930,35 @@ function lienDossierPro() {
   return a ? { texte: net(a.textContent), href: a.getAttribute("href") } : null;
 }
 
+// La page CCP2 (lot 2B, tâche 8) : ses blocs visibles dans l'ordre, ses dates, ses cartes repliables (titre, ouverte, hauteur du résumé, chevron visible, contenu
+// visible, nombre de points et de liens) et l'écart entre l'en-tête et le titre des étapes (une page sans dates ne doit pas garder de trou).
+function ccp2Page() {
+  const vue = document.getElementById("view");
+  const NOMS = [["view-header", "en-tête"], ["ccp2-dates", "dates"], ["ccp2-etapes-titre", "titre des étapes"], ["ccp2-etapes", "étapes"],
+    ["ccp2-epreuve-repliee", "épreuve repliée"], ["ccp2-epreuve", "épreuve"]];
+  const nom = (c) => (NOMS.find(([classe]) => c.classList.contains(classe)) || [null, c.className || c.tagName])[1];
+  const carte = (d) => {
+    const s = d.querySelector(":scope > summary"), ch = s.querySelector(".ccp2-chevron"), corps = d.querySelector(":scope > .ccp2-etape-corps");
+    return { titre: net((s.querySelector(".ccp2-etape-titre") || s).textContent), ouverte: d.open, hauteur: Math.round(rect(s).height),
+      chevron: !!ch && visible(ch), corpsVisible: !!corps && visible(corps) && rect(corps).height > 0,
+      points: d.querySelectorAll(".ccp2-epreuve-points li").length, liens: d.querySelectorAll(".ccp2-liens a").length };
+  };
+  const dates = vue.querySelector(".ccp2-dates"), tete = vue.querySelector(".view-header"), titre = vue.querySelector(".ccp2-etapes-titre");
+  const epreuve = vue.querySelector(".ccp2-epreuve-repliee");
+  return { blocs: [...vue.children].filter((c) => !c.hidden && visible(c)).map(nom),
+    dates: dates && !dates.hidden ? [...dates.querySelectorAll(".ccp2-date-titre")].map((e) => net(e.textContent)) : null,
+    titreDates: dates && !dates.hidden && dates.querySelector("h3") ? net(dates.querySelector("h3").textContent) : null,
+    etapes: [...vue.querySelectorAll(".ccp2-etapes > details")].map(carte), epreuve: epreuve ? carte(epreuve) : null,
+    ecart: tete && titre ? Math.round(rect(titre).top - rect(tete).bottom) : null, margeEnTete: tete ? parseFloat(getComputedStyle(tete).marginBottom) : null,
+    defile: document.documentElement.scrollWidth > document.documentElement.clientWidth };
+}
+
+// Un module ouvert pour la personne connectée (js/modules-etat.js, moduleVisible) : une Nouveauté liée à un module fermé lui est cachée.
+async function moduleOuvert(cle) {
+  const [mods] = await modulesDeLApp(["modules-etat"]);
+  return mods.moduleVisible(cle);
+}
+
 // Le cache de lecture de l'app pour une clé (js/db.js, invalidateCache) : une donnée semée dans le faux Supabase après une première lecture ne se relit pas sans cela.
 async function invaliderCache(cles) {
   const [db] = await modulesDeLApp(["db"]);
@@ -1451,7 +1480,7 @@ function bandeauEmargement() {
 window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLien, chercherPlus, ouvreurs, marquerPopups, mesurerPopups,
   popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length, controlesAssistant,
   pageDeReglages, boutonDuCompte, menuDuCompte, enTeteDePage, panneauBenevoles, enTeteDeLEquipe,
-  accueil, accueilStagiaire, aujourdhuiEquipe, comptesDesPages, planningSemaine, laClasse, epcfDeLEquipe, bandeauEmargement, aTraiter, nouveautes, lienDossierPro, graphe, invaliderCache };
+  accueil, accueilStagiaire, aujourdhuiEquipe, comptesDesPages, planningSemaine, laClasse, epcfDeLEquipe, bandeauEmargement, aTraiter, nouveautes, lienDossierPro, ccp2Page, moduleOuvert, graphe, invaliderCache };
 })();
 """
 
@@ -3145,6 +3174,9 @@ OU_TROUVER = {
     "Anonyme pour de vrai dans le tableau de notes": ("Mes préférences", "Mes préférences", "Paramètres, Mes préférences", "#/config"),
     "Les cours des 57 thèmes sont ouverts à toute la promo": ("Cours et QCM", "Cours et QCM", "Cours", "#/themes"),
     "Ta progression d'entraînement se voit d'un coup d'œil": ("Cours et QCM, colonne QCM", "Cours et QCM, colonne QCM", "Cours, colonne QCM", "#/themes"),
+    # Lot 2B : l'Accueil de l'équipe s'appelle Aujourd'hui dans sa barre (même adresse) ; la journée n'existe pas avec l'ancienne barre (carte cachée).
+    "Ta journée sur l'Accueil": ("Accueil", "Aujourd'hui", "(carte cachée avec l'ancienne barre)", "#/home"),
+    "Les cours se lisent mieux sur téléphone": ("Cours et QCM", "Cours et QCM", "Cours", "#/themes"),
 }
 # Celles que seule l'équipe lit (puce « Formateurs ») : (libellé sous la nouvelle navigation, libellé de main, adresse).
 OU_TROUVER_EQUIPE = {
@@ -3156,6 +3188,7 @@ OU_TROUVER_EQUIPE = {
     "Les 57 cours sont dans l'app, à relire et à publier": ("Cours et QCM, colonne Cours", "Cours, colonne Cours", "#/themes"),
     "Banque d'élèves bénévoles avec leurs disponibilités": ("Stagiaires, Élèves bénévoles", "Planning, bouton Bénévoles", "#/planning"),
     "Auto-écoles partenaires et suivi des venues": ("Stagiaires, Élèves bénévoles", "Planning, bouton Bénévoles", "#/planning"),
+    "Aujourd'hui remplace l'Accueil": ("Aujourd'hui", "(carte cachée avec l'ancienne barre)", "#/home"),
 }
 # Les liens dont l'adresse change sous la nouvelle navigation, parce que leur destination a vraiment changé de place : l'anonymat des notes est dans Mes
 # préférences, pour les deux espaces (ruling R55, et non Réglages, qui ne garde que la promo), la banque des bénévoles sous Stagiaires (F8). Titre -> adresse.
@@ -3176,6 +3209,11 @@ GUIDES = {
         ("Ouvre Mon suivi, dans la barre.", "Ouvre ton espace personnel avec le logo en haut à gauche."),
     "Ton livret officiel TP-01303 se remplit dans l'app":
         ("Ouvre Mon suivi, partie Livret.", "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait."),
+    "Ta journée sur l'Accueil":
+        ("Sur l'Accueil, la carte « Aujourd'hui » montre ton matin et ton après-midi. Quand la feuille d'émargement est ouverte, touche « Signer pour ce "
+         "matin » (ou « Signer pour cet après-midi ») : la carte affiche ensuite l'heure de ta signature.", "(carte cachée avec l'ancienne barre)"),
+    "Les cours se lisent mieux sur téléphone":
+        ("Ouvre un cours : touche le titre d'un thème, ou son bouton « Cours ».", "Ouvre un cours : touche le titre d'un thème, ou son bouton « Cours »."),
 }
 GUIDES_EQUIPE = {
     "Un tableau de bord du centre, promo par promo":
@@ -3187,6 +3225,8 @@ GUIDES_EQUIPE = {
     "Deux promos dans l'app, et des modules réglés promo par promo":
         ("Touche la promo en tête de la barre de gauche (sur téléphone, en haut de l'écran).",
          "Touche la pastille de la promo en haut de l'écran (« Nîmes · mars 2026 »)."),
+    "Aujourd'hui remplace l'Accueil":
+        ("Ouvre Aujourd'hui, en haut de la barre de gauche sur ordinateur, en bas de l'écran sur téléphone.", "(carte cachée avec l'ancienne barre)"),
 }
 LIEN_DES_BENEVOLES = ("Stagiaires, Élèves bénévoles", "#/stagiaires")   # le lien de la Nouveauté de lancement de l'équipe
 PIED_DE_L_ACCUEIL = {"ancienne": ("paramètres", "#/config"), "stagiaire": ("mes préférences", "#/preferences"), "equipe": ("réglages", "#/config")}
@@ -3195,6 +3235,13 @@ CTRL_Z = {"ancienne": "Ctrl + Z annule la dernière action. Sur Notes, Passages,
 SOCLE = {"ancienne": "Toujours ouverts : Accueil, Mon espace personnel (Passages), Paramètres, Nouveautés.",
          "nouvelle": "Toujours ouverts : Accueil, Mon suivi (Passages), Mes préférences, Nouveautés."}
 LIEN_DOSSIER_PRO = "Ton dossier professionnel, à remplir dans l'app"
+# Les trois Nouveautés du lot 2B (tâche 8), datées du jour de la fusion : à changer avec les dates de js/nouveautes-data.js si elle se fait un autre jour. La
+# journée et Aujourd'hui sont propres à la nouvelle navigation (la première pour tous, la seconde pour l'équipe) ; les cours se lisent dans les deux, masqués à un
+# stagiaire dont la promo n'a pas ouvert la lecture des cours.
+TITRE_JOURNEE = "Ta journée sur l'Accueil"
+TITRE_AUJOURDHUI_EQUIPE = "Aujourd'hui remplace l'Accueil"
+TITRE_COURS_TELEPHONE = "Les cours se lisent mieux sur téléphone"
+DATE_DE_LA_FUSION = "10/11/2026"
 
 
 def verifier_liens_et_guides(res, vue, cartes, equipe, nouvelle, depart=False):
@@ -3269,6 +3316,7 @@ def verifier_nouveautes(page, res, sc):
         if titre in cartes:
             res.echec("Nouveauté de l'ancienne barre", vue, "« %s » ne décrit que l'ancienne barre : elle n'est pas montrée sous la nouvelle" % titre)
     verifier_liens_et_guides(res, vue, cartes, equipe, True, depart=sc.modules == "depart" and not equipe)
+    verifier_nouveautes_du_lot_2b(page, res, sc, vue, cartes, True)
     # Les liens vers la banque des bénévoles (la Nouveauté de lancement de l'équipe et, F8, les deux Nouveautés des bénévoles) : le libellé, l'adresse, puis le
     # geste (la mémoire du sous-onglet de Stagiaires, que la barre relit à son rendu).
     for titre in ((TITRE_LANCEMENT_EQUIPE,) + TITRES_DES_BENEVOLES) if equipe else ():
@@ -3291,6 +3339,45 @@ def verifier_nouveautes(page, res, sc):
         # La mémoire de la barre de sous-onglets est rendue comme on l'a trouvée : les contrôles suivants partent du premier sous-onglet.
         page.evaluate("(cle) => { try { localStorage.removeItem(cle); } catch (e) { /* stockage bloqué */ } }", CLE_SOUS_ONGLET_STAGIAIRES)
     vider_console(res, vue)
+
+
+def verifier_nouveautes_du_lot_2b(page, res, sc, vue, cartes, nouvelle):
+    """Les trois Nouveautés du lot 2B (tâche 8). Nouvelle navigation : « Ta journée sur l'Accueil » pour tous (sans puce « Formateurs »), « Aujourd'hui remplace
+    l'Accueil » pour l'équipe seulement (avec la puce), « Les cours se lisent mieux sur téléphone » pour tous quand la lecture des cours est ouverte (toujours chez
+    l'équipe) ; ancienne : les cours seuls. Toutes datées du jour de la fusion, avec un « Où le trouver » et un « Comment faire » d'au moins trois étapes (leurs
+    textes sont contrôlés par verifier_liens_et_guides). Puis le geste : chaque lien « Où le trouver » ouvre sa page."""
+    equipe = sc.espace == "equipe"
+    cours_ouvert = equipe or page.evaluate("(cle) => window.__verifNav.moduleOuvert(cle)", "cours")
+    attendues = {TITRE_JOURNEE: nouvelle, TITRE_AUJOURDHUI_EQUIPE: nouvelle and equipe, TITRE_COURS_TELEPHONE: cours_ouvert}
+    for titre, la in attendues.items():
+        carte = cartes.get(titre)
+        ou = "%s, %s" % ("équipe" if equipe else "stagiaire", "nouvelle navigation" if nouvelle else "ancienne navigation")
+        if la and carte is None:
+            res.echec("Nouveautés du lot 2B", vue, "« %s » manque (%s)" % (titre, ou))
+            continue
+        if not la:
+            if carte is not None:
+                res.echec("Nouveautés du lot 2B", vue, "« %s » est montrée (%s) : elle ne l'est pas ici" % (titre, ou))
+            continue
+        if carte["date"] != DATE_DE_LA_FUSION:
+            res.echec("Nouveautés du lot 2B", vue, "« %s » est datée du %s, attendu le %s (le jour de la fusion)" % (titre, carte["date"], DATE_DE_LA_FUSION))
+        if carte["formateurs"] != (titre == TITRE_AUJOURDHUI_EQUIPE):
+            res.echec("Nouveautés du lot 2B", vue, "« %s » %s la puce « Formateurs »" % (titre, "porte" if carte["formateurs"] else "n'a pas"))
+        if carte["ou"] is None or len(carte["guide"]) < 3:
+            res.echec("Nouveautés du lot 2B", vue, "« %s » : « Où le trouver » %s, %d étape(s) de « Comment faire »" % (
+                titre, "absent" if carte["ou"] is None else "présent", len(carte["guide"])))
+    # Le geste : le lien « Où le trouver » ouvre la page qu'il nomme.
+    for titre, route in ((TITRE_JOURNEE, "home"), (TITRE_AUJOURDHUI_EQUIPE, "home"), (TITRE_COURS_TELEPHONE, "themes")):
+        if cartes.get(titre) is None or cartes[titre]["ou"] is None:
+            continue
+        aller_a(page, "#/nouveautes")
+        attendre(page)
+        if cliquer(page, res, vue, "#view .nv-carte:has-text(\"%s\") a.nv-ou" % titre, "lien « Où le trouver » de « %s »" % titre):
+            attendre(page, calme=150)
+            if route_courante(page) != route:
+                res.echec("Nouveautés du lot 2B", vue, "le lien de « %s » ouvre #/%s, attendu #/%s" % (titre, route_courante(page), route))
+    aller_a(page, "#/nouveautes")
+    attendre(page)
 
 
 def verifier_nouveaute_commune(res, vue, cartes):
@@ -3331,14 +3418,15 @@ def verifier_nouveautes_eteint(page, res, sc):
     if TITRE_AFFICHAGE in cartes and cartes[TITRE_AFFICHAGE]["date"] != DATE_DU_LANCEMENT:
         res.echec("Nouveauté pour tous", vue, "« %s » est datée du %s, attendu le %s" % (TITRE_AFFICHAGE, cartes[TITRE_AFFICHAGE]["date"], DATE_DU_LANCEMENT))
     verifier_liens_et_guides(res, vue, cartes, sc.role in ("prof", "fondateur"), False)
+    verifier_nouveautes_du_lot_2b(page, res, sc, vue, cartes, False)
     vider_console(res, vue)
 
 
 def verifier_nouveautes_de_l_accueil(page, res, vue, equipe):
-    """Accueil, nouvelle navigation : les trois plus récentes Nouveautés de la section commencent par celles du lancement (la première pour tous, la
-    seconde pour l'équipe). Appelé depuis l'accueil déjà ouvert."""
+    """Accueil, nouvelle navigation : la carte « Nouveauté » de l'Accueil du stagiaire montre la plus récente, « Ta journée sur l'Accueil » (lot 2B ; avant lui,
+    celles du lancement). Appelé depuis l'accueil déjà ouvert."""
     titres = [c["titre"] for c in page.evaluate("() => window.__verifNav.nouveautes()")]
-    attendus = [TITRE_LANCEMENT] + ([TITRE_LANCEMENT_EQUIPE] if equipe else [])
+    attendus = [TITRE_JOURNEE] + ([TITRE_AUJOURDHUI_EQUIPE] if equipe else [])
     if titres[:len(attendus)] != attendus:
         res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu « %s »" % (" », « ".join(titres[:len(attendus)]), " », « ".join(attendus)))
 
@@ -3400,7 +3488,8 @@ def verifier_contacts_du_centre(page, res, sc):
 
 def verifier_ccp2(page, res, sc):
     """Parcours CCP2, les deux navigations : le lien vers le dossier professionnel (étape 8) ne nomme plus ni Mon espace ni un sous-onglet, il dit « Ton
-    dossier professionnel, à remplir dans l'app » et mène à la partie Dossier pro (#/mon-suivi/dp). Rien si CCP2 est fermé pour ce stagiaire."""
+    dossier professionnel, à remplir dans l'app » et mène à la partie Dossier pro (#/mon-suivi/dp). Rien si CCP2 est fermé pour ce stagiaire. Et l'ordre de la
+    page (lot 2B, tâche 8) : allumé, les dates, les étapes, puis l'épreuve repliée en bas ; éteint, l'ordre de main (verifier_page_ccp2)."""
     vue = "%s/ccp2/lien-dossier-pro" % sc.nom
     aller_a(page, "#/ccp2")
     attendre(page)
@@ -3412,7 +3501,137 @@ def verifier_ccp2(page, res, sc):
         res.echec("parcours CCP2", vue, "le parcours n'a pas de lien vers le dossier professionnel (#/mon-suivi/dp)")
     elif lien["texte"] != LIEN_DOSSIER_PRO:
         res.echec("parcours CCP2", vue, "le lien vers le dossier professionnel dit « %s », attendu « %s »" % (lien["texte"], LIEN_DOSSIER_PRO))
+    verifier_page_ccp2(page, res, "%s/ccp2/ordre" % sc.nom, sc.passe == "allume")
     vider_console(res, vue)
+
+
+# L'ordre de la page CCP2 (lot 2B, tâche 8 ; ruling R66 : aucun avancement calculé). Allumé : l'en-tête, « Tes dates », « Les 8 étapes », puis « L'épreuve en bref »
+# repliée en bas. Éteint : l'ordre de main, l'épreuve d'abord. « Tes dates » n'est là que si la promo a des dates CCP2 lisibles (Calendrier ouvert, lecture réussie).
+ORDRE_CCP2 = {True: ["en-tête", "dates", "titre des étapes", "étapes", "épreuve repliée"], False: ["en-tête", "épreuve", "dates", "titre des étapes", "étapes"]}
+TITRE_EPREUVE_CCP2 = "L'épreuve en bref"
+CLE_ETAPE_CCP2 = "ecsr_ccp2_etape"
+
+
+def verifier_page_ccp2(page, res, vue, allume, dates=None):
+    """Mesure la page CCP2 ouverte : l'ordre de ses blocs, et, allumé, l'épreuve repliée à l'arrivée (résumé de 44 px au moins, chevron visible, titre) et un
+    chevron sur chaque étape ; éteint, ni épreuve repliée ni chevron (main). `dates` : True (attendues), False (absentes : la page commence alors par les étapes,
+    sans trou sous l'en-tête), None (selon la page). Rend la mesure."""
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.ccp2Page()")
+    avec_dates = m["dates"] is not None if dates is None else dates
+    attendu = [b for b in ORDRE_CCP2[allume] if avec_dates or b != "dates"]
+    if m["blocs"] != attendu:
+        res.echec("page CCP2", vue, "les blocs sont %s, attendu %s (%s navigation)" % (m["blocs"], attendu, "nouvelle" if allume else "ancienne"))
+    if dates and (m["titreDates"] != "Tes dates" or not m["dates"]):
+        res.echec("page CCP2", vue, "« Tes dates » manque ou est vide (titre %s, %s date(s))" % (m["titreDates"], len(m["dates"] or [])))
+    if dates is False and m["ecart"] is not None and abs(m["ecart"] - m["margeEnTete"]) > 2:
+        res.echec("page CCP2", vue, "sans dates, %d px séparent l'en-tête du titre des étapes, attendu %d (la marge de l'en-tête, sans trou)" % (m["ecart"], m["margeEnTete"]))
+    if m["defile"]:
+        res.echec("page CCP2", vue, "la page défile de côté")
+    if len(m["etapes"]) != 8:
+        res.echec("page CCP2", vue, "%d étape(s), attendu 8" % len(m["etapes"]))
+    petites = [e["titre"] for e in m["etapes"] if e["hauteur"] < 44]
+    if petites:
+        res.echec("page CCP2", vue, "résumé d'étape sous 44 px : %s" % ", ".join(petites))
+    if allume:
+        e = m["epreuve"]
+        if e is None:
+            res.echec("page CCP2", vue, "« %s » n'est pas repliée en bas de page" % TITRE_EPREUVE_CCP2)
+        else:
+            if e["titre"] != TITRE_EPREUVE_CCP2:
+                res.echec("page CCP2", vue, "la carte du bas s'appelle « %s », attendu « %s »" % (e["titre"], TITRE_EPREUVE_CCP2))
+            if e["ouverte"]:
+                res.echec("page CCP2", vue, "« %s » est ouverte à l'arrivée : elle doit être repliée" % TITRE_EPREUVE_CCP2)
+            if e["hauteur"] < 44:
+                res.echec("page CCP2", vue, "le résumé de « %s » fait %d px, 44 au moins" % (TITRE_EPREUVE_CCP2, e["hauteur"]))
+            if not e["chevron"]:
+                res.echec("page CCP2", vue, "« %s » n'a pas de repère d'ouverture (chevron) visible" % TITRE_EPREUVE_CCP2)
+        sans = [x["titre"] for x in m["etapes"] if not x["chevron"]]
+        if sans:
+            res.echec("page CCP2", vue, "étape(s) sans repère d'ouverture (chevron) : %s" % ", ".join(sans))
+    else:
+        if m["epreuve"] is not None or any(x["chevron"] for x in m["etapes"]):
+            res.echec("page CCP2, interrupteur éteint", vue, "l'épreuve repliée ou un chevron s'affiche avec l'ancienne navigation : main n'en a pas")
+    return m
+
+
+def jouer_ccp2(page, res, sc):
+    """Page CCP2, nouvelle navigation (lot 2B, tâche 8), joué à 375 et 1 280 px pour chaque rôle : l'ordre avec « Tes dates » ; « L'épreuve en bref » repliée
+    s'ouvre au clic et montre ses quatre points et ses trois liens, puis se referme ; une étape ouverte se rouvre au retour sur la page (et seule elle), l'épreuve
+    restant repliée ; refermée, plus rien ne se rouvre. Puis la page sans dates, par une lecture du Calendrier en échec et, chez le stagiaire, par un Calendrier
+    fermé : elle commence par les étapes, sans trou (l'équipe, qui voit les modules fermés, garde ses dates). Ces deux cas rechargent le banc : en dernier."""
+    vue = "%s/ccp2/parcours" % sc.nom
+    page.evaluate("(cle) => { try { localStorage.removeItem(cle); } catch (e) { /* stockage bloqué */ } }", CLE_ETAPE_CCP2)
+    aller_a(page, "#/home")
+    attendre(page)
+    aller_a(page, "#/ccp2")
+    attendre(page)
+    if not page.evaluate("() => !!document.querySelector('#view .ccp2-etapes')"):
+        res.echec("page CCP2", vue, "la page CCP2 ne s'ouvre pas")
+        return
+    try:
+        page.wait_for_selector("#view .ccp2-dates:not([hidden])", timeout=4000)
+    except ErreurPlaywright:
+        pass   # l'échec est dit par la mesure
+    m = verifier_page_ccp2(page, res, vue, True, dates=True)
+    if any(e["ouverte"] for e in m["etapes"]):
+        res.echec("page CCP2", vue, "une étape est ouverte à l'arrivée sans mémoire")
+    # L'épreuve s'ouvre au clic, montre son contenu, et se referme.
+    resume = "#view .ccp2-epreuve-repliee > summary"
+    if cliquer(page, res, vue, resume, "résumé de « %s »" % TITRE_EPREUVE_CCP2):
+        page.wait_for_timeout(250)
+        e = page.evaluate("() => window.__verifNav.ccp2Page().epreuve")
+        if not e or not e["ouverte"] or not e["corpsVisible"]:
+            res.echec("page CCP2", vue, "« %s » ne s'ouvre pas au clic, ou son contenu ne se voit pas" % TITRE_EPREUVE_CCP2)
+        elif (e["points"], e["liens"]) != (4, 3):
+            res.echec("page CCP2", vue, "« %s » ouverte montre %d point(s) et %d lien(s), attendu 4 et 3" % (TITRE_EPREUVE_CCP2, e["points"], e["liens"]))
+        if page.evaluate("() => window.__verifNav.ccp2Page().defile"):
+            res.echec("page CCP2", vue, "l'épreuve ouverte fait défiler la page de côté")
+        if cliquer(page, res, vue, resume, "résumé de « %s », pour la refermer" % TITRE_EPREUVE_CCP2):
+            page.wait_for_timeout(250)
+            if page.evaluate("() => window.__verifNav.ccp2Page().epreuve.ouverte"):
+                res.echec("page CCP2", vue, "« %s » ne se referme pas au second clic" % TITRE_EPREUVE_CCP2)
+    # L'étape ouverte la dernière fois se rouvre au retour, seule ; l'épreuve, elle, n'est jamais mémorisée.
+    etape = "#view .ccp2-etapes > details:nth-child(3) > summary"
+    if cliquer(page, res, vue, etape, "résumé de l'étape 3"):
+        page.wait_for_timeout(250)
+        titre = page.evaluate("() => window.__verifNav.ccp2Page().etapes[2].titre")
+        cliquer(page, res, vue, resume, "résumé de « %s »" % TITRE_EPREUVE_CCP2)
+        page.wait_for_timeout(150)
+        aller_a(page, "#/planning")
+        attendre(page)
+        aller_a(page, "#/ccp2")
+        attendre(page)
+        m = page.evaluate("() => window.__verifNav.ccp2Page()")
+        ouvertes = [x["titre"] for x in m["etapes"] if x["ouverte"]]
+        if ouvertes != [titre]:
+            res.echec("page CCP2", vue, "au retour, étape(s) ouverte(s) : %s ; attendu « %s », celle ouverte la dernière fois" % (ouvertes or "aucune", titre))
+        if m["epreuve"] and m["epreuve"]["ouverte"]:
+            res.echec("page CCP2", vue, "au retour, « %s » est ouverte : elle doit toujours arriver repliée" % TITRE_EPREUVE_CCP2)
+        # Refermée, l'étape ne se rouvre plus.
+        if cliquer(page, res, vue, etape, "résumé de l'étape 3, pour la refermer"):
+            page.wait_for_timeout(250)
+            aller_a(page, "#/home")
+            attendre(page)
+            aller_a(page, "#/ccp2")
+            attendre(page)
+            if any(x["ouverte"] for x in page.evaluate("() => window.__verifNav.ccp2Page()")["etapes"]):
+                res.echec("page CCP2", vue, "une étape refermée se rouvre au retour")
+    vider_console(res, vue)
+    # Sans dates : la lecture du Calendrier échoue, puis le Calendrier est fermé pour la promo. La page commence par les étapes, sans trou.
+    for cas, parametres in (("lecture-en-echec", {"panne": "agenda_events"}), ("calendrier-ferme", {"panne": "", "modules": "ccp2-sans-calendrier"})):
+        vue_cas = "%s/ccp2/sans-dates/%s" % (sc.nom, cas)
+        recharger_au_banc(page, "#/ccp2", **parametres)
+        page.wait_for_timeout(300)
+        if not page.evaluate("() => !!document.querySelector('#view .ccp2-etapes')"):
+            res.echec("page CCP2", vue_cas, "la page CCP2 ne s'ouvre pas")
+            continue
+        # L'équipe voit les modules fermés pour la promo (les formateurs voient tout) : Calendrier fermé, ses dates restent.
+        verifier_page_ccp2(page, res, vue_cas, True, dates=cas == "calendrier-ferme" and sc.espace == "equipe")
+        res.console.clear()   # le « console.error » de la page est le but de l'essai : elle journalise la lecture qui échoue, la page reste entière
+    # Le banc ordinaire, pour ce qui suit.
+    recharger_au_banc(page, "#/ccp2", panne="", modules="")
+    res.console.clear()
 
 
 # --------------------------------------------------------------------------------------
@@ -5404,6 +5623,9 @@ def jouer_allume(page, res, sc, options):
                 verifier_fiche_de_l_equipe(page, res, sc)
             if res.profil_stagiaire:
                 jouer_mon_suivi(page, res, sc)
+    # Lot 2B, tâche 8 : la page CCP2 ouverte sur le parcours, pour chaque rôle (les cas sans dates rechargent le banc : en dernier).
+    if res.coquille and not (sc.modules or sc.ressources_fermees or sc.voir_en_tant_que or sc.a_traiter or sc.sans_droits) and sc.largeur in (375, 1280):
+        jouer_ccp2(page, res, sc)
 
 
 def focus_garde(page, res, vue, geste):

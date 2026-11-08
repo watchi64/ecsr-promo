@@ -90,6 +90,11 @@ eq(dit({ label: "Accueil, tuile Stagiaires", route: "stagiaires" }, NOUVELLE_EQU
 eq(dit({ label: "Stagiaires, Élèves bénévoles", route: "stagiaires", sousOnglet: "benevoles" }, NOUVELLE_EQUIPE), "Stagiaires, Élèves bénévoles",
   "stagiaires : un libellé déjà à jour reste tel quel");
 eq(dit({ label: "Pastille en haut, à côté de ton nom", route: "home" }, NOUVELLE_EQUIPE), "La promo, en tête de la barre", "home : la pastille de la promo, en tête de la barre (de gauche sur ordinateur, du haut sur téléphone)");
+// Lot 2B : l'Accueil de l'équipe s'appelle Aujourd'hui dans sa barre ; le stagiaire garde « Accueil » ; l'adresse ne change pas.
+eq(ouSelonNavigation({ label: "Accueil", route: "home" }, NOUVELLE_EQUIPE), { label: "Aujourd'hui", route: "home" }, "home chez l'équipe : Aujourd'hui, même adresse");
+eq(dit({ label: "Accueil", route: "home" }, NOUVELLE), "Accueil", "home chez un stagiaire : Accueil");
+eq(dit({ label: "Accueil", route: "home" }, ANCIENNE), "Accueil", "home, ancienne navigation : Accueil");
+eq(dit({ label: "Aujourd'hui", route: "home" }, NOUVELLE_EQUIPE), "Aujourd'hui", "home chez l'équipe, libellé déjà à jour : inchangé");
 // Les pages dont le nom ne change pas gardent leur libellé.
 eq(dit({ label: "Planning", route: "planning" }, NOUVELLE), "Planning", "planning inchangé");
 eq(dit({ label: "Planning, Semaine", route: "planning" }, NOUVELLE_EQUIPE), "Planning, Semaine", "planning avec un détail inchangé");
