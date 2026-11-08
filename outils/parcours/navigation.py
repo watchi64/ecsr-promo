@@ -95,7 +95,12 @@ def chemin(destination, navigation, espace, telephone):
         if destination in routes:
             return [(lien(routes[destination]), "« %s »" % destination)]
         if destination == "La classe":
-            return [(lien("mon-suivi"), "« Mon suivi »"), (texte("La classe", SOUS_ONGLET), "« La classe »")]
+            # Lot 2B : La classe est une vue de la partie Résultats (sélecteur « Moi » / « La classe »). Sur
+            # ordinateur, Mon suivi s'ouvre sur Résultats ; sur téléphone, on passe par la ligne du sommaire.
+            classe = (texte("La classe", ".vue-toggle button"), "« La classe »")
+            if telephone:
+                return [(lien("mon-suivi"), "« Mon suivi »"), (texte("Résultats", SOUS_ONGLET), "« Résultats »"), classe]
+            return [(lien("mon-suivi"), "« Mon suivi »"), classe]
         if destination == "Documents":
             return [(lien("themes"), "« Cours et QCM »"), (texte("Documents", SOUS_ONGLET), "« Documents »")]
         if destination in ("Mes préférences", "Signaler un problème"):

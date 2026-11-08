@@ -131,27 +131,33 @@ def passer_un_qcm(v):
 
 # Évolution d'abord : c'est le but (« mes résultats ») ; les autres parties sont visitées ensuite, hors budget.
 PARTIES_MON_SUIVI = ("Évolution", "Passages", "EPCF", "Livret", "Dossier pro")
+# Nouvelle navigation (lot 2B) : Évolution et La classe sont les deux vues de Résultats, qui s'ouvre sur « Moi ».
+PARTIES_MON_SUIVI_V2 = ("Résultats", "Passages", "EPCF", "Livret", "Dossier pro")
 
 
 @parcours("mon-suivi", "Voir mes résultats et mes passages (Mon suivi)", role="stagiaire", budget=2)
 def mon_suivi(v):
     """Ouvrir Mon suivi, puis chacune de ses parties : chacune s'affiche sans défaut."""
     v.aller("Mon suivi")
-    for i, partie in enumerate(PARTIES_MON_SUIVI):
+    parties = PARTIES_MON_SUIVI_V2 if v.navigation == "nouvelle" else PARTIES_MON_SUIVI
+    for i, partie in enumerate(parties):
         v.etape("partie « %s »" % partie)
         if i and v.telephone:
             # Sur téléphone, chaque partie est une page : on revient au sommaire par son lien de retour (hors budget).
             v.toucher(RETOUR, "le lien de retour vers le sommaire", compte=False)
         v.toucher(texte(partie, SOUS_ONGLET), "« %s »" % partie)
-        v.attendre("#view .ms-section-title:has-text(\"volution\")" if partie == "Évolution" else "#view :is(h2, h3, table, .card)",
+        but = partie in ("Évolution", "Résultats")
+        v.attendre("#view .ms-section-title:has-text(\"volution\")" if but else "#view :is(h2, h3, table, .card)",
                    "le contenu de « %s »" % partie)
-        if partie == "Évolution":
+        if but:
             v.but("résultats affichés")
         v.controler_ecran("Mon suivi, " + partie)
     v.terminer()
 
 
-@parcours("notes-de-la-classe", "Voir les notes de la classe", role="stagiaire", budget=2)
+# Téléphone, nouvelle navigation : Mon suivi, la ligne Résultats du sommaire, puis « La classe » (3, règle générale
+# du référentiel : toute tâche courante en 3 clics au plus) ; ancienne navigation : l'onglet Notes, en 1.
+@parcours("notes-de-la-classe", "Voir les notes de la classe", role="stagiaire", budget={"ordinateur": 2, "telephone": 3})
 def notes_de_la_classe(v):
     """Ouvrir les notes de la classe (onglet Notes, ou Mon suivi, La classe)."""
     v.aller("La classe")
