@@ -60,7 +60,7 @@ export function lignesQcmStagiaire({ qcm = [], themes = [], tentatives = [], now
       etat: derniere ? `Dernière note ${noteEnFrancais(derniere.note)}/20` : "Pas encore fait",
       note: derniere ? derniere.note : null,
       examenOuvert: examenDemarrable(q, now),
-      action: "S'entraîner",
+      action: "Ouvrir",
     };
   });
   const rang = (l) => (l.examenOuvert ? 0 : l.note == null ? 1 : 2);

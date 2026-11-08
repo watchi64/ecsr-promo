@@ -106,7 +106,7 @@ test("l'ancien guide ne bouge pas d'un octet (empreinte du 08/11, lot 2B)", () =
 
 test("lot 2B : le nouveau guide décrit Aujourd'hui, l'Accueil, la grille, les sous-onglets et Mon suivi", () => {
   for (const nom of ["Aujourd'hui", "À traiter", "À suivre de près", "Propositions IA", "Résultats", "Grille", "Liste",
-    "S'entraîner", "Signer pour ce matin", "Signer pour cet après-midi", "À faire", "Prochain rendez-vous",
+    "le bouton « Ouvrir »", "Signer pour ce matin", "Signer pour cet après-midi", "À faire", "Prochain rendez-vous",
     "L'épreuve en bref", "EPCF : 0 sur 2", "Dossier pro : 2 exemples sur 6", "Moi"]) {
     assert.ok(avantAnciensNoms.includes(nom), nom);
   }

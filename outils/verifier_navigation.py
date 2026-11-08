@@ -4694,7 +4694,7 @@ def verifier_liste_d_actions(res, vue, sc, m, attendues, compte, titre_carte, qu
 
 def jouer_qcm_du_stagiaire(page, res, sc):
     """Cours et QCM > QCM, le stagiaire (lot 2B, tâche 6) : les sous-onglets Thèmes, Compétences, QCM, Documents ; la liste de ses QCM (examen ouvert d'abord, sa DERNIÈRE
-    note d'entraînement, « Examen ouvert » en repère) ; « S'entraîner » ouvre la fenêtre du QCM (entraîner, erreurs, examen), « Fermer » ramène à la liste ; la fenêtre
+    note d'entraînement, « Examen ouvert » en repère) ; « Ouvrir » ouvre la fenêtre du QCM (entraîner, erreurs, examen), « Fermer » ramène à la liste ; la fenêtre
     d'entraînement s'ouvre puis se ferme sans rien perdre ; un entraînement fini met la note à jour sans recharger ; une lecture en échec dit sa panne et « Réessayer » la relit."""
     vue = "%s/cours/qcm" % sc.nom
     echec = lambda detail: res.echec("sous-onglet QCM du stagiaire", vue, detail)
@@ -4712,12 +4712,12 @@ def jouer_qcm_du_stagiaire(page, res, sc):
     if m["actif"] != "QCM":
         echec("le sous-onglet allumé est « %s », attendu « QCM »" % m["actif"])
     verifier_liste_d_actions(res, vue, sc, m, LIGNES_QCM_DU_BANC, "2 QCM", "Tes QCM", "sous-onglet QCM du stagiaire")
-    if [x["bouton"] for x in m["lignes"]] != ["S'entraîner"] * 2:
-        echec("les boutons sont %s, attendu « S'entraîner » sur chaque ligne" % [x["bouton"] for x in m["lignes"]])
-    # « S'entraîner » : la fenêtre du QCM, avec l'entraînement, les erreurs et l'examen ouvert ; « Fermer » ramène à la liste.
+    if [x["bouton"] for x in m["lignes"]] != ["Ouvrir"] * 2:
+        echec("les boutons sont %s, attendu « Ouvrir » sur chaque ligne" % [x["bouton"] for x in m["lignes"]])
+    # « Ouvrir » : la fenêtre du QCM, avec l'entraînement, les erreurs et l'examen ouvert ; « Fermer » ramène à la liste.
     vue_fenetre = vue + "/fenetre"
     res.vues += 1
-    if not cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="S\'entraîner : Thème 22 · Feux du véhicule"]', "bouton « S'entraîner » du thème 22"):
+    if not cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="Ouvrir : Thème 22 · Feux du véhicule"]', "bouton « Ouvrir » du thème 22"):
         return
     page.wait_for_selector(".modal-backdrop .theme-modal", timeout=4000)
     page.wait_for_timeout(350)   # l'entrée de la fenêtre
@@ -4750,7 +4750,7 @@ def jouer_qcm_du_stagiaire(page, res, sc):
         res.echec("retour à la liste", vue_fenetre, "après la fenêtre : #/%s, sous-onglet %s, lignes %s ; la liste des QCM devait être là" % (route_courante(page), m["actif"], [x["titre"] for x in m["lignes"]]))
     vider_console(res, vue_fenetre)
     # La fiche se ferme aussi par son bouton « Fermer ».
-    if cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="S\'entraîner : Thème 23 · Pneumatiques"]', "bouton « S'entraîner » du thème 23"):
+    if cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="Ouvrir : Thème 23 · Pneumatiques"]', "bouton « Ouvrir » du thème 23"):
         page.wait_for_selector(".modal-backdrop .theme-modal", timeout=4000)
         page.wait_for_timeout(350)
         if cliquer(page, res, vue_fenetre, ".modal-backdrop .modal-actions .btn", "« Fermer » de la fiche"):
