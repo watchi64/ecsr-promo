@@ -8,19 +8,19 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
   avantChangementPromo,
-} from "../db.js?v=20261106a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261106a";
-import { icon, deco } from "../icons.js?v=20261106a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261106a";
-import { isAdmin, isProf, getAdminEmail } from "../auth-admin.js?v=20261106a";
-import { recordUndo } from "../undo.js?v=20261106a";
-import { getCurrentWho } from "../identity.js?v=20261106a";
-import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261106a";
-import { meilleurResultat } from "../passage-rules.js?v=20261106a";
-import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261106a";
-import { emargementActif } from "../emargement-etat.js?v=20261106a";
-import { navigationV2Active } from "../nav-etat.js?v=20261106a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261106a";
+} from "../db.js?v=20261108a";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261108a";
+import { icon, deco } from "../icons.js?v=20261108a";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261108a";
+import { isAdmin, isProf, getAdminEmail } from "../auth-admin.js?v=20261108a";
+import { recordUndo } from "../undo.js?v=20261108a";
+import { getCurrentWho } from "../identity.js?v=20261108a";
+import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261108a";
+import { meilleurResultat } from "../passage-rules.js?v=20261108a";
+import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261108a";
+import { emargementActif } from "../emargement-etat.js?v=20261108a";
+import { navigationV2Active } from "../nav-etat.js?v=20261108a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261108a";
 
 let stagiaires = [];
 let profs = [];

@@ -3,52 +3,53 @@
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
 // En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
-import "./journal-erreurs.js?v=20261106a";
-import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261106a";
-import { toast } from "./utils.js?v=20261106a";
-import { icon } from "./icons.js?v=20261106a";
-import { initAuth, onAdminChange, isAuth, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261106a";
-import { chargerEtatSignalements } from "./signalement-etat.js?v=20261106a";
-import { messageDemarrage } from "./signalement-rules.js?v=20261106a";
-import { showGate, hideGate } from "./gate.js?v=20261106a";
-import { exigerAcceptation } from "./legal.js?v=20261106a";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261106a";
-import { loadAccent } from "./accent-switcher.js?v=20261106a";
-import { loadTheme } from "./theme-switcher.js?v=20261106a";
-import { renderHome } from "./views/home.js?v=20261106a";
-import { renderDashboard } from "./views/dashboard.js?v=20261106a";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261106a";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261106a";
-import { renderPlanningEspace } from "./views/planning-espace.js?v=20261106a";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261106a";
-import { renderNotes } from "./views/notes.js?v=20261106a";
-import { renderRessources } from "./views/ressources.js?v=20261106a";
-import { renderThemes } from "./views/themes.js?v=20261106a";
-import { renderConfig, renderPreferences } from "./views/config.js?v=20261106a";
-import { renderCalendrier } from "./views/calendrier.js?v=20261106a";
-import { initUndoKeyboard } from "./undo.js?v=20261106a";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261106a";
-import { libellePastille } from "./nouveautes.js?v=20261106a";
-import { renderCcp2 } from "./views/ccp2.js?v=20261106a";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261106a";
-import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261106a";
-import { renderEmargement } from "./views/emargement.js?v=20261106a";
-import { renderProblemes } from "./views/problemes.js?v=20261106a";
-import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261106a";
-import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261106a";
-import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261106a";
-import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261106a";
-import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261106a";
-import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261106a";
+import "./journal-erreurs.js?v=20261108a";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements } from "./db.js?v=20261108a";
+import { toast, el } from "./utils.js?v=20261108a";
+import { icon } from "./icons.js?v=20261108a";
+import { initAuth, onAdminChange, isAuth, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261108a";
+import { chargerEtatSignalements } from "./signalement-etat.js?v=20261108a";
+import { messageDemarrage } from "./signalement-rules.js?v=20261108a";
+import { showGate, hideGate } from "./gate.js?v=20261108a";
+import { exigerAcceptation } from "./legal.js?v=20261108a";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261108a";
+import { loadAccent } from "./accent-switcher.js?v=20261108a";
+import { loadTheme } from "./theme-switcher.js?v=20261108a";
+import { renderHome } from "./views/home.js?v=20261108a";
+import { renderDashboard } from "./views/dashboard.js?v=20261108a";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261108a";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261108a";
+import { renderPlanningEspace } from "./views/planning-espace.js?v=20261108a";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261108a";
+import { renderNotes } from "./views/notes.js?v=20261108a";
+import { renderRessources } from "./views/ressources.js?v=20261108a";
+import { renderThemes } from "./views/themes.js?v=20261108a";
+import { renderConfig, renderPreferences } from "./views/config.js?v=20261108a";
+import { renderCalendrier } from "./views/calendrier.js?v=20261108a";
+import { initUndoKeyboard } from "./undo.js?v=20261108a";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261108a";
+import { libellePastille } from "./nouveautes.js?v=20261108a";
+import { renderCcp2 } from "./views/ccp2.js?v=20261108a";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261108a";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261108a";
+import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261108a";
+import { renderEmargement } from "./views/emargement.js?v=20261108a";
+import { renderProblemes } from "./views/problemes.js?v=20261108a";
+import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261108a";
+import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261108a";
+import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261108a";
+import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261108a";
+import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261108a";
+import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261108a";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261106a";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261106a";
+} from "./navigation.js?v=20261108a";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261108a";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, routeMasquee, repereMasque, nouveautesAffichables, formateurConnecte,
-} from "./modules-etat.js?v=20261106a";
+} from "./modules-etat.js?v=20261108a";
 
 // ===== Tabs =====
 
@@ -183,6 +184,32 @@ function majBadgeNouveautes() {
 
 // ===== Router =====
 
+// Page Qualiopi, chargée à la demande. Le fondateur seul l'ouvre (garde de navigate) : ni la page ni ses modules de calcul (plus
+// de 100 Ko) ne partent avec l'app, et une erreur dans l'un d'eux ne peut pas casser le démarrage de tous les comptes. Seul
+// js/qualiopi-impression.js, tout petit, est chargé d'avance : navigate() en appelle le nettoyage à chaque page.
+// Un import() qui échoue reste en échec pour la même adresse tant que la page n'est pas rechargée (js/cours-blocs.js), et c'est
+// vrai de chacun des modules de la page, qu'une reprise sous une autre adresse ne redemande pas : « Réessayer » n'y changerait
+// rien. La boîte d'erreur propose donc de recharger, ce qui suffit pour une page du fondateur.
+function boiteErreurQualiopi() {
+  return el("div", { class: "centre-erreur qualiopi-erreur", role: "alert" },
+    el("p", {}, "La page Qualiopi n'a pas pu se charger. Vérifie ta connexion, puis recharge la page."),
+    el("button", { class: "btn small", type: "button", onClick: () => rechargerApresEnregistrements() }, "Recharger la page"));
+}
+
+async function rendreQualiopi(view) {
+  afficherChargement();
+  let page;
+  try {
+    page = await import("./views/qualiopi.js?v=20261108a");
+  } catch (e) {
+    console.error(e);
+    if (lastRoute === "qualiopi") view.replaceChildren(boiteErreurQualiopi());
+    return;
+  }
+  // La page a pu être quittée pendant le chargement du module : elle n'écrit pas par-dessus celle qui est affichée.
+  if (lastRoute === "qualiopi") await page.renderQualiopi(view);
+}
+
 const routes = {
   home:       renderHome,
   dashboard:  renderDashboard,
@@ -199,6 +226,7 @@ const routes = {
   ccp2:       renderCcp2,
   stagiaires: renderStagiaires,
   centre:     renderCentre,
+  qualiopi:   rendreQualiopi,   // chargée à la demande, voir plus haut
   emargement: renderEmargement,
   ressources: renderRessources,
   config:     renderConfig,
@@ -212,8 +240,8 @@ const routes = {
 // Routes sans onglet propre qui doivent quand même allumer un onglet. On arrive
 // sur #/nouveautes depuis Accueil, et sur #/dashboard (Priorités) depuis le
 // Planning : laisser la barre sans onglet actif donnerait l'impression d'être
-// sorti de l'app.
-const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "home", emargement: "planning", problemes: "config" };
+// sorti de l'app. Qualiopi (page du fondateur, sans entrée de barre) s'appuie sur Accueil comme le tableau de bord du centre.
+const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "home", qualiopi: "home", emargement: "planning", problemes: "config" };
 
 let lastRoute = null;
 
@@ -316,6 +344,11 @@ async function navigate({ force = false } = {}) {
     toast("L'émargement n'est pas activé pour cette promo.", "info", 3500);
     try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
     route = "home";
+  } else if (route === "qualiopi" && !fondateurHorsApercu()) {
+    // Page Qualiopi (spec 2026-10-28, § 6.3) : le fondateur seul, avant la refonte du lot 5. Aucune entrée de barre ne la
+    // montre aux autres ; une adresse saisie ou un favori les ramène à l'accueil, sans un mot.
+    try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
+    route = "home";
   }
   memoriserRoute(route);
   noterAdresse(location.hash);
@@ -347,6 +380,8 @@ async function navigate({ force = false } = {}) {
   teardownDocPrint();
   // Et pour le tableau de bord du centre (format A4 portrait injecté le temps d'imprimer).
   teardownCentrePrint();
+  // Et pour la page Qualiopi (dossier imprimable, format de page et titre du document, le temps d'imprimer).
+  teardownQualiopiPrint();
   try {
     await routes[route](view);
   } catch (e) {

@@ -11,21 +11,21 @@
 // Popover sur ordinateur et tablette, tiroir en bas de l'écran sur téléphone (css/navigation.css),
 // mécanique de fenêtre de js/nav-fenetre.js.
 
-import { el } from "./utils.js?v=20261106a";
-import { icon, deco } from "./icons.js?v=20261106a";
+import { el } from "./utils.js?v=20261108a";
+import { icon, deco } from "./icons.js?v=20261108a";
 import {
   getProfile, getProfileWho, monStagiaireId, buildViewAsBlock, seDeconnecter,
-} from "./auth-admin.js?v=20261106a";
-import { getPromoCourante } from "./db.js?v=20261106a";
-import { pagePersonnelle } from "./route-rules.js?v=20261106a";
-import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261106a";
-import { libellePastille } from "./nouveautes.js?v=20261106a";
-import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261106a";
-import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261106a";
-import { fondateurHorsApercu } from "./auth-admin.js?v=20261106a";
-import { ouvrirSignalement } from "./signalement.js?v=20261106a";
-import { etatSignalements } from "./signalement-etat.js?v=20261106a";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261106a";
+} from "./auth-admin.js?v=20261108a";
+import { getPromoCourante } from "./db.js?v=20261108a";
+import { pagePersonnelle } from "./route-rules.js?v=20261108a";
+import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261108a";
+import { libellePastille } from "./nouveautes.js?v=20261108a";
+import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261108a";
+import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261108a";
+import { fondateurHorsApercu } from "./auth-admin.js?v=20261108a";
+import { ouvrirSignalement } from "./signalement.js?v=20261108a";
+import { etatSignalements } from "./signalement-etat.js?v=20261108a";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261108a";
 
 // Une ligne du menu : un lien (page) ou un bouton (geste), icône et libellé, `fin` à droite.
 const ligne = (tag, attrs, icone, texte, fin = null) => el(tag, { class: "nav-fenetre-lien", ...attrs },
@@ -89,7 +89,7 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
       filet(),
       ligne("button", { type: "button", onClick: () => {
         fermerFenetre({ focus: false });
-        import("./legal.js?v=20261106a").then((m) => m.ouvrirInformationsLegales());
+        import("./legal.js?v=20261108a").then((m) => m.ouvrirInformationsLegales());
       } }, icon.shield(), "Informations légales"),
       ligne("button", { type: "button", onClick: () => seDeconnecter(() => fermerFenetre({ focus: false })) },
         icon.logout(), "Se déconnecter"),

@@ -2,17 +2,17 @@
  * Page d'accueil : version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261106a";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261106a";
-import { icon } from "../icons.js?v=20261106a";
-import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261106a";
+import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261108a";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261108a";
+import { icon } from "../icons.js?v=20261108a";
+import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261108a";
 import {
   nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque,
-} from "../modules-etat.js?v=20261106a";
-import { carteNouveaute } from "./nouveautes.js?v=20261106a";
-import { emargementActif } from "../emargement-etat.js?v=20261106a";
-import { navigationV2Active } from "../nav-etat.js?v=20261106a";
-import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte } from "../accueil-rules.js?v=20261106a";
+} from "../modules-etat.js?v=20261108a";
+import { carteNouveaute } from "./nouveautes.js?v=20261108a";
+import { emargementActif } from "../emargement-etat.js?v=20261108a";
+import { navigationV2Active } from "../nav-etat.js?v=20261108a";
+import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte } from "../accueil-rules.js?v=20261108a";
 
 function greetingByHour() {
   const h = new Date().getHours();
