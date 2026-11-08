@@ -555,22 +555,29 @@ QCM issus du lot 2B), `js/auth-admin.js` (`isRedacteur()` = `peutRedigerContenus
 
 **Files :** Create `supabase/migrations/20261108_espaces_3_habillage.sql` et `_retour.sql`, `js/views/reglages-habillage.js` ;
 Modify `tests/sql/espaces-preuve.sql`, l'assembleur, `js/db.js` (`habillageParDefaut()`, `reglerHabillageCentre`,
-`reglerHabillageReseau`), le module du lot 3 qui applique l'habillage, `js/main.js` (route `config` selon l'espace),
-`js/nav-rules.js` (`reglagesEspace` vrai).
+`reglerHabillageReseau`), `js/main.js` (`bootApp` : défauts passés au lot 3 ; route `config` selon l'espace),
+`js/nav-rules.js` (`reglagesEspace` vrai), `js/espaces-rules.js` (`defautsHabillage`).
 
-**Interfaces :** Consumes : la fonction de résolution du lot 3 (nom à relever ; esquisse convenue :
-`habillageEffectif({ perso, centre, reseau, libre })`). Produces : `habillage_par_defaut() returns table(centre text,
-libre boolean, reseau text)` (centre de la promo affichée, ou premier lieu des affectations ; lisible de tout compte
-connecté) ; refus `habillage: …`.
+**Interfaces :** Consumes (lot 3, partage convenu le 08/11 avec la conversation du plan du lot 3, note
+`lot3-habillage-levier.md` du dossier partagé) : `habillageAuDemarrage({ email, compte, centre, reseau, libre })`
+(`js/habillage.js`, appelée au début de `bootApp`), qui s'appuie sur `habillageRetenu({ appareil, compte, email, centre =
+null, reseau = null, libre = true }) -> { nom, aEnvoyer, source }` (`js/habillage-regles.js` ; `libre` faux et centre
+valide : le centre l'emporte) ; `blocHabillage()` (`js/habillage-choix.js`, les deux pastilles) ; valeurs `"ecsr"`,
+`"ecf"` ou `null`. Le lot 3 ne lit rien du centre ni du réseau : c'est ce lot. Produces : `habillage_par_defaut()
+returns table(centre text, libre boolean, reseau text)` (centre de la promo affichée, ou premier lieu des affectations ;
+lisible de tout compte connecté) ; `defautsHabillage(ligne) -> { centre, reseau, libre }` (valeur hors `ecsr`, `ecf`
+ramenée à `null`, `libre` vrai par défaut) ; refus `habillage: …`.
 
 - [ ] **Step 1 : preuve** : `regler_habillage_centre` par `dir_n` sur le lieu 1 (OK), sur le lieu 2 (42501), par
   `form_n`, `siege` (42501) ; valeur hors `ecsr`, `ecf`, nul : refus ; `regler_habillage_reseau` par `siege` et le
   fondateur (OK), par `dir_n` (42501) ; `habillage_par_defaut` lu par `stag_n` : valeurs du lieu 1 et du réseau ;
   contre-épreuve locale ROUGE sur ces lignes, migration, répétition VERTE en local puis en production, rien de resté.
-- [ ] **Step 2 : tests purs** : ordre de résolution (spec § 4.4) avec `libre` vrai et faux, défauts absents.
-- [ ] **Step 3 : pages** : Réglages du centre (« Habillage par défaut du centre », deux pastilles comme le menu du compte,
-  « Laisser chacun choisir le sien ») ; Réglages du réseau (habillage par défaut du réseau) ; au démarrage, l'app lit
-  `habillage_par_defaut()` et le passe à la résolution du lot 3 (échec de lecture : défauts nuls, sans message).
+- [ ] **Step 2 : tests purs** : `defautsHabillage` (ligne nulle, valeurs inconnues, `libre` absent) ; l'ordre de
+  résolution lui-même est testé par le lot 3, pas ici.
+- [ ] **Step 3 : pages** : Réglages du centre (« Habillage par défaut du centre » par `blocHabillage()`, « Laisser chacun
+  choisir le sien ») ; Réglages du réseau (habillage par défaut du réseau, même bloc) ; au démarrage, une fois la porte
+  passée, l'app lit `habillage_par_defaut()` et appelle `habillageAuDemarrage` avec `defautsHabillage(ligne)` (échec de
+  lecture : défauts nuls, sans message ; le choix de l'appareil reste appliqué entre-temps, sans éclair).
 - [ ] **Step 4 : banc et vérification**, deux largeurs, deux moteurs : 0 échec.
 - [ ] **Step 5 : commit** « Lot 5 : habillage par défaut du centre et du réseau ».
 
