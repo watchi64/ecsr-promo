@@ -1,12 +1,12 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261108a";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261108a";
-import { compteDansEquite } from "./passage-rules.js?v=20261108a";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261108a";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261108b";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261108b";
+import { compteDansEquite } from "./passage-rules.js?v=20261108b";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261108b";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261108a";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261108a";
+} from "./promo-rules.js?v=20261108b";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261108b";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -1926,6 +1926,21 @@ export async function listEmargementSeances(jourDebut, jourFin) {
   return (data || []).map((s) => ({ ...s, lignes: s.lignes || [], formateurs: s.formateurs || [] }));
 }
 
+// Feuilles d'une période, légères (sans tracé ni signature de formateur) : sert aux
+// certificats et attestations (spec 2026-10-24), qui peuvent couvrir toute une formation.
+// Une ligne est signée quand `signe_le` est posé (la base lie tracé et heure).
+export async function listEmargementPresences(jourDebut, jourFin) {
+  const { data, error } = await supabase
+    .from("emargement_seances")
+    .select("id, promo_id, jour, demi_journee, debut, fin, statut, "
+      + "lignes:emargement_lignes(stagiaire_id, signe_le, absent, absence_origine, observation, sur_appareil_formateur)")
+    .gte("jour", jourDebut)
+    .lte("jour", jourFin)
+    .order("jour");
+  if (error) throw error;
+  return (data || []).map((s) => ({ ...s, lignes: s.lignes || [] }));
+}
+
 // Feuilles ouvertes d'un jour, légères (sans tracé) : sert au bandeau, relu souvent.
 export async function getEmargementsOuverts(jour) {
   const { data, error } = await supabase
@@ -1965,32 +1980,41 @@ export function rouvrirEmargement(seanceId) {
   return rpcEmargement("emargement_rouvrir", { p_seance: seanceId });
 }
 
-// En-tête des feuilles, propre à la promo (réglage `emargement_entete`, JSON).
+// En-tête des feuilles, propre à la promo (réglage `emargement_entete`, JSON). Les champs
+// facultatifs (adresse, signataire, qualité, lieu) servent aux certificats et attestations
+// (spec 2026-10-24) : vides, ils s'impriment en pointillés à compléter à la main.
 export const ENTETE_EMARGEMENT_DEFAUT = {
   organisme: "ECF BOUSCAREN",
   intitule: "Titre professionnel Enseignant de la conduite et de la sécurité routière (ECSR)",
 };
+const ENTETE_FACULTATIF = { adresse1: 120, adresse2: 120, signataire: 80, qualite: 80, lieu: 60 };
 
-// La règle, écrite une seule fois : la valeur brute du réglage `emargement_entete` (JSON, ou nulle) donne l'organisme et
-// l'intitulé, chacun remplacé par sa valeur par défaut quand il manque, n'est pas un texte ou est vide. Partagée par
+// La règle, écrite une seule fois : la valeur brute du réglage `emargement_entete` (JSON, ou nulle) donne l'organisme,
+// l'intitulé (valeur par défaut quand il manque, n'est pas un texte ou est vide) et les champs facultatifs des
+// attestations (vides par défaut). Partagée par
 // getEnteteEmargement (promo courante) et lireDonneesQualiopi (promo lue).
 function enteteEmargementDuReglage(valeur) {
   let lu = null;
   try { lu = JSON.parse(valeur || "null"); } catch (e) { lu = null; }
-  return {
-    organisme: (lu && typeof lu.organisme === "string" && lu.organisme.trim()) || ENTETE_EMARGEMENT_DEFAUT.organisme,
-    intitule: (lu && typeof lu.intitule === "string" && lu.intitule.trim()) || ENTETE_EMARGEMENT_DEFAUT.intitule,
+  const texte = (k) => (lu && typeof lu[k] === "string" ? lu[k].trim() : "");
+  const entete = {
+    organisme: texte("organisme") || ENTETE_EMARGEMENT_DEFAUT.organisme,
+    intitule: texte("intitule") || ENTETE_EMARGEMENT_DEFAUT.intitule,
   };
+  for (const k of Object.keys(ENTETE_FACULTATIF)) entete[k] = texte(k);
+  return entete;
 }
 
+// Une lecture ratée lève (elle n'est plus remplacée par les valeurs par défaut) : imprimer
+// « ECF BOUSCAREN » sur une autre promo, ou réenregistrer ces valeurs par-dessus le vrai en-tête,
+// serait pire qu'une page en erreur. Un réglage absent, lui, donne les valeurs par défaut.
 export async function getEnteteEmargement() {
-  let valeur = null;
-  try { valeur = await getSetting("emargement_entete"); } catch (e) { valeur = null; }
-  return enteteEmargementDuReglage(valeur);
+  return enteteEmargementDuReglage(await getSetting("emargement_entete"));
 }
 
-export async function setEnteteEmargement({ organisme, intitule }) {
-  await setSetting("emargement_entete", JSON.stringify({
-    organisme: String(organisme || "").trim(), intitule: String(intitule || "").trim(),
-  }));
+export async function setEnteteEmargement(entete) {
+  const net = (k, max) => String(entete?.[k] || "").trim().slice(0, max);
+  const valeur = { organisme: net("organisme", 120), intitule: net("intitule", 200) };
+  for (const [k, max] of Object.entries(ENTETE_FACULTATIF)) valeur[k] = net(k, max);
+  await setSetting("emargement_entete", JSON.stringify(valeur));
 }
