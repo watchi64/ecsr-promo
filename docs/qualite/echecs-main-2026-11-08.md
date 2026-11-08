@@ -13,18 +13,24 @@ restent hors du dépôt, dans le dossier de notes de la conversation de coordina
   et ses parties, notes de la classe, CCP2, documents et contacts, signaler un problème (et son envoi en panne),
   préférences, signer l'émargement, émargement du jour, indicateurs du centre, réglages de la promo, problèmes
   signalés. Aucune erreur dans la console, aucun écart entre Chromium et WebKit, aucun affichage lent.
-- La **nouvelle navigation tient tous les budgets de clics** ; l'ancienne en dépasse trois (ci-dessous).
-- **4 défauts bloquants** au sens du référentiel (une fusion qui les introduirait serait arrêtée) : ils existent
-  déjà sur main, ils forment le premier lot de corrections.
+- La **nouvelle navigation tient tous les budgets de clics** ; l'ancienne en dépasse quatre sur ordinateur (n° 5).
+- **3 défauts bloquants** au sens du référentiel (une fusion qui les introduirait serait arrêtée), plus les
+  dépassements de budget de l'ancienne navigation (n° 5) : ils existent déjà sur main, ils sont listés dans
+  `outils/parcours/connus.py` et forment le premier lot de corrections. La page sans connexion (n° 6) relève
+  du critère J (lecture en panne) : grave pour l'élève, mais listée, pas bloquante.
 
 ## Défauts bloquants
 
 | # | Défaut | Où | Critère | Piste |
 |---|---|---|---|---|
 | 1 | La fenêtre du QCM ne se ferme pas avec Échap (il faut viser la croix) | QCM, ordinateur, deux navigations, deux moteurs | D, aucune impasse | `js/views/qcm.js` n'écoute pas Échap ; brancher la mécanique de fenêtre commune |
-| 2 | Sans connexion, Cours et QCM affiche la liste des thèmes gardée en mémoire mais ses colonnes Cours et QCM restent vides, sans message ni « Réessayer » : un stagiaire croit qu'il n'y a pas de QCM | Cours et QCM, partout | E, aucun refus silencieux | dire « QCM et cours non chargés » avec « Réessayer » quand leur lecture échoue |
 | 3 | Sur téléphone, le sommaire du lecteur de cours défile de côté (743 à 794 px pour 375) | lecteur de cours, iPhone, deux navigations | G, aucun défilement de côté | dette connue (R52), annoncée pour le lot 2B : sommaire qui passe à la ligne |
 | 4 | Ancienne barre à 1 280 px, avec un nom de promo long (« Démonstration · sept. 2026 ») : « Aujourd'hui » et « Actualiser » sortent de l'écran (bord droit à 1 344 px), la page les coupe | ancienne navigation, ordinateur | G, rien de coupé hors de l'écran | dette de l'ancienne barre (déjà vue à 900 px) ; disparaît avec elle, ou nom de promo raccourci |
+| 5 | Ancienne navigation : Indicateurs en 2 clics (tuile de l'Accueil, budget 1), émargement du jour en 3 (budget 2), « Signaler un problème » du formateur en 2 (budget 1), problèmes signalés du fondateur au-delà de 2 (menu du compte) | ancienne navigation | B, budget de clics | la nouvelle navigation les tient ; disparaissent avec l'ancienne barre |
+
+Le n° 2 du premier relevé (page sans connexion) est devenu le n° 6 : une lecture en panne relève du critère J
+(listé), pas du critère E, selon le référentiel. Relevé rejoué le 08/11 après la relecture du robot : 128 passages
+sur 128, vert (défauts ci-dessus listés comme connus de main).
 
 ## À corriger par lot (non bloquant)
 
@@ -48,14 +54,12 @@ restent hors du dépôt, dans le dossier de notes de la conversation de coordina
   montré aux stagiaires), « Connecte-toi en admin », « mdp », « whitelist » (Paramètres). La nouvelle navigation
   ne les montre plus.
 
-**Budget de clics, ancienne navigation (critère B)** : Indicateurs en 2 clics (tuile de l'Accueil, budget 1),
-émargement du jour en 3 (budget 2), « Signaler un problème » du formateur en 2 (budget 1). La nouvelle
-navigation les tient.
+**Page sans connexion (critère J), n° 6** : sans connexion, Cours et QCM affiche la liste des thèmes gardée en
+mémoire mais ses colonnes Cours et QCM restent vides, sans message ni « Réessayer » : un stagiaire croit qu'il n'y
+a pas de QCM. Piste : dire « QCM et cours non chargés » avec « Réessayer » quand leur lecture échoue.
 
 **Une page, un nom (critère C)** : dans l'ancienne navigation, la tuile « Tableau de bord » ouvre une page
 titrée du nom de la promo.
-
-**Robustesse (critère J)** : la page en panne (n° 2) ne propose pas « Réessayer ».
 
 **Finition (critère K)** : nom de la promo de démonstration et adresse du compte coupés par des points de
 suspension dans les barres.
@@ -65,7 +69,7 @@ tous les cours en ligne en ont un).
 
 ## Pour la suite
 
-- Lot de corrections 1 (bloquants) : n° 1 et 2 tout de suite ; n° 3 avec le lot 2B ; n° 4 avec le retrait de
+- Lot de corrections 1 : n° 1 et 6 tout de suite ; n° 3 avec le lot 2B ; n° 4 et 5 avec le retrait de
   l'ancienne barre, ou un correctif si elle doit vivre longtemps (Montpellier).
 - Lot 2 : contraste (opacité) et étiquettes des champs ; lot 3 : cibles de 44 px sur téléphone.
 - Après la fusion des lots 2B et 4 : parcours d'Accueil, d'Aujourd'hui, du planning en grille et des

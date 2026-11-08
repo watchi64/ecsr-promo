@@ -28,7 +28,7 @@ def emargement_du_jour(v):
 def indicateurs(v):
     """Ouvrir Indicateurs (tableau de bord du centre) sur la promo de démonstration : chiffres et sections."""
     v.aller("Indicateurs")
-    v.attendre("#view section, #view .card", "les indicateurs")
+    v.attendre("#view .centre-carte", "les cartes des indicateurs")
     v.but("indicateurs affichés")
     v.terminer()
 
@@ -57,7 +57,7 @@ def signaler_formateur(v):
     v.terminer()
 
 
-@parcours("problemes-signales", "Lire les problèmes signalés (fondateur)", role="fondateur", budget=3,
+@parcours("problemes-signales", "Lire les problèmes signalés (fondateur)", role="fondateur", budget={"ordinateur": 2, "telephone": 3},
           banc={"signalements": "1"})
 def problemes_signales(v):
     """Le fondateur ouvre « Signaler un problème », puis « Ouvrir » : la liste des signalements reçus."""

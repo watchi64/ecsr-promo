@@ -4,7 +4,7 @@
 
 Usage
 -----
-    python outils/robot_parcours.py                      # tout : environ 5 minutes
+    python outils/robot_parcours.py                      # tout : environ 2 minutes
     python outils/robot_parcours.py --parcours passer-un-qcm,lire-un-cours --moteurs chromium
     python outils/robot_parcours.py --liste              # les parcours connus, sans rien jouer
 
@@ -17,8 +17,9 @@ selon le référentiel (docs/qualite/referentiel.md).
 
 Sortie : une ligne par passage, puis le rapport (rapport.md, planche.html des écrans de fin pour juger
 l'attrait visuel, resultats.json, captures) dans outils/robot_rapports/<date-heure>/ (ignoré par git :
-les captures montrent les données fictives du banc). Code de sortie : 0 si aucun défaut bloquant,
-1 s'il y en a, 2 si le banc ou un moteur ne démarre pas.
+les captures montrent les données fictives du banc). Code de sortie : 0 (vert) si aucun défaut bloquant
+nouveau, 1 (rouge) s'il y en a, 2 si le robot n'a pas pu juger : option inconnue, aucun passage joué, banc
+ou moteur qui ne démarre pas, passage manquant.
 
 Prérequis : Python avec Playwright (pip install playwright), node (pour régénérer _harness.html), et les
 fichiers du banc (_harness_build.mjs, _harness_supabase.js, _banc_*.js), exclus de git : recopiés tout
@@ -68,6 +69,7 @@ def jouer_un(navigateur, p, sc, base_url, dossier):
     """Joue un parcours dans un contexte neuf ; rend le résultat (dictionnaire sérialisable)."""
     erreurs = []
     contexte = banc.nouveau_contexte(navigateur, sc["format"], p.semis)
+    contexte.set_default_timeout(10000)    # aucun geste ne reste pendu plus de 10 s
     page = contexte.new_page()
     page.on("pageerror", lambda e: erreurs.append("erreur de page : %s" % str(e).splitlines()[0][:200]))
     page.on("console", lambda m: erreurs.append("console : %s" % m.text[:200]) if m.type == "error" else None)
@@ -114,10 +116,16 @@ def travailleur(moteur, format_, scenarios, base_url, dossier):
         if not navigateur:
             return {"erreur": "%s ne démarre pas : %s" % (moteur, raison), "resultats": []}
         for sc in scenarios:
-            r = jouer_un(navigateur, registre[sc["parcours"]], {k: sc[k] for k in ("moteur", "format", "navigation")}, base_url, dossier)
+            try:
+                r = jouer_un(navigateur, registre[sc["parcours"]], {k: sc[k] for k in ("moteur", "format", "navigation")}, base_url, dossier)
+            except Exception as e:     # le navigateur lui-même a lâché : le passage compte comme raté
+                r = {"parcours": sc["parcours"], **{k: sc[k] for k in ("moteur", "format", "navigation")}, "abouti": False,
+                     "clics": 0, "clics_au_but": None, "budget": None, "duree": 0, "ouverture_ms": None, "etapes": [],
+                     "capture_finale": None, "constats": [{"critere": "A", "gravite": BLOQUE, "etape": "lancement",
+                                                           "message": "erreur du navigateur : %s" % str(e).splitlines()[0][:200]}]}
             resultats.append(r)
             bloquants = [c for c in r["constats"] if c["gravite"] == BLOQUE]
-            nouveaux = [c for c in bloquants if not connu(r["parcours"], c)]
+            nouveaux = [c for c in bloquants if not connu(r, c)]
             marque = "ÉCHEC" if nouveaux or not r["abouti"] else ("connu" if bloquants else "ok  ")
             print("  %s %-32s %-34s %s/%s clics  %4.1f s" % (marque, r["parcours"], libelle(r), r["clics_au_but"] if r["clics_au_but"] is not None else "-",
                                                         r["budget"], r["duree"]), flush=True)
@@ -147,14 +155,15 @@ def git_info():
         return "?", "?"
 
 
-def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs):
+def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, attendus):
     branche, tete = git_info()
     tous_bloquants = [(r, c) for r in resultats for c in r["constats"] if c["gravite"] == BLOQUE]
     # Un défaut déjà présent sur main (parcours/connus.py) est montré à part et ne bloque pas.
-    bloquants = [(r, c) for r, c in tous_bloquants if not connu(r["parcours"], c)]
-    deja_connus = [(r, c, connu(r["parcours"], c)) for r, c in tous_bloquants if connu(r["parcours"], c)]
+    bloquants = [(r, c) for r, c in tous_bloquants if not connu(r, c)]
+    deja_connus = [(r, c, connu(r, c)) for r, c in tous_bloquants if connu(r, c)]
     a_lister = [(r, c) for r in resultats for c in r["constats"] if c["gravite"] == LISTE]
-    vert = not bloquants and not erreurs_moteurs
+    manquants = attendus - len(resultats)
+    vert = not bloquants and not erreurs_moteurs and manquants == 0 and len(resultats) > 0
     L = []
     L.append("# Robot des parcours : rapport du %s" % debut.strftime("%d/%m/%Y à %H:%M"))
     L.append("")
@@ -168,13 +177,16 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs):
     for e in erreurs_moteurs:
         L.append("")
         L.append("**Moteur indisponible** : %s" % e)
+    if manquants:
+        L.append("")
+        L.append("**%d passage(s) prévu(s) n'ont pas été joués** : le résultat ne peut pas être vert." % manquants)
     L.append("")
     L.append("## Parcours")
     L.append("")
     L.append("Clics jusqu'au but, par navigation (ancienne / nouvelle) et par format (ordinateur, téléphone). « x » : le parcours n'aboutit pas.")
     L.append("")
-    L.append("| Parcours | Rôle | Budget (ord. / tél.) | Ordinateur | Téléphone | Aboutit |")
-    L.append("|---|---|---|---|---|---|")
+    L.append("| Parcours | Rôle | Budget (ord. / tél.) | Ordinateur | Téléphone | Aboutit | Bloquants nouveaux |")
+    L.append("|---|---|---|---|---|---|---|")
     for pid, p in registre.items():
         rs = [r for r in resultats if r["parcours"] == pid]
         if not rs:
@@ -190,8 +202,9 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs):
             return " / ".join(morceaux)
         b = p.budget if isinstance(p.budget, dict) else {"ordinateur": p.budget, "telephone": p.budget}
         ok = sum(1 for r in rs if r["abouti"])
-        L.append("| %s (`%s`) | %s | %s / %s | %s | %s | %d sur %d |" % (p.titre, pid, p.role, b["ordinateur"], b["telephone"],
-                                                                     clics("ordinateur"), clics("telephone"), ok, len(rs)))
+        nb = len({(c["critere"], c["message"]) for r, c in bloquants if r["parcours"] == pid})
+        L.append("| %s (`%s`) | %s | %s / %s | %s | %s | %d sur %d | %s |" % (p.titre, pid, p.role, b["ordinateur"], b["telephone"],
+                                                                          clics("ordinateur"), clics("telephone"), ok, len(rs), nb or "aucun"))
     L.append("")
     L.append("## Défauts bloquants")
     L.append("")
@@ -282,17 +295,26 @@ def main(argv=None):
     if inconnus:
         print("Parcours inconnus : %s (voir --liste)" % ", ".join(inconnus))
         return 2
-    moteurs = [m for m in a.moteurs.split(",") if m in MOTEURS]
-    formats = [f for f in a.formats.split(",") if f in FORMATS]
-    navigations = [n for n in a.navigations.split(",") if n in NAVIGATIONS]
+    choix = {}
+    for nom, valeur, permis in (("moteurs", a.moteurs, MOTEURS), ("formats", a.formats, FORMATS), ("navigations", a.navigations, NAVIGATIONS)):
+        valeurs = [x.strip() for x in valeur.split(",") if x.strip()]
+        fautes = [x for x in valeurs if x not in permis]
+        if fautes or not valeurs:
+            # Une faute de frappe ne doit jamais donner « 0 passage, vert ».
+            print("--%s : %s inconnu(s) ; valeurs permises : %s" % (nom, ", ".join(fautes) or "(vide)", ", ".join(permis)))
+            return 2
+        choix[nom] = valeurs
+    moteurs, formats, navigations = choix["moteurs"], choix["formats"], choix["navigations"]
 
     debut = datetime.datetime.now()
     dossier = pathlib.Path(a.sortie) if a.sortie else banc.RACINE / "outils" / "robot_rapports" / debut.strftime("%Y-%m-%d_%H%M%S")
     (dossier / "captures").mkdir(parents=True, exist_ok=True)
-    for m in banc.preparer_fichiers():
-        print("banc : " + m, flush=True)
-    serveur, base_url = banc.demarrer_serveur()
-    print("Banc servi sur %s ; rapport dans %s" % (base_url, dossier), flush=True)
+    try:
+        for m in banc.preparer_fichiers():
+            print("banc : " + m, flush=True)
+    except SystemExit as e:
+        print(e)
+        return 2
 
     lots = {}
     for pid in voulus:
@@ -305,33 +327,43 @@ def main(argv=None):
                     if n in p.navigations:
                         lots.setdefault((m, f), []).append({"parcours": pid, "moteur": m, "format": f, "navigation": n})
     total = sum(len(v) for v in lots.values())
+    if not total:
+        print("Aucun passage à jouer avec ces options (formats ou navigations que ces parcours n'acceptent pas).")
+        return 2
     print("%d passages : %d parcours, %s, %s, %s\n" % (total, len(voulus), "+".join(moteurs), "+".join(formats), "+".join(navigations)), flush=True)
 
     resultats, erreurs_moteurs = [], []
+    serveur, base_url = banc.demarrer_serveur()
+    print("Banc servi sur %s ; rapport dans %s" % (base_url, dossier), flush=True)
     t0 = time.perf_counter()
-    with concurrent.futures.ProcessPoolExecutor(max_workers=max(1, min(a.processus, len(lots)))) as ex:
-        futurs = [ex.submit(travailleur, m, f, scs, base_url, str(dossier / "captures")) for (m, f), scs in lots.items()]
-        for fu in concurrent.futures.as_completed(futurs):
-            try:
-                r = fu.result()
-            except Exception as e:
-                erreurs_moteurs.append("un processus s'est arrêté : %s" % e)
-                continue
-            if r["erreur"]:
-                erreurs_moteurs.append(r["erreur"])
-            resultats.extend(r["resultats"])
+    try:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=max(1, min(a.processus, len(lots)))) as ex:
+            futurs = [ex.submit(travailleur, m, f, scs, base_url, str(dossier / "captures")) for (m, f), scs in lots.items()]
+            for fu in concurrent.futures.as_completed(futurs):
+                try:
+                    r = fu.result()
+                except Exception as e:
+                    erreurs_moteurs.append("un processus s'est arrêté : %s" % e)
+                    continue
+                if r["erreur"]:
+                    erreurs_moteurs.append(r["erreur"])
+                resultats.extend(r["resultats"])
+    finally:
+        serveur.shutdown()        # le port est rendu même si le robot est interrompu
+        serveur.server_close()
     duree = time.perf_counter() - t0
-    serveur.shutdown()
 
     ecarts_entre_moteurs(resultats)
-    vert, nb = ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs)
-    print("\n%d passages en %.1f min. %s" % (len(resultats), duree / 60,
-          "VERT : aucun défaut bloquant." if vert else "ROUGE : %d défaut(s) bloquant(s)." % nb))
+    vert, nb = ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, total)
+    incomplet = erreurs_moteurs or len(resultats) < total
+    print("\n%d passages sur %d en %.1f min. %s" % (len(resultats), total, duree / 60,
+          "VERT : aucun défaut bloquant nouveau." if vert else
+          ("INCOMPLET : %d passage(s) non joué(s)." % (total - len(resultats)) if incomplet and not nb else "ROUGE : %d défaut(s) bloquant(s)." % nb)))
     print("Rapport : %s" % (dossier / "rapport.md"))
     print("Planche des écrans de fin : %s" % (dossier / "planche.html"))
-    if erreurs_moteurs and not resultats:
-        return 2
-    return 0 if vert else 1
+    if vert:
+        return 0
+    return 1 if nb else 2
 
 
 if __name__ == "__main__":

@@ -37,7 +37,9 @@ class Echec(Exception):
 JS_CONTROLES = r"""
 (opts) => {
   const vw = document.documentElement.clientWidth, vh = window.innerHeight;
-  const visible = (el) => {
+  // affiche : rendu, où qu'il soit dans la page (défilement, débordement et texte coupé se contrôlent sur toute
+  // la page) ; visible : affiché et dans la partie de l'écran que voit la personne.
+  const affiche = (el) => {
     if (!el || !el.isConnected) return false;
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) return false;
@@ -45,8 +47,10 @@ JS_CONTROLES = r"""
       const s = getComputedStyle(n);
       if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) === 0) return false;
     }
-    return r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw;
+    return true;
   };
+  const visible = (el) => { if (!affiche(el)) return false; const r = el.getBoundingClientRect();
+    return r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw; };
   const court = (t) => (t || '').replace(/\s+/g, ' ').trim().slice(0, 60);
   const nomDe = (el) => {
     const aria = el.getAttribute('aria-label'); if (aria && aria.trim()) return aria.trim();
@@ -83,7 +87,7 @@ JS_CONTROLES = r"""
   if (document.documentElement.scrollWidth > vw + 1) res.defilement.push(`la page fait ${document.documentElement.scrollWidth} px pour ${vw}`);
   for (const el of document.querySelectorAll('body *')) {
     if (res.defilement.length > 8) break;
-    if (el.scrollWidth <= el.clientWidth + 2 || !visible(el) || dansMatrice(el)) continue;
+    if (el.scrollWidth <= el.clientWidth + 2 || !affiche(el) || dansMatrice(el)) continue;
     const ox = getComputedStyle(el).overflowX;
     if (ox === 'auto' || ox === 'scroll') res.defilement.push(`${decrire(el)} défile (${el.scrollWidth} px pour ${el.clientWidth})`);
   }
@@ -96,7 +100,7 @@ JS_CONTROLES = r"""
   const signales = [];
   for (const el of document.querySelectorAll('body *')) {
     if (res.deborde.length > 5) break;
-    if (signales.some((s) => s.contains(el)) || dansMatrice(el) || !visible(el)) continue;
+    if (signales.some((s) => s.contains(el)) || dansMatrice(el) || !affiche(el)) continue;
     const r = el.getBoundingClientRect();
     if (r.right > vw + 2 && getComputedStyle(el).position !== 'fixed' && !voulu(el)) {
       signales.push(el);
@@ -105,7 +109,7 @@ JS_CONTROLES = r"""
   }
   // 3. Boutons et liens : un nom, une taille de cible.
   const interactifs = [...document.querySelectorAll('a[href], button, [role=button], [role=tab], input:not([type=hidden]):not([type=file]), select, textarea, summary')]
-    .filter(visible).filter((el) => !el.closest('#banc-bandeau, .banc-bandeau, [aria-hidden=true]'));
+    .filter(visible).filter((el) => !el.closest('[aria-hidden=true]'));
   const vus = new Set();
   for (const el of interactifs) {
     const nom = court(nomDe(el));
@@ -130,7 +134,7 @@ JS_CONTROLES = r"""
   for (const el of document.querySelectorAll('body *')) {
     if (res.coupes.length > 5) break;
     const s = getComputedStyle(el);
-    if (s.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1 && visible(el)) res.coupes.push(`${decrire(el)} « ${court(el.innerText)} »`);
+    if (s.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1 && affiche(el)) res.coupes.push(`${decrire(el)} « ${court(el.innerText)} »`);
   }
   // 6. Contraste du texte (4,5:1, 3:1 pour le grand texte) : couleur et fond réels, fonds en image ignorés.
   const rgba = (c) => { const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number);
@@ -149,7 +153,7 @@ JS_CONTROLES = r"""
   while ((n2 = marcheur.nextNode()) && res.contraste.length < 6) {
     const t = n2.nodeValue.trim(); if (t.length < 2) continue;
     const el = n2.parentElement;
-    if (!el || deja.has(el) || !visible(el) || el.closest('#banc-bandeau, .banc-bandeau, svg, :disabled, [aria-disabled=true]')) continue;
+    if (!el || deja.has(el) || !visible(el) || el.closest('svg, :disabled, [aria-disabled=true]')) continue;
     deja.add(el);
     const s = getComputedStyle(el); const c = rgba(s.color); const f = fondDe(el); if (!c || !f) continue;
     const op = Number(s.opacity) || 1; const coul = melange([c[0], c[1], c[2], c[3] * op], f);
@@ -169,8 +173,7 @@ JS_POSER_ESPION = r"""
   if (window.__robotEspion) window.__robotEspion.disconnect();
   window.__robotMutations = 0; window.__robotDerniere = performance.now(); window.__robotDepart = performance.now();
   window.__robotEspion = new MutationObserver((l) => {
-    const utiles = l.filter((m) => !(m.target.closest && m.target.closest('#banc-bandeau, .banc-bandeau')));
-    if (utiles.length) { window.__robotMutations += utiles.length; window.__robotDerniere = performance.now(); }
+    window.__robotMutations += l.length; window.__robotDerniere = performance.now();
   });
   window.__robotEspion.observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
 }
@@ -188,7 +191,18 @@ JS_ATTENDRE_CALME = r"""
 })
 """
 
-MOTIF_MESSAGE = re.compile(r"(erreur|impossible|échec|echec|réessa|reessa|pas pu|n'a pas|n’a pas|hors ligne|connexion)", re.I)
+# Les messages visibles : alertes, puis lignes qui parlent d'échec dans la page (#view) et dans les fenêtres ouvertes.
+JS_MESSAGES = r"""() => {
+  const affiche = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const net = (t) => (t || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+  const out = [];
+  for (const e of document.querySelectorAll('[role=alert], [aria-live=assertive], #toast:not(.hidden), [class*=erreur], [class*=error]'))
+    if (affiche(e) && net(e.innerText).length > 3) out.push('alerte : ' + net(e.innerText));
+  const motif = /(erreur|impossible|échec|echec|réessa|reessa|pas pu|n'a pas|n’a pas|hors ligne|connexion|réseau)/i;
+  for (const z of document.querySelectorAll('#view, [role=dialog], [aria-modal=true], .modal, [class*=modal]'))
+    if (affiche(z)) for (const l of (z.innerText || '').split('\n')) if (motif.test(l)) out.push('texte : ' + net(l));
+  return out;
+}"""
 
 
 class Visite:
@@ -210,6 +224,9 @@ class Visite:
 
     # --- constats et preuves -------------------------------------------------------------------------
     def constat(self, critere, gravite, message, capture=False):
+        deja = next((c for c in self.constats if (c["critere"], c["gravite"], c["message"]) == (critere, gravite, message)), None)
+        if deja:
+            return deja
         c = {"critere": critere, "gravite": gravite, "message": message, "etape": self.etape_courante}
         if capture:
             c["capture"] = self.capturer("constat")
@@ -273,20 +290,22 @@ class Visite:
             self.page.locator(navigation.SELECTEUR_BARRE).first.wait_for(state="attached", timeout=10000)
         except DelaiDepasse:
             self.echec("l'app ne montre aucune barre de navigation après 10 s")
+        barre = time.perf_counter()
         self._poser_espion()
-        self._attendre_calme(calme=250, maximum=5000)
-        ms = round((time.perf_counter() - t0) * 1000)
+        calme = self._attendre_calme(calme=250, maximum=5000)
+        ms = round((barre - t0) * 1000 + calme["ecoule"])
         self.temps["ouverture"] = ms
         if ms > OUVERTURE_MAX_MS:
             self.constat("I", LISTE, "l'app met %.1f s à s'ouvrir (seuil 3 s)" % (ms / 1000))
         self.controler_ecran("ouverture")
-        # Point de départ commun (navigation.DEPART : le Planning ; l'app rouvre sinon la dernière page, Mon suivi
-        # au banc), posé par l'adresse et non par un clic : le budget se compte depuis là.
-        self.etape("départ depuis le Planning")
+        # Point de départ (navigation.DEPART, le Planning, sauf si le parcours en fixe un autre ; l'app rouvre sinon
+        # la dernière page, Mon suivi au banc), posé par l'adresse et non par un clic : le budget se compte depuis là.
+        depart = self.parcours.depart or navigation.DEPART
+        self.etape("départ depuis %s" % depart)
         self._poser_espion()
-        self.page.evaluate("(h) => { location.hash = h; }", navigation.DEPART)
+        self.page.evaluate("(h) => { location.hash = h; }", depart)
         self._attendre_calme(calme=250, maximum=4000)
-        self.controler_ecran("Planning")
+        self.controler_ecran("départ " + depart)
 
     # --- gestes --------------------------------------------------------------------------------------
     def _resoudre(self, cible):
@@ -313,9 +332,10 @@ class Visite:
                 self.echec("pas visible : %s" % quoi)
             self.page.wait_for_timeout(100)
 
-    def toucher(self, cible, quoi, compte=True, attendu_effet=True):
+    def toucher(self, cible, quoi, compte=True, attendu_effet=True, ecriture=False):
         """Un clic (un toucher sur téléphone) sur ce que voit la personne. `cible` : un sélecteur CSS ou un Locator.
-        Vérifie la taille de la cible et son nom, compte le clic, chronomètre l'affichage, et vérifie qu'il se passe quelque chose."""
+        Compte le clic, chronomètre l'affichage, et vérifie qu'il se passe quelque chose. `ecriture` : le geste
+        enregistre (envoyer, signer) ; sans effet visible, il n'est jamais rejoué (un second envoi doublerait)."""
         el = self._premier_visible(self._resoudre(cible), quoi)
         try:
             el.scroll_into_view_if_needed(timeout=3000)
@@ -349,9 +369,15 @@ class Visite:
             self.constat("I", LISTE, "« %s » : affiché en %.1f s (seuil 1 s)" % (quoi, ms / 1000))
         hash_apres = self.page.evaluate("location.hash")
         if attendu_effet and calme["mutations"] == 0 and hash_apres == hash_avant:
-            # Rien n'a bougé : une personne toucherait une seconde fois. Si le second toucher marche, c'est noté
-            # (liste) ; s'il ne marche pas non plus, le bouton ne fait rien (refus silencieux, bloque).
-            self.page.wait_for_timeout(400)
+            # Rien n'a bougé : on laisse 1 s à un effet tardif (machine chargée), puis une personne toucherait une
+            # seconde fois. Si le second toucher marche, c'est noté (liste) ; sinon le bouton ne fait rien (bloque).
+            self.page.wait_for_timeout(1000)
+            if self.page.evaluate("window.__robotMutations || 0") > 0 or self.page.evaluate("location.hash") != hash_avant:
+                self.constat("I", LISTE, "« %s » : rien ne s'affiche pendant plus de 1 s" % quoi)
+                return self._apres_toucher(el)
+            if ecriture:
+                self.constat("E", BLOQUE, "toucher « %s » ne change rien à l'écran" % quoi, capture=True)
+                self.echec("bloqué : « %s » ne répond pas" % quoi)
             try:
                 (el.tap if self.telephone else el.click)(timeout=4000)
             except (ErreurPlaywright, DelaiDepasse):
@@ -363,10 +389,13 @@ class Visite:
                 self.echec("bloqué : « %s » ne répond pas" % quoi)
             else:
                 self.constat("E", LISTE, "il a fallu toucher deux fois « %s »" % quoi)
+        return self._apres_toucher(el)
+
+    def _apres_toucher(self, el):
+        # Budget dépassé : bloque dans les deux navigations (référentiel, critère B). Les dépassements de l'ancienne
+        # navigation déjà présents sur main sont dans connus.py.
         if not self.but_atteint and self.clics == self.budget + 1:
-            # L'ancienne navigation est appelée à disparaître : son dépassement est listé, pas bloquant.
-            self.constat("B", BLOQUE if self.navigation == "nouvelle" else LISTE,
-                         "plus de %d clic%s avant le but (budget du référentiel)" % (self.budget, "s" if self.budget > 1 else ""))
+            self.constat("B", BLOQUE, "plus de %d clic%s avant le but (budget du référentiel)" % (self.budget, "s" if self.budget > 1 else ""))
         return el
 
     def remplir(self, cible, texte, quoi):
@@ -434,25 +463,24 @@ class Visite:
     def retablir(self):
         self.page.evaluate("() => { window.__HARNESS_FAIL = null; }")
 
-    def exiger_message(self, quoi, cible=None):
-        """Après une action en échec, un message en français doit apparaître en moins de 2 s (critère E)."""
+    def messages_visibles(self):
+        """Les messages à l'écran : alertes visibles (role=alert, boîte d'erreur, message du bas) et lignes de la page
+        ou de la fenêtre ouverte qui parlent d'échec. À relever AVANT l'action en panne : `exiger_message` ne compte
+        que les messages nouveaux (un « Connexion requise » déjà affiché ne dit rien de la panne)."""
+        try:
+            return {t for t in self.page.evaluate(JS_MESSAGES) if t}
+        except ErreurPlaywright:
+            return set()
+
+    def exiger_message(self, quoi, avant, critere="E", gravite=BLOQUE):
+        """Après une action en échec, un message nouveau doit apparaître en moins de 2 s. Critère E (bloque) pour une
+        action refusée ; une lecture en panne relève du critère J (listé), voir le référentiel."""
         fin = time.time() + MESSAGE_MAX_MS / 1000
-        zone = self._resoudre(cible) if cible else self.page.locator("body")
         while time.time() < fin:
-            # Un message d'alerte visible et non vide (role=alert, boîte d'erreur, message du bas), ou des mots d'échec.
-            alerte = self.page.evaluate(r"""() => [...document.querySelectorAll(
-                '[role=alert], [aria-live=assertive], #toast:not(.hidden), [class*=erreur], [class*=error]')]
-              .some((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && (e.innerText || '').trim().length > 3; })""")
-            if alerte:
-                return True
-            try:
-                txt = zone.first.inner_text(timeout=500)
-            except (ErreurPlaywright, DelaiDepasse):
-                txt = ""
-            if MOTIF_MESSAGE.search(txt or ""):
+            if self.messages_visibles() - avant:
                 return True
             self.page.wait_for_timeout(150)
-        self.constat("E", BLOQUE, "%s : aucun message d'échec en 2 s" % quoi, capture=True)
+        self.constat(critere, gravite, "%s : aucun message d'échec en 2 s" % quoi, capture=True)
         return False
 
     # --- sorties (impasses) --------------------------------------------------------------------------
@@ -461,7 +489,10 @@ class Visite:
         if self.telephone:
             return
         self.page.keyboard.press("Escape")
-        self.page.wait_for_timeout(300)
+        try:
+            self._resoudre(fenetre).first.wait_for(state="hidden", timeout=1000)
+        except (ErreurPlaywright, DelaiDepasse):
+            pass
         if self.voit(fenetre):
             self.constat("D", BLOQUE, "Échap ne ferme pas %s" % quoi, capture=True)
 

@@ -8,6 +8,7 @@ import json
 
 from . import parcours
 from .navigation import texte, SOUS_ONGLET, RETOUR
+from .visite import BLOQUE, LISTE
 
 # Le cours du thème 22 tel que le banc le sert : le faux Supabase n'a que son titre. Un cours court au gabarit
 # des vrais (fiche synthèse, sous-parties, tableau des sanctions, planche de panneaux), pour que le lecteur ait
@@ -96,7 +97,7 @@ def lire_un_cours(v):
         if v.voit(".cours-overlay"):
             v.toucher("button.cours-close", "« Fermer le cours »", compte=False)
     if v.voit(".cours-overlay"):
-        v.constat("D", "bloque", "le lecteur de cours ne se referme pas", capture=True)
+        v.constat("D", BLOQUE, "le lecteur de cours ne se referme pas", capture=True)
     v.terminer()
 
 
@@ -142,6 +143,8 @@ def mon_suivi(v):
             # Sur téléphone, chaque partie est une page : on revient au sommaire par son lien de retour (hors budget).
             v.toucher(RETOUR, "le lien de retour vers le sommaire", compte=False)
         v.toucher(texte(partie, SOUS_ONGLET), "« %s »" % partie)
+        v.attendre("#view .ms-section-title:has-text(\"volution\")" if partie == "Évolution" else "#view :is(h2, h3, table, .card)",
+                   "le contenu de « %s »" % partie)
         if partie == "Évolution":
             v.but("résultats affichés")
         v.controler_ecran("Mon suivi, " + partie)
@@ -173,13 +176,15 @@ def ccp2(v):
 def page_en_panne(v):
     """Les lectures échouent : la page le dit et propose « Réessayer » ; la connexion revenue, « Réessayer » affiche la page."""
     v.panne("network error")
+    avant = v.messages_visibles()
     v.aller("Cours et QCM")
-    v.exiger_message("ouvrir Cours et QCM sans connexion")
+    # Une lecture en panne relève du critère J (« un message et Réessayer », listé) ; un refus d'action, du E.
+    v.exiger_message("ouvrir Cours et QCM sans connexion", avant, critere="J", gravite=LISTE)
     v.but("message de panne affiché")
     v.retablir()
     reessayer = texte("Réessayer", "button")
     if not v.voit(reessayer):
-        v.constat("J", "liste", "la page en panne ne propose pas « Réessayer »", capture=True)
+        v.constat("J", LISTE, "la page en panne ne propose pas « Réessayer »", capture=True)
         v.terminer()
         return
     v.toucher(reessayer, "« Réessayer »")
@@ -193,7 +198,7 @@ def documents(v):
     v.aller("Documents")
     v.attendre("#view a[href^=\"http\"], #view a[href$=\".pdf\"]", "un document ou un lien officiel")
     if "contact" not in v.texte("#view").lower():
-        v.constat("F", "liste", "la page des documents ne montre pas les contacts du centre")
+        v.constat("F", LISTE, "la page des documents ne montre pas les contacts du centre")
     v.but("documents affichés")
     v.terminer()
 
@@ -205,8 +210,10 @@ def signaler(v):
     v.attendre("#sg-message", "le champ du signalement")
     v.but("formulaire ouvert")
     v.remplir("#sg-message", "Essai du robot : la page se lit mal sur mon téléphone.", "le champ du signalement")
-    v.toucher("button.sg-envoyer", "« Envoyer »")
-    v.attendre("#toast:not(.hidden)", "la confirmation de l'envoi", delai=4000)
+    v.toucher("button.sg-envoyer", "« Envoyer »", ecriture=True)
+    confirmation = v.attendre("#toast:not(.hidden)", "la confirmation de l'envoi", delai=4000).inner_text()
+    if "merci" not in confirmation.lower():
+        v.echec("après l'envoi, le message ne confirme pas : « %s »" % confirmation.strip()[:80])
     v.terminer()
 
 
@@ -218,11 +225,16 @@ def signaler_en_panne(v):
     v.but("formulaire ouvert")
     v.remplir("#sg-message", "Essai du robot : envoi en panne.", "le champ du signalement")
     v.page.evaluate("() => { window.__HARNESS_SIGNALER_FAIL = 'réseau coupé'; }")
-    v.toucher("button.sg-envoyer", "« Envoyer »")
-    v.exiger_message("l'envoi d'un signalement en panne")
-    if v.voit("#sg-message") and "Essai du robot" not in v.page.locator("#sg-message").input_value():
-        v.constat("E", "bloque", "le texte du signalement est perdu après l'échec de l'envoi", capture=True)
+    avant = v.messages_visibles()
+    v.toucher("button.sg-envoyer", "« Envoyer »", ecriture=True)
+    v.exiger_message("l'envoi d'un signalement en panne", avant)
     v.page.evaluate("() => { window.__HARNESS_SIGNALER_FAIL = null; }")
+    if not v.voit("#sg-message"):
+        # La fenêtre s'est refermée : le texte doit revenir quand on la rouvre.
+        v.etape("rouvrir la fenêtre après l'échec")
+        v.aller("Signaler un problème")
+    if "Essai du robot" not in v.attendre("#sg-message", "le champ du signalement").input_value():
+        v.constat("E", BLOQUE, "le texte du signalement est perdu après l'échec de l'envoi", capture=True)
     v.etape("refermer la fenêtre")
     v.fermer_par_echap("#sg-message", "la fenêtre « Signaler un problème »")
     if v.voit("#sg-message"):
@@ -250,8 +262,8 @@ def signer(v):
     v.but("fenêtre de signature ouverte")
     v.etape("signer et valider")
     dessiner_signature(v, "canvas.sig-canvas")
-    v.toucher(".sig-modal button.btn.primary", "« Valider ma signature »")
+    v.toucher(".sig-modal button.btn.primary", "« Valider ma signature »", ecriture=True)
     v.attendre("#emargement-bandeau:has-text(\"signé\")", "la confirmation dans le bandeau")
     if v.voit(".sig-modal"):
-        v.constat("D", "bloque", "la fenêtre de signature reste ouverte après la signature", capture=True)
+        v.constat("D", BLOQUE, "la fenêtre de signature reste ouverte après la signature", capture=True)
     v.terminer()

@@ -16,13 +16,20 @@ Chaque ligne : le parcours, le critère, un morceau du message (sans les nombres
 DEFAUTS_CONNUS = [
     {"parcours": "passer-un-qcm", "critere": "D", "contient": "Échap ne ferme pas le QCM",
      "note": "n° 1 : la fenêtre du QCM n'écoute pas Échap", "ou": {"format": ["ordinateur"]}},
-    {"parcours": "page-en-panne", "critere": "E", "contient": "aucun message d'échec",
-     "note": "n° 2 : Cours et QCM sans connexion, colonnes vides sans message"},
     {"parcours": "lire-un-cours", "critere": "G", "contient": "nav.cours-sommaire défile",
      "note": "n° 3 : sommaire du lecteur qui défile de côté sur téléphone (R52, lot 2B)", "ou": {"format": ["telephone"]}},
     {"parcours": "indicateurs-du-centre", "critere": "G", "contient": "div.topbar-actions",
      "note": "n° 4 : ancienne barre à 1 280 px, boutons coupés avec un nom de promo long",
      "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},
+    # Budgets de clics que l'ancienne navigation dépasse (la nouvelle les tient) : n° 5 de la liste des échecs.
+    {"parcours": "indicateurs-du-centre", "critere": "B", "contient": "avant le but",
+     "note": "n° 5 : Indicateurs passe par la tuile de l'Accueil", "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},
+    {"parcours": "emargement-du-jour", "critere": "B", "contient": "avant le but",
+     "note": "n° 5 : Émargement passe par la tuile de l'Accueil", "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},
+    {"parcours": "signaler-un-probleme-formateur", "critere": "B", "contient": "avant le but",
+     "note": "n° 5 : « Signaler » est dans le menu du compte", "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},
+    {"parcours": "problemes-signales", "critere": "B", "contient": "avant le but",
+     "note": "n° 5 : « Signaler » est dans le menu du compte", "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},
 ]
 
 
@@ -34,9 +41,10 @@ def attendu_dans(defaut, resultat):
     return all(resultat[cle] in valeurs for cle, valeurs in ou.items())
 
 
-def connu(parcours, constat):
-    """La ligne de DEFAUTS_CONNUS qui couvre ce constat bloquant, ou None."""
+def connu(resultat, constat):
+    """La ligne de DEFAUTS_CONNUS qui couvre ce constat bloquant de ce passage, ou None. Le même défaut vu dans
+    un format ou une navigation que la ligne ne cite pas est nouveau : il bloque."""
     for d in DEFAUTS_CONNUS:
-        if d["parcours"] == parcours and d["critere"] == constat["critere"] and d["contient"] in constat["message"]:
+        if attendu_dans(d, resultat) and d["critere"] == constat["critere"] and d["contient"] in constat["message"]:
             return d
     return None
