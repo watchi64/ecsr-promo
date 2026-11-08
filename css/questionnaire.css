@@ -193,3 +193,17 @@ body .modal-backdrop[data-nav-coquille="questionnaire"] > .nav-fenetre.questionn
   .questionnaire-bandeau-actions { width: 100%; }
   .questionnaire-bandeau-btn { flex: 1 1 0; }
 }
+
+/* Zone lue par les lecteurs d'écran seulement (progression à chaque écran, js/questionnaire.js). */
+.qn-annonce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

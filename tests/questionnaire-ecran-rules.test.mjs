@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   cleMemoire, idQuestionnaire, lireMemoire, memoirePlusTard, questionnairesAffichables, questionnaireDuBandeau,
   questionnaireDuLien, sousTitreBandeau, progression, aUneReponse, peutAvancer, premiereManquante, reponsesAEnvoyer,
+  annonceEcran, ouvrirApresLecture,
 } from "../js/questionnaire-ecran-rules.js";
 import { QUESTIONNAIRES } from "../js/questionnaires-data.js";
 
@@ -125,4 +126,23 @@ test("aucun tiret cadratin dans les textes produits", () => {
   const cadratin = String.fromCharCode(0x2014);
   for (const q of Object.values(QUESTIONNAIRES)) assert.equal(sousTitreBandeau(q).includes(cadratin), false);
   assert.equal(progression(1, 2).texte.includes(cadratin), false);
+});
+
+test("annonce aux lecteurs d'écran : la progression sur une question, rien ailleurs", () => {
+  assert.equal(annonceEcran(1, 10), "Question 1 sur 10");
+  assert.equal(annonceEcran(10, 10), "Question 10 sur 10");
+  assert.equal(annonceEcran(0, 10), "");
+  assert.equal(annonceEcran(11, 10), "");
+  assert.equal(annonceEcran(-1, 10), "");
+  assert.equal(annonceEcran(2.5, 10), "");
+  assert.equal(annonceEcran("3", 10), "");
+  assert.equal(annonceEcran(1, 0), "");
+});
+
+test("lien direct : la fenêtre s'ouvre seulement si la personne est restée sur l'Accueil, sans autre fenêtre", () => {
+  assert.equal(ouvrirApresLecture({ adresseAvant: "#/home", adresseMaintenant: "#/home", fenetre: null }), true);
+  assert.equal(ouvrirApresLecture({ adresseAvant: "#/home", adresseMaintenant: "#/planning", fenetre: null }), false);
+  assert.equal(ouvrirApresLecture({ adresseAvant: "#/home", adresseMaintenant: "#/home", fenetre: "compte" }), false);
+  assert.equal(ouvrirApresLecture({ adresseAvant: "#/home", adresseMaintenant: "#/home", fenetre: "signaler" }), false);
+  assert.equal(ouvrirApresLecture({ adresseAvant: undefined, adresseMaintenant: undefined, fenetre: null }), false);
 });

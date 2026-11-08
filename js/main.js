@@ -394,7 +394,8 @@ async function navigate({ force = false } = {}) {
   teardownQualiopiPrint();
   try {
     await routes[route](view);
-    if (lienQuestionnaire !== null) ouvrirQuestionnaireDuLien(lienQuestionnaire);
+    // Non attendu (l'Accueil est déjà là) ; une lecture qui lève ne laisse pas de rejet non géré.
+    if (lienQuestionnaire !== null) ouvrirQuestionnaireDuLien(lienQuestionnaire).catch((e) => console.warn("[questionnaire]", e));
   } catch (e) {
     console.error(e);
     view.innerHTML = "";

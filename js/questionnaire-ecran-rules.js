@@ -118,3 +118,17 @@ export function reponsesAEnvoyer(questionnaire, brouillon) {
   }
   return { reponses, commentaire };
 }
+
+// Ce que la zone annoncée aux lecteurs d'écran (aria-live) dit à chaque changement d'écran de la fenêtre : la
+// progression sur un écran de question, rien sur l'écran d'accueil (son titre suffit) ni hors des bornes.
+export function annonceEcran(etape, total) {
+  if (!Number.isInteger(etape) || !Number.isInteger(total) || etape < 1 || etape > total) return "";
+  return progression(etape, total).texte;
+}
+
+// Lien direct : la liste des questionnaires arrive après le rendu de l'Accueil. La fenêtre ne s'ouvre que si la
+// personne est restée sur la même adresse et qu'aucune autre fenêtre ne s'est ouverte entre-temps ; sinon le lien
+// est abandonné sans un mot (le bandeau de l'Accueil reste là pour y revenir).
+export function ouvrirApresLecture({ adresseAvant, adresseMaintenant, fenetre }) {
+  return typeof adresseAvant === "string" && adresseAvant === adresseMaintenant && !fenetre;
+}

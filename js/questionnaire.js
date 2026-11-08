@@ -18,6 +18,7 @@ import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v
 import {
   cleMemoire, lireMemoire, memoirePlusTard, idQuestionnaire, questionnaireDuBandeau, questionnaireDuLien,
   sousTitreBandeau, progression, aUneReponse, peutAvancer, premiereManquante, reponsesAEnvoyer,
+  annonceEcran, ouvrirApresLecture,
 } from "./questionnaire-ecran-rules.js?v=20261108c";
 
 const MERCI = "Merci, ta réponse est enregistrée sans ton nom.";
@@ -95,11 +96,28 @@ function dessinerBandeau(item) {
 
 // --- Lien direct #/questionnaire/<clé> ---
 
-// Ouvre la fenêtre si la personne a ce questionnaire à remplir, sinon un mot doux sur l'Accueil.
+// Ouvre la fenêtre si la personne a ce questionnaire à remplir, sinon un mot doux sur l'Accueil. La liste arrive
+// après le rendu de l'Accueil : si la personne a changé de page (ou ouvert une autre fenêtre) entre-temps, rien ne
+// s'ouvre par-dessus (ouvrirApresLecture).
 export async function ouvrirQuestionnaireDuLien(cle) {
-  const item = questionnaireDuLien({ liste: await lireListe(), cle });
+  const adresseAvant = location.hash;
+  const liste = await lireListe();
+  if (!ouvrirApresLecture({ adresseAvant, adresseMaintenant: location.hash, fenetre: fenetreOuverte() })) return;
+  const item = questionnaireDuLien({ liste, cle });
   if (item) ouvrirQuestionnaire(item);
   else toast(RIEN_A_REMPLIR, "info", 6000);
+}
+
+// Où rendre le focus à la fermeture quand le bouton « Répondre » qui a ouvert la fenêtre manque (lien direct) ou a
+// disparu (bandeau redessiné après l'envoi) : le bouton « Répondre » d'un bandeau encore affiché, sinon le titre de
+// la page. Avec l'ancienne barre, il n'y a pas de bouton du compte où retomber (js/nav-fenetre.js, rendreFocus).
+function pointDeRetour() {
+  const affiche = (e) => !!e && e.isConnected && e.getClientRects().length > 0;
+  const bouton = [...document.querySelectorAll(".questionnaire-place .questionnaire-bandeau-btn")].find(affiche);
+  if (bouton) return bouton;
+  const titre = [...document.querySelectorAll("#view h1, #view h2")].find(affiche);
+  if (titre && !titre.hasAttribute("tabindex")) titre.setAttribute("tabindex", "-1");
+  return titre || null;
 }
 
 // --- La fenêtre ---
@@ -115,9 +133,13 @@ export function ouvrirQuestionnaire(item, { ancre = null } = {}) {
   const fermer = el("button", { type: "button", class: "qn-fermer" }, "Fermer");
   fermer.addEventListener("click", () => fermerFenetre());
 
+  // Zone annoncée aux lecteurs d'écran : la progression (« Question 3 sur 10 ») à chaque changement d'écran. Hors du
+  // corps, qui est remplacé à chaque écran : une zone neuve ne serait pas annoncée.
+  const annonce = el("p", { class: "qn-annonce", "aria-live": "polite" });
+
   ouvrirFenetre({
-    nom: "questionnaire", ancre, etiquette: q.titre, classe: "questionnaire-fenetre",
-    contenu: [el("div", { class: "qn-tete" }, el("h2", { class: "qn-titre" }, q.titre), fermer), corps],
+    nom: "questionnaire", ancre, etiquette: q.titre, classe: "questionnaire-fenetre", retour: pointDeRetour,
+    contenu: [el("div", { class: "qn-tete" }, el("h2", { class: "qn-titre" }, q.titre), fermer), annonce, corps],
   });
 
   // Le focus va au titre de l'écran (lu par les lecteurs d'écran) et la fenêtre remonte en haut.
@@ -216,7 +238,7 @@ export function ouvrirQuestionnaire(item, { ancre = null } = {}) {
         await envoyerQuestionnaire({ cle: item.cle, portee: item.portee, version: item.version, reponses, commentaire });
         envoyes.add(id);
         brouillons.delete(id);
-        if (fenetreOuverte() === "questionnaire" && corps.isConnected) montrer(ecranMerci());
+        if (fenetreOuverte() === "questionnaire" && corps.isConnected) { annonce.textContent = ""; montrer(ecranMerci()); }
         else toast(MERCI, "success", 4500);
       } catch (e) {
         // Le message vient de js/questionnaires-erreurs.js : déjà répondu, fermé, connexion... Montré dans la fenêtre.
@@ -266,6 +288,7 @@ export function ouvrirQuestionnaire(item, { ancre = null } = {}) {
   // sur la fenêtre).
   function dessiner(focus) {
     const titre = etat.etape === 0 ? ecranAccueil() : ecranQuestion();
+    annonce.textContent = annonceEcran(etat.etape, total);
     if (focus) montrer(titre);
   }
   dessiner(false);
