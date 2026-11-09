@@ -499,8 +499,12 @@ construit et prouvé en local, **migration non appliquée**, branche non fusionn
 - **Trois questionnaires** (`js/questionnaires-data.js`, versionnés) : fin de formation (stagiaires, de J-7 à J+30 de la
   fin de la promo), six mois après (de +6 à +7 mois), formateurs (par centre et par année civile). Échelle de 1 à 4 plus
   « Sans avis » (null), une question « globalement » qui donne le taux de satisfaction (réponses 3 ou 4 parmi les notes).
-- **Écran** (`js/questionnaire.js`, règles pures `js/questionnaire-ecran-rules.js`) : bandeau sur l'Accueil (deux
-  navigations) et dans Mon espace, « Plus tard » remis au lendemain (mémoire de l'appareil, par compte et par portée),
+- **Écran** (`js/questionnaire.js`, règles pures `js/questionnaire-ecran-rules.js`) : bandeau sous la salutation de
+  l'Accueil (ancienne navigation : `js/views/home.js` ; nouvelle : « Ta journée » des stagiaires, `js/views/accueil-stagiaire.js`,
+  et « Aujourd'hui » de l'équipe, `js/views/aujourdhui.js`, avant les cartes) et dans Mon espace (ancienne navigation seulement : dans la nouvelle, Mon suivi garde son sommaire au-dessus
+  de la barre du bas) ; le lien direct
+  survit au démarrage à froid (exception dans `bootApp`, qui sinon replie sur la dernière page ou `home` en nouvelle
+  navigation), « Plus tard » remis au lendemain (mémoire de l'appareil, par compte et par portée),
   fenêtre à une question par écran sur la mécanique de `js/nav-fenetre.js` (focus, Tab gardé, Échap ; progression
   annoncée en `aria-live` ; focus rendu au point de retour quand « Répondre » manque), lien direct
   `#/questionnaire/<clé>` (ouvre la fenêtre sur l'Accueil, ou un mot doux ; rien si la personne a quitté l'Accueil avant
@@ -698,14 +702,6 @@ Câblé via `recordUndo(label, undoFn)` après chaque écriture. Sur Ctrl+Z, dé
 7. **Vérifier `git log`** pour les derniers commits avant d'attaquer
 8. **Pour les bugs « ça marche pas »**, vérifier d'abord avec `curl` ce qui est servi en prod avant d'accuser le code
 
-## Roadmap (non décidé)
+## Roadmap
 
-- Émargement signature canvas + PDF (Qualiopi indicateur 11)
-- Attestations + certificat réalisation format réglementaire
-- Export BPF annuel
-- Questionnaires satisfaction auto J+1 / J+180
-- PWA installable (manifest + SW)
-- Export CSV/PDF complet matrice Notes
-- Multi-tenant (promo_id partout) : si un jour vente à d'autres centres
-- Génération QCM auto via API Claude depuis les 57 thèmes (différenciant pitch ECF)
-- Connexion possible des stagiaires côté formation-ecsr (cours/QCM unifiés ?)
+La roadmap du projet est tenue hors de ce dépôt public.

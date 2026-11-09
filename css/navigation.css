@@ -1007,6 +1007,14 @@ body[data-nav="v2"] .notes-epcf-classe { margin-top: 1.5rem; }
   body[data-nav="v2"] .em-bandeau .btn { min-height: 44px; }
 }
 
+/* ----- Fenêtres des QCM (fiche, entraînement, éditeur), ouvertes depuis Cours et QCM (lot 2B, js/views/qcm-stagiaire.js) ----- */
+/* La croix de fermeture fait 44 px (elle en faisait 34), et sur téléphone les boutons de la fiche d'un QCM aussi (ils en faisaient 38). */
+body[data-nav="v2"] .qcm-close { width: 44px; height: 44px; }
+@media (max-width: 699.98px) {
+  body[data-nav="v2"] .qcm-sheet-body .btn,
+  body[data-nav="v2"] .theme-modal .modal-actions .btn { min-height: 44px; }
+}
+
 /* ----- Impression : ni la coquille, ni ce qu'elle impose à la page ----- */
 /* La marge de la barre latérale battrait le « margin: 0 » de l'impression des Indicateurs (style.css,
    body.centre-printable #app) ; la marge basse est celle de la barre du bas du téléphone. */

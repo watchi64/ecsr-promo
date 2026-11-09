@@ -14,17 +14,17 @@
  *   - un tableau qui porte une colonne « Amende » devient un tableau de
  *     sanctions (montants et points en chiffres tabulaires).
  */
-import { el, clear } from "../utils.js?v=20261108c";
-import { icon } from "../icons.js?v=20261108c";
-import { carteSignal, signalConnu } from "../signaux.js?v=20261108c";
-import { carteMarquage, marquageConnu } from "../marquage.js?v=20261108c";
-import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261108c";
-import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261108c";
-import { listCoursIndex, getCours } from "../db.js?v=20261108c";
-import { isAdmin, isProf, getViewAs } from "../auth-admin.js?v=20261108c";
-import { titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours,
-  coursVisibleEnApercu }
-  from "../cours-rules.js?v=20261108c";
+import { el, clear } from "../utils.js?v=20261109c";
+import { icon } from "../icons.js?v=20261109c";
+import { carteSignal, signalConnu } from "../signaux.js?v=20261109c";
+import { carteMarquage, marquageConnu } from "../marquage.js?v=20261109c";
+import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261109c";
+import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261109c";
+import { listCoursIndex, getCours } from "../db.js?v=20261109c";
+import { isAdmin, isProf, getViewAs } from "../auth-admin.js?v=20261109c";
+import { coursAUnTexte, MESSAGE_COURS_VIDE, titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours,
+  coursVisibleEnApercu, classeTableau, etiquetteDeColonne }
+  from "../cours-rules.js?v=20261109c";
 
 // Index des cours visibles, chargé une fois par rendu de la page Thèmes.
 let coursIndex = null;  // Map clé (numéro ou code) -> { id, numero, code, titre, published, updated_by, updated_at }
@@ -147,14 +147,6 @@ function cellules(ligne) {
   return ligne.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
 }
 
-// Un tableau de sanctions se reconnaît à sa colonne « Amende » : ses nombres
-// méritent la police tabulaire et la colonne des points un accent.
-function classeTableau(entetes) {
-  const joint = entetes.join(" ").toLowerCase();
-  if (joint.includes("amende")) return "cours-table cours-table-sanctions";
-  return "cours-table";
-}
-
 // Un tableau de sanctions ne tient pas en colonnes sur un téléphone : l'infraction
 // est une phrase, les trois autres cellules de courtes valeurs. On le rend donc en
 // fiches, l'infraction en tête et les valeurs en pastilles. Rien n'est perdu : ce
@@ -242,11 +234,16 @@ function rendreTableau(lignes) {
   const thead = el("thead", {}, el("tr", {}, entetes.map((c) => el("th", {}, inline(c)))));
   const corps = el("tbody");
   for (const ligne of lignes.slice(2)) {
-    corps.appendChild(el("tr", {}, cellules(ligne).map((c) => el("td", {}, celluleTableau(c)))));
+    // `data-label` : sur téléphone, la ligne devient une carte et chaque valeur écrit le titre de sa colonne.
+    corps.appendChild(el("tr", {}, cellules(ligne).map((c, i) => {
+      const etiquette = etiquetteDeColonne(entetes[i]);
+      return el("td", etiquette ? { dataset: { label: etiquette } } : {}, celluleTableau(c));
+    })));
   }
   table.appendChild(thead);
   table.appendChild(corps);
-  // Enveloppe défilante : un tableau large ne doit jamais pousser la page.
+  // Enveloppe sans défilement de côté : au-dessus de 700 px le tableau tient en largeur (mots coupés si besoin), en dessous
+  // chaque ligne devient une carte (css/style.css).
   return el("div", { class: "cours-table-wrap" }, table);
 }
 
@@ -494,7 +491,7 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
   // le stagiaire ne voit jamais ce bouton. L'import dynamique évite de charger l'éditeur pour lui.
   const modifier = isAdmin()
     ? el("button", { class: "btn cours-modifier", type: "button", onClick: async () => {
-        const { openCoursEditeur } = await import("./cours-editeur.js?v=20261108c");
+        const { openCoursEditeur } = await import("./cours-editeur.js?v=20261109c");
         close();
         openCoursEditeur(cle, {
           onFerme: (aChange) => { if (aChange) openCoursSheet(theme); },
@@ -548,7 +545,8 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
 
   try {
     const cours = await getCours(cle);
-    const texte = cours.corps_md;
+    const vide = !coursAUnTexte(cours);
+    const texte = vide ? MESSAGE_COURS_VIDE : cours.corps_md;
     marquerCoursOuvert(cle);
     // Fiche fermée pendant le chargement : rien à rendre, et aucun schéma à monter dans une fiche disparue.
     if (ferme) return;
@@ -597,14 +595,15 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
 
     const titre = titreDepuisMarkdown(texte);
     if (titre) tete.querySelector(".cours-head-titre").textContent = titre;
-    meta.textContent = `${contexte.sections.length} sections · ${tempsLecture(texte)} min de lecture`;
+    meta.textContent = vide ? "" : `${contexte.sections.length} sections · ${tempsLecture(texte)} min de lecture`;
 
     // État formateur/admin : le stagiaire n'a pas à voir la cuisine.
     if (isAdmin() || isProf()) {
       const quand = cours.updated_at
         ? new Date(cours.updated_at).toLocaleDateString("fr-FR") : "";
-      meta.textContent += (cours.published ? " · Publié" : " · Non publié")
+      const etat = (cours.published ? "Publié" : "Non publié")
         + (cours.updated_by ? ` · modifié par ${cours.updated_by} le ${quand}` : "");
+      meta.textContent += (meta.textContent ? " · " : "") + etat;
     }
 
     // Sommaire : les titres de niveau 2, numérotés comme dans le cours.

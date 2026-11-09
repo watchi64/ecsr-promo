@@ -2,25 +2,23 @@
  * Page d'accueil : version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261108c";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261108c";
-import { icon } from "../icons.js?v=20261108c";
-import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261108c";
+import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261109c";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261109c";
+import { icon } from "../icons.js?v=20261109c";
+import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261109c";
 import {
-  nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque,
-} from "../modules-etat.js?v=20261108c";
-import { carteNouveaute } from "./nouveautes.js?v=20261108c";
-import { emargementActif } from "../emargement-etat.js?v=20261108c";
-import { navigationV2Active } from "../nav-etat.js?v=20261108c";
-import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte } from "../accueil-rules.js?v=20261108c";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261108c";
+  nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque, formateurConnecte,
+} from "../modules-etat.js?v=20261109c";
+import { carteNouveaute } from "./nouveautes.js?v=20261109c";
+import { emargementActif } from "../emargement-etat.js?v=20261109c";
+import { navigationV2Active } from "../nav-etat.js?v=20261109c";
+import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, pointsARetenir, salutationDe } from "../accueil-rules.js?v=20261109c";
+import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261109c";
+import { renderAujourdhui } from "./aujourdhui.js?v=20261109c";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261109c";
 
 function greetingByHour() {
-  const h = new Date().getHours();
-  if (h < 6) return "Bonsoir";
-  if (h < 12) return "Bonjour";
-  if (h < 18) return "Bon après-midi";
-  return "Bonsoir";
+  return salutationDe(new Date().getHours());
 }
 
 // Où en est un événement un jour donné (« AAAA-MM-JJ ») : à venir, en cours ou passé, et les jours jusqu'à son
@@ -80,6 +78,9 @@ function sectionNouveautes() {
 }
 
 export async function renderHome(container) {
+  // Nouvelle navigation : chaque espace a sa page, le stagiaire son Accueil (js/views/accueil-stagiaire.js), l'équipe
+  // Aujourd'hui (js/views/aujourdhui.js) ; interrupteur éteint, rien ne change.
+  if (navigationV2Active()) return formateurConnecte() ? renderAujourdhui(container) : renderAccueilStagiaire(container);
   clear(container);
 
   const profile = getProfile();
@@ -127,7 +128,8 @@ export async function renderHome(container) {
         ),
   ));
 
-  // Questionnaire anonyme à remplir (Qualiopi), sous la salutation, dans les deux navigations : l'emplacement est posé
+  // Questionnaire anonyme à remplir (Qualiopi), sous la salutation (ancienne navigation ; la nouvelle a le sien dans
+  // accueil-stagiaire.js et aujourdhui.js) : l'emplacement est posé
   // tout de suite et se remplit à l'arrivée de la liste lue en base (vide : rien ne s'affiche).
   container.appendChild(bandeauQuestionnaire());
 
@@ -281,24 +283,7 @@ export async function renderHome(container) {
   container.appendChild(el("section", { class: "home-info" },
     el("h2", {}, "📌 À retenir"),
     el("ul", { class: "home-info-list" },
-      el("li", {},
-        el("strong", {}, "Ton identité est liée à ton email."),
-        " Tes ajouts de passages et tes notes sont signés automatiquement.",
-      ),
-      el("li", {},
-        el("strong", {}, "Tu ajoutes et corriges tes passages toi-même."),
-        " Pour en supprimer un, demande à un formateur.",
-      ),
-      el("li", {},
-        el("strong", {}, "Tout est tracé."),
-        " Chaque modification (passage, note, planning) est historisée avec son auteur.",
-      ),
-      el("li", {},
-        el("strong", {}, "Ctrl + Z annule la dernière action."),
-        // Nouvelle navigation : les pages portent d'autres noms (Notes n'est plus un onglet du stagiaire, Calendrier s'appelle
-        // Dates clés) ; l'ancienne garde la phrase de main.
-        v2 ? " Sur les notes, les passages, les thèmes et les dates clés." : " Sur Notes, Passages, Thèmes et Calendrier.",
-      ),
+      ...pointsARetenir(v2).map((p) => el("li", {}, el("strong", {}, p.gras), p.suite)),
     ),
   ));
 

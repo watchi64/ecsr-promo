@@ -4,6 +4,7 @@
 // anciennes adresses, les initiales, le prénom et le nom du bouton du compte, la ligne « page à soi »
 // du menu du compte. Module pur, sans DOM ni stockage : testé en node.
 
+
 // Clé de mémoire du sous-onglet ouvert, par page à sous-onglets (le `storageKey` de
 // renderSubTabs). Une redirection l'écrit pour ouvrir le bon sous-onglet ; le bouton « Élèves bénévoles »
 // du Planning, pour ouvrir celui de Stagiaires (lot 2A).
@@ -29,9 +30,10 @@ const TOUJOURS_VISIBLES = ["home", "mon-suivi"];
 
 // Équipe (formateur, admin), dans l'ordre de la barre latérale. Un module fermé n'en retire
 // aucune : la coquille la repère au lieu de la masquer. Seul Émargement dépend d'un
-// interrupteur de la promo. Accueil devient Aujourd'hui avec la page du même nom (lot 2).
+// interrupteur de la promo. La première entrée s'appelle Aujourd'hui (la page du même nom, lot 2B) ; sa route et sa
+// mémoire restent celles de l'Accueil.
 const ENTREES_EQUIPE = [
-  entree("home", "Accueil", "home"),
+  entree("home", "Aujourd'hui", "home"),
   entree("planning", "Planning", "calendar"),
   entree("emargement", "Émargement", "clipboard"),
   entree("stagiaires", "Stagiaires", "users"),
@@ -188,8 +190,8 @@ export function pageASoiDuMenu(page, entrees) {
 // Où mène une ancienne adresse sous la nouvelle navigation : null (rien à rediriger) ou la
 // nouvelle adresse avec le sous-onglet à ouvrir (`cle` : sa clé de mémoire, `valeur` : son
 // identifiant). Seule la route décide : `id` et `partie` n'existent que pour Stagiaires et
-// Mon espace, jamais redirigés. `notes` ne bouge que chez le stagiaire (la classe, sous Mon
-// suivi) ; l'équipe garde sa page Notes. De même `config` : Réglages (la promo) est la page de
+// Mon espace, jamais redirigés. `notes` ne bouge que chez le stagiaire (Mon suivi, Résultats,
+// vue La classe) ; l'équipe garde sa page Notes. De même `config` : Réglages (la promo) est la page de
 // l'équipe, le stagiaire arrive sur Mes préférences (lot 2A). Aucune cible n'est elle-même
 // redirigée : pas de boucle.
 export function redirectionV2({ route }, espace) {
@@ -199,6 +201,8 @@ export function redirectionV2({ route }, espace) {
     return { hash: "#/" + v.page, sousOnglet };
   }
   if (route === "notes" && espace !== "equipe") {
+    // La classe est une vue de Résultats (lot 2B, tâche 7) : l'adresse elle-même porte la vue, sans
+    // passer par la mémoire de l'appareil (qui peut être indisponible).
     return { hash: "#/mon-suivi/classe", sousOnglet: null };
   }
   if (route === "config" && espace !== "equipe") {

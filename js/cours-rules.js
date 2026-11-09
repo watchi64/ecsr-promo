@@ -117,3 +117,33 @@ export function cibleLienCours(href) {
   }
   return m[2];
 }
+
+/** Classes d'un tableau du cours. Un tableau de sanctions se reconnaît à sa colonne « Amende » (nombres en police tabulaire).
+ *  Un tableau de deux colonnes (terme, définition) reste un tableau à toute largeur : seuls les tableaux plus larges
+ *  deviennent des listes sur téléphone (css/style.css, `.cours-table:not(.cours-table-2col)`). */
+export function classeTableau(entetes) {
+  const joint = entetes.join(" ").toLowerCase();
+  const classes = ["cours-table"];
+  if (joint.includes("amende")) classes.push("cours-table-sanctions");
+  if (entetes.length <= 2) classes.push("cours-table-2col");
+  return classes.join(" ");
+}
+
+/** Texte d'un en-tête de colonne sans sa mise en forme markdown (gras, italique, code, lien) : c'est le titre que la carte
+ *  d'une ligne écrit devant chaque valeur sur téléphone (`data-label`). Chaîne vide s'il n'y a rien à dire. */
+export function etiquetteDeColonne(entete) {
+  return String(entete == null ? "" : entete)
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[*`]/g, "")
+    .replace(/(^|\s)_+|_+(?=\s|$)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Message du lecteur quand un cours n'a pas de texte. */
+export const MESSAGE_COURS_VIDE = "Ce cours n'a pas encore de contenu.";
+
+/** Le cours porte-t-il du texte à lire ? Un corps absent, nul ou fait d'espaces n'en a pas. */
+export function coursAUnTexte(cours) {
+  return !!cours && typeof cours.corps_md === "string" && cours.corps_md.trim() !== "";
+}

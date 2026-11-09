@@ -1,7 +1,8 @@
 // Accueil (refonte, lot 2A) : les règles seulement. Où en est un événement par rapport à aujourd'hui
 // (à venir, en cours, passé), le texte qui le dit, et la ligne « Promo <nom> · semaine <n> » sous la
 // salutation. Module pur, sans DOM ni stockage : testé en node. La carte « Prochain événement majeur »
-// de l'accueil les lit ; le prochain rendez-vous de l'accueil du lot 2B les lira de même.
+// de l'accueil les lit ; le prochain rendez-vous et l'à-faire de l'accueil du stagiaire (lot 2B) les lisent de même.
+import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "./qcm-exam-rules.js?v=20261109c";
 
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000;
 
@@ -91,4 +92,117 @@ export function lignePromo(promo, aujourdhui) {
   const ce = numeroDeJour(aujourdhui);
   if (!(ce >= debut && ce <= fin)) return `Promo ${nom}`;
   return `Promo ${nom} · semaine ${1 + (lundiDe(ce) - lundiDe(debut)) / 7}`;
+}
+
+// === Accueil du stagiaire (lot 2B) ===
+
+const JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
+  "septembre", "octobre", "novembre", "décembre"];
+
+// « jeudi 5 novembre » : le jour d'un « AAAA-MM-JJ » existant. Le jour se lit en UTC, comme numeroDeJour : aucun
+// fuseau ne le décale.
+function jourEnToutesLettres(iso) {
+  const d = new Date(numeroDeJour(iso) * MS_PAR_JOUR);
+  return `${JOURS[d.getUTCDay()]} ${d.getUTCDate() === 1 ? "1er" : d.getUTCDate()} ${MOIS[d.getUTCMonth()]}`;
+}
+
+// Le prochain rendez-vous de l'accueil : le premier examen ou stage qui n'est pas passé (un stage commencé compte :
+// il est « en cours »), à défaut le premier événement qui n'est pas passé ; un jour férié n'est jamais un rendez-vous.
+// `evenements` : les lignes de l'agenda (title, type, date_start, date_end), dans n'importe quel ordre. Un événement
+// à la date illisible est laissé de côté plutôt que de masquer les autres. `date` : le jour de DÉBUT, en toutes lettres ;
+// `libelle` : le décompte (libelleDecompte). Rien à venir : null.
+export function prochainRendezVous(evenements, aujourdhui) {
+  const restants = [];
+  for (const e of Array.isArray(evenements) ? evenements : []) {
+    if (!e || e.type === "ferie") continue;
+    let decompte;
+    try { decompte = etatEvenement({ debut: e.date_start, fin: e.date_end }, aujourdhui); }
+    catch (err) { continue; }
+    if (decompte.etat !== "passe") restants.push({ e, decompte, debut: numeroDeJour(e.date_start) });
+  }
+  // Tri stable par début : l'ordre de l'agenda départage les événements d'un même jour.
+  restants.sort((a, b) => a.debut - b.debut);
+  const choisi = restants.find((r) => r.e.type === "examen" || r.e.type === "stage") || restants[0];
+  if (!choisi) return null;
+  return { titre: choisi.e.title, date: jourEnToutesLettres(choisi.e.date_start), libelle: libelleDecompte(choisi.decompte) };
+}
+
+const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
+
+// Ce qu'il reste à faire au stagiaire, au plus 4 lignes, dans cet ordre :
+//   1. un examen ouvert qu'il n'a pas passé (une tentative en mode « examen » le clôt ; un entraînement non) ;
+//   2. le QCM d'un thème vu cette semaine au planning, jamais tenté (tout mode) ; le thème se retrouve par son titre
+//      exact (`sujetsDeLaSemaine` : les titres déjà découpés, l'ordre du planning) ; un QCM qui a déjà sa ligne
+//      d'examen n'en reçoit pas une seconde ;
+//   3. le dossier professionnel tant que les 6 exemples ne sont pas remplis ;
+//   4. le livret tant qu'il n'est pas commencé.
+// `modules` : { qcm, dp, livret } ; un module fermé (false) retire ses lignes. Une donnée qui n'a pas pu être lue
+// (`exemplesDossier` ou `livretCommence` nul) ne produit aucune ligne : mieux vaut se taire qu'inventer un travail.
+// Chaque ligne : { cle, titre, detail, route, sousOnglet } ; la page en fait un lien.
+export function aFaireStagiaire({ qcm, themes, tentatives, sujetsDeLaSemaine, exemplesDossier, livretCommence, modules, now } = {}) {
+  const ouvert = (cle) => !modules || modules[cle] !== false;
+  const lignes = [];
+  const maintenant = now ?? Date.now();
+  const liste = (v) => (Array.isArray(v) ? v : []);
+  const passes = liste(tentatives);
+
+  if (ouvert("qcm")) {
+    const avecQuestions = liste(qcm).filter((q) => q && q.nb_questions > 0);
+    const titreDuTheme = (q) => liste(themes).find((t) => t.id === q.theme_id)?.titre ?? q.titre;
+    const dejaPasse = (q) => passes.some((t) => t.qcm_id === q.id && t.mode === "examen");
+    const examens = avecQuestions.filter((q) => examenDemarrable(q, maintenant) && !dejaPasse(q));
+    for (const q of examens) {
+      const reste = tempsRestantMs(q, maintenant);
+      lignes.push({
+        cle: `examen-${q.id}`, titre: `Examen ouvert : ${titreDuTheme(q)}`,
+        detail: reste == null ? "Sans limite de temps" : `Ferme dans ${formatTempsRestant(reste)}`,
+        route: "themes", sousOnglet: "themes",
+      });
+    }
+    const vus = new Set(examens.map((q) => q.id));
+    for (const sujet of liste(sujetsDeLaSemaine)) {
+      const theme = liste(themes).find((t) => t.titre === sujet);
+      const q = theme && avecQuestions.find((x) => x.theme_id === theme.id);
+      if (!q || vus.has(q.id) || passes.some((t) => t.qcm_id === q.id)) continue;
+      vus.add(q.id);
+      lignes.push({
+        cle: `qcm-${q.id}`, titre: `QCM du thème : ${theme.titre}`,
+        detail: `Pas encore fait · ${pluriel(q.nb_questions, "question")}`,
+        route: "themes", sousOnglet: "themes",
+      });
+    }
+  }
+  if (ouvert("dp") && Number.isInteger(exemplesDossier) && exemplesDossier < 6) {
+    lignes.push({
+      cle: "dossier", titre: "Dossier professionnel", detail: `${pluriel(exemplesDossier, "exemple")} sur 6`,
+      route: "mon-suivi", sousOnglet: "dp",
+    });
+  }
+  if (ouvert("livret") && livretCommence === false) {
+    lignes.push({ cle: "livret", titre: "Livret EPCF", detail: "Pas encore commencé", route: "mon-suivi", sousOnglet: "livret" });
+  }
+  return lignes.slice(0, 4);
+}
+
+// « À retenir » : les quatre règles courtes de l'app, lues par l'Accueil d'avant et, sous la nouvelle navigation, par
+// Mes préférences (section Informations) : une information ne se perd pas quand la page change. La dernière dit les pages
+// par leur nom : celui de la nouvelle barre (Notes n'est plus un onglet du stagiaire, Calendrier s'appelle Dates clés).
+// `[{ gras, suite }]` : le début en gras, puis la suite de la phrase.
+export function pointsARetenir(navigationV2) {
+  return [
+    { gras: "Ton identité est liée à ton email.", suite: " Tes ajouts de passages et tes notes sont signés automatiquement." },
+    { gras: "Tu ajoutes et corriges tes passages toi-même.", suite: " Pour en supprimer un, demande à un formateur." },
+    { gras: "Tout est tracé.", suite: " Chaque modification (passage, note, planning) est historisée avec son auteur." },
+    { gras: "Ctrl + Z annule la dernière action.",
+      suite: navigationV2 ? " Sur les notes, les passages, les thèmes et les dates clés." : " Sur Notes, Passages, Thèmes et Calendrier." },
+  ];
+}
+
+// « Bonjour » le matin, « Bon après-midi », « Bonsoir » de 18 h à 6 h : la salutation de l'Accueil, pour une heure locale (0 à 23).
+export function salutationDe(heure) {
+  if (heure < 6) return "Bonsoir";
+  if (heure < 12) return "Bonjour";
+  if (heure < 18) return "Bon après-midi";
+  return "Bonsoir";
 }
