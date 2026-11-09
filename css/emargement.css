@@ -39,7 +39,7 @@ body.sig-ouverte { overflow: hidden; }
 }
 .sig-message { min-height: 1.2em; margin: 0.5rem 0 0; color: var(--c-stop); font-size: 0.85rem; }
 .sig-actions { flex-wrap: wrap; }
-.sig-rendu { display: block; width: 100%; height: auto; color: #1F2924; }
+.sig-rendu { display: block; width: 100%; height: auto; color: var(--doc-encre); }
 
 @media (max-width: 760px) {
   .sig-backdrop { padding: 0.5rem; align-items: flex-start; padding-top: 1.5rem; }
@@ -206,20 +206,20 @@ body.sig-ouverte { overflow: hidden; }
 #emargement-print { display: none; }
 
 .em-feuille {
-  box-sizing: border-box; background: #fff; color: #111;
+  box-sizing: border-box; background: #fff; color: var(--doc-noir);
   font-family: var(--font); font-size: 9.5pt; line-height: 1.3;
 }
 .em-feuille-seance { width: 210mm; padding: 12mm 12mm 10mm; }
 .em-feuille-semaine { width: 297mm; padding: 9mm 10mm 8mm; font-size: 8pt; }
-.emf-titre { margin: 0 0 3mm; font-family: var(--font-display); font-size: 17pt; font-weight: 600; }
+.emf-titre { margin: 0 0 3mm; font-family: var(--doc-police-titre); font-size: 17pt; font-weight: var(--doc-poids-titre-feuille); }
 .em-feuille-semaine .emf-titre { font-size: 13pt; margin-bottom: 1.5mm; }
 .emf-infos { border-collapse: collapse; margin-bottom: 5mm; }
 .em-feuille-semaine .emf-infos { margin-bottom: 3mm; }
 .emf-infos th { text-align: left; font-weight: 600; padding: 0.6mm 4mm 0.6mm 0; white-space: nowrap; vertical-align: top; }
 .emf-infos td { padding: 0.6mm 0; }
 .emf-table { width: 100%; border-collapse: collapse; margin-bottom: 5mm; table-layout: fixed; }
-.emf-table th, .emf-table td { border: 0.3mm solid #444; padding: 1mm 1.6mm; vertical-align: middle; }
-.emf-table thead th { background: #eef1ea; font-weight: 600; text-align: left; }
+.emf-table th, .emf-table td { border: 0.3mm solid var(--doc-trait-fort); padding: 1mm 1.6mm; vertical-align: middle; }
+.emf-table thead th { background: var(--doc-en-tete-fond); font-weight: 600; text-align: left; }
 .emf-table thead { display: table-header-group; }
 .emf-table tr { page-break-inside: avoid; break-inside: avoid; }
 .em-feuille-seance .emf-num { width: 9mm; text-align: center; }
@@ -229,11 +229,11 @@ body.sig-ouverte { overflow: hidden; }
 .em-feuille-seance .emf-sig .sig-rendu { height: calc(var(--emf-ligne, 11mm) - 2mm); width: 100%; }
 .emf-formateurs .emf-sig .sig-rendu { height: 10mm; }
 .emf-formateurs td { height: 12mm; padding-top: 0.4mm; padding-bottom: 0.4mm; }
-.emf-vide { font-style: italic; color: #555; }
-.emf-absent td.emf-sig, .emf-absent td.emf-obs { color: #8a3b1f; }
+.emf-vide { font-style: italic; color: var(--doc-texte-doux); }
+.emf-absent td.emf-sig, .emf-absent td.emf-obs { color: var(--doc-absent); }
 .emf-obs div + div { font-style: italic; }
-.emf-manque { font-style: italic; color: #8a3b1f; }
-.emf-pied { font-size: 7.5pt; color: #333; }
+.emf-manque { font-style: italic; color: var(--doc-absent); }
+.emf-pied { font-size: 7.5pt; color: var(--doc-texte); }
 .emf-pied p { margin: 0 0 1mm; }
 
 .em-feuille-semaine .emf-infos th, .em-feuille-semaine .emf-infos td { padding-top: 0.2mm; padding-bottom: 0.2mm; }
@@ -242,14 +242,14 @@ body.sig-ouverte { overflow: hidden; }
 .emf-table-semaine .emf-heures { width: 14mm; text-align: center; }
 .emf-table-semaine .emf-jour { text-align: center; }
 .emf-table-semaine .emf-demi { text-align: center; font-weight: 600; font-size: 7pt; line-height: 1.15; }
-.emf-horaires { display: block; font-weight: 400; font-size: 6pt; color: #444; }
+.emf-horaires { display: block; font-weight: 400; font-size: 6pt; color: var(--doc-trait-fort); }
 .emf-case { text-align: center; height: 7.2mm; }
 .emf-case .sig-rendu { height: 4.6mm; width: 100%; }
-.emf-heure { display: block; font-size: 5.5pt; color: #444; line-height: 1; }
-.emf-case.emf-absent { font-style: italic; color: #8a3b1f; }
-.emf-case.emf-sans { background: repeating-linear-gradient(135deg, #f3f3f3 0 2mm, #e6e6e6 2mm 2.6mm); }
+.emf-heure { display: block; font-size: 5.5pt; color: var(--doc-trait-fort); line-height: 1; }
+.emf-case.emf-absent { font-style: italic; color: var(--doc-absent); }
+.emf-case.emf-sans { background: repeating-linear-gradient(135deg, var(--doc-sans-fond-1) 0 2mm, var(--doc-sans-fond-2) 2mm 2.6mm); }
 .emf-ligne-formateurs .emf-case { height: auto; }
-.emf-formateur + .emf-formateur { border-top: 0.2mm dotted #888; }
+.emf-formateur + .emf-formateur { border-top: 0.2mm dotted var(--doc-trait-pointille); }
 
 /* --- Navigation (retours du 24/10) ----------------------------------- */
 
@@ -278,36 +278,36 @@ body.sig-ouverte { overflow: hidden; }
 
 .emf-bandeau {
   display: flex; align-items: center; gap: 4mm; margin: 0 0 4mm; padding: 3mm 4mm;
-  border-radius: 2mm; background: #556641; color: #fff;
+  border-radius: 2mm; background: var(--doc-vert); color: #fff;
 }
 .emf-logo { height: 10mm; width: auto; background: #fff; border-radius: 1.5mm; padding: 1mm 1.5mm; }
 .emf-bandeau .emf-titre { margin: 0; color: #fff; }
-.emf-sous-titre { margin: 0.6mm 0 0; font-size: 10pt; color: #EAEFD9; }
+.emf-sous-titre { margin: 0.6mm 0 0; font-size: 10pt; color: var(--doc-vert-fond); }
 .em-feuille-semaine .emf-bandeau { padding: 2mm 3.5mm; margin-bottom: 2.5mm; }
 .em-feuille-semaine .emf-logo { height: 7.5mm; }
 .em-feuille-semaine .emf-sous-titre { font-size: 8.5pt; }
-.emf-infos th { color: #556641; }
-.emf-table { border: 0.4mm solid #556641; }
-.emf-table th, .emf-table td { border-color: #B7C0AA; }
-.emf-table thead th { background: #6B7F4E; color: #fff; border-color: #556641; }
-.emf-table tbody tr:nth-child(even) td { background: #F4F7F0; }
-.em-feuille .emf-absent td, .emf-case.emf-absent { background: #FBEEE6 !important; }
-.emf-table-semaine thead tr:first-child th.emf-jour { background: #556641; }
-.emf-table-semaine thead tr:nth-child(2) th { background: #EAEFD9; color: #33402a; }
-.emf-table-semaine .emf-horaires { color: #556641; }
-.emf-ligne-formateurs td { background: #EEF2E7 !important; }
-.emf-table-semaine .emf-heures { font-weight: 600; color: #33402a; }
+.emf-infos th { color: var(--doc-vert); }
+.emf-table { border: 0.4mm solid var(--doc-vert); }
+.emf-table th, .emf-table td { border-color: var(--doc-vert-trait); }
+.emf-table thead th { background: var(--doc-vert-moyen); color: #fff; border-color: var(--doc-vert); }
+.emf-table tbody tr:nth-child(even) td { background: var(--doc-vert-fond-pale); }
+.em-feuille .emf-absent td, .emf-case.emf-absent { background: var(--doc-absent-fond) !important; }
+.emf-table-semaine thead tr:first-child th.emf-jour { background: var(--doc-vert); }
+.emf-table-semaine thead tr:nth-child(2) th { background: var(--doc-vert-fond); color: var(--doc-vert-sombre); }
+.emf-table-semaine .emf-horaires { color: var(--doc-vert); }
+.emf-ligne-formateurs td { background: var(--doc-vert-fond-doux) !important; }
+.emf-table-semaine .emf-heures { font-weight: 600; color: var(--doc-vert-sombre); }
 .emf-totaux { display: flex; flex-wrap: wrap; gap: 2mm; margin-bottom: 2mm !important; }
-.emf-total { padding: 0.6mm 2.5mm; border-radius: 3mm; background: #EEF2E7; color: #33402a; font-weight: 600; font-size: 8pt; }
-.emf-total-ok { background: #DDE9C4; }
-.emf-total-ko { background: #F6E4D7; color: #8a3b1f; }
+.emf-total { padding: 0.6mm 2.5mm; border-radius: 3mm; background: var(--doc-vert-fond-doux); color: var(--doc-vert-sombre); font-weight: 600; font-size: 8pt; }
+.emf-total-ok { background: var(--doc-vert-total); }
+.emf-total-ko { background: var(--doc-total-ko-fond); color: var(--doc-absent); }
 
 /* --- Certificats et attestations (spec 2026-10-24) -------------------- */
 /* Pièces sobres, sur l'en-tête de l'organisme : le certificat suit le modèle du ministère. */
 
 .at-doc {
   box-sizing: border-box; width: 210mm; padding: 16mm 20mm 14mm;
-  background: #fff; color: #111; font-family: var(--font); font-size: 10.5pt; line-height: 1.45;
+  background: #fff; color: var(--doc-noir); font-family: var(--font); font-size: 10.5pt; line-height: 1.45;
 }
 /* Imprimées sans marge de page (comme les feuilles). Le certificat tient sur une page, notes de
    bas de page en pied ; l'attestation peut en prendre plusieurs : ses marges du haut et du bas
@@ -322,35 +322,35 @@ body.sig-ouverte { overflow: hidden; }
 .at-marge-bas { height: 14mm; }
 .at-doc + .at-doc { break-before: page; page-break-before: always; }
 .at-doc p { margin: 0 0 2mm; }
-.at-entete { margin-bottom: 7mm; padding-bottom: 2.5mm; border-bottom: 0.4mm solid #556641; }
+.at-entete { margin-bottom: 7mm; padding-bottom: 2.5mm; border-bottom: 0.4mm solid var(--doc-vert); }
 .at-entete p { margin: 0; }
-.at-organisme { font-weight: 700; font-size: 12pt; color: #33402a; }
-.at-adresse { font-size: 9.5pt; color: #333; }
+.at-organisme { font-weight: 700; font-size: 12pt; color: var(--doc-vert-sombre); }
+.at-adresse { font-size: 9.5pt; color: var(--doc-texte); }
 .at-titre {
-  margin: 0 0 7mm; text-align: center; font-family: var(--font); font-size: 17pt; font-weight: 700;
-  letter-spacing: 0.04em; color: #33402a;
+  margin: 0 0 7mm; text-align: center; font-family: var(--font); font-size: 17pt; font-weight: var(--doc-poids-titre);
+  letter-spacing: 0.04em; color: var(--doc-vert-sombre);
 }
 .at-espace { margin-top: 4mm !important; }
 .at-justifie { text-align: justify; }
 .at-val { font-weight: 600; }
 .at-vide { display: inline; }
-.at-consigne { color: #333; font-size: 9.5pt; }
-.at-pointilles { display: inline-block; min-width: 45mm; border-bottom: 0.3mm dotted #333; height: 1em; margin: 0 1mm; }
+.at-consigne { color: var(--doc-texte); font-size: 9.5pt; }
+.at-pointilles { display: inline-block; min-width: 45mm; border-bottom: 0.3mm dotted var(--doc-texte); height: 1em; margin: 0 1mm; }
 .at-cases { list-style: none; margin: 1mm 0 0 4mm; padding: 0; }
 .at-cases li { margin: 0.6mm 0; }
 .at-case { font-size: 12pt; }
 .at-signature { display: flex; justify-content: space-between; gap: 8mm; margin-top: 7mm; break-inside: avoid; }
 .at-fait p { margin-bottom: 3mm; }
-.at-cadre { width: 85mm; min-height: 36mm; border: 0.3mm solid #33402a; padding: 3mm; text-align: center; font-size: 9.5pt; }
+.at-cadre { width: 85mm; min-height: 36mm; border: 0.3mm solid var(--doc-vert-sombre); padding: 3mm; text-align: center; font-size: 9.5pt; }
 .at-cadre p { margin: 0; }
 .at-cadre-nom { margin-top: 3mm !important; font-weight: 600; }
-.at-notes { margin-top: auto; padding-top: 3mm; border-top: 0.3mm solid #777; font-size: 8.5pt; color: #333; }
+.at-notes { margin-top: auto; padding-top: 3mm; border-top: 0.3mm solid var(--doc-texte-gris); font-size: 8.5pt; color: var(--doc-texte); }
 .at-notes p { margin: 0 0 1mm; }
 .at-attestation { font-size: 10pt; }
 .at-resume { border-collapse: collapse; margin: 4mm 0 6mm; }
-.at-resume th { text-align: left; font-weight: 600; color: #556641; padding: 0.8mm 8mm 0.8mm 0; }
+.at-resume th { text-align: left; font-weight: 600; color: var(--doc-vert); padding: 0.8mm 8mm 0.8mm 0; }
 .at-resume td { font-weight: 600; }
-.at-sous-titre { margin: 4mm 0 2mm; font-size: 11pt; font-weight: 700; color: #33402a; }
+.at-sous-titre { margin: 4mm 0 2mm; font-family: var(--doc-police-titre); font-size: 11pt; font-weight: var(--doc-poids-titre); color: var(--doc-vert-sombre); }
 .at-table { font-size: 9pt; }
 .at-table td { vertical-align: top; }
 .at-nombre { white-space: nowrap; }
@@ -358,7 +358,7 @@ body.sig-ouverte { overflow: hidden; }
 .at-table-evenements th:nth-child(2) { width: 41mm; }
 .at-table-evenements th:nth-child(3) { width: 14mm; }
 .at-table-evenements th:nth-child(4) { width: 33mm; }
-.at-source { margin-top: 3mm !important; font-size: 8.5pt; color: #333; }
+.at-source { margin-top: 3mm !important; font-size: 8.5pt; color: var(--doc-texte); }
 
 @media print {
   body.emargement-printable > *:not(#emargement-print) { display: none !important; }

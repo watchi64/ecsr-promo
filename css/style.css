@@ -172,6 +172,7 @@
 
   /* Fond gris des planches de panneaux dans les questions (indépendant du thème : il détache les panneaux blancs). */
   --apercu-planche: #c6cbd1;
+  --apercu-scene: #5D635B;                           /* fond du cadre d'une scène animée d'un cours, derrière le dessin */
 
   /* --- Planning imprimable (feuille A4 : sa palette ne dépend pas de l'habillage de l'écran) --- */
   --doc-texte: #333;
@@ -199,6 +200,37 @@
   --doc-peda-fond: #FEFCE8;
   --doc-voiture-fond: #F0FDF4;
   --doc-controle-fond: #FFF7ED;
+
+  /* --- Documents imprimés (feuille d'émargement, certificats et attestations, dossier Qualiopi, dossier
+     professionnel) : même aspect quelle que soit la personne qui imprime, donc famille fixe (décision H5).
+     Un document n'emploie aucun jeton d'habillage, pas même la police des titres. --- */
+  --doc-police-titre: "Canela", "Cormorant Garamond", "Playfair Display", Georgia, serif;   /* titres de document : la pile actuelle de --font-display, figée */
+  --doc-poids-titre: 700;                            /* h1, h2, h3 du dossier Qualiopi, titre et sous-titres des attestations */
+  --doc-poids-titre-feuille: 600;                    /* titre de la feuille d'émargement */
+  --doc-encre: #1F2924;                              /* texte du dossier Qualiopi, encre de la signature rendue */
+  --doc-noir: #111;                                  /* texte de la feuille d'émargement et des attestations */
+  --doc-en-tete-fond: #eef1ea;                       /* en-tête de tableau de la feuille, avant son habillage vert */
+  --doc-absent: #8a3b1f;                             /* absent, observation manquante, total d'absences */
+  --doc-absent-fond: #FBEEE6;
+  --doc-sans-fond-1: #f3f3f3;                        /* hachures d'une case sans séance */
+  --doc-sans-fond-2: #e6e6e6;
+  --doc-trait-pointille: #888;
+  --doc-vert: #556641;                               /* vert du centre : bandeau, titres de colonne, cadres */
+  --doc-vert-moyen: #6B7F4E;                         /* en-tête des tableaux de la feuille */
+  --doc-vert-sombre: #33402a;
+  --doc-vert-trait: #B7C0AA;
+  --doc-vert-fond: #EAEFD9;
+  --doc-vert-fond-doux: #EEF2E7;
+  --doc-vert-fond-pale: #F4F7F0;                     /* ligne paire d'un tableau */
+  --doc-vert-total: #DDE9C4;
+  --doc-total-ko-fond: #F6E4D7;
+  --doc-gris-vert: #46554A;
+  --doc-avertissement: #8A6A1F;                      /* fiche des résultats à publier : bandeau d'avertissement */
+  --doc-avertissement-fond: #FBF2D9;
+  --doc-dp-vide: #9a9a9a;                            /* dossier professionnel : repère de saisie et sommaire vide */
+  --doc-dp-note: #8a8578;                            /* coupure de page et mention d'une fiche exclue */
+  --doc-dp-exclu-fond: #fbfbfa;
+  --doc-dp-exclu-trait: #c9c6bd;
 
   /* --- Graphes des notes (habillage : leurs classes `notes-*` posent ces couleurs, un attribut SVG ne suivrait pas) --- */
   --graphe-axe:        var(--line-strong);           /* axe de référence : zéro ou dix sur vingt */

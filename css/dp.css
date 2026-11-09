@@ -223,7 +223,7 @@
 
 /* Repères de saisie : visibles à l'écran, jamais imprimés. Un dossier remis au
    jury ne doit pas porter « Cliquez ici pour taper du texte ». */
-.dp-doc .lv-f:empty::before { color: #9a9a9a; font-style: italic; }
+.dp-doc .lv-f:empty::before { color: var(--doc-dp-vide); font-style: italic; }
 #dp-print .lv-f:empty::before { content: "" !important; }
 
 /* --- Couverture ---------------------------------------------------------- */
@@ -292,7 +292,7 @@
 .dp-sommaire-ligne { display: flex; align-items: baseline; gap: 2mm; padding: 1.6mm 0 1.6mm 4mm; }
 .dp-sommaire-intitule { flex: 1 1 auto; min-width: 0; }
 .dp-sommaire-intitule i { font-weight: 700; }
-.dp-sommaire-vide { color: #9a9a9a; font-style: italic; }
+.dp-sommaire-vide { color: var(--doc-dp-vide); font-style: italic; }
 .dp-sommaire-page { white-space: nowrap; }
 /* Case carrée du modèle, à droite de chaque ligne. Décorative : sa fonction
    n'est pas documentée, lui donner un champ reviendrait à inventer une donnée. */
@@ -428,7 +428,7 @@
   margin: 5mm -6mm;
   border-top: 0.4mm dashed var(--dp-cadre);
   font-size: 8pt;
-  color: #8a8578;
+  color: var(--doc-dp-note);
   text-align: right;
   padding-top: 1mm;
 }
@@ -436,8 +436,8 @@
 /* Fiche d'exemple encore vide : affichée en édition, absente du document
    imprimé. Le candidat doit pouvoir y saisir tout en voyant qu'elle ne compte
    pas tant qu'elle reste vide. */
-.dp-bloc-exclu { background: #fbfbfa; outline: 0.3mm dashed #c9c6bd; }
-.dp-mention-exclu { font-size: 8pt; font-style: italic; color: #8a8578; margin-bottom: 2mm; }
+.dp-bloc-exclu { background: var(--doc-dp-exclu-fond); outline: 0.3mm dashed var(--doc-dp-exclu-trait); }
+.dp-mention-exclu { font-size: 8pt; font-style: italic; color: var(--doc-dp-note); margin-bottom: 2mm; }
 
 /* Conteneur hors écran : il porte le document de mesure et le document composé
    prêt à imprimer. Il est POSITIONNÉ hors de l'écran, jamais masqué : un

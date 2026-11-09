@@ -17,6 +17,9 @@ import { PREFIXES_HABILLAGE, FAMILLES_FIXES, familleDe, correspond } from "../js
 //      bloc ECF (css/habillage-ecf.css) ou sur une racine de document (RACINES_DOCUMENTS).
 //   3. JS : aucune couleur hex, rgb ou hsl non neutre, hors EXEMPTS_JS.
 //   4. Tout jeton de couleur de :root a une famille (js/habillage-familles.js).
+//   6. CSS : une règle qui vise un document imprimé (feuille d'émargement, dossier Qualiopi, certificats et
+//      attestations, dossier professionnel) n'emploie aucune variable de la famille d'habillage, même en repli
+//      de var() : un document imprimé a le même aspect quelle que soit la personne qui l'imprime (décision H5).
 // La cinquième règle est le cliquet lui-même.
 
 const RACINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -48,13 +51,8 @@ export const EXEMPTS_JS = [
   "js/echelle-notes.js",      // échelle continue des notes (teinte calculée, une par dixième de point) : un sens, pas un habillage
 ];
 
-// Le cliquet : nombre d'écarts aux règles 1 à 4, par fichier. Il ne peut que baisser. Vide à la fin de la tâche 5.
-export const DETTE = {
-  "css/cours-blocs.css": 1,
-  "css/dp.css": 6,
-  "css/emargement.css": 47,
-  "css/qualiopi.css": 13,
-};
+// Le cliquet : nombre d'écarts aux règles 1 à 4, par fichier. Il ne peut que baisser. Vide depuis la tâche 5 : toute nouvelle couleur en dur est refusée d'emblée.
+export const DETTE = {};
 
 // --- Rappels des règles, sur un texte (pur, donc testable sur de petits exemples) ---
 
@@ -88,6 +86,30 @@ export function ecartsCss(fichier, texte) {
       if (impression) continue;
       for (const c of couleursLitterales(valeur)) {
         if (!estNeutre(c)) ecarts.push({ fichier, ligne: d.ligne, regle: 1, litteral: c });
+      }
+    }
+  }
+  return ecarts;
+}
+
+// Règle 6. Les sélecteurs qui désignent un document imprimé : .emf-* et .em-feuille (feuille d'émargement),
+// .qdoc et .qres-* (dossier Qualiopi), les classes .at-* du certificat et de l'attestation, .dp-doc (dossier
+// professionnel), et leurs conteneurs d'impression. Les .at-* de la page écran des attestations (période,
+// puces, lignes, chiffres) suivent l'habillage : seules les classes de document sont nommées, une classe
+// de document nouvelle s'ajoute ici.
+const AT_DOCUMENT = "doc|certificat|attestation|pagination|marge|entete|organisme|adresse|titre|espace|justifie|val|vide|consigne|pointilles|case|signature|fait|cadre|notes|resume|sous-titre|table|nombre|source";
+const SELECTEUR_DOCUMENT = new RegExp(String.raw`\.emf-|\.em-feuille|\.qdoc|\.qres-|\.at-(?:${AT_DOCUMENT})|\.dp-doc|#emargement-print|#qualiopi-print|#dp-print`);
+
+// Les écarts d'un fichier CSS à la règle 6 : { fichier, ligne, regle: 6, litteral }.
+export function ecartsDocuments(fichier, texte) {
+  const ecarts = [];
+  for (const regle of lireRegles(texte)) {
+    if (!SELECTEUR_DOCUMENT.test(regle.selecteur)) continue;
+    for (const d of regle.declarations) {
+      for (const m of d.valeur.matchAll(/var\(\s*(--[\w-]+)/g)) {
+        if (familleDe(m[1]) === "habillage") {
+          ecarts.push({ fichier, ligne: d.ligne, regle: 6, litteral: `${m[1]} dans « ${regle.selecteur} »` });
+        }
       }
     }
   }
@@ -175,7 +197,7 @@ function releveEcarts() {
   for (const f of listeFichiers("css", ".css", false)) {
     if (CSS_IGNORES.has(f)) continue;
     const texte = fs.readFileSync(path.join(RACINE, f), "utf8");
-    note(f, [...ecartsCss(f, texte), ...ecartsFamilles(f, texte)]);
+    note(f, [...ecartsCss(f, texte), ...ecartsFamilles(f, texte), ...ecartsDocuments(f, texte)]);
   }
   for (const f of listeFichiers("js", ".js", true)) {
     if (estExemptJs(f)) continue;
@@ -184,7 +206,7 @@ function releveEcarts() {
   return parFichier;
 }
 
-const DECRIT = { 1: "couleur écrite en dur", 2: "variable de couleur hors :root", 3: "couleur écrite en dur (JS)", 4: "jeton sans famille" };
+const DECRIT = { 1: "couleur écrite en dur", 2: "variable de couleur hors :root", 3: "couleur écrite en dur (JS)", 4: "jeton sans famille", 6: "jeton d'habillage dans un document imprimé" };
 const decrit = (e) => `  ${e.fichier}:${e.ligne}  règle ${e.regle} (${DECRIT[e.regle]})  ${e.litteral}`;
 
 // --- Le cliquet (règle 5) ---
@@ -326,6 +348,19 @@ test("règle 2 : une variable de couleur ne se déclare que dans :root, le bloc 
     "hors css/habillage-ecf.css, le bloc ECF est refusé");
   assert.deepEqual(ecartsCss("css/habillage-ecf.css", css).filter((e) => e.regle === 2).map((e) => e.ligne), [1, 3],
     "le bloc ECF n'est accepté que dans son fichier, et :root seulement dans css/style.css");
+});
+
+test("règle 6 : un document imprimé n'emploie aucun jeton d'habillage, même en repli", () => {
+  const css = [
+    ".emf-titre { font-family: var(--doc-police-titre); color: var(--doc-encre); }",
+    ".qdoc h2 { color: var(--text); }",
+    ".at-titre { font-family: var(--font-display); }",
+    ".dp-doc .x { border: 1px solid var(--doc-trait-fort, var(--line)); }",
+    ".at-ligne { color: var(--text); }",
+    ".em-demi { color: var(--text-muted); }",
+  ].join("\n");
+  assert.deepEqual(ecartsDocuments("css/x.css", css).map((e) => [e.ligne, e.litteral.split(" ")[0]]),
+    [[2, "--text"], [3, "--font-display"], [4, "--line"]]);
 });
 
 test("règle 3 : le JS refuse hex, rgb, hsl non neutres, ignore les commentaires et les chaînes d'adresse", () => {
