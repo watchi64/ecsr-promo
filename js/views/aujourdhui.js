@@ -8,23 +8,23 @@
  */
 import {
   getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre,
-} from "../db.js?v=20261109a";
-import { el, clear, displayStagiaire } from "../utils.js?v=20261109a";
-import { icon } from "../icons.js?v=20261109a";
-import { monStagiaireId, isAdmin } from "../auth-admin.js?v=20261109a";
-import { emargementActif } from "../emargement-etat.js?v=20261109a";
-import { lignePromo } from "../accueil-rules.js?v=20261109a";
-import { journeeDuJour } from "../journee-rules.js?v=20261109a";
-import { indicateursPromo } from "../centre-stats.js?v=20261109a";
-import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261109a";
-import { signerSeance } from "../emargement-bandeau.js?v=20261109a";
-import { chargerATraiter } from "../a-traiter.js?v=20261109a";
+} from "../db.js?v=20261109c";
+import { el, clear, displayStagiaire } from "../utils.js?v=20261109c";
+import { icon } from "../icons.js?v=20261109c";
+import { monStagiaireId, isAdmin } from "../auth-admin.js?v=20261109c";
+import { emargementActif } from "../emargement-etat.js?v=20261109c";
+import { lignePromo } from "../accueil-rules.js?v=20261109c";
+import { journeeDuJour } from "../journee-rules.js?v=20261109c";
+import { indicateursPromo } from "../centre-stats.js?v=20261109c";
+import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261109c";
+import { signerSeance } from "../emargement-bandeau.js?v=20261109c";
+import { chargerATraiter } from "../a-traiter.js?v=20261109c";
 import {
   titreSelonDemis, auTableauDuJour, enVoitureDuJour, feuilleDuJour, lignesATraiter, ligneDeLEnTete,
-} from "../aujourdhui-rules.js?v=20261109a";
+} from "../aujourdhui-rules.js?v=20261109c";
 import {
   carte, plusLien, ligneLien, erreurAvecReessai, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
-} from "./pages-cartes.js?v=20261109a";
+} from "./pages-cartes.js?v=20261109c";
 
 const RELECTURE_SEANCES_MS = 60000;
 const NB_A_SUIVRE = 5;
