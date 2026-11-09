@@ -84,8 +84,8 @@ ok(/^Heures réalisées divisées par heures prévues, sur les feuilles d'émarg
 "METHODES.presence : la phrase de l'équipe (R6), feuilles closes, toutes lignes comprises");
 ok(/^Nombre de stagiaires déclarés admis par le jury du titre professionnel, divisé par le nombre de stagiaires présentés à l'examen\.$/.test(METHODES_PUBLIQUES.titre),
   "titre : les admis du jury divisés par les présentés à l'examen");
-ok(/anonyme : part des réponses favorables, calculée sur les stagiaires qui ont donné un avis\. Aucun résultat n'est publié sous 5 réponses\.$/.test(METHODES_PUBLIQUES.satisfaction), "satisfaction : questionnaire anonyme, part des réponses favorables sur les stagiaires qui ont donné un avis, rien sous 5 réponses");
-ok(/5 réponses/.test(METHODES.satisfaction) && !METHODES.satisfaction.includes(TIRET_CADRATIN), "METHODES.satisfaction : la phrase de l'équipe, affichée à partir de 5 réponses");
+ok(/anonyme : part des réponses favorables, calculée sur les stagiaires qui ont donné un avis\. Aucun résultat n'est publié sous 5 avis notés\.$/.test(METHODES_PUBLIQUES.satisfaction), "satisfaction : questionnaire anonyme, part des réponses favorables sur les stagiaires qui ont donné un avis, rien sous 5 avis notés");
+ok(/5 avis notés/.test(METHODES.satisfaction) && /« sans avis » exclu/.test(METHODES.satisfaction) && !METHODES.satisfaction.includes(TIRET_CADRATIN), "METHODES.satisfaction : la phrase de l'équipe, affichée à partir de 5 avis notés, sans avis exclu");
 // Les ajouts à METHODES sont sans effet sur le tableau de bord : il n'affiche que les clés qu'il liste (js/views/centre.js).
 {
   const centre = lire("js/views/centre.js");

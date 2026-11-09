@@ -660,7 +660,7 @@ eq(cSans.aFournir, c.aFournir, "les mêmes sans les noms");
 eq(section(c, "resultats").paragraphes, [
   "Résultats donnés promo par promo, sans total : 2 promos, dont 1 terminée et 1 en cours.",
   "Une promo est terminée quand sa date de fin est renseignée et passée ; les chiffres d'une promo en cours sont provisoires.",
-  "Satisfaction des stagiaires, méthode de calcul : Avis des stagiaires recueillis par le questionnaire de fin de formation, anonyme : part des réponses favorables, calculée sur les stagiaires qui ont donné un avis. Aucun résultat n'est publié sous 5 réponses.",
+  "Satisfaction des stagiaires, méthode de calcul : Avis des stagiaires recueillis par le questionnaire de fin de formation, anonyme : part des réponses favorables, calculée sur les stagiaires qui ont donné un avis. Aucun résultat n'est publié sous 5 avis notés.",
 ], "résultats : promo par promo, jamais en total, puis la méthode publique de la satisfaction");
 eq(entetesDe(c, "resultats", 0), ["Promo", "Période", "État", "Inscrits", "Abandons", "Absences", "Passages"], "résultats : effectif et parcours");
 eq(lignesDe(c, "resultats", 0), [

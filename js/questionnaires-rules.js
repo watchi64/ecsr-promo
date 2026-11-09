@@ -75,6 +75,12 @@ export function texteSousSeuil(publicCible) {
   return `moins de ${seuilDe(publicCible)} réponses`;
 }
 
+// « moins de 5 avis notés » : ce qui remplace un taux de satisfaction masqué. Le taux se calcule sur les avis notés
+// (« sans avis » exclu) : cinq réponses dont une « sans avis » restent sous le seuil du taux.
+export function texteSousSeuilAvis(publicCible) {
+  return `moins de ${seuilDe(publicCible)} avis notés`;
+}
+
 // Un compte lisible : entier positif ou nul, sinon 0 (jamais de NaN).
 function compte(valeur) {
   const v = Number(valeur);

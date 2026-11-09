@@ -23,7 +23,7 @@
 import { METHODES_PUBLIQUES, pct } from "./centre-stats.js?v=20261108c";
 import { promoTerminee, periodeEnMots, edition } from "./qualiopi-documents.js?v=20261108c";
 import { rempli, tableau, nb } from "./qualiopi-preuves.js?v=20261108c";
-import { texteSousSeuil } from "./questionnaires-rules.js?v=20261108c";
+import { texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261108c";
 
 // L'interface du plan : la règle « terminée » est celle des dossiers et les méthodes publiques celles du tableau de bord
 // (js/centre-stats.js, à côté de METHODES) ; ni l'une ni les autres ne sont réécrites ici, seulement réexportées.
@@ -73,17 +73,17 @@ export function ficheResultats({ promo, ind, aujourdhui, presence = null, obtent
     const t = taux(donnee?.taux);
     return t === null ? ligne(cle, VALEURS_ABSENTES[cle], SANS_OBJET, MESURE_NON_DISPONIBLE) : ligne(cle, pct(t), entier(donnee.effectif) ?? inscrits);
   };
-  // La satisfaction du questionnaire de fin de formation : le taux est un entier de 0 à 100, l'effectif est celui des répondants,
+  // La satisfaction du questionnaire de fin de formation : le taux est un entier de 0 à 100, l'effectif est celui des avis notés,
   // dit avec celui des inscrits (`effectifTexte`). Sous le seuil, la phrase fixe et aucun chiffre ; sinon l'ancienne forme.
   const satisfactionMesure = () => {
     if (satisfaction?.etat === "non_lue") return ligne("satisfaction", "non lue (erreur de lecture)", SANS_OBJET, MESURE_NON_DISPONIBLE);
-    if (satisfaction?.etat === "sous_seuil") return ligne("satisfaction", texteSousSeuil("stagiaire"), SANS_OBJET, MESURE_NON_DISPONIBLE);
+    if (satisfaction?.etat === "sous_seuil") return ligne("satisfaction", texteSousSeuilAvis("stagiaire"), SANS_OBJET, MESURE_NON_DISPONIBLE);
     const t = Number.isInteger(satisfaction?.repondants) && Number.isInteger(satisfaction?.taux) && satisfaction.taux >= 0 && satisfaction.taux <= 100
       ? satisfaction.taux / 100 : null;
     if (t === null) return mesure("satisfaction", satisfaction?.repondants === undefined ? satisfaction : null);
     const l = ligne("satisfaction", pct(t), satisfaction.repondants);
     const sur = entier(satisfaction.inscrits) > 0 ? ` sur ${nb(satisfaction.inscrits, "inscrit")}` : "";
-    return { ...l, effectifTexte: `${nb(satisfaction.repondants, "répondant")}${sur}` };
+    return { ...l, effectifTexte: `${nb(satisfaction.repondants, "avis noté", "avis notés")}${sur}` };
   };
   const abandon = taux(ind?.abandon?.valeur);
   return {

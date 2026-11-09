@@ -50,7 +50,7 @@ test("pièce « appreciations » : servie aux indicateurs 30 et 32, présente à
     const p = pieceDe(i, numero);
     assert.equal(p.presente, true);
     assert.equal(p.raison, null);
-    assert.match(p.detail, /^questionnaire de fin de formation, 80\s% de réponses favorables \(5 répondants sur 10 inscrits\)$/);
+    assert.match(p.detail, /^questionnaire de fin de formation, 80\s% de réponses favorables \(5 avis notés sur 10 inscrits\)$/);
   }
 });
 
@@ -58,7 +58,7 @@ test("pièce « appreciations » : sous le seuil, une raison fixe sans chiffre",
   const p = pieceDe(inv({ etat: "sous_seuil" }), 30);
   assert.equal(p.presente, false);
   assert.equal(p.detail, null);
-  assert.equal(p.raison, "moins de 5 réponses au questionnaire de fin de formation");
+  assert.equal(p.raison, "moins de 5 avis notés au questionnaire de fin de formation");
 });
 
 test("pièce « appreciations » : migration absente ou rien lu, absente avec une raison calme", () => {
@@ -88,7 +88,7 @@ test("le niveau de l'indicateur 30 reste celui de l'annexe A", () => {
 
 test("sans inscrit connu, la phrase ne dit pas « sur 0 inscrit »", () => {
   const p = pieceDe(inv({ etat: "mesuree", taux: 100, repondants: 5, inscrits: 0 }, 0), 30);
-  assert.match(p.detail, /\(5 répondants\)$/);
+  assert.match(p.detail, /\(5 avis notés\)$/);
 });
 
 // --- Fiche résultats ---
@@ -97,21 +97,21 @@ const IND = indicateursPromo({ stagiaires: stagiaires(10) }, REF, { aujourdhui: 
 const fiche = (satisfaction) => ficheResultats({ promo: PROMO, ind: IND, aujourdhui: AUJOURDHUI, satisfaction });
 const ligneSat = (satisfaction) => fiche(satisfaction).lignes.find((l) => l.cle === "satisfaction");
 
-test("fiche résultats : la satisfaction mesurée porte son taux, ses répondants, ses inscrits et sa méthode publique", () => {
+test("fiche résultats : la satisfaction mesurée porte son taux, ses avis notés, ses inscrits et sa méthode publique", () => {
   const l = ligneSat({ taux: 80, repondants: 8, inscrits: 10 });
   assert.match(l.valeur, /^80\s%$/);
   assert.equal(l.effectif, 8);
-  assert.equal(l.effectifTexte, "8 répondants sur 10 inscrits");
+  assert.equal(l.effectifTexte, "8 avis notés sur 10 inscrits");
   assert.equal(l.methode, METHODES_PUBLIQUES.satisfaction);
   assert.deepEqual(ligneSat({ etat: "mesuree", taux: 80, repondants: 8, inscrits: 10 }), l);
   const f = fiche({ taux: 80, repondants: 8, inscrits: 10 });
-  assert.match(ficheResultatsTexte(f), /Satisfaction des stagiaires : 80\s%\nEffectif : 8 répondants sur 10 inscrits\. Période : /);
-  assert.ok(tableauFiche(f).lignes.some((r) => r[0] === "Satisfaction des stagiaires" && r[2] === "8 répondants sur 10 inscrits"));
+  assert.match(ficheResultatsTexte(f), /Satisfaction des stagiaires : 80\s%\nEffectif : 8 avis notés sur 10 inscrits\. Période : /);
+  assert.ok(tableauFiche(f).lignes.some((r) => r[0] === "Satisfaction des stagiaires" && r[2] === "8 avis notés sur 10 inscrits"));
 });
 
-test("fiche résultats : sous le seuil, « moins de 5 réponses » et aucun chiffre ; migration absente, « non mesurée »", () => {
+test("fiche résultats : sous le seuil, « moins de 5 avis notés » et aucun chiffre ; migration absente, « non mesurée »", () => {
   const sous = ligneSat({ etat: "sous_seuil" });
-  assert.equal(sous.valeur, "moins de 5 réponses");
+  assert.equal(sous.valeur, "moins de 5 avis notés");
   assert.equal(sous.effectif, "sans objet");
   assert.equal(ligneSat({ etat: "absente" }).valeur, "non mesurée");
   assert.equal(ligneSat(null).valeur, "non mesurée");
@@ -120,7 +120,7 @@ test("fiche résultats : sous le seuil, « moins de 5 réponses » et aucun chif
   assert.equal(nonLue.effectif, "sans objet");
   assert.ok(!/non mesurée/.test(ficheResultatsTexte(fiche({ etat: "non_lue" }))), "jamais « non mesurée » pour une lecture en échec");
   const texte = ficheResultatsTexte(fiche({ etat: "sous_seuil" }));
-  assert.match(texte, /Satisfaction des stagiaires : moins de 5 réponses/);
+  assert.match(texte, /Satisfaction des stagiaires : moins de 5 avis notés/);
   assert.ok(!/Satisfaction des stagiaires : \d/.test(texte));
 });
 
@@ -145,7 +145,7 @@ const sectionApp = (m) => m.sections.find((s) => s.id === "appreciations");
 test("dossier de la formation : section « Appréciations » remplie au-dessus du seuil, avec la méthode", () => {
   const s = sectionApp(modeleFormation({ etat: "mesuree", taux: 80, repondants: 8, inscrits: 10 }));
   const texte = s.paragraphes.join("\n");
-  assert.match(texte, /Appréciations : questionnaire de fin de formation, 80\s% de réponses favorables \(8 répondants sur 10 inscrits\)\./);
+  assert.match(texte, /Appréciations : questionnaire de fin de formation, 80\s% de réponses favorables \(8 avis notés sur 10 inscrits\)\./);
   assert.ok(texte.includes(METHODES_PUBLIQUES.satisfaction));
   assert.match(texte, /avis des financeurs et des entreprises/i);
   assert.deepEqual(s.indicateurs, [30]);
@@ -153,7 +153,7 @@ test("dossier de la formation : section « Appréciations » remplie au-dessus d
 
 test("dossier de la formation : sous le seuil, la phrase fixe sans chiffre ; migration absente, une phrase calme", () => {
   const sous = sectionApp(modeleFormation({ etat: "sous_seuil" })).paragraphes.join("\n");
-  assert.match(sous, /moins de 5 réponses au questionnaire de fin de formation/);
+  assert.match(sous, /moins de 5 avis notés au questionnaire de fin de formation/);
   assert.ok(!sous.includes(METHODES_PUBLIQUES.satisfaction), "pas de méthode d'un calcul qui n'a pas eu lieu");
   const absente = sectionApp(modeleFormation({ etat: "absente" })).paragraphes.join("\n");
   assert.match(absente, /questionnaire de fin de formation pas encore en service/);
@@ -186,8 +186,8 @@ test("dossier du centre : un taux par promo, jamais de total, la raison sous le 
     const t = tableSat(modeleCentre(sansNoms));
     assert.ok(t, "tableau de la satisfaction");
     assert.equal(t.lignes.length, 4);
-    assert.match(t.lignes[0][1], /^questionnaire de fin de formation, 80\s% de réponses favorables \(8 répondants sur 10 inscrits\)$/);
-    assert.equal(t.lignes[1][1], "moins de 5 réponses au questionnaire de fin de formation");
+    assert.match(t.lignes[0][1], /^questionnaire de fin de formation, 80\s% de réponses favorables \(8 avis notés sur 10 inscrits\)$/);
+    assert.equal(t.lignes[1][1], "moins de 5 avis notés au questionnaire de fin de formation");
     assert.equal(t.lignes[2][1], "questionnaire de fin de formation pas encore en service");
     assert.equal(t.lignes[3][1], RAISON_NON_LUE);
     assert.deepEqual(t.lignes.map((l) => l[0]), ["Promo A", "Promo B", "Promo C", "Promo D"]);

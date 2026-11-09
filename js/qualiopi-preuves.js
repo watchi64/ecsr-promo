@@ -50,7 +50,7 @@ import { ACTIVITY_SHAPES } from "./config.js?v=20261108c";
 import { jourFerie } from "./emargement-rules.js?v=20261108c";
 import { parseDate, addDays, isoDate } from "./utils.js?v=20261108c";
 import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261108c";
-import { tauxSatisfaction, texteSousSeuil } from "./questionnaires-rules.js?v=20261108c";
+import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261108c";
 
 // Annexe A de la spec, cellule par cellule, pour les 28 indicateurs d'un centre de formation continue (les 27 plus
 // le 13 de l'alternance). niveau : « prouve » (l'app fournit l'essentiel), « partiel » (en partie) ou « hors »
@@ -236,8 +236,9 @@ const GLOBALE_FIN_STAGIAIRE = QUESTIONNAIRES.fin_stagiaire.questions.find((q) =>
 
 // Le résultat du questionnaire « fin de formation » d'une promo, prêt pour les dossiers. `resultats` est ce que rend la base
 // (lireResultatsQuestionnaire : comptes par question, rien sous le seuil), `inscrits` le nombre de fiches de la promo.
-//   { etat: "mesuree", taux, repondants, inscrits } : taux entier en pourcent, « sans avis » exclu, au moins 5 répondants notés ;
-//   { etat: "sous_seuil" } : moins de 5 réponses notées, aucun chiffre ;
+//   { etat: "mesuree", taux, repondants, inscrits } : taux entier en pourcent, « sans avis » exclu, au moins 5 avis notés
+//   (`repondants` compte les avis notés, pas les réponses) ;
+//   { etat: "sous_seuil" } : moins de 5 avis notés, aucun chiffre ;
 //   { etat: "absente" } : la fonction de la base n'existe pas (migration pas appliquée), seuil nul ; la pièce le dit calmement ;
 //   { etat: "non_lue" } : la lecture a échoué (réseau, droit) ou n'a pas eu lieu (`{ echec: true }`, rien) : le questionnaire peut
 //   être en service avec des réponses, la pièce dit seulement qu'il n'a pas été lu. Jamais confondue avec « absente ».
@@ -248,8 +249,8 @@ export function satisfactionDe(resultats, inscrits) {
   return mesure ? { etat: "mesuree", ...mesure } : { etat: "sous_seuil" };
 }
 
-// « moins de 5 réponses au questionnaire de fin de formation » : la raison fixe d'une pièce sous le seuil.
-const RAISON_SOUS_SEUIL = `${texteSousSeuil("stagiaire")} au questionnaire de fin de formation`;
+// « moins de 5 avis notés au questionnaire de fin de formation » : la raison fixe d'une pièce sous le seuil.
+const RAISON_SOUS_SEUIL = `${texteSousSeuilAvis("stagiaire")} au questionnaire de fin de formation`;
 const RAISON_SANS_QUESTIONNAIRE = "questionnaire de fin de formation pas encore en service";
 export const RAISON_NON_LUE = "questionnaire de fin de formation non lu (erreur de lecture)";
 
@@ -405,12 +406,12 @@ const CONSTRUCTEURS = {
     return presente(`${nb(mesures, "indicateur mesuré", "indicateurs mesurés")}, chacun avec sa méthode de calcul ; réussite au titre non mesurée`);
   },
 
-  // Des comptes seulement, jamais un commentaire. Au-dessus du seuil : le taux des réponses favorables, les répondants et les inscrits ;
+  // Des comptes seulement, jamais un commentaire. Au-dessus du seuil : le taux des réponses favorables, les avis notés et les inscrits ;
   // sous le seuil ou sans questionnaire : une raison fixe, sans chiffre.
   appreciations: ({ satisfaction }) => {
     if (satisfaction?.etat === "mesuree") {
       const sur = satisfaction.inscrits > 0 ? ` sur ${nb(satisfaction.inscrits, "inscrit")}` : "";
-      return presente(`questionnaire de fin de formation, ${pct(satisfaction.taux / 100)} de réponses favorables (${nb(satisfaction.repondants, "répondant")}${sur})`);
+      return presente(`questionnaire de fin de formation, ${pct(satisfaction.taux / 100)} de réponses favorables (${nb(satisfaction.repondants, "avis noté", "avis notés")}${sur})`);
     }
     if (satisfaction?.etat === "sous_seuil") return absente(RAISON_SOUS_SEUIL);
     return absente(satisfaction?.etat === "absente" ? RAISON_SANS_QUESTIONNAIRE : RAISON_NON_LUE);
