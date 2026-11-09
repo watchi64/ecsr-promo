@@ -1077,7 +1077,7 @@ function rerender(container) {
   ));
 
   // Tri (toujours visible)
-  const sortSel = el("select", { class: "notes-sort" });
+  const sortSel = el("select", { class: "notes-sort", "aria-label": "Trier la matrice" });
   NOTES_SORT_OPTIONS.forEach((o) => {
     const opt = el("option", { value: o.key }, o.label);
     if (o.key === currentNotesSort) opt.selected = true;
@@ -1092,7 +1092,7 @@ function rerender(container) {
   let toolbar;
   if (admin) {
     // Barre date globale : toutes les notes saisies prendront cette date
-    const dateInput = el("input", { type: "date", value: currentEvalDate });
+    const dateInput = el("input", { type: "date", value: currentEvalDate, "aria-label": "Date des notes" });
     dateInput.addEventListener("change", () => {
       currentEvalDate = dateInput.value || isoDate(new Date());
     });
@@ -1249,12 +1249,12 @@ function renderSynthese() {
 
   wrap.appendChild(el("div", { class: "notes-rankings" },
     el("div", { class: "ranking-block" },
-      el("h4", { class: "ranking-title weak" }, "🔻 3 thèmes les plus faibles"),
+      el("h4", { class: "ranking-title weak" }, "3 thèmes les plus faibles"),
       el("p", { class: "muted ranking-sub" }, "À retravailler en priorité"),
       ...weak.map(themeCard),
     ),
     el("div", { class: "ranking-block" },
-      el("h4", { class: "ranking-title strong" }, "🔺 3 thèmes les plus solides"),
+      el("h4", { class: "ranking-title strong" }, "3 thèmes les plus solides"),
       el("p", { class: "muted ranking-sub" }, "Acquis confirmés"),
       ...strong.map(themeCard),
     ),

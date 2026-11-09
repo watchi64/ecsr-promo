@@ -66,7 +66,8 @@ export function erreurAvecReessai(corps, texte, relire) {
 
 // Une ligne d'une liste de carte dont l'action est un bouton, pas la ligne entière (une liste où chaque ligne porte son
 // verbe : « S'entraîner », « Relire »). Même pastille d'icône, même titre et même détail que ligneLien. `puces` : des
-// repères courts posés avant le bouton (« Examen ouvert »). `bouton` : { texte, primaire, nom, onClick } ; `nom` est le nom
+// repères courts posés avant le bouton : un texte, ou { texte, ok: true } pour un état ouvert, vert comme « Ouverte » de
+// l'émargement (« Examen ouvert » ; audit du 09/11, lot E). `bouton` : { texte, primaire, nom, onClick } ; `nom` est le nom
 // complet du bouton pour un lecteur d'écran (« S'entraîner : Thème 22 · Feux du véhicule »), parce que dix boutons
 // « S'entraîner » à la suite ne disent pas lequel est lequel.
 export function ligneAction({ ico, titre, detail = "", puces = [], bouton }) {
@@ -74,7 +75,9 @@ export function ligneAction({ ico, titre, detail = "", puces = [], bouton }) {
     el("span", { class: "acc-ligne-ico", "aria-hidden": "true" }, icon[ico]()),
     el("span", { class: "acc-ligne-texte" }, el("b", {}, titre), detail ? el("span", {}, detail) : null),
     el("span", { class: "acc-ligne-actions" },
-      ...puces.filter(Boolean).map((p) => el("span", { class: "acc-ligne-puce" }, p)),
+      ...puces.filter(Boolean).map((p) => (typeof p === "string"
+        ? el("span", { class: "acc-ligne-puce" }, p)
+        : el("span", { class: "acc-ligne-puce" + (p.ok ? " acc-ligne-puce-ok" : "") }, p.texte))),
       el("button", { type: "button", class: "btn" + (bouton.primaire ? " primary" : ""), "aria-label": bouton.nom || null, onClick: bouton.onClick }, bouton.texte),
     ),
   );

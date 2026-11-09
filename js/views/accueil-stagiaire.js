@@ -30,8 +30,6 @@ const RELECTURE_SEANCES_MS = 60000;
 // ouvertes quand un formateur la ferme, et « Signé à 8 h 52 » doit rester dit jusqu'à la fin de la visite.
 const signeesDuJour = new Map();   // "<stagiaire>:AAAA-MM-JJ:matin" -> "8 h 52"
 
-// "9h04" (heureLocale) -> "9 h 04" : l'écriture du reste de la page.
-const heureEspacee = (h) => String(h).replace("h", " h ");
 
 // « 09:00 » et « 12:30 » d'une séance -> « 9 h à 12 h 30 » : l'écriture des horaires du planning (journee-rules).
 function horaireDeSeance({ debut, fin }) {
@@ -69,7 +67,7 @@ function signature(jour, demi, seance, moi, redessiner) {
   if (moi == null) return null;
   const cle = `${moi}:${jour}:${demi}`;
   const ligne = seance && seance.lignes.find((x) => x.stagiaire_id === moi);
-  if (ligne && ligne.signe_le) signeesDuJour.set(cle, heureEspacee(heureLocale(ligne.signe_le)));
+  if (ligne && ligne.signe_le) signeesDuJour.set(cle, heureLocale(ligne.signe_le));
   const heure = signeesDuJour.get(cle);
   if (heure) return el("p", { class: "acc-signe" }, icon.check(), `Signé à ${heure}`);
   if (!seance || (ligne && ligne.absent)) return null;   // pas de feuille ouverte, ou noté absent : le bandeau le dit
@@ -78,7 +76,7 @@ function signature(jour, demi, seance, moi, redessiner) {
       type: "button", class: "btn primary",
       onClick: async () => {
         if (!(await signerSeance(seance, moi))) return;
-        signeesDuJour.set(cle, heureEspacee(heureLocale(new Date().toISOString())));
+        signeesDuJour.set(cle, heureLocale(new Date().toISOString()));
         redessiner();
       },
     }, icon.check(), DEMI[demi].signer));
@@ -273,7 +271,7 @@ export function renderAccueilStagiaire(container) {
     titre: "Aujourd'hui", ico: "sun", classe: "acc-heros", zone: "aujourdhui",
     plus: routeVisible("planning") ? plusLien("planning", "Ouvrir le planning") : null,
   });
-  const afaire = carte({ titre: "À faire", ico: "check", zone: "afaire" });
+  const afaire = carte({ titre: "À faire", ico: "inbox", zone: "afaire" });
   const cartes = [journee, afaire];
   const rdv = routeVisible("calendrier")
     ? carte({ titre: "Prochain rendez-vous", ico: "calendar", zone: "rendez-vous", plus: plusLien("calendrier", "Dates clés") })

@@ -30,8 +30,6 @@ import {
 const RELECTURE_SEANCES_MS = 60000;
 const NB_A_SUIVRE = 5;
 
-// "9h04" (heureLocale) -> "9 h 04" : l'écriture du reste de la page.
-const heureEspacee = (h) => String(h).replace("h", " h ");
 
 const DEMI_LONG = { matin: "Matin", aprem: "Après-midi" };
 const SIGNER = { matin: "Signer pour ce matin", aprem: "Signer pour cet après-midi" };
@@ -100,7 +98,7 @@ function dessinerEmargement(carteEm, etat) {
   }
   corps.appendChild(actions);
   if (!aSigner && maLigne?.signe_le) {
-    corps.appendChild(el("p", { class: "acc-signe" }, icon.check(), `Signé à ${heureEspacee(heureLocale(maLigne.signe_le))}`));
+    corps.appendChild(el("p", { class: "acc-signe" }, icon.check(), `Signé à ${heureLocale(maLigne.signe_le)}`));
   }
 }
 
@@ -274,7 +272,7 @@ export function renderAujourdhui(container) {
   const avecFeuille = emargementActif() && isAdmin();
   const avecATraiter = isAdmin();
   const emargement = avecFeuille ? carte({ titre: "Émargement", ico: "clipboard", zone: "emargement" }) : null;
-  const atraiter = avecATraiter ? carte({ titre: "À traiter", ico: "check", zone: "a-traiter" }) : null;
+  const atraiter = avecATraiter ? carte({ titre: "À traiter", ico: "inbox", zone: "a-traiter" }) : null;
   const tableau = carte({ titre: "Au tableau aujourd'hui", ico: "presentation", zone: "tableau" });
   const voiture = carte({ titre: "En voiture aujourd'hui", ico: "car", zone: "voiture" });
   const asuivre = carte({ titre: "À suivre de près", ico: "info", zone: "a-suivre", plus: plusLien("centre", "Tout voir") });

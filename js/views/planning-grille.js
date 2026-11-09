@@ -159,6 +159,6 @@ export function bascule({ vue, onChange }) {
     onClick: () => { if (vue !== cible) onChange(cible); },
   }, deco(icon[ico]()), ...contenu);
   return el("div", { class: "vue-toggle", role: "group", "aria-label": "Affichage du planning" },
-    bouton("grille", "grid", el("span", { class: "vue-long" }, "Grille"), el("span", { class: "vue-court" }, "Jour")),
+    bouton("grille", "columns", el("span", { class: "vue-long" }, "Grille"), el("span", { class: "vue-court" }, "Jour")),
     bouton("liste", "list", "Liste"));
 }

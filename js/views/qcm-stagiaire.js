@@ -59,7 +59,7 @@ export async function renderQcmStagiaire(panel, { themes = [], onOuvrir = null, 
       const theme = l.theme || { id: null, numero: null, titre: l.qcm.titre, type: "theme" };
       return ligneAction({
         ico: "quiz", titre: l.titre, detail: l.etat,
-        puces: [l.examenOuvert ? "Examen ouvert" : null, l.etiquette],
+        puces: [l.examenOuvert ? { texte: "Examen ouvert", ok: true } : null, l.etiquette],
         bouton: {
           texte: l.action, primaire: l.examenOuvert || l.note == null,
           nom: `${l.action} : ${l.titre}`,

@@ -72,7 +72,7 @@ async function renderAccessSection(rerender) {
       ? "Choisis le rôle et la personne, entre son adresse e-mail. Aucun e-mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec cette adresse et un mot de passe."
       : "Choisis le rôle et la personne, entre son email. Aucun mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec son email + un mdp."));
 
-    const roleSel = el("select", { class: "invite-role" });
+    const roleSel = el("select", { class: "invite-role", "aria-label": "Rôle de la personne invitée" });
     // Inviter un formateur : la direction du centre ou le fondateur (la base le vérifie aussi, inviter_compte).
     const peutFormateur = peutInviterFormateur({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() });
     [
@@ -80,7 +80,7 @@ async function renderAccessSection(rerender) {
       ...(peutFormateur ? [{ v: "prof", l: "Formateur" }] : []),
     ].forEach((o) => roleSel.appendChild(el("option", { value: o.v }, o.l)));
 
-    const personSel = el("select", { class: "invite-person" });
+    const personSel = el("select", { class: "invite-person", "aria-label": "Personne invitée" });
     function refreshPersonOptions() {
       clear(personSel);
       const role = roleSel.value;
@@ -109,7 +109,7 @@ async function renderAccessSection(rerender) {
       if (choisie && [...personSel.options].some((o) => o.value === choisie && !o.disabled)) personSel.value = choisie;
     };
 
-    const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email" });
+    const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email", "aria-label": "Adresse e-mail" });
 
     const sendBtn = el("button", { class: "btn accent" }, icon.plus(), libelleAjout);
     sendBtn.addEventListener("click", async () => {
@@ -423,7 +423,8 @@ async function renderPromoSection(rerender) {
     items.forEach((it) => {
       // Champ « Nom de famille » (plus bas) : déclaré ici, le gestionnaire du prénom en a besoin.
       let nomInput = null;
-      const input = el("input", { type: "text", value: it.prenom || it.nom, readonly: admin ? undefined : true });
+      const input = el("input", { type: "text", value: it.prenom || it.nom, readonly: admin ? undefined : true,
+        "aria-label": type === "stagiaire" ? "Prénom" : "Nom" });
       if (admin) {
         input.addEventListener("blur", async () => {
           const v = input.value.trim();
@@ -500,7 +501,8 @@ async function renderPromoSection(rerender) {
     wrap.appendChild(list);
 
     if (admin && avecAjout) {
-      const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom" : "Nom" });
+      const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom" : "Nom",
+        "aria-label": type === "stagiaire" ? "Prénom du stagiaire à ajouter" : "Nom à ajouter" });
       const addNom = type === "stagiaire" ? el("input", { type: "text", placeholder: "Nom",
         "aria-label": "Nom de famille" }) : null;
       const addBtn = el("button", { class: "btn accent", onClick: async () => {

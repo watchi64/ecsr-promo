@@ -758,7 +758,7 @@ function rendreResultats(panel, d, soi, isActive, opts = {}) {
 // un formateur ou un admin la saisit. Rangée dans la partie Livret, seule à s'en servir.
 function champNaissance(d, soi) {
   if (!(soi || isAdmin() || isProf())) return null;
-  const dob = el("input", { type: "date", value: d.stagiaireRow?.date_naissance || "" });
+  const dob = el("input", { type: "date", value: d.stagiaireRow?.date_naissance || "", "aria-label": "Date de naissance" });
   dob.addEventListener("change", async () => {
     try {
       await setDateNaissance(d.id, dob.value || null);

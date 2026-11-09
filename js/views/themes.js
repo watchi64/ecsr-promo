@@ -1753,10 +1753,10 @@ function rerender(container) {
   // que la zone de résultats, jamais la barre de filtres. Reconstruire l'input
   // pendant la saisie détruisait le nœud actif : focus perdu, clavier iOS
   // refermé à chaque lettre (bug du 18/08).
-  const searchInput = el("input", { type: "search", placeholder: "Rechercher…", value: search });
+  const searchInput = el("input", { type: "search", placeholder: "Rechercher…", value: search, "aria-label": "Rechercher un thème" });
   searchInput.addEventListener("input", debounce(() => { search = searchInput.value; renderResults(); }, 150));
 
-  const statutSel = el("select");
+  const statutSel = el("select", { "aria-label": "Filtrer par statut" });
   statutSel.appendChild(el("option", { value: "" }, "Tous les statuts"));
   STATUTS.forEach((s) => {
     const opt = el("option", { value: s.value }, s.value);

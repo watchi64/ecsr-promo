@@ -159,6 +159,20 @@ export const NOUVEAUTES = [
       "Pour revenir, touche « ECSR Promo » au même endroit. Le même choix est aussi dans Mes préférences.",
     ],
   },
+  // Finitions de l'audit du 09/11 (lot E). À date égale, après le lot 3 : la carte « Nouveauté » de l'Accueil n'en change pas.
+  {
+    id: "2026-11-09-finitions",
+    date: "2026-11-09",
+    pour: "tous",
+    titre: "Des écrans plus nets",
+    resume: "Les émojis en couleur laissent la place aux icônes de l'app : « Modifier » porte un crayon, le placement "
+          + "automatique des dés au trait. Les heures s'écrivent partout de la même façon, « 9 h à 12 h 30 », feuille "
+          + "d'émargement comprise. Un état ouvert est vert partout : la feuille d'émargement ouverte comme un examen "
+          + "ouvert. Les jours fériés se lisent mieux dans le planning, et les champs de saisie ont tous un nom pour "
+          + "les lecteurs d'écran. Avec la nouvelle barre, sur téléphone, les boutons et les champs sont plus grands "
+          + "sous le doigt, et « Cette semaine » laisse la place à « Aujourd'hui » en haut du planning.",
+    ou: { label: "Planning", route: "planning" },
+  },
   {
     id: "2026-11-08-roles-par-promo",
     date: "2026-11-08",
