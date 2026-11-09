@@ -99,6 +99,58 @@ def moteur_installe(moteur):
     return None
 
 
+# Le clavier de la machine. WebKit sous Windows recopie les touches Maj, Ctrl, Alt et Windows réellement enfoncées
+# sur la machine dans le clic qu'il fabrique après un toucher (constat du 09/11/2026 ; le clic d'ordinateur n'est
+# pas touché) : un toucher fait pendant que quelqu'un tape devient un Maj+clic, et un lien ne s'ouvre pas. Le
+# robot attend donc un clavier libre avant de toucher, et la page note toute touche portée par un geste reçu.
+_TOUCHES = {0x10: "Maj", 0x11: "Ctrl", 0x12: "Alt", 0x5B: "Windows", 0x5C: "Windows"}
+
+
+def touches_tenues():
+    """Les touches de modification enfoncées en ce moment sur le clavier de la machine (Windows ; vide ailleurs)."""
+    if os.name != "nt":
+        return []
+    import ctypes
+    lire = ctypes.windll.user32.GetAsyncKeyState
+    lire.restype = ctypes.c_short
+    return sorted({nom for vk, nom in _TOUCHES.items() if lire(vk) & 0x8000})
+
+
+# Plafond de l'attente, pour tout le processus : une touche coincée (bureau à distance, touche Windows bloquée) ne
+# doit pas faire durer le robot des heures. Le plafond atteint, on n'attend plus : les gestes faussés sont repérés
+# par le journal de la page et les passages finissent « non jugés ».
+ATTENTE_CLAVIER_MAX = 120.0
+_attente = {"restante": ATTENTE_CLAVIER_MAX}
+
+
+def attendre_clavier_libre(maximum=20):
+    """Attend (au plus `maximum` secondes, dans la limite du plafond du processus) qu'aucune touche de modification
+    ne soit tenue sur la machine. Rend celles encore tenues au bout du délai (liste vide : clavier libre)."""
+    t0 = time.time()
+    fin = t0 + min(maximum, _attente["restante"])
+    try:
+        while True:
+            tenues = touches_tenues()
+            if not tenues or time.time() >= fin:
+                return tenues
+            time.sleep(0.05)
+    finally:
+        _attente["restante"] = max(0.0, _attente["restante"] - (time.time() - t0))
+
+
+# Journal des touches portées par les gestes reçus. Seuls les événements de confiance comptent (fabriqués par le
+# navigateur) ; le robot ne demande jamais de touche : une touche notée vient du clavier de la machine.
+JS_JOURNAL_TOUCHES = r"""(() => {
+  const noter = (e) => {
+    if (!e.isTrusted) return;
+    const t = [e.shiftKey && 'Maj', e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.metaKey && 'Windows'].filter(Boolean);
+    if (t.length) (window.__robotModifs = window.__robotModifs || []).push(e.type + ' : ' + t.join('+'));
+  };
+  for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'mousedown', 'mouseup', 'click', 'auxclick', 'dblclick', 'contextmenu'])
+    window.addEventListener(type, noter, { capture: true, passive: true });
+})();"""
+
+
 def lancer_navigateur(p, moteur):
     """(navigateur, None) ou (None, raison)."""
     genre = getattr(p, moteur)
@@ -150,6 +202,7 @@ def nouveau_contexte(navigateur, format_, semis=(), habillage="ecsr"):
     reglages = dict(FORMATS[format_], locale="fr-FR", timezone_id="Europe/Paris")
     contexte = navigateur.new_context(**reglages)
     contexte.set_default_timeout(6000)
+    contexte.add_init_script(JS_JOURNAL_TOUCHES)
     if habillage == "ecf":
         # Le levier de tout robot (comme outils/verifier_navigation.py) : l'appareil retient l'habillage avant le premier
         # chargement ; l'app pose data-skin elle-même. Posé une seule fois par onglet (garde en sessionStorage) pour
