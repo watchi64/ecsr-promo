@@ -226,9 +226,11 @@ class Visite:
     def __init__(self, page, sc, parcours, base_url, dossier, erreurs_console):
         self.page, self.sc, self.parcours, self.base_url, self.dossier = page, sc, parcours, base_url, dossier
         self.erreurs_console = erreurs_console
+        self.erreurs_attendues = []     # morceaux de messages de console que le parcours provoque exprès (une panne jouée)
         self.navigation, self.format, self.moteur = sc["navigation"], sc["format"], sc["moteur"]
         self.telephone = self.format == "telephone"
-        self.espace = "stagiaire" if parcours.role == "stagiaire" else "equipe"
+        # L'espace où la personne se trouve (il change quand elle en choisit un autre : un parcours le réécrit alors).
+        self.espace = {"stagiaire": "stagiaire", "direction": "direction", "siege": "siege"}.get(parcours.role, "equipe")
         b = parcours.budget
         self.budget = b[self.format] if isinstance(b, dict) else b
         self.clics, self.clics_au_but, self.but_atteint = 0, None, False
@@ -273,6 +275,16 @@ class Visite:
         raise Echec(message)
 
     # --- attente et mesure ---------------------------------------------------------------------------
+    def _hash(self):
+        """L'adresse de la page. Un geste qui recharge l'app (choix d'un espace, d'un centre, d'une promo) peut la détruire pendant la lecture :
+        on attend alors le chargement et on relit."""
+        for _ in range(3):
+            try:
+                return self.page.evaluate("location.hash")
+            except ErreurPlaywright:
+                self.page.wait_for_load_state("load")
+        return self.page.evaluate("location.hash")
+
     def _poser_espion(self):
         try:
             self.page.evaluate(JS_POSER_ESPION)
@@ -291,7 +303,8 @@ class Visite:
         """Ouvre l'app à froid sur le banc et attend la barre de navigation."""
         self.etape("ouverture de l'app")
         params = dict(navigation.PARAMS_COMMUNS)
-        params["role"] = self.parcours.role
+        # Direction et siège : le profil vient du compte (`banc={"compte": ...}`), le levier ?role= prend la valeur d'un formateur.
+        params["role"] = "formateur" if self.parcours.role in ("direction", "siege") else self.parcours.role
         if self.parcours.role != "fondateur":
             params["fondateur"] = "0"          # le cas des vrais comptes : ni aperçu ni droits du fondateur
         if self.navigation == "nouvelle":
@@ -307,6 +320,18 @@ class Visite:
             except (DelaiDepasse, ErreurPlaywright):
                 if essai == 2:
                     self.echec("le banc ne s'ouvre pas")
+        if self.parcours.ouverture == "porte":
+            # Le parcours commence sur la porte de connexion (personne n'est encore entré) : pas de barre, pas de page de départ.
+            try:
+                self.page.locator("#gate-submit").wait_for(state="visible", timeout=10000)
+            except DelaiDepasse:
+                self.echec("la porte de connexion ne s'affiche pas après 10 s")
+            self._poser_espion()
+            self._attendre_calme(calme=250, maximum=5000)
+            self.temps["ouverture"] = round((time.perf_counter() - t0) * 1000)
+            self.etape("porte de connexion")
+            self.controler_ecran("porte")
+            return
         try:
             self.page.locator(navigation.SELECTEUR_BARRE).first.wait_for(state="attached", timeout=10000)
         except DelaiDepasse:
@@ -367,7 +392,7 @@ class Visite:
             self.dernier_nom = el.evaluate("(e) => (e.getAttribute('aria-label') || e.innerText || e.getAttribute('title') || '').trim()")
         except ErreurPlaywright:
             self.dernier_nom = ""
-        hash_avant = self.page.evaluate("location.hash")
+        hash_avant = self._hash()
         self._poser_espion()
         t0 = time.perf_counter()
         try:
@@ -388,12 +413,12 @@ class Visite:
             self.constat("I", LISTE, "l'écran bouge encore 4 s après « %s »" % quoi)
         elif ms > AFFICHAGE_MAX_MS:
             self.constat("I", LISTE, "« %s » : affiché en %.1f s (seuil 1 s)" % (quoi, ms / 1000))
-        hash_apres = self.page.evaluate("location.hash")
+        hash_apres = self._hash()
         if attendu_effet and calme["mutations"] == 0 and hash_apres == hash_avant:
             # Rien n'a bougé : on laisse 1 s à un effet tardif (machine chargée), puis une personne toucherait une
             # seconde fois. Si le second toucher marche, c'est noté (liste) ; sinon le bouton ne fait rien (bloque).
             self.page.wait_for_timeout(1000)
-            if self.page.evaluate("window.__robotMutations || 0") > 0 or self.page.evaluate("location.hash") != hash_avant:
+            if self.page.evaluate("window.__robotMutations || 0") > 0 or self._hash() != hash_avant:
                 self.constat("I", LISTE, "« %s » : rien ne s'affiche pendant plus de 1 s" % quoi)
                 return self._apres_toucher(el)
             if ecriture:
@@ -404,7 +429,7 @@ class Visite:
             except (ErreurPlaywright, DelaiDepasse):
                 pass
             calme = self._attendre_calme()
-            if calme["mutations"] == 0 and self.page.evaluate("location.hash") == hash_avant:
+            if calme["mutations"] == 0 and self._hash() == hash_avant:
                 self.constat("E", BLOQUE, "toucher « %s » ne change rien à l'écran (deux essais)" % quoi, capture=True)
                 # La personne est bloquée là : le parcours s'arrête (sinon une boucle de réponses tournerait à vide).
                 self.echec("bloqué : « %s » ne répond pas" % quoi)
@@ -465,7 +490,7 @@ class Visite:
 
     def verifier_nom_de_page(self, nom_entree):
         """Une page, un nom (critère C) : le titre de la page atteinte reprend le nom de l'entrée cliquée."""
-        premiere_ligne = (nom_entree or "").strip().split("\n")[0]
+        premiere_ligne = navigation.titre_attendu(self.espace, nom_entree or "").strip().split("\n")[0]
         nom = re.sub(r"[\d+]+", "", premiere_ligne.split(",")[0]).strip()
         if not nom:
             return
@@ -480,6 +505,10 @@ class Visite:
     def panne(self, message="network error"):
         """Toute lecture ou écriture du faux Supabase échoue jusqu'à `retablir()`."""
         self.page.evaluate("(m) => { window.__HARNESS_FAIL = m; }", message)
+
+    def console_attendue(self, morceau):
+        """Le parcours provoque une panne : l'app écrit cet échec dans la console, ce n'est pas un défaut (critère J)."""
+        self.erreurs_attendues.append(morceau)
 
     def retablir(self):
         self.page.evaluate("() => { window.__HARNESS_FAIL = null; }")
@@ -557,7 +586,7 @@ class Visite:
         self._poser_espion()
         self.page.go_back(wait_until="commit")
         self._attendre_calme()
-        h = self.page.evaluate("location.hash")
+        h = self._hash()
         if h != hash_attendu:
             self.constat("D", BLOQUE, "Précédent depuis %s mène à %s, pas à %s" % (quoi, h or "(rien)", hash_attendu), capture=True)
 
@@ -575,7 +604,7 @@ class Visite:
     # --- contrôles d'écran ---------------------------------------------------------------------------
     def controler_ecran(self, nom):
         """Contrôles de l'écran affiché (une fois par écran et par visite)."""
-        cle = (nom, self.page.evaluate("location.hash"))
+        cle = (nom, self._hash())
         if cle in self._vues_controlees:
             return
         self._vues_controlees.add(cle)
@@ -602,5 +631,8 @@ class Visite:
     def terminer(self):
         """Fin du parcours : capture pour la planche (attrait visuel), sortie visible, erreurs de la console."""
         self.etape("fin")
+        # Une panne jouée exprès fait écrire l'échec dans la console par l'app : ces lignes-là, déclarées par le parcours, ne comptent pas.
+        self.erreurs_console[:] = [e for e in self.erreurs_console if not any(m in e for m in self.erreurs_attendues)]
         self.capture_finale = self.capturer("fin")
-        self.verifier_sortie()
+        if self.parcours.ouverture != "porte":      # la porte de connexion n'a pas de barre de navigation
+            self.verifier_sortie()

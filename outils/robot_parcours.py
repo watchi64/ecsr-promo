@@ -110,7 +110,7 @@ def jouer_un(navigateur, p, sc, base_url, dossier):
     except Exception:
         pass
     return {"parcours": p.id, **sc, "abouti": abouti, "clics": v.clics, "clics_au_but": v.clics_au_but, "budget": v.budget,
-            "duree": round(duree, 1), "ouverture_ms": v.temps.get("ouverture"), "etapes": v.etapes, "constats": v.constats,
+            "duree": round(duree, 1), "ouverture_ms": v.temps.get("ouverture"), "etapes": v.etapes, "vues": len(v._vues_controlees), "constats": v.constats,
             "capture_finale": getattr(v, "capture_finale", None)}
 
 

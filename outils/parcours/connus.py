@@ -17,6 +17,10 @@ DEFAUTS_CONNUS = [
     {"parcours": "indicateurs-du-centre", "critere": "G", "contient": "div.topbar-actions",
      "note": "n° 4 : ancienne barre à 1 280 px, boutons coupés avec un nom de promo long",
      "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},
+    # Le même défaut n° 4, vu par le parcours du fondateur sur la promo de démonstration (lot 5, P5) : son nom est long.
+    {"parcours": "apercus-du-fondateur-promo-7", "critere": "G", "contient": "div.topbar-actions",
+     "note": "n° 4 : ancienne barre à 1 280 px, boutons coupés avec le nom de la promo de démonstration",
+     "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},
     # Budgets de clics que l'ancienne navigation dépasse (la nouvelle les tient) : n° 5 de la liste des échecs.
     {"parcours": "indicateurs-du-centre", "critere": "B", "contient": "avant le but",
      "note": "n° 5 : Indicateurs passe par la tuile de l'Accueil", "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},

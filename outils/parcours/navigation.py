@@ -68,9 +68,38 @@ def _plus_si_telephone(route, nom, telephone, barre_du_bas):
 
 BARRE_DU_BAS_EQUIPE = ("home", "planning", "stagiaires", "notes")
 
+# Lot 5 : la direction d'un centre et le siège du réseau ont leur barre (nouvelle navigation seulement). Sur téléphone, la barre du bas
+# garde quatre entrées de la direction et trois du siège ; le reste passe par « Plus ». « Accueil » est le nom de l'entrée, « Vue
+# d'ensemble » le titre de la page qu'elle ouvre (D16) : les deux noms mènent à la même entrée.
+ENTREES_DIRECTION = {"Accueil": "centre", "Vue d'ensemble": "centre", "Promos": "promos", "Stagiaires": "stagiaires",
+                     "Émargement": "emargement", "Notes et examens": "notes", "Équipe": "equipe",
+                     "Réglages du centre": "config", "Réglages": "config"}
+BARRE_DU_BAS_DIRECTION = ("centre", "promos", "stagiaires", "equipe")
+ENTREES_SIEGE = {"Accueil": "reseau", "Vue d'ensemble": "reseau", "Cours et QCM": "themes", "Directions de centre": "directions",
+                 "Directions": "directions", "Réglages du réseau": "config", "Réglages": "config"}
+BARRE_DU_BAS_SIEGE = ("reseau", "themes", "directions")
+# Le titre que porte la page ouverte par une entrée, quand il diffère du nom de l'entrée (critère C).
+TITRE_DE_L_ENTREE = {("direction", "Accueil"): "Vue d'ensemble", ("siege", "Accueil"): "Vue d'ensemble"}
+
+
+def titre_attendu(espace, nom_entree):
+    """Le titre de page que doit porter l'entrée cliquée (le plus souvent son propre nom)."""
+    return TITRE_DE_L_ENTREE.get((espace, (nom_entree or "").strip().splitlines()[0] if (nom_entree or "").strip() else ""), nom_entree)
+
 
 def chemin(destination, navigation, espace, telephone):
     """La liste des clics (sélecteur, ce que la personne touche) pour atteindre `destination`."""
+    # La direction et le siège n'ont qu'une barre, la nouvelle, même quand l'interrupteur de la promo est éteint.
+    if espace in ("direction", "siege"):
+        entrees, barre = (ENTREES_DIRECTION, BARRE_DU_BAS_DIRECTION) if espace == "direction" else (ENTREES_SIEGE, BARRE_DU_BAS_SIEGE)
+        if destination in entrees:
+            return _plus_si_telephone(entrees[destination], "« %s »" % destination, telephone, barre)
+        if destination == "Signaler un problème":
+            if telephone:
+                return [PLUS, (texte("Signaler un problème", "button.nav-fenetre-lien"), "« Signaler un problème »")]
+            return [("button.nav-cote-signaler", "« Signaler un problème »")]
+        raise KeyError("destination inconnue pour la %s (nouvelle navigation) : %s" % (espace, destination))
+
     if navigation == "ancienne":
         onglets = {"Accueil": ("home", "l'onglet Accueil"), "Cours et QCM": ("themes", "l'onglet Cours"),
                    "La classe": ("notes", "l'onglet Notes"), "CCP2": ("ccp2", "l'onglet CCP2"),
