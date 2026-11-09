@@ -8,11 +8,11 @@
  * sont des choix de dessin, recopiés avec leur raison dans sources/dessins-visibilite.js. Titres et cadres viennent du
  * catalogue des blocs (js/catalogue-blocs.js).
  */
-import { n, trouverRole } from "./dessin-svg.js?v=20261109g";
+import { n, trouverRole } from "./dessin-svg.js?v=20261109h";
 import { CHARTE, METRIQUES_POLICE, MISE_EN_PAGE, REGARD_SCENES, cadre, texte, etiquette, voitureProfil, reperesProfil,
-  voitureDessus, reperesDessus, VOITURE, TEINTES_ROUTE, MIROIR_INTERIEUR, miroirInterieur, arrondir, couper, coord, trace, entre } from "./dessins-kit.js?v=20261109g";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261109g";
-import { cycliste, GABARIT_VELO } from "./piece-cycliste.js?v=20261109g";
+  voitureDessus, reperesDessus, VOITURE, TEINTES_ROUTE, MIROIR_INTERIEUR, miroirInterieur, arrondir, couper, coord, trace, entre } from "./dessins-kit.js?v=20261109h";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261109h";
+import { cycliste, GABARIT_VELO } from "./piece-cycliste.js?v=20261109h";
 
 // ===== Géométrie plane =====
 const DEG = Math.PI / 180;
@@ -568,4 +568,4 @@ function anglesMorts() {
 
 export const DESSINS = { "zones-invisibles": zonesInvisibles, retroviseurs, "angles-morts": anglesMorts };
 export const GESTES = {};
-export { versDom } from "./dessin-svg.js?v=20261109g";
+export { versDom } from "./dessin-svg.js?v=20261109h";

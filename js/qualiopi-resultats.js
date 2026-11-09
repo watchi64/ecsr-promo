@@ -13,13 +13,17 @@
 // (questionnaires du lot Q3). Elles se disent en toutes lettres (« non mesuré », « non saisi », « non mesurée ») ; le jour où
 // l'une arrive, l'appelant la passe sous la forme { taux, effectif } (taux de 0 à 1, effectif : le nombre de stagiaires sur
 // lequel il porte) et la fiche l'écrit. Une mesure inutilisable vaut une mesure absente.
+// La satisfaction arrive depuis le lot Q3 sous la forme du questionnaire de fin de formation : { taux, repondants, inscrits }
+// (taux entier de 0 à 100, « sans avis » exclu, comme le rend tauxSatisfaction), avec ou sans `etat: "mesuree"`, ou
+// { etat: "sous_seuil" } (moins de 5 réponses : la valeur est la phrase fixe, aucun chiffre) ; { etat: "absente" } ou rien : « non mesurée ».
 //
 // Jamais de valeur « null », « undefined » ou « NaN » dans la fiche ni dans ses textes : ce qui manque devient un mot. Sans
 // indicateurs exploitables, la fiche est celle d'une promo sans inscrit.
 
-import { METHODES_PUBLIQUES, pct } from "./centre-stats.js?v=20261109g";
-import { promoTerminee, periodeEnMots, edition } from "./qualiopi-documents.js?v=20261109g";
-import { rempli, tableau, nb } from "./qualiopi-preuves.js?v=20261109g";
+import { METHODES_PUBLIQUES, pct } from "./centre-stats.js?v=20261109h";
+import { promoTerminee, periodeEnMots, edition } from "./qualiopi-documents.js?v=20261109h";
+import { rempli, tableau, nb } from "./qualiopi-preuves.js?v=20261109h";
+import { texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261109h";
 
 // L'interface du plan : la règle « terminée » est celle des dossiers et les méthodes publiques celles du tableau de bord
 // (js/centre-stats.js, à côté de METHODES) ; ni l'une ni les autres ne sont réécrites ici, seulement réexportées.
@@ -69,6 +73,18 @@ export function ficheResultats({ promo, ind, aujourdhui, presence = null, obtent
     const t = taux(donnee?.taux);
     return t === null ? ligne(cle, VALEURS_ABSENTES[cle], SANS_OBJET, MESURE_NON_DISPONIBLE) : ligne(cle, pct(t), entier(donnee.effectif) ?? inscrits);
   };
+  // La satisfaction du questionnaire de fin de formation : le taux est un entier de 0 à 100, l'effectif est celui des avis notés,
+  // dit avec celui des inscrits (`effectifTexte`). Sous le seuil, la phrase fixe et aucun chiffre ; sinon l'ancienne forme.
+  const satisfactionMesure = () => {
+    if (satisfaction?.etat === "non_lue") return ligne("satisfaction", "non lue (erreur de lecture)", SANS_OBJET, MESURE_NON_DISPONIBLE);
+    if (satisfaction?.etat === "sous_seuil") return ligne("satisfaction", texteSousSeuilAvis("stagiaire"), SANS_OBJET, MESURE_NON_DISPONIBLE);
+    const t = Number.isInteger(satisfaction?.repondants) && Number.isInteger(satisfaction?.taux) && satisfaction.taux >= 0 && satisfaction.taux <= 100
+      ? satisfaction.taux / 100 : null;
+    if (t === null) return mesure("satisfaction", satisfaction?.repondants === undefined ? satisfaction : null);
+    const l = ligne("satisfaction", pct(t), satisfaction.repondants);
+    const sur = entier(satisfaction.inscrits) > 0 ? ` sur ${nb(satisfaction.inscrits, "inscrit")}` : "";
+    return { ...l, effectifTexte: `${nb(satisfaction.repondants, "avis noté", "avis notés")}${sur}` };
+  };
   const abandon = taux(ind?.abandon?.valeur);
   return {
     titre: TITRE,
@@ -86,7 +102,7 @@ export function ficheResultats({ promo, ind, aujourdhui, presence = null, obtent
       ligne("abandon", abandon === null ? "non calculable" : pct(abandon), inscrits),
       mesure("presence", presence),
       mesure("titre", obtention),
-      mesure("satisfaction", satisfaction),
+      satisfactionMesure(),
     ],
   };
 }
@@ -97,9 +113,10 @@ export function ficheResultats({ promo, ind, aujourdhui, presence = null, obtent
 
 // Un chiffre : sa valeur, puis son effectif et sa période, puis sa méthode. La ligne de l'effectif ne répète pas l'effectif ; une
 // mesure absente n'en a pas (« sans objet ») et n'écrit aucune phrase d'effectif.
+const effectifEnMots = (l) => l.effectifTexte ?? stagiaires(l.effectif);
 const bloc = (l) => [
   `${l.libelle} : ${l.valeur}`,
-  l.cle === "effectif" || l.effectif === SANS_OBJET ? `Période : ${l.periode}.` : `Effectif : ${stagiaires(l.effectif)}. Période : ${l.periode}.`,
+  l.cle === "effectif" || l.effectif === SANS_OBJET ? `Période : ${l.periode}.` : `Effectif : ${effectifEnMots(l)}. Période : ${l.periode}.`,
   `Méthode : ${l.methode}`,
 ].join("\n");
 
@@ -122,7 +139,7 @@ export function fichesResultatsTexte(fiches) {
 export function tableauFiche(fiche) {
   return {
     entetes: [...ENTETES_TABLEAU],
-    lignes: tableau(fiche?.lignes).map((l) => [l.libelle, l.valeur, stagiaires(l.effectif), l.periode, l.methode]),
+    lignes: tableau(fiche?.lignes).map((l) => [l.libelle, l.valeur, effectifEnMots(l), l.periode, l.methode]),
   };
 }
 

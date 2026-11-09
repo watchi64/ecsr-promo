@@ -2,19 +2,20 @@
  * Page d'accueil : version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261109g";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261109g";
-import { icon } from "../icons.js?v=20261109g";
-import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261109g";
+import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261109h";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261109h";
+import { icon } from "../icons.js?v=20261109h";
+import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261109h";
 import {
   nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque, formateurConnecte,
-} from "../modules-etat.js?v=20261109g";
-import { carteNouveaute } from "./nouveautes.js?v=20261109g";
-import { emargementActif } from "../emargement-etat.js?v=20261109g";
-import { navigationV2Active } from "../nav-etat.js?v=20261109g";
-import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, pointsARetenir, salutationDe } from "../accueil-rules.js?v=20261109g";
-import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261109g";
-import { renderAujourdhui } from "./aujourdhui.js?v=20261109g";
+} from "../modules-etat.js?v=20261109h";
+import { carteNouveaute } from "./nouveautes.js?v=20261109h";
+import { emargementActif } from "../emargement-etat.js?v=20261109h";
+import { navigationV2Active } from "../nav-etat.js?v=20261109h";
+import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, pointsARetenir, salutationDe } from "../accueil-rules.js?v=20261109h";
+import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261109h";
+import { renderAujourdhui } from "./aujourdhui.js?v=20261109h";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261109h";
 
 function greetingByHour() {
   return salutationDe(new Date().getHours());
@@ -126,6 +127,11 @@ export async function renderHome(container) {
           "Tout au même endroit, à jour en temps réel."
         ),
   ));
+
+  // Questionnaire anonyme à remplir (Qualiopi), sous la salutation (ancienne navigation ; la nouvelle a le sien dans
+  // accueil-stagiaire.js et aujourdhui.js) : l'emplacement est posé
+  // tout de suite et se remplit à l'arrivée de la liste lue en base (vide : rien ne s'affiche).
+  container.appendChild(bandeauQuestionnaire());
 
   // Placée avant les tuiles : quelqu'un qui arrive en cliquant sur la pastille
   // doit tomber dessus sans défiler.

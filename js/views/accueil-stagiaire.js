@@ -7,22 +7,23 @@
  */
 import {
   listAgendaEvents, getPromoCourante, listQcmIndex, listMyQcmAttempts, listThemes, getDpDossier,
-} from "../db.js?v=20261109g";
-import { el, clear } from "../utils.js?v=20261109g";
-import { icon } from "../icons.js?v=20261109g";
-import { getProfileWho, monStagiaireId, getProfile, getViewAs } from "../auth-admin.js?v=20261109g";
-import { libelleConnexion } from "../roles-rules.js?v=20261109g";
-import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261109g";
-import { carteNouveaute } from "./nouveautes.js?v=20261109g";
-import { prenomDe } from "../nav-rules.js?v=20261109g";
-import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi } from "../accueil-rules.js?v=20261109g";
-import { journeeDuJour } from "../journee-rules.js?v=20261109g";
-import { effSujets, sujetsDe } from "../planning-roles.js?v=20261109g";
-import { exemplesRemplis } from "../dp-rules.js?v=20261109g";
-import { heureLocale } from "../emargement-rules.js?v=20261109g";
-import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261109g";
-import { ouvrirSignalement } from "../signalement.js?v=20261109g";
-import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261109g";
+} from "../db.js?v=20261109h";
+import { el, clear } from "../utils.js?v=20261109h";
+import { icon } from "../icons.js?v=20261109h";
+import { getProfileWho, monStagiaireId, getProfile, getViewAs } from "../auth-admin.js?v=20261109h";
+import { libelleConnexion } from "../roles-rules.js?v=20261109h";
+import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261109h";
+import { carteNouveaute } from "./nouveautes.js?v=20261109h";
+import { prenomDe } from "../nav-rules.js?v=20261109h";
+import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi } from "../accueil-rules.js?v=20261109h";
+import { journeeDuJour } from "../journee-rules.js?v=20261109h";
+import { effSujets, sujetsDe } from "../planning-roles.js?v=20261109h";
+import { exemplesRemplis } from "../dp-rules.js?v=20261109h";
+import { heureLocale } from "../emargement-rules.js?v=20261109h";
+import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261109h";
+import { ouvrirSignalement } from "../signalement.js?v=20261109h";
+import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261109h";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261109h";
 
 const RELECTURE_SEANCES_MS = 60000;
 
@@ -266,6 +267,9 @@ export function renderAccueilStagiaire(container) {
     el("h1", { class: "home-title-v2" }, salutationDe(maintenant.getHours()) + ", ", el("em", {}, prenom)),
     ligne ? el("p", { class: "home-lead-v2" }, ligne) : null,
   ));
+  // Questionnaire anonyme à remplir (Qualiopi), sous la salutation et avant les cartes : l'emplacement est posé tout de
+  // suite et se remplit à l'arrivée de la liste lue en base (vide : rien ne s'affiche).
+  container.appendChild(bandeauQuestionnaire());
 
   const journee = carte({
     titre: "Aujourd'hui", ico: "sun", classe: "acc-heros", zone: "aujourdhui",

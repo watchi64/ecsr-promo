@@ -246,6 +246,156 @@
   color: var(--text-soft);
 }
 
+/* --- Questionnaires de satisfaction (Q3) : une carte par questionnaire, état en pastille, chiffres en mots ---
+   Jamais de rouge : « Fermé » est gris, les réponses basses sont sable, les hautes vertes ; les nombres sont toujours écrits. */
+
+.qualiopi-questionnaires { position: relative; display: flex; flex-direction: column; gap: 0.6rem; margin: 0 0 1.75rem; }
+/* Zone lue par les lecteurs d'écran après une action (le même message est écrit, visible, dans la carte). */
+.qq-annonce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+/* Une carte dont la lecture a échoué : fond doux, jamais rouge ; les autres cartes restent. */
+.qq-erreur { margin-top: 0.75rem; padding: 0.6rem 0.75rem; border-radius: var(--r-sm); background: var(--c-wait-soft); }
+.qq-erreur p { margin: 0 0 0.5rem; font-size: 0.9rem; line-height: 1.45; color: var(--text); }
+.qq-cartes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 0.75rem;
+  align-items: start;
+}
+.qq-carte {
+  min-width: 0;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 0.9rem 1rem 1rem;
+}
+.qq-tete { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; flex-wrap: wrap; }
+.qq-titre { margin: 0; font-family: var(--font-display); font-size: 1.05rem; font-weight: var(--poids-titre); line-height: 1.3; }
+.qq-etat {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+}
+.qq-etat.ouvert { background: var(--c-go-soft); color: var(--c-go); }
+.qq-etat.ferme { background: var(--bg-soft); color: var(--text-muted); }
+.qq-qui, .qq-qui p { margin: 0.35rem 0 0; font-size: 0.85rem; line-height: 1.45; color: var(--text-muted); }
+.qq-annee-ligne { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.qq-annee-ligne label { font-weight: 600; color: var(--text-soft); }
+.qq-annee-ligne .qq-annee { width: auto; min-width: 7rem; }
+
+.qq-chiffres { margin: 0.75rem 0 0; }
+.qq-chiffres > div { padding: 0.45rem 0; border-top: 1px solid var(--line-faint); }
+.qq-chiffres dt {
+  margin: 0 0 0.1rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.qq-chiffres dd { margin: 0; font-size: 0.9rem; line-height: 1.45; }
+.qq-chiffres .qq-nombre { font-size: 1rem; font-weight: 600; }
+.qq-detail { display: block; font-size: 0.82rem; font-weight: 400; color: var(--text-muted); }
+
+.qq-actions { margin-top: 0.6rem; }
+.qq-statut { margin: 0.45rem 0 0; min-height: 1.3em; font-size: 0.88rem; color: var(--text-soft); }
+.qq-statut:empty { min-height: 0; margin: 0; }
+.qq-statut.erreur { padding: 0.5rem 0.7rem; border-radius: var(--r-sm); background: var(--c-wait-soft); color: var(--text); }
+.qq-aide { margin: 0.7rem 0 0; font-size: 0.85rem; line-height: 1.45; color: var(--text-muted); }
+
+.qq-details { margin-top: 0.7rem; border-top: 1px solid var(--line-faint); }
+.qq-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+  color: var(--accent-strong);
+}
+.qq-details > summary::-webkit-details-marker { display: none; }
+.qq-details > summary::after {
+  content: "";
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: auto;
+  margin-right: 0.3rem;
+  border-right: 2px solid var(--accent-strong);
+  border-bottom: 2px solid var(--accent-strong);
+  transform: rotate(45deg);
+}
+.qq-details[open] > summary::after { transform: rotate(-135deg); }
+.qq-details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+.qq-details > .qq-aide:first-of-type { margin-top: 0; }
+
+.qq-lignes { display: flex; flex-direction: column; gap: 0.85rem; margin: 0.2rem 0 0; padding: 0; list-style: none; }
+.qq-ligne { min-width: 0; }
+.qq-question { margin: 0; font-size: 0.9rem; line-height: 1.45; }
+.qq-marque {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.72rem;
+  font-weight: 600;
+  vertical-align: 0.08em;
+}
+.qq-chiffre { margin: 0.2rem 0 0; font-size: 0.85rem; font-weight: 600; color: var(--text-soft); }
+.qq-sous-seuil .qq-chiffre { font-weight: 400; color: var(--text-muted); }
+.qq-barre {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  margin: 0.4rem 0 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg-soft);
+}
+.qq-segment { flex: 0 1 0; min-width: 4px; }
+.qq-c0 { background: var(--act-controle-border); }   /* Pas du tout : sable foncé */
+.qq-c1 { background: var(--act-peda-border); }       /* Plutôt non : sable */
+.qq-c2 { background: var(--accent-on-dark); }        /* Plutôt oui : vert clair */
+.qq-c3 { background: var(--accent); }                /* Tout à fait : vert */
+.qq-c4 { background: var(--line-strong); }           /* Sans avis : gris */
+.qq-repartition { display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; margin: 0.4rem 0 0; padding: 0; list-style: none; }
+.qq-repartition li { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; color: var(--text-soft); }
+.qq-repartition strong { color: var(--text); }
+.qq-puce { flex: none; width: 0.7rem; height: 0.7rem; border-radius: 2px; }
+
+.qq-commentaires { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.6rem 0 0; padding: 0; list-style: none; }
+.qq-commentaires li {
+  padding: 0.55rem 0.75rem;
+  border-left: 3px solid var(--accent-soft-2);
+  border-radius: var(--r-xs);
+  background: var(--bg);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+/* Les commentaires ne sortent jamais sur papier, même par l'impression du navigateur (Ctrl+P sur la page). */
+@media print {
+  .qualiopi-commentaires { display: none !important; }
+}
+
 .qualiopi-erreur p { margin: 0 0 0.6rem; }
 /* La boîte d'erreur de chargement de la page (js/main.js) est hors de .qualiopi : son bouton a sa propre cible de 44 px. */
 .qualiopi-erreur .btn { min-height: 44px; }

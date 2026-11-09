@@ -4144,11 +4144,24 @@ def verifier_nouveautes_eteint(page, res, sc):
 
 def verifier_nouveautes_de_l_accueil(page, res, vue, equipe):
     """Accueil, nouvelle navigation : les Nouveautés de l'accueil commencent par la plus récente, « Ta journée sur l'Accueil » chez le stagiaire,
-    « Aujourd'hui remplace l'Accueil » chez l'équipe (lot 2B) ; l'équipe voit aussi celle du lot 4 (rôles par promo). Appelé depuis l'accueil déjà ouvert."""
+    « Aujourd'hui remplace l'Accueil » chez l'équipe (lot 2B) ; l'équipe voit aussi celle du lot 4 (rôles par promo). Appelé depuis l'accueil déjà ouvert.
+    Une Nouveauté datée après le jour du lot 2B (les questionnaires anonymes, datés de leur mise en ligne prévue, règle R3 du plan Q3) passe devant
+    par sa date : la carte de l'accueil doit alors montrer celle que l'app classe en tête, et l'ordre du lot se vérifie parmi les Nouveautés
+    datées jusqu'au jour du lot, lues dans l'ordre que l'app calcule (js/modules-etat.js, le module même de la page)."""
     titres = [c["titre"] for c in page.evaluate("() => window.__verifNav.nouveautes()")]
     attendus = [TITRE_AUJOURDHUI_EQUIPE] if equipe else [TITRE_JOURNEE]
     if equipe and TITRE_ROLES not in titres:
         res.echec("Nouveautés de l'accueil", vue, "« %s » manque chez l'équipe" % TITRE_ROLES)
+    ordre = page.evaluate("""async () => {
+      const s = document.querySelector('script[type="module"][src*="js/main.js"]');
+      const v = s ? new URL(s.src, location.href).search : "";
+      const m = await import(new URL("js/modules-etat.js" + v, location.href).href);
+      return m.nouveautesAffichables().entrees.map((e) => ({ titre: e.titre, date: e.date }));
+    }""")
+    if ordre and titres[:1] != [ordre[0]["titre"]]:
+        res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu la plus récente, « %s »" % (" », « ".join(titres[:1]), ordre[0]["titre"]))
+    jour_du_lot = "-".join(reversed(DATE_DE_LA_FUSION.split("/")))
+    titres = [o["titre"] for o in ordre if o["date"] <= jour_du_lot] if ordre else titres
     if titres[:len(attendus)] != attendus:
         res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu « %s »" % (" », « ".join(titres[:len(attendus)]), " », « ".join(attendus)))
 

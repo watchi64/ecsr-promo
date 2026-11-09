@@ -34,18 +34,23 @@
 //                 import, les autres sont ses modifications.
 //   signalements  [{ traite_at }]
 //   autoEcoles    [{ actif, lieu_id }]
+//   satisfaction  { etat: "mesuree", taux, repondants, inscrits } | { etat: "sous_seuil" } | { etat: "absente" } | { etat: "non_lue" } : le résultat du
+//                 questionnaire de fin de formation, tel que le rend `satisfactionDe` (lu par la page, hors de l'inventaire) ;
+//                 une clé absente vaut « non_lue ». Jamais un commentaire : seuls des comptes entrent ici.
 // Ne sont pas lus : `profs` et `entete` (les noms) et l'émargement, pas encore branché (voir la pièce `assiduite`).
 //
 // Exports : les aides du planning (`lignesDuPlanning`, `demiJournees`, `intervenantsDistincts`) et les petits outils de
 // phrases (`jourDe`, `rempli`, `tableau`, `nb`) sont réutilisés par js/qualiopi-documents.js, pour que la synthèse par
 // semaine des dossiers suive toujours la règle de l'inventaire au lieu d'en recopier une version.
 
-import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261109g";
-import { indicateursPromo } from "./centre-stats.js?v=20261109g";
-import { estNotee } from "./notes-stats.js?v=20261109g";
-import { ACTIVITY_SHAPES } from "./config.js?v=20261109g";
-import { jourFerie } from "./emargement-rules.js?v=20261109g";
-import { parseDate, addDays, isoDate } from "./utils.js?v=20261109g";
+import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261109h";
+import { indicateursPromo, pct } from "./centre-stats.js?v=20261109h";
+import { estNotee } from "./notes-stats.js?v=20261109h";
+import { ACTIVITY_SHAPES } from "./config.js?v=20261109h";
+import { jourFerie } from "./emargement-rules.js?v=20261109h";
+import { parseDate, addDays, isoDate } from "./utils.js?v=20261109h";
+import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261109h";
+import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261109h";
 
 // Annexe A de la spec, cellule par cellule, pour les 28 indicateurs d'un centre de formation continue (les 27 plus
 // le 13 de l'alternance). niveau : « prouve » (l'app fournit l'essentiel), « partiel » (en partie) ou « hors »
@@ -98,6 +103,7 @@ export const PIECES = [
   { cle: "intervenants", libelle: "Intervenants et partenaires", indicateurs: [17, 18, 28] },
   { cle: "resultats", libelle: "Résultats et méthodes", indicateurs: [2, 3, 32] },        // tableau de bord du centre
   { cle: "suivi", libelle: "Suivi", indicateurs: [10, 12, 32] },                          // à suivre de près, thèmes
+  { cle: "appreciations", libelle: "Appréciations", indicateurs: [30, 32] },              // questionnaire de fin de formation (Q3)
 ];
 
 const HEURES_NON_BRANCHEES = "calcul des heures pas encore branché";
@@ -223,6 +229,30 @@ export function intervenantsDistincts(lignes) {
 // (`navigation: "nouvelle"`) ne se lisent que barre allumée : tant qu'elle est éteinte, personne n'a pu les lire dans l'app
 // et un auditeur ne les y trouverait pas. Le filtre est écrit ici une seule fois, pour l'inventaire et le dossier du centre.
 export const nouveautesCitables = (nouveautes) => tableau(nouveautes).filter((x) => x?.navigation !== "nouvelle");
+
+// --- Satisfaction : le questionnaire de fin de formation ---
+
+const GLOBALE_FIN_STAGIAIRE = QUESTIONNAIRES.fin_stagiaire.questions.find((q) => q.globale).id;
+
+// Le résultat du questionnaire « fin de formation » d'une promo, prêt pour les dossiers. `resultats` est ce que rend la base
+// (lireResultatsQuestionnaire : comptes par question, rien sous le seuil), `inscrits` le nombre de fiches de la promo.
+//   { etat: "mesuree", taux, repondants, inscrits } : taux entier en pourcent, « sans avis » exclu, au moins 5 avis notés
+//   (`repondants` compte les avis notés, pas les réponses) ;
+//   { etat: "sous_seuil" } : moins de 5 avis notés, aucun chiffre ;
+//   { etat: "absente" } : la fonction de la base n'existe pas (migration pas appliquée), seuil nul ; la pièce le dit calmement ;
+//   { etat: "non_lue" } : la lecture a échoué (réseau, droit) ou n'a pas eu lieu (`{ echec: true }`, rien) : le questionnaire peut
+//   être en service avec des réponses, la pièce dit seulement qu'il n'a pas été lu. Jamais confondue avec « absente ».
+export function satisfactionDe(resultats, inscrits) {
+  if (!resultats || resultats.echec === true) return { etat: "non_lue" };
+  if (resultats.seuil === null || resultats.seuil === undefined) return { etat: "absente" };
+  const mesure = tauxSatisfaction(resultats.questions?.[GLOBALE_FIN_STAGIAIRE], inscrits, "stagiaire");
+  return mesure ? { etat: "mesuree", ...mesure } : { etat: "sous_seuil" };
+}
+
+// « moins de 5 avis notés au questionnaire de fin de formation » : la raison fixe d'une pièce sous le seuil.
+const RAISON_SOUS_SEUIL = `${texteSousSeuilAvis("stagiaire")} au questionnaire de fin de formation`;
+const RAISON_SANS_QUESTIONNAIRE = "questionnaire de fin de formation pas encore en service";
+export const RAISON_NON_LUE = "questionnaire de fin de formation non lu (erreur de lecture)";
 
 // --- Cours : leurs modifications ---
 
@@ -376,6 +406,17 @@ const CONSTRUCTEURS = {
     return presente(`${nb(mesures, "indicateur mesuré", "indicateurs mesurés")}, chacun avec sa méthode de calcul ; réussite au titre non mesurée`);
   },
 
+  // Des comptes seulement, jamais un commentaire. Au-dessus du seuil : le taux des réponses favorables, les avis notés et les inscrits ;
+  // sous le seuil ou sans questionnaire : une raison fixe, sans chiffre.
+  appreciations: ({ satisfaction }) => {
+    if (satisfaction?.etat === "mesuree") {
+      const sur = satisfaction.inscrits > 0 ? ` sur ${nb(satisfaction.inscrits, "inscrit")}` : "";
+      return presente(`questionnaire de fin de formation, ${pct(satisfaction.taux / 100)} de réponses favorables (${nb(satisfaction.repondants, "avis noté", "avis notés")}${sur})`);
+    }
+    if (satisfaction?.etat === "sous_seuil") return absente(RAISON_SOUS_SEUIL);
+    return absente(satisfaction?.etat === "absente" ? RAISON_SANS_QUESTIONNAIRE : RAISON_NON_LUE);
+  },
+
   // Des nombres seulement : la liste des stagiaires à suivre de près porte des noms, elle n'est que comptée. Les listes
   // de thèmes du tableau de bord sont des classements : les thèmes qui ont assez de données, du plus faible au plus
   // fort, coupés à 5. Leur longueur n'est donc pas un nombre de thèmes faibles : la phrase dit « les N thèmes les plus
@@ -409,6 +450,7 @@ function contexte(donnees, referentiel, { promo, aujourdhui, nouveautes }) {
   const fin = jourDe(promo.date_fin) ?? jourDe(aujourdhui);
   return {
     promo, referentiel, liste,
+    satisfaction: donnees.satisfaction ?? { etat: "non_lue" },   // aucune lecture faite : honnêtement « non lue »
     terminee: promoTerminee(promo, aujourdhui),
     nouveautes: nouveautesCitables(nouveautes),
     ind: indicateursPromo(donnees, referentiel, { aujourdhui }),
