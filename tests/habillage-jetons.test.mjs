@@ -426,3 +426,141 @@ test("la garde lit les vrais fichiers : le CSS et le JS de l'app", () => {
   assert.ok(listeFichiers("js", ".js", true).includes("js/views/home.js"));
   assert.ok(estExemptJs("js/dessins-poste.js") && estExemptJs("js/scene-moteur.js") && !estExemptJs("js/views/home.js"));
 });
+
+// --- Le bloc « Couleurs ECF » (css/habillage-ecf.css) ---
+
+const FICHIER_ECF = "css/habillage-ecf.css";
+const SELECTEUR_ECF = ':root[data-skin="ecf"]';
+// Les seuls fichiers JS qui nomment data-skin : le mécanisme de l'habillage et son script d'avant peinture.
+const JS_AVEC_DATA_SKIN = ["js/habillage.js", "js/habillage-avant-peinture.js"];
+
+const lire = (rel) => fs.readFileSync(path.join(RACINE, rel), "utf8");
+
+// Les jetons d'un bloc : nom -> valeur (la dernière déclaration l'emporte, comme en CSS).
+function jetonsDuBloc(texte, selecteur) {
+  const jetons = new Map();
+  for (const regle of lireRegles(texte)) {
+    if (!normaliseSelecteurs(regle.selecteur).every((s) => s === selecteur)) continue;
+    for (const d of regle.declarations) if (d.propriete.startsWith("--")) jetons.set(d.propriete, d.valeur.trim());
+  }
+  return jetons;
+}
+
+const JETONS_DEFAUT = jetonsDuBloc(lire("css/style.css"), ":root");
+const JETONS_ECF = fs.existsSync(path.join(RACINE, FICHIER_ECF)) ? jetonsDuBloc(lire(FICHIER_ECF), SELECTEUR_ECF) : new Map();
+
+test("ECF : un seul bloc, de sélecteur exact, qui ne contient que des variables", () => {
+  assert.ok(fs.existsSync(path.join(RACINE, FICHIER_ECF)), `${FICHIER_ECF} est absent`);
+  const texte = sansCommentaires(lire(FICHIER_ECF));
+  assert.match(texte.trim(), /^:root\[data-skin="ecf"\]\s*\{[^{}]*\}$/, "le fichier ne contient qu'une règle, sans @media ni autre sélecteur");
+  const regles = lireRegles(lire(FICHIER_ECF));
+  assert.equal(regles.length, 1);
+  assert.equal(regles[0].selecteur.trim(), SELECTEUR_ECF);
+  for (const d of regles[0].declarations) assert.ok(d.propriete.startsWith("--"), `${d.propriete} n'est pas une variable (ligne ${d.ligne})`);
+  assert.ok(JETONS_ECF.size > 50);
+});
+
+test("ECF : il redéfinit chaque jeton d'habillage de :root, et seulement eux", () => {
+  const inconnus = [...JETONS_ECF.keys()].filter((n) => !JETONS_DEFAUT.has(n));
+  assert.deepEqual(inconnus, [], "ces jetons n'existent pas dans :root (faute de frappe ?)");
+  const pasHabillage = [...JETONS_ECF.keys()].filter((n) => familleDe(n) !== "habillage");
+  assert.deepEqual(pasHabillage, [], "ces jetons ne sont pas de la famille d'habillage (un jeton fixe ne se redéfinit jamais)");
+  const fixes = [...JETONS_ECF.keys()].filter((n) => FAMILLES_FIXES.some((p) => correspond(n, p)));
+  assert.deepEqual(fixes, []);
+  const oublies = [...JETONS_DEFAUT.keys()].filter((n) => familleDe(n) === "habillage" && !JETONS_ECF.has(n));
+  assert.deepEqual(oublies, [], "ces jetons d'habillage restent à la couleur de l'habillage par défaut sous ECF");
+});
+
+test("ECF : data-skin n'apparaît que dans le bloc ECF et, en JavaScript, dans le mécanisme de l'habillage", () => {
+  const trouves = [];
+  for (const f of listeFichiers("css", ".css", false)) {
+    if (f !== FICHIER_ECF && /data-skin|dataset\.skin/.test(lire(f))) trouves.push(f);
+  }
+  for (const f of listeFichiers("js", ".js", true)) {
+    if (!JS_AVEC_DATA_SKIN.includes(f) && /data-skin|dataset\.skin/.test(lire(f))) trouves.push(f);
+  }
+  assert.deepEqual(trouves, [], "l'habillage s'applique par le seul attribut posé par js/habillage.js ; le reste de l'app l'ignore");
+});
+
+// --- Contrastes, calculés pour les deux habillages ---
+
+// Une couleur : { r, g, b, a } (r, g, b sur 255, a sur 1), ou null si elle n'en est pas une.
+function lireCouleur(texte) {
+  const t = texte.trim().toLowerCase();
+  let m = t.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/);
+  if (m) {
+    const h = m[1].length === 3 ? [...m[1]].map((c) => c + c).join("") : m[1];
+    return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16), a: 1 };
+  }
+  m = t.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/);
+  if (m) return { r: +m[1], g: +m[2], b: +m[3], a: m[4] === undefined ? 1 : +m[4] };
+  return null;
+}
+
+// La valeur d'un jeton pour un habillage, ses var() suivies jusqu'à une couleur.
+function couleurDe(jetons, valeur, vus = new Set()) {
+  const v = valeur.trim();
+  const direct = lireCouleur(v);
+  if (direct) return direct;
+  const m = v.match(/^var\(\s*(--[\w-]+)\s*\)$/);
+  if (!m || vus.has(m[1]) || !jetons.has(m[1])) throw new Error(`pas de couleur pour « ${valeur} »`);
+  vus.add(m[1]);
+  return couleurDe(jetons, jetons.get(m[1]), vus);
+}
+
+// Une couleur translucide posée sur un fond opaque.
+const composer = (c, fond) => ({
+  r: c.r * c.a + fond.r * (1 - c.a), g: c.g * c.a + fond.g * (1 - c.a), b: c.b * c.a + fond.b * (1 - c.a), a: 1,
+});
+const luminance = ({ r, g, b }) => {
+  const lin = (x) => { const s = x / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+};
+export function rapportDeContraste(a, b) {
+  const [h, l] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (h + 0.05) / (l + 0.05);
+}
+
+// Les paires texte / fond de l'interface : [texte, fond, seuil]. Un nom commence par « -- » (jeton) ou par « # » (couleur
+// écrite : le blanc d'un texte sur un fond plein). Seuil 4,5 : texte courant (WCAG AA) ; 3 : repère graphique (un trait,
+// une pastille). --text-faint n'y figure pas : c'est du décor, aucun texte ne l'emploie.
+export const PAIRES = [
+  ...["--text", "--text-soft", "--text-muted"].flatMap((t) => ["--bg", "--bg-elev", "--bg-soft", "--bg-subtle"].map((f) => [t, f, 4.5])),
+  ["--accent", "--bg", 4.5], ["--accent", "--bg-elev", 4.5], ["--accent", "--accent-soft", 4.5],
+  ["--accent-strong", "--accent-soft-2", 4.5],
+  ["#FFFFFF", "--accent", 4.5],
+  ["--accent-texte", "--accent", 4.5],
+  ["--sur-sombre", "--bg-deep", 4.5], ["--sur-sombre-doux", "--bg-deep", 4.5],
+  ["--accent-on-dark", "--bg-deep", 4.5],
+  ["--sur-repere-sombre", "--repere-sombre", 4.5], ["--sur-pastille", "--pastille", 4.5],
+  ["--repere-sombre", "--bg-deep", 3], ["--pastille", "--bg-elev", 3],
+];
+
+export function contrastesDe(jetons) {
+  const lire1 = (n) => couleurDe(jetons, n.startsWith("--") ? `var(${n})` : n);
+  return PAIRES.map(([texte, fond, seuil]) => {
+    const f = lire1(fond);
+    const c = composer(lire1(texte), f);
+    return { texte, fond, seuil, rapport: rapportDeContraste(c, f) };
+  });
+}
+
+const JETONS_ECF_COMPLETS = new Map([...JETONS_DEFAUT, ...JETONS_ECF]);
+
+for (const [nom, jetons] of [["ECSR Promo", JETONS_DEFAUT], ["Couleurs ECF", JETONS_ECF_COMPLETS]]) {
+  test(`contrastes (${nom}) : chaque paire texte / fond atteint son seuil`, (t) => {
+    const lignes = contrastesDe(jetons);
+    t.diagnostic(lignes.map((l) => `${l.texte} sur ${l.fond} : ${l.rapport.toFixed(2)} (seuil ${l.seuil})`).join("\n"));
+    const tropBas = lignes.filter((l) => l.rapport < l.seuil)
+      .map((l) => `${l.texte} sur ${l.fond} : ${l.rapport.toFixed(2)}:1 pour ${l.seuil}:1`);
+    assert.deepEqual(tropBas, []);
+  });
+}
+
+test("contrastes : le calcul est juste (noir sur blanc 21, rouge d'ECF sur le bleu nuit 3,01) et compose les transparences", () => {
+  assert.ok(Math.abs(rapportDeContraste(lireCouleur("#000"), lireCouleur("#fff")) - 21) < 1e-9);
+  const rouge = rapportDeContraste(lireCouleur("#DB1418"), lireCouleur("#0D2546"));
+  assert.ok(rouge >= 3 && rouge < 3.1, `rouge sur bleu nuit : ${rouge}`);
+  assert.deepEqual(composer(lireCouleur("rgba(255,255,255,0.5)"), lireCouleur("#000")), { r: 127.5, g: 127.5, b: 127.5, a: 1 });
+  assert.equal(couleurDe(new Map([["--a", "var(--b)"], ["--b", "#112233"]]), "var(--a)").g, 0x22);
+});

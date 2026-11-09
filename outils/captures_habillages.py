@@ -23,6 +23,11 @@ compare les deux jeux image par image.
   * `--comparer AVANT` : le dossier qui vient d'être produit contre AVANT, image par image. Une vue absente d'un côté
     compte comme différente. Code de sortie 1 s'il y a la moindre différence ou la moindre vue absente.
   * `--seulement-comparer` : ne photographie rien, compare deux dossiers déjà là (--sortie contre --comparer).
+  * `--documents` : à la place des vues ci-dessus, la preuve que les documents imprimés ne bougent pas avec l'habillage
+    (lot 3, décision H5) : chaque document (feuille d'émargement, dossier Qualiopi) est photographié seul, sous le média
+    « print », avec `data-skin` forcé en « ecsr » puis en « ecf », et les deux images sont comparées au pixel. Ils doivent
+    être identiques. Les certificats et attestations ne se montent qu'à l'impression réelle : ils ne sont pas photographiés
+    ici (leur règle de garde, la règle 6 du test des jetons, couvre leur CSS). Code de sortie 1 au moindre écart.
 
 Ce qui rend les captures répétables : date du banc figée (?date=), animations coupées, mouvement réduit, curseur de
 saisie caché, polices et images attendues, et une même suite de vues dans un même ordre pour chaque contexte.
@@ -129,8 +134,9 @@ class Prise:
         self.faites = []
         self.erreurs = []
 
-    def photographier(self, vue, apres=None):
-        """Attend la page posée, puis la photographie en entier. `vue` : l'identifiant du nom de fichier."""
+    def photographier(self, vue, apres=None, element=None):
+        """Attend la page posée, puis la photographie en entier. `vue` : l'identifiant du nom de fichier.
+        `element` : un sélecteur ; la capture ne porte alors que cet élément (un document imprimé, sans la page autour)."""
         p = self.page
         try:
             attendre(p, calme=150)
@@ -143,6 +149,10 @@ class Prise:
                 self.erreurs.append((vue, "identifiant de vue déjà pris dans ce contexte"))
                 return
             fichier = self.dossier / ("%s-%s.png" % (self.prefixe, vue))
+            if element:
+                p.locator(element).first.screenshot(path=str(fichier), animations="disabled", caret="hide", timeout=8000)
+                self.faites.append(vue)
+                return
             # Une page très longue (Nouveautés sur téléphone) dépasse la limite de WebKit (32 767 px de l'image) : au-delà
             # de HAUTEUR_MAX px CSS, on garde le haut de la page, pour les deux moteurs.
             dims = p.evaluate("() => ({ l: Math.max(document.documentElement.scrollWidth, innerWidth), h: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) })")
@@ -205,7 +215,7 @@ def menus(prise):
             p.wait_for_timeout(250)
 
 
-def feuille_d_emargement(prise, sc):
+def feuille_d_emargement(prise, sc, element=None):
     """La feuille d'une séance ouverte, en aperçu d'impression : le bouton « Imprimer la feuille » monte le document
     imprimable dans la page (window.print est neutralisé), puis on photographie sous le média « print »."""
     p = prise.page
@@ -228,7 +238,7 @@ def feuille_d_emargement(prise, sc):
         return
     p.emulate_media(media="print", reduced_motion="reduce")
     try:
-        prise.photographier("feuille-emargement")
+        prise.photographier("feuille-emargement", element=element)
     finally:
         p.emulate_media(media="screen", reduced_motion="reduce")
 
@@ -294,6 +304,86 @@ def jouer_role(navigateur, url, tache, dossier, forcer):
             except ErreurPlaywright:
                 pass
     return prise.faites, prise.erreurs
+
+
+def jouer_documents(navigateur, url, moteur, habillage, dossier):
+    """Les documents imprimés dans un habillage forcé : la feuille d'émargement (formateur) et le dossier de la formation
+    Qualiopi (fondateur), chacun seul, sous le média « print ». La liste (faites, erreurs)."""
+    sortie = pathlib.Path(dossier) / "documents" / moteur / habillage
+    sortie.mkdir(parents=True, exist_ok=True)
+    faites, erreurs = [], []
+    for role, document in (("prof", "feuille-emargement"), ("fondateur", "qualiopi-dossier")):
+        sc = vn.Scenario(moteur, "allume", role, 1280, ALLUMAGE_DE[role], ESPACE_DE[role])
+        prise = Prise(None, sortie, "%s-1280" % role)
+        res = vn.Resultat(sc)
+        contexte = None
+        try:
+            contexte = nouveau_contexte(navigateur, sc, {})
+            contexte.add_init_script(js_habillage(habillage, True))
+            page = vn.nouvelle_page(contexte, res)
+            page.emulate_media(reduced_motion="reduce")
+            prise.page = page
+            charger(page, url, sc)
+            regles = regles_de_la_page(page, res, sc)
+            vn.preparer_coquille(page, res, sc, regles)
+            if document == "feuille-emargement":
+                feuille_d_emargement(prise, sc, element="#emargement-print")
+            else:
+                page.evaluate(JS_SANS_IMPRESSION)
+                vn.aller_a(page, "#/qualiopi")
+                attendre(page, calme=200)
+                page.wait_for_function("() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Dossier de la formation'); return b && !b.disabled; }", timeout=8000)
+                page.get_by_role("button", name="Dossier de la formation").first.click(timeout=4000)
+                page.wait_for_selector("#qualiopi-print .qdoc", state="attached", timeout=8000)
+                page.emulate_media(media="print", reduced_motion="reduce")
+                prise.photographier("qualiopi-dossier", element="#qualiopi-print")
+        except (DelaiDepasse, ErreurPlaywright) as e:
+            prise.erreurs.append((document, str(e).strip().splitlines()[0][:200]))
+        except Exception as e:
+            prise.erreurs.append((document, "%s : %s" % (type(e).__name__, e)))
+        finally:
+            for type_, vue, detail in res.echecs:
+                prise.erreurs.append((vue, "%s : %s" % (type_, detail)))
+            if contexte:
+                try:
+                    contexte.unroute_all(behavior="wait")
+                    contexte.close()
+                except ErreurPlaywright:
+                    pass
+        faites += prise.faites
+        erreurs += prise.erreurs
+    return faites, erreurs
+
+
+def photographier_documents(url, dossier, moteurs):
+    """Photographie les documents imprimés en « ecsr » et en « ecf » (data-skin forcé), puis les compare. Vrai si identiques."""
+    problemes = []
+    with sync_playwright() as p:
+        for moteur in moteurs:
+            navigateur, raison = vn.lancer_navigateur(p, moteur)
+            if navigateur is None:
+                problemes.append("moteur %s indisponible : %s" % (moteur, raison))
+                continue
+            try:
+                for habillage in HABILLAGES:
+                    faites, erreurs = jouer_documents(navigateur, url, moteur, habillage, dossier)
+                    print("%s / %s : %d document(s) photographié(s)" % (moteur, habillage, len(faites)), flush=True)
+                    problemes += ["%s/%s %s : %s" % (moteur, habillage, vue, raison) for vue, raison in erreurs]
+            finally:
+                navigateur.close()
+    for pb in problemes:
+        print("  ! " + pb)
+    ok = not problemes
+    racine = pathlib.Path(dossier) / "documents"
+    for moteur in moteurs:
+        a, b = racine / moteur / "ecsr", racine / moteur / "ecf"
+        if not a.is_dir() or not b.is_dir() or not images_de(a) or not images_de(b):
+            print("Comparaison impossible pour %s : aucun document photographié." % moteur)
+            ok = False
+            continue
+        print("Documents imprimés, %s : ecsr contre ecf" % moteur)
+        ok = comparer(a, b) and ok
+    return ok
 
 
 def executer_lot(lot):
@@ -486,11 +576,19 @@ def main(argv=None):
     ap.add_argument("--jobs", type=int, default=0, help="processus en parallèle (défaut : deux par moteur)")
     ap.add_argument("--comparer", metavar="DOSSIER_AVANT", help="compare le dossier produit à celui-ci")
     ap.add_argument("--seulement-comparer", action="store_true", help="ne photographie rien : compare --sortie à --comparer")
+    ap.add_argument("--documents", action="store_true", help="photographie les documents imprimés seuls en ecsr et en ecf (forcés) et les compare : ils doivent être identiques")
     args = ap.parse_args(argv)
 
     if args.seulement_comparer and not args.comparer:
         raise SystemExit("--seulement-comparer demande --comparer")
     ok = True
+    if args.documents:
+        moteurs = liste_de(args.moteurs, MOTEURS, "moteurs")
+        if not vn.repond(args.url):
+            print("Le banc ne répond pas à %s." % args.url)
+            return 2
+        pathlib.Path(args.sortie).mkdir(parents=True, exist_ok=True)
+        return 0 if photographier_documents(args.url, args.sortie, moteurs) else 1
     if not args.seulement_comparer:
         moteurs = liste_de(args.moteurs, MOTEURS, "moteurs")
         habillages = liste_de(args.habillages, HABILLAGES, "habillages")

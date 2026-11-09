@@ -583,6 +583,18 @@ body[data-nav="v2"] .nav-bas { display: none; }
     height: 56px;
     padding: 0 max(0.75rem, env(safe-area-inset-right, 0px)) 0 max(0.75rem, env(safe-area-inset-left, 0px));
   }
+  /* Le liseré de l'habillage sous l'en-tête sombre : collé au bas, hors du flux (position absolue sur la barre collante),
+     3 px. Avec « none » (ECSR Promo) il ne peint rien et ne prend aucune place : rien ne bouge au pixel. */
+  body[data-nav="v2"] .nav-cote::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: var(--lisere-habillage);
+    pointer-events: none;
+  }
   body[data-nav="v2"] .nav-cote-tete { flex: 1; min-width: 0; }
   body[data-nav="v2"] .nav-contexte { padding: 3px 8px 3px 5px; }
   body[data-nav="v2"] .nav-contexte-marque { width: 32px; height: 32px; font-size: 0.75rem; }
