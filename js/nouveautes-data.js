@@ -132,6 +132,8 @@ export const NOUVEAUTES = [
         + "matrice » ouvre les notes de la promo.",
       "Dans Équipe, « Inviter un formateur » demande son adresse et les promos du centre à cocher ; « Modifier » change ses "
         + "promos, « Retirer du centre » les lui enlève toutes.",
+      "Dans Réglages du centre, « Habillage par défaut du centre » choisit l'apparence que reçoivent les comptes du centre qui "
+        + "n'ont rien choisi ; décoche « Laisser chacun choisir le sien » pour l'imposer à tous.",
       "Sur téléphone, Accueil, Promos, Stagiaires et Équipe sont en bas de l'écran ; « Plus » ouvre les autres pages.",
     ],
   },
@@ -152,6 +154,8 @@ export const NOUVEAUTES = [
       "Dans Directions de centre, « Inviter une direction » demande une adresse et un centre ; « Retirer » enlève une direction. "
         + "« Ajouter un centre » crée un centre, puis propose d'inviter sa direction.",
       "Dans Cours et QCM, tu rédiges les cours des thèmes et les questions de QCM, communs à tous les centres.",
+      "Dans Réglages du réseau, tu choisis l'habillage par défaut du réseau : celui des comptes qui n'ont rien choisi et dont le "
+        + "centre n'a rien fixé.",
       "Sur téléphone, Accueil, Cours et QCM et Directions sont en bas de l'écran ; « Plus » ouvre les Réglages du réseau.",
     ],
   },

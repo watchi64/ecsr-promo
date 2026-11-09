@@ -453,6 +453,44 @@ export async function reglerAffectationsFormateur({ email, lieuId, promoIds, pro
   return data;
 }
 
+// Habillage par défaut (lot 5) : { centre, libre, reseau } pour le compte connecté (habillage_par_defaut() : le centre de la promo
+// affichée, à défaut le premier centre de ses affectations ; le réseau). Lisible de tout compte. Une fonction absente (avant la
+// migration) ou toute panne lève : au démarrage l'appelant s'en passe (défauts nuls), sans message.
+export async function habillageParDefaut() {
+  const { data, error } = await supabase.rpc("habillage_par_defaut");
+  if (error) throw erreurDeBase(error);
+  const ligne = Array.isArray(data) ? data[0] : data;
+  if (!ligne || typeof ligne !== "object") throw new Error("habillage: La base n'a rien répondu.");
+  return ligne;
+}
+
+// L'habillage tenu par un centre : { habillage, habillage_libre } (la direction du centre et le siège lisent la ligne de lieux).
+// Colonne absente (avant la migration) ou ligne illisible : lève, la page le dit par sa phrase.
+export async function lireHabillageCentre(lieuId) {
+  const { data, error } = await supabase.from("lieux").select("habillage, habillage_libre").eq("id", lieuId).maybeSingle();
+  if (error) throw erreurDeBase(error);
+  if (!data) throw new Error("habillage: Centre introuvable.");
+  return data;
+}
+
+// La direction règle l'habillage de son centre (regler_habillage_centre : nul = aucun ; libre faux = il s'impose à tous). Les refus
+// de la base partent tels quels (préfixe « habillage: », 42501 sans droit, PGRST202 fonction absente) : l'appelant les dit par
+// phraseDeRefus.
+export async function reglerHabillageCentre({ lieuId, habillage, libre }) {
+  const { data, error } = await supabase.rpc("regler_habillage_centre", { p_lieu_id: lieuId, p_habillage: habillage ?? null, p_libre: libre });
+  if (error) throw erreurDeBase(error);
+  if (!data || typeof data !== "object") throw new Error("habillage: La base n'a rien répondu.");
+  return data;
+}
+
+// Le siège règle l'habillage par défaut du réseau (regler_habillage_reseau : nul = aucun). Mêmes refus que ci-dessus.
+export async function reglerHabillageReseau(habillage) {
+  const { data, error } = await supabase.rpc("regler_habillage_reseau", { p_habillage: habillage ?? null });
+  if (error) throw erreurDeBase(error);
+  if (!data || typeof data !== "object") throw new Error("habillage: La base n'a rien répondu.");
+  return data;
+}
+
 // === Stagiaires & Profs ===
 
 // Par défaut, ne renvoie que les stagiaires actifs (les abandons sont masqués

@@ -7,7 +7,7 @@ import {
   ESPACES, LIBELLES_ESPACE, ACCUEIL_ESPACE, barreLaterale, espacesPermis, espaceChoisi, brider, peutRedigerContenus,
   porteSansPromo, centreAffiche, promoPourLaDirection, promosDuCentre, routeDansLEspace, phraseHorsEspace,
   phraseDeRefus, adresseApresBascule, normaliserAffectations, affectationsDeSecours, espacesDuCompte, promoPourLEspace,
-  cleDerniereRoute, espaceDePilotage, promosVisiblesEnApercu, texteBandeauApercu, litToutesLesNotes
+  cleDerniereRoute, espaceDePilotage, promosVisiblesEnApercu, texteBandeauApercu, litToutesLesNotes, defautsHabillage
 } from "../js/espaces-rules.js";
 import { messageInvitation } from "../js/roles-rules.js";
 
@@ -317,4 +317,18 @@ test("litToutesLesNotes : le formateur et la direction lisent les profils masqu�
   assert.equal(litToutesLesNotes({ admin: false, espace: "siege" }), false, "siège : aucune note de promo");
   assert.equal(litToutesLesNotes({ admin: false, espace: "equipe" }), false, "sans droit sur la promo");
   assert.equal(litToutesLesNotes(), false, "rien de connu");
+});
+
+test("defautsHabillage : ligne absente ou illisible, valeurs inconnues, libre absent", () => {
+  const nul = { centre: null, reseau: null, libre: true };
+  for (const ligne of [null, undefined, "ecf", 3, [], {}]) assert.deepEqual(defautsHabillage(ligne), nul);
+  assert.deepEqual(defautsHabillage({ centre: "ecf", reseau: "ecsr", libre: false }), { centre: "ecf", reseau: "ecsr", libre: false });
+  // Une valeur hors ecsr et ecf devient nulle, la casse n'est pas devinée.
+  assert.deepEqual(defautsHabillage({ centre: "rose", reseau: "ECF", libre: true }), nul);
+  assert.deepEqual(defautsHabillage({ centre: 1, reseau: false }), nul);
+  // libre n'est faux que si la base le dit explicitement : nul, absent, 0 ou "false" laissent le choix.
+  for (const libre of [undefined, null, 0, "false", ""]) assert.equal(defautsHabillage({ centre: "ecf", libre }).libre, true, String(libre));
+  assert.equal(defautsHabillage({ libre: false }).libre, false);
+  // Une ligne qui a d'autres champs ne les recopie pas.
+  assert.deepEqual(Object.keys(defautsHabillage({ centre: "ecf", autre: 1 })).sort(), ["centre", "libre", "reseau"]);
 });

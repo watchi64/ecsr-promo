@@ -6,13 +6,14 @@
 import "./journal-erreurs.js?v=20261109i";
 import {
   getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements, basculeLancee, getPromoCourante, getMesPromos,
+  habillageParDefaut,
 } from "./db.js?v=20261109i";
 import { toast, annoncer, el } from "./utils.js?v=20261109i";
 import { icon } from "./icons.js?v=20261109i";
 import { initAuth, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261109i";
 import { getEspace, getCentre } from "./auth-admin.js?v=20261109i";
 import {
-  ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage, promosDuCentre,
+  ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage, promosDuCentre, defautsHabillage,
 } from "./espaces-rules.js?v=20261109i";
 import { chargerEtatSignalements } from "./signalement-etat.js?v=20261109i";
 import { messageDemarrage } from "./signalement-rules.js?v=20261109i";
@@ -36,6 +37,7 @@ import { renderDirections } from "./views/siege-directions.js?v=20261109i";
 import { renderRessources } from "./views/ressources.js?v=20261109i";
 import { renderThemes } from "./views/themes.js?v=20261109i";
 import { renderConfig, renderPreferences } from "./views/config.js?v=20261109i";
+import { renderReglagesCentre, renderReglagesReseau } from "./views/reglages-habillage.js?v=20261109i";
 import { renderCalendrier } from "./views/calendrier.js?v=20261109i";
 import { initUndoKeyboard } from "./undo.js?v=20261109i";
 import { renderNouveautes } from "./views/nouveautes.js?v=20261109i";
@@ -107,9 +109,10 @@ function renderTabs() {
       monterCoquille({
         espace,
         // Lot 5 : Émargement du centre s'allume quand une promo du centre a l'interrupteur (emargementDansLeCentre, lu au
-        // démarrage) ; Réglages du centre ou du réseau (Task 14) n'ont pas encore leur page : pas d'entrée (reglagesEspace faux).
+        // démarrage) ; Réglages du centre et Réglages du réseau ont leur page (js/views/reglages-habillage.js) : leur entrée est là.
         entrees: entreesNavigation(espace, {
           routeVisible, emargementActif: emargementActif(), formateur: isAdmin(), emargementDansLeCentre: emargementDansLeCentre(),
+          reglagesEspace: espaceDePilotage(espace),
         }),
         nom,
         initiales: initialesDe(nom),
@@ -251,7 +254,9 @@ const routes = {
   qualiopi:   rendreQualiopi,   // chargée à la demande, voir plus haut
   emargement: (view) => (espaceCourant() === "direction" ? renderEmargementCentre(view) : renderEmargement(view)),
   ressources: renderRessources,
-  config:     renderConfig,
+  // Lot 5 : « Réglages » est la page de l'équipe ; la direction y trouve les Réglages du centre, le siège ceux du réseau.
+  config:     (view) => (espaceCourant() === "direction" ? renderReglagesCentre(view)
+    : espaceCourant() === "siege" ? renderReglagesReseau(view) : renderConfig(view)),
   // Nouvelle navigation seulement : « Mes préférences », ouverte par le menu du compte. Avec l'ancienne,
   // l'adresse mène à Paramètres avant d'arriver ici (suivreRedirection).
   preferences: renderPreferences,
@@ -558,13 +563,26 @@ function isColdStart() {
   }
 }
 
+// Les défauts d'habillage du compte (centre de la promo affichée ou premier centre de ses affectations, réseau), puis l'accord de
+// l'habillage avec le compte (js/habillage.js).
+async function habillageDuDemarrage() {
+  let defauts = defautsHabillage(null);
+  try {
+    defauts = defautsHabillage(await habillageParDefaut());
+  } catch (e) {
+    console.warn("Habillage : défauts du centre et du réseau illisibles, ils sont ignorés", e);
+  }
+  return habillageAuDemarrage({ email: getAdminEmail(), compte: getProfile()?.habillage ?? null, ...defauts });
+}
+
 async function bootApp() {
   // Habillage : l'avant-peinture a déjà posé celui de l'appareil ; on le met d'accord avec le compte.
   // Lu ici parce que le profil est connu (initAuth est passé) et pas plus tôt. `getProfile()` est le
   // vrai profil, jamais celui de « Voir en tant que ». Non attendu : l'app ne patiente pas pour une
-  // couleur, et un échec d'enregistrement n'a pas à l'arrêter. Le lot 5 le rappellera après la porte
-  // avec `centre`, `reseau` et `libre`.
-  habillageAuDemarrage({ email: getAdminEmail(), compte: getProfile()?.habillage ?? null })
+  // couleur, et un échec d'enregistrement n'a pas à l'arrêter. Lot 5 : une fois la porte passée, l'habillage par défaut du centre
+  // et du réseau est lu en base (habillage_par_defaut) et passé avec le compte ; une lecture qui échoue (base pas encore migrée,
+  // réseau coupé) donne des défauts nuls, sans message, et l'habillage de l'appareil, déjà posé par l'avant-peinture, reste en place.
+  habillageDuDemarrage()
     .catch((e) => console.warn("Habillage : démarrage impossible", e));
   // Ruling R17 : quand la coquille est attendue (la promo l'avait la dernière fois sur cet appareil, ou
   // l'aperçu du fondateur), l'ancienne barre attend la décision sans se peindre (css/navigation.css) ;

@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  ETAPES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
+  ETAPES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
 } from "../outils/assembler_repetition_roles.mjs";
 
 // outils/assembler_repetition_roles.mjs fabrique le fichier SQL d'une répétition du lot 4 : le gabarit de la preuve,
@@ -328,7 +328,7 @@ function compacteAttendu(complet) {
 
 const LIGNE_COMPACT = "-- compact : lignes vides et de commentaire du gabarit et des aides retirées, textes injectés intacts";
 const MODES_COMPACTS = [["etape-1", duDisque], ["contre-epreuve", duDisque], ["en-ligne", depotComplet], ["repetition", depotComplet],
-  ["espaces", duDisque], ["espaces-contre-epreuve", duDisque], ["espaces-contre-epreuve-2", duDisque], ["espaces-en-ligne", duDisque]];
+  ["espaces", duDisque], ["espaces-contre-epreuve", duDisque], ["espaces-contre-epreuve-2", duDisque], ["espaces-contre-epreuve-3", duDisque], ["espaces-en-ligne", duDisque]];
 
 test("compactage : les littéraux injectés restent identiques aux fichiers du dépôt, octet pour octet", () => {
   for (const [mode, lire] of MODES_COMPACTS) {
@@ -555,15 +555,17 @@ const MIGRATION_5 = MIGRATION_ESPACES.migration;
 const RETOUR_5 = MIGRATION_ESPACES.retour;
 const MIGRATION_6 = MIGRATION_ESPACES_2.migration;
 const RETOUR_6 = MIGRATION_ESPACES_2.retour;
-const LOT_5 = [MIGRATION_5, RETOUR_5, MIGRATION_6, RETOUR_6];
+const MIGRATION_7 = MIGRATION_ESPACES_3.migration;
+const RETOUR_7 = MIGRATION_ESPACES_3.retour;
+const LOT_5 = [MIGRATION_5, RETOUR_5, MIGRATION_6, RETOUR_6, MIGRATION_7, RETOUR_7];
 
-test("espaces : la requête d'empreinte, la fixture, les deux migrations et leurs retours s'y trouvent octet pour octet (md5), dans l'ordre du gabarit", () => {
+test("espaces : la requête d'empreinte, la fixture, les trois migrations et leurs retours s'y trouvent octet pour octet (md5), dans l'ordre du gabarit", () => {
   const r = assemblerMode("espaces", RACINE, { lire: duDisque });
-  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, FIXTURE, MIGRATION_5, MIGRATION_6, RETOUR_6, RETOUR_5]);
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, FIXTURE, MIGRATION_5, MIGRATION_6, MIGRATION_7, RETOUR_7, RETOUR_6, RETOUR_5]);
   assert.deepEqual(r.neutralises, []);
   verifierInjections(r, duDisque);
-  assert.equal(r.mode, "espaces (migrations siège et équipe injectées)");
-  assert.ok(r.texte.includes("\n'espaces (migrations siège et équipe injectées)'\n"), "le mode est écrit en littéral à la place de son marqueur");
+  assert.equal(r.mode, "espaces (migrations siège, équipe et habillage injectées)");
+  assert.ok(r.texte.includes("\n'espaces (migrations siège, équipe et habillage injectées)'\n"), "le mode est écrit en littéral à la place de son marqueur");
   assert.ok(r.texte.includes(texteDuDepot(AIDES)), "les aides du lot 4 sont collées");
   assert.ok(!/^\s*--\s*@@/m.test(r.texte), "plus aucun marqueur dans la sortie");
   assert.ok(!r.texte.includes("\r"));
@@ -578,27 +580,39 @@ test("espaces : la fixture est injectée telle quelle (le texte du fichier, lisi
   assert.ok("attendu" in JSON.parse(contenu) && "donnees" in JSON.parse(contenu));
 });
 
-test("espaces-contre-epreuve : sans aucune migration ni retour (quatre littéraux neutres, fichiers non lus), l'empreinte et la fixture toujours là", () => {
+test("espaces-contre-epreuve : sans aucune migration ni retour (six littéraux neutres, fichiers non lus), l'empreinte et la fixture toujours là", () => {
   const lus = [];
   const r = assemblerMode("espaces-contre-epreuve", RACINE, { lire: (chemin) => { lus.push(chemin); return duDisque(chemin); } });
   assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, FIXTURE]);
   assert.deepEqual([...r.neutralises].sort(), [...LOT_5].sort());
   for (const chemin of r.neutralises) assert.ok(!lus.includes(chemin), `non lu : ${chemin}`);
   verifierInjections(r, duDisque);
-  assert.equal(r.texte.split("\n").filter((ligne) => ligne.trim() === NEUTRE).length, 4);
+  assert.equal(r.texte.split("\n").filter((ligne) => ligne.trim() === NEUTRE).length, 6);
   assert.equal(r.mode, "espaces-contre-epreuve (aucune migration injectée)");
 });
 
-test("espaces-contre-epreuve-2 : la migration du siège et son retour injectés, ceux de l'équipe neutralisés et non lus", () => {
+test("espaces-contre-epreuve-2 : la migration du siège et son retour injectés, ceux de l'équipe et de l'habillage neutralisés et non lus", () => {
   const lus = [];
   const r = assemblerMode("espaces-contre-epreuve-2", RACINE, { lire: (chemin) => { lus.push(chemin); return duDisque(chemin); } });
   assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, FIXTURE, MIGRATION_5, RETOUR_5]);
-  assert.deepEqual([...r.neutralises].sort(), [MIGRATION_6, RETOUR_6].sort());
+  assert.deepEqual([...r.neutralises].sort(), [MIGRATION_6, RETOUR_6, MIGRATION_7, RETOUR_7].sort());
+  for (const chemin of r.neutralises) assert.ok(!lus.includes(chemin), `non lu : ${chemin}`);
+  verifierInjections(r, duDisque);
+  assert.equal(r.texte.split("\n").filter((ligne) => ligne.trim() === NEUTRE).length, 4);
+  assert.equal(r.mode, "espaces-contre-epreuve-2 (migrations équipe et habillage non injectées)");
+  assert.ok(!decrireMode("espaces-contre-epreuve-2").mode.startsWith("espaces-en-ligne"));
+});
+
+test("espaces-contre-epreuve-3 : les migrations du siège et de l'équipe injectées, celle de l'habillage et son retour neutralisés et non lus", () => {
+  const lus = [];
+  const r = assemblerMode("espaces-contre-epreuve-3", RACINE, { lire: (chemin) => { lus.push(chemin); return duDisque(chemin); } });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, FIXTURE, MIGRATION_5, MIGRATION_6, RETOUR_6, RETOUR_5]);
+  assert.deepEqual([...r.neutralises].sort(), [MIGRATION_7, RETOUR_7].sort());
   for (const chemin of r.neutralises) assert.ok(!lus.includes(chemin), `non lu : ${chemin}`);
   verifierInjections(r, duDisque);
   assert.equal(r.texte.split("\n").filter((ligne) => ligne.trim() === NEUTRE).length, 2);
-  assert.equal(r.mode, "espaces-contre-epreuve-2 (migration équipe non injectée)");
-  assert.ok(!decrireMode("espaces-contre-epreuve-2").mode.startsWith("espaces-en-ligne"));
+  assert.equal(r.mode, "espaces-contre-epreuve-3 (migration habillage non injectée)");
+  assert.ok(!decrireMode("espaces-contre-epreuve-3").mode.startsWith("espaces-en-ligne"));
 });
 
 test("espaces-en-ligne : aucune migration injectée (ni texte ni md5), la migration réelle n'est pas lue, la fixture reste injectée", () => {
@@ -625,17 +639,21 @@ test("espaces : les modes sans migration s'assemblent même si elle manque ; le 
   const sans6 = (chemin) => (chemin === MIGRATION_6 || chemin === RETOUR_6 ? null : duDisque(chemin));
   assert.doesNotThrow(() => assemblerMode("espaces-contre-epreuve-2", RACINE, { lire: sans6 }));
   assert.throws(() => assemblerMode("espaces", RACINE, { lire: sans6 }), /Fichier introuvable : supabase\/migrations\/20261108_espaces_2_equipe\.sql/);
-  for (const mode of ["espaces", "espaces-contre-epreuve", "espaces-contre-epreuve-2", "espaces-en-ligne"]) {
+  // Les deux premières présentes, celle de l'habillage absente : le mode sans elle s'assemble, celui qui l'injecte s'arrête.
+  const sans7 = (chemin) => (chemin === MIGRATION_7 || chemin === RETOUR_7 ? null : duDisque(chemin));
+  assert.doesNotThrow(() => assemblerMode("espaces-contre-epreuve-3", RACINE, { lire: sans7 }));
+  assert.throws(() => assemblerMode("espaces", RACINE, { lire: sans7 }), /Fichier introuvable : supabase\/migrations\/20261108_espaces_3_habillage\.sql/);
+  for (const mode of ["espaces", "espaces-contre-epreuve", "espaces-contre-epreuve-2", "espaces-contre-epreuve-3", "espaces-en-ligne"]) {
     assert.throws(() => decrireMode(mode, { etapes: [1] }), /--etapes ne vaut que pour le mode repetition/);
   }
 });
 
-test("le gabarit de la preuve du lot 5 injecte la requête d'empreinte, la fixture, les deux migrations et leurs retours (retour 2 avant retour 1), une fois chacun, et porte son marqueur de mode", () => {
+test("le gabarit de la preuve du lot 5 injecte la requête d'empreinte, la fixture, les trois migrations et leurs retours (retour 3, puis 2, puis 1), une fois chacun, et porte son marqueur de mode", () => {
   const gabarit = texteDuDepot(GABARIT_ESPACES);
-  const chemins = [EMPREINTE, FIXTURE, MIGRATION_5, MIGRATION_6, RETOUR_6, RETOUR_5];
+  const chemins = [EMPREINTE, FIXTURE, MIGRATION_5, MIGRATION_6, MIGRATION_7, RETOUR_7, RETOUR_6, RETOUR_5];
   for (const chemin of chemins) assert.equal(gabarit.split(`-- @@INJECTER ${chemin}@@`).length - 1, 1, `injecté une fois : ${chemin}`);
   const positions = chemins.map((chemin) => gabarit.indexOf(`-- @@INJECTER ${chemin}@@`));
-  assert.deepEqual(positions, [...positions].sort((x, y) => x - y), "empreinte, fixture, migration 1, migration 2, retour 2, puis retour 1");
+  assert.deepEqual(positions, [...positions].sort((x, y) => x - y), "empreinte, fixture, migrations 1, 2 et 3, retours 3, 2, puis 1");
   assert.equal(gabarit.split("-- @@MODE@@").length - 1, 1);
   assert.ok(gabarit.includes(`-- @@INCLURE ${AIDES}@@`));
   assert.ok(!gabarit.includes(String.fromCharCode(0x2014)), "aucun tiret cadratin");
@@ -644,7 +662,7 @@ test("le gabarit de la preuve du lot 5 injecte la requête d'empreinte, la fixtu
   const m = /v_mode like '([^'%]*)%'/.exec(gabarit);
   assert.ok(m, "le gabarit reconnaît le mode en ligne à un préfixe du libellé");
   assert.ok(decrireMode("espaces-en-ligne").mode.startsWith(m[1]));
-  for (const mode of ["espaces", "espaces-contre-epreuve", "espaces-contre-epreuve-2"]) assert.ok(!decrireMode(mode).mode.startsWith(m[1]), mode);
+  for (const mode of ["espaces", "espaces-contre-epreuve", "espaces-contre-epreuve-2", "espaces-contre-epreuve-3"]) assert.ok(!decrireMode(mode).mode.startsWith(m[1]), mode);
 });
 
 test("le gabarit de la preuve du siège : le compactage ne retire aucune ligne vide ni de commentaire dans un littéral", () => {

@@ -23,7 +23,9 @@ async function avecBloc(corps, { skin = "ecsr", appareil = null } = {}) {
     activeElement: null,
     getElementById: () => null,   // pas de zone de message : le vrai toast n'affiche rien
     querySelector: () => null,
-    querySelectorAll: () => descendants(racine).filter((x) => x instanceof ElementFactice && x.classes.has("habillage-pastille")),
+    // Le faux DOM ne lit pas les sélecteurs : il honore seulement l'exclusion des pastilles d'un réglage (mode réglage, lot 5).
+    querySelectorAll: (sel) => descendants(racine).filter((x) => x instanceof ElementFactice && x.classes.has("habillage-pastille")
+      && !(String(sel).includes(":not([data-reglage])") && x.getAttribute("data-reglage") != null)),
   });
   ElementFactice.prototype.focus = function () { document.activeElement = this; };
   Object.defineProperty(globalThis, "Node", { value: NoeudFactice, configurable: true, writable: true });
@@ -118,5 +120,59 @@ test("le groupe est nommé par son titre : le sien, ou celui de la section qui l
     const ligne = (b, classe) => descendants(b).find((x) => x instanceof ElementFactice && x.classes.has(classe))?.textContent;
     assert.deepEqual(pastilles(nomme).map((b) => [b.getAttribute("type"), ligne(b, "habillage-libelle"), ligne(b, "habillage-legende")]),
       [["button", "ECSR Promo", "d'origine"], ["button", "Couleurs ECF", "du réseau ECF"]]);
+  });
+});
+
+// Lot 5, Task 14 : le même bloc en mode réglage (Réglages du centre et du réseau) : une valeur tenue ailleurs, rien n'est appliqué à
+// l'écran, gardé sur l'appareil ni envoyé au compte.
+
+test("mode réglage : la pastille en vigueur est pressée, un toucher appelle surChoix et rien d'autre ne bouge", async () => {
+  await avecBloc(async (t) => {
+    const appels = [];
+    const bloc = blocHabillage({ deps: t.deps, reglage: { courant: "ecf", surChoix: async (nom) => { appels.push(nom); return true; } } });
+    t.racine.appendChild(bloc);
+    assert.deepEqual(pressees(bloc), ["ecf"], "l'habillage de l'écran (ecsr) n'est pas celui du réglage");
+    de(bloc, "ecf").click();
+    await tick();
+    assert.deepEqual(appels, [], "la pastille en vigueur ne fait rien");
+    de(bloc, "ecsr").click();
+    await tick();
+    assert.deepEqual(appels, ["ecsr"]);
+    assert.deepEqual(pressees(bloc), ["ecsr"]);
+    assert.equal(document.documentElement.dataset.skin, "ecsr", "l'écran de la personne n'est pas touché");
+    assert.deepEqual(t.envois, []);
+    assert.deepEqual(t.messages, []);
+    assert.equal(t.stockage.has(CLE_APPAREIL), false, "rien n'est gardé sur l'appareil");
+    assert.equal(de(bloc, "ecf").getAttribute("data-reglage"), "");
+  });
+});
+
+test("mode réglage : un choix refusé (faux ou exception) revient à la pastille d'avant ; nul : aucune pastille pressée", async () => {
+  await avecBloc(async (t) => {
+    for (const surChoix of [async () => false, async () => { throw new Error("refus"); }]) {
+      const bloc = blocHabillage({ deps: t.deps, reglage: { courant: null, surChoix } });
+      t.racine.appendChild(bloc);
+      assert.deepEqual(pressees(bloc), []);
+      de(bloc, "ecf").click();
+      await tick();
+      assert.deepEqual(pressees(bloc), [], "le choix refusé n'est pas resté");
+    }
+    const bloc = blocHabillage({ deps: t.deps, reglage: { courant: "ecsr", surChoix: async () => true } });
+    t.racine.appendChild(bloc);
+    bloc.poserChoix(null);
+    assert.deepEqual(pressees(bloc), []);
+    bloc.poserChoix("ecf");
+    assert.deepEqual(pressees(bloc), ["ecf"]);
+  });
+});
+
+test("mode réglage : un habillage appliqué à l'écran ne déplace pas les pastilles d'un réglage", async () => {
+  await avecBloc(async (t) => {
+    const reglage = blocHabillage({ deps: t.deps, reglage: { courant: "ecsr", surChoix: async () => true } });
+    const perso = blocHabillage({ deps: t.deps });
+    t.racine.appendChild(reglage);
+    t.racine.appendChild(perso);
+    globalThis.window.dispatchEvent({ type: "ecsr:habillage", detail: { nom: "ecf" } });
+    assert.deepEqual(pressees(reglage), ["ecsr"]);
   });
 });

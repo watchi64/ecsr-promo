@@ -9,6 +9,7 @@
  */
 import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261109i";
 import { lireAdresse } from "./route-rules.js?v=20261109i";
+import { habillageValide } from "./habillage-regles.js?v=20261109i";
 
 export const ESPACES = ["stagiaire", "equipe", "direction", "siege"];
 export const LIBELLES_ESPACE = { stagiaire: "Stagiaire", equipe: "Formateur", direction: "Direction", siege: "Siège" };
@@ -269,6 +270,18 @@ export function phraseDeRefus(message, code) {
   if (!texte) return PHRASE_ECHEC;
   if (texte === brut.trim() && (/permission denied/i.test(texte) || code === "42501")) return PHRASE_SANS_DROIT;
   return texte;
+}
+
+// Les défauts d'habillage lus en base (habillage_par_defaut()) tels que js/habillage.js les attend : `centre` et `reseau` valent
+// "ecsr", "ecf" ou null (toute autre valeur, ligne absente ou illisible : null) ; `libre` est vrai sauf quand la base dit
+// explicitement faux (le centre impose alors son habillage à tous ses comptes).
+export function defautsHabillage(ligne) {
+  const l = ligne && typeof ligne === "object" ? ligne : {};
+  return {
+    centre: habillageValide(l.centre) ? l.centre : null,
+    reseau: habillageValide(l.reseau) ? l.reseau : null,
+    libre: l.libre !== false,
+  };
 }
 
 // Pages que l'app sait ouvrir : une adresse visée après une bascule de promo doit en nommer une.

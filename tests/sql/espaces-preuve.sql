@@ -1,8 +1,11 @@
--- Preuve du lot 5, étapes 1 (siège) et 2 (équipe) : ce que les migrations 20261108_espaces_1_siege.sql et
--- 20261108_espaces_2_equipe.sql doivent donner, écrite avant elles.
+-- Preuve du lot 5, étapes 1 (siège), 2 (équipe) et 3 (habillage) : ce que les migrations 20261108_espaces_1_siege.sql,
+-- 20261108_espaces_2_equipe.sql et 20261108_espaces_3_habillage.sql doivent donner, écrite avant elles.
 --   Étape 1 : lieux.demonstration (vrai pour le lieu 4 seulement, aucune écriture directe), la séquence de lieux.id recalée,
 --   comptes_reseau() (comptes additifs par centre, sans nom, sans détail par promo, masqués sous 5 stagiaires en
 --   formation, réservés au siège) et creer_centre(p_nom) (réservée au siège).
+--   Étape 3 : lieux.habillage et lieux.habillage_libre, la clé globale habillage_reseau admise par la contrainte de réglages,
+--   habillage_par_defaut() (lisible de tout compte connecté), regler_habillage_centre (direction du centre ou fondateur) et
+--   regler_habillage_reseau (siège ou fondateur).
 --   Étape 2 : regler_affectations_formateur (la direction du centre donne à un compte exactement les promos choisies de son
 --   centre), _profil_formateur (interne) et inviter_compte redéfinie (même profil qu'au lot 4, adresse de stagiaire refusée).
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes du lot 4
@@ -13,7 +16,10 @@
 --                                                                                     sur les contrôles comptes_reseau,
 --                                                                                     creer_centre, demonstration et equipe
 --   node outils/assembler_repetition_roles.mjs espaces-contre-epreuve-2 <sortie.sql>  avec la seule migration du siège : ROUGE
---                                                                                     attendu sur les seuls contrôles de l'équipe
+--                                                                                     attendu sur les contrôles de l'équipe et de
+--                                                                                     l'habillage
+--   node outils/assembler_repetition_roles.mjs espaces-contre-epreuve-3 <sortie.sql>  avec les migrations du siège et de l'équipe :
+--                                                                                     ROUGE attendu sur les seuls contrôles habillage
 --   node outils/assembler_repetition_roles.mjs espaces-en-ligne <sortie.sql>          rien d'injecté, après application réelle
 --   ... --compact <sortie.sql>   retire du gabarit et des aides les lignes vides et de commentaire (textes injectés intacts).
 -- Le fichier assemblé se joue en une requête. Tout se passe dans le bloc do final, qui finit TOUJOURS par une levée :
@@ -39,6 +45,9 @@
 --                   changée, ajout, retrait, cumul, création de profil, compte stagiaire refusé), inviter_compte (même profil
 --                   qu'au lot 4, champ par champ ; différences de texte limitées à la branche formateur ; adresse de stagiaire
 --                   refusée), fonction interne sans droit d'exécution, retour (texte d'inviter_compte d'origine, md5).
+--   habillage       structure (colonnes, contrainte de réglages, droits d'exécution), droits par personnage et par portée de
+--                   chaque réglage (refus 42501 avec la phrase, aucune ligne changée), valeurs refusées, écriture directe sans
+--                   effet, lecture au démarrage (centre de la promo affichée, premier centre des affectations, réseau seul).
 --   structure       migrations et retours joués sans erreur, personnages et lignes d'essai posés.
 --
 -- Fixture : ses identifiants (990001...) ne rencontrent aucune ligne réelle. Écarts avec le schéma réel, tous sans effet
@@ -239,6 +248,11 @@ declare
   v_theme integer; v_qcm bigint; v_x record; v_fiche_n integer; v_fiche_p1 integer;
   v_json text; v_lignes jsonb; v_obt text; v_att text; v_txt text; v_cols text[]; v_mauvaises text;
   v_ids integer[]; n integer; v_id_a integer; v_id_b integer; v_id_c integer;
+  v_etat3 text; v_retour3 text; v_hs text; v_l_vide integer;
+  c_dir_vide constant text := 'preuve5.dir.vide@exemple.invalid';
+  c_hab_lieux constant text := 'select string_agg(id || '':'' || coalesce(habillage, ''nul'') || '':'' || habillage_libre, '','' order by id) from public.lieux where id in (%s, %s)';
+  c_hab_reseau constant text := 'select count(*) || '' '' || coalesce(max(value), ''nul'') from public.settings where promo_id is null and key = ''habillage_reseau''';
+  c_hab_lire constant text := 'select count(*) || '' ; '' || coalesce(max(centre), ''nul'') || '' ; '' || coalesce(bool_and(libre)::text, ''nul'') || '' ; '' || coalesce(max(reseau), ''nul'') from public.habillage_par_defaut()';
   v_etat2 text; v_retour2 text; v_ic_def0 text; v_ic_def1 text; v_ic_md5 text;
   c_avant constant text := 'preuve5.invite.avant@exemple.invalid';
   c_apres constant text := 'preuve5.invite.apres@exemple.invalid';
@@ -440,6 +454,188 @@ begin
     perform pg_temp.verifier('structure', 'migration 2 jouée sans erreur', v_etat2 = 'jouée', v_etat2);
   end if;
   v_ic_def1 := pg_get_functiondef('public.inviter_compte(text, text, integer, integer, integer)'::regprocedure);
+
+  -- 3 ter. Étape 3 : la migration 3 (habillage par défaut du centre et du réseau), injectée telle quelle (neutralisée dans les
+  --        modes sans elle).
+  v_etat3 := pg_temp.jouer('migration 3',
+-- @@INJECTER supabase/migrations/20261108_espaces_3_habillage.sql@@
+  );
+  if v_etat3 = 'neutralisée' then
+    perform pg_temp.informer('migration 3', 'non injectée (' || v_mode || ')');
+  else
+    perform pg_temp.verifier('structure', 'migration 3 jouée sans erreur', v_etat3 = 'jouée', v_etat3);
+  end if;
+
+  -- 3 quater. Habillage : structure, droits, valeurs, lecture au démarrage. Tout passe par du SQL dynamique (appeler, valeur,
+  --        calcul) : sans la migration, le contrôle est rouge au lieu de faire échouer la preuve entière.
+  perform pg_temp.verifier('habillage', 'les trois fonctions existent',
+    to_regprocedure('public.habillage_par_defaut()') is not null
+    and to_regprocedure('public.regler_habillage_centre(integer, text, boolean)') is not null
+    and to_regprocedure('public.regler_habillage_reseau(text)') is not null, '');
+  perform pg_temp.attendre('habillage', 'lieux.habillage : texte, peut être nul, nul par défaut',
+    (select format('%s %s %s', a.udt_name, a.is_nullable, coalesce(a.column_default, 'sans défaut')) from information_schema.columns a
+      where a.table_schema = 'public' and a.table_name = 'lieux' and a.column_name = 'habillage'), 'text YES sans défaut');
+  perform pg_temp.attendre('habillage', 'lieux.habillage_libre : booléen, non nul, vrai par défaut',
+    (select format('%s %s %s', a.udt_name, a.is_nullable, a.column_default) from information_schema.columns a
+      where a.table_schema = 'public' and a.table_name = 'lieux' and a.column_name = 'habillage_libre'), 'bool NO true');
+  perform pg_temp.attendre('habillage', 'avant tout réglage, les centres 1 et 2 n''ont aucun habillage et laissent le choix',
+    pg_temp.calcul(format(c_hab_lieux, v_lieu1, v_lieu2)),
+    case when v_lieu1 < v_lieu2 then format('%s:nul:true,%s:nul:true', v_lieu1, v_lieu2) else format('%s:nul:true,%s:nul:true', v_lieu2, v_lieu1) end);
+  perform pg_temp.attendre('habillage', 'la contrainte de la colonne refuse un habillage inconnu (23514)',
+    pg_temp.valeur_proprio(null, null, null, format('update public.lieux set habillage = ''rose'' where id = %s returning 1', v_lieu1)), 'ERREUR 23514');
+  perform pg_temp.verifier('habillage', 'la contrainte de réglages admet la clé globale habillage_reseau',
+    coalesce((select pg_get_constraintdef(c.oid) like '%habillage_reseau%' from pg_constraint c
+               where c.conrelid = 'public.settings'::regclass and c.conname = 'settings_globaux_prevus'), false), '');
+  perform pg_temp.attendre('habillage', 'la contrainte de réglages refuse toujours une autre clé globale (23514)',
+    pg_temp.valeur_proprio(null, null, null, 'insert into public.settings (key, value, promo_id) values (''preuve_autre_cle'', ''x'', null) returning 1'), 'ERREUR 23514');
+  for v_x in select * from (values ('habillage_par_defaut()'), ('regler_habillage_centre(integer, text, boolean)'), ('regler_habillage_reseau(text)')) t(sig) loop
+    perform pg_temp.attendre('habillage', format('droit d''exécution de %s : authenticated oui ; anon et service_role non', v_x.sig),
+      pg_temp.calcul(format('select concat_ws('','', has_function_privilege(''authenticated'', ''public.%1$s'', ''execute''), has_function_privilege(''anon'', ''public.%1$s'', ''execute''), has_function_privilege(''service_role'', ''public.%1$s'', ''execute''))', v_x.sig)),
+      't,f,f');
+  end loop;
+
+  -- Réglage d'un centre. Le texte des refus est celui de la base ; un refus ne change aucune ligne.
+  perform pg_temp.attendre('habillage', 'la direction règle l''habillage de son centre',
+    pg_temp.appeler(c_dir_n, '1', null, format('select public.regler_habillage_centre(%s, ''ecf'', false)::text', v_lieu1)),
+    format('OK {"libre": false, "lieu_id": %s, "habillage": "ecf"}', v_lieu1));
+  perform pg_temp.attendre('habillage', 'le réglage est écrit sur son centre seulement (ecf, pas libre)',
+    pg_temp.calcul(format(c_hab_lieux, v_lieu1, v_lieu2)),
+    case when v_lieu1 < v_lieu2 then format('%s:ecf:false,%s:nul:true', v_lieu1, v_lieu2) else format('%s:nul:true,%s:ecf:false', v_lieu2, v_lieu1) end);
+  v_hs := pg_temp.calcul(format(c_hab_lieux, v_lieu1, v_lieu2));
+  perform pg_temp.attendre('habillage', 'la direction d''un autre centre est refusée (42501)',
+    pg_temp.appeler(c_dir_n, '1', null, format('select public.regler_habillage_centre(%s, ''ecsr'', true)::text', v_lieu2)),
+    'ERREUR 42501 habillage: Réservé à la direction du centre.');
+  perform pg_temp.attendre('habillage', 'la direction du centre 2 visant le centre 1 est refusée (42501)',
+    pg_temp.appeler(c_dir_m, '2', null, format('select public.regler_habillage_centre(%s, ''ecsr'', true)::text', v_lieu1)),
+    'ERREUR 42501 habillage: Réservé à la direction du centre.');
+  perform pg_temp.attendre('habillage', 'un formateur est refusé (42501)',
+    pg_temp.appeler(c_form_n, '1', null, format('select public.regler_habillage_centre(%s, ''ecsr'', true)::text', v_lieu1)),
+    'ERREUR 42501 habillage: Réservé à la direction du centre.');
+  perform pg_temp.attendre('habillage', 'le siège est refusé (42501) : il règle le réseau, pas un centre',
+    pg_temp.appeler(c_siege, null, null, format('select public.regler_habillage_centre(%s, ''ecsr'', true)::text', v_lieu1)),
+    'ERREUR 42501 habillage: Réservé à la direction du centre.');
+  perform pg_temp.attendre('habillage', 'un stagiaire est refusé (42501)',
+    pg_temp.appeler(c_stag_n, '1', null, format('select public.regler_habillage_centre(%s, ''ecsr'', true)::text', v_lieu1)),
+    'ERREUR 42501 habillage: Réservé à la direction du centre.');
+  perform pg_temp.attendre('habillage', 'un compte sans rôle est refusé (42501)',
+    pg_temp.appeler(c_sans_role, null, null, format('select public.regler_habillage_centre(%s, ''ecsr'', true)::text', v_lieu1)),
+    'ERREUR 42501 habillage: Réservé à la direction du centre.');
+  perform pg_temp.attendre('habillage', 'anon est refusé (42501)',
+    left(pg_temp.appeler(null, null, null, format('select public.regler_habillage_centre(%s, ''ecsr'', true)::text', v_lieu1)), 12), 'ERREUR 42501');
+  perform pg_temp.attendre('habillage', 'le fondateur en aperçu formateur est refusé (42501)',
+    pg_temp.appeler(v_fond, '1', 'formateur', format('select public.regler_habillage_centre(%s, ''ecsr'', true)::text', v_lieu1)),
+    'ERREUR 42501 habillage: Réservé à la direction du centre.');
+  perform pg_temp.attendre('habillage', 'le fondateur en aperçu siège est refusé (42501)',
+    pg_temp.appeler(v_fond, null, 'siege', format('select public.regler_habillage_centre(%s, ''ecsr'', true)::text', v_lieu1)),
+    'ERREUR 42501 habillage: Réservé à la direction du centre.');
+  perform pg_temp.attendre('habillage', 'le fondateur en aperçu direction du centre 1 est refusé sur le centre 2 (42501)',
+    pg_temp.appeler(v_fond, '1', 'direction', format('select public.regler_habillage_centre(%s, ''ecsr'', true)::text', v_lieu2)),
+    'ERREUR 42501 habillage: Réservé à la direction du centre.');
+  perform pg_temp.attendre('habillage', 'aucun de ces refus n''a changé une ligne de lieux', pg_temp.calcul(format(c_hab_lieux, v_lieu1, v_lieu2)), v_hs);
+  perform pg_temp.attendre('habillage', 'un habillage inconnu est refusé par la phrase de la base, le refus de droit passant avant',
+    concat_ws(' | ',
+      pg_temp.appeler(c_dir_n, '1', null, format('select public.regler_habillage_centre(%s, ''rose'', true)::text', v_lieu1)),
+      pg_temp.appeler(c_dir_n, '1', null, format('select public.regler_habillage_centre(%s, '''', true)::text', v_lieu1)),
+      pg_temp.appeler(c_dir_m, '2', null, format('select public.regler_habillage_centre(%s, ''rose'', true)::text', v_lieu1))),
+    'ERREUR P0001 habillage: Cet habillage n''existe pas. | ERREUR P0001 habillage: Cet habillage n''existe pas. | ERREUR 42501 habillage: Réservé à la direction du centre.');
+  perform pg_temp.attendre('habillage', 'libre nul est refusé par la phrase de la base',
+    pg_temp.appeler(c_dir_n, '1', null, format('select public.regler_habillage_centre(%s, ''ecsr'', null)::text', v_lieu1)),
+    'ERREUR P0001 habillage: Dis si chacun peut choisir le sien.');
+  perform pg_temp.attendre('habillage', 'un refus de valeur ne change aucune ligne', pg_temp.calcul(format(c_hab_lieux, v_lieu1, v_lieu2)), v_hs);
+  perform pg_temp.attendre('habillage', 'le fondateur vise un centre inexistant : refus par la phrase de la base',
+    pg_temp.appeler(v_fond, null, null, 'select public.regler_habillage_centre(2147483000, ''ecsr'', true)::text'),
+    'ERREUR P0001 habillage: Centre introuvable.');
+  perform pg_temp.attendre('habillage', 'le fondateur règle un centre (hors aperçu) : ecsr, libre',
+    pg_temp.appeler(v_fond, null, null, format('select public.regler_habillage_centre(%s, ''ecsr'', true)::text', v_lieu2)),
+    format('OK {"libre": true, "lieu_id": %s, "habillage": "ecsr"}', v_lieu2));
+  perform pg_temp.attendre('habillage', 'le fondateur en aperçu direction règle le centre de la promo affichée (promo 1) : ecf, pas libre',
+    pg_temp.appeler(v_fond, '1', 'direction', format('select public.regler_habillage_centre(%s, ''ecf'', false)::text', v_lieu1)),
+    format('OK {"libre": false, "lieu_id": %s, "habillage": "ecf"}', v_lieu1));
+  perform pg_temp.attendre('habillage', 'nul retire l''habillage du centre',
+    pg_temp.appeler(c_dir_n, '1', null, format('select public.regler_habillage_centre(%s, null, true)::text', v_lieu1)),
+    format('OK {"libre": true, "lieu_id": %s, "habillage": null}', v_lieu1));
+  for v_x in select * from (values ('siège', c_siege), ('direction', c_dir_n), ('formateur', c_form_n)) t(nom, email) loop
+    v_obt := pg_temp.ecrire(v_x.email, '1', null, format('update public.lieux set habillage = ''ecf'', habillage_libre = false where id = %s', v_lieu1));
+    perform pg_temp.verifier('habillage', format('aucune écriture directe de l''habillage d''un centre par %s (refus 42501 ou 0 ligne)', v_x.nom),
+      v_obt in ('REFUS 42501', 'OK 0'), v_obt);
+  end loop;
+  perform pg_temp.attendre('habillage', 'aucune de ces écritures directes n''a changé le centre 1',
+    pg_temp.calcul(format('select (habillage is null and habillage_libre)::text from public.lieux where id = %s', v_lieu1)), 'true');
+
+  -- Réglage du réseau.
+  perform pg_temp.attendre('habillage', 'le siège règle l''habillage du réseau',
+    pg_temp.appeler(c_siege, null, null, 'select public.regler_habillage_reseau(''ecf'')::text'), 'OK {"habillage": "ecf"}');
+  perform pg_temp.attendre('habillage', 'une seule ligne globale, valeur ecf', pg_temp.calcul(c_hab_reseau), '1 ecf');
+  perform pg_temp.attendre('habillage', 'le fondateur règle le réseau (la ligne est remplacée, jamais doublée)',
+    pg_temp.appeler(v_fond, null, null, 'select public.regler_habillage_reseau(''ecsr'')::text') || ' | ' || pg_temp.calcul(c_hab_reseau),
+    'OK {"habillage": "ecsr"} | 1 ecsr');
+  perform pg_temp.attendre('habillage', 'le fondateur en aperçu siège règle le réseau',
+    pg_temp.appeler(v_fond, null, 'siege', 'select public.regler_habillage_reseau(''ecf'')::text') || ' | ' || pg_temp.calcul(c_hab_reseau),
+    'OK {"habillage": "ecf"} | 1 ecf');
+  for v_x in select * from (values ('une direction', c_dir_n, '1', null), ('un formateur', c_form_n, '1', null), ('un stagiaire', c_stag_n, '1', null),
+                                   ('un compte sans rôle', c_sans_role, null, null), ('le fondateur en aperçu direction', v_fond, '1', 'direction'),
+                                   ('le fondateur en aperçu formateur', v_fond, '1', 'formateur')) t(nom, email, promo, apercu) loop
+    perform pg_temp.attendre('habillage', format('%s est refusé(e) sur le réseau (42501), rien ne change', v_x.nom),
+      pg_temp.appeler(v_x.email, v_x.promo, v_x.apercu, 'select public.regler_habillage_reseau(''ecsr'')::text') || ' | ' || pg_temp.calcul(c_hab_reseau),
+      'ERREUR 42501 habillage: Réservé au siège. | 1 ecf');
+  end loop;
+  perform pg_temp.attendre('habillage', 'anon est refusé sur le réseau (42501)',
+    left(pg_temp.appeler(null, null, null, 'select public.regler_habillage_reseau(''ecsr'')::text'), 12), 'ERREUR 42501');
+  perform pg_temp.attendre('habillage', 'un habillage inconnu est refusé sur le réseau, rien ne change',
+    pg_temp.appeler(c_siege, null, null, 'select public.regler_habillage_reseau(''rose'')::text') || ' | ' || pg_temp.calcul(c_hab_reseau),
+    'ERREUR P0001 habillage: Cet habillage n''existe pas. | 1 ecf');
+
+  -- Lecture au démarrage : le centre de la promo affichée (ecf, pas libre), le réseau (ecf) ; le centre 2 : ecsr, libre.
+  perform pg_temp.appeler(c_dir_n, '1', null, format('select public.regler_habillage_centre(%s, ''ecf'', false)::text', v_lieu1));
+  perform pg_temp.appeler(v_fond, null, null, format('select public.regler_habillage_centre(%s, ''ecsr'', true)::text', v_lieu2));
+  perform pg_temp.attendre('habillage', 'un stagiaire de la promo 1 lit les valeurs de son centre et du réseau, en une seule ligne',
+    pg_temp.appeler(c_stag_n, '1', null, c_hab_lire), 'OK 1 ; ecf ; false ; ecf');
+  perform pg_temp.attendre('habillage', 'un formateur de la promo 2 lit les valeurs de son centre, pas de celui d''à côté',
+    pg_temp.appeler(c_form_m, '2', null, c_hab_lire), 'OK 1 ; ecsr ; true ; ecf');
+  perform pg_temp.attendre('habillage', 'la direction lit celles de son centre',
+    pg_temp.appeler(c_dir_n, '1', null, c_hab_lire), 'OK 1 ; ecf ; false ; ecf');
+  perform pg_temp.attendre('habillage', 'sans promo affichée, une direction lit le centre de ses affectations',
+    pg_temp.appeler(c_dir_n, null, null, c_hab_lire) || ' / ' || pg_temp.appeler(c_dir_m, null, null, c_hab_lire),
+    'OK 1 ; ecf ; false ; ecf / OK 1 ; ecsr ; true ; ecf');
+  perform pg_temp.attendre('habillage', 'sans promo affichée, un formateur lit le centre de sa promo',
+    pg_temp.appeler(c_form_n, null, null, c_hab_lire), 'OK 1 ; ecf ; false ; ecf');
+  perform pg_temp.attendre('habillage', 'le siège (aucun centre) lit le réseau seul : centre nul, libre vrai',
+    pg_temp.appeler(c_siege, null, null, c_hab_lire), 'OK 1 ; nul ; true ; ecf');
+  perform pg_temp.attendre('habillage', 'un compte sans rôle ni centre lit le réseau seul',
+    pg_temp.appeler(c_sans_role, null, null, c_hab_lire), 'OK 1 ; nul ; true ; ecf');
+  perform pg_temp.attendre('habillage', 'le fondateur en aperçu direction lit le centre de la promo affichée',
+    pg_temp.appeler(v_fond, '1', 'direction', c_hab_lire), 'OK 1 ; ecf ; false ; ecf');
+  perform pg_temp.attendre('habillage', 'anon ne lit rien (42501)', left(pg_temp.appeler(null, null, null, c_hab_lire), 12), 'ERREUR 42501');
+  perform pg_temp.attendre('habillage', 'une valeur de réseau abîmée en base est lue comme absente',
+    pg_temp.calcul('update public.settings set value = ''rose'' where promo_id is null and key = ''habillage_reseau'' returning ''ok''')
+      || ' / ' || pg_temp.appeler(c_stag_n, '1', null, c_hab_lire), 'ok / OK 1 ; ecf ; false ; nul');
+  perform pg_temp.attendre('habillage', 'le siège retire l''habillage du réseau (nul) : plus aucune ligne, lecture nulle',
+    pg_temp.appeler(c_siege, null, null, 'select public.regler_habillage_reseau(null)::text') || ' | ' || pg_temp.calcul(c_hab_reseau)
+      || ' | ' || pg_temp.appeler(c_stag_n, '1', null, c_hab_lire),
+    'OK {"habillage": null} | 0 nul | OK 1 ; ecf ; false ; nul');
+  -- Une direction dont le centre n'a aucune promo (aucune promo affichée) lit le centre de son affectation ; un jeton sans
+  -- adresse (rôle connecté, aucune adresse) est refusé.
+  insert into public.lieux (nom) values ('Preuve centre sans promo') returning id into v_l_vide;
+  insert into public.user_profiles (email, role, is_admin) values (c_dir_vide, 'prof', false);
+  insert into public.affectations (email, role, promo_id, lieu_id) values (c_dir_vide, 'direction', null, v_l_vide);
+  perform pg_temp.appeler(v_fond, null, null, format('select public.regler_habillage_centre(%s, ''ecf'', true)::text', v_l_vide));
+  perform pg_temp.attendre('habillage', 'une direction dont le centre n''a aucune promo lit le réglage de ce centre',
+    pg_temp.appeler(c_dir_vide, null, null, c_hab_lire), 'OK 1 ; ecf ; true ; nul');
+  delete from public.affectations where email = c_dir_vide;
+  delete from public.user_profiles where email = c_dir_vide;
+  delete from public.lieux where id = v_l_vide;
+  perform pg_temp.contexte(null, null, null);
+  set local role authenticated;
+  begin
+    execute c_hab_lire into v_obt;
+    v_obt := 'OK ' || coalesce(v_obt, 'nul');
+  exception when others then
+    v_obt := 'ERREUR ' || sqlstate || ' ' || left(sqlerrm, 120);
+  end;
+  perform pg_temp.proprio();
+  perform pg_temp.attendre('habillage', 'un jeton connecté sans adresse ne lit rien (42501)', v_obt, 'ERREUR 42501 habillage: Connexion requise.');
+  -- Le réseau est remis à ecf : le retour 3 doit effacer cette ligne pour rétablir la contrainte d'origine.
+  perform pg_temp.appeler(c_siege, null, null, 'select public.regler_habillage_reseau(''ecf'')::text');
 
   -- 4. comptes_reseau : droits.
   perform pg_temp.verifier('comptes_reseau', 'la fonction comptes_reseau() existe', to_regprocedure('public.comptes_reseau()') is not null,
@@ -821,6 +1017,30 @@ begin
   perform pg_temp.attendre('equipe', 'inviter_compte garde ses droits d''exécution (authenticated oui ; anon, service_role non)',
     pg_temp.calcul('select concat_ws('','', has_function_privilege(''authenticated'', ''public.inviter_compte(text, text, integer, integer, integer)'', ''execute''), has_function_privilege(''anon'', ''public.inviter_compte(text, text, integer, integer, integer)'', ''execute''), has_function_privilege(''service_role'', ''public.inviter_compte(text, text, integer, integer, integer)'', ''execute''))'),
     't,f,f');
+
+  -- 9 ter. Le retour 3 (avant le retour 2) : colonnes, fonctions, ligne globale et contrainte d'origine.
+  v_retour3 := pg_temp.jouer('retour 3',
+-- @@INJECTER supabase/migrations/20261108_espaces_3_habillage_retour.sql@@
+  );
+  if v_retour3 = 'neutralisée' then
+    perform pg_temp.informer('retour 3', 'non injecté (' || v_mode || ')');
+  else
+    perform pg_temp.verifier('structure', 'retour 3 joué sans erreur', v_retour3 = 'jouée', v_retour3);
+  end if;
+  if not v_en_ligne and v_etat3 <> 'neutralisée' then
+    perform pg_temp.attendre('retour', 'après le retour 3 : plus de colonne habillage ni habillage_libre, plus de fonction d''habillage',
+      (select format('%s %s',
+         (select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'lieux' and column_name in ('habillage', 'habillage_libre')),
+         (select count(*) from pg_proc where pronamespace = 'public'::regnamespace
+            and proname in ('habillage_par_defaut', 'regler_habillage_centre', 'regler_habillage_reseau')))), '0 0');
+    perform pg_temp.attendre('retour', 'après le retour 3 : plus de ligne globale habillage_reseau, la contrainte de réglages d''origine est revenue',
+      (select format('%s %s',
+         (select count(*) from public.settings where key = 'habillage_reseau'),
+         (select (pg_get_constraintdef(c.oid) like '%habillage_reseau%')::text from pg_constraint c
+           where c.conrelid = 'public.settings'::regclass and c.conname = 'settings_globaux_prevus'))), '0 false');
+    perform pg_temp.attendre('retour', 'après le retour 3 : la clé habillage_reseau est de nouveau refusée sans promo (23514)',
+      pg_temp.valeur_proprio(null, null, null, 'insert into public.settings (key, value, promo_id) values (''habillage_reseau'', ''ecf'', null) returning 1'), 'ERREUR 23514');
+  end if;
 
   -- 9 bis. Le retour 2 (avant le retour 1) : le texte d'inviter_compte d'origine, jugé par son md5.
   v_retour2 := pg_temp.jouer('retour 2',

@@ -713,6 +713,7 @@ body[data-nav="v2"] .nav-bas { display: none; }
   body[data-nav="v2"] .subtabs-bar .subtab { min-height: 44px; min-width: 44px; }
   body[data-nav="v2"] .invite-admin-toggle { min-height: 44px; }
   body[data-nav="v2"] .promo-choix-modal .btn { min-height: 44px; }
+  body[data-nav="v2"] .reglage-habillage .reglage-actions .btn { min-height: 44px; }
 }
 
 /* ----- Assistant (js/chatbot.js) : ouvert par les boutons « Assistant » de la coquille ----- */
@@ -1091,6 +1092,12 @@ body[data-nav="v2"] .qcm-close { width: 44px; height: 44px; }
    pastilles en retrait comme dans la maquette ; le groupe ne rétrécit pas quand le menu défile. */
 body[data-nav="v2"] .nav-fenetre .habillage-choix { flex: none; }
 body[data-nav="v2"] .nav-fenetre .habillage-pastilles { padding: 0 6px 6px; }
+
+/* ----- Réglages du centre et du réseau : l'habillage par défaut (lot 5, js/views/reglages-habillage.js) ----- */
+.reglage-habillage .reglage-actions { margin-top: 10px; }
+.reglage-habillage .reglage-libre { margin-top: 14px; }
+.reglage-habillage .reglage-libre p { margin: 4px 0 0; }
+.reglage-habillage .promo-refus { margin-top: 10px; }
 
 /* ----- Impression : ni la coquille, ni ce qu'elle impose à la page ----- */
 /* La marge de la barre latérale battrait le « margin: 0 » de l'impression des Indicateurs (style.css,
