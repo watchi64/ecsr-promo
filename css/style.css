@@ -112,8 +112,8 @@
 
   /* --- Texte sur une surface d'accent (boutons pleins) --- */
   --accent-texte:    #FAF1DC;
-  /* Vert distinct de l'accent : sépare la famille « conduite » des autres familles de thèmes. */
-  --accent-conduite: #4D7C0F;
+  /* Couleur de la famille de thèmes « conduite » (fixe : elle la distingue des deux autres familles). */
+  --famille-conduite: #4D7C0F;
 
   /* --- Gris de décor --- */
   --bg-survol: #ECEAE5;                              /* survol d'un en-tête de demi-journée */
@@ -2551,12 +2551,12 @@ body.p-dragging-active {
 /* Couleurs distinctes par famille */
 .theme-section-themes-officiels      .theme-section-title { color: var(--text); }
 .theme-section-competences-formateur .theme-section-title { color: var(--accent); }
-.theme-section-competences-conduite  .theme-section-title { color: var(--accent-conduite); }
+.theme-section-competences-conduite  .theme-section-title { color: var(--famille-conduite); }
 .theme-section-notions-pedagogiques  .theme-section-title { color: var(--c-wait); }
 
 /* Pills couleurs */
 .theme-pill.theme-pill-competences-formateur.active { background: var(--accent); border-color: var(--accent); }
-.theme-pill.theme-pill-competences-conduite.active  { background: var(--accent-conduite); border-color: var(--accent-conduite); }
+.theme-pill.theme-pill-competences-conduite.active  { background: var(--famille-conduite); border-color: var(--famille-conduite); }
 .theme-pill.theme-pill-notions-pedagogiques.active  { background: var(--c-wait); border-color: var(--c-wait); }
 
 /* === Barre de progression === */
