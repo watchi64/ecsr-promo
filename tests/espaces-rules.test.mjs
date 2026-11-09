@@ -7,7 +7,7 @@ import {
   ESPACES, LIBELLES_ESPACE, ACCUEIL_ESPACE, barreLaterale, espacesPermis, espaceChoisi, brider, peutRedigerContenus,
   porteSansPromo, centreAffiche, promoPourLaDirection, promosDuCentre, routeDansLEspace, phraseHorsEspace,
   phraseDeRefus, adresseApresBascule, normaliserAffectations, affectationsDeSecours, espacesDuCompte, promoPourLEspace,
-  cleDerniereRoute, espaceDePilotage, promosVisiblesEnApercu, texteBandeauApercu,
+  cleDerniereRoute, espaceDePilotage, promosVisiblesEnApercu, texteBandeauApercu, litToutesLesNotes
 } from "../js/espaces-rules.js";
 import { messageInvitation } from "../js/roles-rules.js";
 
@@ -308,4 +308,13 @@ test("sousOngletsCours : siège, stagiaire, formateur (liste d'aujourd'hui), dir
   assert.deepEqual(sousOngletsCours("equipe"), ["Thèmes", "Compétences", "Signalements", "Propositions IA", "Documents"]);
   assert.deepEqual(sousOngletsCours("direction"), [], "la direction n'a pas la page (D15)");
   assert.deepEqual(sousOngletsCours(undefined), []);
+});
+
+test("litToutesLesNotes : le formateur et la direction lisent les profils masqués, ni le stagiaire ni le siège", () => {
+  assert.equal(litToutesLesNotes({ admin: true, espace: "equipe" }), true, "formateur de la promo");
+  assert.equal(litToutesLesNotes({ admin: false, espace: "direction" }), true, "direction du centre (décision du 09/11)");
+  assert.equal(litToutesLesNotes({ admin: false, espace: "stagiaire" }), false, "stagiaire");
+  assert.equal(litToutesLesNotes({ admin: false, espace: "siege" }), false, "siège : aucune note de promo");
+  assert.equal(litToutesLesNotes({ admin: false, espace: "equipe" }), false, "sans droit sur la promo");
+  assert.equal(litToutesLesNotes(), false, "rien de connu");
 });

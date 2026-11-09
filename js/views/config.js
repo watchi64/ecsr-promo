@@ -231,7 +231,7 @@ function renderMyPreferencesSection(rerender) {
     "Si activé, les autres stagiaires ne voient plus ni ton prénom ni tes notes dans les notes de la classe "
     + "(elles restent comptées dans les moyennes du groupe). En échange, tu ne vois plus leurs notes : "
     + "seulement ta ligne, la moyenne du groupe, la moyenne haute et la moyenne basse. "
-    + "Les formateurs continuent de tout voir (besoin d'évaluation)."));
+    + "Les formateurs et la direction du centre continuent de tout voir (besoin d'évaluation)."));
   // Les profils admin / fondateur n'ont pas de verrou (besoin de tester et de
   // démontrer) : la RPC les laisse passer, l'UI n'affiche donc pas la règle.
   const noLock = !!(profile.is_admin || profile.is_founder);

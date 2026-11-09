@@ -292,3 +292,10 @@ export function sousOngletsCours(espace) {
   if (espace === "equipe") return ["Thèmes", "Compétences", "Signalements", "Propositions IA", "Documents"];
   return [];
 }
+
+// Qui lit toutes les notes de la promo affichée, profils masqués compris : le formateur (administrateur de la promo) et la
+// direction du centre (décision de Timy du 09/11 ; la base les lui rend déjà, equipe_courante()). Masquer ses notes ne vaut
+// que pour les autres stagiaires.
+export function litToutesLesNotes({ admin = false, espace = null } = {}) {
+  return !!admin || espace === "direction";
+}

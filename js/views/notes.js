@@ -8,7 +8,8 @@ import {
 } from "../notes-stats.js?v=20261109i";
 import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109i";
 import { icon } from "../icons.js?v=20261109i";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109i";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace } from "../auth-admin.js?v=20261109i";
+import { litToutesLesNotes } from "../espaces-rules.js?v=20261109i";
 import { recordUndo } from "../undo.js?v=20261109i";
 import { renderSubTabs } from "../subtabs.js?v=20261109i";
 import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109i";
@@ -25,16 +26,21 @@ let themesOfficiels = [];  // les 57 thèmes du référentiel (chargés en + pou
 // Moyennes du groupe calculées par le serveur, anonymes comprises (stagiaires en formation
 // seulement, comme le calcul local : js/notes-stats.js) : un stagiaire ne lit que
 // ses notes et celles des profils non masqués (règle de la base), il ne peut donc pas les
-// calculer lui-même. Le personnel, qui lit tout, calcule en local (saisies reflétées aussitôt).
+// calculer lui-même. Le formateur et la direction, qui lisent tout, calculent en local (saisies reflétées aussitôt).
 let statsServeurGroupe = null;
 
+// Le formateur et la direction du centre lisent toutes les notes, profils masqués compris (décision du 09/11).
+function litTout() {
+  return litToutesLesNotes({ admin: isAdmin(), espace: getEspace() });
+}
+
 function chargerStatsGroupe() {
-  if (isAdmin()) return Promise.resolve(null);
+  if (litTout()) return Promise.resolve(null);
   return getNotesStatsGroupe().then(statsServeur).catch((e) => { console.error(e); return null; });
 }
 
 function statsGroupe() {
-  if (!isAdmin() && statsServeurGroupe) return statsServeurGroupe;
+  if (!litTout() && statsServeurGroupe) return statsServeurGroupe;
   return statsLocales(evaluations, new Set(stagiaires.map((s) => s.id)));
 }
 
@@ -94,10 +100,10 @@ function isStagiaireAnonymous(stagiaireId) {
 }
 
 function displayName(s) {
-  // Les admins voient toujours le vrai nom (besoin métier : noter, repérer),
+  // Le formateur et la direction voient toujours le vrai nom (besoin métier : noter, repérer, suivre),
   // et chacun voit le sien. Filet de sécurité : "Anonyme" pour un profil masqué
   // (ces lignes sont normalement déjà retirées de la vue des autres stagiaires).
-  if (isAdmin() || s.id === myStagiaireId()) return displayStagiaire(s);
+  if (litTout() || s.id === myStagiaireId()) return displayStagiaire(s);
   return isStagiaireAnonymous(s.id) ? "Anonyme" : displayStagiaire(s);
 }
 
@@ -112,11 +118,11 @@ function myStagiaireId() {
 }
 
 function iAmAnonymous() {
-  return !isAdmin() && !!getProfile()?.anonymous_notes;
+  return !litTout() && !!getProfile()?.anonymous_notes;
 }
 
 function visibleStagiaires() {
-  if (isAdmin()) return stagiaires;
+  if (litTout()) return stagiaires;
   if (iAmAnonymous()) return stagiaires.filter((s) => s.id === myStagiaireId());
   return stagiaires.filter((s) => !isStagiaireAnonymous(s.id));
 }
@@ -988,7 +994,7 @@ function renderMatrice(container) {
   table.appendChild(tbody);
   wrap.appendChild(table);
 
-  if (!admin) {
+  if (!litTout()) {
     if (iAmAnonymous()) {
       wrap.appendChild(el("p", { class: "muted matrice-anon-note" },
         "Tu as masqué tes notes : tu vois ta ligne et la moyenne du groupe. "
