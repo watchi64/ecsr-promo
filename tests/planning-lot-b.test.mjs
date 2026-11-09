@@ -37,7 +37,10 @@ test("B2 : nouvelle navigation, le planning d'abord", () => {
 });
 
 test("B3 : le stagiaire ne lit plus ce qui s'adresse à qui place", () => {
-  assert.match(planning, /if \(formateurConnecte\(\)\) container\.appendChild\(buildRulesNote\(\)\)/);
+  // Nouvelle navigation : les règles pour l'équipe seule ; l'ancienne (celle des promos en service) les garde pour tous.
+  assert.match(planning, /if \(formateurConnecte\(\) \|\| !v2\) container\.appendChild\(buildRulesNote\(\)\)/);
+  // Le retour au jour suit la semaine où mène le geste (le lundi suivant le week-end).
+  assert.match(planning, /const horsSemaineDuJour = semaineLundi !== lundiEnCours\(new Date\(\)\)/);
   assert.match(planning, /if \(editing\) container\.appendChild\(el\("div", \{ class: "planning-helper" \}/);
   assert.ok(!/lane \(rangée\)/.test(planning), "l'aide de l'éditeur sans « lane »");
   assert.ok(!/"Consultation"/.test(planning), "plus « Consultation » en surtitre");

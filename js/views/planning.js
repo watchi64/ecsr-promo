@@ -2835,7 +2835,7 @@ function renderInto(container) {
   const admin = isAdmin();
   const editing = canEditWeek();
   // Nouvelle navigation, côté stagiaire : le planning se lit seulement, sans phrase qui parle d'administration, et
-  // « Aujourd'hui » (en tête de la page) tient lieu de « Cette semaine » (barre de la semaine).
+  // « Revenir à aujourd'hui » (hors de la semaine du jour) tient lieu de « Cette semaine » (barre de la semaine).
   const eleve = navigationV2Active() && !formateurConnecte();
   // Lecture seule dès qu'on n'est pas en édition explicite (stagiaire, admin hors
   // mode Modifier, ou semaine verrouillée) : la CSS .read-only fait le gros du travail.
@@ -2924,14 +2924,14 @@ function renderInto(container) {
 
   // Barre en DEUX groupes : « se déplacer » puis « agir », séparés par un filet.
   // Le libellé « Semaine du » a été retiré : l'en-tête juste au-dessus dit déjà
-  // « Consultation · Semaine du 6 juillet 2026 ».
-  // « Cette semaine » fait doublon avec « Aujourd'hui » de l'en-tête, dans la nouvelle navigation, pour tous (relecture du
-  // lot 2B ; audit du 09/11, lot E) : il ne reste que dans l'ancienne.
+  // « Semaine du 6 juillet 2026 ».
+  // « Cette semaine » ne reste que dans l'ancienne navigation (relecture du lot 2B ; audit du 09/11, lots E et B).
   // Nouvelle navigation (audit du 09/11, lot B) : le retour au jour (ruling R29) ne se montre que hors de la semaine du
   // jour, où la bande et la barre des jours repèrent déjà aujourd'hui ; il ne s'appelle plus « Aujourd'hui », le nom de
   // l'onglet d'accueil de l'équipe.
   const avecAujourdhui = v2 && !!gesteAujourdhui;
-  const horsSemaineDuJour = semaineLundi !== isoDate(getMonday(new Date()));
+  // La semaine « du jour » est celle où le geste mène : le lundi suivant le week-end (lundiEnCours, comme todayJumpTarget).
+  const horsSemaineDuJour = semaineLundi !== lundiEnCours(new Date());
   const retourBtn = avecAujourdhui && horsSemaineDuJour
     ? el("button", { class: "btn small p-aujourdhui", type: "button",
         title: "Revenir à la semaine du jour, sur la journée d'aujourd'hui", onClick: () => gesteAujourdhui() },
@@ -3066,7 +3066,8 @@ function renderInto(container) {
 
   // Les règles du placement automatique et l'aide sur « À la suite » et « Parallèle » parlent à qui place les stagiaires
   // (audit du 09/11, lot B, B3) : l'équipe pour les règles ; le mode Modifier pour l'aide, qui décrit ses boutons.
-  if (formateurConnecte()) container.appendChild(buildRulesNote());
+  // Ancienne navigation (celle des promos en service) : le mémo reste pour tous, comme sur main.
+  if (formateurConnecte() || !v2) container.appendChild(buildRulesNote());
   if (editing) container.appendChild(el("div", { class: "planning-helper" },
     el("strong", {}, "À la suite : "), "un nouveau créneau, après celui qui précède. ",
     el("strong", {}, "En parallèle : "), "une autre activité au même horaire (par exemple une voiture qui tourne pendant un cours)."
@@ -3450,8 +3451,9 @@ async function printPlanning() {
   window.print();
 }
 
-// `aujourdhui` : le geste du bouton « Aujourd'hui » à poser en haut de la semaine (nouvelle navigation,
-// js/views/planning-espace.js) ; absent avec l'ancienne, dont la barre du haut porte le bouton.
+// `aujourdhui` : le geste du bouton « Aujourd'hui » de l'ancienne barre, que la nouvelle navigation pose dans la barre de la
+// semaine sous le nom « Revenir à aujourd'hui » (js/views/planning-espace.js) ; absent avec l'ancienne, dont la barre du haut
+// porte le bouton.
 export async function renderPlanning(container, { aujourdhui = null } = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));

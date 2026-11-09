@@ -925,7 +925,7 @@ export const NOUVEAUTES = [
     ou: { label: "Planning", route: "planning" },
     guide: [
       "Ouvre le planning, il est en lecture seule par défaut.",
-      "Clique sur « Modifier » pour éditer, « Terminer » pour en sortir.",
+      "Clique sur « Modifier » pour éditer, « Quitter l'édition » pour en sortir.",
       "Coche le verrou dans « Valider la semaine » quand la semaine est figée. Ctrl + Z la déverrouille.",
     ],
   },

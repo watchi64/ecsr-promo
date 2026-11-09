@@ -332,7 +332,8 @@ for (const m of MODULES) {
   }
 }
 const mod = (cle) => MODULES.find((m) => m.cle === cle);
-eq(mod("planning").annonce.resume.endsWith("Le bouton Aujourd'hui t'amène directement à la journée du jour."), true, "Planning : le bouton Aujourd'hui");
+// Audit du 09/11, lot B : plus de bouton « Aujourd'hui » dans le Planning de la nouvelle barre ; la journée du jour y est repérée dans les deux.
+eq(mod("planning").annonce.resume.endsWith("La journée du jour y est repérée."), true, "Planning : la journée du jour repérée");
 eq(mod("priorites").explication, "Qui doit passer en priorité, en salle et en voiture, dans le Planning.", "Priorités : explication");
 ok(mod("priorites").annonce.resume.startsWith("Dans le Planning, Priorités montre qui doit passer en priorité"), "Priorités : annonce");
 eq(mod("notes").explication, "Matrice des notes, courbe d'évolution de chaque stagiaire, anonymat.", "Notes : explication");

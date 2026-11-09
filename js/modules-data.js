@@ -55,11 +55,11 @@ export const REGLAGE_OUVERT_AUX_FORMATEURS = true;
 export const MODULES = [
   {
     cle: "planning", nom: "Planning", accord: "ms", groupe: "Démarrage", depart: true,
-    explication: "Planning de la semaine et bouton « Aujourd'hui ».",
+    explication: "Planning de la semaine, la journée du jour repérée.",
     annonce: {
       titre: "Le planning est ouvert",
       resume: "Retrouve chaque semaine qui passe au tableau et en voiture, et avec quel "
-            + "formateur. Le bouton Aujourd'hui t'amène directement à la journée du jour.",
+            + "formateur. La journée du jour y est repérée.",
       ou: { label: "Planning", route: "planning" },
     },
   },

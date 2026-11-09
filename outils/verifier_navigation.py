@@ -3889,12 +3889,13 @@ ADRESSE_SOUS_LA_NOUVELLE = {"Anonyme pour de vrai dans le tableau de notes": "#/
 # barre ont leur variante, `guideNouvelle` ; les deux Nouveautés qui ne décrivent que l'ancienne barre sont cachées.)
 GUIDES = {
     # Consigne de « Signaler un problème » : juste dans les deux espaces sous la nouvelle barre (le stagiaire par ses initiales, l'équipe en pied de barre ou dans
-    # « Plus »), celle de main avec l'ancienne (F4). Et le bouton « Aujourd'hui », en tête de Planning, Semaine (la carte du lancement est cachée avec l'ancienne barre).
+    # « Plus »), celle de main avec l'ancienne (F4). Et le retour au jour de Planning, Semaine, « Revenir à aujourd'hui » depuis une autre semaine (audit du 09/11,
+    # lot B ; la carte du lancement est cachée avec l'ancienne barre).
     "Signaler un problème en deux gestes":
         ("Ouvre ton compte avec tes initiales, en haut à droite, puis choisis « Signaler un problème ». Chez les formateurs, le bouton est en bas de la barre de "
          "gauche sur ordinateur, et dans « Plus » sur téléphone.", "Touche ton nom en haut de l'écran, ou ouvre l'Assistant."),
     TITRE_LANCEMENT:
-        ("Dans Planning, Semaine, le bouton « Aujourd'hui », en tête de la page, t'amène à la journée du jour.", "(carte cachée avec l'ancienne barre)"),
+        ("Dans Planning, Semaine, la journée du jour est repérée ; depuis une autre semaine, « Revenir à aujourd'hui » t'y ramène.", "(carte cachée avec l'ancienne barre)"),
     "Ton Dossier Professionnel se remplit dans l'app":
         ("Ouvre Mon suivi, dans la barre.", "Ouvre ton espace personnel avec le logo en haut à gauche."),
     "Ton livret officiel TP-01303 se remplit dans l'app":
@@ -5410,7 +5411,7 @@ def verifier_planning_grille(page, res, sc, complet=False):
         if page.evaluate("() => localStorage.getItem('planning.vue')") != "grille":
             res.echec("planning en grille", vue, "le choix de la grille n'est pas gardé sur l'appareil")
 
-    # L'équipe : « Modifier » montre l'éditeur et ni grille ni bascule ; « Terminer » rend la grille.
+    # L'équipe : « Modifier » montre l'éditeur et ni grille ni bascule ; « Quitter l'édition » (ex-« Terminer », audit du 09/11, lot B) rend la grille.
     if sc.espace == "equipe":
         modifier = page.locator("#view button", has_text="Modifier")
         if not modifier.count():
@@ -5422,15 +5423,15 @@ def verifier_planning_grille(page, res, sc, complet=False):
             if n["racine"] or n["cartesListe"] != 5 or n["bascule"]:
                 res.echec("planning en grille", vue, "en mode Modifier : grille %s, %d cartes de jour, %d bascule(s) (aucune grille, 5 cartes et aucune bascule attendues)"
                           % (n["racine"], n["cartesListe"], len(n["bascule"])))
-            termine = page.locator("#view .week-bar-actions button", has_text="Terminer")
+            termine = page.locator("#view .week-bar-actions button", has_text="Quitter l'édition")
             if termine.count():
                 termine.first.click()
                 page.wait_for_timeout(150)
                 n = page.evaluate(JS_MESURE_GRILLE)
                 if not n["racine"] or n["cartesListe"] or len(n["bascule"]) != 1:
-                    res.echec("planning en grille", vue, "« Terminer » ne rend pas la grille (grille %s, %d cartes, %d bascule(s))" % (n["racine"], n["cartesListe"], len(n["bascule"])))
+                    res.echec("planning en grille", vue, "« Quitter l'édition » ne rend pas la grille (grille %s, %d cartes, %d bascule(s))" % (n["racine"], n["cartesListe"], len(n["bascule"])))
             else:
-                res.echec("planning en grille", vue, "le bouton « Terminer » manque en mode Modifier")
+                res.echec("planning en grille", vue, "le bouton « Quitter l'édition » manque en mode Modifier")
 
     # Une semaine vide, puis la semaine du 11 novembre (repos) : les flèches de la barre de semaine gardent leur effet.
     if cliquer(page, res, vue, '#view button[aria-label="Semaine suivante"]', "la flèche « Semaine suivante »"):

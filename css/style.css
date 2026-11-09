@@ -8739,6 +8739,11 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .p-dice-btn svg, .p-abs-btn svg { width: 15px; height: 15px; flex: none; }
 .p-dice-mot { white-space: nowrap; }
 .p-dice-btn { color: var(--text); }
+/* Le dé tourne, pas le mot : la rotation passe du bouton à son icône. */
+.p-dice-btn:hover, .p-dice-btn:active { transform: none; }
+.p-dice-btn svg { transition: transform 0.12s; }
+.p-dice-btn:hover svg { transform: rotate(15deg); }
+.p-dice-btn:active svg { transform: rotate(360deg) scale(0.92); transition: transform 0.4s; }
 .p-abs-btn {
   height: 30px; padding: 0.18rem 0.45rem; opacity: 1;
   border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); color: var(--text-soft);

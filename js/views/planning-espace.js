@@ -43,7 +43,7 @@ function dansUnConteneur(rendre) {
 // Chaque sous-onglet suit le module de son ancienne page : la page s'ouvre dès que l'un d'eux
 // est ouvert (routeVisibleV2, js/nav-rules.js) et ne montre que ceux-là chez un stagiaire.
 // `aujourdhui` : le geste du bouton « Aujourd'hui » de l'ancienne barre (js/main.js), que la semaine
-// porte en haut de sa vue (ruling R29).
+// porte dans sa barre, « Revenir à aujourd'hui » (ruling R29, puis audit du 09/11, lot B).
 export async function renderPlanningEspace(view, { aujourdhui = null } = {}) {
   clear(view);
   view.appendChild(renderSubTabs([
