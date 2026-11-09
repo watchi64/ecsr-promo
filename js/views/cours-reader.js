@@ -22,7 +22,7 @@ import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=202611
 import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261109a";
 import { listCoursIndex, getCours } from "../db.js?v=20261109a";
 import { isAdmin, isProf, getViewAs } from "../auth-admin.js?v=20261109a";
-import { titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours,
+import { coursAUnTexte, MESSAGE_COURS_VIDE, titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours,
   coursVisibleEnApercu, classeTableau, etiquetteDeColonne }
   from "../cours-rules.js?v=20261109a";
 
@@ -545,7 +545,8 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
 
   try {
     const cours = await getCours(cle);
-    const texte = cours.corps_md;
+    const vide = !coursAUnTexte(cours);
+    const texte = vide ? MESSAGE_COURS_VIDE : cours.corps_md;
     marquerCoursOuvert(cle);
     // Fiche fermée pendant le chargement : rien à rendre, et aucun schéma à monter dans une fiche disparue.
     if (ferme) return;
@@ -594,14 +595,15 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
 
     const titre = titreDepuisMarkdown(texte);
     if (titre) tete.querySelector(".cours-head-titre").textContent = titre;
-    meta.textContent = `${contexte.sections.length} sections · ${tempsLecture(texte)} min de lecture`;
+    meta.textContent = vide ? "" : `${contexte.sections.length} sections · ${tempsLecture(texte)} min de lecture`;
 
     // État formateur/admin : le stagiaire n'a pas à voir la cuisine.
     if (isAdmin() || isProf()) {
       const quand = cours.updated_at
         ? new Date(cours.updated_at).toLocaleDateString("fr-FR") : "";
-      meta.textContent += (cours.published ? " · Publié" : " · Non publié")
+      const etat = (cours.published ? "Publié" : "Non publié")
         + (cours.updated_by ? ` · modifié par ${cours.updated_by} le ${quand}` : "");
+      meta.textContent += (meta.textContent ? " · " : "") + etat;
     }
 
     // Sommaire : les titres de niveau 2, numérotés comme dans le cours.

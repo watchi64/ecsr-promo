@@ -93,6 +93,17 @@ export const NOUVEAUTES = [
     ],
   },
   {
+    id: "2026-11-09-qcm-echap-et-pannes",
+    date: "2026-11-09",
+    pour: "tous",
+    titre: "QCM : Échap ferme la fenêtre, et un message quand la connexion lâche",
+    resume: "Sur ordinateur, la touche Échap ferme maintenant la fenêtre d'un QCM, comme la croix (pendant un examen, "
+          + "la même confirmation t'est demandée). Dans Cours et QCM, si les cours ou les QCM ne se chargent pas, "
+          + "la page le dit et propose « Réessayer » au lieu de laisser des colonnes vides. Un cours sans texte "
+          + "affiche un message clair.",
+    ou: { label: "Cours et QCM", route: "themes" },
+  },
+  {
     id: "2026-11-08-roles-par-promo",
     date: "2026-11-08",
     pour: "formateurs",

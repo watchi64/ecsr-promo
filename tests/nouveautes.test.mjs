@@ -216,7 +216,7 @@ ok(/barre de gauche/.test(aujourdhui.guide[0]) && /téléphone/.test(aujourdhui.
 ok(/sommaire/.test(coursTel.resume) && /à la ligne/.test(coursTel.resume) && /tableaux/.test(coursTel.resume) && /listes/.test(coursTel.resume), "cours : sommaire à la ligne, tableaux en listes");
 eq(coursTel.ou, { label: "Cours", route: "themes" }, "cours : Où le trouver, Cours (réécrit Cours et QCM sous la nouvelle barre)");
 // Qui les voit : la journée et les cours pour tous, nouvelle navigation ; Aujourd'hui pour l'équipe seulement ; éteinte, les cours seuls.
-const DU_LOT = (l) => ids(l).filter((id) => id.startsWith(JOUR + "-"));
+const DU_LOT = (l) => ids(l).filter((id) => id.startsWith(JOUR + "-") && id !== "2026-11-09-qcm-echap-et-pannes");
 eq(DU_LOT(triees(visibles(NOUVEAUTES, false, true))), [journee.id, coursTel.id], "stagiaire, nouvelle navigation : la journée d'abord (carte de l'Accueil), puis les cours");
 eq(DU_LOT(triees(visibles(NOUVEAUTES, true, true))), [aujourdhui.id, coursTel.id],
   "formateur, nouvelle navigation : Aujourd'hui et les cours, pas la journée du stagiaire");

@@ -71,3 +71,11 @@ export function lignesQcmStagiaire({ qcm = [], themes = [], tentatives = [], now
     || a.titre.localeCompare(b.titre, "fr")
     || a.qcm.id - b.qcm.id);
 }
+
+/** Phrase affichée quand la lecture des cours ou des QCM a échoué (jamais confondue avec « aucun QCM »). */
+export function messageLectureEnEchec({ cours = false, qcm = false } = {}) {
+  if (cours && qcm) return "Cours et QCM non chargés. Vérifie ta connexion.";
+  if (qcm) return "QCM non chargés. Vérifie ta connexion.";
+  if (cours) return "Cours non chargés. Vérifie ta connexion.";
+  return null;
+}

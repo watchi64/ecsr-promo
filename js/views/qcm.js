@@ -9,6 +9,7 @@ import { icon } from "../icons.js?v=20261109a";
 import { getQcmFull, insertQcmAttempt, getMyExamAttempt, listMyQcmAttemptsFor,
          createQcmSignalement } from "../db.js?v=20261109a";
 import { monStagiaireId } from "../auth-admin.js?v=20261109a";
+import { fermerParEchap } from "../fenetre-echap.js?v=20261109a";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261109a";
 
 const MOTIFS = [
@@ -235,6 +236,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
   }
   // Fermeture au clic sur le fond (hors du player)
   overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+  fermerParEchap(overlay, close);
 
   const numPrefix = theme.numero ? String(theme.numero).padStart(2, "0") + " · " : "";
   const headTitle = numPrefix + theme.titre;
@@ -401,7 +403,10 @@ function examOverlay(dismissible = true) {
   document.body.appendChild(overlay);
   document.body.classList.add("qcm-open");
   const close = () => { overlay.remove(); document.body.classList.remove("qcm-open"); };
-  if (dismissible) overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+  if (dismissible) {
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+    fermerParEchap(overlay, close);
+  }
   return { overlay, player, close };
 }
 
@@ -534,6 +539,8 @@ function runExam(theme, full, questions, profile) {
     if (!submitted && !window.confirm("Quitter l'examen ? Ta progression sera perdue et rien ne sera enregistré.")) return;
     close();
   }
+  // Échap vaut la croix : même confirmation tant que l'examen n'est pas remis.
+  fermerParEchap(overlay, requestClose);
 
   const timerEl = el("span", { class: "qcm-timer" }, fmtTime(remaining));
   timerId = setInterval(() => {
