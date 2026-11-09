@@ -80,15 +80,19 @@ export function listeDuCentre(listesParPromo, filtre) {
 
 // === Équipe ===
 // lignes : [{ email, nom, direction, promos: integer[] }] (lireEquipeDuCentre) ; promosDuCentre : [{ id, nom }].
-// Les promos d'une personne qui ne sont pas de ce centre ne s'affichent pas.
+// Les promos d'une personne qui ne sont pas de ce centre ne s'affichent pas. Chaque ligne garde son adresse et les identifiants de
+// ses promos du centre (les gestes de la page : Modifier, Retirer du centre).
 export function equipeAffichee(lignes, promosDuCentre) {
   const centre = Array.isArray(promosDuCentre) ? promosDuCentre : [];
   const lignesOk = Array.isArray(lignes) ? lignes : [];
   const vue = lignesOk.map((l) => {
     const siennes = centre.filter((p) => (l.promos || []).includes(p.id));
     const role = l.direction ? (siennes.length ? "Direction et formateur" : "Direction") : "Formateur";
-    return { nom: l.nom && String(l.nom).trim() ? l.nom : l.email, role, promos: siennes.map((p) => p.nom).join(", "), direction: !!l.direction };
+    return {
+      nom: l.nom && String(l.nom).trim() ? l.nom : l.email, role, promos: siennes.map((p) => p.nom).join(", "), direction: !!l.direction,
+      email: l.email, promoIds: siennes.map((p) => p.id),
+    };
   });
   vue.sort((a, b) => (b.direction - a.direction) || a.nom.localeCompare(b.nom, "fr"));
-  return vue.map(({ nom, role, promos }) => ({ nom, role, promos }));
+  return vue.map(({ nom, role, promos, email, promoIds }) => ({ nom, role, promos, email, promoIds }));
 }

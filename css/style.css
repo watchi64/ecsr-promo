@@ -8769,3 +8769,25 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   .stg-filtre { grid-template-columns: minmax(0, 1fr); }
   .stg-groupe .stg-liste { display: flex; }
 }
+
+/* Page Équipe de la direction (lot 5, Task 10). */
+.equipe-nom { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.15rem 0.5rem; }
+.equipe-adresse { font-size: 0.82rem; overflow-wrap: anywhere; }
+.equipe-role { background: var(--bg-soft); color: var(--text-soft); white-space: nowrap; }
+.equipe-role-direction { background: var(--accent-soft); color: var(--accent-strong); }
+.equipe-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; }
+.equipe-centre .btn { min-height: 44px; }
+.equipe-actions .btn { display: inline-flex; align-items: center; gap: 0.35rem; }
+.equipe-actions .btn svg { width: 16px; height: 16px; flex: none; }
+.equipe-fenetre { max-height: calc(100dvh - 2rem); overflow-y: auto; }
+.equipe-intro, .equipe-note { margin: 0; font-size: 0.88rem; overflow-wrap: anywhere; }
+.equipe-fenetre input[type="email"], .equipe-fenetre select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.equipe-cases { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.equipe-cases legend { padding: 0; margin-bottom: 0.3rem; font-size: 0.9rem; font-weight: 600; color: var(--text); }
+.equipe-case { display: flex; align-items: center; gap: 0.6rem; min-height: 44px; padding: 0 0.5rem; border-radius: var(--r-sm); cursor: pointer; overflow-wrap: anywhere; }
+.equipe-case:hover { background: var(--bg-subtle); }
+.equipe-case input { width: 20px; height: 20px; flex: none; margin: 0; }
+@media screen and (max-width: 1079.98px) {
+  .equipe-table .liste-actions { order: 5; flex-basis: 100%; margin-left: 0; }
+  .equipe-actions { justify-content: flex-start; }
+}

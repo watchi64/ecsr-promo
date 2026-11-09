@@ -300,6 +300,26 @@ export async function lireEffectifsPromos(promoIds) {
   return parPromo;
 }
 
+// Nom de la fiche formateur liée à chaque compte : { adresse en minuscules -> nom }, sans entrée pour un compte sans fiche. Lève si
+// une lecture échoue. Commun aux deux lectures d'équipe ci-dessous (formateurs d'une promo, équipe d'un centre).
+async function nomsFormateursParEmail(emails) {
+  const noms = new Map();
+  if (!emails.length) return noms;
+  const { data: profils, error } = await supabase.from("user_profiles").select("email, prof_id").in("email", emails);
+  if (error) throw error;
+  const profParEmail = new Map((profils || []).map((u) => [String(u.email).toLowerCase(), u.prof_id]));
+  const profIds = [...new Set([...profParEmail.values()].filter((x) => x != null))];
+  if (!profIds.length) return noms;
+  const { data: profs, error: e2 } = await supabase.from("profs").select("id, nom").in("id", profIds);
+  if (e2) throw e2;
+  const nomParProf = new Map((profs || []).map((f) => [f.id, f.nom]));
+  for (const [email, profId] of profParEmail) {
+    const nom = nomParProf.get(profId);
+    if (nom) noms.set(email, nom);
+  }
+  return noms;
+}
+
 // Formateurs de chaque promo : { promoId -> [nom] }, d'après les affectations « formateur » (nom de la fiche formateur liée au
 // compte, sinon l'adresse). Rend null si la lecture échoue : la page le dit.
 export async function lireFormateursPromos(promoIds) {
@@ -309,23 +329,11 @@ export async function lireFormateursPromos(promoIds) {
       .eq("role", "formateur").in("promo_id", promoIds);
     if (error) throw error;
     const emails = [...new Set((affs || []).map((a) => String(a.email).toLowerCase()))];
-    let profilParEmail = new Map();
-    let nomParProf = new Map();
-    if (emails.length) {
-      const { data: profils, error: e2 } = await supabase.from("user_profiles").select("email, prof_id").in("email", emails);
-      if (e2) throw e2;
-      profilParEmail = new Map((profils || []).map((u) => [String(u.email).toLowerCase(), u.prof_id]));
-      const profIds = [...new Set([...profilParEmail.values()].filter((x) => x != null))];
-      if (profIds.length) {
-        const { data: profs, error: e3 } = await supabase.from("profs").select("id, nom").in("id", profIds);
-        if (e3) throw e3;
-        nomParProf = new Map((profs || []).map((f) => [f.id, f.nom]));
-      }
-    }
+    const noms = await nomsFormateursParEmail(emails);
     const parPromo = new Map(promoIds.map((id) => [id, []]));
     for (const a of affs || []) {
       const email = String(a.email).toLowerCase();
-      const nom = nomParProf.get(profilParEmail.get(email)) || email;
+      const nom = noms.get(email) || email;
       const liste = parPromo.get(a.promo_id);
       if (liste && !liste.includes(nom)) liste.push(nom);
     }
@@ -335,6 +343,56 @@ export async function lireFormateursPromos(promoIds) {
     console.error("formateurs des promos", e);
     return null;
   }
+}
+
+// Lot 5 (Task 10) : l'équipe d'un centre, une ligne par adresse : { email, nom, direction, promos } (`nom` : fiche formateur liée au
+// compte, nul sans fiche ; `promos` : identifiants des promos DE CE CENTRE où la personne est formateur). Le centre filtre vraiment :
+// les directions sont celles du lieu, les formateurs ceux des promos du lieu (les promos du compte qui sont de ce lieu, la liste
+// de l'app étant déjà bornée au centre en aperçu, D3). Une direction d'un autre centre, un formateur d'une promo d'un autre
+// centre n'y figurent donc jamais, même si la base les laisse lire. Lève si une lecture échoue (la page le dit).
+export async function lireEquipeDuCentre(lieuId) {
+  const promoIds = mesPromos.filter((p) => p.lieu_id === lieuId).map((p) => p.id);
+  const [formateurs, directions] = await Promise.all([
+    promoIds.length
+      ? supabase.from("affectations").select("email, promo_id").eq("role", "formateur").in("promo_id", promoIds)
+      : Promise.resolve({ data: [], error: null }),
+    supabase.from("affectations").select("email").eq("role", "direction").eq("lieu_id", lieuId),
+  ]);
+  if (formateurs.error) throw formateurs.error;
+  if (directions.error) throw directions.error;
+  const parEmail = new Map();
+  const ligne = (brut) => {
+    const email = String(brut).toLowerCase();
+    if (!parEmail.has(email)) parEmail.set(email, { email, nom: null, direction: false, promos: [] });
+    return parEmail.get(email);
+  };
+  for (const d of directions.data || []) ligne(d.email).direction = true;
+  for (const f of formateurs.data || []) {
+    const l = ligne(f.email);
+    if (!l.promos.includes(f.promo_id)) l.promos.push(f.promo_id);
+  }
+  const noms = await nomsFormateursParEmail([...parEmail.keys()]);
+  for (const l of parEmail.values()) l.nom = noms.get(l.email) || null;
+  return [...parEmail.values()];
+}
+
+// Les fiches formateur libres (reliées à aucun compte), que la direction peut lier à un formateur invité : [{ id, nom }].
+export async function lireFichesFormateurLibres() {
+  const [profs, comptes] = await Promise.all([listProfs(), listUserProfiles()]);
+  const prises = new Set(comptes.map((u) => u.prof_id).filter((x) => x != null));
+  return profs.filter((f) => !prises.has(f.id)).map((f) => ({ id: f.id, nom: f.nom }));
+}
+
+// La direction règle les promos d'un formateur de son centre (regler_affectations_formateur : liste vide = retiré du centre ; compte
+// absent = profil créé). Rend { email, cree, ajoutees, retirees }. Les refus de la base partent tels quels (préfixe « equipe: »,
+// 42501 sans droit, PGRST202 fonction absente) : l'appelant les dit par phraseDeRefus.
+export async function reglerAffectationsFormateur({ email, lieuId, promoIds, profId }) {
+  const { data, error } = await supabase.rpc("regler_affectations_formateur", {
+    p_email: email, p_lieu_id: lieuId, p_promo_ids: promoIds, p_prof_id: profId ?? null,
+  });
+  if (error) throw erreurDeBase(error);
+  if (!data || typeof data !== "object") throw new Error("equipe: La base n'a rien répondu.");
+  return data;
 }
 
 // === Stagiaires & Profs ===

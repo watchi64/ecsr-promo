@@ -30,6 +30,7 @@ import { renderNotes } from "./views/notes.js?v=20261109f";
 import { renderVueCentre, renderEmargementCentre, renderNotesCentre } from "./views/direction-centre.js?v=20261109f";
 import { renderPromosCentre } from "./views/direction-promos.js?v=20261109f";
 import { renderStagiairesCentre } from "./views/direction-stagiaires.js?v=20261109f";
+import { renderEquipeCentre } from "./views/direction-equipe.js?v=20261109f";
 import { renderRessources } from "./views/ressources.js?v=20261109f";
 import { renderThemes } from "./views/themes.js?v=20261109f";
 import { renderConfig, renderPreferences } from "./views/config.js?v=20261109f";
@@ -264,7 +265,7 @@ const routes = {
   problemes:  renderProblemes,
   // Lot 5 : direction (promos, equipe) et siège (reseau, directions). Hors de ces espaces, navigate() les refuse (routeDansLEspace).
   promos:     renderPromosCentre,
-  equipe:     pageEnConstruction("Équipe", "L'équipe du centre s'affichera ici."),
+  equipe:     renderEquipeCentre,
   reseau:     pageEnConstruction("Vue d'ensemble", "Les chiffres du réseau, centre par centre, s'afficheront ici."),
   directions: pageEnConstruction("Directions de centre", "Les directions de chaque centre s'afficheront ici."),
 };

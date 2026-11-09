@@ -115,11 +115,11 @@ test("equipeAffichee : nom ou adresse, rôle, promos du centre, tri", () => {
     { email: "sans@exemple.invalid", nom: "", direction: false, promos: [] },
   ];
   assert.deepEqual(equipeAffichee(lignes, promos), [
-    { nom: "chef@exemple.invalid", role: "Direction", promos: "" },
-    { nom: "Marc Dir", role: "Direction et formateur", promos: "Nîmes sept" },
-    { nom: "Ana Dupont", role: "Formateur", promos: "Nîmes mars" },
-    { nom: "sans@exemple.invalid", role: "Formateur", promos: "" },
-    { nom: "Zoé Martin", role: "Formateur", promos: "Nîmes mars, Nîmes sept" },
+    { nom: "chef@exemple.invalid", role: "Direction", promos: "", email: "chef@exemple.invalid", promoIds: [] },
+    { nom: "Marc Dir", role: "Direction et formateur", promos: "Nîmes sept", email: "dir@exemple.invalid", promoIds: [2] },
+    { nom: "Ana Dupont", role: "Formateur", promos: "Nîmes mars", email: "ana@exemple.invalid", promoIds: [1] },
+    { nom: "sans@exemple.invalid", role: "Formateur", promos: "", email: "sans@exemple.invalid", promoIds: [] },
+    { nom: "Zoé Martin", role: "Formateur", promos: "Nîmes mars, Nîmes sept", email: "zoe@exemple.invalid", promoIds: [1, 2] },
   ]);
   assert.deepEqual(equipeAffichee([], promos), []);
   assert.deepEqual(equipeAffichee(undefined, undefined), []);
