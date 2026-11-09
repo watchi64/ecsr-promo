@@ -28,6 +28,7 @@ import { renderPlanningEspace } from "./views/planning-espace.js?v=20261109d";
 import { teardownDocPrint } from "./doc-officiel.js?v=20261109d";
 import { renderNotes } from "./views/notes.js?v=20261109d";
 import { renderVueCentre, renderEmargementCentre, renderNotesCentre } from "./views/direction-centre.js?v=20261109d";
+import { renderPromosCentre } from "./views/direction-promos.js?v=20261109d";
 import { renderRessources } from "./views/ressources.js?v=20261109d";
 import { renderThemes } from "./views/themes.js?v=20261109d";
 import { renderConfig, renderPreferences } from "./views/config.js?v=20261109d";
@@ -194,7 +195,7 @@ function majBadgeNouveautes() {
 // ===== Router =====
 
 // Pages de la direction et du siège pas encore construites (lot 5) : leur titre et une phrase, pour qu'une entrée de la barre
-// n'ouvre jamais une erreur. Chacune est remplacée par sa vraie page : Promos (Task 8), Équipe (Task 10), Vue d'ensemble du
+// n'ouvre jamais une erreur. Chacune est remplacée par sa vraie page : Équipe (Task 10), Vue d'ensemble du
 // réseau (Task 11), Directions de centre (Task 12). Jamais en ligne avant elles : la branche du lot ne fusionne qu'à la fin.
 function pageEnConstruction(titre, phrase) {
   return (view) => {
@@ -261,7 +262,7 @@ const routes = {
   nouveautes: renderNouveautes,
   problemes:  renderProblemes,
   // Lot 5 : direction (promos, equipe) et siège (reseau, directions). Hors de ces espaces, navigate() les refuse (routeDansLEspace).
-  promos:     pageEnConstruction("Promos", "Les promos du centre s'afficheront ici."),
+  promos:     renderPromosCentre,
   equipe:     pageEnConstruction("Équipe", "L'équipe du centre s'affichera ici."),
   reseau:     pageEnConstruction("Vue d'ensemble", "Les chiffres du réseau, centre par centre, s'afficheront ici."),
   directions: pageEnConstruction("Directions de centre", "Les directions de chaque centre s'afficheront ici."),

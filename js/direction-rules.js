@@ -21,6 +21,20 @@ export function etatPromo(promo, aujourdhui) {
   return promo.date_debut > aujourdhui ? "à venir" : "terminée";
 }
 
+// Part de la formation écoulée, en pour cent entier : 0 avant le début, 100 à partir de la fin ; null quand la promo n'a pas
+// de fin (ou pas de début) : il n'y a alors pas de durée à comparer.
+const JOUR_MS = 86400000;
+const jourUtc = (iso) => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)));
+export function partEcoulee(promo, aujourdhui) {
+  if (!promo || !promo.date_debut || !promo.date_fin) return null;
+  const debut = jourUtc(promo.date_debut);
+  const fin = jourUtc(promo.date_fin);
+  const jour = jourUtc(aujourdhui);
+  if (jour < debut) return 0;
+  if (jour >= fin) return 100;
+  return Math.round(((jour - debut) / (fin - debut)) * 100);
+}
+
 // === Stagiaires du centre ===
 // listesParPromo : [{ promoId, nom, stagiaires: [{ id, nom, prenom, actif }] }], une entrée par promo du centre.
 

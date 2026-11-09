@@ -8644,6 +8644,28 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   .solo-ordinateur, .btn.solo-ordinateur, .at-tout.solo-ordinateur, .em-ligne-actions.solo-ordinateur { display: none; }
 }
 
+/* Page Promos de la direction (lot 5, Task 8). */
+.promo-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.75rem; align-items: start; }
+.promo-carte { gap: 0.45rem; }
+.promo-carte-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.promo-carte-tete h4 { font-size: 1rem; color: var(--text); margin-right: 0.2rem; overflow-wrap: anywhere; }
+.promo-carte-tete .centre-promo { margin-left: 0; }
+.promo-etat { background: var(--bg-soft); color: var(--text-soft); white-space: nowrap; }
+.promo-etat-cours { background: var(--c-go-soft); color: var(--c-go); }
+.promo-etat-venir { background: var(--c-wait-soft); color: var(--c-wait); }
+.promo-ligne { margin: 0; font-size: 0.88rem; line-height: 1.4; display: flex; flex-wrap: wrap; gap: 0.1rem 0.6rem; align-items: baseline; }
+.promo-etiquette { flex: none; min-width: 5.6rem; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.promo-avancement { align-items: center; }
+.promo-barre { flex: 1 1 6rem; min-width: 5rem; height: 0.55rem; border-radius: 999px; background: var(--bg-soft); overflow: hidden; display: block; }
+.promo-barre-remplie { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.promo-pct { font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-soft); white-space: nowrap; }
+.promo-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.35rem; }
+.promo-actions .btn { min-height: 44px; }
+.promo-modules { grid-column: 1 / -1; min-width: 0; }
+.promo-refus { margin: 0; min-height: 1.2em; font-size: 0.9rem; color: var(--c-stop); }
+.promo-fenetre input, .promo-fenetre select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.promo-fenetre .modal-actions .btn { min-height: 44px; }
+
 @media (max-width: 640px) {
   .centre-themes { grid-template-columns: 1fr; }
   .centre-grille { grid-template-columns: 1fr; }

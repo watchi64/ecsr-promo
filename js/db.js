@@ -255,6 +255,88 @@ export async function renommerPromo(id, nom) {
   if (promo) promo.nom = nom;
 }
 
+// Lot 5 (Task 8) : la direction crée une promo de son centre et règle ses dates. Les fonctions de la base (creer_promo,
+// modifier_dates_promo : SECURITY DEFINER, direction du centre ou fondateur) vérifient le droit ; leurs refus partent tels quels
+// (message préfixé « promo: », code 42501 sans droit, PGRST202 fonction absente) et l'appelant les dit par phraseDeRefus. Le
+// message d'origine et le code restent sur l'erreur levée. `fin` facultative (null, jamais une chaîne vide).
+function erreurDeBase(error) {
+  const e = new Error(error.message || "");
+  e.code = error.code;
+  return e;
+}
+export async function creerPromo({ lieuId, nom, debut, fin }) {
+  const { data, error } = await supabase.rpc("creer_promo", {
+    p_lieu_id: lieuId, p_nom: nom, p_debut: debut || null, p_fin: fin || null,
+  });
+  if (error) throw erreurDeBase(error);
+  if (!Number.isInteger(Number(data))) throw new Error("promo: La promo n'a pas été créée.");
+  return Number(data);
+}
+export async function modifierDatesPromo({ promoId, debut, fin }) {
+  const { error } = await supabase.rpc("modifier_dates_promo", { p_promo_id: promoId, p_debut: debut || null, p_fin: fin || null });
+  if (error) throw erreurDeBase(error);
+  // Les listes en mémoire suivent (le même objet peut être dans les deux).
+  for (const p of [...promosLues, ...mesPromos]) {
+    if (p.id === promoId) { p.date_debut = debut || null; p.date_fin = fin || null; }
+  }
+}
+
+// Effectif de chaque promo : { enFormation, abandons } (fiches actives, fiches en abandon ; une fiche anonymisée n'est pas un
+// abandon), par l'en-tête de lecture de la promo. Une promo illisible rend null : la page le dit sur sa carte.
+export async function lireEffectifsPromos(promoIds) {
+  const parPromo = new Map();
+  await Promise.all(promoIds.map(async (id) => {
+    try {
+      const lignes = await lireTable("stagiaires", "id, actif, anonymise_le", "id", id);
+      parPromo.set(id, {
+        enFormation: lignes.filter((s) => s.actif !== false).length,
+        abandons: lignes.filter((s) => s.actif === false && !s.anonymise_le).length,
+      });
+    } catch (e) {
+      console.error("effectif de la promo " + id, e);
+      parPromo.set(id, null);
+    }
+  }));
+  return parPromo;
+}
+
+// Formateurs de chaque promo : { promoId -> [nom] }, d'après les affectations « formateur » (nom de la fiche formateur liée au
+// compte, sinon l'adresse). Rend null si la lecture échoue : la page le dit.
+export async function lireFormateursPromos(promoIds) {
+  try {
+    if (!promoIds.length) return new Map();
+    const { data: affs, error } = await supabase.from("affectations").select("email, promo_id")
+      .eq("role", "formateur").in("promo_id", promoIds);
+    if (error) throw error;
+    const emails = [...new Set((affs || []).map((a) => String(a.email).toLowerCase()))];
+    let profilParEmail = new Map();
+    let nomParProf = new Map();
+    if (emails.length) {
+      const { data: profils, error: e2 } = await supabase.from("user_profiles").select("email, prof_id").in("email", emails);
+      if (e2) throw e2;
+      profilParEmail = new Map((profils || []).map((u) => [String(u.email).toLowerCase(), u.prof_id]));
+      const profIds = [...new Set([...profilParEmail.values()].filter((x) => x != null))];
+      if (profIds.length) {
+        const { data: profs, error: e3 } = await supabase.from("profs").select("id, nom").in("id", profIds);
+        if (e3) throw e3;
+        nomParProf = new Map((profs || []).map((f) => [f.id, f.nom]));
+      }
+    }
+    const parPromo = new Map(promoIds.map((id) => [id, []]));
+    for (const a of affs || []) {
+      const email = String(a.email).toLowerCase();
+      const nom = nomParProf.get(profilParEmail.get(email)) || email;
+      const liste = parPromo.get(a.promo_id);
+      if (liste && !liste.includes(nom)) liste.push(nom);
+    }
+    for (const liste of parPromo.values()) liste.sort((a, b) => a.localeCompare(b, "fr"));
+    return parPromo;
+  } catch (e) {
+    console.error("formateurs des promos", e);
+    return null;
+  }
+}
+
 // === Stagiaires & Profs ===
 
 // Par défaut, ne renvoie que les stagiaires actifs (les abandons sont masqués

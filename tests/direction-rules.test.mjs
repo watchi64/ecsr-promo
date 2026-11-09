@@ -2,7 +2,7 @@
 // fiche et liste du centre, équipe affichée. Lancer : node --test tests/direction-rules.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validerPromo, etatPromo, ouTrouverFiche, listeDuCentre, equipeAffichee } from "../js/direction-rules.js";
+import { validerPromo, etatPromo, partEcoulee, ouTrouverFiche, listeDuCentre, equipeAffichee } from "../js/direction-rules.js";
 
 test("validerPromo : mêmes phrases que la base, sans préfixe", () => {
   assert.equal(validerPromo({ nom: "Nîmes mars", debut: "2026-03-02", fin: "2026-12-18" }), null);
@@ -26,6 +26,20 @@ test("etatPromo : à venir, en cours, terminée (règle de promosEnCours)", () =
   assert.equal(etatPromo({ date_debut: "2026-03-02", date_fin: null }, j), "en cours", "sans fin");
   assert.equal(etatPromo({ date_debut: "2025-03-02", date_fin: "2025-12-18" }, j), "terminée");
   assert.equal(etatPromo({ date_debut: "2026-11-10", date_fin: null }, j), "à venir");
+});
+
+test("partEcoulee : pourcentage du temps de la promo écoulé, null sans fin", () => {
+  const p = { date_debut: "2026-01-01", date_fin: "2026-01-11" };
+  assert.equal(partEcoulee(p, "2025-12-31"), 0, "avant le début");
+  assert.equal(partEcoulee(p, "2026-01-01"), 0, "le jour du début");
+  assert.equal(partEcoulee(p, "2026-01-06"), 50);
+  assert.equal(partEcoulee(p, "2026-01-11"), 100, "le jour de la fin");
+  assert.equal(partEcoulee(p, "2027-01-01"), 100, "après la fin");
+  assert.equal(partEcoulee({ date_debut: "2026-01-01", date_fin: "2026-01-04" }, "2026-01-02"), 33, "arrondi à l'entier");
+  assert.equal(partEcoulee({ date_debut: "2026-01-01", date_fin: null }, "2026-06-01"), null, "fin non fixée");
+  assert.equal(partEcoulee({ date_debut: null, date_fin: "2026-06-01" }, "2026-06-01"), null, "début absent");
+  assert.equal(partEcoulee({ date_debut: "2026-01-01", date_fin: "2026-01-01" }, "2026-01-01"), 100, "promo d'un jour");
+  assert.equal(partEcoulee({ date_debut: "2026-01-01", date_fin: "2026-01-01" }, "2025-12-31"), 0);
 });
 
 const P1 = { promoId: 1, nom: "Nîmes mars", stagiaires: [
