@@ -160,8 +160,8 @@ export const NOUVEAUTES = [
     resume: "Quand l'app te demande de confirmer un geste (quitter ou terminer un examen, supprimer, vider les "
           + "placements du planning...), la question s'affiche maintenant dans une fenêtre de l'app, lisible sur "
           + "téléphone, au lieu de la petite boîte grise du navigateur. Le bouton dit ce qu'il fait (« Supprimer », "
-          + "« Terminer ») ; « Annuler » ou Échap referment sans rien changer. Pendant un examen, si le temps s'écoule "
-          + "alors que la question est ouverte, elle se ferme d'elle-même.",
+          + "« Terminer ») ; « Annuler » (ou « Continuer l'examen ») et Échap referment sans rien changer. Pendant un "
+          + "examen, si le temps s'écoule alors que la question est ouverte, elle se ferme d'elle-même.",
   },
   // Lot de corrections 2 (audit du 09/11) : ce que l'app affiche est juste.
   {

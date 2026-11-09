@@ -2,8 +2,11 @@
 // (confirm()) : le robot des parcours et le vérificateur comptent une boîte native comme un défaut, et elle ne suit ni
 // l'habillage ni la taille de l'écran. Même fenêtre que la fermeture d'un examen (confirmerFermeture, js/views/themes.js).
 // « Annuler », Échap ou un toucher à côté répondent non. Le clavier s'écoute sur la fenêtre du navigateur (window), en
-// capture, donc avant tout le reste : Échap ne va pas plus loin (ni l'écran « Saisir », ni l'assistant, ni la fiche d'un
-// stagiaire restée dessous), et Tab passe d'un bouton à l'autre sans sortir. Le focus va au bouton du geste, puis
+// capture, donc avant tout le reste : aucune touche ne va plus loin (ni Échap vers l'écran « Saisir », l'assistant ou la
+// fiche d'un stagiaire restée dessous, ni Ctrl+Z vers le retour en arrière de la page), sans que rien d'autre soit
+// empêché (Entrée et Espace activent toujours le bouton qui a le focus), et Tab passe d'un bouton à l'autre sans sortir.
+// Contrairement à la boîte du navigateur, la page continue de vivre pendant la question : un changement d'adresse (le
+// Retour du téléphone) la referme, réponse non ; l'appelant qui garde un état doit vérifier qu'il n'a pas changé. Le focus va au bouton du geste, puis
 // revient où il était (le champ suivant de l'écran « Saisir ») s'il est encore dans la page.
 // La fenêtre s'ouvre au tour suivant : demandée pendant qu'on quitte un champ par Tab ou Entrée, elle laisse le focus
 // arriver au champ suivant avant de s'ouvrir ; au toucher, « Retour » va au bout. À la souris, le clic qui a fait quitter
@@ -35,6 +38,7 @@ function ouvrir({ titre, phrase = null, oui, non = "Annuler", danger = true, sig
     if (fini) return;
     fini = true;
     window.removeEventListener("keydown", auClavier, true);
+    window.removeEventListener("hashchange", surAbandon);
     signal?.removeEventListener("abort", surAbandon);
     bd.remove();
     if (rendreLeFocus && avant && avant !== document.body && avant.isConnected && typeof avant.focus === "function") avant.focus();
@@ -44,10 +48,10 @@ function ouvrir({ titre, phrase = null, oui, non = "Annuler", danger = true, sig
   const boutonNon = el("button", { class: "btn ghost", type: "button", onClick: () => finir(false) }, non);
   const boutonOui = el("button", { class: danger ? "btn danger" : "btn primary", type: "button", onClick: () => finir(true) }, oui);
   function auClavier(e) {
-    if (e.key === "Escape") { e.stopPropagation(); finir(false); return; }
+    e.stopPropagation();
+    if (e.key === "Escape") { finir(false); return; }
     if (e.key !== "Tab") return;
     e.preventDefault();
-    e.stopPropagation();
     // Deux boutons : Tab comme Maj+Tab passent à l'autre ; un focus sorti de la fenêtre y revient.
     const ici = document.activeElement;
     if (ici === boutonOui) boutonNon.focus();
@@ -61,6 +65,7 @@ function ouvrir({ titre, phrase = null, oui, non = "Annuler", danger = true, sig
   ));
   bd.addEventListener("click", (e) => { if (e.target === bd) finir(false); });
   window.addEventListener("keydown", auClavier, true);
+  window.addEventListener("hashchange", surAbandon);
   signal?.addEventListener("abort", surAbandon);
   document.body.appendChild(bd);
   boutonOui.focus();

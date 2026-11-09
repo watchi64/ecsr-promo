@@ -441,6 +441,19 @@ async function swapEntries(lidA, lidB, opts = {}) {
   }
 }
 
+// Une question de l'app laisse vivre la page (la boîte du navigateur la figeait) : si le planning a été rechargé pendant
+// qu'elle était ouverte (retour sur l'onglet, autre formateur), on ne fait rien plutôt que d'agir sur des cartes qui ne
+// sont plus celles de l'écran. Promesse : true si on continue.
+async function confirmerSurCePlanning(question) {
+  const charge = entries;
+  const oui = await confirmer(question);
+  if (oui && entries !== charge) {
+    toast("Le planning a été rechargé pendant la question : rien n'a été fait. Recommence si besoin.", "info", 4000);
+    return false;
+  }
+  return oui;
+}
+
 // Confirmation (friction) avant un déplacement vers une AUTRE demi-journée / un autre
 // jour, pour éviter les déplacements par inadvertance. Promesse : true si on continue (fenêtre de l'app).
 async function confirmCrossMove(sourceLid, targetLid) {
@@ -451,8 +464,8 @@ async function confirmCrossMove(sourceLid, targetLid) {
   const demi = tgt.half_day === "matin" ? "matin" : "après-midi";
   const srcLabel = src.activite || "cette carte";
   return tgt.activite
-    ? confirmer({ titre: `Échanger « ${srcLabel} » avec « ${tgt.activite} » (${jour} ${demi}) ?`, oui: "Échanger", danger: false })
-    : confirmer({ titre: `Déplacer « ${srcLabel} » vers ${jour} ${demi} ?`, oui: "Déplacer", danger: false });
+    ? confirmerSurCePlanning({ titre: `Échanger « ${srcLabel} » avec « ${tgt.activite} » (${jour} ${demi}) ?`, oui: "Échanger", danger: false })
+    : confirmerSurCePlanning({ titre: `Déplacer « ${srcLabel} » vers ${jour} ${demi} ?`, oui: "Déplacer", danger: false });
 }
 
 // --- Contrôleur de glisser-déposer (Pointer Events, souris + tactile) ---
@@ -983,12 +996,12 @@ async function autoPlaceWeek() {
   }
 
   const reroll = !targets.some((e) => placementEmpties(e).length > 0);
-  if (reroll && !(await confirmer({ titre: "Tout remélanger la semaine ?",
+  if (reroll && !(await confirmerSurCePlanning({ titre: "Tout remélanger la semaine ?",
     phrase: "Toute la semaine est déjà placée. Tes ajustements à la main (tableaux et stagiaires) seront remplacés. "
       + "Ctrl+Z annule ensuite.", oui: "Tout remélanger" }))) return;
   if (!reroll) {
     const cartes = targets.filter((e) => placementEmpties(e).length > 0).length;
-    if (!(await confirmer({ titre: "Placer automatiquement la semaine ?",
+    if (!(await confirmerSurCePlanning({ titre: "Placer automatiquement la semaine ?",
       phrase: `${cartes} carte${cartes > 1 ? "s" : ""} à compléter, en priorité pour les stagiaires les moins passés et les `
         + "moins exposés. Ctrl+Z annule ensuite.", oui: "Placer", danger: false }))) return;
   }
@@ -1200,7 +1213,7 @@ async function clearWeekPlacements() {
     toast("Aucun stagiaire placé cette semaine", "info", 3000);
     return;
   }
-  if (!(await confirmer({ titre: "Vider les placements de la semaine ?",
+  if (!(await confirmerSurCePlanning({ titre: "Vider les placements de la semaine ?",
     phrase: "Les stagiaires placés (tableaux, salle, voiture) sont retirés. Bénévoles, formateurs, sujets et notes "
       + "restent. Ctrl+Z annule ensuite.", oui: "Vider" }))) return;
 
@@ -1228,7 +1241,7 @@ async function deleteCell(entry) {
   // Commit les saisies en cours avant le re-render complet (sinon une note/sujet en attente est perdu)
   await flushPendingInputs();
   // Une demi-journée peut rester vide : on autorise la suppression de n'importe quelle activité.
-  if (!(await confirmer({ titre: "Supprimer ce créneau ?", oui: "Supprimer" }))) return;
+  if (!(await confirmerSurCePlanning({ titre: "Supprimer ce créneau ?", oui: "Supprimer" }))) return;
   try {
     if (entry.id) await deletePlanningEntryById(entry.id);
     entries = entries.filter((e) => e._lid !== entry._lid);
