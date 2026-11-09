@@ -26,14 +26,24 @@ const PHRASE_NON_CHARGEES = "Les promos du centre n'ont pas pu être chargées."
 const CLE_MODULES_A_OUVRIR = "ecsr_promos_modules";
 
 let rendu = 0;
+// Après « Modifier » enregistré : la carte dont le bouton reprend le focus, et si le panneau Modules était ouvert.
+let restauration = null;
+// Le panneau Modules est-il ouvert dans la page affichée (l'état est lu dans la page : la fenêtre ouverte survit aux redessins).
+const modulesDeLaPage = () => !!document.querySelector(".promo-modules");
 
+// La clé porte l'id de la promo et l'heure du geste : au-delà d'une minute elle ne vaut plus (un rechargement tardif ou une autre
+// visite de la page n'ouvre rien).
+const VALIDITE_CLE_MS = 60000;
 function lireCle() {
-  try { return sessionStorage.getItem(CLE_MODULES_A_OUVRIR); } catch (e) { return null; }
-}
-function poserCle(valeur) {
   try {
-    if (valeur == null) sessionStorage.removeItem(CLE_MODULES_A_OUVRIR);
-    else sessionStorage.setItem(CLE_MODULES_A_OUVRIR, String(valeur));
+    const brut = JSON.parse(sessionStorage.getItem(CLE_MODULES_A_OUVRIR) || "null");
+    return brut && Number.isFinite(brut.id) && Number.isFinite(brut.t) ? brut : null;
+  } catch (e) { return null; }
+}
+function poserCle(id) {
+  try {
+    if (id == null) sessionStorage.removeItem(CLE_MODULES_A_OUVRIR);
+    else sessionStorage.setItem(CLE_MODULES_A_OUVRIR, JSON.stringify({ id, t: Date.now() }));
   } catch (e) { /* navigation privée */ }
 }
 
@@ -111,7 +121,7 @@ function ouvrirFenetre({ titre, promo, centres, ancre, libelleBouton, enregistre
       fermer();
     } catch (err) {
       console.error(err);
-      message.textContent = phraseDeRefus(err && err.message, err && err.code);
+      message.textContent = (err && err.phrase) || phraseDeRefus(err && err.message, err && err.code);
       valider.disabled = false;
       annuler.disabled = false;
     }
@@ -163,8 +173,9 @@ function carte(p, { aujourdhui, affichee, effectif, formateurs, formateursLus, m
   return el("article", { class: "centre-carte promo-carte", "data-promo": String(p.id) }, ...lignes);
 }
 
-export async function renderPromosCentre(container) {
+export async function renderPromosCentre(container, reprise = null) {
   const jeton = ++rendu;
+  if (reprise) restauration = { promoId: reprise.promoId, modules: reprise.gardeModules };
   clear(container);
   const { centre, promos } = contexte();
   if (!centre) {
@@ -244,7 +255,15 @@ export async function renderPromosCentre(container) {
   const surModifier = (p, ancre) => ouvrirFenetre({
     titre: "Modifier la promo", promo: p, centres, ancre, libelleBouton: "Enregistrer",
     enregistrer: async (v) => {
-      await modification(p, v);
+      restauration = { promoId: p.id, modules: modulesDeLaPage() };
+      try {
+        await modification(p, v);
+      } catch (e) {
+        restauration = null;
+        // Dates enregistrées, nom refusé : les cartes montrent déjà les nouvelles dates, la fenêtre reste avec le nom saisi.
+        if (e && e.phrase) await renderPromosCentre(container, { gardeModules: modulesDeLaPage(), promoId: p.id });
+        throw e;
+      }
       await renderPromosCentre(container);
     },
   });
@@ -256,22 +275,40 @@ export async function renderPromosCentre(container) {
     }));
   }
   // Arrivée après le geste « Modules » d'une autre promo : ses modules s'ouvrent d'eux-mêmes, une seule fois.
-  const aOuvrir = lireCle();
-  if (aOuvrir != null) {
+  const cle = lireCle();
+  if (cle) {
     poserCle(null);
-    if (affichee && String(affichee.id) === aOuvrir && peutRegler()) {
+    if (Date.now() - cle.t <= VALIDITE_CLE_MS && affichee && affichee.id === cle.id && peutRegler()) {
       ouvrirModules(affichee, grille.querySelector(`[data-promo="${affichee.id}"] button[aria-expanded]`));
     }
+  }
+  // Après « Modifier » : panneau Modules rouvert s'il l'était, focus rendu au bouton « Modifier » de la même carte.
+  if (restauration) {
+    const { promoId, modules } = restauration;
+    restauration = null;
+    if (modules && affichee && peutRegler() && !zoneModules) {
+      ouvrirModules(affichee, grille.querySelector(`[data-promo="${affichee.id}"] button[aria-expanded]`));
+    }
+    const modifier = grille.querySelector(`[data-promo="${promoId}"] .promo-actions button`);
+    if (modifier) modifier.focus({ preventScroll: true });
   }
 }
 
 // La base décide : le nom par la règle de modification de la promo, les dates par modifier_dates_promo. Dates d'abord (la base
 // refuse une fin avant le début) ; si le nom échoue ensuite, la phrase le dit et les dates sont déjà enregistrées.
 async function modification(p, v) {
-  if ((v.debut || null) !== (p.date_debut || null) || (v.fin || null) !== (p.date_fin || null)) {
-    await modifierDatesPromo({ promoId: p.id, debut: v.debut, fin: v.fin });
+  const datesChangees = (v.debut || null) !== (p.date_debut || null) || (v.fin || null) !== (p.date_fin || null);
+  if (datesChangees) await modifierDatesPromo({ promoId: p.id, debut: v.debut, fin: v.fin });
+  if (v.nom !== p.nom) {
+    try {
+      await renommerPromo(p.id, v.nom);
+    } catch (e) {
+      if (!datesChangees) throw e;
+      const erreur = new Error(e && e.message);
+      erreur.phrase = "Les dates sont enregistrées, pas le nom. " + phraseDeRefus(e && e.message, e && e.code);
+      throw erreur;
+    }
   }
-  if (v.nom !== p.nom) await renommerPromo(p.id, v.nom);
   toast("Promo mise à jour", "success");
 }
 
