@@ -2,7 +2,7 @@
 // (à venir, en cours, passé), le texte qui le dit, et la ligne « Promo <nom> · semaine <n> » sous la
 // salutation. Module pur, sans DOM ni stockage : testé en node. La carte « Prochain événement majeur »
 // de l'accueil les lit ; le prochain rendez-vous et l'à-faire de l'accueil du stagiaire (lot 2B) les lisent de même.
-import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "./qcm-exam-rules.js?v=20261109k";
+import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "./qcm-exam-rules.js?v=20261109m";
 
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000;
 

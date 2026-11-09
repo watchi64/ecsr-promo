@@ -19,19 +19,19 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20261109k";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109k";
-import { icon } from "../icons.js?v=20261109k";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109k";
-import { moduleVisible } from "../modules-etat.js?v=20261109k";
-import { renderModulesSection } from "./modules-reglage.js?v=20261109k";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261109k";
-import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109k";
-import { pointsARetenir } from "../accueil-rules.js?v=20261109k";
-import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261109k";
-import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261109k";
-import { blocHabillage } from "../habillage-choix.js?v=20261109k";
-import { habillageCourant } from "../habillage.js?v=20261109k";
+} from "../db.js?v=20261109m";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109m";
+import { icon } from "../icons.js?v=20261109m";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109m";
+import { moduleVisible } from "../modules-etat.js?v=20261109m";
+import { renderModulesSection } from "./modules-reglage.js?v=20261109m";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261109m";
+import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109m";
+import { pointsARetenir } from "../accueil-rules.js?v=20261109m";
+import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261109m";
+import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261109m";
+import { blocHabillage } from "../habillage-choix.js?v=20261109m";
+import { habillageCourant } from "../habillage.js?v=20261109m";
 
 // ====== SECTION Accès & invitations ======
 

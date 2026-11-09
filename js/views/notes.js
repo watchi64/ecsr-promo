@@ -2,23 +2,23 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles, getNotesStatsGroupe, getPromoCourante,
-} from "../db.js?v=20261109k";
+} from "../db.js?v=20261109m";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261109k";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109k";
-import { icon } from "../icons.js?v=20261109k";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109k";
-import { recordUndo } from "../undo.js?v=20261109k";
-import { renderSubTabs } from "../subtabs.js?v=20261109k";
-import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109k";
-import { navigationV2Active } from "../nav-etat.js?v=20261109k";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109k";
-import { renderEpcf } from "./epcf.js?v=20261109k";
-import { renderSaisie } from "./notes-saisie.js?v=20261109k";
-import { noteGradient } from "../echelle-notes.js?v=20261109k";
-import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes, contexteEtatVide, phraseNoteRefusee, confirmationEffacement } from "../notes-saisie-rules.js?v=20261109k";
-import { confirmer } from "../confirmer.js?v=20261109k";
+} from "../notes-stats.js?v=20261109m";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109m";
+import { icon } from "../icons.js?v=20261109m";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109m";
+import { recordUndo } from "../undo.js?v=20261109m";
+import { renderSubTabs } from "../subtabs.js?v=20261109m";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109m";
+import { navigationV2Active } from "../nav-etat.js?v=20261109m";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109m";
+import { renderEpcf } from "./epcf.js?v=20261109m";
+import { renderSaisie } from "./notes-saisie.js?v=20261109m";
+import { noteGradient } from "../echelle-notes.js?v=20261109m";
+import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes, contexteEtatVide, phraseNoteRefusee, confirmationEffacement } from "../notes-saisie-rules.js?v=20261109m";
+import { confirmer } from "../confirmer.js?v=20261109m";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
