@@ -10,6 +10,12 @@ export const CHAMPS_COMPTES = ["inscrits", "enFormation", "abandons", "absences"
 // Sous ce nombre de stagiaires en formation, un centre n'envoie aucun chiffre au siège.
 export const SEUIL_SECRET = 5;
 
+// Mention des centres masqués sous le titre du réseau : rien entre parenthèses quand aucun centre n'est masqué.
+export function mentionMasques(masques) {
+  if (!masques) return "";
+  return ` (${masques} ${masques > 1 ? "centres" : "centre"})`;
+}
+
 const zeros = () => Object.fromEntries(CHAMPS_COMPTES.map((k) => [k, 0]));
 const nb = (x) => (x == null ? 0 : Number(x));
 

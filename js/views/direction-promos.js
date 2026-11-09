@@ -9,7 +9,7 @@ import {
   rechargerApresEnregistrements,
   lireEffectifsPromos, lireFormateursPromos,
 } from "../db.js?v=20261109g";
-import { el, clear, isoDate, formatDate, toast } from "../utils.js?v=20261109g";
+import { el, clear, isoDate, formatLongDate, toast } from "../utils.js?v=20261109g";
 import { getCentre, getAffectations, getAdminEmail } from "../auth-admin.js?v=20261109g";
 import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261109g";
 import { validerPromo, etatPromo, partEcoulee } from "../direction-rules.js?v=20261109g";
@@ -68,7 +68,7 @@ function centresDirigeables(centre) {
 
 function periode(p) {
   if (!p.date_debut) return "Dates non renseignées";
-  return p.date_fin ? `Du ${formatDate(p.date_debut)} au ${formatDate(p.date_fin)}` : `Depuis le ${formatDate(p.date_debut)} (fin non fixée)`;
+  return p.date_fin ? `Du ${formatLongDate(p.date_debut, { sansJour: true })} au ${formatLongDate(p.date_fin, { sansJour: true })}` : `Depuis le ${formatLongDate(p.date_debut, { sansJour: true })} (fin non fixée)`;
 }
 
 // ============================================================== Fenêtre : créer, modifier

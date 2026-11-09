@@ -9,7 +9,7 @@ import { icon } from "../icons.js?v=20261109g";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261109g";
 import { lireAdresse } from "../route-rules.js?v=20261109g";
 import { pct } from "../centre-stats.js?v=20261109g";
-import { vueDuReseau, ratiosDeComptes, SEUIL_SECRET } from "../comptes-reseau.js?v=20261109g";
+import { vueDuReseau, ratiosDeComptes, mentionMasques, SEUIL_SECRET } from "../comptes-reseau.js?v=20261109g";
 import { tableauReseauCsv } from "../centre-csv.js?v=20261109g";
 import { carte, telecharger } from "./centre.js?v=20261109g";
 
@@ -84,7 +84,7 @@ function ligne(c, nom) {
       el("td", { class: "reseau-remarque", colspan: "6" }, sansPromo(c) ? PHRASE_SANS_PROMO_EN_COURS : PHRASE_MASQUE));
   }
   const r = ratiosDeComptes(c);
-  const num = (v) => el("td", { class: "num" }, v == null ? "" : v);
+  const num = (v) => el("td", { class: "num" + (v == null ? " muted" : "") }, v == null ? "Aucune donnée" : v);
   return el("tr", {}, titre, promos, num(entier(c.enFormation)), num(r.abandon == null ? null : pct(r.abandon)),
     num(r.absences == null ? null : pct(r.absences)), num(r.reussiteQcm == null ? null : pct(r.reussiteQcm)),
     num(r.notes == null ? null : fr1(r.notes) + "/20"), num(r.epcf == null ? null : pct(r.epcf)));
@@ -136,7 +136,7 @@ export async function renderVueReseau(container) {
   racine.appendChild(entete(surtitreReseau(vue), "Vue d'ensemble", sousTitre, el("div", { class: "centre-actions" }, exporter)));
 
   racine.appendChild(el("p", { class: "centre-legende" },
-    `Promos en cours, hors centres de moins de ${SEUIL_SECRET} stagiaires en formation (${pluriel(vue.masques, "centre")}). Chaque chiffre a sa méthode.`));
+    `Promos en cours, hors centres de moins de ${SEUIL_SECRET} stagiaires en formation${mentionMasques(vue.masques)}. Chaque chiffre a sa méthode.`));
   racine.appendChild(el("section", { class: "centre-section" },
     el("h3", {}, "Le réseau"),
     el("div", { class: "centre-grille" }, ...cartes(vue.total))));
@@ -184,9 +184,8 @@ export async function renderFicheCentre(container) {
   racine.appendChild(retour());
   const c = [...vue.centres, ...(vue.demonstration ? [vue.demonstration] : [])].find((x) => x.lieuId === id);
   if (!c) {
-    racine.appendChild(el("div", { class: "centre-section centre-vide" },
-      el("p", {}, PHRASE_CENTRE_INCONNU),
-      el("a", { class: "btn primary", href: "#/reseau" }, "Vue d'ensemble")));
+    racine.appendChild(entete("Centre", "Centre introuvable", null));
+    racine.appendChild(el("div", { class: "centre-section centre-vide" }, el("p", {}, PHRASE_CENTRE_INCONNU)));
     return;
   }
   racine.appendChild(entete(c.demonstration ? "Centre de démonstration" : "Centre", c.lieuNom,

@@ -363,8 +363,11 @@ body[data-nav="v2"] .nav-contexte-type {
 body[data-nav="v2"] .nav-contexte-nom,
 body[data-nav="v2"] .nav-contexte .promo-pastille-texte {
   grid-column: 2;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Le nom du centre ou de la promo passe à la ligne, entre deux mots : il reste lu en entier, jamais coupé au
+     milieu d'un mot (un mot plus long que la barre, seul, se coupe plutôt que de déborder). */
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: break-word;
   font-size: 0.95rem;
   font-weight: 600;
   line-height: 1.25;
@@ -596,6 +599,10 @@ body[data-nav="v2"] .nav-bas { display: none; }
   body[data-nav="v2"] .nav-cote-tete { flex: 1; min-width: 0; }
   body[data-nav="v2"] .nav-contexte { padding: 3px 8px 3px 5px; }
   body[data-nav="v2"] .nav-contexte-marque { width: 32px; height: 32px; font-size: 0.75rem; }
+  /* Un nom long passe sur deux lignes : l'en-tête garde ses 56 px (type 13 px + deux lignes de 15 px + marges, cible de 44 px gardée). */
+  body[data-nav="v2"] .nav-contexte-type { line-height: 1.1; }
+  body[data-nav="v2"] .nav-contexte-nom,
+  body[data-nav="v2"] .nav-contexte .promo-pastille-texte { font-size: 0.85rem; line-height: 1.15; }
   body[data-nav="v2"] .nav-cote-entrees,
   body[data-nav="v2"] .nav-cote-compte-texte { display: none; }
   body[data-nav="v2"] .nav-cote-pied { flex-direction: row; gap: 0.5rem; padding: 0; border: 0; }

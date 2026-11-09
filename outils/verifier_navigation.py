@@ -3826,7 +3826,7 @@ TITRE_ROLES = "Chacun ne voit que les promos où il intervient"   # lot 4 : Nouv
 # La Nouveauté pour tous des corrections communes aux deux navigations (vague finale, F3) : sans champ `navigation`, elle se lit avec les deux barres. Les
 # trois entrées du jour de la mise en ligne portent la même date (29/10/2026) ; la première ajoute que certaines parties s'ouvrent au fil de la formation (F5).
 TITRE_AFFICHAGE = "Des pages mieux tenues sur le téléphone"
-DATE_DU_LANCEMENT = "29/10/2026"
+DATE_DU_LANCEMENT = "29 octobre 2026"   # les cartes écrivent les dates en mots (lot 5, finitions)
 PHRASE_DES_PARTIES = "Certaines parties s'ouvrent au fil de la formation."
 # Les deux Nouveautés des bénévoles (pour les formateurs) : sous la nouvelle navigation, leur lien mène à Stagiaires, sous-onglet Élèves bénévoles (F8).
 TITRES_DES_BENEVOLES = ("Banque d'élèves bénévoles avec leurs disponibilités", "Auto-écoles partenaires et suivi des venues")
@@ -3926,7 +3926,8 @@ TITRE_COULEURS_ECF = "L'app aux couleurs d'ECF"   # lot 3, tâche 11 : pour tous
 # La date vient de js/nouveautes-data.js, seule source : l'id de l'entrée de la journée porte AAAA-MM-JJ.
 _ID_JOURNEE = re.search(r'id:\s*"(\d{4})-(\d{2})-(\d{2})-ta-journee-accueil"',
                         (pathlib.Path(__file__).resolve().parent.parent / "js" / "nouveautes-data.js").read_text(encoding="utf-8"))
-DATE_DE_LA_FUSION = "%s/%s/%s" % (_ID_JOURNEE.group(3), _ID_JOURNEE.group(2), _ID_JOURNEE.group(1)) if _ID_JOURNEE else "?"
+_MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+DATE_DE_LA_FUSION = ("%d %s %s" % (int(_ID_JOURNEE.group(3)), _MOIS[int(_ID_JOURNEE.group(2)) - 1], _ID_JOURNEE.group(1))) if _ID_JOURNEE else "?"
 
 
 def verifier_liens_et_guides(res, vue, cartes, equipe, nouvelle, depart=False):

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { parseDate, formatDate } from "../js/utils.js";
+import { parseDate, formatDate, formatLongDate } from "../js/utils.js";
 
 // --- Date seule : lecture en heure LOCALE, comportement à préserver à l'identique ---
 // (new Date("2026-07-30") se lirait en UTC et reculerait d'un jour à l'ouest de Greenwich)
@@ -23,5 +23,9 @@ assert.ok(!Number.isNaN(sansZ.getTime()), "un horodatage sans fuseau doit rester
 // --- Le symptôme d'origine : plus aucun NaN à l'écran ---
 assert.match(formatDate("2026-07-30T09:00:00Z"), /^\d{2}\/\d{2}\/\d{4}$/,
   "le panneau des signalements affichait NaN/NaN/NaN sur chaque ligne");
+
+// --- Date en mots (lot 5, finitions) : avec ou sans jour de la semaine ---
+assert.equal(formatLongDate("2026-11-09"), "lundi 9 novembre 2026");
+assert.equal(formatLongDate("2026-11-09", { sansJour: true }), "9 novembre 2026");
 
 console.log("utils-dates : OK");

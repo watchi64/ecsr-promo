@@ -9,7 +9,7 @@ import {
   lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante, lireReglagePromo, lireEmargementPromo,
   ouvrirDansUnePromo,
 } from "../db.js?v=20261109g";
-import { el, clear, isoDate, formatDate, toast, tableauEnListe } from "../utils.js?v=20261109g";
+import { el, clear, isoDate, formatDate, formatLongDate, toast, tableauEnListe } from "../utils.js?v=20261109g";
 import { getCentre } from "../auth-admin.js?v=20261109g";
 import { promosDuCentre } from "../espaces-rules.js?v=20261109g";
 import {
@@ -99,7 +99,7 @@ export async function renderVueCentre(container) {
   const racine = el("div", { class: "centre" });
   container.appendChild(racine);
   if (!promos.length) {
-    racine.appendChild(entete(centre, "Vue d'ensemble", "0 promo en cours · édité le " + formatDate(aujourdhui)));
+    racine.appendChild(entete(centre, "Vue d'ensemble", "0 promo en cours · édité le " + formatLongDate(aujourdhui, { sansJour: true })));
     racine.appendChild(sansPromo());
     return;
   }
@@ -111,7 +111,7 @@ export async function renderVueCentre(container) {
     console.error(e);
     if (jeton !== renduVue) return;
     clear(racine);
-    racine.appendChild(entete(centre, "Vue d'ensemble", "Édité le " + formatDate(aujourdhui)));
+    racine.appendChild(entete(centre, "Vue d'ensemble", "Édité le " + formatLongDate(aujourdhui, { sansJour: true })));
     racine.appendChild(boiteErreur(PHRASE_LECTURE_ECHEC, () => renderVueCentre(container)));
     return;
   }
@@ -132,7 +132,7 @@ export async function renderVueCentre(container) {
     toast("Tableau du centre téléchargé", "success");
   } }, "Exporter le tableau (CSV)");
   racine.appendChild(entete(centre, "Vue d'ensemble",
-    `${pluriel(enCours.length, "promo")} en cours · édité le ${formatDate(aujourdhui)}`,
+    `${pluriel(enCours.length, "promo")} en cours · édité le ${formatLongDate(aujourdhui, { sansJour: true })}`,
     el("div", { class: "centre-actions" }, exporter)));
 
   if (enCours.length) {
@@ -187,7 +187,7 @@ function libelleFeuille(f) {
 // La ligne d'une promo : activée ou non, son résumé, le bouton pour ouvrir ses feuilles.
 function ligneEmargement(p, etat, affichee) {
   const memeP = affichee && affichee.id === p.id;
-  const periode = [p.date_debut ? "Du " + formatDate(p.date_debut) : null, p.date_fin ? "au " + formatDate(p.date_fin) : null]
+  const periode = [p.date_debut ? "Du " + formatLongDate(p.date_debut, { sansJour: true }) : null, p.date_fin ? "au " + formatLongDate(p.date_fin, { sansJour: true }) : null]
     .filter(Boolean).join(" ");
   const titre = el("td", { class: "liste-titre" },
     el("strong", {}, p.nom), periode ? el("span", { class: "centre-detail" }, " " + periode) : null,

@@ -117,3 +117,11 @@ test("vueDuReseau", () => {
   assert.equal(vueDuReseau([]).demonstration, null);
   assert.equal(vueDuReseau([]).masques, 0);
 });
+
+test("mentionMasques : rien sans centre masqué, accord au singulier et au pluriel", async () => {
+  const { mentionMasques } = await import("../js/comptes-reseau.js");
+  assert.equal(mentionMasques(0), "");
+  assert.equal(mentionMasques(undefined), "");
+  assert.equal(mentionMasques(1), " (1 centre)");
+  assert.equal(mentionMasques(3), " (3 centres)");
+});

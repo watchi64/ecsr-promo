@@ -4,7 +4,7 @@
 // La page n'est PAS dans la barre d'onglets : on y arrive par le lien
 // « Tout voir » d'Accueil, comme #/mon-suivi n'a pas d'onglet non plus.
 
-import { el, clear, formatDate } from "../utils.js?v=20261109g";
+import { el, clear, formatLongDate } from "../utils.js?v=20261109g";
 import { nouveautesAffichables, marquerLues } from "../modules-etat.js?v=20261109g";
 import { STORAGE_SOUS_ONGLET, guideSelonNavigation } from "../nouveautes.js?v=20261109g";
 import { hrefLien } from "../route-rules.js?v=20261109g";
@@ -49,7 +49,7 @@ export function carteNouveaute(entree, opts = {}) {
   const { neuve = false, guideDeplie = false } = opts;
   return el("article", { class: "nv-carte" },
     el("div", { class: "nv-head" },
-      el("span", { class: "nv-date" }, formatDate(entree.date)),
+      el("span", { class: "nv-date" }, formatLongDate(entree.date, { sansJour: true })),
       neuve ? el("span", { class: "nv-puce-neuf" }, "Nouveau") : null,
       entree.pour === "formateurs" ? el("span", { class: "nv-puce-role" }, "Formateurs") : null,
     ),
