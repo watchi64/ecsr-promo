@@ -90,3 +90,24 @@ export function echeanceDepuisChoix(choix, now = Date.now()) {
   if (!Number.isFinite(choix.minutes)) return null;
   return new Date(now + choix.minutes * 60000).toISOString();
 }
+
+// État d'un examen tel que l'écrit la liste des thèmes (lot C) : l'heure de fin en heure locale plutôt qu'un compte à
+// rebours, qui deviendrait faux si la page reste affichée. « Examen fermé » couvre aussi l'échéance passée.
+export function libelleOuverture(qcm, now = Date.now()) {
+  if (!examenDemarrable(qcm, now)) return "Examen fermé";
+  const fin = echeance(qcm);
+  if (fin === null) return "Ouvert sans limite";
+  const d = new Date(fin), auj = new Date(now);
+  const heure = `${d.getHours()} h ${String(d.getMinutes()).padStart(2, "0")}`;
+  const memeJour = d.getFullYear() === auj.getFullYear() && d.getMonth() === auj.getMonth() && d.getDate() === auj.getDate();
+  if (memeJour) return `Ouvert jusqu'à ${heure}`;
+  return `Ouvert jusqu'au ${d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}, ${heure}`;
+}
+
+// Ce qui part quand on ouvre l'examen : « 20 questions · 30 s par question · tirage au hasard ».
+export function resumeExamen(qcm) {
+  const n = nbQuestionsExamen(qcm);
+  const s = Number(qcm?.exam_seconds_per_question) || 30;
+  const tirage = qcm?.exam_draw_mode === "manual" ? "sélection manuelle" : "tirage au hasard";
+  return `${n} question${n > 1 ? "s" : ""} · ${s} s par question · ${tirage}`;
+}
