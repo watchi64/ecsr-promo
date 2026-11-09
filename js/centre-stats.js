@@ -91,15 +91,7 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui }) {
     .map((t) => [t.numero, t]));
 
   // --- Passages par stagiaire et par type ---
-  const parStag = new Map(enFormation.map((s) => [s.id, {
-    Salle: { fait: 0, absence: 0, bonus: 0 }, Voiture: { fait: 0, absence: 0, bonus: 0 } }]));
-  passages.forEach((p) => {
-    const c = parStag.get(p.stagiaire_id)?.[p.type];
-    if (!c) return;
-    if (p.resultat === "Effectué") c.fait++;
-    else if (p.resultat === "Absence") c.absence++;
-    else if (p.resultat === "Bonus") c.bonus++;
-  });
+  const parStag = passagesParStagiaire(enFormation, passages);
   const comptes = [...parStag.values()];
   const nbAbsences = somme(comptes.map((c) => c.Salle.absence + c.Voiture.absence));
   const nbPrevus = somme(comptes.map((c) => c.Salle.fait + c.Salle.absence + c.Voiture.fait + c.Voiture.absence));
@@ -171,8 +163,44 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui }) {
   };
 
   ind.themes = themesPromo(entrainements, notees, qcmParId, themeParId, themeParNum);
-  ind.aSuivre = stagiairesASuivre({ enFormation, parStag, entrainements, notees, aujourdhui });
+  ind.aSuivre = aSuivrePromo(donnees, referentiel, { aujourdhui });
   return ind;
+}
+
+// Passages de chaque stagiaire en formation, par type (fait, absence, bonus).
+function passagesParStagiaire(enFormation, passages) {
+  const parStag = new Map(enFormation.map((s) => [s.id, {
+    Salle: { fait: 0, absence: 0, bonus: 0 }, Voiture: { fait: 0, absence: 0, bonus: 0 } }]));
+  passages.forEach((p) => {
+    const c = parStag.get(p.stagiaire_id)?.[p.type];
+    if (!c) return;
+    if (p.resultat === "Effectué") c.fait++;
+    else if (p.resultat === "Absence") c.absence++;
+    else if (p.resultat === "Bonus") c.bonus++;
+  });
+  return parStag;
+}
+
+// « À suivre de près » d'UNE promo (lot 5, D8) : l'objectif de passages et l'activité aux QCM sont ceux de cette promo, jamais
+// ceux d'un mélange de promos à des stades différents. Même filtre que indicateursPromo (stagiaires en formation de la promo).
+// donnees : { stagiaires, passages, evaluations, tentatives } (lireDonneesCentre) ; le référentiel n'y sert pas, il est pris
+// pour que les deux fonctions aient la même forme d'appel.
+export function aSuivrePromo(donnees, referentiel, { aujourdhui }) {
+  const enFormation = (donnees.stagiaires || []).filter((s) => s.actif);
+  const ids = new Set(enFormation.map((s) => s.id));
+  const dedans = (r) => ids.has(r.stagiaire_id);
+  const entrainements = (donnees.tentatives || []).filter((t) => dedans(t) && t.mode === "entrainement");
+  const notees = (donnees.evaluations || []).filter(dedans).filter(estNotee);
+  const parStag = passagesParStagiaire(enFormation, (donnees.passages || []).filter(dedans));
+  return stagiairesASuivre({ enFormation, parStag, entrainements, notees, aujourdhui });
+}
+
+// Les listes « À suivre » de plusieurs promos en une seule, chaque personne gardant sa promo. Tri : plus de signaux d'abord,
+// puis par nom. parPromo : [{ promoId, promoNom, liste }] (liste = sortie de aSuivrePromo).
+export function fusionnerASuivre(parPromo) {
+  return (parPromo || [])
+    .flatMap((p) => (p.liste || []).map((x) => ({ ...x, promoId: p.promoId, promoNom: p.promoNom })))
+    .sort((a, b) => b.signaux.length - a.signaux.length || compareByNom(a.stagiaire, b.stagiaire));
 }
 
 function themesPromo(entrainements, notees, qcmParId, themeParId, themeParNum) {

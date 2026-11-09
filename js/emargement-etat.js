@@ -3,7 +3,7 @@
 // fondateur le règle (Paramètres). La base refuse aussi d'ouvrir une feuille quand il est éteint
 // (migration 20261023_emargement, fonction emargement_ouvrir).
 
-import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261109a";
+import { getSetting, setSetting, getPromoCourante, lireReglagePromo } from "./db.js?v=20261109a";
 import { el, toast } from "./utils.js?v=20261109a";
 import { icon } from "./icons.js?v=20261109a";
 import { fondateurHorsApercu } from "./auth-admin.js?v=20261109a";
@@ -20,6 +20,21 @@ export async function chargerEmargementActif() {
 }
 
 export function emargementActif() { return actif; }
+
+// --- Direction (lot 5, Task 7) : l'entrée Émargement de la barre s'allume quand une promo du centre a l'interrupteur. ---
+// Lu une fois au démarrage (un réglage par promo du centre, par l'en-tête de lecture) et gardé : la barre se dessine de façon
+// synchrone. Une lecture qui échoue ou dépasse 3,5 s laisse la promo éteinte (comme chargerEmargementActif).
+let actifsDuCentre = new Set();
+
+export async function chargerEmargementCentre(promos) {
+  actifsDuCentre = new Set();
+  const lectures = (promos || []).map((p) => lireReglagePromo(p.id, CLE_ACTIVATION)
+    .then((v) => { if (estActif(v)) actifsDuCentre.add(p.id); }, () => { /* éteinte */ }));
+  await Promise.race([Promise.all(lectures), new Promise((r) => setTimeout(r, 3500))]);
+  return emargementDansLeCentre();
+}
+
+export function emargementDansLeCentre() { return actifsDuCentre.size > 0; }
 
 // Section de Paramètres, visible du seul fondateur. Le bandeau suit par l'évènement
 // « emargement-actif » (pas d'import du bandeau ici : il importe ce module).

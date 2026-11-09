@@ -8597,6 +8597,17 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .centre-avertissement { background: var(--c-wait-soft); color: var(--text); border-radius: var(--r-sm); padding: 0.55rem 0.7rem; }
 .centre-case { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
 .centre-erreur { padding: 1rem 0; }
+/* Pages de la direction qui regardent tout le centre (lot 5, Task 7) : Vue d'ensemble, Émargement, Notes et examens. */
+.centre-promo { margin-left: 0.5rem; background: var(--bg-soft); color: var(--text-soft); white-space: normal; }
+.centre-vide { padding: 1rem 0; }
+.centre-vide p { margin: 0 0 0.75rem; color: var(--text-soft); }
+.centre-detail-promo { min-width: 0; }
+.centre-table td.liste-actions { white-space: nowrap; text-align: right; }
+.centre-table td.liste-actions .btn { min-height: 44px; }
+/* L'export du tableau du centre (CSV) est offert sur ordinateur seulement. */
+@media screen and (max-width: 1079.98px) {
+  .solo-ordinateur, .btn.solo-ordinateur { display: none; }
+}
 
 @media (max-width: 640px) {
   .centre-themes { grid-template-columns: 1fr; }

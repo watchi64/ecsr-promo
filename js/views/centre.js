@@ -38,7 +38,7 @@ const LIBELLES_METHODES = [
   ["themes", "Thèmes à retravailler"], ["aSuivre", "À suivre de près"],
 ];
 
-function etiquette(nature, nuance) {
+export function etiquette(nature, nuance) {
   const cls = nature === "estimé" ? "estime" : nature === "non mesuré" ? "non-mesure" : "mesure";
   const texte = nature.charAt(0).toUpperCase() + nature.slice(1) + (nuance ? ", " + nuance : "");
   return el("span", { class: "centre-nature " + cls }, texte);
@@ -51,7 +51,7 @@ function methode(cle) {
 }
 
 // Carte d'un indicateur : valeur, détail, nature, méthode repliée.
-function carte({ titre, valeur, detail, nature, nuance, cle }) {
+export function carte({ titre, valeur, detail, nature, nuance, cle }) {
   return el("article", { class: "centre-carte" },
     el("div", { class: "centre-carte-tete" }, el("h4", {}, titre), etiquette(nature, nuance)),
     el("p", { class: "centre-valeur" + (valeur == null ? " vide" : "") }, valeur ?? "Aucune donnée"),
@@ -59,7 +59,7 @@ function carte({ titre, valeur, detail, nature, nuance, cle }) {
     methode(cle));
 }
 
-function cartesCles(ind) {
+export function cartesCles(ind) {
   const ef = ind.effectif.detail;
   const ab = ind.abandon;
   const va = ind.valeurAbandons.valeur;
@@ -87,7 +87,7 @@ function cartesCles(ind) {
   ];
 }
 
-function cartesResultats(ind) {
+export function cartesResultats(ind) {
   const aq = ind.activiteQcm.detail;
   const rq = ind.reussiteQcm.detail;
   const ex = ind.examensQcm.detail;
@@ -123,7 +123,7 @@ function cartesResultats(ind) {
 
 const nomTheme = (t) => (t.num != null ? `Thème ${String(t.num).padStart(2, "0")} · ${t.titre}` : t.titre);
 
-function sectionThemes(themes) {
+export function sectionThemes(themes) {
   const liste = (titre, lignes, vide, valeur) => el("div", { class: "centre-themes-liste" },
     el("h4", {}, titre),
     lignes.length
@@ -154,20 +154,28 @@ function sectionThemes(themes) {
     methode("themes"));
 }
 
-function sectionASuivre(aSuivre) {
+// aSuivre : [{ stagiaire, signaux }]. Page de la promo : chaque nom ouvre sa fiche (#/stagiaires/<id>). Page du centre (direction,
+// lot 5) : `lien(x)` rend { href, onClick } pour chaque personne (une fiche d'une autre promo passe par ouvrirDansUnePromo) et
+// `promoDe(x)` rend l'étiquette de sa promo, écrite à côté du nom.
+export function sectionASuivre(aSuivre, { lien = null, promoDe = null } = {}) {
+  const cible = (x) => (lien ? lien(x) : { href: "#/stagiaires/" + x.stagiaire.id });
   return el("section", { class: "centre-section" },
     el("div", { class: "centre-section-tete" }, el("h3", {}, "À suivre de près"), etiquette("estimé")),
     el("p", { class: "centre-intro" },
       "Stagiaires qui cumulent au moins deux signaux. Un repère pour en parler avec eux, pas une prédiction."),
     aSuivre.length
-      ? el("ul", { class: "centre-suivre" }, ...aSuivre.map((x) => el("li", {},
-          el("a", { class: "centre-suivre-nom", href: "#/stagiaires/" + x.stagiaire.id }, displayStagiaire(x.stagiaire)),
-          el("span", { class: "centre-signaux" }, ...x.signaux.map((s) => el("span", { class: "chip centre-signal" }, s.texte))))))
+      ? el("ul", { class: "centre-suivre" }, ...aSuivre.map((x) => {
+          const { href, onClick } = cible(x);
+          return el("li", {},
+            el("a", { class: "centre-suivre-nom", href, ...(onClick ? { onClick } : {}) }, displayStagiaire(x.stagiaire)),
+            promoDe ? el("span", { class: "chip centre-promo" }, promoDe(x)) : null,
+            el("span", { class: "centre-signaux" }, ...x.signaux.map((s) => el("span", { class: "chip centre-signal" }, s.texte))));
+        }))
       : el("p", { class: "muted" }, "Personne ne cumule deux signaux."),
     methode("aSuivre"));
 }
 
-function sectionComparaison(promos, courante, indCourant) {
+export function sectionComparaison(promos, courante, indCourant) {
   const ordre = [courante, ...promos.filter((p) => p.id !== courante.id)];
   const cases = new Map();   // `${promoId}:${cle}` → td
   // Sous 1 080 px, le tableau devient une liste : l'indicateur en titre, une ligne par promo dessous.
@@ -192,7 +200,7 @@ function sectionComparaison(promos, courante, indCourant) {
   return { section, autres: ordre.slice(1), remplir };
 }
 
-function sectionMethodes() {
+export function sectionMethodes() {
   return el("section", { class: "centre-section" },
     el("details", { class: "centre-methodes" },
       el("summary", {}, "Méthodes de calcul"),

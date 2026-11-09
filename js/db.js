@@ -2094,6 +2094,28 @@ export async function getEnteteEmargement() {
   return enteteEmargementDuReglage(await getSetting("emargement_entete"));
 }
 
+// --- Lectures d'une AUTRE promo du centre, par l'en-tête de lecture (lot 5, Task 7) ---
+// Réglage d'une promo choisie (null si absent). Une lecture ratée lève : la page le dit plutôt que de montrer « éteint ».
+export async function lireReglagePromo(promoId, cle) {
+  if (promoId == null) throw new Error("Réglage : aucune promo choisie.");
+  const { data, error } = await supabase.from("settings").select("value").eq("key", cle)
+    .setHeader(ENTETE_LECTURE_PROMO, String(promoId)).maybeSingle();
+  if (error) throw error;
+  return data?.value ?? null;
+}
+
+// Feuilles d'émargement d'une promo choisie, SANS la colonne `trace` (aucun tracé de signature ne sort de la base pour un
+// résumé) : { seances: [{ id, jour, demi_journee, debut, fin, statut }], lignes: [{ seance_id, stagiaire_id, signe_le, absent,
+// absence_origine }] }. Entrée de resumeEmargement (js/emargement-rules.js).
+export async function lireEmargementPromo(promoId) {
+  if (promoId == null) throw new Error("Émargement : aucune promo choisie.");
+  const [seances, lignes] = await Promise.all([
+    lireTable("emargement_seances", "id, jour, demi_journee, debut, fin, statut", "id", promoId),
+    lireTable("emargement_lignes", "id, seance_id, stagiaire_id, signe_le, absent, absence_origine", "id", promoId),
+  ]);
+  return { seances, lignes };
+}
+
 export async function setEnteteEmargement(entete) {
   const net = (k, max) => String(entete?.[k] || "").trim().slice(0, max);
   const valeur = { organisme: net("organisme", 120), intitule: net("intitule", 200) };

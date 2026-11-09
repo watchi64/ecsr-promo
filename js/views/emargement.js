@@ -10,7 +10,7 @@ import {
 } from "../db.js?v=20261109a";
 import { el, clear, toast, isoDate } from "../utils.js?v=20261109a";
 import { icon } from "../icons.js?v=20261109a";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261109a";
+import { isAdmin, isProf, isEquipe, getProfile } from "../auth-admin.js?v=20261109a";
 import {
   etatLigne, resumeSeance, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
@@ -39,12 +39,15 @@ function arreterRelecture() {
 // doit pas remplacer la page affichée depuis (deux changements de demi-journée rapprochés).
 let rendu = 0;
 
-export async function renderEmargement(container) {
+// dansLeCentre : la semaine posée sous le résumé par promo de la direction (js/views/direction-centre.js), sans titre de page.
+export async function renderEmargement(container, { dansLeCentre = false } = {}) {
   arreterRelecture();
   const jeton = ++rendu;
   clear(container);
-  // Ouvrir une séance et lire la feuille : le formateur de la promo (la direction n'y écrit pas, la base refuserait).
-  if (!isAdmin()) {
+  // Ouvrir une séance et lire la feuille : le formateur de la promo. La direction (isEquipe sans isAdmin, lot 5) lit les feuilles,
+  // imprime les feuilles closes et les attestations, mais n'écrit jamais : la base refuserait, les gestes d'écriture sont masqués.
+  const lecture = !isAdmin();
+  if (lecture && !isEquipe()) {
     container.appendChild(el("p", { class: "muted" }, "L'émargement se gère par les formateurs de la promo."));
     return;
   }
@@ -67,7 +70,7 @@ export async function renderEmargement(container) {
   ]);
   if (jeton !== rendu) return;
   const ctx = {
-    jeton,
+    jeton, lecture, dansLeCentre,
     container, jour, demi, lundi, aujourdhui, stagiairesTous, profs, entries, metas, joursOff, seances, entete,
     promo: getPromoCourante(),
   };
@@ -127,17 +130,20 @@ function dessinerSemaine(ctx) {
   // Nouvelle navigation : la page porte le nom de son entrée, « Émargement », avec la promo en surtitre, comme les autres
   // pages de l'équipe (le surtitre ne répète pas alors le titre).
   const v2 = navigationV2Active();
-  page.appendChild(el("div", { class: "view-header" },
-    el("div", { class: "view-header-text" },
-      v2
-        ? (ctx.promo ? el("p", { class: "eyebrow" }, ctx.promo.nom) : null)
-        : el("p", { class: "eyebrow" }, "Émargement" + (ctx.promo ? " · " + ctx.promo.nom : "")),
-      el("h2", {}, v2 ? "Émargement" : "Feuilles d'émargement"),
-      el("p", { class: "subtitle" },
-        "Ouvre la feuille de la demi-journée en cours : chaque stagiaire signe sur son téléphone, "
-        + "puis tu signes et tu clos. Les absences notées au planning sont reprises."),
-    ),
-  ));
+  if (!ctx.dansLeCentre) {
+    page.appendChild(el("div", { class: "view-header" },
+      el("div", { class: "view-header-text" },
+        v2
+          ? (ctx.promo ? el("p", { class: "eyebrow" }, ctx.promo.nom) : null)
+          : el("p", { class: "eyebrow" }, "Émargement" + (ctx.promo ? " · " + ctx.promo.nom : "")),
+        el("h2", {}, v2 ? "Émargement" : "Feuilles d'émargement"),
+        el("p", { class: "subtitle" }, ctx.lecture
+          ? "Les feuilles de la promo, en lecture. Tu peux imprimer les feuilles closes et les attestations."
+          : "Ouvre la feuille de la demi-journée en cours : chaque stagiaire signe sur son téléphone, "
+            + "puis tu signes et tu clos. Les absences notées au planning sont reprises."),
+      ),
+    ));
+  }
 
   const prev = el("button", { class: "btn small icon-only", type: "button", "aria-label": "Semaine précédente",
     onClick: () => aller(jourDe(lundi, -7)) }, icon.chevronLeft());
@@ -147,7 +153,9 @@ function dessinerSemaine(ctx) {
   // Calendrier natif, comme la date de la page Notes : n'importe quel jour mène à sa semaine.
   const choixDate = el("input", { type: "date", class: "em-date", value: ctx.jour, "aria-label": "Aller à une date" });
   choixDate.addEventListener("change", () => { if (choixDate.value) aller(choixDate.value); });
-  const imprimerSemaine = el("button", { class: "btn small", type: "button",
+  // Direction (lecture) : l'impression des feuilles et les attestations sont offertes sur ordinateur (spec lot 5, § 4.2 et § 4.3).
+  const surOrdinateur = ctx.lecture ? " solo-ordinateur" : "";
+  const imprimerSemaine = el("button", { class: "btn small" + surOrdinateur, type: "button",
     onClick: () => imprimer(feuilleSemaine({
       entete: ctx.entete, promo: ctx.promo, lundi, seances: ctx.seances,
       stagiairesTous: ctx.stagiairesTous, joursOff: ctx.joursOff,
@@ -155,7 +163,7 @@ function dessinerSemaine(ctx) {
     icon.list(), "Feuille de la semaine");
   const reglerEntete = el("button", { class: "btn small", type: "button", onClick: () => ouvrirEntete(ctx) },
     "En-tête");
-  const attestations = el("a", { class: "btn small", href: "#/emargement/attestations" },
+  const attestations = el("a", { class: "btn small" + surOrdinateur, href: "#/emargement/attestations" },
     icon.clipboard(), "Attestations");
   // La base n'accepte l'écriture des réglages que d'un administrateur : le bouton « En-tête » suit.
   page.appendChild(el("div", { class: "em-barre" },
@@ -185,7 +193,7 @@ function dessinerSemaine(ctx) {
       } else if (off) {
         etat = off; classe = "off";
       } else if (jour === aujourdhui) {
-        etat = "À ouvrir"; classe = "a-ouvrir";
+        etat = ctx.lecture ? "Pas de feuille" : "À ouvrir"; classe = ctx.lecture ? "vide" : "a-ouvrir";
       } else {
         etat = jour < aujourdhui ? "Pas de feuille" : "À venir"; classe = "vide";
       }
@@ -310,7 +318,7 @@ function dessinerSeance(ctx) {
     r.absents ? ` · ${r.absents} absent${r.absents > 1 ? "s" : ""}` : "",
     ouverte && r.attente ? ` · ${r.attente} en attente` : "",
   ));
-  if (ouverte && !duJour) {
+  if (ouverte && !duJour && !ctx.lecture) {
     page.appendChild(el("p", { class: "em-alerte" },
       "Cette feuille date d'un autre jour : les stagiaires ne peuvent plus la signer. Signe-la si ce n'est pas fait, puis clos-la."));
   }
@@ -321,6 +329,7 @@ function dessinerSeance(ctx) {
     const ligne = parId.get(st.id) || null;
     const etat = etatLigne({ ligne, absentPlanning: absentsPlanning.has(st.id), close: !ouverte });
     const actions = el("div", { class: "em-ligne-actions" });
+    if (ctx.lecture) { /* lecture : aucun geste d'écriture */ } else {
     if (ouverte && duJour && etat.code === "attente") {
       actions.appendChild(el("button", { class: "btn small primary", type: "button",
         onClick: () => faireSigner(ctx, s, st) }, "Faire signer ici"));
@@ -335,6 +344,7 @@ function dessinerSeance(ctx) {
     }
     actions.appendChild(el("button", { class: "btn small ghost", type: "button",
       onClick: () => ouvrirObservation(ctx, s, st, ligne) }, ligne?.observation ? "Modifier la note" : "Note"));
+    }
     ul.appendChild(el("li", { class: "em-ligne em-ligne-" + etat.code },
       el("div", { class: "em-ligne-sig" }, etat.code === "signe" ? rendreSignature(ligne.trace, { titre: "Signature de " + nomComplet(st) }) : null),
       el("div", { class: "em-ligne-corps" },
@@ -351,11 +361,13 @@ function dessinerSeance(ctx) {
   dessinerFormateurs(ctx, s, { ouverte });
 
   const pied = el("div", { class: "em-pied" });
-  pied.appendChild(el("button", { class: "btn", type: "button",
+  pied.appendChild(el("button", { class: "btn" + (ctx.lecture ? " solo-ordinateur" : ""), type: "button",
     onClick: () => imprimer(feuilleSeance({ entete: ctx.entete, promo: ctx.promo, seance: s,
       stagiairesTous: ctx.stagiairesTous, absentsPlanning }), { ancre: page, page: "A4 portrait" }) },
     icon.list(), "Imprimer la feuille"));
-  if (ouverte) {
+  if (ctx.lecture) {
+    /* lecture : ni clôture ni réouverture */
+  } else if (ouverte) {
     const sansFormateur = s.formateurs.length === 0;
     const clore = el("button", { class: "btn primary", type: "button", disabled: sansFormateur ? "disabled" : null,
       onClick: () => cloreFeuille(ctx, s, r.attente) }, "Clore l'émargement");
@@ -378,6 +390,10 @@ function dessinerSeance(ctx) {
 
 function dessinerOuverture(ctx, { off }) {
   const { page, jour, demi, aujourdhui } = ctx;
+  if (ctx.lecture && jour === aujourdhui) {
+    page.appendChild(el("p", { class: "em-vide" }, "Aucune feuille n'est ouverte pour cette demi-journée."));
+    return;
+  }
   if (jour !== aujourdhui) {
     page.appendChild(el("p", { class: "em-vide" }, jour < aujourdhui
       ? "Aucune feuille d'émargement pour cette demi-journée."
@@ -419,7 +435,7 @@ function dessinerFormateurs(ctx, s, { ouverte }) {
   }
   // Le formateur peut signer une feuille oubliée un autre jour (heure réelle) : sans cela
   // elle ne pourrait jamais être close.
-  if (ouverte) {
+  if (ouverte && !ctx.lecture) {
     const profil = getProfile();
     const monNom = ctx.profs.find((p) => p.id === profil?.prof_id)?.nom || null;
     const entries = ctx.entries.filter((e) => e.day_index === dayIndexDe(s.jour) && e.half_day === s.demi_journee);

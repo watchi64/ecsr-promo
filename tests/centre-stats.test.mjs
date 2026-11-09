@@ -3,7 +3,7 @@
 // Lancer depuis la racine du dépôt : node tests/centre-stats.test.mjs
 import assert from "node:assert/strict";
 import {
-  indicateursPromo, ligneComparaison, METHODES, COUT_ABANDON_ESTIME,
+  indicateursPromo, ligneComparaison, METHODES, COUT_ABANDON_ESTIME, aSuivrePromo, fusionnerASuivre,
 } from "../js/centre-stats.js";
 
 let n = 0;
@@ -192,5 +192,48 @@ assert.ok(dort.aSuivre.every((x) => x.signaux.every((s) => s.code !== "inactivit
 }
 // Les notes portent leur somme (comptes additifs du lot 5).
 proche(ind.notes.detail.somme, ind.notes.valeur * ind.notes.detail.n, "somme des notes sur 20");
+
+// « À suivre de près » promo par promo (lot 5, D8) : chaque promo se compare à elle-même. Promo A avancée (trois stagiaires à
+// 4 tours de salle et 4 de voiture, un à zéro, des entraînements QCM récents) ; promo R récente (quatre stagiaires, aucun
+// passage, aucun QCM). Les jeux de données portent des identifiants distincts, comme en base.
+{
+  const hier = "2026-10-22";
+  const S = (id, prenom, nom) => ({ id, prenom, nom, actif: true, ordre: id });
+  const A = {
+    stagiaires: [S(10, "Ana", "Aubry"), S(11, "Bob", "Bar"), S(12, "Cid", "Cot"), S(13, "Dan", "Dax")],
+    passages: [10, 11, 12].flatMap((id) => [...Array(4).keys()].flatMap(() => [P(id, "Salle", "Effectué"), P(id, "Voiture", "Effectué")])),
+    evaluations: [], epcf: [],
+    tentatives: [10, 11, 12].map((id) => T(id, 10, "entrainement", 5, 10, 5, hier)),
+  };
+  const R = {
+    stagiaires: [S(20, "Eva", "Ebel"), S(21, "Fay", "Fol"), S(22, "Gus", "Gil"), S(23, "Han", "Hue")],
+    passages: [], evaluations: [], epcf: [], tentatives: [],
+  };
+  const aujourdhui = "2026-10-23";
+  const lA = aSuivrePromo(A, REF, { aujourdhui });
+  eq(lA.map((x) => [x.stagiaire.id, x.signaux.map((s) => s.code)]), [[13, ["inactivite", "retard"]]], "promo avancée : Dan seul");
+  eq(lA[0].signaux[1].texte, "Retard de passages : 3 tours en salle, 3 tours en voiture", "objectif propre à la promo A");
+  eq(aSuivrePromo(R, REF, { aujourdhui }), [], "promo récente sans passage : personne (aucun signal croisé)");
+  // Les signaux d'une promo ne dépendent pas de l'autre : le résultat de A est le même que A soit seule ou non.
+  eq(indicateursPromo(A, REF, { aujourdhui }).aSuivre, lA, "indicateursPromo appelle aSuivrePromo");
+  eq(indicateursPromo(R, REF, { aujourdhui }).aSuivre, [], "indicateursPromo : promo récente");
+  // Le mélange des données ferait un signal croisé : la promo R, comparée à l'objectif de A, serait à suivre. C'est ce qu'on évite.
+  const melange = indicateursPromo({ stagiaires: [...A.stagiaires, ...R.stagiaires], passages: A.passages, evaluations: [],
+    epcf: [], tentatives: A.tentatives }, REF, { aujourdhui }).aSuivre;
+  assert.ok(melange.some((x) => x.stagiaire.id >= 20), "contre-épreuve : mélangées, les données feraient suivre la promo récente"); n++;
+
+  // Fusion : la promo de chaque personne est gardée ; tri par nombre de signaux puis par nom.
+  const fusion = fusionnerASuivre([
+    { promoId: 1, promoNom: "Promo 1", liste: lA },
+    { promoId: 2, promoNom: "Promo 2", liste: [
+      { stagiaire: S(30, "Zoé", "Zed"), signaux: [{ code: "absences", texte: "a" }, { code: "notes", texte: "b" }, { code: "retard", texte: "c" }] },
+      { stagiaire: S(31, "Abel", "Abt"), signaux: [{ code: "absences", texte: "a" }, { code: "notes", texte: "b" }] },
+    ] },
+  ]);
+  eq(fusion.map((x) => [x.stagiaire.id, x.promoId, x.promoNom]), [[30, 2, "Promo 2"], [31, 2, "Promo 2"], [13, 1, "Promo 1"]],
+    "fusion : la promo de chaque personne, 3 signaux d'abord, puis par nom");
+  eq(fusionnerASuivre([]), [], "fusion : aucune promo");
+  eq(fusionnerASuivre([{ promoId: 1, promoNom: "P", liste: [] }]), [], "fusion : promo sans personne");
+}
 
 console.log(`centre-stats : ${n} assertions OK`);

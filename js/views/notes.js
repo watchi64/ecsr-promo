@@ -44,6 +44,9 @@ let currentEvalDate = null;  // Date appliquée aux nouvelles notes saisies dans
 // Conteneurs où la vue est imbriquée dans Mon suivi (La classe : renderNotes(zone, { imbrique: true })) : le contexte
 // décide de sa présentation, pas le rôle de la personne (un formateur qui a une fiche y ouvre aussi La classe).
 const imbriques = new WeakSet();
+// Conteneurs où la vue est posée sous la synthèse du centre (direction, lot 5) : même présentation que La classe (le titre est celui
+// de la page qui l'héberge), mais la phrase de l'équipe plutôt que celle d'un stagiaire.
+const dansLesCentres = new WeakSet();
 
 const NOTES_SORT_OPTIONS = [
   { key: "default",   label: "Ordre par défaut" },
@@ -1056,7 +1059,8 @@ function rerender(container) {
   // déjà sous le titre de Mon suivi : ni titre à elle ni « Lecture seule... » ; la phrase sur la saisie n'y est lue que
   // par qui saisit des notes ; le nombre de notes reste, seul sinon.
   const v2 = navigationV2Active();
-  const laClasse = v2 && imbriques.has(container);
+  const dansCentre = v2 && dansLesCentres.has(container);
+  const laClasse = v2 && (imbriques.has(container) || dansCentre);
   const equipe = v2 && !laClasse && formateurConnecte();
   const surtitre = getPromoCourante()?.nom;
   const tactile = v2 && window.matchMedia("(pointer: coarse)").matches;
@@ -1071,7 +1075,7 @@ function rerender(container) {
         ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null)
         : el("p", { class: "eyebrow" }, compte),
       laClasse ? null : el("h2", {}, equipe ? "Notes et examens" : "Notes & évaluations"),
-      el("p", { class: "subtitle" }, laClasse ? (admin ? phrase + " " : "") + compte + "." : equipe ? phrase + " " + compte + "." : phrase),
+      el("p", { class: "subtitle" }, dansCentre ? "Matrice et notes de la promo, en lecture. " + compte + "." : laClasse ? (admin ? phrase + " " : "") + compte + "." : equipe ? phrase + " " + compte + "." : phrase),
     ),
     admin || laClasse ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
   ));
@@ -1513,8 +1517,9 @@ function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
 }
 
 // `imbrique` : la vue est le contenu de La classe, dans Mon suivi (js/views/mon-suivi.js), sous le titre de cette page.
-export async function renderNotes(container, { imbrique = false } = {}) {
+export async function renderNotes(container, { imbrique = false, dansLeCentre = false } = {}) {
   if (imbrique) imbriques.add(container); else imbriques.delete(container);
+  if (dansLeCentre) dansLesCentres.add(container); else dansLesCentres.delete(container);
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   let allThemes;

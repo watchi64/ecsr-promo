@@ -5,14 +5,14 @@
 // En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
 import "./journal-erreurs.js?v=20261109a";
 import {
-  getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements, basculeLancee, getPromoCourante,
+  getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements, basculeLancee, getPromoCourante, getMesPromos,
 } from "./db.js?v=20261109a";
 import { toast, el } from "./utils.js?v=20261109a";
 import { icon } from "./icons.js?v=20261109a";
 import { initAuth, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261109a";
-import { getEspace } from "./auth-admin.js?v=20261109a";
+import { getEspace, getCentre } from "./auth-admin.js?v=20261109a";
 import {
-  ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage,
+  ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage, promosDuCentre,
 } from "./espaces-rules.js?v=20261109a";
 import { chargerEtatSignalements } from "./signalement-etat.js?v=20261109a";
 import { messageDemarrage } from "./signalement-rules.js?v=20261109a";
@@ -27,6 +27,7 @@ import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlan
 import { renderPlanningEspace } from "./views/planning-espace.js?v=20261109a";
 import { teardownDocPrint } from "./doc-officiel.js?v=20261109a";
 import { renderNotes } from "./views/notes.js?v=20261109a";
+import { renderVueCentre, renderEmargementCentre, renderNotesCentre } from "./views/direction-centre.js?v=20261109a";
 import { renderRessources } from "./views/ressources.js?v=20261109a";
 import { renderThemes } from "./views/themes.js?v=20261109a";
 import { renderConfig, renderPreferences } from "./views/config.js?v=20261109a";
@@ -41,7 +42,7 @@ import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261109a";
 import { renderEmargement } from "./views/emargement.js?v=20261109a";
 import { renderProblemes } from "./views/problemes.js?v=20261109a";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261109a";
-import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261109a";
+import { chargerEmargementActif, emargementActif, chargerEmargementCentre, emargementDansLeCentre } from "./emargement-etat.js?v=20261109a";
 import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261109a";
 import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261109a";
 import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261109a";
@@ -99,9 +100,11 @@ function renderTabs() {
       const nom = getProfileWho();
       monterCoquille({
         espace,
-        // Lot 5 : Émargement du centre (Task 7) et Réglages du centre ou du réseau (Task 14) n'ont pas encore leur page : pas
-        // d'entrée (emargementDansLeCentre et reglagesEspace restent faux).
-        entrees: entreesNavigation(espace, { routeVisible, emargementActif: emargementActif(), formateur: isAdmin() }),
+        // Lot 5 : Émargement du centre s'allume quand une promo du centre a l'interrupteur (emargementDansLeCentre, lu au
+        // démarrage) ; Réglages du centre ou du réseau (Task 14) n'ont pas encore leur page : pas d'entrée (reglagesEspace faux).
+        entrees: entreesNavigation(espace, {
+          routeVisible, emargementActif: emargementActif(), formateur: isAdmin(), emargementDansLeCentre: emargementDansLeCentre(),
+        }),
         nom,
         initiales: initialesDe(nom),
         actualiser,
@@ -199,12 +202,10 @@ function pageEnConstruction(titre, phrase) {
   };
 }
 
-// Accueil de la direction : la Vue d'ensemble du centre (Task 7) ; d'ici là, les Indicateurs de la promo affichée. Un centre sans
-// promo (D6) le dit plutôt que de montrer des cartes vides.
+// Accueil de la direction : la Vue d'ensemble du centre (js/views/direction-centre.js, qui dit aussi un centre sans promo, D6) ;
+// formateur : les Indicateurs de la promo affichée.
 function rendreCentre(view) {
-  if (espaceCourant() === "direction" && !getPromoCourante()) {
-    return pageEnConstruction("Vue d'ensemble", "Ce centre n'a pas encore de promo.")(view);
-  }
+  if (espaceCourant() === "direction") return renderVueCentre(view);
   return renderCentre(view);
 }
 
@@ -246,12 +247,12 @@ const routes = {
     : renderPlanning(view)),
   calendrier: renderCalendrier,
   themes:     renderThemes,
-  notes:      renderNotes,
+  notes:      (view) => (espaceCourant() === "direction" ? renderNotesCentre(view) : renderNotes(view)),
   ccp2:       renderCcp2,
   stagiaires: renderStagiaires,
   centre:     rendreCentre,
   qualiopi:   rendreQualiopi,   // chargée à la demande, voir plus haut
-  emargement: renderEmargement,
+  emargement: (view) => (espaceCourant() === "direction" ? renderEmargementCentre(view) : renderEmargement(view)),
   ressources: renderRessources,
   config:     renderConfig,
   // Nouvelle navigation seulement : « Mes préférences », ouverte par le menu du compte. Avec l'ancienne,
@@ -381,9 +382,9 @@ async function navigate({ force = false } = {}) {
     // Page Émargement (spec 2026-10-23) : formateurs seulement ; un stagiaire signe par
     // le bandeau, sur n'importe quelle page.
     route = allerA(repli);
-  } else if (route === "emargement" && !emargementActif()) {
-    // Interrupteur éteint pour la promo (réglage du fondateur dans Paramètres).
-    toast("L'émargement n'est pas activé pour cette promo.", "info", 3500);
+  } else if (route === "emargement" && !(espace === "direction" ? emargementDansLeCentre() : emargementActif())) {
+    // Interrupteur éteint pour la promo (réglage du fondateur dans Paramètres) ; en direction, pour toutes les promos du centre.
+    toast(espace === "direction" ? "L'émargement n'est activé pour aucune promo du centre." : "L'émargement n'est pas activé pour cette promo.", "info", 3500);
     route = allerA(accueil);
   } else if (route === "qualiopi" && !fondateurHorsApercu()) {
     // Page Qualiopi (spec 2026-10-28, § 6.3) : le fondateur seul, avant la refonte du lot 5. Aucune entrée de barre ne la
@@ -579,7 +580,12 @@ async function bootApp() {
     // Sans promo (le siège, une direction dont le centre n'en a pas encore), les modules et l'émargement n'ont rien à lire : les
     // modules gardent leur état par défaut, l'émargement reste éteint (aucune lecture ne part sans en-tête de promo).
     const unePromo = !!getPromoCourante();
-    await Promise.all([unePromo ? chargerModulesAuDemarrage() : null, unePromo ? chargerEmargementActif() : null, chargerNavigationV2()]);
+    // Direction : l'interrupteur de chaque promo du centre se lit aussi, une fois, pour allumer l'entrée Émargement de la barre.
+    const centre = getEspace() === "direction" ? getCentre() : null;
+    await Promise.all([
+      unePromo ? chargerModulesAuDemarrage() : null, unePromo ? chargerEmargementActif() : null, chargerNavigationV2(),
+      centre ? chargerEmargementCentre(promosDuCentre(getMesPromos(), centre.id)) : null,
+    ]);
     renderTabs();
   } finally {
     // La barre de la session est posée (coquille, ou ancienne barre si la décision est « éteint ») : plus
