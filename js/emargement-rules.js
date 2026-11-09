@@ -161,10 +161,12 @@ export function etatSansFeuille({ jour, aujourdhui, demi, entries, feuillesDeLaS
 
 // === Heures et jours ===
 
-// Une heure écrite comme dans tout le reste de l'app (audit du 09/11, lot E) : « 9 h », « 12 h 30 », « 9 h 04 ».
+// Une heure écrite comme dans tout le reste de l'app (audit du 09/11, lot E) : « 9 h », « 12 h 30 », « 9 h 04 », avec des
+// espaces insécables, pour qu'une case étroite (feuille d'émargement imprimée) ne coupe jamais « 12 h / 30 ».
+const INSECABLE = "\u00a0";
 export function heureEcrite(h, m) {
   const mm = String(m).padStart(2, "0");
-  return mm === "00" ? `${Number(h)} h` : `${Number(h)} h ${mm}`;
+  return mm === "00" ? `${Number(h)}${INSECABLE}h` : `${Number(h)}${INSECABLE}h${INSECABLE}${mm}`;
 }
 
 export function libelleHeure(hhmm) {

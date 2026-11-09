@@ -6,13 +6,24 @@ import { heureEcrite, libelleHeure, libelleCreneau, heureLocale } from "../js/em
 
 const lire = (f) => readFileSync(new URL("../" + f, import.meta.url), "utf8");
 
-test("heures : une seule écriture française, « 9 h », « 12 h 30 », « 9 h 04 »", () => {
-  assert.equal(heureEcrite("09", "00"), "9 h");
-  assert.equal(heureEcrite("12", "30"), "12 h 30");
-  assert.equal(heureEcrite("9", "4"), "9 h 04");
-  assert.equal(libelleCreneau({ debut: "13:30", fin: "17:00" }), "13 h 30 à 17 h");
+// Les espaces d'une heure sont insécables : une case étroite d'une feuille imprimée ne coupe jamais « 12 h / 30 ».
+// nb("12 h 30") rend la même heure avec ses espaces insécables.
+const nb = (t) => t.replace(/ h/g, " h").replace(/h (\d\d)/g, "h $1");
+
+test("heures : une seule écriture française, « 9 h », « 12 h 30 », « 9 h 04 », espaces insécables", () => {
+  assert.equal(heureEcrite("09", "00"), nb("9 h"));
+  assert.equal(heureEcrite("12", "30"), nb("12 h 30"));
+  assert.equal(heureEcrite("9", "4"), nb("9 h 04"));
+  assert.equal(nb("12 h 30"), "12 h 30");
+  assert.equal(libelleCreneau({ debut: "13:30", fin: "17:00" }), nb("13 h 30") + " à " + nb("17 h"));
   assert.equal(libelleHeure(""), "");
-  assert.equal(heureLocale("2026-10-26T08:00:00Z"), "9 h");
+  assert.equal(heureLocale("2026-10-26T08:00:00Z"), nb("9 h"));
+});
+
+test("heures : les horaires par défaut d'une demi-journée s'écrivent pareil (Mon suivi)", async () => {
+  const { HALF_DAYS } = await import("../js/config.js");
+  assert.deepEqual(HALF_DAYS.map((h) => h.label), [nb("9 h") + " à " + nb("12 h 30"), nb("13 h 30") + " à " + nb("17 h")]);
+  assert.match(lire("js/views/mon-suivi.js"), /return libelleCreneau\(\{ debut: fmtTime\(m\.start_time\)/);
 });
 
 test("heures : plus de « 9h00 » fabriqué à la main dans le planning ni d'espacement en double dans les pages", () => {
@@ -24,7 +35,9 @@ test("heures : plus de « 9h00 » fabriqué à la main dans le planning ni d'esp
 });
 
 // Émojis en couleur au milieu des icônes au trait : les pages relevées par les testeurs et le lot 3.
-const EMOJIS = /[\u{1F300}-\u{1FAFF}ℹ✏]️?/u;
+// Pictogrammes en couleur, écrits en codes pour rester lisibles : U+2139 information, U+270F crayon, U+26A0 attention,
+// U+274C croix, U+2B50 étoile, et tout le bloc des émojis (U+1F300 à U+1FAFF).
+const EMOJIS = /[\u{1F300}-\u{1FAFF}ℹ✏⚠❌⭐]/u;
 for (const f of ["js/views/planning.js", "js/views/ressources.js", "js/views/notes.js"]) {
   test(`émojis : ${f} n'en affiche plus (hors commentaires)`, () => {
     const lignes = lire(f).split("\n").filter((l) => !/^\s*(\/\/|\*)/.test(l) && EMOJIS.test(l));

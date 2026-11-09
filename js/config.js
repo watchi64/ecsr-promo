@@ -31,6 +31,7 @@ export const ACTIVITY_SHAPES = {
 
 export const JOURS = ["LUNDI", "MARDI", "MERCREDI", "JEUDI", "VENDREDI"];
 export const HALF_DAYS = [
-  { key: "matin", label: "9h00 à 12h30", short: "MATIN" },
-  { key: "aprem", label: "13h30 à 17h00", short: "APRÈS-MIDI" },
+  // Horaires par défaut, écrits comme le reste de l'app (audit du 09/11, lot E).
+  { key: "matin", label: "9\u00a0h à 12\u00a0h\u00a030", short: "MATIN" },
+  { key: "aprem", label: "13\u00a0h\u00a030 à 17\u00a0h", short: "APRÈS-MIDI" },
 ];

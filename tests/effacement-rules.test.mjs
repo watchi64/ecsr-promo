@@ -1,7 +1,7 @@
 // Effacement des données : confirmation, textes d'état. Lancer depuis la racine du dépôt :
 // node tests/effacement-rules.test.mjs
 import assert from "node:assert/strict";
-import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../js/effacement-rules.js";
+import { confirmationValide, dateCourte, dateLongue, etatFinDePromo, resumeEffacement } from "../js/effacement-rules.js";
 
 let n = 0;
 const ok = (c, m) => { assert.ok(c, m); n++; };
@@ -17,13 +17,16 @@ ok(!confirmationValide("", ""), "prénom vide jamais valide");
 
 eq(dateCourte("2027-12-11"), "11/12/2027", "date courte");
 eq(dateCourte(null), "", "date absente");
+eq(dateLongue("2027-12-11"), "11 décembre 2027", "date dans une phrase");
+eq(dateLongue("2027-03-01"), "1er mars 2027", "le 1er du mois");
+eq(dateLongue(null), "", "date longue absente");
 
 // Fin de promo
 eq(etatFinDePromo(null).bouton, false, "pas de promo");
 ok(/non renseignée/.test(etatFinDePromo({ date_fin: null }).texte), "date de fin absente");
 const avant = etatFinDePromo({ date_fin: "2026-12-11", anonymisable_le: "2027-12-11", anonymisable: false, restants: 15, comptes_admin: 1 });
 eq(avant.bouton, false, "trop tôt : pas de bouton");
-ok(avant.texte.includes("11/12/2026") && avant.texte.includes("11/12/2027"), "trop tôt : les deux dates");
+ok(avant.texte.includes("le 11 décembre 2026") && avant.texte.includes("du 11 décembre 2027"), "trop tôt : les deux dates, en toutes lettres");
 const pret = etatFinDePromo({ date_fin: "2025-01-01", anonymisable_le: "2026-01-01", anonymisable: true, restants: 15, comptes_admin: 1 });
 eq(pret.bouton, true, "délai écoulé : bouton");
 ok(pret.texte.includes("14 fiches") && /administrateur/.test(pret.texte), "fiches à traiter hors compte admin");

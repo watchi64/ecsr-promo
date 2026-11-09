@@ -215,7 +215,7 @@ Contrôles par vue
   * pied de l'Accueil (vague finale, F7, puis audit du 09/11, A8) : avec la nouvelle navigation, « TP ECSR App · Promo <nom de la promo affichée> · connecté comme
     <rôle> », le vrai rôle (aperçu, fondateur, rôle sur la promo ; jamais « admin ») ; avec l'ancienne, le texte de main (« Promo 2026 » écrit en dur, « admin ») ;
   * Planning > Semaine : chez le stagiaire, ni « Lecture seule... » ni « Cette semaine » (« Aujourd'hui », en tête de la page, le remplace) ; chez
-    l'équipe, « Cette semaine » reste ;
+    l'équipe non plus, « Cette semaine » (audit du 09/11, lot E : doublon d'« Aujourd'hui ») ;
   * Mon suivi aux libellés clairs (lot 2B, tâche 7), pour toute personne qui a une fiche, à 1 280 et 375 px : les parties dans l'ordre (Résultats, Passages, EPCF,
     Livret EPCF, Dossier pro), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« EPCF : 0 épreuve sur 2 », « Dossier pro :
     0 exemple sur 6 »), sans date « 02/10 », jamais coupée, la dernière au-dessus de la barre du bas (à l'ouverture, et page défilée au bout) ; Résultats et son
@@ -5239,7 +5239,7 @@ def verifier_accueil_eteint(page, res, sc):
 
 def verifier_planning_semaine(page, res, sc):
     """Planning > Semaine, nouvelle navigation : chez le stagiaire, ni la phrase « Lecture seule... » ni le bouton « Cette semaine » (« Aujourd'hui », en tête
-    de la page, le remplace) ; chez l'équipe, le bouton reste."""
+    de la page, le remplace) ; chez l'équipe aussi, « Cette semaine » est parti (doublon d'« Aujourd'hui », audit du 09/11, lot E)."""
     vue = "%s/planning/semaine" % sc.nom
     aller_a(page, "#/planning")
     attendre(page)
@@ -5256,8 +5256,11 @@ def verifier_planning_semaine(page, res, sc):
             res.echec("planning du stagiaire", vue, "%d bouton(s) « Aujourd'hui » dans la page, 1 attendu" % m["aujourdhui"])
         if m["lecture"]:
             res.echec("planning du stagiaire", vue, "la page dit encore « Lecture seule » à un stagiaire")
-    elif m["cetteSemaine"] != 1:
-        res.echec("planning de l'équipe", vue, "%d bouton(s) « Cette semaine » chez l'équipe, 1 attendu" % m["cetteSemaine"])
+    else:
+        if m["cetteSemaine"]:
+            res.echec("planning de l'équipe", vue, "%d bouton(s) « Cette semaine » chez l'équipe : doublon d'« Aujourd'hui », 0 attendu" % m["cetteSemaine"])
+        if m["aujourdhui"] != 1:
+            res.echec("planning de l'équipe", vue, "%d bouton(s) « Aujourd'hui » dans la page, 1 attendu" % m["aujourdhui"])
     vider_console(res, vue)
 
 

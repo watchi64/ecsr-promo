@@ -4,6 +4,7 @@ import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJo
          listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261109e";
 import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261109e";
 import { HALF_DAYS, RESULTATS } from "../config.js?v=20261109e";
+import { libelleCreneau } from "../emargement-rules.js?v=20261109e";
 import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109e";
 import { renderEpcfPersonne } from "./epcf.js?v=20261109e";
 import { renderSubTabs } from "../subtabs.js?v=20261109e";
@@ -60,7 +61,7 @@ function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; 
 
 function horaireFor(metas, day_index, half) {
   const m = metas.find((x) => x.day_index === day_index && x.half_day === half);
-  if (m && m.start_time && m.end_time) return `${fmtTime(m.start_time)}–${fmtTime(m.end_time)}`;
+  if (m && m.start_time && m.end_time) return libelleCreneau({ debut: fmtTime(m.start_time), fin: fmtTime(m.end_time) });
   const def = HALF_DAYS.find((h) => h.key === half);
   return def ? def.label : null;
 }

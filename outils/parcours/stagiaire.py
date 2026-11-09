@@ -371,7 +371,8 @@ def mes_qcm(v):
 def livret_epcf(v):
     """Mon suivi, Livret EPCF (sous-onglet sur ordinateur, ligne du sommaire sur téléphone) : le livret s'affiche."""
     v.aller("Livret EPCF")
-    v.attendre("#view h3:has-text(\"Livret EPCF\")", "le livret EPCF")
+    # Le document lui-même : le titre « Livret EPCF » répété sous l'onglet a été retiré (audit du 09/11, lot E).
+    v.attendre("#view .lv-doc", "le livret EPCF")
     v.but("livret affiché")
     v.terminer()
 

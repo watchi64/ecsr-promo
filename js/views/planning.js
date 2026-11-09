@@ -1206,7 +1206,7 @@ async function clearWeekPlacements() {
     toast("Aucun stagiaire placé cette semaine", "info", 3000);
     return;
   }
-  if (!confirm("⚠️ Retirer TOUS les stagiaires placés cette semaine (tableaux, salle, voiture) ?\n\nLes bénévoles, formateurs, sujets et notes sont conservés.")) return;
+  if (!confirm("Retirer TOUS les stagiaires placés cette semaine (tableaux, salle, voiture) ?\n\nLes bénévoles, formateurs, sujets et notes sont conservés.")) return;
 
   const before = targets.map((e) => ({ e, snap: snapshotPlacement(e) }));
   targets.forEach((e) => { e.pedagogue_id = null; e.pedagogue_id_2 = null; e.eleves_ids = []; e.eleves_ids_2 = []; });
@@ -2457,7 +2457,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   const nbAbs = toCreate.filter((c) => c.resultat === "Absence").length;
   const nbBonus = toCreate.filter((c) => c.resultat === "Bonus").length;
   const headText = [el("strong", {}, toCreate.length + " passage(s)"), " seront enregistrés."];
-  if (nbAbs || nbBonus) headText.push(` Dont ${nbAbs} ❌ absence(s) (comptées) et ${nbBonus} ⭐ bonus (non comptés).`);
+  if (nbAbs || nbBonus) headText.push(` Dont ${nbAbs} absence(s) (comptées) et ${nbBonus} bonus (non comptés).`);
   if (already.length) headText.push(" " + already.length + " déjà enregistré(s).");
   list.appendChild(el("p", { class: "valider-summary-head" }, ...headText));
 
@@ -2471,7 +2471,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
     ofType.forEach((c) => {
       if (!byDay.has(c.day_index)) byDay.set(c.day_index, []);
       byDay.get(c.day_index).push(nameOf(c.stagiaire_id)
-        + (c.resultat === "Absence" ? " ❌" : c.resultat === "Bonus" ? " ⭐" : ""));
+        + (c.resultat === "Absence" ? " (absence)" : c.resultat === "Bonus" ? " (bonus)" : ""));
     });
 
     const section = el("div", { class: "valider-section" },

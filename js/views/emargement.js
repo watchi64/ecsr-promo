@@ -508,7 +508,7 @@ function ouvrirAbsence(ctx, s, st) {
 
 function ouvrirObservation(ctx, s, st, ligne) {
   const champ = el("input", { type: "text", value: ligne?.observation || "", maxlength: "200",
-    placeholder: "Ex. : arrivé à 9h40, absence justifiée" });
+    placeholder: "Ex. : arrivé à 9 h 40, absence justifiée" });
   const puces = pucesDeNotes(notesDeLaSemaine(ctx), (t) => { champ.value = t; champ.focus(); });
   const fond = el("div", { class: "modal-backdrop" });
   const fermer = () => fond.remove();
