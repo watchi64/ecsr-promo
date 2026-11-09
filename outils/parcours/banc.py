@@ -7,6 +7,7 @@ dépôt ; l'app y croit parler à Supabase, mais `_harness.html` remplace le cli
 """
 import functools
 import http.server
+import json
 import os
 import pathlib
 import shutil
@@ -145,10 +146,17 @@ def _servir(route, semis):
     route.fulfill(status=statut, headers=entetes, body=corps)
 
 
-def nouveau_contexte(navigateur, format_, semis=()):
+def nouveau_contexte(navigateur, format_, semis=(), habillage="ecsr"):
     reglages = dict(FORMATS[format_], locale="fr-FR", timezone_id="Europe/Paris")
     contexte = navigateur.new_context(**reglages)
     contexte.set_default_timeout(6000)
+    if habillage == "ecf":
+        # Le levier de tout robot (comme outils/verifier_navigation.py) : l'appareil retient l'habillage avant le premier
+        # chargement ; l'app pose data-skin elle-même. Posé une seule fois par onglet (garde en sessionStorage) pour
+        # qu'un rechargement retrouve ce que l'app a écrit depuis. Pour « ecsr », rien : appareil vierge.
+        contexte.add_init_script("try { if (!sessionStorage.getItem('vn_habillage_pose')) { localStorage.setItem('ecsr_habillage', %s);"
+                                 " sessionStorage.setItem('vn_habillage_pose', '1'); } } catch (e) { /* stockage bloqué */ }"
+                                 % json.dumps(json.dumps({"nom": "ecf"})))
     semis = list(semis)
     contexte.route("**/*", lambda route: _servir(route, semis))
     return contexte

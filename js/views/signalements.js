@@ -5,10 +5,10 @@
 // Ce module ne connaît PAS l'éditeur : il reçoit `onOuvrirEditeur` de la part de
 // themes.js. Importer themes.js ici créerait un import circulaire entre deux vues.
 
-import { el, clear, formatDate, toast } from "../utils.js?v=20261109c";
-import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20261109c";
-import { listTousSignalements, setQcmSignalementStatut, listStagiaires } from "../db.js?v=20261109c";
-import { getAdminEmail } from "../auth-admin.js?v=20261109c";
+import { el, clear, formatDate, toast } from "../utils.js?v=20261109g";
+import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20261109g";
+import { listTousSignalements, setQcmSignalementStatut, listStagiaires } from "../db.js?v=20261109g";
+import { getAdminEmail } from "../auth-admin.js?v=20261109g";
 
 export const MOTIF_LABELS = {
   reponse_fausse: "Réponse fausse",
@@ -164,7 +164,7 @@ export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEd
   }
 
   function barre(n) {
-    const sel = el("select", { class: "signal-console-statut" },
+    const sel = el("select", { class: "signal-console-statut", "aria-label": "Signalements à afficher" },
       ...STATUTS_CONSOLE.map((s) => {
         const o = el("option", { value: s.value }, s.label);
         if (s.value === statut) o.selected = true;

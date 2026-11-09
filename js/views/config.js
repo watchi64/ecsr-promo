@@ -6,8 +6,10 @@
  * Nouvelle navigation (lot 2A), deux pages : Réglages (#/config, l'équipe) ne garde que la promo, dans
  * l'ordre : Ce que voient les stagiaires (les modules) · Promo · Accès et invitations · Émargement et
  * Nouvelle navigation (fondateur) · Données personnelles ; Mes préférences (#/preferences, tous les
- * rôles, renderPreferences) garde ce qui est à la personne : Dans les notes de la classe (l'anonymat, pour qui a une fiche de
- * stagiaire) · Informations (dont « À retenir », les règles courtes que l'Accueil ne porte plus).
+ * rôles, renderPreferences) garde ce qui est à la personne : Apparence (lot 3, pour tous) · Dans les notes de la classe
+ * (l'anonymat, pour qui a une fiche de stagiaire) · Informations (dont « À retenir », les règles courtes que l'Accueil ne porte plus).
+ * Paramètres de l'ancienne barre : Apparence en tête, seulement pour qui est en Couleurs ECF (décision H6 : le choix se fait dans
+ * la nouvelle navigation, mais personne ne reste coincé dans un habillage qu'il ne peut pas quitter).
  */
 import {
   listStagiaires, listProfs,
@@ -17,17 +19,19 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20261109c";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109c";
-import { icon } from "../icons.js?v=20261109c";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109c";
-import { moduleVisible } from "../modules-etat.js?v=20261109c";
-import { renderModulesSection } from "./modules-reglage.js?v=20261109c";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261109c";
-import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109c";
-import { pointsARetenir } from "../accueil-rules.js?v=20261109c";
-import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261109c";
-import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261109c";
+} from "../db.js?v=20261109g";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109g";
+import { icon } from "../icons.js?v=20261109g";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109g";
+import { moduleVisible } from "../modules-etat.js?v=20261109g";
+import { renderModulesSection } from "./modules-reglage.js?v=20261109g";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261109g";
+import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109g";
+import { pointsARetenir } from "../accueil-rules.js?v=20261109g";
+import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261109g";
+import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261109g";
+import { blocHabillage } from "../habillage-choix.js?v=20261109g";
+import { habillageCourant } from "../habillage.js?v=20261109g";
 
 // ====== SECTION Accès & invitations ======
 
@@ -68,7 +72,7 @@ async function renderAccessSection(rerender) {
       ? "Choisis le rôle et la personne, entre son adresse e-mail. Aucun e-mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec cette adresse et un mot de passe."
       : "Choisis le rôle et la personne, entre son email. Aucun mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec son email + un mdp."));
 
-    const roleSel = el("select", { class: "invite-role" });
+    const roleSel = el("select", { class: "invite-role", "aria-label": "Rôle de la personne invitée" });
     // Inviter un formateur : la direction du centre ou le fondateur (la base le vérifie aussi, inviter_compte).
     const peutFormateur = peutInviterFormateur({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() });
     [
@@ -76,7 +80,7 @@ async function renderAccessSection(rerender) {
       ...(peutFormateur ? [{ v: "prof", l: "Formateur" }] : []),
     ].forEach((o) => roleSel.appendChild(el("option", { value: o.v }, o.l)));
 
-    const personSel = el("select", { class: "invite-person" });
+    const personSel = el("select", { class: "invite-person", "aria-label": "Personne invitée" });
     function refreshPersonOptions() {
       clear(personSel);
       const role = roleSel.value;
@@ -105,7 +109,7 @@ async function renderAccessSection(rerender) {
       if (choisie && [...personSel.options].some((o) => o.value === choisie && !o.disabled)) personSel.value = choisie;
     };
 
-    const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email" });
+    const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email", "aria-label": "Adresse e-mail" });
 
     const sendBtn = el("button", { class: "btn accent" }, icon.plus(), libelleAjout);
     sendBtn.addEventListener("click", async () => {
@@ -419,7 +423,8 @@ async function renderPromoSection(rerender) {
     items.forEach((it) => {
       // Champ « Nom de famille » (plus bas) : déclaré ici, le gestionnaire du prénom en a besoin.
       let nomInput = null;
-      const input = el("input", { type: "text", value: it.prenom || it.nom, readonly: admin ? undefined : true });
+      const input = el("input", { type: "text", value: it.prenom || it.nom, readonly: admin ? undefined : true,
+        "aria-label": type === "stagiaire" ? "Prénom" : "Nom" });
       if (admin) {
         input.addEventListener("blur", async () => {
           const v = input.value.trim();
@@ -496,7 +501,8 @@ async function renderPromoSection(rerender) {
     wrap.appendChild(list);
 
     if (admin && avecAjout) {
-      const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom" : "Nom" });
+      const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom" : "Nom",
+        "aria-label": type === "stagiaire" ? "Prénom du stagiaire à ajouter" : "Nom à ajouter" });
       const addNom = type === "stagiaire" ? el("input", { type: "text", placeholder: "Nom",
         "aria-label": "Nom de famille" }) : null;
       const addBtn = el("button", { class: "btn accent", onClick: async () => {
@@ -692,6 +698,24 @@ async function renderDonneesSection(rerender) {
   return section;
 }
 
+// ====== SECTION Apparence (lot 3) ======
+
+// Le choix de l'habillage, toujours rendu dans Mes préférences (rien ne le cache : ni l'absence de fiche de stagiaire, ni
+// le module Notes fermé). Le titre de la section nomme le groupe des deux pastilles.
+function renderApparenceSection() {
+  const titre = el("h3", {}, "Apparence");
+  return el("section", { class: "param-section" },
+    el("div", { class: "param-section-head" },
+      el("div", { class: "param-icon" }, icon.palette()),
+      el("div", {},
+        titre,
+        el("p", { class: "muted" }, "Les couleurs de l'app, à ton choix."),
+      ),
+    ),
+    el("div", { class: "param-block" }, blocHabillage({ titre })),
+  );
+}
+
 // ====== SECTION Infos ======
 
 function renderInfoSection() {
@@ -711,9 +735,7 @@ function renderInfoSection() {
       el("dt", {}, "Auteur"),
       el("dd", {}, "watchi64 · misterwatchi@gmail.com"),
       el("dt", {}, "Licence"),
-      el("dd", {}, "Propriétaire. Voir LICENSE dans le repo."),
-      el("dt", {}, "Repo"),
-      el("dd", {}, el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank" }, "github.com/watchi64/ecsr-promo")),
+      el("dd", {}, "Propriétaire."),   // plus de lien vers le dépôt : décision de Timy du 09/11
     )
   ));
   // Nouvelle navigation : l'Accueil ne porte plus « À retenir » (ce n'est pas ce qu'on vient y chercher chaque jour) ;
@@ -782,10 +804,12 @@ async function rerender(container) {
 
     const grid = el("div", { class: "param-grid" });
     // Nouvelle navigation : ce que voient les stagiaires d'abord (le réglage qui sert le plus), puis la promo
-    // et les accès, les interrupteurs du fondateur, les données personnelles. Ancienne : l'ordre d'avant.
+    // et les accès, les interrupteurs du fondateur, les données personnelles. Ancienne : l'ordre d'avant, et
+    // Apparence en tête pour qui est en Couleurs ECF seulement (décision H6), le moyen de revenir à ECSR Promo.
+    const apparence = !v2 && habillageCourant() === "ecf" ? renderApparenceSection() : null;
     const sections = v2
       ? [modules, promo, acces, emargement, navigation, donnees]
-      : [acces, preferences, modules, emargement, navigation, promo, donnees, infos];
+      : [apparence, acces, preferences, modules, emargement, navigation, promo, donnees, infos];
     sections.filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
@@ -796,6 +820,9 @@ async function rerender(container) {
         el("h2", {}, titre),
       ),
     ));
+    // Ancienne barre en Couleurs ECF : Apparence ne demande aucune lecture, elle se pose quand même, pour que la
+    // personne ne reste pas piégée en ECF tant que la page ne se charge pas (décision H6).
+    if (!v2 && habillageCourant() === "ecf") container.appendChild(renderApparenceSection());
     container.appendChild(el("div", { class: "param-error" },
       el("p", {}, "Le chargement a échoué. " + (e.message || "")),
       el("button", {
@@ -811,8 +838,8 @@ export async function renderConfig(container) {
 }
 
 // Nouvelle navigation : « Mes préférences » (#/preferences), que le menu du compte ouvre pour tous les rôles :
-// ce qui ne concerne que la personne (l'anonymat dans les notes) et les informations sur l'app. Rien de la
-// promo, qui vit dans Réglages (#/config), la page de l'équipe. Les sections ne demandent aucune lecture :
+// ce qui ne concerne que la personne (l'apparence, l'anonymat dans les notes) et les informations sur l'app. Rien
+// de la promo, qui vit dans Réglages (#/config), la page de l'équipe. Les sections ne demandent aucune lecture :
 // la page se pose d'un coup.
 export function renderPreferences(container) {
   clear(container);
@@ -821,14 +848,12 @@ export function renderPreferences(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Mon compte"),
       el("h2", {}, "Mes préférences"),
-      // Le sous-titre dit ce que la page contient : sans réglage à montrer (Notes fermées pour la promo, ou aucune fiche de
-      // stagiaire), il ne promet que les informations. « Réglages » est le nom de la page de l'équipe : il n'est pas repris ici.
-      el("p", { class: "subtitle" }, preferences
-        ? "Ce qui ne concerne que toi, et les informations sur l'application."
-        : "Les informations sur l'application."),
+      // Apparence est toujours là : la page a toujours un réglage à soi, quel que soit le rôle. « Réglages » est le nom de
+      // la page de l'équipe : il n'est pas repris ici.
+      el("p", { class: "subtitle" }, "Ce qui ne concerne que toi, et les informations sur l'application."),
     ),
   ));
   const grid = el("div", { class: "param-grid" });
-  [preferences, renderInfoSection()].filter(Boolean).forEach((s) => grid.appendChild(s));
+  [renderApparenceSection(), preferences, renderInfoSection()].filter(Boolean).forEach((s) => grid.appendChild(s));
   container.appendChild(grid);
 }

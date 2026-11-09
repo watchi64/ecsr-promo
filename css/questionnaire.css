@@ -57,7 +57,7 @@ body .modal-backdrop[data-nav-coquille="questionnaire"] > .nav-fenetre.questionn
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.4rem;
-  font-weight: 500;
+  font-weight: var(--poids-titre-moyen);
   line-height: 1.2;
 }
 .qn-fermer {
@@ -173,7 +173,7 @@ body .modal-backdrop[data-nav-coquille="questionnaire"] > .nav-fenetre.questionn
 .qn-actions .qn-suivant { margin-left: auto; }
 
 .qn-merci-bloc { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; }
-.qn-merci { font-family: var(--font-display); font-size: 1.35rem; font-weight: 500; }
+.qn-merci { font-family: var(--font-display); font-size: 1.35rem; font-weight: var(--poids-titre-moyen); }
 
 /* Téléphone : la fenêtre monte du bas et prend presque tout l'écran ; boutons sur toute la largeur. */
 @media (max-width: 699.98px) {

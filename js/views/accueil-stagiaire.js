@@ -6,23 +6,24 @@
  * Une lecture qui revient après le départ de la page écrit dans un nœud détaché (isConnected) : rien n'est repeint.
  */
 import {
-  listAgendaEvents, getPromoCourante, listQcmIndex, listMyQcmAttempts, listThemes, getDpDossier, getEpcfLivret,
-} from "../db.js?v=20261109c";
-import { el, clear } from "../utils.js?v=20261109c";
-import { icon } from "../icons.js?v=20261109c";
-import { getProfileWho, monStagiaireId } from "../auth-admin.js?v=20261109c";
-import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261109c";
-import { carteNouveaute } from "./nouveautes.js?v=20261109c";
-import { prenomDe } from "../nav-rules.js?v=20261109c";
-import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe } from "../accueil-rules.js?v=20261109c";
-import { journeeDuJour } from "../journee-rules.js?v=20261109c";
-import { effSujets, sujetsDe } from "../planning-roles.js?v=20261109c";
-import { exemplesRemplis } from "../dp-rules.js?v=20261109c";
-import { heureLocale } from "../emargement-rules.js?v=20261109c";
-import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261109c";
-import { ouvrirSignalement } from "../signalement.js?v=20261109c";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261109c";
-import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261109c";
+  listAgendaEvents, getPromoCourante, listQcmIndex, listMyQcmAttempts, listThemes, getDpDossier,
+} from "../db.js?v=20261109g";
+import { el, clear } from "../utils.js?v=20261109g";
+import { icon } from "../icons.js?v=20261109g";
+import { getProfileWho, monStagiaireId, getProfile, getViewAs } from "../auth-admin.js?v=20261109g";
+import { libelleConnexion } from "../roles-rules.js?v=20261109g";
+import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261109g";
+import { carteNouveaute } from "./nouveautes.js?v=20261109g";
+import { prenomDe } from "../nav-rules.js?v=20261109g";
+import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi } from "../accueil-rules.js?v=20261109g";
+import { journeeDuJour } from "../journee-rules.js?v=20261109g";
+import { effSujets, sujetsDe } from "../planning-roles.js?v=20261109g";
+import { exemplesRemplis } from "../dp-rules.js?v=20261109g";
+import { heureLocale } from "../emargement-rules.js?v=20261109g";
+import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261109g";
+import { ouvrirSignalement } from "../signalement.js?v=20261109g";
+import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261109g";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261109g";
 
 const RELECTURE_SEANCES_MS = 60000;
 
@@ -30,8 +31,6 @@ const RELECTURE_SEANCES_MS = 60000;
 // ouvertes quand un formateur la ferme, et « Signé à 8 h 52 » doit rester dit jusqu'à la fin de la visite.
 const signeesDuJour = new Map();   // "<stagiaire>:AAAA-MM-JJ:matin" -> "8 h 52"
 
-// "9h04" (heureLocale) -> "9 h 04" : l'écriture du reste de la page.
-const heureEspacee = (h) => String(h).replace("h", " h ");
 
 // « 09:00 » et « 12:30 » d'une séance -> « 9 h à 12 h 30 » : l'écriture des horaires du planning (journee-rules).
 function horaireDeSeance({ debut, fin }) {
@@ -69,7 +68,7 @@ function signature(jour, demi, seance, moi, redessiner) {
   if (moi == null) return null;
   const cle = `${moi}:${jour}:${demi}`;
   const ligne = seance && seance.lignes.find((x) => x.stagiaire_id === moi);
-  if (ligne && ligne.signe_le) signeesDuJour.set(cle, heureEspacee(heureLocale(ligne.signe_le)));
+  if (ligne && ligne.signe_le) signeesDuJour.set(cle, heureLocale(ligne.signe_le));
   const heure = signeesDuJour.get(cle);
   if (heure) return el("p", { class: "acc-signe" }, icon.check(), `Signé à ${heure}`);
   if (!seance || (ligne && ligne.absent)) return null;   // pas de feuille ouverte, ou noté absent : le bandeau le dit
@@ -78,7 +77,7 @@ function signature(jour, demi, seance, moi, redessiner) {
       type: "button", class: "btn primary",
       onClick: async () => {
         if (!(await signerSeance(seance, moi))) return;
-        signeesDuJour.set(cle, heureEspacee(heureLocale(new Date().toISOString())));
+        signeesDuJour.set(cle, heureLocale(new Date().toISOString()));
         redessiner();
       },
     }, icon.check(), DEMI[demi].signer));
@@ -101,9 +100,12 @@ function dessinerJournee(corps, etat, relirePlanning, redessiner) {
     if (!planningRempli && !sign) return null;
     const cartes = plan ? plan.cartes : [];
     const horaire = plan ? plan.horaire : (seance ? horaireDeSeance(seance) : "");
+    // Aucune carte ne le nomme : la rangée le lui dit avant les activités des autres (audit du 09/11, A3).
+    const sansPlace = sansPlaceDansLaDemi({ demi, cartes, moi });
     return el("div", { class: "acc-creneau", "data-demi": demi },
       el("div", { class: "acc-quand" }, el("b", {}, DEMI[demi].titre), horaire ? el("span", {}, horaire) : null),
       el("div", { class: "acc-quoi" },
+        sansPlace ? el("p", { class: "muted acc-sans-place" }, sansPlace) : null,
         cartes.length ? cartes.map(rangeeCarte) : (journee && !journee.repos ? el("p", { class: "muted" }, "Rien de prévu au planning.") : null),
         sign,
       ),
@@ -164,7 +166,7 @@ async function chargerJournee(corps, jour, indexJour, semaine, moi) {
 // === À faire ===
 
 function ligneAFaire(l) {
-  const ico = l.cle === "dossier" ? "clipboard" : l.cle === "livret" ? "book" : "quiz";
+  const ico = l.cle === "dossier" ? "clipboard" : "quiz";
   return ligneLien({ route: l.route, sousOnglet: l.sousOnglet, ico, titre: l.titre, detail: l.detail });
 }
 
@@ -174,14 +176,13 @@ async function chargerAFaire(corps, indexJour, semaine, moi) {
     if (corps.isConnected) { clear(corps); corps.appendChild(el("p", { class: "muted" }, "Rien à faire pour le moment.")); }
     return;
   }
-  const modules = { qcm: moduleVisible("qcm"), dp: moduleVisible("dp"), livret: moduleVisible("livret") };
+  const modules = { qcm: moduleVisible("qcm"), dp: moduleVisible("dp") };
   const lire = (ouvert, lecture) => (ouvert ? lecture() : Promise.resolve(null));
-  const [qcm, themes, tentatives, dossier, livret, lecturePlanning] = await Promise.allSettled([
+  const [qcm, themes, tentatives, dossier, lecturePlanning] = await Promise.allSettled([
     lire(modules.qcm, listQcmIndex),
     lire(modules.qcm, listThemes),
     lire(modules.qcm, listMyQcmAttempts),
     lire(modules.dp, () => getDpDossier(moi)),
-    lire(modules.livret, () => getEpcfLivret(moi)),
     // Les thèmes de la semaine ne servent qu'aux QCM : pas de lecture du planning si le module est fermé.
     lire(modules.qcm && routeVisible("planning"), () => semaine()),
   ]);
@@ -199,7 +200,6 @@ async function chargerAFaire(corps, indexJour, semaine, moi) {
     qcm: valeur(qcm) || [], themes: valeur(themes) || [], tentatives: valeur(tentatives) || [],
     sujetsDeLaSemaine,
     exemplesDossier: dossier.status === "fulfilled" && modules.dp ? exemplesRemplis(dossier.value?.data) : null,
-    livretCommence: livret.status === "fulfilled" && modules.livret ? !!livret.value : null,
     modules, now: Date.now(),
   });
 
@@ -209,9 +209,9 @@ async function chargerAFaire(corps, indexJour, semaine, moi) {
     return;
   }
   // Rien à montrer : « tout est fait » seulement si rien n'a échoué.
-  const echec = [qcm, themes, tentatives, dossier, livret].some((r) => r.status === "rejected");
+  const echec = [qcm, themes, tentatives, dossier].some((r) => r.status === "rejected");
   if (echec) {
-    console.error("Accueil : lecture de l'à-faire incomplète", [qcm, themes, tentatives, dossier, livret].filter((r) => r.status === "rejected").map((r) => r.reason));
+    console.error("Accueil : lecture de l'à-faire incomplète", [qcm, themes, tentatives, dossier].filter((r) => r.status === "rejected").map((r) => r.reason));
   }
   corps.appendChild(el("p", { class: echec ? "acc-erreur" : "muted", role: echec ? "alert" : null },
     echec ? "Ton à-faire n'a pas pu être lu en entier. Recharge la page pour réessayer." : "Rien à faire pour le moment."));
@@ -275,7 +275,7 @@ export function renderAccueilStagiaire(container) {
     titre: "Aujourd'hui", ico: "sun", classe: "acc-heros", zone: "aujourdhui",
     plus: routeVisible("planning") ? plusLien("planning", "Ouvrir le planning") : null,
   });
-  const afaire = carte({ titre: "À faire", ico: "check", zone: "afaire" });
+  const afaire = carte({ titre: "À faire", ico: "inbox", zone: "afaire" });
   const cartes = [journee, afaire];
   const rdv = routeVisible("calendrier")
     ? carte({ titre: "Prochain rendez-vous", ico: "calendar", zone: "rendez-vous", plus: plusLien("calendrier", "Dates clés") })
@@ -299,9 +299,9 @@ export function renderAccueilStagiaire(container) {
 
   const nomPromo = getPromoCourante()?.nom || "";
   container.appendChild(el("footer", { class: "home-footer-v2" },
-    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" }, "connecté comme stagiaire")),
-    el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
-      el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank", rel: "noopener" }, "code source")),
+    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" },
+      "connecté comme " + (libelleConnexion({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() }) || "stagiaire"))),
+    // Plus de lien « code source » : décision de Timy du 09/11, le code reste discret.
   ));
 
   // Chaque carte se charge seule ; la page rend la main quand toutes ont fini (réussi ou non).

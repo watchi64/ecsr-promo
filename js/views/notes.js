@@ -2,18 +2,19 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles, getNotesStatsGroupe, getPromoCourante,
-} from "../db.js?v=20261109c";
+} from "../db.js?v=20261109g";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261109c";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109c";
-import { icon } from "../icons.js?v=20261109c";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109c";
-import { recordUndo } from "../undo.js?v=20261109c";
-import { renderSubTabs } from "../subtabs.js?v=20261109c";
-import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109c";
-import { navigationV2Active } from "../nav-etat.js?v=20261109c";
-import { renderEpcf } from "./epcf.js?v=20261109c";
+} from "../notes-stats.js?v=20261109g";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109g";
+import { icon } from "../icons.js?v=20261109g";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109g";
+import { recordUndo } from "../undo.js?v=20261109g";
+import { renderSubTabs } from "../subtabs.js?v=20261109g";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109g";
+import { navigationV2Active } from "../nav-etat.js?v=20261109g";
+import { renderEpcf } from "./epcf.js?v=20261109g";
+import { noteGradient } from "../echelle-notes.js?v=20261109g";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -492,37 +493,6 @@ function cellColorClass(ratio) {
   return "great";
 }
 
-// === Dégradé continu pour les cellules de la matrice ===
-// Interpolation linéaire RGB entre 9 stops sur l'échelle 0..20.
-// Chaque dixième de point a une teinte unique (~1 couleur / 0.1).
-// Pêche/terracotta pour les notes basses, vert mint pour le haut. Pas de rouge vif.
-const NOTE_STOPS = [
-  { n: 0,  bg: [232, 195, 168], fg: [105, 60, 30] },
-  { n: 5,  bg: [241, 219, 200], fg: [122, 79, 48] },
-  { n: 8,  bg: [246, 232, 200], fg: [138, 102, 40] },
-  { n: 10, bg: [248, 240, 205], fg: [138, 115, 40] },
-  { n: 12, bg: [234, 234, 200], fg: [120, 110, 50] },
-  { n: 14, bg: [221, 235, 198], fg: [95, 115, 55] },
-  { n: 16, bg: [206, 230, 184], fg: [75, 110, 40] },
-  { n: 18, bg: [188, 224, 168], fg: [55, 95, 25] },
-  { n: 20, bg: [165, 215, 142], fg: [40, 80, 18] },
-];
-function noteGradient(noteSur20) {
-  const v = Math.max(0, Math.min(20, Number(noteSur20) || 0));
-  let i = 0;
-  while (i < NOTE_STOPS.length - 1 && NOTE_STOPS[i + 1].n < v) i++;
-  if (i >= NOTE_STOPS.length - 1) {
-    const s = NOTE_STOPS[NOTE_STOPS.length - 1];
-    return { bg: `rgb(${s.bg.join(",")})`, fg: `rgb(${s.fg.join(",")})` };
-  }
-  const a = NOTE_STOPS[i], b = NOTE_STOPS[i + 1];
-  const t = (v - a.n) / (b.n - a.n);
-  const lerp = (x, y) => Math.round(x + (y - x) * t);
-  return {
-    bg: `rgb(${lerp(a.bg[0], b.bg[0])},${lerp(a.bg[1], b.bg[1])},${lerp(a.bg[2], b.bg[2])})`,
-    fg: `rgb(${lerp(a.fg[0], b.fg[0])},${lerp(a.fg[1], b.fg[1])},${lerp(a.fg[2], b.fg[2])})`,
-  };
-}
 function applyNoteCellStyle(td, noteSur20) {
   const c = noteGradient(noteSur20);
   td.style.background = c.bg;
@@ -570,20 +540,19 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
     type: "text",
     inputmode: "decimal",
     enterkeyhint: "done",
-    class: "matrice-inline-input",
-    style: "width:90px;padding:6px 8px;font-size:0.95em;border:1px solid #ccc;border-radius:4px;outline:none;background:#fff;color:#222;",
+    class: "matrice-inline-input matrice-popover-input",
     value: existing?.note != null ? String(existing.note) : "",
     placeholder: "/20 ou X/Y",
   });
   const okBtn = el("button", {
     type: "button",
     "aria-label": "Valider",
-    style: "padding:7px 12px;background:var(--accent,#6B7F4E);color:#fff;border:0;cursor:pointer;font-size:0.85em;line-height:1;border-radius:4px;font-weight:600;white-space:nowrap;",
+    class: "matrice-popover-ok",
   }, "✓ OK");
   const cancelBtn = el("button", {
     type: "button",
     "aria-label": "Annuler",
-    style: "padding:7px 10px;background:#fff;color:#666;border:1px solid #ccc;cursor:pointer;font-size:0.85em;line-height:1;border-radius:4px;",
+    class: "matrice-popover-annuler",
   }, "✕");
   okBtn.addEventListener("mousedown", (e) => e.preventDefault());
   okBtn.addEventListener("click", (e) => { e.stopPropagation(); input.blur(); });
@@ -593,7 +562,6 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
 
   const popover = el("div", {
     class: "matrice-popover",
-    style: "position:absolute;top:calc(100% + 6px);left:0;z-index:200;background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px;box-shadow:0 6px 20px rgba(0,0,0,0.18);display:flex;gap:6px;align-items:center;white-space:nowrap;",
   });
   popover.addEventListener("click", (e) => e.stopPropagation());
   popover.appendChild(input);
@@ -840,7 +808,6 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
     type: "button",
     class: "matrice-inline-ok",
     "aria-label": "Valider",
-    style: "padding:0 10px;background:var(--accent,#6B7F4E);color:#fff;border:0;cursor:pointer;font-size:0.9em;border-radius:3px;",
   }, "✓");
   saveBtn.addEventListener("mousedown", (e) => e.preventDefault());
   saveBtn.addEventListener("click", (e) => { e.stopPropagation(); input.blur(); });
@@ -1110,7 +1077,7 @@ function rerender(container) {
   ));
 
   // Tri (toujours visible)
-  const sortSel = el("select", { class: "notes-sort" });
+  const sortSel = el("select", { class: "notes-sort", "aria-label": "Trier la matrice" });
   NOTES_SORT_OPTIONS.forEach((o) => {
     const opt = el("option", { value: o.key }, o.label);
     if (o.key === currentNotesSort) opt.selected = true;
@@ -1125,7 +1092,7 @@ function rerender(container) {
   let toolbar;
   if (admin) {
     // Barre date globale : toutes les notes saisies prendront cette date
-    const dateInput = el("input", { type: "date", value: currentEvalDate });
+    const dateInput = el("input", { type: "date", value: currentEvalDate, "aria-label": "Date des notes" });
     dateInput.addEventListener("change", () => {
       currentEvalDate = dateInput.value || isoDate(new Date());
     });
@@ -1282,12 +1249,12 @@ function renderSynthese() {
 
   wrap.appendChild(el("div", { class: "notes-rankings" },
     el("div", { class: "ranking-block" },
-      el("h4", { class: "ranking-title weak" }, "🔻 3 thèmes les plus faibles"),
+      el("h4", { class: "ranking-title weak" }, "3 thèmes les plus faibles"),
       el("p", { class: "muted ranking-sub" }, "À retravailler en priorité"),
       ...weak.map(themeCard),
     ),
     el("div", { class: "ranking-block" },
-      el("h4", { class: "ranking-title strong" }, "🔺 3 thèmes les plus solides"),
+      el("h4", { class: "ranking-title strong" }, "3 thèmes les plus solides"),
       el("p", { class: "muted ranking-sub" }, "Acquis confirmés"),
       ...strong.map(themeCard),
     ),
@@ -1408,13 +1375,13 @@ function buildDistributionChartSvg() {
     const line = document.createElementNS(svgNS, "line");
     line.setAttribute("x1", padL); line.setAttribute("x2", W - padR);
     line.setAttribute("y1", y); line.setAttribute("y2", y);
-    line.setAttribute("stroke", i === 0 ? "#B7C0AA" : "#E2E7DA");
+    line.setAttribute("class", i === 0 ? "notes-axe" : "notes-grille");
     if (i !== 0) line.setAttribute("stroke-dasharray", "2,3");
     svg.appendChild(line);
     const tx = document.createElementNS(svgNS, "text");
     tx.setAttribute("x", padL - 6); tx.setAttribute("y", y + 3);
     tx.setAttribute("text-anchor", "end"); tx.setAttribute("font-size", "10");
-    tx.setAttribute("fill", "#8A7458");
+    tx.setAttribute("class", "notes-graduation");
     tx.textContent = String(val);
     svg.appendChild(tx);
   }
@@ -1435,14 +1402,14 @@ function buildDistributionChartSvg() {
     const txVal = document.createElementNS(svgNS, "text");
     txVal.setAttribute("x", cx); txVal.setAttribute("y", y - 6);
     txVal.setAttribute("text-anchor", "middle"); txVal.setAttribute("font-size", "12");
-    txVal.setAttribute("font-weight", "700"); txVal.setAttribute("fill", "#1F2924");
+    txVal.setAttribute("font-weight", "700"); txVal.setAttribute("class", "notes-valeur");
     txVal.textContent = String(b.count);
     svg.appendChild(txVal);
 
     const txLab = document.createElementNS(svgNS, "text");
     txLab.setAttribute("x", cx); txLab.setAttribute("y", padT + chartH + 18);
     txLab.setAttribute("text-anchor", "middle"); txLab.setAttribute("font-size", "11");
-    txLab.setAttribute("fill", "#46554A");
+    txLab.setAttribute("class", "notes-libelle");
     txLab.textContent = b.label;
     svg.appendChild(txLab);
   });
@@ -1451,7 +1418,7 @@ function buildDistributionChartSvg() {
   const xLabel = document.createElementNS(svgNS, "text");
   xLabel.setAttribute("x", W / 2); xLabel.setAttribute("y", H - 8);
   xLabel.setAttribute("text-anchor", "middle"); xLabel.setAttribute("font-size", "11");
-  xLabel.setAttribute("fill", "#8A7458");
+  xLabel.setAttribute("class", "notes-graduation");
   xLabel.textContent = "Tranches de note / 20";
   svg.appendChild(xLabel);
 
@@ -1480,14 +1447,14 @@ function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
     const line = document.createElementNS(svgNS, "line");
     line.setAttribute("x1", x); line.setAttribute("x2", x);
     line.setAttribute("y1", padTop - 8); line.setAttribute("y2", chartHeight - padBottom + 4);
-    line.setAttribute("stroke", val === 10 ? "#B7C0AA" : "#E2E7DA");
+    line.setAttribute("class", val === 10 ? "notes-axe" : "notes-grille");
     if (val !== 10) line.setAttribute("stroke-dasharray", "2,3");
     svg.appendChild(line);
 
     const tx = document.createElementNS(svgNS, "text");
     tx.setAttribute("x", x); tx.setAttribute("y", padTop - 12);
     tx.setAttribute("text-anchor", "middle"); tx.setAttribute("font-size", "10");
-    tx.setAttribute("fill", "#8A7458");
+    tx.setAttribute("class", "notes-graduation");
     tx.textContent = String(val);
     svg.appendChild(tx);
   });
@@ -1506,7 +1473,7 @@ function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
     }
     label.setAttribute("font-size", "10");
     label.setAttribute("font-weight", d.anon ? "400" : "600");
-    label.setAttribute("fill", d.anon ? "#8A7458" : "#1F2924");
+    label.setAttribute("class", d.anon ? "notes-nom-anonyme" : "notes-nom");
     // Trunc label si trop long (plus de place quand il est au-dessus de la barre)
     const longueurMax = empile ? 40 : 24;
     const lbl = (d.name || "").length > longueurMax ? (d.name.substring(0, longueurMax - 2) + "…") : d.name;
@@ -1516,7 +1483,7 @@ function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
     const track = document.createElementNS(svgNS, "rect");
     track.setAttribute("x", gauche); track.setAttribute("y", y);
     track.setAttribute("width", chartWidth); track.setAttribute("height", barHeight);
-    track.setAttribute("rx", 4); track.setAttribute("fill", "#F0F0EC");
+    track.setAttribute("rx", 4); track.setAttribute("class", "notes-piste");
     svg.appendChild(track);
 
     if (d.avg != null) {
@@ -1530,13 +1497,13 @@ function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
       const val = document.createElementNS(svgNS, "text");
       val.setAttribute("x", gauche + w + 6); val.setAttribute("y", y + barHeight / 2 + 4);
       val.setAttribute("font-size", "10"); val.setAttribute("font-weight", "700");
-      val.setAttribute("fill", "#1F2924");
+      val.setAttribute("class", "notes-valeur");
       val.textContent = (Math.round(d.avg * 10) / 10).toString() + (d.count != null ? ` · ${d.count}n` : "");
       svg.appendChild(val);
     } else {
       const val = document.createElementNS(svgNS, "text");
       val.setAttribute("x", gauche + 10); val.setAttribute("y", y + barHeight / 2 + 4);
-      val.setAttribute("font-size", "10"); val.setAttribute("fill", "#9DA89A");
+      val.setAttribute("font-size", "10"); val.setAttribute("class", "notes-valeur-faible");
       val.textContent = "Aucune note";
       svg.appendChild(val);
     }
@@ -1591,7 +1558,7 @@ function renderAveragesChart() {
     const line = document.createElementNS(svgNS, "line");
     line.setAttribute("x1", x); line.setAttribute("x2", x);
     line.setAttribute("y1", padTop - 8); line.setAttribute("y2", chartHeight - padBottom + 4);
-    line.setAttribute("stroke", val === 10 ? "#B7C0AA" : "#E2E7DA");
+    line.setAttribute("class", val === 10 ? "notes-axe" : "notes-grille");
     line.setAttribute("stroke-dasharray", val === 10 ? "" : "2,3");
     svg.appendChild(line);
 
@@ -1599,7 +1566,7 @@ function renderAveragesChart() {
     tx.setAttribute("x", x); tx.setAttribute("y", padTop - 12);
     tx.setAttribute("text-anchor", "middle");
     tx.setAttribute("font-size", "10");
-    tx.setAttribute("fill", "#8A7458");
+    tx.setAttribute("class", "notes-graduation");
     tx.textContent = String(val);
     svg.appendChild(tx);
   });
@@ -1613,7 +1580,7 @@ function renderAveragesChart() {
     label.setAttribute("text-anchor", "end");
     label.setAttribute("font-size", "11");
     label.setAttribute("font-weight", d.anon ? "400" : "600");
-    label.setAttribute("fill", d.anon ? "#8A7458" : "#1F2924");
+    label.setAttribute("class", d.anon ? "notes-nom-anonyme" : "notes-nom");
     label.textContent = d.name;
     svg.appendChild(label);
 
@@ -1621,7 +1588,7 @@ function renderAveragesChart() {
     const track = document.createElementNS(svgNS, "rect");
     track.setAttribute("x", labelWidth); track.setAttribute("y", y);
     track.setAttribute("width", chartWidth); track.setAttribute("height", barHeight);
-    track.setAttribute("rx", 4); track.setAttribute("fill", "#F0F0EC");
+    track.setAttribute("rx", 4); track.setAttribute("class", "notes-piste");
     svg.appendChild(track);
 
     if (d.avg != null) {
@@ -1638,16 +1605,17 @@ function renderAveragesChart() {
       const valX = labelWidth + w + 6;
       val.setAttribute("x", valX); val.setAttribute("y", y + barHeight / 2 + 4);
       val.setAttribute("font-size", "11");
-      val.setAttribute("font-family", "var(--font-mono)");
+      val.setAttribute("font-family", "var(--font)");   // une seule écriture à l'écran (unification du 09/11)
+      val.style.fontVariantNumeric = "tabular-nums";
       val.setAttribute("font-weight", "700");
-      val.setAttribute("fill", "#1F2924");
+      val.setAttribute("class", "notes-valeur");
       val.textContent = (Math.round(d.avg * 10) / 10).toString() + " / 20";
       svg.appendChild(val);
     } else {
       const val = document.createElementNS(svgNS, "text");
       val.setAttribute("x", labelWidth + 10); val.setAttribute("y", y + barHeight / 2 + 4);
       val.setAttribute("font-size", "10");
-      val.setAttribute("fill", "#9DA89A");
+      val.setAttribute("class", "notes-valeur-faible");
       val.textContent = "Aucune note";
       svg.appendChild(val);
     }

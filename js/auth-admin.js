@@ -17,17 +17,17 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, mesRolesAffectes, oublierPromo, getPromoCourante, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache,
-} from "./db.js?v=20261109c";
+} from "./db.js?v=20261109g";
 import {
   LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo, etiquetteBadge,
-} from "./roles-rules.js?v=20261109c";
-import { el, toast, displayStagiaire } from "./utils.js?v=20261109c";
-import { icon } from "./icons.js?v=20261109c";
-import { construirePastille } from "./promo-pastille.js?v=20261109c";
-import { pagePersonnelle } from "./route-rules.js?v=20261109c";
-import { etatSignalements } from "./signalement-etat.js?v=20261109c";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261109c";
-import { libellePastille } from "./nouveautes.js?v=20261109c";
+} from "./roles-rules.js?v=20261109g";
+import { el, toast, displayStagiaire } from "./utils.js?v=20261109g";
+import { icon } from "./icons.js?v=20261109g";
+import { construirePastille } from "./promo-pastille.js?v=20261109g";
+import { pagePersonnelle } from "./route-rules.js?v=20261109g";
+import { etatSignalements } from "./signalement-etat.js?v=20261109g";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261109g";
+import { libellePastille } from "./nouveautes.js?v=20261109g";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -439,7 +439,7 @@ function boutonsSignalement(fermer) {
   const signaler = el("button", { class: "btn full sg-entree-compte", type: "button", "data-sg-entree": "compte", "aria-label": nom,
     onClick: () => {
       fermer();
-      import("./signalement.js?v=20261109c").then((m) => m.ouvrirSignalement({ ancre: document.querySelector(".admin-badge") }));
+      import("./signalement.js?v=20261109g").then((m) => m.ouvrirSignalement({ ancre: document.querySelector(".admin-badge") }));
     } }, icon.signaler(), "Signaler un problème", texte ? el("span", { class: "sg-pastille", "aria-hidden": "true" }, texte) : null);
   if (!fondateurHorsApercu()) return [signaler];
   const nouveaux = libellePastille(etat.nouveaux);
@@ -480,7 +480,7 @@ function openProfileMenu() {
     logoutBtn,
     el("button", { class: "gate-link compte-legal", type: "button", onClick: () => {
       backdrop.remove();
-      import("./legal.js?v=20261109c").then((m) => m.ouvrirInformationsLegales());
+      import("./legal.js?v=20261109g").then((m) => m.ouvrirInformationsLegales());
     } }, "Informations légales et données personnelles"),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer"),

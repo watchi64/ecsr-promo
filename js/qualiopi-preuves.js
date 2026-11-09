@@ -43,14 +43,14 @@
 // phrases (`jourDe`, `rempli`, `tableau`, `nb`) sont réutilisés par js/qualiopi-documents.js, pour que la synthèse par
 // semaine des dossiers suive toujours la règle de l'inventaire au lieu d'en recopier une version.
 
-import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261109c";
-import { indicateursPromo, pct } from "./centre-stats.js?v=20261109c";
-import { estNotee } from "./notes-stats.js?v=20261109c";
-import { ACTIVITY_SHAPES } from "./config.js?v=20261109c";
-import { jourFerie } from "./emargement-rules.js?v=20261109c";
-import { parseDate, addDays, isoDate } from "./utils.js?v=20261109c";
-import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261109c";
-import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261109c";
+import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261109g";
+import { indicateursPromo, pct } from "./centre-stats.js?v=20261109g";
+import { estNotee } from "./notes-stats.js?v=20261109g";
+import { ACTIVITY_SHAPES } from "./config.js?v=20261109g";
+import { jourFerie } from "./emargement-rules.js?v=20261109g";
+import { parseDate, addDays, isoDate } from "./utils.js?v=20261109g";
+import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261109g";
+import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261109g";
 
 // Annexe A de la spec, cellule par cellule, pour les 28 indicateurs d'un centre de formation continue (les 27 plus
 // le 13 de l'alternance). niveau : « prouve » (l'app fournit l'essentiel), « partiel » (en partie) ou « hors »

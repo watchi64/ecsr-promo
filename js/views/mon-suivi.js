@@ -1,27 +1,29 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261109c";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261109c";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261109c";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109c";
-import { renderEpcfPersonne } from "./epcf.js?v=20261109c";
-import { renderSubTabs } from "../subtabs.js?v=20261109c";
-import { renderDp } from "./dp.js?v=20261109c";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261109c";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261109c";
-import { bandeauAvis } from "../avis.js?v=20261109c";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261109c";
-import { statsPassages } from "../passages-stats.js?v=20261109c";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261109c";
-import { icon } from "../icons.js?v=20261109c";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261109c";
-import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261109c";
-import { exemplesRemplis } from "../dp-rules.js?v=20261109c";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261109c";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261109c";
-import { navigationV2Active } from "../nav-etat.js?v=20261109c";
-import { renderNotes } from "./notes.js?v=20261109c";
+         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261109g";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261109g";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261109g";
+import { libelleCreneau } from "../emargement-rules.js?v=20261109g";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109g";
+import { renderEpcfPersonne } from "./epcf.js?v=20261109g";
+import { renderSubTabs } from "../subtabs.js?v=20261109g";
+import { renderDp } from "./dp.js?v=20261109g";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261109g";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261109g";
+import { bandeauAvis } from "../avis.js?v=20261109g";
+import { statsPassages } from "../passages-stats.js?v=20261109g";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261109g";
+import { icon } from "../icons.js?v=20261109g";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261109g";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261109g";
+import { exemplesRemplis } from "../dp-rules.js?v=20261109g";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261109g";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261109g";
+import { navigationV2Active } from "../nav-etat.js?v=20261109g";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109g";
+import { renderNotes } from "./notes.js?v=20261109g";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261109g";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -60,7 +62,7 @@ function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; 
 
 function horaireFor(metas, day_index, half) {
   const m = metas.find((x) => x.day_index === day_index && x.half_day === half);
-  if (m && m.start_time && m.end_time) return `${fmtTime(m.start_time)}–${fmtTime(m.end_time)}`;
+  if (m && m.start_time && m.end_time) return libelleCreneau({ debut: fmtTime(m.start_time), fin: fmtTime(m.end_time) });
   const def = HALF_DAYS.find((h) => h.key === half);
   return def ? def.label : null;
 }
@@ -332,6 +334,16 @@ function buildChart(evals, largeur) {
   });
 
   return svg;
+}
+
+// Le renvoi vers les notes d'entraînement aux QCM, sous « Mon évolution » du stagiaire : Cours et QCM, partie QCM
+// (sous-onglet gardé en mémoire comme le fait une ligne de l'Accueil, js/views/pages-cartes.js).
+function renvoiNotesQcm() {
+  const memoriser = () => {
+    try { localStorage.setItem(CLES_SOUS_ONGLETS.themes, "qcm"); } catch (e) { /* mode privé : Cours et QCM s'ouvre sur Thèmes */ }
+  };
+  return el("p", { class: "muted ms-renvoi" }, "Les notes de tes entraînements aux QCM sont dans ",
+    el("a", { href: "#/themes", onClick: memoriser }, "Cours et QCM, partie QCM"), ".");
 }
 
 function renderChartSection(evaluations, soi = true) {
@@ -717,6 +729,8 @@ function rendreResultats(panel, d, soi, isActive, opts = {}) {
     clear(zone);
     if (cible === "moi") {
       zone.appendChild(renderChartSection(d.evaluations, soi));
+      // Les notes des QCM ne sont pas des évaluations : on dit où elles sont (audit du 09/11, A5).
+      if (soi && moduleVisible("qcm")) zone.appendChild(renvoiNotesQcm());
       return;
     }
     // La vue Notes de la classe, dans son propre conteneur : elle repeint son conteneur à l'arrivée des
@@ -746,7 +760,7 @@ function rendreResultats(panel, d, soi, isActive, opts = {}) {
 // un formateur ou un admin la saisit. Rangée dans la partie Livret, seule à s'en servir.
 function champNaissance(d, soi) {
   if (!(soi || isAdmin() || isProf())) return null;
-  const dob = el("input", { type: "date", value: d.stagiaireRow?.date_naissance || "" });
+  const dob = el("input", { type: "date", value: d.stagiaireRow?.date_naissance || "", "aria-label": "Date de naissance" });
   dob.addEventListener("change", async () => {
     try {
       await setDateNaissance(d.id, dob.value || null);

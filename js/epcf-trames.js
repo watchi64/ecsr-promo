@@ -27,6 +27,19 @@ export const EPCF_PHASE_COLORS = {
   PERC:  "#3F9C8E",  // teal       (véhicule, perception C7)
 };
 
+// Les mêmes teintes assombries pour un texte (titre d'une rubrique, libellé du radar, rubrique du tableau de la classe) : 4,6:1 au
+// moins sur les fonds clairs des deux habillages (lot 3, tâche 10 ; les teintes vives n'en tenaient que 2,8 à 3,6). La teinte
+// vive reste celle des traits et des bords.
+export const EPCF_PHASE_TEXTE = {
+  PREP:  "#4B6A91",
+  ANIM:  "#845B80",
+  COND:  "#3D6E80",
+  EVAL:  "#7C57A6",
+  BILEV: "#4667AD",
+  BILAN: "#7D6348",
+  PERC:  "#2E7268",
+};
+
 export const EPCF_TRAMES = {
   salle: {
     version: 1,

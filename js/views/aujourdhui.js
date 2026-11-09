@@ -8,30 +8,29 @@
  */
 import {
   getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre,
-} from "../db.js?v=20261109c";
-import { el, clear, displayStagiaire } from "../utils.js?v=20261109c";
-import { icon } from "../icons.js?v=20261109c";
-import { monStagiaireId, isAdmin } from "../auth-admin.js?v=20261109c";
-import { emargementActif } from "../emargement-etat.js?v=20261109c";
-import { lignePromo } from "../accueil-rules.js?v=20261109c";
-import { journeeDuJour } from "../journee-rules.js?v=20261109c";
-import { indicateursPromo } from "../centre-stats.js?v=20261109c";
-import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261109c";
-import { signerSeance } from "../emargement-bandeau.js?v=20261109c";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261109c";
-import { chargerATraiter } from "../a-traiter.js?v=20261109c";
+} from "../db.js?v=20261109g";
+import { el, clear, displayStagiaire } from "../utils.js?v=20261109g";
+import { icon } from "../icons.js?v=20261109g";
+import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261109g";
+import { libelleConnexion } from "../roles-rules.js?v=20261109g";
+import { emargementActif } from "../emargement-etat.js?v=20261109g";
+import { lignePromo } from "../accueil-rules.js?v=20261109g";
+import { journeeDuJour } from "../journee-rules.js?v=20261109g";
+import { indicateursPromo } from "../centre-stats.js?v=20261109g";
+import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261109g";
+import { signerSeance } from "../emargement-bandeau.js?v=20261109g";
+import { chargerATraiter } from "../a-traiter.js?v=20261109g";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261109g";
 import {
   titreSelonDemis, auTableauDuJour, enVoitureDuJour, feuilleDuJour, lignesATraiter, ligneDeLEnTete,
-} from "../aujourdhui-rules.js?v=20261109c";
+} from "../aujourdhui-rules.js?v=20261109g";
 import {
   carte, plusLien, ligneLien, erreurAvecReessai, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
-} from "./pages-cartes.js?v=20261109c";
+} from "./pages-cartes.js?v=20261109g";
 
 const RELECTURE_SEANCES_MS = 60000;
 const NB_A_SUIVRE = 5;
 
-// "9h04" (heureLocale) -> "9 h 04" : l'écriture du reste de la page.
-const heureEspacee = (h) => String(h).replace("h", " h ");
 
 const DEMI_LONG = { matin: "Matin", aprem: "Après-midi" };
 const SIGNER = { matin: "Signer pour ce matin", aprem: "Signer pour cet après-midi" };
@@ -82,6 +81,10 @@ function dessinerEmargement(carteEm, etat) {
   if (feuille.enAttente.length) {
     corps.appendChild(el("p", { class: "acc-attente" }, "En attente : " + feuille.enAttente.join(", ")));
   }
+  // Ceux qui n'attendent pas parce qu'absents (prévus au planning ou notés) : avec les signés et l'attente, ils font le total (A1).
+  if (feuille.absents.length) {
+    corps.appendChild(el("p", { class: "acc-attente" }, (feuille.absents.length > 1 ? "Absents : " : "Absent : ") + feuille.absents.join(", ")));
+  }
 
   // Le fondateur qui a une fiche de stagiaire signe comme les autres : le bandeau ne le propose plus sur cette page.
   const aSigner = seanceASigner(seances, moi);
@@ -96,7 +99,7 @@ function dessinerEmargement(carteEm, etat) {
   }
   corps.appendChild(actions);
   if (!aSigner && maLigne?.signe_le) {
-    corps.appendChild(el("p", { class: "acc-signe" }, icon.check(), `Signé à ${heureEspacee(heureLocale(maLigne.signe_le))}`));
+    corps.appendChild(el("p", { class: "acc-signe" }, icon.check(), `Signé à ${heureLocale(maLigne.signe_le)}`));
   }
 }
 
@@ -109,7 +112,8 @@ async function chargerEmargement(carteEm, jour, indexJour, semaine, moi) {
     try {
       const [seances, stagiaires, planning] = await Promise.all([
         listEmargementSeances(jour, jour),
-        listStagiaires(),
+        // Les inactifs aussi : un abandon qui a une ligne sur la feuille compte dans le total, il doit être nommé (A1).
+        listStagiaires({ includeInactive: true }),
         // Le planning ne sert qu'aux absents notés : sa panne ne cache pas la feuille.
         indexJour < 5 ? semaine().catch(() => null) : null,
       ]);
@@ -272,7 +276,7 @@ export function renderAujourdhui(container) {
   const avecFeuille = emargementActif() && isAdmin();
   const avecATraiter = isAdmin();
   const emargement = avecFeuille ? carte({ titre: "Émargement", ico: "clipboard", zone: "emargement" }) : null;
-  const atraiter = avecATraiter ? carte({ titre: "À traiter", ico: "check", zone: "a-traiter" }) : null;
+  const atraiter = avecATraiter ? carte({ titre: "À traiter", ico: "inbox", zone: "a-traiter" }) : null;
   const tableau = carte({ titre: "Au tableau aujourd'hui", ico: "presentation", zone: "tableau" });
   const voiture = carte({ titre: "En voiture aujourd'hui", ico: "car", zone: "voiture" });
   const asuivre = carte({ titre: "À suivre de près", ico: "info", zone: "a-suivre", plus: plusLien("centre", "Tout voir") });
@@ -285,10 +289,9 @@ export function renderAujourdhui(container) {
   // Pied de page : celui de l'Accueil d'avant, pour l'équipe.
   const nomPromo = promo?.nom || "";
   container.appendChild(el("footer", { class: "home-footer-v2" },
-    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" }, "connecté comme formateur")),
+    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" }, "connecté comme " + (libelleConnexion({ profil: getProfile(), promo, apercu: getViewAs() }) || "formateur"))),
+    // Plus de lien « code source » : décision de Timy du 09/11, le code reste discret.
     el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
-      el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank", rel: "noopener" }, "code source"),
-      " · ",
       el("a", { href: "#/config" }, "réglages")),
   ));
 

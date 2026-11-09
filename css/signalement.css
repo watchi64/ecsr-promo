@@ -35,7 +35,7 @@ body .modal-backdrop[data-nav-coquille="signaler"] > .nav-fenetre.signalement-fe
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.4rem;
-  font-weight: 500;
+  font-weight: var(--poids-titre-moyen);
   line-height: 1.2;
 }
 .sg-fermer {
@@ -144,7 +144,7 @@ body .modal-backdrop[data-nav-coquille="signaler"] > .nav-fenetre.signalement-fe
 .sg-mes { border-top: 1px solid var(--line-faint); padding-top: 12px; }
 .sg-mes-titre {
   margin: 0 0 6px;
-  font-family: var(--font-mono);
+  font-family: var(--font); font-variant-numeric: tabular-nums;
   font-size: 0.72rem;
   font-weight: 500;
   letter-spacing: 0.12em;

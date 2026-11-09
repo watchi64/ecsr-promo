@@ -113,25 +113,66 @@ export function etatLigne({ ligne, absentPlanning = false, close = false }) {
 }
 
 // Comptes d'une séance sur la liste de stagiaires donnée (les lignes hors liste sont
-// ignorées). Une séance close compte absent tout stagiaire sans signature.
-export function resumeSeance(lignes, stagiaireIds, close) {
+// ignorées). Une séance close compte absent tout stagiaire sans signature. `prevus` : parmi ceux
+// qui n'ont rien dit (`attente`), les absents prévus au planning (`absentsPlanning`, un Set d'ids,
+// absentsDuPlanning) : la feuille et « Aujourd'hui » les comptent à part (audit du 09/11, A1).
+export function resumeSeance(lignes, stagiaireIds, close, absentsPlanning = null) {
   const parId = new Map((lignes || []).map((l) => [l.stagiaire_id, l]));
-  const r = { signes: 0, absents: 0, attente: 0, total: stagiaireIds.length };
+  const r = { signes: 0, absents: 0, attente: 0, prevus: 0, total: stagiaireIds.length };
   for (const id of stagiaireIds) {
     const code = etatLigne({ ligne: parId.get(id) || null, close }).code;
     if (code === "signe") r.signes++;
     else if (code === "absent") r.absents++;
-    else r.attente++;
+    else {
+      r.attente++;
+      if (absentsPlanning && absentsPlanning.has(id)) r.prevus++;
+    }
   }
   return r;
 }
 
+const nombre = (n, un, plusieurs) => `${n} ${n > 1 ? plusieurs : un}`;
+
+// La suite du résumé d'une feuille, après « 2 sur 6 » : les signés, les absents notés, ceux qui
+// n'ont rien dit et, à part, les absents prévus au planning. Les quatre font le total.
+export function resumeEnClair(r, { ouverte }) {
+  const attente = ouverte ? r.attente - (r.prevus || 0) : 0;
+  const prevus = ouverte ? r.prevus || 0 : 0;
+  return " ont signé"
+    + (r.absents ? " · " + nombre(r.absents, "absent", "absents") : "")
+    + (attente ? ` · ${attente} en attente` : "")
+    + (prevus ? " · " + nombre(prevus, "absent prévu", "absents prévus") + " au planning" : "");
+}
+
+// La case d'une demi-journée sans feuille, dans la semaine de l'émargement (hors jour désactivé et
+// hors aujourd'hui). Passée, elle dit si une feuille manque : une activité au planning sans feuille
+// est « Feuille non faite » (risque à un contrôle), sans activité « Rien de prévu ». Une carte qui ne
+// porte qu'une note ou qu'un formateur n'est pas une activité. `feuillesDeLaSemaine` : le nombre de
+// feuilles de la semaine ; à zéro, l'émargement n'y servait pas encore (semaine d'avant son allumage),
+// rien ne manque : « Pas de feuille ». `entries` null (planning illisible) : « Pas de feuille » aussi.
+export function etatSansFeuille({ jour, aujourdhui, demi, entries, feuillesDeLaSemaine = 1 }) {
+  if (jour >= aujourdhui) return { etat: "À venir", classe: "vide" };
+  if (!Array.isArray(entries) || !feuillesDeLaSemaine) return { etat: "Pas de feuille", classe: "vide" };
+  const di = dayIndexDe(jour);
+  const activite = (e) => !!e.autonomie || String(e.activite ?? "").trim() !== "";
+  const cours = entries.some((e) => e.day_index === di && e.half_day === demi && activite(e));
+  return cours ? { etat: "Feuille non faite", classe: "manquante" } : { etat: "Rien de prévu", classe: "vide" };
+}
+
 // === Heures et jours ===
+
+// Une heure écrite comme dans tout le reste de l'app (audit du 09/11, lot E) : « 9 h », « 12 h 30 », « 9 h 04 », avec des
+// espaces insécables, pour qu'une case étroite (feuille d'émargement imprimée) ne coupe jamais « 12 h / 30 ».
+const INSECABLE = "\u00a0";
+export function heureEcrite(h, m) {
+  const mm = String(m).padStart(2, "0");
+  return mm === "00" ? `${Number(h)}${INSECABLE}h` : `${Number(h)}${INSECABLE}h${INSECABLE}${mm}`;
+}
 
 export function libelleHeure(hhmm) {
   const [h, m] = String(hhmm || "").split(":");
   if (h === undefined || m === undefined) return "";
-  return Number(h) + "h" + m.padStart(2, "0");
+  return heureEcrite(h, m);
 }
 
 export function libelleCreneau({ debut, fin }) {
@@ -153,13 +194,13 @@ const FORMAT_HEURE = new Intl.DateTimeFormat("fr-FR", {
   timeZone: "Europe/Paris", hour: "numeric", minute: "2-digit", hourCycle: "h23",
 });
 
-// Heure de Paris d'un horodatage du serveur : « 9h04 ».
+// Heure de Paris d'un horodatage du serveur : « 9 h 04 » (une signature tombée pile : « 9 h »).
 export function heureLocale(iso) {
   if (!iso) return "";
   const parts = FORMAT_HEURE.formatToParts(new Date(iso));
   const h = parts.find((p) => p.type === "hour")?.value ?? "";
   const m = parts.find((p) => p.type === "minute")?.value ?? "";
-  return Number(h) + "h" + m;
+  return heureEcrite(h, m);
 }
 
 const FORMAT_JOUR_PARIS = new Intl.DateTimeFormat("fr-CA", {

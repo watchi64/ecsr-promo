@@ -252,7 +252,11 @@ class Visite:
 
     def capturer(self, motif):
         self._compteur_captures += 1
-        nom = "%s_%s_%s_%s_%02d_%s.png" % (self.parcours.id, self.moteur, self.format, self.navigation, self._compteur_captures, motif)
+        # Le nom porte l'habillage seulement s'il n'est pas le défaut : sans cela, la capture ECF écraserait celle d'ECSR
+        # (même worker, mêmes moteur, format et navigation) ; les noms du défaut restent ceux d'avant.
+        skin = self.sc.get("habillage", "ecsr")
+        nom = "%s_%s_%s_%s%s_%02d_%s.png" % (self.parcours.id, self.moteur, self.format, self.navigation,
+                                             "" if skin == "ecsr" else "_" + skin, self._compteur_captures, motif)
         try:
             self.page.screenshot(path=str(self.dossier / nom), timeout=8000)
         except (ErreurPlaywright, DelaiDepasse):

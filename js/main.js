@@ -3,54 +3,53 @@
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
 // En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
-import "./journal-erreurs.js?v=20261109c";
-import { getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements } from "./db.js?v=20261109c";
-import { toast, el } from "./utils.js?v=20261109c";
-import { icon } from "./icons.js?v=20261109c";
-import { initAuth, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261109c";
-import { chargerEtatSignalements } from "./signalement-etat.js?v=20261109c";
-import { messageDemarrage } from "./signalement-rules.js?v=20261109c";
-import { showGate, hideGate } from "./gate.js?v=20261109c";
-import { exigerAcceptation } from "./legal.js?v=20261109c";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261109c";
-import { loadAccent } from "./accent-switcher.js?v=20261109c";
-import { loadTheme } from "./theme-switcher.js?v=20261109c";
-import { renderHome } from "./views/home.js?v=20261109c";
-import { renderDashboard } from "./views/dashboard.js?v=20261109c";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261109c";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261109c";
-import { renderPlanningEspace } from "./views/planning-espace.js?v=20261109c";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261109c";
-import { renderNotes } from "./views/notes.js?v=20261109c";
-import { renderRessources } from "./views/ressources.js?v=20261109c";
-import { renderThemes } from "./views/themes.js?v=20261109c";
-import { renderConfig, renderPreferences } from "./views/config.js?v=20261109c";
-import { renderCalendrier } from "./views/calendrier.js?v=20261109c";
-import { initUndoKeyboard } from "./undo.js?v=20261109c";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261109c";
-import { libellePastille } from "./nouveautes.js?v=20261109c";
-import { renderCcp2 } from "./views/ccp2.js?v=20261109c";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261109c";
-import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261109c";
-import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261109c";
-import { renderEmargement } from "./views/emargement.js?v=20261109c";
-import { renderProblemes } from "./views/problemes.js?v=20261109c";
-import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261109c";
-import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261109c";
-import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261109c";
-import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261109c";
-import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261109c";
-import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261109c";
-import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261109c";
+import "./journal-erreurs.js?v=20261109g";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements } from "./db.js?v=20261109g";
+import { toast, annoncer, el } from "./utils.js?v=20261109g";
+import { icon } from "./icons.js?v=20261109g";
+import { initAuth, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261109g";
+import { chargerEtatSignalements } from "./signalement-etat.js?v=20261109g";
+import { messageDemarrage } from "./signalement-rules.js?v=20261109g";
+import { showGate, hideGate } from "./gate.js?v=20261109g";
+import { exigerAcceptation } from "./legal.js?v=20261109g";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261109g";
+import { habillageAuDemarrage } from "./habillage.js?v=20261109g";
+import { renderHome } from "./views/home.js?v=20261109g";
+import { renderDashboard } from "./views/dashboard.js?v=20261109g";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261109g";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261109g";
+import { renderPlanningEspace } from "./views/planning-espace.js?v=20261109g";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261109g";
+import { renderNotes } from "./views/notes.js?v=20261109g";
+import { renderRessources } from "./views/ressources.js?v=20261109g";
+import { renderThemes } from "./views/themes.js?v=20261109g";
+import { renderConfig, renderPreferences } from "./views/config.js?v=20261109g";
+import { renderCalendrier } from "./views/calendrier.js?v=20261109g";
+import { initUndoKeyboard } from "./undo.js?v=20261109g";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261109g";
+import { libellePastille } from "./nouveautes.js?v=20261109g";
+import { renderCcp2 } from "./views/ccp2.js?v=20261109g";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261109g";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261109g";
+import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261109g";
+import { renderEmargement } from "./views/emargement.js?v=20261109g";
+import { renderProblemes } from "./views/problemes.js?v=20261109g";
+import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261109g";
+import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261109g";
+import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261109g";
+import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261109g";
+import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261109g";
+import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261109g";
+import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261109g";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261109c";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261109c";
+} from "./navigation.js?v=20261109g";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261109g";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, routeMasquee, repereMasque, nouveautesAffichables, formateurConnecte,
-} from "./modules-etat.js?v=20261109c";
+} from "./modules-etat.js?v=20261109g";
 
 // ===== Tabs =====
 
@@ -201,7 +200,7 @@ async function rendreQualiopi(view) {
   afficherChargement();
   let page;
   try {
-    page = await import("./views/qualiopi.js?v=20261109c");
+    page = await import("./views/qualiopi.js?v=20261109g");
   } catch (e) {
     console.error(e);
     if (lastRoute === "qualiopi") view.replaceChildren(boiteErreurQualiopi());
@@ -520,6 +519,13 @@ function isColdStart() {
 }
 
 async function bootApp() {
+  // Habillage : l'avant-peinture a déjà posé celui de l'appareil ; on le met d'accord avec le compte.
+  // Lu ici parce que le profil est connu (initAuth est passé) et pas plus tôt. `getProfile()` est le
+  // vrai profil, jamais celui de « Voir en tant que ». Non attendu : l'app ne patiente pas pour une
+  // couleur, et un échec d'enregistrement n'a pas à l'arrêter. Le lot 5 le rappellera après la porte
+  // avec `centre`, `reseau` et `libre`.
+  habillageAuDemarrage({ email: getAdminEmail(), compte: getProfile()?.habillage ?? null })
+    .catch((e) => console.warn("Habillage : démarrage impossible", e));
   // Ruling R17 : quand la coquille est attendue (la promo l'avait la dernière fois sur cet appareil, ou
   // l'aperçu du fondateur), l'ancienne barre attend la décision sans se peindre (css/navigation.css) ;
   // posé avant que l'app ne s'affiche, levé dès la première barre dessinée, quelle qu'elle soit.
@@ -557,7 +563,8 @@ async function bootApp() {
   // (ou, chez le fondateur, quand il y en a de nouveaux).
   chargerEtatSignalements().then((etat) => {
     const phrase = messageDemarrage({ fondateur: fondateurHorsApercu(), ...etat });
-    if (phrase) setTimeout(() => toast(phrase, "info", 6000), 1500);
+    // Une annonce : elle attend la place libre et les fenêtres fermées, sans jamais effacer une confirmation (A2).
+    if (phrase) setTimeout(() => annoncer(phrase, "info", 6000), 1500);
   });
   // Le changement de rôle change l'audience, donc le compte, et ce qu'on voit des modules.
   onAdminChange(() => {
@@ -594,9 +601,6 @@ async function bootApp() {
 }
 
 (async () => {
-  loadTheme();
-  loadAccent();
-
   // Retour depuis le mail de reinitialisation. Ce test passe AVANT initAuth :
   // la session de recuperation rendrait isAuth() vrai et ferait demarrer l'app
   // par-dessus l'ecran de saisie. L'URL est nettoyee tout de suite pour que le

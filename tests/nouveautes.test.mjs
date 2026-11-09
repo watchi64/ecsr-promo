@@ -120,8 +120,10 @@ ok(!!lancement && lancement.pour === "tous" && lancement.date === "2026-10-29" &
 ok(!!lancementEquipe && lancementEquipe.pour === "formateurs" && lancementEquipe.date === "2026-10-29"
   && lancementEquipe.titre === "Côté formateurs, la barre passe à gauche", "lancement des formateurs : « Côté formateurs, la barre passe à gauche »");
 eq(NOUVEAUTES.filter((e) => e.navigation === "nouvelle").map((e) => e.id).sort(),
-  ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs", ...NOUVEAUTES.filter((e) => e.id.includes("-aujourdhui-formateurs") || e.id.endsWith("-ta-journee-accueil")).map((e) => e.id)].sort(),
-  "propres à la nouvelle navigation : les deux entrées de lancement et les deux pages d'ouverture du lot 2B");
+  ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs", ...NOUVEAUTES.filter((e) => e.id.includes("-aujourdhui-formateurs") || e.id.endsWith("-ta-journee-accueil")).map((e) => e.id),
+    "2026-11-09-accueil-plus-juste", ...NOUVEAUTES.filter((e) => e.id.endsWith("-couleurs-ecf")).map((e) => e.id)].sort(),
+  "propres à la nouvelle navigation : les deux entrées de lancement, les deux pages d'ouverture du lot 2B, les repères "
+    + "de l'Accueil du lot de corrections 2 et le choix des couleurs d'ECF du lot 3");
 eq(ids(visibles(NOUVEAUTES, false, true)).filter((id) => id.startsWith("2026-10-29-nouvelle")), ["2026-10-29-nouvelle-navigation"],
   "allumée, un stagiaire voit la première, pas la seconde");
 eq(ids(visibles(NOUVEAUTES, true, true)).filter((id) => id.startsWith("2026-10-29-nouvelle")),
@@ -216,7 +218,20 @@ ok(/barre de gauche/.test(aujourdhui.guide[0]) && /téléphone/.test(aujourdhui.
 ok(/sommaire/.test(coursTel.resume) && /à la ligne/.test(coursTel.resume) && /tableaux/.test(coursTel.resume) && /listes/.test(coursTel.resume), "cours : sommaire à la ligne, tableaux en listes");
 eq(coursTel.ou, { label: "Cours", route: "themes" }, "cours : Où le trouver, Cours (réécrit Cours et QCM sous la nouvelle barre)");
 // Qui les voit : la journée et les cours pour tous, nouvelle navigation ; Aujourd'hui pour l'équipe seulement ; éteinte, les cours seuls.
-const DU_LOT = (l) => ids(l).filter((id) => id.startsWith(JOUR + "-") && id !== "2026-11-09-qcm-echap-et-pannes");
+// Les lots de corrections du même jour (premier lot ; second lot, audit du 09/11) ne font pas partie du lot 2B.
+const CORRECTIONS = ["2026-11-09-qcm-echap-et-pannes", "2026-11-09-accueil-plus-juste", "2026-11-09-emargement-planning-plus-justes",
+  "2026-11-09-finitions", "2026-11-09-finitions-planning",   // finitions de l'audit (lot E)
+  "2026-11-09-une-seule-ecriture"];   // unification typographique, décision de Timy
+// Le lot 3 (les couleurs d'ECF) peut porter la même date : il ne fait pas partie du lot 2B non plus.
+const DU_LOT_3 = NOUVEAUTES.filter((e) => e.id.endsWith("-couleurs-ecf")).map((e) => e.id);
+const DU_LOT = (l) => ids(l).filter((id) => id.startsWith(JOUR + "-") && !CORRECTIONS.includes(id) && !DU_LOT_3.includes(id));
+// Second lot de corrections : les repères de l'Accueil pour le stagiaire sous la nouvelle barre, les comptes de
+// l'émargement pour l'équipe dans les deux navigations (sa partie Aujourd'hui dans guideNouvelle).
+ok(ids(visibles(NOUVEAUTES, false, true)).includes("2026-11-09-accueil-plus-juste")
+  && !ids(visibles(NOUVEAUTES, false, false)).includes("2026-11-09-accueil-plus-juste"), "repères de l'Accueil : stagiaire, nouvelle barre seulement");
+ok(ids(visibles(NOUVEAUTES, true, true)).includes("2026-11-09-emargement-planning-plus-justes")
+  && ids(visibles(NOUVEAUTES, true, false)).includes("2026-11-09-emargement-planning-plus-justes")
+  && !ids(visibles(NOUVEAUTES, false, true)).includes("2026-11-09-emargement-planning-plus-justes"), "comptes de l'émargement : l'équipe, deux navigations");
 eq(DU_LOT(triees(visibles(NOUVEAUTES, false, true))), [journee.id, coursTel.id], "stagiaire, nouvelle navigation : la journée d'abord (carte de l'Accueil), puis les cours");
 eq(DU_LOT(triees(visibles(NOUVEAUTES, true, true))), [aujourdhui.id, coursTel.id],
   "formateur, nouvelle navigation : Aujourd'hui et les cours, pas la journée du stagiaire");
@@ -245,6 +260,26 @@ for (const [formateur, v2] of [[false, false], [false, true], [true, false], [tr
     `questionnaires : lue ${formateur ? "par un formateur" : "par un stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"}`);
 }
 
+// === Lot 3 (date de la fusion) : l'app aux couleurs d'ECF ===
+// Le choix ne se fait que sous la nouvelle barre (décision H6) : pour tous, nouvelle navigation seulement, un lien vers Mes préférences
+// (la page de la personne, pour les deux espaces) et un guide qui mène au menu du compte, à Apparence, et dit comment revenir.
+const couleurs = NOUVEAUTES.find((e) => e.id.endsWith("-couleurs-ecf"));
+ok(!!couleurs && /^\d{4}-\d{2}-\d{2}$/.test(couleurs.date) && couleurs.id === couleurs.date + "-couleurs-ecf", "lot 3 : une date et un id préfixé par elle");
+ok(couleurs.pour === "tous" && couleurs.navigation === "nouvelle" && couleurs.titre === "L'app aux couleurs d'ECF",
+  "lot 3 : « L'app aux couleurs d'ECF », pour tous, nouvelle navigation");
+eq(couleurs.ou, { label: "Mes préférences", route: "preferences" }, "lot 3 : Où le trouver, Mes préférences");
+ok(couleurs.module === undefined && !couleurs.guideNouvelle, "lot 3 : aucun module ne la cache, un seul guide (elle n'existe que sous la nouvelle barre)");
+ok(Array.isArray(couleurs.guide) && couleurs.guide.length >= 3, "lot 3 : un « Comment faire » d'au moins trois étapes");
+for (const motif of [/menu de ton compte/, /initiales/, /Apparence/, /« Couleurs ECF »/, /« ECSR Promo »/, /revenir/, /Mes préférences/]) {
+  ok(motif.test(tout(couleurs)), `lot 3 : dit ${motif}`);
+}
+ok(!/vous|votre|vos/i.test(tout(couleurs)) && !/\bprofs?\b/i.test(tout(couleurs)), "lot 3 : tutoiement, « formateur », jamais « prof »");
+ok(!/habillage|data-skin|thème|jeton|appareil|compte Supabase/i.test(tout(couleurs)), "lot 3 : pas de vocabulaire technique");
+for (const [formateur, v2, vue] of [[false, true, true], [true, true, true], [false, false, false], [true, false, false]]) {
+  ok(ids(visibles(NOUVEAUTES, formateur, v2)).includes(couleurs.id) === vue,
+    `lot 3 : ${vue ? "lue" : "cachée"} ${formateur ? "chez un formateur" : "chez un stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"}`);
+}
+
 // Les Nouveautés qui ne décrivent que l'ancienne barre : cachées sous la nouvelle.
 const ANCIENNES = ["2026-10-03-barre-simple", "2026-07-23-espace-personnel", "2026-10-03-sommaire-iphone"];
 eq(NOUVEAUTES.filter((e) => e.navigation === "ancienne").map((e) => e.id).sort(), [...ANCIENNES].sort(),
@@ -262,7 +297,10 @@ const GESTE_D_AVANT = /Mon espace|espace personnel|Paramètres|tuile|logo|Ressou
 // (Les deux autres entrées dont le guide décrit l'ancienne barre, « Une barre d'onglets plus simple » et « L'app s'ouvre sur ton espace personnel »,
 // sont cachées sous la nouvelle navigation : elles n'ont pas besoin d'un second guide.)
 const AVEC_GUIDE_NOUVEAU = ["2026-10-23-tableau-de-bord-centre", "2026-10-05-effacement-donnees", "2026-10-03-page-stagiaires", "2026-10-03-deux-promos",
-  "2026-07-31-dossier-professionnel", "2026-07-19-livret-epcf", "2026-10-28-signaler-un-probleme"];
+  "2026-07-31-dossier-professionnel", "2026-07-19-livret-epcf", "2026-10-28-signaler-un-probleme",
+  // Second lot de corrections : ses étapes ne parlent que de pages de la nouvelle barre (Aujourd'hui, la grille) ; l'ancienne
+  // navigation lit le résumé seul.
+  "2026-11-09-emargement-planning-plus-justes"];
 eq(NOUVEAUTES.filter((e) => e.guideNouvelle).map((e) => e.id).sort(), [...AVEC_GUIDE_NOUVEAU].sort(), "les consignes réécrites pour la nouvelle navigation");
 for (const e of NOUVEAUTES.filter((x) => x.guideNouvelle)) {
   ok(Array.isArray(e.guide) && e.guide.length > 0, e.id + " : le guide d'avant reste pour l'ancienne navigation");

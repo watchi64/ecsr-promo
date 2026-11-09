@@ -1,13 +1,13 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261109c";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261109c";
-import { compteDansEquite } from "./passage-rules.js?v=20261109c";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261109c";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261109c";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261109g";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261109g";
+import { compteDansEquite } from "./passage-rules.js?v=20261109g";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261109g";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261109g";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261109c";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261109c";
+} from "./promo-rules.js?v=20261109g";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261109g";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -1455,6 +1455,13 @@ export async function listUserProfiles() {
 // et renvoie l'état : { value, changed_at, locked_until }.
 export async function setMyAnonymousNotes(val) {
   const { data, error } = await supabase.rpc("set_my_anonymous_notes", { val: !!val });
+  if (error) throw error;
+  return data;
+}
+
+// Habillage choisi par la personne, gardé sur son compte ("ecsr", "ecf" ou null pour revenir au défaut).
+export async function setMonHabillage(nom) {
+  const { data, error } = await supabase.rpc("set_my_habillage", { val: nom });
   if (error) throw error;
   return data;
 }

@@ -10,7 +10,9 @@
    A4 portrait, marges G 15mm / D 19mm, Arial, accent magenta #D60093).
    ========================================================================= */
 
-/* --- Habillage écran (hors document) --- */
+/* --- Habillage écran (hors document) ---
+   Le gris des statuts et des aides (#636a77) tient 4,9:1 sur le fond de la page dans les deux habillages ; l'ancien (#6b7280) n'en
+   tenait que 4,4 (lot 3, tâche 10). */
 .lv-toolbar {
   display: flex;
   align-items: center;
@@ -19,10 +21,10 @@
   margin: 0 0 14px;
 }
 .lv-toolbar h3 { margin: 0; font-size: 1.05rem; }
-.lv-status { font-size: 0.8rem; color: var(--c-muted, #6b7280); min-width: 90px; }
+.lv-status { font-size: 0.8rem; color: var(--c-muted, #636a77); min-width: 90px; }
 .lv-status.saving { color: #b45309; }
 .lv-status.error { color: #b91c1c; }
-.lv-hint { font-size: 0.8rem; color: var(--c-muted, #6b7280); margin: 0 0 10px; }
+.lv-hint { font-size: 0.8rem; color: var(--c-muted, #636a77); margin: 0 0 10px; }
 
 /* Champ « Date de naissance » du profil (Mon suivi) : alimente le livret. */
 .ms-naissance {
@@ -49,7 +51,7 @@
   text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--c-border, #e5e7eb);
 }
 .lv-name-cell { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.lv-statut { font-size: 0.8rem; color: var(--c-muted, #6b7280); }
+.lv-statut { font-size: 0.8rem; color: var(--c-muted, #636a77); }
 .lv-statut.ok { color: #4d7c0f; }
 
 /* Zone document : mise à l'échelle pour tenir dans la colonne (mobile inclus).
