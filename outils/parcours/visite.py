@@ -12,7 +12,7 @@ import time
 
 from playwright.sync_api import Error as ErreurPlaywright, TimeoutError as DelaiDepasse
 
-from . import navigation
+from . import banc, navigation
 
 BLOQUE, LISTE = "bloque", "liste"
 
@@ -31,6 +31,12 @@ CRITERES = {
 
 class Echec(Exception):
     """Le parcours ne peut pas continuer (critère A) : la cible n'est pas là, ou le résultat n'arrive pas."""
+
+
+class Fausse(Exception):
+    """Un geste a été faussé par le clavier de la machine (Maj, Ctrl, Alt ou Windows tenue pendant le passage,
+    voir banc.attendre_clavier_libre) : ce n'est pas le geste d'une personne, le passage ne dit rien de l'app. Il est
+    rejoué entier (robot_parcours.jouer_un)."""
 
 
 # Contrôles d'un écran, joués dans la page. Rend des listes courtes et dédoublonnées.
@@ -238,6 +244,7 @@ class Visite:
         self.dernier_nom = ""
         self._vues_controlees = set()
         self._compteur_captures = 0
+        self.attente_clavier = 20     # secondes d'attente d'un clavier libre avant un toucher (0 : aucune)
 
     # --- constats et preuves -------------------------------------------------------------------------
     def constat(self, critere, gravite, message, capture=False):
@@ -356,7 +363,8 @@ class Visite:
     def toucher(self, cible, quoi, compte=True, attendu_effet=True, ecriture=False):
         """Un clic (un toucher sur téléphone) sur ce que voit la personne. `cible` : un sélecteur CSS ou un Locator.
         Compte le clic, chronomètre l'affichage, et vérifie qu'il se passe quelque chose. `ecriture` : le geste
-        enregistre (envoyer, signer) ; sans effet visible, il n'est jamais rejoué (un second envoi doublerait)."""
+        enregistre (envoyer, signer) ; sans effet visible, il n'est jamais rejoué (un second envoi doublerait).
+        Un geste faussé par le clavier de la machine lève Fausse (voir _verifier_geste)."""
         el = self._premier_visible(self._resoudre(cible), quoi)
         try:
             el.scroll_into_view_if_needed(timeout=3000)
@@ -368,6 +376,7 @@ class Visite:
         except ErreurPlaywright:
             self.dernier_nom = ""
         hash_avant = self.page.evaluate("location.hash")
+        self._preparer_geste()
         self._poser_espion()
         t0 = time.perf_counter()
         try:
@@ -376,12 +385,14 @@ class Visite:
             else:
                 el.click(timeout=4000)
         except (ErreurPlaywright, DelaiDepasse) as e:
+            self._verifier_geste(quoi)      # un geste faussé se rejoue, il n'accuse pas l'app
             raison = str(e).strip().splitlines()
             recouvre = [l for l in raison if "intercepts pointer events" in l]
             self.echec("impossible de toucher %s%s" % (quoi, (" : " + recouvre[0].strip()[:160]) if recouvre else ""))
         if compte and not self.but_atteint:
             self.clics += 1
         calme = self._attendre_calme()
+        self._verifier_geste(quoi)
         ms = calme["ecoule"]
         self.temps.setdefault("gestes", []).append(ms)
         if calme["plafond"]:
@@ -399,11 +410,13 @@ class Visite:
             if ecriture:
                 self.constat("E", BLOQUE, "toucher « %s » ne change rien à l'écran" % quoi, capture=True)
                 self.echec("bloqué : « %s » ne répond pas" % quoi)
+            self._preparer_geste()
             try:
                 (el.tap if self.telephone else el.click)(timeout=4000)
             except (ErreurPlaywright, DelaiDepasse):
                 pass
             calme = self._attendre_calme()
+            self._verifier_geste(quoi)
             if calme["mutations"] == 0 and self.page.evaluate("location.hash") == hash_avant:
                 self.constat("E", BLOQUE, "toucher « %s » ne change rien à l'écran (deux essais)" % quoi, capture=True)
                 # La personne est bloquée là : le parcours s'arrête (sinon une boucle de réponses tournerait à vide).
@@ -411,6 +424,39 @@ class Visite:
             else:
                 self.constat("E", LISTE, "il a fallu toucher deux fois « %s »" % quoi)
         return self._apres_toucher(el)
+
+    @property
+    def _toucher_expose(self):
+        """Le toucher de WebKit sous Windows reprend les touches tenues sur la machine (voir banc.py) ; Chromium et le
+        clic d'ordinateur ne sont pas touchés."""
+        return self.telephone and self.moteur == "webkit"
+
+    def _preparer_geste(self):
+        """Avant un geste : pour un toucher exposé, attendre un clavier libre ; puis vider le journal des touches de la
+        page. Encore tenues au bout de l'attente : on touche quand même, `_verifier_geste` dira si le geste a été
+        faussé."""
+        if self._toucher_expose and self.attente_clavier:
+            banc.attendre_clavier_libre(self.attente_clavier)
+        try:
+            self.page.evaluate("() => { window.__robotModifs = []; }")
+        except ErreurPlaywright:
+            pass
+
+    def _verifier_geste(self, quoi):
+        """Après un geste : s'il a reçu une touche que le robot n'a pas demandée (il n'en demande jamais), il a été
+        faussé par le clavier de la machine. Le passage est rejoué (Fausse), sans constat sur l'app : un bouton
+        réellement sans effet reçoit un geste propre et reste bloquant. Si le journal est perdu (le geste a rechargé
+        la page) ou vide alors qu'une touche est tenue à l'instant sur la machine, un toucher exposé est tenu pour
+        faussé : mieux vaut rejouer que juger un geste douteux."""
+        try:
+            notes = self.page.evaluate("() => window.__robotModifs || []")
+        except ErreurPlaywright:
+            notes = []
+        if not notes and self._toucher_expose:
+            notes = ["machine : %s" % "+".join(t) for t in [banc.touches_tenues()] if t]
+        if notes:
+            raise Fausse("« %s » : le geste reçu portait %s (touche tenue sur le clavier de la machine)"
+                         % (quoi, notes[0].split(" : ", 1)[-1]))
 
     def _apres_toucher(self, el):
         # Budget dépassé : bloque dans les deux navigations (référentiel, critère B). Les dépassements de l'ancienne
