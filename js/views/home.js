@@ -2,19 +2,19 @@
  * Page d'accueil : version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261109f";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261109f";
-import { icon } from "../icons.js?v=20261109f";
-import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261109f";
+import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261109g";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261109g";
+import { icon } from "../icons.js?v=20261109g";
+import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261109g";
 import {
   nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque, formateurConnecte,
-} from "../modules-etat.js?v=20261109f";
-import { carteNouveaute } from "./nouveautes.js?v=20261109f";
-import { emargementActif } from "../emargement-etat.js?v=20261109f";
-import { navigationV2Active } from "../nav-etat.js?v=20261109f";
-import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, pointsARetenir, salutationDe } from "../accueil-rules.js?v=20261109f";
-import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261109f";
-import { renderAujourdhui } from "./aujourdhui.js?v=20261109f";
+} from "../modules-etat.js?v=20261109g";
+import { carteNouveaute } from "./nouveautes.js?v=20261109g";
+import { emargementActif } from "../emargement-etat.js?v=20261109g";
+import { navigationV2Active } from "../nav-etat.js?v=20261109g";
+import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, pointsARetenir, salutationDe } from "../accueil-rules.js?v=20261109g";
+import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261109g";
+import { renderAujourdhui } from "./aujourdhui.js?v=20261109g";
 
 function greetingByHour() {
   return salutationDe(new Date().getHours());
@@ -298,9 +298,7 @@ export async function renderHome(container) {
       roleLabel ? el("span", { class: "footer-role" }, "connecté comme " + roleLabel.toLowerCase()) : "",
     ),
     el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
-      el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank" }, "code source"),
-      " · ",
-      lienReglages,
+      lienReglages,   // plus de lien « code source » : décision de Timy du 09/11
     ),
   ));
 }

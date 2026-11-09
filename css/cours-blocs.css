@@ -49,7 +49,7 @@
    page défile. */
 .scene-svg.scene-reduite { max-height: none; max-width: calc(72vh * var(--scene-lecture-l) / var(--scene-lecture-h)); }
 .scene-commandes { display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0; }
-.scene-facteur { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-soft); }
+.scene-facteur { font-family: var(--font); font-variant-numeric: tabular-nums; font-size: 0.8rem; color: var(--text-soft); }
 /* Texte lu par les lecteurs d'écran seulement (libellé du facteur de lecture). */
 .scene-lecteur-ecran {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
@@ -61,7 +61,7 @@
   background: none; border: 0; border-radius: var(--r-sm); padding: 0.35rem 0.5rem;
   font: inherit; color: var(--text-soft); cursor: pointer;
 }
-.scene-etape-num { font-family: var(--font-mono); min-width: 1.2rem; color: var(--text-muted); }
+.scene-etape-num { font-family: var(--font); font-variant-numeric: tabular-nums; min-width: 1.2rem; color: var(--text-muted); }
 /* Texte d'une étape : un seul élément flex. Sans lui, chaque gras, code ou lien du texte devient
    une colonne à part, écartée de ses voisins. */
 .scene-etape-texte { flex: 1 1 auto; min-width: 0; }
@@ -107,7 +107,7 @@ span.scene-etape { cursor: default; }
 .quiz-option[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 /* Texte d'une option : un seul élément flex (voir .scene-etape-texte). */
 .quiz-option-texte { flex: 1 1 auto; min-width: 0; }
-.quiz-rang { display: inline-flex; justify-content: center; min-width: 1.4rem; font-family: var(--font-mono); color: var(--accent-strong); }
+.quiz-rang { display: inline-flex; justify-content: center; min-width: 1.4rem; font-family: var(--font); font-variant-numeric: tabular-nums; color: var(--accent-strong); }
 .quiz-option.juste, .quiz-vf-ligne.juste { border-color: var(--c-go); background: var(--c-go-soft); }
 .quiz-option.faux, .quiz-vf-ligne.faux { border-color: var(--c-stop); background: var(--c-stop-soft); }
 /* Bonne réponse non choisie : liseré vert en pointillés, sans le fond plein d'une bonne réponse choisie. */

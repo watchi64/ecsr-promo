@@ -4751,8 +4751,8 @@ def verifier_accueil_stagiaire(page, res, sc, vue, jour=None):
         res.echec("accueil du stagiaire", vue, "le lien « Mes préférences » mène à %s, attendu #/preferences" % liens.get("Mes préférences", {}).get("href"))
     if "Signaler un problème" not in liens or liens["Signaler un problème"]["balise"] != "BUTTON":
         res.echec("accueil du stagiaire", vue, "le bouton « Signaler un problème » manque du pied de liens (%s)" % list(liens))
-    if [l["texte"] for l in m["liensDuPied"]] != ["code source"]:
-        res.echec("accueil du stagiaire", vue, "le pied de page garde %s, attendu « code source » seul (« Mes préférences » est dans le pied de liens)" % [l["texte"] for l in m["liensDuPied"]])
+    if m["liensDuPied"]:   # plus de « code source » (décision de Timy du 09/11) : le pied de page ne porte aucun lien
+        res.echec("accueil du stagiaire", vue, "le pied de page garde %s, attendu aucun lien (« Mes préférences » est dans le pied de liens)" % [l["texte"] for l in m["liensDuPied"]])
     # Zones à toucher
     if telephone:
         petits = ["%s (%s px)" % (x["texte"], x["h"]) for x in m["boutons"] + m["plus"] + m["liens"] if min(x.get("h", 44), 44) < 43.5] \
@@ -4882,9 +4882,9 @@ def verifier_aujourdhui_equipe(page, res, sc, vue, jour=None, feuille="ouverte",
     # Le bandeau d'émargement ne double pas la carte (il reste sur les autres pages).
     if avec_feuille and m["bandeau"]:
         echec("le bandeau d'émargement est affiché sur la page qui porte la carte : « %s »" % m["bandeau"])
-    # Pied : celui de l'Accueil d'avant (« code source · réglages »), sans pied de liens.
-    if [(l["texte"], l["href"]) for l in m["liensDuPied"]] != [("code source", "https://github.com/watchi64/ecsr-promo"), ("réglages", "#/config")]:
-        echec("le pied de page garde %s, attendu « code source » et « réglages »" % [(l["texte"], l["href"]) for l in m["liensDuPied"]])
+    # Pied : celui de l'Accueil d'avant, sans « code source » (décision de Timy du 09/11) : « réglages » seul, sans pied de liens.
+    if [(l["texte"], l["href"]) for l in m["liensDuPied"]] != [("réglages", "#/config")]:
+        echec("le pied de page garde %s, attendu « réglages » seul" % [(l["texte"], l["href"]) for l in m["liensDuPied"]])
     if m["liens"]:
         echec("le pied de liens du stagiaire (%s) n'a pas sa place chez l'équipe : ses liens sont dans la barre et le menu du compte" % [l["texte"] for l in m["liens"]])
     if telephone:
