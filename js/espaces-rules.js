@@ -262,10 +262,18 @@ export function phraseHorsEspace(espace) {
 export const PHRASE_INDISPONIBLE = "Cette action n'est pas encore disponible.";
 export const PHRASE_SANS_DROIT = "Tu n'as pas le droit de faire cela ici.";
 export const PHRASE_ECHEC = "L'opération n'a pas abouti.";
+// Réseau coupé ou base injoignable (« TypeError: Failed to fetch » sous Chrome, « Load failed » sous Safari, « NetworkError »
+// sous Firefox) et session expirée : jamais le texte technique, la saisie reste en place pour réessayer.
+export const PHRASE_CONNEXION = "La connexion a échoué. Vérifie le réseau, puis réessaie.";
+export const PHRASE_SESSION = "Ta session a expiré. Reconnecte-toi, puis réessaie.";
+const ERREUR_RESEAU = /failed to fetch|load failed|networkerror|network request failed|fetch failed/i;
+const ERREUR_SESSION = /jwt|not authenticated/i;
 const PREFIXES_DE_REFUS = /^\s*(?:equipe|promo|centre|reseau|invitation|habillage):\s*/i;
 export function phraseDeRefus(message, code) {
   const brut = String(message ?? "");
   if (code === "PGRST202" || /could not find the function/i.test(brut)) return PHRASE_INDISPONIBLE;
+  if (ERREUR_RESEAU.test(brut)) return PHRASE_CONNEXION;
+  if (ERREUR_SESSION.test(brut) || /^PGRST30[0-3]$/.test(String(code ?? ""))) return PHRASE_SESSION;
   const texte = brut.replace(PREFIXES_DE_REFUS, "").trim();
   if (!texte) return PHRASE_ECHEC;
   if (texte === brut.trim() && (/permission denied/i.test(texte) || code === "42501")) return PHRASE_SANS_DROIT;

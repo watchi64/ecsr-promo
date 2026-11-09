@@ -151,6 +151,13 @@ test("phraseDeRefus", () => {
   assert.equal(phraseDeRefus("permission denied for table affectations", "42501"), "Tu n'as pas le droit de faire cela ici.");
   assert.equal(phraseDeRefus("", undefined), "L'opération n'a pas abouti.");
   assert.equal(phraseDeRefus(null, null), "L'opération n'a pas abouti.");
+  // Réseau coupé (Chrome, Safari, Firefox) et session expirée : une phrase en français, jamais le texte technique.
+  const connexion = "La connexion a échoué. Vérifie le réseau, puis réessaie.";
+  assert.equal(phraseDeRefus("TypeError: Failed to fetch"), connexion);
+  assert.equal(phraseDeRefus("Load failed"), connexion);
+  assert.equal(phraseDeRefus("NetworkError when attempting to fetch resource."), connexion);
+  assert.equal(phraseDeRefus("JWT expired", "PGRST301"), "Ta session a expiré. Reconnecte-toi, puis réessaie.");
+  assert.equal(phraseDeRefus("Délai dépassé (15 s). Réseau lent : réessaie dans un instant."), "Délai dépassé (15 s). Réseau lent : réessaie dans un instant.", "une phrase de l'app passe telle quelle");
 });
 
 test("messageInvitation délègue à phraseDeRefus", () => {

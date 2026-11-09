@@ -13,6 +13,7 @@ import { isEquipe } from "../auth-admin.js?v=20261109m";
 import { confirmationValide, resumeEffacement } from "../effacement-rules.js?v=20261109m";
 import { messageInvitationReussie } from "../roles-rules.js?v=20261109m";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261109m";
+import { confirmer } from "../confirmer.js?v=20261109m";
 
 // Liste des personnes invitables de la section déjà à l'écran. Posée par la section d'invitation qui la montre (js/views/config.js ou
 // renderInvitationStagiaire), appelée après un ajout de stagiaire, qui n'actualise que le bloc « Stagiaires ».
@@ -89,7 +90,11 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
           class: "btn small ghost abandon-btn",
           title: "Marquer en abandon : masqué partout (planning, dés, notes), données conservées",
           onClick: async () => {
-            if (!confirm(`Marquer ${it.prenom} en abandon ?\n\nIl/elle disparaît du planning, des dés et des notes. Les données restent conservées et réactivables.`)) return;
+            // Fenêtre de l'app plutôt que confirm() (le robot des parcours ne sait pas répondre à la boîte du navigateur).
+            const ok = await confirmer({ titre: `Marquer ${it.prenom} en abandon ?`,
+              phrase: "Ce stagiaire disparaît du planning, des dés et des notes. Ses données restent conservées et réactivables.",
+              oui: "Marquer en abandon" });
+            if (!ok) return;
             try {
               await setStagiaireActif(it.id, false);
               toast(`${it.prenom} marqué(e) en abandon`, "success");
@@ -305,7 +310,7 @@ export async function envoyerInvitation({ bouton, libelle, emailInput, personId,
     emailInput.value = "";
     if (apres) apres();
   } catch (e) {
-    toast("Erreur : " + e.message, "error", 6000);
+    toast(phraseDeRefus(e?.message, e?.code), "error", 6000);
   } finally {
     remettre();
   }
