@@ -117,7 +117,23 @@ export async function renderStagiairesCentre(container) {
     }
     if (jeton !== rendu) return;
     if (!seulementListe) await remplirGestion();
-    if (document.getElementById("stg-groupes")) dessinerGroupes();
+    if (!document.getElementById("stg-groupes")) return;
+    // Un ajout ou un renommage garde le focus dans la gestion (clavier du téléphone, saisie en cours) : seule la liste de liens du
+    // groupe est remplacée, la zone de gestion n'est ni détachée ni déplacée.
+    if (seulementListe && majGroupeAffiche()) return;
+    dessinerGroupes();
+  }
+
+  // Remplace, dans le groupe de la promo affichée, tout sauf la zone de gestion. Faux si le groupe n'est pas à l'écran (filtre).
+  function majGroupeAffiche() {
+    const entree = etat.listes.find((l) => affichee && l.promoId === affichee.id);
+    const ancien = document.querySelector(`#stg-groupes .stg-groupe[data-promo="${affichee ? affichee.id : ""}"]`);
+    const g = entree ? listeDuCentre([entree], etat.filtre)[0] : null;
+    if (!ancien || !g || !ancien.contains(zoneGestion)) return false;
+    const neuf = groupe(g, false);
+    [...ancien.children].forEach((enfant) => { if (enfant !== zoneGestion) enfant.remove(); });
+    [...neuf.children].reverse().forEach((enfant) => ancien.insertBefore(enfant, ancien.firstChild));
+    return true;
   }
 
   async function remplirGestion() {
@@ -161,7 +177,7 @@ export async function renderStagiairesCentre(container) {
     return lien;
   }
 
-  function groupe(g) {
+  function groupe(g, avecGestion = true) {
     const promo = promos.find((p) => p.id === g.promoId);
     const estAffichee = !!affichee && g.promoId === affichee.id;
     const aujourdhui = isoDate(new Date());
@@ -189,7 +205,7 @@ export async function renderStagiairesCentre(container) {
         pluriel(g.anonymises, "fiche anonymisée", "fiches anonymisées") + " (données effacées, résultats conservés sans nom)."));
     }
     if (estAffichee) {
-      section.appendChild(zoneGestion);
+      if (avecGestion) section.appendChild(zoneGestion);
     } else {
       section.appendChild(el("div", { class: "promo-actions" },
         el("button", { class: "btn small", type: "button", onClick: () => aller(g.promoId, "#/stagiaires") }, "Gérer cette promo")));
@@ -208,7 +224,7 @@ export async function renderStagiairesCentre(container) {
       const p = promos.find((x) => x.id === id);
       zone.appendChild(el("section", { class: "centre-section stg-groupe" },
         el("div", { class: "centre-section-tete" }, el("h3", {}, p ? p.nom : "Promo " + id)),
-        boiteErreur(PHRASE_PROMO_ILLISIBLE, recharger)));
+        boiteErreur(PHRASE_PROMO_ILLISIBLE + (affichee && id === affichee.id ? " La gestion de la promo affichée n'a pas pu être chargée." : ""), recharger)));
     });
     if (!groupes.length && !zone.children.length) {
       const cherche = etat.filtre.texte.trim();

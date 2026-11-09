@@ -41,7 +41,8 @@ export function partEcoulee(promo, aujourdhui) {
 export function ouTrouverFiche(id, listesParPromo) {
   if (id == null || id === "") return null;
   for (const l of Array.isArray(listesParPromo) ? listesParPromo : []) {
-    if ((l.stagiaires || []).some((s) => String(s.id) === String(id))) return { promoId: l.promoId };
+    // Une fiche anonymisée (données effacées) n'est plus une personne : comme la liste, elle n'est pas retrouvée.
+    if ((l.stagiaires || []).some((s) => String(s.id) === String(id) && !s.anonymise_le)) return { promoId: l.promoId };
   }
   return null;
 }

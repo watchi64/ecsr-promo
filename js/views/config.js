@@ -16,7 +16,7 @@ import {
   etatAnonymisationPromo, anonymiserPromo, listBenevolesAPurger, purgerBenevoles,
   getPromoCourante, renommerPromo,
   addProf, updateProf, deleteProf,
-  listUserProfiles, deleteUserProfile, inviteUser,
+  listUserProfiles, deleteUserProfile,
   setMyAnonymousNotes,
 } from "../db.js?v=20261109d";
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109d";
@@ -24,12 +24,12 @@ import { icon } from "../icons.js?v=20261109d";
 import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109d";
 import { moduleVisible } from "../modules-etat.js?v=20261109d";
 import { renderModulesSection } from "./modules-reglage.js?v=20261109d";
-import { renderGestionStagiaires, poserMajPersonnesInvitables } from "./stagiaires-gestion.js?v=20261109d";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261109d";
 import { renderEmargementReglage } from "../emargement-etat.js?v=20261109d";
 import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109d";
 import { pointsARetenir } from "../accueil-rules.js?v=20261109d";
 import { dateCourte, etatFinDePromo } from "../effacement-rules.js?v=20261109d";
-import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261109d";
+import { peutInviterFormateur, peutRetirerCompte } from "../roles-rules.js?v=20261109d";
 import { blocHabillage } from "../habillage-choix.js?v=20261109d";
 import { habillageCourant } from "../habillage.js?v=20261109d";
 
@@ -108,44 +108,10 @@ async function renderAccessSection(rerender) {
     const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email" });
 
     const sendBtn = el("button", { class: "btn accent" }, icon.plus(), libelleAjout);
-    sendBtn.addEventListener("click", async () => {
-      const email = emailInput.value.trim().toLowerCase();
-      const role = roleSel.value;
-      const personId = personSel.value ? Number(personSel.value) : null;
-      if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("Email invalide", "error"); return; }
-      if (!personId) { toast("Choisis la personne à lier", "error"); return; }
-
-      const restoreBtn = () => {
-        sendBtn.disabled = false;
-        sendBtn.textContent = "";
-        sendBtn.appendChild(icon.plus());
-        sendBtn.appendChild(document.createTextNode(libelleAjout));
-      };
-
-      sendBtn.disabled = true;
-      sendBtn.textContent = "Envoi…";
-      try {
-        const invitePromise = inviteUser({
-          email, role,
-          stagiaire_id: role === "stagiaire" ? personId : null,
-          prof_id:      role === "prof"      ? personId : null,
-        });
-        // Timeout de 15s pour éviter le hang infini
-        const resultat = await Promise.race([
-          invitePromise,
-          new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15 s). Réseau lent : réessaie dans un instant.")), 15000)),
-        ]);
-        // Profil créé, compte existant qui gagne la promo, ou rien de changé (roles-rules.js, messageInvitationReussie).
-        const { texte, ton } = messageInvitationReussie({ resultat, email, v2 });
-        toast(texte, ton, 4500);
-        emailInput.value = "";
-        rerender();
-      } catch (e) {
-        toast("Erreur : " + e.message, "error", 6000);
-      } finally {
-        restoreBtn();
-      }
-    });
+    sendBtn.addEventListener("click", () => envoyerInvitation({
+      bouton: sendBtn, libelle: libelleAjout, emailInput, personId: personSel.value ? Number(personSel.value) : null,
+      role: roleSel.value, v2, apres: rerender,
+    }));
 
     function restoreBtnInitial() {
       sendBtn.disabled = false;

@@ -263,37 +263,49 @@ export async function renderInvitationStagiaire(container, { rerender } = {}) {
   const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email", "aria-label": "Adresse e-mail du stagiaire" });
   const libelle = "Ajouter à la liste des invitations";
   const sendBtn = el("button", { class: "btn accent", type: "button" }, icon.plus(), libelle);
-  const remettre = () => {
-    sendBtn.disabled = false;
-    sendBtn.textContent = "";
-    sendBtn.appendChild(icon.plus());
-    sendBtn.appendChild(document.createTextNode(libelle));
-  };
-  sendBtn.addEventListener("click", async () => {
-    const email = emailInput.value.trim().toLowerCase();
-    const personId = personSel.value ? Number(personSel.value) : null;
-    if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("Email invalide", "error"); return; }
-    if (!personId) { toast("Choisis la personne à lier", "error"); return; }
-    sendBtn.disabled = true;
-    sendBtn.textContent = "Envoi…";
-    try {
-      const resultat = await Promise.race([
-        inviteUser({ email, role: "stagiaire", stagiaire_id: personId }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15 s). Réseau lent : réessaie dans un instant.")), 15000)),
-      ]);
-      const { texte, ton } = messageInvitationReussie({ resultat, email, v2: true });
-      toast(texte, ton, 4500);
-      emailInput.value = "";
-      if (rerender) rerender();
-    } catch (e) {
-      toast("Erreur : " + e.message, "error", 6000);
-    } finally {
-      remettre();
-    }
-  });
+  sendBtn.addEventListener("click", () => envoyerInvitation({
+    bouton: sendBtn, libelle, emailInput, personId: personSel.value ? Number(personSel.value) : null, role: "stagiaire", v2: true, apres: rerender,
+  }));
   emailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendBtn.click(); });
   bloc.appendChild(el("div", { class: "invite-form" },
     el("div", { class: "invite-row" }, el("label", {}, "Personne"), personSel),
     el("div", { class: "invite-row" }, el("label", {}, "Email"), emailInput, sendBtn)));
   container.appendChild(bloc);
+}
+
+// Envoi d'une invitation depuis un formulaire (Réglages du formateur, page Stagiaires de la direction) : adresse valide, personne
+// choisie, appel de la base avec un délai de 15 s, message de réussite ou phrase d'erreur, bouton remis en état. `personId` est
+// l'identifiant de la fiche (stagiaire) ou du formateur (rôle « prof »). `apres()` est appelé après une invitation acceptée.
+export async function envoyerInvitation({ bouton, libelle, emailInput, personId, role, v2, apres }) {
+  const email = emailInput.value.trim().toLowerCase();
+  if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("Email invalide", "error"); return; }
+  if (!personId) { toast("Choisis la personne à lier", "error"); return; }
+  const remettre = () => {
+    bouton.disabled = false;
+    bouton.textContent = "";
+    bouton.appendChild(icon.plus());
+    bouton.appendChild(document.createTextNode(libelle));
+  };
+  bouton.disabled = true;
+  bouton.textContent = "Envoi…";
+  try {
+    const resultat = await Promise.race([
+      inviteUser({
+        email, role,
+        stagiaire_id: role === "stagiaire" ? personId : null,
+        prof_id: role === "prof" ? personId : null,
+      }),
+      // Délai de 15 s pour éviter l'attente infinie.
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15 s). Réseau lent : réessaie dans un instant.")), 15000)),
+    ]);
+    // Profil créé, compte existant qui gagne la promo, ou rien de changé (roles-rules.js, messageInvitationReussie).
+    const { texte, ton } = messageInvitationReussie({ resultat, email, v2 });
+    toast(texte, ton, 4500);
+    emailInput.value = "";
+    if (apres) apres();
+  } catch (e) {
+    toast("Erreur : " + e.message, "error", 6000);
+  } finally {
+    remettre();
+  }
 }

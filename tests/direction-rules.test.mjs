@@ -101,7 +101,8 @@ test("listeDuCentre : une fiche anonymisée n'est ni listée ni cherchée, elle 
   assert.deepEqual(g[0].abandons, [], "une fiche anonymisée n'est plus un abandon");
   assert.equal(g[0].anonymises, 1);
   assert.deepEqual(listeDuCentre([P3], { texte: "anonyme" }), [], "elle ne se retrouve pas par la recherche");
-  assert.deepEqual(ouTrouverFiche(32, [P3]), { promoId: 3 }, "mais son identifiant reste dans le centre");
+  assert.equal(ouTrouverFiche(32, [P3]), null, "sa fiche n'est plus ouverte par l'adresse : comme la liste, la page dit la phrase");
+  assert.deepEqual(ouTrouverFiche(31, [P3]), { promoId: 3 });
 });
 
 test("equipeAffichee : nom ou adresse, rôle, promos du centre, tri", () => {
