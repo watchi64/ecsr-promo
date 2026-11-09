@@ -13,8 +13,7 @@ import { messageDemarrage } from "./signalement-rules.js?v=20261109a";
 import { showGate, hideGate } from "./gate.js?v=20261109a";
 import { exigerAcceptation } from "./legal.js?v=20261109a";
 import { lireJetonRecuperation } from "./gate-rules.js?v=20261109a";
-import { loadAccent } from "./accent-switcher.js?v=20261109a";
-import { loadTheme } from "./theme-switcher.js?v=20261109a";
+import { habillageAuDemarrage } from "./habillage.js?v=20261109a";
 import { renderHome } from "./views/home.js?v=20261109a";
 import { renderDashboard } from "./views/dashboard.js?v=20261109a";
 import { renderMonSuivi } from "./views/mon-suivi.js?v=20261109a";
@@ -508,6 +507,13 @@ function isColdStart() {
 }
 
 async function bootApp() {
+  // Habillage : l'avant-peinture a déjà posé celui de l'appareil ; on le met d'accord avec le compte.
+  // Lu ici parce que le profil est connu (initAuth est passé) et pas plus tôt. `getProfile()` est le
+  // vrai profil, jamais celui de « Voir en tant que ». Non attendu : l'app ne patiente pas pour une
+  // couleur, et un échec d'enregistrement n'a pas à l'arrêter. Le lot 5 le rappellera après la porte
+  // avec `centre`, `reseau` et `libre`.
+  habillageAuDemarrage({ email: getAdminEmail(), compte: getProfile()?.habillage ?? null })
+    .catch((e) => console.warn("Habillage : démarrage impossible", e));
   // Ruling R17 : quand la coquille est attendue (la promo l'avait la dernière fois sur cet appareil, ou
   // l'aperçu du fondateur), l'ancienne barre attend la décision sans se peindre (css/navigation.css) ;
   // posé avant que l'app ne s'affiche, levé dès la première barre dessinée, quelle qu'elle soit.
@@ -581,9 +587,6 @@ async function bootApp() {
 }
 
 (async () => {
-  loadTheme();
-  loadAccent();
-
   // Retour depuis le mail de reinitialisation. Ce test passe AVANT initAuth :
   // la session de recuperation rendrait isAuth() vrai et ferait demarrer l'app
   // par-dessus l'ecran de saisie. L'URL est nettoyee tout de suite pour que le

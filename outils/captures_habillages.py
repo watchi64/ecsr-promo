@@ -7,12 +7,12 @@ compare les deux jeux image par image.
 
     python outils/captures_habillages.py [BANC] --sortie DOSSIER
         [--habillages ecsr,ecf] [--moteurs chromium,webkit] [--largeurs 1280,375] [--roles stagiaire,prof,fondateur]
-        [--forcer] [--jobs N] [--comparer DOSSIER_AVANT] [--seulement-comparer]
+        [--jobs N] [--comparer DOSSIER_AVANT] [--seulement-comparer]
 
   * BANC : adresse de _harness.html (défaut http://127.0.0.1:8060/_harness.html).
   * Levier d'habillage, le même pour tout robot : avant le chargement, `localStorage.ecsr_habillage = JSON.stringify({ nom })`
-    (nom : « ecsr » ou « ecf »). `--forcer` pose en plus `data-skin="<nom>"` sur <html> par un script d'initialisation :
-    pour la période où le mécanisme de l'app n'existe pas encore.
+    (nom : « ecsr » ou « ecf »). Le script d'avant-peinture de l'app (js/habillage-avant-peinture.js) pose alors
+    `data-skin` lui-même : plus rien n'est forcé depuis le robot.
   * Vues, par rôle (la nouvelle navigation est allumée comme dans outils/verifier_navigation.py, dont les aides sont
     réutilisées : aucun chemin de page n'est écrit ici) : chaque entrée de la coquille et chacun de ses sous-onglets,
     le menu du compte ouvert, le tiroir « Plus » (téléphone, équipe), Mes préférences, Nouveautés, la feuille
@@ -100,18 +100,10 @@ JS_PRET = """async () => {
 JS_SANS_IMPRESSION = "window.print = () => {};"
 
 
-def js_habillage(nom, forcer):
-    """Le script d'initialisation : le levier d'habillage, et en plus data-skin quand --forcer."""
-    code = "try { localStorage.setItem(%s, %s); } catch (e) { /* stockage bloqué */ }" % (
+def js_habillage(nom):
+    """Le script d'initialisation : le levier d'habillage, rien d'autre (l'app pose data-skin elle-même)."""
+    return "try { localStorage.setItem(%s, %s); } catch (e) { /* stockage bloqué */ }" % (
         json.dumps(CLE_HABILLAGE), json.dumps(json.dumps({"nom": nom})))
-    if forcer:
-        # <html> n'existe pas encore au tout début d'une navigation : on le pose dès qu'il apparaît.
-        code += """
-(() => {
-  const poser = () => { if (document.documentElement) { document.documentElement.dataset.skin = %s; return true; } return false; };
-  if (!poser()) { const o = new MutationObserver(() => { if (poser()) o.disconnect(); }); o.observe(document, { childList: true }); }
-})();""" % json.dumps(nom)
-    return code
 
 
 def slug(texte):
@@ -243,7 +235,7 @@ def feuille_d_emargement(prise, sc, element=None):
         p.emulate_media(media="screen", reduced_motion="reduce")
 
 
-def jouer_role(navigateur, url, tache, dossier, forcer):
+def jouer_role(navigateur, url, tache, dossier):
     """Toutes les vues d'un rôle à une largeur et dans un habillage ; la liste (faites, erreurs)."""
     moteur, habillage, role, largeur = tache["moteur"], tache["habillage"], tache["role"], tache["largeur"]
     sortie = pathlib.Path(dossier) / moteur / habillage
@@ -257,7 +249,7 @@ def jouer_role(navigateur, url, tache, dossier, forcer):
     contexte = None
     try:
         contexte = nouveau_contexte(navigateur, sc, {})
-        contexte.add_init_script(js_habillage(habillage, forcer))
+        contexte.add_init_script(js_habillage(habillage))
         page = vn.nouvelle_page(contexte, res)
         page.emulate_media(reduced_motion="reduce")
         prise.page = page
@@ -319,7 +311,7 @@ def jouer_documents(navigateur, url, moteur, habillage, dossier):
         contexte = None
         try:
             contexte = nouveau_contexte(navigateur, sc, {})
-            contexte.add_init_script(js_habillage(habillage, True))
+            contexte.add_init_script(js_habillage(habillage))
             page = vn.nouvelle_page(contexte, res)
             page.emulate_media(reduced_motion="reduce")
             prise.page = page
@@ -397,14 +389,14 @@ def executer_lot(lot):
             return sortie
         try:
             for tache in lot["taches"]:
-                faites, erreurs = jouer_role(navigateur, lot["url"], tache, lot["dossier"], lot["forcer"])
+                faites, erreurs = jouer_role(navigateur, lot["url"], tache, lot["dossier"])
                 sortie["taches"].append({"tache": tache, "faites": faites, "erreurs": erreurs})
         finally:
             navigateur.close()
     return sortie
 
 
-def photographier_tout(url, dossier, moteurs, habillages, largeurs, roles, forcer, jobs):
+def photographier_tout(url, dossier, moteurs, habillages, largeurs, roles, jobs):
     taches = []
     for moteur in moteurs:
         for habillage in habillages:
@@ -417,7 +409,7 @@ def photographier_tout(url, dossier, moteurs, habillages, largeurs, roles, force
         propres = [t for t in taches if t["moteur"] == moteur]
         for i in range(par_moteur):
             if propres[i::par_moteur]:
-                lots.append({"moteur": moteur, "taches": propres[i::par_moteur], "url": url, "dossier": str(dossier), "forcer": forcer})
+                lots.append({"moteur": moteur, "taches": propres[i::par_moteur], "url": url, "dossier": str(dossier)})
     print("%d contexte(s) sur %s, %d processus, banc %s" % (len(taches), " et ".join(moteurs), len(lots), url), flush=True)
     debut = time.time()
     sorties = []
@@ -572,7 +564,6 @@ def main(argv=None):
     ap.add_argument("--moteurs", default=",".join(MOTEURS))
     ap.add_argument("--largeurs", default=",".join(str(l) for l in LARGEURS))
     ap.add_argument("--roles", default=",".join(ROLES))
-    ap.add_argument("--forcer", action="store_true", help="pose aussi data-skin sur <html> (avant que le mécanisme de l'app existe)")
     ap.add_argument("--jobs", type=int, default=0, help="processus en parallèle (défaut : deux par moteur)")
     ap.add_argument("--comparer", metavar="DOSSIER_AVANT", help="compare le dossier produit à celui-ci")
     ap.add_argument("--seulement-comparer", action="store_true", help="ne photographie rien : compare --sortie à --comparer")
@@ -600,7 +591,7 @@ def main(argv=None):
             return 2
         dossier = pathlib.Path(args.sortie)
         dossier.mkdir(parents=True, exist_ok=True)
-        ok = photographier_tout(url, dossier, moteurs, habillages, largeurs, roles, args.forcer, args.jobs)
+        ok = photographier_tout(url, dossier, moteurs, habillages, largeurs, roles, args.jobs)
         ecrire_planche(dossier)
         print("Planche : %s" % (dossier / "planche.html"))
     if args.comparer:

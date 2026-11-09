@@ -1458,6 +1458,13 @@ export async function setMyAnonymousNotes(val) {
   return data;
 }
 
+// Habillage choisi par la personne, gardé sur son compte ("ecsr", "ecf" ou null pour revenir au défaut).
+export async function setMonHabillage(nom) {
+  const { data, error } = await supabase.rpc("set_my_habillage", { val: nom });
+  if (error) throw error;
+  return data;
+}
+
 // Rôles d'équipe de la personne connectée, lus dans ses affectations (chacun lit les siennes). Sert à la seule porte
 // « aucune promo » : le siège n'a pas de promo. Liste vide si la table manque (base pas migrée) ou si la lecture échoue.
 export async function mesRolesAffectes() {
