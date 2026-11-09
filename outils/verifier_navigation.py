@@ -198,8 +198,9 @@ Contrôles par vue
   * en-tête de l'équipe sur téléphone (lot 2A) : un seul bouton « Assistant » (data-nav-action=assistant, de 44 px) dans l'en-tête, entre la promo et
     le compte, rien ne débordant de la fenêtre, à 375 px puis à 320 px (la page Stagiaires y est mesurée comme toute vue, sans autre scénario) ; le
     tiroir « Plus » s'appelle « Autres pages », sans « Tout l'espace formateur », et garde sa ligne « Assistant » ;
-  * Notes et examens (équipe, lot 2A) : sur un écran tactile (le téléphone du banc), le sous-titre est « Touche une case pour saisir la note. » et la
-    phrase sur Entrée et Échap n'est pas montrée ; avec une souris, le sous-titre d'avant et la phrase de la barre d'outils ;
+  * Notes et examens (équipe, lot 2A, puis lot C de l'audit du 09/11) : sur un écran tactile (le téléphone du banc), le sous-titre est
+    « Saisis les notes thème par thème, ou touche une case de la matrice. » et la phrase sur Entrée et Échap n'est pas montrée ; avec une
+    souris, le sous-titre d'avant et la phrase de la barre d'outils ;
   * comptes en fin de sous-titre (lot 2A, tâche 4, ruling R49) : Notes et examens finit par « N notes enregistrées. », Planning > Dates clés par
     « N dates clés. » (le nombre d'événements que l'app lit, passés compris), Cours et QCM > Documents par « N liens · M contacts. » ; éteint, ils
     restent en surtitre (« N événements au calendrier », « N liens curés · M contacts », « N notes enregistrées ») ;
@@ -2510,8 +2511,10 @@ def sous_vues(page, res, sc, route, options):
             res.echec("sous-onglets manquants", "%s/%s" % (sc.nom, route), "#/%s montre %d sous-onglet(s) ou ligne(s) de sommaire, au moins %d attendu(s)" % (route, nb, attendu))
         if route == "stagiaires" and libelles[:2] != SOUS_ONGLETS_STAGIAIRES:
             res.echec("sous-onglets de Stagiaires", "%s/%s" % (sc.nom, route), "la page Stagiaires montre « %s », attendu « %s »" % (" », « ".join(libelles), " », « ".join(SOUS_ONGLETS_STAGIAIRES)))
-        if route == "notes" and sc.espace == "equipe" and libelles != ["Matrice", "EPCF"]:
-            res.echec("sous-onglets de Notes", "%s/%s" % (sc.nom, route), "la page Notes de l'équipe montre « %s », attendu « Matrice », « EPCF »" % " », « ".join(libelles))
+        # « Saisir » (lot C de l'audit du 09/11) : la saisie thème par thème, pour qui écrit des notes ; la direction lit sans écrire.
+        attendu_notes = ["Matrice", "EPCF"] if sc.compte == "direction" else ["Saisir", "Matrice", "EPCF"]
+        if route == "notes" and sc.espace == "equipe" and libelles != attendu_notes:
+            res.echec("sous-onglets de Notes", "%s/%s" % (sc.nom, route), "la page Notes de l'équipe montre « %s », attendu « %s »" % (" », « ".join(libelles), " », « ".join(attendu_notes)))
     for i, libelle in enumerate(libelles):
         titre = "%s/%s" % (route, libelle)
         try:
@@ -3424,7 +3427,7 @@ SURTITRE_PROMO = ("emargement", "stagiaires", "notes", "themes", "centre", "conf
 SOUS_ONGLETS_STAGIAIRES = ["Stagiaires", "Élèves bénévoles"]
 # Sous-pages qui ont repris le nom de leur sous-onglet : Planning > Dates clés (ex-Calendrier), Cours et QCM > Documents (ex-Ressources).
 SOUS_PAGES = (("planning", "Dates clés"), ("themes", "Documents"))
-PHRASE_TACTILE = "Touche une case pour saisir la note."
+PHRASE_TACTILE = "Saisis les notes thème par thème, ou touche une case de la matrice."   # lot C : la page s'ouvre sur « Saisir »
 
 
 def verifier_titre_de_page(page, res, sc, route, libelle):
@@ -3673,7 +3676,7 @@ def verifier_bouton_benevoles(page, res, sc):
 
 
 def verifier_notes_tactile(page, res, sc):
-    """Notes et examens, équipe : sur un écran tactile (le téléphone du banc), le sous-titre dit « Touche une case pour saisir la note. » et
+    """Notes et examens, équipe : sur un écran tactile (le téléphone du banc), le sous-titre dit PHRASE_TACTILE (« Saisis les notes... ») et
     la phrase sur Entrée et Échap, qui suppose un clavier, n'est pas montrée ; avec un clavier, la phrase de la barre d'outils et le
     sous-titre d'avant."""
     vue = "%s/notes/tactile" % sc.nom

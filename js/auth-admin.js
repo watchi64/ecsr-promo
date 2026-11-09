@@ -19,22 +19,22 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, mesAffectations, oublierPromo, getPromoCourante, getMesPromos, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo,
-} from "./db.js?v=20261109i";
+} from "./db.js?v=20261109j";
 import {
   LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo, etiquetteBadge,
-} from "./roles-rules.js?v=20261109i";
+} from "./roles-rules.js?v=20261109j";
 import {
   LIBELLES_ESPACE, ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, porteSansPromo,
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
-} from "./espaces-rules.js?v=20261109i";
-import { peutQuitter } from "./navigation.js?v=20261109i";
-import { el, toast, displayStagiaire, isoDate } from "./utils.js?v=20261109i";
-import { icon } from "./icons.js?v=20261109i";
-import { construirePastille } from "./promo-pastille.js?v=20261109i";
-import { pagePersonnelle, lireAdresse } from "./route-rules.js?v=20261109i";
-import { etatSignalements } from "./signalement-etat.js?v=20261109i";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261109i";
-import { libellePastille } from "./nouveautes.js?v=20261109i";
+} from "./espaces-rules.js?v=20261109j";
+import { peutQuitter } from "./navigation.js?v=20261109j";
+import { el, toast, displayStagiaire, isoDate } from "./utils.js?v=20261109j";
+import { icon } from "./icons.js?v=20261109j";
+import { construirePastille } from "./promo-pastille.js?v=20261109j";
+import { pagePersonnelle, lireAdresse } from "./route-rules.js?v=20261109j";
+import { etatSignalements } from "./signalement-etat.js?v=20261109j";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261109j";
+import { libellePastille } from "./nouveautes.js?v=20261109j";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -617,7 +617,7 @@ function boutonsSignalement(fermer) {
   const signaler = el("button", { class: "btn full sg-entree-compte", type: "button", "data-sg-entree": "compte", "aria-label": nom,
     onClick: () => {
       fermer();
-      import("./signalement.js?v=20261109i").then((m) => m.ouvrirSignalement({ ancre: document.querySelector(".admin-badge") }));
+      import("./signalement.js?v=20261109j").then((m) => m.ouvrirSignalement({ ancre: document.querySelector(".admin-badge") }));
     } }, icon.signaler(), "Signaler un problème", texte ? el("span", { class: "sg-pastille", "aria-hidden": "true" }, texte) : null);
   if (!fondateurHorsApercu()) return [signaler];
   const nouveaux = libellePastille(etat.nouveaux);
@@ -659,7 +659,7 @@ function openProfileMenu() {
     logoutBtn,
     el("button", { class: "gate-link compte-legal", type: "button", onClick: () => {
       backdrop.remove();
-      import("./legal.js?v=20261109i").then((m) => m.ouvrirInformationsLegales());
+      import("./legal.js?v=20261109j").then((m) => m.ouvrirInformationsLegales());
     } }, "Informations légales et données personnelles"),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer"),

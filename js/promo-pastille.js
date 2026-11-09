@@ -4,11 +4,11 @@
 // Pastille du centre (lot 5, D6) : dans la barre de la direction, quand le compte dirige plusieurs centres. Choisir un
 // centre, c'est choisir l'une de ses promos (la première en cours, sinon la plus récente), avec le même rechargement. Les
 // deux choix partagent la même fenêtre (ouvrirListe).
-import { el, isoDate } from "./utils.js?v=20261109i";
-import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261109i";
-import { libelleCourtPromo, resumePromo } from "./promo-rules.js?v=20261109i";
-import { isFounder, apercusOuverts, setViewAs, getAffectations, getCentre } from "./auth-admin.js?v=20261109i";
-import { promoPourLaDirection, promosDuCentre } from "./espaces-rules.js?v=20261109i";
+import { el, isoDate } from "./utils.js?v=20261109j";
+import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261109j";
+import { libelleCourtPromo, resumePromo } from "./promo-rules.js?v=20261109j";
+import { isFounder, apercusOuverts, setViewAs, getAffectations, getCentre } from "./auth-admin.js?v=20261109j";
+import { promoPourLaDirection, promosDuCentre } from "./espaces-rules.js?v=20261109j";
 
 // « Montpellier · sept. 2026 » : le lieu dans son propre span, que le CSS masque sur les
 // écrans les plus étroits (la date suffit à distinguer les promos dans la barre).

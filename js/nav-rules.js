@@ -3,7 +3,7 @@
 // une page, quelle entrée de l'équipe porte le repère « masqué aux stagiaires », où mènent les
 // anciennes adresses, les initiales, le prénom et le nom du bouton du compte, la ligne « page à soi »
 // du menu du compte. Module pur, sans DOM ni stockage : testé en node.
-import { LIBELLES_ESPACE } from "./espaces-rules.js?v=20261109i";
+import { LIBELLES_ESPACE } from "./espaces-rules.js?v=20261109j";
 
 // Clé de mémoire du sous-onglet ouvert, par page à sous-onglets (le `storageKey` de
 // renderSubTabs). Une redirection l'écrit pour ouvrir le bon sous-onglet ; le bouton « Élèves bénévoles »

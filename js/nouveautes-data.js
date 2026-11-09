@@ -199,6 +199,26 @@ export const NOUVEAUTES = [
           + "affiche un message clair.",
     ou: { label: "Cours et QCM", route: "themes" },
   },
+  // Lot C de l'audit du 09/11 : les notes et les examens.
+  {
+    id: "2026-11-09-notes-saisir-examens",
+    date: "2026-11-09",
+    pour: "formateurs",
+    titre: "Notes : saisir thème par thème, ouvrir un examen depuis la liste",
+    resume: "Dans Notes et examens, l'onglet « Saisir » note toute la classe sur un thème ou une compétence : tu "
+          + "choisis le thème, puis chaque stagiaire a sa ligne avec un grand champ, pratique sur téléphone (la page "
+          + "s'y ouvre). La note s'enregistre dès que tu passes au champ suivant, et « 7/10 » est converti sur 20. "
+          + "Dans Cours et QCM, chaque thème qui a un QCM affiche l'état de son examen (« Ouvert jusqu'à 16 h 30 ») "
+          + "et le bouton pour l'ouvrir ou le fermer, sans passer par la fiche du QCM. Les pages de notes encore vides "
+          + "disent d'où viendront les notes.",
+    ou: { label: "Notes et examens", route: "notes" },
+    guide: [
+      "Notes et examens, onglet « Saisir » : choisis un thème ou une compétence, puis tape les notes ligne par ligne.",
+      "Une note venue d'un examen QCM l'indique sous le nom du stagiaire.",
+      "Cours et QCM : sur la ligne d'un thème, « Ouvrir l'examen » demande pour combien de temps ; « Fermer l'examen » "
+        + "demande une confirmation.",
+    ],
+  },
   // Lot de corrections 2 (audit du 09/11) : ce que l'app affiche est juste.
   {
     id: "2026-11-09-accueil-plus-juste",

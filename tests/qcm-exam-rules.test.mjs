@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {
   nbQuestionsExamen, budgetPasseMs, examenDemarrable, remiseToleree,
-  tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE,
+  tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture, resumeExamen,
 } from "../js/qcm-exam-rules.js";
 
 const T0 = Date.parse("2026-08-01T10:00:00Z");
@@ -77,5 +77,22 @@ assert.equal(new Date(soir).getHours(), 23, "jusqu'a ce soir : 23h59 heure local
 // Les cinq durees proposees restent coherentes.
 assert.equal(DUREES_OUVERTURE.length, 5);
 assert.ok(DUREES_OUVERTURE.every((d) => typeof d.label === "string" && d.label.length > 0));
+
+// --- Lot C : l'état d'un examen dans la liste des thèmes (heure de fin en heure locale) et son résumé ---
+{
+  const now = new Date(2026, 10, 9, 14, 0).getTime();
+  const a = (d) => ({ published: true, exam_ferme_a: d ? d.toISOString() : null });
+  assert.equal(libelleOuverture({ published: false }, now), "Examen fermé");
+  assert.equal(libelleOuverture(null, now), "Examen fermé");
+  assert.equal(libelleOuverture(a(new Date(2026, 10, 9, 13, 0)), now), "Examen fermé", "échéance passée : fermé");
+  assert.equal(libelleOuverture(a(new Date(2026, 10, 9, 16, 30)), now), "Ouvert jusqu'à 16 h 30");
+  assert.equal(libelleOuverture(a(new Date(2026, 10, 9, 21, 5)), now), "Ouvert jusqu'à 21 h 05");
+  assert.equal(libelleOuverture(a(new Date(2026, 10, 10, 0, 15)), now), "Ouvert jusqu'au 10 nov., 0 h 15");
+  assert.equal(libelleOuverture(a(null), now), "Ouvert sans limite");
+  assert.equal(resumeExamen({ nb_questions: 20 }), "20 questions · 30 s par question · tirage au hasard");
+  assert.equal(resumeExamen({ exam_question_ids: [1, 2], exam_seconds_per_question: 45, exam_draw_mode: "manual" }),
+    "2 questions · 45 s par question · sélection manuelle");
+  assert.equal(resumeExamen({ exam_question_ids: [1] }), "1 question · 30 s par question · tirage au hasard");
+}
 
 console.log("qcm-exam-rules : tous les cas passent");

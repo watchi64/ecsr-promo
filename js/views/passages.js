@@ -1,11 +1,11 @@
-import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261109i";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe } from "../utils.js?v=20261109i";
-import { icon } from "../icons.js?v=20261109i";
-import { recordUndo } from "../undo.js?v=20261109i";
-import { TYPES, RESULTATS } from "../config.js?v=20261109i";
-import { isAdmin, monStagiaireId } from "../auth-admin.js?v=20261109i";
-import { getCurrentWho } from "../identity.js?v=20261109i";
-import { navigationV2Active } from "../nav-etat.js?v=20261109i";
+import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261109j";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe } from "../utils.js?v=20261109j";
+import { icon } from "../icons.js?v=20261109j";
+import { recordUndo } from "../undo.js?v=20261109j";
+import { TYPES, RESULTATS } from "../config.js?v=20261109j";
+import { isAdmin, monStagiaireId } from "../auth-admin.js?v=20261109j";
+import { getCurrentWho } from "../identity.js?v=20261109j";
+import { navigationV2Active } from "../nav-etat.js?v=20261109j";
 
 let stagiaires = [];
 let passages = [];
