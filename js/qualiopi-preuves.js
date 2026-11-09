@@ -34,6 +34,9 @@
 //                 import, les autres sont ses modifications.
 //   signalements  [{ traite_at }]
 //   autoEcoles    [{ actif, lieu_id }]
+//   registre      { etat: "lue", entrees } | { etat: "absente" } | { etat: "non_lue" } : le registre qualité de tout l'organisme, injecté par la
+//                 page (hors des lectures par promo) ; une clé absente vaut « non_lue ». Seuls des comptes et des dates entrent ici, jamais un texte
+//                 saisi (description, réponse, action décidée, mesure de prévention).
 //   satisfaction  { etat: "mesuree", taux, repondants, inscrits } | { etat: "sous_seuil" } | { etat: "absente" } | { etat: "non_lue" } : le résultat du
 //                 questionnaire de fin de formation, tel que le rend `satisfactionDe` (lu par la page, hors de l'inventaire) ;
 //                 une clé absente vaut « non_lue ». Jamais un commentaire : seuls des comptes entrent ici.
@@ -51,6 +54,7 @@ import { jourFerie } from "./emargement-rules.js?v=20261109o";
 import { parseDate, addDays, isoDate } from "./utils.js?v=20261109o";
 import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261109o";
 import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261109o";
+import { TYPES, entreesPourPromo, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261109o";
 
 // Annexe A de la spec, cellule par cellule, pour les 28 indicateurs d'un centre de formation continue (les 27 plus
 // le 13 de l'alternance). niveau : « prouve » (l'app fournit l'essentiel), « partiel » (en partie) ou « hors »
@@ -83,11 +87,11 @@ export const NIVEAUX = {
   27: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["contrats"] },
   28: { niveau: "partiel", apporte: "auto-écoles partenaires, dates de stage", ajout: "lieu de stage (plus tard)", aFournir: ["conventions de stage"] },
   30: { niveau: "partiel", apporte: "enquête hors de l'app", ajout: "questionnaires (Q3)", aFournir: ["avis des financeurs et entreprises"] },
-  31: { niveau: "partiel", apporte: "signalements de QCM instruits puis tranchés", ajout: "registre (Q4)", aFournir: ["procédure de réclamation"] },
-  32: { niveau: "partiel", apporte: "comparaison des promos, thèmes à retravailler", ajout: "registre (Q4)", aFournir: ["plan d'amélioration"] },
+  31: { niveau: "partiel", apporte: "signalements de QCM instruits puis tranchés, registre qualité", ajout: null, aFournir: ["procédure de réclamation"] },
+  32: { niveau: "partiel", apporte: "comparaison des promos, thèmes à retravailler, registre qualité", ajout: null, aFournir: ["plan d'amélioration"] },
 };
 
-// Les 13 pièces de l'app et les indicateurs qu'elles servent (tableau du § 6.2). L'ordre de la liste est celui
+// Les 15 pièces de l'app et les indicateurs qu'elles servent (tableau du § 6.2). L'ordre de la liste est celui
 // où un indicateur rend ses pièces.
 export const PIECES = [
   { cle: "effectif", libelle: "Effectif, abandons", indicateurs: [10, 12] },              // fiches des stagiaires
@@ -104,6 +108,7 @@ export const PIECES = [
   { cle: "resultats", libelle: "Résultats et méthodes", indicateurs: [2, 3, 32] },        // tableau de bord du centre
   { cle: "suivi", libelle: "Suivi", indicateurs: [10, 12, 32] },                          // à suivre de près, thèmes
   { cle: "appreciations", libelle: "Appréciations", indicateurs: [30, 32] },              // questionnaire de fin de formation (Q3)
+  { cle: "registre", libelle: "Registre qualité", indicateurs: [31, 32] },                // réclamations, difficultés, aléas, améliorations, risques (Q4)
 ];
 
 const HEURES_NON_BRANCHEES = "calcul des heures pas encore branché";
@@ -253,6 +258,9 @@ export function satisfactionDe(resultats, inscrits) {
 const RAISON_SOUS_SEUIL = `${texteSousSeuilAvis("stagiaire")} au questionnaire de fin de formation`;
 const RAISON_SANS_QUESTIONNAIRE = "questionnaire de fin de formation pas encore en service";
 export const RAISON_NON_LUE = "questionnaire de fin de formation non lu (erreur de lecture)";
+const RAISON_REGISTRE_VIDE = "aucune entrée au registre qualité pendant la formation";
+const RAISON_REGISTRE_ABSENT = "registre qualité pas encore en service";
+export const RAISON_REGISTRE_NON_LU = "registre qualité non lu (erreur de lecture)";
 
 // --- Cours : leurs modifications ---
 
@@ -417,6 +425,19 @@ const CONSTRUCTEURS = {
     return absente(satisfaction?.etat === "absente" ? RAISON_SANS_QUESTIONNAIRE : RAISON_NON_LUE);
   },
 
+  // Des comptes et des dates seulement : jamais un texte saisi au registre. Une entrée effacée compte comme les autres.
+  registre: ({ registre, promo, aujourdhui }) => {
+    if (registre?.etat === "absente") return absente(RAISON_REGISTRE_ABSENT);
+    if (registre?.etat !== "lue") return absente(RAISON_REGISTRE_NON_LU);
+    const entrees = entreesPourPromo(registre.entrees, promo, jourDe(aujourdhui));
+    if (!entrees.length) return absente(RAISON_REGISTRE_VIDE);
+    const { total, parType, parEtat } = decompteRegistre(entrees);
+    const types = Object.entries(TYPES).filter(([cle]) => parType[cle] > 0).map(([cle, libelle]) => nb(parType[cle], libelle.toLowerCase())).join(", ");
+    const mediane = delaiMedianJours(entrees);
+    const delai = mediane == null ? "aucune réponse datée" : `${String(mediane).replace(".", ",")} ${mediane >= 2 ? "jours" : "jour"}`;
+    return presente(`${nb(total, "entrée")} (${types}), dont ${nb(parEtat.clos, "close")} ; délai médian de réponse : ${delai}`);
+  },
+
   // Des nombres seulement : la liste des stagiaires à suivre de près porte des noms, elle n'est que comptée. Les listes
   // de thèmes du tableau de bord sont des classements : les thèmes qui ont assez de données, du plus faible au plus
   // fort, coupés à 5. Leur longueur n'est donc pas un nombre de thèmes faibles : la phrase dit « les N thèmes les plus
@@ -451,6 +472,8 @@ function contexte(donnees, referentiel, { promo, aujourdhui, nouveautes }) {
   return {
     promo, referentiel, liste,
     satisfaction: donnees.satisfaction ?? { etat: "non_lue" },   // aucune lecture faite : honnêtement « non lue »
+    registre: donnees.registre ?? { etat: "non_lue" },
+    aujourdhui,
     terminee: promoTerminee(promo, aujourdhui),
     nouveautes: nouveautesCitables(nouveautes),
     ind: indicateursPromo(donnees, referentiel, { aujourdhui }),

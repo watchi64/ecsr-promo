@@ -589,7 +589,7 @@ export async function renderQualiopi(container) {
   }
 
   function recalculerInventaire() {
-    etat.inv = inventairePromo(etat.donnees, etat.referentiel, {
+    etat.inv = inventairePromo({ ...etat.donnees, registre: etat.registre }, etat.referentiel, {
       promo: etat.promo, aujourdhui, alternance: etat.alternance, nouveautes: NOUVEAUTES,
     });
   }
@@ -628,7 +628,7 @@ export async function renderQualiopi(container) {
     if (occupe || !etat.donnees) return;
     try {
       const { promo, donnees, ind, inv } = etat;
-      const modele = modeleDossierFormation({ inv, donnees, ind, promo, lieu: promo.lieu_nom, intitule: donnees.entete?.intitule, aujourdhui });
+      const modele = modeleDossierFormation({ inv, donnees: { ...donnees, registre: etat.registre }, ind, promo, lieu: promo.lieu_nom, intitule: donnees.entete?.intitule, aujourdhui });
       ecrireStatut("");
       imprimerQualiopi(documentImprimable(modele), titreImpression("dossier-formation", promo.nom, aujourdhui));
     } catch (e) {
@@ -674,18 +674,18 @@ export async function renderQualiopi(container) {
   async function dossierCentre(sansNoms) {
     if (occupe || !etat.donnees) return;
     const moi = ++action;
-    const { promo, referentiel, alternance } = etat;
+    const { promo, referentiel, alternance, registre } = etat;
     const { periode, retenues } = promosEtPeriodeDuCentre();
     bloquerBoutons(true);
     try {
       const promosLues = await lirePromosDuCentre(moi, retenues, "le dossier du centre n'est pas préparé", (p, donnees) => ({
         promo: p,
         donnees,
-        inv: inventairePromo(donnees, referentiel, { promo: p, aujourdhui, alternance, nouveautes: NOUVEAUTES }),
+        inv: inventairePromo({ ...donnees, registre }, referentiel, { promo: p, aujourdhui, alternance, nouveautes: NOUVEAUTES }),
         ind: indicateursPromo(donnees, referentiel, { aujourdhui }),
       }));
       if (!promosLues) return;
-      const modele = modeleDossierCentre({ promos: promosLues, lieu: promo.lieu_nom, periode, aujourdhui, sansNoms, nouveautes: NOUVEAUTES });
+      const modele = modeleDossierCentre({ promos: promosLues, lieu: promo.lieu_nom, lieuId: promo.lieu_id, registre, periode, aujourdhui, sansNoms, nouveautes: NOUVEAUTES });
       ecrireStatut("");
       imprimerQualiopi(documentImprimable(modele), titreImpression(sansNoms ? "dossier-centre-sans-noms" : "dossier-centre", promo.lieu_nom, aujourdhui));
     } catch (e) {
