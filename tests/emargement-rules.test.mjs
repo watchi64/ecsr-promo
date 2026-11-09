@@ -217,3 +217,45 @@ test("minutes de présence d'un stagiaire sur une semaine", () => {
   assert.equal(minutesPresence(seances, lignes, 8), 210);
   assert.equal(minutesPresence(seances, lignes, 9), 0);
 });
+
+// === resumeEmargement (lot 5, Task 7) ===
+import { resumeEmargement } from "../js/emargement-rules.js";
+
+test("resumeEmargement : aucune feuille", () => {
+  assert.deepEqual(resumeEmargement({ seances: [], lignes: [] }),
+    { feuillesCloses: 0, feuilleOuverte: null, derniere: null, absences: 0, nonSignees: 0 });
+  assert.deepEqual(resumeEmargement({}),
+    { feuillesCloses: 0, feuilleOuverte: null, derniere: null, absences: 0, nonSignees: 0 });
+});
+
+test("resumeEmargement : une feuille ouverte, la dernière est la plus récente", () => {
+  const seances = [
+    { id: 1, jour: "2026-11-03", demi_journee: "matin", statut: "close" },
+    { id: 2, jour: "2026-11-04", demi_journee: "matin", statut: "close" },
+    { id: 3, jour: "2026-11-04", demi_journee: "aprem", statut: "ouverte" },
+  ];
+  const r = resumeEmargement({ seances, lignes: [] });
+  assert.equal(r.feuillesCloses, 2);
+  assert.equal(r.feuilleOuverte.id, 3);
+  assert.equal(r.derniere.id, 3);
+});
+
+test("resumeEmargement : absences notées et lignes non signées d'une feuille close", () => {
+  const seances = [
+    { id: 1, jour: "2026-11-03", demi_journee: "matin", statut: "close" },
+    { id: 2, jour: "2026-11-04", demi_journee: "matin", statut: "ouverte" },
+  ];
+  const lignes = [
+    { seance_id: 1, stagiaire_id: 1, signe_le: "2026-11-03T08:10:00Z", absent: false },
+    { seance_id: 1, stagiaire_id: 2, signe_le: null, absent: true, absence_origine: "non_signe" },
+    { seance_id: 1, stagiaire_id: 3, signe_le: null, absent: false },
+    { seance_id: 1, stagiaire_id: 4, signe_le: null, absent: true, absence_origine: "planning" },
+    { seance_id: 2, stagiaire_id: 1, signe_le: null, absent: true, absence_origine: "formateur" },
+    { seance_id: 2, stagiaire_id: 2, signe_le: null, absent: false },
+  ];
+  const r = resumeEmargement({ seances, lignes });
+  assert.equal(r.absences, 2);      // planning + formateur
+  assert.equal(r.nonSignees, 2);    // non_signe + ligne sans signature d'une feuille close ; la feuille ouverte n'en compte pas
+  assert.equal(r.feuillesCloses, 1);
+  assert.equal(r.feuilleOuverte.id, 2);
+});

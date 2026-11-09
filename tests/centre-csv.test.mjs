@@ -1,7 +1,8 @@
 // Export CSV de la matrice des notes (tableau de bord du centre, spec 2026-10-23).
 // Lancer depuis la racine du dépôt : node tests/centre-csv.test.mjs
 import assert from "node:assert/strict";
-import { matriceNotesCsv, nomFichierCsv } from "../js/centre-csv.js";
+import { matriceNotesCsv, nomFichierCsv, tableauCentreCsv, tableauReseauCsv } from "../js/centre-csv.js";
+import { vueDuReseau } from "../js/comptes-reseau.js";
 
 let n = 0;
 const eq = (a, b, msg) => { assert.deepEqual(a, b, msg); n++; };
@@ -71,5 +72,50 @@ eq(videCsv.length, 2, "promo vide : en-tête seul");
 eq(nomFichierCsv("Nîmes, mars 2026", "2026-10-23"), "matrice-notes_nimes-mars-2026_2026-10-23.csv", "nom de fichier");
 eq(nomFichierCsv("Démonstration (données fictives)", "2026-10-23"),
   "matrice-notes_demonstration-donnees-fictives_2026-10-23.csv", "nom de fichier sans accents ni parenthèses");
+
+// === Tableau du centre : une ligne par promo (lot 5, Task 7) ===
+const cptes = (o) => ({ inscrits: 0, enFormation: 0, abandons: 0, absences: 0, prevus: 0, qcmBonnes: 0, qcmQuestions: 0,
+  examensPasses: 0, examensReussis: 0, notesN: 0, notesSomme: 0, notesSous10: 0, epcfAcquis: 0, epcfRenseignes: 0, ...o });
+const tc = tableauCentreCsv([
+  { nom: "Nîmes mars", debut: "2026-03-02", fin: "2026-12-18",
+    comptes: cptes({ inscrits: 20, enFormation: 18, abandons: 2, absences: 3, prevus: 30, qcmBonnes: 75, qcmQuestions: 100,
+      examensPasses: 4, examensReussis: 3, notesN: 4, notesSomme: 50, epcfAcquis: 6, epcfRenseignes: 8 }) },
+  { nom: "=Récente; test", debut: "2026-11-02", fin: null, comptes: cptes({ inscrits: 10, enFormation: 10 }) },
+]);
+eq(tc.charCodeAt(0), 0xFEFF, "BOM comme la matrice");
+const tcl = tc.slice(1).split("\r\n");
+eq(tcl.length, 4, "en-tête + 2 promos + fin de ligne");
+eq(tcl[0], "Promo;Début;Fin;Inscrits;En formation;Abandons (%);Absences (%);Réussite aux QCM (%);Examens QCM réussis (%);Moyenne des notes (/20);Critères EPCF acquis (%)", "en-têtes");
+eq(tcl[1], "Nîmes mars;2026-03-02;2026-12-18;20;18;10;10;75;75;12,5;75", "ligne chiffrée, virgule décimale");
+eq(tcl[2], "\"'=Récente; test\";2026-11-02;;10;10;0;;;;;", "nom neutralisé et cité ; fin absente ; ratios sans base vides, abandon 0");
+eq(tcl[3], "", "fin de ligne finale");
+eq(tableauCentreCsv([]).slice(1).split("\r\n").length, 2, "aucune promo : en-tête seul");
+
+// === Tableau du réseau : une ligne par centre (lot 5, Task 11) ===
+const lr = (o) => ({ lieu_id: 1, lieu_nom: "Nîmes", demonstration: false, promos_en_cours: 1, masque: false, inscrits: 20, en_formation: 18,
+  abandons: 2, absences: 3, prevus: 30, qcm_bonnes: 75, qcm_questions: 100, examens_passes: 4, examens_reussis: 3, notes_n: 4,
+  notes_somme: 50, notes_sous10: 0, epcf_acquis: 6, epcf_renseignes: 8, ...o });
+const nul = { masque: false, inscrits: null, en_formation: null, abandons: null, absences: null, prevus: null, qcm_bonnes: null,
+  qcm_questions: null, examens_passes: null, examens_reussis: null, notes_n: null, notes_somme: null, notes_sous10: null,
+  epcf_acquis: null, epcf_renseignes: null };
+const vue = vueDuReseau([
+  lr({}),
+  lr({ lieu_id: 2, lieu_nom: "Béziers", ...nul, masque: true, promos_en_cours: 1 }),
+  lr({ lieu_id: 3, lieu_nom: "Alès", ...nul, promos_en_cours: 0 }),
+  lr({ lieu_id: 4, lieu_nom: "Démonstration", demonstration: true, en_formation: 12 }),
+]);
+const rc = tableauReseauCsv(vue);
+eq(rc.charCodeAt(0), 0xFEFF, "BOM");
+const rl = rc.slice(1).split("\r\n");
+eq(rl[0], "Centre;Promos en cours;Stagiaires en formation;Abandons (%);Absences (%);Réussite aux QCM (%);Moyenne des notes (/20);Critères EPCF acquis (%);Remarque", "en-têtes");
+eq(rl[1], "Alès;0;;;;;;;aucune promo en cours", "centre sans promo en cours");
+eq(rl[2], "Béziers;1;;;;;;;moins de 5 stagiaires en formation", "centre masqué : aucun chiffre");
+eq(rl[3], "Nîmes;1;18;10;10;75;12,5;75;", "centre chiffré, triés par nom");
+eq(rl[4], "Total du réseau;1;18;10;10;75;12,5;75;hors centres de moins de 5 stagiaires en formation", "total sans le masqué ni la démonstration");
+eq(rl[5], "Centre de démonstration (données fictives, hors totaux);1;12;10;10;75;12,5;75;", "démonstration à part, après le total");
+eq(rl.length, 7, "fin de ligne finale");
+assert.ok(!rl.slice(1, 3).join("").match(/\d{2}/), "aucun chiffre pour les lignes sans données"); n++;
+const sansDemo = tableauReseauCsv(vueDuReseau([lr({})])).slice(1).split("\r\n");
+eq(sansDemo.length, 4, "sans démonstration : en-tête, centre, total");
 
 console.log(`centre-csv : ${n} assertions OK`);

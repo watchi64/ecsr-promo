@@ -298,3 +298,14 @@ test("texteBandeauApercu : ce que dit le bandeau d'aperçu (les modifications d'
   // Valeur inconnue : rendue telle quelle, comme l'ancien bandeau.
   assert.deepEqual(texteBandeauApercu("autre", null), { libelle: "autre", suite: "" });
 });
+
+// === Sous-onglets de Cours et QCM (lot 5, Task 13) ===
+import { sousOngletsCours } from "../js/espaces-rules.js";
+
+test("sousOngletsCours : siège, stagiaire, formateur (liste d'aujourd'hui), direction", () => {
+  assert.deepEqual(sousOngletsCours("siege"), ["Thèmes", "Compétences", "QCM", "Documents"]);
+  assert.deepEqual(sousOngletsCours("stagiaire"), ["Thèmes", "Compétences", "QCM", "Documents"]);
+  assert.deepEqual(sousOngletsCours("equipe"), ["Thèmes", "Compétences", "Signalements", "Propositions IA", "Documents"]);
+  assert.deepEqual(sousOngletsCours("direction"), [], "la direction n'a pas la page (D15)");
+  assert.deepEqual(sousOngletsCours(undefined), []);
+});

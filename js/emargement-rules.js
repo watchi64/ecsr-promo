@@ -288,3 +288,30 @@ export function minutesPresence(seances, lignes, stagiaireId) {
     .filter((s) => signees.has(s.id))
     .reduce((t, s) => t + dureeMinutes(s.debut, s.fin), 0);
 }
+
+// === Résumé d'une promo pour la direction (lot 5, Task 7) ===
+
+// seances : feuilles de la promo ; lignes : leurs lignes (`seance_id`, `signe_le`, `absent`, `absence_origine`).
+// Rend : le nombre de feuilles closes, la feuille ouverte (la plus récente) ou null, la dernière feuille (jour puis
+// demi-journée) ou null, les absences notées (origine formateur ou planning, feuilles ouvertes ou closes) et les lignes non
+// signées d'une feuille close (absence « non signé » posée à la clôture, ou ligne sans signature ni absence).
+export function resumeEmargement({ seances, lignes } = {}) {
+  const feuilles = Array.isArray(seances) ? seances : [];
+  const ordre = (a, b) => (a.jour < b.jour ? -1 : a.jour > b.jour ? 1 : (a.demi_journee === b.demi_journee ? 0 : a.demi_journee === "matin" ? -1 : 1));
+  const recentes = feuilles.slice().sort((a, b) => ordre(b, a));
+  const closes = new Set(feuilles.filter((s) => s.statut === "close").map((s) => s.id));
+  let absences = 0;
+  let nonSignees = 0;
+  for (const l of Array.isArray(lignes) ? lignes : []) {
+    const close = closes.has(l.seance_id);
+    if (l.absent && l.absence_origine !== "non_signe") absences++;
+    else if (close && !l.signe_le) nonSignees++;
+  }
+  return {
+    feuillesCloses: closes.size,
+    feuilleOuverte: recentes.find((s) => s.statut === "ouverte") || null,
+    derniere: recentes[0] || null,
+    absences,
+    nonSignees,
+  };
+}
