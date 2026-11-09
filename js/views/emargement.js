@@ -7,24 +7,24 @@ import {
   listStagiaires, listProfs, getPlanning, getHalfMetaForWeek, getJoursOff, getPromoCourante,
   listEmargementSeances, ouvrirEmargement, signerEmargement, signerEmargementFormateur,
   annoterEmargement, cloreEmargement, rouvrirEmargement, getEnteteEmargement, setEnteteEmargement,
-} from "../db.js?v=20261109c";
-import { el, clear, toast, isoDate } from "../utils.js?v=20261109c";
-import { icon } from "../icons.js?v=20261109c";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261109c";
+} from "../db.js?v=20261109d";
+import { el, clear, toast, isoDate } from "../utils.js?v=20261109d";
+import { icon } from "../icons.js?v=20261109d";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261109d";
 import {
-  etatLigne, resumeSeance, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
+  etatLigne, resumeSeance, resumeEnClair, etatSansFeuille, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
   demiVoisine, notesProposees, roleAuPlanning,
-} from "../emargement-rules.js?v=20261109c";
-import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261109c";
+} from "../emargement-rules.js?v=20261109d";
+import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261109d";
 import {
   feuilleSeance, feuilleSemaine, imprimer, nomComplet, jourLong, DEMI_LONG, stagiairesDeFeuille,
-} from "../emargement-feuilles.js?v=20261109c";
-import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261109c";
-import { emargementActif } from "../emargement-etat.js?v=20261109c";
-import { navigationV2Active } from "../nav-etat.js?v=20261109c";
-import { estAdresseAttestations } from "../attestations-rules.js?v=20261109c";
-import { renderAttestations } from "./attestations.js?v=20261109c";
+} from "../emargement-feuilles.js?v=20261109d";
+import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261109d";
+import { emargementActif } from "../emargement-etat.js?v=20261109d";
+import { navigationV2Active } from "../nav-etat.js?v=20261109d";
+import { estAdresseAttestations } from "../attestations-rules.js?v=20261109d";
+import { renderAttestations } from "./attestations.js?v=20261109d";
 
 // Horaires par défaut, comme DEFAULT_HALF_META du planning.
 const HORAIRES_DEFAUT = { matin: { debut: "09:00", fin: "12:30" }, aprem: { debut: "13:30", fin: "17:00" } };
@@ -180,14 +180,15 @@ function dessinerSemaine(ctx) {
         classe = "ouverte";
       } else if (s) {
         const r = resumeSeance(s.lignes, stagiairesDeFeuille(s, ctx.stagiairesTous).map((x) => x.id), true);
-        etat = `Close · ${r.signes} présents, ${r.absents} absents`;
+        etat = `Close · ${r.signes} présent${r.signes > 1 ? "s" : ""}, ${r.absents} absent${r.absents > 1 ? "s" : ""}`;
         classe = "close";
       } else if (off) {
         etat = off; classe = "off";
       } else if (jour === aujourdhui) {
         etat = "À ouvrir"; classe = "a-ouvrir";
       } else {
-        etat = jour < aujourdhui ? "Pas de feuille" : "À venir"; classe = "vide";
+        // Passée, une demi-journée de cours sans feuille se voit (« Feuille non faite ») ; sans cours, « Rien de prévu ».
+        ({ etat, classe } = etatSansFeuille({ jour, aujourdhui, demi, entries: ctx.entries, feuillesDeLaSemaine: ctx.seances.length }));
       }
       colonne.appendChild(el("a", { class: "em-case em-case-" + classe, href: adresseSeance(jour, demi) },
         el("span", { class: "em-case-demi" }, demi === "matin" ? "Matin" : "Après-midi"),
@@ -303,12 +304,11 @@ function dessinerSeance(ctx) {
   const ouverte = s.statut === "ouverte";
   const duJour = jour === aujourdhui;
   const liste = stagiairesDeFeuille(s, ctx.stagiairesTous);
-  const r = resumeSeance(s.lignes, liste.map((x) => x.id), !ouverte);
+  const r = resumeSeance(s.lignes, liste.map((x) => x.id), !ouverte, absentsPlanning);
 
+  // Signés, absents notés, en attente et absents prévus au planning : la même lecture que la carte d'« Aujourd'hui » (A1).
   page.appendChild(el("div", { class: "em-resume" },
-    el("span", { class: "em-resume-chiffre" }, `${r.signes} sur ${r.total}`), " ont signé",
-    r.absents ? ` · ${r.absents} absent${r.absents > 1 ? "s" : ""}` : "",
-    ouverte && r.attente ? ` · ${r.attente} en attente` : "",
+    el("span", { class: "em-resume-chiffre" }, `${r.signes} sur ${r.total}`), resumeEnClair(r, { ouverte }),
   ));
   if (ouverte && !duJour) {
     page.appendChild(el("p", { class: "em-alerte" },

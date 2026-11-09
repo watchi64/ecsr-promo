@@ -2,9 +2,9 @@
 // node, sans DOM ni base). Les pages Accueil, Aujourd'hui et la grille de la semaine ne
 // recalculent rien : elles reçoivent ces cartes toutes lues (rôles effectifs, absences,
 // horaires, repos). Ni heure ni lieu par carte : la base n'en a pas.
-import { effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe } from "./planning-roles.js?v=20261109c";
-import { rolesPourEntry } from "./creneaux-rules.js?v=20261109c";
-import { jourFerie } from "./emargement-rules.js?v=20261109c";
+import { effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe } from "./planning-roles.js?v=20261109d";
+import { rolesPourEntry } from "./creneaux-rules.js?v=20261109d";
+import { jourFerie } from "./emargement-rules.js?v=20261109d";
 
 // Défauts horaires quand aucune ligne de planning_half_meta n'existe (déplacés de planning.js).
 export const DEFAULT_HALF_META = {
@@ -225,6 +225,13 @@ export function jourParDefaut(jours, aujourdhui) {
   const auj = aujourdhui == null ? null : versIso(aujourdhui);
   const trouve = (jours || []).find((j) => j.iso === auj);
   return trouve ? trouve.index : 0;
+}
+
+// L'alerte d'une carte de la semaine : une voiture sans stagiaire au volant (tous absents, personne en remplacement) ne
+// doit pas passer pour une voiture ordinaire dans la grille (audit du 09/11, A9). null sinon.
+export function alerteDeCarte(c) {
+  if (c && c.genre === "voiture" && Array.isArray(c.conducteurs) && c.conducteurs.length === 0) return "Aucun stagiaire en voiture";
+  return null;
 }
 
 // Étiquette du rôle de la personne dans une case de la grille.

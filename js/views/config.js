@@ -17,17 +17,17 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20261109c";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109c";
-import { icon } from "../icons.js?v=20261109c";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109c";
-import { moduleVisible } from "../modules-etat.js?v=20261109c";
-import { renderModulesSection } from "./modules-reglage.js?v=20261109c";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261109c";
-import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109c";
-import { pointsARetenir } from "../accueil-rules.js?v=20261109c";
-import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261109c";
-import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261109c";
+} from "../db.js?v=20261109d";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109d";
+import { icon } from "../icons.js?v=20261109d";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109d";
+import { moduleVisible } from "../modules-etat.js?v=20261109d";
+import { renderModulesSection } from "./modules-reglage.js?v=20261109d";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261109d";
+import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109d";
+import { pointsARetenir } from "../accueil-rules.js?v=20261109d";
+import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261109d";
+import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261109d";
 
 // ====== SECTION Accès & invitations ======
 

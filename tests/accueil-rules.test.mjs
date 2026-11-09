@@ -216,11 +216,10 @@ const tout = aFaireStagiaire(base({
   qcm: OUVERT(13), sujetsDeLaSemaine: ["Intersections et priorités"], exemplesDossier: 2, livretCommence: false,
 }));
 eq(tout, [
-  { cle: "examen-13", titre: "Examen ouvert : Vitesse", detail: "Sans limite de temps", route: "themes", sousOnglet: "themes" },
-  { cle: "qcm-11", titre: "QCM du thème : Intersections et priorités", detail: "Pas encore fait · 20 questions", route: "themes", sousOnglet: "themes" },
+  { cle: "examen-13", titre: "Examen ouvert : Vitesse", detail: "Sans limite de temps", route: "themes", sousOnglet: "qcm" },
+  { cle: "qcm-11", titre: "QCM du thème : Intersections et priorités", detail: "Pas encore fait · 20 questions", route: "themes", sousOnglet: "qcm" },
   { cle: "dossier", titre: "Dossier professionnel", detail: "2 exemples sur 6", route: "mon-suivi", sousOnglet: "dp" },
-  { cle: "livret", titre: "Livret EPCF", detail: "Pas encore commencé", route: "mon-suivi", sousOnglet: "livret" },
-], "examen, QCM du thème, dossier, livret, dans cet ordre");
+], "examen, QCM du thème, dossier, dans cet ordre ; QCM et examen mènent au sous-onglet QCM (audit du 09/11, A6)");
 
 // Examen
 eq(aFaireStagiaire(base({ qcm: OUVERT(13, { exam_ferme_a: new Date(NOW + 90 * 60000).toISOString() }) }))[0].detail, "Ferme dans 1 h 30",
@@ -239,7 +238,7 @@ eq(cles(aFaireStagiaire(base({ qcm: QCM.map((q) => ({ ...q, published: true, nb_
 
 // QCM du thème vu cette semaine
 eq(aFaireStagiaire(base({ sujetsDeLaSemaine: ["Stationnement, arrêt, immobilisation"] })),
-  [{ cle: "qcm-12", titre: "QCM du thème : Stationnement, arrêt, immobilisation", detail: "Pas encore fait · 1 question", route: "themes", sousOnglet: "themes" }],
+  [{ cle: "qcm-12", titre: "QCM du thème : Stationnement, arrêt, immobilisation", detail: "Pas encore fait · 1 question", route: "themes", sousOnglet: "qcm" }],
   "un titre à virgule se rapproche par son titre exact ; une seule question s'écrit au singulier");
 eq(cles(aFaireStagiaire(base({ sujetsDeLaSemaine: ["Intersections et priorités"], tentatives: [{ qcm_id: 11, mode: "entrainement" }] }))), [],
   "un QCM déjà tenté n'est plus à faire");
@@ -260,13 +259,14 @@ eq(aFaireStagiaire(base({ exemplesDossier: 1 }))[0].detail, "1 exemple sur 6", "
 eq(cles(aFaireStagiaire(base({ exemplesDossier: 6 }))), [], "6 sur 6 : absent");
 eq(cles(aFaireStagiaire(base({ exemplesDossier: null }))), [], "dossier illisible : pas de ligne inventée");
 eq(cles(aFaireStagiaire(base({ livretCommence: null }))), [], "livret illisible : pas de ligne inventée");
-eq(cles(aFaireStagiaire(base({ livretCommence: false }))), ["livret"], "livret pas commencé");
+// Le livret EPCF est rempli par les formateurs : pas commencé, ce n'est pas un travail du stagiaire (audit du 09/11, A4).
+eq(cles(aFaireStagiaire(base({ livretCommence: false }))), [], "livret pas commencé : aucune ligne, le stagiaire n'y peut rien");
 
 // Modules fermés
 const fermer = (m) => ({ qcm: true, dp: true, livret: true, [m]: false });
 const complet = { qcm: OUVERT(13), sujetsDeLaSemaine: ["Intersections et priorités"], exemplesDossier: 2, livretCommence: false };
-eq(cles(aFaireStagiaire(base({ ...complet, modules: fermer("qcm") }))), ["dossier", "livret"], "QCM fermé : ni examen ni QCM du thème");
-eq(cles(aFaireStagiaire(base({ ...complet, modules: fermer("dp") }))), ["examen-13", "qcm-11", "livret"], "Dossier fermé : sa ligne part");
+eq(cles(aFaireStagiaire(base({ ...complet, modules: fermer("qcm") }))), ["dossier"], "QCM fermé : ni examen ni QCM du thème");
+eq(cles(aFaireStagiaire(base({ ...complet, modules: fermer("dp") }))), ["examen-13", "qcm-11"], "Dossier fermé : sa ligne part");
 eq(cles(aFaireStagiaire(base({ ...complet, modules: fermer("livret") }))), ["examen-13", "qcm-11", "dossier"], "Livret fermé : sa ligne part");
 
 // Plafond de 4

@@ -20,12 +20,12 @@
 // Les tableaux par stagiaire comptent les mêmes stagiaires que lui : ceux en formation, et le document le dit ; seule la
 // liste nominative de l'effectif montre aussi les abandons.
 
-import { SOURCE } from "./qualiopi-referentiel.js?v=20261109c";
-import { jourDe, rempli, tableau, nb, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261109c";
-import { ligneComparaison, METHODES } from "./centre-stats.js?v=20261109c";
-import { estNotee, score20 } from "./notes-stats.js?v=20261109c";
-import { cellule, nombre, slug } from "./centre-csv.js?v=20261109c";
-import { compareByNom } from "./utils.js?v=20261109c";
+import { SOURCE } from "./qualiopi-referentiel.js?v=20261109d";
+import { jourDe, rempli, tableau, nb, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261109d";
+import { ligneComparaison, METHODES } from "./centre-stats.js?v=20261109d";
+import { estNotee, score20 } from "./notes-stats.js?v=20261109d";
+import { cellule, nombre, slug } from "./centre-csv.js?v=20261109d";
+import { compareByNom } from "./utils.js?v=20261109d";
 
 export const PHRASE_DE_GARDE = "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
 

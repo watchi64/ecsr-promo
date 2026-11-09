@@ -8,27 +8,27 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
   avantChangementPromo,
-} from "../db.js?v=20261109c";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261109c";
-import { icon, deco } from "../icons.js?v=20261109c";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261109c";
-import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261109c";
-import { recordUndo } from "../undo.js?v=20261109c";
-import { getCurrentWho } from "../identity.js?v=20261109c";
-import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261109c";
-import { meilleurResultat } from "../passage-rules.js?v=20261109c";
-import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109c";
-import { emargementActif } from "../emargement-etat.js?v=20261109c";
-import { navigationV2Active } from "../nav-etat.js?v=20261109c";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109c";
+} from "../db.js?v=20261109d";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261109d";
+import { icon, deco } from "../icons.js?v=20261109d";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261109d";
+import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261109d";
+import { recordUndo } from "../undo.js?v=20261109d";
+import { getCurrentWho } from "../identity.js?v=20261109d";
+import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261109d";
+import { meilleurResultat } from "../passage-rules.js?v=20261109d";
+import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109d";
+import { emargementActif } from "../emargement-etat.js?v=20261109d";
+import { navigationV2Active } from "../nav-etat.js?v=20261109d";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109d";
 import {
-  entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe,
-} from "../planning-roles.js?v=20261109c";
+  entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe, colonnesParalleles,
+} from "../planning-roles.js?v=20261109d";
 import {
   DEFAULT_HALF_META, semaineEnGrille, jourParDefaut, lundiEnCours, vuePlanningInitiale,
-} from "../journee-rules.js?v=20261109c";
-import { nomsStagiaires } from "../planning-lecture.js?v=20261109c";
-import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261109c";
+} from "../journee-rules.js?v=20261109d";
+import { nomsStagiaires } from "../planning-lecture.js?v=20261109d";
+import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261109d";
 
 let stagiaires = [];
 let profs = [];
@@ -327,8 +327,9 @@ async function saveEntry(localId, patch) {
       if (patch.activite !== undefined && cellEl) {
         const newCell = renderLaneCell(entry);
         // Conserve le positionnement en grille, sinon la cellule retombe en colonne 1
-        // (auto-placement) et chevauche les lanes parallèles jusqu'au prochain re-render.
-        newCell.style.gridColumn = String((entry.lane ?? 0) + 1);
+        // (auto-placement) et chevauche les lanes parallèles jusqu'au prochain re-render. La colonne est celle du
+        // rendu (son rang dans le créneau, colonnesParalleles), pas le numéro de voie : on reprend celle de l'ancienne.
+        newCell.style.gridColumn = cellEl.style.gridColumn;
         cellEl.replaceWith(newCell);
       }
     } catch (e) {
@@ -2050,7 +2051,7 @@ function renderLaneCell(entry) {
 
 // === Rendu d'un slot (rangée = série, contient N lanes en parallèle) ===
 
-function renderSlotRow(d, half, row, maxLanes) {
+function renderSlotRow(d, half, row, maxLanes, rangs) {
   const slotEl = el("div", { class: "p-slot-row" });
 
   // Marqueur du slot
@@ -2058,19 +2059,18 @@ function renderSlotRow(d, half, row, maxLanes) {
     el("span", { class: "p-slot-num" }, String(row.slot + 1))
   ));
 
-  // Lanes : grid à `maxLanes` colonnes (+ une colonne fine pour le bouton parallèle)
+  // Lanes : grid à `maxLanes` colonnes (+ une colonne fine pour le bouton parallèle) ; `rangs[k]` : la colonne de la
+  // k-ième entrée du créneau (colonnesParalleles de js/planning-roles.js).
   // `has-parallel` : 2+ activités au même horaire → encadrées en groupe sur mobile.
   const lanes = el("div", { class: "p-lanes" + (row.lanes.length > 1 ? " has-parallel" : "") });
   // Grid template : N colonnes de cellules de même largeur + 1 colonne 40px pour le "+"
   lanes.style.gridTemplateColumns = `repeat(${maxLanes}, minmax(0, 1fr)) 40px`;
 
-  row.lanes.forEach((entry) => {
+  row.lanes.forEach((entry, k) => {
     const cell = renderLaneCell(entry);
-    // Place la cellule dans la colonne correspondant à son lane index. En vue compacte
-    // (semaine verrouillée), les lanes vides sont filtrées en amont et _laneRender
-    // re-numérote les restantes pour resserrer la grille (entry.lane reste intact).
-    const laneIdx = (canEditWeek() ? entry.lane : (entry._laneRender ?? entry.lane)) ?? 0;
-    cell.style.gridColumn = String(laneIdx + 1);
+    // Place la cellule dans sa colonne : son rang parmi les voies du créneau, sans les trous de numérotation (entry.lane,
+    // persistée, reste intacte). En vue compacte (semaine verrouillée), les lanes vides sont filtrées en amont.
+    cell.style.gridColumn = String((rangs?.[k] ?? 0) + 1);
     lanes.appendChild(cell);
   });
 
@@ -2157,18 +2157,14 @@ function renderDayCard(d, monday) {
     const compact = !canEditWeek();
     if (compact) {
       // Vue compacte : seules les lanes avec contenu, puis les créneaux non vides.
-      // Re-numérotation via _laneRender (champ de RENDU : ne jamais muter entry.lane,
-      // qui est persisté) pour que la carte pleine reprenne toute la largeur.
       rows = rows
         .map((r) => ({ ...r, lanes: r.lanes.filter(entryHasContent) }))
         .filter((r) => r.lanes.length > 0);
-      rows.forEach((r) => r.lanes.forEach((e, i) => { e._laneRender = i; }));
     }
-    // Calcule combien de "colonnes parallèles" maximum dans cette demi-journée
-    // = max(lane index + 1) parmi toutes les entries de la demi-journée
-    const allLanes = rows.flatMap((r) => r.lanes.map((e) => (compact ? e._laneRender : e.lane) ?? 0));
-    const maxLanes = Math.max(1, ...allLanes.map((l) => l + 1));
-    rows.forEach((row) => slotsWrap.appendChild(renderSlotRow(d, half.key, row, maxLanes)));
+    // Colonnes parallèles de la demi-journée : autant que le créneau le plus chargé, chaque créneau rangé sans les trous
+    // de numérotation des voies, en lecture comme en mode Modifier (une carte seule n'est plus réduite par une voie vide).
+    const { colonnes: maxLanes, rangs } = colonnesParalleles(rows);
+    rows.forEach((row, i) => slotsWrap.appendChild(renderSlotRow(d, half.key, row, maxLanes, rangs[i])));
 
     // Bouton "+ À la suite"
     const addSuiteBtn = el("button", {

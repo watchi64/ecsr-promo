@@ -1,3 +1,5 @@
+import { peutMontrer, aReprendre, perimee } from "./messages-rules.js?v=20261109d";
+
 // === Date helpers ===
 
 export function isoDate(d) {
@@ -148,16 +150,69 @@ export async function sha256(str) {
 }
 
 // === Toast ===
+// Le message du bas n'a qu'une place (règles dans js/messages-rules.js) : un message (toast : confirmation d'un geste,
+// erreur) s'affiche tout de suite ; une annonce (annoncer : un mot de l'app à l'ouverture) attend que la place soit libre
+// et qu'aucune fenêtre ne couvre la page, pour ne jamais effacer une confirmation (audit du 09/11, A2).
 
 let toastTimer = null;
-export function toast(msg, type = "info", duration = 2400) {
+let relance = null;
+let courant = null;            // le message affiché : { genre, texte, type, duree, depuis }, ou null
+const enAttente = [];          // les annonces qui attendent : { genre: "annonce", texte, type, duree, depose }
+
+function fenetreOuverte() {
+  return [...document.querySelectorAll('[aria-modal="true"], .modal-backdrop')].some((e) => e.getClientRects().length > 0);
+}
+
+function afficherToast(m) {
   const node = document.getElementById("toast");
-  node.textContent = msg;
+  if (!node) return;
+  node.textContent = m.texte;
   node.className = "toast";
-  if (type) node.classList.add(type);
+  if (m.type) node.classList.add(m.type);
   node.classList.remove("hidden");
+  courant = { ...m, depuis: Date.now() };
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => node.classList.add("hidden"), duration);
+  toastTimer = setTimeout(libererToast, m.duree);
+}
+
+function libererToast() {
+  const node = document.getElementById("toast");
+  if (node) node.classList.add("hidden");
+  courant = null;
+  servirAnnonces();
+}
+
+function servirAnnonces() {
+  clearTimeout(relance);
+  relance = null;
+  const maintenant = Date.now();
+  while (enAttente.length && perimee(enAttente[0], maintenant)) enAttente.shift();
+  if (!enAttente.length) return;
+  if (peutMontrer(enAttente[0], { courant, fenetreOuverte: fenetreOuverte() })) afficherToast(enAttente.shift());
+  else relance = setTimeout(servirAnnonces, 1000);
+}
+
+export function toast(msg, type = "info", duration = 2400) {
+  const m = { genre: "message", texte: msg, type, duree: duration };
+  if (aReprendre(courant, m, Date.now())) enAttente.unshift({ ...courant, depose: Date.now() });
+  afficherToast(m);
+}
+
+export function annoncer(msg, type = "info", duration = 6000) {
+  enAttente.push({ genre: "annonce", texte: msg, type, duree: duration, depose: Date.now() });
+  servirAnnonces();
+}
+
+// Une fenêtre vient de s'ouvrir (js/nav-fenetre.js) : l'annonce affichée se retire et attend qu'elle se ferme.
+export function suspendreAnnonce() {
+  if (!courant || courant.genre !== "annonce") return;
+  const annonce = courant;
+  clearTimeout(toastTimer);
+  const node = document.getElementById("toast");
+  if (node) node.classList.add("hidden");
+  courant = null;
+  enAttente.unshift({ ...annonce, depose: Date.now() });
+  servirAnnonces();
 }
 
 // === Debounce ===
