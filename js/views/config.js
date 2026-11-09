@@ -64,9 +64,13 @@ async function renderAccessSection(rerender) {
   if (peutInviter) {
     const inviteBlock = el("div", { class: "param-block" });
     inviteBlock.appendChild(el("h4", {}, "Autoriser une personne"));
-    inviteBlock.appendChild(el("p", { class: "muted" }, v2
+    const phraseHabituelle = v2
       ? "Choisis le rôle et la personne, entre son adresse e-mail. Aucun e-mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec cette adresse et un mot de passe."
-      : "Choisis le rôle et la personne, entre son email. Aucun mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec son email + un mdp."));
+      : "Choisis le rôle et la personne, entre son email. Aucun mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec son email + un mdp.";
+    // Le siège n'a pas de personne à choisir : la phrase ne la mentionne plus.
+    const phraseSiege = "Entre l'adresse e-mail de la personne qui rejoint le siège du réseau. Aucun e-mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec cette adresse et un mot de passe.";
+    const aideInvitation = el("p", { class: "muted" }, phraseHabituelle);
+    inviteBlock.appendChild(aideInvitation);
 
     const roleSel = el("select", { class: "invite-role", "aria-label": "Rôle de la personne invitée" });
     // Inviter un formateur : la direction du centre ou le fondateur (la base le vérifie aussi, inviter_compte).
@@ -85,6 +89,7 @@ async function renderAccessSection(rerender) {
       const role = roleSel.value;
       // Le siège n'est lié à aucune fiche : le choix de la personne disparaît, l'adresse suffit.
       libellePersonne.hidden = personSel.hidden = role === "siege";
+      aideInvitation.textContent = role === "siege" ? phraseSiege : phraseHabituelle;
       if (role === "siege") return;
       personSel.appendChild(el("option", { value: "" }, "Choisir…"));
       const list = role === "stagiaire" ? stagiaires : profs;

@@ -80,12 +80,14 @@ export function ouvrirInvitationDirection({ lieux, lieuId = null, intro = null, 
 // « Ajouter un centre » : le nom, puis la proposition d'inviter sa direction. Le nom en double est refusé par la base (sa phrase
 // s'affiche dans la fenêtre, le nom reste). `apres()` relit la page qui a ouvert la fenêtre.
 export function ouvrirAjoutCentre({ ancre, apres }) {
+  let ouvrirSuite = null;
   const champNom = el("input", { type: "text", id: "centre-nom", autocomplete: "off", maxlength: "120", placeholder: "Nom du centre" });
   ouvrirFenetre({
     titre: "Ajouter un centre",
     intro: "Le centre est créé sans promo. Tu pourras ensuite inviter sa direction.",
     corps: [el("div", { class: "field" }, el("label", { for: "centre-nom" }, "Nom du centre"), champNom)],
     ancre, libelleBouton: "Ajouter", premierChamp: () => champNom,
+    apresFermeture: () => { if (ouvrirSuite) ouvrirSuite(); },
     valider: () => {
       const nom = champNom.value.trim().replace(/\s+/g, " ");
       return nom ? { nom } : PHRASE_NOM_REQUIS;
@@ -97,13 +99,14 @@ export function ouvrirAjoutCentre({ ancre, apres }) {
       let lieux;
       try { lieux = await lireLieuxDuReseau(); } catch (e) { console.error("lieux du réseau", e); lieux = []; }
       if (!lieux.some((l) => l.id === id)) lieux = [...lieux, { id, nom: v.nom, demonstration: false }];
-      // La fenêtre d'invitation s'ouvre une fois celle-ci fermée (qui rend le focus à son bouton).
-      setTimeout(() => ouvrirInvitationDirection({
+      // La page se relit d'abord (elle rend le focus à son titre) ; la fenêtre d'invitation s'ouvre ensuite, une fois celle-ci fermée,
+      // pour que son champ garde le focus et qu'un seul fond de fenêtre existe à la fois.
+      await apres();
+      ouvrirSuite = () => ouvrirInvitationDirection({
         lieux, lieuId: id, ancre,
         intro: `${v.nom} est créé. Invite sa direction, ou ferme cette fenêtre pour le faire plus tard.`,
         apres,
-      }), 0);
-      await apres();
+      });
     },
   });
 }
