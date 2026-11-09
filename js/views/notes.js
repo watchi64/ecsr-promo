@@ -15,7 +15,7 @@ import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109i
 import { navigationV2Active } from "../nav-etat.js?v=20261109i";
 import { renderEpcf } from "./epcf.js?v=20261109i";
 import { noteGradient } from "../echelle-notes.js?v=20261109i";
-import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote } from "../notes-saisie-rules.js?v=20261109i";
+import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible } from "../notes-saisie-rules.js?v=20261109i";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -466,6 +466,86 @@ function clearNoteCellStyle(td) {
   td.style.fontWeight = "";
 }
 
+// Enregistre la saisie d'une note pour un stagiaire et une cible (thème ou compétence) : la seule écriture de note de la
+// page, partagée par la matrice, la fiche d'un stagiaire et l'écran « Saisir » (lot C). Lit la note en place (la plus
+// récente, js/notes-saisie-rules.js), convertit X/Y sur 20, crée, modifie ou efface (après confirmation nommée), tient le
+// retour en arrière (Ctrl+Z) et le tableau `evaluations`. Ne touche ni au DOM ni aux statistiques : l'appelant affiche.
+// Résultat : { etat: "inchangee" | "enregistree" | "effacee" | "gardee" | "invalide" | "erreur", note?, converti?, message? }.
+async function enregistrerNote({ stagiaireId, cible, saisie, nom = null }) {
+  const existing = derniereNote(evaluations, stagiaireId, cible);
+  const raw = String(saisie ?? "").trim();
+  if (raw === "") {
+    if (!existing) return { etat: "inchangee" };
+    const s = stagiaires.find((x) => x.id === stagiaireId);
+    const qui = nom || (s ? displayName(s) : null);
+    if (!confirm(qui ? `Effacer la note de ${qui} ?` : "Effacer cette note ?")) return { etat: "gardee" };
+    try {
+      const snapshot = { ...existing };
+      await deleteEvaluation(existing.id);
+      evaluations = evaluations.filter((x) => x.id !== existing.id);
+      recordUndo("note effacée", async () => {
+        const { id, created_at, updated_at, ...payload } = snapshot;
+        const re = await addEvaluation(payload);
+        evaluations.push(re || snapshot);
+      });
+      return { etat: "effacee" };
+    } catch (e) { return { etat: "erreur", message: e?.message || String(e) }; }
+  }
+
+  const parsed = parseNoteInput(raw);
+  if (!parsed || parsed.error) return { etat: "invalide", message: parsed?.error || "Note invalide" };
+  const note = parsed.note;
+  const fait = parsed.converted ? { etat: "enregistree", note, converti: parsed.original } : { etat: "enregistree", note };
+  // Pas de changement si la note est identique (et /20)
+  if (existing && Number(existing.note) === note && Number(existing.note_max) === 20) return { etat: "inchangee" };
+
+  const email = getAdminEmail();
+  try {
+    if (existing) {
+      const prevNote = existing.note;
+      const prevMax = existing.note_max;
+      const prevDate = existing.date_eval;
+      await updateEvaluation(existing.id, {
+        note,
+        note_max: 20,
+        date_eval: currentEvalDate,
+        updated_by_email: email,
+      });
+      existing.note = note;
+      existing.note_max = 20;
+      existing.date_eval = currentEvalDate;
+      const id = existing.id;
+      recordUndo("note modifiée", async () => {
+        await updateEvaluation(id, { note: prevNote, note_max: prevMax, date_eval: prevDate });
+        const ev = evaluations.find((x) => x.id === id);
+        if (ev) { ev.note = prevNote; ev.note_max = prevMax; ev.date_eval = prevDate; }
+      });
+    } else {
+      const newRow = {
+        stagiaire_id: stagiaireId,
+        ...champsDeCible(cible),
+        note,
+        note_max: 20,
+        date_eval: currentEvalDate,
+        created_by_email: email,
+        updated_by_email: email,
+      };
+      const inserted = await addEvaluation(newRow);
+      evaluations.push(inserted || newRow);
+      const insertedId = inserted?.id;
+      recordUndo("note ajoutée", async () => {
+        if (insertedId) {
+          await deleteEvaluation(insertedId);
+          evaluations = evaluations.filter((x) => x.id !== insertedId);
+        }
+      });
+    }
+    return fait;
+  } catch (e) {
+    return { etat: "erreur", message: e?.message || String(e) };
+  }
+}
+
 // Édition inline d'une cellule : remplace le contenu par un input et sauvegarde au blur/Enter
 function inlineCellEdit(td, stagiaireId, fixedFields, container) {
   // fixedFields : { type, theme_numero?, competence_code?, controle_libelle? }
@@ -537,109 +617,34 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
   async function save() {
     if (cancelled) return;
     cancelled = true;
-    const raw = input.value.trim();
-    // Cas 1 : champ vide
-    if (raw === "") {
-      // Si existing, propose la suppression
-      if (existing) {
-        if (!confirm("Effacer cette note ?")) {
-          td.textContent = originalText;
-          td.className = originalClass;
-          return;
-        }
-        try {
-          const snapshot = { ...existing };
-          await deleteEvaluation(existing.id);
-          // Met à jour localement + DOM en place (pas de rerender complet)
-          evaluations = evaluations.filter((x) => x.id !== existing.id);
-          td.textContent = "";
-          td.className = "m-td-cell empty" + (isAdmin() ? " editable" : "");
-          clearNoteCellStyle(td);
-          td.style.position = originalPosition;
-          td.style.zIndex = originalZIndex;
-          toast("Note effacée · Ctrl+Z pour annuler", "success", 2200);
-          recordUndo("note effacée", async () => {
-            const { id, created_at, updated_at, ...payload } = snapshot;
-            const re = await addEvaluation(payload);
-            evaluations.push(re || snapshot);
-          });
-          refreshAnalyticsInPlace(container);
-        } catch (e) { toast(e.message, "error"); restore(); }
-        return;
-      }
-      // Cellule vide, input vide → restore
-      restore();
-      return;
-    }
-
-    const parsed = parseNoteInput(raw);
-    if (!parsed || parsed.error) {
-      toast(parsed?.error || "Note invalide", "error");
-      restore();
-      return;
-    }
-    const note = parsed.note;
-    if (parsed.converted) {
-      toast(`${parsed.original} → ${note}/20`, "success", 1800);
-    }
-    // Pas de changement si la note est identique (et /20)
-    if (existing && Number(existing.note) === note && Number(existing.note_max) === 20) {
-      restore();
-      return;
-    }
-
-    const email = getAdminEmail();
-    try {
-      if (existing) {
-        const prevNote = existing.note;
-        const prevMax = existing.note_max;
-        const prevDate = existing.date_eval;
-        await updateEvaluation(existing.id, {
-          note,
-          note_max: 20,
-          date_eval: currentEvalDate,
-          updated_by_email: email,
-        });
-        existing.note = note;
-        existing.note_max = 20;
-        existing.date_eval = currentEvalDate;
-        const id = existing.id;
-        recordUndo("note modifiée", async () => {
-          await updateEvaluation(id, { note: prevNote, note_max: prevMax, date_eval: prevDate });
-          const ev = evaluations.find((x) => x.id === id);
-          if (ev) { ev.note = prevNote; ev.note_max = prevMax; ev.date_eval = prevDate; }
-        });
-      } else {
-        const newRow = {
-          stagiaire_id: stagiaireId,
-          ...fixedFields,
-          note,
-          note_max: 20,
-          date_eval: currentEvalDate,
-          created_by_email: email,
-          updated_by_email: email,
-        };
-        const inserted = await addEvaluation(newRow);
-        evaluations.push(inserted || newRow);
-        const insertedId = inserted?.id;
-        recordUndo("note ajoutée", async () => {
-          if (insertedId) {
-            await deleteEvaluation(insertedId);
-            evaluations = evaluations.filter((x) => x.id !== insertedId);
-          }
-        });
-      }
-      // Met à jour la cellule en place (sans détruire les autres inputs)
-      td.textContent = String(note);
-      td.className = "m-td-cell" + (isAdmin() ? " editable" : "");
-      applyNoteCellStyle(td, note);
+    const r = await enregistrerNote({ stagiaireId, cible: fixedFields, saisie: input.value });
+    if (r.etat === "effacee") {
+      // Met à jour la cellule en place (pas de rerender complet)
+      td.textContent = "";
+      td.className = "m-td-cell empty" + (isAdmin() ? " editable" : "");
+      clearNoteCellStyle(td);
       td.style.position = originalPosition;
       td.style.zIndex = originalZIndex;
+      toast("Note effacée · Ctrl+Z pour annuler", "success", 2200);
       refreshAnalyticsInPlace(container);
-    } catch (e) {
-      toast(e.message, "error");
-      restore();
+      return;
     }
+    if (r.etat === "gardee") {
+      td.textContent = originalText;
+      td.className = originalClass;
+      restore();
+      return;
+    }
+    if (r.etat === "invalide" || r.etat === "erreur") toast(r.message, "error");
+    if (r.etat !== "enregistree") { restore(); return; }
+    if (r.converti) toast(`${r.converti} → ${r.note}/20`, "success", 1800);
+    // Met à jour la cellule en place (sans détruire les autres inputs)
+    td.textContent = String(r.note);
+    td.className = "m-td-cell" + (isAdmin() ? " editable" : "");
+    applyNoteCellStyle(td, r.note);
+    td.style.position = originalPosition;
+    td.style.zIndex = originalZIndex;
+    refreshAnalyticsInPlace(container);
   }
 
   function restore() {
@@ -783,43 +788,16 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
   let done = false;
   async function commit() {
     if (done) return; done = true;
-    const raw = input.value.trim();
-    if (raw === "") {
-      if (existing && confirm("Effacer cette note ?")) {
-        try { await deleteEvaluation(existing.id); toast("Note effacée", "success"); }
-        catch (e) { toast(e.message, "error"); }
-      }
-      backdrop.remove();
-      await reload(container);
-      return;
-    }
-    const parsed = parseNoteInput(raw);
-    if (!parsed || parsed.error) {
-      toast(parsed?.error || "Note invalide", "error");
+    const r = await enregistrerNote({ stagiaireId, cible: fixedFields, saisie: input.value });
+    if (r.etat === "invalide" || r.etat === "erreur" || r.etat === "gardee") {
+      if (r.message) toast(r.message, "error");
       valueWrap.innerHTML = originalHtml;
       return;
     }
-    const note = parsed.note;
-    if (parsed.converted) {
-      toast(`${parsed.original} → ${note}/20`, "success", 1800);
-    }
-    const email = getAdminEmail();
-    try {
-      if (existing) {
-        await updateEvaluation(existing.id, { note, note_max: 20, date_eval: currentEvalDate, updated_by_email: email });
-      } else {
-        await addEvaluation({
-          stagiaire_id: stagiaireId, ...fixedFields,
-          note, note_max: 20, date_eval: currentEvalDate,
-          created_by_email: email, updated_by_email: email,
-        });
-      }
-      backdrop.remove();
-      await reload(container);
-    } catch (e) {
-      toast(e.message, "error");
-      valueWrap.innerHTML = originalHtml;
-    }
+    if (r.etat === "effacee") toast("Note effacée · Ctrl+Z pour annuler", "success", 2200);
+    if (r.converti) toast(`${r.converti} → ${r.note}/20`, "success", 1800);
+    backdrop.remove();
+    await reload(container);
   }
   input.addEventListener("blur", commit);
   input.addEventListener("keydown", (e) => {
