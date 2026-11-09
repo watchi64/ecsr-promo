@@ -1,23 +1,29 @@
--- Preuve du lot 5, étape 1 (siège) : ce que la migration 20261108_espaces_1_siege.sql doit donner, écrite avant elle.
---   lieux.demonstration (vrai pour le lieu 4 seulement, aucune écriture directe), la séquence de lieux.id recalée,
+-- Preuve du lot 5, étapes 1 (siège) et 2 (équipe) : ce que les migrations 20261108_espaces_1_siege.sql et
+-- 20261108_espaces_2_equipe.sql doivent donner, écrite avant elles.
+--   Étape 1 : lieux.demonstration (vrai pour le lieu 4 seulement, aucune écriture directe), la séquence de lieux.id recalée,
 --   comptes_reseau() (comptes additifs par centre, sans nom, sans détail par promo, masqués sous 5 stagiaires en
 --   formation, réservés au siège) et creer_centre(p_nom) (réservée au siège).
+--   Étape 2 : regler_affectations_formateur (la direction du centre donne à un compte exactement les promos choisies de son
+--   centre), _profil_formateur (interne) et inviter_compte redéfinie (même profil qu'au lot 4, adresse de stagiaire refusée).
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes du lot 4
 -- (tests/sql/roles-aides.sql), y écrit le libellé du mode et y injecte en littéraux la requête d'empreinte, la fixture
--- commune (tests/fixtures/comptes-promo.json, la même que celle du test node), la migration et son retour :
---   node outils/assembler_repetition_roles.mjs espaces <sortie.sql>                   la migration injectée : VERT attendu
---   node outils/assembler_repetition_roles.mjs espaces-contre-epreuve <sortie.sql>    sans la migration : ROUGE attendu
+-- commune (tests/fixtures/comptes-promo.json, la même que celle du test node), les deux migrations et leurs retours :
+--   node outils/assembler_repetition_roles.mjs espaces <sortie.sql>                   les migrations injectées : VERT attendu
+--   node outils/assembler_repetition_roles.mjs espaces-contre-epreuve <sortie.sql>    sans aucune migration : ROUGE attendu
 --                                                                                     sur les contrôles comptes_reseau,
---                                                                                     creer_centre et demonstration, rien d'autre
+--                                                                                     creer_centre, demonstration et equipe
+--   node outils/assembler_repetition_roles.mjs espaces-contre-epreuve-2 <sortie.sql>  avec la seule migration du siège : ROUGE
+--                                                                                     attendu sur les seuls contrôles de l'équipe
 --   node outils/assembler_repetition_roles.mjs espaces-en-ligne <sortie.sql>          rien d'injecté, après application réelle
 --   ... --compact <sortie.sql>   retire du gabarit et des aides les lignes vides et de commentaire (textes injectés intacts).
 -- Le fichier assemblé se joue en une requête. Tout se passe dans le bloc do final, qui finit TOUJOURS par une levée :
 -- migration, personnages, centres et données d'essai sont annulés, rien ne reste (sauf l'état de la séquence de lieux.id,
 -- que le bloc remet lui-même comme il l'a trouvé : une séquence n'est pas transactionnelle).
 --
--- Déroulé : empreinte avant ; migration ; personnages et centres fictifs (« fixture » : la promo de la fixture, avec ses
+-- Déroulé : empreinte avant ; migration 1 ; personnages et centres fictifs (« fixture » : la promo de la fixture, avec ses
 -- identifiants d'origine ; « petit » : 4 stagiaires en formation ; « fini » : une promo terminée ; « cinq » : deux promos
--- en cours de 3 et 2 stagiaires plus une promo terminée) ; contrôles ; retour ; empreinte après.
+-- en cours de 3 et 2 stagiaires plus une promo terminée) ; un formateur invité par inviter_compte du lot 4 (référence) ;
+-- migration 2 ; contrôles ; retour 2 puis retour 1 ; empreinte après.
 --
 -- Contrôles (chacun nommé au verdict, échecs d'abord), par groupe :
 --   comptes_reseau  droits (siège, fondateur, fondateur en aperçu siège permis ; direction, formateur, stagiaire, compte sans
@@ -29,7 +35,11 @@
 --                   identifiants existants, séquence recalée.
 --   demonstration   colonne, vrai pour le lieu 4 seulement, aucune écriture directe par le siège ni par la direction.
 --   retour          empreintes égales à celles d'avant, plus de colonne ni de fonction du lot.
---   structure       migration et retour joués sans erreur, personnages et lignes d'essai posés.
+--   equipe          regler_affectations_formateur (droits par personnage et par portée, refus de chaque sorte sans aucune ligne
+--                   changée, ajout, retrait, cumul, création de profil, compte stagiaire refusé), inviter_compte (même profil
+--                   qu'au lot 4, champ par champ ; différences de texte limitées à la branche formateur ; adresse de stagiaire
+--                   refusée), fonction interne sans droit d'exécution, retour (texte d'inviter_compte d'origine, md5).
+--   structure       migrations et retours joués sans erreur, personnages et lignes d'essai posés.
 --
 -- Fixture : ses identifiants (990001...) ne rencontrent aucune ligne réelle. Écarts avec le schéma réel, tous sans effet
 -- sur l'attendu : les QCM et thèmes qu'elle cite reçoivent des identifiants neufs (les siens existent déjà : thèmes 1 à 3 et
@@ -96,6 +106,57 @@ create or replace function pg_temp.champ_nul(p_lignes jsonb, p_lieu text, p_cham
 returns boolean language sql as $f$
   select coalesce(bool_and(jsonb_typeof(r -> p_champ) = 'null'), false)
     from jsonb_array_elements(coalesce(p_lignes, '[]'::jsonb)) r where r ->> 'lieu_nom' = p_lieu;
+$f$;
+
+-- Étape 2 : les promos de formateur d'un compte (identifiants triés, séparés par des virgules), un instantané de toutes les
+-- affectations, le nombre de lignes direction et siège, et l'appel de regler_affectations_formateur par un personnage.
+create or replace function pg_temp.formateur_de(p_email text)
+returns text language sql as $f$
+  select coalesce(string_agg(a.promo_id::text, ',' order by a.promo_id), 'aucune')
+    from public.affectations a where lower(a.email) = lower(p_email) and a.role = 'formateur';
+$f$;
+create or replace function pg_temp.instantane()
+returns text language sql as $f$
+  select md5(coalesce(string_agg(format('%s|%s|%s|%s|%s', a.id, a.email, a.role, a.promo_id, a.lieu_id), ';' order by a.id), ''))
+         || '/' || (select count(*) from public.user_profiles)
+    from public.affectations a;
+$f$;
+create or replace function pg_temp.nb_direction_siege()
+returns integer language sql as $f$
+  select count(*)::integer from public.affectations a where a.role in ('direction', 'siege');
+$f$;
+create or replace function pg_temp.regler(p_qui text, p_apercu text, p_cible text, p_lieu integer, p_promos text,
+                                          p_fiche text default 'null', p_entete text default '1')
+returns text language sql as $f$
+  select pg_temp.appeler(p_qui, p_entete, p_apercu,
+    format('select public.regler_affectations_formateur(%L, %s, %s::integer[], %s)::text', p_cible, p_lieu, p_promos, p_fiche));
+$f$;
+-- Le jsonb rendu par un appel réussi (« OK {...} »), ou nul.
+create or replace function pg_temp.reponse(p_appel text)
+returns jsonb language sql as $f$
+  select case when p_appel like 'OK {%' then substr(p_appel, 4)::jsonb end;
+$f$;
+-- Le profil d'un compte, sans son adresse ni sa date d'invitation, la fiche formateur réduite à « posée ou non », et ses
+-- affectations : de quoi comparer deux invitations de formateur faites par deux versions d'inviter_compte.
+create or replace function pg_temp.profil(p_email text)
+returns jsonb language sql as $f$
+  select (to_jsonb(u) - 'email' - 'invited_at' - 'prof_id')
+         || jsonb_build_object('fiche_posee', u.prof_id is not null)
+         || jsonb_build_object('affectations', (select coalesce(jsonb_agg(jsonb_build_object('role', a.role, 'promo_id', a.promo_id,
+                 'lieu_id', a.lieu_id, 'cree_par', a.cree_par) order by a.role, a.promo_id), '[]'::jsonb)
+               from public.affectations a where a.email = u.email))
+    from public.user_profiles u where u.email = p_email;
+$f$;
+-- Les lignes d'un texte sans retour chariot, numérotées par occurrence : la différence (dans les deux sens) entre deux
+-- définitions de fonction.
+create or replace function pg_temp.diff_lignes(p_a text, p_b text, out retirees text, out nb_retirees integer, out ajoutees text, out nb_ajoutees integer)
+language sql as $f$
+  with a as (select t, row_number() over (partition by t order by o) as k from unnest(string_to_array(replace(p_a, E'\r', ''), E'\n')) with ordinality as x(t, o)),
+       b as (select t, row_number() over (partition by t order by o) as k from unnest(string_to_array(replace(p_b, E'\r', ''), E'\n')) with ordinality as x(t, o)),
+       r as (select t from (select t, k from a except select t, k from b) z),
+       n as (select t from (select t, k from b except select t, k from a) z)
+  select (select string_agg(trim(t), ' / ') from r), (select count(*)::integer from r),
+         (select string_agg(trim(t), ' / ') from n), (select count(*)::integer from n);
 $f$;
 
 -- Verdict : lève TOUJOURS une exception, qui annule tout. Les échecs d'abord (chacun avec son groupe et son détail), puis
@@ -178,6 +239,15 @@ declare
   v_theme integer; v_qcm bigint; v_x record; v_fiche_n integer; v_fiche_p1 integer;
   v_json text; v_lignes jsonb; v_obt text; v_att text; v_txt text; v_cols text[]; v_mauvaises text;
   v_ids integer[]; n integer; v_id_a integer; v_id_b integer; v_id_c integer;
+  v_etat2 text; v_retour2 text; v_ic_def0 text; v_ic_def1 text; v_ic_md5 text;
+  c_avant constant text := 'preuve5.invite.avant@exemple.invalid';
+  c_apres constant text := 'preuve5.invite.apres@exemple.invalid';
+  c_nouveau constant text := 'preuve5.nouveau.c@exemple.invalid';
+  c_majuscule constant text := 'Preuve5.Nouveau.D@Exemple.Invalid';
+  c_absent constant text := 'preuve5.absent@exemple.invalid';
+  v_fa integer; v_fb integer; v_fc integer; v_fl integer; v_pn integer; v_l1 integer;
+  v_avant_profil jsonb; v_avant_rep jsonb; v_apres_rep jsonb; v_snap text; v_dsn integer; v_np integer; v_aff_id bigint; v_diff record;
+  v_r jsonb; v_rep text;
 begin
   perform set_config('lock_timeout', '3s', true);
   v_en_ligne := v_mode like 'espaces-en-ligne%';
@@ -187,6 +257,8 @@ begin
   perform pg_temp.informer('requête reçue par la base, suffixe de la passerelle retiré (md5, caractères)',
     format('%s, %s', md5(v_requete), length(v_requete)));
   select e.regles, e.fonctions, e.droits into v_av_regles, v_av_fonctions, v_av_droits from pg_temp.empreinte() e;
+  v_ic_def0 := pg_get_functiondef('public.inviter_compte(text, text, integer, integer, integer)'::regprocedure);
+  v_ic_md5 := md5(v_ic_def0);
   select s.last_value, s.is_called into v_seq_last, v_seq_called from public.lieux_id_seq s;
   v_seq := format('lieux_id_seq %s/%s', v_seq_last, v_seq_called);
   select max(id), count(*) into v_max_avant, v_nb_lieux from public.lieux;
@@ -343,6 +415,31 @@ begin
       (select count(*) from public.stagiaires where promo_id = v_promo), (select count(*) from public.passages where promo_id = v_promo),
       (select count(*) from public.evaluations where promo_id = v_promo), (select count(*) from public.qcm_attempts where promo_id = v_promo),
       (select count(*) from public.epcf_evaluations where promo_id = v_promo)));
+
+  -- 3 bis. Étape 2. Trois fiches formateur libres, une fiche déjà reliée à un compte, une promo en plus dans le centre de
+  --        dir_n ; un formateur invité par inviter_compte TEL QUE LE LOT 4 LE FAIT (référence du profil créé), puis la
+  --        migration 2, injectée telle quelle (neutralisée dans les modes sans elle).
+  v_l1 := v_lieu1;
+  insert into public.profs (nom) values ('Preuve fiche libre A') returning id into v_fa;
+  insert into public.profs (nom) values ('Preuve fiche libre B') returning id into v_fb;
+  insert into public.profs (nom) values ('Preuve fiche libre C') returning id into v_fc;
+  select min(u.prof_id) into v_fl from public.user_profiles u where u.prof_id is not null;
+  v_pn := v_promo + 6;
+  insert into public.promos (id, lieu_id, nom, date_debut, date_fin) values (v_pn, v_l1, 'Preuve promo N2', current_date - 3, null);
+  v_rep := pg_temp.appeler(c_dir_n, '1', null, format('select public.inviter_compte(%L, ''formateur'', null, %s, null)::text', c_avant, v_fa));
+  v_avant_rep := pg_temp.reponse(v_rep) - 'email';
+  v_avant_profil := pg_temp.profil(c_avant);
+  perform pg_temp.verifier('structure', 'référence : inviter_compte (version en base avant la migration 2) a invité un formateur par la direction de la promo 1',
+    v_avant_rep is not null and v_avant_profil is not null, left(v_rep, 120));
+  v_etat2 := pg_temp.jouer('migration 2',
+-- @@INJECTER supabase/migrations/20261108_espaces_2_equipe.sql@@
+  );
+  if v_etat2 = 'neutralisée' then
+    perform pg_temp.informer('migration 2', 'non injectée (' || v_mode || ')');
+  else
+    perform pg_temp.verifier('structure', 'migration 2 jouée sans erreur', v_etat2 = 'jouée', v_etat2);
+  end if;
+  v_ic_def1 := pg_get_functiondef('public.inviter_compte(text, text, integer, integer, integer)'::regprocedure);
 
   -- 4. comptes_reseau : droits.
   perform pg_temp.verifier('comptes_reseau', 'la fonction comptes_reseau() existe', to_regprocedure('public.comptes_reseau()') is not null,
@@ -542,6 +639,205 @@ begin
     (select count(*) from public.lieux)::text, (n + 1)::text);
   perform pg_temp.attendre('demonstration', 'après les créations, demonstration reste vrai pour le lieu 4 seulement (centres créés : faux)',
     pg_temp.calcul('select string_agg(id::text, '','' order by id) from public.lieux where demonstration'), '4');
+
+  -- 8 bis. Étape 2 : regler_affectations_formateur, inviter_compte, _profil_formateur. dir_n dirige le centre de la promo 1
+  --         (lieu v_l1) ; form_m est formateur de la promo 2 (autre centre) ; v_pn est une promo en plus du centre de dir_n.
+  perform pg_temp.verifier('equipe', 'les fonctions regler_affectations_formateur et _profil_formateur existent',
+    to_regprocedure('public.regler_affectations_formateur(text, integer, integer[], integer)') is not null
+    and to_regprocedure('public._profil_formateur(text, integer, text)') is not null, '');
+  perform pg_temp.attendre('equipe', 'droits d''exécution de regler_affectations_formateur : authenticated oui ; anon, service_role non (catalogue)',
+    pg_temp.calcul('select concat_ws('','', has_function_privilege(''authenticated'', ''public.regler_affectations_formateur(text, integer, integer[], integer)'', ''execute''), has_function_privilege(''anon'', ''public.regler_affectations_formateur(text, integer, integer[], integer)'', ''execute''), has_function_privilege(''service_role'', ''public.regler_affectations_formateur(text, integer, integer[], integer)'', ''execute''))'),
+    't,f,f');
+  perform pg_temp.attendre('equipe', 'droits d''exécution de _profil_formateur (interne) : ni authenticated, ni anon, ni service_role (catalogue)',
+    pg_temp.calcul('select concat_ws('','', has_function_privilege(''authenticated'', ''public._profil_formateur(text, integer, text)'', ''execute''), has_function_privilege(''anon'', ''public._profil_formateur(text, integer, text)'', ''execute''), has_function_privilege(''service_role'', ''public._profil_formateur(text, integer, text)'', ''execute''))'),
+    'f,f,f');
+  perform pg_temp.attendre('equipe', '_profil_formateur n''est pas appelable par la direction (42501)',
+    left(pg_temp.appeler(c_dir_n, '1', null, format('select public._profil_formateur(%L, null, %L)::text', c_absent, c_dir_n)), 12), 'ERREUR 42501');
+  perform pg_temp.attendre('equipe', 'form_m part de sa seule promo 2 (un autre centre)', pg_temp.formateur_de(c_form_m), '2');
+  v_dsn := pg_temp.nb_direction_siege();
+  v_np := (select count(*) from public.user_profiles);
+  select a.id into v_aff_id from public.affectations a where a.email = c_form_m and a.role = 'formateur' and a.promo_id = 2;
+
+  -- Droits : qui peut, qui ne peut pas (chaque refus ne change aucune ligne).
+  v_snap := pg_temp.instantane();
+  perform pg_temp.attendre('equipe', 'dir_n sur le centre de la promo 2 : refus 42501 avec la phrase',
+    pg_temp.regler(c_dir_n, null, c_form_m, v_lieu2, 'array[2]'), 'ERREUR 42501 equipe: Réservé à la direction du centre.');
+  perform pg_temp.attendre('equipe', 'dir_m (direction de l''autre centre) sur le centre de la promo 1 : refus 42501 avec la phrase',
+    pg_temp.regler(c_dir_m, null, c_form_m, v_l1, 'array[1]'), 'ERREUR 42501 equipe: Réservé à la direction du centre.');
+  perform pg_temp.attendre('equipe', 'un formateur (form_n) : refus 42501 avec la phrase',
+    pg_temp.regler(c_form_n, null, c_form_m, v_l1, 'array[1]'), 'ERREUR 42501 equipe: Réservé à la direction du centre.');
+  perform pg_temp.attendre('equipe', 'le siège (affectation siège) : refus 42501 avec la phrase',
+    pg_temp.regler(c_siege, null, c_form_m, v_l1, 'array[1]'), 'ERREUR 42501 equipe: Réservé à la direction du centre.');
+  perform pg_temp.attendre('equipe', 'un stagiaire : refus 42501 avec la phrase',
+    pg_temp.regler(c_stag_n, null, c_form_m, v_l1, 'array[1]'), 'ERREUR 42501 equipe: Réservé à la direction du centre.');
+  perform pg_temp.attendre('equipe', 'un compte sans fiche ni affectation : refus 42501 avec la phrase',
+    pg_temp.regler(c_sans_role, null, c_form_m, v_l1, 'array[1]'), 'ERREUR 42501 equipe: Réservé à la direction du centre.');
+  perform pg_temp.attendre('equipe', 'anon : refus 42501',
+    left(pg_temp.regler(null, null, c_form_m, v_l1, 'array[1]'), 12), 'ERREUR 42501');
+  perform pg_temp.attendre('equipe', 'le fondateur en aperçu formateur, stagiaire ou siège : refus 42501',
+    concat_ws(' ; ', left(pg_temp.regler(v_fond, 'formateur', c_form_m, v_l1, 'array[1]'), 12),
+              left(pg_temp.regler(v_fond, 'stagiaire', c_form_m, v_l1, 'array[1]'), 12),
+              left(pg_temp.regler(v_fond, 'siege', c_form_m, v_l1, 'array[1]'), 12)),
+    'ERREUR 42501 ; ERREUR 42501 ; ERREUR 42501');
+  perform pg_temp.attendre('equipe', 'le fondateur en aperçu direction sur la promo 1, centre de la promo 2 : refus 42501',
+    pg_temp.regler(v_fond, 'direction', c_form_m, v_lieu2, 'array[2]'), 'ERREUR 42501 equipe: Réservé à la direction du centre.');
+  perform pg_temp.attendre('equipe', 'les refus de droit n''ont changé aucune ligne (affectations et profils)', pg_temp.instantane(), v_snap);
+
+  -- dir_n règle form_m : ajout de deux promos, retrait, ligne de l'autre centre intacte.
+  v_rep := pg_temp.regler(c_dir_n, null, c_form_m, v_l1, format('array[1,%s]', v_pn));
+  v_r := pg_temp.reponse(v_rep);
+  perform pg_temp.attendre('equipe', 'dir_n règle form_m sur les promos 1 et N2 : email, cree faux, ajoutees [1, N2], retirees []',
+    concat_ws(' ; ', v_r ->> 'email', v_r ->> 'cree', (v_r -> 'ajoutees')::text, (v_r -> 'retirees')::text),
+    concat_ws(' ; ', c_form_m, 'false', format('[1, %s]', v_pn), '[]'));
+  perform pg_temp.attendre('equipe', 'form_m a maintenant ses deux promos du centre de dir_n et sa promo 2 intacte', pg_temp.formateur_de(c_form_m), format('1,2,%s', v_pn));
+  v_rep := pg_temp.regler(c_dir_n, null, c_form_m, v_l1, 'array[1]');
+  v_r := pg_temp.reponse(v_rep);
+  perform pg_temp.attendre('equipe', 'dir_n retire N2 en gardant la promo 1 : ajoutees [], retirees [N2]',
+    concat_ws(' ; ', (v_r -> 'ajoutees')::text, (v_r -> 'retirees')::text), format('[] ; [%s]', v_pn));
+  perform pg_temp.attendre('equipe', 'la ligne de la promo N2 est partie, celles des promos 1 et 2 restent', pg_temp.formateur_de(c_form_m), '1,2');
+  v_rep := pg_temp.regler(c_dir_n, null, c_form_m, v_l1, 'array[1,1,1]');
+  v_r := pg_temp.reponse(v_rep);
+  perform pg_temp.attendre('equipe', 'la même liste redonnée (avec doublons) ne change rien : ajoutees [], retirees []',
+    concat_ws(' ; ', (v_r -> 'ajoutees')::text, (v_r -> 'retirees')::text), '[] ; []');
+
+  -- Refus de contenu : aucune ligne changée.
+  v_snap := pg_temp.instantane();
+  perform pg_temp.attendre('equipe', 'une promo d''un autre centre dans la liste : refus avec la phrase',
+    pg_temp.regler(c_dir_n, null, c_form_m, v_l1, format('array[%s,2]', v_pn)), 'ERREUR P0001 equipe: Une promo choisie n''est pas dans ce centre.');
+  perform pg_temp.attendre('equipe', 'une promo qui n''existe pas dans la liste : refus avec la phrase',
+    pg_temp.regler(c_dir_n, null, c_form_m, v_l1, 'array[999999]'), 'ERREUR P0001 equipe: Une promo choisie n''est pas dans ce centre.');
+  perform pg_temp.attendre('equipe', 'une adresse invalide : refus avec la phrase',
+    pg_temp.regler(c_dir_n, null, 'pas une adresse', v_l1, 'array[1]'), 'ERREUR P0001 equipe: Adresse e-mail invalide.');
+  perform pg_temp.attendre('equipe', 'un centre qui n''existe pas, demandé par le fondateur : refus avec la phrase',
+    pg_temp.regler(v_fond, null, c_form_m, 999999, 'array[]::integer[]'), 'ERREUR P0001 equipe: Centre introuvable.');
+  perform pg_temp.attendre('equipe', 'aucun de ces refus n''a changé une ligne (aucune ligne ajoutée ni retirée, aucun profil créé)', pg_temp.instantane(), v_snap);
+
+  -- Le fondateur, et le fondateur en aperçu direction.
+  v_r := pg_temp.reponse(pg_temp.regler(v_fond, null, c_form_m, v_l1, format('array[1,%s]', v_pn)));
+  perform pg_temp.attendre('equipe', 'le fondateur règle form_m sur le centre de la promo 1 : ajoutees [N2]',
+    concat_ws(' ; ', (v_r -> 'ajoutees')::text, (v_r -> 'retirees')::text), format('[%s] ; []', v_pn));
+  v_r := pg_temp.reponse(pg_temp.regler(v_fond, 'direction', c_form_m, v_l1, 'array[1]'));
+  perform pg_temp.attendre('equipe', 'le fondateur en aperçu direction sur la promo 1 règle le centre de la promo 1 : retirees [N2]',
+    concat_ws(' ; ', (v_r -> 'ajoutees')::text, (v_r -> 'retirees')::text), format('[] ; [%s]', v_pn));
+  perform pg_temp.attendre('equipe', 'le fondateur en aperçu direction sur la promo 2 règle le centre de la promo 2 (sa promo 2 redonnée : rien ne change)',
+    (pg_temp.reponse(pg_temp.regler(v_fond, 'direction', c_form_m, v_lieu2, 'array[2]', 'null', '2')) -> 'retirees')::text, '[]');
+  perform pg_temp.attendre('equipe', 'le fondateur en aperçu direction sur la promo 2 ne règle pas le centre de la promo 1 (refus 42501)',
+    left(pg_temp.regler(v_fond, 'direction', c_form_m, v_l1, 'array[1]', 'null', '2'), 12), 'ERREUR 42501');
+  perform pg_temp.informer('limite documentée (D3) : le fondateur en aperçu direction sous l''en-tête de la promo 2 lit la table affectations',
+    pg_temp.valeur(v_fond, '2', 'direction', format('select count(*) filter (where role = ''formateur'' and promo_id in (select id from public.promos where lieu_id = %s))::text || '' lignes formateur du centre de la promo 1 visibles, '' || count(*)::text || '' lignes au total'' from public.affectations', v_l1)));
+
+  -- Compte stagiaire : refusé par regler_affectations_formateur ET par inviter_compte.
+  v_snap := pg_temp.instantane();
+  perform pg_temp.attendre('equipe', 'l''adresse d''un compte stagiaire est refusée par regler_affectations_formateur (avec la phrase)',
+    pg_temp.regler(c_dir_n, null, c_stag_n, v_l1, 'array[1]'), 'ERREUR P0001 equipe: Cette adresse est celle d''un compte stagiaire.');
+  perform pg_temp.attendre('equipe', 'la même adresse en majuscules, avec espaces, est refusée de même',
+    pg_temp.regler(c_dir_n, null, '  ' || upper(c_stag_n) || ' ', v_l1, 'array[1]'), 'ERREUR P0001 equipe: Cette adresse est celle d''un compte stagiaire.');
+  perform pg_temp.attendre('equipe', 'une liste vide pour l''adresse d''un compte stagiaire est refusée de même',
+    pg_temp.regler(c_dir_n, null, c_stag_n, v_l1, 'array[]::integer[]'), 'ERREUR P0001 equipe: Cette adresse est celle d''un compte stagiaire.');
+  perform pg_temp.attendre('equipe', 'l''adresse d''un compte stagiaire est refusée par inviter_compte(..., formateur, ...) (avec la phrase)',
+    pg_temp.appeler(c_dir_n, '1', null, format('select public.inviter_compte(%L, ''formateur'', null, null, null)::text', c_stag_n)),
+    'ERREUR P0001 invitation: Cette adresse est celle d''un compte stagiaire.');
+  perform pg_temp.attendre('equipe', 'ces refus n''ont changé aucune ligne (aucune affectation donnée au stagiaire)', pg_temp.instantane(), v_snap);
+
+  -- Nouveaux comptes : profil créé par la fonction commune.
+  v_rep := pg_temp.regler(c_dir_n, null, c_nouveau, v_l1, 'array[1]', v_fc::text);
+  v_r := pg_temp.reponse(v_rep);
+  perform pg_temp.attendre('equipe', 'un nouvel e-mail : cree vrai, ajoutees [1], retirees []',
+    concat_ws(' ; ', v_r ->> 'email', v_r ->> 'cree', (v_r -> 'ajoutees')::text, (v_r -> 'retirees')::text),
+    concat_ws(' ; ', c_nouveau, 'true', '[1]', '[]'));
+  perform pg_temp.attendre('equipe', 'le profil créé : role prof, is_admin vrai, invité par l''appelant, fiche formateur posée (libre), aucune fiche de stagiaire',
+    (select concat_ws(' ; ', u.role, u.is_admin::text, u.invited_by_email, coalesce((u.prof_id = v_fc)::text, 'fiche absente'), coalesce(u.stagiaire_id::text, 'aucune'), u.is_founder::text)
+       from public.user_profiles u where u.email = c_nouveau),
+    concat_ws(' ; ', 'prof', 'true', c_dir_n, 'true', 'aucune', 'false'));
+  perform pg_temp.attendre('equipe', 'l''affectation créée : formateur de la promo 1, posée par l''appelant, aucune portée de centre',
+    (select string_agg(format('%s:%s:%s:%s', a.role, a.promo_id, coalesce(a.lieu_id::text, 'aucun'), a.cree_par), ',') from public.affectations a where a.email = c_nouveau),
+    format('formateur:1:aucun:%s', c_dir_n));
+  v_r := pg_temp.reponse(pg_temp.regler(c_dir_n, null, c_nouveau, v_l1, 'array[1]'));
+  perform pg_temp.attendre('equipe', 'le même appel répété : cree faux, rien ajouté ni retiré, profil inchangé (une seule ligne de profil)',
+    concat_ws(' ; ', v_r ->> 'cree', (v_r -> 'ajoutees')::text, (v_r -> 'retirees')::text, (select count(*) from public.user_profiles where email = c_nouveau)::text),
+    'false ; [] ; [] ; 1');
+  v_r := pg_temp.reponse(pg_temp.regler(c_dir_n, null, c_majuscule, v_l1, 'array[1]', v_fl::text));
+  perform pg_temp.attendre('equipe', 'une adresse en majuscules est enregistrée en minuscules ; une fiche formateur déjà reliée n''est pas posée',
+    (select concat_ws(' ; ', v_r ->> 'cree', u.email, (u.prof_id is null)::text) from public.user_profiles u where lower(u.email) = lower(c_majuscule)),
+    concat_ws(' ; ', 'true', lower(c_majuscule), 'true'));
+  perform pg_temp.attendre('equipe', 'une fiche formateur donnée à un compte qui existe déjà n''est pas posée (profil existant jamais modifié)',
+    (select concat_ws(' ; ', (pg_temp.reponse(pg_temp.regler(c_dir_n, null, c_nouveau, v_l1, 'array[1]', v_fb::text)) ->> 'cree'), coalesce((u.prof_id = v_fc)::text, 'fiche absente')) from public.user_profiles u where u.email = c_nouveau),
+    'false ; true');
+  -- Un profil dont l'adresse a des majuscules (comptes anciens) : retrouvé sans tenir compte de la casse, la ligne
+  -- d'affectation et la réponse portent l'adresse du profil.
+  insert into public.user_profiles (email, role, is_admin) values ('Preuve5.Mixte@Exemple.Invalid', 'prof', true);
+  v_r := pg_temp.reponse(pg_temp.regler(c_dir_n, null, 'preuve5.mixte@exemple.invalid', v_l1, 'array[1]'));
+  perform pg_temp.attendre('equipe', 'un profil à adresse mixte est retrouvé sans tenir compte de la casse : pas de second profil, affectation et réponse à son adresse',
+    concat_ws(' ; ', v_r ->> 'cree', v_r ->> 'email', (select count(*) from public.user_profiles where lower(email) = 'preuve5.mixte@exemple.invalid')::text,
+              (select string_agg(a.email, ',') from public.affectations a where lower(a.email) = 'preuve5.mixte@exemple.invalid')),
+    'false ; Preuve5.Mixte@Exemple.Invalid ; 1 ; Preuve5.Mixte@Exemple.Invalid');
+  -- Liste vide.
+  v_np := (select count(*) from public.user_profiles);
+  perform pg_temp.attendre('equipe', 'liste vide pour un compte absent : refus avec la phrase',
+    pg_temp.regler(c_dir_n, null, c_absent, v_l1, 'array[]::integer[]'), 'ERREUR P0001 equipe: Choisis au moins une promo.');
+  perform pg_temp.attendre('equipe', 'liste nulle pour un compte absent : refus avec la phrase',
+    pg_temp.regler(c_dir_n, null, c_absent, v_l1, 'null'), 'ERREUR P0001 equipe: Choisis au moins une promo.');
+  perform pg_temp.attendre('equipe', 'ce refus n''a créé aucun profil', (select count(*) from public.user_profiles)::text, v_np::text);
+  perform pg_temp.regler(c_dir_n, null, c_form_m, v_l1, format('array[1,%s]', v_pn));
+  v_r := pg_temp.reponse(pg_temp.regler(c_dir_n, null, c_form_m, v_l1, 'array[]::integer[]'));
+  perform pg_temp.attendre('equipe', 'liste vide pour form_m : ses lignes du centre de dir_n partent (retirees [1, N2])',
+    (v_r -> 'retirees')::text, format('[1, %s]', v_pn));
+  perform pg_temp.attendre('equipe', 'liste vide pour form_m : la ligne de la promo 2 (autre centre) reste, et c''est la même ligne', pg_temp.formateur_de(c_form_m), '2');
+  perform pg_temp.attendre('equipe', 'la ligne de form_m sur la promo 2 a gardé son identifiant (jamais supprimée puis recréée)',
+    (select a.id::text from public.affectations a where a.email = c_form_m and a.role = 'formateur' and a.promo_id = 2), v_aff_id::text);
+  -- Cumul : la direction se donne une promo.
+  v_r := pg_temp.reponse(pg_temp.regler(c_dir_n, null, c_dir_n, v_l1, 'array[1]'));
+  perform pg_temp.attendre('equipe', 'dir_n se donne à lui-même la promo 1 (cumul) : ajoutees [1], cree faux',
+    concat_ws(' ; ', (v_r -> 'ajoutees')::text, v_r ->> 'cree'), '[1] ; false');
+  perform pg_temp.attendre('equipe', 'dir_n garde sa ligne direction et gagne sa ligne formateur',
+    (select string_agg(format('%s:%s', a.role, coalesce(a.promo_id, a.lieu_id)), ',' order by a.role) from public.affectations a where a.email = c_dir_n),
+    format('direction:%s,formateur:1', v_l1));
+  -- Aucune ligne direction ni siège touchée dans tout le bloc d'essais de la fonction.
+  perform pg_temp.attendre('equipe', 'aucune ligne direction ou siège ajoutée ni retirée par tous ces appels', pg_temp.nb_direction_siege()::text, v_dsn::text);
+
+  -- inviter_compte : même profil qu'au lot 4, champ par champ ; différences de texte limitées à la branche formateur.
+  v_rep := pg_temp.appeler(c_dir_n, '1', null, format('select public.inviter_compte(%L, ''formateur'', null, %s, null)::text', c_apres, v_fb));
+  v_apres_rep := pg_temp.reponse(v_rep) - 'email';
+  perform pg_temp.attendre('equipe', 'inviter_compte d''un nouveau formateur : même réponse qu''au lot 4 (role, cree, affecte)', v_apres_rep::text, v_avant_rep::text);
+  perform pg_temp.attendre('equipe', 'inviter_compte d''un nouveau formateur : même profil et mêmes affectations qu''au lot 4, champ par champ', pg_temp.profil(c_apres)::text, v_avant_profil::text);
+  perform pg_temp.attendre('equipe', 'inviter_compte : le profil porte bien la fiche formateur libre (fiche posée), rôle prof, is_admin vrai',
+    (select concat_ws(' ; ', coalesce((u.prof_id = v_fb)::text, 'fiche absente'), u.role, u.is_admin::text, u.invited_by_email) from public.user_profiles u where u.email = c_apres),
+    concat_ws(' ; ', 'true', 'prof', 'true', c_dir_n));
+  perform pg_temp.attendre('equipe', 'inviter_compte du lot 4 conservé : un formateur d''un autre centre ne peut pas inviter (42501, même phrase)',
+    pg_temp.appeler(c_dir_m, '1', null, format('select public.inviter_compte(%L, ''formateur'', null, null, null)::text', c_absent)),
+    'ERREUR 42501 invitation: Réservé à la direction du centre.');
+  perform pg_temp.attendre('equipe', 'inviter_compte du lot 4 conservé : un compte existant n''est pas modifié et ne reçoit que l''affectation (cree faux, affecte 1)',
+    (select concat_ws(' ; ', r ->> 'cree', r ->> 'affecte') from (select pg_temp.reponse(pg_temp.appeler(c_dir_n, '1', null, format('select public.inviter_compte(%L, ''formateur'', null, null, null)::text', c_form_m))) as r) z),
+    'false ; 1');
+  select * into v_diff from pg_temp.diff_lignes(v_ic_def0, v_ic_def1);
+  if v_en_ligne then
+    perform pg_temp.informer('inviter_compte : différences de texte avec le lot 4', 'non jugeable en ligne (le texte d''avant la migration 2 n''est plus en base)');
+  else
+    perform pg_temp.verifier('equipe', 'inviter_compte : le texte ne diffère de celui du lot 4 que de 7 lignes retirées (création de profil) et 7 ajoutées (refus de stagiaire, appel à _profil_formateur)',
+      v_diff.nb_retirees = 7 and v_diff.nb_ajoutees = 7 and v_diff.retirees like '%insert into user_profiles (email, role, is_admin, prof_id, invited_by_email)%'
+        and v_diff.ajoutees like '%_profil_formateur(v_email, p_prof_id, v_moi)%' and v_diff.ajoutees like '%Cette adresse est celle d''''un compte stagiaire%',
+      format('retirées %s ; ajoutées %s', v_diff.nb_retirees, v_diff.nb_ajoutees));
+  end if;
+  perform pg_temp.attendre('equipe', 'inviter_compte garde ses droits d''exécution (authenticated oui ; anon, service_role non)',
+    pg_temp.calcul('select concat_ws('','', has_function_privilege(''authenticated'', ''public.inviter_compte(text, text, integer, integer, integer)'', ''execute''), has_function_privilege(''anon'', ''public.inviter_compte(text, text, integer, integer, integer)'', ''execute''), has_function_privilege(''service_role'', ''public.inviter_compte(text, text, integer, integer, integer)'', ''execute''))'),
+    't,f,f');
+
+  -- 9 bis. Le retour 2 (avant le retour 1) : le texte d'inviter_compte d'origine, jugé par son md5.
+  v_retour2 := pg_temp.jouer('retour 2',
+-- @@INJECTER supabase/migrations/20261108_espaces_2_equipe_retour.sql@@
+  );
+  if v_retour2 = 'neutralisée' then
+    perform pg_temp.informer('retour 2', 'non injecté (' || v_mode || ')');
+  else
+    perform pg_temp.verifier('structure', 'retour 2 joué sans erreur', v_retour2 = 'jouée', v_retour2);
+  end if;
+  if not v_en_ligne and v_etat2 <> 'neutralisée' then
+    perform pg_temp.attendre('retour', 'après le retour 2 : inviter_compte a le texte exact d''avant la migration 2 (md5 de pg_get_functiondef)',
+      md5(pg_get_functiondef('public.inviter_compte(text, text, integer, integer, integer)'::regprocedure)), v_ic_md5);
+    perform pg_temp.attendre('retour', 'après le retour 2 : plus de fonction regler_affectations_formateur ni _profil_formateur',
+      (select format('%s %s', (select count(*) from pg_proc where pronamespace = 'public'::regnamespace and proname = 'regler_affectations_formateur'),
+                             (select count(*) from pg_proc where pronamespace = 'public'::regnamespace and proname = '_profil_formateur'))), '0 0');
+  end if;
 
   -- 9. Le retour, puis l'empreinte : elle doit égaler celle d'avant. La séquence est remise comme trouvée.
   v_retour := pg_temp.jouer('retour',
