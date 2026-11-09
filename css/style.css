@@ -3878,6 +3878,9 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 /* Formulaire de question de l'éditeur QCM : il s'ouvre PAR-DESSUS .qcm-overlay
    (z-index 1000), sinon il apparaît derrière et tous les clics vont à l'overlay. */
 .modal-backdrop.qcm-form-backdrop { z-index: 1100; }
+/* Une confirmation (js/confirmer.js) répond au geste qu'on vient de faire, où qu'il soit : au-dessus de l'examen QCM
+   (1000), du formulaire de question (1100), des calques de la navigation (1600), sous les messages du bas (2000). */
+.modal-backdrop.confirmer-fond { z-index: 1700; }
 
 @keyframes backdrop-in {
   from { opacity: 0; }

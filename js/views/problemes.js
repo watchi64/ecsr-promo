@@ -6,6 +6,11 @@
 // pas de sous-onglet avant le prochain affichage de la page.
 
 import { el, clear, toast } from "../utils.js?v=20261109k";
+import { confirmer } from "../confirmer.js?v=20261109k";
+
+// Supprimer un signalement (carte complète ou carte en défaut) : la même question, dans une fenêtre de l'app.
+const QUESTION_SUPPRIMER = { titre: "Supprimer ce signalement ?",
+  phrase: "Il disparaît aussi chez la personne qui l'a envoyé.", oui: "Supprimer" };
 import { fondateurHorsApercu } from "../auth-admin.js?v=20261109k";
 import {
   listSignalementsApp, captureSignalementApp, traiterSignalementApp, supprimerSignalementApp,
@@ -87,7 +92,7 @@ function carteSure(s) {
       el("p", { class: "sg-carte-message" }, String(s?.message ?? "")),
       el("div", { class: "sg-carte-actions" }, supprimer), erreur);
     supprimer.addEventListener("click", async () => {
-      if (!confirm("Supprimer ce signalement ? Il disparaît aussi chez la personne.")) return;
+      if (!(await confirmer(QUESTION_SUPPRIMER))) return;
       try {
         await supprimerSignalementApp(s.id);
         noeud.remove();
@@ -150,7 +155,7 @@ function carte(s) {
 
   const supprimer = el("button", { type: "button", class: "btn ghost", "data-sg": "supprimer" }, "Supprimer");
   supprimer.addEventListener("click", async () => {
-    if (!confirm("Supprimer ce signalement ? Il disparaît aussi chez la personne.")) return;
+    if (!(await confirmer(QUESTION_SUPPRIMER))) return;
     erreur.textContent = "";
     try {
       await supprimerSignalementApp(s.id);

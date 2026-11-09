@@ -6,6 +6,7 @@ import {
   listAgendaEvents, addAgendaEvent, updateAgendaEvent, deleteAgendaEvent, getPromoCourante,
 } from "../db.js?v=20261109k";
 import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261109k";
+import { confirmer } from "../confirmer.js?v=20261109k";
 import { icon } from "../icons.js?v=20261109k";
 import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261109k";
 import { recordUndo } from "../undo.js?v=20261109k";
@@ -240,7 +241,7 @@ function renderEventCard(e, admin, onChanged) {
       class: "btn small danger icon-only",
       "aria-label": "Supprimer",
       onClick: async () => {
-        if (!confirm(`Supprimer « ${e.title} » ?`)) return;
+        if (!(await confirmer({ titre: `Supprimer « ${e.title} » ?`, oui: "Supprimer" }))) return;
         try {
           const snapshot = { ...e };
           delete snapshot.id; delete snapshot.created_at; delete snapshot.updated_at;

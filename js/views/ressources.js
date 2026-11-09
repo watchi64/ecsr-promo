@@ -3,6 +3,7 @@ import {
   listContacts, addContact, updateContact, deleteContact, getPromoCourante,
 } from "../db.js?v=20261109k";
 import { el, clear, toast } from "../utils.js?v=20261109k";
+import { confirmer } from "../confirmer.js?v=20261109k";
 import { icon, deco } from "../icons.js?v=20261109k";
 import { isAdmin } from "../auth-admin.js?v=20261109k";
 import { recordUndo } from "../undo.js?v=20261109k";
@@ -105,7 +106,7 @@ function renderRessourceCard(r, onChange) {
       class: "btn small danger icon-only", "aria-label": "Supprimer",
       onClick: async (ev) => {
         ev.preventDefault();
-        if (!confirm(`Supprimer « ${r.titre} » ?`)) return;
+        if (!(await confirmer({ titre: `Supprimer « ${r.titre} » ?`, oui: "Supprimer" }))) return;
         await deleteRessource(r.id);
         toast("Supprimée", "success");
         onChange();
@@ -223,7 +224,7 @@ function renderContactCard(c, onChanged) {
     const delBtn = el("button", {
       class: "btn small danger icon-only", "aria-label": "Supprimer",
       onClick: async () => {
-        if (!confirm(`Supprimer le contact ${c.prenom} ?`)) return;
+        if (!(await confirmer({ titre: `Supprimer le contact ${c.prenom} ?`, oui: "Supprimer" }))) return;
         const snapshot = { ...c };
         delete snapshot.id; delete snapshot.created_at; delete snapshot.updated_at;
         await deleteContact(c.id);

@@ -1,5 +1,6 @@
 import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261109k";
 import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe } from "../utils.js?v=20261109k";
+import { confirmer } from "../confirmer.js?v=20261109k";
 import { icon } from "../icons.js?v=20261109k";
 import { recordUndo } from "../undo.js?v=20261109k";
 import { TYPES, RESULTATS } from "../config.js?v=20261109k";
@@ -155,7 +156,7 @@ function renderTable(container) {
       class: "btn small danger icon-only",
       "aria-label": "Supprimer",
       onClick: async () => {
-        if (!confirm(`Supprimer ce passage ?`)) return;
+        if (!(await confirmer({ titre: "Supprimer ce passage ?", oui: "Supprimer" }))) return;
         const snapshot = { ...p };
         delete snapshot.id; delete snapshot.created_at; delete snapshot.updated_at;
         delete snapshot.stagiaire; delete snapshot.remplacant;

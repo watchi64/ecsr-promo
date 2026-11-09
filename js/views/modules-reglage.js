@@ -7,6 +7,7 @@
 // redessine elle-même après chaque écriture, réussie ou non (voir redessiner) :
 // pas de rechargement de toute la page Paramètres.
 import { el, toast } from "../utils.js?v=20261109k";
+import { confirmer } from "../confirmer.js?v=20261109k";
 import { icon } from "../icons.js?v=20261109k";
 import { MODULES, GROUPES } from "../modules-data.js?v=20261109k";
 import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261109k";
@@ -38,7 +39,7 @@ const socle = () => (navigationV2Active()
 // ne se retrouve plus ensuite. Le bouton « Partir de l'ensemble de départ » a la sienne.
 const confirmationPremierReglage = () => `Pour ${laPromo()}, aucun réglage n'existe encore : `
   + "tout est ouvert. Changer une case crée un réglage qui s'applique à tous ses stagiaires, "
-  + "et on ne pourra plus revenir à l'état « aucun réglage ». Continuer ?";
+  + "et on ne pourra plus revenir à l'état « aucun réglage ».";
 
 function nomDe(cle) {
   return MODULES.find((m) => m.cle === cle)?.nom || cle;
@@ -139,7 +140,9 @@ function bandeauDepart(etat) {
   const noms = enumerer(MODULES.filter((m) => m.depart).map((m) => m.nom));
   const bouton = el("button", { class: "btn primary", type: "button" }, "Partir de l'ensemble de départ");
   bouton.addEventListener("click", async () => {
-    if (!confirm(`Pour ${laPromo()}, seuls ${noms} resteront visibles pour les stagiaires. Continuer ?`)) return;
+    if (!(await confirmer({ titre: "Partir de l'ensemble de départ ?",
+      phrase: `Pour ${laPromo()}, seuls ${noms} resteront visibles pour les stagiaires.`,
+      oui: "Appliquer", danger: false }))) return;
     bouton.disabled = true;
     // Message neutre : si la base portait déjà un réglage lisible (lecture de démarrage
     // ratée, autre formateur), appliquerEnsembleDeDepart le conserve.
@@ -169,7 +172,8 @@ function ligneModule(m, etat) {
     // `reglee` est l'état AFFICHÉ, celui que le formateur a sous les yeux. Sur une promo libre
     // ou illisible, la première bascule fige un réglage : on la fait confirmer. Refus : la case
     // retrouve son état d'avant, sans écriture ni message (rien ne s'est passé).
-    if (!reglee && !confirm(confirmationPremierReglage())) {
+    if (!reglee && !(await confirmer({ titre: "Régler les modules de cette promo ?",
+      phrase: confirmationPremierReglage(), oui: "Continuer", danger: false }))) {
       caseACocher.checked = !ouvrir;
       return;
     }

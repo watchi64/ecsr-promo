@@ -160,10 +160,55 @@ test("le focus ne revient pas à un champ qui a quitté la page (« Retour » pe
   assert.equal(document.activeElement, oui, "le focus n'est pas rendu à un champ sorti de la page");
 }));
 
-test("la page Notes n'ouvre plus aucune boîte du navigateur (effacer une note, partout)", () => {
-  for (const fichier of ["js/views/notes.js", "js/views/notes-saisie.js"]) {
+test("un geste qui n'efface rien : bouton vert (primary) ; la fenêtre passe au-dessus de l'écran d'examen", () => avecDocument(async (document) => {
+  const reponse = confirmer({ titre: "Terminer l'examen ?", oui: "Terminer", non: "Continuer l'examen", danger: false });
+  await tour();
+  const f = fenetre(document);
+  assert.ok(f.classes.has("confirmer-fond"), "le fond porte sa classe (plan au-dessus de l'examen, css/style.css)");
+  assert.ok(bouton(document, "Terminer").classes.has("primary"));
+  assert.ok(!bouton(document, "Terminer").classes.has("danger"));
+  assert.deepEqual(boutons(document).map((b) => b.textContent), ["Continuer l'examen", "Terminer"]);
+  bouton(document, "Terminer").click();
+  assert.equal(await reponse, true);
+}));
+
+test("par défaut le bouton du geste est rouge (danger)", () => avecDocument(async (document) => {
+  const reponse = confirmer({ titre: "Supprimer ce passage ?", oui: "Supprimer" });
+  await tour();
+  assert.ok(bouton(document, "Supprimer").classes.has("danger"));
+  bouton(document, "Annuler").click();
+  assert.equal(await reponse, false);
+}));
+
+test("un signal d'abandon referme la fenêtre (fin du temps d'un examen) : réponse non", () => avecDocument(async (document) => {
+  const arret = new AbortController();
+  const reponse = confirmer({ titre: "Terminer l'examen ?", oui: "Terminer", danger: false, signal: arret.signal });
+  await tour();
+  assert.ok(fenetre(document));
+  arret.abort();
+  assert.equal(await reponse, false);
+  assert.equal(fenetre(document), null, "la fenêtre est partie");
+  assert.equal(clavier().length, 0, "plus d'écoute du clavier");
+}));
+
+test("un signal déjà abandonné : rien ne s'ouvre, réponse non", () => avecDocument(async (document) => {
+  const arret = new AbortController();
+  arret.abort();
+  const reponse = confirmer({ titre: "Terminer l'examen ?", oui: "Terminer", signal: arret.signal });
+  assert.equal(await reponse, false);
+  assert.equal(fenetre(document), null);
+}));
+
+// Les fichiers déjà passés à la fenêtre de l'app : Notes (finitions du lot C), puis le lot A du 09/11 (tout fichier
+// qu'aucun autre chantier ne touchait). Le lot B (réglages, émargement, Cours et QCM, EPCF, garde de sortie) suivra.
+const SANS_BOITE_NATIVE = ["js/views/notes.js", "js/views/notes-saisie.js",
+  "js/views/benevoles.js", "js/views/calendrier.js", "js/views/modules-reglage.js", "js/views/passages.js",
+  "js/views/planning.js", "js/views/problemes.js", "js/views/qcm.js", "js/views/ressources.js"];
+
+test("ces pages n'ouvrent plus aucune confirmation du navigateur", () => {
+  for (const fichier of SANS_BOITE_NATIVE) {
     const src = readFileSync(new URL("../" + fichier, import.meta.url), "utf8")
       .replace(/\/\/.*$/gm, "");   // les commentaires peuvent parler de confirm()
-    assert.doesNotMatch(src, /(^|[^\w.])confirm\s*\(|window\.confirm\s*\(/, fichier + " : un confirm() du navigateur");
+    assert.ok(!/(^|[^\w.])confirm\s*\(|window\.confirm\s*\(/.test(src), fichier + " : un confirm() du navigateur");
   }
 });

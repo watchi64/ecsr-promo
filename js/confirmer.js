@@ -8,6 +8,9 @@
 // La fenêtre s'ouvre au tour suivant : demandée pendant qu'on quitte un champ par Tab ou Entrée, elle laisse le focus
 // arriver au champ suivant avant de s'ouvrir ; au toucher, « Retour » va au bout. À la souris, le clic qui a fait quitter
 // le champ peut finir sur la fenêtre : on le refait après avoir répondu.
+// Options : `danger` (vrai par défaut : bouton rouge ; faux pour un geste qui n'efface rien, bouton vert) ; `signal`
+// (AbortSignal) referme la fenêtre de lui-même, réponse non (la fin du temps d'un examen). La fenêtre passe au-dessus
+// de tout ce qui couvre l'écran, l'examen QCM compris (classe `confirmer-fond`, css/style.css), sous les messages du bas.
 // Testé par tests/confirmer.test.mjs.
 
 import { el } from "./utils.js?v=20261109k";
@@ -15,21 +18,31 @@ import { el } from "./utils.js?v=20261109k";
 let compteur = 0;
 
 export function confirmer(question) {
-  return new Promise((resolve) => { setTimeout(() => ouvrir(question, resolve), 0); });
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      if (question.signal?.aborted) resolve(false);
+      else ouvrir(question, resolve);
+    }, 0);
+  });
 }
 
-function ouvrir({ titre, phrase = null, oui, non = "Annuler" }, resolve) {
+function ouvrir({ titre, phrase = null, oui, non = "Annuler", danger = true, signal = null }, resolve) {
   const avant = document.activeElement;
   const id = `confirmer-titre-${++compteur}`;
-  const bd = el("div", { class: "modal-backdrop" });
-  const finir = (reponse) => {
+  const bd = el("div", { class: "modal-backdrop confirmer-fond" });
+  let fini = false;
+  const finir = (reponse, rendreLeFocus = true) => {
+    if (fini) return;
+    fini = true;
     window.removeEventListener("keydown", auClavier, true);
+    signal?.removeEventListener("abort", surAbandon);
     bd.remove();
-    if (avant && avant !== document.body && avant.isConnected && typeof avant.focus === "function") avant.focus();
+    if (rendreLeFocus && avant && avant !== document.body && avant.isConnected && typeof avant.focus === "function") avant.focus();
     resolve(reponse);
   };
+  const surAbandon = () => finir(false, false);
   const boutonNon = el("button", { class: "btn ghost", type: "button", onClick: () => finir(false) }, non);
-  const boutonOui = el("button", { class: "btn danger", type: "button", onClick: () => finir(true) }, oui);
+  const boutonOui = el("button", { class: danger ? "btn danger" : "btn primary", type: "button", onClick: () => finir(true) }, oui);
   function auClavier(e) {
     if (e.key === "Escape") { e.stopPropagation(); finir(false); return; }
     if (e.key !== "Tab") return;
@@ -48,6 +61,7 @@ function ouvrir({ titre, phrase = null, oui, non = "Annuler" }, resolve) {
   ));
   bd.addEventListener("click", (e) => { if (e.target === bd) finir(false); });
   window.addEventListener("keydown", auClavier, true);
+  signal?.addEventListener("abort", surAbandon);
   document.body.appendChild(bd);
   boutonOui.focus();
 }

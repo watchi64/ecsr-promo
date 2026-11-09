@@ -10,6 +10,7 @@ import {
   avantChangementPromo,
 } from "../db.js?v=20261109k";
 import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261109k";
+import { confirmer } from "../confirmer.js?v=20261109k";
 import { icon, deco } from "../icons.js?v=20261109k";
 import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261109k";
 import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261109k";
@@ -441,8 +442,8 @@ async function swapEntries(lidA, lidB, opts = {}) {
 }
 
 // Confirmation (friction) avant un déplacement vers une AUTRE demi-journée / un autre
-// jour, pour éviter les déplacements par inadvertance. Retourne true si on continue.
-function confirmCrossMove(sourceLid, targetLid) {
+// jour, pour éviter les déplacements par inadvertance. Promesse : true si on continue (fenêtre de l'app).
+async function confirmCrossMove(sourceLid, targetLid) {
   const src = entries.find((e) => e._lid === sourceLid);
   const tgt = entries.find((e) => e._lid === targetLid);
   if (!src || !tgt) return false;
@@ -450,8 +451,8 @@ function confirmCrossMove(sourceLid, targetLid) {
   const demi = tgt.half_day === "matin" ? "matin" : "après-midi";
   const srcLabel = src.activite || "cette carte";
   return tgt.activite
-    ? confirm(`Échanger « ${srcLabel} » avec « ${tgt.activite} » (${jour} ${demi}) ?`)
-    : confirm(`Déplacer « ${srcLabel} » vers ${jour} ${demi} ?`);
+    ? confirmer({ titre: `Échanger « ${srcLabel} » avec « ${tgt.activite} » (${jour} ${demi}) ?`, oui: "Échanger", danger: false })
+    : confirmer({ titre: `Déplacer « ${srcLabel} » vers ${jour} ${demi} ?`, oui: "Déplacer", danger: false });
 }
 
 // --- Contrôleur de glisser-déposer (Pointer Events, souris + tactile) ---
@@ -543,7 +544,7 @@ function onDragMove(ev) {
   updateDropTarget();
 }
 
-function onDragEnd() {
+async function onDragEnd() {
   const s = dragState;
   if (!s) return;
   const target = s.target;
@@ -556,7 +557,7 @@ function onDragEnd() {
   const crossHalf = target.closest(".p-half") !== sourceHalf;
   if (crossHalf) {
     // Friction : confirmation avant un déplacement vers une autre demi-journée / jour
-    if (!confirmCrossMove(sourceLid, targetLid)) return;
+    if (!(await confirmCrossMove(sourceLid, targetLid))) return;
     swapEntries(sourceLid, targetLid, {
       toast: "Carte déplacée · Ctrl+Z pour annuler",
       undoLabel: "déplacement de carte",
@@ -982,10 +983,14 @@ async function autoPlaceWeek() {
   }
 
   const reroll = !targets.some((e) => placementEmpties(e).length > 0);
-  if (reroll && !confirm("Toute la semaine est déjà placée.\n\nTout remélanger (tableaux + stagiaires) ? Tes ajustements manuels seront écrasés.")) return;
+  if (reroll && !(await confirmer({ titre: "Tout remélanger la semaine ?",
+    phrase: "Toute la semaine est déjà placée. Tes ajustements à la main (tableaux et stagiaires) seront remplacés. "
+      + "Ctrl+Z annule ensuite.", oui: "Tout remélanger" }))) return;
   if (!reroll) {
     const cartes = targets.filter((e) => placementEmpties(e).length > 0).length;
-    if (!confirm(`Placer automatiquement la semaine ?\n\n${cartes} carte(s) à compléter (priorité aux moins passés / moins exposés). Ctrl+Z pour annuler ensuite.`)) return;
+    if (!(await confirmer({ titre: "Placer automatiquement la semaine ?",
+      phrase: `${cartes} carte${cartes > 1 ? "s" : ""} à compléter, en priorité pour les stagiaires les moins passés et les `
+        + "moins exposés. Ctrl+Z annule ensuite.", oui: "Placer", danger: false }))) return;
   }
 
   const before = targets.map((e) => ({ e, snap: snapshotPlacement(e) }));
@@ -1195,7 +1200,9 @@ async function clearWeekPlacements() {
     toast("Aucun stagiaire placé cette semaine", "info", 3000);
     return;
   }
-  if (!confirm("Retirer TOUS les stagiaires placés cette semaine (tableaux, salle, voiture) ?\n\nLes bénévoles, formateurs, sujets et notes sont conservés.")) return;
+  if (!(await confirmer({ titre: "Vider les placements de la semaine ?",
+    phrase: "Les stagiaires placés (tableaux, salle, voiture) sont retirés. Bénévoles, formateurs, sujets et notes "
+      + "restent. Ctrl+Z annule ensuite.", oui: "Vider" }))) return;
 
   const before = targets.map((e) => ({ e, snap: snapshotPlacement(e) }));
   targets.forEach((e) => { e.pedagogue_id = null; e.pedagogue_id_2 = null; e.eleves_ids = []; e.eleves_ids_2 = []; });
@@ -1221,7 +1228,7 @@ async function deleteCell(entry) {
   // Commit les saisies en cours avant le re-render complet (sinon une note/sujet en attente est perdu)
   await flushPendingInputs();
   // Une demi-journée peut rester vide : on autorise la suppression de n'importe quelle activité.
-  if (!confirm("Supprimer ce créneau ?")) return;
+  if (!(await confirmer({ titre: "Supprimer ce créneau ?", oui: "Supprimer" }))) return;
   try {
     if (entry.id) await deletePlanningEntryById(entry.id);
     entries = entries.filter((e) => e._lid !== entry._lid);

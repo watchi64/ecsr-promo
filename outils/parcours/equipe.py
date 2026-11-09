@@ -152,6 +152,34 @@ def propositions_ia(v):
     v.terminer()
 
 
+@parcours("vider-les-placements", "Vider les placements de la semaine, puis annuler", role="formateur", budget=3,
+          navigations=NOUVELLE, depart="#/home")
+def vider_les_placements(v):
+    """Planning, « Modifier », « Vider les placements » : la question s'ouvre dans une fenêtre de l'app (une boîte du
+    navigateur serait un défaut) ; « Annuler » la referme et rien n'est vidé."""
+    v.aller("Planning")
+    v.attendre(".wsem", "la semaine en grille")
+    v.etape("passer en édition")
+    v.toucher(texte("Modifier", "#view button"), "« Modifier »")
+    v.attendre("#view .p-day-card", "l'éditeur de la semaine")
+    v.etape("« Vider les placements »")
+    v.toucher("#view button.p-vider-btn", "« Vider les placements »")
+    v.attendre('.modal-backdrop.confirmer-fond:has-text("Vider les placements de la semaine ?")',
+               "la question « Vider les placements de la semaine ? »")
+    v.but("question posée dans l'app")
+    v.etape("« Annuler » : rien n'est vidé")
+    v.ecouter_messages()
+    v.toucher(texte("Annuler", ".modal-backdrop.confirmer-fond button"), "« Annuler »", compte=False)
+    if v.voit(".modal-backdrop.confirmer-fond"):
+        v.constat("D", BLOQUE, "la question reste ouverte après « Annuler »", capture=True)
+    v.page.wait_for_timeout(600)
+    if any("vidés" in m["texte"] for m in v._journal()):
+        v.constat("E", BLOQUE, "« Annuler » a quand même vidé les placements", capture=True)
+    v.toucher(texte("Quitter l'édition", "#view button"), "« Quitter l'édition »", compte=False)
+    v.attendre(".wsem", "la grille après « Quitter l'édition »")
+    v.terminer()
+
+
 # --- Notes et examens (lot C de l'audit du 09/11) ----------------------------------------------------------
 
 

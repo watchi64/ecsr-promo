@@ -328,6 +328,16 @@ def signer_depuis_l_accueil(v):
           budget=3, navigations=NOUVELLE, depart="#/home")
 def examen_depuis_l_accueil(v):
     """L'app s'ouvre sur l'Accueil : la ligne « Examen ouvert » mène à l'écran « Prêt pour l'examen ? » en 3 touchers au plus."""
+    jusqu_a_l_examen_pret(v)
+    v.but("examen prêt à commencer")
+    v.etape("ne pas commencer : « Annuler »")
+    v.toucher(texte("Annuler", "button"), "« Annuler »", compte=False)
+    fermer_la_fiche_du_qcm(v)
+    v.terminer()
+
+
+def jusqu_a_l_examen_pret(v):
+    """Depuis l'Accueil, la ligne « Examen ouvert » puis « Passer l'examen » : l'écran « Prêt pour l'examen ? »."""
     v.etape("toucher la ligne « Examen ouvert »")
     ligne = v.attendre("#view a.acc-ligne:has-text(\"Examen ouvert\")", "la ligne « Examen ouvert » de « À faire »")
     theme = ligne.inner_text().strip().splitlines()[0].split(":", 1)[-1].strip().replace('"', "")
@@ -346,9 +356,53 @@ def examen_depuis_l_accueil(v):
             v.echec("après « Examen ouvert », ni la fiche du QCM ni le thème %s à l'écran" % theme)
     v.toucher(examen, "« Passer l'examen »")
     v.attendre(texte("Commencer l'examen", "button"), "l'écran « Prêt pour l'examen ? »")
-    v.but("examen prêt à commencer")
-    v.etape("ne pas commencer : « Annuler »")
-    v.toucher(texte("Annuler", "button"), "« Annuler »", compte=False)
+
+
+# La question d'une confirmation : une fenêtre de l'app (js/confirmer.js), au-dessus de l'écran d'examen.
+QUESTION = ".modal-backdrop.confirmer-fond"
+
+
+@parcours("quitter-un-examen", "Quitter un examen commencé (confirmation dans l'app)", role="stagiaire", budget=4,
+          navigations=NOUVELLE, depart="#/home")
+def quitter_un_examen(v):
+    """Commencer l'examen ouvert, puis la croix : « Quitter l'examen ? » s'ouvre dans une fenêtre de l'app, AU-DESSUS de
+    l'écran d'examen (sinon ses boutons ne se toucheraient pas). « Continuer l'examen » : on y reste. Sur ordinateur,
+    Échap ouvre la même question, et un second Échap la referme sans quitter l'examen. Puis la croix et « Quitter » :
+    l'écran d'examen se ferme."""
+    jusqu_a_l_examen_pret(v)
+    v.toucher(texte("Commencer l'examen", "button"), "« Commencer l'examen »")
+    v.attendre(".qcm-overlay .qcm-timer", "l'écran d'examen et son minuteur")
+    v.but("examen commencé")
+    v.etape("la croix : « Quitter l'examen ? », puis « Continuer l'examen »")
+    v.toucher(".qcm-overlay button.qcm-close", "la croix de l'examen", compte=False)
+    v.attendre(QUESTION + ':has-text("Quitter l\'examen ?")', "la question « Quitter l'examen ? »")
+    v.toucher(texte("Continuer l'examen", QUESTION + " button"), "« Continuer l'examen »", compte=False)
+    if v.voit(QUESTION):
+        v.constat("D", BLOQUE, "la question reste ouverte après « Continuer l'examen »", capture=True)
+    v.attendre(".qcm-overlay .qcm-timer", "l'examen, toujours là")
+    if not v.telephone:
+        v.etape("Échap : la question, puis Échap de nouveau : on reste dans l'examen")
+        v.page.keyboard.press("Escape")
+        v.attendre(QUESTION + ':has-text("Quitter l\'examen ?")', "la question ouverte par Échap")
+        v.page.keyboard.press("Escape")
+        try:
+            v.page.locator(QUESTION).first.wait_for(state="hidden", timeout=1500)
+        except Exception:
+            pass
+        if v.voit(QUESTION):
+            v.constat("D", BLOQUE, "Échap ne referme pas la question « Quitter l'examen ? »", capture=True)
+        if not v.voit(".qcm-overlay .qcm-timer"):
+            v.constat("D", BLOQUE, "le second Échap a fermé l'examen au lieu de la seule question", capture=True)
+    v.etape("la croix, puis « Quitter »")
+    v.toucher(".qcm-overlay button.qcm-close", "la croix de l'examen", compte=False)
+    v.attendre(QUESTION + ':has-text("Quitter l\'examen ?")', "la question « Quitter l'examen ? »")
+    v.toucher(texte("Quitter", QUESTION + " button"), "« Quitter »", compte=False)
+    try:
+        v.page.locator(".qcm-overlay .qcm-timer").first.wait_for(state="hidden", timeout=2000)
+    except Exception:
+        pass
+    if v.voit(".qcm-overlay .qcm-timer"):
+        v.constat("D", BLOQUE, "l'écran d'examen reste ouvert après « Quitter »", capture=True)
     fermer_la_fiche_du_qcm(v)
     v.terminer()
 
