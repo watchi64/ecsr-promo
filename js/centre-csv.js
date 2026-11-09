@@ -4,8 +4,8 @@
 // ensemble) en une colonne, la moyenne de toutes les notes. Format pour Excel en français :
 // point-virgule, virgule décimale, UTF-8 avec BOM, fins de ligne CRLF.
 
-import { estNotee, score20 } from "./notes-stats.js?v=20261109g";
-import { compareByNom } from "./utils.js?v=20261109g";
+import { estNotee, score20 } from "./notes-stats.js?v=20261109h";
+import { compareByNom } from "./utils.js?v=20261109h";
 
 const COLONNES_COMPETENCES = [
   { code: "C1", label: "C1" }, { code: "C2", label: "C2" },

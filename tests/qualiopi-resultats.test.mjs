@@ -84,8 +84,8 @@ ok(/^Heures réalisées divisées par heures prévues, sur les feuilles d'émarg
 "METHODES.presence : la phrase de l'équipe (R6), feuilles closes, toutes lignes comprises");
 ok(/^Nombre de stagiaires déclarés admis par le jury du titre professionnel, divisé par le nombre de stagiaires présentés à l'examen\.$/.test(METHODES_PUBLIQUES.titre),
   "titre : les admis du jury divisés par les présentés à l'examen");
-ok(/anonyme : part des réponses favorables, calculée sur le nombre de réponses reçues\.$/.test(METHODES_PUBLIQUES.satisfaction), "satisfaction : questionnaire anonyme, part des réponses favorables sur les réponses reçues");
-ok(/5 réponses/.test(METHODES.satisfaction) && !METHODES.satisfaction.includes(TIRET_CADRATIN), "METHODES.satisfaction : la phrase de l'équipe, affichée à partir de 5 réponses");
+ok(/anonyme : part des réponses favorables, calculée sur les stagiaires qui ont donné un avis\. Aucun résultat n'est publié sous 5 avis notés\.$/.test(METHODES_PUBLIQUES.satisfaction), "satisfaction : questionnaire anonyme, part des réponses favorables sur les stagiaires qui ont donné un avis, rien sous 5 avis notés");
+ok(/5 avis notés/.test(METHODES.satisfaction) && /« sans avis » exclu/.test(METHODES.satisfaction) && !METHODES.satisfaction.includes(TIRET_CADRATIN), "METHODES.satisfaction : la phrase de l'équipe, affichée à partir de 5 avis notés, sans avis exclu");
 // Les ajouts à METHODES sont sans effet sur le tableau de bord : il n'affiche que les clés qu'il liste (js/views/centre.js).
 {
   const centre = lire("js/views/centre.js");
@@ -514,8 +514,8 @@ eq(rejetsOublies, [], "aucune promesse rejetée n'est restée sans gestionnaire 
   const source = lire("js/qualiopi-resultats.js");
   const code = source.replace(/\/\/.*$/gm, "");
   ok(!/\bdocument\b|\bwindow\b|\bfetch\s*\(|localStorage|sessionStorage|\bimport\s*\(/.test(code), "module pur : ni DOM, ni réseau, ni stockage");
-  eq([...source.matchAll(/from "(\.\/[^"]+)"/g)].map((m) => m[1].split("?")[0]).sort(), ["./centre-stats.js", "./qualiopi-documents.js", "./qualiopi-preuves.js"],
-    "n'importe que le tableau de bord, les dossiers et l'inventaire");
+  eq([...source.matchAll(/from "(\.\/[^"]+)"/g)].map((m) => m[1].split("?")[0]).sort(), ["./centre-stats.js", "./qualiopi-documents.js", "./qualiopi-preuves.js", "./questionnaires-rules.js"],
+    "n'importe que le tableau de bord, les dossiers, l'inventaire et la phrase de seuil des questionnaires");
   ok(/navigator\.clipboard\.write\(\[new ClipboardItem\(\{ "text\/plain": blob \}\)\]\)/.test(code) && /new Blob\(\[texte\], \{ type: "text\/plain" \}\)/.test(code),
     "la copie passe par navigator.clipboard.write avec un ClipboardItem « text/plain » qui reçoit la promesse d'un Blob");
   ok(/navigator\.clipboard\.writeText\(aCopier\)/.test(code), "et, en repli, par navigator.clipboard.writeText avec le texte arrivé");

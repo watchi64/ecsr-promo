@@ -24,6 +24,21 @@
 // pas de numéro de version, pas de nom de fichier.
 
 export const NOUVEAUTES = [
+  {
+    // Mise en ligne du 09/11/2026 (migration appliquée le même jour). Premier du fichier : à date égale avec le lot 2B,
+    // c'est elle que montre la carte « Nouveauté » de l'Accueil, la plus récente.
+    id: "2026-11-09-questionnaires-anonymes",
+    date: "2026-11-09",
+    pour: "tous",
+    titre: "Ton avis sur la formation, sans ton nom",
+    resume: "À la fin de la formation, un court questionnaire s'affiche en haut de l'Accueil : "
+          + "quelques questions sur la formation elle-même, à noter de 1 à 4, avec « Sans avis » quand tu ne sais "
+          + "pas. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date ; dans l'application, personne "
+          + "ne peut voir qui a répondu quoi, et les résultats n'apparaissent qu'à partir de 5 réponses. "
+          + "« Plus tard » le fait revenir le lendemain. Les formateurs ont leur propre questionnaire, et quelques "
+          + "questions reviendront six mois après la fin de la formation.",
+    ou: { label: "Accueil", route: "home" },
+  },
   // Lot 2B de la refonte (date de la fusion). À date égale, l'ordre du fichier est gardé : la journée du stagiaire
   // d'abord, c'est elle que montre la carte « Nouveauté » de son Accueil.
   {
