@@ -4555,7 +4555,7 @@ def stats_notes_du_banc(notes):
 
 
 STATS_NOTES_DU_BANC = stats_notes_du_banc(NOTES_DU_BANC)
-K_ANONYMAT = 2    # une moyenne de la classe n'est montrée qu'à partir de 2 stagiaires évalués (js/epcf-restitution.js)
+K_ANONYMAT = 2    # une moyenne de la classe n'est montrée qu'à partir de 2 stagiaires évalués (SEUIL_MOYENNE_EPCF, js/epcf-classe-rules.js)
 DATE_AGENDA_VIDE = "2027-01-15"   # après le dernier événement de l'agenda du banc (11/12/2026) : l'accueil n'a plus d'événement à venir
 
 # Hauteur du bandeau d'émargement de main sur téléphone, horaires affichés, sur deux lignes : 61 px. Sur une ligne, avec son bouton de 44 px, il ne doit pas la dépasser.
@@ -5566,8 +5566,10 @@ def verifier_moyennes_epcf(res, vue, e):
     if len(e["epreuves"]) != 2:
         res.echec("la classe, moyennes EPCF", vue, "la section montre %d épreuve(s), 2 attendues (salle et véhicule)" % len(e["epreuves"]))
     for epreuve, rangees in zip(e["epreuves"], (MOYENNES_EPCF_DU_BANC["salle"], MOYENNES_EPCF_DU_BANC["vehicule"])):
-        if not re.fullmatch(r".+ : %d stagiaire\(s\) évalué\(s\)" % evalues, epreuve["titre"]):
-            res.echec("la classe, moyennes EPCF", vue, "le titre d'une épreuve est « %s », attendu « <épreuve> : %d stagiaire(s) évalué(s) »" % (epreuve["titre"], evalues))
+        # Le pluriel s'accorde (stagiairesEvalues de js/epcf-classe-rules.js), jamais « stagiaire(s) évalué(s) ».
+        accorde = "aucun stagiaire évalué" if not evalues else "1 stagiaire évalué" if evalues == 1 else "%d stagiaires évalués" % evalues
+        if not re.fullmatch(r".+ : %s" % re.escape(accorde), epreuve["titre"]):
+            res.echec("la classe, moyennes EPCF", vue, "le titre d'une épreuve est « %s », attendu « <épreuve> : %s »" % (epreuve["titre"], accorde))
         montrees = [(ligne[1], ligne[2]) for ligne in epreuve["lignes"] if len(ligne) == 3 and ligne[2]]
         attendues = [("%.2f" % moyenne, str(n)) for (_, moyenne, n) in rangees if n >= K_ANONYMAT]
         if montrees != attendues:

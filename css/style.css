@@ -8807,7 +8807,7 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .saisie-retour svg { width: 18px; height: 18px; }
 .saisie-compteur { margin: 0; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .saisie-date { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
-.saisie-changer-date {
+.saisie-changer-date, .saisie-reessayer {
   min-height: 44px; padding: 0 0.4rem; border: 0; background: none; font: inherit;
   color: var(--accent-strong); text-decoration: underline; cursor: pointer;
 }
@@ -8821,6 +8821,9 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .saisie-nom { font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
 .saisie-etat { font-size: 0.82rem; color: var(--text-muted); }
 .saisie-etat.erreur { color: var(--c-stop); }
+/* L'état d'une ligne et, après une connexion perdue, « Réessayer » à côté (finitions du lot C). */
+.saisie-etat-ligne { display: flex; flex-wrap: wrap; align-items: center; column-gap: 0.2rem; }
+.saisie-reessayer { padding: 0 0.3rem 0 0; font-size: 0.9rem; }   /* bord gauche aligné sur le texte quand il passe à la ligne */
 .saisie-champ {
   flex: 0 0 5.5rem; width: 5.5rem; height: 48px; min-height: 48px; box-sizing: border-box; padding: 0.4rem 0.5rem;
   border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--bg);
@@ -8839,6 +8842,9 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .notes-vide-phrase { margin: 0 auto 0.9rem; max-width: 34rem; color: var(--text-soft); line-height: 1.45; }
 .notes-vide-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
 .notes-vide-actions .btn { min-height: 44px; }
+/* Moyennes EPCF de la classe vides : la même carte, et l'avancement pour l'équipe (« Pour l'instant : 1 stagiaire évalué
+   en salle, aucun en véhicule. »), entre la phrase et le bouton. */
+.notes-vide-info { margin: -0.45rem auto 0.9rem; max-width: 34rem; font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; }
 .notes-sans-note { margin: 0.3rem 0 0; font-size: 0.85rem; }
 
 /* Bloc d'examen de la liste des thèmes (lot C) : l'état en clair (« Ouvert jusqu'à 16 h 30 ») et le bouton pour
