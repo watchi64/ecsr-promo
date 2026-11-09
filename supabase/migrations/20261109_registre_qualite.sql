@@ -94,9 +94,12 @@ begin
     new.clos_le := null;
   end if;
 
-  -- Lieu : celui de la promo quand il y en a une. Un lieu fourni contraire est refusé ; à la modification, un lieu
-  -- laissé tel quel suit la promo.
-  if new.promo_id is not null then
+  -- Lieu : celui de la promo quand il y en a une, posé à la création, quand la promo change ou quand le lieu change. Un
+  -- lieu fourni contraire est refusé ; à la modification, un lieu laissé tel quel suit la nouvelle promo. Promo et lieu
+  -- inchangés : le lieu reste celui de l'entrée, même si la promo a changé de centre depuis (une promo l'a déjà fait,
+  -- 20261003_multi_promo_montpellier.sql) : l'effacement et la mise à nul du lien ne s'y heurtent donc pas.
+  if new.promo_id is not null
+     and (tg_op = 'INSERT' or new.promo_id is distinct from old.promo_id or new.lieu_id is distinct from old.lieu_id) then
     select pr.lieu_id into v_lieu from promos pr where pr.id = new.promo_id;
     if found then
       if new.lieu_id is not null and new.lieu_id <> v_lieu

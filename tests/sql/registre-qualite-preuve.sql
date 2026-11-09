@@ -24,27 +24,40 @@
 -- les deux pg_read_file par le texte des fichiers.) Les entrées closes il y a plus de 3 ans se préparent avec
 -- session_replication_role = replica (déclencheur muet le temps de l'insertion) : superutilisateur exigé.
 --
--- Résultats du 09/11/2026 (Postgres 18.4 local, port 55473, base recréée à chaque passage, schéma minimal ci-dessus) :
---   - avant la migration (fichiers de migration et de retour vides) : ROUGE 6/121 ; les six cas qui passent sont sans
+-- Résultats du 09/11/2026, correction 1 de la relecture (Postgres 18.4 local, port 55473, base recréée à chaque
+-- passage, schéma minimal ci-dessus). Le déclencheur ne repose plus le lieu d'après la promo qu'à la création, quand la
+-- promo change ou quand le lieu change : une promo passée dans un autre centre ne bloque plus l'effacement. Cas ajoutés :
+-- promo P3 passée du lieu 1 au lieu 2 après l'écriture de deux entrées (OLD5 close il y a plus de 3 ans et liée à un
+-- signalement de 13 mois, EC en cours et liée elle aussi), effacement, modification, purge des deux liens.
+--   - avant la migration (fichiers de migration et de retour vides) : ROUGE 6/125 ; les six cas qui passent sont sans
 --     objet sur une base vide (peut_gerer_qualite() intacte, signalement purgé, compte fermé, trois cas du retour) ;
---   - après : VERT 127/0 (trois passages) ; base où la migration est déjà appliquée : VERT 124/0 (les trois cas du
---     retour ne se jouent pas), aucune ligne laissée (registre, signalements, comptes, profils à 0) ;
---   - contre-épreuve 1 (règle de lecture using (true)) : ROUGE 119/8, sur la forme des règles et la lecture par le
+--   - après : VERT 131/0 (trois passages) ; base où la migration est déjà appliquée : VERT 128/0 (les trois cas du
+--     retour ne se jouent pas), aucune ligne laissée (registre, signalements, comptes, profils, promos à 0) ;
+--   - contre-épreuve 1 (règle de lecture using (true)) : ROUGE 123/8, sur la forme des règles et la lecture par le
 --     formateur, le stagiaire, la direction et le fondateur en quatre aperçus ;
---   - contre-épreuve 2 (droit delete accordé à authenticated) : ROUGE 118/9, sur les droits de la table et les huit
+--   - contre-épreuve 2 (droit delete accordé à authenticated) : ROUGE 122/9, sur les droits de la table et les huit
 --     suppressions (sans règle de suppression, elles touchent 0 ligne au lieu d'être refusées) ;
---   - contre-épreuve 3 (garde de la mise à nul seule du lien retirée) : ROUGE 123/4, sur la purge (signaler_probleme
---     échoue sur l'entrée effacée liée), le lien de l'entrée purgée et le compte fermé (modifie_le changé) ;
---   - contre-épreuve 4 (condition de l'échéance retirée du déclencheur et de la fonction) : ROUGE 123/4, sur l'échéance
---     unique, l'effacement avant toute échéance (2 au lieu de 0) et l'entrée à 3 ans moins un jour ; 4b (déclencheur
---     seul) : ROUGE 122/5, sur l'échéance unique, les deux écritures directes avant l'échéance et la même entrée ;
---     4c (fonction seule) : ROUGE 112/15, l'effacement échoue en bloc sur l'entrée pas encore due (le déclencheur la
---     refuse) et tous les cas d'effacement qui suivent ;
+--   - contre-épreuve 3 (garde de la mise à nul seule du lien retirée) : ROUGE 125/6, sur la purge (signaler_probleme
+--     échoue sur les entrées effacées liées), le lien de l'entrée purgée, l'entrée effacée purgée, les deux entrées de la
+--     promo passée dans un autre centre et le compte fermé (modifie_le changé) ;
+--   - contre-épreuve 4 (condition de l'échéance retirée du déclencheur et de la fonction) : ROUGE 127/4, sur l'échéance
+--     unique, l'effacement avant toute échéance (2 au lieu de 0) et l'entrée à 3 ans moins un jour (deux cas) ; 4b
+--     (déclencheur seul) : ROUGE 126/5, sur l'échéance unique, les deux écritures directes avant l'échéance et la même
+--     entrée (deux cas) ; 4c (fonction seule) : ROUGE 114/17, l'effacement échoue en bloc sur l'entrée pas encore due (le
+--     déclencheur la refuse) et tous les cas d'effacement qui suivent ;
 --   - contre-épreuve 5 (corps de peut_gerer_qualite() remplacé par select fondateur_reel(), comme la contre-épreuve 8 de
---     Q3) : ROUGE 110/17, sur les seuls cas du fondateur en aperçu formateur, stagiaire, direction et siège (lecture,
+--     Q3) : ROUGE 114/17, sur les seuls cas du fondateur en aperçu formateur, stagiaire, direction et siège (lecture,
 --     ajout, modification, effacement) et le décompte qui en découle ;
---   - retour joué hors preuve (psql -1 -f) : empreinte 49bb5f5e… avant, 0de8a57d… migration appliquée, 49bb5f5e… après
+--   - contre-épreuve 6 (déclencheur d'avant la correction : lieu reposé d'après la promo à chaque modification) :
+--     ROUGE 114/17, l'effacement échoue en bloc sur l'entrée de la promo passée au lieu 2 (« L'effacement ne change que
+--     les textes ») et tous les cas d'effacement qui suivent ; la modification de EC déplace son lieu ; la purge, elle,
+--     passe (la mise à nul seule du lien sort du déclencheur avant le calcul du lieu), ses cas rougissent par contrecoup ;
+--   - retour joué hors preuve (psql -1 -f) : empreinte 49bb5f5e… avant, c679ef40… migration appliquée, 49bb5f5e… après
 --     le retour ; plus aucune table ni fonction du registre ; peut_gerer_qualite() reste.
+--
+-- Premiers résultats (09/11/2026, avant la correction 1) : ROUGE 6/121 à vide, VERT 127/0 trois fois, base appliquée
+-- VERT 124/0, contre-épreuves 1 à 5 : ROUGE 119/8, 118/9, 123/4, 123/4 (4b 122/5, 4c 112/15), 110/17 ; empreinte de la
+-- migration appliquée 0de8a57d….
 
 select length(set_config('preuve.migration', pg_read_file(:'migration'), false)) as migration_lue,
        length(set_config('preuve.retour', pg_read_file(:'retour'), false)) as retour_lu;
@@ -93,13 +106,13 @@ declare
     ) e(x) $q$;
   v_echeance constant text := 'clos_le + interval ''3 years'' < now()';
   md5_avant text; md5_apres text; md5_qualite_avant text; md5_qualite_apres text;
-  L1 integer; L2 integer; P1 integer; P2 integer;
-  sA bigint; sB bigint; sC bigint; sD bigint; sE bigint;
+  L1 integer; L2 integer; P1 integer; P2 integer; P3 integer;
+  sA bigint; sB bigint; sC bigint; sD bigint; sE bigint; sF bigint; sG bigint;
   E1 bigint; E2 bigint; E3 bigint; E4 bigint; EA bigint; EB bigint; NEAR bigint; OUV bigint;
-  OLD1 bigint; OLD2 bigint; OLD3 bigint; OLD4 bigint; ECL bigint;
+  OLD1 bigint; OLD2 bigint; OLD3 bigint; OLD4 bigint; OLD5 bigint; EC bigint; ECL bigint;
   r text; t text; j jsonb; jk jsonb; n bigint; m bigint;
   c record; v_ok integer; v_ko integer; v_detail text;
-  j1 jsonb; j2 jsonb; ja jsonb; jb jsonb; j3 jsonb; r2 text; r3 text;
+  j1 jsonb; j2 jsonb; ja jsonb; jb jsonb; j3 jsonb; j5 jsonb; jc jsonb; j52 jsonb; jc2 jsonb; r2 text; r3 text;
 begin
   -- 0. Outils de la preuve (schéma temporaire, annulés avec le reste) ------------------------------------------------
   execute $q$
@@ -209,6 +222,9 @@ begin
   insert into lieux (nom) values ('Lieu preuve 2') returning id into L2;
   insert into promos (lieu_id, nom, date_debut, date_fin) values (L1, 'Preuve P1', current_date - 300, current_date + 30) returning id into P1;
   insert into promos (lieu_id, nom, date_debut, date_fin) values (L2, 'Preuve P2', current_date - 300, current_date + 60) returning id into P2;
+  -- P3 : au lieu 1 quand ses entrées sont écrites, puis passée au lieu 2 (une promo l'a déjà fait en production,
+  -- 20261003_multi_promo_montpellier.sql) ; remise au lieu 1 avant le retour.
+  insert into promos (lieu_id, nom, date_debut, date_fin) values (L1, 'Preuve P3', current_date - 1600, current_date - 1200) returning id into P3;
   -- Comptes : T fondateur (sans fiche) ; F formateur de P1 ; S stagiaire de P1 ; DIR direction du lieu 1 ; S2 stagiaire
   -- de P2, qui signale (et purge) ; U stagiaire de P1 dont le compte sera fermé.
   insert into pg_temp.preuve_comptes (nom, email, uid)
@@ -247,6 +263,13 @@ begin
   insert into signalements_app (user_id, email, nom, role, promo_id, message)
   select k.uid, k.email, 'S. Preuve', 'stagiaire', P1, 'Signalement E récent'
     from pg_temp.preuve_comptes k where k.nom = 'S' returning id into sE;
+  -- sF et sG (S, 13 mois) : liés aux entrées de P3, ils partiront aussi à la purge.
+  insert into signalements_app (user_id, email, nom, role, promo_id, message, created_at)
+  select k.uid, k.email, 'S. Preuve', 'stagiaire', P1, 'Signalement F ancien', now() - interval '13 months'
+    from pg_temp.preuve_comptes k where k.nom = 'S' returning id into sF;
+  insert into signalements_app (user_id, email, nom, role, promo_id, message, created_at)
+  select k.uid, k.email, 'S. Preuve', 'stagiaire', P1, 'Signalement G ancien', now() - interval '13 months'
+    from pg_temp.preuve_comptes k where k.nom = 'S' returning id into sG;
 
   -- 2. Migration jouée entre deux empreintes --------------------------------------------------------------------
   select md5(pg_get_functiondef('public.peut_gerer_qualite()'::regprocedure)) into md5_qualite_avant;
@@ -550,9 +573,22 @@ begin
     'date_constat', current_date - 1400, 'description', 'Clé perdue', 'reponse', 'Serrure changée',
     'date_reponse', current_date - 1399, 'etat', 'clos', 'clos_le', now() - interval '3 years' - interval '5 days',
     'cree_le', now() - interval '1400 days', 'modifie_le', now() - interval '1300 days'));
-  perform pg_temp.cas('quatre entrées closes il y a plus de 3 ans préparées',
-    OLD1 is not null and OLD2 is not null and OLD3 is not null and OLD4 is not null, concat_ws(',', OLD1, OLD2, OLD3, OLD4));
-  j1 := pg_temp.ligne(OLD1); j2 := pg_temp.ligne(OLD2); j3 := pg_temp.ligne(OLD3);
+  -- OLD5 (close il y a plus de 3 ans, avec réponse datée, liée à sF) et EC (en cours, liée à sG) : écrites quand P3 était
+  -- au lieu 1 ; P3 passe ensuite au lieu 2.
+  OLD5 := pg_temp.prep(jsonb_build_object('type', 'reclamation', 'origine', 'stagiaire', 'promo_id', P3, 'lieu_id', L1,
+    'date_constat', current_date - 1250, 'description', 'Remboursement demandé', 'reponse', 'Remboursé',
+    'date_reponse', current_date - 1240, 'etat', 'clos', 'clos_le', now() - interval '3 years' - interval '1 day',
+    'signalement_id', sF, 'issu_signalement', true,
+    'cree_le', now() - interval '1250 days', 'modifie_le', now() - interval '1150 days'));
+  EC := pg_temp.prep(jsonb_build_object('type', 'difficulte', 'origine', 'formateur', 'promo_id', P3, 'lieu_id', L1,
+    'date_constat', current_date - 400, 'description', 'Salle partagée', 'etat', 'en_cours',
+    'signalement_id', sG, 'issu_signalement', true,
+    'cree_le', now() - interval '400 days', 'modifie_le', now() - interval '390 days'));
+  perform pg_temp.cas('six entrées préparées, dont cinq closes il y a plus de 3 ans et deux de la promo P3',
+    OLD1 is not null and OLD2 is not null and OLD3 is not null and OLD4 is not null and OLD5 is not null and EC is not null,
+    concat_ws(',', OLD1, OLD2, OLD3, OLD4, OLD5, EC));
+  update promos set lieu_id = L2 where id = P3;
+  j1 := pg_temp.ligne(OLD1); j2 := pg_temp.ligne(OLD2); j3 := pg_temp.ligne(OLD3); j5 := pg_temp.ligne(OLD5);
   set local role authenticated;
   perform pg_temp.qui('T');
   r := pg_temp.modif(OLD4, jsonb_build_object('description', null, 'efface_le', now()));
@@ -565,7 +601,7 @@ begin
     r = '1' and (j ->> 'efface_le')::timestamptz = now() and j ->> 'description' is null and j ->> 'reponse' is null
     and j ->> 'date_reponse' = (current_date - 1399)::text, r || ' ' || coalesce(j::text, ''));
   r := pg_temp.val('select public.effacer_registre_qualite()::text');
-  perform pg_temp.cas('effacement : les trois entrées dues sont vidées', r = '3', r);
+  perform pg_temp.cas('effacement : les quatre entrées dues sont vidées (dont celle de la promo passée au lieu 2)', r = '4', r);
   jk := pg_temp.ligne(OLD1);
   perform pg_temp.cas('entrée avec réponse datée effacée : textes nuls',
     jk is not null and jk ->> 'description' is null and jk ->> 'reponse' is null and jk ->> 'action_decidee' is null
@@ -586,8 +622,19 @@ begin
   perform pg_temp.cas('entrée liée effacée : le lien et la marque restent',
     (jk ->> 'signalement_id')::bigint = sD and (jk ->> 'issu_signalement')::boolean and jk ->> 'efface_le' is not null,
     coalesce(jk::text, 'nul'));
+  jk := pg_temp.ligne(OLD5);
+  perform pg_temp.cas('promo passée dans un autre centre : l''entrée close il y a plus de 3 ans est effacée, lieu 1 gardé, rien d''autre',
+    jk ->> 'efface_le' is not null and jk ->> 'description' is null and jk ->> 'reponse' is null
+    and (jk ->> 'lieu_id')::int = L1 and (jk ->> 'promo_id')::int = P3 and jk ->> 'date_reponse' = (current_date - 1240)::text
+    and (jk - array['description', 'reponse', 'action_decidee', 'mesure_prevention', 'efface_le', 'modifie_le'])
+      = (j5 - array['description', 'reponse', 'action_decidee', 'mesure_prevention', 'efface_le', 'modifie_le']),
+    coalesce(jk::text, 'nul'));
   r := pg_temp.val('select public.effacer_registre_qualite()::text');
   perform pg_temp.cas('second effacement : 0 entrée', r = '0', r);
+  r := pg_temp.modif(EC, '{"action_decidee": "Planning des salles revu"}');
+  jk := pg_temp.ligne(EC);
+  perform pg_temp.cas('promo passée dans un autre centre : modification sans toucher promo ni lieu acceptée, lieu 1 gardé',
+    r = '1' and (jk ->> 'lieu_id')::int = L1 and jk ->> 'action_decidee' = 'Planning des salles revu', r || ' ' || coalesce(jk::text, ''));
   reset role;
   j := pg_temp.ligne(NEAR);
   jk := pg_temp.ligne(OUV);
@@ -609,6 +656,8 @@ begin
   -- 10. Purge à 12 mois par un stagiaire qui signale (sous-transaction annulée) -------------------------------------
   ja := pg_temp.ligne(EA);
   j3 := pg_temp.ligne(OLD3);
+  j5 := pg_temp.ligne(OLD5);
+  jc := pg_temp.ligne(EC);
   begin
     set local role authenticated;
     perform pg_temp.qui('S2');
@@ -616,7 +665,9 @@ begin
     reset role;
     j := pg_temp.ligne(EA);
     jk := pg_temp.ligne(OLD3);
-    select count(*) into n from signalements_app where id in (sA, sD);
+    j52 := pg_temp.ligne(OLD5);
+    jc2 := pg_temp.ligne(EC);
+    select count(*) into n from signalements_app where id in (sA, sD, sF, sG);
     raise exception 'preuve: annulé';
   exception when others then
     if sqlerrm <> 'preuve: annulé' then raise; end if;
@@ -630,6 +681,12 @@ begin
   perform pg_temp.cas('purge : entrée effacée, lien mis à nul quand même, rien d''autre',
     jk ->> 'signalement_id' is null and (jk - 'signalement_id') = (j3 - 'signalement_id') and jk ->> 'efface_le' is not null,
     coalesce(jk::text, 'nul'));
+  perform pg_temp.cas('purge, promo passée dans un autre centre, entrée effacée : lien à nul, lieu 1 gardé, rien d''autre',
+    j52 ->> 'signalement_id' is null and (j52 ->> 'lieu_id')::int = L1 and j52 ->> 'efface_le' is not null
+    and (j52 - 'signalement_id') = (j5 - 'signalement_id'), coalesce(j52::text, 'nul'));
+  perform pg_temp.cas('purge, promo passée dans un autre centre, entrée en cours : lien à nul, lieu 1 gardé, rien d''autre',
+    jc2 ->> 'signalement_id' is null and (jc2 ->> 'lieu_id')::int = L1 and (jc2 ->> 'issu_signalement')::boolean
+    and (jc2 - 'signalement_id') = (jc - 'signalement_id'), coalesce(jc2::text, 'nul'));
 
   -- 11. Compte fermé : ses signalements partent en cascade (sous-transaction annulée) -------------------------------
   jb := pg_temp.ligne(EB);
@@ -657,6 +714,7 @@ begin
 
   -- 13. Retour : la base revient à l'identique ---------------------------------------------------------------------
   reset role;
+  update promos set lieu_id = L1 where id = P3;
   if not v_deja then
     if btrim(coalesce(current_setting('preuve.retour', true), ''), E' \t\r\n') <> '' then
       execute current_setting('preuve.retour');
