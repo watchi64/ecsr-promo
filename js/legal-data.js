@@ -30,7 +30,7 @@ export const CONDITIONS_MD = `# Conditions d'utilisation et données personnelle
 > L'application accompagne la formation au Titre professionnel ECSR. Elle est éditée par Timy Studio, la micro-entreprise de Timy Valdivia.
 > Elle enregistre ce qui sert à la formation : profil, notes, QCM, passages, absences, livret, dossier professionnel, et vos réponses aux questionnaires de satisfaction, enregistrées sans votre nom.
 > Vos notes sont visibles des autres stagiaires de votre promo, sauf si vous choisissez de les masquer.
-> Personne d'extérieur à la formation n'y accède, à une exception près : ECF peut consulter des résultats nominatifs et présenter des documents de la formation à son certificateur Qualiopi et à ses financeurs.
+> Personne d'extérieur à la formation n'y accède, à une exception près : ECF (École de Conduite Française), l'organisme qui assure la formation, peut consulter des résultats nominatifs et présenter des documents de la formation à son certificateur Qualiopi et à ses financeurs.
 > La base de données est hébergée en France ; l'assistant passe par Scaleway, hébergeur français, qui ne conserve pas les messages.
 > Rien n'est vendu, rien ne sert à la publicité, aucun traceur publicitaire ni mesure d'audience.
 > Douze mois après la formation, les comptes et les textes libres des stagiaires disparaissent ; les preuves de la formation (résultats, heures, présences) sont gardées trois ans, puis rendues anonymes.
