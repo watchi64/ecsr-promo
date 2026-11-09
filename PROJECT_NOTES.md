@@ -493,8 +493,9 @@ la branche n'est pas fusionnée dans `main`.
 
 Spec : `docs/superpowers/specs/2026-11-08-qualiopi-q3-q5-design.md` (§ 4) · plan :
 `docs/superpowers/plans/2026-11-08-qualiopi-q3-questionnaires.md` · textes à valider :
-`docs/superpowers/specs/2026-11-08-qualiopi-q3-textes.md` (section « Points à trancher » en tête). État au 09/11/2026 :
-construit et prouvé en local, **migration non appliquée**, branche non fusionnée.
+`docs/superpowers/specs/2026-11-08-qualiopi-q3-textes.md` (section « Points à trancher » en tête). **En ligne le
+09/11/2026** : migration appliquée avec l'accord de Timy (essai à blanc sur la base réelle VERT 209/0, puis VERT 207/0),
+Nouveauté datée du 09/11, branche fusionnée dans `main`.
 
 - **Trois questionnaires** (`js/questionnaires-data.js`, versionnés) : fin de formation (stagiaires, de J-7 à J+30 de la
   fin de la promo), six mois après (de +6 à +7 mois), formateurs (par centre et par année civile). Échelle de 1 à 4 plus
@@ -551,9 +552,9 @@ construit et prouvé en local, **migration non appliquée**, branche non fusionn
   est déjà appliquée). **Piège** : appliquer la migration par `psql -f` sous Windows sans `PGCLIENTENCODING=UTF8`
   enregistre les messages d'erreur en mauvais encodage (chaque lettre accentuée devient deux caractères), et l'app
   les montre tels quels.
-- **Attend l'accord de Timy** : les textes (questions, conditions d'utilisation version 2026-11-08, message WhatsApp, et
-  les dix points à trancher) ; l'application de la migration en production, puis un contrôle sur la base réelle ; la date de l'entrée
-  Nouveautés (écrite au 04/12/2026, à corriger au jour réel de mise en ligne avant la poussée, décision R3). Tant que la
+- **Fait le 09/11/2026** : textes arbitrés (dix points, conditions 2026-11-08), migration appliquée, preuve rejouée sur la
+  base réelle, Nouveauté datée du jour. Pour rejouer la preuve sur la base réelle : remplacer les deux `pg_read_file` par
+  le texte des fichiers (les comptes fictifs sont déjà créés après leurs profils, à cause de la liste blanche). Tant que la
   migration n'est pas appliquée, l'app ne montre rien et n'affiche aucune erreur (décision R2) : fusion et poussée après
   l'application seulement.
 - **Mise en ligne, dans cet ordre** (après l'accord de Timy sur les textes et sur la migration) :

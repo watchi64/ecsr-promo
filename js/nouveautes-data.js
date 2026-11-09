@@ -25,9 +25,10 @@
 
 export const NOUVEAUTES = [
   {
-    // Date de mise en ligne prévue (ruling R3 du plan Q3) : à corriger au jour réel, avant la poussée.
-    id: "2026-12-04-questionnaires-anonymes",
-    date: "2026-12-04",
+    // Mise en ligne du 09/11/2026 (migration appliquée le même jour). Premier du fichier : à date égale avec le lot 2B,
+    // c'est elle que montre la carte « Nouveauté » de l'Accueil, la plus récente.
+    id: "2026-11-09-questionnaires-anonymes",
+    date: "2026-11-09",
     pour: "tous",
     titre: "Ton avis sur la formation, sans ton nom",
     resume: "À la fin de la formation, un court questionnaire s'affiche en haut de l'Accueil : "

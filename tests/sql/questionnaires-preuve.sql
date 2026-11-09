@@ -27,6 +27,11 @@
 -- Attendu : une seule ligne de réponses (4 réponses, xmin de S4, le dernier servi). Sans verrou, la réponse de S4
 -- resterait seule avec le xmin de sa participation.
 --
+-- Mise en ligne du 09/11/2026 (accord de Timy), base réelle (Postgres 17.6), pg_read_file remplacés par le texte des
+-- fichiers, comptes créés après les profils (liste blanche) : essai à blanc avant application VERT 209/0, rien laissé ;
+-- migration appliquée (psql -1, PGCLIENTENCODING=UTF8, accents vérifiés) ; puis VERT 207/0 deux fois, aucune ligne
+-- fictive restée (réponses, participations, profils et comptes « preuve. » à 0).
+--
 -- Résultats du 09/11/2026, correction 1 de la relecture de la tâche 3b (fondateur à fiche stagiaire en aperçu ; aperçu
 -- stagiaire limité à la promo affichée, comme my_stagiaire_id ; rôles cumulés, affectation retirée, fiche déplacée) :
 --   - nouveaux cas sur la migration d'avant cette correction : ROUGE 205/4, sur l'aperçu stagiaire du fondateur (promo
@@ -226,7 +231,6 @@ begin
   select k, 'preuve.qn.' || lower(k) || '@example.invalid', gen_random_uuid()
     from unnest(array['A1','A2','A3','A4','A5','A6','X','B','C','D','N','Z','F1','F2','F3','F4','F5','F6','DIR','SIE',
                       'TF','T','CUM','SF','FR','MV']) k;
-  insert into auth.users (id, email) select uid, email from pg_temp.preuve_comptes;
   for c in select * from pg_temp.preuve_comptes loop
     if c.nom in ('A1','A2','A3','A4','A5','A6','X','B','C','D','T','SF','MV') then
       insert into stagiaires (prenom, nom, promo_id, anonymise_le)
@@ -245,9 +249,15 @@ begin
     elsif c.nom = 'TF' then
       insert into user_profiles (email, role, is_admin, is_founder) values (c.email, 'admin', true, true);
     elsif c.nom = 'N' then
-      insert into user_profiles (email, role, is_admin, is_founder) values (c.email, null, false, false);
+      insert into user_profiles (email, role, is_admin, is_founder) values (c.email, 'stagiaire', false, false);
     end if;
   end loop;
+  -- La base réelle refuse un compte sans profil (liste blanche d'auth.users) : les comptes viennent donc après les
+  -- profils, et Z (sans profil) en reçoit un le temps de créer son compte. N a le rôle « stagiaire » sans fiche (la base
+  -- réelle exige un rôle, qui ne décide plus de rien depuis le lot 4).
+  insert into user_profiles (email, role) select email, 'stagiaire' from pg_temp.preuve_comptes where nom = 'Z';
+  insert into auth.users (id, email) select uid, email from pg_temp.preuve_comptes;
+  delete from user_profiles where email = (select email from pg_temp.preuve_comptes where nom = 'Z');
   insert into affectations (email, role, promo_id, lieu_id)
   select k.email, v.role, v.promo, v.lieu
     from (values ('F1', 'formateur', P1, null::integer), ('F2', 'formateur', P1, null), ('F3', 'formateur', P1, null),

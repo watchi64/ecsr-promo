@@ -2,8 +2,8 @@
 -- Spec : docs/superpowers/specs/2026-11-08-qualiopi-q3-q5-design.md (§ 4, § 10, § 11). Règles pures reprises ici :
 -- js/questionnaires-rules.js et js/questionnaires-data.js. Retour : 20261108_questionnaires_retour.sql.
 -- Preuve : tests/sql/questionnaires-preuve.sql.
--- NON APPLIQUÉE : à appliquer seulement avec l'accord de Timy, après sa validation du texte des questions et des
--- conditions d'utilisation.
+-- Appliquée en production le 09/11/2026, avec l'accord de Timy (psql -1, PGCLIENTENCODING=UTF8) ; preuve rejouée sur
+-- la base réelle : VERT 207/0.
 --
 -- Trois questionnaires : fin_stagiaire et six_mois_stagiaire (portée : la promo), fin_formateur (portée : le lieu et
 -- l'année civile du jour, § 11). Ouverts selon la date de fin de la promo (de J-7 à J+30 ; de +6 mois à +7 mois), ou à la
