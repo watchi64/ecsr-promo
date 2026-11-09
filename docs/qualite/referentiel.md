@@ -28,14 +28,21 @@ en 3 clics au plus**. Un clic de plus que le budget est un échec. Sur télépho
 | Stagiaire | Trouver un document ou les contacts du centre | 2 | oui |
 | Stagiaire | Signaler un problème | 2 pour ouvrir, puis envoyer | oui |
 | Stagiaire | Changer mes préférences (anonymat des notes) | 2 | oui |
-| Stagiaire | Voir mon planning de demain | 2 | après le lot 2B |
+| Stagiaire | Voir mon planning de demain | 2 | oui (nouvelle navigation) |
+| Stagiaire | Voir ma journée (Accueil) | 1 | oui (nouvelle navigation) |
+| Stagiaire | Signer l'émargement depuis l'Accueil | 1 + signature | oui (nouvelle navigation) |
+| Stagiaire | Passer l'examen ouvert, depuis « À faire » de l'Accueil | 3 depuis l'Accueil | oui (nouvelle navigation) |
+| Stagiaire | Retrouver mes QCM et ma dernière note (sous-onglet QCM) | 2 | oui (nouvelle navigation) |
+| Stagiaire | Ouvrir mon livret EPCF | 2 | oui (nouvelle navigation) |
 | Formateur | Ouvrir et suivre l'émargement du jour | 2 (3 sur téléphone) | oui |
 | Formateur | Voir les indicateurs de la promo | 1 (2 sur téléphone) | oui |
 | Formateur | Ouvrir les réglages de la promo | 1 (2 sur téléphone) | oui |
 | Formateur | Saisir une note, voir les passages d'un stagiaire | 3 | plus tard |
-| Formateur | Modifier le planning de la semaine | 3 | après le lot 2B |
-| Formateur | Traiter un signalement de QCM | 3 | après le lot 2B |
+| Formateur | Modifier le planning de la semaine | 3 | oui (nouvelle navigation) |
+| Formateur | Traiter un signalement de QCM | 3 (par « Aujourd'hui ») | oui (nouvelle navigation) |
+| Formateur | Voir la journée de la promo (Aujourd'hui) | 1 | oui (nouvelle navigation) |
 | Fondateur | Lire les problèmes signalés | 2 (3 sur téléphone) | oui |
+| Fondateur | Relire les questions proposées par l'IA | 2 (3 sur téléphone) | oui (nouvelle navigation) |
 | Direction, siège | Vue d'ensemble du centre ou du réseau | 1 | au lot 5 |
 
 **Priorité** (relevé du 08/11 en base, lecture seule, sans nom) : la table des problèmes signalés ne

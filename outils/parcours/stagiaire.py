@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Parcours du stagiaire : les tâches de tous les jours, jouées comme le ferait un stagiaire.
 
-Les parcours des pages refaites par le lot 2B (Accueil du stagiaire, planning en grille, sous-onglets QCM)
-s'ajouteront ici après sa fusion.
+En fin de fichier, les pages refaites par le lot 2B (Accueil, planning en grille, sous-onglet QCM, Livret EPCF) :
+elles n'existent que sous la nouvelle navigation.
 """
 import json
 
@@ -273,4 +273,132 @@ def signer(v):
     v.attendre("#emargement-bandeau:has-text(\"signé\")", "la confirmation dans le bandeau")
     if v.voit(".sig-modal"):
         v.constat("D", BLOQUE, "la fenêtre de signature reste ouverte après la signature", capture=True)
+    v.terminer()
+
+
+# --- Pages refaites par le lot 2B (nouvelle navigation seulement) ------------------------------------------
+NOUVELLE = ("nouvelle",)
+
+
+def fermer_la_fiche_du_qcm(v):
+    """Referme ce qui reste ouvert d'un QCM (écran de l'examen, fiche du thème) par ses boutons, hors budget."""
+    for _ in range(3):
+        if v.voit("button.qcm-close"):
+            v.toucher("button.qcm-close", "« Fermer » (QCM)", compte=False)
+        elif v.voit(".theme-modal .modal-actions button:has-text(\"Fermer\")"):
+            v.toucher(".theme-modal .modal-actions button:has-text(\"Fermer\")", "« Fermer » (fiche du QCM)", compte=False)
+        else:
+            return
+
+
+@parcours("ma-journee", "Voir ma journée (Accueil)", role="stagiaire", budget=1, navigations=NOUVELLE)
+def ma_journee(v):
+    """Ouvrir l'Accueil : la journée (matin et après-midi), « À faire » et le prochain rendez-vous sont là."""
+    v.aller("Accueil")
+    v.attendre("#view .acc-journee .acc-creneau", "la journée (matin et après-midi)")
+    v.but("journée affichée")
+    page = v.texte("#view")
+    for titre in ("À faire", "Prochain rendez-vous"):
+        if titre not in page:
+            v.constat("F", LISTE, "l'Accueil ne montre pas « %s »" % titre, capture=True)
+    v.terminer()
+
+
+@parcours("signer-depuis-l-accueil", "Signer l'émargement depuis l'Accueil", role="stagiaire", budget=1,
+          navigations=NOUVELLE, depart="#/home")
+def signer_depuis_l_accueil(v):
+    """Sur l'Accueil, « Signer pour ce matin », signer du doigt, valider : la journée dit « Signé à »."""
+    v.etape("toucher « Signer pour ce matin »")
+    v.toucher(texte("Signer pour ce matin", "#view button"), "« Signer pour ce matin »")
+    v.attendre(".sig-modal", "la fenêtre de signature")
+    v.but("fenêtre de signature ouverte")
+    v.etape("signer et valider")
+    dessiner_signature(v, "canvas.sig-canvas")
+    v.toucher(".sig-modal button.btn.primary", "« Valider ma signature »", ecriture=True)
+    v.attendre("#view .acc-signe", "« Signé à » dans la journée")
+    if v.voit(".sig-modal"):
+        v.constat("D", BLOQUE, "la fenêtre de signature reste ouverte après la signature", capture=True)
+    if v.voit(texte("Signer pour ce matin", "#view button")):
+        v.constat("E", LISTE, "« Signer pour ce matin » reste proposé après la signature", capture=True)
+    v.terminer()
+
+
+@parcours("examen-depuis-l-accueil", "Passer l'examen ouvert, depuis « À faire » de l'Accueil", role="stagiaire",
+          budget=3, navigations=NOUVELLE, depart="#/home")
+def examen_depuis_l_accueil(v):
+    """L'app s'ouvre sur l'Accueil : la ligne « Examen ouvert » mène à l'écran « Prêt pour l'examen ? » en 3 touchers au plus."""
+    v.etape("toucher la ligne « Examen ouvert »")
+    ligne = v.attendre("#view a.acc-ligne:has-text(\"Examen ouvert\")", "la ligne « Examen ouvert » de « À faire »")
+    theme = ligne.inner_text().strip().splitlines()[0].split(":", 1)[-1].strip().replace('"', "")
+    v.toucher(ligne, "la ligne « Examen ouvert »")
+    examen = texte("Passer l'examen", "button")
+    if not v.voit(examen):
+        rangee = "#view .theme-row:has-text(\"%s\") button.theme-qcm-hint" % theme
+        sous_onglet = "#view .acc-ligne:has-text(\"%s\") button:has-text(\"Ouvrir\")" % theme
+        if v.voit(rangee):
+            # Un raccourci mène au même endroit que son nom (critère C) : ici, la liste de tous les thèmes.
+            v.constat("C", LISTE, "« Examen ouvert : %s » mène à la liste des thèmes, pas au QCM du thème" % theme, capture=True)
+            v.toucher(rangee, "le bouton « QCM » du thème %s" % theme)
+        elif v.voit(sous_onglet):
+            v.toucher(sous_onglet, "« Ouvrir » (QCM du thème %s)" % theme)
+        else:
+            v.echec("après « Examen ouvert », ni la fiche du QCM ni le thème %s à l'écran" % theme)
+    v.toucher(examen, "« Passer l'examen »")
+    v.attendre(texte("Commencer l'examen", "button"), "l'écran « Prêt pour l'examen ? »")
+    v.but("examen prêt à commencer")
+    v.etape("ne pas commencer : « Annuler »")
+    v.toucher(texte("Annuler", "button"), "« Annuler »", compte=False)
+    fermer_la_fiche_du_qcm(v)
+    v.terminer()
+
+
+@parcours("mes-qcm", "Retrouver mes QCM et ma dernière note (sous-onglet QCM)", role="stagiaire", budget=2,
+          navigations=NOUVELLE)
+def mes_qcm(v):
+    """Cours et QCM, sous-onglet QCM : chaque QCM avec sa dernière note ; « Ouvrir » mène à sa fiche."""
+    v.aller("QCM")
+    v.attendre("#view .acc-ligne:has-text(\"Thème\")", "la liste de mes QCM")
+    v.but("liste des QCM affichée")
+    v.etape("ouvrir la fiche du premier QCM")
+    v.toucher(texte("Ouvrir", "#view button"), "« Ouvrir » (premier QCM)")
+    v.attendre(texte("S'entraîner", "button"), "la fiche du QCM")
+    v.controler_ecran("fiche du QCM")
+    fermer_la_fiche_du_qcm(v)
+    v.terminer()
+
+
+@parcours("livret-epcf", "Ouvrir mon livret EPCF (Mon suivi)", role="stagiaire", budget=2, navigations=NOUVELLE)
+def livret_epcf(v):
+    """Mon suivi, Livret EPCF (sous-onglet sur ordinateur, ligne du sommaire sur téléphone) : le livret s'affiche."""
+    v.aller("Livret EPCF")
+    v.attendre("#view h3:has-text(\"Livret EPCF\")", "le livret EPCF")
+    v.but("livret affiché")
+    v.terminer()
+
+
+@parcours("planning-de-demain", "Voir mon planning de demain", role="stagiaire", budget=2, navigations=NOUVELLE,
+          depart="#/home")
+def planning_de_demain(v):
+    """Planning en grille : demain (jeudi 29) se lit dans sa colonne sur ordinateur, se touche dans la bande des jours
+    sur téléphone. Puis « Liste », gardée au rechargement, et retour à la grille."""
+    v.aller("Planning")
+    if v.telephone:
+        v.attendre(".daystrip [role=tab][aria-selected=true]", "la bande des jours, aujourd'hui choisi")
+        v.toucher(".daystrip [role=tab]:has-text(\"29\")", "le jour de demain (jeudi 29)")
+        v.attendre(".wtel [role=tabpanel] h3:has-text(\"29\")", "la journée de demain")
+    else:
+        v.attendre(".wgrid .wg-day:has-text(\"29\")", "la colonne de demain dans la grille")
+    v.but("planning de demain affiché")
+    v.etape("passer en « Liste »")
+    v.toucher(".vue-toggle button[data-vue=liste]", "« Liste »", compte=False)
+    v.attendre("#view .p-day-card", "la semaine en liste")
+    v.etape("recharger la page")
+    v.page.reload(wait_until="load")
+    v.attendre(".vue-toggle", "le planning après le rechargement", delai=8000)
+    v.page.wait_for_timeout(500)
+    if not v.voit("#view .p-day-card"):
+        v.constat("E", LISTE, "le choix « Liste » n'est pas gardé au rechargement", capture=True)
+    v.etape("revenir à la grille")
+    v.toucher(".vue-toggle button[data-vue=grille]", "« Grille »", compte=False)
+    v.attendre(".wsem", "la grille de la semaine")
     v.terminer()
