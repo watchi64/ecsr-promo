@@ -8,13 +8,13 @@ import {
   getMesPromos, getPromoCourante, ouvrirDansUnePromo, creerPromo, modifierDatesPromo, renommerPromo, chargerMesPromos, choisirPromo,
   rechargerApresEnregistrements,
   lireEffectifsPromos, lireFormateursPromos,
-} from "../db.js?v=20261109j";
-import { el, clear, isoDate, formatLongDate, toast } from "../utils.js?v=20261109j";
-import { getCentre, getAffectations, getAdminEmail } from "../auth-admin.js?v=20261109j";
-import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261109j";
-import { validerPromo, etatPromo, partEcoulee } from "../direction-rules.js?v=20261109j";
-import { peutRegler } from "../modules-etat.js?v=20261109j";
-import { renderModulesSection } from "./modules-reglage.js?v=20261109j";
+} from "../db.js?v=20261109m";
+import { el, clear, isoDate, formatLongDate, toast } from "../utils.js?v=20261109m";
+import { getCentre, getAffectations, getAdminEmail } from "../auth-admin.js?v=20261109m";
+import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261109m";
+import { validerPromo, etatPromo, partEcoulee } from "../direction-rules.js?v=20261109m";
+import { peutRegler } from "../modules-etat.js?v=20261109m";
+import { renderModulesSection } from "./modules-reglage.js?v=20261109m";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;

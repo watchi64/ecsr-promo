@@ -219,6 +219,32 @@ export const NOUVEAUTES = [
         + "demande une confirmation.",
     ],
   },
+  // Finitions du lot C (relecture du 09/11) : la saisie et l'effacement d'une note.
+  {
+    id: "2026-11-09-notes-finitions",
+    date: "2026-11-09",
+    pour: "formateurs",
+    titre: "Notes : des messages plus clairs, un bouton pour réessayer, une vraie fenêtre pour effacer",
+    resume: "Dans Notes et examens, une note mal tapée se signale en une phrase qui dit quoi taper (« la note va de 0 "
+          + "à 20 »). Si la connexion lâche pendant la saisie, la ligne du stagiaire propose « Réessayer » ; si tu remets "
+          + "la note d'avant, le message d'erreur s'en va. Pour effacer une note, une fenêtre de l'app te demande "
+          + "confirmation, avec le nom du stagiaire et la note. Dans Cours et QCM, l'échéance d'un examen écrit "
+          + "l'année quand elle tombe l'année suivante.",
+    ou: { label: "Notes et examens", route: "notes" },
+  },
+  // Suite du lot C (09/11) : les moyennes EPCF de la classe tant qu'aucune ne peut s'afficher.
+  {
+    id: "2026-11-09-moyennes-epcf-vides",
+    date: "2026-11-09",
+    pour: "tous",
+    titre: "Moyennes EPCF : la page dit quand elles arriveront",
+    resume: "Les moyennes EPCF de la classe n'apparaissent qu'à partir de deux stagiaires évalués à la même épreuve, "
+          + "en salle ou en véhicule : avec un seul, la moyenne serait sa note. En attendant, la page le dit en une phrase "
+          + "et propose la suite : « Voir mon EPCF » pour retrouver tes propres résultats, « Évaluer un stagiaire » pour "
+          + "les formateurs, qui voient aussi combien de stagiaires sont déjà évalués.",
+    ou: { label: "Notes, sous-onglet EPCF", route: "notes", sousOnglet: "epcf" },
+    module: "epcf",
+  },
   // Lot de corrections 2 (audit du 09/11) : ce que l'app affiche est juste.
   {
     id: "2026-11-09-accueil-plus-juste",

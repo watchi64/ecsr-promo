@@ -8,25 +8,25 @@
 import {
   lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante, lireReglagePromo, lireEmargementPromo,
   ouvrirDansUnePromo,
-} from "../db.js?v=20261109j";
-import { el, clear, isoDate, formatDate, formatLongDate, toast, tableauEnListe } from "../utils.js?v=20261109j";
-import { getCentre } from "../auth-admin.js?v=20261109j";
-import { promosDuCentre } from "../espaces-rules.js?v=20261109j";
+} from "../db.js?v=20261109m";
+import { el, clear, isoDate, formatDate, formatLongDate, toast, tableauEnListe } from "../utils.js?v=20261109m";
+import { getCentre } from "../auth-admin.js?v=20261109m";
+import { promosDuCentre } from "../espaces-rules.js?v=20261109m";
 import {
   indicateursPromo, ligneComparaison, aSuivrePromo, fusionnerASuivre,
-} from "../centre-stats.js?v=20261109j";
-import { comptesDepuisIndicateurs, concatenerDonnees, promosEnCours } from "../comptes-reseau.js?v=20261109j";
-import { tableauCentreCsv, slug } from "../centre-csv.js?v=20261109j";
-import { resumeEmargement, lireAdresseEmargement, CLE_ACTIVATION, estActif } from "../emargement-rules.js?v=20261109j";
-import { estAdresseAttestations } from "../attestations-rules.js?v=20261109j";
-import { jourLong, DEMI_LONG } from "../emargement-feuilles.js?v=20261109j";
+} from "../centre-stats.js?v=20261109m";
+import { comptesDepuisIndicateurs, concatenerDonnees, promosEnCours } from "../comptes-reseau.js?v=20261109m";
+import { tableauCentreCsv, slug } from "../centre-csv.js?v=20261109m";
+import { resumeEmargement, lireAdresseEmargement, CLE_ACTIVATION, estActif } from "../emargement-rules.js?v=20261109m";
+import { estAdresseAttestations } from "../attestations-rules.js?v=20261109m";
+import { jourLong, DEMI_LONG } from "../emargement-feuilles.js?v=20261109m";
 import {
   cartesCles, cartesResultats, sectionThemes, sectionASuivre, sectionComparaison, sectionMethodes, etiquette,
   telecharger,
-} from "./centre.js?v=20261109j";
-import { surChangementAdresse } from "../navigation.js?v=20261109j";
-import { renderEmargement } from "./emargement.js?v=20261109j";
-import { renderNotes } from "./notes.js?v=20261109j";
+} from "./centre.js?v=20261109m";
+import { surChangementAdresse } from "../navigation.js?v=20261109m";
+import { renderEmargement } from "./emargement.js?v=20261109m";
+import { renderNotes } from "./notes.js?v=20261109m";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;

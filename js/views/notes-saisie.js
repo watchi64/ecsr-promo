@@ -12,13 +12,14 @@
 //   ctx.apresEnregistrement() rafraîchit les statistiques de la page
 //   ctx.carteVide(contexte)   la carte de l'état vide, ou null (lot C, C2)
 // Chaque champ porte l'identifiant de son stagiaire (data-stagiaire-id) : une note ne peut pas glisser d'une ligne
-// à l'autre, même si la page se redessine pendant la saisie.
+// à l'autre, même si la page se redessine pendant la saisie. Ce que dit la ligne après un envoi (une phrase, « Réessayer »
+// si la connexion a lâché) vient d'etatDeLigne (js/notes-saisie-rules.js).
 
-import { el, clear, toast } from "../utils.js?v=20261109j";
-import { icon } from "../icons.js?v=20261109j";
+import { el, clear, toast } from "../utils.js?v=20261109m";
+import { icon } from "../icons.js?v=20261109m";
 import {
-  ciblesDeSaisie, filtrerCibles, derniereNote, avancement, libelleAvancement, origineNote,
-} from "../notes-saisie-rules.js?v=20261109j";
+  ciblesDeSaisie, filtrerCibles, derniereNote, avancement, libelleAvancement, origineNote, etatDeLigne,
+} from "../notes-saisie-rules.js?v=20261109m";
 
 // Ce qui reste d'un rendu du panneau à l'autre (changer de sous-onglet puis revenir) : la cible ouverte, la recherche.
 let cleOuverte = null;
@@ -138,12 +139,23 @@ export function renderSaisie(panel, ctx) {
       const nom = ctx.nom(s);
       const existante = derniereNote(ctx.evaluations(), s.id, cible);
       const etat = el("span", { class: "saisie-etat", "aria-live": "polite" }, existante ? origineNote(existante) : "");
+      // La ligne dit une erreur (ou un nouvel essai) : un résultat « inchangée » doit la remettre d'aplomb.
+      let ligneAReprendre = false;
+      // « Réessayer » : seulement quand la connexion a lâché (etatDeLigne) ; renvoie ce qui est dans le champ.
+      const reessayer = el("button", { type: "button", class: "saisie-reessayer", hidden: true,
+        "aria-label": `Réessayer d'enregistrer la note de ${nom}`,
+        onClick: () => {
+          reessayer.hidden = true;
+          etat.classList.remove("erreur");
+          etat.textContent = "Nouvel essai…";
+          enregistrer();
+        } }, "Réessayer");
       const champ = el("input", {
         type: "text", inputmode: "decimal", autocomplete: "off", class: "saisie-champ",
         "data-stagiaire-id": String(s.id), "aria-label": `Note de ${nom} sur 20`, placeholder: "/20",
         value: existante?.note != null ? noteEnFrancais(existante.note) : "",
       });
-      if (existante) champ.setAttribute("data-note", String(existante.note));
+      if (existante?.note != null) champ.setAttribute("data-note", String(existante.note));
       champs.push(champ);
 
       // Un seul enregistrement à la fois par champ. Une correction tapée pendant qu'il part (réseau lent) n'est pas
@@ -161,28 +173,27 @@ export function renderSaisie(panel, ctx) {
           enAttente.add(envoi);
           const r = await envoi.finally(() => enAttente.delete(envoi));
           const aJour = champ.value === saisie;   // rien n'a été retapé pendant l'envoi
-          etat.classList.toggle("erreur", r.etat === "invalide" || r.etat === "erreur");
+          // Une erreur affichée s'efface aussi quand on remet la note déjà en base (résultat « inchangée »).
+          const ligne = etatDeLigne(r, avant, ligneAReprendre);
           if (r.etat === "enregistree") {
             if (aJour) champ.value = noteEnFrancais(r.note);
             champ.setAttribute("data-note", String(r.note));
-            etat.textContent = r.converti ? `${r.converti} converti en ${noteEnFrancais(r.note)}/20` : "Enregistrée";
           } else if (r.etat === "effacee") {
             if (aJour) champ.value = "";
             champ.removeAttribute("data-note");
-            etat.textContent = "Note effacée";
-          } else if (r.etat === "gardee") {
+          } else if (r.etat === "gardee" || r.etat === "inchangee") {
             if (aJour) champ.value = avant?.note != null ? noteEnFrancais(avant.note) : "";
-            etat.textContent = avant ? origineNote(avant) : "";
-          } else if (r.etat === "invalide") {
-            etat.textContent = `${r.message}. Tape un nombre de 0 à 20, ou par exemple 7/10.`;
-          } else if (r.etat === "erreur") {
-            etat.textContent = `Pas enregistrée : ${r.message}. Réessaie.`;
+          }
+          if (ligne) {
+            etat.textContent = ligne.texte;
+            etat.classList.toggle("erreur", ligne.erreur);
+            reessayer.hidden = !ligne.reessayer;
+            ligneAReprendre = ligne.erreur;
           }
           // On a quitté l'écran pendant l'envoi (« Retour », Échap, un autre sous-onglet) : la ligne d'état n'est plus
           // affichée, un échec se dit donc dans un message, avec le nom, pour ne rien perdre en silence.
           if (!etat.isConnected && (r.etat === "invalide" || r.etat === "erreur")) {
-            const raison = r.message.charAt(0).toLowerCase() + r.message.slice(1);
-            toast(`Note de ${nom} pas enregistrée : ${raison}. Rouvre le thème pour la saisir de nouveau.`, "error", 6000);
+            toast(`Note de ${nom} pas enregistrée : ${r.message}. Rouvre le thème pour la saisir de nouveau.`, "error", 6000);
           }
           if (r.etat === "enregistree" || r.etat === "effacee") {
             majCompteur();
@@ -205,7 +216,8 @@ export function renderSaisie(panel, ctx) {
       });
 
       lignes.appendChild(el("div", { class: "saisie-ligne" },
-        el("div", { class: "saisie-qui" }, el("span", { class: "saisie-nom" }, nom), etat),
+        el("div", { class: "saisie-qui" }, el("span", { class: "saisie-nom" }, nom),
+          el("div", { class: "saisie-etat-ligne" }, etat, reessayer)),
         champ,
       ));
     });
