@@ -21,7 +21,7 @@ import { carteMarquage, marquageConnu } from "../marquage.js?v=20261109g";
 import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261109g";
 import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261109g";
 import { listCoursIndex, getCours } from "../db.js?v=20261109g";
-import { isAdmin, isProf, getViewAs } from "../auth-admin.js?v=20261109g";
+import { isAdmin, isProf, isRedacteur, getViewAs } from "../auth-admin.js?v=20261109g";
 import { coursAUnTexte, MESSAGE_COURS_VIDE, titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours,
   coursVisibleEnApercu, classeTableau, etiquetteDeColonne }
   from "../cours-rules.js?v=20261109g";
@@ -487,9 +487,10 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
   const fermer = el("button", { class: "cours-close", type: "button", "aria-label": "Fermer le cours" });
   fermer.appendChild(icon.close ? icon.close() : document.createTextNode("×"));
 
-  // Édition réservée au formateur et à l'admin (la direction lit les cours sans les modifier : la base refuserait) :
-  // le stagiaire ne voit jamais ce bouton. L'import dynamique évite de charger l'éditeur pour lui.
-  const modifier = isAdmin()
+  // Édition réservée à qui rédige les contenus communs : le formateur administrateur et le siège (la direction lit les cours
+  // sans les modifier : la base refuserait). Le stagiaire ne voit jamais ce bouton. L'import dynamique évite de charger
+  // l'éditeur pour lui.
+  const modifier = isRedacteur()
     ? el("button", { class: "btn cours-modifier", type: "button", onClick: async () => {
         const { openCoursEditeur } = await import("./cours-editeur.js?v=20261109g");
         close();
@@ -598,7 +599,7 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
     meta.textContent = vide ? "" : `${contexte.sections.length} sections · ${tempsLecture(texte)} min de lecture`;
 
     // État formateur/admin : le stagiaire n'a pas à voir la cuisine.
-    if (isAdmin() || isProf()) {
+    if (isAdmin() || isProf() || isRedacteur()) {
       const quand = cours.updated_at
         ? new Date(cours.updated_at).toLocaleDateString("fr-FR") : "";
       const etat = (cours.published ? "Publié" : "Non publié")

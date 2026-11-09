@@ -7,15 +7,17 @@
  */
 import { el, clear } from "../utils.js?v=20261109g";
 import { listQcmIndex, listMyQcmAttempts } from "../db.js?v=20261109g";
-import { lignesQcmStagiaire } from "../qcm-rules.js?v=20261109g";
+import { lignesQcmStagiaire, lignesQcmRedaction } from "../qcm-rules.js?v=20261109g";
 import { carte, ligneAction, erreurAvecReessai } from "./pages-cartes.js?v=20261109g";
 
 // `onOuvrir(theme, qcm)` : ouvre la fenêtre du QCM (fournie par js/views/themes.js, qui la possède : l'importer ici ferait
 // un cycle). Un QCM dont le thème est introuvable s'ouvre avec un thème de remplacement qui ne porte que son titre.
-export async function renderQcmStagiaire(panel, { themes = [], onOuvrir = null, isActive = () => true } = {}) {
+// `redaction` (le siège, qui rédige les contenus communs sans promo) : la même liste, sans note ni examen, qui mène à
+// l'éditeur des questions.
+export async function renderQcmStagiaire(panel, { themes = [], onOuvrir = null, isActive = () => true, redaction = false } = {}) {
   clear(panel);
   const compte = el("span", { class: "acc-compte" });
-  const c = carte({ titre: "Tes QCM", ico: "quiz", plus: compte, zone: "qcm" });
+  const c = carte({ titre: redaction ? "Les QCM de la formation" : "Tes QCM", ico: "quiz", plus: compte, zone: "qcm" });
   panel.appendChild(c.noeud);
 
   let gen = 0;   // chargements concurrents : seule la dernière demande a le droit d'écrire
@@ -32,17 +34,17 @@ export async function renderQcmStagiaire(panel, { themes = [], onOuvrir = null, 
     if (!silencieux) { clear(c.corps); c.corps.appendChild(el("p", { class: "muted" }, "Chargement…")); }
     let index, tentatives;
     try {
-      [index, tentatives] = await Promise.all([listQcmIndex(), listMyQcmAttempts()]);
+      [index, tentatives] = await Promise.all([listQcmIndex(), redaction ? Promise.resolve([]) : listMyQcmAttempts()]);
     } catch (e) {
       // Journalisé : un échec muet rend un défaut invisible.
       console.error("QCM illisibles :", e);
       if (silencieux || !isActive() || maGen !== gen || !vivante()) return;
       compte.textContent = "";
-      erreurAvecReessai(c.corps, "Tes QCM n'ont pas pu être chargés.", () => charger());
+      erreurAvecReessai(c.corps, redaction ? "Les QCM n'ont pas pu être chargés." : "Tes QCM n'ont pas pu être chargés.", () => charger());
       return;
     }
     if (!isActive() || maGen !== gen || !vivante()) return;
-    dessiner(lignesQcmStagiaire({ qcm: index, themes, tentatives }));
+    dessiner(redaction ? lignesQcmRedaction({ qcm: index, themes }) : lignesQcmStagiaire({ qcm: index, themes, tentatives }));
   }
 
   function dessiner(lignes) {
@@ -53,15 +55,16 @@ export async function renderQcmStagiaire(panel, { themes = [], onOuvrir = null, 
       c.corps.appendChild(el("p", { class: "muted" }, "Aucun QCM n'est disponible pour l'instant."));
       return;
     }
-    c.corps.appendChild(el("p", { class: "acc-intro" },
-      "La note affichée est celle de ton dernier entraînement. Quand le formateur ouvre un examen, tu le passes depuis la fiche du QCM."));
+    c.corps.appendChild(el("p", { class: "acc-intro" }, redaction
+      ? "Ces QCM sont communs à tous les centres : une modification vaut partout."
+      : "La note affichée est celle de ton dernier entraînement. Quand le formateur ouvre un examen, tu le passes depuis la fiche du QCM."));
     c.corps.appendChild(el("div", { class: "acc-lignes" }, ...lignes.map((l) => {
       const theme = l.theme || { id: null, numero: null, titre: l.qcm.titre, type: "theme" };
       return ligneAction({
-        ico: "quiz", titre: l.titre, detail: l.etat,
+        ico: "quiz", titre: l.titre, detail: redaction ? l.detail : l.etat,
         puces: [l.examenOuvert ? { texte: "Examen ouvert", ok: true } : null, l.etiquette],
         bouton: {
-          texte: l.action, primaire: l.examenOuvert || l.note == null,
+          texte: l.action, primaire: redaction ? false : (l.examenOuvert || l.note == null),
           nom: `${l.action} : ${l.titre}`,
           onClick: () => { if (onOuvrir) onOuvrir(theme, l.qcm); },
         },

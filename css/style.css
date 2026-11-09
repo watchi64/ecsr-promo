@@ -8806,3 +8806,34 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   .equipe-table .liste-actions { order: 5; flex-basis: 100%; margin-left: 0; }
   .equipe-actions { justify-content: flex-start; }
 }
+
+/* ===== Cours et QCM du siège : sans promo, ni statut ni date (lot 5, tâche 13) =====
+   Le siège rédige les contenus communs : la liste des thèmes n'a que le numéro, le titre, le cours et le QCM. Les grilles
+   reprennent celles d'au-dessus sans les colonnes Statut et Fait le (même ordre des sources, une classe de plus). */
+.themes-list.sans-promo .theme-row { grid-template-columns: 50px 1fr 36px; }
+.themes-list.sans-promo.qcm-on .theme-row { grid-template-columns: 50px 1.2fr minmax(170px, 0.8fr) 36px; }
+.themes-list.sans-promo.cours-on .theme-row { grid-template-columns: 50px 1fr 100px 36px; }
+.themes-list.sans-promo.cours-on.qcm-on .theme-row { grid-template-columns: 50px 1fr 100px minmax(170px, 0.7fr) 36px; }
+@media (max-width: 720px) {
+  .themes-list.sans-promo .theme-row,
+  .themes-list.sans-promo.qcm-on .theme-row,
+  .themes-list.sans-promo.cours-on .theme-row,
+  .themes-list.sans-promo.cours-on.qcm-on .theme-row {
+    grid-template-columns: 36px 1fr;
+    grid-template-areas: "num titre" ". cours" ". qcm";
+  }
+  .themes-list.sans-promo .theme-row .theme-cours-cell { grid-area: cours; margin-top: 0.2rem; justify-self: start; }
+  .themes-list.sans-promo .theme-row .theme-qcm-cell { grid-area: qcm; margin-top: 0.2rem; justify-self: stretch; }
+}
+@media (max-width: 720px) {
+  .themes-list.sans-promo .theme-titre-link { min-height: 44px; }
+}
+@media (max-width: 480px) {
+  .themes-list.sans-promo .theme-row,
+  .themes-list.sans-promo.qcm-on .theme-row,
+  .themes-list.sans-promo.cours-on .theme-row,
+  .themes-list.sans-promo.cours-on.qcm-on .theme-row {
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "num titre" "cours cours" "qcm qcm";
+  }
+}

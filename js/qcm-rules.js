@@ -72,6 +72,31 @@ export function lignesQcmStagiaire({ qcm = [], themes = [], tentatives = [], now
     || a.qcm.id - b.qcm.id);
 }
 
+/**
+ * Les lignes de la liste des QCM du siège (il rédige les contenus communs, sans promo) : { theme, qcm, titre, etiquette,
+ * detail, action }. Aucune note, aucun examen, aucun état d'entraînement : ce sont des données de promo. Un QCM sans
+ * question reste proposé (c'est là qu'on écrit la première). Ordre : par numéro de thème, les transversaux ensuite, par titre.
+ */
+export function lignesQcmRedaction({ qcm = [], themes = [] } = {}) {
+  const themeDe = new Map((themes || []).map((t) => [t.id, t]));
+  const lignes = (Array.isArray(qcm) ? qcm : []).filter(Boolean).map((q) => {
+    const theme = themeDe.get(q.theme_id) || null;
+    const n = Number(q.nb_questions) || 0;
+    return {
+      theme, qcm: q,
+      titre: titreDuQcm(theme, q),
+      etiquette: estTransversal(theme) ? "Transversal" : null,
+      detail: n === 0 ? "Aucune question" : n === 1 ? "1 question" : `${n} questions`,
+      action: "Modifier les questions",
+    };
+  });
+  const numero = (l) => (l.theme?.numero != null ? Number(l.theme.numero) : Infinity);
+  return lignes.sort((a, b) =>
+    (numero(a) === numero(b) ? 0 : numero(a) < numero(b) ? -1 : 1)
+    || a.titre.localeCompare(b.titre, "fr")
+    || a.qcm.id - b.qcm.id);
+}
+
 /** Phrase affichée quand la lecture des cours ou des QCM a échoué (jamais confondue avec « aucun QCM »). */
 export function messageLectureEnEchec({ cours = false, qcm = false } = {}) {
   if (cours && qcm) return "Cours et QCM non chargés. Vérifie ta connexion.";

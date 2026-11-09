@@ -3,13 +3,14 @@ import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=2
 import { icon } from "../icons.js?v=20261109g";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
          echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261109g";
-import { isAdmin, getAdminEmail, isProf, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261109g";
+import { isAdmin, isRedacteur, getEspace, getAdminEmail, isProf, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261109g";
 import { recordUndo } from "../undo.js?v=20261109g";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261109g";
 import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261109g";
 import { renderSubTabs } from "../subtabs.js?v=20261109g";
 import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261109g";
 import { cleCours } from "../cours-rules.js?v=20261109g";
+import { sousOngletsCours } from "../espaces-rules.js?v=20261109g";
 import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109g";
 import { navigationV2Active } from "../nav-etat.js?v=20261109g";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109g";
@@ -181,7 +182,7 @@ function qcmCellEl(theme, qcm) {
     el("div", { class: "qcm-cell-entete" }, btn));
   // Examen ouvert : reperable d'un coup d'oeil depuis la liste. C'est le filet
   // contre l'oubli quand un formateur a ouvert sans limite de temps.
-  if (examenDemarrable(qcm)) {
+  if (!sansPromo() && examenDemarrable(qcm)) {
     const restant = tempsRestantMs(qcm);
     cell.appendChild(el("span", {
       class: "theme-qcm-exam-on",
@@ -241,6 +242,9 @@ function sampleN(arr, n) {
 // Gérer l'examen, éditer la banque, lire les signalements : le formateur de la promo (la direction ne le fait pas : la base
 // refuserait).
 function canManageExam() { return isAdmin(); }
+
+// Le siège rédige les contenus communs sans promo (lot 5, D13) : ni progression, ni statut, ni examen, ni promo nommée.
+function sansPromo() { return getEspace() === "siege"; }
 
 // Fiche QCM dédiée, ouverte depuis la colonne QCM de la liste.
 // Regroupe : mes notes, l'entraînement, l'examen (stagiaire) et la gestion (formateur).
@@ -312,6 +316,14 @@ function openQcmSheet(theme, qcm) {
       body.appendChild(voir);
       body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
         "Signalé par un élève. Ouvre l'éditeur pour lire et classer."));
+    }
+
+    // Le siège rédige les questions sans gérer d'examen : l'éditeur directement, jamais le panneau d'examen.
+    if (isRedacteur() && !canManageExam()) {
+      body.appendChild(el("button", { class: "btn full", type: "button", style: "margin-top:0.9rem",
+        onClick: () => openQcmEditor(theme, qcm.id) }, icon.quiz(), "Modifier les questions"));
+      body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
+        "Les questions sont communes à tous les centres."));
     }
 
     // Gestion formateur (éditer la banque, publier / tirage / tentatives).
@@ -685,10 +697,13 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
   async function reloadEditor() {
     let full;
     try {
-      // Les auteurs d'abord : sans eux la carte n'affiche que l'adresse, qui ne dit pas
-      // toujours qui a signalé (adresses partagées).
-      await chargerAuteurs();
-      signalements = await listQcmSignalements(qcmId, { statut: "ouvert" });
+      // Les signalements restent à la gestion de la promo (isAdmin) : le siège rédige les questions sans les lire.
+      if (canManageExam()) {
+        // Les auteurs d'abord : sans eux la carte n'affiche que l'adresse, qui ne dit pas
+        // toujours qui a signalé (adresses partagées).
+        await chargerAuteurs();
+        signalements = await listQcmSignalements(qcmId, { statut: "ouvert" });
+      }
     } catch (e) {
       console.error("Signalements illisibles :", e);
       signalements = { liste: [], parQuestion: {} };
@@ -1421,6 +1436,7 @@ function openThemeModal(theme) {
 
 function renderThemeRow(theme, container, coursOn = false) {
   const admin = isAdmin();
+  const sans = sansPromo();
   // Pastille : le numéro d'un thème, ou le code d'une compétence de conduite (« C2.4 »).
   const num = theme.code || (theme.numero ? String(theme.numero).padStart(2, "0") : "-");
   const groupe = /^C[1-4]$/.test(theme.code || "");
@@ -1508,7 +1524,7 @@ function renderThemeRow(theme, container, coursOn = false) {
   const qcm = qcmByTheme.get(theme.id);
   const qcmCell = canSeeQcm()
     ? el("div", { class: "theme-qcm-cell" },
-        qcm ? qcmCellEl(theme, qcm) : (canManageExam() ? createQcmCellEl(theme) : null))
+        qcm ? qcmCellEl(theme, qcm) : (isRedacteur() ? createQcmCellEl(theme) : null))
     : null;
 
   return el("div", { class: "theme-row " + color + (groupe ? " theme-row-groupe" : ""), dataset: { id: theme.id } },
@@ -1521,8 +1537,8 @@ function renderThemeRow(theme, container, coursOn = false) {
           )
         : null,
     ),
-    statutChip,
-    dateLabel,
+    sans ? null : statutChip,
+    sans ? null : dateLabel,
     coursCell,
     qcmCell,
     delBtn || el("span"),
@@ -1648,6 +1664,7 @@ const familleActive = { themes: "all", competences: "all" };
 let ligneProgression = null;
 
 function texteProgression() {
+  if (sansPromo()) return "";
   const tp = familleStats(themes.filter((t) => t.type === "theme"));
   return tp.fait + " / " + tp.total + " thèmes officiels terminés";
 }
@@ -1766,7 +1783,7 @@ function rerender(container) {
   statutSel.addEventListener("change", () => { filterStatut = statutSel.value; renderResults(); });
 
   container.appendChild(el("div", { class: "passages-toolbar" },
-    el("div", { class: "passages-filters" }, searchInput, statutSel),
+    el("div", { class: "passages-filters" }, searchInput, sansPromo() ? null : statutSel),
   ));
 
   // Zone de résultats : la SEULE partie repeinte quand la recherche, le statut
@@ -1813,7 +1830,7 @@ function rerender(container) {
           el("h3", { class: "theme-section-title" }, f.label),
           el("p", { class: "muted theme-section-subtitle" }, items.length + " entrée" + (items.length > 1 ? "s" : "")),
         ),
-        el("div", { class: "theme-section-stats" },
+        sansPromo() ? null : el("div", { class: "theme-section-stats" },
           el("div", { class: "theme-section-stat" },
             el("span", { class: "theme-section-stat-value" }, String(stats.fait)),
             el("span", { class: "theme-section-stat-label" }, "Faits"),
@@ -1826,7 +1843,7 @@ function rerender(container) {
       ));
 
       // Barre de progression
-      if (stats.total > 0) {
+      if (stats.total > 0 && !sansPromo()) {
         const bar = el("div", { class: "theme-progress" },
           el("div", { class: "theme-progress-fill", style: `width: ${stats.pct}%` }),
         );
@@ -1841,12 +1858,12 @@ function rerender(container) {
       // cours visible (un stagiaire sans cours publié garde la liste d'avant).
       const coursOn = items.some((t) => coursVisible(t));
       const list = el("div", { class: "themes-list"
-        + (canSeeQcm() ? " qcm-on" : "") + (coursOn ? " cours-on" : "") });
+        + (canSeeQcm() ? " qcm-on" : "") + (coursOn ? " cours-on" : "") + (sansPromo() ? " sans-promo" : "") });
       const entete = el("div", { class: "theme-row theme-header" },
         el("span", { class: "theme-num" }, "N°"),
         el("span", {}, "Thème"),
-        el("span", {}, "Statut"),
-        el("span", {}, "Fait le"),
+        sansPromo() ? null : el("span", {}, "Statut"),
+        sansPromo() ? null : el("span", {}, "Fait le"),
         coursOn ? enteteColonne("Cours", "cours") : null,
         canSeeQcm() ? enteteColonne("QCM", "qcm") : null,
         el("span", {}),
@@ -1923,14 +1940,14 @@ export async function renderThemes(container) {
   // Nouvelle navigation : la page porte le nom de son entrée, « Cours et QCM », avec la promo en surtitre ; la ligne de
   // progression, qui avait le surtitre, termine alors le sous-titre.
   if (donnees) {
-    const surtitre = v2 ? getPromoCourante()?.nom : null;
+    const surtitre = v2 && !sansPromo() ? getPromoCourante()?.nom : null;
     const sousTitre = "Les thèmes et les compétences de la formation, avec leurs cours et leurs QCM.";
-    ligneProgression = el(v2 ? "span" : "p", v2 ? {} : { class: "eyebrow" }, texteProgression());
+    ligneProgression = sansPromo() ? null : el(v2 ? "span" : "p", v2 ? {} : { class: "eyebrow" }, texteProgression());
     container.appendChild(el("div", { class: "view-header" },
       el("div", { class: "view-header-text" },
         v2 ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null) : ligneProgression,
         el("h2", {}, v2 ? "Cours et QCM" : "Cours"),
-        el("p", { class: "subtitle" }, v2 ? [sousTitre + " ", ligneProgression, "."] : sousTitre),
+        el("p", { class: "subtitle" }, v2 && ligneProgression ? [sousTitre + " ", ligneProgression, "."] : sousTitre),
       ),
       isAdmin() ? el("button", { class: "btn primary", onClick: () => openAddNotionModal(() => reload(lastContainer)) },
         icon.plus(), "Ajouter une notion") : null,
@@ -1957,9 +1974,14 @@ export async function renderThemes(container) {
   // ferme pour la promo). L'équipe garde la colonne QCM de la liste des thèmes, pas de sous-onglet. Toute l'équipe : la
   // direction et le siège lisent sans écrire (canManageExam faux) mais n'ont pas de fiche de stagiaire, la même règle que
   // l'espace de la coquille.
-  if (v2 && !formateurConnecte()) {
+  if (v2 && (!formateurConnecte() || sansPromo())) {
+    // Le siège rédige les questions : sa liste mène à l'éditeur, sans note ni examen (js/qcm-rules.js, lignesQcmRedaction).
     onglets.push({ key: "qcm", label: "QCM", module: "qcm",
-      render: (p, ctx) => { renderQcmStagiaire(p, { themes, onOuvrir: openQcmSheet, isActive: ctx?.isActive }); } });
+      render: (p, ctx) => {
+        renderQcmStagiaire(p, sansPromo()
+          ? { themes, onOuvrir: (theme, qcm) => openQcmEditor(theme, qcm.id), isActive: ctx?.isActive, redaction: true }
+          : { themes, onOuvrir: openQcmSheet, isActive: ctx?.isActive });
+      } });
   }
   if (canManageExam()) {
     onglets.push({ key: "signalements", label: v2 ? "Signalements" : "⚑ Signalements",
@@ -1989,7 +2011,10 @@ export async function renderThemes(container) {
         });
       } });
   }
-  container.appendChild(renderSubTabs(onglets, { storageKey: CLES_SOUS_ONGLETS.themes }));
+  // Les sous-onglets que l'espace permet (js/espaces-rules.js, sousOngletsCours) : le siège n'a ni Signalements ni Propositions IA.
+  const permis = sousOngletsCours(getEspace());
+  const aGarder = permis.length ? onglets.filter((o) => permis.includes(String(o.label).replace(/^⚑ /, ""))) : onglets;
+  container.appendChild(renderSubTabs(aGarder, { storageKey: CLES_SOUS_ONGLETS.themes }));
 }
 
 // La liste des propositions de l'IA ne connaît pas l'éditeur : elle rend la main ici avec le QCM à relire, comme la console
