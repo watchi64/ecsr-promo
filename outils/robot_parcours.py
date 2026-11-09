@@ -6,6 +6,7 @@ Usage
 -----
     python outils/robot_parcours.py                      # tout : environ 3 minutes
     python outils/robot_parcours.py --parcours passer-un-qcm,lire-un-cours --moteurs chromium
+    python outils/robot_parcours.py --habillages ecsr,ecf   # rejoue aussi en « Couleurs ECF » (défaut : ecsr seul)
     python outils/robot_parcours.py --liste              # les parcours connus, sans rien jouer
 
 Ce qu'il fait : il sert l'app sur un port libre de la machine (banc d'essai, faux Supabase, données
@@ -52,6 +53,8 @@ from parcours.connus import connu, attendu_dans, DEFAUTS_CONNUS  # noqa: E402
 MOTEURS = ("chromium", "webkit")
 FORMATS = ("ordinateur", "telephone")
 NAVIGATIONS = ("ancienne", "nouvelle")
+HABILLAGES = ("ecsr", "ecf")    # data-skin de <html> ; « ecsr » est le défaut, l'appareil vierge
+CLES_SCENARIO = ("moteur", "format", "navigation", "habillage")
 NOMS = {"chromium": "Chromium", "webkit": "WebKit", "ordinateur": "ordinateur", "telephone": "téléphone",
         "ancienne": "ancienne navigation", "nouvelle": "nouvelle navigation"}
 
@@ -62,13 +65,15 @@ JS_CLIQUABLES = r"""() => [...document.querySelectorAll('a[href], button, [role=
 
 
 def libelle(sc):
-    return "%s · %s · %s" % (NOMS[sc["moteur"]], NOMS[sc["format"]], NOMS[sc["navigation"]])
+    base = "%s · %s · %s" % (NOMS[sc["moteur"]], NOMS[sc["format"]], NOMS[sc["navigation"]])
+    # Seul « ecf » ajoute une mention : les lignes du défaut restent identiques à celles d'avant la dimension.
+    return base + " · Couleurs ECF" if sc.get("habillage", "ecsr") == "ecf" else base
 
 
 def jouer_un(navigateur, p, sc, base_url, dossier):
     """Joue un parcours dans un contexte neuf ; rend le résultat (dictionnaire sérialisable)."""
     erreurs = []
-    contexte = banc.nouveau_contexte(navigateur, sc["format"], p.semis)
+    contexte = banc.nouveau_contexte(navigateur, sc["format"], p.semis, sc.get("habillage", "ecsr"))
     contexte.set_default_timeout(10000)    # aucun geste ne reste pendu plus de 10 s
     page = contexte.new_page()
     page.on("pageerror", lambda e: erreurs.append("erreur de page : %s" % str(e).splitlines()[0][:200]))
@@ -79,6 +84,11 @@ def jouer_un(navigateur, p, sc, base_url, dossier):
     abouti, raison = True, None
     try:
         v.ouvrir()
+        # Le levier est posé avant le chargement, l'app écrit data-skin elle-même : on vérifie qu'elle l'a fait.
+        lu = page.evaluate("() => document.documentElement.dataset.skin || ''")
+        attendu = sc.get("habillage", "ecsr")
+        if lu != attendu:
+            raise Echec("habillage non appliqué : attendu %s, lu %s" % (attendu, lu or "(aucun)"))
         p.fonction(v)
         if not v.but_atteint:
             raise Echec("le parcours s'est terminé sans atteindre son but")
@@ -117,9 +127,9 @@ def travailleur(moteur, format_, scenarios, base_url, dossier):
             return {"erreur": "%s ne démarre pas : %s" % (moteur, raison), "resultats": []}
         for sc in scenarios:
             try:
-                r = jouer_un(navigateur, registre[sc["parcours"]], {k: sc[k] for k in ("moteur", "format", "navigation")}, base_url, dossier)
+                r = jouer_un(navigateur, registre[sc["parcours"]], {k: sc[k] for k in CLES_SCENARIO}, base_url, dossier)
             except Exception as e:     # le navigateur lui-même a lâché : le passage compte comme raté
-                r = {"parcours": sc["parcours"], **{k: sc[k] for k in ("moteur", "format", "navigation")}, "abouti": False,
+                r = {"parcours": sc["parcours"], **{k: sc[k] for k in CLES_SCENARIO}, "abouti": False,
                      "clics": 0, "clics_au_but": None, "budget": None, "duree": 0, "ouverture_ms": None, "etapes": [],
                      "capture_finale": None, "constats": [{"critere": "A", "gravite": BLOQUE, "etape": "lancement",
                                                            "message": "erreur du navigateur : %s" % str(e).splitlines()[0][:200]}]}
@@ -134,11 +144,11 @@ def travailleur(moteur, format_, scenarios, base_url, dossier):
 
 
 def ecarts_entre_moteurs(resultats):
-    """Critère H : un parcours qui aboutit dans un moteur et pas dans l'autre, à format et navigation égaux."""
+    """Critère H : un parcours qui aboutit dans un moteur et pas dans l'autre, à format, navigation et habillage égaux."""
     par_cle = {}
     for r in resultats:
-        par_cle.setdefault((r["parcours"], r["format"], r["navigation"]), {})[r["moteur"]] = r
-    for (pid, fmt, nav), m in par_cle.items():
+        par_cle.setdefault((r["parcours"], r["format"], r["navigation"], r.get("habillage", "ecsr")), {})[r["moteur"]] = r
+    for (pid, fmt, nav, hab), m in par_cle.items():
         if len(m) == 2 and m["chromium"]["abouti"] != m["webkit"]["abouti"]:
             perdant = m["webkit"] if m["chromium"]["abouti"] else m["chromium"]
             gagnant = "Chromium" if m["chromium"]["abouti"] else "WebKit"
@@ -181,12 +191,15 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, 
         L.append("")
         L.append("**%d passage(s) prévu(s) n'ont pas été joués** : le résultat ne peut pas être vert." % manquants)
     L.append("")
+    L.append("Dimensions jouées : moteurs %s ; formats %s ; navigations %s ; habillages %s." % tuple(
+        ", ".join(sorted({r[k] for r in resultats})) for k in CLES_SCENARIO))
+    L.append("")
     L.append("## Parcours")
     L.append("")
     L.append("Clics jusqu'au but, par navigation (ancienne / nouvelle) et par format (ordinateur, téléphone). « x » : le parcours n'aboutit pas.")
     L.append("")
-    L.append("| Parcours | Rôle | Budget (ord. / tél.) | Ordinateur | Téléphone | Aboutit | Bloquants nouveaux |")
-    L.append("|---|---|---|---|---|---|---|")
+    L.append("| Parcours | Rôle | Budget (ord. / tél.) | Ordinateur | Téléphone | Habillages | Aboutit | Bloquants nouveaux |")
+    L.append("|---|---|---|---|---|---|---|---|")
     for pid, p in registre.items():
         rs = [r for r in resultats if r["parcours"] == pid]
         if not rs:
@@ -203,8 +216,9 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, 
         b = p.budget if isinstance(p.budget, dict) else {"ordinateur": p.budget, "telephone": p.budget}
         ok = sum(1 for r in rs if r["abouti"])
         nb = len({(c["critere"], c["message"]) for r, c in bloquants if r["parcours"] == pid})
-        L.append("| %s (`%s`) | %s | %s / %s | %s | %s | %d sur %d | %s |" % (p.titre, pid, p.role, b["ordinateur"], b["telephone"],
-                                                                          clics("ordinateur"), clics("telephone"), ok, len(rs), nb or "aucun"))
+        habs = ", ".join(sorted({r["habillage"] for r in rs}))
+        L.append("| %s (`%s`) | %s | %s / %s | %s | %s | %s | %d sur %d | %s |" % (p.titre, pid, p.role, b["ordinateur"], b["telephone"],
+                                                                          clics("ordinateur"), clics("telephone"), habs, ok, len(rs), nb or "aucun"))
     L.append("")
     L.append("## Défauts bloquants")
     L.append("")
@@ -254,7 +268,7 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, 
             if cr != crit:
                 continue
             pids = sorted({r["parcours"] for r, _ in occ})
-            ctx = sorted({"%s %s" % (NOMS[r["format"]], r["navigation"]) for r, _ in occ})
+            ctx = sorted({"%s %s%s" % (NOMS[r["format"]], r["navigation"], " Couleurs ECF" if r["habillage"] == "ecf" else "") for r, _ in occ})
             ou = ", ".join(pids) if len(pids) <= 3 else "%d parcours dont %s" % (len(pids), ", ".join(pids[:2]))
             L.append("- %s (%d fois ; %s ; %s)" % (msg, len(occ), ou, ", ".join(ctx)))
         L.append("")
@@ -280,6 +294,7 @@ def main(argv=None):
     ap.add_argument("--moteurs", default=",".join(MOTEURS))
     ap.add_argument("--formats", default=",".join(FORMATS))
     ap.add_argument("--navigations", default=",".join(NAVIGATIONS))
+    ap.add_argument("--habillages", default="ecsr", help="ecsr (défaut), ecf, ou ecsr,ecf : le filet double avec les deux")
     ap.add_argument("--sortie", help="dossier du rapport (défaut : outils/robot_rapports/<date-heure>)")
     ap.add_argument("--liste", action="store_true", help="liste les parcours et s'arrête")
     ap.add_argument("--processus", type=int, default=4, help="processus en parallèle (défaut 4)")
@@ -296,7 +311,8 @@ def main(argv=None):
         print("Parcours inconnus : %s (voir --liste)" % ", ".join(inconnus))
         return 2
     choix = {}
-    for nom, valeur, permis in (("moteurs", a.moteurs, MOTEURS), ("formats", a.formats, FORMATS), ("navigations", a.navigations, NAVIGATIONS)):
+    for nom, valeur, permis in (("moteurs", a.moteurs, MOTEURS), ("formats", a.formats, FORMATS), ("navigations", a.navigations, NAVIGATIONS),
+                                   ("habillages", a.habillages, HABILLAGES)):
         valeurs = [x.strip() for x in valeur.split(",") if x.strip()]
         fautes = [x for x in valeurs if x not in permis]
         if fautes or not valeurs:
@@ -304,7 +320,7 @@ def main(argv=None):
             print("--%s : %s inconnu(s) ; valeurs permises : %s" % (nom, ", ".join(fautes) or "(vide)", ", ".join(permis)))
             return 2
         choix[nom] = valeurs
-    moteurs, formats, navigations = choix["moteurs"], choix["formats"], choix["navigations"]
+    moteurs, formats, navigations, habillages = choix["moteurs"], choix["formats"], choix["navigations"], choix["habillages"]
 
     debut = datetime.datetime.now()
     dossier = pathlib.Path(a.sortie) if a.sortie else banc.RACINE / "outils" / "robot_rapports" / debut.strftime("%Y-%m-%d_%H%M%S")
@@ -325,12 +341,13 @@ def main(argv=None):
                     continue
                 for n in navigations:
                     if n in p.navigations:
-                        lots.setdefault((m, f), []).append({"parcours": pid, "moteur": m, "format": f, "navigation": n})
+                        for h in habillages:
+                            lots.setdefault((m, f), []).append({"parcours": pid, "moteur": m, "format": f, "navigation": n, "habillage": h})
     total = sum(len(v) for v in lots.values())
     if not total:
         print("Aucun passage à jouer avec ces options (formats ou navigations que ces parcours n'acceptent pas).")
         return 2
-    print("%d passages : %d parcours, %s, %s, %s\n" % (total, len(voulus), "+".join(moteurs), "+".join(formats), "+".join(navigations)), flush=True)
+    print("%d passages : %d parcours, %s, %s, %s, %s\n" % (total, len(voulus), "+".join(moteurs), "+".join(formats), "+".join(navigations), "+".join(habillages)), flush=True)
 
     resultats, erreurs_moteurs = [], []
     serveur, base_url = banc.demarrer_serveur()
