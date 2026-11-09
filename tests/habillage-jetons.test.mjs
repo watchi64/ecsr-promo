@@ -52,9 +52,8 @@ export const DETTE = {
   "css/cours-blocs.css": 1,
   "css/dp.css": 6,
   "css/emargement.css": 47,
-  "css/navigation.css": 6,
   "css/qualiopi.css": 13,
-  "css/style.css": 157,
+  "css/style.css": 106,
   "js/views/notes.js": 33,
 };
 
