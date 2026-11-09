@@ -13,11 +13,14 @@ import { getCurrentWho } from "../identity.js?v=20261109j";
 import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20261109j";
 import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20261109j";
 import { poserGardeSortie, leverGardeSortie } from "../navigation.js?v=20261109j";
+import { etatVideEpcf, ACTIONS_CARTE_EPCF } from "../epcf-classe-rules.js?v=20261109j";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109j";
 
 const TRAME_KEYS = ["salle", "vehicule"];
 
 // opts.embedded : rendu dans le sous-onglet EPCF de Notes, ou en section de La classe (le parent a son
-// en-tête). opts.titre : le titre de la section, « Moyennes de la classe » par défaut.
+// en-tête). opts.titre : le titre de la section, « Moyennes de la classe » par défaut. opts.contexte : qui
+// regarde (contexteEtatVide de js/notes-saisie-rules.js), pour le bouton de la carte vide.
 export async function renderEpcf(container, opts = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
@@ -30,8 +33,36 @@ export async function renderEpcf(container, opts = {}) {
   }
   const body = el("div", { class: "epcf-body" });
   container.appendChild(body);
+  const moyennesParEpreuve = { salle: mSalle, vehicule: mVehicule };
+  // Aucune moyenne montrable (k-anonymat) : une carte, une phrase et une action, à la place du titre et des deux
+  // épreuves vides (même règle que les notes, lot C).
+  const vide = etatVideEpcf({ moyennesParEpreuve, contexte: opts.contexte });
+  if (vide) {
+    body.appendChild(carteVideEpcf(vide));
+    return;
+  }
   body.appendChild(el("h3", { class: "epcf-resti-title" }, opts.titre || "Moyennes de la classe"));
-  renderEpcfClasse(body, { salle: mSalle, vehicule: mVehicule });
+  renderEpcfClasse(body, moyennesParEpreuve);
+}
+
+// La carte vide. Ses boutons sont des liens (ils changent de page) : le stagiaire va à ses propres résultats EPCF (Mon
+// suivi), le formateur à la page Stagiaires, ouverte sur la liste (ACTIONS_CARTE_EPCF de js/epcf-classe-rules.js).
+function carteVideEpcf(etat) {
+  const lien = (cle, principal) => {
+    const action = ACTIONS_CARTE_EPCF[cle];
+    return el("a", { class: "btn " + (principal ? "primary" : "ghost"), href: action.href, onClick: () => {
+      if (!action.sousOnglet) return;
+      try { localStorage.setItem(CLES_SOUS_ONGLETS.stagiaires, action.sousOnglet); } catch (e) { /* mode privé : la page s'ouvre sur son premier sous-onglet, la liste */ }
+    } }, action.libelle);
+  };
+  return el("section", { class: "notes-vide epcf-vide" },
+    el("h3", { class: "notes-vide-titre" }, etat.titre),
+    el("p", { class: "notes-vide-phrase" }, etat.phrase),
+    etat.avancement ? el("p", { class: "notes-vide-info" }, etat.avancement) : null,
+    etat.actions.length
+      ? el("div", { class: "notes-vide-actions" }, ...etat.actions.map((a, i) => lien(a, i === 0)))
+      : null,
+  );
 }
 
 // Partie EPCF de la fiche d'une personne. opts.outils : boutons de saisie (formateur).

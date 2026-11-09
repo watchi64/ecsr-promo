@@ -138,6 +138,19 @@ export const NOUVEAUTES = [
         + "demande une confirmation.",
     ],
   },
+  // Suite du lot C (09/11) : les moyennes EPCF de la classe tant qu'aucune ne peut s'afficher.
+  {
+    id: "2026-11-09-moyennes-epcf-vides",
+    date: "2026-11-09",
+    pour: "tous",
+    titre: "Moyennes EPCF : la page dit quand elles arriveront",
+    resume: "Les moyennes EPCF de la classe n'apparaissent qu'à partir de deux stagiaires évalués à la même épreuve, "
+          + "en salle ou en véhicule : avec un seul, la moyenne serait sa note. En attendant, la page le dit en une phrase "
+          + "et propose la suite : « Voir mon EPCF » pour retrouver tes propres résultats, « Évaluer un stagiaire » pour "
+          + "les formateurs, qui voient aussi combien de stagiaires sont déjà évalués.",
+    ou: { label: "Notes, sous-onglet EPCF", route: "notes", sousOnglet: "epcf" },
+    module: "epcf",
+  },
   // Lot de corrections 2 (audit du 09/11) : ce que l'app affiche est juste.
   {
     id: "2026-11-09-accueil-plus-juste",

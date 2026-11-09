@@ -3,6 +3,7 @@
 
 import { el, clear, formatDate } from "./utils.js?v=20261109j";
 import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS, EPCF_PHASE_TEXTE } from "./epcf-trames.js?v=20261109j";
+import { moyennesMontrables, titreEpreuve, PHRASE_SANS_MOYENNE } from "./epcf-classe-rules.js?v=20261109j";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 function svgEl(tag, attrs = {}) {
@@ -164,21 +165,13 @@ export function renderEpcfClasse(container, moyennesByTrame) {
   ["salle", "vehicule"].forEach((trameKey) => {
     const trame = EPCF_TRAMES[trameKey];
     const all = (moyennesByTrame && moyennesByTrame[trameKey]) || [];
-    const nEval = Math.max(0, ...all.map((m) => Number(m.effectif) || 0));
-    const box = el("div", { class: "epcf-classe-trame" },
-      el("h4", {}, `${trame.label} : ${nEval} stagiaire(s) évalué(s)`));
-    if (!all.length) {
-      box.appendChild(el("p", { class: "muted" }, "Aucune évaluation."));
-      container.appendChild(box);
-      return;
-    }
-    // k-anonymat : cette vue est affichée aussi aux stagiaires → on n'expose une
-    // moyenne que si AU MOINS 2 stagiaires ont ce critère (même seuil que la série
-    // groupe du radar). Sinon la « moyenne » serait la note exacte d'une personne.
-    const moyennes = all.filter((m) => Number(m.effectif) >= 2);
+    const box = el("div", { class: "epcf-classe-trame" }, el("h4", {}, titreEpreuve(trame.label, all)));
+    // k-anonymat (js/epcf-classe-rules.js) : cette vue est affichée aussi aux stagiaires, une moyenne n'est montrée
+    // qu'à partir de 2 stagiaires évalués. Quand aucune épreuve n'en a, renderEpcf montre la carte de l'état vide à
+    // la place de cette vue ; ici, une épreuve sans moyenne dit seulement ce qui lui manque.
+    const moyennes = moyennesMontrables(all);
     if (!moyennes.length) {
-      box.appendChild(el("p", { class: "muted" },
-        "Pas encore assez d'évaluations pour une moyenne de groupe (2 minimum)."));
+      box.appendChild(el("p", { class: "muted" }, PHRASE_SANS_MOYENNE));
       container.appendChild(box);
       return;
     }
