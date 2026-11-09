@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import {
   parseNoteInput, ciblesDeSaisie, filtrerCibles, derniereNote, avancement, libelleAvancement,
-  origineNote, etatVideNotes, champsDeCible, raisonEchecNote,
+  origineNote, etatVideNotes, champsDeCible, raisonEchecNote, contexteEtatVide,
 } from "../js/notes-saisie-rules.js";
 
 // --- Lecture d'une saisie : virgule, espaces, conversion X/Y ---
@@ -80,5 +80,14 @@ assert.equal(raisonEchecNote({ message: "JWT expired", code: "PGRST301" }), "ta 
 assert.equal(raisonEchecNote({ message: "new row violates row-level security policy", code: "42501" }),
   "tu n'as pas le droit de modifier cette note");
 assert.equal(raisonEchecNote(null), "la connexion a échoué");
+
+// --- Quelle carte vide, selon la page et la personne : la direction (personnel sans droit d'écrire) n'a ni
+// « Saisir » ni « M'entraîner », le stagiaire n'a que « M'entraîner » ---
+assert.equal(contexteEtatVide({ classe: false, admin: true, personnel: true }), "equipe-matrice");
+assert.equal(contexteEtatVide({ classe: false, admin: false, personnel: true }), "direction");
+assert.equal(contexteEtatVide({ classe: false, admin: false, personnel: false }), "classe-stagiaire");
+assert.equal(contexteEtatVide({ classe: true, admin: true, personnel: true }), "classe-formateur");
+assert.equal(contexteEtatVide({ classe: true, admin: false, personnel: true }), "direction");
+assert.equal(contexteEtatVide({ classe: true, admin: false, personnel: false }), "classe-stagiaire");
 
 console.log("notes-saisie-rules : OK");

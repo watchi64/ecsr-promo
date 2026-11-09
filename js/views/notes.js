@@ -17,7 +17,7 @@ import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109i";
 import { renderEpcf } from "./epcf.js?v=20261109i";
 import { renderSaisie } from "./notes-saisie.js?v=20261109i";
 import { noteGradient } from "../echelle-notes.js?v=20261109i";
-import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes } from "../notes-saisie-rules.js?v=20261109i";
+import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes, contexteEtatVide } from "../notes-saisie-rules.js?v=20261109i";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -1135,7 +1135,7 @@ function rerender(container) {
     panel.appendChild(panneau);
     // Aucune note (lot C) : une carte à la place de la synthèse et des graphiques. La matrice reste pour qui saisit
     // (c'est son outil sur ordinateur) ; un stagiaire n'y verrait que des cases vides.
-    const carte = carteVide(container, admin ? "equipe-matrice" : "classe-stagiaire");
+    const carte = carteVide(container, contexteEtatVide({ classe: false, admin, personnel: formateurConnecte() }));
     if (carte) panneau.appendChild(carte);
     if (carte && !admin) return;
     panneau.appendChild(toolbar);
@@ -1186,7 +1186,7 @@ function rerender(container) {
   // (le sous-onglet EPCF de la page de l'équipe suit le même module). Sans choix d'onglet, aucune mémoire de
   // sous-onglet n'est écrite (celle de la page de l'équipe).
   if (laClasse) {
-    const carte = carteVide(container, admin ? "classe-formateur" : "classe-stagiaire");
+    const carte = carteVide(container, contexteEtatVide({ classe: true, admin, personnel: formateurConnecte() }));
     container.appendChild(carte || renderSubTabs(onglets.slice(0, 1)));
     if (moduleVisible("epcf")) container.appendChild(sectionMoyennesEpcf());
   } else {

@@ -155,3 +155,11 @@ export function raisonEchecNote(erreur) {
   if (code === "42501" || /row-level security|permission denied/i.test(texte)) return "tu n'as pas le droit de modifier cette note";
   return "la connexion a échoué";
 }
+
+// Quelle carte vide montrer : `classe` (La classe de Mon suivi, sinon la page Notes), `admin` (écrit des notes),
+// `personnel` (formateur, direction, siège). Le personnel qui n'écrit pas (la direction) lit sans action : ni
+// « Saisir », ni l'entraînement d'un stagiaire.
+export function contexteEtatVide({ classe, admin, personnel }) {
+  if (admin) return classe ? "classe-formateur" : "equipe-matrice";
+  return personnel ? "direction" : "classe-stagiaire";
+}
