@@ -1,6 +1,8 @@
-// Contenu des questionnaires Qualiopi : clés, fourchettes, ids, globale, textes interdits,
-// et mentions des conditions d'utilisation. Lancer : node tests/questionnaires-data.test.mjs
+// Contenu des questionnaires Qualiopi : clés, fourchettes, ids, globale, textes interdits, mentions des conditions
+// d'utilisation, et accord du catalogue avec la table questionnaire_questions de la migration.
+// Lancer : node tests/questionnaires-data.test.mjs
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
 import { QUESTIONNAIRES, ECHELLE, seuilDe } from "../js/questionnaires-data.js";
 import { VERSION_CONDITIONS, CONDITIONS_MD } from "../js/legal-data.js";
 
@@ -63,5 +65,88 @@ ok(/anonymes?/.test(CONDITIONS_MD) && /sans (votre )?nom/.test(CONDITIONS_MD), "
 ok(/trois ans/.test(CONDITIONS_MD), "conditions : conservation trois ans");
 ok(!CONDITIONS_MD.includes(tiret), "conditions : aucun tiret cadratin");
 ok(!/\bprof\b/i.test(CONDITIONS_MD), "conditions : jamais « prof »");
+
+// Le catalogue de l'app et la table questionnaire_questions de la base disent la même chose (relecture finale, I2).
+// La base refuse un envoi dont une question, une option ou une version lui est inconnue : un écart ne se verrait qu'au
+// dernier écran du questionnaire, et pour celui à six mois, des mois plus tard. On relit donc chaque
+// `insert into public.questionnaire_questions` des migrations et on compare, pour la version en cours de chaque
+// questionnaire : ids, types, facultatives, options (le commentaire libre est une colonne à part, pas une question).
+const DOSSIER_MIGRATIONS = new URL("../supabase/migrations/", import.meta.url);
+
+// Valeurs SQL d'une liste `values (...), (...)` : chaînes '...' (avec '' pour une apostrophe), entiers, true, false,
+// null, array['...', ...]. Rend un tableau de lignes, chaque ligne un tableau de valeurs.
+function lignesSql(source) {
+  let i = 0;
+  const blanc = () => { while (i < source.length && /\s/.test(source[i])) i++; };
+  const attendre = (c) => { blanc(); assert.equal(source[i], c, `SQL : « ${c} » attendu à la position ${i}`); i++; };
+  const chaine = () => {
+    attendre("'");
+    let s = "";
+    for (;;) {
+      assert.ok(i < source.length, "SQL : chaîne non fermée");
+      if (source[i] === "'") {
+        if (source[i + 1] === "'") { s += "'"; i += 2; continue; }
+        i++;
+        return s;
+      }
+      s += source[i++];
+    }
+  };
+  const valeur = () => {
+    blanc();
+    if (source[i] === "'") return chaine();
+    const mot = /^[a-z0-9_]+/i.exec(source.slice(i))?.[0];
+    assert.ok(mot, `SQL : valeur illisible à la position ${i}`);
+    i += mot.length;
+    if (mot.toLowerCase() === "array") {
+      attendre("[");
+      const liste = [];
+      blanc();
+      while (source[i] !== "]") { liste.push(chaine()); blanc(); if (source[i] === ",") i++; blanc(); }
+      i++;
+      return liste;
+    }
+    if (/^\d+$/.test(mot)) return Number(mot);
+    const fixes = { true: true, false: false, null: null };
+    assert.ok(mot.toLowerCase() in fixes, `SQL : mot inattendu « ${mot} »`);
+    return fixes[mot.toLowerCase()];
+  };
+  const lignes = [];
+  for (;;) {
+    attendre("(");
+    const ligne = [valeur()];
+    for (blanc(); source[i] === ","; blanc()) { i++; ligne.push(valeur()); }
+    attendre(")");
+    lignes.push(ligne);
+    blanc();
+    if (source[i] === ";") return lignes;
+    attendre(",");
+  }
+}
+
+const COLONNES = "cle, version, question_id, type, facultative, options";
+const lignesBase = [];
+for (const nom of readdirSync(DOSSIER_MIGRATIONS).filter((f) => f.endsWith(".sql") && !f.includes("_retour")).sort()) {
+  const sql = readFileSync(new URL(nom, DOSSIER_MIGRATIONS), "utf8");
+  const motif = /insert\s+into\s+public\.questionnaire_questions\s*\(([^)]*)\)\s*values/gi;
+  for (let m; (m = motif.exec(sql));) {
+    eq(m[1].replace(/\s+/g, " ").trim(), COLONNES, `${nom} : colonnes de questionnaire_questions dans l'ordre attendu`);
+    lignesBase.push(...lignesSql(sql.slice(motif.lastIndex)));
+  }
+}
+ok(lignesBase.length > 0, "migrations : au moins un insert dans questionnaire_questions");
+
+const forme = ([cle, version, id, type, facultative, options]) =>
+  JSON.stringify({ cle, version, id, type, facultative, options: options ?? null });
+const parId = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+for (const q of Object.values(QUESTIONNAIRES)) {
+  const app = q.questions.filter((x) => x.type !== "commentaire")
+    .map((x) => forme([q.cle, q.version, x.id, x.type, x.facultative, x.type === "choix" ? x.options : null]))
+    .sort(parId);
+  const base = lignesBase.filter(([cle, version]) => cle === q.cle && version === q.version).map(forme).sort(parId);
+  eq(base, app, `${q.cle} version ${q.version} : la migration et js/questionnaires-data.js disent les mêmes questions`);
+}
+const clesBase = [...new Set(lignesBase.map(([cle]) => cle))].sort();
+eq(clesBase, Object.keys(QUESTIONNAIRES).sort(), "migration : aucune clé de questionnaire inconnue de l'app");
 
 console.log(`questionnaires-data : ${n} vérifications OK`);
