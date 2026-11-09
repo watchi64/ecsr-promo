@@ -1,2 +1,4 @@
 # Les scripts shell restent en LF (core.autocrlf=true les casserait sous Windows).
 *.sh text eol=lf
+# Les migrations et preuves SQL restent en LF (une extraction neuve en CRLF ferait échouer la garde de la migration 2 et laisserait des retours chariot dans son retour).
+*.sql text eol=lf
