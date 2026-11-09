@@ -2,22 +2,23 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles, getNotesStatsGroupe, getPromoCourante,
-} from "../db.js?v=20261109j";
+} from "../db.js?v=20261109k";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261109j";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109j";
-import { icon } from "../icons.js?v=20261109j";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109j";
-import { recordUndo } from "../undo.js?v=20261109j";
-import { renderSubTabs } from "../subtabs.js?v=20261109j";
-import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109j";
-import { navigationV2Active } from "../nav-etat.js?v=20261109j";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109j";
-import { renderEpcf } from "./epcf.js?v=20261109j";
-import { renderSaisie } from "./notes-saisie.js?v=20261109j";
-import { noteGradient } from "../echelle-notes.js?v=20261109j";
-import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes, contexteEtatVide } from "../notes-saisie-rules.js?v=20261109j";
+} from "../notes-stats.js?v=20261109k";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109k";
+import { icon } from "../icons.js?v=20261109k";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109k";
+import { recordUndo } from "../undo.js?v=20261109k";
+import { renderSubTabs } from "../subtabs.js?v=20261109k";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109k";
+import { navigationV2Active } from "../nav-etat.js?v=20261109k";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109k";
+import { renderEpcf } from "./epcf.js?v=20261109k";
+import { renderSaisie } from "./notes-saisie.js?v=20261109k";
+import { noteGradient } from "../echelle-notes.js?v=20261109k";
+import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes, contexteEtatVide, phraseNoteRefusee, confirmationEffacement } from "../notes-saisie-rules.js?v=20261109k";
+import { confirmer } from "../confirmer.js?v=20261109k";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -224,7 +225,7 @@ function openEditModal(existing, onSaved) {
     let noteVal = null, noteMaxVal = Number(noteMaxInput.value);
     if (noteInput.value.trim() !== "") {
       const parsed = parseNoteInput(noteInput.value);
-      if (parsed?.error) { toast(parsed.error, "error"); return; }
+      if (parsed?.error) { toast(phraseNoteRefusee(parsed.error), "error"); return; }
       noteVal = parsed.note;
       if (parsed.converted) {
         noteMaxVal = 20;
@@ -391,7 +392,7 @@ function renderTable(container) {
         class: "btn small danger icon-only", style: "margin-left:0.3rem",
         "aria-label": "Supprimer",
         onClick: async () => {
-          if (!confirm("Supprimer cette note ?")) return;
+          if (!(await confirmer(confirmationEffacement({ qui: e.stagiaire?.prenom || null, note: e, cible: e })))) return;
           await deleteEvaluation(e.id);
           toast("Supprimée", "success");
           await reload(container);
@@ -519,17 +520,19 @@ function clearNoteCellStyle(td) {
 
 // Enregistre la saisie d'une note pour un stagiaire et une cible (thème ou compétence) : la seule écriture de note de la
 // page, partagée par la matrice, la fiche d'un stagiaire et l'écran « Saisir » (lot C). Lit la note en place (la plus
-// récente, js/notes-saisie-rules.js), convertit X/Y sur 20, crée, modifie ou efface (après confirmation nommée), tient le
+// récente, js/notes-saisie-rules.js), convertit X/Y sur 20, crée, modifie ou efface (après confirmation nommée, dans une
+// fenêtre de l'app : js/confirmer.js), tient le
 // retour en arrière (Ctrl+Z) et le tableau `evaluations`. Ne touche ni au DOM ni aux statistiques : l'appelant affiche.
 // Résultat : { etat: "inchangee" | "enregistree" | "effacee" | "gardee" | "invalide" | "erreur", note?, converti?, message? }.
 async function enregistrerNote({ stagiaireId, cible, saisie, nom = null }) {
   const existing = derniereNote(evaluations, stagiaireId, cible);
   const raw = String(saisie ?? "").trim();
   if (raw === "") {
-    if (!existing) return { etat: "inchangee" };
+    // Rien à effacer : pas d'évaluation, ou une évaluation sans note (le champ était déjà vide).
+    if (!existing || existing.note == null) return { etat: "inchangee" };
     const s = stagiaires.find((x) => x.id === stagiaireId);
     const qui = nom || (s ? displayName(s) : null);
-    if (!confirm(qui ? `Effacer la note de ${qui} ?` : "Effacer cette note ?")) return { etat: "gardee" };
+    if (!(await confirmer(confirmationEffacement({ qui, note: existing, cible })))) return { etat: "gardee" };
     try {
       const snapshot = { ...existing };
       await deleteEvaluation(existing.id);
@@ -540,7 +543,7 @@ async function enregistrerNote({ stagiaireId, cible, saisie, nom = null }) {
         evaluations.push(re || snapshot);
       });
       return { etat: "effacee" };
-    } catch (e) { return { etat: "erreur", message: raisonEchecNote(e) }; }
+    } catch (e) { return { etat: "erreur", message: raisonEchecNote(e), effacement: true }; }
   }
 
   const parsed = parseNoteInput(raw);
@@ -548,7 +551,7 @@ async function enregistrerNote({ stagiaireId, cible, saisie, nom = null }) {
   const note = parsed.note;
   const fait = parsed.converted ? { etat: "enregistree", note, converti: parsed.original } : { etat: "enregistree", note };
   // Pas de changement si la note est identique (et /20)
-  if (existing && Number(existing.note) === note && Number(existing.note_max) === 20) return { etat: "inchangee" };
+  if (existing && existing.note != null && Number(existing.note) === note && Number(existing.note_max) === 20) return { etat: "inchangee" };
 
   const email = getAdminEmail();
   try {
@@ -686,8 +689,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
       restore();
       return;
     }
-    if (r.etat === "invalide") toast(r.message, "error");
-    if (r.etat === "erreur") toast(`Note non enregistrée : ${r.message}.`, "error");
+    if (r.etat === "invalide" || r.etat === "erreur") toast(phraseNoteRefusee(r.message, r.effacement), "error");
     if (r.etat !== "enregistree") { restore(); return; }
     if (r.converti) toast(`${r.converti} → ${r.note}/20`, "success", 1800);
     // Met à jour la cellule en place (sans détruire les autres inputs)
@@ -842,7 +844,7 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
     if (done) return; done = true;
     const r = await enregistrerNote({ stagiaireId, cible: fixedFields, saisie: input.value });
     if (r.etat === "invalide" || r.etat === "erreur" || r.etat === "gardee") {
-      if (r.message) toast(r.etat === "erreur" ? `Note non enregistrée : ${r.message}.` : r.message, "error");
+      if (r.message) toast(phraseNoteRefusee(r.message, r.effacement), "error");
       valueWrap.innerHTML = originalHtml;
       return;
     }
