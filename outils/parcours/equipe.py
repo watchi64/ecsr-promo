@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Parcours de l'équipe (formateur, fondateur) : les tâches courantes des pages que le lot 2B ne refait pas.
+"""Parcours de l'équipe (formateur, fondateur) : les tâches courantes de l'équipe.
 
-Les parcours d'« Aujourd'hui », du planning en grille et des sous-onglets QCM et Propositions IA
-s'ajouteront ici après la fusion du lot 2B.
+En fin de fichier, les pages refaites par le lot 2B (« Aujourd'hui », planning en grille, sous-onglets Signalements
+et Propositions IA) : elles n'existent que sous la nouvelle navigation.
 """
 from . import parcours
 from .navigation import texte
+from .visite import BLOQUE, LISTE
 
 # Sur téléphone, l'équipe passe par « Plus » pour tout ce qui n'est pas dans la barre du bas : 1 clic de plus.
 UN_CLIC = {"ordinateur": 1, "telephone": 2}
@@ -66,4 +67,84 @@ def problemes_signales(v):
     v.toucher("a.sg-fondateur-lien", "« Ouvrir » (problèmes signalés)")
     v.attendre("#view button:has-text(\"À traiter\")", "la liste des problèmes signalés")
     v.but("problèmes signalés affichés")
+    v.terminer()
+
+
+# --- Pages refaites par le lot 2B (nouvelle navigation seulement) ------------------------------------------
+NOUVELLE = ("nouvelle",)
+CARTES_AUJOURDHUI = ("Émargement", "À traiter", "Au tableau", "En voiture", "À suivre")
+
+
+@parcours("aujourdhui-du-formateur", "Voir la journée de la promo (Aujourd'hui)", role="formateur", budget=1,
+          navigations=NOUVELLE, banc={"signalements": "1", "benevoles": "1"})
+def aujourdhui(v):
+    """Ouvrir « Aujourd'hui » : émargement, à traiter, au tableau, en voiture, à suivre ; « Voir la feuille » mène à
+    la feuille d'émargement."""
+    v.aller("Aujourd'hui")
+    v.attendre("#view .auj-grille .acc-carte", "les cartes de la journée")
+    v.but("journée de la promo affichée")
+    page = v.texte("#view")
+    for carte in CARTES_AUJOURDHUI:
+        if carte not in page:
+            v.constat("F", LISTE, "« Aujourd'hui » ne montre pas la carte « %s »" % carte, capture=True)
+    v.etape("ouvrir la feuille d'émargement")
+    v.toucher(texte("Voir la feuille", "#view a"), "« Voir la feuille »", compte=False)
+    v.attendre("#view :is(table, ul, ol)", "la feuille d'émargement")
+    v.terminer()
+
+
+@parcours("traiter-un-signalement", "Traiter un signalement de QCM (depuis Aujourd'hui)", role="formateur", budget=3,
+          navigations=NOUVELLE, banc={"signalements": "1"})
+def traiter_un_signalement(v):
+    """« Aujourd'hui », la ligne des signalements de « À traiter », puis « Corrigé » : un message confirme le
+    classement."""
+    v.aller("Aujourd'hui")
+    v.etape("toucher la ligne des signalements")
+    v.toucher("#view a.acc-ligne:has-text(\"signalement\")", "la ligne des signalements de « À traiter »")
+    v.attendre("#view .qcm-signal-item", "la liste des signalements")
+    v.etape("classer le premier : « Corrigé »")
+    v.toucher("#view .qcm-signal-item button:has-text(\"Corrigé\")", "« Corrigé »", ecriture=True)
+    # Le faux Supabase du banc ne garde pas le nouveau statut (la liste relue reste la même) : on juge la
+    # confirmation, pas la liste. En ligne, le signalement classé quitte la liste des ouverts.
+    confirmation = v.attendre("#toast:not(.hidden)", "la confirmation du classement", delai=4000).inner_text()
+    if "corrigé" not in confirmation.lower():
+        v.constat("E", BLOQUE, "après « Corrigé », le message ne confirme pas : « %s »" % confirmation.strip()[:80], capture=True)
+    v.but("signalement classé")
+    v.terminer()
+
+
+@parcours("modifier-le-planning", "Modifier le planning de la semaine", role="formateur", budget=3,
+          navigations=NOUVELLE, depart="#/home")
+def modifier_le_planning(v):
+    """Planning (en grille), « Modifier » : l'éditeur de la semaine remplace la grille ; « Terminer » rend la grille."""
+    v.aller("Planning")
+    v.attendre(".wsem", "la semaine en grille")
+    v.etape("passer en édition")
+    v.toucher(texte("Modifier", "#view button"), "« Modifier »")
+    v.attendre("#view .p-day-card", "l'éditeur de la semaine")
+    if v.voit(".wsem"):
+        v.constat("C", LISTE, "la grille reste affichée en mode « Modifier »", capture=True)
+    v.but("semaine en édition")
+    v.etape("terminer l'édition")
+    v.toucher(texte("Terminer", "#view button"), "« Terminer »", compte=False)
+    v.attendre(".wsem", "la grille après « Terminer »")
+    v.terminer()
+
+
+@parcours("propositions-ia", "Relire les questions proposées par l'IA (fondateur)", role="fondateur",
+          budget={"ordinateur": 2, "telephone": 3}, navigations=NOUVELLE, banc={"propositions": "1"})
+def propositions_ia(v):
+    """Cours et QCM, Propositions IA : les QCM qui ont des questions à relire ; « Relire » ouvre l'éditeur du QCM, qui
+    se referme."""
+    v.aller("Propositions IA")
+    v.attendre("#view .acc-ligne:has-text(\"à relire\")", "les questions à relire")
+    v.but("questions à relire affichées")
+    v.etape("ouvrir l'éditeur du QCM")
+    v.toucher(texte("Relire", "#view button"), "« Relire »", compte=False)
+    v.attendre(".qcm-overlay", "l'éditeur du QCM")
+    v.controler_ecran("éditeur du QCM")
+    v.etape("refermer l'éditeur")
+    v.fermer_par_echap(".qcm-overlay", "l'éditeur du QCM")
+    if v.voit(".qcm-overlay"):
+        v.toucher("button.qcm-close", "« Fermer » (éditeur du QCM)", compte=False)
     v.terminer()

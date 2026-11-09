@@ -6,8 +6,9 @@ celle des promos de Nîmes et Montpellier, et la « nouvelle » (refonte : ongle
 de l'équipe, barre du bas et « Plus » sur téléphone), allumée promo par promo. Chaque chemin est la suite
 des clics la plus courte qu'offre l'écran ; le robot les compte contre le budget du parcours.
 
-Après le lot 2B (Accueil, Aujourd'hui, planning en grille, sous-onglets QCM) : ajouter ici les destinations
-neuves (par exemple « Aujourd'hui », « QCM ») pour la nouvelle navigation, puis les parcours qui s'en servent.
+Pages du lot 2B (nouvelle navigation seulement) : « Aujourd'hui » de l'équipe (la route de l'Accueil), les
+sous-onglets « QCM » du stagiaire, « Signalements » et « Propositions IA » de l'équipe, la partie « Livret EPCF »
+de Mon suivi.
 """
 
 # Réglages du banc communs à tous les parcours : un mercredi gelé à 10 h (émargement du matin ouvert),
@@ -101,16 +102,23 @@ def chemin(destination, navigation, espace, telephone):
             if telephone:
                 return [(lien("mon-suivi"), "« Mon suivi »"), (texte("Résultats", SOUS_ONGLET), "« Résultats »"), classe]
             return [(lien("mon-suivi"), "« Mon suivi »"), classe]
-        if destination == "Documents":
-            return [(lien("themes"), "« Cours et QCM »"), (texte("Documents", SOUS_ONGLET), "« Documents »")]
+        if destination in ("Documents", "QCM"):
+            return [(lien("themes"), "« Cours et QCM »"), (texte(destination, SOUS_ONGLET), "« %s »" % destination)]
+        if destination == "Livret EPCF":
+            # Ordinateur : un sous-onglet ; téléphone : une ligne du sommaire de Mon suivi.
+            return [(lien("mon-suivi"), "« Mon suivi »"), (texte("Livret EPCF", SOUS_ONGLET), "« Livret EPCF »")]
         if destination in ("Mes préférences", "Signaler un problème"):
             return [COMPTE_V2_STAGIAIRE, (dans_le_menu_du_compte(destination), "« %s »" % destination)]
         raise KeyError("destination inconnue pour le stagiaire (nouvelle navigation) : %s" % destination)
 
-    routes = {"Accueil": "home", "Planning": "planning", "Émargement": "emargement", "Stagiaires": "stagiaires",
+    # « Aujourd'hui » : l'entrée de l'équipe pour la route de l'Accueil (lot 2B).
+    routes = {"Accueil": "home", "Aujourd'hui": "home", "Planning": "planning", "Émargement": "emargement", "Stagiaires": "stagiaires",
               "Notes et examens": "notes", "Cours et QCM": "themes", "CCP2": "ccp2", "Indicateurs": "centre", "Réglages": "config"}
     if destination in routes:
         return _plus_si_telephone(routes[destination], "« %s »" % destination, telephone, BARRE_DU_BAS_EQUIPE)
+    if destination in ("Signalements", "Propositions IA"):
+        # Deux sous-onglets de Cours et QCM réservés à l'équipe (Propositions IA : administrateurs seulement).
+        return _plus_si_telephone("themes", "« Cours et QCM »", telephone, BARRE_DU_BAS_EQUIPE) +             [(texte(destination, SOUS_ONGLET), "« %s »" % destination)]
     if destination == "Signaler un problème":
         if telephone:
             return [PLUS, (texte("Signaler un problème", "button.nav-fenetre-lien"), "« Signaler un problème »")]
