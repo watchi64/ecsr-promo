@@ -1740,7 +1740,7 @@ h3 {
 }
 .home-title-v2 em {
   font-style: normal;
-  font-weight: 700;
+  font-weight: var(--poids-titre); /* le prénom garde le poids plein du titre, quel que soit l'habillage */
   color: var(--accent);
 }
 .home-lead-v2 {
