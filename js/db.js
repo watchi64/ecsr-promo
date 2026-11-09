@@ -1738,6 +1738,15 @@ export async function listUserProfiles() {
   return data;
 }
 
+// Lot G : le vrai rôle des comptes du personnel (roles_du_personnel : [{ email, role }], role « direction » ou « siege »). La table
+// affectations ne se lit qu'à son titulaire : cette fonction ne rend que l'étiquette, à l'équipe de la promo affichée, au siège et
+// au fondateur. Lève si la fonction manque (avant la migration) ou si la lecture échoue : l'appelant s'en passe.
+export async function lireRolesDuPersonnel() {
+  const { data, error } = await supabase.rpc("roles_du_personnel");
+  if (error) throw erreurDeBase(error);
+  return Array.isArray(data) ? data.map((l) => ({ email: String(l.email ?? "").toLowerCase(), role: l.role })) : [];
+}
+
 // La RPC applique le verrou anti-yoyo côté serveur (2 min de grâce, puis 24 h)
 // et renvoie l'état : { value, changed_at, locked_until }.
 export async function setMyAnonymousNotes(val) {

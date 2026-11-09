@@ -3,9 +3,14 @@
 --      d'exécution), pour qu'une seule règle la porte quel que soit le chemin ;
 --   2. inviter_compte : redéfinie à partir de sa définition en base au moment de l'exécution (pg_get_functiondef), seules
 --      différences : l'appel à _profil_formateur à la place de la création de profil, et le refus d'une adresse de compte
---      stagiaire (le lot 4 ne le faisait pas). Si le fragment attendu n'est pas trouvé exactement une fois, la migration
---      s'arrête sans rien changer : jamais une copie périmée par-dessus une définition qui aurait bougé ;
---   3. regler_affectations_formateur : donne à un compte exactement les promos choisies du centre, en une transaction.
+--      stagiaire dans les trois branches formateur, direction et siège (le lot 4 ne le faisait pas ; le refus passe après le
+--      contrôle de droit et avant toute écriture, même phrase, même prédicat). Si l'un des trois fragments attendus n'est pas
+--      trouvé exactement une fois, la migration s'arrête sans rien changer : jamais une copie périmée par-dessus une
+--      définition qui aurait bougé ;
+--   3. regler_affectations_formateur : donne à un compte exactement les promos choisies du centre, en une transaction ;
+--   4. roles_du_personnel : le vrai rôle (direction ou siège) des comptes du personnel, pour la liste « Personnes avec accès »
+--      (lot G). Ici plutôt qu'à la migration 3, qui est l'habillage : les deux parties portent sur les affectations et sur
+--      l'invitation du personnel, et le retour 2 les défait ensemble.
 -- Marche arrière : 20261108_espaces_2_equipe_retour.sql (remet la définition du lot 4, gardée dans le retour).
 -- Aucune table, aucune règle RLS touchée. Jamais appliquée sans l'accord de Timy.
 set local lock_timeout = '3s';
@@ -43,7 +48,10 @@ revoke all on function public._profil_formateur(text, integer, text) from public
 do $migration$
 declare
   v_def text;
-  v_ancien text := $ancien$
+  -- Trois fragments, chacun attendu exactement une fois : la création du profil formateur, puis la fin des gardes de droit
+  -- des branches direction et siège (le refus d'une adresse de stagiaire s'y ajoute, après le droit et avant toute écriture).
+  v_anciens text[] := array[
+$ancien$
     -- La fiche formateur n'est posée que si elle existe et n'est reliée à aucun compte.
     select pf.id into v_prof from profs pf
      where pf.id = p_prof_id and not exists (select 1 from user_profiles u where u.prof_id = pf.id);
@@ -51,8 +59,17 @@ declare
     values (v_email, 'prof', true, v_prof, v_moi)
     on conflict (email) do nothing;
     get diagnostics v_n = row_count;
-$ancien$;
-  v_nouveau text := $nouveau$
+$ancien$,
+$ancien$
+      raise exception 'invitation: Le centre est requis.';
+    end if;
+$ancien$,
+$ancien$
+      raise exception 'invitation: Réservé au fondateur.' using errcode = '42501';
+    end if;
+$ancien$];
+  v_nouveaux text[] := array[
+$nouveau$
     -- Un compte qui a une fiche de stagiaire n'est jamais affecté comme formateur.
     if exists (select 1 from user_profiles u where lower(u.email) = v_email and u.stagiaire_id is not null) then
       raise exception 'invitation: Cette adresse est celle d''un compte stagiaire.';
@@ -60,20 +77,43 @@ $ancien$;
     -- Le profil (et sa fiche formateur, si elle est libre) est créé par la fonction interne, commune avec
     -- regler_affectations_formateur.
     v_n := case when _profil_formateur(v_email, p_prof_id, v_moi) then 1 else 0 end;
-$nouveau$;
+$nouveau$,
+$nouveau$
+      raise exception 'invitation: Le centre est requis.';
+    end if;
+    -- Un compte qui a une fiche de stagiaire n'est jamais affecté à la direction.
+    if exists (select 1 from user_profiles u where lower(u.email) = v_email and u.stagiaire_id is not null) then
+      raise exception 'invitation: Cette adresse est celle d''un compte stagiaire.';
+    end if;
+$nouveau$,
+$nouveau$
+      raise exception 'invitation: Réservé au fondateur.' using errcode = '42501';
+    end if;
+    -- Un compte qui a une fiche de stagiaire n'est jamais affecté au siège.
+    if exists (select 1 from user_profiles u where lower(u.email) = v_email and u.stagiaire_id is not null) then
+      raise exception 'invitation: Cette adresse est celle d''un compte stagiaire.';
+    end if;
+$nouveau$];
+  v_ancien text;
+  v_nouveau text;
   n integer;
 begin
   v_def := pg_get_functiondef('public.inviter_compte(text, text, integer, integer, integer)'::regprocedure);
-  -- Une définition posée depuis un fichier à fins de ligne Windows garde ses retours chariot : les fragments suivent.
-  if position(E'\r' in v_def) > 0 then
-    v_ancien := replace(v_ancien, E'\n', E'\r\n');
-    v_nouveau := replace(v_nouveau, E'\n', E'\r\n');
-  end if;
-  n := (length(v_def) - length(replace(v_def, v_ancien, ''))) / length(v_ancien);
-  if n <> 1 then
-    raise exception 'espaces_2_equipe : le fragment de création de profil attendu dans inviter_compte est présent % fois (une seule attendue) ; rien n''est changé', n;
-  end if;
-  execute replace(v_def, v_ancien, v_nouveau);
+  for i in 1..3 loop
+    v_ancien := v_anciens[i];
+    v_nouveau := v_nouveaux[i];
+    -- Une définition posée depuis un fichier à fins de ligne Windows garde ses retours chariot : les fragments suivent.
+    if position(E'\r' in v_def) > 0 then
+      v_ancien := replace(v_ancien, E'\n', E'\r\n');
+      v_nouveau := replace(v_nouveau, E'\n', E'\r\n');
+    end if;
+    n := (length(v_def) - length(replace(v_def, v_ancien, ''))) / length(v_ancien);
+    if n <> 1 then
+      raise exception 'espaces_2_equipe : le fragment % attendu dans inviter_compte est présent % fois (une seule attendue) ; rien n''est changé', i, n;
+    end if;
+    v_def := replace(v_def, v_ancien, v_nouveau);
+  end loop;
+  execute v_def;
 end
 $migration$;
 
@@ -145,3 +185,27 @@ $function$;
 
 revoke all on function public.regler_affectations_formateur(text, integer, integer[], integer) from public, anon, service_role;
 grant execute on function public.regler_affectations_formateur(text, integer, integer[], integer) to authenticated;
+
+-- 4. roles_du_personnel ---------------------------------------------------------------------------------------------
+
+-- Le vrai rôle des comptes du personnel : une ligne (adresse en minuscules, rôle) par compte et par rôle direction ou siège
+-- (jamais formateur : la liste « Personnes avec accès » l'a déjà par la fiche formateur du profil). Aucune autre colonne :
+-- ni centre, ni promo. Lisible de l'équipe de la promo affichée (formateur ou direction de son centre), du siège et du
+-- fondateur ; rien pour un stagiaire ni pour un compte sans rôle (une table vide, pas une erreur). La table affectations
+-- ne se lit qu'à son titulaire : cette fonction ne rend que l'étiquette.
+create function public.roles_du_personnel()
+ returns table(email text, role text)
+ language sql
+ stable
+ security definer
+ set search_path to 'public', 'pg_temp'
+as $function$
+  select distinct lower(a.email)::text, a.role::text
+    from affectations a
+   where a.role in ('direction', 'siege')
+     and (equipe_courante() or est_siege() or est_fondateur())
+   order by 1, 2;
+$function$;
+
+revoke all on function public.roles_du_personnel() from public, anon, service_role;
+grant execute on function public.roles_du_personnel() to authenticated;

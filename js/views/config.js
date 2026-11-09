@@ -16,7 +16,7 @@ import {
   etatAnonymisationPromo, anonymiserPromo, listBenevolesAPurger, purgerBenevoles,
   getPromoCourante, renommerPromo,
   addProf, updateProf, deleteProf,
-  listUserProfiles, deleteUserProfile,
+  listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   setMyAnonymousNotes,
 } from "../db.js?v=20261109j";
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109j";
@@ -29,7 +29,7 @@ import { renderEmargementReglage } from "../emargement-etat.js?v=20261109j";
 import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109j";
 import { pointsARetenir } from "../accueil-rules.js?v=20261109j";
 import { dateCourte, etatFinDePromo } from "../effacement-rules.js?v=20261109j";
-import { peutInviterFormateur, peutRetirerCompte } from "../roles-rules.js?v=20261109j";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261109j";
 import { blocHabillage } from "../habillage-choix.js?v=20261109j";
 import { habillageCourant } from "../habillage.js?v=20261109j";
 
@@ -56,8 +56,10 @@ async function renderAccessSection(rerender) {
     ),
   ));
 
-  let [profiles, stagiaires, profs] = await Promise.all([
+  // Le vrai rôle des comptes direction et siège : une simple étiquette, sa lecture ratée laisse l'affichage d'avant, sans message.
+  let [profiles, stagiaires, profs, rolesPersonnel] = await Promise.all([
     listUserProfiles(), listStagiaires(), listProfs(),
+    lireRolesDuPersonnel().catch((e) => { console.warn("rôles du personnel", e); return null; }),
   ]);
 
   // === Form d'invitation (admin ou direction) ===
@@ -154,10 +156,8 @@ async function renderAccessSection(rerender) {
     listBlock.appendChild(el("p", { class: "muted" }, "Personne pour l'instant. Invite quelqu'un ci-dessus."));
   } else {
     const list = el("ul", { class: "admin-list" });
-    profiles
-      .slice()
-      .sort((a, b) => (a.role || "").localeCompare(b.role) || a.email.localeCompare(b.email))
-      .forEach((p) => {
+    listeAcces({ profils: profiles, roles: rolesPersonnel, v2 })
+      .forEach(({ profil: p, pastilles }) => {
         let who = "";
         if (p.stagiaire_id) {
           const s = stagiaires.find((x) => x.id === p.stagiaire_id);
@@ -169,7 +169,7 @@ async function renderAccessSection(rerender) {
         // Nouvelle navigation : un compte « admin » est un formateur, et le droit d'inviter et de modifier se dit
         // « gestion » (court : la colonne de la pastille fait 80 px), avec le détail en infobulle.
         const pills = el("div", { class: "role-pills" },
-          el("span", { class: "role-pill role-" + p.role }, p.role === "prof" || (v2 && p.role === "admin") ? "formateur" : p.role),
+          ...pastilles.map((x) => el("span", { class: "role-pill role-" + x.classe }, x.libelle)),
           (p.is_admin && p.role !== "admin")
             ? el("span", { class: "role-pill role-admin", title: v2 ? "Peut inviter et modifier" : null }, v2 ? "gestion" : "admin")
             : null,

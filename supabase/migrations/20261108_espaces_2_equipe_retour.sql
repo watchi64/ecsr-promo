@@ -1,6 +1,6 @@
 -- Marche arrière de 20261108_espaces_2_equipe.sql (lot 5, étape 2) : remet inviter_compte telle que le lot 4 l'a posée
 -- (texte repris à l'identique de 20261028_roles_2_fonctions.sql, source de ce que la production exécute), puis retire
--- regler_affectations_formateur et _profil_formateur. Les droits d'exécution d'inviter_compte ne bougent pas
+-- roles_du_personnel, regler_affectations_formateur et _profil_formateur. Les droits d'exécution d'inviter_compte ne bougent pas
 -- (create or replace les garde). Après ce retour, pg_get_functiondef('inviter_compte') redonne le texte d'avant. Le texte
 -- est joué par un bloc do qui lui rend les retours chariot de la définition qu'il remplace, si elle en avait (fichier posé
 -- depuis Windows) : le texte rendu est alors celui d'origine, octet pour octet.
@@ -116,5 +116,6 @@ begin
 end
 $retour$;
 
+drop function if exists public.roles_du_personnel();
 drop function if exists public.regler_affectations_formateur(text, integer, integer[], integer);
 drop function if exists public._profil_formateur(text, integer, text);
