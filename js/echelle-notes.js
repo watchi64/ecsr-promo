@@ -6,14 +6,16 @@
 // Interpolation linéaire RGB entre 9 stops sur l'échelle 0..20.
 // Chaque dixième de point a une teinte unique (~1 couleur / 0.1).
 // Pêche/terracotta pour les notes basses, vert mint pour le haut. Pas de rouge vif.
+// Chaque texte tient 4,6:1 au moins sur son fond, à chaque dixième de point (lot 3, tâche 10) : les repères de 8 à 16 ont
+// été assombris (même teinte), le milieu de l'échelle n'en tenait que 4,0 à 4,4.
 const NOTE_STOPS = [
   { n: 0,  bg: [232, 195, 168], fg: [105, 60, 30] },
   { n: 5,  bg: [241, 219, 200], fg: [122, 79, 48] },
-  { n: 8,  bg: [246, 232, 200], fg: [138, 102, 40] },
-  { n: 10, bg: [248, 240, 205], fg: [138, 115, 40] },
-  { n: 12, bg: [234, 234, 200], fg: [120, 110, 50] },
-  { n: 14, bg: [221, 235, 198], fg: [95, 115, 55] },
-  { n: 16, bg: [206, 230, 184], fg: [75, 110, 40] },
+  { n: 8,  bg: [246, 232, 200], fg: [128, 96, 35] },
+  { n: 10, bg: [248, 240, 205], fg: [128, 105, 35] },
+  { n: 12, bg: [234, 234, 200], fg: [110, 100, 45] },
+  { n: 14, bg: [221, 235, 198], fg: [91, 107, 51] },
+  { n: 16, bg: [206, 230, 184], fg: [72, 104, 37] },
   { n: 18, bg: [188, 224, 168], fg: [55, 95, 25] },
   { n: 20, bg: [165, 215, 142], fg: [40, 80, 18] },
 ];

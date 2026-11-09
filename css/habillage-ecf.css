@@ -52,6 +52,10 @@
   --sur-repere-sombre: #FFFFFF;
   --pastille:          #DB1418;
   --sur-pastille:      #FFFFFF;
+  /* Liseré blanc des repères rouges de la barre sombre : le rouge ne tient que 2,2:1 sur l'entrée allumée et sur l'avatar (blanc
+     translucide sur le bleu nuit), le liseré le cerne (5,1:1) et se détache de ces fonds (le rouge et le bleu nuit restent ceux d'ECF). */
+  --repere-sombre-lisere:   #FFFFFF;
+  --repere-pastille-lisere: #FFFFFF;
 
   /* Barre sombre, hors repères : l'initiale de la promo est blanche à lettre bleue, l'icône active garde la couleur du texte de la
      barre (seuls le trait de l'entrée active, les compteurs et le point du compte sont rouges). */

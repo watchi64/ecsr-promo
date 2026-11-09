@@ -48,10 +48,6 @@ body[data-nav="v2"][data-nav-colonne] .nav-groupe-titre {
   border: 0;
 }
 
-/* Un module fermé pour la promo : dans la coquille, le repère (œil barré, infobulle) suffit, le
-   texte garde son contraste (l'atténuation de style.css le ferait passer sous 4,5:1). */
-body[data-nav="v2"] [data-nav-coquille] .module-masque { opacity: 1; }
-
 /* ----- Stagiaire, en-tête : logo et promo, onglets en capsule, Assistant et compte ----- */
 body[data-nav="v2"] .nav-haut {
   position: sticky;
@@ -239,7 +235,7 @@ body[data-nav="v2"] .nav-compte-point {
    posés sur fond sombre : son vert d'origine (--accent) n'y tient pas 3:1 contre son liseré (2,9:1), celui-ci 8,2:1. */
 body[data-nav="v2"] .nav-cote .nav-compte-point {
   background: var(--repere-sombre);
-  box-shadow: 0 0 0 2px var(--bg-deep);
+  box-shadow: 0 0 0 2px var(--repere-sombre-lisere);
 }
 
 body[data-nav="v2"] [data-nav-coquille] :focus-visible {
@@ -879,6 +875,7 @@ body[data-nav="v2"] .nav-fenetre-lien > .nav-a-traiter { flex: none; }
 body[data-nav="v2"] .nav-cote .nav-pastille {
   background: var(--repere-sombre);
   color: var(--sur-repere-sombre);
+  box-shadow: 0 0 0 2px var(--repere-pastille-lisere);   /* aucun par défaut ; blanc en « Couleurs ECF », sur l'entrée allumée */
 }
 /* Colonne d'icônes : le libellé est masqué, la pastille se pose au coin haut droit de l'icône, hors du flux ; l'œil des
    modules fermés, qui occupait ce coin, passe en bas. */

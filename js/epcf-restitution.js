@@ -2,7 +2,7 @@
 // (affichée dans Mon suivi ; réutilisable ailleurs).
 
 import { el, clear, formatDate } from "./utils.js?v=20261109d";
-import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS } from "./epcf-trames.js?v=20261109d";
+import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS, EPCF_PHASE_TEXTE } from "./epcf-trames.js?v=20261109d";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 function svgEl(tag, attrs = {}) {
@@ -56,7 +56,7 @@ export function buildRadar(axes, series, size = 340) {
       x: px(i, 1.14), y: py(i, 1.14), class: "epcf-radar-label",
       "text-anchor": Math.abs(c) < 0.3 ? "middle" : (c > 0 ? "start" : "end"),
     });
-    if (color) t.setAttribute("fill", color);
+    if (color) t.setAttribute("fill", (typeof a === "object" && a.texte) || color);   // le libellé est un texte : sa teinte assombrie
     t.textContent = label;
     svg.appendChild(t);
   });
@@ -78,7 +78,7 @@ export function renderEpcfDetail(trameKey, evalRow) {
         sec.competenceTP ? el("span", { class: "muted epcf-detail-tp" }, " (" + sec.competenceTP + ")") : null));
     if (color) {
       box.style.borderLeftColor = color;
-      box.querySelector(".epcf-detail-title").style.color = color;
+      box.querySelector(".epcf-detail-title").style.color = EPCF_PHASE_TEXTE[sec.code] || color;   // un texte : la teinte assombrie
     }
     sec.criteres.forEach((c) => {
       const note = evalRow.scores?.[c.code];
@@ -117,7 +117,7 @@ export function renderEpcfTrameSection(trameKey, evals, moyennes) {
 
   const show = (evalRow) => {
     clear(body);
-    const axes = trame.sections.map((s) => ({ label: s.court, color: EPCF_PHASE_COLORS[s.code] }));
+    const axes = trame.sections.map((s) => ({ label: s.court, color: EPCF_PHASE_COLORS[s.code], texte: EPCF_PHASE_TEXTE[s.code] }));
     const serieMoi = { values: trame.sections.map((s) => phaseScore(s, evalRow.scores)), className: "moi" };
     const series = [serieMoi];
     const maxEffectif = Math.max(0, ...(moyennes || []).map((m) => m.effectif));
@@ -193,7 +193,7 @@ export function renderEpcfClasse(container, moyennesByTrame) {
       const ps = phaseScoreFromMoyennes(sec, moyennes);   // 0..1
       const color = EPCF_PHASE_COLORS[sec.code] || null;
       const phaseCell = el("td", {}, el("strong", {}, sec.court));
-      if (color) phaseCell.style.color = color;
+      if (color) phaseCell.style.color = EPCF_PHASE_TEXTE[sec.code] || color;
       tbody.appendChild(el("tr", { class: "epcf-classe-phase" },
         phaseCell,
         el("td", {}, ps == null ? el("strong", {}, "-")

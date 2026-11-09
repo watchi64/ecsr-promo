@@ -114,6 +114,11 @@
   --sur-sombre-actif:  var(--repere-sombre);       /* icône de l'entrée active de la barre sombre */
   --pastille:          var(--accent);
   --sur-pastille:      var(--bg-elev);
+  /* Liseré d'un repère de la barre sombre : le point du compte en a un de la couleur de la barre ; une pastille n'en a pas.
+     « Couleurs ECF » les fait blancs : son rouge ne tient que 2,2:1 sur l'entrée allumée et sur l'avatar (fond éclairci),
+     le liseré blanc le cerne (5,1:1) et se détache de tout fond sombre (lot 3, tâche 10). */
+  --repere-sombre-lisere:   var(--bg-deep);
+  --repere-pastille-lisere: transparent;
   --repere-admin:       #6EE7B7;                     /* badge de l'administrateur connecté, dans la barre sombre */
   --repere-admin-fond:  rgba(4, 120, 87, 0.2);
   --repere-admin-bord:  rgba(4, 120, 87, 0.3);
@@ -159,7 +164,8 @@
   --note-great-texte: #2C5212;
   --note-faible-titre: #A05A3D;                      /* titre « thèmes à travailler » */
   --note-mid-fond:    #FBEEDD;                       /* niveau moyen des QCM */
-  --note-mid-texte:   #B67A3D;
+  --note-mid-texte:   #94602D;                       /* 4,6:1 sur --note-mid-fond ; était #B67A3D (3,5:1 sur la page), gardé pour la barre */
+  --note-mid-barre:   #B67A3D;                       /* barre du niveau moyen des QCM */
   --note-warn-point:  #C98A2B;                       /* point ou barre ambre, bouton « à revoir » */
   --note-ok-point:    #7BA23C;
   --note-warn-voile:  rgba(201, 138, 43, 0.18);      /* pastille EPCF « en cours d'acquisition » */
@@ -238,14 +244,14 @@
   --doc-avertissement: #8A6A1F;                      /* fiche des résultats à publier : bandeau d'avertissement */
   --doc-avertissement-fond: #FBF2D9;
   --doc-dp-vide: #9a9a9a;                            /* dossier professionnel : repère de saisie et sommaire vide */
-  --doc-dp-note: #8a8578;                            /* coupure de page et mention d'une fiche exclue */
+  --doc-dp-note: #716D63;                            /* coupure de page et mention d'une fiche exclue, à l'écran seulement : 5:1 ; était #8a8578 (3,6:1) */
   --doc-dp-exclu-fond: #fbfbfa;
   --doc-dp-exclu-trait: #c9c6bd;
 
   /* --- Graphes des notes (habillage : leurs classes `notes-*` posent ces couleurs, un attribut SVG ne suivrait pas) --- */
   --graphe-axe:        var(--line-strong);           /* axe de référence : zéro ou dix sur vingt */
   --graphe-grille:     var(--line-faint);            /* graduations en pointillés */
-  --graphe-graduation: #8A7458;                      /* chiffres des axes et noms anonymisés */
+  --graphe-graduation: #7A6650;                      /* chiffres des axes et noms anonymisés : 5,3:1 sur la carte ; était #8A7458 (4,3:1) */
   --graphe-texte:      var(--text);                  /* valeurs et noms */
   --graphe-libelle:    var(--text-soft);             /* tranches de note */
   --graphe-piste:      #F0F0EC;                      /* rail gris derrière une barre */
@@ -811,7 +817,6 @@ h3 {
 }
 .priority-badge .scope {
   font-weight: 700;
-  opacity: 0.9;
   min-width: 50px;
   font-size: 0.68rem;
 }
@@ -2049,7 +2054,7 @@ h3 {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
-  font-weight: 700;
+  font-weight: var(--poids-titre);   /* un h3 : la police des titres, donc leur poids (l'habillage le remappe) */
   padding-bottom: 0.4rem;
   border-bottom: 1px solid var(--line);
 }
@@ -4466,6 +4471,8 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   color: var(--text-muted);
   font-weight: 600;
 }
+/* Sur un fond de niveau, le libellé prend le texte secondaire : le texte atténué n'y tenait pas 4,5:1 (3,96:1 sur le vert du niveau haut). */
+.notes-kpi:is(.bad, .warn, .ok, .great) .notes-kpi-label { color: var(--text-soft); }
 .notes-kpi.bad   { background: var(--note-bad-fond); }
 .notes-kpi.bad   .notes-kpi-value { color: var(--note-bad-texte); }
 .notes-kpi.warn  { background: var(--note-warn-fond); }
@@ -6263,9 +6270,11 @@ body.qcm-open { overflow: hidden; }
 .epcf-leg.groupe { background: var(--text-muted); }
 
 .epcf-chip { display: inline-block; min-width: 5.5rem; text-align: center; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
-.epcf-chip.A  { background: var(--c-go-voile); color: var(--c-go); }
-.epcf-chip.R  { background: var(--note-warn-voile); color: var(--note-warn-point); }
-.epcf-chip.NA { background: var(--c-stop-voile); color: var(--c-stop); }
+/* Le texte de chaque pastille : celui de l'échelle des notes, 4,8:1 au moins sur son voile, sur la page comme sur une rangée de tableau
+   (le statut et le point d'avant n'en tenaient que 3,9 et 2,2:1). */
+.epcf-chip.A  { background: var(--c-go-voile); color: var(--note-ok-texte); }
+.epcf-chip.R  { background: var(--note-warn-voile); color: var(--note-warn-texte); }
+.epcf-chip.NA { background: var(--c-stop-voile); color: var(--note-bad-texte); }
 .epcf-chip.vide { background: var(--bg-subtle); color: var(--text-muted); }
 
 .epcf-actions { margin: 1rem 0 2rem; }
@@ -6539,10 +6548,11 @@ body.qcm-open { overflow: hidden; }
   cursor: pointer;
   line-height: 1.25;
 }
-.p-daynav-btn span { display: block; font-size: 0.68rem; font-weight: 400; opacity: 0.75; }
+.p-daynav-btn span { display: block; font-size: 0.68rem; font-weight: 400; color: var(--text-muted); }   /* et non plus 75 % d'opacité : 4,1:1 */
+.p-daynav-btn.off span { color: inherit; }
 .p-daynav-btn:hover { background: var(--bg-deep-soft, rgba(0, 0, 0, 0.05)); }
 .p-daynav-btn.current { background: var(--accent); color: #fff; }
-.p-daynav-btn.current span { opacity: 0.9; }
+.p-daynav-btn.current span { color: inherit; opacity: 0.9; }
 .p-daynav-btn.off { color: var(--text-faint); }
 .p-day-card { scroll-margin-top: calc(var(--haut-entete) + 52px); }   /* barre du haut + barre de jours */
 @media print { .p-daynav { display: none !important; } }
@@ -7084,8 +7094,8 @@ body.cours-open { overflow: hidden; }
 }
 .cours-head-titre {
   margin: 0;
-  font-family: "Canela", Georgia, serif;
-  font-weight: 400;
+  font-family: var(--font-display);
+  font-weight: var(--poids-titre-normal);
   font-size: 1.18rem;
   line-height: 1.25;
   color: var(--text);
@@ -7180,8 +7190,8 @@ body.cours-open { overflow: hidden; }
   margin: 2.3rem 0 0.5rem;
   padding-top: 1.1rem;
   border-top: 1px solid var(--line);
-  font-family: "Canela", Georgia, serif;
-  font-weight: 400;
+  font-family: var(--font-display);
+  font-weight: var(--poids-titre-normal);
   font-size: 1.32rem;
   line-height: 1.25;
   color: var(--text);
@@ -7648,7 +7658,7 @@ body.cours-open { overflow: hidden; }
 .qcm-cell-barre-fill { height: 100%; border-radius: 999px; }
 .qcm-cell-barre-fill.n-great { background: var(--c-go); }
 .qcm-cell-barre-fill.n-ok { background: var(--accent-strong); }
-.qcm-cell-barre-fill.n-mid { background: var(--note-mid-texte); }
+.qcm-cell-barre-fill.n-mid { background: var(--note-mid-barre); }
 .qcm-cell-barre-fill.n-low { background: var(--c-stop); }
 
 /* ===== Assistant (bulle flottante) ===== */
@@ -7864,11 +7874,9 @@ body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-panel {
    ATTENTION : le @media mobile pose « .tab span { display: none } » (spécificité
    0,1,1). « .tab .marque-masque » est en 0,2,0 : il gagne quel que soit l'ordre,
    sinon l'œil disparaîtrait sur téléphone, là où les onglets sont en icône seule. */
-.module-masque { opacity: 0.55; }
-.module-masque:hover,
-.module-masque:focus-visible,
-.tab.module-masque.active,
-.subtab.module-masque.active { opacity: 0.9; }
+/* Lot 3, tâche 10 : l'œil « Masqué aux stagiaires » (et le titre de l'élément) repère seul ce qui est masqué. L'opacité
+   réduite d'avant (55 %) faisait tomber le libellé d'un onglet, d'un sous-onglet ou d'un en-tête à 2,2:1, sous le seuil AA,
+   comme dans la coquille, où le repère avait déjà retrouvé l'opacité pleine. */
 .marque-masque {
   display: inline-flex;
   align-items: center;
@@ -8407,8 +8415,8 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .legal-onglet.actif { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
 .legal-titre {
   margin: 0 0 1rem;
-  font-family: "Canela", Georgia, serif;
-  font-weight: 400;
+  font-family: var(--font-display);
+  font-weight: var(--poids-titre-normal);
   font-size: 1.6rem;
   line-height: 1.2;
   color: var(--text);

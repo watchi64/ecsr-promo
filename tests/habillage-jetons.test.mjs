@@ -554,6 +554,7 @@ export const PAIRES = [
   ["--repere-sombre", "--bg-deep", 3], ["--pastille", "--bg-elev", 3],
   ["--sur-sombre-marque", "--sombre-marque", 4.5], ["--sombre-marque", "--bg-deep", 3],
   ["--sur-sombre-actif", "--bg-deep", 3],
+  ["--repere-sombre", "--repere-sombre-lisere", 3],   // le point du compte contre son liseré (blanc en ECF, lot 3, tâche 10)
   ["--repere-admin", "--bg-deep", 4.5],
 ];
 
