@@ -8824,8 +8824,6 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   }
   .themes-list.sans-promo .theme-row .theme-cours-cell { grid-area: cours; margin-top: 0.2rem; justify-self: start; }
   .themes-list.sans-promo .theme-row .theme-qcm-cell { grid-area: qcm; margin-top: 0.2rem; justify-self: stretch; }
-}
-@media (max-width: 720px) {
   .themes-list.sans-promo .theme-titre-link { min-height: 44px; }
 }
 @media (max-width: 480px) {

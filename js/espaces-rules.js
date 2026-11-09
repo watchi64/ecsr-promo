@@ -284,12 +284,12 @@ export function adresseApresBascule(valeur) {
   return ROUTES_CONNUES.includes(lireAdresse(valeur).route) ? valeur : null;
 }
 
-// Sous-onglets de la page Cours et QCM (js/views/themes.js), dans l'ordre d'affichage. Le siège rédige les contenus communs :
+// Sous-onglets de la page Cours et QCM (js/views/themes.js), par clé (la clé de chaque onglet, pas son libellé), dans l'ordre d'affichage. Le siège rédige les contenus communs :
 // pas de signalements ni de propositions IA (D13). Le stagiaire a ses QCM en liste. Le formateur garde la liste d'aujourd'hui ;
 // la page ne montre Signalements et Propositions IA qu'à qui en a le droit (canManageExam, isAdmin). La direction n'a pas la page (D15).
 export function sousOngletsCours(espace) {
-  if (espace === "siege" || espace === "stagiaire") return ["Thèmes", "Compétences", "QCM", "Documents"];
-  if (espace === "equipe") return ["Thèmes", "Compétences", "Signalements", "Propositions IA", "Documents"];
+  if (espace === "siege" || espace === "stagiaire") return ["themes", "competences", "qcm", "documents"];
+  if (espace === "equipe") return ["themes", "competences", "signalements", "ia", "documents"];
   return [];
 }
 

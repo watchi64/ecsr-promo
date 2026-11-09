@@ -303,9 +303,9 @@ test("texteBandeauApercu : ce que dit le bandeau d'aperçu (les modifications d'
 import { sousOngletsCours } from "../js/espaces-rules.js";
 
 test("sousOngletsCours : siège, stagiaire, formateur (liste d'aujourd'hui), direction", () => {
-  assert.deepEqual(sousOngletsCours("siege"), ["Thèmes", "Compétences", "QCM", "Documents"]);
-  assert.deepEqual(sousOngletsCours("stagiaire"), ["Thèmes", "Compétences", "QCM", "Documents"]);
-  assert.deepEqual(sousOngletsCours("equipe"), ["Thèmes", "Compétences", "Signalements", "Propositions IA", "Documents"]);
+  assert.deepEqual(sousOngletsCours("siege"), ["themes", "competences", "qcm", "documents"]);
+  assert.deepEqual(sousOngletsCours("stagiaire"), ["themes", "competences", "qcm", "documents"]);
+  assert.deepEqual(sousOngletsCours("equipe"), ["themes", "competences", "signalements", "ia", "documents"]);
   assert.deepEqual(sousOngletsCours("direction"), [], "la direction n'a pas la page (D15)");
   assert.deepEqual(sousOngletsCours(undefined), []);
 });

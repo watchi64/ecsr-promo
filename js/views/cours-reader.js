@@ -599,7 +599,7 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
     meta.textContent = vide ? "" : `${contexte.sections.length} sections · ${tempsLecture(texte)} min de lecture`;
 
     // État formateur/admin : le stagiaire n'a pas à voir la cuisine.
-    if (isAdmin() || isProf() || isRedacteur()) {
+    if (isProf() || isRedacteur()) {
       const quand = cours.updated_at
         ? new Date(cours.updated_at).toLocaleDateString("fr-FR") : "";
       const etat = (cours.published ? "Publié" : "Non publié")

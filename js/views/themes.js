@@ -1715,6 +1715,7 @@ function refreshStatsInPlace(container) {
 }
 
 function rerender(container) {
+  const sans = sansPromo();
   // Repeint tardif alors que l'utilisateur est passé sur la console : ne rien écrire,
   // le panneau ne nous appartient plus. Revenir sur l'onglet Thèmes le re-rend de toute façon.
   if (!themesActif()) return;
@@ -1783,7 +1784,7 @@ function rerender(container) {
   statutSel.addEventListener("change", () => { filterStatut = statutSel.value; renderResults(); });
 
   container.appendChild(el("div", { class: "passages-toolbar" },
-    el("div", { class: "passages-filters" }, searchInput, sansPromo() ? null : statutSel),
+    el("div", { class: "passages-filters" }, searchInput, sans ? null : statutSel),
   ));
 
   // Zone de résultats : la SEULE partie repeinte quand la recherche, le statut
@@ -1830,7 +1831,7 @@ function rerender(container) {
           el("h3", { class: "theme-section-title" }, f.label),
           el("p", { class: "muted theme-section-subtitle" }, items.length + " entrée" + (items.length > 1 ? "s" : "")),
         ),
-        sansPromo() ? null : el("div", { class: "theme-section-stats" },
+        sans ? null : el("div", { class: "theme-section-stats" },
           el("div", { class: "theme-section-stat" },
             el("span", { class: "theme-section-stat-value" }, String(stats.fait)),
             el("span", { class: "theme-section-stat-label" }, "Faits"),
@@ -1843,7 +1844,7 @@ function rerender(container) {
       ));
 
       // Barre de progression
-      if (stats.total > 0 && !sansPromo()) {
+      if (stats.total > 0 && !sans) {
         const bar = el("div", { class: "theme-progress" },
           el("div", { class: "theme-progress-fill", style: `width: ${stats.pct}%` }),
         );
@@ -1858,12 +1859,12 @@ function rerender(container) {
       // cours visible (un stagiaire sans cours publié garde la liste d'avant).
       const coursOn = items.some((t) => coursVisible(t));
       const list = el("div", { class: "themes-list"
-        + (canSeeQcm() ? " qcm-on" : "") + (coursOn ? " cours-on" : "") + (sansPromo() ? " sans-promo" : "") });
+        + (canSeeQcm() ? " qcm-on" : "") + (coursOn ? " cours-on" : "") + (sans ? " sans-promo" : "") });
       const entete = el("div", { class: "theme-row theme-header" },
         el("span", { class: "theme-num" }, "N°"),
         el("span", {}, "Thème"),
-        sansPromo() ? null : el("span", {}, "Statut"),
-        sansPromo() ? null : el("span", {}, "Fait le"),
+        sans ? null : el("span", {}, "Statut"),
+        sans ? null : el("span", {}, "Fait le"),
         coursOn ? enteteColonne("Cours", "cours") : null,
         canSeeQcm() ? enteteColonne("QCM", "qcm") : null,
         el("span", {}),
@@ -1912,6 +1913,7 @@ async function reload(container) {
 }
 
 export async function renderThemes(container) {
+  const sans = sansPromo();
   clear(container);
   // Un montage précédent a pu laisser ces deux références derrière lui : le panneau
   // qu'elles désignent est mort, et le jeton d'activation qu'elles portent est figé sur
@@ -1940,9 +1942,9 @@ export async function renderThemes(container) {
   // Nouvelle navigation : la page porte le nom de son entrée, « Cours et QCM », avec la promo en surtitre ; la ligne de
   // progression, qui avait le surtitre, termine alors le sous-titre.
   if (donnees) {
-    const surtitre = v2 && !sansPromo() ? getPromoCourante()?.nom : null;
+    const surtitre = v2 && !sans ? getPromoCourante()?.nom : null;
     const sousTitre = "Les thèmes et les compétences de la formation, avec leurs cours et leurs QCM.";
-    ligneProgression = sansPromo() ? null : el(v2 ? "span" : "p", v2 ? {} : { class: "eyebrow" }, texteProgression());
+    ligneProgression = sans ? null : el(v2 ? "span" : "p", v2 ? {} : { class: "eyebrow" }, texteProgression());
     container.appendChild(el("div", { class: "view-header" },
       el("div", { class: "view-header-text" },
         v2 ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null) : ligneProgression,
@@ -1974,12 +1976,12 @@ export async function renderThemes(container) {
   // ferme pour la promo). L'équipe garde la colonne QCM de la liste des thèmes, pas de sous-onglet. Toute l'équipe : la
   // direction et le siège lisent sans écrire (canManageExam faux) mais n'ont pas de fiche de stagiaire, la même règle que
   // l'espace de la coquille.
-  if (v2 && (!formateurConnecte() || sansPromo())) {
+  if (v2 && (!formateurConnecte() || sans)) {
     // Le siège rédige les questions : sa liste mène à l'éditeur, sans note ni examen (js/qcm-rules.js, lignesQcmRedaction).
     onglets.push({ key: "qcm", label: "QCM", module: "qcm",
       render: (p, ctx) => {
-        renderQcmStagiaire(p, sansPromo()
-          ? { themes, onOuvrir: (theme, qcm) => openQcmEditor(theme, qcm.id), isActive: ctx?.isActive, redaction: true }
+        renderQcmStagiaire(p, sans
+          ? { themes, onOuvrir: (theme, qcm, relire) => openQcmEditor(theme, qcm.id, null, relire), isActive: ctx?.isActive, redaction: true }
           : { themes, onOuvrir: openQcmSheet, isActive: ctx?.isActive });
       } });
   }
@@ -2013,7 +2015,7 @@ export async function renderThemes(container) {
   }
   // Les sous-onglets que l'espace permet (js/espaces-rules.js, sousOngletsCours) : le siège n'a ni Signalements ni Propositions IA.
   const permis = sousOngletsCours(getEspace());
-  const aGarder = permis.length ? onglets.filter((o) => permis.includes(String(o.label).replace(/^⚑ /, ""))) : onglets;
+  const aGarder = permis.length ? onglets.filter((o) => permis.includes(o.key)) : onglets;
   container.appendChild(renderSubTabs(aGarder, { storageKey: CLES_SOUS_ONGLETS.themes }));
 }
 
