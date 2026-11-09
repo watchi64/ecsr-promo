@@ -32,6 +32,27 @@ function lireStockage(deps) {
 function ecrireStockage(deps, appareil) {
   try { stockageDe(deps).setItem(CLE_APPAREIL, ecrireAppareil(appareil)); } catch { /* sans mémoire d'appareil */ }
 }
+// L'appareil dit-il encore exactement `ecrit` ? Comparé tel qu'il se relit (lireAppareil normalise l'e-mail vide et
+// « à envoyer ») : un autre écrit entre-temps (un choix plus récent) le laisse tel quel.
+function appareilDitEncore(deps, ecrit) {
+  const maintenant = lireStockage(deps);
+  const relu = lireAppareil(ecrireAppareil(ecrit));
+  return !!maintenant && !!relu && ecrireAppareil(maintenant) === ecrireAppareil(relu);
+}
+
+// Les envois au compte (démarrage et choix) partent un par un, dans l'ordre où ils sont demandés : deux pastilles touchées
+// dans le temps d'un aller-retour arrivent au compte dans l'ordre des touchers, jamais l'ancien après le récent. Chaque envoi
+// porte un numéro ; seul le plus récent, une fois arrivé, retire « à envoyer » de l'appareil : un envoi plus ancien qui
+// réussit ne dit rien du choix qui le suit, encore en route ou en échec (il doit alors repartir au prochain démarrage).
+let file = Promise.resolve();
+let dernierEnvoi = 0;
+function envoyer(nom, deps) {
+  const numero = ++dernierEnvoi;
+  const envoi = file.then(async () => (await enregistrerDe(deps))(nom));
+  file = envoi.catch(() => { /* un échec n'arrête pas les envois suivants */ });
+  return { numero, envoi };
+}
+const estLePlusRecent = (numero) => numero === dernierEnvoi;
 
 export function appliquerHabillage(nom, deps = {}) {
   const doc = documentDe(deps);
@@ -54,12 +75,16 @@ export function habillageCourant(deps = {}) {
 export async function choisirHabillage(nom, deps = {}) {
   if (!habillageValide(nom)) return null;
   appliquerHabillage(nom, deps);
+  // Mis en file tout de suite, avant toute attente : l'ordre des envois est celui des touchers.
+  const { numero, envoi } = envoyer(nom, deps);
   const email = await emailDe(deps);
-  // D'abord sur l'appareil, « à envoyer » : si le réseau tombe, le choix survit et part au prochain démarrage.
-  ecrireStockage(deps, { nom, email, aEnvoyer: true, choisi: true });
+  // D'abord sur l'appareil, « à envoyer » : si le réseau tombe, le choix survit et part au prochain démarrage. Un toucher
+  // plus récent a pu l'écrire pendant l'attente de l'e-mail : c'est lui qui compte, il n'est pas réécrit.
+  const ecrit = { nom, email, aEnvoyer: true, choisi: true };
+  if (estLePlusRecent(numero)) ecrireStockage(deps, ecrit);
   try {
-    await (await enregistrerDe(deps))(nom);
-    ecrireStockage(deps, { nom, email, aEnvoyer: false, choisi: true });
+    await envoi;
+    if (estLePlusRecent(numero) && appareilDitEncore(deps, ecrit)) ecrireStockage(deps, { ...ecrit, aEnvoyer: false });
     return { nom, enregistre: true };
   } catch (e) {
     console.warn("Habillage : enregistrement sur le compte impossible, il sera retenté au prochain démarrage", e);
@@ -85,14 +110,12 @@ export async function habillageAuDemarrage({ email, compte, centre, reseau, libr
   };
   ecrireStockage(deps, ecrit);
   if (retenu.envoi !== null) {
+    const { numero, envoi } = envoyer(retenu.envoi, deps);
     try {
-      await (await enregistrerDe(deps))(retenu.envoi);
-      // Parti : plus rien à envoyer, à condition que l'appareil dise encore ce que ce démarrage y a écrit.
-      // Sinon un choix a été fait entre-temps, avec son propre envoi : il reste tel quel.
-      const maintenant = lireStockage(deps);
-      // Comparé tel qu'il se relit (lireAppareil normalise e-mail vide et « à envoyer »).
-      const relu = lireAppareil(ecrireAppareil(ecrit));
-      if (ecrit.aEnvoyer && maintenant && relu && ecrireAppareil(maintenant) === ecrireAppareil(relu)) {
+      await envoi;
+      // Arrivé : plus rien à envoyer, à condition qu'aucun envoi ne l'ait suivi et que l'appareil dise encore ce que
+      // ce démarrage y a écrit. Sinon un choix a été fait entre-temps, avec son propre envoi : il reste tel quel.
+      if (ecrit.aEnvoyer && estLePlusRecent(numero) && appareilDitEncore(deps, ecrit)) {
         ecrireStockage(deps, { ...ecrit, aEnvoyer: false });
       }
     } catch (e) {

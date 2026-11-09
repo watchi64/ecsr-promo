@@ -6609,7 +6609,10 @@ def jouer_appareil_d_autrui(page, res, sc, options):
     # Lot 3, tâche 11 : le menu du compte montre le choix de la personne connectée (le défaut), « ECSR Promo » pressée, jamais celui de l'autre.
     vue = "%s/apparence" % sc.nom
     res.vues += 1
-    if res.coquille and cliquer(page, res, vue, '[data-nav-coquille] button[data-nav-action="compte"]:visible', "bouton du compte"):
+    if not res.coquille:
+        # Le scénario attend la nouvelle barre : sans elle, le contrôle ne se joue pas, et c'est un échec, pas une vue réussie.
+        res.echec("appareil d'une autre personne", vue, "la coquille est absente : le menu du compte et sa pastille « ECSR Promo » pressée ne se contrôlent pas")
+    elif cliquer(page, res, vue, '[data-nav-coquille] button[data-nav-action="compte"]:visible', "bouton du compte"):
         page.wait_for_timeout(300)
         g = verifier_apparence(page, res, sc, vue, "menu")
         pressees = [p["habillage"] for p in (g or {"pastilles": []})["pastilles"] if p["presse"] == "true"]

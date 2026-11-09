@@ -13,16 +13,16 @@ const PASTILLES = [
   { nom: "ecf", libelle: "Couleurs ECF", message: "Couleurs ECF appliquées" },
 ];
 
-// Toutes les pastilles affichées (menu du compte, page) suivent l'habillage appliqué : une seule écoute pour le document,
-// posée au premier bloc construit.
-let ecoute = false;
+// Toutes les pastilles affichées (menu du compte, page) suivent l'habillage appliqué : une seule écoute pour la fenêtre,
+// posée au premier bloc construit (une fenêtre nouvelle, celle d'un test, a la sienne).
+let fenetreSuivie = null;
 function suivreHabillage() {
-  if (ecoute) return;
-  ecoute = true;
-  window.addEventListener("ecsr:habillage", (e) => {
+  if (fenetreSuivie === globalThis.window) return;
+  fenetreSuivie = globalThis.window;
+  fenetreSuivie.addEventListener("ecsr:habillage", (e) => {
     const nom = e.detail?.nom;
     document.querySelectorAll(".habillage-pastille[data-habillage]").forEach((b) => {
-      b.setAttribute("aria-pressed", String(b.dataset.habillage === nom));
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-habillage") === nom));
     });
   });
 }
@@ -30,21 +30,27 @@ function suivreHabillage() {
 let numero = 0;
 
 // `titre` : l'élément qui porte déjà le titre « Apparence » (le h3 d'une section de page), qui nomme alors le groupe ; sans
-// lui, le bloc porte le sien (le menu du compte, où il prend l'allure des titres de section de la fenêtre).
-export function blocHabillage({ titre = null } = {}) {
+// lui, le bloc porte le sien (le menu du compte, où il prend l'allure des titres de section de la fenêtre). `deps` : les
+// dépendances de js/habillage.js (stockage, enregistrement...) et `toast`, pour les tests ; l'app n'en passe aucune.
+export function blocHabillage({ titre = null, deps = {} } = {}) {
   suivreHabillage();
+  const annoncer = deps.toast ?? toast;
   const tete = titre ?? el("p", { class: "habillage-titre" }, "Apparence");
   if (!tete.id) tete.id = "habillage-titre-" + ++numero;
-  const courant = habillageCourant();
+  const courant = habillageCourant(deps);
   const pastilles = PASTILLES.map(({ nom, libelle, message }) => {
     const bouton = el("button", {
       type: "button", class: "habillage-pastille", "data-habillage": nom, "aria-pressed": String(courant === nom),
       onClick: () => {
+        // La pastille déjà pressée ne fait rien : ni envoi, ni message, et surtout pas de choix personnel. Un habillage
+        // appliqué sans avoir été choisi (le défaut, celui du centre, l'appareil d'une autre personne) ne le devient pas
+        // par ce toucher (js/habillage-regles.js : le défaut ne devient jamais un choix). Le focus reste où il est.
+        if (habillageCourant(deps) === nom) return;
         // Le focus reste sur la pastille (Safari ne le donne pas au bouton touché) ; le menu reste ouvert : rien ici ne le ferme.
         bouton.focus({ preventScroll: true });
         // L'habillage est appliqué tout de suite (l'événement met les pastilles à jour) ; l'enregistrement suit sans être attendu.
-        choisirHabillage(nom).catch((e) => console.warn("Habillage : choix impossible", e));
-        toast(message);
+        choisirHabillage(nom, deps).catch((e) => console.warn("Habillage : choix impossible", e));
+        annoncer(message);
       },
     }, el("span", { class: "habillage-apercu", "aria-hidden": "true" }), el("span", { class: "habillage-libelle" }, libelle));
     return bouton;
