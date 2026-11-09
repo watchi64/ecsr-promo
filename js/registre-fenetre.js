@@ -10,13 +10,13 @@
 // dans une fenêtre de l'app (js/confirmer.js, jamais la boîte du navigateur), et la fenêtre se ferme elle-même sur « oui ».
 // Avant l'envoi, un champ vide part en null, dates comprises : jamais une chaîne vide vers la base.
 
-import { el, toast } from "./utils.js?v=20261109k";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, demanderFermeture } from "./nav-fenetre.js?v=20261109k";
-import { confirmer } from "./confirmer.js?v=20261109k";
-import { ajouterEntreeRegistre, modifierEntreeRegistre } from "./db.js?v=20261109k";
-import { TYPES, ORIGINES, ETATS, RAPPEL_VIOLENCES, LIMITE_TEXTE, validerEntree } from "./registre-rules.js?v=20261109k";
-import { jourParis } from "./questionnaires-gestion-rules.js?v=20261109k";
-import { libelleOptionPromo } from "./qualiopi-page-rules.js?v=20261109k";
+import { el, toast } from "./utils.js?v=20261109o";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, demanderFermeture } from "./nav-fenetre.js?v=20261109o";
+import { confirmer } from "./confirmer.js?v=20261109o";
+import { ajouterEntreeRegistre, modifierEntreeRegistre } from "./db.js?v=20261109o";
+import { TYPES, ORIGINES, ETATS, RAPPEL_VIOLENCES, LIMITE_TEXTE, validerEntree } from "./registre-rules.js?v=20261109o";
+import { jourParis } from "./questionnaires-gestion-rules.js?v=20261109o";
+import { libelleOptionPromo } from "./qualiopi-page-rules.js?v=20261109o";
 
 const NOM = "registre";
 export const NE_NOMME_PERSONNE = "Ne nomme personne : l'origine suffit.";

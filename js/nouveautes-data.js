@@ -151,6 +151,31 @@ export const NOUVEAUTES = [
           + "l'année quand elle tombe l'année suivante.",
     ou: { label: "Notes et examens", route: "notes" },
   },
+  // Suite du lot C (09/11) : les moyennes EPCF de la classe tant qu'aucune ne peut s'afficher.
+  {
+    id: "2026-11-09-moyennes-epcf-vides",
+    date: "2026-11-09",
+    pour: "tous",
+    titre: "Moyennes EPCF : la page dit quand elles arriveront",
+    resume: "Les moyennes EPCF de la classe n'apparaissent qu'à partir de deux stagiaires évalués à la même épreuve, "
+          + "en salle ou en véhicule : avec un seul, la moyenne serait sa note. En attendant, la page le dit en une phrase "
+          + "et propose la suite : « Voir mon EPCF » pour retrouver tes propres résultats, « Évaluer un stagiaire » pour "
+          + "les formateurs, qui voient aussi combien de stagiaires sont déjà évalués.",
+    ou: { label: "Notes, sous-onglet EPCF", route: "notes", sousOnglet: "epcf" },
+    module: "epcf",
+  },
+  // Suite des moyennes EPCF vides (09/11) : la partie EPCF de sa fiche, et l'anonymat des moyennes jusque dans la base.
+  {
+    id: "2026-11-09-mon-epcf-vide",
+    date: "2026-11-09",
+    pour: "stagiaires",
+    titre: "Ton EPCF : la page dit quand tes résultats arriveront",
+    resume: "Tant qu'aucune de tes épreuves EPCF n'est évaluée, la partie EPCF de Mon suivi le dit en une phrase et te "
+          + "mène à ton livret EPCF. Sur ton radar, la moyenne du groupe n'apparaît que quand chaque phase compte au moins "
+          + "deux stagiaires évalués : une moyenne de la classe ne montre jamais la note d'un seul camarade.",
+    ou: { label: "Mon espace personnel, partie EPCF", route: "mon-suivi", sousOnglet: "epcf" },
+    module: "epcf",
+  },
   // Lot de corrections 2 (audit du 09/11) : ce que l'app affiche est juste.
   {
     id: "2026-11-09-accueil-plus-juste",

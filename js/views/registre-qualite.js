@@ -6,15 +6,15 @@
 // `lire()` rend la lecture en cours ou faite ({ etat: "lue", entrees } | { etat: "absente" } | { etat: "non_lue" }),
 // `surChangement()` la refait (après un enregistrement, un effacement, ou « Réessayer ») et rend la nouvelle.
 
-import { el, clear, toast } from "../utils.js?v=20261109k";
-import { getMesPromos, effacerRegistreQualite } from "../db.js?v=20261109k";
-import { TYPES, ORIGINES, ETATS, filtrerRegistre, registreCsv, nomFichierRegistre, aEffacer } from "../registre-rules.js?v=20261109k";
-import { jourParis } from "../questionnaires-gestion-rules.js?v=20261109k";
-import { nomPromo } from "../qualiopi-page-rules.js?v=20261109k";
-import { nb } from "../qualiopi-preuves.js?v=20261109k";
-import { confirmer } from "../confirmer.js?v=20261109k";
-import { telecharger } from "./centre.js?v=20261109k";
-import { ouvrirFenetreRegistre, lieuxDesPromos } from "../registre-fenetre.js?v=20261109k";
+import { el, clear, toast } from "../utils.js?v=20261109o";
+import { getMesPromos, effacerRegistreQualite } from "../db.js?v=20261109o";
+import { TYPES, ORIGINES, ETATS, filtrerRegistre, registreCsv, nomFichierRegistre, aEffacer } from "../registre-rules.js?v=20261109o";
+import { jourParis } from "../questionnaires-gestion-rules.js?v=20261109o";
+import { nomPromo } from "../qualiopi-page-rules.js?v=20261109o";
+import { nb } from "../qualiopi-preuves.js?v=20261109o";
+import { confirmer } from "../confirmer.js?v=20261109o";
+import { telecharger } from "./centre.js?v=20261109o";
+import { ouvrirFenetreRegistre, lieuxDesPromos } from "../registre-fenetre.js?v=20261109o";
 
 export const REGISTRE_ABSENT = "Le registre sera disponible après la mise à jour de la base.";
 const FILTRES_ETAT = [["tous", "Tous"], ["ouvert", "Ouverts"], ["en_cours", "En cours"], ["clos", "Clos"]];

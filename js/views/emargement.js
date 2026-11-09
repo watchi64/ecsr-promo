@@ -7,24 +7,24 @@ import {
   listStagiaires, listProfs, getPlanning, getHalfMetaForWeek, getJoursOff, getPromoCourante,
   listEmargementSeances, ouvrirEmargement, signerEmargement, signerEmargementFormateur,
   annoterEmargement, cloreEmargement, rouvrirEmargement, getEnteteEmargement, setEnteteEmargement,
-} from "../db.js?v=20261109k";
-import { el, clear, toast, isoDate } from "../utils.js?v=20261109k";
-import { icon } from "../icons.js?v=20261109k";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261109k";
+} from "../db.js?v=20261109o";
+import { el, clear, toast, isoDate } from "../utils.js?v=20261109o";
+import { icon } from "../icons.js?v=20261109o";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261109o";
 import {
   etatLigne, resumeSeance, resumeEnClair, etatSansFeuille, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
   demiVoisine, notesProposees, roleAuPlanning,
-} from "../emargement-rules.js?v=20261109k";
-import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261109k";
+} from "../emargement-rules.js?v=20261109o";
+import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261109o";
 import {
   feuilleSeance, feuilleSemaine, imprimer, nomComplet, jourLong, DEMI_LONG, stagiairesDeFeuille,
-} from "../emargement-feuilles.js?v=20261109k";
-import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261109k";
-import { emargementActif } from "../emargement-etat.js?v=20261109k";
-import { navigationV2Active } from "../nav-etat.js?v=20261109k";
-import { estAdresseAttestations } from "../attestations-rules.js?v=20261109k";
-import { renderAttestations } from "./attestations.js?v=20261109k";
+} from "../emargement-feuilles.js?v=20261109o";
+import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261109o";
+import { emargementActif } from "../emargement-etat.js?v=20261109o";
+import { navigationV2Active } from "../nav-etat.js?v=20261109o";
+import { estAdresseAttestations } from "../attestations-rules.js?v=20261109o";
+import { renderAttestations } from "./attestations.js?v=20261109o";
 
 // Horaires par défaut, comme DEFAULT_HALF_META du planning.
 const HORAIRES_DEFAUT = { matin: { debut: "09:00", fin: "12:30" }, aprem: { debut: "13:30", fin: "17:00" } };

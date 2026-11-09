@@ -10,7 +10,7 @@
 // le champ peut finir sur la fenêtre : on le refait après avoir répondu.
 // Testé par tests/confirmer.test.mjs.
 
-import { el } from "./utils.js?v=20261109k";
+import { el } from "./utils.js?v=20261109o";
 
 let compteur = 0;
 

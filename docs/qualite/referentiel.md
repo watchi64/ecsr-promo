@@ -73,7 +73,11 @@ d'usage), livret et dossier pro (1 mise à jour chacun).
 
 - **Avant chaque fusion dans main** : `python outils/robot_parcours.py` (une commande, environ 2 minutes,
   Chromium et WebKit, téléphone et ordinateur, ancienne et nouvelle navigation). Code de sortie 0 = vert,
-  1 = rouge, 2 = le robot n'a pas pu juger (option mal tapée, passage non joué, moteur absent) : ni vert ni rouge.
+  1 = rouge, 2 = le robot n'a pas pu juger (option mal tapée, passage non joué ou non jugé, moteur absent) : ni
+  vert ni rouge. **Ne pas taper au clavier pendant qu'il tourne** : dans WebKit sous Windows, une touche Maj, Ctrl
+  ou Alt tenue sur la machine fausse les touchers du format téléphone (un lien ne s'ouvre plus). Le robot attend
+  un clavier libre avant de toucher et rejoue un passage faussé ; faussé trois fois de suite, le passage est
+  « non jugé » (constat et contrôle du 09/11/2026 : `python outils/controle_toucher.py --clavier`).
   Un échec qui bloque (colonne « Conséquence ») arrête la fusion ; les autres vont dans la liste du lot
   de corrections suivant. Les défauts bloquants déjà présents sur main (voir `echecs-main-2026-11-08.md`)
   sont listés dans `outils/parcours/connus.py` : le rapport les montre à part et ils ne bloquent pas la fusion

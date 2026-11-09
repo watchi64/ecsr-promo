@@ -378,6 +378,30 @@ def livret_epcf(v):
     v.terminer()
 
 
+@parcours("moyennes-epcf-vides", "Lire pourquoi les moyennes EPCF manquent, puis ouvrir mon EPCF", role="stagiaire",
+          budget={"ordinateur": 3, "telephone": 4}, navigations=NOUVELLE)
+def moyennes_epcf_vides(v):
+    """Mon suivi, La classe : sans moyenne EPCF montrable (le banc n'en sert aucune), une carte le dit en une phrase, sans
+    l'avancement réservé à l'équipe ; « Voir mon EPCF » ouvre la partie EPCF de Mon suivi. Le stagiaire du banc n'a
+    aucune épreuve évaluée : sa fiche montre à son tour une carte, dont « Voir mon livret EPCF » ouvre le livret."""
+    v.aller("La classe")
+    carte = "#view .epcf-vide"
+    v.attendre(carte, "la carte des moyennes EPCF vides")
+    if v.voit(carte + " .notes-vide-info"):
+        v.constat("K", BLOQUE, "la carte des moyennes EPCF montre au stagiaire l'avancement réservé à l'équipe", capture=True)
+    v.etape("ouvrir mon EPCF")
+    v.toucher(texte("Voir mon EPCF", carte + " a"), "« Voir mon EPCF »")
+    # Le stagiaire du banc n'a aucune épreuve évaluée : la carte est exigée, et les deux sections vides ne reviennent pas.
+    v.attendre("#view .epcf-fiche-vide", "la carte de ma partie EPCF (aucune épreuve évaluée)")
+    if v.voit("#view .epcf-resti"):
+        v.constat("K", BLOQUE, "la partie EPCF vide montre encore les sections brutes sous la carte", capture=True)
+    v.but("mon EPCF affiché")
+    v.etape("ouvrir mon livret depuis la carte de ma fiche")
+    v.toucher(texte("Voir mon livret EPCF", "#view .epcf-fiche-vide a"), "« Voir mon livret EPCF »", compte=False)
+    v.attendre("#view .lv-doc", "le livret EPCF")
+    v.terminer()
+
+
 @parcours("planning-de-demain", "Voir mon planning de demain", role="stagiaire", budget=2, navigations=NOUVELLE,
           depart="#/home")
 def planning_de_demain(v):
