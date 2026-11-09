@@ -76,6 +76,7 @@ L'application ne collecte ni géolocalisation, ni contacts du téléphone, ni do
 | Date de naissance, souhaits de séances | Oui | Non | Oui | Non |
 | Livret, dossier professionnel, EPCF | Oui | Non | Oui | Oui |
 | Feuilles d'émargement | Oui, votre ligne | Non | Oui | Oui |
+| Réponses aux questionnaires | Votre participation seulement | Non | Non | Résultats regroupés, à partir du seuil ; commentaires libres : personnes chargées de la qualité |
 | Signalements de problème | Oui | Non | Non | Non |
 
 La colonne ECF comprend la présentation, par ECF à son certificateur Qualiopi et à ses financeurs, des documents décrits en section 5.

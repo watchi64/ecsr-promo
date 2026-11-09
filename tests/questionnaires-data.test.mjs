@@ -93,7 +93,13 @@ ok(!/à compter de son départ/.test(CONDITIONS_MD) && /à compter de la fin de 
 ok(!/supprimée avec le compte/.test(ligneDuree) && /à la fin de l'année du questionnaire/.test(ligneDuree),
   "conditions : la note de participation a une date, formateurs compris");
 ok(/dans le mois qui suit/.test(section(10)), "conditions : les effacements se font dans le mois qui suit la date");
-const ligneRegistre = CONDITIONS_MD.split("\n").find((l) => l.startsWith("| Registre qualité"));
+// Points de Q3 tranchés le 09/11 (délégation de Timy) : point 1, tournures sans accord ; point 8, ligne au tableau.
+for (const q of Object.values(QUESTIONNAIRES)) for (const x of q.questions) {
+  ok(!/accompagné|tu es satisfait|t'a aidé|bien préparé/.test(x.texte), `${q.cle}.${x.id} : tournure sans accord de genre`);
+}
+ok(section(4).split("\n").some((l) => l.startsWith("| Réponses aux questionnaires |") && /seuil/.test(l)),
+  "conditions : les questionnaires dans « Qui voit quoi »");
+const ligneRegistre =CONDITIONS_MD.split("\n").find((l) => l.startsWith("| Registre qualité"));
 ok(ligneRegistre && /action décidée/.test(ligneRegistre) && /mesure de prévention/.test(ligneRegistre) && /origine/.test(ligneRegistre),
   "conditions : le registre qualité dit tous les textes vidés et tout ce qui reste (plan Q4)");
 for (const q of Object.values(QUESTIONNAIRES)) {

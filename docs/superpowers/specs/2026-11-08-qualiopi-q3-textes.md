@@ -16,6 +16,22 @@ ci-dessous.
 
 ## Points à trancher
 
+**Arbitrage du 09/11/2026** (Timy : « tranche » ; réponses révisables). Tout reste modifiable jusqu'à la mise en ligne
+sans rien perdre ; après, retoucher une question crée une version 2 du questionnaire, mécanisme déjà prévu.
+
+| Point | Décision | Pourquoi |
+|---|---|---|
+| 1. Masculin | tournures sans accord, déjà dans l'app (retouche Q, section 7) | ni masculin imposé ni point médian à lire au téléphone ; seul moment où c'est gratuit |
+| 2. Questions doubles | une seule question, inchangé | scinder touche la migration et sa preuve à trois semaines de l'ouverture ; une version 2 pourra le faire |
+| 3. Compte de la question facultative | affiché, inchangé | rien sous 5 réponses, aucun nom |
+| 4. Fondateur sans affectation | non proposé, inchangé | Timy se donne une affectation de formateur s'il veut répondre, sans code |
+| 5. Affectation sans fin | acceptée, inchangée | le ménage des affectations relève du lot 5 |
+| 6. Fenêtre sur deux années | acceptée, inchangée | chaque année a son questionnaire |
+| 7. Sigle ECF | **en attente de Timy** | la forme développée ne se devine pas |
+| 8. Ligne au tableau « Qui voit quoi » | ajoutée (retouche R, section 7) | le tableau doit dire seul qui lit quoi |
+| 9. Anonymat | par défaut : limite écrite et engagement de l'éditeur, réponses trois ans | arbitré avec le plan Q5 (question 1) : l'option (b) efface tôt, sans retour |
+| 10. Formateurs sur l'ancienne barre | lien direct envoyé aux formateurs à l'ouverture (message en section 6), app inchangée | aucun code à trois semaines de l'ouverture |
+
 Dix questions restent ouvertes après la construction (relectures du 08 et du 09/11, relecture finale du 09/11). Les
 textes des sections 1, 2 et 6 sont à jour de la relecture finale ; chaque retouche de cette relecture est donnée avant
 et après en section 5. Chaque point dit ce qui est en place par défaut et ce qui changerait. Rien n'est appliqué en base
@@ -102,15 +118,15 @@ avant la réponse de Timy.
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
 4. **L'organisation (plannings, horaires, salles, informations reçues) te convient.** (obligatoire)
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
-5. **Tu as été accompagné quand tu avais une difficulté.** (obligatoire)
+5. **Tu as reçu de l'aide quand tu avais une difficulté.** (obligatoire)
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
 6. **La formation te prépare bien à l'examen et au métier d'enseignant de la conduite.** (obligatoire)
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
 7. **Tu recommanderais cette formation à un proche.** (obligatoire)
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
-8. **Globalement, tu es satisfait de la formation.** (obligatoire, question « globalement » du taux de satisfaction)
+8. **Globalement, la formation te satisfait.** (obligatoire, question « globalement » du taux de satisfaction)
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
-9. **L'application t'a aidé dans ta formation.** (facultative)
+9. **L'application t'a été utile dans ta formation.** (facultative)
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
 10. **Si tu veux ajouter quelque chose, écris-le ici. Ne cite personne : parle de ce que tu as vécu, pas de qui.** (facultative)
    - Réponse : texte libre
@@ -129,9 +145,9 @@ avant la réponse de Timy.
    - Je fais autre chose
 2. **Ce que tu as appris en formation te sert dans ta situation actuelle.** (obligatoire)
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
-3. **Avec le recul, la formation t'a bien préparé au métier.** (obligatoire)
+3. **Avec le recul, la formation t'a donné une bonne préparation au métier.** (obligatoire)
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
-4. **Globalement, avec le recul, tu es satisfait de la formation.** (obligatoire, question « globalement » du taux de satisfaction)
+4. **Globalement, avec le recul, la formation te satisfait.** (obligatoire, question « globalement » du taux de satisfaction)
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
 5. **Si tu veux ajouter quelque chose, écris-le ici. Ne cite personne : parle de ce que tu as vécu, pas de qui.** (facultative)
    - Réponse : texte libre
@@ -153,7 +169,7 @@ avant la réponse de Timy.
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
 5. **Tu disposes des moyens de suivre chaque stagiaire et de l'aider en cas de difficulté.** (obligatoire)
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
-6. **Globalement, tu es satisfait des conditions dans lesquelles la formation se déroule.** (obligatoire, question « globalement » du taux de satisfaction)
+6. **Globalement, les conditions dans lesquelles la formation se déroule te satisfont.** (obligatoire, question « globalement » du taux de satisfaction)
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
 7. **Si tu veux ajouter quelque chose, écris-le ici. Ne cite personne : parle de ce que tu as vécu, pas de qui.** (facultative)
    - Réponse : texte libre
@@ -459,6 +475,10 @@ Proposition, à valider avec le reste (point 10 pour un message aux formateurs) 
 
 > Bonjour à tous ! La formation touche à sa fin et votre avis compte. Un court questionnaire vous attend dans l'app, sur l'Accueil : une dizaine de questions sur la formation, environ trois minutes. Chaque réponse est enregistrée sans nom, sans compte et sans date ; dans l'app, personne ne peut voir qui a répondu quoi, et les résultats ne s'affichent qu'à partir de 5 réponses. Le lien direct : https://watchi64.github.io/ecsr-promo/#/questionnaire/fin_stagiaire Merci d'avance !
 
+Aux formateurs, le même jour (point 10 : ils arrivent sur la page Stagiaires, sans bandeau) :
+
+> Bonjour à tous ! Un court questionnaire sur les conditions dans lesquelles la formation se déroule vous attend dans l'app : six questions, environ deux minutes. Chaque réponse est enregistrée sans nom, sans compte et sans date ; dans l'app, personne ne peut voir qui a répondu quoi, et les résultats ne s'affichent qu'à partir de 3 réponses. Le lien direct : https://watchi64.github.io/ecsr-promo/#/questionnaire/fin_formateur Merci d'avance !
+
 ## 7. Retouches pour la conservation à trois ans (09/11)
 
 Le plan du lot Q5 (`docs/superpowers/plans/2026-11-09-qualiopi-q5-conservation.md`, branche `qualiopi-q4-q5-plans`,
@@ -526,3 +546,25 @@ Avant :
 Après (le plan du lot Q4 vide les quatre textes libres et garde aussi l'origine, la promo et le lieu) :
 
 > | Registre qualité du centre (réclamations, difficultés, aléas, améliorations, risques) | Trois ans après la clôture de l'entrée, puis ses textes (description, réponse, action décidée, mesure de prévention) sont vidés ; le type, l'origine, la promo, le lieu, les dates et l'état restent |
+
+### Retouche Q : questions sans accord de genre (point 1)
+
+| Questionnaire | Avant | Après |
+|---|---|---|
+| Fin de formation, question 5 | Tu as été accompagné quand tu avais une difficulté. | Tu as reçu de l'aide quand tu avais une difficulté. |
+| Fin de formation, question 8 | Globalement, tu es satisfait de la formation. | Globalement, la formation te satisfait. |
+| Fin de formation, question 9 | L'application t'a aidé dans ta formation. | L'application t'a été utile dans ta formation. |
+| Six mois, question 3 | Avec le recul, la formation t'a bien préparé au métier. | Avec le recul, la formation t'a donné une bonne préparation au métier. |
+| Six mois, question 4 | Globalement, avec le recul, tu es satisfait de la formation. | Globalement, avec le recul, la formation te satisfait. |
+| Formateurs, question 6 | Globalement, tu es satisfait des conditions dans lesquelles la formation se déroule. | Globalement, les conditions dans lesquelles la formation se déroule te satisfont. |
+
+Les identifiants et les types ne changent pas : la migration n'est pas touchée, la version reste 1 (aucune réponse
+avant la mise en ligne).
+
+### Retouche R : questionnaires dans « Qui voit quoi » (section 4, point 8)
+
+Ligne ajoutée au tableau (le paragraphe « Questionnaires de satisfaction » sous le tableau est inchangé) :
+
+> | Réponses aux questionnaires | Votre participation seulement | Non | Non | Résultats regroupés, à partir du seuil ; commentaires libres : personnes chargées de la qualité |
+
+Aujourd'hui la base ne montre résultats et commentaires qu'au fondateur ; le lot 5 les ouvrira à la direction du centre.
