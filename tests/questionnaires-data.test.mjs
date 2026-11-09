@@ -99,7 +99,8 @@ for (const q of Object.values(QUESTIONNAIRES)) for (const x of q.questions) {
 }
 ok(section(4).split("\n").some((l) => l.startsWith("| Réponses aux questionnaires |") && /seuil/.test(l)),
   "conditions : les questionnaires dans « Qui voit quoi »");
-const ligneRegistre =CONDITIONS_MD.split("\n").find((l) => l.startsWith("| Registre qualité"));
+ok(CONDITIONS_MD.indexOf("ECF (École de Conduite Française)") === CONDITIONS_MD.indexOf("ECF"), "conditions : sigle ECF développé à sa première apparition");
+const ligneRegistre = CONDITIONS_MD.split("\n").find((l) => l.startsWith("| Registre qualité"));
 ok(ligneRegistre && /action décidée/.test(ligneRegistre) && /mesure de prévention/.test(ligneRegistre) && /origine/.test(ligneRegistre),
   "conditions : le registre qualité dit tous les textes vidés et tout ce qui reste (plan Q4)");
 for (const q of Object.values(QUESTIONNAIRES)) {

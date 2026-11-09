@@ -27,7 +27,7 @@ sans rien perdre ; après, retoucher une question crée une version 2 du questio
 | 4. Fondateur sans affectation | non proposé, inchangé | Timy se donne une affectation de formateur s'il veut répondre, sans code |
 | 5. Affectation sans fin | acceptée, inchangée | le ménage des affectations relève du lot 5 |
 | 6. Fenêtre sur deux années | acceptée, inchangée | chaque année a son questionnaire |
-| 7. Sigle ECF | sigle seul, inchangé (Timy, 09/11) | les stagiaires connaissent l'organisme sous ce nom |
+| 7. Sigle ECF | développé à sa première apparition (retouche S, section 7) | nom tiré des statuts de l'association ECF |
 | 8. Ligne au tableau « Qui voit quoi » | ajoutée (retouche R, section 7) | le tableau doit dire seul qui lit quoi |
 | 9. Anonymat | par défaut : limite écrite et engagement de l'éditeur, réponses trois ans | arbitré avec le plan Q5 (question 1) : l'option (b) efface tôt, sans retour |
 | 10. Formateurs sur l'ancienne barre | lien direct envoyé aux formateurs à l'ouverture (message en section 6), app inchangée | aucun code à trois semaines de l'ouverture |
@@ -568,3 +568,13 @@ Ligne ajoutée au tableau (le paragraphe « Questionnaires de satisfaction » so
 > | Réponses aux questionnaires | Votre participation seulement | Non | Non | Résultats regroupés, à partir du seuil ; commentaires libres : personnes chargées de la qualité |
 
 Aujourd'hui la base ne montre résultats et commentaires qu'au fondateur ; le lot 5 les ouvrira à la direction du centre.
+
+### Retouche S : sigle ECF développé (l'essentiel, ligne 4, point 7)
+
+Avant :
+
+> Personne d'extérieur à la formation n'y accède, à une exception près : ECF peut consulter des résultats nominatifs […]
+
+Après (nom tiré des statuts de l'association, qui possède l'appellation « Ecole de Conduite Française ») :
+
+> Personne d'extérieur à la formation n'y accède, à une exception près : ECF (École de Conduite Française), l'organisme qui assure la formation, peut consulter des résultats nominatifs […]
