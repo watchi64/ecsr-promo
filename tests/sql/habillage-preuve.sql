@@ -150,8 +150,10 @@ begin
   -- 3. Un stagiaire relit sa colonne par la lecture de son profil (RLS).
   r := pg_temp.essai(a, format('select habillage from public.user_profiles where email = %L', a));
   perform pg_temp.verifier('A relit sa colonne par la lecture de son profil', r = 'OK ecf', r);
-  r := pg_temp.essai(a, format('select count(*)::text from public.user_profiles where email = %L', b));
-  perform pg_temp.verifier('A ne voit pas la ligne de B', r = 'OK 0', r);
+  -- Qui lit la ligne d'un autre ne dépend pas de cette migration : c'est la règle de lecture du lot 4
+  -- (user_profiles_lecture), qui laisse un stagiaire lire les profils de sa promo en cours. La colonne
+  -- habillage suit cette règle telle quelle ; la preuve ne la teste donc pas (elle échouerait sur la base
+  -- réelle, où A et B sont de la même promo, alors que le schéma minimal ne garde que la branche « ma ligne »).
 
   -- 4. B choisit ecsr : A reste sur ecf.
   r := pg_temp.essai(b, $q$select public.set_my_habillage('ecsr')$q$);
