@@ -798,6 +798,9 @@ function rendrePartie(panel, partie, d, opts, ctx) {
       moyennes: { salle: moySalle, vehicule: moyVehicule },
       // Les outils du formateur sur la fiche d'un autre ; jamais sur sa propre fiche.
       outils: !soi && isAdmin(),
+      // La carte vide (aucune épreuve évaluée) : au tutoiement sur sa propre fiche, avec le livret s'il est ouvert.
+      soi,
+      livretOuvert: moduleVisible("livret"),
       onEnregistre: (evals) => {
         d.epcfEvals = evals;
         if (opts.onEpcfEnregistre) opts.onEpcfEnregistre(evals);
