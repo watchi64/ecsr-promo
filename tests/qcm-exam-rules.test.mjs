@@ -95,4 +95,19 @@ assert.ok(DUREES_OUVERTURE.every((d) => typeof d.label === "string" && d.label.l
   assert.equal(resumeExamen({ exam_question_ids: [1] }), "1 question · 30 s par question · tirage au hasard");
 }
 
+// --- Finitions du lot C : une échéance qui tombe une autre année porte son année ---
+{
+  const a = (d) => ({ published: true, exam_ferme_a: d.toISOString() });
+  const finDecembre = new Date(2026, 11, 31, 18, 0).getTime();
+  assert.equal(libelleOuverture(a(new Date(2027, 0, 2, 9, 0)), finDecembre), "Ouvert jusqu'au 2 janv. 2027, 9 h 00",
+    "l'année suivante : écrite");
+  assert.equal(libelleOuverture(a(new Date(2026, 11, 31, 23, 59)), finDecembre), "Ouvert jusqu'à 23 h 59",
+    "le jour même : l'heure seule");
+  const novembre = new Date(2026, 10, 9, 14, 0).getTime();
+  assert.equal(libelleOuverture(a(new Date(2026, 11, 20, 8, 30)), novembre), "Ouvert jusqu'au 20 déc., 8 h 30",
+    "plus tard dans l'année en cours : sans l'année");
+  assert.equal(libelleOuverture(a(new Date(2028, 2, 1, 10, 0)), novembre), "Ouvert jusqu'au 1 mars 2028, 10 h 00",
+    "deux ans plus tard : écrite aussi");
+}
+
 console.log("qcm-exam-rules : tous les cas passent");

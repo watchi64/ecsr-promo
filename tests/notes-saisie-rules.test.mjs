@@ -3,7 +3,8 @@
 import assert from "node:assert/strict";
 import {
   parseNoteInput, ciblesDeSaisie, filtrerCibles, derniereNote, avancement, libelleAvancement,
-  origineNote, etatVideNotes, champsDeCible, raisonEchecNote, contexteEtatVide,
+  origineNote, etatVideNotes, champsDeCible, raisonEchecNote, contexteEtatVide, phraseNoteRefusee, etatDeLigne,
+  confirmationEffacement,
 } from "../js/notes-saisie-rules.js";
 
 // --- Lecture d'une saisie : virgule, espaces, conversion X/Y ---
@@ -89,5 +90,62 @@ assert.equal(contexteEtatVide({ classe: false, admin: false, personnel: false })
 assert.equal(contexteEtatVide({ classe: true, admin: true, personnel: true }), "classe-formateur");
 assert.equal(contexteEtatVide({ classe: true, admin: false, personnel: true }), "direction");
 assert.equal(contexteEtatVide({ classe: true, admin: false, personnel: false }), "classe-stagiaire");
+
+// --- Finitions du lot C : une note refusée se dit en une phrase, qui commence par ce qui s'est passé ---
+assert.equal(parseNoteInput("abc").error, "tape une note de 0 à 20, ou par exemple 7/10");
+assert.equal(parseNoteInput("21").error, "la note va de 0 à 20");
+assert.equal(parseNoteInput("-3").error, "la note va de 0 à 20");
+assert.equal(parseNoteInput("12/10").error, "sur 10, la note va de 0 à 10");
+assert.equal(parseNoteInput("3/2,5").error, "sur 2,5, la note va de 0 à 2,5", "virgule française dans la phrase");
+assert.equal(parseNoteInput("7/0").error, "après la barre, il faut un nombre plus grand que 0");
+assert.equal(phraseNoteRefusee("la note va de 0 à 20"), "Note non enregistrée : la note va de 0 à 20.");
+assert.equal(phraseNoteRefusee("la connexion a échoué"), "Note non enregistrée : la connexion a échoué.");
+assert.equal(phraseNoteRefusee("la connexion a échoué", true), "Note non effacée : la connexion a échoué.", "un effacement raté");
+
+// --- Ce que dit la ligne d'un stagiaire après un enregistrement (écran « Saisir ») ---
+const saisieDu = { date_eval: "2026-11-02", note: 12, note_max: 20 };
+const examenDu = { date_eval: "2026-11-06", note: 12, note_max: 20, qcm_attempt_id: 9 };
+const ok = (texte) => ({ texte, erreur: false, reessayer: false });
+assert.deepEqual(etatDeLigne({ etat: "enregistree", note: 14 }, null), ok("Enregistrée"));
+assert.deepEqual(etatDeLigne({ etat: "enregistree", note: 14.5, converti: "29/40" }, null), ok("29/40 converti en 14,5/20"));
+assert.deepEqual(etatDeLigne({ etat: "effacee" }, saisieDu), ok("Note effacée"));
+assert.deepEqual(etatDeLigne({ etat: "gardee" }, examenDu), ok("Examen QCM du 6 nov."), "effacement annulé : l'origine");
+assert.deepEqual(etatDeLigne({ etat: "gardee" }, null), ok(""));
+// Une saisie refusée : une seule phrase, en erreur, sans « Réessayer » (il faut retaper).
+assert.deepEqual(etatDeLigne({ etat: "invalide", message: parseNoteInput("abc").error }, saisieDu),
+  { texte: "Pas enregistrée : tape une note de 0 à 20, ou par exemple 7/10.", erreur: true, reessayer: false });
+assert.equal((etatDeLigne({ etat: "invalide", message: parseNoteInput("abc").error }, null).texte.match(/\./g) || []).length, 1,
+  "une seule phrase (un seul point)");
+// Une connexion perdue : « Réessayer » ; une session expirée ou un droit refusé : réessayer ne servirait à rien.
+assert.deepEqual(etatDeLigne({ etat: "erreur", message: raisonEchecNote(new TypeError("Failed to fetch")) }, null),
+  { texte: "Pas enregistrée : la connexion a échoué.", erreur: true, reessayer: true });
+assert.equal(etatDeLigne({ etat: "erreur", message: raisonEchecNote({ message: "JWT expired" }) }, null).reessayer, false);
+assert.equal(etatDeLigne({ etat: "erreur", message: raisonEchecNote({ code: "42501" }) }, null).reessayer, false);
+// Rien n'a changé (la valeur déjà en base) : la ligne ne bouge pas... sauf si elle disait une erreur, qui part.
+assert.equal(etatDeLigne({ etat: "inchangee" }, examenDu), null, "pas d'erreur affichée : la ligne reste telle quelle");
+assert.deepEqual(etatDeLigne({ etat: "inchangee" }, examenDu, true), ok("Examen QCM du 6 nov."), "l'erreur laisse place à l'origine");
+assert.deepEqual(etatDeLigne({ etat: "inchangee" }, saisieDu, true), ok("Saisie le 2 nov."));
+assert.deepEqual(etatDeLigne({ etat: "inchangee" }, null, true), ok(""), "champ vidé sans note en base : plus rien à dire");
+
+// --- La question avant d'effacer une note (fenêtre de l'app) : qui, combien, où ---
+assert.deepEqual(confirmationEffacement({ qui: "Léa Martin", note: { note: 14, note_max: 20 }, cible: { type: "Thème", theme_numero: 22 } }),
+  { titre: "Effacer la note de Léa Martin ?", phrase: "Sa note de 14/20 au thème 22 disparaît.", oui: "Effacer la note" });
+assert.equal(confirmationEffacement({ qui: "Léa", note: { note: 12.5, note_max: 20 }, cible: { type: "Thème", theme_numero: 46 } }).phrase,
+  "Sa note de 12,5/20 aux thèmes 46 et 47 disparaît.", "un groupe de thèmes évalués ensemble");
+assert.equal(confirmationEffacement({ qui: "Léa", note: { note: 15, note_max: 20 }, cible: { type: "Compétence", competence_code: "MGDE" } }).phrase,
+  "Sa note de 15/20 pour GDE disparaît.", "une compétence : son sigle affiché");
+assert.equal(confirmationEffacement({ qui: "Léa", note: { note: 8, note_max: null }, cible: { type: "Compétence", competence_code: "C1" } }).phrase,
+  "Sa note de 8/20 pour C1 disparaît.", "sans note_max : sur 20");
+assert.deepEqual(confirmationEffacement({ qui: null, note: { note: 9, note_max: 10 }, cible: { type: "Contrôle" } }),
+  { titre: "Effacer cette note ?", phrase: "Cette note de 9/10 disparaît.", oui: "Effacer la note" });
+
+// Une évaluation sans note (« Ajouter une note » accepte une note vide) : la question ne parle pas de « /20 ».
+assert.equal(confirmationEffacement({ qui: "Léa", note: { note: null, note_max: 20 }, cible: { type: "Thème", theme_numero: 22 } }).phrase,
+  "Son évaluation au thème 22 disparaît.");
+assert.equal(confirmationEffacement({ qui: null, note: { note: null }, cible: { type: "Thème", theme_numero: 22 } }).phrase,
+  "Cette évaluation au thème 22 disparaît.");
+// Un effacement qui échoue se dit « Pas effacée » ; « Réessayer » reste offert si la connexion a lâché.
+assert.deepEqual(etatDeLigne({ etat: "erreur", message: raisonEchecNote(new TypeError("Failed to fetch")), effacement: true }, saisieDu),
+  { texte: "Pas effacée : la connexion a échoué.", erreur: true, reessayer: true });
 
 console.log("notes-saisie-rules : OK");

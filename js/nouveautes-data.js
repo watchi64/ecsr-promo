@@ -138,6 +138,19 @@ export const NOUVEAUTES = [
         + "demande une confirmation.",
     ],
   },
+  // Finitions du lot C (relecture du 09/11) : la saisie et l'effacement d'une note.
+  {
+    id: "2026-11-09-notes-finitions",
+    date: "2026-11-09",
+    pour: "formateurs",
+    titre: "Notes : des messages plus clairs, un bouton pour réessayer, une vraie fenêtre pour effacer",
+    resume: "Dans Notes et examens, une note mal tapée se signale en une phrase qui dit quoi taper (« la note va de 0 "
+          + "à 20 »). Si la connexion lâche pendant la saisie, la ligne du stagiaire propose « Réessayer » ; si tu remets "
+          + "la note d'avant, le message d'erreur s'en va. Pour effacer une note, une fenêtre de l'app te demande "
+          + "confirmation, avec le nom du stagiaire et la note. Dans Cours et QCM, l'échéance d'un examen écrit "
+          + "l'année quand elle tombe l'année suivante.",
+    ou: { label: "Notes et examens", route: "notes" },
+  },
   // Lot de corrections 2 (audit du 09/11) : ce que l'app affiche est juste.
   {
     id: "2026-11-09-accueil-plus-juste",

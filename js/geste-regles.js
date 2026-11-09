@@ -15,8 +15,8 @@
  *
  * Toutes les valeurs ci-dessous sont des choix de dessin, sans portée réglementaire.
  */
-import { etapeA } from "./lecteur-anime-regles.js?v=20261109j";
-import { problemeMiseAJour, trouverTous, ecrireValeur } from "./dessin-svg.js?v=20261109j";
+import { etapeA } from "./lecteur-anime-regles.js?v=20261109k";
+import { problemeMiseAJour, trouverTous, ecrireValeur } from "./dessin-svg.js?v=20261109k";
 
 /** Durée minimale d'une étape à l'écran, en secondes (convention des scènes). */
 export const ETAPE_MIN = 1.0;
