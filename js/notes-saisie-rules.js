@@ -6,7 +6,9 @@
 // Parse une saisie de note. Deux formats acceptés :
 //   - "X/Y"  → convertit en (X/Y)*20, arrondi à 0.1, stocke note_max=20.
 //   - "X"    → note sur 20 directe (validé 0..20).
-// Retour : null si vide, { error } si invalide, sinon { note, note_max, converted, original? }.
+// Retour : null si vide, { error } si invalide, sinon { note, note_max, converted, original? }. `error` est la raison du
+// refus, en minuscule et sans point, pour finir une phrase : « Pas enregistrée : <raison>. » (écran « Saisir ») ou
+// phraseNoteRefusee (messages de la matrice, de la fiche d'un stagiaire et de « Ajouter une note »).
 export function parseNoteInput(raw) {
   // Virgule ou point décimal, avec ou sans espaces autour (« 14 , 5 ») : un seul séparateur, le point.
   const s = String(raw ?? "").trim().replace(/\s*[.,]\s*/g, ".");
@@ -14,15 +16,40 @@ export function parseNoteInput(raw) {
   const m = s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
   if (m) {
     const x = Number(m[1]), y = Number(m[2]);
-    if (!(y > 0)) return { error: "Le diviseur doit être supérieur à 0" };
-    if (x < 0 || x > y) return { error: `Note entre 0 et ${y}` };
+    if (!(y > 0)) return { error: "après la barre, il faut un nombre plus grand que 0" };
+    const sur = String(y).replace(".", ",");
+    if (x < 0 || x > y) return { error: `sur ${sur}, la note va de 0 à ${sur}` };
     const note = Math.round((x / y) * 20 * 10) / 10;
     return { note, note_max: 20, converted: true, original: `${m[1]}/${m[2]}` };
   }
   const n = Number(s);
-  if (!isFinite(n)) return { error: "Saisie invalide (attendu : nombre ou X/Y)" };
-  if (n < 0 || n > 20) return { error: "Note entre 0 et 20" };
+  if (!isFinite(n)) return { error: "tape une note de 0 à 20, ou par exemple 7/10" };
+  if (n < 0 || n > 20) return { error: "la note va de 0 à 20" };
   return { note: n, note_max: 20, converted: false };
+}
+
+// Le message d'une note refusée (saisie pas comprise ou écriture en échec), hors de l'écran « Saisir » : une phrase.
+export function phraseNoteRefusee(raison) {
+  return `Note non enregistrée : ${raison}.`;
+}
+
+// La question posée avant d'effacer une note (fenêtre de l'app, js/confirmer.js) : qui, combien, et où (« au thème 22 »,
+// « aux thèmes 46 et 47 », « pour GDE »). `qui` peut manquer (une note sans stagiaire connu).
+export function confirmationEffacement({ qui, note, cible }) {
+  const valeur = `${String(note?.note ?? "").replace(".", ",")}/${note?.note_max ?? 20}`;
+  let ou = "";
+  if (cible?.type === "Thème" && cible.theme_numero != null) {
+    const groupe = THEME_GROUPS.find((g) => g[0] === Number(cible.theme_numero));
+    ou = groupe ? ` aux thèmes ${groupe.slice(0, -1).join(", ")} et ${groupe[groupe.length - 1]}` : ` au thème ${cible.theme_numero}`;
+  } else if (cible?.type === "Compétence" && cible.competence_code) {
+    const col = MATRIX_SPECIAL_COLS.find((c) => c.key === cible.competence_code);
+    ou = ` pour ${col ? col.label : cible.competence_code}`;
+  }
+  return {
+    titre: qui ? `Effacer la note de ${qui} ?` : "Effacer cette note ?",
+    phrase: `${qui ? "Sa" : "Cette"} note de ${valeur}${ou} disparaît.`,
+    oui: "Effacer la note",
+  };
 }
 
 // Colonnes "spéciales" du tableau matrice (en plus des 57 thèmes). `nom` : le libellé en toutes lettres, pour la
@@ -146,14 +173,35 @@ export function etatVideNotes({ nbNotes, contexte }) {
   return e ? { titre: e.titre, phrase: e.phrase, actions: e.actions.slice() } : null;
 }
 
-// La raison d'un échec d'écriture d'une note, en français, pour « Pas enregistrée : <raison>. Réessaie. » : jamais le
-// message brut du réseau ou de la base (« Failed to fetch », « JWT expired »).
+// La raison d'un échec d'écriture d'une note, en français, pour « Pas enregistrée : <raison>. » : jamais le message brut
+// du réseau ou de la base (« Failed to fetch », « JWT expired »). Seule la connexion perdue se réessaie telle quelle.
+const RAISON_CONNEXION = "la connexion a échoué";
 export function raisonEchecNote(erreur) {
   const texte = String(erreur?.message ?? erreur ?? "");
   const code = String(erreur?.code ?? "");
   if (/jwt|not authenticated/i.test(texte) || /^PGRST30[0-3]$/.test(code)) return "ta session a expiré, reconnecte-toi";
   if (code === "42501" || /row-level security|permission denied/i.test(texte)) return "tu n'as pas le droit de modifier cette note";
-  return "la connexion a échoué";
+  return RAISON_CONNEXION;
+}
+
+// Ce que dit la ligne d'un stagiaire de l'écran « Saisir » après un enregistrement (r : le résultat d'enregistrerNote ;
+// avant : la note en place avant l'envoi ; enErreur : la ligne disait une erreur). { texte, erreur, reessayer }, ou null
+// quand la ligne ne change pas. Une note refusée se dit en une phrase ; « Réessayer » n'est offert que si la connexion a
+// lâché (une session expirée ou un droit refusé échoueraient de nouveau). Remettre la note déjà en base efface l'erreur :
+// la ligne redit d'où vient la note.
+export function etatDeLigne(r, avant, enErreur = false) {
+  const net = (texte) => ({ texte, erreur: false, reessayer: false });
+  const origine = () => net(avant ? origineNote(avant) : "");
+  switch (r?.etat) {
+    case "enregistree":
+      return net(r.converti ? `${r.converti} converti en ${String(r.note).replace(".", ",")}/20` : "Enregistrée");
+    case "effacee": return net("Note effacée");
+    case "gardee": return origine();
+    case "inchangee": return enErreur ? origine() : null;
+    case "invalide": return { texte: `Pas enregistrée : ${r.message}.`, erreur: true, reessayer: false };
+    case "erreur": return { texte: `Pas enregistrée : ${r.message}.`, erreur: true, reessayer: r.message === RAISON_CONNEXION };
+    default: return null;
+  }
 }
 
 // Quelle carte vide montrer : `classe` (La classe de Mon suivi, sinon la page Notes), `admin` (écrit des notes),

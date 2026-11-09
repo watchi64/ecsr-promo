@@ -4,6 +4,8 @@
 En fin de fichier, les pages refaites par le lot 2B (« Aujourd'hui », planning en grille, sous-onglets Signalements
 et Propositions IA) : elles n'existent que sous la nouvelle navigation.
 """
+import re
+
 from . import parcours
 from .navigation import SOUS_ONGLET, texte
 from .visite import BLOQUE, LISTE
@@ -153,23 +155,103 @@ def propositions_ia(v):
 # --- Notes et examens (lot C de l'audit du 09/11) ----------------------------------------------------------
 
 
-@parcours("saisir-une-note", "Saisir une note (thème par thème)", role="formateur", budget=3, navigations=NOUVELLE)
-def saisir_une_note(v):
-    """Notes et examens, « Saisir » (la page s'y ouvre sur téléphone), le thème 22, puis 14 dans le champ d'un stagiaire
-    sans note et Tab : « Enregistrée » s'affiche sous son nom."""
+THEME_22 = '#view button.saisie-cible[data-cle="T22"]'
+
+
+def _ouvrir_le_theme_22(v):
+    """Notes et examens, « Saisir » (la page s'y ouvre sur téléphone), puis le thème 22."""
     v.aller("Notes et examens")
     if not v.voit("#view button.saisie-cible"):
         v.etape("ouvrir le sous-onglet « Saisir »")
         v.toucher(texte("Saisir", SOUS_ONGLET), "« Saisir »")
     v.etape("choisir le thème 22")
-    v.toucher('#view button.saisie-cible[data-cle="T22"]', "le thème 22")
-    champ = "#view input.saisie-champ:not([data-note])"
-    v.attendre(champ, "le champ d'un stagiaire sans note")
+    v.toucher(THEME_22, "le thème 22")
+
+
+def _un_stagiaire_sans_note(v):
+    """Le champ d'un stagiaire sans note au thème 22, et sa ligne, par l'identifiant du stagiaire : la ligne reste la même
+    une fois la note posée (le champ prend alors data-note)."""
+    v.attendre("#view input.saisie-champ:not([data-note])", "le champ d'un stagiaire sans note")
+    sid = v.page.locator("#view input.saisie-champ:not([data-note])").first.get_attribute("data-stagiaire-id")
+    champ = '#view input.saisie-champ[data-stagiaire-id="%s"]' % sid
+    return champ, '#view .saisie-ligne:has(input[data-stagiaire-id="%s"])' % sid
+
+
+@parcours("saisir-une-note", "Saisir une note (thème par thème)", role="formateur", budget=3, navigations=NOUVELLE)
+def saisir_une_note(v):
+    """Notes et examens, « Saisir » (la page s'y ouvre sur téléphone), le thème 22, puis 14 dans le champ d'un stagiaire
+    sans note et Tab : « Enregistrée » s'affiche sous son nom. Puis le champ vidé et Tab : la question « Effacer la note
+    de … ? » s'ouvre dans une fenêtre de l'app (une boîte du navigateur serait un défaut), « Effacer la note » : « Note
+    effacée »."""
+    _ouvrir_le_theme_22(v)
+    champ, ligne = _un_stagiaire_sans_note(v)
     v.etape("taper 14, puis passer au champ suivant")
     v.remplir(champ, "14", "le champ de note")
     v.page.keyboard.press("Tab")
-    v.attendre("#view .saisie-etat:has-text(\"Enregistrée\")", "« Enregistrée » sous le nom")
+    v.attendre(ligne + ' .saisie-etat:has-text("Enregistrée")', "« Enregistrée » sous le nom")
     v.but("note enregistrée")
+    v.etape("effacer la note : vider le champ, puis passer au champ suivant")
+    v.remplir(champ, "", "le champ de note")
+    v.page.keyboard.press("Tab")
+    v.attendre('.modal:has-text("Effacer la note de")', "la question « Effacer la note de … ? »")
+    v.toucher(texte("Effacer la note", ".modal button"), "« Effacer la note »", compte=False, ecriture=True)
+    v.attendre(ligne + ' .saisie-etat:has-text("Note effacée")', "« Note effacée » sous le nom")
+    v.terminer()
+
+
+@parcours("saisir-une-note-en-panne", "Saisir une note quand la connexion lâche", role="formateur", budget=3,
+          navigations=NOUVELLE)
+def saisir_une_note_en_panne(v):
+    """« Saisir », le thème 22, et la connexion lâche : 14 et Tab, la ligne dit « Pas enregistrée » et offre
+    « Réessayer ». La connexion revient, « Réessayer » : « Enregistrée », et « Réessayer » disparaît."""
+    _ouvrir_le_theme_22(v)
+    champ, ligne = _un_stagiaire_sans_note(v)
+    v.etape("la connexion lâche : taper 14, puis passer au champ suivant")
+    v.panne()
+    avant = v.messages_visibles()
+    v.remplir(champ, "14", "le champ de note")
+    v.page.keyboard.press("Tab")
+    v.exiger_message("une note qui ne part pas", avant)
+    v.attendre(ligne + ' .saisie-etat:has-text("Pas enregistrée")', "« Pas enregistrée » sous le nom")
+    v.attendre(ligne + " button.saisie-reessayer", "« Réessayer » sur la ligne")
+    v.but("échec dit sur la ligne, avec « Réessayer »")
+    v.etape("la connexion revient : « Réessayer »")
+    v.retablir()
+    v.toucher(ligne + " button.saisie-reessayer", "« Réessayer »", compte=False, ecriture=True)
+    v.attendre(ligne + ' .saisie-etat:has-text("Enregistrée")', "« Enregistrée » après « Réessayer »")
+    if v.voit(ligne + " button.saisie-reessayer"):
+        v.constat("E", BLOQUE, "« Réessayer » reste affiché après un enregistrement réussi", capture=True)
+    v.terminer()
+
+
+@parcours("saisir-puis-retour", "Revenir à la liste pendant qu'une note part", role="formateur", budget=3,
+          navigations=NOUVELLE, banc={"lenteur_ecriture": "600"})
+def saisir_puis_retour(v):
+    """La connexion est lente (0,6 s par écriture). Thème 22 : 14 dans le champ d'un stagiaire sans note, puis « Retour »
+    aussitôt : la liste revient, et l'avancement du thème 22 compte la note quand l'envoi aboutit. Puis la même chose
+    quand l'envoi échoue : un message le dit (la ligne n'est plus à l'écran)."""
+    _ouvrir_le_theme_22(v)
+    champ, _ = _un_stagiaire_sans_note(v)
+    compte = re.match(r"(\d+) sur (\d+)", v.texte("#view .saisie-compteur"))
+    if not compte:
+        v.echec("le compteur du thème 22 ne dit pas « n sur N »")
+    n, total = int(compte.group(1)), int(compte.group(2))
+    v.etape("taper 14, puis « Retour » pendant l'envoi")
+    v.remplir(champ, "14", "le champ de note")
+    v.toucher("#view button.saisie-retour", "« Retour »", compte=False)
+    v.attendre(THEME_22, "la liste des thèmes")
+    v.but("retour à la liste pendant l'envoi")
+    v.attendre(THEME_22 + ' .saisie-cible-avancement:has-text("%d sur %d")' % (n + 1, total),
+               "l'avancement du thème 22 qui compte la note partie")
+    v.etape("rouvrir le thème 22 ; la connexion lâche : 15, puis « Retour » pendant l'envoi")
+    v.toucher(THEME_22, "le thème 22", compte=False)
+    champ, _ = _un_stagiaire_sans_note(v)
+    v.panne()
+    avant = v.messages_visibles()
+    v.remplir(champ, "15", "le champ de note")
+    v.toucher("#view button.saisie-retour", "« Retour »", compte=False)
+    v.exiger_message("une note qui ne part pas après « Retour »", avant)
+    v.retablir()
     v.terminer()
 
 
