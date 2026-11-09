@@ -39,7 +39,7 @@ temps (question 10).
 | Stagiaire | Feuilles d'émargement | jamais effacées : signatures, adresses e-mail et observations gardées sans limite | observations et adresses e-mail effacées à 12 mois ; dessins des signatures effacés à partir du 01/01/2030 ; l'heure, la présence et le total d'heures restent |
 | Stagiaire | Compte, e-mail, date de naissance, fiche de suivi, commentaires des notes, des passages et de l'EPCF | effacés à 12 mois | inchangé |
 | Stagiaire | Commentaire libre écrit dans un questionnaire de satisfaction (nouveau avec les questionnaires) | aucune règle | effacé à 12 mois ; ses notes de 1 à 4 sont gardées jusqu'au 31/12/2029, puis seuls restent les pourcentages de la promo (s'il y a eu au moins 5 réponses) ; après 12 mois, le questionnaire ne peut plus être rouvert |
-| Stagiaire | Demande d'effacement de ses données | il fallait d'abord la déclarer en abandon, ce qui la comptait comme abandon ; ses signatures restaient | tout est effacé tout de suite (dossier, livret, signatures compris), sans la déclarer en abandon ; le dossier de la formation écrit « fiche effacée à la demande de la personne » ; la fiche disparaît du planning, des notes, des dés et des feuilles d'émargement |
+| Stagiaire | Demande d'effacement de ses données | il fallait d'abord la déclarer en abandon, ce qui la comptait comme abandon ; ses signatures restaient | tout est effacé tout de suite (dossier, livret, signatures compris), sans la déclarer en abandon ; le dossier de la formation écrit « fiche effacée à la demande de la personne » ; la fiche disparaît des listes de travail (planning à venir, notes, dés) et des feuilles d'émargement à venir, où elle ne peut plus signer ; sur les feuilles passées, elle reste en « Anonyme » et un numéro, signature effacée, comme preuve de présence |
 | Stagiaire | Fiches anonymisées dans les listes | une fiche anonymisée disparaît des listes (elle passait en abandon) | inchangé à l'écran : une fiche sans nom disparaît des listes, mais elle n'est plus comptée en abandon |
 | Stagiaire | Ce qu'on voit à l'écran | rien | rien de nouveau (sauf une nouvelle acceptation des conditions si une version suivante est nécessaire, partie (b)) |
 | Formateur | Boutons « Anonymiser la promo » et « Effacer les données » des Paramètres | ouverts à l'équipe de la promo | réservés au fondateur, sur la page Qualiopi (question 3) ; Paramètres garde « Réactiver », la purge des élèves bénévoles et une phrase qui dit que la conservation est gérée par le fondateur |
@@ -49,6 +49,7 @@ temps (question 10).
 | Formateur | Son nom et sa signature sur les feuilles d'émargement | gardés sans limite | remplacés par « Formateur 1 », « Formateur 2 »… et dessin effacé, avec l'étape des 3 ans de la promo ; une demande d'effacement d'un formateur n'est pas prévue avant cette date (limite, question 11) |
 | Fondateur | Où gérer la conservation | Paramètres > Données personnelles, promo par promo, un seul bouton à 12 mois | page Qualiopi, section « Conservation des données » : toutes les promos et tous les centres, chaque échéance avec sa date et son bouton |
 | Fondateur | Tableau de bord, dossiers Qualiopi | une promo anonymisée voyait tous ses stagiaires comptés en abandon | le taux d'abandon ne bouge plus ; après 3 ans, les pièces disent « effacé au terme de la durée de conservation » et la satisfaction vient des pourcentages gardés |
+| Fondateur | Fiche effacée à la demande, dans les chiffres | elle passait en abandon | proposition (question 12) : comptée parmi les inscrits, ni « en formation » ni abandon, sur une ligne à part (« effacée à la demande ») ; ses pièces (dossier, livret) ne sont pas comptées comme manquantes, au tableau de bord comme dans le dossier |
 | Fondateur | Registre qualité (lot Q4) | n'existe pas encore | textes vidés 3 ans après la clôture d'une entrée, par le bouton du registre (lot Q4) ; chaque effacement noté au journal des effacements |
 
 **(b) Ce qui demande une nouvelle version des conditions d'utilisation**
@@ -76,7 +77,10 @@ acceptation par chaque compte. Recommandation : faire entrer maintenant les corr
 Registre des traitements (`C:\Users\watch\Dev\ECSR\docs\legal\registre_traitements.md`, autre dépôt) : durée de la section 1
 (« Formation + 12 mois ») remplacée par les deux étapes ; émargement, questionnaires et registre qualité ajoutés s'ils n'y sont
 pas ; procédure « Demandes d'exercice des droits » réécrite (plus d'abandon préalable, bouton sur la page Qualiopi) ; limite
-des formateurs (question 11) ; ligne datée dans « Actions de mise en conformité » (tâche 9).
+des formateurs (question 11) ; limite d'une demande en cours de formation : les stagiaires de la promo, qui lisent les fiches,
+voient la fiche devenir « Anonyme » avant la date des 3 ans et peuvent en déduire une demande (choix : la limite est écrite ;
+pas de nouvelle règle de lecture sur `stagiaires`, que les notes et la confidentialité du 04/10 utilisent, et la fiche disparaît
+de toute façon des listes) ; ligne datée dans « Actions de mise en conformité » (tâche 9).
 
 **Questions ouvertes (réponse par défaut entre parenthèses)**
 
@@ -105,6 +109,9 @@ des formateurs (question 11) ; ligne datée dans « Actions de mise en conformit
     question 4 ; sinon les dates restent fermes et c'est au fondateur de cliquer le jour même).
 11. Un formateur qui demande l'effacement de son nom et de ses signatures sur les feuilles d'émargement : limite écrite au
     registre des traitements (le nom reste jusqu'à l'étape des 3 ans, comme preuve de la formation) ? (oui).
+12. Une fiche effacée à la demande, dans le tableau de bord et les dossiers : comptée parmi les inscrits, ni « en
+    formation » ni abandon, sur une ligne à part, et ses documents effacés ne comptent pas comme manquants ? (oui ; autre
+    choix : la compter comme abandon, mais seule l'équipe décide d'un abandon).
 
 ## Contraintes communes
 
@@ -112,8 +119,9 @@ des formateurs (question 11) ; ligne datée dans « Actions de mise en conformit
   `chr(0x2014)`. « Formateur », jamais « prof » à l'écran. Tutoiement à l'écran, documents impersonnels.
 - Contraste AA, cibles de 44 px, aucun défilement de côté ; l'utilisateur au centre, clair et beau.
 - `actif` n'est jamais écrit par une étape d'effacement (spec § 10) ; l'abandon reste une décision de l'équipe. Les listes de
-  travail (planning, notes, dés, clôture d'une feuille d'émargement) excluent les fiches sans nom (`anonymise_le` posé) ; les
-  indicateurs les comptent.
+  travail (planning à venir, notes, dés, feuille d'émargement ouverte et sa clôture) excluent les fiches sans nom
+  (`anonymise_le` posé), et la base refuse de les faire signer ou annoter ; les affichages du passé (feuilles closes, semaines
+  passées du planning) les gardent en « Anonyme n » ; les indicateurs les comptent.
 - Marques : `efface_le` date l'étape 1 ; `anonymise_le` garde son sens (plus aucun nom) et date l'étape 2 ; la demande se lit
   au journal (`effacements_journal`, type `demande`, lisible du fondateur et de l'équipe seulement), jamais dans une colonne
   de `stagiaires` que toute la promo lit.
@@ -125,7 +133,10 @@ des formateurs (question 11) ; ligne datée dans « Actions de mise en conformit
   n'est pas compté comme « reste à effacer ».
 - Droits : chaque fonction appelable exige `peut_gerer_qualite()` ET l'accès à la promo (`peut_acceder_promo(p_promo)`) ou à
   une promo du lieu, pour que l'élargissement du lot 5 à la direction ne laisse pas un centre effacer un autre. Ordre des lots :
-  ce lot avant le lot 5 (spec § 8). Fonctions internes (`_effacer_etape1`, `_effacer_etape2`, `_questionnaire_rebrasser`,
+  ce lot avant le lot 5 (spec § 8). `etat_conservation()` ne liste que les promos et lieux accessibles. Notes pour le lot 5 :
+  `effacer_registre_qualite` (lot Q4) n'a pas de limite de lieu alors que le registre porte `lieu_id` ; la règle de lecture
+  du journal suit `promo_courante()` et non l'en-tête de lecture d'une autre promo (sans effet pour le fondateur, qui lit tout,
+  mais `lireEffacementsSurDemande(promoId)` ne verrait rien pour une direction). Fonctions internes (`_effacer_etape1`, `_effacer_etape2`, `_questionnaire_rebrasser`,
   `_questionnaire_comptes`, `_questionnaire_effacer_commentaires`, `_questionnaire_figer`) : `revoke all ... from public, anon,
   authenticated, service_role` (Supabase accorde l'exécution par défaut).
 - Questionnaires : aucun droit direct pour les rôles de l'API ; réécriture par lot avec rebrassage, sous le même verrou par
@@ -206,7 +217,9 @@ lecture seule sur la base réelle.
 - Émargement : `emargement_lignes.signature_effacee_le` et `emargement_formateurs.signature_effacee_le` (timestamptz) ; la
   contrainte « tracé, heure et signataire ensemble » (`20261023_emargement.sql` l. 44, nom relevé dans `pg_constraint`) accepte
   un tracé nul quand `signature_effacee_le` est posé ; `emargement_formateurs.trace` devient nullable sous la même condition ;
-  `signe_par` reste obligatoire et vaut `anonyme`, jamais nul. `emargement_clore` (version du 23/10) réécrite : n'ajoute pas
+  `signe_par` reste obligatoire et vaut `anonyme`, jamais nul. `emargement_signer` (version du lot 4, `20261028_roles_2_fonctions.sql` l. 277, qui ne vérifie que `actif`) et
+  `emargement_annoter` (version du 23/10) réécrites : refus d'une fiche sans nom (« emargement: Stagiaire introuvable dans
+  cette promo. »). `emargement_clore` (version du 23/10) réécrite : n'ajoute pas
   d'absence aux fiches sans nom.
 - `effacements_journal.type` accepte en plus `etape1`, `etape2`, `demande`, `questionnaires`, `registre`.
 - `_effacer_etape1(p_id integer) returns jsonb` : ce que fait `_anonymiser_stagiaire`, SAUF suppression du dossier
@@ -225,9 +238,10 @@ lecture seule sur la base réelle.
   du JJ/MM/AAAA. » ; comptes d'équipe ignorés et comptés ; une ligne de journal par appel effectif (cible « promo n » ou
   « stagiaire n », jamais un nom).
 - Retour : réversible seulement avant toute étape. Il commence par refuser (exception) dès qu'une ligne de type `etape1`,
-  `etape2`, `demande` ou `questionnaires` est au journal ou qu'une portée est figée ; sinon il recrée les quatre fonctions à
-  l'identique (`_anonymiser_stagiaire` avec le `revoke` de `20261005_effacement_donnees.sql` l. 134), les contraintes et la
-  fonction `emargement_clore` d'origine. Procédure écrite en tête : retirer d'abord le commit de l'app, puis jouer le retour.
+  `etape2`, `demande`, `questionnaires` ou `registre` est au journal ou qu'une portée est figée ; sinon il recrée les quatre
+  fonctions à l'identique (`_anonymiser_stagiaire` avec le `revoke` de `20261005_effacement_donnees.sql` l. 134), les
+  contraintes, `emargement_signer` (version du lot 4), `emargement_annoter` et `emargement_clore` (versions du 23/10), et les
+  fonctions des tâches 3 et 4 dans leurs versions Q3 et Q4. Procédure écrite en tête : retirer d'abord le commit de l'app, puis jouer le retour.
 - Anciennes preuves : `effacement-preuve.sql` est remplacée par la preuve de ce lot (en-tête : historique, à ne plus jouer après
   ce lot) ; dans `roles-preuve.sql`, les quatre cas des l. 1819 à 1838 passent sur `effacer_sur_demande` et
   `effacer_promo_etape1` pour le mode « en-ligne » (mêmes attentes), et l'en-tête dit que le mode répétition, qui rejoue l'étape 2
@@ -241,7 +255,8 @@ lecture seule sur la base réelle.
   libres et observations d'émargement absents, nom, dossier, livret et tracés présents, `actif` inchangé (vrai et faux) ; étape 2
   refusée le 31/12 de la 3ᵉ année, acceptée le 01/01 ; après, plus de nom, de dossier, de livret ni de tracé, `signe_le` et
   présences intacts, `actif` inchangé ; feuille à deux formateurs ; étape 2 sur une fiche sans étape 1 ; second appel sans effet
-  ni journal ; compte d'équipe ignoré ; demande sur une fiche active ; feuille close après une demande : pas d'absence ajoutée ;
+  ni journal ; compte d'équipe ignoré ; demande sur une fiche active ; après une demande, signature et annotation de la fiche
+  refusées sur une feuille ouverte, et feuille close sans absence ajoutée ;
   formateur, stagiaire, fondateur en aperçu et direction d'un autre centre refusés ; promo sans date refusée ; date de fin
   déplacée après l'étape 1 : rien n'est défait ; `emargement.effacement` vide après chaque fonction ; journal sans nom ni e-mail ;
   retour refusé après une étape. Contre-épreuves : chaque garde retirée tour à tour (date, droit, lieu, équipe, `actif` écrit,
@@ -270,7 +285,10 @@ lecture seule sur la base réelle.
 - `resultats_questionnaire` réécrite (même signature) : la ligne figée si elle existe (`fige: true, fige_le`), sinon le calcul
   vivant ; `satisfactionDe` (Q3b) la lit sans changement. `repondre_questionnaire` réécrite (même signature) : appelle
   `_questionnaire_rebrasser`, écrit `stagiaire_id`. `_questionnaire_ouvert` réécrite : fermée, ouverture manuelle comprise, à
-  partir de la date de l'étape 1 de la promo (stagiaires) ; `ouvrir_questionnaire` refuse alors l'ouverture.
+  partir de la date de l'étape 1 de la promo (stagiaires), et pour une année de formateurs dont la clôture est faite (la
+  manuelle ne prime plus, ce qui retire aussi l'année de `questionnaires_a_remplir`, l. 306) ; `ouvrir_questionnaire` refuse
+  alors l'ouverture. La clôture est notée par portée (journal de type `questionnaires` et table ou colonne au choix du
+  constructeur, lue par `_questionnaire_ouvert`).
 - `questionnaire_participations` : `stagiaire_id integer references stagiaires(id) on delete cascade` (rempli depuis
   `user_profiles`, une ligne par fiche si l'étape 0 a trouvé des doublons), unique (cle, promo_id, stagiaire_id) pour les clés des
   stagiaires ; `user_id` passe en `on delete set null` et l'unicité existante (`nulls not distinct`) ne porte plus que sur les
@@ -285,7 +303,8 @@ lecture seule sur la base réelle.
   ouverture manuelle et envoi refusés après la date de l'étape 1 ; 4 réponses figées → aucun compte, marque sous le seuil ; 5 →
   comptes égaux à ceux d'avant ; formateurs 2 et 3 ; après figeage, `resultats_questionnaire` rend la ligne figée, réponses et
   participations de la portée absentes ; compte supprimé puis recréé sur la même fiche : deuxième réponse refusée ;
-  participations des formateurs refusées à effacer le 31/12 de l'année, acceptées le 01/01 ; second effacement ou second figeage
+  participations des formateurs refusées à effacer le 31/12 de l'année, acceptées le 01/01 ; après la clôture d'une année,
+  ouverture manuelle de cette année refusée, rien proposé, envoi refusé (pas de deuxième réponse) ; second effacement ou second figeage
   sans effet ni journal ; aucune lecture directe de la table figée ; contre-épreuves (seuil, rebrassage, verrou, date retirés).
 - [ ] **Étape 2 : adapter la preuve Q3** : les colonnes attendues des participations (l. 285 à 288) deviennent
   `annee,cle,lieu_id,promo_id,stagiaire_id,user_id`, le cas « aucune colonne commune hors portée » reste ; la fiche X anonymisée
@@ -306,8 +325,11 @@ textes » et le rappel en tête de la page Qualiopi. Cette tâche part de ce qui
   « registre », nombre d'entrées) quand elle vide au moins une entrée.
 - Si Timy répond à la question 5 qu'une entrée jamais close doit être vidée : retouche du déclencheur et de la fonction du lot Q4
   (entrée ouverte dont la date d'entrée a plus de 3 ans), preuve et conditions dans le même commit.
-- [ ] **Étapes** : preuve (journal écrit une fois, rien avant l'échéance, droits), code, VERT, commit « Conservation : journal du
-  registre qualité ».
+- Retour : `registre` fait partie des types qui le font refuser (tâche 2) ; avant tout effacement, il recrée la version Q4 de
+  `effacer_registre_qualite` (et du déclencheur s'il a été retouché).
+- [ ] **Étapes** : preuve (journal écrit une fois, rien avant l'échéance, droits, retour refusé après un effacement du registre),
+  code, VERT ; preuve du lot Q4 rejouée sur la base où ce lot est appliqué (VERT attendu, nombre de cas noté) ; commit
+  « Conservation : journal du registre qualité ».
 
 ### Tâche 5 (seulement si Timy retient l'option (b) de la question 1) : liste « qui a répondu » effacée à la fermeture
 
@@ -326,7 +348,9 @@ textes » et le rappel en tête de la page Qualiopi. Cette tâche part de ce qui
 `effacerSurDemande(stagiaireId)`, `cloreAnneeFormateurs(lieuId, annee)`, `effacerCommentairesFormateurs(lieuId, annee)`,
 `figerQuestionnaireFormateurs(lieuId, annee)`, `lireEffacementsSurDemande(promoId)` → `Set` d'identifiants de fiche (journal,
 type `demande`) ; erreurs « conservation: » rendues en phrase lisible ; `anonymiserStagiaire`, `anonymiserPromo`,
-`etatAnonymisationPromo` retirées ; `listStagiaires` (liste active) exclut `anonymise_le` posé ; `lireDonneesCentre` lit en plus
+`etatAnonymisationPromo` retirées ; `listStagiaires` (liste active) exclut `anonymise_le` posé ; les chargements avec
+`includeInactive` (`js/views/emargement.js` l. 65, `js/planning-lecture.js` l. 33) gardent les fiches sans nom pour le passé, et
+chaque liste de choix qu'ils alimentent (dés, placement, feuille ouverte) les retire ; `lireDonneesCentre` lit en plus
 `efface_le` ; commentaire de `listEmargementPresences` (l. 1952) : une ligne est signée quand `signe_le` est posé, même si le
 dessin est effacé.
 - [ ] **Étapes** : écrire, `node --check js/db.js`, suite `node --test tests/` verte, commit « Conservation : lecture et actions ».
@@ -348,14 +372,20 @@ fondateur, sur la page Qualiopi. », avec un lien pour le fondateur seulement. E
 ### Tâche 8 : indicateurs, dossiers et feuilles d'émargement lisent les marques
 
 **Fichiers :** modifier `js/emargement-rules.js` (`etatLigne` l. 99 et `minutesPresence` l. 285 : signé quand `signe_le` est
-posé, ou le tracé, ou `signature_effacee_le`), `js/emargement-feuilles.js` et `js/views/emargement.js` (« Signature effacée (durée
-de conservation) » à la place du dessin), `js/qualiopi-documents.js` (statut par `statutFiche`, demande lue au journal),
-`js/qualiopi-preuves.js` (pièces `dossierPro` et `evaluations` : après l'étape 2, raison fixe « effacé au terme de la durée de
-conservation », jamais « aucun dossier enregistré » ; satisfaction figée lue comme la vivante), `js/centre-stats.js` (phrase de
-méthode de l'abandon : seule la décision de l'équipe compte), et leurs tests.
+posé, ou le tracé, ou `signature_effacee_le` ; `stagiairesDeFeuille` l. 40 : une feuille ouverte ne liste pas une fiche sans
+nom, une feuille close garde ses lignes), `js/emargement-feuilles.js` et `js/views/emargement.js` (« Signature effacée (durée
+de conservation) » à la place du dessin), `js/centre-stats.js` (`indicateursPromo(donnees, referentiel, { aujourdhui, demandes })`,
+`demandes` : le `Set` de `lireEffacementsSurDemande` ; une fiche de `demandes` est comptée parmi les inscrits, ni en formation ni
+en abandon, avec `effectif.detail.surDemande` ; phrase de méthode de l'abandon : seule la décision de l'équipe compte),
+`js/qualiopi-preuves.js` (même `Set` dans `donnees.demandes` : les pièces `dossierPro` et `evaluations` ne comptent pas ces fiches
+comme manquantes ; après l'étape 2, raison fixe « effacé au terme de la durée de conservation », jamais « aucun dossier
+enregistré » ; satisfaction figée lue comme la vivante), `js/qualiopi-documents.js` (statut par `statutFiche`, même `Set`), et
+leurs tests. Si Timy répond autrement à la question 12, seule la règle de comptage de `indicateursPromo` change.
 - [ ] **Étapes** : tests (heures intactes après l'étape 2 : `minutesPresence` et total de la feuille imprimée égaux avant et
-  après ; promo effacée à l'étape 1 : abandons inchangés ; étape 2 : pièces et statut ; demande : phrase exacte ; aucune fuite de
-  nom dans la version sans noms), code, vert, commit « Qualiopi et émargement : marques de conservation ».
+  après ; feuille ouverte sans la fiche effacée à la demande, feuille close qui la garde en « Anonyme n » ; promo effacée à
+  l'étape 1 : abandons inchangés ; étape 2 : pièces et statut ; demande : même effectif au tableau de bord et au dossier,
+  pièce non manquante, phrase exacte ; aucune fuite de nom dans la version sans noms), code, vert, commit « Qualiopi et
+  émargement : marques de conservation ».
 
 ### Tâche 9 : conditions, registre des traitements, rappel, notes
 
