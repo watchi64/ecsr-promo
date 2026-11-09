@@ -8678,7 +8678,7 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .promo-avancement { align-items: center; }
 .promo-barre { flex: 1 1 6rem; min-width: 5rem; height: 0.55rem; border-radius: 999px; background: var(--bg-soft); overflow: hidden; display: block; }
 .promo-barre-remplie { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
-.promo-pct { font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-soft); white-space: nowrap; }
+.promo-pct { font-family: var(--font); font-variant-numeric: tabular-nums; font-size: 0.82rem; color: var(--text-soft); white-space: nowrap; }
 .promo-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.35rem; }
 .promo-actions .btn { min-height: 44px; }
 .promo-modules { grid-column: 1 / -1; min-width: 0; }
