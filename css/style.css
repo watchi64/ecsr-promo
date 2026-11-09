@@ -2565,6 +2565,22 @@ body.p-dragging-active {
   border-bottom: 1px solid var(--line);
 }
 
+/* Lecture des cours ou des QCM en échec : le message et « Réessayer », à la ligne si l'écran est étroit. */
+.lecture-echec {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--c-wait-soft);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  color: var(--text);
+}
+.lecture-echec p { margin: 0; flex: 1 1 14rem; }
+.lecture-echec .btn { min-height: 44px; }
+
 .theme-pill {
   display: inline-flex;
   align-items: center;

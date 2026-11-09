@@ -9,13 +9,13 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance } from "../db.js?v=20261109a";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261109a";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109a";
-import { getCurrentWho } from "../identity.js?v=20261109a";
-import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261109a";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261109d";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261109d";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109d";
+import { getCurrentWho } from "../identity.js?v=20261109d";
+import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261109d";
 import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261109a";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261109d";
 
 // Noms historiques conservés : main.js et le banc d'essai _preview_livret.html
 // les importent depuis ce module. La mécanique vit désormais dans doc-officiel.js,
@@ -307,7 +307,16 @@ export async function renderEpcfLivret(container, opts = {}) {
         "Ton livret officiel EPCF n'a pas encore été créé par les formateurs."));
       return;
     }
-    showDoc(container, null, mine, { readOnly: true });
+    // Son identité, comme chez le formateur : sans sa fiche, Nom, Prénom et Date de naissance restaient vides tant que le
+    // formateur ne les avait pas enregistrés, alors que Mon suivi annonce la date « reportée automatiquement » (audit du
+    // 09/11, A4). Une fiche illisible laisse le livret tel qu'enregistré ; le livret d'un autre (repli de l'aperçu du
+    // fondateur, sans livret à lui) ne reçoit jamais son identité.
+    let fiche = null;
+    if (myId != null && mine.stagiaire_id === myId) {
+      fiche = await getStagiaire(myId).catch((e) => { console.error(e); return null; });
+      if (opts.isActive && !opts.isActive()) return;
+    }
+    showDoc(container, fiche, mine, { readOnly: true });
     return;
   }
 

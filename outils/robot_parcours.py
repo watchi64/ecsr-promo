@@ -4,7 +4,7 @@
 
 Usage
 -----
-    python outils/robot_parcours.py                      # tout : environ 2 minutes
+    python outils/robot_parcours.py                      # tout : environ 3 minutes
     python outils/robot_parcours.py --parcours passer-un-qcm,lire-un-cours --moteurs chromium
     python outils/robot_parcours.py --liste              # les parcours connus, sans rien jouer
 

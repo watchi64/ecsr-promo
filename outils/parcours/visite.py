@@ -191,6 +191,23 @@ JS_ATTENDRE_CALME = r"""
 })
 """
 
+# Le journal des messages du bas (#toast) : l'app n'a qu'une place pour eux, un message en remplace un autre. Chaque
+# texte affiché est noté avec son heure, à partir de l'appel (ce qui était déjà à l'écran n'y entre pas).
+JS_ECOUTER_MESSAGES = r"""() => {
+  window.__robotToasts = [];
+  const n = document.getElementById('toast');
+  if (!n || window.__robotToastObs) return;
+  const noter = () => {
+    const x = (n.textContent || '').replace(/\s+/g, ' ').trim();
+    if (n.classList.contains('hidden') || !x) return;
+    const d = window.__robotToasts;
+    if (!d.length || d[d.length - 1].texte !== x) d.push({ t: Math.round(performance.now()), texte: x });
+  };
+  window.__robotToastObs = new MutationObserver(noter);
+  window.__robotToastObs.observe(n, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+}"""
+REMPLACE_MS = 1500   # une confirmation remplacée plus tôt que cela n'a pas pu être lue
+
 # Les messages visibles : alertes, puis lignes qui parlent d'échec dans la page (#view) et dans les fenêtres ouvertes.
 JS_MESSAGES = r"""() => {
   const affiche = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
@@ -482,6 +499,40 @@ class Visite:
             self.page.wait_for_timeout(150)
         self.constat(critere, gravite, "%s : aucun message d'échec en 2 s" % quoi, capture=True)
         return False
+
+    # --- confirmation d'un geste (message du bas) ----------------------------------------------------
+    def ecouter_messages(self):
+        """À poser juste avant le geste à confirmer : le journal des messages du bas repart de zéro."""
+        self.page.evaluate(JS_ECOUTER_MESSAGES)
+
+    def _journal(self):
+        try:
+            return self.page.evaluate("() => window.__robotToasts || []")
+        except ErreurPlaywright:
+            return []
+
+    def exiger_confirmation(self, quoi, contient, delai=4000):
+        """Après le geste, un message du bas qui contient `contient` doit paraître (critère E, bloque). Il ne suffit
+        pas de lire le message à l'écran : un autre (une annonce de démarrage) peut l'avoir remplacé. On lit le
+        journal ; une confirmation remplacée en moins de 1,5 s est notée (critère E, listé)."""
+        cle = contient.lower()
+        fin = time.time() + delai / 1000
+        journal = self._journal()
+        while not any(cle in m["texte"].lower() for m in journal):
+            if time.time() > fin:
+                vus = " / ".join("« %s »" % m["texte"][:70] for m in journal) or "aucun"
+                self.constat("E", BLOQUE, "après %s, aucun message ne confirme (messages vus : %s)" % (quoi, vus), capture=True)
+                return False
+            self.page.wait_for_timeout(150)
+            journal = self._journal()
+        i = next(k for k, m in enumerate(journal) if cle in m["texte"].lower())
+        self.page.wait_for_timeout(REMPLACE_MS + 100)
+        journal = self._journal()
+        apres = [m for m in journal[i + 1:] if cle not in m["texte"].lower() and m["t"] - journal[i]["t"] < REMPLACE_MS]
+        if apres:
+            self.constat("E", LISTE, "la confirmation de %s est remplacée en moins de 1,5 s par un autre message (« %s »)"
+                         % (quoi, apres[0]["texte"][:70]), capture=True)
+        return True
 
     # --- sorties (impasses) --------------------------------------------------------------------------
     def fermer_par_echap(self, fenetre, quoi):

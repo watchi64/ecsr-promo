@@ -6,22 +6,23 @@
  * Une lecture qui revient après le départ de la page écrit dans un nœud détaché (isConnected) : rien n'est repeint.
  */
 import {
-  listAgendaEvents, getPromoCourante, listQcmIndex, listMyQcmAttempts, listThemes, getDpDossier, getEpcfLivret,
-} from "../db.js?v=20261109a";
-import { el, clear } from "../utils.js?v=20261109a";
-import { icon } from "../icons.js?v=20261109a";
-import { getProfileWho, monStagiaireId } from "../auth-admin.js?v=20261109a";
-import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261109a";
-import { carteNouveaute } from "./nouveautes.js?v=20261109a";
-import { prenomDe } from "../nav-rules.js?v=20261109a";
-import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe } from "../accueil-rules.js?v=20261109a";
-import { journeeDuJour } from "../journee-rules.js?v=20261109a";
-import { effSujets, sujetsDe } from "../planning-roles.js?v=20261109a";
-import { exemplesRemplis } from "../dp-rules.js?v=20261109a";
-import { heureLocale } from "../emargement-rules.js?v=20261109a";
-import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261109a";
-import { ouvrirSignalement } from "../signalement.js?v=20261109a";
-import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261109a";
+  listAgendaEvents, getPromoCourante, listQcmIndex, listMyQcmAttempts, listThemes, getDpDossier,
+} from "../db.js?v=20261109d";
+import { el, clear } from "../utils.js?v=20261109d";
+import { icon } from "../icons.js?v=20261109d";
+import { getProfileWho, monStagiaireId, getProfile, getViewAs } from "../auth-admin.js?v=20261109d";
+import { libelleConnexion } from "../roles-rules.js?v=20261109d";
+import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261109d";
+import { carteNouveaute } from "./nouveautes.js?v=20261109d";
+import { prenomDe } from "../nav-rules.js?v=20261109d";
+import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi } from "../accueil-rules.js?v=20261109d";
+import { journeeDuJour } from "../journee-rules.js?v=20261109d";
+import { effSujets, sujetsDe } from "../planning-roles.js?v=20261109d";
+import { exemplesRemplis } from "../dp-rules.js?v=20261109d";
+import { heureLocale } from "../emargement-rules.js?v=20261109d";
+import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261109d";
+import { ouvrirSignalement } from "../signalement.js?v=20261109d";
+import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261109d";
 
 const RELECTURE_SEANCES_MS = 60000;
 
@@ -100,9 +101,12 @@ function dessinerJournee(corps, etat, relirePlanning, redessiner) {
     if (!planningRempli && !sign) return null;
     const cartes = plan ? plan.cartes : [];
     const horaire = plan ? plan.horaire : (seance ? horaireDeSeance(seance) : "");
+    // Aucune carte ne le nomme : la rangée le lui dit avant les activités des autres (audit du 09/11, A3).
+    const sansPlace = sansPlaceDansLaDemi({ demi, cartes, moi });
     return el("div", { class: "acc-creneau", "data-demi": demi },
       el("div", { class: "acc-quand" }, el("b", {}, DEMI[demi].titre), horaire ? el("span", {}, horaire) : null),
       el("div", { class: "acc-quoi" },
+        sansPlace ? el("p", { class: "muted acc-sans-place" }, sansPlace) : null,
         cartes.length ? cartes.map(rangeeCarte) : (journee && !journee.repos ? el("p", { class: "muted" }, "Rien de prévu au planning.") : null),
         sign,
       ),
@@ -163,7 +167,7 @@ async function chargerJournee(corps, jour, indexJour, semaine, moi) {
 // === À faire ===
 
 function ligneAFaire(l) {
-  const ico = l.cle === "dossier" ? "clipboard" : l.cle === "livret" ? "book" : "quiz";
+  const ico = l.cle === "dossier" ? "clipboard" : "quiz";
   return ligneLien({ route: l.route, sousOnglet: l.sousOnglet, ico, titre: l.titre, detail: l.detail });
 }
 
@@ -173,14 +177,13 @@ async function chargerAFaire(corps, indexJour, semaine, moi) {
     if (corps.isConnected) { clear(corps); corps.appendChild(el("p", { class: "muted" }, "Rien à faire pour le moment.")); }
     return;
   }
-  const modules = { qcm: moduleVisible("qcm"), dp: moduleVisible("dp"), livret: moduleVisible("livret") };
+  const modules = { qcm: moduleVisible("qcm"), dp: moduleVisible("dp") };
   const lire = (ouvert, lecture) => (ouvert ? lecture() : Promise.resolve(null));
-  const [qcm, themes, tentatives, dossier, livret, lecturePlanning] = await Promise.allSettled([
+  const [qcm, themes, tentatives, dossier, lecturePlanning] = await Promise.allSettled([
     lire(modules.qcm, listQcmIndex),
     lire(modules.qcm, listThemes),
     lire(modules.qcm, listMyQcmAttempts),
     lire(modules.dp, () => getDpDossier(moi)),
-    lire(modules.livret, () => getEpcfLivret(moi)),
     // Les thèmes de la semaine ne servent qu'aux QCM : pas de lecture du planning si le module est fermé.
     lire(modules.qcm && routeVisible("planning"), () => semaine()),
   ]);
@@ -198,7 +201,6 @@ async function chargerAFaire(corps, indexJour, semaine, moi) {
     qcm: valeur(qcm) || [], themes: valeur(themes) || [], tentatives: valeur(tentatives) || [],
     sujetsDeLaSemaine,
     exemplesDossier: dossier.status === "fulfilled" && modules.dp ? exemplesRemplis(dossier.value?.data) : null,
-    livretCommence: livret.status === "fulfilled" && modules.livret ? !!livret.value : null,
     modules, now: Date.now(),
   });
 
@@ -208,9 +210,9 @@ async function chargerAFaire(corps, indexJour, semaine, moi) {
     return;
   }
   // Rien à montrer : « tout est fait » seulement si rien n'a échoué.
-  const echec = [qcm, themes, tentatives, dossier, livret].some((r) => r.status === "rejected");
+  const echec = [qcm, themes, tentatives, dossier].some((r) => r.status === "rejected");
   if (echec) {
-    console.error("Accueil : lecture de l'à-faire incomplète", [qcm, themes, tentatives, dossier, livret].filter((r) => r.status === "rejected").map((r) => r.reason));
+    console.error("Accueil : lecture de l'à-faire incomplète", [qcm, themes, tentatives, dossier].filter((r) => r.status === "rejected").map((r) => r.reason));
   }
   corps.appendChild(el("p", { class: echec ? "acc-erreur" : "muted", role: echec ? "alert" : null },
     echec ? "Ton à-faire n'a pas pu être lu en entier. Recharge la page pour réessayer." : "Rien à faire pour le moment."));
@@ -295,7 +297,8 @@ export function renderAccueilStagiaire(container) {
 
   const nomPromo = getPromoCourante()?.nom || "";
   container.appendChild(el("footer", { class: "home-footer-v2" },
-    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" }, "connecté comme stagiaire")),
+    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" },
+      "connecté comme " + (libelleConnexion({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() }) || "stagiaire"))),
     el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
       el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank", rel: "noopener" }, "code source")),
   ));
