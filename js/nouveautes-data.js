@@ -166,8 +166,8 @@ export const NOUVEAUTES = [
   },
   // Les confirmations dans une fenêtre de l'app (lot A : examen, planning, bénévoles, modules, ressources...).
   {
-    id: "2026-11-09-confirmations-dans-l-app",
-    date: "2026-11-09",
+    id: "2026-11-10-confirmations-dans-l-app",
+    date: "2026-11-10",
     pour: "tous",
     titre: "Des confirmations plus lisibles",
     resume: "Quand l'app te demande de confirmer un geste (quitter ou terminer un examen, supprimer, vider les "

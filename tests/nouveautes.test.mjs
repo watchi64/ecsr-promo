@@ -227,7 +227,7 @@ const CORRECTIONS = ["2026-11-09-qcm-echap-et-pannes", "2026-11-09-accueil-plus-
   "2026-11-09-notes-saisir-examens",   // saisie thème par thème et examen depuis la liste (lot C de l'audit)
   "2026-11-09-notes-finitions",   // finitions du lot C : messages d'une note refusée, « Réessayer », fenêtre d'effacement
   "2026-11-09-moyennes-epcf-vides",   // moyennes EPCF de la classe vides : une carte (suite du lot C)
-  "2026-11-09-confirmations-dans-l-app"];   // confirmations dans une fenêtre de l'app (lot A des boîtes du navigateur)
+  "2026-11-10-confirmations-dans-l-app"];   // confirmations dans une fenêtre de l'app (lot A des boîtes du navigateur)
 // Le lot 3 (les couleurs d'ECF) peut porter la même date : il ne fait pas partie du lot 2B non plus.
 const DU_LOT_3 = NOUVEAUTES.filter((e) => e.id.endsWith("-couleurs-ecf")).map((e) => e.id);
 const QUESTIONNAIRES_ID = "2026-11-09-questionnaires-anonymes";
@@ -247,9 +247,12 @@ eq(DU_LOT(triees(visibles(NOUVEAUTES, true, false))), [coursTel.id], "formateur,
 // « La plus récente » du lot se juge sans les questionnaires anonymes, mis en ligne le même jour et placés en tête du
 // fichier : ce sont eux que montre désormais la carte « Nouveauté » de l'Accueil, dans les deux navigations.
 const JUSQU_AU_LOT = (l) => l.filter((e) => e.date <= JOUR && e.id !== QUESTIONNAIRES_ID);
+// Une Nouveauté d'un jour suivant (les confirmations dans l'app, 10/11) passe devant, comme le vérificateur le prévoit :
+// parmi celles datées jusqu'au jour du lot, la plus récente reste celle des questionnaires.
+const JUSQU_AU_JOUR = (l) => l.filter((e) => e.date <= JOUR);
 for (const [formateur, v2] of [[false, false], [false, true], [true, false], [true, true]]) {
-  eq(ids(triees(visibles(NOUVEAUTES, formateur, v2)))[0], QUESTIONNAIRES_ID,
-    `la plus récente est celle des questionnaires (${formateur ? "formateur" : "stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"})`);
+  eq(ids(triees(JUSQU_AU_JOUR(visibles(NOUVEAUTES, formateur, v2))))[0], QUESTIONNAIRES_ID,
+    `jusqu'au jour du lot, la plus récente est celle des questionnaires (${formateur ? "formateur" : "stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"})`);
 }
 eq(ids(triees(JUSQU_AU_LOT(visibles(NOUVEAUTES, false, true))))[0], journee.id, "stagiaire, nouvelle navigation : la plus récente est la journée");
 eq(ids(triees(JUSQU_AU_LOT(visibles(NOUVEAUTES, false, false))))[0], coursTel.id, "ancienne navigation : la plus récente est celle des cours");
