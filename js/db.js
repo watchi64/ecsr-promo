@@ -1,13 +1,13 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261109m";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261109m";
-import { compteDansEquite } from "./passage-rules.js?v=20261109m";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261109m";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261109m";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261109o";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261109o";
+import { compteDansEquite } from "./passage-rules.js?v=20261109o";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261109o";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261109o";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261109m";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261109m";
+} from "./promo-rules.js?v=20261109o";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261109o";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
