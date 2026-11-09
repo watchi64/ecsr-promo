@@ -347,7 +347,7 @@ textes » et le rappel en tête de la page Qualiopi. Cette tâche part de ce qui
 **Interfaces :** `lireEtatConservation()`, `effacerPromoEtape1(promoId)`, `effacerPromoEtape2(promoId)`,
 `effacerSurDemande(stagiaireId)`, `cloreAnneeFormateurs(lieuId, annee)`, `effacerCommentairesFormateurs(lieuId, annee)`,
 `figerQuestionnaireFormateurs(lieuId, annee)`, `lireEffacementsSurDemande(promoIds)` → `Set` d'identifiants de fiche (type
-`demande` du journal), lu par une fonction de la base `fiches_effacees_sur_demande(p_promo_ids uuid[])` (`security definer`,
+`demande` du journal), lu par une fonction de la base `fiches_effacees_sur_demande(p_promo_ids integer[])` (`security definer`,
 ne rend que les fiches des promos que l'appelant peut lire, `peut_acceder_promo`, sans le texte du journal ; ajoutée à la
 migration de la tâche 2, à sa preuve et à son retour) : la règle de lecture du journal suit la seule promo affichée
 (`20261028_roles_3_regles.sql:622-631`), si bien qu'une lecture directe laisserait vides les lignes des autres promos du
