@@ -74,12 +74,18 @@ async function renderAccessSection(rerender) {
     [
       { v: "stagiaire", l: "Stagiaire" },
       ...(peutFormateur ? [{ v: "prof", l: "Formateur" }] : []),
+      // Le siège du réseau : le fondateur seul, hors aperçu (la base le vérifie aussi, inviter_compte). Aucune fiche à lier.
+      ...(fondateurHorsApercu() ? [{ v: "siege", l: "Siège" }] : []),
     ].forEach((o) => roleSel.appendChild(el("option", { value: o.v }, o.l)));
 
     const personSel = el("select", { class: "invite-person", "aria-label": "Personne invitée" });
+    const libellePersonne = el("label", {}, "Personne");
     function refreshPersonOptions() {
       clear(personSel);
       const role = roleSel.value;
+      // Le siège n'est lié à aucune fiche : le choix de la personne disparaît, l'adresse suffit.
+      libellePersonne.hidden = personSel.hidden = role === "siege";
+      if (role === "siege") return;
       personSel.appendChild(el("option", { value: "" }, "Choisir…"));
       const list = role === "stagiaire" ? stagiaires : profs;
       const taken = new Set(profiles
@@ -126,7 +132,7 @@ async function renderAccessSection(rerender) {
     inviteBlock.appendChild(el("div", { class: "invite-form" },
       el("div", { class: "invite-row" },
         el("label", {}, "Rôle"), roleSel,
-        el("label", {}, "Personne"), personSel,
+        libellePersonne, personSel,
       ),
       el("div", { class: "invite-row" },
         el("label", {}, "Email"), emailInput,

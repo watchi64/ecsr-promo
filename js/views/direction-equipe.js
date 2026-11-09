@@ -52,7 +52,7 @@ const phraseDe = (err) => (err && err.phrase === true ? err.message : phraseDeRe
 
 // Fenêtre générique : `corps` (nœuds du formulaire), `valeurs()` rend les saisies ou une phrase de refus (texte), `enregistrer(valeurs)`
 // rend une promesse (si elle lève, la phrase s'affiche dans la fenêtre et la saisie reste ; sinon la fenêtre se ferme).
-function ouvrirFenetre({ titre, intro, corps, ancre, libelleBouton, valider, enregistrer, premierChamp }) {
+export function ouvrirFenetre({ titre, intro, corps, ancre, libelleBouton, valider, enregistrer, premierChamp }) {
   const message = el("p", { class: "promo-refus", role: "alert" });
   const annuler = el("button", { class: "btn ghost", type: "button" }, "Annuler");
   const ok = el("button", { class: "btn primary", type: "submit" }, libelleBouton);

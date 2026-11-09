@@ -32,6 +32,7 @@ import { renderPromosCentre } from "./views/direction-promos.js?v=20261109g";
 import { renderStagiairesCentre } from "./views/direction-stagiaires.js?v=20261109g";
 import { renderEquipeCentre } from "./views/direction-equipe.js?v=20261109g";
 import { renderReseau } from "./views/siege-reseau.js?v=20261109g";
+import { renderDirections } from "./views/siege-directions.js?v=20261109g";
 import { renderRessources } from "./views/ressources.js?v=20261109g";
 import { renderThemes } from "./views/themes.js?v=20261109g";
 import { renderConfig, renderPreferences } from "./views/config.js?v=20261109g";
@@ -197,14 +198,6 @@ function majBadgeNouveautes() {
 
 // ===== Router =====
 
-// Pages de la direction et du siège pas encore construites (lot 5) : leur titre et une phrase, pour qu'une entrée de la barre
-// n'ouvre jamais une erreur. Chacune est remplacée par sa vraie page : Directions de centre (Task 12). Jamais en ligne avant elles : la branche du lot ne fusionne qu'à la fin.
-function pageEnConstruction(titre, phrase) {
-  return (view) => {
-    view.replaceChildren(el("div", { class: "view-header" }, el("h1", {}, titre), el("p", { class: "muted" }, phrase)));
-  };
-}
-
 // Accueil de la direction : la Vue d'ensemble du centre (js/views/direction-centre.js, qui dit aussi un centre sans promo, D6) ;
 // formateur : les Indicateurs de la promo affichée.
 function rendreCentre(view) {
@@ -267,7 +260,7 @@ const routes = {
   promos:     renderPromosCentre,
   equipe:     renderEquipeCentre,
   reseau:     renderReseau,
-  directions: pageEnConstruction("Directions de centre", "Les directions de chaque centre s'afficheront ici."),
+  directions: renderDirections,
 };
 
 // Routes sans onglet propre qui doivent quand même allumer un onglet. On arrive

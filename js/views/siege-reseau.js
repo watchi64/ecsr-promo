@@ -12,6 +12,7 @@ import { pct } from "../centre-stats.js?v=20261109g";
 import { vueDuReseau, ratiosDeComptes, mentionMasques, SEUIL_SECRET } from "../comptes-reseau.js?v=20261109g";
 import { tableauReseauCsv } from "../centre-csv.js?v=20261109g";
 import { carte, telecharger } from "./centre.js?v=20261109g";
+import { ouvrirAjoutCentre } from "./siege-directions.js?v=20261109g";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
@@ -133,7 +134,10 @@ export async function renderVueReseau(container) {
     telecharger(`tableau-reseau_${aujourdhui}.csv`, tableauReseauCsv(vue));
     toast("Tableau du réseau téléchargé", "success");
   } }, "Exporter le tableau (CSV)");
-  racine.appendChild(entete(surtitreReseau(vue), "Vue d'ensemble", sousTitre, el("div", { class: "centre-actions" }, exporter)));
+  // « Ajouter un centre » : le siège crée un centre sans quitter la Vue d'ensemble ; la page se relit ensuite, puis propose d'inviter sa direction.
+  const ajouter = el("button", { class: "btn", type: "button",
+    onClick: (e) => ouvrirAjoutCentre({ ancre: e.currentTarget, apres: () => renderVueReseau(container) }) }, icon.plus(), "Ajouter un centre");
+  racine.appendChild(entete(surtitreReseau(vue), "Vue d'ensemble", sousTitre, el("div", { class: "centre-actions" }, ajouter, exporter)));
 
   racine.appendChild(el("p", { class: "centre-legende" },
     `Promos en cours, hors centres de moins de ${SEUIL_SECRET} stagiaires en formation${mentionMasques(vue.masques)}. Chaque chiffre a sa méthode.`));

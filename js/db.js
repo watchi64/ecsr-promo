@@ -290,6 +290,46 @@ export async function comptesReseau() {
   return Array.isArray(data) ? data : [];
 }
 
+// Lot 5 (Task 12) : le siège gère les centres et leurs directions. Les lieux du réseau (le siège les lit tous), le centre de
+// démonstration marqué par `demonstration`. Lève si la lecture échoue (la page le dit).
+export async function lireLieuxDuReseau() {
+  const { data, error } = await supabase.from("lieux").select("id, nom, demonstration").order("nom");
+  if (error) throw erreurDeBase(error);
+  return (data || []).map((l) => ({ id: l.id, nom: l.nom, demonstration: !!l.demonstration }));
+}
+
+// Les directions de tous les centres : [{ id, email, nom, lieu_id }] (`id` : la ligne d'affectation, pour la retirer ; `nom` : la
+// fiche formateur liée au compte, nul sans fiche ou si la base ne la montre pas au siège : la page affiche alors l'adresse). Une
+// affectation de direction sans centre est écartée. Lève si la lecture des affectations échoue.
+export async function lireDirectionsDuReseau() {
+  const lignes = await toutesLesLignes(() => supabase.from("affectations").select("id, email, lieu_id").eq("role", "direction").order("id"));
+  const directions = lignes.filter((a) => a.lieu_id != null).map((a) => ({ id: a.id, email: String(a.email).toLowerCase(), nom: null, lieu_id: a.lieu_id }));
+  let noms = new Map();
+  try {
+    noms = await nomsFormateursParEmail([...new Set(directions.map((d) => d.email))]);
+  } catch (e) {
+    console.error("fiches des directions", e);   // les noms sont un plus : sans eux, l'adresse
+  }
+  return directions.map((d) => ({ ...d, nom: noms.get(d.email) || null }));
+}
+
+// Retire une direction (suppression de sa ligne d'affectation : la base le permet au siège seul). La ligne est relue : une règle de
+// la base qui refuse répond « 0 ligne, sans erreur », ce que la page doit dire.
+export async function retirerAffectation(id) {
+  const { data, error } = await supabase.from("affectations").delete().eq("id", id).select("id");
+  if (error) throw erreurDeBase(error);
+  if (!data || data.length === 0) throw new Error("Ce retrait n'a pas été accepté.");
+}
+
+// Crée un centre (creer_centre : siège seul, nom non vide, pas de doublon) et rend son identifiant. Les refus partent tels quels
+// (préfixe « centre: », 42501 sans droit, PGRST202 fonction absente) : l'appelant les dit par phraseDeRefus.
+export async function creerCentre(nom) {
+  const { data, error } = await supabase.rpc("creer_centre", { p_nom: nom });
+  if (error) throw erreurDeBase(error);
+  if (!Number.isInteger(Number(data))) throw new Error("centre: Le centre n'a pas été créé.");
+  return Number(data);
+}
+
 // Effectif de chaque promo : { enFormation, abandons } (fiches actives, fiches en abandon ; une fiche anonymisée n'est pas un
 // abandon), par l'en-tête de lecture de la promo. Une promo illisible rend null : la page le dit sur sa carte.
 export async function lireEffectifsPromos(promoIds) {

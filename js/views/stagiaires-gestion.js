@@ -279,7 +279,8 @@ export async function renderInvitationStagiaire(container, { rerender } = {}) {
 export async function envoyerInvitation({ bouton, libelle, emailInput, personId, role, v2, apres }) {
   const email = emailInput.value.trim().toLowerCase();
   if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("Email invalide", "error"); return; }
-  if (!personId) { toast("Choisis la personne à lier", "error"); return; }
+  // Le siège n'est lié à aucune fiche : l'adresse suffit.
+  if (!personId && role !== "siege") { toast("Choisis la personne à lier", "error"); return; }
   const remettre = () => {
     bouton.disabled = false;
     bouton.textContent = "";
