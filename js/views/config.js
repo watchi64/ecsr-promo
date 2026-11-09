@@ -735,9 +735,7 @@ function renderInfoSection() {
       el("dt", {}, "Auteur"),
       el("dd", {}, "watchi64 · misterwatchi@gmail.com"),
       el("dt", {}, "Licence"),
-      el("dd", {}, "Propriétaire. Voir LICENSE dans le repo."),
-      el("dt", {}, "Repo"),
-      el("dd", {}, el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank" }, "github.com/watchi64/ecsr-promo")),
+      el("dd", {}, "Propriétaire."),   // plus de lien vers le dépôt : décision de Timy du 09/11
     )
   ));
   // Nouvelle navigation : l'Accueil ne porte plus « À retenir » (ce n'est pas ce qu'on vient y chercher chaque jour) ;

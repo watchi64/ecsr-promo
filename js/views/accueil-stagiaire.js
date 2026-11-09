@@ -297,8 +297,7 @@ export function renderAccueilStagiaire(container) {
   container.appendChild(el("footer", { class: "home-footer-v2" },
     el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" },
       "connecté comme " + (libelleConnexion({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() }) || "stagiaire"))),
-    el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
-      el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank", rel: "noopener" }, "code source")),
+    // Plus de lien « code source » : décision de Timy du 09/11, le code reste discret.
   ));
 
   // Chaque carte se charge seule ; la page rend la main quand toutes ont fini (réussi ou non).

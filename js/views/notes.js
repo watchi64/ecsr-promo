@@ -1605,7 +1605,8 @@ function renderAveragesChart() {
       const valX = labelWidth + w + 6;
       val.setAttribute("x", valX); val.setAttribute("y", y + barHeight / 2 + 4);
       val.setAttribute("font-size", "11");
-      val.setAttribute("font-family", "var(--font-mono)");
+      val.setAttribute("font-family", "var(--font)");   // une seule écriture à l'écran (unification du 09/11)
+      val.style.fontVariantNumeric = "tabular-nums";
       val.setAttribute("font-weight", "700");
       val.setAttribute("class", "notes-valeur");
       val.textContent = (Math.round(d.avg * 10) / 10).toString() + " / 20";

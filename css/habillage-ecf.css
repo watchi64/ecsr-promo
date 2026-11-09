@@ -96,14 +96,8 @@
   --graphe-piste:      #E9EDF4;
   --graphe-radar-moi:  rgba(18, 68, 131, 0.25);
 
-  /* Titres : la police du texte (Outfit) à la place de Canela, et des graisses décalées pour une police sans
-     empattement (700 devient 600, 500 devient 600, 400 devient 500, 300 devient 400). Outfit est embarquée de 300 à 700 (css/fonts.css). */
-  --font-display:       var(--font);
-  --poids-titre:        600;
-  --poids-titre-semi:   600;
-  --poids-titre-moyen:  600;
-  --poids-titre-normal: 500;
-  --poids-titre-leger:  400;
+  /* Titres : plus rien à redéfinir. Depuis l'unification du 09/11, le thème par défaut écrit déjà tous ses titres en
+     Outfit demi-gras (css/style.css, :root) ; l'habillage ne change que les couleurs. */
 
   /* Liseré tricolore sous l'en-tête sombre de l'équipe sur téléphone, et couleur de la barre d'état du navigateur. */
   --lisere-habillage: linear-gradient(90deg, #124483 0 33.333%, #FFFFFF 33.333% 66.667%, #DB1418 66.667% 100%);

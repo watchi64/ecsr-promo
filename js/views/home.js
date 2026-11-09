@@ -298,9 +298,7 @@ export async function renderHome(container) {
       roleLabel ? el("span", { class: "footer-role" }, "connecté comme " + roleLabel.toLowerCase()) : "",
     ),
     el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
-      el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank" }, "code source"),
-      " · ",
-      lienReglages,
+      lienReglages,   // plus de lien « code source » : décision de Timy du 09/11
     ),
   ));
 }

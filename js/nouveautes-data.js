@@ -171,6 +171,17 @@ export const NOUVEAUTES = [
     ou: { label: "Planning", route: "planning" },
   },
   {
+    id: "2026-11-09-une-seule-ecriture",
+    date: "2026-11-09",
+    pour: "tous",
+    titre: "Une seule écriture dans toute l'app",
+    resume: "Les titres, le texte et les chiffres s'écrivent maintenant dans une seule police, plus lisible sur "
+          + "téléphone. Les grands titres comme « Aujourd'hui » ou « Bonjour » ont la même allure que les autres titres "
+          + "de page, et les dates, les heures et les notes gardent leurs chiffres bien alignés. Les documents imprimés "
+          + "(livret, feuilles d'émargement, attestations) ne changent pas.",
+    ou: { label: "Accueil", route: "home" },
+  },
+  {
     id: "2026-11-09-finitions-planning",
     date: "2026-11-09",
     pour: "formateurs",
