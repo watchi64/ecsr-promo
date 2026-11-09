@@ -2,13 +2,20 @@
 
 Document de relecture pour Timy. Rien n'est en base ni en ligne tant que ces textes ne sont pas validés. Les questions sont à l'écran avec le tutoiement ; les conditions s'adressent au lecteur avec le vouvoiement, comme le reste du texte existant.
 
-Échelle commune aux questions notées : « Pas du tout » (1), « Plutôt non » (2), « Plutôt oui » (3), « Tout à fait » (4), « Sans avis ». Pas de point neutre. Le taux de satisfaction publié est la part des réponses 3 ou 4 à la question « globalement », parmi les personnes qui ont répondu.
+Échelle commune aux questions notées : « Pas du tout » (1), « Plutôt non » (2), « Plutôt oui » (3), « Tout à fait » (4), « Sans avis ». Pas de point neutre. Le taux de satisfaction publié est la part des réponses 3 ou 4 à la question « globalement », parmi les avis notés (« Sans avis » exclu) ; il n'est publié qu'à partir de 5 avis notés.
+
+**Questions de l'app et de la base.** Les identifiants, types, caractère facultatif, options et versions des questions
+sont écrits deux fois : dans l'app (`js/questionnaires-data.js`) et dans la table `questionnaire_questions` de la
+migration (`supabase/migrations/20261108_questionnaires.sql`). Toute retouche d'une question ou d'une option, après la
+validation de ces textes, touche les deux fichiers ; le test `tests/questionnaires-data.test.mjs` compare les deux et
+échoue sur le moindre écart (sinon la base refuserait l'envoi au dernier écran du questionnaire).
 
 ## Points à trancher
 
-Huit questions restent ouvertes après la construction (relectures du 08 et du 09/11). Les textes des sections 1 à 4 sont
-inchangés : chaque point dit ce qui est en place par défaut et ce qui changerait. Rien n'est appliqué en base avant la
-réponse de Timy.
+Dix questions restent ouvertes après la construction (relectures du 08 et du 09/11, relecture finale du 09/11). Les
+textes des sections 1, 2 et 6 sont à jour de la relecture finale ; chaque retouche de cette relecture est donnée avant
+et après en section 5. Chaque point dit ce qui est en place par défaut et ce qui changerait. Rien n'est appliqué en base
+avant la réponse de Timy.
 
 1. **Formes au masculin.** Plusieurs questions accordent au masculin : « Tu as été accompagné » (question 5 du
    questionnaire de fin de formation), « tu es satisfait » (question « globalement » des trois questionnaires),
@@ -47,6 +54,32 @@ réponse de Timy.
    paragraphe seul. Autre choix : une ligne « Questionnaires » au tableau (réponses regroupées, à partir du seuil ;
    commentaires : éditeur et qualité du centre). La nouvelle version des conditions n'est pas encore en ligne : la
    ligne peut y entrer sans demander une acceptation de plus.
+9. **Ce que l'anonymat garantit vraiment.** La réponse est enregistrée sans nom, sans compte, sans date et sans numéro
+   d'ordre, et les écrans comme les documents n'affichent rien sous le seuil (5 réponses, 3 pour les formateurs). Mais
+   la note de participation (qui a répondu, pour refuser une deuxième réponse) garde le compte, et la migration écrit
+   elle-même ce qui reste hors de portée de la base : qui lit les tables (l'éditeur SQL du projet Supabase, donc
+   l'éditeur de l'application) relie l'unique participation d'une promo à son unique réponse (cas courant au début
+   d'une fenêtre, et pour les formateurs d'un centre), ou déduit une réponse en comparant les tables avant et après
+   elle ; les sauvegardes et le journal des transactions gardent l'historique. Les premiers textes promettaient
+   « personne ne peut savoir qui a répondu quoi » et « pas même l'éditeur » : c'était faux. Par défaut (textes
+   retouchés, section 5) : on dit ce qui est vrai (sans nom, sans compte, sans date ; dans l'application et ses
+   documents, personne ne voit qui a répondu quoi ; résultats à partir du seuil), les conditions écrivent la limite
+   technique dans un paragraphe « Limite de cet anonymat », et **proposent un engagement de l'éditeur : ne pas lire
+   ces tables directement, ne consulter les réponses que par les écrans de l'application** (à accepter ou non par
+   Timy). La durée « sans limite » des réponses, qui reposait sur leur anonymat, devient trois ans comme les preuves de
+   la formation, puis seuls restent les résultats regroupés (taux et répartitions, à partir du seuil) : à mettre en
+   œuvre au lot Q5. Autres choix : (a) écrire la limite sans prendre d'engagement ; (b) une mesure technique au lot Q5 :
+   effacer les notes de participation d'une portée quand sa fenêtre se ferme (elles ne servent plus) ; après cela,
+   même en lisant les tables, plus rien ne relie une réponse à un compte, et les réponses pourraient alors être
+   gardées sans limite comme statistiques ; contrepartie : une réouverture manuelle de la fenêtre permettrait une
+   deuxième réponse ; (c) ne garder les réponses d'une portée qu'une fois le seuil atteint (une table d'attente vidée
+   à la fermeture si le seuil n'est pas atteint), ce qui protège les petites portées mais perd les avis d'une promo
+   qui n'atteint pas 5 réponses.
+10. **Formateurs sur l'ancienne barre.** Au démarrage, un formateur arrive sur la page Stagiaires, où il n'y a pas de
+   bandeau : il ne voit le questionnaire qu'en ouvrant l'Accueil. Par défaut : rien de changé dans l'app. Autres
+   choix : envoyer aussi le lien direct aux formateurs à l'ouverture
+   (`https://watchi64.github.io/ecsr-promo/#/questionnaire/fin_formateur`), ou poser le bandeau sur la page Stagiaires
+   (une modification de l'app).
 
 ## 1. Les trois questionnaires
 
@@ -55,7 +88,7 @@ réponse de Timy.
 - Qui répond : les stagiaires de la promo
 - Bandeau affiché : de 7 jours avant la fin de la promo à 30 jours après
 - Rien n'est montré sous 5 réponses
-- Introduction affichée : « Ces questions portent sur ta formation. Ta réponse est enregistrée sans ton nom et sans date : personne ne peut savoir qui a répondu quoi. Compte environ trois minutes. »
+- Introduction affichée : « Ces questions portent sur ta formation. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date ; dans l'application, personne ne peut voir qui a répondu quoi, et les résultats ne s'affichent qu'à partir de 5 réponses. Compte environ trois minutes. »
 
 1. **Les objectifs de la formation t'ont été clairement présentés.** (obligatoire)
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
@@ -83,7 +116,7 @@ réponse de Timy.
 - Qui répond : les stagiaires de la promo
 - Bandeau affiché : de 6 mois à 7 mois après la fin de la promo
 - Rien n'est montré sous 5 réponses
-- Introduction affichée : « Quelques mois ont passé depuis la fin de ta formation. Ces questions nous disent ce qu'elle t'a apporté. Ta réponse est enregistrée sans ton nom et sans date. Compte une minute ou deux. »
+- Introduction affichée : « Quelques mois ont passé depuis la fin de ta formation. Ces questions nous disent ce qu'elle t'a apporté. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date, et les résultats ne s'affichent qu'à partir de 5 réponses. Compte une minute ou deux. »
 
 1. **Où en es-tu aujourd'hui ?** (obligatoire)
    - J'ai le titre et j'enseigne la conduite
@@ -104,7 +137,7 @@ réponse de Timy.
 - Qui répond : les formateurs du centre
 - Bandeau affiché : de 7 jours avant la fin de la promo à 30 jours après (un questionnaire par centre et par année civile)
 - Rien n'est montré sous 3 réponses
-- Introduction affichée : « Ces questions portent sur la formation telle que tu l'as animée cette année. Ta réponse est enregistrée sans ton nom et sans date, et regroupée avec celles des autres formateurs du centre. Compte trois minutes. »
+- Introduction affichée : « Ces questions portent sur la formation telle que tu l'as animée cette année. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date, et regroupée avec celles des autres formateurs du centre : les résultats ne s'affichent qu'à partir de 3 réponses. Compte trois minutes. »
 
 1. **Les objectifs de la formation sont clairs et réalistes pour les stagiaires.** (obligatoire)
    - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
@@ -134,7 +167,7 @@ Avant :
 
 Après :
 
-> passages, absences, livret, dossier professionnel, et vos réponses aux questionnaires de satisfaction, qui sont anonymes.
+> passages, absences, livret, dossier professionnel, et vos réponses aux questionnaires de satisfaction, enregistrées sans votre nom.
 > 
 
 ### Passage 2
@@ -169,7 +202,9 @@ Après :
 
 > Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre promo.
 > 
-> **Questionnaires de satisfaction.** Ils sont anonymes : la réponse est enregistrée sans nom, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Personne ne peut relier une réponse à une personne, pas même l'éditeur. Les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre (dans ces conditions, « le centre » désigne ECF, l'organisme de formation), dans un ordre aléatoire, sous la même condition.
+> **Questionnaires de satisfaction.** La réponse est enregistrée sans nom, sans compte, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Dans l'application et dans les documents qu'elle produit, personne ne peut voir qui a répondu quoi : les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre (dans ces conditions, « le centre » désigne ECF, l'organisme de formation), dans un ordre aléatoire, sous la même condition.
+> 
+> **Limite de cet anonymat.** L'éditeur administre la base de données et peut techniquement en lire les tables. Tant qu'une seule personne a répondu dans une promo (ou un seul formateur dans un centre), ou en comparant les tables avant et après une réponse, il pourrait y rapprocher une réponse de la note de participation de son auteur. L'éditeur s'engage à ne pas lire ces tables directement : il ne consulte les réponses que par les écrans de l'application, qui appliquent le seuil.
 > 
 
 ### Passage 5
@@ -180,7 +215,7 @@ Avant :
 
 Après :
 
-> | Recueillir votre avis sur la formation par des questionnaires anonymes, et en produire un taux de satisfaction | Intérêt légitime de l'éditeur et du centre à mesurer et améliorer la formation, preuve que le centre doit pouvoir apporter à son certificateur |
+> | Recueillir votre avis sur la formation par des questionnaires enregistrés sans nom, et en produire un taux de satisfaction | Intérêt légitime de l'éditeur et du centre à mesurer et améliorer la formation, preuve que le centre doit pouvoir apporter à son certificateur |
 > | Répondre à vos questions par l'assistant |
 
 ### Passage 6
@@ -216,7 +251,7 @@ Après :
 
 > | Compte, adresse e-mail, date de naissance, fiches de suivi, textes libres (observations, commentaires) | Toute la formation, puis douze mois |
 > | Preuves de la formation : nom, résultats, heures, présences, feuilles d'émargement signées, dossier professionnel, livret | Toute la formation, puis trois ans (jusqu'au 31 décembre de la troisième année après la fin de la formation) : c'est la durée du cycle de certification Qualiopi. Ensuite les noms, les signatures, le dossier professionnel et le livret sont effacés ; les heures, présences et résultats restent sans nom |
-> | Questionnaires de satisfaction | Les réponses, qui n'ont pas de nom, servent aux statistiques sans limite ; les commentaires libres sont effacés douze mois après la fin de la formation ; la note de participation est supprimée avec le compte |
+> | Questionnaires de satisfaction | Les réponses, enregistrées sans nom, sont gardées trois ans comme les preuves de la formation (jusqu'au 31 décembre de la troisième année après la fin de la formation ; pour le questionnaire des formateurs, après l'année du questionnaire), puis supprimées : seuls restent les résultats regroupés (taux et répartitions, à partir du seuil). Les commentaires libres sont effacés douze mois après la fin de la formation (pour le questionnaire des formateurs, le 31 décembre de l'année suivante). La note de participation est supprimée avec le compte |
 > | Registre qualité du centre (réclamations, difficultés, aléas, améliorations, risques) | Trois ans après la clôture de l'entrée, puis sa description et sa réponse sont vidées ; le type, les dates et l'état restent |
 > | Historique des modifications | Même durée que la donnée concernée |
 
@@ -240,7 +275,7 @@ Après :
 
 > La suppression des données nominatives n'affecte pas les statistiques anonymes déjà produites.
 > 
-> **Effacement sur demande.** Une demande d'effacement est exécutée sans attendre la fin des durées de la section 10, dans le délai d'un mois indiqué ci-dessus, même si cela retire des preuves de votre parcours : le dossier de la formation indique alors « fiche effacée à la demande de la personne ». Vos réponses aux questionnaires, enregistrées sans votre nom, ne peuvent pas être retrouvées pour être retirées une à une ; c'est la contrepartie de leur anonymat.
+> **Effacement sur demande.** Une demande d'effacement est exécutée sans attendre la fin des durées de la section 10, dans le délai d'un mois indiqué ci-dessus, même si cela retire des preuves de votre parcours : le dossier de la formation indique alors « fiche effacée à la demande de la personne ». Vos réponses aux questionnaires, enregistrées sans votre nom ni votre compte, ne peuvent pas être retrouvées pour être retirées une à une ; c'est la contrepartie de cet enregistrement sans nom.
 
 ## 3. Corrections du tour 1 : passages ajoutés
 
@@ -289,3 +324,133 @@ Avant :
 Après (nouvelle ligne du tableau, usage puis base légale) :
 
 > | Permettre à ECF de présenter les documents de la formation à son certificateur Qualiopi et à ses financeurs | Obligation légale : la certification Qualiopi conditionne l'accès aux fonds publics et mutualisés de la formation professionnelle (code du travail, article L6316-1) |
+
+## 5. Corrections de la relecture finale (09/11)
+
+La relecture finale de la branche a trouvé que plusieurs textes promettaient plus que ce que la base garantit (point 9
+ci-dessus). Les retouches ci-dessous sont des propositions, comme le reste du document : elles sont déjà dans l'app
+(`js/questionnaires-data.js`, `js/nouveautes-data.js`, `js/legal-data.js`) et dans les sections 1, 2 et 6, et attendent la
+validation de Timy. La version des conditions reste 2026-11-08 (pas encore en ligne) : une seule nouvelle acceptation.
+
+### Retouche A : introduction « Ton avis sur la formation »
+
+Avant :
+
+> « Ces questions portent sur ta formation. Ta réponse est enregistrée sans ton nom et sans date : personne ne peut savoir qui a répondu quoi. Compte environ trois minutes. »
+
+Après :
+
+> « Ces questions portent sur ta formation. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date ; dans l'application, personne ne peut voir qui a répondu quoi, et les résultats ne s'affichent qu'à partir de 5 réponses. Compte environ trois minutes. »
+
+### Retouche B : introduction « Six mois après, ton avis »
+
+Avant :
+
+> « Quelques mois ont passé depuis la fin de ta formation. Ces questions nous disent ce qu'elle t'a apporté. Ta réponse est enregistrée sans ton nom et sans date. Compte une minute ou deux. »
+
+Après :
+
+> « Quelques mois ont passé depuis la fin de ta formation. Ces questions nous disent ce qu'elle t'a apporté. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date, et les résultats ne s'affichent qu'à partir de 5 réponses. Compte une minute ou deux. »
+
+### Retouche C : introduction « Ton avis de formateur »
+
+Avant :
+
+> « Ces questions portent sur la formation telle que tu l'as animée cette année. Ta réponse est enregistrée sans ton nom et sans date, et regroupée avec celles des autres formateurs du centre. Compte trois minutes. »
+
+Après :
+
+> « Ces questions portent sur la formation telle que tu l'as animée cette année. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date, et regroupée avec celles des autres formateurs du centre : les résultats ne s'affichent qu'à partir de 3 réponses. Compte trois minutes. »
+
+### Retouche D : entrée Nouveautés « Ton avis sur la formation, sans ton nom »
+
+Avant :
+
+> À la fin de la formation, un court questionnaire s'affiche en haut de l'Accueil : quelques questions sur la formation elle-même, à noter de 1 à 4, avec « Sans avis » quand tu ne sais pas. Ta réponse est enregistrée sans ton nom et sans date : personne ne peut savoir qui a répondu quoi. « Plus tard » le fait revenir le lendemain. Les formateurs ont leur propre questionnaire, et quelques questions reviendront six mois après la fin de la formation.
+
+Après :
+
+> À la fin de la formation, un court questionnaire s'affiche en haut de l'Accueil : quelques questions sur la formation elle-même, à noter de 1 à 4, avec « Sans avis » quand tu ne sais pas. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date ; dans l'application, personne ne peut voir qui a répondu quoi, et les résultats n'apparaissent qu'à partir de 5 réponses. « Plus tard » le fait revenir le lendemain. Les formateurs ont leur propre questionnaire, et quelques questions reviendront six mois après la fin de la formation.
+
+### Retouche E : conditions, l'essentiel (ligne 2, passage 1)
+
+Avant :
+
+> passages, absences, livret, dossier professionnel, et vos réponses aux questionnaires de satisfaction, qui sont anonymes.
+
+Après :
+
+> passages, absences, livret, dossier professionnel, et vos réponses aux questionnaires de satisfaction, enregistrées sans votre nom.
+
+### Retouche F : conditions, section 4, paragraphe « Questionnaires de satisfaction » (passage 4)
+
+Avant :
+
+> **Questionnaires de satisfaction.** Ils sont anonymes : la réponse est enregistrée sans nom, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Personne ne peut relier une réponse à une personne, pas même l'éditeur. Les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre (dans ces conditions, « le centre » désigne ECF, l'organisme de formation), dans un ordre aléatoire, sous la même condition.
+
+Après (le paragraphe, puis un paragraphe neuf ; l'engagement de sa dernière phrase est une proposition, point 9) :
+
+> **Questionnaires de satisfaction.** La réponse est enregistrée sans nom, sans compte, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Dans l'application et dans les documents qu'elle produit, personne ne peut voir qui a répondu quoi : les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre (dans ces conditions, « le centre » désigne ECF, l'organisme de formation), dans un ordre aléatoire, sous la même condition.
+> 
+> **Limite de cet anonymat.** L'éditeur administre la base de données et peut techniquement en lire les tables. Tant qu'une seule personne a répondu dans une promo (ou un seul formateur dans un centre), ou en comparant les tables avant et après une réponse, il pourrait y rapprocher une réponse de la note de participation de son auteur. L'éditeur s'engage à ne pas lire ces tables directement : il ne consulte les réponses que par les écrans de l'application, qui appliquent le seuil.
+
+### Retouche G : conditions, section 5, ligne des questionnaires (passage 5)
+
+Avant :
+
+> | Recueillir votre avis sur la formation par des questionnaires anonymes, et en produire un taux de satisfaction |
+
+Après :
+
+> | Recueillir votre avis sur la formation par des questionnaires enregistrés sans nom, et en produire un taux de satisfaction |
+
+### Retouche H : conditions, section 10, durée des questionnaires (passage 8)
+
+Avant :
+
+> | Questionnaires de satisfaction | Les réponses, qui n'ont pas de nom, servent aux statistiques sans limite ; les commentaires libres sont effacés douze mois après la fin de la formation ; la note de participation est supprimée avec le compte |
+
+Après (trois ans au lieu de « sans limite », point 9 ; date des commentaires des formateurs, qui n'ont pas de « fin de
+formation » : leur portée est le centre et l'année) :
+
+> | Questionnaires de satisfaction | Les réponses, enregistrées sans nom, sont gardées trois ans comme les preuves de la formation (jusqu'au 31 décembre de la troisième année après la fin de la formation ; pour le questionnaire des formateurs, après l'année du questionnaire), puis supprimées : seuls restent les résultats regroupés (taux et répartitions, à partir du seuil). Les commentaires libres sont effacés douze mois après la fin de la formation (pour le questionnaire des formateurs, le 31 décembre de l'année suivante). La note de participation est supprimée avec le compte |
+
+### Retouche I : conditions, section 12, « Effacement sur demande » (passage 10, dernière phrase)
+
+Avant :
+
+> Vos réponses aux questionnaires, enregistrées sans votre nom, ne peuvent pas être retrouvées pour être retirées une à une ; c'est la contrepartie de leur anonymat.
+
+Après :
+
+> Vos réponses aux questionnaires, enregistrées sans votre nom ni votre compte, ne peuvent pas être retrouvées pour être retirées une à une ; c'est la contrepartie de cet enregistrement sans nom.
+
+### Retouche J : message WhatsApp (section 6)
+
+Avant (rapport de construction de la tâche 5) :
+
+> Bonjour à tous ! La formation touche à sa fin et ton avis compte. Un court questionnaire t'attend dans l'app, sur l'Accueil : une dizaine de questions sur la formation, environ trois minutes. Ta réponse est enregistrée sans ton nom et sans date, personne ne peut savoir qui a répondu quoi. Le lien direct : https://watchi64.github.io/ecsr-promo/#/questionnaire/fin_stagiaire Merci d'avance !
+
+Après (« vous » collectif, accordé à « Bonjour à tous », et la promesse ramenée à l'application et au seuil) :
+
+> Bonjour à tous ! La formation touche à sa fin et votre avis compte. Un court questionnaire vous attend dans l'app, sur l'Accueil : une dizaine de questions sur la formation, environ trois minutes. Chaque réponse est enregistrée sans nom, sans compte et sans date ; dans l'app, personne ne peut voir qui a répondu quoi, et les résultats ne s'affichent qu'à partir de 5 réponses. Le lien direct : https://watchi64.github.io/ecsr-promo/#/questionnaire/fin_stagiaire Merci d'avance !
+
+### Retouche K : satisfaction dans les documents du centre
+
+Le taux se calcule sur les avis notés (« Sans avis » exclu). La pièce « appréciations », la fiche des résultats et la
+méthode publique disaient « répondants » et « sous 5 réponses », alors que cinq réponses dont une « Sans avis » ne donnent
+pas de taux.
+
+Avant :
+
+> 80 % de réponses favorables (7 répondants sur 10 inscrits) ; sous le seuil : « moins de 5 réponses » ; méthode publique : « Aucun résultat n'est publié sous 5 réponses. »
+
+Après :
+
+> 80 % de réponses favorables (7 avis notés sur 10 inscrits) ; sous le seuil : « moins de 5 avis notés » ; méthode publique : « Aucun résultat n'est publié sous 5 avis notés. »
+
+## 6. Message WhatsApp prêt à coller (promo de Nîmes, à envoyer à l'ouverture)
+
+Proposition, à valider avec le reste (point 10 pour un message aux formateurs) :
+
+> Bonjour à tous ! La formation touche à sa fin et votre avis compte. Un court questionnaire vous attend dans l'app, sur l'Accueil : une dizaine de questions sur la formation, environ trois minutes. Chaque réponse est enregistrée sans nom, sans compte et sans date ; dans l'app, personne ne peut voir qui a répondu quoi, et les résultats ne s'affichent qu'à partir de 5 réponses. Le lien direct : https://watchi64.github.io/ecsr-promo/#/questionnaire/fin_stagiaire Merci d'avance !
