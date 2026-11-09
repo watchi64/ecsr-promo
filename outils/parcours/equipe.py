@@ -103,12 +103,12 @@ def traiter_un_signalement(v):
     v.toucher("#view a.acc-ligne:has-text(\"signalement\")", "la ligne des signalements de « À traiter »")
     v.attendre("#view .qcm-signal-item", "la liste des signalements")
     v.etape("classer le premier : « Corrigé »")
+    v.ecouter_messages()
     v.toucher("#view .qcm-signal-item button:has-text(\"Corrigé\")", "« Corrigé »", ecriture=True)
     # Le faux Supabase du banc ne garde pas le nouveau statut (la liste relue reste la même) : on juge la
-    # confirmation, pas la liste. En ligne, le signalement classé quitte la liste des ouverts.
-    confirmation = v.attendre("#toast:not(.hidden)", "la confirmation du classement", delai=4000).inner_text()
-    if "corrigé" not in confirmation.lower():
-        v.constat("E", BLOQUE, "après « Corrigé », le message ne confirme pas : « %s »" % confirmation.strip()[:80], capture=True)
+    # confirmation, pas la liste. En ligne, le signalement classé quitte la liste des ouverts. Le banc (?signalements=1)
+    # annonce aussi au démarrage qu'un signalement de l'app a avancé : ce message peut remplacer la confirmation.
+    v.exiger_confirmation("« Corrigé »", "classé comme corrigé")
     v.but("signalement classé")
     v.terminer()
 
