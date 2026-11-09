@@ -164,6 +164,18 @@ export const NOUVEAUTES = [
     ou: { label: "Notes, sous-onglet EPCF", route: "notes", sousOnglet: "epcf" },
     module: "epcf",
   },
+  // Suite des moyennes EPCF vides (09/11) : la partie EPCF de sa fiche, et l'anonymat des moyennes jusque dans la base.
+  {
+    id: "2026-11-09-mon-epcf-vide",
+    date: "2026-11-09",
+    pour: "stagiaires",
+    titre: "Ton EPCF : la page dit quand tes résultats arriveront",
+    resume: "Tant qu'aucune de tes épreuves EPCF n'est évaluée, la partie EPCF de Mon suivi le dit en une phrase et te "
+          + "mène à ton livret EPCF. Sur ton radar, la moyenne du groupe n'apparaît que quand chaque phase compte au moins "
+          + "deux stagiaires évalués : une moyenne de la classe ne montre jamais la note d'un seul camarade.",
+    ou: { label: "Mon espace personnel, partie EPCF", route: "mon-suivi", sousOnglet: "epcf" },
+    module: "epcf",
+  },
   // Lot de corrections 2 (audit du 09/11) : ce que l'app affiche est juste.
   {
     id: "2026-11-09-accueil-plus-juste",

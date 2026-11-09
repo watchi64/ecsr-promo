@@ -13,7 +13,7 @@ import { getCurrentWho } from "../identity.js?v=20261109m";
 import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20261109m";
 import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20261109m";
 import { poserGardeSortie, leverGardeSortie } from "../navigation.js?v=20261109m";
-import { etatVideEpcf, ACTIONS_CARTE_EPCF } from "../epcf-classe-rules.js?v=20261109m";
+import { etatVideEpcf, ACTIONS_CARTE_EPCF, etatVideEpcfFiche, ACTIONS_FICHE_EPCF } from "../epcf-classe-rules.js?v=20261109m";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109m";
 
 const TRAME_KEYS = ["salle", "vehicule"];
@@ -45,17 +45,18 @@ export async function renderEpcf(container, opts = {}) {
   renderEpcfClasse(body, moyennesParEpreuve);
 }
 
-// La carte vide. Ses boutons sont des liens (ils changent de page) : le stagiaire va à ses propres résultats EPCF (Mon
-// suivi), le formateur à la page Stagiaires, ouverte sur la liste (ACTIONS_CARTE_EPCF de js/epcf-classe-rules.js).
-function carteVideEpcf(etat) {
+// Une carte vide EPCF. Ses boutons sont des liens (ils changent de page), pris dans `destinations` : pour les moyennes
+// de la classe (ACTIONS_CARTE_EPCF), le stagiaire va à ses propres résultats EPCF, le formateur à la page Stagiaires,
+// ouverte sur la liste ; pour la fiche (ACTIONS_FICHE_EPCF), le stagiaire va à son livret.
+function carteVideEpcf(etat, destinations = ACTIONS_CARTE_EPCF, classe = "epcf-vide") {
   const lien = (cle, principal) => {
-    const action = ACTIONS_CARTE_EPCF[cle];
+    const action = destinations[cle];
     return el("a", { class: "btn " + (principal ? "primary" : "ghost"), href: action.href, onClick: () => {
       if (!action.sousOnglet) return;
       try { localStorage.setItem(CLES_SOUS_ONGLETS.stagiaires, action.sousOnglet); } catch (e) { /* mode privé : la page s'ouvre sur son premier sous-onglet, la liste */ }
     } }, action.libelle);
   };
-  return el("section", { class: "notes-vide epcf-vide" },
+  return el("section", { class: "notes-vide " + classe },
     el("h3", { class: "notes-vide-titre" }, etat.titre),
     el("p", { class: "notes-vide-phrase" }, etat.phrase),
     etat.avancement ? el("p", { class: "notes-vide-info" }, etat.avancement) : null,
@@ -65,7 +66,8 @@ function carteVideEpcf(etat) {
   );
 }
 
-// Partie EPCF de la fiche d'une personne. opts.outils : boutons de saisie (formateur).
+// Partie EPCF de la fiche d'une personne. opts.outils : boutons de saisie (formateur). opts.soi : sa propre fiche
+// (Mon suivi) ; opts.livretOuvert : le module du livret est ouvert pour la promo (bouton de la carte vide).
 export function renderEpcfPersonne(container, opts) {
   const etat = { evals: opts.evals || [], moyennes: opts.moyennes };
 
@@ -87,6 +89,14 @@ export function renderEpcfPersonne(container, opts) {
         ));
       });
       container.appendChild(actions);
+    }
+    // Aucune épreuve évaluée : une carte (ou rien sous les lignes « à évaluer » du formateur) à la place des deux
+    // sections vides.
+    const nbEvaluations = Object.fromEntries(TRAME_KEYS.map((k) => [k, etat.evals.filter((e) => e.trame === k).length]));
+    const vide = etatVideEpcfFiche({ nbEvaluations, soi: !!opts.soi, outils: !!opts.outils, livretOuvert: !!opts.livretOuvert });
+    if (vide) {
+      if (vide.carte) container.appendChild(carteVideEpcf(vide, ACTIONS_FICHE_EPCF, "epcf-fiche-vide"));
+      return;
     }
     TRAME_KEYS.forEach((k) => {
       container.appendChild(renderEpcfTrameSection(k, etat.evals.filter((e) => e.trame === k), etat.moyennes[k]));
