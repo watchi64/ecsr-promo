@@ -11,6 +11,7 @@
 // dégradation acceptable, mais rien n'explose.
 
 import { CLES_SOUS_ONGLETS } from "./nav-rules.js?v=20261109a";
+import { routeDansLEspace } from "./espaces-rules.js?v=20261109a";
 
 export const CLE_VUES = "ecsr_nouveautes_vues";
 
@@ -49,7 +50,10 @@ export function triees(entrees) {
 //   - « formateurs » ne se lit que dans l'espace formateur : leurs liens mènent à des pages de cet espace, que la direction et le
 //     siège n'ont pas ;
 //   - « stagiaires » ne se lit que dans l'espace stagiaire ;
-//   - « tous » ne change pas.
+//   - en direction et au siège, toute entrée (« tous » comprise) dont le lien « Où le trouver » mène à une route que l'espace
+//     refuse (routeDansLEspace) est masquée : une page qu'on ne peut pas ouvrir est du bruit, jamais une impasse. Une entrée
+//     sans lien reste ;
+//   - « tous » ne change pas pour le formateur et le stagiaire.
 // Un appelant qui ne passe pas `espace` garde la règle d'avant (formateur ou non).
 export function visibles(entrees, formateur, navigationV2 = false, espace = undefined) {
   const ditEspace = espace !== undefined && espace !== null;
@@ -61,6 +65,7 @@ export function visibles(entrees, formateur, navigationV2 = false, espace = unde
     } else if (e.pour === "stagiaires") {
       if (formateur || (ditEspace && espace !== "stagiaire")) return false;
     }
+    if ((espace === "direction" || espace === "siege") && e.ou && e.ou.route && !routeDansLEspace(espace, e.ou.route)) return false;
     return (e.navigation !== "nouvelle" || !!navigationV2) && (e.navigation !== "ancienne" || !navigationV2);
   });
 }

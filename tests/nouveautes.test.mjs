@@ -4,6 +4,7 @@ import {
   guideSelonNavigation, STORAGE_SOUS_ONGLET,
 } from "../js/nouveautes.js";
 import { CLES_SOUS_ONGLETS } from "../js/nav-rules.js";
+import { routeDansLEspace } from "../js/espaces-rules.js";
 import { NOUVEAUTES } from "../js/nouveautes-data.js";
 import { MODULES } from "../js/modules-data.js";
 
@@ -381,5 +382,20 @@ ok(!/(direction|siège)/i.test(tout(changerPromo)), "Changer de promo : ne parle
 ok(!direction.ou || direction.ou.route !== "centre", "direction : pas de lien vers la route centre (réécrit « Indicateurs » par ou-trouver)");
 // Triées avec les autres du même jour : les entrées du lot 2B passent d'abord (l'Accueil du stagiaire montre la première).
 eq(ids(triees(visibles(NOUVEAUTES, false, true, "stagiaire")))[0], journee.id, "stagiaire : la plus récente reste la journée");
+
+// Aucune impasse : en direction et au siège, toute entrée montrée (tous les cas d'audience, tous les droits) a un lien permis par l'espace.
+for (const espace of ["direction", "siege"]) {
+  for (const formateur of [true, false]) {
+    const montrees = visibles(NOUVEAUTES, formateur, true, espace);
+    ok(montrees.length > 0, `${espace} : au moins une entrée`);
+    for (const e of montrees) {
+      ok(!e.ou || !e.ou.route || routeDansLEspace(espace, e.ou.route), `${espace} : ${e.id} ne mène pas hors de l'espace (${e.ou && e.ou.route})`);
+    }
+  }
+  ok(!visibles(NOUVEAUTES, true, true, espace).some((e) => e.pour === "tous" && e.ou && e.ou.route === "mon-suivi"), `${espace} : un lien vers Mon suivi est masqué`);
+}
+eq(ids(visibles([{ id: "a", date: "2026-11-09", pour: "tous", ou: { label: "x", route: "planning" } }, { id: "b", date: "2026-11-09", pour: "tous" },
+  { id: "c", date: "2026-11-09", pour: "tous", ou: { label: "x", route: "nouveautes" } }], false, true, "direction")), ["b", "c"], "direction : lien refusé masqué, sans lien et page permise gardés");
+eq(ids(visibles([{ id: "a", date: "2026-11-09", pour: "tous", ou: { label: "x", route: "planning" } }], false, true, "equipe")), ["a"], "formateur : inchangé");
 
 console.log(`nouveautes : ${n} assertions OK`);
