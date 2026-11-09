@@ -8,16 +8,16 @@
 // candidat n'aurait aucun champ où saisir son 2e ou 3e exemple ; les vides
 // portent .dp-bloc-exclu et ne s'impriment pas (voir dp-gabarit.js).
 
-import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20261109f";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261109f";
-import { isAdmin, isProf, monStagiaireId as maFiche } from "../auth-admin.js?v=20261109f";
-import { getCurrentWho } from "../identity.js?v=20261109f";
-import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261109f";
+import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20261109g";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261109g";
+import { isAdmin, isProf, monStagiaireId as maFiche } from "../auth-admin.js?v=20261109g";
+import { getCurrentWho } from "../identity.js?v=20261109g";
+import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261109g";
 import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261109f";
-import { buildDpFlux, blocSommaire, feuille } from "./dp-gabarit.js?v=20261109f";
-import { exempleImprime, exemplesRemplis } from "../dp-rules.js?v=20261109f";
-import { composer, marquerCoupures } from "../dp-pagination.js?v=20261109f";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261109g";
+import { buildDpFlux, blocSommaire, feuille } from "./dp-gabarit.js?v=20261109g";
+import { exempleImprime, exemplesRemplis } from "../dp-rules.js?v=20261109g";
+import { composer, marquerCoupures } from "../dp-pagination.js?v=20261109g";
 
 let stagiaires = [];
 let dossiersIndex = [];

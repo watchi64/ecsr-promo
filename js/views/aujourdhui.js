@@ -8,24 +8,24 @@
  */
 import {
   getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre,
-} from "../db.js?v=20261109f";
-import { el, clear, displayStagiaire } from "../utils.js?v=20261109f";
-import { icon } from "../icons.js?v=20261109f";
-import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261109f";
-import { libelleConnexion } from "../roles-rules.js?v=20261109f";
-import { emargementActif } from "../emargement-etat.js?v=20261109f";
-import { lignePromo } from "../accueil-rules.js?v=20261109f";
-import { journeeDuJour } from "../journee-rules.js?v=20261109f";
-import { indicateursPromo } from "../centre-stats.js?v=20261109f";
-import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261109f";
-import { signerSeance } from "../emargement-bandeau.js?v=20261109f";
-import { chargerATraiter } from "../a-traiter.js?v=20261109f";
+} from "../db.js?v=20261109g";
+import { el, clear, displayStagiaire } from "../utils.js?v=20261109g";
+import { icon } from "../icons.js?v=20261109g";
+import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261109g";
+import { libelleConnexion } from "../roles-rules.js?v=20261109g";
+import { emargementActif } from "../emargement-etat.js?v=20261109g";
+import { lignePromo } from "../accueil-rules.js?v=20261109g";
+import { journeeDuJour } from "../journee-rules.js?v=20261109g";
+import { indicateursPromo } from "../centre-stats.js?v=20261109g";
+import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261109g";
+import { signerSeance } from "../emargement-bandeau.js?v=20261109g";
+import { chargerATraiter } from "../a-traiter.js?v=20261109g";
 import {
   titreSelonDemis, auTableauDuJour, enVoitureDuJour, feuilleDuJour, lignesATraiter, ligneDeLEnTete,
-} from "../aujourdhui-rules.js?v=20261109f";
+} from "../aujourdhui-rules.js?v=20261109g";
 import {
   carte, plusLien, ligneLien, erreurAvecReessai, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
-} from "./pages-cartes.js?v=20261109f";
+} from "./pages-cartes.js?v=20261109g";
 
 const RELECTURE_SEANCES_MS = 60000;
 const NB_A_SUIVRE = 5;
@@ -286,9 +286,8 @@ export function renderAujourdhui(container) {
   const nomPromo = promo?.nom || "";
   container.appendChild(el("footer", { class: "home-footer-v2" },
     el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" }, "connecté comme " + (libelleConnexion({ profil: getProfile(), promo, apercu: getViewAs() }) || "formateur"))),
+    // Plus de lien « code source » : décision de Timy du 09/11, le code reste discret.
     el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
-      el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank", rel: "noopener" }, "code source"),
-      " · ",
       el("a", { href: "#/config" }, "réglages")),
   ));
 

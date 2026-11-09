@@ -7,22 +7,22 @@
  */
 import {
   listAgendaEvents, getPromoCourante, listQcmIndex, listMyQcmAttempts, listThemes, getDpDossier,
-} from "../db.js?v=20261109f";
-import { el, clear } from "../utils.js?v=20261109f";
-import { icon } from "../icons.js?v=20261109f";
-import { getProfileWho, monStagiaireId, getProfile, getViewAs } from "../auth-admin.js?v=20261109f";
-import { libelleConnexion } from "../roles-rules.js?v=20261109f";
-import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261109f";
-import { carteNouveaute } from "./nouveautes.js?v=20261109f";
-import { prenomDe } from "../nav-rules.js?v=20261109f";
-import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi } from "../accueil-rules.js?v=20261109f";
-import { journeeDuJour } from "../journee-rules.js?v=20261109f";
-import { effSujets, sujetsDe } from "../planning-roles.js?v=20261109f";
-import { exemplesRemplis } from "../dp-rules.js?v=20261109f";
-import { heureLocale } from "../emargement-rules.js?v=20261109f";
-import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261109f";
-import { ouvrirSignalement } from "../signalement.js?v=20261109f";
-import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261109f";
+} from "../db.js?v=20261109g";
+import { el, clear } from "../utils.js?v=20261109g";
+import { icon } from "../icons.js?v=20261109g";
+import { getProfileWho, monStagiaireId, getProfile, getViewAs } from "../auth-admin.js?v=20261109g";
+import { libelleConnexion } from "../roles-rules.js?v=20261109g";
+import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261109g";
+import { carteNouveaute } from "./nouveautes.js?v=20261109g";
+import { prenomDe } from "../nav-rules.js?v=20261109g";
+import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi } from "../accueil-rules.js?v=20261109g";
+import { journeeDuJour } from "../journee-rules.js?v=20261109g";
+import { effSujets, sujetsDe } from "../planning-roles.js?v=20261109g";
+import { exemplesRemplis } from "../dp-rules.js?v=20261109g";
+import { heureLocale } from "../emargement-rules.js?v=20261109g";
+import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261109g";
+import { ouvrirSignalement } from "../signalement.js?v=20261109g";
+import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261109g";
 
 const RELECTURE_SEANCES_MS = 60000;
 
@@ -297,8 +297,7 @@ export function renderAccueilStagiaire(container) {
   container.appendChild(el("footer", { class: "home-footer-v2" },
     el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" },
       "connecté comme " + (libelleConnexion({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() }) || "stagiaire"))),
-    el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
-      el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank", rel: "noopener" }, "code source")),
+    // Plus de lien « code source » : décision de Timy du 09/11, le code reste discret.
   ));
 
   // Chaque carte se charge seule ; la page rend la main quand toutes ont fini (réussi ou non).

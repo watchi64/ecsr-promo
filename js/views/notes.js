@@ -2,19 +2,19 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles, getNotesStatsGroupe, getPromoCourante,
-} from "../db.js?v=20261109f";
+} from "../db.js?v=20261109g";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261109f";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109f";
-import { icon } from "../icons.js?v=20261109f";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109f";
-import { recordUndo } from "../undo.js?v=20261109f";
-import { renderSubTabs } from "../subtabs.js?v=20261109f";
-import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109f";
-import { navigationV2Active } from "../nav-etat.js?v=20261109f";
-import { renderEpcf } from "./epcf.js?v=20261109f";
-import { noteGradient } from "../echelle-notes.js?v=20261109f";
+} from "../notes-stats.js?v=20261109g";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109g";
+import { icon } from "../icons.js?v=20261109g";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109g";
+import { recordUndo } from "../undo.js?v=20261109g";
+import { renderSubTabs } from "../subtabs.js?v=20261109g";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109g";
+import { navigationV2Active } from "../nav-etat.js?v=20261109g";
+import { renderEpcf } from "./epcf.js?v=20261109g";
+import { noteGradient } from "../echelle-notes.js?v=20261109g";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -1605,7 +1605,8 @@ function renderAveragesChart() {
       const valX = labelWidth + w + 6;
       val.setAttribute("x", valX); val.setAttribute("y", y + barHeight / 2 + 4);
       val.setAttribute("font-size", "11");
-      val.setAttribute("font-family", "var(--font-mono)");
+      val.setAttribute("font-family", "var(--font)");   // une seule écriture à l'écran (unification du 09/11)
+      val.style.fontVariantNumeric = "tabular-nums";
       val.setAttribute("font-weight", "700");
       val.setAttribute("class", "notes-valeur");
       val.textContent = (Math.round(d.avg * 10) / 10).toString() + " / 20";

@@ -1,4 +1,4 @@
-import { peutMontrer, aReprendre, perimee } from "./messages-rules.js?v=20261109f";
+import { peutMontrer, aReprendre, perimee } from "./messages-rules.js?v=20261109g";
 
 // === Date helpers ===
 

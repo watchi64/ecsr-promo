@@ -111,7 +111,9 @@ export function ecartsDocuments(fichier, texte) {
     if (!SELECTEUR_DOCUMENT.test(regle.selecteur)) continue;
     for (const d of regle.declarations) {
       for (const m of d.valeur.matchAll(/var\(\s*(--[\w-]+)/g)) {
-        if (familleDe(m[1]) === "habillage") {
+        // La police et le poids des titres de l'écran ne sont plus des jetons d'habillage (unification du 09/11), mais un
+        // document imprimé garde sa propre typographie (--doc-police-titre, --doc-poids-titre*) : ils y restent interdits.
+        if (familleDe(m[1]) === "habillage" || /^--(font-display|poids-titre)/.test(m[1])) {
           ecarts.push({ fichier, ligne: d.ligne, regle: 6, litteral: `${m[1]} dans « ${regle.selecteur} »` });
         }
       }
@@ -288,7 +290,7 @@ test("familleDe : habillage, fixe ou rien, sans confondre un nom qui ressemble",
   assert.equal(familleDe("--bg-elev"), "habillage");
   assert.equal(familleDe("--accent-soft-2"), "habillage");
   assert.equal(familleDe("--shadow-1"), "habillage");
-  assert.equal(familleDe("--font-display"), "habillage");
+  assert.equal(familleDe("--font-display"), null, "la police des titres est la même dans tous les habillages (09/11)");
   assert.equal(familleDe("--act-cours-border"), "fixe");
   assert.equal(familleDe("--c-stop"), "fixe");
   assert.equal(familleDe("--note-bonne"), "fixe");

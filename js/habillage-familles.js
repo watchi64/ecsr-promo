@@ -2,7 +2,8 @@
 // (tests/habillage-jetons.test.mjs) et le vérificateur du banc (importé dans la page) les lisent ici.
 //
 // PREFIXES_HABILLAGE : la couleur de l'interface (fonds, textes, traits, accent, barre sombre, repères,
-// halos, lueurs, ombres, graphes, titres). L'habillage « Couleurs ECF » redéfinit chacun de ces jetons.
+// halos, lueurs, ombres, graphes). L'habillage « Couleurs ECF » redéfinit chacun de ces jetons. La police et le poids
+// des titres n'en font plus partie depuis l'unification du 09/11 : une seule écriture pour tous les habillages.
 // FAMILLES_FIXES : une couleur qui porte un sens (note, activité, statut, document) et le garde dans
 // les deux habillages ; ECF n'en redéfinit aucune.
 // Règle de tri d'un littéral : il dit quelque chose (note, activité, statut, alerte) -> famille fixe ;
@@ -12,7 +13,7 @@
 export const PREFIXES_HABILLAGE = Object.freeze([
   "--bg", "--line", "--text", "--accent", "--sur-sombre", "--sombre", "--repere", "--sur-repere",
   "--pastille", "--sur-pastille", "--halo", "--lueur", "--shadow", "--ombre", "--graphe",
-  "--font-display", "--poids-titre", "--lisere-habillage", "--barre-etat",
+  "--lisere-habillage", "--barre-etat",
 ]);
 
 // --famille : couleur d'une famille de thèmes (formateur, conduite, notions pédagogiques), garde son sens dans les deux habillages.

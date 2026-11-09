@@ -19,19 +19,19 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20261109f";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109f";
-import { icon } from "../icons.js?v=20261109f";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109f";
-import { moduleVisible } from "../modules-etat.js?v=20261109f";
-import { renderModulesSection } from "./modules-reglage.js?v=20261109f";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261109f";
-import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109f";
-import { pointsARetenir } from "../accueil-rules.js?v=20261109f";
-import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261109f";
-import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261109f";
-import { blocHabillage } from "../habillage-choix.js?v=20261109f";
-import { habillageCourant } from "../habillage.js?v=20261109f";
+} from "../db.js?v=20261109g";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109g";
+import { icon } from "../icons.js?v=20261109g";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109g";
+import { moduleVisible } from "../modules-etat.js?v=20261109g";
+import { renderModulesSection } from "./modules-reglage.js?v=20261109g";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261109g";
+import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109g";
+import { pointsARetenir } from "../accueil-rules.js?v=20261109g";
+import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261109g";
+import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261109g";
+import { blocHabillage } from "../habillage-choix.js?v=20261109g";
+import { habillageCourant } from "../habillage.js?v=20261109g";
 
 // ====== SECTION Accès & invitations ======
 
@@ -735,9 +735,7 @@ function renderInfoSection() {
       el("dt", {}, "Auteur"),
       el("dd", {}, "watchi64 · misterwatchi@gmail.com"),
       el("dt", {}, "Licence"),
-      el("dd", {}, "Propriétaire. Voir LICENSE dans le repo."),
-      el("dt", {}, "Repo"),
-      el("dd", {}, el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank" }, "github.com/watchi64/ecsr-promo")),
+      el("dd", {}, "Propriétaire."),   // plus de lien vers le dépôt : décision de Timy du 09/11
     )
   ));
   // Nouvelle navigation : l'Accueil ne porte plus « À retenir » (ce n'est pas ce qu'on vient y chercher chaque jour) ;
