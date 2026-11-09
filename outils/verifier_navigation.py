@@ -148,8 +148,8 @@ Contrôles par vue
     a ouverts n'est qu'un avertissement) ;
   * fenêtre ouverte (menu du compte, tiroir « Plus ») : fermée quand « Précédent » change l'adresse, le
     focus restant dans la coquille ; sur téléphone, fermée aussi par son « Fermer » ;
-  * Planning > Semaine (ruling R29) : allumé, un bouton nommé « Aujourd'hui », de 44 px, qui, cliqué sur
-    une autre semaine que celle du jour, affiche la semaine du jour et amène sa carte en haut de l'écran ;
+  * Planning > Semaine (ruling R29, puis audit du 09/11, lot B) : allumé, aucun bouton de retour sur la semaine du jour ; sur une autre,
+    un bouton nommé « Revenir à aujourd'hui », de 44 px, qui affiche la semaine du jour et amène sa carte en haut de l'écran ;
     éteint, la page n'en a pas (celui de la barre du haut reste) ;
   * l'attente de la coquille (`body[data-nav-attente]`, ruling R17) n'est plus posée, dans les deux passes ;
   * Réglages et Mes préférences (lot 2A, allumé) : chez l'équipe, `#/config` s'appelle « Réglages », son surtitre est la promo
@@ -214,8 +214,9 @@ Contrôles par vue
     aujourd'hui) ; un événement à venir garde sa pastille d'avant (« 9 jours », « Aujourd'hui ! » le jour où il commence), sans ligne « en cours » ;
   * pied de l'Accueil (vague finale, F7, puis audit du 09/11, A8) : avec la nouvelle navigation, « TP ECSR App · Promo <nom de la promo affichée> · connecté comme
     <rôle> », le vrai rôle (aperçu, fondateur, rôle sur la promo ; jamais « admin ») ; avec l'ancienne, le texte de main (« Promo 2026 » écrit en dur, « admin ») ;
-  * Planning > Semaine : chez le stagiaire, ni « Lecture seule... » ni « Cette semaine » (« Aujourd'hui », en tête de la page, le remplace) ; chez
-    l'équipe non plus, « Cette semaine » (audit du 09/11, lot E : doublon d'« Aujourd'hui ») ;
+  * Planning > Semaine, sur la semaine du jour : ni « Lecture seule... », ni « Consultation », ni boutons « Cette semaine », « Aujourd'hui »,
+    « Revenir à aujourd'hui » ou « Émargement », pour le stagiaire comme pour l'équipe (audit du 09/11, lots E et B) ; hors édition, pas de
+    raccourci vers la banque des bénévoles, qui revient en mode Modifier ;
   * Mon suivi aux libellés clairs (lot 2B, tâche 7), pour toute personne qui a une fiche, à 1 280 et 375 px : les parties dans l'ordre (Résultats, Passages, EPCF,
     Livret EPCF, Dossier pro), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« EPCF : 0 épreuve sur 2 », « Dossier pro :
     0 exemple sur 6 »), sans date « 02/10 », jamais coupée, la dernière au-dessus de la barre du bas (à l'ouverture, et page défilée au bout) ; Résultats et son
@@ -1865,7 +1866,8 @@ async function comptesDesPages() {
 function planningSemaine() {
   const vue = document.getElementById("view");
   const boutons = (n) => [...vue.querySelectorAll("button")].filter((b) => visible(b) && net(b.textContent) === n).length;
-  return { lecture: /Lecture seule/.test(texte(vue)), cetteSemaine: boutons("Cette semaine"), aujourdhui: boutons("Aujourd'hui") };
+  return { lecture: /Lecture seule/.test(texte(vue)), cetteSemaine: boutons("Cette semaine"), aujourdhui: boutons("Aujourd'hui"),
+           retour: boutons("Revenir à aujourd'hui"), emargement: boutons("Émargement"), consultation: /Consultation/.test(texte(vue)) };
 }
 // Notes de la classe, imbriquées dans la fiche de Mon suivi : leurs titres (h2), leurs en-têtes, leurs sous-onglets (Matrice / EPCF), le nombre
 // de libellés « EPCF » isolés (titre, bouton ou sous-onglet qui ne dit que « EPCF »), leur texte, et la section des moyennes EPCF de la classe
@@ -2725,9 +2727,9 @@ JS_SEMAINE_AFFICHEE = """() => {
 
 
 def verifier_aujourdhui(page, res, sc):
-    """Ruling R29 : sous la nouvelle navigation, Planning > Semaine porte en haut le bouton « Aujourd'hui » de
-    l'ancienne barre du haut, nommé, de 44 px. Cliqué sur la page déjà affichée, une autre semaine que celle du
-    jour à l'écran, il affiche la semaine du jour et amène la carte du jour en haut de l'écran."""
+    """Ruling R29, puis audit du 09/11 (lot B) : sous la nouvelle navigation, le geste « Aujourd'hui » de l'ancienne barre du haut
+    est le bouton « Revenir à aujourd'hui » de la barre de la semaine, de 44 px, absent de la semaine du jour. Cliqué sur une autre
+    semaine, il affiche la semaine du jour et amène la carte du jour en haut de l'écran."""
     vue = "%s/planning/aujourdhui" % sc.nom
     aller_a(page, "#/planning")
     attendre(page)
@@ -2736,18 +2738,21 @@ def verifier_aujourdhui(page, res, sc):
         semaine.first.click()
         attendre(page)
     res.vues += 1
-    bouton = page.get_by_role("button", name="Aujourd'hui", exact=True)
+    # Audit du 09/11, lot B : le bouton s'appelle « Revenir à aujourd'hui » (« Aujourd'hui » est le nom de l'onglet d'accueil de l'équipe)
+    # et ne se montre que hors de la semaine du jour, où la bande et la barre des jours repèrent déjà aujourd'hui.
+    bouton = page.get_by_role("button", name="Revenir à aujourd'hui", exact=True)
+    lundi, jour = lundi_et_jour(DATE_DU_BANC)
+    if page.evaluate(JS_SEMAINE_AFFICHEE)["lundi"] == lundi:
+        if bouton.count() != 0:
+            res.echec("bouton « Revenir à aujourd'hui »", vue, "la semaine du jour montre %d bouton(s) « Revenir à aujourd'hui », 0 attendu" % bouton.count())
+        page.get_by_role("button", name="Semaine précédente").click()
+        attendre(page)
     if bouton.count() != 1:
-        res.echec("bouton « Aujourd'hui »", vue, "Planning > Semaine montre %d bouton(s) nommé(s) « Aujourd'hui », 1 attendu" % bouton.count())
+        res.echec("bouton « Revenir à aujourd'hui »", vue, "une autre semaine montre %d bouton(s) « Revenir à aujourd'hui », 1 attendu" % bouton.count())
         return
     boite = bouton.bounding_box()
     if not boite or boite["width"] < 43.5 or boite["height"] < 43.5:
-        res.echec("bouton « Aujourd'hui »", vue, "zone à toucher de %s px (44 px au moins)" % ("%dx%d" % (boite["width"], boite["height"]) if boite else "0x0"))
-    lundi, jour = lundi_et_jour(DATE_DU_BANC)
-    if page.evaluate(JS_SEMAINE_AFFICHEE)["lundi"] == lundi:
-        # Déjà la semaine du jour : une autre d'abord, le bouton doit aussi changer de semaine.
-        page.get_by_role("button", name="Semaine précédente").click()
-        attendre(page)
+        res.echec("bouton « Revenir à aujourd'hui »", vue, "zone à toucher de %s px (44 px au moins)" % ("%dx%d" % (boite["width"], boite["height"]) if boite else "0x0"))
     bouton.click()
     page.wait_for_timeout(100)
     attendre(page)
@@ -3626,8 +3631,8 @@ def verifier_graphe_de_la_fiche(page, res, sc, options):
 
 
 def verifier_bouton_benevoles(page, res, sc):
-    """Planning, nouvelle navigation : le bouton « Élèves bénévoles » (« Bénévoles » sur téléphone) ne s'ouvre plus en fenêtre : il mène à la
-    page Stagiaires, sous-onglet « Élèves bénévoles »."""
+    """Planning, nouvelle navigation : le bouton « Élèves bénévoles » (« Bénévoles » sur téléphone), absent hors édition et présent en mode
+    Modifier (audit du 09/11, lot B), ne s'ouvre plus en fenêtre : il mène à la page Stagiaires, sous-onglet « Élèves bénévoles »."""
     vue = "%s/planning/benevoles" % sc.nom
     aller_a(page, "#/planning")
     attendre(page)
@@ -3637,8 +3642,18 @@ def verifier_bouton_benevoles(page, res, sc):
         attendre(page)
     res.vues += 1
     bouton = page.locator('#view button[title^="Banque d\'élèves bénévoles"]')
+    # Audit du 09/11, lot B : hors édition, la banque n'a pas de raccourci dans le Planning (elle est dans Stagiaires) ;
+    # le bouton revient en mode Modifier, où l'on place les bénévoles.
+    if bouton.count() != 0:
+        res.echec("bouton des bénévoles", vue, "Planning > Semaine, hors édition, montre %d bouton(s) de la banque des bénévoles, 0 attendu" % bouton.count())
+    modifier = page.locator('#view .week-bar-actions button:has-text("Modifier")')
+    if modifier.count() != 1:
+        res.echec("bouton des bénévoles", vue, "Planning > Semaine montre %d bouton(s) « Modifier », 1 attendu" % modifier.count())
+        return
+    modifier.first.click()
+    attendre(page)
     if bouton.count() != 1:
-        res.echec("bouton des bénévoles", vue, "Planning > Semaine montre %d bouton(s) de la banque des bénévoles, 1 attendu" % bouton.count())
+        res.echec("bouton des bénévoles", vue, "Planning > Semaine, en mode Modifier, montre %d bouton(s) de la banque des bénévoles, 1 attendu" % bouton.count())
         return
     bouton.click()
     attendre(page, calme=150)
@@ -5238,8 +5253,8 @@ def verifier_accueil_eteint(page, res, sc):
 
 
 def verifier_planning_semaine(page, res, sc):
-    """Planning > Semaine, nouvelle navigation : chez le stagiaire, ni la phrase « Lecture seule... » ni le bouton « Cette semaine » (« Aujourd'hui », en tête
-    de la page, le remplace) ; chez l'équipe aussi, « Cette semaine » est parti (doublon d'« Aujourd'hui », audit du 09/11, lot E)."""
+    """Planning > Semaine, nouvelle navigation, sur la semaine du jour : ni la phrase « Lecture seule... », ni « Consultation », ni les boutons « Cette
+    semaine », « Aujourd'hui », « Revenir à aujourd'hui » ou « Émargement », chez le stagiaire comme chez l'équipe (audit du 09/11, lots E et B)."""
     vue = "%s/planning/semaine" % sc.nom
     aller_a(page, "#/planning")
     attendre(page)
@@ -5249,18 +5264,17 @@ def verifier_planning_semaine(page, res, sc):
         attendre(page)
     res.vues += 1
     m = page.evaluate("() => window.__verifNav.planningSemaine()")
-    if sc.espace == "stagiaire":
-        if m["cetteSemaine"]:
-            res.echec("planning du stagiaire", vue, "le bouton « Cette semaine » est encore montré (« Aujourd'hui » le remplace)")
-        if m["aujourdhui"] != 1:
-            res.echec("planning du stagiaire", vue, "%d bouton(s) « Aujourd'hui » dans la page, 1 attendu" % m["aujourdhui"])
-        if m["lecture"]:
-            res.echec("planning du stagiaire", vue, "la page dit encore « Lecture seule » à un stagiaire")
-    else:
-        if m["cetteSemaine"]:
-            res.echec("planning de l'équipe", vue, "%d bouton(s) « Cette semaine » chez l'équipe : doublon d'« Aujourd'hui », 0 attendu" % m["cetteSemaine"])
-        if m["aujourdhui"] != 1:
-            res.echec("planning de l'équipe", vue, "%d bouton(s) « Aujourd'hui » dans la page, 1 attendu" % m["aujourdhui"])
+    # Audit du 09/11, lot B : sur la semaine du jour, ni « Cette semaine », ni « Aujourd'hui » (le nom de l'onglet d'accueil de l'équipe), ni
+    # « Revenir à aujourd'hui » (montré hors de la semaine du jour, verifier_aujourdhui) ; ni « Lecture seule... », ni « Consultation », ni
+    # « Émargement » (la page est dans la barre, le bandeau mène à la feuille ouverte).
+    qui = "planning du stagiaire" if sc.espace == "stagiaire" else "planning de l'équipe"
+    for cle, libelle in (("cetteSemaine", "Cette semaine"), ("aujourdhui", "Aujourd'hui"), ("retour", "Revenir à aujourd'hui"), ("emargement", "Émargement")):
+        if m[cle]:
+            res.echec(qui, vue, "%d bouton(s) « %s » sur la semaine du jour, 0 attendu" % (m[cle], libelle))
+    if m["lecture"]:
+        res.echec(qui, vue, "la page dit encore « Lecture seule »")
+    if m["consultation"]:
+        res.echec(qui, vue, "la page dit encore « Consultation »")
     vider_console(res, vue)
 
 

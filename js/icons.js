@@ -123,4 +123,7 @@ export const icon = {
   inbox:      () => svg('<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'),
   // Lucide columns-3 : bascule « Grille / Jour » du planning (la grille à quatre carreaux est celle de « Plus »).
   columns:    () => svg('<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/>'),
+  // Imprimante (Lucide « printer ») : « Imprimer / PDF » du planning (audit du 09/11, lot B : l'icône de liste ne disait pas
+  // l'impression).
+  printer:    () => svg('<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/>'),
 };
