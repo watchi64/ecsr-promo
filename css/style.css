@@ -136,6 +136,89 @@
   --act-voiture-texte: #166534;
   --act-cours-texte:   #1E40AF;
 
+  /* --- Échelle des notes (fixe : une note garde sa teinte dans les deux habillages, jamais un rouge) ---
+     Fond et texte des quatre niveaux de la matrice, des indicateurs et des cartes de thème ; le niveau « moyen »
+     des QCM ; les points et barres des graphes ; les voiles des pastilles EPCF. */
+  --note-bad-fond:    #F1DBC8;
+  --note-bad-texte:   #7A4F30;
+  --note-warn-fond:   #FBE5C1;
+  --note-warn-texte:  #92400E;
+  --note-ok-fond:     #DBE9C4;
+  --note-ok-texte:    #3F6212;
+  --note-great-fond:  #BFE0A6;
+  --note-great-texte: #2C5212;
+  --note-faible-titre: #A05A3D;                      /* titre « thèmes à travailler » */
+  --note-mid-fond:    #FBEEDD;                       /* niveau moyen des QCM */
+  --note-mid-texte:   #B67A3D;
+  --note-warn-point:  #C98A2B;                       /* point ou barre ambre, bouton « à revoir » */
+  --note-ok-point:    #7BA23C;
+  --note-warn-voile:  rgba(201, 138, 43, 0.18);      /* pastille EPCF « en cours d'acquisition » */
+  --c-go-voile:       rgba(77, 124, 15, 0.18);       /* pastilles EPCF « acquis » et « non acquis » */
+  --c-stop-voile:     rgba(160, 90, 61, 0.18);
+  --act-controle-texte: #9A3412;                     /* texte de l'étiquette « contrôle » */
+
+  /* --- Couleurs réelles de la signalisation (donnée pédagogique : un panneau reste jaune, bleu, rouge...
+     quel que soit l'habillage) --- */
+  --signal-blanc:  #f4f3ee;
+  --signal-jaune:  #ffc72c;
+  --signal-bleu:   #1f5fbf;
+  --signal-rouge:  #cc1f2f;
+  --signal-vert:   #00804a;
+  --signal-orange: #ef7d00;
+  --signal-noir:   #1c1c1c;
+  --signal-gris:   #9a9a9a;
+  --signal-marron: #7c4a1e;
+  --signal-violet: #6c3fa8;
+
+  /* Fond gris des planches de panneaux dans les questions (indépendant du thème : il détache les panneaux blancs). */
+  --apercu-planche: #c6cbd1;
+
+  /* --- Planning imprimable (feuille A4 : sa palette ne dépend pas de l'habillage de l'écran) --- */
+  --doc-texte: #333;
+  --doc-texte-fort: #1F2937;
+  --doc-texte-doux: #555;
+  --doc-texte-gris: #777;
+  --doc-texte-pale: #aaa;
+  --doc-vide: #bbb;
+  --doc-texte-efface: #c9c9c9;
+  --doc-theme-num: #6B7F4E;
+  --doc-trait-fort: #444;
+  --doc-trait-doux: #999;
+  --doc-filet: #ccc;
+  --doc-fond-doux: #F4F4F3;
+  --doc-repos-fond-fort: #9CA3AF;
+  --doc-repos-fond: #F3F4F6;
+  --doc-repos-texte: #6B7280;
+  --doc-repos-texte-fort: #374151;
+  --doc-matin-fond: #FEF3C7;
+  --doc-matin-texte: #78350F;
+  --doc-aprem-fond: #DBEAFE;
+  --doc-aprem-texte: #1E3A8A;
+  --doc-pause: #B45309;
+  --doc-cours-fond: #EFF6FF;
+  --doc-peda-fond: #FEFCE8;
+  --doc-voiture-fond: #F0FDF4;
+  --doc-controle-fond: #FFF7ED;
+
+  /* --- Graphes des notes (habillage : leurs classes `notes-*` posent ces couleurs, un attribut SVG ne suivrait pas) --- */
+  --graphe-axe:        var(--line-strong);           /* axe de référence : zéro ou dix sur vingt */
+  --graphe-grille:     var(--line-faint);            /* graduations en pointillés */
+  --graphe-graduation: #8A7458;                      /* chiffres des axes et noms anonymisés */
+  --graphe-texte:      var(--text);                  /* valeurs et noms */
+  --graphe-libelle:    var(--text-soft);             /* tranches de note */
+  --graphe-piste:      #F0F0EC;                      /* rail gris derrière une barre */
+  --graphe-radar-moi:  rgba(107, 127, 78, 0.25);     /* surface du radar EPCF (ancien vert de l'accent) */
+
+  /* --- Autres teintes de décor --- */
+  --line-moyenne:      #C9D2BC;                      /* filet de la ligne « moyenne du groupe » */
+  --line-popover:      #ccc;                         /* bord des champs et boutons du petit éditeur de note */
+  --line-popover-cadre: #ddd;                        /* cadre de ce petit éditeur */
+  --text-popover:      #222;
+  --text-popover-doux: #666;
+  --ombre-illustration: rgba(60, 40, 20, 0.10);      /* ombre portée sous l'illustration de l'accueil */
+  --ombre-voile-fort:  rgba(20, 32, 28, 0.55);       /* voile derrière un questionnaire en plein écran */
+  --sombre-survol-fort: rgba(245, 232, 208, 0.16);   /* survol de la pastille de promo, dans la barre sombre */
+
   /* Le liseré de l'habillage (aucun par défaut) et la couleur de la barre d'état du navigateur
      (celle de <meta name="theme-color">). */
   --lisere-habillage: none;
@@ -3930,14 +4013,14 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .note-pill .note-max { font-size: 0.74rem; opacity: 0.65; font-weight: 400; }
 
 .note-pill.great { background: var(--c-go-soft); color: var(--c-go); }
-.note-pill.ok    { background: var(--act-cours); color: #1E40AF; }
+.note-pill.ok    { background: var(--act-cours); color: var(--act-cours-texte); }
 .note-pill.warn  { background: var(--c-wait-soft); color: var(--c-wait); }
 .note-pill.bad   { background: var(--c-stop-soft); color: var(--c-stop); }
 .note-pill.muted { background: var(--bg-subtle); color: var(--text-muted); }
 
-.tag.eval-type-theme      { background: var(--act-peda); color: #92400E; border-color: var(--act-peda-border); }
-.tag.eval-type-competence { background: var(--act-cours); color: #1E40AF; border-color: var(--act-cours-border); }
-.tag.eval-type-controle   { background: var(--act-controle); color: #9A3412; border-color: var(--act-controle-border); }
+.tag.eval-type-theme      { background: var(--act-peda); color: var(--act-peda-texte); border-color: var(--act-peda-border); }
+.tag.eval-type-competence { background: var(--act-cours); color: var(--act-cours-texte); border-color: var(--act-cours-border); }
+.tag.eval-type-controle   { background: var(--act-controle); color: var(--act-controle-texte); border-color: var(--act-controle-border); }
 
 /* ============================================================
    Notes, Matrice (toolbar date + cellules + édition inline)
@@ -3998,6 +4081,43 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .matrice-inline-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* Graphes des notes : la couleur vient d'une classe (donc d'un jeton) et non d'un attribut SVG, pour suivre
+   un changement d'habillage en direct. */
+.notes-axe { stroke: var(--graphe-axe); }
+.notes-grille { stroke: var(--graphe-grille); }
+.notes-graduation { fill: var(--graphe-graduation); }
+.notes-nom-anonyme { fill: var(--graphe-graduation); }
+.notes-valeur, .notes-nom { fill: var(--graphe-texte); }
+.notes-libelle { fill: var(--graphe-libelle); }
+.notes-piste { fill: var(--graphe-piste); }
+/* « Aucune note » : posé sur le rail gris, en texte atténué (5,0:1 ; l'ancien #9DA89A n'atteignait que 2,2:1). */
+.notes-valeur-faible { fill: var(--text-muted); }
+
+/* Petit éditeur d'une note, ancré sous la cellule de la matrice. */
+.matrice-popover {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 200;
+  background: #fff; border: 1px solid var(--line-popover-cadre); border-radius: 8px; padding: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  display: flex; gap: 6px; align-items: center; white-space: nowrap;
+}
+.matrice-popover .matrice-popover-input {
+  width: 90px; padding: 6px 8px; font-size: 0.95em; border: 1px solid var(--line-popover); border-radius: 4px;
+  outline: none; background: #fff; color: var(--text-popover);
+}
+.matrice-popover-ok {
+  padding: 7px 12px; background: var(--accent); color: #fff; border: 0; cursor: pointer;
+  font-size: 0.85em; line-height: 1; border-radius: 4px; font-weight: 600; white-space: nowrap;
+}
+.matrice-popover-annuler {
+  padding: 7px 10px; background: #fff; color: var(--text-popover-doux); border: 1px solid var(--line-popover);
+  cursor: pointer; font-size: 0.85em; line-height: 1; border-radius: 4px;
+}
+/* Bouton « valider » de l'édition d'une note sur la fiche du stagiaire. */
+.matrice-inline-ok {
+  padding: 0 10px; background: var(--accent); color: #fff; border: 0; cursor: pointer;
+  font-size: 0.9em; border-radius: 3px;
 }
 
 /* Matrice */
@@ -4180,18 +4300,18 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 /* Couleurs par note ratio */
 .matrice-table .empty { color: var(--text-faint); background: transparent; }
 .matrice-table .empty.editable:hover::after { content: "+"; }
-.matrice-table .bad    { background: #F1DBC8; color: #7A4F30; font-weight: 700; }
-.matrice-table .warn   { background: #FBE5C1; color: #92400E; font-weight: 700; }
-.matrice-table .ok     { background: #DBE9C4; color: #3F6212; font-weight: 700; }
-.matrice-table .great  { background: #BFE0A6; color: #2C5212; font-weight: 800; }
+.matrice-table .bad    { background: var(--note-bad-fond); color: var(--note-bad-texte); font-weight: 700; }
+.matrice-table .warn   { background: var(--note-warn-fond); color: var(--note-warn-texte); font-weight: 700; }
+.matrice-table .ok     { background: var(--note-ok-fond); color: var(--note-ok-texte); font-weight: 700; }
+.matrice-table .great  { background: var(--note-great-fond); color: var(--note-great-texte); font-weight: 800; }
 
 /* Alternance des lignes pour bien repérer chaque stagiaire */
 .matrice-table tbody tr:nth-child(even) td { background: var(--bg-subtle); }
 .matrice-table tbody tr:nth-child(even) td.sticky { background: var(--bg-soft); }
-.matrice-table tbody tr:nth-child(even) td.bad   { background: #F1DBC8; }
-.matrice-table tbody tr:nth-child(even) td.warn  { background: #FBE5C1; }
-.matrice-table tbody tr:nth-child(even) td.ok    { background: #DBE9C4; }
-.matrice-table tbody tr:nth-child(even) td.great { background: #BFE0A6; }
+.matrice-table tbody tr:nth-child(even) td.bad   { background: var(--note-bad-fond); }
+.matrice-table tbody tr:nth-child(even) td.warn  { background: var(--note-warn-fond); }
+.matrice-table tbody tr:nth-child(even) td.ok    { background: var(--note-ok-fond); }
+.matrice-table tbody tr:nth-child(even) td.great { background: var(--note-great-fond); }
 .matrice-table tbody tr:nth-child(odd) td.sticky { background: var(--bg-elev); }
 .matrice-table tbody tr:hover td.sticky { background: var(--accent-soft); }
 
@@ -4288,14 +4408,14 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   color: var(--text-muted);
   font-weight: 600;
 }
-.notes-kpi.bad   { background: #F1DBC8; }
-.notes-kpi.bad   .notes-kpi-value { color: #7A4F30; }
-.notes-kpi.warn  { background: #FBE5C1; }
-.notes-kpi.warn  .notes-kpi-value { color: #92400E; }
-.notes-kpi.ok    { background: #DBE9C4; }
-.notes-kpi.ok    .notes-kpi-value { color: #3F6212; }
-.notes-kpi.great { background: #BFE0A6; }
-.notes-kpi.great .notes-kpi-value { color: #2C5212; }
+.notes-kpi.bad   { background: var(--note-bad-fond); }
+.notes-kpi.bad   .notes-kpi-value { color: var(--note-bad-texte); }
+.notes-kpi.warn  { background: var(--note-warn-fond); }
+.notes-kpi.warn  .notes-kpi-value { color: var(--note-warn-texte); }
+.notes-kpi.ok    { background: var(--note-ok-fond); }
+.notes-kpi.ok    .notes-kpi-value { color: var(--note-ok-texte); }
+.notes-kpi.great { background: var(--note-great-fond); }
+.notes-kpi.great .notes-kpi-value { color: var(--note-great-texte); }
 
 /* === Top 3 thèmes === */
 .notes-rankings {
@@ -4312,8 +4432,8 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   font-size: 0.9rem;
   font-weight: 700;
 }
-.ranking-title.weak   { color: #A05A3D; }
-.ranking-title.strong { color: #3F6212; }
+.ranking-title.weak   { color: var(--note-faible-titre); }
+.ranking-title.strong { color: var(--note-ok-texte); }
 .ranking-sub { margin: -0.2rem 0 0.3rem; font-size: 0.75rem; }
 
 .theme-stat-card {
@@ -4325,14 +4445,14 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   border-radius: var(--r-sm);
   background: var(--bg-subtle);
 }
-.theme-stat-card.bad   { background: #F1DBC8; }
-.theme-stat-card.warn  { background: #FBE5C1; }
-.theme-stat-card.ok    { background: #DBE9C4; }
-.theme-stat-card.great { background: #BFE0A6; }
-.theme-stat-card.bad   strong { color: #7A4F30; }
-.theme-stat-card.warn  strong { color: #92400E; }
-.theme-stat-card.ok    strong { color: #3F6212; }
-.theme-stat-card.great strong { color: #2C5212; }
+.theme-stat-card.bad   { background: var(--note-bad-fond); }
+.theme-stat-card.warn  { background: var(--note-warn-fond); }
+.theme-stat-card.ok    { background: var(--note-ok-fond); }
+.theme-stat-card.great { background: var(--note-great-fond); }
+.theme-stat-card.bad   strong { color: var(--note-bad-texte); }
+.theme-stat-card.warn  strong { color: var(--note-warn-texte); }
+.theme-stat-card.ok    strong { color: var(--note-ok-texte); }
+.theme-stat-card.great strong { color: var(--note-great-texte); }
 
 .theme-stat-num {
   font-family: var(--font-mono);
@@ -4364,7 +4484,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 
 /* Anonymat renforcé : ligne « Moyenne du groupe » (vue du stagiaire anonymisé)
    et mention sous la matrice (profils masqués / rappel de réciprocité). */
-.m-row-group-avg td { border-top: 2px solid #C9D2BC; }
+.m-row-group-avg td { border-top: 2px solid var(--line-moyenne); }
 /* La cellule prénom est sticky et bornée à 110px : le libellé passe sur deux
    lignes dans la cellule (jamais en débordement sur la colonne Moy.). */
 .m-row-group-avg .m-td-name {
@@ -4462,7 +4582,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .sd-note.empty { background: var(--bg-subtle); color: var(--text-muted); font-weight: 400; }
 .sd-note.bad    { background: var(--c-stop-soft); color: var(--c-stop); }
 .sd-note.warn   { background: var(--c-wait-soft); color: var(--c-wait); }
-.sd-note.ok     { background: var(--act-cours); color: #1E40AF; }
+.sd-note.ok     { background: var(--act-cours); color: var(--act-cours-texte); }
 .sd-note.great  { background: var(--c-go-soft); color: var(--c-go); }
 .sd-edit-input {
   width: 60px;
@@ -4801,7 +4921,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   height: auto;
   display: block;
   /* Très subtile drop-shadow pour ancrer l'image sur le fond crème */
-  filter: drop-shadow(0 12px 24px rgba(60, 40, 20, 0.10));
+  filter: drop-shadow(0 12px 24px var(--ombre-illustration));
   /* Fade subtil sur les bords pour fondre avec le fond */
   -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 100%);
   mask-image: linear-gradient(to right, transparent 0%, black 8%, black 100%);
@@ -5284,7 +5404,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   }
   .pp-week {
     font-size: 10pt;
-    color: #555;
+    color: var(--doc-texte-doux);
     font-variant: small-caps;
   }
 
@@ -5302,7 +5422,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   .pp-day {
     display: flex;
     flex-direction: column;
-    border: 0.7px solid #444;
+    border: 0.7px solid var(--doc-trait-fort);
     border-radius: 2mm;
     overflow: hidden;
     page-break-inside: avoid;
@@ -5310,7 +5430,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   }
 
   /* Jour désactivé / férié à l'impression : grisé, bandeau, aucune activité */
-  .pp-day.off .pp-day-head { background: #9CA3AF !important; }
+  .pp-day.off .pp-day-head { background: var(--doc-repos-fond-fort) !important; }
   .pp-day-off {
     flex: 1;
     display: flex;
@@ -5319,8 +5439,8 @@ button.theme-date.editable.muted { color: var(--text-muted); }
     justify-content: center;
     gap: 1.2mm;
     padding: 6mm 2mm;
-    background: #F3F4F6 !important;
-    color: #6B7280 !important;
+    background: var(--doc-repos-fond) !important;
+    color: var(--doc-repos-texte) !important;
     text-align: center;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
@@ -5328,13 +5448,13 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   .pp-day-off .pp-day-off-tag {
     font-size: 7.5pt; font-weight: 800; letter-spacing: 0.1em;
     padding: 0.4mm 2mm; border-radius: 1mm;
-    background: #6B7280 !important; color: #fff !important;
+    background: var(--doc-repos-texte) !important; color: #fff !important;
     print-color-adjust: exact; -webkit-print-color-adjust: exact;
   }
-  .pp-day-off > span:last-child { font-size: 9pt; font-weight: 700; color: #374151 !important; }
+  .pp-day-off > span:last-child { font-size: 9pt; font-weight: 700; color: var(--doc-repos-texte-fort) !important; }
 
   .pp-day-head {
-    background: #1F2937 !important;
+    background: var(--doc-texte-fort) !important;
     color: white !important;
     padding: 1.6mm 2.4mm;
     display: flex;
@@ -5346,7 +5466,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   .pp-day-head .pp-day-name { font-size: 11pt; font-weight: 600; color: white !important; }
   .pp-day-head .pp-day-date { font-size: 8.5pt; color: rgba(255,255,255,0.7) !important; }
 
-  .pp-half { border-top: 0.5px solid #999; }
+  .pp-half { border-top: 0.5px solid var(--doc-trait-doux); }
   .pp-half:first-child { border-top: none; }
 
   .pp-half-head {
@@ -5354,8 +5474,8 @@ button.theme-date.editable.muted { color: var(--text-muted); }
     align-items: center;
     gap: 1.5mm;
     padding: 1mm 2.2mm;
-    background: #F4F4F3 !important;
-    border-bottom: 0.4px solid #ccc;
+    background: var(--doc-fond-doux) !important;
+    border-bottom: 0.4px solid var(--doc-filet);
     font-size: 8.3pt;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
@@ -5370,10 +5490,10 @@ button.theme-date.editable.muted { color: var(--text-muted); }
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
-  .pp-half-tag.matin { background: #FEF3C7 !important; color: #78350F !important; }
-  .pp-half-tag.aprem { background: #DBEAFE !important; color: #1E3A8A !important; }
-  .pp-half-hours { font-family: "Geist Mono", monospace; color: #555; font-size: 8.3pt; }
-  .pp-half-pause { color: #B45309 !important; font-weight: 500; font-size: 7.8pt; }
+  .pp-half-tag.matin { background: var(--doc-matin-fond) !important; color: var(--doc-matin-texte) !important; }
+  .pp-half-tag.aprem { background: var(--doc-aprem-fond) !important; color: var(--doc-aprem-texte) !important; }
+  .pp-half-hours { font-family: "Geist Mono", monospace; color: var(--doc-texte-doux); font-size: 8.3pt; }
+  .pp-half-pause { color: var(--doc-pause) !important; font-weight: 500; font-size: 7.8pt; }
 
   /* Slots : empilés verticalement dans une demi-journée */
   .pp-row {
@@ -5381,7 +5501,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
     grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
     grid-auto-flow: column;
     gap: 0.3mm;
-    border-bottom: 0.3px dashed #ccc;
+    border-bottom: 0.3px dashed var(--doc-filet);
   }
   .pp-row:last-child { border-bottom: none; }
 
@@ -5389,14 +5509,14 @@ button.theme-date.editable.muted { color: var(--text-muted); }
     padding: 1.5mm 2.2mm;
     font-size: 8.7pt;
     line-height: 1.27;
-    border-right: 0.3px dashed #ccc;
+    border-right: 0.3px dashed var(--doc-filet);
     min-width: 0;
   }
   .pp-cell:last-child { border-right: none; }
-  .pp-cell[data-activite="Cours"]              { background: #EFF6FF !important; }
-  .pp-cell[data-activite="Pédagogie salle"]    { background: #FEFCE8 !important; }
-  .pp-cell[data-activite="Voiture (conduite)"] { background: #F0FDF4 !important; }
-  .pp-cell[data-activite="Contrôle"]           { background: #FFF7ED !important; }
+  .pp-cell[data-activite="Cours"]              { background: var(--doc-cours-fond) !important; }
+  .pp-cell[data-activite="Pédagogie salle"]    { background: var(--doc-peda-fond) !important; }
+  .pp-cell[data-activite="Voiture (conduite)"] { background: var(--doc-voiture-fond) !important; }
+  .pp-cell[data-activite="Contrôle"]           { background: var(--doc-controle-fond) !important; }
 
   .pp-cell-head {
     display: flex;
@@ -5407,42 +5527,42 @@ button.theme-date.editable.muted { color: var(--text-muted); }
     flex-wrap: wrap;
   }
   .pp-act { font-weight: 700; font-size: 9.6pt; letter-spacing: -0.01em; min-width: 0; overflow-wrap: anywhere; }
-  .pp-act.muted { color: #aaa; font-weight: 400; }
-  .pp-prof { font-size: 8.3pt; color: #555; font-style: italic; }
+  .pp-act.muted { color: var(--doc-texte-pale); font-weight: 400; }
+  .pp-prof { font-size: 8.3pt; color: var(--doc-texte-doux); font-style: italic; }
 
   /* Les longs contenus (noms multiples, sujets) cassent au lieu de déborder/être rognés. */
   .pp-sujet, .pp-line, .pp-val, .pp-notes { overflow-wrap: anywhere; }
 
-  .pp-sujet { font-size: 8.7pt; color: #1F2937; line-height: 1.24; margin-bottom: 0.6mm; }
+  .pp-sujet { font-size: 8.7pt; color: var(--doc-texte-fort); line-height: 1.24; margin-bottom: 0.6mm; }
   /* Thèmes abordés : un par ligne, numéro en tête (gras, accent mint). */
   .pp-theme { display: flex; gap: 1.2mm; align-items: baseline; }
   .pp-theme + .pp-theme { margin-top: 0.3mm; }
-  .pp-theme-num { flex: none; font-weight: 700; color: #6B7F4E !important; font-variant-numeric: tabular-nums; }
+  .pp-theme-num { flex: none; font-weight: 700; color: var(--doc-theme-num) !important; font-variant-numeric: tabular-nums; }
   /* Étiquette de groupe (G1/G2) devant le sujet d'une salle 2 groupes */
-  .pp-theme-grp { flex: none; font-weight: 700; font-size: 7.5pt; color: #555; }
+  .pp-theme-grp { flex: none; font-weight: 700; font-size: 7.5pt; color: var(--doc-texte-doux); }
   .pp-theme-titre { min-width: 0; overflow-wrap: anywhere; }
-  .pp-line { font-size: 8.3pt; line-height: 1.25; color: #333; }
-  .pp-key { color: #777; }
+  .pp-line { font-size: 8.3pt; line-height: 1.25; color: var(--doc-texte); }
+  .pp-key { color: var(--doc-texte-gris); }
   .pp-val { color: #000; }
-  .pp-notes { color: #555; font-style: italic; margin-top: 0.6mm; }
+  .pp-notes { color: var(--doc-texte-doux); font-style: italic; margin-top: 0.6mm; }
   /* Élèves listés un par ligne, légèrement indentés sous leur label. */
   .pp-eleve { padding-left: 2.4mm; color: #000; }
   /* Bénévoles (voiture) : italique pour les distinguer des élèves moniteurs. */
-  .pp-benevole { font-style: italic; color: #333; }
+  .pp-benevole { font-style: italic; color: var(--doc-texte); }
 
-  .pp-empty { padding: 1.7mm 2.2mm; color: #bbb; font-size: 8.3pt; font-style: italic; }
+  .pp-empty { padding: 1.7mm 2.2mm; color: var(--doc-vide); font-size: 8.3pt; font-style: italic; }
 
   .pp-footer {
     margin-top: 3mm;
     text-align: right;
     font-size: 8.5pt;
-    color: #999;
+    color: var(--doc-trait-doux);
     font-style: italic;
   }
   /* Ligne diagnostic (remplie par fitPrintToPage) : volontairement quasi invisible sur le
      papier, mais lisible sur une photo de l'aperçu pour débugger une machine à distance. */
   .pp-diag {
-    color: #c9c9c9;
+    color: var(--doc-texte-efface);
     font-size: 6.5pt;
     font-style: normal;
   }
@@ -5601,7 +5721,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 body.qcm-open { overflow: hidden; }
 .qcm-overlay {
   position: fixed; inset: 0; z-index: 1000;
-  background: rgba(20, 32, 28, 0.55);
+  background: var(--ombre-voile-fort);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
   overflow-y: auto;
@@ -5881,7 +6001,7 @@ body.qcm-open { overflow: hidden; }
 .qcm-cell-note-val.is-muted { color: var(--text-muted); font-weight: 600; }
 .qcm-cell-note-val.n-great { color: var(--c-go); }
 .qcm-cell-note-val.n-ok { color: var(--accent-strong); }
-.qcm-cell-note-val.n-mid { color: #B67A3D; }
+.qcm-cell-note-val.n-mid { color: var(--note-mid-texte); }
 .qcm-cell-note-val.n-low { color: var(--c-stop); }
 .qcm-cell-note-val.n-none { color: var(--text-muted); }
 .qcm-note-pill.exam { background: var(--accent-soft-2); color: var(--accent-strong); }
@@ -5906,8 +6026,8 @@ body.qcm-open { overflow: hidden; }
 .qcm-note-card.n-great .qcm-note-card-val { color: var(--c-go); }
 .qcm-note-card.n-ok { background: var(--accent-soft); border-color: var(--accent-soft); }
 .qcm-note-card.n-ok .qcm-note-card-val { color: var(--accent-strong); }
-.qcm-note-card.n-mid { background: #FBEEDD; border-color: #FBEEDD; }
-.qcm-note-card.n-mid .qcm-note-card-val { color: #B67A3D; }
+.qcm-note-card.n-mid { background: var(--note-mid-fond); border-color: var(--note-mid-fond); }
+.qcm-note-card.n-mid .qcm-note-card-val { color: var(--note-mid-texte); }
 .qcm-note-card.n-low { background: var(--c-stop-soft); border-color: var(--c-stop-soft); }
 .qcm-note-card.n-low .qcm-note-card-val { color: var(--c-stop); }
 .qcm-note-card.n-none .qcm-note-card-val { color: var(--text-muted); }
@@ -5915,7 +6035,7 @@ body.qcm-open { overflow: hidden; }
 /* Pills de note colorées (cellule QCM de la liste) */
 .qcm-note-pill.n-great { background: var(--c-go-soft); color: var(--c-go); }
 .qcm-note-pill.n-ok { background: var(--accent-soft); color: var(--accent-strong); }
-.qcm-note-pill.n-mid { background: #FBEEDD; color: #B67A3D; }
+.qcm-note-pill.n-mid { background: var(--note-mid-fond); color: var(--note-mid-texte); }
 .qcm-note-pill.n-low { background: var(--c-stop-soft); color: var(--c-stop); }
 
 /* Modale « Modifier l'examen » (formateur) */
@@ -5978,8 +6098,8 @@ body.qcm-open { overflow: hidden; }
 /* L'échelle douce des notes (pêche, abricot, verts), partagée par les points de Mon évolution et les barres des
    graphes de Notes : jamais un rouge. */
 .ms-pt.bad,   .notes-bar.bad   { fill: var(--c-stop); }
-.ms-pt.warn,  .notes-bar.warn  { fill: #C98A2B; }
-.ms-pt.ok,    .notes-bar.ok    { fill: #7BA23C; }
+.ms-pt.warn,  .notes-bar.warn  { fill: var(--note-warn-point); }
+.ms-pt.ok,    .notes-bar.ok    { fill: var(--note-ok-point); }
 .ms-pt.great, .notes-bar.great { fill: var(--c-go); }
 .ms-pt.hover { stroke: var(--text); stroke-width: 2.5; }
 .ms-chart-legend { margin: 0.5rem 0 0; font-size: 0.85rem; }
@@ -6065,7 +6185,7 @@ body.qcm-open { overflow: hidden; }
 .epcf-seg { display: flex; gap: 0.25rem; flex-shrink: 0; }
 .epcf-seg-btn { padding: 0.25rem 0.55rem; font-size: 0.78rem; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); color: var(--text-muted); cursor: pointer; }
 .epcf-seg-btn.active.A  { background: var(--c-go);  border-color: var(--c-go);  color: #fff; }
-.epcf-seg-btn.active.R  { background: #C98A2B;      border-color: #C98A2B;      color: #fff; }
+.epcf-seg-btn.active.R  { background: var(--note-warn-point);      border-color: var(--note-warn-point);      color: #fff; }
 .epcf-seg-btn.active.NA { background: var(--c-stop); border-color: var(--c-stop); color: #fff; }
 .epcf-form-comps { margin: 0.8rem 0; }
 .epcf-comp-cb { margin-right: 1.2rem; }
@@ -6076,7 +6196,7 @@ body.qcm-open { overflow: hidden; }
 .epcf-radar-ring { fill: none; stroke: var(--line); }
 .epcf-radar-spoke { stroke: var(--line); }
 .epcf-radar-label { fill: var(--text-muted); font-size: 11px; }
-.epcf-radar-serie.moi { fill: rgba(107, 127, 78, 0.25); stroke: var(--accent); stroke-width: 2; }
+.epcf-radar-serie.moi { fill: var(--graphe-radar-moi); stroke: var(--accent); stroke-width: 2; }
 .epcf-radar-serie.groupe { fill: none; stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
 .epcf-legende { text-align: center; font-size: 0.82rem; }
 .epcf-leg { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
@@ -6084,9 +6204,9 @@ body.qcm-open { overflow: hidden; }
 .epcf-leg.groupe { background: var(--text-muted); }
 
 .epcf-chip { display: inline-block; min-width: 5.5rem; text-align: center; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
-.epcf-chip.A  { background: rgba(77, 124, 15, 0.18); color: var(--c-go); }
-.epcf-chip.R  { background: rgba(201, 138, 43, 0.18); color: #C98A2B; }
-.epcf-chip.NA { background: rgba(160, 90, 61, 0.18); color: var(--c-stop); }
+.epcf-chip.A  { background: var(--c-go-voile); color: var(--c-go); }
+.epcf-chip.R  { background: var(--note-warn-voile); color: var(--note-warn-point); }
+.epcf-chip.NA { background: var(--c-stop-voile); color: var(--c-stop); }
 .epcf-chip.vide { background: var(--bg-subtle); color: var(--text-muted); }
 
 .epcf-actions { margin: 1rem 0 2rem; }
@@ -6563,7 +6683,7 @@ body.qcm-open { overflow: hidden; }
      des planches de signalisation. Valeur choisie par le calcul : elle detache le
      blanc (rapport 1,63) sans eteindre le rouge des panneaux (rapport 3,01) ; un
      gris plus fonce ferait l'inverse. */
-  background: #c6cbd1;
+  background: var(--apercu-planche);
   border: 1px solid rgba(0, 0, 0, 0.16);
   border-radius: 8px;
   padding: 0.5rem 0.7rem;
@@ -6733,7 +6853,7 @@ body.qcm-open { overflow: hidden; }
 .qcm-signal-instr {
   margin-top: 0.5rem; padding: 0.45rem 0.6rem;
   border: 1px solid var(--line); border-radius: 6px;
-  background: var(--bg-subtle, rgba(127, 127, 127, 0.06));
+  background: var(--bg-subtle);
 }
 .qcm-signal-instr-tete { cursor: pointer; list-style: none; }
 .qcm-signal-instr-tete::-webkit-details-marker { display: none; }
@@ -7361,16 +7481,16 @@ body.cours-open { overflow: hidden; }
   border: 1px solid var(--line-strong);
   vertical-align: -0.05em;
 }
-.cours-pastille-blanc { background: #f4f3ee; }
-.cours-pastille-jaune { background: #ffc72c; }
-.cours-pastille-bleu { background: #1f5fbf; }
-.cours-pastille-rouge { background: #cc1f2f; }
-.cours-pastille-vert { background: #00804a; }
-.cours-pastille-orange { background: #ef7d00; }
-.cours-pastille-noir { background: #1c1c1c; }
-.cours-pastille-gris { background: #9a9a9a; }
-.cours-pastille-marron { background: #7c4a1e; }
-.cours-pastille-violet { background: #6c3fa8; }
+.cours-pastille-blanc { background: var(--signal-blanc); }
+.cours-pastille-jaune { background: var(--signal-jaune); }
+.cours-pastille-bleu { background: var(--signal-bleu); }
+.cours-pastille-rouge { background: var(--signal-rouge); }
+.cours-pastille-vert { background: var(--signal-vert); }
+.cours-pastille-orange { background: var(--signal-orange); }
+.cours-pastille-noir { background: var(--signal-noir); }
+.cours-pastille-gris { background: var(--signal-gris); }
+.cours-pastille-marron { background: var(--signal-marron); }
+.cours-pastille-violet { background: var(--signal-violet); }
 
 /* ===== Galerie de planches de l'éditeur de cours =====
    Choisir un panneau ou un marquage en le voyant : vignettes cliquables,
@@ -7469,7 +7589,7 @@ body.cours-open { overflow: hidden; }
 .qcm-cell-barre-fill { height: 100%; border-radius: 999px; }
 .qcm-cell-barre-fill.n-great { background: var(--c-go); }
 .qcm-cell-barre-fill.n-ok { background: var(--accent-strong); }
-.qcm-cell-barre-fill.n-mid { background: #B67A3D; }
+.qcm-cell-barre-fill.n-mid { background: var(--note-mid-texte); }
 .qcm-cell-barre-fill.n-low { background: var(--c-stop); }
 
 /* ===== Assistant (bulle flottante) ===== */
@@ -7805,18 +7925,18 @@ body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-panel {
   gap: 0.3rem;
   padding: 0.4rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid rgba(245, 232, 208, 0.25);
-  background: rgba(245, 232, 208, 0.08);
-  color: #F5E8D0;
+  border: 1px solid var(--sombre-bord);
+  background: var(--sombre-filet);
+  color: var(--sur-sombre);
   font-family: inherit;
   font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
 }
-.promo-pastille:hover { background: rgba(245, 232, 208, 0.16); }
+.promo-pastille:hover { background: var(--sombre-survol-fort); }
 /* Bascule en cours (jusqu'au rechargement) : la pastille reste affichée, sans réagir. */
-.promo-pastille:disabled { opacity: 0.6; cursor: default; background: rgba(245, 232, 208, 0.08); }
+.promo-pastille:disabled { opacity: 0.6; cursor: default; background: var(--sombre-filet); }
 .promo-pastille-fleche { font-size: 0.7rem; opacity: 0.7; }
 .promo-choix-liste {
   display: flex;

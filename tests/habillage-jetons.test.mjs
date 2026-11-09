@@ -45,6 +45,7 @@ export const EXEMPTS_JS = [
   "js/views/epcf-livret.js",  // livret officiel TP-01303 : mise en page du document
   "js/doc-officiel.js",       // gabarit des documents officiels imprimés
   "js/epcf-trames.js",        // palette des trames EPCF : une couleur par rubrique du titre professionnel
+  "js/echelle-notes.js",      // échelle continue des notes (teinte calculée, une par dixième de point) : un sens, pas un habillage
 ];
 
 // Le cliquet : nombre d'écarts aux règles 1 à 4, par fichier. Il ne peut que baisser. Vide à la fin de la tâche 5.
@@ -53,8 +54,6 @@ export const DETTE = {
   "css/dp.css": 6,
   "css/emargement.css": 47,
   "css/qualiopi.css": 13,
-  "css/style.css": 106,
-  "js/views/notes.js": 33,
 };
 
 // --- Rappels des règles, sur un texte (pur, donc testable sur de petits exemples) ---

@@ -16,7 +16,8 @@ export const PREFIXES_HABILLAGE = Object.freeze([
 ]);
 
 // --famille : couleur d'une famille de thèmes (formateur, conduite, notions pédagogiques), garde son sens dans les deux habillages.
-export const FAMILLES_FIXES = Object.freeze(["--note", "--act", "--c-", "--doc", "--apercu", "--famille"]);
+// --signal : les couleurs réelles de la signalisation (pastilles des cours), qui ne changent pas avec l'habillage.
+export const FAMILLES_FIXES = Object.freeze(["--note", "--act", "--c-", "--doc", "--apercu", "--famille", "--signal"]);
 
 // Un préfixe couvre son nom exact et ses déclinaisons (« --bg » -> « --bg », « --bg-elev »), jamais un
 // nom qui lui ressemble seulement (« --act » ne couvre pas « --accent »). Un préfixe qui finit par un
