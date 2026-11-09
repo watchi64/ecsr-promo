@@ -455,6 +455,7 @@ EXCEPTION_ADMISE = ".matrice-wrap"
 ENTREES_REPLI = {
     "stagiaire": ("home", "planning", "themes", "mon-suivi", "ccp2"),
     "equipe": ("home", "planning", "emargement", "stagiaires", "notes", "themes", "ccp2", "centre", "config"),
+    "direction": ("centre", "promos", "stagiaires", "notes", "equipe"),
 }
 
 # --------------------------------------------------------------------------------------
@@ -570,12 +571,13 @@ async function regles() {
   try {
     const [rules, mods, em, auth, etat] = await modulesDeLApp(
       ["nav-rules", "modules-etat", "emargement-etat", "auth-admin", "nav-etat"]);
-    const espace = rules.espaceDe({ formateur: auth.isAdmin() || auth.isProf() });
+    // Lot 5 : l'espace de la session (direction et siège compris), fixé à la porte ; le lot 1 le déduisait des droits.
+    const espace = auth.getEspace ? auth.getEspace() : rules.espaceDe({ formateur: auth.isAdmin() || auth.isProf() });
     const entrees = rules.entreesNavigation(espace, { routeVisible: mods.routeVisible, emargementActif: em.emargementActif() });
     const tel = rules.barreTelephone(espace, entrees);
     return {
       espace, entrees, barre: tel.barre.map((e) => e.id), plus: tel.plus.map((e) => e.id),
-      lit: (route) => rules.entreeActive(route, entrees),
+      lit: (route) => rules.entreeActive(route, entrees, espace),
       actif: etat.navigationV2Active(), fondateur: auth.isFounder(), profilStagiaire: auth.monStagiaireId() != null,
       setViewAs: auth.setViewAs,
     };
@@ -1553,7 +1555,7 @@ class Scenario:
     a_traiter: str = ""         # scénario « à traiter » (A_TRAITER_DU_BANC) : "ia", "beaucoup", "panne" ou "lent" ; vide pour tous les autres (lot 2A, tâche 6)
     reglage_illisible: str = ""       # la lecture du réglage de la promo échoue : la case du fondateur, une clé de CASES_DU_FONDATEUR (lot 2A, tâche 6, ruling R54)
     ressources_fermees: bool = False  # le module Ressources est fermé pour la promo : la ligne « Contacts du centre » du menu du compte (lot 2A, tâche 1)
-    compte: str = ""            # ?compte= du banc : un compte réel du lot 4 ("direction" : lit sans écrire), joué par jouer_direction (relecture finale du lot 2B)
+    compte: str = ""            # ?compte= du banc : un compte réel du lot 4 ("direction" : son espace depuis le lot 5), joué par jouer_direction (relecture finale du lot 2B)
 
     @property
     def nom(self):
@@ -1648,9 +1650,10 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
                                                     ("panne", 1280, ""), ("panne", 375, ""), ("lent", 375, ""), ("signaler", 375, "")):
                     if largeur in largeurs:
                         scenarios.append(Scenario(moteur, "allume", "prof", largeur, "reglage", "equipe", modules=modules, a_traiter=a_traiter))
-                # La direction du centre (relecture finale du lot 2B) : l'espace de l'équipe, en lecture seule ; ni Émargement, ni À traiter, ni QCM du stagiaire.
+                # La direction du centre (relecture finale du lot 2B) : depuis le lot 5, son espace (barre de la direction, D2, D4) et non plus
+                # l'espace de l'équipe en lecture seule ; aucune entrée ne mène à une page qui la refuse.
                 for l in etroit:
-                    scenarios.append(Scenario(moteur, "allume", "prof", l, "reglage", "equipe", compte="direction"))
+                    scenarios.append(Scenario(moteur, "allume", "prof", l, "reglage", "direction", compte="direction"))
         if "eteint" in passes:
             for role in roles:
                 for l in largeurs:
@@ -4292,73 +4295,41 @@ REFUS_DE_PAGE = ("se gère par les formateurs", "n'est pas pour toi", "réservé
 
 
 def jouer_direction(page, res, sc):
-    """La direction du centre (`?compte=direction` : rôle prof, ni administrateur ni fondateur), nouvelle navigation (relecture finale du lot 2B, B1, B2, I1). Elle lit
-    sans écrire : Aujourd'hui sans carte Émargement ni À traiter (« À suivre de près » prend alors toute la dernière ligne sur ordinateur), Cours et QCM sans le
-    sous-onglet QCM du stagiaire, ni Signalements, ni Propositions IA, et aucun lien de la barre ou d'Aujourd'hui ne mène à une page qui la refuse. Le siège
-    emprunte les mêmes chemins de code (isProf vrai, isAdmin faux)."""
+    """La direction du centre (`?compte=direction` : rôle prof, ni administrateur ni fondateur, direction du lieu 1), nouvelle navigation. Relecture
+    finale du lot 2B (B1, B2, I1) : aucun lien ne mène à une page qui la refuse. Depuis le lot 5, elle a son espace (D2, D4 : barre de la direction,
+    accueil #/centre) et non plus l'espace de l'équipe en lecture seule : l'accueil, chaque entrée de la barre (et du tiroir « Plus ») sans refus ni
+    phrase « pas dans l'espace », puis Planning, Cours et QCM (D15) et Mon suivi, hors de l'espace : l'accueil, et la phrase qui le dit."""
     vue = "%s/direction" % sc.nom
     preparer_coquille(page, res, sc, regles_de_la_page(page, res, sc))
-    # 1. Aujourd'hui.
+    toast = "() => { const t = document.getElementById('toast'); return t && !t.classList.contains('hidden') ? t.innerText : ''; }"
+    # 1. L'accueil de l'espace : #/home y mène.
     aller_a(page, "#/home")
     attendre(page)
-    try:
-        attendre_accueil(page)
-    except DelaiDepasse:
-        res.echec("direction, aujourd'hui", vue, "une carte reste en « Chargement… »")
-    verifier_vue(page, res, sc, "direction/aujourdhui", {})
-    m = page.evaluate("""() => {
-      const g = document.querySelector('#view .auj-grille');
-      const cartes = [...document.querySelectorAll('#view .auj-grille > .acc-carte')];
-      const suivre = cartes.find((c) => c.dataset.zone === 'a-suivre');
-      return { grille: !!g, zones: cartes.map((c) => c.dataset.zone),
-               largeurGrille: g ? Math.round(g.getBoundingClientRect().width) : 0,
-               largeurSuivre: suivre ? Math.round(suivre.getBoundingClientRect().width) : 0,
-               defile: document.documentElement.scrollWidth > innerWidth + 1 };
-    }""")
-    if not m["grille"]:
-        res.echec("direction, aujourd'hui", vue, "la page Aujourd'hui ne s'affiche pas")
-    else:
-        if "emargement" in m["zones"]:
-            res.echec("direction, aujourd'hui", vue, "la carte Émargement s'affiche : elle mène à une page réservée aux formateurs de la promo")
-        if "a-traiter" in m["zones"]:
-            res.echec("direction, aujourd'hui", vue, "la carte « À traiter » s'affiche : la direction ne traite ni signalement ni proposition de l'IA")
-        if m["zones"] != ["tableau", "voiture", "a-suivre"]:
-            res.echec("direction, aujourd'hui", vue, "cartes attendues : tableau, voiture, à suivre (lu : %s)" % m["zones"])
-        if sc.largeur >= 1080 and abs(m["largeurSuivre"] - m["largeurGrille"]) > 1:
-            res.echec("direction, aujourd'hui", vue, "« À suivre de près » ne prend pas toute la ligne (%d px pour %d px)" % (m["largeurSuivre"], m["largeurGrille"]))
-        if m["defile"]:
-            res.echec("direction, aujourd'hui", vue, "la page défile de côté")
-    # 2. Aucun lien vers une page qui la refuse : chaque lien d'Aujourd'hui, cliqué (il peut écrire un sous-onglet), puis chaque entrée de la barre et du tiroir.
-    liens = page.evaluate("() => [...document.querySelectorAll('#view a[href^=\"#/\"]')].filter((a) => a.getClientRects().length).map((a) => a.getAttribute('href'))")
-    for i, href in enumerate(liens):
-        aller_a(page, "#/home")
-        attendre(page)
-        try:
-            attendre_accueil(page)
-        except DelaiDepasse:
-            pass
-        try:
-            page.locator('#view a[href^="#/"]:visible').nth(i).click(timeout=4000)
-        except (DelaiDepasse, ErreurPlaywright) as e:
-            res.echec("clic impossible", vue, "lien %s d'Aujourd'hui : %s" % (href, motif_du_clic(e)))
-            continue
-        attendre(page, calme=200)
-        verifier_refus(page, res, vue, "lien %s d'Aujourd'hui" % href)
+    if route_courante(page) != "centre":
+        res.echec("direction, accueil", vue, "#/home mène à #/%s, attendu #/centre (l'accueil de la direction)" % route_courante(page))
+    verifier_vue(page, res, sc, "direction/accueil", {})
+    # 2. Chaque entrée de la barre et du tiroir : la page s'ouvre, sans refus et sans quitter l'espace.
     routes = page.evaluate("() => [...new Set([...document.querySelectorAll('[data-nav-coquille] a[href^=\"#/\"]')].map((a) => a.getAttribute('href')))]")
     for href in routes:
         aller_a(page, href)
         attendre(page, calme=200)
         verifier_refus(page, res, vue, "entrée %s de la barre" % href)
-    # 3. Cours et QCM : Thèmes, Compétences, Documents ; ni le QCM du stagiaire, ni Signalements, ni Propositions IA.
-    aller_a(page, "#/themes")
-    attendre(page, calme=200)
-    onglets = page.evaluate("() => [...document.querySelectorAll('#view [role=tab]')].filter((t) => t.getClientRects().length).map((t) => t.textContent.trim())")
-    for interdit in ("QCM", "Signalements", "Propositions IA"):
-        if interdit in onglets:
-            res.echec("direction, cours et qcm", vue, "le sous-onglet « %s » s'affiche (sous-onglets : %s)" % (interdit, ", ".join(onglets)))
-    if "Thèmes" not in onglets:
-        res.echec("direction, cours et qcm", vue, "le sous-onglet « Thèmes » manque (sous-onglets : %s)" % ", ".join(onglets))
-    res.vues += 1
+        if route_courante(page) != href[2:].split("/")[0]:
+            res.echec("direction, entrée de la barre", vue, "l'entrée %s ouvre #/%s" % (href, route_courante(page)))
+        elif "pas dans l'espace" in page.evaluate(toast):
+            res.echec("direction, entrée de la barre", vue, "l'entrée %s dit « %s »" % (href, page.evaluate(toast)))
+    # 3. Hors de l'espace : l'accueil, et la phrase (jamais en silence).
+    for route in ("planning", "themes", "mon-suivi"):
+        aller_a(page, "#/home")
+        attendre(page, calme=150)
+        aller_a(page, "#/" + route)
+        attendre(page, calme=200)
+        res.vues += 1
+        dit = page.evaluate(toast)
+        if route_courante(page) != "centre":
+            res.echec("direction, page hors de l'espace", vue, "#/%s ouvre #/%s, attendu l'accueil #/centre" % (route, route_courante(page)))
+        if "Cette page n'est pas dans l'espace Direction." not in dit:
+            res.echec("direction, page hors de l'espace", vue, "#/%s ramène à l'accueil sans la phrase (message : « %s »)" % (route, dit))
     vider_console(res, vue)
 
 

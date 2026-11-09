@@ -172,12 +172,10 @@ export function etiquetteBadge({ profil, promo } = {}) {
   return { libelle: "", classe: "" };
 }
 
-// Phrase du refus à la porte, quand le compte n'a aucune promo : selon ses affectations (liste de rôles lue en base, vide
-// ou absente si la lecture a échoué), le siège et la direction ne sont pas renvoyés vers « un formateur ».
+// Phrase du refus à la porte, quand le compte n'a aucune promo. Depuis le lot 5, le siège et la direction entrent sans promo
+// (porteSansPromo, js/espaces-rules.js) : le refus ne concerne plus que les autres comptes, et une seule phrase leur suffit.
+// Les rôles que les appelants du lot 4 lui passent n'y changent plus rien.
 export const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à ta direction ou à un formateur de t'ajouter.";
-export function messageSansPromo(roles) {
-  const r = Array.isArray(roles) ? roles : [];
-  if (r.includes("siege")) return "Ton compte est rattaché au siège du réseau. Son espace n'est pas encore ouvert : il arrive bientôt.";
-  if (r.includes("direction")) return "Ton centre n'a pas encore de promo. L'espace de la direction, qui permettra d'en créer une, arrive bientôt.";
+export function messageSansPromo() {
   return MESSAGE_SANS_PROMO;
 }

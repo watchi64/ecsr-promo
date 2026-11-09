@@ -20,6 +20,46 @@ export function barreLaterale(espace) {
   return espace === "equipe" || espace === "direction" || espace === "siege";
 }
 
+// La direction d'un centre et le siège pilotent la formation sans y former : toujours la nouvelle navigation (D4), ni Mon suivi
+// ni Planning ; leur accueil est aussi leur page de repli.
+export function espaceDePilotage(espace) {
+  return espace === "direction" || espace === "siege";
+}
+
+// Mémoire de la dernière page (D16) : une par espace. Le stagiaire et le formateur gardent la clé de main (`derniere-route`) : un
+// appareil qui a déjà l'app ne perd pas sa dernière page, et l'interrupteur éteint reste celui de main.
+export function cleDerniereRoute(espace) {
+  return espaceDePilotage(espace) ? "derniere-route:" + espace : "derniere-route";
+}
+
+// Les affectations telles que l'app les garde : `{ role, promo_id, lieu_id, lieu_nom }`, le nom du lieu joint d'après la liste
+// des lieux lue (`lieux`, nulle quand elle est illisible : le nom manque, la ligne reste). Un rôle inconnu est écarté.
+const ROLES_AFFECTATION = ["formateur", "direction", "siege"];
+export function normaliserAffectations(lignes, lieux) {
+  const noms = new Map((Array.isArray(lieux) ? lieux : []).filter((l) => l && l.id != null).map((l) => [l.id, l.nom ?? null]));
+  return (Array.isArray(lignes) ? lignes : [])
+    .filter((l) => l && ROLES_AFFECTATION.includes(l.role))
+    .map((l) => {
+      const lieu = l.lieu_id ?? null;
+      return { role: l.role, promo_id: l.promo_id ?? null, lieu_id: lieu, lieu_nom: lieu != null && noms.has(lieu) ? noms.get(lieu) : null };
+    });
+}
+
+// Quand la table des affectations ne se lit pas, les rôles des promos (mes_promos) disent encore qui dirige quel centre et qui
+// est du siège : une direction n'est pas renvoyée dans l'espace de l'équipe pour une lecture ratée. Sans colonne `roles`, rien.
+export function affectationsDeSecours(promos) {
+  const vues = new Map();
+  let siege = false;
+  for (const p of Array.isArray(promos) ? promos : []) {
+    const roles = p && Array.isArray(p.roles) ? p.roles : [];
+    if (roles.includes("siege")) siege = true;
+    if (roles.includes("direction") && p.lieu_id != null && !vues.has(p.lieu_id)) {
+      vues.set(p.lieu_id, { role: "direction", promo_id: null, lieu_id: p.lieu_id, lieu_nom: p.lieu_nom ?? null });
+    }
+  }
+  return [...(siege ? [{ role: "siege", promo_id: null, lieu_id: null, lieu_nom: null }] : []), ...vues.values()];
+}
+
 const ESPACE_DE_APERCU = { formateur: "equipe", direction: "direction", siege: "siege", stagiaire: "stagiaire" };
 
 function liste(affectations) {
@@ -33,7 +73,9 @@ export function espacesPermis({ profil, promo, affectations, apercu } = {}) {
   if (!profil) return [];
   const a = normaliserApercu(apercu);
   if (a && apercusPermis({ profil, promo }).includes(a)) return [ESPACE_DE_APERCU[a]];
-  if (profil.is_founder) return ["equipe"];
+  // Le fondateur (administrateur) reste dans l'espace de l'équipe ; un drapeau de fondateur sans is_admin (le compte stagiaire du
+  // banc) garde l'espace de ses droits, comme au lot 4 (roles-rules.js, droitsReels).
+  if (profil.is_founder) return [droitsAffiches({ profil, promo }).espace];
   const affs = liste(affectations);
   const permis = [];
   const siege = affs.some((x) => x && x.role === "siege");
@@ -50,6 +92,36 @@ export function espacesPermis({ profil, promo, affectations, apercu } = {}) {
     else if (d.stagiaire) permis.push("stagiaire");
   }
   return permis;
+}
+
+// Les espaces que propose le menu « Espace » (une ligne chacun) : ceux de la promo affichée, et, pour un compte de direction ou du
+// siège, ceux qu'il a dans ses autres promos. Sans cela, une direction qui forme dans un autre centre, une fois entrée dans sa
+// direction (D6 l'y fait changer de promo), ne retrouverait plus son espace de formatrice. Un autre compte (le cumul du lot 4,
+// stagiaire ici et formateur là) garde la règle du lot 4 : l'espace suit la promo, la pastille suffit. Le fondateur : son espace,
+// ou celui de son aperçu.
+const ORDRE_DES_ESPACES = ["siege", "direction", "equipe", "stagiaire"];
+export function espacesDuCompte({ profil, promo, promos, affectations, apercu } = {}) {
+  const permis = espacesPermis({ profil, promo, affectations, apercu });
+  if (!profil || profil.is_founder || !permis.some(espaceDePilotage)) return permis;
+  const tous = new Set(permis);
+  for (const p of Array.isArray(promos) ? promos : []) {
+    const roles = p && Array.isArray(p.roles) ? p.roles : [];
+    if (roles.includes("formateur")) tous.add("equipe");
+    if (roles.includes("stagiaire")) tous.add("stagiaire");
+  }
+  return ORDRE_DES_ESPACES.filter((e) => tous.has(e));
+}
+
+// La promo où ouvrir l'espace formateur ou stagiaire choisi dans le menu, quand la promo affichée ne le donne pas : la première
+// promo en cours où le compte a ce rôle, sinon la plus récente ; null quand la promo affichée suffit, qu'aucune ne convient, ou
+// pour la direction et le siège (la porte s'en charge, D6).
+const ROLE_DE_L_ESPACE = { equipe: "formateur", stagiaire: "stagiaire" };
+export function promoPourLEspace({ espace, promo, promos, aujourdhui } = {}) {
+  const role = ROLE_DE_L_ESPACE[espace];
+  if (!role) return null;
+  const a = (p) => !!p && Array.isArray(p.roles) && p.roles.includes(role);
+  if (a(promo)) return null;
+  return premiereEnCoursSinonRecente((Array.isArray(promos) ? promos : []).filter(a), aujourdhui);
 }
 
 // L'espace à ouvrir : le choix mémorisé s'il est encore permis, sinon le premier permis ; null sans espace.
@@ -122,7 +194,12 @@ export function promoPourLaDirection({ promo, promos, affectations, aujourdhui }
   const dirigés = lieuxDiriges(affectations);
   if (!dirigés.length) return null;
   if (promo && dirigés.some((x) => x.lieu_id === promo.lieu_id)) return null;
-  const candidates = promosDuCentre(promos, dirigés[0].lieu_id);
+  return premiereEnCoursSinonRecente(promosDuCentre(promos, dirigés[0].lieu_id), aujourdhui);
+}
+
+// Parmi des promos : l'id de la première en cours (dans l'ordre de la liste), sinon de la plus récente (début le plus tardif) ;
+// null sans promo.
+function premiereEnCoursSinonRecente(candidates, aujourdhui) {
   if (!candidates.length) return null;
   const today = jour(aujourdhui);
   const courante = candidates.find((p) => enCours(p, today));

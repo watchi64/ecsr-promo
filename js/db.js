@@ -7,6 +7,7 @@ import {
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
 } from "./promo-rules.js?v=20261109a";
 import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261109a";
+import { normaliserAffectations, adresseApresBascule } from "./espaces-rules.js?v=20261109a";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -176,6 +177,30 @@ export async function choisirPromo(id) {
   await attendreEnregistrements();
   try { if (cleMemoire) localStorage.setItem(cleMemoire, String(id)); } catch (e) { /* ignore */ }
   location.reload();
+}
+
+// Une bascule (ou un rechargement sûr) est lancée : la page va se recharger. Le démarrage de l'app ne part pas (js/main.js) : la
+// porte de la direction (D6) peut changer de promo avant même le premier rendu.
+export function basculeLancee() { return basculeEnCours; }
+
+// Ouvrir une page dans une autre promo (lot 5, D7) : « Voir le détail » d'une promo du centre, l'espace choisi dans le menu. L'adresse
+// visée (`#/…`, vers une page connue : adresseApresBascule) est posée dans l'historique, puis la promo est choisie : le rechargement
+// la garde (isColdStart faux, js/main.js). Promo déjà affichée : un simple changement d'adresse. Rend la phrase à montrer quand rien
+// ne change (adresse refusée, promo absente de la liste, bascule déjà en cours), sinon null.
+export const PHRASE_PROMO_INACCESSIBLE = "Cette promo n'est plus accessible.";
+export const PHRASE_BASCULE_EN_COURS = "Un changement de promo est déjà en cours.";
+export async function ouvrirDansUnePromo(promoId, adresse) {
+  const id = Number(promoId);
+  const cible = adresseApresBascule(adresse);
+  if (!cible || !mesPromos.some((p) => p.id === id)) return PHRASE_PROMO_INACCESSIBLE;
+  if (basculeEnCours) return PHRASE_BASCULE_EN_COURS;
+  if (id === promoCouranteId) {
+    location.hash = cible;
+    return null;
+  }
+  try { history.replaceState(null, "", cible); } catch (e) { /* hors navigateur */ }
+  await choisirPromo(id);
+  return null;
 }
 
 // Rechargement sûr (bandeau « Réessayer ») : mêmes attentes qu'une bascule, sans changer de promo.
@@ -1465,15 +1490,28 @@ export async function setMonHabillage(nom) {
   return data;
 }
 
-// Rôles d'équipe de la personne connectée, lus dans ses affectations (chacun lit les siennes). Sert à la seule porte
-// « aucune promo » : le siège n'a pas de promo. Liste vide si la table manque (base pas migrée) ou si la lecture échoue.
-export async function mesRolesAffectes() {
+// Affectations de la personne connectée (lot 5) : `[{ role, promo_id, lieu_id, lieu_nom }]` (normaliserAffectations), chacun lit
+// les siennes. Le siège et la direction en tirent leur espace (D2), et la porte laisse entrer sans promo qui en a une (D5). Le nom
+// des lieux est joint d'après la table `lieux` (lue seulement s'il y a un lieu à nommer ou un siège à servir : le siège lit tous les
+// lieux, la direction les siens) ; une lecture des lieux ratée laisse les noms nuls. Une lecture des affectations ratée lève
+// (l'appelant se replie sur les rôles des promos, affectationsDeSecours). Les lieux lus restent disponibles (getLieuxLus).
+let lieuxLus = [];
+export async function mesAffectations() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return [];
-  const { data, error } = await supabase.from("affectations").select("role").eq("email", user.email.toLowerCase());
-  if (error) return [];
-  return [...new Set((data || []).map((a) => a.role))];
+  const { data, error } = await supabase.from("affectations").select("role, promo_id, lieu_id").eq("email", user.email.toLowerCase());
+  if (error) throw error;
+  const lignes = data || [];
+  let lieux = null;
+  if (lignes.some((a) => a.lieu_id != null || a.role === "siege")) {
+    const lus = await supabase.from("lieux").select("id, nom");
+    lieux = lus.error ? null : (lus.data || []);
+    if (lus.error) console.error("Lieux illisibles : noms des centres absents.", lus.error);
+  }
+  lieuxLus = lieux || [];
+  return normaliserAffectations(lignes, lieux);
 }
+export function getLieuxLus() { return lieuxLus; }
 
 export async function getMyProfile() {
   const { data: { user } } = await supabase.auth.getUser();

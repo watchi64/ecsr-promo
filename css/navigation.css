@@ -7,6 +7,8 @@
    Tailles : téléphone sous 700 px, tablette de 700 à 1079 px, ordinateur au-delà.
    Stagiaire : en-tête clair (onglets en capsule). Équipe : barre latérale sombre, en colonne
    d'icônes quand body porte data-nav-colonne (tablette, ou barre repliée sur ordinateur).
+   Lot 5 : la direction et le siège ont la même barre latérale que l'équipe ; body porte data-barre="laterale"
+   pour les trois (js/nav-shell.js, barreLaterale de js/espaces-rules.js), data-espace dit lequel.
    ============================================================ */
 
 /* L'ancienne barre du haut cède la place à la coquille. */
@@ -23,7 +25,7 @@ body[data-nav-attente] header.topbar { visibility: hidden; }
    px, lue par js/views/planning.js. Stagiaire : 66 px ; équipe : pas d'en-tête (barre latérale), 0 ;
    téléphone : 56 px dans les deux espaces (plus bas). */
 body[data-nav="v2"][data-espace="stagiaire"] { --haut-entete: 66px; }
-body[data-nav="v2"][data-espace="equipe"] { --haut-entete: 0px; }
+body[data-nav="v2"][data-barre="laterale"] { --haut-entete: 0px; }
 /* La valeur de l'ancienne barre sur téléphone (148 px, style.css) ne vaut pas sous la coquille. */
 body[data-nav="v2"] .p-day-card { scroll-margin-top: calc(var(--haut-entete) + 52px); }
 
@@ -273,12 +275,12 @@ body[data-nav="v2"] [data-nav-coquille] :focus-visible {
 }
 
 /* ----- Équipe : barre latérale sombre (ordinateur, tablette), en-tête sombre (téléphone) ----- */
-body[data-nav="v2"][data-espace="equipe"] {
+body[data-nav="v2"][data-barre="laterale"] {
   /* Largeur de la barre latérale, marge de sécurité de l'écran comprise (iPhone couché) : le
      contenu, qui garde le défilement de la fenêtre, en est décalé d'autant. */
   --larg-cote: calc(264px + env(safe-area-inset-left, 0px));
 }
-body[data-nav="v2"][data-espace="equipe"][data-nav-colonne] {
+body[data-nav="v2"][data-barre="laterale"][data-nav-colonne] {
   --larg-cote: calc(74px + env(safe-area-inset-left, 0px));
 }
 
@@ -292,11 +294,11 @@ body[data-nav="v2"] .nav-cote {
 body[data-nav="v2"] .nav-cote :focus-visible { outline-color: var(--sur-sombre); }
 
 @media (min-width: 700px) {
-  body[data-nav="v2"][data-espace="equipe"] #app { margin-left: var(--larg-cote); }
+  body[data-nav="v2"][data-barre="laterale"] #app { margin-left: var(--larg-cote); }
   /* Ce qui se centre en bas de l'écran (message, pastille du mode Modifier du planning) se centre sur le
      contenu, à droite de la barre. */
-  body[data-nav="v2"][data-espace="equipe"] .toast,
-  body[data-nav="v2"][data-espace="equipe"] .p-edit-pill { left: calc(50% + var(--larg-cote) / 2); }
+  body[data-nav="v2"][data-barre="laterale"] .toast,
+  body[data-nav="v2"][data-barre="laterale"] .p-edit-pill { left: calc(50% + var(--larg-cote) / 2); }
   body[data-nav="v2"] .nav-cote {
     position: fixed;
     top: 0;
@@ -720,7 +722,7 @@ body[data-nav="v2"][data-espace="stagiaire"] .chatbot-panel {
   right: max(14px, env(safe-area-inset-right, 0px));
   bottom: auto;
 }
-body[data-nav="v2"][data-espace="equipe"] .chatbot-panel {
+body[data-nav="v2"][data-barre="laterale"] .chatbot-panel {
   right: auto;
   bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   left: calc(var(--larg-cote) + 8px);
@@ -733,7 +735,7 @@ body[data-nav="v2"][data-bandeaux-bas] {
 body[data-nav="v2"][data-bandeaux-bas][data-espace="stagiaire"] .chatbot-panel {
   max-height: calc(100dvh - var(--haut-entete) - 8px - var(--bas-panneau));
 }
-body[data-nav="v2"][data-bandeaux-bas][data-espace="equipe"] .chatbot-panel {
+body[data-nav="v2"][data-bandeaux-bas][data-barre="laterale"] .chatbot-panel {
   bottom: var(--bas-panneau);
   max-height: calc(100dvh - var(--bas-panneau) - 12px);
 }
@@ -788,7 +790,7 @@ body[data-nav="v2"][data-espace="stagiaire"] .nav-menu-compte {
   max-height: calc(100vh - var(--haut-entete) - 20px);
   max-height: calc(100dvh - var(--haut-entete) - 20px);
 }
-body[data-nav="v2"][data-espace="equipe"] .nav-menu-compte {
+body[data-nav="v2"][data-barre="laterale"] .nav-menu-compte {
   bottom: 12px;
   left: calc(var(--larg-cote) + 8px);
 }
@@ -845,6 +847,12 @@ body[data-nav="v2"] .nav-fenetre-lien > .nav-avatar { width: 28px; height: 28px;
 body[data-nav="v2"] .nav-fenetre-lien[aria-current="page"] { background: var(--accent-soft); font-weight: 600; }
 body[data-nav="v2"] .nav-fenetre-lien[aria-current="page"] > .icon { color: var(--accent-strong); }
 body[data-nav="v2"] .nav-fenetre-lien.module-masque { color: var(--text-muted); }
+/* Section « Espace » du menu du compte (lot 5) : l'espace actuel en gras, coché au bout de sa ligne. */
+body[data-nav="v2"] .nav-fenetre-lien[aria-current="true"] { font-weight: 600; }
+body[data-nav="v2"] .nav-espace-coche { display: inline-flex; flex: none; color: var(--accent-strong); }
+body[data-nav="v2"] .nav-espace-coche .icon { width: 18px; height: 18px; }
+/* Choix du centre (direction, lot 5) : un centre sans promo est dit, pas choisi. */
+body[data-nav="v2"] .promo-choix:disabled { cursor: default; color: var(--text-muted); }
 body[data-nav="v2"] .nav-fenetre-lien.module-masque[aria-current="page"] { color: var(--text); }
 body[data-nav="v2"] .nav-fenetre-lien > .marque-masque { margin: 0; }
 body[data-nav="v2"] .nav-fenetre-texte { flex: 1; min-width: 0; }
@@ -1021,6 +1029,6 @@ body[data-nav="v2"] .qcm-close { width: 44px; height: 44px; }
    body.centre-printable #app) ; la marge basse est celle de la barre du bas du téléphone. */
 @media print {
   body[data-nav="v2"] [data-nav-coquille] { display: none !important; }
-  body[data-nav="v2"][data-espace="equipe"] #app { margin-left: 0; }
+  body[data-nav="v2"][data-barre="laterale"] #app { margin-left: 0; }
   body[data-nav="v2"] { margin-bottom: 0; }
 }

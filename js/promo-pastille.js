@@ -1,10 +1,14 @@
 // Pastille de la promo affichée (spec multi-promo C.2) : visible seulement à qui a au
 // moins deux promos (formateurs, fondateur). Un appui ouvre le choix ; choisir une autre
 // promo attend les enregistrements en cours puis recharge la page (choisirPromo).
-import { el } from "./utils.js?v=20261109a";
+// Pastille du centre (lot 5, D6) : dans la barre de la direction, quand le compte dirige plusieurs centres. Choisir un
+// centre, c'est choisir l'une de ses promos (la première en cours, sinon la plus récente), avec le même rechargement. Les
+// deux choix partagent la même fenêtre (ouvrirListe).
+import { el, isoDate } from "./utils.js?v=20261109a";
 import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261109a";
 import { libelleCourtPromo, resumePromo } from "./promo-rules.js?v=20261109a";
-import { isFounder, apercusOuverts, setViewAs } from "./auth-admin.js?v=20261109a";
+import { isFounder, apercusOuverts, setViewAs, getAffectations, getCentre } from "./auth-admin.js?v=20261109a";
+import { promoPourLaDirection, promosDuCentre } from "./espaces-rules.js?v=20261109a";
 
 // « Montpellier · sept. 2026 » : le lieu dans son propre span, que le CSS masque sur les
 // écrans les plus étroits (la date suffit à distinguer les promos dans la barre).
@@ -57,11 +61,89 @@ function ouvrirChoix() {
   const promos = getMesPromos();
   const courante = getPromoCourante();
   if (bascule || promos.length < 2 || !courante) return;
+  // Formateur et direction : voir la promo affichée comme un stagiaire (le fondateur a son sélecteur dans le menu du
+  // compte). L'aperçu se pose sur la promo affichée ; la fenêtre se ferme, l'app change d'espace.
+  const apercuStagiaire = !isFounder() && apercusOuverts().includes("stagiaire");
+  ouvrirListe({
+    sorte: "promo", titre: "Promo affichée", enCours: "Changement de promo en cours…",
+    choix: promos.map((p) => ({
+      id: p.id, nom: p.nom, detail: resumePromo(p), active: p.id === courante.id,
+      // Retirée de la liste depuis l'ouverture : rien à basculer.
+      possible: () => getMesPromos().some((x) => x.id === p.id),
+      choisir: () => choisirPromo(p.id),
+    })),
+    apres: apercuStagiaire ? (fermer) => el("button", { class: "btn full promo-choix-apercu", type: "button", onClick: () => {
+      if (bascule) return;
+      fermer();
+      setViewAs("stagiaire");
+    } }, "Voir cette promo comme un stagiaire") : null,
+  });
+}
+
+// ----- Centre (direction, lot 5) -----
+
+// Les centres que le compte dirige (affectations direction, un par lieu), dans l'ordre des affectations.
+function centresDiriges() {
+  const vus = new Map();
+  for (const a of getAffectations()) {
+    if (a.role === "direction" && a.lieu_id != null && !vus.has(a.lieu_id)) vus.set(a.lieu_id, { id: a.lieu_id, nom: a.lieu_nom });
+  }
+  return [...vus.values()];
+}
+
+// La promo à afficher pour entrer dans ce centre (D6) : la première en cours, sinon la plus récente ; null sans promo.
+function promoDuCentre(lieuId) {
+  return promoPourLaDirection({
+    promo: null, promos: getMesPromos(), affectations: [{ role: "direction", lieu_id: lieuId }], aujourdhui: isoDate(new Date()),
+  });
+}
+
+export function construirePastilleCentre() {
+  const centres = centresDiriges();
+  const centre = getCentre();
+  if (centres.length < 2 || !centre) return null;
+  const nom = centre.nom || "Mon centre";
+  return el("button", {
+    class: "promo-pastille", type: "button", "aria-haspopup": "dialog",
+    title: "Centre affiché : " + nom,
+    disabled: bascule,
+    onClick: ouvrirChoixCentre,
+  },
+    el("span", { class: "promo-pastille-texte" }, nom),
+    el("span", { class: "promo-pastille-fleche", "aria-hidden": "true" }, "▾"),
+  );
+}
+
+function ouvrirChoixCentre() {
+  const centres = centresDiriges();
+  const centre = getCentre();
+  if (bascule || centres.length < 2 || !centre) return;
+  ouvrirListe({
+    sorte: "centre", titre: "Centre affiché", enCours: "Changement de centre en cours…",
+    choix: centres.map((c) => {
+      const n = promosDuCentre(getMesPromos(), c.id).length;
+      const cible = promoDuCentre(c.id);
+      return {
+        id: c.id, nom: c.nom || "Centre " + c.id, active: c.id === centre.id,
+        // Un centre sans promo n'a rien à afficher (D6) : il est dit, pas choisi.
+        detail: n ? n + (n > 1 ? " promos" : " promo") : "Aucune promo pour l'instant",
+        desactive: cible == null && c.id !== centre.id,
+        possible: () => promoDuCentre(c.id) != null,
+        choisir: () => choisirPromo(promoDuCentre(c.id)),
+      };
+    }),
+  });
+}
+
+// La fenêtre d'un choix (promo ou centre) : une liste de boutons radio, le clavier qui y circule sans choisir, un choix qui
+// verrouille tout jusqu'au rechargement. `choix` : { id, nom, detail, active, desactive, possible(), choisir() } ; `apres` :
+// une fabrique de bouton posé sous la liste (reçoit `fermer`).
+function ouvrirListe({ sorte, titre, enCours, choix, apres = null }) {
   if (document.querySelector(".promo-choix-modal")) return;  // déjà ouvert (clavier)
 
   const backdrop = el("div", { class: "modal-backdrop" });
   const aide = el("p", { class: "muted", role: "status" }, "Ton choix est mémorisé sur cet appareil.");
-  const liste = el("div", { class: "promo-choix-liste", role: "radiogroup", "aria-label": "Promo affichée" });
+  const liste = el("div", { class: "promo-choix-liste", role: "radiogroup", "aria-label": titre });
 
   // Fermer rend le focus à la pastille, cherchée à ce moment-là : updateBadge() a pu la
   // redessiner depuis l'ouverture. Sans effet pendant la bascule (rien ne ferme avant le
@@ -79,56 +161,47 @@ function ouvrirChoix() {
   const verrouiller = () => {
     bascule = true;
     liste.classList.add("en-cours");
-    aide.textContent = "Changement de promo en cours…";
+    aide.textContent = enCours;
     backdrop.querySelectorAll("button").forEach((b) => { b.disabled = true; });
     document.querySelectorAll(".promo-pastille").forEach((b) => { b.disabled = true; });
     modal.focus();
   };
 
-  promos.forEach((p) => {
-    const active = p.id === courante.id;
-    // Nom accessible : le nom de la promo seul, comme avant la seconde ligne. Le résumé (stagiaires en
-    // cours, jours avant la fin) en est la description. Un seul dialogue à la fois : identifiants uniques.
-    const idNom = "promo-choix-nom-" + p.id;
-    const idDetail = "promo-choix-detail-" + p.id;
+  choix.forEach((c) => {
+    // Nom accessible : le nom seul, comme avant la seconde ligne. Le résumé (stagiaires en cours, jours avant la fin ; nombre de
+    // promos du centre) en est la description. Un seul dialogue à la fois : identifiants uniques.
+    const idNom = sorte + "-choix-nom-" + c.id;
+    const idDetail = sorte + "-choix-detail-" + c.id;
     liste.appendChild(el("button", {
-      class: "promo-choix" + (active ? " active" : ""), type: "button", role: "radio",
-      "aria-checked": active ? "true" : "false",
+      class: "promo-choix" + (c.active ? " active" : ""), type: "button", role: "radio",
+      "aria-checked": c.active ? "true" : "false",
       "aria-labelledby": idNom, "aria-describedby": idDetail,
+      disabled: !!c.desactive,
       onClick: async () => {
         if (bascule) return;
-        // Promo déjà affichée, ou retirée de la liste depuis l'ouverture : rien à basculer.
-        if (active || !getMesPromos().some((x) => x.id === p.id)) { fermer(); return; }
+        // Choix déjà affiché, ou devenu impossible depuis l'ouverture : rien à basculer.
+        if (c.active || !c.possible()) { fermer(); return; }
         verrouiller();
-        await choisirPromo(p.id);
+        await c.choisir();
       },
     },
-      el("span", { class: "promo-choix-puce", "aria-hidden": "true" }, active ? "●" : "○"),
+      el("span", { class: "promo-choix-puce", "aria-hidden": "true" }, c.active ? "●" : "○"),
       el("span", { class: "promo-choix-texte" },
-        el("span", { id: idNom }, p.nom),
-        el("span", { class: "promo-choix-detail", id: idDetail }, segmentsDeDetail(resumePromo(p))),
+        el("span", { id: idNom }, c.nom),
+        el("span", { class: "promo-choix-detail", id: idDetail }, segmentsDeDetail(c.detail)),
       ),
     ));
   });
 
-  // Formateur et direction : voir la promo affichée comme un stagiaire (le fondateur a son sélecteur dans le menu du
-  // compte). L'aperçu se pose sur la promo affichée ; la fenêtre se ferme, l'app change d'espace.
-  const voirStagiaire = !isFounder() && apercusOuverts().includes("stagiaire")
-    ? el("button", { class: "btn full promo-choix-apercu", type: "button", onClick: () => {
-      if (bascule) return;
-      fermer();
-      setViewAs("stagiaire");
-    } }, "Voir cette promo comme un stagiaire")
-    : null;
-
+  const idTitre = sorte + "-choix-titre";
   const modal = el("div", {
     class: "modal promo-choix-modal", role: "dialog", "aria-modal": "true",
-    "aria-labelledby": "promo-choix-titre", tabindex: "-1",
+    "aria-labelledby": idTitre, tabindex: "-1",
   },
-    el("h3", { id: "promo-choix-titre" }, "Promo affichée"),
+    el("h3", { id: idTitre }, titre),
     aide,
     liste,
-    voirStagiaire,
+    apres ? apres(fermer) : null,
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Fermer"),
     ),
@@ -164,8 +237,8 @@ function ouvrirChoix() {
       else if (!e.shiftKey && ici === derniere) { e.preventDefault(); premiere.focus(); }
       return;
     }
-    const choix = [...liste.querySelectorAll(".promo-choix")];
-    const i = choix.indexOf(ici);
+    const boutons = [...liste.querySelectorAll(".promo-choix:not(:disabled)")];
+    const i = boutons.indexOf(ici);
     if (i < 0 || bascule) return;
     // Alt, Ctrl ou Cmd + flèche : raccourci du navigateur (page précédente), on le laisse passer.
     if (e.altKey || e.ctrlKey || e.metaKey) return;
@@ -174,10 +247,10 @@ function ouvrirChoix() {
       case "ArrowDown": case "ArrowRight": vers = i + 1; break;
       case "ArrowUp": case "ArrowLeft": vers = i - 1; break;
       case "Home": vers = 0; break;
-      case "End": vers = choix.length - 1; break;
+      case "End": vers = boutons.length - 1; break;
       default: return;
     }
     e.preventDefault();
-    choix[(vers + choix.length) % choix.length].focus();
+    boutons[(vers + boutons.length) % boutons.length].focus();
   }
 }

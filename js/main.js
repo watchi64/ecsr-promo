@@ -4,10 +4,16 @@
  */
 // En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
 import "./journal-erreurs.js?v=20261109a";
-import { getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements } from "./db.js?v=20261109a";
+import {
+  getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements, basculeLancee, getPromoCourante,
+} from "./db.js?v=20261109a";
 import { toast, el } from "./utils.js?v=20261109a";
 import { icon } from "./icons.js?v=20261109a";
 import { initAuth, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261109a";
+import { getEspace } from "./auth-admin.js?v=20261109a";
+import {
+  ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage,
+} from "./espaces-rules.js?v=20261109a";
 import { chargerEtatSignalements } from "./signalement-etat.js?v=20261109a";
 import { messageDemarrage } from "./signalement-rules.js?v=20261109a";
 import { showGate, hideGate } from "./gate.js?v=20261109a";
@@ -37,7 +43,7 @@ import { renderProblemes } from "./views/problemes.js?v=20261109a";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261109a";
 import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261109a";
 import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261109a";
-import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261109a";
+import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261109a";
 import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261109a";
 import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261109a";
 import {
@@ -70,12 +76,11 @@ const TABS = [
   { route: "config",     label: "Paramètres",      icon: "settings"  },
 ];
 
-// Espace de la personne connectée : « equipe » (formateur, admin) ou « stagiaire ». La coquille et la
-// redirection des anciennes adresses le lisent ici ; il vient du prédicat formateurConnecte()
-// (js/modules-etat.js), que lisent aussi les pages réservées de navigate() et le menu du compte :
-// aucun ne peut s'écarter des autres.
+// Espace de la session : « stagiaire », « equipe » (formateur), « direction » ou « siege » (lot 5). Fixé à la porte
+// (js/auth-admin.js, getEspace), avant la décision de navigation ; la coquille, la redirection des anciennes adresses, les
+// routes permises et la mémoire de la dernière page le lisent ici.
 function espaceCourant() {
-  return espaceDe({ formateur: formateurConnecte() });
+  return getEspace();
 }
 
 // Barre de navigation. Nouvelle navigation : la coquille de l'espace (js/nav-shell.js), remontée à
@@ -94,6 +99,8 @@ function renderTabs() {
       const nom = getProfileWho();
       monterCoquille({
         espace,
+        // Lot 5 : Émargement du centre (Task 7) et Réglages du centre ou du réseau (Task 14) n'ont pas encore leur page : pas
+        // d'entrée (emargementDansLeCentre et reglagesEspace restent faux).
         entrees: entreesNavigation(espace, { routeVisible, emargementActif: emargementActif(), formateur: isAdmin() }),
         nom,
         initiales: initialesDe(nom),
@@ -183,6 +190,24 @@ function majBadgeNouveautes() {
 
 // ===== Router =====
 
+// Pages de la direction et du siège pas encore construites (lot 5) : leur titre et une phrase, pour qu'une entrée de la barre
+// n'ouvre jamais une erreur. Chacune est remplacée par sa vraie page : Promos (Task 8), Équipe (Task 10), Vue d'ensemble du
+// réseau (Task 11), Directions de centre (Task 12). Jamais en ligne avant elles : la branche du lot ne fusionne qu'à la fin.
+function pageEnConstruction(titre, phrase) {
+  return (view) => {
+    view.replaceChildren(el("div", { class: "view-header" }, el("h1", {}, titre), el("p", { class: "muted" }, phrase)));
+  };
+}
+
+// Accueil de la direction : la Vue d'ensemble du centre (Task 7) ; d'ici là, les Indicateurs de la promo affichée. Un centre sans
+// promo (D6) le dit plutôt que de montrer des cartes vides.
+function rendreCentre(view) {
+  if (espaceCourant() === "direction" && !getPromoCourante()) {
+    return pageEnConstruction("Vue d'ensemble", "Ce centre n'a pas encore de promo.")(view);
+  }
+  return renderCentre(view);
+}
+
 // Page Qualiopi, chargée à la demande. Le fondateur seul l'ouvre (garde de navigate) : ni la page ni ses modules de calcul (plus
 // de 100 Ko) ne partent avec l'app, et une erreur dans l'un d'eux ne peut pas casser le démarrage de tous les comptes. Seul
 // js/qualiopi-impression.js, tout petit, est chargé d'avance : navigate() en appelle le nettoyage à chaque page.
@@ -224,7 +249,7 @@ const routes = {
   notes:      renderNotes,
   ccp2:       renderCcp2,
   stagiaires: renderStagiaires,
-  centre:     renderCentre,
+  centre:     rendreCentre,
   qualiopi:   rendreQualiopi,   // chargée à la demande, voir plus haut
   emargement: renderEmargement,
   ressources: renderRessources,
@@ -234,6 +259,11 @@ const routes = {
   preferences: renderPreferences,
   nouveautes: renderNouveautes,
   problemes:  renderProblemes,
+  // Lot 5 : direction (promos, equipe) et siège (reseau, directions). Hors de ces espaces, navigate() les refuse (routeDansLEspace).
+  promos:     pageEnConstruction("Promos", "Les promos du centre s'afficheront ici."),
+  equipe:     pageEnConstruction("Équipe", "L'équipe du centre s'affichera ici."),
+  reseau:     pageEnConstruction("Vue d'ensemble", "Les chiffres du réseau, centre par centre, s'afficheront ici."),
+  directions: pageEnConstruction("Directions de centre", "Les directions de chaque centre s'afficheront ici."),
 };
 
 // Routes sans onglet propre qui doivent quand même allumer un onglet. On arrive
@@ -253,21 +283,20 @@ function routeOuverte(route) {
 
 // Derniere page visitee, pour y revenir au prochain demarrage. Le sous-onglet,
 // lui, se souvient deja tout seul (voir storageKey dans js/subtabs.js) : rendre
-// la route suffit a retomber exactement la ou on etait.
-const CLE_DERNIERE_ROUTE = "derniere-route";
-
+// la route suffit a retomber exactement la ou on etait. Une memoire par espace
+// (lot 5, D16 : cleDerniereRoute), celle de main pour le stagiaire et le formateur.
 function memoriserRoute(route) {
-  try { localStorage.setItem(CLE_DERNIERE_ROUTE, route); } catch (e) { /* mode prive */ }
+  try { localStorage.setItem(cleDerniereRoute(espaceCourant()), route); } catch (e) { /* mode prive */ }
 }
 
 // Renvoie la derniere route connue, ou null si elle est absente ou n'existe plus
 // (onglet supprime depuis, stockage vide, navigation privee).
 function derniereRoute() {
   try {
-    const r = localStorage.getItem(CLE_DERNIERE_ROUTE);
+    const r = localStorage.getItem(cleDerniereRoute(espaceCourant()));
     // Une page dont le module est fermé pour la promo n'est pas une destination :
-    // repli silencieux, la dernière page n'est qu'une commodité.
-    return r && routes[r] && routeOuverte(r) ? r : null;
+    // repli silencieux, la dernière page n'est qu'une commodité. Une page hors de l'espace non plus (D16 : l'accueil, sans phrase).
+    return r && routes[r] && routeOuverte(r) && routeDansLEspace(espaceCourant(), r) ? r : null;
   } catch (e) {
     return null;
   }
@@ -309,23 +338,38 @@ async function navigate({ force = false } = {}) {
   // du stagiaire à Mes préférences. Après la garde, donc suivre une redirection demande la même
   // confirmation que n'importe quel départ.
   suivreRedirection();
+  // Espace de la session (lot 5) : la direction et le siège n'ont ni Mon suivi ni Accueil du formateur ; leur page de repli est
+  // leur accueil (#/centre, #/reseau), où « home » mène aussi. Le stagiaire et le formateur gardent les replis de main.
+  const espace = espaceCourant();
+  const pilotage = espaceDePilotage(espace);
+  const accueil = ACCUEIL_ESPACE[espace] || "home";
+  const repli = pilotage ? accueil : "mon-suivi";
+  const allerA = (r) => {
+    try { history.replaceState(null, "", "#/" + r); } catch (e) { /* ignore */ }
+    return r;
+  };
   // Adresses à segments (#/stagiaires/12/epcf) : le premier choisit la page, la
   // page lit le reste. Page de repli : « Mon suivi », où chacun retrouve ce qui
-  // l'attend, son planning à venir et ses résultats.
+  // l'attend, son planning à venir et ses résultats (direction et siège : leur accueil).
   let route = lireAdresse(location.hash).route;
+  if (pilotage && (route === "home" || !routes[route])) route = allerA(accueil);
   if (!routes[route]) route = "mon-suivi";
+  // Page hors de l'espace (une adresse saisie, un favori, un lien d'un autre espace) : l'accueil de l'espace, avec la phrase qui le
+  // dit (lot 5, jamais en silence).
+  if (!routeDansLEspace(espace, route)) {
+    toast(phraseHorsEspace(espace), "info", 3500);
+    route = allerA(accueil);
+  }
   // Module fermé pour la promo (lien, adresse saisie, nouveauté ancienne) : un
   // stagiaire est ramené sur Mon suivi, avec un mot d'explication.
   if (!routeOuverte(route)) {
     toast("Cette partie n'est pas encore ouverte pour ta promo.", "info", 3500);
-    try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
-    route = "mon-suivi";
+    route = allerA(repli);
   }
   // Problèmes signalés (spec 2026-10-28) : le fondateur seulement, hors aperçu « Voir en tant que ».
   // Les autres retombent sur leur page habituelle (la garde de la page à soi suit).
   if (route === "problemes" && !fondateurHorsApercu()) {
-    try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
-    route = "mon-suivi";
+    route = allerA(repli);
   }
   // Page « à soi » (chantier D, lot 2) : un formateur sans profil stagiaire n'a pas
   // de Mon espace, il a la page Stagiaires ; un stagiaire n'a pas la page Stagiaires.
@@ -336,16 +380,15 @@ async function navigate({ force = false } = {}) {
   } else if ((route === "stagiaires" || route === "centre" || route === "emargement") && !formateur) {
     // Page Émargement (spec 2026-10-23) : formateurs seulement ; un stagiaire signe par
     // le bandeau, sur n'importe quelle page.
-    try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
-    route = "mon-suivi";
+    route = allerA(repli);
   } else if (route === "emargement" && !emargementActif()) {
     // Interrupteur éteint pour la promo (réglage du fondateur dans Paramètres).
     toast("L'émargement n'est pas activé pour cette promo.", "info", 3500);
-    try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
-    route = "home";
+    route = allerA(accueil);
   } else if (route === "qualiopi" && !fondateurHorsApercu()) {
     // Page Qualiopi (spec 2026-10-28, § 6.3) : le fondateur seul, avant la refonte du lot 5. Aucune entrée de barre ne la
-    // montre aux autres ; une adresse saisie ou un favori les ramène à l'accueil, sans un mot.
+    // montre aux autres ; une adresse saisie ou un favori les ramène à l'accueil, sans un mot. (Hors des espaces de la direction
+    // et du siège, qui l'ont déjà refusée plus haut : routeDansLEspace.)
     try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
     route = "home";
   }
@@ -533,7 +576,8 @@ async function bootApp() {
     // Interrupteurs de l'émargement et de la nouvelle navigation (propres à la promo) lus en même
     // temps que les modules. La navigation est décidée ici, une fois pour la session, avant le
     // premier rendu (aperçu du fondateur compris).
-    await Promise.all([chargerModulesAuDemarrage(), chargerEmargementActif(), chargerNavigationV2()]);
+    // Sans promo (le siège, une direction dont le centre n'en a pas encore), l'émargement n'a rien à lire : il reste éteint.
+    await Promise.all([chargerModulesAuDemarrage(), getPromoCourante() ? chargerEmargementActif() : null, chargerNavigationV2()]);
     renderTabs();
   } finally {
     // La barre de la session est posée (coquille, ou ancienne barre si la décision est « éteint ») : plus
@@ -578,8 +622,10 @@ async function bootApp() {
   // sur « Mon suivi » (nouvelle navigation : l'Accueil, ruling R60). replaceState plutôt que location.hash : pas de
   // `hashchange` (donc pas de double rendu avec le navigate() ci-dessous) et pas
   // d'entrée d'historique parasite.
+  // Direction et siège (lot 5) : l'accueil de leur espace (#/centre, #/reseau).
   if (!location.hash || isColdStart()) {
-    const cible = "#/" + (derniereRoute() || (navigationV2Active() ? "home" : "mon-suivi"));
+    const accueil = ACCUEIL_ESPACE[espaceCourant()] || "home";
+    const cible = "#/" + (derniereRoute() || (espaceDePilotage(espaceCourant()) ? accueil : navigationV2Active() ? "home" : "mon-suivi"));
     try { history.replaceState(null, "", cible); }
     catch (e) { location.hash = cible; }
   }
@@ -615,6 +661,8 @@ async function bootApp() {
   }
 
   await initAuth();
+  // Une bascule de promo lancée par la porte (la direction entre dans son centre, D6) : la page se recharge, rien ne démarre.
+  if (basculeLancee()) return;
   if (isAuth()) {
     await bootApp();
   } else {
@@ -624,7 +672,9 @@ async function bootApp() {
     showGate(modeGateInitial);
     // Surveille le moment où l'auth devient valide pour basculer.
     const watch = setInterval(async () => {
-      if (isAuth()) {
+      if (basculeLancee()) {
+        clearInterval(watch);
+      } else if (isAuth()) {
         clearInterval(watch);
         await bootApp();
       } else {

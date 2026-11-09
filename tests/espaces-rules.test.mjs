@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 import {
   ESPACES, LIBELLES_ESPACE, ACCUEIL_ESPACE, barreLaterale, espacesPermis, espaceChoisi, brider, peutRedigerContenus,
   porteSansPromo, centreAffiche, promoPourLaDirection, promosDuCentre, routeDansLEspace, phraseHorsEspace,
-  phraseDeRefus, adresseApresBascule,
+  phraseDeRefus, adresseApresBascule, normaliserAffectations, affectationsDeSecours, espacesDuCompte, promoPourLEspace,
+  cleDerniereRoute, espaceDePilotage,
 } from "../js/espaces-rules.js";
 import { messageInvitation } from "../js/roles-rules.js";
 
@@ -52,6 +53,10 @@ test("espacesPermis : fondateur et aperçu", () => {
   assert.deepEqual(f("stagiaire"), ["stagiaire"]);
   assert.deepEqual(f("prof"), ["equipe"]);
   assert.deepEqual(f("inconnu"), ["equipe"]);
+  // Drapeau de fondateur sans is_admin (le compte stagiaire du banc) : l'espace de ses droits, comme au lot 4 (Task 2).
+  const fondateurStagiaire = { role: "stagiaire", is_admin: false, is_founder: true };
+  assert.deepEqual(espacesPermis({ profil: fondateurStagiaire, promo, affectations: [] }), ["stagiaire"]);
+  assert.deepEqual(espacesPermis({ profil: fondateurStagiaire, promo, affectations: [], apercu: "direction" }), ["direction"]);
   // aperçu non permis : ignoré
   assert.deepEqual(espacesPermis({ profil: formateur, promo: promoDuLieu(1, ["formateur"]), affectations: [], apercu: "siege" }),
     ["equipe"]);
@@ -161,4 +166,93 @@ test("adresseApresBascule", () => {
   assert.equal(adresseApresBascule("https://exemple.invalid/#/centre"), null);
   assert.equal(adresseApresBascule(null), null);
   assert.equal(adresseApresBascule(""), null);
+});
+
+// ----- Task 2 : porte, espace courant -----
+
+test("normaliserAffectations : rôle connu, nom du lieu joint", () => {
+  const lieux = [{ id: 1, nom: "Nîmes" }, { id: 3, nom: "Alès" }];
+  assert.deepEqual(normaliserAffectations([
+    { role: "direction", promo_id: null, lieu_id: 1, email: "direction@exemple.invalid" },
+    { role: "formateur", promo_id: 7, lieu_id: null },
+    { role: "siege", promo_id: null, lieu_id: null },
+  ], lieux), [
+    { role: "direction", promo_id: null, lieu_id: 1, lieu_nom: "Nîmes" },
+    { role: "formateur", promo_id: 7, lieu_id: null, lieu_nom: null },
+    { role: "siege", promo_id: null, lieu_id: null, lieu_nom: null },
+  ]);
+  // Lieu absent de la liste lue, ou liste illisible : nom nul, ligne gardée.
+  assert.deepEqual(normaliserAffectations([{ role: "direction", lieu_id: 2 }], lieux),
+    [{ role: "direction", promo_id: null, lieu_id: 2, lieu_nom: null }]);
+  assert.deepEqual(normaliserAffectations([{ role: "direction", lieu_id: 1 }], null),
+    [{ role: "direction", promo_id: null, lieu_id: 1, lieu_nom: null }]);
+  // Lignes nulles ou vides.
+  assert.deepEqual(normaliserAffectations(null, lieux), []);
+  assert.deepEqual(normaliserAffectations(undefined, lieux), []);
+  assert.deepEqual(normaliserAffectations([], lieux), []);
+  // Rôle inconnu (ou ligne illisible) : écartée.
+  assert.deepEqual(normaliserAffectations([{ role: "admin", lieu_id: 1 }, null, { role: "direction", lieu_id: 1 }], lieux)
+    .map((a) => a.role), ["direction"]);
+});
+
+test("affectationsDeSecours : direction et siège lus dans les rôles des promos quand la table est illisible", () => {
+  const promos = [
+    { id: 1, lieu_id: 1, lieu_nom: "Nîmes", roles: ["direction", "formateur"] },
+    { id: 2, lieu_id: 1, lieu_nom: "Nîmes", roles: ["direction"] },
+    { id: 3, lieu_id: 2, lieu_nom: "Montpellier", roles: ["formateur"] },
+  ];
+  assert.deepEqual(affectationsDeSecours(promos), [{ role: "direction", promo_id: null, lieu_id: 1, lieu_nom: "Nîmes" }]);
+  assert.deepEqual(affectationsDeSecours([{ id: 4, lieu_id: 2, lieu_nom: "Montpellier", roles: ["siege"] }]),
+    [{ role: "siege", promo_id: null, lieu_id: null, lieu_nom: null }]);
+  assert.deepEqual(affectationsDeSecours([{ id: 1, lieu_id: 1 }]), [], "base pas migrée : aucune colonne roles");
+  assert.deepEqual(affectationsDeSecours(null), []);
+});
+
+test("espacesDuCompte : le menu Espace d'une direction garde la promo où elle forme", () => {
+  const lieu1 = promoDuLieu(1, ["direction"]);
+  const lieu2 = promoDuLieu(2, ["formateur"]);
+  const promos = [lieu1, lieu2];
+  // Direction du lieu 1 et formatrice au lieu 2 : les deux espaces, quelle que soit la promo affichée.
+  assert.deepEqual(espacesDuCompte({ profil: formateur, promo: lieu1, promos, affectations: [dir(1)] }), ["direction", "equipe"]);
+  assert.deepEqual(espacesDuCompte({ profil: formateur, promo: lieu2, promos, affectations: [dir(1)] }), ["direction", "equipe"]);
+  // Direction seule : un seul espace.
+  assert.deepEqual(espacesDuCompte({ profil: formateur, promo: lieu1, promos: [lieu1], affectations: [dir(1)] }), ["direction"]);
+  // Cumul du lot 4, sans direction ni siège : l'espace suit la promo affichée, comme avant.
+  const cumul = [promoDuLieu(1, ["stagiaire"]), promoDuLieu(2, ["formateur"])];
+  assert.deepEqual(espacesDuCompte({ profil: stagiaire, promo: cumul[0], promos: cumul, affectations: [] }), ["stagiaire"]);
+  assert.deepEqual(espacesDuCompte({ profil: stagiaire, promo: cumul[1], promos: cumul, affectations: [] }), ["equipe"]);
+  // Fondateur en aperçu : l'aperçu seul.
+  assert.deepEqual(espacesDuCompte({ profil: fondateur, promo: lieu2, promos, affectations: [], apercu: "direction" }), ["direction"]);
+  assert.deepEqual(espacesDuCompte({ profil: fondateur, promo: lieu2, promos, affectations: [] }), ["equipe"]);
+  // Siège sans promo ; siège qui forme aussi.
+  assert.deepEqual(espacesDuCompte({ profil: formateur, promo: null, promos: [], affectations: [siege] }), ["siege"]);
+  assert.deepEqual(espacesDuCompte({ profil: formateur, promo: null, promos: [lieu2], affectations: [siege] }), ["siege", "equipe"]);
+  assert.deepEqual(espacesDuCompte({ profil: null }), []);
+});
+
+test("promoPourLEspace : la promo où l'espace choisi existe", () => {
+  const aujourdhui = "2026-11-09";
+  const p = (id, roles, debut, fin) => ({ id, lieu_id: id, roles, date_debut: debut, date_fin: fin });
+  const promos = [p(1, ["direction"], "2026-03-30", "2026-12-11"), p(2, ["formateur"], "2025-01-01", "2025-06-30"),
+    p(3, ["formateur"], "2026-09-30", null), p(4, ["stagiaire"], "2024-01-01", "2024-06-30")];
+  assert.equal(promoPourLEspace({ espace: "equipe", promo: promos[0], promos, aujourdhui }), 3, "la promo en cours d'abord");
+  assert.equal(promoPourLEspace({ espace: "equipe", promo: promos[1], promos, aujourdhui }), null, "déjà formateur de la promo affichée");
+  assert.equal(promoPourLEspace({ espace: "stagiaire", promo: promos[0], promos, aujourdhui }), 4, "aucune en cours : la plus récente");
+  assert.equal(promoPourLEspace({ espace: "equipe", promo: promos[0], promos: [promos[0]], aujourdhui }), null, "aucune promo");
+  assert.equal(promoPourLEspace({ espace: "direction", promo: promos[2], promos, aujourdhui }), null, "direction : la porte s'en charge (D6)");
+  assert.equal(promoPourLEspace({ espace: "siege", promo: promos[2], promos, aujourdhui }), null);
+  assert.equal(promoPourLEspace({ espace: "equipe", promo: null, promos, aujourdhui }), 3, "sans promo affichée");
+});
+
+test("cleDerniereRoute : une mémoire par espace ; celle de main pour le stagiaire et le formateur", () => {
+  assert.equal(cleDerniereRoute("stagiaire"), "derniere-route");
+  assert.equal(cleDerniereRoute("equipe"), "derniere-route");
+  assert.equal(cleDerniereRoute("direction"), "derniere-route:direction");
+  assert.equal(cleDerniereRoute("siege"), "derniere-route:siege");
+  assert.equal(cleDerniereRoute(null), "derniere-route");
+});
+
+test("espaceDePilotage : la direction et le siège", () => {
+  assert.deepEqual(ESPACES.map(espaceDePilotage), [false, false, true, true]);
+  assert.equal(espaceDePilotage(null), false);
 });

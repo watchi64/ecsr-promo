@@ -5,11 +5,11 @@
 // « Tout voir » d'Accueil, comme #/mon-suivi n'a pas d'onglet non plus.
 
 import { el, clear, formatDate } from "../utils.js?v=20261109a";
-import { nouveautesAffichables, marquerLues, formateurConnecte } from "../modules-etat.js?v=20261109a";
+import { nouveautesAffichables, marquerLues } from "../modules-etat.js?v=20261109a";
 import { STORAGE_SOUS_ONGLET, guideSelonNavigation } from "../nouveautes.js?v=20261109a";
 import { hrefLien } from "../route-rules.js?v=20261109a";
 import { navigationV2Active } from "../nav-etat.js?v=20261109a";
-import { espaceDe } from "../nav-rules.js?v=20261109a";
+import { getEspace } from "../auth-admin.js?v=20261109a";
 import { ouSelonNavigation } from "../ou-trouver.js?v=20261109a";
 
 // Lien « Où le trouver ». Une partie de Mon espace se vise par l'adresse
@@ -19,10 +19,10 @@ import { ouSelonNavigation } from "../ou-trouver.js?v=20261109a";
 // chercher lui-même ce qu'on venait de lui indiquer.
 // Le libellé suit la navigation de la personne (js/ou-trouver.js) : « Mon suivi, partie Livret »
 // à la place de « Mon espace personnel, partie Livret » sous la nouvelle barre ; la route, le
-// sous-onglet et l'adresse restent ceux de l'entrée.
+// sous-onglet et l'adresse restent ceux de l'entrée. L'espace est celui de la session (lot 5 : direction et siège compris).
 function lienOu(ou) {
   if (!ou) return null;
-  const cible = ouSelonNavigation(ou, { navigationV2: navigationV2Active(), espace: espaceDe({ formateur: formateurConnecte() }) });
+  const cible = ouSelonNavigation(ou, { navigationV2: navigationV2Active(), espace: getEspace() });
   const href = hrefLien(cible);
   return el("a", {
     class: "nv-ou",

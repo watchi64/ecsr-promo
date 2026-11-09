@@ -57,13 +57,12 @@ test("cumul : stagiaire dans une promo, formateur dans l'autre", () => {
   assert.deepEqual(droitsAffiches({ profil, promo: { roles: ["formateur"] } }), { admin: true, prof: true, stagiaire: false, equipe: true, espace: "equipe" });
 });
 
-test("messageSansPromo : le siège et la direction ne sont pas renvoyés vers un formateur", () => {
-  assert.match(messageSansPromo(["siege"]), /siège/);
-  assert.match(messageSansPromo(["direction"]), /direction/);
-  assert.equal(messageSansPromo([]), MESSAGE_SANS_PROMO);
-  assert.equal(messageSansPromo(null), MESSAGE_SANS_PROMO);
-  assert.equal(messageSansPromo(undefined), MESSAGE_SANS_PROMO);
-  for (const m of [MESSAGE_SANS_PROMO, messageSansPromo(["siege"]), messageSansPromo(["direction"])]) assert.ok(!m.includes("—"));
+test("messageSansPromo : un seul refus, sans « arrive bientôt » (lot 5 : le siège et la direction entrent sans promo)", () => {
+  for (const roles of [["siege"], ["direction"], ["formateur"], [], null, undefined]) {
+    assert.equal(messageSansPromo(roles), MESSAGE_SANS_PROMO);
+  }
+  assert.ok(!/bientôt/.test(MESSAGE_SANS_PROMO));
+  assert.ok(!MESSAGE_SANS_PROMO.includes("\u2014"));
 });
 
 test("pas de profil : aucun droit", () => {
