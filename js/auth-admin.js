@@ -25,7 +25,7 @@ import {
 } from "./roles-rules.js?v=20261109a";
 import {
   LIBELLES_ESPACE, ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, porteSansPromo,
-  centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace,
+  centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
 } from "./espaces-rules.js?v=20261109a";
 import { peutQuitter } from "./navigation.js?v=20261109a";
 import { el, toast, displayStagiaire, isoDate } from "./utils.js?v=20261109a";
@@ -109,8 +109,14 @@ function cleEspace() {
 function lireEspaceMemorise() {
   try { const cle = cleEspace(); return cle ? localStorage.getItem(cle) : null; } catch (e) { return null; }
 }
+// Mémorise l'espace choisi ; `null` efface le choix (retour à l'état d'avant un changement refusé).
 function memoriserEspace(e) {
-  try { const cle = cleEspace(); if (cle) localStorage.setItem(cle, e); } catch (x) { /* navigation privée : le choix vaut pour la session */ }
+  try {
+    const cle = cleEspace();
+    if (!cle) return;
+    if (e == null) localStorage.removeItem(cle);
+    else localStorage.setItem(cle, e);
+  } catch (x) { /* navigation privée : le choix vaut pour la session */ }
 }
 
 // L'espace qu'aurait la session avec cet aperçu : le choix mémorisé s'il est permis sur la promo affichée, sinon le premier permis
@@ -171,6 +177,8 @@ function rechargerSurLAccueil(e) {
 // déjà affiché, ou qui n'est pas ouvert au compte, ne change rien.
 export async function setEspace(nouvel) {
   if (nouvel === getEspace() || !espacesOuverts().includes(nouvel) || !peutQuitter()) return;
+  // Mémorisé avant la bascule (le rechargement ne laisse aucune garantie après elle), rendu tel qu'il était si la bascule est refusée.
+  const memorise = lireEspaceMemorise();
   memoriserEspace(nouvel);
   const aujourdhui = isoDate(new Date());
   const promo = getPromoCourante();
@@ -180,7 +188,10 @@ export async function setEspace(nouvel) {
     : promoPourLEspace({ espace: nouvel, promo, promos, aujourdhui });
   if (cible != null) {
     const phrase = await ouvrirDansUnePromo(cible, "#/" + (ACCUEIL_ESPACE[nouvel] || "home"));
-    if (phrase) toast(phrase, "error", 4000);
+    if (phrase) {
+      memoriserEspace(memorise);
+      toast(phrase, "error", 4000);
+    }
     return;
   }
   rechargerSurLAccueil(nouvel);
@@ -520,14 +531,16 @@ function updateImpersonationBanner() {
   const v = getViewAs();
   let banner = document.getElementById("impersonation-banner");
   if (!v) { if (banner) banner.remove(); return; }
-  const label = LIBELLES_APERCU[v] || v;
+  const { libelle, suite } = texteBandeauApercu(v, getCentre());
   if (!banner) {
     banner = el("div", { id: "impersonation-banner", class: "impersonation-banner" });
     document.body.appendChild(banner);
   }
   banner.innerHTML = "";
   banner.appendChild(el("span", { class: "imp-eye", "aria-hidden": "true" }, "👁"));
-  banner.appendChild(el("span", { class: "imp-text" }, "Aperçu : ", el("strong", {}, label)));
+  // Direction et siège : la phrase est longue (elle dit que les modifications sont réelles), le bandeau passe à la ligne.
+  banner.classList.toggle("imp-long", !!suite);
+  banner.appendChild(el("span", { class: "imp-text" }, "Aperçu : ", el("strong", {}, libelle), suite ? ". " + suite : ""));
   banner.appendChild(el("button", { class: "imp-back", type: "button",
     onClick: () => setViewAs(null) }, isFounder() ? "Revenir fondateur" : "Quitter l'aperçu"));
 }

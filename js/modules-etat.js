@@ -64,6 +64,10 @@ function appliquer(texte) {
 // l'appareil, sinon libre (tout ouvert). Ne lève jamais d'erreur.
 export async function chargerModules() {
   derniereLecture = Date.now();
+  // Sans promo affichée (le siège, une direction dont le centre n'en a pas encore), il n'y a pas de réglage à lire : la requête
+  // partirait sans en-tête de promo. L'état reste celui d'avant (libre au départ). Couvre aussi « Actualiser » et le retour au
+  // premier plan.
+  if (!getPromoCourante()) return etat;
   const ecrituresAuDepart = ecrituresAbouties;
   try {
     const texte = await getSetting(CLE_REGLAGE);

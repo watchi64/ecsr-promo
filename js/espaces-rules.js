@@ -7,7 +7,7 @@
  * Sources des espaces permis (D2) : siège et direction viennent des affectations du compte ; formateur et
  * stagiaire viennent des rôles du compte dans la promo affichée (`promo.roles`, mes_promos(), lot 4).
  */
-import { apercusPermis, normaliserApercu, droitsAffiches } from "./roles-rules.js?v=20261109a";
+import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261109a";
 import { lireAdresse } from "./route-rules.js?v=20261109a";
 
 export const ESPACES = ["stagiaire", "equipe", "direction", "siege"];
@@ -211,6 +211,31 @@ function premiereEnCoursSinonRecente(candidates, aujourdhui) {
 // Les promos d'un centre : l'unique point où la liste des promos se restreint à un centre.
 export function promosDuCentre(promos, lieuId) {
   return (Array.isArray(promos) ? promos : []).filter((p) => p && p.lieu_id === lieuId);
+}
+
+// Les promos que l'app charge selon l'aperçu « Voir en tant que » (D3). Le fondateur peut tout lire : en aperçu direction, la limite
+// au centre de la promo affichée est d'affichage, posée ici et nulle part ailleurs (js/db.js l'applique là où la liste est chargée,
+// si bien que la pastille, les pages et les en-têtes de lecture permis n'ont rien à filtrer) ; en aperçu siège, aucune promo.
+// Hors aperçu direction et siège, la liste entière. Une promo affichée sans centre ne laisse voir qu'elle-même.
+export function promosVisiblesEnApercu({ promos, promo, apercu } = {}) {
+  const liste = Array.isArray(promos) ? promos : [];
+  const a = normaliserApercu(apercu);
+  if (a === "siege") return [];
+  if (a !== "direction") return [...liste];
+  if (!promo) return [];
+  if (promo.lieu_id == null) return liste.filter((p) => p && p.id === promo.id);
+  return promosDuCentre(liste, promo.lieu_id);
+}
+
+// Le bandeau d'aperçu : « Aperçu : <libelle>. <suite> ». En direction et en siège, ce que le fondateur modifie est vraiment enregistré
+// (la base répond comme pour ce rôle, sans copie) : le bandeau le dit. Formateur et stagiaire : le libellé du lot 4, sans suite.
+const SUITE_APERCU_REEL = "Ce que tu modifies ici est vraiment enregistré.";
+export function texteBandeauApercu(apercu, centre) {
+  if (apercu === "direction") {
+    return { libelle: centre && centre.nom ? "Direction du centre " + centre.nom : LIBELLES_ESPACE.direction, suite: SUITE_APERCU_REEL };
+  }
+  if (apercu === "siege") return { libelle: "Siège du réseau", suite: SUITE_APERCU_REEL };
+  return { libelle: LIBELLES_APERCU[apercu] || String(apercu), suite: "" };
 }
 
 // Routes de la direction et du siège (section 1 du lot 5). Les pages du menu du compte (nouveautes, preferences,

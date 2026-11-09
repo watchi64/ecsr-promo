@@ -576,8 +576,10 @@ async function bootApp() {
     // Interrupteurs de l'émargement et de la nouvelle navigation (propres à la promo) lus en même
     // temps que les modules. La navigation est décidée ici, une fois pour la session, avant le
     // premier rendu (aperçu du fondateur compris).
-    // Sans promo (le siège, une direction dont le centre n'en a pas encore), l'émargement n'a rien à lire : il reste éteint.
-    await Promise.all([chargerModulesAuDemarrage(), getPromoCourante() ? chargerEmargementActif() : null, chargerNavigationV2()]);
+    // Sans promo (le siège, une direction dont le centre n'en a pas encore), les modules et l'émargement n'ont rien à lire : les
+    // modules gardent leur état par défaut, l'émargement reste éteint (aucune lecture ne part sans en-tête de promo).
+    const unePromo = !!getPromoCourante();
+    await Promise.all([unePromo ? chargerModulesAuDemarrage() : null, unePromo ? chargerEmargementActif() : null, chargerNavigationV2()]);
     renderTabs();
   } finally {
     // La barre de la session est posée (coquille, ou ancienne barre si la décision est « éteint ») : plus

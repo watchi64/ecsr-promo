@@ -7,11 +7,12 @@ import {
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
 } from "./promo-rules.js?v=20261109a";
 import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261109a";
-import { normaliserAffectations, adresseApresBascule } from "./espaces-rules.js?v=20261109a";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261109a";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
-let mesPromos = [];          // lignes renvoyées par la RPC mes_promos()
+let promosLues = [];         // lignes renvoyées par la RPC mes_promos(), telles quelles
+let mesPromos = [];          // promos que l'app voit : promosLues retraitée par l'aperçu (voir recalculerPromosVisibles)
 let promoCouranteId = null;  // nulle tant que le contexte n'est pas chargé : pas d'en-tête
 let cleMemoire = null;       // clé localStorage propre au compte
 let compteContexte = null;   // compte (email en minuscules) auquel appartient le contexte
@@ -43,7 +44,7 @@ function fetchWithTimeout(input, init = {}) {
     const { promo, erreur } = promoDeLaRequete({
       methode: init.method || (estRequete ? input.method : "GET"),
       demandee,
-      courante: promoCouranteId,
+      courante: getPromoCourante()?.id ?? null,
       accessibles: mesPromos.map((p) => p.id),
     });
     if (erreur) return Promise.reject(new Error(erreur));
@@ -96,6 +97,15 @@ async function cachedQuery(key, fetcher) {
   return data;
 }
 
+// L'UNIQUE point où la liste des promos se restreint selon l'aperçu « Voir en tant que » (lot 5, D3) : en aperçu direction, les promos
+// du centre de la promo affichée ; en aperçu siège, aucune. getMesPromos(), la pastille, les pages et les promos dont l'en-tête de
+// lecture est permis lisent tous `mesPromos` : aucun d'eux n'a à filtrer. La promo mémorisée (promoCouranteId) reste choisie sur la
+// liste entière, pour que le retour hors aperçu retrouve la même promo.
+function recalculerPromosVisibles() {
+  const affichee = promosLues.find((p) => p.id === promoCouranteId) || null;
+  mesPromos = promosVisiblesEnApercu({ promos: promosLues, promo: affichee, apercu: apercuEnvoye });
+}
+
 export function invalidateCache(key) {
   if (key) { _cache.delete(key); _cacheExpiry.delete(key); }
   else { _cache.clear(); _cacheExpiry.clear(); }
@@ -115,6 +125,7 @@ export async function chargerMesPromos(email) {
   // Autre compte que celui du contexte en mémoire (appareil partagé) : on repart de zéro,
   // sans rien hériter de la promo du compte précédent.
   if (compte !== compteContexte) {
+    promosLues = [];
     mesPromos = [];
     promoCouranteId = null;
     cleMemoire = null;
@@ -126,14 +137,16 @@ export async function chargerMesPromos(email) {
   if (error) throw error;
   if (monEpoque !== epoque) return null;  // déconnexion pendant le chargement : rien à poser
   cleMemoire = compte ? "ecsr_promo:" + compte : null;
-  mesPromos = data || [];
+  promosLues = data || [];
   let memorisee = null;
   try { memorisee = cleMemoire ? localStorage.getItem(cleMemoire) : null; } catch (e) { /* navigation privée */ }
-  const garder = mesPromos.some((p) => p.id === promoCouranteId) ? promoCouranteId : null;
-  const nouvelle = garder ?? choisirPromoInitiale(mesPromos, memorisee);
+  const garder = promosLues.some((p) => p.id === promoCouranteId) ? promoCouranteId : null;
+  const nouvelle = garder ?? choisirPromoInitiale(promosLues, memorisee);
   if (nouvelle !== promoCouranteId) invalidateCache();
   promoCouranteId = nouvelle;
-  return mesPromos;
+  recalculerPromosVisibles();
+  // La liste lue, pas celle de l'aperçu : « le compte a des promos » ne change pas parce que le fondateur regarde le siège.
+  return promosLues;
 }
 
 export function getMesPromos() { return mesPromos; }
@@ -144,6 +157,7 @@ export function poserApercu(role) {
   const nouveau = normaliserApercu(role);
   if (nouveau === apercuEnvoye) return;
   apercuEnvoye = nouveau;
+  recalculerPromosVisibles();
   invalidateCache();
 }
 
@@ -154,6 +168,7 @@ export function getPromoCourante() {
 // Déconnexion : le contexte est oublié en mémoire (le choix mémorisé, propre au compte, reste).
 export function oublierPromo() {
   epoque += 1;
+  promosLues = [];
   mesPromos = [];
   promoCouranteId = null;
   cleMemoire = null;

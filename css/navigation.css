@@ -1024,6 +1024,14 @@ body[data-nav="v2"] .qcm-close { width: 44px; height: 44px; }
   body[data-nav="v2"] .theme-modal .modal-actions .btn { min-height: 44px; }
 }
 
+/* ----- Bandeau d'aperçu de la direction et du siège (lot 5, js/auth-admin.js) ----- */
+/* La phrase dit que les modifications sont vraiment enregistrées : elle passe à la ligne au lieu de déborder (pilule d'une ligne
+   pour formateur et stagiaire, coins moins ronds quand elle prend deux ou trois lignes). */
+/* Largeur explicite : posé à left: 50%, le bandeau n'aurait que la moitié de l'écran et la phrase se casserait mot à mot. */
+.impersonation-banner.imp-long { border-radius: 16px; width: max-content; max-width: min(36rem, calc(100vw - 24px)); }
+.impersonation-banner.imp-long .imp-text { white-space: normal; }
+.impersonation-banner.imp-long .imp-back { flex: none; min-height: 44px; }
+
 /* ----- Impression : ni la coquille, ni ce qu'elle impose à la page ----- */
 /* La marge de la barre latérale battrait le « margin: 0 » de l'impression des Indicateurs (style.css,
    body.centre-printable #app) ; la marge basse est celle de la barre du bas du téléphone. */

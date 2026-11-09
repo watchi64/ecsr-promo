@@ -7,7 +7,7 @@ import {
   ESPACES, LIBELLES_ESPACE, ACCUEIL_ESPACE, barreLaterale, espacesPermis, espaceChoisi, brider, peutRedigerContenus,
   porteSansPromo, centreAffiche, promoPourLaDirection, promosDuCentre, routeDansLEspace, phraseHorsEspace,
   phraseDeRefus, adresseApresBascule, normaliserAffectations, affectationsDeSecours, espacesDuCompte, promoPourLEspace,
-  cleDerniereRoute, espaceDePilotage,
+  cleDerniereRoute, espaceDePilotage, promosVisiblesEnApercu, texteBandeauApercu,
 } from "../js/espaces-rules.js";
 import { messageInvitation } from "../js/roles-rules.js";
 
@@ -255,4 +255,46 @@ test("cleDerniereRoute : une mémoire par espace ; celle de main pour le stagiai
 test("espaceDePilotage : la direction et le siège", () => {
   assert.deepEqual(ESPACES.map(espaceDePilotage), [false, false, true, true]);
   assert.equal(espaceDePilotage(null), false);
+});
+
+test("promosVisiblesEnApercu : la liste des promos que charge l'app, selon l'aperçu (D3)", () => {
+  const promos = [
+    { id: 1, lieu_id: 1, lieu_nom: "Nîmes" }, { id: 2, lieu_id: 1, lieu_nom: "Nîmes" },
+    { id: 3, lieu_id: 2, lieu_nom: "Montpellier" }, { id: 7, lieu_id: 4, lieu_nom: "Démonstration" },
+  ];
+  const ids = (apercu, promo) => promosVisiblesEnApercu({ promos, promo, apercu }).map((p) => p.id);
+  // Direction : seules les promos du centre de la promo affichée.
+  assert.deepEqual(ids("direction", promos[0]), [1, 2]);
+  assert.deepEqual(ids("direction", promos[3]), [7]);
+  assert.deepEqual(ids("direction", promos[2]), [3]);
+  // Siège : aucune promo.
+  assert.deepEqual(ids("siege", promos[0]), []);
+  assert.deepEqual(ids("siege", null), []);
+  // Hors aperçu, formateur, stagiaire, valeur inconnue : toutes, dans leur ordre.
+  for (const a of [null, undefined, "", "formateur", "stagiaire", "admin", "n'importe quoi"]) {
+    assert.deepEqual(ids(a, promos[0]), [1, 2, 3, 7], String(a));
+  }
+  // Direction sans promo affichée : rien ; promo affichée sans centre : elle seule (jamais une autre promo sans centre).
+  assert.deepEqual(ids("direction", null), []);
+  const sansCentre = { id: 9, lieu_id: null };
+  assert.deepEqual(promosVisiblesEnApercu({ promos: [...promos, sansCentre, { id: 10, lieu_id: null }], promo: sansCentre, apercu: "direction" }).map((p) => p.id), [9]);
+  // Liste illisible : jamais d'exception, liste vide. Pas de mutation de la liste d'origine.
+  assert.deepEqual(promosVisiblesEnApercu({ promos: null, promo: null, apercu: null }), []);
+  assert.deepEqual(promosVisiblesEnApercu(), []);
+  const avant = JSON.stringify(promos);
+  ids("direction", promos[0]);
+  assert.equal(JSON.stringify(promos), avant);
+});
+
+test("texteBandeauApercu : ce que dit le bandeau d'aperçu (les modifications d'un aperçu sont réelles)", () => {
+  const reel = "Ce que tu modifies ici est vraiment enregistré.";
+  assert.deepEqual(texteBandeauApercu("direction", { id: 1, nom: "Nîmes" }), { libelle: "Direction du centre Nîmes", suite: reel });
+  assert.deepEqual(texteBandeauApercu("direction", null), { libelle: "Direction", suite: reel });
+  assert.deepEqual(texteBandeauApercu("direction", { id: 1, nom: null }), { libelle: "Direction", suite: reel });
+  assert.deepEqual(texteBandeauApercu("siege", { id: 1, nom: "Nîmes" }), { libelle: "Siège du réseau", suite: reel });
+  // Formateur et stagiaire : le libellé du lot 4, sans phrase de plus.
+  assert.deepEqual(texteBandeauApercu("formateur", null), { libelle: "Formateur", suite: "" });
+  assert.deepEqual(texteBandeauApercu("stagiaire", null), { libelle: "Stagiaire", suite: "" });
+  // Valeur inconnue : rendue telle quelle, comme l'ancien bandeau.
+  assert.deepEqual(texteBandeauApercu("autre", null), { libelle: "autre", suite: "" });
 });
