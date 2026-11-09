@@ -144,3 +144,13 @@ export function etatVideNotes({ nbNotes, contexte }) {
   const e = ETATS_VIDES[contexte];
   return e ? { titre: e.titre, phrase: e.phrase, actions: e.actions.slice() } : null;
 }
+
+// La raison d'un échec d'écriture d'une note, en français, pour « Pas enregistrée : <raison>. Réessaie. » : jamais le
+// message brut du réseau ou de la base (« Failed to fetch », « JWT expired »).
+export function raisonEchecNote(erreur) {
+  const texte = String(erreur?.message ?? erreur ?? "");
+  const code = String(erreur?.code ?? "");
+  if (/jwt|not authenticated/i.test(texte) || /^PGRST30[0-3]$/.test(code)) return "ta session a expiré, reconnecte-toi";
+  if (code === "42501" || /row-level security|permission denied/i.test(texte)) return "tu n'as pas le droit de modifier cette note";
+  return "la connexion a échoué";
+}

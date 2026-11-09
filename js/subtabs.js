@@ -8,22 +8,23 @@ import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=2
 // tabs = [{ key, label, render(panel), module? }].
 // module : clé du catalogue (js/modules-data.js). Fermé pour la promo, le
 // sous-onglet disparaît chez un stagiaire et porte le repère chez un formateur.
-// opts.activeKey : onglet initial ; opts.storageKey : mémorise le dernier onglet choisi.
+// opts.activeKey : onglet initial ; opts.storageKey : mémorise le dernier onglet choisi ; opts.defautKey : l'onglet
+// d'ouverture quand rien n'est mémorisé (Notes : « Saisir » sur un écran tactile, « Matrice » sinon).
 // opts.onChange(key) : appelé quand l'utilisateur choisit un onglet (pas au rendu
 // initial). opts.avantChangement() : renvoie false pour garder l'onglet affiché
 // (saisie en cours qu'on ne veut pas perdre).
-// Retourne l'élément conteneur (barre + panneau). S'il ne reste qu'un onglet, la
+// Retourne l'élément conteneur (barre + panneau), dont `activer(key)` bascule sur un onglet comme un clic. S'il ne reste qu'un onglet, la
 // barre n'est pas affichée : le contenu s'affiche directement.
 export function renderSubTabs(tousLesOnglets, opts = {}) {
   const tabs = tousLesOnglets.filter((t) => !t.module || moduleVisible(t.module));
-  const { activeKey, storageKey, onChange, avantChangement } = opts;
+  const { activeKey, storageKey, onChange, avantChangement, defautKey } = opts;
   const wrap = el("div", { class: "subtabs" });
   const bar = el("div", { class: "subtabs-bar", role: "tablist" });
   const panel = el("div", { class: "subtabs-panel" });
 
   let stored = null;
   if (storageKey) { try { stored = localStorage.getItem(storageKey); } catch (e) { stored = null; } }
-  let current = activeKey || stored || (tabs[0] && tabs[0].key);
+  let current = activeKey || stored || defautKey || (tabs[0] && tabs[0].key);
   if (!tabs.some((t) => t.key === current)) current = tabs[0] && tabs[0].key;
 
   const buttons = {};
@@ -55,5 +56,6 @@ export function renderSubTabs(tousLesOnglets, opts = {}) {
   if (tabs.length > 1) wrap.appendChild(bar);
   wrap.appendChild(panel);
   if (current) activate(current);
+  wrap.activer = (key) => { if (buttons[key]) activate(key, true); };
   return wrap;
 }

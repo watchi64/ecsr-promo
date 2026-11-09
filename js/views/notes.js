@@ -14,8 +14,9 @@ import { renderSubTabs } from "../subtabs.js?v=20261109i";
 import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109i";
 import { navigationV2Active } from "../nav-etat.js?v=20261109i";
 import { renderEpcf } from "./epcf.js?v=20261109i";
+import { renderSaisie } from "./notes-saisie.js?v=20261109i";
 import { noteGradient } from "../echelle-notes.js?v=20261109i";
-import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible } from "../notes-saisie-rules.js?v=20261109i";
+import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote } from "../notes-saisie-rules.js?v=20261109i";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -489,7 +490,7 @@ async function enregistrerNote({ stagiaireId, cible, saisie, nom = null }) {
         evaluations.push(re || snapshot);
       });
       return { etat: "effacee" };
-    } catch (e) { return { etat: "erreur", message: e?.message || String(e) }; }
+    } catch (e) { return { etat: "erreur", message: raisonEchecNote(e) }; }
   }
 
   const parsed = parseNoteInput(raw);
@@ -542,7 +543,7 @@ async function enregistrerNote({ stagiaireId, cible, saisie, nom = null }) {
     }
     return fait;
   } catch (e) {
-    return { etat: "erreur", message: e?.message || String(e) };
+    return { etat: "erreur", message: raisonEchecNote(e) };
   }
 }
 
@@ -635,7 +636,8 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
       restore();
       return;
     }
-    if (r.etat === "invalide" || r.etat === "erreur") toast(r.message, "error");
+    if (r.etat === "invalide") toast(r.message, "error");
+    if (r.etat === "erreur") toast(`Note non enregistrée : ${r.message}.`, "error");
     if (r.etat !== "enregistree") { restore(); return; }
     if (r.converti) toast(`${r.converti} → ${r.note}/20`, "success", 1800);
     // Met à jour la cellule en place (sans détruire les autres inputs)
@@ -790,7 +792,7 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
     if (done) return; done = true;
     const r = await enregistrerNote({ stagiaireId, cible: fixedFields, saisie: input.value });
     if (r.etat === "invalide" || r.etat === "erreur" || r.etat === "gardee") {
-      if (r.message) toast(r.message, "error");
+      if (r.message) toast(r.etat === "erreur" ? `Note non enregistrée : ${r.message}.` : r.message, "error");
       valueWrap.innerHTML = originalHtml;
       return;
     }
@@ -979,6 +981,17 @@ function buildGroupAvgRow() {
   return tr;
 }
 
+// Ce que veulent dire les sigles des colonnes de la matrice (lot C) : une ligne sous le tableau.
+function legendeMatrice() {
+  const p = el("p", { class: "matrice-legende muted" });
+  MATRIX_SPECIAL_COLS.forEach((c, i) => {
+    if (i) p.appendChild(document.createTextNode(" · "));
+    p.appendChild(el("strong", {}, c.label));
+    p.appendChild(document.createTextNode(" : " + c.nom));
+  });
+  return p;
+}
+
 function rerender(container) {
   clear(container);
 
@@ -1001,7 +1014,7 @@ function rerender(container) {
   const tactile = v2 && window.matchMedia("(pointer: coarse)").matches;
   const compte = nbLignes + " note" + (nbLignes > 1 ? "s" : "") + " enregistrée" + (nbLignes > 1 ? "s" : "");
   const phrase = admin && tactile
-    ? "Touche une case pour saisir la note."
+    ? "Saisis les notes thème par thème, ou touche une case de la matrice."
     : "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note.";
 
   container.appendChild(el("div", { class: "view-header" },
@@ -1063,8 +1076,12 @@ function rerender(container) {
   // retrouve .notes-synthese/.notes-chart par querySelector, ils restent des
   // descendants du container, dans le panneau.
   const buildMatricePanel = (panel) => {
+    // La date a pu changer dans « Saisir » : la barre d'outils la reprend.
+    const champDate = toolbar.querySelector('input[type="date"]');
+    if (champDate) champDate.value = currentEvalDate;
     panel.appendChild(toolbar);
     panel.appendChild(renderMatrice(container));
+    panel.appendChild(legendeMatrice());
     panel.appendChild(renderSynthese());
     panel.appendChild(renderChartsSection());
   };
@@ -1076,7 +1093,20 @@ function rerender(container) {
   // Mon espace, ou la page Stagiaires des formateurs. La matrice reste en lecture seule
   // pour les stagiaires. Chaque sous-onglet suit son module (js/modules-data.js) ; la
   // Matrice suit l'onglet lui-même.
+  // « Saisir » (lot C) : la saisie thème par thème, pour qui écrit des notes, sur la page de l'équipe seulement (ni La
+  // classe de Mon suivi, ni les stagiaires). Un écran tactile s'y ouvre tant qu'aucun sous-onglet n'est mémorisé.
+  const ctxSaisie = {
+    stagiaires: () => stagiaires.slice().sort(compareByNom),
+    evaluations: () => evaluations,
+    themes: themesOfficiels,
+    nom: displayName,
+    dateEval: () => currentEvalDate,
+    changerDate: (iso) => { currentEvalDate = iso; },
+    enregistrer: enregistrerNote,
+    apresEnregistrement: () => refreshAnalyticsInPlace(container),
+  };
   const onglets = [
+    admin && !laClasse ? { key: "saisir", label: "Saisir", render: (p) => renderSaisie(p, ctxSaisie) } : null,
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
     { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
         renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive })
@@ -1088,7 +1118,7 @@ function rerender(container) {
             }
           });
       } },
-  ];
+  ].filter(Boolean);
   // La classe imbriquée dans Mon suivi (nouvelle navigation) : la Matrice, sans seconde rangée Matrice / EPCF (deux
   // « EPCF » se liraient à l'écran, celui de la fiche, première rangée de Mon suivi, et celui-ci), puis les moyennes
   // EPCF de la classe en section titrée sous la vue de la classe, tant que le module EPCF est ouvert pour la promo
@@ -1098,7 +1128,7 @@ function rerender(container) {
     container.appendChild(renderSubTabs(onglets.slice(0, 1)));
     if (moduleVisible("epcf")) container.appendChild(sectionMoyennesEpcf());
   } else {
-    container.appendChild(renderSubTabs(onglets, { storageKey: "ecsr_notes_subtab" }));
+    container.appendChild(renderSubTabs(onglets, { storageKey: "ecsr_notes_subtab", defautKey: tactile ? "saisir" : "matrice" }));
   }
 }
 

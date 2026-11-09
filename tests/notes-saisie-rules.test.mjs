@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import {
   parseNoteInput, ciblesDeSaisie, filtrerCibles, derniereNote, avancement, libelleAvancement,
-  origineNote, etatVideNotes, champsDeCible,
+  origineNote, etatVideNotes, champsDeCible, raisonEchecNote,
 } from "../js/notes-saisie-rules.js";
 
 // --- Lecture d'une saisie : virgule, espaces, conversion X/Y ---
@@ -70,5 +70,13 @@ assert.deepEqual(etatVideNotes({ nbNotes: 0, contexte: "direction" }), {
   titre: "Aucune note pour l'instant",
   phrase: "Les notes arrivent ici avec les examens QCM.",
   actions: [] });
+
+// --- La raison d'un échec d'écriture, en français (jamais le message brut du réseau ou de la base) ---
+assert.equal(raisonEchecNote(new TypeError("Failed to fetch")), "la connexion a échoué");
+assert.equal(raisonEchecNote({ message: "network error" }), "la connexion a échoué");
+assert.equal(raisonEchecNote({ message: "JWT expired", code: "PGRST301" }), "ta session a expiré, reconnecte-toi");
+assert.equal(raisonEchecNote({ message: "new row violates row-level security policy", code: "42501" }),
+  "tu n'as pas le droit de modifier cette note");
+assert.equal(raisonEchecNote(null), "la connexion a échoué");
 
 console.log("notes-saisie-rules : OK");

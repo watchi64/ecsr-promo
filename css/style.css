@@ -4283,9 +4283,11 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   text-align: left;
   cursor: pointer;
   width: 100%;
+  min-height: 24px;   /* cible de 24 px sur ordinateur, 44 px sur téléphone (lot C, critère G) */
   border-radius: 3px;
   transition: color 0.12s;
 }
+@media (max-width: 720px) { .m-name-btn { min-height: 44px; } }
 .m-name-btn:hover { color: var(--accent); }
 .m-name-btn:focus { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
 
@@ -8772,3 +8774,58 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   /* Barre des jours de la liste (lecture et édition) : 44 px aussi. */
   .p-daynav-btn { min-height: 44px; }
 }
+
+/* ===== Saisie des notes (lot C de l'audit du 09/11) =====
+   Sous-onglet « Saisir » de Notes et examens : la liste de ce qu'on note, puis une ligne par stagiaire avec un grand
+   champ. Pensé d'abord pour le téléphone (cibles de 44 px, rien qui déborde). */
+.saisie { display: flex; flex-direction: column; gap: 0.6rem; max-width: 640px; }
+.saisie-titre { margin: 0.2rem 0 0; font-size: 1.1rem; }
+.saisie-recherche {
+  width: 100%; box-sizing: border-box; min-height: 44px; padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--bg-elev);
+  color: var(--text); font: inherit;
+}
+.saisie-liste { display: flex; flex-direction: column; gap: 0.35rem; }
+.saisie-section {
+  margin: 0.8rem 0 0.2rem; font-size: 0.78rem; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-etiquette);
+}
+.saisie-cible {
+  display: grid; grid-template-columns: 3.4rem 1fr auto; align-items: center; gap: 0.6rem;
+  width: 100%; min-height: 44px; padding: 0.45rem 0.75rem; text-align: left;
+  border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-elev);
+  color: var(--text); font: inherit; cursor: pointer;
+}
+.saisie-cible:hover, .saisie-cible:focus-visible { border-color: var(--accent); }
+.saisie-cible-num { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent-strong); }
+.saisie-cible-titre { min-width: 0; overflow-wrap: anywhere; }
+.saisie-cible-avancement { font-size: 0.82rem; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.saisie-cible.complete .saisie-cible-avancement { color: var(--accent-strong); font-weight: 600; }
+.saisie-aucune { margin: 0.4rem 0; }
+.saisie-entete { display: flex; flex-direction: column; gap: 0.3rem; }
+.saisie-retour { align-self: flex-start; min-height: 44px; display: inline-flex; align-items: center; gap: 0.3rem; }
+.saisie-retour svg { width: 18px; height: 18px; }
+.saisie-compteur { margin: 0; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.saisie-date { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.saisie-changer-date {
+  min-height: 44px; padding: 0 0.4rem; border: 0; background: none; font: inherit;
+  color: var(--accent-strong); text-decoration: underline; cursor: pointer;
+}
+.saisie-date input[type="date"] { min-height: 44px; font: inherit; }
+.saisie-lignes { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.4rem; }
+.saisie-ligne {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.55rem 0.75rem; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-elev);
+}
+.saisie-qui { display: flex; flex-direction: column; min-width: 0; gap: 0.15rem; }
+.saisie-nom { font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
+.saisie-etat { font-size: 0.82rem; color: var(--text-muted); }
+.saisie-etat.erreur { color: var(--c-stop); }
+.saisie-champ {
+  flex: 0 0 5.5rem; width: 5.5rem; height: 48px; min-height: 48px; box-sizing: border-box; padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--bg);
+  color: var(--text); font: inherit; font-size: 20px; font-variant-numeric: tabular-nums; text-align: center;
+}
+.saisie-champ:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Ce que veulent dire les sigles de la matrice : une ligne sous le tableau. */
+.matrice-legende { margin: 0.5rem 0 0; font-size: 0.82rem; line-height: 1.5; }

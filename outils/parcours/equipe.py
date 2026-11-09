@@ -5,7 +5,7 @@ En fin de fichier, les pages refaites par le lot 2B (« Aujourd'hui », planning
 et Propositions IA) : elles n'existent que sous la nouvelle navigation.
 """
 from . import parcours
-from .navigation import texte
+from .navigation import SOUS_ONGLET, texte
 from .visite import BLOQUE, LISTE
 
 # Sur téléphone, l'équipe passe par « Plus » pour tout ce qui n'est pas dans la barre du bas : 1 clic de plus.
@@ -147,4 +147,27 @@ def propositions_ia(v):
     v.fermer_par_echap(".qcm-overlay", "l'éditeur du QCM")
     if v.voit(".qcm-overlay"):
         v.toucher("button.qcm-close", "« Fermer » (éditeur du QCM)", compte=False)
+    v.terminer()
+
+
+# --- Notes et examens (lot C de l'audit du 09/11) ----------------------------------------------------------
+
+
+@parcours("saisir-une-note", "Saisir une note (thème par thème)", role="formateur", budget=3, navigations=NOUVELLE)
+def saisir_une_note(v):
+    """Notes et examens, « Saisir » (la page s'y ouvre sur téléphone), le thème 22, puis 14 dans le champ d'un stagiaire
+    sans note et Tab : « Enregistrée » s'affiche sous son nom."""
+    v.aller("Notes et examens")
+    if not v.voit("#view button.saisie-cible"):
+        v.etape("ouvrir le sous-onglet « Saisir »")
+        v.toucher(texte("Saisir", SOUS_ONGLET), "« Saisir »")
+    v.etape("choisir le thème 22")
+    v.toucher('#view button.saisie-cible[data-cle="T22"]', "le thème 22")
+    champ = "#view input.saisie-champ:not([data-note])"
+    v.attendre(champ, "le champ d'un stagiaire sans note")
+    v.etape("taper 14, puis passer au champ suivant")
+    v.remplir(champ, "14", "le champ de note")
+    v.page.keyboard.press("Tab")
+    v.attendre("#view .saisie-etat:has-text(\"Enregistrée\")", "« Enregistrée » sous le nom")
+    v.but("note enregistrée")
     v.terminer()
