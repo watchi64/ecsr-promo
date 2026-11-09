@@ -8,14 +8,20 @@ import { confirmer } from "../js/confirmer.js";
 // boîte du navigateur (confirm()), que le robot et le vérificateur comptent comme un défaut. Ce que la fenêtre garantit,
 // sur un DOM factice : oui ou non selon le bouton, Échap et un toucher à côté valent « non », rien ne reste derrière
 // (ni la fenêtre, ni l'écoute du clavier), et le focus revient où il était. Le robot (parcours « saisir-une-note ») joue
-// le même geste dans de vrais navigateurs.
+// le même geste dans de vrais navigateurs. Le clavier s'écoute sur la fenêtre du navigateur (window), en capture : la
+// fenêtre de l'app reçoit Échap et Tab avant tout le reste (l'assistant écoute Échap sur le document).
 
 function registre() {
   const ecouteurs = new Map();
+  const captures = new Set();
   return {
-    addEventListener(type, rappel) { ecouteurs.set(type, [...(ecouteurs.get(type) || []).filter((f) => f !== rappel), rappel]); },
+    addEventListener(type, rappel, options) {
+      ecouteurs.set(type, [...(ecouteurs.get(type) || []).filter((f) => f !== rappel), rappel]);
+      if (options === true || options?.capture) captures.add(rappel);
+    },
     removeEventListener(type, rappel) { ecouteurs.set(type, (ecouteurs.get(type) || []).filter((f) => f !== rappel)); },
     ecoutes: (type) => ecouteurs.get(type) || [],
+    enCapture: (rappel) => captures.has(rappel),
   };
 }
 
@@ -31,13 +37,14 @@ const AJOUTS = {
 
 function avecDocument(corps) {
   const dom = installerDocument();
-  const avant = Object.getOwnPropertyDescriptor(globalThis, "Node");
+  const avant = ["Node", "window"].map((nom) => [nom, Object.getOwnPropertyDescriptor(globalThis, nom)]);
   Object.assign(ElementFactice.prototype, AJOUTS);
   const document_ = Object.assign(dom.doc, registre(), { body: dom.conteneur(), activeElement: null });
   Object.defineProperty(globalThis, "Node", { value: NoeudFactice, configurable: true, writable: true });
+  Object.defineProperty(globalThis, "window", { value: registre(), configurable: true, writable: true });
   const fin = () => {
     for (const nom of Object.keys(AJOUTS)) delete ElementFactice.prototype[nom];
-    if (avant) Object.defineProperty(globalThis, "Node", avant); else delete globalThis.Node;
+    for (const [nom, d] of avant) { if (d) Object.defineProperty(globalThis, nom, d); else delete globalThis[nom]; }
     dom.restaurer();
   };
   return Promise.resolve().then(() => corps(document_)).finally(fin);
@@ -45,6 +52,13 @@ function avecDocument(corps) {
 
 // La fenêtre s'ouvre au tour suivant (après le geste qui l'a demandée).
 const tour = () => new Promise((r) => setTimeout(r, 0));
+const clavier = () => globalThis.window.ecoutes("keydown");
+const touche = (key, extra = {}) => {
+  const e = { key, shiftKey: false, arrete: false, empeche: false,
+    stopPropagation() { this.arrete = true; }, preventDefault() { this.empeche = true; }, ...extra };
+  for (const f of clavier()) f(e);
+  return e;
+};
 const fenetre = (document) => document.body.childNodes.find((n) => n.classes?.has("modal-backdrop")) || null;
 const boutons = (document) => descendants(fenetre(document)).filter((n) => n.nodeName === "button");
 const bouton = (document, texte) => boutons(document).find((b) => b.textContent === texte);
@@ -66,11 +80,13 @@ test("« Effacer la note » répond oui, ferme la fenêtre et rend le focus au c
   assert.ok(descendants(f).some((n) => n.textContent === "Sa note de 14/20 disparaît."));
   assert.deepEqual(boutons(document).map((b) => b.textContent), ["Annuler", "Effacer la note"]);
   assert.equal(document.activeElement, bouton(document, "Effacer la note"), "le focus va au bouton du geste");
-  assert.equal(document.ecoutes("keydown").length, 1, "Échap est écouté");
+  assert.equal(clavier().length, 1, "Échap est écouté");
+  assert.ok(globalThis.window.enCapture(clavier()[0]), "sur la fenêtre du navigateur, en capture : avant l'assistant et la page");
+  assert.equal(document.ecoutes("keydown").length, 0, "rien sur le document");
   bouton(document, "Effacer la note").click();
   assert.equal(await reponse, true);
   assert.equal(fenetre(document), null, "la fenêtre est partie");
-  assert.equal(document.ecoutes("keydown").length, 0, "plus d'écoute du clavier");
+  assert.equal(clavier().length, 0, "plus d'écoute du clavier");
   assert.equal(document.activeElement, champ, "le focus revient au champ");
 }));
 
@@ -85,20 +101,37 @@ test("« Annuler » répond non", () => avecDocument(async (document) => {
 test("Échap répond non, sans que la page en dessous le reçoive", () => avecDocument(async (document) => {
   const reponse = confirmer({ titre: "Effacer cette note ?", oui: "Effacer la note" });
   await tour();
-  let arrete = false;
-  for (const f of document.ecoutes("keydown")) f({ key: "Escape", stopPropagation() { arrete = true; } });
+  const e = touche("Escape");
   assert.equal(await reponse, false);
-  assert.ok(arrete, "Échap s'arrête à la fenêtre (l'écran « Saisir » ne revient pas à la liste)");
+  assert.ok(e.arrete, "Échap s'arrête à la fenêtre (ni l'écran « Saisir » ni l'assistant ne le reçoivent)");
   assert.equal(fenetre(document), null);
-  assert.equal(document.ecoutes("keydown").length, 0);
+  assert.equal(clavier().length, 0);
 }));
 
-test("une autre touche ne ferme rien", () => avecDocument(async (document) => {
+test("une lettre ne ferme rien", () => avecDocument(async (document) => {
   const reponse = confirmer({ titre: "Effacer cette note ?", oui: "Effacer la note" });
   await tour();
-  for (const f of document.ecoutes("keydown")) f({ key: "Tab", stopPropagation() {} });
+  touche("a");
   assert.ok(fenetre(document), "la fenêtre reste");
   bouton(document, "Annuler").click();
+  assert.equal(await reponse, false);
+}));
+
+test("Tab et Maj+Tab restent dans la fenêtre : on passe d'un bouton à l'autre", () => avecDocument(async (document) => {
+  const reponse = confirmer({ titre: "Effacer cette note ?", oui: "Effacer la note" });
+  await tour();
+  const oui = bouton(document, "Effacer la note"), non = bouton(document, "Annuler");
+  assert.equal(document.activeElement, oui);
+  let e = touche("Tab");
+  assert.equal(document.activeElement, non, "après le dernier bouton, le premier");
+  assert.ok(e.empeche, "le navigateur ne sort pas de la fenêtre");
+  e = touche("Tab", { shiftKey: true });
+  assert.equal(document.activeElement, oui, "Maj+Tab sur le premier : le dernier");
+  assert.ok(e.empeche);
+  document.activeElement = null;   // le focus est sorti de la fenêtre (un clic ailleurs)
+  touche("Tab");
+  assert.equal(document.activeElement, non, "Tab ramène dans la fenêtre");
+  non.click();
   assert.equal(await reponse, false);
 }));
 

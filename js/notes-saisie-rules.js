@@ -34,9 +34,10 @@ export function phraseNoteRefusee(raison) {
 }
 
 // La question posée avant d'effacer une note (fenêtre de l'app, js/confirmer.js) : qui, combien, et où (« au thème 22 »,
-// « aux thèmes 46 et 47 », « pour GDE »). `qui` peut manquer (une note sans stagiaire connu).
+// « aux thèmes 46 et 47 », « pour GDE »). `qui` peut manquer (une note sans stagiaire connu) ; une évaluation sans note
+// (« Ajouter une note » accepte une note vide) se dit « évaluation », sans valeur.
 export function confirmationEffacement({ qui, note, cible }) {
-  const valeur = `${String(note?.note ?? "").replace(".", ",")}/${note?.note_max ?? 20}`;
+  const sansNote = note?.note == null || note.note === "";
   let ou = "";
   if (cible?.type === "Thème" && cible.theme_numero != null) {
     const groupe = THEME_GROUPS.find((g) => g[0] === Number(cible.theme_numero));
@@ -45,9 +46,12 @@ export function confirmationEffacement({ qui, note, cible }) {
     const col = MATRIX_SPECIAL_COLS.find((c) => c.key === cible.competence_code);
     ou = ` pour ${col ? col.label : cible.competence_code}`;
   }
+  const phrase = sansNote
+    ? `${qui ? "Son" : "Cette"} évaluation${ou} disparaît.`
+    : `${qui ? "Sa" : "Cette"} note de ${String(note.note).replace(".", ",")}/${note.note_max ?? 20}${ou} disparaît.`;
   return {
     titre: qui ? `Effacer la note de ${qui} ?` : "Effacer cette note ?",
-    phrase: `${qui ? "Sa" : "Cette"} note de ${valeur}${ou} disparaît.`,
+    phrase,
     oui: "Effacer la note",
   };
 }
@@ -186,7 +190,8 @@ export function raisonEchecNote(erreur) {
 
 // Ce que dit la ligne d'un stagiaire de l'écran « Saisir » après un enregistrement (r : le résultat d'enregistrerNote ;
 // avant : la note en place avant l'envoi ; enErreur : la ligne disait une erreur). { texte, erreur, reessayer }, ou null
-// quand la ligne ne change pas. Une note refusée se dit en une phrase ; « Réessayer » n'est offert que si la connexion a
+// quand la ligne ne change pas. Une note refusée se dit en une phrase (« Pas effacée » quand c'était un effacement,
+// r.effacement) ; « Réessayer » n'est offert que si la connexion a
 // lâché (une session expirée ou un droit refusé échoueraient de nouveau). Remettre la note déjà en base efface l'erreur :
 // la ligne redit d'où vient la note.
 export function etatDeLigne(r, avant, enErreur = false) {
@@ -199,7 +204,9 @@ export function etatDeLigne(r, avant, enErreur = false) {
     case "gardee": return origine();
     case "inchangee": return enErreur ? origine() : null;
     case "invalide": return { texte: `Pas enregistrée : ${r.message}.`, erreur: true, reessayer: false };
-    case "erreur": return { texte: `Pas enregistrée : ${r.message}.`, erreur: true, reessayer: r.message === RAISON_CONNEXION };
+    case "erreur":
+      return { texte: `${r.effacement ? "Pas effacée" : "Pas enregistrée"} : ${r.message}.`, erreur: true,
+        reessayer: r.message === RAISON_CONNEXION };
     default: return null;
   }
 }

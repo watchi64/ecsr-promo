@@ -528,7 +528,8 @@ async function enregistrerNote({ stagiaireId, cible, saisie, nom = null }) {
   const existing = derniereNote(evaluations, stagiaireId, cible);
   const raw = String(saisie ?? "").trim();
   if (raw === "") {
-    if (!existing) return { etat: "inchangee" };
+    // Rien à effacer : pas d'évaluation, ou une évaluation sans note (le champ était déjà vide).
+    if (!existing || existing.note == null) return { etat: "inchangee" };
     const s = stagiaires.find((x) => x.id === stagiaireId);
     const qui = nom || (s ? displayName(s) : null);
     if (!(await confirmer(confirmationEffacement({ qui, note: existing, cible })))) return { etat: "gardee" };
@@ -542,7 +543,7 @@ async function enregistrerNote({ stagiaireId, cible, saisie, nom = null }) {
         evaluations.push(re || snapshot);
       });
       return { etat: "effacee" };
-    } catch (e) { return { etat: "erreur", message: raisonEchecNote(e) }; }
+    } catch (e) { return { etat: "erreur", message: raisonEchecNote(e), effacement: true }; }
   }
 
   const parsed = parseNoteInput(raw);

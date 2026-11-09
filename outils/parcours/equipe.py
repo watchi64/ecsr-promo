@@ -156,6 +156,9 @@ def propositions_ia(v):
 
 
 THEME_22 = '#view button.saisie-cible[data-cle="T22"]'
+# « Enregistrée » exactement, hors erreur : `:has-text` ignore les majuscules et cherche un morceau de texte, il
+# reconnaîtrait aussi « Pas enregistrée : ... ».
+ENREGISTREE = ' .saisie-etat:not(.erreur):text-is("Enregistrée")'
 
 
 def _ouvrir_le_theme_22(v):
@@ -180,16 +183,24 @@ def _un_stagiaire_sans_note(v):
 @parcours("saisir-une-note", "Saisir une note (thème par thème)", role="formateur", budget=3, navigations=NOUVELLE)
 def saisir_une_note(v):
     """Notes et examens, « Saisir » (la page s'y ouvre sur téléphone), le thème 22, puis 14 dans le champ d'un stagiaire
-    sans note et Tab : « Enregistrée » s'affiche sous son nom. Puis le champ vidé et Tab : la question « Effacer la note
-    de … ? » s'ouvre dans une fenêtre de l'app (une boîte du navigateur serait un défaut), « Effacer la note » : « Note
-    effacée »."""
+    sans note et Tab : « Enregistrée » s'affiche sous son nom. « abc » : la ligne dit « Pas enregistrée » ; 14 de nouveau
+    (la note en place) : l'erreur s'efface, la ligne redit d'où vient la note. Puis le champ vidé et Tab : la question
+    « Effacer la note de … ? » s'ouvre dans une fenêtre de l'app (une boîte du navigateur serait un défaut), « Effacer la
+    note » : « Note effacée »."""
     _ouvrir_le_theme_22(v)
     champ, ligne = _un_stagiaire_sans_note(v)
     v.etape("taper 14, puis passer au champ suivant")
     v.remplir(champ, "14", "le champ de note")
     v.page.keyboard.press("Tab")
-    v.attendre(ligne + ' .saisie-etat:has-text("Enregistrée")', "« Enregistrée » sous le nom")
+    v.attendre(ligne + ENREGISTREE, "« Enregistrée » sous le nom")
     v.but("note enregistrée")
+    v.etape("une saisie refusée, puis la note déjà en place : l'erreur s'efface")
+    v.remplir(champ, "abc", "le champ de note")
+    v.page.keyboard.press("Tab")
+    v.attendre(ligne + ' .saisie-etat.erreur:has-text("Pas enregistrée")', "« Pas enregistrée » sous le nom")
+    v.remplir(champ, "14", "le champ de note")
+    v.page.keyboard.press("Tab")
+    v.attendre(ligne + ' .saisie-etat:not(.erreur):has-text("Saisie le")', "l'origine de la note, sans erreur")
     v.etape("effacer la note : vider le champ, puis passer au champ suivant")
     v.remplir(champ, "", "le champ de note")
     v.page.keyboard.press("Tab")
@@ -218,7 +229,7 @@ def saisir_une_note_en_panne(v):
     v.etape("la connexion revient : « Réessayer »")
     v.retablir()
     v.toucher(ligne + " button.saisie-reessayer", "« Réessayer »", compte=False, ecriture=True)
-    v.attendre(ligne + ' .saisie-etat:has-text("Enregistrée")', "« Enregistrée » après « Réessayer »")
+    v.attendre(ligne + ENREGISTREE, "« Enregistrée » après « Réessayer »")
     if v.voit(ligne + " button.saisie-reessayer"):
         v.constat("E", BLOQUE, "« Réessayer » reste affiché après un enregistrement réussi", capture=True)
     v.terminer()

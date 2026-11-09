@@ -138,4 +138,13 @@ assert.equal(confirmationEffacement({ qui: "Léa", note: { note: 8, note_max: nu
 assert.deepEqual(confirmationEffacement({ qui: null, note: { note: 9, note_max: 10 }, cible: { type: "Contrôle" } }),
   { titre: "Effacer cette note ?", phrase: "Cette note de 9/10 disparaît.", oui: "Effacer la note" });
 
+// Une évaluation sans note (« Ajouter une note » accepte une note vide) : la question ne parle pas de « /20 ».
+assert.equal(confirmationEffacement({ qui: "Léa", note: { note: null, note_max: 20 }, cible: { type: "Thème", theme_numero: 22 } }).phrase,
+  "Son évaluation au thème 22 disparaît.");
+assert.equal(confirmationEffacement({ qui: null, note: { note: null }, cible: { type: "Thème", theme_numero: 22 } }).phrase,
+  "Cette évaluation au thème 22 disparaît.");
+// Un effacement qui échoue se dit « Pas effacée » ; « Réessayer » reste offert si la connexion a lâché.
+assert.deepEqual(etatDeLigne({ etat: "erreur", message: raisonEchecNote(new TypeError("Failed to fetch")), effacement: true }, saisieDu),
+  { texte: "Pas effacée : la connexion a échoué.", erreur: true, reessayer: true });
+
 console.log("notes-saisie-rules : OK");

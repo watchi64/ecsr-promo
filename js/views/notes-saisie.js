@@ -155,7 +155,7 @@ export function renderSaisie(panel, ctx) {
         "data-stagiaire-id": String(s.id), "aria-label": `Note de ${nom} sur 20`, placeholder: "/20",
         value: existante?.note != null ? noteEnFrancais(existante.note) : "",
       });
-      if (existante) champ.setAttribute("data-note", String(existante.note));
+      if (existante?.note != null) champ.setAttribute("data-note", String(existante.note));
       champs.push(champ);
 
       // Un seul enregistrement à la fois par champ. Une correction tapée pendant qu'il part (réseau lent) n'est pas
