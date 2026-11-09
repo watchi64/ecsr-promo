@@ -21,6 +21,11 @@
 //   contre-epreuve             la même preuve avec la seule étape 1 : ROUGE attendu là où les étapes 2 et 3 changent
 //                              quelque chose, VERT sur la non-régression ;
 //   en-ligne                   la même preuve sans aucune migration, après leur application réelle.
+//   espaces                    preuve du lot 5, étape 1 (tests/sql/espaces-preuve.sql) : la migration du siège et son retour
+//                              (20261108_espaces_1_siege), la fixture commune et la requête d'empreinte injectées ;
+//   espaces-contre-epreuve     la même preuve sans la migration ni son retour (neutralisés, non lus) : ROUGE attendu sur
+//                              comptes_reseau, creer_centre et demonstration, rien d'autre ;
+//   espaces-en-ligne           la même preuve sans la migration, après son application réelle (la fixture, elle, reste injectée).
 //
 // Option --compact (tous les modes) : retire du gabarit et des aides les lignes vides et les lignes de commentaire, pour
 // une requête plus courte à transmettre (R27). Les textes injectés (migrations, retours, requête d'empreinte) restent
@@ -42,6 +47,11 @@ export const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const GABARIT_1 = "tests/sql/roles-1-preuve.sql";
 const GABARIT_ROLES = "tests/sql/roles-preuve.sql";
+const GABARIT_ESPACES = "tests/sql/espaces-preuve.sql";
+
+/** Lot 5, étape 1 : la migration du siège et son retour. */
+export const MIGRATION_ESPACES = { migration: "supabase/migrations/20261108_espaces_1_siege.sql",
+                                   retour: "supabase/migrations/20261108_espaces_1_siege_retour.sql" };
 
 /** Les trois étapes du lot : la migration et son retour. */
 export const ETAPES = {
@@ -61,6 +71,13 @@ export const MODES = {
   "repetition": { gabarit: GABARIT_ROLES, etapes: [1, 2, 3], etapesAuChoix: true },
   "contre-epreuve": { gabarit: GABARIT_ROLES, etapes: [1], libelle: "contre-epreuve (étape 1 seule)" },
   "en-ligne": { gabarit: GABARIT_ROLES, etapes: [], libelle: "en-ligne (aucune migration injectée)" },
+  // Lot 5 : les migrations (une, pour l'instant) se neutralisent comme à l'étape 1 de la preuve du lot 4 ; le gabarit porte
+  // un marqueur de mode, d'où un libellé.
+  "espaces": { gabarit: GABARIT_ESPACES, neutres: [], libelle: "espaces (migration du siège injectée)" },
+  "espaces-contre-epreuve": { gabarit: GABARIT_ESPACES, neutres: [MIGRATION_ESPACES.migration, MIGRATION_ESPACES.retour],
+                              libelle: "espaces-contre-epreuve (migration non injectée)" },
+  "espaces-en-ligne": { gabarit: GABARIT_ESPACES, neutres: [MIGRATION_ESPACES.migration, MIGRATION_ESPACES.retour],
+                        libelle: "espaces-en-ligne (aucune migration injectée)" },
 };
 
 export const USAGE = `node outils/assembler_repetition_roles.mjs <mode> [--etapes 1,2] [--compact] <sortie.sql>   (modes : ${Object.keys(MODES).join(", ")})`;
@@ -123,7 +140,7 @@ export function decrireMode(mode, { etapes } = {}) {
   if (etapes !== undefined && !d.etapesAuChoix) {
     throw new Error(`--etapes ne vaut que pour le mode repetition (mode demandé : ${mode}).`);
   }
-  if (!d.etapes) return { gabarit: d.gabarit, neutres: d.neutres, etapes: null, mode: null, requis: [] };
+  if (!d.etapes) return { gabarit: d.gabarit, neutres: d.neutres, etapes: null, mode: d.libelle ?? null, requis: [] };
   const choisies = etapes ?? d.etapes;
   if (etapes !== undefined && !etapesValides(choisies)) {
     throw new Error(`étapes refusées : « ${choisies.join(",")} » (attendu : 1, 1,2 ou 1,2,3 ; chaque étape s'appuie sur la précédente).`);

@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  ETAPES, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
+  ETAPES, MIGRATION_ESPACES, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
 } from "../outils/assembler_repetition_roles.mjs";
 
 // outils/assembler_repetition_roles.mjs fabrique le fichier SQL d'une répétition du lot 4 : le gabarit de la preuve,
@@ -327,7 +327,8 @@ function compacteAttendu(complet) {
 }
 
 const LIGNE_COMPACT = "-- compact : lignes vides et de commentaire du gabarit et des aides retirées, textes injectés intacts";
-const MODES_COMPACTS = [["etape-1", duDisque], ["contre-epreuve", duDisque], ["en-ligne", depotComplet], ["repetition", depotComplet]];
+const MODES_COMPACTS = [["etape-1", duDisque], ["contre-epreuve", duDisque], ["en-ligne", depotComplet], ["repetition", depotComplet],
+  ["espaces", duDisque], ["espaces-contre-epreuve", duDisque], ["espaces-en-ligne", duDisque]];
 
 test("compactage : les littéraux injectés restent identiques aux fichiers du dépôt, octet pour octet", () => {
   for (const [mode, lire] of MODES_COMPACTS) {
@@ -543,5 +544,106 @@ test("ligne de commande : --compact écrit la copie compacte, affiche sa longueu
     assert.equal(Array.from(readFileSync(fichier, "utf8")).length, complet.longueur);
   } finally {
     rmSync(dossier, { recursive: true, force: true });
+  }
+});
+
+// --- Lot 5, étape 1 (siège) : preuve tests/sql/espaces-preuve.sql -------------------------------------------------------
+
+const GABARIT_ESPACES = "tests/sql/espaces-preuve.sql";
+const FIXTURE = "tests/fixtures/comptes-promo.json";
+const MIGRATION_5 = MIGRATION_ESPACES.migration;
+const RETOUR_5 = MIGRATION_ESPACES.retour;
+
+test("espaces : la requête d'empreinte, la fixture, la migration et son retour s'y trouvent octet pour octet (md5), dans l'ordre du gabarit", () => {
+  const r = assemblerMode("espaces", RACINE, { lire: duDisque });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, FIXTURE, MIGRATION_5, RETOUR_5]);
+  assert.deepEqual(r.neutralises, []);
+  verifierInjections(r, duDisque);
+  assert.equal(r.mode, "espaces (migration du siège injectée)");
+  assert.ok(r.texte.includes("\n'espaces (migration du siège injectée)'\n"), "le mode est écrit en littéral à la place de son marqueur");
+  assert.ok(r.texte.includes(texteDuDepot(AIDES)), "les aides du lot 4 sont collées");
+  assert.ok(!/^\s*--\s*@@/m.test(r.texte), "plus aucun marqueur dans la sortie");
+  assert.ok(!r.texte.includes("\r"));
+});
+
+test("espaces : la fixture est injectée telle quelle (le texte du fichier, lisible comme JSON, qui porte l'attendu)", () => {
+  const r = assemblerMode("espaces", RACINE, { lire: duDisque });
+  const injection = r.injections.find((x) => x.chemin === FIXTURE);
+  const contenu = litteraux(r.texte, injection.delimiteur)[r.injections.indexOf(injection)];
+  assert.equal(contenu, texteDuDepot(FIXTURE));
+  assert.deepEqual(JSON.parse(contenu), JSON.parse(readFileSync(join(RACINE, FIXTURE), "utf8")));
+  assert.ok("attendu" in JSON.parse(contenu) && "donnees" in JSON.parse(contenu));
+});
+
+test("espaces-contre-epreuve : sans la migration ni son retour (deux littéraux neutres, fichiers non lus), l'empreinte et la fixture toujours là", () => {
+  const lus = [];
+  const r = assemblerMode("espaces-contre-epreuve", RACINE, { lire: (chemin) => { lus.push(chemin); return duDisque(chemin); } });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, FIXTURE]);
+  assert.deepEqual([...r.neutralises].sort(), [MIGRATION_5, RETOUR_5].sort());
+  for (const chemin of r.neutralises) assert.ok(!lus.includes(chemin), `non lu : ${chemin}`);
+  verifierInjections(r, duDisque);
+  assert.equal(r.texte.split("\n").filter((ligne) => ligne.trim() === NEUTRE).length, 2);
+  assert.equal(r.mode, "espaces-contre-epreuve (migration non injectée)");
+});
+
+test("espaces-en-ligne : aucune migration injectée (ni texte ni md5), la migration réelle n'est pas lue, la fixture reste injectée", () => {
+  const lus = [];
+  const r = assemblerMode("espaces-en-ligne", RACINE, { lire: (chemin) => { lus.push(chemin); return duDisque(chemin); } });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, FIXTURE]);
+  assert.deepEqual([...r.neutralises].sort(), [MIGRATION_5, RETOUR_5].sort());
+  for (const chemin of [MIGRATION_5, RETOUR_5]) {
+    assert.ok(!lus.includes(chemin), `non lu : ${chemin}`);
+    const texte = texteDuDepot(chemin);
+    assert.ok(!r.texte.includes(texte), `texte absent : ${chemin}`);
+    assert.ok(!r.texte.includes(md5(texte)), `md5 absent : ${chemin}`);
+  }
+  assert.equal(r.mode, "espaces-en-ligne (aucune migration injectée)");
+  assert.ok(r.texte.includes("\n'espaces-en-ligne (aucune migration injectée)'\n"));
+});
+
+test("espaces : les modes sans migration s'assemblent même si elle manque ; le mode espaces s'arrête en nommant le fichier manquant", () => {
+  const sans = (chemin) => (chemin === MIGRATION_5 || chemin === RETOUR_5 ? null : duDisque(chemin));
+  assert.doesNotThrow(() => assemblerMode("espaces-contre-epreuve", RACINE, { lire: sans }));
+  assert.doesNotThrow(() => assemblerMode("espaces-en-ligne", RACINE, { lire: sans }));
+  assert.throws(() => assemblerMode("espaces", RACINE, { lire: sans }), /Fichier introuvable : supabase\/migrations\/20261108_espaces_1_siege\.sql/);
+  for (const mode of ["espaces", "espaces-contre-epreuve", "espaces-en-ligne"]) {
+    assert.throws(() => decrireMode(mode, { etapes: [1] }), /--etapes ne vaut que pour le mode repetition/);
+  }
+});
+
+test("le gabarit de la preuve du siège injecte la requête d'empreinte, la fixture, la migration et le retour, une fois chacun, et porte son marqueur de mode", () => {
+  const gabarit = texteDuDepot(GABARIT_ESPACES);
+  const chemins = [EMPREINTE, FIXTURE, MIGRATION_5, RETOUR_5];
+  for (const chemin of chemins) assert.equal(gabarit.split(`-- @@INJECTER ${chemin}@@`).length - 1, 1, `injecté une fois : ${chemin}`);
+  const positions = chemins.map((chemin) => gabarit.indexOf(`-- @@INJECTER ${chemin}@@`));
+  assert.deepEqual(positions, [...positions].sort((x, y) => x - y), "empreinte, fixture, migration, puis retour");
+  assert.equal(gabarit.split("-- @@MODE@@").length - 1, 1);
+  assert.ok(gabarit.includes(`-- @@INCLURE ${AIDES}@@`));
+  assert.ok(!gabarit.includes(String.fromCharCode(0x2014)), "aucun tiret cadratin");
+  assert.ok(!/\$\$/.test(gabarit), "pas de $$");
+  // Le mode en ligne se reconnaît à un préfixe du libellé, et lui seul.
+  const m = /v_mode like '([^'%]*)%'/.exec(gabarit);
+  assert.ok(m, "le gabarit reconnaît le mode en ligne à un préfixe du libellé");
+  assert.ok(decrireMode("espaces-en-ligne").mode.startsWith(m[1]));
+  for (const mode of ["espaces", "espaces-contre-epreuve"]) assert.ok(!decrireMode(mode).mode.startsWith(m[1]), mode);
+});
+
+test("le gabarit de la preuve du siège : le compactage ne retire aucune ligne vide ni de commentaire dans un littéral", () => {
+  const texte = texteDuDepot(GABARIT_ESPACES);
+  const { trouvees } = lignesRetireesDansUnLitteral(texte, [], ["fx", "f", "empreinte", "preuve"]);
+  assert.deepEqual(trouvees, [], `des lignes vides ou de commentaire dans un littéral : ${JSON.stringify(trouvees.slice(0, 3))}`);
+});
+
+test("les fichiers du lot 5, étape 1 (migration, retour, preuve, outillage) : aucun tiret cadratin, fins de ligne LF, aucune adresse de connexion, aucune adresse réelle", () => {
+  for (const chemin of [MIGRATION_5, RETOUR_5, GABARIT_ESPACES, "outils/base_locale/reconstruire.sh", "outils/base_locale/LISEZMOI.md",
+    "outils/psql_prod.sh"]) {
+    const brut = readFileSync(join(RACINE, chemin), "utf8");
+    assert.ok(!brut.includes(String.fromCharCode(0x2014)), `${chemin} : aucun tiret cadratin`);
+    assert.ok(!brut.includes("\r"), `${chemin} : fins de ligne LF`);
+    assert.ok(!/postgres(ql)?:\/\/[^\s"')]*:[^\s"')]*@/.test(brut), `${chemin} : aucune adresse de connexion avec mot de passe`);
+  }
+  const preuve = texteDuDepot(GABARIT_ESPACES);
+  for (const adresse of preuve.match(/[\w.+-]+@[\w.-]+\.[a-z]+/g) ?? []) {
+    assert.ok(adresse.endsWith("@exemple.invalid"), `adresse de la preuve fictive : ${adresse}`);
   }
 });
