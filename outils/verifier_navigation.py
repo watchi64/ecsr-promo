@@ -3255,6 +3255,10 @@ def verifier_nouveautes_de_l_accueil(page, res, vue, equipe):
     attendus = ([TITRE_ROLES] if equipe else []) + [TITRE_LANCEMENT] + ([TITRE_LANCEMENT_EQUIPE] if equipe else [])
     borne = max([jour(c.get("date")) for c in cartes if c["titre"] in attendus] or [jour(DATE_DU_LANCEMENT)])
     titres = [c["titre"] for c in cartes if jour(c.get("date")) <= borne]
+    # La section de l'Accueil montre un nombre fixe de cartes : une Nouveauté d'après la borne prend une place, et la
+    # dernière attendue peut alors ne plus tenir. On vérifie les attendues qui tiennent (au moins une).
+    if len(cartes) > len(titres):
+        attendus = attendus[:max(1, len(titres))]
     if titres[:len(attendus)] != attendus:
         res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu « %s »" % (" », « ".join(titres[:len(attendus)]), " », « ".join(attendus)))
 
