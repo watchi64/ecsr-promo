@@ -53,6 +53,12 @@
   --pastille:          #DB1418;
   --sur-pastille:      #FFFFFF;
 
+  /* Barre sombre, hors repères : l'initiale de la promo est blanche à lettre bleue, l'icône active garde la couleur du texte de la
+     barre (seuls le trait de l'entrée active, les compteurs et le point du compte sont rouges). */
+  --sombre-marque:     #FFFFFF;
+  --sur-sombre-marque: #124483;
+  --sur-sombre-actif:  var(--sur-sombre);
+
   /* Badge de l'administrateur dans la barre sombre : un bleu clair (le vert de l'habillage par défaut n'a pas sa place ici,
      le rouge est pris par les repères). */
   --repere-admin:        #8FB4E8;

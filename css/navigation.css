@@ -344,8 +344,8 @@ body[data-nav="v2"] .nav-contexte-marque {
   width: 38px;
   height: 38px;
   border-radius: var(--r);
-  background: var(--repere-sombre);
-  color: var(--sur-repere-sombre);
+  background: var(--sombre-marque);
+  color: var(--sur-sombre-marque);
   font-family: var(--font-mono);
   font-size: 0.8rem;
   font-weight: 600;
@@ -447,7 +447,7 @@ body[data-nav="v2"] .nav-entree {
 body[data-nav="v2"] .nav-entree > .icon { width: 20px; height: 20px; flex: none; opacity: 0.82; }
 body[data-nav="v2"] .nav-entree:hover { background: var(--sombre-survol); }
 body[data-nav="v2"] .nav-entree[aria-current="page"] { background: var(--sombre-allume); font-weight: 600; }
-body[data-nav="v2"] .nav-entree[aria-current="page"] > .icon { opacity: 1; color: var(--repere-sombre); }
+body[data-nav="v2"] .nav-entree[aria-current="page"] > .icon { opacity: 1; color: var(--sur-sombre-actif); }
 body[data-nav="v2"] .nav-entree[aria-current="page"]::before {
   content: "";
   position: absolute;

@@ -109,6 +109,9 @@
   /* --- Repères et pastilles sur fond sombre --- */
   --repere-sombre:     var(--accent-on-dark);
   --sur-repere-sombre: var(--bg-deep);
+  --sombre-marque:     var(--repere-sombre);       /* pastille d'initiales de la promo, dans la barre sombre */
+  --sur-sombre-marque: var(--sur-repere-sombre);
+  --sur-sombre-actif:  var(--repere-sombre);       /* icône de l'entrée active de la barre sombre */
   --pastille:          var(--accent);
   --sur-pastille:      var(--bg-elev);
   --repere-admin:       #6EE7B7;                     /* badge de l'administrateur connecté, dans la barre sombre */

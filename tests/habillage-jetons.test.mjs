@@ -471,15 +471,33 @@ test("ECF : il redéfinit chaque jeton d'habillage de :root, et seulement eux", 
   assert.deepEqual(oublies, [], "ces jetons d'habillage restent à la couleur de l'habillage par défaut sous ECF");
 });
 
+// Les fichiers (chemin -> texte) qui nomment data-skin sans y avoir droit : le bloc ECF pour le CSS, le mécanisme de
+// l'habillage pour le JS. Pure : le test la nourrit des vrais fichiers, puis d'un faux contrevenant.
+export function fichiersAvecDataSkinInterdit(fichiers) {
+  return Object.keys(fichiers).filter((f) => {
+    if (!/data-skin|dataset\.skin/.test(fichiers[f])) return false;
+    if (f.endsWith(".css")) return f !== FICHIER_ECF;
+    return !JS_AVEC_DATA_SKIN.includes(f);
+  });
+}
+
 test("ECF : data-skin n'apparaît que dans le bloc ECF et, en JavaScript, dans le mécanisme de l'habillage", () => {
-  const trouves = [];
-  for (const f of listeFichiers("css", ".css", false)) {
-    if (f !== FICHIER_ECF && /data-skin|dataset\.skin/.test(lire(f))) trouves.push(f);
-  }
-  for (const f of listeFichiers("js", ".js", true)) {
-    if (!JS_AVEC_DATA_SKIN.includes(f) && /data-skin|dataset\.skin/.test(lire(f))) trouves.push(f);
-  }
-  assert.deepEqual(trouves, [], "l'habillage s'applique par le seul attribut posé par js/habillage.js ; le reste de l'app l'ignore");
+  const fichiers = {};
+  for (const f of listeFichiers("css", ".css", false)) fichiers[f] = lire(f);
+  for (const f of listeFichiers("js", ".js", true)) fichiers[f] = lire(f);
+  assert.deepEqual(fichiersAvecDataSkinInterdit(fichiers), [], "l'habillage s'applique par le seul attribut posé par js/habillage.js ; le reste de l'app l'ignore");
+});
+
+test("ECF : la règle data-skin sait échouer (faux contrevenants CSS et JS, faux autorisés)", () => {
+  const faux = {
+    "css/habillage-ecf.css": ':root[data-skin="ecf"] { --bg: #fff; }',
+    "css/pages.css": '[data-skin="ecf"] .x { color: red; }',
+    "js/habillage.js": 'document.documentElement.dataset.skin = "ecf";',
+    "js/habillage-avant-peinture.js": 'setAttribute("data-skin", nom);',
+    "js/views/home.js": 'document.documentElement.dataset.skin = "ecf";',
+    "js/autre.js": "const a = 1;",
+  };
+  assert.deepEqual(fichiersAvecDataSkinInterdit(faux), ["css/pages.css", "js/views/home.js"]);
 });
 
 // --- Contrastes, calculés pour les deux habillages ---
@@ -534,6 +552,9 @@ export const PAIRES = [
   ["--accent-on-dark", "--bg-deep", 4.5],
   ["--sur-repere-sombre", "--repere-sombre", 4.5], ["--sur-pastille", "--pastille", 4.5],
   ["--repere-sombre", "--bg-deep", 3], ["--pastille", "--bg-elev", 3],
+  ["--sur-sombre-marque", "--sombre-marque", 4.5], ["--sombre-marque", "--bg-deep", 3],
+  ["--sur-sombre-actif", "--bg-deep", 3],
+  ["--repere-admin", "--bg-deep", 4.5],
 ];
 
 export function contrastesDe(jetons) {
