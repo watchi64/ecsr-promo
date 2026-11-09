@@ -171,3 +171,26 @@ def saisir_une_note(v):
     v.attendre("#view .saisie-etat:has-text(\"Enregistrée\")", "« Enregistrée » sous le nom")
     v.but("note enregistrée")
     v.terminer()
+
+
+@parcours("ouvrir-un-examen", "Ouvrir un examen depuis la liste des thèmes", role="formateur",
+          budget={"ordinateur": 3, "telephone": 4}, navigations=NOUVELLE)
+def ouvrir_un_examen(v):
+    """Cours et QCM, « Ouvrir l'examen » sur la ligne du thème 23 (son QCM est fermé au banc), puis « 1 heure » : un
+    message confirme et la ligne dit « Ouvert jusqu'à … ». Puis « Fermer l'examen », confirmé dans la fenêtre de l'app :
+    « Examen fermé »."""
+    v.aller("Cours et QCM")
+    ligne = '#view .theme-row[data-id="2"]'
+    v.etape("ouvrir l'examen du thème 23")
+    v.toucher(ligne + " button.examen-ouvrir", "« Ouvrir l'examen » du thème 23")
+    v.ecouter_messages()
+    v.toucher(texte("1 heure", ".modal button"), "« 1 heure »", ecriture=True)
+    v.exiger_confirmation("l'ouverture de l'examen", "Examen ouvert")
+    v.attendre(ligne + " .theme-qcm-examen:has-text(\"Ouvert jusqu\")", "« Ouvert jusqu'à … » sur la ligne")
+    v.but("examen ouvert depuis la liste")
+    v.etape("refermer l'examen")
+    v.toucher(ligne + " button.examen-fermer", "« Fermer l'examen » de la ligne", compte=False)
+    v.attendre(".modal:has-text(\"Fermer l'examen du thème 23\")", "la demande de confirmation")
+    v.toucher(texte("Fermer l'examen", ".modal button"), "« Fermer l'examen » de la confirmation", compte=False, ecriture=True)
+    v.attendre(ligne + " .theme-qcm-examen:has-text(\"Examen fermé\")", "« Examen fermé » sur la ligne")
+    v.terminer()

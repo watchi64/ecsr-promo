@@ -39,6 +39,7 @@ en 3 clics au plus**. Un clic de plus que le budget est un échec. Sur télépho
 | Formateur | Ouvrir les réglages de la promo | 1 (2 sur téléphone) | oui |
 | Formateur | Saisir une note (thème par thème, sous-onglet « Saisir ») | 3 | oui (nouvelle navigation) |
 | Formateur | Voir les passages d'un stagiaire | 3 | plus tard |
+| Formateur | Ouvrir un examen depuis la liste des thèmes | 3 (4 sur téléphone) | oui (nouvelle navigation) |
 | Formateur | Modifier le planning de la semaine | 3 | oui (nouvelle navigation) |
 | Formateur | Traiter un signalement de QCM | 3 (par « Aujourd'hui ») | oui (nouvelle navigation) |
 | Formateur | Voir la journée de la promo (Aujourd'hui) | 1 | oui (nouvelle navigation) |
