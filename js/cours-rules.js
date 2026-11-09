@@ -67,15 +67,15 @@ export function cleCours(x) {
   return null;
 }
 
-/** Le cours serait-il visible du rôle simulé par l'aperçu « Voir en tant que » ? L'aperçu
- *  ne change que l'affichage : la base répond avec les droits du fondateur. On rejoue donc
+/** Le cours serait-il visible du rôle simulé par l'aperçu « Voir en tant que » ? Avant
+ *  la migration des rôles, l'aperçu ne change que l'affichage : la base répond avec les droits du fondateur. On rejoue donc
  *  ici sa règle de lecture des cours : un stagiaire ne voit que le publié ; un formateur
  *  voit aussi les cours de thème non publiés, mais pas un cours de compétence non publié,
  *  réservé au fondateur. Hors aperçu (apercu nul), la base a déjà filtré : tout passe. */
 export function coursVisibleEnApercu(cours, apercu) {
   if (!apercu) return true;
   if (cours.published) return true;
-  return apercu === "prof" && !(typeof cours.code === "string" && cours.code);
+  return apercu !== "stagiaire" && !(typeof cours.code === "string" && cours.code);
 }
 
 /** La clé désigne-t-elle une compétence (« C2 ») ou une sous-compétence (« C2.4 ») ? */
@@ -116,4 +116,26 @@ export function cibleLienCours(href) {
     return n >= 1 && n <= 57 ? n : null;
   }
   return m[2];
+}
+
+/** Classes d'un tableau du cours. Un tableau de sanctions se reconnaît à sa colonne « Amende » (nombres en police tabulaire).
+ *  Un tableau de deux colonnes (terme, définition) reste un tableau à toute largeur : seuls les tableaux plus larges
+ *  deviennent des listes sur téléphone (css/style.css, `.cours-table:not(.cours-table-2col)`). */
+export function classeTableau(entetes) {
+  const joint = entetes.join(" ").toLowerCase();
+  const classes = ["cours-table"];
+  if (joint.includes("amende")) classes.push("cours-table-sanctions");
+  if (entetes.length <= 2) classes.push("cours-table-2col");
+  return classes.join(" ");
+}
+
+/** Texte d'un en-tête de colonne sans sa mise en forme markdown (gras, italique, code, lien) : c'est le titre que la carte
+ *  d'une ligne écrit devant chaque valeur sur téléphone (`data-label`). Chaîne vide s'il n'y a rien à dire. */
+export function etiquetteDeColonne(entete) {
+  return String(entete == null ? "" : entete)
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[*`]/g, "")
+    .replace(/(^|\s)_+|_+(?=\s|$)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
 }

@@ -1,20 +1,22 @@
-import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261108a";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261108a";
-import { icon } from "../icons.js?v=20261108a";
+import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261109a";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261109a";
+import { icon } from "../icons.js?v=20261109a";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
-         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261108a";
-import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20261108a";
-import { recordUndo } from "../undo.js?v=20261108a";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261108a";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261108a";
-import { renderSubTabs } from "../subtabs.js?v=20261108a";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261108a";
-import { cleCours } from "../cours-rules.js?v=20261108a";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261108a";
-import { navigationV2Active } from "../nav-etat.js?v=20261108a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261108a";
-import { renderRessources } from "./ressources.js?v=20261108a";
-import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261108a";
+         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261109a";
+import { isAdmin, getAdminEmail, isProf, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261109a";
+import { recordUndo } from "../undo.js?v=20261109a";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261109a";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261109a";
+import { renderSubTabs } from "../subtabs.js?v=20261109a";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261109a";
+import { cleCours } from "../cours-rules.js?v=20261109a";
+import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109a";
+import { navigationV2Active } from "../nav-etat.js?v=20261109a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109a";
+import { renderRessources } from "./ressources.js?v=20261109a";
+import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261109a";
+import { renderPropositionsIa } from "./propositions-ia.js?v=20261109a";
+import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261109a";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -75,7 +77,8 @@ async function loadQcmIndex() {
     return;
   }
   try {
-    const profile = await getMyProfile();
+    // Sa fiche, telle que l'app la traite : aucune en aperçu formateur, direction ou siège (relecture finale, M8).
+    const maFiche = monStagiaireId();
     // Les signalements ouverts sont comptés dès la liste : sinon le formateur devrait
     // ouvrir chaque QCM un par un pour découvrir lesquels ont été signalés.
     // Le comptage est réservé au formateur, et la RLS ne suffit PAS à l'assurer : sa
@@ -86,7 +89,7 @@ async function loadQcmIndex() {
     const [list, attempts, evals, signals] = await Promise.all([
       listQcmIndex(),
       listMyQcmAttempts(),
-      profile?.stagiaire_id ? listEvaluations({ stagiaire_id: profile.stagiaire_id }) : Promise.resolve([]),
+      maFiche ? listEvaluations({ stagiaire_id: maFiche }) : Promise.resolve([]),
       canManageExam() ? countQcmSignalementsOuverts().catch(() => ({})) : Promise.resolve({}),
       chargerCoursIndex().catch(() => null),
     ]);
@@ -205,7 +208,9 @@ function sampleN(arr, n) {
   return (n && n < a.length) ? a.slice(0, n) : a;
 }
 
-function canManageExam() { return isAdmin() || isProf(); }
+// Gérer l'examen, éditer la banque, lire les signalements : le formateur de la promo (la direction ne le fait pas : la base
+// refuserait).
+function canManageExam() { return isAdmin(); }
 
 // Fiche QCM dédiée, ouverte depuis la colonne QCM de la liste.
 // Regroupe : mes notes, l'entraînement, l'examen (stagiaire) et la gestion (formateur).
@@ -219,9 +224,12 @@ function openQcmSheet(theme, qcm) {
     clear(body);
     const note = myThemeNote(theme, qcm);
     const train = myTrainNote(qcm);
+    // Stagiaire avec une fiche seulement : l'aperçu « Stagiaire » d'un formateur ou d'une direction n'en a pas, et la base
+    // refuserait l'examen. Il garde l'entraînement libre, qui n'enregistre rien sans fiche.
+    const stagiaireAvecFiche = isStagiaire() && monStagiaireId() != null;
 
     // Zone notes (stagiaire) : deux grandes cartes colorées, lacunes visibles d'un coup d'œil.
-    if (isStagiaire()) {
+    if (stagiaireAvecFiche) {
       body.appendChild(el("div", { class: "qcm-note-cards" },
         el("div", { class: "qcm-note-card n-" + noteClass(note) },
           el("span", { class: "qcm-note-card-val" }, note != null ? `${note}/20` : "-"),
@@ -241,14 +249,14 @@ function openQcmSheet(theme, qcm) {
       "Libre, illimité, ne compte pas dans les notes. Tes anciennes erreurs passent en premier."));
 
     // Revoir mes erreurs : rejoue uniquement les questions échouées (les 2 modes comptent).
-    if (isStagiaire()) {
+    if (stagiaireAvecFiche) {
       body.appendChild(el("button", { class: "btn ghost full", type: "button", style: "margin-top:0.45rem",
         onClick: () => { backdrop.remove(); openQcmEntrainement(theme, qcm, { errorsOnly: true }); } },
         icon.history(), "Revoir mes erreurs"));
     }
 
     // Passer l'examen (stagiaire).
-    if (isStagiaire()) {
+    if (stagiaireAvecFiche) {
       if (examenDemarrable(qcm)) {
         const restant = tempsRestantMs(qcm);
         body.appendChild(el("button", { class: "btn accent full", type: "button", style: "margin-top:0.9rem",
@@ -780,6 +788,7 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
     bouton.disabled = true;
     try {
       await rejeterBrouillonIa(b.id);
+      dirty = true;  // la liste « Propositions IA » et la pastille « à traiter » comptent un brouillon de moins
       toast("Brouillon rejeté.", "success");
       await reloadEditor();
     } catch (e) {
@@ -1867,8 +1876,11 @@ export async function renderThemes(container) {
   // données ne sont pas lues. Avec l'ancienne navigation, la page reste celle des cours.
   const v2 = navigationV2Active();
   const coursOuverts = !v2 || moduleVisible("themes");
+  // Le sous-onglet QCM du stagiaire vit de la même lecture (la liste des thèmes, l'index des QCM, le module « qcm ») : un
+  // module des cours fermé et celui des QCM ouvert doivent donc la faire aussi, avec l'en-tête qui présente la page.
+  const donnees = coursOuverts || moduleVisible("qcm");
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
-  if (coursOuverts) {
+  if (donnees) {
     themes = await listThemes();
     await loadQcmIndex();
   }
@@ -1878,7 +1890,7 @@ export async function renderThemes(container) {
   // jour par refreshStatsInPlace (statut basculé, date corrigée).
   // Nouvelle navigation : la page porte le nom de son entrée, « Cours et QCM », avec la promo en surtitre ; la ligne de
   // progression, qui avait le surtitre, termine alors le sous-titre.
-  if (coursOuverts) {
+  if (donnees) {
     const surtitre = v2 ? getPromoCourante()?.nom : null;
     const sousTitre = "Les thèmes et les compétences de la formation, avec leurs cours et leurs QCM.";
     ligneProgression = el(v2 ? "span" : "p", v2 ? {} : { class: "eyebrow" }, texteProgression());
@@ -1909,9 +1921,24 @@ export async function renderThemes(container) {
     { key: "themes", label: "Thèmes", module: moduleCours, render: liste("themes") },
     { key: "competences", label: "Compétences", module: moduleCours, render: liste("competences") },
   ];
+  // Nouvelle navigation, stagiaire : ses QCM sur une liste, avec sa dernière note et « S'entraîner » (le module « qcm » les
+  // ferme pour la promo). L'équipe garde la colonne QCM de la liste des thèmes, pas de sous-onglet. Toute l'équipe : la
+  // direction et le siège lisent sans écrire (canManageExam faux) mais n'ont pas de fiche de stagiaire, la même règle que
+  // l'espace de la coquille.
+  if (v2 && !formateurConnecte()) {
+    onglets.push({ key: "qcm", label: "QCM", module: "qcm",
+      render: (p, ctx) => { renderQcmStagiaire(p, { themes, onOuvrir: openQcmSheet, isActive: ctx?.isActive }); } });
+  }
   if (canManageExam()) {
-    onglets.push({ key: "signalements", label: "⚑ Signalements",
+    onglets.push({ key: "signalements", label: v2 ? "Signalements" : "⚑ Signalements",
       render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } });
+  }
+  // Nouvelle navigation, formateurs de la promo (isAdmin, formateur_courant en base) : les questions que l'IA a proposées
+  // et que personne n'a relues. La table des brouillons n'est lisible que par eux (RLS) : la direction et le siège n'ont
+  // pas ce sous-onglet, et la pastille « à traiter » ne les compte pas pour eux (elle lit la même table).
+  if (v2 && isAdmin()) {
+    onglets.push({ key: "ia", label: "Propositions IA",
+      render: (p, ctx) => { renderPropositionsIa(p, { themes, onOuvrirEditeur: ouvrirDepuisIa, isActive: ctx?.isActive }); } });
   }
   // Nouvelle navigation : les Ressources rejoignent les Cours, en dernier sous-onglet. La page
   // se rend dans son propre conteneur : un rendu tardif (sous-onglet quitté pendant le
@@ -1933,6 +1960,22 @@ export async function renderThemes(container) {
   container.appendChild(renderSubTabs(onglets, { storageKey: CLES_SOUS_ONGLETS.themes }));
 }
 
+// La liste des propositions de l'IA ne connaît pas l'éditeur : elle rend la main ici avec le QCM à relire, comme la console
+// des signalements plus bas. L'éditeur ne rappelle ici qu'à sa fermeture, et seulement si quelque chose a changé (une
+// question acceptée, rejetée ou modifiée) : la liste, la colonne QCM des thèmes et la pastille « à traiter » de la barre
+// disent alors ce qui reste. La pastille se relit même si une relecture échoue (finally) : pas de compte périmé.
+function ouvrirDepuisIa(groupe, rechargerListe) {
+  if (!groupe.theme) { toast("Thème introuvable pour ce QCM.", "error"); return; }
+  openQcmEditor(groupe.theme, groupe.qcmId, null, async () => {
+    try {
+      await loadQcmIndex();
+      if (rechargerListe) await rechargerListe();
+    } finally {
+      window.dispatchEvent(new Event("a-traiter-change"));
+    }
+  });
+}
+
 // La console ne connaît pas l'éditeur : elle rend la main ici avec le signalement,
 // et c'est Thèmes qui retrouve le thème et ouvre l'éditeur sur la bonne question.
 function ouvrirDepuisConsole(s, rechargerConsole) {
@@ -1942,7 +1985,11 @@ function ouvrirDepuisConsole(s, rechargerConsole) {
   // Au retour de l'éditeur, la console doit refléter ce qui vient d'être fait, et les
   // badges ⚑ de la liste des thèmes avec elle, sinon ils annoncent un compte périmé.
   openQcmEditor(theme, qcm.id, s.question_id, async () => {
-    await loadQcmIndex();
-    if (rechargerConsole) await rechargerConsole();
+    try {
+      await loadQcmIndex();
+      if (rechargerConsole) await rechargerConsole();
+    } finally {
+      window.dispatchEvent(new Event("a-traiter-change"));
+    }
   });
 }

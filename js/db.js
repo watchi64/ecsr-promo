@@ -1,11 +1,12 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261108a";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261108a";
-import { compteDansEquite } from "./passage-rules.js?v=20261108a";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261108a";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261109a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261109a";
+import { compteDansEquite } from "./passage-rules.js?v=20261109a";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261109a";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261108a";
+} from "./promo-rules.js?v=20261109a";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261109a";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -16,6 +17,7 @@ let compteContexte = null;   // compte (email en minuscules) auquel appartient l
 let epoque = 0;              // incrémentée à la déconnexion : un chargement en vol devient caduc
 let basculeEnCours = false;  // une seule bascule à la fois (double appui, deux choix rapides)
 let requetesBloquees = false; // rechargement décidé : plus aucune requête de données ne part
+let apercuEnvoye = null;     // aperçu de rôle en cours (x-apercu-role) ; nul hors aperçu
 const avantBascule = new Set();
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
@@ -45,7 +47,10 @@ function fetchWithTimeout(input, init = {}) {
     });
     if (erreur) return Promise.reject(new Error(erreur));
     if (promo != null) entetes.set(ENTETE_PROMO, String(promo));
-    if (promo != null || demandee != null) options = { ...init, headers: entetes };
+    // Aperçu de rôle : à côté de x-promo-id, vers l'API de données seulement (jamais le stockage ni les
+    // fonctions Edge, qui gardent les droits réels). La base ne fait que retirer des droits.
+    if (apercuEnvoye) entetes.set(ENTETE_APERCU, apercuEnvoye); else entetes.delete(ENTETE_APERCU);
+    if (promo != null || demandee != null || apercuEnvoye) options = { ...init, headers: entetes };
   }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -131,6 +136,15 @@ export async function chargerMesPromos(email) {
 }
 
 export function getMesPromos() { return mesPromos; }
+
+// Pose (ou retire, avec null) l'aperçu de rôle envoyé dans l'en-tête x-apercu-role. Une valeur inconnue
+// retire l'aperçu. Les données déjà en mémoire ont été lues sous l'ancien aperçu : on les oublie.
+export function poserApercu(role) {
+  const nouveau = normaliserApercu(role);
+  if (nouveau === apercuEnvoye) return;
+  apercuEnvoye = nouveau;
+  invalidateCache();
+}
 
 export function getPromoCourante() {
   return mesPromos.find((p) => p.id === promoCouranteId) || null;
@@ -797,9 +811,13 @@ export async function proposerQuestionsIa(qcmId, nombre, partie) {
   const { data } = await supabase.auth.getSession();
   const jeton = data?.session?.access_token;
   if (!data?.session) throw new Error("Reconnecte-toi pour utiliser l'IA.");
+  const entetes = { "Content-Type": "application/json", apikey: SUPABASE_KEY, Authorization: `Bearer ${jeton}` };
+  // La promo affichée : la fonction juge le droit de formateur sur elle, comme la base pour l'app (un compte formateur
+  // d'une autre promo que celle de sa fiche, relecture finale, I4). L'aperçu, lui, ne part pas vers les fonctions Edge.
+  if (promoCouranteId != null) entetes[ENTETE_PROMO] = String(promoCouranteId);
   const resp = await fetch(`${SUPABASE_URL}/functions/v1/qcm-ia`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY, Authorization: `Bearer ${jeton}` },
+    headers: entetes,
     body: JSON.stringify({ qcm_id: qcmId, nombre, partie: partie || "" }),
     signal: AbortSignal.timeout(150000),
   });
@@ -815,6 +833,18 @@ export async function listBrouillonsIa(qcmId) {
     .from("qcm_ia_brouillons")
     .select("*")
     .eq("qcm_id", qcmId)
+    .eq("statut", "a_relire")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+// Tous les brouillons à relire, du plus ancien au plus récent, avec le QCM qui les porte (id, thème, titre) : la liste
+// « Propositions IA » de Cours et QCM les range par QCM. Lecture réservée aux administrateurs (RLS de la table).
+export async function listBrouillonsIaARelire() {
+  const { data, error } = await supabase
+    .from("qcm_ia_brouillons")
+    .select("id, qcm_id, created_at, qcm:qcm_id(id, theme_id, titre)")
     .eq("statut", "a_relire")
     .order("created_at", { ascending: true });
   if (error) throw error;
@@ -1428,6 +1458,16 @@ export async function setMyAnonymousNotes(val) {
   return data;
 }
 
+// Rôles d'équipe de la personne connectée, lus dans ses affectations (chacun lit les siennes). Sert à la seule porte
+// « aucune promo » : le siège n'a pas de promo. Liste vide si la table manque (base pas migrée) ou si la lecture échoue.
+export async function mesRolesAffectes() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return [];
+  const { data, error } = await supabase.from("affectations").select("role").eq("email", user.email.toLowerCase());
+  if (error) return [];
+  return [...new Set((data || []).map((a) => a.role))];
+}
+
 export async function getMyProfile() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return null;
@@ -1442,24 +1482,29 @@ export async function getMyProfile() {
 }
 
 export async function deleteUserProfile(email) {
-  const { error } = await supabase
+  // Sans .select(), un refus par les règles d'accès répond « 0 ligne, sans erreur » : on relit la ligne partie.
+  const { data, error } = await supabase
     .from("user_profiles")
     .delete()
-    .eq("email", email.toLowerCase().trim());
+    .eq("email", email.toLowerCase().trim())
+    .select("email");
   if (error) throw error;
+  if (!data || data.length === 0) throw new Error("Ce compte ne peut pas être retiré d'ici");
 }
 
-// Appelle l'Edge Function pour envoyer une invitation (magic link Supabase).
-export async function inviteUser({ email, role, stagiaire_id = null, prof_id = null, is_admin = false }) {
-  const { data, error } = await supabase.functions.invoke("invite-user", {
-    body: { email, role, stagiaire_id, prof_id, is_admin },
+// Invite un compte par la fonction de la base inviter_compte (la base vérifie qui peut inviter qui). Renvoie
+// { email, role, cree, affecte } : `cree` est faux quand le profil existait déjà, `affecte` compte les affectations
+// ajoutées (un compte existant qui gagne une promo) ; rien n'a changé quand ni l'un ni l'autre. « prof » part
+// comme « formateur ». Les refus de la base commencent par « invitation: » : la phrase est montrée sans.
+export async function inviteUser({ email, role, stagiaire_id = null, prof_id = null, lieu_id = null }) {
+  const { data, error } = await supabase.rpc("inviter_compte", {
+    p_email: email,
+    p_role: role === "prof" ? "formateur" : role,
+    p_stagiaire_id: stagiaire_id,
+    p_prof_id: prof_id,
+    p_lieu_id: lieu_id,
   });
-  if (error) {
-    // L'Edge Function renvoie { error: "..." } en cas d'échec ; le SDK le wrap.
-    const msg = data?.error || error.message || "Erreur invitation";
-    throw new Error(msg);
-  }
-  if (data?.error) throw new Error(data.error);
+  if (error) throw new Error(messageInvitation(error.message, error.code));
   return data;
 }
 
@@ -1660,9 +1705,10 @@ export async function lireReferentielCentre() {
 // formateurs et l'en-tête des feuilles d'émargement. Lecture seule.
 // Les tables par promo (planning, jours désactivés, calendrier, livrets, dossiers, auto-écoles, réglages) se lisent AVEC
 // l'en-tête de lecture de la promo demandée : sans lui, la base rendrait celles de la promo courante, et pour les
-// auto-écoles celles du lieu de la promo courante, donc d'un autre centre. Les tables communes à toutes les promos
-// (signalements, cours, versions de cours, formateurs) se lisent SANS. Les signalements n'ont pas de promo : ils sont
-// gardés quand leur auteur est un stagiaire de la promo lue. Les cours et leurs versions sont lus en entier, sans filtre :
+// auto-écoles celles du lieu de la promo courante, donc d'un autre centre. Les signalements de QCM aussi : ils n'ont pas
+// de colonne de promo, mais la base (lot 4) ne rend à un formateur que ceux des fiches de la promo affichée et ceux sans
+// fiche ; ils sont gardés ici quand leur auteur est un stagiaire de la promo lue. Les tables communes à toutes les promos
+// (cours, versions de cours, formateurs) se lisent SANS. Les cours et leurs versions sont lus en entier, sans filtre :
 // l'inventaire retire la plus ancienne date de chaque cours (sa création), qu'une lecture bornée ferait confondre avec
 // une modification. Ni `email`, ni `corps_md`, ni `saved_by` ne sont lus.
 // promoId nul : erreur, jamais de repli sur la promo courante (ses chiffres s'afficheraient sous le nom d'une autre).
@@ -1684,7 +1730,7 @@ export async function lireDonneesQualiopi(promoId) {
     parPromo("agenda_events", "id, type, date_start, date_end", "id"),
     parPromo("epcf_livrets", "stagiaire_id, updated_at", "id"),
     parPromo("dp_dossiers", "stagiaire_id, updated_at", "id"),
-    communes("qcm_signalements", "id, stagiaire_id, statut, created_at, traite_at", "id"),
+    parPromo("qcm_signalements", "id, stagiaire_id, statut, created_at, traite_at", "id"),
     communes("cours", "id, published, updated_at", "id"),
     parPromo("auto_ecoles", "id, actif, lieu_id", "id"),
     communes("profs", "id, nom", "id"),
@@ -1728,6 +1774,8 @@ export async function createQcmSignalement({ questionId, motif, commentaire, opt
 
 // stagiaire_id de l'utilisateur courant, ou null (un formateur n'en a pas forcément).
 async function myStagiaireId() {
+  // En aperçu formateur, direction ou siège, aucune fiche, comme monStagiaireId() (relecture finale, M8).
+  if (apercuEnvoye && apercuEnvoye !== "stagiaire") return null;
   // Contexte de promo chargé : la fiche de CETTE promo (le fondateur n'en a pas en septembre).
   const promo = getPromoCourante();
   if (promo) return promo.stagiaire_id ?? null;
@@ -1898,6 +1946,21 @@ export async function listEmargementSeances(jourDebut, jourFin) {
   return (data || []).map((s) => ({ ...s, lignes: s.lignes || [], formateurs: s.formateurs || [] }));
 }
 
+// Feuilles d'une période, légères (sans tracé ni signature de formateur) : sert aux
+// certificats et attestations (spec 2026-10-24), qui peuvent couvrir toute une formation.
+// Une ligne est signée quand `signe_le` est posé (la base lie tracé et heure).
+export async function listEmargementPresences(jourDebut, jourFin) {
+  const { data, error } = await supabase
+    .from("emargement_seances")
+    .select("id, promo_id, jour, demi_journee, debut, fin, statut, "
+      + "lignes:emargement_lignes(stagiaire_id, signe_le, absent, absence_origine, observation, sur_appareil_formateur)")
+    .gte("jour", jourDebut)
+    .lte("jour", jourFin)
+    .order("jour");
+  if (error) throw error;
+  return (data || []).map((s) => ({ ...s, lignes: s.lignes || [] }));
+}
+
 // Feuilles ouvertes d'un jour, légères (sans tracé) : sert au bandeau, relu souvent.
 export async function getEmargementsOuverts(jour) {
   const { data, error } = await supabase
@@ -1937,32 +2000,41 @@ export function rouvrirEmargement(seanceId) {
   return rpcEmargement("emargement_rouvrir", { p_seance: seanceId });
 }
 
-// En-tête des feuilles, propre à la promo (réglage `emargement_entete`, JSON).
+// En-tête des feuilles, propre à la promo (réglage `emargement_entete`, JSON). Les champs
+// facultatifs (adresse, signataire, qualité, lieu) servent aux certificats et attestations
+// (spec 2026-10-24) : vides, ils s'impriment en pointillés à compléter à la main.
 export const ENTETE_EMARGEMENT_DEFAUT = {
   organisme: "ECF BOUSCAREN",
   intitule: "Titre professionnel Enseignant de la conduite et de la sécurité routière (ECSR)",
 };
+const ENTETE_FACULTATIF = { adresse1: 120, adresse2: 120, signataire: 80, qualite: 80, lieu: 60 };
 
-// La règle, écrite une seule fois : la valeur brute du réglage `emargement_entete` (JSON, ou nulle) donne l'organisme et
-// l'intitulé, chacun remplacé par sa valeur par défaut quand il manque, n'est pas un texte ou est vide. Partagée par
+// La règle, écrite une seule fois : la valeur brute du réglage `emargement_entete` (JSON, ou nulle) donne l'organisme,
+// l'intitulé (valeur par défaut quand il manque, n'est pas un texte ou est vide) et les champs facultatifs des
+// attestations (vides par défaut). Partagée par
 // getEnteteEmargement (promo courante) et lireDonneesQualiopi (promo lue).
 function enteteEmargementDuReglage(valeur) {
   let lu = null;
   try { lu = JSON.parse(valeur || "null"); } catch (e) { lu = null; }
-  return {
-    organisme: (lu && typeof lu.organisme === "string" && lu.organisme.trim()) || ENTETE_EMARGEMENT_DEFAUT.organisme,
-    intitule: (lu && typeof lu.intitule === "string" && lu.intitule.trim()) || ENTETE_EMARGEMENT_DEFAUT.intitule,
+  const texte = (k) => (lu && typeof lu[k] === "string" ? lu[k].trim() : "");
+  const entete = {
+    organisme: texte("organisme") || ENTETE_EMARGEMENT_DEFAUT.organisme,
+    intitule: texte("intitule") || ENTETE_EMARGEMENT_DEFAUT.intitule,
   };
+  for (const k of Object.keys(ENTETE_FACULTATIF)) entete[k] = texte(k);
+  return entete;
 }
 
+// Une lecture ratée lève (elle n'est plus remplacée par les valeurs par défaut) : imprimer
+// « ECF BOUSCAREN » sur une autre promo, ou réenregistrer ces valeurs par-dessus le vrai en-tête,
+// serait pire qu'une page en erreur. Un réglage absent, lui, donne les valeurs par défaut.
 export async function getEnteteEmargement() {
-  let valeur = null;
-  try { valeur = await getSetting("emargement_entete"); } catch (e) { valeur = null; }
-  return enteteEmargementDuReglage(valeur);
+  return enteteEmargementDuReglage(await getSetting("emargement_entete"));
 }
 
-export async function setEnteteEmargement({ organisme, intitule }) {
-  await setSetting("emargement_entete", JSON.stringify({
-    organisme: String(organisme || "").trim(), intitule: String(intitule || "").trim(),
-  }));
+export async function setEnteteEmargement(entete) {
+  const net = (k, max) => String(entete?.[k] || "").trim().slice(0, max);
+  const valeur = { organisme: net("organisme", 120), intitule: net("intitule", 200) };
+  for (const [k, max] of Object.entries(ENTETE_FACULTATIF)) valeur[k] = net(k, max);
+  await setSetting("emargement_entete", JSON.stringify(valeur));
 }

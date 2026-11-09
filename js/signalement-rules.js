@@ -4,7 +4,8 @@
 // journal des erreurs, réduction de la capture, phrase d'un refus du serveur, adresse sûre pour un lien.
 // Module pur, sans DOM ni stockage : testé en node.
 
-import { libellePastille } from "./nouveautes.js?v=20261108a";
+import { libellePastille } from "./nouveautes.js?v=20261109a";
+import { LIBELLES_APERCU } from "./roles-rules.js?v=20261109a";
 
 // Bornes de la spec (§ 7) : la base les vérifie aussi, dans signaler_probleme.
 export const MIN_MESSAGE = 3;
@@ -145,7 +146,7 @@ export function detailContexte(contexte) {
     ["Version de l'app", c.version || "inconnue"],
     ["Navigation", c.navigation === "nouvelle" ? `nouvelle, espace ${c.espace === "equipe" ? "équipe" : "stagiaire"}` : "ancienne"],
   ];
-  if (c.apercu) lignes.push(["Aperçu", c.apercu === "prof" ? "Formateur" : c.apercu === "stagiaire" ? "Stagiaire" : String(c.apercu)]);
+  if (c.apercu) lignes.push(["Aperçu", LIBELLES_APERCU[c.apercu === "prof" ? "formateur" : c.apercu] || String(c.apercu)]);
   const nbErreurs = c.erreurs.length;
   lignes.push(
     ["Appareil", c.tactile ? `${c.appareil}, tactile` : c.appareil],

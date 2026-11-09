@@ -9,13 +9,13 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance } from "../db.js?v=20261108a";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261108a";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261108a";
-import { getCurrentWho } from "../identity.js?v=20261108a";
-import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261108a";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance } from "../db.js?v=20261109a";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261109a";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109a";
+import { getCurrentWho } from "../identity.js?v=20261109a";
+import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261109a";
 import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261108a";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261109a";
 
 // Noms historiques conservés : main.js et le banc d'essai _preview_livret.html
 // les importent depuis ce module. La mécanique vit désormais dans doc-officiel.js,
@@ -298,9 +298,9 @@ export async function renderEpcfLivret(container, opts = {}) {
     if (opts.isActive && !opts.isActive()) return;
     clear(container);
     // La RLS ne renvoie que le sien à un vrai stagiaire ; le filtre par
-    // stagiaire_id du profil couvre le fondateur en « Voir en tant que »
-    // (session réelle admin → la RLS renvoie tout).
-    const myId = getProfile()?.stagiaire_id ?? null;
+    // sa fiche couvre le fondateur en aperçu « Stagiaire » (aucune fiche dans
+    // les autres aperçus, relecture finale, M8).
+    const myId = monStagiaireId();
     const mine = (myId != null && rows.find((r) => r.stagiaire_id === myId)) || rows[0];
     if (!mine) {
       container.appendChild(el("p", { class: "muted" },
@@ -328,7 +328,7 @@ export async function renderEpcfLivret(container, opts = {}) {
     clear(container);
     if (!trouve) { container.appendChild(el("p", { class: "muted" }, "Stagiaire introuvable.")); return; }
     // La date de naissance n'est plus dans la liste des stagiaires (table privée).
-    showDoc(container, { ...trouve, date_naissance: naissance }, full, { readOnly: false });
+    showDoc(container, { ...trouve, date_naissance: naissance }, full, { readOnly: !isAdmin() });
     return;
   }
 
@@ -365,7 +365,7 @@ function showListe(container) {
       cell.appendChild(el("span", { class: "lv-statut" }, "vierge"));
     }
     cell.appendChild(el("button", {
-      class: "btn small " + (row ? "ghost" : "primary"),
+      class: "btn small " + (row || !isAdmin() ? "ghost" : "primary"),
       style: "margin-left:10px",
       onClick: async () => {
         let full = null;
@@ -373,9 +373,9 @@ function showListe(container) {
           try { full = await getEpcfLivret(s.id); } catch (e) { console.error(e); toast(e?.message || String(e), "error"); return; }
         }
         const naissance = await getDateNaissance(s.id).catch((e) => { console.error(e); return null; });
-        showDoc(container, { ...s, date_naissance: naissance }, full, { readOnly: false, back: () => renderReload(container) });
+        showDoc(container, { ...s, date_naissance: naissance }, full, { readOnly: !isAdmin(), back: () => renderReload(container) });
       },
-    }, row ? "Ouvrir" : "Créer"));
+    }, row || !isAdmin() ? "Ouvrir" : "Créer"));
     tbody.appendChild(el("tr", {},
       el("td", {}, el("div", { class: "lv-name-cell" }, el("span", {}, displayStagiaire(s)))),
       cell));

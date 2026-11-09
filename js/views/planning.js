@@ -8,19 +8,27 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
   avantChangementPromo,
-} from "../db.js?v=20261108a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261108a";
-import { icon, deco } from "../icons.js?v=20261108a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261108a";
-import { isAdmin, isProf, getAdminEmail } from "../auth-admin.js?v=20261108a";
-import { recordUndo } from "../undo.js?v=20261108a";
-import { getCurrentWho } from "../identity.js?v=20261108a";
-import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261108a";
-import { meilleurResultat } from "../passage-rules.js?v=20261108a";
-import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261108a";
-import { emargementActif } from "../emargement-etat.js?v=20261108a";
-import { navigationV2Active } from "../nav-etat.js?v=20261108a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261108a";
+} from "../db.js?v=20261109a";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261109a";
+import { icon, deco } from "../icons.js?v=20261109a";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261109a";
+import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261109a";
+import { recordUndo } from "../undo.js?v=20261109a";
+import { getCurrentWho } from "../identity.js?v=20261109a";
+import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261109a";
+import { meilleurResultat } from "../passage-rules.js?v=20261109a";
+import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109a";
+import { emargementActif } from "../emargement-etat.js?v=20261109a";
+import { navigationV2Active } from "../nav-etat.js?v=20261109a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109a";
+import {
+  entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe,
+} from "../planning-roles.js?v=20261109a";
+import {
+  DEFAULT_HALF_META, semaineEnGrille, jourParDefaut, lundiEnCours, vuePlanningInitiale,
+} from "../journee-rules.js?v=20261109a";
+import { nomsStagiaires } from "../planning-lecture.js?v=20261109a";
+import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261109a";
 
 let stagiaires = [];
 let profs = [];
@@ -46,6 +54,73 @@ function isLocked(lundi) { return lockedWeeks.has(lundi); }
 // Remplace les gardes isAdmin() partout où il s'agit d'ÉDITER la semaine affichée.
 function canEditWeek() { return isAdmin() && editMode && !isLocked(semaineLundi); }
 
+// === La semaine en grille (nouvelle navigation, lot 2B) ===
+// Hors mode Modifier, la semaine se lit en grille (jours en colonnes) ou en liste (les cartes du planning d'avant).
+// La forme choisie se garde sur l'appareil ; le jour montré sur téléphone se garde le temps de la visite.
+let vuePlanning = null;       // "grille" | "liste", lue une fois de la mémoire de l'appareil
+let jourTelephone = null;     // l'index du jour choisi sur téléphone ; null : aujourd'hui, sinon lundi
+let basculeNoeud = null;      // le groupe « Grille / Liste » posé à côté des sous-onglets, à retirer en les quittant
+
+function vueChoisie() {
+  if (vuePlanning === null) {
+    let memorisee = null;
+    try { memorisee = localStorage.getItem(CLE_VUE_PLANNING); } catch (e) { /* mémoire indisponible : la grille */ }
+    vuePlanning = vuePlanningInitiale(memorisee);
+  }
+  return vuePlanning;
+}
+
+// La grille remplace les cartes dès qu'on ne modifie pas : stagiaires, formateur hors mode Modifier, semaine verrouillée.
+function grilleAffichee() { return navigationV2Active() && !canEditWeek() && vueChoisie() === "grille"; }
+
+function retirerBascule() {
+  if (basculeNoeud) basculeNoeud.remove();
+  basculeNoeud = null;
+}
+
+// Sur une ligne à droite, sous les sous-onglets de la page ; sans barre de sous-onglets (un seul reste ouvert), en tête de la semaine.
+function poserBascule(container) {
+  retirerBascule();
+  if (!navigationV2Active() || canEditWeek()) return;
+  const groupe = bascule({
+    vue: vueChoisie(),
+    onChange: (vue) => {
+      vuePlanning = vue;
+      try { localStorage.setItem(CLE_VUE_PLANNING, vue); } catch (e) { /* mémoire indisponible : valable jusqu'au rechargement */ }
+      renderInto(currentContainer);
+    },
+  });
+  // Dans une ligne à elle, jamais dans la barre : la barre est une tablist, qui ne contient que des onglets.
+  basculeNoeud = el("div", { class: "plan-bar" }, groupe);
+  const barre = container.closest(".subtabs")?.querySelector(":scope > .subtabs-bar");
+  if (barre) barre.after(basculeNoeud);
+  else container.appendChild(basculeNoeud);
+}
+
+// Les noms de la grille viennent de l'état déjà chargé (ni relecture, ni nouvelle requête), comme chargerSemaine.
+function nomsDeLaSemaine() {
+  return {
+    stagiaires: nomsStagiaires(stagiaires),
+    formateurs: new Map(profs.map((p) => [p.id, p.nom])),
+    benevoles: new Map(benevoles.map((b) => [b.id, b.display])),
+    autres: [],
+    titres: themes.map((t) => t.titre),
+  };
+}
+
+function grilleDeLaSemaine() {
+  const equipe = formateurConnecte();
+  const jours = semaineEnGrille({
+    entries, metas: halfMetas, joursOff, lundi: semaineLundi,
+    moi: equipe ? null : monStagiaireId(), noms: nomsDeLaSemaine(), aujourdhui: isoDate(new Date()),
+  });
+  return grilleSemaine({
+    jours, equipe,
+    jourChoisi: jourTelephone ?? jourParDefaut(jours, isoDate(new Date())),
+    onChoisirJour: (k) => { jourTelephone = k; },
+  });
+}
+
 async function setWeekLock(lundi, locked) {
   if (locked) lockedWeeks.add(lundi); else lockedWeeks.delete(lundi);
   await setSetting("semaines_verrouillees", JSON.stringify([...lockedWeeks].sort()));
@@ -70,12 +145,6 @@ document.addEventListener("keydown", (e) => {
   editMode = false;
   renderInto(currentContainer);
 });
-
-// Défauts horaires si pas de meta en DB
-const DEFAULT_HALF_META = {
-  matin: { start_time: "09:00", end_time: "12:30", pause_start: "10:45", pause_minutes: 20 },
-  aprem: { start_time: "13:30", end_time: "17:00", pause_start: "15:15", pause_minutes: 20 },
-};
 
 function metaFor(d, half) {
   return halfMetas.find((m) => m.day_index === d && m.half_day === half)
@@ -555,38 +624,6 @@ function roleCounts(activite, role, exceptLid) {
     }
   });
   return counts;
-}
-
-// Rôles EFFECTIFS d'un créneau selon la FORME de son activité (ACTIVITY_SHAPES).
-// Quand on change l'activité d'un créneau, la donnée des rôles (tableau/élèves) reste
-// stockée (pratique si on rebascule l'activité), mais un rôle absent de la forme courante
-// (ex. élèves restés sur un Cours, ou « au tableau » resté sur une Voiture) ne doit JAMAIS
-// être affiché ni utilisé. Source unique de vérité, utilisée par l'impression et le blocage
-// de créneau (la validation et les compteurs filtrent déjà par activité).
-function entryShape(e) { return ACTIVITY_SHAPES[e.activite || ""] || ACTIVITY_SHAPES[""]; }
-function effPedagogueId(e, group = 1) {
-  if (!entryShape(e).includes("pedagogue")) return null;
-  if (group === 2) return e.salle_double ? (e.pedagogue_id_2 ?? null) : null;
-  return e.pedagogue_id ?? null;
-}
-function effElevesIds(e, group = 1) {
-  if (!entryShape(e).includes("eleves")) return [];
-  if (group === 2) return e.salle_double ? (e.eleves_ids_2 || []) : [];
-  return e.eleves_ids || [];
-}
-function effBenevolesIds(e) {
-  if (!entryShape(e).includes("benevoles")) return [];
-  return e.benevoles_ids || [];
-}
-// Sujets EFFECTIFS d'un créneau : `sujet` (groupe 1 / unique) + `sujet_2` (groupe 2,
-// cartes salle 2 groupes seulement). Comme les rôles, `sujet_2` est conservé en base
-// mais ignoré dès que la carte n'est plus une salle double.
-function effSujets(e) {
-  if (!entryShape(e).includes("sujet")) return [];
-  const out = [];
-  if (e.sujet && String(e.sujet).trim()) out.push(e.sujet);
-  if (e.activite === "Pédagogie salle" && e.salle_double && e.sujet_2 && String(e.sujet_2).trim()) out.push(e.sujet_2);
-  return out;
 }
 
 // === Absences de dernière minute (spec 2026-07-19) ===
@@ -1568,20 +1605,7 @@ function renderAbsenceRows(entry, lid, group = null) {
 // les fragments consécutifs qui reforment le titre d'un thème CONNU (greedy, le plus long
 // d'abord). Le texte libre à virgules reste découpé (impossible à désambiguïser).
 function parseSujet(val) {
-  if (!val) return [];
-  const parts = String(val).split(",").map((s) => s.trim()).filter(Boolean);
-  const known = new Set((themes || []).map((t) => t.titre));
-  const out = [];
-  let i = 0;
-  while (i < parts.length) {
-    let merged = false;
-    for (let j = parts.length; j > i + 1; j--) {
-      const candidate = parts.slice(i, j).join(", ");
-      if (known.has(candidate)) { out.push(candidate); i = j; merged = true; break; }
-    }
-    if (!merged) { out.push(parts[i]); i++; }
-  }
-  return out;
+  return sujetsDe(val, (themes || []).map((t) => t.titre));
 }
 function joinSujet(arr) { return arr.join(", "); }
 
@@ -2268,6 +2292,7 @@ function openHalfMetaEditor(d, half, anchorEl) {
 
 async function changeWeek(dateStr) {
   editMode = false;   // chaque semaine se rouvre en lecture seule (spec 2026-07-20)
+  jourTelephone = null;   // une autre semaine : le jour du téléphone repart d'aujourd'hui ou du lundi
   semaineLundi = dateStr;
   // La « semaine affichée » est persistée comme réglage GLOBAL de la promo (table settings,
   // écriture admin-only en RLS) : c'est la semaine que tout le monde retrouve à l'ouverture.
@@ -2829,6 +2854,9 @@ function renderInto(container) {
   container.classList.toggle("p-compact", !editing);
   // Liseré du mode édition : la zone des jours est visiblement « ouverte » (volet 4).
   container.classList.toggle("p-editing", editing);
+  // Nouvelle navigation : « Grille / Liste » à côté des sous-onglets, absent en mode Modifier (l'éditeur est la liste).
+  poserBascule(container);
+  const enGrille = grilleAffichee();
 
   const monday = new Date(semaineLundi + "T00:00:00");
   const longLabel = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
@@ -2864,8 +2892,9 @@ function renderInto(container) {
             onClick: () => { location.hash = "#/dashboard"; } },
             icon.target(), "Priorités"), routeMasquee("dashboard"))
         : null,
-      // Émargement (spec 2026-10-23) : page des formateurs, si le fondateur l'a activé pour la promo.
-      (admin || isProf()) && emargementActif()
+      // Émargement (spec 2026-10-23) : page des formateurs, si le fondateur l'a activé pour la promo (pas la direction
+      // avant le lot 5 : la page lui répondrait par un refus).
+      admin && emargementActif()
         ? el("button", { class: "btn small", type: "button",
             title: "Ouvrir l'émargement du jour, imprimer les feuilles",
             onClick: () => { location.hash = "#/emargement"; } },
@@ -2984,10 +3013,11 @@ function renderInto(container) {
   // Barre de jours COLLÉE à la barre de semaine : les deux forment le bloc de
   // navigation. Le mémo des règles, qui s'intercalait ici, passe sous les jours :
   // c'est de la documentation, pas de la navigation.
-  container.appendChild(buildDayNav(monday));
+  // En grille, les jours sont les colonnes (ou la bande de cinq jours du téléphone) : ni barre de jours, ni cartes.
+  if (!enGrille) container.appendChild(buildDayNav(monday));
 
   const wrap = el("div", { class: "p-days" });
-  JOURS.forEach((_, d) => wrap.appendChild(renderDayCard(d, monday)));
+  if (!enGrille) JOURS.forEach((_, d) => wrap.appendChild(renderDayCard(d, monday)));
   // Hint découvrabilité (volet 4) : un admin qui clique en lecture seule n'obtient
   // aucune réaction des cartes (pointer-events coupés) : on lui dit pourquoi.
   if (admin && !editing) {
@@ -3002,7 +3032,7 @@ function renderInto(container) {
         : "Semaine en lecture seule : clique « ✏️ Modifier » pour éditer", "info", 3200);
     });
   }
-  container.appendChild(wrap);
+  container.appendChild(enGrille ? grilleDeLaSemaine() : wrap);
 
   // Pill flottante (volet 4) : signal permanent du mode édition + sortie à portée
   // de clic sans remonter à la barre d'outils.
@@ -3017,7 +3047,8 @@ function renderInto(container) {
 
   container.appendChild(buildRulesNote());
 
-  container.appendChild(el("div", { class: "planning-helper" },
+  // L'aide sur « À la suite » et « Parallèle » parle des cartes de la liste (et de leur éditeur) : la grille n'en a pas.
+  if (!enGrille) container.appendChild(el("div", { class: "planning-helper" },
     el("strong", {}, "À la suite "), "↓ = nouveau créneau dans le temps (après celui qui précède). ",
     el("strong", {}, "Parallèle "), "→ = autre activité au même horaire (ex: voiture qui tourne pendant un cours). ",
     "Au moins 1 créneau par demi-journée. Min. 1 lane (rangée) → bouton « Parallèle » l'étoffe."
@@ -3061,14 +3092,6 @@ function printName(id, ambig) {
   if (!s) return "";
   const p = (s.prenom || "").trim().toLowerCase();
   return (p && ambig.has(p)) ? displayStagiaire(s) : (s.prenom || displayStagiaire(s));
-}
-
-function entryHasContent(e) {
-  const hasPed = effPedagogueId(e, 1) != null || effPedagogueId(e, 2) != null;
-  const hasEl = effElevesIds(e, 1).length > 0 || effElevesIds(e, 2).length > 0;
-  return nonEmpty(e.activite) || effSujets(e).length > 0 || nonEmpty(e.notes)
-      || (e.prof_ids && e.prof_ids.length) || e.prof_id
-      || hasPed || hasEl || effBenevolesIds(e).length > 0;
 }
 
 function printEntryCell(e, ambig) {
@@ -3393,6 +3416,7 @@ function mountPrintTarget() {
 // pour qu'un print natif depuis une autre vue n'imprime pas un planning périmé.
 export function teardownPrintTarget() {
   detachDayNavHighlight();   // la vue quitte l'écran : plus rien à surveiller
+  retirerBascule();          // posée sous la barre des sous-onglets, qui reste : elle ne regarde que la semaine
   document.getElementById("print-container")?.remove();
   document.body.classList.remove("planning-printable");
 }
@@ -3443,17 +3467,23 @@ export async function renderPlanning(container, { aujourdhui = null } = {}) {
   // stagiaire qui feuillette les semaines).
   const jump = pendingTodayJump ? todayJumpTarget() : null;
   pendingTodayJump = false;
-  const weekSetting = await getSetting("current_week_lundi");
+  // Nouvelle navigation (ruling R59) : le Planning s'ouvre sur la semaine en cours (la suivante le week-end), et non sur
+  // la semaine que le formateur a épinglée pour la promo. Les flèches de la barre de semaine gardent leur effet.
+  const nouvelle = navigationV2Active();
+  const weekSetting = nouvelle ? null : await getSetting("current_week_lundi");
   if (!container.isConnected) return;
   semaineLundi = jump
     ? isoDate(getMonday(jump.date))
-    : (weekSetting || isoDate(getMonday(new Date())));
+    : nouvelle ? lundiEnCours(new Date()) : (weekSetting || isoDate(getMonday(new Date())));
+  jourTelephone = jump ? jump.dayIndex : null;
   await loadPlanning();
   if (!container.isConnected) return;
   gesteAujourdhui = aujourdhui;
   renderInto(container);
   if (jump) {
-    scrollToDay(jump.dayIndex);
+    // En grille, le jour est déjà repéré (colonne, ou jour choisi sur téléphone) : on amène la grille à l'écran.
+    if (grilleAffichee()) container.querySelector(".wsem")?.scrollIntoView({ block: "start" });
+    else scrollToDay(jump.dayIndex);
     if (jump.weekend) toast("Week-end : on t'emmène au lundi qui suit.", "info", 3000);
   }
 }

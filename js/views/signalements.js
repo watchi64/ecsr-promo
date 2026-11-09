@@ -5,10 +5,10 @@
 // Ce module ne connaît PAS l'éditeur : il reçoit `onOuvrirEditeur` de la part de
 // themes.js. Importer themes.js ici créerait un import circulaire entre deux vues.
 
-import { el, clear, formatDate, toast } from "../utils.js?v=20261108a";
-import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20261108a";
-import { listTousSignalements, setQcmSignalementStatut, listStagiaires } from "../db.js?v=20261108a";
-import { getAdminEmail } from "../auth-admin.js?v=20261108a";
+import { el, clear, formatDate, toast } from "../utils.js?v=20261109a";
+import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20261109a";
+import { listTousSignalements, setQcmSignalementStatut, listStagiaires } from "../db.js?v=20261109a";
+import { getAdminEmail } from "../auth-admin.js?v=20261109a";
 
 export const MOTIF_LABELS = {
   reponse_fausse: "Réponse fausse",
@@ -188,6 +188,7 @@ export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEd
         await setQcmSignalementStatut(s.id, st, getAdminEmail());
         toast(st === "traite" ? "Signalement classé comme corrigé." : "Signalement écarté.", "success");
         await charger();
+        window.dispatchEvent(new Event("a-traiter-change"));   // la pastille « à traiter » de la barre se relit
       } catch (e) {
         bouton.disabled = false;
         toast("Échec : " + (e?.message || e), "error");

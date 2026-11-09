@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   titreDepuisMarkdown, tempsLecture, insererSyntaxe, cheminImage, interpolerAncres,
-  cleCours, estCodeCompetence, estOuverture, libelleCle, comparerCodes, coursSuivant, cibleLienCours, coursVisibleEnApercu,
+  cleCours, estCodeCompetence, estOuverture, libelleCle, comparerCodes, coursSuivant, cibleLienCours, coursVisibleEnApercu, classeTableau, etiquetteDeColonne,
 } from "../js/cours-rules.js";
 
 test("titreDepuisMarkdown retire le préfixe THÈME XX", () => {
@@ -124,4 +124,33 @@ test("coursVisibleEnApercu rejoue la règle de lecture de la base pour le rôle 
   // Aperçu formateur : le publié et les cours de thème non publiés, jamais un cours de compétence non publié.
   assert.deepEqual([theme, themeBrouillon, competence, competenceBrouillon].map((c) => coursVisibleEnApercu(c, "prof")),
     [true, true, true, false]);
+});
+
+test("classeTableau : un tableau de sanctions garde sa classe, un tableau à deux colonnes reste un tableau", () => {
+  assert.equal(classeTableau(["Feu", "Couleur", "Position"]), "cours-table");
+  assert.equal(classeTableau(["Infraction", "Article", "Amende", "Retrait de points"]), "cours-table cours-table-sanctions");
+  assert.equal(classeTableau(["Terme", "Définition"]), "cours-table cours-table-2col");
+  assert.equal(classeTableau(["Feu"]), "cours-table cours-table-2col");
+});
+
+test("etiquetteDeColonne : le titre de colonne sans mise en forme, vide s'il n'y a rien", () => {
+  assert.equal(etiquetteDeColonne("Position"), "Position");
+  assert.equal(etiquetteDeColonne("**Allumage** obligatoire"), "Allumage obligatoire");
+  assert.equal(etiquetteDeColonne("`R413-2` et *texte*"), "R413-2 et texte");
+  assert.equal(etiquetteDeColonne("[Source](https://exemple.fr/a_b)"), "Source");
+  assert.equal(etiquetteDeColonne("  _italique_  "), "italique");
+  assert.equal(etiquetteDeColonne("snake_case"), "snake_case");
+  assert.equal(etiquetteDeColonne(""), "");
+  assert.equal(etiquetteDeColonne(undefined), "");
+});
+
+test("coursVisibleEnApercu : formateur, direction et siège voient les cours de thème non publiés, pas les compétences non publiées", () => {
+  const theme = { numero: 12, code: null, published: true };
+  const themeBrouillon = { numero: 58, code: null, published: false };
+  const competence = { numero: null, code: "C2.4", published: true };
+  const competenceBrouillon = { numero: null, code: "C2.6", published: false };
+  for (const apercu of ["formateur", "direction", "siege"]) {
+    assert.deepEqual([theme, themeBrouillon, competence, competenceBrouillon].map((c) => coursVisibleEnApercu(c, apercu)),
+      [true, true, true, false], apercu);
+  }
 });
