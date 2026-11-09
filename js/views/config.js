@@ -13,8 +13,7 @@
  */
 import {
   listStagiaires, listProfs,
-  addStagiaire, updateStagiaire, updateStagiaireNom, setStagiaireActif,
-  anonymiserStagiaire, etatAnonymisationPromo, anonymiserPromo, listBenevolesAPurger, purgerBenevoles,
+  etatAnonymisationPromo, anonymiserPromo, listBenevolesAPurger, purgerBenevoles,
   getPromoCourante, renommerPromo,
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
@@ -25,19 +24,16 @@ import { icon } from "../icons.js?v=20261109d";
 import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109d";
 import { moduleVisible } from "../modules-etat.js?v=20261109d";
 import { renderModulesSection } from "./modules-reglage.js?v=20261109d";
+import { renderGestionStagiaires, poserMajPersonnesInvitables } from "./stagiaires-gestion.js?v=20261109d";
 import { renderEmargementReglage } from "../emargement-etat.js?v=20261109d";
 import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109d";
 import { pointsARetenir } from "../accueil-rules.js?v=20261109d";
-import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261109d";
+import { dateCourte, etatFinDePromo } from "../effacement-rules.js?v=20261109d";
 import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261109d";
 import { blocHabillage } from "../habillage-choix.js?v=20261109d";
 import { habillageCourant } from "../habillage.js?v=20261109d";
 
 // ====== SECTION Accès & invitations ======
-
-// Liste des personnes invitables de la section déjà à l'écran. Posée par renderAccessSection, appelée
-// après un ajout de stagiaire, qui n'actualise que le bloc « Stagiaires » de la section « Promo ».
-let majPersonnesInvitables = null;
 
 async function renderAccessSection(rerender) {
   const admin = isAdmin();
@@ -48,7 +44,7 @@ async function renderAccessSection(rerender) {
   // (constats du 28/10) ; l'ancienne garde ses textes.
   const v2 = navigationV2Active();
   const libelleAjout = v2 ? "Ajouter à la liste des invitations" : "Ajouter à la whitelist";
-  majPersonnesInvitables = null;  // le formulaire d'un rendu précédent ne doit pas survivre à celui-ci
+  poserMajPersonnesInvitables(null);  // le formulaire d'un rendu précédent ne doit pas survivre à celui-ci
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.shield()),
@@ -102,12 +98,12 @@ async function renderAccessSection(rerender) {
     refreshPersonOptions();
     // Un ajout de stagiaire n'actualise que son bloc : la liste d'ici suit, sans toucher à la personne
     // déjà choisie ni à l'email en cours de saisie.
-    majPersonnesInvitables = async () => {
+    poserMajPersonnesInvitables(async () => {
       stagiaires = await listStagiaires();
       const choisie = personSel.value;
       refreshPersonOptions();
       if (choisie && [...personSel.options].some((o) => o.value === choisie && !o.disabled)) personSel.value = choisie;
-    };
+    });
 
     const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email" });
 
@@ -337,12 +333,6 @@ function renderMyPreferencesSection(rerender) {
 
 // ====== SECTION Promo (stagiaires + profs) ======
 
-// Écriture d'un stagiaire refusée : l'unicité (promo, prénom) de la base (code 23505) se dit en
-// une phrase claire ; toute autre erreur garde le message de la base.
-function messageErreurStagiaire(e) {
-  return e?.code === "23505" ? "Ce prénom existe déjà dans la promo." : e?.message;
-}
-
 async function renderPromoSection(rerender) {
   // Gérer la liste de la promo : formateur et direction (la base le permet à l'équipe de la promo).
   const admin = isEquipe();
@@ -359,13 +349,7 @@ async function renderPromoSection(rerender) {
     ),
   ));
 
-  const [allStagiaires, profs] = await Promise.all([
-    listStagiaires({ includeInactive: true }), listProfs(),
-  ]);
-  const stagiairesActifs = allStagiaires.filter((s) => s.actif !== false);
-  // Les fiches anonymisées (données effacées) ne sont plus des abandons : seulement comptées.
-  const stagiairesAbandon = allStagiaires.filter((s) => s.actif === false && !s.anonymise_le);
-  const nbAnonymises = allStagiaires.filter((s) => s.anonymise_le).length;
+  const profs = await listProfs();
 
   // Promo affichée : nom modifiable par les admins, lieu en lecture (spec multi-promo C.5).
   function renderPromoCourante() {
@@ -400,29 +384,16 @@ async function renderPromoSection(rerender) {
     return wrap;
   }
 
-  // Après un ajout de stagiaire : relit la liste et n'actualise que l'en-tête (compteur) et les lignes du
-  // bloc « Stagiaires ». Le formulaire d'ajout reste en place, avec son focus (et le clavier de l'iPhone),
-  // comme le défilement et le reste de la vue ; la liste des personnes invitables suit.
-  async function actualiserStagiaires(bloc) {
-    const tous = await listStagiaires({ includeInactive: true });
-    const frais = renderList(tous.filter((s) => s.actif !== false), "stagiaire", false);
-    bloc.querySelector(".block-head").replaceWith(frais.querySelector(".block-head"));
-    bloc.querySelector(".config-list").replaceWith(frais.querySelector(".config-list"));
-    if (majPersonnesInvitables) majPersonnesInvitables().catch(() => {});
-  }
-
-  // avecAjout : faux pour actualiser un bloc existant (en-tête et lignes seuls, sans formulaire d'ajout).
-  function renderList(items, type, avecAjout = true) {
+  // Formateurs : suppression directe (pas de notion d'abandon).
+  function renderList(items) {
     const wrap = el("div", { class: "param-block" });
     wrap.appendChild(el("div", { class: "block-head" },
-      el("h4", {}, type === "stagiaire" ? "Stagiaires" : "Formateurs (communs à toutes les promos)"),
+      el("h4", {}, "Formateurs (communs à toutes les promos)"),
       el("span", { class: "count" }, items.length + " entrée" + (items.length > 1 ? "s" : "")),
     ));
 
     const list = el("ul", { class: "config-list" });
     items.forEach((it) => {
-      // Champ « Nom de famille » (plus bas) : déclaré ici, le gestionnaire du prénom en a besoin.
-      let nomInput = null;
       const input = el("input", { type: "text", value: it.prenom || it.nom, readonly: admin ? undefined : true });
       if (admin) {
         input.addEventListener("blur", async () => {
@@ -430,39 +401,21 @@ async function renderPromoSection(rerender) {
           if (v === (it.prenom || it.nom)) return;
           if (!v) { input.value = it.prenom || it.nom; return; }
           try {
-            if (type === "stagiaire") await updateStagiaire(it.id, v);
-            else await updateProf(it.id, v);
-            // Copie locale à jour : un nouveau blur ne retente pas la même écriture, et l'étiquette
-            // du champ voisin comme les confirmations d'abandon et de suppression portent le bon nom.
-            if (type === "stagiaire") it.prenom = v;
-            else it.nom = v;
-            if (nomInput) nomInput.setAttribute("aria-label", "Nom de famille de " + v);
+            await updateProf(it.id, v);
+            // Copie locale à jour : un nouveau blur ne retente pas la même écriture, et la confirmation de
+            // suppression porte le bon nom.
+            it.nom = v;
             toast("Mis à jour", "success");
           } catch (e) {
             input.value = it.prenom || it.nom;
-            toast(type === "stagiaire" ? messageErreurStagiaire(e) : e.message, "error");
+            toast(e.message, "error");
           }
         });
         input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
       }
 
-      // Stagiaire : « Abandon » (désactivation douce, données conservées).
-      // Prof : suppression directe (pas de notion d'abandon).
       let actionBtn = null;
-      if (admin && type === "stagiaire") {
-        actionBtn = el("button", {
-          class: "btn small ghost abandon-btn",
-          title: "Marquer en abandon : masqué partout (planning, dés, notes), données conservées",
-          onClick: async () => {
-            if (!confirm(`Marquer ${it.prenom} en abandon ?\n\nIl/elle disparaît du planning, des dés et des notes. Les données restent conservées et réactivables.`)) return;
-            try {
-              await setStagiaireActif(it.id, false);
-              toast(`${it.prenom} marqué(e) en abandon`, "success");
-              rerender();
-            } catch (e) { toast(e.message, "error"); }
-          }
-        }, "Abandon");
-      } else if (admin) {
+      if (admin) {
         actionBtn = el("button", {
           class: "btn small danger icon-only", "aria-label": "Supprimer",
           onClick: async () => {
@@ -475,138 +428,40 @@ async function renderPromoSection(rerender) {
           }
         }, icon.trash());
       }
-
-      // Stagiaire, pour un admin seulement : nom de famille à côté du prénom (affichage « V. Timy »,
-      // tri par nom). Les autres stagiaires n'en voient que l'initiale : le champ n'existe pas pour eux.
-      if (admin && type === "stagiaire") {
-        nomInput = el("input", { type: "text", class: "config-nom", value: it.nom || "",
-          placeholder: "Nom", "aria-label": "Nom de famille de " + it.prenom });
-        nomInput.addEventListener("blur", async () => {
-          const v = nomInput.value.trim();
-          if (v === (it.nom || "")) return;
-          try {
-            await updateStagiaireNom(it.id, v);
-            it.nom = v || null;
-            toast("Mis à jour", "success");
-          } catch (e) {
-            nomInput.value = it.nom || "";
-            toast(e.message, "error");
-          }
-        });
-        nomInput.addEventListener("keydown", (e) => { if (e.key === "Enter") nomInput.blur(); });
-      }
-      list.appendChild(el("li", {}, input, nomInput, actionBtn));
+      list.appendChild(el("li", {}, input, null, actionBtn));
     });
     wrap.appendChild(list);
 
-    if (admin && avecAjout) {
-      const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom" : "Nom" });
-      const addNom = type === "stagiaire" ? el("input", { type: "text", placeholder: "Nom",
-        "aria-label": "Nom de famille" }) : null;
+    if (admin) {
+      const addInput = el("input", { type: "text", placeholder: "Nom" });
       const addBtn = el("button", { class: "btn accent", onClick: async () => {
         const v = addInput.value.trim();
-        if (!v) {
-          // Seul le nom de famille est rempli : on le dit et on renvoie sur le prénom, plutôt que de ne rien faire.
-          if (addNom && addNom.value.trim()) {
-            toast("Renseigne d'abord le prénom.", "error");
-            addInput.focus();
-          }
-          return;
-        }
+        if (!v) return;
         try {
-          if (type === "stagiaire") await addStagiaire(v, addNom.value.trim());
-          else await addProf(v);
+          await addProf(v);
         } catch (e) {
           // Refus : les champs sont conservés, rien d'autre ne bouge.
-          toast(type === "stagiaire" ? messageErreurStagiaire(e) : e.message, "error");
+          toast(e.message, "error");
           return;
         }
         addInput.value = "";
-        if (addNom) addNom.value = "";
         toast("Ajouté", "success");
-        if (type !== "stagiaire") { rerender(); return; }
-        // Stagiaire : seul le bloc est actualisé, puis « Prénom » reprend le focus pour enchaîner les
-        // saisies sans remonter la page. Relecture impossible : rendu complet (il gère ses erreurs).
-        try {
-          await actualiserStagiaires(wrap);
-          addInput.focus();
-        } catch (e) { rerender(); }
+        rerender();
       }}, icon.plus(), "Ajouter");
-      // Stagiaire : Entrée dans « Prénom » passe à « Nom de famille », Entrée dans « Nom de famille »
-      // valide. Formateur (un seul champ) : Entrée valide.
+      // Formateur (un seul champ) : Entrée valide.
       addInput.addEventListener("keydown", (e) => {
         if (e.key !== "Enter") return;
-        if (addNom) addNom.focus();
-        else addBtn.click();
+        addBtn.click();
       });
-      if (addNom) addNom.addEventListener("keydown", (e) => { if (e.key === "Enter") addBtn.click(); });
-      wrap.appendChild(el("div", { class: "config-add" }, addInput, addNom, addBtn));
-    }
-    return wrap;
-  }
-
-  // Bloc des abandons : réactivation, ou effacement des données personnelles (droit à
-  // l'effacement). Réservé ici : il faut d'abord sortir la personne de la liste active.
-  // Plus de suppression de la fiche : ses résultats lui sont liés en cascade et
-  // disparaîtraient des statistiques ; la fiche est anonymisée par le serveur.
-  function renderAbandons(items) {
-    const wrap = el("div", { class: "param-block abandons-block" });
-    wrap.appendChild(el("div", { class: "block-head" },
-      el("h4", {}, "Abandons"),
-      el("span", { class: "count" }, items.length + " stagiaire" + (items.length > 1 ? "s" : "")),
-    ));
-    wrap.appendChild(el("p", { class: "muted abandons-hint" },
-      "Masqués du planning, des dés et des notes. « Effacer les données » répond à une demande de "
-      + "suppression : la personne disparaît, ses résultats restent sans nom dans les statistiques."));
-    const list = el("ul", { class: "config-list" });
-    items.forEach((it) => {
-      const reactiverBtn = el("button", {
-        class: "btn small accent",
-        onClick: async () => {
-          try {
-            await setStagiaireActif(it.id, true);
-            toast(`${it.prenom} réactivé(e)`, "success");
-            rerender();
-          } catch (e) { toast(e.message, "error"); }
-        }
-      }, "Réactiver");
-      const delBtn = el("button", {
-        class: "btn small danger",
-        title: "Effacer ses données personnelles (irréversible)",
-        onClick: async () => {
-          const saisie = prompt(`Effacer les données de ${it.prenom} ?\n\n`
-            + "Supprimés : compte de connexion, e-mail, date de naissance, livret, dossier pro, fiche de suivi, commentaires.\n"
-            + "Conservés sans nom : notes, QCM, passages, scores EPCF.\n"
-            + "Irréversible.\n\n"
-            + `Pour confirmer, tape le prénom : ${it.prenom}`);
-          if (saisie === null) return;
-          if (!confirmationValide(saisie, it.prenom)) { toast("Prénom différent : rien n'a été effacé.", "error"); return; }
-          try {
-            const details = await anonymiserStagiaire(it.id);
-            toast(resumeEffacement(details), "success", 6000);
-            rerender();
-          } catch (e) { toast(e.message, "error"); }
-        }
-      }, "Effacer les données");
-      list.appendChild(el("li", { class: "abandon-row" },
-        el("span", { class: "abandon-name" }, it.prenom),
-        reactiverBtn, delBtn,
-      ));
-    });
-    wrap.appendChild(list);
-    if (nbAnonymises) {
-      wrap.appendChild(el("p", { class: "muted abandons-hint" },
-        nbAnonymises + (nbAnonymises > 1 ? " fiches anonymisées" : " fiche anonymisée")
-        + " (données effacées, résultats conservés sans nom)."));
+      wrap.appendChild(el("div", { class: "config-add" }, addInput, null, addBtn));
     }
     return wrap;
   }
 
   const blocPromo = renderPromoCourante();
   if (blocPromo) section.appendChild(blocPromo);
-  section.appendChild(renderList(stagiairesActifs, "stagiaire"));
-  if (admin && (stagiairesAbandon.length || nbAnonymises)) section.appendChild(renderAbandons(stagiairesAbandon));
-  section.appendChild(renderList(profs, "prof"));
+  await renderGestionStagiaires(section, { rerender });
+  section.appendChild(renderList(profs));
   return section;
 }
 
