@@ -837,7 +837,7 @@ begin
     into v_sql
     from information_schema.columns c
     join information_schema.tables t on t.table_schema = c.table_schema and t.table_name = c.table_name and t.table_type = 'BASE TABLE'
-   where c.table_schema = 'public' and c.column_name = 'promo_id';
+   where c.table_schema = 'public' and c.column_name = 'promo_id' and c.table_name not like 'questionnaire\_%';
   return case when p_proprio then pg_temp.calcul(v_sql) else pg_temp.valeur(p_email, p_hdr, null, v_sql) end;
 end $fx$;
 
@@ -2245,7 +2245,7 @@ begin
               from (select distinct format('public.%I', c.relname) as t
                       from pg_attribute a join pg_class c on c.oid = a.attrelid
                      where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p') and a.attnum > 0 and not a.attisdropped
-                       and a.attname in ('promo_id', 'lieu_id') and c.relname <> 'affectations'
+                       and a.attname in ('promo_id', 'lieu_id') and c.relname <> 'affectations' and c.relname not like 'questionnaire\_%'
                     union select 'public.stagiaires_prive') l) x
      where v is distinct from '0';
     v_obt := pg_temp.valeur('preuve.siege@exemple.invalid', c_contextes[n], null,
@@ -2257,12 +2257,15 @@ begin
       concat_ws(' ; ', 'tables : ' || v_txt, case when v_obt is distinct from '0' then 'profils de stagiaire : ' || coalesce(v_obt, 'nul') end));
   end loop;
 
+-- Les tables questionnaire_* (Qualiopi Q3, en ligne le 09/11, après cette preuve) sont anonymes par construction : aucun
+-- compte connecté ne lit participations ni réponses (42501), et leur matrice vit dans tests/sql/questionnaires-preuve.sql.
+-- Elles sont donc hors de ce compte, de la contrainte du siège (8) et de la couverture (9).
   -- 9. Couverture : toute table de public sous RLS est dans la matrice ; aucune table de public n'est sans RLS (une
   --    table sans RLS serait lisible et modifiable par tous, la matrice ne la verrait pas) ; plus aucune règle ne cite
   --    les anciennes fonctions (vrai une fois l'étape 3 appliquée).
   select string_agg(x.t, ', ' order by x.t) into v_txt
     from (select format('%I.%I', ns.nspname, c.relname) as t from pg_class c join pg_namespace ns on ns.oid = c.relnamespace
-           where ns.nspname = 'public' and c.relkind in ('r', 'p') and c.relrowsecurity) x
+           where ns.nspname = 'public' and c.relkind in ('r', 'p') and c.relrowsecurity and c.relname not like 'questionnaire\_%') x
    where x.t not in (select m.tbl from matrice m);
   perform pg_temp.verifier('couverture', 'toute table de public sous RLS figure dans la matrice (une table ajoutée la fait rougir)',
     v_txt is null, coalesce('hors matrice : ' || v_txt, ''));
