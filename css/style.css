@@ -87,6 +87,13 @@
   --font:         "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   --font-mono:    "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
+  /* Poids des titres d'écran : l'habillage change la police des titres et remappe ces poids d'un bloc (une règle ne dit jamais un nombre). */
+  --poids-titre:        700;
+  --poids-titre-semi:   600;
+  --poids-titre-moyen:  500;
+  --poids-titre-normal: 400;
+  --poids-titre-leger:  300;
+
   /* --- Barre sombre (ex --nav-creme*, remontés de body[data-nav="v2"] : l'habillage les redéfinit d'un bloc) ---
      Le crème de la barre du haut et ses transparences : texte, texte secondaire, survol, entrée allumée,
      filet, bordure. */
@@ -297,7 +304,7 @@ html, body {
 
 h1, h2, h3, .display {
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.01em;
 }
 
@@ -395,7 +402,7 @@ a { color: inherit; text-decoration: none; }
   margin: 0 0 0.35rem;
   font-family: var(--font-display);
   font-size: 2.4rem;
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.02em;
   line-height: 1;
   color: var(--text);
@@ -602,7 +609,7 @@ h2 {
   margin: 0;
   font-family: var(--font-display);
   font-size: 2.2rem;
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.015em;
   line-height: 1.05;
   color: var(--text);
@@ -610,7 +617,7 @@ h2 {
 
 h3 {
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.01em;
 }
 
@@ -736,7 +743,7 @@ h3 {
 }
 
 .dashboard-card .name {
-  font-weight: 600;
+  font-weight: var(--poids-titre-semi);
   font-size: 1rem;
   letter-spacing: -0.01em;
   font-family: var(--font-display);
@@ -1725,7 +1732,7 @@ h3 {
 }
 .home-title-v2 {
   font-family: var(--font-display);
-  font-weight: 300;
+  font-weight: var(--poids-titre-leger);
   font-size: clamp(2rem, 4vw, 3rem);
   line-height: 1.1;
   margin: 0.2rem 0 0.8rem;
@@ -1789,7 +1796,7 @@ h3 {
   justify-content: space-between;
   margin-bottom: 0.8rem;
 }
-.home-section-head h2 { margin: 0; font-size: 1.25rem; font-family: var(--font-display); font-weight: 400; }
+.home-section-head h2 { margin: 0; font-size: 1.25rem; font-family: var(--font-display); font-weight: var(--poids-titre-normal); }
 .home-link {
   color: var(--accent);
   text-decoration: none;
@@ -1860,7 +1867,7 @@ h3 {
   padding: 1.2rem 1.4rem;
   margin-bottom: 2.5rem;
 }
-.home-info h2 { margin: 0 0 0.6rem; font-size: 1.05rem; font-family: var(--font); font-weight: 600; }
+.home-info h2 { margin: 0 0 0.6rem; font-size: 1.05rem; font-family: var(--font); font-weight: var(--poids-titre-semi); }
 .home-info-list {
   list-style: none;
   margin: 0;
@@ -2623,7 +2630,7 @@ body.p-dragging-active {
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.45rem;
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.01em;
   color: var(--text);
   line-height: 1.1;
@@ -3601,7 +3608,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.01em;
   color: var(--text);
 }
@@ -3705,7 +3712,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 /* Backward compat, anciennes classes (Promo block réutilise) */
 
 .config-section { background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; }
-.config-section h3 { margin: 0 0 0.75rem; font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; }
+.config-section h3 { margin: 0 0 0.75rem; font-family: var(--font-display); font-size: 1.5rem; font-weight: var(--poids-titre); }
 .config-section .count { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); }
 
 .config-list {
@@ -3853,7 +3860,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   margin: 0 0 1.25rem;
   font-size: 1.15rem;
   letter-spacing: -0.01em;
-  font-weight: 600;
+  font-weight: var(--poids-titre-semi);
 }
 
 .modal-form {
@@ -4539,7 +4546,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .sd-head h3 {
   margin: 0 0 0.3rem;
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: var(--poids-titre-normal);
   font-size: 1.7rem;
 }
 .sd-body {
@@ -4874,6 +4881,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .identity-modal { max-width: 480px; }
 .identity-modal h3 {
   font-family: var(--font-display);
+  font-weight: var(--poids-titre); /* règle dormante (aucune vue ne l'emploie) : poids hérité de h3, écrit pour la garde des titres */
   font-size: 1.6rem;
   margin: 0 0 0.35rem;
 }
@@ -4977,7 +4985,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .home-title {
   font-family: var(--font-display);
   font-size: clamp(2rem, 5vw, 3.5rem);
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.025em;
   line-height: 1.05;
   color: var(--text);
@@ -5025,7 +5033,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .home-section-title {
   font-family: var(--font-display);
   font-size: clamp(1.6rem, 3.5vw, 2.4rem);
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.02em;
   line-height: 1.1;
   margin: 0 0 2rem;
@@ -5062,7 +5070,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .home-feature h3 {
   font-family: var(--font);
   font-size: 1.05rem;
-  font-weight: 600;
+  font-weight: var(--poids-titre-semi);
   margin: 0;
   letter-spacing: -0.01em;
   color: var(--text);
@@ -5110,7 +5118,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 
 .home-rule h3 {
   font-family: var(--font);
-  font-weight: 600;
+  font-weight: var(--poids-titre-semi);
   font-size: 1.15rem;
   margin: 0 0 0.5rem;
   color: var(--text);

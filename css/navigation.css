@@ -956,7 +956,7 @@ body[data-nav="v2"] .p-aujourdhui { min-height: 44px; }
 body[data-nav="v2"] .bnv-page { max-width: 680px; }
 /* Après « Modifier », le formulaire est ramené en haut du bloc (scrollIntoView, js/views/benevoles.js) : sous l'en-tête collant du téléphone, pas derrière lui. */
 body[data-nav="v2"] .bnv-page { scroll-margin-top: calc(var(--haut-entete) + 8px); }
-body[data-nav="v2"] .bnv-page h3 { margin: 0 0 1.25rem; font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
+body[data-nav="v2"] .bnv-page h3 { margin: 0 0 1.25rem; font-size: 1.15rem; font-weight: var(--poids-titre-semi); letter-spacing: -0.01em; }
 body[data-nav="v2"] .bnv-page .field { min-width: 0; }
 body[data-nav="v2"] .bnv-page .field input,
 body[data-nav="v2"] .bnv-page .field select { width: 100%; min-width: 0; }

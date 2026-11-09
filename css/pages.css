@@ -44,7 +44,7 @@
   margin: 0;
   font-family: var(--font);
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: var(--poids-titre-semi);
   letter-spacing: 0;
 }
 .acc-carte-ico { display: inline-flex; color: var(--accent); }
@@ -427,7 +427,7 @@
 
 .wg-jour { background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px; }
 .wg-jour-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-bottom: 12px; }
-.wg-jour-tete h3 { margin: 0; font-family: var(--font); font-size: 1.05rem; font-weight: 600; }
+.wg-jour-tete h3 { margin: 0; font-family: var(--font); font-size: 1.05rem; font-weight: var(--poids-titre-semi); }
 .wg-auj { padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-strong); font-size: 0.8rem; font-weight: 500; }
 .wg-demi { display: flex; flex-direction: column; gap: 12px; }
 .wg-demi + .wg-demi { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }

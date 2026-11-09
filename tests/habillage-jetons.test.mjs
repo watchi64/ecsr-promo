@@ -20,6 +20,10 @@ import { PREFIXES_HABILLAGE, FAMILLES_FIXES, familleDe, correspond } from "../js
 //   6. CSS : une règle qui vise un document imprimé (feuille d'émargement, dossier Qualiopi, certificats et
 //      attestations, dossier professionnel) n'emploie aucune variable de la famille d'habillage, même en repli
 //      de var() : un document imprimé a le même aspect quelle que soit la personne qui l'imprime (décision H5).
+//   7. CSS : une règle qui prend la police des titres (var(--font-display)) en prend aussi le poids par un jeton
+//      --poids-titre*, et une déclaration font-weight numérique n'existe pas dans une règle qui vise h1, h2, h3 ou
+//      .display : l'habillage « Couleurs ECF » change la police des titres et remappe leurs poids en redéfinissant ces
+//      seules variables. Les documents imprimés (règle 6) gardent leurs jetons --doc-poids-titre* et sont laissés hors champ.
 // La cinquième règle est le cliquet lui-même.
 
 const RACINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -116,6 +120,29 @@ export function ecartsDocuments(fichier, texte) {
   return ecarts;
 }
 
+// Un sélecteur de la liste vise un titre : une balise h1, h2, h3 ou la classe .display, seuls ou en fin de composé.
+const VISE_TITRE = /(?:^|[\s>+~])(?:h[123]|\.display)(?![\w-])/;
+
+// Les écarts d'un fichier CSS à la règle 7 : { fichier, ligne, regle: 7, litteral }.
+export function ecartsPoidsTitres(fichier, texte) {
+  const ecarts = [];
+  for (const regle of lireRegles(texte)) {
+    if (SELECTEUR_DOCUMENT.test(regle.selecteur)) continue;
+    const poids = regle.declarations.filter((d) => d.propriete === "font-weight");
+    const jeton = (d) => /^var\(\s*--poids-titre[\w-]*\s*\)$/.test(d.valeur.trim());
+    const police = regle.declarations.some((d) => d.propriete === "font-family" && /var\(\s*--font-display/.test(d.valeur));
+    if (police && !poids.some(jeton)) {
+      ecarts.push({ fichier, ligne: regle.declarations.find((d) => d.propriete === "font-family").ligne, regle: 7, litteral: `police des titres sans poids en jeton dans « ${regle.selecteur} »` });
+    }
+    if (regle.selecteur.split(",").some((part) => VISE_TITRE.test(part.trim()))) {
+      for (const d of poids) {
+        if (!jeton(d)) ecarts.push({ fichier, ligne: d.ligne, regle: 7, litteral: `font-weight: ${d.valeur.trim()} dans « ${regle.selecteur} »` });
+      }
+    }
+  }
+  return ecarts;
+}
+
 // Les écarts d'un fichier JS à la règle 3 : couleurs hex, rgb, hsl non neutres, hors commentaires.
 export function ecartsJs(fichier, texte) {
   const ecarts = [];
@@ -197,7 +224,7 @@ function releveEcarts() {
   for (const f of listeFichiers("css", ".css", false)) {
     if (CSS_IGNORES.has(f)) continue;
     const texte = fs.readFileSync(path.join(RACINE, f), "utf8");
-    note(f, [...ecartsCss(f, texte), ...ecartsFamilles(f, texte), ...ecartsDocuments(f, texte)]);
+    note(f, [...ecartsCss(f, texte), ...ecartsFamilles(f, texte), ...ecartsDocuments(f, texte), ...ecartsPoidsTitres(f, texte)]);
   }
   for (const f of listeFichiers("js", ".js", true)) {
     if (estExemptJs(f)) continue;
@@ -206,7 +233,7 @@ function releveEcarts() {
   return parFichier;
 }
 
-const DECRIT = { 1: "couleur écrite en dur", 2: "variable de couleur hors :root", 3: "couleur écrite en dur (JS)", 4: "jeton sans famille", 6: "jeton d'habillage dans un document imprimé" };
+const DECRIT = { 1: "couleur écrite en dur", 2: "variable de couleur hors :root", 3: "couleur écrite en dur (JS)", 4: "jeton sans famille", 6: "jeton d'habillage dans un document imprimé", 7: "poids de titre en dur" };
 const decrit = (e) => `  ${e.fichier}:${e.ligne}  règle ${e.regle} (${DECRIT[e.regle]})  ${e.litteral}`;
 
 // --- Le cliquet (règle 5) ---
@@ -361,6 +388,21 @@ test("règle 6 : un document imprimé n'emploie aucun jeton d'habillage, même e
   ].join("\n");
   assert.deepEqual(ecartsDocuments("css/x.css", css).map((e) => [e.ligne, e.litteral.split(" ")[0]]),
     [[2, "--text"], [3, "--font-display"], [4, "--line"]]);
+});
+
+test("règle 7 : la police des titres exige un poids en jeton, et un titre n'a pas de font-weight numérique", () => {
+  const css = [
+    ".a { font-family: var(--font-display); font-weight: 700; }",
+    ".b { font-family: var(--font-display); font-weight: var(--poids-titre-leger); }",
+    ".c { font-family: var(--font-display); }",
+    ".d h3 { font-weight: 400; }",
+    ".e, .f .display { font-weight: var(--poids-titre); }",
+    ".g h2 { font-weight: 600; }",
+    ".qdoc h2 { font-family: var(--doc-police-titre); font-weight: var(--doc-poids-titre); }",
+    ".h { font-weight: 700; }",
+    ".display-x { font-weight: 700; }",
+  ].join("\n");
+  assert.deepEqual(ecartsPoidsTitres("css/x.css", css).map((e) => e.ligne), [1, 3, 4, 6]);
 });
 
 test("règle 3 : le JS refuse hex, rgb, hsl non neutres, ignore les commentaires et les chaînes d'adresse", () => {
