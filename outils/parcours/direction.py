@@ -186,6 +186,15 @@ def verifier_la_barre(v, espace):
         attendu = ('#tabs a.tab[href="#/planning"]' if v.navigation == "ancienne"
                    else 'a.nav-entree[href="#/planning"], a.nav-case[href="#/planning"], a.nav-onglet[href="#/planning"]')
     v.attendre(attendu, "la barre de l'espace %s" % ESPACE_DE_LA_BARRE[espace])
+    # Nouvelle navigation : la barre du stagiaire porte « Mon suivi » et jamais « Stagiaires » ; celle de l'équipe l'inverse. (L'ancienne
+    # barre est la même pour les deux : rien à y distinguer.)
+    if v.navigation == "nouvelle" and espace in ("stagiaire", "equipe"):
+        entrees = ":is(a.nav-onglet, a.nav-entree, a.nav-case)"
+        propre = 'a[href="#/mon-suivi"]' if espace == "stagiaire" else 'a[href="#/stagiaires"]'
+        etranger = 'a[href="#/stagiaires"]' if espace == "stagiaire" else 'a[href="#/mon-suivi"]'
+        v.attendre(entrees + propre, "l'entrée propre à la barre de l'espace %s" % ESPACE_DE_LA_BARRE[espace])
+        if v.voit(entrees + etranger):
+            v.constat("D", BLOQUE, "la barre de l'espace %s porte encore l'entrée d'un autre espace" % ESPACE_DE_LA_BARRE[espace], capture=True)
     if espace in ("direction", "siege") and v.voit("#tabs a.tab"):
         v.constat("D", BLOQUE, "l'ancienne barre reste affichée dans l'espace %s" % ESPACE_DE_LA_BARRE[espace], capture=True)
     v.espace = espace
@@ -243,7 +252,7 @@ def direction_ailleurs(v):
 
 # --- Voir en tant que (P5) ---------------------------------------------------------------------------------------------------------
 
-APERCUS = [("Direction", "direction", "Direction du centre"), ("Siège", "siege", "Siège du réseau"),
+APERCUS = [("Direction", "direction", "Direction du centre %s"), ("Siège", "siege", "Siège du réseau"),
            ("Formateur", "equipe", "Formateur"), ("Stagiaire", "stagiaire", "Stagiaire")]
 
 
@@ -255,8 +264,10 @@ def choisir_un_apercu(v, bouton, espace, libelle_bandeau, compter=False):
     v.attendre("#impersonation-banner", "le bandeau d'aperçu")
     verifier_la_barre(v, espace)
     bandeau = v.texte("#impersonation-banner")
-    if libelle_bandeau not in bandeau:
-        v.constat("D", BLOQUE, "le bandeau d'aperçu « %s » ne dit pas « %s »" % (bandeau.replace("\n", " ")[:80], libelle_bandeau), capture=True)
+    # Le rôle est le mot en gras du bandeau : on le compare en entier (« Stagiaire » ne passe pas pour « Formateur »).
+    dit = v.page.locator("#impersonation-banner strong").first.inner_text().strip()
+    if dit != libelle_bandeau:
+        v.constat("D", BLOQUE, "le bandeau d'aperçu dit « %s » au lieu de « %s »" % (dit[:60], libelle_bandeau), capture=True)
 
 
 def revenir_fondateur(v):
@@ -270,10 +281,10 @@ def promos_affichees(v):
     return sorted(int(x) for x in v.page.evaluate("() => [...document.querySelectorAll('#view .promo-carte')].map((e) => e.dataset.promo)"))
 
 
-def jouer_les_apercus(v, promos_attendues):
+def jouer_les_apercus(v, promos_attendues, centre):
     """Les quatre aperçus, puis le retour ; en aperçu Direction, seules les promos du centre de la promo affichée sont montrées."""
     for i, (bouton, espace, libelle) in enumerate(APERCUS):
-        choisir_un_apercu(v, bouton, espace, libelle, compter=(i == 0))
+        choisir_un_apercu(v, bouton, espace, libelle % centre if "%s" in libelle else libelle, compter=(i == 0))
         if i == 0:
             v.but("aperçu Direction")
         if espace == "direction":
@@ -293,7 +304,7 @@ def jouer_les_apercus(v, promos_attendues):
 def apercus_promo_1(v):
     """Promo 1 (Nîmes) : les quatre aperçus, la barre et le bandeau justes, puis « Revenir fondateur » ; l'aperçu Direction ne montre que
     les promos de Nîmes (pas celle du centre de démonstration, que le compte lit aussi)."""
-    jouer_les_apercus(v, [1, 2])
+    jouer_les_apercus(v, [1, 2], "Nîmes")
 
 
 @parcours("apercus-du-fondateur-promo-7", "P5 · Le fondateur voit en tant que Direction, Siège, Formateur, Stagiaire (promo 7, allumée)",
@@ -301,7 +312,7 @@ def apercus_promo_1(v):
           semis=("FIXTURES.settings.push({ key: 'navigation_v2', value: String(PARAMS_BANC.get('nav2') === '1'), promo_id: 7 });",))
 def apercus_promo_7(v):
     """Promo 7 (centre de démonstration, interrupteur allumé) : mêmes aperçus ; l'aperçu Direction ne montre que la promo 7."""
-    jouer_les_apercus(v, [7])
+    jouer_les_apercus(v, [7], "Démonstration")
 
 
 # --- Une adresse tapée hors de son espace (P6, P7), la porte (P8), la fiche d'un autre centre (P9) -------------------------------
@@ -393,6 +404,9 @@ def fiche_d_un_autre_centre(v):
 # --- La base en panne (P10) --------------------------------------------------------------------------------------------------------
 
 
+PHRASE_CONNEXION = "La connexion a échoué. Vérifie le réseau, puis réessaie."
+
+
 def exiger_une_phrase_dans_la_fenetre(v, quoi):
     """Dans la fenêtre restée ouverte, une phrase de refus est écrite en moins de 2 s (critère E). Rend la phrase."""
     try:
@@ -401,9 +415,9 @@ def exiger_une_phrase_dans_la_fenetre(v, quoi):
         v.constat("E", BLOQUE, "%s : aucune phrase d'échec dans la fenêtre en 2 s" % quoi, capture=True)
         return ""
     phrase = v.page.locator(".modal .promo-refus").first.inner_text().strip()
-    # Une coupure de réseau vue de la base s'écrit « TypeError: Failed to fetch » : une phrase, mais pas du français pour l'utilisateur.
-    if re.search(r"TypeError|Failed to fetch|NetworkError|undefined|\[object", phrase):
-        v.constat("F", LISTE, "%s : la phrase d'échec est technique (« %s ») au lieu de dire que la connexion a lâché" % (quoi, phrase[:60]))
+    # Une coupure de réseau se dit en français : jamais le texte technique de la requête.
+    if phrase != PHRASE_CONNEXION:
+        v.constat("E", BLOQUE, "%s : la phrase d'échec est « %s » au lieu de « %s »" % (quoi, phrase[:70], PHRASE_CONNEXION), capture=True)
     return phrase
 
 

@@ -10,6 +10,7 @@ from .navigation import texte
 from .visite import BLOQUE, LISTE
 
 DEPART = "#/directions"
+PHRASE_CHIFFRES = "Les chiffres du réseau n'ont pas pu être chargés."
 # Le banc : Nîmes (6 en formation), Montpellier (12), Alès (3, donc masqué), le centre de démonstration (hors totaux).
 BANC_SIEGE = {"compte": "siege"}
 
@@ -105,15 +106,21 @@ def tour_du_reseau(v):
 def panne_chiffres(v):
     """comptes_reseau en panne : la Vue d'ensemble dit que les chiffres n'ont pas pu être chargés et propose « Réessayer » ; la base
     revenue, « Réessayer » affiche les chiffres. Les autres pages du siège restent ouvertes."""
-    v.console_attendue("TypeError: Failed to fetch")
+    v.console_attendue("TypeError: Failed to fetch", 3)      # trois lignes observées (la lecture de la Vue d'ensemble et ses relances)
     v.aller("Vue d'ensemble")
     attendre_page(v, "Vue d'ensemble")
     v.attendre('#view .centre-erreur[role="alert"]', "la phrase d'échec des chiffres")
     v.but("phrase d'échec")
-    if "n'ont pas pu être chargés" not in v.texte("#view .centre-erreur"):
-        v.constat("E", BLOQUE, "la phrase d'échec des chiffres ne dit pas qu'ils n'ont pas pu être chargés", capture=True)
-    v.etape("« Réessayer » avec la base toujours en panne")
+    phrase = v.texte("#view .centre-erreur p").strip()
+    if phrase != PHRASE_CHIFFRES:
+        v.constat("E", BLOQUE, "la phrase d'échec des chiffres est « %s » au lieu de « %s »" % (phrase[:70], PHRASE_CHIFFRES), capture=True)
+    v.etape("« Réessayer » avec la base toujours en panne : la lecture est relancée")
+    avant = v.page.evaluate("() => (window.__HARNESS_PANNES_VUES || {}).comptes_reseau || 0")
     v.toucher(texte("Réessayer", "#view button"), "« Réessayer »", compte=False, attendu_effet=False)
+    try:
+        v.page.wait_for_function("(n) => ((window.__HARNESS_PANNES_VUES || {}).comptes_reseau || 0) > n", arg=avant, timeout=3000)
+    except Exception:
+        v.constat("E", BLOQUE, "« Réessayer » ne relance pas la lecture des chiffres (aucune nouvelle requête)", capture=True)
     v.attendre('#view .centre-erreur[role="alert"]', "la phrase d'échec après « Réessayer »")
     v.etape("la base revient")
     v.page.evaluate("() => { window.__HARNESS_PANNE_FONCTIONS = []; }")
@@ -129,7 +136,7 @@ def panne_chiffres(v):
           banc={"compte": "siege", "panne": "inviter_compte"}, navigations=NOUVELLE, depart=DEPART)
 def panne_inviter_direction(v):
     """inviter_compte en panne : la fenêtre reste ouverte avec sa saisie et dit que l'invitation n'a pas abouti."""
-    v.console_attendue("TypeError: Failed to fetch")
+    v.console_attendue("La connexion a échoué")        # inviteUser écrit sa phrase française dans la console
     attendre_page(v, "Directions de centre")        # la page de départ
     v.but("page Directions de centre")
     v.toucher(texte("Inviter une direction", "#view button.btn.primary, #view .view-header button"), "« Inviter une direction »", compte=False)

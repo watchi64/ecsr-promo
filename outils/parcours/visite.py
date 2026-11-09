@@ -506,9 +506,9 @@ class Visite:
         """Toute lecture ou écriture du faux Supabase échoue jusqu'à `retablir()`."""
         self.page.evaluate("(m) => { window.__HARNESS_FAIL = m; }", message)
 
-    def console_attendue(self, morceau):
-        """Le parcours provoque une panne : l'app écrit cet échec dans la console, ce n'est pas un défaut (critère J)."""
-        self.erreurs_attendues.append(morceau)
+    def console_attendue(self, morceau, fois=1):
+        """Le parcours provoque une panne : l'app écrit cet échec dans la console (au plus `fois` lignes), ce n'est pas un défaut (critère J)."""
+        self.erreurs_attendues.append((morceau, fois))
 
     def retablir(self):
         self.page.evaluate("() => { window.__HARNESS_FAIL = null; }")
@@ -632,7 +632,16 @@ class Visite:
         """Fin du parcours : capture pour la planche (attrait visuel), sortie visible, erreurs de la console."""
         self.etape("fin")
         # Une panne jouée exprès fait écrire l'échec dans la console par l'app : ces lignes-là, déclarées par le parcours, ne comptent pas.
-        self.erreurs_console[:] = [e for e in self.erreurs_console if not any(m in e for m in self.erreurs_attendues)]
+        # Chaque déclaration couvre au plus `fois` lignes : une erreur de même texte venant d'ailleurs (au chargement) reste un défaut.
+        restant = [[m, n] for m, n in self.erreurs_attendues]
+        gardees = []
+        for e in self.erreurs_console:
+            cas = next((r for r in restant if r[1] > 0 and r[0] in e), None)
+            if cas:
+                cas[1] -= 1
+            else:
+                gardees.append(e)
+        self.erreurs_console[:] = gardees
         self.capture_finale = self.capturer("fin")
         if self.parcours.ouverture != "porte":      # la porte de connexion n'a pas de barre de navigation
             self.verifier_sortie()
