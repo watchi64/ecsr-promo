@@ -187,6 +187,50 @@ test("trois démarrages sur un appareil vierge : défaut, puis centre ecf, puis 
   assert.deepEqual(e.appels, []);
 });
 
+test("démarrage : un choix fait pendant un envoi lent n'est pas écrasé par le démarrage", async () => {
+  const e = env({ [CLE_APPAREIL]: '{"nom":"ecf","email":"A@x.fr","aEnvoyer":true,"choisi":true}' });
+  // Le premier envoi (celui du démarrage) ne revient qu'une fois le choix fait ; les suivants tout de suite.
+  let liberer;
+  const lent = new Promise((r) => { liberer = r; });
+  let premier = true;
+  e.deps.enregistrer = async (nom) => {
+    e.appels.push(nom);
+    if (premier) { premier = false; await lent; }
+    return nom;
+  };
+  const demarrage = habillageAuDemarrage({ email: "A@x.fr", compte: null }, e.deps);
+  await new Promise((r) => setImmediate(r));   // le démarrage attend son envoi
+  assert.deepEqual(e.appels, ["ecf"]);
+  assert.deepEqual(await choisirHabillage("ecsr", e.deps), { nom: "ecsr", enregistre: true });
+  liberer();
+  assert.equal(await demarrage, "ecf");
+  assert.equal(habillageCourant(e.deps), "ecsr");
+  assert.deepEqual(e.appels, ["ecf", "ecsr"]);
+  assert.deepEqual(appareilDe(e), { nom: "ecsr", email: "A@x.fr", aEnvoyer: false, choisi: true });
+});
+
+test("démarrage : un choix fait pendant un envoi qui échoue n'est pas écrasé non plus", async () => {
+  const e = env({ [CLE_APPAREIL]: '{"nom":"ecf","email":"A@x.fr","aEnvoyer":true,"choisi":true}' });
+  let liberer;
+  const lent = new Promise((r) => { liberer = r; });
+  let premier = true;
+  e.deps.enregistrer = async (nom) => {
+    e.appels.push(nom);
+    if (premier) { premier = false; await lent; throw new Error("réseau"); }
+    return nom;
+  };
+  const avant = console.warn;
+  console.warn = () => {};
+  try {
+    const demarrage = habillageAuDemarrage({ email: "A@x.fr", compte: null }, e.deps);
+    await new Promise((r) => setImmediate(r));
+    await choisirHabillage("ecsr", e.deps);
+    liberer();
+    await demarrage;
+  } finally { console.warn = avant; }
+  assert.deepEqual(appareilDe(e), { nom: "ecsr", email: "A@x.fr", aEnvoyer: false, choisi: true });
+});
+
 test("démarrage : sans stockage, l'habillage est quand même appliqué", async () => {
   const e = env({}, { stockage: { leve: true } });
   assert.equal(await habillageAuDemarrage({ email: "A@x.fr", compte: "ecf" }, e.deps), "ecf");

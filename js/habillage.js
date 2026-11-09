@@ -73,21 +73,32 @@ export async function habillageAuDemarrage({ email, compte, centre, reseau, libr
   const appareil = lireStockage(deps);
   const retenu = habillageRetenu({ appareil, compte, email, centre, reseau, libre });
   appliquerHabillage(retenu.nom, deps);
-  let envoiEchoue = false;
-  if (retenu.envoi !== null) {
-    try { await (await enregistrerDe(deps))(retenu.envoi); }
-    catch (e) {
-      envoiEchoue = true;
-      console.warn("Habillage : enregistrement sur le compte impossible, il sera retenté au prochain démarrage", e);
-    }
-  }
   // L'appareil garde toujours le dernier habillage appliqué (l'avant-peinture l'affiche sans éclair),
   // mais n'en fait un choix personnel que si la personne l'a fait (appareil) ou le compte le dit.
-  ecrireStockage(deps, {
+  // Écrit avant l'envoi, « à envoyer » tant qu'il n'est pas parti : un choix fait pendant un envoi lent
+  // (menu du compte) écrit l'appareil après lui, et ce démarrage ne le réécrit jamais avec son nom d'avant.
+  const ecrit = {
     nom: retenu.nom,
     email: email ?? null,
     choisi: retenu.source === "appareil" || retenu.source === "compte",
-    aEnvoyer: retenu.source === "appareil" && envoiEchoue,
-  });
+    aEnvoyer: retenu.source === "appareil" && retenu.envoi !== null,
+  };
+  ecrireStockage(deps, ecrit);
+  if (retenu.envoi !== null) {
+    try {
+      await (await enregistrerDe(deps))(retenu.envoi);
+      // Parti : plus rien à envoyer, à condition que l'appareil dise encore ce que ce démarrage y a écrit.
+      // Sinon un choix a été fait entre-temps, avec son propre envoi : il reste tel quel.
+      const maintenant = lireStockage(deps);
+      // Comparé tel qu'il se relit (lireAppareil normalise e-mail vide et « à envoyer »).
+      const relu = lireAppareil(ecrireAppareil(ecrit));
+      if (ecrit.aEnvoyer && maintenant && relu && ecrireAppareil(maintenant) === ecrireAppareil(relu)) {
+        ecrireStockage(deps, { ...ecrit, aEnvoyer: false });
+      }
+    } catch (e) {
+      // L'appareil dit déjà « à envoyer » : le choix repartira au prochain démarrage.
+      console.warn("Habillage : enregistrement sur le compte impossible, il sera retenté au prochain démarrage", e);
+    }
+  }
   return retenu.nom;
 }
