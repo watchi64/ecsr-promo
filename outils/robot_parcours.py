@@ -20,7 +20,12 @@ Sortie : une ligne par passage, puis le rapport (rapport.md, planche.html des é
 l'attrait visuel, resultats.json, captures) dans outils/robot_rapports/<date-heure>/ (ignoré par git :
 les captures montrent les données fictives du banc). Code de sortie : 0 (vert) si aucun défaut bloquant
 nouveau, 1 (rouge) s'il y en a, 2 si le robot n'a pas pu juger : option inconnue, aucun passage joué, banc
-ou moteur qui ne démarre pas, passage manquant.
+ou moteur qui ne démarre pas, passage manquant ou non jugé.
+
+Clavier : ne pas taper pendant que le robot tourne. Dans WebKit sous Windows, une touche Maj, Ctrl ou Alt tenue sur
+la machine fausse les touchers du format téléphone (un lien ne s'ouvre plus). Le robot attend un clavier libre
+avant de toucher et rejoue un passage faussé ; s'il l'est encore trois fois de suite, le passage est « non jugé ».
+Contrôle de ce mécanisme : python outils/controle_toucher.py [--clavier].
 
 Prérequis : Python avec Playwright (pip install playwright), node (pour régénérer _harness.html), et les
 fichiers du banc (_harness_build.mjs, _harness_supabase.js, _banc_*.js), exclus de git : recopiés tout
@@ -47,7 +52,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from parcours import charger_tous  # noqa: E402
 from parcours import banc  # noqa: E402
-from parcours.visite import Visite, Echec, CRITERES, BLOQUE, LISTE  # noqa: E402
+from parcours.visite import Visite, Echec, Fausse, CRITERES, BLOQUE, LISTE  # noqa: E402
 from parcours.connus import connu, attendu_dans, DEFAUTS_CONNUS  # noqa: E402
 
 MOTEURS = ("chromium", "webkit")
@@ -70,8 +75,29 @@ def libelle(sc):
     return base + " · Couleurs ECF" if sc.get("habillage", "ecsr") == "ecf" else base
 
 
+ESSAIS_MAX = 3   # un passage faussé par le clavier de la machine trois fois de suite est « non jugé »
+
+
 def jouer_un(navigateur, p, sc, base_url, dossier):
-    """Joue un parcours dans un contexte neuf ; rend le résultat (dictionnaire sérialisable)."""
+    """Joue un parcours ; rend le résultat (dictionnaire sérialisable). Un passage dont un geste a été faussé par le
+    clavier de la machine (visite.Fausse) ne dit rien de l'app : il est rejoué dans un contexte neuf, clavier libre,
+    et seul le dernier essai compte. Faussé ESSAIS_MAX fois de suite, il est « non jugé » : ni vert ni rouge."""
+    reprises = []
+    for _ in range(ESSAIS_MAX):
+        if sc["moteur"] == "webkit" and sc["format"] == "telephone":
+            banc.attendre_clavier_libre(30)
+        r = _jouer_une_fois(navigateur, p, sc, base_url, dossier)
+        if "fausse" not in r:
+            r["reprises"] = reprises
+            return r
+        reprises.append(r["fausse"])
+    return {"parcours": p.id, **sc, "abouti": False, "non_juge": "geste faussé %d fois par le clavier de la machine (dernier : %s)"
+            % (len(reprises), reprises[-1]), "reprises": reprises, "clics": 0, "clics_au_but": None, "budget": None, "duree": 0,
+            "ouverture_ms": None, "etapes": [], "constats": [], "capture_finale": None}
+
+
+def _jouer_une_fois(navigateur, p, sc, base_url, dossier):
+    """Un essai du parcours dans un contexte neuf. Rend {"fausse": raison} si un geste a été faussé."""
     erreurs = []
     contexte = banc.nouveau_contexte(navigateur, sc["format"], p.semis, sc.get("habillage", "ecsr"))
     contexte.set_default_timeout(10000)    # aucun geste ne reste pendu plus de 10 s
@@ -92,6 +118,12 @@ def jouer_un(navigateur, p, sc, base_url, dossier):
         p.fonction(v)
         if not v.but_atteint:
             raise Echec("le parcours s'est terminé sans atteindre son but")
+    except Fausse as e:
+        try:
+            contexte.close()
+        except Exception:
+            pass
+        return {"fausse": str(e)}
     except Echec as e:
         abouti, raison = False, str(e)
     except Exception as e:  # une erreur du robot lui-même : on la montre comme telle
@@ -134,11 +166,15 @@ def travailleur(moteur, format_, scenarios, base_url, dossier):
                      "capture_finale": None, "constats": [{"critere": "A", "gravite": BLOQUE, "etape": "lancement",
                                                            "message": "erreur du navigateur : %s" % str(e).splitlines()[0][:200]}]}
             resultats.append(r)
+            if r.get("non_juge"):
+                print("  ?    %-32s %-34s non jugé : %s" % (r["parcours"], libelle(r), r["non_juge"]), flush=True)
+                continue
             bloquants = [c for c in r["constats"] if c["gravite"] == BLOQUE]
             nouveaux = [c for c in bloquants if not connu(r, c)]
             marque = "ÉCHEC" if nouveaux or not r["abouti"] else ("connu" if bloquants else "ok  ")
-            print("  %s %-32s %-34s %s/%s clics  %4.1f s" % (marque, r["parcours"], libelle(r), r["clics_au_but"] if r["clics_au_but"] is not None else "-",
-                                                        r["budget"], r["duree"]), flush=True)
+            print("  %s %-32s %-34s %s/%s clics  %4.1f s%s" % (marque, r["parcours"], libelle(r), r["clics_au_but"] if r["clics_au_but"] is not None else "-",
+                                                          r["budget"], r["duree"],
+                                                          "  (rejoué : clavier de la machine)" if r.get("reprises") else ""), flush=True)
         navigateur.close()
     return {"erreur": None, "resultats": resultats}
 
@@ -165,7 +201,7 @@ def git_info():
         return "?", "?"
 
 
-def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, attendus):
+def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, attendus, non_juges=()):
     branche, tete = git_info()
     tous_bloquants = [(r, c) for r in resultats for c in r["constats"] if c["gravite"] == BLOQUE]
     # Un défaut déjà présent sur main (parcours/connus.py) est montré à part et ne bloque pas.
@@ -182,14 +218,24 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, 
     L.append("")
     L.append("**Résultat : %s** : %d défaut(s) bloquant(s) nouveau(x) dans %d passage(s) ; %d défaut(s) connu(s) de main "
              "(ne bloquent pas) ; %d constat(s) distinct(s) à corriger par lot." % (
-        "VERT" if vert else "ROUGE", len(bloquants), len({id(r) for r, _ in bloquants}),
+        "VERT" if vert else ("ROUGE" if bloquants else "INCOMPLET"), len(bloquants), len({id(r) for r, _ in bloquants}),
         len({d["contient"] for _, _, d in deja_connus}), len({(c["critere"], c["message"]) for _, c in a_lister})))
     for e in erreurs_moteurs:
         L.append("")
         L.append("**Moteur indisponible** : %s" % e)
-    if manquants:
+    if manquants - len(non_juges):
         L.append("")
-        L.append("**%d passage(s) prévu(s) n'ont pas été joués** : le résultat ne peut pas être vert." % manquants)
+        L.append("**%d passage(s) prévu(s) n'ont pas été joués** : le résultat ne peut pas être vert." % (manquants - len(non_juges)))
+    for r in non_juges:
+        L.append("")
+        L.append("**Passage non jugé** : %s (%s), %s. Le résultat ne peut pas être vert : relancer le robot sans taper au "
+                 "clavier pendant qu'il tourne." % (r["parcours"], libelle(r), r["non_juge"]))
+    rejoues = [r for r in resultats if r.get("reprises")]
+    if rejoues:
+        L.append("")
+        L.append("%d passage(s) rejoué(s) : un geste y avait reçu une touche (Maj, Ctrl, Alt) tenue sur le clavier de la machine, "
+                 "ce qui fausse un toucher dans WebKit ; seul le dernier essai, clavier libre, compte (%s)." % (
+                     len(rejoues), ", ".join("%s, %s" % (r["parcours"], libelle(r)) for r in rejoues)))
     L.append("")
     L.append("Dimensions jouées : moteurs %s ; formats %s ; navigations %s ; habillages %s." % tuple(
         ", ".join(sorted({r[k] for r in resultats})) for k in CLES_SCENARIO))
@@ -273,7 +319,7 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, 
             L.append("- %s (%d fois ; %s ; %s)" % (msg, len(occ), ou, ", ".join(ctx)))
         L.append("")
     (dossier / "rapport.md").write_text("\n".join(L) + "\n", encoding="utf-8")
-    (dossier / "resultats.json").write_text(json.dumps(resultats, ensure_ascii=False, indent=1), encoding="utf-8")
+    (dossier / "resultats.json").write_text(json.dumps(list(resultats) + list(non_juges), ensure_ascii=False, indent=1), encoding="utf-8")
     # Planche : l'écran de fin de chaque passage, pour juger l'attrait visuel (critère K) à l'œil.
     cartes = []
     for r in sorted(resultats, key=lambda r: (r["parcours"], r["navigation"], r["format"], r["moteur"], r["habillage"])):
@@ -372,14 +418,27 @@ def main(argv=None):
         serveur.server_close()
     duree = time.perf_counter() - t0
 
+    resultats, non_juges = separer_non_juges(resultats)
     ecarts_entre_moteurs(resultats)
-    vert, nb = ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, total)
+    vert, nb = ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, total, non_juges)
     incomplet = erreurs_moteurs or len(resultats) < total
     print("\n%d passages sur %d en %.1f min. %s" % (len(resultats), total, duree / 60,
           "VERT : aucun défaut bloquant nouveau." if vert else
-          ("INCOMPLET : %d passage(s) non joué(s)." % (total - len(resultats)) if incomplet and not nb else "ROUGE : %d défaut(s) bloquant(s)." % nb)))
+          ("INCOMPLET : %d passage(s) non joué(s) ou non jugé(s)." % (total - len(resultats)) if incomplet and not nb
+           else "ROUGE : %d défaut(s) bloquant(s)." % nb)))
     print("Rapport : %s" % (dossier / "rapport.md"))
     print("Planche des écrans de fin : %s" % (dossier / "planche.html"))
+    return code_de_sortie(vert, nb)
+
+
+def separer_non_juges(resultats):
+    """(passages jugés, passages non jugés). Un passage non jugé (geste faussé par le clavier de la machine à chaque
+    essai) ne compte ni comme vert ni comme rouge : il manque aux passages jugés, et le résultat est incomplet."""
+    return [r for r in resultats if not r.get("non_juge")], [r for r in resultats if r.get("non_juge")]
+
+
+def code_de_sortie(vert, nb):
+    """0 vert ; 1 rouge (défaut bloquant nouveau) ; 2 le robot n'a pas pu juger (passage manquant ou non jugé)."""
     if vert:
         return 0
     return 1 if nb else 2
