@@ -42,3 +42,21 @@ test("extraireEvenements tolere les fins de ligne CRLF", () => {
   const r = extraireEvenements("", 'data: {"type":"fin"}\r\n\r\n');
   assert.deepEqual(r.evenements, [{ type: "fin" }]);
 });
+
+test("corpsRequete : l'espace accompagne la requête, la direction et le siège ont toujours la nouvelle barre (D4)", () => {
+  const histo = [{ role: "user", content: "Où sont mes promos ?" }];
+  assert.deepEqual(corpsRequete(histo, "#/promos", false, "direction"), {
+    messages: [{ role: "user", content: "Où sont mes promos ?" }], page: "promos", navigation: "nouvelle", espace: "direction",
+  });
+  assert.equal(corpsRequete(histo, "#/reseau", false, "siege").navigation, "nouvelle");
+  assert.equal(corpsRequete(histo, "#/reseau", false, "siege").espace, "siege");
+  // Formateur et stagiaire : la barre vient de la navigation, l'espace est joint.
+  assert.equal(corpsRequete(histo, "#/home", false, "equipe").navigation, "ancienne");
+  assert.equal(corpsRequete(histo, "#/home", true, "equipe").navigation, "nouvelle");
+  assert.equal(corpsRequete(histo, "#/home", true, "stagiaire").espace, "stagiaire");
+  // Un espace absent ou inconnu n'est pas envoyé : le corps est celui d'avant.
+  for (const v of [undefined, null, "", "Direction", "admin", 3, {}]) {
+    assert.ok(!("espace" in corpsRequete(histo, "#/home", true, v)), JSON.stringify(v));
+  }
+  assert.deepEqual(Object.keys(corpsRequete(histo, "#/home", true)).sort(), ["messages", "navigation", "page"]);
+});

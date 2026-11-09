@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
   const user = userData?.user;
   if (!user) return reponseJson({ error: "Non authentifie" }, 401);
 
-  let corps: { messages?: unknown; page?: unknown; navigation?: unknown };
+  let corps: { messages?: unknown; page?: unknown; navigation?: unknown; espace?: unknown };
   try { corps = await req.json(); } catch { return reponseJson({ error: "JSON invalide" }, 400); }
   const messagesBruts = Array.isArray(corps.messages) ? corps.messages.slice(-8) : [];
   const pageBrute = String(corps.page ?? "");
@@ -104,8 +104,9 @@ Deno.serve(async (req) => {
     }, 429);
   }
 
-  // Le guide decrit la barre que voit la personne (champ absent d'une app en cache : l'ancienne).
-  const systeme = { role: "system", content: construirePromptSysteme({ aide: consignesApp(corps.navigation), page }) };
+  // Le guide decrit la barre que voit la personne (champ absent d'une app en cache : l'ancienne) ; l'espace (direction, siege)
+  // choisit le guide de son espace.
+  const systeme = { role: "system", content: construirePromptSysteme({ aide: consignesApp(corps.navigation, corps.espace), page }) };
   const encodeur = new TextEncoder();
   // Le client peut fermer le panneau en pleine generation : plus aucune ecriture
   // ensuite, et la boucle s'arrete au prochain point de controle.

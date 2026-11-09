@@ -11,6 +11,7 @@ import { icon } from "./icons.js?v=20261109a";
 import { corpsRequete, extraireEvenements } from "./chatbot-rules.js?v=20261109a";
 import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261109a";
 import { navigationV2Active } from "./nav-etat.js?v=20261109a";
+import { getEspace } from "./auth-admin.js?v=20261109a";
 
 const CLE_HISTO = "chatbot_histo";
 let histo = [];
@@ -124,7 +125,7 @@ async function envoyerQuestion(question, msgs) {
         apikey: SUPABASE_KEY,
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify(corpsRequete(histo, location.hash, navigationV2Active())),
+      body: JSON.stringify(corpsRequete(histo, location.hash, navigationV2Active(), getEspace())),
     });
 
     if (resp.status === 429) {

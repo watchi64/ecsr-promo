@@ -43,11 +43,26 @@ export function triees(entrees) {
 // `navigation: "nouvelle"` n'est visible que nouvelle navigation allumée (`navigationV2`, js/nav-etat.js), une entrée
 // `navigation: "ancienne"` que si elle est éteinte (elle ne décrit que l'ancienne barre) ; sans ce champ, l'entrée se lit
 // dans les deux. Le défaut est l'ancienne navigation : un appelant d'avant la refonte ne voit rien changer.
-export function visibles(entrees, formateur, navigationV2 = false) {
-  return entrees.filter((e) => (e.pour !== "formateurs" || !!formateur)
-    && (e.pour !== "stagiaires" || !formateur)
-    && (e.navigation !== "nouvelle" || !!navigationV2)
-    && (e.navigation !== "ancienne" || !navigationV2));
+//
+// Lot 5, `espace` (« stagiaire », « equipe », « direction » ou « siege » ; l'espace affiché, l'aperçu du fondateur compris) :
+//   - « direction » et « siege » ne se lisent que dans cet espace (sans `espace`, nulle part) ;
+//   - « formateurs » ne se lit que dans l'espace formateur : leurs liens mènent à des pages de cet espace, que la direction et le
+//     siège n'ont pas ;
+//   - « stagiaires » ne se lit que dans l'espace stagiaire ;
+//   - « tous » ne change pas.
+// Un appelant qui ne passe pas `espace` garde la règle d'avant (formateur ou non).
+export function visibles(entrees, formateur, navigationV2 = false, espace = undefined) {
+  const ditEspace = espace !== undefined && espace !== null;
+  return entrees.filter((e) => {
+    if (e.pour === "direction" || e.pour === "siege") {
+      if (espace !== e.pour) return false;
+    } else if (e.pour === "formateurs") {
+      if (!formateur || (ditEspace && espace !== "equipe")) return false;
+    } else if (e.pour === "stagiaires") {
+      if (formateur || (ditEspace && espace !== "stagiaire")) return false;
+    }
+    return (e.navigation !== "nouvelle" || !!navigationV2) && (e.navigation !== "ancienne" || !navigationV2);
+  });
 }
 
 // Étapes « Comment faire » d'une entrée selon la navigation : `guideNouvelle` (facultatif) remplace `guide` quand la nouvelle

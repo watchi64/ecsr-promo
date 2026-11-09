@@ -6,7 +6,7 @@
 // fichier seul qu'on rebranche. Les règles vivent dans js/modules.js, le
 // catalogue dans js/modules-data.js.
 import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261109a";
-import { isAdmin, isProf, isEquipe, isFounder, getAdminEmail } from "./auth-admin.js?v=20261109a";
+import { isAdmin, isProf, isEquipe, isFounder, getAdminEmail, getEspace } from "./auth-admin.js?v=20261109a";
 import { icon } from "./icons.js?v=20261109a";
 import {
   MODULES, MODULE_DE_ROUTE, MODULE_DE_SOUS_ONGLET, REGLAGE_OUVERT_AUX_FORMATEURS,
@@ -198,7 +198,7 @@ function nouveautesDeLaPromo() {
 // compris, comme la barre), une entrée qui ne décrit que l'ancienne barre qu'éteinte : la
 // page, la section d'Accueil et la pastille du compte comptent donc les mêmes entrées.
 export function nouveautesAffichables() {
-  const entrees = triees(visibles(nouveautesDeLaPromo(), formateurConnecte(), navigationV2Active()));
+  const entrees = triees(visibles(nouveautesDeLaPromo(), formateurConnecte(), navigationV2Active(), getEspace()));
   // Amorce à la date de la promo affichée (spec multi-promo C.6).
   const vues = vuesEffectives(toutesLesNouveautes(), amorcePour(getPromoCourante()?.date_debut));
   const neuves = new Set(nonLues(entrees, vues).map((e) => e.id));

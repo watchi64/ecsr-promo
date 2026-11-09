@@ -40,7 +40,7 @@ BARRE DES FORMATEURS : sur ordinateur, une barre à gauche, avec la promo en tê
 
 CE QUI S'OUVRE AU FIL DE LA FORMATION : les formateurs choisissent ce que voit la promo (Réglages, Ce que voient les stagiaires). Si un stagiaire ne trouve pas une page ou une partie citée ici, elle n'est peut-être pas encore ouverte pour sa promo.
 
-COMPTE (initiales en haut à droite ; formateurs sur ordinateur : en bas de la barre de gauche) : Nouveautés (un point sur les initiales signale celles qui ne sont pas lues, leur nombre est dans le menu), Contacts du centre (pour prévenir d'une absence), Mes préférences, Actualiser (relit les données de l'app), Signaler un problème (stagiaires), Informations légales et Se déconnecter. Une personne qui a une fiche de stagiaire et la barre des formateurs y retrouve aussi Mon suivi.
+COMPTE (initiales en haut à droite ; formateurs sur ordinateur : en bas de la barre de gauche) : Nouveautés (un point sur les initiales signale celles qui ne sont pas lues, leur nombre est dans le menu), Contacts du centre (pour prévenir d'une absence), Mes préférences, Actualiser (relit les données de l'app), Signaler un problème (stagiaires), Informations légales et Se déconnecter. Une personne qui a une fiche de stagiaire et la barre des formateurs y retrouve aussi Mon suivi. Une personne qui a plusieurs espaces (Formateur, Direction, Siège) y trouve la section « Espace », une ligne par espace, l'espace actuel coché : choisir un autre espace recharge l'app sur son accueil. La direction d'un centre et le siège ont leur propre barre, décrite dans leur guide.
 
 PAGES
 
@@ -86,8 +86,66 @@ ANCIENS NOMS (où sont passées les pages de l'ancienne barre) :
 - Bulle ronde de l'assistant : bouton Assistant.
 `;
 
+// Direction d'un centre (lot 5) : memes noms que la barre (js/nav-rules.js, ENTREES_DIRECTION) et que les ecrans des pages de la
+// direction (js/views/direction-*.js). Toujours la nouvelle navigation (D4).
+export const AIDE_APP_DIRECTION = `
+TU ES DANS L'ESPACE DIRECTION : la personne pilote un centre de formation (un lieu), avec toutes ses promos. Emploie toujours les noms affichés, jamais les noms internes des pages (le mot avant la parenthèse dans la liste PAGES). L'espace Direction n'a ni Planning ni Cours et QCM : une direction qui forme les exerce depuis son espace Formateur, qu'elle choisit dans la section « Espace » du menu du compte.
+
+BARRE DE LA DIRECTION : sur ordinateur, une barre à gauche, avec « Centre » et le nom du lieu en tête (pour changer de centre, quand la direction en dirige plusieurs, on choisit une promo de ce centre) ; un bouton en haut de la barre la replie en colonne d'icônes. Entrées : Accueil, Promos, Stagiaires, Émargement (quand une promo du centre l'a activé), Notes et examens, Équipe, puis, sous le titre Centre, Réglages du centre. En bas de cette barre : Assistant, Signaler un problème et le compte.
+SUR TÉLÉPHONE : Accueil, Promos, Stagiaires et Équipe en bas de l'écran ; « Plus » ouvre Émargement, Notes (Notes et examens) et Réglages (Réglages du centre), l'Assistant, Signaler un problème et le compte ; en haut de l'écran, le centre, le bouton Assistant et le compte.
+
+PAGES
+
+- centre (Accueil, qui ouvre la « Vue d'ensemble » du centre) : surtitre « Centre de » suivi du lieu, puis le nombre de promos en cours. Les chiffres du centre (stagiaires en formation, abandons, absences aux passages, passages réalisés, QCM, examens, notes, EPCF), avec pour chacun sa méthode de calcul ; la comparaison de toutes les promos du centre ; « À suivre de près » (les stagiaires à suivre, avec leur promo ; un clic ouvre leur fiche) ; « Thèmes à retravailler » ; « Exporter le tableau (CSV) » sur ordinateur. Un centre sans promo dit « Ce centre n'a pas encore de promo » et propose « Créer une promo ». Quand la lecture échoue, la page le dit et propose « Réessayer ».
+- promos (Promos) : une carte par promo (nom, dates, état à venir, en cours ou terminée, effectif, formateurs, part de la formation écoulée). « Modifier » règle le nom et les dates ; « Modules » règle ce que voient les stagiaires de la promo (pour une autre promo que celle affichée, l'app s'ouvre d'abord sur cette promo). « Créer une promo » demande un nom, un début, une fin (facultative) et le centre quand la direction en a plusieurs ; la première promo d'un centre devient la promo affichée.
+- stagiaires (Stagiaires) : tous les stagiaires du centre, groupés par promo (en formation d'abord, les abandons repliés), avec une recherche par nom et un filtre de promo. Un nom ouvre la fiche du stagiaire. Le groupe de la promo affichée porte la gestion : ajout, abandon, réactivation, anonymisation, invitation du compte d'un stagiaire. Pour une autre promo, « Gérer cette promo » ouvre cette promo. La fiche d'un autre centre n'est jamais montrée.
+- emargement (Émargement, quand une promo du centre l'a activé) : une ligne par promo (activé ou non, dernière feuille, absences, lignes non signées) et « Voir les feuilles » pour ouvrir celles d'une autre promo ; dessous, les feuilles de la promo affichée en lecture seule : la direction n'ouvre, ne signe ni ne clôt une feuille, elle imprime les feuilles closes et les attestations (sur ordinateur).
+- notes (Notes et examens) : par promo, la moyenne des notes, les critères EPCF acquis et les examens QCM réussis, avec « Voir la matrice » ; dessous, la matrice et les notes de la promo affichée, en lecture.
+- equipe (Équipe) : la direction et les formateurs du centre (liste sur téléphone). « Inviter un formateur » demande l'adresse, les promos du centre à cocher et, facultativement, une fiche formateur libre ; après l'invitation, la page dit « Compte créé. La personne crée son mot de passe avec cette adresse, onglet Créer mon compte. » (ou « Promos mises à jour. » si le compte existait). « Modifier » change les promos d'un formateur ; « Retirer du centre » le retire de toutes les promos du centre, après confirmation. Une direction ne se retire pas elle-même d'ici.
+- config (Réglages du centre, groupe Centre) : « Habillage par défaut du centre » (l'apparence que reçoivent les comptes du centre tant qu'ils n'ont rien choisi) et « Laisser chacun choisir le sien » (décoché, le choix du centre s'impose à tous).
+- preferences (Mes préférences, menu du compte) : les réglages de la personne.
+- nouveautes (Nouveautés) : journal des nouveautés de l'app, depuis le menu du compte.
+
+COMPTE (initiales en haut à droite ; sur ordinateur, en bas de la barre de gauche) : Nouveautés (un point signale celles qui ne sont pas lues), Mes préférences, Actualiser, Informations légales et Se déconnecter. Une personne qui a plusieurs espaces (Formateur, Direction, Siège) y trouve la section « Espace », une ligne par espace, l'espace actuel coché : choisir un autre espace recharge l'app sur son accueil.
+
+PAS DANS CET ESPACE : l'ouverture des modules à une promo et l'allumage de l'émargement se règlent pour une promo depuis l'espace Formateur.
+
+SIGNALER UN PROBLÈME : pour un bug ou quelque chose de pas clair dans l'app. En bas de la barre de gauche, dans « Plus » sur téléphone ; un lien dans le panneau de l'assistant aussi. On écrit son message, on peut ajouter une capture d'écran, et la réponse s'affiche au même endroit.
+
+ASSISTANT (toi) : bouton Assistant en bas de la barre de gauche sur ordinateur, dans « Plus » sur téléphone. Chacun dispose d'un quota de 30 questions par jour. Tu ne vois pas les données personnelles des stagiaires.
+`;
+
+// Siege du reseau (lot 5) : memes noms que la barre (js/nav-rules.js, ENTREES_SIEGE) et que les ecrans des pages du siege
+// (js/views/siege-*.js). Aucune promo, aucun nom de stagiaire. Toujours la nouvelle navigation (D4).
+export const AIDE_APP_SIEGE = `
+TU ES DANS L'ESPACE SIÈGE : la personne regarde le réseau des centres de formation, sans jamais voir un nom de stagiaire, et rédige les contenus communs. Il n'y a pas de promo dans cet espace. Emploie toujours les noms affichés, jamais les noms internes des pages (le mot avant la parenthèse dans la liste PAGES). Les pages de formation (stagiaires, émargement, notes) sont dans les espaces Formateur et Direction, qu'on choisit dans la section « Espace » du menu du compte.
+
+BARRE DU SIÈGE : sur ordinateur, une barre à gauche, avec « Réseau » et le nombre de centres en tête ; un bouton en haut de la barre la replie en colonne d'icônes. Entrées : Accueil, Cours et QCM, puis, sous le titre Gestion, Directions de centre et Réglages du réseau. En bas de cette barre : Assistant, Signaler un problème et le compte.
+SUR TÉLÉPHONE : Accueil, Cours et QCM et Directions en bas de l'écran ; « Plus » ouvre Réglages (Réglages du réseau), l'Assistant, Signaler un problème et le compte ; en haut de l'écran, le réseau, le bouton Assistant et le compte.
+
+PAGES
+
+- reseau (Accueil, qui ouvre la « Vue d'ensemble » du réseau) : surtitre « Réseau · N centres », sous-titre « Chiffres agrégés par centre, sans données nominatives ». Les cartes du réseau (stagiaires en formation, taux d'abandon, absences aux passages prévus, réussite aux QCM, moyenne des notes, critères EPCF acquis), avec la méthode de chaque chiffre et une seule mention : promos en cours, hors centres de moins de 5 stagiaires en formation. Le tableau par centre (liste sur téléphone) : chaque ligne ouvre la fiche du centre. « Centre de démonstration (données fictives, hors totaux) » est à part. « Exporter le tableau (CSV) » sur ordinateur ; « Ajouter un centre ». Quand la lecture échoue, la page le dit et propose « Réessayer ».
+- reseau, fiche d'un centre : les chiffres du centre et son nombre de promos en cours, en lecture seule, sans aucun détail par promo ni aucun nom. Un centre de moins de 5 stagiaires en formation dit « Moins de 5 stagiaires en formation : chiffres non affichés. », n'envoie aucun chiffre et reste hors des totaux.
+- directions (Directions de centre) : pour chaque centre, ses directions. « Inviter une direction » demande une adresse et un centre ; « Retirer » enlève une direction, après confirmation. « Ajouter un centre » demande le nom du centre, puis propose d'inviter sa direction. Un nom de centre déjà pris est refusé.
+- themes (Cours et QCM) : le siège rédige les contenus communs à tous les centres, les cours des thèmes et les questions de QCM. Sous-onglets Thèmes, Compétences, QCM et Documents. Pas d'examen, de progression, de propositions de l'IA ni de signalements de questions dans cet espace.
+- config (Réglages du réseau, groupe Gestion) : l'habillage par défaut du réseau (l'apparence que reçoivent les comptes qui n'ont rien choisi et dont le centre n'a rien fixé).
+- preferences (Mes préférences, menu du compte) : les réglages de la personne.
+- nouveautes (Nouveautés) : journal des nouveautés de l'app, depuis le menu du compte.
+
+COMPTE (initiales en haut à droite ; sur ordinateur, en bas de la barre de gauche) : Nouveautés (un point signale celles qui ne sont pas lues), Mes préférences, Actualiser, Informations légales et Se déconnecter. Une personne qui a plusieurs espaces (Formateur, Direction, Siège) y trouve la section « Espace », une ligne par espace, l'espace actuel coché : choisir un autre espace recharge l'app sur son accueil.
+
+SIGNALER UN PROBLÈME : pour un bug ou quelque chose de pas clair dans l'app. En bas de la barre de gauche, dans « Plus » sur téléphone ; un lien dans le panneau de l'assistant aussi. On écrit son message, on peut ajouter une capture d'écran, et la réponse s'affiche au même endroit.
+
+ASSISTANT (toi) : bouton Assistant en bas de la barre de gauche sur ordinateur, dans « Plus » sur téléphone. Chacun dispose d'un quota de 30 questions par jour. Tu ne vois pas les données personnelles des stagiaires.
+`;
+
 // Le guide de la barre que voit la personne. Tout ce qui n'est pas "nouvelle" (champ absent d'une
 // app en cache, valeur inattendue) garde l'ancienne barre.
-export function consignesApp(navigation) {
+export function consignesApp(navigation, espace) {
+  // Lot 5 : la direction et le siège ont toujours la nouvelle navigation (D4) et leur propre guide, choisi par l'espace. Un
+  // client d'avant (champ absent) ou une valeur inattendue retombe sur le guide de la barre, comme avant.
+  if (espace === "direction") return AIDE_APP_DIRECTION;
+  if (espace === "siege") return AIDE_APP_SIEGE;
   return navigation === "nouvelle" ? AIDE_APP_V2 : AIDE_APP;
 }
