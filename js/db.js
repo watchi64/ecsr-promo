@@ -44,7 +44,9 @@ function fetchWithTimeout(input, init = {}) {
     const { promo, erreur } = promoDeLaRequete({
       methode: init.method || (estRequete ? input.method : "GET"),
       demandee,
-      courante: getPromoCourante()?.id ?? null,
+      // Toujours la promo mémorisée, pas la liste filtrée par l'aperçu : une écriture en attente pendant un changement d'aperçu part
+      // avec la promo où elle a été faite (jamais sans en-tête, la base y mettrait la promo par défaut du compte).
+      courante: promoCouranteId,
       accessibles: mesPromos.map((p) => p.id),
     });
     if (erreur) return Promise.reject(new Error(erreur));
