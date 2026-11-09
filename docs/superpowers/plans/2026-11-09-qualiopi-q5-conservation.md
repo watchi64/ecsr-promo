@@ -346,8 +346,12 @@ textes » et le rappel en tête de la page Qualiopi. Cette tâche part de ce qui
 **Fichiers :** modifier `js/db.js` ; `_harness_supabase.js` (hors dépôt, levier `&conservation=1`, décrit dans le rapport).
 **Interfaces :** `lireEtatConservation()`, `effacerPromoEtape1(promoId)`, `effacerPromoEtape2(promoId)`,
 `effacerSurDemande(stagiaireId)`, `cloreAnneeFormateurs(lieuId, annee)`, `effacerCommentairesFormateurs(lieuId, annee)`,
-`figerQuestionnaireFormateurs(lieuId, annee)`, `lireEffacementsSurDemande(promoId)` → `Set` d'identifiants de fiche (journal,
-type `demande`) ; erreurs « conservation: » rendues en phrase lisible ; `anonymiserStagiaire`, `anonymiserPromo`,
+`figerQuestionnaireFormateurs(lieuId, annee)`, `lireEffacementsSurDemande(promoIds)` → `Set` d'identifiants de fiche (type
+`demande` du journal), lu par une fonction de la base `fiches_effacees_sur_demande(p_promo_ids uuid[])` (`security definer`,
+ne rend que les fiches des promos que l'appelant peut lire, `peut_acceder_promo`, sans le texte du journal ; ajoutée à la
+migration de la tâche 2, à sa preuve et à son retour) : la règle de lecture du journal suit la seule promo affichée
+(`20261028_roles_3_regles.sql:622-631`), si bien qu'une lecture directe laisserait vides les lignes des autres promos du
+tableau de bord pour un Formateur ; erreurs « conservation: » rendues en phrase lisible ; `anonymiserStagiaire`, `anonymiserPromo`,
 `etatAnonymisationPromo` retirées ; `listStagiaires` (liste active) exclut `anonymise_le` posé ; les chargements avec
 `includeInactive` (`js/views/emargement.js` l. 65, `js/planning-lecture.js` l. 33) gardent les fiches sans nom pour le passé, et
 chaque liste de choix qu'ils alimentent (dés, placement, feuille ouverte) les retire ; `lireDonneesCentre` lit en plus
@@ -380,7 +384,11 @@ en abandon, avec `effectif.detail.surDemande` ; phrase de méthode de l'abandon 
 `js/qualiopi-preuves.js` (même `Set` dans `donnees.demandes` : les pièces `dossierPro` et `evaluations` ne comptent pas ces fiches
 comme manquantes ; après l'étape 2, raison fixe « effacé au terme de la durée de conservation », jamais « aucun dossier
 enregistré » ; satisfaction figée lue comme la vivante), `js/qualiopi-documents.js` (statut par `statutFiche`, même `Set`), et
-leurs tests. Si Timy répond autrement à la question 12, seule la règle de comptage de `indicateursPromo` change.
+leurs tests. Appelants de `indicateursPromo` à mettre à jour, chacun avec l'ensemble des demandes de ses promos (lu une
+fois par écran) : `js/views/centre.js:283` et `:336`, `js/views/aujourdhui.js:228`, `js/views/qualiopi.js:627`, `:659` et
+`:756`, `js/qualiopi-preuves.js:456` ; `demandes` absent vaut un ensemble vide (aucun appelant oublié ne casse), et un test
+vérifie par lecture du texte que chaque appel passe `demandes`. Si Timy répond autrement à la question 12, seule la règle de
+comptage de `indicateursPromo` change.
 - [ ] **Étapes** : tests (heures intactes après l'étape 2 : `minutesPresence` et total de la feuille imprimée égaux avant et
   après ; feuille ouverte sans la fiche effacée à la demande, feuille close qui la garde en « Anonyme n » ; promo effacée à
   l'étape 1 : abandons inchangés ; étape 2 : pièces et statut ; demande : même effectif au tableau de bord et au dossier,
