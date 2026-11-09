@@ -411,6 +411,13 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
   $mx$r.bucket_id in ('cours-images', 'qcm-images') and {R}$mx$, $mx$r.bucket_id = 'qcm-images' and {R}$mx$,
   $mx$r.bucket_id = 'qcm-images' and {R}$mx$, $mx$user_metadata = '{"preuve": "maj"}'::jsonb$mx$,
   $mx$select set_config('storage.allow_delete_query', 'true', true)$mx$);
+-- Registre qualité (Qualiopi Q4, migration 20261109_registre_qualite.sql) : lecture, ajout et modification au seul
+-- gestionnaire de la qualité, peut_gerer_qualite() = le fondateur réel hors aperçu ({Fo}) ; aucune suppression (aucune
+-- règle, aucun droit). La ligne n'entre que si la table existe : la preuve reste verte avec ou sans Q4, quel que soit
+-- l'ordre d'arrivée dans main (ligne demandée par la coordination le 10/11, pour qu'un seul auteur touche ce fichier).
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select 'public.registre_qualite', '{Fo}', '{Fo}', '{Fo}', 'false', $mx$description = 'PreuveMaj'$mx$, null
+   where to_regclass('public.registre_qualite') is not null;
 
 -- Les ajouts tentés, table par table. sorte : promo (promo affichée, autre promo), lieu (lieu affiché, autre lieu),
 -- stagiaire (sa fiche, autre fiche de la promo affichée, fiche d'une autre promo), benevole (du lieu affiché, d'un
@@ -592,6 +599,13 @@ insert into ajouts (tbl, sorte, libelle, modele, marque, prep) values
 ('storage.objects', 'unique', 'image de QCM',
   $aj$insert into storage.objects (bucket_id, name) values ('qcm-images', 'preuve/ajout.png')$aj$,
   $aj$r.name = 'preuve/ajout.png'$aj$, null);
+-- Registre qualité (Q4) : le minimum qu'un ajout doit fournir (type, date du constat, origine, description de 3
+-- caractères ou plus) ; le déclencheur pose le reste. Seulement si la table existe.
+insert into ajouts (tbl, sorte, libelle, modele, marque, prep)
+  select 'public.registre_qualite', 'unique', null,
+    $aj$insert into public.registre_qualite (type, date_constat, origine, description) values ('amelioration', '2031-01-06', 'equipe', 'PreuveAjout')$aj$,
+    $aj$r.description = 'PreuveAjout'$aj$, null
+   where to_regclass('public.registre_qualite') is not null;
 
 -- Les cibles d'un ajout dans un contexte : (libellé, jetons). p_jetons porte P, L et fiche du contexte, et les données
 -- d'essai (cibles et bénévoles par promo et par lieu, tables cibles et benevoles_essai).
@@ -1365,6 +1379,11 @@ begin
       values (v_sub_porteur::uuid, 'preuve@exemple.invalid', 'stagiaire', 'Preuve signalement')
       returning id into v_sig;
     insert into public.signalements_app_captures (signalement_id, image) values (v_sig, 'data:image/jpeg;base64,UHJldXZl');
+  end if;
+  -- Registre qualité (Q4), s'il existe : une entrée témoin pour tout l'organisme, que seul le fondateur hors aperçu lit.
+  if to_regclass('public.registre_qualite') is not null then
+    execute $aj$insert into public.registre_qualite (type, date_constat, origine, description)
+                values ('difficulte', '2031-01-05', 'formateur', 'Preuve témoin')$aj$;
   end if;
   -- Cours : un cours de thème réel (les 57 numéros sont pris, aucun cours de thème fictif n'est possible) comme cible
   -- des ajouts de versions et de morceaux ; deux cours de compétence fictifs (un non publié, un publié) sous des codes
