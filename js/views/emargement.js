@@ -397,7 +397,7 @@ function dessinerOuverture(ctx, { off }) {
   if (jour !== aujourdhui) {
     page.appendChild(el("p", { class: "em-vide" }, jour < aujourdhui
       ? "Aucune feuille d'émargement pour cette demi-journée."
-      : "La feuille s'ouvrira le jour même."));
+      : ctx.lecture ? "Pas encore de feuille ce jour-là." : "La feuille s'ouvrira le jour même."));
     return;
   }
   const h = horairesDe(ctx, jour, demi);

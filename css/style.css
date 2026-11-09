@@ -8641,7 +8641,7 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .centre-table td.liste-actions .btn { min-height: 44px; }
 /* L'export du tableau du centre (CSV) est offert sur ordinateur seulement. */
 @media screen and (max-width: 1079.98px) {
-  .solo-ordinateur, .btn.solo-ordinateur { display: none; }
+  .solo-ordinateur, .btn.solo-ordinateur, .at-tout.solo-ordinateur, .em-ligne-actions.solo-ordinateur { display: none; }
 }
 
 @media (max-width: 640px) {

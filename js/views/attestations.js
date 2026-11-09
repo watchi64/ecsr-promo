@@ -148,7 +148,9 @@ function dessinerCorps(ctx) {
   const lignes = stagiaires.map((s) => ({ stagiaire: s, bilan: bilanStagiaire(seances, s.id) }));
   const avecHeures = lignes.filter((l) => l.bilan.demiSignees > 0);
 
-  page.appendChild(el("div", { class: "at-tout" },
+  // Lecture (direction) : l'impression des pièces est offerte sur ordinateur.
+  const surOrdinateur = isAdmin() ? "" : " solo-ordinateur";
+  page.appendChild(el("div", { class: "at-tout" + surOrdinateur },
     el("button", { class: "btn small primary", type: "button", disabled: avecHeures.length === 0,
       onClick: () => imprimerPieces(ctx, avecHeures, certificat) }, `Tous les certificats (${avecHeures.length})`),
     el("button", { class: "btn small", type: "button",
@@ -169,7 +171,7 @@ function dessinerCorps(ctx) {
         el("span", { class: "at-heures" }, `${libelleDuree(b.realiseesMin)} sur ${libelleDuree(b.prevuesMin)}`),
         el("span", { class: "at-detail" },
           (b.absencesMin ? `${libelleDuree(b.absencesMin)} d'absence` : "aucune absence") + ` · ${b.taux} %`)),
-      el("div", { class: "em-ligne-actions" }, btnCertificat,
+      el("div", { class: "em-ligne-actions" + surOrdinateur }, btnCertificat,
         el("button", { class: "btn small", type: "button", onClick: () => imprimerPieces(ctx, [ligne], attestation) }, "Attestation")),
     ));
   }

@@ -24,6 +24,7 @@ import {
   cartesCles, cartesResultats, sectionThemes, sectionASuivre, sectionComparaison, sectionMethodes, etiquette,
   telecharger,
 } from "./centre.js?v=20261109d";
+import { surChangementAdresse } from "../navigation.js?v=20261109d";
 import { renderEmargement } from "./emargement.js?v=20261109d";
 import { renderNotes } from "./notes.js?v=20261109d";
 
@@ -32,6 +33,7 @@ const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? m
 
 export const PHRASE_SANS_PROMO = "Ce centre n'a pas encore de promo";
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";
+const phraseHorsCentre = (quoi, geste) => `La promo affichée n'est pas une promo de ce centre : ${quoi} ne sont pas montrées ici. Ouvre une promo du centre avec « ${geste} ».`;
 const PHRASE_LECTURE_ECHEC = "Les chiffres du centre n'ont pas pu être chargés.";
 
 // Le centre dirigé et ses promos (la plus récente d'abord) ; `affichee` : la promo affichée SI elle est de ce centre, sinon nulle
@@ -116,7 +118,11 @@ export async function renderVueCentre(container) {
   if (jeton !== renduVue) return;
   const { referentiel, parPromo } = lu;
   const enCours = promosEnCours(promos, aujourdhui);
-  const indDe = (p) => indicateursPromo(parPromo.get(p.id), referentiel, { aujourdhui });
+  // Les indicateurs de chaque promo, calculés une fois ; ceux du centre, une fois sur les données des promos en cours.
+  const indParPromo = new Map(promos.map((p) => [p.id, indicateursPromo(parPromo.get(p.id), referentiel, { aujourdhui })]));
+  const indDe = (p) => indParPromo.get(p.id);
+  const indCentre = enCours.length
+    ? indicateursPromo(concatenerDonnees(enCours.map((p) => parPromo.get(p.id))), referentiel, { aujourdhui }) : null;
   const lignesParPromo = promos.map((p) => ({ nom: p.nom, debut: p.date_debut ? formatDate(p.date_debut) : "",
     fin: p.date_fin ? formatDate(p.date_fin) : "", comptes: comptesDepuisIndicateurs(indDe(p)) }));
 
@@ -130,8 +136,7 @@ export async function renderVueCentre(container) {
     el("div", { class: "centre-actions" }, exporter)));
 
   if (enCours.length) {
-    const concat = concatenerDonnees(enCours.map((p) => parPromo.get(p.id)));
-    const ind = indicateursPromo(concat, referentiel, { aujourdhui });
+    const ind = indCentre;
     racine.appendChild(el("p", { class: "centre-legende" },
       etiquette("mesuré"), " compté dans l'app · ", etiquette("estimé"), " hypothèse ou signal · Chaque chiffre a sa méthode. ",
       "Les chiffres du centre additionnent ses promos en cours."));
@@ -166,8 +171,7 @@ export async function renderVueCentre(container) {
         return { href: adresse, onClick: ailleurs ? (e) => { e.preventDefault(); aller(x.promoId, adresse); } : null };
       },
     }));
-    racine.appendChild(sectionThemes(indicateursPromo(concatenerDonnees(enCours.map((p) => parPromo.get(p.id))), referentiel,
-      { aujourdhui }).themes));
+    racine.appendChild(sectionThemes(indCentre.themes));
   }
   racine.appendChild(sectionMethodes());
 }
@@ -211,7 +215,12 @@ export async function renderEmargementCentre(container) {
   const { centre, promos, affichee } = contexteCentre();
   // Une feuille ou les attestations (adresses à segments) : la page de la promo affichée, seule, en lecture. « Semaine » en revient.
   if (estAdresseAttestations(location.hash) || lireAdresseEmargement(location.hash).demi) {
-    if (!affichee) { clear(container); container.appendChild(el("p", { class: "muted" }, PHRASE_SANS_CENTRE)); return; }
+    if (!affichee) {
+      clear(container);
+      container.appendChild(el("p", { class: "muted" }, centre ? phraseHorsCentre("ses feuilles", "Voir les feuilles") : PHRASE_SANS_CENTRE));
+      container.appendChild(el("a", { class: "btn small", href: "#/emargement" }, "Les promos du centre"));
+      return;
+    }
     return renderEmargement(container);
   }
   clear(container);
@@ -258,11 +267,23 @@ export async function renderEmargementCentre(container) {
     const zone = el("div", { class: "centre-detail-promo" });
     racine.appendChild(el("section", { class: "centre-section" },
       el("div", { class: "centre-section-tete" }, el("h3", {}, "Feuilles de " + affichee.nom)), zone));
-    renderEmargement(zone, { dansLeCentre: true }).catch((e) => {
+    const dessinerDetail = () => renderEmargement(zone, { dansLeCentre: true }).catch((e) => {
       console.error(e);
       clear(zone);
       zone.appendChild(boiteErreur("Les feuilles de la promo n'ont pas pu être chargées.", () => renderEmargementCentre(container)));
     });
+    dessinerDetail();
+    // Changer de semaine ou de date dans le détail ne redessine que le détail : le résumé par promo (déjà lu) et la position de
+    // défilement restent. Une adresse de feuille ou d'attestations, ou une zone sortie de la page, retombe sur le rendu complet.
+    surChangementAdresse("emargement", async () => {
+      if (!zone.isConnected || estAdresseAttestations(location.hash) || lireAdresseEmargement(location.hash).demi) {
+        throw new Error("rendu complet");
+      }
+      zone.style.minHeight = zone.offsetHeight + "px";
+      try { await dessinerDetail(); } finally { zone.style.minHeight = ""; }
+    });
+  } else {
+    racine.appendChild(el("p", { class: "muted" }, phraseHorsCentre("ses feuilles", "Voir les feuilles")));
   }
 }
 
@@ -327,5 +348,7 @@ export async function renderNotesCentre(container) {
       clear(zone);
       zone.appendChild(boiteErreur("La matrice de la promo n'a pas pu être chargée.", () => renderNotesCentre(container)));
     });
+  } else {
+    racine.appendChild(el("p", { class: "muted" }, phraseHorsCentre("sa matrice et ses notes", "Voir la matrice")));
   }
 }
