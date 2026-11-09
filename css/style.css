@@ -8649,6 +8649,13 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   .solo-ordinateur, .btn.solo-ordinateur, .at-tout.solo-ordinateur, .em-ligne-actions.solo-ordinateur { display: none; }
 }
 
+/* Vue d'ensemble du réseau et fiche d'un centre (lot 5, Task 11). */
+.reseau-lien { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent-strong); font-weight: 600; text-decoration: none; }
+.reseau-lien:hover { text-decoration: underline; }
+.reseau-remarque { color: var(--text-soft); }
+.reseau-table td { vertical-align: middle; }
+.reseau-table td.num { text-align: left; }
+
 /* Page Promos de la direction (lot 5, Task 8). */
 .promo-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.75rem; align-items: start; }
 .promo-carte { gap: 0.45rem; }

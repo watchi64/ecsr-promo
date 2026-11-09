@@ -281,6 +281,15 @@ export async function modifierDatesPromo({ promoId, debut, fin }) {
   }
 }
 
+// Lot 5 (Task 11) : le siège lit les comptes du réseau (comptes_reseau : une ligne par centre, sans nom ni détail par promo, centre
+// de moins de 5 stagiaires en formation masqué par la base). Rend les lignes brutes de la base : vueDuReseau (js/comptes-reseau.js)
+// les passe par versComptes. Le refus de la base part tel quel (42501 hors siège, PGRST202 fonction absente) : phraseDeRefus.
+export async function comptesReseau() {
+  const { data, error } = await supabase.rpc("comptes_reseau");
+  if (error) throw erreurDeBase(error);
+  return Array.isArray(data) ? data : [];
+}
+
 // Effectif de chaque promo : { enFormation, abandons } (fiches actives, fiches en abandon ; une fiche anonymisée n'est pas un
 // abandon), par l'en-tête de lecture de la promo. Une promo illisible rend null : la page le dit sur sa carte.
 export async function lireEffectifsPromos(promoIds) {
