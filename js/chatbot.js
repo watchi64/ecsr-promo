@@ -241,9 +241,14 @@ export function initChatbot() {
   signaler.addEventListener("click", () => {
     import("./signalement.js?v=20261109a").then((m) => m.ouvrirSignalement({ ancre: signaler }));
   });
+  // Capture : Échap ferme le panneau sans atteindre une fenêtre restée dessous (un QCM, par exemple). Panneau fermé,
+  // la touche passe aux autres fenêtres.
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") fermerPanneau();
-  });
+    if (e.key !== "Escape" || panneau.classList.contains("hidden")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    fermerPanneau();
+  }, true);
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();

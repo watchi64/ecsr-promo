@@ -71,3 +71,22 @@ export function lignesQcmStagiaire({ qcm = [], themes = [], tentatives = [], now
     || a.titre.localeCompare(b.titre, "fr")
     || a.qcm.id - b.qcm.id);
 }
+
+/** Phrase affichée quand la lecture des cours ou des QCM a échoué (jamais confondue avec « aucun QCM »). */
+export function messageLectureEnEchec({ cours = false, qcm = false } = {}) {
+  if (cours && qcm) return "Cours et QCM non chargés. Vérifie ta connexion.";
+  if (qcm) return "QCM non chargés. Vérifie ta connexion.";
+  if (cours) return "Cours non chargés. Vérifie ta connexion.";
+  return null;
+}
+
+/** Attend TOUTES les lectures d'un objet {nom: promesse}, même si l'une échoue vite : renvoie les valeurs lues
+ *  et les noms des lectures en échec. Les indicateurs d'échec sont ainsi tous connus avant le premier affichage. */
+export async function lireToutes(lectures) {
+  const noms = Object.keys(lectures);
+  const res = await Promise.allSettled(noms.map((n) => lectures[n]));
+  const valeurs = {};
+  const echecs = [];
+  res.forEach((r, i) => { if (r.status === "fulfilled") valeurs[noms[i]] = r.value; else echecs.push(noms[i]); });
+  return { valeurs, echecs };
+}

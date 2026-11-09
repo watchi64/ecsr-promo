@@ -621,14 +621,6 @@ Câblé via `recordUndo(label, undoFn)` après chaque écriture. Sur Ctrl+Z, dé
 7. **Vérifier `git log`** pour les derniers commits avant d'attaquer
 8. **Pour les bugs « ça marche pas »**, vérifier d'abord avec `curl` ce qui est servi en prod avant d'accuser le code
 
-## Roadmap (non décidé)
+## Roadmap
 
-- Émargement signature canvas + PDF (Qualiopi indicateur 11)
-- Attestations + certificat réalisation format réglementaire
-- Export BPF annuel
-- Questionnaires satisfaction auto J+1 / J+180
-- PWA installable (manifest + SW)
-- Export CSV/PDF complet matrice Notes
-- Multi-tenant (promo_id partout) : si un jour vente à d'autres centres
-- Génération QCM auto via API Claude depuis les 57 thèmes (différenciant pitch ECF)
-- Connexion possible des stagiaires côté formation-ecsr (cours/QCM unifiés ?)
+La roadmap du projet est tenue hors de ce dépôt public.
