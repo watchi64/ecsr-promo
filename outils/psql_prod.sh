@@ -10,4 +10,6 @@ let [_,user,pw,host,port,db]=m;if(pw.startsWith("[")&&pw.endsWith("]"))pw=pw.sli
 const q=s=>"\x27"+s.replace(/\x27/g,"\x27\\x27\x27")+"\x27";
 console.log("export PGUSER="+q(user)+" PGPASSWORD="+q(pw)+" PGHOST="+q(host)+" PGPORT="+q(port)+" PGDATABASE="+q(db)+" PGCONNECT_TIMEOUT=15");')"
 PSQL="$(command -v psql || echo /c/Users/watch/scoop/apps/postgresql/current/bin/psql)"
-exec "$PSQL" -X -v ON_ERROR_STOP=1 "$@" 2>&1 | sed -E 's#postgres(ql)?://[^ ]*#<adresse masquée>#g'
+# pipefail : le code de sortie du script est celui de psql (le tube vers sed ne le cache pas).
+set -o pipefail
+"$PSQL" -X -v ON_ERROR_STOP=1 "$@" 2>&1 | sed -E 's#postgres(ql)?://[^ ]*#<adresse masquée>#g'

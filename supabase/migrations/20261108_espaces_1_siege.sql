@@ -39,7 +39,9 @@ $garde$;
 
 -- 2. Séquence de lieux.id ------------------------------------------------------------------------------------------
 
-select setval(pg_get_serial_sequence('public.lieux', 'id'), (select coalesce(max(id), 1) from public.lieux));
+-- Jamais en arrière : le plus grand de la valeur actuelle de la séquence et du plus grand identifiant.
+select setval(pg_get_serial_sequence('public.lieux', 'id'),
+              greatest((select last_value from public.lieux_id_seq), (select coalesce(max(id), 1) from public.lieux)));
 
 -- 3. comptes_reseau() ----------------------------------------------------------------------------------------------
 
@@ -176,6 +178,9 @@ begin
   if v_nom = '' then
     raise exception 'centre: Le nom est requis.';
   end if;
+  -- Deux créations simultanées (« Foo » et « FOO ») ne passent pas le contrôle de doublon en même temps : la seconde
+  -- attend la fin de la première, puis voit son centre. Verrou de transaction, relâché au commit.
+  perform pg_advisory_xact_lock(2026110801);
   if exists (select 1 from lieux l where lower(l.nom) = lower(v_nom)) then
     raise exception 'centre: Ce centre existe déjà.';
   end if;

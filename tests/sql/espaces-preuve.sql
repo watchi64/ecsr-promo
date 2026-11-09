@@ -171,7 +171,7 @@ declare
   v_etat text; v_retour text;
   v_av_regles text; v_av_fonctions text; v_av_droits text;
   v_ap_regles text; v_ap_fonctions text; v_ap_droits text;
-  v_seq text; v_seq_last bigint; v_seq_called boolean; v_requete text;
+  v_seq text; v_seq_last bigint; v_seq_called boolean; v_requete text; v_seq_ok boolean; v_seq_detail text;
   v_fond text; v_lieu1 integer; v_lieu2 integer; v_max_avant integer; v_nb_lieux integer;
   v_l_fix integer; v_l_petit integer; v_l_fini integer; v_l_cinq integer;
   v_p_petit integer; v_p_fini integer; v_p_a integer; v_p_b integer; v_p_c integer;
@@ -198,15 +198,33 @@ begin
     format('fondateur %s ; centres des promos 1 et 2 : %s et %s', case when v_fond is null then 'absent' else 'trouvé' end,
            coalesce(v_lieu1::text, 'nul'), coalesce(v_lieu2::text, 'nul')));
 
+  -- 1 bis. Deux préparations de la migration 1 (sauf en ligne, où elle est déjà appliquée pour de bon) : un « lieu 3 » (les lieux
+  -- 3 et 4 ont été posés hors migration en production ; sur une base sans lieu 3, une migration qui en marquerait un autre que
+  -- le 4 comme démonstration passerait inaperçue) et la séquence de lieux.id remise sous le plus grand identifiant (sans la
+  -- recalage de la migration, le contrôle « séquence recalée » devient rouge). Le bloc remet la séquence comme trouvée à la fin.
+  if not v_en_ligne then
+    if not exists (select 1 from public.lieux where id = 3) then
+      insert into public.lieux (id, nom) values (3, 'Preuve lieu trois');
+    end if;
+    perform setval('public.lieux_id_seq', 1, false);
+  end if;
+
   -- 2. La migration, injectée telle quelle (neutralisée dans les modes sans elle).
   v_etat := pg_temp.jouer('migration',
 -- @@INJECTER supabase/migrations/20261108_espaces_1_siege.sql@@
   );
   if v_etat = 'neutralisée' then
     perform pg_temp.informer('migration', 'non injectée (' || v_mode || ')');
+    -- Sans la migration, rien ne recale la séquence : la remettre comme trouvée, pour que la suite (centres fictifs) se joue.
+    perform setval('public.lieux_id_seq', v_seq_last, v_seq_called);
   else
     perform pg_temp.verifier('structure', 'migration jouée sans erreur', v_etat = 'jouée', v_etat);
   end if;
+  -- La séquence de lieux.id, jugée ici (elle était remise sous le plus grand identifiant avant la migration) ; puis, si la
+  -- migration ne l'a pas recalée, poussée au maximum pour que la suite se joue (le contrôle reste rouge).
+  select s.last_value >= (select max(id) from public.lieux), format('séquence %s ; plus grand id %s', s.last_value, (select max(id) from public.lieux))
+    into v_seq_ok, v_seq_detail from public.lieux_id_seq s;
+  perform setval('public.lieux_id_seq', greatest((select last_value from public.lieux_id_seq), (select max(id) from public.lieux)));
 
   -- 3. Personnages fictifs, centres fictifs, fixture et lignes parasites, en propriétaire.
   insert into public.lieux (nom) values (c_fix) returning id into v_l_fix;
@@ -459,11 +477,14 @@ begin
 
   -- 8. creer_centre.
   perform pg_temp.verifier('creer_centre', 'la fonction creer_centre(text) existe', to_regprocedure('public.creer_centre(text)') is not null, '');
-  perform pg_temp.verifier('creer_centre', 'la séquence de lieux.id est recalée sur le plus grand identifiant (dernière valeur >= plus grand id)',
-    (select s.last_value from public.lieux_id_seq s) >= (select max(id) from public.lieux),
-    format('séquence %s ; plus grand id %s', (select s.last_value from public.lieux_id_seq s), (select max(id) from public.lieux)));
+  perform pg_temp.verifier('creer_centre', 'la séquence de lieux.id est recalée sur le plus grand identifiant (dernière valeur >= plus grand id, jugée juste après la migration)',
+    v_seq_ok, v_seq_detail);
   select max(id) into v_max_avant from public.lieux;
+  perform pg_temp.attendre('creer_centre', 'avant toute création, ce bloc ne tient aucun verrou consultatif',
+    (select count(*) from pg_locks where locktype = 'advisory' and pid = pg_backend_pid())::text, '0');
   v_obt := pg_temp.appeler(c_siege, null, null, 'select public.creer_centre(''Preuve nouveau centre siege'')::text');
+  perform pg_temp.attendre('creer_centre', 'une création prend un verrou consultatif de transaction (créations simultanées sérialisées : « Foo » et « FOO » ne passent pas ensemble)',
+    (select count(*) from pg_locks where locktype = 'advisory' and pid = pg_backend_pid())::text, '1');
   v_id_a := case when v_obt like 'OK %' and substr(v_obt, 4) ~ '^\d+$' then substr(v_obt, 4)::integer end;
   perform pg_temp.verifier('creer_centre', 'le siège crée un centre : identifiant rendu, plus grand que tous les identifiants existants',
     v_id_a is not null and v_id_a > v_max_avant, format('rendu %s ; plus grand id avant %s', coalesce(v_id_a::text, left(v_obt, 80)), v_max_avant));
