@@ -8840,6 +8840,8 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
     grid-template-columns: auto 1fr;
     grid-template-areas: "num titre" "cours cours" "qcm qcm";
   }
+}
+
 /* ============================================================
    Planning, audit du 09/11 (lot B) : l'éditeur et la barre de la semaine.
    ============================================================ */
