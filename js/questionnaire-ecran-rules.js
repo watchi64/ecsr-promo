@@ -132,3 +132,27 @@ export function annonceEcran(etape, total) {
 export function ouvrirApresLecture({ adresseAvant, adresseMaintenant, fenetre }) {
   return typeof adresseAvant === "string" && adresseAvant === adresseMaintenant && !fenetre;
 }
+
+// Mémoire de la session (relecture finale, M5) : les brouillons ({ reponses, etape } par idQuestionnaire) et les
+// questionnaires envoyés pendant la session, propres au compte connecté. `suivreCompte(adresse)` est appelé avant chaque
+// usage et à chaque changement d'authentification : une autre adresse (ou plus d'adresse) vide les deux, pour qu'une
+// session expirée suivie d'une autre connexion dans le même onglet (appareil partagé) ne montre ni les réponses non
+// envoyées du compte précédent ni son bandeau éteint. Rend true quand la mémoire vient d'être vidée.
+export function memoireDeSession() {
+  const brouillons = new Map();
+  const envoyes = new Set();
+  let compte;
+  return {
+    brouillons,
+    envoyes,
+    suivreCompte(adresse) {
+      const c = typeof adresse === "string" && adresse ? adresse : null;
+      if (c === compte) return false;
+      compte = c;
+      const avait = brouillons.size > 0 || envoyes.size > 0;
+      brouillons.clear();
+      envoyes.clear();
+      return avait;
+    },
+  };
+}

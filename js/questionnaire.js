@@ -11,14 +11,14 @@
 // répondre (fermer par erreur ne perd rien), puis disparaît à l'envoi. Seul « Plus tard » est écrit sur l'appareil.
 
 import { el, isoDate, toast } from "./utils.js?v=20261108c";
-import { getAdminEmail } from "./auth-admin.js?v=20261108c";
+import { getAdminEmail, onAdminChange } from "./auth-admin.js?v=20261108c";
 import { lireQuestionnairesARemplir, envoyerQuestionnaire } from "./db.js?v=20261108c";
 import { QUESTIONNAIRES, ECHELLE } from "./questionnaires-data.js?v=20261108c";
 import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261108c";
 import {
   cleMemoire, lireMemoire, memoirePlusTard, idQuestionnaire, questionnaireDuBandeau, questionnaireDuLien,
   sousTitreBandeau, progression, aUneReponse, peutAvancer, premiereManquante, reponsesAEnvoyer,
-  annonceEcran, ouvrirApresLecture,
+  annonceEcran, ouvrirApresLecture, memoireDeSession,
 } from "./questionnaire-ecran-rules.js?v=20261108c";
 
 const MERCI = "Merci, ta réponse est enregistrée sans ton nom.";
@@ -27,10 +27,16 @@ const RIEN_A_REMPLIR = "Pas de questionnaire à remplir pour toi en ce moment : 
 const LONGUEUR_MAX = 2000;
 
 // Brouillons de la session, par questionnaire (idQuestionnaire) : { reponses, etape }. Étape 0 : l'accueil de la
-// fenêtre ; 1 à N : les questions.
-const brouillons = new Map();
-// Questionnaires envoyés pendant la session : leur bandeau ne revient pas, même si une lecture arrive en retard.
-const envoyes = new Set();
+// fenêtre ; 1 à N : les questions. Questionnaires envoyés pendant la session : leur bandeau ne revient pas, même si
+// une lecture arrive en retard. Les deux sont propres au compte : vidés quand le compte change sans rechargement
+// (session expirée puis autre connexion dans le même onglet), et la fenêtre ouverte se ferme alors.
+const session = memoireDeSession();
+const { brouillons, envoyes } = session;
+const suivreCompte = () => session.suivreCompte(getAdminEmail());
+onAdminChange((user) => {
+  const compteChange = session.suivreCompte(user?.email ?? null);
+  if (compteChange && fenetreOuverte() === "questionnaire") fermerFenetre();
+});
 let envoiEnCours = false;
 
 // --- Mémoire « Plus tard » (appareil, propre au compte) ---
@@ -49,6 +55,7 @@ function ecrirePlusTard(memoire) {
 
 async function lireListe() {
   const liste = await lireQuestionnairesARemplir();
+  suivreCompte();
   return liste.filter((item) => !envoyes.has(idQuestionnaire(item)));
 }
 
@@ -125,6 +132,7 @@ function pointDeRetour() {
 export function ouvrirQuestionnaire(item, { ancre = null } = {}) {
   const q = QUESTIONNAIRES[item.cle];
   const id = idQuestionnaire(item);
+  suivreCompte();
   if (!brouillons.has(id)) brouillons.set(id, { reponses: {}, etape: 0 });
   const etat = brouillons.get(id);
   const total = q.questions.length;

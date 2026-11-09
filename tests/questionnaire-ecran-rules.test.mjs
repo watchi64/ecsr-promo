@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   cleMemoire, idQuestionnaire, lireMemoire, memoirePlusTard, questionnairesAffichables, questionnaireDuBandeau,
   questionnaireDuLien, sousTitreBandeau, progression, aUneReponse, peutAvancer, premiereManquante, reponsesAEnvoyer,
-  annonceEcran, ouvrirApresLecture,
+  annonceEcran, ouvrirApresLecture, memoireDeSession,
 } from "../js/questionnaire-ecran-rules.js";
 import { QUESTIONNAIRES } from "../js/questionnaires-data.js";
 
@@ -145,4 +145,43 @@ test("lien direct : la fenêtre s'ouvre seulement si la personne est restée sur
   assert.equal(ouvrirApresLecture({ adresseAvant: "#/home", adresseMaintenant: "#/home", fenetre: "compte" }), false);
   assert.equal(ouvrirApresLecture({ adresseAvant: "#/home", adresseMaintenant: "#/home", fenetre: "signaler" }), false);
   assert.equal(ouvrirApresLecture({ adresseAvant: undefined, adresseMaintenant: undefined, fenetre: null }), false);
+});
+
+test("mémoire de la session : vidée quand le compte change sans rechargement (appareil partagé)", () => {
+  const m = memoireDeSession();
+  assert.equal(m.suivreCompte("a@x.fr"), false, "première connexion : rien à vider");
+  m.brouillons.set(idQuestionnaire(FIN), { reponses: { objectifs: 4 }, etape: 2 });
+  m.envoyes.add(idQuestionnaire(SIX));
+  // Même compte (jeton renouvelé, aperçu « Voir en tant que ») : rien ne bouge.
+  assert.equal(m.suivreCompte("a@x.fr"), false);
+  assert.equal(m.brouillons.size, 1);
+  assert.equal(m.envoyes.size, 1);
+  // Session expirée : plus de compte, tout part.
+  assert.equal(m.suivreCompte(null), true);
+  assert.equal(m.brouillons.size, 0);
+  assert.equal(m.envoyes.size, 0);
+  // B se connecte dans le même onglet : rien de A.
+  assert.equal(m.suivreCompte("b@x.fr"), false);
+  assert.equal(m.brouillons.has(idQuestionnaire(FIN)), false);
+  assert.equal(m.envoyes.has(idQuestionnaire(SIX)), false);
+  // Passage direct de B à C (événement de déconnexion manqué) : vidé aussi.
+  m.brouillons.set(idQuestionnaire(FIN), { reponses: {}, etape: 0 });
+  assert.equal(m.suivreCompte("c@x.fr"), true);
+  assert.equal(m.brouillons.size, 0);
+  // Une adresse vide ou illisible vaut « pas de compte ».
+  m.envoyes.add(idQuestionnaire(FIN));
+  assert.equal(m.suivreCompte(""), true);
+  assert.equal(m.suivreCompte(undefined), false);
+});
+
+test("mémoire de la session : l'écran suit le compte avant chaque usage et à chaque changement d'authentification", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../js/questionnaire.js", import.meta.url), "utf8");
+  assert.match(src, /const session = memoireDeSession\(\);/);
+  assert.doesNotMatch(src, /new Map\(\)|new Set\(\)/, "aucune autre mémoire de module hors de memoireDeSession");
+  assert.match(src, /onAdminChange\(\(user\) => \{\s*const compteChange = session\.suivreCompte\(user\?\.email \?\? null\);/);
+  assert.match(src, /if \(compteChange && fenetreOuverte\(\) === "questionnaire"\) fermerFenetre\(\);/);
+  // lireListe (bandeau, lien direct) et ouvrirQuestionnaire (brouillon) se recalent sur le compte connecté.
+  assert.match(src, /lireQuestionnairesARemplir\(\);\s*suivreCompte\(\);/);
+  assert.match(src, /const id = idQuestionnaire\(item\);\s*suivreCompte\(\);/);
 });
