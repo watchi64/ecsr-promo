@@ -79,3 +79,14 @@ export function messageLectureEnEchec({ cours = false, qcm = false } = {}) {
   if (cours) return "Cours non chargés. Vérifie ta connexion.";
   return null;
 }
+
+/** Attend TOUTES les lectures d'un objet {nom: promesse}, même si l'une échoue vite : renvoie les valeurs lues
+ *  et les noms des lectures en échec. Les indicateurs d'échec sont ainsi tous connus avant le premier affichage. */
+export async function lireToutes(lectures) {
+  const noms = Object.keys(lectures);
+  const res = await Promise.allSettled(noms.map((n) => lectures[n]));
+  const valeurs = {};
+  const echecs = [];
+  res.forEach((r, i) => { if (r.status === "fulfilled") valeurs[noms[i]] = r.value; else echecs.push(noms[i]); });
+  return { valeurs, echecs };
+}

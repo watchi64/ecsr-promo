@@ -15,7 +15,7 @@ import { navigationV2Active } from "../nav-etat.js?v=20261109a";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109a";
 import { renderRessources } from "./ressources.js?v=20261109a";
 import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261109a";
-import { messageLectureEnEchec } from "../qcm-rules.js?v=20261109a";
+import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261109a";
 import { renderPropositionsIa } from "./propositions-ia.js?v=20261109a";
 import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261109a";
 
@@ -94,13 +94,17 @@ async function loadQcmIndex() {
     // donc un drapeau sur les QCM qu'il a lui-même signalés. Et en aperçu « Voir en tant
     // que », la RLS n'est pas simulée du tout : le fondateur verrait tous les drapeaux
     // alors qu'il regarde l'écran d'un élève. Le garde-fou est donc ici.
-    const [list, attempts, evals, signals] = await Promise.all([
-      listQcmIndex(),
-      listMyQcmAttempts(),
-      maFiche ? listEvaluations({ stagiaire_id: maFiche }) : Promise.resolve([]),
-      canManageExam() ? countQcmSignalementsOuverts().catch(() => ({})) : Promise.resolve({}),
-      lireCoursIndex(),
-    ]);
+    // Toutes les lectures sont attendues, même si l'une échoue vite : les deux indicateurs d'échec sont connus
+    // avant le premier affichage.
+    const { valeurs, echecs } = await lireToutes({
+      list: listQcmIndex(),
+      attempts: listMyQcmAttempts(),
+      evals: maFiche ? listEvaluations({ stagiaire_id: maFiche }) : Promise.resolve([]),
+      signals: canManageExam() ? countQcmSignalementsOuverts().catch(() => ({})) : Promise.resolve({}),
+      cours: lireCoursIndex(),
+    });
+    if (echecs.length) throw new Error("Lecture des QCM impossible");
+    const { list, attempts, evals, signals } = valeurs;
     signalByQcm = signals || {};
     qcmByTheme = new Map(list.filter((q) => q.nb_questions > 0).map((q) => [q.theme_id, q]));
     myExamByQcm = new Map();

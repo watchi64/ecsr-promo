@@ -89,3 +89,18 @@ test("le lecteur n'affiche plus le texte brut d'un corps absent", () => {
   const src = readFileSync("js/views/cours-reader.js", "utf8");
   assert.match(src, /const texte = vide \? MESSAGE_COURS_VIDE : cours\.corps_md;/);
 });
+
+test("lireToutes attend les lectures lentes même quand une autre échoue vite", async () => {
+  const { lireToutes } = await import("../js/qcm-rules.js");
+  const echoue = (ms) => new Promise((_, rej) => setTimeout(() => rej(new Error("panne")), ms));
+  const r = await lireToutes({ list: echoue(1), cours: echoue(40), evals: Promise.resolve([1]) });
+  assert.deepEqual(r.echecs.sort(), ["cours", "list"]);
+  assert.deepEqual(r.valeurs, { evals: [1] });
+});
+
+test("sans échec, lireToutes rend toutes les valeurs", async () => {
+  const { lireToutes } = await import("../js/qcm-rules.js");
+  const r = await lireToutes({ a: Promise.resolve(1), b: Promise.resolve(2) });
+  assert.deepEqual(r.echecs, []);
+  assert.deepEqual(r.valeurs, { a: 1, b: 2 });
+});
