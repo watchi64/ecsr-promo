@@ -217,10 +217,10 @@ def signaler(v):
     v.attendre("#sg-message", "le champ du signalement")
     v.but("formulaire ouvert")
     v.remplir("#sg-message", "Essai du robot : la page se lit mal sur mon téléphone.", "le champ du signalement")
+    v.ecouter_messages()
     v.toucher("button.sg-envoyer", "« Envoyer »", ecriture=True)
-    confirmation = v.attendre("#toast:not(.hidden)", "la confirmation de l'envoi", delai=4000).inner_text()
-    if "merci" not in confirmation.lower():
-        v.echec("après l'envoi, le message ne confirme pas : « %s »" % confirmation.strip()[:80])
+    if not v.exiger_confirmation("l'envoi", "merci"):
+        v.echec("après l'envoi, aucun message ne confirme")
     v.terminer()
 
 
