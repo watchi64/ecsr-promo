@@ -228,7 +228,7 @@ body[data-nav="v2"] .nav-compte-point {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--pastille);   /* = --accent par défaut ; le rouge des repères en Couleurs ECF, comme le point de « Plus » */
   box-shadow: 0 0 0 2px var(--bg-elev);
 }
 /* Sur la barre sombre de l'équipe (barre latérale, en-tête du téléphone), le point prend le vert clair des repères
@@ -1060,7 +1060,11 @@ body[data-nav="v2"] .qcm-close { width: 44px; height: 44px; }
 .habillage-pastille[data-habillage="ecf"] .habillage-apercu {
   background: conic-gradient(var(--apercu-ecf-1) 0 50%, var(--apercu-ecf-2) 50% 75%, var(--apercu-ecf-3) 75% 100%);
 }
-.habillage-libelle { min-width: 0; overflow-wrap: anywhere; }
+/* Deux lignes dans la pastille : le nom, puis d'où vient l'habillage, plus petit et en texte atténué (4,5:1 au moins sur le
+   fond de la pastille, pressée ou survolée, dans les deux habillages). Le retour à la ligne se fait entre deux mots. */
+.habillage-textes { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.habillage-libelle { min-width: 0; overflow-wrap: break-word; }
+.habillage-legende { min-width: 0; font-size: 0.74rem; font-weight: 500; line-height: 1.2; color: var(--text-muted); overflow-wrap: break-word; }
 /* Dans le menu du compte, juste sous sa tête : le titre a l'allure des titres de section de la fenêtre (plus haut), les
    pastilles en retrait comme dans la maquette ; le groupe ne rétrécit pas quand le menu défile. */
 body[data-nav="v2"] .nav-fenetre .habillage-choix { flex: none; }

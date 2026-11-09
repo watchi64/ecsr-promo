@@ -556,6 +556,9 @@ export const PAIRES = [
   ["--sur-sombre-actif", "--bg-deep", 3],
   ["--repere-sombre", "--repere-sombre-lisere", 3],   // le point du compte contre son liseré (blanc en ECF, lot 3, tâche 10)
   ["--repere-admin", "--bg-deep", 4.5],
+  ["--accent-fin-barre", "--bg-subtle", 3],   // bout clair de la barre de progression des thèmes contre sa piste
+  ["--text-etiquette", "--act-peda", 4.5],     // étiquettes « Au tableau » / « Stagiaires » sur la teinte du pédagogue
+  ["--text-muted", "--bg-elev", 4.5],          // légende des pastilles d'habillage
 ];
 
 export function contrastesDe(jetons) {

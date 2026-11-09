@@ -43,10 +43,12 @@
   --text-soft:  #46554A;
   --text-muted: #5D695E;   /* 4,8:1 sur --bg-soft ; était #6E7A6F (4,05:1, sous le seuil AA) */
   --text-faint: #9DA89A;
+  --text-etiquette: #556157;   /* étiquettes en capitales du planning (« Au tableau », « Stagiaires ») : 4,9:1 sur la teinte du pédagogue, le --text-muted en faisait 4,34 */
 
   /* --- Accent (vert mint) --- */
   --accent:        #5B6C42;   /* même vert assombri : 5,2:1 en texte, 5,1:1 sous du texte crème ; était #6B7F4E */
   --accent-strong: #495838;
+  --accent-fin-barre: var(--c-go);   /* bout clair du dégradé de la barre « Thèmes officiels » : le vert du défaut, un bleu en Couleurs ECF */
   --accent-soft:   #EAEFD9;
   --accent-soft-2: #D8E1C0;
   /* Vert clair pour les repères posés sur le fond sombre (barre du haut, pastille de date). */
@@ -1538,7 +1540,7 @@ h3 {
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-muted);
+  color: var(--text-etiquette);
   font-weight: 600;
   min-width: 72px;
 }
@@ -2734,7 +2736,7 @@ body.p-dragging-active {
 
 .theme-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--c-go));
+  background: linear-gradient(90deg, var(--accent), var(--accent-fin-barre));
   border-radius: 3px;
   transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }

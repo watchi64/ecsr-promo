@@ -115,6 +115,8 @@ test("le groupe est nommé par son titre : le sien, ou celui de la section qui l
     const nomme = blocHabillage({ titre: h3, deps: t.deps });
     assert.equal(nomme.getAttribute("aria-labelledby"), h3.id);
     assert.ok(!descendants(nomme).includes(h3), "le titre de la section n'est pas recopié dans le groupe");
-    assert.deepEqual(pastilles(nomme).map((b) => [b.getAttribute("type"), b.textContent]), [["button", "ECSR Promo"], ["button", "Couleurs ECF"]]);
+    const ligne = (b, classe) => descendants(b).find((x) => x instanceof ElementFactice && x.classes.has(classe))?.textContent;
+    assert.deepEqual(pastilles(nomme).map((b) => [b.getAttribute("type"), ligne(b, "habillage-libelle"), ligne(b, "habillage-legende")]),
+      [["button", "ECSR Promo", "d'origine"], ["button", "Couleurs ECF", "du réseau ECF"]]);
   });
 });

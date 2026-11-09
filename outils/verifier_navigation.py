@@ -1733,7 +1733,7 @@ function apparence(lieu) {
     apresTete: !!g.previousElementSibling && g.previousElementSibling.classList.contains("nav-fenetre-tete"),
     pastilles: [...g.querySelectorAll("button")].filter(visible).map((b) => {
       const r = rect(b);
-      return { habillage: b.getAttribute("data-habillage"), classe: b.classList.contains("habillage-pastille"), libelle: texte(b), type: b.getAttribute("type"),
+      return { habillage: b.getAttribute("data-habillage"), classe: b.classList.contains("habillage-pastille"), libelle: texte(b.querySelector(".habillage-libelle") || b), legende: texte(b.querySelector(".habillage-legende") || b), type: b.getAttribute("type"),
         presse: b.getAttribute("aria-pressed"), focus: document.activeElement === b, l: dixieme(r.width), h: dixieme(r.height) };
     }) }));
   return { ...base, groupes };
@@ -2934,6 +2934,7 @@ def verifier_menu_du_compte_a_l_ouverture(page, res, sc):
 # --------------------------------------------------------------------------------------
 
 LIBELLES_HABILLAGES = {"ecsr": "ECSR Promo", "ecf": "Couleurs ECF"}
+LEGENDES_HABILLAGES = {"ecsr": "d'origine", "ecf": "du réseau ECF"}   # seconde ligne de chaque pastille (lot 3, tâche 13b)
 MESSAGES_HABILLAGES = {"ecsr": "Habillage ECSR Promo appliqué", "ecf": "Couleurs ECF appliquées"}
 SEL_PASTILLE = {"menu": '[data-nav-coquille="compte"] .habillage-pastille[data-habillage="%s"]', "page": '#view .habillage-pastille[data-habillage="%s"]'}
 QUOI_APPARENCE = {"menu": "menu du compte", "page": "page"}
@@ -2959,6 +2960,8 @@ def verifier_apparence(page, res, sc, vue, lieu, a=None):
     if vus != [(n, LIBELLES_HABILLAGES[n]) for n in ("ecsr", "ecf")]:
         res.echec("apparence", vue, "%s : pastilles %s, attendu « ECSR Promo » (ecsr) puis « Couleurs ECF » (ecf)" % (quoi, vus))
     for p in g["pastilles"]:
+        if p["legende"] != LEGENDES_HABILLAGES.get(p["habillage"]):
+            res.echec("apparence", vue, "%s : la légende de « %s » est « %s », attendu « %s »" % (quoi, p["libelle"], p["legende"], LEGENDES_HABILLAGES.get(p["habillage"])))
         if p["type"] != "button" or not p["classe"]:
             res.echec("apparence", vue, "%s : « %s » n'est pas un button[type=button].habillage-pastille" % (quoi, p["libelle"]))
         if p["presse"] not in ("true", "false"):

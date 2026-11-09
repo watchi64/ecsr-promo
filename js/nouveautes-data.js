@@ -150,7 +150,7 @@ export const NOUVEAUTES = [
     titre: "L'app aux couleurs d'ECF",
     resume: "Tu peux habiller l'app aux couleurs d'ECF : son bleu, son bleu nuit et une touche de rouge. Seules les "
           + "couleurs changent : chaque page reste à sa place, et les notes gardent leurs couleurs. L'app retient ton "
-          + "choix, et tu reviens à ECSR Promo quand tu veux.",
+          + "choix, et tu reviens à ECSR Promo, la couleur d'origine, quand tu veux.",
     ou: { label: "Mes préférences", route: "preferences" },
     guide: [
       "Ouvre le menu de ton compte : le rond à tes initiales, en haut à droite de l'écran (chez les formateurs, sur "

@@ -6,11 +6,11 @@
 import { el, toast } from "./utils.js?v=20261109d";
 import { choisirHabillage, habillageCourant } from "./habillage.js?v=20261109d";
 
-// Dans l'ordre des pastilles. `message` : ce que le bas de l'écran confirme, que l'enregistrement sur le compte aboutisse
+// Dans l'ordre des pastilles. `legende` : la seconde ligne, plus discrète, qui dit d'où vient l'habillage (le libellé reste le nom). `message` : ce que le bas de l'écran confirme, que l'enregistrement sur le compte aboutisse
 // ou non (le choix est appliqué et gardé sur l'appareil ; il repartira au prochain démarrage).
 const PASTILLES = [
-  { nom: "ecsr", libelle: "ECSR Promo", message: "Habillage ECSR Promo appliqué" },
-  { nom: "ecf", libelle: "Couleurs ECF", message: "Couleurs ECF appliquées" },
+  { nom: "ecsr", libelle: "ECSR Promo", legende: "d'origine", message: "Habillage ECSR Promo appliqué" },
+  { nom: "ecf", libelle: "Couleurs ECF", legende: "du réseau ECF", message: "Couleurs ECF appliquées" },
 ];
 
 // Toutes les pastilles affichées (menu du compte, page) suivent l'habillage appliqué : une seule écoute pour la fenêtre,
@@ -38,7 +38,7 @@ export function blocHabillage({ titre = null, deps = {} } = {}) {
   const tete = titre ?? el("p", { class: "habillage-titre" }, "Apparence");
   if (!tete.id) tete.id = "habillage-titre-" + ++numero;
   const courant = habillageCourant(deps);
-  const pastilles = PASTILLES.map(({ nom, libelle, message }) => {
+  const pastilles = PASTILLES.map(({ nom, libelle, legende, message }) => {
     const bouton = el("button", {
       type: "button", class: "habillage-pastille", "data-habillage": nom, "aria-pressed": String(courant === nom),
       onClick: () => {
@@ -52,7 +52,9 @@ export function blocHabillage({ titre = null, deps = {} } = {}) {
         choisirHabillage(nom, deps).catch((e) => console.warn("Habillage : choix impossible", e));
         annoncer(message);
       },
-    }, el("span", { class: "habillage-apercu", "aria-hidden": "true" }), el("span", { class: "habillage-libelle" }, libelle));
+    }, el("span", { class: "habillage-apercu", "aria-hidden": "true" }), el("span", { class: "habillage-textes" },
+      el("span", { class: "habillage-libelle" }, libelle),
+      el("span", { class: "habillage-legende" }, legende)));
     return bouton;
   });
   return el("div", { class: "habillage-choix", role: "group", "aria-labelledby": tete.id },
