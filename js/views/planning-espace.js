@@ -3,13 +3,13 @@
 // passage (ex-page Priorités). Chaque sous-onglet rend la page actuelle, inchangée. Avec
 // l'ancienne navigation, la route planning rend la semaine seule (js/main.js).
 
-import { el, clear } from "../utils.js?v=20261109h";
-import { renderSubTabs } from "../subtabs.js?v=20261109h";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109h";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode } from "./planning.js?v=20261109h";
-import { renderCalendrier } from "./calendrier.js?v=20261109h";
-import { renderDashboard } from "./dashboard.js?v=20261109h";
-import { afficherErreur } from "./mon-suivi.js?v=20261109h";
+import { el, clear } from "../utils.js?v=20261109i";
+import { renderSubTabs } from "../subtabs.js?v=20261109i";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109i";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode } from "./planning.js?v=20261109i";
+import { renderCalendrier } from "./calendrier.js?v=20261109i";
+import { renderDashboard } from "./dashboard.js?v=20261109i";
+import { afficherErreur } from "./mon-suivi.js?v=20261109i";
 
 // Passer de la semaine à un autre sous-onglet vaut quitter la page du planning (js/main.js) :
 // le mode Modifier retombe, la barre des jours n'est plus suivie et la cible d'impression part
@@ -43,7 +43,7 @@ function dansUnConteneur(rendre) {
 // Chaque sous-onglet suit le module de son ancienne page : la page s'ouvre dès que l'un d'eux
 // est ouvert (routeVisibleV2, js/nav-rules.js) et ne montre que ceux-là chez un stagiaire.
 // `aujourdhui` : le geste du bouton « Aujourd'hui » de l'ancienne barre (js/main.js), que la semaine
-// porte en haut de sa vue (ruling R29).
+// porte dans sa barre, « Revenir à aujourd'hui » (ruling R29, puis audit du 09/11, lot B).
 export async function renderPlanningEspace(view, { aujourdhui = null } = {}) {
   clear(view);
   view.appendChild(renderSubTabs([

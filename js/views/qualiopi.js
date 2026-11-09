@@ -23,28 +23,28 @@
 import {
   lireDonneesQualiopi, lireReferentielCentre, getMesPromos, getPromoCourante,
   lireResultatsQuestionnaire, lireCommentairesQuestionnaire, lireOuverturesQuestionnaires, ouvrirQuestionnaire,
-} from "../db.js?v=20261109h";
-import { el, clear, isoDate, toast } from "../utils.js?v=20261109h";
-import { indicateursPromo } from "../centre-stats.js?v=20261109h";
-import { inventairePromo, nb, tableau, satisfactionDe } from "../qualiopi-preuves.js?v=20261109h";
+} from "../db.js?v=20261109i";
+import { el, clear, isoDate, toast } from "../utils.js?v=20261109i";
+import { indicateursPromo } from "../centre-stats.js?v=20261109i";
+import { inventairePromo, nb, tableau, satisfactionDe } from "../qualiopi-preuves.js?v=20261109i";
 import {
   modeleDossierFormation, modeleDossierCentre, inventaireCsv, nomFichierQualiopi, periodeEnMots, LIBELLES_NIVEAU, PHRASE_NIVEAU, PHRASE_DE_GARDE,
-} from "../qualiopi-documents.js?v=20261109h";
+} from "../qualiopi-documents.js?v=20261109i";
 import {
   REFERENTIEL_APPLIQUE, REFERENTIEL_DU, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, groupesParCritere,
   titreImpression,
-} from "../qualiopi-page-rules.js?v=20261109h";
+} from "../qualiopi-page-rules.js?v=20261109i";
 import {
   ficheResultats, fichesResultatsTexte, tableauFiche, copierTexte, noteProvisoire, promoTerminee, AUCUNE_FORMATION,
-} from "../qualiopi-resultats.js?v=20261109h";
-import { NOUVEAUTES } from "../nouveautes-data.js?v=20261109h";
-import { telecharger } from "./centre.js?v=20261109h";
-import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261109h";
+} from "../qualiopi-resultats.js?v=20261109i";
+import { NOUVEAUTES } from "../nouveautes-data.js?v=20261109i";
+import { telecharger } from "./centre.js?v=20261109i";
+import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261109i";
 import {
   QUESTIONNAIRES_GESTION, porteeGestion, anneesFormateur, libellePorteeFormateur, ouvertureDe, etatOuverture, actionsOuverture,
   messageOuverture, questionnairesAbsents, resumeReponses, satisfactionGlobale, lignesResultats, commentairesMontrables,
   messageLectureGestion, messageEchecOuverture, jourParis,
-} from "../questionnaires-gestion-rules.js?v=20261109h";
+} from "../questionnaires-gestion-rules.js?v=20261109i";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 

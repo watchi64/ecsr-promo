@@ -13,23 +13,23 @@
 // Popover sur ordinateur et tablette, tiroir en bas de l'écran sur téléphone (css/navigation.css),
 // mécanique de fenêtre de js/nav-fenetre.js.
 
-import { el } from "./utils.js?v=20261109h";
-import { icon, deco } from "./icons.js?v=20261109h";
+import { el } from "./utils.js?v=20261109i";
+import { icon, deco } from "./icons.js?v=20261109i";
 import {
   getProfile, getProfileWho, monStagiaireId, buildViewAsBlock, seDeconnecter,
-} from "./auth-admin.js?v=20261109h";
-import { getPromoCourante, getMesPromos } from "./db.js?v=20261109h";
-import { ouvrirChoixPromo } from "./promo-pastille.js?v=20261109h";
-import { pagePersonnelle } from "./route-rules.js?v=20261109h";
-import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261109h";
-import { libellePastille } from "./nouveautes.js?v=20261109h";
-import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261109h";
-import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261109h";
-import { fondateurHorsApercu } from "./auth-admin.js?v=20261109h";
-import { ouvrirSignalement } from "./signalement.js?v=20261109h";
-import { etatSignalements } from "./signalement-etat.js?v=20261109h";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261109h";
-import { blocHabillage } from "./habillage-choix.js?v=20261109h";
+} from "./auth-admin.js?v=20261109i";
+import { getPromoCourante, getMesPromos } from "./db.js?v=20261109i";
+import { ouvrirChoixPromo } from "./promo-pastille.js?v=20261109i";
+import { pagePersonnelle } from "./route-rules.js?v=20261109i";
+import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261109i";
+import { libellePastille } from "./nouveautes.js?v=20261109i";
+import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261109i";
+import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261109i";
+import { fondateurHorsApercu } from "./auth-admin.js?v=20261109i";
+import { ouvrirSignalement } from "./signalement.js?v=20261109i";
+import { etatSignalements } from "./signalement-etat.js?v=20261109i";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261109i";
+import { blocHabillage } from "./habillage-choix.js?v=20261109i";
 
 // Une ligne du menu : un lien (page) ou un bouton (geste), icône et libellé, `fin` à droite.
 const ligne = (tag, attrs, icone, texte, fin = null) => el(tag, { class: "nav-fenetre-lien", ...attrs },
@@ -101,7 +101,7 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
       filet(),
       ligne("button", { type: "button", onClick: () => {
         fermerFenetre({ focus: false });
-        import("./legal.js?v=20261109h").then((m) => m.ouvrirInformationsLegales());
+        import("./legal.js?v=20261109i").then((m) => m.ouvrirInformationsLegales());
       } }, icon.shield(), "Informations légales"),
       ligne("button", { type: "button", onClick: () => seDeconnecter(() => fermerFenetre({ focus: false })) },
         icon.logout(), "Se déconnecter"),

@@ -64,7 +64,8 @@ test("états ouverts : verts partout (émargement, Examen ouvert), jour fermé s
 });
 
 test("doublons : « Cette semaine » absent quand « Aujourd'hui » est là ; un seul titre « Livret EPCF »", () => {
-  assert.match(lire("js/views/planning.js"), /eleve \|\| avecAujourdhui \? null : todayBtn/);
+  // Lot B (audit du 09/11) : sous la nouvelle navigation, le retour au jour remplace « Cette semaine », hors de la semaine du jour.
+  assert.match(lire("js/views/planning.js"), /eleve \|\| avecAujourdhui \? retourBtn : todayBtn/);
   const livret = lire("js/views/epcf-livret.js");
   assert.match(livret, /if \(!embedded\) toolbar\.appendChild\(el\("h3"/);
   assert.equal((livret.match(/embedded: opts\.embedded/g) || []).length, 2);

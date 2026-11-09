@@ -141,9 +141,10 @@ ok(!dit(lancement, /Réglages/), "pour tous : « Réglages » est la page de la 
 ok(dit(lancement, /[Uu]n point/) && !dit(lancement, /pastille|chiffre/), "pour tous : le compte montre un point, sans chiffre");
 // F5 : une promo de départ n'a pas encore Priorités, Thèmes, Compétences, La classe, l'Assistant : le lancement le dit.
 ok(lancement.resume.includes("Certaines parties s'ouvrent au fil de la formation."), "pour tous : certaines parties s'ouvrent au fil de la formation");
-// F4 : le bouton « Aujourd'hui » est en tête de Planning, Semaine (pas « en haut du Planning », qui est aussi la barre de jours collée).
-ok(/Planning, Semaine/.test(lancement.guide[0]) && /Aujourd'hui/.test(lancement.guide[0]) && !/En haut du Planning/.test(tout(lancement)),
-  "pour tous : le bouton « Aujourd'hui » est en tête de Planning, Semaine");
+// F4, puis audit du 09/11 (lot B) : le retour au jour est « Revenir à aujourd'hui », dans Planning, Semaine, depuis une autre semaine (pas « en haut
+// du Planning », qui est aussi la barre de jours collée).
+ok(/Planning, Semaine/.test(lancement.guide[0]) && /Revenir à aujourd'hui/.test(lancement.guide[0]) && !/En haut du Planning/.test(tout(lancement)),
+  "pour tous : « Revenir à aujourd'hui », dans Planning, Semaine");
 ok(dit(lancement, /en bas de la barre de gauche/), "pour tous : les formateurs sur ordinateur trouvent le compte et l'assistant en bas de la barre de gauche");
 ok(dit(lancementEquipe, /en bas de (cette|la) barre/), "formateurs : le compte et l'assistant en pied de barre");
 ok(dit(lancementEquipe, /Assistant/) && dit(lancementEquipe, /téléphone/), "formateurs : le bouton Assistant sur téléphone");
@@ -221,7 +222,8 @@ eq(coursTel.ou, { label: "Cours", route: "themes" }, "cours : Où le trouver, Co
 // Les lots de corrections du même jour (premier lot ; second lot, audit du 09/11) ne font pas partie du lot 2B.
 const CORRECTIONS = ["2026-11-09-qcm-echap-et-pannes", "2026-11-09-accueil-plus-juste", "2026-11-09-emargement-planning-plus-justes",
   "2026-11-09-finitions", "2026-11-09-finitions-planning",   // finitions de l'audit (lot E)
-  "2026-11-09-une-seule-ecriture"];   // unification typographique, décision de Timy
+  "2026-11-09-une-seule-ecriture",   // unification typographique, décision de Timy
+  "2026-11-09-planning-plus-clair"];   // planning sur téléphone et en mode Modifier (lot B de l'audit)
 // Le lot 3 (les couleurs d'ECF) peut porter la même date : il ne fait pas partie du lot 2B non plus.
 const DU_LOT_3 = NOUVEAUTES.filter((e) => e.id.endsWith("-couleurs-ecf")).map((e) => e.id);
 const QUESTIONNAIRES_ID = "2026-11-09-questionnaires-anonymes";
@@ -305,7 +307,9 @@ const AVEC_GUIDE_NOUVEAU = ["2026-10-23-tableau-de-bord-centre", "2026-10-05-eff
   "2026-07-31-dossier-professionnel", "2026-07-19-livret-epcf", "2026-10-28-signaler-un-probleme",
   // Second lot de corrections : ses étapes ne parlent que de pages de la nouvelle barre (Aujourd'hui, la grille) ; l'ancienne
   // navigation lit le résumé seul.
-  "2026-11-09-emargement-planning-plus-justes"];
+  "2026-11-09-emargement-planning-plus-justes",
+  // Lot B de l'audit : l'éditeur dans les deux navigations ; la grille et la barre de la semaine dans la nouvelle seulement.
+  "2026-11-09-planning-plus-clair"];
 eq(NOUVEAUTES.filter((e) => e.guideNouvelle).map((e) => e.id).sort(), [...AVEC_GUIDE_NOUVEAU].sort(), "les consignes réécrites pour la nouvelle navigation");
 for (const e of NOUVEAUTES.filter((x) => x.guideNouvelle)) {
   ok(Array.isArray(e.guide) && e.guide.length > 0, e.id + " : le guide d'avant reste pour l'ancienne navigation");
@@ -352,7 +356,8 @@ for (const m of MODULES) {
   }
 }
 const mod = (cle) => MODULES.find((m) => m.cle === cle);
-eq(mod("planning").annonce.resume.endsWith("Le bouton Aujourd'hui t'amène directement à la journée du jour."), true, "Planning : le bouton Aujourd'hui");
+// Audit du 09/11, lot B : plus de bouton « Aujourd'hui » dans le Planning de la nouvelle barre ; la journée du jour y est repérée dans les deux.
+eq(mod("planning").annonce.resume.endsWith("La journée du jour y est repérée."), true, "Planning : la journée du jour repérée");
 eq(mod("priorites").explication, "Qui doit passer en priorité, en salle et en voiture, dans le Planning.", "Priorités : explication");
 ok(mod("priorites").annonce.resume.startsWith("Dans le Planning, Priorités montre qui doit passer en priorité"), "Priorités : annonce");
 eq(mod("notes").explication, "Matrice des notes, courbe d'évolution de chaque stagiaire, anonymat.", "Notes : explication");
