@@ -210,13 +210,15 @@ hors aperçu : lecture vide, insertion en erreur `42501`, modification à 0 lign
 **Fichiers :** créer `js/registre-fenetre.js` (fenêtre), `js/views/registre-qualite.js` (panneau) ; modifier
 `js/nav-fenetre.js` (option `avantFermeture`), `js/views/qualiopi.js` (sous-onglets, rappel d'effacement, lecture du registre),
 `css/qualiopi.css` (chargé partout : la fenêtre sert aussi en tâche 5) ; tests `tests/registre-page.test.mjs` (câblage, modèle de
-`tests/qualiopi-questionnaires-page.test.mjs`) ; ajuster `tests/qualiopi-questionnaires-page.test.mjs` (ligne 28,
+`tests/qualiopi-questionnaires-page.test.mjs`) ; ajuster `tests/qualiopi-questionnaires-page.test.mjs` (ligne 27,
 `corps.append(...)`), `tests/qualiopi-page.test.mjs` et `tests/qualiopi-satisfaction.test.mjs` (ligne 235) si leurs motifs
 changent.
 
 **Interfaces :**
-- `ouvrirFenetre({ ..., avantFermeture })` : fonction facultative, appelée par « Fermer », le voile, Échap et le changement
-  d'adresse ; `false` garde la fenêtre. Sans elle, rien ne change pour les fenêtres existantes.
+- `ouvrirFenetre({ ..., avantFermeture })` : fonction facultative, appelée par « Fermer », le voile et Échap seulement ;
+  `false` garde la fenêtre. Au changement d'adresse (`hashchange`, `js/nav-fenetre.js:61-68`, la page a déjà changé) et à
+  une fermeture par le programme (la barre qui se remonte, `js/nav-shell.js:169` et `:566`), la fenêtre se ferme sans
+  demander : limite connue, écrite dans `PROJECT_NOTES.md`. Sans l'option, rien ne change pour les fenêtres existantes.
 - `ouvrirFenetreRegistre({ entree?, prerempli?, promos, ancre, surEnregistre(entree) })` : une fenêtre courte ; type en cinq
   boutons qui passent à la ligne à 375 px, date (aujourd'hui par défaut), origine, promo (« Aucune ») et, sans promo, centre
   (« Tout l'organisme » ou un lieu, d'après `getMesPromos()`), description avec « Ne nomme personne » juste dessous, puis
@@ -267,8 +269,11 @@ sous-onglets. `liensRegistre()` nul (table absente) : pas de bouton.
   formation », « registre qualité pas encore en service » (`absente`), « registre qualité non lu (erreur de lecture) »
   (`non_lue`).
 - `NIVEAUX` 31 et 32 : `apporte` gagne « registre qualité », `ajout` nul ; niveau `partiel` gardé.
-- `modeleDossierCentre({ promos, lieu, periode, aujourdhui, sansNoms, nouveautes = [], registre = { etat: "non_lue" } })` :
-  section « Amélioration continue » (`SERVICE_CENTRE` : 31 y entre), entrées de `entreesPourCentre` sur la période ;
+- `modeleDossierCentre({ promos, lieu, lieuId, periode, aujourdhui, sansNoms, nouveautes = [], registre = { etat: "non_lue" } })` :
+  `lieuId` (identifiant du centre, `lieu` restant le nom affiché) sert à `entreesPourCentre`, pour garder les entrées du lieu
+  et de tout l'organisme même sans promo dans la période ; section « Amélioration continue » (`SERVICE_CENTRE` : 31 y
+  entre), lue **uniquement** depuis ce paramètre `registre` (jamais depuis `donnees.registre` des promos, qui ne sert qu'à
+  l'inventaire et au dossier de la formation) ;
   `modeleDossierFormation` lit `donnees.registre` dans « Difficultés et signalements traités ». Les deux : décompte par type et
   par état, délai médian, puis une ligne par entrée sans texte libre (point 5) ; dossier du centre « sans aucun nom » : les
   nombres seulement.
