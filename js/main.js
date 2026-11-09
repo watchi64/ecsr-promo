@@ -29,6 +29,7 @@ import { teardownDocPrint } from "./doc-officiel.js?v=20261109d";
 import { renderNotes } from "./views/notes.js?v=20261109d";
 import { renderVueCentre, renderEmargementCentre, renderNotesCentre } from "./views/direction-centre.js?v=20261109d";
 import { renderPromosCentre } from "./views/direction-promos.js?v=20261109d";
+import { renderStagiairesCentre } from "./views/direction-stagiaires.js?v=20261109d";
 import { renderRessources } from "./views/ressources.js?v=20261109d";
 import { renderThemes } from "./views/themes.js?v=20261109d";
 import { renderConfig, renderPreferences } from "./views/config.js?v=20261109d";
@@ -250,7 +251,7 @@ const routes = {
   themes:     renderThemes,
   notes:      (view) => (espaceCourant() === "direction" ? renderNotesCentre(view) : renderNotes(view)),
   ccp2:       renderCcp2,
-  stagiaires: renderStagiaires,
+  stagiaires: (view) => (espaceCourant() === "direction" ? renderStagiairesCentre(view) : renderStagiaires(view)),
   centre:     rendreCentre,
   qualiopi:   rendreQualiopi,   // chargée à la demande, voir plus haut
   emargement: (view) => (espaceCourant() === "direction" ? renderEmargementCentre(view) : renderEmargement(view)),

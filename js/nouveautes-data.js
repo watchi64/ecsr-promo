@@ -111,7 +111,8 @@ export const NOUVEAUTES = [
       "Dans Promos, « Créer une promo » demande un nom, un début et, si tu veux, une fin. « Modifier » règle le nom et les "
         + "dates, « Modules » ce que voient les stagiaires de la promo.",
       "Dans Stagiaires, tous les stagiaires du centre sont groupés par promo. Un nom ouvre sa fiche ; « Gérer cette promo » "
-        + "ouvre une autre promo du centre.",
+        + "ouvre une autre promo du centre. Pour la promo affichée, tu ajoutes, mets en abandon, réactives ou effaces un "
+        + "stagiaire, et tu invites son compte.",
       "Dans Émargement, « Voir les feuilles » ouvre les feuilles d'une promo en lecture. Dans Notes et examens, « Voir la "
         + "matrice » ouvre les notes de la promo.",
       "Dans Équipe, « Inviter un formateur » demande son adresse et les promos du centre à cocher ; « Modifier » change ses "

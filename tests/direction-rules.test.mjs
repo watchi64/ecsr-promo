@@ -83,6 +83,27 @@ test("listeDuCentre : recherche par nom (sans accent ni casse) et filtre de prom
   assert.deepEqual(listeDuCentre(undefined, undefined), []);
 });
 
+test("listeDuCentre : le filtre de promo accepte la valeur d'un <select> (texte) ; vide = toutes", () => {
+  assert.deepEqual(listeDuCentre([P1, P2], { promoId: "2" }).map((x) => x.promoId), [2], "valeur de select, texte");
+  assert.deepEqual(listeDuCentre([P1, P2], { promoId: "1" }).map((x) => x.promoId), [1]);
+  assert.deepEqual(listeDuCentre([P1, P2], { promoId: "" }).map((x) => x.promoId), [1, 2], "« Toutes les promos »");
+  assert.deepEqual(listeDuCentre([P1, P2], { promoId: null }).map((x) => x.promoId), [1, 2]);
+  assert.deepEqual(listeDuCentre([P1, P2], { promoId: "9" }), [], "promo inconnue : rien");
+});
+
+test("listeDuCentre : une fiche anonymisée n'est ni listée ni cherchée, elle est comptée", () => {
+  const P3 = { promoId: 3, nom: "Alès", stagiaires: [
+    { id: 31, nom: "Roux", prenom: "Lea", actif: true },
+    { id: 32, nom: null, prenom: "Anonyme 32", actif: false, anonymise_le: "2026-10-05T10:00:00Z" },
+  ] };
+  const g = listeDuCentre([P3], {});
+  assert.deepEqual(g[0].enFormation.map((s) => s.id), [31]);
+  assert.deepEqual(g[0].abandons, [], "une fiche anonymisée n'est plus un abandon");
+  assert.equal(g[0].anonymises, 1);
+  assert.deepEqual(listeDuCentre([P3], { texte: "anonyme" }), [], "elle ne se retrouve pas par la recherche");
+  assert.deepEqual(ouTrouverFiche(32, [P3]), { promoId: 3 }, "mais son identifiant reste dans le centre");
+});
+
 test("equipeAffichee : nom ou adresse, rôle, promos du centre, tri", () => {
   const promos = [{ id: 1, nom: "Nîmes mars" }, { id: 2, nom: "Nîmes sept" }];
   const lignes = [

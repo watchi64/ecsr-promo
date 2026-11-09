@@ -375,17 +375,26 @@ export async function addStagiaire(prenom, nom = null) {
   invalidateCache("stagiaires_all");
 }
 
+// Écriture sur une fiche : sans .select(), un refus par les règles d'accès répond « 0 ligne, sans erreur » (lot 5, Task 9 : la
+// direction écrit sur la promo affichée, la base peut refuser). Zéro ligne touchée se dit.
+const PHRASE_FICHE_NON_MODIFIEE = "Modification refusée : fiche introuvable ou droits insuffisants.";
+function verifierFicheModifiee(data) {
+  if (!data || data.length === 0) throw new Error(PHRASE_FICHE_NON_MODIFIEE);
+}
+
 export async function updateStagiaire(id, prenom) {
-  const { error } = await supabase.from("stagiaires").update({ prenom }).eq("id", id);
+  const { data, error } = await supabase.from("stagiaires").update({ prenom }).eq("id", id).select("id");
   if (error) throw error;
+  verifierFicheModifiee(data);
   invalidateCache("stagiaires");
   invalidateCache("stagiaires_all");
 }
 
 // Nom de famille : sert à l'affichage « V. Timy » et au tri alphabétique.
 export async function updateStagiaireNom(id, nom) {
-  const { error } = await supabase.from("stagiaires").update({ nom: nom || null }).eq("id", id);
+  const { data, error } = await supabase.from("stagiaires").update({ nom: nom || null }).eq("id", id).select("id");
   if (error) throw error;
+  verifierFicheModifiee(data);
   invalidateCache("stagiaires");
   invalidateCache("stagiaires_all");
 }
@@ -437,8 +446,9 @@ export async function purgerBenevoles(ids) {
 }
 
 export async function setStagiaireActif(id, actif) {
-  const { error } = await supabase.from("stagiaires").update({ actif }).eq("id", id);
+  const { data, error } = await supabase.from("stagiaires").update({ actif }).eq("id", id).select("id");
   if (error) throw error;
+  verifierFicheModifiee(data);
   invalidateCache("stagiaires");
   invalidateCache("stagiaires_all");
 }
@@ -1817,6 +1827,12 @@ function lireTable(table, colonnes, ordre, promoId) {
     const q = supabase.from(table).select(colonnes).order(ordre);
     return promoId == null ? q : q.setHeader(ENTETE_LECTURE_PROMO, String(promoId));
   });
+}
+
+// Les fiches d'une promo du centre, lues par l'en-tête de lecture de cette promo (lot 5, Task 9 : page Stagiaires de la direction).
+// Hors du cache « stagiaires » de listStagiaires, qui est celui de la promo affichée. Lève si la promo est illisible.
+export async function lireStagiairesPromo(promoId) {
+  return lireTable("stagiaires", "id, prenom, nom, actif, ordre, anonymise_le", "id", promoId);
 }
 
 // promoId nul (liste des promos non chargée) : promo courante, sans en-tête de lecture.

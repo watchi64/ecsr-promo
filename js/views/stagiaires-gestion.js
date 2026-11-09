@@ -1,15 +1,18 @@
-// Gestion des stagiaires d'une promo (lot 5, Task 9) : la liste modifiable (prénom, nom de famille, abandon, ajout) et les abandons
-// (réactivation, effacement des données). Sortie de js/views/config.js (section Promo des
+// Gestion des stagiaires d'une promo (lot 5, Task 9) : la liste modifiable (prénom, nom de famille, abandon, ajout), les abandons
+// (réactivation, effacement des données) et l'invitation du compte d'une fiche. Sortie de js/views/config.js (section Promo des
 // Réglages du formateur) pour être montée aussi dans la page Stagiaires de la direction. Tout porte sur la promo affichée : la base
 // n'accepte d'écrire une fiche que dans la promo courante (équipe de la promo ou direction de son centre).
 
 import {
   listStagiaires, addStagiaire, updateStagiaire, updateStagiaireNom, setStagiaireActif, anonymiserStagiaire,
+  listUserProfiles, inviteUser,
 } from "../db.js?v=20261109d";
-import { el, toast } from "../utils.js?v=20261109d";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109d";
 import { icon } from "../icons.js?v=20261109d";
 import { isEquipe } from "../auth-admin.js?v=20261109d";
 import { confirmationValide, resumeEffacement } from "../effacement-rules.js?v=20261109d";
+import { messageInvitationReussie } from "../roles-rules.js?v=20261109d";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261109d";
 
 // Liste des personnes invitables de la section déjà à l'écran. Posée par la section d'invitation qui la montre (js/views/config.js ou
 // renderInvitationStagiaire), appelée après un ajout de stagiaire, qui n'actualise que le bloc « Stagiaires ».
@@ -17,9 +20,9 @@ let majPersonnesInvitables = null;
 export function poserMajPersonnesInvitables(fn) { majPersonnesInvitables = fn; }
 
 // Écriture d'un stagiaire refusée : l'unicité (promo, prénom) de la base (code 23505) se dit en
-// une phrase claire ; toute autre erreur garde le message de la base.
+// une phrase claire. Un refus de la base (droit manquant, fonction absente) se dit par sa phrase (phraseDeRefus), jamais par le texte technique.
 export function messageErreurStagiaire(e) {
-  return e?.code === "23505" ? "Ce prénom existe déjà dans la promo." : e?.message;
+  return e?.code === "23505" ? "Ce prénom existe déjà dans la promo." : phraseDeRefus(e?.message, e?.code);
 }
 
 // Les blocs « Stagiaires » et « Abandons » de la promo affichée, ajoutés à `container`. `rerender()` redessine la page qui les porte
@@ -91,7 +94,7 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
               await setStagiaireActif(it.id, false);
               toast(`${it.prenom} marqué(e) en abandon`, "success");
               rerender();
-            } catch (e) { toast(e.message, "error"); }
+            } catch (e) { toast(messageErreurStagiaire(e), "error"); }
           }
         }, "Abandon");
       }
@@ -111,7 +114,7 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
             if (surChangement) surChangement();
           } catch (e) {
             nomInput.value = it.nom || "";
-            toast(e.message, "error");
+            toast(messageErreurStagiaire(e), "error");
           }
         });
         nomInput.addEventListener("keydown", (e) => { if (e.key === "Enter") nomInput.blur(); });
@@ -185,7 +188,7 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
             await setStagiaireActif(it.id, true);
             toast(`${it.prenom} réactivé(e)`, "success");
             rerender();
-          } catch (e) { toast(e.message, "error"); }
+          } catch (e) { toast(messageErreurStagiaire(e), "error"); }
         }
       }, "Réactiver");
       const delBtn = el("button", {
@@ -203,7 +206,7 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
             const details = await anonymiserStagiaire(it.id);
             toast(resumeEffacement(details), "success", 6000);
             rerender();
-          } catch (e) { toast(e.message, "error"); }
+          } catch (e) { toast(messageErreurStagiaire(e), "error"); }
         }
       }, "Effacer les données");
       list.appendChild(el("li", { class: "abandon-row" },
@@ -222,4 +225,75 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
 
   container.appendChild(renderList(stagiairesActifs));
   if (admin && (stagiairesAbandon.length || nbAnonymises)) container.appendChild(renderAbandons(stagiairesAbandon));
+}
+
+// L'invitation du compte d'un stagiaire de la promo affichée, pour la direction (page Stagiaires du centre) : choisir la fiche,
+// entrer l'adresse e-mail. La base décide (inviter_compte : direction du centre de la promo de la fiche) ; ses refus se disent
+// par leur phrase. `rerender()` est appelé après une invitation acceptée.
+export async function renderInvitationStagiaire(container, { rerender } = {}) {
+  let [profiles, stagiaires] = await Promise.all([
+    listUserProfiles().catch(() => []), listStagiaires(),
+  ]);
+  const bloc = el("div", { class: "param-block" });
+  bloc.appendChild(el("h4", {}, "Inviter un stagiaire"));
+  bloc.appendChild(el("p", { class: "muted" },
+    "Choisis la personne et entre son adresse e-mail. Aucun e-mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec cette adresse et un mot de passe."));
+
+  const personSel = el("select", { class: "invite-person", "aria-label": "Stagiaire à inviter" });
+  function actualiserOptions() {
+    clear(personSel);
+    personSel.appendChild(el("option", { value: "" }, "Choisir…"));
+    const pris = new Set(profiles.filter((p) => p.stagiaire_id).map((p) => p.stagiaire_id));
+    stagiaires.forEach((it) => {
+      const dejaInvite = pris.has(it.id);
+      const opt = el("option", { value: String(it.id) }, displayStagiaire(it) + (dejaInvite ? " (déjà invité)" : ""));
+      if (dejaInvite) opt.disabled = true;
+      personSel.appendChild(opt);
+    });
+  }
+  actualiserOptions();
+  // Un ajout de stagiaire n'actualise que son bloc : la liste d'ici suit, sans toucher à la personne déjà choisie ni à l'adresse en cours de saisie.
+  poserMajPersonnesInvitables(async () => {
+    stagiaires = await listStagiaires();
+    const choisie = personSel.value;
+    actualiserOptions();
+    if (choisie && [...personSel.options].some((o) => o.value === choisie && !o.disabled)) personSel.value = choisie;
+  });
+
+  const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email", "aria-label": "Adresse e-mail du stagiaire" });
+  const libelle = "Ajouter à la liste des invitations";
+  const sendBtn = el("button", { class: "btn accent", type: "button" }, icon.plus(), libelle);
+  const remettre = () => {
+    sendBtn.disabled = false;
+    sendBtn.textContent = "";
+    sendBtn.appendChild(icon.plus());
+    sendBtn.appendChild(document.createTextNode(libelle));
+  };
+  sendBtn.addEventListener("click", async () => {
+    const email = emailInput.value.trim().toLowerCase();
+    const personId = personSel.value ? Number(personSel.value) : null;
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("Email invalide", "error"); return; }
+    if (!personId) { toast("Choisis la personne à lier", "error"); return; }
+    sendBtn.disabled = true;
+    sendBtn.textContent = "Envoi…";
+    try {
+      const resultat = await Promise.race([
+        inviteUser({ email, role: "stagiaire", stagiaire_id: personId }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15 s). Réseau lent : réessaie dans un instant.")), 15000)),
+      ]);
+      const { texte, ton } = messageInvitationReussie({ resultat, email, v2: true });
+      toast(texte, ton, 4500);
+      emailInput.value = "";
+      if (rerender) rerender();
+    } catch (e) {
+      toast("Erreur : " + e.message, "error", 6000);
+    } finally {
+      remettre();
+    }
+  });
+  emailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendBtn.click(); });
+  bloc.appendChild(el("div", { class: "invite-form" },
+    el("div", { class: "invite-row" }, el("label", {}, "Personne"), personSel),
+    el("div", { class: "invite-row" }, el("label", {}, "Email"), emailInput, sendBtn)));
+  container.appendChild(bloc);
 }

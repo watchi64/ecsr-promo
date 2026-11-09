@@ -8741,3 +8741,26 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   .gate-tab, .gate-form .btn, .gate-link { min-height: 44px; }
   .gate-link { display: block; margin-left: auto; margin-right: auto; padding: 0 0.5rem; }
 }
+
+/* Page Stagiaires de la direction (lot 5, Task 9). */
+.stg-filtre { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 0.75rem; margin: 0 0 1.25rem; }
+.stg-filtre .field { min-width: 0; }
+.stg-filtre input, .stg-filtre select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.stg-phrase { margin: 0 0 1rem; padding: 0.6rem 0.8rem; border-radius: 10px; background: var(--bg-soft); color: var(--text); }
+.stg-groupe .stg-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.2rem 0.75rem; }
+.stg-groupe .stg-ligne { min-height: 44px; }
+.stg-compte { font-size: 0.88rem; }
+.stg-anonymises { margin: 0.5rem 0 0; font-size: 0.85rem; }
+.stg-abandons { margin-top: 0.5rem; }
+.stg-abandons summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--text-soft); }
+.stg-ligne-abandon .stg-nom { color: var(--text-soft); font-weight: 500; }
+.stg-gestion { margin-top: 1rem; }
+.stg-groupe .promo-actions { margin-top: 0.75rem; }
+.stg-gestion .config-list li, .stg-gestion .config-add, .stg-gestion .abandon-row { flex-wrap: wrap; }
+.stg-gestion .config-list input, .stg-gestion .config-add input { flex: 1 1 8rem; min-width: 0; }
+.stg-centre .btn, .stg-gestion .config-list input, .stg-gestion .config-add input, .stg-gestion .invite-form select,
+.stg-gestion .invite-form input { min-height: 44px; box-sizing: border-box; }
+@media (max-width: 760px) {
+  .stg-filtre { grid-template-columns: minmax(0, 1fr); }
+  .stg-groupe .stg-liste { display: flex; }
+}

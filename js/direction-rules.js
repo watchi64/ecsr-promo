@@ -49,16 +49,21 @@ export function ouTrouverFiche(id, listesParPromo) {
 const MARQUES = new RegExp("[" + String.fromCharCode(0x300) + "-" + String.fromCharCode(0x36f) + "]", "g");
 const simple = (t) => String(t ?? "").normalize("NFD").replace(MARQUES, "").toLowerCase().trim();
 
-// Groupes par promo, dans l'ordre reçu : { promoId, nom, enFormation, abandons }, chacun trié comme la page Stagiaires
-// (compareByNom). filtre : { texte, promoId }. Une recherche par nom (sans accent ni casse, sur « nom prénom ») écarte les
-// promos sans résultat ; sans recherche, une promo vide reste (elle porte sa gestion).
+// Groupes par promo, dans l'ordre reçu : { promoId, nom, enFormation, abandons, anonymises }, chacun trié comme la page Stagiaires
+// (compareByNom). filtre : { texte, promoId } ; promoId peut être la valeur d'un <select> (texte), vide = toutes les promos. Une
+// recherche par nom (sans accent ni casse, sur « nom prénom ») écarte les promos sans résultat ; sans recherche, une promo vide
+// reste (elle porte sa gestion). Une fiche anonymisée (données effacées) n'est ni un abandon ni un résultat de recherche : elle est
+// seulement comptée (`anonymises`).
 export function listeDuCentre(listesParPromo, filtre) {
   const { texte, promoId } = filtre || {};
   const cherche = simple(texte);
+  const unePromo = promoId != null && promoId !== "";
   const groupes = [];
   for (const l of Array.isArray(listesParPromo) ? listesParPromo : []) {
-    if (promoId != null && l.promoId !== promoId) continue;
-    const retenus = (l.stagiaires || [])
+    if (unePromo && String(l.promoId) !== String(promoId)) continue;
+    const fiches = l.stagiaires || [];
+    const retenus = fiches
+      .filter((s) => !s.anonymise_le)
       .filter((s) => !cherche || simple([s.nom, s.prenom].filter(Boolean).join(" ")).includes(cherche))
       .sort(compareByNom);
     if (cherche && !retenus.length) continue;
@@ -66,6 +71,7 @@ export function listeDuCentre(listesParPromo, filtre) {
       promoId: l.promoId, nom: l.nom,
       enFormation: retenus.filter((s) => s.actif),
       abandons: retenus.filter((s) => !s.actif),
+      anonymises: fiches.filter((s) => s.anonymise_le).length,
     });
   }
   return groupes;
