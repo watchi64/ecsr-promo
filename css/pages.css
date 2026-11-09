@@ -532,8 +532,9 @@ body[data-nav="v2"] .signal-console-statut:focus-visible,
 body[data-nav="v2"] .em-signer-formateur input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 @media (max-width: 699.98px) {
-  body[data-nav="v2"] #view .btn:not(.p-editing *),
-  body[data-nav="v2"] .avis-bandeau :is(.btn, .avis-refus),
+  /* Le bandeau d'avis (temporaire, jusqu'au 30/11) garde ses boutons d'avant : agrandis, ils poussaient le sommaire de
+     Mon suivi sous la barre du bas. */
+  body[data-nav="v2"] #view .btn:not(.p-editing *, .avis-bandeau *),
   body[data-nav="v2"] #view :is(.chart-tab, .theme-pill, .theme-cours-btn, .theme-qcm-hint, .theme-statut.clickable, .theme-date.editable),
   body[data-nav="v2"] #view :is(input:not([type="checkbox"], [type="radio"]), select):not(.p-editing *) {
     min-height: 44px;
