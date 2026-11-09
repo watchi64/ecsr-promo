@@ -223,7 +223,8 @@ eq(coursTel.ou, { label: "Cours", route: "themes" }, "cours : Où le trouver, Co
 const CORRECTIONS = ["2026-11-09-qcm-echap-et-pannes", "2026-11-09-accueil-plus-juste", "2026-11-09-emargement-planning-plus-justes",
   "2026-11-09-finitions", "2026-11-09-finitions-planning",   // finitions de l'audit (lot E)
   "2026-11-09-une-seule-ecriture",   // unification typographique, décision de Timy
-  "2026-11-09-planning-plus-clair"];   // planning sur téléphone et en mode Modifier (lot B de l'audit)
+  "2026-11-09-planning-plus-clair",   // planning sur téléphone et en mode Modifier (lot B de l'audit)
+  "2026-11-09-notes-saisir-examens"];   // saisie thème par thème et examen depuis la liste (lot C de l'audit)
 // Le lot 3 (les couleurs d'ECF) peut porter la même date : il ne fait pas partie du lot 2B non plus.
 const DU_LOT_3 = NOUVEAUTES.filter((e) => e.id.endsWith("-couleurs-ecf")).map((e) => e.id);
 const QUESTIONNAIRES_ID = "2026-11-09-questionnaires-anonymes";
