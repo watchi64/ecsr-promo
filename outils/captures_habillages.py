@@ -32,19 +32,17 @@ import argparse
 import concurrent.futures
 import html
 import json
-import os
 import pathlib
 import re
 import sys
 import time
 import unicodedata
-import urllib.parse
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import verifier_navigation as vn   # noqa: E402  (le chemin ci-dessus doit précéder l'import)
 from verifier_navigation import (   # noqa: E402
-    CLE_APERCU, DATE_DU_BANC, HAUTEUR, attendre, charger, nouveau_contexte, ouvrir_entree, regles_de_la_page,
+    CLE_APERCU, HAUTEUR, attendre, charger, nouveau_contexte, ouvrir_entree, regles_de_la_page,
 )
 from playwright.sync_api import Error as ErreurPlaywright   # noqa: E402
 from playwright.sync_api import TimeoutError as DelaiDepasse   # noqa: E402
@@ -70,6 +68,26 @@ JS_PRET = """async () => {
   const images = [...document.images];
   await Promise.all(images.map((i) => i.complete ? null : new Promise((ok) => { i.addEventListener('load', ok); i.addEventListener('error', ok); setTimeout(ok, 4000); })));
   await Promise.all(images.map((i) => i.decode ? i.decode().catch(() => null) : null));
+  // Les transitions en cours (fond d'un bouton survolé ou ciblé : 0,15 s) donnent, à la capture, un dernier pixel
+  // d'anticrénelage qui varie d'un passage à l'autre : on attend la fin de toute animation finie, puis deux images peintes.
+  const finies = () => document.getAnimations().filter((a) => {
+    if (a.playState !== 'running' && a.playState !== 'pending') return false;
+    const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
+    return !t || Number.isFinite(t.endTime);
+  });
+  const fin = Date.now() + 2000;
+  while (finies().length && Date.now() < fin) await new Promise((ok) => setTimeout(ok, 40));
+  // Le contour de focus arrondi du bouton du compte (menu latéral, resté ciblé après « Échap ») est tramé de deux façons
+  // selon l'historique de peinture du contexte : trois pixels d'anticrénelage à la page des préférences, un contexte
+  // sur huit environ. Rendre le focus à son élément (même contour, même place) le repeint toujours de la même façon :
+  // 8 contextes de suite identiques, là où les autres tentatives de repeinture (couche composée, masquage de la page)
+  // gardaient la variation ou la déplaçaient. Les champs de saisie ne sont pas touchés (le curseur est caché de toute façon).
+  const cible = document.activeElement;
+  if (cible && cible !== document.body && cible.matches(':focus-visible') && !/^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName)) {
+    cible.blur();
+    cible.focus({ focusVisible: true });
+  }
+  await new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));
   return true;
 }"""
 
@@ -120,6 +138,10 @@ class Prise:
             p.wait_for_timeout(120)
             if apres:
                 apres()
+            if vue in self.faites:
+                # Deux vues de même identifiant s'écraseraient en silence : une comparaison qui ne verrait que la dernière.
+                self.erreurs.append((vue, "identifiant de vue déjà pris dans ce contexte"))
+                return
             fichier = self.dossier / ("%s-%s.png" % (self.prefixe, vue))
             # Une page très longue (Nouveautés sur téléphone) dépasse la limite de WebKit (32 767 px de l'image) : au-delà
             # de HAUTEUR_MAX px CSS, on garde le haut de la page, pour les deux moteurs.
@@ -262,6 +284,9 @@ def jouer_role(navigateur, url, tache, dossier, forcer):
     except Exception as e:   # une erreur du script lui-même : dite, et les autres contextes continuent
         prise.erreurs.append(("script", "%s : %s" % (type(e).__name__, e)))
     finally:
+        # Ce que les aides du vérificateur ont consigné (clic d'entrée impossible, coquille absente...) est une erreur de la prise.
+        for type_, vue, detail in res.echecs:
+            prise.erreurs.append((vue, "%s : %s" % (type_, detail)))
         if contexte:
             try:
                 contexte.unroute_all(behavior="wait")
@@ -393,10 +418,32 @@ def images_de(dossier):
     return {f.relative_to(dossier).as_posix(): f for f in dossier.rglob("*.png")}
 
 
+def difference(a, b):
+    """La zone où deux images ouvertes diffèrent (None si identiques). Comparées en RGB : sur une image RGBA, getbbox()
+    ne regarde que le canal alpha, et deux captures opaques de couleurs différentes sembleraient identiques."""
+    from PIL import ImageChops
+    return ImageChops.difference(a.convert("RGB"), b.convert("RGB")).getbbox()
+
+
+def verifier_difference():
+    """Auto-contrôle de la comparaison : une image, la même, puis la même avec un seul pixel de couleur changé."""
+    from PIL import Image
+    a = Image.new("RGBA", (20, 20), (10, 20, 30, 255))
+    b = a.copy()
+    assert difference(a, b) is None, "deux images identiques déclarées différentes"
+    b.putpixel((7, 3), (11, 20, 30, 255))
+    assert difference(a, b) == (7, 3, 8, 4), "un pixel de couleur différente n'est pas vu : %s" % (difference(a, b),)
+
+
 def comparer(sortie, avant):
     """Compare image par image ; imprime le bilan. Vrai quand tout est identique et rien ne manque."""
-    from PIL import Image, ImageChops
+    from PIL import Image
+    verifier_difference()
     ici, la = images_de(sortie), images_de(avant)
+    for dossier, images in ((sortie, ici), (avant, la)):
+        if not images:
+            print("Comparaison impossible : aucune image dans %s." % dossier)
+            return False
     identiques, differentes = 0, []
     for nom in sorted(set(ici) | set(la)):
         if nom not in la:
@@ -405,11 +452,10 @@ def comparer(sortie, avant):
             differentes.append((nom, "absente de %s" % sortie))
         else:
             with Image.open(ici[nom]) as a, Image.open(la[nom]) as b:
-                a, b = a.convert("RGBA"), b.convert("RGBA")
                 if a.size != b.size:
                     differentes.append((nom, "tailles différentes : %dx%d contre %dx%d" % (a.size + b.size)))
                 else:
-                    zone = ImageChops.difference(a, b).getbbox()
+                    zone = difference(a, b)
                     if zone is None:
                         identiques += 1
                     else:
