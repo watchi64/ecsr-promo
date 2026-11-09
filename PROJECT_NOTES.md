@@ -571,6 +571,21 @@ Nouveauté datée du 09/11, branche fusionnée dans `main`.
      PostgREST à chaque rendu de l'Accueil et de Mon espace, et le lien direct affiche son mot doux. Le banc (faux
      client) ne peut pas le montrer.
 
+## Registre qualité (Qualiopi Q4, novembre 2026, branche `qualiopi-q4`, en construction)
+
+Plan : `docs/superpowers/plans/2026-11-09-qualiopi-q4-registre.md`. Migration `20261109_registre_qualite.sql` NON appliquée.
+
+- **Page** : sous-onglets « Inventaire et documents » et « Registre qualité » de `#/qualiopi` (`js/views/qualiopi.js`,
+  `js/views/registre-qualite.js`) ; fenêtre de saisie `js/registre-fenetre.js` (`ouvrirFenetreRegistre`), partagée avec
+  « Problèmes signalés » ; styles dans `css/qualiopi.css` (chargé partout).
+- **`avantFermeture` de `js/nav-fenetre.js`** : une fenêtre peut refuser une fermeture demandée par un geste (« Fermer »,
+  voile, Échap, `demanderFermeture()`) ; celle du registre demande « Fermer sans enregistrer ? » par `confirmer()` et se
+  ferme elle-même sur oui. **Limite connue** : l'adresse qui change (`hashchange`, geste retour, la page a déjà changé) et une
+  fermeture par le programme (`fermerFenetre()`, barre remontée dans `js/nav-shell.js`, autre fenêtre ouverte par-dessus)
+  ferment la fenêtre **sans demander** : une saisie modifiée s'y perd.
+- **Banc** : `_harness.html?centre=1&demo=1&qualiopi=1&registre=1` puis `#/qualiopi` (six entrées, deux à effacer) ;
+  `registre=absent`, `registre_panne=lecture|ecriture`.
+
 ## Émargement signé (octobre 2026)
 
 Spec : `docs/superpowers/specs/2026-10-23-emargement-design.md` · plan :

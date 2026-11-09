@@ -19,10 +19,17 @@
 // résultats question par question au-dessus du seuil, et les commentaires (fondateur seul, jamais avec la case « Sans aucun
 // nom », jamais à l'impression). Les règles sont dans js/questionnaires-gestion-rules.js ; la base garde le seuil (rien ne
 // sort en dessous). Migration pas encore appliquée : la section le dit, sans erreur (R2).
+//
+// Registre qualité (Qualiopi Q4, indicateurs 31 et 32) : deux sous-onglets sous l'en-tête et le choix de promo, « Inventaire et
+// documents » (le nœud `corps`, créé une fois et rempli par charger(), remis tel quel à chaque retour sur l'onglet) et « Registre
+// qualité » (js/views/registre-qualite.js, tout l'organisme). Le registre est lu une fois par rendu de page (etat.registre, même
+// forme que la satisfaction : { etat: "lue", entrees } | { etat: "absente" } | { etat: "non_lue" }), relu après chaque
+// enregistrement et chaque effacement, puis l'inventaire est recalculé. En tête de page, quel que soit l'onglet, les entrées à
+// effacer et les entrées à clore.
 
 import {
   lireDonneesQualiopi, lireReferentielCentre, getMesPromos, getPromoCourante,
-  lireResultatsQuestionnaire, lireCommentairesQuestionnaire, lireOuverturesQuestionnaires, ouvrirQuestionnaire,
+  lireResultatsQuestionnaire, lireCommentairesQuestionnaire, lireOuverturesQuestionnaires, ouvrirQuestionnaire, lireRegistreQualite,
 } from "../db.js?v=20261109k";
 import { el, clear, isoDate, toast } from "../utils.js?v=20261109k";
 import { indicateursPromo } from "../centre-stats.js?v=20261109k";
@@ -45,6 +52,9 @@ import {
   messageOuverture, questionnairesAbsents, resumeReponses, satisfactionGlobale, lignesResultats, commentairesMontrables,
   messageLectureGestion, messageEchecOuverture, jourParis,
 } from "../questionnaires-gestion-rules.js?v=20261109k";
+import { renderSubTabs } from "../subtabs.js?v=20261109k";
+import { aEffacer, aClore } from "../registre-rules.js?v=20261109k";
+import { renderRegistreQualite } from "./registre-qualite.js?v=20261109k";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
@@ -249,7 +259,8 @@ export async function renderQualiopi(container) {
   }
 
   // --- État de la page ---
-  const etat = { promo: courante, referentiel: null, donnees: null, ind: null, inv: null, alternance: false, sansNoms: false };   // alternance et sansNoms survivent au changement de promo
+  const etat = { promo: courante, referentiel: null, donnees: null, ind: null, inv: null, alternance: false, sansNoms: false,   // alternance et sansNoms survivent au changement de promo
+    registre: { etat: "non_lue" } };   // tout l'organisme : ne change pas avec la promo
   const ouverts = new Set();         // critères dépliés, gardés d'un redessin à l'autre
   const lectures = new Map();        // promo → lecture en cours ou faite ; une lecture qui échoue est oubliée, pour être refaite
   let chargement = 0;                // numéro du dernier chargement de la promo affichée
@@ -323,7 +334,54 @@ export async function renderQualiopi(container) {
   // --- Corps : actions, puis critères ---
   const corps = el("div", { class: "qualiopi-corps" });
   const zoneCriteres = el("section", { class: "qualiopi-criteres" });
-  racine.appendChild(corps);
+
+  // --- Registre qualité (Q4) : lu une fois par rendu de page, relu après chaque changement ---
+  const rappelRegistre = el("div", { class: "qualiopi-rappel-registre" });
+  racine.appendChild(rappelRegistre);
+  let lectureRegistre = null;        // la dernière lecture du registre (promesse de etat.registre)
+  let numeroRegistre = 0;            // une lecture plus récente rend caduque celle qui attend encore
+  function lireRegistre() {
+    const moi = ++numeroRegistre;
+    lectureRegistre = lireRegistreQualite()
+      .then((entrees) => (entrees === null ? { etat: "absente" } : { etat: "lue", entrees }))
+      .catch((e) => { console.error(e); return { etat: "non_lue" }; })
+      .then((registre) => {
+        if (moi === numeroRegistre && pageVivante()) {
+          etat.registre = registre;
+          majRappelRegistre();
+          if (etat.donnees) {
+            recalculerInventaire();
+            afficherCriteres();
+          }
+        }
+        return registre;
+      });
+    return lectureRegistre;
+  }
+
+  // En tête de page, quel que soit l'onglet : les entrées closes depuis plus de 3 ans (textes à effacer) et les entrées
+  // ouvertes ou en cours dont le constat a plus de 3 ans (à clore : elles ne s'effacent qu'une fois closes).
+  function majRappelRegistre() {
+    clear(rappelRegistre);
+    if (etat.registre.etat !== "lue") return;
+    const entrees = etat.registre.entrees;
+    const lignes = [];
+    const aEffacerN = aEffacer(entrees, new Date()).length;
+    const aCloreN = aClore(entrees, jourParis(new Date())).length;
+    if (aEffacerN) lignes.push(`${nb(aEffacerN, "entrée")} du registre à effacer (closes depuis plus de 3 ans).`);
+    if (aCloreN) lignes.push(`${nb(aCloreN, "entrée")} à clore (constat de plus de 3 ans, encore ${aCloreN > 1 ? "ouvertes" : "ouverte"} ou en cours).`);
+    if (!lignes.length) return;
+    rappelRegistre.append(
+      el("div", { class: "qualiopi-rappel-textes" }, ...lignes.map((ligne) => el("p", {}, ligne))),
+      el("button", { class: "btn", type: "button", onClick: () => sousOnglets.activer("registre") }, "Voir le registre"));
+  }
+
+  lireRegistre();
+  const sousOnglets = renderSubTabs([
+    { key: "inventaire", label: "Inventaire et documents", render: (panneau) => panneau.appendChild(corps) },
+    { key: "registre", label: "Registre qualité", render: (panneau) => renderRegistreQualite(panneau, { lire: () => lectureRegistre, surChangement: lireRegistre }) },
+  ], { storageKey: "qualiopi.subtab" });
+  racine.appendChild(sousOnglets);
 
   // --- Questionnaires de satisfaction (Q3) : lus à part, sans retenir le reste de la page ---
   // Le jour des questionnaires est celui de Paris, comme celui de la base (jourParis) ; il est recalculé à chaque lecture, pour

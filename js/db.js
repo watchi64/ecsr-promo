@@ -2124,23 +2124,21 @@ export async function ouvrirQuestionnaire(cle, portee, ouvert) {
 
 // --- Registre qualité (Qualiopi, indicateurs 31 et 32) ---
 // Lecture et écriture directes de la table registre_qualite, au seul gestionnaire de la qualité (règles de la base).
-// La base pose cree_le, modifie_le, clos_le, issu_signalement et efface_le : l'app ne les envoie jamais. Les textes
-// facultatifs vides partent en null (la base refuse une chaîne vide) ; la description est rognée aussi.
+// La base pose cree_le, modifie_le, clos_le, issu_signalement et efface_le : l'app ne les envoie jamais. Tout texte est
+// rogné, et un champ vide part en null, dates et identifiants compris (la base refuse une chaîne vide).
 const COLONNES_REGISTRE = "id, type, date_constat, origine, promo_id, lieu_id, description, reponse, date_reponse, action_decidee, etat, "
   + "mesure_prevention, signalement_id, issu_signalement, cree_le, modifie_le, clos_le, efface_le";
 const CHAMPS_REGISTRE = ["type", "date_constat", "origine", "promo_id", "lieu_id", "description", "reponse", "date_reponse",
   "action_decidee", "etat", "mesure_prevention", "signalement_id"];
-const TEXTES_FACULTATIFS_REGISTRE = ["reponse", "action_decidee", "mesure_prevention"];
 
-// Les seuls champs envoyables, textes rognés. Les champs absents de `champs` restent absents (modification partielle).
+// Les seuls champs envoyables, textes rognés, chaîne vide en null. Les champs absents de `champs` restent absents
+// (modification partielle).
 function champsRegistre(champs) {
   const envoi = {};
   for (const cle of CHAMPS_REGISTRE) {
     if (!champs || champs[cle] === undefined) continue;
-    let v = champs[cle];
-    if (cle === "description" && typeof v === "string") v = v.trim();
-    else if (TEXTES_FACULTATIFS_REGISTRE.includes(cle)) v = typeof v === "string" ? (v.trim() || null) : v;
-    envoi[cle] = v;
+    const v = champs[cle];
+    envoi[cle] = typeof v === "string" ? (v.trim() || null) : v;
   }
   return envoi;
 }
