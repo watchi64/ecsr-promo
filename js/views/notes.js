@@ -2,23 +2,23 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles, getNotesStatsGroupe, getPromoCourante,
-} from "../db.js?v=20261109k";
+} from "../db.js?v=20261109m";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261109k";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109k";
-import { icon } from "../icons.js?v=20261109k";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109k";
-import { recordUndo } from "../undo.js?v=20261109k";
-import { renderSubTabs } from "../subtabs.js?v=20261109k";
-import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109k";
-import { navigationV2Active } from "../nav-etat.js?v=20261109k";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109k";
-import { renderEpcf } from "./epcf.js?v=20261109k";
-import { renderSaisie } from "./notes-saisie.js?v=20261109k";
-import { noteGradient } from "../echelle-notes.js?v=20261109k";
-import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes, contexteEtatVide, phraseNoteRefusee, confirmationEffacement } from "../notes-saisie-rules.js?v=20261109k";
-import { confirmer } from "../confirmer.js?v=20261109k";
+} from "../notes-stats.js?v=20261109m";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109m";
+import { icon } from "../icons.js?v=20261109m";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109m";
+import { recordUndo } from "../undo.js?v=20261109m";
+import { renderSubTabs } from "../subtabs.js?v=20261109m";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109m";
+import { navigationV2Active } from "../nav-etat.js?v=20261109m";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109m";
+import { renderEpcf } from "./epcf.js?v=20261109m";
+import { renderSaisie } from "./notes-saisie.js?v=20261109m";
+import { noteGradient } from "../echelle-notes.js?v=20261109m";
+import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes, contexteEtatVide, phraseNoteRefusee, confirmationEffacement } from "../notes-saisie-rules.js?v=20261109m";
+import { confirmer } from "../confirmer.js?v=20261109m";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -1172,7 +1172,8 @@ function rerender(container) {
     admin && !laClasse ? { key: "saisir", label: "Saisir", render: (p) => renderSaisie(p, ctxSaisie) } : null,
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
     { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
-        renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive })
+        renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive,
+          contexte: contexteEtatVide({ classe: false, admin, personnel: formateurConnecte() }) })
           .catch((e) => {
             console.error(e);
             if (!ctx || ctx.isActive()) {
@@ -1188,9 +1189,11 @@ function rerender(container) {
   // (le sous-onglet EPCF de la page de l'équipe suit le même module). Sans choix d'onglet, aucune mémoire de
   // sous-onglet n'est écrite (celle de la page de l'équipe).
   if (laClasse) {
-    const carte = carteVide(container, contexteEtatVide({ classe: true, admin, personnel: formateurConnecte() }));
+    // Un seul calcul du contexte pour les deux cartes vides (notes et moyennes EPCF) : elles ne peuvent pas se contredire.
+    const contexteClasse = contexteEtatVide({ classe: true, admin, personnel: formateurConnecte() });
+    const carte = carteVide(container, contexteClasse);
     container.appendChild(carte || renderSubTabs(onglets.slice(0, 1)));
-    if (moduleVisible("epcf")) container.appendChild(sectionMoyennesEpcf());
+    if (moduleVisible("epcf")) container.appendChild(sectionMoyennesEpcf(contexteClasse));
   } else {
     const rangee = renderSubTabs(onglets, { storageKey: "ecsr_notes_subtab", defautKey: tactile ? "saisir" : "matrice" });
     ongletsParVue.set(container, rangee);
@@ -1200,10 +1203,10 @@ function rerender(container) {
 
 // Les moyennes EPCF de la classe, en section de La classe : le rendu de l'onglet EPCF de la page de l'équipe
 // (renderEpcf, donc le même k-anonymat : une moyenne n'est montrée qu'à partir de 2 stagiaires évalués), sous
-// un titre qui nomme l'épreuve et la classe.
-function sectionMoyennesEpcf() {
+// un titre qui nomme l'épreuve et la classe. Sans moyenne montrable, la carte de l'état vide, dont le bouton suit `contexte`.
+function sectionMoyennesEpcf(contexte) {
   const section = el("section", { class: "notes-epcf-classe" });
-  renderEpcf(section, { embedded: true, titre: "Moyennes EPCF de la classe" })
+  renderEpcf(section, { embedded: true, titre: "Moyennes EPCF de la classe", contexte })
     .catch((e) => {
       console.error(e);
       clear(section);

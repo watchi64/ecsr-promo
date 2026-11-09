@@ -3,10 +3,10 @@
 // dans js/journee-rules.js (pur) ; ce module n'est que le branchement sur la base.
 import {
   getPlanning, getHalfMetaForWeek, getJoursOff, listStagiaires, listProfs, listThemes, listBenevolesNoms,
-} from "./db.js?v=20261109k";
-import { displayStagiaire } from "./utils.js?v=20261109k";
+} from "./db.js?v=20261109m";
+import { displayStagiaire } from "./utils.js?v=20261109m";
 
-export { lundiEnCours } from "./journee-rules.js?v=20261109k";
+export { lundiEnCours } from "./journee-rules.js?v=20261109m";
 
 // Prénom seul, sauf s'il est porté par au moins deux stagiaires : « Initiale. Prénom », comme
 // l'impression du planning.

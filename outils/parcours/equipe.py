@@ -315,3 +315,24 @@ def ouvrir_un_examen(v):
     v.toucher(texte("Fermer l'examen", ".modal button"), "« Fermer l'examen » de la confirmation", compte=False, ecriture=True)
     v.attendre(ligne + " .theme-qcm-examen:has-text(\"Examen fermé\")", "« Examen fermé » sur la ligne")
     v.terminer()
+
+
+@parcours("evaluer-depuis-l-epcf-vide", "Évaluer un stagiaire depuis les moyennes EPCF vides", role="formateur",
+          budget={"ordinateur": 3, "telephone": 4}, navigations=NOUVELLE)
+def evaluer_depuis_l_epcf_vide(v):
+    """Notes et examens, sous-onglet EPCF : sans moyenne montrable (le banc n'en sert aucune), une carte, l'avancement
+    pour l'équipe et « Évaluer un stagiaire », qui ouvre la page Stagiaires sur la liste, même quand la page s'était
+    refermée sur les élèves bénévoles (le bouton « Bénévoles » du Planning mémorise ce sous-onglet)."""
+    v.page.evaluate("() => { try { localStorage.setItem('stagiaires.subtab', 'benevoles'); } catch (e) { /* stockage bloqué */ } }")
+    v.aller("Notes et examens")
+    carte = "#view .epcf-vide"
+    v.etape("ouvrir le sous-onglet « EPCF »")
+    v.toucher(texte("EPCF", SOUS_ONGLET), "« EPCF »")
+    v.attendre(carte, "la carte des moyennes EPCF vides")
+    v.etape("évaluer un stagiaire")
+    v.toucher(texte("Évaluer un stagiaire", carte + " a"), "« Évaluer un stagiaire »")
+    v.attendre("#view .stg-liste", "la liste des stagiaires")
+    if v.voit("#view .bnv-page"):
+        v.constat("A", BLOQUE, "« Évaluer un stagiaire » ouvre les élèves bénévoles au lieu de la liste des stagiaires", capture=True)
+    v.but("liste des stagiaires ouverte")
+    v.terminer()

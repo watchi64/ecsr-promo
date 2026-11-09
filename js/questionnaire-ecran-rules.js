@@ -7,8 +7,8 @@
 // rend que les questionnaires ouverts, auxquels la personne a droit et qu'elle n'a pas encore remplis. Liste vide
 // (rien d'ouvert, ou migration pas encore appliquée) : aucun bandeau, aucune erreur.
 
-import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261109k";
-import { lendemain } from "./avis-rules.js?v=20261109k";
+import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261109m";
+import { lendemain } from "./avis-rules.js?v=20261109m";
 
 const FORMAT_JOUR = /^\d{4}-\d{2}-\d{2}$/;
 
