@@ -9,7 +9,7 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance } from "../db.js?v=20261109c";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261109c";
 import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261109c";
 import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109c";
 import { getCurrentWho } from "../identity.js?v=20261109c";
@@ -307,7 +307,15 @@ export async function renderEpcfLivret(container, opts = {}) {
         "Ton livret officiel EPCF n'a pas encore été créé par les formateurs."));
       return;
     }
-    showDoc(container, null, mine, { readOnly: true });
+    // Son identité, comme chez le formateur : sans sa fiche, Nom, Prénom et Date de naissance restaient vides tant que le
+    // formateur ne les avait pas enregistrés, alors que Mon suivi annonce la date « reportée automatiquement » (audit du
+    // 09/11, A4). Une fiche illisible laisse le livret tel qu'enregistré.
+    let fiche = null;
+    if (myId != null) {
+      fiche = await getStagiaire(myId).catch((e) => { console.error(e); return null; });
+      if (opts.isActive && !opts.isActive()) return;
+    }
+    showDoc(container, fiche, mine, { readOnly: true });
     return;
   }
 

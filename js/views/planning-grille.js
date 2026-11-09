@@ -7,7 +7,7 @@
  */
 import { el } from "../utils.js?v=20261109c";
 import { icon, deco } from "../icons.js?v=20261109c";
-import { etiquetteSemaine } from "../journee-rules.js?v=20261109c";
+import { etiquetteSemaine, alerteDeCarte } from "../journee-rules.js?v=20261109c";
 
 // Mémoire de l'appareil : la forme choisie (js/journee-rules.js, vuePlanningInitiale).
 export const CLE_VUE_PLANNING = "planning.vue";
@@ -34,9 +34,11 @@ function lignesDeCarte(c, equipe) {
 
 function carteDeGrille(c, equipe) {
   const etiquette = equipe ? null : etiquetteSemaine(c.moi);
+  const alerte = alerteDeCarte(c);
   return el("div", { class: "wg-carte" },
     el("span", { class: "wg-tag wg-genre-" + c.genre }, c.titre),
     c.sujets.length ? el("b", {}, c.sujets.join(" · ")) : null,
+    alerte ? el("span", { class: "wg-sub wg-alerte" }, alerte) : null,
     ...lignesDeCarte(c, equipe).map((l) => el("span", { class: "wg-sub" }, l)),
     etiquette ? el("span", { class: "wg-moi", "data-moi": c.moi.role }, etiquette) : null,
   );

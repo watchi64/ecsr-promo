@@ -11,7 +11,8 @@ import {
 } from "../db.js?v=20261109c";
 import { el, clear, displayStagiaire } from "../utils.js?v=20261109c";
 import { icon } from "../icons.js?v=20261109c";
-import { monStagiaireId, isAdmin } from "../auth-admin.js?v=20261109c";
+import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261109c";
+import { libelleConnexion } from "../roles-rules.js?v=20261109c";
 import { emargementActif } from "../emargement-etat.js?v=20261109c";
 import { lignePromo } from "../accueil-rules.js?v=20261109c";
 import { journeeDuJour } from "../journee-rules.js?v=20261109c";
@@ -80,6 +81,10 @@ function dessinerEmargement(carteEm, etat) {
   }, el("i", { style: `width:${part}%` })));
   if (feuille.enAttente.length) {
     corps.appendChild(el("p", { class: "acc-attente" }, "En attente : " + feuille.enAttente.join(", ")));
+  }
+  // Ceux qui n'attendent pas parce qu'absents (prévus au planning ou notés) : avec les signés et l'attente, ils font le total (A1).
+  if (feuille.absents.length) {
+    corps.appendChild(el("p", { class: "acc-attente" }, (feuille.absents.length > 1 ? "Absents : " : "Absent : ") + feuille.absents.join(", ")));
   }
 
   // Le fondateur qui a une fiche de stagiaire signe comme les autres : le bandeau ne le propose plus sur cette page.
@@ -281,7 +286,7 @@ export function renderAujourdhui(container) {
   // Pied de page : celui de l'Accueil d'avant, pour l'équipe.
   const nomPromo = promo?.nom || "";
   container.appendChild(el("footer", { class: "home-footer-v2" },
-    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" }, "connecté comme formateur")),
+    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" }, "connecté comme " + (libelleConnexion({ profil: getProfile(), promo, apercu: getViewAs() }) || "formateur"))),
     el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
       el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank", rel: "noopener" }, "code source"),
       " · ",

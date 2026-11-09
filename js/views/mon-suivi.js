@@ -20,6 +20,7 @@ import { exemplesRemplis } from "../dp-rules.js?v=20261109c";
 import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261109c";
 import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261109c";
 import { navigationV2Active } from "../nav-etat.js?v=20261109c";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109c";
 import { renderNotes } from "./notes.js?v=20261109c";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
@@ -331,6 +332,16 @@ function buildChart(evals, largeur) {
   });
 
   return svg;
+}
+
+// Le renvoi vers les notes d'entraînement aux QCM, sous « Mon évolution » du stagiaire : Cours et QCM, partie QCM
+// (sous-onglet gardé en mémoire comme le fait une ligne de l'Accueil, js/views/pages-cartes.js).
+function renvoiNotesQcm() {
+  const memoriser = () => {
+    try { localStorage.setItem(CLES_SOUS_ONGLETS.themes, "qcm"); } catch (e) { /* mode privé : Cours et QCM s'ouvre sur Thèmes */ }
+  };
+  return el("p", { class: "muted ms-renvoi" }, "Les notes de tes entraînements aux QCM sont dans ",
+    el("a", { href: "#/themes", onClick: memoriser }, "Cours et QCM, partie QCM"), ".");
 }
 
 function renderChartSection(evaluations, soi = true) {
@@ -716,6 +727,8 @@ function rendreResultats(panel, d, soi, isActive, opts = {}) {
     clear(zone);
     if (cible === "moi") {
       zone.appendChild(renderChartSection(d.evaluations, soi));
+      // Les notes des QCM ne sont pas des évaluations : on dit où elles sont (audit du 09/11, A5).
+      if (soi && moduleVisible("qcm")) zone.appendChild(renvoiNotesQcm());
       return;
     }
     // La vue Notes de la classe, dans son propre conteneur : elle repeint son conteneur à l'arrivée des

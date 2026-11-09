@@ -5,7 +5,7 @@
 // En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
 import "./journal-erreurs.js?v=20261109c";
 import { getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements } from "./db.js?v=20261109c";
-import { toast, el } from "./utils.js?v=20261109c";
+import { toast, annoncer, el } from "./utils.js?v=20261109c";
 import { icon } from "./icons.js?v=20261109c";
 import { initAuth, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261109c";
 import { chargerEtatSignalements } from "./signalement-etat.js?v=20261109c";
@@ -545,7 +545,8 @@ async function bootApp() {
   // (ou, chez le fondateur, quand il y en a de nouveaux).
   chargerEtatSignalements().then((etat) => {
     const phrase = messageDemarrage({ fondateur: fondateurHorsApercu(), ...etat });
-    if (phrase) setTimeout(() => toast(phrase, "info", 6000), 1500);
+    // Une annonce : elle attend la place libre et les fenêtres fermées, sans jamais effacer une confirmation (A2).
+    if (phrase) setTimeout(() => annoncer(phrase, "info", 6000), 1500);
   });
   // Le changement de rôle change l'audience, donc le compte, et ce qu'on voit des modules.
   onAdminChange(() => {

@@ -69,3 +69,20 @@ export function sujetsDe(val, titresConnus) {
   }
   return out;
 }
+
+// Colonnes des activités parallèles d'une demi-journée, à l'écran : chaque créneau (`rows`, [{ lanes: [entrée] }]) range
+// ses entrées par voie (`lane`, persistée), puis les numérote 0, 1, 2… sans les trous ; la demi-journée a autant de
+// colonnes que son créneau le plus chargé. Une voie peut avoir un trou (activité parallèle supprimée) : avant ce rang,
+// une carte seule en voie 3 n'occupait qu'un quart de la largeur en mode Modifier, titre coupé (audit du 09/11, B1).
+// Rend { colonnes, rangs } : `rangs[i][k]`, la colonne (à partir de 0) de la k-ième entrée du créneau i, dans son ordre.
+export function colonnesParalleles(rows) {
+  const liste = Array.isArray(rows) ? rows : [];
+  const rangs = liste.map((r) => {
+    const lanes = Array.isArray(r.lanes) ? r.lanes : [];
+    const ordre = lanes.map((e, k) => ({ k, voie: (e && e.lane) ?? 0 })).sort((a, b) => a.voie - b.voie || a.k - b.k);
+    const rang = new Array(lanes.length);
+    ordre.forEach((o, i) => { rang[o.k] = i; });
+    return rang;
+  });
+  return { colonnes: Math.max(1, ...rangs.map((r) => r.length)), rangs };
+}

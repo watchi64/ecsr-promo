@@ -171,6 +171,19 @@ export function etiquetteBadge({ profil, promo } = {}) {
   return { libelle: "", classe: "" };
 }
 
+// Le rôle que dit le pied de page (« connecté comme … ») : celui de l'aperçu « Voir en tant que » s'il y en a un, sinon le
+// rôle réel sur la promo affichée, dans l'ordre du badge (formateur, direction, siège, stagiaire), le fondateur sans rôle sur
+// la promo étant « fondateur ». Avant l'audit du 09/11 (A8), Aujourd'hui écrivait « formateur » pour tout le monde.
+export function libelleConnexion({ profil, promo, apercu } = {}) {
+  if (!profil) return "";
+  const a = apercuRetenu({ profil, promo, apercu });
+  if (a) return LIBELLES_APERCU[a].toLowerCase() + " (aperçu)";
+  const { libelle } = etiquetteBadge({ profil, promo });
+  if (libelle === "admin") return profil.is_founder ? "fondateur" : "formateur";
+  if (!libelle && profil.is_founder) return "fondateur";
+  return libelle;
+}
+
 // Phrase du refus à la porte, quand le compte n'a aucune promo : selon ses affectations (liste de rôles lue en base, vide
 // ou absente si la lecture a échoué), le siège et la direction ne sont pas renvoyés vers « un formateur ».
 export const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à ta direction ou à un formateur de t'ajouter.";

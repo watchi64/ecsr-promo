@@ -12,7 +12,7 @@ import { el, clear, toast, isoDate } from "../utils.js?v=20261109c";
 import { icon } from "../icons.js?v=20261109c";
 import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261109c";
 import {
-  etatLigne, resumeSeance, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
+  etatLigne, resumeSeance, resumeEnClair, etatSansFeuille, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
   demiVoisine, notesProposees, roleAuPlanning,
 } from "../emargement-rules.js?v=20261109c";
@@ -187,7 +187,8 @@ function dessinerSemaine(ctx) {
       } else if (jour === aujourdhui) {
         etat = "À ouvrir"; classe = "a-ouvrir";
       } else {
-        etat = jour < aujourdhui ? "Pas de feuille" : "À venir"; classe = "vide";
+        // Passée, une demi-journée de cours sans feuille se voit (« Feuille non faite ») ; sans cours, « Rien de prévu ».
+        ({ etat, classe } = etatSansFeuille({ jour, aujourdhui, demi, entries: ctx.entries }));
       }
       colonne.appendChild(el("a", { class: "em-case em-case-" + classe, href: adresseSeance(jour, demi) },
         el("span", { class: "em-case-demi" }, demi === "matin" ? "Matin" : "Après-midi"),
@@ -303,12 +304,11 @@ function dessinerSeance(ctx) {
   const ouverte = s.statut === "ouverte";
   const duJour = jour === aujourdhui;
   const liste = stagiairesDeFeuille(s, ctx.stagiairesTous);
-  const r = resumeSeance(s.lignes, liste.map((x) => x.id), !ouverte);
+  const r = resumeSeance(s.lignes, liste.map((x) => x.id), !ouverte, absentsPlanning);
 
+  // Signés, absents notés, en attente et absents prévus au planning : la même lecture que la carte d'« Aujourd'hui » (A1).
   page.appendChild(el("div", { class: "em-resume" },
-    el("span", { class: "em-resume-chiffre" }, `${r.signes} sur ${r.total}`), " ont signé",
-    r.absents ? ` · ${r.absents} absent${r.absents > 1 ? "s" : ""}` : "",
-    ouverte && r.attente ? ` · ${r.attente} en attente` : "",
+    el("span", { class: "em-resume-chiffre" }, `${r.signes} sur ${r.total}`), resumeEnClair(r, { ouverte }),
   ));
   if (ouverte && !duJour) {
     page.appendChild(el("p", { class: "em-alerte" },

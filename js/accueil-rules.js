@@ -135,12 +135,11 @@ const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 //   2. le QCM d'un thème vu cette semaine au planning, jamais tenté (tout mode) ; le thème se retrouve par son titre
 //      exact (`sujetsDeLaSemaine` : les titres déjà découpés, l'ordre du planning) ; un QCM qui a déjà sa ligne
 //      d'examen n'en reçoit pas une seconde ;
-//   3. le dossier professionnel tant que les 6 exemples ne sont pas remplis ;
-//   4. le livret tant qu'il n'est pas commencé.
-// `modules` : { qcm, dp, livret } ; un module fermé (false) retire ses lignes. Une donnée qui n'a pas pu être lue
-// (`exemplesDossier` ou `livretCommence` nul) ne produit aucune ligne : mieux vaut se taire qu'inventer un travail.
+//   3. le dossier professionnel tant que les 6 exemples ne sont pas remplis.
+// `modules` : { qcm, dp } ; un module fermé (false) retire ses lignes. Une donnée qui n'a pas pu être lue
+// (`exemplesDossier` nul) ne produit aucune ligne : mieux vaut se taire qu'inventer un travail.
 // Chaque ligne : { cle, titre, detail, route, sousOnglet } ; la page en fait un lien.
-export function aFaireStagiaire({ qcm, themes, tentatives, sujetsDeLaSemaine, exemplesDossier, livretCommence, modules, now } = {}) {
+export function aFaireStagiaire({ qcm, themes, tentatives, sujetsDeLaSemaine, exemplesDossier, modules, now } = {}) {
   const ouvert = (cle) => !modules || modules[cle] !== false;
   const lignes = [];
   const maintenant = now ?? Date.now();
@@ -157,7 +156,7 @@ export function aFaireStagiaire({ qcm, themes, tentatives, sujetsDeLaSemaine, ex
       lignes.push({
         cle: `examen-${q.id}`, titre: `Examen ouvert : ${titreDuTheme(q)}`,
         detail: reste == null ? "Sans limite de temps" : `Ferme dans ${formatTempsRestant(reste)}`,
-        route: "themes", sousOnglet: "themes",
+        route: "themes", sousOnglet: "qcm",
       });
     }
     const vus = new Set(examens.map((q) => q.id));
@@ -169,7 +168,7 @@ export function aFaireStagiaire({ qcm, themes, tentatives, sujetsDeLaSemaine, ex
       lignes.push({
         cle: `qcm-${q.id}`, titre: `QCM du thème : ${theme.titre}`,
         detail: `Pas encore fait · ${pluriel(q.nb_questions, "question")}`,
-        route: "themes", sousOnglet: "themes",
+        route: "themes", sousOnglet: "qcm",
       });
     }
   }
@@ -179,10 +178,18 @@ export function aFaireStagiaire({ qcm, themes, tentatives, sujetsDeLaSemaine, ex
       route: "mon-suivi", sousOnglet: "dp",
     });
   }
-  if (ouvert("livret") && livretCommence === false) {
-    lignes.push({ cle: "livret", titre: "Livret EPCF", detail: "Pas encore commencé", route: "mon-suivi", sousOnglet: "livret" });
-  }
+  // Le livret EPCF n'a pas de ligne : ce sont les formateurs qui le remplissent, le stagiaire le consulte en lecture seule
+  // (audit du 09/11, A4). S'il devait un jour en remplir une part (question posée à Timy), la ligne reviendrait avec cette action.
   return lignes.slice(0, 4);
+}
+
+// La phrase d'une demi-journée de l'Accueil où le stagiaire n'est sur aucune carte du planning (ni au tableau, ni en voiture,
+// ni en salle) : sans elle, la rangée liste les activités des autres sans lui dire où il est (audit du 09/11, A3). Rien quand
+// une carte le nomme, quand la demi-journée est vide (la page le dit déjà) ou sans fiche de stagiaire (`moi` nul, aperçu).
+export function sansPlaceDansLaDemi({ demi, cartes, moi } = {}) {
+  const liste = Array.isArray(cartes) ? cartes : [];
+  if (moi == null || !liste.length || liste.some((c) => c && c.moi)) return null;
+  return (demi === "aprem" ? "Cet après-midi" : "Ce matin") + ", ton nom ne figure sur aucune activité du planning.";
 }
 
 // « À retenir » : les quatre règles courtes de l'app, lues par l'Accueil d'avant et, sous la nouvelle navigation, par

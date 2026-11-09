@@ -1,6 +1,7 @@
 // Émargement (spec 2026-10-23) : règles pures, sans DOM ni base. Lu par node
 // (tests/emargement-rules.test.mjs), par l'app et par le générateur de signatures
 // fictives de la démonstration (scripts/emargement-demo.mjs).
+import { entryHasContent } from "./planning-roles.js?v=20261109c";
 
 // Interrupteur par promo (demande de Timy du 23/10 : éteint partout, allumé pour la seule
 // promo de démonstration tant qu'il n'en décide pas autrement). Réglage `settings`
@@ -113,17 +114,47 @@ export function etatLigne({ ligne, absentPlanning = false, close = false }) {
 }
 
 // Comptes d'une séance sur la liste de stagiaires donnée (les lignes hors liste sont
-// ignorées). Une séance close compte absent tout stagiaire sans signature.
-export function resumeSeance(lignes, stagiaireIds, close) {
+// ignorées). Une séance close compte absent tout stagiaire sans signature. `prevus` : parmi ceux
+// qui n'ont rien dit (`attente`), les absents prévus au planning (`absentsPlanning`, un Set d'ids,
+// absentsDuPlanning) : la feuille et « Aujourd'hui » les comptent à part (audit du 09/11, A1).
+export function resumeSeance(lignes, stagiaireIds, close, absentsPlanning = null) {
   const parId = new Map((lignes || []).map((l) => [l.stagiaire_id, l]));
-  const r = { signes: 0, absents: 0, attente: 0, total: stagiaireIds.length };
+  const r = { signes: 0, absents: 0, attente: 0, prevus: 0, total: stagiaireIds.length };
   for (const id of stagiaireIds) {
     const code = etatLigne({ ligne: parId.get(id) || null, close }).code;
     if (code === "signe") r.signes++;
     else if (code === "absent") r.absents++;
-    else r.attente++;
+    else {
+      r.attente++;
+      if (absentsPlanning && absentsPlanning.has(id)) r.prevus++;
+    }
   }
   return r;
+}
+
+const nombre = (n, un, plusieurs) => `${n} ${n > 1 ? plusieurs : un}`;
+
+// La suite du résumé d'une feuille, après « 2 sur 6 » : les signés, les absents notés, ceux qui
+// n'ont rien dit et, à part, les absents prévus au planning. Les quatre font le total.
+export function resumeEnClair(r, { ouverte }) {
+  const attente = ouverte ? r.attente - (r.prevus || 0) : 0;
+  const prevus = ouverte ? r.prevus || 0 : 0;
+  return " ont signé"
+    + (r.absents ? " · " + nombre(r.absents, "absent", "absents") : "")
+    + (attente ? ` · ${attente} en attente` : "")
+    + (prevus ? " · " + nombre(prevus, "absent prévu", "absents prévus") + " au planning" : "");
+}
+
+// La case d'une demi-journée sans feuille, dans la semaine de l'émargement (hors jour désactivé et
+// hors aujourd'hui). Passée, elle dit si une feuille manque : une activité au planning sans feuille
+// est « Feuille non faite » (risque à un contrôle), sans activité « Rien de prévu ». `entries` :
+// le planning de la semaine, null s'il n'a pas pu être lu (on garde alors « Pas de feuille »).
+export function etatSansFeuille({ jour, aujourdhui, demi, entries }) {
+  if (jour >= aujourdhui) return { etat: "À venir", classe: "vide" };
+  if (!Array.isArray(entries)) return { etat: "Pas de feuille", classe: "vide" };
+  const di = dayIndexDe(jour);
+  const cours = entries.some((e) => e.day_index === di && e.half_day === demi && entryHasContent(e));
+  return cours ? { etat: "Feuille non faite", classe: "manquante" } : { etat: "Rien de prévu", classe: "vide" };
 }
 
 // === Heures et jours ===

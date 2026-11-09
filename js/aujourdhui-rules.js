@@ -83,8 +83,17 @@ export function feuilleDuJour({ seances, stagiaires, entries }) {
     ? liste.filter((s) => ids.has(s.id) && !absentsPlanning.has(s.id)
         && etatLigne({ ligne: parId.get(s.id) || null }).code === "attente").map(displayStagiaire)
     : [];
+  // Les absents nommés (prévus au planning sans avoir signé, ou notés sur la feuille) : avec les signés et ceux qui
+  // attendent, ils font le total, comme le résumé de la feuille (audit du 09/11, A1).
+  const absents = ouverte
+    ? liste.filter((s) => {
+      if (!ids.has(s.id)) return false;
+      const code = etatLigne({ ligne: parId.get(s.id) || null }).code;
+      return code === "absent" || (code === "attente" && absentsPlanning.has(s.id));
+    }).map(displayStagiaire)
+    : [];
   return {
-    seance, statut: seance.statut, signes: r.signes, total: r.total, enAttente,
+    seance, statut: seance.statut, signes: r.signes, total: r.total, enAttente, absents,
     titre: `Émargement ${deLaDemi(seance.demi_journee)}`,
   };
 }
