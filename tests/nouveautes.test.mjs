@@ -187,6 +187,9 @@ ok(!!questionnaires && questionnaires.pour === "tous" && questionnaires.date ===
   "questionnaires : pour tous, du 04/12, sans champ navigation");
 ok(/sans ton nom/.test(questionnaires.resume) && /Sans avis/.test(questionnaires.resume) && /Plus tard/.test(questionnaires.resume),
   "questionnaires : anonymat, « Sans avis » et « Plus tard » expliqués");
+ok(/dans l'application, personne ne peut voir qui a répondu quoi/.test(questionnaires.resume)
+  && /à partir de 5 réponses/.test(questionnaires.resume) && !/personne ne peut savoir/.test(questionnaires.resume),
+  "questionnaires : la promesse s'arrête à l'application et au seuil (relecture finale, I1)");
 ok(!/profs?/i.test(tout(questionnaires)) && !tout(questionnaires).includes(String.fromCharCode(0x2014)),
   "questionnaires : « formateur », jamais « prof », et aucun tiret cadratin");
 for (const [formateur, v2] of [[false, false], [false, true], [true, false], [true, true]]) {

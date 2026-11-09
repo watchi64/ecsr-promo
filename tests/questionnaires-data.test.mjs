@@ -61,10 +61,26 @@ ok(VERSION_CONDITIONS !== "2026-10-23", "nouvelle version des conditions");
 ok(VERSION_CONDITIONS === "2026-11-08", "version du jour");
 ok(/Qualiopi/.test(CONDITIONS_MD), "conditions : Qualiopi cité");
 ok(/financeurs/.test(CONDITIONS_MD), "conditions : financeurs cités");
-ok(/anonymes?/.test(CONDITIONS_MD) && /sans (votre )?nom/.test(CONDITIONS_MD), "conditions : questionnaires anonymes");
+ok(/sans (votre )?nom/.test(CONDITIONS_MD), "conditions : réponses aux questionnaires enregistrées sans nom");
 ok(/trois ans/.test(CONDITIONS_MD), "conditions : conservation trois ans");
 ok(!CONDITIONS_MD.includes(tiret), "conditions : aucun tiret cadratin");
 ok(!/\bprof\b/i.test(CONDITIONS_MD), "conditions : jamais « prof »");
+
+// Ce que l'anonymat garantit vraiment (relecture finale, I1) : rien face à qui lit les tables de la base (éditeur SQL),
+// tout dans l'application et ses documents. Aucun texte ne promet plus que cela.
+const PROMESSES_FAUSSES = [/pas même l'éditeur/i, /personne ne peut savoir/i, /personne ne peut relier/i];
+for (const t of [CONDITIONS_MD, ...Object.values(QUESTIONNAIRES).map((q) => q.intro)]) {
+  for (const m of PROMESSES_FAUSSES) ok(!m.test(t), `aucune promesse au-delà de ce que la base garantit : ${m}`);
+}
+ok(/\*\*Limite de cet anonymat\.\*\*/.test(CONDITIONS_MD) && /ne pas lire ces tables directement/.test(CONDITIONS_MD),
+  "conditions : la limite technique et l'engagement de l'éditeur sont écrits");
+const ligneDuree = CONDITIONS_MD.split("\n").find((l) => l.startsWith("| Questionnaires de satisfaction |"));
+ok(ligneDuree && !/sans limite/.test(ligneDuree) && /trois ans/.test(ligneDuree), "conditions : réponses gardées trois ans, plus sans limite");
+ok(/31 décembre de l'année suivante/.test(ligneDuree), "conditions : effacement des commentaires des formateurs daté");
+for (const q of Object.values(QUESTIONNAIRES)) {
+  ok(/sans ton nom, sans ton compte et sans date/.test(q.intro), `${q.cle} : introduction, sans nom, sans compte, sans date`);
+  ok(q.intro.includes(`à partir de ${seuilDe(q.public)} réponses`), `${q.cle} : introduction, le seuil de son public`);
+}
 
 // Le catalogue de l'app et la table questionnaire_questions de la base disent la même chose (relecture finale, I2).
 // La base refuse un envoi dont une question, une option ou une version lui est inconnue : un écart ne se verrait qu'au

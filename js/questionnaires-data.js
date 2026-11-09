@@ -8,7 +8,10 @@
 // satisfaction (part des réponses 3 ou 4 sur les répondants).
 
 // Texte proposé, à valider par Timy (docs/superpowers/specs/2026-11-08-qualiopi-q3-textes.md) : l'échelle, la
-// consigne du commentaire, les trois questionnaires (titres, introductions, questions, options).
+// consigne du commentaire, les trois questionnaires (titres, introductions, questions, options). Les introductions ne
+// promettent que ce que la base garantit (relecture finale, I1 : point 9 du document des textes).
+// Ids, types, facultatives, options et version sont recopiés dans la table questionnaire_questions de la migration :
+// toute modification touche les deux, et tests/questionnaires-data.test.mjs échoue sur le moindre écart.
 export const ECHELLE = [
   { valeur: 1, libelle: "Pas du tout" },
   { valeur: 2, libelle: "Plutôt non" },
@@ -25,7 +28,7 @@ export const QUESTIONNAIRES = {
     public: "stagiaire",
     version: 1,
     titre: "Ton avis sur la formation",
-    intro: "Ces questions portent sur ta formation. Ta réponse est enregistrée sans ton nom et sans date : personne ne peut savoir qui a répondu quoi. Compte environ trois minutes.",
+    intro: "Ces questions portent sur ta formation. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date ; dans l'application, personne ne peut voir qui a répondu quoi, et les résultats ne s'affichent qu'à partir de 5 réponses. Compte environ trois minutes.",
     questions: [
       { id: "objectifs", type: "echelle", facultative: false, texte: "Les objectifs de la formation t'ont été clairement présentés." },
       { id: "contenus", type: "echelle", facultative: false, texte: "Les contenus correspondent à ce que tu attendais de la formation." },
@@ -45,7 +48,7 @@ export const QUESTIONNAIRES = {
     public: "stagiaire",
     version: 1,
     titre: "Six mois après, ton avis",
-    intro: "Quelques mois ont passé depuis la fin de ta formation. Ces questions nous disent ce qu'elle t'a apporté. Ta réponse est enregistrée sans ton nom et sans date. Compte une minute ou deux.",
+    intro: "Quelques mois ont passé depuis la fin de ta formation. Ces questions nous disent ce qu'elle t'a apporté. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date, et les résultats ne s'affichent qu'à partir de 5 réponses. Compte une minute ou deux.",
     questions: [
       { id: "situation", type: "choix", facultative: false, texte: "Où en es-tu aujourd'hui ?", options: ["J'ai le titre et j'enseigne la conduite", "J'ai le titre et je cherche un poste", "Je n'ai pas encore le titre (examen à repasser ou à venir)", "Je fais autre chose"] },
       { id: "utile", type: "echelle", facultative: false, texte: "Ce que tu as appris en formation te sert dans ta situation actuelle." },
@@ -60,7 +63,7 @@ export const QUESTIONNAIRES = {
     public: "formateur",
     version: 1,
     titre: "Ton avis de formateur",
-    intro: "Ces questions portent sur la formation telle que tu l'as animée cette année. Ta réponse est enregistrée sans ton nom et sans date, et regroupée avec celles des autres formateurs du centre. Compte trois minutes.",
+    intro: "Ces questions portent sur la formation telle que tu l'as animée cette année. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date, et regroupée avec celles des autres formateurs du centre : les résultats ne s'affichent qu'à partir de 3 réponses. Compte trois minutes.",
     questions: [
       { id: "objectifs", type: "echelle", facultative: false, texte: "Les objectifs de la formation sont clairs et réalistes pour les stagiaires." },
       { id: "supports", type: "echelle", facultative: false, texte: "Les supports et les outils mis à ta disposition te permettent d'enseigner correctement." },

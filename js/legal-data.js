@@ -10,9 +10,13 @@
 // Texte proposé, à valider par Timy (docs/superpowers/specs/2026-11-08-qualiopi-q3-textes.md) : la version
 // 2026-11-08 et ses passages neufs (questionnaires et Qualiopi, Q3). Ils sont dans le texte ci-dessous, où un
 // commentaire ne peut pas entrer : l'essentiel (lignes 2, 4 et 7), la ligne « Questionnaires » du tableau du § 3, la
-// phrase sous le tableau du § 4 et le paragraphe « Questionnaires de satisfaction », les deux lignes neuves du tableau
-// du § 5 et le paragraphe « Documents du centre », les deux puces retouchées du § 6, les durées du § 10 et sa phrase
-// des trois ans, le paragraphe « Effacement sur demande » du § 12.
+// phrase sous le tableau du § 4 et les paragraphes « Questionnaires de satisfaction » et « Limite de cet anonymat »,
+// les deux lignes neuves du tableau du § 5 et le paragraphe « Documents du centre », les deux puces retouchées du § 6,
+// les durées du § 10 et sa phrase des trois ans, le paragraphe « Effacement sur demande » du § 12.
+// Relecture finale (09/11, I1) : les passages sur les questionnaires ne promettent que ce que la base garantit ;
+// l'engagement de l'éditeur (ne pas lire les tables directement) et la durée de trois ans des réponses sont des
+// propositions (point 9 du document des textes). Cette version n'est pas encore en ligne : ces retouches ne demandent
+// pas une acceptation de plus, la version 2026-11-08 reste la seule nouvelle acceptation.
 //
 
 export const VERSION_CONDITIONS = "2026-11-08";
@@ -21,7 +25,7 @@ export const CONDITIONS_MD = `# Conditions d'utilisation et données personnelle
 
 > **L'essentiel en 8 lignes**
 > L'application accompagne la formation au Titre professionnel ECSR. Elle est éditée par Timy Studio, la micro-entreprise de Timy Valdivia.
-> Elle enregistre ce qui sert à la formation : profil, notes, QCM, passages, absences, livret, dossier professionnel, et vos réponses aux questionnaires de satisfaction, qui sont anonymes.
+> Elle enregistre ce qui sert à la formation : profil, notes, QCM, passages, absences, livret, dossier professionnel, et vos réponses aux questionnaires de satisfaction, enregistrées sans votre nom.
 > Vos notes sont visibles des autres stagiaires de votre promo, sauf si vous choisissez de les masquer.
 > Personne d'extérieur à la formation n'y accède, à une exception près : ECF peut consulter des résultats nominatifs et présenter des documents de la formation à son certificateur Qualiopi et à ses financeurs.
 > La base de données est hébergée en France ; l'assistant passe par Scaleway, hébergeur français, qui ne conserve pas les messages.
@@ -77,7 +81,9 @@ La colonne ECF comprend la présentation, par ECF à son certificateur Qualiopi 
 
 Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre promo.
 
-**Questionnaires de satisfaction.** Ils sont anonymes : la réponse est enregistrée sans nom, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Personne ne peut relier une réponse à une personne, pas même l'éditeur. Les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre (dans ces conditions, « le centre » désigne ECF, l'organisme de formation), dans un ordre aléatoire, sous la même condition.
+**Questionnaires de satisfaction.** La réponse est enregistrée sans nom, sans compte, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Dans l'application et dans les documents qu'elle produit, personne ne peut voir qui a répondu quoi : les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre (dans ces conditions, « le centre » désigne ECF, l'organisme de formation), dans un ordre aléatoire, sous la même condition.
+
+**Limite de cet anonymat.** L'éditeur administre la base de données et peut techniquement en lire les tables. Tant qu'une seule personne a répondu dans une promo (ou un seul formateur dans un centre), ou en comparant les tables avant et après une réponse, il pourrait y rapprocher une réponse de la note de participation de son auteur. L'éditeur s'engage à ne pas lire ces tables directement : il ne consulte les réponses que par les écrans de l'application, qui appliquent le seuil.
 
 ## 5. À quoi servent les données, et sur quelle base
 
@@ -89,7 +95,7 @@ Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre
 | Produire des statistiques anonymes pour améliorer l'application et les contenus | Intérêt légitime de l'éditeur |
 | Envoyer les e-mails du compte (invitation, mot de passe oublié) | Nécessaire au fonctionnement du compte |
 | Permettre à ECF de présenter les documents de la formation à son certificateur Qualiopi et à ses financeurs | Obligation légale : la certification Qualiopi conditionne l'accès aux fonds publics et mutualisés de la formation professionnelle (code du travail, article L6316-1) |
-| Recueillir votre avis sur la formation par des questionnaires anonymes, et en produire un taux de satisfaction | Intérêt légitime de l'éditeur et du centre à mesurer et améliorer la formation, preuve que le centre doit pouvoir apporter à son certificateur |
+| Recueillir votre avis sur la formation par des questionnaires enregistrés sans nom, et en produire un taux de satisfaction | Intérêt légitime de l'éditeur et du centre à mesurer et améliorer la formation, preuve que le centre doit pouvoir apporter à son certificateur |
 | Répondre à vos questions par l'assistant | Intérêt légitime ; l'assistant n'est utilisé que si vous lui écrivez |
 
 **Documents du centre.** L'application produit des documents (dossier de la formation, dossier du centre, fiche de résultats) qu'ECF, qui forme les stagiaires, présente à son certificateur Qualiopi et à ses financeurs pour prouver ce qu'il fait. Ils reprennent des chiffres de l'application : heures, présences, résultats, taux de satisfaction. Le dossier de la formation est nominatif ; le dossier destiné au siège ne contient aucun nom. Aucun de ces documents ne contient une réponse individuelle à un questionnaire ni un commentaire libre. ECF les remet lui-même : l'éditeur ne les envoie à personne.
@@ -139,7 +145,7 @@ L'assistant est une **intelligence artificielle** : ses réponses sont généré
 |---------|-------|
 | Compte, adresse e-mail, date de naissance, fiches de suivi, textes libres (observations, commentaires) | Toute la formation, puis douze mois |
 | Preuves de la formation : nom, résultats, heures, présences, feuilles d'émargement signées, dossier professionnel, livret | Toute la formation, puis trois ans (jusqu'au 31 décembre de la troisième année après la fin de la formation) : c'est la durée du cycle de certification Qualiopi. Ensuite les noms, les signatures, le dossier professionnel et le livret sont effacés ; les heures, présences et résultats restent sans nom |
-| Questionnaires de satisfaction | Les réponses, qui n'ont pas de nom, servent aux statistiques sans limite ; les commentaires libres sont effacés douze mois après la fin de la formation ; la note de participation est supprimée avec le compte |
+| Questionnaires de satisfaction | Les réponses, enregistrées sans nom, sont gardées trois ans comme les preuves de la formation (jusqu'au 31 décembre de la troisième année après la fin de la formation ; pour le questionnaire des formateurs, après l'année du questionnaire), puis supprimées : seuls restent les résultats regroupés (taux et répartitions, à partir du seuil). Les commentaires libres sont effacés douze mois après la fin de la formation (pour le questionnaire des formateurs, le 31 décembre de l'année suivante). La note de participation est supprimée avec le compte |
 | Registre qualité du centre (réclamations, difficultés, aléas, améliorations, risques) | Trois ans après la clôture de l'entrée, puis sa description et sa réponse sont vidées ; le type, les dates et l'état restent |
 | Historique des modifications | Même durée que la donnée concernée |
 | Signalements de problème | Douze mois au plus, et jamais au-delà de la fermeture du compte |
@@ -166,7 +172,7 @@ Conformément au RGPD, chacun peut :
 
 Pour exercer ces droits : contact@timy-studio.fr, ou directement auprès de l'éditeur. La réponse intervient dans un délai d'un mois au plus. La suppression des données nominatives n'affecte pas les statistiques anonymes déjà produites.
 
-**Effacement sur demande.** Une demande d'effacement est exécutée sans attendre la fin des durées de la section 10, dans le délai d'un mois indiqué ci-dessus, même si cela retire des preuves de votre parcours : le dossier de la formation indique alors « fiche effacée à la demande de la personne ». Vos réponses aux questionnaires, enregistrées sans votre nom, ne peuvent pas être retrouvées pour être retirées une à une ; c'est la contrepartie de leur anonymat.
+**Effacement sur demande.** Une demande d'effacement est exécutée sans attendre la fin des durées de la section 10, dans le délai d'un mois indiqué ci-dessus, même si cela retire des preuves de votre parcours : le dossier de la formation indique alors « fiche effacée à la demande de la personne ». Vos réponses aux questionnaires, enregistrées sans votre nom ni votre compte, ne peuvent pas être retrouvées pour être retirées une à une ; c'est la contrepartie de cet enregistrement sans nom.
 
 Si vous estimez que vos droits ne sont pas respectés, vous pouvez adresser une réclamation à la **CNIL** (www.cnil.fr).
 

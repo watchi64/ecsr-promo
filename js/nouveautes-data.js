@@ -32,7 +32,8 @@ export const NOUVEAUTES = [
     titre: "Ton avis sur la formation, sans ton nom",
     resume: "À la fin de la formation, un court questionnaire s'affiche en haut de l'Accueil : "
           + "quelques questions sur la formation elle-même, à noter de 1 à 4, avec « Sans avis » quand tu ne sais "
-          + "pas. Ta réponse est enregistrée sans ton nom et sans date : personne ne peut savoir qui a répondu quoi. "
+          + "pas. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date ; dans l'application, personne "
+          + "ne peut voir qui a répondu quoi, et les résultats n'apparaissent qu'à partir de 5 réponses. "
           + "« Plus tard » le fait revenir le lendemain. Les formateurs ont leur propre questionnaire, et quelques "
           + "questions reviendront six mois après la fin de la formation.",
     ou: { label: "Accueil", route: "home" },
