@@ -806,7 +806,8 @@ body[data-nav="v2"] .nav-fenetre-qui {
 body[data-nav="v2"] .nav-fenetre-qui b { font-size: 1rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
 body[data-nav="v2"] .nav-fenetre-qui small { color: var(--text-muted); font-size: 0.82rem; line-height: 1.35; }
 body[data-nav="v2"] .nav-fenetre-section,
-body[data-nav="v2"] .nav-fenetre .nav-groupe-titre {
+body[data-nav="v2"] .nav-fenetre .nav-groupe-titre,
+body[data-nav="v2"] .nav-fenetre .habillage-titre {
   margin: 0;
   padding: 12px 8px 8px;
   font-family: var(--font-mono);
@@ -1012,6 +1013,58 @@ body[data-nav="v2"] .qcm-close { width: 44px; height: 44px; }
   body[data-nav="v2"] .qcm-sheet-body .btn,
   body[data-nav="v2"] .theme-modal .modal-actions .btn { min-height: 44px; }
 }
+
+/* ----- Apparence : le choix de l'habillage (lot 3, js/habillage-choix.js) ----- */
+/* Hors de body[data-nav="v2"], à la différence du reste de cette feuille : la section Apparence s'affiche aussi dans les
+   Paramètres de l'ancienne barre, pour qui est en Couleurs ECF (décision H6). Ses classes ne servent nulle part ailleurs :
+   rien d'autre ne bouge. Deux pastilles côte à côte, 52 px de haut à toute taille (44 au moins sur téléphone) ; la pressée
+   est bordée de l'accent, avec un anneau. La pastille de couleur montre son habillage (jetons --apercu-*, famille fixe). */
+.habillage-pastilles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.habillage-pastille {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-elev);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+}
+.habillage-pastille:hover { background: var(--bg-subtle); }
+.habillage-pastille[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.habillage-apercu {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--apercu-contour);
+}
+.habillage-pastille[data-habillage="ecsr"] .habillage-apercu {
+  background: conic-gradient(var(--apercu-ecsr-1) 0 50%, var(--apercu-ecsr-2) 50% 75%, var(--apercu-ecsr-3) 75% 100%);
+}
+.habillage-pastille[data-habillage="ecf"] .habillage-apercu {
+  background: conic-gradient(var(--apercu-ecf-1) 0 50%, var(--apercu-ecf-2) 50% 75%, var(--apercu-ecf-3) 75% 100%);
+}
+.habillage-libelle { min-width: 0; overflow-wrap: anywhere; }
+/* Dans le menu du compte, juste sous sa tête : le titre a l'allure des titres de section de la fenêtre (plus haut), les
+   pastilles en retrait comme dans la maquette ; le groupe ne rétrécit pas quand le menu défile. */
+body[data-nav="v2"] .nav-fenetre .habillage-choix { flex: none; }
+body[data-nav="v2"] .nav-fenetre .habillage-pastilles { padding: 0 6px 6px; }
 
 /* ----- Impression : ni la coquille, ni ce qu'elle impose à la page ----- */
 /* La marge de la barre latérale battrait le « margin: 0 » de l'impression des Indicateurs (style.css,

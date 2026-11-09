@@ -140,6 +140,25 @@ export const NOUVEAUTES = [
         + "de l'ouverture attend que le menu « Plus » soit refermé.",
     ],
   },
+  // Lot 3 de la refonte (date de la fusion) : le choix de l'habillage, qui ne se fait que sous la nouvelle barre. À date
+  // égale, il vient après le lot 2B : la carte « Nouveauté » de l'Accueil garde la journée du stagiaire et Aujourd'hui.
+  {
+    id: "2026-11-09-couleurs-ecf",
+    date: "2026-11-09",
+    pour: "tous",
+    navigation: "nouvelle",
+    titre: "L'app aux couleurs d'ECF",
+    resume: "Tu peux habiller l'app aux couleurs d'ECF : son bleu, son bleu nuit et une touche de rouge. Seules les "
+          + "couleurs changent : chaque page reste à sa place, et les notes gardent leurs couleurs. L'app retient ton "
+          + "choix, et tu reviens à ECSR Promo quand tu veux.",
+    ou: { label: "Mes préférences", route: "preferences" },
+    guide: [
+      "Ouvre le menu de ton compte : le rond à tes initiales, en haut à droite de l'écran (chez les formateurs, sur "
+        + "ordinateur, en bas de la barre de gauche).",
+      "Sous Apparence, touche « Couleurs ECF » : l'app change de couleurs tout de suite.",
+      "Pour revenir, touche « ECSR Promo » au même endroit. Le même choix est aussi dans Mes préférences.",
+    ],
+  },
   {
     id: "2026-11-08-roles-par-promo",
     date: "2026-11-08",

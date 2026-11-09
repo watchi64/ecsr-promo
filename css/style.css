@@ -189,6 +189,15 @@
   /* Fond gris des planches de panneaux dans les questions (indépendant du thème : il détache les panneaux blancs). */
   --apercu-planche: #c6cbd1;
   --apercu-scene: #5D635B;                           /* fond du cadre d'une scène animée d'un cours, derrière le dessin */
+  /* Pastilles du choix de l'habillage (Apparence, js/habillage-choix.js) : chacune montre les couleurs de son habillage,
+     quel que soit celui qui est appliqué (famille fixe). ECSR Promo : vert, barre sombre, fond ; Couleurs ECF : bleu, rouge, blanc. */
+  --apercu-ecsr-1: #6B7F4E;
+  --apercu-ecsr-2: #16231E;
+  --apercu-ecsr-3: #F1F4F0;
+  --apercu-ecf-1:  #124483;
+  --apercu-ecf-2:  #DB1418;
+  --apercu-ecf-3:  #FFFFFF;
+  --apercu-contour: rgba(0, 0, 0, 0.12);             /* filet intérieur qui détache le blanc d'une pastille du fond clair */
 
   /* --- Planning imprimable (feuille A4 : sa palette ne dépend pas de l'habillage de l'écran) --- */
   --doc-texte: #333;
