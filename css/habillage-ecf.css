@@ -1,0 +1,111 @@
+/* Habillage « Couleurs ECF » : un seul bloc de variables, rien d'autre. Chaque jeton de la famille d'habillage de
+   css/style.css (liste : js/habillage-familles.js) y est redéfini, aucun jeton de la famille fixe (notes, activités,
+   statuts, signalisation, documents imprimés) : ces couleurs gardent leur sens et leur aspect dans les deux habillages.
+   Le test tests/habillage-jetons.test.mjs vérifie ce contrat et les contrastes de chaque paire texte / fond.
+   Le rouge #DB1418 est réservé aux repères (trait de l'entrée active, pastille) : jamais sur une note ni sur un texte. */
+:root[data-skin="ecf"] {
+  /* Fonds : blanc et gris bleutés, le bleu nuit pour la barre sombre. */
+  --bg:        #F3F5F9;
+  --bg-elev:   #FFFFFF;
+  --bg-soft:   #E8EDF5;
+  --bg-subtle: #EBEFF6;
+  --bg-deep:   #0D2546;
+  --bg-survol: #E3E9F2;                        /* survol d'un en-tête de demi-journée */
+
+  /* Traits : gris bleutés, du plus net au plus discret. */
+  --line:        #D6DDE8;
+  --line-strong: #B2BED0;
+  --line-faint:  #E3E8F0;
+  --line-moyenne:       #C6D2E4;               /* filet de la ligne « moyenne du groupe » */
+  --line-popover:       #C5CEDC;               /* champs et boutons du petit éditeur de note */
+  --line-popover-cadre: #DAE1EC;
+
+  /* Textes : bleu nuit, jusqu'à --text-faint qui reste du décor (aucun texte ne l'emploie). */
+  --text:       #13213A;
+  --text-soft:  #33465F;
+  --text-muted: #52637B;
+  --text-faint: #9AA8BC;
+  --text-etiquette: var(--text-muted);
+  --text-popover:       #1B2A44;
+  --text-popover-doux:  #5A6B82;
+
+  /* Accent : le bleu d'ECF, et le blanc pour ce qui se pose sur le bleu nuit. */
+  --accent:         #124483;
+  --accent-strong:  #0D2546;
+  --accent-soft:    #E3EBF6;
+  --accent-soft-2:  #C8D7EC;
+  --accent-on-dark: #FFFFFF;
+  --accent-texte:   #FFFFFF;                   /* texte d'un bouton plein */
+  --accent-fin-barre: #4A80C4;                 /* bout clair de la barre « Thèmes officiels » : du bleu d'ECF à un bleu plus clair */
+
+  /* Barre sombre : blanc translucide sur le bleu nuit (survol, entrée allumée, filet, bordure). */
+  --sur-sombre:         #E3EAF6;
+  --sur-sombre-doux:    #A5B6CF;
+  --sombre-survol:      rgba(255, 255, 255, 0.07);
+  --sombre-allume:      rgba(255, 255, 255, 0.11);
+  --sombre-allume-fort: rgba(255, 255, 255, 0.18);
+  --sombre-filet:       rgba(255, 255, 255, 0.09);
+  --sombre-bord:        rgba(255, 255, 255, 0.22);
+  --sombre-2:           #14335E;               /* survol d'un bouton sombre */
+  --sombre-survol-fort: rgba(255, 255, 255, 0.16);
+
+  /* Repères : le rouge d'ECF, seulement ici (trait de l'entrée active, pastille de date). */
+  --repere-sombre:     #DB1418;
+  --sur-repere-sombre: #FFFFFF;
+  --pastille:          #DB1418;
+  --sur-pastille:      #FFFFFF;
+  /* Liseré blanc des repères rouges de la barre sombre : le rouge ne tient que 2,2:1 sur l'entrée allumée et sur l'avatar (blanc
+     translucide sur le bleu nuit), le liseré le cerne (5,1:1) et se détache de ces fonds (le rouge et le bleu nuit restent ceux d'ECF). */
+  --repere-sombre-lisere:   #FFFFFF;
+  --repere-pastille-lisere: #FFFFFF;
+
+  /* Barre sombre, hors repères : l'initiale de la promo est blanche à lettre bleue, l'icône active garde la couleur du texte de la
+     barre (seuls le trait de l'entrée active, les compteurs et le point du compte sont rouges). */
+  --sombre-marque:     #FFFFFF;
+  --sur-sombre-marque: #124483;
+  --sur-sombre-actif:  var(--sur-sombre);
+
+  /* Badge de l'administrateur dans la barre sombre : un bleu clair (le vert de l'habillage par défaut n'a pas sa place ici,
+     le rouge est pris par les repères). */
+  --repere-admin:        #8FB4E8;
+  --repere-admin-fond:   rgba(143, 180, 232, 0.2);
+  --repere-admin-bord:   rgba(143, 180, 232, 0.3);
+  --repere-admin-survol: rgba(143, 180, 232, 0.3);
+  --repere-admin-halo:   rgba(143, 180, 232, 0.15);
+
+  /* Halos de focus et lueurs de la connexion : le bleu d'ECF aux opacités du défaut, une seconde lueur bleu clair (le rouge y virait au violet sur le bleu nuit). */
+  --halo-focus:       rgba(18, 68, 131, 0.12);
+  --halo-focus-leger: rgba(18, 68, 131, 0.1);
+  --lueur-1:          rgba(18, 68, 131, 0.15);
+  --lueur-2:          rgba(74, 128, 196, 0.10);
+
+  /* Ombres et voiles : bleu nuit translucide, aux opacités du défaut. */
+  --shadow-1: 0 1px 2px rgba(13, 37, 70, 0.04), 0 1px 1px rgba(13, 37, 70, 0.03);
+  --shadow-2: 0 4px 12px -2px rgba(13, 37, 70, 0.06), 0 2px 4px rgba(13, 37, 70, 0.03);
+  --shadow-3: 0 20px 40px -15px rgba(13, 37, 70, 0.12), 0 4px 12px rgba(13, 37, 70, 0.05);
+  --ombre-voile:        rgba(13, 37, 70, 0.4);
+  --ombre-voile-fort:   rgba(13, 37, 70, 0.55);
+  --ombre-illustration: rgba(13, 37, 70, 0.10);
+
+  /* Graphes des notes : axes et textes en gris bleutés, surface du radar en bleu d'ECF. Les alias suivent les jetons ci-dessus. */
+  --graphe-axe:        var(--line-strong);
+  --graphe-grille:     var(--line-faint);
+  --graphe-graduation: #5F6F87;
+  --graphe-texte:      var(--text);
+  --graphe-libelle:    var(--text-soft);
+  --graphe-piste:      #E9EDF4;
+  --graphe-radar-moi:  rgba(18, 68, 131, 0.25);
+
+  /* Titres : la police du texte (Outfit) à la place de Canela, et des graisses décalées pour une police sans
+     empattement (700 devient 600, 500 devient 600, 400 devient 500, 300 devient 400). Outfit est embarquée de 300 à 700 (css/fonts.css). */
+  --font-display:       var(--font);
+  --poids-titre:        600;
+  --poids-titre-semi:   600;
+  --poids-titre-moyen:  600;
+  --poids-titre-normal: 500;
+  --poids-titre-leger:  400;
+
+  /* Liseré tricolore sous l'en-tête sombre de l'équipe sur téléphone, et couleur de la barre d'état du navigateur. */
+  --lisere-habillage: linear-gradient(90deg, #124483 0 33.333%, #FFFFFF 33.333% 66.667%, #DB1418 66.667% 100%);
+  --barre-etat: #0D2546;
+}

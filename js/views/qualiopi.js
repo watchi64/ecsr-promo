@@ -14,23 +14,23 @@
 // du centre relit les autres promos du lieu, mais jamais celle qui est déjà affichée.
 // La date des documents est celle du rendu de la page, comme les données lues.
 
-import { lireDonneesQualiopi, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261109d";
-import { el, clear, isoDate, toast } from "../utils.js?v=20261109d";
-import { indicateursPromo } from "../centre-stats.js?v=20261109d";
-import { inventairePromo, nb } from "../qualiopi-preuves.js?v=20261109d";
+import { lireDonneesQualiopi, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261109e";
+import { el, clear, isoDate, toast } from "../utils.js?v=20261109e";
+import { indicateursPromo } from "../centre-stats.js?v=20261109e";
+import { inventairePromo, nb } from "../qualiopi-preuves.js?v=20261109e";
 import {
   modeleDossierFormation, modeleDossierCentre, inventaireCsv, nomFichierQualiopi, periodeEnMots, LIBELLES_NIVEAU, PHRASE_NIVEAU, PHRASE_DE_GARDE,
-} from "../qualiopi-documents.js?v=20261109d";
+} from "../qualiopi-documents.js?v=20261109e";
 import {
   REFERENTIEL_APPLIQUE, REFERENTIEL_DU, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, groupesParCritere,
   titreImpression,
-} from "../qualiopi-page-rules.js?v=20261109d";
+} from "../qualiopi-page-rules.js?v=20261109e";
 import {
   ficheResultats, fichesResultatsTexte, tableauFiche, copierTexte, noteProvisoire, promoTerminee, AUCUNE_FORMATION,
-} from "../qualiopi-resultats.js?v=20261109d";
-import { NOUVEAUTES } from "../nouveautes-data.js?v=20261109d";
-import { telecharger } from "./centre.js?v=20261109d";
-import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261109d";
+} from "../qualiopi-resultats.js?v=20261109e";
+import { NOUVEAUTES } from "../nouveautes-data.js?v=20261109e";
+import { telecharger } from "./centre.js?v=20261109e";
+import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261109e";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 

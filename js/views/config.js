@@ -6,8 +6,10 @@
  * Nouvelle navigation (lot 2A), deux pages : Réglages (#/config, l'équipe) ne garde que la promo, dans
  * l'ordre : Ce que voient les stagiaires (les modules) · Promo · Accès et invitations · Émargement et
  * Nouvelle navigation (fondateur) · Données personnelles ; Mes préférences (#/preferences, tous les
- * rôles, renderPreferences) garde ce qui est à la personne : Dans les notes de la classe (l'anonymat, pour qui a une fiche de
- * stagiaire) · Informations (dont « À retenir », les règles courtes que l'Accueil ne porte plus).
+ * rôles, renderPreferences) garde ce qui est à la personne : Apparence (lot 3, pour tous) · Dans les notes de la classe
+ * (l'anonymat, pour qui a une fiche de stagiaire) · Informations (dont « À retenir », les règles courtes que l'Accueil ne porte plus).
+ * Paramètres de l'ancienne barre : Apparence en tête, seulement pour qui est en Couleurs ECF (décision H6 : le choix se fait dans
+ * la nouvelle navigation, mais personne ne reste coincé dans un habillage qu'il ne peut pas quitter).
  */
 import {
   listStagiaires, listProfs,
@@ -17,17 +19,19 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20261109d";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109d";
-import { icon } from "../icons.js?v=20261109d";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109d";
-import { moduleVisible } from "../modules-etat.js?v=20261109d";
-import { renderModulesSection } from "./modules-reglage.js?v=20261109d";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261109d";
-import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109d";
-import { pointsARetenir } from "../accueil-rules.js?v=20261109d";
-import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261109d";
-import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261109d";
+} from "../db.js?v=20261109e";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109e";
+import { icon } from "../icons.js?v=20261109e";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109e";
+import { moduleVisible } from "../modules-etat.js?v=20261109e";
+import { renderModulesSection } from "./modules-reglage.js?v=20261109e";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261109e";
+import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109e";
+import { pointsARetenir } from "../accueil-rules.js?v=20261109e";
+import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261109e";
+import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261109e";
+import { blocHabillage } from "../habillage-choix.js?v=20261109e";
+import { habillageCourant } from "../habillage.js?v=20261109e";
 
 // ====== SECTION Accès & invitations ======
 
@@ -692,6 +696,24 @@ async function renderDonneesSection(rerender) {
   return section;
 }
 
+// ====== SECTION Apparence (lot 3) ======
+
+// Le choix de l'habillage, toujours rendu dans Mes préférences (rien ne le cache : ni l'absence de fiche de stagiaire, ni
+// le module Notes fermé). Le titre de la section nomme le groupe des deux pastilles.
+function renderApparenceSection() {
+  const titre = el("h3", {}, "Apparence");
+  return el("section", { class: "param-section" },
+    el("div", { class: "param-section-head" },
+      el("div", { class: "param-icon" }, icon.palette()),
+      el("div", {},
+        titre,
+        el("p", { class: "muted" }, "Les couleurs de l'app, à ton choix."),
+      ),
+    ),
+    el("div", { class: "param-block" }, blocHabillage({ titre })),
+  );
+}
+
 // ====== SECTION Infos ======
 
 function renderInfoSection() {
@@ -782,10 +804,12 @@ async function rerender(container) {
 
     const grid = el("div", { class: "param-grid" });
     // Nouvelle navigation : ce que voient les stagiaires d'abord (le réglage qui sert le plus), puis la promo
-    // et les accès, les interrupteurs du fondateur, les données personnelles. Ancienne : l'ordre d'avant.
+    // et les accès, les interrupteurs du fondateur, les données personnelles. Ancienne : l'ordre d'avant, et
+    // Apparence en tête pour qui est en Couleurs ECF seulement (décision H6), le moyen de revenir à ECSR Promo.
+    const apparence = !v2 && habillageCourant() === "ecf" ? renderApparenceSection() : null;
     const sections = v2
       ? [modules, promo, acces, emargement, navigation, donnees]
-      : [acces, preferences, modules, emargement, navigation, promo, donnees, infos];
+      : [apparence, acces, preferences, modules, emargement, navigation, promo, donnees, infos];
     sections.filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
@@ -796,6 +820,9 @@ async function rerender(container) {
         el("h2", {}, titre),
       ),
     ));
+    // Ancienne barre en Couleurs ECF : Apparence ne demande aucune lecture, elle se pose quand même, pour que la
+    // personne ne reste pas piégée en ECF tant que la page ne se charge pas (décision H6).
+    if (!v2 && habillageCourant() === "ecf") container.appendChild(renderApparenceSection());
     container.appendChild(el("div", { class: "param-error" },
       el("p", {}, "Le chargement a échoué. " + (e.message || "")),
       el("button", {
@@ -811,8 +838,8 @@ export async function renderConfig(container) {
 }
 
 // Nouvelle navigation : « Mes préférences » (#/preferences), que le menu du compte ouvre pour tous les rôles :
-// ce qui ne concerne que la personne (l'anonymat dans les notes) et les informations sur l'app. Rien de la
-// promo, qui vit dans Réglages (#/config), la page de l'équipe. Les sections ne demandent aucune lecture :
+// ce qui ne concerne que la personne (l'apparence, l'anonymat dans les notes) et les informations sur l'app. Rien
+// de la promo, qui vit dans Réglages (#/config), la page de l'équipe. Les sections ne demandent aucune lecture :
 // la page se pose d'un coup.
 export function renderPreferences(container) {
   clear(container);
@@ -821,14 +848,12 @@ export function renderPreferences(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Mon compte"),
       el("h2", {}, "Mes préférences"),
-      // Le sous-titre dit ce que la page contient : sans réglage à montrer (Notes fermées pour la promo, ou aucune fiche de
-      // stagiaire), il ne promet que les informations. « Réglages » est le nom de la page de l'équipe : il n'est pas repris ici.
-      el("p", { class: "subtitle" }, preferences
-        ? "Ce qui ne concerne que toi, et les informations sur l'application."
-        : "Les informations sur l'application."),
+      // Apparence est toujours là : la page a toujours un réglage à soi, quel que soit le rôle. « Réglages » est le nom de
+      // la page de l'équipe : il n'est pas repris ici.
+      el("p", { class: "subtitle" }, "Ce qui ne concerne que toi, et les informations sur l'application."),
     ),
   ));
   const grid = el("div", { class: "param-grid" });
-  [preferences, renderInfoSection()].filter(Boolean).forEach((s) => grid.appendChild(s));
+  [renderApparenceSection(), preferences, renderInfoSection()].filter(Boolean).forEach((s) => grid.appendChild(s));
   container.appendChild(grid);
 }

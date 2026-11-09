@@ -8,25 +8,28 @@
 // maintenant Cours et QCM, Documents), Mes préférences (celles de la personne, pour tous les rôles :
 // les Réglages de la promo sont une entrée de la barre de l'équipe) et « Actualiser », le même geste que
 // le bouton de l'ancienne barre (seul moyen de relire les données dans l'app installée sur iPhone).
+// Juste sous la tête du menu (lot 3) : Apparence, le choix de l'habillage (js/habillage-choix.js) ; une pastille
+// touchée change les couleurs sans fermer le menu.
 // Popover sur ordinateur et tablette, tiroir en bas de l'écran sur téléphone (css/navigation.css),
 // mécanique de fenêtre de js/nav-fenetre.js.
 
-import { el } from "./utils.js?v=20261109d";
-import { icon, deco } from "./icons.js?v=20261109d";
+import { el } from "./utils.js?v=20261109e";
+import { icon, deco } from "./icons.js?v=20261109e";
 import {
   getProfile, getProfileWho, monStagiaireId, buildViewAsBlock, seDeconnecter,
-} from "./auth-admin.js?v=20261109d";
-import { getPromoCourante, getMesPromos } from "./db.js?v=20261109d";
-import { ouvrirChoixPromo } from "./promo-pastille.js?v=20261109d";
-import { pagePersonnelle } from "./route-rules.js?v=20261109d";
-import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261109d";
-import { libellePastille } from "./nouveautes.js?v=20261109d";
-import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261109d";
-import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261109d";
-import { fondateurHorsApercu } from "./auth-admin.js?v=20261109d";
-import { ouvrirSignalement } from "./signalement.js?v=20261109d";
-import { etatSignalements } from "./signalement-etat.js?v=20261109d";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261109d";
+} from "./auth-admin.js?v=20261109e";
+import { getPromoCourante, getMesPromos } from "./db.js?v=20261109e";
+import { ouvrirChoixPromo } from "./promo-pastille.js?v=20261109e";
+import { pagePersonnelle } from "./route-rules.js?v=20261109e";
+import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261109e";
+import { libellePastille } from "./nouveautes.js?v=20261109e";
+import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261109e";
+import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261109e";
+import { fondateurHorsApercu } from "./auth-admin.js?v=20261109e";
+import { ouvrirSignalement } from "./signalement.js?v=20261109e";
+import { etatSignalements } from "./signalement-etat.js?v=20261109e";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261109e";
+import { blocHabillage } from "./habillage-choix.js?v=20261109e";
 
 // Une ligne du menu : un lien (page) ou un bouton (geste), icône et libellé, `fin` à droite.
 const ligne = (tag, attrs, icone, texte, fin = null) => el(tag, { class: "nav-fenetre-lien", ...attrs },
@@ -69,6 +72,8 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
     nom: "compte", ancre, etiquette: "Mon compte", classe: "nav-menu-compte",
     contenu: [
       tete,
+      blocHabillage(),
+      filet(),
       lignePageASoi(pageASoi),
       ligne("a", { href: "#/nouveautes" }, icon.bell(), "Nouveautés", nonLues
         ? el("span", { class: "nav-pastille" }, nonLues, el("span", { class: "nav-invisible" }, " non lues"))
@@ -96,7 +101,7 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
       filet(),
       ligne("button", { type: "button", onClick: () => {
         fermerFenetre({ focus: false });
-        import("./legal.js?v=20261109d").then((m) => m.ouvrirInformationsLegales());
+        import("./legal.js?v=20261109e").then((m) => m.ouvrirInformationsLegales());
       } }, icon.shield(), "Informations légales"),
       ligne("button", { type: "button", onClick: () => seDeconnecter(() => fermerFenetre({ focus: false })) },
         icon.logout(), "Se déconnecter"),

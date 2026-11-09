@@ -1,12 +1,12 @@
 import {
   listRessources, addRessource, updateRessource, deleteRessource,
   listContacts, addContact, updateContact, deleteContact, getPromoCourante,
-} from "../db.js?v=20261109d";
-import { el, clear, toast } from "../utils.js?v=20261109d";
-import { icon } from "../icons.js?v=20261109d";
-import { isAdmin } from "../auth-admin.js?v=20261109d";
-import { recordUndo } from "../undo.js?v=20261109d";
-import { navigationV2Active } from "../nav-etat.js?v=20261109d";
+} from "../db.js?v=20261109e";
+import { el, clear, toast } from "../utils.js?v=20261109e";
+import { icon } from "../icons.js?v=20261109e";
+import { isAdmin } from "../auth-admin.js?v=20261109e";
+import { recordUndo } from "../undo.js?v=20261109e";
+import { navigationV2Active } from "../nav-etat.js?v=20261109e";
 
 let ressources = [];
 let contacts = [];

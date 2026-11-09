@@ -8,27 +8,27 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
   avantChangementPromo,
-} from "../db.js?v=20261109d";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261109d";
-import { icon, deco } from "../icons.js?v=20261109d";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261109d";
-import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261109d";
-import { recordUndo } from "../undo.js?v=20261109d";
-import { getCurrentWho } from "../identity.js?v=20261109d";
-import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261109d";
-import { meilleurResultat } from "../passage-rules.js?v=20261109d";
-import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109d";
-import { emargementActif } from "../emargement-etat.js?v=20261109d";
-import { navigationV2Active } from "../nav-etat.js?v=20261109d";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109d";
+} from "../db.js?v=20261109e";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261109e";
+import { icon, deco } from "../icons.js?v=20261109e";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261109e";
+import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261109e";
+import { recordUndo } from "../undo.js?v=20261109e";
+import { getCurrentWho } from "../identity.js?v=20261109e";
+import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261109e";
+import { meilleurResultat } from "../passage-rules.js?v=20261109e";
+import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109e";
+import { emargementActif } from "../emargement-etat.js?v=20261109e";
+import { navigationV2Active } from "../nav-etat.js?v=20261109e";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109e";
 import {
   entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe, colonnesParalleles,
-} from "../planning-roles.js?v=20261109d";
+} from "../planning-roles.js?v=20261109e";
 import {
   DEFAULT_HALF_META, semaineEnGrille, jourParDefaut, lundiEnCours, vuePlanningInitiale,
-} from "../journee-rules.js?v=20261109d";
-import { nomsStagiaires } from "../planning-lecture.js?v=20261109d";
-import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261109d";
+} from "../journee-rules.js?v=20261109e";
+import { nomsStagiaires } from "../planning-lecture.js?v=20261109e";
+import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261109e";
 
 let stagiaires = [];
 let profs = [];

@@ -43,10 +43,12 @@
   --text-soft:  #46554A;
   --text-muted: #5D695E;   /* 4,8:1 sur --bg-soft ; était #6E7A6F (4,05:1, sous le seuil AA) */
   --text-faint: #9DA89A;
+  --text-etiquette: #556157;   /* étiquettes en capitales du planning (« Au tableau », « Stagiaires ») : 4,9:1 sur la teinte du pédagogue, le --text-muted en faisait 4,34 */
 
   /* --- Accent (vert mint) --- */
   --accent:        #5B6C42;   /* même vert assombri : 5,2:1 en texte, 5,1:1 sous du texte crème ; était #6B7F4E */
   --accent-strong: #495838;
+  --accent-fin-barre: var(--c-go);   /* bout clair du dégradé de la barre « Thèmes officiels » : le vert du défaut, un bleu en Couleurs ECF */
   --accent-soft:   #EAEFD9;
   --accent-soft-2: #D8E1C0;
   /* Vert clair pour les repères posés sur le fond sombre (barre du haut, pastille de date). */
@@ -86,6 +88,200 @@
   --font-display: "Canela", "Cormorant Garamond", "Playfair Display", Georgia, serif;
   --font:         "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   --font-mono:    "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Poids des titres d'écran : l'habillage change la police des titres et remappe ces poids d'un bloc (une règle ne dit jamais un nombre). */
+  --poids-titre:        700;
+  --poids-titre-semi:   600;
+  --poids-titre-moyen:  500;
+  --poids-titre-normal: 400;
+  --poids-titre-leger:  300;
+
+  /* --- Barre sombre (ex --nav-creme*, remontés de body[data-nav="v2"] : l'habillage les redéfinit d'un bloc) ---
+     Le crème de la barre du haut et ses transparences : texte, texte secondaire, survol, entrée allumée,
+     filet, bordure. */
+  --sur-sombre:        #F5E8D0;
+  --sur-sombre-doux:   rgba(245, 232, 208, 0.55);
+  --sombre-survol:     rgba(245, 232, 208, 0.07);
+  --sombre-allume:     rgba(245, 232, 208, 0.12);
+  --sombre-allume-fort: rgba(245, 232, 208, 0.18);   /* compteur d'une pastille de thème active */
+  --sombre-filet:      rgba(245, 232, 208, 0.08);
+  --sombre-bord:       rgba(245, 232, 208, 0.25);
+  --sombre-2:          #2A211C;                      /* survol d'un bouton sombre */
+
+  /* --- Repères et pastilles sur fond sombre --- */
+  --repere-sombre:     var(--accent-on-dark);
+  --sur-repere-sombre: var(--bg-deep);
+  --sombre-marque:     var(--repere-sombre);       /* pastille d'initiales de la promo, dans la barre sombre */
+  --sur-sombre-marque: var(--sur-repere-sombre);
+  --sur-sombre-actif:  var(--repere-sombre);       /* icône de l'entrée active de la barre sombre */
+  --pastille:          var(--accent);
+  --sur-pastille:      var(--bg-elev);
+  /* Liseré d'un repère de la barre sombre : le point du compte en a un de la couleur de la barre ; une pastille n'en a pas.
+     « Couleurs ECF » les fait blancs : son rouge ne tient que 2,2:1 sur l'entrée allumée et sur l'avatar (fond éclairci),
+     le liseré blanc le cerne (5,1:1) et se détache de tout fond sombre (lot 3, tâche 10). */
+  --repere-sombre-lisere:   var(--bg-deep);
+  --repere-pastille-lisere: transparent;
+  --repere-admin:       #6EE7B7;                     /* badge de l'administrateur connecté, dans la barre sombre */
+  --repere-admin-fond:  rgba(4, 120, 87, 0.2);
+  --repere-admin-bord:  rgba(4, 120, 87, 0.3);
+  --repere-admin-survol: rgba(4, 120, 87, 0.3);
+  --repere-admin-halo:  rgba(110, 231, 183, 0.15);
+
+  /* --- Texte sur une surface d'accent (boutons pleins) --- */
+  --accent-texte:    #FAF1DC;
+  /* Couleur de la famille de thèmes « conduite » (fixe : elle la distingue des deux autres familles). */
+  --famille-conduite: #4D7C0F;
+
+  /* --- Gris de décor --- */
+  --bg-survol: #ECEAE5;                              /* survol d'un en-tête de demi-journée */
+
+  /* --- Halos de focus, lueurs de l'écran de connexion, voile des fenêtres --- */
+  --halo-focus:        rgba(4, 120, 87, 0.12);
+  --halo-focus-leger:  rgba(4, 120, 87, 0.1);
+  --lueur-1:           rgba(4, 120, 87, 0.15);
+  --lueur-2:           rgba(180, 83, 9, 0.08);
+  --ombre-voile:       rgba(15, 20, 25, 0.4);
+
+  /* --- Couleurs qui disent quelque chose : jamais redéfinies par un habillage --- */
+  --c-stop-bord:  rgba(185, 28, 28, 0.35);           /* carte du tableau de bord : urgent */
+  --c-wait-bord:  rgba(180, 83, 9, 0.3);             /* carte du tableau de bord : à surveiller */
+  --c-retrait:    #A05A3D;                           /* retirer, désaffilier */
+  --act-peda-voile:        rgba(180, 83, 9, 0.08);   /* lignes et cases du pédagogue */
+  --act-peda-voile-leger:  rgba(180, 83, 9, 0.05);
+  --act-peda-voile-fin:    rgba(180, 83, 9, 0.03);
+  --act-peda-texte:    #92400E;                      /* texte des étiquettes d'activité */
+  --act-voiture-texte: #166534;
+  --act-cours-texte:   #1E40AF;
+
+  /* --- Échelle des notes (fixe : une note garde sa teinte dans les deux habillages, jamais un rouge) ---
+     Fond et texte des quatre niveaux de la matrice, des indicateurs et des cartes de thème ; le niveau « moyen »
+     des QCM ; les points et barres des graphes ; les voiles des pastilles EPCF. */
+  --note-bad-fond:    #F1DBC8;
+  --note-bad-texte:   #7A4F30;
+  --note-warn-fond:   #FBE5C1;
+  --note-warn-texte:  #92400E;
+  --note-ok-fond:     #DBE9C4;
+  --note-ok-texte:    #3F6212;
+  --note-great-fond:  #BFE0A6;
+  --note-great-texte: #2C5212;
+  --note-faible-titre: #A05A3D;                      /* titre « thèmes à travailler » */
+  --note-mid-fond:    #FBEEDD;                       /* niveau moyen des QCM */
+  --note-mid-texte:   #94602D;                       /* 4,6:1 sur --note-mid-fond ; était #B67A3D (3,5:1 sur la page), gardé pour la barre */
+  --note-mid-barre:   #B67A3D;                       /* barre du niveau moyen des QCM */
+  --note-warn-point:  #C98A2B;                       /* point ou barre ambre, bouton « à revoir » */
+  --note-ok-point:    #7BA23C;
+  --note-warn-voile:  rgba(201, 138, 43, 0.18);      /* pastille EPCF « en cours d'acquisition » */
+  --c-go-voile:       rgba(77, 124, 15, 0.18);       /* pastilles EPCF « acquis » et « non acquis » */
+  --c-stop-voile:     rgba(160, 90, 61, 0.18);
+  --act-controle-texte: #9A3412;                     /* texte de l'étiquette « contrôle » */
+
+  /* --- Couleurs réelles de la signalisation (donnée pédagogique : un panneau reste jaune, bleu, rouge...
+     quel que soit l'habillage) --- */
+  --signal-blanc:  #f4f3ee;
+  --signal-jaune:  #ffc72c;
+  --signal-bleu:   #1f5fbf;
+  --signal-rouge:  #cc1f2f;
+  --signal-vert:   #00804a;
+  --signal-orange: #ef7d00;
+  --signal-noir:   #1c1c1c;
+  --signal-gris:   #9a9a9a;
+  --signal-marron: #7c4a1e;
+  --signal-violet: #6c3fa8;
+
+  /* Fond gris des planches de panneaux dans les questions (indépendant du thème : il détache les panneaux blancs). */
+  --apercu-planche: #c6cbd1;
+  --apercu-scene: #5D635B;                           /* fond du cadre d'une scène animée d'un cours, derrière le dessin */
+  /* Pastilles du choix de l'habillage (Apparence, js/habillage-choix.js) : chacune montre les couleurs de son habillage,
+     quel que soit celui qui est appliqué (famille fixe). ECSR Promo : vert, barre sombre, fond ; Couleurs ECF : bleu, rouge, blanc. */
+  --apercu-ecsr-1: #6B7F4E;
+  --apercu-ecsr-2: #16231E;
+  --apercu-ecsr-3: #F1F4F0;
+  --apercu-ecf-1:  #124483;
+  --apercu-ecf-2:  #DB1418;
+  --apercu-ecf-3:  #FFFFFF;
+  --apercu-contour: rgba(0, 0, 0, 0.12);             /* filet intérieur qui détache le blanc d'une pastille du fond clair */
+
+  /* --- Planning imprimable (feuille A4 : sa palette ne dépend pas de l'habillage de l'écran) --- */
+  --doc-texte: #333;
+  --doc-texte-fort: #1F2937;
+  --doc-texte-doux: #555;
+  --doc-texte-gris: #777;
+  --doc-texte-pale: #aaa;
+  --doc-vide: #bbb;
+  --doc-texte-efface: #c9c9c9;
+  --doc-theme-num: #6B7F4E;
+  --doc-trait-fort: #444;
+  --doc-trait-doux: #999;
+  --doc-filet: #ccc;
+  --doc-fond-doux: #F4F4F3;
+  --doc-repos-fond-fort: #9CA3AF;
+  --doc-repos-fond: #F3F4F6;
+  --doc-repos-texte: #6B7280;
+  --doc-repos-texte-fort: #374151;
+  --doc-matin-fond: #FEF3C7;
+  --doc-matin-texte: #78350F;
+  --doc-aprem-fond: #DBEAFE;
+  --doc-aprem-texte: #1E3A8A;
+  --doc-pause: #B45309;
+  --doc-cours-fond: #EFF6FF;
+  --doc-peda-fond: #FEFCE8;
+  --doc-voiture-fond: #F0FDF4;
+  --doc-controle-fond: #FFF7ED;
+
+  /* --- Documents imprimés (feuille d'émargement, certificats et attestations, dossier Qualiopi, dossier
+     professionnel) : même aspect quelle que soit la personne qui imprime, donc famille fixe (décision H5).
+     Un document n'emploie aucun jeton d'habillage, pas même la police des titres. --- */
+  --doc-police-titre: "Canela", "Cormorant Garamond", "Playfair Display", Georgia, serif;   /* titres de document : la pile actuelle de --font-display, figée */
+  --doc-poids-titre: 700;                            /* h1, h2, h3 du dossier Qualiopi, titre et sous-titres des attestations */
+  --doc-poids-titre-feuille: 600;                    /* titre de la feuille d'émargement */
+  --doc-encre: #1F2924;                              /* texte du dossier Qualiopi, encre de la signature rendue */
+  --doc-noir: #111;                                  /* texte de la feuille d'émargement et des attestations */
+  --doc-en-tete-fond: #eef1ea;                       /* en-tête de tableau de la feuille, avant son habillage vert */
+  --doc-absent: #8a3b1f;                             /* absent, observation manquante, total d'absences */
+  --doc-absent-fond: #FBEEE6;
+  --doc-sans-fond-1: #f3f3f3;                        /* hachures d'une case sans séance */
+  --doc-sans-fond-2: #e6e6e6;
+  --doc-trait-pointille: #888;
+  --doc-vert: #556641;                               /* vert du centre : bandeau, titres de colonne, cadres */
+  --doc-vert-moyen: #6B7F4E;                         /* en-tête des tableaux de la feuille */
+  --doc-vert-sombre: #33402a;
+  --doc-vert-trait: #B7C0AA;
+  --doc-vert-fond: #EAEFD9;
+  --doc-vert-fond-doux: #EEF2E7;
+  --doc-vert-fond-pale: #F4F7F0;                     /* ligne paire d'un tableau */
+  --doc-vert-total: #DDE9C4;
+  --doc-total-ko-fond: #F6E4D7;
+  --doc-gris-vert: #46554A;
+  --doc-avertissement: #8A6A1F;                      /* fiche des résultats à publier : bandeau d'avertissement */
+  --doc-avertissement-fond: #FBF2D9;
+  --doc-dp-vide: #9a9a9a;                            /* dossier professionnel : repère de saisie et sommaire vide */
+  --doc-dp-note: #716D63;                            /* coupure de page et mention d'une fiche exclue, à l'écran seulement : 5:1 ; était #8a8578 (3,6:1) */
+  --doc-dp-exclu-fond: #fbfbfa;
+  --doc-dp-exclu-trait: #c9c6bd;
+
+  /* --- Graphes des notes (habillage : leurs classes `notes-*` posent ces couleurs, un attribut SVG ne suivrait pas) --- */
+  --graphe-axe:        var(--line-strong);           /* axe de référence : zéro ou dix sur vingt */
+  --graphe-grille:     var(--line-faint);            /* graduations en pointillés */
+  --graphe-graduation: #7A6650;                      /* chiffres des axes et noms anonymisés : 5,3:1 sur la carte ; était #8A7458 (4,3:1) */
+  --graphe-texte:      var(--text);                  /* valeurs et noms */
+  --graphe-libelle:    var(--text-soft);             /* tranches de note */
+  --graphe-piste:      #F0F0EC;                      /* rail gris derrière une barre */
+  --graphe-radar-moi:  rgba(107, 127, 78, 0.25);     /* surface du radar EPCF (ancien vert de l'accent) */
+
+  /* --- Autres teintes de décor --- */
+  --line-moyenne:      #C9D2BC;                      /* filet de la ligne « moyenne du groupe » */
+  --line-popover:      #ccc;                         /* bord des champs et boutons du petit éditeur de note */
+  --line-popover-cadre: #ddd;                        /* cadre de ce petit éditeur */
+  --text-popover:      #222;
+  --text-popover-doux: #666;
+  --ombre-illustration: rgba(60, 40, 20, 0.10);      /* ombre portée sous l'illustration de l'accueil */
+  --ombre-voile-fort:  rgba(20, 32, 28, 0.55);       /* voile derrière un questionnaire en plein écran */
+  --sombre-survol-fort: rgba(245, 232, 208, 0.16);   /* survol de la pastille de promo, dans la barre sombre */
+
+  /* Le liseré de l'habillage (aucun par défaut) et la couleur de la barre d'état du navigateur
+     (celle de <meta name="theme-color">). */
+  --lisere-habillage: none;
+  --barre-etat: #1A1612;
 
   /* --- Barre collante du haut --- */
   /* Sa hauteur : la barre de jours du Planning se colle juste dessous. 52 px pour la barre actuelle
@@ -128,7 +324,7 @@ html, body {
 
 h1, h2, h3, .display {
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.01em;
 }
 
@@ -186,8 +382,8 @@ a { color: inherit; text-decoration: none; }
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 50% at 30% 20%, rgba(4, 120, 87, 0.15), transparent 70%),
-    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(180, 83, 9, 0.08), transparent 60%);
+    radial-gradient(ellipse 80% 50% at 30% 20%, var(--lueur-1), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 80% 80%, var(--lueur-2), transparent 60%);
   pointer-events: none;
 }
 
@@ -226,7 +422,7 @@ a { color: inherit; text-decoration: none; }
   margin: 0 0 0.35rem;
   font-family: var(--font-display);
   font-size: 2.4rem;
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.02em;
   line-height: 1;
   color: var(--text);
@@ -256,7 +452,7 @@ a { color: inherit; text-decoration: none; }
   outline: none;
   border-color: var(--accent);
   background: var(--bg-elev);
-  box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.12);
+  box-shadow: 0 0 0 3px var(--halo-focus);
 }
 
 /* ============================================================
@@ -289,7 +485,7 @@ a { color: inherit; text-decoration: none; }
 
 .btn.primary {
   background: var(--accent);
-  color: #FAF1DC;
+  color: var(--accent-texte);
   border-color: var(--accent);
 }
 .btn.primary:hover {
@@ -299,17 +495,17 @@ a { color: inherit; text-decoration: none; }
 
 .btn.dark {
   background: var(--bg-deep);
-  color: #F5E8D0;
+  color: var(--sur-sombre);
   border-color: var(--bg-deep);
 }
 .btn.dark:hover {
-  background: #2A211C;
-  border-color: #2A211C;
+  background: var(--sombre-2);
+  border-color: var(--sombre-2);
 }
 
 .btn.accent {
   background: var(--accent);
-  color: #FAF1DC;
+  color: var(--accent-texte);
   border-color: var(--accent);
 }
 .btn.accent:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
@@ -363,13 +559,13 @@ a { color: inherit; text-decoration: none; }
   top: 0;
   z-index: 10;
   background: var(--bg-deep);
-  color: #F5E8D0;
+  color: var(--sur-sombre);
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 1.5rem;
   padding: 0.6rem 1.5rem;
-  border-bottom: 1px solid rgba(245, 232, 208, 0.08);
+  border-bottom: 1px solid var(--sombre-filet);
 }
 
 .brand {
@@ -399,7 +595,7 @@ a { color: inherit; text-decoration: none; }
   gap: 0.45rem;
   padding: 0.5rem 0.85rem;
   border-radius: var(--r-sm);
-  color: rgba(245, 232, 208, 0.55);
+  color: var(--sur-sombre-doux);
   font-size: 0.88rem;
   font-weight: 500;
   cursor: pointer;
@@ -412,10 +608,10 @@ a { color: inherit; text-decoration: none; }
 
 .tab .icon { width: 16px; height: 16px; }
 
-.tab:hover { color: #F5E8D0; background: rgba(245, 232, 208, 0.07); }
+.tab:hover { color: var(--sur-sombre); background: var(--sombre-survol); }
 .tab.active {
-  color: #F5E8D0;
-  background: rgba(245, 232, 208, 0.12);
+  color: var(--sur-sombre);
+  background: var(--sombre-allume);
 }
 .tab.active .icon { color: var(--accent-on-dark); }
 
@@ -433,7 +629,7 @@ h2 {
   margin: 0;
   font-family: var(--font-display);
   font-size: 2.2rem;
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.015em;
   line-height: 1.05;
   color: var(--text);
@@ -441,7 +637,7 @@ h2 {
 
 h3 {
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.01em;
 }
 
@@ -528,7 +724,7 @@ h3 {
 }
 
 .dashboard-card.urgent {
-  border-color: rgba(185, 28, 28, 0.35);
+  border-color: var(--c-stop-bord);
 }
 
 .dashboard-card.urgent::before {
@@ -542,7 +738,7 @@ h3 {
 }
 
 .dashboard-card.warn {
-  border-color: rgba(180, 83, 9, 0.3);
+  border-color: var(--c-wait-bord);
 }
 
 .dashboard-card.warn::before {
@@ -567,7 +763,7 @@ h3 {
 }
 
 .dashboard-card .name {
-  font-weight: 600;
+  font-weight: var(--poids-titre-semi);
   font-size: 1rem;
   letter-spacing: -0.01em;
   font-family: var(--font-display);
@@ -632,7 +828,6 @@ h3 {
 }
 .priority-badge .scope {
   font-weight: 700;
-  opacity: 0.9;
   min-width: 50px;
   font-size: 0.68rem;
 }
@@ -942,7 +1137,7 @@ h3 {
   cursor: pointer;
   transition: background 0.15s;
 }
-.p-half-head.editable:hover { background: #ECEAE5; }
+.p-half-head.editable:hover { background: var(--bg-survol); }
 .p-half-head.editable:hover .p-half-hours { text-decoration: underline; }
 
 .p-half-pause {
@@ -1239,7 +1434,7 @@ h3 {
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%; color: var(--text-muted); font-size: 0.9em;
 }
-.p-prof-autre-tag-x:hover { background: var(--c-wait, #b45309); color: #fff; }
+.p-prof-autre-tag-x:hover { background: var(--c-wait); color: #fff; }
 .p-prof-dropdown {
   position: absolute;
   top: calc(100% + 4px);
@@ -1345,14 +1540,14 @@ h3 {
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-muted);
+  color: var(--text-etiquette);
   font-weight: 600;
   min-width: 72px;
 }
 .p-lane-role.pedagogue select {
   flex: 1;
   border: 1px solid transparent;
-  background: rgba(180, 83, 9, 0.08);
+  background: var(--act-peda-voile);
   border-radius: var(--r-sm);
   padding: 0.22rem 1rem 0.22rem 0.45rem;
   font-family: inherit;
@@ -1556,7 +1751,7 @@ h3 {
 }
 .home-title-v2 {
   font-family: var(--font-display);
-  font-weight: 300;
+  font-weight: var(--poids-titre-leger);
   font-size: clamp(2rem, 4vw, 3rem);
   line-height: 1.1;
   margin: 0.2rem 0 0.8rem;
@@ -1564,7 +1759,7 @@ h3 {
 }
 .home-title-v2 em {
   font-style: normal;
-  font-weight: 700;
+  font-weight: var(--poids-titre); /* le prénom garde le poids plein du titre, quel que soit l'habillage */
   color: var(--accent);
 }
 .home-lead-v2 {
@@ -1620,7 +1815,7 @@ h3 {
   justify-content: space-between;
   margin-bottom: 0.8rem;
 }
-.home-section-head h2 { margin: 0; font-size: 1.25rem; font-family: var(--font-display); font-weight: 400; }
+.home-section-head h2 { margin: 0; font-size: 1.25rem; font-family: var(--font-display); font-weight: var(--poids-titre-normal); }
 .home-link {
   color: var(--accent);
   text-decoration: none;
@@ -1691,7 +1886,7 @@ h3 {
   padding: 1.2rem 1.4rem;
   margin-bottom: 2.5rem;
 }
-.home-info h2 { margin: 0 0 0.6rem; font-size: 1.05rem; font-family: var(--font); font-weight: 600; }
+.home-info h2 { margin: 0 0 0.6rem; font-size: 1.05rem; font-family: var(--font); font-weight: var(--poids-titre-semi); }
 .home-info-list {
   list-style: none;
   margin: 0;
@@ -1870,7 +2065,7 @@ h3 {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
-  font-weight: 700;
+  font-weight: var(--poids-titre);   /* un h3 : la police des titres, donc leur poids (l'habillage le remappe) */
   padding-bottom: 0.4rem;
   border-bottom: 1px solid var(--line);
 }
@@ -2098,7 +2293,7 @@ h3 {
   outline: none;
   background-color: var(--bg-elev);
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(4, 120, 87, 0.12);
+  box-shadow: 0 0 0 2px var(--halo-focus);
 }
 
 .p-lane-delete {
@@ -2264,7 +2459,7 @@ body.p-dragging-active {
 .sujet-multi:focus-within .sujet-chips {
   border-color: var(--accent);
   background: var(--bg-elev);
-  box-shadow: 0 0 0 2px rgba(4, 120, 87, 0.1);
+  box-shadow: 0 0 0 2px var(--halo-focus-leger);
 }
 .sujet-chip {
   display: inline-flex;
@@ -2355,8 +2550,8 @@ body.p-dragging-active {
   transition: background 0.1s;
 }
 .sujet-ac-item:hover { background: var(--bg-subtle); }
-.sujet-ac-item.notion { background: rgba(180, 83, 9, 0.03); }
-.sujet-ac-item.notion:hover { background: rgba(180, 83, 9, 0.08); }
+.sujet-ac-item.notion { background: var(--act-peda-voile-fin); }
+.sujet-ac-item.notion:hover { background: var(--act-peda-voile); }
 
 .sujet-ac-num {
   font-family: var(--font-mono);
@@ -2422,11 +2617,11 @@ body.p-dragging-active {
 .theme-pill.active {
   background: var(--bg-deep);
   border-color: var(--bg-deep);
-  color: #F5E8D0;
+  color: var(--sur-sombre);
 }
 .theme-pill.active .theme-pill-count {
-  background: rgba(245, 232, 208, 0.18);
-  color: #F5E8D0;
+  background: var(--sombre-allume-fort);
+  color: var(--sur-sombre);
 }
 
 .theme-pill-count {
@@ -2470,7 +2665,7 @@ body.p-dragging-active {
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.45rem;
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.01em;
   color: var(--text);
   line-height: 1.1;
@@ -2513,12 +2708,12 @@ body.p-dragging-active {
 /* Couleurs distinctes par famille */
 .theme-section-themes-officiels      .theme-section-title { color: var(--text); }
 .theme-section-competences-formateur .theme-section-title { color: var(--accent); }
-.theme-section-competences-conduite  .theme-section-title { color: #4D7C0F; }
+.theme-section-competences-conduite  .theme-section-title { color: var(--famille-conduite); }
 .theme-section-notions-pedagogiques  .theme-section-title { color: var(--c-wait); }
 
 /* Pills couleurs */
 .theme-pill.theme-pill-competences-formateur.active { background: var(--accent); border-color: var(--accent); }
-.theme-pill.theme-pill-competences-conduite.active  { background: #4D7C0F; border-color: #4D7C0F; }
+.theme-pill.theme-pill-competences-conduite.active  { background: var(--famille-conduite); border-color: var(--famille-conduite); }
 .theme-pill.theme-pill-notions-pedagogiques.active  { background: var(--c-wait); border-color: var(--c-wait); }
 
 /* === Barre de progression === */
@@ -2541,7 +2736,7 @@ body.p-dragging-active {
 
 .theme-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--c-go));
+  background: linear-gradient(90deg, var(--accent), var(--accent-fin-barre));
   border-radius: 3px;
   transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -2962,7 +3157,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .p-slot[data-activite="Contrôle"]           { background: var(--act-controle); }
 
 .pedagogue-cell {
-  background: rgba(180, 83, 9, 0.05);
+  background: var(--act-peda-voile-leger);
 }
 
 .p-cell select,
@@ -2999,7 +3194,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   outline: none;
   background-color: var(--bg-elev);
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(4, 120, 87, 0.12);
+  box-shadow: 0 0 0 2px var(--halo-focus);
 }
 
 /* Chip select (Élèves) */
@@ -3026,7 +3221,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .chips-display.open {
   background: var(--bg-elev);
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(4, 120, 87, 0.12);
+  box-shadow: 0 0 0 2px var(--halo-focus);
 }
 
 .chip {
@@ -3159,7 +3354,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   padding: 0.22rem 1.5rem 0.22rem 0.45rem;
   border: 1px solid transparent;
   border-radius: var(--r-sm);
-  background: rgba(180, 83, 9, 0.08);
+  background: var(--act-peda-voile);
   font-size: 0.92rem;
   font-weight: 600;
   color: var(--text);
@@ -3169,7 +3364,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   background-position: right 0.4rem center;
   background-size: 11px;
 }
-.person-display.open { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(4, 120, 87, 0.12); }
+.person-display.open { border-color: var(--accent); box-shadow: 0 0 0 2px var(--halo-focus); }
 .person-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .person-placeholder { color: var(--text-muted); font-weight: 500; }
 .person-item {
@@ -3330,8 +3525,8 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   border: 1px solid transparent;
 }
 
-.tag.salle { background: var(--act-peda); color: #92400E; border-color: var(--act-peda-border); }
-.tag.voiture { background: var(--act-voiture); color: #166534; border-color: var(--act-voiture-border); }
+.tag.salle { background: var(--act-peda); color: var(--act-peda-texte); border-color: var(--act-peda-border); }
+.tag.voiture { background: var(--act-voiture); color: var(--act-voiture-texte); border-color: var(--act-voiture-border); }
 /* Élève en salle : une présence, pas un passage, volontairement en retrait des
    tags colorés Salle / Voiture. */
 .tag.eleve { background: var(--bg-subtle); color: var(--text-soft); border-color: var(--line); }
@@ -3339,7 +3534,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .tag.absence { background: var(--c-stop-soft); color: var(--c-stop); }
 .tag.bonus { background: var(--c-wait-soft); color: var(--c-wait); }
 .tag.report { background: var(--bg-subtle); color: var(--text-muted); }
-.tag.origine-auto { background: var(--act-cours); color: #1E40AF; border-color: var(--act-cours-border); }
+.tag.origine-auto { background: var(--act-cours); color: var(--act-cours-texte); border-color: var(--act-cours-border); }
 .tag.origine-manuel { background: transparent; color: var(--text-muted); border-color: var(--line); }
 
 .tag.who {
@@ -3448,7 +3643,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.01em;
   color: var(--text);
 }
@@ -3525,106 +3720,6 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   border-radius: 4px;
 }
 
-/* === Theme grid (palettes complètes) === */
-
-.theme-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 0.7rem;
-  margin-bottom: 0.5rem;
-}
-
-.theme-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.4rem;
-  padding: 0.5rem;
-  background: var(--bg);
-  border: 2px solid var(--line);
-  border-radius: var(--r);
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.theme-card:hover { border-color: var(--line-strong); transform: translateY(-1px); }
-.theme-card.selected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.theme-card-preview {
-  width: 100%;
-  height: 60px;
-  border-radius: var(--r-sm);
-  padding: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  justify-content: center;
-  border: 1px solid rgba(0,0,0,0.08);
-}
-
-.tp-bar {
-  display: block;
-  height: 6px;
-  border-radius: 3px;
-}
-.tp-bar.tp-surface { width: 80%; }
-.tp-bar.tp-text    { width: 60%; }
-.tp-bar.tp-accent  { width: 40%; }
-
-.theme-card-label {
-  font-weight: 600;
-  font-size: 0.92rem;
-  color: var(--text);
-  padding: 0 0.25rem;
-}
-.theme-card-note { font-size: 0.78rem; padding: 0 0.25rem; }
-
-/* === Accent grid === */
-
-.accent-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 0.7rem;
-}
-
-.accent-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.45rem;
-  padding: 0.85rem 1rem;
-  background: var(--bg);
-  border: 2px solid var(--line);
-  border-radius: var(--r);
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.accent-card:hover { border-color: var(--line-strong); transform: translateY(-1px); }
-.accent-card.selected {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.accent-card-swatch {
-  width: 100%;
-  height: 32px;
-  border-radius: var(--r-sm);
-  border: 1px solid rgba(0,0,0,0.1);
-}
-
-.accent-card-label {
-  font-weight: 600;
-  font-size: 0.92rem;
-  color: var(--text);
-}
-.accent-card-note { font-size: 0.78rem; }
-
 /* === Info list === */
 
 .info-list {
@@ -3652,7 +3747,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 /* Backward compat, anciennes classes (Promo block réutilise) */
 
 .config-section { background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; }
-.config-section h3 { margin: 0 0 0.75rem; font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; }
+.config-section h3 { margin: 0 0 0.75rem; font-family: var(--font-display); font-size: 1.5rem; font-weight: var(--poids-titre); }
 .config-section .count { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); }
 
 .config-list {
@@ -3761,7 +3856,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 20, 25, 0.4);
+  background: var(--ombre-voile);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -3800,7 +3895,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   margin: 0 0 1.25rem;
   font-size: 1.15rem;
   letter-spacing: -0.01em;
-  font-weight: 600;
+  font-weight: var(--poids-titre-semi);
 }
 
 .modal-form {
@@ -3865,7 +3960,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .bnv-dispo-jour { font-size: 0.8rem; font-weight: 600; }
 .bnv-dispo-cell { display: flex; justify-content: center; padding: 0.35rem 0; cursor: pointer; }
 .bnv-dispo-cell input { width: 19px; height: 19px; accent-color: var(--accent); cursor: pointer; }
-.bnv-remove { color: #A05A3D; }
+.bnv-remove { color: var(--c-retrait); }
 /* Bénévoles affiliés sur la fiche auto-école */
 .bnv-affilies { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 0.7rem; }
 .bnv-affilies-titre { font-size: 0.8rem; font-weight: 600; color: var(--text-muted);
@@ -3882,7 +3977,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .bnv-linklike:hover { text-decoration-color: var(--accent); }
 /* Désaffilier (le bénévole reste dans la banque). Padding généreux + marges
    négatives : zone tactile ~40px sans gonfler la hauteur de ligne. */
-.bnv-affilie-x { background: none; border: none; color: #A05A3D; font-size: 1.15rem;
+.bnv-affilie-x { background: none; border: none; color: var(--c-retrait); font-size: 1.15rem;
   cursor: pointer; padding: 0.5rem 0.85rem; margin: -0.5rem -0.35rem -0.5rem 0; line-height: 1; flex: none; }
 /* Sélecteur d'affiliation (existant ou + Nouveau bénévole) */
 .bnv-affilie-add { margin-top: 0.5rem; max-width: 100%; }
@@ -3914,97 +4009,6 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   gap: 0.5rem;
 }
 
-/* ============================================================
-   Accent switcher (palette racing)
-   ============================================================ */
-
-.accent-switcher {
-  position: relative;
-}
-
-.accent-trigger {
-  background: rgba(245, 232, 208, 0.06);
-  border: 1px solid rgba(245, 232, 208, 0.12);
-  cursor: pointer;
-  padding: 0.45rem;
-  border-radius: var(--r-sm);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-}
-.accent-trigger:hover { background: rgba(245, 232, 208, 0.12); }
-
-.accent-trigger .accent-swatch {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(245, 232, 208, 0.8);
-  display: inline-block;
-}
-
-.accent-popover {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  background: var(--bg-elev);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  padding: 0.5rem;
-  box-shadow: var(--shadow-3);
-  min-width: 220px;
-  z-index: 50;
-  animation: accent-pop-in 0.15s ease-out;
-}
-
-@keyframes accent-pop-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.accent-popover-title {
-  font-size: 0.66rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin: 0.3rem 0.5rem 0.5rem;
-}
-
-.accent-option {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  width: 100%;
-  padding: 0.4rem 0.55rem;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-  transition: background 0.12s;
-}
-.accent-option:hover { background: var(--bg-subtle); }
-.accent-option.selected { background: var(--accent-soft); border-color: var(--accent); }
-
-.accent-option .accent-swatch {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
-}
-
-.accent-info {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-  min-width: 0;
-}
-.accent-label { font-weight: 500; font-size: 0.88rem; color: var(--text); }
-.accent-note { font-size: 0.74rem; color: var(--text-muted); }
-
 .admin-login-btn {
   background: rgba(255,255,255,0.05);
   color: rgba(255,255,255,0.8);
@@ -4029,9 +4033,9 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .admin-login-btn .icon { width: 14px; height: 14px; }
 
 .admin-badge {
-  background: rgba(4, 120, 87, 0.2);
-  color: #6EE7B7;
-  border: 1px solid rgba(4, 120, 87, 0.3);
+  background: var(--repere-admin-fond);
+  color: var(--repere-admin);
+  border: 1px solid var(--repere-admin-bord);
   border-radius: var(--r-sm);
   padding: 0.4rem 0.7rem;
   font-family: inherit;
@@ -4044,14 +4048,14 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   transition: all 0.15s;
 }
 
-.admin-badge:hover { background: rgba(4, 120, 87, 0.3); }
+.admin-badge:hover { background: var(--repere-admin-survol); }
 
 .admin-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #6EE7B7;
-  box-shadow: 0 0 0 3px rgba(110, 231, 183, 0.15);
+  background: var(--repere-admin);
+  box-shadow: 0 0 0 3px var(--repere-admin-halo);
   animation: pulse 2.5s ease-in-out infinite;
 }
 
@@ -4083,14 +4087,14 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .note-pill .note-max { font-size: 0.74rem; opacity: 0.65; font-weight: 400; }
 
 .note-pill.great { background: var(--c-go-soft); color: var(--c-go); }
-.note-pill.ok    { background: var(--act-cours); color: #1E40AF; }
+.note-pill.ok    { background: var(--act-cours); color: var(--act-cours-texte); }
 .note-pill.warn  { background: var(--c-wait-soft); color: var(--c-wait); }
 .note-pill.bad   { background: var(--c-stop-soft); color: var(--c-stop); }
 .note-pill.muted { background: var(--bg-subtle); color: var(--text-muted); }
 
-.tag.eval-type-theme      { background: var(--act-peda); color: #92400E; border-color: var(--act-peda-border); }
-.tag.eval-type-competence { background: var(--act-cours); color: #1E40AF; border-color: var(--act-cours-border); }
-.tag.eval-type-controle   { background: var(--act-controle); color: #9A3412; border-color: var(--act-controle-border); }
+.tag.eval-type-theme      { background: var(--act-peda); color: var(--act-peda-texte); border-color: var(--act-peda-border); }
+.tag.eval-type-competence { background: var(--act-cours); color: var(--act-cours-texte); border-color: var(--act-cours-border); }
+.tag.eval-type-controle   { background: var(--act-controle); color: var(--act-controle-texte); border-color: var(--act-controle-border); }
 
 /* ============================================================
    Notes, Matrice (toolbar date + cellules + édition inline)
@@ -4151,6 +4155,43 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .matrice-inline-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* Graphes des notes : la couleur vient d'une classe (donc d'un jeton) et non d'un attribut SVG, pour suivre
+   un changement d'habillage en direct. */
+.notes-axe { stroke: var(--graphe-axe); }
+.notes-grille { stroke: var(--graphe-grille); }
+.notes-graduation { fill: var(--graphe-graduation); }
+.notes-nom-anonyme { fill: var(--graphe-graduation); }
+.notes-valeur, .notes-nom { fill: var(--graphe-texte); }
+.notes-libelle { fill: var(--graphe-libelle); }
+.notes-piste { fill: var(--graphe-piste); }
+/* « Aucune note » : posé sur le rail gris, en texte atténué (5,0:1 ; l'ancien #9DA89A n'atteignait que 2,2:1). */
+.notes-valeur-faible { fill: var(--text-muted); }
+
+/* Petit éditeur d'une note, ancré sous la cellule de la matrice. */
+.matrice-popover {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 200;
+  background: #fff; border: 1px solid var(--line-popover-cadre); border-radius: 8px; padding: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  display: flex; gap: 6px; align-items: center; white-space: nowrap;
+}
+.matrice-popover .matrice-popover-input {
+  width: 90px; padding: 6px 8px; font-size: 0.95em; border: 1px solid var(--line-popover); border-radius: 4px;
+  outline: none; background: #fff; color: var(--text-popover);
+}
+.matrice-popover-ok {
+  padding: 7px 12px; background: var(--accent); color: #fff; border: 0; cursor: pointer;
+  font-size: 0.85em; line-height: 1; border-radius: 4px; font-weight: 600; white-space: nowrap;
+}
+.matrice-popover-annuler {
+  padding: 7px 10px; background: #fff; color: var(--text-popover-doux); border: 1px solid var(--line-popover);
+  cursor: pointer; font-size: 0.85em; line-height: 1; border-radius: 4px;
+}
+/* Bouton « valider » de l'édition d'une note sur la fiche du stagiaire. */
+.matrice-inline-ok {
+  padding: 0 10px; background: var(--accent); color: #fff; border: 0; cursor: pointer;
+  font-size: 0.9em; border-radius: 3px;
 }
 
 /* Matrice */
@@ -4333,18 +4374,18 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 /* Couleurs par note ratio */
 .matrice-table .empty { color: var(--text-faint); background: transparent; }
 .matrice-table .empty.editable:hover::after { content: "+"; }
-.matrice-table .bad    { background: #F1DBC8; color: #7A4F30; font-weight: 700; }
-.matrice-table .warn   { background: #FBE5C1; color: #92400E; font-weight: 700; }
-.matrice-table .ok     { background: #DBE9C4; color: #3F6212; font-weight: 700; }
-.matrice-table .great  { background: #BFE0A6; color: #2C5212; font-weight: 800; }
+.matrice-table .bad    { background: var(--note-bad-fond); color: var(--note-bad-texte); font-weight: 700; }
+.matrice-table .warn   { background: var(--note-warn-fond); color: var(--note-warn-texte); font-weight: 700; }
+.matrice-table .ok     { background: var(--note-ok-fond); color: var(--note-ok-texte); font-weight: 700; }
+.matrice-table .great  { background: var(--note-great-fond); color: var(--note-great-texte); font-weight: 800; }
 
 /* Alternance des lignes pour bien repérer chaque stagiaire */
 .matrice-table tbody tr:nth-child(even) td { background: var(--bg-subtle); }
 .matrice-table tbody tr:nth-child(even) td.sticky { background: var(--bg-soft); }
-.matrice-table tbody tr:nth-child(even) td.bad   { background: #F1DBC8; }
-.matrice-table tbody tr:nth-child(even) td.warn  { background: #FBE5C1; }
-.matrice-table tbody tr:nth-child(even) td.ok    { background: #DBE9C4; }
-.matrice-table tbody tr:nth-child(even) td.great { background: #BFE0A6; }
+.matrice-table tbody tr:nth-child(even) td.bad   { background: var(--note-bad-fond); }
+.matrice-table tbody tr:nth-child(even) td.warn  { background: var(--note-warn-fond); }
+.matrice-table tbody tr:nth-child(even) td.ok    { background: var(--note-ok-fond); }
+.matrice-table tbody tr:nth-child(even) td.great { background: var(--note-great-fond); }
 .matrice-table tbody tr:nth-child(odd) td.sticky { background: var(--bg-elev); }
 .matrice-table tbody tr:hover td.sticky { background: var(--accent-soft); }
 
@@ -4441,14 +4482,16 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   color: var(--text-muted);
   font-weight: 600;
 }
-.notes-kpi.bad   { background: #F1DBC8; }
-.notes-kpi.bad   .notes-kpi-value { color: #7A4F30; }
-.notes-kpi.warn  { background: #FBE5C1; }
-.notes-kpi.warn  .notes-kpi-value { color: #92400E; }
-.notes-kpi.ok    { background: #DBE9C4; }
-.notes-kpi.ok    .notes-kpi-value { color: #3F6212; }
-.notes-kpi.great { background: #BFE0A6; }
-.notes-kpi.great .notes-kpi-value { color: #2C5212; }
+/* Sur un fond de niveau, le libellé prend le texte secondaire : le texte atténué n'y tenait pas 4,5:1 (3,96:1 sur le vert du niveau haut). */
+.notes-kpi:is(.bad, .warn, .ok, .great) .notes-kpi-label { color: var(--text-soft); }
+.notes-kpi.bad   { background: var(--note-bad-fond); }
+.notes-kpi.bad   .notes-kpi-value { color: var(--note-bad-texte); }
+.notes-kpi.warn  { background: var(--note-warn-fond); }
+.notes-kpi.warn  .notes-kpi-value { color: var(--note-warn-texte); }
+.notes-kpi.ok    { background: var(--note-ok-fond); }
+.notes-kpi.ok    .notes-kpi-value { color: var(--note-ok-texte); }
+.notes-kpi.great { background: var(--note-great-fond); }
+.notes-kpi.great .notes-kpi-value { color: var(--note-great-texte); }
 
 /* === Top 3 thèmes === */
 .notes-rankings {
@@ -4465,8 +4508,8 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   font-size: 0.9rem;
   font-weight: 700;
 }
-.ranking-title.weak   { color: #A05A3D; }
-.ranking-title.strong { color: #3F6212; }
+.ranking-title.weak   { color: var(--note-faible-titre); }
+.ranking-title.strong { color: var(--note-ok-texte); }
 .ranking-sub { margin: -0.2rem 0 0.3rem; font-size: 0.75rem; }
 
 .theme-stat-card {
@@ -4478,14 +4521,14 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   border-radius: var(--r-sm);
   background: var(--bg-subtle);
 }
-.theme-stat-card.bad   { background: #F1DBC8; }
-.theme-stat-card.warn  { background: #FBE5C1; }
-.theme-stat-card.ok    { background: #DBE9C4; }
-.theme-stat-card.great { background: #BFE0A6; }
-.theme-stat-card.bad   strong { color: #7A4F30; }
-.theme-stat-card.warn  strong { color: #92400E; }
-.theme-stat-card.ok    strong { color: #3F6212; }
-.theme-stat-card.great strong { color: #2C5212; }
+.theme-stat-card.bad   { background: var(--note-bad-fond); }
+.theme-stat-card.warn  { background: var(--note-warn-fond); }
+.theme-stat-card.ok    { background: var(--note-ok-fond); }
+.theme-stat-card.great { background: var(--note-great-fond); }
+.theme-stat-card.bad   strong { color: var(--note-bad-texte); }
+.theme-stat-card.warn  strong { color: var(--note-warn-texte); }
+.theme-stat-card.ok    strong { color: var(--note-ok-texte); }
+.theme-stat-card.great strong { color: var(--note-great-texte); }
 
 .theme-stat-num {
   font-family: var(--font-mono);
@@ -4517,7 +4560,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 
 /* Anonymat renforcé : ligne « Moyenne du groupe » (vue du stagiaire anonymisé)
    et mention sous la matrice (profils masqués / rappel de réciprocité). */
-.m-row-group-avg td { border-top: 2px solid #C9D2BC; }
+.m-row-group-avg td { border-top: 2px solid var(--line-moyenne); }
 /* La cellule prénom est sticky et bornée à 110px : le libellé passe sur deux
    lignes dans la cellule (jamais en débordement sur la colonne Moy.). */
 .m-row-group-avg .m-td-name {
@@ -4540,7 +4583,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .sd-head h3 {
   margin: 0 0 0.3rem;
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: var(--poids-titre-normal);
   font-size: 1.7rem;
 }
 .sd-body {
@@ -4615,7 +4658,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .sd-note.empty { background: var(--bg-subtle); color: var(--text-muted); font-weight: 400; }
 .sd-note.bad    { background: var(--c-stop-soft); color: var(--c-stop); }
 .sd-note.warn   { background: var(--c-wait-soft); color: var(--c-wait); }
-.sd-note.ok     { background: var(--act-cours); color: #1E40AF; }
+.sd-note.ok     { background: var(--act-cours); color: var(--act-cours-texte); }
 .sd-note.great  { background: var(--c-go-soft); color: var(--c-go); }
 .sd-edit-input {
   width: 60px;
@@ -4875,6 +4918,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .identity-modal { max-width: 480px; }
 .identity-modal h3 {
   font-family: var(--font-display);
+  font-weight: var(--poids-titre); /* règle dormante (aucune vue ne l'emploie) : poids hérité de h3, écrit pour la garde des titres */
   font-size: 1.6rem;
   margin: 0 0 0.35rem;
 }
@@ -4954,7 +4998,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   height: auto;
   display: block;
   /* Très subtile drop-shadow pour ancrer l'image sur le fond crème */
-  filter: drop-shadow(0 12px 24px rgba(60, 40, 20, 0.10));
+  filter: drop-shadow(0 12px 24px var(--ombre-illustration));
   /* Fade subtil sur les bords pour fondre avec le fond */
   -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 100%);
   mask-image: linear-gradient(to right, transparent 0%, black 8%, black 100%);
@@ -4970,7 +5014,6 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   margin-bottom: 1.5rem;
   filter: brightness(0) saturate(100%);
 }
-[data-theme="charcoal"] .home-hero-logo { filter: brightness(0) invert(1) sepia(0.2); }
 
 .home-eyebrow {
   justify-content: center;
@@ -4979,7 +5022,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .home-title {
   font-family: var(--font-display);
   font-size: clamp(2rem, 5vw, 3.5rem);
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.025em;
   line-height: 1.05;
   color: var(--text);
@@ -5027,7 +5070,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .home-section-title {
   font-family: var(--font-display);
   font-size: clamp(1.6rem, 3.5vw, 2.4rem);
-  font-weight: 700;
+  font-weight: var(--poids-titre);
   letter-spacing: -0.02em;
   line-height: 1.1;
   margin: 0 0 2rem;
@@ -5064,7 +5107,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .home-feature h3 {
   font-family: var(--font);
   font-size: 1.05rem;
-  font-weight: 600;
+  font-weight: var(--poids-titre-semi);
   margin: 0;
   letter-spacing: -0.01em;
   color: var(--text);
@@ -5112,7 +5155,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 
 .home-rule h3 {
   font-family: var(--font);
-  font-weight: 600;
+  font-weight: var(--poids-titre-semi);
   font-size: 1.15rem;
   margin: 0 0 0.5rem;
   color: var(--text);
@@ -5438,7 +5481,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   }
   .pp-week {
     font-size: 10pt;
-    color: #555;
+    color: var(--doc-texte-doux);
     font-variant: small-caps;
   }
 
@@ -5456,7 +5499,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   .pp-day {
     display: flex;
     flex-direction: column;
-    border: 0.7px solid #444;
+    border: 0.7px solid var(--doc-trait-fort);
     border-radius: 2mm;
     overflow: hidden;
     page-break-inside: avoid;
@@ -5464,7 +5507,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   }
 
   /* Jour désactivé / férié à l'impression : grisé, bandeau, aucune activité */
-  .pp-day.off .pp-day-head { background: #9CA3AF !important; }
+  .pp-day.off .pp-day-head { background: var(--doc-repos-fond-fort) !important; }
   .pp-day-off {
     flex: 1;
     display: flex;
@@ -5473,8 +5516,8 @@ button.theme-date.editable.muted { color: var(--text-muted); }
     justify-content: center;
     gap: 1.2mm;
     padding: 6mm 2mm;
-    background: #F3F4F6 !important;
-    color: #6B7280 !important;
+    background: var(--doc-repos-fond) !important;
+    color: var(--doc-repos-texte) !important;
     text-align: center;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
@@ -5482,13 +5525,13 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   .pp-day-off .pp-day-off-tag {
     font-size: 7.5pt; font-weight: 800; letter-spacing: 0.1em;
     padding: 0.4mm 2mm; border-radius: 1mm;
-    background: #6B7280 !important; color: #fff !important;
+    background: var(--doc-repos-texte) !important; color: #fff !important;
     print-color-adjust: exact; -webkit-print-color-adjust: exact;
   }
-  .pp-day-off > span:last-child { font-size: 9pt; font-weight: 700; color: #374151 !important; }
+  .pp-day-off > span:last-child { font-size: 9pt; font-weight: 700; color: var(--doc-repos-texte-fort) !important; }
 
   .pp-day-head {
-    background: #1F2937 !important;
+    background: var(--doc-texte-fort) !important;
     color: white !important;
     padding: 1.6mm 2.4mm;
     display: flex;
@@ -5500,7 +5543,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   .pp-day-head .pp-day-name { font-size: 11pt; font-weight: 600; color: white !important; }
   .pp-day-head .pp-day-date { font-size: 8.5pt; color: rgba(255,255,255,0.7) !important; }
 
-  .pp-half { border-top: 0.5px solid #999; }
+  .pp-half { border-top: 0.5px solid var(--doc-trait-doux); }
   .pp-half:first-child { border-top: none; }
 
   .pp-half-head {
@@ -5508,8 +5551,8 @@ button.theme-date.editable.muted { color: var(--text-muted); }
     align-items: center;
     gap: 1.5mm;
     padding: 1mm 2.2mm;
-    background: #F4F4F3 !important;
-    border-bottom: 0.4px solid #ccc;
+    background: var(--doc-fond-doux) !important;
+    border-bottom: 0.4px solid var(--doc-filet);
     font-size: 8.3pt;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
@@ -5524,10 +5567,10 @@ button.theme-date.editable.muted { color: var(--text-muted); }
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
-  .pp-half-tag.matin { background: #FEF3C7 !important; color: #78350F !important; }
-  .pp-half-tag.aprem { background: #DBEAFE !important; color: #1E3A8A !important; }
-  .pp-half-hours { font-family: "Geist Mono", monospace; color: #555; font-size: 8.3pt; }
-  .pp-half-pause { color: #B45309 !important; font-weight: 500; font-size: 7.8pt; }
+  .pp-half-tag.matin { background: var(--doc-matin-fond) !important; color: var(--doc-matin-texte) !important; }
+  .pp-half-tag.aprem { background: var(--doc-aprem-fond) !important; color: var(--doc-aprem-texte) !important; }
+  .pp-half-hours { font-family: "Geist Mono", monospace; color: var(--doc-texte-doux); font-size: 8.3pt; }
+  .pp-half-pause { color: var(--doc-pause) !important; font-weight: 500; font-size: 7.8pt; }
 
   /* Slots : empilés verticalement dans une demi-journée */
   .pp-row {
@@ -5535,7 +5578,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
     grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
     grid-auto-flow: column;
     gap: 0.3mm;
-    border-bottom: 0.3px dashed #ccc;
+    border-bottom: 0.3px dashed var(--doc-filet);
   }
   .pp-row:last-child { border-bottom: none; }
 
@@ -5543,14 +5586,14 @@ button.theme-date.editable.muted { color: var(--text-muted); }
     padding: 1.5mm 2.2mm;
     font-size: 8.7pt;
     line-height: 1.27;
-    border-right: 0.3px dashed #ccc;
+    border-right: 0.3px dashed var(--doc-filet);
     min-width: 0;
   }
   .pp-cell:last-child { border-right: none; }
-  .pp-cell[data-activite="Cours"]              { background: #EFF6FF !important; }
-  .pp-cell[data-activite="Pédagogie salle"]    { background: #FEFCE8 !important; }
-  .pp-cell[data-activite="Voiture (conduite)"] { background: #F0FDF4 !important; }
-  .pp-cell[data-activite="Contrôle"]           { background: #FFF7ED !important; }
+  .pp-cell[data-activite="Cours"]              { background: var(--doc-cours-fond) !important; }
+  .pp-cell[data-activite="Pédagogie salle"]    { background: var(--doc-peda-fond) !important; }
+  .pp-cell[data-activite="Voiture (conduite)"] { background: var(--doc-voiture-fond) !important; }
+  .pp-cell[data-activite="Contrôle"]           { background: var(--doc-controle-fond) !important; }
 
   .pp-cell-head {
     display: flex;
@@ -5561,42 +5604,42 @@ button.theme-date.editable.muted { color: var(--text-muted); }
     flex-wrap: wrap;
   }
   .pp-act { font-weight: 700; font-size: 9.6pt; letter-spacing: -0.01em; min-width: 0; overflow-wrap: anywhere; }
-  .pp-act.muted { color: #aaa; font-weight: 400; }
-  .pp-prof { font-size: 8.3pt; color: #555; font-style: italic; }
+  .pp-act.muted { color: var(--doc-texte-pale); font-weight: 400; }
+  .pp-prof { font-size: 8.3pt; color: var(--doc-texte-doux); font-style: italic; }
 
   /* Les longs contenus (noms multiples, sujets) cassent au lieu de déborder/être rognés. */
   .pp-sujet, .pp-line, .pp-val, .pp-notes { overflow-wrap: anywhere; }
 
-  .pp-sujet { font-size: 8.7pt; color: #1F2937; line-height: 1.24; margin-bottom: 0.6mm; }
+  .pp-sujet { font-size: 8.7pt; color: var(--doc-texte-fort); line-height: 1.24; margin-bottom: 0.6mm; }
   /* Thèmes abordés : un par ligne, numéro en tête (gras, accent mint). */
   .pp-theme { display: flex; gap: 1.2mm; align-items: baseline; }
   .pp-theme + .pp-theme { margin-top: 0.3mm; }
-  .pp-theme-num { flex: none; font-weight: 700; color: #6B7F4E !important; font-variant-numeric: tabular-nums; }
+  .pp-theme-num { flex: none; font-weight: 700; color: var(--doc-theme-num) !important; font-variant-numeric: tabular-nums; }
   /* Étiquette de groupe (G1/G2) devant le sujet d'une salle 2 groupes */
-  .pp-theme-grp { flex: none; font-weight: 700; font-size: 7.5pt; color: #555; }
+  .pp-theme-grp { flex: none; font-weight: 700; font-size: 7.5pt; color: var(--doc-texte-doux); }
   .pp-theme-titre { min-width: 0; overflow-wrap: anywhere; }
-  .pp-line { font-size: 8.3pt; line-height: 1.25; color: #333; }
-  .pp-key { color: #777; }
+  .pp-line { font-size: 8.3pt; line-height: 1.25; color: var(--doc-texte); }
+  .pp-key { color: var(--doc-texte-gris); }
   .pp-val { color: #000; }
-  .pp-notes { color: #555; font-style: italic; margin-top: 0.6mm; }
+  .pp-notes { color: var(--doc-texte-doux); font-style: italic; margin-top: 0.6mm; }
   /* Élèves listés un par ligne, légèrement indentés sous leur label. */
   .pp-eleve { padding-left: 2.4mm; color: #000; }
   /* Bénévoles (voiture) : italique pour les distinguer des élèves moniteurs. */
-  .pp-benevole { font-style: italic; color: #333; }
+  .pp-benevole { font-style: italic; color: var(--doc-texte); }
 
-  .pp-empty { padding: 1.7mm 2.2mm; color: #bbb; font-size: 8.3pt; font-style: italic; }
+  .pp-empty { padding: 1.7mm 2.2mm; color: var(--doc-vide); font-size: 8.3pt; font-style: italic; }
 
   .pp-footer {
     margin-top: 3mm;
     text-align: right;
     font-size: 8.5pt;
-    color: #999;
+    color: var(--doc-trait-doux);
     font-style: italic;
   }
   /* Ligne diagnostic (remplie par fitPrintToPage) : volontairement quasi invisible sur le
      papier, mais lisible sur une photo de l'aperçu pour débugger une machine à distance. */
   .pp-diag {
-    color: #c9c9c9;
+    color: var(--doc-texte-efface);
     font-size: 6.5pt;
     font-style: normal;
   }
@@ -5755,7 +5798,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 body.qcm-open { overflow: hidden; }
 .qcm-overlay {
   position: fixed; inset: 0; z-index: 1000;
-  background: rgba(20, 32, 28, 0.55);
+  background: var(--ombre-voile-fort);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
   overflow-y: auto;
@@ -6035,7 +6078,7 @@ body.qcm-open { overflow: hidden; }
 .qcm-cell-note-val.is-muted { color: var(--text-muted); font-weight: 600; }
 .qcm-cell-note-val.n-great { color: var(--c-go); }
 .qcm-cell-note-val.n-ok { color: var(--accent-strong); }
-.qcm-cell-note-val.n-mid { color: #B67A3D; }
+.qcm-cell-note-val.n-mid { color: var(--note-mid-texte); }
 .qcm-cell-note-val.n-low { color: var(--c-stop); }
 .qcm-cell-note-val.n-none { color: var(--text-muted); }
 .qcm-note-pill.exam { background: var(--accent-soft-2); color: var(--accent-strong); }
@@ -6060,8 +6103,8 @@ body.qcm-open { overflow: hidden; }
 .qcm-note-card.n-great .qcm-note-card-val { color: var(--c-go); }
 .qcm-note-card.n-ok { background: var(--accent-soft); border-color: var(--accent-soft); }
 .qcm-note-card.n-ok .qcm-note-card-val { color: var(--accent-strong); }
-.qcm-note-card.n-mid { background: #FBEEDD; border-color: #FBEEDD; }
-.qcm-note-card.n-mid .qcm-note-card-val { color: #B67A3D; }
+.qcm-note-card.n-mid { background: var(--note-mid-fond); border-color: var(--note-mid-fond); }
+.qcm-note-card.n-mid .qcm-note-card-val { color: var(--note-mid-texte); }
 .qcm-note-card.n-low { background: var(--c-stop-soft); border-color: var(--c-stop-soft); }
 .qcm-note-card.n-low .qcm-note-card-val { color: var(--c-stop); }
 .qcm-note-card.n-none .qcm-note-card-val { color: var(--text-muted); }
@@ -6069,7 +6112,7 @@ body.qcm-open { overflow: hidden; }
 /* Pills de note colorées (cellule QCM de la liste) */
 .qcm-note-pill.n-great { background: var(--c-go-soft); color: var(--c-go); }
 .qcm-note-pill.n-ok { background: var(--accent-soft); color: var(--accent-strong); }
-.qcm-note-pill.n-mid { background: #FBEEDD; color: #B67A3D; }
+.qcm-note-pill.n-mid { background: var(--note-mid-fond); color: var(--note-mid-texte); }
 .qcm-note-pill.n-low { background: var(--c-stop-soft); color: var(--c-stop); }
 
 /* Modale « Modifier l'examen » (formateur) */
@@ -6132,8 +6175,8 @@ body.qcm-open { overflow: hidden; }
 /* L'échelle douce des notes (pêche, abricot, verts), partagée par les points de Mon évolution et les barres des
    graphes de Notes : jamais un rouge. */
 .ms-pt.bad,   .notes-bar.bad   { fill: var(--c-stop); }
-.ms-pt.warn,  .notes-bar.warn  { fill: #C98A2B; }
-.ms-pt.ok,    .notes-bar.ok    { fill: #7BA23C; }
+.ms-pt.warn,  .notes-bar.warn  { fill: var(--note-warn-point); }
+.ms-pt.ok,    .notes-bar.ok    { fill: var(--note-ok-point); }
 .ms-pt.great, .notes-bar.great { fill: var(--c-go); }
 .ms-pt.hover { stroke: var(--text); stroke-width: 2.5; }
 .ms-chart-legend { margin: 0.5rem 0 0; font-size: 0.85rem; }
@@ -6219,7 +6262,7 @@ body.qcm-open { overflow: hidden; }
 .epcf-seg { display: flex; gap: 0.25rem; flex-shrink: 0; }
 .epcf-seg-btn { padding: 0.25rem 0.55rem; font-size: 0.78rem; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); color: var(--text-muted); cursor: pointer; }
 .epcf-seg-btn.active.A  { background: var(--c-go);  border-color: var(--c-go);  color: #fff; }
-.epcf-seg-btn.active.R  { background: #C98A2B;      border-color: #C98A2B;      color: #fff; }
+.epcf-seg-btn.active.R  { background: var(--note-warn-point);      border-color: var(--note-warn-point);      color: #fff; }
 .epcf-seg-btn.active.NA { background: var(--c-stop); border-color: var(--c-stop); color: #fff; }
 .epcf-form-comps { margin: 0.8rem 0; }
 .epcf-comp-cb { margin-right: 1.2rem; }
@@ -6230,7 +6273,7 @@ body.qcm-open { overflow: hidden; }
 .epcf-radar-ring { fill: none; stroke: var(--line); }
 .epcf-radar-spoke { stroke: var(--line); }
 .epcf-radar-label { fill: var(--text-muted); font-size: 11px; }
-.epcf-radar-serie.moi { fill: rgba(107, 127, 78, 0.25); stroke: var(--accent); stroke-width: 2; }
+.epcf-radar-serie.moi { fill: var(--graphe-radar-moi); stroke: var(--accent); stroke-width: 2; }
 .epcf-radar-serie.groupe { fill: none; stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
 .epcf-legende { text-align: center; font-size: 0.82rem; }
 .epcf-leg { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
@@ -6238,9 +6281,11 @@ body.qcm-open { overflow: hidden; }
 .epcf-leg.groupe { background: var(--text-muted); }
 
 .epcf-chip { display: inline-block; min-width: 5.5rem; text-align: center; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
-.epcf-chip.A  { background: rgba(77, 124, 15, 0.18); color: var(--c-go); }
-.epcf-chip.R  { background: rgba(201, 138, 43, 0.18); color: #C98A2B; }
-.epcf-chip.NA { background: rgba(160, 90, 61, 0.18); color: var(--c-stop); }
+/* Le texte de chaque pastille : celui de l'échelle des notes, 4,8:1 au moins sur son voile, sur la page comme sur une rangée de tableau
+   (le statut et le point d'avant n'en tenaient que 3,9 et 2,2:1). */
+.epcf-chip.A  { background: var(--c-go-voile); color: var(--note-ok-texte); }
+.epcf-chip.R  { background: var(--note-warn-voile); color: var(--note-warn-texte); }
+.epcf-chip.NA { background: var(--c-stop-voile); color: var(--note-bad-texte); }
 .epcf-chip.vide { background: var(--bg-subtle); color: var(--text-muted); }
 
 .epcf-actions { margin: 1rem 0 2rem; }
@@ -6514,10 +6559,11 @@ body.qcm-open { overflow: hidden; }
   cursor: pointer;
   line-height: 1.25;
 }
-.p-daynav-btn span { display: block; font-size: 0.68rem; font-weight: 400; opacity: 0.75; }
+.p-daynav-btn span { display: block; font-size: 0.68rem; font-weight: 400; color: var(--text-muted); }   /* et non plus 75 % d'opacité : 4,1:1 */
+.p-daynav-btn.off span { color: inherit; }
 .p-daynav-btn:hover { background: var(--bg-deep-soft, rgba(0, 0, 0, 0.05)); }
 .p-daynav-btn.current { background: var(--accent); color: #fff; }
-.p-daynav-btn.current span { opacity: 0.9; }
+.p-daynav-btn.current span { color: inherit; opacity: 0.9; }
 .p-daynav-btn.off { color: var(--text-faint); }
 .p-day-card { scroll-margin-top: calc(var(--haut-entete) + 52px); }   /* barre du haut + barre de jours */
 @media print { .p-daynav { display: none !important; } }
@@ -6717,7 +6763,7 @@ body.qcm-open { overflow: hidden; }
      des planches de signalisation. Valeur choisie par le calcul : elle detache le
      blanc (rapport 1,63) sans eteindre le rouge des panneaux (rapport 3,01) ; un
      gris plus fonce ferait l'inverse. */
-  background: #c6cbd1;
+  background: var(--apercu-planche);
   border: 1px solid rgba(0, 0, 0, 0.16);
   border-radius: 8px;
   padding: 0.5rem 0.7rem;
@@ -6887,7 +6933,7 @@ body.qcm-open { overflow: hidden; }
 .qcm-signal-instr {
   margin-top: 0.5rem; padding: 0.45rem 0.6rem;
   border: 1px solid var(--line); border-radius: 6px;
-  background: var(--bg-subtle, rgba(127, 127, 127, 0.06));
+  background: var(--bg-subtle);
 }
 .qcm-signal-instr-tete { cursor: pointer; list-style: none; }
 .qcm-signal-instr-tete::-webkit-details-marker { display: none; }
@@ -7059,8 +7105,8 @@ body.cours-open { overflow: hidden; }
 }
 .cours-head-titre {
   margin: 0;
-  font-family: "Canela", Georgia, serif;
-  font-weight: 400;
+  font-family: var(--font-display);
+  font-weight: var(--poids-titre-normal);
   font-size: 1.18rem;
   line-height: 1.25;
   color: var(--text);
@@ -7155,8 +7201,8 @@ body.cours-open { overflow: hidden; }
   margin: 2.3rem 0 0.5rem;
   padding-top: 1.1rem;
   border-top: 1px solid var(--line);
-  font-family: "Canela", Georgia, serif;
-  font-weight: 400;
+  font-family: var(--font-display);
+  font-weight: var(--poids-titre-normal);
   font-size: 1.32rem;
   line-height: 1.25;
   color: var(--text);
@@ -7515,16 +7561,16 @@ body.cours-open { overflow: hidden; }
   border: 1px solid var(--line-strong);
   vertical-align: -0.05em;
 }
-.cours-pastille-blanc { background: #f4f3ee; }
-.cours-pastille-jaune { background: #ffc72c; }
-.cours-pastille-bleu { background: #1f5fbf; }
-.cours-pastille-rouge { background: #cc1f2f; }
-.cours-pastille-vert { background: #00804a; }
-.cours-pastille-orange { background: #ef7d00; }
-.cours-pastille-noir { background: #1c1c1c; }
-.cours-pastille-gris { background: #9a9a9a; }
-.cours-pastille-marron { background: #7c4a1e; }
-.cours-pastille-violet { background: #6c3fa8; }
+.cours-pastille-blanc { background: var(--signal-blanc); }
+.cours-pastille-jaune { background: var(--signal-jaune); }
+.cours-pastille-bleu { background: var(--signal-bleu); }
+.cours-pastille-rouge { background: var(--signal-rouge); }
+.cours-pastille-vert { background: var(--signal-vert); }
+.cours-pastille-orange { background: var(--signal-orange); }
+.cours-pastille-noir { background: var(--signal-noir); }
+.cours-pastille-gris { background: var(--signal-gris); }
+.cours-pastille-marron { background: var(--signal-marron); }
+.cours-pastille-violet { background: var(--signal-violet); }
 
 /* ===== Galerie de planches de l'éditeur de cours =====
    Choisir un panneau ou un marquage en le voyant : vignettes cliquables,
@@ -7623,7 +7669,7 @@ body.cours-open { overflow: hidden; }
 .qcm-cell-barre-fill { height: 100%; border-radius: 999px; }
 .qcm-cell-barre-fill.n-great { background: var(--c-go); }
 .qcm-cell-barre-fill.n-ok { background: var(--accent-strong); }
-.qcm-cell-barre-fill.n-mid { background: #B67A3D; }
+.qcm-cell-barre-fill.n-mid { background: var(--note-mid-barre); }
 .qcm-cell-barre-fill.n-low { background: var(--c-stop); }
 
 /* ===== Assistant (bulle flottante) ===== */
@@ -7839,11 +7885,9 @@ body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-panel {
    ATTENTION : le @media mobile pose « .tab span { display: none } » (spécificité
    0,1,1). « .tab .marque-masque » est en 0,2,0 : il gagne quel que soit l'ordre,
    sinon l'œil disparaîtrait sur téléphone, là où les onglets sont en icône seule. */
-.module-masque { opacity: 0.55; }
-.module-masque:hover,
-.module-masque:focus-visible,
-.tab.module-masque.active,
-.subtab.module-masque.active { opacity: 0.9; }
+/* Lot 3, tâche 10 : l'œil « Masqué aux stagiaires » (et le titre de l'élément) repère seul ce qui est masqué. L'opacité
+   réduite d'avant (55 %) faisait tomber le libellé d'un onglet, d'un sous-onglet ou d'un en-tête à 2,2:1, sous le seuil AA,
+   comme dans la coquille, où le repère avait déjà retrouvé l'opacité pleine. */
 .marque-masque {
   display: inline-flex;
   align-items: center;
@@ -7959,18 +8003,18 @@ body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-panel {
   gap: 0.3rem;
   padding: 0.4rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid rgba(245, 232, 208, 0.25);
-  background: rgba(245, 232, 208, 0.08);
-  color: #F5E8D0;
+  border: 1px solid var(--sombre-bord);
+  background: var(--sombre-filet);
+  color: var(--sur-sombre);
   font-family: inherit;
   font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
 }
-.promo-pastille:hover { background: rgba(245, 232, 208, 0.16); }
+.promo-pastille:hover { background: var(--sombre-survol-fort); }
 /* Bascule en cours (jusqu'au rechargement) : la pastille reste affichée, sans réagir. */
-.promo-pastille:disabled { opacity: 0.6; cursor: default; background: rgba(245, 232, 208, 0.08); }
+.promo-pastille:disabled { opacity: 0.6; cursor: default; background: var(--sombre-filet); }
 .promo-pastille-fleche { font-size: 0.7rem; opacity: 0.7; }
 .promo-choix-liste {
   display: flex;
@@ -8382,8 +8426,8 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .legal-onglet.actif { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
 .legal-titre {
   margin: 0 0 1rem;
-  font-family: "Canela", Georgia, serif;
-  font-weight: 400;
+  font-family: var(--font-display);
+  font-weight: var(--poids-titre-normal);
   font-size: 1.6rem;
   line-height: 1.2;
   color: var(--text);

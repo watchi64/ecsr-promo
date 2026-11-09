@@ -8,6 +8,7 @@ Usage
 
     python outils/verifier_navigation.py                              # tout, deux moteurs (environ 3 minutes)
     python outils/verifier_navigation.py --roles stagiaire --sans-menus   # coquille du stagiaire seule (Task 4)
+    python outils/verifier_navigation.py --habillages ecsr                # le défaut seul, comme avant le lot 3
 
 Prérequis : le serveur du banc (configuration « maquette-nav », qui sert la racine du worktree) et un
 `_harness.html` à jour (`node _harness_build.mjs` après toute modification d'index.html ; un banc
@@ -55,6 +56,17 @@ manque) :
     phrase sur le suivi de la promo, tuiles, pied de page « Promo 2026 » et « admin »), le Planning (« Cette semaine », « Lecture seule... »), la
     page Notes du stagiaire, les comptes en surtitre, les horaires du bandeau d'émargement sur téléphone, les Nouveautés d'avant (leurs « Où le trouver » et leurs « Comment faire »,
     sans les deux de lancement, mais avec la Nouveauté pour tous « Des pages mieux tenues sur le téléphone »). S'y ajoute un stagiaire sans drapeau de fondateur dont l'appareil porte l'aperçu d'un fondateur (lot 2A, tâche 1) : l'aperçu n'est pas pour lui.
+Habillages (lot 3, tâche 10 ; option `--habillages`, défaut `ecsr,ecf`) : la passe allumée, tous ses scénarios, est jouée dans
+chaque habillage demandé : « ecsr » (ECSR Promo, le défaut) sur un appareil vierge, « ecf » (Couleurs ECF) par le levier de
+tout robot, `localStorage.ecsr_habillage = {"nom": "ecf"}` posé avant le premier chargement (l'app pose `data-skin` elle-même).
+La passe éteinte est jouée dans le défaut. Avec « ecf » s'y ajoutent : la passe éteinte d'un appareil en ECF, chaque rôle à
+1280 et 375 px (Review Focus 4, décision H6 : l'habillage s'applique dans les deux navigations ; le retour à ECSR Promo depuis
+l'ancienne barre arrive à la Task 11), et, une fois par moteur, l'appareil d'une autre personne (Review Focus 1) : l'appareil
+retient `{"nom": "ecf", "email": "autre@example.test"}` ; la page porte « ecf » avant la lecture du profil (avant-peinture),
+puis « ecsr » une fois le démarrage fini, sans rechargement, n'y revient jamais, n'envoie pas ce choix au compte (aucun
+`set_my_habillage("ecf")`), l'appareil le retient comme habillage appliqué non choisi, sans l'e-mail de l'autre ; rechargée, la
+page s'ouvre directement dans le défaut. La pastille « ECSR Promo » pressée du menu du compte, qui n'existe pas encore, est
+vérifiée par la Task 11.
 Sur téléphone, le contexte de l'équipe joue en plus l'en-tête à 320 px (LARGEUR_ETROITE) : la fenêtre se resserre le temps de la vérification de l'Assistant.
 À 1 100 px, le contexte de l'équipe joue en plus la fiche d'un stagiaire (partie Évolution) à 768 px (LARGEUR_TABLETTE, vague finale, F1), dans les deux passes : la fenêtre se resserre sur place.
 Dans chaque contexte : l'arrivée à froid, chaque entrée de la coquille (cliquée dans la coquille, ou
@@ -78,7 +90,8 @@ Contrôles par vue
     Mon évolution) n'est jamais rouge (teinte de 345° à 15°, saturation au-dessus de 50 %), mesuré sur la couleur affichée. Les
     trois graphes de Notes sont les onglets d'une même section (Par stagiaire, Par thème, Distribution) : la page n'en montre
     qu'un, les autres sont ouverts un à un et mesurés comme toute vue (défilement de côté compris), puis le premier est rouvert.
-    Le banc sert pour cela des notes (NOTES_DU_BANC) qui dessinent chaque teinte de l'échelle des notes ;
+    Le banc sert pour cela des notes (NOTES_DU_BANC) qui dessinent chaque teinte de l'échelle des notes. Joué dans les deux
+    habillages (lot 3, tâche 10) ;
   * libellés de Mon évolution (lot 2A, tâche 5, tour de correction 1) : deux libellés d'axe (`.ms-axis-label`, les mois comme
     les graduations) d'un même graphe ne se recouvrent pas ni ne se touchent (2 px d'écart au moins), boîtes mesurées. À 375 px,
     le stagiaire du banc a vingt notes réparties sur sept mois : des bandes de 30 à 38 unités pour des libellés de 10 px qui en
@@ -101,7 +114,33 @@ Contrôles par vue
     ou « Plus » quand elle est rangée dans le tiroir du téléphone ;
   * zones à toucher : 44 px au moins sous 700 px (24 px au-delà) pour la coquille, les menus, les barres
     de sous-onglets et les cases des Paramètres ;
-  * contraste du texte de la coquille et des menus (couleur et fond réels) : 4,5:1, 3:1 pour le grand texte ;
+  * habillage (lot 3, tâche 10) : `html[data-skin]` vaut l'habillage du scénario ;
+  * contraste du texte de toute la page (lot 3, tâche 10 ; la coquille et ses menus seuls avant), dans les deux habillages et les
+    deux passes : la coquille, l'ancienne barre, `#view` défilée entière, les fenêtres et panneaux posés sur `body`, couleur et
+    fond réels (fonds unis des ancêtres, transparences et opacités composées) : 4,5:1, 3:1 pour le grand texte. Un texte SVG est
+    mesuré sur son remplissage (`fill`, `fill-opacity` ; son `color` ne se peint pas), contre la forme pleine peinte sous lui et
+    à sa taille rendue. Hors mesure : le bandeau du banc, les dessins des cours (panneaux, véhicules, marquage, scènes : le texte
+    d'un panneau fait partie de l'image), le texte des documents officiels reproduits à l'identique (livret EPCF TP-01303,
+    dossier professionnel : les gris de leur modèle), hors les annotations d'écran que l'app y pose (coupure de feuille, fiche
+    exclue), un texte rogné à rien (réservé aux lecteurs d'écran, panneau replié). Un repère (pastille, point) cerné d'un liseré
+    plein qui tient 3:1 contre lui et contre le fond se détache, même si lui-même ne tient pas contre ce fond (WCAG 1.4.11 : sa
+    couleur voisine est celle du liseré ; le liseré blanc des repères rouges de « Couleurs ECF » sur l'entrée allumée) ;
+  * repères non textuels de la coquille (lot 3, tâche 10) : le trait de l'entrée allumée, les pastilles et les points, l'icône de
+    l'entrée allumée et celle d'une entrée sans libellé visible tiennent 3:1 contre le fond réel sous eux, mesuré à leur position
+    (ce qui est peint sous leur centre, eux exceptés : le trait est posé 10 px hors de son entrée, sur la barre et non sur l'entrée
+    allumée) ;
+  * teinte restée (lot 3, tâche 10), en « Couleurs ECF » : aucune couleur calculée (texte, fond, bord, remplissage, trait,
+    pseudo-éléments compris) de teinte chaude ou verte (de 20° à 160°, saturation au-dessus de 15 %), sauf la valeur d'un jeton
+    d'une famille fixe (noms lus dans la règle `:root` des feuilles de la page, familles de js/habillage-familles.js, valeurs
+    calculées ; celle d'un jeton `--doc-*` dans un document seulement : plusieurs reprennent une valeur de l'habillage par défaut),
+    une teinte de l'échelle continue des notes (js/echelle-notes.js) ou d'une rubrique EPCF (js/epcf-trames.js), ou
+    ce qui est hors de l'app habillée : le bandeau du banc, les dessins des cours, le livret EPCF (`.lv-*`), le dossier
+    professionnel (`.dp-doc`), les canevas ;
+  * poids des titres (lot 3, tâche 10, changement en direct, Review Focus 3), en « ECSR Promo » : chaque texte visible en Canela est
+    relevé avec son poids, `data-skin` passe à « ecf » dans la même page (transitions gelées) : le même élément porte le poids ECF
+    correspondant (700 et 500 deviennent 600, 600 le reste, 400 devient 500, 300 devient 400) et n'est plus en Canela ; puis
+    retour à « ecsr ». Les documents imprimés (feuille d'émargement, dossier Qualiopi, attestations, livret, dossier
+    professionnel) gardent leur police et leur poids (décision H5) ;
   * barre du bas (téléphone) : 5 entrées au plus, toutes nommées, libellés sur une ligne ;
   * la coquille et le contenu ne se recouvrent pas, tout ce qui est fixe reste dans la fenêtre, l'ancienne
     barre d'onglets est masquée ;
@@ -252,7 +291,7 @@ contexte) et les contrôles de la page sont joués quand même.
   * Une entrée sans libellé visible (colonne d'icônes) porte `aria-label` et `title`. « Visible » se mesure
     sur la boîte affichée du texte : un libellé réservé aux lecteurs d'écran (1 px, `clip`) ne compte pas.
 
-Options utiles pendant le développement : `--roles`, `--moteurs`, `--largeurs`, `--passes`,
+Options utiles pendant le développement : `--roles`, `--moteurs`, `--largeurs`, `--passes`, `--habillages`,
 `--sans-menus` (boutons du compte et de « Plus » pas encore câblés, avant la Task 5), `--tout` (liste chaque
 échec), `--captures DOSSIER` (une capture par vue en échec), `--jobs N` (processus en parallèle, deux par
 moteur par défaut).
@@ -336,6 +375,13 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     défilement retirée : y 0 à 26), pied de l'Accueil en « Promo 2026 » ou en « admin » sous la nouvelle navigation, « Mes préférences » répété comme titre de section, « Réglages personnels » de retour,
     sous-titre d'avant, réglage de l'anonymat montré à l'équipe sans fiche de stagiaire, Nouveautés d'avant la vague (date du 28/10, phrase des parties manquante, consignes d'avant, Nouveauté pour tous
     absente), liens d'avant la vague (« Réglages » et #/config pour l'anonymat chez l'équipe, « Planning, bouton Bénévoles » et #/planning, « barre de gauche » seul) ;
+  * habillages (lot 3, tâche 10, injectés par `--script-init` ou dans les sources puis retirés) : texte de la barre resté au vert d'avant
+    en « Couleurs ECF » (« teinte restée », 68 vues ; le vert #6B7F4E, valeur d'un jeton --doc-*, n'est plus couvert hors d'un document),
+    habillage de l'appareil repassé au défaut (« habillage de la page », et 4 268 teintes restées : le défaut entier), graduations des
+    graphes de notes en gris pâle (1,87:1, vu sur le remplissage du texte SVG), trait de l'entrée allumée presque de la couleur de la barre
+    (1,56:1, mesuré au point du trait, hors de son entrée), titres de page à une graisse écrite en dur (700 en ECSR Promo comme en Couleurs
+    ECF, « poids de titre »), appareil d'une autre personne pris pour celui de la personne connectée (habillage-regles.js : la page reste en
+    ECF, le choix part sur son compte, l'appareil le lui attribue).
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
 Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
 masqué (ni mesuré comme cible, ni sans nom), un nom pris par `aria-labelledby`, `<label for>` ou `<title>` SVG.
@@ -376,6 +422,12 @@ HAUTEUR[LARGEUR_TABLETTE] = 1024
 SEUIL_TELEPHONE = 700          # largeur de fenêtre sous laquelle la coquille passe en mode téléphone
 DATE_DU_BANC = "2026-10-27"    # « aujourd'hui » figé (même date que les autres vérifications du lot)
 CLE_APERCU = "ecsr_nav_v2"     # aperçu du fondateur, propre à l'appareil (js/nav-etat-regles.js)
+# Habillages (lot 3) : « ecsr » (ECSR Promo, le défaut) et « ecf » (Couleurs ECF). Levier, le même que pour tout robot
+# (outils/captures_habillages.py) : avant le chargement, l'appareil retient `{ nom }` sous CLE_HABILLAGE ; l'app pose data-skin
+# elle-même (avant-peinture, puis accord avec le compte au démarrage). Le défaut est joué sur un appareil vierge.
+HABILLAGES = ("ecsr", "ecf")
+CLE_HABILLAGE = "ecsr_habillage"   # js/habillage-regles.js, CLE_APPAREIL
+EMAIL_D_AUTRUI = "autre@example.test"   # l'autre personne de l'appareil partagé (Review Focus 1)
 CLE_REGLAGE = "navigation_v2"  # réglage de la promo, ligne de `settings` (js/nav-etat-regles.js)
 CLE_MEMOIRE_PROMO_1 = "ecsr_nav_v2_promo:1"   # mémoire de l'appareil pour la promo 1 du banc (cleMemoire, ruling R17)
 CLE_SOUS_ONGLET_STAGIAIRES = "stagiaires.subtab"   # mémoire du sous-onglet de la page Stagiaires (CLES_SOUS_ONGLETS, js/nav-rules.js)
@@ -632,33 +684,366 @@ function fondDe(e) {
   for (let i = couches.length - 1; i >= 0; i--) base = sur(couches[i], base, couches[i].a);
   return base;
 }
+// Hors des mesures de la page (lot 3, tâche 10) : le bandeau du banc, qui n'est pas de l'app, et les dessins des cours (panneaux,
+// véhicules, marquage, scènes animées) : leurs couleurs sont celles du réel, et le texte d'un panneau fait partie de l'image.
+const SEL_DESSINS = "svg.signal-svg, svg.marquage-svg, svg.dessin-svg, svg.scene-svg";
+const SEL_HORS_MESURE = SEL_DESSINS + ", [data-vn-banc]";
+// Les documents officiels reproduits à l'identique (livret EPCF TP-01303, dossier professionnel du ministère : « le document affiché à
+// l'écran EST le document imprimé ») gardent les couleurs de leur modèle (le gris #7F7F7F du .docx, ses textes indicatifs gris) : leur
+// texte n'est pas mesuré. Les annotations d'écran que l'app y pose (coupure de feuille, fiche exclue de l'impression) le sont, comme la
+// barre d'outils et les aides autour du document.
+const SEL_DOCUMENTS_OFFICIELS = ".lv-scale, .dp-doc";
+const SEL_ANNOTATIONS_D_ECRAN = ".dp-coupure, .dp-mention-exclu";
+// Le bandeau du banc (_harness_supabase.js) n'a ni classe ni identifiant : il est marqué à la première mesure.
+function marquerBandeauDuBanc() {
+  [...document.body.children].forEach((e) => {
+    if (!e.hasAttribute("data-vn-banc") && /^BANC D'ESSAI/.test(e.textContent || "") && style(e).position === "fixed") e.setAttribute("data-vn-banc", "");
+  });
+}
+const estSvg = (e) => e instanceof SVGElement;
+// Couleur peinte d'un texte : son `color`, ou, pour un texte SVG, son remplissage (`fill` et `fill-opacity`) : le `color` d'un <text>
+// n'est pas ce qui se peint (lot 3, tâche 10). null pour un remplissage qui n'est pas une couleur unie (dégradé, motif).
+function couleurDuTexte(e, s) {
+  if (!estSvg(e)) return analyser(s.color);
+  if (!s.fill || !/^(rgba?|color)\(/.test(s.fill)) return null;
+  const c = analyser(s.fill);
+  c.a *= parseFloat(s.fillOpacity || "1");
+  return c;
+}
+// Fond réel d'un texte SVG : le fond de la page sous le dessin, puis les formes pleines du même dessin peintes avant lui (ordre du
+// document) dont la boîte contient son centre : une valeur posée sur une barre se lit sur la barre, pas sur la page.
+function fondSvg(t) {
+  const svg = t.ownerSVGElement || t.closest("svg");
+  let fond = svg ? fondDe(svg) : null;
+  if (!fond) return null;
+  const r = rect(t), x = (r.left + r.right) / 2, y = (r.top + r.bottom) / 2;
+  for (const f of svg.querySelectorAll("rect, circle, ellipse, polygon, path")) {
+    if (f.contains(t) || !(f.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+    const s = style(f);
+    if (s.display === "none" || s.visibility === "hidden" || !s.fill || s.fill === "none") continue;
+    const rf = rect(f);
+    if (x < rf.left || x > rf.right || y < rf.top || y > rf.bottom) continue;
+    if (!/^(rgba?|color)\(/.test(s.fill)) return null;   // dégradé ou motif : indéterminé
+    const c = analyser(s.fill), a = c.a * parseFloat(s.fillOpacity || "1") * parseFloat(s.opacity || "1");
+    if (a > 0) fond = sur(c, fond, a);
+  }
+  return fond;
+}
+// Un nœud de texte direct de l'élément est-il affiché : sa boîte, rognée par les ancêtres qui coupent, garde 3 px dans les deux sens
+// (un libellé réservé aux lecteurs d'écran, un panneau replié par max-height ne le sont pas). La règle de texteAffiche, limitée aux
+// enfants directs : la mesure du contraste passe sur chaque élément qui porte du texte, une seule fois par nœud.
+// Lot 3, tâche 11 : seul un ancêtre qui coupe (overflow hidden ou clip), sur l'axe où il coupe, rogne le texte. Un conteneur qui défile
+// (auto, scroll : le bas d'un cours, une longue fenêtre, les messages de l'assistant, les colonnes de la matrice des notes) se lit en
+// défilant : son texte est mesuré, même hors de la fenêtre sur le côté quand le conteneur défile de côté.
+const coupe = (v) => v === "hidden" || v === "clip";
+const defile = (v) => v === "auto" || v === "scroll";
+function texteDirectAffiche(e) {
+  const W = largeur();
+  for (const n of e.childNodes) {
+    if (n.nodeType !== 3 || !n.textContent.trim()) continue;
+    const zone = document.createRange();
+    zone.selectNodeContents(n);
+    const r = zone.getBoundingClientRect();
+    let g = r.left, d = r.right, h = r.top, b = r.bottom, cache = false, defileDeCote = false;
+    for (let a = e; a && a !== document.documentElement && !cache; a = a.parentElement) {
+      const s = style(a);
+      if (rognageNul(s)) { cache = true; break; }
+      const cx = coupe(s.overflowX), cy = coupe(s.overflowY);
+      if (cx || cy) {
+        const ra = rect(a);
+        if (cx) { g = Math.max(g, ra.left); d = Math.min(d, ra.right); }
+        if (cy) { h = Math.max(h, ra.top); b = Math.min(b, ra.bottom); }
+      }
+      if (defile(s.overflowX)) defileDeCote = true;
+    }
+    if (!cache && d - g >= 3 && b - h >= 3 && (defileDeCote || (d > 0 && g < W)) && b + window.scrollY > 0) return true;
+  }
+  return false;
+}
+// Contraste du texte : 4,5:1, 3:1 pour le grand texte. Lot 3, tâche 10 : toute la page (et non plus la seule coquille), dans les deux
+// habillages, pages défilées comprises (un texte sous le bas de la fenêtre se lit en défilant) ; un texte SVG est mesuré sur son
+// remplissage et sur la forme peinte sous lui, à sa taille rendue.
 function mesurerContrastes(portees, echecs, avert) {
-  const W = largeur(), H = hauteur(), deja = new Set();
+  const deja = new Set();
   let indetermines = 0;
   portees.forEach((racine) => {
     [racine, ...racine.querySelectorAll("*")].forEach((e) => {
       if (![...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) return;
-      if (!visible(e) || e.closest(SEL_CACHE) || e.closest("button:disabled, [aria-disabled='true']")) return;
-      const r = rect(e);
-      if (r.right <= 0 || r.left >= W || r.bottom <= 0 || r.top >= H) return;
+      if (!visible(e) || e.closest(SEL_CACHE) || e.closest("button:disabled, [aria-disabled='true']") || e.closest(SEL_HORS_MESURE)) return;
+      if (e.closest(SEL_DOCUMENTS_OFFICIELS) && !e.closest(SEL_ANNOTATIONS_D_ECRAN)) return;
+      if (!texteDirectAffiche(e)) return;
       const s = style(e);
       let opacite = 1;
       for (let n = e; n && n !== document.body; n = n.parentElement) opacite *= parseFloat(style(n).opacity);
-      const fond = fondDe(e);
-      if (!fond) { indetermines++; return; }
-      const c = analyser(s.color);
+      const c = couleurDuTexte(e, s);
+      const fond = estSvg(e) ? fondSvg(e) : fondDe(e);
+      if (!fond || !c) { indetermines++; return; }
+      if (c.a * opacite < 0.05) return;   // texte transparent : rien ne se lit (copie invisible, squelette)
       const texteCouleur = sur(c, fond, c.a * opacite);
-      const taille = parseFloat(s.fontSize), gras = parseInt(s.fontWeight, 10) >= 700;
+      let taille = parseFloat(s.fontSize);
+      if (estSvg(e)) { const m = e.getScreenCTM(); if (m) taille *= Math.hypot(m.a, m.b); }
+      const gras = parseInt(s.fontWeight, 10) >= 700;
       const seuil = (taille >= 24 || (taille >= 18.66 && gras)) ? 3 : 4.5;
       const ratio = rapport(texteCouleur, fond);
       if (ratio >= seuil) return;
       const cle = nom(e) + "|" + hex(texteCouleur) + "|" + hex(fond);
       if (deja.has(cle)) return;
       deja.add(cle);
-      echecs.push(["contraste", `${ratio.toFixed(2)}:1 (minimum ${seuil}) ${hex(texteCouleur)} sur ${hex(fond)} : ${nom(e)} « ${texte(e).slice(0, 24)} »`]);
+      echecs.push(["contraste", `${ratio.toFixed(2)}:1 (minimum ${seuil}) ${hex(texteCouleur)} sur ${hex(fond)} : ${nom(e)} « ${texteDe(e).slice(0, 24)} »`]);   // texteDe : un texte SVG n'a pas d'innerText
     });
   });
-  if (indetermines) avert.push(["contraste indéterminé", `${indetermines} texte(s) de la coquille sur un fond en image ou en dégradé, non mesurés`]);
+  if (indetermines) avert.push(["contraste indéterminé", `${indetermines} texte(s) de la page sur un fond en image ou en dégradé, non mesurés`]);
+}
+
+// ---- Repères non textuels (lot 3, tâche 10) ----
+// Le trait de l'entrée allumée, les pastilles et les points de la coquille, l'icône d'une entrée allumée et celle d'une entrée sans
+// libellé visible (colonne d'icônes) : 3:1 contre le fond réel sous eux (WCAG 1.4.11), c'est-à-dire ce qui est peint sous leur centre,
+// eux exceptés. Le trait est posé 10 px hors de son entrée (left: -10px), sur le fond de la barre et non sur l'entrée allumée : le fond
+// de l'élément parent ne le dit pas, seul le point le dit. Une couche sans pointeur (pointer-events: none) compte aussi : la règle est
+// levée le temps de la mesure.
+function fondEnUnPoint(x, y, sauf) {
+  if (x < 0 || y < 0 || x >= largeur() || y >= hauteur()) return null;
+  const couches = [], pile = document.elementsFromPoint(x, y);
+  // Seul ce qui est peint sous le repère compte : un voile posé sur toute la page (fenêtre ouverte) couvre le repère et son fond pareillement.
+  // Un repère sous une surface pleine (le lecteur de cours, une fenêtre) ne se voit pas : il n'est pas mesuré.
+  const ici = pile.findIndex((n) => sauf && (n === sauf || sauf.contains(n)));
+  if (sauf && ici < 0) return null;
+  const plein = (n) => { const s = style(n); return (s.backgroundImage && s.backgroundImage !== "none") || analyser(s.backgroundColor).a >= 0.99; };
+  if (pile.slice(0, Math.max(ici, 0)).some((n) => !n.closest("[data-vn-banc]") && !estSvg(n) && plein(n))) return "couvert";
+  for (const n of ici >= 0 ? pile.slice(ici) : pile) {
+    if (sauf && (n === sauf || sauf.contains(n))) continue;
+    if (n.closest("[data-vn-banc]")) continue;
+    const s = style(n);
+    let c;
+    if (estSvg(n) && !(n instanceof SVGSVGElement)) {
+      if (!s.fill || s.fill === "none") continue;
+      if (!/^(rgba?|color)\(/.test(s.fill)) return null;
+      c = analyser(s.fill);
+      c.a *= parseFloat(s.fillOpacity || "1");
+    } else {
+      if (s.backgroundImage && s.backgroundImage !== "none") return null;   // dégradé ou image : indéterminé
+      c = analyser(s.backgroundColor);
+    }
+    c.a *= parseFloat(s.opacity || "1");
+    if (c.a > 0) { couches.push(c); if (c.a >= 1) break; }
+  }
+  let base = { r: 255, g: 255, b: 255 };
+  for (let i = couches.length - 1; i >= 0; i--) base = sur(couches[i], base, couches[i].a);
+  return base;
+}
+const opaciteDe = (e) => { let o = 1; for (let n = e; n && n !== document.body; n = n.parentElement) o *= parseFloat(style(n).opacity); return o; };
+// Couleur peinte d'une icône (trait, sinon remplissage, de sa première forme), avec son opacité.
+function couleurDIcone(icone) {
+  const forme = [icone, ...icone.querySelectorAll("path, line, circle, rect, polyline, polygon, ellipse")].find((f) => {
+    const s = style(f); return (s.stroke && s.stroke !== "none" && parseFloat(s.strokeWidth) > 0) || (s.fill && s.fill !== "none");
+  });
+  if (!forme) return null;
+  const s = style(forme), trait = s.stroke && s.stroke !== "none" && parseFloat(s.strokeWidth) > 0;
+  const brut = trait ? s.stroke : s.fill;
+  if (!/^(rgba?|color)\(/.test(brut)) return null;
+  const c = analyser(brut);
+  c.a *= parseFloat(trait ? s.strokeOpacity : s.fillOpacity) || 1;
+  return c;
+}
+// Liseré plein d'un repère (box-shadow sans flou, d'une épaisseur d'au moins 1 px, opaque) : sa couleur, ou null.
+function lisereDe(e) {
+  const m = /^(rgba?\([^)]*\)|color\([^)]*\))\s+0px\s+0px\s+0px\s+([\d.]+)px/.exec(style(e).boxShadow || "");
+  if (!m || parseFloat(m[2]) < 1) return null;
+  const c = analyser(m[1]);
+  return c.a >= 0.99 ? c : null;
+}
+// Un repère se détache s'il tient 3:1 contre le fond sous lui, ou s'il est cerné d'un liseré plein qui tient 3:1 contre lui et contre ce
+// fond (WCAG 1.4.11 : la couleur voisine du repère est alors celle de son liseré). Rend null s'il se détache, sinon le texte de l'échec.
+function repereDetache(peint, fond, lisere) {
+  const r = rapport(peint, fond);
+  if (r >= 3) return null;
+  if (lisere) {
+    const rl = rapport(peint, lisere), lf = rapport(lisere, fond);
+    if (rl >= 3 && lf >= 3) return null;
+    return `${r.toFixed(2)}:1 (minimum 3) ${hex(peint)} sur ${hex(fond)}, et son liseré ${hex(lisere)} ne le cerne pas (${rl.toFixed(2)}:1 contre lui, ${lf.toFixed(2)}:1 contre le fond)`;
+  }
+  return `${r.toFixed(2)}:1 (minimum 3) ${hex(peint)} sur ${hex(fond)}`;
+}
+function reperesNonTextuels(echecs, avert) {
+  const reperes = [];
+  const centre = (r) => [(r.left + r.right) / 2, (r.top + r.bottom) / 2];
+  // Un repère est souvent caché aux lecteurs d'écran (aria-hidden : le nombre est dans le nom de l'entrée) mais bien peint : seul
+  // ce qui est inerte ou masqué est écarté.
+  const pris = (e) => e.closest("[hidden], [inert]");
+  document.querySelectorAll("[data-nav-coquille] .nav-pastille, [data-nav-coquille] .nav-a-traiter, [data-nav-coquille] .nav-compte-point, [data-nav-coquille] .nav-plus-point").forEach((e) => {
+    if (!visible(e) || pris(e)) return;
+    reperes.push({ quoi: "pastille", e, sauf: e, point: centre(rect(e)), couleur: analyser(style(e).backgroundColor), lisere: lisereDe(e) });
+  });
+  document.querySelectorAll('[data-nav-coquille] [aria-current="page"]').forEach((e) => {
+    if (!visible(e) || pris(e)) return;
+    const r = rect(e), s = style(e);
+    ["::before", "::after"].forEach((p) => {
+      const sp = getComputedStyle(e, p);
+      if (sp.content === "none" || sp.content === "normal" || sp.display === "none" || sp.position !== "absolute") return;
+      const couleur = analyser(sp.backgroundColor);
+      if (couleur.a === 0) return;
+      // Pseudo-élément placé contre son entrée (position: relative) : boîte de remplissage de l'entrée, décalages et taille calculés.
+      const bg = parseFloat(s.borderLeftWidth) || 0, bh = parseFloat(s.borderTopWidth) || 0, bd = parseFloat(s.borderRightWidth) || 0;
+      const l = parseFloat(sp.width) || 0, h = parseFloat(sp.height);
+      const x = sp.left !== "auto" ? r.left + bg + parseFloat(sp.left) + l / 2 : r.right - bd - parseFloat(sp.right) - l / 2;
+      const y = sp.top !== "auto" && Number.isFinite(h) ? r.top + bh + parseFloat(sp.top) + h / 2 : (r.top + r.bottom) / 2;
+      reperes.push({ quoi: "trait de l'entrée allumée (" + p + ")", e, sauf: e, point: [x, y], couleur });
+    });
+    // L'icône de l'entrée allumée.
+    const icone = e.querySelector(":scope > .icon, :scope .nav-case-icone > .icon");
+    if (icone && visible(icone)) reperes.push({ quoi: "icône de l'entrée allumée", e: icone, sauf: icone, point: centre(rect(icone)), couleur: couleurDIcone(icone) });
+  });
+  // Entrée sans libellé visible (colonne d'icônes) : l'icône seule la nomme.
+  document.querySelectorAll('[data-nav-coquille] a[href^="#/"]').forEach((a) => {
+    if (!visible(a) || pris(a) || a.getAttribute("aria-current") === "page" || texteAffiche(a)) return;
+    const icone = a.querySelector(".icon");
+    if (icone && visible(icone)) reperes.push({ quoi: "icône d'une entrée sans libellé", e: icone, sauf: icone, point: centre(rect(icone)), couleur: couleurDIcone(icone) });
+  });
+  if (!reperes.length) return;
+  const pointeurs = document.createElement("style");
+  pointeurs.textContent = "*, *::before, *::after { pointer-events: auto !important; }";
+  document.head.appendChild(pointeurs);
+  let indetermines = 0;
+  try {
+    reperes.forEach((p) => {
+      const fond = fondEnUnPoint(p.point[0], p.point[1], p.sauf);
+      if (fond === "couvert") return;
+      if (!fond || !p.couleur) { indetermines++; return; }
+      const a = p.couleur.a * opaciteDe(p.e);
+      if (a < 0.05) return;
+      const echec = repereDetache(sur(p.couleur, fond, a), fond, p.lisere || null);
+      if (echec) echecs.push(["contraste d'un repère", `${echec} : ${p.quoi}, ${nom(p.e)}`]);
+    });
+  } finally {
+    pointeurs.remove();
+  }
+  if (indetermines) avert.push(["contraste indéterminé", `${indetermines} repère(s) de la coquille sur un fond en image ou en dégradé, ou hors de la fenêtre, non mesurés`]);
+}
+
+// ---- Habillage (lot 3, tâche 10) ----
+// Les couleurs fixes de la page : la valeur de chaque jeton de :root dont la famille est fixe (js/habillage-familles.js, la même liste
+// que le test node ; noms lus dans la règle :root des feuilles de la page, valeurs calculées), et deux palettes calculées qui disent
+// quelque chose sans être des jetons : l'échelle continue des notes de la matrice (js/echelle-notes.js, une teinte par dixième de
+// point) et la couleur de chaque rubrique EPCF (js/epcf-trames.js, vive et assombrie pour un texte). Lues une fois par page.
+const cleCouleur = (c) => [c.r, c.g, c.b].map(Math.round).join(",") + "," + Math.round(c.a * 100);
+let fixesDeLaPage = null;
+async function couleursFixes() {
+  if (fixesDeLaPage) return fixesDeLaPage;
+  const [familles, echelle, trames] = await modulesDeLApp(["habillage-familles", "echelle-notes", "epcf-trames"]);
+  const noms = new Set();
+  const lire = (regles) => {
+    for (const r of regles) {
+      if (r instanceof CSSStyleRule) {
+        if (r.selectorText.trim() === ":root") for (const p of r.style) if (p.startsWith("--") && familles.familleDe(p) === "fixe") noms.add(p);
+      } else if (r.cssRules) lire(r.cssRules);
+    }
+  };
+  for (const f of document.styleSheets) { try { lire(f.cssRules); } catch (e) { /* feuille illisible */ } }
+  // Les couleurs des documents imprimés (`--doc-*`) ne valent que dans un document : plusieurs reprennent une valeur de l'habillage par
+  // défaut (#6B7F4E, #B7C0AA, #46554A...), qu'elles ne doivent pas couvrir dans l'interface.
+  const valeurs = new Set(), valeursDoc = new Set(), racine = getComputedStyle(document.documentElement);
+  const ajouter = (v, ou = valeurs) => { if (v && CSS.supports("color", v)) ou.add(cleCouleur(analyser(v))); };
+  noms.forEach((n) => ajouter(racine.getPropertyValue(n).trim(), n.startsWith("--doc") ? valeursDoc : valeurs));
+  for (let i = 0; i <= 200; i++) { const g = echelle.noteGradient(i / 10); ajouter(g.bg); ajouter(g.fg); }
+  Object.values(trames.EPCF_PHASE_COLORS).forEach((v) => ajouter(v));
+  Object.values(trames.EPCF_PHASE_TEXTE || {}).forEach((v) => ajouter(v));   // leurs teintes assombries pour un texte
+  fixesDeLaPage = { valeurs, valeursDoc, jetons: noms.size };
+  return fixesDeLaPage;
+}
+// Teinte (degrés) et saturation (HSL, 0 à 1) d'une couleur analysée.
+function teinteDe(c) {
+  const [r, g, b] = [c.r, c.g, c.b].map((x) => x / 255);
+  const haut = Math.max(r, g, b), bas = Math.min(r, g, b), ecart = haut - bas, clair = (haut + bas) / 2;
+  if (ecart === 0) return { teinte: 0, saturation: 0 };
+  const saturation = ecart / (1 - Math.abs(2 * clair - 1));
+  const sixieme = haut === r ? ((g - b) / ecart + 6) % 6 : haut === g ? (b - r) / ecart + 2 : (r - g) / ecart + 4;
+  return { teinte: Math.round(sixieme * 60 * 10) / 10, saturation };
+}
+// En « Couleurs ECF », rien ne garde une teinte de l'habillage par défaut : toute couleur calculée (texte, fond, bord, remplissage, trait,
+// pseudo-éléments compris) de teinte chaude ou verte (de 20° à 160°, saturation au-dessus de 15 %) est une teinte restée, sauf une couleur
+// fixe (couleursFixes) ou ce qui est hors de l'app habillée : le bandeau du banc, les dessins des cours, le livret EPCF (`.lv-*`, document
+// officiel TP-01303), le dossier professionnel (`.dp-doc`), les canevas.
+const SEL_HORS_HABILLAGE = SEL_HORS_MESURE + ', .dp-doc, [class^="lv-"], [class*=" lv-"], canvas';
+const COTES = ["Top", "Right", "Bottom", "Left"];
+function teintesRestees(fixes) {
+  const trouves = new Map(), W = largeur();
+  const noter = (e, propriete, valeur, pseudo) => {
+    if (!valeur || !/^(rgba?|color)\(/.test(valeur)) return;
+    const c = analyser(valeur);
+    if (c.a === 0) return;
+    const t = teinteDe(c);
+    if (t.saturation <= 0.15 || t.teinte < 20 || t.teinte > 160 || fixes.valeurs.has(cleCouleur(c))) return;
+    if (fixes.valeursDoc.has(cleCouleur(c)) && e.closest(SEL_DOCUMENTS)) return;
+    const cle = propriete + "|" + valeur + "|" + nom(e) + "|" + (pseudo || "");
+    if (!trouves.has(cle)) trouves.set(cle, `${propriete}${pseudo ? " (" + pseudo + ")" : ""} ${valeur} (teinte ${t.teinte}°, saturation ${Math.round(t.saturation * 100)} %) : ${nom(e)}`);
+  };
+  const boite = (e, s, pseudo) => {
+    noter(e, "background-color", s.backgroundColor, pseudo);
+    COTES.forEach((c) => {
+      const st = s["border" + c + "Style"];
+      if (st !== "none" && st !== "hidden" && parseFloat(s["border" + c + "Width"]) > 0) noter(e, "border-color", s["border" + c + "Color"], pseudo);
+    });
+  };
+  [document.documentElement, document.body, ...document.body.querySelectorAll("*")].forEach((e) => {
+    if (e.closest(SEL_HORS_HABILLAGE)) return;
+    const s = style(e);
+    if (s.display === "none" || s.visibility === "hidden" || parseFloat(s.opacity) <= 0.01) return;
+    const r = rect(e);
+    if ((r.width <= 0 && r.height <= 0) || r.right <= 0 || r.left >= W) return;
+    if (estSvg(e)) {
+      if (["svg", "g", "defs", "symbol", "clipPath", "mask", "linearGradient", "radialGradient", "stop"].includes(e.tagName)) return;
+      if (s.fill && s.fill !== "none") noter(e, "fill", s.fill);
+      if (s.stroke && s.stroke !== "none" && parseFloat(s.strokeWidth) > 0) noter(e, "stroke", s.stroke);
+      return;
+    }
+    if ([...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) noter(e, "color", s.color);
+    boite(e, s);
+    ["::before", "::after"].forEach((p) => {
+      const sp = getComputedStyle(e, p);
+      if (sp.content === "none" || sp.content === "normal" || sp.display === "none") return;
+      boite(e, sp, p);
+      if (/^["'].+["']$/.test(sp.content)) noter(e, "color", sp.color, p);
+    });
+  });
+  return [...trouves.values()];
+}
+
+// Poids des titres (lot 3, tâche 10 ; changement en direct, Review Focus 3) : en « ECSR Promo », chaque texte visible en Canela est
+// relevé avec son poids ; `data-skin` passe à « ecf » dans la même page, et le même élément doit porter le poids ECF correspondant (700 et
+// 500 deviennent 600, 600 le reste, ruling 10 ; 400 devient 500, 300 devient 400) et ne plus être en Canela ; puis retour à « ecsr ».
+// Les transitions sont gelées le temps de l'aller-retour : sinon la bascule lancerait des transitions de couleur que la mesure suivante
+// lirait à mi-course. Les documents imprimés (feuille d'émargement, dossier Qualiopi, attestations, livret EPCF, dossier professionnel)
+// gardent leur police et leur poids fixes (décision H5) : hors champ.
+const POIDS_ECF = { 700: 600, 600: 600, 500: 600, 400: 500, 300: 400 };
+const SEL_DOCUMENTS = '.dp-doc, .qdoc, #emargement-print, [class^="emf-"], [class*=" emf-"], [class^="at-"], [class*=" at-"], [class^="lv-"], [class*=" lv-"]';
+const enCanela = (s) => /^["']?canela\b/i.test((s.fontFamily || "").trim());
+function poidsDesTitres(echecs) {
+  const titres = [...document.body.querySelectorAll("*")]
+    .filter((e) => !estSvg(e) && [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()))
+    .filter((e) => enCanela(style(e)) && visible(e) && !e.closest(SEL_DOCUMENTS) && !e.closest(SEL_HORS_MESURE) && texteDirectAffiche(e))
+    .map((e) => ({ e, avant: parseInt(style(e).fontWeight, 10) }));
+  if (!titres.length) return;
+  const racine = document.documentElement, habillage = racine.dataset.skin;
+  const gel = document.createElement("style");
+  gel.textContent = "*, *::before, *::after { transition: none !important; }";
+  document.head.appendChild(gel);
+  try {
+    racine.dataset.skin = "ecf";
+    titres.forEach((t) => { const s = style(t.e); t.apres = parseInt(s.fontWeight, 10); t.canela = enCanela(s); });
+  } finally {
+    if (habillage === undefined) delete racine.dataset.skin; else racine.dataset.skin = habillage;
+    void document.body.offsetHeight;   // le style de retour est calculé transitions gelées
+    gel.remove();
+  }
+  const deja = new Set();
+  titres.forEach((t) => {
+    const attendu = POIDS_ECF[t.avant], qui = `${nom(t.e)} « ${texte(t.e).slice(0, 24)} »`;
+    if (deja.has(qui)) return;
+    deja.add(qui);
+    if (attendu === undefined) echecs.push(["poids de titre", `graisse ${t.avant} en Canela, sans correspondance en Couleurs ECF (300 à 700) : ${qui}`]);
+    else if (t.apres !== attendu) echecs.push(["poids de titre", `graisse ${t.avant} en ECSR Promo, ${t.apres} en Couleurs ECF (attendu ${attendu}) : ${qui}`]);
+    if (t.canela) echecs.push(["police de titre", `reste en Canela en Couleurs ECF (attendu la police du texte) : ${qui}`]);
+  });
 }
 
 // ---- Zones à toucher ----
@@ -974,6 +1359,11 @@ async function mesurer(o) {
   const route = (location.hash || "").replace(/^#\//, "").split("/")[0];
   window.scrollTo(0, 0);
   const vue = document.getElementById("view");
+  marquerBandeauDuBanc();
+  // Lot 3, tâche 10 : la page porte l'habillage du scénario (posé par l'app d'après l'appareil et le compte, jamais par le script).
+  if (o.habillage && document.documentElement.dataset.skin !== o.habillage) {
+    echecs.push(["habillage de la page", `html[data-skin] vaut « ${document.documentElement.dataset.skin || "absent"} », attendu « ${o.habillage} »`]);
+  }
 
   // Page : ni vide, ni en erreur.
   const boite = vue && vue.querySelector(".view-error-box");
@@ -1031,6 +1421,14 @@ async function mesurer(o) {
   if (allume && o.coquille) mesurerCoquille(o, route, W, H, tel, echecs, avert, await regles());
   if (!allume) mesurerAncienne(route, echecs, barres);
   window.scrollTo(0, 0);
+
+  // Lot 3, tâche 10 : contraste de toute la page (la coquille, l'ancienne barre, #view, les fenêtres et panneaux posés sur body), repères
+  // non textuels de la coquille, dans les deux habillages ; en « Couleurs ECF », aucune teinte restée ; en « ECSR Promo », les poids des
+  // titres basculés en direct (en dernier : la bascule ne doit rien laisser derrière elle).
+  mesurerContrastes([document.body], echecs, avert);
+  reperesNonTextuels(echecs, avert);
+  if (o.habillage === "ecf") teintesRestees(await couleursFixes()).forEach((detail) => echecs.push(["teinte restée", detail]));
+  if (o.habillage === "ecsr") poidsDesTitres(echecs);
   return { route, echecs, avert };
 }
 
@@ -1146,8 +1544,7 @@ function mesurerCoquille(o, route, W, H, tel, echecs, avert, R) {
     }
   });
 
-  // Contraste du texte de la coquille.
-  mesurerContrastes(racines().filter(visible), echecs, avert);
+  // Le contraste du texte de la coquille est mesuré avec toute la page (mesurer, lot 3, tâche 10).
 
   // Éléments fixes extérieurs qui recouvrent la coquille : avertissement seulement (l'assistant sous le bandeau
   // d'aperçu a son propre garde, verifier_assistant_sous_bandeau).
@@ -1206,6 +1603,7 @@ function mesurerPopups(o) {
     }
     mesurerCibles(interactifsDe(p), tel ? 44 : 24, echecs, "zone à toucher (menu)");
     mesurerContrastes([p], echecs, avert);
+    reperesNonTextuels(echecs, avert);   // la pastille d'une ligne du menu, l'entrée allumée du tiroir
     const liens = [...p.querySelectorAll("a[href]")].filter(visible);
     liens.forEach((a) => { if (!nomAcc(a)) echecs.push(["sans nom accessible", `${nom(a)} dans ${nom(p)}`]); });
   });
@@ -1264,9 +1662,12 @@ async function boutonDuCompte() {
 // fond réel derrière lui, 3:1 au moins (WCAG 1.4.11). Le liseré et le fond valent null quand ils ne se mesurent pas.
 const arrondi = (x) => Math.round(x * 100) / 100;
 const rapportOuNul = (a, b) => (a && b ? arrondi(rapport(a, b)) : null);
+// `detache` : le point se détache (repereDetache) : contre le fond, ou cerné d'un liseré plein qui tient contre lui et contre ce fond (lot 3,
+// tâche 10 : le liseré blanc des repères rouges de « Couleurs ECF »).
 function contrasteDuPoint(e) {
-  const s = style(e), couleur = analyser(s.backgroundColor), m = /rgba?\([^)]*\)/.exec(s.boxShadow || "");
-  return { couleur: hex(couleur), lisere: rapportOuNul(couleur, m ? analyser(m[0]) : null), fond: rapportOuNul(couleur, fondDe(e.parentElement)) };
+  const s = style(e), couleur = analyser(s.backgroundColor), m = /rgba?\([^)]*\)/.exec(s.boxShadow || ""), fond = fondDe(e.parentElement);
+  return { couleur: hex(couleur), lisere: rapportOuNul(couleur, m ? analyser(m[0]) : null), fond: rapportOuNul(couleur, fond),
+    detache: fond ? !repereDetache(couleur, fond, lisereDe(e)) : true };
 }
 // « À traiter » (lot 2A, tâche 6) : ce que la coquille montre des comptes de Cours et QCM. Chaque pastille chiffrée (celle de la barre latérale, ou celle du
 // tiroir ouvert) : où elle est (`dans` : la racine de la coquille), si elle est affichée, son texte, son entrée (adresse et nom accessible), sa taille, ses
@@ -1281,6 +1682,7 @@ function aTraiter() {
     const oeil = lien ? lien.querySelector(":scope > .marque-masque") : null, ro = oeil && visible(oeil) ? rect(oeil) : null;
     return { dans: racine(e), visible: visible(e), texte: net(e.textContent), href: lien ? lien.getAttribute("href") : null, nom: lien ? nomAcc(lien) : "",
       taille: [Math.round(r.width), Math.round(r.height)], chiffre: rapportOuNul(chiffre, fond), fond: rapportOuNul(fond, fondDe(e.parentElement)),
+      detache: fondDe(e.parentElement) ? !repereDetache(fond, fondDe(e.parentElement), lisereDe(e)) : true,
       couleurs: hex(chiffre) + " sur " + hex(fond),
       dehors: !!rl && (r.left < rl.left - 1 || r.right > rl.right + 1 || r.top < rl.top - 1 || r.bottom > rl.bottom + 1),
       recouvreLOeil: !!ro && r.left < ro.right && ro.left < r.right && r.top < ro.bottom && ro.top < r.bottom };
@@ -1294,7 +1696,8 @@ function aTraiter() {
   const barreSombre = [...document.querySelectorAll('[data-nav-coquille="cote"] .nav-pastille')].filter(visible).map((e) => {
     const s = style(e), fond = analyser(s.backgroundColor), chiffre = analyser(s.color), de = e.closest("a, button");
     return { texte: net(e.textContent), de: de ? (de.getAttribute("data-nav-action") || de.getAttribute("href") || "") : "", chiffre: rapportOuNul(chiffre, fond),
-      fond: rapportOuNul(fond, fondDe(e.parentElement)), couleurs: hex(chiffre) + " sur " + hex(fond) };
+      fond: rapportOuNul(fond, fondDe(e.parentElement)), detache: fondDe(e.parentElement) ? !repereDetache(fond, fondDe(e.parentElement), lisereDe(e)) : true,
+      couleurs: hex(chiffre) + " sur " + hex(fond) };
   });
   const phrase = document.querySelector('[data-nav-coquille="plus"] .nav-fenetre-atraiter');
   const parlants = [...document.querySelectorAll("[data-nav-coquille] a, [data-nav-coquille] button")].map(nomAcc).filter((n) => /à traiter/.test(n));
@@ -1314,6 +1717,26 @@ async function menuDuCompte() {
       nombre: p && p.firstChild ? net(p.firstChild.textContent) : null };
   });
   return { pastille: nouv.libellePastille(mods.nouveautesAffichables().neuves.size), lignes };
+}
+// ---- Apparence (lot 3, tâche 11) ----
+// Le choix de l'habillage dans `lieu` : « menu » (le menu du compte ouvert) ou « page » (la vue affichée : Mes préférences, Paramètres). Chaque groupe
+// role=group nommé « Apparence », ses pastilles (habillage, libellé, type, aria-pressed, focus, taille), l'habillage de la page, la marque posée avant un
+// clic (`window.__vnSansRechargement` : elle disparaît si la page se recharge) et le message du bas affiché.
+function apparence(lieu) {
+  const racine = lieu === "menu" ? document.querySelector('[data-nav-coquille="compte"] [role="dialog"]') : document.getElementById("view");
+  const t = document.getElementById("toast");
+  const base = { racine: !!racine, skin: document.documentElement.dataset.skin || null, sansRechargement: window.__vnSansRechargement === 1,
+    toast: t && !t.classList.contains("hidden") ? { texte: net(t.textContent), erreur: t.classList.contains("error") } : null };
+  if (!racine) return { ...base, groupes: [] };
+  // Le nom est comparé sans la casse : dans le menu du compte, le titre est en capitales par la feuille de style, et innerText (nomAcc) les rend.
+  const groupes = [...racine.querySelectorAll('[role="group"]')].filter((g) => visible(g) && nomAcc(g).toLowerCase() === "apparence").map((g) => ({
+    apresTete: !!g.previousElementSibling && g.previousElementSibling.classList.contains("nav-fenetre-tete"),
+    pastilles: [...g.querySelectorAll("button")].filter(visible).map((b) => {
+      const r = rect(b);
+      return { habillage: b.getAttribute("data-habillage"), classe: b.classList.contains("habillage-pastille"), libelle: texte(b.querySelector(".habillage-libelle") || b), legende: texte(b.querySelector(".habillage-legende") || b), type: b.getAttribute("type"),
+        presse: b.getAttribute("aria-pressed"), focus: document.activeElement === b, l: dixieme(r.width), h: dixieme(r.height) };
+    }) }));
+  return { ...base, groupes };
 }
 
 // ---- Titres des pages, bénévoles sous Stagiaires, en-tête de l'équipe sur téléphone (lot 2A, tâche 3) ----
@@ -1480,7 +1903,7 @@ function bandeauEmargement() {
 
 window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLien, chercherPlus, ouvreurs, marquerPopups, mesurerPopups,
   popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length, controlesAssistant,
-  pageDeReglages, boutonDuCompte, menuDuCompte, enTeteDePage, panneauBenevoles, enTeteDeLEquipe,
+  pageDeReglages, boutonDuCompte, menuDuCompte, apparence, enTeteDePage, panneauBenevoles, enTeteDeLEquipe,
   accueil, accueilStagiaire, aujourdhuiEquipe, comptesDesPages, planningSemaine, laClasse, epcfDeLEquipe, bandeauEmargement, aTraiter, nouveautes, lienDossierPro, ccp2Page, moduleOuvert, graphe, invaliderCache };
 })();
 """
@@ -1505,6 +1928,19 @@ JS_IMAGES_OUVERTURE = r"""
     if (performance.now() - t0 < 15000) requestAnimationFrame(tic);
   };
   requestAnimationFrame(tic);
+})();
+"""
+
+# Appareil d'une autre personne (lot 3, tâche 10, Review Focus 1), injecté avant le chargement : la suite des habillages que la page
+# porte (html[data-skin]), dans l'ordre, du script d'avant-peinture à la fin du démarrage.
+JS_SUITE_DES_HABILLAGES = r"""
+(() => {
+  const suite = window.__vnHabillages = [];
+  const noter = () => {
+    const v = document.documentElement && document.documentElement.dataset.skin;
+    if (v && suite[suite.length - 1] !== v) suite.push(v);
+  };
+  new MutationObserver(noter).observe(document, { attributes: true, attributeFilter: ["data-skin"], subtree: true });
 })();
 """
 
@@ -1555,10 +1991,14 @@ class Scenario:
     reglage_illisible: str = ""       # la lecture du réglage de la promo échoue : la case du fondateur, une clé de CASES_DU_FONDATEUR (lot 2A, tâche 6, ruling R54)
     ressources_fermees: bool = False  # le module Ressources est fermé pour la promo : la ligne « Contacts du centre » du menu du compte (lot 2A, tâche 1)
     compte: str = ""            # ?compte= du banc : un compte réel du lot 4 ("direction" : lit sans écrire), joué par jouer_direction (relecture finale du lot 2B)
+    habillage: str = "ecsr"     # habillage attendu de la page (lot 3, tâche 10) : "ecsr" (défaut, appareil vierge) ou "ecf" (levier de l'appareil posé avant le chargement)
+    appareil_d_autrui: bool = False   # l'appareil porte l'habillage ECF d'une autre personne (Review Focus 1) : attendu « ecsr » une fois le démarrage fini
 
     @property
     def nom(self):
         variante = "-sans-droits" if self.sans_droits else ""
+        variante += "-ecf" if self.habillage == "ecf" else ""
+        variante += "-appareil-d-autrui" if self.appareil_d_autrui else ""
         # Passe éteinte avec un aperçu sur l'appareil : celui d'un fondateur, posé chez qui ne l'est pas (il n'est pas pour lui).
         variante += "-apercu-ignore" if self.passe == "eteint" and self.allumage == "apercu" else ""
         variante += "-ressources-fermees" if self.ressources_fermees else ""
@@ -1600,8 +2040,9 @@ class Resultat:
                 "clics": self.clics, "duree": self.duree}
 
 
-def construire_scenarios(moteurs, roles, largeurs, passes):
-    """Les contextes à jouer, dans l'ordre : par moteur, la passe allumée puis la passe éteinte."""
+def construire_scenarios(moteurs, roles, largeurs, passes, habillages=HABILLAGES):
+    """Les contextes à jouer, dans l'ordre : par moteur, la passe allumée dans chaque habillage, puis la passe éteinte (dans le
+    défaut), puis, avec « Couleurs ECF », la passe éteinte d'un appareil en ECF et l'appareil d'une autre personne (lot 3, tâche 10)."""
     espace_de = {"stagiaire": "stagiaire", "prof": "equipe", "fondateur": "equipe"}
     # Le fondateur et le stagiaire du banc (fondateur lui aussi) ont l'aperçu de l'appareil ; le
     # formateur prof, qui n'est pas fondateur, n'en a pas : le réglage de la promo l'allume.
@@ -1610,8 +2051,10 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
     # « Voir en tant que » joue aussi 900 px : la colonne d'icônes de l'équipe, où le panneau de l'assistant se pose
     # contre le bandeau d'aperçu, comme à 1280 px (barre dépliée) et à 375 px (barre du bas).
     voir = [l for l in (1280, 900, 375) if l in largeurs]
-    scenarios = []
+    resultat = []
     for moteur in moteurs:
+        # Les scénarios du moteur dans le défaut, passe par passe : la passe allumée est rejouée telle quelle dans chaque habillage.
+        scenarios = []
         if "allume" in passes:
             for role in roles:
                 for l in largeurs:
@@ -1652,6 +2095,9 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
                 # La direction du centre (relecture finale du lot 2B) : l'espace de l'équipe, en lecture seule ; ni Émargement, ni À traiter, ni QCM du stagiaire.
                 for l in etroit:
                     scenarios.append(Scenario(moteur, "allume", "prof", l, "reglage", "equipe", compte="direction"))
+        allumes, scenarios = scenarios, []
+        for habillage in habillages:
+            resultat += [replace(sc, habillage=habillage) for sc in allumes]
         if "eteint" in passes:
             for role in roles:
                 for l in largeurs:
@@ -1667,7 +2113,20 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
                 # restent à portée (à 375 et 900 px, ils les couvraient sur main).
                 for l in voir:
                     scenarios.append(Scenario(moteur, "eteint", "fondateur", l, voir_en_tant_que=True, promos_en_panne=True))
-    return scenarios
+        if "ecsr" in habillages:
+            resultat += scenarios
+        if "ecf" in habillages:
+            if "eteint" in passes:
+                # Ancienne barre (Nîmes, Montpellier), appareil en « Couleurs ECF » (Review Focus 4, décision H6) : l'habillage s'applique
+                # dans les deux navigations ; chaque rôle, sur ordinateur et sur téléphone, avec tous les contrôles de couleur.
+                for role in roles:
+                    for l in etroit:
+                        resultat.append(Scenario(moteur, "eteint", role, l, habillage="ecf"))
+            if "allume" in passes and "stagiaire" in roles:
+                # Appareil partagé (Review Focus 1) : l'appareil garde le choix ECF d'une autre personne ; la page le montre avant que le
+                # profil soit lu, puis prend celui de la personne connectée (ici le défaut), et ne l'envoie jamais à son compte.
+                resultat.append(Scenario(moteur, "allume", "stagiaire", largeurs[0], "apercu", "stagiaire", appareil_d_autrui=True))
+    return resultat
 
 
 # --------------------------------------------------------------------------------------
@@ -1760,6 +2219,14 @@ def nouveau_contexte(navigateur, sc, options):
         reglages.update(is_mobile=True, has_touch=True)
     contexte = navigateur.new_context(**reglages)
     contexte.set_default_timeout(8000)
+    if sc.appareil_d_autrui or sc.habillage == "ecf":
+        # Posé au premier chargement de l'onglet seulement : un rechargement doit retrouver ce que l'app a écrit depuis.
+        appareil = {"nom": "ecf", "email": EMAIL_D_AUTRUI} if sc.appareil_d_autrui else {"nom": "ecf"}
+        contexte.add_init_script("try { if (!sessionStorage.getItem('vn_habillage_pose')) { localStorage.setItem(%s, %s);"
+                                 " sessionStorage.setItem('vn_habillage_pose', '1'); } } catch (e) { /* stockage bloqué */ }"
+                                 % (json.dumps(CLE_HABILLAGE), json.dumps(json.dumps(appareil))))
+    if sc.appareil_d_autrui:
+        contexte.add_init_script(JS_SUITE_DES_HABILLAGES)
     if sc.allumage == "apercu":
         contexte.add_init_script("try { localStorage.setItem('%s', '1'); } catch (e) { /* stockage bloqué */ }" % CLE_APERCU)
     if sc.demarrage:
@@ -1917,7 +2384,7 @@ def verifier_vue(page, res, sc, titre, options):
     attendre(page)
     res.vues += 1
     o = {"passe": sc.passe, "espace": sc.espace, "coquille": res.coquille, "seuilTelephone": SEUIL_TELEPHONE,
-         "exception": EXCEPTION_ADMISE}
+         "exception": EXCEPTION_ADMISE, "habillage": sc.habillage}
     avant = len(res.echecs)
     try:
         m = page.evaluate("(o) => window.__verifNav.mesurer(o)", o)
@@ -2360,9 +2827,10 @@ def verifier_retour_arriere(page, res, sc):
 SECTIONS_REGLAGES = ("Ce que voient les stagiaires", "Promo", "Accès et invitations", "Émargement", "Nouvelle navigation",
                      "Données personnelles")
 SECTIONS_DU_FONDATEUR = ("Émargement", "Nouvelle navigation")
-SECTIONS_PREFERENCES = ("Dans les notes de la classe", "Informations")
-# Le sous-titre de Mes préférences, selon qu'il y a un réglage à montrer (l'anonymat, pour qui a une fiche de stagiaire) ou seulement les informations.
-SOUS_TITRE_PREFERENCES = ("Ce qui ne concerne que toi, et les informations sur l'application.", "Les informations sur l'application.")
+SECTIONS_PREFERENCES = ("Apparence", "Dans les notes de la classe", "Informations")
+# Le sous-titre de Mes préférences : la page a toujours un réglage à soi depuis le lot 3 (Apparence, pour tous les rôles), l'anonymat en plus pour qui a une
+# fiche de stagiaire ; il ne dit donc plus « Les informations sur l'application. » seules.
+SOUS_TITRE_PREFERENCES = "Ce qui ne concerne que toi, et les informations sur l'application."
 # Ce que ces pages ne disent plus : « whitelist », « mdp » et l'abréviation « admin » (le mot « administrateur » reste permis).
 MOTS_BANNIS = re.compile(r"whitelist|mdp|\badmins?\b", re.IGNORECASE)
 
@@ -2388,8 +2856,9 @@ def verifier_bouton_du_compte(page, res, sc, moment):
             res.echec("bouton du compte", vue, "le point mesure %dx%d px : trop petit pour se voir" % tuple(b["pointTaille"]))
         # Un repère sans texte tient 3:1 contre son liseré et contre le fond derrière lui (WCAG 1.4.11) : sur la barre sombre de l'équipe, son vert d'origine
         # (--accent) n'en tenait que 2,9 contre le liseré de la couleur de la barre.
+        # Lot 3, tâche 10 : contre le fond, il suffit qu'un liseré plein le cerne (le blanc des repères rouges de « Couleurs ECF »).
         c = b["pointContraste"]
-        for contre, valeur in (("son liseré", c and c["lisere"]), ("le fond derrière lui", c and c["fond"])):
+        for contre, valeur in (("son liseré", c and c["lisere"]), ("le fond derrière lui", c and (None if c.get("detache") else c["fond"]))):
             if valeur is not None and valeur < 3:
                 res.echec("contraste du point du compte", vue, "le point (%s) ne tient que %.2f:1 contre %s, 3:1 au moins pour un repère" % (c["couleur"], valeur, contre))
         if "%s nouveauté" % b["pastille"] not in b["nom"]:
@@ -2439,6 +2908,10 @@ def verifier_menu_du_compte(page, res, sc, moment=None):
         res.echec("menu du compte", vue, "la ligne « Nouveautés » manque (lignes : %s)" % ", ".join(lignes))
     elif lignes["Nouveautés"]["nombre"] != attendu:
         res.echec("menu du compte", vue, "la ligne « Nouveautés » porte %s, l'app compte %s non lue(s)" % (lignes["Nouveautés"]["nombre"], attendu))
+    # Lot 3, tâche 11 : Apparence, juste sous la tête du menu, pour tous les rôles (formateur sans fiche compris).
+    g = verifier_apparence(page, res, sc, vue, "menu")
+    if g is not None and not g["apresTete"]:
+        res.echec("apparence", vue, "menu du compte : le groupe « Apparence » n'est pas juste sous la tête du menu (nom, rôle, promo)")
     vider_console(res, vue)
 
 
@@ -2454,6 +2927,146 @@ def verifier_menu_du_compte_a_l_ouverture(page, res, sc):
     page.keyboard.press("Escape")
     page.wait_for_timeout(300)
     vider_console(res, vue)
+
+
+# --------------------------------------------------------------------------------------
+# Apparence : choisir l'habillage (lot 3, tâche 11)
+# --------------------------------------------------------------------------------------
+
+LIBELLES_HABILLAGES = {"ecsr": "ECSR Promo", "ecf": "Couleurs ECF"}
+LEGENDES_HABILLAGES = {"ecsr": "d'origine", "ecf": "du réseau ECF"}   # seconde ligne de chaque pastille (lot 3, tâche 13b)
+MESSAGES_HABILLAGES = {"ecsr": "Habillage ECSR Promo appliqué", "ecf": "Couleurs ECF appliquées"}
+SEL_PASTILLE = {"menu": '[data-nav-coquille="compte"] .habillage-pastille[data-habillage="%s"]', "page": '#view .habillage-pastille[data-habillage="%s"]'}
+QUOI_APPARENCE = {"menu": "menu du compte", "page": "page"}
+
+
+def lire_apparence(page, lieu):
+    return page.evaluate("(l) => window.__verifNav.apparence(l)", lieu)
+
+
+def verifier_apparence(page, res, sc, vue, lieu, a=None):
+    """Le choix de l'habillage dans `lieu` (« menu » : le menu du compte ouvert ; « page » : Mes préférences, Paramètres) : un seul groupe (role=group) nommé
+    « Apparence » par son titre, deux pastilles, des boutons « ECSR Promo » puis « Couleurs ECF » (button[type=button].habillage-pastille[data-habillage]),
+    chacune avec aria-pressed, une seule pressée : celle de html[data-skin]. 44 px de haut au moins sur téléphone. Rend le groupe, ou None s'il manque."""
+    a = a or lire_apparence(page, lieu)
+    quoi = QUOI_APPARENCE[lieu]
+    if not a["groupes"]:
+        res.echec("apparence", vue, "%s : aucun groupe « Apparence » (role=group nommé par son titre)%s" % (quoi, "" if a["racine"] else ", fenêtre introuvable"))
+        return None
+    if len(a["groupes"]) > 1:
+        res.echec("apparence", vue, "%s : %d groupes « Apparence », un seul attendu" % (quoi, len(a["groupes"])))
+    g = a["groupes"][0]
+    vus = [(p["habillage"], p["libelle"]) for p in g["pastilles"]]
+    if vus != [(n, LIBELLES_HABILLAGES[n]) for n in ("ecsr", "ecf")]:
+        res.echec("apparence", vue, "%s : pastilles %s, attendu « ECSR Promo » (ecsr) puis « Couleurs ECF » (ecf)" % (quoi, vus))
+    for p in g["pastilles"]:
+        if p["legende"] != LEGENDES_HABILLAGES.get(p["habillage"]):
+            res.echec("apparence", vue, "%s : la légende de « %s » est « %s », attendu « %s »" % (quoi, p["libelle"], p["legende"], LEGENDES_HABILLAGES.get(p["habillage"])))
+        if p["type"] != "button" or not p["classe"]:
+            res.echec("apparence", vue, "%s : « %s » n'est pas un button[type=button].habillage-pastille" % (quoi, p["libelle"]))
+        if p["presse"] not in ("true", "false"):
+            res.echec("apparence", vue, "%s : « %s » n'a pas d'aria-pressed (« %s »)" % (quoi, p["libelle"], p["presse"]))
+        if sc.largeur < SEUIL_TELEPHONE and p["h"] < 44:
+            res.echec("zone à toucher (apparence)", vue, "%s : « %s » mesure %.1f px de haut, 44 au moins sur téléphone" % (quoi, p["libelle"], p["h"]))
+    pressees = [p["habillage"] for p in g["pastilles"] if p["presse"] == "true"]
+    if pressees != [a["skin"]]:
+        res.echec("apparence", vue, "%s : pastille(s) pressée(s) %s, attendu la seule de l'habillage de la page (« %s »)" % (quoi, pressees or "aucune", a["skin"]))
+    return g
+
+
+def choisir_habillage(page, res, vue, lieu, cible):
+    """Touche la pastille `cible` dans `lieu`, après avoir marqué la page (la marque disparaît si elle se recharge). Rend ce que montre alors l'apparence."""
+    page.evaluate("() => { window.__vnSansRechargement = 1; }")
+    if not cliquer(page, res, vue, SEL_PASTILLE[lieu] % cible, "pastille « %s » (%s)" % (LIBELLES_HABILLAGES[cible], QUOI_APPARENCE[lieu])):
+        return None
+    page.wait_for_timeout(150)
+    return lire_apparence(page, lieu)
+
+
+def verifier_choix(page, res, sc, vue, lieu, cible, a, fenetre_ouverte=False):
+    """Après un toucher sur la pastille `cible` : la page porte l'habillage sans s'être rechargée, la pastille est la seule pressée et garde le focus, le
+    message du bas le dit, sans erreur ; dans le menu du compte, la fenêtre reste ouverte."""
+    if a is None:
+        return
+    quoi = QUOI_APPARENCE[lieu]
+    if a["skin"] != cible:
+        res.echec("choix de l'habillage", vue, "%s : « %s » touché, html[data-skin] vaut « %s »" % (quoi, LIBELLES_HABILLAGES[cible], a["skin"]))
+    if not a["sansRechargement"]:
+        res.echec("choix de l'habillage", vue, "%s : « %s » touché, la page s'est rechargée" % (quoi, LIBELLES_HABILLAGES[cible]))
+    if fenetre_ouverte and not a["racine"]:
+        res.echec("choix de l'habillage", vue, "« %s » touché, le menu du compte s'est fermé : il reste ouvert" % LIBELLES_HABILLAGES[cible])
+    g = verifier_apparence(page, res, sc, vue, lieu, a)
+    if g is not None:
+        touchee = next((p for p in g["pastilles"] if p["habillage"] == cible), None)
+        if touchee is not None and not touchee["focus"]:
+            res.echec("choix de l'habillage", vue, "%s : « %s » touché, le focus a quitté la pastille" % (quoi, LIBELLES_HABILLAGES[cible]))
+    if a["toast"] is None or a["toast"]["texte"] != MESSAGES_HABILLAGES[cible]:
+        res.echec("choix de l'habillage", vue, "%s : le message du bas dit %s, attendu « %s »" % (quoi, a["toast"] and "« %s »" % a["toast"]["texte"], MESSAGES_HABILLAGES[cible]))
+    elif a["toast"]["erreur"]:
+        res.echec("erreur visible", vue, "%s : le message « %s » s'affiche comme une erreur" % (quoi, a["toast"]["texte"]))
+    verifier_aucune_erreur_visible(page, res, vue)
+
+
+def recharger_la_page(page):
+    page.reload(wait_until="load")
+    page.evaluate(JS_OUTILS)
+    attendre(page, calme=250, maximum=8000)
+
+
+def attendre_habillage(page, nom, a_envoyer=None):
+    """L'habillage `nom` posé et l'appareil qui le retient (le démarrage écrit l'appareil après l'avoir appliqué, puis retire « à envoyer » une fois
+    l'envoi revenu) ; `a_envoyer` (vrai, faux) : attend aussi cet état. Sans délai fixe ; au bout de 4 s, le contrôle qui suit dit ce qui est là."""
+    try:
+        page.wait_for_function("""([n, cle, envoi]) => { if (document.documentElement.dataset.skin !== n) return false;
+            try { const a = JSON.parse(localStorage.getItem(cle)); return !!a && a.nom === n && (envoi === null || a.aEnvoyer === envoi); }
+            catch (e) { return false; } }""", arg=[nom, CLE_HABILLAGE, a_envoyer], timeout=4000)
+    except (DelaiDepasse, ErreurPlaywright):
+        pass
+
+
+def jouer_choix_d_habillage(page, res, sc, panne=False):
+    """Choisir l'habillage, nouvelle navigation (lot 3, tâche 11). Dans le menu du compte, la pastille de l'autre habillage (« Couleurs ECF » depuis le
+    défaut, « ECSR Promo » depuis ECF) : l'habillage change sans recharger, le menu reste ouvert et le focus sur la pastille ; rechargée, la page le garde,
+    l'appareil le retient comme un choix (« à envoyer » tant que le compte ne l'a pas) ; Mes préférences le montre pressé ; une pastille de Mes préférences
+    ramène l'habillage de départ, qui tient lui aussi au rechargement. `panne` : l'enregistrement sur le compte échoue (`?habillage_panne=1`) : même
+    résultat, aucune erreur visible. Le banc est rechargé : joué en dernier."""
+    depart = sc.habillage
+    cible = "ecsr" if depart == "ecf" else "ecf"
+    vue = "%s/apparence/choix%s" % (sc.nom, "-en-panne" if panne else "")
+    res.vues += 1
+    if panne:
+        recharger_au_banc(page, "#/home", habillage_panne="1")
+    else:
+        aller_a(page, "#/home")
+        attendre(page, calme=150)
+    attendre_habillage(page, depart)
+    if not cliquer(page, res, vue, '[data-nav-coquille] button[data-nav-action="compte"]:visible', "bouton du compte"):
+        return
+    page.wait_for_timeout(300)
+    verifier_choix(page, res, sc, vue, "menu", cible, choisir_habillage(page, res, vue, "menu", cible), fenetre_ouverte=True)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(250)
+    vider_console(res, vue)
+    # Rechargée : le choix tient, il est retenu comme un choix de la personne, et Mes préférences le montre pressé.
+    for etape, nom, lieu_retour in (("rechargement", cible, "page"), ("retour", depart, None)):
+        vue_etape = "%s/%s" % (vue, etape)
+        res.vues += 1
+        recharger_la_page(page)
+        attendre_habillage(page, nom, panne)
+        a = page.evaluate("(cle) => { try { return JSON.parse(localStorage.getItem(cle)); } catch (e) { return null; } }", CLE_HABILLAGE) or {}
+        if page.evaluate("() => document.documentElement.dataset.skin || null") != nom:
+            res.echec("choix de l'habillage", vue_etape, "rechargée, la page porte « %s », attendu « %s » (le choix fait avant)"
+                      % (page.evaluate("() => document.documentElement.dataset.skin || null"), nom))
+        if a.get("nom") != nom or a.get("choisi") is not True or a.get("aEnvoyer") is not panne:
+            res.echec("choix de l'habillage", vue_etape, "l'appareil retient %s : attendu « %s », choisi, %s" % (
+                json.dumps(a), nom, "encore à envoyer (le compte a refusé)" if panne else "plus rien à envoyer"))
+        aller_a(page, "#/preferences")
+        attendre(page, calme=150)
+        verifier_apparence(page, res, sc, vue_etape, "page")
+        if lieu_retour:
+            # Le retour par Mes préférences : la pastille de l'habillage de départ.
+            verifier_choix(page, res, sc, vue_etape, "page", depart, choisir_habillage(page, res, vue_etape, "page", depart))
+        vider_console(res, vue_etape)
 
 
 def nombre_de_la_phrase(phrase):
@@ -2520,7 +3133,7 @@ def verifier_a_traiter(page, res, sc, tiroir=False):
             res.echec("pastille « à traiter »", vue, "la pastille recouvre l'œil « masqué aux stagiaires » de son entrée")
         if p["chiffre"] is not None and p["chiffre"] < 4.5:
             res.echec("contraste d'une pastille « à traiter »", vue, "le chiffre ne tient que %.2f:1 (%s), 4,5:1 au moins" % (p["chiffre"], p["couleurs"]))
-        if p["fond"] is not None and p["fond"] < 3:
+        if p["fond"] is not None and p["fond"] < 3 and not p.get("detache"):   # un liseré plein qui la cerne suffit (lot 3, tâche 10)
             res.echec("contraste d'une pastille « à traiter »", vue, "la pastille ne tient que %.2f:1 contre ce qui l'entoure (%s), 3:1 au moins pour un repère" % (p["fond"], p["couleurs"]))
     # Toute pastille de la barre sombre, celle de « Signaler un problème » comme celle de « Cours et QCM » (relecture de la tâche 6, point 4) : le chiffre tient 4,5:1 contre
     # son fond, la pastille 3:1 contre la barre (le vert d'origine, --accent, n'en tenait que 2,9 contre elle). Les scénarios avec brouillons sèment les compteurs de « Signaler
@@ -2529,7 +3142,7 @@ def verifier_a_traiter(page, res, sc, tiroir=False):
         de = "de « Signaler un problème »" if p["de"] == "signaler" else "de l'entrée %s" % (p["de"] or "?")
         if p["chiffre"] is not None and p["chiffre"] < 4.5:
             res.echec("contraste d'une pastille de la barre sombre", vue, "le chiffre de la pastille %s ne tient que %.2f:1 (%s), 4,5:1 au moins" % (de, p["chiffre"], p["couleurs"]))
-        if p["fond"] is not None and p["fond"] < 3:
+        if p["fond"] is not None and p["fond"] < 3 and not p.get("detache"):   # un liseré plein qui la cerne suffit (lot 3, tâche 10)
             res.echec("contraste d'une pastille de la barre sombre", vue, "la pastille %s ne tient que %.2f:1 contre la barre (%s), 3:1 au moins pour un repère" % (de, p["fond"], p["couleurs"]))
     if sc.a_traiter in BROUILLONS_IA_DU_BANC and not telephone and not tiroir:
         signaler = [p["texte"] for p in m["barreSombre"] if p["de"] == "signaler"]
@@ -2548,7 +3161,7 @@ def verifier_a_traiter(page, res, sc, tiroir=False):
             res.echec("point de « Plus »", vue, "le point mesure %dx%d px : trop petit pour se voir" % tuple(p["taille"]))
         if "%d à traiter" % total not in p["nom"] or not p["nom"].startswith("Plus"):
             res.echec("point de « Plus »", vue, "le nom du bouton (« %s ») ne dit pas « Plus, %d à traiter »" % (p["nom"], total))
-        for contre, valeur in (("son liseré", p["lisere"]), ("le fond derrière lui", p["fond"])):
+        for contre, valeur in (("son liseré", p["lisere"]), ("le fond derrière lui", None if p.get("detache") else p["fond"])):
             if valeur is not None and valeur < 3:
                 res.echec("contraste du point de « Plus »", vue, "le point (%s) ne tient que %.2f:1 contre %s, 3:1 au moins pour un repère" % (p["couleur"], valeur, contre))
     # La phrase en tête du tiroir ouvert, et nulle part ailleurs.
@@ -2588,7 +3201,7 @@ def verifier_point_de_signaler(res, vue, sc, m, tiroir):
             res.echec("point de « Plus »", vue, "le point mesure %dx%d px : trop petit pour se voir" % tuple(p["taille"]))
         if not p["nom"].startswith("Plus, ") or "signalement" not in p["nom"] or "à traiter" in p["nom"]:
             res.echec("point de « Plus »", vue, "le nom du bouton est « %s » : il devrait dire ce que le point signale (« Plus, 2 signalements ont avancé »), sans « à traiter »" % p["nom"])
-        for contre, valeur in (("son liseré", p["lisere"]), ("le fond derrière lui", p["fond"])):
+        for contre, valeur in (("son liseré", p["lisere"]), ("le fond derrière lui", None if p.get("detache") else p["fond"])):
             if valeur is not None and valeur < 3:
                 res.echec("contraste du point de « Plus »", vue, "le point (%s) ne tient que %.2f:1 contre %s, 3:1 au moins pour un repère" % (p["couleur"], valeur, contre))
 
@@ -2696,8 +3309,11 @@ def verifier_preferences(page, res, sc):
     if "Réglages personnels" in p["texte"]:
         res.echec("page Mes préférences", vue, "la page écrit « Réglages personnels » : « Réglages » est la page de l'équipe")
     avec_reglage = res.profil_stagiaire and not (sc.modules == "depart" and sc.espace == "stagiaire")
-    if p["sousTitre"] != SOUS_TITRE_PREFERENCES[0 if avec_reglage else 1]:
-        res.echec("page Mes préférences", vue, "le sous-titre est « %s », attendu « %s »" % (p["sousTitre"], SOUS_TITRE_PREFERENCES[0 if avec_reglage else 1]))
+    if p["sousTitre"] != SOUS_TITRE_PREFERENCES:
+        res.echec("page Mes préférences", vue, "le sous-titre est « %s », attendu « %s »" % (p["sousTitre"], SOUS_TITRE_PREFERENCES))
+    # Lot 3, tâche 11 : la section Apparence, toujours là (formateur sans fiche, module Notes fermé compris), la première de la page.
+    if verifier_apparence(page, res, sc, vue, "page") is not None and p["sections"][:1] != ["Apparence"]:
+        res.echec("page Mes préférences", vue, "la page commence par « %s », attendu « Apparence »" % ((p["sections"] or ["rien"])[0]))
     if avec_reglage and p["anonymat"] is None:
         res.echec("page Mes préférences", vue, "la personne a une fiche de stagiaire : le réglage de l'anonymat dans les notes manque")
     if not res.profil_stagiaire and p["anonymat"] is not None:
@@ -2724,6 +3340,51 @@ def verifier_preferences_eteint(page, res, sc):
     verifier_texte_de_l_anonymat(res, vue, p, "préférences, interrupteur éteint")
     if p["socle"] is not None and p["socle"] != SOCLE["ancienne"]:
         res.echec("préférences, interrupteur éteint", vue, "la phrase des modules toujours ouverts est « %s », celle de main « %s »" % (p["socle"], SOCLE["ancienne"]))
+    # Lot 3, tâche 11, décision H6 : le choix ne se fait que dans la nouvelle navigation ; Paramètres ne montre Apparence qu'à qui est en « Couleurs ECF »,
+    # pour pouvoir revenir. En « ECSR Promo », la page de main, sans rien de plus.
+    a = lire_apparence(page, "page")
+    if a["skin"] == "ecf":
+        if verifier_apparence(page, res, sc, vue, "page", a) is not None and "Apparence" not in p["sections"]:
+            res.echec("préférences, interrupteur éteint", vue, "le groupe « Apparence » n'est pas dans une section « Apparence » (sections : %s)" % ", ".join(p["sections"]))
+    elif a["groupes"] or "Apparence" in p["sections"]:
+        res.echec("préférences, interrupteur éteint", vue, "Paramètres montre Apparence à qui est en « ECSR Promo » : avec l'ancienne barre, rien ne change (décision H6)")
+    vider_console(res, vue)
+
+
+def jouer_retour_par_parametres(page, res, sc):
+    """Ancienne barre, appareil en « Couleurs ECF » (décision H6) : Apparence, dans Paramètres, ramène à ECSR Promo sans recharger ; rechargée, la page
+    reste en ECSR Promo, l'appareil le retient comme un choix, et Paramètres ne montre plus Apparence. Le banc est rechargé : joué en dernier."""
+    vue = "%s/apparence/retour-par-parametres" % sc.nom
+    res.vues += 1
+    aller_a(page, "#/config")
+    attendre(page, calme=150)
+    attendre_habillage(page, "ecf")
+    # Paramètres qui ne se charge pas (toute lecture rejetée le temps de l'ouvrir) : la boîte d'erreur s'affiche et Apparence reste là, pour ne pas piéger en ECF.
+    page.evaluate("() => { window.__HARNESS_FAIL = 'panne du banc'; }")
+    aller_a(page, "#/home")
+    aller_a(page, "#/config")
+    page.wait_for_selector(".param-error", timeout=20000)
+    if not lire_apparence(page, "page")["groupes"]:
+        res.echec("apparence, Paramètres en échec", vue, "la page ne se charge pas et Apparence manque : une personne en « Couleurs ECF » ne peut pas revenir")
+    page.evaluate("() => { window.__HARNESS_FAIL = null; }")
+    res.console.clear()   # l'erreur de chargement journalisée est celle que la panne provoque, attendue ici
+    aller_a(page, "#/home")
+    aller_a(page, "#/config")
+    attendre(page, calme=150)
+    verifier_choix(page, res, sc, vue, "page", "ecsr", choisir_habillage(page, res, vue, "page", "ecsr"))
+    vider_console(res, vue)
+    vue = "%s/rechargement" % vue
+    res.vues += 1
+    recharger_la_page(page)
+    attendre_habillage(page, "ecsr", False)
+    skin = page.evaluate("() => document.documentElement.dataset.skin || null")
+    a = page.evaluate("(cle) => { try { return JSON.parse(localStorage.getItem(cle)); } catch (e) { return null; } }", CLE_HABILLAGE) or {}
+    if skin != "ecsr" or a.get("nom") != "ecsr" or a.get("choisi") is not True:
+        res.echec("retour à ECSR Promo", vue, "rechargée, la page porte « %s » et l'appareil retient %s : attendu « ecsr », choisi" % (skin, json.dumps(a)))
+    aller_a(page, "#/config")
+    attendre(page, calme=150)
+    if lire_apparence(page, "page")["groupes"]:
+        res.echec("retour à ECSR Promo", vue, "revenu en ECSR Promo, Paramètres montre encore Apparence (décision H6 : seulement pour qui est en « Couleurs ECF »)")
     vider_console(res, vue)
 
 
@@ -3189,6 +3850,8 @@ OU_TROUVER = {
     # Lot 2B : l'Accueil de l'équipe s'appelle Aujourd'hui dans sa barre (même adresse) ; la journée n'existe pas avec l'ancienne barre (carte cachée).
     "Ta journée sur l'Accueil": ("Accueil", "Accueil", "(carte cachée avec l'ancienne barre)", "#/home"),
     "Les cours se lisent mieux sur téléphone": ("Cours et QCM", "Cours et QCM", "Cours", "#/themes"),
+    # Lot 3 (tâche 11) : le choix de l'habillage, propre à la nouvelle navigation (décision H6) : Mes préférences, pour les deux espaces.
+    "L'app aux couleurs d'ECF": ("Mes préférences", "Mes préférences", "(carte cachée avec l'ancienne barre)", "#/preferences"),
 }
 # Celles que seule l'équipe lit (puce « Formateurs ») : (libellé sous la nouvelle navigation, libellé de main, adresse).
 OU_TROUVER_EQUIPE = {
@@ -3226,6 +3889,9 @@ GUIDES = {
          "matin » (ou « Signer pour cet après-midi ») : la carte affiche ensuite l'heure de ta signature.", "(carte cachée avec l'ancienne barre)"),
     "Les cours se lisent mieux sur téléphone":
         ("Ouvre un cours : touche le titre d'un thème, ou son bouton « Cours ».", "Ouvre un cours : touche le titre d'un thème, ou son bouton « Cours »."),
+    "L'app aux couleurs d'ECF":
+        ("Ouvre le menu de ton compte : le rond à tes initiales, en haut à droite de l'écran (chez les formateurs, sur ordinateur, en bas de la barre de "
+         "gauche).", "(carte cachée avec l'ancienne barre)"),
 }
 GUIDES_EQUIPE = {
     "Un tableau de bord du centre, promo par promo":
@@ -3253,6 +3919,7 @@ LIEN_DOSSIER_PRO = "Ton dossier professionnel, à remplir dans l'app"
 TITRE_JOURNEE = "Ta journée sur l'Accueil"
 TITRE_AUJOURDHUI_EQUIPE = "Aujourd'hui remplace l'Accueil"
 TITRE_COURS_TELEPHONE = "Les cours se lisent mieux sur téléphone"
+TITRE_COULEURS_ECF = "L'app aux couleurs d'ECF"   # lot 3, tâche 11 : pour tous, nouvelle navigation seulement (décision H6)
 # La date vient de js/nouveautes-data.js, seule source : l'id de l'entrée de la journée porte AAAA-MM-JJ.
 _ID_JOURNEE = re.search(r'id:\s*"(\d{4})-(\d{2})-(\d{2})-ta-journee-accueil"',
                         (pathlib.Path(__file__).resolve().parent.parent / "js" / "nouveautes-data.js").read_text(encoding="utf-8"))
@@ -3332,6 +3999,7 @@ def verifier_nouveautes(page, res, sc):
             res.echec("Nouveauté de l'ancienne barre", vue, "« %s » ne décrit que l'ancienne barre : elle n'est pas montrée sous la nouvelle" % titre)
     verifier_liens_et_guides(res, vue, cartes, equipe, True, depart=sc.modules == "depart" and not equipe)
     verifier_nouveautes_du_lot_2b(page, res, sc, vue, cartes, True)
+    verifier_nouveaute_couleurs_ecf(res, vue, cartes, True)
     # Les liens vers la banque des bénévoles (la Nouveauté de lancement de l'équipe et, F8, les deux Nouveautés des bénévoles) : le libellé, l'adresse, puis le
     # geste (la mémoire du sous-onglet de Stagiaires, que la barre relit à son rendu).
     for titre in ((TITRE_LANCEMENT_EQUIPE,) + TITRES_DES_BENEVOLES) if equipe else ():
@@ -3395,6 +4063,26 @@ def verifier_nouveautes_du_lot_2b(page, res, sc, vue, cartes, nouvelle):
     attendre(page)
 
 
+def verifier_nouveaute_couleurs_ecf(res, vue, cartes, nouvelle):
+    """La Nouveauté du choix de l'habillage (lot 3, tâche 11) : pour tous (sans puce « Formateurs »), nouvelle navigation seulement (le choix ne se fait que
+    là, décision H6), avec un « Où le trouver » vers Mes préférences et un « Comment faire » d'au moins trois étapes, qui dit « Couleurs ECF » et « ECSR Promo »
+    (le libellé et la première étape sont contrôlés par verifier_liens_et_guides)."""
+    carte = cartes.get(TITRE_COULEURS_ECF)
+    if not nouvelle:
+        if carte is not None:
+            res.echec("Nouveauté des couleurs d'ECF", vue, "« %s » est montrée avec l'ancienne barre : le choix ne se fait que sous la nouvelle (décision H6)" % TITRE_COULEURS_ECF)
+        return
+    if carte is None:
+        res.echec("Nouveauté des couleurs d'ECF", vue, "« %s » manque (nouvelle navigation, pour tous)" % TITRE_COULEURS_ECF)
+        return
+    if carte["formateurs"]:
+        res.echec("Nouveauté des couleurs d'ECF", vue, "« %s » porte la puce « Formateurs » : elle est pour tous" % TITRE_COULEURS_ECF)
+    guide = " ".join(carte["guide"])
+    if len(carte["guide"]) < 3 or "« Couleurs ECF »" not in guide or "« ECSR Promo »" not in guide or "Apparence" not in guide:
+        res.echec("Nouveauté des couleurs d'ECF", vue, "« Comment faire » de « %s » : %d étape(s), attendu au moins 3 qui disent Apparence, « Couleurs ECF » et « ECSR Promo »"
+                  % (TITRE_COULEURS_ECF, len(carte["guide"])))
+
+
 def verifier_nouveaute_commune(res, vue, cartes):
     """La Nouveauté des corrections communes aux deux navigations (vague finale, F3) : pour tous (aucune puce « Formateurs »), qui parle des graphes des notes, de
     l'historique des passages, d'un stage « En cours » et des moyennes basses qui ne sont plus en rouge, sans nommer les « Indicateurs » ni le « tableau de bord »
@@ -3434,6 +4122,7 @@ def verifier_nouveautes_eteint(page, res, sc):
         res.echec("Nouveauté pour tous", vue, "« %s » est datée du %s, attendu le %s" % (TITRE_AFFICHAGE, cartes[TITRE_AFFICHAGE]["date"], DATE_DU_LANCEMENT))
     verifier_liens_et_guides(res, vue, cartes, sc.role in ("prof", "fondateur"), False)
     verifier_nouveautes_du_lot_2b(page, res, sc, vue, cartes, False)
+    verifier_nouveaute_couleurs_ecf(res, vue, cartes, False)
     vider_console(res, vue)
 
 
@@ -5734,6 +6423,10 @@ def jouer_allume(page, res, sc, options):
     # Lot 2B, tâche 8 : la page CCP2 ouverte sur le parcours, pour chaque rôle (les cas sans dates rechargent le banc : en dernier).
     if res.coquille and not (sc.modules or sc.ressources_fermees or sc.voir_en_tant_que or sc.a_traiter or sc.sans_droits) and sc.largeur in (375, 1280):
         jouer_ccp2(page, res, sc)
+    # Lot 3, tâche 11 : choisir l'habillage dans le menu du compte et Mes préférences, chaque rôle (formateur sans fiche compris), dans les deux habillages ; sur
+    # téléphone, l'enregistrement sur le compte en panne. La page change d'habillage et le banc est rechargé : en dernier.
+    if res.coquille and not (sc.modules or sc.ressources_fermees or sc.voir_en_tant_que or sc.a_traiter or sc.sans_droits) and sc.largeur in (375, 1280):
+        jouer_choix_d_habillage(page, res, sc, panne=sc.largeur == 375)
 
 
 def focus_garde(page, res, vue, geste):
@@ -5875,6 +6568,89 @@ def jouer_demarrage(page, res, sc):
     vider_console(res, vue)
 
 
+# `envois` : le relevé du banc (set_my_habillage), posé dès son chargement ; null quand le banc n'en a pas (un banc sans relevé passerait pour « rien envoyé »).
+JS_APPAREIL = """(cle) => { let brut = null; try { brut = JSON.parse(localStorage.getItem(cle)); } catch (e) { /* illisible */ }
+    return { suite: window.__vnHabillages || null, skin: document.documentElement.dataset.skin || null, appareil: brut,
+             envois: Array.isArray(window.__HARNESS_HABILLAGES) ? window.__HARNESS_HABILLAGES.slice() : null }; }"""
+
+
+def lire_appareil(page):
+    """Ce que la page a porté (suite des habillages), porte, a retenu sur l'appareil, et a envoyé au compte du banc. Attend le défaut posé et l'appareil
+    réécrit par le démarrage (il l'écrit après l'avoir appliqué) : plus l'habillage de l'autre personne, ni son e-mail."""
+    page.wait_for_function("""([cle, autre]) => { if (document.documentElement.dataset.skin !== 'ecsr') return false;
+        try { const a = JSON.parse(localStorage.getItem(cle)); return !!a && a.nom === 'ecsr' && a.email !== autre; } catch (e) { return false; } }""",
+                           arg=[CLE_HABILLAGE, EMAIL_D_AUTRUI], timeout=4000)
+    return page.evaluate(JS_APPAREIL, CLE_HABILLAGE)
+
+
+def verifier_releve(res, vue, m):
+    """Faux et un échec quand le banc ne relève pas les habillages envoyés : « rien envoyé » ne se prouverait pas."""
+    if m["envois"] is None:
+        res.echec("banc sans relevé des habillages", vue, "window.__HARNESS_HABILLAGES n'existe pas : le banc ne relève pas set_my_habillage, "
+                  "« rien envoyé au compte » ne se prouve pas (relancer node _harness_build.mjs avec le faux client du lot 3)")
+        return False
+    return True
+
+
+def jouer_appareil_d_autrui(page, res, sc, options):
+    """Appareil partagé (Review Focus 1) : l'appareil retient le choix ECF d'une autre personne (son e-mail). Le script d'avant-peinture,
+    qui ne sait pas encore qui se connecte, le montre ; une fois le profil lu, la page prend le choix de la personne connectée (ici aucun :
+    le défaut), sans rechargement, n'y revient jamais, ne l'envoie pas au compte, et l'appareil ne l'attribue plus à personne : rechargée,
+    la page s'ouvre directement dans le défaut. Le menu du compte montre « ECSR Promo » pressée (lot 3, tâche 11), pas le choix de l'autre."""
+    regles = regles_de_la_page(page, res, sc)
+    res.profil_stagiaire = bool(regles.get("profilStagiaire"))
+    preparer_coquille(page, res, sc, regles)
+    vue = "%s/ouverture" % sc.nom
+    res.vues += 1
+    try:
+        m = lire_appareil(page)
+    except (DelaiDepasse, ErreurPlaywright):
+        m = page.evaluate(JS_APPAREIL, CLE_HABILLAGE)
+    suite = m["suite"] or []
+    if not suite or suite[0] != "ecf":
+        res.echec("appareil d'une autre personne", vue, "avant la lecture du profil, la page porte « %s » : attendu « ecf », l'habillage que l'appareil retient (suite : %s)"
+                  % (suite[0] if suite else "rien", " puis ".join(suite) or "aucune"))
+    if m["skin"] != "ecsr":
+        res.echec("appareil d'une autre personne", vue, "une fois le démarrage fini, html[data-skin] vaut « %s » : attendu « ecsr », le choix de la personne connectée (aucun)" % m["skin"])
+    if "ecsr" in suite and "ecf" in suite[suite.index("ecsr"):]:
+        res.echec("appareil d'une autre personne", vue, "la page revient à l'habillage de l'autre personne après avoir pris celui de la personne connectée (suite : %s)" % " puis ".join(suite))
+    if verifier_releve(res, vue, m) and "ecf" in m["envois"]:
+        res.echec("appareil d'une autre personne", vue, "le choix ECF de l'autre personne est envoyé au compte de la personne connectée (set_my_habillage : %s)" % m["envois"])
+    a = m["appareil"] or {}
+    if a.get("nom") != "ecsr" or a.get("email") == EMAIL_D_AUTRUI or a.get("choisi") is not False:
+        res.echec("appareil d'une autre personne", vue, "l'appareil retient %s : attendu l'habillage appliqué (ecsr), sans l'e-mail de l'autre personne, et non choisi" % json.dumps(a))
+    vider_console(res, vue)
+    verifier_vue(page, res, sc, "ouverture/" + route_courante(page), options)
+    # Lot 3, tâche 11 : le menu du compte montre le choix de la personne connectée (le défaut), « ECSR Promo » pressée, jamais celui de l'autre.
+    vue = "%s/apparence" % sc.nom
+    res.vues += 1
+    if not res.coquille:
+        # Le scénario attend la nouvelle barre : sans elle, le contrôle ne se joue pas, et c'est un échec, pas une vue réussie.
+        res.echec("appareil d'une autre personne", vue, "la coquille est absente : le menu du compte et sa pastille « ECSR Promo » pressée ne se contrôlent pas")
+    elif cliquer(page, res, vue, '[data-nav-coquille] button[data-nav-action="compte"]:visible', "bouton du compte"):
+        page.wait_for_timeout(300)
+        g = verifier_apparence(page, res, sc, vue, "menu")
+        pressees = [p["habillage"] for p in (g or {"pastilles": []})["pastilles"] if p["presse"] == "true"]
+        if g is not None and pressees != ["ecsr"]:
+            res.echec("appareil d'une autre personne", vue, "le menu du compte presse %s : attendu « ECSR Promo », le choix de la personne connectée (aucun)" % (pressees or "aucune pastille"))
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(250)
+    vider_console(res, vue)
+    # Rechargée, la page s'ouvre dans le défaut : l'appareil ne montre plus le choix de l'autre personne, même avant le profil.
+    vue = "%s/rechargement" % sc.nom
+    res.vues += 1
+    page.reload(wait_until="load")
+    page.evaluate(JS_OUTILS)
+    attendre(page, calme=250, maximum=8000)
+    try:
+        m = lire_appareil(page)
+    except (DelaiDepasse, ErreurPlaywright):
+        m = page.evaluate(JS_APPAREIL, CLE_HABILLAGE)
+    if (m["suite"] or ["?"])[0] != "ecsr" or "ecf" in (m["suite"] or []):
+        res.echec("appareil d'une autre personne", vue, "rechargée, la page porte encore l'habillage de l'autre personne (suite : %s)" % " puis ".join(m["suite"] or ["aucune"]))
+    vider_console(res, vue)
+
+
 def jouer_case_du_fondateur(page, res, sc):
     """Le fondateur ouvre l'app, la lecture du réglage de la promo échoue (lot 2A, tâche 6, ruling R54) : la décision de la session est celle de l'aperçu de l'appareil s'il y
     en a un, sinon celle de la mémoire de l'appareil pour la promo (ruling R17). La case « Nouvelle navigation activée » de Réglages, elle, ne dit que le réglage de la promo,
@@ -6010,6 +6786,9 @@ def jouer_eteint(page, res, sc, options):
         verifier_benevoles_eteint(page, res, sc)
     verifier_barre_des_jours(page, res, sc)
     verifier_lecteur(page, res, sc, options)
+    # Lot 3, tâche 11 : appareil en « Couleurs ECF », le retour à ECSR Promo par Paramètres (la page change d'habillage, puis se recharge : en dernier).
+    if sc.habillage == "ecf" and not sc.voir_en_tant_que:
+        jouer_retour_par_parametres(page, res, sc)
 
 
 def jouer_scenario(navigateur, url, sc, options):
@@ -6020,7 +6799,9 @@ def jouer_scenario(navigateur, url, sc, options):
         contexte = nouveau_contexte(navigateur, sc, options)
         page = nouvelle_page(contexte, res)
         charger(page, url, sc)
-        if sc.demarrage:
+        if sc.appareil_d_autrui:
+            jouer_appareil_d_autrui(page, res, sc, options)
+        elif sc.demarrage:
             jouer_demarrage(page, res, sc)
         elif sc.agenda_vide:
             jouer_agenda_vide(page, res, sc)
@@ -6186,6 +6967,8 @@ def main(argv=None):
     ap.add_argument("--roles", default=",".join(ROLES))
     ap.add_argument("--largeurs", default=",".join(str(l) for l in LARGEURS))
     ap.add_argument("--passes", default="allume,eteint")
+    ap.add_argument("--habillages", default=",".join(HABILLAGES),
+                    help="habillages de la passe allumée (lot 3) : ecsr (défaut), ecf ; avec ecf s'ajoutent la passe éteinte d'un appareil en ECF et l'appareil d'une autre personne")
     ap.add_argument("--sans-menus", action="store_true", help="ne joue pas les menus (boutons du compte et de « Plus » pas encore câblés)")
     ap.add_argument("--tout", action="store_true", help="liste chaque échec et chaque avertissement")
     ap.add_argument("--captures", metavar="DOSSIER", help="une capture d'écran par vue en échec")
@@ -6198,7 +6981,8 @@ def main(argv=None):
     roles = liste_de(args.roles, ROLES, "roles")
     largeurs = liste_de(args.largeurs, LARGEURS, "largeurs", int)
     passes = liste_de(args.passes, ("allume", "eteint"), "passes")
-    scenarios = construire_scenarios(moteurs, roles, largeurs, passes)
+    habillages = liste_de(args.habillages, HABILLAGES, "habillages")
+    scenarios = construire_scenarios(moteurs, roles, largeurs, passes, habillages)
     if not scenarios:
         raise SystemExit("rien à jouer avec ces options")
 

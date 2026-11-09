@@ -40,7 +40,7 @@ BARRE DES FORMATEURS : sur ordinateur, une barre à gauche, avec la promo en tê
 
 CE QUI S'OUVRE AU FIL DE LA FORMATION : les formateurs choisissent ce que voit la promo (Réglages, Ce que voient les stagiaires). Si un stagiaire ne trouve pas une page ou une partie citée ici, elle n'est peut-être pas encore ouverte pour sa promo.
 
-COMPTE (initiales en haut à droite ; formateurs sur ordinateur : en bas de la barre de gauche) : Nouveautés (un point sur les initiales signale celles qui ne sont pas lues, leur nombre est dans le menu), Contacts du centre (pour prévenir d'une absence), Mes préférences, Actualiser (relit les données de l'app), Signaler un problème (stagiaires), Informations légales et Se déconnecter. Une personne qui a une fiche de stagiaire et la barre des formateurs y retrouve aussi Mon suivi.
+COMPTE (initiales en haut à droite ; formateurs sur ordinateur : en bas de la barre de gauche) : Nouveautés (un point sur les initiales signale celles qui ne sont pas lues, leur nombre est dans le menu), Contacts du centre (pour prévenir d'une absence), Mes préférences, Actualiser (relit les données de l'app), Signaler un problème (stagiaires), Informations légales et Se déconnecter. Une personne qui a une fiche de stagiaire et la barre des formateurs y retrouve aussi Mon suivi. En tête du menu, Apparence propose « ECSR Promo » (les couleurs habituelles de l'app) ou « Couleurs ECF » (le bleu et le rouge d'ECF) : on revient à tout moment en touchant « ECSR Promo », au même endroit ou dans Mes préférences.
 
 PAGES
 

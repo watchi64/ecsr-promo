@@ -32,17 +32,6 @@ body[data-nav="v2"] .p-day-card { scroll-margin-top: calc(var(--haut-entete) + 5
    sur téléphone (plus bas). Le panneau de l'assistant s'ouvre au-dessus de leur pile. */
 body[data-nav="v2"] { --bas-bandeaux: calc(16px + env(safe-area-inset-bottom, 0px)); }
 
-/* La barre sombre de l'équipe reprend le crème de l'ancienne barre du haut sur --bg-deep, avec ses
-   transparences (style.css : .topbar, .tab, .promo-pastille) : texte, texte secondaire, survol,
-   entrée allumée, filet et bordure. */
-body[data-nav="v2"] {
-  --nav-creme: #F5E8D0;
-  --nav-creme-doux: rgba(245, 232, 208, 0.55);
-  --nav-creme-survol: rgba(245, 232, 208, 0.07);
-  --nav-creme-allume: rgba(245, 232, 208, 0.12);
-  --nav-creme-filet: rgba(245, 232, 208, 0.08);
-  --nav-creme-bord: rgba(245, 232, 208, 0.25);
-}
 
 /* Texte réservé aux lecteurs d'écran : les mots « non lues » de la pastille des Nouveautés, et le titre
    d'un groupe d'entrées dans la colonne d'icônes (il nomme encore le groupe, voir aria-labelledby). */
@@ -58,10 +47,6 @@ body[data-nav="v2"][data-nav-colonne] .nav-groupe-titre {
   white-space: nowrap;
   border: 0;
 }
-
-/* Un module fermé pour la promo : dans la coquille, le repère (œil barré, infobulle) suffit, le
-   texte garde son contraste (l'atténuation de style.css le ferait passer sous 4,5:1). */
-body[data-nav="v2"] [data-nav-coquille] .module-masque { opacity: 1; }
 
 /* ----- Stagiaire, en-tête : logo et promo, onglets en capsule, Assistant et compte ----- */
 body[data-nav="v2"] .nav-haut {
@@ -243,14 +228,14 @@ body[data-nav="v2"] .nav-compte-point {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--pastille);   /* = --accent par défaut ; le rouge des repères en Couleurs ECF, comme le point de « Plus » */
   box-shadow: 0 0 0 2px var(--bg-elev);
 }
 /* Sur la barre sombre de l'équipe (barre latérale, en-tête du téléphone), le point prend le vert clair des repères
    posés sur fond sombre : son vert d'origine (--accent) n'y tient pas 3:1 contre son liseré (2,9:1), celui-ci 8,2:1. */
 body[data-nav="v2"] .nav-cote .nav-compte-point {
-  background: var(--accent-on-dark);
-  box-shadow: 0 0 0 2px var(--bg-deep);
+  background: var(--repere-sombre);
+  box-shadow: 0 0 0 2px var(--repere-sombre-lisere);
 }
 
 body[data-nav="v2"] [data-nav-coquille] :focus-visible {
@@ -298,9 +283,9 @@ body[data-nav="v2"] .nav-cote {
   flex-direction: column;
   gap: 4px;
   background: var(--bg-deep);
-  color: var(--nav-creme);
+  color: var(--sur-sombre);
 }
-body[data-nav="v2"] .nav-cote :focus-visible { outline-color: var(--nav-creme); }
+body[data-nav="v2"] .nav-cote :focus-visible { outline-color: var(--sur-sombre); }
 
 @media (min-width: 700px) {
   body[data-nav="v2"][data-espace="equipe"] #app { margin-left: var(--larg-cote); }
@@ -336,18 +321,18 @@ body[data-nav="v2"] .nav-contexte {
   column-gap: 10px;
   min-height: 44px;
   padding: 7px 8px;
-  border: 1px solid var(--nav-creme-bord);
+  border: 1px solid var(--sombre-bord);
   border-radius: var(--r-lg);
-  background: var(--nav-creme-survol);
-  color: var(--nav-creme);
+  background: var(--sombre-survol);
+  color: var(--sur-sombre);
   font: inherit;
   text-align: left;
   white-space: nowrap;
 }
 body[data-nav="v2"] button.nav-contexte { cursor: pointer; }
-body[data-nav="v2"] button.nav-contexte:hover { background: var(--nav-creme-allume); }
+body[data-nav="v2"] button.nav-contexte:hover { background: var(--sombre-allume); }
 /* Au survol, le fond s'éclaircit : « Promo » passe en crème plein pour garder 4,5:1 (4,22:1 sinon). */
-body[data-nav="v2"] button.nav-contexte:hover .nav-contexte-type { color: var(--nav-creme); }
+body[data-nav="v2"] button.nav-contexte:hover .nav-contexte-type { color: var(--sur-sombre); }
 body[data-nav="v2"] .nav-contexte-marque {
   grid-row: 1 / span 2;
   display: grid;
@@ -355,8 +340,8 @@ body[data-nav="v2"] .nav-contexte-marque {
   width: 38px;
   height: 38px;
   border-radius: var(--r);
-  background: var(--accent-on-dark);
-  color: var(--bg-deep);
+  background: var(--sombre-marque);
+  color: var(--sur-sombre-marque);
   font-family: var(--font-mono);
   font-size: 0.8rem;
   font-weight: 600;
@@ -371,7 +356,7 @@ body[data-nav="v2"] .nav-contexte-type {
   letter-spacing: 0.12em;
   line-height: 1.25;
   text-transform: uppercase;
-  color: var(--nav-creme-doux);
+  color: var(--sur-sombre-doux);
 }
 body[data-nav="v2"] .nav-contexte-nom,
 body[data-nav="v2"] .nav-contexte .promo-pastille-texte {
@@ -399,10 +384,10 @@ body[data-nav="v2"] .nav-replier {
   border: 0;
   border-radius: var(--r-sm);
   background: transparent;
-  color: var(--nav-creme-doux);
+  color: var(--sur-sombre-doux);
   cursor: pointer;
 }
-body[data-nav="v2"] .nav-replier:hover { background: var(--nav-creme-survol); color: var(--nav-creme); }
+body[data-nav="v2"] .nav-replier:hover { background: var(--sombre-survol); color: var(--sur-sombre); }
 body[data-nav="v2"] .nav-replier .icon { width: 20px; height: 20px; }
 
 /* Entrées : la barre défile en hauteur si l'écran est bas, jamais de côté. La marge négative
@@ -433,7 +418,7 @@ body[data-nav="v2"] .nav-groupe-titre {
   letter-spacing: 0.12em;
   line-height: 1;
   text-transform: uppercase;
-  color: var(--nav-creme-doux);
+  color: var(--sur-sombre-doux);
 }
 body[data-nav="v2"] .nav-entree {
   position: relative;
@@ -447,7 +432,7 @@ body[data-nav="v2"] .nav-entree {
   border: 0;
   border-radius: var(--r);
   background: transparent;
-  color: var(--nav-creme);
+  color: var(--sur-sombre);
   font: inherit;
   font-size: 0.95rem;
   font-weight: 500;
@@ -456,9 +441,9 @@ body[data-nav="v2"] .nav-entree {
   transition: background 0.15s;
 }
 body[data-nav="v2"] .nav-entree > .icon { width: 20px; height: 20px; flex: none; opacity: 0.82; }
-body[data-nav="v2"] .nav-entree:hover { background: var(--nav-creme-survol); }
-body[data-nav="v2"] .nav-entree[aria-current="page"] { background: var(--nav-creme-allume); font-weight: 600; }
-body[data-nav="v2"] .nav-entree[aria-current="page"] > .icon { opacity: 1; color: var(--accent-on-dark); }
+body[data-nav="v2"] .nav-entree:hover { background: var(--sombre-survol); }
+body[data-nav="v2"] .nav-entree[aria-current="page"] { background: var(--sombre-allume); font-weight: 600; }
+body[data-nav="v2"] .nav-entree[aria-current="page"] > .icon { opacity: 1; color: var(--sur-sombre-actif); }
 body[data-nav="v2"] .nav-entree[aria-current="page"]::before {
   content: "";
   position: absolute;
@@ -467,7 +452,7 @@ body[data-nav="v2"] .nav-entree[aria-current="page"]::before {
   left: -10px;
   width: 3px;
   border-radius: 0 3px 3px 0;
-  background: var(--accent-on-dark);
+  background: var(--repere-sombre);
 }
 body[data-nav="v2"] .nav-entree-texte {
   flex: 1;
@@ -478,18 +463,18 @@ body[data-nav="v2"] .nav-entree-texte {
 }
 /* Entrée d'un module fermé : texte atténué, sauf allumée, survolée ou au clavier (son fond plus clair
    ferait passer le texte atténué sous 4,5:1), comme les onglets repérés de l'ancienne barre. */
-body[data-nav="v2"] .nav-entree.module-masque { color: var(--nav-creme-doux); }
+body[data-nav="v2"] .nav-entree.module-masque { color: var(--sur-sombre-doux); }
 body[data-nav="v2"] .nav-entree.module-masque:hover,
 body[data-nav="v2"] .nav-entree.module-masque:focus-visible,
-body[data-nav="v2"] .nav-entree.module-masque[aria-current="page"] { color: var(--nav-creme); }
-body[data-nav="v2"] .nav-cote .marque-masque { margin: 0; color: var(--nav-creme-doux); }
+body[data-nav="v2"] .nav-entree.module-masque[aria-current="page"] { color: var(--sur-sombre); }
+body[data-nav="v2"] .nav-cote .marque-masque { margin: 0; color: var(--sur-sombre-doux); }
 
 body[data-nav="v2"] .nav-cote-pied {
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding-top: 8px;
-  border-top: 1px solid var(--nav-creme-filet);
+  border-top: 1px solid var(--sombre-filet);
 }
 body[data-nav="v2"] .nav-cote-compte {
   display: flex;
@@ -506,8 +491,8 @@ body[data-nav="v2"] .nav-cote-compte {
   text-align: left;
   cursor: pointer;
 }
-body[data-nav="v2"] .nav-cote-compte:hover { background: var(--nav-creme-survol); }
-body[data-nav="v2"] .nav-cote .nav-avatar { background: var(--nav-creme-allume); color: var(--nav-creme); }
+body[data-nav="v2"] .nav-cote-compte:hover { background: var(--sombre-survol); }
+body[data-nav="v2"] .nav-cote .nav-avatar { background: var(--sombre-allume); color: var(--sur-sombre); }
 body[data-nav="v2"] .nav-cote-compte-texte {
   display: flex;
   flex-direction: column;
@@ -522,7 +507,7 @@ body[data-nav="v2"] .nav-cote-compte-texte b {
   line-height: 1.25;
 }
 body[data-nav="v2"] .nav-cote-compte-texte small {
-  color: var(--nav-creme-doux);
+  color: var(--sur-sombre-doux);
   font-size: 0.8rem;
   line-height: 1.25;
 }
@@ -551,7 +536,7 @@ body[data-nav="v2"][data-nav-colonne] .nav-cote-compte { justify-content: center
 body[data-nav="v2"][data-nav-colonne] .nav-groupe {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--nav-creme-filet);
+  border-top: 1px solid var(--sombre-filet);
 }
 body[data-nav="v2"][data-nav-colonne] .nav-entree > .marque-masque {
   position: absolute;
@@ -593,6 +578,18 @@ body[data-nav="v2"] .nav-bas { display: none; }
     gap: 0.5rem;
     height: 56px;
     padding: 0 max(0.75rem, env(safe-area-inset-right, 0px)) 0 max(0.75rem, env(safe-area-inset-left, 0px));
+  }
+  /* Le liseré de l'habillage sous l'en-tête sombre : collé au bas, hors du flux (position absolue sur la barre collante),
+     3 px. Avec « none » (ECSR Promo) il ne peint rien et ne prend aucune place : rien ne bouge au pixel. */
+  body[data-nav="v2"] .nav-cote::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: var(--lisere-habillage);
+    pointer-events: none;
   }
   body[data-nav="v2"] .nav-cote-tete { flex: 1; min-width: 0; }
   body[data-nav="v2"] .nav-contexte { padding: 3px 8px 3px 5px; }
@@ -809,7 +806,8 @@ body[data-nav="v2"] .nav-fenetre-qui {
 body[data-nav="v2"] .nav-fenetre-qui b { font-size: 1rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
 body[data-nav="v2"] .nav-fenetre-qui small { color: var(--text-muted); font-size: 0.82rem; line-height: 1.35; }
 body[data-nav="v2"] .nav-fenetre-section,
-body[data-nav="v2"] .nav-fenetre .nav-groupe-titre {
+body[data-nav="v2"] .nav-fenetre .nav-groupe-titre,
+body[data-nav="v2"] .nav-fenetre .habillage-titre {
   margin: 0;
   padding: 12px 8px 8px;
   font-family: var(--font-mono);
@@ -861,8 +859,8 @@ body[data-nav="v2"] .nav-pastille {
   height: 20px;
   padding: 0 6px;
   border-radius: 999px;
-  background: var(--accent);
-  color: var(--bg-elev);
+  background: var(--pastille);
+  color: var(--sur-pastille);
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1;
@@ -876,8 +874,9 @@ body[data-nav="v2"] .nav-fenetre-lien > .nav-a-traiter { flex: none; }
    comme celle de « Signaler un problème » (css/signalement.css, qui n'en règle que la place) ; le tiroir « Plus » et l'en-tête
    clair du stagiaire, hors de .nav-cote, gardent la leur. */
 body[data-nav="v2"] .nav-cote .nav-pastille {
-  background: var(--accent-on-dark);
-  color: var(--bg-deep);
+  background: var(--repere-sombre);
+  color: var(--sur-repere-sombre);
+  box-shadow: 0 0 0 2px var(--repere-pastille-lisere);   /* aucun par défaut ; blanc en « Couleurs ECF », sur l'entrée allumée */
 }
 /* Colonne d'icônes : le libellé est masqué, la pastille se pose au coin haut droit de l'icône, hors du flux ; l'œil des
    modules fermés, qui occupait ce coin, passe en bas. */
@@ -967,7 +966,7 @@ body[data-nav="v2"] .p-aujourdhui { min-height: 44px; }
 body[data-nav="v2"] .bnv-page { max-width: 680px; }
 /* Après « Modifier », le formulaire est ramené en haut du bloc (scrollIntoView, js/views/benevoles.js) : sous l'en-tête collant du téléphone, pas derrière lui. */
 body[data-nav="v2"] .bnv-page { scroll-margin-top: calc(var(--haut-entete) + 8px); }
-body[data-nav="v2"] .bnv-page h3 { margin: 0 0 1.25rem; font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
+body[data-nav="v2"] .bnv-page h3 { margin: 0 0 1.25rem; font-size: 1.15rem; font-weight: var(--poids-titre-semi); letter-spacing: -0.01em; }
 body[data-nav="v2"] .bnv-page .field { min-width: 0; }
 body[data-nav="v2"] .bnv-page .field input,
 body[data-nav="v2"] .bnv-page .field select { width: 100%; min-width: 0; }
@@ -1014,6 +1013,62 @@ body[data-nav="v2"] .qcm-close { width: 44px; height: 44px; }
   body[data-nav="v2"] .qcm-sheet-body .btn,
   body[data-nav="v2"] .theme-modal .modal-actions .btn { min-height: 44px; }
 }
+
+/* ----- Apparence : le choix de l'habillage (lot 3, js/habillage-choix.js) ----- */
+/* Hors de body[data-nav="v2"], à la différence du reste de cette feuille : la section Apparence s'affiche aussi dans les
+   Paramètres de l'ancienne barre, pour qui est en Couleurs ECF (décision H6). Ses classes ne servent nulle part ailleurs :
+   rien d'autre ne bouge. Deux pastilles côte à côte, 52 px de haut à toute taille (44 au moins sur téléphone) ; la pressée
+   est bordée de l'accent, avec un anneau. La pastille de couleur montre son habillage (jetons --apercu-*, famille fixe). */
+.habillage-pastilles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.habillage-pastille {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-elev);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+}
+.habillage-pastille:hover { background: var(--bg-subtle); }
+.habillage-pastille[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.habillage-apercu {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--apercu-contour);
+}
+.habillage-pastille[data-habillage="ecsr"] .habillage-apercu {
+  background: conic-gradient(var(--apercu-ecsr-1) 0 50%, var(--apercu-ecsr-2) 50% 75%, var(--apercu-ecsr-3) 75% 100%);
+}
+.habillage-pastille[data-habillage="ecf"] .habillage-apercu {
+  background: conic-gradient(var(--apercu-ecf-1) 0 50%, var(--apercu-ecf-2) 50% 75%, var(--apercu-ecf-3) 75% 100%);
+}
+/* Deux lignes dans la pastille : le nom, puis d'où vient l'habillage, plus petit et en texte atténué (4,5:1 au moins sur le
+   fond de la pastille, pressée ou survolée, dans les deux habillages). Le retour à la ligne se fait entre deux mots. */
+.habillage-textes { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.habillage-libelle { min-width: 0; overflow-wrap: break-word; }
+.habillage-legende { min-width: 0; font-size: 0.74rem; font-weight: 500; line-height: 1.2; color: var(--text-muted); overflow-wrap: break-word; }
+/* Dans le menu du compte, juste sous sa tête : le titre a l'allure des titres de section de la fenêtre (plus haut), les
+   pastilles en retrait comme dans la maquette ; le groupe ne rétrécit pas quand le menu défile. */
+body[data-nav="v2"] .nav-fenetre .habillage-choix { flex: none; }
+body[data-nav="v2"] .nav-fenetre .habillage-pastilles { padding: 0 6px 6px; }
 
 /* ----- Impression : ni la coquille, ni ce qu'elle impose à la page ----- */
 /* La marge de la barre latérale battrait le « margin: 0 » de l'impression des Indicateurs (style.css,
