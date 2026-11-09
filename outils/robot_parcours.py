@@ -276,7 +276,7 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, 
     (dossier / "resultats.json").write_text(json.dumps(resultats, ensure_ascii=False, indent=1), encoding="utf-8")
     # Planche : l'écran de fin de chaque passage, pour juger l'attrait visuel (critère K) à l'œil.
     cartes = []
-    for r in sorted(resultats, key=lambda r: (r["parcours"], r["navigation"], r["format"], r["moteur"])):
+    for r in sorted(resultats, key=lambda r: (r["parcours"], r["navigation"], r["format"], r["moteur"], r["habillage"])):
         if r.get("capture_finale"):
             cartes.append('<figure><img loading="lazy" src="captures/%s" alt=""><figcaption><b>%s</b><br>%s</figcaption></figure>' % (
                 html.escape(r["capture_finale"]), html.escape(registre[r["parcours"]].titre), html.escape(libelle(r))))
@@ -347,7 +347,9 @@ def main(argv=None):
     if not total:
         print("Aucun passage à jouer avec ces options (formats ou navigations que ces parcours n'acceptent pas).")
         return 2
-    print("%d passages : %d parcours, %s, %s, %s, %s\n" % (total, len(voulus), "+".join(moteurs), "+".join(formats), "+".join(navigations), "+".join(habillages)), flush=True)
+    # Les habillages ne sont nommés que s'ils ne sont pas le seul défaut : la ligne du défaut reste celle d'avant.
+    suite = "" if habillages == ["ecsr"] else ", " + "+".join(habillages)
+    print("%d passages : %d parcours, %s, %s, %s%s\n" % (total, len(voulus), "+".join(moteurs), "+".join(formats), "+".join(navigations), suite), flush=True)
 
     resultats, erreurs_moteurs = [], []
     serveur, base_url = banc.demarrer_serveur()
