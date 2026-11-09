@@ -5,25 +5,26 @@
  * reconstruire. Les cartes viennent de semaineEnGrille (js/journee-rules.js) : ce module ne calcule aucune règle, il
  * dessine. Les classes sont celles de la maquette (wgrid, wg-*, daystrip, vue-toggle).
  */
-import { el } from "../utils.js?v=20261109g";
-import { icon, deco } from "../icons.js?v=20261109g";
-import { etiquetteSemaine, alerteDeCarte } from "../journee-rules.js?v=20261109g";
+import { el } from "../utils.js?v=20261109i";
+import { icon, deco } from "../icons.js?v=20261109i";
+import { etiquetteSemaine, alerteDeCarte } from "../journee-rules.js?v=20261109i";
 
 // Mémoire de l'appareil : la forme choisie (js/journee-rules.js, vuePlanningInitiale).
 export const CLE_VUE_PLANNING = "planning.vue";
 
-const pluriel = (n, un, plusieurs) => `${n} ${n > 1 ? plusieurs : un}`;
-
 // Les lignes de texte sous l'étiquette d'une carte. Stagiaire : qui est sur la carte (au tableau en salle, au volant en
-// voiture) et avec quel formateur. Équipe : le ou les formateurs et les effectifs.
+// voiture) et avec quel formateur. Équipe : le ou les formateurs, puis les prénoms de qui passe au tableau, de qui conduit
+// et des élèves bénévoles (audit du 09/11, lot B, B4 : « 2 en voiture · 2 élèves » obligeait à chercher ailleurs qui monte
+// en voiture).
 function lignesDeCarte(c, equipe) {
   if (equipe) {
-    const parts = [];
-    if (c.formateurs.length) parts.push(c.formateurs.join(", "));
-    if (c.tableau.length) parts.push(`${c.tableau.length} au tableau`);
-    if (c.conducteurs.length) parts.push(`${c.conducteurs.length} en voiture`);
-    if (c.benevoles.length) parts.push(pluriel(c.benevoles.length, "élève", "élèves"));
-    return parts.length ? [parts.join(" · ")] : [];
+    const noms = (liste) => liste.map((x) => (typeof x === "string" ? x : x.nom)).filter(Boolean).join(", ");
+    const lignes = [];
+    if (c.formateurs.length) lignes.push(c.formateurs.join(", "));
+    if (noms(c.tableau)) lignes.push("Au tableau : " + noms(c.tableau));
+    if (noms(c.conducteurs)) lignes.push("En voiture : " + noms(c.conducteurs));
+    if (noms(c.benevoles)) lignes.push((c.benevoles.length > 1 ? "Élèves bénévoles : " : "Élève bénévole : ") + noms(c.benevoles));
+    return lignes;
   }
   const lignes = [];
   const qui = (c.tableau.length ? c.tableau : c.conducteurs).map((x) => x.nom).filter(Boolean);

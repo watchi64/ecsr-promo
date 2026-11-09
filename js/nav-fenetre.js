@@ -12,7 +12,7 @@
 // page change. Un remontage de la coquille ferme la fenêtre ouverte, dont les lignes et le bouton sont
 // ceux de la coquille remplacée, et rend son focus dans la nouvelle.
 
-import { el, suspendreAnnonce } from "./utils.js?v=20261109g";
+import { el, suspendreAnnonce } from "./utils.js?v=20261109i";
 
 const FOCALISABLES = 'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), '
   + 'textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
@@ -25,7 +25,10 @@ const affiche = (e) => !!e && e.isConnected && e.getClientRects().length > 0;
 // `contenu` : les nœuds de la fenêtre, en liste (imbriquée au besoin, les null sont ignorés). En tête, la
 // poignée du tiroir et « Fermer », que css/navigation.css n'affiche que sur téléphone : hors du voile, le
 // seul moyen visible d'en sortir sans choisir une ligne.
-export function ouvrirFenetre({ nom, ancre, etiquette, classe, contenu }) {
+// `retour` (facultatif) : l'élément, ou la fonction qui le rend au moment de la fermeture, où rendre le focus quand le
+// bouton d'ouverture manque ou a disparu (fenêtre ouverte par un lien, bandeau redessiné) ; l'ancienne barre n'a pas de
+// bouton du compte où retomber.
+export function ouvrirFenetre({ nom, ancre, etiquette, classe, contenu, retour = null }) {
   fermerFenetre({ focus: false });
   const haut = el("div", { class: "nav-fenetre-haut" },
     el("button", { type: "button", class: "nav-fenetre-fermer", onClick: () => fermerFenetre() }, "Fermer"));
@@ -43,7 +46,7 @@ export function ouvrirFenetre({ nom, ancre, etiquette, classe, contenu }) {
   document.addEventListener("keydown", auClavier, true);
   window.addEventListener("hashchange", surChangementAdresse);
   if (ancre) ancre.setAttribute("aria-expanded", "true");
-  ouverte = { nom, calque, fenetre, ancre, action: ancre ? ancre.dataset.navAction : null };
+  ouverte = { nom, calque, fenetre, ancre, action: ancre ? ancre.dataset.navAction : null, retour };
   fenetre.focus({ preventScroll: true });
   return fenetre;
 }
@@ -77,12 +80,12 @@ function oublierFenetre() {
 // la fenêtre, renvoie la fonction qui le rendra plus tard (après le remontage de la coquille) ; null sinon.
 export function fermerFenetre({ focus = true } = {}) {
   if (!ouverte) return null;
-  const { calque, ancre, action } = ouverte;
+  const { calque, ancre, action, retour } = ouverte;
   const focusDedans = calque.contains(document.activeElement);
   oublierFenetre();
   calque.remove();
   if (ancre) ancre.setAttribute("aria-expanded", "false");
-  const rendre = () => rendreFocus(ancre, action);
+  const rendre = () => rendreFocus(ancre, action, retour);
   if (focus) {
     rendre();
     return null;
@@ -92,11 +95,13 @@ export function fermerFenetre({ focus = true } = {}) {
 
 // Le focus revient au bouton qui a ouvert la fenêtre (ou le panneau de l'assistant, js/nav-shell.js).
 // S'il a disparu ou ne s'affiche plus (coquille remontée, autre espace, écran élargi), il va à un bouton
-// affiché de la même action, sinon au bouton du compte, que chaque espace affiche à toute taille : jamais au
-// corps de la page.
-export function rendreFocus(ancre, action) {
+// affiché de la même action, sinon au point de retour de la fenêtre (`retour`, élément ou fonction), sinon au bouton
+// du compte, que chaque espace de la nouvelle navigation affiche à toute taille : jamais au corps de la page.
+export function rendreFocus(ancre, action, retour = null) {
   const visible = (a) => (a ? [...document.querySelectorAll(`[data-nav-coquille] [data-nav-action="${a}"]`)].find(affiche) : null);
-  const cible = (affiche(ancre) && ancre) || visible(action) || visible("compte");
+  let point = null;
+  try { point = typeof retour === "function" ? retour() : retour; } catch (e) { point = null; }
+  const cible = (affiche(ancre) && ancre) || visible(action) || (affiche(point) && point) || visible("compte");
   if (cible) cible.focus({ preventScroll: true });
 }
 

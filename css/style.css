@@ -8836,4 +8836,53 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
     grid-template-columns: auto 1fr;
     grid-template-areas: "num titre" "cours cours" "qcm qcm";
   }
+/* ============================================================
+   Planning, audit du 09/11 (lot B) : l'éditeur et la barre de la semaine.
+   ============================================================ */
+/* B1 : une carte étroite (trois activités au même horaire) garde le nom de son activité ; le formateur passe à la ligne
+   au lieu de l'écraser, la corbeille reste au bout de la première ligne. */
+.p-lane-header { flex-wrap: wrap; }
+.p-lane-activite-wrap { flex: 1 1 9.5rem; min-width: min(9.5rem, 100%); }
+.p-lane-delete { margin-left: auto; }
+
+/* B5 : le dé et l'absence disent ce qu'ils font. Le mot suit l'icône ; ni opacité ni gris pâle (contraste AA). */
+.p-dice-btn, .p-abs-btn {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-size: 0.78rem; font-weight: 600; line-height: 1;
+}
+.p-dice-btn svg, .p-abs-btn svg { width: 15px; height: 15px; flex: none; }
+.p-dice-mot { white-space: nowrap; }
+.p-dice-btn { color: var(--text); }
+/* Le dé tourne, pas le mot : la rotation passe du bouton à son icône. */
+.p-dice-btn:hover, .p-dice-btn:active { transform: none; }
+.p-dice-btn svg { transition: transform 0.12s; }
+.p-dice-btn:hover svg { transform: rotate(15deg); }
+.p-dice-btn:active svg { transform: rotate(360deg) scale(0.92); transition: transform 0.4s; }
+.p-abs-btn {
+  height: 30px; padding: 0.18rem 0.45rem; opacity: 1;
+  border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); color: var(--text-soft);
+}
+.p-abs-btn:hover { border-color: var(--c-stop); color: var(--c-stop); }
+.p-abs-btn.active { background: var(--c-stop-soft); border-color: var(--c-stop); color: var(--c-stop); }
+/* « Au tableau » : le choix du stagiaire garde sa largeur, « Tirer » et « Absent » passent à la ligne s'il le faut. */
+.p-lane-role.pedagogue { flex-wrap: wrap; row-gap: 0.35rem; }
+.p-lane-role.pedagogue .person-select { flex: 1 1 8rem; min-width: 0; }
+
+/* « Vider les placements » à l'écart de « Placer la semaine » : en bout de barre. */
+.week-bar-actions .p-vider-btn { margin-left: auto; }
+
+/* Téléphone, mode Modifier : les commandes de l'éditeur à 44 px (le bloc des cibles du lot E l'écartait). */
+@media (max-width: 699.98px) {
+  .p-editing .p-dice-btn, .p-editing .p-abs-btn, .p-editing .p-lane-delete, .p-editing .p-lane-drag,
+  .p-editing .p-salle-toggle-btn, .p-editing .p-day-toggle, .p-editing .p-add-suite,
+  .p-editing .p-add-parallele-mini, .p-editing .p-dice-option, .p-edit-pill-btn {
+    min-height: 44px; min-width: 44px;
+  }
+  .p-editing .p-dice-btn, .p-editing .p-abs-btn { height: auto; }
+  .p-editing :is(.p-half-head.editable, .p-lane-activite-wrap select, .p-prof-display, .chips-display, .person-display,
+    .p-lane-notes-input, .sujet-chip-input) { min-height: 44px; }
+  /* La croix d'un thème : 44 px à toucher, sans grandir la pastille (marges négatives, fond transparent). */
+  .p-editing .sujet-chip-x { min-width: 44px; min-height: 44px; margin: -0.6rem -0.6rem -0.6rem -0.3rem; }
+  /* Barre des jours de la liste (lecture et édition) : 44 px aussi. */
+  .p-daynav-btn { min-height: 44px; }
 }

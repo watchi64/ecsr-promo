@@ -24,6 +24,21 @@
 // pas de numéro de version, pas de nom de fichier.
 
 export const NOUVEAUTES = [
+  {
+    // Mise en ligne du 09/11/2026 (migration appliquée le même jour). Premier du fichier : à date égale avec le lot 2B,
+    // c'est elle que montre la carte « Nouveauté » de l'Accueil, la plus récente.
+    id: "2026-11-09-questionnaires-anonymes",
+    date: "2026-11-09",
+    pour: "tous",
+    titre: "Ton avis sur la formation, sans ton nom",
+    resume: "À la fin de la formation, un court questionnaire s'affiche en haut de l'Accueil : "
+          + "quelques questions sur la formation elle-même, à noter de 1 à 4, avec « Sans avis » quand tu ne sais "
+          + "pas. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date ; dans l'application, personne "
+          + "ne peut voir qui a répondu quoi, et les résultats n'apparaissent qu'à partir de 5 réponses. "
+          + "« Plus tard » le fait revenir le lendemain. Les formateurs ont leur propre questionnaire, et quelques "
+          + "questions reviendront six mois après la fin de la formation.",
+    ou: { label: "Accueil", route: "home" },
+  },
   // Lot 2B de la refonte (date de la fusion). À date égale, l'ordre du fichier est gardé : la journée du stagiaire
   // d'abord, c'est elle que montre la carte « Nouveauté » de son Accueil.
   {
@@ -259,14 +274,42 @@ export const NOUVEAUTES = [
     ou: { label: "Accueil", route: "home" },
   },
   {
+    id: "2026-11-09-planning-plus-clair",
+    date: "2026-11-09",
+    pour: "formateurs",
+    titre: "Planning : plus clair sur téléphone et en mode Modifier",
+    resume: "Le planning va plus vite à l'essentiel. En mode Modifier, chaque activité garde son nom en entier, même à "
+          + "trois sur le même horaire, et une activité seule sur son créneau prend toute la largeur. « Terminer » devient "
+          + "« Quitter l'édition », pour ne plus ressembler à « Valider la semaine ».",
+    ou: { label: "Planning", route: "planning" },
+    guide: [
+      "En mode Modifier, « Quitter l'édition » revient à la lecture : tout est déjà enregistré. « Valider la semaine » "
+        + "enregistre les passages des jours écoulés. « Vider les placements » est en bout de barre, à l'écart de « Placer "
+        + "la semaine ».",
+      "Sur une carte, les dés disent « Tirer » ou « Tirer au sort », et le bouton d'absence dit « Absent ». Sur téléphone, "
+        + "chaque commande de l'éditeur est assez grande pour le doigt.",
+    ],
+    guideNouvelle: [
+      "En mode Modifier, « Quitter l'édition » revient à la lecture : tout est déjà enregistré. « Valider la semaine » "
+        + "enregistre les passages des jours écoulés. « Vider les placements » est en bout de barre, à l'écart de « Placer "
+        + "la semaine ».",
+      "Sur une carte, les dés disent « Tirer » ou « Tirer au sort », et le bouton d'absence dit « Absent ». Sur téléphone, "
+        + "chaque commande de l'éditeur est assez grande pour le doigt.",
+      "La grille de la semaine donne les prénoms : qui passe au tableau, qui conduit, quels élèves bénévoles.",
+      "Dans la barre de la semaine, « Grille / Liste » (« Jour / Liste » sur téléphone) est à côté de « Modifier » et "
+        + "d'« Imprimer ». « Revenir à aujourd'hui » apparaît quand tu regardes une autre semaine. L'émargement s'ouvre par "
+        + "sa page ou par le bandeau, et la banque des élèves bénévoles par Stagiaires (ou depuis le mode Modifier).",
+    ],
+  },
+  {
     id: "2026-11-09-finitions-planning",
     date: "2026-11-09",
     pour: "formateurs",
     titre: "Planning : des icônes à la place des émojis",
     resume: "Dans le planning, les petits dessins en couleur laissent la place aux icônes du reste de l'app : un "
           + "crayon pour « Modifier », des dés pour le placement automatique, une gomme pour « Vider les placements ». "
-          + "Avec la nouvelle barre, le bouton « Cette semaine » disparaît, sur ordinateur comme sur téléphone : "
-          + "« Aujourd'hui », en haut du planning, ramène déjà à la semaine en cours. L'ancienne barre le garde.",
+          + "Avec la nouvelle barre, le bouton « Cette semaine » disparaît, sur ordinateur comme sur téléphone ; "
+          + "l'ancienne barre le garde.",
     ou: { label: "Planning", route: "planning" },
   },
   {
@@ -299,7 +342,7 @@ export const NOUVEAUTES = [
           + "formateurs, dans Notes et examens), et les contacts du centre dans le menu de ton compte. "
           + "Certaines parties s'ouvrent au fil de la formation.",
     guide: [
-      "Dans Planning, Semaine, le bouton « Aujourd'hui », en tête de la page, t'amène à la journée du jour.",
+      "Dans Planning, Semaine, la journée du jour est repérée ; depuis une autre semaine, « Revenir à aujourd'hui » t'y ramène.",
       "Ton compte s'ouvre avec tes initiales, en haut à droite (sur ordinateur, les formateurs le trouvent "
         + "en bas de la barre de gauche). Un point y signale des Nouveautés pas encore lues ; leur nombre est dans le menu.",
       "Dans le menu du compte : les Nouveautés, les contacts du centre (pour prévenir d'une absence), "
@@ -974,7 +1017,7 @@ export const NOUVEAUTES = [
     ou: { label: "Planning", route: "planning" },
     guide: [
       "Ouvre le planning, il est en lecture seule par défaut.",
-      "Clique sur « Modifier » pour éditer, « Terminer » pour en sortir.",
+      "Clique sur « Modifier » pour éditer, « Quitter l'édition » pour en sortir.",
       "Coche le verrou dans « Valider la semaine » quand la semaine est figée. Ctrl + Z la déverrouille.",
     ],
   },

@@ -1,28 +1,29 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261109g";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261109g";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261109g";
-import { libelleCreneau } from "../emargement-rules.js?v=20261109g";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109g";
-import { renderEpcfPersonne } from "./epcf.js?v=20261109g";
-import { renderSubTabs } from "../subtabs.js?v=20261109g";
-import { renderDp } from "./dp.js?v=20261109g";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261109g";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261109g";
-import { bandeauAvis } from "../avis.js?v=20261109g";
-import { statsPassages } from "../passages-stats.js?v=20261109g";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261109g";
-import { icon } from "../icons.js?v=20261109g";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261109g";
-import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261109g";
-import { exemplesRemplis } from "../dp-rules.js?v=20261109g";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261109g";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261109g";
-import { navigationV2Active } from "../nav-etat.js?v=20261109g";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109g";
-import { renderNotes } from "./notes.js?v=20261109g";
+         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261109i";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261109i";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261109i";
+import { libelleCreneau } from "../emargement-rules.js?v=20261109i";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109i";
+import { renderEpcfPersonne } from "./epcf.js?v=20261109i";
+import { renderSubTabs } from "../subtabs.js?v=20261109i";
+import { renderDp } from "./dp.js?v=20261109i";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261109i";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261109i";
+import { bandeauAvis } from "../avis.js?v=20261109i";
+import { statsPassages } from "../passages-stats.js?v=20261109i";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261109i";
+import { icon } from "../icons.js?v=20261109i";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261109i";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261109i";
+import { exemplesRemplis } from "../dp-rules.js?v=20261109i";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261109i";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261109i";
+import { navigationV2Active } from "../nav-etat.js?v=20261109i";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109i";
+import { renderNotes } from "./notes.js?v=20261109i";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261109i";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -843,7 +844,12 @@ export async function renderMonSuivi(container) {
   );
   const corps = el("div", { class: "ms-body" });
   const bandeau = bandeauAvis();
+  // Questionnaire anonyme à remplir (Qualiopi) : Mon espace est la page d'ouverture des stagiaires dans l'ancienne
+  // navigation. Dans la nouvelle, l'ouverture est l'Accueil (« Ta journée », qui porte le bandeau) et Mon suivi garde son
+  // sommaire entier au-dessus de la barre du bas sur téléphone (contrôle du vérificateur de navigation).
+  const questionnaire = navigationV2Active() ? null : bandeauQuestionnaire();
   container.appendChild(header);
+  if (questionnaire) container.appendChild(questionnaire);
   if (bandeau) container.appendChild(bandeau);
   container.appendChild(corps);
   if (monId == null) {
@@ -880,6 +886,7 @@ export async function renderMonSuivi(container) {
     // navigation) remplace l'en-tête.
     header.hidden = affiche === "partie";
     if (bandeau) bandeau.hidden = affiche === "partie";
+    if (questionnaire) questionnaire.hidden = affiche === "partie";
     // Nouvelle navigation : le retour, le titre de la partie et son contenu se tiennent (css/pages.css).
     corps.classList.toggle("ms-body-partie", v2 && affiche === "partie");
     if (disposition === "sommaire") window.scrollTo(0, 0);

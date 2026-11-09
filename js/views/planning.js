@@ -8,28 +8,28 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
   avantChangementPromo,
-} from "../db.js?v=20261109g";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261109g";
-import { icon, deco } from "../icons.js?v=20261109g";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261109g";
-import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261109g";
-import { recordUndo } from "../undo.js?v=20261109g";
-import { getCurrentWho } from "../identity.js?v=20261109g";
-import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261109g";
-import { meilleurResultat } from "../passage-rules.js?v=20261109g";
-import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109g";
-import { emargementActif } from "../emargement-etat.js?v=20261109g";
-import { libelleHeure } from "../emargement-rules.js?v=20261109g";
-import { navigationV2Active } from "../nav-etat.js?v=20261109g";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109g";
+} from "../db.js?v=20261109i";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261109i";
+import { icon, deco } from "../icons.js?v=20261109i";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261109i";
+import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261109i";
+import { recordUndo } from "../undo.js?v=20261109i";
+import { getCurrentWho } from "../identity.js?v=20261109i";
+import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261109i";
+import { meilleurResultat } from "../passage-rules.js?v=20261109i";
+import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109i";
+import { emargementActif } from "../emargement-etat.js?v=20261109i";
+import { libelleHeure } from "../emargement-rules.js?v=20261109i";
+import { navigationV2Active } from "../nav-etat.js?v=20261109i";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109i";
 import {
   entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe, colonnesParalleles,
-} from "../planning-roles.js?v=20261109g";
+} from "../planning-roles.js?v=20261109i";
 import {
   DEFAULT_HALF_META, semaineEnGrille, jourParDefaut, lundiEnCours, vuePlanningInitiale,
-} from "../journee-rules.js?v=20261109g";
-import { nomsStagiaires } from "../planning-lecture.js?v=20261109g";
-import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261109g";
+} from "../journee-rules.js?v=20261109i";
+import { nomsStagiaires } from "../planning-lecture.js?v=20261109i";
+import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261109i";
 
 let stagiaires = [];
 let profs = [];
@@ -60,7 +60,6 @@ function canEditWeek() { return isAdmin() && editMode && !isLocked(semaineLundi)
 // La forme choisie se garde sur l'appareil ; le jour montré sur téléphone se garde le temps de la visite.
 let vuePlanning = null;       // "grille" | "liste", lue une fois de la mémoire de l'appareil
 let jourTelephone = null;     // l'index du jour choisi sur téléphone ; null : aujourd'hui, sinon lundi
-let basculeNoeud = null;      // le groupe « Grille / Liste » posé à côté des sous-onglets, à retirer en les quittant
 
 function vueChoisie() {
   if (vuePlanning === null) {
@@ -74,16 +73,11 @@ function vueChoisie() {
 // La grille remplace les cartes dès qu'on ne modifie pas : stagiaires, formateur hors mode Modifier, semaine verrouillée.
 function grilleAffichee() { return navigationV2Active() && !canEditWeek() && vueChoisie() === "grille"; }
 
-function retirerBascule() {
-  if (basculeNoeud) basculeNoeud.remove();
-  basculeNoeud = null;
-}
-
-// Sur une ligne à droite, sous les sous-onglets de la page ; sans barre de sous-onglets (un seul reste ouvert), en tête de la semaine.
-function poserBascule(container) {
-  retirerBascule();
-  if (!navigationV2Active() || canEditWeek()) return;
-  const groupe = bascule({
+// Le groupe « Grille / Liste » (« Jour / Liste » sur téléphone), rangé avec les actions de la barre de la semaine
+// (audit du 09/11, lot B) ; null hors de la nouvelle navigation et en mode Modifier, où l'éditeur est la liste.
+function basculeDeLaVue() {
+  if (!navigationV2Active() || canEditWeek()) return null;
+  return bascule({
     vue: vueChoisie(),
     onChange: (vue) => {
       vuePlanning = vue;
@@ -91,11 +85,6 @@ function poserBascule(container) {
       renderInto(currentContainer);
     },
   });
-  // Dans une ligne à elle, jamais dans la barre : la barre est une tablist, qui ne contient que des onglets.
-  basculeNoeud = el("div", { class: "plan-bar" }, groupe);
-  const barre = container.closest(".subtabs")?.querySelector(":scope > .subtabs-bar");
-  if (barre) barre.after(basculeNoeud);
-  else container.appendChild(basculeNoeud);
 }
 
 // Les noms de la grille viennent de l'état déjà chargé (ni relecture, ni nouvelle requête), comme chargerSemaine.
@@ -1768,16 +1757,17 @@ function buildTableauRole(entry, lid, group) {
     "aria-label": "Tirer 1 stagiaire au tableau",
     title: "Tirer 1 stagiaire au tableau (le moins passé cette semaine)",
     onClick: () => randomFillPedagogue(lid, group),
-  }, deco(icon.dices())));
+  }, deco(icon.dices()), el("span", { class: "p-dice-mot" }, "Tirer")));
   // Absence de dernière minute (spec 2026-07-19) : le prévu reste affiché, barré.
   const absPeda = currentVal != null ? absenceOf(entry, currentVal) : null;
   if (absPeda) pedaRole.classList.add("role-absent");
   if (currentVal != null) {
+    // Un mot à côté du cercle barré (audit, B5 : icône seule) ; l'état se lit aussi au toucher (aria-pressed).
     pedaRole.appendChild(el("button", {
-      class: "p-abs-btn" + (absPeda ? " active" : ""), type: "button",
+      class: "p-abs-btn" + (absPeda ? " active" : ""), type: "button", "aria-pressed": absPeda ? "true" : "false",
       title: absPeda ? "Annuler l'absence" : "Marquer absent(e) : dernière minute (le passage comptera « Absence »)",
       onClick: () => setAbsence(lid, currentVal, absPeda ? "unmark" : "mark"),
-    }, "⊘"));
+    }, deco(icon.ban()), el("span", { class: "p-dice-mot" }, "Absent")));
   }
   return pedaRole;
 }
@@ -1811,7 +1801,7 @@ function buildElevesRoleSalle(entry, lid, group) {
         ? "Tirer les 4 stagiaires de la demi-journée (les mêmes pour les 2 groupes, priorité aux moins passés)"
         : "Tirer 4 stagiaires (priorité aux moins passés)",
       onClick: () => (double ? randomFillElevesShared(lid) : randomFillEleves(lid, group)),
-    }, deco(icon.dices()))
+    }, deco(icon.dices()), el("span", { class: "p-dice-mot" }, "Tirer au sort"))
   ));
   eleveRole.appendChild(eleveCol);
   return eleveRole;
@@ -1946,7 +1936,7 @@ function renderLaneCell(entry) {
       const diceBtn = el("button", {
         class: "p-dice-btn", type: "button",
         "aria-label": "Tirer des stagiaires", title: "Tirer des stagiaires voiture",
-      }, deco(icon.dices()));
+      }, deco(icon.dices()), el("span", { class: "p-dice-mot" }, "Tirer au sort"));
       const picker = el("div", { class: "p-dice-picker hidden" });
       [1, 2, 3].forEach((n) => {
         picker.appendChild(el("button", {
@@ -2055,7 +2045,7 @@ function renderLaneCell(entry) {
 
 // === Rendu d'un slot (rangée = série, contient N lanes en parallèle) ===
 
-function renderSlotRow(d, half, row, maxLanes, rangs) {
+function renderSlotRow(d, half, row, rangs) {
   const slotEl = el("div", { class: "p-slot-row" });
 
   // Marqueur du slot
@@ -2063,12 +2053,14 @@ function renderSlotRow(d, half, row, maxLanes, rangs) {
     el("span", { class: "p-slot-num" }, String(row.slot + 1))
   ));
 
-  // Lanes : grid à `maxLanes` colonnes (+ une colonne fine pour le bouton parallèle) ; `rangs[k]` : la colonne de la
-  // k-ième entrée du créneau (colonnesParalleles de js/planning-roles.js).
+  // Lanes : autant de colonnes que d'activités DANS CE CRÉNEAU (+ une colonne fine pour le bouton parallèle) ; `rangs[k]` :
+  // la colonne de la k-ième entrée du créneau (colonnesParalleles de js/planning-roles.js). Une activité seule sur son
+  // créneau prend toute la largeur, même si un autre créneau de la demi-journée en a trois (audit du 09/11, lot B, B1 :
+  // aligner les colonnes d'un créneau à l'autre laissait des cartes étroites au bord, titre coupé).
   // `has-parallel` : 2+ activités au même horaire → encadrées en groupe sur mobile.
+  const nb = Math.max(1, row.lanes.length);
   const lanes = el("div", { class: "p-lanes" + (row.lanes.length > 1 ? " has-parallel" : "") });
-  // Grid template : N colonnes de cellules de même largeur + 1 colonne 40px pour le "+"
-  lanes.style.gridTemplateColumns = `repeat(${maxLanes}, minmax(0, 1fr)) 40px`;
+  lanes.style.gridTemplateColumns = `repeat(${nb}, minmax(0, 1fr)) 40px`;
 
   row.lanes.forEach((entry, k) => {
     const cell = renderLaneCell(entry);
@@ -2085,7 +2077,7 @@ function renderSlotRow(d, half, row, maxLanes, rangs) {
     title: "Ajouter une activité en parallèle (même horaire)",
     onClick: () => addLaneInSlot(d, half, row.slot)
   });
-  addParBtn.style.gridColumn = String(maxLanes + 1);
+  addParBtn.style.gridColumn = String(nb + 1);
   addParBtn.appendChild(icon.plus());
   addParBtn.appendChild(el("span", { class: "p-add-parallele-label" }, "En parallèle"));
   lanes.appendChild(addParBtn);
@@ -2165,10 +2157,10 @@ function renderDayCard(d, monday) {
         .map((r) => ({ ...r, lanes: r.lanes.filter(entryHasContent) }))
         .filter((r) => r.lanes.length > 0);
     }
-    // Colonnes parallèles de la demi-journée : autant que le créneau le plus chargé, chaque créneau rangé sans les trous
-    // de numérotation des voies, en lecture comme en mode Modifier (une carte seule n'est plus réduite par une voie vide).
-    const { colonnes: maxLanes, rangs } = colonnesParalleles(rows);
-    rows.forEach((row, i) => slotsWrap.appendChild(renderSlotRow(d, half.key, row, maxLanes, rangs[i])));
+    // Rang de chaque activité dans son créneau, sans les trous de numérotation des voies, en lecture comme en mode
+    // Modifier (une carte seule n'est pas réduite par une voie vide) ; chaque créneau a ses propres colonnes.
+    const { rangs } = colonnesParalleles(rows);
+    rows.forEach((row, i) => slotsWrap.appendChild(renderSlotRow(d, half.key, row, rangs[i])));
 
     // Bouton "+ À la suite"
     const addSuiteBtn = el("button", {
@@ -2624,7 +2616,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   const modal = el("div", { class: "modal valider-modal" },
     el("h3", {}, "Valider la semaine"),
     el("p", { class: "muted", style: "margin:0 0 0.6rem; font-size:0.85rem;" },
-      "Passages déduits du planning des jours écoulés : le planning fait foi. Une absence de dernière minute ? Marque-la sur la carte (⊘) AVANT de valider : elle sera enregistrée « Absence » (comptée) et son remplaçant en « Bonus » (non compté)."),
+      "Passages déduits du planning des jours écoulés : le planning fait foi. Une absence de dernière minute ? Marque-la sur la carte (« Absent ») AVANT de valider : elle sera enregistrée « Absence » (comptée) et son remplaçant en « Bonus » (non compté)."),
     list,
     lockRow,
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn),
@@ -2681,7 +2673,7 @@ function buildRulesNote() {
 
   body.appendChild(el("p", {}, b("Absences :")));
   body.appendChild(el("ul", {},
-    li(b("Dernière minute / pas prévenu"), " : marque la chip absente (⊘) sur la carte. Le passage ", b("compte quand même"), " pour l'absent (son tour est consommé) ; le remplaçant fait un passage ", b("bonus"), " qui ne lui sera pas décompté la semaine suivante."),
+    li(b("Dernière minute / pas prévenu"), " : marque l'absence sur la carte (« Absent » à côté du stagiaire au tableau, un toucher sur son nom en voiture). Le passage ", b("compte quand même"), " pour l'absent (son tour est consommé) ; le remplaçant fait un passage ", b("bonus"), " qui ne lui sera pas décompté la semaine suivante."),
     li(b("Prévenu à l'avance"), " : remplace simplement le nom sur la carte, le remplaçant fait un passage normal, l'absent garde sa priorité."),
   ));
 
@@ -2695,7 +2687,7 @@ function buildRulesNote() {
   body.appendChild(el("ul", {},
     li(b("Placer la semaine"), " : remplit les tableaux d'abord, puis les élèves (demande confirmation, annulable par Ctrl+Z)."),
     li(b("Vider les placements"), " : retire tous les stagiaires de la semaine, mais garde activités, formateurs, sujets, notes et élèves bénévoles."),
-    li(b("Valider la semaine"), " : le planning fait foi, prévu non marqué = « effectué », marqué ⊘ = « absence » (comptée) + « bonus » pour le remplaçant. Un cas particulier ? Corrige ensuite dans l'onglet Passages."),
+    li(b("Valider la semaine"), " : le planning fait foi, prévu non marqué = « effectué », marqué absent = « absence » (comptée) + « bonus » pour le remplaçant. Un cas particulier ? Corrige ensuite dans l'onglet Passages."),
   ));
 
   body.appendChild(el("p", { class: "planning-rules-foot" },
@@ -2843,7 +2835,7 @@ function renderInto(container) {
   const admin = isAdmin();
   const editing = canEditWeek();
   // Nouvelle navigation, côté stagiaire : le planning se lit seulement, sans phrase qui parle d'administration, et
-  // « Aujourd'hui » (en tête de la page) tient lieu de « Cette semaine » (barre de la semaine).
+  // « Revenir à aujourd'hui » (hors de la semaine du jour) tient lieu de « Cette semaine » (barre de la semaine).
   const eleve = navigationV2Active() && !formateurConnecte();
   // Lecture seule dès qu'on n'est pas en édition explicite (stagiaire, admin hors
   // mode Modifier, ou semaine verrouillée) : la CSS .read-only fait le gros du travail.
@@ -2854,47 +2846,48 @@ function renderInto(container) {
   container.classList.toggle("p-compact", !editing);
   // Liseré du mode édition : la zone des jours est visiblement « ouverte » (volet 4).
   container.classList.toggle("p-editing", editing);
-  // Nouvelle navigation : « Grille / Liste » à côté des sous-onglets, absent en mode Modifier (l'éditeur est la liste).
-  poserBascule(container);
   const enGrille = grilleAffichee();
 
   const monday = new Date(semaineLundi + "T00:00:00");
   const longLabel = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  // Nouvelle navigation (audit du 09/11, lot B) : le planning d'abord. La phrase « Lecture seule... » redisait le bouton
+  // « Modifier », et les boutons de l'en-tête doublaient la navigation (« Émargement », qui a sa page et son bandeau) ou
+  // portaient le nom de l'onglet d'accueil de l'équipe (« Aujourd'hui », devenu « Revenir à aujourd'hui » dans la barre
+  // de la semaine, montré seulement hors de la semaine du jour).
+  const v2 = navigationV2Active();
+  const phraseLecture = admin
+    ? (isLocked(semaineLundi)
+        ? "Semaine validée et verrouillée. « Déverrouiller » pour corriger."
+        : (v2 ? null : "Lecture seule. Clique « Modifier » pour éditer la semaine."))
+    : "Lecture seule. Connexion admin requise pour modifier.";
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, (editing ? "Édition" : "Consultation") + " · Semaine du " + longLabel),
+      // « Consultation », mot d'atelier (audit, B3) : hors édition, la semaine seule.
+      el("p", { class: "eyebrow" }, (editing ? "Édition · " : "") + "Semaine du " + longLabel),
       el("h2", {}, "Planning de la semaine"),
-      eleve ? null : el("p", { class: "subtitle" },
+      eleve ? null : (editing || phraseLecture) ? el("p", { class: "subtitle" },
         editing
           ? "Sélectionne les activités, formateurs et stagiaires. Tout s'enregistre automatiquement."
-          : admin
-            ? (isLocked(semaineLundi)
-                ? "Semaine validée et verrouillée. « Déverrouiller » pour corriger."
-                : "Lecture seule. Clique « Modifier » pour éditer la semaine.")
-            : "Lecture seule. Connexion admin requise pour modifier."
-      ),
+          : phraseLecture
+      ) : null,
     ),
     // Priorités de passage : rangées dans le Planning, plus d'onglet (chantier D).
     // Visibles des formateurs, et des stagiaires si le module est ouvert pour leur
     // promo ; repère « Masqué aux stagiaires » chez un formateur quand il est fermé.
-    // Nouvelle navigation : Priorités est un sous-onglet de Planning, pas de bouton en double ; le
-    // bouton « Aujourd'hui » de l'ancienne barre du haut vient en tête (ruling R29).
+    // Nouvelle navigation : Priorités est un sous-onglet de Planning, pas de bouton en double ; le retour au jour est
+    // dans la barre de la semaine.
     el("div", { class: "p-entete-actions" },
-      navigationV2Active() && gesteAujourdhui
-        ? el("button", { class: "btn small p-aujourdhui", type: "button",
-            title: "Aller à la journée d'aujourd'hui", onClick: () => gesteAujourdhui() },
-            deco(icon.today()), "Aujourd'hui")
-        : null,
-      routeVisible("dashboard") && !navigationV2Active()
+      routeVisible("dashboard") && !v2
         ? repereMasque(el("button", { class: "btn small", type: "button",
             title: "Qui doit passer en priorité, au tableau et en voiture",
             onClick: () => { location.hash = "#/dashboard"; } },
             icon.target(), "Priorités"), routeMasquee("dashboard"))
         : null,
       // Émargement (spec 2026-10-23) : page des formateurs, si le fondateur l'a activé pour la promo (pas la direction
-      // avant le lot 5 : la page lui répondrait par un refus).
-      admin && emargementActif()
+      // avant le lot 5 : la page lui répondrait par un refus). Nouvelle navigation : la page est dans la barre, et le
+      // bandeau mène à la feuille ouverte (audit, B2).
+      admin && emargementActif() && !v2
         ? el("button", { class: "btn small", type: "button",
             title: "Ouvrir l'émargement du jour, imprimer les feuilles",
             onClick: () => { location.hash = "#/emargement"; } },
@@ -2925,17 +2918,27 @@ function renderInto(container) {
   // « Imprimer / PDF » sur grand écran, « PDF » sur téléphone (le mot long est masqué
   // en CSS) : sans ça, les trois actions débordent sur une deuxième ligne à 375 px.
   const printBtn = el("button", { class: "btn small", onClick: () => printPlanning() });
-  printBtn.appendChild(icon.list());
+  printBtn.appendChild(deco(icon.printer()));
   printBtn.appendChild(el("span", { class: "btn-long" }, "Imprimer / PDF"));
   printBtn.appendChild(el("span", { class: "btn-short" }, "PDF"));
 
   // Barre en DEUX groupes : « se déplacer » puis « agir », séparés par un filet.
   // Le libellé « Semaine du » a été retiré : l'en-tête juste au-dessus dit déjà
-  // « Consultation · Semaine du 6 juillet 2026 ».
-  // « Cette semaine » fait doublon avec « Aujourd'hui » de l'en-tête, dans la nouvelle navigation, pour tous (relecture du
-  // lot 2B ; audit du 09/11, lot E) : il ne reste que dans l'ancienne.
-  const avecAujourdhui = navigationV2Active() && !!gesteAujourdhui;
-  const navGroup = el("div", { class: "week-bar-nav" }, dateInput, prevBtn, nextBtn, eleve || avecAujourdhui ? null : todayBtn);
+  // « Semaine du 6 juillet 2026 ».
+  // « Cette semaine » ne reste que dans l'ancienne navigation (relecture du lot 2B ; audit du 09/11, lots E et B).
+  // Nouvelle navigation (audit du 09/11, lot B) : le retour au jour (ruling R29) ne se montre que hors de la semaine du
+  // jour, où la bande et la barre des jours repèrent déjà aujourd'hui ; il ne s'appelle plus « Aujourd'hui », le nom de
+  // l'onglet d'accueil de l'équipe.
+  const avecAujourdhui = v2 && !!gesteAujourdhui;
+  // La semaine « du jour » est celle où le geste mène : le lundi suivant le week-end (lundiEnCours, comme todayJumpTarget).
+  const horsSemaineDuJour = semaineLundi !== lundiEnCours(new Date());
+  const retourBtn = avecAujourdhui && horsSemaineDuJour
+    ? el("button", { class: "btn small p-aujourdhui", type: "button",
+        title: "Revenir à la semaine du jour, sur la journée d'aujourd'hui", onClick: () => gesteAujourdhui() },
+        deco(icon.today()), "Revenir à aujourd'hui")
+    : null;
+  const navGroup = el("div", { class: "week-bar-nav" }, dateInput, prevBtn, nextBtn,
+    eleve || avecAujourdhui ? retourBtn : todayBtn);
   const actionsGroup = el("div", { class: "week-bar-actions" });
   const weekBar = el("div", { class: "week-bar" }, navGroup, actionsGroup);
   // Banque d'élèves bénévoles : accessible aussi en lecture seule (consulter une fiche
@@ -2972,21 +2975,23 @@ function renderInto(container) {
         renderInto(currentContainer);
       } }, "Déverrouiller"));
   } else if (admin && !editing) {
-    // - Lecture seule (défaut) : Modifier + banque bénévoles
+    // - Lecture seule (défaut) : Modifier + banque bénévoles. Nouvelle navigation : la banque est le sous-onglet
+    //   « Élèves bénévoles » de Stagiaires ; le raccourci ne reste qu'en mode Modifier, où l'on place les bénévoles.
     const editBtn = el("button", { class: "btn small primary",
       title: "Passer la semaine affichée en mode édition",
       onClick: () => { editMode = true; renderInto(currentContainer); } });
     editBtn.appendChild(deco(icon.pencil()));
     editBtn.appendChild(document.createTextNode("Modifier"));
     actionsGroup.appendChild(editBtn);
-    actionsGroup.appendChild(bnvBtn());
+    if (!v2) actionsGroup.appendChild(bnvBtn());
   } else if (admin && editing) {
-    // - Mode édition : Terminer + les 4 boutons habituels
+    // - Mode édition (audit du 09/11, lot B, B5) : « Quitter l'édition » ne valide rien (tout s'enregistre au fil de la
+    //   saisie), « Valider la semaine » transforme le planning en passages : deux gestes différents, deux mots différents.
+    //   « Vider les placements », qui défait le travail de « Placer la semaine », vient en dernier, à l'écart.
     const doneBtn = el("button", { class: "btn small",
-      title: "Terminer l'édition (retour en lecture seule)",
-      onClick: () => { editMode = false; renderInto(currentContainer); } }, "✓ Terminer");
+      title: "Revenir à la lecture (tout est déjà enregistré)",
+      onClick: () => { editMode = false; renderInto(currentContainer); } }, deco(icon.close()), "Quitter l'édition");
     actionsGroup.appendChild(doneBtn);
-    actionsGroup.appendChild(bnvBtn());
     const placeBtn = el("button", { class: "btn small",
       title: "Placer automatiquement tableaux et stagiaires de toute la semaine (priorité aux moins passés)",
       onClick: () => autoPlaceWeek() });
@@ -2994,27 +2999,35 @@ function renderInto(container) {
     placeBtn.appendChild(el("span", { class: "btn-long" }, "Placer la semaine"));
     placeBtn.appendChild(el("span", { class: "btn-short" }, "Placer"));
     actionsGroup.appendChild(placeBtn);
-    const clearBtn = el("button", { class: "btn small danger",
+    // Valider la semaine : sur une semaine au moins partiellement écoulée
+    if (semaineLundi <= isoDate(new Date())) {
+      const validBtn = el("button", { class: "btn small primary",
+        title: "Enregistrer les passages des jours écoulés d'après le planning", onClick: () => openValiderSemaineModal() });
+      validBtn.appendChild(deco(icon.check()));
+      validBtn.appendChild(el("span", { class: "btn-long" }, "Valider la semaine"));
+      validBtn.appendChild(el("span", { class: "btn-short" }, "Valider"));
+      actionsGroup.appendChild(validBtn);
+    }
+    actionsGroup.appendChild(bnvBtn());
+  }
+  // Stagiaire sur semaine verrouillée : badge informatif seul
+  if (!admin && locked) {
+    actionsGroup.appendChild(el("span", { class: "p-locked-badge" }, "✓ Semaine validée"));
+  }
+  // Nouvelle navigation : « Grille / Liste » (« Jour / Liste » sur téléphone) avec les actions de la semaine, plutôt
+  // que sur une ligne à elle sous les sous-onglets (audit, B2 : une ligne de commandes de moins avant le planning).
+  const groupeVue = basculeDeLaVue();
+  if (groupeVue) actionsGroup.appendChild(groupeVue);
+  actionsGroup.appendChild(printBtn);
+  if (admin && editing) {
+    const clearBtn = el("button", { class: "btn small danger p-vider-btn",
       title: "Retirer tous les stagiaires placés cette semaine (bénévoles, formateurs, sujets et notes conservés)",
       onClick: () => clearWeekPlacements() });
     clearBtn.appendChild(deco(icon.eraser()));
     clearBtn.appendChild(el("span", { class: "btn-long" }, "Vider les placements"));
     clearBtn.appendChild(el("span", { class: "btn-short" }, "Vider"));
     actionsGroup.appendChild(clearBtn);
-    // Valider la semaine : sur une semaine au moins partiellement écoulée
-    if (semaineLundi <= isoDate(new Date())) {
-      const validBtn = el("button", { class: "btn small primary", onClick: () => openValiderSemaineModal() });
-      validBtn.appendChild(icon.check());
-      validBtn.appendChild(el("span", { class: "btn-long" }, "Valider la semaine"));
-      validBtn.appendChild(el("span", { class: "btn-short" }, "Valider"));
-      actionsGroup.appendChild(validBtn);
-    }
   }
-  // Stagiaire sur semaine verrouillée : badge informatif seul
-  if (!admin && locked) {
-    actionsGroup.appendChild(el("span", { class: "p-locked-badge" }, "✓ Semaine validée"));
-  }
-  actionsGroup.appendChild(printBtn);
   container.appendChild(weekBar);
   // Barre de jours COLLÉE à la barre de semaine : les deux forment le bloc de
   // navigation. Le mémo des règles, qui s'intercalait ici, passe sous les jours :
@@ -3043,21 +3056,21 @@ function renderInto(container) {
   // Pill flottante (volet 4) : signal permanent du mode édition + sortie à portée
   // de clic sans remonter à la barre d'outils.
   if (editing) {
-    const pillDone = el("button", { class: "p-edit-pill-btn",
-      onClick: () => { editMode = false; renderInto(currentContainer); } }, "✓ Terminer");
+    const pillDone = el("button", { class: "p-edit-pill-btn", title: "Revenir à la lecture (tout est déjà enregistré)",
+      onClick: () => { editMode = false; renderInto(currentContainer); } }, "Quitter");
     container.appendChild(el("div", { class: "p-edit-pill" },
       el("span", { class: "p-edit-pill-label" }, deco(icon.pencil()), "Édition en cours"),
       pillDone,
     ));
   }
 
-  container.appendChild(buildRulesNote());
-
-  // L'aide sur « À la suite » et « Parallèle » parle des cartes de la liste (et de leur éditeur) : la grille n'en a pas.
-  if (!enGrille) container.appendChild(el("div", { class: "planning-helper" },
-    el("strong", {}, "À la suite "), "↓ = nouveau créneau dans le temps (après celui qui précède). ",
-    el("strong", {}, "Parallèle "), "→ = autre activité au même horaire (ex: voiture qui tourne pendant un cours). ",
-    "Au moins 1 créneau par demi-journée. Min. 1 lane (rangée) → bouton « Parallèle » l'étoffe."
+  // Les règles du placement automatique et l'aide sur « À la suite » et « Parallèle » parlent à qui place les stagiaires
+  // (audit du 09/11, lot B, B3) : l'équipe pour les règles ; le mode Modifier pour l'aide, qui décrit ses boutons.
+  // Ancienne navigation (celle des promos en service) : le mémo reste pour tous, comme sur main.
+  if (formateurConnecte() || !v2) container.appendChild(buildRulesNote());
+  if (editing) container.appendChild(el("div", { class: "planning-helper" },
+    el("strong", {}, "À la suite : "), "un nouveau créneau, après celui qui précède. ",
+    el("strong", {}, "En parallèle : "), "une autre activité au même horaire (par exemple une voiture qui tourne pendant un cours)."
   ));
 
   // Surlignage du jour visible dans la barre de jours (après insertion des cartes).
@@ -3422,7 +3435,6 @@ function mountPrintTarget() {
 // pour qu'un print natif depuis une autre vue n'imprime pas un planning périmé.
 export function teardownPrintTarget() {
   detachDayNavHighlight();   // la vue quitte l'écran : plus rien à surveiller
-  retirerBascule();          // posée sous la barre des sous-onglets, qui reste : elle ne regarde que la semaine
   document.getElementById("print-container")?.remove();
   document.body.classList.remove("planning-printable");
 }
@@ -3439,8 +3451,9 @@ async function printPlanning() {
   window.print();
 }
 
-// `aujourdhui` : le geste du bouton « Aujourd'hui » à poser en haut de la semaine (nouvelle navigation,
-// js/views/planning-espace.js) ; absent avec l'ancienne, dont la barre du haut porte le bouton.
+// `aujourdhui` : le geste du bouton « Aujourd'hui » de l'ancienne barre, que la nouvelle navigation pose dans la barre de la
+// semaine sous le nom « Revenir à aujourd'hui » (js/views/planning-espace.js) ; absent avec l'ancienne, dont la barre du haut
+// porte le bouton.
 export async function renderPlanning(container, { aujourdhui = null } = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));

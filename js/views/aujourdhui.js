@@ -8,24 +8,25 @@
  */
 import {
   getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre,
-} from "../db.js?v=20261109g";
-import { el, clear, displayStagiaire } from "../utils.js?v=20261109g";
-import { icon } from "../icons.js?v=20261109g";
-import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261109g";
-import { libelleConnexion } from "../roles-rules.js?v=20261109g";
-import { emargementActif } from "../emargement-etat.js?v=20261109g";
-import { lignePromo } from "../accueil-rules.js?v=20261109g";
-import { journeeDuJour } from "../journee-rules.js?v=20261109g";
-import { indicateursPromo } from "../centre-stats.js?v=20261109g";
-import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261109g";
-import { signerSeance } from "../emargement-bandeau.js?v=20261109g";
-import { chargerATraiter } from "../a-traiter.js?v=20261109g";
+} from "../db.js?v=20261109i";
+import { el, clear, displayStagiaire } from "../utils.js?v=20261109i";
+import { icon } from "../icons.js?v=20261109i";
+import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261109i";
+import { libelleConnexion } from "../roles-rules.js?v=20261109i";
+import { emargementActif } from "../emargement-etat.js?v=20261109i";
+import { lignePromo } from "../accueil-rules.js?v=20261109i";
+import { journeeDuJour } from "../journee-rules.js?v=20261109i";
+import { indicateursPromo } from "../centre-stats.js?v=20261109i";
+import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261109i";
+import { signerSeance } from "../emargement-bandeau.js?v=20261109i";
+import { chargerATraiter } from "../a-traiter.js?v=20261109i";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261109i";
 import {
   titreSelonDemis, auTableauDuJour, enVoitureDuJour, feuilleDuJour, lignesATraiter, ligneDeLEnTete,
-} from "../aujourdhui-rules.js?v=20261109g";
+} from "../aujourdhui-rules.js?v=20261109i";
 import {
   carte, plusLien, ligneLien, erreurAvecReessai, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
-} from "./pages-cartes.js?v=20261109g";
+} from "./pages-cartes.js?v=20261109i";
 
 const RELECTURE_SEANCES_MS = 60000;
 const NB_A_SUIVRE = 5;
@@ -265,6 +266,9 @@ export function renderAujourdhui(container) {
     texteEnTete ? ligne : null,
   );
   container.appendChild(entete);
+  // Questionnaire anonyme des formateurs (Qualiopi), sous le titre et avant les cartes, comme sur l'Accueil des
+  // stagiaires : vide (direction, siège, rien à remplir), rien ne s'affiche.
+  container.appendChild(bandeauQuestionnaire());
 
   // Émargement et À traiter : les formateurs de la promo seulement (isAdmin, « écrit comme un formateur »), les mêmes
   // conditions que l'entrée Émargement de la barre et que les sous-onglets Signalements et Propositions IA. La direction

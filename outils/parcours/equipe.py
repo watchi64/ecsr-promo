@@ -116,7 +116,7 @@ def traiter_un_signalement(v):
 @parcours("modifier-le-planning", "Modifier le planning de la semaine", role="formateur", budget=3,
           navigations=NOUVELLE, depart="#/home")
 def modifier_le_planning(v):
-    """Planning (en grille), « Modifier » : l'éditeur de la semaine remplace la grille ; « Terminer » rend la grille."""
+    """Planning (en grille), « Modifier » : l'éditeur de la semaine remplace la grille ; « Quitter l'édition » rend la grille."""
     v.aller("Planning")
     v.attendre(".wsem", "la semaine en grille")
     v.etape("passer en édition")
@@ -126,8 +126,8 @@ def modifier_le_planning(v):
         v.constat("C", LISTE, "la grille reste affichée en mode « Modifier »", capture=True)
     v.but("semaine en édition")
     v.etape("terminer l'édition")
-    v.toucher(texte("Terminer", "#view button"), "« Terminer »", compte=False)
-    v.attendre(".wsem", "la grille après « Terminer »")
+    v.toucher(texte("Quitter l'édition", "#view button"), "« Quitter l'édition »", compte=False)
+    v.attendre(".wsem", "la grille après « Quitter l'édition »")
     v.terminer()
 
 

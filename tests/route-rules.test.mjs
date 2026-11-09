@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import {
   PARTIES, lireAdresse, adresseFiche, hrefLien, pagePersonnelle, partiesDeLaFiche, ouvertureDeMonSuivi, vueDeResultats,
-  VUES_RESULTATS, CLE_VUE_RESULTATS, vueAAfficher,
+  VUES_RESULTATS, CLE_VUE_RESULTATS, vueAAfficher, cleQuestionnaire,
 } from "../js/route-rules.js";
 
 let n = 0;
@@ -93,5 +93,13 @@ eq(lireAdresse("#/reseau/abc"), { route: "reseau", id: null, partie: null }, "id
 eq(lireAdresse("#/reseau"), { route: "reseau", id: null, partie: null }, "vue d'ensemble du réseau");
 eq(adresseFiche("reseau", 3), "#/reseau/3", "adresse d'un centre");
 eq(adresseFiche("reseau", null), "#/reseau", "adresse du réseau");
+// 5. Lien direct vers un questionnaire (WhatsApp)
+eq(cleQuestionnaire("#/questionnaire/fin_stagiaire"), "fin_stagiaire", "clé lue");
+eq(cleQuestionnaire("#questionnaire/fin_formateur/"), "fin_formateur", "sans barre initiale, barre finale tolérée");
+eq(cleQuestionnaire("#/questionnaire"), null, "sans clé");
+eq(cleQuestionnaire("#/questionnaire/Fin-Stagiaire"), null, "clé illisible");
+eq(cleQuestionnaire("#/home/fin_stagiaire"), null, "autre page");
+eq(cleQuestionnaire(undefined), null, "adresse absente");
+eq(lireAdresse("#/questionnaire/fin_stagiaire").route, "questionnaire", "la route reste lisible");
 
 console.log(`route-rules : ${n} assertions OK`);

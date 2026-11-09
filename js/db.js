@@ -1,13 +1,14 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261109g";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261109g";
-import { compteDansEquite } from "./passage-rules.js?v=20261109g";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261109g";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261109i";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261109i";
+import { compteDansEquite } from "./passage-rules.js?v=20261109i";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261109i";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261109i";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261109g";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261109g";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261109g";
+} from "./promo-rules.js?v=20261109i";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261109i";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261109i";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -2334,4 +2335,78 @@ export async function setEnteteEmargement(entete) {
   const valeur = { organisme: net("organisme", 120), intitule: net("intitule", 200) };
   for (const [k, max] of Object.entries(ENTETE_FACULTATIF)) valeur[k] = net(k, max);
   await setSetting("emargement_entete", JSON.stringify(valeur));
+}
+
+// --- Questionnaires anonymes (Qualiopi, indicateur 30) ---
+// Tant que la migration n'est pas appliquée, les cinq fonctions n'existent pas dans la base : les lectures rendent alors
+// un résultat vide sans bruit (comme getJoursOff), les écritures lèvent une erreur au message lisible.
+// La portée est { promo_id } pour les stagiaires, { lieu_id, annee } pour les formateurs.
+
+// Questionnaires que la personne connectée peut remplir maintenant : [{ cle, version, portee }]. Jamais d'erreur levée :
+// la page d'accueil ne doit pas casser pour un questionnaire.
+export async function lireQuestionnairesARemplir() {
+  try {
+    const { data, error } = await supabase.rpc("questionnaires_a_remplir");
+    if (error) throw error;
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    if (!fonctionAbsente(e)) console.warn("questionnaires_a_remplir indisponible", e?.message || e);
+    return [];
+  }
+}
+
+// Envoie une réponse. Lève une Error au message lisible (déjà répondu, fermé, pas concerné, pas encore disponible...).
+export async function envoyerQuestionnaire({ cle, portee, version, reponses, commentaire }) {
+  const { error } = await supabase.rpc("repondre_questionnaire", {
+    p_cle: cle, p_portee: portee, p_version: version, p_reponses: reponses, p_commentaire: commentaire ?? null,
+  });
+  if (error) throw new Error(messageErreurQuestionnaire(error));
+}
+
+// Erreur de gestion levée avec le message lisible ET le code de la base (42501 : refus de droit), que la page Qualiopi lit
+// pour ne pas dire « vérifie ta connexion » à un compte qui n'a pas le droit.
+function erreurQuestionnaire(error) {
+  const erreur = new Error(messageErreurQuestionnaire(error));
+  if (error?.code) erreur.code = String(error.code);
+  return erreur;
+}
+
+// Comptes par question (gestion). Rien sous le seuil : `reponses` est nul et `questions` vide. Fonction absente : même forme.
+export async function lireResultatsQuestionnaire(cle, portee) {
+  const { data, error } = await supabase.rpc("resultats_questionnaire", { p_cle: cle, p_portee: portee });
+  if (error) {
+    if (fonctionAbsente(error)) return { cle, public: null, seuil: null, reponses: null, questions: {} };
+    throw erreurQuestionnaire(error);
+  }
+  return data;
+}
+
+// Commentaires libres, dans un ordre tiré au hasard (éditeur seul, à partir du seuil). Fonction absente : [].
+export async function lireCommentairesQuestionnaire(cle, portee) {
+  const { data, error } = await supabase.rpc("commentaires_questionnaire", { p_cle: cle, p_portee: portee });
+  if (error) {
+    if (fonctionAbsente(error)) return [];
+    throw erreurQuestionnaire(error);
+  }
+  return Array.isArray(data) ? data : [];
+}
+
+// Ouvertures posées à la main (gestion : la politique de lecture de la table est peut_gerer_qualite()) :
+// [{ cle, promo_id, lieu_id, annee, ouvert }]. Table absente (migration pas encore appliquée) : null, sans bruit ;
+// refus de droit (42501) : levée avec une phrase de droit ; autre erreur : levée avec un message de lecture.
+export async function lireOuverturesQuestionnaires() {
+  const { data, error } = await supabase.from("questionnaire_ouvertures").select("cle, promo_id, lieu_id, annee, ouvert");
+  if (error) {
+    const code = String(error.code ?? "");
+    if (code === "PGRST205" || code === "42P01" || /could not find the table|relation .* does not exist/i.test(String(error.message ?? ""))) return null;
+    if (code === "42501") throw new Error("Réservé à la gestion de la qualité : ce compte n'a pas ce droit.");
+    throw new Error("Les questionnaires n'ont pas pu être lus : vérifie ta connexion, puis réessaie.");
+  }
+  return Array.isArray(data) ? data : [];
+}
+
+// Ouvre (true), ferme (false) à la main, ou revient aux dates (null).
+export async function ouvrirQuestionnaire(cle, portee, ouvert) {
+  const { error } = await supabase.rpc("ouvrir_questionnaire", { p_cle: cle, p_portee: portee, p_ouvert: ouvert });
+  if (error) throw erreurQuestionnaire(error);
 }

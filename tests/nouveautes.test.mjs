@@ -143,9 +143,10 @@ ok(!dit(lancement, /Réglages/), "pour tous : « Réglages » est la page de la 
 ok(dit(lancement, /[Uu]n point/) && !dit(lancement, /pastille|chiffre/), "pour tous : le compte montre un point, sans chiffre");
 // F5 : une promo de départ n'a pas encore Priorités, Thèmes, Compétences, La classe, l'Assistant : le lancement le dit.
 ok(lancement.resume.includes("Certaines parties s'ouvrent au fil de la formation."), "pour tous : certaines parties s'ouvrent au fil de la formation");
-// F4 : le bouton « Aujourd'hui » est en tête de Planning, Semaine (pas « en haut du Planning », qui est aussi la barre de jours collée).
-ok(/Planning, Semaine/.test(lancement.guide[0]) && /Aujourd'hui/.test(lancement.guide[0]) && !/En haut du Planning/.test(tout(lancement)),
-  "pour tous : le bouton « Aujourd'hui » est en tête de Planning, Semaine");
+// F4, puis audit du 09/11 (lot B) : le retour au jour est « Revenir à aujourd'hui », dans Planning, Semaine, depuis une autre semaine (pas « en haut
+// du Planning », qui est aussi la barre de jours collée).
+ok(/Planning, Semaine/.test(lancement.guide[0]) && /Revenir à aujourd'hui/.test(lancement.guide[0]) && !/En haut du Planning/.test(tout(lancement)),
+  "pour tous : « Revenir à aujourd'hui », dans Planning, Semaine");
 ok(dit(lancement, /en bas de la barre de gauche/), "pour tous : les formateurs sur ordinateur trouvent le compte et l'assistant en bas de la barre de gauche");
 ok(dit(lancementEquipe, /en bas de (cette|la) barre/), "formateurs : le compte et l'assistant en pied de barre");
 ok(dit(lancementEquipe, /Assistant/) && dit(lancementEquipe, /téléphone/), "formateurs : le bouton Assistant sur téléphone");
@@ -220,6 +221,7 @@ ok(/barre de gauche/.test(aujourdhui.guide[0]) && /téléphone/.test(aujourdhui.
 ok(/sommaire/.test(coursTel.resume) && /à la ligne/.test(coursTel.resume) && /tableaux/.test(coursTel.resume) && /listes/.test(coursTel.resume), "cours : sommaire à la ligne, tableaux en listes");
 eq(coursTel.ou, { label: "Cours", route: "themes" }, "cours : Où le trouver, Cours (réécrit Cours et QCM sous la nouvelle barre)");
 // Qui les voit : la journée et les cours pour tous, nouvelle navigation ; Aujourd'hui pour l'équipe seulement ; éteinte, les cours seuls.
+const QUESTIONNAIRES_ID = "2026-11-09-questionnaires-anonymes";
 const DU_LOT = (l) => ids(l).filter((id) => [journee.id, aujourdhui.id, coursTel.id].includes(id));
 // Second lot de corrections : les repères de l'Accueil pour le stagiaire sous la nouvelle barre, les comptes de
 // l'émargement pour l'équipe dans les deux navigations (sa partie Aujourd'hui dans guideNouvelle).
@@ -233,9 +235,32 @@ eq(DU_LOT(triees(visibles(NOUVEAUTES, true, true))), [aujourdhui.id, coursTel.id
   "formateur, nouvelle navigation : Aujourd'hui et les cours, pas la journée du stagiaire");
 eq(DU_LOT(triees(visibles(NOUVEAUTES, false, false))), [coursTel.id], "stagiaire, ancienne navigation : les cours seuls");
 eq(DU_LOT(triees(visibles(NOUVEAUTES, true, false))), [coursTel.id], "formateur, ancienne navigation : les cours seuls");
-eq(ids(triees(visibles(NOUVEAUTES, false, true)))[0], journee.id, "stagiaire, nouvelle navigation : la plus récente est la journée");
-eq(ids(triees(visibles(NOUVEAUTES, false, false)))[0], coursTel.id, "ancienne navigation : la plus récente est celle des cours");
+// « La plus récente » du lot se juge sans les questionnaires anonymes, mis en ligne le même jour et placés en tête du
+// fichier : ce sont eux que montre désormais la carte « Nouveauté » de l'Accueil, dans les deux navigations.
+const JUSQU_AU_LOT = (l) => l.filter((e) => e.date <= JOUR && e.id !== QUESTIONNAIRES_ID);
+for (const [formateur, v2] of [[false, false], [false, true], [true, false], [true, true]]) {
+  eq(ids(triees(visibles(NOUVEAUTES, formateur, v2)))[0], QUESTIONNAIRES_ID,
+    `la plus récente est celle des questionnaires (${formateur ? "formateur" : "stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"})`);
+}
+eq(ids(triees(JUSQU_AU_LOT(visibles(NOUVEAUTES, false, true))))[0], journee.id, "stagiaire, nouvelle navigation : la plus récente est la journée");
+eq(ids(triees(JUSQU_AU_LOT(visibles(NOUVEAUTES, false, false))))[0], coursTel.id, "ancienne navigation : la plus récente est celle des cours");
 ok(!/IA/.test(aujourdhui.resume), "Aujourd'hui : le résumé n'annonce pas Propositions IA à tous (réservé aux administrateurs, dans les étapes)");
+
+// Questionnaires anonymes (plan Qualiopi Q3, tâche 5) : pour tous, dans les deux navigations, datée de la mise en ligne.
+const questionnaires = NOUVEAUTES.find((e) => e.id === QUESTIONNAIRES_ID);
+ok(!!questionnaires && questionnaires.pour === "tous" && questionnaires.date === "2026-11-09" && questionnaires.navigation === undefined,
+  "questionnaires : pour tous, du 09/11, sans champ navigation");
+ok(/sans ton nom/.test(questionnaires.resume) && /Sans avis/.test(questionnaires.resume) && /Plus tard/.test(questionnaires.resume),
+  "questionnaires : anonymat, « Sans avis » et « Plus tard » expliqués");
+ok(/dans l'application, personne ne peut voir qui a répondu quoi/.test(questionnaires.resume)
+  && /à partir de 5 réponses/.test(questionnaires.resume) && !/personne ne peut savoir/.test(questionnaires.resume),
+  "questionnaires : la promesse s'arrête à l'application et au seuil (relecture finale, I1)");
+ok(!/profs?/i.test(tout(questionnaires)) && !tout(questionnaires).includes(String.fromCharCode(0x2014)),
+  "questionnaires : « formateur », jamais « prof », et aucun tiret cadratin");
+for (const [formateur, v2] of [[false, false], [false, true], [true, false], [true, true]]) {
+  ok(ids(visibles(NOUVEAUTES, formateur, v2)).includes(QUESTIONNAIRES_ID),
+    `questionnaires : lue ${formateur ? "par un formateur" : "par un stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"}`);
+}
 
 // === Lot 3 (date de la fusion) : l'app aux couleurs d'ECF ===
 // Le choix ne se fait que sous la nouvelle barre (décision H6) : pour tous, nouvelle navigation seulement, un lien vers Mes préférences
@@ -277,7 +302,9 @@ const AVEC_GUIDE_NOUVEAU = ["2026-10-23-tableau-de-bord-centre", "2026-10-05-eff
   "2026-07-31-dossier-professionnel", "2026-07-19-livret-epcf", "2026-10-28-signaler-un-probleme",
   // Second lot de corrections : ses étapes ne parlent que de pages de la nouvelle barre (Aujourd'hui, la grille) ; l'ancienne
   // navigation lit le résumé seul.
-  "2026-11-09-emargement-planning-plus-justes"];
+  "2026-11-09-emargement-planning-plus-justes",
+  // Lot B de l'audit : l'éditeur dans les deux navigations ; la grille et la barre de la semaine dans la nouvelle seulement.
+  "2026-11-09-planning-plus-clair"];
 eq(NOUVEAUTES.filter((e) => e.guideNouvelle).map((e) => e.id).sort(), [...AVEC_GUIDE_NOUVEAU].sort(), "les consignes réécrites pour la nouvelle navigation");
 for (const e of NOUVEAUTES.filter((x) => x.guideNouvelle)) {
   ok(Array.isArray(e.guide) && e.guide.length > 0, e.id + " : le guide d'avant reste pour l'ancienne navigation");
@@ -324,7 +351,8 @@ for (const m of MODULES) {
   }
 }
 const mod = (cle) => MODULES.find((m) => m.cle === cle);
-eq(mod("planning").annonce.resume.endsWith("Le bouton Aujourd'hui t'amène directement à la journée du jour."), true, "Planning : le bouton Aujourd'hui");
+// Audit du 09/11, lot B : plus de bouton « Aujourd'hui » dans le Planning de la nouvelle barre ; la journée du jour y est repérée dans les deux.
+eq(mod("planning").annonce.resume.endsWith("La journée du jour y est repérée."), true, "Planning : la journée du jour repérée");
 eq(mod("priorites").explication, "Qui doit passer en priorité, en salle et en voiture, dans le Planning.", "Priorités : explication");
 ok(mod("priorites").annonce.resume.startsWith("Dans le Planning, Priorités montre qui doit passer en priorité"), "Priorités : annonce");
 eq(mod("notes").explication, "Matrice des notes, courbe d'évolution de chaque stagiaire, anonymat.", "Notes : explication");
@@ -413,7 +441,7 @@ ok(!/(direction|siège)/i.test(tout(changerPromo)), "Changer de promo : ne parle
 // Aucun lien « Où le trouver » qui serait réécrit à tort : « centre » devient « Indicateurs » sous la nouvelle barre (formateur).
 ok(!direction.ou || direction.ou.route !== "centre", "direction : pas de lien vers la route centre (réécrit « Indicateurs » par ou-trouver)");
 // Triées avec les autres du même jour : les entrées du lot 2B passent d'abord (l'Accueil du stagiaire montre la première).
-eq(ids(triees(visibles(NOUVEAUTES, false, true, "stagiaire")))[0], journee.id, "stagiaire : la plus récente reste la journée");
+eq(ids(triees(JUSQU_AU_LOT(visibles(NOUVEAUTES, false, true, "stagiaire"))))[0], journee.id, "stagiaire : la plus récente du lot 2B reste la journée");
 
 // Aucune impasse : en direction et au siège, toute entrée montrée (tous les cas d'audience, tous les droits) a un lien permis par l'espace.
 for (const espace of ["direction", "siege"]) {

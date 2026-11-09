@@ -48,7 +48,7 @@ PAGES
   Accueil du stagiaire : la journée, matin et après-midi, avec ce qui le concerne (au tableau, en voiture) ; le bouton « Signer pour ce matin » ou « Signer pour cet après-midi » quand une feuille d'émargement est ouverte ; « À faire » (examen ouvert, QCM d'un thème vu cette semaine, dossier professionnel, livret EPCF) ; « Prochain rendez-vous » ; une Nouveauté ; en pied de page, Contacts du centre, Mes préférences et Signaler un problème.
   Aujourd'hui des formateurs : l'émargement du jour, qui est au tableau, qui est en voiture, « À traiter » (les signalements de QCM et les questions proposées par l'IA) et « À suivre de près » (les stagiaires qui cumulent au moins deux signaux : absences, notes basses, inactivité sur les QCM, retard de passages). La liste complète est dans Indicateurs.
 - planning (Planning) : sous-onglets Semaine, Dates clés et Priorités.
-  Semaine : semaine de la promo, demi-journées matin et après-midi, qui s'ouvre sur la semaine en cours. Elle s'affiche en grille (les jours en colonnes, le matin et l'après-midi en lignes ; sur téléphone, une bande de jours puis le jour choisi) ou en liste, avec la bascule « Grille » (« Jour » sur téléphone) ou « Liste ». En lecture pour tous ; le mode Modifier (formateurs) se déverrouille par le bouton Modifier, au-dessus de la semaine, Échap ou le bouton pour sortir. Le bouton « Aujourd'hui », en tête de la page, amène à la journée en cours. Les semaines passées se verrouillent.
+  Semaine : semaine de la promo, demi-journées matin et après-midi, qui s'ouvre sur la semaine en cours. Elle s'affiche en grille (les jours en colonnes, le matin et l'après-midi en lignes ; sur téléphone, une bande de jours puis le jour choisi) ou en liste, avec la bascule « Grille » (« Jour » sur téléphone) ou « Liste ». En lecture pour tous ; le mode Modifier (formateurs) se déverrouille par le bouton Modifier, au-dessus de la semaine, Échap ou le bouton pour sortir. Depuis une autre semaine, « Revenir à aujourd'hui », dans la barre de la semaine, ramène à la journée en cours. Les semaines passées se verrouillent.
   Dates clés : liste des dates importantes de la formation (examens, stages, formations, fériés), à venir ou toutes.
   Priorités : qui doit passer en priorité dans la promo, d'après les compteurs de passages. Vue promo, pas personnelle.
 - emargement (Émargement, formateurs, quand il est activé pour la promo) : la semaine en dix demi-journées ; ouvrir une feuille, faire signer, noter absences et observations, signer, clore, rouvrir, imprimer. Le stagiaire n'a pas de page : son Accueil lui propose « Signer pour ce matin » ou « Signer pour cet après-midi » quand la feuille est ouverte. Sur les autres pages, un bandeau en haut de l'app propose aussi « Signer » tant que la feuille du jour est ouverte.
@@ -81,7 +81,7 @@ ANCIENS NOMS (où sont passées les pages de l'ancienne barre) :
 - Évolution et La classe de Mon suivi : réunies dans Résultats (« Moi » et « La classe »).
 - Tableau de bord : Indicateurs.
 - Élèves bénévoles (bouton du Planning, qui y mène encore, sauf sur une semaine verrouillée) : Stagiaires, Élèves bénévoles.
-- Bouton « Aujourd'hui » de la barre : Planning, Semaine, en tête de la page.
+- Bouton « Aujourd'hui » de la barre : Planning, Semaine, « Revenir à aujourd'hui » dans la barre de la semaine (seulement quand on regarde une autre semaine).
 - Flèche pour actualiser : Actualiser, dans le menu du compte.
 - Bulle ronde de l'assistant : bouton Assistant.
 `;

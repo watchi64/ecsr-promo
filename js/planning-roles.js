@@ -1,7 +1,7 @@
 // Rôles EFFECTIFS d'une carte du planning, fonctions PURES (testables en node, sans DOM).
 // Déplacées de js/views/planning.js sans changer leur corps : le planning, l'impression et la
 // lecture de la journée et de la semaine (js/journee-rules.js) lisent ainsi la même vérité.
-import { ACTIVITY_SHAPES } from "./config.js?v=20261109g";
+import { ACTIVITY_SHAPES } from "./config.js?v=20261109i";
 
 // Rôles EFFECTIFS d'un créneau selon la FORME de son activité (ACTIVITY_SHAPES).
 // Quand on change l'activité d'un créneau, la donnée des rôles (tableau/élèves) reste

@@ -109,3 +109,45 @@ test("Échap ferme la fenêtre dans la page et rend le focus au bouton", () => a
   assert.equal(fenetreOuverte(), null);
   assert.equal(document.activeElement, ancre);
 }));
+
+// Questionnaires (tâche 8, mineur de la tâche 5) : une fenêtre ouverte par un lien n'a pas de bouton d'ouverture, et
+// l'ancienne barre n'a pas de bouton du compte où retomber. Le point de retour de la fenêtre prend alors le focus.
+const ouvrirSansAncre = (retour, ancre = null) => ouvrirFenetre({
+  nom: "questionnaire", ancre, etiquette: "Ton avis", classe: "questionnaire-fenetre", contenu: [], retour });
+
+test("sans bouton d'ouverture, Échap rend le focus au point de retour (fonction lue à la fermeture)", () => avecFenetres(({ document }) => {
+  let point = null;
+  ouvrirSansAncre(() => point);
+  point = bouton(document, "repondre");
+  document.declencher("keydown", { key: "Escape", preventDefault() {}, stopPropagation() {} });
+  assert.equal(fenetreOuverte(), null);
+  assert.equal(document.activeElement, point, "le point de retour lu au moment de la fermeture");
+}));
+
+test("bouton d'ouverture disparu (bandeau redessiné) : le focus va au point de retour", () => avecFenetres(({ document }) => {
+  const ancre = bouton(document, "repondre");
+  const point = bouton(document, "titre");
+  ouvrirSansAncre(point, ancre);
+  ancre.remove();
+  fermerFenetre();
+  assert.equal(document.activeElement, point);
+}));
+
+test("bouton d'ouverture encore affiché : il passe avant le point de retour", () => avecFenetres(({ document }) => {
+  const ancre = bouton(document, "repondre");
+  const point = bouton(document, "titre");
+  ouvrirSansAncre(point, ancre);
+  fermerFenetre();
+  assert.equal(document.activeElement, ancre);
+}));
+
+test("point de retour absent, hors de la page ou en erreur : rien ne casse, le focus n'est pas volé", () => avecFenetres(({ document }) => {
+  const ailleurs = bouton(document, "plus");
+  for (const retour of [null, () => null, () => { throw new Error("x"); }, () => { const b = document.createElement("button"); return b; }]) {
+    ouvrirSansAncre(retour);
+    ailleurs.focus();
+    assert.doesNotThrow(() => fermerFenetre());
+    assert.equal(fenetreOuverte(), null);
+    assert.equal(document.activeElement, ailleurs);
+  }
+}));

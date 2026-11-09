@@ -13,24 +13,38 @@
 // repli sur la promo courante. Les lectures de la page se gardent en mémoire, par promo, le temps de la page : le dossier
 // du centre relit les autres promos du lieu, mais jamais celle qui est déjà affichée.
 // La date des documents est celle du rendu de la page, comme les données lues.
+//
+// Section « Questionnaires de satisfaction » (Qualiopi Q3, indicateur 30) : pour la promo choisie, l'état de chaque
+// questionnaire (ouvert ou fermé, selon les dates ou à la main), le nombre de réponses ou « moins de N réponses », les
+// résultats question par question au-dessus du seuil, et les commentaires (fondateur seul, jamais avec la case « Sans aucun
+// nom », jamais à l'impression). Les règles sont dans js/questionnaires-gestion-rules.js ; la base garde le seuil (rien ne
+// sort en dessous). Migration pas encore appliquée : la section le dit, sans erreur (R2).
 
-import { lireDonneesQualiopi, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261109g";
-import { el, clear, isoDate, toast } from "../utils.js?v=20261109g";
-import { indicateursPromo } from "../centre-stats.js?v=20261109g";
-import { inventairePromo, nb } from "../qualiopi-preuves.js?v=20261109g";
+import {
+  lireDonneesQualiopi, lireReferentielCentre, getMesPromos, getPromoCourante,
+  lireResultatsQuestionnaire, lireCommentairesQuestionnaire, lireOuverturesQuestionnaires, ouvrirQuestionnaire,
+} from "../db.js?v=20261109i";
+import { el, clear, isoDate, toast } from "../utils.js?v=20261109i";
+import { indicateursPromo } from "../centre-stats.js?v=20261109i";
+import { inventairePromo, nb, tableau, satisfactionDe } from "../qualiopi-preuves.js?v=20261109i";
 import {
   modeleDossierFormation, modeleDossierCentre, inventaireCsv, nomFichierQualiopi, periodeEnMots, LIBELLES_NIVEAU, PHRASE_NIVEAU, PHRASE_DE_GARDE,
-} from "../qualiopi-documents.js?v=20261109g";
+} from "../qualiopi-documents.js?v=20261109i";
 import {
   REFERENTIEL_APPLIQUE, REFERENTIEL_DU, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, groupesParCritere,
   titreImpression,
-} from "../qualiopi-page-rules.js?v=20261109g";
+} from "../qualiopi-page-rules.js?v=20261109i";
 import {
   ficheResultats, fichesResultatsTexte, tableauFiche, copierTexte, noteProvisoire, promoTerminee, AUCUNE_FORMATION,
-} from "../qualiopi-resultats.js?v=20261109g";
-import { NOUVEAUTES } from "../nouveautes-data.js?v=20261109g";
-import { telecharger } from "./centre.js?v=20261109g";
-import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261109g";
+} from "../qualiopi-resultats.js?v=20261109i";
+import { NOUVEAUTES } from "../nouveautes-data.js?v=20261109i";
+import { telecharger } from "./centre.js?v=20261109i";
+import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261109i";
+import {
+  QUESTIONNAIRES_GESTION, porteeGestion, anneesFormateur, libellePorteeFormateur, ouvertureDe, etatOuverture, actionsOuverture,
+  messageOuverture, questionnairesAbsents, resumeReponses, satisfactionGlobale, lignesResultats, commentairesMontrables,
+  messageLectureGestion, messageEchecOuverture, jourParis,
+} from "../questionnaires-gestion-rules.js?v=20261109i";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
@@ -173,6 +187,39 @@ function boiteErreur(message, reessayer) {
     el("button", { class: "btn small", type: "button", onClick: reessayer }, "Réessayer"));
 }
 
+// =====================================================================================================
+// Questionnaires : une ligne de résultats (question, accord, barre, répartition en mots)
+// =====================================================================================================
+
+// La barre est une image de la répartition (cachée aux lecteurs d'écran) ; les nombres sont toujours écrits dessous. Couleurs de
+// l'échelle de « Pas du tout » à « Tout à fait », jamais de rouge ; « Sans avis » est gris.
+function barreRepartition(parts) {
+  const barre = el("div", { class: "qq-barre", "aria-hidden": "true" });
+  parts.forEach((part, rang) => {
+    if (!part.nombre) return;
+    const segment = el("span", { class: "qq-segment qq-c" + rang });
+    segment.style.flexGrow = String(part.nombre);
+    barre.appendChild(segment);
+  });
+  return barre;
+}
+
+function ligneResultat(ligne) {
+  const echelle = ligne.type === "echelle";
+  const marques = [ligne.globale ? "question globale" : null, ligne.facultative ? "facultative" : null].filter(Boolean);
+  const question = el("p", { class: "qq-question" }, ligne.texte,
+    ...marques.flatMap((m) => [" ", el("span", { class: "qq-marque" }, m)]));
+  if (ligne.sousSeuil) {
+    return el("li", { class: "qq-ligne qq-sous-seuil" }, question, el("p", { class: "qq-chiffre" }, ligne.texteSousSeuil));
+  }
+  return el("li", { class: "qq-ligne" }, question,
+    el("p", { class: "qq-chiffre" }, ligne.accord ? ligne.accord.texte : nb(ligne.n, "réponse")),
+    echelle ? barreRepartition(ligne.parts) : null,
+    el("ul", { class: "qq-repartition" + (echelle ? " qq-echelle" : "") }, ...ligne.parts.map((part, rang) => el("li", {},
+      echelle ? el("span", { class: "qq-puce qq-c" + rang, "aria-hidden": "true" }) : null,
+      el("span", {}, part.libelle, " : ", el("strong", {}, String(part.nombre)))))));
+}
+
 const ligneFiche = (libelle, contenu) => el("div", { class: "qualiopi-fiche-ligne" }, el("dt", {}, libelle), el("dd", {}, contenu));
 
 // =====================================================================================================
@@ -214,10 +261,40 @@ export async function renderQualiopi(container) {
   const chargementVivant = (numero) => numero === chargement && pageVivante();
   const actionVivante = (numero) => numero === action && pageVivante();
 
+  // Les résultats du questionnaire de fin de formation d'une promo (jamais les commentaires). Toute erreur de lecture (réseau, droit
+  // refusé) rend LECTURE_ECHOUEE : satisfactionDe en fait « non lue », jamais « absente » (seule la fonction manquante l'est).
+  const LECTURE_ECHOUEE = { echec: true };
+  async function lireSatisfaction(promoId) {
+    try {
+      return await lireResultatsQuestionnaire("fin_stagiaire", { promo_id: promoId });
+    } catch {
+      return LECTURE_ECHOUEE;
+    }
+  }
+
+  // Les deux lectures partent ensemble. Une satisfaction non lue n'est jamais gardée en mémoire : la lecture suivante (rendu, dossier,
+  // bouton « Relire ») la refait.
   const lire = (id) => {
-    if (!lectures.has(id)) lectures.set(id, lireDonneesQualiopi(id).catch((e) => { lectures.delete(id); throw e; }));
+    if (!lectures.has(id)) {
+      lectures.set(id, Promise.all([lireDonneesQualiopi(id), lireSatisfaction(id)])
+        .then(([donnees, resultats]) => {
+          const satisfaction = satisfactionDe(resultats, tableau(donnees.stagiaires).length);
+          if (satisfaction.etat === "non_lue") lectures.delete(id);
+          return { ...donnees, satisfaction };
+        })
+        .catch((e) => { lectures.delete(id); throw e; }));
+    }
     return lectures.get(id);
   };
+
+  // À l'écran seulement : quand la satisfaction de la promo affichée n'a pas pu être lue, une phrase et un bouton qui relisent la promo.
+  function noteSatisfaction() {
+    const note = el("div", { class: "qualiopi-note-satisfaction" });
+    if (etat.donnees?.satisfaction?.etat !== "non_lue") return note;
+    note.append(el("p", { class: "qualiopi-aide" }, "La satisfaction des stagiaires n'a pas pu être lue. Les documents l'indiquent « non lue »."),
+      el("button", { class: "btn", type: "button", onClick: () => { lectures.delete(etat.promo.id); charger(etat.promo); } }, "Relire la satisfaction"));
+    return note;
+  }
 
   // --- Fiche : centre, promo, référentiel, catégorie, alternance ---
   const texteCentre = el("span");
@@ -247,6 +324,211 @@ export async function renderQualiopi(container) {
   const corps = el("div", { class: "qualiopi-corps" });
   const zoneCriteres = el("section", { class: "qualiopi-criteres" });
   racine.appendChild(corps);
+
+  // --- Questionnaires de satisfaction (Q3) : lus à part, sans retenir le reste de la page ---
+  // Le jour des questionnaires est celui de Paris, comme celui de la base (jourParis) ; il est recalculé à chaque lecture, pour
+  // qu'une page restée ouverte depuis la veille, ou un appareil réglé sur un autre fuseau, montre l'état que la base applique.
+  const zoneQuestionnaires = el("section", { class: "qualiopi-questionnaires", "aria-labelledby": "qualiopi-titre-questionnaires" });
+  // Une seule zone annoncée (role="status"), posée une fois et jamais recréée : les cartes sont redessinées, pas elle.
+  const annonceQq = el("p", { class: "qq-annonce", role: "status", "aria-live": "polite" });
+  // lu : null pendant la première lecture, { erreur }, { absent: true } (migration pas encore appliquée), ou { ouvertures, cartes }.
+  // Une carte est { portee, resultats, commentaires }, { portee, erreur } si sa lecture échoue, ou { chargement: true }.
+  const qq = { lu: null, jour: jourParis(new Date()), anneeFormateur: null, occupe: false };
+  qq.anneeFormateur = Number(qq.jour.slice(0, 4));
+  const statutsQq = new Map();       // clé du questionnaire : { texte, erreur }, le message de la dernière action, gardé au redessin
+  let lectureQq = 0;                 // numéro de la dernière lecture des questionnaires
+  const promosDuLieu = (promo) => promos.filter((p) => p.lieu_id != null && p.lieu_id === promo.lieu_id);
+
+  // Une carte : sa portée, ses résultats, et ses commentaires lus seulement à partir du seuil (la base n'en rend aucun dessous).
+  // Une lecture qui échoue reste dans sa carte : les deux autres s'affichent.
+  async function lireCarte(cle, promo) {
+    const portee = porteeGestion(cle, promo, qq.anneeFormateur);
+    if (!portee) return { portee: null, resultats: null, commentaires: [] };
+    try {
+      const resultats = await lireResultatsQuestionnaire(cle, portee);
+      const commentaires = resumeReponses(cle, resultats).assez ? await lireCommentairesQuestionnaire(cle, portee) : [];
+      return { portee, resultats, commentaires };
+    } catch (e) {
+      console.error(e);
+      return { portee, erreur: messageLectureGestion(e) };
+    }
+  }
+
+  function annoncer(texte) {
+    annonceQq.textContent = "";
+    if (texte) setTimeout(() => { annonceQq.textContent = texte; }, 50);   // vidée puis remplie : le même message est relu
+  }
+
+  // Lit les trois questionnaires de la promo. `focus` (après une action ou un changement d'année) : la section reste affichée
+  // pendant la relecture, puis le focus revient à l'élément qui l'avait (clavier).
+  async function chargerQuestionnaires(promo, focus = null) {
+    const moi = ++lectureQq;
+    qq.jour = jourParis(new Date());
+    const annees = anneesFormateur(promosDuLieu(promo), qq.jour);
+    if (!annees.includes(qq.anneeFormateur)) qq.anneeFormateur = annees[0] ?? Number(qq.jour.slice(0, 4));
+    if (!focus) {
+      qq.lu = null;
+      afficherQuestionnaires();
+    }
+    let lu;
+    try {
+      const [ouvertures, ...cartes] = await Promise.all([
+        lireOuverturesQuestionnaires(), ...QUESTIONNAIRES_GESTION.map((q) => lireCarte(q.cle, promo))]);
+      const resultats = cartes.filter((c) => c.portee && !c.erreur).map((c) => c.resultats);
+      lu = questionnairesAbsents({ ouvertures, resultats })
+        ? { absent: true }
+        : { ouvertures, cartes: Object.fromEntries(QUESTIONNAIRES_GESTION.map((q, i) => [q.cle, cartes[i]])) };
+    } catch (e) {
+      console.error(e);
+      lu = { erreur: messageLectureGestion(e) };   // les ouvertures ne se lisent pas : aucun état n'est sûr, aucune carte
+    }
+    if (moi !== lectureQq || !pageVivante() || etat.promo !== promo) return;
+    qq.lu = lu;
+    afficherQuestionnaires();
+    if (focus) zoneQuestionnaires.querySelector(focus)?.focus();
+  }
+
+  async function basculerQuestionnaire(cle, portee, valeur) {
+    if (qq.occupe) return;
+    const promo = etat.promo;
+    // Le jour a changé depuis l'affichage (page restée ouverte) : l'état montré n'est peut-être plus celui de la base. On relit
+    // sans rien changer, et on le dit.
+    if (jourParis(new Date()) !== qq.jour) {
+      statutsQq.clear();
+      statutsQq.set(cle, { texte: "Le jour a changé depuis l'affichage : l'état vient d'être relu, vérifie-le avant d'agir.", erreur: true });
+      annoncer(statutsQq.get(cle).texte);
+      await chargerQuestionnaires(promo, `button[data-cle="${cle}"]`);
+      return;
+    }
+    qq.occupe = true;
+    zoneQuestionnaires.querySelectorAll("button[data-cle], select").forEach((b) => { b.disabled = true; });
+    statutsQq.clear();
+    try {
+      await ouvrirQuestionnaire(cle, portee, valeur);
+      statutsQq.set(cle, { texte: messageOuverture(valeur), erreur: false });
+    } catch (e) {
+      console.error(e);
+      statutsQq.set(cle, { texte: messageEchecOuverture(e), erreur: true });
+    } finally {
+      qq.occupe = false;
+    }
+    if (!pageVivante() || etat.promo !== promo) return;
+    await chargerQuestionnaires(promo, `button[data-cle="${cle}"]`);
+    annoncer(statutsQq.get(cle)?.texte);
+  }
+
+  // Changement d'année des formateurs : la carte de l'ancienne année est vidée et les boutons attendent la nouvelle lecture,
+  // pour qu'aucun clic n'agisse sur l'année d'avant.
+  function changerAnnee(annee) {
+    const promo = etat.promo;
+    qq.anneeFormateur = annee;
+    statutsQq.clear();
+    if (qq.lu?.cartes) {
+      qq.lu = { ...qq.lu, cartes: { ...qq.lu.cartes, fin_formateur: { chargement: true } } };
+      afficherQuestionnaires();
+      zoneQuestionnaires.querySelectorAll("button[data-cle]").forEach((b) => { b.disabled = true; });
+    }
+    chargerQuestionnaires(promo, "#qq-annee");
+  }
+
+  // Ligne « qui répond » ; pour les formateurs, le centre et l'année (au choix quand la fin des promos touche deux années).
+  function ligneQui(cle, qui, promo, enAttente) {
+    if (cle !== "fin_formateur") return el("p", { class: "qq-qui" }, qui);
+    const annees = anneesFormateur(promosDuLieu(promo), qq.jour);
+    const ligne = el("div", { class: "qq-qui" }, el("p", {}, libellePorteeFormateur(promo.lieu_nom, qq.anneeFormateur)));
+    if (annees.length > 1) {
+      const choixAnnee = el("select", { id: "qq-annee", class: "qualiopi-select qq-annee" },
+        ...annees.map((a) => el("option", { value: String(a) }, String(a))));
+      choixAnnee.value = String(qq.anneeFormateur);
+      choixAnnee.disabled = enAttente;
+      choixAnnee.addEventListener("change", () => changerAnnee(Number(choixAnnee.value)));
+      ligne.appendChild(el("p", { class: "qq-annee-ligne" }, el("label", { for: "qq-annee" }, "Année"), choixAnnee));
+    }
+    return ligne;
+  }
+
+  function carteQuestionnaire({ cle, titre, qui }) {
+    const promo = etat.promo;
+    const carte = qq.lu.cartes[cle];
+    const idTitre = "qq-titre-" + cle;
+    const tete = el("div", { class: "qq-tete" }, el("h4", { id: idTitre, class: "qq-titre" }, titre));
+    const article = (...enfants) => el("article", { class: "qq-carte", "aria-labelledby": idTitre }, tete, ...enfants);
+    if (carte.chargement) return article(ligneQui(cle, qui, promo, true), el("div", { class: "loading" }, "Chargement"));
+    if (!carte.portee) {
+      return article(el("p", { class: "qq-qui" }, "Cette promo n'a pas de centre : le questionnaire des formateurs se lit par centre."));
+    }
+    if (carte.erreur) {
+      return article(ligneQui(cle, qui, promo, false),
+        el("div", { class: "qq-erreur" }, el("p", {}, carte.erreur),
+          el("button", { class: "btn", type: "button", "data-cle": cle, onClick: () => chargerQuestionnaires(etat.promo, `button[data-cle="${cle}"]`) }, "Réessayer")));
+    }
+    const etatO = etatOuverture({
+      cle, promo, promosDuLieu: promosDuLieu(promo), annee: qq.anneeFormateur, aujourdhui: qq.jour,
+      ouverture: ouvertureDe(qq.lu.ouvertures, cle, carte.portee),
+    });
+    tete.appendChild(el("span", { class: "qq-etat " + (etatO.ouvert ? "ouvert" : "ferme") }, etatO.etiquette));
+    const resume = resumeReponses(cle, carte.resultats);
+    const seuil = carte.resultats?.seuil;
+
+    const chiffres = el("dl", { class: "qq-chiffres" },
+      el("div", {}, el("dt", {}, "Ouverture"), el("dd", {}, etatO.detail)),
+      el("div", {}, el("dt", {}, "Réponses"), el("dd", { class: "qq-nombre" }, resume.texte)));
+    if (resume.assez) {
+      const globale = satisfactionGlobale(cle, carte.resultats);
+      chiffres.appendChild(el("div", {}, el("dt", {}, "Satisfaction globale"),
+        globale
+          ? el("dd", { class: "qq-nombre" }, globale.valeur, el("span", { class: "qq-detail" }, globale.detail))
+          : el("dd", {}, `moins de ${seuil} notes à la question globale : pas de taux`)));
+    }
+
+    // Les boutons suivent l'état effectif, calculé avec le jour de Paris de cette lecture (actionsOuverture).
+    const statut = statutsQq.get(cle);
+    const actions = el("div", { class: "qq-actions" },
+      el("div", { class: "qualiopi-boutons" }, ...actionsOuverture(etatO).map((a) => el("button", {
+        class: "btn", type: "button", "data-cle": cle, onClick: () => basculerQuestionnaire(cle, carte.portee, a.valeur),
+      }, a.libelle))),
+      el("p", { class: "qq-statut" + (statut?.erreur ? " erreur" : "") }, statut?.texte ?? ""));
+
+    const corpsCarte = [ligneQui(cle, qui, promo, false), chiffres, actions];
+    if (!resume.assez) {
+      corpsCarte.push(el("p", { class: "qq-aide" }, `Les résultats et les commentaires s'affichent à partir de ${seuil} réponses.`));
+    } else {
+      corpsCarte.push(repliable(el("details", { class: "qq-details" },
+        el("summary", {}, "Résultats question par question"),
+        el("ol", { class: "qq-lignes" }, ...lignesResultats(cle, carte.resultats).map(ligneResultat))), "qq-resultats-" + cle, ouverts));
+      // Commentaires : fondateur seul, jamais avec « Sans aucun nom » ; la feuille de style les cache aussi à l'impression.
+      if (etat.sansNoms) {
+        corpsCarte.push(el("p", { class: "qq-aide" }, "Commentaires masqués : la case « Sans aucun nom » est cochée."));
+      } else {
+        const textes = commentairesMontrables(carte.commentaires, { sansNoms: etat.sansNoms, assez: resume.assez });
+        corpsCarte.push(textes.length
+          ? repliable(el("details", { class: "qq-details qualiopi-commentaires" },
+            el("summary", {}, `Commentaires (${textes.length})`),
+            el("p", { class: "qq-aide" }, "Dans un ordre tiré au hasard. Visibles par toi seul, jamais dans les documents."),
+            el("ul", { class: "qq-commentaires" }, ...textes.map((t) => el("li", {}, t)))), "qq-commentaires-" + cle, ouverts)
+          : el("p", { class: "qq-aide qualiopi-commentaires" }, "Aucun commentaire écrit."));
+      }
+    }
+    return article(...corpsCarte);
+  }
+
+  // L'en-tête de la section et la zone annoncée sont posés une fois ; seul le contenu est redessiné.
+  const contenuQq = el("div", { class: "qq-contenu" });
+  zoneQuestionnaires.append(
+    el("h3", { class: "qualiopi-titre", id: "qualiopi-titre-questionnaires" }, "Questionnaires de satisfaction"),
+    el("p", { class: "qualiopi-intro" },
+      "Réponses anonymes. Rien ne s'affiche sous le seuil : 5 réponses de stagiaires, 3 de formateurs."),
+    annonceQq,
+    contenuQq);
+
+  function afficherQuestionnaires() {
+    clear(contenuQq);
+    const lu = qq.lu;
+    if (lu === null) contenuQq.appendChild(el("div", { class: "loading" }, "Chargement"));
+    else if (lu.erreur) contenuQq.appendChild(boiteErreur(lu.erreur, () => chargerQuestionnaires(etat.promo)));
+    else if (lu.absent) contenuQq.appendChild(el("p", { class: "qualiopi-vide" }, "Les questionnaires ne sont pas encore en service."));
+    else contenuQq.appendChild(el("div", { class: "qq-cartes" }, ...QUESTIONNAIRES_GESTION.map(carteQuestionnaire)));
+  }
 
   function recalculerInventaire() {
     etat.inv = inventairePromo(etat.donnees, etat.referentiel, {
@@ -372,9 +654,9 @@ export async function renderQualiopi(container) {
       // Les fiches : celle de la promo choisie sur-le-champ, celles du centre après la lecture de ses promos (rien si une promo ne se
       // lit pas ou si l'action devient caduque : le message est alors déjà écrit).
       const lesFiches = portee === "formation"
-        ? Promise.resolve([ficheResultats({ promo, ind: etat.ind, aujourdhui })])
+        ? Promise.resolve([ficheResultats({ promo, ind: etat.ind, aujourdhui, satisfaction: etat.donnees.satisfaction })])
         : lirePromosDuCentre(moi, promosEtPeriodeDuCentre().retenues, "les résultats du centre ne sont pas préparés",
-          (p, donnees) => ficheResultats({ promo: p, ind: indicateursPromo(donnees, referentiel, { aujourdhui }), aujourdhui }));
+          (p, donnees) => ficheResultats({ promo: p, ind: indicateursPromo(donnees, referentiel, { aujourdhui }), aujourdhui, satisfaction: donnees.satisfaction }));
       const copie = sortie === "copier" ? copierTexte(lesFiches.then(texteDesFiches)) : null;   // sans await : dans le geste du clic
       const fiches = await lesFiches;
       if (!fiches) return;
@@ -413,6 +695,8 @@ export async function renderQualiopi(container) {
     const caseSansNom = el("input", { type: "checkbox", id: "qualiopi-sans-nom" });
     caseSansNom.checked = etat.sansNoms;
     caseSansNom.addEventListener("change", () => { etat.sansNoms = caseSansNom.checked; });
+    // Les commentaires des questionnaires suivent la case : masqués dès qu'elle est cochée.
+    caseSansNom.addEventListener("change", () => { if (qq.lu?.cartes) afficherQuestionnaires(); });
     const bouton = (texte, onClick, classe = "btn") => el("button", { class: classe, type: "button", onClick }, texte);
     const boutonFormation = bouton("Dossier de la formation", dossierFormation, "btn primary");
     const boutonTableau = bouton("Tableau (CSV)", tableauCsv);
@@ -464,6 +748,8 @@ export async function renderQualiopi(container) {
     majEntete(promo);
     clear(corps);
     corps.appendChild(el("div", { class: "loading" }, "Chargement"));
+    statutsQq.clear();
+    chargerQuestionnaires(promo);   // sans attendre : la section se remplit à son rythme
     try {
       const [referentiel, donnees] = await Promise.all([lireReferentielCentre(), lire(promo.id)]);
       if (!chargementVivant(moi)) return;
@@ -477,7 +763,7 @@ export async function renderQualiopi(container) {
       return;
     }
     clear(corps);
-    corps.append(construireActions(), zoneCriteres);
+    corps.append(construireActions(), noteSatisfaction(), zoneQuestionnaires, zoneCriteres);
     afficherCriteres();
   }
 
