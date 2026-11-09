@@ -86,4 +86,12 @@ eq(vueAAfficher(null, "classe"), "classe", "pas de vue demandée : la mémoire d
 eq(vueAAfficher(null, null), "moi", "ni adresse ni mémoire : Moi");
 eq(vueAAfficher("constructor", "x"), "moi", "vue demandée inconnue et mémoire inconnue : Moi");
 
+// Fiche d'un centre au siège : #/reseau/<id>
+eq(lireAdresse("#/reseau/3"), { route: "reseau", id: 3, partie: null }, "fiche d'un centre");
+eq(lireAdresse("#/reseau/3/epcf"), { route: "reseau", id: 3, partie: null }, "pas de partie pour un centre");
+eq(lireAdresse("#/reseau/abc"), { route: "reseau", id: null, partie: null }, "id de centre illisible");
+eq(lireAdresse("#/reseau"), { route: "reseau", id: null, partie: null }, "vue d'ensemble du réseau");
+eq(adresseFiche("reseau", 3), "#/reseau/3", "adresse d'un centre");
+eq(adresseFiche("reseau", null), "#/reseau", "adresse du réseau");
+
 console.log(`route-rules : ${n} assertions OK`);

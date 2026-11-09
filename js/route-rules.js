@@ -57,13 +57,15 @@ export function lireAdresse(hash) {
     return { route, id, partie: id ? partieValide(segments[2]) : null };
   }
   if (route === "mon-suivi") return { route, id: null, partie: partieValide(segments[1]) };
+  // Fiche d'un centre au siège : #/reseau/<id>, sans partie.
+  if (route === "reseau") return { route, id: idValide(segments[1]), partie: null };
   return { route, id: null, partie: null };
 }
 
 // Adresse d'une fiche, d'une partie, ou de la page elle-même.
 export function adresseFiche(route, id, partie) {
   let h = "#/" + route;
-  if (route === "stagiaires" && id) h += "/" + id;
+  if ((route === "stagiaires" || route === "reseau") && id) h += "/" + id;
   if (partie && (route === "mon-suivi" || (route === "stagiaires" && id))) h += "/" + partie;
   return h;
 }

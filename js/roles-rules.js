@@ -8,6 +8,7 @@
  * pas migrée (ou si les promos n'ont pas pu être chargées), la colonne manque : l'app se replie alors sur
  * `is_admin` et `role` du profil, comme avant le lot 4.
  */
+import { phraseDeRefus, PHRASE_ECHEC } from "./espaces-rules.js?v=20261109a";
 
 // Les aperçus : un fondateur les a tous, un membre de l'équipe a celui du stagiaire. Un aperçu ne fait que
 // RETIRER des droits : une valeur hors de la liste permise est ignorée.
@@ -128,8 +129,8 @@ export const MESSAGE_INVITATION_INDISPONIBLE = "L'invitation n'est pas disponibl
 export function messageInvitation(message, code) {
   const brut = String(message ?? "");
   if (code === "PGRST202" || /could not find the function/i.test(brut)) return MESSAGE_INVITATION_INDISPONIBLE;
-  const texte = brut.replace(/^\s*invitation:\s*/i, "").trim();
-  return texte || "Erreur d'invitation";
+  const phrase = phraseDeRefus(brut, code);
+  return phrase === PHRASE_ECHEC ? "Erreur d'invitation" : phrase;
 }
 
 // Phrase d'une invitation acceptée par la base, d'après ce que rend inviter_compte : `cree` (le profil vient d'être créé) et
