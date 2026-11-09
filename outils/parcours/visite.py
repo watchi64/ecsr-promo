@@ -327,7 +327,7 @@ class Visite:
             except (DelaiDepasse, ErreurPlaywright):
                 if essai == 2:
                     self.echec("le banc ne s'ouvre pas")
-        if self.parcours.ouverture == "porte":
+        if getattr(self.parcours, "ouverture", None) == "porte":
             # Le parcours commence sur la porte de connexion (personne n'est encore entré) : pas de barre, pas de page de départ.
             try:
                 self.page.locator("#gate-submit").wait_for(state="visible", timeout=10000)
@@ -689,5 +689,5 @@ class Visite:
                 gardees.append(e)
         self.erreurs_console[:] = gardees
         self.capture_finale = self.capturer("fin")
-        if self.parcours.ouverture != "porte":      # la porte de connexion n'a pas de barre de navigation
+        if getattr(self.parcours, "ouverture", None) != "porte":      # la porte de connexion n'a pas de barre de navigation
             self.verifier_sortie()
