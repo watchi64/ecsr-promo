@@ -148,10 +148,52 @@ test("feuille de style : cibles de 44 px, boutons de type qui passent à la lign
 
 test("aucun tiret cadratin, « formateur » jamais « prof » à l'écran", () => {
   for (const fichier of ["js/views/registre-qualite.js", "js/registre-fenetre.js", "js/views/qualiopi.js", "js/nav-fenetre.js",
-    "css/qualiopi.css", "js/db.js", "tests/registre-page.test.mjs", "tests/nav-fenetre.test.mjs"]) {
+    "css/qualiopi.css", "js/db.js", "js/views/problemes.js", "tests/registre-page.test.mjs", "tests/nav-fenetre.test.mjs"]) {
     assert.ok(!lire(fichier).includes(String.fromCharCode(0x2014)), fichier);
   }
   for (const fichier of ["js/views/registre-qualite.js", "js/registre-fenetre.js"]) {
     assert.ok(!/\bprof\b/i.test(lire(fichier)), fichier);
   }
+});
+
+// --- Tâche 5 : « Ajouter au registre » depuis un signalement ---
+const problemes = sansCommentaires(lire("js/views/problemes.js"));
+
+test("problèmes signalés : un seul Set lu au rendu, avec la liste, partagé par les trois sous-onglets", () => {
+  assert.match(problemes, /listSignalementsApp\(\),\s*liensRegistre\(\)/, "lu en même temps que la liste");
+  assert.equal((problemes.match(/liensRegistre\(\)/g) || []).length, 1, "une seule lecture par rendu");
+  assert.equal((problemes.match(/liensDuRegistre = /g) || []).length, 2, "déclaré, puis posé une fois");
+  assert.match(problemes, /const panneau = \(items, vide\)/, "les trois panneaux viennent du même constructeur");
+  assert.match(problemes, /liensDuRegistre\.add\(s\.id\)/, "l'id entre dans le Set après l'enregistrement");
+  assert.match(problemes, /querySelectorAll\(`\[data-sg-id="\$\{s\.id\}"\] \[data-sg="registre"\]`\)\.forEach\(marquer\)/,
+    "les cartes déjà dessinées dans les autres sous-onglets changent aussi");
+});
+
+test("problèmes signalés : pas de bouton quand liensRegistre() est nul, « Au registre » inactif quand déjà versé", () => {
+  assert.match(problemes, /if \(!liensDuRegistre\) return null;/);
+  assert.match(problemes, /if \(liensDuRegistre\.has\(s\.id\)\) \{\s*marquer\(b\);/);
+  assert.match(problemes, /b\.textContent = "Au registre";\s*b\.disabled = true;/);
+  assert.match(problemes, /repondre, boutonRegistre\(s\), supprimer/);
+});
+
+test("problèmes signalés : la fenêtre s'importe à la demande, préremplie par entreeDepuisSignalement, sans nom ni adresse", () => {
+  assert.match(problemes, /await import\("\.\.\/registre-fenetre\.js\?v=\w+"\)/);
+  assert.ok(!/^import .*registre-fenetre/m.test(problemes), "pas d'import statique de la fenêtre");
+  assert.match(problemes, /prerempli: entreeDepuisSignalement\(s\), promos: getMesPromos\(\)/);
+  const bouton = problemes.slice(problemes.indexOf("function boutonRegistre"), problemes.indexOf("function carte(s)"));
+  assert.ok(!/\.nom|\.email/.test(bouton), "aucun nom ni e-mail du signalement dans le bouton");
+  assert.ok(!/confirm\(/.test(bouton), "aucun confirm() natif");
+  const imports = [...problemes.matchAll(/from "(\.\.?\/[^"]+)"/g)].map((m) => m[1]);
+  assert.ok(imports.every((a) => a.endsWith(`.js?v=${jeton}`)), "jeton de l'app");
+  assert.match(fenetre, /NE_NOMME_PERSONNE\)/, "le rappel reste sous la description");
+});
+
+test("problèmes signalés : le préremplissage ne porte ni nom ni e-mail", async () => {
+  const { entreeDepuisSignalement } = await import("../js/registre-rules.js");
+  const e = entreeDepuisSignalement({ id: 7, role: "stagiaire", promo_id: 3, nom: "C. Camille", email: "camille@example.test",
+    message: "Le bouton ne réagit pas.", created_at: "2026-11-02T10:00:00Z", contexte: { adresse: "#/notes" } });
+  assert.deepEqual(Object.keys(e).sort(), ["date_constat", "description", "origine", "promo_id", "signalement_id", "type"]);
+  assert.equal(e.promo_id, 3);
+  assert.equal(e.signalement_id, 7);
+  assert.ok(!JSON.stringify(e).includes("Camille") && !JSON.stringify(e).includes("example.test"));
 });

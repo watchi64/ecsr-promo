@@ -8,8 +8,9 @@
 import { el, clear, toast } from "../utils.js?v=20261109o";
 import { fondateurHorsApercu } from "../auth-admin.js?v=20261109o";
 import {
-  listSignalementsApp, captureSignalementApp, traiterSignalementApp, supprimerSignalementApp,
+  listSignalementsApp, captureSignalementApp, traiterSignalementApp, supprimerSignalementApp, liensRegistre, getMesPromos,
 } from "../db.js?v=20261109o";
+import { entreeDepuisSignalement } from "../registre-rules.js?v=20261109o";
 import { chargerEtatSignalements } from "../signalement-etat.js?v=20261109o";
 import { renderSubTabs } from "../subtabs.js?v=20261109o";
 import {
@@ -19,6 +20,10 @@ import {
 const STATUTS = ["nouveau", "en_cours", "regle", "non_retenu"];
 const A_TRAITER = new Set(["nouveau", "en_cours"]);
 const ROLES = { stagiaire: "Stagiaire", formateur: "Formateur", fondateur: "Fondateur" };
+
+// Les signalements déjà versés au registre : lu une fois au rendu de la page, partagé par les trois sous-onglets.
+// null : la table du registre n'existe pas (ou n'a pas pu être lue), la page n'offre alors aucun bouton.
+let liensDuRegistre = null;
 
 const deuxChiffres = (n) => String(n).padStart(2, "0");
 
@@ -98,6 +103,40 @@ function carteSure(s) {
     });
     return noeud;
   }
+}
+
+// « Ajouter au registre » ouvre la fenêtre du registre préremplie (sans nom ni adresse) ; une fois l'entrée enregistrée, tous
+// les boutons de ce signalement, dans chaque sous-onglet, deviennent « Au registre ».
+function boutonRegistre(s) {
+  if (!liensDuRegistre) return null;
+  const marquer = (b) => {
+    b.textContent = "Au registre";
+    b.disabled = true;
+    b.setAttribute("aria-disabled", "true");
+  };
+  const b = el("button", { type: "button", class: "btn ghost", "data-sg": "registre" }, "Ajouter au registre");
+  if (liensDuRegistre.has(s.id)) {
+    marquer(b);
+    return b;
+  }
+  b.addEventListener("click", async () => {
+    b.disabled = true;
+    try {
+      const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261109o");
+      ouvrirFenetreRegistre({
+        prerempli: entreeDepuisSignalement(s), promos: getMesPromos(), ancre: b,
+        surEnregistre: () => {
+          liensDuRegistre.add(s.id);
+          document.querySelectorAll(`[data-sg-id="${s.id}"] [data-sg="registre"]`).forEach(marquer);
+          marquer(b);
+        },
+      });
+    } catch (e) {
+      toast("Le registre n'a pas pu s'ouvrir. Réessaie.", "error");
+    }
+    if (!liensDuRegistre.has(s.id)) b.disabled = false;
+  });
+  return b;
 }
 
 function carte(s) {
@@ -180,7 +219,7 @@ function carte(s) {
     s.avec_capture ? zoneCapture(s, qui) : null,
     adresse ? el("a", { href: adresse, class: "sg-carte-lien" }, "Ouvrir la page") : null,
     statuts,
-    el("div", { class: "sg-carte-repondre" }, champ, el("div", { class: "sg-carte-actions" }, repondre, supprimer)),
+    el("div", { class: "sg-carte-repondre" }, champ, el("div", { class: "sg-carte-actions" }, repondre, boutonRegistre(s), supprimer)),
     erreur);
   return noeud;
 }
@@ -192,7 +231,11 @@ export async function renderProblemes(container) {
     return;
   }
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
-  const liste = await listSignalementsApp();
+  const [liste, liens] = await Promise.all([
+    listSignalementsApp(),
+    liensRegistre().catch((e) => { console.error("Problèmes signalés : registre illisible", e); return null; }),
+  ]);
+  liensDuRegistre = liens;
   clear(container);
   const aTraiter = liste.filter((s) => A_TRAITER.has(s.statut));
   const regles = liste.filter((s) => !A_TRAITER.has(s.statut));
