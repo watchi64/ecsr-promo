@@ -3,6 +3,7 @@ import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261109k";
 import { compteDansEquite } from "./passage-rules.js?v=20261109k";
 import { messageErreurEnvoi } from "./signalement-rules.js?v=20261109k";
 import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261109k";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261109k";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
@@ -2119,4 +2120,76 @@ export async function lireOuverturesQuestionnaires() {
 export async function ouvrirQuestionnaire(cle, portee, ouvert) {
   const { error } = await supabase.rpc("ouvrir_questionnaire", { p_cle: cle, p_portee: portee, p_ouvert: ouvert });
   if (error) throw erreurQuestionnaire(error);
+}
+
+// --- Registre qualité (Qualiopi, indicateurs 31 et 32) ---
+// Lecture et écriture directes de la table registre_qualite, au seul gestionnaire de la qualité (règles de la base).
+// La base pose cree_le, modifie_le, clos_le, issu_signalement et efface_le : l'app ne les envoie jamais. Les textes
+// facultatifs vides partent en null (la base refuse une chaîne vide) ; la description est rognée aussi.
+const COLONNES_REGISTRE = "id, type, date_constat, origine, promo_id, lieu_id, description, reponse, date_reponse, action_decidee, etat, "
+  + "mesure_prevention, signalement_id, issu_signalement, cree_le, modifie_le, clos_le, efface_le";
+const CHAMPS_REGISTRE = ["type", "date_constat", "origine", "promo_id", "lieu_id", "description", "reponse", "date_reponse",
+  "action_decidee", "etat", "mesure_prevention", "signalement_id"];
+const TEXTES_FACULTATIFS_REGISTRE = ["reponse", "action_decidee", "mesure_prevention"];
+
+// Les seuls champs envoyables, textes rognés. Les champs absents de `champs` restent absents (modification partielle).
+function champsRegistre(champs) {
+  const envoi = {};
+  for (const cle of CHAMPS_REGISTRE) {
+    if (!champs || champs[cle] === undefined) continue;
+    let v = champs[cle];
+    if (cle === "description" && typeof v === "string") v = v.trim();
+    else if (TEXTES_FACULTATIFS_REGISTRE.includes(cle)) v = typeof v === "string" ? (v.trim() || null) : v;
+    envoi[cle] = v;
+  }
+  return envoi;
+}
+
+function erreurRegistre(error) {
+  const erreur = new Error(messageErreurRegistre(error));
+  if (error?.code) erreur.code = String(error.code);
+  return erreur;
+}
+
+// Toutes les entrées, de la plus ancienne à la plus récente. Table absente (migration pas encore appliquée) : null, sans bruit.
+export async function lireRegistreQualite() {
+  try {
+    return await toutesLesLignes(() => supabase.from("registre_qualite").select(COLONNES_REGISTRE).order("id"));
+  } catch (e) {
+    if (registreAbsent(e)) return null;
+    throw erreurRegistre(e);
+  }
+}
+
+export async function ajouterEntreeRegistre(champs) {
+  const { data, error } = await supabase.from("registre_qualite").insert(champsRegistre(champs)).select(COLONNES_REGISTRE).single();
+  if (error) throw erreurRegistre(error);
+  return data;
+}
+
+// La règle de la base refuse une modification sans erreur (aucune ligne ne revient) : on la demande en retour.
+export async function modifierEntreeRegistre(id, champs) {
+  const { data, error } = await supabase.from("registre_qualite").update(champsRegistre(champs)).eq("id", id).select(COLONNES_REGISTRE);
+  if (error) throw erreurRegistre(error);
+  if (!data || !data.length) throw new Error("Cette entrée n'a pas pu être enregistrée. Actualise la page et réessaie.");
+  return data[0];
+}
+
+// Effacement à 3 ans, à la main : nombre d'entrées vidées de leurs textes.
+export async function effacerRegistreQualite() {
+  const { data, error } = await supabase.rpc("effacer_registre_qualite");
+  if (error) throw erreurRegistre(error);
+  return Number(data) || 0;
+}
+
+// Signalements déjà versés au registre (identifiants), pour le bouton « Au registre » de Problèmes signalés.
+// Table absente : null.
+export async function liensRegistre() {
+  try {
+    const lignes = await toutesLesLignes(() => supabase.from("registre_qualite").select("signalement_id").order("id"));
+    return new Set(lignes.map((l) => l.signalement_id).filter((s) => s != null));
+  } catch (e) {
+    if (registreAbsent(e)) return null;
+    throw erreurRegistre(e);
+  }
 }

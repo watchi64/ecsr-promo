@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { messageErreurRegistre, tableAbsente, PHRASE_DOUBLON, PHRASE_DROIT, PHRASE_RESEAU } from "../js/registre-erreurs.js";
+import { messageErreurRegistre, tableAbsente, PHRASE_DOUBLON, PHRASE_DROIT, PHRASE_CONTRAINTE, PHRASE_RESEAU } from "../js/registre-erreurs.js";
 
 test("doublon de signalement (23505)", () => {
   assert.equal(messageErreurRegistre({ code: "23505", message: "duplicate key" }), "Ce signalement est déjà au registre.");
@@ -10,6 +10,11 @@ test("doublon de signalement (23505)", () => {
 test("refus de droit (42501)", () => {
   assert.equal(messageErreurRegistre({ code: "42501", message: "permission denied" }), "Réservé à la gestion de la qualité : ce compte n'a pas ce droit.");
   assert.equal(PHRASE_DROIT, "Réservé à la gestion de la qualité : ce compte n'a pas ce droit.");
+});
+
+test("refus d'une contrainte de la base (23514)", () => {
+  assert.equal(messageErreurRegistre({ code: "23514", message: 'new row violates check constraint "registre_qualite_date_reponse_ordre"' }), "Une valeur n'est pas acceptée par le registre : vérifie les dates et les champs, puis réessaie.");
+  assert.equal(PHRASE_CONTRAINTE, "Une valeur n'est pas acceptée par le registre : vérifie les dates et les champs, puis réessaie.");
 });
 
 test("phrase de la base : « registre: phrase » devient « phrase »", () => {
@@ -36,5 +41,5 @@ test("table absente : PGRST205, 42P01 ou texte", () => {
 
 test("aucun tiret cadratin dans les phrases", () => {
   const tiret = String.fromCharCode(0x2014);
-  for (const p of [PHRASE_DOUBLON, PHRASE_DROIT, PHRASE_RESEAU]) assert.ok(!p.includes(tiret));
+  for (const p of [PHRASE_DOUBLON, PHRASE_DROIT, PHRASE_CONTRAINTE, PHRASE_RESEAU]) assert.ok(!p.includes(tiret));
 });
