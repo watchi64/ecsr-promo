@@ -77,6 +77,25 @@ ok(/\*\*Limite de cet anonymat\.\*\*/.test(CONDITIONS_MD) && /ne pas lire ces ta
 const ligneDuree = CONDITIONS_MD.split("\n").find((l) => l.startsWith("| Questionnaires de satisfaction |"));
 ok(ligneDuree && !/sans limite/.test(ligneDuree) && /trois ans/.test(ligneDuree), "conditions : réponses gardées trois ans, plus sans limite");
 ok(/31 décembre de l'année suivante/.test(ligneDuree), "conditions : effacement des commentaires des formateurs daté");
+
+// Conditions tenues avec la conservation à trois ans (plan Q5, tableau (b), arbitrage du 09/11) : cinq phrases corrigées
+// avant la mise en ligne, pour ne pas demander une seconde acceptation quand Q5 sera construit.
+const section = (n) => CONDITIONS_MD.split(/\n## /).find((s) => s.startsWith(`${n}. `)) || "";
+ok(section(3).split("\n").some((l) => l.startsWith("| Émargement |")), "conditions : émargement dans les données enregistrées");
+ok(section(4).split("\n").some((l) => l.startsWith("| Feuilles d'émargement |")), "conditions : émargement dans « Qui voit quoi »");
+ok(!/plus de trois ans après la fin/.test(CONDITIONS_MD)
+  && /au-delà du 31 décembre de la troisième année après la fin de la formation/.test(CONDITIONS_MD),
+  "conditions : la limite des données nominatives suit la règle du 31 décembre");
+ok(/les comptes et les textes libres des stagiaires disparaissent/.test(CONDITIONS_MD),
+  "conditions : l'essentiel limite les douze mois aux textes des stagiaires");
+ok(!/à compter de son départ/.test(CONDITIONS_MD) && /à compter de la fin de sa promo/.test(CONDITIONS_MD),
+  "conditions : un départ en cours de route compte depuis la fin de la promo");
+ok(!/supprimée avec le compte/.test(ligneDuree) && /à la fin de l'année du questionnaire/.test(ligneDuree),
+  "conditions : la note de participation a une date, formateurs compris");
+ok(/dans le mois qui suit/.test(section(10)), "conditions : les effacements se font dans le mois qui suit la date");
+const ligneRegistre = CONDITIONS_MD.split("\n").find((l) => l.startsWith("| Registre qualité"));
+ok(ligneRegistre && /action décidée/.test(ligneRegistre) && /mesure de prévention/.test(ligneRegistre) && /origine/.test(ligneRegistre),
+  "conditions : le registre qualité dit tous les textes vidés et tout ce qui reste (plan Q4)");
 for (const q of Object.values(QUESTIONNAIRES)) {
   ok(/sans ton nom, sans ton compte et sans date/.test(q.intro), `${q.cle} : introduction, sans nom, sans compte, sans date`);
   ok(q.intro.includes(`à partir de ${seuilDe(q.public)} réponses`), `${q.cle} : introduction, le seuil de son public`);

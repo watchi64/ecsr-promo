@@ -17,6 +17,9 @@
 // l'engagement de l'éditeur (ne pas lire les tables directement) et la durée de trois ans des réponses sont des
 // propositions (point 9 du document des textes). Cette version n'est pas encore en ligne : ces retouches ne demandent
 // pas une acceptation de plus, la version 2026-11-08 reste la seule nouvelle acceptation.
+// Retouches du 09/11 pour la conservation à trois ans (plans Q4 et Q5, section 7 du document des textes) : l'essentiel
+// (ligne 7), les lignes « Émargement » des tableaux des § 3 et § 4, la note de participation et le registre qualité du
+// § 10, la phrase des trois ans et le délai d'un mois sous ce tableau.
 //
 
 export const VERSION_CONDITIONS = "2026-11-08";
@@ -30,7 +33,7 @@ export const CONDITIONS_MD = `# Conditions d'utilisation et données personnelle
 > Personne d'extérieur à la formation n'y accède, à une exception près : ECF peut consulter des résultats nominatifs et présenter des documents de la formation à son certificateur Qualiopi et à ses financeurs.
 > La base de données est hébergée en France ; l'assistant passe par Scaleway, hébergeur français, qui ne conserve pas les messages.
 > Rien n'est vendu, rien ne sert à la publicité, aucun traceur publicitaire ni mesure d'audience.
-> Douze mois après la formation, les comptes et les textes libres disparaissent ; les preuves de la formation (résultats, heures, présences) sont gardées trois ans, puis rendues anonymes.
+> Douze mois après la formation, les comptes et les textes libres des stagiaires disparaissent ; les preuves de la formation (résultats, heures, présences) sont gardées trois ans, puis rendues anonymes.
 > Chacun peut consulter, corriger ou faire supprimer ses données, et saisir la CNIL.
 
 ## 1. Qui édite l'application
@@ -57,6 +60,7 @@ L'usage de l'application suppose d'accepter les présentes conditions. L'accepta
 | Documents | Livret d'évaluation, dossier professionnel |
 | Contributions | Signalements d'erreur sur les QCM ; signalements de problème sur l'application (message, capture facultative, page, appareil et navigateur utilisés) |
 | Questionnaires | Vos réponses, enregistrées sans votre nom ni la date ; l'application note seulement que vous avez participé |
+| Émargement | Feuilles de présence de chaque demi-journée : votre signature dessinée, son heure, le compte qui l'a posée, présence ou absence, observation éventuelle du formateur ; signature et nom des formateurs |
 | Historique | Qui a créé ou modifié une note ou un passage, et quand |
 | Assistant | Nombre de messages envoyés par jour (le contenu des échanges n'est pas conservé, voir section 9) |
 
@@ -71,6 +75,7 @@ L'application ne collecte ni géolocalisation, ni contacts du téléphone, ni do
 | Planning, passages, absences | Oui | Oui | Oui | Non |
 | Date de naissance, souhaits de séances | Oui | Non | Oui | Non |
 | Livret, dossier professionnel, EPCF | Oui | Non | Oui | Oui |
+| Feuilles d'émargement | Oui, votre ligne | Non | Oui | Oui |
 | Signalements de problème | Oui | Non | Non | Non |
 
 La colonne ECF comprend la présentation, par ECF à son certificateur Qualiopi et à ses financeurs, des documents décrits en section 5.
@@ -145,14 +150,14 @@ L'assistant est une **intelligence artificielle** : ses réponses sont généré
 |---------|-------|
 | Compte, adresse e-mail, date de naissance, fiches de suivi, textes libres (observations, commentaires) | Toute la formation, puis douze mois |
 | Preuves de la formation : nom, résultats, heures, présences, feuilles d'émargement signées, dossier professionnel, livret | Toute la formation, puis trois ans (jusqu'au 31 décembre de la troisième année après la fin de la formation) : c'est la durée du cycle de certification Qualiopi. Ensuite les noms, les signatures, le dossier professionnel et le livret sont effacés ; les heures, présences et résultats restent sans nom |
-| Questionnaires de satisfaction | Les réponses, enregistrées sans nom, sont gardées trois ans comme les preuves de la formation (jusqu'au 31 décembre de la troisième année après la fin de la formation ; pour le questionnaire des formateurs, après l'année du questionnaire), puis supprimées : seuls restent les résultats regroupés (taux et répartitions, à partir du seuil). Les commentaires libres sont effacés douze mois après la fin de la formation (pour le questionnaire des formateurs, le 31 décembre de l'année suivante). La note de participation est supprimée avec le compte |
-| Registre qualité du centre (réclamations, difficultés, aléas, améliorations, risques) | Trois ans après la clôture de l'entrée, puis sa description et sa réponse sont vidées ; le type, les dates et l'état restent |
+| Questionnaires de satisfaction | Les réponses, enregistrées sans nom, sont gardées trois ans comme les preuves de la formation (jusqu'au 31 décembre de la troisième année après la fin de la formation ; pour le questionnaire des formateurs, après l'année du questionnaire), puis supprimées : seuls restent les résultats regroupés (taux et répartitions, à partir du seuil). Les commentaires libres sont effacés douze mois après la fin de la formation (pour le questionnaire des formateurs, le 31 décembre de l'année suivante). La note de participation est supprimée douze mois après la fin de la formation (pour le questionnaire des formateurs, à la fin de l'année du questionnaire) |
+| Registre qualité du centre (réclamations, difficultés, aléas, améliorations, risques) | Trois ans après la clôture de l'entrée, puis ses textes (description, réponse, action décidée, mesure de prévention) sont vidés ; le type, l'origine, la promo, le lieu, les dates et l'état restent |
 | Historique des modifications | Même durée que la donnée concernée |
 | Signalements de problème | Douze mois au plus, et jamais au-delà de la fermeture du compte |
 | Élèves bénévoles, référents d'auto-école | Douze mois au plus après la dernière venue ou le dernier contact |
 | Statistiques anonymes | Sans limite (elles n'identifient personne) |
 
-Au terme de ces durées, les comptes sont fermés et les données nominatives sont supprimées ou anonymisées : les résultats restent dans les statistiques, les noms disparaissent. Aucune donnée nominative n'est gardée plus de trois ans après la fin de la formation. Un stagiaire qui quitte la formation en cours de route est traité de la même façon, à compter de son départ.
+Au terme de ces durées, les comptes sont fermés et les données nominatives sont supprimées ou anonymisées : les résultats restent dans les statistiques, les noms disparaissent. Aucune donnée nominative n'est gardée au-delà du 31 décembre de la troisième année après la fin de la formation. Chaque effacement est fait dans le mois qui suit la date indiquée. Un stagiaire qui quitte la formation en cours de route est traité de la même façon, à compter de la fin de sa promo.
 
 ## 11. Sécurité et incidents
 

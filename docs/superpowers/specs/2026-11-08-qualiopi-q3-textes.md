@@ -10,6 +10,10 @@ migration (`supabase/migrations/20261108_questionnaires.sql`). Toute retouche d'
 validation de ces textes, touche les deux fichiers ; le test `tests/questionnaires-data.test.mjs` compare les deux et
 échoue sur le moindre écart (sinon la base refuserait l'envoi au dernier écran du questionnaire).
 
+**Retouches du 09/11 pour la conservation à trois ans.** Six phrases des conditions ont changé pour tenir avec le
+lot Q5 (conservation) et le lot Q4 (registre qualité) : section 7, en fin de document. Elles ne tranchent aucun des points
+ci-dessous.
+
 ## Points à trancher
 
 Dix questions restent ouvertes après la construction (relectures du 08 et du 09/11, relecture finale du 09/11). Les
@@ -454,3 +458,71 @@ Après :
 Proposition, à valider avec le reste (point 10 pour un message aux formateurs) :
 
 > Bonjour à tous ! La formation touche à sa fin et votre avis compte. Un court questionnaire vous attend dans l'app, sur l'Accueil : une dizaine de questions sur la formation, environ trois minutes. Chaque réponse est enregistrée sans nom, sans compte et sans date ; dans l'app, personne ne peut voir qui a répondu quoi, et les résultats ne s'affichent qu'à partir de 5 réponses. Le lien direct : https://watchi64.github.io/ecsr-promo/#/questionnaire/fin_stagiaire Merci d'avance !
+
+## 7. Retouches pour la conservation à trois ans (09/11)
+
+Le plan du lot Q5 (`docs/superpowers/plans/2026-11-09-qualiopi-q5-conservation.md`, branche `qualiopi-q4-q5-plans`,
+tableau (b)) a relevé cinq phrases de la version 2026-11-08 qui deviendraient fausses une fois la conservation construite.
+Corrigées maintenant, pendant que la version n'est pas en ligne, elles évitent une version suivante et donc une seconde
+acceptation par chaque compte (question 4 du plan Q5, arbitrée « oui » le 09/11 par délégation de Timy, révisable). Une
+sixième retouche aligne la ligne du registre qualité sur le plan du lot Q4. Elles sont dans `js/legal-data.js` et
+vérifiées par `tests/questionnaires-data.test.mjs`. Les passages des sections 2 à 5 ci-dessus gardent leur ancienne
+formulation : la section 7 l'emporte.
+
+### Retouche L : l'essentiel, ligne 7 (passage 2)
+
+Avant :
+
+> Douze mois après la formation, les comptes et les textes libres disparaissent ; […]
+
+Après (les commentaires des formateurs aux questionnaires vivent jusqu'au 31 décembre de l'année suivante, jusqu'à 24 mois) :
+
+> Douze mois après la formation, les comptes et les textes libres des stagiaires disparaissent ; […]
+
+### Retouche M : émargement dans les données enregistrées (section 3) et dans « Qui voit quoi » (section 4)
+
+Avant : l'émargement n'était cité que dans les durées (section 10).
+
+Après, une ligne neuve dans chaque tableau :
+
+> | Émargement | Feuilles de présence de chaque demi-journée : votre signature dessinée, son heure, le compte qui l'a posée, présence ou absence, observation éventuelle du formateur ; signature et nom des formateurs |
+
+> | Feuilles d'émargement | Oui, votre ligne | Non | Oui | Oui |
+
+À vérifier par Timy : la colonne ECF. La base ne laisse lire une ligne qu'aux formateurs et au stagiaire concerné ; « Oui »
+traduit la remise des feuilles par ECF à son certificateur et à ses financeurs (section 5), comme pour le livret.
+
+### Retouche N : la phrase des trois ans (section 10, passage 9)
+
+Avant :
+
+> Aucune donnée nominative n'est gardée plus de trois ans après la fin de la formation. Un stagiaire qui quitte la formation en cours de route est traité de la même façon, à compter de son départ.
+
+Après :
+
+> Aucune donnée nominative n'est gardée au-delà du 31 décembre de la troisième année après la fin de la formation. Chaque effacement est fait dans le mois qui suit la date indiquée. Un stagiaire qui quitte la formation en cours de route est traité de la même façon, à compter de la fin de sa promo.
+
+Pourquoi : la règle du 31 décembre garde jusqu'à près de quatre ans (3 ans et 20 jours pour Nîmes mars 2026) ; aucun
+effacement ne part tout seul, chacun attend un clic du fondateur, d'où le mois de marge (question 10 du plan Q5) ; l'app
+n'enregistre pas la date de départ d'un stagiaire, elle compte depuis la fin de sa promo.
+
+### Retouche O : la note de participation (section 10, ligne des questionnaires, retouche H)
+
+Avant :
+
+> […] La note de participation est supprimée avec le compte |
+
+Après (le compte d'un formateur n'est jamais supprimé ; celle d'un stagiaire est aussi rattachée à sa fiche, pour refuser
+une deuxième réponse après un compte recréé) :
+
+> […] La note de participation est supprimée douze mois après la fin de la formation (pour le questionnaire des formateurs, à la fin de l'année du questionnaire) |
+
+### Retouche P : registre qualité (section 10, passage 8)
+
+Avant :
+
+> | Registre qualité du centre (réclamations, difficultés, aléas, améliorations, risques) | Trois ans après la clôture de l'entrée, puis sa description et sa réponse sont vidées ; le type, les dates et l'état restent |
+
+Après (le plan du lot Q4 vide les quatre textes libres et garde aussi l'origine, la promo et le lieu) :
+
+> | Registre qualité du centre (réclamations, difficultés, aléas, améliorations, risques) | Trois ans après la clôture de l'entrée, puis ses textes (description, réponse, action décidée, mesure de prévention) sont vidés ; le type, l'origine, la promo, le lieu, les dates et l'état restent |
