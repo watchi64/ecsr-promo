@@ -70,6 +70,11 @@ client (`_harness_supabase.js`).
 
 ## Points à valider par Timy avant construction
 
+**Arbitrage du 09/11/2026** (Timy a délégué la décision, réponses révisables) : les six propositions ci-dessous sont
+retenues telles quelles, sans la variante « sans les textes » du CSV. Règle suivie : en cas de doute, le choix qu'on peut
+défaire (garder plutôt qu'effacer, signaler plutôt que supprimer). Rien de ce lot n'efface avant 2029 au plus tôt : toute
+réponse peut encore changer avant la première échéance, en retouchant le texte ou une constante, sans perte de donnée.
+
 1. **Rappel du formulaire** (proposition) : « Violences, harcèlement, discriminations : ne les écris pas ici. Ils passent par
    le référent du centre et sa procédure, qui protègent la personne. Ne nomme personne : l'origine suffit. »
 2. **Effacement** : construit en Q4 (vigilance 2) ; vidés : description, réponse, action décidée, mesure de prévention (tous

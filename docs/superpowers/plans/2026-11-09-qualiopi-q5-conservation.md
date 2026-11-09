@@ -24,7 +24,14 @@ reprises en tâche 4 ci-dessous).
 
 ## À valider par Timy avant toute construction
 
-Rien n'est construit avant ta réponse. Chaque ligne dit ce qui se passe aujourd'hui (avant) et ce que ce lot ferait (après).
+**Arbitrage du 09/11/2026** (Timy a délégué la décision, réponses révisables) : les douze réponses par défaut sont
+retenues, détail sous les questions. Règle suivie : en cas de doute, le choix qu'on peut défaire. Un effacement ne se
+rattrape pas ; une donnée gardée jusqu'à l'échéance promise, si. D'où le refus de l'option (b) de la question 1, et aucune
+fiche ancienne requalifiée sans Timy (question 7). La première étape de ce lot ne tombe pas avant le 11/12/2027 : jusque-là,
+chaque réponse se change sans perte. La construction attend toujours la mise en ligne de Q3 et l'accord de Timy sur la
+migration.
+
+Chaque ligne dit ce qui se passe aujourd'hui (avant) et ce que ce lot ferait (après).
 Les dates prennent l'exemple de la promo « Nîmes, mars 2026 », finie le 11/12/2026. **Aucun effacement ne part tout seul** :
 chaque échéance attend un clic du fondateur ; à la date dite, le bouton s'allume et un rappel arrive (question 9), mais tant
 que personne ne clique, les données restent. Les dates des conditions d'utilisation sont donc tenues si le fondateur clique à
@@ -112,6 +119,23 @@ de toute façon des listes) ; ligne datée dans « Actions de mise en conformit�
 12. Une fiche effacée à la demande, dans le tableau de bord et les dossiers : comptée parmi les inscrits, ni « en
     formation » ni abandon, sur une ligne à part, et ses documents effacés ne comptent pas comme manquants ? (oui ; autre
     choix : la compter comme abandon, mais seule l'équipe décide d'un abandon).
+
+**Réponses retenues le 09/11/2026 (révisables)**
+
+| Q | Réponse | Pourquoi |
+|---|---|---|
+| 1 | par défaut : engagement écrit, notes 3 ans puis pourcentages ; tâche 5 non construite | l'option (b) efface tôt, sans retour, et rouvre la double réponse ; (b) reste ajoutable plus tard |
+| 2 | oui | aligné sur la conservation des commentaires des stagiaires, un an d'écart au plus |
+| 3 | oui, fondateur seul | une seule place ; le lot 5 (direction) pourra élargir le droit sans toucher aux fonctions |
+| 4 | oui | évite une seconde acceptation par chaque compte ; à reporter dans Q3 avant sa mise en ligne |
+| 5 | « à clore », pas d'effacement sans clôture | rien n'est perdu ; la règle se durcit plus tard si besoin |
+| 6 | oui, limite écrite | cas rare (compte recréé la même année), sans enjeu sur les pourcentages |
+| 7 | aucune fiche le 08/11 ; si une apparaît à la mise en ligne, elle reste en l'état et Timy la voit dans la liste | ne pas requalifier un abandon à sa place |
+| 8 | oui | la section dit ce qui manque, le formateur renseigne la date |
+| 9 | oui aux deux | le rappel est ce qui fait tenir les dates, puisque rien ne part tout seul |
+| 10 | oui, « dans le mois qui suit » | une date ferme tenue par un clic serait fausse au premier retard |
+| 11 | oui, limite écrite | le nom du formateur prouve la formation jusqu'à l'étape des 3 ans |
+| 12 | oui, ligne à part « effacée à la demande » | ni abandon (décision d'équipe) ni « en formation » (fiche vide) |
 
 ## Contraintes communes
 
