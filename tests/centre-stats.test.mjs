@@ -179,4 +179,18 @@ eq(debut.aSuivre, [], "personne : aucun signal sans activité de la promo");
 const dort = indicateursPromo(D, REF, { aujourdhui: "2026-11-30" });
 assert.ok(dort.aSuivre.every((x) => x.signaux.every((s) => s.code !== "inactivite")), "promo endormie"); n++;
 
+// Une évaluation EPCF sans date n'est jamais retenue, ni ne change l'ordre ou le résultat, où qu'elle soit dans la liste.
+{
+  const sans = X(99, 1, "salle", null, { a: "NA", b: "NA", c: "NA", d: "NA" });   // id le plus fort, sans date
+  const ref = indicateursPromo(D, REF, { aujourdhui: "2026-10-23" }).epcf;
+  for (const epcf of [[...EPCF, sans], [sans, ...EPCF], [EPCF[0], sans, ...EPCF.slice(1)]]) {
+    eq(indicateursPromo({ ...D, epcf }, REF, { aujourdhui: "2026-10-23" }).epcf, ref, "EPCF sans date : sans effet");
+  }
+  const seule = indicateursPromo({ ...D, epcf: [sans] }, REF, { aujourdhui: "2026-10-23" }).epcf;
+  eq(seule.detail.salle.evalues, 0, "EPCF sans date seule : aucune évaluation retenue");
+  eq(seule.valeur, null, "EPCF sans date seule : pas de valeur");
+}
+// Les notes portent leur somme (comptes additifs du lot 5).
+proche(ind.notes.detail.somme, ind.notes.valeur * ind.notes.detail.n, "somme des notes sur 20");
+
 console.log(`centre-stats : ${n} assertions OK`);

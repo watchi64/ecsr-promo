@@ -129,7 +129,9 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui }) {
   // --- EPCF : dernière évaluation EPCF (hors auto-évaluation) de chaque stagiaire ---
   const epcfTrame = (trame) => {
     const dernieres = new Map();
-    (donnees.epcf || []).filter((e) => dedans(e) && e.trame === trame && e.contexte === "EPCF" && !e.auto_eval)
+    // Une évaluation sans date n'est pas retenue (sinon l'ordre de lecture déciderait) ; ordre : date_eval desc, id desc.
+    (donnees.epcf || []).filter((e) => dedans(e) && e.trame === trame && e.contexte === "EPCF" && !e.auto_eval
+      && e.date_eval != null)
       .forEach((e) => {
         const d = dernieres.get(e.stagiaire_id);
         if (!d || e.date_eval > d.date_eval || (e.date_eval === d.date_eval && e.id > d.id)) dernieres.set(e.stagiaire_id, e);
@@ -162,7 +164,7 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui }) {
       moyenne20: examens.length ? somme(examens.map((t) => Number(t.note_20))) / examens.length : null,
     }, "mesuré", examens.length),
     notes: indicateur("notes", scores.length ? somme(scores) / scores.length : null, {
-      n: scores.length, mediane: mediane(scores), sous10: scores.filter((s) => s < 10).length,
+      n: scores.length, somme: somme(scores), mediane: mediane(scores), sous10: scores.filter((s) => s < 10).length,
     }, "mesuré", scores.length),
     epcf: indicateur("epcf", ratio(critA, critTous), { salle: epcfSalle, vehicule: epcfVehicule }, "mesuré", critTous),
     titre: indicateur("titre", null, null, "non mesuré"),
