@@ -4,11 +4,11 @@
  * de la semaine partagée entre cartes, et la relecture tant que la carte est à l'écran. Les classes sont celles de
  * css/pages.css.
  */
-import { el, clear, isoDate } from "../utils.js?v=20261109i";
-import { icon } from "../icons.js?v=20261109i";
-import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261109i";
-import { hrefLien } from "../route-rules.js?v=20261109i";
-import { chargerSemaine } from "../planning-lecture.js?v=20261109i";
+import { el, clear, isoDate } from "../utils.js?v=20261109j";
+import { icon } from "../icons.js?v=20261109j";
+import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261109j";
+import { hrefLien } from "../route-rules.js?v=20261109j";
+import { chargerSemaine } from "../planning-lecture.js?v=20261109j";
 
 // Une carte : { noeud, corps, titre }. `corps` est le nœud que la lecture remplit plus tard ; `titre` (le h2) change
 // quand le titre dépend de ce qui a été lu.

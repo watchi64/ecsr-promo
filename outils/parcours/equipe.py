@@ -5,7 +5,7 @@ En fin de fichier, les pages refaites par le lot 2B (« Aujourd'hui », planning
 et Propositions IA) : elles n'existent que sous la nouvelle navigation.
 """
 from . import parcours
-from .navigation import texte
+from .navigation import SOUS_ONGLET, texte
 from .visite import BLOQUE, LISTE
 
 # Sur téléphone, l'équipe passe par « Plus » pour tout ce qui n'est pas dans la barre du bas : 1 clic de plus.
@@ -147,4 +147,50 @@ def propositions_ia(v):
     v.fermer_par_echap(".qcm-overlay", "l'éditeur du QCM")
     if v.voit(".qcm-overlay"):
         v.toucher("button.qcm-close", "« Fermer » (éditeur du QCM)", compte=False)
+    v.terminer()
+
+
+# --- Notes et examens (lot C de l'audit du 09/11) ----------------------------------------------------------
+
+
+@parcours("saisir-une-note", "Saisir une note (thème par thème)", role="formateur", budget=3, navigations=NOUVELLE)
+def saisir_une_note(v):
+    """Notes et examens, « Saisir » (la page s'y ouvre sur téléphone), le thème 22, puis 14 dans le champ d'un stagiaire
+    sans note et Tab : « Enregistrée » s'affiche sous son nom."""
+    v.aller("Notes et examens")
+    if not v.voit("#view button.saisie-cible"):
+        v.etape("ouvrir le sous-onglet « Saisir »")
+        v.toucher(texte("Saisir", SOUS_ONGLET), "« Saisir »")
+    v.etape("choisir le thème 22")
+    v.toucher('#view button.saisie-cible[data-cle="T22"]', "le thème 22")
+    champ = "#view input.saisie-champ:not([data-note])"
+    v.attendre(champ, "le champ d'un stagiaire sans note")
+    v.etape("taper 14, puis passer au champ suivant")
+    v.remplir(champ, "14", "le champ de note")
+    v.page.keyboard.press("Tab")
+    v.attendre("#view .saisie-etat:has-text(\"Enregistrée\")", "« Enregistrée » sous le nom")
+    v.but("note enregistrée")
+    v.terminer()
+
+
+@parcours("ouvrir-un-examen", "Ouvrir un examen depuis la liste des thèmes", role="formateur",
+          budget={"ordinateur": 3, "telephone": 4}, navigations=NOUVELLE)
+def ouvrir_un_examen(v):
+    """Cours et QCM, « Ouvrir l'examen » sur la ligne du thème 23 (son QCM est fermé au banc), puis « 1 heure » : un
+    message confirme et la ligne dit « Ouvert jusqu'à … ». Puis « Fermer l'examen », confirmé dans la fenêtre de l'app :
+    « Examen fermé »."""
+    v.aller("Cours et QCM")
+    ligne = '#view .theme-row[data-id="2"]'
+    v.etape("ouvrir l'examen du thème 23")
+    v.toucher(ligne + " button.examen-ouvrir", "« Ouvrir l'examen » du thème 23")
+    v.ecouter_messages()
+    v.toucher(texte("1 heure", ".modal button"), "« 1 heure »", ecriture=True)
+    v.exiger_confirmation("l'ouverture de l'examen", "Examen ouvert")
+    v.attendre(ligne + " .theme-qcm-examen:has-text(\"Ouvert jusqu\")", "« Ouvert jusqu'à … » sur la ligne")
+    v.but("examen ouvert depuis la liste")
+    v.etape("refermer l'examen")
+    v.toucher(ligne + " button.examen-fermer", "« Fermer l'examen » de la ligne", compte=False)
+    v.attendre(".modal:has-text(\"Fermer l'examen du thème 23\")", "la demande de confirmation")
+    v.toucher(texte("Fermer l'examen", ".modal button"), "« Fermer l'examen » de la confirmation", compte=False, ecriture=True)
+    v.attendre(ligne + " .theme-qcm-examen:has-text(\"Examen fermé\")", "« Examen fermé » sur la ligne")
     v.terminer()

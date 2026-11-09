@@ -4,8 +4,8 @@
 // journal des erreurs, réduction de la capture, phrase d'un refus du serveur, adresse sûre pour un lien.
 // Module pur, sans DOM ni stockage : testé en node.
 
-import { libellePastille } from "./nouveautes.js?v=20261109i";
-import { LIBELLES_APERCU } from "./roles-rules.js?v=20261109i";
+import { libellePastille } from "./nouveautes.js?v=20261109j";
+import { LIBELLES_APERCU } from "./roles-rules.js?v=20261109j";
 
 // Bornes de la spec (§ 7) : la base les vérifie aussi, dans signaler_probleme.
 export const MIN_MESSAGE = 3;

@@ -2,19 +2,22 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles, getNotesStatsGroupe, getPromoCourante,
-} from "../db.js?v=20261109i";
+} from "../db.js?v=20261109j";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261109i";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109i";
-import { icon } from "../icons.js?v=20261109i";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109i";
-import { recordUndo } from "../undo.js?v=20261109i";
-import { renderSubTabs } from "../subtabs.js?v=20261109i";
-import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109i";
-import { navigationV2Active } from "../nav-etat.js?v=20261109i";
-import { renderEpcf } from "./epcf.js?v=20261109i";
-import { noteGradient } from "../echelle-notes.js?v=20261109i";
+} from "../notes-stats.js?v=20261109j";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109j";
+import { icon } from "../icons.js?v=20261109j";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109j";
+import { recordUndo } from "../undo.js?v=20261109j";
+import { renderSubTabs } from "../subtabs.js?v=20261109j";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109j";
+import { navigationV2Active } from "../nav-etat.js?v=20261109j";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109j";
+import { renderEpcf } from "./epcf.js?v=20261109j";
+import { renderSaisie } from "./notes-saisie.js?v=20261109j";
+import { noteGradient } from "../echelle-notes.js?v=20261109j";
+import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes, contexteEtatVide } from "../notes-saisie-rules.js?v=20261109j";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -54,27 +57,6 @@ const NOTES_SORT_OPTIONS = [
 ];
 
 let currentNotesSort = localStorage.getItem("ecsr_notes_sort") || "default";
-
-// Parse une saisie de note. Deux formats acceptés :
-//   - "X/Y"  → convertit en (X/Y)*20, arrondi à 0.1, stocke note_max=20.
-//   - "X"    → note sur 20 directe (validé 0..20).
-// Retour : null si vide, { error } si invalide, sinon { note, note_max, converted, original? }.
-function parseNoteInput(raw) {
-  const s = String(raw ?? "").trim().replace(",", ".");
-  if (s === "") return null;
-  const m = s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
-  if (m) {
-    const x = Number(m[1]), y = Number(m[2]);
-    if (!(y > 0)) return { error: "Le diviseur doit être supérieur à 0" };
-    if (x < 0 || x > y) return { error: `Note entre 0 et ${y}` };
-    const note = Math.round((x / y) * 20 * 10) / 10;
-    return { note, note_max: 20, converted: true, original: `${m[1]}/${m[2]}` };
-  }
-  const n = Number(s);
-  if (!isFinite(n)) return { error: "Saisie invalide (attendu : nombre ou X/Y)" };
-  if (n < 0 || n > 20) return { error: "Note entre 0 et 20" };
-  return { note: n, note_max: 20, converted: false };
-}
 
 function stagiaireAvg(stagiaireId) {
   const evs = evaluations.filter((e) => e.stagiaire_id === stagiaireId && e.note != null && e.note_max);
@@ -152,19 +134,7 @@ function sortStagiaires(list, mode) {
 
 const TYPES_EVAL = ["Thème", "Compétence", "Contrôle"];
 
-// Colonnes "spéciales" du tableau matrice (en plus des 57 thèmes)
-const MATRIX_SPECIAL_COLS = [
-  { key: "C1",   label: "C1",   tooltip: "Compétence formateur C1 : Accueillir & sensibiliser SR" },
-  { key: "C2",   label: "C2",   tooltip: "Compétence formateur C2 : Concevoir & animer" },
-  { key: "REMC", label: "REMC", tooltip: "REMC : Vision globale du référentiel mobilité citoyenne" },
-  { key: "MGDE", label: "GDE",  tooltip: "Matrice GDE : Goals for Driver Education" },
-];
-
-// Thèmes évalués ENSEMBLE par un seul QCM : une seule note, mais les deux colonnes
-// restent affichées en en-tête. La cellule de note est FUSIONNÉE (colspan) sur le groupe,
-// et la note est portée par le PREMIER thème du groupe (donc comptée une seule fois
-// dans les moyennes). Pour ajouter un groupe : [numéro1, numéro2, ...].
-const THEME_GROUPS = [[46, 47]];
+// MATRIX_SPECIAL_COLS et THEME_GROUPS vivent dans js/notes-saisie-rules.js (partagés avec l'écran « Saisir »).
 const THEME_GROUP_LEADER = new Map();   // numero -> groupe (si numero ouvre le groupe)
 const THEME_GROUP_FOLLOWER = new Set(); // numeros absorbés par la cellule fusionnée
 THEME_GROUPS.forEach((g) => {
@@ -454,28 +424,70 @@ async function reload(container) {
 // Rafraîchit uniquement les panneaux Synthèse + Graphiques, sans toucher à la matrice
 // (préserve les autres inputs ouverts pendant qu'on enchaîne les notes)
 function refreshAnalyticsInPlace(container) {
+  // État vide (lot C) : la première note remplace la carte par la synthèse et les graphiques ; effacer la dernière
+  // rend la carte.
+  const vide = statsGroupe().n === 0;
+  const carte = container.querySelector(".notes-matrice-panneau > .notes-vide");
   const oldSynth = container.querySelector(".notes-synthese");
   const oldChart = container.querySelector(".notes-chart");
+  if (!vide) container.querySelectorAll(".saisie > .notes-vide").forEach((c) => c.remove());
+  if (!vide && carte) {
+    const panneau = carte.parentNode;
+    carte.remove();
+    panneau.appendChild(renderSynthese());
+    panneau.appendChild(renderChartsSection());
+    return;
+  }
+  if (vide && oldSynth) {
+    const panneau = oldSynth.parentNode;
+    oldSynth.remove();
+    if (oldChart) oldChart.remove();
+    const c = carteVide(container, "equipe-matrice");
+    if (c && panneau) panneau.prepend(c);
+    return;
+  }
   if (oldSynth) oldSynth.replaceWith(renderSynthese());
   if (oldChart) oldChart.replaceWith(renderChartsSection());
 }
 
+// Les sous-onglets de la page de l'équipe, pour « Saisir des notes » de la carte vide (un conteneur, une rangée).
+const ongletsParVue = new WeakMap();
+
+// Va à Cours et QCM, sur le sous-onglet voulu (« themes » : la liste, où s'ouvre un examen ; « qcm » : l'entraînement).
+function allerAuxThemes(sousOnglet) {
+  try { localStorage.setItem(CLES_SOUS_ONGLETS.themes, sousOnglet); } catch (e) { /* mode privé : Cours et QCM s'ouvre sur son premier sous-onglet */ }
+  location.hash = "#/themes";
+}
+
+// La carte d'un état vide (lot C) : une phrase et les actions qui en sortent, ou null dès qu'une note existe.
+function carteVide(container, contexte) {
+  const etat = etatVideNotes({ nbNotes: statsGroupe().n, contexte });
+  if (!etat) return null;
+  const libelles = { examen: "Ouvrir un examen", saisir: "Saisir des notes", entrainement: "M'entraîner sur un QCM" };
+  const agir = {
+    examen: () => allerAuxThemes("themes"),
+    entrainement: () => allerAuxThemes("qcm"),
+    saisir: () => ongletsParVue.get(container)?.activer("saisir"),
+  };
+  return el("section", { class: "notes-vide" },
+    el("h3", { class: "notes-vide-titre" }, etat.titre),
+    el("p", { class: "notes-vide-phrase" }, etat.phrase),
+    etat.actions.length
+      ? el("div", { class: "notes-vide-actions" }, ...etat.actions.map((a, i) =>
+          el("button", { type: "button", class: "btn " + (i === 0 ? "primary" : "ghost"), onClick: agir[a] }, libelles[a])))
+      : null,
+  );
+}
+
 // === Tableau matrice : lignes stagiaires × colonnes (synthèse + 57 thèmes) ===
 
+// La note affichée : la plus récente par date d'évaluation (règle partagée, js/notes-saisie-rules.js).
 function noteForStagiaireCompetence(stagId, code) {
-  // Dernière évaluation de type 'Compétence' avec competence_code matching
-  const matches = evaluations
-    .filter((e) => e.stagiaire_id === stagId && e.type === "Compétence" && e.competence_code === code)
-    .sort((a, b) => new Date(b.date_eval) - new Date(a.date_eval));
-  return matches[0] || null;
+  return derniereNote(evaluations, stagId, { type: "Compétence", competence_code: code });
 }
 
 function noteForStagiaireTheme(stagId, themeNum) {
-  // Dernière évaluation de type 'Thème' avec theme_numero matching
-  const matches = evaluations
-    .filter((e) => e.stagiaire_id === stagId && e.type === "Thème" && e.theme_numero === themeNum)
-    .sort((a, b) => new Date(b.date_eval) - new Date(a.date_eval));
-  return matches[0] || null;
+  return derniereNote(evaluations, stagId, { type: "Thème", theme_numero: themeNum });
 }
 
 function noteMatrixCell(evaluation) {
@@ -503,6 +515,86 @@ function clearNoteCellStyle(td) {
   td.style.background = "";
   td.style.color = "";
   td.style.fontWeight = "";
+}
+
+// Enregistre la saisie d'une note pour un stagiaire et une cible (thème ou compétence) : la seule écriture de note de la
+// page, partagée par la matrice, la fiche d'un stagiaire et l'écran « Saisir » (lot C). Lit la note en place (la plus
+// récente, js/notes-saisie-rules.js), convertit X/Y sur 20, crée, modifie ou efface (après confirmation nommée), tient le
+// retour en arrière (Ctrl+Z) et le tableau `evaluations`. Ne touche ni au DOM ni aux statistiques : l'appelant affiche.
+// Résultat : { etat: "inchangee" | "enregistree" | "effacee" | "gardee" | "invalide" | "erreur", note?, converti?, message? }.
+async function enregistrerNote({ stagiaireId, cible, saisie, nom = null }) {
+  const existing = derniereNote(evaluations, stagiaireId, cible);
+  const raw = String(saisie ?? "").trim();
+  if (raw === "") {
+    if (!existing) return { etat: "inchangee" };
+    const s = stagiaires.find((x) => x.id === stagiaireId);
+    const qui = nom || (s ? displayName(s) : null);
+    if (!confirm(qui ? `Effacer la note de ${qui} ?` : "Effacer cette note ?")) return { etat: "gardee" };
+    try {
+      const snapshot = { ...existing };
+      await deleteEvaluation(existing.id);
+      evaluations = evaluations.filter((x) => x.id !== existing.id);
+      recordUndo("note effacée", async () => {
+        const { id, created_at, updated_at, ...payload } = snapshot;
+        const re = await addEvaluation(payload);
+        evaluations.push(re || snapshot);
+      });
+      return { etat: "effacee" };
+    } catch (e) { return { etat: "erreur", message: raisonEchecNote(e) }; }
+  }
+
+  const parsed = parseNoteInput(raw);
+  if (!parsed || parsed.error) return { etat: "invalide", message: parsed?.error || "Note invalide" };
+  const note = parsed.note;
+  const fait = parsed.converted ? { etat: "enregistree", note, converti: parsed.original } : { etat: "enregistree", note };
+  // Pas de changement si la note est identique (et /20)
+  if (existing && Number(existing.note) === note && Number(existing.note_max) === 20) return { etat: "inchangee" };
+
+  const email = getAdminEmail();
+  try {
+    if (existing) {
+      const prevNote = existing.note;
+      const prevMax = existing.note_max;
+      const prevDate = existing.date_eval;
+      await updateEvaluation(existing.id, {
+        note,
+        note_max: 20,
+        date_eval: currentEvalDate,
+        updated_by_email: email,
+      });
+      existing.note = note;
+      existing.note_max = 20;
+      existing.date_eval = currentEvalDate;
+      const id = existing.id;
+      recordUndo("note modifiée", async () => {
+        await updateEvaluation(id, { note: prevNote, note_max: prevMax, date_eval: prevDate });
+        const ev = evaluations.find((x) => x.id === id);
+        if (ev) { ev.note = prevNote; ev.note_max = prevMax; ev.date_eval = prevDate; }
+      });
+    } else {
+      const newRow = {
+        stagiaire_id: stagiaireId,
+        ...champsDeCible(cible),
+        note,
+        note_max: 20,
+        date_eval: currentEvalDate,
+        created_by_email: email,
+        updated_by_email: email,
+      };
+      const inserted = await addEvaluation(newRow);
+      evaluations.push(inserted || newRow);
+      const insertedId = inserted?.id;
+      recordUndo("note ajoutée", async () => {
+        if (insertedId) {
+          await deleteEvaluation(insertedId);
+          evaluations = evaluations.filter((x) => x.id !== insertedId);
+        }
+      });
+    }
+    return fait;
+  } catch (e) {
+    return { etat: "erreur", message: raisonEchecNote(e) };
+  }
 }
 
 // Édition inline d'une cellule : remplace le contenu par un input et sauvegarde au blur/Enter
@@ -576,109 +668,35 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
   async function save() {
     if (cancelled) return;
     cancelled = true;
-    const raw = input.value.trim();
-    // Cas 1 : champ vide
-    if (raw === "") {
-      // Si existing, propose la suppression
-      if (existing) {
-        if (!confirm("Effacer cette note ?")) {
-          td.textContent = originalText;
-          td.className = originalClass;
-          return;
-        }
-        try {
-          const snapshot = { ...existing };
-          await deleteEvaluation(existing.id);
-          // Met à jour localement + DOM en place (pas de rerender complet)
-          evaluations = evaluations.filter((x) => x.id !== existing.id);
-          td.textContent = "";
-          td.className = "m-td-cell empty" + (isAdmin() ? " editable" : "");
-          clearNoteCellStyle(td);
-          td.style.position = originalPosition;
-          td.style.zIndex = originalZIndex;
-          toast("Note effacée · Ctrl+Z pour annuler", "success", 2200);
-          recordUndo("note effacée", async () => {
-            const { id, created_at, updated_at, ...payload } = snapshot;
-            const re = await addEvaluation(payload);
-            evaluations.push(re || snapshot);
-          });
-          refreshAnalyticsInPlace(container);
-        } catch (e) { toast(e.message, "error"); restore(); }
-        return;
-      }
-      // Cellule vide, input vide → restore
-      restore();
-      return;
-    }
-
-    const parsed = parseNoteInput(raw);
-    if (!parsed || parsed.error) {
-      toast(parsed?.error || "Note invalide", "error");
-      restore();
-      return;
-    }
-    const note = parsed.note;
-    if (parsed.converted) {
-      toast(`${parsed.original} → ${note}/20`, "success", 1800);
-    }
-    // Pas de changement si la note est identique (et /20)
-    if (existing && Number(existing.note) === note && Number(existing.note_max) === 20) {
-      restore();
-      return;
-    }
-
-    const email = getAdminEmail();
-    try {
-      if (existing) {
-        const prevNote = existing.note;
-        const prevMax = existing.note_max;
-        const prevDate = existing.date_eval;
-        await updateEvaluation(existing.id, {
-          note,
-          note_max: 20,
-          date_eval: currentEvalDate,
-          updated_by_email: email,
-        });
-        existing.note = note;
-        existing.note_max = 20;
-        existing.date_eval = currentEvalDate;
-        const id = existing.id;
-        recordUndo("note modifiée", async () => {
-          await updateEvaluation(id, { note: prevNote, note_max: prevMax, date_eval: prevDate });
-          const ev = evaluations.find((x) => x.id === id);
-          if (ev) { ev.note = prevNote; ev.note_max = prevMax; ev.date_eval = prevDate; }
-        });
-      } else {
-        const newRow = {
-          stagiaire_id: stagiaireId,
-          ...fixedFields,
-          note,
-          note_max: 20,
-          date_eval: currentEvalDate,
-          created_by_email: email,
-          updated_by_email: email,
-        };
-        const inserted = await addEvaluation(newRow);
-        evaluations.push(inserted || newRow);
-        const insertedId = inserted?.id;
-        recordUndo("note ajoutée", async () => {
-          if (insertedId) {
-            await deleteEvaluation(insertedId);
-            evaluations = evaluations.filter((x) => x.id !== insertedId);
-          }
-        });
-      }
-      // Met à jour la cellule en place (sans détruire les autres inputs)
-      td.textContent = String(note);
-      td.className = "m-td-cell" + (isAdmin() ? " editable" : "");
-      applyNoteCellStyle(td, note);
+    const r = await enregistrerNote({ stagiaireId, cible: fixedFields, saisie: input.value });
+    if (r.etat === "effacee") {
+      // Met à jour la cellule en place (pas de rerender complet)
+      td.textContent = "";
+      td.className = "m-td-cell empty" + (isAdmin() ? " editable" : "");
+      clearNoteCellStyle(td);
       td.style.position = originalPosition;
       td.style.zIndex = originalZIndex;
+      toast("Note effacée · Ctrl+Z pour annuler", "success", 2200);
       refreshAnalyticsInPlace(container);
-    } catch (e) {
-      toast(e.message, "error");
-      restore();
+      return;
     }
+    if (r.etat === "gardee") {
+      td.textContent = originalText;
+      td.className = originalClass;
+      restore();
+      return;
+    }
+    if (r.etat === "invalide") toast(r.message, "error");
+    if (r.etat === "erreur") toast(`Note non enregistrée : ${r.message}.`, "error");
+    if (r.etat !== "enregistree") { restore(); return; }
+    if (r.converti) toast(`${r.converti} → ${r.note}/20`, "success", 1800);
+    // Met à jour la cellule en place (sans détruire les autres inputs)
+    td.textContent = String(r.note);
+    td.className = "m-td-cell" + (isAdmin() ? " editable" : "");
+    applyNoteCellStyle(td, r.note);
+    td.style.position = originalPosition;
+    td.style.zIndex = originalZIndex;
+    refreshAnalyticsInPlace(container);
   }
 
   function restore() {
@@ -822,43 +840,16 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
   let done = false;
   async function commit() {
     if (done) return; done = true;
-    const raw = input.value.trim();
-    if (raw === "") {
-      if (existing && confirm("Effacer cette note ?")) {
-        try { await deleteEvaluation(existing.id); toast("Note effacée", "success"); }
-        catch (e) { toast(e.message, "error"); }
-      }
-      backdrop.remove();
-      await reload(container);
-      return;
-    }
-    const parsed = parseNoteInput(raw);
-    if (!parsed || parsed.error) {
-      toast(parsed?.error || "Note invalide", "error");
+    const r = await enregistrerNote({ stagiaireId, cible: fixedFields, saisie: input.value });
+    if (r.etat === "invalide" || r.etat === "erreur" || r.etat === "gardee") {
+      if (r.message) toast(r.etat === "erreur" ? `Note non enregistrée : ${r.message}.` : r.message, "error");
       valueWrap.innerHTML = originalHtml;
       return;
     }
-    const note = parsed.note;
-    if (parsed.converted) {
-      toast(`${parsed.original} → ${note}/20`, "success", 1800);
-    }
-    const email = getAdminEmail();
-    try {
-      if (existing) {
-        await updateEvaluation(existing.id, { note, note_max: 20, date_eval: currentEvalDate, updated_by_email: email });
-      } else {
-        await addEvaluation({
-          stagiaire_id: stagiaireId, ...fixedFields,
-          note, note_max: 20, date_eval: currentEvalDate,
-          created_by_email: email, updated_by_email: email,
-        });
-      }
-      backdrop.remove();
-      await reload(container);
-    } catch (e) {
-      toast(e.message, "error");
-      valueWrap.innerHTML = originalHtml;
-    }
+    if (r.etat === "effacee") toast("Note effacée · Ctrl+Z pour annuler", "success", 2200);
+    if (r.converti) toast(`${r.converti} → ${r.note}/20`, "success", 1800);
+    backdrop.remove();
+    await reload(container);
   }
   input.addEventListener("blur", commit);
   input.addEventListener("keydown", (e) => {
@@ -1040,6 +1031,17 @@ function buildGroupAvgRow() {
   return tr;
 }
 
+// Ce que veulent dire les sigles des colonnes de la matrice (lot C) : une ligne sous le tableau.
+function legendeMatrice() {
+  const p = el("p", { class: "matrice-legende muted" });
+  MATRIX_SPECIAL_COLS.forEach((c, i) => {
+    if (i) p.appendChild(document.createTextNode(" · "));
+    p.appendChild(el("strong", {}, c.label));
+    p.appendChild(document.createTextNode(" : " + c.nom));
+  });
+  return p;
+}
+
 function rerender(container) {
   clear(container);
 
@@ -1062,7 +1064,7 @@ function rerender(container) {
   const tactile = v2 && window.matchMedia("(pointer: coarse)").matches;
   const compte = nbLignes + " note" + (nbLignes > 1 ? "s" : "") + " enregistrée" + (nbLignes > 1 ? "s" : "");
   const phrase = admin && tactile
-    ? "Touche une case pour saisir la note."
+    ? "Saisis les notes thème par thème, ou touche une case de la matrice."
     : "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note.";
 
   container.appendChild(el("div", { class: "view-header" },
@@ -1071,7 +1073,9 @@ function rerender(container) {
         ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null)
         : el("p", { class: "eyebrow" }, compte),
       laClasse ? null : el("h2", {}, equipe ? "Notes et examens" : "Notes & évaluations"),
-      el("p", { class: "subtitle" }, laClasse ? (admin ? phrase + " " : "") + compte + "." : equipe ? phrase + " " + compte + "." : phrase),
+      // La classe sans note : la carte de l'état vide dit déjà tout (lot C), pas de « 0 note enregistrée. » au-dessus.
+      laClasse && nbLignes === 0 ? null
+        : el("p", { class: "subtitle" }, laClasse ? (admin ? phrase + " " : "") + compte + "." : equipe ? phrase + " " + compte + "." : phrase),
     ),
     admin || laClasse ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
   ));
@@ -1124,10 +1128,22 @@ function rerender(container) {
   // retrouve .notes-synthese/.notes-chart par querySelector, ils restent des
   // descendants du container, dans le panneau.
   const buildMatricePanel = (panel) => {
-    panel.appendChild(toolbar);
-    panel.appendChild(renderMatrice(container));
-    panel.appendChild(renderSynthese());
-    panel.appendChild(renderChartsSection());
+    // La date a pu changer dans « Saisir » : la barre d'outils la reprend.
+    const champDate = toolbar.querySelector('input[type="date"]');
+    if (champDate) champDate.value = currentEvalDate;
+    const panneau = el("div", { class: "notes-matrice-panneau" });
+    panel.appendChild(panneau);
+    // Aucune note (lot C) : une carte à la place de la synthèse et des graphiques. La matrice reste pour qui saisit
+    // (c'est son outil sur ordinateur) ; un stagiaire n'y verrait que des cases vides.
+    const carte = carteVide(container, contexteEtatVide({ classe: false, admin, personnel: formateurConnecte() }));
+    if (carte) panneau.appendChild(carte);
+    if (carte && !admin) return;
+    panneau.appendChild(toolbar);
+    panneau.appendChild(renderMatrice(container));
+    panneau.appendChild(legendeMatrice());
+    if (carte) return;
+    panneau.appendChild(renderSynthese());
+    panneau.appendChild(renderChartsSection());
   };
 
   // Notes, c'est la classe (chantier D) : la Matrice et les moyennes EPCF de la classe,
@@ -1137,7 +1153,21 @@ function rerender(container) {
   // Mon espace, ou la page Stagiaires des formateurs. La matrice reste en lecture seule
   // pour les stagiaires. Chaque sous-onglet suit son module (js/modules-data.js) ; la
   // Matrice suit l'onglet lui-même.
+  // « Saisir » (lot C) : la saisie thème par thème, pour qui écrit des notes, sur la page de l'équipe seulement (ni La
+  // classe de Mon suivi, ni les stagiaires). Un écran tactile s'y ouvre tant qu'aucun sous-onglet n'est mémorisé.
+  const ctxSaisie = {
+    stagiaires: () => stagiaires.slice().sort(compareByNom),
+    evaluations: () => evaluations,
+    themes: themesOfficiels,
+    nom: displayName,
+    dateEval: () => currentEvalDate,
+    changerDate: (iso) => { currentEvalDate = iso; },
+    enregistrer: enregistrerNote,
+    apresEnregistrement: () => refreshAnalyticsInPlace(container),
+    carteVide: (contexte) => carteVide(container, contexte),
+  };
   const onglets = [
+    admin && !laClasse ? { key: "saisir", label: "Saisir", render: (p) => renderSaisie(p, ctxSaisie) } : null,
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
     { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
         renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive })
@@ -1149,17 +1179,20 @@ function rerender(container) {
             }
           });
       } },
-  ];
+  ].filter(Boolean);
   // La classe imbriquée dans Mon suivi (nouvelle navigation) : la Matrice, sans seconde rangée Matrice / EPCF (deux
   // « EPCF » se liraient à l'écran, celui de la fiche, première rangée de Mon suivi, et celui-ci), puis les moyennes
   // EPCF de la classe en section titrée sous la vue de la classe, tant que le module EPCF est ouvert pour la promo
   // (le sous-onglet EPCF de la page de l'équipe suit le même module). Sans choix d'onglet, aucune mémoire de
   // sous-onglet n'est écrite (celle de la page de l'équipe).
   if (laClasse) {
-    container.appendChild(renderSubTabs(onglets.slice(0, 1)));
+    const carte = carteVide(container, contexteEtatVide({ classe: true, admin, personnel: formateurConnecte() }));
+    container.appendChild(carte || renderSubTabs(onglets.slice(0, 1)));
     if (moduleVisible("epcf")) container.appendChild(sectionMoyennesEpcf());
   } else {
-    container.appendChild(renderSubTabs(onglets, { storageKey: "ecsr_notes_subtab" }));
+    const rangee = renderSubTabs(onglets, { storageKey: "ecsr_notes_subtab", defautKey: tactile ? "saisir" : "matrice" });
+    ongletsParVue.set(container, rangee);
+    container.appendChild(rangee);
   }
 }
 
@@ -1219,13 +1252,13 @@ function renderSynthese() {
   kpis.appendChild(kpi("Moyenne classe", classAvg != null ? (Math.round(classAvg * 10) / 10) + " /20" : "-", cellColorClassFromAvg(classAvg)));
   kpis.appendChild(kpi("Médiane", classMed != null ? (Math.round(classMed * 10) / 10) + " /20" : "-", cellColorClassFromAvg(classMed)));
   kpis.appendChild(kpi("Notes saisies", String(st.n)));
-  kpis.appendChild(kpi("Notes < 10/20", String(below10), below10 > 0 ? "bad" : "ok"));
+  kpis.appendChild(kpi("Notes sous 10/20", String(below10), below10 > 0 ? "bad" : ""));
   wrap.appendChild(kpis);
 
   // Top 3 thèmes faibles + solides
   const stats = themeStats();
   if (stats.length === 0) {
-    wrap.appendChild(el("p", { class: "muted", style: "margin-top:1rem" }, "Pas encore assez de notes par thème pour ranker."));
+    wrap.appendChild(el("p", { class: "muted", style: "margin-top:1rem" }, "Le classement des thèmes apparaîtra avec les premières notes de thème."));
     return wrap;
   }
 
@@ -1296,8 +1329,15 @@ function renderChartsSection() {
 }
 
 // Le bar chart par stagiaire (extrait pour réutiliser dans les onglets)
+// Par stagiaire : une barre par stagiaire qui a une note ; ceux qui n'en ont pas sont comptés sous le graphe (lot C),
+// sans nom (aucune question d'anonymat).
 function buildAveragesChartSvg() {
-  return renderAveragesChartInner();
+  const { svg, sansNote, soi } = renderAveragesChartInner();
+  const wrap = el("div", { class: "notes-chart-par-stagiaire" }, svg);
+  if (soi) wrap.appendChild(el("p", { class: "muted notes-sans-note" }, "Tu n'as pas encore de note."));
+  else if (sansNote) wrap.appendChild(el("p", { class: "muted notes-sans-note" },
+    `${sansNote} stagiaire${sansNote > 1 ? "s" : ""} sans note pour l'instant.`));
+  return wrap;
 }
 
 function renderAveragesChartInner() {
@@ -1309,7 +1349,7 @@ function renderAveragesChartInner() {
     const avg = evs.length === 0 ? null : evs.reduce((sum, e) => sum + evalScore20(e), 0) / evs.length;
     return { name: displayName(s), avg, count: evs.length, anon: isStagiaireAnonymous(s.id) };
   });
-  return horizontalBarChart(data, 22);
+  return { svg: horizontalBarChart(data, 22), sansNote: data.filter((d) => d.avg == null).length, soi: false };
 }
 
 // Vue du stagiaire anonymisé : plus de barres nominatives, seulement sa moyenne
@@ -1325,7 +1365,7 @@ function buildAnonAveragesChartSvg() {
     { name: "Moyenne du groupe", avg: moyenneGenerale(st) },
     { name: "Moyenne basse", avg: st.moy_stagiaire_min },
   ];
-  return horizontalBarChart(data, 22, 140);
+  return { svg: horizontalBarChart(data, 22, 140), sansNote: 0, soi: mine == null };
 }
 
 function buildThemesChartSvg() {
@@ -1425,7 +1465,9 @@ function buildDistributionChartSvg() {
   return svg;
 }
 
-function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
+function horizontalBarChart(toutes, barHeight = 22, labelWidth = 100) {
+  // Sans note, pas de barre (lot C) : l'appelant dit combien manquent, une phrase plutôt qu'une rangée de « Aucune note ».
+  const data = toutes.filter((d) => d.avg != null);
   // Le graphe se dessine à la largeur de son conteneur (viewBox, width: 100 %), jamais en défilant de côté. Sur un écran
   // étroit, le nom passe au-dessus de sa barre au lieu de la précéder : la barre garde presque toute la largeur.
   const width = largeurDeGraphe();
@@ -1499,12 +1541,6 @@ function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
       val.setAttribute("font-size", "10"); val.setAttribute("font-weight", "700");
       val.setAttribute("class", "notes-valeur");
       val.textContent = (Math.round(d.avg * 10) / 10).toString() + (d.count != null ? ` · ${d.count}n` : "");
-      svg.appendChild(val);
-    } else {
-      const val = document.createElementNS(svgNS, "text");
-      val.setAttribute("x", gauche + 10); val.setAttribute("y", y + barHeight / 2 + 4);
-      val.setAttribute("font-size", "10"); val.setAttribute("class", "notes-valeur-faible");
-      val.textContent = "Aucune note";
       svg.appendChild(val);
     }
   });

@@ -162,7 +162,8 @@ def mon_suivi(v):
 def notes_de_la_classe(v):
     """Ouvrir les notes de la classe (onglet Notes, ou Mon suivi, La classe)."""
     v.aller("La classe")
-    v.attendre("#view :is(table, .notes-chart-svg-wrap, .matrice-wrap, .card)", "les notes de la classe")
+    # Une classe sans note montre la carte de l'état vide (lot C) au lieu d'un tableau de cases vides.
+    v.attendre("#view :is(table, .notes-chart-svg-wrap, .matrice-wrap, .card, .notes-vide)", "les notes de la classe")
     v.but("notes de la classe affichées")
     v.terminer()
 
