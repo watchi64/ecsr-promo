@@ -586,11 +586,12 @@ const libelleTheme = (t) => (t.num != null ? `Thème ${t.num} : ${texte(t.titre,
 
 // Suivi de chaque promo en nombres, puis ses thèmes les plus faibles (classements du tableau de bord).
 function sectionAmeliorationCentre({ promos, registre, lieuId, periode, sansNoms }) {
-  if (!promos.length) return { paragraphes: [AUCUNE_PROMO], tableaux: [] };
   const entrees = registre.etat === "lue"
     ? entreesPourCentre(registre.entrees, { lieuId, promoIds: promos.map(({ promo }) => promo?.id), du: periode?.du, au: periode?.au })
     : [];
   const r = sectionRegistre(registre, entrees, { periode: "la période", lignes: !sansNoms });
+  // Sans promo dans la période, le registre reste : les entrées du lieu et de l'organisme, datées dans la période, comptent encore.
+  if (!promos.length) return { paragraphes: [AUCUNE_PROMO, ...r.paragraphes], tableaux: r.tableaux };
   const themes = promos.flatMap(({ promo, ind }) => [
     ...tableau(ind?.themes?.qcm).map((t) => [libellePromo(promo), "QCM", libelleTheme(t), `${pourcent(t.taux)} sur ${nb(t.n, "réponse")}`]),
     ...tableau(ind?.themes?.notes).map((t) => [libellePromo(promo), "Notes", libelleTheme(t), `${fr1(t.moyenne)}/20 sur ${nb(t.n, "note")}`]),

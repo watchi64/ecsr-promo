@@ -979,6 +979,22 @@ eq(aucunePromo.sections.map((s) => s.id), ["resultats", "ressources", "innovatio
 eq(aucunePromo.sommaire, [], "aucune promo : pas d'inventaire, donc pas de sommaire");
 eq(aucunePromo.aFournir, [], "aucune promo : pas de pièces à fournir");
 eq(section(aucunePromo, "innovations").paragraphes.length, 2 + 3, "aucune promo : les annonces restent, elles ne dépendent d'aucune promo");
+{
+  // Aucune promo dans la période : les entrées du lieu et de l'organisme, datées dans la période, restent au dossier du centre.
+  const E = (id, extra) => ({ id, type: "alea", origine: "equipe", promo_id: null, lieu_id: null, description: "Texte libre secret " + id,
+    date_constat: "2026-10-05", reponse: null, date_reponse: null, action_decidee: null, mesure_prevention: null, etat: "ouvert", clos_le: null, efface_le: null, ...extra });
+  const registre = { etat: "lue", entrees: [E(1), E(2, { date_constat: "2026-10-10" }), E(3, { lieu_id: 2, date_constat: "2026-10-12" }),
+    E(4, { date_constat: "2024-01-05" }), E(5, { lieu_id: 9 }), E(6, { promo_id: 8 })] };   // hors période, autre lieu, promo non retenue : écartées
+  [false, true].forEach((sansNoms) => {
+    const m = modeleDossierCentre({ promos: [], lieu: LIEU, lieuId: 2, registre, periode: PERIODE, aujourdhui: AUJOURDHUI, sansNoms, nouveautes: [] });
+    const am = section(m, "amelioration");
+    eq(am.paragraphes.slice(0, 3), ["Aucune promo dans la période.", "Registre qualité : 3 entrées pendant la période.", "Par type : aléa 3."],
+      `aucune promo (sansNoms ${sansNoms}) : trois entrées comptées, deux de l'organisme et une du lieu`);
+    eq(am.tableaux.length, sansNoms ? 0 : 1, `aucune promo (sansNoms ${sansNoms}) : une ligne par entrée seulement avec les noms`);
+    if (!sansNoms) eq(am.tableaux[0].lignes.map((l) => l[0]), ["05/10/2026", "10/10/2026", "12/10/2026"], "aucune promo : les trois entrées, par date");
+    ok(!JSON.stringify(m).includes("Texte libre secret"), `aucune promo (sansNoms ${sansNoms}) : aucun texte libre`);
+  });
+}
 formeBien(modeleDossierCentre({ promos: [LES_PROMOS[0]], lieu: null, periode: {}, aujourdhui: AUJOURDHUI, sansNoms: false }), "centre sans lieu ni période");
 eq(modeleDossierCentre({ promos: [LES_PROMOS[0]], lieu: null, periode: {}, aujourdhui: AUJOURDHUI, sansNoms: false }).garde.slice(0, 2),
   ["Centre : centre non renseigné", "Période : dates non renseignées"], "lieu et période absents : des mots");
