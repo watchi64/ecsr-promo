@@ -66,6 +66,15 @@ function decalerJour(iso, jours) {
   return d.toISOString().slice(0, 10);
 }
 
+// L'effectif d'une promo d'après ses fiches : { inscrits, enFormation, abandons }. Une SEULE définition, pour que la même promo
+// affiche le même nombre partout (Vue d'ensemble, page Promos de la direction, comparaison du siège, comptes_reseau) : en formation
+// = fiche active ; abandons = toutes les autres fiches, y compris une fiche anonymisée (elle a été en abandon avant de l'être).
+export function effectifDesFiches(fiches) {
+  const lignes = fiches || [];
+  const enFormation = lignes.filter((s) => s.actif).length;
+  return { inscrits: lignes.length, enFormation, abandons: lignes.length - enFormation };
+}
+
 function indicateur(cle, valeur, detail, nature = "mesuré", n = null) {
   return { valeur, detail, nature, methode: METHODES[cle], n };
 }
@@ -77,7 +86,7 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui }) {
   const enFormation = stagiaires.filter((s) => s.actif);
   const ids = new Set(enFormation.map((s) => s.id));
   const nbForm = enFormation.length;
-  const abandons = stagiaires.length - nbForm;
+  const { abandons } = effectifDesFiches(stagiaires);
   const dedans = (r) => ids.has(r.stagiaire_id);
 
   const passages = (donnees.passages || []).filter(dedans);

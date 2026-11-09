@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   ESPACES, LIBELLES_ESPACE, ACCUEIL_ESPACE, barreLaterale, espacesPermis, espaceChoisi, brider, peutRedigerContenus,
-  porteSansPromo, centreAffiche, promoPourLaDirection, promosDuCentre, routeDansLEspace, phraseHorsEspace,
+  porteSansPromo, decisionPorteSansPromo, centreAffiche, promoPourLaDirection, promosDuCentre, routeDansLEspace, phraseHorsEspace,
   phraseDeRefus, adresseApresBascule, normaliserAffectations, affectationsDeSecours, espacesDuCompte, promoPourLEspace,
   cleDerniereRoute, espaceDePilotage, promosVisiblesEnApercu, texteBandeauApercu, litToutesLesNotes, defautsHabillage
 } from "../js/espaces-rules.js";
@@ -338,4 +338,24 @@ test("defautsHabillage : ligne absente ou illisible, valeurs inconnues, libre ab
   assert.equal(defautsHabillage({ libre: false }).libre, false);
   // Une ligne qui a d'autres champs ne les recopie pas.
   assert.deepEqual(Object.keys(defautsHabillage({ centre: "ecf", autre: 1 })).sort(), ["centre", "libre", "reseau"]);
+});
+
+test("decisionPorteSansPromo : lu et vide, raté à l'ouverture, raté en cours de session", () => {
+  const siege = [{ role: "siege" }];
+  const direction = [{ role: "direction", lieu_id: 1 }];
+  // Lu : les affectations décident (le refus d'un compte sans porte est conservé).
+  assert.equal(decisionPorteSansPromo({ lecture: "lue", affectations: siege, sessionOuverte: false }), "entrer");
+  assert.equal(decisionPorteSansPromo({ lecture: "lue", affectations: direction, sessionOuverte: false }), "entrer");
+  assert.equal(decisionPorteSansPromo({ lecture: "lue", affectations: [], sessionOuverte: false }), "refuser", "lu et vide : refus");
+  assert.equal(decisionPorteSansPromo({ lecture: "lue", affectations: [{ role: "formateur", promo_id: 3 }], sessionOuverte: false }), "refuser");
+  // Lu et vide en cours de session : le refus reste (les affectations ont vraiment été retirées).
+  assert.equal(decisionPorteSansPromo({ lecture: "lue", affectations: [], sessionOuverte: true }), "refuser");
+  // Raté à l'ouverture : jamais le refus de la porte, on propose de réessayer, quelles que soient les affectations de repli.
+  assert.equal(decisionPorteSansPromo({ lecture: "ratee", affectations: [], sessionOuverte: false }), "reessayer");
+  assert.equal(decisionPorteSansPromo({ lecture: "ratee", affectations: siege, sessionOuverte: false }), "reessayer");
+  // Raté en cours de session : on garde l'espace en place, sans refus ni message.
+  assert.equal(decisionPorteSansPromo({ lecture: "ratee", affectations: siege, sessionOuverte: true }), "entrer");
+  assert.equal(decisionPorteSansPromo({ lecture: "ratee", affectations: [], sessionOuverte: true }), "entrer");
+  // Sans argument : rien d'affirmé, donc refus d'un compte sans porte (pas d'exception).
+  assert.equal(decisionPorteSansPromo(), "refuser");
 });

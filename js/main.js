@@ -10,7 +10,7 @@ import {
 } from "./db.js?v=20261109m";
 import { toast, annoncer, el } from "./utils.js?v=20261109m";
 import { icon } from "./icons.js?v=20261109m";
-import { initAuth, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261109m";
+import { initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261109m";
 import { getEspace, getCentre } from "./auth-admin.js?v=20261109m";
 import {
   ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage, promosDuCentre, defautsHabillage,
@@ -699,6 +699,11 @@ async function bootApp() {
   await initAuth();
   // Une bascule de promo lancée par la porte (la direction entre dans son centre, D6) : la page se recharge, rien ne démarre.
   if (basculeLancee()) return;
+  if (ouvertureInterrompueParLaConnexion()) {
+    // Lecture des affectations ratée : la carte dit « La connexion a échoué » et propose « Réessayer » (rechargement).
+    showGate();
+    return;
+  }
   if (isAuth()) {
     await bootApp();
   } else {

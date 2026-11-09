@@ -39,6 +39,12 @@ class Fausse(Exception):
     rejoué entier (robot_parcours.jouer_un)."""
 
 
+class NonJuge(Exception):
+    """Le robot n'a pas de quoi juger ce contrôle (par exemple la liste des noms à chercher est trop courte parce que les fichiers du
+    banc manquent) : le passage est « non jugé », ni vert ni rouge, et le résultat de la série ne peut pas être vert (INCOMPLET,
+    code 2). Contrairement à Fausse, le rejouer n'y change rien : il n'est pas rejoué (robot_parcours.jouer_un)."""
+
+
 # Contrôles d'un écran, joués dans la page. Rend des listes courtes et dédoublonnées.
 JS_CONTROLES = r"""
 (opts) => {

@@ -8,6 +8,7 @@ import {
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
 } from "./promo-rules.js?v=20261109m";
 import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261109m";
+import { effectifDesFiches } from "./centre-stats.js?v=20261109m";
 import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261109m";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
@@ -331,17 +332,16 @@ export async function creerCentre(nom) {
   return Number(data);
 }
 
-// Effectif de chaque promo : { enFormation, abandons } (fiches actives, fiches en abandon ; une fiche anonymisée n'est pas un
-// abandon), par l'en-tête de lecture de la promo. Une promo illisible rend null : la page le dit sur sa carte.
+// Effectif de chaque promo : { enFormation, abandons } (effectifDesFiches, centre-stats.js : la définition de la Vue d'ensemble et du
+// siège, une fiche anonymisée compte parmi les abandons), par l'en-tête de lecture de la promo. Une promo illisible rend null : la
+// page le dit sur sa carte.
 export async function lireEffectifsPromos(promoIds) {
   const parPromo = new Map();
   await Promise.all(promoIds.map(async (id) => {
     try {
-      const lignes = await lireTable("stagiaires", "id, actif, anonymise_le", "id", id);
-      parPromo.set(id, {
-        enFormation: lignes.filter((s) => s.actif !== false).length,
-        abandons: lignes.filter((s) => s.actif === false && !s.anonymise_le).length,
-      });
+      const lignes = await lireTable("stagiaires", "id, actif", "id", id);
+      const { enFormation, abandons } = effectifDesFiches(lignes);
+      parPromo.set(id, { enFormation, abandons });
     } catch (e) {
       console.error("effectif de la promo " + id, e);
       parPromo.set(id, null);
@@ -1766,10 +1766,14 @@ export async function setMonHabillage(nom) {
 // les siennes. Le siège et la direction en tirent leur espace (D2), et la porte laisse entrer sans promo qui en a une (D5). Le nom
 // des lieux est joint d'après la table `lieux` (lue seulement s'il y a un lieu à nommer ou un siège à servir : le siège lit tous les
 // lieux, la direction les siens) ; une lecture des lieux ratée laisse les noms nuls. Une lecture des affectations ratée lève
-// (l'appelant se replie sur les rôles des promos, affectationsDeSecours). Les lieux lus restent disponibles (getLieuxLus).
+// (aussi quand l'utilisateur n'a pas pu être lu) : auth-admin.js la distingue d'une liste vide. Les lieux lus restent disponibles (getLieuxLus).
 let lieuxLus = [];
 export async function mesAffectations() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error: erreurUtilisateur } = await supabase.auth.getUser();
+  // Un utilisateur illisible (réseau, jeton) est une lecture RATÉE et non une liste vide : la porte distingue « lu et vide »
+  // (refus) de « lecture ratée » (réessayer, ou garder l'espace en place). Lever est le choix le plus simple : l'état explicite
+  // d'un retour { lu, lignes } aurait obligé chaque appelant à le tester, alors que tous savent déjà traiter une erreur.
+  if (erreurUtilisateur) throw erreurUtilisateur;
   if (!user?.email) return [];
   const { data, error } = await supabase.from("affectations").select("role, promo_id, lieu_id").eq("email", user.email.toLowerCase());
   if (error) throw error;

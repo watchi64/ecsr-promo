@@ -24,7 +24,7 @@ import {
   LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo, etiquetteBadge,
 } from "./roles-rules.js?v=20261109m";
 import {
-  LIBELLES_ESPACE, ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, porteSansPromo,
+  LIBELLES_ESPACE, ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, porteSansPromo, decisionPorteSansPromo,
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
 } from "./espaces-rules.js?v=20261109m";
 import { peutQuitter } from "./navigation.js?v=20261109m";
@@ -131,22 +131,42 @@ function fixerEspace() {
   return espace;
 }
 
-// Affectations de la session. Une lecture ratée se replie sur les rôles des promos (affectationsDeSecours) : une direction n'est
-// pas renvoyée dans l'espace de l'équipe pour une panne passagère.
+// Affectations de la session, lues en deux essais (le second 1,5 s après le premier, comme mes_promos). Une lecture ratée :
+//   - session déjà ouverte (profil en place : renouvellement du jeton, retour au premier plan) : les affectations en mémoire
+//     restent, l'espace aussi, sans message ;
+//   - à l'ouverture : repli sur les rôles des promos (affectationsDeSecours), pour qu'une direction ne soit pas renvoyée dans
+//     l'espace de l'équipe sur une panne passagère. Pour un compte sans promo ce repli est vide : la porte décide (voir plus bas).
+// Rend vrai quand la lecture a abouti (même vide).
 async function lireAffectations() {
-  try {
-    affectations = await mesAffectations();
-  } catch (e) {
-    console.error("Affectations illisibles : rôles lus dans les promos.", e);
-    affectations = affectationsDeSecours(getMesPromos());
+  for (let essai = 1; essai <= 2; essai++) {
+    try {
+      affectations = await mesAffectations();
+      return true;
+    } catch (e) {
+      console.error("Affectations illisibles (essai " + essai + "/2)", e);
+      if (essai === 1) await new Promise((resolve) => setTimeout(resolve, PAUSE_AVANT_SECOND_ESSAI_MS));
+    }
   }
-  return affectations;
+  if (!currentProfile) affectations = affectationsDeSecours(getMesPromos());
+  return false;
+}
+
+// Vrai quand l'ouverture de la session s'est arrêtée sur une lecture ratée des affectations (compte sans promo) : la personne
+// reste connectée, la page de démarrage lui dit que la connexion a échoué et propose de réessayer (js/main.js).
+let ouvertureInterrompue = false;
+export function ouvertureInterrompueParLaConnexion() { return ouvertureInterrompue; }
+// La porte s'est arrêtée sur une lecture ratée : ni refus ni déconnexion. « ecsr:connexion-echouee » (gate.js) écrit la phrase de
+// connexion de l'app dans la carte et propose « Réessayer » ; au démarrage l'événement part avant showGate(), le motif attend.
+function interrompreOuverture() {
+  ouvertureInterrompue = true;
+  document.dispatchEvent(new CustomEvent("ecsr:connexion-echouee"));
 }
 
 // La porte d'un compte sans promo (D5) : le siège et la direction entrent (leur espace), les autres sont refusés (lot 4).
+// Rend la décision de decisionPorteSansPromo : "entrer", "refuser", ou "reessayer" (lecture ratée à l'ouverture).
 async function porteOuverteSansPromo() {
-  await lireAffectations();
-  return porteSansPromo(affectations) !== null;
+  const lue = await lireAffectations();
+  return decisionPorteSansPromo({ lecture: lue ? "lue" : "ratee", affectations, sessionOuverte: !!currentProfile });
 }
 
 // D6 : entrer dans l'espace de la direction quand la promo affichée est d'un centre que le compte ne dirige pas fait basculer vers
@@ -354,15 +374,21 @@ function rechargerSansDelai() {
 }
 
 export async function initAuth() {
+  let porte;
   currentUser = await getCurrentUser();
   if (currentUser) {
     const contexte = await chargerContextePromo(currentUser);
     if (contexte === null) {
       // Déconnexion pendant le chargement : rien n'a été posé, rien à refuser ni à dire.
-    } else if (!contexte && !(await porteOuverteSansPromo())) {
-      // Aucune promo, ni siège ni direction (D5). Le rappel onAuthChange n'est pas encore branché : la déconnexion ne lui
-      // dira pas d'oublier le contexte, refuserSession s'en charge (comme pour le profil absent).
-      await refuserSession(messageSansPromo());
+    } else if (!contexte && (porte = await porteOuverteSansPromo()) !== "entrer") {
+      if (porte === "reessayer") {
+        // Lecture des affectations ratée après deux essais : on ne sait pas si le compte a une porte. Ni refus ni déconnexion.
+        interrompreOuverture();
+      } else {
+        // Aucune promo, ni siège ni direction (D5). Le rappel onAuthChange n'est pas encore branché : la déconnexion ne lui
+        // dira pas d'oublier le contexte, refuserSession s'en charge (comme pour le profil absent).
+        await refuserSession(messageSansPromo());
+      }
     } else {
       // Les annuaires ne sont lisibles qu'authentifié (RLS) → charger après l'auth. Les affectations (déjà lues par la
       // porte d'un compte sans promo) en même temps.
@@ -390,8 +416,13 @@ export async function initAuth() {
       // et prévenu les écouteurs. Rien à refuser, à dire ni à relire (et surtout pas de second signOut,
       // qui frapperait une session ouverte entre-temps).
       if (contexte === null) return;
-      if (!contexte && !(await porteOuverteSansPromo())) {
+      const porte = contexte ? "entrer" : await porteOuverteSansPromo();
+      if (porte === "refuser") {
         await refuserSession(messageSansPromo());
+      } else if (porte === "reessayer") {
+        // Connexion depuis la carte, puis lecture des affectations ratée : ni refus ni déconnexion, la carte dit « Réessayer ».
+        interrompreOuverture();
+        return;
       } else if (avant !== null && getPromoCourante()?.id !== avant) {
         // La promo affichée n'est plus accessible (ou le compte a changé) : les vues déjà
         // dessinées sont celles de l'autre promo. On repart de zéro plutôt que de les mélanger.
@@ -537,7 +568,7 @@ function updateImpersonationBanner() {
     document.body.appendChild(banner);
   }
   banner.innerHTML = "";
-  banner.appendChild(el("span", { class: "imp-eye", "aria-hidden": "true" }, "👁"));
+  banner.appendChild(el("span", { class: "imp-eye", "aria-hidden": "true" }, icon.eye()));
   // Direction et siège : la phrase est longue (elle dit que les modifications sont réelles), le bandeau passe à la ligne.
   banner.classList.toggle("imp-long", !!suite);
   banner.appendChild(el("span", { class: "imp-text" }, "Aperçu : ", el("strong", {}, libelle), suite ? ". " + suite : ""));

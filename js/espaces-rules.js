@@ -161,6 +161,16 @@ export function porteSansPromo(affectations) {
   return null;
 }
 
+// Ce que fait la porte d'un compte sans promo selon la lecture de ses affectations :
+//   lecture "lue" : les affectations disent si le compte entre (siège, direction) ou s'il est refusé (« lu et vide » garde le refus) ;
+//   lecture "ratee" : on ne sait pas, donc jamais le refus. À l'ouverture de la session, "reessayer" (la phrase de connexion et un
+//   bouton) ; session déjà ouverte (renouvellement du jeton, retour au premier plan), "entrer" : les affectations et l'espace
+//   restent en place, rien ne bloque ni ne recharge.
+export function decisionPorteSansPromo({ lecture, affectations, sessionOuverte } = {}) {
+  if (lecture === "ratee") return sessionOuverte ? "entrer" : "reessayer";
+  return porteSansPromo(affectations) !== null ? "entrer" : "refuser";
+}
+
 function lieuxDiriges(affectations) {
   return liste(affectations).filter((x) => x && x.role === "direction" && x.lieu_id != null);
 }

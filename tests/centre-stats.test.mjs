@@ -3,7 +3,7 @@
 // Lancer depuis la racine du dépôt : node tests/centre-stats.test.mjs
 import assert from "node:assert/strict";
 import {
-  indicateursPromo, ligneComparaison, METHODES, COUT_ABANDON_ESTIME, aSuivrePromo, fusionnerASuivre,
+  indicateursPromo, effectifDesFiches, ligneComparaison, METHODES, COUT_ABANDON_ESTIME, aSuivrePromo, fusionnerASuivre,
 } from "../js/centre-stats.js";
 
 let n = 0;
@@ -234,6 +234,16 @@ proche(ind.notes.detail.somme, ind.notes.valeur * ind.notes.detail.n, "somme des
     "fusion : la promo de chaque personne, 3 signaux d'abord, puis par nom");
   eq(fusionnerASuivre([]), [], "fusion : aucune promo");
   eq(fusionnerASuivre([{ promoId: 1, promoNom: "P", liste: [] }]), [], "fusion : promo sans personne");
+
+  // Effectif : une seule définition pour la Vue d'ensemble et la page Promos de la direction. Une fiche anonymisée (inactive) est
+  // un abandon, comme au siège (comptes_reseau) ; une fiche active n'en est pas un.
+  eq(effectifDesFiches([{ actif: true }, { actif: true }, { actif: false }, { actif: false, anonymise_le: "2026-10-01" }]),
+    { inscrits: 4, enFormation: 2, abandons: 2 }, "effectif : l'anonymisée compte parmi les abandons");
+  eq(effectifDesFiches([]), { inscrits: 0, enFormation: 0, abandons: 0 }, "effectif : aucune fiche");
+  eq(effectifDesFiches(undefined), { inscrits: 0, enFormation: 0, abandons: 0 }, "effectif : fiches absentes");
+  const memeEffectif = indicateursPromo({ stagiaires: [{ id: 1, actif: true }, { id: 2, actif: false }, { id: 3, actif: false, anonymise_le: "2026-10-01" }],
+    passages: [], evaluations: [], epcf: [], tentatives: [] }, REF, { aujourdhui: "2026-11-01" }).effectif.detail;
+  eq([memeEffectif.inscrits, memeEffectif.enFormation, memeEffectif.abandons], [3, 1, 2], "effectif : la Vue d'ensemble donne le même nombre");
 }
 
 console.log(`centre-stats : ${n} assertions OK`);

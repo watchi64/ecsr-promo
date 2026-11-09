@@ -52,7 +52,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from parcours import charger_tous  # noqa: E402
 from parcours import banc  # noqa: E402
-from parcours.visite import Visite, Echec, Fausse, CRITERES, BLOQUE, LISTE  # noqa: E402
+from parcours.visite import Visite, Echec, Fausse, NonJuge, CRITERES, BLOQUE, LISTE  # noqa: E402
 from parcours.connus import connu, attendu_dans, DEFAUTS_CONNUS  # noqa: E402
 
 MOTEURS = ("chromium", "webkit")
@@ -89,7 +89,7 @@ def jouer_un(navigateur, p, sc, base_url, dossier):
         r = _jouer_une_fois(navigateur, p, sc, base_url, dossier)
         if "fausse" not in r:
             r["reprises"] = reprises
-            return r
+            return r  # un passage non jugé (NonJuge) est rendu tel quel, sans reprise : le rejouer n'y change rien
         reprises.append(r["fausse"])
     return {"parcours": p.id, **sc, "abouti": False, "non_juge": "geste faussé %d fois par le clavier de la machine (dernier : %s)"
             % (len(reprises), reprises[-1]), "reprises": reprises, "clics": 0, "clics_au_but": None, "budget": None, "duree": 0,
@@ -124,6 +124,14 @@ def _jouer_une_fois(navigateur, p, sc, base_url, dossier):
         except Exception:
             pass
         return {"fausse": str(e)}
+    except NonJuge as e:
+        try:
+            contexte.close()
+        except Exception:
+            pass
+        return {"parcours": p.id, **sc, "abouti": False, "non_juge": str(e), "conseil": "rétablir ce qui manque au banc, puis relancer le robot",
+                "reprises": [], "clics": v.clics, "clics_au_but": None, "budget": None, "duree": 0, "ouverture_ms": None,
+                "etapes": v.etapes, "constats": [], "capture_finale": None}
     except Echec as e:
         abouti, raison = False, str(e)
     except Exception as e:  # une erreur du robot lui-même : on la montre comme telle
@@ -228,8 +236,8 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, 
         L.append("**%d passage(s) prévu(s) n'ont pas été joués** : le résultat ne peut pas être vert." % (manquants - len(non_juges)))
     for r in non_juges:
         L.append("")
-        L.append("**Passage non jugé** : %s (%s), %s. Le résultat ne peut pas être vert : relancer le robot sans taper au "
-                 "clavier pendant qu'il tourne." % (r["parcours"], libelle(r), r["non_juge"]))
+        L.append("**Passage non jugé** : %s (%s), %s. Le résultat ne peut pas être vert : %s." % (
+                     r["parcours"], libelle(r), r["non_juge"], r.get("conseil") or "relancer le robot sans taper au clavier pendant qu'il tourne"))
     rejoues = [r for r in resultats if r.get("reprises")]
     if rejoues:
         L.append("")

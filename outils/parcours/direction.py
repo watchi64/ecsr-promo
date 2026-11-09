@@ -13,7 +13,7 @@ import re
 
 from . import banc, parcours
 from .navigation import SELECTEUR_BARRE, texte
-from .visite import BLOQUE, LISTE
+from .visite import BLOQUE, LISTE, NonJuge
 
 NOUVELLE = ("nouvelle",)
 DEPART = "#/promos"
@@ -41,13 +41,18 @@ def verifier_adresse(v, hash_attendu, quoi):
 
 
 _PAIRES_DE_NOMS = None
+_NB_PAIRES_LUES = 0
+# Le banc porte 21 stagiaires fictifs nommés (11 dans _harness_supabase.js, 10 dans _banc_centre_demo.js). En dessous de ce nombre lu
+# dans ses fichiers, la liste des noms à chercher est tronquée (un fichier absent ou un motif qui ne trouve plus rien) et le contrôle
+# passerait « à vide » : il est alors NON JUGÉ (INCOMPLET), jamais vert.
+MIN_PAIRES_LUES = 15
 PRENOMS_PROMO_2 = ["Léa", "Hugo", "Inès", "Nolan", "Maëlle"]     # les stagiaires de la promo 2 (?emargement2=1)
 
 
 def paires_de_noms():
     """(prénom, nom) des stagiaires fictifs du banc, lus dans ses fichiers. Ne servent qu'à chercher ces écritures dans une page : elles ne
     sont jamais écrites dans un message ni dans un rapport."""
-    global _PAIRES_DE_NOMS
+    global _PAIRES_DE_NOMS, _NB_PAIRES_LUES
     if _PAIRES_DE_NOMS is None:
         paires = []
         for fichier, motif in (("_harness_supabase.js", r'prenom:\s*"([^"]+)",\s*nom:\s*"([^"]+)"'),
@@ -55,16 +60,26 @@ def paires_de_noms():
             chemin = banc.RACINE / fichier
             if chemin.exists():
                 paires += re.findall(motif, chemin.read_text(encoding="utf-8"))
+        _NB_PAIRES_LUES = len(paires)
         # Les cinq stagiaires de la promo 2 sont construits par une boucle : prénoms et initiales d'après son code.
         paires += [(p, chr(67 + i) + ".") for i, p in enumerate(PRENOMS_PROMO_2)]
         _PAIRES_DE_NOMS = paires
     return _PAIRES_DE_NOMS
 
 
+def exiger_assez_de_noms(nb_lues, quoi):
+    """Lève NonJuge quand la liste des noms lue dans les fichiers du banc est trop courte pour que « aucun nom » veuille dire quelque chose."""
+    if nb_lues < MIN_PAIRES_LUES:
+        raise NonJuge("la liste des noms à chercher est trop courte (%d lus dans les fichiers du banc, au moins %d attendus) : « %s » ne peut pas être jugé"
+                      % (nb_lues, MIN_PAIRES_LUES, quoi))
+
+
 def aucun_nom_de_stagiaire(v, quoi, prenoms=None):
     """Aucun nom de stagiaire du banc dans la page (ou, avec `prenoms`, aucun de ceux-là : les stagiaires d'une autre promo)."""
     formes = set()
-    for prenom, nom in paires_de_noms():
+    paires = paires_de_noms()
+    exiger_assez_de_noms(_NB_PAIRES_LUES, quoi)
+    for prenom, nom in paires:
         if prenoms is None or prenom in prenoms:
             initiale = nom[0]
             formes |= {"%s %s" % (prenom, nom), "%s %s." % (prenom, initiale), "%s. %s" % (initiale, prenom)}

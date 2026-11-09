@@ -122,9 +122,15 @@ test("un centre sans promo en cours : aucun chiffre non nul attendu de la base",
   assert.ok(e.length > 0 && e.every((x) => x.includes("sans promo en cours")));
 });
 
-test("un centre présent d'un seul côté : écart", () => {
-  const e1 = recouper(brut(), [ligne(), ligne({ lieu_id: 2, lieu_nom: "Autre centre" })]).ecarts;
-  assert.ok(e1.some((x) => x.includes("Autre centre") && x.includes("le brut n'a aucune promo")));
+test("un centre sans aucune promo dans le brut : traité comme sans promo en cours, comme comptes_reseau() le rend", () => {
+  // La base l'envoie avec 0 promo en cours, masqué, tous chiffres nuls : identique, pas d'écart.
+  const vide = masquee({ lieu_id: 2, lieu_nom: "Centre sans promo", promos_en_cours: 0 });
+  assert.deepEqual(recouper(brut(), [ligne(), vide]).ecarts, []);
+  // La base annonce pourtant une promo en cours ou un chiffre : écart, avec les mots d'un centre sans promo.
+  const e1 = recouper(brut(), [ligne(), masquee({ lieu_id: 2, lieu_nom: "Autre centre", promos_en_cours: 1 })]).ecarts;
+  assert.ok(e1.some((x) => x.includes("Autre centre") && x.includes("promos en cours : 0 d'après le brut")));
+  const e1b = recouper(brut(), [ligne(), ligne({ lieu_id: 2, lieu_nom: "Autre centre", promos_en_cours: 0 })]).ecarts;
+  assert.ok(e1b.some((x) => x.includes("Autre centre") && x.includes("sans promo en cours")));
   const e2 = recouper(brut([promo(), promo({ promo_id: 5, lieu_id: 2 })]), [ligne()]).ecarts;
   assert.ok(e2.some((x) => x.includes("centre 2") && x.includes("n'envoie aucune ligne")));
 });

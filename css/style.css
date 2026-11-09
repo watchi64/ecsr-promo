@@ -3014,6 +3014,9 @@ body.p-dragging-active {
 }
 .gate-link:hover { color: var(--accent); }
 
+/* « Réessayer » après une lecture des affectations ratée à l'ouverture : cible de 44 px, pleine largeur de la carte. */
+#gate .gate-reessayer { display: block; width: 100%; min-height: 44px; margin-top: 1rem; }
+
 .gate-info {
   margin-top: 0.9rem;
   font-size: 0.85rem;
@@ -5964,7 +5967,8 @@ body.qcm-open { overflow: hidden; }
   box-shadow: var(--shadow-3);
   font-size: 0.85rem;
 }
-.impersonation-banner .imp-eye { font-size: 1rem; line-height: 1; }
+.impersonation-banner .imp-eye { display: inline-flex; align-items: center; flex: none; }
+.impersonation-banner .imp-eye .icon { width: 1.1rem; height: 1.1rem; }
 .impersonation-banner .imp-text { white-space: nowrap; }
 .impersonation-banner strong { font-weight: 600; }
 .impersonation-banner .imp-back {

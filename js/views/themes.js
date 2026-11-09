@@ -12,7 +12,7 @@ import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./s
 import { renderSubTabs } from "../subtabs.js?v=20261109m";
 import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261109m";
 import { cleCours } from "../cours-rules.js?v=20261109m";
-import { sousOngletsCours } from "../espaces-rules.js?v=20261109m";
+import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261109m";
 import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109m";
 import { navigationV2Active } from "../nav-etat.js?v=20261109m";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109m";
@@ -677,7 +677,7 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
     try {
       qcmId = await getOrCreateQcm(theme.id, theme.titre, getAdminEmail());
     } catch (e) {
-      toast("Création du QCM impossible : " + (e?.message || e), "error");
+      toast("Création du QCM impossible : " + phraseDeRefus(e?.message || e, e?.code), "error");
       return;
     }
   }
@@ -1578,11 +1578,12 @@ function renderThemeRow(theme, container, coursOn = false) {
   }, theme.titre);
 
   // Colonne QCM : cellule dédiée à droite, jamais sous le titre. Un stagiaire n'y
-  // voit un bouton que si le thème a un QCM publié ; « Créer QCM » reste au formateur.
+  // voit un bouton que si le thème a un QCM publié ; « Créer QCM » reste au formateur de la promo (la règle qcm_ecriture de la
+  // base refuse l'ajout au siège et à la direction : le siège rédige les questions des QCM existants, pas les QCM).
   const qcm = qcmByTheme.get(theme.id);
   const qcmCell = canSeeQcm()
     ? el("div", { class: "theme-qcm-cell" },
-        qcm ? qcmCellEl(theme, qcm) : (isRedacteur() ? createQcmCellEl(theme) : null))
+        qcm ? qcmCellEl(theme, qcm) : (canManageExam() ? createQcmCellEl(theme) : null))
     : null;
 
   return el("div", { class: "theme-row " + color + (groupe ? " theme-row-groupe" : ""), dataset: { id: theme.id } },

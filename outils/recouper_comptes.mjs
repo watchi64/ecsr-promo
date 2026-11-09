@@ -12,6 +12,10 @@
 //   demonstration, promos_en_cours, masque, inscrits, en_formation, abandons, absences, prevus, qcm_bonnes, qcm_questions, examens_passes,
 //   examens_reussis, notes_n, notes_somme, notes_sous10, epcf_acquis, epcf_renseignes).
 //
+// Date du jour : « aujourdhui » est celle de la BASE (current_date, UTC chez Supabase), pas celle de Paris où l'app compte les promos
+// en cours. Entre minuit et 1 h ou 2 h à Paris, une promo qui commence ou finit ce jour-là est comptée d'un côté et pas de l'autre :
+// pour un recoupement juste, extraire « aujourdhui » avec `select current_date` sur la base, jamais avec l'horloge de la machine.
+//
 // Pour chaque centre : comptesDepuisIndicateurs(indicateursPromo(concatenerDonnees(promos en cours du centre))) est comparé à la ligne de même
 // lieu_id (champ par champ, notes à 1e-9 près). Un centre masqué n'envoie aucun chiffre : on vérifie seulement que le calcul de l'app donne
 // moins de SEUIL_SECRET stagiaires en formation. Sortie : « identiques », ou un écart par ligne ; code 0 sans écart, 1 au moindre écart,
@@ -37,10 +41,9 @@ export function recouper(brut, comptes) {
   for (const l of lignes) {
     const nom = l.lieuNom || "centre " + l.lieuId;
     const duCentre = (brut.promos || []).filter((p) => p.lieu_id === l.lieuId);
-    if (!duCentre.length) {
-      ecarts.push(`${nom} : la base envoie une ligne, le brut n'a aucune promo de ce centre`);
-      continue;
-    }
+    // Un centre sans aucune promo dans le brut (centre tout juste créé, ou dont aucune promo n'a été extraite) n'a pas de promo en
+    // cours : comptes_reseau() l'envoie avec promos_en_cours à 0, masqué et sans chiffre (versComptes lit un chiffre absent comme 0).
+    // C'est le cas « aucune promo en cours » ci-dessous, pas un écart.
     const enCours = promosEnCours(duCentre, aujourdhui);
     if (enCours.length !== l.promosEnCours) {
       ecarts.push(`${nom} : promos en cours : ${enCours.length} d'après le brut, ${l.promosEnCours} d'après la base`);
