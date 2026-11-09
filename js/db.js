@@ -305,9 +305,12 @@ export async function lireEffectifsPromos(promoIds) {
 async function nomsFormateursParEmail(emails) {
   const noms = new Map();
   if (!emails.length) return noms;
-  const { data: profils, error } = await supabase.from("user_profiles").select("email, prof_id").in("email", emails);
-  if (error) throw error;
-  const profParEmail = new Map((profils || []).map((u) => [String(u.email).toLowerCase(), u.prof_id]));
+  // Les adresses se comparent en minuscules des deux côtés : un compte stocké avec des majuscules garde son nom. `.in` serait
+  // sensible à la casse, donc lecture des colonnes utiles (adresse, fiche) puis rapprochement ici.
+  const voulues = new Set(emails.map((e) => String(e).toLowerCase()));
+  const profils = await toutesLesLignes(() => supabase.from("user_profiles").select("email, prof_id").order("email"));
+  const profParEmail = new Map(profils.filter((u) => voulues.has(String(u.email).toLowerCase()))
+    .map((u) => [String(u.email).toLowerCase(), u.prof_id]));
   const profIds = [...new Set([...profParEmail.values()].filter((x) => x != null))];
   if (!profIds.length) return noms;
   const { data: profs, error: e2 } = await supabase.from("profs").select("id, nom").in("id", profIds);
@@ -378,7 +381,12 @@ export async function lireEquipeDuCentre(lieuId) {
 
 // Les fiches formateur libres (reliées à aucun compte), que la direction peut lier à un formateur invité : [{ id, nom }].
 export async function lireFichesFormateurLibres() {
-  const [profs, comptes] = await Promise.all([listProfs(), listUserProfiles()]);
+  // Colonnes explicites : l'identifiant et le nom de la fiche, et la fiche reliée de chaque compte (le rapprochement). La table
+  // `profs` n'a ni centre ni promo : la base ne permet pas de limiter les fiches libres à ce centre.
+  const [profs, comptes] = await Promise.all([
+    toutesLesLignes(() => supabase.from("profs").select("id, nom").order("ordre")),
+    toutesLesLignes(() => supabase.from("user_profiles").select("prof_id").order("email")),
+  ]);
   const prises = new Set(comptes.map((u) => u.prof_id).filter((x) => x != null));
   return profs.filter((f) => !prises.has(f.id)).map((f) => ({ id: f.id, nom: f.nom }));
 }

@@ -2,7 +2,7 @@
 // fiche et liste du centre, équipe affichée. Lancer : node --test tests/direction-rules.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validerPromo, etatPromo, partEcoulee, ouTrouverFiche, listeDuCentre, equipeAffichee } from "../js/direction-rules.js";
+import { validerPromo, etatPromo, partEcoulee, ouTrouverFiche, listeDuCentre, equipeAffichee, unionPromos } from "../js/direction-rules.js";
 
 test("validerPromo : mêmes phrases que la base, sans préfixe", () => {
   assert.equal(validerPromo({ nom: "Nîmes mars", debut: "2026-03-02", fin: "2026-12-18" }), null);
@@ -123,4 +123,12 @@ test("equipeAffichee : nom ou adresse, rôle, promos du centre, tri", () => {
   ]);
   assert.deepEqual(equipeAffichee([], promos), []);
   assert.deepEqual(equipeAffichee(undefined, undefined), []);
+});
+
+test("unionPromos : « Inviter » ajoute aux promos déjà affectées, sans doublon ni valeur vide", () => {
+  assert.deepEqual(unionPromos([1, 2], [3]), [1, 2, 3]);
+  assert.deepEqual(unionPromos([2, 1], [1, 4]), [1, 2, 4], "triée, sans doublon");
+  assert.deepEqual(unionPromos([], [5]), [5]);
+  assert.deepEqual(unionPromos(undefined, [5, null, undefined]), [5]);
+  assert.deepEqual(unionPromos([1], undefined), [1]);
 });

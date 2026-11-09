@@ -96,3 +96,10 @@ export function equipeAffichee(lignes, promosDuCentre) {
   vue.sort((a, b) => (b.direction - a.direction) || a.nom.localeCompare(b.nom, "fr"));
   return vue.map(({ nom, role, promos, email, promoIds }) => ({ nom, role, promos, email, promoIds }));
 }
+
+// « Inviter » ajoute des promos : l'union des promos déjà affectées dans le centre et des promos cochées (triée, sans doublon). Seul
+// « Modifier » remplace la liste.
+export function unionPromos(dejaIds, cocheesIds) {
+  const tous = [...(Array.isArray(dejaIds) ? dejaIds : []), ...(Array.isArray(cocheesIds) ? cocheesIds : [])];
+  return [...new Set(tous.filter((x) => x != null))].sort((a, b) => a - b);
+}

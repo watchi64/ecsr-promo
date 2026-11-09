@@ -12,7 +12,7 @@ import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261109f";
 import { icon } from "../icons.js?v=20261109f";
 import { getCentre, getAdminEmail } from "../auth-admin.js?v=20261109f";
 import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261109f";
-import { equipeAffichee } from "../direction-rules.js?v=20261109f";
+import { equipeAffichee, unionPromos } from "../direction-rules.js?v=20261109f";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
@@ -108,7 +108,8 @@ function casesPromos(promos, cochees) {
   return { groupe, choisies: () => cases.filter(({ c }) => c.checked).map(({ promo }) => promo.id) };
 }
 
-function ouvrirInvitation({ centre, promos, ancre, apres }) {
+// `equipe` : les lignes affichées (equipeAffichee) ; « Inviter » AJOUTE des promos à une adresse déjà dans l'équipe, il ne remplace rien.
+function ouvrirInvitation({ centre, promos, equipe, ancre, apres }) {
   const champEmail = el("input", { type: "email", id: "equipe-email", autocomplete: "off", maxlength: "200", placeholder: "prenom.nom@exemple.fr" });
   const { groupe, choisies } = casesPromos(promos, []);
   const choixFiche = el("select", { id: "equipe-fiche", disabled: "" }, el("option", { value: "" }, "Aucune fiche"));
@@ -138,11 +139,18 @@ function ouvrirInvitation({ centre, promos, ancre, apres }) {
       if (!/^\S+@\S+\.\S+$/.test(email)) return PHRASE_ADRESSE;
       const ids = choisies();
       if (!ids.length) return PHRASE_SANS_PROMO_CHOISIE;
-      return { email, promoIds: ids, profId: choixFiche.value ? Number(choixFiche.value) : null };
+      const connue = equipe.find((l) => l.email === email);
+      return { email, promoIds: unionPromos(connue ? connue.promoIds : [], ids), profId: choixFiche.value ? Number(choixFiche.value) : null };
     },
     enregistrer: async (v) => {
       const r = await reglerAffectationsFormateur({ email: v.email, lieuId: centre.id, promoIds: v.promoIds, profId: v.profId });
-      toast(r.cree ? PHRASE_COMPTE_CREE : PHRASE_PROMOS_MAJ, "success", 6000);
+      let phrase = r.cree ? PHRASE_COMPTE_CREE : PHRASE_PROMOS_MAJ;
+      // La base rend ce qu'elle a retiré : si c'est non vide (une promo ôtée entre-temps), la phrase le dit.
+      const retirees = (r.retirees || []).map((id) => (promos.find((p) => p.id === id) || {}).nom || "promo " + id);
+      if (retirees.length) phrase += ` Retirée${retirees.length > 1 ? "s" : ""} : ${retirees.join(", ")}.`;
+      // Un compte qui existe déjà garde sa fiche : celle qui a été choisie n'est pas reliée.
+      if (!r.cree && v.profId != null) phrase += " Ce compte existait déjà : la fiche formateur choisie n'a pas été reliée.";
+      toast(phrase, "success", 7000);
       await apres(v.email);
     },
   });
@@ -202,16 +210,18 @@ export async function renderEquipeCentre(container) {
     container.appendChild(el("p", { class: "muted" }, PHRASE_SANS_CENTRE));
     return;
   }
+  // Les lignes de l'équipe, remplies après la lecture (le bouton « Inviter » n'est cliquable qu'ensuite).
+  let equipeCourante = [];
   const racine = el("div", { class: "centre equipe-centre" });
   container.appendChild(racine);
   const boutonInviter = promos.length
-    ? el("button", { class: "btn primary", type: "button", onClick: (e) => ouvrirInvitation({ centre, promos, ancre: e.currentTarget, apres }) },
+    ? el("button", { class: "btn primary", type: "button", onClick: (e) => ouvrirInvitation({ centre, promos, equipe: equipeCourante, ancre: e.currentTarget, apres }) },
       icon.plus(), "Inviter un formateur")
     : null;
   const entete = (sousTitre) => el("div", { class: "view-header centre-entete" },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Centre de " + (centre.nom || "")),
-      el("h2", {}, "Équipe"),
+      el("h2", { tabindex: "-1" }, "Équipe"),
       el("p", { class: "subtitle" }, sousTitre)),
     boutonInviter ? el("div", { class: "centre-actions" }, boutonInviter) : null);
 
@@ -222,7 +232,9 @@ export async function renderEquipeCentre(container) {
     const cible = email
       ? [...document.querySelectorAll(".equipe-centre [data-email]")].find((n) => n.getAttribute("data-email") === email)
       : null;
-    const bouton = (cible && cible.querySelector("button")) || document.querySelector(".equipe-centre .centre-actions button");
+    // Sinon « Inviter », sinon le titre de la page (il prend le focus sans entrer dans l'ordre de tabulation).
+    const bouton = (cible && cible.querySelector("button")) || document.querySelector(".equipe-centre .centre-actions button")
+      || document.querySelector(".equipe-centre h2");
     if (bouton) bouton.focus({ preventScroll: true });
   }
 
@@ -242,6 +254,7 @@ export async function renderEquipeCentre(container) {
   if (jeton !== rendu) return;
   clear(racine);
   const equipe = equipeAffichee(lignes, promos);
+  equipeCourante = equipe;
   racine.appendChild(entete(equipe.length ? pluriel(equipe.length, "personne") + " dans l'équipe" : "Personne dans l'équipe pour le moment"));
 
   if (!promos.length) {
