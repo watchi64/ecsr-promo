@@ -1172,7 +1172,8 @@ function rerender(container) {
     admin && !laClasse ? { key: "saisir", label: "Saisir", render: (p) => renderSaisie(p, ctxSaisie) } : null,
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
     { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
-        renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive })
+        renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive,
+          contexte: contexteEtatVide({ classe: false, admin, personnel: formateurConnecte() }) })
           .catch((e) => {
             console.error(e);
             if (!ctx || ctx.isActive()) {
@@ -1188,9 +1189,11 @@ function rerender(container) {
   // (le sous-onglet EPCF de la page de l'équipe suit le même module). Sans choix d'onglet, aucune mémoire de
   // sous-onglet n'est écrite (celle de la page de l'équipe).
   if (laClasse) {
-    const carte = carteVide(container, contexteEtatVide({ classe: true, admin, personnel: formateurConnecte() }));
+    // Un seul calcul du contexte pour les deux cartes vides (notes et moyennes EPCF) : elles ne peuvent pas se contredire.
+    const contexteClasse = contexteEtatVide({ classe: true, admin, personnel: formateurConnecte() });
+    const carte = carteVide(container, contexteClasse);
     container.appendChild(carte || renderSubTabs(onglets.slice(0, 1)));
-    if (moduleVisible("epcf")) container.appendChild(sectionMoyennesEpcf());
+    if (moduleVisible("epcf")) container.appendChild(sectionMoyennesEpcf(contexteClasse));
   } else {
     const rangee = renderSubTabs(onglets, { storageKey: "ecsr_notes_subtab", defautKey: tactile ? "saisir" : "matrice" });
     ongletsParVue.set(container, rangee);
@@ -1200,10 +1203,10 @@ function rerender(container) {
 
 // Les moyennes EPCF de la classe, en section de La classe : le rendu de l'onglet EPCF de la page de l'équipe
 // (renderEpcf, donc le même k-anonymat : une moyenne n'est montrée qu'à partir de 2 stagiaires évalués), sous
-// un titre qui nomme l'épreuve et la classe.
-function sectionMoyennesEpcf() {
+// un titre qui nomme l'épreuve et la classe. Sans moyenne montrable, la carte de l'état vide, dont le bouton suit `contexte`.
+function sectionMoyennesEpcf(contexte) {
   const section = el("section", { class: "notes-epcf-classe" });
-  renderEpcf(section, { embedded: true, titre: "Moyennes EPCF de la classe" })
+  renderEpcf(section, { embedded: true, titre: "Moyennes EPCF de la classe", contexte })
     .catch((e) => {
       console.error(e);
       clear(section);
