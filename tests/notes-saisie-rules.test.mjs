@@ -10,6 +10,8 @@ import {
 assert.deepEqual(parseNoteInput("14,5"), { note: 14.5, note_max: 20, converted: false });
 assert.deepEqual(parseNoteInput("7 / 10"), { note: 14, note_max: 20, converted: true, original: "7/10" });
 assert.equal(parseNoteInput("  "), null);
+assert.deepEqual(parseNoteInput("14 , 5"), { note: 14.5, note_max: 20, converted: false }, "espaces autour de la virgule");
+assert.deepEqual(parseNoteInput("7 , 5 / 10"), { note: 15, note_max: 20, converted: true, original: "7.5/10" });
 assert.ok(parseNoteInput("21").error, "au-dessus de 20 : refus");
 assert.ok(parseNoteInput("abc").error, "pas un nombre : refus");
 

@@ -8,7 +8,8 @@
 //   - "X"    → note sur 20 directe (validé 0..20).
 // Retour : null si vide, { error } si invalide, sinon { note, note_max, converted, original? }.
 export function parseNoteInput(raw) {
-  const s = String(raw ?? "").trim().replace(",", ".");
+  // Virgule ou point décimal, avec ou sans espaces autour (« 14 , 5 ») : un seul séparateur, le point.
+  const s = String(raw ?? "").trim().replace(/\s*[.,]\s*/g, ".");
   if (s === "") return null;
   const m = s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
   if (m) {
@@ -44,7 +45,7 @@ export const MATRIX_SPECIAL_COLS = [
 export const THEME_GROUPS = [[46, 47]];
 
 function sansAccents(s) {
-  return String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+  return String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
 // Ce qu'on peut noter, dans l'ordre de l'écran : les 4 compétences, puis les thèmes par numéro (un groupe en une

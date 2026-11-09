@@ -14,7 +14,7 @@
 // Chaque champ porte l'identifiant de son stagiaire (data-stagiaire-id) : une note ne peut pas glisser d'une ligne
 // à l'autre, même si la page se redessine pendant la saisie.
 
-import { el, clear } from "../utils.js?v=20261109i";
+import { el, clear, toast } from "../utils.js?v=20261109i";
 import { icon } from "../icons.js?v=20261109i";
 import {
   ciblesDeSaisie, filtrerCibles, derniereNote, avancement, libelleAvancement, origineNote,
@@ -146,32 +146,43 @@ export function renderSaisie(panel, ctx) {
       if (existante) champ.setAttribute("data-note", String(existante.note));
       champs.push(champ);
 
+      // Un seul enregistrement à la fois par champ. Une correction tapée pendant qu'il part (réseau lent) n'est pas
+      // perdue : elle repart dès qu'il revient, et le résultat du premier n'écrase pas ce qui a été retapé.
       let enCours = false;
+      let relancer = false;
       async function enregistrer() {
-        if (enCours) return;
+        if (enCours) { relancer = true; return; }
         enCours = true;
         const id = Number(champ.getAttribute("data-stagiaire-id"));
         const avant = derniereNote(ctx.evaluations(), id, cible);
+        const saisie = champ.value;
         try {
-          const envoi = ctx.enregistrer({ stagiaireId: id, cible, saisie: champ.value, nom });
+          const envoi = ctx.enregistrer({ stagiaireId: id, cible, saisie, nom });
           enAttente.add(envoi);
           const r = await envoi.finally(() => enAttente.delete(envoi));
+          const aJour = champ.value === saisie;   // rien n'a été retapé pendant l'envoi
           etat.classList.toggle("erreur", r.etat === "invalide" || r.etat === "erreur");
           if (r.etat === "enregistree") {
-            champ.value = noteEnFrancais(r.note);
+            if (aJour) champ.value = noteEnFrancais(r.note);
             champ.setAttribute("data-note", String(r.note));
             etat.textContent = r.converti ? `${r.converti} converti en ${noteEnFrancais(r.note)}/20` : "Enregistrée";
           } else if (r.etat === "effacee") {
-            champ.value = "";
+            if (aJour) champ.value = "";
             champ.removeAttribute("data-note");
             etat.textContent = "Note effacée";
           } else if (r.etat === "gardee") {
-            champ.value = avant?.note != null ? noteEnFrancais(avant.note) : "";
+            if (aJour) champ.value = avant?.note != null ? noteEnFrancais(avant.note) : "";
             etat.textContent = avant ? origineNote(avant) : "";
           } else if (r.etat === "invalide") {
             etat.textContent = `${r.message}. Tape un nombre de 0 à 20, ou par exemple 7/10.`;
           } else if (r.etat === "erreur") {
             etat.textContent = `Pas enregistrée : ${r.message}. Réessaie.`;
+          }
+          // On a quitté l'écran pendant l'envoi (« Retour », Échap, un autre sous-onglet) : la ligne d'état n'est plus
+          // affichée, un échec se dit donc dans un message, avec le nom, pour ne rien perdre en silence.
+          if (!etat.isConnected && (r.etat === "invalide" || r.etat === "erreur")) {
+            const raison = r.message.charAt(0).toLowerCase() + r.message.slice(1);
+            toast(`Note de ${nom} pas enregistrée : ${raison}. Rouvre le thème pour la saisir de nouveau.`, "error", 6000);
           }
           if (r.etat === "enregistree" || r.etat === "effacee") {
             majCompteur();
@@ -179,6 +190,10 @@ export function renderSaisie(panel, ctx) {
           }
         } finally {
           enCours = false;
+          if (relancer) {
+            relancer = false;
+            if (champ.value !== saisie) enregistrer();
+          }
         }
       }
       champ.addEventListener("blur", enregistrer);
