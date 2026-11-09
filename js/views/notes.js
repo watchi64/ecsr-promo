@@ -15,6 +15,7 @@ import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109i
 import { navigationV2Active } from "../nav-etat.js?v=20261109i";
 import { renderEpcf } from "./epcf.js?v=20261109i";
 import { noteGradient } from "../echelle-notes.js?v=20261109i";
+import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote } from "../notes-saisie-rules.js?v=20261109i";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -54,27 +55,6 @@ const NOTES_SORT_OPTIONS = [
 ];
 
 let currentNotesSort = localStorage.getItem("ecsr_notes_sort") || "default";
-
-// Parse une saisie de note. Deux formats acceptés :
-//   - "X/Y"  → convertit en (X/Y)*20, arrondi à 0.1, stocke note_max=20.
-//   - "X"    → note sur 20 directe (validé 0..20).
-// Retour : null si vide, { error } si invalide, sinon { note, note_max, converted, original? }.
-function parseNoteInput(raw) {
-  const s = String(raw ?? "").trim().replace(",", ".");
-  if (s === "") return null;
-  const m = s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
-  if (m) {
-    const x = Number(m[1]), y = Number(m[2]);
-    if (!(y > 0)) return { error: "Le diviseur doit être supérieur à 0" };
-    if (x < 0 || x > y) return { error: `Note entre 0 et ${y}` };
-    const note = Math.round((x / y) * 20 * 10) / 10;
-    return { note, note_max: 20, converted: true, original: `${m[1]}/${m[2]}` };
-  }
-  const n = Number(s);
-  if (!isFinite(n)) return { error: "Saisie invalide (attendu : nombre ou X/Y)" };
-  if (n < 0 || n > 20) return { error: "Note entre 0 et 20" };
-  return { note: n, note_max: 20, converted: false };
-}
 
 function stagiaireAvg(stagiaireId) {
   const evs = evaluations.filter((e) => e.stagiaire_id === stagiaireId && e.note != null && e.note_max);
@@ -152,19 +132,7 @@ function sortStagiaires(list, mode) {
 
 const TYPES_EVAL = ["Thème", "Compétence", "Contrôle"];
 
-// Colonnes "spéciales" du tableau matrice (en plus des 57 thèmes)
-const MATRIX_SPECIAL_COLS = [
-  { key: "C1",   label: "C1",   tooltip: "Compétence formateur C1 : Accueillir & sensibiliser SR" },
-  { key: "C2",   label: "C2",   tooltip: "Compétence formateur C2 : Concevoir & animer" },
-  { key: "REMC", label: "REMC", tooltip: "REMC : Vision globale du référentiel mobilité citoyenne" },
-  { key: "MGDE", label: "GDE",  tooltip: "Matrice GDE : Goals for Driver Education" },
-];
-
-// Thèmes évalués ENSEMBLE par un seul QCM : une seule note, mais les deux colonnes
-// restent affichées en en-tête. La cellule de note est FUSIONNÉE (colspan) sur le groupe,
-// et la note est portée par le PREMIER thème du groupe (donc comptée une seule fois
-// dans les moyennes). Pour ajouter un groupe : [numéro1, numéro2, ...].
-const THEME_GROUPS = [[46, 47]];
+// MATRIX_SPECIAL_COLS et THEME_GROUPS vivent dans js/notes-saisie-rules.js (partagés avec l'écran « Saisir »).
 const THEME_GROUP_LEADER = new Map();   // numero -> groupe (si numero ouvre le groupe)
 const THEME_GROUP_FOLLOWER = new Set(); // numeros absorbés par la cellule fusionnée
 THEME_GROUPS.forEach((g) => {
@@ -462,20 +430,13 @@ function refreshAnalyticsInPlace(container) {
 
 // === Tableau matrice : lignes stagiaires × colonnes (synthèse + 57 thèmes) ===
 
+// La note affichée : la plus récente par date d'évaluation (règle partagée, js/notes-saisie-rules.js).
 function noteForStagiaireCompetence(stagId, code) {
-  // Dernière évaluation de type 'Compétence' avec competence_code matching
-  const matches = evaluations
-    .filter((e) => e.stagiaire_id === stagId && e.type === "Compétence" && e.competence_code === code)
-    .sort((a, b) => new Date(b.date_eval) - new Date(a.date_eval));
-  return matches[0] || null;
+  return derniereNote(evaluations, stagId, { type: "Compétence", competence_code: code });
 }
 
 function noteForStagiaireTheme(stagId, themeNum) {
-  // Dernière évaluation de type 'Thème' avec theme_numero matching
-  const matches = evaluations
-    .filter((e) => e.stagiaire_id === stagId && e.type === "Thème" && e.theme_numero === themeNum)
-    .sort((a, b) => new Date(b.date_eval) - new Date(a.date_eval));
-  return matches[0] || null;
+  return derniereNote(evaluations, stagId, { type: "Thème", theme_numero: themeNum });
 }
 
 function noteMatrixCell(evaluation) {
