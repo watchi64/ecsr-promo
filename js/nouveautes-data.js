@@ -111,8 +111,8 @@ export const NOUVEAUTES = [
     navigation: "nouvelle",
     titre: "Accueil et Mon suivi : des repères plus justes",
     resume: "Quand ton nom ne figure sur aucune activité du matin ou de l'après-midi, l'Accueil te le dit. Dans "
-          + "« À faire », un examen ouvert ou le QCM d'un thème t'emmène directement à tes QCM. Ton livret EPCF, que "
-          + "les formateurs remplissent, n'y apparaît plus, et il affiche maintenant ton nom et ta date de naissance. "
+          + "« À faire », un examen ouvert ou le QCM d'un thème t'emmène directement à tes QCM. Ton livret EPCF n'y "
+          + "apparaît plus, et il affiche maintenant ton nom et ta date de naissance. "
           + "Dans Mon suivi, Résultats te rappelle où sont les notes de tes entraînements aux QCM.",
     ou: { label: "Accueil", route: "home" },
   },
@@ -120,12 +120,12 @@ export const NOUVEAUTES = [
     id: "2026-11-09-emargement-planning-plus-justes",
     date: "2026-11-09",
     pour: "formateurs",
-    titre: "Émargement et planning : des comptes plus justes",
-    resume: "La feuille d'émargement compte à part les absents prévus au planning : « 2 sur 6 ont signé · 3 en "
-          + "attente · 1 absent prévu au planning ». Dans la semaine de l'émargement, une demi-journée de cours passée "
-          + "sans feuille s'affiche « Feuille non faite », et une demi-journée sans cours « Rien de prévu ». En mode "
-          + "Modifier du planning, une activité seule sur son créneau reprend toute la largeur.",
-    ou: { label: "Émargement", route: "emargement" },
+    titre: "Planning et émargement : des affichages plus justes",
+    resume: "En mode Modifier du planning, une activité n'est plus réduite à une colonne étroite quand une activité "
+          + "parallèle a été supprimée sur la demi-journée. Là où l'émargement est activé, la feuille compte à part "
+          + "les absents prévus au planning (« 2 sur 6 ont signé · 3 en attente · 1 absent prévu au planning »), et "
+          + "la semaine de l'émargement signale une demi-journée de cours passée sans feuille : « Feuille non faite ».",
+    ou: { label: "Planning", route: "planning" },
     guide: [
       "Sur la feuille d'émargement, le résumé du haut sépare ceux qui attendent des absents prévus au planning.",
       "Dans la semaine de l'émargement, « Feuille non faite » signale une demi-journée de cours restée sans feuille.",

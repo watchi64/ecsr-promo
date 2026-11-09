@@ -173,8 +173,8 @@ Contrôles par vue
     (le premier examen ou stage qui n'est pas passé) : jamais de nombre négatif ; un stage commencé dit « En cours, fin dans N jours » (« fin demain »,
     « fin aujourd'hui ») et sa pastille dit « En cours », sans nombre ni habillage de compte à rebours (vague finale, F9 : jamais « Aujourd'hui ! » pour un stage qui finit
     aujourd'hui) ; un événement à venir garde sa pastille d'avant (« 9 jours », « Aujourd'hui ! » le jour où il commence), sans ligne « en cours » ;
-  * pied de l'Accueil (vague finale, F7) : avec la nouvelle navigation, « TP ECSR App · Promo <nom de la promo affichée> · connecté comme <rôle> », où le rôle d'un administrateur est
-    « formateur » (jamais « admin ») ; avec l'ancienne, le texte de main (« Promo 2026 » écrit en dur, « admin ») ;
+  * pied de l'Accueil (vague finale, F7, puis audit du 09/11, A8) : avec la nouvelle navigation, « TP ECSR App · Promo <nom de la promo affichée> · connecté comme
+    <rôle> », le vrai rôle (aperçu, fondateur, rôle sur la promo ; jamais « admin ») ; avec l'ancienne, le texte de main (« Promo 2026 » écrit en dur, « admin ») ;
   * Planning > Semaine : chez le stagiaire, ni « Lecture seule... » ni « Cette semaine » (« Aujourd'hui », en tête de la page, le remplace) ; chez
     l'équipe, « Cette semaine » reste ;
   * Mon suivi aux libellés clairs (lot 2B, tâche 7), pour toute personne qui a une fiche, à 1 280 et 375 px : les parties dans l'ordre (Résultats, Passages, EPCF,
@@ -1377,7 +1377,8 @@ async function accueil() {
       statut: de(carte, ".home-countdown-statut"), texte: texte(carte) } : null,
     // Vague finale, F7 : le pied de page (« TP ECSR App · Promo ... · connecté comme ... ») et qui est connecté (de quoi en déduire le rôle écrit).
     piedTexte: (() => { const e = vue.querySelector(".home-footer-v2 p"); return e ? net(e.textContent) : null; })(),
-    qui: { admin: auth.isAdmin(), role: (auth.getProfile() || {}).role || null },
+    qui: { admin: auth.isAdmin(), role: (auth.getProfile() || {}).role || null, fondateur: !!(auth.getProfile() || {}).is_founder,
+      apercu: auth.getViewAs ? auth.getViewAs() : null, roles: (db.getPromoCourante() || {}).roles || null },
     evenements: (await db.listAgendaEvents()).map((e) => ({ type: e.type, titre: e.title, debut: e.date_start, fin: e.date_end })),
   };
 }
@@ -3461,13 +3462,21 @@ def verifier_pied_et_retenir(res, vue, m, navigation):
 
 def verifier_pied_de_l_accueil(res, vue, m, nouvelle):
     """Le pied de l'Accueil dit la promo et le rôle (vague finale, F7). Avec la nouvelle navigation : « TP ECSR App · Promo <nom de la promo affichée> · connecté comme
-    <rôle> », où le rôle d'un administrateur est « formateur » (jamais « admin »). Avec l'ancienne : le texte de main, « Promo 2026 » écrit en dur, « admin » compris.
-    Le rôle se déduit de la personne connectée, lue dans la page (administrateur, ou son rôle de profil)."""
+    <rôle> », le vrai rôle (audit du 09/11, A8) : l'aperçu « Voir en tant que » (« direction (aperçu) »), sinon « fondateur », sinon le rôle sur la promo
+    (formateur, direction, siège, stagiaire), jamais « admin ». Avec l'ancienne : le texte de main, « Promo 2026 » écrit en dur, « admin » compris.
+    Le rôle se déduit de la personne connectée, lue dans la page (aperçu, fondateur, rôles sur la promo, administrateur, rôle de profil)."""
     qui = m["qui"]
-    if qui["admin"]:
-        role = "formateur" if nouvelle else "admin"
+    if not nouvelle:
+        role = "admin" if qui["admin"] else {"prof": "formateur", "stagiaire": "stagiaire"}.get(qui["role"], "")
+    elif qui.get("apercu"):
+        role = {"formateur": "formateur", "direction": "direction", "siege": "siège", "stagiaire": "stagiaire"}[qui["apercu"]] + " (aperçu)"
+    elif qui.get("fondateur"):
+        role = "fondateur"
+    elif qui.get("roles") is not None:
+        role = next((libelle for cle, libelle in (("formateur", "formateur"), ("direction", "direction"), ("siege", "siège"), ("stagiaire", "stagiaire"))
+                     if cle in qui["roles"]), "")
     else:
-        role = {"prof": "formateur", "stagiaire": "stagiaire"}.get(qui["role"], "")
+        role = "formateur" if qui["admin"] else {"prof": "formateur", "stagiaire": "stagiaire"}.get(qui["role"], "")
     promo = ("Promo %s" % m["promo"]["nom"]) if nouvelle else "Promo 2026"
     attendu = "TP ECSR App · %s · connecté comme %s" % (promo, role) if role else "TP ECSR App · %s ·" % promo
     if m["piedTexte"] != attendu:

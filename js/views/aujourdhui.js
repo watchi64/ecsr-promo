@@ -113,7 +113,8 @@ async function chargerEmargement(carteEm, jour, indexJour, semaine, moi) {
     try {
       const [seances, stagiaires, planning] = await Promise.all([
         listEmargementSeances(jour, jour),
-        listStagiaires(),
+        // Les inactifs aussi : un abandon qui a une ligne sur la feuille compte dans le total, il doit être nommé (A1).
+        listStagiaires({ includeInactive: true }),
         // Le planning ne sert qu'aux absents notés : sa panne ne cache pas la feuille.
         indexJour < 5 ? semaine().catch(() => null) : null,
       ]);

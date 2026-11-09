@@ -227,7 +227,6 @@ export function jourParDefaut(jours, aujourdhui) {
   return trouve ? trouve.index : 0;
 }
 
-// Étiquette du rôle de la personne dans une case de la grille.
 // L'alerte d'une carte de la semaine : une voiture sans stagiaire au volant (tous absents, personne en remplacement) ne
 // doit pas passer pour une voiture ordinaire dans la grille (audit du 09/11, A9). null sinon.
 export function alerteDeCarte(c) {
@@ -235,6 +234,7 @@ export function alerteDeCarte(c) {
   return null;
 }
 
+// Étiquette du rôle de la personne dans une case de la grille.
 export function etiquetteSemaine(moi) {
   if (!moi) return null;
   if (moi.role === "tableau") return "Toi au tableau";

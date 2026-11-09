@@ -180,7 +180,7 @@ function dessinerSemaine(ctx) {
         classe = "ouverte";
       } else if (s) {
         const r = resumeSeance(s.lignes, stagiairesDeFeuille(s, ctx.stagiairesTous).map((x) => x.id), true);
-        etat = `Close · ${r.signes} présents, ${r.absents} absents`;
+        etat = `Close · ${r.signes} présent${r.signes > 1 ? "s" : ""}, ${r.absents} absent${r.absents > 1 ? "s" : ""}`;
         classe = "close";
       } else if (off) {
         etat = off; classe = "off";
@@ -188,7 +188,7 @@ function dessinerSemaine(ctx) {
         etat = "À ouvrir"; classe = "a-ouvrir";
       } else {
         // Passée, une demi-journée de cours sans feuille se voit (« Feuille non faite ») ; sans cours, « Rien de prévu ».
-        ({ etat, classe } = etatSansFeuille({ jour, aujourdhui, demi, entries: ctx.entries }));
+        ({ etat, classe } = etatSansFeuille({ jour, aujourdhui, demi, entries: ctx.entries, feuillesDeLaSemaine: ctx.seances.length }));
       }
       colonne.appendChild(el("a", { class: "em-case em-case-" + classe, href: adresseSeance(jour, demi) },
         el("span", { class: "em-case-demi" }, demi === "matin" ? "Matin" : "Après-midi"),

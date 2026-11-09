@@ -4,7 +4,7 @@ import { resumeSeance, resumeEnClair, etatSansFeuille } from "../js/emargement-r
 import { feuilleDuJour } from "../js/aujourdhui-rules.js";
 import { libelleConnexion } from "../js/roles-rules.js";
 import { sansPlaceDansLaDemi } from "../js/accueil-rules.js";
-import { alerteDeCarte } from "../js/journee-rules.js";
+import { alerteDeCarte, journeeDuJour } from "../js/journee-rules.js";
 import { colonnesParalleles } from "../js/planning-roles.js";
 import { peutMontrer, aReprendre, perimee, ATTENTE_MAX_MS, REPRISE_MS } from "../js/messages-rules.js";
 
@@ -52,6 +52,18 @@ test("A1 : « Aujourd'hui » nomme les absents (prévus au planning ou notés su
   assert.equal(f.signes + f.enAttente.length + f.absents.length, f.total);
 });
 
+test("A1 : un absent prévu qui a signé est signé ; un absent prévu aussi noté sur la feuille compte une fois ; un abandon avec une ligne est nommé", () => {
+  const avecAbandon = [...stagiaires, { id: 9, prenom: "Zoé", nom: "Abandon", actif: false }];
+  const f = feuilleDuJour({
+    seances: [seance("ouverte", [sig(4), { stagiaire_id: 3, absent: true, signe_le: null }, { stagiaire_id: 9, absent: true, signe_le: null }])],
+    stagiaires: avecAbandon, entries: [carteAbsent(4), carteAbsent(3)],
+  });
+  assert.equal(f.signes, 1, "l'absent prévu qui a signé compte comme signé");
+  assert.deepEqual(f.absents, ["A. Zoé", "M. Lorie"]);
+  assert.deepEqual(f.enAttente, ["B. Anissa", "V. Timy"]);
+  assert.equal(f.signes + f.enAttente.length + f.absents.length, f.total);
+});
+
 test("A1 : une feuille close ne nomme ni attente ni absents sur la carte", () => {
   const f = feuilleDuJour({ seances: [seance("close", [sig(1), sig(2)])], stagiaires, entries: [] });
   assert.deepEqual(f.absents, []);
@@ -86,12 +98,28 @@ test("A2 : une annonce qui attend trop longtemps est oubliée (ce n'est plus l'o
 // === A3 : l'Accueil dit quand le stagiaire n'est sur aucune activité ===
 
 test("A3 : une demi-journée où aucune carte ne nomme le stagiaire le dit ; sinon rien", () => {
-  const sans = [{ moi: null }, { moi: null }];
+  const sans = [{ genre: "salle", moi: null }, { genre: "voiture", moi: null }];
   assert.equal(sansPlaceDansLaDemi({ demi: "matin", cartes: sans, moi: 1 }), "Ce matin, ton nom ne figure sur aucune activité du planning.");
   assert.equal(sansPlaceDansLaDemi({ demi: "aprem", cartes: sans, moi: 1 }), "Cet après-midi, ton nom ne figure sur aucune activité du planning.");
-  assert.equal(sansPlaceDansLaDemi({ demi: "matin", cartes: [{ moi: null }, { moi: { role: "voiture" } }], moi: 1 }), null);
+  assert.equal(sansPlaceDansLaDemi({ demi: "matin", cartes: [{ genre: "salle", moi: null }, { genre: "voiture", moi: { role: "voiture" } }], moi: 1 }), null);
   assert.equal(sansPlaceDansLaDemi({ demi: "matin", cartes: [], moi: 1 }), null, "rien au planning : la page le dit déjà");
   assert.equal(sansPlaceDansLaDemi({ demi: "matin", cartes: sans, moi: null }), null, "sans fiche (aperçu) : rien à dire");
+});
+
+test("A3 : un cours, un contrôle, une autonomie ou une autre activité concerne toute la promo : pas de phrase", () => {
+  const noms = { stagiaires: new Map([[1, "Timy"], [2, "Anissa"]]), formateurs: new Map([[1, "Hocine"]]), benevoles: new Map(), titres: [] };
+  const demiDe = (entries) => journeeDuJour({ entries, metas: [], joursOff: [], jour: "2026-10-28", moi: 1, noms }).demis.find((d) => d.demi === "matin");
+  for (const carte of [{ activite: "Cours", sujet: "Vitesse" }, { activite: "Contrôle" }, { activite: "Autre" }, { activite: "Pédagogie salle", autonomie: true }]) {
+    const d = demiDe([{ day_index: 2, half_day: "matin", prof_ids: [1], ...carte }]);
+    assert.ok(d && d.cartes.length === 1, "la carte du matin existe : " + carte.activite);
+    assert.equal(sansPlaceDansLaDemi({ demi: "matin", cartes: d.cartes, moi: 1 }), null, carte.activite + (carte.autonomie ? " en autonomie" : ""));
+  }
+  // Salle sans lui et voiture sans lui, vraies cartes : la phrase.
+  const d = demiDe([
+    { day_index: 2, half_day: "matin", activite: "Pédagogie salle", pedagogue_id: 2, eleves_ids: [2], prof_ids: [1] },
+    { day_index: 2, half_day: "matin", activite: "Voiture (conduite)", eleves_ids: [2], prof_ids: [1], slot: 1 },
+  ]);
+  assert.equal(sansPlaceDansLaDemi({ demi: "matin", cartes: d.cartes, moi: 1 }), "Ce matin, ton nom ne figure sur aucune activité du planning.");
 });
 
 // === A7 : une demi-journée de cours sans feuille ne passe pas pour un jour sans cours ===
@@ -108,9 +136,15 @@ test("A7 : passée avec une activité au planning, la case dit « Feuille non fa
   // Planning illisible : on ne sait pas, on garde l'ancien mot.
   assert.deepEqual(etatSansFeuille({ jour: MARDI, aujourdhui: "2026-10-28", demi: "matin", entries: null }),
     { etat: "Pas de feuille", classe: "vide" });
-  // Une carte vide (sans activité ni personne) n'est pas un cours.
-  assert.deepEqual(etatSansFeuille({ jour: MARDI, aujourdhui: "2026-10-28", demi: "matin", entries: [{ day_index: 1, half_day: "matin" }] }),
-    { etat: "Rien de prévu", classe: "vide" });
+  // Une carte vide, ou qui ne porte qu'une note ou un formateur, n'est pas un cours ; un planning vide non plus.
+  for (const carte of [{}, { notes: "Pont, pas de cours" }, { prof_ids: [1] }]) {
+    assert.deepEqual(etatSansFeuille({ jour: MARDI, aujourdhui: "2026-10-28", demi: "matin", entries: [{ day_index: 1, half_day: "matin", ...carte }] }),
+      { etat: "Rien de prévu", classe: "vide" });
+  }
+  assert.deepEqual(etatSansFeuille({ jour: MARDI, aujourdhui: "2026-10-28", demi: "matin", entries: [] }), { etat: "Rien de prévu", classe: "vide" });
+  // Une semaine sans aucune feuille : l'émargement n'y servait pas encore, rien ne « manque ».
+  assert.deepEqual(etatSansFeuille({ jour: MARDI, aujourdhui: "2026-10-28", demi: "matin", entries: coursMardiMatin, feuillesDeLaSemaine: 0 }),
+    { etat: "Pas de feuille", classe: "vide" });
 });
 
 // === A8 : « connecté comme » dit le vrai rôle ===
@@ -126,6 +160,13 @@ test("A8 : le rôle de la personne sur la promo, ou celui de l'aperçu", () => {
   assert.equal(libelleConnexion({ profil: { role: "prof" }, promo: { id: 1 } }), "formateur");
   assert.equal(libelleConnexion({ profil: { role: "admin", is_founder: true }, promo: { id: 1 } }), "fondateur");
   assert.equal(libelleConnexion({ profil: null }), "");
+  // Le fondateur reste fondateur, même formateur ou stagiaire de la promo (hors aperçu, il est dans l'espace de l'équipe).
+  assert.equal(libelleConnexion({ profil: { is_founder: true, is_admin: true }, promo: promo(["stagiaire"]) }), "fondateur");
+  assert.equal(libelleConnexion({ profil: { is_founder: true, is_admin: true }, promo: promo(["formateur"]) }), "fondateur");
+  // Un formateur en aperçu stagiaire ; un aperçu qui ne lui est pas permis est ignoré ; promo absente (état dégradé).
+  assert.equal(libelleConnexion({ profil: { role: "prof" }, promo: promo(["formateur"]), apercu: "stagiaire" }), "stagiaire (aperçu)");
+  assert.equal(libelleConnexion({ profil: { role: "prof" }, promo: promo(["formateur"]), apercu: "direction" }), "formateur");
+  assert.equal(libelleConnexion({ profil: { role: "prof" }, promo: null }), "formateur");
 });
 
 // === A9 : une voiture sans stagiaire se voit ===
@@ -134,6 +175,8 @@ test("A9 : une carte de voiture sans conducteur porte une alerte ; les autres no
   assert.equal(alerteDeCarte({ genre: "voiture", conducteurs: [] }), "Aucun stagiaire en voiture");
   assert.equal(alerteDeCarte({ genre: "voiture", conducteurs: [{ id: 1, nom: "Timy" }] }), null);
   assert.equal(alerteDeCarte({ genre: "salle", conducteurs: [] }), null);
+  assert.equal(alerteDeCarte({ genre: "voiture", conducteurs: [], benevoles: ["C. Camille"] }), "Aucun stagiaire en voiture",
+    "des élèves bénévoles sans stagiaire au volant : l'alerte reste");
 });
 
 // === B1 : en mode Modifier, une carte seule sur son créneau prend toute la largeur ===
@@ -146,4 +189,7 @@ test("B1 : les colonnes parallèles se comptent par créneau, sans les trous de 
   assert.deepEqual(colonnesParalleles([{ lanes: [e(2), e(0)] }, { lanes: [e(5)] }]), { colonnes: 2, rangs: [[1, 0], [0]] });
   assert.deepEqual(colonnesParalleles([]), { colonnes: 1, rangs: [] });
   assert.deepEqual(colonnesParalleles([{ lanes: [{}] }]), { colonnes: 1, rangs: [[0]] }, "voie absente : la première");
+  // Choix assumé (le même que la vue verrouillée) : chaque créneau se range seul, une voiture en voie 1 du créneau 2 passe à gauche.
+  assert.deepEqual(colonnesParalleles([{ lanes: [e(0), e(1)] }, { lanes: [e(1)] }]), { colonnes: 2, rangs: [[0, 1], [0]] });
+  assert.deepEqual(colonnesParalleles([{ lanes: [{ lane: null }, e(1), {}] }]), { colonnes: 3, rangs: [[0, 2, 1]] }, "voies nulles ou absentes : 0, à égalité dans l'ordre");
 });

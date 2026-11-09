@@ -309,9 +309,10 @@ export async function renderEpcfLivret(container, opts = {}) {
     }
     // Son identité, comme chez le formateur : sans sa fiche, Nom, Prénom et Date de naissance restaient vides tant que le
     // formateur ne les avait pas enregistrés, alors que Mon suivi annonce la date « reportée automatiquement » (audit du
-    // 09/11, A4). Une fiche illisible laisse le livret tel qu'enregistré.
+    // 09/11, A4). Une fiche illisible laisse le livret tel qu'enregistré ; le livret d'un autre (repli de l'aperçu du
+    // fondateur, sans livret à lui) ne reçoit jamais son identité.
     let fiche = null;
-    if (myId != null) {
+    if (myId != null && mine.stagiaire_id === myId) {
       fiche = await getStagiaire(myId).catch((e) => { console.error(e); return null; });
       if (opts.isActive && !opts.isActive()) return;
     }

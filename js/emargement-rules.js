@@ -1,7 +1,6 @@
 // Émargement (spec 2026-10-23) : règles pures, sans DOM ni base. Lu par node
 // (tests/emargement-rules.test.mjs), par l'app et par le générateur de signatures
 // fictives de la démonstration (scripts/emargement-demo.mjs).
-import { entryHasContent } from "./planning-roles.js?v=20261109c";
 
 // Interrupteur par promo (demande de Timy du 23/10 : éteint partout, allumé pour la seule
 // promo de démonstration tant qu'il n'en décide pas autrement). Réglage `settings`
@@ -147,13 +146,16 @@ export function resumeEnClair(r, { ouverte }) {
 
 // La case d'une demi-journée sans feuille, dans la semaine de l'émargement (hors jour désactivé et
 // hors aujourd'hui). Passée, elle dit si une feuille manque : une activité au planning sans feuille
-// est « Feuille non faite » (risque à un contrôle), sans activité « Rien de prévu ». `entries` :
-// le planning de la semaine, null s'il n'a pas pu être lu (on garde alors « Pas de feuille »).
-export function etatSansFeuille({ jour, aujourdhui, demi, entries }) {
+// est « Feuille non faite » (risque à un contrôle), sans activité « Rien de prévu ». Une carte qui ne
+// porte qu'une note ou qu'un formateur n'est pas une activité. `feuillesDeLaSemaine` : le nombre de
+// feuilles de la semaine ; à zéro, l'émargement n'y servait pas encore (semaine d'avant son allumage),
+// rien ne manque : « Pas de feuille ». `entries` null (planning illisible) : « Pas de feuille » aussi.
+export function etatSansFeuille({ jour, aujourdhui, demi, entries, feuillesDeLaSemaine = 1 }) {
   if (jour >= aujourdhui) return { etat: "À venir", classe: "vide" };
-  if (!Array.isArray(entries)) return { etat: "Pas de feuille", classe: "vide" };
+  if (!Array.isArray(entries) || !feuillesDeLaSemaine) return { etat: "Pas de feuille", classe: "vide" };
   const di = dayIndexDe(jour);
-  const cours = entries.some((e) => e.day_index === di && e.half_day === demi && entryHasContent(e));
+  const activite = (e) => !!e.autonomie || String(e.activite ?? "").trim() !== "";
+  const cours = entries.some((e) => e.day_index === di && e.half_day === demi && activite(e));
   return cours ? { etat: "Feuille non faite", classe: "manquante" } : { etat: "Rien de prévu", classe: "vide" };
 }
 

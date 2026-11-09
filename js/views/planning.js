@@ -327,8 +327,9 @@ async function saveEntry(localId, patch) {
       if (patch.activite !== undefined && cellEl) {
         const newCell = renderLaneCell(entry);
         // Conserve le positionnement en grille, sinon la cellule retombe en colonne 1
-        // (auto-placement) et chevauche les lanes parallèles jusqu'au prochain re-render.
-        newCell.style.gridColumn = String((entry.lane ?? 0) + 1);
+        // (auto-placement) et chevauche les lanes parallèles jusqu'au prochain re-render. La colonne est celle du
+        // rendu (son rang dans le créneau, colonnesParalleles), pas le numéro de voie : on reprend celle de l'ancienne.
+        newCell.style.gridColumn = cellEl.style.gridColumn;
         cellEl.replaceWith(newCell);
       }
     } catch (e) {
@@ -2161,7 +2162,7 @@ function renderDayCard(d, monday) {
         .filter((r) => r.lanes.length > 0);
     }
     // Colonnes parallèles de la demi-journée : autant que le créneau le plus chargé, chaque créneau rangé sans les trous
-    // de numérotation des voies (une carte seule prend toute la largeur, en lecture comme en mode Modifier).
+    // de numérotation des voies, en lecture comme en mode Modifier (une carte seule n'est plus réduite par une voie vide).
     const { colonnes: maxLanes, rangs } = colonnesParalleles(rows);
     rows.forEach((row, i) => slotsWrap.appendChild(renderSlotRow(d, half.key, row, maxLanes, rangs[i])));
 

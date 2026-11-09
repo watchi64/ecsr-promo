@@ -184,11 +184,15 @@ export function aFaireStagiaire({ qcm, themes, tentatives, sujetsDeLaSemaine, ex
 }
 
 // La phrase d'une demi-journée de l'Accueil où le stagiaire n'est sur aucune carte du planning (ni au tableau, ni en voiture,
-// ni en salle) : sans elle, la rangée liste les activités des autres sans lui dire où il est (audit du 09/11, A3). Rien quand
-// une carte le nomme, quand la demi-journée est vide (la page le dit déjà) ou sans fiche de stagiaire (`moi` nul, aperçu).
+// ni en salle) : sans elle, la rangée liste les activités des autres sans lui dire où il est (audit du 09/11, A3). Seules les
+// cartes de salle et de voiture nomment les stagiaires ; un cours, un contrôle, une autonomie ou une autre activité concerne
+// toute la promo : leur présence suffit à taire la phrase. Rien non plus quand une carte le nomme, quand la demi-journée est
+// vide (la page le dit déjà) ou sans fiche de stagiaire (`moi` nul, aperçu).
+const CARTES_NOMINATIVES = ["salle", "voiture"];
 export function sansPlaceDansLaDemi({ demi, cartes, moi } = {}) {
-  const liste = Array.isArray(cartes) ? cartes : [];
-  if (moi == null || !liste.length || liste.some((c) => c && c.moi)) return null;
+  const liste = (Array.isArray(cartes) ? cartes : []).filter(Boolean);
+  if (moi == null || !liste.length || liste.some((c) => c.moi)) return null;
+  if (!liste.every((c) => CARTES_NOMINATIVES.includes(c.genre))) return null;
   return (demi === "aprem" ? "Cet après-midi" : "Ce matin") + ", ton nom ne figure sur aucune activité du planning.";
 }
 

@@ -106,7 +106,7 @@ function dessinerJournee(corps, etat, relirePlanning, redessiner) {
     return el("div", { class: "acc-creneau", "data-demi": demi },
       el("div", { class: "acc-quand" }, el("b", {}, DEMI[demi].titre), horaire ? el("span", {}, horaire) : null),
       el("div", { class: "acc-quoi" },
-        sansPlace ? el("p", { class: "acc-sans-place" }, sansPlace) : null,
+        sansPlace ? el("p", { class: "muted acc-sans-place" }, sansPlace) : null,
         cartes.length ? cartes.map(rangeeCarte) : (journee && !journee.repos ? el("p", { class: "muted" }, "Rien de prévu au planning.") : null),
         sign,
       ),
