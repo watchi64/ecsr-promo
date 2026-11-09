@@ -551,7 +551,7 @@ async function enregistrerNote({ stagiaireId, cible, saisie, nom = null }) {
   const note = parsed.note;
   const fait = parsed.converted ? { etat: "enregistree", note, converti: parsed.original } : { etat: "enregistree", note };
   // Pas de changement si la note est identique (et /20)
-  if (existing && Number(existing.note) === note && Number(existing.note_max) === 20) return { etat: "inchangee" };
+  if (existing && existing.note != null && Number(existing.note) === note && Number(existing.note_max) === 20) return { etat: "inchangee" };
 
   const email = getAdminEmail();
   try {
@@ -689,7 +689,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
       restore();
       return;
     }
-    if (r.etat === "invalide" || r.etat === "erreur") toast(phraseNoteRefusee(r.message), "error");
+    if (r.etat === "invalide" || r.etat === "erreur") toast(phraseNoteRefusee(r.message, r.effacement), "error");
     if (r.etat !== "enregistree") { restore(); return; }
     if (r.converti) toast(`${r.converti} → ${r.note}/20`, "success", 1800);
     // Met à jour la cellule en place (sans détruire les autres inputs)
@@ -844,7 +844,7 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
     if (done) return; done = true;
     const r = await enregistrerNote({ stagiaireId, cible: fixedFields, saisie: input.value });
     if (r.etat === "invalide" || r.etat === "erreur" || r.etat === "gardee") {
-      if (r.message) toast(phraseNoteRefusee(r.message), "error");
+      if (r.message) toast(phraseNoteRefusee(r.message, r.effacement), "error");
       valueWrap.innerHTML = originalHtml;
       return;
     }

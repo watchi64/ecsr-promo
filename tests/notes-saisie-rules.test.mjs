@@ -100,6 +100,7 @@ assert.equal(parseNoteInput("3/2,5").error, "sur 2,5, la note va de 0 à 2,5", "
 assert.equal(parseNoteInput("7/0").error, "après la barre, il faut un nombre plus grand que 0");
 assert.equal(phraseNoteRefusee("la note va de 0 à 20"), "Note non enregistrée : la note va de 0 à 20.");
 assert.equal(phraseNoteRefusee("la connexion a échoué"), "Note non enregistrée : la connexion a échoué.");
+assert.equal(phraseNoteRefusee("la connexion a échoué", true), "Note non effacée : la connexion a échoué.", "un effacement raté");
 
 // --- Ce que dit la ligne d'un stagiaire après un enregistrement (écran « Saisir ») ---
 const saisieDu = { date_eval: "2026-11-02", note: 12, note_max: 20 };

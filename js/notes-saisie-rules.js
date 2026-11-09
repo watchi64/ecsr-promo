@@ -29,8 +29,9 @@ export function parseNoteInput(raw) {
 }
 
 // Le message d'une note refusée (saisie pas comprise ou écriture en échec), hors de l'écran « Saisir » : une phrase.
-export function phraseNoteRefusee(raison) {
-  return `Note non enregistrée : ${raison}.`;
+// `effacement` : c'était un effacement qui a échoué (« Note non effacée »).
+export function phraseNoteRefusee(raison, effacement = false) {
+  return `Note non ${effacement ? "effacée" : "enregistrée"} : ${raison}.`;
 }
 
 // La question posée avant d'effacer une note (fenêtre de l'app, js/confirmer.js) : qui, combien, et où (« au thème 22 »,
