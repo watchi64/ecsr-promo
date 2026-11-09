@@ -559,6 +559,10 @@ export const PAIRES = [
   ["--accent-fin-barre", "--bg-subtle", 3],   // bout clair de la barre de progression des thèmes contre sa piste
   ["--text-etiquette", "--act-peda", 4.5],     // étiquettes « Au tableau » / « Stagiaires » sur la teinte du pédagogue
   ["--text-muted", "--bg-elev", 4.5],          // légende des pastilles d'habillage
+  // Finitions du 09/11 (audit, lot E) :
+  ["#FFFFFF", "--text-muted", 4.5],             // jour fermé ou férié : en-tête de la carte et pastille « FÉRIÉ »
+  ["--c-go", "--c-go-soft", 4.5],               // « Examen ouvert » et « Ouverte » : le vert des états ouverts
+  ["--c-go", "--bg-elev", 4.5],                 // « Ouverte » en texte sur la feuille d'émargement
 ];
 
 export function contrastesDe(jetons) {

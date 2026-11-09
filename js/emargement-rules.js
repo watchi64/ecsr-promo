@@ -161,10 +161,18 @@ export function etatSansFeuille({ jour, aujourdhui, demi, entries, feuillesDeLaS
 
 // === Heures et jours ===
 
+// Une heure écrite comme dans tout le reste de l'app (audit du 09/11, lot E) : « 9 h », « 12 h 30 », « 9 h 04 », avec des
+// espaces insécables, pour qu'une case étroite (feuille d'émargement imprimée) ne coupe jamais « 12 h / 30 ».
+const INSECABLE = "\u00a0";
+export function heureEcrite(h, m) {
+  const mm = String(m).padStart(2, "0");
+  return mm === "00" ? `${Number(h)}${INSECABLE}h` : `${Number(h)}${INSECABLE}h${INSECABLE}${mm}`;
+}
+
 export function libelleHeure(hhmm) {
   const [h, m] = String(hhmm || "").split(":");
   if (h === undefined || m === undefined) return "";
-  return Number(h) + "h" + m.padStart(2, "0");
+  return heureEcrite(h, m);
 }
 
 export function libelleCreneau({ debut, fin }) {
@@ -186,13 +194,13 @@ const FORMAT_HEURE = new Intl.DateTimeFormat("fr-FR", {
   timeZone: "Europe/Paris", hour: "numeric", minute: "2-digit", hourCycle: "h23",
 });
 
-// Heure de Paris d'un horodatage du serveur : « 9h04 ».
+// Heure de Paris d'un horodatage du serveur : « 9 h 04 » (une signature tombée pile : « 9 h »).
 export function heureLocale(iso) {
   if (!iso) return "";
   const parts = FORMAT_HEURE.formatToParts(new Date(iso));
   const h = parts.find((p) => p.type === "hour")?.value ?? "";
   const m = parts.find((p) => p.type === "minute")?.value ?? "";
-  return Number(h) + "h" + m;
+  return heureEcrite(h, m);
 }
 
 const FORMAT_JOUR_PARIS = new Intl.DateTimeFormat("fr-CA", {

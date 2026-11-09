@@ -6,13 +6,13 @@
 import {
   listStagiaires, addStagiaire, updateStagiaire, updateStagiaireNom, setStagiaireActif, anonymiserStagiaire,
   listUserProfiles, inviteUser,
-} from "../db.js?v=20261109d";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109d";
-import { icon } from "../icons.js?v=20261109d";
-import { isEquipe } from "../auth-admin.js?v=20261109d";
-import { confirmationValide, resumeEffacement } from "../effacement-rules.js?v=20261109d";
-import { messageInvitationReussie } from "../roles-rules.js?v=20261109d";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261109d";
+} from "../db.js?v=20261109f";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109f";
+import { icon } from "../icons.js?v=20261109f";
+import { isEquipe } from "../auth-admin.js?v=20261109f";
+import { confirmationValide, resumeEffacement } from "../effacement-rules.js?v=20261109f";
+import { messageInvitationReussie } from "../roles-rules.js?v=20261109f";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261109f";
 
 // Liste des personnes invitables de la section déjà à l'écran. Posée par la section d'invitation qui la montre (js/views/config.js ou
 // renderInvitationStagiaire), appelée après un ajout de stagiaire, qui n'actualise que le bloc « Stagiaires ».
@@ -60,7 +60,7 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
     items.forEach((it) => {
       // Champ « Nom de famille » (plus bas) : déclaré ici, le gestionnaire du prénom en a besoin.
       let nomInput = null;
-      const input = el("input", { type: "text", value: it.prenom || it.nom, readonly: admin ? undefined : true });
+      const input = el("input", { type: "text", value: it.prenom || it.nom, readonly: admin ? undefined : true, "aria-label": "Prénom" });
       if (admin) {
         input.addEventListener("blur", async () => {
           const v = input.value.trim();
@@ -124,7 +124,7 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
     wrap.appendChild(list);
 
     if (admin && avecAjout) {
-      const addInput = el("input", { type: "text", placeholder: "Prénom" });
+      const addInput = el("input", { type: "text", placeholder: "Prénom", "aria-label": "Prénom du stagiaire à ajouter" });
       const addNom = el("input", { type: "text", placeholder: "Nom", "aria-label": "Nom de famille" });
       const addBtn = el("button", { class: "btn accent", onClick: async () => {
         const v = addInput.value.trim();

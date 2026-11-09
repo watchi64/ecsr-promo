@@ -74,7 +74,7 @@ test("absentsDuPlanning lit les absences des cartes de la seule demi-journée de
 test("état d'une ligne", () => {
   const signe = etatLigne({ ligne: { trace: "M1 1L2 2", signe_le: "2026-10-26T08:04:00Z", sur_appareil_formateur: false }, absentPlanning: true, close: false });
   assert.equal(signe.code, "signe");
-  assert.equal(signe.libelle, "Signé à 9h04");
+  assert.equal(signe.libelle, "Signé à 9 h 04");
   assert.equal(signe.origine, "soi");
   assert.equal(etatLigne({ ligne: { trace: "M1 1L2 2", signe_le: "2026-10-26T08:04:00Z", sur_appareil_formateur: true }, close: false }).origine, "appareil_formateur");
 
@@ -100,9 +100,10 @@ test("résumé d'une séance", () => {
 });
 
 test("horaires et durées", () => {
-  assert.equal(libelleHeure("09:00"), "9h00");
-  assert.equal(libelleHeure("13:30"), "13h30");
-  assert.equal(libelleCreneau({ debut: "09:00", fin: "12:30" }), "9h00 à 12h30");
+  // Espaces insécables dans une heure (lot E) : « 12 h 30 » ne se coupe jamais.
+  assert.equal(libelleHeure("09:00"), "9 h");
+  assert.equal(libelleHeure("13:30"), "13 h 30");
+  assert.equal(libelleCreneau({ debut: "09:00", fin: "12:30" }), "9 h à 12 h 30");
   assert.equal(dureeMinutes("09:00", "12:30"), 210);
   assert.equal(dureeMinutes("13:30", "17:00"), 210);
   assert.equal(libelleDuree(210), "3 h 30");
@@ -111,8 +112,8 @@ test("horaires et durées", () => {
 });
 
 test("heure locale de Paris, été comme hiver", () => {
-  assert.equal(heureLocale("2026-10-26T08:04:00Z"), "9h04");    // heure d'hiver (UTC+1)
-  assert.equal(heureLocale("2026-10-23T07:30:00Z"), "9h30");    // heure d'été (UTC+2)
+  assert.equal(heureLocale("2026-10-26T08:04:00Z"), "9 h 04");    // heure d'hiver (UTC+1)
+  assert.equal(heureLocale("2026-10-23T07:30:00Z"), "9 h 30");    // heure d'été (UTC+2)
   assert.equal(heureLocale(null), "");
 });
 

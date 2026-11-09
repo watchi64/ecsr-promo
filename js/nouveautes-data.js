@@ -236,6 +236,28 @@ export const NOUVEAUTES = [
       "Pour revenir, touche « ECSR Promo » au même endroit. Le même choix est aussi dans Mes préférences.",
     ],
   },
+  // Finitions de l'audit du 09/11 (lot E). À date égale, après le lot 3 : la carte « Nouveauté » de l'Accueil n'en change pas.
+  {
+    id: "2026-11-09-finitions",
+    date: "2026-11-09",
+    pour: "tous",
+    titre: "Des écrans plus nets",
+    resume: "Les heures s'écrivent partout de la même façon : « 9 h à 12 h 30 ». Un examen ouvert s'affiche en vert, "
+          + "comme une feuille d'émargement ouverte. Les jours fériés se lisent mieux dans le planning. Avec la "
+          + "nouvelle barre, sur téléphone, les boutons et les cases à remplir sont plus grands sous le doigt.",
+    ou: { label: "Planning", route: "planning" },
+  },
+  {
+    id: "2026-11-09-finitions-planning",
+    date: "2026-11-09",
+    pour: "formateurs",
+    titre: "Planning : des icônes à la place des émojis",
+    resume: "Dans le planning, les petits dessins en couleur laissent la place aux icônes du reste de l'app : un "
+          + "crayon pour « Modifier », des dés pour le placement automatique, une gomme pour « Vider les placements ». "
+          + "Avec la nouvelle barre, le bouton « Cette semaine » disparaît, sur ordinateur comme sur téléphone : "
+          + "« Aujourd'hui », en haut du planning, ramène déjà à la semaine en cours. L'ancienne barre le garde.",
+    ou: { label: "Planning", route: "planning" },
+  },
   {
     id: "2026-11-08-roles-par-promo",
     date: "2026-11-08",

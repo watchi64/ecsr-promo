@@ -215,7 +215,7 @@ Contrôles par vue
   * pied de l'Accueil (vague finale, F7, puis audit du 09/11, A8) : avec la nouvelle navigation, « TP ECSR App · Promo <nom de la promo affichée> · connecté comme
     <rôle> », le vrai rôle (aperçu, fondateur, rôle sur la promo ; jamais « admin ») ; avec l'ancienne, le texte de main (« Promo 2026 » écrit en dur, « admin ») ;
   * Planning > Semaine : chez le stagiaire, ni « Lecture seule... » ni « Cette semaine » (« Aujourd'hui », en tête de la page, le remplace) ; chez
-    l'équipe, « Cette semaine » reste ;
+    l'équipe non plus, « Cette semaine » (audit du 09/11, lot E : doublon d'« Aujourd'hui ») ;
   * Mon suivi aux libellés clairs (lot 2B, tâche 7), pour toute personne qui a une fiche, à 1 280 et 375 px : les parties dans l'ordre (Résultats, Passages, EPCF,
     Livret EPCF, Dossier pro), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« EPCF : 0 épreuve sur 2 », « Dossier pro :
     0 exemple sur 6 »), sans date « 02/10 », jamais coupée, la dernière au-dessus de la barre du bas (à l'ouverture, et page défilée au bout) ; Résultats et son
@@ -5114,7 +5114,7 @@ def jouer_aujourdhui_cas_limites(page, res, sc):
 
 def jouer_signature_d_aujourdhui(page, res, sc):
     """Signature depuis Aujourd'hui (lot 2B, tâche 4), pour qui a une fiche de stagiaire (le fondateur) : le bouton « Signer pour ce matin » de la carte d'émargement ouvre
-    la fenêtre de signature ; une fois validée, la carte dit « Signé à H h MM », le bouton a disparu, et le bandeau ne dit rien sur cette page."""
+    la fenêtre de signature ; une fois validée, la carte dit « Signé à H h MM » (« H h » pile, espaces insécables : audit du 09/11, lot E), le bouton a disparu, et le bandeau ne dit rien sur cette page."""
     vue = "%s/signature-aujourdhui" % sc.nom
     recharger_au_banc(page, "#/home")
     attendre_accueil(page)
@@ -5129,8 +5129,8 @@ def jouer_signature_d_aujourdhui(page, res, sc):
     res.vues += 1
     m = page.evaluate("() => window.__verifNav.aujourdhuiEquipe()")
     e = next(d for d in m["details"] if d["zone"] == "emargement")
-    if not re.fullmatch(r"Signé à \d{1,2} h \d{2}", (e["signe"] or "").strip()) or [b for b in e["boutons"] if b["texte"].startswith("Signer")]:
-        res.echec("signature depuis Aujourd'hui", vue, "après la signature, la carte dit « %s » avec les boutons %s : attendu « Signé à H h MM », sans bouton « Signer »" % (e["signe"], [b["texte"] for b in e["boutons"]]))
+    if not re.fullmatch(r"Signé à \d{1,2}[ \u00a0]h(?:[ \u00a0]\d{2})?", (e["signe"] or "").strip()) or [b for b in e["boutons"] if b["texte"].startswith("Signer")]:
+        res.echec("signature depuis Aujourd'hui", vue, "après la signature, la carte dit « %s » avec les boutons %s : attendu « Signé à H h MM » (« H h » pile), sans bouton « Signer »" % (e["signe"], [b["texte"] for b in e["boutons"]]))
     if m["bandeau"]:
         res.echec("signature depuis Aujourd'hui", vue, "le bandeau reste affiché sur la page après la signature : « %s » (la carte porte déjà la confirmation)" % m["bandeau"])
     vider_console(res, vue)
@@ -5156,7 +5156,7 @@ def verifier_accueil_voir_en_tant_que_stagiaire(page, res, sc, vue):
 
 def jouer_signature_de_l_accueil(page, res, sc):
     """Signature depuis l'Accueil du stagiaire (lot 2B, tâche 3), sur une feuille ouverte au banc : le bouton « Signer pour ce matin » ouvre la fenêtre de signature ;
-    une fois validée, la rangée dit « Signé à H h MM », le bouton a disparu, le bandeau ne dit rien sur l'Accueil et ne propose plus de signature sur le Planning."""
+    une fois validée, la rangée dit « Signé à H h MM » (« H h » pile), le bouton a disparu, le bandeau ne dit rien sur l'Accueil et ne propose plus de signature sur le Planning."""
     vue = "%s/signature-accueil" % sc.nom
     recharger_au_banc(page, "#/home")
     attendre_accueil(page)
@@ -5171,8 +5171,8 @@ def jouer_signature_de_l_accueil(page, res, sc):
     res.vues += 1
     m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
     matin = next(c for c in m["creneaux"] if c["demi"] == "matin")
-    if not re.fullmatch(r"Signé à \d{1,2} h \d{2}", (matin["signe"] or "").strip()) or matin["boutons"]:
-        res.echec("signature depuis l'Accueil", vue, "après la signature, la rangée Matin dit « %s » avec les boutons %s : attendu « Signé à H h MM », sans bouton" % (matin["signe"], matin["boutons"]))
+    if not re.fullmatch(r"Signé à \d{1,2}[ \u00a0]h(?:[ \u00a0]\d{2})?", (matin["signe"] or "").strip()) or matin["boutons"]:
+        res.echec("signature depuis l'Accueil", vue, "après la signature, la rangée Matin dit « %s » avec les boutons %s : attendu « Signé à H h MM » (« H h » pile), sans bouton" % (matin["signe"], matin["boutons"]))
     bandeau = page.evaluate("() => window.__verifNav.bandeauEmargement()")
     if bandeau:
         res.echec("signature depuis l'Accueil", vue, "le bandeau reste affiché sur l'Accueil après la signature : « %s » (la page porte déjà la confirmation)" % bandeau["texte"])
@@ -5210,7 +5210,7 @@ def verifier_accueil_eteint(page, res, sc):
 
 def verifier_planning_semaine(page, res, sc):
     """Planning > Semaine, nouvelle navigation : chez le stagiaire, ni la phrase « Lecture seule... » ni le bouton « Cette semaine » (« Aujourd'hui », en tête
-    de la page, le remplace) ; chez l'équipe, le bouton reste."""
+    de la page, le remplace) ; chez l'équipe aussi, « Cette semaine » est parti (doublon d'« Aujourd'hui », audit du 09/11, lot E)."""
     vue = "%s/planning/semaine" % sc.nom
     aller_a(page, "#/planning")
     attendre(page)
@@ -5227,8 +5227,11 @@ def verifier_planning_semaine(page, res, sc):
             res.echec("planning du stagiaire", vue, "%d bouton(s) « Aujourd'hui » dans la page, 1 attendu" % m["aujourdhui"])
         if m["lecture"]:
             res.echec("planning du stagiaire", vue, "la page dit encore « Lecture seule » à un stagiaire")
-    elif m["cetteSemaine"] != 1:
-        res.echec("planning de l'équipe", vue, "%d bouton(s) « Cette semaine » chez l'équipe, 1 attendu" % m["cetteSemaine"])
+    else:
+        if m["cetteSemaine"]:
+            res.echec("planning de l'équipe", vue, "%d bouton(s) « Cette semaine » chez l'équipe : doublon d'« Aujourd'hui », 0 attendu" % m["cetteSemaine"])
+        if m["aujourdhui"] != 1:
+            res.echec("planning de l'équipe", vue, "%d bouton(s) « Aujourd'hui » dans la page, 1 attendu" % m["aujourdhui"])
     vider_console(res, vue)
 
 

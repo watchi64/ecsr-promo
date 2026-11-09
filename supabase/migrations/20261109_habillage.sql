@@ -1,5 +1,6 @@
 -- Lot 3 « Couleurs ECF » : mémoire du choix d'habillage sur le compte.
--- NON APPLIQUÉE : attend l'accord du propriétaire du projet. Preuve : tests/sql/habillage-preuve.sql.
+-- Appliquée le 09/11/2026 avec l'accord de Timy (psql, une transaction, version 20261109110000) ;
+-- preuve tests/sql/habillage-preuve.sql rejouée contre la base : VERT 20/0.
 -- Retour : 20261109_habillage_retour.sql.
 --
 -- Le choix est déjà gardé sur l'appareil ; cette colonne le suit d'un appareil à l'autre. Null = pas de

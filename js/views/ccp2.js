@@ -1,15 +1,15 @@
 // Onglet CCP2 (chantier D) : parcours guidé du certificat « Sensibiliser
 // l'ensemble des usagers de la route ». Texte dans js/ccp2-parcours-data.js,
 // dates tirées du Calendrier de la promo. Lecture seule : aucun contrôle d'édition.
-import { el, clear, formatDate, isoDate } from "../utils.js?v=20261109d";
-import { listAgendaEvents } from "../db.js?v=20261109d";
-import { routeVisible, moduleVisible } from "../modules-etat.js?v=20261109d";
-import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261109d";
-import { hrefLien } from "../route-rules.js?v=20261109d";
-import { datesCcp2, insecables } from "../ccp-rules.js?v=20261109d";
-import { EPREUVE, ETAPES } from "../ccp2-parcours-data.js?v=20261109d";
-import { navigationV2Active } from "../nav-etat.js?v=20261109d";
-import { icon } from "../icons.js?v=20261109d";
+import { el, clear, formatDate, isoDate } from "../utils.js?v=20261109f";
+import { listAgendaEvents } from "../db.js?v=20261109f";
+import { routeVisible, moduleVisible } from "../modules-etat.js?v=20261109f";
+import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261109f";
+import { hrefLien } from "../route-rules.js?v=20261109f";
+import { datesCcp2, insecables } from "../ccp-rules.js?v=20261109f";
+import { EPREUVE, ETAPES } from "../ccp2-parcours-data.js?v=20261109f";
+import { navigationV2Active } from "../nav-etat.js?v=20261109f";
+import { icon } from "../icons.js?v=20261109f";
 
 // Dernière étape ouverte, rouverte au retour sur l'onglet.
 const CLE_ETAPE = "ecsr_ccp2_etape";

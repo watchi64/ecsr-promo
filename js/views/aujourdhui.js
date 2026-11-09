@@ -8,30 +8,28 @@
  */
 import {
   getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre,
-} from "../db.js?v=20261109d";
-import { el, clear, displayStagiaire } from "../utils.js?v=20261109d";
-import { icon } from "../icons.js?v=20261109d";
-import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261109d";
-import { libelleConnexion } from "../roles-rules.js?v=20261109d";
-import { emargementActif } from "../emargement-etat.js?v=20261109d";
-import { lignePromo } from "../accueil-rules.js?v=20261109d";
-import { journeeDuJour } from "../journee-rules.js?v=20261109d";
-import { indicateursPromo } from "../centre-stats.js?v=20261109d";
-import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261109d";
-import { signerSeance } from "../emargement-bandeau.js?v=20261109d";
-import { chargerATraiter } from "../a-traiter.js?v=20261109d";
+} from "../db.js?v=20261109f";
+import { el, clear, displayStagiaire } from "../utils.js?v=20261109f";
+import { icon } from "../icons.js?v=20261109f";
+import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261109f";
+import { libelleConnexion } from "../roles-rules.js?v=20261109f";
+import { emargementActif } from "../emargement-etat.js?v=20261109f";
+import { lignePromo } from "../accueil-rules.js?v=20261109f";
+import { journeeDuJour } from "../journee-rules.js?v=20261109f";
+import { indicateursPromo } from "../centre-stats.js?v=20261109f";
+import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261109f";
+import { signerSeance } from "../emargement-bandeau.js?v=20261109f";
+import { chargerATraiter } from "../a-traiter.js?v=20261109f";
 import {
   titreSelonDemis, auTableauDuJour, enVoitureDuJour, feuilleDuJour, lignesATraiter, ligneDeLEnTete,
-} from "../aujourdhui-rules.js?v=20261109d";
+} from "../aujourdhui-rules.js?v=20261109f";
 import {
   carte, plusLien, ligneLien, erreurAvecReessai, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
-} from "./pages-cartes.js?v=20261109d";
+} from "./pages-cartes.js?v=20261109f";
 
 const RELECTURE_SEANCES_MS = 60000;
 const NB_A_SUIVRE = 5;
 
-// "9h04" (heureLocale) -> "9 h 04" : l'écriture du reste de la page.
-const heureEspacee = (h) => String(h).replace("h", " h ");
 
 const DEMI_LONG = { matin: "Matin", aprem: "Après-midi" };
 const SIGNER = { matin: "Signer pour ce matin", aprem: "Signer pour cet après-midi" };
@@ -100,7 +98,7 @@ function dessinerEmargement(carteEm, etat) {
   }
   corps.appendChild(actions);
   if (!aSigner && maLigne?.signe_le) {
-    corps.appendChild(el("p", { class: "acc-signe" }, icon.check(), `Signé à ${heureEspacee(heureLocale(maLigne.signe_le))}`));
+    corps.appendChild(el("p", { class: "acc-signe" }, icon.check(), `Signé à ${heureLocale(maLigne.signe_le)}`));
   }
 }
 
@@ -274,7 +272,7 @@ export function renderAujourdhui(container) {
   const avecFeuille = emargementActif() && isAdmin();
   const avecATraiter = isAdmin();
   const emargement = avecFeuille ? carte({ titre: "Émargement", ico: "clipboard", zone: "emargement" }) : null;
-  const atraiter = avecATraiter ? carte({ titre: "À traiter", ico: "check", zone: "a-traiter" }) : null;
+  const atraiter = avecATraiter ? carte({ titre: "À traiter", ico: "inbox", zone: "a-traiter" }) : null;
   const tableau = carte({ titre: "Au tableau aujourd'hui", ico: "presentation", zone: "tableau" });
   const voiture = carte({ titre: "En voiture aujourd'hui", ico: "car", zone: "voiture" });
   const asuivre = carte({ titre: "À suivre de près", ico: "info", zone: "a-suivre", plus: plusLien("centre", "Tout voir") });

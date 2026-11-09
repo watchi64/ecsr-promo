@@ -8,27 +8,28 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
   avantChangementPromo,
-} from "../db.js?v=20261109d";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261109d";
-import { icon, deco } from "../icons.js?v=20261109d";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261109d";
-import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261109d";
-import { recordUndo } from "../undo.js?v=20261109d";
-import { getCurrentWho } from "../identity.js?v=20261109d";
-import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261109d";
-import { meilleurResultat } from "../passage-rules.js?v=20261109d";
-import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109d";
-import { emargementActif } from "../emargement-etat.js?v=20261109d";
-import { navigationV2Active } from "../nav-etat.js?v=20261109d";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109d";
+} from "../db.js?v=20261109f";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261109f";
+import { icon, deco } from "../icons.js?v=20261109f";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261109f";
+import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261109f";
+import { recordUndo } from "../undo.js?v=20261109f";
+import { getCurrentWho } from "../identity.js?v=20261109f";
+import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261109f";
+import { meilleurResultat } from "../passage-rules.js?v=20261109f";
+import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109f";
+import { emargementActif } from "../emargement-etat.js?v=20261109f";
+import { libelleHeure } from "../emargement-rules.js?v=20261109f";
+import { navigationV2Active } from "../nav-etat.js?v=20261109f";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109f";
 import {
   entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe, colonnesParalleles,
-} from "../planning-roles.js?v=20261109d";
+} from "../planning-roles.js?v=20261109f";
 import {
   DEFAULT_HALF_META, semaineEnGrille, jourParDefaut, lundiEnCours, vuePlanningInitiale,
-} from "../journee-rules.js?v=20261109d";
-import { nomsStagiaires } from "../planning-lecture.js?v=20261109d";
-import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261109d";
+} from "../journee-rules.js?v=20261109f";
+import { nomsStagiaires } from "../planning-lecture.js?v=20261109f";
+import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261109f";
 
 let stagiaires = [];
 let profs = [];
@@ -231,14 +232,15 @@ function forgetAutreProf(name) {
   setSetting("profs_autres", JSON.stringify(autresProfsMem)).catch(() => {});
 }
 
+// Heures à la française, comme le reste de l'app (audit du 09/11, lot E) : « 9 h à 12 h 30 », « Pause 10 h 45 à 11 h 05 ».
 function timesLabel(meta) {
-  return `${meta.start_time.replace(":", "h")} à ${meta.end_time.replace(":", "h")}`;
+  return `${libelleHeure(meta.start_time)} à ${libelleHeure(meta.end_time)}`;
 }
 
 function pauseLabel(meta) {
   if (!meta.pause_start) return null;
   const end = addMinutes(meta.pause_start, meta.pause_minutes);
-  return `Pause ${meta.pause_start.replace(":", "h")}-${end.replace(":", "h")}`;
+  return `Pause ${libelleHeure(meta.pause_start)} à ${libelleHeure(end)}`;
 }
 
 function addMinutes(timeStr, mins) {
@@ -1204,7 +1206,7 @@ async function clearWeekPlacements() {
     toast("Aucun stagiaire placé cette semaine", "info", 3000);
     return;
   }
-  if (!confirm("⚠️ Retirer TOUS les stagiaires placés cette semaine (tableaux, salle, voiture) ?\n\nLes bénévoles, formateurs, sujets et notes sont conservés.")) return;
+  if (!confirm("Retirer TOUS les stagiaires placés cette semaine (tableaux, salle, voiture) ?\n\nLes bénévoles, formateurs, sujets et notes sont conservés.")) return;
 
   const before = targets.map((e) => ({ e, snap: snapshotPlacement(e) }));
   targets.forEach((e) => { e.pedagogue_id = null; e.pedagogue_id_2 = null; e.eleves_ids = []; e.eleves_ids_2 = []; });
@@ -1243,8 +1245,8 @@ async function deleteCell(entry) {
 
 // === Composants ===
 
-function selectFromList(items, currentVal, onChange, placeholder = "-") {
-  const sel = el("select");
+function selectFromList(items, currentVal, onChange, placeholder = "-", nom = null) {
+  const sel = el("select", nom ? { "aria-label": nom } : {});
   sel.appendChild(el("option", { value: "" }, placeholder));
   items.forEach((it) => {
     const opt = el("option", { value: String(it.value) }, it.label);
@@ -1763,9 +1765,10 @@ function buildTableauRole(entry, lid, group) {
   ));
   pedaRole.appendChild(el("button", {
     class: "p-dice-btn", type: "button",
+    "aria-label": "Tirer 1 stagiaire au tableau",
     title: "Tirer 1 stagiaire au tableau (le moins passé cette semaine)",
     onClick: () => randomFillPedagogue(lid, group),
-  }, "🎲"));
+  }, deco(icon.dices())));
   // Absence de dernière minute (spec 2026-07-19) : le prévu reste affiché, barré.
   const absPeda = currentVal != null ? absenceOf(entry, currentVal) : null;
   if (absPeda) pedaRole.classList.add("role-absent");
@@ -1808,7 +1811,7 @@ function buildElevesRoleSalle(entry, lid, group) {
         ? "Tirer les 4 stagiaires de la demi-journée (les mêmes pour les 2 groupes, priorité aux moins passés)"
         : "Tirer 4 stagiaires (priorité aux moins passés)",
       onClick: () => (double ? randomFillElevesShared(lid) : randomFillEleves(lid, group)),
-    }, "🎲")
+    }, deco(icon.dices()))
   ));
   eleveRole.appendChild(eleveCol);
   return eleveRole;
@@ -1844,7 +1847,8 @@ function renderLaneCell(entry) {
         if (v === "Pédagogie salle" && entry.activite !== "Pédagogie salle") patch.salle_double = true;
         saveEntry(lid, patch);
       },
-      "Choisir activité…"
+      "Choisir activité…",
+      "Activité"
     )
   ));
   if (shape.includes("prof")) {
@@ -1942,7 +1946,7 @@ function renderLaneCell(entry) {
       const diceBtn = el("button", {
         class: "p-dice-btn", type: "button",
         "aria-label": "Tirer des stagiaires", title: "Tirer des stagiaires voiture",
-      }, "🎲");
+      }, deco(icon.dices()));
       const picker = el("div", { class: "p-dice-picker hidden" });
       [1, 2, 3].forEach((n) => {
         picker.appendChild(el("button", {
@@ -2453,7 +2457,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   const nbAbs = toCreate.filter((c) => c.resultat === "Absence").length;
   const nbBonus = toCreate.filter((c) => c.resultat === "Bonus").length;
   const headText = [el("strong", {}, toCreate.length + " passage(s)"), " seront enregistrés."];
-  if (nbAbs || nbBonus) headText.push(` Dont ${nbAbs} ❌ absence(s) (comptées) et ${nbBonus} ⭐ bonus (non comptés).`);
+  if (nbAbs || nbBonus) headText.push(` Dont ${nbAbs} absence(s) (comptées) et ${nbBonus} bonus (non comptés).`);
   if (already.length) headText.push(" " + already.length + " déjà enregistré(s).");
   list.appendChild(el("p", { class: "valider-summary-head" }, ...headText));
 
@@ -2467,7 +2471,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
     ofType.forEach((c) => {
       if (!byDay.has(c.day_index)) byDay.set(c.day_index, []);
       byDay.get(c.day_index).push(nameOf(c.stagiaire_id)
-        + (c.resultat === "Absence" ? " ❌" : c.resultat === "Bonus" ? " ⭐" : ""));
+        + (c.resultat === "Absence" ? " (absence)" : c.resultat === "Bonus" ? " (bonus)" : ""));
     });
 
     const section = el("div", { class: "valider-section" },
@@ -2521,7 +2525,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   const lockCb = el("input", { type: "checkbox", id: "valider-lock-cb" });
   lockCb.checked = isoDate(new Date()) > fridayIso;
   const lockRow = el("label", { class: "valider-lock-row", for: "valider-lock-cb" },
-    lockCb, " 🔒 Verrouiller la semaine après enregistrement");
+    lockCb, " Verrouiller la semaine après enregistrement");
 
   const cancelBtn = el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler");
   const saveBtn = el("button", { class: "btn primary" }, icon.check(), "Enregistrer");
@@ -2637,7 +2641,7 @@ function buildRulesNote() {
   const details = el("details", { class: "planning-rules" });
   const li = (...c) => el("li", {}, ...c);
   const b = (t) => el("strong", {}, t);
-  details.appendChild(el("summary", {}, "ℹ️ Comment marche le placement automatique ? (à lire)"));
+  details.appendChild(el("summary", {}, deco(icon.info()), "Comment marche le placement automatique ? (à lire)"));
   const body = el("div", { class: "planning-rules-body" });
 
   body.appendChild(el("p", {},
@@ -2689,8 +2693,8 @@ function buildRulesNote() {
 
   body.appendChild(el("p", {}, b("Les boutons :")));
   body.appendChild(el("ul", {},
-    li(b("🎲 Placer la semaine"), " : remplit les tableaux d'abord, puis les élèves (demande confirmation, annulable par Ctrl+Z)."),
-    li(b("🧹 Vider les placements"), " : retire tous les stagiaires de la semaine, mais garde activités, formateurs, sujets, notes et élèves bénévoles."),
+    li(b("Placer la semaine"), " : remplit les tableaux d'abord, puis les élèves (demande confirmation, annulable par Ctrl+Z)."),
+    li(b("Vider les placements"), " : retire tous les stagiaires de la semaine, mais garde activités, formateurs, sujets, notes et élèves bénévoles."),
     li(b("Valider la semaine"), " : le planning fait foi, prévu non marqué = « effectué », marqué ⊘ = « absence » (comptée) + « bonus » pour le remplaçant. Un cas particulier ? Corrige ensuite dans l'onglet Passages."),
   ));
 
@@ -2908,7 +2912,7 @@ function renderInto(container) {
     onClick: () => changeWeek(isoDate(addDays(monday, 7))) });
   nextBtn.appendChild(icon.chevronRight());
 
-  const dateInput = el("input", { type: "date", value: semaineLundi });
+  const dateInput = el("input", { type: "date", value: semaineLundi, "aria-label": "Aller à la semaine d'une date" });
   dateInput.addEventListener("change", () => {
     let d = new Date(dateInput.value + "T00:00:00");
     d = getMonday(d);
@@ -2928,7 +2932,10 @@ function renderInto(container) {
   // Barre en DEUX groupes : « se déplacer » puis « agir », séparés par un filet.
   // Le libellé « Semaine du » a été retiré : l'en-tête juste au-dessus dit déjà
   // « Consultation · Semaine du 6 juillet 2026 ».
-  const navGroup = el("div", { class: "week-bar-nav" }, dateInput, prevBtn, nextBtn, eleve ? null : todayBtn);
+  // « Cette semaine » fait doublon avec « Aujourd'hui » de l'en-tête, dans la nouvelle navigation, pour tous (relecture du
+  // lot 2B ; audit du 09/11, lot E) : il ne reste que dans l'ancienne.
+  const avecAujourdhui = navigationV2Active() && !!gesteAujourdhui;
+  const navGroup = el("div", { class: "week-bar-nav" }, dateInput, prevBtn, nextBtn, eleve || avecAujourdhui ? null : todayBtn);
   const actionsGroup = el("div", { class: "week-bar-actions" });
   const weekBar = el("div", { class: "week-bar" }, navGroup, actionsGroup);
   // Banque d'élèves bénévoles : accessible aussi en lecture seule (consulter une fiche
@@ -2969,7 +2976,8 @@ function renderInto(container) {
     const editBtn = el("button", { class: "btn small primary",
       title: "Passer la semaine affichée en mode édition",
       onClick: () => { editMode = true; renderInto(currentContainer); } });
-    editBtn.appendChild(document.createTextNode("✏️ Modifier"));
+    editBtn.appendChild(deco(icon.pencil()));
+    editBtn.appendChild(document.createTextNode("Modifier"));
     actionsGroup.appendChild(editBtn);
     actionsGroup.appendChild(bnvBtn());
   } else if (admin && editing) {
@@ -2982,14 +2990,16 @@ function renderInto(container) {
     const placeBtn = el("button", { class: "btn small",
       title: "Placer automatiquement tableaux et stagiaires de toute la semaine (priorité aux moins passés)",
       onClick: () => autoPlaceWeek() });
-    placeBtn.appendChild(el("span", { class: "btn-long" }, "🎲 Placer la semaine"));
-    placeBtn.appendChild(el("span", { class: "btn-short" }, "🎲 Placer"));
+    placeBtn.appendChild(deco(icon.dices()));
+    placeBtn.appendChild(el("span", { class: "btn-long" }, "Placer la semaine"));
+    placeBtn.appendChild(el("span", { class: "btn-short" }, "Placer"));
     actionsGroup.appendChild(placeBtn);
     const clearBtn = el("button", { class: "btn small danger",
       title: "Retirer tous les stagiaires placés cette semaine (bénévoles, formateurs, sujets et notes conservés)",
       onClick: () => clearWeekPlacements() });
-    clearBtn.appendChild(el("span", { class: "btn-long" }, "🧹 Vider les placements"));
-    clearBtn.appendChild(el("span", { class: "btn-short" }, "🧹 Vider"));
+    clearBtn.appendChild(deco(icon.eraser()));
+    clearBtn.appendChild(el("span", { class: "btn-long" }, "Vider les placements"));
+    clearBtn.appendChild(el("span", { class: "btn-short" }, "Vider"));
     actionsGroup.appendChild(clearBtn);
     // Valider la semaine : sur une semaine au moins partiellement écoulée
     if (semaineLundi <= isoDate(new Date())) {
@@ -3025,7 +3035,7 @@ function renderInto(container) {
       lastHintAt = now;
       toast(isLocked(semaineLundi)
         ? "Semaine validée : clique « Déverrouiller » pour corriger"
-        : "Semaine en lecture seule : clique « ✏️ Modifier » pour éditer", "info", 3200);
+        : "Semaine en lecture seule : clique « Modifier » pour éditer", "info", 3200);
     });
   }
   container.appendChild(enGrille ? grilleDeLaSemaine() : wrap);
@@ -3036,7 +3046,7 @@ function renderInto(container) {
     const pillDone = el("button", { class: "p-edit-pill-btn",
       onClick: () => { editMode = false; renderInto(currentContainer); } }, "✓ Terminer");
     container.appendChild(el("div", { class: "p-edit-pill" },
-      el("span", { class: "p-edit-pill-label" }, "✏️ Édition en cours"),
+      el("span", { class: "p-edit-pill-label" }, deco(icon.pencil()), "Édition en cours"),
       pillDone,
     ));
   }

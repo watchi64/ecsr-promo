@@ -15,24 +15,24 @@
 // Lot 5 : une section « Espace » (une ligne par espace ouvert au compte, l'actuel coché) quand il y en a deux ou plus ; dans la
 // direction et au siège, ni les contacts du centre ni une page à soi hors de l'espace.
 
-import { el } from "./utils.js?v=20261109d";
-import { icon, deco } from "./icons.js?v=20261109d";
+import { el } from "./utils.js?v=20261109f";
+import { icon, deco } from "./icons.js?v=20261109f";
 import {
   getProfile, getProfileWho, monStagiaireId, buildViewAsBlock, seDeconnecter, espacesOuverts, setEspace, getCentre,
-} from "./auth-admin.js?v=20261109d";
-import { LIBELLES_ESPACE, routeDansLEspace, espaceDePilotage } from "./espaces-rules.js?v=20261109d";
-import { getPromoCourante, getMesPromos } from "./db.js?v=20261109d";
-import { ouvrirChoixPromo } from "./promo-pastille.js?v=20261109d";
-import { pagePersonnelle } from "./route-rules.js?v=20261109d";
-import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261109d";
-import { libellePastille } from "./nouveautes.js?v=20261109d";
-import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261109d";
-import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261109d";
-import { fondateurHorsApercu } from "./auth-admin.js?v=20261109d";
-import { ouvrirSignalement } from "./signalement.js?v=20261109d";
-import { etatSignalements } from "./signalement-etat.js?v=20261109d";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261109d";
-import { blocHabillage } from "./habillage-choix.js?v=20261109d";
+} from "./auth-admin.js?v=20261109f";
+import { LIBELLES_ESPACE, routeDansLEspace, espaceDePilotage } from "./espaces-rules.js?v=20261109f";
+import { getPromoCourante, getMesPromos } from "./db.js?v=20261109f";
+import { ouvrirChoixPromo } from "./promo-pastille.js?v=20261109f";
+import { pagePersonnelle } from "./route-rules.js?v=20261109f";
+import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261109f";
+import { libellePastille } from "./nouveautes.js?v=20261109f";
+import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261109f";
+import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261109f";
+import { fondateurHorsApercu } from "./auth-admin.js?v=20261109f";
+import { ouvrirSignalement } from "./signalement.js?v=20261109f";
+import { etatSignalements } from "./signalement-etat.js?v=20261109f";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261109f";
+import { blocHabillage } from "./habillage-choix.js?v=20261109f";
 
 // Une ligne du menu : un lien (page) ou un bouton (geste), icône et libellé, `fin` à droite.
 const ligne = (tag, attrs, icone, texte, fin = null) => el(tag, { class: "nav-fenetre-lien", ...attrs },
@@ -133,7 +133,7 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
       filet(),
       ligne("button", { type: "button", onClick: () => {
         fermerFenetre({ focus: false });
-        import("./legal.js?v=20261109d").then((m) => m.ouvrirInformationsLegales());
+        import("./legal.js?v=20261109f").then((m) => m.ouvrirInformationsLegales());
       } }, icon.shield(), "Informations légales"),
       ligne("button", { type: "button", onClick: () => seDeconnecter(() => fermerFenetre({ focus: false })) },
         icon.logout(), "Se déconnecter"),

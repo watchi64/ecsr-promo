@@ -8,16 +8,16 @@
 
 import {
   getMesPromos, getPromoCourante, lireStagiairesPromo, ouvrirDansUnePromo,
-} from "../db.js?v=20261109d";
-import { el, clear, isoDate, displayStagiaire, toast } from "../utils.js?v=20261109d";
-import { icon } from "../icons.js?v=20261109d";
-import { getCentre } from "../auth-admin.js?v=20261109d";
-import { promosDuCentre } from "../espaces-rules.js?v=20261109d";
-import { etatPromo, ouTrouverFiche, listeDuCentre } from "../direction-rules.js?v=20261109d";
-import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261109d";
-import { surChangementAdresse, remplacerAdresse } from "../navigation.js?v=20261109d";
-import { renderGestionStagiaires, renderInvitationStagiaire } from "./stagiaires-gestion.js?v=20261109d";
-import { chargerContexteFiche, chargerFiche, renderFiche, dispositionFiche, afficherErreur } from "./mon-suivi.js?v=20261109d";
+} from "../db.js?v=20261109f";
+import { el, clear, isoDate, displayStagiaire, toast } from "../utils.js?v=20261109f";
+import { icon } from "../icons.js?v=20261109f";
+import { getCentre } from "../auth-admin.js?v=20261109f";
+import { promosDuCentre } from "../espaces-rules.js?v=20261109f";
+import { etatPromo, ouTrouverFiche, listeDuCentre } from "../direction-rules.js?v=20261109f";
+import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261109f";
+import { surChangementAdresse, remplacerAdresse } from "../navigation.js?v=20261109f";
+import { renderGestionStagiaires, renderInvitationStagiaire } from "./stagiaires-gestion.js?v=20261109f";
+import { chargerContexteFiche, chargerFiche, renderFiche, dispositionFiche, afficherErreur } from "./mon-suivi.js?v=20261109f";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;

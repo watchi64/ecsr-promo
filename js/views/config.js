@@ -18,20 +18,20 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile,
   setMyAnonymousNotes,
-} from "../db.js?v=20261109d";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109d";
-import { icon } from "../icons.js?v=20261109d";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109d";
-import { moduleVisible } from "../modules-etat.js?v=20261109d";
-import { renderModulesSection } from "./modules-reglage.js?v=20261109d";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261109d";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261109d";
-import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109d";
-import { pointsARetenir } from "../accueil-rules.js?v=20261109d";
-import { dateCourte, etatFinDePromo } from "../effacement-rules.js?v=20261109d";
-import { peutInviterFormateur, peutRetirerCompte } from "../roles-rules.js?v=20261109d";
-import { blocHabillage } from "../habillage-choix.js?v=20261109d";
-import { habillageCourant } from "../habillage.js?v=20261109d";
+} from "../db.js?v=20261109f";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109f";
+import { icon } from "../icons.js?v=20261109f";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109f";
+import { moduleVisible } from "../modules-etat.js?v=20261109f";
+import { renderModulesSection } from "./modules-reglage.js?v=20261109f";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261109f";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261109f";
+import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109f";
+import { pointsARetenir } from "../accueil-rules.js?v=20261109f";
+import { dateCourte, etatFinDePromo } from "../effacement-rules.js?v=20261109f";
+import { peutInviterFormateur, peutRetirerCompte } from "../roles-rules.js?v=20261109f";
+import { blocHabillage } from "../habillage-choix.js?v=20261109f";
+import { habillageCourant } from "../habillage.js?v=20261109f";
 
 // ====== SECTION Accès & invitations ======
 
@@ -68,7 +68,7 @@ async function renderAccessSection(rerender) {
       ? "Choisis le rôle et la personne, entre son adresse e-mail. Aucun e-mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec cette adresse et un mot de passe."
       : "Choisis le rôle et la personne, entre son email. Aucun mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec son email + un mdp."));
 
-    const roleSel = el("select", { class: "invite-role" });
+    const roleSel = el("select", { class: "invite-role", "aria-label": "Rôle de la personne invitée" });
     // Inviter un formateur : la direction du centre ou le fondateur (la base le vérifie aussi, inviter_compte).
     const peutFormateur = peutInviterFormateur({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() });
     [
@@ -76,7 +76,7 @@ async function renderAccessSection(rerender) {
       ...(peutFormateur ? [{ v: "prof", l: "Formateur" }] : []),
     ].forEach((o) => roleSel.appendChild(el("option", { value: o.v }, o.l)));
 
-    const personSel = el("select", { class: "invite-person" });
+    const personSel = el("select", { class: "invite-person", "aria-label": "Personne invitée" });
     function refreshPersonOptions() {
       clear(personSel);
       const role = roleSel.value;
@@ -105,7 +105,7 @@ async function renderAccessSection(rerender) {
       if (choisie && [...personSel.options].some((o) => o.value === choisie && !o.disabled)) personSel.value = choisie;
     });
 
-    const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email" });
+    const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email", "aria-label": "Adresse e-mail" });
 
     const sendBtn = el("button", { class: "btn accent" }, icon.plus(), libelleAjout);
     sendBtn.addEventListener("click", () => envoyerInvitation({
@@ -360,7 +360,7 @@ async function renderPromoSection(rerender) {
 
     const list = el("ul", { class: "config-list" });
     items.forEach((it) => {
-      const input = el("input", { type: "text", value: it.prenom || it.nom, readonly: admin ? undefined : true });
+      const input = el("input", { type: "text", value: it.prenom || it.nom, readonly: admin ? undefined : true, "aria-label": "Nom" });
       if (admin) {
         input.addEventListener("blur", async () => {
           const v = input.value.trim();
@@ -399,7 +399,7 @@ async function renderPromoSection(rerender) {
     wrap.appendChild(list);
 
     if (admin) {
-      const addInput = el("input", { type: "text", placeholder: "Nom" });
+      const addInput = el("input", { type: "text", placeholder: "Nom", "aria-label": "Nom à ajouter" });
       const addBtn = el("button", { class: "btn accent", onClick: async () => {
         const v = addInput.value.trim();
         if (!v) return;

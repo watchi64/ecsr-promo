@@ -1,23 +1,23 @@
-import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261109d";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261109d";
-import { icon } from "../icons.js?v=20261109d";
+import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261109f";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261109f";
+import { icon } from "../icons.js?v=20261109f";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
-         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261109d";
-import { isAdmin, getAdminEmail, isProf, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261109d";
-import { recordUndo } from "../undo.js?v=20261109d";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261109d";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261109d";
-import { renderSubTabs } from "../subtabs.js?v=20261109d";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261109d";
-import { cleCours } from "../cours-rules.js?v=20261109d";
-import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109d";
-import { navigationV2Active } from "../nav-etat.js?v=20261109d";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109d";
-import { renderRessources } from "./ressources.js?v=20261109d";
-import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261109d";
-import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261109d";
-import { renderPropositionsIa } from "./propositions-ia.js?v=20261109d";
-import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261109d";
+         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261109f";
+import { isAdmin, getAdminEmail, isProf, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261109f";
+import { recordUndo } from "../undo.js?v=20261109f";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261109f";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261109f";
+import { renderSubTabs } from "../subtabs.js?v=20261109f";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261109f";
+import { cleCours } from "../cours-rules.js?v=20261109f";
+import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109f";
+import { navigationV2Active } from "../nav-etat.js?v=20261109f";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109f";
+import { renderRessources } from "./ressources.js?v=20261109f";
+import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261109f";
+import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261109f";
+import { renderPropositionsIa } from "./propositions-ia.js?v=20261109f";
+import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261109f";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -1753,10 +1753,10 @@ function rerender(container) {
   // que la zone de résultats, jamais la barre de filtres. Reconstruire l'input
   // pendant la saisie détruisait le nœud actif : focus perdu, clavier iOS
   // refermé à chaque lettre (bug du 18/08).
-  const searchInput = el("input", { type: "search", placeholder: "Rechercher…", value: search });
+  const searchInput = el("input", { type: "search", placeholder: "Rechercher…", value: search, "aria-label": "Rechercher un thème" });
   searchInput.addEventListener("input", debounce(() => { search = searchInput.value; renderResults(); }, 150));
 
-  const statutSel = el("select");
+  const statutSel = el("select", { "aria-label": "Filtrer par statut" });
   statutSel.appendChild(el("option", { value: "" }, "Tous les statuts"));
   STATUTS.forEach((s) => {
     const opt = el("option", { value: s.value }, s.value);
