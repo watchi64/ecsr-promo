@@ -504,7 +504,8 @@ construit et prouvé en local, **migration non appliquée**, branche non fusionn
   fenêtre à une question par écran sur la mécanique de `js/nav-fenetre.js` (focus, Tab gardé, Échap ; progression
   annoncée en `aria-live` ; focus rendu au point de retour quand « Répondre » manque), lien direct
   `#/questionnaire/<clé>` (ouvre la fenêtre sur l'Accueil, ou un mot doux ; rien si la personne a quitté l'Accueil avant
-  l'arrivée de la liste). Brouillon en mémoire de la session seulement.
+  l'arrivée de la liste). Brouillon en mémoire de la session seulement, propre au compte : `memoireDeSession()` le vide
+  (avec la liste des envoyés) quand le compte change sans rechargement (`onAdminChange`), et ferme la fenêtre ouverte.
 - **Gestion** : section « Questionnaires de satisfaction » de la page Qualiopi (`js/views/qualiopi.js`, règles
   `js/questionnaires-gestion-rules.js`) : état (selon les dates, au jour de Paris comme la base, ou ouvert ou fermé à la
   main), résultats question par question, commentaires (écran seulement, masqués par « Sans aucun nom », jamais
@@ -518,7 +519,12 @@ construit et prouvé en local, **migration non appliquée**, branche non fusionn
   aléatoire avec de nouveaux identifiants (rebrassage), sous un **verrou consultatif par portée** (deux envois simultanés
   ne laissent pas l'un hors du rebrassage), et le commentaire est recopié (`commentaire || ''`) pour qu'un texte long,
   rangé à part (TOAST), ne garde pas le xmin de son envoi. Limite écrite : un compte supprimé puis recréé pourrait répondre
-  deux fois (repris avec la conservation, lot Q5).
+  deux fois (repris avec la conservation, lot Q5). **Ce n'est pas un anonymat face à qui lit les tables** (éditeur SQL) :
+  une portée à une seule participation, ou deux relevés des tables, relient une réponse à son auteur. Les textes ne
+  promettent donc que l'application et le seuil (point 9 du document des textes, relecture finale I1).
+- **Catalogue et base** : `js/questionnaires-data.js` et la table `questionnaire_questions` de la migration disent les mêmes
+  ids, types, facultatives, options et versions ; `tests/questionnaires-data.test.mjs` relit l'insert de la migration et
+  échoue sur le moindre écart. Une question retouchée touche les deux.
 - **Seuils** : rien sous 5 réponses de stagiaires, 3 de formateurs (`seuilDe`), ni taux, ni compte, ni commentaire, à
   l'écran, dans un document ou dans le CSV ; la base applique le seuil elle-même. Commentaires : fondateur seul, ordre
   aléatoire, à partir du seuil.
@@ -541,11 +547,24 @@ construit et prouvé en local, **migration non appliquée**, branche non fusionn
   est déjà appliquée). **Piège** : appliquer la migration par `psql -f` sous Windows sans `PGCLIENTENCODING=UTF8`
   enregistre les messages d'erreur en mauvais encodage (chaque lettre accentuée devient deux caractères), et l'app
   les montre tels quels.
-- **Attend l'accord de Timy** : les textes (questions, conditions d'utilisation version 2026-11-08 et ses huit points à
-  trancher) ; l'application de la migration en production, puis un contrôle sur la base réelle ; la date de l'entrée
+- **Attend l'accord de Timy** : les textes (questions, conditions d'utilisation version 2026-11-08, message WhatsApp, et
+  les dix points à trancher) ; l'application de la migration en production, puis un contrôle sur la base réelle ; la date de l'entrée
   Nouveautés (écrite au 04/12/2026, à corriger au jour réel de mise en ligne avant la poussée, décision R3). Tant que la
   migration n'est pas appliquée, l'app ne montre rien et n'affiche aucune erreur (décision R2) : fusion et poussée après
   l'application seulement.
+- **Mise en ligne, dans cet ordre** (après l'accord de Timy sur les textes et sur la migration) :
+  1. Appliquer la migration `20261108_questionnaires.sql` en production d'abord. Par `psql` sous Windows, toujours avec
+     `PGCLIENTENCODING=UTF8` (sinon les messages de refus sont enregistrés en mauvais encodage).
+  2. Rejouer la preuve `tests/sql/questionnaires-preuve.sql` sur la base réelle, telle quelle : tout se passe dans son
+     bloc `DO` qui finit toujours par une levée, donc rien ne reste écrit. Attendu : VERT 207/0 (migration déjà là).
+     Hors de la base locale, `pg_read_file` n'est pas permis : remplacer ses deux appels par le texte des fichiers (en-tête
+     de la preuve).
+  3. Corriger la date de l'entrée Nouveautés (`js/nouveautes-data.js`, id et date `2026-12-04`) au jour réel de mise en
+     ligne, et son test (`tests/nouveautes.test.mjs`, qui fige cette date) : sinon une Nouveauté datée dans le futur part.
+  4. Puis seulement fusionner dans `main` et pousser. **Jamais de poussée avant la migration** : « aucune erreur à
+     l'écran » (décision R2) ne vaut pas permission, car le navigateur inscrit lui-même dans la console un 404 de
+     PostgREST à chaque rendu de l'Accueil et de Mon espace, et le lien direct affiche son mot doux. Le banc (faux
+     client) ne peut pas le montrer.
 
 ## Émargement signé (octobre 2026)
 

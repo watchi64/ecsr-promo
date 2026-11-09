@@ -124,6 +124,33 @@ rend « présente » la pièce des appréciations pour les indicateurs 30 et 32.
 - Conditions d'utilisation (version publiée avec Q3, § 3.5) et registre des traitements (`docs/legal/registre_traitements.md`
   du dépôt ECSR) mis à jour.
 
+### 6.1 Exigences ajoutées par la relecture finale de Q3 (09/11), à reprendre dans le plan Q5
+
+Les conditions de la version 2026-11-08 promettent ces durées pour les questionnaires (section 10, propositions en attente
+de Timy, point 9 du document des textes `2026-11-08-qualiopi-q3-textes.md`) ; rien en Q3 ne les met en œuvre. Le plan Q5
+les porte comme exigences, avec une échéance tenable avant le premier effacement promis (commentaires de la promo de
+Nîmes, fin le 11/12/2026, donc le 11/12/2027).
+
+- **Effacement des commentaires libres** (`questionnaire_reponses.commentaire`, mis à `null` ou vidé, la réponse notée
+  restant) :
+  - questionnaires des stagiaires (`fin_stagiaire`, `six_mois_stagiaire`, portée : la promo) : douze mois après
+    `date_fin` de la promo, comme les autres textes libres ;
+  - questionnaire des formateurs (`fin_formateur`, portée : le lieu et l'année civile, sans « fin de la formation ») :
+    proposé au **31 décembre de l'année suivant l'année du questionnaire** (année 2026 : effacés le 31/12/2027), date
+    écrite dans les conditions, à confirmer par Timy.
+  - L'effacement passe par une fonction de la base (les réponses n'ont aucun droit de lecture ni d'écriture pour les
+    rôles de l'API) ; s'il réécrit les lignes, il garde le rebrassage de la migration Q3 (ordre aléatoire, nouvel
+    identifiant) pour ne pas recréer d'ordre d'arrivée.
+- **Réponses gardées trois ans, puis résultats regroupés seulement** (proposition du point 9) : au 31 décembre de la
+  3ᵉ année après `date_fin` (stagiaires) ou après l'année du questionnaire (formateurs), les lignes de
+  `questionnaire_reponses` de la portée sont supprimées ; avant, leurs comptes par question (ceux que rend la fonction
+  des résultats, à partir du seuil seulement) sont figés dans une table de résultats regroupés, que les dossiers lisent
+  ensuite. La suppression d'une promo ou d'un lieu reste refusée tant que des réponses existent (`on delete restrict`).
+- **Si Timy retient l'option (b) du point 9** : les notes de participation d'une portée sont effacées quand sa fenêtre se
+  ferme (plus rien ne relie une réponse à un compte, même en lisant les tables) ; les conditions et cette exigence sont
+  alors réécrites ensemble.
+- La limite « compte supprimé puis recréé » de la migration Q3 (une deuxième réponse possible) est reprise ici.
+
 ## 7. Contraintes
 
 - Migrations prouvées en SQL avant application (méthode de la mémoire « Répétition de migration dans la preuve SQL »),
