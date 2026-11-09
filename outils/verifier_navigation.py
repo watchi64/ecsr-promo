@@ -3934,6 +3934,7 @@ LIEN_DOSSIER_PRO = "Ton dossier professionnel, à remplir dans l'app"
 # stagiaire dont la promo n'a pas ouvert la lecture des cours.
 TITRE_JOURNEE = "Ta journée sur l'Accueil"
 TITRE_AUJOURDHUI_EQUIPE = "Aujourd'hui remplace l'Accueil"
+TITRE_QUESTIONNAIRES = "Ton avis sur la formation, sans ton nom"   # Qualiopi Q3, en ligne le jour même du lot 2B : hors de l'ordre du lot
 TITRE_COURS_TELEPHONE = "Les cours se lisent mieux sur téléphone"
 TITRE_COULEURS_ECF = "L'app aux couleurs d'ECF"   # lot 3, tâche 11 : pour tous, nouvelle navigation seulement (décision H6)
 # La date vient de js/nouveautes-data.js, seule source : l'id de l'entrée de la journée porte AAAA-MM-JJ.
@@ -4145,9 +4146,10 @@ def verifier_nouveautes_eteint(page, res, sc):
 def verifier_nouveautes_de_l_accueil(page, res, vue, equipe):
     """Accueil, nouvelle navigation : les Nouveautés de l'accueil commencent par la plus récente, « Ta journée sur l'Accueil » chez le stagiaire,
     « Aujourd'hui remplace l'Accueil » chez l'équipe (lot 2B) ; l'équipe voit aussi celle du lot 4 (rôles par promo). Appelé depuis l'accueil déjà ouvert.
-    Une Nouveauté datée après le jour du lot 2B (les questionnaires anonymes, datés de leur mise en ligne prévue, règle R3 du plan Q3) passe devant
-    par sa date : la carte de l'accueil doit alors montrer celle que l'app classe en tête, et l'ordre du lot se vérifie parmi les Nouveautés
-    datées jusqu'au jour du lot, lues dans l'ordre que l'app calcule (js/modules-etat.js, le module même de la page)."""
+    Une Nouveauté arrivée après le lot 2B passe devant : par sa date, ou à date égale par son rang dans le fichier (les questionnaires anonymes
+    de Qualiopi Q3, mis en ligne le 09/11 comme le lot). La carte de l'accueil doit alors montrer celle que l'app classe en tête, et l'ordre
+    du lot se vérifie parmi les Nouveautés datées jusqu'au jour du lot, celle des questionnaires mise à part, lues dans l'ordre que l'app
+    calcule (js/modules-etat.js, le module même de la page)."""
     titres = [c["titre"] for c in page.evaluate("() => window.__verifNav.nouveautes()")]
     attendus = [TITRE_AUJOURDHUI_EQUIPE] if equipe else [TITRE_JOURNEE]
     if equipe and TITRE_ROLES not in titres:
@@ -4161,7 +4163,7 @@ def verifier_nouveautes_de_l_accueil(page, res, vue, equipe):
     if ordre and titres[:1] != [ordre[0]["titre"]]:
         res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu la plus récente, « %s »" % (" », « ".join(titres[:1]), ordre[0]["titre"]))
     jour_du_lot = "-".join(reversed(DATE_DE_LA_FUSION.split("/")))
-    titres = [o["titre"] for o in ordre if o["date"] <= jour_du_lot] if ordre else titres
+    titres = [o["titre"] for o in ordre if o["date"] <= jour_du_lot and o["titre"] != TITRE_QUESTIONNAIRES] if ordre else titres
     if titres[:len(attendus)] != attendus:
         res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu « %s »" % (" », « ".join(titres[:len(attendus)]), " », « ".join(attendus)))
 
