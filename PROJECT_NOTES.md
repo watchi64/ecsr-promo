@@ -585,6 +585,52 @@ Plan : `docs/superpowers/plans/2026-11-09-qualiopi-q4-registre.md`. Migration `2
   ferment la fenêtre **sans demander** : une saisie modifiée s'y perd.
 - **Banc** : `_harness.html?centre=1&demo=1&qualiopi=1&registre=1` puis `#/qualiopi` (six entrées, deux à effacer) ;
   `registre=absent`, `registre_panne=lecture|ecriture`.
+- **Droits** : une seule règle, `peut_gerer_qualite()` (créée par Q3, vaut `est_fondateur()` : le fondateur réel, hors
+  aperçu). Q4 la lit, ne la recrée pas et ne la retire pas dans son retour. Lecture, ajout et modification sous cette
+  fonction ; aucune suppression (le registre est une preuve : une erreur se clôt avec une réponse qui le dit) ; `anon` n'a
+  rien. Un formateur ou un stagiaire qui tape `#/qualiopi` revient à l'accueil sans un mot (porte de `js/main.js`).
+- **Lien vers le signalement qui tombe à nul** : `signalement_id` est `on delete set null` (unique). `signaler_probleme()`
+  purge les signalements de plus de 12 mois, chez la personne qui signale, et la fermeture d'un compte les efface en
+  cascade : le déclencheur laisse donc passer cette mise à nul seule, pour tout compte et même sur une entrée effacée, sans
+  rien changer d'autre (`modifie_le` compris). La marque `issu_signalement` garde la trace. Aucun nom, aucun e-mail n'est
+  recopié d'un signalement : l'origine seulement.
+- **Effacement manuel à 3 ans** : `effacer_registre_qualite()` (fonction du fondateur, rien ne tourne seul). Une entrée
+  close dont `clos_le + interval '3 years' < now()` perd ses quatre textes libres (description, réponse, action décidée,
+  mesure de prévention) ; type, origine, promo, lieu, dates et état restent. Une seule échéance, écrite à l'identique dans
+  le déclencheur (qui refuse aussi un effacement par écriture directe avant l'échéance), la fonction et `aEffacer()` de
+  `js/registre-rules.js`. Une entrée jamais close ne s'efface jamais : elle est signalée « à clore » après 3 ans. L'effacement
+  dû se rappelle en tête de la page Qualiopi, quel que soit le sous-onglet.
+- **Banc** (`_harness_supabase.js`, section « Registre qualité », non versionné) : `?registre=1` sème six entrées (un de
+  chaque type, deux closes depuis plus de 3 ans, une issue du signalement 101) ; `registre=absent` (migration non
+  appliquée : PGRST205 et PGRST202) ; `registre_panne=lecture|ecriture`. Hors fondateur ou sous un aperçu : lecture vide,
+  ajout refusé. Fondateur : `_harness.html?centre=1&registre=1&role=fondateur` puis `#/qualiopi` (ajouter `&demo=1&qualiopi=1`
+  pour les données du dossier). Le robot (`outils/parcours/banc.py`) ne recopie un fichier du banc depuis le dépôt
+  principal que s'il manque : il joue donc le banc du worktree tel qu'il est. **Le banc du dépôt principal n'a pas cette
+  section** : au moment de la fusion, la reporter par ajout dans `C:\Users\watch\Dev\ECSR\TP_ECSR_App\_harness_supabase.js`
+  (jamais en écrasant), puis rejouer le robot depuis `main`.
+- **Robot** (`outils/parcours/equipe.py`, destination « Qualiopi » dans `navigation.py`, par le lien du tableau de bord du
+  centre) : `registre-qualite` (sous-onglet, filtre « Clos », « Exporter (CSV) » présent et actif, ajout d'une amélioration ;
+  le contenu du CSV est prouvé par les tests de `registreCsv`, le robot ne gère pas les téléchargements),
+  `ajouter-au-registre` (depuis « Problèmes signalés », le bouton devient « Au registre »), et deux refus
+  (`qualiopi-absent-pour-le-formateur`, `qualiopi-absent-pour-le-stagiaire`). Budgets : 3 clics pour `ajouter-au-registre` et
+  2 pour le refus formateur sur ordinateur, parce que l'ancienne navigation passe par la tuile de l'Accueil. Connu et sans
+  gravité : le robot signale un `textarea.rg-champ.rg-texte` « sans nom » sur ordinateur (les champs Réponse et Action décidée,
+  dans le `<details>` replié, qu'il croit visibles et dont l'étiquette n'a pas de texte rendu) ; le champ Description a son
+  étiquette.
+- **Preuves du 10/11/2026** : preuve SQL `tests/sql/registre-qualite-preuve.sql` VERT 131/0 (Postgres local jetable, recette
+  dans son en-tête, `PGCLIENTENCODING=UTF8`) ; suite node 1 529 verts (`node --test tests/*.test.mjs` : sur Node 24,
+  `node --test tests/` seul échoue) ; Couleurs ECF : contraste AA vérifié sur les pastilles d'état (plus bas 4,88:1) et le
+  texte du registre et de la fenêtre.
+- **Ce qui attend Timy** : (1) la migration `supabase/migrations/20261109_registre_qualite.sql` (et son retour
+  `20261109_registre_qualite_retour.sql`) n'est pas appliquée : à jouer sur la base réelle avec son accord, `psql` avec
+  `PGCLIENTENCODING=UTF8`, puis la preuve rejouée telle quelle (remplacer ses deux `pg_read_file` par le texte des
+  fichiers) ; table vide, règles présentes, `peut_gerer_qualite()` inchangée à contrôler ; fusion et poussée seulement après.
+  Jamais de poussée avant la migration : l'onglet dirait « registre non disponible ». (2) Les six arbitrages du 09/11
+  (rappel violences, effacement des quatre textes, entrées jamais closes, CSV complet, dossiers sans texte libre, pas de
+  suppression) sont révisables avant la première échéance (2029). Pas d'entrée Nouveautés : fonctionnalité du fondateur.
+- **Point connu tant que le lot 5 n'est pas dans `main`** : la preuve des droits du lot 4 (`tests/sql/roles-preuve.sql`)
+  sort rouge sur la couverture de `registre_qualite` (comme sur les tables des questionnaires) ; la ligne de la table est
+  déjà écrite sur la branche du lot 5. Ce n'est pas un défaut de Q4.
 
 ## Émargement signé (octobre 2026)
 
