@@ -102,6 +102,7 @@ begin
       end if;
 
       update user_profiles set habillage = val where lower(email) = caller_email;
+      if not found then raise exception 'Habillage non enregistré'; end if;
       return val;
     end;
     $$;

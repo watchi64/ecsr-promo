@@ -41,6 +41,7 @@ export function blocHabillage({ titre = null, deps = {} } = {}) {
   const pastilles = PASTILLES.map(({ nom, libelle, legende, message }) => {
     const bouton = el("button", {
       type: "button", class: "habillage-pastille", "data-habillage": nom, "aria-pressed": String(courant === nom),
+      "aria-label": `${libelle}, ${legende}`,
       onClick: () => {
         // La pastille déjà pressée ne fait rien : ni envoi, ni message, et surtout pas de choix personnel. Un habillage
         // appliqué sans avoir été choisi (le défaut, celui du centre, l'appareil d'une autre personne) ne le devient pas

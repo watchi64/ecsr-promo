@@ -3359,6 +3359,18 @@ def jouer_retour_par_parametres(page, res, sc):
     aller_a(page, "#/config")
     attendre(page, calme=150)
     attendre_habillage(page, "ecf")
+    # Paramètres qui ne se charge pas (toute lecture rejetée le temps de l'ouvrir) : la boîte d'erreur s'affiche et Apparence reste là, pour ne pas piéger en ECF.
+    page.evaluate("() => { window.__HARNESS_FAIL = 'panne du banc'; }")
+    aller_a(page, "#/home")
+    aller_a(page, "#/config")
+    page.wait_for_selector(".param-error", timeout=20000)
+    if not lire_apparence(page, "page")["groupes"]:
+        res.echec("apparence, Paramètres en échec", vue, "la page ne se charge pas et Apparence manque : une personne en « Couleurs ECF » ne peut pas revenir")
+    page.evaluate("() => { window.__HARNESS_FAIL = null; }")
+    res.console.clear()   # l'erreur de chargement journalisée est celle que la panne provoque, attendue ici
+    aller_a(page, "#/home")
+    aller_a(page, "#/config")
+    attendre(page, calme=150)
     verifier_choix(page, res, sc, vue, "page", "ecsr", choisir_habillage(page, res, vue, "page", "ecsr"))
     vider_console(res, vue)
     vue = "%s/rechargement" % vue

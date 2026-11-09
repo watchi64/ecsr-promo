@@ -25,6 +25,7 @@ alter default privileges in schema public grant all on tables to anon, authentic
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
 alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
 
+-- Volontairement réduite : seules les colonnes dont la preuve a besoin (la vraie table en a d'autres).
 create table public.user_profiles (
   email text primary key, role text, is_admin boolean default false, is_founder boolean default false,
   stagiaire_id integer);

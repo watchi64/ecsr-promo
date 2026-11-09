@@ -820,6 +820,9 @@ async function rerender(container) {
         el("h2", {}, titre),
       ),
     ));
+    // Ancienne barre en Couleurs ECF : Apparence ne demande aucune lecture, elle se pose quand même, pour que la
+    // personne ne reste pas piégée en ECF tant que la page ne se charge pas (décision H6).
+    if (!v2 && habillageCourant() === "ecf") container.appendChild(renderApparenceSection());
     container.appendChild(el("div", { class: "param-error" },
       el("p", {}, "Le chargement a échoué. " + (e.message || "")),
       el("button", {

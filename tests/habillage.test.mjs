@@ -187,11 +187,13 @@ test("trois démarrages sur un appareil vierge : défaut, puis centre ecf, puis 
   assert.deepEqual(e.appels, []);
 });
 
-test("démarrage : un choix fait pendant un envoi lent n'est pas écrasé par le démarrage", async () => {
+test("démarrage : un choix fait pendant un envoi lent n'est pas écrasé par le démarrage", async (t) => {
   const e = env({ [CLE_APPAREIL]: '{"nom":"ecf","email":"A@x.fr","aEnvoyer":true,"choisi":true}' });
   // Le premier envoi (celui du démarrage) ne revient qu'une fois le choix fait ; les suivants tout de suite.
   let liberer;
   const lent = new Promise((r) => { liberer = r; });
+  // Une assertion cassée avant la libération ne doit pas laisser la file d'envois pendue : la suite échoue au lieu de pendre.
+  t.after(() => liberer());
   let premier = true;
   e.deps.enregistrer = async (nom) => {
     e.appels.push(nom);
@@ -214,10 +216,12 @@ test("démarrage : un choix fait pendant un envoi lent n'est pas écrasé par le
   assert.deepEqual(appareilDe(e), { nom: "ecsr", email: "A@x.fr", aEnvoyer: false, choisi: true });
 });
 
-test("démarrage : un choix fait pendant un envoi qui échoue n'est pas écrasé non plus", async () => {
+test("démarrage : un choix fait pendant un envoi qui échoue n'est pas écrasé non plus", async (t) => {
   const e = env({ [CLE_APPAREIL]: '{"nom":"ecf","email":"A@x.fr","aEnvoyer":true,"choisi":true}' });
   let liberer;
   const lent = new Promise((r) => { liberer = r; });
+  // Une assertion cassée avant la libération ne doit pas laisser la file d'envois pendue : la suite échoue au lieu de pendre.
+  t.after(() => liberer());
   let premier = true;
   e.deps.enregistrer = async (nom) => {
     e.appels.push(nom);
@@ -300,11 +304,12 @@ test("deux touchers qui réussissent : le compte les reçoit dans l'ordre, l'app
   assert.deepEqual(appareilDe(e), { nom: "ecsr", email: "A@x.fr", aEnvoyer: false, choisi: true });
 });
 
-test("envoi du démarrage en cours, puis deux touchers dont le dernier échoue : le dernier reste choisi et à envoyer", async () => {
+test("envoi du démarrage en cours, puis deux touchers dont le dernier échoue : le dernier reste choisi et à envoyer", async (t) => {
   const e = env({ [CLE_APPAREIL]: '{"nom":"ecf","email":"A@x.fr","aEnvoyer":true,"choisi":true}' });
   // Dans l'ordre : le démarrage aboutit, puis « ECSR Promo », puis « Couleurs ECF » échoue.
   const p = { enCours: [] };
   e.deps.enregistrer = (nom) => new Promise((ok, ko) => { e.appels.push(nom); p.enCours.push({ ok: () => ok(nom), ko: () => ko(new Error("réseau")) }); });
+  t.after(() => p.enCours.forEach((x) => x.ok()));   // rien ne reste pendu si une assertion casse
   const liberer = async (i, reussi) => {
     for (let n = 0; n < 50 && !p.enCours[i]; n++) await tick();
     assert.ok(p.enCours[i], `l'envoi ${i} n'est jamais parti`);

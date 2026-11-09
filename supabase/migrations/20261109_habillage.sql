@@ -29,6 +29,7 @@ begin
 
   -- Une valeur hors liste est refusée par la contrainte check de la colonne.
   update user_profiles set habillage = val where lower(email) = caller_email;
+  if not found then raise exception 'Habillage non enregistré'; end if;
   return val;
 end;
 $$;
