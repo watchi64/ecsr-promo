@@ -97,6 +97,9 @@ body.sig-ouverte { overflow: hidden; }
 .em-case-etat { font-size: 0.85rem; }
 .em-case-a-ouvrir { border-color: var(--accent); background: var(--accent-soft); }
 .em-case-a-ouvrir .em-case-etat { color: var(--accent-strong); font-weight: 600; }
+/* Une demi-journée de cours passée sans feuille (audit du 09/11, A7) : elle se voit, comme une feuille à ouvrir. */
+.em-case-manquante { border-color: var(--accent); background: var(--accent-soft); }
+.em-case-manquante .em-case-etat { color: var(--accent-strong); font-weight: 600; }
 .em-case-ouverte { border-color: var(--c-wait); background: var(--c-wait-soft); }
 .em-case-close .em-case-etat { color: var(--c-go); }
 .em-case-vide, .em-case-off { background: var(--bg-soft); color: var(--text-muted); }

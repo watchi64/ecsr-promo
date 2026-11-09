@@ -95,8 +95,8 @@ test("résumé d'une séance", () => {
     { stagiaire_id: 3, observation: "Retard" },
     { stagiaire_id: 99, trace: "M1 1L2 2" },  // hors liste : ignoré
   ];
-  assert.deepEqual(resumeSeance(lignes, [1, 2, 3, 4], false), { signes: 1, absents: 1, attente: 2, total: 4 });
-  assert.deepEqual(resumeSeance(lignes, [1, 2, 3, 4], true), { signes: 1, absents: 3, attente: 0, total: 4 });
+  assert.deepEqual(resumeSeance(lignes, [1, 2, 3, 4], false), { signes: 1, absents: 1, attente: 2, prevus: 0, total: 4 });
+  assert.deepEqual(resumeSeance(lignes, [1, 2, 3, 4], true), { signes: 1, absents: 3, attente: 0, prevus: 0, total: 4 });
 });
 
 test("horaires et durées", () => {

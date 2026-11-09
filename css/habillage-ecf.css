@@ -25,6 +25,7 @@
   --text-soft:  #33465F;
   --text-muted: #52637B;
   --text-faint: #9AA8BC;
+  --text-etiquette: var(--text-muted);
   --text-popover:       #1B2A44;
   --text-popover-doux:  #5A6B82;
 
@@ -35,6 +36,7 @@
   --accent-soft-2:  #C8D7EC;
   --accent-on-dark: #FFFFFF;
   --accent-texte:   #FFFFFF;                   /* texte d'un bouton plein */
+  --accent-fin-barre: #4A80C4;                 /* bout clair de la barre « Thèmes officiels » : du bleu d'ECF à un bleu plus clair */
 
   /* Barre sombre : blanc translucide sur le bleu nuit (survol, entrée allumée, filet, bordure). */
   --sur-sombre:         #E3EAF6;
@@ -52,6 +54,10 @@
   --sur-repere-sombre: #FFFFFF;
   --pastille:          #DB1418;
   --sur-pastille:      #FFFFFF;
+  /* Liseré blanc des repères rouges de la barre sombre : le rouge ne tient que 2,2:1 sur l'entrée allumée et sur l'avatar (blanc
+     translucide sur le bleu nuit), le liseré le cerne (5,1:1) et se détache de ces fonds (le rouge et le bleu nuit restent ceux d'ECF). */
+  --repere-sombre-lisere:   #FFFFFF;
+  --repere-pastille-lisere: #FFFFFF;
 
   /* Barre sombre, hors repères : l'initiale de la promo est blanche à lettre bleue, l'icône active garde la couleur du texte de la
      barre (seuls le trait de l'entrée active, les compteurs et le point du compte sont rouges). */
@@ -67,11 +73,11 @@
   --repere-admin-survol: rgba(143, 180, 232, 0.3);
   --repere-admin-halo:   rgba(143, 180, 232, 0.15);
 
-  /* Halos de focus et lueurs de la connexion : le bleu d'ECF aux opacités du défaut, une seconde lueur rouge discrète. */
+  /* Halos de focus et lueurs de la connexion : le bleu d'ECF aux opacités du défaut, une seconde lueur bleu clair (le rouge y virait au violet sur le bleu nuit). */
   --halo-focus:       rgba(18, 68, 131, 0.12);
   --halo-focus-leger: rgba(18, 68, 131, 0.1);
   --lueur-1:          rgba(18, 68, 131, 0.15);
-  --lueur-2:          rgba(219, 20, 24, 0.08);
+  --lueur-2:          rgba(74, 128, 196, 0.10);
 
   /* Ombres et voiles : bleu nuit translucide, aux opacités du défaut. */
   --shadow-1: 0 1px 2px rgba(13, 37, 70, 0.04), 0 1px 1px rgba(13, 37, 70, 0.03);
@@ -100,6 +106,6 @@
   --poids-titre-leger:  400;
 
   /* Liseré tricolore sous l'en-tête sombre de l'équipe sur téléphone, et couleur de la barre d'état du navigateur. */
-  --lisere-habillage: linear-gradient(90deg, #124483 0 46%, #FFFFFF 46% 54%, #DB1418 54% 100%);
+  --lisere-habillage: linear-gradient(90deg, #124483 0 33.333%, #FFFFFF 33.333% 66.667%, #DB1418 66.667% 100%);
   --barre-etat: #0D2546;
 }

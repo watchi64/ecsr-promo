@@ -5,13 +5,13 @@
  * Nouvelle navigation : plus de bulle (masquee par css/navigation.css), le panneau s'ouvre par les
  * boutons « Assistant » de la coquille (js/nav-shell.js), qui appellent basculerAssistant().
  */
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261109a";
-import { supabase } from "./db.js?v=20261109a";
-import { icon } from "./icons.js?v=20261109a";
-import { corpsRequete, extraireEvenements } from "./chatbot-rules.js?v=20261109a";
-import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261109a";
-import { navigationV2Active } from "./nav-etat.js?v=20261109a";
-import { getEspace } from "./auth-admin.js?v=20261109a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261109d";
+import { supabase } from "./db.js?v=20261109d";
+import { icon } from "./icons.js?v=20261109d";
+import { corpsRequete, extraireEvenements } from "./chatbot-rules.js?v=20261109d";
+import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261109d";
+import { navigationV2Active } from "./nav-etat.js?v=20261109d";
+import { getEspace } from "./auth-admin.js?v=20261109d";
 
 const CLE_HISTO = "chatbot_histo";
 let histo = [];
@@ -79,7 +79,7 @@ function sauverHisto() {
 
 async function rendreEnMarkdown(noeud, texte) {
   try {
-    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261109a");
+    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261109d");
     // blocs: false : une réponse qui recopie un bloc de cours (schéma, quiz, cartes) le laisse en texte brut,
     // elle ne monte ni schéma animé ni quiz dans la bulle.
     const { noeuds } = rendreMarkdown(texte, { blocs: false });
@@ -240,11 +240,16 @@ export function initChatbot() {
   // Signaler un problème (spec 2026-10-28) : la fenêtre s'ouvre par-dessus le panneau, qui reste ouvert.
   const signaler = panneau.querySelector(".chatbot-signaler-btn");
   signaler.addEventListener("click", () => {
-    import("./signalement.js?v=20261109a").then((m) => m.ouvrirSignalement({ ancre: signaler }));
+    import("./signalement.js?v=20261109d").then((m) => m.ouvrirSignalement({ ancre: signaler }));
   });
+  // Capture : Échap ferme le panneau sans atteindre une fenêtre restée dessous (un QCM, par exemple). Panneau fermé,
+  // la touche passe aux autres fenêtres.
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") fermerPanneau();
-  });
+    if (e.key !== "Escape" || panneau.classList.contains("hidden")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    fermerPanneau();
+  }, true);
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();

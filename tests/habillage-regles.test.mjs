@@ -69,6 +69,26 @@ test("8. lireAppareil : illisible ou inconnu donne null, sinon les quatre champs
   assert.equal(lireAppareil('{"nom":"ecf","aEnvoyer":true}').aEnvoyer, true);
 });
 
+test("4 bis. la même personne, quelle que soit la casse ou les espaces de son e-mail (la base compare en minuscules)", () => {
+  assert.deepEqual(habillageRetenu({ appareil: app("ecf", "A@x.test", true), compte: null, email: "a@x.test" }),
+    { nom: "ecf", source: "appareil", envoi: "ecf" });
+  assert.deepEqual(habillageRetenu({ appareil: app("ecf", " a@X.test ", false), compte: null, email: "A@x.TEST" }),
+    { nom: "ecf", source: "appareil", envoi: "ecf" });
+  // Une autre personne reste une autre personne.
+  assert.deepEqual(habillageRetenu({ appareil: app("ecf", "B@x.test", true), compte: null, email: "a@x.test" }),
+    { nom: "ecsr", source: "defaut", envoi: null });
+});
+
+test("8 bis. lireAppareil : `choisi` absent vaut vrai (levier des robots), présent il ne vaut vrai que s'il est true", () => {
+  assert.equal(lireAppareil('{"nom":"ecf"}').choisi, true);
+  assert.equal(lireAppareil('{"nom":"ecf","choisi":true}').choisi, true);
+  for (const v of ['"false"', '"true"', "0", "1", "null", "false", '""', "{}", "[]"]) {
+    const a = lireAppareil(`{"nom":"ecf","choisi":${v},"aEnvoyer":true}`);
+    assert.equal(a.choisi, false, `choisi: ${v}`);
+    assert.equal(a.aEnvoyer, false, `choisi: ${v} : rien à envoyer`);
+  }
+});
+
 test("9. le défaut ne devient jamais un choix", () => {
   assert.deepEqual(habillageRetenu({ appareil: app("ecsr", "A", false, false), compte: null, email: "A" }),
     { nom: "ecsr", source: "defaut", envoi: null });

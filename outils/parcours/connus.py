@@ -14,8 +14,6 @@ Chaque ligne : le parcours, le critère, un morceau du message (sans les nombres
 # `ou` (facultatif) : les formats et navigations où le défaut se voit ; sert seulement à dire qu'un défaut
 # connu n'a pas été revu alors que le passage l'aurait montré (donc qu'il est peut-être corrigé).
 DEFAUTS_CONNUS = [
-    {"parcours": "passer-un-qcm", "critere": "D", "contient": "Échap ne ferme pas le QCM",
-     "note": "n° 1 : la fenêtre du QCM n'écoute pas Échap", "ou": {"format": ["ordinateur"]}},
     {"parcours": "indicateurs-du-centre", "critere": "G", "contient": "div.topbar-actions",
      "note": "n° 4 : ancienne barre à 1 280 px, boutons coupés avec un nom de promo long",
      "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},

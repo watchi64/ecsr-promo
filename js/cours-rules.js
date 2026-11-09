@@ -139,3 +139,11 @@ export function etiquetteDeColonne(entete) {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/** Message du lecteur quand un cours n'a pas de texte. */
+export const MESSAGE_COURS_VIDE = "Ce cours n'a pas encore de contenu.";
+
+/** Le cours porte-t-il du texte à lire ? Un corps absent, nul ou fait d'espaces n'en a pas. */
+export function coursAUnTexte(cours) {
+  return !!cours && typeof cours.corps_md === "string" && cours.corps_md.trim() !== "";
+}

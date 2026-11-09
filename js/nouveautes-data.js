@@ -42,7 +42,7 @@ export const NOUVEAUTES = [
         + "ouverte, touche « Signer pour ce matin » (ou « Signer pour cet après-midi ») : la carte affiche ensuite l'heure "
         + "de ta signature.",
       "« À faire » liste au plus quatre choses : un examen ouvert, le QCM d'un thème vu cette semaine et pas "
-        + "encore fait, ton dossier professionnel, ton livret EPCF. Touche une ligne pour y aller.",
+        + "encore fait, ton dossier professionnel. Touche une ligne pour y aller.",
       "Dans Planning, Semaine, la grille montre les cinq jours, aujourd'hui repéré. Sur téléphone, touche un jour dans "
         + "la bande du haut. « Liste » remet l'affichage d'avant, et l'app retient ton choix.",
       "Dans Cours et QCM, sous-onglet QCM : chaque QCM avec la note de ton dernier entraînement. « Ouvrir » affiche sa "
@@ -166,6 +166,73 @@ export const NOUVEAUTES = [
       "Touche tes initiales, en haut à droite, pour ouvrir le menu de ton compte.",
       "Touche « Changer de promo » : la ligne n'est là que si tu as au moins deux promos.",
       "Choisis la promo : l'app se recharge dessus.",
+    ],
+  },
+  {
+    id: "2026-11-09-qcm-echap-et-pannes",
+    date: "2026-11-09",
+    pour: "tous",
+    titre: "QCM : Échap ferme la fenêtre, et un message quand la connexion lâche",
+    resume: "Sur ordinateur, la touche Échap ferme maintenant la fenêtre d'un QCM, comme la croix (pendant un examen, "
+          + "la même confirmation t'est demandée). Dans Cours et QCM, si les cours ou les QCM ne se chargent pas, "
+          + "la page le dit et propose « Réessayer » au lieu de laisser des colonnes vides. Un cours sans texte "
+          + "affiche un message clair.",
+    ou: { label: "Cours et QCM", route: "themes" },
+  },
+  // Lot de corrections 2 (audit du 09/11) : ce que l'app affiche est juste.
+  {
+    id: "2026-11-09-accueil-plus-juste",
+    date: "2026-11-09",
+    pour: "stagiaires",
+    navigation: "nouvelle",
+    titre: "Accueil et Mon suivi : des repères plus justes",
+    resume: "Quand ton nom ne figure sur aucune activité du matin ou de l'après-midi, l'Accueil te le dit. Dans "
+          + "« À faire », un examen ouvert ou le QCM d'un thème t'emmène directement à tes QCM. Ton livret EPCF n'y "
+          + "apparaît plus, et il affiche maintenant ton nom et ta date de naissance. "
+          + "Dans Mon suivi, Résultats te rappelle où sont les notes de tes entraînements aux QCM.",
+    ou: { label: "Accueil", route: "home" },
+  },
+  {
+    id: "2026-11-09-emargement-planning-plus-justes",
+    date: "2026-11-09",
+    pour: "formateurs",
+    titre: "Planning et émargement : des affichages plus justes",
+    resume: "En mode Modifier du planning, une activité n'est plus réduite à une colonne étroite quand une activité "
+          + "parallèle a été supprimée sur la demi-journée. Là où l'émargement est activé, la feuille compte à part "
+          + "les absents prévus au planning (« 2 sur 6 ont signé · 3 en attente · 1 absent prévu au planning »), et "
+          + "la semaine de l'émargement signale une demi-journée de cours passée sans feuille : « Feuille non faite ».",
+    ou: { label: "Planning", route: "planning" },
+    guide: [
+      "Sur la feuille d'émargement, le résumé du haut sépare ceux qui attendent des absents prévus au planning.",
+      "Dans la semaine de l'émargement, « Feuille non faite » signale une demi-journée de cours restée sans feuille.",
+    ],
+    guideNouvelle: [
+      "Sur la feuille d'émargement, le résumé du haut sépare ceux qui attendent des absents prévus au planning.",
+      "Dans la semaine de l'émargement, « Feuille non faite » signale une demi-journée de cours restée sans feuille.",
+      "Sur Aujourd'hui, la carte « Émargement » nomme ceux qui attendent et, à part, les absents : avec les signés, "
+        + "ils font le total.",
+      "Dans le Planning en grille, une voiture sans stagiaire au volant affiche « Aucun stagiaire en voiture ».",
+      "Les messages de l'app ne se marchent plus dessus : la confirmation d'un geste reste à l'écran, et l'annonce "
+        + "de l'ouverture attend que le menu « Plus » soit refermé.",
+    ],
+  },
+  // Lot 3 de la refonte (date de la fusion) : le choix de l'habillage, qui ne se fait que sous la nouvelle barre. À date
+  // égale, il vient après le lot 2B : la carte « Nouveauté » de l'Accueil garde la journée du stagiaire et Aujourd'hui.
+  {
+    id: "2026-11-09-couleurs-ecf",
+    date: "2026-11-09",
+    pour: "tous",
+    navigation: "nouvelle",
+    titre: "L'app aux couleurs d'ECF",
+    resume: "Tu peux habiller l'app aux couleurs d'ECF : son bleu, son bleu nuit et une touche de rouge. Les "
+          + "couleurs et la police des titres changent : chaque page reste à sa place, et les notes gardent leurs couleurs. L'app retient ton "
+          + "choix, et tu reviens à ECSR Promo, la couleur d'origine, quand tu veux.",
+    ou: { label: "Mes préférences", route: "preferences" },
+    guide: [
+      "Ouvre le menu de ton compte : le rond à tes initiales, en haut à droite de l'écran (chez les formateurs, sur "
+        + "ordinateur, en bas de la barre de gauche).",
+      "Sous Apparence, touche « Couleurs ECF » : l'app change de couleurs tout de suite.",
+      "Pour revenir, touche « ECSR Promo » au même endroit. Le même choix est aussi dans Mes préférences.",
     ],
   },
   {

@@ -8,7 +8,7 @@
  * pas migrée (ou si les promos n'ont pas pu être chargées), la colonne manque : l'app se replie alors sur
  * `is_admin` et `role` du profil, comme avant le lot 4.
  */
-import { phraseDeRefus, PHRASE_ECHEC } from "./espaces-rules.js?v=20261109a";
+import { phraseDeRefus, PHRASE_ECHEC } from "./espaces-rules.js?v=20261109d";
 
 // Les aperçus : un fondateur les a tous, un membre de l'équipe a celui du stagiaire. Un aperçu ne fait que
 // RETIRER des droits : une valeur hors de la liste permise est ignorée.
@@ -170,6 +170,21 @@ export function etiquetteBadge({ profil, promo } = {}) {
   if (profil.role === "prof") return { libelle: "formateur", classe: "prof" };
   if (profil.role === "stagiaire") return { libelle: "stagiaire", classe: "stagiaire" };
   return { libelle: "", classe: "" };
+}
+
+// Le rôle que dit le pied de page (« connecté comme … ») : celui de l'aperçu « Voir en tant que » s'il y en a un ; sinon
+// « fondateur » pour le fondateur (qui peut aussi être stagiaire d'une promo : hors aperçu, il est dans l'espace de l'équipe) ;
+// sinon le rôle réel sur la promo affichée, dans l'ordre du badge (formateur, direction, siège, stagiaire). Avant l'audit du
+// 09/11 (A8), Aujourd'hui écrivait « formateur » pour tout le monde.
+export function libelleConnexion({ profil, promo, apercu } = {}) {
+  if (!profil) return "";
+  const a = apercuRetenu({ profil, promo, apercu });
+  if (a) return LIBELLES_APERCU[a].toLowerCase() + " (aperçu)";
+  if (profil.is_founder) return "fondateur";
+  const { libelle } = etiquetteBadge({ profil, promo });
+  if (libelle === "admin") return profil.is_founder ? "fondateur" : "formateur";
+  if (!libelle && profil.is_founder) return "fondateur";
+  return libelle;
 }
 
 // Phrase du refus à la porte, quand le compte n'a aucune promo. Depuis le lot 5, le siège et la direction entrent sans promo

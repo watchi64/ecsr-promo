@@ -1,22 +1,23 @@
-import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261109a";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261109a";
-import { icon } from "../icons.js?v=20261109a";
+import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261109d";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261109d";
+import { icon } from "../icons.js?v=20261109d";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
-         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261109a";
-import { isAdmin, getAdminEmail, isProf, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261109a";
-import { recordUndo } from "../undo.js?v=20261109a";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261109a";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261109a";
-import { renderSubTabs } from "../subtabs.js?v=20261109a";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261109a";
-import { cleCours } from "../cours-rules.js?v=20261109a";
-import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109a";
-import { navigationV2Active } from "../nav-etat.js?v=20261109a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109a";
-import { renderRessources } from "./ressources.js?v=20261109a";
-import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261109a";
-import { renderPropositionsIa } from "./propositions-ia.js?v=20261109a";
-import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261109a";
+         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261109d";
+import { isAdmin, getAdminEmail, isProf, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261109d";
+import { recordUndo } from "../undo.js?v=20261109d";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261109d";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261109d";
+import { renderSubTabs } from "../subtabs.js?v=20261109d";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261109d";
+import { cleCours } from "../cours-rules.js?v=20261109d";
+import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261109d";
+import { navigationV2Active } from "../nav-etat.js?v=20261109d";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109d";
+import { renderRessources } from "./ressources.js?v=20261109d";
+import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261109d";
+import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261109d";
+import { renderPropositionsIa } from "./propositions-ia.js?v=20261109d";
+import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261109d";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -25,6 +26,8 @@ let myTrainByQcm = new Map();      // qcm_id -> ma dernière tentative entraîne
 let myNoteByThemeNum = new Map();  // theme_numero -> ma note officielle (matrice Notes)
 let signalByQcm = {};              // qcm_id -> nb de signalements ouverts (formateur seulement)
 let qcmAffiche = false;            // colonne QCM affichée : module « qcm » visible, figé au chargement de l'index
+let echecCours = false;            // la lecture des cours a échoué (autre chose que « aucun cours »)
+let echecQcm = false;              // la lecture des QCM a échoué (autre chose que « aucun QCM »)
 let lastContainer = null;          // pour rafraîchir la liste après un QCM
 // L'onglet Thèmes partage son nœud d'affichage avec la console des signalements
 // (subtabs.js réutilise un seul panneau). Un repeint asynchrone arrivé alors que
@@ -67,13 +70,18 @@ function enteteColonne(libelle, cle) {
   return repereMasque(el("span", {}, libelle), moduleVisible(cle) && moduleMasque(cle));
 }
 
+// Lecture de l'index des cours : un échec est retenu, pour le dire à l'écran au lieu de montrer une colonne vide.
+const lireCoursIndex = () => chargerCoursIndex().catch(() => { echecCours = true; return null; });
+
 async function loadQcmIndex() {
   qcmAffiche = moduleVisible("qcm");  // figé ici, avec les données (voir canSeeQcm)
+  echecCours = false;
+  echecQcm = false;
   if (!canSeeQcm()) {
     qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map(); myNoteByThemeNum = new Map(); signalByQcm = {};
     // L'index des cours ne dépend pas des QCM : sans ce chargement, fermer le
     // module QCM ferait disparaître les cours avec lui.
-    await chargerCoursIndex().catch(() => null);
+    await lireCoursIndex();
     return;
   }
   try {
@@ -86,13 +94,17 @@ async function loadQcmIndex() {
     // donc un drapeau sur les QCM qu'il a lui-même signalés. Et en aperçu « Voir en tant
     // que », la RLS n'est pas simulée du tout : le fondateur verrait tous les drapeaux
     // alors qu'il regarde l'écran d'un élève. Le garde-fou est donc ici.
-    const [list, attempts, evals, signals] = await Promise.all([
-      listQcmIndex(),
-      listMyQcmAttempts(),
-      maFiche ? listEvaluations({ stagiaire_id: maFiche }) : Promise.resolve([]),
-      canManageExam() ? countQcmSignalementsOuverts().catch(() => ({})) : Promise.resolve({}),
-      chargerCoursIndex().catch(() => null),
-    ]);
+    // Toutes les lectures sont attendues, même si l'une échoue vite : les deux indicateurs d'échec sont connus
+    // avant le premier affichage.
+    const { valeurs, echecs } = await lireToutes({
+      list: listQcmIndex(),
+      attempts: listMyQcmAttempts(),
+      evals: maFiche ? listEvaluations({ stagiaire_id: maFiche }) : Promise.resolve([]),
+      signals: canManageExam() ? countQcmSignalementsOuverts().catch(() => ({})) : Promise.resolve({}),
+      cours: lireCoursIndex(),
+    });
+    if (echecs.length) throw new Error("Lecture des QCM impossible");
+    const { list, attempts, evals, signals } = valeurs;
     signalByQcm = signals || {};
     qcmByTheme = new Map(list.filter((q) => q.nb_questions > 0).map((q) => [q.theme_id, q]));
     myExamByQcm = new Map();
@@ -108,8 +120,26 @@ async function loadQcmIndex() {
       }
     }
   } catch (e) {
+    echecQcm = true;
     qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map(); myNoteByThemeNum = new Map(); signalByQcm = {};
   }
+}
+
+// Bandeau « non chargés » avec « Réessayer » : seulement quand une lecture a échoué sur un module que la personne voit.
+// Une liste vide sans échec garde son affichage normal.
+function bandeauLectureEnEchec() {
+  const message = messageLectureEnEchec({
+    cours: echecCours && moduleVisible("cours"),
+    qcm: echecQcm && canSeeQcm(),
+  });
+  if (!message) return null;
+  const bouton = el("button", { class: "btn ghost", type: "button" }, "Réessayer");
+  bouton.addEventListener("click", async () => {
+    bouton.disabled = true;
+    try { await reload(lastContainer); }
+    catch (e) { bouton.disabled = false; toast("Toujours pas de connexion. Réessaie dans un instant.", "error"); }
+  });
+  return el("div", { class: "lecture-echec", role: "alert" }, el("p", {}, message), bouton);
 }
 
 // Ma note "officielle" pour un thème : matrice Notes si numéroté, sinon la tentative examen du QCM.
@@ -1714,6 +1744,8 @@ function rerender(container) {
     );
     pillsWrap.appendChild(pill);
   });
+  const echec = bandeauLectureEnEchec();
+  if (echec) container.appendChild(echec);
   if (famillesData.length > 1) container.appendChild(pillsWrap);
 
   // Filtres supplémentaires (recherche + statut). Ces nœuds sont STABLES tant

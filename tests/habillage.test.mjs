@@ -187,8 +187,160 @@ test("trois démarrages sur un appareil vierge : défaut, puis centre ecf, puis 
   assert.deepEqual(e.appels, []);
 });
 
+test("démarrage : un choix fait pendant un envoi lent n'est pas écrasé par le démarrage", async (t) => {
+  const e = env({ [CLE_APPAREIL]: '{"nom":"ecf","email":"A@x.fr","aEnvoyer":true,"choisi":true}' });
+  // Le premier envoi (celui du démarrage) ne revient qu'une fois le choix fait ; les suivants tout de suite.
+  let liberer;
+  const lent = new Promise((r) => { liberer = r; });
+  // Une assertion cassée avant la libération ne doit pas laisser la file d'envois pendue : la suite échoue au lieu de pendre.
+  t.after(() => liberer());
+  let premier = true;
+  e.deps.enregistrer = async (nom) => {
+    e.appels.push(nom);
+    if (premier) { premier = false; await lent; }
+    return nom;
+  };
+  const demarrage = habillageAuDemarrage({ email: "A@x.fr", compte: null }, e.deps);
+  await new Promise((r) => setImmediate(r));   // le démarrage attend son envoi
+  assert.deepEqual(e.appels, ["ecf"]);
+  // Le choix est fait (appliqué, appareil écrit) ; son envoi part derrière celui du démarrage (fix round 1).
+  const choix = choisirHabillage("ecsr", e.deps);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(habillageCourant(e.deps), "ecsr");
+  assert.deepEqual(appareilDe(e), { nom: "ecsr", email: "A@x.fr", aEnvoyer: true, choisi: true });
+  liberer();
+  assert.deepEqual(await choix, { nom: "ecsr", enregistre: true });
+  assert.equal(await demarrage, "ecf");
+  assert.equal(habillageCourant(e.deps), "ecsr");
+  assert.deepEqual(e.appels, ["ecf", "ecsr"]);
+  assert.deepEqual(appareilDe(e), { nom: "ecsr", email: "A@x.fr", aEnvoyer: false, choisi: true });
+});
+
+test("démarrage : un choix fait pendant un envoi qui échoue n'est pas écrasé non plus", async (t) => {
+  const e = env({ [CLE_APPAREIL]: '{"nom":"ecf","email":"A@x.fr","aEnvoyer":true,"choisi":true}' });
+  let liberer;
+  const lent = new Promise((r) => { liberer = r; });
+  // Une assertion cassée avant la libération ne doit pas laisser la file d'envois pendue : la suite échoue au lieu de pendre.
+  t.after(() => liberer());
+  let premier = true;
+  e.deps.enregistrer = async (nom) => {
+    e.appels.push(nom);
+    if (premier) { premier = false; await lent; throw new Error("réseau"); }
+    return nom;
+  };
+  const avant = console.warn;
+  console.warn = () => {};
+  try {
+    const demarrage = habillageAuDemarrage({ email: "A@x.fr", compte: null }, e.deps);
+    await new Promise((r) => setImmediate(r));
+    const choix = choisirHabillage("ecsr", e.deps);
+    await new Promise((r) => setImmediate(r));
+    liberer();
+    await Promise.all([choix, demarrage]);
+  } finally { console.warn = avant; }
+  assert.deepEqual(appareilDe(e), { nom: "ecsr", email: "A@x.fr", aEnvoyer: false, choisi: true });
+});
+
 test("démarrage : sans stockage, l'habillage est quand même appliqué", async () => {
   const e = env({}, { stockage: { leve: true } });
   assert.equal(await habillageAuDemarrage({ email: "A@x.fr", compte: "ecf" }, e.deps), "ecf");
   assert.equal(habillageCourant(e.deps), "ecf");
+});
+
+// --- Touchers rapprochés (fix round 1 de la tâche 11) ---------------------------------------
+// Deux pastilles non attendues : deux touchers peuvent partir dans le temps d'un aller-retour. Les envois sont pilotés à la main :
+// chacun attend que le test le libère, réussi ou en échec ; `compte` est ce que le compte détient, dans l'ordre où les envois
+// aboutissent. `toutLiberer` libère toujours l'envoi en cours le plus récent d'abord (le pire ordre de réponse possible).
+
+const tick = () => new Promise((r) => setImmediate(r));
+function envoisPilotes(e, echecs = []) {
+  const p = { enCours: [], compte: null, demandes: 0 };
+  e.deps.enregistrer = (nom) => new Promise((ok, ko) => {
+    const i = p.demandes++;
+    e.appels.push(nom);
+    p.enCours.push({ i, ok: () => { p.compte = nom; ok(nom); }, ko: () => ko(new Error("réseau")) });
+  });
+  p.toutLiberer = async () => {
+    for (let n = 0; n < 200; n++) {
+      await tick();
+      const envoi = p.enCours.pop();
+      if (!envoi) { if (n > 20 && p.enCours.length === 0) break; continue; }
+      (echecs.includes(envoi.i) ? envoi.ko : envoi.ok)();
+    }
+  };
+  return p;
+}
+async function sansAvertissement(f) {
+  const avant = console.warn;
+  console.warn = () => {};
+  try { return await f(); } finally { console.warn = avant; }
+}
+
+test("deux touchers : le premier envoi réussit tard, le second échoue : le second reste choisi et à envoyer", async () => {
+  const e = env();
+  const p = envoisPilotes(e, [1]);
+  await sansAvertissement(async () => {
+    const a = choisirHabillage("ecf", e.deps);
+    await tick();
+    const b = choisirHabillage("ecsr", e.deps);
+    await p.toutLiberer();
+    await Promise.all([a, b]);
+  });
+  assert.equal(habillageCourant(e.deps), "ecsr");
+  assert.deepEqual(e.appels, ["ecf", "ecsr"]);
+  assert.deepEqual(appareilDe(e), { nom: "ecsr", email: "A@x.fr", aEnvoyer: true, choisi: true });
+});
+
+test("deux touchers qui réussissent : le compte les reçoit dans l'ordre, l'appareil garde le dernier, plus rien à envoyer", async () => {
+  const e = env();
+  const p = envoisPilotes(e);
+  const a = choisirHabillage("ecf", e.deps);
+  await tick();
+  const b = choisirHabillage("ecsr", e.deps);
+  await p.toutLiberer();
+  assert.deepEqual(await Promise.all([a, b]), [{ nom: "ecf", enregistre: true }, { nom: "ecsr", enregistre: true }]);
+  assert.equal(habillageCourant(e.deps), "ecsr");
+  assert.equal(p.compte, "ecsr");
+  assert.deepEqual(appareilDe(e), { nom: "ecsr", email: "A@x.fr", aEnvoyer: false, choisi: true });
+});
+
+test("envoi du démarrage en cours, puis deux touchers dont le dernier échoue : le dernier reste choisi et à envoyer", async (t) => {
+  const e = env({ [CLE_APPAREIL]: '{"nom":"ecf","email":"A@x.fr","aEnvoyer":true,"choisi":true}' });
+  // Dans l'ordre : le démarrage aboutit, puis « ECSR Promo », puis « Couleurs ECF » échoue.
+  const p = { enCours: [] };
+  e.deps.enregistrer = (nom) => new Promise((ok, ko) => { e.appels.push(nom); p.enCours.push({ ok: () => ok(nom), ko: () => ko(new Error("réseau")) }); });
+  t.after(() => p.enCours.forEach((x) => x.ok()));   // rien ne reste pendu si une assertion casse
+  const liberer = async (i, reussi) => {
+    for (let n = 0; n < 50 && !p.enCours[i]; n++) await tick();
+    assert.ok(p.enCours[i], `l'envoi ${i} n'est jamais parti`);
+    (reussi ? p.enCours[i].ok : p.enCours[i].ko)();
+    await tick();
+  };
+  await sansAvertissement(async () => {
+    const d = habillageAuDemarrage({ email: "A@x.fr", compte: null }, e.deps);
+    await tick();
+    const y = choisirHabillage("ecsr", e.deps);
+    await tick();
+    const x = choisirHabillage("ecf", e.deps);
+    await tick();
+    await liberer(0, true);
+    await liberer(1, true);
+    await liberer(2, false);
+    await Promise.all([d, y, x]);
+  });
+  assert.equal(habillageCourant(e.deps), "ecf");
+  assert.deepEqual(e.appels, ["ecf", "ecsr", "ecf"]);
+  assert.deepEqual(appareilDe(e), { nom: "ecf", email: "A@x.fr", aEnvoyer: true, choisi: true });
+});
+
+test("les envois partent un par un : un toucher n'envoie qu'une fois l'envoi précédent revenu", async () => {
+  const e = env();
+  const p = envoisPilotes(e);
+  const a = choisirHabillage("ecf", e.deps);
+  await tick();
+  const b = choisirHabillage("ecsr", e.deps);
+  await tick();
+  assert.equal(p.enCours.length, 1, "le second envoi attend le premier");
+  await p.toutLiberer();
+  await Promise.all([a, b]);
 });

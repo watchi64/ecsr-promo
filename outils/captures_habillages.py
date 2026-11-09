@@ -512,9 +512,11 @@ def verifier_difference():
     from PIL import Image
     a = Image.new("RGBA", (20, 20), (10, 20, 30, 255))
     b = a.copy()
-    assert difference(a, b) is None, "deux images identiques déclarées différentes"
+    if difference(a, b) is not None:
+        raise RuntimeError("deux images identiques déclarées différentes")
     b.putpixel((7, 3), (11, 20, 30, 255))
-    assert difference(a, b) == (7, 3, 8, 4), "un pixel de couleur différente n'est pas vu : %s" % (difference(a, b),)
+    if difference(a, b) != (7, 3, 8, 4):
+        raise RuntimeError("un pixel de couleur différente n'est pas vu : %s" % (difference(a, b),))
 
 
 def comparer(sortie, avant):

@@ -50,10 +50,6 @@ body[data-nav="v2"][data-nav-colonne] .nav-groupe-titre {
   border: 0;
 }
 
-/* Un module fermé pour la promo : dans la coquille, le repère (œil barré, infobulle) suffit, le
-   texte garde son contraste (l'atténuation de style.css le ferait passer sous 4,5:1). */
-body[data-nav="v2"] [data-nav-coquille] .module-masque { opacity: 1; }
-
 /* ----- Stagiaire, en-tête : logo et promo, onglets en capsule, Assistant et compte ----- */
 body[data-nav="v2"] .nav-haut {
   position: sticky;
@@ -234,14 +230,14 @@ body[data-nav="v2"] .nav-compte-point {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--pastille);   /* = --accent par défaut ; le rouge des repères en Couleurs ECF, comme le point de « Plus » */
   box-shadow: 0 0 0 2px var(--bg-elev);
 }
 /* Sur la barre sombre de l'équipe (barre latérale, en-tête du téléphone), le point prend le vert clair des repères
    posés sur fond sombre : son vert d'origine (--accent) n'y tient pas 3:1 contre son liseré (2,9:1), celui-ci 8,2:1. */
 body[data-nav="v2"] .nav-cote .nav-compte-point {
   background: var(--repere-sombre);
-  box-shadow: 0 0 0 2px var(--bg-deep);
+  box-shadow: 0 0 0 2px var(--repere-sombre-lisere);
 }
 
 body[data-nav="v2"] [data-nav-coquille] :focus-visible {
@@ -812,7 +808,8 @@ body[data-nav="v2"] .nav-fenetre-qui {
 body[data-nav="v2"] .nav-fenetre-qui b { font-size: 1rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
 body[data-nav="v2"] .nav-fenetre-qui small { color: var(--text-muted); font-size: 0.82rem; line-height: 1.35; }
 body[data-nav="v2"] .nav-fenetre-section,
-body[data-nav="v2"] .nav-fenetre .nav-groupe-titre {
+body[data-nav="v2"] .nav-fenetre .nav-groupe-titre,
+body[data-nav="v2"] .nav-fenetre .habillage-titre {
   margin: 0;
   padding: 12px 8px 8px;
   font-family: var(--font-mono);
@@ -887,6 +884,7 @@ body[data-nav="v2"] .nav-fenetre-lien > .nav-a-traiter { flex: none; }
 body[data-nav="v2"] .nav-cote .nav-pastille {
   background: var(--repere-sombre);
   color: var(--sur-repere-sombre);
+  box-shadow: 0 0 0 2px var(--repere-pastille-lisere);   /* aucun par défaut ; blanc en « Couleurs ECF », sur l'entrée allumée */
 }
 /* Colonne d'icônes : le libellé est masqué, la pastille se pose au coin haut droit de l'icône, hors du flux ; l'œil des
    modules fermés, qui occupait ce coin, passe en bas. */
@@ -1031,6 +1029,61 @@ body[data-nav="v2"] .qcm-close { width: 44px; height: 44px; }
 .impersonation-banner.imp-long { border-radius: 16px; width: max-content; max-width: min(36rem, calc(100vw - 24px)); }
 .impersonation-banner.imp-long .imp-text { white-space: normal; }
 .impersonation-banner.imp-long .imp-back { flex: none; min-height: 44px; }
+/* ----- Apparence : le choix de l'habillage (lot 3, js/habillage-choix.js) ----- */
+/* Hors de body[data-nav="v2"], à la différence du reste de cette feuille : la section Apparence s'affiche aussi dans les
+   Paramètres de l'ancienne barre, pour qui est en Couleurs ECF (décision H6). Ses classes ne servent nulle part ailleurs :
+   rien d'autre ne bouge. Deux pastilles côte à côte, 52 px de haut à toute taille (44 au moins sur téléphone) ; la pressée
+   est bordée de l'accent, avec un anneau. La pastille de couleur montre son habillage (jetons --apercu-*, famille fixe). */
+.habillage-pastilles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.habillage-pastille {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-elev);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+}
+.habillage-pastille:hover { background: var(--bg-subtle); }
+.habillage-pastille[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.habillage-apercu {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--apercu-contour);
+}
+.habillage-pastille[data-habillage="ecsr"] .habillage-apercu {
+  background: conic-gradient(var(--apercu-ecsr-1) 0 50%, var(--apercu-ecsr-2) 50% 75%, var(--apercu-ecsr-3) 75% 100%);
+}
+.habillage-pastille[data-habillage="ecf"] .habillage-apercu {
+  background: conic-gradient(var(--apercu-ecf-1) 0 50%, var(--apercu-ecf-2) 50% 75%, var(--apercu-ecf-3) 75% 100%);
+}
+/* Deux lignes dans la pastille : le nom, puis d'où vient l'habillage, plus petit et en texte atténué (4,5:1 au moins sur le
+   fond de la pastille, pressée ou survolée, dans les deux habillages). Le retour à la ligne se fait entre deux mots. */
+.habillage-textes { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.habillage-libelle { min-width: 0; overflow-wrap: break-word; }
+.habillage-legende { min-width: 0; font-size: 0.74rem; font-weight: 500; line-height: 1.2; color: var(--text-muted); overflow-wrap: break-word; }
+/* Dans le menu du compte, juste sous sa tête : le titre a l'allure des titres de section de la fenêtre (plus haut), les
+   pastilles en retrait comme dans la maquette ; le groupe ne rétrécit pas quand le menu défile. */
+body[data-nav="v2"] .nav-fenetre .habillage-choix { flex: none; }
+body[data-nav="v2"] .nav-fenetre .habillage-pastilles { padding: 0 6px 6px; }
 
 /* ----- Impression : ni la coquille, ni ce qu'elle impose à la page ----- */
 /* La marge de la barre latérale battrait le « margin: 0 » de l'impression des Indicateurs (style.css,

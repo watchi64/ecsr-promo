@@ -6,7 +6,7 @@
 
 import {
   CLE_APPAREIL, habillageValide, lireAppareil, ecrireAppareil, habillageRetenu,
-} from "./habillage-regles.js?v=20261109a";
+} from "./habillage-regles.js?v=20261109d";
 
 // Les dépendances par défaut sont lues au moment de l'appel (rien à l'import) : les tests en node
 // n'ont ni document ni localStorage, et db.js / auth-admin.js ne se chargent que si on en a besoin.
@@ -18,11 +18,11 @@ function documentDe(deps) {
 }
 async function enregistrerDe(deps) {
   if (deps.enregistrer) return deps.enregistrer;
-  return (await import("./db.js?v=20261109a")).setMonHabillage;
+  return (await import("./db.js?v=20261109d")).setMonHabillage;
 }
 async function emailDe(deps) {
   if ("email" in deps) return deps.email;
-  return (await import("./auth-admin.js?v=20261109a")).getAdminEmail();
+  return (await import("./auth-admin.js?v=20261109d")).getAdminEmail();
 }
 
 function lireStockage(deps) {
@@ -32,6 +32,27 @@ function lireStockage(deps) {
 function ecrireStockage(deps, appareil) {
   try { stockageDe(deps).setItem(CLE_APPAREIL, ecrireAppareil(appareil)); } catch { /* sans mémoire d'appareil */ }
 }
+// L'appareil dit-il encore exactement `ecrit` ? Comparé tel qu'il se relit (lireAppareil normalise l'e-mail vide et
+// « à envoyer ») : un autre écrit entre-temps (un choix plus récent) le laisse tel quel.
+function appareilDitEncore(deps, ecrit) {
+  const maintenant = lireStockage(deps);
+  const relu = lireAppareil(ecrireAppareil(ecrit));
+  return !!maintenant && !!relu && ecrireAppareil(maintenant) === ecrireAppareil(relu);
+}
+
+// Les envois au compte (démarrage et choix) partent un par un, dans l'ordre où ils sont demandés : deux pastilles touchées
+// dans le temps d'un aller-retour arrivent au compte dans l'ordre des touchers, jamais l'ancien après le récent. Chaque envoi
+// porte un numéro ; seul le plus récent, une fois arrivé, retire « à envoyer » de l'appareil : un envoi plus ancien qui
+// réussit ne dit rien du choix qui le suit, encore en route ou en échec (il doit alors repartir au prochain démarrage).
+let file = Promise.resolve();
+let dernierEnvoi = 0;
+function envoyer(nom, deps) {
+  const numero = ++dernierEnvoi;
+  const envoi = file.then(async () => (await enregistrerDe(deps))(nom));
+  file = envoi.catch(() => { /* un échec n'arrête pas les envois suivants */ });
+  return { numero, envoi };
+}
+const estLePlusRecent = (numero) => numero === dernierEnvoi;
 
 export function appliquerHabillage(nom, deps = {}) {
   const doc = documentDe(deps);
@@ -54,12 +75,16 @@ export function habillageCourant(deps = {}) {
 export async function choisirHabillage(nom, deps = {}) {
   if (!habillageValide(nom)) return null;
   appliquerHabillage(nom, deps);
+  // Mis en file tout de suite, avant toute attente : l'ordre des envois est celui des touchers.
+  const { numero, envoi } = envoyer(nom, deps);
   const email = await emailDe(deps);
-  // D'abord sur l'appareil, « à envoyer » : si le réseau tombe, le choix survit et part au prochain démarrage.
-  ecrireStockage(deps, { nom, email, aEnvoyer: true, choisi: true });
+  // D'abord sur l'appareil, « à envoyer » : si le réseau tombe, le choix survit et part au prochain démarrage. Un toucher
+  // plus récent a pu l'écrire pendant l'attente de l'e-mail : c'est lui qui compte, il n'est pas réécrit.
+  const ecrit = { nom, email, aEnvoyer: true, choisi: true };
+  if (estLePlusRecent(numero)) ecrireStockage(deps, ecrit);
   try {
-    await (await enregistrerDe(deps))(nom);
-    ecrireStockage(deps, { nom, email, aEnvoyer: false, choisi: true });
+    await envoi;
+    if (estLePlusRecent(numero) && appareilDitEncore(deps, ecrit)) ecrireStockage(deps, { ...ecrit, aEnvoyer: false });
     return { nom, enregistre: true };
   } catch (e) {
     console.warn("Habillage : enregistrement sur le compte impossible, il sera retenté au prochain démarrage", e);
@@ -73,21 +98,30 @@ export async function habillageAuDemarrage({ email, compte, centre, reseau, libr
   const appareil = lireStockage(deps);
   const retenu = habillageRetenu({ appareil, compte, email, centre, reseau, libre });
   appliquerHabillage(retenu.nom, deps);
-  let envoiEchoue = false;
-  if (retenu.envoi !== null) {
-    try { await (await enregistrerDe(deps))(retenu.envoi); }
-    catch (e) {
-      envoiEchoue = true;
-      console.warn("Habillage : enregistrement sur le compte impossible, il sera retenté au prochain démarrage", e);
-    }
-  }
   // L'appareil garde toujours le dernier habillage appliqué (l'avant-peinture l'affiche sans éclair),
   // mais n'en fait un choix personnel que si la personne l'a fait (appareil) ou le compte le dit.
-  ecrireStockage(deps, {
+  // Écrit avant l'envoi, « à envoyer » tant qu'il n'est pas parti : un choix fait pendant un envoi lent
+  // (menu du compte) écrit l'appareil après lui, et ce démarrage ne le réécrit jamais avec son nom d'avant.
+  const ecrit = {
     nom: retenu.nom,
     email: email ?? null,
     choisi: retenu.source === "appareil" || retenu.source === "compte",
-    aEnvoyer: retenu.source === "appareil" && envoiEchoue,
-  });
+    aEnvoyer: retenu.source === "appareil" && retenu.envoi !== null,
+  };
+  ecrireStockage(deps, ecrit);
+  if (retenu.envoi !== null) {
+    const { numero, envoi } = envoyer(retenu.envoi, deps);
+    try {
+      await envoi;
+      // Arrivé : plus rien à envoyer, à condition qu'aucun envoi ne l'ait suivi et que l'appareil dise encore ce que
+      // ce démarrage y a écrit. Sinon un choix a été fait entre-temps, avec son propre envoi : il reste tel quel.
+      if (ecrit.aEnvoyer && estLePlusRecent(numero) && appareilDitEncore(deps, ecrit)) {
+        ecrireStockage(deps, { ...ecrit, aEnvoyer: false });
+      }
+    } catch (e) {
+      // L'appareil dit déjà « à envoyer » : le choix repartira au prochain démarrage.
+      console.warn("Habillage : enregistrement sur le compte impossible, il sera retenté au prochain démarrage", e);
+    }
+  }
   return retenu.nom;
 }

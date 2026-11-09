@@ -4,8 +4,8 @@
 // journal des erreurs, réduction de la capture, phrase d'un refus du serveur, adresse sûre pour un lien.
 // Module pur, sans DOM ni stockage : testé en node.
 
-import { libellePastille } from "./nouveautes.js?v=20261109a";
-import { LIBELLES_APERCU } from "./roles-rules.js?v=20261109a";
+import { libellePastille } from "./nouveautes.js?v=20261109d";
+import { LIBELLES_APERCU } from "./roles-rules.js?v=20261109d";
 
 // L'espace de la coquille, en mots simples (lot 5 : direction et siège en plus). Inconnu ou absent : le stagiaire, comme avant.
 const ESPACE_EN_MOTS = { stagiaire: "stagiaire", equipe: "équipe", direction: "direction", siege: "siège" };
