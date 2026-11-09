@@ -27,7 +27,7 @@ sans rien perdre ; après, retoucher une question crée une version 2 du questio
 | 4. Fondateur sans affectation | non proposé, inchangé | Timy se donne une affectation de formateur s'il veut répondre, sans code |
 | 5. Affectation sans fin | acceptée, inchangée | le ménage des affectations relève du lot 5 |
 | 6. Fenêtre sur deux années | acceptée, inchangée | chaque année a son questionnaire |
-| 7. Sigle ECF | **en attente de Timy** | la forme développée ne se devine pas |
+| 7. Sigle ECF | sigle seul, inchangé (Timy, 09/11) | les stagiaires connaissent l'organisme sous ce nom |
 | 8. Ligne au tableau « Qui voit quoi » | ajoutée (retouche R, section 7) | le tableau doit dire seul qui lit quoi |
 | 9. Anonymat | par défaut : limite écrite et engagement de l'éditeur, réponses trois ans | arbitré avec le plan Q5 (question 1) : l'option (b) efface tôt, sans retour |
 | 10. Formateurs sur l'ancienne barre | lien direct envoyé aux formateurs à l'ouverture (message en section 6), app inchangée | aucun code à trois semaines de l'ouverture |
