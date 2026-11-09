@@ -9,13 +9,13 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261109e";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261109e";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109e";
-import { getCurrentWho } from "../identity.js?v=20261109e";
-import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261109e";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261109f";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261109f";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109f";
+import { getCurrentWho } from "../identity.js?v=20261109f";
+import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261109f";
 import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261109e";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261109f";
 
 // Noms historiques conservés : main.js et le banc d'essai _preview_livret.html
 // les importent depuis ce module. La mécanique vit désormais dans doc-officiel.js,
@@ -316,7 +316,7 @@ export async function renderEpcfLivret(container, opts = {}) {
       fiche = await getStagiaire(myId).catch((e) => { console.error(e); return null; });
       if (opts.isActive && !opts.isActive()) return;
     }
-    showDoc(container, fiche, mine, { readOnly: true });
+    showDoc(container, fiche, mine, { readOnly: true, embedded: opts.embedded });
     return;
   }
 
@@ -337,7 +337,7 @@ export async function renderEpcfLivret(container, opts = {}) {
     clear(container);
     if (!trouve) { container.appendChild(el("p", { class: "muted" }, "Stagiaire introuvable.")); return; }
     // La date de naissance n'est plus dans la liste des stagiaires (table privée).
-    showDoc(container, { ...trouve, date_naissance: naissance }, full, { readOnly: !isAdmin() });
+    showDoc(container, { ...trouve, date_naissance: naissance }, full, { readOnly: !isAdmin(), embedded: opts.embedded });
     return;
   }
 
@@ -400,7 +400,7 @@ async function renderReload(container) {
 
 // Ouvre le document d'un stagiaire. stagiaire=null en mode stagiaire connecté
 // (row déjà chargée). readOnly force la consultation pure.
-function showDoc(container, stagiaire, row, { readOnly, back } = {}) {
+function showDoc(container, stagiaire, row, { readOnly, back, embedded } = {}) {
   clear(container);
   const data = row?.data || {};
   const stagiaireId = stagiaire ? stagiaire.id : row.stagiaire_id;
@@ -409,7 +409,9 @@ function showDoc(container, stagiaire, row, { readOnly, back } = {}) {
   const status = el("span", { class: "lv-status" }, readOnly ? "Lecture seule" : "");
   const toolbar = el("div", { class: "lv-toolbar" });
   if (back) toolbar.appendChild(el("button", { class: "btn small ghost", onClick: () => { teardownLivretPrint(); back(); } }, "← Retour"));
-  toolbar.appendChild(el("h3", {}, "Livret EPCF" + (stagiaire ? " : " + displayStagiaire(stagiaire) : "")));
+  // Dans Mon suivi ou la fiche du stagiaire, l'onglet (ou le titre de la partie) dit déjà « Livret EPCF », et la fiche dit
+  // de qui : pas de second titre identique juste dessous (relecture du lot 2B ; audit du 09/11, lot E).
+  if (!embedded) toolbar.appendChild(el("h3", {}, "Livret EPCF" + (stagiaire ? " : " + displayStagiaire(stagiaire) : "")));
   toolbar.appendChild(status);
   toolbar.appendChild(el("button", { class: "btn small primary", onClick: async () => {
     if (!readOnly) await saveNow();

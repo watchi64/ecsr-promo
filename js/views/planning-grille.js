@@ -5,9 +5,9 @@
  * reconstruire. Les cartes viennent de semaineEnGrille (js/journee-rules.js) : ce module ne calcule aucune règle, il
  * dessine. Les classes sont celles de la maquette (wgrid, wg-*, daystrip, vue-toggle).
  */
-import { el } from "../utils.js?v=20261109e";
-import { icon, deco } from "../icons.js?v=20261109e";
-import { etiquetteSemaine, alerteDeCarte } from "../journee-rules.js?v=20261109e";
+import { el } from "../utils.js?v=20261109f";
+import { icon, deco } from "../icons.js?v=20261109f";
+import { etiquetteSemaine, alerteDeCarte } from "../journee-rules.js?v=20261109f";
 
 // Mémoire de l'appareil : la forme choisie (js/journee-rules.js, vuePlanningInitiale).
 export const CLE_VUE_PLANNING = "planning.vue";
@@ -159,6 +159,6 @@ export function bascule({ vue, onChange }) {
     onClick: () => { if (vue !== cible) onChange(cible); },
   }, deco(icon[ico]()), ...contenu);
   return el("div", { class: "vue-toggle", role: "group", "aria-label": "Affichage du planning" },
-    bouton("grille", "grid", el("span", { class: "vue-long" }, "Grille"), el("span", { class: "vue-court" }, "Jour")),
+    bouton("grille", "columns", el("span", { class: "vue-long" }, "Grille"), el("span", { class: "vue-court" }, "Jour")),
     bouton("liste", "list", "Liste"));
 }

@@ -219,7 +219,8 @@ ok(/sommaire/.test(coursTel.resume) && /à la ligne/.test(coursTel.resume) && /t
 eq(coursTel.ou, { label: "Cours", route: "themes" }, "cours : Où le trouver, Cours (réécrit Cours et QCM sous la nouvelle barre)");
 // Qui les voit : la journée et les cours pour tous, nouvelle navigation ; Aujourd'hui pour l'équipe seulement ; éteinte, les cours seuls.
 // Les lots de corrections du même jour (premier lot ; second lot, audit du 09/11) ne font pas partie du lot 2B.
-const CORRECTIONS = ["2026-11-09-qcm-echap-et-pannes", "2026-11-09-accueil-plus-juste", "2026-11-09-emargement-planning-plus-justes"];
+const CORRECTIONS = ["2026-11-09-qcm-echap-et-pannes", "2026-11-09-accueil-plus-juste", "2026-11-09-emargement-planning-plus-justes",
+  "2026-11-09-finitions", "2026-11-09-finitions-planning"];   // finitions de l'audit (lot E)
 // Le lot 3 (les couleurs d'ECF) peut porter la même date : il ne fait pas partie du lot 2B non plus.
 const DU_LOT_3 = NOUVEAUTES.filter((e) => e.id.endsWith("-couleurs-ecf")).map((e) => e.id);
 const DU_LOT = (l) => ids(l).filter((id) => id.startsWith(JOUR + "-") && !CORRECTIONS.includes(id) && !DU_LOT_3.includes(id));

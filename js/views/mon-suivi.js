@@ -1,27 +1,28 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261109e";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261109e";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261109e";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109e";
-import { renderEpcfPersonne } from "./epcf.js?v=20261109e";
-import { renderSubTabs } from "../subtabs.js?v=20261109e";
-import { renderDp } from "./dp.js?v=20261109e";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261109e";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261109e";
-import { bandeauAvis } from "../avis.js?v=20261109e";
-import { statsPassages } from "../passages-stats.js?v=20261109e";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261109e";
-import { icon } from "../icons.js?v=20261109e";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261109e";
-import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261109e";
-import { exemplesRemplis } from "../dp-rules.js?v=20261109e";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261109e";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261109e";
-import { navigationV2Active } from "../nav-etat.js?v=20261109e";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109e";
-import { renderNotes } from "./notes.js?v=20261109e";
+         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261109f";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261109f";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261109f";
+import { libelleCreneau } from "../emargement-rules.js?v=20261109f";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109f";
+import { renderEpcfPersonne } from "./epcf.js?v=20261109f";
+import { renderSubTabs } from "../subtabs.js?v=20261109f";
+import { renderDp } from "./dp.js?v=20261109f";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261109f";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261109f";
+import { bandeauAvis } from "../avis.js?v=20261109f";
+import { statsPassages } from "../passages-stats.js?v=20261109f";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261109f";
+import { icon } from "../icons.js?v=20261109f";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261109f";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261109f";
+import { exemplesRemplis } from "../dp-rules.js?v=20261109f";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261109f";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261109f";
+import { navigationV2Active } from "../nav-etat.js?v=20261109f";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109f";
+import { renderNotes } from "./notes.js?v=20261109f";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -60,7 +61,7 @@ function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; 
 
 function horaireFor(metas, day_index, half) {
   const m = metas.find((x) => x.day_index === day_index && x.half_day === half);
-  if (m && m.start_time && m.end_time) return `${fmtTime(m.start_time)}–${fmtTime(m.end_time)}`;
+  if (m && m.start_time && m.end_time) return libelleCreneau({ debut: fmtTime(m.start_time), fin: fmtTime(m.end_time) });
   const def = HALF_DAYS.find((h) => h.key === half);
   return def ? def.label : null;
 }
@@ -758,7 +759,7 @@ function rendreResultats(panel, d, soi, isActive, opts = {}) {
 // un formateur ou un admin la saisit. Rangée dans la partie Livret, seule à s'en servir.
 function champNaissance(d, soi) {
   if (!(soi || isAdmin() || isProf())) return null;
-  const dob = el("input", { type: "date", value: d.stagiaireRow?.date_naissance || "" });
+  const dob = el("input", { type: "date", value: d.stagiaireRow?.date_naissance || "", "aria-label": "Date de naissance" });
   dob.addEventListener("change", async () => {
     try {
       await setDateNaissance(d.id, dob.value || null);

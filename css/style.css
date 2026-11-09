@@ -997,8 +997,9 @@ h3 {
 }
 
 /* Jour désactivé / férié : carte grisée + bandeau, aucune activité */
-.p-day-card.off { opacity: 0.72; }
-.p-day-card.off .p-day-head { background: var(--text-faint); }
+/* Finitions du 09/11 (audit, lot E) : plus de voile à 72 % ni de gris pâle sous du blanc (2,3:1) ; le texte secondaire
+   (--text-muted) porte le blanc à plus de 4,5:1, et le bandeau rayé dit déjà « fermé ». */
+.p-day-card.off .p-day-head { background: var(--text-muted); }
 .p-day-off-banner {
   flex: 1;
   display: flex;
@@ -1017,7 +1018,7 @@ h3 {
   letter-spacing: 0.12em;
   padding: 2px 10px;
   border-radius: 999px;
-  background: var(--text-faint);
+  background: var(--text-muted);
   color: white;
 }
 .p-day-off-label { font-size: 0.95rem; font-weight: 700; color: var(--text); }
@@ -2000,7 +2001,7 @@ h3 {
   background: var(--accent-soft);
   color: var(--accent-strong);
 }
-.contact-link-icon { font-size: 0.95rem; }
+.contact-link-icon { font-size: 0.95rem; display: inline-flex; }
 
 .contact-note {
   margin: 0;
@@ -6124,6 +6125,7 @@ body.qcm-open { overflow: hidden; }
 /* === Mémo des règles de placement (planning) === */
 .planning-rules { margin: 0.6rem 0 0.2rem; background: var(--bg-subtle); border: 1px solid var(--line); border-radius: var(--r); padding: 0.55rem 0.9rem; font-size: 0.9rem; }
 .planning-rules > summary { cursor: pointer; font-weight: 600; color: var(--text-muted); list-style: none; }
+.planning-rules > summary .icon { margin-right: 0.4rem; vertical-align: -0.15em; }   /* l'icône d'aide (lot E) */
 .planning-rules > summary::-webkit-details-marker { display: none; }
 .planning-rules[open] > summary { margin-bottom: 0.5rem; color: var(--text); }
 .planning-rules-body p { margin: 0.55rem 0 0.2rem; }
@@ -6378,6 +6380,7 @@ body.qcm-open { overflow: hidden; }
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
   white-space: nowrap;
 }
+.p-edit-pill-label { display: inline-flex; align-items: center; gap: 0.35rem; }   /* le crayon (lot E) */
 .p-edit-pill-btn {
   border: none;
   border-radius: 999px;
@@ -6564,7 +6567,7 @@ body.qcm-open { overflow: hidden; }
 .p-daynav-btn:hover { background: var(--bg-deep-soft, rgba(0, 0, 0, 0.05)); }
 .p-daynav-btn.current { background: var(--accent); color: #fff; }
 .p-daynav-btn.current span { color: inherit; opacity: 0.9; }
-.p-daynav-btn.off { color: var(--text-faint); }
+.p-daynav-btn.off { color: var(--text-muted); font-weight: 400; }   /* et non plus --text-faint : 2,3:1 (lot E) */
 .p-day-card { scroll-margin-top: calc(var(--haut-entete) + 52px); }   /* barre du haut + barre de jours */
 @media print { .p-daynav { display: none !important; } }
 
@@ -8560,8 +8563,10 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   gap: 0.3rem;
   min-width: 0;
 }
-.centre-carte-tete { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
-.centre-carte h4 { margin: 0; font-size: 0.85rem; font-weight: 600; color: var(--text-soft); }
+/* Un titre long garde sa largeur : la pastille passe dessous plutôt que de l'écraser en colonne (lot 3, relevé hors lot ;
+   audit du 09/11, lot E). */
+.centre-carte-tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 0.3rem 0.5rem; }
+.centre-carte h4 { flex: 1 1 9rem; min-width: 0; margin: 0; font-size: 0.85rem; font-weight: 600; color: var(--text-soft); }
 .centre-valeur { margin: 0.15rem 0 0; font-family: var(--font-mono); font-size: 1.45rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
 .centre-valeur.vide { font-family: var(--font); font-size: 1rem; font-weight: 500; color: var(--text-muted); }
 .centre-detail { margin: 0; font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; }

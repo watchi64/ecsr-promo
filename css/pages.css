@@ -456,6 +456,9 @@
   font-weight: 500;
   white-space: nowrap;
 }
+/* Un état ouvert (« Examen ouvert ») : le vert de « Ouverte » sur Aujourd'hui, et non la couleur de l'habillage (audit du
+   09/11, lot E). */
+.acc-ligne-puce-ok { background: var(--c-go-soft); color: var(--c-go); }
 /* Téléphone : le titre garde toute la largeur, repères et bouton passent dessous, alignés sur le texte. */
 @media (max-width: 699.98px) {
   /* Le compte de la carte (« 3 questions à relire ») passe sous le titre, aligné sur lui, plutôt que rejeté à droite sur une ligne à part. */
@@ -507,3 +510,41 @@ body[data-nav="v2"] .ccp2-etape > summary:focus-visible { outline: 2px solid var
 /* Sans dates (aucun événement CCP2, Calendrier fermé, lecture en échec), la section reste masquée : le titre des étapes suit
    l'en-tête sans la marge prévue pour le séparer des dates. */
 body[data-nav="v2"] .view-header + .ccp2-dates[hidden] + .ccp2-etapes-titre { margin-top: 0; }
+
+/* ============================================================
+   Finitions du 09/11 (audit par testeurs, lot E), nouvelle navigation.
+   - Champs bruts du navigateur : le filtre des signalements et le nom du formateur sur la feuille d'émargement prennent
+     l'allure des autres champs de l'app.
+   - Téléphone : cibles d'au moins 44 px (boutons, champs, sous-onglets, liens seuls sur leur ligne). L'éditeur du planning
+     (mode Modifier) attend le lot B, en conception avec Timy : il garde ses cibles d'aujourd'hui.
+   ============================================================ */
+body[data-nav="v2"] .signal-console-statut,
+body[data-nav="v2"] .em-signer-formateur input {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-family: inherit;
+  font-size: 0.88rem;
+  color: var(--text);
+  background: var(--bg-elev);
+}
+body[data-nav="v2"] .signal-console-statut:focus-visible,
+body[data-nav="v2"] .em-signer-formateur input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+@media (max-width: 699.98px) {
+  /* Le bandeau d'avis (temporaire, jusqu'au 30/11) garde ses boutons d'avant : agrandis, ils poussaient le sommaire de
+     Mon suivi sous la barre du bas. */
+  body[data-nav="v2"] #view .btn:not(.p-editing *, .avis-bandeau *),
+  body[data-nav="v2"] #view :is(.chart-tab, .theme-pill, .theme-cours-btn, .theme-qcm-hint, .theme-statut.clickable, .theme-date.editable),
+  body[data-nav="v2"] #view :is(input:not([type="checkbox"], [type="radio"]), select):not(.p-editing *) {
+    min-height: 44px;
+  }
+  body[data-nav="v2"] #view .btn.icon-only:not(.p-editing *),
+  body[data-nav="v2"] #view :is(.theme-statut.clickable, .theme-date.editable) { min-width: 44px; }
+  body[data-nav="v2"] #view :is(.em-demi, .home-link, .nv-ou, .fiche-retour, .em-retour, .ms-renvoi a) {
+    display: inline-flex; align-items: center; min-height: 44px;
+  }
+  body[data-nav="v2"] #view details > summary { padding-block: 0.75rem; }
+  /* Feuille d'émargement : les deux flèches restent autour de la date ; Matin / Après-midi passent dessous. */
+  body[data-nav="v2"] .em-nav-groupe :is(.em-demis, a.btn) { order: 1; }
+}

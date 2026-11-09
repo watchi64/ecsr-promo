@@ -111,8 +111,9 @@ body.sig-ouverte { overflow: hidden; }
 }
 .em-retour svg { width: 16px; height: 16px; }
 .em-statut { font-weight: 600; }
-.em-statut-ouverte { color: var(--c-wait); }
-.em-statut-close { color: var(--c-go); }
+/* Ouverte en vert, comme la pastille d'Aujourd'hui et « Examen ouvert » ; Close en texte neutre (audit du 09/11, lot E). */
+.em-statut-ouverte { color: var(--c-go); }
+.em-statut-close { color: var(--text-soft); }
 .em-statut-aucune { color: var(--text-muted); }
 .em-resume { margin: -0.8rem 0 1rem; color: var(--text-soft); }
 .em-resume-chiffre { font-weight: 700; color: var(--text); }

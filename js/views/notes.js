@@ -2,19 +2,19 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles, getNotesStatsGroupe, getPromoCourante,
-} from "../db.js?v=20261109e";
+} from "../db.js?v=20261109f";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261109e";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109e";
-import { icon } from "../icons.js?v=20261109e";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109e";
-import { recordUndo } from "../undo.js?v=20261109e";
-import { renderSubTabs } from "../subtabs.js?v=20261109e";
-import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109e";
-import { navigationV2Active } from "../nav-etat.js?v=20261109e";
-import { renderEpcf } from "./epcf.js?v=20261109e";
-import { noteGradient } from "../echelle-notes.js?v=20261109e";
+} from "../notes-stats.js?v=20261109f";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261109f";
+import { icon } from "../icons.js?v=20261109f";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261109f";
+import { recordUndo } from "../undo.js?v=20261109f";
+import { renderSubTabs } from "../subtabs.js?v=20261109f";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261109f";
+import { navigationV2Active } from "../nav-etat.js?v=20261109f";
+import { renderEpcf } from "./epcf.js?v=20261109f";
+import { noteGradient } from "../echelle-notes.js?v=20261109f";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -1077,7 +1077,7 @@ function rerender(container) {
   ));
 
   // Tri (toujours visible)
-  const sortSel = el("select", { class: "notes-sort" });
+  const sortSel = el("select", { class: "notes-sort", "aria-label": "Trier la matrice" });
   NOTES_SORT_OPTIONS.forEach((o) => {
     const opt = el("option", { value: o.key }, o.label);
     if (o.key === currentNotesSort) opt.selected = true;
@@ -1092,7 +1092,7 @@ function rerender(container) {
   let toolbar;
   if (admin) {
     // Barre date globale : toutes les notes saisies prendront cette date
-    const dateInput = el("input", { type: "date", value: currentEvalDate });
+    const dateInput = el("input", { type: "date", value: currentEvalDate, "aria-label": "Date des notes" });
     dateInput.addEventListener("change", () => {
       currentEvalDate = dateInput.value || isoDate(new Date());
     });
@@ -1249,12 +1249,12 @@ function renderSynthese() {
 
   wrap.appendChild(el("div", { class: "notes-rankings" },
     el("div", { class: "ranking-block" },
-      el("h4", { class: "ranking-title weak" }, "🔻 3 thèmes les plus faibles"),
+      el("h4", { class: "ranking-title weak" }, "3 thèmes les plus faibles"),
       el("p", { class: "muted ranking-sub" }, "À retravailler en priorité"),
       ...weak.map(themeCard),
     ),
     el("div", { class: "ranking-block" },
-      el("h4", { class: "ranking-title strong" }, "🔺 3 thèmes les plus solides"),
+      el("h4", { class: "ranking-title strong" }, "3 thèmes les plus solides"),
       el("p", { class: "muted ranking-sub" }, "Acquis confirmés"),
       ...strong.map(themeCard),
     ),

@@ -15,6 +15,16 @@ export function dateCourte(iso) {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
 }
 
+// « 2027-12-11 » → « 11 décembre 2027 » : une date dans une phrase s'écrit en toutes lettres, comme ailleurs dans l'app
+// (audit du 09/11, lot E). Le 1er du mois garde son ordinal.
+const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+export function dateLongue(iso) {
+  const m = String(iso ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return "";
+  const j = Number(m[3]);
+  return `${j === 1 ? "1er" : j} ${MOIS[Number(m[2]) - 1]} ${m[1]}`;
+}
+
 // Texte du bloc « Fin de promo » à partir de etat_anonymisation_promo().
 // Rend { texte, bouton } : bouton vrai seulement quand l'anonymisation est possible ET utile.
 export function etatFinDePromo(etat) {
@@ -29,7 +39,7 @@ export function etatFinDePromo(etat) {
   }
   if (!etat.anonymisable) {
     return {
-      texte: `Fin de promo le ${dateCourte(etat.date_fin)} : les fiches pourront être anonymisées à partir du ${dateCourte(etat.anonymisable_le)} (12 mois après).`,
+      texte: `Fin de promo le ${dateLongue(etat.date_fin)} : les fiches pourront être anonymisées à partir du ${dateLongue(etat.anonymisable_le)} (12 mois après).`,
       bouton: false,
     };
   }

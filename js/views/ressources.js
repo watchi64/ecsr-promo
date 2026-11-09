@@ -1,12 +1,12 @@
 import {
   listRessources, addRessource, updateRessource, deleteRessource,
   listContacts, addContact, updateContact, deleteContact, getPromoCourante,
-} from "../db.js?v=20261109e";
-import { el, clear, toast } from "../utils.js?v=20261109e";
-import { icon } from "../icons.js?v=20261109e";
-import { isAdmin } from "../auth-admin.js?v=20261109e";
-import { recordUndo } from "../undo.js?v=20261109e";
-import { navigationV2Active } from "../nav-etat.js?v=20261109e";
+} from "../db.js?v=20261109f";
+import { el, clear, toast } from "../utils.js?v=20261109f";
+import { icon, deco } from "../icons.js?v=20261109f";
+import { isAdmin } from "../auth-admin.js?v=20261109f";
+import { recordUndo } from "../undo.js?v=20261109f";
+import { navigationV2Active } from "../nav-etat.js?v=20261109f";
 
 let ressources = [];
 let contacts = [];
@@ -199,13 +199,13 @@ function renderContactCard(c, onChanged) {
   if (c.phone) {
     const tel = c.phone.replace(/\s+/g, "");
     links.appendChild(el("a", { class: "contact-link phone", href: "tel:" + tel },
-      el("span", { class: "contact-link-icon" }, "📞"),
+      el("span", { class: "contact-link-icon" }, deco(icon.phone())),
       el("span", {}, c.phone),
     ));
   }
   if (c.email) {
     links.appendChild(el("a", { class: "contact-link email", href: "mailto:" + c.email },
-      el("span", { class: "contact-link-icon" }, "✉️"),
+      el("span", { class: "contact-link-icon" }, deco(icon.mail())),
       el("span", {}, c.email),
     ));
   }
@@ -265,7 +265,7 @@ function rerender(container) {
   // === Section Contacts ===
   const contactsSection = el("section", { class: "contacts-section" });
   contactsSection.appendChild(el("div", { class: "contacts-section-head" },
-    el("h3", { class: "ressource-section-title" }, v2 ? "📞 Contacts du centre" : "📞 Contacts administration"),
+    el("h3", { class: "ressource-section-title" }, v2 ? "Contacts du centre" : "Contacts administration"),
     admin ? el("button", {
       class: "btn small accent",
       onClick: () => openContactModal(null, () => reload(container)),
@@ -295,7 +295,7 @@ function rerender(container) {
 
   // En-tête de la zone ressources (avec bouton "Ajouter" à droite, admin only)
   container.appendChild(el("div", { class: "contacts-section-head", style: "margin-top:1.5rem" },
-    el("h3", { class: "ressource-section-title", style: "margin:0" }, "📚 Ressources externes"),
+    el("h3", { class: "ressource-section-title", style: "margin:0" }, "Ressources externes"),
     admin ? el("button", {
       class: "btn small accent",
       onClick: () => openEditModal(null, () => reload(container)),
