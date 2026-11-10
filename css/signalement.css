@@ -237,7 +237,7 @@ body .modal-backdrop[data-nav-coquille="signaler"] > .nav-fenetre.signalement-fe
 .sg-carte-repondre { display: flex; flex-direction: column; gap: 8px; }
 .sg-carte-reponse { min-height: 72px; }
 .sg-carte-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.sg-carte-actions .btn { min-height: 40px; }
+.sg-carte-actions .btn { min-height: 44px; }
 @media (max-width: 699.98px) {
   .sg-carte { padding: 14px; }
   .sg-statut-btn, .sg-carte-actions .btn, .sg-carte-lien, .sg-carte-capture-zone .btn { min-height: 44px; }

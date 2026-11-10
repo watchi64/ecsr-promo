@@ -18,20 +18,20 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   setMyAnonymousNotes,
-} from "../db.js?v=20261109o";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261109o";
-import { icon } from "../icons.js?v=20261109o";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261109o";
-import { moduleVisible } from "../modules-etat.js?v=20261109o";
-import { renderModulesSection } from "./modules-reglage.js?v=20261109o";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261109o";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261109o";
-import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261109o";
-import { pointsARetenir } from "../accueil-rules.js?v=20261109o";
-import { dateCourte, etatFinDePromo } from "../effacement-rules.js?v=20261109o";
-import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261109o";
-import { blocHabillage } from "../habillage-choix.js?v=20261109o";
-import { habillageCourant } from "../habillage.js?v=20261109o";
+} from "../db.js?v=20261110a";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261110a";
+import { icon } from "../icons.js?v=20261110a";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261110a";
+import { moduleVisible } from "../modules-etat.js?v=20261110a";
+import { renderModulesSection } from "./modules-reglage.js?v=20261110a";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261110a";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261110a";
+import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261110a";
+import { pointsARetenir } from "../accueil-rules.js?v=20261110a";
+import { dateCourte, etatFinDePromo } from "../effacement-rules.js?v=20261110a";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261110a";
+import { blocHabillage } from "../habillage-choix.js?v=20261110a";
+import { habillageCourant } from "../habillage.js?v=20261110a";
 
 // ====== SECTION Accès & invitations ======
 

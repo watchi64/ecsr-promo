@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ElementFactice, NoeudFactice, descendants, installerDocument } from "./aides-dom.mjs";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "../js/nav-fenetre.js";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, demanderFermeture } from "../js/nav-fenetre.js";
 
 // Lot 2A, tâche 6 : les fenêtres de la coquille (menu du compte, tiroir « Plus ») sur un DOM factice. Ce que la
 // mécanique garantit sans navigateur : une adresse qui change ferme la fenêtre et rend le focus ; une fenêtre déjà sortie
@@ -150,4 +150,67 @@ test("point de retour absent, hors de la page ou en erreur : rien ne casse, le f
     assert.equal(fenetreOuverte(), null);
     assert.equal(document.activeElement, ailleurs);
   }
+}));
+
+// Registre qualité (Q4, tâche 4) : une fenêtre de saisie peut refuser une fermeture demandée par un geste (« Fermer » du
+// haut, voile, Échap, demanderFermeture) tant que sa saisie n'est pas enregistrée. L'adresse qui change et la fermeture par
+// le programme ne la consultent pas (limite écrite dans PROJECT_NOTES.md).
+const ouvrirAvecGarde = (ancre, garde) => ouvrirFenetre({
+  nom: "registre", ancre, etiquette: "Entrée du registre", classe: "registre-fenetre", contenu: [], avantFermeture: garde });
+const echap = (document) => document.declencher("keydown", { key: "Escape", preventDefault() {}, stopPropagation() {} });
+const calqueDe = (document) => document.body.childNodes.at(-1);
+const boutonFermerDuHaut = (calque) => calque.childNodes[0].childNodes[0].childNodes[0];
+
+test("avantFermeture : Échap, le voile et « Fermer » la consultent ; false garde la fenêtre, true la ferme", () => avecFenetres(({ document }) => {
+  const ancre = bouton(document, "registre");
+  let reponse = false;
+  let appels = 0;
+  ouvrirAvecGarde(ancre, () => { appels += 1; return reponse; });
+  echap(document);
+  assert.equal(fenetreOuverte(), "registre", "Échap : gardée");
+  const calque = calqueDe(document);
+  calque.declencher("click");
+  assert.equal(fenetreOuverte(), "registre", "voile : gardée");
+  const fermer = boutonFermerDuHaut(calque);
+  assert.equal(fermer.textContent, "Fermer");
+  fermer.click();
+  assert.equal(fenetreOuverte(), "registre", "« Fermer » du haut : gardée");
+  demanderFermeture();
+  assert.equal(fenetreOuverte(), "registre", "demanderFermeture : gardée");
+  assert.equal(appels, 4);
+  reponse = true;
+  echap(document);
+  assert.equal(fenetreOuverte(), null, "true : fermée");
+  assert.equal(document.activeElement, ancre, "le focus revient au bouton");
+}));
+
+test("avantFermeture : l'adresse qui change et fermerFenetre() ne la consultent pas ; une erreur ne bloque pas", () => avecFenetres(({ document, window }) => {
+  const ancre = bouton(document, "registre");
+  let appels = 0;
+  ouvrirAvecGarde(ancre, () => { appels += 1; return false; });
+  window.declencher("hashchange");
+  assert.equal(fenetreOuverte(), null, "adresse changée : fermée sans demander");
+  ouvrirAvecGarde(ancre, () => { appels += 1; return false; });
+  fermerFenetre();
+  assert.equal(fenetreOuverte(), null, "fermeture par le programme : sans demander");
+  assert.equal(appels, 0);
+  const erreur = console.error;
+  console.error = () => {};
+  try {
+    ouvrirAvecGarde(ancre, () => { throw new Error("x"); });
+    echap(document);
+  } finally {
+    console.error = erreur;
+  }
+  assert.equal(fenetreOuverte(), null, "une erreur de la garde ferme la fenêtre");
+}));
+
+test("sans avantFermeture, rien ne change : Échap et le voile ferment", () => avecFenetres(({ document }) => {
+  const ancre = bouton(document, "compte");
+  ouvrir(ancre);
+  calqueDe(document).declencher("click");
+  assert.equal(fenetreOuverte(), null);
+  ouvrir(ancre);
+  echap(document);
+  assert.equal(fenetreOuverte(), null);
 }));

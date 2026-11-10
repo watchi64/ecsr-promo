@@ -3,11 +3,11 @@
 // fondateur le règle (Paramètres). La base refuse aussi d'ouvrir une feuille quand il est éteint
 // (migration 20261023_emargement, fonction emargement_ouvrir).
 
-import { getSetting, setSetting, getPromoCourante, lireReglagePromo } from "./db.js?v=20261109o";
-import { el, toast } from "./utils.js?v=20261109o";
-import { icon } from "./icons.js?v=20261109o";
-import { fondateurHorsApercu } from "./auth-admin.js?v=20261109o";
-import { CLE_ACTIVATION, estActif } from "./emargement-rules.js?v=20261109o";
+import { getSetting, setSetting, getPromoCourante, lireReglagePromo } from "./db.js?v=20261110a";
+import { el, toast } from "./utils.js?v=20261110a";
+import { icon } from "./icons.js?v=20261110a";
+import { fondateurHorsApercu } from "./auth-admin.js?v=20261110a";
+import { CLE_ACTIVATION, estActif } from "./emargement-rules.js?v=20261110a";
 
 let actif = false;
 

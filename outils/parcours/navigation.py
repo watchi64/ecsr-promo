@@ -100,6 +100,9 @@ def chemin(destination, navigation, espace, telephone):
             return [("button.nav-cote-signaler", "« Signaler un problème »")]
         raise KeyError("destination inconnue pour la %s (nouvelle navigation) : %s" % (espace, destination))
 
+    if destination == "Qualiopi":
+        # Le fondateur y entre par le lien « Qualiopi » du tableau de bord du centre (Indicateurs).
+        return chemin("Indicateurs", navigation, espace, telephone) + [("a.centre-lien-qualiopi", "« Qualiopi »")]
     if navigation == "ancienne":
         onglets = {"Accueil": ("home", "l'onglet Accueil"), "Cours et QCM": ("themes", "l'onglet Cours"),
                    "La classe": ("notes", "l'onglet Notes"), "CCP2": ("ccp2", "l'onglet CCP2"),

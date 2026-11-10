@@ -308,3 +308,118 @@ def evaluer_depuis_l_epcf_vide(v):
         v.constat("A", BLOQUE, "« Évaluer un stagiaire » ouvre les élèves bénévoles au lieu de la liste des stagiaires", capture=True)
     v.but("liste des stagiaires ouverte")
     v.terminer()
+
+
+# --- Registre qualité (Qualiopi Q4) : le fondateur seul --------------------------------------------------------
+# Le faux Supabase simule la table `registre_qualite` (`_harness_supabase.js`, `?registre=1` : six entrées dont une
+# issue du signalement 101 et deux closes depuis plus de 3 ans). Le tableau de bord du centre (`centre=1&demo=1`)
+# porte le lien « Qualiopi ». L'export est un téléchargement, que le robot ne gère pas : il vérifie seulement que
+# « Exporter (CSV) » est présent et actif (le contenu du fichier est prouvé par les tests de `registreCsv`).
+FENETRE_REGISTRE = ".registre-fenetre"
+CARTES_REGISTRE = "#view .rg-cartes .rg-carte"
+BANC_REGISTRE = {"registre": "1", "centre": "1"}
+SEMIS_NAV2 = ("FIXTURES.settings.push({ key: 'navigation_v2', value: String(PARAMS_BANC.get('nav2') === '1'), promo_id: 7 });",)
+
+
+@parcours("registre-qualite", "Tenir le registre qualité : filtrer les entrées closes, ajouter une amélioration (fondateur)",
+          role="fondateur", budget={"ordinateur": 4, "telephone": 4}, banc=BANC_REGISTRE, semis=SEMIS_NAV2)
+def registre_qualite(v):
+    """Indicateurs, « Qualiopi », sous-onglet « Registre qualité » : les entrées en cartes ; le filtre « Clos » ne garde que
+    les closes ; « Exporter (CSV) » est actif ; « Ajouter » ouvre la fenêtre de saisie (rappel violences compris), une
+    amélioration enregistrée apparaît dans la liste."""
+    v.aller("Qualiopi")
+    v.etape("ouvrir le sous-onglet « Registre qualité »")
+    v.toucher(texte("Registre qualité", SOUS_ONGLET), "« Registre qualité »")
+    v.attendre(CARTES_REGISTRE, "les cartes du registre")
+    v.but("registre affiché")
+    total = v.page.locator(CARTES_REGISTRE).count()
+    if total < 5:
+        v.echec("le registre du banc devrait montrer au moins 5 entrées, il en montre %d" % total)
+    if "à effacer" not in v.texte(".qualiopi-rappel-registre"):
+        v.constat("F", LISTE, "le rappel en tête de la page Qualiopi ne signale pas les entrées closes depuis plus de 3 ans", capture=True)
+    exporter = v.attendre('#view button[data-rg="exporter"]', "« Exporter (CSV) »")
+    if exporter.is_disabled():
+        v.constat("E", BLOQUE, "« Exporter (CSV) » est inactif alors que le registre a des entrées", capture=True)
+    v.etape("filtrer sur « Clos »")
+    v.toucher('#view button.rg-filtre[data-etat="clos"]', "le filtre « Clos »", compte=False)
+    etats = v.page.locator("#view .rg-cartes .rg-carte-etat").all_inner_texts()
+    if not etats or any(e.strip().lower() != "clos" for e in etats):
+        v.constat("E", BLOQUE, "le filtre « Clos » montre d'autres états : %s" % sorted(set(e.strip().lower() for e in etats)), capture=True)
+    v.toucher('#view button.rg-filtre[data-etat="tous"]', "le filtre « Tous »", compte=False)
+    v.etape("ajouter une amélioration")
+    v.toucher('#view button[data-rg="ajouter"]', "« Ajouter »", compte=False)
+    v.attendre(FENETRE_REGISTRE + " .rg-rappel", "la fenêtre de saisie et son rappel")
+    if "référent" not in v.texte(FENETRE_REGISTRE + " .rg-rappel"):
+        v.constat("F", BLOQUE, "le rappel de la fenêtre ne renvoie pas au référent du centre pour les violences", capture=True)
+    v.toucher(FENETRE_REGISTRE + ' .rg-type-choix[data-type="amelioration"]', "le type « Amélioration »", compte=False)
+    v.page.locator(FENETRE_REGISTRE + " #rg-origine").select_option("equipe")
+    v.remplir(FENETRE_REGISTRE + " #rg-description", "Essai du robot : afficher le planning de la semaine à l'entrée de la salle.", "la description")
+    v.controler_ecran("fenêtre du registre")
+    v.ecouter_messages()
+    v.toucher(FENETRE_REGISTRE + " button.rg-enregistrer", "« Enregistrer »", compte=False, ecriture=True)
+    v.exiger_confirmation("l'ajout au registre", "ajoutée au registre")
+    if v.voit(FENETRE_REGISTRE):
+        v.constat("E", BLOQUE, "la fenêtre du registre reste ouverte après l'enregistrement", capture=True)
+    v.attendre(CARTES_REGISTRE + ':has-text("Essai du robot")', "la nouvelle entrée dans la liste")
+    apres = v.page.locator(CARTES_REGISTRE).count()
+    if apres != total + 1:
+        v.constat("E", BLOQUE, "après l'ajout, la liste compte %d entrées au lieu de %d" % (apres, total + 1))
+    v.terminer()
+
+
+@parcours("ajouter-au-registre", "Verser un problème signalé au registre qualité (fondateur)", role="fondateur",
+          budget={"ordinateur": 3, "telephone": 3}, banc={"signalements": "1", "registre": "1"})
+def ajouter_au_registre(v):
+    """« Signaler un problème », « Ouvrir » : sur un signalement pas encore au registre, « Ajouter au registre » ouvre la
+    fenêtre préremplie ; « Enregistrer » la referme, un message confirme et le bouton devient « Au registre » (inactif)."""
+    v.aller("Signaler un problème")
+    v.etape("ouvrir les problèmes signalés")
+    v.toucher("a.sg-fondateur-lien", "« Ouvrir » (problèmes signalés)")
+    bouton = '#view button[data-sg="registre"]:not([aria-disabled="true"])'
+    v.attendre(bouton, "« Ajouter au registre » sur un signalement")
+    v.but("signalements affichés, avec « Ajouter au registre »")
+    v.etape("ajouter au registre")
+    v.toucher(bouton, "« Ajouter au registre »", compte=False)
+    v.attendre(FENETRE_REGISTRE + " #rg-description", "la fenêtre du registre préremplie")
+    if len(v.page.locator(FENETRE_REGISTRE + " #rg-description").first.input_value().strip()) < 3:
+        v.constat("F", BLOQUE, "la description n'est pas préremplie depuis le signalement", capture=True)
+    v.controler_ecran("fenêtre du registre (depuis un signalement)")
+    v.ecouter_messages()
+    v.toucher(FENETRE_REGISTRE + " button.rg-enregistrer", "« Enregistrer »", compte=False, ecriture=True)
+    v.exiger_confirmation("l'ajout au registre", "ajoutée au registre")
+    v.attendre('#view button[data-sg="registre"][aria-disabled="true"]:has-text("Au registre")', "le bouton « Au registre »")
+    v.terminer()
+
+
+@parcours("qualiopi-absent-pour-le-formateur", "Qualiopi n'existe pas pour un formateur", role="formateur", budget={"ordinateur": 2, "telephone": 2},
+          banc={"centre": "1", "registre": "1", "signalements": "1"}, semis=SEMIS_NAV2)
+def qualiopi_absent_formateur(v):
+    """Indicateurs : le bouton « Qualiopi » n'y est pas ; l'adresse #/qualiopi tapée à la main ramène à l'accueil, sans
+    registre."""
+    v.aller("Indicateurs")
+    v.attendre("#view .centre-carte", "les cartes des indicateurs")
+    v.but("indicateurs affichés")
+    if v.voit("a.centre-lien-qualiopi") or v.voit(texte("Qualiopi", "#view a, #view button")):
+        v.constat("F", BLOQUE, "un formateur voit le bouton « Qualiopi »", capture=True)
+    v.etape("taper l'adresse #/qualiopi")
+    v.page.evaluate("() => { location.hash = '#/qualiopi'; }")
+    v.page.wait_for_timeout(800)
+    if v.page.evaluate("location.hash") == "#/qualiopi" or v.voit("#view .rg-registre") or v.voit("#view .qualiopi-titre"):
+        v.constat("D", BLOQUE, "un formateur atteint la page Qualiopi par son adresse", capture=True)
+    v.terminer()
+
+
+@parcours("qualiopi-absent-pour-le-stagiaire", "Qualiopi n'existe pas pour un stagiaire", role="stagiaire", budget=1,
+          banc={"registre": "1", "signalements": "1"}, depart="#/mon-suivi")
+def qualiopi_absent_stagiaire(v):
+    """L'adresse #/qualiopi tapée à la main ramène le stagiaire à l'accueil : ni page Qualiopi, ni registre."""
+    v.attendre("#view", "la page d'ouverture")
+    v.but("page ouverte")
+    v.etape("taper l'adresse #/qualiopi")
+    v.page.evaluate("() => { location.hash = '#/qualiopi'; }")
+    v.page.wait_for_timeout(800)
+    if v.page.evaluate("location.hash") == "#/qualiopi" or v.voit("#view .rg-registre") or v.voit("#view .qualiopi-titre"):
+        v.constat("D", BLOQUE, "un stagiaire atteint la page Qualiopi par son adresse", capture=True)
+    if v.voit('button[data-sg="registre"]'):
+        v.constat("F", BLOQUE, "un stagiaire voit « Ajouter au registre »", capture=True)
+    v.terminer()

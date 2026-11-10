@@ -20,12 +20,13 @@
 // Les tableaux par stagiaire comptent les mêmes stagiaires que lui : ceux en formation, et le document le dit ; seule la
 // liste nominative de l'effectif montre aussi les abandons.
 
-import { SOURCE } from "./qualiopi-referentiel.js?v=20261109o";
-import { jourDe, rempli, tableau, nb, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261109o";
-import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261109o";
-import { estNotee, score20 } from "./notes-stats.js?v=20261109o";
-import { cellule, nombre, slug } from "./centre-csv.js?v=20261109o";
-import { compareByNom } from "./utils.js?v=20261109o";
+import { SOURCE } from "./qualiopi-referentiel.js?v=20261110a";
+import { jourDe, rempli, tableau, nb, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261110a";
+import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261110a";
+import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261110a";
+import { estNotee, score20 } from "./notes-stats.js?v=20261110a";
+import { cellule, nombre, slug } from "./centre-csv.js?v=20261110a";
+import { compareByNom } from "./utils.js?v=20261110a";
 
 export const PHRASE_DE_GARDE = "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
 
@@ -370,8 +371,41 @@ function phrasesSignalements(signalements) {
   ];
 }
 
-function sectionSignalements({ inv, donnees }) {
-  return { paragraphes: [...phrases(inv, "suivi"), ...phrasesSignalements(donnees.signalements)], tableaux: [] };
+// Le registre qualité (indicateurs 31 et 32), commun aux deux dossiers : décompte par type et par état, délai médian, puis (sauf en
+// « nombres seulement ») une ligne par entrée. Jamais un texte saisi (description, réponse, action décidée, mesure de prévention) :
+// des dates, le type, l'origine, l'état et le délai. Une entrée effacée compte et figure comme les autres, sans texte (il n'y en a plus).
+// registre : { etat: "lue", entrees } | { etat: "absente" } | { etat: "non_lue" } ; entrees : celles de la formation ou du centre.
+function sectionRegistre(registre, entrees, { periode, lignes = true }) {
+  if (registre?.etat === "absente") return { paragraphes: ["Registre qualité : pas encore en service."], tableaux: [] };
+  if (registre?.etat !== "lue") return { paragraphes: ["Registre qualité : non lu (erreur de lecture)."], tableaux: [] };
+  if (!entrees.length) return { paragraphes: [`Aucune entrée au registre qualité pendant ${periode}.`], tableaux: [] };
+  const { total, parType, parEtat } = decompteRegistre(entrees);
+  const liste = (noms, comptes) => Object.entries(noms).filter(([cle]) => comptes[cle] > 0).map(([cle, libelle]) => `${libelle.toLowerCase()} ${comptes[cle]}`).join(", ");
+  const mediane = delaiMedianJours(entrees);
+  const delai = mediane == null ? "aucune réponse datée" : `${nombre(mediane)} ${mediane >= 2 ? "jours" : "jour"}`;
+  const ligne = (e) => {
+    const reponse = e.date_reponse ? joursEntre(jourDe(e.date_constat), jourDe(e.date_reponse)) : null;
+    return [dateFr(jourDe(e.date_constat)) ?? "date non renseignée", TYPES[e.type] ?? "type non renseigné", ORIGINES[e.origine] ?? "origine non renseignée",
+      ETATS[e.etat] ?? "état non renseigné", reponse == null ? "sans réponse datée" : String(reponse)];
+  };
+  const triees = [...entrees].sort((a, b) => String(a.date_constat).localeCompare(String(b.date_constat)) || (a.id ?? 0) - (b.id ?? 0));
+  return {
+    paragraphes: [
+      `Registre qualité : ${nb(total, "entrée")} pendant ${periode}.`,
+      `Par type : ${liste(TYPES, parType)}.`,
+      `Par état : ${liste(ETATS, parEtat)}.`,
+      `Délai médian de réponse : ${delai}.`,
+      ...(lignes ? ["Une ligne par entrée : les textes saisis ne sont pas repris dans ce dossier."] : ["Version en nombres seulement : aucune ligne par entrée."]),
+    ],
+    tableaux: lignes ? table(["Date", "Type", "Origine", "État", "Délai de réponse (jours)"], triees.map(ligne)) : [],
+  };
+}
+
+function sectionSignalements({ inv, donnees, promo, aujourdhui }) {
+  const registre = donnees.registre ?? { etat: "non_lue" };
+  const entrees = registre.etat === "lue" ? entreesPourPromo(registre.entrees, promo, aujourdhui) : [];
+  const r = sectionRegistre(registre, entrees, { periode: "la formation" });
+  return { paragraphes: [...phrases(inv, "suivi"), ...phrasesSignalements(donnees.signalements), ...r.paragraphes], tableaux: r.tableaux };
 }
 
 function sectionExamen({ inv, donnees, enFormation, stagiaires }) {
@@ -454,7 +488,7 @@ const SECTIONS_CENTRE = [
 // Les sections qui portent un indicateur ; tous les indicateurs sont en outre dans l'inventaire.
 const SERVICE_CENTRE = {
   2: ["resultats"], 3: ["resultats"], 17: ["intervenants"], 18: ["intervenants"], 19: ["ressources"], 23: ["ressources"],
-  25: ["innovations"], 28: ["intervenants"], 32: ["amelioration"],
+  25: ["innovations"], 28: ["intervenants"], 31: ["amelioration"], 32: ["amelioration"],
 };
 
 function sectionResultatsCentre({ promos, aujourdhui }) {
@@ -551,8 +585,13 @@ function sectionIntervenantsCentre({ promos, sansNoms, aujourdhui }) {
 const libelleTheme = (t) => (t.num != null ? `Thème ${t.num} : ${texte(t.titre, "sans titre")}` : texte(t.titre, "thème sans titre"));
 
 // Suivi de chaque promo en nombres, puis ses thèmes les plus faibles (classements du tableau de bord).
-function sectionAmeliorationCentre({ promos }) {
-  if (!promos.length) return { paragraphes: [AUCUNE_PROMO], tableaux: [] };
+function sectionAmeliorationCentre({ promos, registre, lieuId, periode, sansNoms }) {
+  const entrees = registre.etat === "lue"
+    ? entreesPourCentre(registre.entrees, { lieuId, promoIds: promos.map(({ promo }) => promo?.id), du: periode?.du, au: periode?.au })
+    : [];
+  const r = sectionRegistre(registre, entrees, { periode: "la période", lignes: !sansNoms });
+  // Sans promo dans la période, le registre reste : les entrées du lieu et de l'organisme, datées dans la période, comptent encore.
+  if (!promos.length) return { paragraphes: [AUCUNE_PROMO, ...r.paragraphes], tableaux: r.tableaux };
   const themes = promos.flatMap(({ promo, ind }) => [
     ...tableau(ind?.themes?.qcm).map((t) => [libellePromo(promo), "QCM", libelleTheme(t), `${pourcent(t.taux)} sur ${nb(t.n, "réponse")}`]),
     ...tableau(ind?.themes?.notes).map((t) => [libellePromo(promo), "Notes", libelleTheme(t), `${fr1(t.moyenne)}/20 sur ${nb(t.n, "note")}`]),
@@ -563,8 +602,9 @@ function sectionAmeliorationCentre({ promos }) {
       themes.length
         ? "Thèmes les plus faibles de chaque promo, du plus faible au plus fort, d'après les QCM puis d'après les notes."
         : "Aucun thème n'a encore assez de réponses ou de notes pour être classé.",
+      ...r.paragraphes,
     ],
-    tableaux: [...table(["Promo", "Suivi"], ligneParPromo(promos, "suivi")), ...table(["Promo", "Source", "Thème", "Résultat"], themes)],
+    tableaux: [...table(["Promo", "Suivi"], ligneParPromo(promos, "suivi")), ...table(["Promo", "Source", "Thème", "Résultat"], themes), ...r.tableaux],
   };
 }
 
@@ -615,10 +655,12 @@ function sectionInventaireCentre({ fusion }) {
 
 // promos : [{ promo, inv, ind, donnees }] ; periode : { du, au } (« AAAA-MM-JJ ») ; nouveautes : entrées de NOUVEAUTES ;
 // sansNoms : aucun nom de formateur (stagiaires, bénévoles et auto-écoles ne sont jamais nommés).
-export function modeleDossierCentre({ promos, lieu, periode, aujourdhui, sansNoms, nouveautes = [] }) {
+// lieuId : identifiant du centre (`lieu` en est le nom affiché), pour les entrées du registre du lieu ou de tout l'organisme ;
+// registre : { etat: "lue", entrees } | { etat: "absente" } | { etat: "non_lue" } (celui de la page, jamais celui des promos).
+export function modeleDossierCentre({ promos, lieu, lieuId, periode, aujourdhui, sansNoms, nouveautes = [], registre = { etat: "non_lue" } }) {
   const liste = tableau(promos);
   const fusion = fusionInventaires(liste);
-  const contexte = { promos: liste, fusion, aujourdhui, nouveautes, periode, sansNoms: Boolean(sansNoms) };
+  const contexte = { promos: liste, fusion, aujourdhui, nouveautes, periode, sansNoms: Boolean(sansNoms), registre, lieuId };
   const centre = texte(lieu, "centre non renseigné");
   const enMots = periodeEnMots(periode?.du, periode?.au);
   return assembler({
