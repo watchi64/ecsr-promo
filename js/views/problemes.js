@@ -111,7 +111,6 @@ function boutonRegistre(s) {
   if (!liensDuRegistre) return null;
   const marquer = (b) => {
     b.textContent = "Au registre";
-    b.disabled = true;
     b.setAttribute("aria-disabled", "true");
   };
   const b = el("button", { type: "button", class: "btn ghost", "data-sg": "registre" }, "Ajouter au registre");
@@ -119,8 +118,12 @@ function boutonRegistre(s) {
     marquer(b);
     return b;
   }
+  // Le bouton reste focalisable (aria-disabled, jamais disabled) : la fenêtre lui rend le focus à sa fermeture.
+  let ouvertureEnCours = false;
   b.addEventListener("click", async () => {
-    b.disabled = true;
+    if (ouvertureEnCours || b.getAttribute("aria-disabled") === "true") return;
+    ouvertureEnCours = true;
+    b.setAttribute("aria-disabled", "true");
     try {
       const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261109o");
       ouvrirFenetreRegistre({
@@ -134,7 +137,8 @@ function boutonRegistre(s) {
     } catch (e) {
       toast("Le registre n'a pas pu s'ouvrir. Réessaie.", "error");
     }
-    if (!liensDuRegistre.has(s.id)) b.disabled = false;
+    ouvertureEnCours = false;
+    if (!liensDuRegistre.has(s.id)) b.removeAttribute("aria-disabled");
   });
   return b;
 }

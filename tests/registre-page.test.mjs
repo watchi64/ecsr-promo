@@ -75,7 +75,7 @@ test("fenêtre : rappel des violences en tête, « Ne nomme personne » sous la 
 });
 
 test("fenêtre : saisie modifiée, la fermeture passe par confirmer(), jamais par la boîte du navigateur", () => {
-  assert.match(fenetre, /ouvrirFenetre\(\{\s*nom: NOM, ancre, etiquette: titre, classe: "registre-fenetre", avantFermeture,/);
+  assert.match(fenetre, /ouvrirFenetre\(\{\s*nom: NOM, retour: ancre, etiquette: titre, classe: "registre-fenetre", avantFermeture,/);
   const garde = fenetre.slice(fenetre.indexOf("function avantFermeture()"), fenetre.indexOf("const titre ="));
   assert.match(garde, /if \(enregistre \|\| !modifiee\(\)\) return true;/);
   assert.match(garde, /confirmer\(\{ titre: "Fermer sans enregistrer \?"/);
@@ -172,7 +172,7 @@ test("problèmes signalés : un seul Set lu au rendu, avec la liste, partagé pa
 test("problèmes signalés : pas de bouton quand liensRegistre() est nul, « Au registre » inactif quand déjà versé", () => {
   assert.match(problemes, /if \(!liensDuRegistre\) return null;/);
   assert.match(problemes, /if \(liensDuRegistre\.has\(s\.id\)\) \{\s*marquer\(b\);/);
-  assert.match(problemes, /b\.textContent = "Au registre";\s*b\.disabled = true;/);
+  assert.match(problemes, /b\.textContent = "Au registre";\s*b\.setAttribute\("aria-disabled", "true"\);/);
   assert.match(problemes, /repondre, boutonRegistre\(s\), supprimer/);
 });
 
@@ -197,3 +197,32 @@ test("problèmes signalés : le préremplissage ne porte ni nom ni e-mail", asyn
   assert.equal(e.signalement_id, 7);
   assert.ok(!JSON.stringify(e).includes("Camille") && !JSON.stringify(e).includes("example.test"));
 });
+
+// Relecture finale de la branche : cinq retouches.
+test("retouche 1 : le bouton « Ajouter au registre » reste focalisable (aria-disabled, jamais disabled)", () => {
+  const bouton = problemes.slice(problemes.indexOf("function boutonRegistre"), problemes.indexOf("function carte(s)"));
+  assert.ok(!/\.disabled/.test(bouton), "aucun disabled sur le bouton : le focus que la fenêtre lui rend ne se perd pas");
+  assert.match(bouton, /getAttribute\("aria-disabled"\) === "true"\) return;/, "garde dans le clic");
+  assert.match(css_style(), /\.btn\[aria-disabled="true"\],\s*\.btn:disabled \{/, "même apparence que disabled");
+});
+
+test("retouche 2 : « Ne nomme personne » relié au champ Description par aria-describedby", () => {
+  assert.match(fenetre, /class: "rg-aide rg-personne", id: "rg-personne"/);
+  assert.match(fenetre, /cle === "description" \? "rg-personne " : ""\) \+ "rg-erreur-" \+ cle/);
+});
+
+test("retouche 3 : la fenêtre du registre se rouvre sur son bouton par `retour`, sans aria-expanded", () => {
+  assert.match(fenetre, /nom: NOM, retour: ancre, etiquette: titre/);
+  assert.ok(!/nom: NOM, ancre,/.test(fenetre));
+});
+
+test("retouche 4 : retirer la promo d'une entrée propose le centre d'avant, jamais « Tout l'organisme »", () => {
+  assert.match(fenetre, /const lieuAvant = depart\.lieu_id \?\? promoAvant\?\.lieu_id \?\? null;/);
+  assert.ok(!/depart\.promo_id == null && depart\.lieu_id != null/.test(fenetre));
+});
+
+test("retouche 5 : la rangée d'actions d'une carte de signalement fait 44 px sur ordinateur aussi", () => {
+  assert.match(lire("css/signalement.css"), /\.sg-carte-actions \.btn \{ min-height: 44px; \}/);
+});
+
+function css_style() { return lire("css/style.css"); }

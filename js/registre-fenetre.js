@@ -59,7 +59,8 @@ export function ouvrirFenetreRegistre({ entree = null, prerempli = null, promos 
     return erreurs[cle];
   };
   const champ = (cle, noeud) => {
-    noeud.setAttribute("aria-describedby", "rg-erreur-" + cle);
+    // La consigne « Ne nomme personne » est lue avant l'erreur à l'entrée dans la description.
+    noeud.setAttribute("aria-describedby", (cle === "description" ? "rg-personne " : "") + "rg-erreur-" + cle);
     return noeud;
   };
 
@@ -89,7 +90,10 @@ export function ouvrirFenetreRegistre({ entree = null, prerempli = null, promos 
   champPromo.value = promoDepart;
 
   const lieux = lieuxDesPromos(promos);
-  const lieuDepart = depart.promo_id == null && depart.lieu_id != null ? String(depart.lieu_id) : "";
+  // Le centre d'avant : celui de l'entrée, sinon celui de son ancienne promo (retirer la promo ne déplace pas l'entrée).
+  const promoAvant = depart.promo_id == null ? null : (promos || []).find((p) => String(p.id) === String(depart.promo_id));
+  const lieuAvant = depart.lieu_id ?? promoAvant?.lieu_id ?? null;
+  const lieuDepart = lieuAvant != null ? String(lieuAvant) : "";
   if (lieuDepart && !lieux.some((l) => String(l.id) === lieuDepart)) lieux.push({ id: Number(lieuDepart), nom: `Centre n° ${lieuDepart}` });
   const champLieu = el("select", { id: "rg-lieu", class: "rg-champ" },
     el("option", { value: "" }, "Tout l'organisme"), ...lieux.map((l) => el("option", { value: String(l.id) }, l.nom)));
@@ -241,7 +245,7 @@ export function ouvrirFenetreRegistre({ entree = null, prerempli = null, promos 
   const titre = modification ? `Entrée n° ${entree.id}` : "Nouvelle entrée au registre";
   const fermer = el("button", { type: "button", class: "rg-fermer", onClick: () => demanderFermeture() }, "Fermer");
   const fenetre = ouvrirFenetre({
-    nom: NOM, ancre, etiquette: titre, classe: "registre-fenetre", avantFermeture,
+    nom: NOM, retour: ancre, etiquette: titre, classe: "registre-fenetre", avantFermeture,
     contenu: [
       el("div", { class: "rg-tete" }, el("h2", { class: "rg-titre" }, titre), fermer),
       el("p", { class: "rg-rappel" }, RAPPEL_VIOLENCES),
@@ -261,7 +265,7 @@ export function ouvrirFenetreRegistre({ entree = null, prerempli = null, promos 
       el("div", { class: "rg-bloc" },
         el("label", { for: "rg-description", class: "rg-etiquette" }, "Description"),
         champDescription,
-        el("p", { class: "rg-aide rg-personne" }, NE_NOMME_PERSONNE),
+        el("p", { class: "rg-aide rg-personne", id: "rg-personne" }, NE_NOMME_PERSONNE),
         zoneErreur("description")),
       suite,
       erreurGenerale,

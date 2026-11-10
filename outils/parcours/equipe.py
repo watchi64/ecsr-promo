@@ -375,7 +375,7 @@ def ajouter_au_registre(v):
     v.aller("Signaler un problème")
     v.etape("ouvrir les problèmes signalés")
     v.toucher("a.sg-fondateur-lien", "« Ouvrir » (problèmes signalés)")
-    bouton = '#view button[data-sg="registre"]:not([disabled])'
+    bouton = '#view button[data-sg="registre"]:not([aria-disabled="true"])'
     v.attendre(bouton, "« Ajouter au registre » sur un signalement")
     v.but("signalements affichés, avec « Ajouter au registre »")
     v.etape("ajouter au registre")
@@ -387,7 +387,7 @@ def ajouter_au_registre(v):
     v.ecouter_messages()
     v.toucher(FENETRE_REGISTRE + " button.rg-enregistrer", "« Enregistrer »", compte=False, ecriture=True)
     v.exiger_confirmation("l'ajout au registre", "ajoutée au registre")
-    v.attendre('#view button[data-sg="registre"][disabled]:has-text("Au registre")', "le bouton « Au registre »")
+    v.attendre('#view button[data-sg="registre"][aria-disabled="true"]:has-text("Au registre")', "le bouton « Au registre »")
     v.terminer()
 
 
