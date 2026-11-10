@@ -9,11 +9,22 @@
 -- anonymise_le, ou différent de anonymise_le), une signature effacée. Sinon il recrée à l'identique les quatre fonctions
 -- d'anonymisation (version du lot 4, droits du 05/10), emargement_signer (version du lot 4), emargement_annoter et
 -- emargement_clore (versions du 23/10), et les contraintes d'origine, puis retire les marques (et leur déclencheur) et
--- les fonctions de ce lot.
+-- les fonctions de ce lot. Questionnaires (tâche 3) : refus aussi dès qu'un résultat est figé (seule copie des
+-- pourcentages) ou qu'une année des formateurs est close ; sinon les cinq fonctions réécrites du lot Q3 reviennent
+-- telles quelles, les tables et fonctions de ce lot partent, et les participations reprennent leur forme du lot Q3
+-- (sans fiche, liées au compte en cascade) : une participation dont le compte a été supprimé depuis ce lot part, comme
+-- elle serait partie avec le compte avant ce lot ; un doublon de fiche fusionné par la migration ne revient pas (aucun
+-- le 10/11).
 set local lock_timeout = '3s';
 
 do $garde$
 begin
+  if exists (select 1 from public.questionnaire_resultats_figes) then
+    raise exception 'conservation: Retour impossible : des résultats de questionnaires sont figés (seule copie des pourcentages).';
+  end if;
+  if exists (select 1 from public.questionnaire_clotures) then
+    raise exception 'conservation: Retour impossible : une année du questionnaire des formateurs est close.';
+  end if;
   if exists (select 1 from public.effacements_journal
               where type in ('etape1', 'etape2', 'demande', 'questionnaires', 'registre')) then
     raise exception 'conservation: Retour impossible : une étape de conservation a déjà effacé des données (journal des effacements).';
@@ -28,6 +39,255 @@ begin
   end if;
 end
 $garde$;
+
+-- 0. Questionnaires (tâche 3) : fonctions du lot Q3 telles qu'elles étaient (create or replace : droits d'exécution
+-- gardés), puis fonctions et tables de ce lot retirées, participations à leur forme du lot Q3.
+create or replace function public._questionnaire_ouvert(p_cle text, p_promo integer, p_lieu integer, p_annee integer)
+returns boolean language sql stable set search_path to 'public', 'pg_temp' as $function$
+  select coalesce(
+    (select o.ouvert from questionnaire_ouvertures o
+      where o.cle = p_cle and o.promo_id is not distinct from p_promo
+        and o.lieu_id is not distinct from p_lieu and o.annee is not distinct from p_annee),
+    case when p_cle in ('fin_stagiaire', 'six_mois_stagiaire') then exists (
+           select 1 from promos pr, _questionnaire_fenetre(p_cle, pr.date_fin) f
+            where pr.id = p_promo and d.jour between f.du and f.au)
+         when p_cle = 'fin_formateur' then p_annee = extract(year from d.jour)::integer and exists (
+           select 1 from promos pr, _questionnaire_fenetre(p_cle, pr.date_fin) f
+            where pr.lieu_id = p_lieu and d.jour between f.du and f.au)
+         else false end)
+  from (select _questionnaire_jour() as jour) d;
+$function$;
+
+create or replace function public.questionnaires_a_remplir()
+returns table (cle text, version integer, portee jsonb)
+language sql stable security definer set search_path to 'public', 'pg_temp' as $function$
+  with moi as (
+    select up.stagiaire_id from user_profiles up
+     where lower(up.email) = lower((select auth.jwt() ->> 'email'))
+     limit 1
+  ),
+  candidats as (
+    select k.cle, s.promo_id, null::integer as lieu_id, null::integer as annee
+      from moi join stagiaires s on s.id = moi.stagiaire_id
+     cross join (values ('fin_stagiaire'), ('six_mois_stagiaire')) k(cle)
+    union
+    select 'fin_formateur', null, l.id, extract(year from _questionnaire_jour())::integer from lieux l
+    union
+    select o.cle, null, o.lieu_id, o.annee from questionnaire_ouvertures o where o.cle = 'fin_formateur' and o.ouvert
+  )
+  select c.cle, _questionnaire_version(c.cle),
+         case when c.promo_id is not null then jsonb_build_object('promo_id', c.promo_id)
+              else jsonb_build_object('lieu_id', c.lieu_id, 'annee', c.annee) end
+    from candidats c
+   where auth.uid() is not null
+     and _questionnaire_ayant_droit(c.cle, c.promo_id, c.lieu_id)
+     and _questionnaire_ouvert(c.cle, c.promo_id, c.lieu_id, c.annee)
+     and not exists (
+       select 1 from questionnaire_participations p
+        where p.cle = c.cle and p.promo_id is not distinct from c.promo_id
+          and p.lieu_id is not distinct from c.lieu_id and p.annee is not distinct from c.annee
+          and p.user_id = auth.uid())
+   order by 1, 3;
+$function$;
+
+create or replace function public.repondre_questionnaire(p_cle text, p_portee jsonb, p_version integer, p_reponses jsonb,
+  p_commentaire text default null)
+returns void
+language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
+declare
+  v_uid uuid := auth.uid();
+  v_email text := lower(auth.jwt() ->> 'email');
+  v_version integer := _questionnaire_version(p_cle);
+  v_portee record;
+  v_commentaire text := nullif(btrim(coalesce(p_commentaire, ''), E' \t\r\n'), '');
+  v_question text;
+  v_valeur jsonb;
+  q questionnaire_questions%rowtype;
+  v_id uuid;
+  n integer;
+begin
+  if v_uid is null or v_email is null then
+    raise exception 'questionnaire: Reconnecte-toi pour répondre.';
+  end if;
+  if v_version is null then
+    raise exception 'questionnaire: Questionnaire inconnu.';
+  end if;
+  if p_version is distinct from v_version then
+    raise exception 'questionnaire: Le questionnaire a changé : recharge la page.';
+  end if;
+  select * into v_portee from _questionnaire_portee(p_cle, p_portee);
+  if not _questionnaire_ayant_droit(p_cle, v_portee.promo_id, v_portee.lieu_id) then
+    raise exception 'questionnaire: Ce questionnaire ne te concerne pas.';
+  end if;
+  -- Une portée à la fois (voir l'en-tête) : un envoi simultané dans la même portée attend la fin de celui-ci ; les
+  -- instructions suivantes, chacune avec un instantané neuf, voient alors ses lignes validées.
+  perform pg_advisory_xact_lock(hashtext('questionnaire:' || p_cle || ':'
+    || coalesce(v_portee.promo_id::text, v_portee.lieu_id::text || '/' || v_portee.annee::text)));
+  if not _questionnaire_ouvert(p_cle, v_portee.promo_id, v_portee.lieu_id, v_portee.annee) then
+    raise exception 'questionnaire: Ce questionnaire est fermé.';
+  end if;
+  if exists (select 1 from questionnaire_participations p
+              where p.cle = p_cle and p.promo_id is not distinct from v_portee.promo_id
+                and p.lieu_id is not distinct from v_portee.lieu_id and p.annee is not distinct from v_portee.annee
+                and p.user_id = v_uid) then
+    raise exception 'questionnaire: Tu as déjà répondu à ce questionnaire.';
+  end if;
+
+  -- Forme : un objet { question: valeur } ; questions connues de cette version ; échelle 1 à 4 ou null (« sans
+  -- avis ») ; choix parmi les options ; toutes les questions non facultatives présentes.
+  if p_reponses is null or jsonb_typeof(p_reponses) <> 'object' then
+    raise exception 'questionnaire: Réponses illisibles.';
+  end if;
+  for v_question, v_valeur in select e.key, e.value from jsonb_each(p_reponses) e loop
+    select * into q from questionnaire_questions
+     where cle = p_cle and version = v_version and question_id = v_question;
+    if not found then
+      raise exception 'questionnaire: Question inconnue.';
+    end if;
+    if q.type = 'echelle' and not (jsonb_typeof(v_valeur) = 'null'
+        or (jsonb_typeof(v_valeur) = 'number' and v_valeur::text in ('1', '2', '3', '4'))) then
+      raise exception 'questionnaire: Réponse hors de l''échelle.';
+    end if;
+    if q.type = 'choix' and not (jsonb_typeof(v_valeur) = 'string' and (v_valeur #>> '{}') = any (q.options)) then
+      raise exception 'questionnaire: Choix inconnu.';
+    end if;
+  end loop;
+  if exists (select 1 from questionnaire_questions
+              where cle = p_cle and version = v_version and not facultative and not (p_reponses ? question_id)) then
+    raise exception 'questionnaire: Il manque des réponses.';
+  end if;
+  if char_length(coalesce(v_commentaire, '')) > 2000 then
+    raise exception 'questionnaire: Ton commentaire dépasse 2 000 caractères.';
+  end if;
+
+  -- Deux envois simultanés : la contrainte d'unicité tranche, le second est refusé et n'écrit rien.
+  insert into questionnaire_participations (cle, promo_id, lieu_id, annee, user_id)
+  values (p_cle, v_portee.promo_id, v_portee.lieu_id, v_portee.annee, v_uid)
+  on conflict do nothing;
+  get diagnostics n = row_count;
+  if n = 0 then
+    raise exception 'questionnaire: Tu as déjà répondu à ce questionnaire.';
+  end if;
+  insert into questionnaire_reponses (cle, version, promo_id, lieu_id, annee, reponses, commentaire)
+  values (p_cle, v_version, v_portee.promo_id, v_portee.lieu_id, v_portee.annee, p_reponses, v_commentaire);
+
+  -- Brassage (voir l'en-tête) : toutes les réponses de la portée sont réécrites, dans un ordre tiré au hasard et avec
+  -- un nouvel identifiant ; commentaire et réponses recopiés pour que leurs morceaux TOAST soient réécrits aussi.
+  for v_id in
+    select r.id from questionnaire_reponses r
+     where r.cle = p_cle and r.promo_id is not distinct from v_portee.promo_id
+       and r.lieu_id is not distinct from v_portee.lieu_id and r.annee is not distinct from v_portee.annee
+     order by random()
+  loop
+    update questionnaire_reponses
+       set id = gen_random_uuid(), commentaire = commentaire || '', reponses = reponses || '{}'::jsonb
+     where id = v_id;
+  end loop;
+end;
+$function$;
+
+create or replace function public.resultats_questionnaire(p_cle text, p_portee jsonb)
+returns jsonb
+language plpgsql stable security definer set search_path to 'public', 'pg_temp' as $function$
+declare
+  v_portee record;
+  v_seuil integer := _questionnaire_seuil(p_cle);
+  n integer;
+  v_questions jsonb;
+begin
+  if not peut_gerer_qualite() then
+    raise exception 'questionnaire: Réservé à la gestion de la qualité.';
+  end if;
+  if _questionnaire_version(p_cle) is null then
+    raise exception 'questionnaire: Questionnaire inconnu.';
+  end if;
+  select * into v_portee from _questionnaire_portee(p_cle, p_portee);
+
+  select count(*) into n from questionnaire_reponses r
+   where r.cle = p_cle and r.promo_id is not distinct from v_portee.promo_id
+     and r.lieu_id is not distinct from v_portee.lieu_id and r.annee is not distinct from v_portee.annee;
+
+  with paires as (
+    select e.key as question,
+           case jsonb_typeof(e.value) when 'null' then 'sans_avis'
+                                       when 'string' then e.value #>> '{}'
+                                       else e.value::text end as valeur
+      from questionnaire_reponses r, jsonb_each(r.reponses) e
+     where r.cle = p_cle and r.promo_id is not distinct from v_portee.promo_id
+       and r.lieu_id is not distinct from v_portee.lieu_id and r.annee is not distinct from v_portee.annee
+  ),
+  publiables as (
+    select question from paires group by question having count(*) >= v_seuil
+  ),
+  comptes as (
+    select question, jsonb_object_agg(valeur, nombre) as repartition
+      from (select question, valeur, count(*) as nombre from paires
+             where question in (select question from publiables) group by question, valeur) c
+     group by question
+  )
+  select coalesce(jsonb_object_agg(question, repartition), '{}'::jsonb) into v_questions from comptes;
+
+  return jsonb_build_object(
+    'cle', p_cle,
+    'public', _questionnaire_public(p_cle),
+    'seuil', v_seuil,
+    'reponses', case when n >= v_seuil then n end,
+    'questions', case when n >= v_seuil then v_questions else '{}'::jsonb end);
+end;
+$function$;
+
+create or replace function public.ouvrir_questionnaire(p_cle text, p_portee jsonb, p_ouvert boolean)
+returns void
+language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
+declare
+  v_portee record;
+begin
+  if not peut_gerer_qualite() then
+    raise exception 'questionnaire: Réservé à la gestion de la qualité.';
+  end if;
+  if _questionnaire_version(p_cle) is null then
+    raise exception 'questionnaire: Questionnaire inconnu.';
+  end if;
+  select * into v_portee from _questionnaire_portee(p_cle, p_portee);
+  if v_portee.promo_id is not null and not exists (select 1 from promos where id = v_portee.promo_id) then
+    raise exception 'questionnaire: Promo introuvable.';
+  end if;
+  if v_portee.lieu_id is not null and not exists (select 1 from lieux where id = v_portee.lieu_id) then
+    raise exception 'questionnaire: Lieu introuvable.';
+  end if;
+  delete from questionnaire_ouvertures o
+   where o.cle = p_cle and o.promo_id is not distinct from v_portee.promo_id
+     and o.lieu_id is not distinct from v_portee.lieu_id and o.annee is not distinct from v_portee.annee;
+  if p_ouvert is not null then
+    insert into questionnaire_ouvertures (cle, promo_id, lieu_id, annee, ouvert, par_email)
+    values (p_cle, v_portee.promo_id, v_portee.lieu_id, v_portee.annee, p_ouvert, lower(auth.jwt() ->> 'email'));
+  end if;
+end;
+$function$;
+
+drop function public.figer_questionnaire_formateurs(integer, integer);
+drop function public.effacer_commentaires_formateurs(integer, integer);
+drop function public.clore_annee_formateurs(integer, integer);
+drop function public._questionnaire_figer(text, integer, integer, integer);
+drop function public._questionnaire_clore(integer, integer);
+drop function public._questionnaire_effacer_commentaires(text, integer, integer, integer);
+drop function public._questionnaire_clos(text, integer, integer, integer);
+drop function public._questionnaire_comptes(text, integer, integer, integer);
+drop function public._questionnaire_rebrasser(text, integer, integer, integer);
+drop table public.questionnaire_clotures;
+drop table public.questionnaire_resultats_figes;
+-- Une participation sans compte (compte supprimé depuis ce lot) serait partie avec lui avant ce lot (cascade).
+delete from public.questionnaire_participations where user_id is null;
+drop index public.questionnaire_participations_compte_unique;
+alter table public.questionnaire_participations
+  drop constraint questionnaire_participations_fiche_unique,
+  drop constraint questionnaire_participations_fiche,
+  drop constraint questionnaire_participations_user_id_fkey,
+  drop column stagiaire_id,
+  alter column user_id set not null,
+  add constraint questionnaire_participations_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade,
+  add constraint questionnaire_participations_unique unique nulls not distinct (cle, promo_id, lieu_id, annee, user_id);
 
 -- 1. Fonctions de ce lot ---------------------------------------------------------------------------------------------
 drop function public.effacer_sur_demande(integer);

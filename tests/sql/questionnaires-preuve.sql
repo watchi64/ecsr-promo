@@ -27,6 +27,14 @@
 -- Attendu : une seule ligne de réponses (4 réponses, xmin de S4, le dernier servi). Sans verrou, la réponse de S4
 -- resterait seule avec le xmin de sa participation.
 --
+-- Conservation (lot Q5, 20261110_conservation.sql, tâche 3 du 10/11/2026) : sur une base où elle est appliquée
+-- (effacer_sur_demande existe), la fiche X reçoit efface_le avec anonymise_le, sous le drapeau conservation.effacement
+-- (sinon le déclencheur des marques refuse, même au propriétaire), et les participations ont une colonne de plus,
+-- stagiaire_id (le cas « aucune colonne commune hors portée » reste). Résultats, Postgres 18.4 local, schéma minimal
+-- tests/sql/conservation-schema-minimal.sql : base où Q5 est appliqué VERT 207/0 ; même base sans Q5 VERT 207/0 ; avec
+-- la migration Q5 de la tâche 2 (sans stagiaire_id) ROUGE 206/1 ; schéma minimal propre au lot Q3, migration et retour
+-- joués : VERT 209/0.
+--
 -- Mise en ligne du 09/11/2026 (accord de Timy), base réelle (Postgres 17.6), pg_read_file remplacés par le texte des
 -- fichiers, comptes créés après les profils (liste blanche) : essai à blanc avant application VERT 209/0, rien laissé ;
 -- migration appliquée (psql -1, PGCLIENTENCODING=UTF8, accents vérifiés) ; puis VERT 207/0 deux fois, aucune ligne
@@ -90,6 +98,9 @@ declare
   v_jour date := (now() at time zone 'Europe/Paris')::date;
   y integer := extract(year from (now() at time zone 'Europe/Paris'))::integer;
   v_deja boolean := to_regclass('public.questionnaire_reponses') is not null;
+  -- Conservation (lot Q5, 20261110_conservation.sql) appliquée : participations rattachées à la fiche, marques
+  -- efface_le et anonymise_le posées ensemble et sous le drapeau de la conservation.
+  v_q5 boolean := to_regprocedure('public.effacer_sur_demande(integer)') is not null;
   v_empreinte text := $q$
     select md5(string_agg(x, E'\n' order by x)) from (
       select 'rel ' || c.relname || ' ' || c.relkind::text || ' ' || c.relrowsecurity::text || ' ' || coalesce(c.relacl::text, '')
@@ -233,12 +244,19 @@ begin
                       'TF','T','CUM','SF','FR','MV']) k;
   for c in select * from pg_temp.preuve_comptes loop
     if c.nom in ('A1','A2','A3','A4','A5','A6','X','B','C','D','T','SF','MV') then
-      insert into stagiaires (prenom, nom, promo_id, anonymise_le)
+      insert into stagiaires (prenom, nom, promo_id)
       values (c.nom, 'Preuve',
               case c.nom when 'B' then P2 when 'C' then P3 when 'D' then P5 when 'T' then P4 when 'SF' then P2
-                         when 'MV' then P2 else P1 end,
-              case when c.nom = 'X' then now() end)
+                         when 'MV' then P2 else P1 end)
       returning id into v_ok;
+      -- X : fiche anonymisée. Avec le lot Q5, efface_le accompagne anonymise_le (contrainte) et les deux marques ne se
+      -- posent que sous le drapeau de la conservation (déclencheur, même pour le propriétaire).
+      if c.nom = 'X' then
+        perform set_config('conservation.effacement', 'on', true);
+        execute format('update stagiaires set anonymise_le = now()%s where id = %s',
+                       case when v_q5 then ', efface_le = now()' else '' end, v_ok);
+        perform set_config('conservation.effacement', '', true);
+      end if;
       insert into user_profiles (email, role, is_admin, is_founder, stagiaire_id)
       values (c.email, 'stagiaire', c.nom = 'T', c.nom = 'T', v_ok);
     elsif c.nom like 'F%' or c.nom = 'CUM' then
@@ -294,8 +312,9 @@ begin
   perform pg_temp.cas('aucune séquence liée aux réponses', to_regclass('public.questionnaire_reponses') is not null and n = 0, n::text);
   select string_agg(attname, ',' order by attname) into t from pg_attribute
    where attrelid = to_regclass('public.questionnaire_participations') and attnum > 0 and not attisdropped;
-  perform pg_temp.cas('colonnes des participations : questionnaire, portée, utilisateur (aucune date)',
-    t = 'annee,cle,lieu_id,promo_id,user_id', t);
+  -- Avec le lot Q5, la participation porte aussi la fiche (stagiaire_id), jamais une date.
+  perform pg_temp.cas('colonnes des participations : questionnaire, portée, utilisateur (et fiche avec le lot Q5), aucune date',
+    t = case when v_q5 then 'annee,cle,lieu_id,promo_id,stagiaire_id,user_id' else 'annee,cle,lieu_id,promo_id,user_id' end, t);
   select string_agg(a.attname, ',' order by a.attname) into t
     from pg_attribute a join pg_attribute b on b.attname = a.attname
    where a.attrelid = to_regclass('public.questionnaire_reponses') and a.attnum > 0 and not a.attisdropped

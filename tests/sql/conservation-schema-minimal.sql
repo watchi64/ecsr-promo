@@ -22,7 +22,9 @@
 --      d'effacement dans leur version du lot 4 (_anonymiser_stagiaire, anonymiser_promo, anonymiser_stagiaire,
 --      etat_anonymisation_promo), extraites, avec les droits que leur a donnés la migration du 05/10 (même suite de
 --      revoke et grant, sur les droits par défaut).
---   7. 20261108_questionnaires.sql rejouée telle quelle (peut_gerer_qualite, _questionnaire_jour, participations).
+--   7. 20261108_questionnaires.sql rejouée telle quelle (peut_gerer_qualite, _questionnaire_jour, questions, réponses,
+--      participations, ouvertures : tout ce que la partie questionnaires de la migration, tâche 3, réécrit ou complète).
+--      tests/sql/questionnaires-preuve.sql se joue aussi sur ce schéma, avec ou sans la migration de la conservation.
 -- Lancement (psql lit les fichiers rejoués par \ir, le serveur lit les extraits par pg_read_file : superutilisateur
 -- local) :
 --   psql -p <port> -U postgres -d cs -v ON_ERROR_STOP=1 \

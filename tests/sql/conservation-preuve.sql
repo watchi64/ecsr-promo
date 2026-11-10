@@ -1,4 +1,5 @@
--- Preuve de la migration 20261110_conservation (conservation à 3 ans, Qualiopi Q5), partie fiches et émargement.
+-- Preuve de la migration 20261110_conservation (conservation à 3 ans, Qualiopi Q5) : fiches et émargement (tâche 2),
+-- questionnaires (tâche 3 : sections 3 bis, 4.0, 4.1 bis, 4.7 bis, 4.9 et les cas ajoutés aux étapes).
 -- Remplace tests/sql/effacement-preuve.sql (migration du 05/10), qui ne se joue plus après ce lot.
 -- Rejouable : le bloc lève TOUJOURS une exception à la fin (verdict « VERT n/0 » ou « ROUGE ok/ko : cas »), tout est
 -- annulé. Données 100 % fictives (example.invalid, noms « Preuve »).
@@ -26,6 +27,19 @@
 --        -v retour=<chemin absolu de 20261110_conservation_retour.sql> -f tests/sql/conservation-preuve.sql
 --   pg_ctl -D $D/pg stop ; rm -rf $D
 --
+-- Résultats du 10/11/2026, tâche 3 (questionnaires), Postgres 18.4 local, port 55531, même schéma minimal :
+--   - la preuve complétée, jouée sur la migration de la tâche 2 : ROUGE 16/17 (fonctions et tables absentes, puis
+--     « structure » : relation questionnaire_resultats_figes absente) ;
+--   - migration et retour : VERT 199/0 (trois passages) ; base où la migration est appliquée : VERT 189/0, rien laissé
+--     (empreinte du schéma et des données identique avant et après) ;
+--   - contre-épreuves, une garde retirée à la fois : seuil ramené à 1 dans _questionnaire_comptes ROUGE 177/22 ;
+--     rebrassage retiré de l'effacement des commentaires ROUGE 197/2 ; verrou par portée retiré (effacement, figeage,
+--     clôture) ROUGE 195/4 ; dates des formateurs retirées ROUGE 192/7 ; date de l'étape 1 retirée de _questionnaire_clos
+--     ROUGE 192/7 ; année close ignorée par _questionnaire_clos ROUGE 190/9 ; fiche ignorée par questionnaires_a_remplir
+--     ROUGE 198/1 ; revoke des fonctions internes retiré ROUGE 198/1 ; participations gardées par _effacer_etape1 ROUGE
+--     197/2 ; lieu ignoré par les fonctions des formateurs ROUGE 198/1 ; commentaires gardés par l'étape 1 ROUGE 197/2 ;
+--   - retour joué hors preuve (psql -1 -f) : empreinte identique avant la migration et après le retour ; retour refusé
+--     avec un résultat figé, une année close, une ligne « questionnaires » au journal.
 -- Résultats du 10/11/2026, correction 1 de la relecture (déclencheur des marques efface_le et anonymise_le), Postgres 18.4
 -- local, port 55519, schéma minimal tests/sql/conservation-schema-minimal.sql :
 --   - avant la migration (fichiers de migration et de retour vides) : ROUGE 25/80 ;
@@ -82,6 +96,9 @@ declare
   v_avant_S7 text; v_avant_SC text; v_avant_SE text; v_avant_S8 text;
   c record; v_ok integer; v_ko integer; v_detail text; v_sauve jsonb; v_erreur text;
   v_tr constant text := 'M10 10L20 20L30 25';
+  -- Questionnaires (tâche 3).
+  v_rs jsonb; v_rf jsonb; j_fin jsonb; j_six jsonb; j_l1 jsonb; j_l2 jsonb; pPA jsonb; pPD jsonb; pL1 jsonb; pL2 jsonb;
+  a1 text[]; a2 text[]; v_notes1 text; v_notes2 text; n_part bigint; r2 text; t2 text; m2 bigint; v_lignes bigint;
 begin
   -- 0. Outils de la preuve (schéma temporaire, annulés avec le reste) ------------------------------------------------
   execute $q$
@@ -170,6 +187,49 @@ begin
                 || ' anonymise:' || (s.anonymise_le is not null)
            from public.stagiaires s where s.id = p_id));
     $f$;
+    -- Questionnaires : réponses complètes (chaque échelle à v, le premier choix), envoi, et ce qu'une portée contient.
+    create function pg_temp.rep(p_cle text, v jsonb) returns jsonb language sql as $f$
+      select jsonb_object_agg(question_id, case when type = 'choix' then to_jsonb(options[1]) else v end)
+        from public.questionnaire_questions where cle = p_cle and version = 1 and not facultative;
+    $f$;
+    create function pg_temp.repond(p_cle text, p_portee jsonb, p_rep jsonb) returns text language sql as $f$
+      select pg_temp.tente(format('select public.repondre_questionnaire(%L, %L::jsonb, 1, %L::jsonb, null)::text',
+                                  p_cle, p_portee, p_rep));
+    $f$;
+    create function pg_temp.resultats(p_cle text, p_portee jsonb) returns jsonb language sql as $f$
+      select pg_temp.res(pg_temp.tente(format('select public.resultats_questionnaire(%L, %L::jsonb)::text', p_cle, p_portee)));
+    $f$;
+    create function pg_temp.ids(p_cle text, p_promo integer, p_lieu integer, p_annee integer) returns text[] language sql as $f$
+      select coalesce(array_agg(id::text order by id::text), '{}') from public.questionnaire_reponses
+       where cle = p_cle and promo_id is not distinct from p_promo and lieu_id is not distinct from p_lieu
+         and annee is not distinct from p_annee;
+    $f$;
+    -- Notes de la portée (multiensemble) et nombre de commentaires : « notes | n commentaires ».
+    create function pg_temp.notes(p_cle text, p_promo integer, p_lieu integer, p_annee integer) returns text language sql as $f$
+      select coalesce(string_agg(reponses::text, ';' order by reponses::text), '') || ' | ' || count(commentaire)
+        from public.questionnaire_reponses
+       where cle = p_cle and promo_id is not distinct from p_promo and lieu_id is not distinct from p_lieu
+         and annee is not distinct from p_annee;
+    $f$;
+    -- Participations d'une portée (toutes, avec ou sans compte).
+    create function pg_temp.parts(p_cle text, p_promo integer, p_lieu integer, p_annee integer) returns bigint language sql as $f$
+      select count(*) from public.questionnaire_participations
+       where cle = p_cle and promo_id is not distinct from p_promo and lieu_id is not distinct from p_lieu
+         and annee is not distinct from p_annee;
+    $f$;
+    -- Lignes d'une table de public (0 si elle n'existe pas).
+    create function pg_temp.lignes(p_table text) returns bigint language plpgsql as $f$
+    declare n bigint := 0;
+    begin
+      if to_regclass('public.' || p_table) is not null then
+        execute format('select count(*) from public.%I', p_table) into n;
+      end if;
+      return n;
+    end $f$;
+    -- Participations rattachées à une fiche (colonne de ce lot ; 0 si elle n'existe pas).
+    create function pg_temp.parts_fiche(p_id integer) returns bigint language sql as $f$
+      select count(*) from public.questionnaire_participations p where to_jsonb(p) ->> 'stagiaire_id' = p_id::text;
+    $f$;
     grant execute on all functions in schema pg_temp to authenticated, anon;
   $q$;
   -- Données des tables que les étapes touchent (empreinte : contenu ; photo : nombre de lignes et de valeurs non
@@ -180,12 +240,15 @@ begin
                    'dp_dossiers', 'epcf_livrets', 'fiches_suivi', 'epcf_evaluations', 'evaluations', 'evaluations_audit',
                    'passages', 'passages_audit', 'agenda_events', 'qcm_signalements', 'themes', 'themes_progression',
                    'conditions_acceptations', 'planning_jours_off', 'emargement_seances', 'emargement_lignes',
-                   'emargement_formateurs', 'effacements_journal', 'questionnaire_participations'];
+                   'emargement_formateurs', 'effacements_journal', 'questionnaire_participations',
+                   'questionnaire_reponses', 'questionnaire_ouvertures', 'questionnaire_resultats_figes',
+                   'questionnaire_clotures'];
     $f$;
     create function pg_temp.donnees() returns text language plpgsql as $f$
     declare t text; v text; acc text := '';
     begin
       foreach t in array pg_temp.tables_suivies() loop
+        if to_regclass('public.' || t) is null then acc := acc || t || '=absente '; continue; end if;
         execute format('select md5(coalesce(string_agg(to_jsonb(x)::text, '','' order by to_jsonb(x)::text), '''')) from public.%I x', t) into v;
         acc := acc || t || '=' || v || ' ';
       end loop;
@@ -196,6 +259,8 @@ begin
     declare t text; v text; acc text := '';
     begin
       foreach t in array pg_temp.tables_suivies() loop
+        -- Participations (rattachées à la fiche, doublons fusionnés) et tables nouvelles : cas à part.
+        if t in ('questionnaire_participations', 'questionnaire_resultats_figes', 'questionnaire_clotures') then continue; end if;
         execute format('select count(*) || ''/'' || coalesce(sum((select count(*) from jsonb_each(to_jsonb(x) - ''efface_le'' - ''signature_effacee_le'') e where e.value <> ''null''::jsonb)), 0) from public.%I x', t) into v;
         acc := acc || t || ' ' || v || '; ';
       end loop;
@@ -238,12 +303,13 @@ begin
   perform set_config('conservation.effacement', '', true);
 
   -- Comptes : FO fondateur (sans fiche ni affectation), FORM formateur de PA et PD, DIR2 direction du lieu 2, E1, E2, EQ,
-  -- E4, E7, E6, EC les comptes des fiches. Profils d'abord (liste blanche de la base réelle), puis comptes.
+  -- E4, E7, E6, EC les comptes des fiches ; E6B, second compte de la fiche S6 (doublon de fiche, tâche 3). Profils
+  -- d'abord (liste blanche de la base réelle), puis comptes.
   insert into pg_temp.preuve_comptes (nom, email, uid, fiche)
   select k, 'preuve.cons.' || lower(k) || '@example.invalid', gen_random_uuid(),
          case k when 'E1' then S1 when 'E2' then S2 when 'EQ' then SE when 'E4' then S4 when 'E7' then S7
-                when 'E6' then S6 when 'EC' then SC end
-    from unnest(array['FO', 'FORM', 'DIR2', 'E1', 'E2', 'EQ', 'E4', 'E7', 'E6', 'EC']) k;
+                when 'E6' then S6 when 'E6B' then S6 when 'EC' then SC end
+    from unnest(array['FO', 'FORM', 'DIR2', 'E1', 'E2', 'EQ', 'E4', 'E7', 'E6', 'E6B', 'EC']) k;
   insert into user_profiles (email, role, is_admin, is_founder, stagiaire_id, prof_id)
   select k.email,
          case k.nom when 'FO' then 'admin' when 'FORM' then 'prof' when 'DIR2' then 'prof' else 'stagiaire' end,
@@ -259,7 +325,7 @@ begin
 
   -- Données personnelles de chaque fiche nominative : date de naissance, fiche de suivi, dossier, livret, trois textes
   -- libres, et, pour un compte, une évaluation signée de son e-mail et une acceptation des conditions.
-  for c in select s.id, k.email from stagiaires s left join pg_temp.preuve_comptes k on k.fiche = s.id
+  for c in select s.id, k.email from stagiaires s left join pg_temp.preuve_comptes k on k.fiche = s.id and k.nom <> 'E6B'
             where s.id in (S1, S2, S3, SE, S4, S7, S8, S6, SC) loop
     insert into stagiaires_prive (stagiaire_id, date_naissance) values (c.id, date '1990-01-01');
     insert into fiches_suivi (stagiaire_id, promo_id, besoins)
@@ -314,8 +380,58 @@ begin
   insert into emargement_lignes (seance_id, promo_id, stagiaire_id, trace, signe_le, signe_par, maj_par) values
     (feE, PE, S6, v_tr, timestamptz '2026-10-05 08:40+02', 'preuve.cons.e6@example.invalid', 'preuve.cons.e6@example.invalid');
 
+  -- Questionnaires (tâche 3), forme du lot Q3, écrits en direct (les fenêtres de réponse se jouent plus bas, au jour
+  -- réglé). PA : fin de formation, 5 réponses dont 3 commentaires ; à six mois, 4 réponses (sous le seuil) dont 1
+  -- commentaire. PD : fin de formation, 1 réponse. Formateurs 2026 : lieu 1, 3 réponses dont 2 commentaires ; lieu 2,
+  -- 2 réponses (sous le seuil) dont 1 commentaire. Participations : E1 (S1) à la fin de formation de PA ; E4 (S4) à celle
+  -- de PD ; E6 (S6) à celle de PE ; FO, DIR2 et EQ au lieu 1, FO et DIR2 au lieu 2 (des comptes quelconques : seule la
+  -- portée compte ici). Sur une base où ce lot est appliqué, les participations des stagiaires naissent rattachées à
+  -- leur fiche. Le doublon de fiche (E6B, second compte de S6) se joue à part, plus bas.
+  v_rs := pg_temp.rep('fin_stagiaire', '3'); v_rf := pg_temp.rep('fin_formateur', '3');
+  pPA := jsonb_build_object('promo_id', PA); pPD := jsonb_build_object('promo_id', PD);
+  pL1 := jsonb_build_object('lieu_id', L1, 'annee', 2026); pL2 := jsonb_build_object('lieu_id', L2, 'annee', 2026);
+  insert into questionnaire_reponses (cle, version, promo_id, lieu_id, annee, reponses, commentaire)
+  select v.cle, 1, v.promo, v.lieu, v.annee, pg_temp.rep(v.cle, v.note::jsonb), v.com
+    from (values ('fin_stagiaire', PA, null::integer, null::integer, '4', 'Preuve commentaire A'),
+                 ('fin_stagiaire', PA, null, null, '4', null), ('fin_stagiaire', PA, null, null, '3', 'Preuve commentaire C'),
+                 ('fin_stagiaire', PA, null, null, '2', 'Preuve commentaire D'), ('fin_stagiaire', PA, null, null, 'null', null),
+                 ('six_mois_stagiaire', PA, null, null, '3', 'Preuve commentaire six mois'),
+                 ('six_mois_stagiaire', PA, null, null, '3', null), ('six_mois_stagiaire', PA, null, null, '2', null),
+                 ('six_mois_stagiaire', PA, null, null, '4', null), ('fin_stagiaire', PD, null, null, '4', null),
+                 ('fin_formateur', null, L1, 2026, '4', 'Preuve formateur 1'), ('fin_formateur', null, L1, 2026, '3', 'Preuve formateur 2'),
+                 ('fin_formateur', null, L1, 2026, '2', null), ('fin_formateur', null, L2, 2026, '3', 'Preuve formateur 3'),
+                 ('fin_formateur', null, L2, 2026, '3', null)) v(cle, promo, lieu, annee, note, com);
+  execute 'create table pg_temp.preuve_parts (cle text, promo integer, lieu integer, annee integer, nom text)';
+  insert into pg_temp.preuve_parts values ('fin_stagiaire', PA, null, null, 'E1'), ('fin_stagiaire', PD, null, null, 'E4'),
+    ('fin_stagiaire', PE, null, null, 'E6'),
+    ('fin_formateur', null, L1, 2026, 'FO'), ('fin_formateur', null, L1, 2026, 'DIR2'), ('fin_formateur', null, L1, 2026, 'EQ'),
+    ('fin_formateur', null, L2, 2026, 'FO'), ('fin_formateur', null, L2, 2026, 'DIR2');
+  execute format('insert into questionnaire_participations (cle, promo_id, lieu_id, annee, user_id%s)
+    select v.cle, v.promo, v.lieu, v.annee, k.uid%s from pg_temp.preuve_parts v join pg_temp.preuve_comptes k on k.nom = v.nom
+',
+    case when v_deja then ', stagiaire_id' else '' end,
+    case when v_deja then ', case when v.cle <> ''fin_formateur'' then k.fiche end' else '' end);
+
   -- 2. Migration jouée entre deux empreintes --------------------------------------------------------------------
   if not v_deja then
+    -- Doublon de fiche (deux comptes de S6 qui ont tous deux répondu) : migration jouée à part puis annulée. La ligne en
+    -- trop ne revient pas au retour : hors de l'empreinte, donc.
+    t := null;
+    begin
+      insert into questionnaire_participations (cle, promo_id, user_id)
+      select 'fin_stagiaire', PE, uid from pg_temp.preuve_comptes where nom = 'E6B';
+      select count(*) into n_part from questionnaire_participations;
+      if btrim(coalesce(current_setting('preuve.migration', true), ''), E' \t\r\n') <> '' then
+        execute current_setting('preuve.migration');
+      end if;
+      t := pg_temp.parts('fin_stagiaire', PE, null, null) || '/' || pg_temp.parts_fiche(S6) || '/'
+           || (n_part - (select count(*) from questionnaire_participations));
+      raise exception 'preuve: annulé';
+    exception when others then
+      if sqlerrm <> 'preuve: annulé' then t := 'erreur : ' || sqlerrm; end if;
+    end;
+    perform pg_temp.cas('migration : deux comptes de la même fiche (S6) : une seule participation gardée, rattachée à S6',
+      t = '1/1/1', t);
     execute v_empreinte into md5_avant;
     photo_avant := pg_temp.photo();
     select string_agg(id || ':' || actif, ',' order by id) into d2 from stagiaires;
@@ -344,7 +460,11 @@ begin
                     else has_function_privilege(ro.rol, f.fn, 'execute')::text end, ',' order by ro.rol, f.fn) into t
     from (values ('anon'), ('authenticated')) ro(rol),
          (values ('public.etat_conservation()'), ('public.effacer_promo_etape1(integer)'),
-                 ('public.effacer_promo_etape2(integer)'), ('public.effacer_sur_demande(integer)')) f(fn)
+                 ('public.effacer_promo_etape2(integer)'), ('public.effacer_sur_demande(integer)'),
+                 ('public.clore_annee_formateurs(integer, integer)'), ('public.effacer_commentaires_formateurs(integer, integer)'),
+                 ('public.figer_questionnaire_formateurs(integer, integer)'),
+                 ('public.questionnaires_a_remplir()'), ('public.repondre_questionnaire(text, jsonb, integer, jsonb, text)'),
+                 ('public.resultats_questionnaire(text, jsonb)'), ('public.ouvrir_questionnaire(text, jsonb, boolean)')) f(fn)
    where case when to_regprocedure(f.fn) is null then true
               else has_function_privilege(ro.rol, f.fn, 'execute') <> (ro.rol = 'authenticated') end;
   perform pg_temp.cas('fonctions appelables : authenticated oui, anon non', t is null, t);
@@ -370,6 +490,71 @@ begin
     pg_temp.fiche(S1));
   v_avant_S7 := pg_temp.fiche(S7); v_avant_SC := pg_temp.fiche(SC); v_avant_SE := pg_temp.fiche(SE); v_avant_S8 := pg_temp.fiche(S8);
 
+  -- 3 bis. Questionnaires : participations rattachées à la fiche, tables nouvelles fermées aux rôles de l'API -----------
+  select string_agg(attname, ',' order by attname) into t from pg_attribute
+   where attrelid = 'public.questionnaire_participations'::regclass and attnum > 0 and not attisdropped;
+  perform pg_temp.cas('participations : colonnes annee, cle, lieu_id, promo_id, stagiaire_id, user_id',
+    t = 'annee,cle,lieu_id,promo_id,stagiaire_id,user_id', t);
+  select string_agg(a.attname || ':' || co.confdeltype::text, ',' order by a.attname) into t
+    from pg_constraint co join pg_attribute a on a.attrelid = co.conrelid and a.attnum = co.conkey[1]
+   where co.conrelid = 'public.questionnaire_participations'::regclass and co.contype = 'f'
+     and a.attname in ('user_id', 'stagiaire_id');
+  perform pg_temp.cas('participations : compte supprimé, ligne gardée sans compte (set null) ; fiche supprimée, ligne supprimée (cascade)',
+    t = 'stagiaire_id:c,user_id:n', t);
+  select string_agg(pg_get_constraintdef(co.oid), ' ; ' order by co.conname) into t from pg_constraint co
+   where co.conrelid = 'public.questionnaire_participations'::regclass and co.contype = 'u';
+  perform pg_temp.cas('participations : une seule par fiche et par questionnaire de promo',
+    t = 'UNIQUE (cle, promo_id, stagiaire_id)', t);
+  select string_agg(pg_get_indexdef(i.indexrelid), ' ; ') into t from pg_index i
+   where i.indrelid = 'public.questionnaire_participations'::regclass and i.indisunique and i.indpred is not null;
+  perform pg_temp.cas('participations : une seule par compte et par portée, pour les lignes qui ont un compte',
+    t like '%UNIQUE INDEX%(cle, promo_id, lieu_id, annee, user_id) NULLS NOT DISTINCT WHERE (user_id IS NOT NULL)', t);
+  perform pg_temp.cas('participations : celle de E1 rattachée à sa fiche S1',
+    (select string_agg(coalesce(to_jsonb(p) ->> 'stagiaire_id', '-'), ',') from questionnaire_participations p
+       join pg_temp.preuve_comptes k on k.uid = p.user_id where k.nom = 'E1') = S1::text, null);
+  perform pg_temp.cas('participations : celles des formateurs sans fiche',
+    (select count(*) from questionnaire_participations p where p.cle = 'fin_formateur' and p.lieu_id in (L1, L2)) = 5
+    and (select count(*) from questionnaire_participations p where p.cle = 'fin_formateur' and p.lieu_id in (L1, L2)
+            and to_jsonb(p) ->> 'stagiaire_id' is not null) = 0, null);
+  select string_agg(ro.rol || ':' || ta.tab || ':' || pr.priv, ',') into t
+    from (values ('anon'), ('authenticated'), ('service_role')) ro(rol),
+         (values ('public.questionnaire_resultats_figes'), ('public.questionnaire_clotures')) ta(tab),
+         (values ('select'), ('insert'), ('update'), ('delete'), ('truncate')) pr(priv)
+   where to_regclass(ta.tab) is null or has_table_privilege(ro.rol, ta.tab, pr.priv);
+  perform pg_temp.cas('résultats figés et clôtures : aucun droit des rôles de l''API', t is null, left(t, 300));
+  perform pg_temp.cas('résultats figés et clôtures : sécurité par ligne active, aucune règle de lecture',
+    (select count(*) from pg_class where oid in (to_regclass('public.questionnaire_resultats_figes'),
+                                                 to_regclass('public.questionnaire_clotures')) and relrowsecurity) = 2
+    and (select count(*) from pg_policies where schemaname = 'public'
+            and tablename in ('questionnaire_resultats_figes', 'questionnaire_clotures')) = 0, null);
+  select string_agg(confdeltype::text, ',' order by confdeltype::text) into t from pg_constraint
+   where conrelid = to_regclass('public.questionnaire_resultats_figes') and contype = 'f';
+  perform pg_temp.cas('résultats figés : supprimer la promo ou le lieu est refusé (on delete restrict)', t = 'r,r', t);
+  select string_agg(ro.rol || ':' || f.fn, ',' order by ro.rol, f.fn) into t
+    from (values ('anon'), ('authenticated'), ('service_role')) ro(rol),
+         (values ('public._questionnaire_rebrasser(text, integer, integer, integer)'),
+                 ('public._questionnaire_comptes(text, integer, integer, integer)'),
+                 ('public._questionnaire_effacer_commentaires(text, integer, integer, integer)'),
+                 ('public._questionnaire_figer(text, integer, integer, integer)'),
+                 ('public._questionnaire_clore(integer, integer)'),
+                 ('public._questionnaire_clos(text, integer, integer, integer)'),
+                 ('public._questionnaire_ouvert(text, integer, integer, integer)')) f(fn)
+   where case when to_regprocedure(f.fn) is null then true else has_function_privilege(ro.rol, f.fn, 'execute') end;
+  perform pg_temp.cas('questionnaires : aucun droit d''appel des fonctions internes pour anon, authenticated, service_role', t is null, left(t, 300));
+  -- Verrou par portée (celui de repondre_questionnaire) pris avant toute écriture des réponses ou des participations.
+  foreach t in array array['_questionnaire_effacer_commentaires(text, integer, integer, integer)|update questionnaire_reponses',
+                           '_questionnaire_figer(text, integer, integer, integer)|insert into questionnaire_resultats_figes',
+                           '_questionnaire_figer(text, integer, integer, integer)|delete from questionnaire_participations',
+                           '_questionnaire_clore(integer, integer)|delete from questionnaire_participations',
+                           'repondre_questionnaire(text, jsonb, integer, jsonb, text)|insert into questionnaire_participations'] loop
+    r := case when to_regprocedure('public.' || split_part(t, '|', 1)) is not null
+              then pg_get_functiondef(to_regprocedure('public.' || split_part(t, '|', 1))) end;
+    perform pg_temp.cas('verrou par portée pris avant « ' || split_part(t, '|', 2) || ' » : ' || split_part(split_part(t, '|', 1), '(', 1),
+      r is not null and position('pg_advisory_xact_lock(hashtext(''questionnaire:''' in r) > 0
+      and position(split_part(t, '|', 2) in r) > position('pg_advisory_xact_lock(hashtext(''questionnaire:''' in r),
+      coalesce(position('pg_advisory_xact_lock(' in r) || ' / ' || position(split_part(t, '|', 2) in r), 'absente'));
+  end loop;
+
   -- 4. Les étapes, dans une sous-transaction annulée -----------------------------------------------------------------
   begin
     -- Le jour réglable (voir l'en-tête).
@@ -379,6 +564,31 @@ begin
         select coalesce(nullif(current_setting('preuve.jour', true), '')::date, (now() at time zone 'Europe/Paris')::date);
       $f$;
     $q$;
+
+    v_lignes := pg_temp.lignes('questionnaire_clotures') + pg_temp.lignes('questionnaire_resultats_figes');
+    -- 4.0 Retour refusé dès qu'une ligne existe dans les résultats figés (seule copie des pourcentages) ou les clôtures
+    -- des formateurs, même sans ligne au journal.
+    if not v_deja then
+      foreach t in array array[
+          format('insert into questionnaire_resultats_figes (cle, promo_id, seuil, reponses, questions, fige_le) values (''fin_stagiaire'', %s, 5, null, ''{}'', current_date)', PB),
+          format('insert into questionnaire_clotures (lieu_id, annee) values (%s, 2020)', L1)] loop
+        r := null;
+        begin
+          execute t;
+          begin
+            execute current_setting('preuve.retour');
+            r := 'joué';
+          exception when others then
+            r := sqlerrm;
+          end;
+          raise exception 'preuve: annulé';
+        exception when others then
+          if sqlerrm <> 'preuve: annulé' then r := 'préparation : ' || sqlerrm; end if;
+        end;
+        perform pg_temp.cas('retour refusé quand ' || split_part(split_part(t, 'into ', 2), ' ', 1) || ' a une ligne',
+          r like 'conservation: Retour impossible%', r);
+      end loop;
+    end if;
     set local role authenticated;
 
     -- 4.1 Étape 1 : la veille, refusée ; état des échéances.
@@ -390,9 +600,27 @@ begin
       and (j ->> 'a_effacer_etape1')::int = 3 and (j ->> 'a_effacer_etape2')::int = 3 and (j ->> 'comptes_equipe')::int = 1
       and j ->> 'lieu_nom' = 'Preuve conservation L1' and j ->> 'nom' = 'Preuve Nîmes'
       and (j ->> 'emargement_etape2')::int = 3, j::text);
-    perform pg_temp.cas('etat_conservation : jour = jour de Paris réglé, portées formateurs vides (tâche 3), registre nul (tâche 4)',
-      pg_temp.etat() ->> 'jour' = '2027-12-10' and pg_temp.etat() -> 'portees_formateurs' = '[]'::jsonb
-      and pg_temp.etat() -> 'registre' = 'null'::jsonb, (pg_temp.etat() - 'promos')::text);
+    perform pg_temp.cas('etat_conservation : jour = jour de Paris réglé, registre nul (tâche 4)',
+      pg_temp.etat() ->> 'jour' = '2027-12-10' and pg_temp.etat() -> 'registre' = 'null'::jsonb, (pg_temp.etat() - 'promos')::text);
+    j := (select p from jsonb_array_elements(pg_temp.etat() -> 'portees_formateurs') p
+           where (p ->> 'lieu_id')::int = L1 and (p ->> 'annee')::int = 2026);
+    perform pg_temp.cas('etat_conservation, formateurs 2026 du lieu 1 : 3 participations, 2 commentaires, 3 réponses, dates 01/01/2027, 31/12/2027, 01/01/2030',
+      j = jsonb_build_object('lieu_id', L1, 'lieu_nom', 'Preuve conservation L1', 'annee', 2026, 'participations', 3,
+                             'cloture_du', '2027-01-01', 'close', false, 'commentaires', 2, 'commentaires_du', '2027-12-31',
+                             'reponses', 3, 'fige', false, 'figeage_du', '2030-01-01'), coalesce(j::text, 'absente'));
+    select string_agg(p ->> 'lieu_id' || '/' || (p ->> 'annee') || '/' || (p ->> 'participations') || '/' || (p ->> 'commentaires')
+                      || '/' || (p ->> 'reponses'), ',' order by (p ->> 'lieu_id')::int) into t
+      from jsonb_array_elements(pg_temp.etat() -> 'portees_formateurs') p where (p ->> 'lieu_id')::int in (L1, L2);
+    perform pg_temp.cas('etat_conservation : portées des formateurs des lieux 1 et 2, une par année',
+      t = L1 || '/2026/3/2/3,' || L2 || '/2026/2/1/2', t);
+    -- Résultats d'avant tout effacement (comparés aux résultats figés plus bas).
+    j_fin := pg_temp.resultats('fin_stagiaire', pPA); j_six := pg_temp.resultats('six_mois_stagiaire', pPA);
+    j_l1 := pg_temp.resultats('fin_formateur', pL1); j_l2 := pg_temp.resultats('fin_formateur', pL2);
+    perform pg_temp.cas('résultats vivants de PA : 5 réponses à la fin de formation, six mois sous le seuil ; formateurs 3 (lieu 1) et 2 (lieu 2)',
+      (j_fin ->> 'reponses')::int = 5 and j_fin #> '{questions,globalement}' = '{"4": 2, "3": 1, "2": 1, "sans_avis": 1}'::jsonb
+      and j_six -> 'reponses' = 'null'::jsonb and j_six -> 'questions' = '{}'::jsonb
+      and (j_l1 ->> 'reponses')::int = 3 and j_l2 -> 'reponses' = 'null'::jsonb and not (j_fin ? 'fige'),
+      concat_ws(' | ', j_fin::text, j_six::text, j_l1::text, j_l2::text));
     j := (select p from jsonb_array_elements(pg_temp.etat() -> 'promos') p where (p ->> 'id')::int = PB);
     perform pg_temp.cas('etat_conservation : promo sans date de fin listée sans échéance',
       j is not null and j -> 'date_fin' = 'null'::jsonb and j -> 'etape1_du' = 'null'::jsonb and j -> 'etape2_du' = 'null'::jsonb,
@@ -403,6 +631,47 @@ begin
     perform pg_temp.cas('étape 1 refusée sans date de fin', r like '%conservation: Renseigne d''abord la date de fin de cette promo.', r);
     r := pg_temp.tente(format('select public.effacer_promo_etape2(%s)::text', PB));
     perform pg_temp.cas('étape 2 refusée sans date de fin', r like '%conservation: Renseigne d''abord la date de fin de cette promo.', r);
+
+    -- 4.1 bis Questionnaires des stagiaires : fermés pour de bon à la date de l'étape 1, ouverture manuelle comprise.
+    r := null; t := null;
+    begin
+      r := pg_temp.tente(format('select public.ouvrir_questionnaire(''fin_stagiaire'', %L::jsonb, true)::text', pPA));
+      perform pg_temp.qui('E2');
+      t := pg_temp.repond('fin_stagiaire', pPA, v_rs);
+      raise exception 'preuve: annulé';
+    exception when others then
+      if sqlerrm <> 'preuve: annulé' then raise; end if;
+    end;
+    perform pg_temp.cas('jumeau : la veille de l''étape 1 (10/12/2027), PA rouverte à la main, E2 y répond',
+      r like 'ok%' and t like 'ok%', r || ' | ' || t);
+    perform pg_temp.jour(date '2027-12-11');
+    perform pg_temp.qui('FO');
+    r := pg_temp.tente(format('select public.ouvrir_questionnaire(''fin_stagiaire'', %L::jsonb, true)::text', pPA));
+    perform pg_temp.cas('le 11/12/2027 (étape 1), ouverture manuelle de la fin de formation de PA refusée',
+      r like '%questionnaire: Ce questionnaire est clos%', r);
+    r := pg_temp.tente(format('select public.ouvrir_questionnaire(''six_mois_stagiaire'', %L::jsonb, true)::text', pPA));
+    perform pg_temp.cas('le 11/12/2027, ouverture manuelle du questionnaire à six mois de PA refusée',
+      r like '%questionnaire: Ce questionnaire est clos%', r);
+    -- Une ouverture manuelle posée avant la date (écrite ici en direct) ne prime plus.
+    reset role;
+    insert into questionnaire_ouvertures (cle, promo_id, ouvert, par_email) values ('fin_stagiaire', PA, true, 'preuve.cons.fo@example.invalid')
+      on conflict on constraint questionnaire_ouvertures_unique do update set ouvert = true;
+    set local role authenticated;
+    perform pg_temp.qui('E2');
+    r := pg_temp.repond('fin_stagiaire', pPA, v_rs);
+    perform pg_temp.cas('le 11/12/2027, envoi de E2 refusé malgré une ouverture manuelle posée avant',
+      r like '%questionnaire: Ce questionnaire est fermé.', r);
+    select count(*) into n from public.questionnaires_a_remplir();
+    perform pg_temp.cas('le 11/12/2027, rien n''est proposé à E2', n = 0, n::text);
+    reset role;
+    delete from questionnaire_ouvertures where cle = 'fin_stagiaire' and promo_id = PA;
+    set local role authenticated;
+    perform pg_temp.jour(date '2027-12-10');
+    perform pg_temp.qui('FO');
+    r := pg_temp.tente('select count(*)::text from public.questionnaire_resultats_figes');
+    r2 := pg_temp.tente('select count(*)::text from public.questionnaire_clotures');
+    perform pg_temp.cas('lecture directe des résultats figés et des clôtures refusée, même au fondateur',
+      r like '42501%' and r2 like '42501%', r || ' | ' || r2);
 
     -- 4.2 Droits : au 01/01/2030 (aucune date ne refuse), personne d'autre que le fondateur hors aperçu.
     perform pg_temp.jour(date '2030-01-01');
@@ -418,7 +687,10 @@ begin
       foreach t in array array[format('select public.effacer_promo_etape1(%s)::text', PA),
                                format('select public.effacer_promo_etape2(%s)::text', PA),
                                format('select public.effacer_sur_demande(%s)::text', S1),
-                               'select public.etat_conservation()::text'] loop
+                               'select public.etat_conservation()::text',
+                               format('select public.clore_annee_formateurs(%s, 2026)::text', L1),
+                               format('select public.effacer_commentaires_formateurs(%s, 2026)::text', L1),
+                               format('select public.figer_questionnaire_formateurs(%s, 2026)::text', L1)] loop
         r := pg_temp.tente(t);
         perform pg_temp.cas(format('%s refusé : %s', c.lib, split_part(split_part(t, 'public.', 2), '(', 1)),
           r like '%conservation: Réservé à la gestion de la qualité.', r);
@@ -427,7 +699,9 @@ begin
     set local role anon;
     perform pg_temp.qui('FO');
     foreach t in array array[format('select public.effacer_promo_etape1(%s)::text', PA),
-                             format('select public.effacer_sur_demande(%s)::text', S1), 'select public.etat_conservation()::text'] loop
+                             format('select public.effacer_sur_demande(%s)::text', S1), 'select public.etat_conservation()::text',
+                             format('select public.clore_annee_formateurs(%s, 2026)::text', L1),
+                             format('select public.figer_questionnaire_formateurs(%s, 2026)::text', L1)] loop
       r := pg_temp.tente(t);
       perform pg_temp.cas('rôle anon refusé (droit d''exécution) : ' || split_part(split_part(t, 'public.', 2), '(', 1),
         r like '42501%', r);
@@ -470,6 +744,17 @@ begin
         from jsonb_array_elements(pg_temp.etat() -> 'promos') p
        where (p ->> 'id')::int in (PA, PB, PC, PD, PE);
       j := to_jsonb(pg_temp.tente(format('select public.effacer_promo_etape1(%s) ->> ''fiches''', PC)));
+      r2 := pg_temp.tente(format('select public.clore_annee_formateurs(%s, 2026)::text', L1))
+            || ' | ' || pg_temp.tente(format('select public.effacer_commentaires_formateurs(%s, 2026)::text', L1))
+            || ' | ' || pg_temp.tente(format('select public.figer_questionnaire_formateurs(%s, 2026)::text', L1));
+      select string_agg(p ->> 'lieu_id', ',' order by (p ->> 'lieu_id')::int) into t2
+        from jsonb_array_elements(pg_temp.etat() -> 'portees_formateurs') p where (p ->> 'lieu_id')::int in (L1, L2);
+      m2 := null;
+      if pg_temp.tente(format('select public.clore_annee_formateurs(%s, 2026)::text', L2)) = 'ok 2' then
+        reset role;
+        m2 := pg_temp.parts('fin_formateur', null, L2, 2026);
+        set local role authenticated;
+      end if;
       reset role;
       select count(*) into m from user_profiles where stagiaire_id = SC;
       raise exception 'preuve: annulé';
@@ -483,8 +768,20 @@ begin
       t = PC::text, t);
     perform pg_temp.cas('direction d''un autre centre (droit élargi), jumeau : étape 1 de sa promo PC acceptée',
       j #>> '{}' = 'ok 1' and m = 0, j::text || ' / profil ' || m);
+    perform pg_temp.cas('direction d''un autre centre (droit élargi) : refusée sur les questionnaires des formateurs du lieu 1',
+      r2 like '%conservation: Ce lieu n''est pas dans ton périmètre.%conservation: Ce lieu n''est pas dans ton périmètre.%conservation: Ce lieu n''est pas dans ton périmètre.', r2);
+    perform pg_temp.cas('direction d''un autre centre (droit élargi) : etat_conservation ne liste que les formateurs de son lieu',
+      t2 = L2::text, t2);
+    perform pg_temp.cas('direction d''un autre centre (droit élargi), jumeau : clôture des formateurs 2026 de son lieu acceptée',
+      m2 = 0, coalesce(m2::text, 'refusée'));
 
     -- 4.4 Étape 1 le jour même.
+    reset role;
+    a1 := pg_temp.ids('fin_stagiaire', PA, null, null); a2 := pg_temp.ids('six_mois_stagiaire', PA, null, null);
+    v_notes1 := pg_temp.notes('fin_stagiaire', PA, null, null); v_notes2 := pg_temp.notes('six_mois_stagiaire', PA, null, null);
+    d2 := pg_temp.notes('fin_stagiaire', PD, null, null) || pg_temp.notes('fin_formateur', null, L1, 2026)
+          || pg_temp.notes('fin_formateur', null, L2, 2026);
+    set local role authenticated;
     perform pg_temp.qui('FO');
     r := pg_temp.tente(format('select public.effacer_promo_etape1(%s)::text', PA));
     perform pg_temp.cas('étape 1 acceptée le 11/12/2027 : 3 fiches, 1 compte d''équipe ignoré',
@@ -511,6 +808,24 @@ begin
          from emargement_formateurs where seance_id = feA) = 'Paul Martin/true/-,Preuve Marie Durand/true/' || v_prof, null);
     select count(*) into n from effacements_journal where type = 'etape1' and cible = 'promo ' || PA;
     perform pg_temp.cas('étape 1 : une ligne de journal « etape1 », cible « promo n »', n = 1, n::text);
+    perform pg_temp.cas('étape 1 : 4 commentaires de questionnaires de PA effacés (fin de formation et six mois)',
+      (pg_temp.res(r) ->> 'commentaires_questionnaires')::int = 4
+      and pg_temp.notes('fin_stagiaire', PA, null, null) = split_part(v_notes1, ' | ', 1) || ' | 0'
+      and pg_temp.notes('six_mois_stagiaire', PA, null, null) = split_part(v_notes2, ' | ', 1) || ' | 0',
+      pg_temp.res(r) ->> 'commentaires_questionnaires');
+    perform pg_temp.cas('étape 1 : notes des questionnaires de PA intactes (avant : 3 et 1 commentaires)',
+      split_part(pg_temp.notes('fin_stagiaire', PA, null, null), ' | ', 1) = split_part(v_notes1, ' | ', 1)
+      and split_part(pg_temp.notes('six_mois_stagiaire', PA, null, null), ' | ', 1) = split_part(v_notes2, ' | ', 1)
+      and split_part(v_notes1, ' | ', 2) = '3' and split_part(v_notes2, ' | ', 2) = '1', null);
+    perform pg_temp.cas('étape 1 : identifiants des réponses de PA tous changés (rebrassage)',
+      cardinality(a1) = 5 and cardinality(a2) = 4
+      and not (a1 && pg_temp.ids('fin_stagiaire', PA, null, null)) and not (a2 && pg_temp.ids('six_mois_stagiaire', PA, null, null))
+      and cardinality(pg_temp.ids('fin_stagiaire', PA, null, null)) = 5, null);
+    perform pg_temp.cas('étape 1 : participation de S1 supprimée avec sa fiche', pg_temp.parts_fiche(S1) = 0
+      and pg_temp.parts('fin_stagiaire', PA, null, null) = 0, pg_temp.parts_fiche(S1)::text);
+    perform pg_temp.cas('étape 1 : questionnaires de PD et des formateurs intacts',
+      pg_temp.notes('fin_stagiaire', PD, null, null) || pg_temp.notes('fin_formateur', null, L1, 2026)
+      || pg_temp.notes('fin_formateur', null, L2, 2026) = d2, null);
     d1 := pg_temp.donnees();
     set local role authenticated;
     perform pg_temp.qui('FO');
@@ -584,6 +899,30 @@ begin
       and (select count(*) from emargement_seances where promo_id in (PC, PD, PE) and ouverte_par = 'anonyme') = 0, null);
     select count(*) into n from effacements_journal where type = 'etape2' and cible = 'promo ' || PA;
     perform pg_temp.cas('étape 2 : une ligne de journal « etape2 »', n = 1, n::text);
+    perform pg_temp.cas('étape 2 : les deux questionnaires de PA figés, réponses et participations de PA supprimées',
+      (select details ->> 'questionnaires_figes' from effacements_journal where type = 'etape2' and cible = 'promo ' || PA) = '2'
+      and pg_temp.parts('fin_stagiaire', PA, null, null) + pg_temp.parts('six_mois_stagiaire', PA, null, null) = 0
+      and cardinality(pg_temp.ids('fin_stagiaire', PA, null, null)) + cardinality(pg_temp.ids('six_mois_stagiaire', PA, null, null)) = 0,
+      (select details::text from effacements_journal where type = 'etape2' and cible = 'promo ' || PA));
+    perform pg_temp.cas('étape 2 : fin de formation de PA (5 réponses), comptes figés égaux à ceux d''avant',
+      (select reponses || '/' || seuil || '/' || (questions = j_fin -> 'questions') || '/' || fige_le from questionnaire_resultats_figes
+        where cle = 'fin_stagiaire' and promo_id = PA) = '5/5/true/2030-01-01', null);
+    perform pg_temp.cas('étape 2 : six mois de PA (4 réponses), aucun compte figé, seulement la marque sous le seuil',
+      (select coalesce(reponses::text, 'nul') || '/' || seuil || '/' || questions::text from questionnaire_resultats_figes
+        where cle = 'six_mois_stagiaire' and promo_id = PA) = 'nul/5/{}', null);
+    perform pg_temp.cas('étape 2 : questionnaires de PD et des formateurs intacts',
+      pg_temp.notes('fin_stagiaire', PD, null, null) || pg_temp.notes('fin_formateur', null, L1, 2026)
+      || pg_temp.notes('fin_formateur', null, L2, 2026) = d2
+      and (select count(*) from questionnaire_resultats_figes where promo_id in (PB, PC, PD, PE) or lieu_id in (L1, L2)) = 0, null);
+    set local role authenticated;
+    perform pg_temp.qui('FO');
+    j := pg_temp.resultats('fin_stagiaire', pPA); m := null;
+    perform pg_temp.cas('après figeage, resultats_questionnaire rend la ligne figée (fige, fige_le), mêmes comptes qu''avant',
+      j - 'fige' - 'fige_le' = j_fin and j -> 'fige' = 'true'::jsonb and j ->> 'fige_le' = '2030-01-01', j::text);
+    j := pg_temp.resultats('six_mois_stagiaire', pPA);
+    perform pg_temp.cas('après figeage sous le seuil, resultats_questionnaire : figé, nombre masqué, aucune question',
+      j - 'fige' - 'fige_le' = j_six and j -> 'fige' = 'true'::jsonb, j::text);
+    reset role;
     set local role authenticated;
     perform pg_temp.qui('FO');
     j := (select p from jsonb_array_elements(pg_temp.etat() -> 'promos') p where (p ->> 'id')::int = PA);
@@ -611,6 +950,10 @@ begin
     perform pg_temp.cas('étape 2 sans étape 1 : une ligne « etape2 », aucune « etape1 » pour PE',
       (select count(*) from effacements_journal where cible = 'promo ' || PE and type = 'etape2') = 1
       and (select count(*) from effacements_journal where cible = 'promo ' || PE and type = 'etape1') = 0, null);
+    perform pg_temp.cas('étape 2 sans étape 1 : participation de S6 supprimée, rien à figer (aucune réponse dans PE)',
+      pg_temp.parts_fiche(S6) = 0 and pg_temp.parts('fin_stagiaire', PE, null, null) = 0
+      and (pg_temp.res(r) ->> 'questionnaires_figes')::int = 0
+      and (select count(*) from questionnaire_resultats_figes where promo_id = PE) = 0, r);
 
     -- 4.7 Effacement sur demande d'une fiche active (S4, promo en cours), au vrai jour.
     perform pg_temp.jour(null);
@@ -634,6 +977,9 @@ begin
       r like '%conservation: Les marques d''effacement%', r);
     perform pg_temp.cas('demande : une ligne « demande », cible « stagiaire n »',
       (select count(*) from effacements_journal where type = 'demande' and cible = 'stagiaire ' || S4) = 1, null);
+    perform pg_temp.cas('demande : la participation de S4 est supprimée, la réponse anonyme de PD reste',
+      pg_temp.parts_fiche(S4) = 0 and pg_temp.parts('fin_stagiaire', PD, null, null) = 0
+      and cardinality(pg_temp.ids('fin_stagiaire', PD, null, null)) = 1, pg_temp.parts_fiche(S4)::text);
     d1 := pg_temp.donnees();
     set local role authenticated;
     perform pg_temp.qui('FO');
@@ -667,6 +1013,170 @@ begin
       r = 'ok 1' and (select string_agg(stagiaire_id::text || ':' || absent, ',' order by stagiaire_id) from emargement_lignes where seance_id = feJ)
                      = S7 || ':false,' || S8 || ':true', r);
 
+    -- 4.7 bis Compte supprimé puis recréé sur la même fiche : la participation, tenue par la fiche, refuse une deuxième
+    -- réponse. PD est dans sa fenêtre le jour de sa fin.
+    perform pg_temp.jour((select date_fin from promos where id = PD));
+    set local role authenticated;
+    perform pg_temp.qui('E7');
+    r := pg_temp.repond('fin_stagiaire', pPD, v_rs);
+    perform pg_temp.cas('E7 (fiche S7) répond à la fin de formation de PD', r like 'ok%', r);
+    reset role;
+    perform pg_temp.cas('la participation de E7 porte sa fiche S7',
+      (select count(*) from questionnaire_participations p join pg_temp.preuve_comptes k on k.uid = p.user_id
+        where k.nom = 'E7' and p.promo_id = PD and to_jsonb(p) ->> 'stagiaire_id' = S7::text) = 1, null);
+    r := null; t := null; r2 := null; t2 := null; m2 := null;
+    begin
+      delete from user_profiles where email = 'preuve.cons.e7@example.invalid';
+      delete from auth.users where email = 'preuve.cons.e7@example.invalid';
+      select count(*) into m2 from questionnaire_participations p
+       where p.promo_id = PD and p.user_id is null and to_jsonb(p) ->> 'stagiaire_id' = S7::text;
+      insert into pg_temp.preuve_comptes (nom, email, uid, fiche) values
+        ('E7BIS', 'preuve.cons.e7bis@example.invalid', gen_random_uuid(), S7),
+        ('E8', 'preuve.cons.e8@example.invalid', gen_random_uuid(), S8);
+      insert into user_profiles (email, role, stagiaire_id)
+      select email, 'stagiaire', fiche from pg_temp.preuve_comptes where nom in ('E7BIS', 'E8');
+      insert into auth.users (id, email) select uid, email from pg_temp.preuve_comptes where nom in ('E7BIS', 'E8');
+      set local role authenticated;
+      perform pg_temp.qui('E7BIS');
+      select string_agg(q.cle || ' ' || q.portee::text, ',') into t from public.questionnaires_a_remplir() q;
+      r := pg_temp.repond('fin_stagiaire', pPD, v_rs);
+      perform pg_temp.qui('E8');
+      select string_agg(q.cle || ' ' || q.portee::text, ',') into t2 from public.questionnaires_a_remplir() q;
+      r2 := pg_temp.repond('fin_stagiaire', pPD, v_rs);
+      raise exception 'preuve: annulé';
+    exception when others then
+      if sqlerrm <> 'preuve: annulé' then raise; end if;
+    end;
+    perform pg_temp.cas('compte de E7 supprimé : sa participation reste, sans compte, rattachée à S7', m2 = 1, m2::text);
+    perform pg_temp.cas('compte recréé (E7BIS) sur la fiche S7 : rien n''est proposé', t is null, t);
+    perform pg_temp.cas('compte recréé sur la fiche S7 : deuxième réponse refusée', r like '%questionnaire: Tu as déjà répondu à ce questionnaire.', r);
+    perform pg_temp.cas('jumeau : E8 (fiche S8, sans participation) a la fin de formation de PD et y répond',
+      t2 = 'fin_stagiaire ' || pPD::text and r2 like 'ok%', t2 || ' | ' || r2);
+
+    -- 4.9 Formateurs (lieu 1, 2026) : liste des répondants effacée à partir du 01/01/2027, commentaires à partir du
+    -- 31/12/2027, pourcentages seuls à partir du 01/01/2030 ; chaque étape refusée la veille, rejouable sans effet.
+    set local role authenticated;
+    perform pg_temp.qui('FO');
+    perform pg_temp.jour(date '2026-12-31');
+    r := pg_temp.tente(format('select public.clore_annee_formateurs(%s, 2026)::text', L1));
+    perform pg_temp.cas('formateurs : clôture de 2026 refusée le 31/12/2026', r like '%conservation: Possible à partir du 01/01/2027.', r);
+    perform pg_temp.jour(date '2027-01-01');
+    r := pg_temp.tente(format('select public.ouvrir_questionnaire(''fin_formateur'', %L::jsonb, true)::text', pL1));
+    perform pg_temp.qui('FORM');
+    select count(*) into n from public.questionnaires_a_remplir() q where q.portee = pL1;
+    t := pg_temp.tente_blanc(format('select public.repondre_questionnaire(''fin_formateur'', %L::jsonb, 1, %L::jsonb, null)::text', pL1, v_rf));
+    perform pg_temp.cas('jumeau : avant la clôture, l''année 2026 rouverte à la main est proposée à FORM, qui peut y répondre',
+      r like 'ok%' and n = 1 and t like 'ok%', r || ' | ' || n || ' | ' || t);
+    perform pg_temp.qui('FO');
+    r := pg_temp.tente(format('select public.clore_annee_formateurs(%s, 2026)::text', L1));
+    perform pg_temp.cas('formateurs : clôture de 2026 acceptée le 01/01/2027, 3 participations effacées', r = 'ok 3', r);
+    reset role;
+    perform pg_temp.cas('formateurs : après la clôture, plus aucune participation au lieu 1 pour 2026 ; lieu 2 intact',
+      pg_temp.parts('fin_formateur', null, L1, 2026) = 0 and pg_temp.parts('fin_formateur', null, L2, 2026) = 2, null);
+    perform pg_temp.cas('formateurs : une ligne de journal « questionnaires », cible « lieu n, année 2026 »',
+      (select count(*) from effacements_journal where type = 'questionnaires' and cible = 'lieu ' || L1 || ', année 2026') = 1, null);
+    set local role authenticated;
+    perform pg_temp.qui('FORM');
+    select count(*) into n from public.questionnaires_a_remplir() q where q.portee = pL1;
+    perform pg_temp.cas('formateurs : après la clôture, l''année 2026 n''est plus proposée malgré l''ouverture manuelle', n = 0, n::text);
+    r := pg_temp.repond('fin_formateur', pL1, v_rf);
+    perform pg_temp.cas('formateurs : après la clôture, envoi refusé pour 2026', r like '%questionnaire: Ce questionnaire est fermé.', r);
+    select count(*) into n from public.questionnaires_a_remplir() q where q.portee = jsonb_build_object('lieu_id', L1, 'annee', 2027);
+    perform pg_temp.cas('jumeau : l''année 2027 du lieu 1 (dans sa fenêtre) reste proposée à FORM', n = 1, n::text);
+    perform pg_temp.qui('FO');
+    r := pg_temp.tente(format('select public.ouvrir_questionnaire(''fin_formateur'', %L::jsonb, true)::text', pL1));
+    perform pg_temp.cas('formateurs : après la clôture, ouverture manuelle de 2026 refusée', r like '%questionnaire: Ce questionnaire est clos%', r);
+    reset role;
+    d1 := pg_temp.donnees();
+    set local role authenticated;
+    perform pg_temp.qui('FO');
+    r := pg_temp.tente(format('select public.clore_annee_formateurs(%s, 2026)::text', L1));
+    reset role;
+    perform pg_temp.cas('formateurs : clôture rejouée, rien ne change, aucune seconde ligne de journal', r = 'ok 0' and pg_temp.donnees() = d1, r);
+
+    -- Commentaires : refusés le 30/12/2027, effacés le 31/12/2027, notes intactes, identifiants changés.
+    a1 := pg_temp.ids('fin_formateur', null, L1, 2026); v_notes1 := pg_temp.notes('fin_formateur', null, L1, 2026);
+    v_notes2 := pg_temp.notes('fin_formateur', null, L2, 2026);
+    set local role authenticated;
+    perform pg_temp.qui('FO');
+    perform pg_temp.jour(date '2027-12-30');
+    r := pg_temp.tente(format('select public.effacer_commentaires_formateurs(%s, 2026)::text', L1));
+    perform pg_temp.cas('formateurs : commentaires de 2026 refusés le 30/12/2027', r like '%conservation: Possible à partir du 31/12/2027.', r);
+    perform pg_temp.jour(date '2027-12-31');
+    r := pg_temp.tente(format('select public.effacer_commentaires_formateurs(%s, 2026)::text', L1));
+    reset role;
+    perform pg_temp.cas('formateurs : 2 commentaires effacés le 31/12/2027, notes intactes, lieu 2 intact',
+      r = 'ok 2' and pg_temp.notes('fin_formateur', null, L1, 2026) = split_part(v_notes1, ' | ', 1) || ' | 0'
+      and split_part(v_notes1, ' | ', 2) = '2' and pg_temp.notes('fin_formateur', null, L2, 2026) = v_notes2, r);
+    perform pg_temp.cas('formateurs : identifiants des réponses tous changés (rebrassage)',
+      cardinality(a1) = 3 and cardinality(pg_temp.ids('fin_formateur', null, L1, 2026)) = 3
+      and not (a1 && pg_temp.ids('fin_formateur', null, L1, 2026)), null);
+    perform pg_temp.cas('formateurs : une seconde ligne de journal pour le lieu 1 (commentaires)',
+      (select count(*) from effacements_journal where type = 'questionnaires' and cible = 'lieu ' || L1 || ', année 2026') = 2, null);
+    d1 := pg_temp.donnees();
+    set local role authenticated;
+    perform pg_temp.qui('FO');
+    r := pg_temp.tente(format('select public.effacer_commentaires_formateurs(%s, 2026)::text', L1));
+    j := (select p from jsonb_array_elements(pg_temp.etat() -> 'portees_formateurs') p
+           where (p ->> 'lieu_id')::int = L1 and (p ->> 'annee')::int = 2026);
+    reset role;
+    perform pg_temp.cas('formateurs : effacement des commentaires rejoué, rien ne change (identifiants compris), aucune ligne de journal',
+      r = 'ok 0' and pg_temp.donnees() = d1, r);
+    perform pg_temp.cas('etat_conservation, formateurs 2026 du lieu 1 après clôture et commentaires : 0 participation, 0 commentaire, close',
+      (j ->> 'participations')::int = 0 and (j ->> 'commentaires')::int = 0 and (j ->> 'reponses')::int = 3
+      and j -> 'close' = 'true'::jsonb and j -> 'fige' = 'false'::jsonb, j::text);
+
+    -- Figeage : refusé le 31/12/2029, fait le 01/01/2030 (lieu 1 : 3 réponses, comptes ; lieu 2 : 2 réponses, marque
+    -- sous le seuil, clôture faite au passage).
+    set local role authenticated;
+    perform pg_temp.qui('FO');
+    perform pg_temp.jour(date '2029-12-31');
+    r := pg_temp.tente(format('select public.figer_questionnaire_formateurs(%s, 2026)::text', L1));
+    perform pg_temp.cas('formateurs : figeage de 2026 refusé le 31/12/2029', r like '%conservation: Possible à partir du 01/01/2030.', r);
+    perform pg_temp.jour(date '2030-01-01');
+    r := pg_temp.tente(format('select public.figer_questionnaire_formateurs(%s, 2026)::text', L1));
+    j := pg_temp.resultats('fin_formateur', pL1);
+    reset role;
+    perform pg_temp.cas('formateurs : figeage du lieu 1 accepté le 01/01/2030, comptes égaux à ceux d''avant',
+      pg_temp.res(r) -> 'fige' = 'true'::jsonb and j - 'fige' - 'fige_le' = j_l1 and j -> 'fige' = 'true'::jsonb
+      and j ->> 'fige_le' = '2030-01-01', r || ' | ' || j::text);
+    perform pg_temp.cas('formateurs : après figeage, réponses et participations du lieu 1 pour 2026 absentes',
+      cardinality(pg_temp.ids('fin_formateur', null, L1, 2026)) = 0 and pg_temp.parts('fin_formateur', null, L1, 2026) = 0, null);
+    d1 := pg_temp.donnees();
+    set local role authenticated;
+    perform pg_temp.qui('FO');
+    r := pg_temp.tente(format('select public.figer_questionnaire_formateurs(%s, 2026)::text', L1));
+    reset role;
+    perform pg_temp.cas('formateurs : figeage rejoué, { deja: true }, rien ne change, aucune ligne de journal',
+      r = 'ok {"deja": true}' and pg_temp.donnees() = d1, r);
+    set local role authenticated;
+    perform pg_temp.qui('FO');
+    r := pg_temp.tente(format('select public.figer_questionnaire_formateurs(%s, 2026)::text', L2));
+    j := pg_temp.resultats('fin_formateur', pL2);
+    reset role;
+    perform pg_temp.cas('formateurs : lieu 2 (2 réponses) figé sous le seuil : aucun compte, nombre masqué',
+      j - 'fige' - 'fige_le' = j_l2 and j -> 'fige' = 'true'::jsonb and j -> 'reponses' = 'null'::jsonb
+      and (select coalesce(reponses::text, 'nul') || '/' || seuil || '/' || questions::text from questionnaire_resultats_figes
+            where lieu_id = L2 and annee = 2026) = 'nul/3/{}', r || ' | ' || j::text);
+    perform pg_temp.cas('formateurs : lieu 2 figé sans clôture préalable : participations effacées, année close',
+      pg_temp.parts('fin_formateur', null, L2, 2026) = 0 and cardinality(pg_temp.ids('fin_formateur', null, L2, 2026)) = 0
+      and (select count(*) from questionnaire_clotures where lieu_id = L2 and annee = 2026) = 1, null);
+    set local role authenticated;
+    perform pg_temp.qui('FO');
+    j := (select p from jsonb_array_elements(pg_temp.etat() -> 'portees_formateurs') p
+           where (p ->> 'lieu_id')::int = L1 and (p ->> 'annee')::int = 2026);
+    reset role;
+    perform pg_temp.cas('etat_conservation, formateurs 2026 du lieu 1 après figeage : figé, plus aucune réponse',
+      j -> 'fige' = 'true'::jsonb and (j ->> 'reponses')::int = 0 and (j ->> 'participations')::int = 0, j::text);
+    select string_agg(type || ' ' || cible || ' ' || details::text, ' | ') into t from effacements_journal
+     where type = 'questionnaires' and fait_par_email like 'preuve.cons.%'
+       and (cible !~ ('^lieu [0-9]+, année [0-9]{4}$') or details::text ~* '@|preuve|martin|durand|example'
+            or fait_par_email <> 'preuve.cons.fo@example.invalid');
+    perform pg_temp.cas('journal « questionnaires » : cibles « lieu n, année aaaa », aucun nom ni commentaire, auteur le fondateur',
+      t is null and (select count(*) from effacements_journal where type = 'questionnaires'
+                      and cible in ('lieu ' || L1 || ', année 2026', 'lieu ' || L2 || ', année 2026')) = 4
+      and (select count(*) from effacements_journal where type = 'questionnaires' and fait_par_email like 'preuve.cons.%') = 4, t);
+
     -- 4.8 Rien d'autre n'a bougé : fiches témoins des autres promos, journal sans nom ni e-mail.
     perform pg_temp.cas('témoin S7 (PD) : seule sa signature du jour s''ajoute',
       pg_temp.fiche(S7) = replace(v_avant_S7, 'traces:1 signees:1', 'traces:2 signees:2'),
@@ -686,7 +1196,7 @@ begin
       (select string_agg(id || ':' || actif, ',' order by id) from stagiaires where id in (S1, S2, S3, S4, S6))
         = (select string_agg(x.id || ':' || (x.id <> S2), ',' order by x.id) from unnest(array[S1, S2, S3, S4, S6]) x(id)), null);
 
-    -- 4.9 Retour refusé après une étape.
+    -- 4.10 Retour refusé après une étape.
     if not v_deja then
       begin
         execute current_setting('preuve.retour');
@@ -712,8 +1222,10 @@ begin
   if v_erreur is not null then
     perform pg_temp.cas('structure : les étapes se jouent sans erreur imprévue', false, v_erreur);
   end if;
-  perform pg_temp.cas('les étapes ont été annulées (aucune ligne de ce lot au journal)',
-    (select count(*) from effacements_journal where type in ('etape1', 'etape2', 'demande')) = 0, null);
+  perform pg_temp.cas('les étapes ont été annulées (aucune ligne de ce lot au journal, aucun résultat figé, aucune clôture)',
+    (select count(*) from effacements_journal where type in ('etape1', 'etape2', 'demande', 'questionnaires')
+        and fait_par_email like 'preuve.cons.%') = 0
+    and pg_temp.lignes('questionnaire_clotures') + pg_temp.lignes('questionnaire_resultats_figes') = v_lignes, null);
 
   -- 5. Retour : la base revient à l'identique ---------------------------------------------------------------------
   if not v_deja then
@@ -733,9 +1245,17 @@ begin
        and proname in ('anonymiser_promo', 'anonymiser_stagiaire', 'etat_anonymisation_promo', '_anonymiser_stagiaire');
     select count(*) into m from pg_proc where pronamespace = 'public'::regnamespace
        and proname in ('etat_conservation', 'effacer_promo_etape1', 'effacer_promo_etape2', 'effacer_sur_demande',
-                       '_effacer_etape1', '_effacer_etape2');
-    perform pg_temp.cas('retour : les quatre anciennes fonctions sont revenues, les six de ce lot sont parties',
+                       '_effacer_etape1', '_effacer_etape2', 'clore_annee_formateurs', 'effacer_commentaires_formateurs',
+                       'figer_questionnaire_formateurs', '_questionnaire_rebrasser', '_questionnaire_comptes',
+                       '_questionnaire_effacer_commentaires', '_questionnaire_figer', '_questionnaire_clore',
+                       '_questionnaire_clos');
+    perform pg_temp.cas('retour : les quatre anciennes fonctions sont revenues, les quinze de ce lot sont parties',
       n = 4 and m = 0, n || '/' || m);
+    select string_agg(attname, ',' order by attname) into t from pg_attribute
+     where attrelid = 'public.questionnaire_participations'::regclass and attnum > 0 and not attisdropped;
+    perform pg_temp.cas('retour : participations à leur forme du lot Q3, tables des résultats figés et des clôtures retirées',
+      t = 'annee,cle,lieu_id,promo_id,user_id' and to_regclass('public.questionnaire_resultats_figes') is null
+      and to_regclass('public.questionnaire_clotures') is null, t);
   end if;
 
   -- Verdict -----------------------------------------------------------------------------------------------------------
