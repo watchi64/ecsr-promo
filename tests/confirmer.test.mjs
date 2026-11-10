@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ElementFactice, NoeudFactice, descendants, installerDocument } from "./aides-dom.mjs";
-import { readFileSync } from "node:fs";
-import { confirmer } from "../js/confirmer.js";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { confirmer, demander } from "../js/confirmer.js";
 
 // Finitions du lot C : la confirmation d'un geste qui efface (une note) se fait dans une fenêtre de l'app, plus par la
 // boîte du navigateur (confirm()), que le robot et le vérificateur comptent comme un défaut. Ce que la fenêtre garantit,
@@ -28,6 +28,7 @@ function registre() {
 
 const AJOUTS = {
   focus() { document.activeElement = this; },
+  select() { this.selectionne = true; },
   contains(noeud) { return descendants(this).includes(noeud); },
   remove() {
     if (!this.parentNode) return;
@@ -246,17 +247,87 @@ test("un signal déjà abandonné : rien ne s'ouvre, réponse non", () => avecDo
   assert.equal(fenetre(document), null);
 }));
 
-// Les fichiers déjà passés à la fenêtre de l'app : Notes (finitions du lot C), puis le lot A du 09/11 (tout fichier
-// qu'aucun autre chantier ne touchait). Le lot B (réglages, émargement, Cours et QCM, EPCF, garde de sortie) suivra.
-const SANS_CONFIRM_NATIF = ["js/views/notes.js", "js/views/notes-saisie.js",
-  "js/views/benevoles.js", "js/views/calendrier.js", "js/views/modules-reglage.js", "js/views/passages.js",
-  "js/views/planning.js", "js/views/problemes.js", "js/views/qcm.js", "js/views/ressources.js"];
+// Lot B (10/11) : plus aucune boîte du navigateur dans toute l'app, ni confirm(), ni prompt(), ni alert().
+function fichiersJs(dossier) {
+  return readdirSync(new URL("../" + dossier, import.meta.url)).flatMap((nom) => {
+    const chemin = dossier + "/" + nom;
+    return statSync(new URL("../" + chemin, import.meta.url)).isDirectory() ? fichiersJs(chemin) : (nom.endsWith(".js") ? [chemin] : []);
+  });
+}
 
-// (Le planning garde un prompt(), le libellé d'un jour désactivé : une fenêtre avec un champ, autre travail.)
-test("ces pages ne demandent plus aucune confirmation au navigateur", () => {
-  for (const fichier of SANS_CONFIRM_NATIF) {
+test("l'app ne demande plus rien au navigateur : ni confirm(), ni prompt(), ni alert()", () => {
+  const fichiers = fichiersJs("js");
+  assert.ok(fichiers.length > 50, "les fichiers de js/ sont lus");
+  for (const fichier of fichiers) {
     const src = readFileSync(new URL("../" + fichier, import.meta.url), "utf8")
       .replace(/\/\/.*$/gm, "");   // les commentaires peuvent parler de confirm()
-    assert.ok(!/(^|[^\w.])confirm\s*\(|window\.confirm\s*\(/.test(src), fichier + " : un confirm() du navigateur");
+    assert.ok(!/(^|[^\w.])(confirm|prompt|alert)\s*\(|window\.(confirm|prompt|alert)\s*\(/.test(src),
+      fichier + " : une boîte du navigateur");
   }
 });
+
+// --- demander() : la même fenêtre avec un champ (libellé d'un jour désactivé, confirmation tapée) ---
+const champ = (document) => descendants(fenetre(document)).find((n) => n.nodeName === "input");
+
+test("demander : le champ a le focus et sa valeur de départ ; le bouton rend ce qui est tapé", () => avecDocument(async (document) => {
+  const reponse = demander({ titre: "Désactiver lundi ?", libelle: "Libellé", valeur: "Vacances", oui: "Désactiver", danger: false });
+  await tour();
+  const c = champ(document);
+  assert.ok(c, "un champ");
+  assert.equal(c.value, "Vacances");
+  assert.equal(document.activeElement, c, "le focus va au champ");
+  assert.ok(c.selectionne, "son texte est sélectionné, prêt à être remplacé");
+  assert.ok(descendants(fenetre(document)).some((n) => n.nodeName === "label" && n.textContent.includes("Libellé")), "le champ est nommé");
+  c.value = "Pont";
+  bouton(document, "Désactiver").click();
+  assert.equal(await reponse, "Pont");
+  assert.equal(fenetre(document), null);
+}));
+
+test("demander : « Annuler » et Échap rendent null", () => avecDocument(async (document) => {
+  let reponse = demander({ titre: "Désactiver lundi ?", libelle: "Libellé", oui: "Désactiver" });
+  await tour();
+  bouton(document, "Annuler").click();
+  assert.equal(await reponse, null);
+  reponse = demander({ titre: "Désactiver lundi ?", libelle: "Libellé", oui: "Désactiver" });
+  await tour();
+  touche("Escape");
+  assert.equal(await reponse, null);
+}));
+
+test("demander : Entrée dans le champ valide", () => avecDocument(async (document) => {
+  const reponse = demander({ titre: "Désactiver lundi ?", libelle: "Libellé", valeur: "Férié", oui: "Désactiver" });
+  await tour();
+  const e = touche("Enter");
+  assert.ok(e.empeche, "Entrée ne fait rien d'autre");
+  assert.equal(await reponse, "Férié");
+}));
+
+test("demander : une saisie refusée par `verifier` laisse la fenêtre ouverte et le dit ; la bonne saisie passe", () => avecDocument(async (document) => {
+  const reponse = demander({ titre: "Effacer les données de Léa ?", libelle: "Pour confirmer, tapez le prénom", oui: "Effacer",
+    verifier: (v) => v.trim() === "Léa", erreur: "Le prénom ne correspond pas : rien n'est effacé." });
+  await tour();
+  const c = champ(document);
+  c.value = "Lea";
+  bouton(document, "Effacer").click();
+  await tour();
+  assert.ok(fenetre(document), "la fenêtre reste ouverte");
+  const alerte = descendants(fenetre(document)).find((n) => n.getAttribute?.("role") === "alert");
+  assert.equal(alerte.textContent, "Le prénom ne correspond pas : rien n'est effacé.");
+  assert.equal(document.activeElement, c, "le focus revient au champ");
+  c.value = "Léa";
+  bouton(document, "Effacer").click();
+  assert.equal(await reponse, "Léa");
+}));
+
+test("demander : Tab passe du champ aux deux boutons et revient", () => avecDocument(async (document) => {
+  const reponse = demander({ titre: "Désactiver lundi ?", libelle: "Libellé", oui: "Désactiver" });
+  await tour();
+  const c = champ(document), non = bouton(document, "Annuler"), oui = bouton(document, "Désactiver");
+  touche("Tab"); assert.equal(document.activeElement, non);
+  touche("Tab"); assert.equal(document.activeElement, oui);
+  touche("Tab"); assert.equal(document.activeElement, c, "après le dernier, le champ");
+  touche("Tab", { shiftKey: true }); assert.equal(document.activeElement, oui, "Maj+Tab sur le champ : le dernier bouton");
+  non.click();
+  assert.equal(await reponse, null);
+}));

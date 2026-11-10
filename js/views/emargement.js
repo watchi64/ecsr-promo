@@ -9,6 +9,7 @@ import {
   annoterEmargement, cloreEmargement, rouvrirEmargement, getEnteteEmargement, setEnteteEmargement,
 } from "../db.js?v=20261110d";
 import { el, clear, toast, isoDate } from "../utils.js?v=20261110d";
+import { confirmer } from "../confirmer.js?v=20261110d";
 import { icon } from "../icons.js?v=20261110d";
 import { isAdmin, isProf, isEquipe, getProfile } from "../auth-admin.js?v=20261110d";
 import {
@@ -551,10 +552,10 @@ function ouvrirObservation(ctx, s, st, ligne) {
 }
 
 async function cloreFeuille(ctx, s, enAttente) {
-  const texte = enAttente
-    ? `Clore la feuille ? ${enAttente} stagiaire${enAttente > 1 ? "s" : ""} sans signature ${enAttente > 1 ? "seront notés" : "sera noté"} absent${enAttente > 1 ? "s" : ""}.`
-    : "Clore la feuille ? Plus personne ne pourra la signer.";
-  if (!window.confirm(texte)) return;
+  const phrase = enAttente
+    ? `${enAttente} stagiaire${enAttente > 1 ? "s" : ""} sans signature ${enAttente > 1 ? "seront notés" : "sera noté"} absent${enAttente > 1 ? "s" : ""}.`
+    : "Plus personne ne pourra la signer.";
+  if (!(await confirmer({ titre: "Clore la feuille ?", phrase, oui: "Clore la feuille" }))) return;
   try {
     const n = await cloreEmargement(s.id);
     toast(`Feuille close${n ? ` : ${n} absent${n > 1 ? "s" : ""} noté${n > 1 ? "s" : ""}` : ""}.`, "success");

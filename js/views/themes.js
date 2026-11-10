@@ -1,5 +1,6 @@
 import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261110d";
 import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261110d";
+import { confirmer } from "../confirmer.js?v=20261110d";
 import { icon } from "../icons.js?v=20261110d";
 import {
   examenDemarrable, tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture,
@@ -504,7 +505,10 @@ function themeExamPanel(theme, qcm, onPublishChange) {
     let attempts = [];
     try { attempts = await listExamAttempts(qcm.id); } catch (e) { /* ignore */ }
     if (attempts.length > 0) {
-      return window.confirm(`${attempts.length} stagiaire(s) ont déjà passé l'examen. Changer les questions rendra leur passage incohérent. Continuer ?`);
+      const n = attempts.length;
+      return confirmer({ titre: "Changer les questions de l'examen ?",
+        phrase: `${n} stagiaire${n > 1 ? "s ont" : " a"} déjà passé l'examen : ${n > 1 ? "leur passage ne correspondra" : "son passage ne correspondra"} plus aux questions.`,
+        oui: "Changer les questions" });
     }
     return true;
   }
@@ -605,7 +609,8 @@ function themeExamPanel(theme, qcm, onPublishChange) {
           bodyA.appendChild(el("div", { class: "exam-attempt-row" },
             el("span", {}, (a.stagiaire?.prenom || `Stagiaire ${a.stagiaire_id}`) + ` : ${a.note_20}/20`),
             el("button", { class: "btn danger", type: "button", onClick: async () => {
-              if (!window.confirm("Réinitialiser cette tentative ? La note sera supprimée.")) return;
+              if (!(await confirmer({ titre: "Réinitialiser cette tentative ?", phrase: "La note sera supprimée.",
+                oui: "Réinitialiser" }))) return;
               try { await resetExamAttempt(qcm.id, a.stagiaire_id); attempts = attempts.filter((x) => x.id !== a.id); toast("Tentative réinitialisée.", "success"); fill(); }
               catch (e) { toast("Réinitialisation impossible : " + (e?.message || e), "error"); }
             } }, "Réinitialiser"),
@@ -887,7 +892,7 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
   }
 
   async function rejeter(b, bouton) {
-    if (!window.confirm("Rejeter ce brouillon ? Il ne sera pas ajouté au QCM.")) return;
+    if (!(await confirmer({ titre: "Rejeter ce brouillon ?", phrase: "Il ne sera pas ajouté au QCM.", oui: "Rejeter" }))) return;
     bouton.disabled = true;
     try {
       await rejeterBrouillonIa(b.id);
@@ -1061,7 +1066,7 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
   }
 
   async function removeQuestion(q) {
-    if (!window.confirm("Supprimer cette question ?")) return;
+    if (!(await confirmer({ titre: "Supprimer cette question ?", oui: "Supprimer" }))) return;
     try {
       await deleteQcmQuestion(q.id);
       dirty = true;
@@ -1201,9 +1206,10 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = [], { 
     if (envoi) return;
     if (articlesCours) {
       const hors = articlesHorsCours([q.section, q.enonce, q.explication, ...q.options.map((o) => o.texte)], articlesCours);
-      if (hors.length && !window.confirm(
-        `Le texte cite ${hors.join(", ")}, qui n'apparaît pas dans le cours du thème. `
-        + "Vérifie-le sur Légifrance avant d'accepter.\n\nAccepter quand même ?")) return;
+      if (hors.length && !(await confirmer({ titre: "Accepter quand même ?",
+        phrase: `Le texte cite ${hors.join(", ")}, qui n'apparaît pas dans le cours du thème. `
+          + "Vérifiez-le sur Légifrance avant d'accepter.",
+        oui: "Accepter quand même", danger: false }))) return;
     }
     envoi = true;
     try {
@@ -1287,8 +1293,9 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = [], { 
     document.removeEventListener("keydown", onKey);
     backdrop.remove();
   }
-  function requestCancel() {
-    if (touched && !window.confirm("Abandonner les modifications de cette question ?")) return;
+  async function requestCancel() {
+    if (touched && !(await confirmer({ titre: "Abandonner les modifications de cette question ?",
+      oui: "Abandonner", non: "Continuer" }))) return;
     close();
   }
   function onKey(e) {
@@ -1541,7 +1548,9 @@ function renderThemeRow(theme, container, coursOn = false) {
       onClick: async () => {
         // `themes` est commun à toutes les promos : la suppression emporte en cascade la progression,
         // les QCM, les états d'examen et les tentatives de TOUTES les promos.
-        if (!confirm(`Supprimer la notion « ${theme.titre} » ?\n\nLa suppression vaut pour toutes les promos : la progression, les QCM et les tentatives liés disparaissent avec elle.`)) return;
+        if (!(await confirmer({ titre: `Supprimer la notion « ${theme.titre} » ?`,
+          phrase: "La suppression vaut pour toutes les promos : la progression, les QCM et les tentatives liés disparaissent avec elle.",
+          oui: "Supprimer la notion" }))) return;
         await deleteTheme(theme.id);
         themes = themes.filter((t) => t.id !== theme.id);
         rerender(container);

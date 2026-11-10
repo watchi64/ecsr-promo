@@ -20,6 +20,7 @@ import {
   setMyAnonymousNotes,
 } from "../db.js?v=20261110d";
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261110d";
+import { confirmer, demander } from "../confirmer.js?v=20261110d";
 import { icon } from "../icons.js?v=20261110d";
 import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261110d";
 import { moduleVisible } from "../modules-etat.js?v=20261110d";
@@ -182,7 +183,7 @@ async function renderAccessSection(rerender) {
           (admin && p.email !== currentEmail && peutRetirerCompte({ cible: p, fondateur: fondateurHorsApercu() })) ? el("button", {
             class: "btn small danger icon-only", "aria-label": "Retirer l'accès",
             onClick: async () => {
-              if (!confirm(`Retirer l'accès de ${p.email} ?`)) return;
+              if (!(await confirmer({ titre: `Retirer l'accès de ${p.email} ?`, oui: "Retirer l'accès" }))) return;
               try {
                 await deleteUserProfile(p.email);
                 toast("Accès retiré", "success");
@@ -396,7 +397,7 @@ async function renderPromoSection(rerender) {
         actionBtn = el("button", {
           class: "btn small danger icon-only", "aria-label": "Supprimer",
           onClick: async () => {
-            if (!confirm(`Supprimer ${it.nom} ?`)) return;
+            if (!(await confirmer({ titre: `Supprimer ${it.nom} ?`, oui: "Supprimer" }))) return;
             try {
               await deleteProf(it.id);
               toast("Supprimé", "success");
@@ -477,11 +478,12 @@ async function renderDonneesSection(rerender) {
       blocPromo.appendChild(el("button", { class: "btn danger", onClick: async (e) => {
         const bouton = e.currentTarget;
         const nom = etat.nom || "cette promo";
-        const saisie = prompt(`Anonymiser toutes les fiches de « ${nom} » ?\n\n`
-          + "Comptes, e-mails, dates de naissance, livrets, dossiers et commentaires sont effacés ; "
-          + "les résultats restent sans nom. Irréversible.\n\nPour confirmer, tape : ANONYMISER");
+        const saisie = await demander({ titre: `Anonymiser toutes les fiches de « ${nom} » ?`,
+          phrase: "Comptes, e-mails, dates de naissance, livrets, dossiers et commentaires sont effacés ; "
+            + "les résultats restent sans nom. Irréversible.",
+          libelle: "Pour confirmer, tapez ANONYMISER", oui: "Anonymiser",
+          verifier: (v) => v.trim() === "ANONYMISER", erreur: "Saisie différente : rien n'est effacé." });
         if (saisie === null) return;
-        if (saisie.trim() !== "ANONYMISER") { toast("Saisie différente : rien n'a été effacé.", "error"); return; }
         bouton.disabled = true;
         try {
           const r = await anonymiserPromo();
@@ -514,8 +516,8 @@ async function renderDonneesSection(rerender) {
     blocBnv.appendChild(el("button", { class: "btn danger", onClick: async (e) => {
       const bouton = e.currentTarget;
       const n = benevoles.length;
-      if (!confirm(`Supprimer ${n} élève${n > 1 ? "s" : ""} bénévole${n > 1 ? "s" : ""} et leurs coordonnées ?\n\n`
-        + "Ils disparaissent aussi des anciens créneaux du planning. Irréversible.")) return;
+      if (!(await confirmer({ titre: `Supprimer ${n} élève${n > 1 ? "s" : ""} bénévole${n > 1 ? "s" : ""} et leurs coordonnées ?`,
+        phrase: "Ils disparaissent aussi des anciens créneaux du planning. Irréversible.", oui: "Supprimer" }))) return;
       bouton.disabled = true;
       try {
         const nb = await purgerBenevoles(benevoles.map((b) => b.id));

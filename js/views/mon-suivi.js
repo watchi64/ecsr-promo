@@ -658,7 +658,7 @@ export function renderFiche(container, d, opts) {
       storageKey: opts.storageKey,
       // L'onglet choisi s'inscrit dans l'adresse, sans étape d'historique.
       onChange: (p) => remplacerAdresse(opts.adresse(p)),
-      avantChangement: () => peutQuitter(),
+      avantChangement: (reprendre) => peutQuitter(reprendre),
     }));
     return "onglets";
   }

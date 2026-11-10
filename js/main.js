@@ -334,8 +334,11 @@ function suivreRedirection() {
 
 async function navigate({ force = false } = {}) {
   // Garde de saisie (chantier D, lot 2) : une grille EPCF commencée n'est pas
-  // abandonnée sans accord. Refus : l'adresse affichée est remise, sans rendu.
-  if (!peutQuitter()) { remplacerAdresse(adresseCourante()); return; }
+  // abandonnée sans accord. La question se pose dans l'app : en attendant, l'adresse affichée est remise, sans rendu ;
+  // un accord rejoue la navigation vers l'adresse voulue.
+  const voulue = location.hash;
+  const reprendre = () => { if (location.hash !== voulue) location.hash = voulue; else navigate({ force }); };
+  if (!peutQuitter(reprendre)) { remplacerAdresse(adresseCourante()); return; }
   leverGardeSortie();
   // Nouvelle navigation : les quatre anciennes adresses mènent à leur nouvel emplacement, et Réglages
   // du stagiaire à Mes préférences. Après la garde, donc suivre une redirection demande la même
@@ -484,8 +487,8 @@ function afficherChargement() {
 // du compte sous la nouvelle navigation (le seul moyen de relire les données dans l'app installée
 // sur iPhone, qui n'a pas de bouton de rechargement).
 async function actualiser() {
-  // Saisie en cours : pas de rechargement sans accord.
-  if (!peutQuitter()) return;
+  // Saisie en cours : pas de rechargement sans accord (un accord relance « Actualiser »).
+  if (!peutQuitter(actualiser)) return;
   // Force le rechargement réel : vide le cache des données de référence
   invalidateCache();
   afficherChargement();
@@ -508,7 +511,7 @@ function setupRefreshBtn() {
 // Bouton de l'ancienne barre ; sous la nouvelle navigation, bouton du haut de Planning > Semaine
 // (ruling R29, js/views/planning.js), toujours ce geste-ci.
 async function allerAujourdhui() {
-  if (!peutQuitter()) return;
+  if (!peutQuitter(allerAujourdhui)) return;
   requestPlanningToday();
   if (location.hash === "#/planning") await navigate({ force: true });
   else location.hash = "#/planning";

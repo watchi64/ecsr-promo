@@ -11,8 +11,8 @@ import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=2
 // opts.activeKey : onglet initial ; opts.storageKey : mémorise le dernier onglet choisi ; opts.defautKey : l'onglet
 // d'ouverture quand rien n'est mémorisé (Notes : « Saisir » sur un écran tactile, « Matrice » sinon).
 // opts.onChange(key) : appelé quand l'utilisateur choisit un onglet (pas au rendu
-// initial). opts.avantChangement() : renvoie false pour garder l'onglet affiché
-// (saisie en cours qu'on ne veut pas perdre).
+// initial). opts.avantChangement(reprendre) : renvoie false pour garder l'onglet affiché (saisie en cours qu'on ne veut
+// pas perdre) ; `reprendre` rejoue le changement d'onglet si la personne accepte ensuite de quitter.
 // Retourne l'élément conteneur (barre + panneau), dont `activer(key)` bascule sur un onglet comme un clic. S'il ne reste qu'un onglet, la
 // barre n'est pas affichée : le contenu s'affiche directement.
 export function renderSubTabs(tousLesOnglets, opts = {}) {
@@ -31,7 +31,7 @@ export function renderSubTabs(tousLesOnglets, opts = {}) {
   let gen = 0;   // jeton d'activation : permet à un rendu asynchrone de savoir s'il est
                  // toujours le rendu courant (sinon il doit s'abstenir d'écrire le panneau).
   function activate(key, parUtilisateur = false) {
-    if (parUtilisateur && avantChangement && !avantChangement()) return;
+    if (parUtilisateur && avantChangement && !avantChangement(() => activate(key, true))) return;
     current = key;
     const myGen = ++gen;
     if (storageKey) { try { localStorage.setItem(storageKey, key); } catch (e) { /* ignore */ } }

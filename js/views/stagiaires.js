@@ -239,7 +239,7 @@ export async function renderStagiaires(container) {
     // Les bénévoles n'ont pas d'adresse de fiche : celle qu'on quitte ne doit pas rester dans la barre d'adresse.
     onChange: (cle) => { if (cle === "benevoles") remplacerAdresse("#/stagiaires"); },
     // Une grille EPCF commencée n'est pas abandonnée sans accord, comme en changeant de partie de la fiche.
-    avantChangement: () => peutQuitter(),
+    avantChangement: (reprendre) => peutQuitter(reprendre),
   }));
   container.appendChild(page);
 }

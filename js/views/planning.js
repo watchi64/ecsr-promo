@@ -10,7 +10,7 @@ import {
   avantChangementPromo,
 } from "../db.js?v=20261110d";
 import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261110d";
-import { confirmer } from "../confirmer.js?v=20261110d";
+import { confirmer, demander } from "../confirmer.js?v=20261110d";
 import { icon, deco } from "../icons.js?v=20261110d";
 import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261110d";
 import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261110d";
@@ -2324,7 +2324,9 @@ async function disableDay(d) {
   const monday = new Date(semaineLundi + "T00:00:00");
   const info = dayOffInfo(d, monday);
   const def = info.ferie ? info.label : "Vacances";
-  const label = prompt("Désactiver « " + JOURS[d] + " », libellé (ex. Vacances, Pont, Férié…) :", def);
+  const jour = JOURS[d].charAt(0) + JOURS[d].slice(1).toLowerCase();
+  const label = await demander({ titre: `Désactiver ${jour.toLowerCase()} ?`,
+    libelle: "Libellé (par exemple Vacances, Pont, Férié)", valeur: def, oui: "Désactiver", danger: false });
   if (label === null) return;   // annulé
   try {
     await setJourOff(semaineLundi, d, label.trim() || "Désactivé", getCurrentWho());
