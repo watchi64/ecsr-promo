@@ -4169,7 +4169,9 @@ def verifier_nouveautes_de_l_accueil(page, res, vue, equipe):
     }""")
     if ordre and titres[:1] != [ordre[0]["titre"]]:
         res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu la plus récente, « %s »" % (" », « ".join(titres[:1]), ordre[0]["titre"]))
-    jour_du_lot = "-".join(reversed(DATE_DE_LA_FUSION.split("/")))
+    # Le jour du lot 2B en AAAA-MM-JJ, lu dans l'identifiant de sa Nouveauté (DATE_DE_LA_FUSION est écrite en toutes lettres : la
+    # comparer à une date AAAA-MM-JJ laissait passer toutes les Nouveautés, dont celles du lot 5, datées du 10/11).
+    jour_du_lot = "-".join(_ID_JOURNEE.groups()) if _ID_JOURNEE else "9999-12-31"
     titres = [o["titre"] for o in ordre if o["date"] <= jour_du_lot and o["titre"] != TITRE_QUESTIONNAIRES] if ordre else titres
     if titres[:len(attendus)] != attendus:
         res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu « %s »" % (" », « ".join(titres[:len(attendus)]), " », « ".join(attendus)))
