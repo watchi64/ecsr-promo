@@ -62,6 +62,9 @@ select row_number() over (order by s, t) as ord, s || '.' || t as cible, n, md5(
   from texte order by s, t;
 
 -- Requête 2 : marche arrière de l'étape 2 (fonctions).
+-- Depuis le lot Q5 (20261110_conservation.sql), anonymiser_promo, anonymiser_stagiaire, etat_anonymisation_promo et
+-- _anonymiser_stagiaire n'existent plus et emargement_signer a changé : le retour de l'étape 2 du lot 4 les recréerait.
+-- Ne le jouer (ni régénérer cette partie) qu'après le retour du lot Q5 (20261110_conservation_retour.sql).
 with liste as (
   select u.n as nom, u.o as ord
     from unnest(array['peut_acceder_promo', 'promo_par_defaut', 'promo_courante', 'my_stagiaire_id',
