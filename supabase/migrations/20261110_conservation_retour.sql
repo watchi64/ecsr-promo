@@ -316,6 +316,7 @@ drop function public.effacer_promo_etape1(integer);
 drop function public.etat_conservation();
 drop function public._effacer_etape2(integer);
 drop function public._effacer_etape1(integer);
+drop function public._effacer_textes_libres(integer);
 
 -- 2. Émargement : versions d'avant (create or replace : droits d'exécution gardés) ------------------------------------
 CREATE OR REPLACE FUNCTION public.emargement_signer(p_seance bigint, p_stagiaire integer, p_trace text)

@@ -9,9 +9,14 @@
 -- abandon (actif = false). Ce lot la remplace par deux étapes datées et un effacement sur demande :
 --   - Étape 1 (à partir de date_fin + 12 mois) : compte, e-mails, date de naissance, fiche de suivi, textes libres,
 --     observations de l'émargement et e-mails de la personne sur l'émargement. Le nom, les résultats, le dossier
---     professionnel, le livret et les tracés des signatures restent. Marque : stagiaires.efface_le.
+--     professionnel, le livret et les tracés des signatures restent. Marque : stagiaires.efface_le. Les e-mails de la
+--     personne sont ceux de son compte et, compte déjà retiré par l'équipe, ceux qu'elle a laissés sur sa fiche : lignes
+--     d'émargement signées sur son propre appareil (signe_par), signalements de questions faits depuis sa fiche. Une
+--     adresse retrouvée ainsi qui sert encore à un compte (profil d'une autre fiche, équipe) n'est retirée que des lignes
+--     de cette fiche (émargement, évaluations, signalements).
 --   - Étape 2 (à partir du 1er janvier de l'année date_fin + 4, soit après le 31/12 de la 3e année) : l'étape 1 si elle
---     manque, puis dossier professionnel, livret, tracés des signatures, nom (prénom « Anonyme <id> », nom nul). Marque :
+--     manque (sinon ses textes libres de nouveau, écrits depuis par un formateur sur la fiche encore nommée), puis
+--     dossier professionnel, livret, tracés des signatures, nom (prénom « Anonyme <id> », nom nul). Marque :
 --     stagiaires.anonymise_le, qui garde son sens (plus aucun nom). Pour les feuilles d'émargement de la promo : les
 --     formateurs deviennent « Formateur 1 », « Formateur 2 »… par feuille dans l'ordre de leur signature, sans fiche
 --     formateur ni tracé ; les e-mails des feuilles (ouverture, clôture, signataires, mises à jour) deviennent « anonyme ».
@@ -105,6 +110,46 @@ drop function public.anonymiser_stagiaire(integer);
 drop function public.etat_anonymisation_promo();
 drop function public._anonymiser_stagiaire(integer);
 
+-- 2 bis. Textes libres d'une fiche (interne) -----------------------------------------------------------------------
+-- Commentaires d'EPCF, observations des notes, commentaires des passages, observations de l'émargement, et leurs copies
+-- dans les historiques. Jouée par l'étape 1, puis de nouveau par l'étape 2 quand l'étape 1 est déjà faite : après l'étape
+-- 1, la fiche garde son nom et reste listée, un formateur peut encore y écrire (relecture finale, constat 3). Idempotente :
+-- { epcf_textes, observations, commentaires_passages, emargement_observations }, des zéros au second passage.
+-- (epcf_evaluations.contexte n'est pas un texte libre : c'est un code, « EPCF ».)
+create function public._effacer_textes_libres(p_id integer)
+returns jsonb language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
+declare
+  v_n jsonb := '{}'::jsonb;
+  n integer;
+begin
+  update epcf_evaluations set commentaire = null where stagiaire_id = p_id and commentaire is not null;
+  get diagnostics n = row_count; v_n := v_n || jsonb_build_object('epcf_textes', n);
+  update evaluations set observation = null where stagiaire_id = p_id and observation is not null;
+  get diagnostics n = row_count; v_n := v_n || jsonb_build_object('observations', n);
+  update passages set commentaire = null where stagiaire_id = p_id and commentaire is not null;
+  get diagnostics n = row_count; v_n := v_n || jsonb_build_object('commentaires_passages', n);
+
+  perform set_config('emargement.effacement', 'on', true);
+  update emargement_lignes set observation = null where stagiaire_id = p_id and observation is not null;
+  get diagnostics n = row_count;
+  perform set_config('emargement.effacement', '', true);
+  v_n := v_n || jsonb_build_object('emargement_observations', n);
+
+  -- Les historiques gardent une copie des lignes : on y vide aussi les textes libres (là seulement où il en reste).
+  update evaluations_audit
+     set before_data = case when before_data ? 'observation' then jsonb_set(before_data, '{observation}', 'null') else before_data end,
+         after_data  = case when after_data  ? 'observation' then jsonb_set(after_data,  '{observation}', 'null') else after_data end
+   where ((before_data ->> 'stagiaire_id')::int = p_id or (after_data ->> 'stagiaire_id')::int = p_id)
+     and (before_data ->> 'observation' is not null or after_data ->> 'observation' is not null);
+  update passages_audit
+     set before_data = case when before_data ? 'commentaire' then jsonb_set(before_data, '{commentaire}', 'null') else before_data end,
+         after_data  = case when after_data  ? 'commentaire' then jsonb_set(after_data,  '{commentaire}', 'null') else after_data end
+   where ((before_data ->> 'stagiaire_id')::int = p_id or (after_data ->> 'stagiaire_id')::int = p_id)
+     and (before_data ->> 'commentaire' is not null or after_data ->> 'commentaire' is not null);
+  return v_n;
+end;
+$function$;
+
 -- 3. Étape 1 d'une fiche (interne) ---------------------------------------------------------------------------------
 -- Ce que faisait _anonymiser_stagiaire, SAUF le dossier professionnel, le livret, le nom et actif ; EN PLUS : observations
 -- de l'émargement de la fiche, e-mails de la personne sur l'émargement, participations de la fiche aux questionnaires
@@ -114,6 +159,8 @@ returns jsonb language plpgsql security definer set search_path to 'public', 'au
 declare
   s record;
   v_emails text[];
+  v_retrouvees text[];    -- adresses laissées sur la fiche (compte déjà retiré), hors adresses de son compte
+  v_vivantes text[];      -- parmi elles, celles qui servent encore à un compte : retirées des seules lignes de la fiche
   v_noms text[];          -- formes sous lesquelles la personne apparaît dans les champs « qui »
   v_remplace constant text := 'Stagiaire anonyme';
   v_n jsonb := '{}'::jsonb;
@@ -131,6 +178,23 @@ begin
 
   select coalesce(array_agg(distinct lower(email)), '{}') into v_emails
     from user_profiles where stagiaire_id = p_id;
+  -- Compte déjà retiré (relecture finale, constat 2) : ses adresses restent sur ce qu'elle a fait depuis sa fiche. Une ligne
+  -- d'émargement de la fiche signée sur son propre appareil porte son adresse (signe_par) ; un signalement de question
+  -- fait depuis sa fiche aussi (qcm_signalements.email). Ces adresses ne sont jamais celles d'un formateur.
+  select coalesce(array_agg(distinct a.e), '{}') into v_retrouvees
+    from (select lower(l.signe_par) as e from emargement_lignes l
+           where l.stagiaire_id = p_id and not l.sur_appareil_formateur and l.signe_par is not null
+          union
+          select lower(q.email) from qcm_signalements q where q.stagiaire_id = p_id) a
+   where a.e is not null and a.e <> 'anonyme' and not (a.e = any(v_emails));
+  -- Une adresse retrouvée qui sert encore (profil d'une autre fiche : la personne inscrite ailleurs ; équipe) n'est
+  -- effacée que des lignes de cette fiche ; les autres rejoignent les adresses de la personne (compte de connexion resté
+  -- sans profil compris).
+  select coalesce(array_agg(e), '{}') into v_vivantes
+    from unnest(v_retrouvees) e
+   where exists (select 1 from user_profiles u where lower(u.email) = e)
+      or exists (select 1 from affectations a where lower(a.email) = e);
+  v_emails := v_emails || array(select e from unnest(v_retrouvees) e where not (e = any(v_vivantes)));
   -- Nom affiché dans l'app (« V. Timy », cf. displayStagiaire) et e-mails (repli de getProfileWho).
   v_noms := array[case when coalesce(trim(s.nom), '') <> ''
                        then upper(left(trim(s.nom), 1)) || '. ' || s.prenom else s.prenom end]
@@ -146,21 +210,25 @@ begin
   end if;
   v_n := v_n || jsonb_build_object('fiche_suivi', n);
 
-  -- Résultats conservés, textes libres vidés (ils peuvent contenir un prénom, une santé…).
-  -- (epcf_evaluations.contexte n'est pas un texte libre : c'est un code, « EPCF ».)
-  update epcf_evaluations set commentaire = null where stagiaire_id = p_id and commentaire is not null;
-  get diagnostics n = row_count; v_n := v_n || jsonb_build_object('epcf_textes', n);
-  update evaluations set observation = null where stagiaire_id = p_id and observation is not null;
-  get diagnostics n = row_count; v_n := v_n || jsonb_build_object('observations', n);
-  update passages set commentaire = null where stagiaire_id = p_id and commentaire is not null;
-  get diagnostics n = row_count; v_n := v_n || jsonb_build_object('commentaires_passages', n);
+  -- Résultats conservés, textes libres vidés (ils peuvent contenir un prénom, une santé…), observations de l'émargement
+  -- et copies des historiques comprises.
+  v_n := v_n || _effacer_textes_libres(p_id);
 
-  -- Émargement : observations de la fiche ; e-mails de la personne (elle a signé ou été notée sous son adresse).
-  perform set_config('emargement.effacement', 'on', true);
-  update emargement_lignes set observation = null where stagiaire_id = p_id and observation is not null;
-  get diagnostics n = row_count;
-  perform set_config('emargement.effacement', '', true);
-  v_n := v_n || jsonb_build_object('emargement_observations', n);
+  -- Une adresse retrouvée qui sert encore à un compte : retirée des seules lignes de cette fiche (émargement, évaluations,
+  -- signalements faits depuis la fiche) ; ailleurs elle reste, la personne l'utilise toujours.
+  if cardinality(v_vivantes) > 0 then
+    perform set_config('emargement.effacement', 'on', true);
+    update emargement_lignes set signe_par = 'anonyme' where stagiaire_id = p_id and lower(signe_par) = any(v_vivantes);
+    perform set_config('emargement.effacement', '', true);
+    perform set_config('emargement.effacement', 'on', true);
+    update emargement_lignes set maj_par = 'anonyme' where stagiaire_id = p_id and lower(maj_par) = any(v_vivantes);
+    perform set_config('emargement.effacement', '', true);
+    update evaluations set created_by_email = 'anonyme' where stagiaire_id = p_id and lower(created_by_email) = any(v_vivantes);
+    update evaluations set updated_by_email = 'anonyme' where stagiaire_id = p_id and lower(updated_by_email) = any(v_vivantes);
+    update qcm_signalements set email = 'anonyme' where stagiaire_id = p_id and lower(email) = any(v_vivantes);
+  end if;
+
+  -- Émargement : e-mails de la personne (elle a signé ou été notée sous son adresse).
   if cardinality(v_emails) > 0 then
     perform set_config('emargement.effacement', 'on', true);
     update emargement_lignes set signe_par = 'anonyme' where lower(signe_par) = any(v_emails);
@@ -208,16 +276,6 @@ begin
         or after_data::text  like '%' || to_jsonb(x)::text || '%';
   end loop;
 
-  -- Les historiques gardent une copie des lignes : on y vide aussi les textes libres.
-  update evaluations_audit
-     set before_data = case when before_data ? 'observation' then jsonb_set(before_data, '{observation}', 'null') else before_data end,
-         after_data  = case when after_data  ? 'observation' then jsonb_set(after_data,  '{observation}', 'null') else after_data end
-   where (before_data ->> 'stagiaire_id')::int = p_id or (after_data ->> 'stagiaire_id')::int = p_id;
-  update passages_audit
-     set before_data = case when before_data ? 'commentaire' then jsonb_set(before_data, '{commentaire}', 'null') else before_data end,
-         after_data  = case when after_data  ? 'commentaire' then jsonb_set(after_data,  '{commentaire}', 'null') else after_data end
-   where (before_data ->> 'stagiaire_id')::int = p_id or (after_data ->> 'stagiaire_id')::int = p_id;
-
   -- Participations de la fiche aux questionnaires (les réponses, anonymes, restent).
   delete from questionnaire_participations where stagiaire_id = p_id;
 
@@ -238,8 +296,9 @@ end;
 $function$;
 
 -- 4. Étape 2 d'une fiche (interne) ---------------------------------------------------------------------------------
--- L'étape 1 si elle manque (fondateur en retard : pas de refus), puis dossier professionnel, livret, tracés des
--- signatures de la fiche (heure gardée, signataire « anonyme »), nom. Rejouée : { deja: true }.
+-- L'étape 1 si elle manque (fondateur en retard : pas de refus), sinon ses textes libres de nouveau (écrits depuis l'étape
+-- 1 sur la fiche encore nommée) ; puis dossier professionnel, livret, tracés des signatures de la fiche (heure gardée,
+-- signataire « anonyme »), nom. Rejouée : { deja: true }.
 create function public._effacer_etape2(p_id integer)
 returns jsonb language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
 declare
@@ -258,6 +317,8 @@ begin
 
   if s.efface_le is null then
     v_n := _effacer_etape1(p_id);
+  else
+    v_n := _effacer_textes_libres(p_id);
   end if;
 
   delete from dp_dossiers where stagiaire_id = p_id;  get diagnostics n = row_count; v_n := v_n || jsonb_build_object('dossier_pro', n);
@@ -278,7 +339,7 @@ begin
 end;
 $function$;
 
-revoke all on function public._effacer_etape1(integer), public._effacer_etape2(integer)
+revoke all on function public._effacer_textes_libres(integer), public._effacer_etape1(integer), public._effacer_etape2(integer)
   from public, anon, authenticated, service_role;
 
 -- 5. État de la conservation (page Qualiopi) -----------------------------------------------------------------------

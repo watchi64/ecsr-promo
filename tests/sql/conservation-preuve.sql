@@ -142,6 +142,8 @@ declare
   RQ1 bigint; RQ2 bigint; RQ3 bigint; RQ4 bigint; RQ5 bigint; RQ6 bigint;
   v_rs jsonb; v_rf jsonb; j_fin jsonb; j_six jsonb; j_l1 jsonb; j_l2 jsonb; pPA jsonb; pPD jsonb; pL1 jsonb; pL2 jsonb;
   fe_r text[]; fe_c text;
+  -- Relecture finale : compte déjà retiré puis demande (constat 2), textes écrits après l'étape 1 (constat 3).
+  cr text[]; v_tard text;
   a1 text[]; a2 text[]; v_notes1 text; v_notes2 text; n_part bigint; r2 text; t2 text; m2 bigint; v_lignes bigint;
 begin
   -- 0. Outils de la preuve (schéma temporaire, annulés avec le reste) ------------------------------------------------
@@ -239,6 +241,18 @@ begin
                 || ' efface:' || (to_jsonb(s) ->> 'efface_le' is not null)
                 || ' anonymise:' || (s.anonymise_le is not null)
            from public.stagiaires s where s.id = p_id));
+    $f$;
+    -- Où une adresse se lit encore (relecture finale, constat 2) : lignes d'émargement (signataire ou mise à jour),
+    -- évaluations et leur historique, signalements de questions, acceptations des conditions, profils, comptes.
+    create function pg_temp.traces(p_email text) returns text language sql as $f$
+      select concat_ws(' ',
+        'lignes:' || (select count(*) from public.emargement_lignes where lower(signe_par) = p_email or lower(maj_par) = p_email),
+        'evaluations:' || ((select count(*) from public.evaluations where lower(created_by_email) = p_email or lower(updated_by_email) = p_email)
+                         + (select count(*) from public.evaluations_audit where lower(changed_by_email) = p_email)),
+        'signalements:' || (select count(*) from public.qcm_signalements where lower(email) = p_email),
+        'conditions:' || (select count(*) from public.conditions_acceptations where lower(email) = p_email),
+        'profils:' || (select count(*) from public.user_profiles where lower(email) = p_email),
+        'comptes:' || (select count(*) from auth.users where lower(email) = p_email));
     $f$;
     -- Questionnaires : réponses complètes (chaque échelle à v, le premier choix), envoi, et ce qu'une portée contient.
     create function pg_temp.rep(p_cle text, v jsonb) returns jsonb language sql as $f$
@@ -540,7 +554,8 @@ begin
   perform pg_temp.cas('les quatre anciennes fonctions d''anonymisation sont supprimées', n = 0, n::text);
   select string_agg(ro.rol || ':' || f.fn, ',' order by ro.rol, f.fn) into t
     from (values ('anon'), ('authenticated'), ('service_role')) ro(rol),
-         (values ('public._effacer_etape1(integer)'), ('public._effacer_etape2(integer)')) f(fn)
+         (values ('public._effacer_etape1(integer)'), ('public._effacer_etape2(integer)'),
+                 ('public._effacer_textes_libres(integer)')) f(fn)
    where case when to_regprocedure(f.fn) is null then true else has_function_privilege(ro.rol, f.fn, 'execute') end;
   perform pg_temp.cas('aucun droit d''appel des fonctions internes pour anon, authenticated, service_role', t is null, t);
   select string_agg(ro.rol || ':' || f.fn || ':' || case when to_regprocedure(f.fn) is null then 'absente'
@@ -982,6 +997,24 @@ begin
     perform pg_temp.qui('FORM', PA);
     r := pg_temp.tente_blanc(format('update public.stagiaires set efface_le = null where id = %s returning id::text', S1));
     perform pg_temp.cas('formateur de la promo : retirer efface_le après l''étape 1 refusé', r like '%conservation: Les marques d''effacement%', r);
+
+    -- 4.4 bis Textes libres écrits après l'étape 1 (relecture finale, constat 3) : S1 garde son nom et reste listée ; un
+    -- formateur y écrit une observation de note, un commentaire de passage et d'EPCF (et leur copie dans l'historique),
+    -- et annote la feuille close. L'étape 2 les revide, compteurs au retour.
+    r := pg_temp.tente(format('select public.emargement_annoter(%s, %s, null, %L)::text', feA, S1, 'Observation tardive'));
+    perform pg_temp.cas('après l''étape 1, un formateur annote encore la ligne de S1 sur la feuille close', r like 'ok%', r);
+    reset role;
+    update evaluations set observation = 'Observation tardive' where stagiaire_id = S1;
+    update passages set commentaire = 'Commentaire tardif' where stagiaire_id = S1;
+    update epcf_evaluations set commentaire = 'Commentaire tardif' where stagiaire_id = S1;
+    insert into evaluations_audit (evaluation_id, action, before_data, after_data, changed_by_email, promo_id)
+    select e.id, 'UPDATE', jsonb_build_object('stagiaire_id', S1, 'observation', null),
+           jsonb_build_object('stagiaire_id', S1, 'observation', 'Observation tardive'), 'preuve.cons.form@example.invalid', PA
+      from evaluations e where e.stagiaire_id = S1;
+    v_tard := pg_temp.fiche(S1);
+    perform pg_temp.cas('après l''étape 1, textes tardifs posés sur S1 (3 textes, 1 observation d''émargement)',
+      v_tard like '% textes:3 % emobs:1 %', v_tard);
+    set local role authenticated;
     perform pg_temp.qui('FO');
 
     -- 4.5 Étape 2 : le 31/12 de la 3e année, refusée ; le 01/01, acceptée.
@@ -998,6 +1031,11 @@ begin
       and coalesce(current_setting('conservation.effacement', true), '') = '',
       current_setting('emargement.effacement', true) || '/' || current_setting('conservation.effacement', true));
     reset role;
+    perform pg_temp.cas('étape 2 : les textes écrits après l''étape 1 sont partis, comptés au retour (1 de chaque sorte), historique compris',
+      (pg_temp.res(r) ->> 'epcf_textes')::int = 1 and (pg_temp.res(r) ->> 'observations')::int = 1
+      and (pg_temp.res(r) ->> 'commentaires_passages')::int = 1 and (pg_temp.res(r) ->> 'emargement_observations')::int = 1
+      and (select count(*) from evaluations_audit where (after_data ->> 'stagiaire_id')::int = S1
+             and (after_data ->> 'observation' is not null or before_data ->> 'observation' is not null)) = 0, r);
     perform pg_temp.cas('après l''étape 2, S1 : plus de nom, de dossier, de livret ni de tracé ; signée, actif vrai',
       pg_temp.fiche(S1) = 'profil:0 compte:0 prive:0 suivi:0 textes:0 emails:0 emobs:0 dossier:0 livret:0 traces:0 signees:1 absences:0 nom:anonyme actif:true efface:true anonymise:true',
       pg_temp.fiche(S1));
@@ -1240,6 +1278,65 @@ begin
     perform pg_temp.cas('compte recréé sur la fiche S7 : deuxième réponse refusée', r like '%questionnaire: Tu as déjà répondu à ce questionnaire.', r);
     perform pg_temp.cas('jumeau : E8 (fiche S8, sans participation) a la fin de formation de PD et y répond',
       t2 = 'fin_stagiaire ' || pPD::text and r2 like 'ok%', t2 || ' | ' || r2);
+
+    -- 4.7 quater Demande d'une personne dont l'équipe a déjà retiré le compte (relecture finale, constat 2). S7 (PD) a signé
+    -- sa ligne de la feuille close sur son appareil, fait un signalement de question depuis sa fiche, accepté les conditions,
+    -- et une évaluation porte son adresse. L'équipe retire son profil (le compte de connexion reste, comme dans l'app). La
+    -- demande retrouve son adresse par sa ligne signée et son signalement : plus aucune trace, compte de connexion compris.
+    -- Jumeau : la même adresse sert de nouveau à un profil, sur une autre fiche (S8, qui a aussi signé sous cette adresse) :
+    -- l'adresse ne part que des lignes de S7 ; le profil, le compte, l'acceptation et la ligne de S8 restent. Deux
+    -- sous-transactions annulées.
+    reset role;
+    cr := array_fill(''::text, array[8]);
+    begin
+      insert into qcm_signalements (question_id, email, stagiaire_id, motif)
+      values (1, 'preuve.cons.e7@example.invalid', S7, 'autre');
+      cr[1] := pg_temp.traces('preuve.cons.e7@example.invalid');
+      delete from user_profiles where email = 'preuve.cons.e7@example.invalid';
+      set local role authenticated;
+      perform pg_temp.qui('FO');
+      cr[2] := pg_temp.tente(format('select public.effacer_sur_demande(%s)::text', S7));
+      reset role;
+      cr[3] := pg_temp.traces('preuve.cons.e7@example.invalid');
+      cr[4] := pg_temp.fiche(S7);
+      raise exception 'preuve: annulé';
+    exception when others then
+      if sqlerrm <> 'preuve: annulé' then raise; end if;
+    end;
+    reset role;
+    begin
+      insert into qcm_signalements (question_id, email, stagiaire_id, motif)
+      values (1, 'preuve.cons.e7@example.invalid', S7, 'autre');
+      update user_profiles set stagiaire_id = S8 where email = 'preuve.cons.e7@example.invalid';
+      insert into emargement_lignes (seance_id, promo_id, stagiaire_id, trace, signe_le, signe_par, maj_par)
+      values (feD, PD, S8, v_tr, now() - interval '7 days', 'preuve.cons.e7@example.invalid', 'preuve.cons.e7@example.invalid');
+      set local role authenticated;
+      perform pg_temp.qui('FO');
+      cr[5] := pg_temp.tente(format('select public.effacer_sur_demande(%s)::text', S7));
+      reset role;
+      cr[6] := pg_temp.traces('preuve.cons.e7@example.invalid');
+      cr[7] := (select count(*)::text from emargement_lignes where stagiaire_id = S7
+                  and ('preuve.cons.e7@example.invalid' in (lower(signe_par), lower(maj_par))))
+               || '/' || (select count(*)::text from emargement_lignes where stagiaire_id = S8
+                  and lower(signe_par) = 'preuve.cons.e7@example.invalid' and lower(maj_par) = 'preuve.cons.e7@example.invalid');
+      raise exception 'preuve: annulé';
+    exception when others then
+      if sqlerrm <> 'preuve: annulé' then raise; end if;
+    end;
+    reset role;
+    perform pg_temp.cas('compte retiré : avant la demande, l''adresse de S7 est sur sa ligne, son évaluation, son signalement, ses conditions',
+      cr[1] = 'lignes:1 evaluations:1 signalements:1 conditions:1 profils:1 comptes:1', cr[1]);
+    perform pg_temp.cas('compte retiré puis demande : acceptée', cr[2] like 'ok {%' and cr[2] not like '%"deja"%', cr[2]);
+    perform pg_temp.cas('compte retiré puis demande : plus aucune trace de l''adresse (ligne, évaluation, signalement, conditions, compte de connexion)',
+      cr[3] = 'lignes:0 evaluations:0 signalements:0 conditions:0 profils:0 comptes:0', cr[3]);
+    perform pg_temp.cas('compte retiré puis demande : la fiche S7 a tout perdu',
+      cr[4] = 'profil:0 compte:0 prive:0 suivi:0 textes:0 emails:0 emobs:0 dossier:0 livret:0 traces:0 signees:2 absences:0 nom:anonyme actif:true efface:true anonymise:true',
+      cr[4]);
+    perform pg_temp.cas('jumeau : adresse de S7 servant de nouveau à un profil (fiche S8) : demande acceptée',
+      cr[5] like 'ok {%' and cr[5] not like '%"deja"%', cr[5]);
+    perform pg_temp.cas('jumeau : l''adresse reste au profil, au compte, aux conditions et à la ligne de S8 ; partie des lignes, de l''évaluation et du signalement de S7',
+      cr[6] = 'lignes:1 evaluations:0 signalements:0 conditions:1 profils:1 comptes:1', cr[6]);
+    perform pg_temp.cas('jumeau : aucune ligne de S7 ne porte plus l''adresse, la ligne de S8 la garde', cr[7] = '0/1', cr[7]);
 
     -- 4.9 Formateurs (lieu 1, 2026) : liste des répondants effacée à partir du 01/01/2027, commentaires à partir du
     -- 31/12/2027, pourcentages seuls à partir du 01/01/2030 ; chaque étape refusée la veille, rejouable sans effet.
