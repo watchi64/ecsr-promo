@@ -46,10 +46,11 @@ function noteEquipe(n) {
     : ` Les ${k} comptes d'équipe ne sont jamais effacés et ne sont pas comptés.`;
 }
 
-// Accord d'une fiche ou de plusieurs : « 1 fiche perd son compte », « 14 fiches perdent leur compte ».
+// Accord d'une fiche ou de plusieurs : « 1 fiche perd son compte, sa fiche de suivi et ses textes », « 14 fiches perdent
+// leur compte, leur fiche de suivi et leurs textes ». son : devant un nom masculin, sa : devant un nom féminin, ses : pluriel.
 const accord = (n) => (n > 1
-  ? { perd: "fiches perdent", son: "leur", ses: "leurs" }
-  : { perd: "fiche perd", son: "son", ses: "ses" });
+  ? { perd: "fiches perdent", son: "leur", sa: "leur", ses: "leurs" }
+  : { perd: "fiche perd", son: "son", sa: "sa", ses: "ses" });
 
 // Ce que chaque geste efface et ce qu'il laisse, dit en entier : la confirmation d'un clic irréversible les reprend mot pour
 // mot (confirmationEcheance), la carte de l'échéance aussi.
@@ -159,7 +160,7 @@ export function echeancesConservation(etat) {
       const a = accord(n1);
       ajoute("etape1", cible, p.etape1_du,
         `${nom} : à partir du ${dateLongue(p.etape1_du)}, 12 mois après la fin de la formation, ${n1} ${a.perd} ${a.son} compte, `
-        + `${a.ses} adresses e-mail, ${a.son} fiche de suivi et ${a.ses} textes libres. Le nom, les résultats, le dossier professionnel, `
+        + `${a.ses} adresses e-mail, ${a.sa} fiche de suivi et ${a.ses} textes libres. Le nom, les résultats, le dossier professionnel, `
         + "le livret et les signatures restent." + noteEquipe(p.comptes_equipe),
         "Effacer les comptes et les textes");
     }

@@ -349,7 +349,12 @@ for (const e of visibles(NOUVEAUTES, true, true)) {
 }
 // Les consignes exactes des gestes réécrits (inventaire des textes, § 2.3).
 eq(par("2026-10-23-tableau-de-bord-centre").guideNouvelle[0], "Ouvre Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».", "tableau de bord : Indicateurs");
-eq(par("2026-10-05-effacement-donnees").guideNouvelle[0], "Réglages, partie Promo : « Abandon » sur le stagiaire concerné.", "effacement : Réglages, partie Promo");
+eq([par("2026-10-05-effacement-donnees").guide[0], par("2026-10-05-effacement-donnees").guideNouvelle[0]], ["L'effacement des données se demande maintenant au fondateur : transmets-lui la demande de la personne, sans la marquer en abandon.", "L'effacement des données se demande maintenant au fondateur : transmets-lui la demande de la personne, sans la marquer en abandon."],
+  "effacement (05/10) : depuis le lot Q5, la demande se transmet au fondateur, dans les deux navigations");
+ok(![...par("2026-10-05-effacement-donnees").guide, ...par("2026-10-05-effacement-donnees").guideNouvelle].some((s) => /« Abandon » sur|« Effacer les données »/.test(s)),
+  "effacement (05/10) : plus aucune étape vers « Abandon » ni vers le bouton « Effacer les données », qui n'existe plus");
+eq(par("2026-10-05-effacement-donnees").titre, "Effacer les données d'un stagiaire, à sa demande", "effacement (05/10) : le titre daté est gardé");
+ok(/Marque-le d'abord en abandon/.test(par("2026-10-05-effacement-donnees").resume), "effacement (05/10) : le récit daté n'est pas réécrit");
 eq(par("2026-10-03-page-stagiaires").guideNouvelle[0], "Ouvre Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).", "page Stagiaires : la barre de gauche");
 eq(par("2026-07-31-dossier-professionnel").guideNouvelle[0], "Ouvre Mon suivi, dans la barre.", "dossier professionnel : Mon suivi");
 eq(par("2026-07-19-livret-epcf").guideNouvelle[0], "Ouvre Mon suivi, partie Livret EPCF.", "livret : Mon suivi, partie Livret EPCF");

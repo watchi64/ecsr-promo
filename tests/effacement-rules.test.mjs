@@ -161,6 +161,65 @@ eq(cd.saisie.attendu, "Hélène", "demande : on tape le prénom");
 ok(cd.part.some((x) => /dossier professionnel et le livret/.test(x)) && cd.part.some((x) => /dessins des signatures/.test(x)), "demande : dossier, livret et signatures partent");
 ok(cd.reste.some((x) => /fiche effacée à la demande de la personne/.test(x)) && cd.reste.some((x) => /pas comptée en abandon/.test(x)), "demande : ni abandon, ligne à part");
 
+// Phrases entières des fenêtres de confirmation (correction 1 de la relecture de la tâche 7) : chacun des six gestes, au singulier
+// et au pluriel, mot pour mot. Une faute d'accord (« son fiche de suivi ») ne passe plus par un test de fragments.
+const jourDu = (jour, promos, extra) => echeancesConservation(etat(jour, promos, extra));
+const phrase = (e) => confirmationEcheance(e).phrase;
+const p1 = (o) => promo({ comptes_equipe: 0, ...o });
+eq(phrase(jourDu("2027-12-11", [p1({ a_effacer_etape1: 1 })])[0]),
+  "Nîmes mars 2026 : à partir du 11 décembre 2027, 12 mois après la fin de la formation, 1 fiche perd son compte, ses adresses e-mail, "
+  + "sa fiche de suivi et ses textes libres. Le nom, les résultats, le dossier professionnel, le livret et les signatures restent. Irréversible.",
+  "étape 1, une fiche : la phrase entière");
+eq(phrase(jourDu("2027-12-11", [p1({ a_effacer_etape1: 14, comptes_equipe: 1 })])[0]),
+  "Nîmes mars 2026 : à partir du 11 décembre 2027, 12 mois après la fin de la formation, 14 fiches perdent leur compte, leurs adresses e-mail, "
+  + "leur fiche de suivi et leurs textes libres. Le nom, les résultats, le dossier professionnel, le livret et les signatures restent. "
+  + "Le compte d'équipe n'est jamais effacé et n'est pas compté. Irréversible.",
+  "étape 1, plusieurs fiches (et un compte d'équipe) : la phrase entière");
+eq(phrase(jourDu("2030-01-01", [p1({ a_effacer_etape1: 0, a_effacer_etape2: 1 })])[0]),
+  "Nîmes mars 2026 : à partir du 1er janvier 2030, fin de la 3e année après la formation, 1 fiche perd son nom, son dossier professionnel, "
+  + "son livret et ses signatures ; sur les feuilles d'émargement, les formateurs deviennent « Formateur 1 », « Formateur 2 »… "
+  + "Les résultats et les heures restent, sans nom. Irréversible.",
+  "étape 2, une fiche : la phrase entière");
+eq(phrase(jourDu("2030-01-01", [p1({ a_effacer_etape1: 0, a_effacer_etape2: 6, comptes_equipe: 2 })])[0]),
+  "Nîmes mars 2026 : à partir du 1er janvier 2030, fin de la 3e année après la formation, 6 fiches perdent leur nom, leur dossier professionnel, "
+  + "leur livret et leurs signatures ; sur les feuilles d'émargement, les formateurs deviennent « Formateur 1 », « Formateur 2 »… "
+  + "Les résultats et les heures restent, sans nom. Les 2 comptes d'équipe ne sont jamais effacés et ne sont pas comptés. Irréversible.",
+  "étape 2, plusieurs fiches (et deux comptes d'équipe) : la phrase entière");
+eq(phrase(jourDu("2030-01-01", [p1({ a_effacer_etape1: 0, a_effacer_etape2: 0, emargement_etape2: 4 })])[0]),
+  "Nîmes mars 2026 : à partir du 1er janvier 2030, fin de la 3e année après la formation, les signatures qui restent sur les feuilles "
+  + "d'émargement sont effacées ; les formateurs y deviennent « Formateur 1 », « Formateur 2 »… Les heures restent. Irréversible.",
+  "étape 2, feuilles seules : la phrase entière");
+// Demande de la personne : une seule fiche par geste ; titre et phrase entiers, avec et sans nom de famille.
+const dm = confirmationDemande({ id: 4, prenom: "Hélène", nom: "Durand" });
+eq([dm.titre, dm.phrase], ["Effacer les données de Hélène Durand ?",
+  "À la demande de la personne : tout part tout de suite, sans attendre les dates de conservation, et sans la déclarer en abandon. Irréversible."],
+  "demande : titre et phrase entiers");
+eq(confirmationDemande({ id: 5, prenom: "Yanis", nom: null }).titre, "Effacer les données de Yanis ?", "demande, prénom seul : le titre entier");
+// Formateurs : au seuil, le nombre est cité au singulier comme au pluriel ; sous le seuil, aucun nombre.
+const pf = (o) => ({ lieu_id: 1, lieu_nom: "Nîmes", annee: 2026, cloture_du: "2027-01-01", commentaires_du: "2027-12-31", figeage_du: "2030-01-01",
+  fige: false, a_participations: true, a_commentaires: true, a_reponses: true, sous_seuil: false, ...o });
+const fx = (o) => jourDu("2030-01-01", [], { portees_formateurs: [pf(o)] });
+const [cl1, co1, fi1] = fx({ participations: 1, commentaires: 1, reponses: 1 });
+const [cl5, co5, fi5] = fx({ participations: 5, commentaires: 4, reponses: 5 });
+const [clS, coS, fiS] = fx({ participations: null, commentaires: null, reponses: null, sous_seuil: true });
+eq(phrase(cl1), "Questionnaire des formateurs 2026, Nîmes : à partir du 1er janvier 2027, la liste de ceux qui ont répondu est effacée (1 ligne). Irréversible.", "clôture, une ligne");
+eq(phrase(cl5), "Questionnaire des formateurs 2026, Nîmes : à partir du 1er janvier 2027, la liste de ceux qui ont répondu est effacée (5 lignes). Irréversible.", "clôture, plusieurs lignes");
+eq(phrase(clS), "Questionnaire des formateurs 2026, Nîmes : à partir du 1er janvier 2027, la liste de ceux qui ont répondu est effacée. Irréversible.", "clôture, sous le seuil");
+eq(phrase(co1), "Questionnaire des formateurs 2026, Nîmes : à partir du 31 décembre 2027, les commentaires libres sont effacés (1 commentaire). Irréversible.", "commentaires, un");
+eq(phrase(co5), "Questionnaire des formateurs 2026, Nîmes : à partir du 31 décembre 2027, les commentaires libres sont effacés (4 commentaires). Irréversible.", "commentaires, plusieurs");
+eq(phrase(coS), "Questionnaire des formateurs 2026, Nîmes : à partir du 31 décembre 2027, les commentaires libres sont effacés. Irréversible.", "commentaires, sous le seuil");
+const figeage = "Questionnaire des formateurs 2026, Nîmes : à partir du 1er janvier 2030, les notes individuelles sont remplacées par les pourcentages "
+  + "du centre (s'il y a eu au moins 3 réponses). Irréversible.";
+eq([phrase(fi1), phrase(fi5), phrase(fiS)], [figeage, figeage, figeage], "figeage : la même phrase entière, sans nombre, pour une, plusieurs ou sous le seuil");
+eq([confirmationEcheance(cl1).titre, confirmationEcheance(co5).titre, confirmationEcheance(fiS).titre],
+  ["Effacer la liste des répondants pour le questionnaire des formateurs 2026, Nîmes ?", "Effacer les commentaires pour le questionnaire des formateurs 2026, Nîmes ?",
+    "Ne garder que les pourcentages pour le questionnaire des formateurs 2026, Nîmes ?"], "formateurs : les trois titres entiers");
+eq([confirmationEcheance(jourDu("2027-12-11", [p1({ a_effacer_etape1: 1 })])[0]).titre, confirmationEcheance(jourDu("2030-01-01", [p1({ a_effacer_etape1: 0, a_effacer_etape2: 6 })])[0]).titre],
+  ["Effacer les comptes et les textes de « Nîmes mars 2026 » ?", "Effacer les noms et les preuves de « Nîmes mars 2026 » ?"], "étapes : les deux titres entiers");
+// Garde-fou d'accord sur toutes les phrases produites : jamais un possessif masculin devant « fiche de suivi », jamais « leurs » devant un singulier.
+const toutesPhrases = [...[1, 2, 14].flatMap((n) => [jourDu("2027-12-11", [p1({ a_effacer_etape1: n })])[0], jourDu("2030-01-01", [p1({ a_effacer_etape1: 0, a_effacer_etape2: n })])[0]])].map(phrase);
+ok(toutesPhrases.every((x) => !/\bson fiche|\bleurs (compte|nom|fiche|dossier|livret)\b|\bses (compte|nom|fiche|dossier|livret)\b/.test(x)), "aucune faute d'accord sur 1, 2 et 14 fiches");
+
 // Comptes rendus
 eq(compteRenduConservation("etape1", { fiches: 0, comptes_equipe: 1 }), "Rien à effacer : c'était déjà fait.", "étape rejouée");
 ok(/^5 fiches traitées\. Le nom/.test(compteRenduConservation("etape1", { fiches: 5 })), "étape 1 : nombre de fiches et ce qui reste");

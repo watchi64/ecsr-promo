@@ -539,15 +539,17 @@ export const NOUVEAUTES = [
           + "moyennes. Une nouvelle partie « Données personnelles » montre aussi quand une promo pourra "
           + "être anonymisée (12 mois après sa fin) et les élèves bénévoles à supprimer.",
     ou: { label: "Paramètres", route: "config" },
+    // Étapes réécrites au lot Q5 (conservation des données) : le bouton « Effacer les données » a quitté les Abandons, et une
+    // demande ne passe plus par l'abandon (elle fausserait le taux). Le titre et le récit, datés, restent ceux du 05/10.
     guide: [
-      "Paramètres, partie Promo : « Abandon » sur le stagiaire concerné.",
-      "Dans « Abandons », bouton « Effacer les données », puis tape son prénom pour confirmer.",
-      "Partie « Données personnelles » : l'anonymisation de la promo et les élèves bénévoles inactifs.",
+      "L'effacement des données se demande maintenant au fondateur : transmets-lui la demande de la personne, sans la marquer en abandon.",
+      "Le fondateur efface tout tout de suite, sur sa page Qualiopi ; la personne n'est pas comptée en abandon.",
+      "Partie « Données personnelles » : les élèves bénévoles inactifs.",
     ],
     guideNouvelle: [
-      "Réglages, partie Promo : « Abandon » sur le stagiaire concerné.",
-      "Dans « Abandons », bouton « Effacer les données », puis tape son prénom pour confirmer.",
-      "Partie « Données personnelles » : l'anonymisation de la promo et les élèves bénévoles inactifs.",
+      "L'effacement des données se demande maintenant au fondateur : transmets-lui la demande de la personne, sans la marquer en abandon.",
+      "Le fondateur efface tout tout de suite, sur sa page Qualiopi ; la personne n'est pas comptée en abandon.",
+      "Réglages, partie « Données personnelles » : les élèves bénévoles inactifs.",
     ],
   },
   {
