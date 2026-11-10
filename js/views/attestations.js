@@ -3,17 +3,17 @@
 // pour une période, les heures de chaque stagiaire d'après les feuilles closes, puis son
 // certificat de réalisation et son attestation d'assiduité, ou ceux de toute la promo.
 
-import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261110c";
-import { el, clear, toast, isoDate } from "../utils.js?v=20261110c";
-import { isAdmin } from "../auth-admin.js?v=20261110c";
-import { navigationV2Active } from "../nav-etat.js?v=20261110c";
-import { libelleDuree, jourDe } from "../emargement-rules.js?v=20261110c";
-import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261110c";
+import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261110d";
+import { el, clear, toast, isoDate } from "../utils.js?v=20261110d";
+import { isAdmin } from "../auth-admin.js?v=20261110d";
+import { navigationV2Active } from "../nav-etat.js?v=20261110d";
+import { libelleDuree, jourDe } from "../emargement-rules.js?v=20261110d";
+import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261110d";
 import {
   bilanStagiaire, stagiairesDeLaPeriode, feuillesOuvertes, demiJourneesSansFeuille, periodeParDefaut,
   moisDeLaPeriode, seancesDeLaPromo, dateFr, datePeriodeValide, estAdresseAttestations,
-} from "../attestations-rules.js?v=20261110c";
-import { certificatRealisation, attestationAssiduite, liasse } from "../attestations-documents.js?v=20261110c";
+} from "../attestations-rules.js?v=20261110d";
+import { certificatRealisation, attestationAssiduite, liasse } from "../attestations-documents.js?v=20261110d";
 
 // Période choisie, gardée par promo le temps de la visite (retour depuis la semaine).
 const periodes = new Map();
@@ -148,7 +148,9 @@ function dessinerCorps(ctx) {
   const lignes = stagiaires.map((s) => ({ stagiaire: s, bilan: bilanStagiaire(seances, s.id) }));
   const avecHeures = lignes.filter((l) => l.bilan.demiSignees > 0);
 
-  page.appendChild(el("div", { class: "at-tout" },
+  // Lecture (direction) : l'impression des pièces est offerte sur ordinateur.
+  const surOrdinateur = isAdmin() ? "" : " solo-ordinateur";
+  page.appendChild(el("div", { class: "at-tout" + surOrdinateur },
     el("button", { class: "btn small primary", type: "button", disabled: avecHeures.length === 0,
       onClick: () => imprimerPieces(ctx, avecHeures, certificat) }, `Tous les certificats (${avecHeures.length})`),
     el("button", { class: "btn small", type: "button",
@@ -169,7 +171,7 @@ function dessinerCorps(ctx) {
         el("span", { class: "at-heures" }, `${libelleDuree(b.realiseesMin)} sur ${libelleDuree(b.prevuesMin)}`),
         el("span", { class: "at-detail" },
           (b.absencesMin ? `${libelleDuree(b.absencesMin)} d'absence` : "aucune absence") + ` · ${b.taux} %`)),
-      el("div", { class: "em-ligne-actions" }, btnCertificat,
+      el("div", { class: "em-ligne-actions" + surOrdinateur }, btnCertificat,
         el("button", { class: "btn small", type: "button", onClick: () => imprimerPieces(ctx, [ligne], attestation) }, "Attestation")),
     ));
   }

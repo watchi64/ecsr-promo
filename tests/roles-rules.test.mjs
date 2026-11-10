@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import {
   APERCUS, LIBELLES_APERCU, ENTETE_APERCU, normaliserApercu, apercusPermis, droitsAffiches,
   peutInviterFormateur, peutRetirerCompte, messageInvitation, messageSansPromo, MESSAGE_SANS_PROMO,
-  messageInvitationReussie, etiquetteBadge,
+  messageInvitationReussie, etiquetteBadge, pastillesDuProfil, listeAcces,
 } from "../js/roles-rules.js";
 
 const formateur = { profil: { role: "prof", is_admin: true }, promo: { roles: ["formateur"] } };
@@ -57,13 +57,12 @@ test("cumul : stagiaire dans une promo, formateur dans l'autre", () => {
   assert.deepEqual(droitsAffiches({ profil, promo: { roles: ["formateur"] } }), { admin: true, prof: true, stagiaire: false, equipe: true, espace: "equipe" });
 });
 
-test("messageSansPromo : le siège et la direction ne sont pas renvoyés vers un formateur", () => {
-  assert.match(messageSansPromo(["siege"]), /siège/);
-  assert.match(messageSansPromo(["direction"]), /direction/);
-  assert.equal(messageSansPromo([]), MESSAGE_SANS_PROMO);
-  assert.equal(messageSansPromo(null), MESSAGE_SANS_PROMO);
-  assert.equal(messageSansPromo(undefined), MESSAGE_SANS_PROMO);
-  for (const m of [MESSAGE_SANS_PROMO, messageSansPromo(["siege"]), messageSansPromo(["direction"])]) assert.ok(!m.includes("—"));
+test("messageSansPromo : un seul refus, sans « arrive bientôt » (lot 5 : le siège et la direction entrent sans promo)", () => {
+  for (const roles of [["siege"], ["direction"], ["formateur"], [], null, undefined]) {
+    assert.equal(messageSansPromo(roles), MESSAGE_SANS_PROMO);
+  }
+  assert.ok(!/bientôt/.test(MESSAGE_SANS_PROMO));
+  assert.ok(!MESSAGE_SANS_PROMO.includes("\u2014"));
 });
 
 test("pas de profil : aucun droit", () => {
@@ -188,4 +187,56 @@ test("etiquetteBadge : le rôle réel sur la promo affichée, pas l'ancien role 
   assert.deepEqual(etiquetteBadge({ profil: { role: "admin", is_admin: true }, promo: null }), { libelle: "admin", classe: "admin" });
   assert.deepEqual(etiquetteBadge({ profil: { role: "stagiaire" }, promo: null }), { libelle: "stagiaire", classe: "stagiaire" });
   assert.deepEqual(etiquetteBadge({ profil: null, promo: null }), { libelle: "", classe: "" });
+});
+
+// Lot G : les pastilles de « Personnes avec accès ».
+const lib = (p) => p.map((x) => x.libelle).join("+");
+const formateurSimple = { email: "f@x.fr", role: "prof", is_admin: true, prof_id: 4 };
+const comptePersonnel = { email: "d@x.fr", role: "prof", is_admin: false, prof_id: null };
+const roles = [{ email: "d@x.fr", role: "direction" }, { email: "s@x.fr", role: "siege" }, { email: "ds@x.fr", role: "direction" }, { email: "ds@x.fr", role: "siege" }];
+
+test("pastillesDuProfil : un compte direction ou siège n'est plus « formateur »", () => {
+  assert.equal(lib(pastillesDuProfil({ profil: comptePersonnel, roles })), "direction");
+  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "s@x.fr" }, roles })), "siège");
+  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "ds@x.fr" }, roles })), "direction+siège");
+  assert.equal(pastillesDuProfil({ profil: comptePersonnel, roles })[0].classe, "prof");
+});
+
+test("pastillesDuProfil : direction et formateur gardent les deux pastilles quand une fiche formateur le dit", () => {
+  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, prof_id: 9 }, roles })), "direction+formateur");
+  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "ds@x.fr", prof_id: 9 }, roles })), "direction+siège+formateur");
+});
+
+test("pastillesDuProfil : un formateur sans rôle de direction ou de siège reste « formateur », comme avant", () => {
+  assert.equal(lib(pastillesDuProfil({ profil: formateurSimple, roles })), "formateur");
+  assert.equal(pastillesDuProfil({ profil: formateurSimple, roles })[0].classe, "prof");
+  assert.equal(lib(pastillesDuProfil({ profil: { email: "a@x.fr", role: "admin" }, roles: [], v2: true })), "formateur");
+  assert.equal(lib(pastillesDuProfil({ profil: { email: "a@x.fr", role: "admin" }, roles: [], v2: false })), "admin");
+  assert.equal(lib(pastillesDuProfil({ profil: { email: "e@x.fr", role: "stagiaire" }, roles })), "stagiaire");
+});
+
+test("pastillesDuProfil : lecture des rôles absente ou en échec, l'affichage d'avant", () => {
+  for (const r of [null, undefined, [], "x"]) {
+    assert.equal(lib(pastillesDuProfil({ profil: comptePersonnel, roles: r })), "formateur");
+  }
+  assert.deepEqual(pastillesDuProfil({}), []);
+});
+
+test("pastillesDuProfil : l'adresse se compare sans tenir compte de la casse, et un stagiaire n'est jamais touché", () => {
+  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "D@X.fr" }, roles })), "direction");
+  assert.equal(lib(pastillesDuProfil({ profil: { email: "d@x.fr", role: "stagiaire", stagiaire_id: 3 }, roles })), "stagiaire");
+});
+
+test("listeAcces : triée par premier rôle affiché puis par adresse, sans changer qui figure dans la liste", () => {
+  const profils = [
+    { email: "z@x.fr", role: "stagiaire" }, { email: "s@x.fr", role: "prof" }, { email: "b@x.fr", role: "prof" },
+    { email: "d@x.fr", role: "prof" }, { email: "a@x.fr", role: "stagiaire" }, { email: "c@x.fr", role: "prof", prof_id: 1 },
+  ];
+  const sortie = listeAcces({ profils, roles });
+  assert.deepEqual(sortie.map((l) => l.profil.email), ["d@x.fr", "b@x.fr", "c@x.fr", "s@x.fr", "a@x.fr", "z@x.fr"]);
+  assert.deepEqual(sortie.map((l) => lib(l.pastilles)), ["direction", "formateur", "formateur", "siège", "stagiaire", "stagiaire"]);
+  assert.equal(listeAcces({ profils, roles }).length, profils.length);
+  assert.deepEqual(listeAcces({ profils: null, roles }), []);
+  // Lecture en échec : l'ordre d'avant (formateurs, puis stagiaires, par adresse).
+  assert.deepEqual(listeAcces({ profils, roles: null }).map((l) => l.profil.email), ["b@x.fr", "c@x.fr", "d@x.fr", "s@x.fr", "a@x.fr", "z@x.fr"]);
 });

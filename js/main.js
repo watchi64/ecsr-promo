@@ -3,53 +3,67 @@
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
 // En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
-import "./journal-erreurs.js?v=20261110c";
-import { getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements } from "./db.js?v=20261110c";
-import { toast, annoncer, el } from "./utils.js?v=20261110c";
-import { icon } from "./icons.js?v=20261110c";
-import { initAuth, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261110c";
-import { chargerEtatSignalements } from "./signalement-etat.js?v=20261110c";
-import { messageDemarrage } from "./signalement-rules.js?v=20261110c";
-import { showGate, hideGate } from "./gate.js?v=20261110c";
-import { exigerAcceptation } from "./legal.js?v=20261110c";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261110c";
-import { habillageAuDemarrage } from "./habillage.js?v=20261110c";
-import { renderHome } from "./views/home.js?v=20261110c";
-import { renderDashboard } from "./views/dashboard.js?v=20261110c";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261110c";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261110c";
-import { renderPlanningEspace } from "./views/planning-espace.js?v=20261110c";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261110c";
-import { renderNotes } from "./views/notes.js?v=20261110c";
-import { renderRessources } from "./views/ressources.js?v=20261110c";
-import { renderThemes } from "./views/themes.js?v=20261110c";
-import { renderConfig, renderPreferences } from "./views/config.js?v=20261110c";
-import { renderCalendrier } from "./views/calendrier.js?v=20261110c";
-import { initUndoKeyboard } from "./undo.js?v=20261110c";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261110c";
-import { libellePastille } from "./nouveautes.js?v=20261110c";
-import { renderCcp2 } from "./views/ccp2.js?v=20261110c";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261110c";
-import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261110c";
-import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261110c";
-import { renderEmargement } from "./views/emargement.js?v=20261110c";
-import { renderProblemes } from "./views/problemes.js?v=20261110c";
-import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261110c";
-import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261110c";
-import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261110c";
-import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261110c";
-import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261110c";
-import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261110c";
-import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261110c";
+import "./journal-erreurs.js?v=20261110d";
+import {
+  getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements, basculeLancee, getPromoCourante, getMesPromos,
+  habillageParDefaut,
+} from "./db.js?v=20261110d";
+import { toast, annoncer, el } from "./utils.js?v=20261110d";
+import { icon } from "./icons.js?v=20261110d";
+import { initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261110d";
+import { getEspace, getCentre } from "./auth-admin.js?v=20261110d";
+import {
+  ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage, promosDuCentre, defautsHabillage,
+} from "./espaces-rules.js?v=20261110d";
+import { chargerEtatSignalements } from "./signalement-etat.js?v=20261110d";
+import { messageDemarrage } from "./signalement-rules.js?v=20261110d";
+import { showGate, hideGate } from "./gate.js?v=20261110d";
+import { exigerAcceptation } from "./legal.js?v=20261110d";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261110d";
+import { habillageAuDemarrage } from "./habillage.js?v=20261110d";
+import { renderHome } from "./views/home.js?v=20261110d";
+import { renderDashboard } from "./views/dashboard.js?v=20261110d";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261110d";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261110d";
+import { renderPlanningEspace } from "./views/planning-espace.js?v=20261110d";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261110d";
+import { renderNotes } from "./views/notes.js?v=20261110d";
+import { renderVueCentre, renderEmargementCentre, renderNotesCentre } from "./views/direction-centre.js?v=20261110d";
+import { renderPromosCentre } from "./views/direction-promos.js?v=20261110d";
+import { renderStagiairesCentre } from "./views/direction-stagiaires.js?v=20261110d";
+import { renderEquipeCentre } from "./views/direction-equipe.js?v=20261110d";
+import { renderReseau } from "./views/siege-reseau.js?v=20261110d";
+import { renderDirections } from "./views/siege-directions.js?v=20261110d";
+import { renderRessources } from "./views/ressources.js?v=20261110d";
+import { renderThemes } from "./views/themes.js?v=20261110d";
+import { renderConfig, renderPreferences } from "./views/config.js?v=20261110d";
+import { renderReglagesCentre, renderReglagesReseau } from "./views/reglages-habillage.js?v=20261110d";
+import { renderCalendrier } from "./views/calendrier.js?v=20261110d";
+import { initUndoKeyboard } from "./undo.js?v=20261110d";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261110d";
+import { libellePastille } from "./nouveautes.js?v=20261110d";
+import { renderCcp2 } from "./views/ccp2.js?v=20261110d";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261110d";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261110d";
+import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261110d";
+import { renderEmargement } from "./views/emargement.js?v=20261110d";
+import { renderProblemes } from "./views/problemes.js?v=20261110d";
+import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261110d";
+import { chargerEmargementActif, emargementActif, chargerEmargementCentre, emargementDansLeCentre } from "./emargement-etat.js?v=20261110d";
+import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261110d";
+import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261110d";
+import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261110d";
+import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261110d";
+import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261110d";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261110c";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261110c";
+} from "./navigation.js?v=20261110d";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261110d";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, routeMasquee, repereMasque, nouveautesAffichables, formateurConnecte,
-} from "./modules-etat.js?v=20261110c";
+} from "./modules-etat.js?v=20261110d";
 
 // ===== Tabs =====
 
@@ -71,12 +85,11 @@ const TABS = [
   { route: "config",     label: "Paramètres",      icon: "settings"  },
 ];
 
-// Espace de la personne connectée : « equipe » (formateur, admin) ou « stagiaire ». La coquille et la
-// redirection des anciennes adresses le lisent ici ; il vient du prédicat formateurConnecte()
-// (js/modules-etat.js), que lisent aussi les pages réservées de navigate() et le menu du compte :
-// aucun ne peut s'écarter des autres.
+// Espace de la session : « stagiaire », « equipe » (formateur), « direction » ou « siege » (lot 5). Fixé à la porte
+// (js/auth-admin.js, getEspace), avant la décision de navigation ; la coquille, la redirection des anciennes adresses, les
+// routes permises et la mémoire de la dernière page le lisent ici.
 function espaceCourant() {
-  return espaceDe({ formateur: formateurConnecte() });
+  return getEspace();
 }
 
 // Barre de navigation. Nouvelle navigation : la coquille de l'espace (js/nav-shell.js), remontée à
@@ -95,7 +108,12 @@ function renderTabs() {
       const nom = getProfileWho();
       monterCoquille({
         espace,
-        entrees: entreesNavigation(espace, { routeVisible, emargementActif: emargementActif(), formateur: isAdmin() }),
+        // Lot 5 : Émargement du centre s'allume quand une promo du centre a l'interrupteur (emargementDansLeCentre, lu au
+        // démarrage) ; Réglages du centre et Réglages du réseau ont leur page (js/views/reglages-habillage.js) : leur entrée est là.
+        entrees: entreesNavigation(espace, {
+          routeVisible, emargementActif: emargementActif(), formateur: isAdmin(), emargementDansLeCentre: emargementDansLeCentre(),
+          reglagesEspace: espaceDePilotage(espace),
+        }),
         nom,
         initiales: initialesDe(nom),
         actualiser,
@@ -184,6 +202,13 @@ function majBadgeNouveautes() {
 
 // ===== Router =====
 
+// Accueil de la direction : la Vue d'ensemble du centre (js/views/direction-centre.js, qui dit aussi un centre sans promo, D6) ;
+// formateur : les Indicateurs de la promo affichée.
+function rendreCentre(view) {
+  if (espaceCourant() === "direction") return renderVueCentre(view);
+  return renderCentre(view);
+}
+
 // Page Qualiopi, chargée à la demande. Le fondateur seul l'ouvre (garde de navigate) : ni la page ni ses modules de calcul (plus
 // de 100 Ko) ne partent avec l'app, et une erreur dans l'un d'eux ne peut pas casser le démarrage de tous les comptes. Seul
 // js/qualiopi-impression.js, tout petit, est chargé d'avance : navigate() en appelle le nettoyage à chaque page.
@@ -200,7 +225,7 @@ async function rendreQualiopi(view) {
   afficherChargement();
   let page;
   try {
-    page = await import("./views/qualiopi.js?v=20261110c");
+    page = await import("./views/qualiopi.js?v=20261110d");
   } catch (e) {
     console.error(e);
     if (lastRoute === "qualiopi") view.replaceChildren(boiteErreurQualiopi());
@@ -222,19 +247,26 @@ const routes = {
     : renderPlanning(view)),
   calendrier: renderCalendrier,
   themes:     renderThemes,
-  notes:      renderNotes,
+  notes:      (view) => (espaceCourant() === "direction" ? renderNotesCentre(view) : renderNotes(view)),
   ccp2:       renderCcp2,
-  stagiaires: renderStagiaires,
-  centre:     renderCentre,
+  stagiaires: (view) => (espaceCourant() === "direction" ? renderStagiairesCentre(view) : renderStagiaires(view)),
+  centre:     rendreCentre,
   qualiopi:   rendreQualiopi,   // chargée à la demande, voir plus haut
-  emargement: renderEmargement,
+  emargement: (view) => (espaceCourant() === "direction" ? renderEmargementCentre(view) : renderEmargement(view)),
   ressources: renderRessources,
-  config:     renderConfig,
+  // Lot 5 : « Réglages » est la page de l'équipe ; la direction y trouve les Réglages du centre, le siège ceux du réseau.
+  config:     (view) => (espaceCourant() === "direction" ? renderReglagesCentre(view)
+    : espaceCourant() === "siege" ? renderReglagesReseau(view) : renderConfig(view)),
   // Nouvelle navigation seulement : « Mes préférences », ouverte par le menu du compte. Avec l'ancienne,
   // l'adresse mène à Paramètres avant d'arriver ici (suivreRedirection).
   preferences: renderPreferences,
   nouveautes: renderNouveautes,
   problemes:  renderProblemes,
+  // Lot 5 : direction (promos, equipe) et siège (reseau, directions). Hors de ces espaces, navigate() les refuse (routeDansLEspace).
+  promos:     renderPromosCentre,
+  equipe:     renderEquipeCentre,
+  reseau:     renderReseau,
+  directions: renderDirections,
 };
 
 // Routes sans onglet propre qui doivent quand même allumer un onglet. On arrive
@@ -254,21 +286,20 @@ function routeOuverte(route) {
 
 // Derniere page visitee, pour y revenir au prochain demarrage. Le sous-onglet,
 // lui, se souvient deja tout seul (voir storageKey dans js/subtabs.js) : rendre
-// la route suffit a retomber exactement la ou on etait.
-const CLE_DERNIERE_ROUTE = "derniere-route";
-
+// la route suffit a retomber exactement la ou on etait. Une memoire par espace
+// (lot 5, D16 : cleDerniereRoute), celle de main pour le stagiaire et le formateur.
 function memoriserRoute(route) {
-  try { localStorage.setItem(CLE_DERNIERE_ROUTE, route); } catch (e) { /* mode prive */ }
+  try { localStorage.setItem(cleDerniereRoute(espaceCourant()), route); } catch (e) { /* mode prive */ }
 }
 
 // Renvoie la derniere route connue, ou null si elle est absente ou n'existe plus
 // (onglet supprime depuis, stockage vide, navigation privee).
 function derniereRoute() {
   try {
-    const r = localStorage.getItem(CLE_DERNIERE_ROUTE);
+    const r = localStorage.getItem(cleDerniereRoute(espaceCourant()));
     // Une page dont le module est fermé pour la promo n'est pas une destination :
-    // repli silencieux, la dernière page n'est qu'une commodité.
-    return r && routes[r] && routeOuverte(r) ? r : null;
+    // repli silencieux, la dernière page n'est qu'une commodité. Une page hors de l'espace non plus (D16 : l'accueil, sans phrase).
+    return r && routes[r] && routeOuverte(r) && routeDansLEspace(espaceCourant(), r) ? r : null;
   } catch (e) {
     return null;
   }
@@ -310,9 +341,19 @@ async function navigate({ force = false } = {}) {
   // du stagiaire à Mes préférences. Après la garde, donc suivre une redirection demande la même
   // confirmation que n'importe quel départ.
   suivreRedirection();
+  // Espace de la session (lot 5) : la direction et le siège n'ont ni Mon suivi ni Accueil du formateur ; leur page de repli est
+  // leur accueil (#/centre, #/reseau), où « home » mène aussi. Le stagiaire et le formateur gardent les replis de main.
+  const espace = espaceCourant();
+  const pilotage = espaceDePilotage(espace);
+  const accueil = ACCUEIL_ESPACE[espace] || "home";
+  const repli = pilotage ? accueil : "mon-suivi";
+  const allerA = (r) => {
+    try { history.replaceState(null, "", "#/" + r); } catch (e) { /* ignore */ }
+    return r;
+  };
   // Adresses à segments (#/stagiaires/12/epcf) : le premier choisit la page, la
   // page lit le reste. Page de repli : « Mon suivi », où chacun retrouve ce qui
-  // l'attend, son planning à venir et ses résultats.
+  // l'attend, son planning à venir et ses résultats (direction et siège : leur accueil).
   let route = lireAdresse(location.hash).route;
   // Lien direct vers un questionnaire anonyme (#/questionnaire/<clé>, envoyé par WhatsApp) : l'Accueil s'affiche,
   // puis la fenêtre du questionnaire s'ouvre par-dessus si la personne l'a à remplir, sinon un mot doux. L'adresse
@@ -323,19 +364,24 @@ async function navigate({ force = false } = {}) {
     try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
     route = "home";
   }
+  if (pilotage && (route === "home" || !routes[route])) route = allerA(accueil);
   if (!routes[route]) route = "mon-suivi";
+  // Page hors de l'espace (une adresse saisie, un favori, un lien d'un autre espace) : l'accueil de l'espace, avec la phrase qui le
+  // dit (lot 5, jamais en silence).
+  if (!routeDansLEspace(espace, route)) {
+    toast(phraseHorsEspace(espace), "info", 3500);
+    route = allerA(accueil);
+  }
   // Module fermé pour la promo (lien, adresse saisie, nouveauté ancienne) : un
   // stagiaire est ramené sur Mon suivi, avec un mot d'explication.
   if (!routeOuverte(route)) {
     toast("Cette partie n'est pas encore ouverte pour ta promo.", "info", 3500);
-    try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
-    route = "mon-suivi";
+    route = allerA(repli);
   }
   // Problèmes signalés (spec 2026-10-28) : le fondateur seulement, hors aperçu « Voir en tant que ».
   // Les autres retombent sur leur page habituelle (la garde de la page à soi suit).
   if (route === "problemes" && !fondateurHorsApercu()) {
-    try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
-    route = "mon-suivi";
+    route = allerA(repli);
   }
   // Page « à soi » (chantier D, lot 2) : un formateur sans profil stagiaire n'a pas
   // de Mon espace, il a la page Stagiaires ; un stagiaire n'a pas la page Stagiaires.
@@ -346,16 +392,17 @@ async function navigate({ force = false } = {}) {
   } else if ((route === "stagiaires" || route === "centre" || route === "emargement") && !formateur) {
     // Page Émargement (spec 2026-10-23) : formateurs seulement ; un stagiaire signe par
     // le bandeau, sur n'importe quelle page.
-    try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
-    route = "mon-suivi";
-  } else if (route === "emargement" && !emargementActif()) {
-    // Interrupteur éteint pour la promo (réglage du fondateur dans Paramètres).
-    toast("L'émargement n'est pas activé pour cette promo.", "info", 3500);
-    try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
-    route = "home";
+    route = allerA(repli);
+  } else if (route === "emargement" && !(espace === "direction" ? emargementDansLeCentre() : emargementActif())) {
+    // Interrupteur éteint pour la promo (réglage du fondateur dans Paramètres) ; en direction, pour toutes les promos du centre.
+    toast(espace === "direction"
+      ? "L'émargement n'est activé pour aucune promo du centre. Seul le fondateur peut l'allumer, promo par promo."
+      : "L'émargement n'est pas activé pour cette promo. Seul le fondateur peut l'allumer.", "info", 8000);
+    route = allerA(accueil);
   } else if (route === "qualiopi" && !fondateurHorsApercu()) {
     // Page Qualiopi (spec 2026-10-28, § 6.3) : le fondateur seul, avant la refonte du lot 5. Aucune entrée de barre ne la
-    // montre aux autres ; une adresse saisie ou un favori les ramène à l'accueil, sans un mot.
+    // montre aux autres ; une adresse saisie ou un favori les ramène à l'accueil, sans un mot. (Hors des espaces de la direction
+    // et du siège, qui l'ont déjà refusée plus haut : routeDansLEspace.)
     try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
     route = "home";
   }
@@ -518,13 +565,26 @@ function isColdStart() {
   }
 }
 
+// Les défauts d'habillage du compte (centre de la promo affichée ou premier centre de ses affectations, réseau), puis l'accord de
+// l'habillage avec le compte (js/habillage.js).
+async function habillageDuDemarrage() {
+  let defauts = defautsHabillage(null);
+  try {
+    defauts = defautsHabillage(await habillageParDefaut());
+  } catch (e) {
+    console.warn("Habillage : défauts du centre et du réseau illisibles, ils sont ignorés", e);
+  }
+  return habillageAuDemarrage({ email: getAdminEmail(), compte: getProfile()?.habillage ?? null, ...defauts });
+}
+
 async function bootApp() {
   // Habillage : l'avant-peinture a déjà posé celui de l'appareil ; on le met d'accord avec le compte.
   // Lu ici parce que le profil est connu (initAuth est passé) et pas plus tôt. `getProfile()` est le
   // vrai profil, jamais celui de « Voir en tant que ». Non attendu : l'app ne patiente pas pour une
-  // couleur, et un échec d'enregistrement n'a pas à l'arrêter. Le lot 5 le rappellera après la porte
-  // avec `centre`, `reseau` et `libre`.
-  habillageAuDemarrage({ email: getAdminEmail(), compte: getProfile()?.habillage ?? null })
+  // couleur, et un échec d'enregistrement n'a pas à l'arrêter. Lot 5 : une fois la porte passée, l'habillage par défaut du centre
+  // et du réseau est lu en base (habillage_par_defaut) et passé avec le compte ; une lecture qui échoue (base pas encore migrée,
+  // réseau coupé) donne des défauts nuls, sans message, et l'habillage de l'appareil, déjà posé par l'avant-peinture, reste en place.
+  habillageDuDemarrage()
     .catch((e) => console.warn("Habillage : démarrage impossible", e));
   // Ruling R17 : quand la coquille est attendue (la promo l'avait la dernière fois sur cet appareil, ou
   // l'aperçu du fondateur), l'ancienne barre attend la décision sans se peindre (css/navigation.css) ;
@@ -545,7 +605,15 @@ async function bootApp() {
     // Interrupteurs de l'émargement et de la nouvelle navigation (propres à la promo) lus en même
     // temps que les modules. La navigation est décidée ici, une fois pour la session, avant le
     // premier rendu (aperçu du fondateur compris).
-    await Promise.all([chargerModulesAuDemarrage(), chargerEmargementActif(), chargerNavigationV2()]);
+    // Sans promo (le siège, une direction dont le centre n'en a pas encore), les modules et l'émargement n'ont rien à lire : les
+    // modules gardent leur état par défaut, l'émargement reste éteint (aucune lecture ne part sans en-tête de promo).
+    const unePromo = !!getPromoCourante();
+    // Direction : l'interrupteur de chaque promo du centre se lit aussi, une fois, pour allumer l'entrée Émargement de la barre.
+    const centre = getEspace() === "direction" ? getCentre() : null;
+    await Promise.all([
+      unePromo ? chargerModulesAuDemarrage() : null, unePromo ? chargerEmargementActif() : null, chargerNavigationV2(),
+      centre ? chargerEmargementCentre(promosDuCentre(getMesPromos(), centre.id)) : null,
+    ]);
     renderTabs();
   } finally {
     // La barre de la session est posée (coquille, ou ancienne barre si la décision est « éteint ») : plus
@@ -591,9 +659,11 @@ async function bootApp() {
   // sur « Mon suivi » (nouvelle navigation : l'Accueil, ruling R60). replaceState plutôt que location.hash : pas de
   // `hashchange` (donc pas de double rendu avec le navigate() ci-dessous) et pas
   // d'entrée d'historique parasite.
+  // Direction et siège (lot 5) : l'accueil de leur espace (#/centre, #/reseau).
   // Exception : un lien vers un questionnaire (#/questionnaire/<clé>, WhatsApp) s'ouvre aussi à froid.
   if (!location.hash || (isColdStart() && !cleQuestionnaire(location.hash))) {
-    const cible = "#/" + (derniereRoute() || (navigationV2Active() ? "home" : "mon-suivi"));
+    const accueil = ACCUEIL_ESPACE[espaceCourant()] || "home";
+    const cible = "#/" + (derniereRoute() || (espaceDePilotage(espaceCourant()) ? accueil : navigationV2Active() ? "home" : "mon-suivi"));
     try { history.replaceState(null, "", cible); }
     catch (e) { location.hash = cible; }
   }
@@ -629,6 +699,13 @@ async function bootApp() {
   }
 
   await initAuth();
+  // Une bascule de promo lancée par la porte (la direction entre dans son centre, D6) : la page se recharge, rien ne démarre.
+  if (basculeLancee()) return;
+  if (ouvertureInterrompueParLaConnexion()) {
+    // Lecture des affectations ratée : la carte dit « La connexion a échoué » et propose « Réessayer » (rechargement).
+    showGate();
+    return;
+  }
   if (isAuth()) {
     await bootApp();
   } else {
@@ -638,7 +715,9 @@ async function bootApp() {
     showGate(modeGateInitial);
     // Surveille le moment où l'auth devient valide pour basculer.
     const watch = setInterval(async () => {
-      if (isAuth()) {
+      if (basculeLancee()) {
+        clearInterval(watch);
+      } else if (isAuth()) {
         clearInterval(watch);
         await bootApp();
       } else {

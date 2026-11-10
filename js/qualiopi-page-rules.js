@@ -5,9 +5,9 @@
 // Le dossier du centre ne filtre pas lui-même les promos par période : la vue ne lui passe que celles que
 // `promosDuCentre` retient (même lieu, dates qui chevauchent les 12 derniers mois).
 
-import { SOURCE, CRITERES } from "./qualiopi-referentiel.js?v=20261110c";
-import { jourDe, rempli, nb } from "./qualiopi-preuves.js?v=20261110c";
-import { LIBELLES_NIVEAU, nomFichierQualiopi } from "./qualiopi-documents.js?v=20261110c";
+import { SOURCE, CRITERES } from "./qualiopi-referentiel.js?v=20261110d";
+import { jourDe, rempli, nb } from "./qualiopi-preuves.js?v=20261110d";
+import { LIBELLES_NIVEAU, nomFichierQualiopi } from "./qualiopi-documents.js?v=20261110d";
 
 const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
 

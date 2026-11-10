@@ -1,19 +1,22 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261110c";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261110c";
-import { compteDansEquite } from "./passage-rules.js?v=20261110c";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261110c";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261110c";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261110c";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261110c";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261110d";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261110d";
+import { compteDansEquite } from "./passage-rules.js?v=20261110d";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261110d";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261110d";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261110d";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261110d";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261110c";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261110c";
+} from "./promo-rules.js?v=20261110d";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261110d";
+import { effectifDesFiches } from "./centre-stats.js?v=20261110d";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261110d";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
-let mesPromos = [];          // lignes renvoyées par la RPC mes_promos()
+let promosLues = [];         // lignes renvoyées par la RPC mes_promos(), telles quelles
+let mesPromos = [];          // promos que l'app voit : promosLues retraitée par l'aperçu (voir recalculerPromosVisibles)
 let promoCouranteId = null;  // nulle tant que le contexte n'est pas chargé : pas d'en-tête
 let cleMemoire = null;       // clé localStorage propre au compte
 let compteContexte = null;   // compte (email en minuscules) auquel appartient le contexte
@@ -45,6 +48,8 @@ function fetchWithTimeout(input, init = {}) {
     const { promo, erreur } = promoDeLaRequete({
       methode: init.method || (estRequete ? input.method : "GET"),
       demandee,
+      // Toujours la promo mémorisée, pas la liste filtrée par l'aperçu : une écriture en attente pendant un changement d'aperçu part
+      // avec la promo où elle a été faite (jamais sans en-tête, la base y mettrait la promo par défaut du compte).
       courante: promoCouranteId,
       accessibles: mesPromos.map((p) => p.id),
     });
@@ -98,6 +103,15 @@ async function cachedQuery(key, fetcher) {
   return data;
 }
 
+// L'UNIQUE point où la liste des promos se restreint selon l'aperçu « Voir en tant que » (lot 5, D3) : en aperçu direction, les promos
+// du centre de la promo affichée ; en aperçu siège, aucune. getMesPromos(), la pastille, les pages et les promos dont l'en-tête de
+// lecture est permis lisent tous `mesPromos` : aucun d'eux n'a à filtrer. La promo mémorisée (promoCouranteId) reste choisie sur la
+// liste entière, pour que le retour hors aperçu retrouve la même promo.
+function recalculerPromosVisibles() {
+  const affichee = promosLues.find((p) => p.id === promoCouranteId) || null;
+  mesPromos = promosVisiblesEnApercu({ promos: promosLues, promo: affichee, apercu: apercuEnvoye });
+}
+
 export function invalidateCache(key) {
   if (key) { _cache.delete(key); _cacheExpiry.delete(key); }
   else { _cache.clear(); _cacheExpiry.clear(); }
@@ -117,6 +131,7 @@ export async function chargerMesPromos(email) {
   // Autre compte que celui du contexte en mémoire (appareil partagé) : on repart de zéro,
   // sans rien hériter de la promo du compte précédent.
   if (compte !== compteContexte) {
+    promosLues = [];
     mesPromos = [];
     promoCouranteId = null;
     cleMemoire = null;
@@ -128,14 +143,16 @@ export async function chargerMesPromos(email) {
   if (error) throw error;
   if (monEpoque !== epoque) return null;  // déconnexion pendant le chargement : rien à poser
   cleMemoire = compte ? "ecsr_promo:" + compte : null;
-  mesPromos = data || [];
+  promosLues = data || [];
   let memorisee = null;
   try { memorisee = cleMemoire ? localStorage.getItem(cleMemoire) : null; } catch (e) { /* navigation privée */ }
-  const garder = mesPromos.some((p) => p.id === promoCouranteId) ? promoCouranteId : null;
-  const nouvelle = garder ?? choisirPromoInitiale(mesPromos, memorisee);
+  const garder = promosLues.some((p) => p.id === promoCouranteId) ? promoCouranteId : null;
+  const nouvelle = garder ?? choisirPromoInitiale(promosLues, memorisee);
   if (nouvelle !== promoCouranteId) invalidateCache();
   promoCouranteId = nouvelle;
-  return mesPromos;
+  recalculerPromosVisibles();
+  // La liste lue, pas celle de l'aperçu : « le compte a des promos » ne change pas parce que le fondateur regarde le siège.
+  return promosLues;
 }
 
 export function getMesPromos() { return mesPromos; }
@@ -146,6 +163,7 @@ export function poserApercu(role) {
   const nouveau = normaliserApercu(role);
   if (nouveau === apercuEnvoye) return;
   apercuEnvoye = nouveau;
+  recalculerPromosVisibles();
   invalidateCache();
 }
 
@@ -156,6 +174,7 @@ export function getPromoCourante() {
 // Déconnexion : le contexte est oublié en mémoire (le choix mémorisé, propre au compte, reste).
 export function oublierPromo() {
   epoque += 1;
+  promosLues = [];
   mesPromos = [];
   promoCouranteId = null;
   cleMemoire = null;
@@ -179,6 +198,30 @@ export async function choisirPromo(id) {
   await attendreEnregistrements();
   try { if (cleMemoire) localStorage.setItem(cleMemoire, String(id)); } catch (e) { /* ignore */ }
   location.reload();
+}
+
+// Une bascule (ou un rechargement sûr) est lancée : la page va se recharger. Le démarrage de l'app ne part pas (js/main.js) : la
+// porte de la direction (D6) peut changer de promo avant même le premier rendu.
+export function basculeLancee() { return basculeEnCours; }
+
+// Ouvrir une page dans une autre promo (lot 5, D7) : « Voir le détail » d'une promo du centre, l'espace choisi dans le menu. L'adresse
+// visée (`#/…`, vers une page connue : adresseApresBascule) est posée dans l'historique, puis la promo est choisie : le rechargement
+// la garde (isColdStart faux, js/main.js). Promo déjà affichée : un simple changement d'adresse. Rend la phrase à montrer quand rien
+// ne change (adresse refusée, promo absente de la liste, bascule déjà en cours), sinon null.
+export const PHRASE_PROMO_INACCESSIBLE = "Cette promo n'est plus accessible.";
+export const PHRASE_BASCULE_EN_COURS = "Un changement de promo est déjà en cours.";
+export async function ouvrirDansUnePromo(promoId, adresse) {
+  const id = Number(promoId);
+  const cible = adresseApresBascule(adresse);
+  if (!cible || !mesPromos.some((p) => p.id === id)) return PHRASE_PROMO_INACCESSIBLE;
+  if (basculeEnCours) return PHRASE_BASCULE_EN_COURS;
+  if (id === promoCouranteId) {
+    location.hash = cible;
+    return null;
+  }
+  try { history.replaceState(null, "", cible); } catch (e) { /* hors navigateur */ }
+  await choisirPromo(id);
+  return null;
 }
 
 // Rechargement sûr (bandeau « Réessayer ») : mêmes attentes qu'une bascule, sans changer de promo.
@@ -214,6 +257,240 @@ export async function renommerPromo(id, nom) {
   if (!data || data.length === 0) throw new Error("Renommage refusé : promo introuvable ou droits insuffisants.");
   const promo = mesPromos.find((p) => p.id === id);
   if (promo) promo.nom = nom;
+}
+
+// Lot 5 (Task 8) : la direction crée une promo de son centre et règle ses dates. Les fonctions de la base (creer_promo,
+// modifier_dates_promo : SECURITY DEFINER, direction du centre ou fondateur) vérifient le droit ; leurs refus partent tels quels
+// (message préfixé « promo: », code 42501 sans droit, PGRST202 fonction absente) et l'appelant les dit par phraseDeRefus. Le
+// message d'origine et le code restent sur l'erreur levée. `fin` facultative (null, jamais une chaîne vide).
+function erreurDeBase(error) {
+  const e = new Error(error.message || "");
+  e.code = error.code;
+  return e;
+}
+export async function creerPromo({ lieuId, nom, debut, fin }) {
+  const { data, error } = await supabase.rpc("creer_promo", {
+    p_lieu_id: lieuId, p_nom: nom, p_debut: debut || null, p_fin: fin || null,
+  });
+  if (error) throw erreurDeBase(error);
+  if (!Number.isInteger(Number(data))) throw new Error("promo: La promo n'a pas été créée.");
+  return Number(data);
+}
+export async function modifierDatesPromo({ promoId, debut, fin }) {
+  const { error } = await supabase.rpc("modifier_dates_promo", { p_promo_id: promoId, p_debut: debut || null, p_fin: fin || null });
+  if (error) throw erreurDeBase(error);
+  // Les listes en mémoire suivent (le même objet peut être dans les deux).
+  for (const p of [...promosLues, ...mesPromos]) {
+    if (p.id === promoId) { p.date_debut = debut || null; p.date_fin = fin || null; }
+  }
+}
+
+// Lot 5 (Task 11) : le siège lit les comptes du réseau (comptes_reseau : une ligne par centre, sans nom ni détail par promo, centre
+// de moins de 5 stagiaires en formation masqué par la base). Rend les lignes brutes de la base : vueDuReseau (js/comptes-reseau.js)
+// les passe par versComptes. Le refus de la base part tel quel (42501 hors siège, PGRST202 fonction absente) : phraseDeRefus.
+export async function comptesReseau() {
+  const { data, error } = await supabase.rpc("comptes_reseau");
+  if (error) throw erreurDeBase(error);
+  return Array.isArray(data) ? data : [];
+}
+
+// Lot 5 (Task 12) : le siège gère les centres et leurs directions. Les lieux du réseau (le siège les lit tous), le centre de
+// démonstration marqué par `demonstration`. Lève si la lecture échoue (la page le dit).
+export async function lireLieuxDuReseau() {
+  const { data, error } = await supabase.from("lieux").select("id, nom, demonstration").order("nom");
+  if (error) throw erreurDeBase(error);
+  return (data || []).map((l) => ({ id: l.id, nom: l.nom, demonstration: !!l.demonstration }));
+}
+
+// Les directions de tous les centres : [{ id, email, nom, lieu_id }] (`id` : la ligne d'affectation, pour la retirer ; `nom` : la
+// fiche formateur liée au compte, nul sans fiche ou si la base ne la montre pas au siège : la page affiche alors l'adresse). Une
+// affectation de direction sans centre est écartée. Lève si la lecture des affectations échoue.
+export async function lireDirectionsDuReseau() {
+  const lignes = await toutesLesLignes(() => supabase.from("affectations").select("id, email, lieu_id").eq("role", "direction").order("id"));
+  const directions = lignes.filter((a) => a.lieu_id != null).map((a) => ({ id: a.id, email: String(a.email).toLowerCase(), nom: null, lieu_id: a.lieu_id }));
+  let noms = new Map();
+  try {
+    noms = await nomsFormateursParEmail([...new Set(directions.map((d) => d.email))]);
+  } catch (e) {
+    console.error("fiches des directions", e);   // les noms sont un plus : sans eux, l'adresse
+  }
+  return directions.map((d) => ({ ...d, nom: noms.get(d.email) || null }));
+}
+
+// Retire une direction (suppression de sa ligne d'affectation : la base le permet au siège seul). La ligne est relue : une règle de
+// la base qui refuse répond « 0 ligne, sans erreur », ce que la page doit dire.
+export async function retirerAffectation(id) {
+  const { data, error } = await supabase.from("affectations").delete().eq("id", id).select("id");
+  if (error) throw erreurDeBase(error);
+  if (!data || data.length === 0) throw new Error("Ce retrait n'a pas été accepté.");
+}
+
+// Crée un centre (creer_centre : siège seul, nom non vide, pas de doublon) et rend son identifiant. Les refus partent tels quels
+// (préfixe « centre: », 42501 sans droit, PGRST202 fonction absente) : l'appelant les dit par phraseDeRefus.
+export async function creerCentre(nom) {
+  const { data, error } = await supabase.rpc("creer_centre", { p_nom: nom });
+  if (error) throw erreurDeBase(error);
+  if (!Number.isInteger(Number(data))) throw new Error("centre: Le centre n'a pas été créé.");
+  return Number(data);
+}
+
+// Effectif de chaque promo : { enFormation, abandons } (effectifDesFiches, centre-stats.js : la définition de la Vue d'ensemble et du
+// siège, une fiche anonymisée compte parmi les abandons), par l'en-tête de lecture de la promo. Une promo illisible rend null : la
+// page le dit sur sa carte.
+export async function lireEffectifsPromos(promoIds) {
+  const parPromo = new Map();
+  await Promise.all(promoIds.map(async (id) => {
+    try {
+      const lignes = await lireTable("stagiaires", "id, actif", "id", id);
+      const { enFormation, abandons } = effectifDesFiches(lignes);
+      parPromo.set(id, { enFormation, abandons });
+    } catch (e) {
+      console.error("effectif de la promo " + id, e);
+      parPromo.set(id, null);
+    }
+  }));
+  return parPromo;
+}
+
+// Nom de la fiche formateur liée à chaque compte : { adresse en minuscules -> nom }, sans entrée pour un compte sans fiche. Lève si
+// une lecture échoue. Commun aux deux lectures d'équipe ci-dessous (formateurs d'une promo, équipe d'un centre).
+async function nomsFormateursParEmail(emails) {
+  const noms = new Map();
+  if (!emails.length) return noms;
+  // Les adresses se comparent en minuscules des deux côtés : un compte stocké avec des majuscules garde son nom. `.in` serait
+  // sensible à la casse, donc lecture des colonnes utiles (adresse, fiche) puis rapprochement ici.
+  const voulues = new Set(emails.map((e) => String(e).toLowerCase()));
+  const profils = await toutesLesLignes(() => supabase.from("user_profiles").select("email, prof_id").order("email"));
+  const profParEmail = new Map(profils.filter((u) => voulues.has(String(u.email).toLowerCase()))
+    .map((u) => [String(u.email).toLowerCase(), u.prof_id]));
+  const profIds = [...new Set([...profParEmail.values()].filter((x) => x != null))];
+  if (!profIds.length) return noms;
+  const { data: profs, error: e2 } = await supabase.from("profs").select("id, nom").in("id", profIds);
+  if (e2) throw e2;
+  const nomParProf = new Map((profs || []).map((f) => [f.id, f.nom]));
+  for (const [email, profId] of profParEmail) {
+    const nom = nomParProf.get(profId);
+    if (nom) noms.set(email, nom);
+  }
+  return noms;
+}
+
+// Formateurs de chaque promo : { promoId -> [nom] }, d'après les affectations « formateur » (nom de la fiche formateur liée au
+// compte, sinon l'adresse). Rend null si la lecture échoue : la page le dit.
+export async function lireFormateursPromos(promoIds) {
+  try {
+    if (!promoIds.length) return new Map();
+    const { data: affs, error } = await supabase.from("affectations").select("email, promo_id")
+      .eq("role", "formateur").in("promo_id", promoIds);
+    if (error) throw error;
+    const emails = [...new Set((affs || []).map((a) => String(a.email).toLowerCase()))];
+    const noms = await nomsFormateursParEmail(emails);
+    const parPromo = new Map(promoIds.map((id) => [id, []]));
+    for (const a of affs || []) {
+      const email = String(a.email).toLowerCase();
+      const nom = noms.get(email) || email;
+      const liste = parPromo.get(a.promo_id);
+      if (liste && !liste.includes(nom)) liste.push(nom);
+    }
+    for (const liste of parPromo.values()) liste.sort((a, b) => a.localeCompare(b, "fr"));
+    return parPromo;
+  } catch (e) {
+    console.error("formateurs des promos", e);
+    return null;
+  }
+}
+
+// Lot 5 (Task 10) : l'équipe d'un centre, une ligne par adresse : { email, nom, direction, promos } (`nom` : fiche formateur liée au
+// compte, nul sans fiche ; `promos` : identifiants des promos DE CE CENTRE où la personne est formateur). Le centre filtre vraiment :
+// les directions sont celles du lieu, les formateurs ceux des promos du lieu (les promos du compte qui sont de ce lieu, la liste
+// de l'app étant déjà bornée au centre en aperçu, D3). Une direction d'un autre centre, un formateur d'une promo d'un autre
+// centre n'y figurent donc jamais, même si la base les laisse lire. Lève si une lecture échoue (la page le dit).
+export async function lireEquipeDuCentre(lieuId) {
+  const promoIds = mesPromos.filter((p) => p.lieu_id === lieuId).map((p) => p.id);
+  const [formateurs, directions] = await Promise.all([
+    promoIds.length
+      ? supabase.from("affectations").select("email, promo_id").eq("role", "formateur").in("promo_id", promoIds)
+      : Promise.resolve({ data: [], error: null }),
+    supabase.from("affectations").select("email").eq("role", "direction").eq("lieu_id", lieuId),
+  ]);
+  if (formateurs.error) throw formateurs.error;
+  if (directions.error) throw directions.error;
+  const parEmail = new Map();
+  const ligne = (brut) => {
+    const email = String(brut).toLowerCase();
+    if (!parEmail.has(email)) parEmail.set(email, { email, nom: null, direction: false, promos: [] });
+    return parEmail.get(email);
+  };
+  for (const d of directions.data || []) ligne(d.email).direction = true;
+  for (const f of formateurs.data || []) {
+    const l = ligne(f.email);
+    if (!l.promos.includes(f.promo_id)) l.promos.push(f.promo_id);
+  }
+  const noms = await nomsFormateursParEmail([...parEmail.keys()]);
+  for (const l of parEmail.values()) l.nom = noms.get(l.email) || null;
+  return [...parEmail.values()];
+}
+
+// Les fiches formateur libres (reliées à aucun compte), que la direction peut lier à un formateur invité : [{ id, nom }].
+export async function lireFichesFormateurLibres() {
+  // Colonnes explicites : l'identifiant et le nom de la fiche, et la fiche reliée de chaque compte (le rapprochement). La table
+  // `profs` n'a ni centre ni promo : la base ne permet pas de limiter les fiches libres à ce centre.
+  const [profs, comptes] = await Promise.all([
+    toutesLesLignes(() => supabase.from("profs").select("id, nom").order("ordre")),
+    toutesLesLignes(() => supabase.from("user_profiles").select("prof_id").order("email")),
+  ]);
+  const prises = new Set(comptes.map((u) => u.prof_id).filter((x) => x != null));
+  return profs.filter((f) => !prises.has(f.id)).map((f) => ({ id: f.id, nom: f.nom }));
+}
+
+// La direction règle les promos d'un formateur de son centre (regler_affectations_formateur : liste vide = retiré du centre ; compte
+// absent = profil créé). Rend { email, cree, ajoutees, retirees }. Les refus de la base partent tels quels (préfixe « equipe: »,
+// 42501 sans droit, PGRST202 fonction absente) : l'appelant les dit par phraseDeRefus.
+export async function reglerAffectationsFormateur({ email, lieuId, promoIds, profId }) {
+  const { data, error } = await supabase.rpc("regler_affectations_formateur", {
+    p_email: email, p_lieu_id: lieuId, p_promo_ids: promoIds, p_prof_id: profId ?? null,
+  });
+  if (error) throw erreurDeBase(error);
+  if (!data || typeof data !== "object") throw new Error("equipe: La base n'a rien répondu.");
+  return data;
+}
+
+// Habillage par défaut (lot 5) : { centre, libre, reseau } pour le compte connecté (habillage_par_defaut() : le centre de la promo
+// affichée, à défaut le premier centre de ses affectations ; le réseau). Lisible de tout compte. Une fonction absente (avant la
+// migration) ou toute panne lève : au démarrage l'appelant s'en passe (défauts nuls), sans message.
+export async function habillageParDefaut() {
+  const { data, error } = await supabase.rpc("habillage_par_defaut");
+  if (error) throw erreurDeBase(error);
+  const ligne = Array.isArray(data) ? data[0] : data;
+  if (!ligne || typeof ligne !== "object") throw new Error("habillage: La base n'a rien répondu.");
+  return ligne;
+}
+
+// L'habillage tenu par un centre : { habillage, habillage_libre } (la direction du centre et le siège lisent la ligne de lieux).
+// Colonne absente (avant la migration) ou ligne illisible : lève, la page le dit par sa phrase.
+export async function lireHabillageCentre(lieuId) {
+  const { data, error } = await supabase.from("lieux").select("habillage, habillage_libre").eq("id", lieuId).maybeSingle();
+  if (error) throw erreurDeBase(error);
+  if (!data) throw new Error("habillage: Centre introuvable.");
+  return data;
+}
+
+// La direction règle l'habillage de son centre (regler_habillage_centre : nul = aucun ; libre faux = il s'impose à tous). Les refus
+// de la base partent tels quels (préfixe « habillage: », 42501 sans droit, PGRST202 fonction absente) : l'appelant les dit par
+// phraseDeRefus.
+export async function reglerHabillageCentre({ lieuId, habillage, libre }) {
+  const { data, error } = await supabase.rpc("regler_habillage_centre", { p_lieu_id: lieuId, p_habillage: habillage ?? null, p_libre: libre });
+  if (error) throw erreurDeBase(error);
+  if (!data || typeof data !== "object") throw new Error("habillage: La base n'a rien répondu.");
+  return data;
+}
+
+// Le siège règle l'habillage par défaut du réseau (regler_habillage_reseau : nul = aucun). Mêmes refus que ci-dessus.
+export async function reglerHabillageReseau(habillage) {
+  const { data, error } = await supabase.rpc("regler_habillage_reseau", { p_habillage: habillage ?? null });
+  if (error) throw erreurDeBase(error);
+  if (!data || typeof data !== "object") throw new Error("habillage: La base n'a rien répondu.");
+  return data;
 }
 
 // === Stagiaires & Profs ===
@@ -254,17 +531,26 @@ export async function addStagiaire(prenom, nom = null) {
   invalidateCache("stagiaires_all");
 }
 
+// Écriture sur une fiche : sans .select(), un refus par les règles d'accès répond « 0 ligne, sans erreur » (lot 5, Task 9 : la
+// direction écrit sur la promo affichée, la base peut refuser). Zéro ligne touchée se dit.
+const PHRASE_FICHE_NON_MODIFIEE = "Modification refusée : fiche introuvable ou droits insuffisants.";
+function verifierFicheModifiee(data) {
+  if (!data || data.length === 0) throw new Error(PHRASE_FICHE_NON_MODIFIEE);
+}
+
 export async function updateStagiaire(id, prenom) {
-  const { error } = await supabase.from("stagiaires").update({ prenom }).eq("id", id);
+  const { data, error } = await supabase.from("stagiaires").update({ prenom }).eq("id", id).select("id");
   if (error) throw error;
+  verifierFicheModifiee(data);
   invalidateCache("stagiaires");
   invalidateCache("stagiaires_all");
 }
 
 // Nom de famille : sert à l'affichage « V. Timy » et au tri alphabétique.
 export async function updateStagiaireNom(id, nom) {
-  const { error } = await supabase.from("stagiaires").update({ nom: nom || null }).eq("id", id);
+  const { data, error } = await supabase.from("stagiaires").update({ nom: nom || null }).eq("id", id).select("id");
   if (error) throw error;
+  verifierFicheModifiee(data);
   invalidateCache("stagiaires");
   invalidateCache("stagiaires_all");
 }
@@ -316,8 +602,9 @@ export async function purgerBenevoles(ids) {
 }
 
 export async function setStagiaireActif(id, actif) {
-  const { error } = await supabase.from("stagiaires").update({ actif }).eq("id", id);
+  const { data, error } = await supabase.from("stagiaires").update({ actif }).eq("id", id).select("id");
   if (error) throw error;
+  verifierFicheModifiee(data);
   invalidateCache("stagiaires");
   invalidateCache("stagiaires_all");
 }
@@ -1453,6 +1740,15 @@ export async function listUserProfiles() {
   return data;
 }
 
+// Lot G : le vrai rôle des comptes du personnel (roles_du_personnel : [{ email, role }], role « direction » ou « siege »). La table
+// affectations ne se lit qu'à son titulaire : cette fonction ne rend que l'étiquette, à l'équipe de la promo affichée, au siège et
+// au fondateur. Lève si la fonction manque (avant la migration) ou si la lecture échoue : l'appelant s'en passe.
+export async function lireRolesDuPersonnel() {
+  const { data, error } = await supabase.rpc("roles_du_personnel");
+  if (error) throw erreurDeBase(error);
+  return Array.isArray(data) ? data.map((l) => ({ email: String(l.email ?? "").toLowerCase(), role: l.role })) : [];
+}
+
 // Les fiches de la promo affichée dont le compte a masqué ses notes (Set de numéros de fiche) : tout ce que la vue Notes
 // demande aux comptes des camarades. Un stagiaire ne lit plus le profil des autres (adresse e-mail comprise) : la base
 // le rend par fiches_notes_masquees (migration 20261110_profils_email_stagiaires). Fonction absente (base pas encore
@@ -1479,15 +1775,32 @@ export async function setMonHabillage(nom) {
   return data;
 }
 
-// Rôles d'équipe de la personne connectée, lus dans ses affectations (chacun lit les siennes). Sert à la seule porte
-// « aucune promo » : le siège n'a pas de promo. Liste vide si la table manque (base pas migrée) ou si la lecture échoue.
-export async function mesRolesAffectes() {
-  const { data: { user } } = await supabase.auth.getUser();
+// Affectations de la personne connectée (lot 5) : `[{ role, promo_id, lieu_id, lieu_nom }]` (normaliserAffectations), chacun lit
+// les siennes. Le siège et la direction en tirent leur espace (D2), et la porte laisse entrer sans promo qui en a une (D5). Le nom
+// des lieux est joint d'après la table `lieux` (lue seulement s'il y a un lieu à nommer ou un siège à servir : le siège lit tous les
+// lieux, la direction les siens) ; une lecture des lieux ratée laisse les noms nuls. Une lecture des affectations ratée lève
+// (aussi quand l'utilisateur n'a pas pu être lu) : auth-admin.js la distingue d'une liste vide. Les lieux lus restent disponibles (getLieuxLus).
+let lieuxLus = [];
+export async function mesAffectations() {
+  const { data: { user }, error: erreurUtilisateur } = await supabase.auth.getUser();
+  // Un utilisateur illisible (réseau, jeton) est une lecture RATÉE et non une liste vide : la porte distingue « lu et vide »
+  // (refus) de « lecture ratée » (réessayer, ou garder l'espace en place). Lever est le choix le plus simple : l'état explicite
+  // d'un retour { lu, lignes } aurait obligé chaque appelant à le tester, alors que tous savent déjà traiter une erreur.
+  if (erreurUtilisateur) throw erreurUtilisateur;
   if (!user?.email) return [];
-  const { data, error } = await supabase.from("affectations").select("role").eq("email", user.email.toLowerCase());
-  if (error) return [];
-  return [...new Set((data || []).map((a) => a.role))];
+  const { data, error } = await supabase.from("affectations").select("role, promo_id, lieu_id").eq("email", user.email.toLowerCase());
+  if (error) throw error;
+  const lignes = data || [];
+  let lieux = null;
+  if (lignes.some((a) => a.lieu_id != null || a.role === "siege")) {
+    const lus = await supabase.from("lieux").select("id, nom");
+    lieux = lus.error ? null : (lus.data || []);
+    if (lus.error) console.error("Lieux illisibles : noms des centres absents.", lus.error);
+  }
+  lieuxLus = lieux || [];
+  return normaliserAffectations(lignes, lieux);
 }
+export function getLieuxLus() { return lieuxLus; }
 
 export async function getMyProfile() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -1694,6 +2007,12 @@ function lireTable(table, colonnes, ordre, promoId) {
     const q = supabase.from(table).select(colonnes).order(ordre);
     return promoId == null ? q : q.setHeader(ENTETE_LECTURE_PROMO, String(promoId));
   });
+}
+
+// Les fiches d'une promo du centre, lues par l'en-tête de lecture de cette promo (lot 5, Task 9 : page Stagiaires de la direction).
+// Hors du cache « stagiaires » de listStagiaires, qui est celui de la promo affichée. Lève si la promo est illisible.
+export async function lireStagiairesPromo(promoId) {
+  return lireTable("stagiaires", "id, prenom, nom, actif, ordre, anonymise_le", "id", promoId);
 }
 
 // promoId nul (liste des promos non chargée) : promo courante, sans en-tête de lecture.
@@ -2051,6 +2370,28 @@ function enteteEmargementDuReglage(valeur) {
 // serait pire qu'une page en erreur. Un réglage absent, lui, donne les valeurs par défaut.
 export async function getEnteteEmargement() {
   return enteteEmargementDuReglage(await getSetting("emargement_entete"));
+}
+
+// --- Lectures d'une AUTRE promo du centre, par l'en-tête de lecture (lot 5, Task 7) ---
+// Réglage d'une promo choisie (null si absent). Une lecture ratée lève : la page le dit plutôt que de montrer « éteint ».
+export async function lireReglagePromo(promoId, cle) {
+  if (promoId == null) throw new Error("Réglage : aucune promo choisie.");
+  const { data, error } = await supabase.from("settings").select("value").eq("key", cle)
+    .setHeader(ENTETE_LECTURE_PROMO, String(promoId)).maybeSingle();
+  if (error) throw error;
+  return data?.value ?? null;
+}
+
+// Feuilles d'émargement d'une promo choisie, SANS la colonne `trace` (aucun tracé de signature ne sort de la base pour un
+// résumé) : { seances: [{ id, jour, demi_journee, debut, fin, statut }], lignes: [{ seance_id, stagiaire_id, signe_le, absent,
+// absence_origine }] }. Entrée de resumeEmargement (js/emargement-rules.js).
+export async function lireEmargementPromo(promoId) {
+  if (promoId == null) throw new Error("Émargement : aucune promo choisie.");
+  const [seances, lignes] = await Promise.all([
+    lireTable("emargement_seances", "id, jour, demi_journee, debut, fin, statut", "id", promoId),
+    lireTable("emargement_lignes", "id, seance_id, stagiaire_id, signe_le, absent, absence_origine", "id", promoId),
+  ]);
+  return { seances, lignes };
 }
 
 export async function setEnteteEmargement(entete) {

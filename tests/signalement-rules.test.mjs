@@ -126,6 +126,12 @@ test("détail en mots simples", () => {
   assert.equal(v2.get("Navigation"), "nouvelle, espace équipe");
   assert.equal(v2.get("Aperçu"), "Stagiaire");
   assert.equal(v2.get("Erreurs récentes"), "aucune");
+  // Lot 5 : l'espace est dit tel quel, direction et siège compris.
+  const espace = (e) => new Map(detailContexte(assemblerContexte({ ...RELEVE_IPHONE, navigation: "nouvelle", espace: e }))).get("Navigation");
+  assert.equal(espace("stagiaire"), "nouvelle, espace stagiaire");
+  assert.equal(espace("direction"), "nouvelle, espace direction");
+  assert.equal(espace("siege"), "nouvelle, espace siège");
+  assert.equal(espace(null), "nouvelle, espace stagiaire");
 });
 
 test("statuts", () => {

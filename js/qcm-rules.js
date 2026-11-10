@@ -2,7 +2,7 @@
 // tests/qcm-stagiaire-rules.test.mjs. Quels QCM, dans quel ordre, avec quelle phrase d'état. L'affichage
 // (js/views/qcm-stagiaire.js) ne fait que les poser.
 
-import { examenDemarrable } from "./qcm-exam-rules.js?v=20261110c";
+import { examenDemarrable } from "./qcm-exam-rules.js?v=20261110d";
 
 /** Un QCM transversal (sanctions, psychologie, pédagogie...) : une notion de la formation, sans numéro de thème. */
 export function estTransversal(theme) {
@@ -68,6 +68,31 @@ export function lignesQcmStagiaire({ qcm = [], themes = [], tentatives = [], now
   return lignes.sort((a, b) =>
     rang(a) - rang(b)
     || (numero(a) === numero(b) ? 0 : numero(a) < numero(b) ? -1 : 1)
+    || a.titre.localeCompare(b.titre, "fr")
+    || a.qcm.id - b.qcm.id);
+}
+
+/**
+ * Les lignes de la liste des QCM du siège (il rédige les contenus communs, sans promo) : { theme, qcm, titre, etiquette,
+ * detail, action }. Aucune note, aucun examen, aucun état d'entraînement : ce sont des données de promo. Un QCM sans
+ * question reste proposé (c'est là qu'on écrit la première). Ordre : par numéro de thème, les transversaux ensuite, par titre.
+ */
+export function lignesQcmRedaction({ qcm = [], themes = [] } = {}) {
+  const themeDe = new Map((themes || []).map((t) => [t.id, t]));
+  const lignes = (Array.isArray(qcm) ? qcm : []).filter(Boolean).map((q) => {
+    const theme = themeDe.get(q.theme_id) || null;
+    const n = Number(q.nb_questions) || 0;
+    return {
+      theme, qcm: q,
+      titre: titreDuQcm(theme, q),
+      etiquette: estTransversal(theme) ? "Transversal" : null,
+      detail: n === 0 ? "Aucune question" : n === 1 ? "1 question" : `${n} questions`,
+      action: "Modifier les questions",
+    };
+  });
+  const numero = (l) => (l.theme?.numero != null ? Number(l.theme.numero) : Infinity);
+  return lignes.sort((a, b) =>
+    (numero(a) === numero(b) ? 0 : numero(a) < numero(b) ? -1 : 1)
     || a.titre.localeCompare(b.titre, "fr")
     || a.qcm.id - b.qcm.id);
 }

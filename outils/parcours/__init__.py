@@ -11,12 +11,16 @@ from dataclasses import dataclass, field
 
 PARCOURS = {}
 
+# Les rôles qu'un parcours joue : le levier ?role= du banc (formateur, fondateur, stagiaire) et, depuis le lot 5, la direction d'un
+# centre et le siège du réseau (le compte est alors choisi par `banc={"compte": ...}`, voir direction.py et siege.py).
+ROLES = ("stagiaire", "formateur", "fondateur", "direction", "siege")
+
 
 @dataclass
 class Parcours:
     id: str                      # identifiant court, en minuscules avec des traits d'union
     titre: str                   # la tâche, dans les mots de l'utilisateur
-    role: str                    # stagiaire, formateur ou fondateur (le levier ?role= du banc)
+    role: str                    # stagiaire, formateur, fondateur, direction ou siege (l'espace où le parcours commence)
     budget: int                  # clics (ou touchers) au plus jusqu'au but (référentiel, § 1)
     fonction: object
     banc: dict = field(default_factory=dict)          # paramètres d'adresse du banc en plus des réglages communs
@@ -25,15 +29,18 @@ class Parcours:
     semis: tuple = ()            # lignes JavaScript ajoutées au faux Supabase pour ce parcours (données de départ)
     note: str = ""               # ce que le parcours prouve, en une phrase (repris dans le rapport)
     depart: str = ""             # page de départ (une adresse #/...) ; vide : navigation.DEPART, le Planning
+    ouverture: str = "app"       # « app » : le parcours commence dans l'app (barre de navigation) ; « porte » : sur la porte de connexion
 
 
 def parcours(id, titre, role, budget, banc=None, navigations=("ancienne", "nouvelle"),
-             formats=("ordinateur", "telephone"), semis=(), note="", depart=""):
+             formats=("ordinateur", "telephone"), semis=(), note="", depart="", ouverture="app"):
     def enregistrer(fonction):
         if id in PARCOURS:
             raise ValueError("parcours en double : %s" % id)
+        if role not in ROLES:
+            raise ValueError("rôle inconnu pour %s : %s (permis : %s)" % (id, role, ", ".join(ROLES)))
         PARCOURS[id] = Parcours(id, titre, role, budget, fonction, dict(banc or {}), tuple(navigations),
-                                tuple(formats), tuple(semis), note or (fonction.__doc__ or "").strip().split("\n")[0], depart)
+                                tuple(formats), tuple(semis), note or (fonction.__doc__ or "").strip().split("\n")[0], depart, ouverture)
         return fonction
     return enregistrer
 

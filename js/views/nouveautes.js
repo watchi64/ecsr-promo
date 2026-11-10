@@ -4,13 +4,13 @@
 // La page n'est PAS dans la barre d'onglets : on y arrive par le lien
 // « Tout voir » d'Accueil, comme #/mon-suivi n'a pas d'onglet non plus.
 
-import { el, clear, formatDate } from "../utils.js?v=20261110c";
-import { nouveautesAffichables, marquerLues, formateurConnecte } from "../modules-etat.js?v=20261110c";
-import { STORAGE_SOUS_ONGLET, guideSelonNavigation } from "../nouveautes.js?v=20261110c";
-import { hrefLien } from "../route-rules.js?v=20261110c";
-import { navigationV2Active } from "../nav-etat.js?v=20261110c";
-import { espaceDe } from "../nav-rules.js?v=20261110c";
-import { ouSelonNavigation } from "../ou-trouver.js?v=20261110c";
+import { el, clear, formatLongDate } from "../utils.js?v=20261110d";
+import { nouveautesAffichables, marquerLues } from "../modules-etat.js?v=20261110d";
+import { STORAGE_SOUS_ONGLET, guideSelonNavigation } from "../nouveautes.js?v=20261110d";
+import { hrefLien } from "../route-rules.js?v=20261110d";
+import { navigationV2Active } from "../nav-etat.js?v=20261110d";
+import { getEspace } from "../auth-admin.js?v=20261110d";
+import { ouSelonNavigation } from "../ou-trouver.js?v=20261110d";
 
 // Lien « Où le trouver ». Une partie de Mon espace se vise par l'adresse
 // (#/mon-suivi/dp) ; un sous-onglet de Notes, de Cours ou de Stagiaires, par la clé que
@@ -19,10 +19,10 @@ import { ouSelonNavigation } from "../ou-trouver.js?v=20261110c";
 // chercher lui-même ce qu'on venait de lui indiquer.
 // Le libellé suit la navigation de la personne (js/ou-trouver.js) : « Mon suivi, partie Livret »
 // à la place de « Mon espace personnel, partie Livret » sous la nouvelle barre ; la route, le
-// sous-onglet et l'adresse restent ceux de l'entrée.
+// sous-onglet et l'adresse restent ceux de l'entrée. L'espace est celui de la session (lot 5 : direction et siège compris).
 function lienOu(ou) {
   if (!ou) return null;
-  const cible = ouSelonNavigation(ou, { navigationV2: navigationV2Active(), espace: espaceDe({ formateur: formateurConnecte() }) });
+  const cible = ouSelonNavigation(ou, { navigationV2: navigationV2Active(), espace: getEspace() });
   const href = hrefLien(cible);
   return el("a", {
     class: "nv-ou",
@@ -49,7 +49,7 @@ export function carteNouveaute(entree, opts = {}) {
   const { neuve = false, guideDeplie = false } = opts;
   return el("article", { class: "nv-carte" },
     el("div", { class: "nv-head" },
-      el("span", { class: "nv-date" }, formatDate(entree.date)),
+      el("span", { class: "nv-date" }, formatLongDate(entree.date, { sansJour: true })),
       neuve ? el("span", { class: "nv-puce-neuf" }, "Nouveau") : null,
       entree.pour === "formateurs" ? el("span", { class: "nv-puce-role" }, "Formateurs") : null,
     ),

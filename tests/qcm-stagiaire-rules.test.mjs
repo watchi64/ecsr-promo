@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { lignesQcmStagiaire } from "../js/qcm-rules.js";
+import { lignesQcmStagiaire, lignesQcmRedaction } from "../js/qcm-rules.js";
 
 // Lot 2B, tâche 6 : la liste « Tes QCM » du stagiaire (sous-onglet QCM de Cours et QCM). Règles pures :
 // quels QCM, dans quel ordre, avec quelle phrase d'état. L'affichage est mesuré au banc.
@@ -107,4 +107,25 @@ test("un thème introuvable ne fait pas disparaître le QCM : il garde son propr
 test("des entrées absentes ne font pas lever la règle", () => {
   assert.deepEqual(lignesQcmStagiaire(), []);
   assert.deepEqual(lignesQcmStagiaire({ qcm: [qcm(1, 1)] }).map((l) => l.etat), ["Pas encore fait"]);
+});
+
+// Lot 5, tâche 13 : la liste des QCM du siège, qui les rédige sans promo : ni note, ni examen, ni état d'entraînement.
+test("siège : un QCM sans question reste proposé (on y écrit les questions), sans note ni examen", () => {
+  const l = lignesQcmRedaction({ qcm: [qcm(1, 1, { nb_questions: 12, published: true, exam_ferme_a: null }), qcm(2, 2, { nb_questions: 0 })], themes });
+  assert.deepEqual(ids(l).sort(), [1, 2]);
+  const un = l.find((x) => x.qcm.id === 1);
+  assert.equal(un.titre, "Thème 22 · Feux du véhicule");
+  assert.equal(un.detail, "12 questions");
+  assert.equal(un.action, "Modifier les questions");
+  assert.equal("examenOuvert" in un, false);
+  assert.equal("note" in un, false);
+});
+
+test("siège : singulier, vide, ordre par numéro de thème puis transversaux", () => {
+  const l = lignesQcmRedaction({ qcm: [qcm(9, 101, { nb_questions: 1 }), qcm(1, 1), qcm(2, 2, { nb_questions: 0 }), qcm(3, 3)], themes });
+  assert.deepEqual(ids(l), [3, 2, 1, 9]);
+  assert.equal(l.find((x) => x.qcm.id === 9).detail, "1 question");
+  assert.equal(l.find((x) => x.qcm.id === 2).detail, "Aucune question");
+  assert.equal(l.find((x) => x.qcm.id === 9).etiquette, "Transversal");
+  assert.deepEqual(lignesQcmRedaction({}), []);
 });

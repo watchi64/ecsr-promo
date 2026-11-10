@@ -14,17 +14,17 @@
  *   - un tableau qui porte une colonne « Amende » devient un tableau de
  *     sanctions (montants et points en chiffres tabulaires).
  */
-import { el, clear } from "../utils.js?v=20261110c";
-import { icon } from "../icons.js?v=20261110c";
-import { carteSignal, signalConnu } from "../signaux.js?v=20261110c";
-import { carteMarquage, marquageConnu } from "../marquage.js?v=20261110c";
-import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261110c";
-import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261110c";
-import { listCoursIndex, getCours } from "../db.js?v=20261110c";
-import { isAdmin, isProf, getViewAs } from "../auth-admin.js?v=20261110c";
+import { el, clear } from "../utils.js?v=20261110d";
+import { icon } from "../icons.js?v=20261110d";
+import { carteSignal, signalConnu } from "../signaux.js?v=20261110d";
+import { carteMarquage, marquageConnu } from "../marquage.js?v=20261110d";
+import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261110d";
+import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261110d";
+import { listCoursIndex, getCours } from "../db.js?v=20261110d";
+import { isAdmin, isProf, isRedacteur, getViewAs } from "../auth-admin.js?v=20261110d";
 import { coursAUnTexte, MESSAGE_COURS_VIDE, titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours,
   coursVisibleEnApercu, classeTableau, etiquetteDeColonne }
-  from "../cours-rules.js?v=20261110c";
+  from "../cours-rules.js?v=20261110d";
 
 // Index des cours visibles, chargé une fois par rendu de la page Thèmes.
 let coursIndex = null;  // Map clé (numéro ou code) -> { id, numero, code, titre, published, updated_by, updated_at }
@@ -487,11 +487,12 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
   const fermer = el("button", { class: "cours-close", type: "button", "aria-label": "Fermer le cours" });
   fermer.appendChild(icon.close ? icon.close() : document.createTextNode("×"));
 
-  // Édition réservée au formateur et à l'admin (la direction lit les cours sans les modifier : la base refuserait) :
-  // le stagiaire ne voit jamais ce bouton. L'import dynamique évite de charger l'éditeur pour lui.
-  const modifier = isAdmin()
+  // Édition réservée à qui rédige les contenus communs : le formateur administrateur et le siège (la direction lit les cours
+  // sans les modifier : la base refuserait). Le stagiaire ne voit jamais ce bouton. L'import dynamique évite de charger
+  // l'éditeur pour lui.
+  const modifier = isRedacteur()
     ? el("button", { class: "btn cours-modifier", type: "button", onClick: async () => {
-        const { openCoursEditeur } = await import("./cours-editeur.js?v=20261110c");
+        const { openCoursEditeur } = await import("./cours-editeur.js?v=20261110d");
         close();
         openCoursEditeur(cle, {
           onFerme: (aChange) => { if (aChange) openCoursSheet(theme); },
@@ -598,7 +599,7 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
     meta.textContent = vide ? "" : `${contexte.sections.length} sections · ${tempsLecture(texte)} min de lecture`;
 
     // État formateur/admin : le stagiaire n'a pas à voir la cuisine.
-    if (isAdmin() || isProf()) {
+    if (isProf() || isRedacteur()) {
       const quand = cours.updated_at
         ? new Date(cours.updated_at).toLocaleDateString("fr-FR") : "";
       const etat = (cours.published ? "Publié" : "Non publié")

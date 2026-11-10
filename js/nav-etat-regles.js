@@ -19,7 +19,10 @@ export function reglageAllume(valeur) {
 // reglagePromo : true ou false, null tant que le réglage n'est pas lu ou s'il est illisible.
 // apercu : "1", "0" ou null, lu sur l'appareil. Seul le fondateur a un aperçu : pour tout autre,
 // la valeur posée sur l'appareil est ignorée, comme toute valeur autre que "1" ou "0".
-export function decideNavigationV2({ reglagePromo = null, apercu = null, fondateur = false } = {}) {
+// espace (lot 5, D4) : la direction d'un centre et le siège ont toujours la nouvelle navigation (ils n'ont pas d'ancienne
+// interface, et le siège n'a pas de promo où lire l'interrupteur) ; pour le formateur et le stagiaire, rien ne change.
+export function decideNavigationV2({ reglagePromo = null, apercu = null, fondateur = false, espace = null } = {}) {
+  if (espace === "direction" || espace === "siege") return true;
   if (fondateur === true && (apercu === "1" || apercu === "0")) return apercu === "1";
   return reglagePromo === true;
 }
@@ -44,10 +47,10 @@ export function reglageRetenu({ lu = null, memoire = null } = {}) {
 // la mémoire de l'appareil pour la promo affichée (lireMemoire reçoit sa clé, et seulement la sienne)
 // tenant lieu du réglage pas encore lu (reglageRetenu). Elle décide seulement si l'ancienne barre attend
 // la décision sans se peindre ; la navigation de la session est décidée après la lecture.
-export function navigationAttendue({ promoId = null, lireMemoire = () => null, apercu = null, fondateur = false } = {}) {
+export function navigationAttendue({ promoId = null, lireMemoire = () => null, apercu = null, fondateur = false, espace = null } = {}) {
   const cle = cleMemoire(promoId);
   const memoire = cle ? lireMemoire(cle) : null;
-  return decideNavigationV2({ reglagePromo: reglageRetenu({ lu: null, memoire }), apercu, fondateur });
+  return decideNavigationV2({ reglagePromo: reglageRetenu({ lu: null, memoire }), apercu, fondateur, espace });
 }
 
 // État de la case « Promo affichée » de Paramètres (lot 2A, ruling R54) : elle ne dit que le réglage de la promo, jamais l'aperçu de

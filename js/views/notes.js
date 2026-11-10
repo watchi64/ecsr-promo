@@ -2,23 +2,27 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listFichesNotesMasquees, getNotesStatsGroupe, getPromoCourante,
-} from "../db.js?v=20261110c";
+} from "../db.js?v=20261110d";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261110c";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261110c";
-import { icon } from "../icons.js?v=20261110c";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261110c";
-import { recordUndo } from "../undo.js?v=20261110c";
-import { renderSubTabs } from "../subtabs.js?v=20261110c";
-import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261110c";
-import { navigationV2Active } from "../nav-etat.js?v=20261110c";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110c";
-import { renderEpcf } from "./epcf.js?v=20261110c";
-import { renderSaisie } from "./notes-saisie.js?v=20261110c";
-import { noteGradient } from "../echelle-notes.js?v=20261110c";
-import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes, contexteEtatVide, phraseNoteRefusee, confirmationEffacement } from "../notes-saisie-rules.js?v=20261110c";
-import { confirmer } from "../confirmer.js?v=20261110c";
+} from "../notes-stats.js?v=20261110d";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261110d";
+import { icon } from "../icons.js?v=20261110d";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace } from "../auth-admin.js?v=20261110d";
+import { litToutesLesNotes } from "../espaces-rules.js?v=20261110d";
+import { recordUndo } from "../undo.js?v=20261110d";
+import { renderSubTabs } from "../subtabs.js?v=20261110d";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261110d";
+import { navigationV2Active } from "../nav-etat.js?v=20261110d";
+import { renderEpcf } from "./epcf.js?v=20261110d";
+import { noteGradient } from "../echelle-notes.js?v=20261110d";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110d";
+import { renderSaisie } from "./notes-saisie.js?v=20261110d";
+import {
+  parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes,
+  contexteEtatVide, phraseNoteRefusee, confirmationEffacement,
+} from "../notes-saisie-rules.js?v=20261110d";
+import { confirmer } from "../confirmer.js?v=20261110d";
 
 // Fiches de la promo dont les notes sont masquées (anonymat) : la base ne donne plus aux stagiaires les profils des
 // autres (adresse e-mail comprise), seulement ces numéros de fiche (js/notes-masquees.js).
@@ -31,16 +35,21 @@ let themesOfficiels = [];  // les 57 thèmes du référentiel (chargés en + pou
 // Moyennes du groupe calculées par le serveur, anonymes comprises (stagiaires en formation
 // seulement, comme le calcul local : js/notes-stats.js) : un stagiaire ne lit que
 // ses notes et celles des profils non masqués (règle de la base), il ne peut donc pas les
-// calculer lui-même. Le personnel, qui lit tout, calcule en local (saisies reflétées aussitôt).
+// calculer lui-même. Le formateur et la direction, qui lisent tout, calculent en local (saisies reflétées aussitôt).
 let statsServeurGroupe = null;
 
+// Le formateur et la direction du centre lisent toutes les notes, profils masqués compris (décision du 09/11).
+function litTout() {
+  return litToutesLesNotes({ admin: isAdmin(), espace: getEspace() });
+}
+
 function chargerStatsGroupe() {
-  if (isAdmin()) return Promise.resolve(null);
+  if (litTout()) return Promise.resolve(null);
   return getNotesStatsGroupe().then(statsServeur).catch((e) => { console.error(e); return null; });
 }
 
 function statsGroupe() {
-  if (!isAdmin() && statsServeurGroupe) return statsServeurGroupe;
+  if (!litTout() && statsServeurGroupe) return statsServeurGroupe;
   return statsLocales(evaluations, new Set(stagiaires.map((s) => s.id)));
 }
 
@@ -50,6 +59,9 @@ let currentEvalDate = null;  // Date appliquée aux nouvelles notes saisies dans
 // Conteneurs où la vue est imbriquée dans Mon suivi (La classe : renderNotes(zone, { imbrique: true })) : le contexte
 // décide de sa présentation, pas le rôle de la personne (un formateur qui a une fiche y ouvre aussi La classe).
 const imbriques = new WeakSet();
+// Conteneurs où la vue est posée sous la synthèse du centre (direction, lot 5) : même présentation que La classe (le titre est celui
+// de la page qui l'héberge), mais la phrase de l'équipe plutôt que celle d'un stagiaire.
+const dansLesCentres = new WeakSet();
 
 const NOTES_SORT_OPTIONS = [
   { key: "default",   label: "Ordre par défaut" },
@@ -76,10 +88,10 @@ function isStagiaireAnonymous(stagiaireId) {
 }
 
 function displayName(s) {
-  // Les admins voient toujours le vrai nom (besoin métier : noter, repérer),
+  // Le formateur et la direction voient toujours le vrai nom (besoin métier : noter, repérer, suivre),
   // et chacun voit le sien. Filet de sécurité : "Anonyme" pour un profil masqué
   // (ces lignes sont normalement déjà retirées de la vue des autres stagiaires).
-  if (isAdmin() || s.id === myStagiaireId()) return displayStagiaire(s);
+  if (litTout() || s.id === myStagiaireId()) return displayStagiaire(s);
   return isStagiaireAnonymous(s.id) ? "Anonyme" : displayStagiaire(s);
 }
 
@@ -94,11 +106,11 @@ function myStagiaireId() {
 }
 
 function iAmAnonymous() {
-  return !isAdmin() && !!getProfile()?.anonymous_notes;
+  return !litTout() && !!getProfile()?.anonymous_notes;
 }
 
 function visibleStagiaires() {
-  if (isAdmin()) return stagiaires;
+  if (litTout()) return stagiaires;
   if (iAmAnonymous()) return stagiaires.filter((s) => s.id === myStagiaireId());
   return stagiaires.filter((s) => !isStagiaireAnonymous(s.id));
 }
@@ -980,7 +992,7 @@ function renderMatrice(container) {
   table.appendChild(tbody);
   wrap.appendChild(table);
 
-  if (!admin) {
+  if (!litTout()) {
     if (iAmAnonymous()) {
       wrap.appendChild(el("p", { class: "muted matrice-anon-note" },
         "Tu as masqué tes notes : tu vois ta ligne et la moyenne du groupe. "
@@ -1062,7 +1074,8 @@ function rerender(container) {
   // déjà sous le titre de Mon suivi : ni titre à elle ni « Lecture seule... » ; la phrase sur la saisie n'y est lue que
   // par qui saisit des notes ; le nombre de notes reste, seul sinon.
   const v2 = navigationV2Active();
-  const laClasse = v2 && imbriques.has(container);
+  const dansCentre = v2 && dansLesCentres.has(container);
+  const laClasse = v2 && (imbriques.has(container) || dansCentre);
   const equipe = v2 && !laClasse && formateurConnecte();
   const surtitre = getPromoCourante()?.nom;
   const tactile = v2 && window.matchMedia("(pointer: coarse)").matches;
@@ -1079,9 +1092,10 @@ function rerender(container) {
       laClasse ? null : el("h2", {}, equipe ? "Notes et examens" : "Notes & évaluations"),
       // La classe sans note : la carte de l'état vide dit déjà tout (lot C), pas de « 0 note enregistrée. » au-dessus.
       laClasse && nbLignes === 0 ? null
-        : el("p", { class: "subtitle" }, laClasse ? (admin ? phrase + " " : "") + compte + "." : equipe ? phrase + " " + compte + "." : phrase),
+        : el("p", { class: "subtitle" }, dansCentre ? "Matrice et notes de la promo, en lecture. " + compte + "." : laClasse ? (admin ? phrase + " " : "") + compte + "." : equipe ? phrase + " " + compte + "." : phrase),
     ),
-    admin || laClasse ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
+    // Direction (lot 5) : le sous-titre dit déjà « en lecture ».
+    admin || laClasse || dansCentre ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
   ));
 
   // Tri (toujours visible)
@@ -1171,11 +1185,11 @@ function rerender(container) {
     carteVide: (contexte) => carteVide(container, contexte),
   };
   const onglets = [
-    admin && !laClasse ? { key: "saisir", label: "Saisir", render: (p) => renderSaisie(p, ctxSaisie) } : null,
+    admin && !laClasse && !dansCentre ? { key: "saisir", label: "Saisir", render: (p) => renderSaisie(p, ctxSaisie) } : null,
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
     { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
         renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive,
-          contexte: contexteEtatVide({ classe: false, admin, personnel: formateurConnecte() }) })
+          contexte: contexteEtatVide({ classe: false, admin, personnel: formateurConnecte() || dansCentre }) })
           .catch((e) => {
             console.error(e);
             if (!ctx || ctx.isActive()) {
@@ -1192,7 +1206,8 @@ function rerender(container) {
   // sous-onglet n'est écrite (celle de la page de l'équipe).
   if (laClasse) {
     // Un seul calcul du contexte pour les deux cartes vides (notes et moyennes EPCF) : elles ne peuvent pas se contredire.
-    const contexteClasse = contexteEtatVide({ classe: true, admin, personnel: formateurConnecte() });
+    // Dans la page de la direction (lot 5), c'est celui de la direction : lire, sans action.
+    const contexteClasse = contexteEtatVide({ classe: true, admin, personnel: formateurConnecte() || dansCentre });
     const carte = carteVide(container, contexteClasse);
     container.appendChild(carte || renderSubTabs(onglets.slice(0, 1)));
     if (moduleVisible("epcf")) container.appendChild(sectionMoyennesEpcf(contexteClasse));
@@ -1556,8 +1571,9 @@ function horizontalBarChart(toutes, barHeight = 22, labelWidth = 100) {
 }
 
 // `imbrique` : la vue est le contenu de La classe, dans Mon suivi (js/views/mon-suivi.js), sous le titre de cette page.
-export async function renderNotes(container, { imbrique = false } = {}) {
+export async function renderNotes(container, { imbrique = false, dansLeCentre = false } = {}) {
   if (imbrique) imbriques.add(container); else imbriques.delete(container);
+  if (dansLeCentre) dansLesCentres.add(container); else dansLesCentres.delete(container);
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   let allThemes;

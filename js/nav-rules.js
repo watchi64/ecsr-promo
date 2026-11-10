@@ -3,7 +3,7 @@
 // une page, quelle entrée de l'équipe porte le repère « masqué aux stagiaires », où mènent les
 // anciennes adresses, les initiales, le prénom et le nom du bouton du compte, la ligne « page à soi »
 // du menu du compte. Module pur, sans DOM ni stockage : testé en node.
-
+import { LIBELLES_ESPACE } from "./espaces-rules.js?v=20261110d";
 
 // Clé de mémoire du sous-onglet ouvert, par page à sous-onglets (le `storageKey` de
 // renderSubTabs). Une redirection l'écrit pour ouvrir le bon sous-onglet ; le bouton « Élèves bénévoles »
@@ -44,6 +44,28 @@ const ENTREES_EQUIPE = [
   entree("config", "Réglages", "settings", { groupe: "Promo" }),
 ];
 
+// Direction d'un centre (lot 5), dans l'ordre de la barre latérale. « Accueil » ouvre #/centre (Vue d'ensemble).
+// Émargement attend `emargementDansLeCentre` (une promo du centre l'a allumé), Réglages du centre `reglagesEspace`.
+const ENTREES_DIRECTION = [
+  entree("centre", "Accueil", "home"),
+  entree("promos", "Promos", "layers"),
+  entree("stagiaires", "Stagiaires", "users"),
+  entree("emargement", "Émargement", "clipboard"),
+  entree("notes", "Notes et examens", "edu", { court: "Notes" }),
+  entree("equipe", "Équipe", "briefcase"),
+  entree("config", "Réglages du centre", "settings", { court: "Réglages", groupe: "Centre" }),
+];
+const BARRE_TELEPHONE_DIRECTION = ["centre", "promos", "stagiaires", "equipe"];
+
+// Siège (lot 5) : « Accueil » ouvre #/reseau. Réglages du réseau attend `reglagesEspace`.
+const ENTREES_SIEGE = [
+  entree("reseau", "Accueil", "home"),
+  entree("themes", "Cours et QCM", "book"),
+  entree("directions", "Directions de centre", "building", { court: "Directions", groupe: "Gestion" }),
+  entree("config", "Réglages du réseau", "settings", { court: "Réglages", groupe: "Gestion" }),
+];
+const BARRE_TELEPHONE_SIEGE = ["reseau", "themes", "directions"];
+
 // Ce que la barre du bas du téléphone garde chez l'équipe ; le reste passe dans « Plus ».
 const BARRE_TELEPHONE_EQUIPE = ["home", "planning", "stagiaires", "notes"];
 
@@ -61,6 +83,8 @@ const ALIAS_ENTREE_ACTIVE = new Map([
   // Qualiopi (fondateur, spec 2026-10-28) : ouverte depuis le tableau de bord du centre, qui reste allumé.
   ["qualiopi", "centre"],
 ]);
+
+const PAGES_DU_MENU_DU_COMPTE = ["nouveautes", "preferences", "problemes"];
 
 // Anciennes adresses déplacées : la page visée et le sous-onglet à y ouvrir (les mêmes dans
 // les deux espaces). Une Map, comme pour les alias : la route vient de l'adresse tapée, et un
@@ -105,7 +129,17 @@ export function entreeMasquee(route, routeMasquee) {
 // module fermé n'en retire une (la coquille la repère), et seul Émargement attend
 // `emargementActif` et `formateur` (qui tient l'émargement : la direction n'y a pas encore
 // d'accès, lot 5 ; vrai par défaut).
-export function entreesNavigation(espace, { routeVisible, emargementActif, formateur = true }) {
+export function entreesNavigation(espace, {
+  routeVisible, emargementActif, formateur = true, emargementDansLeCentre = false, reglagesEspace = false,
+} = {}) {
+  if (espace === "direction") {
+    return ENTREES_DIRECTION
+      .filter((e) => (e.id !== "emargement" || emargementDansLeCentre) && (e.id !== "config" || reglagesEspace))
+      .map(copie);
+  }
+  if (espace === "siege") {
+    return ENTREES_SIEGE.filter((e) => e.id !== "config" || reglagesEspace).map(copie);
+  }
   if (espace === "equipe") {
     return ENTREES_EQUIPE.filter((e) => e.id !== "emargement" || (emargementActif && formateur)).map(copie);
   }
@@ -117,18 +151,25 @@ export function entreesNavigation(espace, { routeVisible, emargementActif, forma
 // Barre du bas du téléphone et tiroir « Plus ». Le stagiaire, 5 entrées au plus, les garde
 // toutes dans la barre ; l'équipe en garde 4 et range le reste dans `plus`.
 export function barreTelephone(espace, entrees) {
-  if (espace !== "equipe") return { barre: [...entrees], plus: [] };
+  const gardees = espace === "equipe" ? BARRE_TELEPHONE_EQUIPE
+    : espace === "direction" ? BARRE_TELEPHONE_DIRECTION
+    : espace === "siege" ? BARRE_TELEPHONE_SIEGE
+    : null;
+  if (!gardees) return { barre: [...entrees], plus: [] };
   return {
-    barre: entrees.filter((e) => BARRE_TELEPHONE_EQUIPE.includes(e.id)),
-    plus: entrees.filter((e) => !BARRE_TELEPHONE_EQUIPE.includes(e.id)),
+    barre: entrees.filter((e) => gardees.includes(e.id)),
+    plus: entrees.filter((e) => !gardees.includes(e.id)),
   };
 }
 
 // `id` de l'entrée à allumer pour une route : celle qui porte ce nom, sinon celle de la page
 // qui la remplace ; null quand aucune entrée de la liste ne la couvre.
-export function entreeActive(route, entrees) {
+//
+// `espace` (facultatif) : en direction et au siège, les pages du menu du compte n'allument aucune entrée (lot 5, D16).
+export function entreeActive(route, entrees, espace) {
   const ids = entrees.map((e) => e.id);
   if (ids.includes(route)) return route;
+  if ((espace === "direction" || espace === "siege") && PAGES_DU_MENU_DU_COMPTE.includes(route)) return null;
   const cible = ALIAS_ENTREE_ACTIVE.get(route);
   return ids.includes(cible) ? cible : null;
 }
@@ -151,9 +192,10 @@ export function initialesDe(nom) {
 // Rôle affiché sous le nom de la personne (barre de l'équipe, menu du compte) : son vrai rôle, et
 // non l'aperçu « Voir en tant que ». Tout compte qui n'est ni stagiaire ni fondateur est formateur
 // (le rôle technique « prof » ne s'affiche jamais).
-export function libelleRole(profil) {
+export function libelleRole(profil, espace) {
   if (!profil) return "";
   if (profil.is_founder) return "Fondateur";
+  if (LIBELLES_ESPACE[espace]) return LIBELLES_ESPACE[espace];
   return profil.role === "stagiaire" ? "Stagiaire" : "Formateur";
 }
 
@@ -200,12 +242,12 @@ export function redirectionV2({ route }, espace) {
     const sousOnglet = { cle: CLES_SOUS_ONGLETS[v.page], valeur: v.sousOnglet };
     return { hash: "#/" + v.page, sousOnglet };
   }
-  if (route === "notes" && espace !== "equipe") {
+  if (route === "notes" && espace === "stagiaire") {
     // La classe est une vue de Résultats (lot 2B, tâche 7) : l'adresse elle-même porte la vue, sans
     // passer par la mémoire de l'appareil (qui peut être indisponible).
     return { hash: "#/mon-suivi/classe", sousOnglet: null };
   }
-  if (route === "config" && espace !== "equipe") {
+  if (route === "config" && espace === "stagiaire") {
     return { hash: "#/preferences", sousOnglet: null };
   }
   return null;

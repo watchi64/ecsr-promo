@@ -5,7 +5,7 @@
 // le champ `date` (cf. js/nouveautes.js).
 //
 // Champs : id (unique, date en préfixe), date (AAAA-MM-JJ), pour
-// ("tous" | "formateurs" | "stagiaires"), titre, resume. Facultatifs : ou (le chemin dans
+// ("tous" | "formateurs" | "stagiaires" | "direction" | "siege"), titre, resume. Facultatifs : ou (le chemin dans
 // l'app, rendu cliquable), guide (étapes numérotées) et module (clé de
 // js/modules-data.js : la nouveauté est masquée aux stagiaires d'une promo où ce
 // module est fermé). Sans `module`, il est déduit du lien `ou` ; le préciser
@@ -105,6 +105,87 @@ export const NOUVEAUTES = [
       "Le sommaire, en haut du cours, passe à la ligne : touche une partie pour y aller.",
       "Sur téléphone, chaque ligne d'un grand tableau devient une fiche : le nom de la colonne est écrit au-dessus de "
         + "chaque valeur.",
+    ],
+  },
+  // Lot 5 de la refonte (date de la fusion : à reposer, avec l'id, quand le lot est fusionné). À date égale, l'ordre du fichier est
+  // gardé : les entrées du lot 2B restent devant.
+  {
+    id: "2026-11-10-espace-direction",
+    date: "2026-11-10",
+    pour: "direction",
+    titre: "Ton espace de direction",
+    resume: "Tu as maintenant ton espace pour piloter ton centre. L'Accueil est une vue d'ensemble : les chiffres du centre, "
+          + "toutes ses promos côte à côte et les stagiaires à suivre de près. Dans la barre, Promos, Stagiaires, "
+          + "Émargement, Notes et examens et Équipe te donnent la main sur chaque promo du centre : tu crées les promos, tu "
+          + "vois tous les stagiaires, tu lis les feuilles d'émargement et les notes, et tu invites tes formateurs en "
+          + "choisissant leurs promos.",
+    ou: { label: "Promos", route: "promos" },
+    guide: [
+      "Accueil ouvre la « Vue d'ensemble » du centre : les chiffres, la comparaison des promos, « À suivre de près » et "
+        + "« Thèmes à retravailler ». « Exporter le tableau (CSV) » enregistre le tableau des promos sur ordinateur.",
+      "Dans Promos, « Créer une promo » demande un nom, un début et, si tu veux, une fin. « Modifier » règle le nom et les "
+        + "dates, « Modules » ce que voient les stagiaires de la promo.",
+      "Dans Stagiaires, tous les stagiaires du centre sont groupés par promo. Un nom ouvre sa fiche ; « Gérer cette promo » "
+        + "ouvre une autre promo du centre. Pour la promo affichée, tu ajoutes, mets en abandon, réactives ou effaces un "
+        + "stagiaire, et tu invites son compte.",
+      "Dans Émargement, « Voir les feuilles » ouvre les feuilles d'une promo en lecture. Dans Notes et examens, « Voir la "
+        + "matrice » ouvre les notes de la promo.",
+      "Dans Équipe, « Inviter un formateur » demande son adresse et les promos du centre à cocher ; « Modifier » change ses "
+        + "promos, « Retirer du centre » les lui enlève toutes.",
+      "Dans Réglages du centre, « Habillage par défaut du centre » choisit l'apparence que reçoivent les comptes du centre qui "
+        + "n'ont rien choisi ; décoche « Laisser chacun choisir le sien » pour l'imposer à tous.",
+      "Sur téléphone, Accueil, Promos, Stagiaires et Équipe sont en bas de l'écran ; « Plus » ouvre les autres pages.",
+    ],
+  },
+  {
+    id: "2026-11-10-espace-siege",
+    date: "2026-11-10",
+    pour: "siege",
+    titre: "L'espace du siège",
+    resume: "Le siège a son espace, pour regarder le réseau sans jamais voir un nom. L'Accueil donne les chiffres de chaque "
+          + "centre ; un centre de moins de 5 stagiaires en formation n'affiche aucun chiffre et reste hors des totaux. "
+          + "Tu gères les directions de centre, tu ajoutes un centre, et tu rédiges les cours et les QCM communs à tous.",
+    ou: { label: "Accueil", route: "reseau" },
+    guide: [
+      "Accueil ouvre la « Vue d'ensemble » du réseau : les chiffres des centres, sans aucun nom de stagiaire. Une ligne ouvre "
+        + "la fiche du centre ; « Exporter le tableau (CSV) » enregistre le tableau sur ordinateur.",
+      "Un centre de moins de 5 stagiaires en formation dit « Moins de 5 stagiaires en formation : chiffres non affichés. » "
+        + "Le centre de démonstration (données fictives) est à part, hors totaux.",
+      "Dans Directions de centre, « Inviter une direction » demande une adresse et un centre ; « Retirer » enlève une direction. "
+        + "« Ajouter un centre » crée un centre, puis propose d'inviter sa direction.",
+      "Dans Cours et QCM, tu rédiges les cours des thèmes et les questions de QCM, communs à tous les centres.",
+      "Dans Réglages du réseau, tu choisis l'habillage par défaut du réseau : celui des comptes qui n'ont rien choisi et dont le "
+        + "centre n'a rien fixé.",
+      "Sur téléphone, Accueil, Cours et QCM et Directions sont en bas de l'écran ; « Plus » ouvre les Réglages du réseau.",
+    ],
+  },
+  {
+    id: "2026-11-10-menu-espace",
+    date: "2026-11-10",
+    pour: "formateurs",
+    navigation: "nouvelle",
+    titre: "Choisis ton espace",
+    resume: "Si tu diriges un centre ou si tu travailles pour le siège, en plus de former, le menu de ton compte a maintenant "
+          + "une section « Espace » : une ligne par espace (Formateur, Direction, Siège), l'espace actuel est coché. Choisir "
+          + "un autre espace recharge l'app sur son accueil. Tu ne la vois que si tu as plusieurs espaces.",
+    guide: [
+      "Ouvre le menu de ton compte : tes initiales, en bas de la barre de gauche sur ordinateur.",
+      "Dans la section « Espace », touche l'espace voulu : l'app s'ouvre sur son accueil.",
+      "Pour revenir à ta promo, rouvre le menu et choisis « Formateur ».",
+    ],
+  },
+  {
+    id: "2026-11-10-changer-de-promo",
+    date: "2026-11-10",
+    pour: "stagiaires",
+    navigation: "nouvelle",
+    titre: "Changer de promo",
+    resume: "Si tu fais partie de plusieurs promos, le menu de ton compte a une ligne « Changer de promo » : elle ouvre le choix "
+          + "de la promo, et l'app se recharge sur celle que tu choisis.",
+    guide: [
+      "Touche tes initiales, en haut à droite, pour ouvrir le menu de ton compte.",
+      "Touche « Changer de promo » : la ligne n'est là que si tu as au moins deux promos.",
+      "Choisis la promo : l'app se recharge dessus.",
     ],
   },
   {

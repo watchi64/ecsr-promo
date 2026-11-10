@@ -21,8 +21,17 @@
 // (ligne 7), les lignes « Émargement » des tableaux des § 3 et § 4, la note de participation et le registre qualité du
 // § 10, la phrase des trois ans et le délai d'un mois sous ce tableau.
 //
+// Version 2026-11-10 (lot K du lot 5 : espaces de la direction du centre et du siège) : nouveau destinataire de données,
+// donc nouvelle acceptation. Le texte dit enfin ce que la base fait depuis le lot 4 : la direction d'un centre lit, pour
+// les promos de son centre, les mêmes données nominatives que le formateur (notes, y compris masquées, planning, passages,
+// absences, date de naissance, souhaits de séances, livret, dossier professionnel, EPCF, émargement), et le siège d'ECF ne
+// lit que des chiffres par centre, calculés par la base (comptes_reseau()), sans aucun nom de stagiaire. Passages retouchés :
+// l'essentiel (ligne 4), le tableau du § 4 (la colonne « ECF » devient « Direction de votre centre » et « Siège d'ECF », la
+// ligne « Date de naissance, souhaits de séances » se sépare) et les paragraphes sous lui, le § 5 (consultation par ECF),
+// le § 7 (bénévoles et auto-écoles : la direction du lieu les lit comme les formateurs).
+//
 
-export const VERSION_CONDITIONS = "2026-11-08";
+export const VERSION_CONDITIONS = "2026-11-10";
 
 export const CONDITIONS_MD = `# Conditions d'utilisation et données personnelles
 
@@ -30,7 +39,7 @@ export const CONDITIONS_MD = `# Conditions d'utilisation et données personnelle
 > L'application accompagne la formation au Titre professionnel ECSR. Elle est éditée par Timy Studio, la micro-entreprise de Timy Valdivia.
 > Elle enregistre ce qui sert à la formation : profil, notes, QCM, passages, absences, livret, dossier professionnel, et vos réponses aux questionnaires de satisfaction, enregistrées sans votre nom.
 > Vos notes sont visibles des autres stagiaires de votre promo, sauf si vous choisissez de les masquer.
-> Personne d'extérieur à la formation n'y accède, à une exception près : ECF (École de Conduite Française), l'organisme qui assure la formation, peut consulter des résultats nominatifs et présenter des documents de la formation à son certificateur Qualiopi et à ses financeurs.
+> Personne d'extérieur à la formation n'y accède, à une exception près : ECF (École de Conduite Française), l'organisme qui assure la formation. La direction de votre centre voit, comme vos formateurs, votre suivi nominatif (notes, planning, passages, absences, date de naissance) ; le siège d'ECF ne voit que des chiffres par centre, sans aucun nom. ECF peut aussi présenter des documents de la formation à son certificateur Qualiopi et à ses financeurs.
 > La base de données est hébergée en France ; l'assistant passe par Scaleway, hébergeur français, qui ne conserve pas les messages.
 > Rien n'est vendu, rien ne sert à la publicité, aucun traceur publicitaire ni mesure d'audience.
 > Douze mois après la formation, les comptes et les textes libres des stagiaires disparaissent ; les preuves de la formation (résultats, heures, présences) sont gardées trois ans, puis rendues anonymes.
@@ -68,24 +77,29 @@ L'application ne collecte ni géolocalisation, ni contacts du téléphone, ni do
 
 ## 4. Qui voit quoi
 
-| Donnée | Vous | Autres stagiaires | Formateurs | ECF |
-|--------|------|-------------------|------------|-----|
-| Notes et évaluations | Oui | Oui, sauf si masquées | Oui | Oui |
-| Moyennes du groupe | Oui | Oui, sans nom | Oui | Oui |
-| Planning, passages, absences | Oui | Oui | Oui | Non |
-| Date de naissance, souhaits de séances | Oui | Non | Oui | Non |
-| Livret, dossier professionnel, EPCF | Oui | Non | Oui | Oui |
-| Feuilles d'émargement | Oui, votre ligne | Non | Oui | Oui |
-| Réponses aux questionnaires | Votre participation seulement | Non | Non | Résultats regroupés, à partir du seuil ; commentaires libres : personnes chargées de la qualité |
-| Signalements de problème | Oui | Non | Non | Non |
+| Donnée | Vous | Autres stagiaires | Formateurs | Direction de votre centre | Siège d'ECF |
+|--------|------|-------------------|------------|---------------------------|--------------|
+| Notes et évaluations | Oui | Oui, sauf si masquées | Oui | Oui, y compris les notes masquées | Non, seulement une moyenne par centre |
+| Moyennes du groupe | Oui | Oui, sans nom | Oui | Oui | Seulement par centre, sans nom |
+| Planning, passages, absences | Oui | Oui | Oui | Oui | Non, seulement le nombre d'absences par centre |
+| Date de naissance | Oui | Non | Oui | Oui | Non |
+| Souhaits de séances | Oui | Non | Oui | Oui | Non |
+| Livret, dossier professionnel, EPCF | Oui | Non | Oui | Oui | Non, seulement le nombre de compétences EPCF acquises par centre |
+| Feuilles d'émargement | Oui, votre ligne | Non | Oui | Oui | Non |
+| Réponses aux questionnaires | Votre participation seulement | Non | Non | Non ; les résultats regroupés, à partir du seuil, vont aux personnes chargées de la qualité | Non |
+| Signalements de problème | Oui | Non | Non | Non | Non |
 
-La colonne ECF comprend la présentation, par ECF à son certificateur Qualiopi et à ses financeurs, des documents décrits en section 5.
+« Direction de votre centre » : les personnes d'ECF affectées à la direction du centre où se déroule votre promo ; elles accèdent aux promos de ce centre, comme un formateur à celles où il est affecté. « Siège d'ECF » : l'équipe du réseau, qui n'accède à aucune promo : elle dispose d'un écran de chiffres par centre (effectifs, absences, résultats aux QCM et aux examens, moyenne des notes, compétences EPCF acquises), calculés par la base de données, sans aucun nom de stagiaire ; quand un centre compte moins de cinq stagiaires en formation, ses chiffres ne sont pas montrés.
+
+La présentation, par ECF à son certificateur Qualiopi et à ses financeurs, des documents décrits en section 5 n'est pas une lecture dans l'application : elle s'ajoute à ces deux colonnes.
 
 « Autres stagiaires » : ceux de votre promo seulement. Le planning leur est visible parce qu'il organise la formation de tous. Les signalements de problème ne sont lus que par l'éditeur, pour corriger l'application et vous répondre.
 
-**Masquer ses notes.** Depuis vos préférences, vous pouvez masquer vos notes : les autres stagiaires ne voient plus ni votre prénom ni vos notes, qui restent comptées dans les moyennes du groupe. En contrepartie, vous ne voyez plus que votre ligne et les moyennes du groupe. Ce masquage est garanti par la base de données elle-même, pas seulement par l'affichage. Pour éviter les allers-retours, après un changement (annulable dans les deux minutes), le réglage reste fixe pendant 24 heures.
+**Masquer ses notes.** Depuis vos préférences, vous pouvez masquer vos notes : les autres stagiaires ne voient plus ni votre prénom ni vos notes, qui restent comptées dans les moyennes du groupe. Vos formateurs et la direction de votre centre continuent de les voir, avec votre nom. En contrepartie, vous ne voyez plus que votre ligne et les moyennes du groupe. Ce masquage est garanti par la base de données elle-même, pas seulement par l'affichage. Pour éviter les allers-retours, après un changement (annulable dans les deux minutes), le réglage reste fixe pendant 24 heures.
 
 Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre promo.
+
+**Absences.** L'application ne prévoit aucun champ pour le motif d'une absence : un passage est marqué « Absence », une feuille d'émargement « absent ». Les formateurs s'engagent à ne pas en écrire dans une observation libre (section 15). L'observation d'un passage est lue comme le passage lui-même (vos camarades de promo, vos formateurs, la direction de votre centre) ; celle d'une feuille d'émargement, par vous, vos formateurs et la direction de votre centre.
 
 **Questionnaires de satisfaction.** La réponse est enregistrée sans nom, sans compte, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Dans l'application et dans les documents qu'elle produit, personne ne peut voir qui a répondu quoi : les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre (dans ces conditions, « le centre » désigne ECF, l'organisme de formation), dans un ordre aléatoire, sous la même condition.
 
@@ -97,7 +111,8 @@ Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre
 |-------|-------------|
 | Faire fonctionner l'application : afficher votre suivi, vos notes, votre planning, vos documents | Intérêt légitime de l'éditeur à fournir un outil d'aide à la formation, que vous avez choisi d'utiliser |
 | Montrer les notes aux autres stagiaires de la promo | Intérêt légitime (émulation, repères de progression) ; vous pouvez vous y opposer à tout moment en masquant vos notes |
-| Permettre à ECF de consulter des résultats nominatifs | Intérêt légitime de l'organisme de formation à suivre ses stagiaires |
+| Permettre à la direction du centre d'ECF où vous êtes formé de consulter votre suivi nominatif (résultats, planning, passages, absences, état civil) | Intérêt légitime de l'organisme de formation à suivre ses stagiaires : assiduité, dossiers des financeurs, Qualiopi |
+| Donner au siège d'ECF une vue d'ensemble par centre, sans aucun nom de stagiaire | Intérêt légitime de l'organisme de formation à piloter son réseau de centres |
 | Produire des statistiques anonymes pour améliorer l'application et les contenus | Intérêt légitime de l'éditeur |
 | Envoyer les e-mails du compte (invitation, mot de passe oublié) | Nécessaire au fonctionnement du compte |
 | Permettre à ECF de présenter les documents de la formation à son certificateur Qualiopi et à ses financeurs | Obligation légale : la certification Qualiopi conditionne l'accès aux fonds publics et mutualisés de la formation professionnelle (code du travail, article L6316-1) |
@@ -120,7 +135,7 @@ Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre
 
 Pour organiser les séances de conduite, les formateurs enregistrent les **élèves bénévoles** (prénom, nom, téléphone, niveau, type de boîte, disponibilités, venues) et les **référents des auto-écoles partenaires** (nom, téléphone, e-mail, adresse de l'auto-école).
 
-- Ces données ne sont visibles que des formateurs du lieu de formation concerné. Les stagiaires ne voient, dans le planning, que le prénom d'un élève et l'initiale de son nom.
+- Ces données ne sont visibles que des formateurs et de la direction du lieu de formation concerné. Les stagiaires ne voient, dans le planning, que le prénom d'un élève et l'initiale de son nom.
 - Elles servent uniquement à organiser les séances et à joindre la personne.
 - Elles sont conservées tant que la personne participe, puis supprimées au plus tard douze mois après sa dernière venue, ou plus tôt sur simple demande.
 - Pour un élève mineur, on enregistre de préférence le numéro d'un parent, avec son accord.
