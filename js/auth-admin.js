@@ -64,6 +64,10 @@ export function isStagiaire() { return droits().stagiaire; }
 // Gérer la promo (stagiaires, modules, équipe, données personnelles) : formateur, direction, administrateur. Écrire dans le
 // planning, les notes, les évaluations ou les examens reste isAdmin() : la direction lit sans y écrire.
 export function isEquipe()    { return droits().equipe; }
+// Décision du 10/11 : l'app tutoie les stagiaires et vouvoie l'équipe (formateurs, direction, siège, fondateur), car c'est
+// leur outil de travail et ses écrans s'adressent aussi à des centres clients. Pour un texte d'un écran partagé :
+// `selonPublic("Touche ta ligne", "Touchez votre ligne")`. L'aperçu « Stagiaire » du fondateur tutoie, comme le stagiaire.
+export function selonPublic(tu, vous) { return isStagiaire() ? tu : vous; }
 
 // Aperçus ouverts à la personne connectée sur la promo affichée.
 export function apercusOuverts() {
