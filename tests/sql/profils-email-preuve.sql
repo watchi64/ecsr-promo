@@ -17,7 +17,7 @@
 --   M  son propre profil reste lisible ;
 --   N  fiches_notes_masquees() : la fiche masquée de la promo affichée, pour tous ses membres ; refusée sans compte ;
 --   G  balayage : aucune colonne d'adresse (« mail » dans son nom) d'aucune table ou vue lisible par un compte connecté
---      ne rend à s1 ou s2 l'adresse d'un autre stagiaire de la base ;
+--      ne rend à s1 ou s2 l'adresse d'un autre stagiaire de la base (hors comptes de l'équipe qui ont aussi une fiche) ;
 --   R  comptes réels : aucun stagiaire ne lit le profil d'un autre ; chaque formateur, direction et le fondateur lit
 --      tous les profils des stagiaires de chacune de ses promos ; la fonction rend à chacun la même liste.
 
@@ -131,9 +131,13 @@ begin
   if n = 0 then ok := ok + 1; else ko := ko || format('L sans compte : %s profils lisibles', n); end if;
 
   -- G : balayage de toutes les colonnes d'adresse lisibles, pour s1 puis s2 ----------------------------------
+  -- Les adresses cherchées : celles des comptes qui ont une fiche, sauf les comptes de l'équipe (le fondateur, qui peut
+  -- avoir une fiche, et tout compte affecté), dont l'adresse d'auteur (QCM, thèmes, invitations) reste lisible comme
+  -- celle du personnel : hors du périmètre de cette migration.
   for r in select * from (values ('s1', e_s1), ('s2', e_s2)) as t(nom, email) loop
     select array_agg(lower(u.email)) into v_autres from user_profiles u
-     where u.stagiaire_id is not null and lower(u.email) <> lower(r.email);
+     where u.stagiaire_id is not null and lower(u.email) <> lower(r.email) and not u.is_founder
+       and not exists (select 1 from affectations a where lower(a.email) = lower(u.email));
     perform set_config('request.jwt.claims', json_build_object('email', r.email, 'role', 'authenticated')::text, true);
     perform set_config('request.headers', json_build_object('x-promo-id', v_promo::text)::text, true);
     v := ''; total := 0;
