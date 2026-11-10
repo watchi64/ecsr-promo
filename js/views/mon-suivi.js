@@ -1,29 +1,29 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261109m";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261109m";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261109m";
-import { libelleCreneau } from "../emargement-rules.js?v=20261109m";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109m";
-import { renderEpcfPersonne } from "./epcf.js?v=20261109m";
-import { renderSubTabs } from "../subtabs.js?v=20261109m";
-import { renderDp } from "./dp.js?v=20261109m";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261109m";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261109m";
-import { bandeauAvis } from "../avis.js?v=20261109m";
-import { statsPassages } from "../passages-stats.js?v=20261109m";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261109m";
-import { icon } from "../icons.js?v=20261109m";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261109m";
-import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261109m";
-import { exemplesRemplis } from "../dp-rules.js?v=20261109m";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261109m";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261109m";
-import { navigationV2Active } from "../nav-etat.js?v=20261109m";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109m";
-import { renderNotes } from "./notes.js?v=20261109m";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261109m";
+         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261109o";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261109o";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261109o";
+import { libelleCreneau } from "../emargement-rules.js?v=20261109o";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109o";
+import { renderEpcfPersonne } from "./epcf.js?v=20261109o";
+import { renderSubTabs } from "../subtabs.js?v=20261109o";
+import { renderDp } from "./dp.js?v=20261109o";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261109o";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261109o";
+import { bandeauAvis } from "../avis.js?v=20261109o";
+import { statsPassages } from "../passages-stats.js?v=20261109o";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261109o";
+import { icon } from "../icons.js?v=20261109o";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261109o";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261109o";
+import { exemplesRemplis } from "../dp-rules.js?v=20261109o";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261109o";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261109o";
+import { navigationV2Active } from "../nav-etat.js?v=20261109o";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261109o";
+import { renderNotes } from "./notes.js?v=20261109o";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261109o";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -798,6 +798,9 @@ function rendrePartie(panel, partie, d, opts, ctx) {
       moyennes: { salle: moySalle, vehicule: moyVehicule },
       // Les outils du formateur sur la fiche d'un autre ; jamais sur sa propre fiche.
       outils: !soi && isAdmin(),
+      // La carte vide (aucune épreuve évaluée) : au tutoiement sur sa propre fiche, avec le livret s'il est ouvert.
+      soi,
+      livretOuvert: moduleVisible("livret"),
       onEnregistre: (evals) => {
         d.epcfEvals = evals;
         if (opts.onEpcfEnregistre) opts.onEpcfEnregistre(evals);
