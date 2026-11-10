@@ -400,6 +400,238 @@
 /* La boîte d'erreur de chargement de la page (js/main.js) est hors de .qualiopi : son bouton a sa propre cible de 44 px. */
 .qualiopi-erreur .btn { min-height: 44px; }
 
+/* ============================================================
+   Registre qualité (Q4, indicateurs 31 et 32) : sous-onglets de la page, rappel en tête,
+   liste de cartes (jamais un tableau) et fenêtre de saisie (js/registre-fenetre.js). La
+   fenêtre sert aussi à la page « Problèmes signalés » : cette feuille est chargée partout.
+   ============================================================ */
+
+.qualiopi .subtab { min-height: 44px; }
+
+.qualiopi-rappel-registre:empty { display: none; }
+.qualiopi-rappel-registre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--r);
+  background: var(--c-wait-soft);
+  color: var(--text);
+}
+.qualiopi-rappel-textes { flex: 1 1 16rem; min-width: 0; }
+.qualiopi-rappel-textes p { margin: 0; font-size: 0.92rem; line-height: 1.45; font-weight: 600; }
+.qualiopi-rappel-textes p + p { margin-top: 0.25rem; }
+
+.rg-registre { display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
+.rg-zone { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
+.rg-zone > .qualiopi-aide { margin: 0; }
+.rg-effacement {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--r);
+  background: var(--c-wait-soft);
+  color: var(--text);
+}
+.rg-effacement p { flex: 1 1 16rem; margin: 0; font-size: 0.92rem; line-height: 1.45; }
+
+.rg-filtres { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
+.rg-filtres-etat { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.rg-filtre, .rg-type-choix {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.rg-filtre:hover, .rg-type-choix:hover { background: var(--bg-subtle); }
+.rg-filtre[aria-pressed="true"], .rg-type-choix[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+.rg-filtre:focus-visible, .rg-type-choix:focus-visible, .rg-carte:focus-visible, .rg-fermer:focus-visible,
+.rg-suite > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rg-filtre-etiquette { font-weight: 600; color: var(--text-soft); }
+.rg-filtre-type-bloc { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.rg-filtres .rg-filtre-type { width: auto; min-width: 12rem; max-width: 100%; }
+.rg-statut { margin: 0; font-size: 0.92rem; color: var(--text-soft); }
+
+.rg-cartes { display: flex; flex-direction: column; gap: 0.55rem; margin: 0; padding: 0; list-style: none; }
+.rg-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg-elev);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+button.rg-carte { cursor: pointer; }
+button.rg-carte:hover { border-color: var(--accent); }
+.rg-carte-lecture { background: var(--bg-soft); }
+.rg-carte-tete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 0.75rem; }
+.rg-carte-type { font-weight: 600; font-size: 1rem; }
+.rg-carte-etat {
+  flex: none;
+  padding: 0.14rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--bg-soft);
+  color: var(--text-muted);
+}
+.rg-carte-etat.ouvert { background: var(--c-wait-soft); color: var(--c-wait); }
+.rg-carte-etat.en_cours { background: var(--accent-soft); color: var(--accent-strong); }
+.rg-carte-etat.clos { background: var(--c-go-soft); color: var(--c-go); }
+.rg-carte-meta { font-size: 0.85rem; line-height: 1.45; color: var(--text-muted); }
+.rg-carte-marque { margin-left: 0.5rem; font-style: italic; }
+.rg-carte-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+.rg-carte-efface { font-size: 0.92rem; font-style: italic; color: var(--text-soft); }
+.rg-carte-delai { font-size: 0.85rem; color: var(--text-soft); }
+
+/* ----- La fenêtre de saisie ----- */
+/* Calque : au-dessus des bandeaux du bas (1400, 1500) et du panneau de l'assistant, sous les messages (2000). La fenêtre
+   de confirmation (js/confirmer.js), ouverte après elle, passe devant. */
+.modal-backdrop[data-nav-coquille="registre"] { z-index: 1600; }
+.modal-backdrop[data-nav-coquille="registre"] ~ .modal-backdrop:not(.nav-calque) { z-index: 1700; }
+
+body .modal-backdrop[data-nav-coquille="registre"] > .nav-fenetre.registre-fenetre {
+  position: relative;
+  inset: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 20px 20px;
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-3);
+  overflow-wrap: anywhere;
+}
+.registre-fenetre:focus { outline: none; }
+/* La fenêtre porte son propre en-tête (titre et « Fermer »), à toute taille. */
+.registre-fenetre .nav-fenetre-haut { display: none !important; }
+.registre-fenetre .btn { min-height: 44px; }
+
+.rg-tete { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rg-titre {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: var(--poids-titre-moyen);
+  line-height: 1.2;
+}
+.rg-fermer {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rg-fermer:hover { background: var(--bg-subtle); }
+.rg-rappel {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--c-wait);
+  border-radius: var(--r-sm);
+  background: var(--c-wait-soft);
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+.rg-bloc { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+.rg-bloc[hidden] { display: none; }
+.rg-deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: 12px; }
+.rg-etiquette { margin: 0; font-weight: 600; }
+.rg-types { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.rg-champ {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--text-muted);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;              /* 16 px : Safari ne zoome pas sur le champ */
+  line-height: 1.45;
+}
+.rg-champ:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rg-texte { resize: vertical; min-height: 88px; }
+.rg-aide { margin: 0; font-size: 0.85rem; line-height: 1.45; color: var(--text-muted); }
+.rg-personne { font-weight: 600; color: var(--text-soft); }
+.rg-erreur:empty { display: none; }
+.rg-erreur {
+  margin: 0;
+  padding: 0.4rem 0.65rem;
+  border-radius: var(--r-sm);
+  background: var(--c-wait-soft);
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+.rg-suite { border: 1px solid var(--line); border-radius: var(--r); }
+.rg-suite > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.9rem;
+  font-weight: 600;
+  color: var(--accent-strong);
+  cursor: pointer;
+}
+.rg-suite-corps { display: flex; flex-direction: column; gap: 12px; padding: 0.2rem 0.9rem 0.9rem; }
+.rg-actions { display: flex; justify-content: flex-end; }
+
+@media (max-width: 640px) {
+  .rg-filtre-type-bloc { flex: 1 1 100%; }
+  .rg-filtres .rg-filtre-type { flex: 1 1 auto; min-width: 0; }
+  .rg-actions .btn { flex: 1 1 100%; }
+}
+
 @media (max-width: 640px) {
   .qualiopi-fiche { padding: 0.25rem 0.85rem 0.15rem; }
   .qualiopi-fiche-ligne { grid-template-columns: minmax(0, 1fr); gap: 0.1rem; min-height: 0; padding: 0.55rem 0; }

@@ -564,9 +564,10 @@ eq(section(f, "signalements").paragraphes, [
     + "le thème le plus faible d'après les notes (au moins 3 notes par thème).",
   "Signalements de QCM déposés par les stagiaires de la promo : 2 reçus, 1 traité, 1 en attente.",
   "Délai moyen entre le dépôt et le traitement : 11 jours.",
-], "signalements : le suivi en nombres, les signalements reçus, traités, et le délai de traitement");
-eq(section(f, "signalements").tableaux, [], "signalements : aucun tableau");
-const signalements = (liste) => section(formation({ donnees: { ...D, signalements: liste } }), "signalements").paragraphes.slice(1);
+  "Registre qualité : non lu (erreur de lecture).",
+], "signalements : le suivi en nombres, les signalements reçus, traités, et le délai de traitement, puis le registre (non lu sans lecture)");
+eq(section(f, "signalements").tableaux, [], "signalements : aucun tableau sans registre lu");
+const signalements = (liste) => section(formation({ donnees: { ...D, signalements: liste } }), "signalements").paragraphes.slice(1, -1);
 eq(signalements([]), ["Aucun signalement de QCM déposé par les stagiaires de la promo."], "aucun signalement");
 eq(signalements([{ id: 1, created_at: "2026-10-01T10:00:00+00:00", traite_at: null }]),
   ["Signalements de QCM déposés par les stagiaires de la promo : 1 reçu, 0 traité, 1 en attente.",
@@ -648,10 +649,10 @@ eq(cSans.sections.map((s) => s.id), c.sections.map((s) => s.id), "les mêmes sec
 eq(numeros(c.sommaire), LES_27, "le sommaire couvre les 27 indicateurs applicables");
 eq(c.sommaire.map((e) => e.section), LES_27.map((num) => ({
   2: "resultats", 3: "resultats", 19: "ressources", 23: "ressources", 25: "innovations", 17: "intervenants", 18: "intervenants",
-  28: "intervenants", 32: "amelioration",
+  28: "intervenants", 31: "amelioration", 32: "amelioration",
 }[num] || "inventaire")), "chaque indicateur renvoie à sa section du centre, les autres à l'inventaire");
 eq(Object.fromEntries(c.sections.map((s) => [s.id, s.indicateurs])), {
-  resultats: [2, 3], ressources: [19, 23], innovations: [25], intervenants: [17, 18, 28], amelioration: [32], inventaire: LES_27,
+  resultats: [2, 3], ressources: [19, 23], innovations: [25], intervenants: [17, 18, 28], amelioration: [31, 32], inventaire: LES_27,
 }, "indicateurs servis par chaque section du centre");
 eq(c.aFournir, f.aFournir, "les pièces à fournir sont celles de l'inventaire, fixes");
 eq(cSans.aFournir, c.aFournir, "les mêmes sans les noms");
@@ -755,6 +756,86 @@ eq(lignesDe(c, "amelioration", 1), [
   ["Promo de test", "Notes", "Thème 1 : Feux", "11,0/20 sur 4 notes"],
 ], "amélioration : du plus faible au plus fort, d'après les QCM puis d'après les notes");
 ok(section(c, "amelioration").paragraphes.length > 0, "amélioration : des paragraphes");
+
+// --- Registre qualité (indicateurs 31 et 32) : décomptes, délai médian, une ligne par entrée, jamais un texte saisi
+{
+  const E = (id, extra) => ({ id, type: "reclamation", origine: "stagiaire", promo_id: null, lieu_id: null, description: "Texte libre secret " + id,
+    date_constat: "2026-10-05", reponse: "Réponse secrète", date_reponse: null, action_decidee: "Action secrète", mesure_prevention: "Mesure secrète",
+    etat: "ouvert", clos_le: null, efface_le: null, ...extra });
+  const ENTREES = geler([
+    E(1, { promo_id: 7, date_reponse: "2026-10-09", etat: "clos", clos_le: "2026-10-09T10:00:00Z" }),             // promo 7, délai 4
+    E(2, { promo_id: 7, type: "alea", origine: "equipe", date_constat: "2026-12-01" }),                         // promo 7, hors période : compte
+    E(3, { type: "difficulte", origine: "formateur", date_constat: "2026-10-10", date_reponse: "2026-10-20", etat: "clos" }),   // organisme, délai 10
+    E(4, { type: "risque", origine: "equipe", date_constat: "2026-10-12", date_reponse: "2026-10-14", etat: "clos", lieu_id: 2, efface_le: "2026-10-30T10:00:00Z",
+      description: null, reponse: null, action_decidee: null, mesure_prevention: null }),                       // du lieu 2, effacée : compte, sans texte, délai 2
+    E(5, { lieu_id: 9 }),                                                                                       // autre lieu : écartée
+    E(6, { promo_id: 8, type: "amelioration", origine: "financeur", date_constat: "2026-10-15" }),               // promo 8
+  ]);
+  const LUE = { etat: "lue", entrees: ENTREES };
+  const CHAMPS_LIBRES = ["Texte libre secret", "Réponse secrète", "Action secrète", "Mesure secrète"];
+  const sansTexteLibre = (m, nom) => CHAMPS_LIBRES.forEach((mot) => ok(!JSON.stringify(m).includes(mot), `${nom} : aucun texte libre (« ${mot} »)`));
+  const ENTETES = ["Date", "Type", "Origine", "État", "Délai de réponse (jours)"];
+
+  // Dossier de la formation (promo 7) : les entrées 1, 2, 3 et 4 (la 4, du lieu 2 comme la promo)
+  const fReg = formation({ donnees: { ...D, registre: LUE } });
+  eq(section(fReg, "signalements").paragraphes.slice(-5), [
+    "Registre qualité : 4 entrées pendant la formation.",
+    "Par type : réclamation 1, difficulté 1, aléa 1, risque 1.",
+    "Par état : ouvert 1, clos 3.",
+    "Délai médian de réponse : 4 jours.",
+    "Une ligne par entrée : les textes saisis ne sont pas repris dans ce dossier.",
+  ], "formation : décompte par type et par état, délai médian (2, 4, 10), effacée comprise");
+  eq(entetesDe(fReg, "signalements"), ENTETES, "formation : en-têtes de la liste des entrées");
+  eq(lignesDe(fReg, "signalements"), [
+    ["05/10/2026", "Réclamation", "Stagiaire", "Clos", "4"],
+    ["10/10/2026", "Difficulté", "Formateur", "Clos", "10"],
+    ["12/10/2026", "Risque", "Équipe", "Clos", "2"],
+    ["01/12/2026", "Aléa", "Équipe", "Ouvert", "sans réponse datée"],
+  ], "formation : une ligne par entrée, par date, l'effacée et la hors période comprises, sans texte");
+  sansTexteLibre(fReg, "formation");
+  sansTexteLibre(invDe({ ...D, registre: LUE }, PROMO), "inventaire");
+  const vide = (registre) => section(formation({ donnees: { ...D, registre } }), "signalements");
+  eq(vide({ etat: "lue", entrees: [] }).paragraphes.slice(-1), ["Aucune entrée au registre qualité pendant la formation."], "formation : registre vide");
+  eq(vide({ etat: "absente" }).paragraphes.slice(-1), ["Registre qualité : pas encore en service."], "formation : registre pas en service");
+  eq(vide({ etat: "non_lue" }).paragraphes.slice(-1), ["Registre qualité : non lu (erreur de lecture)."], "formation : registre non lu");
+  eq(vide({ etat: "absente" }).tableaux, [], "formation : pas de ligne sans registre");
+
+  // Dossier du centre (lieu 2, période du 29/10/2025 au 28/10/2026) : les promos 7 et 8 (entrées 1, 2, 6), l'organisme (3 : datée
+  // dans la période), le lieu 2 (4) ; l'autre lieu (5) est écarté
+  const cReg = (extra) => centre({ lieuId: 2, registre: LUE, ...extra });
+  const am = section(cReg(), "amelioration");
+  eq(am.paragraphes.slice(-5), [
+    "Registre qualité : 5 entrées pendant la période.",
+    "Par type : réclamation 1, difficulté 1, aléa 1, amélioration 1, risque 1.",
+    "Par état : ouvert 2, clos 3.",
+    "Délai médian de réponse : 4 jours.",
+    "Une ligne par entrée : les textes saisis ne sont pas repris dans ce dossier.",
+  ], "centre : décompte des promos du centre, du lieu et de l'organisme (l'entrée 2, de la promo 7, hors période, compte)");
+  eq(entetesDe(cReg(), "amelioration", 2), ENTETES, "centre : en-têtes de la liste des entrées");
+  eq(lignesDe(cReg(), "amelioration", 2).map((l) => l[0]), ["05/10/2026", "10/10/2026", "12/10/2026", "15/10/2026", "01/12/2026"], "centre : une ligne par entrée, par date");
+  eq(lignesDe(cReg(), "amelioration", 2)[3], ["15/10/2026", "Amélioration", "Financeur", "Ouvert", "sans réponse datée"], "centre : le type, l'origine et l'état, sans texte");
+  eq(section(cReg(), "amelioration").indicateurs, [31, 32], "centre : l'amélioration continue sert les indicateurs 31 et 32");
+  const nominatif = cReg();
+  const sans = cReg({ sansNoms: true });
+  sansTexteLibre(nominatif, "centre nominatif");
+  sansTexteLibre(sans, "centre sans aucun nom");
+  const amSans = section(sans, "amelioration");
+  eq(amSans.paragraphes.slice(-5, -1), am.paragraphes.slice(-5, -1), "centre sans aucun nom : les mêmes nombres");
+  eq(amSans.paragraphes.slice(-1), ["Version en nombres seulement : aucune ligne par entrée."], "centre sans aucun nom : le dit");
+  eq(amSans.tableaux.length, 2, "centre sans aucun nom : aucune ligne par entrée (le suivi et les thèmes seulement)");
+  // Sans le lieu du centre, les entrées d'un lieu ne comptent pas ; celles de l'organisme et des promos si
+  eq(section(centre({ registre: LUE }), "amelioration").paragraphes.slice(-5)[0], "Registre qualité : 4 entrées pendant la période.", "centre sans lieuId : l'entrée du lieu 2 n'est pas retenue");
+  // La période borne les entrées sans promo
+  eq(section(centre({ lieuId: 2, registre: LUE, periode: { du: "2026-10-11", au: "2026-10-28" } }), "amelioration").paragraphes.slice(-5)[0],
+    "Registre qualité : 4 entrées pendant la période.", "centre : l'entrée 3 du 10/10 sort d'une période qui commence le 11/10");
+  // Le registre du centre ne vient que du paramètre : celui des promos (donnees.registre) ne sert pas
+  const surPromos = centre({ promos: LES_PROMOS.map((p) => ({ ...p, donnees: { ...p.donnees, registre: LUE } })), lieuId: 2 });
+  eq(section(surPromos, "amelioration").paragraphes.slice(-1), ["Registre qualité : non lu (erreur de lecture)."], "centre : le paramètre registre seul fait foi (non lu par défaut)");
+  eq(section(centre({ lieuId: 2, registre: { etat: "absente" } }), "amelioration").paragraphes.slice(-1), ["Registre qualité : pas encore en service."], "centre : pas en service");
+  eq(section(centre({ lieuId: 2, registre: { etat: "lue", entrees: [] } }), "amelioration").paragraphes.slice(-1), ["Aucune entrée au registre qualité pendant la période."], "centre : registre vide");
+  // Dans l'inventaire fusionné, la pièce « Registre qualité » est dénombrée par promo
+  ok(lignesDe(centre({ lieuId: 2, registre: LUE }), "inventaire", 1).some((l) => l[1] === "Registre qualité"), "centre : l'inventaire fusionné compte la pièce du registre");
+}
 
 // --- Inventaire fusionné (R8)
 const inventaire = section(c, "inventaire");
@@ -898,6 +979,22 @@ eq(aucunePromo.sections.map((s) => s.id), ["resultats", "ressources", "innovatio
 eq(aucunePromo.sommaire, [], "aucune promo : pas d'inventaire, donc pas de sommaire");
 eq(aucunePromo.aFournir, [], "aucune promo : pas de pièces à fournir");
 eq(section(aucunePromo, "innovations").paragraphes.length, 2 + 3, "aucune promo : les annonces restent, elles ne dépendent d'aucune promo");
+{
+  // Aucune promo dans la période : les entrées du lieu et de l'organisme, datées dans la période, restent au dossier du centre.
+  const E = (id, extra) => ({ id, type: "alea", origine: "equipe", promo_id: null, lieu_id: null, description: "Texte libre secret " + id,
+    date_constat: "2026-10-05", reponse: null, date_reponse: null, action_decidee: null, mesure_prevention: null, etat: "ouvert", clos_le: null, efface_le: null, ...extra });
+  const registre = { etat: "lue", entrees: [E(1), E(2, { date_constat: "2026-10-10" }), E(3, { lieu_id: 2, date_constat: "2026-10-12" }),
+    E(4, { date_constat: "2024-01-05" }), E(5, { lieu_id: 9 }), E(6, { promo_id: 8 })] };   // hors période, autre lieu, promo non retenue : écartées
+  [false, true].forEach((sansNoms) => {
+    const m = modeleDossierCentre({ promos: [], lieu: LIEU, lieuId: 2, registre, periode: PERIODE, aujourdhui: AUJOURDHUI, sansNoms, nouveautes: [] });
+    const am = section(m, "amelioration");
+    eq(am.paragraphes.slice(0, 3), ["Aucune promo dans la période.", "Registre qualité : 3 entrées pendant la période.", "Par type : aléa 3."],
+      `aucune promo (sansNoms ${sansNoms}) : trois entrées comptées, deux de l'organisme et une du lieu`);
+    eq(am.tableaux.length, sansNoms ? 0 : 1, `aucune promo (sansNoms ${sansNoms}) : une ligne par entrée seulement avec les noms`);
+    if (!sansNoms) eq(am.tableaux[0].lignes.map((l) => l[0]), ["05/10/2026", "10/10/2026", "12/10/2026"], "aucune promo : les trois entrées, par date");
+    ok(!JSON.stringify(m).includes("Texte libre secret"), `aucune promo (sansNoms ${sansNoms}) : aucun texte libre`);
+  });
+}
 formeBien(modeleDossierCentre({ promos: [LES_PROMOS[0]], lieu: null, periode: {}, aujourdhui: AUJOURDHUI, sansNoms: false }), "centre sans lieu ni période");
 eq(modeleDossierCentre({ promos: [LES_PROMOS[0]], lieu: null, periode: {}, aujourdhui: AUJOURDHUI, sansNoms: false }).garde.slice(0, 2),
   ["Centre : centre non renseigné", "Période : dates non renseignées"], "lieu et période absents : des mots");
@@ -1039,7 +1136,7 @@ ok(!source.includes(TIRET_CADRATIN), "aucun tiret cadratin dans le module");
 const code = source.replace(/\/\/.*$/gm, "");
 ok(!/\bdocument\.|\bwindow\.|\bfetch\(|\bsupabase\b|\blocalStorage\b/.test(code), "le module est pur : ni DOM, ni réseau, ni base");
 eq(code.match(/^import .* from "(.*)";$/gm).map((l) => l.match(/from "(.*)"/)[1].replace(/\?v=\w+$/, "")),
-  ["./qualiopi-referentiel.js", "./qualiopi-preuves.js", "./centre-stats.js", "./notes-stats.js", "./centre-csv.js", "./utils.js"],
+  ["./qualiopi-referentiel.js", "./qualiopi-preuves.js", "./registre-rules.js", "./centre-stats.js", "./notes-stats.js", "./centre-csv.js", "./utils.js"],
   "il n'importe que des modules purs de l'app, avec le jeton de version des autres imports");
 // Les aides de l'inventaire sont importées, jamais recopiées : la synthèse par semaine suit la règle de l'inventaire.
 const AIDES = ["jourDe", "rempli", "tableau", "nb", "promoTerminee", "nouveautesCitables", "lignesDuPlanning", "demiJournees", "intervenantsDistincts"];

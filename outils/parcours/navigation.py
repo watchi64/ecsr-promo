@@ -71,6 +71,9 @@ BARRE_DU_BAS_EQUIPE = ("home", "planning", "stagiaires", "notes")
 
 def chemin(destination, navigation, espace, telephone):
     """La liste des clics (sélecteur, ce que la personne touche) pour atteindre `destination`."""
+    if destination == "Qualiopi":
+        # Le fondateur y entre par le lien « Qualiopi » du tableau de bord du centre (Indicateurs).
+        return chemin("Indicateurs", navigation, espace, telephone) + [("a.centre-lien-qualiopi", "« Qualiopi »")]
     if navigation == "ancienne":
         onglets = {"Accueil": ("home", "l'onglet Accueil"), "Cours et QCM": ("themes", "l'onglet Cours"),
                    "La classe": ("notes", "l'onglet Notes"), "CCP2": ("ccp2", "l'onglet CCP2"),

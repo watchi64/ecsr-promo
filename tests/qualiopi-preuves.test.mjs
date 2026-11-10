@@ -52,7 +52,7 @@ eq(NIVEAUX[19].aFournir, ["référent pédagogique si le seuil l'exige"], "19 : 
 eq(NIVEAUX[21].aFournir, ["CV", "titres", "autorisations d'enseigner"], "21 : trois pièces, découpées sur la virgule");
 // Empreinte de l'annexe A de la spec : lignes « n° | niveau | apporte | ajout | à fournir » séparées par des
 // tabulations, tirées du tableau de la spec par un script jetable. Toute retouche de NIVEAUX la change.
-const ANNEXE_A = "75f51b2b1c1296e28d69e78ebeb6f4b334a5f136277020c7afcb73f22c98bf0e";
+const ANNEXE_A = "fd11e12b74a70adcc631f22922a5eba891eca78855167a1e8a0c15b682fd2f6e";
 const canon = Object.entries(NIVEAUX)
   .map(([num, v]) => [num, v.niveau, v.apporte, v.ajout ?? "", v.aFournir.join(", ")].join("\t")).join("\n");
 eq(createHash("sha256").update(canon).digest("hex"), ANNEXE_A, "NIVEAUX reprend l'annexe A de la spec mot pour mot");
@@ -75,10 +75,11 @@ const TABLE_PIECES = [
   ["resultats", "Résultats et méthodes", [2, 3, 32]],
   ["suivi", "Suivi", [10, 12, 32]],
   ["appreciations", "Appréciations", [30, 32]],
+  ["registre", "Registre qualité", [31, 32]],
 ];
 const LIBELLE = Object.fromEntries(TABLE_PIECES.map(([cle, libelle]) => [cle, libelle]));
 eq(PIECES, TABLE_PIECES.map(([cle, libelle, indicateurs]) => ({ cle, libelle, indicateurs })),
-  "14 pièces, dans l'ordre du tableau du § 6.2 et de la tâche Q3b");
+  "15 pièces, dans l'ordre du tableau du § 6.2 et de la tâche Q3b");
 ok(PIECES.every((p) => p.indicateurs.every((num) => num in NIVEAUX)), "chaque pièce sert des indicateurs de l'annexe A");
 
 // =====================================================================================================
@@ -287,8 +288,8 @@ const PIECES_PAR_INDICATEUR = {
   10: ["effectif", "assiduite", "passages", "suivi"], 11: ["evaluations"],
   12: ["effectif", "assiduite", "passages", "suivi"], 16: ["assiduite", "evaluations", "dossierPro"],
   17: ["deroule", "intervenants"], 18: ["deroule", "intervenants"], 19: ["ressources", "misesAJour"],
-  23: ["misesAJour"], 25: ["innovations"], 28: ["datesCles", "intervenants"], 31: ["misesAJour"],
-  30: ["appreciations"], 32: ["resultats", "suivi", "appreciations"],
+  23: ["misesAJour"], 25: ["innovations"], 28: ["datesCles", "intervenants"], 31: ["misesAJour", "registre"],
+  30: ["appreciations"], 32: ["resultats", "suivi", "appreciations", "registre"],
 };
 inv.indicateurs.forEach((i) => {
   const ref = INDICATEURS.find((x) => x.numero === i.numero);
@@ -705,6 +706,46 @@ eq(problemes({ indicateurs: cassee.indicateurs, nonApplicables: cassee.nonApplic
   "mal formé : ni NaN, ni undefined, ni Invalid");
 
 // =====================================================================================================
+// Registre qualité (Q4) : indicateurs 31 et 32, des nombres et des dates, jamais un texte saisi
+// =====================================================================================================
+{
+  eq(NIVEAUX[31], { niveau: "partiel", apporte: "signalements de QCM instruits puis tranchés, registre qualité", ajout: null, aFournir: ["procédure de réclamation"] },
+    "31 : le registre qualité s'ajoute à l'apport, sans ajout à venir");
+  eq(NIVEAUX[32], { niveau: "partiel", apporte: "comparaison des promos, thèmes à retravailler, registre qualité", ajout: null, aFournir: ["plan d'amélioration"] },
+    "32 : de même");
+  const E = (id, extra) => ({ id, type: "reclamation", origine: "stagiaire", promo_id: null, lieu_id: null, description: "Texte libre secret " + id,
+    date_constat: "2026-10-05", reponse: "Réponse secrète", date_reponse: null, action_decidee: "Action secrète", mesure_prevention: "Mesure secrète",
+    etat: "ouvert", clos_le: null, efface_le: null, ...extra });
+  const ENTREES = geler([
+    E(1, { promo_id: 7, date_reponse: "2026-10-09", etat: "clos", clos_le: "2026-10-09T10:00:00Z" }),                    // délai 4
+    E(2, { promo_id: 7, type: "alea", origine: "equipe", date_constat: "2026-12-01" }),                                    // rattachée à la promo : compte, quelle que soit sa date
+    E(3, { type: "difficulte", origine: "formateur", date_constat: "2026-10-10", date_reponse: "2026-10-20", etat: "clos" }), // sans promo, dans la période : délai 10
+    E(4, { type: "risque", date_constat: "2026-10-12", date_reponse: "2026-10-14", etat: "clos", efface_le: "2026-10-30T10:00:00Z",
+      description: null, reponse: null, action_decidee: null, mesure_prevention: null }),                                   // effacée : compte, sans texte ; délai 2
+    E(5, { lieu_id: 9, date_constat: "2026-10-06" }),                                                                       // autre lieu : écartée
+    E(6, { date_constat: "2026-08-01" }),                                                                                   // sans promo, hors de la période
+    E(7, { promo_id: 8 }),                                                                                                  // une autre promo
+  ]);
+  const registreDe = (registre) => piece(inventairePromo({ ...D, registre }, REF, OPTIONS), "registre");
+  eq(registreDe({ etat: "lue", entrees: ENTREES }), {
+    cle: "registre", libelle: "Registre qualité", presente: true, raison: null,
+    detail: "4 entrées (1 réclamation, 1 difficulté, 1 aléa, 1 risque), dont 3 closes ; délai médian de réponse : 4 jours",
+  }, "registre : le décompte par type, les closes (l'effacée comprise) et le délai médian (2, 4 et 10 jours)");
+  eq(registreDe({ etat: "lue", entrees: [] }), manquante("registre", "aucune entrée au registre qualité pendant la formation"), "registre vide");
+  eq(registreDe({ etat: "lue", entrees: [ENTREES[4], ENTREES[6]] }).presente, false, "registre : une entrée d'un autre lieu ou d'une autre promo ne compte pas");
+  eq(registreDe({ etat: "absente" }), manquante("registre", "registre qualité pas encore en service"), "registre : la table n'existe pas encore");
+  eq(registreDe({ etat: "non_lue" }), manquante("registre", "registre qualité non lu (erreur de lecture)"), "registre : lecture échouée");
+  eq(piece(inventairePromo(D, REF, OPTIONS), "registre"), manquante("registre", "registre qualité non lu (erreur de lecture)"), "registre : aucune lecture faite, honnêtement non lu");
+  eq(registreDe({ etat: "lue", entrees: [E(1, { promo_id: 7 })] }).detail, "1 entrée (1 réclamation), dont 0 close ; délai médian de réponse : aucune réponse datée",
+    "registre : une entrée seule, sans réponse datée");
+  eq(registreDe({ etat: "lue", entrees: [E(1, { promo_id: 7, date_reponse: "2026-10-06" }), E(2, { promo_id: 7, date_reponse: "2026-10-07" })] }).detail,
+    "2 entrées (2 réclamations), dont 0 close ; délai médian de réponse : 1,5 jour", "registre : médiane décimale, au singulier sous 2");
+  const jsonRegistre = JSON.stringify(inventairePromo({ ...D, registre: { etat: "lue", entrees: ENTREES } }, REF, OPTIONS));
+  ["Texte libre secret", "Réponse secrète", "Action secrète", "Mesure secrète"].forEach((mot) =>
+    ok(!jsonRegistre.includes(mot), `l'inventaire ne reprend aucun texte libre du registre (« ${mot} »)`));
+}
+
+// =====================================================================================================
 // Raisons d'absence (R24) : des textes fixes, sans période ni nombre, les mêmes d'une promo à l'autre
 // =====================================================================================================
 // Les dossiers regroupent les raisons par texte entre plusieurs promos : une date ou un chiffre dans une raison les séparerait.
@@ -712,7 +753,7 @@ const raisonsDe = (i) => PIECES.map((p) => piece(i, p.cle)).filter((p) => !p.pre
 const memesFiches = (promo) => raisonsDe(inventairePromo({ stagiaires: STAG }, REF, { promo, aujourdhui: AUJOURDHUI }));
 const raisonsFixes = raisonsDe(fiches);
 eq(raisonsFixes.map(([cle]) => cle), ["deroule", "datesCles", "assiduite", "passages", "evaluations", "dossierPro", "ressources",
-  "misesAJour", "innovations", "intervenants", "suivi", "appreciations"], "douze pièces absentes sur une promo qui n'a que ses fiches");
+  "misesAJour", "innovations", "intervenants", "suivi", "appreciations", "registre"], "treize pièces absentes sur une promo qui n'a que ses fiches");
 [{ ...PROMO, date_debut: "2025-01-06", date_fin: "2025-06-27" }, { ...PROMO, date_fin: null }, { ...PROMO, date_debut: null },
   future, { ...PROMO, id: 12, lieu_id: 5 }].forEach((promo, k) =>
   eq(memesFiches(promo), raisonsFixes, `autre promo ou autre période (${k}) : les mêmes raisons, mot pour mot`));
