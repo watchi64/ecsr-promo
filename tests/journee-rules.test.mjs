@@ -11,7 +11,7 @@ const MARDI = "2026-10-27";
 const noms = () => ({
   stagiaires: new Map([[1, "Timy"], [2, "Anissa"], [3, "Lorie"], [4, "Valentin"], [5, "Cassandre"], [6, "Céline"]]),
   formateurs: new Map([[1, "Romain"], [2, "Hocine"]]),
-  benevoles: new Map([[1, "C. Camille"], [2, "Y. Yanis"]]),
+  benevoles: new Map([[1, "Camille C."], [2, "Yanis Y."]]),
   autres: [],
 });
 
@@ -55,7 +55,7 @@ test("un mardi : salle double le matin, voiture l'après-midi", () => {
   const v = aprem(j).cartes[0];
   assert.equal(v.genre, "voiture");
   assert.deepEqual(v.conducteurs, [{ id: 1, nom: "Timy" }, { id: 2, nom: "Anissa" }]);
-  assert.deepEqual(v.benevoles, ["Y. Yanis", "C. Camille"]);
+  assert.deepEqual(v.benevoles, ["Yanis Y.", "Camille C."]);
   assert.deepEqual(v.tableau, []);
   assert.deepEqual(v.eleves, []);
 });

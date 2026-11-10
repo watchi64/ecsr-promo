@@ -1,5 +1,5 @@
 // Nouvelle navigation (refonte, lot 1) : la page Planning regroupe trois sous-onglets, la
-// semaine (le planning actuel), les dates clés (ex-page Calendrier) et les priorités de
+// semaine (le planning actuel), les dates clés (ex-page Calendrier) et l'ordre de
 // passage (ex-page Priorités). Chaque sous-onglet rend la page actuelle, inchangée. Avec
 // l'ancienne navigation, la route planning rend la semaine seule (js/main.js).
 
@@ -50,7 +50,7 @@ export async function renderPlanningEspace(view, { aujourdhui = null } = {}) {
     { key: "semaine", label: "Semaine", module: "planning", render: dansUnConteneur((c) => renderPlanning(c, { aujourdhui })) },
     { key: "dates", label: "Dates clés", module: "calendrier",
       render: dansUnConteneur((c) => { quitterSemaine(); return renderCalendrier(c); }) },
-    { key: "priorites", label: "Priorités", module: "priorites",
+    { key: "priorites", label: "Ordre de passage", module: "priorites",
       render: dansUnConteneur((c) => { quitterSemaine(); return renderDashboard(c, { embedded: true }); }) },
   ], { storageKey: CLES_SOUS_ONGLETS.planning }));
 }

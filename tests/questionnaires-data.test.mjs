@@ -39,13 +39,16 @@ for (const [cle, [min, max, pub]] of Object.entries(fourchettes)) {
   }
   const com = q.questions.filter((x) => x.type === "commentaire");
   eq(com.length, 1, `${cle} : un seul commentaire`);
-  ok(com[0].facultative && /cite personne/i.test(com[0].texte), `${cle} : commentaire facultatif, ne cite personne`);
+  ok(com[0].facultative && /citez? personne/i.test(com[0].texte), `${cle} : commentaire facultatif, ne cite personne`);
   const texte = JSON.stringify(q);
   ok(!texte.includes(tiret), `${cle} : aucun tiret cadratin`);
   ok(!/\bprof\b/i.test(texte), `${cle} : jamais « prof »`);
 }
 
 ok(QUESTIONNAIRES.fin_stagiaire.questions.some((x) => x.id === "app" && x.facultative), "fin de formation : question facultative sur l'app");
+// Le questionnaire des formateurs vouvoie, ceux des stagiaires tutoient (règle du 10/11).
+ok(!/\b(tu|ton|ta|tes|te|toi)\b|\bt'/i.test(JSON.stringify(QUESTIONNAIRES.fin_formateur)), "fin_formateur : aucun tutoiement");
+ok(/\bvous\b/.test(QUESTIONNAIRES.fin_formateur.intro) && /^Votre /.test(QUESTIONNAIRES.fin_formateur.titre), "fin_formateur : vouvoiement");
 
 // Échelle : 1 à 4 plus « sans avis »
 eq(ECHELLE.map((e) => e.valeur), [1, 2, 3, 4, null], "échelle 1 à 4 et sans avis");
@@ -104,7 +107,9 @@ const ligneRegistre = CONDITIONS_MD.split("\n").find((l) => l.startsWith("| Regi
 ok(ligneRegistre && /action décidée/.test(ligneRegistre) && /mesure de prévention/.test(ligneRegistre) && /origine/.test(ligneRegistre),
   "conditions : le registre qualité dit tous les textes vidés et tout ce qui reste (plan Q4)");
 for (const q of Object.values(QUESTIONNAIRES)) {
-  ok(/sans ton nom, sans ton compte et sans date/.test(q.intro), `${q.cle} : introduction, sans nom, sans compte, sans date`);
+  // Le ton suit le public (règle du 10/11) : tutoiement des stagiaires, vouvoiement des formateurs.
+  const sansNom = q.public === "formateur" ? /sans votre nom, sans votre compte et sans date/ : /sans ton nom, sans ton compte et sans date/;
+  ok(sansNom.test(q.intro), `${q.cle} : introduction, sans nom, sans compte, sans date`);
   ok(q.intro.includes(`à partir de ${seuilDe(q.public)} réponses`), `${q.cle} : introduction, le seuil de son public`);
 }
 

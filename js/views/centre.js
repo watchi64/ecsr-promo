@@ -1,6 +1,6 @@
 // Tableau de bord du centre (spec docs/superpowers/specs/2026-10-23-tableau-de-bord-centre-design.md).
 // Réservé au personnel (porte dans main.js). Par promo : effectif, abandons, assiduité, passages,
-// résultats, thèmes à retravailler, stagiaires à suivre ; comparaison des promos ; export PDF A4
+// résultats, thèmes les moins réussis, stagiaires à suivre ; comparaison des promos ; export PDF A4
 // (impression du navigateur) et CSV de la matrice des notes. Les calculs vivent dans
 // js/centre-stats.js et js/centre-csv.js (purs, testés) : ici, seulement l'affichage.
 
@@ -34,8 +34,8 @@ const LIBELLES_METHODES = [
   ["effectif", "Effectif"], ["abandon", "Taux d'abandon"], ["valeurAbandons", "Valeur des parcours interrompus"],
   ["absences", "Absences aux passages prévus"], ["passages", "Passages réalisés"],
   ["activiteQcm", "Activité QCM"], ["reussiteQcm", "Réussite aux QCM d'entraînement"],
-  ["examensQcm", "Examens QCM"], ["notes", "Notes"], ["epcf", "EPCF"], ["titre", "Réussite au titre"],
-  ["themes", "Thèmes à retravailler"], ["aSuivre", "À suivre de près"],
+  ["examensQcm", "Examens QCM"], ["notes", "Notes"], ["epcf", "Évaluations EPCF"], ["titre", "Réussite au titre"],
+  ["themes", "Thèmes les moins réussis"], ["aSuivre", "À suivre de près"],
 ];
 
 function etiquette(nature, nuance) {
@@ -79,7 +79,7 @@ function cartesCles(ind) {
     carte({ cle: "absences", titre: "Absences aux passages prévus", nature: "mesuré", nuance: "partiel",
       valeur: ind.absences.valeur == null ? null : pct(ind.absences.valeur),
       detail: ind.absences.valeur == null ? null
-        : `${pluriel(absd.absences, "absence")} de dernière minute sur ${pluriel(absd.prevus, "passage prévu", "passages prévus")}` }),
+        : `${pluriel(absd.absences, "absence")} de dernière minute sur ${pluriel(absd.prevus, "passage prévu", "passages prévus")} (au tableau et en voiture)` }),
     carte({ cle: "passages", titre: "Passages réalisés", nature: "mesuré",
       valeur: ind.passages.valeur == null ? null : `${fr1(ind.passages.valeur)} par stagiaire`,
       detail: ind.passages.valeur == null ? null
@@ -113,7 +113,7 @@ function cartesResultats(ind) {
       valeur: ind.notes.valeur == null ? null : `${fr1(ind.notes.valeur)}/20`,
       detail: ind.notes.valeur == null ? null
         : `${pluriel(no.n, "note")} · médiane ${fr1(no.mediane)} · ${entier(no.sous10)} sous 10` }),
-    carte({ cle: "epcf", titre: "EPCF", nature: "mesuré",
+    carte({ cle: "epcf", titre: "Évaluations EPCF", nature: "mesuré",
       valeur: ind.epcf.valeur == null ? null : `${pct(ind.epcf.valeur)} acquis`,
       detail: ind.epcf.valeur == null ? null : `${grille("Salle", ep.salle)} · ${grille("Véhicule", ep.vehicule)}` }),
     carte({ cle: "titre", titre: "Réussite au titre", nature: "non mesuré",
@@ -144,7 +144,7 @@ function sectionThemes(themes) {
     el("summary", {}, `Tous les thèmes (${themes.complet.length})`),
     el("div", { class: "centre-defile" }, tableauThemes));
   return el("section", { class: "centre-section" },
-    el("div", { class: "centre-section-tete" }, el("h3", {}, "Thèmes à retravailler"), etiquette("mesuré")),
+    el("div", { class: "centre-section-tete" }, el("h3", {}, "Thèmes les moins réussis"), etiquette("mesuré")),
     el("div", { class: "centre-themes" },
       liste("D'après les QCM", themes.qcm, "Pas encore assez de réponses (20 par thème au minimum).",
         (t) => `${pct(t.taux)} · ${pluriel(t.n, "réponse")}`),
@@ -158,12 +158,13 @@ function sectionASuivre(aSuivre) {
   return el("section", { class: "centre-section" },
     el("div", { class: "centre-section-tete" }, el("h3", {}, "À suivre de près"), etiquette("estimé")),
     el("p", { class: "centre-intro" },
-      "Stagiaires qui cumulent au moins deux signaux. Un repère pour en parler avec eux, pas une prédiction."),
+      "Stagiaires qui ont au moins deux difficultés parmi quatre : absences, notes basses, entraînement QCM arrêté, "
+        + "retard de passages. Un repère pour en parler avec eux, pas une prédiction."),
     aSuivre.length
       ? el("ul", { class: "centre-suivre" }, ...aSuivre.map((x) => el("li", {},
           el("a", { class: "centre-suivre-nom", href: "#/stagiaires/" + x.stagiaire.id }, displayStagiaire(x.stagiaire)),
           el("span", { class: "centre-signaux" }, ...x.signaux.map((s) => el("span", { class: "chip centre-signal" }, s.texte))))))
-      : el("p", { class: "muted" }, "Personne ne cumule deux signaux."),
+      : el("p", { class: "muted" }, "Aucun stagiaire à suivre de près pour l'instant."),
     methode("aSuivre"));
 }
 
@@ -197,7 +198,7 @@ function sectionMethodes() {
     el("details", { class: "centre-methodes" },
       el("summary", {}, "Méthodes de calcul"),
       el("p", { class: "centre-intro" },
-        "Mesuré : compté dans les données de l'app. Estimé : hypothèse ou signal. Non mesuré : l'app ne le sait pas."),
+        "Mesuré : compté dans les données de l'app. Estimé : hypothèse ou repère. Non mesuré : l'app ne le sait pas."),
       el("dl", {}, ...LIBELLES_METHODES.flatMap(([cle, libelle]) => [el("dt", {}, libelle), el("dd", {}, METHODES[cle])]))));
 }
 
@@ -250,7 +251,7 @@ function ouvrirExportCsv(promo, donnees) {
   };
   fond.addEventListener("click", (e) => { if (e.target === fond) fermer(); });
   fond.appendChild(el("div", { class: "modal centre-modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "centre-csv-titre" },
-    el("h3", { id: "centre-csv-titre" }, "Matrice des notes (CSV)"),
+    el("h3", { id: "centre-csv-titre" }, "Matrice des notes en tableau (CSV)"),
     el("p", {}, "Une ligne par stagiaire en formation, une colonne par compétence et par thème : la dernière note, ramenée sur 20, et la moyenne de toutes les notes. Le fichier s'ouvre dans Excel."),
     el("p", { class: "centre-avertissement" }, "Le fichier contient des notes nominatives : il reste dans l'équipe pédagogique. Pour le transmettre au-delà, remplacez les noms par des numéros."),
     el("label", { class: "centre-case", for: "centre-csv-anon" }, caseAnon, "Remplacer les noms par des numéros"),
@@ -304,12 +305,12 @@ export async function renderCentre(container) {
     el("div", { class: "centre-actions" },
       el("button", { class: "btn small", type: "button", onClick: () => imprimer(racine) }, "Exporter en PDF"),
       el("button", { class: "btn small", type: "button", onClick: () => ouvrirExportCsv(promo, donnees) },
-        "Matrice des notes (CSV)"),
+        "Exporter les notes en tableau (CSV)"),
       // Page du seul fondateur (porte dans main.js) : le bouton n'est pas montré aux autres.
       fondateurHorsApercu() ? el("a", { class: "btn small centre-lien-qualiopi", href: "#/qualiopi" }, "Qualiopi") : null)));
 
   racine.appendChild(el("p", { class: "centre-legende" },
-    etiquette("mesuré"), " compté dans l'app · ", etiquette("estimé"), " hypothèse ou signal · Chaque chiffre a sa méthode."));
+    etiquette("mesuré"), " compté dans l'app · ", etiquette("estimé"), " hypothèse ou repère · Chaque chiffre a sa méthode."));
 
   racine.appendChild(el("section", { class: "centre-section" },
     el("h3", {}, "Assiduité et abandons"),

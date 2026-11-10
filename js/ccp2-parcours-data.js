@@ -51,8 +51,8 @@ export const ETAPES = [
       "Ton épreuve repose sur une action réelle, que tu as menée en autonomie pendant une "
         + "période en entreprise.",
       "Le CCP2 demande au moins 140 heures de période en entreprise : le jury vérifie que ton "
-        + "dossier contient l'attestation.",
-      "Ton dossier doit permettre d'identifier le commanditaire, son activité et la date de sa "
+        + "dossier écrit contient l'attestation.",
+      "Ton dossier écrit doit permettre d'identifier le commanditaire, son activité et la date de sa "
         + "demande.",
     ],
     conseils: [
@@ -105,7 +105,7 @@ export const ETAPES = [
         + "tuteur.",
     ],
     aGarder: [
-      "La demande telle que le commanditaire l'a formulée, avec ses mots : ton dossier commence "
+      "La demande telle que le commanditaire l'a formulée, avec ses mots : ton dossier écrit commence "
         + "par sa transcription.",
       "Le cahier des charges validé et les critères d'évaluation convenus.",
     ],
@@ -143,7 +143,7 @@ export const ETAPES = [
     ],
     aGarder: [
       "Le scénario daté, tes supports et l'outil d'évaluation : ils iront en annexe de ton "
-        + "dossier.",
+        + "dossier écrit.",
     ],
     liens: [
       { label: "Les cours des 57 thèmes, pour vérifier une règle ou un chiffre",
@@ -214,7 +214,7 @@ export const ETAPES = [
     ],
     aGarder: [
       "Ton bilan écrit, avec tes points forts, tes points faibles et tes axes d'amélioration : "
-        + "c'est une partie exigée du dossier.",
+        + "c'est une partie exigée du dossier écrit.",
       "La liste de tes sources de veille et la façon dont tu les suis.",
     ],
     source: "REAC, compétence 11 : analyser ses pratiques professionnelles afin de les faire évoluer",
@@ -222,7 +222,7 @@ export const ETAPES = [
   {
     num: 6,
     cle: "dossier",
-    titre: "Rédiger le dossier",
+    titre: "Rédiger le dossier écrit",
     enBref: "Le document écrit sur lequel le jury te questionne pendant 30 minutes.",
     titreAttendus: "Ce qu'exige le référentiel",
     attendus: [
@@ -297,7 +297,7 @@ export const ETAPES = [
         + "jury.",
       "Entretien technique : 30 minutes, juste après, sur ta présentation.",
       "Questions sur ton dossier écrit : 30 minutes, juste après l'entretien.",
-      "Le jury vérifie que ton dossier contient l'attestation de période en entreprise. Il "
+      "Le jury vérifie que ton dossier écrit contient l'attestation de période en entreprise. Il "
         + "dispose aussi de ton dossier professionnel et des résultats de tes évaluations en "
         + "cours de formation.",
       "Pour obtenir le titre par les CCP, un entretien avec le jury, au vu de ton livret de "

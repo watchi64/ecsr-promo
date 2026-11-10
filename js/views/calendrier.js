@@ -304,7 +304,7 @@ function rerender(container) {
   if (filtered.length === 0) {
     container.appendChild(el("div", { class: "agenda-empty" },
       el("p", {}, showPast ? "Aucun événement enregistré." : "Aucun événement à venir."),
-      admin ? el("p", { class: "muted" }, "Clique « Ajouter un événement » pour commencer.") : null,
+      admin ? el("p", { class: "muted" }, "Cliquez sur « Ajouter un événement » pour commencer.") : null,
     ));
     return;
   }

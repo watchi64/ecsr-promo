@@ -21,7 +21,7 @@ import { carteMarquage, marquageConnu } from "../marquage.js?v=20261110b";
 import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261110b";
 import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261110b";
 import { listCoursIndex, getCours } from "../db.js?v=20261110b";
-import { isAdmin, isProf, getViewAs } from "../auth-admin.js?v=20261110b";
+import { isAdmin, isProf, getViewAs, selonPublic } from "../auth-admin.js?v=20261110b";
 import { coursAUnTexte, MESSAGE_COURS_VIDE, titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours,
   coursVisibleEnApercu, classeTableau, etiquetteDeColonne }
   from "../cours-rules.js?v=20261110b";
@@ -586,7 +586,8 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
     // Fin de lecture : enchaîner sur le QCM du thème quand il est disponible.
     if (onQcm) {
       corps.appendChild(el("div", { class: "cours-qcm-cta" },
-        el("p", { class: "cours-qcm-cta-texte" }, "Cours terminé ? Vérifie que c'est acquis."),
+        el("p", { class: "cours-qcm-cta-texte" },
+          selonPublic("Cours terminé ? Vérifie que c'est acquis.", "Cours terminé ? Vérifiez que c'est acquis.")),
         el("button", { class: "btn primary", type: "button",
           onClick: () => { close(); onQcm(); } },
           "S'entraîner : QCM du thème"),

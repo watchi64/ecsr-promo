@@ -6,7 +6,7 @@
 // l'ancienne barre portait à côté : les Nouveautés (avec le nombre des non-lues, que le bouton du
 // compte ne montre plus que par un point), les Contacts du centre (l'ancien onglet Ressources, qui est
 // maintenant Cours et QCM, Documents), Mes préférences (celles de la personne, pour tous les rôles :
-// les Réglages de la promo sont une entrée de la barre de l'équipe) et « Actualiser », le même geste que
+// les Réglages de la promo sont une entrée de la barre de l'équipe) et « Recharger les données », le même geste que
 // le bouton de l'ancienne barre (seul moyen de relire les données dans l'app installée sur iPhone).
 // Juste sous la tête du menu (lot 3) : Apparence, le choix de l'habillage (js/habillage-choix.js) ; une pastille
 // touchée change les couleurs sans fermer le menu.
@@ -44,8 +44,8 @@ function lignePageASoi(page) {
   return null;
 }
 
-// « Signaler un problème », dans l'espace stagiaire (l'équipe l'a en pied de barre) : la fenêtre de
-// signalement remplace le menu, et le focus reviendra au bouton du compte. Pastille et nom comme dans la
+// « Signaler un problème », dans l'espace stagiaire (l'équipe l'a en pied de barre) : la fenêtre
+// « Signaler un problème » remplace le menu, et le focus reviendra au bouton du compte. Pastille et nom comme dans la
 // coquille (pastilleSignalement).
 function ligneSignaler(ancre) {
   const { texte, nom } = pastilleSignalement({ fondateur: fondateurHorsApercu(), ...etatSignalements() });
@@ -55,7 +55,7 @@ function ligneSignaler(ancre) {
   }, icon.signaler(), "Signaler un problème", texte ? el("span", { class: "nav-pastille", "aria-hidden": "true" }, texte) : null);
 }
 
-// `actualiser` : le geste « Actualiser » de l'app (main.js) ; sans lui, pas de ligne. `entrees` : les
+// `actualiser` : le geste « Recharger les données » de l'app (main.js) ; sans lui, pas de ligne. `entrees` : les
 // entrées de la barre affichée, qui décident de la ligne de la page à soi. `espace` : celui de la coquille
 // (« stagiaire » ou « equipe »), qui décide de la ligne « Signaler un problème ».
 export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = null } = {}) {
@@ -86,7 +86,7 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
       // menu ouvre ceux de la personne.
       ligne("a", { href: "#/preferences" }, icon.settings(), "Mes préférences"),
       actualiser
-        ? ligne("button", { type: "button", onClick: () => { fermerFenetre(); actualiser(); } }, icon.refresh(), "Actualiser")
+        ? ligne("button", { type: "button", onClick: () => { fermerFenetre(); actualiser(); } }, icon.refresh(), "Recharger les données")
         : null,
       // Un compte qui a plusieurs promos (stagiaire dans l'une, formateur dans l'autre) doit pouvoir passer de l'une à l'autre : la
       // barre du stagiaire n'a pas de pastille de promo, la ligne est ici. L'équipe a la sienne dans sa colonne.

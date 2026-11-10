@@ -357,11 +357,11 @@ function showListe(container) {
   clear(container);
   teardownLivretPrint();
   container.appendChild(el("p", { class: "lv-hint" },
-    "Livret officiel « Évaluations passées en cours de formation » (ministère du travail, TP-01303). ",
+    "Livret EPCF (évaluations passées en cours de formation), modèle officiel du ministère du Travail, TP-01303. ",
     "Un livret par stagiaire, imprimable à l'identique du document officiel."));
   const table = el("table", { class: "lv-liste-table" });
   table.appendChild(el("thead", {}, el("tr", {},
-    el("th", {}, "Stagiaire"), el("th", {}, "Livret"))));
+    el("th", {}, "Stagiaire"), el("th", {}, "Livret EPCF"))));
   const tbody = el("tbody");
   stagiaires.forEach((s) => {
     const row = livretsIndex.find((l) => l.stagiaire_id === s.id);
@@ -369,9 +369,9 @@ function showListe(container) {
     if (row) {
       // updated_at est un timestamptz ISO complet : parseDate (formats jour) ne
       // sait pas le lire, on passe par Date directement.
-      cell.appendChild(el("span", { class: "lv-statut ok" }, "rempli · màj " + formatDate(new Date(row.updated_at))));
+      cell.appendChild(el("span", { class: "lv-statut ok" }, "rempli, modifié le " + formatDate(new Date(row.updated_at))));
     } else {
-      cell.appendChild(el("span", { class: "lv-statut" }, "vierge"));
+      cell.appendChild(el("span", { class: "lv-statut" }, "pas commencé"));
     }
     cell.appendChild(el("button", {
       class: "btn small " + (row || !isAdmin() ? "ghost" : "primary"),
@@ -384,7 +384,7 @@ function showListe(container) {
         const naissance = await getDateNaissance(s.id).catch((e) => { console.error(e); return null; });
         showDoc(container, { ...s, date_naissance: naissance }, full, { readOnly: !isAdmin(), back: () => renderReload(container) });
       },
-    }, row || !isAdmin() ? "Ouvrir" : "Créer"));
+    }, row || !isAdmin() ? "Ouvrir ce livret" : "Commencer ce livret"));
     tbody.appendChild(el("tr", {},
       el("td", {}, el("div", { class: "lv-name-cell" }, el("span", {}, displayStagiaire(s)))),
       cell));
@@ -423,11 +423,11 @@ function showDoc(container, stagiaire, row, { readOnly, back, embedded, pourStag
   // Décision du 10/11 : le stagiaire consulte son livret, il n'y remplit rien ; la page dit qui le remplit.
   if (pourStagiaire) {
     container.appendChild(el("p", { class: "lv-hint" },
-      "Ton formateur évaluateur remplit ce livret. Tu le consultes ici, et tu peux l'imprimer."));
+      "Ton formateur évaluateur remplit ce livret EPCF. Tu le consultes ici, et tu peux l'imprimer."));
   }
   if (!readOnly) {
     container.appendChild(el("p", { class: "lv-hint" },
-      "Clique dans les zones en pointillés pour remplir, sur les cases pour cocher. Enregistrement automatique."));
+      "Cliquez dans les zones en pointillés pour remplir, sur les cases pour cocher. Enregistrement automatique."));
   }
 
   // --- Document ---
@@ -483,7 +483,7 @@ function showDoc(container, stagiaire, row, { readOnly, back, embedded, pourStag
         data: collectData(doc),
         updated_by_who: getCurrentWho(),
       });
-      // La fiche et la page Stagiaires mettent leur état « Livret » à jour.
+      // La fiche et la page Stagiaires mettent leur état « Livret EPCF » à jour.
       document.dispatchEvent(new CustomEvent(EVT_DOCUMENT, { detail: {
         genre: "livret", stagiaireId, updatedAt: row?.updated_at || new Date().toISOString() } }));
       status.textContent = "Enregistré ✓";
@@ -492,7 +492,7 @@ function showDoc(container, stagiaire, row, { readOnly, back, embedded, pourStag
       console.error(e);
       status.textContent = "Non enregistré !";
       status.className = "lv-status error";
-      toast("Enregistrement du livret impossible : " + (e?.message || e), "error");
+      toast("Enregistrement du livret EPCF impossible : " + (e?.message || e), "error");
     } finally {
       saving = false;
       if (pendingAgain) { pendingAgain = false; saveNow(); }

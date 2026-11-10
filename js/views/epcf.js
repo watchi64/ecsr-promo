@@ -29,7 +29,8 @@ export async function renderEpcf(container, opts = {}) {
   clear(container);
   if (!opts.embedded) {
     container.appendChild(el("div", { class: "view-header" },
-      el("div", { class: "view-header-text" }, el("h2", {}, "EPCF"))));
+      el("div", { class: "view-header-text" }, el("h2", {}, "Évaluations EPCF"),
+        el("p", { class: "subtitle" }, "EPCF (évaluations passées en cours de formation), en salle et en véhicule."))));
   }
   const body = el("div", { class: "epcf-body" });
   container.appendChild(body);
@@ -216,8 +217,8 @@ function showForm(body, stagiaire, trameKey, existing, { profs, retour, apresEnr
   evalSel.addEventListener("change", () => { dirty = true; });
 
   const saveBtn = el("button", { class: "btn primary", type: "button", onClick: async () => {
-    if (Object.keys(scores).length === 0) { toast("Renseigne au moins un critère", "error"); return; }
-    if (!dateInput.value) { toast("Renseigne la date", "error"); return; }
+    if (Object.keys(scores).length === 0) { toast("Renseignez au moins un critère", "error"); return; }
+    if (!dateInput.value) { toast("Renseignez la date", "error"); return; }
     saveBtn.disabled = true;
     const prev = saveBtn.textContent;
     saveBtn.textContent = "Enregistrement…";

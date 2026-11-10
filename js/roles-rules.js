@@ -138,7 +138,9 @@ export function messageInvitation(message, code) {
 export function messageInvitationReussie({ resultat, email, v2 = true } = {}) {
   const r = resultat || {};
   if (r.cree !== false) {
-    return { texte: (v2 ? "Ajouté à la liste des invitations : " : "Ajouté à la whitelist : ") + email + ". Partage-lui l'URL.", ton: "success" };
+    // L'équipe est vouvoyée (décision du 10/11) ; la phrase de l'ancienne navigation reste celle de main.
+    return { texte: v2 ? "Ajouté à la liste des invitations : " + email + ". Partagez-lui l'URL."
+      : "Ajouté à la whitelist : " + email + ". Partage-lui l'URL.", ton: "success" };
   }
   if (Number(r.affecte) > 0) {
     const quoi = r.role === "direction" ? "ajouté à la direction du centre"
@@ -187,11 +189,12 @@ export function libelleConnexion({ profil, promo, apercu } = {}) {
 }
 
 // Phrase du refus à la porte, quand le compte n'a aucune promo : selon ses affectations (liste de rôles lue en base, vide
-// ou absente si la lecture a échoué), le siège et la direction ne sont pas renvoyés vers « un formateur ».
-export const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à ta direction ou à un formateur de t'ajouter.";
+// ou absente si la lecture a échoué), le siège et la direction ne sont pas renvoyés vers « un formateur ». Refus à la porte :
+// formule neutre, ni tu ni vous (décision du 10/11).
+export const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ce compte : la direction du centre ou un formateur peut l'ajouter à une promo.";
 export function messageSansPromo(roles) {
   const r = Array.isArray(roles) ? roles : [];
-  if (r.includes("siege")) return "Ton compte est rattaché au siège du réseau. Son espace n'est pas encore ouvert : il arrive bientôt.";
-  if (r.includes("direction")) return "Ton centre n'a pas encore de promo. L'espace de la direction, qui permettra d'en créer une, arrive bientôt.";
+  if (r.includes("siege")) return "Ce compte est rattaché au siège du réseau. Son espace n'est pas encore ouvert : il arrive bientôt.";
+  if (r.includes("direction")) return "Le centre de ce compte n'a pas encore de promo. L'espace de la direction, qui permettra d'en créer une, arrive bientôt.";
   return MESSAGE_SANS_PROMO;
 }

@@ -11,6 +11,9 @@ import { icon } from "./icons.js?v=20261110b";
 import { corpsRequete, extraireEvenements } from "./chatbot-rules.js?v=20261110b";
 import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261110b";
 import { navigationV2Active } from "./nav-etat.js?v=20261110b";
+// Panneau ouvert à tous : le stagiaire est tutoyé, l'équipe vouvoyée (décision du 10/11). Les textes du panneau, posés une
+// fois à l'initialisation, sont neutres ; les messages de l'échange, écrits au moment où ils s'affichent, passent par selonPublic.
+import { selonPublic } from "./auth-admin.js?v=20261110b";
 
 const CLE_HISTO = "chatbot_histo";
 let histo = [];
@@ -115,7 +118,11 @@ async function envoyerQuestion(question, msgs) {
   try {
     const { data } = await supabase.auth.getSession();
     const session = data?.session;
-    if (!session) { bulleBot.textContent = "Reconnecte-toi pour utiliser l'assistant."; messageFige = true; return; }
+    if (!session) {
+      bulleBot.textContent = selonPublic("Reconnecte-toi pour utiliser l'assistant.", "Reconnectez-vous pour utiliser l'assistant.");
+      messageFige = true;
+      return;
+    }
 
     const resp = await fetch(`${SUPABASE_URL}/functions/v1/chatbot`, {
       method: "POST",
@@ -129,12 +136,13 @@ async function envoyerQuestion(question, msgs) {
 
     if (resp.status === 429) {
       const j = await resp.json().catch(() => ({}));
-      bulleBot.textContent = j.message || "Quota du jour atteint, reviens demain.";
+      bulleBot.textContent = j.message || selonPublic("Quota du jour atteint, reviens demain.", "Quota du jour atteint, revenez demain.");
       messageFige = true;
       return;
     }
     if (!resp.ok) {
-      bulleBot.textContent = "L'assistant est indisponible pour le moment, réessaie un peu plus tard.";
+      bulleBot.textContent = selonPublic("L'assistant est indisponible pour le moment, réessaie un peu plus tard.",
+        "L'assistant est indisponible pour le moment, réessayez un peu plus tard.");
       messageFige = true;
       return;
     }
@@ -164,7 +172,7 @@ async function envoyerQuestion(question, msgs) {
     }
   } catch (e) {
     console.error("chatbot:", e);
-    if (!texte) { bulleBot.textContent = "Connexion interrompue, réessaie."; messageFige = true; }
+    if (!texte) { bulleBot.textContent = selonPublic("Connexion interrompue, réessaie.", "Connexion interrompue, réessayez."); messageFige = true; }
   } finally {
     enCours = false;
     if (texte) {
@@ -173,7 +181,7 @@ async function envoyerQuestion(question, msgs) {
       await rendreEnMarkdown(bulleBot, texte);
     } else if (!messageFige) {
       // Couvre aussi un flux coupe apres un statut outil ("Recherche...")
-      bulleBot.textContent = "Pas de réponse, réessaie.";
+      bulleBot.textContent = selonPublic("Pas de réponse, réessaie.", "Pas de réponse, réessayez.");
     }
     msgs.scrollTop = msgs.scrollHeight;
   }
@@ -201,12 +209,12 @@ export function initChatbot() {
       <p class="chatbot-titre">Assistant <span class="chatbot-beta">bêta</span></p>
       <button type="button" class="ghost-btn chatbot-close" aria-label="Fermer l'assistant">&times;</button>
     </div>
-    <p class="chatbot-disclaimer">Version bêta : l'assistant peut se tromper, vérifie les points importants dans les cours. La qualité des réponses va s'améliorer.</p>
+    <p class="chatbot-disclaimer">Version bêta : l'assistant peut se tromper, les points importants sont à vérifier dans les cours. La qualité des réponses va s'améliorer.</p>
     <p class="chatbot-signaler">Un souci avec l'app ? <button type="button" class="chatbot-signaler-btn" data-sg-entree="assistant" aria-haspopup="dialog">Signaler un problème</button></p>
     <div class="chatbot-msgs"></div>
     <form class="chatbot-form">
-      <textarea rows="1" placeholder="Pose ta question…" maxlength="2000"
-        aria-label="Ta question à l'assistant"></textarea>
+      <textarea rows="1" placeholder="Écrire une question…" maxlength="2000"
+        aria-label="Question à l'assistant"></textarea>
       <button type="submit" class="btn primary" aria-label="Envoyer">Envoyer</button>
     </form>`;
   app.appendChild(panneau);
@@ -222,7 +230,7 @@ export function initChatbot() {
     }
   } else {
     ajouterBulle(msgs, "assistant",
-      "Salut ! Je peux t'expliquer l'app, t'aider à réviser les 57 thèmes et vérifier la réglementation sur Légifrance. Qu'est-ce qu'il te faut ?");
+      "Bonjour ! Je suis là pour expliquer l'app, aider à réviser les 57 thèmes et vérifier la réglementation sur Légifrance. Une question ?");
   }
 
   // Auto-focus seulement au pointeur precis (souris/trackpad) : sur ecran

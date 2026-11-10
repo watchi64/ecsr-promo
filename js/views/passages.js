@@ -4,7 +4,7 @@ import { confirmer } from "../confirmer.js?v=20261110b";
 import { icon } from "../icons.js?v=20261110b";
 import { recordUndo } from "../undo.js?v=20261110b";
 import { TYPES, RESULTATS } from "../config.js?v=20261110b";
-import { isAdmin, monStagiaireId } from "../auth-admin.js?v=20261110b";
+import { isAdmin, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261110b";
 import { getCurrentWho } from "../identity.js?v=20261110b";
 import { navigationV2Active } from "../nav-etat.js?v=20261110b";
 
@@ -131,7 +131,8 @@ function renderTable(container) {
     return el("div", { style: "padding:3rem 1rem;text-align:center;color:var(--text-muted)" },
       el("p", {}, "Aucun passage à afficher."),
       el("p", { class: "faint", style: "font-size:0.85rem" }, isAdmin() || monStagiaireId() != null
-        ? "Modifie les filtres ou ajoute un passage." : "Modifie les filtres.")
+        ? selonPublic("Modifie les filtres ou ajoute un passage.", "Modifiez les filtres ou ajoutez un passage.")
+        : selonPublic("Modifie les filtres.", "Modifiez les filtres."))
     );
   }
 
@@ -181,7 +182,7 @@ function renderTable(container) {
 
     const tr = el("tr", {},
       el("td", { class: "date" }, formatDate(p.date)),
-      el("td", { class: "liste-titre" }, p.stagiaire ? displayStagiaire(p.stagiaire) : "?"),
+      el("td", { class: "liste-titre" }, p.stagiaire ? displayStagiaire(p.stagiaire) : "Stagiaire inconnu"),
       el("td", {}, el("span", { class: "tag " + (p.type === "Salle" ? "salle" : "voiture") }, p.type)),
       el("td", {}, resultTag(p.resultat)),
       el("td", { class: "muted" }, p.remplacant ? displayStagiaire(p.remplacant) : "-"),
@@ -236,7 +237,7 @@ async function openAuditModal() {
       if (data) {
         const stagId = data.stagiaire_id;
         const stag = stagiaires.find((s) => s.id === stagId);
-        const stagName = stag ? displayStagiaire(stag) : `#${stagId}`;
+        const stagName = stag ? displayStagiaire(stag) : "Stagiaire inconnu";
         summary = `${stagName} · ${data.type} · ${data.resultat}`;
       }
 
@@ -300,11 +301,12 @@ function rerender(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, passages.length + " entrées au total"),
       el("h2", {}, "Historique des passages"),
-      // Nouvelle navigation : « formateurs », le mot de l'app (un stagiaire lit cette page dans Planning > Priorités).
+      // Nouvelle navigation : « formateurs », le mot de l'app (un stagiaire lit cette page dans Planning > Ordre de passage).
+      // « passages » se définit à sa première apparition visible de l'écran (lot D du 10/11).
       el("p", { class: "subtitle" }, peutAjouter
-        ? "Tous les passages. Ajout ouvert à tous, suppression réservée aux "
+        ? "Tous les passages (au tableau et en voiture). Ajout ouvert à tous, suppression réservée aux "
           + (navigationV2Active() ? "formateurs" : "admins") + ". Chaque action est tracée."
-        : "Tous les passages de la promo, en lecture. Chaque action est tracée."),
+        : "Tous les passages (au tableau et en voiture) de la promo, en lecture. Chaque action est tracée."),
     ),
     el("div", { style: "display:flex;gap:0.5rem;flex-wrap:wrap" }, histBtn, peutAjouter ? addBtn : null),
   ));

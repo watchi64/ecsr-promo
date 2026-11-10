@@ -4,11 +4,11 @@
 // certificat de réalisation et son attestation d'assiduité, ou ceux de toute la promo.
 
 import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261110b";
-import { el, clear, toast, isoDate } from "../utils.js?v=20261110b";
+import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261110b";
 import { isAdmin } from "../auth-admin.js?v=20261110b";
 import { navigationV2Active } from "../nav-etat.js?v=20261110b";
 import { libelleDuree, jourDe } from "../emargement-rules.js?v=20261110b";
-import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261110b";
+import { imprimer } from "../emargement-feuilles.js?v=20261110b";
 import {
   bilanStagiaire, stagiairesDeLaPeriode, feuillesOuvertes, demiJourneesSansFeuille, periodeParDefaut,
   moisDeLaPeriode, seancesDeLaPromo, dateFr, datePeriodeValide, estAdresseAttestations,
@@ -162,7 +162,8 @@ function dessinerCorps(ctx) {
       onClick: () => imprimerPieces(ctx, [ligne], certificat) }, "Certificat");
     ul.appendChild(el("li", { class: "em-ligne at-ligne" },
       el("div", { class: "em-ligne-corps" },
-        el("span", { class: "em-ligne-nom" }, nomComplet(s), s.actif ? null : el("span", { class: "at-parti" }, "ne suit plus la formation")),
+        // À l'écran, « Lucie M. » comme partout (décision du 10/11) ; le certificat et l'attestation imprimés gardent le nom complet.
+        el("span", { class: "em-ligne-nom" }, displayStagiaire(s), s.actif ? null : el("span", { class: "at-parti" }, "ne suit plus la formation")),
         el("span", { class: "em-ligne-etat" },
           b.demiSignees ? `Du ${dateFr(b.premierSigne)} au ${dateFr(b.dernierSigne)}` : "Aucune demi-journée signée")),
       el("div", { class: "at-chiffres" },

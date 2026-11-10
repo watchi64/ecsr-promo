@@ -60,8 +60,8 @@ export function resumeEffacement(details) {
   const parts = [];
   if (Number(d.comptes) > 0) parts.push("compte de connexion");
   if (Number(d.date_naissance) > 0) parts.push("date de naissance");
-  if (Number(d.livret) > 0) parts.push("livret");
-  if (Number(d.dossier_pro) > 0) parts.push("dossier pro");
+  if (Number(d.livret) > 0) parts.push("livret EPCF");
+  if (Number(d.dossier_pro) > 0) parts.push("dossier professionnel");
   if (Number(d.fiche_suivi) > 0) parts.push("fiche de suivi");
   const n = Number(d.epcf_textes || 0) + Number(d.observations || 0) + Number(d.commentaires_passages || 0);
   if (n > 0) parts.push(n + " commentaire" + (n > 1 ? "s" : ""));

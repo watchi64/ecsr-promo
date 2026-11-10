@@ -60,7 +60,7 @@ function ouvrirChoix() {
   if (document.querySelector(".promo-choix-modal")) return;  // déjà ouvert (clavier)
 
   const backdrop = el("div", { class: "modal-backdrop" });
-  const aide = el("p", { class: "muted", role: "status" }, "Ton choix est mémorisé sur cet appareil.");
+  const aide = el("p", { class: "muted", role: "status" }, "Choix mémorisé sur cet appareil.");
   const liste = el("div", { class: "promo-choix-liste", role: "radiogroup", "aria-label": "Promo affichée" });
 
   // Fermer rend le focus à la pastille, cherchée à ce moment-là : updateBadge() a pu la

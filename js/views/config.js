@@ -32,6 +32,7 @@ import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from
 import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261110b";
 import { blocHabillage } from "../habillage-choix.js?v=20261110b";
 import { habillageCourant } from "../habillage.js?v=20261110b";
+import { nomBenevole } from "../planning-lecture.js?v=20261110b";
 
 // ====== SECTION Accès & invitations ======
 
@@ -69,7 +70,7 @@ async function renderAccessSection(rerender) {
     const inviteBlock = el("div", { class: "param-block" });
     inviteBlock.appendChild(el("h4", {}, "Autoriser une personne"));
     inviteBlock.appendChild(el("p", { class: "muted" }, v2
-      ? "Choisis le rôle et la personne, entre son adresse e-mail. Aucun e-mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec cette adresse et un mot de passe."
+      ? "Choisissez le rôle et la personne, entrez son adresse e-mail. Aucun e-mail n'est envoyé : vous lui partagez l'URL vous-même, puis elle crée son compte avec cette adresse et un mot de passe."
       : "Choisis le rôle et la personne, entre son email. Aucun mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec son email + un mdp."));
 
     const roleSel = el("select", { class: "invite-role", "aria-label": "Rôle de la personne invitée" });
@@ -91,7 +92,8 @@ async function renderAccessSection(rerender) {
         .map((p) => role === "stagiaire" ? p.stagiaire_id : p.prof_id));
       list.forEach((it) => {
         const isTaken = taken.has(it.id);
-        const baseLabel = it.prenom ? (it.nom ? `${it.nom} ${it.prenom}` : it.prenom) : it.nom;
+        // Stagiaire : « Lucie M. », le format de tous les écrans (décision du 10/11) ; formateur : son nom tel que saisi.
+        const baseLabel = it.prenom ? displayStagiaire(it) : it.nom;
         const label = baseLabel + (isTaken ? " (déjà invité)" : "");
         const opt = el("option", { value: String(it.id) }, label);
         if (isTaken) opt.disabled = true;
@@ -116,8 +118,8 @@ async function renderAccessSection(rerender) {
       const email = emailInput.value.trim().toLowerCase();
       const role = roleSel.value;
       const personId = personSel.value ? Number(personSel.value) : null;
-      if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("Email invalide", "error"); return; }
-      if (!personId) { toast("Choisis la personne à lier", "error"); return; }
+      if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("E-mail invalide", "error"); return; }
+      if (!personId) { toast("Choisissez la personne à lier", "error"); return; }
 
       const restoreBtn = () => {
         sendBtn.disabled = false;
@@ -137,7 +139,7 @@ async function renderAccessSection(rerender) {
         // Timeout de 15s pour éviter le hang infini
         const resultat = await Promise.race([
           invitePromise,
-          new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15 s). Réseau lent : réessaie dans un instant.")), 15000)),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15 s). Réseau lent : réessayez dans un instant.")), 15000)),
         ]);
         // Profil créé, compte existant qui gagne la promo, ou rien de changé (roles-rules.js, messageInvitationReussie).
         const { texte, ton } = messageInvitationReussie({ resultat, email, v2 });
@@ -167,7 +169,7 @@ async function renderAccessSection(rerender) {
         el("label", {}, "Personne"), personSel,
       ),
       el("div", { class: "invite-row" },
-        el("label", {}, "Email"), emailInput,
+        el("label", {}, "E-mail"), emailInput,
         sendBtn,
       ),
     ));
@@ -178,7 +180,7 @@ async function renderAccessSection(rerender) {
   const listBlock = el("div", { class: "param-block" });
   listBlock.appendChild(el("h4", {}, `Personnes avec accès (${profiles.length})`));
   if (profiles.length === 0) {
-    listBlock.appendChild(el("p", { class: "muted" }, "Personne pour l'instant. Invite quelqu'un ci-dessus."));
+    listBlock.appendChild(el("p", { class: "muted" }, "Personne pour l'instant. Invitez quelqu'un ci-dessus."));
   } else {
     const list = el("ul", { class: "admin-list" });
     profiles
@@ -264,7 +266,7 @@ function renderMyPreferencesSection(rerender) {
   const noLock = !!(profile.is_admin || profile.is_founder);
   block.appendChild(el("p", { class: "muted" },
     noLock
-      ? (navigationV2Active() ? "Tu peux changer ce réglage librement, sans verrou." : "Ton profil admin change librement, sans verrou.")
+      ? (navigationV2Active() ? "Réglage modifiable librement, sans verrou." : "Ton profil admin change librement, sans verrou.")
       : "Après un changement, tu as 2 minutes pour annuler ; ensuite le réglage est verrouillé pendant 24 h."));
 
   const checkbox = el("input", { type: "checkbox", id: "pref-anon" });
@@ -354,7 +356,7 @@ async function renderPromoSection(rerender) {
       el("p", { class: "muted" }, admin
         ? "Gérer la liste des stagiaires et formateurs."
         : (navigationV2Active()
-          ? "Liste des stagiaires et formateurs. Tu ne peux pas la modifier."
+          ? "Liste des stagiaires et formateurs. Vous ne pouvez pas la modifier."
           : "Liste des stagiaires et formateurs. Édition admin only.")),
     ),
   ));
@@ -455,10 +457,10 @@ async function renderPromoSection(rerender) {
           class: "btn small ghost abandon-btn",
           title: "Marquer en abandon : masqué partout (planning, dés, notes), données conservées",
           onClick: async () => {
-            if (!confirm(`Marquer ${it.prenom} en abandon ?\n\nIl/elle disparaît du planning, des dés et des notes. Les données restent conservées et réactivables.`)) return;
+            if (!confirm(`Marquer ${displayStagiaire(it)} en abandon ?\n\nIl/elle disparaît du planning, des dés et des notes. Les données restent conservées et réactivables.`)) return;
             try {
               await setStagiaireActif(it.id, false);
-              toast(`${it.prenom} marqué(e) en abandon`, "success");
+              toast(`${displayStagiaire(it)} marqué(e) en abandon`, "success");
               rerender();
             } catch (e) { toast(e.message, "error"); }
           }
@@ -510,7 +512,7 @@ async function renderPromoSection(rerender) {
         if (!v) {
           // Seul le nom de famille est rempli : on le dit et on renvoie sur le prénom, plutôt que de ne rien faire.
           if (addNom && addNom.value.trim()) {
-            toast("Renseigne d'abord le prénom.", "error");
+            toast("Renseignez d'abord le prénom.", "error");
             addInput.focus();
           }
           return;
@@ -567,7 +569,7 @@ async function renderPromoSection(rerender) {
         onClick: async () => {
           try {
             await setStagiaireActif(it.id, true);
-            toast(`${it.prenom} réactivé(e)`, "success");
+            toast(`${displayStagiaire(it)} réactivé(e)`, "success");
             rerender();
           } catch (e) { toast(e.message, "error"); }
         }
@@ -576,11 +578,12 @@ async function renderPromoSection(rerender) {
         class: "btn small danger",
         title: "Effacer ses données personnelles (irréversible)",
         onClick: async () => {
-          const saisie = prompt(`Effacer les données de ${it.prenom} ?\n\n`
-            + "Supprimés : compte de connexion, e-mail, date de naissance, livret, dossier pro, fiche de suivi, commentaires.\n"
-            + "Conservés sans nom : notes, QCM, passages, scores EPCF.\n"
+          // La saisie de confirmation reste le prénom seul : elle lui est comparée (confirmationValide).
+          const saisie = prompt(`Effacer les données de ${displayStagiaire(it)} ?\n\n`
+            + "Supprimés : compte de connexion, e-mail, date de naissance, livret EPCF, dossier professionnel, fiche de suivi, commentaires.\n"
+            + "Conservés sans nom : notes, QCM, passages, évaluations EPCF.\n"
             + "Irréversible.\n\n"
-            + `Pour confirmer, tape le prénom : ${it.prenom}`);
+            + `Pour confirmer, tapez le prénom : ${it.prenom}`);
           if (saisie === null) return;
           if (!confirmationValide(saisie, it.prenom)) { toast("Prénom différent : rien n'a été effacé.", "error"); return; }
           try {
@@ -591,7 +594,7 @@ async function renderPromoSection(rerender) {
         }
       }, "Effacer les données");
       list.appendChild(el("li", { class: "abandon-row" },
-        el("span", { class: "abandon-name" }, it.prenom),
+        el("span", { class: "abandon-name" }, displayStagiaire(it)),
         reactiverBtn, delBtn,
       ));
     });
@@ -648,8 +651,8 @@ async function renderDonneesSection(rerender) {
         const bouton = e.currentTarget;
         const nom = etat.nom || "cette promo";
         const saisie = prompt(`Anonymiser toutes les fiches de « ${nom} » ?\n\n`
-          + "Comptes, e-mails, dates de naissance, livrets, dossiers et commentaires sont effacés ; "
-          + "les résultats restent sans nom. Irréversible.\n\nPour confirmer, tape : ANONYMISER");
+          + "Comptes, e-mails, dates de naissance, livrets EPCF, dossiers professionnels et commentaires sont effacés ; "
+          + "les résultats restent sans nom. Irréversible.\n\nPour confirmer, tapez : ANONYMISER");
         if (saisie === null) return;
         if (saisie.trim() !== "ANONYMISER") { toast("Saisie différente : rien n'a été effacé.", "error"); return; }
         bouton.disabled = true;
@@ -677,7 +680,7 @@ async function renderDonneesSection(rerender) {
   } else {
     const liste = el("ul", { class: "config-list donnees-liste" });
     benevoles.forEach((b) => liste.appendChild(el("li", {},
-      el("span", {}, b.display),
+      el("span", {}, nomBenevole(b.display)),
       el("span", { class: "muted" }, b.derniere_venue ? "dernière venue le " + dateCourte(b.derniere_venue) : "jamais venu"),
     )));
     blocBnv.appendChild(liste);
@@ -709,7 +712,7 @@ function renderApparenceSection() {
       el("div", { class: "param-icon" }, icon.palette()),
       el("div", {},
         titre,
-        el("p", { class: "muted" }, "Les couleurs de l'app, à ton choix."),
+        el("p", { class: "muted" }, "Les couleurs de l'app, au choix."),
       ),
     ),
     el("div", { class: "param-block" }, blocHabillage({ titre })),
@@ -866,7 +869,7 @@ export function renderPreferences(container) {
       el("h2", {}, "Mes préférences"),
       // Apparence est toujours là : la page a toujours un réglage à soi, quel que soit le rôle. « Réglages » est le nom de
       // la page de l'équipe : il n'est pas repris ici.
-      el("p", { class: "subtitle" }, "Ce qui ne concerne que toi, et les informations sur l'application."),
+      el("p", { class: "subtitle" }, "Les réglages personnels et les informations sur l'application."),
     ),
   ));
   const grid = el("div", { class: "param-grid" });

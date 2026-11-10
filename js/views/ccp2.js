@@ -1,6 +1,8 @@
 // Onglet CCP2 (chantier D) : parcours guidé du certificat « Sensibiliser
 // l'ensemble des usagers de la route ». Texte dans js/ccp2-parcours-data.js,
 // dates tirées du Calendrier de la promo. Lecture seule : aucun contrôle d'édition.
+// C'est le guide du candidat : il tutoie, y compris quand l'équipe l'ouvre (décision du 10/11) ; une phrase en tête
+// le dit à l'équipe, et à elle seule.
 import { el, clear, formatDate, isoDate } from "../utils.js?v=20261110b";
 import { listAgendaEvents } from "../db.js?v=20261110b";
 import { routeVisible, moduleVisible } from "../modules-etat.js?v=20261110b";
@@ -10,6 +12,7 @@ import { datesCcp2, insecables } from "../ccp-rules.js?v=20261110b";
 import { EPREUVE, ETAPES } from "../ccp2-parcours-data.js?v=20261110b";
 import { navigationV2Active } from "../nav-etat.js?v=20261110b";
 import { icon } from "../icons.js?v=20261110b";
+import { selonPublic } from "../auth-admin.js?v=20261110b";
 
 // Dernière étape ouverte, rouverte au retour sur l'onglet.
 const CLE_ETAPE = "ecsr_ccp2_etape";
@@ -123,7 +126,7 @@ function carteEtape(etape, ouverte, v2) {
     el("div", { class: "ccp2-etape-corps" },
       rubrique(etape.titreAttendus || "Ce que le jury regarde", etape.attendus),
       rubrique("Comment t'y prendre", etape.conseils),
-      rubrique("À garder pour ton dossier", etape.aGarder),
+      rubrique("À garder pour ton dossier écrit", etape.aGarder),
       liens ? el("section", { class: "ccp2-rubrique" }, el("h4", {}, "Utile"), liens) : null,
       el("p", { class: "ccp2-source" }, "Source : " + etape.source),
     ),
@@ -137,13 +140,16 @@ function carteEtape(etape, ouverte, v2) {
 
 export async function renderCcp2(container) {
   clear(container);
+  const pourEquipe = selonPublic(null, "Le guide tel que le lisent les stagiaires.");
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Titre professionnel ECSR"),
       el("h2", {}, "CCP2"),
       el("p", { class: "subtitle" }, insecables(
-        `Sensibiliser les usagers de la route : ton parcours en ${ETAPES.length} étapes, `
-        + "du commanditaire au jour de l'épreuve.")),
+        "CCP2 (certificat de compétences professionnelles n° 2) : sensibiliser les usagers de la route. "
+        + `Ton parcours en ${ETAPES.length} étapes, du commanditaire au jour de l'épreuve.`)),
+      // L'équipe lit le guide tel quel (au tutoiement) : une phrase le lui dit, une fois ; rien pour un stagiaire.
+      pourEquipe ? el("p", { class: "muted ccp2-pour-equipe" }, pourEquipe) : null,
     ),
   ));
   // Nouvelle navigation : tes dates, les étapes, puis l'épreuve repliée en bas. Ancienne : l'épreuve

@@ -22,6 +22,12 @@
 //
 // Public : la promo, des adultes en reconversion. Pas de vocabulaire technique,
 // pas de numéro de version, pas de nom de fichier.
+//
+// Ton (décision du 10/11) : `pour: "stagiaires"` tutoie ; `pour: "formateurs"` vouvoie ;
+// `pour: "tous"` reste neutre, ni tu ni vous (étapes à l'infinitif, « Ouvrir le menu du
+// compte », descriptions impersonnelles, « Chaque stagiaire peut… »). Les entrées
+// `navigation: "ancienne"` et les `guide` doublés d'un `guideNouvelle` ne se lisent qu'avec
+// l'ancienne barre : ils restent tels quels.
 
 export const NOUVEAUTES = [
   {
@@ -30,10 +36,10 @@ export const NOUVEAUTES = [
     id: "2026-11-09-questionnaires-anonymes",
     date: "2026-11-09",
     pour: "tous",
-    titre: "Ton avis sur la formation, sans ton nom",
+    titre: "Un avis sur la formation, sans nom",
     resume: "À la fin de la formation, un court questionnaire s'affiche en haut de l'Accueil : "
-          + "quelques questions sur la formation elle-même, à noter de 1 à 4, avec « Sans avis » quand tu ne sais "
-          + "pas. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date ; dans l'application, personne "
+          + "quelques questions sur la formation elle-même, à noter de 1 à 4, avec « Sans avis » en cas "
+          + "de doute. La réponse est enregistrée sans nom, sans compte et sans date ; dans l'application, personne "
           + "ne peut voir qui a répondu quoi, et les résultats n'apparaissent qu'à partir de 5 réponses. "
           + "« Plus tard » le fait revenir le lendemain. Les formateurs ont leur propre questionnaire, et quelques "
           + "questions reviendront six mois après la fin de la formation.",
@@ -49,7 +55,7 @@ export const NOUVEAUTES = [
     titre: "Ta journée sur l'Accueil",
     resume: "L'Accueil s'ouvre maintenant sur ta journée : ce que tu fais le matin et l'après-midi, avec qui, et le "
           + "bouton pour signer l'émargement. Juste dessous, « À faire » rassemble ce qui t'attend, puis vient ton "
-          + "prochain rendez-vous. Le Planning montre la semaine en grille, tes QCM ont leur sous-onglet dans Cours "
+          + "prochain rendez-vous. Le Planning montre la semaine en grille, tes QCM ont leur onglet dans Cours "
           + "et QCM, et Mon suivi réunit tes notes et celles de la classe dans une seule partie, Résultats.",
     ou: { label: "Accueil", route: "home" },
     guide: [
@@ -60,7 +66,7 @@ export const NOUVEAUTES = [
         + "encore fait, ton dossier professionnel. Touche une ligne pour y aller.",
       "Dans Planning, Semaine, la grille montre les cinq jours, aujourd'hui repéré. Sur téléphone, touche un jour dans "
         + "la bande du haut. « Liste » remet l'affichage d'avant, et l'app retient ton choix.",
-      "Dans Cours et QCM, sous-onglet QCM : chaque QCM avec la note de ton dernier entraînement. « Ouvrir » affiche sa "
+      "Dans Cours et QCM, onglet QCM : chaque QCM avec la note de ton dernier entraînement. « Voir le QCM » affiche sa "
         + "fiche : S'entraîner, Revoir mes erreurs et, quand un formateur l'a ouvert, Passer l'examen.",
       "Dans Mon suivi, partie Résultats : « Moi » montre l'évolution de tes notes, « La classe » le tableau de la classe. "
         + "Sur téléphone, le sommaire dit où tu en es dans chaque partie.",
@@ -72,21 +78,21 @@ export const NOUVEAUTES = [
     pour: "formateurs",
     navigation: "nouvelle",
     titre: "Aujourd'hui remplace l'Accueil",
-    resume: "Ta première page s'appelle maintenant Aujourd'hui et montre la journée de la promo : la feuille "
+    resume: "Votre première page s'appelle maintenant Aujourd'hui et montre la journée de la promo : la feuille "
           + "d'émargement du jour, qui passe au tableau, qui est en voiture, ce qui est à traiter dans Cours et QCM, "
           + "et les stagiaires à suivre de près.",
     ou: { label: "Aujourd'hui", route: "home" },
     guide: [
-      "Ouvre Aujourd'hui, en haut de la barre de gauche sur ordinateur, en bas de l'écran sur téléphone.",
+      "Ouvrez Aujourd'hui, en haut de la barre de gauche sur ordinateur, en bas de l'écran sur téléphone.",
       "« Émargement » : combien de stagiaires ont signé, qui est en attente, et « Voir la feuille ». La carte n'apparaît "
         + "que si l'émargement est activé pour la promo.",
       "« Au tableau » et « En voiture » : qui passe au tableau et sur quel sujet, qui conduit (stagiaires et élèves "
-        + "bénévoles), le matin et l'après-midi. Au tableau, touche un nom pour ouvrir la fiche du stagiaire.",
-      "« À traiter » : les signalements sur des QCM et les questions proposées par l'IA. Chaque ligne ouvre le bon "
-        + "sous-onglet de Cours et QCM.",
-      "Cours et QCM a aussi un sous-onglet Propositions IA (formateurs de la promo) : « Relire » ouvre l'éditeur du "
-        + "QCM, où tu acceptes ou rejettes chaque question.",
-      "« À suivre de près » : les stagiaires qui cumulent au moins deux signaux. « Tout voir » ouvre Indicateurs.",
+        + "bénévoles), le matin et l'après-midi. Au tableau, touchez un nom pour ouvrir la fiche du stagiaire.",
+      "« À traiter » : les questions contestées et les questions proposées par l'IA. Chaque ligne ouvre le bon "
+        + "onglet de Cours et QCM.",
+      "Cours et QCM a aussi un onglet Propositions IA (formateurs de la promo) : « Relire » ouvre l'éditeur du "
+        + "QCM, où vous acceptez ou rejetez chaque question.",
+      "« À suivre de près » : les stagiaires qui ont au moins deux difficultés parmi quatre. « Tout voir » ouvre Indicateurs.",
     ],
   },
   {
@@ -101,8 +107,8 @@ export const NOUVEAUTES = [
           + "la même présentation.",
     ou: { label: "Cours", route: "themes" },
     guide: [
-      "Ouvre un cours : touche le titre d'un thème, ou son bouton « Cours ».",
-      "Le sommaire, en haut du cours, passe à la ligne : touche une partie pour y aller.",
+      "Ouvrir un cours : toucher le titre d'un thème, ou son bouton « Cours ».",
+      "Le sommaire, en haut du cours, passe à la ligne : toucher une partie pour y aller.",
       "Sur téléphone, chaque ligne d'un grand tableau devient une fiche : le nom de la colonne est écrit au-dessus de "
         + "chaque valeur.",
     ],
@@ -113,7 +119,7 @@ export const NOUVEAUTES = [
     pour: "tous",
     titre: "QCM : Échap ferme la fenêtre, et un message quand la connexion lâche",
     resume: "Sur ordinateur, la touche Échap ferme maintenant la fenêtre d'un QCM, comme la croix (pendant un examen, "
-          + "la même confirmation t'est demandée). Dans Cours et QCM, si les cours ou les QCM ne se chargent pas, "
+          + "la même confirmation est demandée). Dans Cours et QCM, si les cours ou les QCM ne se chargent pas, "
           + "la page le dit et propose « Réessayer » au lieu de laisser des colonnes vides. Un cours sans texte "
           + "affiche un message clair.",
     ou: { label: "Cours et QCM", route: "themes" },
@@ -124,17 +130,17 @@ export const NOUVEAUTES = [
     date: "2026-11-09",
     pour: "formateurs",
     titre: "Notes : saisir thème par thème, ouvrir un examen depuis la liste",
-    resume: "Dans Notes et examens, l'onglet « Saisir » note toute la classe sur un thème ou une compétence : tu "
-          + "choisis le thème, puis chaque stagiaire a sa ligne avec un grand champ, pratique sur téléphone (la page "
-          + "s'y ouvre). La note s'enregistre dès que tu passes au champ suivant, et « 7/10 » est converti sur 20. "
+    resume: "Dans Notes et examens, l'onglet « Saisir » note toute la classe sur un thème ou une compétence : vous "
+          + "choisissez le thème, puis chaque stagiaire a sa ligne avec un grand champ, pratique sur téléphone (la page "
+          + "s'y ouvre). La note s'enregistre dès que vous passez au champ suivant, et « 7/10 » est converti sur 20. "
           + "Dans Cours et QCM, chaque thème qui a un QCM affiche l'état de son examen (« Ouvert jusqu'à 16 h 30 ») "
           + "et le bouton pour l'ouvrir ou le fermer, sans passer par la fiche du QCM. Les pages de notes encore vides "
           + "disent d'où viendront les notes.",
     ou: { label: "Notes et examens", route: "notes" },
     guide: [
-      "Notes et examens, onglet « Saisir » : choisis un thème ou une compétence, puis tape les notes ligne par ligne.",
+      "Notes et examens, onglet « Saisir » : choisissez un thème ou une compétence, puis tapez les notes ligne par ligne.",
       "Une note venue d'un examen QCM l'indique sous le nom du stagiaire.",
-      "Cours et QCM : sur la ligne d'un thème, « Ouvrir l'examen » demande pour combien de temps ; « Fermer l'examen » "
+      "Cours et QCM : sur la ligne d'un thème, « Ouvrir l'examen aux stagiaires » demande pour combien de temps ; « Fermer l'examen » "
         + "demande une confirmation.",
     ],
   },
@@ -145,8 +151,8 @@ export const NOUVEAUTES = [
     pour: "formateurs",
     titre: "Notes : des messages plus clairs, un bouton pour réessayer, une vraie fenêtre pour effacer",
     resume: "Dans Notes et examens, une note mal tapée se signale en une phrase qui dit quoi taper (« la note va de 0 "
-          + "à 20 »). Si la connexion lâche pendant la saisie, la ligne du stagiaire propose « Réessayer » ; si tu remets "
-          + "la note d'avant, le message d'erreur s'en va. Pour effacer une note, une fenêtre de l'app te demande "
+          + "à 20 »). Si la connexion lâche pendant la saisie, la ligne du stagiaire propose « Réessayer » ; si vous remettez "
+          + "la note d'avant, le message d'erreur s'en va. Pour effacer une note, une fenêtre de l'app vous demande "
           + "confirmation, avec le nom du stagiaire et la note. Dans Cours et QCM, l'échéance d'un examen écrit "
           + "l'année quand elle tombe l'année suivante.",
     ou: { label: "Notes et examens", route: "notes" },
@@ -159,9 +165,9 @@ export const NOUVEAUTES = [
     titre: "Moyennes EPCF : la page dit quand elles arriveront",
     resume: "Les moyennes EPCF de la classe n'apparaissent qu'à partir de deux stagiaires évalués à la même épreuve, "
           + "en salle ou en véhicule : avec un seul, la moyenne serait sa note. En attendant, la page le dit en une phrase "
-          + "et propose la suite : « Voir mon EPCF » pour retrouver tes propres résultats, « Évaluer un stagiaire » pour "
-          + "les formateurs, qui voient aussi combien de stagiaires sont déjà évalués.",
-    ou: { label: "Notes, sous-onglet EPCF", route: "notes", sousOnglet: "epcf" },
+          + "et propose la suite : un bouton mène chaque stagiaire à ses propres résultats, « Évaluer un stagiaire » sert "
+          + "aux formateurs, qui voient aussi combien de stagiaires sont déjà évalués.",
+    ou: { label: "Notes, onglet Évaluations EPCF", route: "notes", sousOnglet: "epcf" },
     module: "epcf",
   },
   // Suite des moyennes EPCF vides (09/11) : la partie EPCF de sa fiche, et l'anonymat des moyennes jusque dans la base.
@@ -169,11 +175,11 @@ export const NOUVEAUTES = [
     id: "2026-11-09-mon-epcf-vide",
     date: "2026-11-09",
     pour: "stagiaires",
-    titre: "Ton EPCF : la page dit quand tes résultats arriveront",
-    resume: "Tant qu'aucune de tes épreuves EPCF n'est évaluée, la partie EPCF de Mon suivi le dit en une phrase et te "
+    titre: "Tes évaluations EPCF : la page dit quand tes résultats arriveront",
+    resume: "Tant qu'aucune de tes épreuves EPCF n'est évaluée, la partie Évaluations EPCF de Mon suivi le dit en une phrase et te "
           + "mène à ton livret EPCF. Sur ton radar, la moyenne du groupe n'apparaît que quand chaque phase compte au moins "
           + "deux stagiaires évalués : une moyenne de la classe ne montre jamais la note d'un seul camarade.",
-    ou: { label: "Mon espace personnel, partie EPCF", route: "mon-suivi", sousOnglet: "epcf" },
+    ou: { label: "Mon espace personnel, partie Évaluations EPCF", route: "mon-suivi", sousOnglet: "epcf" },
     module: "epcf",
   },
   // Les confirmations dans une fenêtre de l'app (lot A : examen, planning, bénévoles, modules, ressources...).
@@ -182,7 +188,7 @@ export const NOUVEAUTES = [
     date: "2026-11-10",
     pour: "tous",
     titre: "Des confirmations plus lisibles",
-    resume: "Quand l'app te demande de confirmer un geste (quitter ou terminer un examen, supprimer, vider les "
+    resume: "Quand l'app demande de confirmer un geste (quitter ou terminer un examen, supprimer, vider les "
           + "placements du planning...), la question s'affiche maintenant dans une fenêtre de l'app, lisible sur "
           + "téléphone, au lieu de la petite boîte grise du navigateur. Le bouton dit ce qu'il fait (« Supprimer », "
           + "« Terminer ») ; « Annuler » (ou « Continuer l'examen ») et Échap referment sans rien changer. Pendant un "
@@ -233,15 +239,15 @@ export const NOUVEAUTES = [
     pour: "tous",
     navigation: "nouvelle",
     titre: "L'app aux couleurs d'ECF",
-    resume: "Tu peux habiller l'app aux couleurs d'ECF : son bleu, son bleu nuit et une touche de rouge. Les "
-          + "couleurs et la police des titres changent : chaque page reste à sa place, et les notes gardent leurs couleurs. L'app retient ton "
-          + "choix, et tu reviens à ECSR Promo, la couleur d'origine, quand tu veux.",
+    resume: "Chacun peut habiller l'app aux couleurs d'ECF : son bleu, son bleu nuit et une touche de rouge. Les "
+          + "couleurs et la police des titres changent : chaque page reste à sa place, et les notes gardent leurs couleurs. L'app retient ce "
+          + "choix, et le retour à ECSR Promo, la couleur d'origine, reste possible à tout moment.",
     ou: { label: "Mes préférences", route: "preferences" },
     guide: [
-      "Ouvre le menu de ton compte : le rond à tes initiales, en haut à droite de l'écran (chez les formateurs, sur "
+      "Ouvrir le menu du compte : le rond aux initiales, en haut à droite de l'écran (chez les formateurs, sur "
         + "ordinateur, en bas de la barre de gauche).",
-      "Sous Apparence, touche « Couleurs ECF » : l'app change de couleurs tout de suite.",
-      "Pour revenir, touche « ECSR Promo » au même endroit. Le même choix est aussi dans Mes préférences.",
+      "Sous Apparence, toucher « Couleurs ECF » : l'app change de couleurs tout de suite.",
+      "Pour revenir, toucher « ECSR Promo » au même endroit. Le même choix est aussi dans Mes préférences.",
     ],
   },
   // Finitions de l'audit du 09/11 (lot E). À date égale, après le lot 3 : la carte « Nouveauté » de l'Accueil n'en change pas.
@@ -263,7 +269,7 @@ export const NOUVEAUTES = [
     resume: "Les titres, le texte et les chiffres s'écrivent maintenant dans une seule police. Les grands titres "
           + "comme « Aujourd'hui » ou « Bonjour » ont la même allure que les autres titres "
           + "de page, et les dates, les heures et les notes gardent leurs chiffres bien alignés. Les documents imprimés "
-          + "(livret, feuilles d'émargement, attestations) ne changent pas.",
+          + "(livret EPCF, feuilles d'émargement, attestations) ne changent pas.",
     ou: { label: "Accueil", route: "home" },
   },
   {
@@ -290,7 +296,7 @@ export const NOUVEAUTES = [
         + "chaque commande de l'éditeur est assez grande pour le doigt.",
       "La grille de la semaine donne les prénoms : qui passe au tableau, qui conduit, quels élèves bénévoles.",
       "Dans la barre de la semaine, « Grille / Liste » (« Jour / Liste » sur téléphone) est à côté de « Modifier » et "
-        + "d'« Imprimer ». « Revenir à aujourd'hui » apparaît quand tu regardes une autre semaine. L'émargement s'ouvre par "
+        + "d'« Imprimer ». « Revenir à aujourd'hui » apparaît quand vous regardez une autre semaine. L'émargement s'ouvre par "
         + "sa page ou par le bandeau, et la banque des élèves bénévoles par Stagiaires (ou depuis le mode Modifier).",
     ],
   },
@@ -311,15 +317,15 @@ export const NOUVEAUTES = [
     pour: "formateurs",
     titre: "Chacun ne voit que les promos où il intervient",
     resume: "Chacun ne voit désormais que les promos où il intervient, et c'est vérifié à chaque "
-          + "action, pas seulement à l'affichage. Pour toi, une seule différence : les signalements de QCM et les "
+          + "action, pas seulement à l'affichage. Pour vous, une seule différence : les questions contestées et les "
           + "acceptations des conditions s'affichent promo par promo, comme les notes. Un nouveau formateur s'ajoute désormais par la direction du "
-          + "centre (en attendant, par Timy) ; tu invites toujours les stagiaires de tes promos. Nouveau : "
-          + "« Voir comme un stagiaire », dans le menu de ton compte et dans le choix de la promo, montre l'app "
-          + "telle que la voit un stagiaire, sans que tu puisses rien y modifier.",
+          + "centre (en attendant, par Timy) ; vous invitez toujours les stagiaires de vos promos. Nouveau : "
+          + "« Voir comme un stagiaire », dans le menu de votre compte et dans le choix de la promo, montre l'app "
+          + "telle que la voit un stagiaire, sans que vous puissiez rien y modifier.",
     guide: [
-      "Ouvre le menu de ton compte, ou le choix de la promo, puis touche « Voir comme un stagiaire ».",
+      "Ouvrez le menu de votre compte, ou le choix de la promo, puis touchez « Voir comme un stagiaire ».",
       "Un bandeau « Aperçu : Stagiaire » reste affiché en bas de l'écran.",
-      "Touche « Quitter l'aperçu » pour retrouver ton espace.",
+      "Touchez « Quitter l'aperçu » pour retrouver votre espace.",
     ],
   },
   {
@@ -330,16 +336,16 @@ export const NOUVEAUTES = [
     titre: "Une navigation plus simple",
     resume: "La barre de l'app change pour aller plus vite à l'essentiel. Sur le téléphone, les pages "
           + "principales sont en bas de l'écran, à portée de pouce, chacune avec son nom. Le Planning regroupe "
-          + "la semaine, les dates clés et les priorités ; Cours et QCM regroupe les thèmes, les compétences "
+          + "la semaine, les dates clés et l'ordre de passage ; Cours et QCM regroupe les thèmes, les compétences "
           + "et les documents. Les notes de la classe sont maintenant dans Mon suivi, La classe (chez les "
-          + "formateurs, dans Notes et examens), et les contacts du centre dans le menu de ton compte. "
+          + "formateurs, dans Notes et examens), et les contacts du centre dans le menu du compte. "
           + "Certaines parties s'ouvrent au fil de la formation.",
     guide: [
-      "Dans Planning, Semaine, la journée du jour est repérée ; depuis une autre semaine, « Revenir à aujourd'hui » t'y ramène.",
-      "Ton compte s'ouvre avec tes initiales, en haut à droite (sur ordinateur, les formateurs le trouvent "
+      "Dans Planning, Semaine, la journée du jour est repérée ; depuis une autre semaine, « Revenir à aujourd'hui » y ramène.",
+      "Le compte s'ouvre avec les initiales, en haut à droite (sur ordinateur, les formateurs le trouvent "
         + "en bas de la barre de gauche). Un point y signale des Nouveautés pas encore lues ; leur nombre est dans le menu.",
       "Dans le menu du compte : les Nouveautés, les contacts du centre (pour prévenir d'une absence), "
-        + "Mes préférences, « Actualiser », les informations légales et la déconnexion.",
+        + "Mes préférences, « Recharger les données », les informations légales et la déconnexion.",
       "L'assistant s'ouvre avec le bouton « Assistant », en haut de l'écran (en bas de la barre de gauche "
         + "pour les formateurs sur ordinateur).",
     ],
@@ -354,19 +360,19 @@ export const NOUVEAUTES = [
           + "replie en colonne d'icônes et l'app s'en souvient. Le compte et l'assistant sont en bas de cette "
           + "barre. Sur téléphone, Aujourd'hui, Planning, Stagiaires et Notes sont en bas de l'écran, « Plus » "
           + "ouvre le reste (Émargement, Cours et QCM, CCP2, Indicateurs, Réglages), et le bouton Assistant "
-          + "est en haut, à côté de ton compte. Les élèves bénévoles se trouvent maintenant dans Stagiaires.",
+          + "est en haut, à côté de votre compte. Les élèves bénévoles se trouvent maintenant dans Stagiaires.",
     ou: { label: "Stagiaires, Élèves bénévoles", route: "stagiaires", sousOnglet: "benevoles" },
     guide: [
       "Aujourd'hui remplace l'Accueil : la feuille d'émargement du jour, ce qui est à traiter dans Cours et QCM, "
         + "qui passe au tableau et qui est en voiture, et les stagiaires à suivre de près.",
-      "Replie la barre de gauche avec le bouton en haut de la barre : l'app retient ton choix.",
-      "En bas de la barre : l'assistant, « Signaler un problème » et ton compte (Nouveautés, contacts du "
+      "Repliez la barre de gauche avec le bouton en haut de la barre : l'app retient votre choix.",
+      "En bas de la barre : l'assistant, « Signaler un problème » et votre compte (Nouveautés, contacts du "
         + "centre, Mes préférences).",
       "Sur téléphone, « Plus » ouvre les autres pages, et le bouton « Assistant » est dans l'en-tête, à "
-        + "côté de ton compte.",
-      "Les élèves bénévoles sont dans Stagiaires, sous-onglet « Élèves bénévoles » ; le bouton du Planning y mène aussi.",
+        + "côté de votre compte.",
+      "Les élèves bénévoles sont dans Stagiaires, onglet « Élèves bénévoles » ; le bouton du Planning y mène aussi.",
       "Réglages ne garde que la promo (ce que voient les stagiaires, les accès, les données personnelles) : "
-        + "tes préférences à toi sont dans le menu de ton compte.",
+        + "vos propres préférences sont dans le menu de votre compte.",
     ],
   },
   {
@@ -383,19 +389,19 @@ export const NOUVEAUTES = [
     date: "2026-10-28",
     pour: "tous",
     titre: "Signaler un problème en deux gestes",
-    resume: "Un bug, un bouton qui ne réagit pas, quelque chose de pas clair ? Écris-le dans « Signaler un "
-          + "problème » : la page, l'appareil et l'heure partent avec ton message, et tu peux ajouter une "
-          + "capture d'écran. La réponse s'affiche au même endroit.",
+    resume: "Un bug, un bouton qui ne réagit pas, quelque chose de pas clair ? Il suffit de l'écrire dans « Signaler un "
+          + "problème » : la page, l'appareil et l'heure partent avec le message, et une capture d'écran peut "
+          + "s'y ajouter. La réponse s'affiche au même endroit.",
     guide: [
       "Touche ton nom en haut de l'écran, ou ouvre l'Assistant.",
       "Choisis « Signaler un problème ».",
       "Écris ce qui se passe, ajoute une capture si tu veux, puis « Envoyer ».",
     ],
     guideNouvelle: [
-      "Ouvre ton compte avec tes initiales, en haut à droite, puis choisis « Signaler un problème ». Chez les formateurs, "
+      "Ouvrir le compte avec les initiales, en haut à droite, puis choisir « Signaler un problème ». Chez les formateurs, "
         + "le bouton est en bas de la barre de gauche sur ordinateur, et dans « Plus » sur téléphone.",
       "Dans l'Assistant, la ligne « Un souci avec l'app ? » mène au même endroit.",
-      "Écris ce qui se passe, ajoute une capture si tu veux, puis « Envoyer ».",
+      "Écrire ce qui se passe, ajouter une capture si besoin, puis « Envoyer ».",
     ],
   },
   {
@@ -406,7 +412,7 @@ export const NOUVEAUTES = [
     titre: "L'assistant, plus facile à manier sur le téléphone",
     resume: "La croix pour fermer l'assistant se voit enfin, et sur le téléphone ses boutons sont plus "
           + "grands, donc plus faciles à toucher. Quand un bandeau s'affiche en bas de l'écran, le bouton "
-          + "de l'assistant et la zone où tu écris passent au-dessus de lui au lieu d'être cachés.",
+          + "de l'assistant et la zone de saisie passent au-dessus de lui au lieu d'être cachés.",
   },
   {
     id: "2026-10-27-textes-plus-lisibles",
@@ -421,15 +427,15 @@ export const NOUVEAUTES = [
     date: "2026-10-24",
     pour: "tous",
     titre: "L'app, encore plus pratique sur le téléphone",
-    resume: "Tu utilisais déjà l'app sur ton téléphone, dans le navigateur. Ajoutée à l'écran d'accueil, "
+    resume: "L'app s'utilisait déjà sur le téléphone, dans le navigateur. Ajoutée à l'écran d'accueil, "
           + "elle s'ouvre maintenant en plein écran, comme une application, sans la barre du navigateur. "
           + "Rien à télécharger dans une boutique : elle se met à jour toute seule. Une connexion internet "
           + "reste nécessaire.",
     guide: [
       "Sur iPhone, dans Safari : bouton Partager (le carré avec une flèche), puis « Sur l'écran d'accueil ».",
       "Sur Android, dans Chrome : menu en haut à droite, puis « Installer l'application » ou « Ajouter à l'écran d'accueil ».",
-      "Ouvre l'app depuis sa nouvelle icône. Sur iPhone, connecte-toi une fois à l'intérieur : elle ne partage pas la connexion de Safari.",
-      "Tu avais déjà mis l'icône ? Supprime-la puis ajoute-la à nouveau pour avoir le plein écran.",
+      "Ouvrir l'app depuis sa nouvelle icône. Sur iPhone, se connecter une fois à l'intérieur : elle ne partage pas la connexion de Safari.",
+      "L'icône était déjà en place ? La supprimer puis l'ajouter à nouveau pour avoir le plein écran.",
     ],
   },
   {
@@ -439,8 +445,8 @@ export const NOUVEAUTES = [
     titre: "L'assistant répond de nouveau",
     resume: "L'assistant ne répondait plus depuis le 20 octobre : son fournisseur d'IA a fermé son offre gratuite. "
           + "Il passe maintenant par Scaleway, hébergeur français : mêmes modèles d'IA, hébergés à Paris, "
-          + "et vos messages ne sont ni conservés ni utilisés pour entraîner l'IA. Ce changement de prestataire "
-          + "met à jour les conditions d'utilisation : elles vous seront présentées à votre prochaine connexion.",
+          + "et les messages ne sont ni conservés ni utilisés pour entraîner l'IA. Ce changement de prestataire "
+          + "met à jour les conditions d'utilisation : elles seront présentées à la prochaine connexion.",
   },
   {
     id: "2026-10-23-questions-ia",
@@ -456,9 +462,9 @@ export const NOUVEAUTES = [
     ou: { label: "Cours", route: "themes" },
     module: "qcm",
     guide: [
-      "Cours, sous-onglet Thèmes : ouvre le QCM d'un thème, puis « Modifier » et « Éditer les questions ».",
-      "En bas de l'éditeur, « Proposer avec l'IA » : choisis le nombre de questions et la partie du cours.",
-      "Chaque brouillon : « Relire et accepter » (corrige si besoin, puis « Accepter dans le QCM ») ou « Rejeter ».",
+      "Cours, onglet Thèmes : ouvrez le QCM d'un thème, puis « Modifier » et « Éditer les questions ».",
+      "En bas de l'éditeur, « Proposer avec l'IA » : choisissez le nombre de questions et la partie du cours.",
+      "Chaque brouillon : « Relire et accepter » (corrigez si besoin, puis « Accepter dans le QCM ») ou « Rejeter ».",
     ],
   },
   {
@@ -489,8 +495,8 @@ export const NOUVEAUTES = [
       "« Exporter en PDF » pour l'imprimer ; « Matrice des notes (CSV) » pour l'ouvrir dans Excel.",
     ],
     guideNouvelle: [
-      "Ouvre Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».",
-      "Touche « Méthode » sous un chiffre pour voir son calcul.",
+      "Ouvrez Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».",
+      "Touchez « Méthode » sous un chiffre pour voir son calcul.",
       "« Exporter en PDF » pour l'imprimer ; « Matrice des notes (CSV) » pour l'ouvrir dans Excel.",
     ],
   },
@@ -529,9 +535,9 @@ export const NOUVEAUTES = [
     date: "2026-10-05",
     pour: "formateurs",
     titre: "Effacer les données d'un stagiaire, à sa demande",
-    resume: "Un stagiaire peut demander la suppression de ses données. Marque-le d'abord en abandon, "
-          + "puis « Effacer les données » dans Paramètres : son compte, sa date de naissance, son livret, "
-          + "son dossier et les commentaires disparaissent ; ses notes restent, sans nom, dans les "
+    resume: "Un stagiaire peut demander la suppression de ses données. Marquez-le d'abord en abandon, "
+          + "puis « Effacer les données » dans Paramètres : son compte, sa date de naissance, son livret EPCF, "
+          + "son dossier professionnel et les commentaires disparaissent ; ses notes restent, sans nom, dans les "
           + "moyennes. Une nouvelle partie « Données personnelles » montre aussi quand une promo pourra "
           + "être anonymisée (12 mois après sa fin) et les élèves bénévoles à supprimer.",
     ou: { label: "Paramètres", route: "config" },
@@ -542,7 +548,7 @@ export const NOUVEAUTES = [
     ],
     guideNouvelle: [
       "Réglages, partie Promo : « Abandon » sur le stagiaire concerné.",
-      "Dans « Abandons », bouton « Effacer les données », puis tape son prénom pour confirmer.",
+      "Dans « Abandons », bouton « Effacer les données », puis tapez son prénom pour confirmer.",
       "Partie « Données personnelles » : l'anonymisation de la promo et les élèves bénévoles inactifs.",
     ],
   },
@@ -551,11 +557,11 @@ export const NOUVEAUTES = [
     date: "2026-10-04",
     pour: "tous",
     titre: "Compétences de conduite : la liste du livret officiel",
-    resume: "Dans Cours, sous-onglet Compétences, les compétences de conduite C1 à C4 suivent maintenant "
+    resume: "Dans Cours, onglet Compétences, les compétences de conduite C1 à C4 suivent maintenant "
           + "exactement le livret d'apprentissage : 32 sous-compétences, chacune avec son code (C2.4, C3.7…). "
           + "La compétence 2 a retrouvé ses sept intitulés officiels, et la compétence 3 gagne deux "
           + "sous-compétences : la circulation inter-files des motards, et les tunnels et les ponts.",
-    ou: { label: "Cours, sous-onglet Compétences", route: "themes", sousOnglet: "competences" },
+    ou: { label: "Cours, onglet Compétences", route: "themes", sousOnglet: "competences" },
   },
   {
     id: "2026-10-04-cours-competences-blocs",
@@ -565,10 +571,10 @@ export const NOUVEAUTES = [
     resume: "Les cours peuvent maintenant contenir des schémas animés (la voiture fait la manœuvre et les "
           + "étapes s'allument), des quiz corrigés tout de suite et des cartes d'autoévaluation. Les cours "
           + "de compétences arriveront au fil de leur vérification.",
-    ou: { label: "Cours, sous-onglet Compétences", route: "themes", sousOnglet: "competences" },
+    ou: { label: "Cours, onglet Compétences", route: "themes", sousOnglet: "competences" },
     guide: [
-      "Ouvre Cours, puis le sous-onglet Compétences.",
-      "Dans un cours, le schéma se lance quand il apparaît à l'écran ; touche une étape pour y revenir.",
+      "Ouvrez Cours, puis l'onglet Compétences.",
+      "Dans un cours, le schéma se lance quand il apparaît à l'écran ; touchez une étape pour y revenir.",
       "Bouton Modifier, puis Blocs, pour ajouter un schéma, un quiz ou des cartes dans un cours.",
     ],
   },
@@ -577,10 +583,10 @@ export const NOUVEAUTES = [
     date: "2026-10-05",
     pour: "tous",
     titre: "Conditions d'utilisation et données personnelles",
-    resume: "À ta prochaine connexion, l'application te présente ses conditions d'utilisation : "
+    resume: "À la prochaine connexion, l'application présente ses conditions d'utilisation : "
           + "l'essentiel en huit lignes, le texte complet en un toucher. On y voit qui accède à quoi, "
-          + "combien de temps tes données sont gardées et comment les faire supprimer. Tu les "
-          + "retrouves à tout moment dans Mon compte, sous « Informations légales ».",
+          + "combien de temps les données sont gardées et comment les faire supprimer. Elles "
+          + "restent consultables à tout moment dans Mon compte, sous « Informations légales ».",
   },
   {
     id: "2026-10-05-benevoles-information",
@@ -588,11 +594,11 @@ export const NOUVEAUTES = [
     pour: "formateurs",
     titre: "Élèves bénévoles : les prévenir que leurs coordonnées sont enregistrées",
     resume: "La loi demande d'informer les élèves bénévoles de ce que l'on garde sur eux. À leur "
-          + "première venue, envoie-leur le lien des informations légales de l'application "
+          + "première venue, envoyez-leur le lien des informations légales de l'application "
           + "(section 7 : ce qui est enregistré, qui le voit, combien de temps).",
     guide: [
-      "Envoie par SMS : « Bonjour, pour organiser les séances, nous enregistrons vos nom, téléphone, niveau et disponibilités. Détails et droits : https://watchi64.github.io/ecsr-promo/#/informations-legales (section 7). »",
-      "Pour un élève mineur, enregistre de préférence le numéro d'un parent, avec son accord.",
+      "Envoyez par SMS : « Bonjour, pour organiser les séances, nous enregistrons vos nom, téléphone, niveau et disponibilités. Détails et droits : https://watchi64.github.io/ecsr-promo/#/informations-legales (section 7). »",
+      "Pour un élève mineur, enregistrez de préférence le numéro d'un parent, avec son accord.",
       "Dans les champs de commentaire (bénévoles, passages, notes), rien sur la santé ni la vie privée : une absence se note « absent ».",
     ],
   },
@@ -600,11 +606,11 @@ export const NOUVEAUTES = [
     id: "2026-10-04-confidentialite-notes",
     date: "2026-10-04",
     pour: "tous",
-    titre: "Tes notes et ta fiche mieux protégées",
-    resume: "Si tu masques tes notes, plus personne dans la promo ne peut les consulter, même en "
+    titre: "Notes et fiche de suivi mieux protégées",
+    resume: "Quand un stagiaire masque ses notes, plus personne dans la promo ne peut les consulter, même en "
           + "dehors des écrans de l'application : les moyennes du groupe sont désormais calculées "
-          + "à part, sans exposer les notes de chacun. Ta date de naissance et ta fiche de suivi "
-          + "ne sont visibles que de toi et des formateurs. Rien ne change dans ce que tu vois.",
+          + "à part, sans exposer les notes de chacun. La date de naissance et la fiche de suivi d'un stagiaire "
+          + "ne sont visibles que de lui et des formateurs. Rien ne change dans ce qui s'affiche.",
     ou: { label: "Notes", route: "notes" },
   },
   {
@@ -612,7 +618,7 @@ export const NOUVEAUTES = [
     date: "2026-10-03",
     pour: "formateurs",
     titre: "Planning : le numéro d'un élève bénévole en un toucher",
-    resume: "Dans le planning, touche le nom d'un élève bénévole pour afficher son numéro et "
+    resume: "Dans le planning, touchez le nom d'un élève bénévole pour afficher son numéro et "
           + "l'appeler.",
     ou: { label: "Planning", route: "planning" },
   },
@@ -621,8 +627,8 @@ export const NOUVEAUTES = [
     date: "2026-10-03",
     pour: "tous",
     titre: "Planning : la barre des jours reste en haut",
-    resume: "Sur téléphone, la barre des jours du planning reste visible quand tu fais défiler "
-          + "la semaine.",
+    resume: "Sur téléphone, la barre des jours du planning reste visible pendant le défilement "
+          + "de la semaine.",
     ou: { label: "Planning", route: "planning" },
   },
   {
@@ -630,9 +636,9 @@ export const NOUVEAUTES = [
     date: "2026-10-03",
     pour: "formateurs",
     titre: "Une page Stagiaires : toute la promo, une fiche par personne",
-    resume: "La tuile Stagiaires de l'Accueil (ou le bouton de ton compte) ouvre la liste de la "
-          + "promo, avec où en est chacun : épreuves EPCF évaluées, livret, dossier pro. La fiche "
-          + "d'un stagiaire réunit tes outils : la saisie de l'EPCF, son livret et son dossier. "
+    resume: "La tuile Stagiaires de l'Accueil (ou le bouton de votre compte) ouvre la liste de la "
+          + "promo, avec où en est chacun : épreuves EPCF évaluées, livret EPCF, dossier professionnel. La fiche "
+          + "d'un stagiaire réunit vos outils : la saisie de l'EPCF, son livret EPCF et son dossier professionnel. "
           + "Notes garde la vue de la classe.",
     ou: { label: "Accueil, tuile Stagiaires", route: "stagiaires" },
     guide: [
@@ -641,9 +647,10 @@ export const NOUVEAUTES = [
       "Partie EPCF : Évaluer ou Modifier chaque épreuve. Parties Livret et Dossier pro : remplis-les ou relis-les.",
     ],
     guideNouvelle: [
-      "Ouvre Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).",
-      "Choisis un stagiaire : sa fiche s'ouvre à côté de la liste, ou en plein écran sur téléphone.",
-      "Partie EPCF : Évaluer ou Modifier chaque épreuve. Parties Livret EPCF et Dossier pro : remplis-les ou relis-les.",
+      "Ouvrez Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).",
+      "Choisissez un stagiaire : sa fiche s'ouvre à côté de la liste, ou en plein écran sur téléphone.",
+      "Partie Évaluations EPCF : Évaluer ou Modifier chaque épreuve. Parties Livret EPCF et Dossier professionnel : "
+        + "remplissez-les ou relisez-les.",
     ],
   },
   {
@@ -664,12 +671,12 @@ export const NOUVEAUTES = [
     pour: "formateurs",
     titre: "Deux promos dans l'app, et des modules réglés promo par promo",
     resume: "La promo de septembre a sa place dans l'app, à côté de celle de mars. En haut de "
-          + "l'écran, une pastille indique la promo affichée : touche-la pour changer. Chaque "
-          + "appareil retient ton choix. Planning, calendrier, notes, passages, progression des "
+          + "l'écran, une pastille indique la promo affichée : touchez-la pour changer. Chaque "
+          + "appareil retient votre choix. Planning, calendrier, notes, passages, progression des "
           + "thèmes et examens QCM sont propres à chaque promo ; cours, banque de questions, "
-          + "ressources, ainsi que la liste des thèmes et des notions, restent communs. Les "
+          + "ressources, ainsi que la liste des thèmes et des notions pédagogiques, restent communs. Les "
           + "élèves bénévoles et les auto-écoles sont rangés par lieu. Et la section « Modules "
-          + "de la promo » des Paramètres t'est ouverte : elle règle les outils de la promo "
+          + "de la promo » des Paramètres vous est ouverte : elle règle les outils de la promo "
           + "affichée, et d'elle seule.",
     ou: { label: "Pastille en haut, à côté de ton nom", route: "home" },
     guide: [
@@ -681,12 +688,12 @@ export const NOUVEAUTES = [
         + "« Partir de l'ensemble de départ ».",
     ],
     guideNouvelle: [
-      "Touche la promo en tête de la barre de gauche (sur téléphone, en haut de l'écran).",
-      "Choisis « Montpellier, septembre 2026 » : la page se recharge sur cette promo.",
-      "Dans Réglages, ajoute les stagiaires de la promo (prénom et nom de famille), puis "
-        + "prépare les dates clés et le planning.",
+      "Touchez la promo en tête de la barre de gauche (sur téléphone, en haut de l'écran).",
+      "Choisissez « Montpellier, septembre 2026 » : la page se recharge sur cette promo.",
+      "Dans Réglages, ajoutez les stagiaires de la promo (prénom et nom de famille), puis "
+        + "préparez les dates clés et le planning.",
       "Avant d'inviter les stagiaires de septembre : Réglages, « Ce que voient les stagiaires », "
-        + "« Partir de l'ensemble de départ ».",
+        + "« Revenir aux modules de départ ».",
     ],
   },
   {
@@ -712,10 +719,10 @@ export const NOUVEAUTES = [
     date: "2026-10-03",
     pour: "tous",
     module: "ccp2",
-    titre: "Nouvel onglet CCP2 : ton parcours en 8 étapes",
-    resume: "Du choix du commanditaire au jour de l'épreuve, chaque étape dit ce que le jury "
-          + "regarde, comment t'y prendre et ce qu'il faut garder pour ton dossier. Tes dates "
-          + "de stage et d'examen sont rappelées en haut de la page.",
+    titre: "Nouvel onglet CCP2 : le parcours en 8 étapes",
+    resume: "Du choix du commanditaire au jour de l'épreuve du CCP2 (certificat de compétences professionnelles "
+          + "n° 2), chaque étape dit ce que le jury regarde, comment s'y prendre et ce qu'il faut garder pour le "
+          + "dossier écrit. Les dates de stage et d'examen sont rappelées en haut de la page.",
     ou: { label: "CCP2", route: "ccp2" },
   },
   {
@@ -725,17 +732,17 @@ export const NOUVEAUTES = [
     titre: "Des vidéos conseillées dans la boîte à outils CCP2",
     resume: "Pour chaque outil du guide (raccourcis, Drive, Docs, Forms, Canva, dictée, IA), "
           + "une ou deux vidéos YouTube en français, récentes et claires pour débuter, choisies "
-          + "pour t'éviter de chercher longtemps. Le guide se télécharge aussi en PDF à imprimer : "
-          + "chaque vidéo y a son QR code, à viser avec l'appareil photo de ton téléphone.",
+          + "pour éviter de chercher longtemps. Le guide se télécharge aussi en PDF à imprimer : "
+          + "chaque vidéo y a son QR code, à viser avec l'appareil photo du téléphone.",
     ou: { label: "Ressources, Examens", route: "ressources" },
   },
   {
     id: "2026-10-02-passages-toute-date",
     date: "2026-10-02",
     pour: "tous",
-    titre: "Un passage oublié ? Ajoute-le toi-même, même ancien",
-    resume: "Tu peux enregistrer un passage à n'importe quelle date passée et corriger les "
-          + "tiens si tu t'es trompé. Seule la suppression d'un passage passe par un "
+    titre: "Un passage oublié ? Chacun peut l'ajouter, même ancien",
+    resume: "Chaque stagiaire peut enregistrer un passage (au tableau ou en voiture) à n'importe quelle "
+          + "date passée et corriger les siens en cas d'erreur. Seule la suppression d'un passage passe par un "
           + "formateur. La limite de 2 jours indiquée sur l'accueil n'existe plus.",
     ou: { label: "Planning, bouton Priorités", route: "dashboard" },
   },
@@ -743,59 +750,59 @@ export const NOUVEAUTES = [
     id: "2026-09-30-boite-a-outils-ccp2",
     date: "2026-09-30",
     pour: "tous",
-    titre: "Une boîte à outils numérique pour ton CCP2",
-    resume: "Un guide pour te simplifier la vie pendant le CCP2 : les raccourcis clavier "
+    titre: "Une boîte à outils numérique pour le CCP2",
+    resume: "Un guide pour se simplifier la vie pendant le CCP2 : les raccourcis clavier "
           + "les plus utiles, les gestes de base de la souris, puis Google Drive, Docs, Forms, "
           + "Canva, la dictée vocale et l'IA. Pour chaque outil : un écran annoté qui montre "
           + "où cliquer, les manipulations de base pas à pas, les liens pour l'ouvrir, et des "
-          + "réflexes pour te débrouiller même quand l'écran ne ressemble pas à l'image.",
+          + "réflexes pour se débrouiller même quand l'écran ne ressemble pas à l'image.",
     ou: { label: "Ressources", route: "ressources" },
   },
   {
     id: "2026-09-18-mot-de-passe-oublie",
     date: "2026-09-18",
     pour: "tous",
-    titre: "Tu peux réinitialiser ton mot de passe toi-même",
-    resume: "Si tu as oublié ton mot de passe, clique « Mot de passe oublié ? » sur l'écran "
-          + "de connexion. Tu reçois un lien par email, valable une heure, qui te permet d'en "
-          + "choisir un nouveau. Plus besoin de demander à un formateur de te débloquer.",
+    titre: "Un mot de passe oublié se réinitialise sans aide",
+    resume: "En cas d'oubli du mot de passe, cliquer sur « Mot de passe oublié ? » sur l'écran "
+          + "de connexion. Un lien arrive par e-mail, valable une heure, pour en choisir un "
+          + "nouveau. Plus besoin de demander à un formateur de débloquer le compte.",
   },
   {
     id: "2026-09-16-derniere-page",
     date: "2026-09-16",
     pour: "tous",
-    titre: "L'app rouvre sur la page que tu as quittée",
-    resume: "Jusqu'ici, ouvrir l'app te ramenait toujours sur Mon suivi. Désormais elle "
-          + "retrouve la page où tu étais la dernière fois, et même le sous-onglet. Si tu "
-          + "consultes souvent le planning ou les thèmes, tu y reviens directement.",
+    titre: "L'app rouvre sur la dernière page consultée",
+    resume: "Jusqu'ici, ouvrir l'app ramenait toujours sur Mon suivi. Désormais elle "
+          + "retrouve la page ouverte la dernière fois, et même l'onglet. Qui consulte "
+          + "souvent le planning ou les thèmes y revient donc directement.",
   },
   {
     id: "2026-09-16-dp-formateurs",
     date: "2026-09-16",
     pour: "tous",
     module: "dp",
-    titre: "Ton formateur peut t'aider directement dans ton dossier professionnel",
-    resume: "Le dossier professionnel reste ton document : c'est toi qui le rédiges et qui "
-          + "le signes. Mais les formateurs peuvent maintenant écrire dedans pour "
-          + "t'accompagner, au lieu de seulement le lire. Chaque enregistrement retient qui "
-          + "a écrit en dernier, et cette information s'affiche en haut du dossier : tu vois "
-          + "donc toujours si quelqu'un y est passé après toi.",
-    ou: { label: "Mon espace personnel, partie Dossier pro", route: "mon-suivi", sousOnglet: "dp" },
+    titre: "Les formateurs peuvent aider directement dans le dossier professionnel",
+    resume: "Le dossier professionnel reste le document du stagiaire : c'est lui qui le rédige et qui "
+          + "le signe. Mais les formateurs peuvent maintenant écrire dedans pour "
+          + "l'accompagner, au lieu de seulement le lire. Chaque enregistrement retient qui "
+          + "a écrit en dernier, et cette information s'affiche en haut du dossier : le stagiaire voit "
+          + "donc toujours si quelqu'un y est passé après lui.",
+    ou: { label: "Mon espace personnel, partie Dossier professionnel", route: "mon-suivi", sousOnglet: "dp" },
   },
   {
     id: "2026-09-15-dp-mise-en-page",
     date: "2026-09-15",
     pour: "tous",
     module: "dp",
-    titre: "Ton dossier professionnel a repris la mise en page officielle",
-    resume: "Le DP de l'app ressemble maintenant trait pour trait au document du "
+    titre: "Le dossier professionnel a repris la mise en page officielle",
+    resume: "Le dossier professionnel de l'app ressemble maintenant trait pour trait au document du "
           + "ministère : bandeaux magenta, en-tête et pied de page officiels, cartouches "
-          + "d'activité-type. Surtout, quand un de tes textes dépasse la page, le document "
+          + "d'activité-type. Surtout, quand un texte dépasse la page, le document "
           + "continue proprement sur la feuille suivante au lieu de tout décaler, et le "
-          + "sommaire annonce les bons numéros de page. Pendant que tu écris, un trait "
-          + "pointillé te montre où le document changera de feuille. Rien de ce que tu "
-          + "avais déjà saisi n'a bougé.",
-    ou: { label: "Mon espace personnel, partie Dossier pro", route: "mon-suivi", sousOnglet: "dp" },
+          + "sommaire annonce les bons numéros de page. Pendant la saisie, un trait "
+          + "pointillé montre où le document changera de feuille. Rien de ce qui "
+          + "était déjà saisi n'a bougé.",
+    ou: { label: "Mon espace personnel, partie Dossier professionnel", route: "mon-suivi", sousOnglet: "dp" },
   },
   {
     id: "2026-08-26-cours-pour-tous",
@@ -807,7 +814,7 @@ export const NOUVEAUTES = [
           + "maintenant lisibles par tout le monde. Dans la page Thèmes, le bouton "
           + "« Lire le cours » ouvre le cours en plein écran : l'essentiel en tête, les "
           + "sanctions en fiches, les planches de panneaux, et un sommaire pour naviguer. "
-          + "En fin de lecture, tu peux enchaîner directement sur le QCM du thème.",
+          + "En fin de lecture, un bouton enchaîne directement sur le QCM du thème.",
     ou: { label: "Cours", route: "themes" },
   },
   {
@@ -816,11 +823,11 @@ export const NOUVEAUTES = [
     pour: "tous",
     module: "notes",
     titre: "Anonyme pour de vrai dans le tableau de notes",
-    resume: "Jusqu'ici, passer en anonyme cachait seulement ton prénom. Désormais, tes notes "
+    resume: "Jusqu'ici, passer en anonyme cachait seulement le prénom. Désormais, les notes "
           + "disparaissent aussi pour les autres stagiaires (elles comptent toujours dans les "
-          + "moyennes du groupe). En échange, tu ne vois plus leurs notes : tu gardes ta ligne, "
+          + "moyennes du groupe). En échange, un stagiaire anonyme ne voit plus leurs notes : il garde sa ligne, "
           + "la moyenne du groupe, la moyenne haute et la moyenne basse. Après un changement, "
-          + "tu as 2 minutes pour annuler, puis le réglage est bloqué pendant 24 h. Les "
+          + "il reste 2 minutes pour annuler, puis le réglage est bloqué pendant 24 h. Les "
           + "formateurs, eux, voient toujours tout.",
     ou: { label: "Paramètres, Mes préférences", route: "config" },
   },
@@ -828,30 +835,30 @@ export const NOUVEAUTES = [
     id: "2026-08-19-editeur-enregistrer",
     date: "2026-08-19",
     pour: "formateurs",
-    titre: "Le bouton Enregistrer de l'éditeur de cours te répond",
-    resume: "Quand tu enregistres un cours, le bouton affiche « Enregistrement... » puis "
+    titre: "Le bouton Enregistrer de l'éditeur de cours vous répond",
+    resume: "Quand vous enregistrez un cours, le bouton affiche « Enregistrement... » puis "
           + "« Enregistré » avec une coche quand c'est bien parti. En cas de problème, un "
-          + "message clair s'affiche et ton texte reste dans l'éditeur. Pareil pour Publier.",
+          + "message clair s'affiche et votre texte reste dans l'éditeur. Pareil pour Publier.",
   },
   {
     id: "2026-08-19-assistant-mobile",
     date: "2026-08-19",
     pour: "tous",
     module: "assistant",
-    titre: "L'assistant s'ouvre sans zoomer sur ton téléphone",
+    titre: "L'assistant s'ouvre sans zoomer sur le téléphone",
     resume: "Ouvrir l'assistant sur téléphone zoomait la page et sortait le clavier direct. "
-          + "C'est réglé : la fenêtre s'ouvre tranquillement, tu vois la conversation en "
-          + "entier et tu tapes dans le champ quand tu veux.",
+          + "C'est réglé : la fenêtre s'ouvre tranquillement, la conversation se lit en "
+          + "entier et le clavier ne sort qu'en touchant le champ.",
   },
   {
     id: "2026-08-19-themes-mobile",
     date: "2026-08-19",
     pour: "tous",
-    titre: "La page Thèmes, enfin lisible sur ton téléphone",
+    titre: "La page Thèmes, enfin lisible sur le téléphone",
     resume: "Les cartes des thèmes s'affichent proprement sur téléphone : numéro en pastille "
           + "à côté du titre, titre sur toute la largeur, boutons Cours et QCM bien alignés "
-          + "avec tes notes. Et le champ de recherche ne ferme plus ton clavier à chaque "
-          + "lettre : tape ta recherche d'une traite, la liste se filtre en direct.",
+          + "avec les notes. Et le champ de recherche ne ferme plus le clavier à chaque "
+          + "lettre : la recherche se tape d'une traite, la liste se filtre en direct.",
     ou: { label: "Cours", route: "themes" },
   },
   {
@@ -859,9 +866,9 @@ export const NOUVEAUTES = [
     date: "2026-08-15",
     pour: "tous",
     module: "assistant",
-    titre: "Un assistant répond à tes questions, partout dans l'app",
+    titre: "Un assistant répond aux questions, partout dans l'app",
     resume: "Le bouton rond en bas à droite ouvre un assistant qui connaît les 57 cours, "
-          + "vérifie la réglementation directement sur Légifrance et t'explique le "
+          + "vérifie la réglementation directement sur Légifrance et explique le "
           + "fonctionnement de l'app. Il cite ses sources, et chacun dispose de 30 "
           + "questions par jour.",
   },
@@ -870,10 +877,10 @@ export const NOUVEAUTES = [
     date: "2026-08-10",
     pour: "tous",
     module: "qcm",
-    titre: "Ta progression d'entraînement se voit d'un coup d'œil",
-    resume: "Dans la liste des thèmes, une barre colorée sous chaque QCM se remplit avec ta "
+    titre: "La progression d'entraînement se voit d'un coup d'œil",
+    resume: "Dans la liste des thèmes, une barre colorée sous chaque QCM se remplit avec la "
           + "dernière note d'entraînement. Plus la barre est verte et pleine, plus le thème "
-          + "est acquis : tu repères en un survol ceux qui méritent une nouvelle passe.",
+          + "est acquis : un survol suffit pour repérer ceux qui méritent une nouvelle passe.",
     ou: { label: "Cours, colonne QCM", route: "themes" },
   },
   {
@@ -882,17 +889,17 @@ export const NOUVEAUTES = [
     pour: "formateurs",
     titre: "Les 57 cours sont dans l'app, à relire et à publier",
     resume: "Chaque thème porte maintenant son cours complet, visible des formateurs "
-          + "seulement. Tu le lis, tu le corriges directement dans l'app (l'aperçu montre "
-          + "exactement ce que verra l'élève), et tu le publies quand il est prêt : rien "
-          + "n'est visible de la promo sans ta décision, cours par cours. Chaque "
+          + "seulement. Vous le lisez, vous le corrigez directement dans l'app (l'aperçu montre "
+          + "exactement ce que verra l'élève), et vous le publiez quand il est prêt : rien "
+          + "n'est visible de la promo sans votre décision, cours par cours. Chaque "
           + "enregistrement garde une version : rien ne se perd, tout se restaure.",
     ou: { label: "Cours, colonne Cours", route: "themes" },
     guide: [
-      "Ouvre l'onglet Thèmes : chaque thème a sa colonne Cours. Le bouton reste "
-        + "en couleur tant que tu n'as pas encore ouvert ce cours sur ton appareil.",
-      "« Modifier » ouvre l'éditeur : corrige à gauche, contrôle l'aperçu à droite.",
-      "Le bouton Panneaux ouvre la galerie : cherche un panneau par son nom, un clic l'insère.",
-      "Enregistre, puis « Publier » quand le cours est prêt pour la promo.",
+      "Ouvrez l'onglet Thèmes : chaque thème a sa colonne Cours. Le bouton reste "
+        + "en couleur tant que vous n'avez pas encore ouvert ce cours sur votre appareil.",
+      "« Modifier » ouvre l'éditeur : corrigez à gauche, contrôlez l'aperçu à droite.",
+      "Le bouton Panneaux ouvre la galerie : cherchez un panneau par son nom, un clic l'insère.",
+      "Enregistrez, puis « Publier » quand le cours est prêt pour la promo.",
       "En fin de cours, un bouton enchaîne sur le QCM du thème.",
     ],
   },
@@ -901,34 +908,34 @@ export const NOUVEAUTES = [
     date: "2026-08-08",
     pour: "tous",
     module: "qcm",
-    titre: "Dis quelle réponse te pose problème quand tu signales",
-    resume: "Le formulaire de signalement te demande maintenant laquelle des réponses est en "
+    titre: "Une contestation dit maintenant quelle réponse pose problème",
+    resume: "Le formulaire de contestation demande maintenant laquelle des réponses est en "
           + "cause. C'est utile : les réponses sont mélangées à chaque passage, donc écrire "
-          + "« la réponse D » ne voulait rien dire une fois le signalement reçu. Et ça sert : "
-          + "les signalements de la semaine ont abouti à huit questions corrigées.",
+          + "« la réponse D » ne voulait rien dire une fois la contestation reçue. Et ça sert : "
+          + "les contestations de la semaine ont abouti à huit questions corrigées.",
     ou: { label: "Cours, colonne QCM", route: "themes" },
     guide: [
-      "Pendant un entraînement, réponds à la question, puis utilise le lien de signalement.",
-      "Choisis le motif, puis la réponse concernée dans la liste, ou laisse « toute la question » "
+      "Pendant un entraînement, répondre à la question, puis toucher « Contester cette question ».",
+      "Choisir le motif, puis la réponse concernée dans la liste, ou laisser « toute la question » "
         + "si c'est l'énoncé ou l'explication qui cloche.",
-      "Ajoute un mot d'explication si tu veux, et envoie.",
+      "Ajouter un mot d'explication si besoin, et envoyer.",
     ],
   },
   {
     id: "2026-08-08-console-signalements",
     date: "2026-08-08",
     pour: "formateurs",
-    titre: "Tous les signalements au même endroit, déjà instruits",
-    resume: "Un sous-onglet Signalements rassemble les signalements de tous les QCM, rangés par "
-          + "ce qu'ils demandent : ceux où l'élève a raison d'abord, puis ceux à trancher, puis "
-          + "ceux qui n'appellent rien. Chacun arrive avec une analyse déjà faite (articles de "
-          + "loi revérifiés, chiffres recoupés), mais la décision reste la tienne : l'avis ne "
+    titre: "Toutes les questions contestées au même endroit, déjà analysées",
+    resume: "Un onglet Questions contestées rassemble les contestations de tous les QCM, rangées par "
+          + "ce qu'elles demandent : celles où le stagiaire a raison d'abord, puis celles à trancher, puis "
+          + "celles qui n'appellent rien. Chacune arrive avec une analyse déjà faite (articles de "
+          + "loi revérifiés, chiffres recoupés), mais la décision reste la vôtre : l'avis ne "
           + "corrige jamais une question de lui-même.",
-    ou: { label: "Cours, sous-onglet Signalements", route: "themes", sousOnglet: "signalements" },
+    ou: { label: "Cours, onglet Questions contestées", route: "themes", sousOnglet: "signalements" },
     guide: [
-      "Ouvre l'onglet Thèmes, puis le sous-onglet Signalements.",
-      "Lis l'avis en dépliant « Voir l'analyse », puis tranche avec « Corrigé » ou « Rien à corriger ».",
-      "« Ouvrir dans l'éditeur » t'emmène directement sur la question à réécrire.",
+      "Ouvrez Cours, puis l'onglet Questions contestées.",
+      "Lisez l'avis en dépliant « Voir l'analyse », puis tranchez avec « Question corrigée » ou « Pas d'erreur ».",
+      "« Ouvrir dans l'éditeur » vous emmène directement sur la question à réécrire.",
     ],
   },
   {
@@ -937,14 +944,14 @@ export const NOUVEAUTES = [
     pour: "tous",
     module: "qcm",
     titre: "Les QCM d'entraînement sont ouverts à toute la promo",
-    resume: "Les 57 thèmes ont désormais leur QCM. Tu t'entraînes autant de fois que tu veux, "
-          + "ça ne compte jamais dans tes notes. Tes anciennes erreurs repassent en premier, "
-          + "pour que tu travailles ce qui te manque plutôt que ce que tu sais déjà.",
+    resume: "Les 57 thèmes ont désormais leur QCM. Chacun s'entraîne autant de fois qu'il le souhaite : "
+          + "cela ne compte jamais dans les notes. Les anciennes erreurs repassent en premier, "
+          + "pour travailler ce qui manque plutôt que ce qui est déjà su.",
     ou: { label: "Cours, colonne QCM", route: "themes" },
     guide: [
-      "Ouvre l'onglet Thèmes.",
-      "Clique sur le bouton QCM à droite du thème qui t'intéresse.",
-      "Choisis « S'entraîner », ou « Revoir mes erreurs » pour ne rejouer que les questions ratées.",
+      "Ouvrir l'onglet Thèmes.",
+      "Cliquer sur le bouton QCM à droite du thème choisi.",
+      "Choisir « S'entraîner », ou « Revoir mes erreurs » pour ne rejouer que les questions ratées.",
     ],
   },
   {
@@ -952,25 +959,25 @@ export const NOUVEAUTES = [
     date: "2026-07-31",
     pour: "tous",
     module: "qcm",
-    titre: "Signale une erreur dans un QCM en un clic",
-    resume: "Si une question te paraît fausse, ambiguë ou mal formulée, tu peux le signaler "
-          + "depuis la question elle-même. Le signalement arrive aux formateurs, qui corrigent "
+    titre: "Contester une question de QCM en un clic",
+    resume: "Une question qui paraît fausse, ambiguë ou mal formulée se conteste depuis la "
+          + "question elle-même. La contestation arrive aux formateurs, qui corrigent "
           + "pour toute la promo.",
     ou: { label: "Cours, colonne QCM", route: "themes" },
     guide: [
-      "Pendant un entraînement, ouvre la question qui te pose problème.",
-      "Utilise le lien de signalement sous la question et explique en une phrase ce qui cloche.",
+      "Pendant un entraînement, ouvrir la question qui pose problème.",
+      "Toucher « Contester cette question », sous la question, et expliquer en une phrase ce qui cloche.",
     ],
   },
   {
     id: "2026-07-31-dossier-professionnel",
     date: "2026-07-31",
     pour: "tous",
-    titre: "Ton Dossier Professionnel se remplit dans l'app",
-    resume: "Le dossier que tu présentes au jury se saisit directement ici et s'imprime au "
-          + "format officiel. Tes réponses sont enregistrées au fur et à mesure, tu peux y "
-          + "revenir autant de fois que tu veux.",
-    ou: { label: "Mon espace personnel, partie Dossier pro",
+    titre: "Le dossier professionnel se remplit dans l'app",
+    resume: "Le dossier professionnel présenté au jury se saisit directement ici et s'imprime au "
+          + "format officiel. Les réponses sont enregistrées au fur et à mesure, pour y "
+          + "revenir autant de fois que nécessaire.",
+    ou: { label: "Mon espace personnel, partie Dossier professionnel",
           route: "mon-suivi", sousOnglet: "dp" },
     guide: [
       "Ouvre ton espace personnel avec le logo en haut à gauche.",
@@ -978,9 +985,9 @@ export const NOUVEAUTES = [
       "Remplis tes exemples, puis imprime ou enregistre en PDF quand tu es prêt.",
     ],
     guideNouvelle: [
-      "Ouvre Mon suivi, dans la barre.",
-      "Va sur le sous-onglet « Dossier pro ».",
-      "Remplis tes exemples, puis imprime ou enregistre en PDF quand tu es prêt.",
+      "Ouvrir Mon suivi, dans la barre.",
+      "Aller dans la partie « Dossier professionnel ».",
+      "Remplir les exemples, puis imprimer ou enregistrer en PDF une fois le dossier prêt.",
     ],
   },
   {
@@ -1009,29 +1016,29 @@ export const NOUVEAUTES = [
           + "validée, elle se verrouille et s'affiche en vue compacte, plus lisible.",
     ou: { label: "Planning", route: "planning" },
     guide: [
-      "Ouvre le planning, il est en lecture seule par défaut.",
-      "Clique sur « Modifier » pour éditer, « Quitter l'édition » pour en sortir.",
-      "Coche le verrou dans « Valider la semaine » quand la semaine est figée. Ctrl + Z la déverrouille.",
+      "Ouvrez le planning, il est en lecture seule par défaut.",
+      "Cliquez sur « Modifier » pour éditer, « Quitter l'édition » pour en sortir.",
+      "Cochez le verrou dans « Valider la semaine » quand la semaine est figée. Ctrl + Z la déverrouille.",
     ],
   },
   {
     id: "2026-07-19-livret-epcf",
     date: "2026-07-19",
     pour: "tous",
-    titre: "Ton livret officiel TP-01303 se remplit dans l'app",
-    resume: "Le livret que tu présentes au jury se saisit ici et s'imprime au format officiel. "
-          + "Ta date de naissance est reprise automatiquement depuis ton profil, tu n'as pas à "
-          + "la ressaisir.",
-    ou: { label: "Mon espace personnel, partie Livret", route: "mon-suivi", sousOnglet: "livret" },
+    titre: "Le livret EPCF officiel (TP-01303) dans l'app",
+    resume: "Le livret EPCF présenté au jury est rempli ici par le formateur évaluateur ; le stagiaire le "
+          + "consulte et l'imprime au format officiel. La date de naissance est reprise automatiquement "
+          + "depuis le profil, sans ressaisie.",
+    ou: { label: "Mon espace personnel, partie Livret EPCF", route: "mon-suivi", sousOnglet: "livret" },
     guide: [
       "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait.",
       "Ouvre l'onglet Notes, sous-onglet « Livret EPCF ».",
       "Remplis le livret, puis imprime ou enregistre en PDF.",
     ],
     guideNouvelle: [
-      "Ouvre Mon suivi, partie Livret EPCF.",
-      "Renseigne ta date de naissance si ce n'est pas déjà fait.",
-      "Remplis le livret, puis imprime ou enregistre en PDF.",
+      "Ouvrir Mon suivi, partie Livret EPCF.",
+      "Renseigner la date de naissance si ce n'est pas déjà fait.",
+      "Consulter le livret EPCF, puis l'imprimer ou l'enregistrer en PDF.",
     ],
   },
   {
@@ -1044,9 +1051,9 @@ export const NOUVEAUTES = [
           + "avec un commentaire par venue.",
     ou: { label: "Planning, bouton Bénévoles", route: "planning" },
     guide: [
-      "Ouvre le planning et clique sur « Bénévoles » dans la barre de semaine.",
-      "Bascule sur l'onglet « Auto-écoles » du panneau.",
-      "Ouvre une fiche pour voir ses bénévoles, en affilier d'autres ou en créer un directement rattaché.",
+      "Ouvrez le planning et cliquez sur « Bénévoles » dans la barre de semaine.",
+      "Basculez sur l'onglet « Auto-écoles » du panneau.",
+      "Ouvrez une fiche pour voir ses bénévoles, en affilier d'autres ou en créer un directement rattaché.",
     ],
   },
   {
@@ -1059,9 +1066,9 @@ export const NOUVEAUTES = [
           + "jour-là remontent en tête de liste.",
     ou: { label: "Planning, bouton Bénévoles", route: "planning" },
     guide: [
-      "Ouvre le planning et clique sur « Bénévoles » dans la barre de semaine.",
-      "Ajoute une fiche : seul le prénom est obligatoire, le reste se complète plus tard.",
-      "Renseigne la grille de disponibilités pour que le filtre « qui est dispo jeudi matin » fonctionne.",
+      "Ouvrez le planning et cliquez sur « Bénévoles » dans la barre de semaine.",
+      "Ajoutez une fiche : seul le prénom est obligatoire, le reste se complète plus tard.",
+      "Renseignez la grille de disponibilités pour que le filtre « qui est dispo jeudi matin » fonctionne.",
     ],
   },
 ];

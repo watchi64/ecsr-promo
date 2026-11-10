@@ -37,7 +37,8 @@ ok(/anonymisées/.test(fini.texte), "promo traitée");
 // Compte rendu
 eq(resumeEffacement({ deja: true }), "Ces données étaient déjà effacées.", "déjà fait");
 const r = resumeEffacement({ comptes: 1, date_naissance: 1, livret: 1, dossier_pro: 0, fiche_suivi: 1, epcf_textes: 2, observations: 1, commentaires_passages: 0 });
-ok(r.startsWith("Effacé : compte de connexion, date de naissance, livret, fiche de suivi, 3 commentaires."), "compte rendu détaillé");
+ok(r.startsWith("Effacé : compte de connexion, date de naissance, livret EPCF, fiche de suivi, 3 commentaires."), "compte rendu détaillé");
+ok(resumeEffacement({ dossier_pro: 1 }).startsWith("Effacé : dossier professionnel."), "le dossier professionnel, en toutes lettres");
 ok(/sans nom/.test(resumeEffacement({})), "compte rendu minimal");
 
 console.log(`effacement-rules : ${n} vérifications OK`);

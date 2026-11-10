@@ -23,7 +23,7 @@ export function parseNoteInput(raw) {
     return { note, note_max: 20, converted: true, original: `${m[1]}/${m[2]}` };
   }
   const n = Number(s);
-  if (!isFinite(n)) return { error: "tape une note de 0 à 20, ou par exemple 7/10" };
+  if (!isFinite(n)) return { error: "tapez une note de 0 à 20, ou par exemple 7/10" };
   if (n < 0 || n > 20) return { error: "la note va de 0 à 20" };
   return { note: n, note_max: 20, converted: false };
 }
@@ -155,10 +155,10 @@ export function origineNote(evaluation) {
 
 const ETATS_VIDES = {
   "equipe-matrice": { titre: "Aucune note pour l'instant",
-    phrase: "Les notes arrivent ici toutes seules quand un stagiaire passe un examen QCM. Tu peux aussi les saisir toi-même.",
+    phrase: "Les notes arrivent ici toutes seules quand un stagiaire passe un examen QCM. Vous pouvez aussi les saisir vous-même.",
     actions: ["examen", "saisir"] },
   "equipe-saisir": { titre: "Aucune note pour l'instant",
-    phrase: "Les notes arrivent ici toutes seules quand un stagiaire passe un examen QCM. Tu peux aussi les saisir toi-même.",
+    phrase: "Les notes arrivent ici toutes seules quand un stagiaire passe un examen QCM. Vous pouvez aussi les saisir vous-même.",
     actions: ["examen"] },
   "classe-stagiaire": { titre: "Pas encore de notes",
     phrase: "Les notes de la classe apparaîtront après le premier examen.",
@@ -184,8 +184,8 @@ const RAISON_CONNEXION = "la connexion a échoué";
 export function raisonEchecNote(erreur) {
   const texte = String(erreur?.message ?? erreur ?? "");
   const code = String(erreur?.code ?? "");
-  if (/jwt|not authenticated/i.test(texte) || /^PGRST30[0-3]$/.test(code)) return "ta session a expiré, reconnecte-toi";
-  if (code === "42501" || /row-level security|permission denied/i.test(texte)) return "tu n'as pas le droit de modifier cette note";
+  if (/jwt|not authenticated/i.test(texte) || /^PGRST30[0-3]$/.test(code)) return "votre session a expiré, reconnectez-vous";
+  if (code === "42501" || /row-level security|permission denied/i.test(texte)) return "vous n'avez pas le droit de modifier cette note";
   return RAISON_CONNEXION;
 }
 

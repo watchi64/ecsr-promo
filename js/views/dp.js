@@ -110,14 +110,14 @@ function showListe(container) {
     "chaque enregistrement retient qui a écrit en dernier."));
   const table = el("table", { class: "lv-liste-table" });
   table.appendChild(el("thead", {}, el("tr", {},
-    el("th", {}, "Stagiaire"), el("th", {}, "Dossier"))));
+    el("th", {}, "Stagiaire"), el("th", {}, "Dossier professionnel"))));
   const tbody = el("tbody");
   stagiaires.forEach((s) => {
     const row = dossiersIndex.find((d) => d.stagiaire_id === s.id);
     const cestMoi = monStagiaireId != null && s.id === monStagiaireId;
     const cell = el("td", {});
     cell.appendChild(el("span", { class: "lv-statut" + (row ? " ok" : "") },
-      row ? "commencé · màj " + formatDate(new Date(row.updated_at)) : "vierge"));
+      row ? "commencé, modifié le " + formatDate(new Date(row.updated_at)) : "pas commencé"));
     // Un formateur ouvre en écriture le dossier de n'importe quel stagiaire,
     // commencé ou non : il accompagne la rédaction. Sa propre ligne s'ouvre de
     // la même façon, un formateur pouvant être aussi stagiaire.
@@ -133,7 +133,7 @@ function showListe(container) {
         });
       },
     }, cestMoi ? (row ? "Remplir mon dossier" : "Commencer mon dossier")
-               : (row || !isAdmin() ? "Ouvrir" : "Commencer")));
+               : (row || !isAdmin() ? "Ouvrir ce dossier" : "Commencer ce dossier")));
     const nom = el("div", { class: "lv-name-cell" }, el("span", {}, displayStagiaire(s)));
     if (cestMoi) nom.appendChild(el("span", { class: "lv-statut" }, "moi"));
     tbody.appendChild(el("tr", {}, el("td", {}, nom), cell));
@@ -190,10 +190,10 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
       + (row.updated_at ? " le " + formatDate(new Date(row.updated_at)) : "") + ". "
     : "";
   container.appendChild(el("p", { class: "lv-hint" }, readOnly
-    ? derniereMain + "Consultation seule."
+    ? derniereMain + "Lecture seule : vous ne pouvez pas modifier ce dossier."
     : derniereMain + (cestLeMien
         ? "Clique dans les zones encadrées pour remplir. Enregistrement automatique. Un exemple laissé vide ne sera pas imprimé."
-        : "Tu accompagnes ce candidat : tes modifications sont enregistrées à ton nom.")));
+        : "Vous accompagnez ce candidat : vos modifications sont enregistrées à votre nom.")));
 
   // À l'écran : en édition le candidat écrit dans un flux continu, en
   // consultation le document est déjà composé en feuilles. Dans les deux cas,
@@ -412,7 +412,7 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
       console.error(e);
       status.textContent = "Non enregistré !";
       status.className = "lv-status error";
-      toast("Enregistrement du dossier impossible : " + (e?.message || e), "error");
+      toast("Enregistrement du dossier professionnel impossible : " + (e?.message || e), "error");
     } finally {
       saving = false;
       if (pendingAgain) { pendingAgain = false; saveNow(); }

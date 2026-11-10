@@ -33,8 +33,9 @@ export function jourParis(instant) {
   return `${parties.year}-${parties.month}-${parties.day}`;
 }
 
-// Les trois questionnaires, dans l'ordre de la page, avec leur nom côté gestion (le titre du catalogue tutoie la personne
-// qui répond : « Ton avis sur la formation »).
+// Les trois questionnaires, dans l'ordre de la page, avec leur nom côté gestion (le titre du catalogue s'adresse à la
+// personne qui répond : « Ton avis sur la formation », « Votre avis de formateur »). La gestion est réservée à l'équipe :
+// ses messages vouvoient.
 export const QUESTIONNAIRES_GESTION = [
   { cle: "fin_stagiaire", titre: "Fin de formation", qui: "Stagiaires de la promo, de la semaine avant la fin à 30 jours après." },
   { cle: "six_mois_stagiaire", titre: "Six mois après", qui: "Stagiaires de la promo, de 6 à 7 mois après la fin." },
@@ -215,10 +216,10 @@ function messageGestion(erreur, defaut) {
 
 // Une lecture de gestion (résultats, commentaires, ouvertures) qui échoue.
 export function messageLectureGestion(erreur) {
-  return messageGestion(erreur, "Les questionnaires n'ont pas pu être lus : vérifie ta connexion, puis réessaie.");
+  return messageGestion(erreur, "Les questionnaires n'ont pas pu être lus : vérifiez votre connexion, puis réessayez.");
 }
 
 // Une ouverture, une fermeture ou un retour aux dates qui échoue.
 export function messageEchecOuverture(erreur) {
-  return messageGestion(erreur, "Le changement n'a pas abouti : vérifie ta connexion, puis réessaie.");
+  return messageGestion(erreur, "Le changement n'a pas abouti : vérifiez votre connexion, puis réessayez.");
 }

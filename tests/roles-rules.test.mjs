@@ -64,6 +64,10 @@ test("messageSansPromo : le siège et la direction ne sont pas renvoyés vers un
   assert.equal(messageSansPromo(null), MESSAGE_SANS_PROMO);
   assert.equal(messageSansPromo(undefined), MESSAGE_SANS_PROMO);
   for (const m of [MESSAGE_SANS_PROMO, messageSansPromo(["siege"]), messageSansPromo(["direction"])]) assert.ok(!m.includes("—"));
+  // Refus à la porte : formule neutre, ni tu ni vous (décision du 10/11).
+  for (const m of [MESSAGE_SANS_PROMO, messageSansPromo(["siege"]), messageSansPromo(["direction"])]) {
+    assert.doesNotMatch(m, /\b(tu|ton|ta|tes|toi|vous|votre|vos)\b|\bt'/i, m);
+  }
 });
 
 test("pas de profil : aucun droit", () => {
@@ -146,7 +150,7 @@ test("messageInvitation : fonction absente de la base, phrase sans terme techniq
 test("messageInvitationReussie : « rien n'a changé » seulement si ni profil créé ni affectation ajoutée (I1)", () => {
   const email = "x@exemple.fr";
   assert.deepEqual(messageInvitationReussie({ resultat: { cree: true, affecte: 1, role: "formateur" }, email }),
-    { texte: "Ajouté à la liste des invitations : x@exemple.fr. Partage-lui l'URL.", ton: "success" });
+    { texte: "Ajouté à la liste des invitations : x@exemple.fr. Partagez-lui l'URL.", ton: "success" });
   assert.deepEqual(messageInvitationReussie({ resultat: { cree: true, affecte: 0, role: "stagiaire" }, email, v2: false }),
     { texte: "Ajouté à la whitelist : x@exemple.fr. Partage-lui l'URL.", ton: "success" });
   // Un compte qui existait gagne la promo : ce n'est pas « rien n'a changé ».

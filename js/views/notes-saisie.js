@@ -54,7 +54,7 @@ export function renderSaisie(panel, ctx) {
   function ecranListe() {
     const vide = ctx.carteVide ? ctx.carteVide("equipe-saisir") : null;
     if (vide) zone.appendChild(vide);
-    zone.appendChild(el("h3", { class: "saisie-titre" }, "Choisis ce que tu notes"));
+    zone.appendChild(el("h3", { class: "saisie-titre" }, "Choisissez ce que vous notez"));
     const champ = el("input", {
       type: "search", class: "saisie-recherche", value: recherche,
       placeholder: "Numéro ou titre", "aria-label": "Chercher une compétence ou un thème", autocomplete: "off",
@@ -193,7 +193,7 @@ export function renderSaisie(panel, ctx) {
           // On a quitté l'écran pendant l'envoi (« Retour », Échap, un autre sous-onglet) : la ligne d'état n'est plus
           // affichée, un échec se dit donc dans un message, avec le nom, pour ne rien perdre en silence.
           if (!etat.isConnected && (r.etat === "invalide" || r.etat === "erreur")) {
-            toast(`Note de ${nom} pas enregistrée : ${r.message}. Rouvre le thème pour la saisir de nouveau.`, "error", 6000);
+            toast(`Note de ${nom} pas enregistrée : ${r.message}. Rouvrez le thème pour la saisir de nouveau.`, "error", 6000);
           }
           if (r.etat === "enregistree" || r.etat === "effacee") {
             majCompteur();

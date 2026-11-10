@@ -51,7 +51,7 @@ export async function renderPropositionsIa(panel, { themes = [], onOuvrirEditeur
       return;
     }
     c.corps.appendChild(el("p", { class: "acc-intro" },
-      "L'IA propose des questions à partir des cours. Aucune n'est publiée avant ta relecture : tu les acceptes ou les écartes dans l'éditeur du QCM."));
+      "L'IA propose des questions à partir des cours. Aucune n'est publiée avant votre relecture : vous les acceptez ou les écartez dans l'éditeur du QCM."));
     c.corps.appendChild(el("div", { class: "acc-lignes" }, ...groupes.map((g) => ligneAction({
       ico: "quiz", titre: g.titre,
       detail: g.plusAncien

@@ -22,13 +22,13 @@ test("un QCM sans question n'est pas proposé", () => {
   assert.deepEqual(ids(l), [1]);
 });
 
-test("la ligne : titre du thème numéroté, état « Pas encore fait », action « Ouvrir »", () => {
+test("la ligne : titre du thème numéroté, état « Pas encore fait », action « Voir le QCM »", () => {
   const [l] = lignesQcmStagiaire({ qcm: [qcm(1, 1)], themes, tentatives: [], now: NOW });
   assert.equal(l.titre, "Thème 22 · Feux du véhicule");
   assert.equal(l.etat, "Pas encore fait");
   assert.equal(l.note, null);
   assert.equal(l.examenOuvert, false);
-  assert.equal(l.action, "Ouvrir");
+  assert.equal(l.action, "Voir le QCM");
   assert.equal(l.theme.id, 1);
   assert.equal(l.etiquette, null);
 });

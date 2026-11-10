@@ -193,14 +193,17 @@ test("commentaires : jamais avec « Sans aucun nom », jamais sous le seuil, ord
 });
 
 test("messages : une lecture n'est pas un envoi ; la phrase de la base est gardée", () => {
-  const lecture = messageLectureGestion(new Error("L'envoi n'a pas abouti : vérifie ta connexion et réessaie."));
+  const lecture = messageLectureGestion(new Error("L'envoi n'a pas abouti : merci de vérifier la connexion et de réessayer."));
   assert.match(lecture, /^Les questionnaires n'ont pas pu être lus/);
   assert.doesNotMatch(lecture, /envoi/i);
   assert.equal(messageLectureGestion(new Error("Réservé à la gestion de la qualité.")), "Réservé à la gestion de la qualité.");
   assert.equal(messageLectureGestion({ message: "questionnaire: Réservé à l'éditeur." }), "Réservé à l'éditeur.");
   assert.match(messageLectureGestion(null), /^Les questionnaires n'ont pas pu être lus/);
   assert.match(messageLectureGestion(new TypeError("Failed to fetch")), /^Les questionnaires n'ont pas pu être lus/);
-  assert.match(messageEchecOuverture(new Error("L'envoi n'a pas abouti : vérifie ta connexion et réessaie.")), /^Le changement n'a pas abouti/);
+  assert.match(messageEchecOuverture(new Error("L'envoi n'a pas abouti : merci de vérifier la connexion et de réessayer.")), /^Le changement n'a pas abouti/);
+  // La gestion est réservée à l'équipe : ses messages vouvoient (règle du 10/11).
+  assert.equal(messageLectureGestion(null), "Les questionnaires n'ont pas pu être lus : vérifiez votre connexion, puis réessayez.");
+  assert.equal(messageEchecOuverture(null), "Le changement n'a pas abouti : vérifiez votre connexion, puis réessayez.");
   assert.equal(messageEchecOuverture(new Error("Promo introuvable.")), "Promo introuvable.");
 });
 

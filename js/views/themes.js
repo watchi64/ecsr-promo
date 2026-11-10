@@ -1,12 +1,12 @@
 import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261110b";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261110b";
-import { icon } from "../icons.js?v=20261110b";
+import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261110b";
+import { icon, deco } from "../icons.js?v=20261110b";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
          echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture, resumeExamen } from "../qcm-exam-rules.js?v=20261110b";
-import { isAdmin, getAdminEmail, isProf, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261110b";
+import { isAdmin, getAdminEmail, isProf, isStagiaire, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261110b";
 import { recordUndo } from "../undo.js?v=20261110b";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261110b";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261110b";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261110b";
 import { renderSubTabs } from "../subtabs.js?v=20261110b";
 import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261110b";
 import { cleCours } from "../cours-rules.js?v=20261110b";
@@ -131,13 +131,14 @@ function bandeauLectureEnEchec() {
   const message = messageLectureEnEchec({
     cours: echecCours && moduleVisible("cours"),
     qcm: echecQcm && canSeeQcm(),
+    vous: selonPublic(false, true),
   });
   if (!message) return null;
   const bouton = el("button", { class: "btn ghost", type: "button" }, "Réessayer");
   bouton.addEventListener("click", async () => {
     bouton.disabled = true;
     try { await reload(lastContainer); }
-    catch (e) { bouton.disabled = false; toast("Toujours pas de connexion. Réessaie dans un instant.", "error"); }
+    catch (e) { bouton.disabled = false; toast(selonPublic("Toujours pas de connexion. Réessaie dans un instant.", "Toujours pas de connexion. Réessayez dans un instant."), "error"); }
   });
   return el("div", { class: "lecture-echec", role: "alert" }, el("p", {}, message), bouton);
 }
@@ -170,7 +171,7 @@ function noteClass(n) {
 // (une seule forme = le bouton ; les notes sont nommées, valeur colorée selon le score).
 function qcmCellEl(theme, qcm) {
   const btn = el("button", {
-    class: "theme-qcm-hint", type: "button", title: "Ouvrir le QCM",
+    class: "theme-qcm-hint", type: "button", title: "Voir le QCM",
     onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmSheet(theme, qcm); },
   }, icon.quiz(), "QCM");
   const note = myThemeNote(theme, qcm);
@@ -190,13 +191,13 @@ function qcmCellEl(theme, qcm) {
     }, "Examen ouvert"));
   }
 
-  // Signalements ouverts : visible sans ouvrir le QCM, sinon ils passent inapercus.
+  // Questions contestées à traiter : visibles sans ouvrir le QCM, sinon elles passent inaperçues.
   const nbSignal = signalByQcm[qcm.id] || 0;
   if (nbSignal) {
     cell.appendChild(el("span", {
       class: "theme-qcm-signal",
-      title: nbSignal + " signalement" + (nbSignal > 1 ? "s" : "") + " a traiter dans ce QCM",
-    }, "⚑ " + nbSignal));
+      title: nbSignal + (nbSignal > 1 ? " questions contestées" : " question contestée") + " à traiter dans ce QCM",
+    }, deco(icon.drapeau()), String(nbSignal)));
   }
   if (note != null || train != null) {
     const row = (lab, val, colored) => el("div", { class: "qcm-cell-note-row" },
@@ -226,7 +227,7 @@ function nomDuTheme(theme) {
   return num != null && num !== "" ? `Thème ${num} · ${theme.titre}` : theme.titre;
 }
 
-// Bloc d'examen de la liste des thèmes (lot C) : « Examen fermé » et « Ouvrir l'examen », ou « Ouvert jusqu'à 16 h 30 »
+// Bloc d'examen de la liste des thèmes (lot C) : « Examen fermé » et « Ouvrir l'examen aux stagiaires », ou « Ouvert jusqu'à 16 h 30 »
 // et « Fermer l'examen ». L'heure de fin plutôt qu'un compte à rebours : elle reste juste si la page reste affichée.
 function blocExamenListe(theme, qcm, apres) {
   const ouvert = examenDemarrable(qcm);
@@ -235,7 +236,7 @@ function blocExamenListe(theme, qcm, apres) {
     el("span", { class: "theme-qcm-examen-etat" }, libelleOuverture(qcm)),
     ouvert
       ? el("button", { type: "button", class: "btn small examen-fermer", onClick: agir(fermerExamen) }, "Fermer l'examen")
-      : el("button", { type: "button", class: "btn small primary examen-ouvrir", onClick: agir(ouvrirExamen) }, "Ouvrir l'examen"));
+      : el("button", { type: "button", class: "btn small primary examen-ouvrir", onClick: agir(ouvrirExamen) }, "Ouvrir l'examen aux stagiaires"));
 }
 
 // Ouvrir l'examen d'un QCM, depuis la fiche du QCM comme depuis la liste des thèmes (lot C). On demande d'abord POUR
@@ -281,7 +282,7 @@ async function publierExamen(qcm, fermeA, apres) {
     const n = `${ids.length} question${ids.length > 1 ? "s" : ""}`;
     toast(fermeA
       ? `Examen ouvert : ${n}, ferme dans ${formatTempsRestant(tempsRestantMs(qcm))}.`
-      : `Examen ouvert sans limite : ${n}. Pense à le refermer.`, "success");
+      : `Examen ouvert sans limite : ${n}. Pensez à le refermer.`, "success");
     apres();
   } catch (e) { toast("Ouverture impossible : " + (e?.message || e), "error"); }
 }
@@ -380,7 +381,7 @@ function openQcmSheet(theme, qcm) {
     body.appendChild(el("button", { class: "btn primary full", type: "button",
       onClick: () => { backdrop.remove(); openQcmEntrainement(theme, qcm); } }, icon.play(), "S'entraîner"));
     body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
-      "Libre, illimité, ne compte pas dans les notes. Tes anciennes erreurs passent en premier."));
+      "Libre, illimité, ne compte pas dans les notes. Les questions déjà ratées passent en premier."));
 
     // Revoir mes erreurs : rejoue uniquement les questions échouées (les 2 modes comptent).
     if (stagiaireAvecFiche) {
@@ -405,17 +406,19 @@ function openQcmSheet(theme, qcm) {
       }
     }
 
-    // Signalements ouverts : remontés SUR la fiche, avec un accès direct à l'éditeur.
+    // Questions contestées à traiter : remontées SUR la fiche, avec un accès direct à l'éditeur.
     // Sans ça il fallait passer par « Modifier » puis « Éditer les questions » pour les
     // découvrir, donc savoir à l'avance qu'il y en avait.
     const nbSignal = signalByQcm[qcm.id] || 0;
     if (canManageExam() && nbSignal) {
       const voir = el("button", { class: "btn full", type: "button", style: "margin-top:0.9rem" },
-        `⚑ ${nbSignal} signalement${nbSignal > 1 ? "s" : ""} à traiter`);
+        deco(icon.drapeau()), `${nbSignal} question${nbSignal > 1 ? "s" : ""} contestée${nbSignal > 1 ? "s" : ""} à traiter`);
       voir.addEventListener("click", () => { backdrop.remove(); openQcmEditor(theme, qcm.id); });
       body.appendChild(voir);
       body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
-        "Signalé par un élève. Ouvre l'éditeur pour lire et classer."));
+        nbSignal > 1
+          ? "Contestées par des stagiaires. Ouvrez l'éditeur pour lire les contestations et les classer."
+          : "Contestée par un stagiaire. Ouvrez l'éditeur pour lire la contestation et la classer."));
     }
 
     // Gestion formateur (éditer la banque, publier / tirage / tentatives).
@@ -475,7 +478,7 @@ function themeExamPanel(theme, qcm, onPublishChange) {
     clear(actions);
     actions.appendChild(ouvert
       ? el("button", { class: "btn danger", type: "button", onClick: doUnpublish }, "Fermer maintenant")
-      : el("button", { class: "btn primary", type: "button", onClick: demanderDuree }, "Ouvrir l'examen"));
+      : el("button", { class: "btn primary", type: "button", onClick: demanderDuree }, "Ouvrir l'examen aux stagiaires"));
     actions.appendChild(el("button", { class: "btn ghost", type: "button", onClick: openConfig }, "Modifier"));
   }
 
@@ -550,7 +553,7 @@ function themeExamPanel(theme, qcm, onPublishChange) {
       function setAll(v) { list.querySelectorAll("input[type=checkbox]").forEach((c) => { c.checked = v; }); updateCount(); }
       const modal2 = el("div", { class: "modal" },
         el("h3", {}, "Choisir les questions"),
-        el("p", { class: "muted", style: "font-size:0.85rem" }, "Coche les questions. L'ordre suit l'ordre des questions."),
+        el("p", { class: "muted", style: "font-size:0.85rem" }, "Cochez les questions. L'ordre suit l'ordre des questions."),
         el("div", { style: "display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin:0.2rem 0 0.5rem" },
           el("button", { class: "btn ghost", type: "button", style: "padding:0.35rem 0.7rem;font-size:0.82rem;flex:0 0 auto", onClick: () => setAll(true) }, "Tout cocher"),
           el("button", { class: "btn ghost", type: "button", style: "padding:0.35rem 0.7rem;font-size:0.82rem;flex:0 0 auto", onClick: () => setAll(false) }, "Tout décocher"),
@@ -561,7 +564,7 @@ function themeExamPanel(theme, qcm, onPublishChange) {
           el("button", { class: "btn ghost", type: "button", onClick: () => backdrop.remove() }, "Annuler"),
           el("button", { class: "btn primary", type: "button", onClick: async () => {
             const ids = qs.filter((q) => list.querySelector(`input[data-qid="${q.id}"]`).checked).map((q) => q.id);
-            if (!ids.length) { toast("Sélectionne au moins une question.", "error"); return; }
+            if (!ids.length) { toast("Sélectionnez au moins une question.", "error"); return; }
             try {
               await updateExamConfig(qcm.id, { exam_question_ids: ids, exam_draw_mode: "manual", exam_nb_questions: ids.length });
               Object.assign(qcm, { exam_question_ids: ids, exam_draw_mode: "manual", exam_nb_questions: ids.length });
@@ -579,7 +582,9 @@ function themeExamPanel(theme, qcm, onPublishChange) {
 
     async function manageAttempts() {
       let attempts;
-      try { attempts = await listExamAttempts(qcm.id); }
+      // La lecture des tentatives ne rapporte que le prénom : le nom « Lucie M. » vient de la liste des stagiaires
+      // (chargerAuteurs, celle de la console des questions contestées ; un échec y retombe sur le prénom).
+      try { await chargerAuteurs(); attempts = await listExamAttempts(qcm.id); }
       catch (e) { toast("Chargement impossible : " + (e?.message || e), "error"); return; }
       const backdrop = el("div", { class: "modal-backdrop" });
       const bodyA = el("div", { class: "exam-attempts-list" });
@@ -588,7 +593,7 @@ function themeExamPanel(theme, qcm, onPublishChange) {
         if (!attempts.length) { bodyA.appendChild(el("p", { class: "muted" }, "Aucune tentative pour l'instant.")); return; }
         attempts.forEach((a) => {
           bodyA.appendChild(el("div", { class: "exam-attempt-row" },
-            el("span", {}, (a.stagiaire?.prenom || `Stagiaire ${a.stagiaire_id}`) + ` : ${a.note_20}/20`),
+            el("span", {}, (nomStagiaire(a.stagiaire_id) || displayStagiaire(a.stagiaire) || "Stagiaire inconnu") + ` : ${a.note_20}/20`),
             el("button", { class: "btn danger", type: "button", onClick: async () => {
               if (!window.confirm("Réinitialiser cette tentative ? La note sera supprimée.")) return;
               try { await resetExamAttempt(qcm.id, a.stagiaire_id); attempts = attempts.filter((x) => x.id !== a.id); toast("Tentative réinitialisée.", "success"); fill(); }
@@ -783,7 +788,7 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
     const list = el("div", { class: "qcm-editor-list" });
     if (!questions.length) {
       list.appendChild(el("p", { class: "muted", style: "text-align:center;padding:1.5rem 0" },
-        "Aucune question pour l'instant. Ajoute la première ci-dessous."));
+        "Aucune question pour l'instant. Ajoutez la première ci-dessous."));
     }
     questions.forEach((q, i) => list.appendChild(questionCard(q, i, questions)));
     panel.appendChild(list);
@@ -839,7 +844,7 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
     const opts = Array.isArray(b.options) ? b.options : [];
     const card = el("div", { class: "qcm-ia-card", dataset: { brouillonId: String(b.id) } });
     card.appendChild(el("div", { class: "qcm-editor-card-head" },
-      el("span", { class: "qcm-ia-badge" }, "Brouillon IA"),
+      el("span", { class: "qcm-ia-badge" }, "Proposée par l'IA"),
       b.section ? el("span", { class: "qcm-editor-section" }, b.section) : null,
       opts.filter((o) => o.is_correct).length > 1 ? el("span", { class: "qcm-editor-multi" }, "Plusieurs réponses") : null,
       el("div", { class: "qcm-editor-card-order" },
@@ -942,7 +947,7 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
       el("h3", {}, "Proposer des questions avec l'IA"),
       el("p", { class: "qcm-ia-note" },
         "L'IA lit le cours vérifié de ce thème et rédige des brouillons. Ils restent invisibles des stagiaires : "
-        + "rien n'entre dans le QCM sans ta validation. Seul le texte du cours lui est envoyé, aucune donnée de stagiaire."),
+        + "rien n'entre dans le QCM sans votre validation. Seul le texte du cours lui est envoyé, aucune donnée de stagiaire."),
       el("div", { class: "field" }, el("label", {}, "Nombre de questions"), nombre),
       el("div", { class: "field" }, el("label", {}, "Partie du cours"), partie),
       etat,
@@ -952,20 +957,21 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
     document.body.appendChild(backdrop);
   }
 
-  // Les signalements en tête de l'éditeur : c'est là que le formateur corrige,
+  // Les questions contestées en tête de l'éditeur : c'est là que le formateur corrige,
   // donc c'est là qu'ils doivent apparaître, avec le numéro de la question visée.
   function signalPanel(questions) {
     const numeroDe = new Map(questions.map((q, i) => [q.id, i + 1]));
     const box = el("div", { class: "qcm-signal-panel" });
     const n = signalements.liste.length;
-    box.appendChild(el("h4", {}, `⚑ ${n} signalement${n > 1 ? "s" : ""} à traiter`));
+    box.appendChild(el("h4", {}, deco(icon.drapeau()),
+      ` ${n} question${n > 1 ? "s" : ""} contestée${n > 1 ? "s" : ""} à traiter`));
 
     signalements.liste.forEach((s) => {
       async function classer(statut, bouton) {
         bouton.disabled = true;
         try {
           await setQcmSignalementStatut(s.id, statut, getAdminEmail());
-          toast(statut === "traite" ? "Signalement classé comme corrigé." : "Signalement écarté.", "success");
+          toast(statut === "traite" ? "Contestation classée : question corrigée." : "Contestation classée : pas d'erreur.", "success");
           dirty = true;  // sinon le badge de la liste des thèmes reste sur l'ancien compte
           await reloadEditor();
         } catch (e) {
@@ -996,8 +1002,8 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
             libelleTraceIa(q))
         : null,
       (signalements.parQuestion[q.id] || []).length
-        ? el("span", { class: "qcm-editor-signal", title: "Signalements ouverts sur cette question" },
-            "⚑ " + signalements.parQuestion[q.id].length)
+        ? el("span", { class: "qcm-editor-signal", title: "Contestations à traiter sur cette question" },
+            deco(icon.drapeau()), String(signalements.parQuestion[q.id].length))
         : null,
       el("div", { class: "qcm-editor-card-order" },
         el("button", { class: "btn small ghost", type: "button", title: "Monter",
@@ -1107,7 +1113,7 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = [], { 
       renderImg();
       toast("Image ajoutée.", "success");
     } catch (e) {
-      toast("Upload impossible : " + (e?.message || e), "error");
+      toast("L'envoi de l'image n'a pas abouti : " + (e?.message || e), "error");
     } finally {
       fileInput.value = "";
     }
@@ -1151,8 +1157,8 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = [], { 
       texte: row.querySelector("input[type=text]").value.trim(),
       is_correct: row.querySelector("input[type=checkbox]").checked,
     })).filter((o) => o.texte !== "");
-    if (options.length < 2) { toast("Ajoute au moins deux réponses.", "error"); return; }
-    if (!options.some((o) => o.is_correct)) { toast("Coche au moins une bonne réponse.", "error"); return; }
+    if (options.length < 2) { toast("Ajoutez au moins deux réponses.", "error"); return; }
+    if (!options.some((o) => o.is_correct)) { toast("Cochez au moins une bonne réponse.", "error"); return; }
 
     const q = {
       id: question?.id,
@@ -1185,7 +1191,7 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = [], { 
       const hors = articlesHorsCours([q.section, q.enonce, q.explication, ...q.options.map((o) => o.texte)], articlesCours);
       if (hors.length && !window.confirm(
         `Le texte cite ${hors.join(", ")}, qui n'apparaît pas dans le cours du thème. `
-        + "Vérifie-le sur Légifrance avant d'accepter.\n\nAccepter quand même ?")) return;
+        + "Vérifiez-le sur Légifrance avant d'accepter.\n\nAccepter quand même ?")) return;
     }
     envoi = true;
     try {
@@ -1221,15 +1227,15 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = [], { 
     el("div", { class: "qcm-form-body" },
       brouillon
         ? el("p", { class: "qcm-ia-note" },
-            "Proposé par l'IA à partir du cours vérifié du thème. Vérifie chaque réponse et l'explication, "
-            + "corrige si besoin, puis accepte : la question entrera dans le QCM avec la mention « validée par » et ton nom.")
+            "Proposé par l'IA à partir du cours vérifié du thème. Vérifiez chaque réponse et l'explication, "
+            + "corrigez si besoin, puis acceptez : la question entrera dans le QCM avec la mention « validée par » et votre nom.")
         : null,
       isEdit && siblings.length > 1
         ? el("div", { class: "field qcm-form-pos" },
             el("label", {}, "Position"),
             posInput,
             el("p", { class: "muted" },
-              `1 = première question, ${siblings.length} = dernière. Change le numéro pour déplacer la question.`),
+              `1 = première question, ${siblings.length} = dernière. Changez le numéro pour déplacer la question.`),
           )
         : null,
       el("div", { class: "field" }, el("label", {}, "Section"), sectionInput),
@@ -1245,7 +1251,7 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = [], { 
       el("div", { class: "field" },
         el("label", {}, "Réponses"),
         el("p", { class: "muted", style: "font-size:0.78rem;margin:0 0 0.4rem" },
-          "Coche chaque bonne réponse. Une ou plusieurs bonnes réponses possibles."),
+          "Cochez chaque bonne réponse. Une ou plusieurs bonnes réponses possibles."),
         optsWrap,
         el("button", { class: "btn ghost small", type: "button", onClick: () => addOptionRow() }, icon.plus(), "Ajouter une réponse"),
       ),
@@ -1518,11 +1524,11 @@ function renderThemeRow(theme, container, coursOn = false) {
   let delBtn = null;
   if (admin && theme.type === "notion") {
     delBtn = el("button", {
-      class: "btn small danger icon-only", "aria-label": "Supprimer la notion",
+      class: "btn small danger icon-only", "aria-label": "Supprimer cette notion pédagogique",
       onClick: async () => {
         // `themes` est commun à toutes les promos : la suppression emporte en cascade la progression,
         // les QCM, les états d'examen et les tentatives de TOUTES les promos.
-        if (!confirm(`Supprimer la notion « ${theme.titre} » ?\n\nLa suppression vaut pour toutes les promos : la progression, les QCM et les tentatives liés disparaissent avec elle.`)) return;
+        if (!confirm(`Supprimer la notion pédagogique « ${theme.titre} » ?\n\nLa suppression vaut pour toutes les promos : la progression, les QCM et les tentatives liés disparaissent avec elle.`)) return;
         await deleteTheme(theme.id);
         themes = themes.filter((t) => t.id !== theme.id);
         rerender(container);
@@ -1944,7 +1950,7 @@ function rerender(container) {
 async function reload(container) {
   themes = await listThemes();
   await loadQcmIndex();
-  // Aucune liste encore affichée (Cours ouvert sur Signalements) : les données sont
+  // Aucune liste encore affichée (Cours ouvert sur Questions contestées) : les données sont
   // rechargées, la liste les montrera quand on y viendra.
   if (container) rerender(container);
 }
@@ -1988,14 +1994,14 @@ export async function renderThemes(container) {
         el("p", { class: "subtitle" }, v2 ? [sousTitre + " ", ligneProgression, "."] : sousTitre),
       ),
       isAdmin() ? el("button", { class: "btn primary", onClick: () => openAddNotionModal(() => reload(lastContainer)) },
-        icon.plus(), "Ajouter une notion") : null,
+        icon.plus(), "Ajouter une notion pédagogique") : null,
     ));
   }
 
   // Thèmes et Compétences pour tous (sous la nouvelle navigation, selon le module des cours :
   // fermé, retirés chez un stagiaire et repérés chez un formateur) ; la console des
-  // signalements pour les formateurs seulement (la RLS ne suffit pas : elle rend à un élève
-  // SES propres signalements).
+  // questions contestées pour les formateurs seulement (la RLS ne suffit pas : elle rend à un élève
+  // SES propres contestations).
   // lastContainer devient le PANNEAU : c'est lui que reload() doit repeindre.
   const liste = (cle) => (p, ctx) => {
     lastContainer = p;
@@ -2017,7 +2023,7 @@ export async function renderThemes(container) {
       render: (p, ctx) => { renderQcmStagiaire(p, { themes, onOuvrir: openQcmSheet, isActive: ctx?.isActive }); } });
   }
   if (canManageExam()) {
-    onglets.push({ key: "signalements", label: v2 ? "Signalements" : "⚑ Signalements",
+    onglets.push({ key: "signalements", label: v2 ? "Questions contestées" : "⚑ Signalements",
       render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } });
   }
   // Nouvelle navigation, formateurs de la promo (isAdmin, formateur_courant en base) : les questions que l'IA a proposées
@@ -2039,7 +2045,9 @@ export async function renderThemes(container) {
           console.error(e);
           if (!ctx || ctx.isActive()) {
             clear(zone);
-            zone.appendChild(el("p", { class: "muted" }, "Erreur de chargement des documents. Reviens sur l'onglet pour réessayer."));
+            zone.appendChild(el("p", { class: "muted" }, selonPublic(
+              "Erreur de chargement des documents. Reviens sur l'onglet pour réessayer.",
+              "Erreur de chargement des documents. Revenez sur l'onglet pour réessayer.")));
           }
         });
       } });
@@ -2048,7 +2056,7 @@ export async function renderThemes(container) {
 }
 
 // La liste des propositions de l'IA ne connaît pas l'éditeur : elle rend la main ici avec le QCM à relire, comme la console
-// des signalements plus bas. L'éditeur ne rappelle ici qu'à sa fermeture, et seulement si quelque chose a changé (une
+// des questions contestées plus bas. L'éditeur ne rappelle ici qu'à sa fermeture, et seulement si quelque chose a changé (une
 // question acceptée, rejetée ou modifiée) : la liste, la colonne QCM des thèmes et la pastille « à traiter » de la barre
 // disent alors ce qui reste. La pastille se relit même si une relecture échoue (finally) : pas de compte périmé.
 function ouvrirDepuisIa(groupe, rechargerListe) {
@@ -2063,14 +2071,14 @@ function ouvrirDepuisIa(groupe, rechargerListe) {
   });
 }
 
-// La console ne connaît pas l'éditeur : elle rend la main ici avec le signalement,
+// La console ne connaît pas l'éditeur : elle rend la main ici avec la contestation,
 // et c'est Thèmes qui retrouve le thème et ouvre l'éditeur sur la bonne question.
 function ouvrirDepuisConsole(s, rechargerConsole) {
   const qcm = s.question?.qcm;
   const theme = themes.find((t) => t.id === qcm?.theme_id);
   if (!theme || !qcm) { toast("Thème introuvable pour ce QCM.", "error"); return; }
   // Au retour de l'éditeur, la console doit refléter ce qui vient d'être fait, et les
-  // badges ⚑ de la liste des thèmes avec elle, sinon ils annoncent un compte périmé.
+  // pastilles à drapeau de la liste des thèmes avec elle, sinon elles annoncent un compte périmé.
   openQcmEditor(theme, qcm.id, s.question_id, async () => {
     try {
       await loadQcmIndex();

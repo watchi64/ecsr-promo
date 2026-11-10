@@ -8,18 +8,18 @@ import { displayStagiaire } from "./utils.js?v=20261110b";
 
 export { lundiEnCours } from "./journee-rules.js?v=20261110b";
 
-// Prénom seul, sauf s'il est porté par au moins deux stagiaires : « Initiale. Prénom », comme
-// l'impression du planning.
+// Nom de chaque stagiaire, id → « Lucie M. » : toujours le format complet de tous les écrans (décision du 10/11),
+// comme l'impression du planning. Plus de prénom seul : le format ne change plus quand un homonyme arrive.
 export function nomsStagiaires(liste) {
-  const compte = {};
-  liste.forEach((s) => {
-    const p = (s.prenom || "").trim().toLowerCase();
-    if (p) compte[p] = (compte[p] || 0) + 1;
-  });
-  return new Map(liste.map((s) => {
-    const p = (s.prenom || "").trim().toLowerCase();
-    return [s.id, (p && compte[p] >= 2) ? displayStagiaire(s) : (s.prenom || displayStagiaire(s))];
-  }));
+  return new Map(liste.map((s) => [s.id, displayStagiaire(s)]));
+}
+
+// Nom d'un élève bénévole lu par la fonction benevoles_noms de la base, qui l'écrit encore « M. Pierre » (initiale du
+// nom, point, prénom) : remis au format des écrans, « Pierre M. ». Un nom sans initiale en tête reste tel quel.
+export function nomBenevole(display) {
+  const texte = String(display ?? "").trim();
+  const m = texte.match(/^(\p{Lu})\.\s+(.+)$/u);
+  return m ? `${m[2]} ${m[1]}.` : texte;
 }
 
 // `{ entries, metas, joursOff, noms }` de la semaine du lundi donné. `noms` est la forme
@@ -49,7 +49,7 @@ export async function chargerSemaine(lundiIso) {
     noms: {
       stagiaires: nomsStagiaires(stagiaires || []),
       formateurs: new Map((profs || []).map((p) => [p.id, p.nom])),
-      benevoles: new Map((benevoles || []).map((b) => [b.id, b.display])),
+      benevoles: new Map((benevoles || []).map((b) => [b.id, nomBenevole(b.display)])),
       autres,
       titres: (themes || []).map((t) => t.titre),
     },

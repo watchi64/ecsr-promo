@@ -41,7 +41,7 @@ export function buildRadar(axes, series, size = 340) {
   const px = (i, f) => cx + Math.cos(ang(i)) * R * f;
   const py = (i, f) => cy + Math.sin(ang(i)) * R * f;
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${size}`, class: "epcf-radar", role: "img",
-    "aria-label": "Radar EPCF" });
+    "aria-label": "Graphique des évaluations EPCF par phase" });
   [0.25, 0.5, 0.75, 1].forEach((f) => {
     const pts = Array.from({ length: n }, (_, i) => `${px(i, f)},${py(i, f)}`).join(" ");
     svg.appendChild(svgEl("polygon", { points: pts, class: "epcf-radar-ring" }));

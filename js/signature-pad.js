@@ -37,8 +37,8 @@ export function ouvrirSignature({ titre, attestation = null, valider, libelleVal
     let enCours = null;       // { id, trait } pendant un tracé
     let envoi = false;
 
-    const canvas = el("canvas", { class: "sig-canvas", "aria-label": "Zone de signature : signe avec le doigt" });
-    const invite = el("span", { class: "sig-invite", "aria-hidden": "true" }, "Signe ici");
+    const canvas = el("canvas", { class: "sig-canvas", "aria-label": "Zone de signature : signer avec le doigt" });
+    const invite = el("span", { class: "sig-invite", "aria-hidden": "true" }, "Signer ici");
     const zone = el("div", { class: "sig-zone" }, canvas, el("span", { class: "sig-ligne", "aria-hidden": "true" }), invite);
     const message = el("p", { class: "sig-message", role: "alert" });
     const effacer = el("button", { type: "button", class: "btn ghost" }, "Effacer");
@@ -146,7 +146,7 @@ export function ouvrirSignature({ titre, attestation = null, valider, libelleVal
     ok.addEventListener("click", async () => {
       if (envoi) return;
       if (!traitsSuffisants(traits, REPERE)) {
-        message.textContent = "Signature trop courte : signe dans le cadre, sur toute sa largeur.";
+        message.textContent = "Signature trop courte : signer dans le cadre, sur toute sa largeur.";
         return;
       }
       envoi = true;

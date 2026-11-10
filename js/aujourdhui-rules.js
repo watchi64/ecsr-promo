@@ -107,7 +107,7 @@ export function lignesATraiter({ signalements, propositionsIA } = {}) {
   if (compteValide(signalements)) {
     lignes.push({
       cle: "signalements", nombre: signalements, sousOnglet: "signalements",
-      titre: signalements === 1 ? "1 signalement sur un QCM" : `${signalements} signalements sur des QCM`,
+      titre: signalements === 1 ? "1 question contestée" : `${signalements} questions contestées`,
     });
   }
   if (compteValide(propositionsIA)) {

@@ -50,7 +50,7 @@ const ACTIONS = {
 // « Bénévoles » du Planning le mémorise) : `sousOnglet` est posé dans sa mémoire avant de partir, pour arriver sur la
 // liste des stagiaires.
 export const ACTIONS_CARTE_EPCF = {
-  "mon-epcf": { libelle: "Voir mon EPCF", href: "#/mon-suivi/epcf" },
+  "mon-epcf": { libelle: "Voir mes évaluations EPCF", href: "#/mon-suivi/epcf" },
   evaluer: { libelle: "Évaluer un stagiaire", href: "#/stagiaires", sousOnglet: "stagiaires" },
 };
 

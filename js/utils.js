@@ -122,11 +122,15 @@ export function tableauEnListe(table) {
 
 // === Affichage stagiaire / prof ===
 
-/** Renvoie l'affichage court : "V. Timy" (initiale du nom + prénom). */
+/** Renvoie l'affichage court : "Timy V." (prénom, espace, initiale du nom, point).
+ *  Sans nom : le prénom seul. Format unique de tous les écrans (décision du 10/11) ;
+ *  les documents officiels imprimés gardent le nom complet. */
 export function displayStagiaire(s) {
   if (!s) return "";
-  const initial = s.nom ? s.nom.trim().charAt(0).toUpperCase() + "." : "";
-  return initial ? `${initial} ${s.prenom}` : s.prenom;
+  const prenom = (s.prenom || "").trim();
+  const nom = (s.nom || "").trim();
+  const initial = nom ? nom.charAt(0).toUpperCase() + "." : "";
+  return [prenom, initial].filter(Boolean).join(" ");
 }
 
 /** Compare deux stagiaires par nom de famille (alphabétique), fallback prénom. */

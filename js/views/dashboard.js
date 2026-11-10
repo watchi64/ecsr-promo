@@ -4,9 +4,9 @@ import { icon } from "../icons.js?v=20261110b";
 import { renderPassages } from "./passages.js?v=20261110b";
 
 const SORT_OPTIONS = [
-  { key: "priorite",   label: "Priorité de passage" },
+  { key: "priorite",   label: "Ordre de passage" },
   { key: "alpha",      label: "Alphabétique" },
-  { key: "passages",   label: "Plus de passages d'abord" },
+  { key: "passages",   label: "Le plus de passages faits d'abord" },
 ];
 
 const VALID_SORTS = new Set(SORT_OPTIONS.map((o) => o.key));
@@ -96,7 +96,7 @@ function explainPanel(objSalle, objVoiture) {
     el("div", { class: "dash-explain-body" },
       el("p", {},
         el("strong", {}, "Les passages se comptent à « Valider la semaine »."),
-        " Placer quelqu'un dans le planning, c'est planifier : ça ne compte pas tant que la semaine n'est pas validée. Le tableau de bord n'affiche que les passages enregistrés."),
+        " Placer quelqu'un dans le planning, c'est planifier : ça ne compte pas tant que la semaine n'est pas validée. Cette page n'affiche que les passages enregistrés."),
       el("p", {},
         el("strong", {}, "Objectif = moyenne de la classe"),
         ` (cette semaine : Salle ${objSalle}, Voiture ${objVoiture}). Au niveau ou au-dessus → `,
@@ -110,7 +110,7 @@ function explainPanel(objSalle, objVoiture) {
   );
 }
 
-// opts.embedded : rendu dans le sous-onglet Priorités de Planning (nouvelle navigation,
+// opts.embedded : rendu dans le sous-onglet Ordre de passage de Planning (nouvelle navigation,
 // js/views/planning-espace.js) ; la barre des sous-onglets remplace le retour au Planning.
 export async function renderDashboard(container, { embedded = false } = {}) {
   clear(container);
@@ -152,7 +152,7 @@ export async function renderDashboard(container, { embedded = false } = {}) {
 
   clear(container);
 
-  // Priorités se consulte depuis le Planning (chantier D) : retour en un geste.
+  // L'ordre de passage (ex-Priorités) se consulte depuis le Planning (chantier D) : retour en un geste.
   if (!embedded) {
     container.appendChild(el("button", { class: "btn small ghost dash-retour", type: "button",
       onClick: () => { location.hash = "#/planning"; } }, icon.chevronLeft(), "Planning"));
@@ -161,7 +161,7 @@ export async function renderDashboard(container, { embedded = false } = {}) {
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Semaine du " + new Date(monday + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })),
-      el("h2", {}, "Priorités de passage"),
+      el("h2", {}, "Ordre de passage"),
       el("p", { class: "subtitle" }, "Qui doit passer en priorité, par rapport à la moyenne de la classe."),
     ),
   ));

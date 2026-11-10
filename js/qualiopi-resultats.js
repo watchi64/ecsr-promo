@@ -154,8 +154,8 @@ export function noteProvisoire(fiches) {
 // =====================================================================================================
 
 const MESSAGE_COPIE_FAITE = "Texte copié.";
-const MESSAGE_COPIE_ABSENTE = "La copie n'est pas disponible dans ce navigateur. Imprime la fiche en PDF, ou ouvre la page dans un autre navigateur.";
-const MESSAGE_COPIE_REFUSEE = "Le navigateur a refusé la copie. Clique à nouveau sur « Copier le texte », ou imprime la fiche en PDF.";
+const MESSAGE_COPIE_ABSENTE = "La copie n'est pas disponible dans ce navigateur. Imprimez la fiche en PDF, ou ouvrez la page dans un autre navigateur.";
+const MESSAGE_COPIE_REFUSEE = "Le navigateur a refusé la copie. Cliquez à nouveau sur « Copier le texte », ou imprimez la fiche en PDF.";
 
 // Un texte vide, ou qui n'en est pas un, n'est jamais copié : il viderait le presse-papiers.
 const enBlob = (texte) => {

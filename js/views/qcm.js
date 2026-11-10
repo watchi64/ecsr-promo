@@ -6,10 +6,10 @@
  */
 import { el, clear, toast, formatDate } from "../utils.js?v=20261110b";
 import { confirmer } from "../confirmer.js?v=20261110b";
-import { icon } from "../icons.js?v=20261110b";
+import { icon, deco } from "../icons.js?v=20261110b";
 import { getQcmFull, insertQcmAttempt, getMyExamAttempt, listMyQcmAttemptsFor,
          createQcmSignalement } from "../db.js?v=20261110b";
-import { monStagiaireId } from "../auth-admin.js?v=20261110b";
+import { monStagiaireId, selonPublic } from "../auth-admin.js?v=20261110b";
 import { fermerParEchap } from "../fenetre-echap.js?v=20261110b";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261110b";
 
@@ -21,13 +21,14 @@ const MOTIFS = [
   ["autre", "Autre"],
 ];
 
-// Bouton « Signaler » + son petit formulaire, à placer sous une question.
+// Bouton « Contester cette question » + son petit formulaire, à placer sous une question.
 // Volontairement discret : c'est un recours, pas une action principale.
 // `options` est l'ordre AFFICHÉ, mélangé : c'est celui que l'élève a sous les yeux.
 function signalerBloc(question, options = []) {
   const wrap = el("div", { class: "qcm-signal-wrap" });
+  // Le drapeau des questions contestées, pas l'icône de « Signaler un problème » (problèmes de l'app).
   const bouton = el("button", { class: "qcm-signal-btn", type: "button" },
-    "⚑ Signaler un problème sur cette question");
+    deco(icon.drapeau()), " Contester cette question");
   wrap.appendChild(bouton);
 
   bouton.addEventListener("click", () => {
@@ -37,17 +38,17 @@ function signalerBloc(question, options = []) {
       ...MOTIFS.map(([v, label]) => el("option", { value: v }, label)));
     // Quelle réponse est visée ? Les options sont mélangées à l'affichage : sans ce champ,
     // l'élève ne peut la désigner que par son rang (« la réponse D »), qui ne correspond
-    // plus à rien une fois le signalement en base. La liste reprend donc l'ordre et les
+    // plus à rien une fois la contestation en base. La liste reprend donc l'ordre et les
     // lettres qu'il a sous les yeux.
     const cible = el("select", { class: "qcm-signal-motif" },
       el("option", { value: "" }, "Toute la question (pas une réponse en particulier)"),
       ...options.map((o, i) => el("option", { value: String(o.id) }, letter(i) + ". " + o.texte)));
     const commentaire = el("textarea", { class: "qcm-signal-comment", rows: "2",
-      placeholder: "Précise si tu veux (facultatif)" });
+      placeholder: "Précisions (facultatif)" });
     const envoyer = el("button", { class: "btn primary small", type: "button" }, "Envoyer");
     const annuler = el("button", { class: "btn ghost small", type: "button" }, "Annuler");
     const form = el("div", { class: "qcm-signal-form" },
-      el("p", { class: "qcm-signal-intro" }, "Merci : c'est ce qui permet de corriger la base."),
+      el("p", { class: "qcm-signal-intro" }, "Merci : ça permet de corriger la question."),
       select,
       options.length ? cible : null,
       commentaire,
@@ -70,7 +71,7 @@ function signalerBloc(question, options = []) {
           optionTexte: visee ? visee.texte : null,
         });
         clear(wrap);
-        wrap.appendChild(el("p", { class: "qcm-signal-done" }, "✓ Signalement envoyé, merci."));
+        wrap.appendChild(el("p", { class: "qcm-signal-done" }, "✓ Contestation envoyée, merci."));
       } catch (e) {
         envoyer.disabled = false;
         envoyer.textContent = "Envoyer";
@@ -202,7 +203,8 @@ export async function openQcmEntrainement(theme, qcmMeta, opts = {}) {
 
   if (opts.errorsOnly) {
     if (!rev || rev.failed.length === 0) {
-      toast("Aucune erreur à revoir sur ce QCM. Lance un entraînement complet !", "info");
+      toast(selonPublic("Aucune erreur à revoir sur ce QCM. Lance un entraînement complet !",
+        "Aucune erreur à revoir sur ce QCM. Lancez un entraînement complet !"), "info");
       return;
     }
     runEntrainement(theme, full, shuffle(rev.failed), "Revoir mes erreurs");
@@ -262,7 +264,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
     player.appendChild(el("div", { class: "qcm-progress-wrap" },
       el("div", { class: "qcm-progress-info" },
         el("span", {}, `Question ${idx + 1} / ${total}`),
-        el("span", {}, `Score : ${score}`),
+        el("span", {}, `Bonnes réponses : ${score}`),
       ),
       el("div", { class: "qcm-progress" }, el("div", { class: "qcm-progress-fill", style: `width:${pct}%` })),
     ));
@@ -302,7 +304,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
 
     validateBtn.addEventListener("click", () => {
       if (answered) return;
-      if (selected.size === 0) { toast("Sélectionne au moins une réponse.", "info"); return; }
+      if (selected.size === 0) { toast(selonPublic("Sélectionne au moins une réponse.", "Sélectionnez au moins une réponse."), "info"); return; }
       answered = true;
       const chosen = [...selected];
       answers[q.id] = chosen;
@@ -319,7 +321,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
       if (q.explication) {
         card.insertBefore(el("div", { class: "qcm-explain " + (ok ? "ok" : "ko") }, q.explication), validateBtn);
       }
-      // Le signalement n'apparaît qu'APRÈS correction : avant, l'élève ne peut pas
+      // La contestation n'apparaît qu'APRÈS correction : avant, l'élève ne peut pas
       // juger la question, et le bouton ne servirait qu'à fuir la difficulté.
       card.insertBefore(signalerBloc(q, opts), validateBtn);
       validateBtn.style.display = "none";
@@ -346,7 +348,9 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
         el("small", {}, `${note20}/20`),
       ),
       el("p", { class: "qcm-results-sub" },
-        pct >= 100 ? "Sans faute, bravo." : pct >= 60 ? "Bien, continue à réviser." : "À retravailler."),
+        pct >= 100 ? "Sans faute, bravo."
+          : pct >= 60 ? selonPublic("Bien, continue à réviser.", "Bien, continuez à réviser.")
+          : "Il reste des points à revoir."),
     ));
 
     player.appendChild(buildRecap(questions, answers));

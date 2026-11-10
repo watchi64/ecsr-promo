@@ -7,7 +7,7 @@ import "./journal-erreurs.js?v=20261110b";
 import { getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements } from "./db.js?v=20261110b";
 import { toast, annoncer, el } from "./utils.js?v=20261110b";
 import { icon } from "./icons.js?v=20261110b";
-import { initAuth, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261110b";
+import { initAuth, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu, selonPublic } from "./auth-admin.js?v=20261110b";
 import { chargerEtatSignalements } from "./signalement-etat.js?v=20261110b";
 import { messageDemarrage } from "./signalement-rules.js?v=20261110b";
 import { showGate, hideGate } from "./gate.js?v=20261110b";
@@ -192,7 +192,7 @@ function majBadgeNouveautes() {
 // rien. La boîte d'erreur propose donc de recharger, ce qui suffit pour une page du fondateur.
 function boiteErreurQualiopi() {
   return el("div", { class: "centre-erreur qualiopi-erreur", role: "alert" },
-    el("p", {}, "La page Qualiopi n'a pas pu se charger. Vérifie ta connexion, puis recharge la page."),
+    el("p", {}, "La page Qualiopi n'a pas pu se charger. Vérifiez votre connexion, puis rechargez la page."),
     el("button", { class: "btn small", type: "button", onClick: () => rechargerApresEnregistrements() }, "Recharger la page"));
 }
 
@@ -407,7 +407,8 @@ async function navigate({ force = false } = {}) {
     const sub = document.createElement("p");
     sub.className = "view-error-sub";
     sub.textContent = isTimeout
-      ? "Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie."
+      ? selonPublic("Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie.",
+        "Le serveur n'a pas répondu à temps. Vérifiez votre connexion et réessayez.")
       : "Détail : " + (e?.message || e);
     const retry = document.createElement("button");
     retry.className = "btn primary";
@@ -417,7 +418,7 @@ async function navigate({ force = false } = {}) {
     box.appendChild(sub);
     box.appendChild(retry);
     view.appendChild(box);
-    toast(isTimeout ? "Connexion trop lente, réessaie" : (e?.message || String(e)), "error");
+    toast(isTimeout ? selonPublic("Connexion trop lente, réessaie", "Connexion trop lente, réessayez") : (e?.message || String(e)), "error");
   }
 }
 

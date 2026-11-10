@@ -133,15 +133,14 @@ export function entreeActive(route, entrees) {
   return ids.includes(cible) ? cible : null;
 }
 
-// Initiales du bouton du compte, tirées du nom que l'app affiche (getProfileWho) : « V. Timy »
-// (initiale du nom puis prénom, voir displayStagiaire) donne « TV », prénom d'abord ; sinon la
-// première lettre du premier et du dernier mot ; d'une adresse électronique, sa partie locale.
+// Initiales du bouton du compte, tirées du nom que l'app affiche (getProfileWho) : la première
+// lettre du premier et du dernier mot, « Timy V. » (prénom puis initiale du nom, voir
+// displayStagiaire) donnant « TV » ; d'une adresse électronique, sa partie locale.
 // Un nom vide n'en donne aucune (chaîne vide).
 export function initialesDe(nom) {
   const texte = String(nom ?? "").trim();
   const local = texte.includes("@") ? texte.slice(0, texte.indexOf("@")).replace(/[._+-]+/g, " ") : texte;
   const mots = local.split(/[\s-]+/).filter(Boolean);
-  if (mots.length > 1 && /^\p{L}\.$/u.test(mots[0])) mots.push(mots.shift());
   const lettres = mots.map((m) => (m.match(/\p{L}/u) || [""])[0]).filter(Boolean);
   if (!lettres.length) return "";
   const choisies = lettres.length > 1 ? lettres[0] + lettres[lettres.length - 1] : lettres[0];
@@ -157,15 +156,16 @@ export function libelleRole(profil) {
   return profil.role === "stagiaire" ? "Stagiaire" : "Formateur";
 }
 
-// Prénom affiché à côté des initiales, tiré du même nom : « V. Timy » (initiale du nom puis
-// prénom, voir displayStagiaire) donne « Timy », tout ce qui suit l'initiale ; sinon le premier
-// mot (« Camille Martin » donne « Camille »). Une adresse électronique n'a pas de prénom : chaîne
+// Prénom affiché à côté des initiales, tiré du même nom : « Timy V. » (prénom puis initiale du
+// nom, voir displayStagiaire) donne « Timy », tout ce qui précède l'initiale finale (« Marie
+// Claire D. » donne « Marie Claire ») ; sinon le premier mot (« Camille Martin », nom d'un
+// formateur tel que saisi, donne « Camille »). Une adresse électronique n'a pas de prénom : chaîne
 // vide, comme un nom vide (les initiales suffisent alors).
 export function prenomDe(nom) {
   const texte = String(nom ?? "").trim();
   if (!texte || texte.includes("@")) return "";
   const mots = texte.split(/\s+/);
-  if (mots.length > 1 && /^\p{L}\.$/u.test(mots[0])) return mots.slice(1).join(" ");
+  if (mots.length > 1 && /^\p{L}\.$/u.test(mots[mots.length - 1])) return mots.slice(0, -1).join(" ");
   return mots[0];
 }
 

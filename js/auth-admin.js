@@ -118,7 +118,8 @@ export function setViewAs(role) {
   updateBadge();
 }
 
-/** Renvoie le prénom lié au profil (stagiaire ou prof), ou l'email pour admin pur. */
+/** Renvoie le nom lié au profil : « Lucie M. » pour un stagiaire (displayStagiaire), le nom du formateur tel
+ *  que l'équipe l'a saisi, ou l'e-mail pour un compte sans fiche. */
 export function getProfileWho() {
   if (!currentProfile) return null;
   if (currentProfile.stagiaire_id && stagiaires) {
@@ -236,7 +237,7 @@ export async function initAuth() {
       await refreshProfile();
       if (!currentProfile) {
         // Connecté mais pas dans user_profiles → kick out
-        await refuserSession("Ton compte n'est plus autorisé. Demande une invitation.");
+        await refuserSession("Ce compte n'est plus autorisé. Une nouvelle invitation est nécessaire.");
       }
     }
   }
@@ -270,7 +271,7 @@ export async function initAuth() {
         await loadDirectories();
         await refreshProfile();
         if (!currentProfile) {
-          await refuserSession("Email non invité. Demande à un admin de te whitelister.");
+          await refuserSession("Cette adresse e-mail n'a pas été invitée. Une invitation de l'équipe de formation est nécessaire.");
         }
       }
     } else {
