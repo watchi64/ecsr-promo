@@ -2,20 +2,20 @@
  * Page d'accueil : version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261110b";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261110b";
-import { icon } from "../icons.js?v=20261110b";
-import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261110b";
+import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261110c";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261110c";
+import { icon } from "../icons.js?v=20261110c";
+import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261110c";
 import {
   nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque, formateurConnecte,
-} from "../modules-etat.js?v=20261110b";
-import { carteNouveaute } from "./nouveautes.js?v=20261110b";
-import { emargementActif } from "../emargement-etat.js?v=20261110b";
-import { navigationV2Active } from "../nav-etat.js?v=20261110b";
-import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, pointsARetenir, salutationDe } from "../accueil-rules.js?v=20261110b";
-import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261110b";
-import { renderAujourdhui } from "./aujourdhui.js?v=20261110b";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261110b";
+} from "../modules-etat.js?v=20261110c";
+import { carteNouveaute } from "./nouveautes.js?v=20261110c";
+import { emargementActif } from "../emargement-etat.js?v=20261110c";
+import { navigationV2Active } from "../nav-etat.js?v=20261110c";
+import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, pointsARetenir, salutationDe } from "../accueil-rules.js?v=20261110c";
+import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261110c";
+import { renderAujourdhui } from "./aujourdhui.js?v=20261110c";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261110c";
 
 function greetingByHour() {
   return salutationDe(new Date().getHours());

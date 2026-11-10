@@ -5,18 +5,18 @@
 // statut en quatre boutons, réponse, suppression. Une action met la carte à jour sur place : elle ne change
 // pas de sous-onglet avant le prochain affichage de la page.
 
-import { el, clear, toast } from "../utils.js?v=20261110b";
-import { confirmer } from "../confirmer.js?v=20261110b";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261110b";
+import { el, clear, toast } from "../utils.js?v=20261110c";
+import { confirmer } from "../confirmer.js?v=20261110c";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261110c";
 import {
   listSignalementsApp, captureSignalementApp, traiterSignalementApp, supprimerSignalementApp, liensRegistre, getMesPromos,
-} from "../db.js?v=20261110b";
-import { entreeDepuisSignalement } from "../registre-rules.js?v=20261110b";
-import { chargerEtatSignalements } from "../signalement-etat.js?v=20261110b";
-import { renderSubTabs } from "../subtabs.js?v=20261110b";
+} from "../db.js?v=20261110c";
+import { entreeDepuisSignalement } from "../registre-rules.js?v=20261110c";
+import { chargerEtatSignalements } from "../signalement-etat.js?v=20261110c";
+import { renderSubTabs } from "../subtabs.js?v=20261110c";
 import {
   libelleStatut, resumeContexte, detailContexte, adresseSure, normaliserContexte,
-} from "../signalement-rules.js?v=20261110b";
+} from "../signalement-rules.js?v=20261110c";
 
 // Supprimer un signalement (carte complète ou carte en défaut) : la même question, dans une fenêtre de l'app.
 const QUESTION_SUPPRIMER = { titre: "Supprimer ce signalement ?",
@@ -130,7 +130,7 @@ function boutonRegistre(s) {
     ouvertureEnCours = true;
     b.setAttribute("aria-disabled", "true");
     try {
-      const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261110b");
+      const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261110c");
       ouvrirFenetreRegistre({
         prerempli: entreeDepuisSignalement(s), promos: getMesPromos(), ancre: b,
         surEnregistre: () => {

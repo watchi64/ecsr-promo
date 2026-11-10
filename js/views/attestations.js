@@ -3,17 +3,17 @@
 // pour une période, les heures de chaque stagiaire d'après les feuilles closes, puis son
 // certificat de réalisation et son attestation d'assiduité, ou ceux de toute la promo.
 
-import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261110b";
-import { el, clear, toast, isoDate } from "../utils.js?v=20261110b";
-import { isAdmin } from "../auth-admin.js?v=20261110b";
-import { navigationV2Active } from "../nav-etat.js?v=20261110b";
-import { libelleDuree, jourDe } from "../emargement-rules.js?v=20261110b";
-import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261110b";
+import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261110c";
+import { el, clear, toast, isoDate } from "../utils.js?v=20261110c";
+import { isAdmin } from "../auth-admin.js?v=20261110c";
+import { navigationV2Active } from "../nav-etat.js?v=20261110c";
+import { libelleDuree, jourDe } from "../emargement-rules.js?v=20261110c";
+import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261110c";
 import {
   bilanStagiaire, stagiairesDeLaPeriode, feuillesOuvertes, demiJourneesSansFeuille, periodeParDefaut,
   moisDeLaPeriode, seancesDeLaPromo, dateFr, datePeriodeValide, estAdresseAttestations,
-} from "../attestations-rules.js?v=20261110b";
-import { certificatRealisation, attestationAssiduite, liasse } from "../attestations-documents.js?v=20261110b";
+} from "../attestations-rules.js?v=20261110c";
+import { certificatRealisation, attestationAssiduite, liasse } from "../attestations-documents.js?v=20261110c";
 
 // Période choisie, gardée par promo le temps de la visite (retour depuis la semaine).
 const periodes = new Map();
