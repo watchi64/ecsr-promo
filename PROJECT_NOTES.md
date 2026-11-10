@@ -707,7 +707,7 @@ des traitements et rappel de la veille : livrés en fichiers pour le dépôt ECS
   un agent : la première échéance réelle est le 11/12/2027 (Nîmes, mars 2026), les commentaires des formateurs 2026 le
   31/12/2027 ; la mise en ligne est attendue au plus tard le 30/11/2027. (3) Les arbitrages du 09/11 (douze réponses par
   défaut) restent révisables sans perte jusque-là. (4) Appliquer au dépôt ECSR le registre des traitements et le rappel de la
-  veille (fichiers livrés dans le dossier d'archive des notes partagées). (5) Mineurs reportés à revoir avant la fusion, dans
+  veille : fichiers, diffs et `LISEZMOI.md` dans `C:\Users\watch\AppData\Local\Claude-Data\claude_pzs8sxrjxfjjc\side-session-notes\local_ef2fa5b2-7428-4bd7-a3e4-5d2676c41680\archive-qualiopi-q5\` (le skill `veille-reglementaire` est aussi à compléter, ligne proposée dans le `LISEZMOI.md`). (5) Mineurs reportés à revoir avant la fusion, dans
   `.superpowers/sdd/2026-11-09-qualiopi-q5-conservation/progress.md` (lignes « à revoir avant fusion » : textes de
   confirmation, e-mail de `maj_par` sur demande, fiche sans prénom).
 
