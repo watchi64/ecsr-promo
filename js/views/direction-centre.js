@@ -33,7 +33,7 @@ const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? m
 
 export const PHRASE_SANS_PROMO = "Ce centre n'a pas encore de promo";
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";
-const phraseHorsCentre = (quoi, geste) => `La promo affichée n'est pas une promo de ce centre : ${quoi} ne sont pas montrées ici. Ouvre une promo du centre avec « ${geste} ».`;
+const phraseHorsCentre = (quoi, geste) => `La promo affichée n'est pas une promo de ce centre : ${quoi} ne sont pas montrées ici. Ouvrez une promo du centre avec « ${geste} ».`;
 const PHRASE_LECTURE_ECHEC = "Les chiffres du centre n'ont pas pu être chargés.";
 
 // Le centre dirigé et ses promos (la plus récente d'abord) ; `affichee` : la promo affichée SI elle est de ce centre, sinon nulle

@@ -463,7 +463,7 @@ const changerPromo = NOUVEAUTES.find((e) => e.id.endsWith("-changer-de-promo"));
 const DATE5 = direction.date;
 eq(NOUVEAUTES.filter((e) => e.pour === "direction").length, 1, "une seule Nouveauté pour la direction");
 eq(NOUVEAUTES.filter((e) => e.pour === "siege").length, 1, "une seule Nouveauté pour le siège");
-ok(direction.titre === "Ton espace de direction" && siege.titre === "L'espace du siège", "titres : « Ton espace de direction », « L'espace du siège »");
+ok(direction.titre === "Votre espace de direction" && siege.titre === "L'espace du siège", "titres : « Votre espace de direction », « L'espace du siège »");
 ok(!!menuEspace && menuEspace.pour === "formateurs" && menuEspace.navigation === "nouvelle", "menu Espace : pour les formateurs, nouvelle navigation");
 ok(!!changerPromo && changerPromo.pour === "stagiaires" && changerPromo.navigation === "nouvelle" && changerPromo.titre === "Changer de promo",
   "Changer de promo : pour les stagiaires, nouvelle navigation");
@@ -471,7 +471,10 @@ for (const e of [direction, siege, menuEspace, changerPromo]) {
   ok(/^\d{4}-\d{2}-\d{2}$/.test(e.date) && e.id.startsWith(e.date + "-"), e.id + " : id préfixé par sa date");
   eq(e.date, DATE5, e.id + " : même date que les autres entrées du lot (posée à la fusion)");
   ok(Array.isArray(e.guide) && e.guide.length >= 3 && !e.guideNouvelle, e.id + " : un « Comment faire » d'au moins trois étapes");
-  ok(!/vous|votre|vos/i.test(tout(e)) && !/\bprofs?\b/i.test(tout(e)), e.id + " : tutoiement, « formateur » jamais « prof »");
+  // Le ton (décision du 10/11) : l'équipe (direction, siège, formateurs) est vouvoyée, le stagiaire tutoyé.
+  if (e === changerPromo) ok(!VOUVOIEMENT.test(horsCitations(tout(e))), e.id + " : pour les stagiaires, tutoiement");
+  else ok(!TUTOIEMENT.test(horsCitations(tout(e))), e.id + " : pour l'équipe, vouvoiement, jamais de tutoiement");
+  ok(!/\bprofs?\b/i.test(tout(e)), e.id + " : « formateur » jamais « prof »");
   ok(!tout(e).includes(CADRATIN), e.id + " : aucun tiret cadratin");
   ok(!/#[0-9a-f]{3,6}\b/i.test(tout(e)), e.id + " : aucune couleur écrite");
 }
@@ -500,7 +503,7 @@ for (const motif of [/Vue d'ensemble/, /Promos/, /Stagiaires/, /Émargement/, /N
 for (const motif of [/Vue d'ensemble/, /sans aucun nom/, /Directions de centre/, /Ajouter un centre/, /Inviter une direction/, /Cours et QCM/, /moins de 5/]) {
   ok(motif.test(tout(siege)), `siège : dit ${motif}`);
 }
-ok(/« Espace »/.test(tout(menuEspace)) && /menu de ton compte/.test(tout(menuEspace)), "menu Espace : « Espace » dans le menu du compte");
+ok(/« Espace »/.test(tout(menuEspace)) && /menu de votre compte/.test(tout(menuEspace)), "menu Espace : « Espace » dans le menu du compte");
 ok(/« Changer de promo »/.test(tout(changerPromo)) && /menu de ton compte/.test(tout(changerPromo)), "Changer de promo : dans le menu du compte");
 ok(!/(direction|siège)/i.test(tout(changerPromo)), "Changer de promo : ne parle pas des espaces de pilotage");
 // Aucun lien « Où le trouver » qui serait réécrit à tort : « centre » devient « Indicateurs » sous la nouvelle barre (formateur).

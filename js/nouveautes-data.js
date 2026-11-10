@@ -145,27 +145,27 @@ export const NOUVEAUTES = [
     id: "2026-11-10-espace-direction",
     date: "2026-11-10",
     pour: "direction",
-    titre: "Ton espace de direction",
-    resume: "Tu as maintenant ton espace pour piloter ton centre. L'Accueil est une vue d'ensemble : les chiffres du centre, "
+    titre: "Votre espace de direction",
+    resume: "Vous avez maintenant votre espace pour piloter votre centre. L'Accueil est une vue d'ensemble : les chiffres du centre, "
           + "toutes ses promos côte à côte et les stagiaires à suivre de près. Dans la barre, Promos, Stagiaires, "
-          + "Émargement, Notes et examens et Équipe te donnent la main sur chaque promo du centre : tu crées les promos, tu "
-          + "vois tous les stagiaires, tu lis les feuilles d'émargement et les notes, et tu invites tes formateurs en "
+          + "Émargement, Notes et examens et Équipe vous donnent la main sur chaque promo du centre : vous créez les promos, "
+          + "vous voyez tous les stagiaires, vous lisez les feuilles d'émargement et les notes, et vous invitez vos formateurs en "
           + "choisissant leurs promos.",
     ou: { label: "Promos", route: "promos" },
     guide: [
       "Accueil ouvre la « Vue d'ensemble » du centre : les chiffres, la comparaison des promos, « À suivre de près » et "
-        + "« Thèmes à retravailler ». « Exporter le tableau (CSV) » enregistre le tableau des promos sur ordinateur.",
-      "Dans Promos, « Créer une promo » demande un nom, un début et, si tu veux, une fin. « Modifier » règle le nom et les "
+        + "« Thèmes les moins réussis ». « Exporter le tableau (CSV) » enregistre le tableau des promos sur ordinateur.",
+      "Dans Promos, « Créer une promo » demande un nom, un début et, si vous voulez, une fin. « Modifier » règle le nom et les "
         + "dates, « Modules » ce que voient les stagiaires de la promo.",
       "Dans Stagiaires, tous les stagiaires du centre sont groupés par promo. Un nom ouvre sa fiche ; « Gérer cette promo » "
-        + "ouvre une autre promo du centre. Pour la promo affichée, tu ajoutes, mets en abandon, réactives ou effaces un "
-        + "stagiaire, et tu invites son compte.",
+        + "ouvre une autre promo du centre. Pour la promo affichée, vous ajoutez, mettez en abandon, réactivez ou "
+        + "effacez un stagiaire, et vous invitez son compte.",
       "Dans Émargement, « Voir les feuilles » ouvre les feuilles d'une promo en lecture. Dans Notes et examens, « Voir la "
         + "matrice » ouvre les notes de la promo.",
       "Dans Équipe, « Inviter un formateur » demande son adresse et les promos du centre à cocher ; « Modifier » change ses "
         + "promos, « Retirer du centre » les lui enlève toutes.",
       "Dans Réglages du centre, « Habillage par défaut du centre » choisit l'apparence que reçoivent les comptes du centre qui "
-        + "n'ont rien choisi ; décoche « Laisser chacun choisir le sien » pour l'imposer à tous.",
+        + "n'ont rien choisi ; décochez « Laisser chacun choisir le sien » pour l'imposer à tous.",
       "Sur téléphone, Accueil, Promos, Stagiaires et Équipe sont en bas de l'écran ; « Plus » ouvre les autres pages.",
     ],
   },
@@ -176,7 +176,7 @@ export const NOUVEAUTES = [
     titre: "L'espace du siège",
     resume: "Le siège a son espace, pour regarder le réseau sans jamais voir un nom. L'Accueil donne les chiffres de chaque "
           + "centre ; un centre de moins de 5 stagiaires en formation n'affiche aucun chiffre et reste hors des totaux. "
-          + "Tu gères les directions de centre, tu ajoutes un centre, et tu rédiges les cours et les QCM communs à tous.",
+          + "Vous gérez les directions de centre, vous ajoutez un centre, et vous rédigez les cours et les QCM communs à tous.",
     ou: { label: "Accueil", route: "reseau" },
     guide: [
       "Accueil ouvre la « Vue d'ensemble » du réseau : les chiffres des centres, sans aucun nom de stagiaire. Une ligne ouvre "
@@ -185,8 +185,8 @@ export const NOUVEAUTES = [
         + "Le centre de démonstration (données fictives) est à part, hors totaux.",
       "Dans Directions de centre, « Inviter une direction » demande une adresse et un centre ; « Retirer » enlève une direction. "
         + "« Ajouter un centre » crée un centre, puis propose d'inviter sa direction.",
-      "Dans Cours et QCM, tu rédiges les cours des thèmes et les questions de QCM, communs à tous les centres.",
-      "Dans Réglages du réseau, tu choisis l'habillage par défaut du réseau : celui des comptes qui n'ont rien choisi et dont le "
+      "Dans Cours et QCM, vous rédigez les cours des thèmes et les questions de QCM, communs à tous les centres.",
+      "Dans Réglages du réseau, vous choisissez l'habillage par défaut du réseau : celui des comptes qui n'ont rien choisi et dont le "
         + "centre n'a rien fixé.",
       "Sur téléphone, Accueil, Cours et QCM et Directions sont en bas de l'écran ; « Plus » ouvre les Réglages du réseau.",
     ],
@@ -196,14 +196,14 @@ export const NOUVEAUTES = [
     date: "2026-11-10",
     pour: "formateurs",
     navigation: "nouvelle",
-    titre: "Choisis ton espace",
-    resume: "Si tu diriges un centre ou si tu travailles pour le siège, en plus de former, le menu de ton compte a maintenant "
+    titre: "Choisissez votre espace",
+    resume: "Si vous dirigez un centre ou si vous travaillez pour le siège, en plus de former, le menu de votre compte a maintenant "
           + "une section « Espace » : une ligne par espace (Formateur, Direction, Siège), l'espace actuel est coché. Choisir "
-          + "un autre espace recharge l'app sur son accueil. Tu ne la vois que si tu as plusieurs espaces.",
+          + "un autre espace recharge l'app sur son accueil. Vous ne la voyez que si vous avez plusieurs espaces.",
     guide: [
-      "Ouvre le menu de ton compte : tes initiales, en bas de la barre de gauche sur ordinateur.",
-      "Dans la section « Espace », touche l'espace voulu : l'app s'ouvre sur son accueil.",
-      "Pour revenir à ta promo, rouvre le menu et choisis « Formateur ».",
+      "Ouvrez le menu de votre compte : vos initiales, en bas de la barre de gauche sur ordinateur.",
+      "Dans la section « Espace », touchez l'espace voulu : l'app s'ouvre sur son accueil.",
+      "Pour revenir à votre promo, rouvrez le menu et choisissez « Formateur ».",
     ],
   },
   {
@@ -309,9 +309,9 @@ export const NOUVEAUTES = [
     titre: "Moyennes EPCF : à partir de trois stagiaires",
     resume: "Les moyennes EPCF de la classe n'apparaissent plus qu'à partir de trois stagiaires évalués à la même "
           + "épreuve, au lieu de deux : à deux, chacun aurait pu retrouver la note de l'autre en la comparant à la "
-          + "sienne. La même règle vaut pour la moyenne du groupe sur ton radar EPCF. Les formateurs voient toujours "
+          + "sienne. La même règle vaut pour la moyenne du groupe sur le radar EPCF de chaque stagiaire. Les formateurs voient toujours "
           + "chaque évaluation.",
-    ou: { label: "Notes, sous-onglet EPCF", route: "notes", sousOnglet: "epcf" },
+    ou: { label: "Notes, onglet Évaluations EPCF", route: "notes", sousOnglet: "epcf" },
     module: "epcf",
   },
   // Confidentialité (10/11) : l'adresse e-mail d'un stagiaire n'est plus lisible des autres stagiaires.

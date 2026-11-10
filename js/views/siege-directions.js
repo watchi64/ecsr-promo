@@ -84,7 +84,7 @@ export function ouvrirAjoutCentre({ ancre, apres }) {
   const champNom = el("input", { type: "text", id: "centre-nom", autocomplete: "off", maxlength: "120", placeholder: "Nom du centre" });
   ouvrirFenetre({
     titre: "Ajouter un centre",
-    intro: "Le centre est créé sans promo. Tu pourras ensuite inviter sa direction.",
+    intro: "Le centre est créé sans promo. Vous pourrez ensuite inviter sa direction.",
     corps: [el("div", { class: "field" }, el("label", { for: "centre-nom" }, "Nom du centre"), champNom)],
     ancre, libelleBouton: "Ajouter", premierChamp: () => champNom,
     apresFermeture: () => { if (ouvrirSuite) ouvrirSuite(); },
@@ -104,7 +104,7 @@ export function ouvrirAjoutCentre({ ancre, apres }) {
       await apres();
       ouvrirSuite = () => ouvrirInvitationDirection({
         lieux, lieuId: id, ancre,
-        intro: `${v.nom} est créé. Invite sa direction, ou ferme cette fenêtre pour le faire plus tard.`,
+        intro: `${v.nom} est créé. Invitez sa direction, ou fermez cette fenêtre pour le faire plus tard.`,
         apres,
       });
     },
@@ -193,7 +193,7 @@ export async function renderDirections(container) {
   if (!centres.length) {
     racine.appendChild(el("div", { class: "centre-section centre-vide" },
       el("p", {}, PHRASE_SANS_CENTRE),
-      el("p", { class: "muted" }, "Ajoute un centre, puis invite sa direction.")));
+      el("p", { class: "muted" }, "Ajoutez un centre, puis invitez sa direction.")));
     return;
   }
   for (const c of centres) racine.appendChild(sectionCentre(c, lieux, apres));

@@ -760,7 +760,7 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
   async function reloadEditor() {
     let full;
     try {
-      // Les signalements restent à la gestion de la promo (isAdmin) : le siège rédige les questions sans les lire.
+      // Les questions contestées restent à la gestion de la promo (isAdmin) : le siège rédige les questions sans les lire.
       if (canManageExam()) {
         // Les auteurs d'abord : sans eux la carte n'affiche que l'adresse, qui ne dit pas
         // toujours qui a signalé (adresses partagées).
@@ -2081,7 +2081,7 @@ export async function renderThemes(container) {
         });
       } });
   }
-  // Les sous-onglets que l'espace permet (js/espaces-rules.js, sousOngletsCours) : le siège n'a ni Signalements ni Propositions IA.
+  // Les sous-onglets que l'espace permet (js/espaces-rules.js, sousOngletsCours) : le siège n'a ni Questions contestées ni Propositions IA.
   const permis = sousOngletsCours(getEspace());
   const aGarder = permis.length ? onglets.filter((o) => permis.includes(o.key)) : onglets;
   container.appendChild(renderSubTabs(aGarder, { storageKey: CLES_SOUS_ONGLETS.themes }));

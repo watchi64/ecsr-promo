@@ -17,8 +17,6 @@
 // l'engagement de l'éditeur (ne pas lire les tables directement) et la durée de trois ans des réponses sont des
 // propositions (point 9 du document des textes). Cette version n'est pas encore en ligne : ces retouches ne demandent
 // pas une acceptation de plus, la version 2026-11-08 reste la seule nouvelle acceptation.
-// Lot D du 10/11 (correction de forme, version inchangée) : les noms de l'app, « livret EPCF », « évaluations EPCF »,
-// « dossier Qualiopi de la formation / du centre », « contestations de questions de QCM » et « problèmes signalés ».
 // Retouches du 09/11 pour la conservation à trois ans (plans Q4 et Q5, section 7 du document des textes) : l'essentiel
 // (ligne 7), les lignes « Émargement » des tableaux des § 3 et § 4, la note de participation et le registre qualité du
 // § 10, la phrase des trois ans et le délai d'un mois sous ce tableau.
@@ -39,7 +37,7 @@ export const CONDITIONS_MD = `# Conditions d'utilisation et données personnelle
 
 > **L'essentiel en 8 lignes**
 > L'application accompagne la formation au Titre professionnel ECSR. Elle est éditée par Timy Studio, la micro-entreprise de Timy Valdivia.
-> Elle enregistre ce qui sert à la formation : profil, notes, QCM, passages, absences, livret EPCF, dossier professionnel, et vos réponses aux questionnaires de satisfaction, enregistrées sans votre nom.
+> Elle enregistre ce qui sert à la formation : profil, notes, QCM, passages, absences, livret, dossier professionnel, et vos réponses aux questionnaires de satisfaction, enregistrées sans votre nom.
 > Vos notes sont visibles des autres stagiaires de votre promo, sauf si vous choisissez de les masquer.
 > Personne d'extérieur à la formation n'y accède, à une exception près : ECF (École de Conduite Française), l'organisme qui assure la formation. La direction de votre centre voit, comme vos formateurs, votre suivi nominatif (notes, planning, passages, absences, date de naissance) ; le siège d'ECF ne voit que des chiffres par centre, sans aucun nom. ECF peut aussi présenter des documents de la formation à son certificateur Qualiopi et à ses financeurs.
 > La base de données est hébergée en France ; l'assistant passe par Scaleway, hébergeur français, qui ne conserve pas les messages.
@@ -65,11 +63,11 @@ L'usage de l'application suppose d'accepter les présentes conditions. L'accepta
 
 | Catégorie | Contenu |
 |-----------|---------|
-| Profil | Nom, prénom, adresse e-mail, rôle, promo, date de naissance (reportée sur le livret EPCF) |
-| Résultats | Notes et évaluations, tentatives et scores aux QCM, évaluations passées en cours de formation (EPCF) |
+| Profil | Nom, prénom, adresse e-mail, rôle, promo, date de naissance (reportée sur le livret officiel) |
+| Résultats | Notes et évaluations, tentatives et scores aux QCM, examens blancs (EPCF) |
 | Suivi | Passages en voiture, absences, placements au planning, souhaits de séances |
-| Documents | Livret EPCF, dossier professionnel |
-| Contributions | Contestations de questions de QCM ; problèmes signalés sur l'application (message, capture facultative, page, appareil et navigateur utilisés) |
+| Documents | Livret d'évaluation, dossier professionnel |
+| Contributions | Signalements d'erreur sur les QCM ; signalements de problème sur l'application (message, capture facultative, page, appareil et navigateur utilisés) |
 | Questionnaires | Vos réponses, enregistrées sans votre nom ni la date ; l'application note seulement que vous avez participé |
 | Émargement | Feuilles de présence de chaque demi-journée : votre signature dessinée, son heure, le compte qui l'a posée, présence ou absence, observation éventuelle du formateur ; signature et nom des formateurs |
 | Historique | Qui a créé ou modifié une note ou un passage, et quand |
@@ -86,16 +84,16 @@ L'application ne collecte ni géolocalisation, ni contacts du téléphone, ni do
 | Planning, passages, absences | Oui | Oui | Oui | Oui | Non, seulement le nombre d'absences par centre |
 | Date de naissance | Oui | Non | Oui | Oui | Non |
 | Souhaits de séances | Oui | Non | Oui | Oui | Non |
-| Livret EPCF, dossier professionnel, évaluations EPCF | Oui | Non | Oui | Oui | Non, seulement le nombre de compétences EPCF acquises par centre |
+| Livret, dossier professionnel, EPCF | Oui | Non | Oui | Oui | Non, seulement le nombre de compétences EPCF acquises par centre |
 | Feuilles d'émargement | Oui, votre ligne | Non | Oui | Oui | Non |
 | Réponses aux questionnaires | Votre participation seulement | Non | Non | Non ; les résultats regroupés, à partir du seuil, vont aux personnes chargées de la qualité | Non |
-| Problèmes signalés | Oui | Non | Non | Non | Non |
+| Signalements de problème | Oui | Non | Non | Non | Non |
 
 « Direction de votre centre » : les personnes d'ECF affectées à la direction du centre où se déroule votre promo ; elles accèdent aux promos de ce centre, comme un formateur à celles où il est affecté. « Siège d'ECF » : l'équipe du réseau, qui n'accède à aucune promo : elle dispose d'un écran de chiffres par centre (effectifs, absences, résultats aux QCM et aux examens, moyenne des notes, compétences EPCF acquises), calculés par la base de données, sans aucun nom de stagiaire ; quand un centre compte moins de cinq stagiaires en formation, ses chiffres ne sont pas montrés.
 
 La présentation, par ECF à son certificateur Qualiopi et à ses financeurs, des documents décrits en section 5 n'est pas une lecture dans l'application : elle s'ajoute à ces deux colonnes.
 
-« Autres stagiaires » : ceux de votre promo seulement. Le planning leur est visible parce qu'il organise la formation de tous. Les problèmes signalés ne sont lus que par l'éditeur, pour corriger l'application et vous répondre.
+« Autres stagiaires » : ceux de votre promo seulement. Le planning leur est visible parce qu'il organise la formation de tous. Les signalements de problème ne sont lus que par l'éditeur, pour corriger l'application et vous répondre.
 
 **Masquer ses notes.** Depuis vos préférences, vous pouvez masquer vos notes : les autres stagiaires ne voient plus ni votre prénom ni vos notes, qui restent comptées dans les moyennes du groupe. Vos formateurs et la direction de votre centre continuent de les voir, avec votre nom. En contrepartie, vous ne voyez plus que votre ligne et les moyennes du groupe. Ce masquage est garanti par la base de données elle-même, pas seulement par l'affichage. Pour éviter les allers-retours, après un changement (annulable dans les deux minutes), le réglage reste fixe pendant 24 heures.
 
@@ -121,7 +119,7 @@ Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre
 | Recueillir votre avis sur la formation par des questionnaires enregistrés sans nom, et en produire un taux de satisfaction | Intérêt légitime de l'éditeur et du centre à mesurer et améliorer la formation, preuve que le centre doit pouvoir apporter à son certificateur |
 | Répondre à vos questions par l'assistant | Intérêt légitime ; l'assistant n'est utilisé que si vous lui écrivez |
 
-**Documents du centre.** L'application produit des documents (dossier Qualiopi de la formation, dossier Qualiopi du centre, fiche de résultats) qu'ECF, qui forme les stagiaires, présente à son certificateur Qualiopi et à ses financeurs pour prouver ce qu'il fait. Ils reprennent des chiffres de l'application : heures, présences, résultats, taux de satisfaction. Le dossier de la formation est nominatif ; le dossier destiné au siège ne contient aucun nom. Aucun de ces documents ne contient une réponse individuelle à un questionnaire ni un commentaire libre. ECF les remet lui-même : l'éditeur ne les envoie à personne.
+**Documents du centre.** L'application produit des documents (dossier de la formation, dossier du centre, fiche de résultats) qu'ECF, qui forme les stagiaires, présente à son certificateur Qualiopi et à ses financeurs pour prouver ce qu'il fait. Ils reprennent des chiffres de l'application : heures, présences, résultats, taux de satisfaction. Le dossier de la formation est nominatif ; le dossier destiné au siège ne contient aucun nom. Aucun de ces documents ne contient une réponse individuelle à un questionnaire ni un commentaire libre. ECF les remet lui-même : l'éditeur ne les envoie à personne.
 
 **Statistiques anonymes.** Elles décrivent la promo, jamais une personne (par exemple « 80 % de réussite sur le thème 12 »). Elles peuvent être conservées sans limite de durée, partagées à l'extérieur, notamment avec ECF, et servir à développer et présenter l'outil. Une fois anonymisée, une donnée ne permet plus de remonter à quelqu'un.
 
@@ -167,11 +165,11 @@ L'assistant est une **intelligence artificielle** : ses réponses sont généré
 | Données | Durée |
 |---------|-------|
 | Compte, adresse e-mail, date de naissance, fiches de suivi, textes libres (observations, commentaires) | Toute la formation, puis douze mois |
-| Preuves de la formation : nom, résultats, heures, présences, feuilles d'émargement signées, dossier professionnel, livret EPCF | Toute la formation, puis trois ans (jusqu'au 31 décembre de la troisième année après la fin de la formation) : c'est la durée du cycle de certification Qualiopi. Ensuite les noms, les signatures, le dossier professionnel et le livret EPCF sont effacés ; les heures, présences et résultats restent sans nom |
+| Preuves de la formation : nom, résultats, heures, présences, feuilles d'émargement signées, dossier professionnel, livret | Toute la formation, puis trois ans (jusqu'au 31 décembre de la troisième année après la fin de la formation) : c'est la durée du cycle de certification Qualiopi. Ensuite les noms, les signatures, le dossier professionnel et le livret sont effacés ; les heures, présences et résultats restent sans nom |
 | Questionnaires de satisfaction | Les réponses, enregistrées sans nom, sont gardées trois ans comme les preuves de la formation (jusqu'au 31 décembre de la troisième année après la fin de la formation ; pour le questionnaire des formateurs, après l'année du questionnaire), puis supprimées : seuls restent les résultats regroupés (taux et répartitions, à partir du seuil). Les commentaires libres sont effacés douze mois après la fin de la formation (pour le questionnaire des formateurs, le 31 décembre de l'année suivante). La note de participation est supprimée douze mois après la fin de la formation (pour le questionnaire des formateurs, à la fin de l'année du questionnaire) |
 | Registre qualité du centre (réclamations, difficultés, aléas, améliorations, risques) | Trois ans après la clôture de l'entrée, puis ses textes (description, réponse, action décidée, mesure de prévention) sont vidés ; le type, l'origine, la promo, le lieu, les dates et l'état restent |
 | Historique des modifications | Même durée que la donnée concernée |
-| Problèmes signalés | Douze mois au plus, et jamais au-delà de la fermeture du compte |
+| Signalements de problème | Douze mois au plus, et jamais au-delà de la fermeture du compte |
 | Élèves bénévoles, référents d'auto-école | Douze mois au plus après la dernière venue ou le dernier contact |
 | Statistiques anonymes | Sans limite (elles n'identifient personne) |
 
@@ -207,7 +205,7 @@ L'application n'utilise **aucun cookie publicitaire ni outil de mesure d'audienc
 
 L'application (code, design, fonctionnalités) et les contenus pédagogiques qu'a rédigés l'éditeur (cours, QCM, fiches, illustrations) sont sa propriété. Les contenus apportés par des formateurs ou issus de supports d'ECF restent la propriété de leurs auteurs. Utiliser l'application ne confère aucun droit sur ces éléments : on ne les copie pas, on ne les rediffuse pas et on ne les exploite pas en dehors de l'application sans accord.
 
-Les contestations de questions, les problèmes signalés et les suggestions des utilisateurs peuvent être utilisés librement pour corriger et améliorer l'application ; ils ne donnent lieu à aucune contrepartie.
+Les signalements et suggestions des utilisateurs peuvent être utilisés librement pour corriger et améliorer l'application ; ils ne donnent lieu à aucune contrepartie.
 
 ## 15. Bon usage
 

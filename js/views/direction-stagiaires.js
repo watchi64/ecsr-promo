@@ -22,7 +22,7 @@ import { chargerContexteFiche, chargerFiche, renderFiche, dispositionFiche, affi
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
 
-export const PHRASE_FICHE_HORS_CENTRE = "Cette fiche n'est pas dans ton centre.";
+export const PHRASE_FICHE_HORS_CENTRE = "Cette fiche n'est pas dans votre centre.";
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";
 const PHRASE_SANS_PROMO = "Ce centre n'a pas encore de promo";
 const PHRASE_LECTURE_ECHEC = "Les stagiaires du centre n'ont pas pu être chargés.";

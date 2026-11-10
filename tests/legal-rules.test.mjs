@@ -55,7 +55,7 @@ const DIRECTION = {
   "Planning, passages, absences": "Oui",
   "Date de naissance": "Oui",
   "Souhaits de séances": "Oui",
-  "Livret EPCF, dossier professionnel, évaluations EPCF": "Oui",
+  "Livret, dossier professionnel, EPCF": "Oui",
   "Feuilles d'émargement": "Oui",
   "Réponses aux questionnaires": "Non ; les résultats regroupés, à partir du seuil, vont aux personnes chargées de la qualité",
   "Signalements de problème": "Non",
@@ -63,7 +63,7 @@ const DIRECTION = {
 for (const [nom, v] of Object.entries(DIRECTION)) eq(ligne(nom)[4], v, `direction : ${nom}`);
 // Le siège ne lit aucune donnée nominative : seulement des totaux par centre.
 for (const nom of ["Date de naissance", "Souhaits de séances", "Feuilles d'émargement", "Signalements de problème"]) eq(ligne(nom)[5], "Non", `siège : ${nom}`);
-for (const nom of ["Notes et évaluations", "Planning, passages, absences", "Livret EPCF, dossier professionnel, évaluations EPCF"])
+for (const nom of ["Notes et évaluations", "Planning, passages, absences", "Livret, dossier professionnel, EPCF"])
   ok(/^Non, seulement/.test(ligne(nom)[5]), `siège : ${nom}, des totaux par centre seulement`);
 ok(/sans aucun nom de stagiaire/.test(CONDITIONS_MD) && /moins de cinq stagiaires/.test(CONDITIONS_MD), "siège : chiffres par centre, masqués sous cinq");
 ok(/Vos formateurs et la direction de votre centre continuent de les voir/.test(CONDITIONS_MD), "notes masquées : la direction les voit");

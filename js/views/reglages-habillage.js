@@ -13,7 +13,7 @@ import { blocHabillage } from "../habillage-choix.js?v=20261110d";
 import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261110d";
 
 export const PHRASE_ECHEC_LECTURE = "Le réglage n'a pas pu être chargé.";
-export const PHRASE_ECHEC_ECRITURE = "Le réglage n'a pas été enregistré. Réessaie dans un instant.";
+export const PHRASE_ECHEC_ECRITURE = "Le réglage n'a pas été enregistré. Réessayez dans un instant.";
 export const PHRASE_SANS_CENTRE = "Aucun centre n'est affiché pour ce compte.";
 export const LIBELLE_LIBRE = "Laisser chacun choisir le sien";
 const DELAI_MS = 15000;
@@ -34,7 +34,7 @@ export function phraseDEchec(e, generique) {
 function avecDelai(promesse) {
   let minuteur;
   const delai = new Promise((_, rejet) => {
-    minuteur = setTimeout(() => rejet(Object.assign(new Error("Délai dépassé (15 s). Réseau lent : réessaie dans un instant."), { phrase: true })), DELAI_MS);
+    minuteur = setTimeout(() => rejet(Object.assign(new Error("Délai dépassé (15 s). Réseau lent : réessayez dans un instant."), { phrase: true })), DELAI_MS);
   });
   return Promise.race([promesse, delai]).finally(() => clearTimeout(minuteur));
 }
@@ -128,7 +128,7 @@ function sectionReglage({ titre, intro, valeur, libre, avecLibre, libelleRetrait
 }
 
 const aideLibreCentre = (c) => {
-  if (c.habillage == null) return "Sans habillage fixé par le centre, chacun garde déjà le sien. Choisis un habillage plus haut pour pouvoir l'imposer.";
+  if (c.habillage == null) return "Sans habillage fixé par le centre, chacun garde déjà le sien. Choisissez un habillage plus haut pour pouvoir l'imposer.";
   return c.libre
     ? "Chaque personne du centre peut choisir son apparence. Le choix du centre s'applique à celles qui n'ont rien choisi."
     : "Le choix du centre s'impose à tous les comptes du centre. Il change à leur prochaine ouverture de l'app.";
@@ -168,7 +168,7 @@ export async function renderReglagesCentre(container) {
     racine.appendChild(entete("Centre", "Réglages du centre", null));
     racine.appendChild(el("div", { class: "centre-section centre-vide" },
       el("p", {}, PHRASE_SANS_CENTRE),
-      el("p", { class: "muted" }, "Choisis une promo d'un centre que tu diriges.")));
+      el("p", { class: "muted" }, "Choisissez une promo d'un centre que vous dirigez.")));
     container.appendChild(racine);
     return;
   }
