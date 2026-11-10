@@ -27,6 +27,15 @@
 --        -v retour=<chemin absolu de 20261110_conservation_retour.sql> -f tests/sql/conservation-preuve.sql
 --   pg_ctl -D $D/pg stop ; rm -rf $D
 --
+-- Résultats du 10/11/2026, tâche 3, correction 1 de la relecture (rien sous le seuil : aucun nombre de répondants
+-- sous 5 ou 3 dans etat_conservation, les retours et le journal ; lieu 3 à un seul formateur) :
+--   - nouveaux attendus sur la migration d'avant la correction : ROUGE 189/14 ;
+--   - après : VERT 203/0 (trois passages) ; base appliquée VERT 193/0 ; base appliquée qui a déjà des réponses, des
+--     participations et une ouverture : VERT 193/0 ;
+--   - contre-épreuves rejouées : seuil 178/25, rebrassage 201/2, verrou 199/4, dates des formateurs 196/7, date de l'étape
+--     1 196/7, année close 194/9, fiche 202/1, revoke 202/1, participations 201/2, lieu 202/1, commentaires de l'étape 1
+--     201/2 ; nombres donnés sous le seuil (état, trois fonctions, étape 1) ROUGE 196/7 ;
+--   - retour hors preuve : empreinte de70774d… avant, c7e3214b… appliquée et après les preuves, de70774d… après le retour.
 -- Résultats du 10/11/2026, tâche 3 (questionnaires), Postgres 18.4 local, port 55531, même schéma minimal :
 --   - la preuve complétée, jouée sur la migration de la tâche 2 : ROUGE 16/17 (fonctions et tables absentes, puis
 --     « structure » : relation questionnaire_resultats_figes absente) ;
@@ -89,7 +98,7 @@ declare
       select 'donnees ' || pg_temp.donnees()
     ) e(x) $q$;
   md5_avant text; md5_apres text; photo_avant text; photo_apres text;
-  L1 integer; L2 integer; PA integer; PB integer; PC integer; PD integer; PE integer; v_prof integer;
+  L1 integer; L2 integer; L3 integer; PF integer; PA integer; PB integer; PC integer; PD integer; PE integer; v_prof integer;
   S1 integer; S2 integer; S3 integer; S4 integer; S6 integer; S7 integer; S8 integer; SE integer; SC integer; SX integer;
   feA bigint; feD bigint; feJ bigint; feE bigint; fM bigint; fP bigint;
   r text; t text; j jsonb; n bigint; m bigint; d1 text; d2 text;
@@ -272,6 +281,7 @@ begin
   -- 1. Données fictives (avant la première empreinte : elles ne bougent plus ensuite) ---------------------------------
   insert into lieux (nom) values ('Preuve conservation L1') returning id into L1;
   insert into lieux (nom) values ('Preuve conservation L2') returning id into L2;
+  insert into lieux (nom) values ('Preuve conservation L3') returning id into L3;
   -- PA : « Nîmes », finie le 11/12/2026 (étape 1 le 11/12/2027, étape 2 le 01/01/2030). PB : sans date de fin. PC :
   -- même dates, autre centre. PD : en cours (feuille ouverte aujourd'hui). PE : finie le 11/12/2026, pour l'étape 2
   -- jouée sans étape 1.
@@ -280,6 +290,8 @@ begin
   insert into promos (lieu_id, nom, date_debut, date_fin) values (L2, 'Preuve autre centre', date '2026-03-02', date '2026-12-11') returning id into PC;
   insert into promos (lieu_id, nom, date_debut, date_fin) values (L1, 'Preuve en cours', v_jour_reel - 100, v_jour_reel + 60) returning id into PD;
   insert into promos (lieu_id, nom, date_debut, date_fin) values (L1, 'Preuve sans étape 1', date '2026-03-02', date '2026-12-11') returning id into PE;
+  -- PF : seule promo du lieu 3, où un seul formateur a répondu (rien sous le seuil, tâche 3).
+  insert into promos (lieu_id, nom, date_debut, date_fin) values (L3, 'Preuve un formateur', date '2026-03-02', date '2026-12-11') returning id into PF;
   insert into profs (nom) values ('Preuve Marie Durand') returning id into v_prof;
 
   -- Fiches : S1 (PA, active, compte), S2 (PA, abandon, compte), S3 (PA, active, sans compte), SE (PA, compte d'équipe :
@@ -400,12 +412,13 @@ begin
                  ('six_mois_stagiaire', PA, null, null, '4', null), ('fin_stagiaire', PD, null, null, '4', null),
                  ('fin_formateur', null, L1, 2026, '4', 'Preuve formateur 1'), ('fin_formateur', null, L1, 2026, '3', 'Preuve formateur 2'),
                  ('fin_formateur', null, L1, 2026, '2', null), ('fin_formateur', null, L2, 2026, '3', 'Preuve formateur 3'),
-                 ('fin_formateur', null, L2, 2026, '3', null)) v(cle, promo, lieu, annee, note, com);
+                 ('fin_formateur', null, L2, 2026, '3', null),
+                 ('fin_formateur', null, L3, 2026, '4', 'Preuve formateur seul')) v(cle, promo, lieu, annee, note, com);
   execute 'create table pg_temp.preuve_parts (cle text, promo integer, lieu integer, annee integer, nom text)';
   insert into pg_temp.preuve_parts values ('fin_stagiaire', PA, null, null, 'E1'), ('fin_stagiaire', PD, null, null, 'E4'),
     ('fin_stagiaire', PE, null, null, 'E6'),
     ('fin_formateur', null, L1, 2026, 'FO'), ('fin_formateur', null, L1, 2026, 'DIR2'), ('fin_formateur', null, L1, 2026, 'EQ'),
-    ('fin_formateur', null, L2, 2026, 'FO'), ('fin_formateur', null, L2, 2026, 'DIR2');
+    ('fin_formateur', null, L2, 2026, 'FO'), ('fin_formateur', null, L2, 2026, 'DIR2'), ('fin_formateur', null, L3, 2026, 'FO');
   execute format('insert into questionnaire_participations (cle, promo_id, lieu_id, annee, user_id%s)
     select v.cle, v.promo, v.lieu, v.annee, k.uid%s from pg_temp.preuve_parts v join pg_temp.preuve_comptes k on k.nom = v.nom
 ',
@@ -513,8 +526,8 @@ begin
     (select string_agg(coalesce(to_jsonb(p) ->> 'stagiaire_id', '-'), ',') from questionnaire_participations p
        join pg_temp.preuve_comptes k on k.uid = p.user_id where k.nom = 'E1') = S1::text, null);
   perform pg_temp.cas('participations : celles des formateurs sans fiche',
-    (select count(*) from questionnaire_participations p where p.cle = 'fin_formateur' and p.lieu_id in (L1, L2)) = 5
-    and (select count(*) from questionnaire_participations p where p.cle = 'fin_formateur' and p.lieu_id in (L1, L2)
+    (select count(*) from questionnaire_participations p where p.cle = 'fin_formateur' and p.lieu_id in (L1, L2, L3)) = 6
+    and (select count(*) from questionnaire_participations p where p.cle = 'fin_formateur' and p.lieu_id in (L1, L2, L3)
             and to_jsonb(p) ->> 'stagiaire_id' is not null) = 0, null);
   select string_agg(ro.rol || ':' || ta.tab || ':' || pr.priv, ',') into t
     from (values ('anon'), ('authenticated'), ('service_role')) ro(rol),
@@ -604,15 +617,20 @@ begin
       pg_temp.etat() ->> 'jour' = '2027-12-10' and pg_temp.etat() -> 'registre' = 'null'::jsonb, (pg_temp.etat() - 'promos')::text);
     j := (select p from jsonb_array_elements(pg_temp.etat() -> 'portees_formateurs') p
            where (p ->> 'lieu_id')::int = L1 and (p ->> 'annee')::int = 2026);
-    perform pg_temp.cas('etat_conservation, formateurs 2026 du lieu 1 : 3 participations, 2 commentaires, 3 réponses, dates 01/01/2027, 31/12/2027, 01/01/2030',
-      j = jsonb_build_object('lieu_id', L1, 'lieu_nom', 'Preuve conservation L1', 'annee', 2026, 'participations', 3,
-                             'cloture_du', '2027-01-01', 'close', false, 'commentaires', 2, 'commentaires_du', '2027-12-31',
-                             'reponses', 3, 'fige', false, 'figeage_du', '2030-01-01'), coalesce(j::text, 'absente'));
-    select string_agg(p ->> 'lieu_id' || '/' || (p ->> 'annee') || '/' || (p ->> 'participations') || '/' || (p ->> 'commentaires')
-                      || '/' || (p ->> 'reponses'), ',' order by (p ->> 'lieu_id')::int) into t
-      from jsonb_array_elements(pg_temp.etat() -> 'portees_formateurs') p where (p ->> 'lieu_id')::int in (L1, L2);
-    perform pg_temp.cas('etat_conservation : portées des formateurs des lieux 1 et 2, une par année',
-      t = L1 || '/2026/3/2/3,' || L2 || '/2026/2/1/2', t);
+    perform pg_temp.cas('etat_conservation, formateurs 2026 du lieu 1 (au seuil) : 3 participations, 2 commentaires, 3 réponses, dates 01/01/2027, 31/12/2027, 01/01/2030',
+      j = jsonb_build_object('lieu_id', L1, 'lieu_nom', 'Preuve conservation L1', 'annee', 2026,
+                             'a_participations', true, 'participations', 3, 'cloture_du', '2027-01-01', 'close', false,
+                             'a_commentaires', true, 'commentaires', 2, 'commentaires_du', '2027-12-31',
+                             'a_reponses', true, 'reponses', 3, 'sous_seuil', false, 'fige', false, 'figeage_du', '2030-01-01'),
+      coalesce(j::text, 'absente'));
+    select string_agg(p ->> 'lieu_id' || '/' || (p ->> 'annee') || '/' || coalesce(p ->> 'participations', '-') || '/'
+                      || coalesce(p ->> 'commentaires', '-') || '/' || coalesce(p ->> 'reponses', '-') || '/'
+                      || (p ->> 'a_participations') || '/' || (p ->> 'a_commentaires') || '/' || (p ->> 'a_reponses') || '/'
+                      || (p ->> 'sous_seuil'), ',' order by (p ->> 'lieu_id')::int) into t
+      from jsonb_array_elements(pg_temp.etat() -> 'portees_formateurs') p where (p ->> 'lieu_id')::int in (L1, L2, L3);
+    perform pg_temp.cas('etat_conservation : lieux 2 (2 réponses) et 3 (1 réponse) sous le seuil : aucun nombre, seulement « il reste » et « sous le seuil »',
+      t = L1 || '/2026/3/2/3/true/true/true/false,' || L2 || '/2026/-/-/-/true/true/true/true,'
+          || L3 || '/2026/-/-/-/true/true/true/true', t);
     -- Résultats d'avant tout effacement (comparés aux résultats figés plus bas).
     j_fin := pg_temp.resultats('fin_stagiaire', pPA); j_six := pg_temp.resultats('six_mois_stagiaire', pPA);
     j_l1 := pg_temp.resultats('fin_formateur', pL1); j_l2 := pg_temp.resultats('fin_formateur', pL2);
@@ -750,7 +768,7 @@ begin
       select string_agg(p ->> 'lieu_id', ',' order by (p ->> 'lieu_id')::int) into t2
         from jsonb_array_elements(pg_temp.etat() -> 'portees_formateurs') p where (p ->> 'lieu_id')::int in (L1, L2);
       m2 := null;
-      if pg_temp.tente(format('select public.clore_annee_formateurs(%s, 2026)::text', L2)) = 'ok 2' then
+      if pg_temp.tente(format('select public.clore_annee_formateurs(%s, 2026)::text', L2)) = 'ok {"efface": true}' then
         reset role;
         m2 := pg_temp.parts('fin_formateur', null, L2, 2026);
         set local role authenticated;
@@ -808,11 +826,12 @@ begin
          from emargement_formateurs where seance_id = feA) = 'Paul Martin/true/-,Preuve Marie Durand/true/' || v_prof, null);
     select count(*) into n from effacements_journal where type = 'etape1' and cible = 'promo ' || PA;
     perform pg_temp.cas('étape 1 : une ligne de journal « etape1 », cible « promo n »', n = 1, n::text);
-    perform pg_temp.cas('étape 1 : 4 commentaires de questionnaires de PA effacés (fin de formation et six mois)',
-      (pg_temp.res(r) ->> 'commentaires_questionnaires')::int = 4
+    perform pg_temp.cas('étape 1 : commentaires de questionnaires de PA effacés (fin de formation et six mois) ; six mois sous le seuil : aucun nombre, au retour ni au journal',
+      pg_temp.res(r) -> 'questionnaires_commentaires_effaces' = 'true'::jsonb and not (pg_temp.res(r) ? 'commentaires_questionnaires')
+      and (select details -> 'questionnaires_commentaires_effaces' = 'true'::jsonb and not (details ? 'commentaires_questionnaires')
+             from effacements_journal where type = 'etape1' and cible = 'promo ' || PA)
       and pg_temp.notes('fin_stagiaire', PA, null, null) = split_part(v_notes1, ' | ', 1) || ' | 0'
-      and pg_temp.notes('six_mois_stagiaire', PA, null, null) = split_part(v_notes2, ' | ', 1) || ' | 0',
-      pg_temp.res(r) ->> 'commentaires_questionnaires');
+      and pg_temp.notes('six_mois_stagiaire', PA, null, null) = split_part(v_notes2, ' | ', 1) || ' | 0', r);
     perform pg_temp.cas('étape 1 : notes des questionnaires de PA intactes (avant : 3 et 1 commentaires)',
       split_part(pg_temp.notes('fin_stagiaire', PA, null, null), ' | ', 1) = split_part(v_notes1, ' | ', 1)
       and split_part(pg_temp.notes('six_mois_stagiaire', PA, null, null), ' | ', 1) = split_part(v_notes2, ' | ', 1)
@@ -1069,7 +1088,7 @@ begin
       r like 'ok%' and n = 1 and t like 'ok%', r || ' | ' || n || ' | ' || t);
     perform pg_temp.qui('FO');
     r := pg_temp.tente(format('select public.clore_annee_formateurs(%s, 2026)::text', L1));
-    perform pg_temp.cas('formateurs : clôture de 2026 acceptée le 01/01/2027, 3 participations effacées', r = 'ok 3', r);
+    perform pg_temp.cas('formateurs : clôture de 2026 acceptée le 01/01/2027, 3 participations effacées', r = 'ok {"efface": true, "participations": 3}', r);
     reset role;
     perform pg_temp.cas('formateurs : après la clôture, plus aucune participation au lieu 1 pour 2026 ; lieu 2 intact',
       pg_temp.parts('fin_formateur', null, L1, 2026) = 0 and pg_temp.parts('fin_formateur', null, L2, 2026) = 2, null);
@@ -1092,7 +1111,8 @@ begin
     perform pg_temp.qui('FO');
     r := pg_temp.tente(format('select public.clore_annee_formateurs(%s, 2026)::text', L1));
     reset role;
-    perform pg_temp.cas('formateurs : clôture rejouée, rien ne change, aucune seconde ligne de journal', r = 'ok 0' and pg_temp.donnees() = d1, r);
+    perform pg_temp.cas('formateurs : clôture rejouée, rien ne change, aucune seconde ligne de journal',
+      r = 'ok {"efface": false, "participations": 0}' and pg_temp.donnees() = d1, r);
 
     -- Commentaires : refusés le 30/12/2027, effacés le 31/12/2027, notes intactes, identifiants changés.
     a1 := pg_temp.ids('fin_formateur', null, L1, 2026); v_notes1 := pg_temp.notes('fin_formateur', null, L1, 2026);
@@ -1106,7 +1126,8 @@ begin
     r := pg_temp.tente(format('select public.effacer_commentaires_formateurs(%s, 2026)::text', L1));
     reset role;
     perform pg_temp.cas('formateurs : 2 commentaires effacés le 31/12/2027, notes intactes, lieu 2 intact',
-      r = 'ok 2' and pg_temp.notes('fin_formateur', null, L1, 2026) = split_part(v_notes1, ' | ', 1) || ' | 0'
+      pg_temp.res(r) = '{"efface": true, "commentaires": 2, "participations": 0}'::jsonb
+      and pg_temp.notes('fin_formateur', null, L1, 2026) = split_part(v_notes1, ' | ', 1) || ' | 0'
       and split_part(v_notes1, ' | ', 2) = '2' and pg_temp.notes('fin_formateur', null, L2, 2026) = v_notes2, r);
     perform pg_temp.cas('formateurs : identifiants des réponses tous changés (rebrassage)',
       cardinality(a1) = 3 and cardinality(pg_temp.ids('fin_formateur', null, L1, 2026)) = 3
@@ -1121,7 +1142,7 @@ begin
            where (p ->> 'lieu_id')::int = L1 and (p ->> 'annee')::int = 2026);
     reset role;
     perform pg_temp.cas('formateurs : effacement des commentaires rejoué, rien ne change (identifiants compris), aucune ligne de journal',
-      r = 'ok 0' and pg_temp.donnees() = d1, r);
+      pg_temp.res(r) = '{"efface": false, "commentaires": 0, "participations": 0}'::jsonb and pg_temp.donnees() = d1, r);
     perform pg_temp.cas('etat_conservation, formateurs 2026 du lieu 1 après clôture et commentaires : 0 participation, 0 commentaire, close',
       (j ->> 'participations')::int = 0 and (j ->> 'commentaires')::int = 0 and (j ->> 'reponses')::int = 3
       and j -> 'close' = 'true'::jsonb and j -> 'fige' = 'false'::jsonb, j::text);
@@ -1167,15 +1188,47 @@ begin
            where (p ->> 'lieu_id')::int = L1 and (p ->> 'annee')::int = 2026);
     reset role;
     perform pg_temp.cas('etat_conservation, formateurs 2026 du lieu 1 après figeage : figé, plus aucune réponse',
-      j -> 'fige' = 'true'::jsonb and (j ->> 'reponses')::int = 0 and (j ->> 'participations')::int = 0, j::text);
+      j -> 'fige' = 'true'::jsonb and j -> 'a_reponses' = 'false'::jsonb and j -> 'a_participations' = 'false'::jsonb
+      and j -> 'a_commentaires' = 'false'::jsonb and j -> 'sous_seuil' = 'false'::jsonb, j::text);
+
+    -- Lieu 3 : un seul formateur a répondu. Aucun nombre, nulle part : état, retours des trois fonctions, journal.
+    set local role authenticated;
+    perform pg_temp.qui('FO');
+    j := (select p from jsonb_array_elements(pg_temp.etat() -> 'portees_formateurs') p
+           where (p ->> 'lieu_id')::int = L3 and (p ->> 'annee')::int = 2026);
+    r := pg_temp.tente(format('select public.clore_annee_formateurs(%s, 2026)::text', L3));
+    r2 := pg_temp.tente(format('select public.effacer_commentaires_formateurs(%s, 2026)::text', L3));
+    t2 := pg_temp.tente(format('select public.figer_questionnaire_formateurs(%s, 2026)::text', L3));
+    t := (select string_agg(p::text, ',') from jsonb_array_elements(pg_temp.etat() -> 'portees_formateurs') p
+           where (p ->> 'lieu_id')::int = L3);
+    reset role;
+    perform pg_temp.cas('lieu 3 (un seul répondant), état : il reste des participations, un commentaire, une réponse, sans aucun nombre',
+      j - 'lieu_id' - 'lieu_nom' - 'cloture_du' - 'commentaires_du' - 'figeage_du' - 'annee'
+        = '{"a_participations": true, "participations": null, "close": false, "a_commentaires": true, "commentaires": null, "a_reponses": true, "reponses": null, "sous_seuil": true, "fige": false}'::jsonb,
+      coalesce(j::text, 'absente'));
+    perform pg_temp.cas('lieu 3 : clôture, commentaires et figeage faits, retours sans aucun nombre',
+      r = 'ok {"efface": true}' and r2 = 'ok {"efface": true}'
+      and pg_temp.res(t2) = '{"fige": true, "reponses": null, "sous_seuil": true}'::jsonb
+      and pg_temp.parts('fin_formateur', null, L3, 2026) = 0 and cardinality(pg_temp.ids('fin_formateur', null, L3, 2026)) = 0,
+      r || ' | ' || r2 || ' | ' || t2);
+    perform pg_temp.cas('lieu 3 : après figeage, état sans aucun nombre (figé, plus rien)',
+      t like '%"fige": true%' and t like '%"reponses": null%' and t like '%"participations": null%'
+      and t like '%"commentaires": null%', t);
+    select string_agg(cible || ' ' || details::text, ' | ') into t from effacements_journal
+     where type = 'questionnaires' and cible in ('lieu ' || L2 || ', année 2026', 'lieu ' || L3 || ', année 2026')
+       and exists (select 1 from jsonb_each(details) e where jsonb_typeof(e.value) = 'number');
+    perform pg_temp.cas('journal des lieux 2 et 3 (sous le seuil) : aucun nombre dans les détails',
+      t is null and (select count(*) from effacements_journal where type = 'questionnaires'
+                      and cible = 'lieu ' || L3 || ', année 2026') = 3, t);
     select string_agg(type || ' ' || cible || ' ' || details::text, ' | ') into t from effacements_journal
      where type = 'questionnaires' and fait_par_email like 'preuve.cons.%'
        and (cible !~ ('^lieu [0-9]+, année [0-9]{4}$') or details::text ~* '@|preuve|martin|durand|example'
             or fait_par_email <> 'preuve.cons.fo@example.invalid');
     perform pg_temp.cas('journal « questionnaires » : cibles « lieu n, année aaaa », aucun nom ni commentaire, auteur le fondateur',
       t is null and (select count(*) from effacements_journal where type = 'questionnaires'
-                      and cible in ('lieu ' || L1 || ', année 2026', 'lieu ' || L2 || ', année 2026')) = 4
-      and (select count(*) from effacements_journal where type = 'questionnaires' and fait_par_email like 'preuve.cons.%') = 4, t);
+                      and cible in ('lieu ' || L1 || ', année 2026', 'lieu ' || L2 || ', année 2026',
+                                    'lieu ' || L3 || ', année 2026')) = 7
+      and (select count(*) from effacements_journal where type = 'questionnaires' and fait_par_email like 'preuve.cons.%') = 7, t);
 
     -- 4.8 Rien d'autre n'a bougé : fiches témoins des autres promos, journal sans nom ni e-mail.
     perform pg_temp.cas('témoin S7 (PD) : seule sa signature du jour s''ajoute',

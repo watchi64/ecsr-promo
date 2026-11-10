@@ -119,23 +119,26 @@ export function echeancesConservation(etat) {
     }
   }
 
+  // Rien sous le seuil (lot Q3) : la base ne donne les nombres d'une portée qu'à partir du seuil de répondants ; en
+  // dessous, seuls les drapeaux a_participations, a_commentaires, a_reponses disent qu'il reste quelque chose, et le
+  // texte ne cite aucun nombre.
   for (const f of etat?.portees_formateurs || []) {
     const lieu = f.lieu_nom || "Ce lieu";
     const cible = { kind: "formateurs", lieu_id: f.lieu_id, lieu_nom: f.lieu_nom, annee: f.annee };
     const qui = `Questionnaire des formateurs ${f.annee}, ${lieu}`;
-    const np = nombre(f.participations);
-    if (np > 0) {
+    const reste = (drapeau, n) => (typeof drapeau === "boolean" ? drapeau : nombre(n) > 0);
+    const compte = (n, un, plu) => (typeof n === "number" && n > 0 ? ` (${pluriel(n, un, plu)})` : "");
+    if (reste(f.a_participations, f.participations)) {
       ajoute("cloture_formateurs", cible, f.cloture_du,
-        `${qui} : à partir du ${dateLongue(f.cloture_du)}, la liste de ceux qui ont répondu est effacée (${pluriel(np, "ligne", "lignes")}).`,
+        `${qui} : à partir du ${dateLongue(f.cloture_du)}, la liste de ceux qui ont répondu est effacée${compte(f.participations, "ligne", "lignes")}.`,
         "Effacer la liste des répondants");
     }
-    const nc = nombre(f.commentaires);
-    if (nc > 0) {
+    if (reste(f.a_commentaires, f.commentaires)) {
       ajoute("commentaires_formateurs", cible, f.commentaires_du,
-        `${qui} : à partir du ${dateLongue(f.commentaires_du)}, les commentaires libres sont effacés (${pluriel(nc, "commentaire", "commentaires")}).`,
+        `${qui} : à partir du ${dateLongue(f.commentaires_du)}, les commentaires libres sont effacés${compte(f.commentaires, "commentaire", "commentaires")}.`,
         "Effacer les commentaires");
     }
-    if (!f.fige && nombre(f.reponses) > 0) {
+    if (!f.fige && reste(f.a_reponses, f.reponses)) {
       ajoute("figeage_formateurs", cible, f.figeage_du,
         `${qui} : à partir du ${dateLongue(f.figeage_du)}, les notes individuelles sont remplacées par les pourcentages du lieu `
         + "(s'il y a eu au moins 3 réponses).",
@@ -181,8 +184,10 @@ export function resumeEffacement(details) {
   if (Number(d.fiche_suivi) > 0) parts.push("fiche de suivi");
   const n = Number(d.epcf_textes || 0) + Number(d.observations || 0) + Number(d.commentaires_passages || 0);
   if (n > 0) parts.push(n + " commentaire" + (n > 1 ? "s" : ""));
+  // Nombre des commentaires de questionnaire donné par la base seulement à partir du seuil ; sinon le seul drapeau.
   const q = Number(d.commentaires_questionnaires || 0);
   if (q > 0) parts.push(q + " commentaire" + (q > 1 ? "s" : "") + " de questionnaire");
+  else if (d.questionnaires_commentaires_effaces === true) parts.push("commentaires de questionnaire");
   const o = Number(d.emargement_observations || 0);
   if (o > 0) parts.push(o + " observation" + (o > 1 ? "s" : "") + " d'émargement");
   const g = Number(d.signatures || 0);

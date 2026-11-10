@@ -72,6 +72,19 @@ const ef = echeancesConservation(etat("2026-06-01", [], { portees_formateurs: [p
 eq(types(ef), ["cloture_formateurs", "commentaires_formateurs", "figeage_formateurs"], "trois échéances formateurs");
 eq(ef.map((e) => e.du), ["2027-01-01", "2027-12-31", "2030-01-01"], "dates formateurs 2026");
 eq(types(echeancesConservation(etat("2026-06-01", [], { portees_formateurs: [{ ...portee, participations: 0, commentaires: 0, fige: true }] }))), [], "rien à faire côté formateurs");
+ok(ef[0].texte.includes("(3 lignes)") && ef[1].texte.includes("(4 commentaires)"), "au seuil : les nombres sont cités");
+
+// Sous le seuil (lot Q3) : la base ne donne que des drapeaux ; échéances listées, aucun nombre dans les textes.
+const sousSeuil = { lieu_id: "l3", lieu_nom: "Alès", annee: 2026, a_participations: true, participations: null, cloture_du: "2027-01-01",
+  close: false, a_commentaires: true, commentaires: null, commentaires_du: "2027-12-31", a_reponses: true, reponses: null,
+  sous_seuil: true, fige: false, figeage_du: "2030-01-01" };
+const es = echeancesConservation(etat("2030-01-01", [], { portees_formateurs: [sousSeuil] }));
+eq(types(es), ["cloture_formateurs", "commentaires_formateurs", "figeage_formateurs"], "sous le seuil : les trois échéances restent listées");
+for (const e of es) {
+  ok(!/\(\d|\d+ (ligne|commentaire)/.test(e.texte.replace(/\d{4}|\d{1,2}(er)? [a-zéû]+ \d{4}/g, "")), "sous le seuil : aucun nombre cité : " + e.type);
+  ok(typeof e.bouton === "string", "sous le seuil, échéance due : bouton " + e.type);
+}
+eq(types(echeancesConservation(etat("2030-01-01", [], { portees_formateurs: [{ ...sousSeuil, a_participations: false, a_commentaires: false, a_reponses: false, sous_seuil: false, fige: true }] }))), [], "drapeaux faux : rien à faire");
 
 const er = echeancesConservation(etat("2026-06-01", [], { registre: { a_effacer: 2, du: "2026-05-01" } }));
 eq([types(er), er[0].due], [["registre"], true], "registre dû");
@@ -97,9 +110,11 @@ eq(statutFiche({ actif: true }, false, true), "Fiche effacée à la demande de l
 ok(resumeEffacement({ emargement_observations: 2, signatures: 3, commentaires_questionnaires: 1 }).includes("3 signatures"), "signatures citées");
 ok(/observations? d'émargement/.test(resumeEffacement({ emargement_observations: 2 })), "observations d'émargement citées");
 ok(/commentaire/.test(resumeEffacement({ commentaires_questionnaires: 1 })), "commentaires de questionnaire cités");
+const rs = resumeEffacement({ fiches: 3, questionnaires_commentaires_effaces: true });
+ok(rs.includes("commentaires de questionnaire") && !/\d+ commentaires? de questionnaire/.test(rs), "sous le seuil : commentaires de questionnaire cités sans nombre");
 
 // Textes : ni tiret cadratin ni « prof »
-const tous = [e1, e2, e3, sans, ef, er, tri].flat();
+const tous = [e1, e2, e3, sans, ef, es, er, tri].flat();
 for (const e of tous) {
   ok(!e.texte.includes(String.fromCharCode(0x2014)), "pas de tiret cadratin : " + e.type);
   ok(!/\bprof\b/i.test(e.texte + (e.bouton || "")), "pas de « prof » : " + e.type);

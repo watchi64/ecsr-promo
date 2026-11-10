@@ -273,14 +273,16 @@ revoke all on function public._effacer_etape1(integer), public._effacer_etape2(i
 
 -- 5. État de la conservation (page Qualiopi) -----------------------------------------------------------------------
 -- { jour, promos: [{ id, nom, lieu_nom, date_fin, etape1_du, etape2_du, a_effacer_etape1, a_effacer_etape2,
--- comptes_equipe, emargement_etape2 }], portees_formateurs: [{ lieu_id, lieu_nom, annee, participations, cloture_du,
--- close, commentaires, commentaires_du, reponses, fige, figeage_du }], registre: null (tâche 4) }. Les promos et les
+-- comptes_equipe, emargement_etape2 }], portees_formateurs: [{ lieu_id, lieu_nom, annee, a_participations,
+-- participations, cloture_du, close, a_commentaires, commentaires, commentaires_du, a_reponses, reponses, sous_seuil,
+-- fige, figeage_du }], registre: null (tâche 4) }. Les promos et les
 -- lieux accessibles seulement (un lieu l'est par une de ses promos) ; les nombres « à effacer » ne comptent jamais les
 -- comptes d'équipe. emargement_etape2 : les signatures de formateurs et les tracés de fiches déjà sans nom qui restent
 -- à effacer à l'étape 2. portees_formateurs : chaque lieu et année du questionnaire des formateurs qui garde des
--- réponses, des participations ou des résultats figés ; participations, commentaires et reponses sont des nombres,
--- lus par la gestion de la qualité seule (ils disent combien ont répondu, même sous le seuil) ; close : l'année est
--- close ; fige : les résultats sont figés.
+-- réponses, des participations ou des résultats figés. Rien sous le seuil (lot Q3, 3 pour les formateurs) :
+-- a_participations, a_commentaires, a_reponses disent s'il reste quelque chose ; participations, commentaires et
+-- reponses ne sont des nombres que si la portée a au moins le seuil de répondants (sinon nuls, et sous_seuil vrai) ;
+-- close : l'année est close ; fige : les résultats sont figés.
 create function public.etat_conservation()
 returns jsonb language plpgsql stable security definer set search_path to 'public', 'pg_temp' as $function$
 declare
@@ -326,15 +328,16 @@ begin
                'lieu_id', x.lieu_id,
                'lieu_nom', l.nom,
                'annee', x.annee,
-               'participations', (select count(*) from questionnaire_participations qp
-                                   where qp.cle = 'fin_formateur' and qp.lieu_id = x.lieu_id and qp.annee = x.annee),
+               'a_participations', c.np > 0,
+               'participations', case when c.visible then c.np end,
                'cloture_du', make_date(x.annee + 1, 1, 1),
                'close', exists (select 1 from questionnaire_clotures qc where qc.lieu_id = x.lieu_id and qc.annee = x.annee),
-               'commentaires', (select count(qr.commentaire) from questionnaire_reponses qr
-                                 where qr.cle = 'fin_formateur' and qr.lieu_id = x.lieu_id and qr.annee = x.annee),
+               'a_commentaires', c.nc > 0,
+               'commentaires', case when c.visible then c.nc end,
                'commentaires_du', make_date(x.annee + 1, 12, 31),
-               'reponses', (select count(*) from questionnaire_reponses qr
-                             where qr.cle = 'fin_formateur' and qr.lieu_id = x.lieu_id and qr.annee = x.annee),
+               'a_reponses', c.nr > 0,
+               'reponses', case when c.visible then c.nr end,
+               'sous_seuil', greatest(c.np, c.nr) > 0 and not c.visible,
                'fige', exists (select 1 from questionnaire_resultats_figes qf
                                 where qf.cle = 'fin_formateur' and qf.lieu_id = x.lieu_id and qf.annee = x.annee),
                'figeage_du', make_date(x.annee + 4, 1, 1)) order by l.nom, x.lieu_id, x.annee)
@@ -342,6 +345,14 @@ begin
               union select lieu_id, annee from questionnaire_participations where cle = 'fin_formateur'
               union select lieu_id, annee from questionnaire_resultats_figes where cle = 'fin_formateur') x
         join lieux l on l.id = x.lieu_id
+        cross join lateral (
+          select k.np, k.nc, k.nr, greatest(k.np, k.nr) >= _questionnaire_seuil('fin_formateur') as visible
+            from (select (select count(*) from questionnaire_participations qp
+                           where qp.cle = 'fin_formateur' and qp.lieu_id = x.lieu_id and qp.annee = x.annee) as np,
+                         (select count(qr.commentaire) from questionnaire_reponses qr
+                           where qr.cle = 'fin_formateur' and qr.lieu_id = x.lieu_id and qr.annee = x.annee) as nc,
+                         (select count(*) from questionnaire_reponses qr
+                           where qr.cle = 'fin_formateur' and qr.lieu_id = x.lieu_id and qr.annee = x.annee) as nr) k) c
        where exists (select 1 from promos pr where pr.lieu_id = x.lieu_id and peut_acceder_promo(pr.id))), '[]'::jsonb),
     'registre', null);
 end;
@@ -358,7 +369,11 @@ declare
   v_somme jsonb := '{}'::jsonb;
   v_faits integer := 0;
   v_equipe integer := 0;
-  v_com integer;
+  v_com integer := 0;
+  v_com_fait boolean := false;
+  v_com_sous_seuil boolean := false;
+  r integer;
+  n integer;
   k text;
   x jsonb;
 begin
@@ -390,12 +405,22 @@ begin
       v_somme := v_somme || jsonb_build_object(k, coalesce((v_somme ->> k)::integer, 0) + x::text::integer);
     end loop;
   end loop;
-  -- Commentaires libres des deux questionnaires de la promo (les notes restent ; réponses rebrassées).
-  v_com := _questionnaire_effacer_commentaires('fin_stagiaire', p.id, null, null)
-           + _questionnaire_effacer_commentaires('six_mois_stagiaire', p.id, null, null);
+  -- Commentaires libres des deux questionnaires de la promo (les notes restent ; réponses rebrassées). Rien sous le
+  -- seuil (lot Q3) : questionnaires_commentaires_effaces dit si des commentaires sont partis ; leur nombre
+  -- (commentaires_questionnaires) n'est donné que si chaque questionnaire concerné a au moins le seuil de réponses.
+  foreach k in array array['fin_stagiaire', 'six_mois_stagiaire'] loop
+    select count(*) into r from questionnaire_reponses where cle = k and promo_id = p.id;
+    n := _questionnaire_effacer_commentaires(k, p.id, null, null);
+    if n > 0 then
+      v_com_fait := true;
+      if r >= _questionnaire_seuil(k) then v_com := v_com + n; else v_com_sous_seuil := true; end if;
+    end if;
+  end loop;
   v := jsonb_build_object('fiches', v_faits, 'comptes_equipe', v_equipe) || v_somme
-       || jsonb_build_object('commentaires_questionnaires', v_com);
-  if v_faits + v_com > 0 then
+       || jsonb_build_object('questionnaires_commentaires_effaces', v_com_fait)
+       || case when v_com_fait and not v_com_sous_seuil
+               then jsonb_build_object('commentaires_questionnaires', v_com) else '{}'::jsonb end;
+  if v_faits > 0 or v_com_fait then
     insert into effacements_journal (type, cible, fait_par_email, details)
     values ('etape1', 'promo ' || p.id, lower(auth.jwt() ->> 'email'), v);
   end if;
@@ -753,7 +778,8 @@ revoke all on public.questionnaire_resultats_figes, public.questionnaire_cloture
 -- 10.3 Outils internes ----------------------------------------------------------------------------------------------
 -- Brassage de repondre_questionnaire (20261108_questionnaires.sql, section 9), extrait tel quel : toutes les réponses
 -- de la portée réécrites, dans un ordre tiré au hasard et avec un nouvel identifiant ; commentaire et réponses recopiés
--- pour que leurs morceaux TOAST soient réécrits aussi.
+-- pour que leurs morceaux TOAST soient réécrits aussi. À n'appeler que sous le verrou de la portée (celui de
+-- repondre_questionnaire), comme le font ses trois appelants.
 create function public._questionnaire_rebrasser(p_cle text, p_promo integer, p_lieu integer, p_annee integer)
 returns void language plpgsql set search_path to 'public', 'pg_temp' as $function$
 declare
@@ -1135,10 +1161,12 @@ $function$;
 -- Un lieu est accessible par une de ses promos (peut_acceder_promo), pour que l'élargissement du lot 5 ne laisse pas
 -- un centre effacer un autre. Journal de type « questionnaires », cible « lieu <id>, année <aaaa> », sans nom.
 create function public.clore_annee_formateurs(p_lieu integer, p_annee integer)
-returns integer language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
+returns jsonb language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
 declare
   v_du date;
+  r integer;
   n integer;
+  v jsonb;
 begin
   if not peut_gerer_qualite() then
     raise exception 'conservation: Réservé à la gestion de la qualité.';
@@ -1153,22 +1181,30 @@ begin
   if _questionnaire_jour() < v_du then
     raise exception 'conservation: Possible à partir du %.', to_char(v_du, 'DD/MM/YYYY');
   end if;
+  select count(*) into r from questionnaire_reponses
+   where cle = 'fin_formateur' and lieu_id = p_lieu and annee = p_annee;
   n := _questionnaire_clore(p_lieu, p_annee);
+  -- Rien sous le seuil (lot Q3) : le nombre seulement si la portée a au moins le seuil de répondants.
+  v := jsonb_build_object('efface', n > 0)
+       || case when greatest(n, r) >= _questionnaire_seuil('fin_formateur')
+               then jsonb_build_object('participations', n) else '{}'::jsonb end;
   if n > 0 then
     insert into effacements_journal (type, cible, fait_par_email, details)
     values ('questionnaires', 'lieu ' || p_lieu || ', année ' || p_annee, lower(auth.jwt() ->> 'email'),
-            jsonb_build_object('questionnaire', 'fin_formateur', 'participations', n));
+            jsonb_build_object('questionnaire', 'fin_formateur') || v);
   end if;
-  return n;
+  return v;
 end;
 $function$;
 
 create function public.effacer_commentaires_formateurs(p_lieu integer, p_annee integer)
-returns integer language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
+returns jsonb language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
 declare
   v_du date;
+  r integer;
   m integer;
   n integer;
+  v jsonb;
 begin
   if not peut_gerer_qualite() then
     raise exception 'conservation: Réservé à la gestion de la qualité.';
@@ -1183,14 +1219,20 @@ begin
   if _questionnaire_jour() < v_du then
     raise exception 'conservation: Possible à partir du %.', to_char(v_du, 'DD/MM/YYYY');
   end if;
+  select count(*) into r from questionnaire_reponses
+   where cle = 'fin_formateur' and lieu_id = p_lieu and annee = p_annee;
   m := _questionnaire_clore(p_lieu, p_annee);
   n := _questionnaire_effacer_commentaires('fin_formateur', null, p_lieu, p_annee);
+  -- Rien sous le seuil (lot Q3) : les nombres seulement si la portée a au moins le seuil de répondants.
+  v := jsonb_build_object('efface', m + n > 0)
+       || case when greatest(m, r) >= _questionnaire_seuil('fin_formateur')
+               then jsonb_build_object('participations', m, 'commentaires', n) else '{}'::jsonb end;
   if m + n > 0 then
     insert into effacements_journal (type, cible, fait_par_email, details)
     values ('questionnaires', 'lieu ' || p_lieu || ', année ' || p_annee, lower(auth.jwt() ->> 'email'),
-            jsonb_build_object('questionnaire', 'fin_formateur', 'participations', m, 'commentaires_questionnaires', n));
+            jsonb_build_object('questionnaire', 'fin_formateur') || v);
   end if;
-  return n;
+  return v;
 end;
 $function$;
 
@@ -1198,6 +1240,7 @@ create function public.figer_questionnaire_formateurs(p_lieu integer, p_annee in
 returns jsonb language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
 declare
   v_du date;
+  r integer;
   m integer;
   v jsonb;
 begin
@@ -1214,12 +1257,18 @@ begin
   if _questionnaire_jour() < v_du then
     raise exception 'conservation: Possible à partir du %.', to_char(v_du, 'DD/MM/YYYY');
   end if;
+  select count(*) into r from questionnaire_reponses
+   where cle = 'fin_formateur' and lieu_id = p_lieu and annee = p_annee;
   m := _questionnaire_clore(p_lieu, p_annee);
+  -- Le retour du figeage ne donne le nombre de réponses qu'à partir du seuil ; les participations effacées au passage,
+  -- de même.
   v := _questionnaire_figer('fin_formateur', null, p_lieu, p_annee);
   if m > 0 or v ? 'fige' then
     insert into effacements_journal (type, cible, fait_par_email, details)
     values ('questionnaires', 'lieu ' || p_lieu || ', année ' || p_annee, lower(auth.jwt() ->> 'email'),
-            jsonb_build_object('questionnaire', 'fin_formateur', 'participations', m) || v);
+            jsonb_build_object('questionnaire', 'fin_formateur') || v
+            || case when greatest(m, r) >= _questionnaire_seuil('fin_formateur')
+                    then jsonb_build_object('participations', m) else '{}'::jsonb end);
   end if;
   return v;
 end;

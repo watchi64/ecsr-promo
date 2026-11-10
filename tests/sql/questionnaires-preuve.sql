@@ -33,7 +33,11 @@
 -- stagiaire_id (le cas « aucune colonne commune hors portée » reste). Résultats, Postgres 18.4 local, schéma minimal
 -- tests/sql/conservation-schema-minimal.sql : base où Q5 est appliqué VERT 207/0 ; même base sans Q5 VERT 207/0 ; avec
 -- la migration Q5 de la tâche 2 (sans stagiaire_id) ROUGE 206/1 ; schéma minimal propre au lot Q3, migration et retour
--- joués : VERT 209/0.
+-- joués : VERT 209/0. Correction du 10/11 (relecture de la tâche 3 du lot Q5) : « aucun refus n'a laissé de
+-- participation ni de réponse » compare les comptes de la base avant et après les refus, et la lecture des ouvertures
+-- par le fondateur se limite aux promos et lieux de la preuve ; avant, ROUGE 205/2 sur une base qui a déjà des
+-- participations, des réponses et une ouverture ; après, VERT 207/0 sur cette base, VERT 207/0 avec et sans Q5 sur le
+-- schéma minimal de la conservation, VERT 209/0 sur le schéma minimal du lot Q3.
 --
 -- Mise en ligne du 09/11/2026 (accord de Timy), base réelle (Postgres 17.6), pg_read_file remplacés par le texte des
 -- fichiers, comptes créés après les profils (liste blanche) : essai à blanc avant application VERT 209/0, rien laissé ;
@@ -137,7 +141,7 @@ declare
   md5_avant text; md5_apres text;
   L1 integer; L2 integer; L3 integer; P1 integer; P2 integer; P3 integer; P4 integer; P5 integer;
   pP1 jsonb; pP2 jsonb; pP3 jsonb; pP5 jsonb; pL1 jsonb; pL2 jsonb; pL3 jsonb;
-  r text; j jsonb; n bigint; m bigint; t text;
+  r text; j jsonb; n bigint; m bigint; t text; n0 bigint; m0 bigint;
   c record; v_ok integer; v_ko integer; v_detail text; v_ordres text[];
   Pb1 integer; Pb2 integer; Pb3 integer; Pb4 integer; v_long text; v_toast text; v_xmin text; f record;
 begin
@@ -476,6 +480,11 @@ begin
   perform pg_temp.cas('sans session, rien à remplir', n = 0, n::text);
 
   -- 6. Forme des réponses : chaque refus n'écrit rien ---------------------------------------------------------------
+  -- (comparaison avant/après : la base réelle a des participations et des réponses depuis la première fenêtre)
+  reset role;
+  select count(*) into n0 from questionnaire_participations;
+  select count(*) into m0 from questionnaire_reponses;
+  set local role authenticated;
   perform pg_temp.qui('A6');
   r := pg_temp.essai('fin_stagiaire', pP1, 1, pg_temp.rep_fin('3') || '{"inconnue": 3}');
   perform pg_temp.cas('question inconnue refusée', r like '%Question inconnue%', r);
@@ -506,7 +515,8 @@ begin
   reset role;
   select count(*) into n from questionnaire_participations;
   select count(*) into m from questionnaire_reponses;
-  perform pg_temp.cas('aucun refus n''a laissé de participation ni de réponse', n = 0 and m = 0, n || '/' || m);
+  perform pg_temp.cas('aucun refus n''a laissé de participation ni de réponse (comptes de la base inchangés)',
+    n = n0 and m = m0, n || '/' || m || ' (avant ' || n0 || '/' || m0 || ')');
 
   -- 7. Réponses des stagiaires de P1 ; deuxième envoi refusé ; seuil de 5 ------------------------------------------
   set local role authenticated;
@@ -635,8 +645,8 @@ begin
   r := pg_temp.tente(format('insert into public.questionnaire_ouvertures (cle, promo_id, ouvert, par_email) values (%L, %s, true, %L)',
     'fin_stagiaire', P3, 'x@example.invalid'));
   perform pg_temp.cas('écriture directe d''une ouverture refusée, même au fondateur', r like '42501%', r);
-  select count(*) into n from questionnaire_ouvertures;
-  perform pg_temp.cas('le fondateur lit les ouvertures', n = 1, n::text);
+  select count(*) into n from questionnaire_ouvertures where promo_id in (P1, P2, P3, P4, P5) or lieu_id in (L1, L2, L3);
+  perform pg_temp.cas('le fondateur lit les ouvertures (celles des promos et lieux de la preuve)', n = 1, n::text);
   perform pg_temp.qui('A1');
   select count(*) into n from questionnaire_ouvertures;
   perform pg_temp.cas('un stagiaire ne lit aucune ouverture', n = 0, n::text);
