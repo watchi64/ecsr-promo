@@ -3897,6 +3897,11 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 /* Une confirmation (js/confirmer.js) répond au geste qu'on vient de faire, où qu'il soit : au-dessus de l'examen QCM
    (1000), du formulaire de question (1100), des calques de la navigation (1600), sous les messages du bas (2000). */
 .modal-backdrop.confirmer-fond { z-index: 1700; }
+/* demander() : un champ sous la question, et ce qui ne va pas dans la saisie. */
+.confirmer-champ { display: flex; flex-direction: column; gap: 0.3rem; margin: 0 0 0.6rem; font-weight: 600; }
+.confirmer-champ input { min-height: 44px; font: inherit; font-weight: 400; }
+.confirmer-erreur { margin: 0 0 0.6rem; color: var(--c-stop); }
+.confirmer-erreur:empty { display: none; }
 
 @keyframes backdrop-in {
   from { opacity: 0; }

@@ -289,6 +289,18 @@ export const NOUVEAUTES = [
     ou: { label: "Mon espace personnel, partie Évaluations EPCF", route: "mon-suivi", sousOnglet: "epcf" },
     module: "epcf",
   },
+  // Les confirmations dans une fenêtre de l'app, lot B (réglages, Cours et QCM, émargement, EPCF, planning).
+  {
+    id: "2026-11-10-confirmations-lot-b",
+    date: "2026-11-10",
+    pour: "formateurs",
+    titre: "Toutes les confirmations dans une fenêtre de l'app",
+    resume: "Les dernières boîtes grises du navigateur disparaissent : retirer un accès, supprimer une question ou une "
+          + "notion, réinitialiser une tentative d'examen, clore la feuille d'émargement, abandonner une grille EPCF en "
+          + "cours se confirment maintenant dans une fenêtre de l'app. Pour effacer les données d'un stagiaire ou "
+          + "anonymiser une promo, vous tapez toujours le prénom ou ANONYMISER, dans la fenêtre, qui vous dit si la "
+          + "saisie ne correspond pas. Le libellé d'un jour désactivé du planning se saisit de la même façon.",
+  },
   // Les confirmations dans une fenêtre de l'app (lot A : examen, planning, bénévoles, modules, ressources...).
   {
     id: "2026-11-10-confirmations-dans-l-app",

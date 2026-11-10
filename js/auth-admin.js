@@ -19,22 +19,22 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, mesAffectations, oublierPromo, getPromoCourante, getMesPromos, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo,
-} from "./db.js?v=20261110d";
+} from "./db.js?v=20261110e";
 import {
   LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo, etiquetteBadge,
-} from "./roles-rules.js?v=20261110d";
+} from "./roles-rules.js?v=20261110e";
 import {
   LIBELLES_ESPACE, ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, porteSansPromo, decisionPorteSansPromo,
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
-} from "./espaces-rules.js?v=20261110d";
-import { peutQuitter } from "./navigation.js?v=20261110d";
-import { el, toast, displayStagiaire, isoDate } from "./utils.js?v=20261110d";
-import { icon } from "./icons.js?v=20261110d";
-import { construirePastille } from "./promo-pastille.js?v=20261110d";
-import { pagePersonnelle, lireAdresse } from "./route-rules.js?v=20261110d";
-import { etatSignalements } from "./signalement-etat.js?v=20261110d";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261110d";
-import { libellePastille } from "./nouveautes.js?v=20261110d";
+} from "./espaces-rules.js?v=20261110e";
+import { peutQuitter } from "./navigation.js?v=20261110e";
+import { el, toast, displayStagiaire, isoDate } from "./utils.js?v=20261110e";
+import { icon } from "./icons.js?v=20261110e";
+import { construirePastille } from "./promo-pastille.js?v=20261110e";
+import { pagePersonnelle, lireAdresse } from "./route-rules.js?v=20261110e";
+import { etatSignalements } from "./signalement-etat.js?v=20261110e";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261110e";
+import { libellePastille } from "./nouveautes.js?v=20261110e";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -201,7 +201,7 @@ function rechargerSurLAccueil(e) {
 // forme), l'app s'ouvre sur une promo qui le donne (ouvrirDansUnePromo). Une saisie en cours demande d'abord confirmation ; un espace
 // déjà affiché, ou qui n'est pas ouvert au compte, ne change rien.
 export async function setEspace(nouvel) {
-  if (nouvel === getEspace() || !espacesOuverts().includes(nouvel) || !peutQuitter()) return;
+  if (nouvel === getEspace() || !espacesOuverts().includes(nouvel) || !peutQuitter(() => setEspace(nouvel))) return;
   // Mémorisé avant la bascule (le rechargement ne laisse aucune garantie après elle), rendu tel qu'il était si la bascule est refusée.
   const memorise = lireEspaceMemorise();
   memoriserEspace(nouvel);
@@ -267,7 +267,7 @@ export function setViewAs(role) {
   const nouveau = voulu && apercusOuverts().includes(voulu) ? voulu : null;
   const espaceApres = espaceAvec(nouveau);
   const recharger = espaceApres !== espace && (espaceDePilotage(espaceApres) || espaceDePilotage(espace));
-  if (recharger && !peutQuitter()) return;
+  if (recharger && !peutQuitter(() => setViewAs(role))) return;
   appliquerApercu(nouveau);
   try {
     if (viewAs) localStorage.setItem(VIEW_AS_KEY, viewAs);
@@ -654,7 +654,7 @@ function boutonsSignalement(fermer) {
   const signaler = el("button", { class: "btn full sg-entree-compte", type: "button", "data-sg-entree": "compte", "aria-label": nom,
     onClick: () => {
       fermer();
-      import("./signalement.js?v=20261110d").then((m) => m.ouvrirSignalement({ ancre: document.querySelector(".admin-badge") }));
+      import("./signalement.js?v=20261110e").then((m) => m.ouvrirSignalement({ ancre: document.querySelector(".admin-badge") }));
     } }, icon.signaler(), "Signaler un problème", texte ? el("span", { class: "sg-pastille", "aria-hidden": "true" }, texte) : null);
   if (!fondateurHorsApercu()) return [signaler];
   const nouveaux = libellePastille(etat.nouveaux);
@@ -696,7 +696,7 @@ function openProfileMenu() {
     logoutBtn,
     el("button", { class: "gate-link compte-legal", type: "button", onClick: () => {
       backdrop.remove();
-      import("./legal.js?v=20261110d").then((m) => m.ouvrirInformationsLegales());
+      import("./legal.js?v=20261110e").then((m) => m.ouvrirInformationsLegales());
     } }, "Informations légales et données personnelles"),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer"),

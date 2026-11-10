@@ -6297,8 +6297,15 @@ def jouer_propositions_ia(page, res, sc):
     titre = page.evaluate("() => (document.querySelector('.qcm-editor .qcm-head-title') || {}).textContent || ''")
     if "Feux du véhicule" not in titre:
         res.echec("sous-onglet Propositions IA", vue_editeur, "l'éditeur ouvert est « %s », attendu celui du thème 22 (Feux du véhicule)" % titre)
-    page.evaluate("() => { window.confirm = () => true; }")
     if not cliquer(page, res, vue_editeur, ".qcm-editor button:text-is('Rejeter')", "« Rejeter » d'un brouillon"):
+        return
+    # La question se pose dans une fenêtre de l'app (js/confirmer.js, lot B des confirmations) : on y répond comme une personne.
+    try:
+        page.wait_for_selector(".confirmer-fond:has-text('Rejeter ce brouillon')", timeout=3000)
+    except DelaiDepasse:
+        res.echec("sous-onglet Propositions IA", vue_editeur, "« Rejeter » ne pose pas la question « Rejeter ce brouillon ? » dans une fenêtre de l'app")
+        return
+    if not cliquer(page, res, vue_editeur, ".confirmer-fond button:text-is('Rejeter')", "« Rejeter » de la question"):
         return
     page.wait_for_timeout(500)
     fermer = page.locator(".qcm-editor .qcm-close").first.bounding_box()

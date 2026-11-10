@@ -3,16 +3,16 @@
 // dates tirées du Calendrier de la promo. Lecture seule : aucun contrôle d'édition.
 // C'est le guide du candidat : il tutoie, y compris quand l'équipe l'ouvre (décision du 10/11) ; une phrase en tête
 // le dit à l'équipe, et à elle seule.
-import { el, clear, formatDate, isoDate } from "../utils.js?v=20261110d";
-import { listAgendaEvents } from "../db.js?v=20261110d";
-import { routeVisible, moduleVisible } from "../modules-etat.js?v=20261110d";
-import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261110d";
-import { hrefLien } from "../route-rules.js?v=20261110d";
-import { datesCcp2, insecables } from "../ccp-rules.js?v=20261110d";
-import { EPREUVE, ETAPES } from "../ccp2-parcours-data.js?v=20261110d";
-import { navigationV2Active } from "../nav-etat.js?v=20261110d";
-import { icon } from "../icons.js?v=20261110d";
-import { selonPublic } from "../auth-admin.js?v=20261110d";
+import { el, clear, formatDate, isoDate } from "../utils.js?v=20261110e";
+import { listAgendaEvents } from "../db.js?v=20261110e";
+import { routeVisible, moduleVisible } from "../modules-etat.js?v=20261110e";
+import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261110e";
+import { hrefLien } from "../route-rules.js?v=20261110e";
+import { datesCcp2, insecables } from "../ccp-rules.js?v=20261110e";
+import { EPREUVE, ETAPES } from "../ccp2-parcours-data.js?v=20261110e";
+import { navigationV2Active } from "../nav-etat.js?v=20261110e";
+import { icon } from "../icons.js?v=20261110e";
+import { selonPublic } from "../auth-admin.js?v=20261110e";
 
 // Dernière étape ouverte, rouverte au retour sur l'onglet.
 const CLE_ETAPE = "ecsr_ccp2_etape";
