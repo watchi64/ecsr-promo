@@ -158,7 +158,10 @@ export function feuilleSemaine({ entete, promo, lundi, seances, stagiairesTous, 
   }
   const ids = new Set(seances.flatMap((s) => s.lignes.map((l) => l.stagiaire_id)));
   const ouverte = seances.some((s) => s.statut !== "close");
-  const liste = stagiairesTous.filter((s) => ids.has(s.id) || (ouverte && s.actif)).sort(compareByNom);
+  // Semaine ouverte : une fiche sans nom (anonymise_le posé) n'est plus listée ; semaine close, elle reste en « Anonyme n ».
+  const liste = stagiairesTous
+    .filter((s) => (!ouverte || !s.anonymise_le) && (ids.has(s.id) || (ouverte && s.actif)))
+    .sort(compareByNom);
   const toutesLignes = seances.flatMap((s) => s.lignes);
 
   const enteteJours = el("tr", {},

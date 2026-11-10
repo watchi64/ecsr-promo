@@ -116,6 +116,7 @@ declare
   -- Questionnaires (tâche 3).
   RQ1 bigint; RQ2 bigint; RQ3 bigint; RQ4 bigint; RQ5 bigint; RQ6 bigint;
   v_rs jsonb; v_rf jsonb; j_fin jsonb; j_six jsonb; j_l1 jsonb; j_l2 jsonb; pPA jsonb; pPD jsonb; pL1 jsonb; pL2 jsonb;
+  fe_r text[]; fe_c text;
   a1 text[]; a2 text[]; v_notes1 text; v_notes2 text; n_part bigint; r2 text; t2 text; m2 bigint; v_lignes bigint;
 begin
   -- 0. Outils de la preuve (schéma temporaire, annulés avec le reste) ------------------------------------------------
@@ -1086,6 +1087,65 @@ begin
     perform pg_temp.cas('clôture : une absence (S8), aucune pour la fiche effacée',
       r = 'ok 1' and (select string_agg(stagiaire_id::text || ':' || absent, ',' order by stagiaire_id) from emargement_lignes where seance_id = feJ)
                      = S7 || ':false,' || S8 || ':true', r);
+
+    -- 4.7 ter fiches_effacees_sur_demande : réservée à l'équipe de chaque promo (fondateur, formateur de la promo, direction
+    -- de son lieu). S4 (PD) est demandée par la section précédente ; SC (PC, autre centre) l'est ici, dans une
+    -- sous-transaction annulée. Un stagiaire de la promo (qui passe peut_acceder_promo) reçoit une liste vide, sans erreur.
+    fe_r := array_fill(''::text, array[10]);
+    begin
+      reset role;
+      insert into effacements_journal (type, cible, fait_par_email, details)
+      values ('demande', 'stagiaire ' || SC, 'preuve@example.invalid', '{}'::jsonb);
+      set local role authenticated;
+      fe_c := 'select coalesce(string_agg(x::text, '','' order by x), ''vide'') from public.fiches_effacees_sur_demande(%s) x';
+      perform pg_temp.qui('FORM', PD);
+      fe_r[1] := pg_temp.tente(format(fe_c, format('array[%s, %s]', PD, PC)));
+      fe_r[2] := pg_temp.tente(format(fe_c, format('array[%s]', PC)));
+      perform pg_temp.qui('E7', PD);
+      fe_r[3] := pg_temp.tente(format(fe_c, format('array[%s, %s]', PD, PC)));
+      perform pg_temp.qui('DIR2', PC);
+      fe_r[4] := pg_temp.tente(format(fe_c, format('array[%s, %s]', PD, PC)));
+      perform pg_temp.qui('FO');
+      fe_r[5] := pg_temp.tente(format(fe_c, format('array[%s, %s]', PD, PC)));
+      fe_r[6] := pg_temp.tente(format(fe_c, '''{}''::integer[]'));
+      fe_r[7] := pg_temp.tente(format(fe_c, 'null::integer[]'));
+      perform pg_temp.qui(null);
+      fe_r[8] := pg_temp.tente(format(fe_c, format('array[%s]', PD)));
+      -- Contre-épreuve : sans la condition d'équipe (peut_acceder_promo seul), le stagiaire verrait la fiche.
+      reset role;
+      execute $q$
+        create or replace function public.fiches_effacees_sur_demande(p_promo_ids integer[])
+        returns setof integer language sql stable security definer set search_path to 'public', 'pg_temp' as $f$
+          select s.id from stagiaires s
+           where s.promo_id = any (coalesce(p_promo_ids, '{}'::integer[])) and peut_acceder_promo(s.promo_id)
+             and exists (select 1 from effacements_journal j where j.type = 'demande' and j.cible = 'stagiaire ' || s.id)
+           order by s.id;
+        $f$;
+      $q$;
+      set local role authenticated;
+      perform pg_temp.qui('E7', PD);
+      fe_r[9] := pg_temp.tente(format(fe_c, format('array[%s, %s]', PD, PC)));
+      raise exception 'preuve: annulé';
+    exception when others then
+      if sqlerrm <> 'preuve: annulé' then raise; end if;
+    end;
+    reset role;
+    perform pg_temp.cas('fiches effacées : le formateur de la promo voit la fiche demandée en PD, pas celle de PC', fe_r[1] = 'ok ' || S4, fe_r[1]);
+    perform pg_temp.cas('fiches effacées : ne voit rien pour une promo qui n''est pas la sienne', fe_r[2] = 'ok vide', fe_r[2]);
+    perform pg_temp.cas('fiches effacées : un stagiaire de la promo reçoit une liste vide, sans erreur', fe_r[3] = 'ok vide', fe_r[3]);
+    perform pg_temp.cas('fiches effacées : la direction d''un lieu ne voit que la fiche de son lieu', fe_r[4] = 'ok ' || SC, fe_r[4]);
+    perform pg_temp.cas('fiches effacées : le fondateur voit les deux', fe_r[5] = 'ok ' || S4 || ',' || SC, fe_r[5]);
+    perform pg_temp.cas('fiches effacées : tableau vide ou nul, liste vide', fe_r[6] = 'ok vide' and fe_r[7] = 'ok vide', fe_r[6] || ' | ' || fe_r[7]);
+    perform pg_temp.cas('fiches effacées : sans session, liste vide', fe_r[8] = 'ok vide', fe_r[8]);
+    perform pg_temp.cas('fiches effacées : contre-épreuve, sans la condition d''équipe le stagiaire verrait la fiche (le cas stagiaire serait ROUGE)',
+      fe_r[9] = 'ok ' || S4, fe_r[9]);
+    perform pg_temp.cas('fiches effacées : droits d''exécution (anon et public non, authenticated oui)',
+      not has_function_privilege('anon', 'public.fiches_effacees_sur_demande(integer[])', 'execute')
+      and has_function_privilege('authenticated', 'public.fiches_effacees_sur_demande(integer[])', 'execute')
+      and not exists (select 1 from pg_proc p, aclexplode(p.proacl) ac
+                       where p.oid = 'public.fiches_effacees_sur_demande(integer[])'::regprocedure and ac.grantee = 0),
+      null);
+    set local role authenticated;
 
     -- 4.7 bis Compte supprimé puis recréé sur la même fiche : la participation, tenue par la fiche, refuse une deuxième
     -- réponse. PD est dans sa fenêtre le jour de sa fin.

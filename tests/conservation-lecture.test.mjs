@@ -58,3 +58,23 @@ test("stagiairesDeFeuille : ouverte sans la fiche sans nom, close avec", async (
   assert.deepEqual(stagiairesDeFeuille({ statut: "ouverte", lignes }, STAG).map((s) => s.id), [1]);
   assert.deepEqual(stagiairesDeFeuille({ statut: "close", lignes }, STAG).map((s) => s.id).sort(), [1, 2]);
 });
+
+test("feuille de la semaine : ouverte sans la fiche sans nom, close avec", async () => {
+  const { installerDocument, serialiserDom, NoeudFactice } = await import("./aides-dom.mjs");
+  const { feuilleSemaine } = await import("../js/emargement-feuilles.js");
+  const dom = installerDocument();
+  const avant = Object.getOwnPropertyDescriptor(globalThis, "Node");
+  Object.defineProperty(globalThis, "Node", { value: NoeudFactice, configurable: true, writable: true });
+  try {
+    const seance = (statut) => ({ id: 1, statut, jour: "2026-10-26", demi_journee: "matin", debut: "09:00", fin: "12:30",
+      lignes: [ligne(1, true), ligne(2, true)], formateurs: [] });
+    const rendre = (statut) => serialiserDom(feuilleSemaine({
+      entete: {}, promo: { nom: "Promo" }, lundi: "2026-10-26", seances: [seance(statut)], stagiairesTous: STAG }));
+    assert.equal(rendre("ouverte").includes("Anonyme 2"), false);
+    assert.equal(rendre("ouverte").includes("Timy"), true);
+    assert.equal(rendre("close").includes("Anonyme 2"), true);
+  } finally {
+    if (avant) Object.defineProperty(globalThis, "Node", avant); else delete globalThis.Node;
+    dom.restaurer();
+  }
+});

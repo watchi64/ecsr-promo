@@ -580,14 +580,16 @@ grant execute on function public.etat_conservation(), public.effacer_promo_etape
 
 -- 8 bis. Fiches effacées à la demande, lisibles par toute l'équipe d'une promo (tableau de bord, dossiers) --------------
 -- La règle de lecture du journal suit la seule promo affichée : une lecture directe laisserait vides les lignes des autres
--- promos pour un formateur. Cette fonction rend les seuls identifiants de fiche (type « demande ») des promos que
--- l'appelant peut lire, jamais le texte du journal.
+-- promos pour un formateur. Cette fonction rend les seuls identifiants de fiche (type « demande ») des promos dont
+-- l'appelant est l'équipe, jamais le texte du journal. Même condition d'équipe que la règle du journal du lot 4
+-- (fondateur, formateur de la promo, direction de son lieu), mais promo par promo et non sur la seule promo affichée :
+-- un stagiaire de la promo (peut_acceder_promo) reçoit une liste vide, sans erreur.
 create function public.fiches_effacees_sur_demande(p_promo_ids integer[])
 returns setof integer language sql stable security definer set search_path to 'public', 'pg_temp' as $function$
   select s.id
     from stagiaires s
    where s.promo_id = any (coalesce(p_promo_ids, '{}'::integer[]))
-     and peut_acceder_promo(s.promo_id)
+     and (est_fondateur() or est_formateur(s.promo_id) or est_direction(lieu_de_promo(s.promo_id)))
      and exists (select 1 from effacements_journal j where j.type = 'demande' and j.cible = 'stagiaire ' || s.id)
    order by s.id;
 $function$;
