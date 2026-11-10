@@ -3,10 +3,10 @@
 // emargement-feuilles.js). Le certificat reprend mot pour mot le modèle du ministère du Travail
 // (version applicable au 1er juin 2020) ; il s'établit sur l'en-tête de l'organisme, sans logo.
 
-import { el } from "./utils.js?v=20261109o";
-import { libelleCreneau, libelleDuree } from "./emargement-rules.js?v=20261109o";
-import { nomComplet, jourLong } from "./emargement-feuilles.js?v=20261109o";
-import { dureeEnToutesLettres, dateFr, LIBELLE_ORIGINE } from "./attestations-rules.js?v=20261109o";
+import { el } from "./utils.js?v=20261110a";
+import { libelleCreneau, libelleDuree } from "./emargement-rules.js?v=20261110a";
+import { nomComplet, jourLong } from "./emargement-feuilles.js?v=20261110a";
+import { dureeEnToutesLettres, dateFr, LIBELLE_ORIGINE } from "./attestations-rules.js?v=20261110a";
 
 // Champ du modèle : la valeur, ou la consigne du modèle et des pointillés à compléter à la main.
 function champ(valeur, consigne = "", { consigneApres = false } = {}) {

@@ -8,25 +8,25 @@
  */
 import {
   getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre,
-} from "../db.js?v=20261109o";
-import { el, clear, displayStagiaire } from "../utils.js?v=20261109o";
-import { icon } from "../icons.js?v=20261109o";
-import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261109o";
-import { libelleConnexion } from "../roles-rules.js?v=20261109o";
-import { emargementActif } from "../emargement-etat.js?v=20261109o";
-import { lignePromo } from "../accueil-rules.js?v=20261109o";
-import { journeeDuJour } from "../journee-rules.js?v=20261109o";
-import { indicateursPromo } from "../centre-stats.js?v=20261109o";
-import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261109o";
-import { signerSeance } from "../emargement-bandeau.js?v=20261109o";
-import { chargerATraiter } from "../a-traiter.js?v=20261109o";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261109o";
+} from "../db.js?v=20261110a";
+import { el, clear, displayStagiaire } from "../utils.js?v=20261110a";
+import { icon } from "../icons.js?v=20261110a";
+import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261110a";
+import { libelleConnexion } from "../roles-rules.js?v=20261110a";
+import { emargementActif } from "../emargement-etat.js?v=20261110a";
+import { lignePromo } from "../accueil-rules.js?v=20261110a";
+import { journeeDuJour } from "../journee-rules.js?v=20261110a";
+import { indicateursPromo } from "../centre-stats.js?v=20261110a";
+import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261110a";
+import { signerSeance } from "../emargement-bandeau.js?v=20261110a";
+import { chargerATraiter } from "../a-traiter.js?v=20261110a";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261110a";
 import {
   titreSelonDemis, auTableauDuJour, enVoitureDuJour, feuilleDuJour, lignesATraiter, ligneDeLEnTete,
-} from "../aujourdhui-rules.js?v=20261109o";
+} from "../aujourdhui-rules.js?v=20261110a";
 import {
   carte, plusLien, ligneLien, erreurAvecReessai, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
-} from "./pages-cartes.js?v=20261109o";
+} from "./pages-cartes.js?v=20261110a";
 
 const RELECTURE_SEANCES_MS = 60000;
 const NB_A_SUIVRE = 5;

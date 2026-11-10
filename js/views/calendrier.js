@@ -4,13 +4,13 @@
  */
 import {
   listAgendaEvents, addAgendaEvent, updateAgendaEvent, deleteAgendaEvent, getPromoCourante,
-} from "../db.js?v=20261109o";
-import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261109o";
-import { confirmer } from "../confirmer.js?v=20261109o";
-import { icon } from "../icons.js?v=20261109o";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261109o";
-import { recordUndo } from "../undo.js?v=20261109o";
-import { navigationV2Active } from "../nav-etat.js?v=20261109o";
+} from "../db.js?v=20261110a";
+import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261110a";
+import { confirmer } from "../confirmer.js?v=20261110a";
+import { icon } from "../icons.js?v=20261110a";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261110a";
+import { recordUndo } from "../undo.js?v=20261110a";
+import { navigationV2Active } from "../nav-etat.js?v=20261110a";
 
 let events = [];
 

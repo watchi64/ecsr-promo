@@ -5,17 +5,18 @@
 // statut en quatre boutons, réponse, suppression. Une action met la carte à jour sur place : elle ne change
 // pas de sous-onglet avant le prochain affichage de la page.
 
-import { el, clear, toast } from "../utils.js?v=20261109o";
-import { confirmer } from "../confirmer.js?v=20261109o";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261109o";
+import { el, clear, toast } from "../utils.js?v=20261110a";
+import { confirmer } from "../confirmer.js?v=20261110a";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261110a";
 import {
-  listSignalementsApp, captureSignalementApp, traiterSignalementApp, supprimerSignalementApp,
-} from "../db.js?v=20261109o";
-import { chargerEtatSignalements } from "../signalement-etat.js?v=20261109o";
-import { renderSubTabs } from "../subtabs.js?v=20261109o";
+  listSignalementsApp, captureSignalementApp, traiterSignalementApp, supprimerSignalementApp, liensRegistre, getMesPromos,
+} from "../db.js?v=20261110a";
+import { entreeDepuisSignalement } from "../registre-rules.js?v=20261110a";
+import { chargerEtatSignalements } from "../signalement-etat.js?v=20261110a";
+import { renderSubTabs } from "../subtabs.js?v=20261110a";
 import {
   libelleStatut, resumeContexte, detailContexte, adresseSure, normaliserContexte,
-} from "../signalement-rules.js?v=20261109o";
+} from "../signalement-rules.js?v=20261110a";
 
 // Supprimer un signalement (carte complète ou carte en défaut) : la même question, dans une fenêtre de l'app.
 const QUESTION_SUPPRIMER = { titre: "Supprimer ce signalement ?",
@@ -24,6 +25,10 @@ const QUESTION_SUPPRIMER = { titre: "Supprimer ce signalement ?",
 const STATUTS = ["nouveau", "en_cours", "regle", "non_retenu"];
 const A_TRAITER = new Set(["nouveau", "en_cours"]);
 const ROLES = { stagiaire: "Stagiaire", formateur: "Formateur", fondateur: "Fondateur" };
+
+// Les signalements déjà versés au registre : lu une fois au rendu de la page, partagé par les trois sous-onglets.
+// null : la table du registre n'existe pas (ou n'a pas pu être lue), la page n'offre alors aucun bouton.
+let liensDuRegistre = null;
 
 const deuxChiffres = (n) => String(n).padStart(2, "0");
 
@@ -103,6 +108,44 @@ function carteSure(s) {
     });
     return noeud;
   }
+}
+
+// « Ajouter au registre » ouvre la fenêtre du registre préremplie (sans nom ni adresse) ; une fois l'entrée enregistrée, tous
+// les boutons de ce signalement, dans chaque sous-onglet, deviennent « Au registre ».
+function boutonRegistre(s) {
+  if (!liensDuRegistre) return null;
+  const marquer = (b) => {
+    b.textContent = "Au registre";
+    b.setAttribute("aria-disabled", "true");
+  };
+  const b = el("button", { type: "button", class: "btn ghost", "data-sg": "registre" }, "Ajouter au registre");
+  if (liensDuRegistre.has(s.id)) {
+    marquer(b);
+    return b;
+  }
+  // Le bouton reste focalisable (aria-disabled, jamais disabled) : la fenêtre lui rend le focus à sa fermeture.
+  let ouvertureEnCours = false;
+  b.addEventListener("click", async () => {
+    if (ouvertureEnCours || b.getAttribute("aria-disabled") === "true") return;
+    ouvertureEnCours = true;
+    b.setAttribute("aria-disabled", "true");
+    try {
+      const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261110a");
+      ouvrirFenetreRegistre({
+        prerempli: entreeDepuisSignalement(s), promos: getMesPromos(), ancre: b,
+        surEnregistre: () => {
+          liensDuRegistre.add(s.id);
+          document.querySelectorAll(`[data-sg-id="${s.id}"] [data-sg="registre"]`).forEach(marquer);
+          marquer(b);
+        },
+      });
+    } catch (e) {
+      toast("Le registre n'a pas pu s'ouvrir. Réessaie.", "error");
+    }
+    ouvertureEnCours = false;
+    if (!liensDuRegistre.has(s.id)) b.removeAttribute("aria-disabled");
+  });
+  return b;
 }
 
 function carte(s) {
@@ -185,7 +228,7 @@ function carte(s) {
     s.avec_capture ? zoneCapture(s, qui) : null,
     adresse ? el("a", { href: adresse, class: "sg-carte-lien" }, "Ouvrir la page") : null,
     statuts,
-    el("div", { class: "sg-carte-repondre" }, champ, el("div", { class: "sg-carte-actions" }, repondre, supprimer)),
+    el("div", { class: "sg-carte-repondre" }, champ, el("div", { class: "sg-carte-actions" }, repondre, boutonRegistre(s), supprimer)),
     erreur);
   return noeud;
 }
@@ -197,7 +240,11 @@ export async function renderProblemes(container) {
     return;
   }
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
-  const liste = await listSignalementsApp();
+  const [liste, liens] = await Promise.all([
+    listSignalementsApp(),
+    liensRegistre().catch((e) => { console.error("Problèmes signalés : registre illisible", e); return null; }),
+  ]);
+  liensDuRegistre = liens;
   clear(container);
   const aTraiter = liste.filter((s) => A_TRAITER.has(s.statut));
   const regles = liste.filter((s) => !A_TRAITER.has(s.statut));

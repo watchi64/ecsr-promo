@@ -12,7 +12,7 @@
 // page change. Un remontage de la coquille ferme la fenêtre ouverte, dont les lignes et le bouton sont
 // ceux de la coquille remplacée, et rend son focus dans la nouvelle.
 
-import { el, suspendreAnnonce } from "./utils.js?v=20261109o";
+import { el, suspendreAnnonce } from "./utils.js?v=20261110a";
 
 const FOCALISABLES = 'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), '
   + 'textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
@@ -28,16 +28,20 @@ const affiche = (e) => !!e && e.isConnected && e.getClientRects().length > 0;
 // `retour` (facultatif) : l'élément, ou la fonction qui le rend au moment de la fermeture, où rendre le focus quand le
 // bouton d'ouverture manque ou a disparu (fenêtre ouverte par un lien, bandeau redessiné) ; l'ancienne barre n'a pas de
 // bouton du compte où retomber.
-export function ouvrirFenetre({ nom, ancre, etiquette, classe, contenu, retour = null }) {
+// `avantFermeture` (facultatif) : appelée quand la personne ferme la fenêtre par un geste (« Fermer » du haut, voile,
+// Échap, ou demanderFermeture() pour le « Fermer » propre à une fenêtre) ; rendre false garde la fenêtre ouverte (saisie
+// modifiée : la fenêtre demande d'abord, puis se ferme elle-même). Une fermeture par le programme (fermerFenetre(), barre
+// remontée) ou par l'adresse qui change ne la consulte pas : la page a déjà changé (limite écrite dans PROJECT_NOTES.md).
+export function ouvrirFenetre({ nom, ancre, etiquette, classe, contenu, retour = null, avantFermeture = null }) {
   fermerFenetre({ focus: false });
   const haut = el("div", { class: "nav-fenetre-haut" },
-    el("button", { type: "button", class: "nav-fenetre-fermer", onClick: () => fermerFenetre() }, "Fermer"));
+    el("button", { type: "button", class: "nav-fenetre-fermer", onClick: () => demanderFermeture() }, "Fermer"));
   const fenetre = el("div", {
     class: "nav-fenetre " + classe, role: "dialog", "aria-modal": "true", "aria-label": etiquette, tabindex: "-1",
   }, haut, contenu.flat(Infinity));
   const calque = el("div", { class: "modal-backdrop nav-calque", "data-nav-coquille": nom }, fenetre);
   calque.addEventListener("click", (e) => {
-    if (e.target === calque) fermerFenetre();
+    if (e.target === calque) demanderFermeture();
     else if (e.target.closest("a[href]")) fermerFenetre({ focus: false });
   });
   document.body.appendChild(calque);
@@ -46,9 +50,22 @@ export function ouvrirFenetre({ nom, ancre, etiquette, classe, contenu, retour =
   document.addEventListener("keydown", auClavier, true);
   window.addEventListener("hashchange", surChangementAdresse);
   if (ancre) ancre.setAttribute("aria-expanded", "true");
-  ouverte = { nom, calque, fenetre, ancre, action: ancre ? ancre.dataset.navAction : null, retour };
+  ouverte = { nom, calque, fenetre, ancre, action: ancre ? ancre.dataset.navAction : null, retour, avantFermeture };
   fenetre.focus({ preventScroll: true });
   return fenetre;
+}
+
+// La personne ferme la fenêtre (« Fermer », voile, Échap) : la fenêtre peut refuser par avantFermeture. Une erreur de
+// avantFermeture ne bloque pas la personne dans la fenêtre : elle se ferme.
+export function demanderFermeture() {
+  if (!ouverte) return;
+  const avant = ouverte.avantFermeture;
+  if (typeof avant === "function") {
+    let garder = false;
+    try { garder = avant() === false; } catch (e) { console.error(e); }
+    if (garder) return;
+  }
+  fermerFenetre();
 }
 
 // Nom de la fenêtre ouverte (« compte », « plus »), null s'il n'y en a pas.
@@ -118,7 +135,7 @@ function auClavier(e) {
   if (e.key === "Escape") {
     e.preventDefault();
     e.stopPropagation();
-    fermerFenetre();
+    demanderFermeture();
     return;
   }
   if (e.key !== "Tab") return;

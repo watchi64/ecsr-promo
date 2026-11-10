@@ -3452,6 +3452,7 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 }
 
 /* État désactivé générique des boutons (retour visuel pendant une action async) */
+.btn[aria-disabled="true"],
 .btn:disabled {
   opacity: 0.55;
   cursor: default;
