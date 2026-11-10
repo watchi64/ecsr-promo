@@ -17,6 +17,7 @@ export const PHRASE_ECHEC_ECRITURE = "Le réglage n'a pas été enregistré. Ré
 export const PHRASE_SANS_CENTRE = "Aucun centre n'est affiché pour ce compte.";
 export const LIBELLE_LIBRE = "Laisser chacun choisir le sien";
 const DELAI_MS = 15000;
+
 let rendu = 0;
 
 // Un refus qui a sa phrase (droit manquant, fonction ou colonne absente avant la migration, phrase de la base) la dit ; toute autre
@@ -127,7 +128,7 @@ function sectionReglage({ titre, intro, valeur, libre, avecLibre, libelleRetrait
 }
 
 const aideLibreCentre = (c) => {
-  if (c.habillage == null) return "Case grisée : tant que le centre n'a fixé aucun habillage, il n'y a rien à imposer. Choisis un habillage plus haut pour l'activer.";
+  if (c.habillage == null) return "Sans habillage fixé par le centre, chacun garde déjà le sien. Choisis un habillage plus haut pour pouvoir l'imposer.";
   return c.libre
     ? "Chaque personne du centre peut choisir son apparence. Le choix du centre s'applique à celles qui n'ont rien choisi."
     : "Le choix du centre s'impose à tous les comptes du centre. Il change à leur prochaine ouverture de l'app.";

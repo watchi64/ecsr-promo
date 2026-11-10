@@ -130,9 +130,18 @@ def tour_du_centre(v):
     v.exiger_confirmation("la création de la promo", "Promo créée")
     v.attendre('#view .promo-carte:has-text("Promo de novembre 2026")', "la carte de la nouvelle promo")
 
-    v.etape("la fiche d'une personne d'une autre promo")
+    v.etape("gérer les stagiaires de la promo affichée")
     v.aller("Stagiaires")
     attendre_page(v, "Stagiaires")
+    gerer = '#view .stg-groupe[data-promo="1"] .stg-gerer'
+    v.toucher(gerer, "« Gérer »", compte=False)
+    v.attendre('#view .stg-groupe[data-promo="1"] .stg-gestion', "la gestion à la place de la liste", delai=10000)
+    if v.page.locator('#view .stg-groupe[data-promo="1"] .stg-liste').count():
+        v.echec("la liste reste affichée sous la gestion")
+    v.toucher(gerer, "« Fermer »", compte=False)
+    v.attendre('#view .stg-groupe[data-promo="1"] .stg-liste', "la liste revenue")
+
+    v.etape("la fiche d'une personne d'une autre promo")
     ligne = '#view .stg-groupe[data-promo="2"] a.stg-ligne'
     v.toucher(ligne, "un stagiaire de la promo de septembre", compte=False, attendu_effet=False)     # bascule de promo : l'app se recharge
     v.page.wait_for_function("() => /^#\\/stagiaires\\/\\d+/.test(location.hash)", timeout=10000)
