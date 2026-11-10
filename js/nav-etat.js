@@ -5,13 +5,13 @@
 // Les règles pures (clés, décision) vivent dans js/nav-etat-regles.js, que node sait lire :
 // ce module-ci touche au DOM et à la base, node ne peut pas l'importer.
 
-import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261110b";
-import { el, toast } from "./utils.js?v=20261110b";
-import { icon } from "./icons.js?v=20261110b";
-import { isFounder, fondateurHorsApercu } from "./auth-admin.js?v=20261110b";
+import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261110d";
+import { el, toast } from "./utils.js?v=20261110d";
+import { icon } from "./icons.js?v=20261110d";
+import { isFounder, fondateurHorsApercu, getEspace } from "./auth-admin.js?v=20261110d";
 import {
   CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, reglageRetenu, cleMemoire, navigationAttendue, etatDeLaCase,
-} from "./nav-etat-regles.js?v=20261110b";
+} from "./nav-etat-regles.js?v=20261110d";
 
 export { decideNavigationV2 };
 
@@ -31,7 +31,13 @@ let decision = false;
 // la promo, ruling R17) : allumée si la promo l'était, éteinte sans mémoire. Une réponse arrivée
 // après le délai est ignorée : la navigation ne bascule pas en cours de session, sous une coquille
 // déjà posée. Fixe la décision de la session (aperçu du fondateur compris) et la rend.
+// Lot 5 (D4) : l'espace est fixé avant (js/auth-admin.js, à la porte) ; la direction et le siège ont toujours la nouvelle
+// navigation, sans lire le réglage de la promo (le siège n'en a pas).
 export async function chargerNavigationV2() {
+  if (decideNavigationV2({ espace: getEspace() })) {
+    decision = true;
+    return decision;
+  }
   let lu = null;
   let minuteur;
   // Une réponse arrivée après le délai ne change pas la session, mais l'appareil la garde pour la suivante.
@@ -73,7 +79,9 @@ function memoriserReglage(allume) {
 // de la promo sur cet appareil, ou l'aperçu du fondateur (navigationAttendue). Ne décide rien pour la
 // session : seul chargerNavigationV2() le fait.
 export function navigationV2Attendue() {
-  return navigationAttendue({ promoId: getPromoCourante()?.id ?? null, lireMemoire, apercu: lireApercu(), fondateur: isFounder() });
+  return navigationAttendue({
+    promoId: getPromoCourante()?.id ?? null, lireMemoire, apercu: lireApercu(), fondateur: isFounder(), espace: getEspace(),
+  });
 }
 
 // Pose l'aperçu, ou le retire avec null (l'appareil suit de nouveau le réglage de la promo).
@@ -98,6 +106,7 @@ function memoireDeLaPromo() {
 function decisionDuMoment() {
   return decideNavigationV2({
     reglagePromo: reglageRetenu({ lu: reglage, memoire: memoireDeLaPromo() }), apercu: lireApercu(), fondateur: isFounder(),
+    espace: getEspace(),
   });
 }
 

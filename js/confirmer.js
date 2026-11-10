@@ -16,7 +16,7 @@
 // de tout ce qui couvre l'écran, l'examen QCM compris (classe `confirmer-fond`, css/style.css), sous les messages du bas.
 // Testé par tests/confirmer.test.mjs.
 
-import { el } from "./utils.js?v=20261110b";
+import { el } from "./utils.js?v=20261110d";
 
 let compteur = 0;
 

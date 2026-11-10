@@ -6,6 +6,7 @@ import {
   appliquerHabillage, choisirHabillage, habillageAuDemarrage, habillageCourant,
 } from "../js/habillage.js";
 import { CLE_APPAREIL, lireAppareil } from "../js/habillage-regles.js";
+import { defautsHabillage } from "../js/espaces-rules.js";
 
 // --- Faux environnement ---------------------------------------------------------------------
 
@@ -343,4 +344,49 @@ test("les envois partent un par un : un toucher n'envoie qu'une fois l'envoi pr�
   assert.equal(p.enCours.length, 1, "le second envoi attend le premier");
   await p.toutLiberer();
   await Promise.all([a, b]);
+});
+
+// --- Lot 5 : habillage par défaut du centre et du réseau (lu en base, passé par defautsHabillage) ----------------------------
+
+// Un démarrage tel que l'app le fait : la ligne de habillage_par_defaut() (ou null : lecture ratée) passée par defautsHabillage.
+const demarrer = (e, ligne, compte = null) => habillageAuDemarrage({ email: "A@x.fr", compte, ...defautsHabillage(ligne) }, e.deps);
+
+test("lot 5 : un compte sans choix suit le centre, puis le centre qui change, puis le réseau ; rien n'est jamais envoyé au compte", async () => {
+  const e = env();
+  assert.equal(await demarrer(e, { centre: "ecf", libre: true, reseau: "ecsr" }), "ecf");
+  assert.deepEqual(appareilDe(e), { nom: "ecf", email: "A@x.fr", aEnvoyer: false, choisi: false });
+  assert.equal(jouerAvantPeinture(e.deps.stockage).documentElement.dataset.skin, "ecf", "l'avant-peinture reprend le défaut du centre, sans éclair");
+  // Le centre repasse à ecsr : le compte le suit, l'habillage de l'appareil n'a jamais été pris pour un choix.
+  assert.equal(await demarrer(e, { centre: "ecsr", libre: true, reseau: "ecf" }), "ecsr");
+  assert.deepEqual(appareilDe(e), { nom: "ecsr", email: "A@x.fr", aEnvoyer: false, choisi: false });
+  // Le centre ne fixe plus rien : le réseau prend le relais, puis plus rien : ecsr.
+  assert.equal(await demarrer(e, { centre: null, libre: true, reseau: "ecf" }), "ecf");
+  assert.equal(await demarrer(e, { centre: null, libre: true, reseau: null }), "ecsr");
+  assert.deepEqual(e.appels, [], "aucun défaut n'a été enregistré sur le compte");
+});
+
+test("lot 5 : le choix de la personne l'emporte sur le centre tant que le centre laisse le choix, jamais quand il l'impose", async () => {
+  const e = env();
+  assert.equal(await demarrer(e, { centre: "ecsr", libre: true, reseau: null }), "ecsr");
+  await choisirHabillage("ecf", e.deps);
+  assert.deepEqual(e.appels, ["ecf"]);
+  assert.deepEqual(appareilDe(e), { nom: "ecf", email: "A@x.fr", aEnvoyer: false, choisi: true });
+  // Aux démarrages suivants, le compte porte son choix (profil relu : habillage "ecf"), donc rien à renvoyer.
+  // Le centre dit ecsr et laisse le choix : le choix de la personne reste.
+  assert.equal(await demarrer(e, { centre: "ecsr", libre: true, reseau: "ecsr" }, "ecf"), "ecf");
+  // Le centre impose ecsr : il l'emporte à l'écran, le choix de la personne reste sur son appareil et son compte.
+  assert.equal(await demarrer(e, { centre: "ecsr", libre: false, reseau: null }, "ecf"), "ecsr");
+  assert.equal(habillageCourant(e.deps), "ecsr");
+  assert.deepEqual(appareilDe(e), { nom: "ecsr", email: "A@x.fr", aEnvoyer: false, choisi: false });
+  assert.deepEqual(e.appels, ["ecf"], "le centre n'a rien enregistré sur le compte");
+  // Le centre libère le choix : le compte (qui a gardé ecf) reprend la main.
+  assert.equal(await demarrer(e, { centre: "ecsr", libre: true, reseau: null }, "ecf"), "ecf");
+});
+
+test("lot 5 : une lecture des défauts qui échoue donne des défauts nuls, l'habillage de l'appareil reste appliqué", async () => {
+  const e = env();
+  await choisirHabillage("ecf", e.deps);
+  assert.equal(await demarrer(e, null), "ecf");
+  assert.equal(habillageCourant(e.deps), "ecf");
+  assert.deepEqual(defautsHabillage(null), { centre: null, reseau: null, libre: true });
 });

@@ -336,13 +336,14 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
   $mx$cree_par = 'PreuveMaj'$mx$, null),
 -- Comptes : le sien ; le personnel (sans fiche, role <> 'stagiaire') pour un compte qui a au moins une promo
 -- accessible, le siège ou Fo (M6) ; les orphelins (sans fiche, role 'stagiaire') pour Fo ou pour qui les a invités
--- (R43) ; les stagiaires de P. Ajout et modification retirés (fonctions serveur) ; suppression jamais du fondateur ni
--- d'un compte affecté : stagiaire de P si E, orphelin si Fo ou si E l'a invité, personnel si Fo.
+-- (R43) ; les stagiaires de P pour E seulement (depuis 20261110_profils_email_stagiaires : un stagiaire ne lit plus le
+-- profil, adresse comprise, des autres stagiaires). Ajout et modification retirés (fonctions serveur) ; suppression
+-- jamais du fondateur ni d'un compte affecté : stagiaire de P si E, orphelin si Fo ou si E l'a invité, personnel si Fo.
 ('public.user_profiles',
   $mx$lower(r.email) = {moi}
      or (r.stagiaire_id is null and r.role <> 'stagiaire' and (cardinality({acces}) > 0 or {S} or {Fo}))
      or (r.stagiaire_id is null and r.role = 'stagiaire' and ({Fo} or lower(r.invited_by_email) = {moi}))
-     or r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = {P})$mx$,
+     or (r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = {P}) and {E})$mx$,
   'false', 'false',
   $mx$not r.is_founder and not exists (select 1 from public.affectations a where a.email = r.email)
      and ((r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = {P}) and {E})
@@ -411,6 +412,13 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
   $mx$r.bucket_id in ('cours-images', 'qcm-images') and {R}$mx$, $mx$r.bucket_id = 'qcm-images' and {R}$mx$,
   $mx$r.bucket_id = 'qcm-images' and {R}$mx$, $mx$user_metadata = '{"preuve": "maj"}'::jsonb$mx$,
   $mx$select set_config('storage.allow_delete_query', 'true', true)$mx$);
+-- Registre qualité (Qualiopi Q4, migration 20261109_registre_qualite.sql) : lecture, ajout et modification au seul
+-- gestionnaire de la qualité, peut_gerer_qualite() = le fondateur réel hors aperçu ({Fo}) ; aucune suppression (aucune
+-- règle, aucun droit). La ligne n'entre que si la table existe : la preuve reste verte avec ou sans Q4, quel que soit
+-- l'ordre d'arrivée dans main (ligne demandée par la coordination le 10/11, pour qu'un seul auteur touche ce fichier).
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select 'public.registre_qualite', '{Fo}', '{Fo}', '{Fo}', 'false', $mx$description = 'PreuveMaj'$mx$, null
+   where to_regclass('public.registre_qualite') is not null;
 
 -- Les ajouts tentés, table par table. sorte : promo (promo affichée, autre promo), lieu (lieu affiché, autre lieu),
 -- stagiaire (sa fiche, autre fiche de la promo affichée, fiche d'une autre promo), benevole (du lieu affiché, d'un
@@ -592,6 +600,13 @@ insert into ajouts (tbl, sorte, libelle, modele, marque, prep) values
 ('storage.objects', 'unique', 'image de QCM',
   $aj$insert into storage.objects (bucket_id, name) values ('qcm-images', 'preuve/ajout.png')$aj$,
   $aj$r.name = 'preuve/ajout.png'$aj$, null);
+-- Registre qualité (Q4) : le minimum qu'un ajout doit fournir (type, date du constat, origine, description de 3
+-- caractères ou plus) ; le déclencheur pose le reste. Seulement si la table existe.
+insert into ajouts (tbl, sorte, libelle, modele, marque, prep)
+  select 'public.registre_qualite', 'unique', null,
+    $aj$insert into public.registre_qualite (type, date_constat, origine, description) values ('amelioration', '2031-01-06', 'equipe', 'PreuveAjout')$aj$,
+    $aj$r.description = 'PreuveAjout'$aj$, null
+   where to_regclass('public.registre_qualite') is not null;
 
 -- Les cibles d'un ajout dans un contexte : (libellé, jetons). p_jetons porte P, L et fiche du contexte, et les données
 -- d'essai (cibles et bénévoles par promo et par lieu, tables cibles et benevoles_essai).
@@ -721,7 +736,7 @@ begin
     ('public.benevoles', format('r.lieu_id = %s and %s', v_lieu, v_e::text)),
     ('public.qcm_questions', 'true'), ('public.themes', 'true'), ('public.contacts', 'true'),
     ('public.cours', format('r.published or (r.code is null and %s)', v_e::text)),
-    ('public.user_profiles', format('lower(r.email) = %L or (r.stagiaire_id is null and r.role <> ''stagiaire'' and %s) or (r.stagiaire_id is null and r.role = ''stagiaire'' and lower(r.invited_by_email) = %L) or r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = %s)', lower(p_email), p_a_promo::text, lower(p_email), v_pp))
+    ('public.user_profiles', format('lower(r.email) = %L or (r.stagiaire_id is null and r.role <> ''stagiaire'' and %s) or (r.stagiaire_id is null and r.role = ''stagiaire'' and lower(r.invited_by_email) = %L) or (%s and r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = %s))', lower(p_email), p_a_promo::text, lower(p_email), v_e::text, v_pp))
   ) t(tbl, pred) loop
     v_x := pg_temp.calcul(format('select count(*)::text from %s r where coalesce(%s, false)', v_t.tbl, v_t.pred));
     v_o := v_o || v_t.tbl || '=' || coalesce(pg_temp.valeur(p_email, p_hdr, null, format('select count(*)::text from %s', v_t.tbl)), 'nul') || ' ';
@@ -837,7 +852,7 @@ begin
     into v_sql
     from information_schema.columns c
     join information_schema.tables t on t.table_schema = c.table_schema and t.table_name = c.table_name and t.table_type = 'BASE TABLE'
-   where c.table_schema = 'public' and c.column_name = 'promo_id';
+   where c.table_schema = 'public' and c.column_name = 'promo_id' and c.table_name not like 'questionnaire\_%';
   return case when p_proprio then pg_temp.calcul(v_sql) else pg_temp.valeur(p_email, p_hdr, null, v_sql) end;
 end $fx$;
 
@@ -1365,6 +1380,11 @@ begin
       values (v_sub_porteur::uuid, 'preuve@exemple.invalid', 'stagiaire', 'Preuve signalement')
       returning id into v_sig;
     insert into public.signalements_app_captures (signalement_id, image) values (v_sig, 'data:image/jpeg;base64,UHJldXZl');
+  end if;
+  -- Registre qualité (Q4), s'il existe : une entrée témoin pour tout l'organisme, que seul le fondateur hors aperçu lit.
+  if to_regclass('public.registre_qualite') is not null then
+    execute $aj$insert into public.registre_qualite (type, date_constat, origine, description)
+                values ('difficulte', '2031-01-05', 'formateur', 'Preuve témoin')$aj$;
   end if;
   -- Cours : un cours de thème réel (les 57 numéros sont pris, aucun cours de thème fictif n'est possible) comme cible
   -- des ajouts de versions et de morceaux ; deux cours de compétence fictifs (un non publié, un publié) sous des codes
@@ -2245,7 +2265,7 @@ begin
               from (select distinct format('public.%I', c.relname) as t
                       from pg_attribute a join pg_class c on c.oid = a.attrelid
                      where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p') and a.attnum > 0 and not a.attisdropped
-                       and a.attname in ('promo_id', 'lieu_id') and c.relname <> 'affectations'
+                       and a.attname in ('promo_id', 'lieu_id') and c.relname <> 'affectations' and c.relname not like 'questionnaire\_%'
                     union select 'public.stagiaires_prive') l) x
      where v is distinct from '0';
     v_obt := pg_temp.valeur('preuve.siege@exemple.invalid', c_contextes[n], null,
@@ -2257,12 +2277,15 @@ begin
       concat_ws(' ; ', 'tables : ' || v_txt, case when v_obt is distinct from '0' then 'profils de stagiaire : ' || coalesce(v_obt, 'nul') end));
   end loop;
 
+-- Les tables questionnaire_* (Qualiopi Q3, en ligne le 09/11, après cette preuve) sont anonymes par construction : aucun
+-- compte connecté ne lit participations ni réponses (42501), et leur matrice vit dans tests/sql/questionnaires-preuve.sql.
+-- Elles sont donc hors de ce compte, de la contrainte du siège (8) et de la couverture (9).
   -- 9. Couverture : toute table de public sous RLS est dans la matrice ; aucune table de public n'est sans RLS (une
   --    table sans RLS serait lisible et modifiable par tous, la matrice ne la verrait pas) ; plus aucune règle ne cite
   --    les anciennes fonctions (vrai une fois l'étape 3 appliquée).
   select string_agg(x.t, ', ' order by x.t) into v_txt
     from (select format('%I.%I', ns.nspname, c.relname) as t from pg_class c join pg_namespace ns on ns.oid = c.relnamespace
-           where ns.nspname = 'public' and c.relkind in ('r', 'p') and c.relrowsecurity) x
+           where ns.nspname = 'public' and c.relkind in ('r', 'p') and c.relrowsecurity and c.relname not like 'questionnaire\_%') x
    where x.t not in (select m.tbl from matrice m);
   perform pg_temp.verifier('couverture', 'toute table de public sous RLS figure dans la matrice (une table ajoutée la fait rougir)',
     v_txt is null, coalesce('hors matrice : ' || v_txt, ''));

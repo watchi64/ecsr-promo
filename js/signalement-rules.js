@@ -4,8 +4,11 @@
 // journal des erreurs, réduction de la capture, phrase d'un refus du serveur, adresse sûre pour un lien.
 // Module pur, sans DOM ni stockage : testé en node.
 
-import { libellePastille } from "./nouveautes.js?v=20261110b";
-import { LIBELLES_APERCU } from "./roles-rules.js?v=20261110b";
+import { libellePastille } from "./nouveautes.js?v=20261110d";
+import { LIBELLES_APERCU } from "./roles-rules.js?v=20261110d";
+
+// L'espace de la coquille, en mots simples (lot 5 : direction et siège en plus). Inconnu ou absent : le stagiaire, comme avant.
+const ESPACE_EN_MOTS = { stagiaire: "stagiaire", equipe: "équipe", direction: "direction", siege: "siège" };
 
 // Bornes de la spec (§ 7) : la base les vérifie aussi, dans signaler_probleme.
 export const MIN_MESSAGE = 3;
@@ -144,7 +147,7 @@ export function detailContexte(contexte) {
   const lignes = [
     ["Page", c.titre ? `${c.titre} (${c.adresse})` : (c.adresse || "inconnue")],
     ["Version de l'app", c.version || "inconnue"],
-    ["Navigation", c.navigation === "nouvelle" ? `nouvelle, espace ${c.espace === "equipe" ? "équipe" : "stagiaire"}` : "ancienne"],
+    ["Navigation", c.navigation === "nouvelle" ? `nouvelle, espace ${Object.prototype.hasOwnProperty.call(ESPACE_EN_MOTS, c.espace ?? "") ? ESPACE_EN_MOTS[c.espace] : "stagiaire"}` : "ancienne"],
   ];
   if (c.apercu) lignes.push(["Aperçu", LIBELLES_APERCU[c.apercu === "prof" ? "formateur" : c.apercu] || String(c.apercu)]);
   const nbErreurs = c.erreurs.length;

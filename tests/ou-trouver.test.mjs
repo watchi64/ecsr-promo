@@ -174,4 +174,15 @@ for (const { de, ou } of LIENS.filter((l) => l.ou.route === "planning" && /bouto
   eq(ouSelonNavigation(ou, NOUVELLE_EQUIPE).route, "stagiaires", `${de} : les bénévoles sont sous Stagiaires`);
 }
 ok(LIENS.filter((l) => /bouton Bénévoles/.test(l.ou.label)).length === 2, "les deux Nouveautés des bénévoles sont bien dans les liens réels");
+// Lot 5 : la direction et le siège ont la barre latérale, comme l'équipe : leurs Notes et leurs Réglages sont les leurs, jamais
+// Mon suivi ni Mes préférences (qui sont au stagiaire).
+const NOUVELLE_DIRECTION = { navigationV2: true, espace: "direction" };
+const NOUVELLE_SIEGE = { navigationV2: true, espace: "siege" };
+eq(dit({ label: "Notes", route: "notes" }, NOUVELLE_DIRECTION), "Notes et examens", "notes en direction : Notes et examens");
+eq(dit({ label: "Notes, Synthèse classe", route: "notes" }, NOUVELLE_DIRECTION), "Notes et examens, Synthèse classe", "notes en direction : le détail suit");
+eq(dit({ label: "Paramètres", route: "config" }, NOUVELLE_DIRECTION), "Réglages du centre", "config en direction : Réglages du centre");
+eq(dit({ label: "Paramètres", route: "config" }, NOUVELLE_SIEGE), "Réglages du réseau", "config au siège : Réglages du réseau");
+eq(dit({ label: "Paramètres, Mes préférences", route: "config" }, NOUVELLE_DIRECTION), "Mes préférences", "config en direction, détail Mes préférences (R55)");
+eq(dit({ label: "Mon espace personnel, partie Évolution", route: "mon-suivi", sousOnglet: "evolution" }, NOUVELLE_SIEGE), "Mon suivi, partie Résultats",
+  "mon-suivi au siège : le libellé de la page, comme ailleurs");
 console.log(`ou-trouver : ${n} assertions OK`);

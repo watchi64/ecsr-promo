@@ -14,6 +14,10 @@
 // l'en-tête (promo, Assistant en icône, compte) et les entrées passent dans la barre du bas : quatre,
 // plus « Plus », qui ouvre un tiroir avec les autres pages (« Autres pages »), l'Assistant et le compte.
 // Une entrée dont la page est fermée aux stagiaires porte le repère « masqué aux stagiaires » (œil barré).
+// Direction et siège (lot 5) : la même barre latérale (barreLaterale de js/espaces-rules.js), avec leur contexte en tête
+// (« Centre » et le nom du lieu, le choix du centre quand le compte en dirige plusieurs ; « Réseau » et le nombre de centres)
+// et toujours « Plus » sur téléphone (l'Assistant, « Signaler un problème » et le compte y sont). Ni repère des modules
+// fermés ni comptes « à traiter » : ils restent au formateur.
 //
 // Crochets : chaque racine porte data-nav-coquille (« haut » en-tête du stagiaire, « cote » barre
 // de l'équipe, « bas » barre du téléphone ; « compte » ou « plus » pour la fenêtre ouverte, voir
@@ -34,26 +38,27 @@
 // ne les attend jamais : ils sont lus après le montage, relus à chaque page affichée (au plus toutes les 30 secondes),
 // et un compte illisible ne montre ni pastille ni erreur.
 
-import { el } from "./utils.js?v=20261110b";
-import { icon, deco } from "./icons.js?v=20261110b";
-import { getProfile, fondateurHorsApercu } from "./auth-admin.js?v=20261110b";
-import { getPromoCourante } from "./db.js?v=20261110b";
-import { construirePastille } from "./promo-pastille.js?v=20261110b";
-import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261110b";
-import { libellePastille } from "./nouveautes.js?v=20261110b";
+import { el } from "./utils.js?v=20261110d";
+import { icon, deco } from "./icons.js?v=20261110d";
+import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261110d";
+import { getPromoCourante, getLieuxLus } from "./db.js?v=20261110d";
+import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261110d";
+import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261110d";
+import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261110d";
+import { libellePastille } from "./nouveautes.js?v=20261110d";
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole, nomDuBoutonCompte,
-} from "./nav-rules.js?v=20261110b";
-import { chargerATraiter } from "./a-traiter.js?v=20261110b";
+} from "./nav-rules.js?v=20261110d";
+import { chargerATraiter } from "./a-traiter.js?v=20261110d";
 import {
   ENTREE_A_TRAITER, resumeATraiter, nomAvecATraiter, phraseATraiter, pointSurPlus, nomDePlus,
-} from "./a-traiter-rules.js?v=20261110b";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261110b";
-import { ouvrirMenuCompte } from "./menu-compte.js?v=20261110b";
-import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261110b";
-import { ouvrirSignalement } from "./signalement.js?v=20261110b";
-import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261110b";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261110b";
+} from "./a-traiter-rules.js?v=20261110d";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261110d";
+import { ouvrirMenuCompte } from "./menu-compte.js?v=20261110d";
+import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261110d";
+import { ouvrirSignalement } from "./signalement.js?v=20261110d";
+import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261110d";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261110d";
 
 // Barre latérale repliée en colonne d'icônes : choix mémorisé sur l'appareil.
 const CLE_REPLIEE = "ecsr_nav_repliee";
@@ -92,8 +97,11 @@ const libelle = (texte, classe) => el("span", { class: classe, "data-texte": tex
 
 const avatar = (initiales) => el("span", { class: "nav-avatar", "aria-hidden": "true" }, initiales || deco(icon.user()));
 
-// Repère « masqué aux stagiaires » (œil barré et infobulle) d'une entrée de l'équipe.
-const reperer = (noeud, e) => repereMasque(noeud, entreeMasquee(e.route, routeMasquee));
+// Repère « masqué aux stagiaires » (œil barré et infobulle) d'une entrée de l'équipe. La direction et le siège ne règlent pas les
+// modules d'une promo : leurs entrées n'en portent pas.
+const reperer = (noeud, e) => (montee && montee.espace !== "equipe"
+  ? noeud
+  : repereMasque(noeud, entreeMasquee(e.route, routeMasquee)));
 
 // Bouton qui ouvre le menu du compte (en-tête du stagiaire, barre de l'équipe et son en-tête de téléphone).
 // `qui` : ce qu'il montre, { nom, role } (le rôle dans la barre de l'équipe seulement), que son nom
@@ -373,6 +381,43 @@ function enTeteStagiaire(entrees, nom, initiales) {
 
 // ----- Équipe : barre latérale (en-tête sur téléphone) -----
 
+// La promo affichée (espace formateur), le centre (direction) ou le réseau (siège).
+function contexte(espace) {
+  if (espace === "direction") return contexteDeCentre();
+  if (espace === "siege") return contexteDuReseau();
+  return contexteDePromo();
+}
+
+// Un contexte sans choix : sa marque, son type (« Centre », « Réseau ») et son nom.
+function contexteFixe(marque, type, nom) {
+  return el("div", { class: "nav-contexte", title: nom || null },
+    el("span", { class: "nav-contexte-marque", "aria-hidden": "true" }, marque),
+    el("span", { class: "nav-contexte-type" }, type),
+    el("span", { class: "nav-contexte-nom" }, nom));
+}
+
+// Direction (lot 5, D6) : le centre affiché ; le choix du centre (la pastille du centre) quand le compte en dirige plusieurs.
+// Sans nom lisible (lieux illisibles), « Mon centre ».
+function contexteDeCentre() {
+  const nom = getCentre()?.nom || "";
+  const marque = initialesDe(nom) || deco(icon.building());
+  const pastille = construirePastilleCentre();
+  if (pastille) {
+    pastille.classList.add("nav-contexte");
+    pastille.prepend(el("span", { class: "nav-contexte-marque", "aria-hidden": "true" }, marque),
+      el("span", { class: "nav-contexte-type" }, "Centre"));
+    return pastille;
+  }
+  return contexteFixe(marque, "Centre", nom || "Mon centre");
+}
+
+// Siège : le réseau et le nombre de centres que la base lui laisse lire (tous).
+function contexteDuReseau() {
+  const n = getLieuxLus().length;
+  const nom = n ? n + (n > 1 ? " centres" : " centre") : "Tous les centres";
+  return contexteFixe(deco(icon.globe()), "Réseau", nom);
+}
+
 // La promo affichée : la pastille (le choix de la promo) à qui en a au moins deux, sinon son nom.
 // Sa marque, les initiales de la promo, reste seule dans la colonne d'icônes.
 function contexteDePromo() {
@@ -412,10 +457,13 @@ function entreeLaterale(e) {
   return prevoirATraiter(lien, e);
 }
 
-function barreLaterale(entrees, nom, initiales) {
-  const role = libelleRole(getProfile());
-  return el("aside", { class: "nav-cote", "data-nav-coquille": "cote", "aria-label": "Barre de l'équipe" },
-    el("div", { class: "nav-cote-tete" }, contexteDePromo(), boutonReplier()),
+// Nom de la barre latérale, par espace.
+const NOM_DE_LA_BARRE = { equipe: "Barre de l'équipe", direction: "Barre de la direction", siege: "Barre du siège" };
+
+function barreDeCote(espace, entrees, nom, initiales) {
+  const role = libelleRole(getProfile(), espace);
+  return el("aside", { class: "nav-cote", "data-nav-coquille": "cote", "aria-label": NOM_DE_LA_BARRE[espace] || NOM_DE_LA_BARRE.equipe },
+    el("div", { class: "nav-cote-tete" }, contexte(espace), boutonReplier()),
     el("nav", { class: "nav-cote-entrees", "aria-label": "Navigation principale" }, groupes(entrees, "cote", entreeLaterale)),
     el("div", { class: "nav-cote-pied" },
       boutonAssistant("nav-entree nav-cote-assistant", basculerDepuis,
@@ -439,7 +487,7 @@ function barreRepliee() {
 // coquille n'est montée (interrupteur éteint).
 function appliquerColonne() {
   if (!montee) return;
-  const colonne = montee.espace === "equipe" && TABLETTE_OU_PLUS.matches && (!ORDINATEUR.matches || barreRepliee());
+  const colonne = aLaBarreLaterale(montee.espace) && TABLETTE_OU_PLUS.matches && (!ORDINATEUR.matches || barreRepliee());
   if (colonne) document.body.dataset.navColonne = "";
   else delete document.body.dataset.navColonne;
   const bouton = document.querySelector('[data-nav-coquille="cote"] [data-nav-action="replier"]');
@@ -461,13 +509,15 @@ ORDINATEUR.addEventListener("change", appliquerColonne);
 
 // ----- Téléphone : barre du bas et tiroir « Plus » -----
 
-function barreDuBas(barre, plus, equipe) {
+// `laterale` : l'espace a la barre latérale (équipe, direction, siège) ; « Plus » y est toujours, même sans autre page à ranger :
+// l'Assistant, « Signaler un problème » et le compte sont dans son tiroir.
+function barreDuBas(barre, plus, laterale) {
   const cases = barre.map((e) => {
     const lien = el("a", { href: "#/" + e.route, class: "nav-case", "data-entree": e.id },
       el("span", { class: "nav-case-icone" }, iconeDe(e.icone)), libelle(e.court, "nav-case-texte"));
-    return equipe ? reperer(lien, e) : lien;
+    return laterale ? reperer(lien, e) : lien;
   });
-  if (plus.length) cases.push(boutonPlus());
+  if (plus.length || laterale) cases.push(boutonPlus());
   return el("nav", { class: "nav-bas", "data-nav-coquille": "bas", "aria-label": "Navigation principale" }, cases);
 }
 
@@ -482,7 +532,8 @@ function boutonPlus() {
 function ouvrirPlus(bouton) {
   if (!montee) return;
   const { entrees, nom, initiales, actualiser, espace } = montee;
-  const allumee = entreeActive(montee.route, entrees);
+  const allumee = entreeActive(montee.route, entrees, espace);
+  const autres = entrees.filter((e) => montee.plus.includes(e.id));
   const lien = (e) => prevoirATraiter(reperer(el("a", {
     href: "#/" + e.route, class: "nav-fenetre-lien", "data-entree": e.id, "aria-current": e.id === allumee ? "page" : null,
   }, iconeDe(e.icone), el("span", { class: "nav-fenetre-texte" }, e.libelle)), e), e);
@@ -498,8 +549,8 @@ function ouvrirPlus(bouton) {
   ouvrirFenetre({
     nom: "plus", ancre: bouton, etiquette: "Plus", classe: "nav-tiroir",
     contenu: [
-      el("p", { class: "nav-fenetre-section" }, "Autres pages"),
-      groupes(entrees.filter((e) => montee.plus.includes(e.id)), "plus", lien),
+      autres.length ? el("p", { class: "nav-fenetre-section" }, "Autres pages") : null,
+      groupes(autres, "plus", lien),
       el("p", { class: "nav-fenetre-section" }, "Outils"),
       boutonAssistant("nav-fenetre-lien", () => assistantDepuisLeTiroir(bouton),
         deco(icon.chat()), el("span", { class: "nav-fenetre-texte" }, "Assistant")),
@@ -541,15 +592,18 @@ export function monterCoquille({ espace, entrees, nom, initiales, actualiser }) 
   const focus = focusDansLaCoquille();
   document.querySelectorAll("[data-nav-coquille]").forEach((r) => r.remove());
   const { barre, plus } = barreTelephone(espace, entrees);
-  const equipe = espace === "equipe";
+  const laterale = aLaBarreLaterale(espace);
+  // L'état est posé avant de dessiner : le repère des modules fermés lit l'espace (reperer).
+  montee = { espace, entrees: entrees.map((e) => ({ ...e })), plus: plus.map((e) => e.id), route: null, nom, initiales, actualiser };
   // Avant header.topbar, toujours : à la fermeture du choix de la promo, js/promo-pastille.js rend le
   // focus à la PREMIÈRE .promo-pastille du document, et l'ancienne barre, masquée, en garde une dans
   // #admin-slot (updateBadge) ; celle de la barre de l'équipe doit donc venir avant elle.
-  app.prepend(equipe ? barreLaterale(entrees, nom, initiales) : enTeteStagiaire(entrees, nom, initiales),
-    barreDuBas(barre, plus, equipe));
+  app.prepend(laterale ? barreDeCote(espace, entrees, nom, initiales) : enTeteStagiaire(entrees, nom, initiales),
+    barreDuBas(barre, plus, laterale));
   document.body.dataset.nav = "v2";
   document.body.dataset.espace = espace;
-  montee = { espace, entrees: entrees.map((e) => ({ ...e })), plus: plus.map((e) => e.id), route: null, nom, initiales, actualiser };
+  // La forme de la barre (css/navigation.css) : latérale pour l'équipe, la direction et le siège, en-tête pour le stagiaire.
+  document.body.dataset.barre = laterale ? "laterale" : "haut";
   appliquerColonne();
   // Les derniers comptes « à traiter » connus se posent tout de suite (une coquille remontée ne les perd pas), puis une
   // lecture les rafraîchit : la barre ne l'attend pas.
@@ -567,6 +621,7 @@ export function retirerCoquille() {
   document.querySelectorAll("[data-nav-coquille]").forEach((r) => r.remove());
   delete document.body.dataset.nav;
   delete document.body.dataset.espace;
+  delete document.body.dataset.barre;
   delete document.body.dataset.navColonne;
   montee = null;
 }
@@ -576,7 +631,7 @@ export function retirerCoquille() {
 export function majEntreeActive(route) {
   if (!montee) return;
   montee.route = route;
-  const id = entreeActive(route, montee.entrees);
+  const id = entreeActive(route, montee.entrees, montee.espace);
   const dansPlus = id !== null && montee.plus.includes(id);
   document.querySelectorAll("[data-nav-coquille] [data-entree], [data-nav-coquille] [data-nav-action='plus']").forEach((n) => {
     const allume = n.dataset.navAction === "plus" ? dansPlus : n.dataset.entree === id;

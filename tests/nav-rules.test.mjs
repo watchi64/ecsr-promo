@@ -274,4 +274,45 @@ eq(new Set(Object.values(CLES_SOUS_ONGLETS)).size, Object.keys(CLES_SOUS_ONGLETS
 eq(entreeActive("problemes", entreesNavigation("equipe", { routeVisible: tout, emargementActif: false })), "config",
   "problemes allume Réglages chez l'équipe");
 
+// Lot 5 : espaces direction et siège (barre latérale comme l'équipe).
+const dirBase = entreesNavigation("direction", { routeVisible: tout, emargementActif: true });
+eq(ids(dirBase), ["centre", "promos", "stagiaires", "notes", "equipe"], "direction : sans émargement ni réglages par défaut");
+const dirTout = entreesNavigation("direction", { routeVisible: tout, emargementActif: true, emargementDansLeCentre: true, reglagesEspace: true });
+eq(ids(dirTout), ["centre", "promos", "stagiaires", "emargement", "notes", "equipe", "config"], "direction : ordre de la section 1");
+eq(dirTout.map((e) => e.libelle), ["Accueil", "Promos", "Stagiaires", "Émargement", "Notes et examens", "Équipe", "Réglages du centre"],
+  "direction : libellés");
+eq(dirTout.filter((e) => e.groupe).map((e) => [e.id, e.groupe]), [["config", "Centre"]], "direction : groupe Centre");
+eq(ids(entreesNavigation("direction", { routeVisible: tout, emargementActif: false, emargementDansLeCentre: true })).includes("emargement"),
+  true, "émargement du centre : indépendant de la promo affichée");
+const sieBase = entreesNavigation("siege", { routeVisible: tout, emargementActif: true });
+eq(ids(sieBase), ["reseau", "themes", "directions"], "siège : sans réglages par défaut");
+const sieTout = entreesNavigation("siege", { routeVisible: tout, emargementActif: true, reglagesEspace: true });
+eq(sieTout.map((e) => [e.id, e.libelle, e.groupe]),
+  [["reseau", "Accueil", null], ["themes", "Cours et QCM", null], ["directions", "Directions de centre", "Gestion"],
+    ["config", "Réglages du réseau", "Gestion"]], "siège : entrées et groupe Gestion");
+eq(ids(barreTelephone("direction", dirTout).barre), ["centre", "promos", "stagiaires", "equipe"], "barre téléphone direction");
+eq(ids(barreTelephone("direction", dirTout).plus), ["emargement", "notes", "config"], "plus direction");
+eq(ids(barreTelephone("siege", sieTout).barre), ["reseau", "themes", "directions"], "barre téléphone siège");
+eq(ids(barreTelephone("siege", sieTout).plus), ["config"], "plus siège");
+for (const e of [...dirTout, ...sieTout]) eq(typeof icon[e.icone], "function", "icône connue : " + e.icone);
+for (const nom of ["layers", "briefcase", "building", "globe"]) eq(typeof icon[nom], "function", "icône ajoutée : " + nom);
+eq(entreeActive("reseau", sieTout), "reseau", "siège : Accueil allumé sur reseau");
+eq(entreeActive("nouveautes", sieTout), null, "siège : nouveautés n'allume rien");
+eq(entreeActive("nouveautes", dirTout, "direction"), null, "direction : nouveautés n'allume rien");
+eq(entreeActive("problemes", dirTout, "direction"), null, "direction : problèmes n'allume pas Réglages");
+eq(entreeActive("problemes", sieTout, "siege"), null, "siège : problèmes n'allume pas Réglages");
+eq(entreeActive("preferences", dirTout, "direction"), null, "direction : préférences n'allume rien");
+eq(entreeActive("stagiaires", dirTout, "direction"), "stagiaires", "direction : stagiaires allumé");
+eq(redirectionV2(adresse("notes"), "direction"), null, "notes de la direction non redirigées");
+eq(redirectionV2(adresse("config"), "direction"), null, "config de la direction non redirigée");
+eq(redirectionV2(adresse("notes"), "siege"), null, "notes du siège non redirigées");
+eq(redirectionV2(adresse("config"), "siege"), null, "config du siège non redirigée");
+eq(redirectionV2(adresse("notes"), "stagiaire"), { hash: "#/mon-suivi/classe", sousOnglet: null }, "notes du stagiaire inchangées");
+eq(redirectionV2(adresse("config"), "stagiaire"), { hash: "#/preferences", sousOnglet: null }, "config du stagiaire inchangée");
+eq(libelleRole({ role: "prof", is_founder: false }, "direction"), "Direction", "libellé direction");
+eq(libelleRole({ role: "prof", is_founder: false }, "siege"), "Siège", "libellé siège");
+eq(libelleRole({ role: "prof", is_founder: false }, "equipe"), "Formateur", "libellé formateur");
+eq(libelleRole({ role: "stagiaire", is_founder: false }, "stagiaire"), "Stagiaire", "libellé stagiaire");
+eq(libelleRole({ role: "prof", is_founder: true }, "direction"), "Fondateur", "le fondateur reste Fondateur");
+
 console.log(`nav-rules : ${n} assertions OK`);

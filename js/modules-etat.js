@@ -5,19 +5,19 @@
 // et écrivent la valeur de la promo courante. Si ce rangement change, c'est ce
 // fichier seul qu'on rebranche. Les règles vivent dans js/modules.js, le
 // catalogue dans js/modules-data.js.
-import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261110b";
-import { isAdmin, isProf, isEquipe, isFounder, getAdminEmail } from "./auth-admin.js?v=20261110b";
-import { icon } from "./icons.js?v=20261110b";
+import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261110d";
+import { isAdmin, isProf, isEquipe, isFounder, getAdminEmail, getEspace } from "./auth-admin.js?v=20261110d";
+import { icon } from "./icons.js?v=20261110d";
 import {
   MODULES, MODULE_DE_ROUTE, MODULE_DE_SOUS_ONGLET, REGLAGE_OUVERT_AUX_FORMATEURS,
-} from "./modules-data.js?v=20261110b";
+} from "./modules-data.js?v=20261110d";
 import {
   ETAT_LIBRE, lireEtat, ecrireEtat, estReglee, estOuvert, basculer, ensembleDeDepart,
   avecAnnonces, nouveautesPour,
-} from "./modules.js?v=20261110b";
-import { NOUVEAUTES } from "./nouveautes-data.js?v=20261110b";
-import { triees, visibles, nonLues, vuesEffectives, marquerVues, amorcePour } from "./nouveautes.js?v=20261110b";
-import { navigationV2Active } from "./nav-etat.js?v=20261110b";
+} from "./modules.js?v=20261110d";
+import { NOUVEAUTES } from "./nouveautes-data.js?v=20261110d";
+import { triees, visibles, nonLues, vuesEffectives, marquerVues, amorcePour } from "./nouveautes.js?v=20261110d";
+import { navigationV2Active } from "./nav-etat.js?v=20261110d";
 
 const CLE_REGLAGE = "modules";
 const REF = { modules: MODULES, moduleDeRoute: MODULE_DE_ROUTE, moduleDeSousOnglet: MODULE_DE_SOUS_ONGLET };
@@ -64,6 +64,10 @@ function appliquer(texte) {
 // l'appareil, sinon libre (tout ouvert). Ne lève jamais d'erreur.
 export async function chargerModules() {
   derniereLecture = Date.now();
+  // Sans promo affichée (le siège, une direction dont le centre n'en a pas encore), il n'y a pas de réglage à lire : la requête
+  // partirait sans en-tête de promo. L'état reste celui d'avant (libre au départ). Couvre aussi « Actualiser » et le retour au
+  // premier plan.
+  if (!getPromoCourante()) return etat;
   const ecrituresAuDepart = ecrituresAbouties;
   try {
     const texte = await getSetting(CLE_REGLAGE);
@@ -194,7 +198,7 @@ function nouveautesDeLaPromo() {
 // compris, comme la barre), une entrée qui ne décrit que l'ancienne barre qu'éteinte : la
 // page, la section d'Accueil et la pastille du compte comptent donc les mêmes entrées.
 export function nouveautesAffichables() {
-  const entrees = triees(visibles(nouveautesDeLaPromo(), formateurConnecte(), navigationV2Active()));
+  const entrees = triees(visibles(nouveautesDeLaPromo(), formateurConnecte(), navigationV2Active(), getEspace()));
   // Amorce à la date de la promo affichée (spec multi-promo C.6).
   const vues = vuesEffectives(toutesLesNouveautes(), amorcePour(getPromoCourante()?.date_debut));
   const neuves = new Set(nonLues(entrees, vues).map((e) => e.id));

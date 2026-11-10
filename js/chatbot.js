@@ -5,15 +5,15 @@
  * Nouvelle navigation : plus de bulle (masquee par css/navigation.css), le panneau s'ouvre par les
  * boutons « Assistant » de la coquille (js/nav-shell.js), qui appellent basculerAssistant().
  */
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261110b";
-import { supabase } from "./db.js?v=20261110b";
-import { icon } from "./icons.js?v=20261110b";
-import { corpsRequete, extraireEvenements } from "./chatbot-rules.js?v=20261110b";
-import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261110b";
-import { navigationV2Active } from "./nav-etat.js?v=20261110b";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261110d";
+import { supabase } from "./db.js?v=20261110d";
+import { icon } from "./icons.js?v=20261110d";
+import { corpsRequete, extraireEvenements } from "./chatbot-rules.js?v=20261110d";
+import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261110d";
+import { navigationV2Active } from "./nav-etat.js?v=20261110d";
 // Panneau ouvert à tous : le stagiaire est tutoyé, l'équipe vouvoyée (décision du 10/11). Les textes du panneau, posés une
 // fois à l'initialisation, sont neutres ; les messages de l'échange, écrits au moment où ils s'affichent, passent par selonPublic.
-import { selonPublic } from "./auth-admin.js?v=20261110b";
+import { getEspace, selonPublic } from "./auth-admin.js?v=20261110d";
 
 const CLE_HISTO = "chatbot_histo";
 let histo = [];
@@ -81,7 +81,7 @@ function sauverHisto() {
 
 async function rendreEnMarkdown(noeud, texte) {
   try {
-    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261110b");
+    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261110d");
     // blocs: false : une réponse qui recopie un bloc de cours (schéma, quiz, cartes) le laisse en texte brut,
     // elle ne monte ni schéma animé ni quiz dans la bulle.
     const { noeuds } = rendreMarkdown(texte, { blocs: false });
@@ -131,7 +131,7 @@ async function envoyerQuestion(question, msgs) {
         apikey: SUPABASE_KEY,
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify(corpsRequete(histo, location.hash, navigationV2Active())),
+      body: JSON.stringify(corpsRequete(histo, location.hash, navigationV2Active(), getEspace())),
     });
 
     if (resp.status === 429) {
@@ -247,7 +247,7 @@ export function initChatbot() {
   // Signaler un problème (spec 2026-10-28) : la fenêtre s'ouvre par-dessus le panneau, qui reste ouvert.
   const signaler = panneau.querySelector(".chatbot-signaler-btn");
   signaler.addEventListener("click", () => {
-    import("./signalement.js?v=20261110b").then((m) => m.ouvrirSignalement({ ancre: signaler }));
+    import("./signalement.js?v=20261110d").then((m) => m.ouvrirSignalement({ ancre: signaler }));
   });
   // Capture : Échap ferme le panneau sans atteindre une fenêtre restée dessous (un QCM, par exemple). Panneau fermé,
   // la touche passe aux autres fenêtres.

@@ -3,7 +3,7 @@
 // Lancer depuis la racine du dépôt : node tests/centre-stats.test.mjs
 import assert from "node:assert/strict";
 import {
-  indicateursPromo, ligneComparaison, METHODES, COUT_ABANDON_ESTIME,
+  indicateursPromo, effectifDesFiches, ligneComparaison, METHODES, COUT_ABANDON_ESTIME, aSuivrePromo, fusionnerASuivre,
 } from "../js/centre-stats.js";
 
 let n = 0;
@@ -178,5 +178,72 @@ eq(debut.aSuivre, [], "personne : aucun signal sans activité de la promo");
 // Promo endormie : toute l'activité QCM a plus de 14 jours → aucun signal d'inactivité.
 const dort = indicateursPromo(D, REF, { aujourdhui: "2026-11-30" });
 assert.ok(dort.aSuivre.every((x) => x.signaux.every((s) => s.code !== "inactivite")), "promo endormie"); n++;
+
+// Une évaluation EPCF sans date n'est jamais retenue, ni ne change l'ordre ou le résultat, où qu'elle soit dans la liste.
+{
+  const sans = X(99, 1, "salle", null, { a: "NA", b: "NA", c: "NA", d: "NA" });   // id le plus fort, sans date
+  const ref = indicateursPromo(D, REF, { aujourdhui: "2026-10-23" }).epcf;
+  for (const epcf of [[...EPCF, sans], [sans, ...EPCF], [EPCF[0], sans, ...EPCF.slice(1)]]) {
+    eq(indicateursPromo({ ...D, epcf }, REF, { aujourdhui: "2026-10-23" }).epcf, ref, "EPCF sans date : sans effet");
+  }
+  const seule = indicateursPromo({ ...D, epcf: [sans] }, REF, { aujourdhui: "2026-10-23" }).epcf;
+  eq(seule.detail.salle.evalues, 0, "EPCF sans date seule : aucune évaluation retenue");
+  eq(seule.valeur, null, "EPCF sans date seule : pas de valeur");
+}
+// Les notes portent leur somme (comptes additifs du lot 5).
+proche(ind.notes.detail.somme, ind.notes.valeur * ind.notes.detail.n, "somme des notes sur 20");
+
+// « À suivre de près » promo par promo (lot 5, D8) : chaque promo se compare à elle-même. Promo A avancée (trois stagiaires à
+// 4 tours de salle et 4 de voiture, un à zéro, des entraînements QCM récents) ; promo R récente (quatre stagiaires, aucun
+// passage, aucun QCM). Les jeux de données portent des identifiants distincts, comme en base.
+{
+  const hier = "2026-10-22";
+  const S = (id, prenom, nom) => ({ id, prenom, nom, actif: true, ordre: id });
+  const A = {
+    stagiaires: [S(10, "Ana", "Aubry"), S(11, "Bob", "Bar"), S(12, "Cid", "Cot"), S(13, "Dan", "Dax")],
+    passages: [10, 11, 12].flatMap((id) => [...Array(4).keys()].flatMap(() => [P(id, "Salle", "Effectué"), P(id, "Voiture", "Effectué")])),
+    evaluations: [], epcf: [],
+    tentatives: [10, 11, 12].map((id) => T(id, 10, "entrainement", 5, 10, 5, hier)),
+  };
+  const R = {
+    stagiaires: [S(20, "Eva", "Ebel"), S(21, "Fay", "Fol"), S(22, "Gus", "Gil"), S(23, "Han", "Hue")],
+    passages: [], evaluations: [], epcf: [], tentatives: [],
+  };
+  const aujourdhui = "2026-10-23";
+  const lA = aSuivrePromo(A, REF, { aujourdhui });
+  eq(lA.map((x) => [x.stagiaire.id, x.signaux.map((s) => s.code)]), [[13, ["inactivite", "retard"]]], "promo avancée : Dan seul");
+  eq(lA[0].signaux[1].texte, "Retard de passages : 3 tours en salle, 3 tours en voiture", "objectif propre à la promo A");
+  eq(aSuivrePromo(R, REF, { aujourdhui }), [], "promo récente sans passage : personne (aucun signal croisé)");
+  // Les signaux d'une promo ne dépendent pas de l'autre : le résultat de A est le même que A soit seule ou non.
+  eq(indicateursPromo(A, REF, { aujourdhui }).aSuivre, lA, "indicateursPromo appelle aSuivrePromo");
+  eq(indicateursPromo(R, REF, { aujourdhui }).aSuivre, [], "indicateursPromo : promo récente");
+  // Le mélange des données ferait un signal croisé : la promo R, comparée à l'objectif de A, serait à suivre. C'est ce qu'on évite.
+  const melange = indicateursPromo({ stagiaires: [...A.stagiaires, ...R.stagiaires], passages: A.passages, evaluations: [],
+    epcf: [], tentatives: A.tentatives }, REF, { aujourdhui }).aSuivre;
+  assert.ok(melange.some((x) => x.stagiaire.id >= 20), "contre-épreuve : mélangées, les données feraient suivre la promo récente"); n++;
+
+  // Fusion : la promo de chaque personne est gardée ; tri par nombre de signaux puis par nom.
+  const fusion = fusionnerASuivre([
+    { promoId: 1, promoNom: "Promo 1", liste: lA },
+    { promoId: 2, promoNom: "Promo 2", liste: [
+      { stagiaire: S(30, "Zoé", "Zed"), signaux: [{ code: "absences", texte: "a" }, { code: "notes", texte: "b" }, { code: "retard", texte: "c" }] },
+      { stagiaire: S(31, "Abel", "Abt"), signaux: [{ code: "absences", texte: "a" }, { code: "notes", texte: "b" }] },
+    ] },
+  ]);
+  eq(fusion.map((x) => [x.stagiaire.id, x.promoId, x.promoNom]), [[30, 2, "Promo 2"], [31, 2, "Promo 2"], [13, 1, "Promo 1"]],
+    "fusion : la promo de chaque personne, 3 signaux d'abord, puis par nom");
+  eq(fusionnerASuivre([]), [], "fusion : aucune promo");
+  eq(fusionnerASuivre([{ promoId: 1, promoNom: "P", liste: [] }]), [], "fusion : promo sans personne");
+
+  // Effectif : une seule définition pour la Vue d'ensemble et la page Promos de la direction. Une fiche anonymisée (inactive) est
+  // un abandon, comme au siège (comptes_reseau) ; une fiche active n'en est pas un.
+  eq(effectifDesFiches([{ actif: true }, { actif: true }, { actif: false }, { actif: false, anonymise_le: "2026-10-01" }]),
+    { inscrits: 4, enFormation: 2, abandons: 2 }, "effectif : l'anonymisée compte parmi les abandons");
+  eq(effectifDesFiches([]), { inscrits: 0, enFormation: 0, abandons: 0 }, "effectif : aucune fiche");
+  eq(effectifDesFiches(undefined), { inscrits: 0, enFormation: 0, abandons: 0 }, "effectif : fiches absentes");
+  const memeEffectif = indicateursPromo({ stagiaires: [{ id: 1, actif: true }, { id: 2, actif: false }, { id: 3, actif: false, anonymise_le: "2026-10-01" }],
+    passages: [], evaluations: [], epcf: [], tentatives: [] }, REF, { aujourdhui: "2026-11-01" }).effectif.detail;
+  eq([memeEffectif.inscrits, memeEffectif.enFormation, memeEffectif.abandons], [3, 1, 2], "effectif : la Vue d'ensemble donne le même nombre");
+}
 
 console.log(`centre-stats : ${n} assertions OK`);
