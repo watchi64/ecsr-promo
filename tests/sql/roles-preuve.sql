@@ -66,7 +66,7 @@
 --   affectations    la direction affecte ses formateurs, le siège ses directions, le fondateur le siège ; aucune
 --                   modification.
 --   promos          creer_promo, modifier_dates_promo, renommage ; date_debut, date_fin, lieu_id non modifiables en direct.
---   fonctions serveur  emargement_ouvrir, anonymiser_stagiaire, etat_anonymisation_promo, purger_benevoles,
+--   fonctions serveur  emargement_ouvrir, effacer_sur_demande, etat_conservation, purger_benevoles,
 --                   venues_benevoles selon l'équipe, le formateur ou le siège.
 --   contenus        le siège modifie et publie un cours de thème, modifie une question, n'écrit ni qcm_examens ni qcm ; la
 --                   direction ne modifie aucun cours.
@@ -1962,12 +1962,15 @@ begin
       'select public.emargement_ouvrir(''matin'', ''08:00'', ''12:00'')',
       format('select count(*)::text from public.emargement_seances where promo_id = %s and jour = public.emargement_jour_paris() and demi_journee = ''matin'' and ouverte_par = %L', v_x.promo, lower(v_x.email)), v_x.att);
   end loop;
-  perform pg_temp.cas('fonctions serveur', 'anonymiser_stagiaire : dir_n : permis', c_dir_n, '1', null, format('update public.stagiaires set actif = false where id = %s', v_f1),
-    format('select public.anonymiser_stagiaire(%s)', v_f1), format('select (anonymise_le is not null)::text from public.stagiaires where id = %s', v_f1), array['OK 1 true']);
-  perform pg_temp.cas('fonctions serveur', 'anonymiser_stagiaire : stag_n : refusé', c_stag_n, '1', null, format('update public.stagiaires set actif = false where id = %s', v_f1),
-    format('select public.anonymiser_stagiaire(%s)', v_f1), null, array['~REFUS']);
-  perform pg_temp.val('fonctions serveur', 'etat_anonymisation_promo : dir_n : permis', c_dir_n, '1', null, 'select public.etat_anonymisation_promo() ->> ''promo_id''', array['1']);
-  perform pg_temp.val('fonctions serveur', 'etat_anonymisation_promo : stag_n : refusé', c_stag_n, '1', null, 'select public.etat_anonymisation_promo() ->> ''promo_id''', array['~ERREUR']);
+  perform pg_temp.cas('fonctions serveur', 'effacer_sur_demande : le fondateur : permis', c_fond, '1', null, null,
+    format('select public.effacer_sur_demande(%s)', v_f1), format('select (anonymise_le is not null)::text from public.stagiaires where id = %s', v_f1), array['OK 1 true']);
+  perform pg_temp.cas('fonctions serveur', 'effacer_sur_demande : dir_n : refusé', c_dir_n, '1', null, null,
+    format('select public.effacer_sur_demande(%s)', v_f1), null, array['~REFUS']);
+  perform pg_temp.cas('fonctions serveur', 'effacer_sur_demande : stag_n : refusé', c_stag_n, '1', null, null,
+    format('select public.effacer_sur_demande(%s)', v_f1), null, array['~REFUS']);
+  perform pg_temp.val('fonctions serveur', 'etat_conservation : le fondateur : permis', c_fond, '1', null, 'select p ->> ''id'' from jsonb_array_elements(public.etat_conservation() -> ''promos'') p where (p ->> ''id'')::int = 1', array['1']);
+  perform pg_temp.val('fonctions serveur', 'etat_conservation : dir_n : refusé', c_dir_n, '1', null, 'select public.etat_conservation()::text', array['~ERREUR']);
+  perform pg_temp.val('fonctions serveur', 'etat_conservation : stag_n : refusé', c_stag_n, '1', null, 'select public.etat_conservation()::text', array['~ERREUR']);
   perform pg_temp.val('fonctions serveur', 'purger_benevoles : form_n : permis', c_form_n, '1', null, 'select public.purger_benevoles(''{}''::integer[])::text', array['0']);
   perform pg_temp.val('fonctions serveur', 'purger_benevoles : dir_n : refusé', c_dir_n, '1', null, 'select public.purger_benevoles(''{}''::integer[])::text', array['~ERREUR']);
   perform pg_temp.val('fonctions serveur', 'purger_benevoles : stag_n : refusé', c_stag_n, '1', null, 'select public.purger_benevoles(''{}''::integer[])::text', array['~ERREUR']);
