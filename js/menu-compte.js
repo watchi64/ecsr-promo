@@ -12,24 +12,27 @@
 // touchée change les couleurs sans fermer le menu.
 // Popover sur ordinateur et tablette, tiroir en bas de l'écran sur téléphone (css/navigation.css),
 // mécanique de fenêtre de js/nav-fenetre.js.
+// Lot 5 : une section « Espace » (une ligne par espace ouvert au compte, l'actuel coché) quand il y en a deux ou plus ; dans la
+// direction et au siège, ni les contacts du centre ni une page à soi hors de l'espace.
 
-import { el } from "./utils.js?v=20261110a";
-import { icon, deco } from "./icons.js?v=20261110a";
+import { el } from "./utils.js?v=20261110e";
+import { icon, deco } from "./icons.js?v=20261110e";
 import {
-  getProfile, getProfileWho, monStagiaireId, buildViewAsBlock, seDeconnecter,
-} from "./auth-admin.js?v=20261110a";
-import { getPromoCourante, getMesPromos } from "./db.js?v=20261110a";
-import { ouvrirChoixPromo } from "./promo-pastille.js?v=20261110a";
-import { pagePersonnelle } from "./route-rules.js?v=20261110a";
-import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261110a";
-import { libellePastille } from "./nouveautes.js?v=20261110a";
-import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261110a";
-import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261110a";
-import { fondateurHorsApercu } from "./auth-admin.js?v=20261110a";
-import { ouvrirSignalement } from "./signalement.js?v=20261110a";
-import { etatSignalements } from "./signalement-etat.js?v=20261110a";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261110a";
-import { blocHabillage } from "./habillage-choix.js?v=20261110a";
+  getProfile, getProfileWho, monStagiaireId, buildViewAsBlock, seDeconnecter, espacesOuverts, setEspace, getCentre,
+} from "./auth-admin.js?v=20261110e";
+import { LIBELLES_ESPACE, routeDansLEspace, espaceDePilotage } from "./espaces-rules.js?v=20261110e";
+import { getPromoCourante, getMesPromos } from "./db.js?v=20261110e";
+import { ouvrirChoixPromo } from "./promo-pastille.js?v=20261110e";
+import { pagePersonnelle } from "./route-rules.js?v=20261110e";
+import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261110e";
+import { libellePastille } from "./nouveautes.js?v=20261110e";
+import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261110e";
+import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261110e";
+import { fondateurHorsApercu } from "./auth-admin.js?v=20261110e";
+import { ouvrirSignalement } from "./signalement.js?v=20261110e";
+import { etatSignalements } from "./signalement-etat.js?v=20261110e";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261110e";
+import { blocHabillage } from "./habillage-choix.js?v=20261110e";
 
 // Une ligne du menu : un lien (page) ou un bouton (geste), icône et libellé, `fin` à droite.
 const ligne = (tag, attrs, icone, texte, fin = null) => el(tag, { class: "nav-fenetre-lien", ...attrs },
@@ -55,14 +58,41 @@ function ligneSignaler(ancre) {
   }, icon.signaler(), "Signaler un problème", texte ? el("span", { class: "nav-pastille", "aria-hidden": "true" }, texte) : null);
 }
 
+// Section « Espace » : une ligne par espace ouvert au compte (js/auth-admin.js, espacesOuverts), l'actuel coché ; choisir un autre
+// espace ferme le menu et recharge l'app sur son accueil (setEspace). Rien quand le compte n'a qu'un espace.
+const ICONE_ESPACE = { siege: () => icon.globe(), direction: () => icon.building(), equipe: () => icon.users(), stagiaire: () => icon.user() };
+function sectionEspace(actuel) {
+  const ouverts = espacesOuverts();
+  if (ouverts.length < 2) return null;
+  return el("div", { class: "nav-groupe", role: "group", "aria-labelledby": "nav-espace-titre" },
+    el("p", { class: "nav-fenetre-section", id: "nav-espace-titre" }, "Espace"),
+    ouverts.map((e) => ligne("button", {
+      type: "button", "data-espace-choix": e, "aria-current": e === actuel ? "true" : null,
+      onClick: () => {
+        fermerFenetre();
+        if (e !== actuel) setEspace(e);
+      },
+    }, ICONE_ESPACE[e](), LIBELLES_ESPACE[e], e === actuel ? el("span", { class: "nav-espace-coche" }, deco(icon.check())) : null)));
+}
+
+// La ligne sous le nom : le rôle de l'espace, et où (la promo affichée ; le centre de la direction ; rien au siège).
+function ouDansLEspace(espace) {
+  if (espace === "siege") return null;
+  if (espace === "direction") return getCentre()?.nom || null;
+  return getPromoCourante()?.nom || null;
+}
+
 // `actualiser` : le geste « Actualiser » de l'app (main.js) ; sans lui, pas de ligne. `entrees` : les
 // entrées de la barre affichée, qui décident de la ligne de la page à soi. `espace` : celui de la coquille
-// (« stagiaire » ou « equipe »), qui décide de la ligne « Signaler un problème ».
+// (« stagiaire », « equipe », « direction » ou « siege »), qui décide de la ligne « Signaler un problème ».
 export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = null } = {}) {
   const nom = getProfileWho() || "";
-  const quiEtOu = [libelleRole(getProfile()), getPromoCourante()?.nom].filter(Boolean).join(" · ");
-  const pageASoi = pageASoiDuMenu(pagePersonnelle({ formateur: formateurConnecte(), stagiaireId: monStagiaireId() }), entrees);
+  const quiEtOu = [libelleRole(getProfile(), espace), ouDansLEspace(espace)].filter(Boolean).join(" · ");
+  // La page à soi, si elle est dans l'espace (le siège n'a pas de page Stagiaires, la direction pas de Mon suivi).
+  const page = pagePersonnelle({ formateur: formateurConnecte(), stagiaireId: monStagiaireId() });
+  const pageASoi = routeDansLEspace(espace, page) ? pageASoiDuMenu(page, entrees) : null;
   const nonLues = libellePastille(nouveautesAffichables().neuves.size);
+  const pilotage = espaceDePilotage(espace);
 
   const tete = el("div", { class: "nav-fenetre-tete" },
     el("span", { class: "nav-avatar", "aria-hidden": "true" }, initialesDe(nom) || deco(icon.user())),
@@ -80,8 +110,9 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
         : null),
       // Les contacts du centre (les numéros pour prévenir d'une absence) ne sont plus un onglet : ils sont dans Cours et QCM,
       // sous-onglet Documents, où #/ressources mène (redirection du lot 1). Pas de ligne quand le module Ressources est fermé
-      // pour la promo : un stagiaire n'y trouverait rien (un formateur voit toujours tout).
-      routeVisible("ressources") ? ligne("a", { href: "#/ressources" }, icon.phone(), "Contacts du centre") : null,
+      // pour la promo : un stagiaire n'y trouverait rien (un formateur voit toujours tout). La direction et le siège n'ont pas
+      // Cours et QCM pour Documents (lot 5) : pas de ligne.
+      !pilotage && routeVisible("ressources") ? ligne("a", { href: "#/ressources" }, icon.phone(), "Contacts du centre") : null,
       // Pour tous les rôles : les réglages de la promo ont leur entrée chez l'équipe (Réglages, #/config), ce
       // menu ouvre ceux de la personne.
       ligne("a", { href: "#/preferences" }, icon.settings(), "Mes préférences"),
@@ -95,13 +126,14 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
           icon.users(), "Changer de promo")
         : null,
       espace === "stagiaire" ? ligneSignaler(ancre) : null,
+      sectionEspace(espace),
       // Fondateur : cinq rôles ; formateur et direction : « Voir comme un stagiaire » ; null sinon. Choisir ferme le menu,
       // la coquille change d'espace.
       buildViewAsBlock(() => fermerFenetre()),
       filet(),
       ligne("button", { type: "button", onClick: () => {
         fermerFenetre({ focus: false });
-        import("./legal.js?v=20261110a").then((m) => m.ouvrirInformationsLegales());
+        import("./legal.js?v=20261110e").then((m) => m.ouvrirInformationsLegales());
       } }, icon.shield(), "Informations légales"),
       ligne("button", { type: "button", onClick: () => seDeconnecter(() => fermerFenetre({ focus: false })) },
         icon.logout(), "Se déconnecter"),

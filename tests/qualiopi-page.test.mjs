@@ -304,12 +304,17 @@ ok(/el\("h3", \{\}, "Données personnelles"\)/.test(donnees) && /if \(!isEquipe\
 ok(/const avecBenevoles = isAdmin\(\);/.test(donnees) && /if \(avecBenevoles\) section\.appendChild\(blocBnv\);/.test(donnees), "la purge des élèves bénévoles reste, pour qui y a droit");
 ok(!/(^|[^\w.])(confirm|prompt)\s*\(/.test(donnees.replace(/\/\/.*$/gm, "")) && /await confirmer\(\{/.test(donnees), "la purge confirme dans la fenêtre de l'app");
 ok(!/anonymiser|etatAnonymisationPromo|etatFinDePromo|Anonymiser la promo|"Effacer les données"|prompt\(/i.test(config.replace(/\/\/.*$/gm, "")), "plus d'anonymisation ni d'effacement dans Réglages");
-ok(/s\.actif === false && !s\.anonymise_le && !s\.efface_le/.test(config) && /"Réactiver"/.test(config), "Abandons : « Réactiver » seul, sans les fiches effacées");
+// La gestion des stagiaires est sortie de Réglages par le lot 5 (js/views/stagiaires-gestion.js, montée aussi chez la direction).
+const gestion = lire("js/views/stagiaires-gestion.js");
+ok(!/anonymiser|etatAnonymisationPromo|etatFinDePromo|Anonymiser la promo|"Effacer les données"|demander\(|prompt\(/i.test(gestion.replace(/\/\/.*$/gm, "")),
+  "plus d'anonymisation ni d'effacement dans la gestion des stagiaires (Réglages, direction)");
+ok(/s\.actif === false && !s\.anonymise_le && !s\.efface_le/.test(gestion) && /"Réactiver"/.test(gestion), "Abandons : « Réactiver » seul, sans les fiches effacées");
+ok(/s\.actif !== false && !s\.anonymise_le/.test(gestion), "Stagiaires : une fiche sans nom n'est plus dans la liste");
 const db = lire("js/db.js");
 ok(!/export async function (anonymiserStagiaire|anonymiserPromo|etatAnonymisationPromo)\b/.test(db), "les exportations de compatibilité de js/db.js sont retirées");
 
 // --- Feuille de style de la conservation : cibles de 44 px, jetons de titre ---
-for (const [selecteur, nom] of [[".cons-details > summary", "« Ce qui part, ce qui reste »"], [".cons-fiche", "carte d'une fiche"], [".confirmer-champ", "champ de saisie"],
+for (const [selecteur, nom] of [[".cons-details > summary", "« Ce qui part, ce qui reste »"], [".cons-fiche", "carte d'une fiche"], [".modal.confirmer-detaille .confirmer-champ input", "champ de saisie"],
   [".modal.confirmer-detaille .btn", "boutons de la fenêtre"], [".cons-lien", "lien de Réglages"]]) {
   ok(new RegExp(selecteur.replace(/[.*+?^${}()|[\]\\>]/g, "\\$&") + " \\{[^}]*min-height: 44px").test(hors_commentaires), `cible de 44 px : ${nom}`);
 }

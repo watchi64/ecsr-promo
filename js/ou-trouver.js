@@ -20,7 +20,11 @@ function reste(label, ancien) {
   return label.startsWith(ancien + ",") ? label.slice(ancien.length) : null;
 }
 
-// Le libellé de `ou` sous la nouvelle navigation. `espace` : « equipe » (formateur ou admin) ou « stagiaire ».
+// Réglages, dans les espaces qui ont la barre latérale (lot 5) : la page de la promo chez le formateur, celle du centre ou du réseau.
+const REGLAGES_DE_L_ESPACE = { equipe: "Réglages", direction: "Réglages du centre", siege: "Réglages du réseau" };
+
+// Le libellé de `ou` sous la nouvelle navigation. `espace` : « stagiaire », « equipe » (formateur ou admin), « direction » ou
+// « siege » ; un espace inconnu se lit comme celui du stagiaire.
 function libelleNouvelle(ou, espace) {
   const label = String(ou.label ?? "");
   switch (ou.route) {
@@ -45,14 +49,14 @@ function libelleNouvelle(ou, espace) {
     }
     case "notes": {
       // Chez le stagiaire, les notes de la classe sont une vue de la partie Résultats de Mon suivi (#/notes y mène, vue La classe) ;
-      // chez l'équipe, la page garde son entrée.
-      if (espace !== "equipe") return "Mon suivi, partie Résultats";
+      // chez l'équipe (formateur, direction, siège), la page garde son entrée.
+      if (!REGLAGES_DE_L_ESPACE[espace]) return "Mon suivi, partie Résultats";
       const suite = reste(label, "Notes");
       return suite === null ? label : "Notes et examens" + suite;
     }
-    // Réglages est la page de la promo, réservée à l'équipe ; la page de la personne est Mes préférences, son menu du compte.
-    // Un stagiaire n'est jamais envoyé vers « Réglages ».
-    case "config": return espace === "equipe" ? "Réglages" : "Mes préférences";
+    // Réglages est la page de la promo (du centre, du réseau), réservée à l'équipe ; la page de la personne est Mes préférences, son
+    // menu du compte. Un stagiaire n'est jamais envoyé vers « Réglages ».
+    case "config": return REGLAGES_DE_L_ESPACE[espace] || "Mes préférences";
     case "stagiaires": return label.startsWith("Accueil, tuile") ? "Stagiaires" : label;   // la tuile de l'Accueil n'existe plus
     // La promo est en tête de la barre de gauche sur ordinateur, en haut de l'écran sur téléphone : « en tête de la barre » dit vrai des deux.
     case "home": return label === "Pastille en haut, à côté de ton nom" ? "La promo, en tête de la barre" : label;

@@ -7,9 +7,9 @@
 // Population : les inscrits sont toutes les fiches de la promo, les « en formation » les
 // fiches actives. Tout sauf l'effectif et les abandons porte sur les stagiaires en formation.
 
-import { estNotee, score20, mediane } from "./notes-stats.js?v=20261110a";
-import { NOTE_VALUES } from "./epcf-trames.js?v=20261110a";
-import { compareByNom } from "./utils.js?v=20261110a";
+import { estNotee, score20, mediane } from "./notes-stats.js?v=20261110e";
+import { NOTE_VALUES } from "./epcf-trames.js?v=20261110e";
+import { compareByNom } from "./utils.js?v=20261110e";
 
 // Hypothèse du réseau : un parcours de formation représente 3 500 à 5 000 €.
 export const COUT_ABANDON_ESTIME = [3500, 5000];
@@ -66,6 +66,15 @@ function decalerJour(iso, jours) {
   return d.toISOString().slice(0, 10);
 }
 
+// L'effectif d'une promo d'après ses fiches : { inscrits, enFormation, abandons }. Une SEULE définition, pour que la même promo
+// affiche le même nombre partout (Vue d'ensemble, page Promos de la direction, comparaison du siège, comptes_reseau) : en formation
+// = fiche active ; abandons = toutes les autres fiches, y compris une fiche anonymisée (elle a été en abandon avant de l'être).
+export function effectifDesFiches(fiches) {
+  const lignes = fiches || [];
+  const enFormation = lignes.filter((s) => s.actif).length;
+  return { inscrits: lignes.length, enFormation, abandons: lignes.length - enFormation };
+}
+
 function indicateur(cle, valeur, detail, nature = "mesuré", n = null) {
   return { valeur, detail, nature, methode: METHODES[cle], n };
 }
@@ -82,7 +91,8 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui, demandes } 
   const enFormation = stagiaires.filter((s) => s.actif && !surDemandeIds.has(s.id));
   const ids = new Set(enFormation.map((s) => s.id));
   const nbForm = enFormation.length;
-  const abandons = stagiaires.filter((s) => !s.actif && !surDemandeIds.has(s.id)).length;
+  // Abandons au sens de la Vue d'ensemble (effectifDesFiches), hors fiches effacées à la demande.
+  const { abandons } = effectifDesFiches(stagiaires.filter((s) => !surDemandeIds.has(s.id)));
   const dedans = (r) => ids.has(r.stagiaire_id);
 
   const passages = (donnees.passages || []).filter(dedans);
@@ -96,15 +106,7 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui, demandes } 
     .map((t) => [t.numero, t]));
 
   // --- Passages par stagiaire et par type ---
-  const parStag = new Map(enFormation.map((s) => [s.id, {
-    Salle: { fait: 0, absence: 0, bonus: 0 }, Voiture: { fait: 0, absence: 0, bonus: 0 } }]));
-  passages.forEach((p) => {
-    const c = parStag.get(p.stagiaire_id)?.[p.type];
-    if (!c) return;
-    if (p.resultat === "Effectué") c.fait++;
-    else if (p.resultat === "Absence") c.absence++;
-    else if (p.resultat === "Bonus") c.bonus++;
-  });
+  const parStag = passagesParStagiaire(enFormation, passages);
   const comptes = [...parStag.values()];
   const nbAbsences = somme(comptes.map((c) => c.Salle.absence + c.Voiture.absence));
   const nbPrevus = somme(comptes.map((c) => c.Salle.fait + c.Salle.absence + c.Voiture.fait + c.Voiture.absence));
@@ -134,7 +136,9 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui, demandes } 
   // --- EPCF : dernière évaluation EPCF (hors auto-évaluation) de chaque stagiaire ---
   const epcfTrame = (trame) => {
     const dernieres = new Map();
-    (donnees.epcf || []).filter((e) => dedans(e) && e.trame === trame && e.contexte === "EPCF" && !e.auto_eval)
+    // Une évaluation sans date n'est pas retenue (sinon l'ordre de lecture déciderait) ; ordre : date_eval desc, id desc.
+    (donnees.epcf || []).filter((e) => dedans(e) && e.trame === trame && e.contexte === "EPCF" && !e.auto_eval
+      && e.date_eval != null)
       .forEach((e) => {
         const d = dernieres.get(e.stagiaire_id);
         if (!d || e.date_eval > d.date_eval || (e.date_eval === d.date_eval && e.id > d.id)) dernieres.set(e.stagiaire_id, e);
@@ -167,15 +171,51 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui, demandes } 
       moyenne20: examens.length ? somme(examens.map((t) => Number(t.note_20))) / examens.length : null,
     }, "mesuré", examens.length),
     notes: indicateur("notes", scores.length ? somme(scores) / scores.length : null, {
-      n: scores.length, mediane: mediane(scores), sous10: scores.filter((s) => s < 10).length,
+      n: scores.length, somme: somme(scores), mediane: mediane(scores), sous10: scores.filter((s) => s < 10).length,
     }, "mesuré", scores.length),
     epcf: indicateur("epcf", ratio(critA, critTous), { salle: epcfSalle, vehicule: epcfVehicule }, "mesuré", critTous),
     titre: indicateur("titre", null, null, "non mesuré"),
   };
 
   ind.themes = themesPromo(entrainements, notees, qcmParId, themeParId, themeParNum);
-  ind.aSuivre = stagiairesASuivre({ enFormation, parStag, entrainements, notees, aujourdhui });
+  ind.aSuivre = aSuivrePromo(donnees, referentiel, { aujourdhui });
   return ind;
+}
+
+// Passages de chaque stagiaire en formation, par type (fait, absence, bonus).
+function passagesParStagiaire(enFormation, passages) {
+  const parStag = new Map(enFormation.map((s) => [s.id, {
+    Salle: { fait: 0, absence: 0, bonus: 0 }, Voiture: { fait: 0, absence: 0, bonus: 0 } }]));
+  passages.forEach((p) => {
+    const c = parStag.get(p.stagiaire_id)?.[p.type];
+    if (!c) return;
+    if (p.resultat === "Effectué") c.fait++;
+    else if (p.resultat === "Absence") c.absence++;
+    else if (p.resultat === "Bonus") c.bonus++;
+  });
+  return parStag;
+}
+
+// « À suivre de près » d'UNE promo (lot 5, D8) : l'objectif de passages et l'activité aux QCM sont ceux de cette promo, jamais
+// ceux d'un mélange de promos à des stades différents. Même filtre que indicateursPromo (stagiaires en formation de la promo).
+// donnees : { stagiaires, passages, evaluations, tentatives } (lireDonneesCentre) ; le référentiel n'y sert pas, il est pris
+// pour que les deux fonctions aient la même forme d'appel.
+export function aSuivrePromo(donnees, referentiel, { aujourdhui }) {
+  const enFormation = (donnees.stagiaires || []).filter((s) => s.actif);
+  const ids = new Set(enFormation.map((s) => s.id));
+  const dedans = (r) => ids.has(r.stagiaire_id);
+  const entrainements = (donnees.tentatives || []).filter((t) => dedans(t) && t.mode === "entrainement");
+  const notees = (donnees.evaluations || []).filter(dedans).filter(estNotee);
+  const parStag = passagesParStagiaire(enFormation, (donnees.passages || []).filter(dedans));
+  return stagiairesASuivre({ enFormation, parStag, entrainements, notees, aujourdhui });
+}
+
+// Les listes « À suivre » de plusieurs promos en une seule, chaque personne gardant sa promo. Tri : plus de signaux d'abord,
+// puis par nom. parPromo : [{ promoId, promoNom, liste }] (liste = sortie de aSuivrePromo).
+export function fusionnerASuivre(parPromo) {
+  return (parPromo || [])
+    .flatMap((p) => (p.liste || []).map((x) => ({ ...x, promoId: p.promoId, promoNom: p.promoNom })))
+    .sort((a, b) => b.signaux.length - a.signaux.length || compareByNom(a.stagiaire, b.stagiaire));
 }
 
 function themesPromo(entrainements, notees, qcmParId, themeParId, themeParNum) {

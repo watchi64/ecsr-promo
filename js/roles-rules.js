@@ -8,6 +8,7 @@
  * pas migrée (ou si les promos n'ont pas pu être chargées), la colonne manque : l'app se replie alors sur
  * `is_admin` et `role` du profil, comme avant le lot 4.
  */
+import { phraseDeRefus, PHRASE_ECHEC } from "./espaces-rules.js?v=20261110e";
 
 // Les aperçus : un fondateur les a tous, un membre de l'équipe a celui du stagiaire. Un aperçu ne fait que
 // RETIRER des droits : une valeur hors de la liste permise est ignorée.
@@ -121,6 +122,39 @@ export function peutRetirerCompte({ cible, fondateur } = {}) {
   return personnel ? !!fondateur : true;
 }
 
+// Lot G. Les pastilles de rôle d'un compte dans « Personnes avec accès ». Le profil ne porte que l'ancienne colonne `role` : un
+// compte invité comme direction ou comme siège y est « prof », donc « formateur ». Le vrai rôle vient de roles_du_personnel()
+// (`roles` : [{ email, role }] pour les affectations direction et siège, `null` quand la lecture a échoué ou que la fonction
+// manque : l'affichage d'avant, sans message). Un compte du personnel (« formateur » d'après la colonne) qui est direction ou siège
+// perd la pastille « formateur », qu'il ne garde que s'il a une fiche formateur (prof_id) : l'app ne voit pas ses promos de
+// formateur, cette fiche est le seul indice qu'il l'est aussi. Un stagiaire n'est jamais touché. Rend [{ libelle, classe }], la
+// classe étant le suffixe de `role-pill role-…` ; le premier libellé sert au tri.
+export function pastillesDuProfil({ profil, roles, v2 = true } = {}) {
+  if (!profil) return [];
+  const brut = String(profil.role ?? "");
+  const base = brut === "prof" || (v2 && brut === "admin") ? "formateur" : brut;
+  const lignes = Array.isArray(roles) ? roles : [];
+  const adresse = String(profil.email ?? "").toLowerCase();
+  const a = (role) => lignes.some((l) => l && String(l.email ?? "").toLowerCase() === adresse && l.role === role);
+  const direction = base === "formateur" && a("direction");
+  const siege = base === "formateur" && a("siege");
+  if (!direction && !siege) return [{ libelle: base, classe: brut }];
+  return [
+    ...(direction ? [{ libelle: "direction", classe: "prof" }] : []),
+    ...(siege ? [{ libelle: "siège", classe: "prof" }] : []),
+    ...(profil.prof_id != null ? [{ libelle: "formateur", classe: "prof" }] : []),
+  ];
+}
+
+// La liste « Personnes avec accès », triée par premier rôle affiché puis par adresse : [{ profil, pastilles }]. Ne change pas qui y
+// figure.
+export function listeAcces({ profils, roles, v2 = true } = {}) {
+  return (Array.isArray(profils) ? profils : [])
+    .map((profil) => ({ profil, pastilles: pastillesDuProfil({ profil, roles, v2 }) }))
+    .sort((x, y) => (x.pastilles[0]?.libelle ?? "").localeCompare(y.pastilles[0]?.libelle ?? "")
+      || String(x.profil.email ?? "").localeCompare(String(y.profil.email ?? "")));
+}
+
 // Phrase d'un refus d'invitation : la base préfixe ses messages par « invitation: », que l'on retire. Tant que la
 // fonction inviter_compte n'existe pas dans la base (code PGRST202, ou message « Could not find the function »),
 // l'invitation est dite indisponible plutôt que de montrer l'erreur technique.
@@ -128,8 +162,8 @@ export const MESSAGE_INVITATION_INDISPONIBLE = "L'invitation n'est pas disponibl
 export function messageInvitation(message, code) {
   const brut = String(message ?? "");
   if (code === "PGRST202" || /could not find the function/i.test(brut)) return MESSAGE_INVITATION_INDISPONIBLE;
-  const texte = brut.replace(/^\s*invitation:\s*/i, "").trim();
-  return texte || "Erreur d'invitation";
+  const phrase = phraseDeRefus(brut, code);
+  return phrase === PHRASE_ECHEC ? "Erreur d'invitation" : phrase;
 }
 
 // Phrase d'une invitation acceptée par la base, d'après ce que rend inviter_compte : `cree` (le profil vient d'être créé) et
@@ -186,12 +220,10 @@ export function libelleConnexion({ profil, promo, apercu } = {}) {
   return libelle;
 }
 
-// Phrase du refus à la porte, quand le compte n'a aucune promo : selon ses affectations (liste de rôles lue en base, vide
-// ou absente si la lecture a échoué), le siège et la direction ne sont pas renvoyés vers « un formateur ».
+// Phrase du refus à la porte, quand le compte n'a aucune promo. Depuis le lot 5, le siège et la direction entrent sans promo
+// (porteSansPromo, js/espaces-rules.js) : le refus ne concerne plus que les autres comptes, et une seule phrase leur suffit.
+// Les rôles que les appelants du lot 4 lui passent n'y changent plus rien.
 export const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à ta direction ou à un formateur de t'ajouter.";
-export function messageSansPromo(roles) {
-  const r = Array.isArray(roles) ? roles : [];
-  if (r.includes("siege")) return "Ton compte est rattaché au siège du réseau. Son espace n'est pas encore ouvert : il arrive bientôt.";
-  if (r.includes("direction")) return "Ton centre n'a pas encore de promo. L'espace de la direction, qui permettra d'en créer une, arrive bientôt.";
+export function messageSansPromo() {
   return MESSAGE_SANS_PROMO;
 }

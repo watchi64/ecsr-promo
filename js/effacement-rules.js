@@ -279,8 +279,14 @@ function quiEcheance(e) {
   return `« ${c.nom || "cette promo"} »`;
 }
 
-// La fenêtre d'une échéance due : { titre, phrase, part, reste, oui, saisie: { consigne, attendu } }, ou null pour une
-// échéance qui ne se confirme pas ici (registre, sans date, pas encore due).
+// La saisie d'une confirmation (js/confirmer.js, option `saisie`) : la consigne, le texte attendu, et la vérification
+// (confirmationValide), que la fenêtre applique avant d'activer le bouton du geste.
+function saisieAttendue(consigne, attendu) {
+  return { consigne, attendu, verifier: (texte) => confirmationValide(texte, attendu) };
+}
+
+// La fenêtre d'une échéance due : { titre, phrase, part, reste, oui, saisie: { consigne, attendu, verifier } }, ou null pour
+// une échéance qui ne se confirme pas ici (registre, sans date, pas encore due).
 export function confirmationEcheance(e) {
   if (!e || !e.due || !e.bouton || !CE_QUI_PART[e.type]) return null;
   const titres = {
@@ -296,7 +302,7 @@ export function confirmationEcheance(e) {
     part: [...CE_QUI_PART[e.type]],
     reste: [...CE_QUI_RESTE[e.type]],
     oui: e.bouton,
-    saisie: { consigne: `Pour confirmer, tape ${MOT_DE_CONFIRMATION}`, attendu: MOT_DE_CONFIRMATION },
+    saisie: saisieAttendue(`Pour confirmer, tape ${MOT_DE_CONFIRMATION}`, MOT_DE_CONFIRMATION),
   };
 }
 
@@ -311,7 +317,7 @@ export function confirmationDemande(fiche) {
     part: [...CE_QUI_PART.demande],
     reste: [...CE_QUI_RESTE.demande],
     oui: "Effacer ses données",
-    saisie: { consigne: `Pour confirmer, tape son prénom : ${prenom}`, attendu: prenom },
+    saisie: saisieAttendue(`Pour confirmer, tape son prénom : ${prenom}`, prenom),
   };
 }
 

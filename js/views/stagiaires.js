@@ -5,21 +5,21 @@
 // Nouvelle navigation (lot 2A) : sous l'en-tête, deux sous-onglets, « Stagiaires » (la page d'avant) et
 // « Élèves bénévoles » (la banque des volontaires, ouverte dans la page et non plus dans une fenêtre).
 
-import { listEpcfEtats, listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261110a";
-import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261110a";
-import { icon } from "../icons.js?v=20261110a";
-import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261110a";
-import { ligneListe } from "../fiche-rules.js?v=20261110a";
-import { surChangementAdresse, oublierMajSurPlace, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261110a";
-import { isAdmin } from "../auth-admin.js?v=20261110a";
-import { navigationV2Active } from "../nav-etat.js?v=20261110a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110a";
-import { renderSubTabs } from "../subtabs.js?v=20261110a";
-import { renderBenevoles } from "./benevoles.js?v=20261110a";
+import { listEpcfEtats, listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261110e";
+import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261110e";
+import { icon } from "../icons.js?v=20261110e";
+import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261110e";
+import { ligneListe } from "../fiche-rules.js?v=20261110e";
+import { surChangementAdresse, oublierMajSurPlace, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261110e";
+import { isAdmin } from "../auth-admin.js?v=20261110e";
+import { navigationV2Active } from "../nav-etat.js?v=20261110e";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110e";
+import { renderSubTabs } from "../subtabs.js?v=20261110e";
+import { renderBenevoles } from "./benevoles.js?v=20261110e";
 import {
   chargerContexteFiche, chargerFiche, renderFiche, dispositionFiche,
   noterDocument, ecouterDocuments, afficherErreur,
-} from "./mon-suivi.js?v=20261110a";
+} from "./mon-suivi.js?v=20261110e";
 
 const CLE_DERNIERE = "ecsr_stagiaires_derniere";
 const CLE_ONGLET = "ecsr_stagiaires_subtab";
@@ -239,7 +239,7 @@ export async function renderStagiaires(container) {
     // Les bénévoles n'ont pas d'adresse de fiche : celle qu'on quitte ne doit pas rester dans la barre d'adresse.
     onChange: (cle) => { if (cle === "benevoles") remplacerAdresse("#/stagiaires"); },
     // Une grille EPCF commencée n'est pas abandonnée sans accord, comme en changeant de partie de la fiche.
-    avantChangement: () => peutQuitter(),
+    avantChangement: (reprendre) => peutQuitter(reprendre),
   }));
   container.appendChild(page);
 }

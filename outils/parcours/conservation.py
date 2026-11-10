@@ -14,7 +14,7 @@ from .navigation import SOUS_ONGLET, texte
 from .visite import BLOQUE, LISTE, DelaiDepasse
 
 FENETRE = ".modal-backdrop .modal"
-CHAMP = FENETRE + " input.confirmer-champ"
+CHAMP = FENETRE + " .confirmer-champ input"
 OUI = FENETRE + " button.btn.danger"
 NON = FENETRE + " button.btn.ghost"
 CARTE = "#view .cons-carte"

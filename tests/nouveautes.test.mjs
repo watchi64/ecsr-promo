@@ -4,6 +4,7 @@ import {
   guideSelonNavigation, STORAGE_SOUS_ONGLET,
 } from "../js/nouveautes.js";
 import { CLES_SOUS_ONGLETS } from "../js/nav-rules.js";
+import { routeDansLEspace } from "../js/espaces-rules.js";
 import { NOUVEAUTES } from "../js/nouveautes-data.js";
 import { MODULES } from "../js/modules-data.js";
 
@@ -120,10 +121,11 @@ ok(!!lancement && lancement.pour === "tous" && lancement.date === "2026-10-29" &
 ok(!!lancementEquipe && lancementEquipe.pour === "formateurs" && lancementEquipe.date === "2026-10-29"
   && lancementEquipe.titre === "Côté formateurs, la barre passe à gauche", "lancement des formateurs : « Côté formateurs, la barre passe à gauche »");
 eq(NOUVEAUTES.filter((e) => e.navigation === "nouvelle").map((e) => e.id).sort(),
-  ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs", ...NOUVEAUTES.filter((e) => e.id.includes("-aujourdhui-formateurs") || e.id.endsWith("-ta-journee-accueil")).map((e) => e.id),
+  ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs", ...NOUVEAUTES.filter((e) => e.id.includes("-aujourdhui-formateurs") || e.id.endsWith("-ta-journee-accueil")
+    || e.id.endsWith("-menu-espace") || e.id.endsWith("-changer-de-promo")).map((e) => e.id),
     "2026-11-09-accueil-plus-juste", ...NOUVEAUTES.filter((e) => e.id.endsWith("-couleurs-ecf")).map((e) => e.id)].sort(),
   "propres à la nouvelle navigation : les deux entrées de lancement, les deux pages d'ouverture du lot 2B, les repères "
-    + "de l'Accueil du lot de corrections 2 et le choix des couleurs d'ECF du lot 3");
+    + "de l'Accueil du lot de corrections 2, le choix des couleurs d'ECF du lot 3, le menu Espace et Changer de promo du lot 5");
 eq(ids(visibles(NOUVEAUTES, false, true)).filter((id) => id.startsWith("2026-10-29-nouvelle")), ["2026-10-29-nouvelle-navigation"],
   "allumée, un stagiaire voit la première, pas la seconde");
 eq(ids(visibles(NOUVEAUTES, true, true)).filter((id) => id.startsWith("2026-10-29-nouvelle")),
@@ -219,19 +221,8 @@ ok(/barre de gauche/.test(aujourdhui.guide[0]) && /téléphone/.test(aujourdhui.
 ok(/sommaire/.test(coursTel.resume) && /à la ligne/.test(coursTel.resume) && /tableaux/.test(coursTel.resume) && /listes/.test(coursTel.resume), "cours : sommaire à la ligne, tableaux en listes");
 eq(coursTel.ou, { label: "Cours", route: "themes" }, "cours : Où le trouver, Cours (réécrit Cours et QCM sous la nouvelle barre)");
 // Qui les voit : la journée et les cours pour tous, nouvelle navigation ; Aujourd'hui pour l'équipe seulement ; éteinte, les cours seuls.
-// Les lots de corrections du même jour (premier lot ; second lot, audit du 09/11) ne font pas partie du lot 2B.
-const CORRECTIONS = ["2026-11-09-qcm-echap-et-pannes", "2026-11-09-accueil-plus-juste", "2026-11-09-emargement-planning-plus-justes",
-  "2026-11-09-finitions", "2026-11-09-finitions-planning",   // finitions de l'audit (lot E)
-  "2026-11-09-une-seule-ecriture",   // unification typographique, décision de Timy
-  "2026-11-09-planning-plus-clair",   // planning sur téléphone et en mode Modifier (lot B de l'audit)
-  "2026-11-09-notes-saisir-examens",   // saisie thème par thème et examen depuis la liste (lot C de l'audit)
-  "2026-11-09-notes-finitions",   // finitions du lot C : messages d'une note refusée, « Réessayer », fenêtre d'effacement
-  "2026-11-09-moyennes-epcf-vides",   // moyennes EPCF de la classe vides : une carte (suite du lot C)
-  "2026-11-09-mon-epcf-vide"];   // partie EPCF de la fiche vide, radar et base au k-anonymat (suite)
-// Le lot 3 (les couleurs d'ECF) peut porter la même date : il ne fait pas partie du lot 2B non plus.
-const DU_LOT_3 = NOUVEAUTES.filter((e) => e.id.endsWith("-couleurs-ecf")).map((e) => e.id);
 const QUESTIONNAIRES_ID = "2026-11-09-questionnaires-anonymes";
-const DU_LOT = (l) => ids(l).filter((id) => id.startsWith(JOUR + "-") && !CORRECTIONS.includes(id) && !DU_LOT_3.includes(id) && id !== QUESTIONNAIRES_ID);
+const DU_LOT = (l) => ids(l).filter((id) => [journee.id, aujourdhui.id, coursTel.id].includes(id));
 // Second lot de corrections : les repères de l'Accueil pour le stagiaire sous la nouvelle barre, les comptes de
 // l'émargement pour l'équipe dans les deux navigations (sa partie Aujourd'hui dans guideNouvelle).
 ok(ids(visibles(NOUVEAUTES, false, true)).includes("2026-11-09-accueil-plus-juste")
@@ -247,11 +238,12 @@ eq(DU_LOT(triees(visibles(NOUVEAUTES, true, false))), [coursTel.id], "formateur,
 // « La plus récente » du lot se juge sans les questionnaires anonymes, mis en ligne le même jour et placés en tête du
 // fichier : ce sont eux que montre désormais la carte « Nouveauté » de l'Accueil, dans les deux navigations.
 const JUSQU_AU_LOT = (l) => l.filter((e) => e.date <= JOUR && e.id !== QUESTIONNAIRES_ID);
-// Jusqu'au jour des questionnaires (les Nouveautés plus récentes, comme la conservation des données du lot Q5, sont jugées plus bas).
-const JUSQU_AUX_QUESTIONNAIRES = (l) => l.filter((e) => e.date <= "2026-11-09");
+// Une Nouveauté d'un jour suivant (les confirmations dans l'app, 10/11) passe devant, comme le vérificateur le prévoit :
+// parmi celles datées jusqu'au jour du lot, la plus récente reste celle des questionnaires.
+const JUSQU_AU_JOUR = (l) => l.filter((e) => e.date <= JOUR);
 for (const [formateur, v2] of [[false, false], [false, true], [true, false], [true, true]]) {
-  eq(ids(triees(JUSQU_AUX_QUESTIONNAIRES(visibles(NOUVEAUTES, formateur, v2))))[0], QUESTIONNAIRES_ID,
-    `la plus récente est celle des questionnaires (${formateur ? "formateur" : "stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"})`);
+  eq(ids(triees(JUSQU_AU_JOUR(visibles(NOUVEAUTES, formateur, v2))))[0], QUESTIONNAIRES_ID,
+    `jusqu'au jour du lot, la plus récente est celle des questionnaires (${formateur ? "formateur" : "stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"})`);
 }
 eq(ids(triees(JUSQU_AU_LOT(visibles(NOUVEAUTES, false, true))))[0], journee.id, "stagiaire, nouvelle navigation : la plus récente est la journée");
 eq(ids(triees(JUSQU_AU_LOT(visibles(NOUVEAUTES, false, false))))[0], coursTel.id, "ancienne navigation : la plus récente est celle des cours");
@@ -266,7 +258,8 @@ ok(!!conservation && conservation.pour === "formateurs" && conservation.navigati
 for (const v2 of [false, true]) {
   eq(ids(triees(visibles(NOUVEAUTES, true, v2)))[0], CONSERVATION_ID, `conservation : la plus récente chez un formateur (navigation ${v2 ? "nouvelle" : "ancienne"})`);
   ok(!ids(visibles(NOUVEAUTES, false, v2)).includes(CONSERVATION_ID), `conservation : jamais chez un stagiaire (navigation ${v2 ? "nouvelle" : "ancienne"})`);
-  eq(ids(triees(visibles(NOUVEAUTES, false, v2)))[0], QUESTIONNAIRES_ID, `stagiaire : la plus récente reste celle des questionnaires (navigation ${v2 ? "nouvelle" : "ancienne"})`);
+  // Les Nouveautés du 10/11 arrivées par main (confirmations, confidentialité) passent devant chez un stagiaire : la conservation, jamais.
+  ok(ids(triees(visibles(NOUVEAUTES, false, v2)))[0] !== CONSERVATION_ID, `stagiaire : la plus récente n'est jamais la conservation (navigation ${v2 ? "nouvelle" : "ancienne"})`);
 }
 for (const motif of [/Effacer les données/, /Anonymiser la promo/, /quittent Réglages/, /31 décembre de la troisième année/, /12 mois/, /fondateur/,
   /n'a plus à être mis en abandon/, /« Réactiver » reste/, /élèves bénévoles/]) {
@@ -404,5 +397,94 @@ ok(mod("assistant").annonce.resume.startsWith("L'assistant répond à tes questi
 // Les libellés « Où le trouver » du catalogue gardent leur forme de main : c'est ouSelonNavigation qui les réécrit.
 eq(mod("calendrier").annonce.ou.label, "Calendrier", "Calendrier : libellé d'avant, réécrit par ouSelonNavigation");
 eq(mod("notes").annonce.ou.label, "Notes", "Notes : libellé d'avant, réécrit par ouSelonNavigation");
+
+// === Lot 5 : audiences par espace (direction, siège), Nouveautés des nouveaux espaces ===
+// `visibles(entrees, formateur, navigationV2, espace)` : l'espace est facultatif ; sans lui, rien ne change pour le stagiaire et le
+// formateur (une app d'avant), et une entrée « direction » ou « siege » ne se lit nulle part.
+const ESP = [
+  { id: "t", date: "2026-11-09", pour: "tous" },
+  { id: "f", date: "2026-11-09", pour: "formateurs" },
+  { id: "s", date: "2026-11-09", pour: "stagiaires" },
+  { id: "d", date: "2026-11-09", pour: "direction" },
+  { id: "g", date: "2026-11-09", pour: "siege" },
+];
+eq(ids(visibles(ESP, true, true, "equipe")), ["t", "f"], "espace formateur : tous et formateurs, ni direction ni siège");
+eq(ids(visibles(ESP, false, true, "stagiaire")), ["t", "s"], "espace stagiaire : tous et stagiaires");
+eq(ids(visibles(ESP, true, true, "direction")), ["t", "d"], "espace direction : tous et direction, ni formateurs ni stagiaires ni siège");
+eq(ids(visibles(ESP, false, true, "direction")), ["t", "d"], "espace direction, sans droit de formateur : pas les stagiaires non plus");
+eq(ids(visibles(ESP, false, true, "siege")), ["t", "g"], "espace siège : tous et siège");
+eq(ids(visibles(ESP, true, true, "siege")), ["t", "g"], "espace siège, avec droit de formateur : seulement tous et siège");
+eq(ids(visibles(ESP, true, true)), ["t", "f"], "sans espace (appelant d'avant) : comme avant, aucune entrée de direction ni de siège");
+eq(ids(visibles(ESP, false, false)), ["t", "s"], "sans espace, ancienne navigation : comme avant");
+eq(ids(visibles(ESP, true, true, "n'importe quoi")), ["t"], "espace inconnu : seulement les entrées pour tous");
+ok(ids(visibles(ESP, true, true, "stagiaire")).join() === "t", "un formateur dans l'espace stagiaire ne lit pas les entrées qui mènent à des pages de formateur");
+
+// Les Nouveautés réelles du lot 5.
+const direction = NOUVEAUTES.find((e) => e.pour === "direction");
+const siege = NOUVEAUTES.find((e) => e.pour === "siege");
+const menuEspace = NOUVEAUTES.find((e) => e.id.endsWith("-menu-espace"));
+const changerPromo = NOUVEAUTES.find((e) => e.id.endsWith("-changer-de-promo"));
+const DATE5 = direction.date;
+eq(NOUVEAUTES.filter((e) => e.pour === "direction").length, 1, "une seule Nouveauté pour la direction");
+eq(NOUVEAUTES.filter((e) => e.pour === "siege").length, 1, "une seule Nouveauté pour le siège");
+ok(direction.titre === "Ton espace de direction" && siege.titre === "L'espace du siège", "titres : « Ton espace de direction », « L'espace du siège »");
+ok(!!menuEspace && menuEspace.pour === "formateurs" && menuEspace.navigation === "nouvelle", "menu Espace : pour les formateurs, nouvelle navigation");
+ok(!!changerPromo && changerPromo.pour === "stagiaires" && changerPromo.navigation === "nouvelle" && changerPromo.titre === "Changer de promo",
+  "Changer de promo : pour les stagiaires, nouvelle navigation");
+for (const e of [direction, siege, menuEspace, changerPromo]) {
+  ok(/^\d{4}-\d{2}-\d{2}$/.test(e.date) && e.id.startsWith(e.date + "-"), e.id + " : id préfixé par sa date");
+  eq(e.date, DATE5, e.id + " : même date que les autres entrées du lot (posée à la fusion)");
+  ok(Array.isArray(e.guide) && e.guide.length >= 3 && !e.guideNouvelle, e.id + " : un « Comment faire » d'au moins trois étapes");
+  ok(!/vous|votre|vos/i.test(tout(e)) && !/\bprofs?\b/i.test(tout(e)), e.id + " : tutoiement, « formateur » jamais « prof »");
+  ok(!tout(e).includes(CADRATIN), e.id + " : aucun tiret cadratin");
+  ok(!/#[0-9a-f]{3,6}\b/i.test(tout(e)), e.id + " : aucune couleur écrite");
+}
+// Qui voit quoi, sur les vraies entrées.
+const lesEspaces = (formateur, espace) => ids(visibles(NOUVEAUTES, formateur, true, espace));
+ok(lesEspaces(true, "direction").includes(direction.id) && !lesEspaces(true, "direction").includes(siege.id), "direction : sa Nouveauté, pas celle du siège");
+ok(lesEspaces(true, "siege").includes(siege.id) && !lesEspaces(true, "siege").includes(direction.id), "siège : sa Nouveauté, pas celle de la direction");
+for (const espace of ["equipe", "stagiaire"]) {
+  for (const formateur of [true, false]) {
+    ok(!lesEspaces(formateur, espace).includes(direction.id) && !lesEspaces(formateur, espace).includes(siege.id),
+      `espace ${espace} (formateur ${formateur}) : ni la direction ni le siège`);
+  }
+}
+for (const espace of ["direction", "siege"]) {
+  const vues = lesEspaces(true, espace);
+  ok(!vues.includes(menuEspace.id) && !vues.some((id) => NOUVEAUTES.find((e) => e.id === id).pour === "formateurs"),
+    `espace ${espace} : aucune entrée pour formateurs (leurs liens mènent à des pages de l'espace formateur)`);
+  ok(!vues.some((id) => NOUVEAUTES.find((e) => e.id === id).pour === "stagiaires"), `espace ${espace} : aucune entrée pour stagiaires`);
+}
+ok(lesEspaces(true, "equipe").includes(menuEspace.id) && !lesEspaces(true, "equipe").includes(changerPromo.id), "formateur : le menu Espace, pas Changer de promo");
+ok(lesEspaces(false, "stagiaire").includes(changerPromo.id) && !lesEspaces(false, "stagiaire").includes(menuEspace.id), "stagiaire : Changer de promo, pas le menu Espace");
+// Les mots de l'écran (Task 7 à 14) et du menu du compte.
+for (const motif of [/Vue d'ensemble/, /Promos/, /Stagiaires/, /Émargement/, /Notes et examens/, /Équipe/, /Créer une promo/, /Inviter un formateur/]) {
+  ok(motif.test(tout(direction)), `direction : dit ${motif}`);
+}
+for (const motif of [/Vue d'ensemble/, /sans aucun nom/, /Directions de centre/, /Ajouter un centre/, /Inviter une direction/, /Cours et QCM/, /moins de 5/]) {
+  ok(motif.test(tout(siege)), `siège : dit ${motif}`);
+}
+ok(/« Espace »/.test(tout(menuEspace)) && /menu de ton compte/.test(tout(menuEspace)), "menu Espace : « Espace » dans le menu du compte");
+ok(/« Changer de promo »/.test(tout(changerPromo)) && /menu de ton compte/.test(tout(changerPromo)), "Changer de promo : dans le menu du compte");
+ok(!/(direction|siège)/i.test(tout(changerPromo)), "Changer de promo : ne parle pas des espaces de pilotage");
+// Aucun lien « Où le trouver » qui serait réécrit à tort : « centre » devient « Indicateurs » sous la nouvelle barre (formateur).
+ok(!direction.ou || direction.ou.route !== "centre", "direction : pas de lien vers la route centre (réécrit « Indicateurs » par ou-trouver)");
+// Triées avec les autres du même jour : les entrées du lot 2B passent d'abord (l'Accueil du stagiaire montre la première).
+eq(ids(triees(JUSQU_AU_LOT(visibles(NOUVEAUTES, false, true, "stagiaire"))))[0], journee.id, "stagiaire : la plus récente du lot 2B reste la journée");
+
+// Aucune impasse : en direction et au siège, toute entrée montrée (tous les cas d'audience, tous les droits) a un lien permis par l'espace.
+for (const espace of ["direction", "siege"]) {
+  for (const formateur of [true, false]) {
+    const montrees = visibles(NOUVEAUTES, formateur, true, espace);
+    ok(montrees.length > 0, `${espace} : au moins une entrée`);
+    for (const e of montrees) {
+      ok(!e.ou || !e.ou.route || routeDansLEspace(espace, e.ou.route), `${espace} : ${e.id} ne mène pas hors de l'espace (${e.ou && e.ou.route})`);
+    }
+  }
+  ok(!visibles(NOUVEAUTES, true, true, espace).some((e) => e.pour === "tous" && e.ou && e.ou.route === "mon-suivi"), `${espace} : un lien vers Mon suivi est masqué`);
+}
+eq(ids(visibles([{ id: "a", date: "2026-11-09", pour: "tous", ou: { label: "x", route: "planning" } }, { id: "b", date: "2026-11-09", pour: "tous" },
+  { id: "c", date: "2026-11-09", pour: "tous", ou: { label: "x", route: "nouveautes" } }], false, true, "direction")), ["b", "c"], "direction : lien refusé masqué, sans lien et page permise gardés");
+eq(ids(visibles([{ id: "a", date: "2026-11-09", pour: "tous", ou: { label: "x", route: "planning" } }], false, true, "equipe")), ["a"], "formateur : inchangé");
 
 console.log(`nouveautes : ${n} assertions OK`);

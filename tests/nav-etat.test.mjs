@@ -129,4 +129,24 @@ for (const [apercu, memoire, cochee, appliquee] of combinaisons) {
   eq(session(null, memoire, apercu, true), appliquee, "navigation appliquée : " + quoi);
 }
 
+// 8. Direction et siège (lot 5, D4) : toujours la nouvelle navigation, quel que soit le réglage de la promo (éteint ou illisible),
+//    l'aperçu de l'appareil ou la mémoire. Formateur et stagiaire : rien ne change.
+for (const espace of ["direction", "siege"]) {
+  eq(decideNavigationV2({ reglagePromo: false, espace }), true, `${espace} : réglage de la promo éteint`);
+  eq(decideNavigationV2({ reglagePromo: null, espace }), true, `${espace} : réglage illisible`);
+  eq(decideNavigationV2({ reglagePromo: true, espace }), true, `${espace} : réglage allumé`);
+  eq(decideNavigationV2({ reglagePromo: false, apercu: "0", fondateur: true, espace }), true, `${espace} : l'aperçu éteint de l'appareil n'y change rien`);
+  eq(navigationAttendue({ promoId: 1, lireMemoire: () => null, espace }), true, `${espace} : attendue à l'ouverture, sans mémoire`);
+  eq(navigationAttendue({ promoId: null, espace }), true, `${espace} : attendue sans promo (siège)`);
+}
+for (const espace of ["equipe", "stagiaire", undefined, null]) {
+  eq(decideNavigationV2({ reglagePromo: false, espace }), false, `${espace} : réglage éteint`);
+  eq(decideNavigationV2({ reglagePromo: null, espace }), false, `${espace} : réglage illisible`);
+  eq(decideNavigationV2({ reglagePromo: true, espace }), true, `${espace} : réglage allumé`);
+  eq(decideNavigationV2({ reglagePromo: false, apercu: "1", fondateur: true, espace }), true, `${espace} : aperçu allumé du fondateur`);
+  eq(decideNavigationV2({ reglagePromo: true, apercu: "0", fondateur: true, espace }), false, `${espace} : aperçu éteint du fondateur`);
+  eq(navigationAttendue({ promoId: 1, lireMemoire: promo1Allumee, espace }), true, `${espace} : mémoire allumée`);
+  eq(navigationAttendue({ promoId: 2, lireMemoire: promo1Allumee, espace }), false, `${espace} : sans mémoire`);
+}
+
 console.log(`nav-etat : ${n} assertions OK`);

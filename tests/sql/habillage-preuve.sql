@@ -151,9 +151,9 @@ begin
   r := pg_temp.essai(a, format('select habillage from public.user_profiles where email = %L', a));
   perform pg_temp.verifier('A relit sa colonne par la lecture de son profil', r = 'OK ecf', r);
   -- Qui lit la ligne d'un autre ne dépend pas de cette migration : c'est la règle de lecture du lot 4
-  -- (user_profiles_lecture), qui laisse un stagiaire lire les profils de sa promo en cours. La colonne
-  -- habillage suit cette règle telle quelle ; la preuve ne la teste donc pas (elle échouerait sur la base
-  -- réelle, où A et B sont de la même promo, alors que le schéma minimal ne garde que la branche « ma ligne »).
+  -- (user_profiles_lecture), qui depuis le 10/11 (20261110_profils_email_stagiaires) ne laisse plus un stagiaire
+  -- lire le profil des autres stagiaires de sa promo. La colonne habillage suit cette règle telle quelle ; la preuve
+  -- ne la teste donc pas (tests/sql/profils-email-preuve.sql le fait).
 
   -- 4. B choisit ecsr : A reste sur ecf.
   r := pg_temp.essai(b, $q$select public.set_my_habillage('ecsr')$q$);

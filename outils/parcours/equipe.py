@@ -8,7 +8,7 @@ import re
 
 from . import parcours
 from .navigation import SOUS_ONGLET, texte
-from .visite import BLOQUE, LISTE
+from .visite import BLOQUE, LISTE, DelaiDepasse
 
 # Sur téléphone, l'équipe passe par « Plus » pour tout ce qui n'est pas dans la barre du bas : 1 clic de plus.
 UN_CLIC = {"ordinateur": 1, "telephone": 2}
@@ -149,6 +149,66 @@ def propositions_ia(v):
     v.fermer_par_echap(".qcm-overlay", "l'éditeur du QCM")
     if v.voit(".qcm-overlay"):
         v.toucher("button.qcm-close", "« Fermer » (éditeur du QCM)", compte=False)
+    v.terminer()
+
+
+@parcours("vider-les-placements", "Vider les placements de la semaine, puis annuler", role="formateur", budget=3,
+          navigations=NOUVELLE, depart="#/home")
+def vider_les_placements(v):
+    """Planning, « Modifier », « Vider les placements » : la question s'ouvre dans une fenêtre de l'app (une boîte du
+    navigateur serait un défaut) ; « Annuler » la referme et rien n'est vidé."""
+    v.aller("Planning")
+    v.attendre(".wsem", "la semaine en grille")
+    v.etape("passer en édition")
+    v.toucher(texte("Modifier", "#view button"), "« Modifier »")
+    v.attendre("#view .p-day-card", "l'éditeur de la semaine")
+    v.etape("« Vider les placements »")
+    v.toucher("#view button.p-vider-btn", "« Vider les placements »")
+    v.attendre('.modal-backdrop.confirmer-fond:has-text("Vider les placements de la semaine ?")',
+               "la question « Vider les placements de la semaine ? »")
+    v.but("question posée dans l'app")
+    v.etape("« Annuler » : rien n'est vidé")
+    v.ecouter_messages()
+    v.toucher(texte("Annuler", ".modal-backdrop.confirmer-fond button"), "« Annuler »", compte=False)
+    if v.voit(".modal-backdrop.confirmer-fond"):
+        v.constat("D", BLOQUE, "la question reste ouverte après « Annuler »", capture=True)
+    v.page.wait_for_timeout(600)
+    if any("vidés" in m["texte"] for m in v._journal()):
+        v.constat("E", BLOQUE, "« Annuler » a quand même vidé les placements", capture=True)
+    v.toucher(texte("Quitter l'édition", "#view button"), "« Quitter l'édition »", compte=False)
+    v.attendre(".wsem", "la grille après « Quitter l'édition »")
+    v.terminer()
+
+
+@parcours("desactiver-un-jour", "Désactiver un jour du planning, puis annuler", role="formateur", budget=3,
+          navigations=NOUVELLE, depart="#/home")
+def desactiver_un_jour(v):
+    """Planning, « Modifier », « Désactiver ce jour » sur le premier jour : le libellé se demande dans une fenêtre de l'app
+    avec un champ (une boîte du navigateur serait un défaut), le champ a le focus et une valeur de départ ; « Annuler » la
+    referme et le jour reste actif."""
+    v.aller("Planning")
+    v.attendre(".wsem", "la semaine en grille")
+    v.etape("passer en édition")
+    v.toucher(texte("Modifier", "#view button"), "« Modifier »")
+    v.attendre("#view .p-day-card", "l'éditeur de la semaine")
+    v.etape("« Désactiver ce jour »")
+    v.toucher('#view button.p-day-toggle[aria-label="Désactiver ce jour"]', "« Désactiver ce jour »")
+    fenetre = ".modal-backdrop.confirmer-fond"
+    v.attendre(fenetre + " .confirmer-champ input", "le champ du libellé, dans une fenêtre de l'app")
+    v.but("libellé demandé dans l'app")
+    if not v.page.evaluate("() => document.activeElement && document.activeElement.matches('.confirmer-champ input')"):
+        v.constat("F", LISTE, "le champ du libellé n'a pas le focus à l'ouverture", capture=True)
+    if not v.page.locator(fenetre + " .confirmer-champ input").first.input_value().strip():
+        v.constat("F", LISTE, "le champ du libellé s'ouvre vide (attendu : une valeur proposée)", capture=True)
+    v.etape("« Annuler » : le jour reste actif")
+    v.toucher(fenetre + ' button:text-is("Annuler")', "« Annuler »", compte=False)
+    try:
+        v.page.locator(fenetre).first.wait_for(state="hidden", timeout=2000)
+    except DelaiDepasse:
+        v.constat("D", BLOQUE, "la fenêtre reste ouverte après « Annuler »", capture=True)
+    v.attendre('#view button.p-day-toggle[aria-label="Désactiver ce jour"]', "le jour toujours actif")
+    v.toucher(texte("Quitter l'édition", "#view button"), "« Quitter l'édition »", compte=False)
+    v.attendre(".wsem", "la grille après « Quitter l'édition »")
     v.terminer()
 
 

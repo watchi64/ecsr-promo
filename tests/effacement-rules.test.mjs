@@ -148,8 +148,10 @@ eq(MOT_DE_CONFIRMATION, "EFFACER", "le mot à taper");
 const c1 = confirmationEcheance(e2[0]);
 ok(c1 && /« Nîmes mars 2026 »/.test(c1.titre) && /Irréversible\.$/.test(c1.phrase), "étape 1 : titre avec la promo, phrase qui finit par « Irréversible. »");
 eq([c1.part, c1.reste, c1.oui], [CE_QUI_PART.etape1, CE_QUI_RESTE.etape1, e2[0].bouton], "étape 1 : listes et bouton de l'échéance");
-eq(c1.saisie, { consigne: "Pour confirmer, tape EFFACER", attendu: "EFFACER" }, "étape 1 : saisie du mot EFFACER");
+eq([c1.saisie.consigne, c1.saisie.attendu], ["Pour confirmer, tape EFFACER", "EFFACER"], "étape 1 : saisie du mot EFFACER");
 ok(confirmationValide("effacer", c1.saisie.attendu) && !confirmationValide("EFFACE", c1.saisie.attendu), "la saisie se vérifie par confirmationValide");
+ok(typeof c1.saisie.verifier === "function" && c1.saisie.verifier(" effacer ") && !c1.saisie.verifier("EFFACE") && !c1.saisie.verifier(""),
+  "la fenêtre reçoit la vérification (confirmationValide) : js/confirmer.js n'active le bouton qu'avec elle");
 eq(confirmationEcheance(e1[0]), null, "échéance pas encore due : pas de confirmation");
 eq(confirmationEcheance(er[0]), null, "registre : pas de confirmation ici (son propre bouton)");
 eq(confirmationEcheance(sans[0]), null, "promo sans date : pas de confirmation");

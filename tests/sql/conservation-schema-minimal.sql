@@ -56,7 +56,10 @@ alter default privileges in schema public grant all on sequences to anon, authen
 alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
 
 -- 2. Tables (colonnes et contraintes relevées sur la base réelle) -------------------------------------------------
-create table public.lieux (id serial primary key, nom text not null unique, created_at timestamptz not null default now());
+-- lieux : colonnes du lot 5 (habillage du centre, centre de démonstration) relevées le 10/11 (schema-reel-colonnes-v2.txt).
+create table public.lieux (id serial primary key, nom text not null unique, created_at timestamptz not null default now(),
+  demonstration boolean not null default false, habillage text check (habillage is null or habillage in ('ecsr', 'ecf')),
+  habillage_libre boolean not null default true);
 create table public.promos (id serial primary key, lieu_id integer not null references public.lieux(id),
   nom text not null, date_debut date not null, date_fin date, created_at timestamptz not null default now());
 create table public.stagiaires (id serial primary key, prenom text not null, ordre integer not null default 0,

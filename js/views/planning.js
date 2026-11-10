@@ -8,28 +8,29 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
   avantChangementPromo,
-} from "../db.js?v=20261110a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261110a";
-import { icon, deco } from "../icons.js?v=20261110a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261110a";
-import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261110a";
-import { recordUndo } from "../undo.js?v=20261110a";
-import { getCurrentWho } from "../identity.js?v=20261110a";
-import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261110a";
-import { meilleurResultat } from "../passage-rules.js?v=20261110a";
-import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261110a";
-import { emargementActif } from "../emargement-etat.js?v=20261110a";
-import { libelleHeure } from "../emargement-rules.js?v=20261110a";
-import { navigationV2Active } from "../nav-etat.js?v=20261110a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110a";
+} from "../db.js?v=20261110e";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261110e";
+import { confirmer, demander } from "../confirmer.js?v=20261110e";
+import { icon, deco } from "../icons.js?v=20261110e";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261110e";
+import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261110e";
+import { recordUndo } from "../undo.js?v=20261110e";
+import { getCurrentWho } from "../identity.js?v=20261110e";
+import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261110e";
+import { meilleurResultat } from "../passage-rules.js?v=20261110e";
+import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261110e";
+import { emargementActif } from "../emargement-etat.js?v=20261110e";
+import { libelleHeure } from "../emargement-rules.js?v=20261110e";
+import { navigationV2Active } from "../nav-etat.js?v=20261110e";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110e";
 import {
   entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe, colonnesParalleles,
-} from "../planning-roles.js?v=20261110a";
+} from "../planning-roles.js?v=20261110e";
 import {
   DEFAULT_HALF_META, semaineEnGrille, jourParDefaut, lundiEnCours, vuePlanningInitiale,
-} from "../journee-rules.js?v=20261110a";
-import { nomsStagiaires } from "../planning-lecture.js?v=20261110a";
-import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261110a";
+} from "../journee-rules.js?v=20261110e";
+import { nomsStagiaires } from "../planning-lecture.js?v=20261110e";
+import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261110e";
 
 let stagiaires = [];
 let profs = [];
@@ -440,9 +441,22 @@ async function swapEntries(lidA, lidB, opts = {}) {
   }
 }
 
+// Une question de l'app laisse vivre la page (la boîte du navigateur la figeait) : si le planning a été rechargé pendant
+// qu'elle était ouverte (retour sur l'onglet, autre formateur), on ne fait rien plutôt que d'agir sur des cartes qui ne
+// sont plus celles de l'écran. Promesse : true si on continue.
+async function confirmerSurCePlanning(question) {
+  const charge = entries;
+  const oui = await confirmer(question);
+  if (oui && entries !== charge) {
+    toast("Le planning a été rechargé pendant la question : rien n'a été fait. Recommence si besoin.", "info", 4000);
+    return false;
+  }
+  return oui;
+}
+
 // Confirmation (friction) avant un déplacement vers une AUTRE demi-journée / un autre
-// jour, pour éviter les déplacements par inadvertance. Retourne true si on continue.
-function confirmCrossMove(sourceLid, targetLid) {
+// jour, pour éviter les déplacements par inadvertance. Promesse : true si on continue (fenêtre de l'app).
+async function confirmCrossMove(sourceLid, targetLid) {
   const src = entries.find((e) => e._lid === sourceLid);
   const tgt = entries.find((e) => e._lid === targetLid);
   if (!src || !tgt) return false;
@@ -450,8 +464,8 @@ function confirmCrossMove(sourceLid, targetLid) {
   const demi = tgt.half_day === "matin" ? "matin" : "après-midi";
   const srcLabel = src.activite || "cette carte";
   return tgt.activite
-    ? confirm(`Échanger « ${srcLabel} » avec « ${tgt.activite} » (${jour} ${demi}) ?`)
-    : confirm(`Déplacer « ${srcLabel} » vers ${jour} ${demi} ?`);
+    ? confirmerSurCePlanning({ titre: `Échanger « ${srcLabel} » avec « ${tgt.activite} » (${jour} ${demi}) ?`, oui: "Échanger", danger: false })
+    : confirmerSurCePlanning({ titre: `Déplacer « ${srcLabel} » vers ${jour} ${demi} ?`, oui: "Déplacer", danger: false });
 }
 
 // --- Contrôleur de glisser-déposer (Pointer Events, souris + tactile) ---
@@ -543,7 +557,7 @@ function onDragMove(ev) {
   updateDropTarget();
 }
 
-function onDragEnd() {
+async function onDragEnd() {
   const s = dragState;
   if (!s) return;
   const target = s.target;
@@ -556,7 +570,7 @@ function onDragEnd() {
   const crossHalf = target.closest(".p-half") !== sourceHalf;
   if (crossHalf) {
     // Friction : confirmation avant un déplacement vers une autre demi-journée / jour
-    if (!confirmCrossMove(sourceLid, targetLid)) return;
+    if (!(await confirmCrossMove(sourceLid, targetLid))) return;
     swapEntries(sourceLid, targetLid, {
       toast: "Carte déplacée · Ctrl+Z pour annuler",
       undoLabel: "déplacement de carte",
@@ -982,10 +996,14 @@ async function autoPlaceWeek() {
   }
 
   const reroll = !targets.some((e) => placementEmpties(e).length > 0);
-  if (reroll && !confirm("Toute la semaine est déjà placée.\n\nTout remélanger (tableaux + stagiaires) ? Tes ajustements manuels seront écrasés.")) return;
+  if (reroll && !(await confirmerSurCePlanning({ titre: "Tout remélanger la semaine ?",
+    phrase: "Toute la semaine est déjà placée. Tes ajustements à la main (tableaux et stagiaires) seront remplacés. "
+      + "Ctrl+Z annule ensuite.", oui: "Tout remélanger" }))) return;
   if (!reroll) {
     const cartes = targets.filter((e) => placementEmpties(e).length > 0).length;
-    if (!confirm(`Placer automatiquement la semaine ?\n\n${cartes} carte(s) à compléter (priorité aux moins passés / moins exposés). Ctrl+Z pour annuler ensuite.`)) return;
+    if (!(await confirmerSurCePlanning({ titre: "Placer automatiquement la semaine ?",
+      phrase: `${cartes} carte${cartes > 1 ? "s" : ""} à compléter, en priorité pour les stagiaires les moins passés et les `
+        + "moins exposés. Ctrl+Z annule ensuite.", oui: "Placer", danger: false }))) return;
   }
 
   const before = targets.map((e) => ({ e, snap: snapshotPlacement(e) }));
@@ -1195,7 +1213,9 @@ async function clearWeekPlacements() {
     toast("Aucun stagiaire placé cette semaine", "info", 3000);
     return;
   }
-  if (!confirm("Retirer TOUS les stagiaires placés cette semaine (tableaux, salle, voiture) ?\n\nLes bénévoles, formateurs, sujets et notes sont conservés.")) return;
+  if (!(await confirmerSurCePlanning({ titre: "Vider les placements de la semaine ?",
+    phrase: "Les stagiaires placés (tableaux, salle, voiture) sont retirés. Bénévoles, formateurs, sujets et notes "
+      + "restent. Ctrl+Z annule ensuite.", oui: "Vider" }))) return;
 
   const before = targets.map((e) => ({ e, snap: snapshotPlacement(e) }));
   targets.forEach((e) => { e.pedagogue_id = null; e.pedagogue_id_2 = null; e.eleves_ids = []; e.eleves_ids_2 = []; });
@@ -1221,7 +1241,7 @@ async function deleteCell(entry) {
   // Commit les saisies en cours avant le re-render complet (sinon une note/sujet en attente est perdu)
   await flushPendingInputs();
   // Une demi-journée peut rester vide : on autorise la suppression de n'importe quelle activité.
-  if (!confirm("Supprimer ce créneau ?")) return;
+  if (!(await confirmerSurCePlanning({ titre: "Supprimer ce créneau ?", oui: "Supprimer" }))) return;
   try {
     if (entry.id) await deletePlanningEntryById(entry.id);
     entries = entries.filter((e) => e._lid !== entry._lid);
@@ -2304,8 +2324,10 @@ async function disableDay(d) {
   const monday = new Date(semaineLundi + "T00:00:00");
   const info = dayOffInfo(d, monday);
   const def = info.ferie ? info.label : "Vacances";
-  const label = prompt("Désactiver « " + JOURS[d] + " », libellé (ex. Vacances, Pont, Férié…) :", def);
-  if (label === null) return;   // annulé
+  const jour = JOURS[d].charAt(0) + JOURS[d].slice(1).toLowerCase();
+  const label = await demander({ titre: `Désactiver ${jour.toLowerCase()} ?`,
+    libelle: "Libellé (par exemple Vacances, Pont, Férié)", valeur: def, oui: "Désactiver", danger: false });
+  if (typeof label !== "string") return;   // annulé
   try {
     await setJourOff(semaineLundi, d, label.trim() || "Désactivé", getCurrentWho());
     await loadPlanning();

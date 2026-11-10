@@ -1,0 +1,596 @@
+{
+ "_note": "Fixture commune (D10) du lot 5, jouee par tests/comptes-reseau.test.mjs et par la preuve SQL. Une seule promo fictive, promo_id 990001, centre fictif ; aujourdhui 2026-11-08. Les lignes de donnees portent promo_id (colonne en base, ignoree par centre-stats.js). Parasites : passages du stagiaire 990099 (hors de la promo, a ne pas inserer comme fiche de la promo) et de l'abandon 990007, notes sans bareme, auto-evaluation, evaluation EPCF sans date.",
+ "promo_id": 990001,
+ "aujourdhui": "2026-11-08",
+ "donnees": {
+  "stagiaires": [
+   {
+    "id": 990001,
+    "prenom": "Ana",
+    "nom": "Exemple",
+    "actif": true,
+    "ordre": 1,
+    "anonymise_le": null,
+    "promo_id": 990001
+   },
+   {
+    "id": 990002,
+    "prenom": "Bob",
+    "nom": "Exemple",
+    "actif": true,
+    "ordre": 2,
+    "anonymise_le": null,
+    "promo_id": 990001
+   },
+   {
+    "id": 990003,
+    "prenom": "Cid",
+    "nom": "Exemple",
+    "actif": true,
+    "ordre": 3,
+    "anonymise_le": null,
+    "promo_id": 990001
+   },
+   {
+    "id": 990004,
+    "prenom": "Dan",
+    "nom": "Exemple",
+    "actif": true,
+    "ordre": 4,
+    "anonymise_le": null,
+    "promo_id": 990001
+   },
+   {
+    "id": 990005,
+    "prenom": "Eva",
+    "nom": "Exemple",
+    "actif": true,
+    "ordre": 5,
+    "anonymise_le": null,
+    "promo_id": 990001
+   },
+   {
+    "id": 990006,
+    "prenom": "Fay",
+    "nom": "Exemple",
+    "actif": true,
+    "ordre": 6,
+    "anonymise_le": null,
+    "promo_id": 990001
+   },
+   {
+    "id": 990007,
+    "prenom": "Gus",
+    "nom": "Exemple",
+    "actif": false,
+    "ordre": 7,
+    "anonymise_le": null,
+    "promo_id": 990001
+   }
+  ],
+  "passages": [
+   {
+    "id": 990001,
+    "stagiaire_id": 990001,
+    "type": "Salle",
+    "resultat": "Effectué",
+    "date": "2026-10-12",
+    "promo_id": 990001
+   },
+   {
+    "id": 990002,
+    "stagiaire_id": 990001,
+    "type": "Salle",
+    "resultat": "Effectué",
+    "date": "2026-10-12",
+    "promo_id": 990001
+   },
+   {
+    "id": 990003,
+    "stagiaire_id": 990001,
+    "type": "Voiture",
+    "resultat": "Effectué",
+    "date": "2026-10-12",
+    "promo_id": 990001
+   },
+   {
+    "id": 990004,
+    "stagiaire_id": 990001,
+    "type": "Voiture",
+    "resultat": "Absence",
+    "date": "2026-10-12",
+    "promo_id": 990001
+   },
+   {
+    "id": 990005,
+    "stagiaire_id": 990002,
+    "type": "Salle",
+    "resultat": "Absence",
+    "date": "2026-10-12",
+    "promo_id": 990001
+   },
+   {
+    "id": 990006,
+    "stagiaire_id": 990002,
+    "type": "Voiture",
+    "resultat": "Effectué",
+    "date": "2026-10-12",
+    "promo_id": 990001
+   },
+   {
+    "id": 990007,
+    "stagiaire_id": 990002,
+    "type": "Voiture",
+    "resultat": "Bonus",
+    "date": "2026-10-12",
+    "promo_id": 990001
+   },
+   {
+    "id": 990008,
+    "stagiaire_id": 990003,
+    "type": "Salle",
+    "resultat": "Bonus",
+    "date": "2026-10-12",
+    "promo_id": 990001
+   },
+   {
+    "id": 990009,
+    "stagiaire_id": 990003,
+    "type": "Salle",
+    "resultat": "Effectué",
+    "date": "2026-10-12",
+    "promo_id": 990001
+   },
+   {
+    "id": 990010,
+    "stagiaire_id": 990004,
+    "type": "Voiture",
+    "resultat": "Effectué",
+    "date": "2026-10-12",
+    "promo_id": 990001
+   },
+   {
+    "id": 990011,
+    "stagiaire_id": 990007,
+    "type": "Salle",
+    "resultat": "Absence",
+    "date": "2026-10-12",
+    "promo_id": 990001
+   },
+   {
+    "id": 990012,
+    "stagiaire_id": 990007,
+    "type": "Voiture",
+    "resultat": "Effectué",
+    "date": "2026-10-12",
+    "promo_id": 990001
+   },
+   {
+    "id": 990013,
+    "stagiaire_id": 990099,
+    "type": "Salle",
+    "resultat": "Absence",
+    "date": "2026-10-12",
+    "promo_id": 990001
+   }
+  ],
+  "evaluations": [
+   {
+    "id": 990001,
+    "stagiaire_id": 990001,
+    "type": "Thème",
+    "theme_numero": 1,
+    "competence_code": null,
+    "controle_libelle": null,
+    "note": 14,
+    "note_max": 20,
+    "date_eval": "2026-10-20",
+    "promo_id": 990001
+   },
+   {
+    "id": 990002,
+    "stagiaire_id": 990002,
+    "type": "Thème",
+    "theme_numero": 1,
+    "competence_code": null,
+    "controle_libelle": null,
+    "note": 6,
+    "note_max": 10,
+    "date_eval": "2026-10-20",
+    "promo_id": 990001
+   },
+   {
+    "id": 990003,
+    "stagiaire_id": 990003,
+    "type": "Thème",
+    "theme_numero": 1,
+    "competence_code": null,
+    "controle_libelle": null,
+    "note": 8,
+    "note_max": 20,
+    "date_eval": "2026-10-20",
+    "promo_id": 990001
+   },
+   {
+    "id": 990004,
+    "stagiaire_id": 990004,
+    "type": "Thème",
+    "theme_numero": 1,
+    "competence_code": null,
+    "controle_libelle": null,
+    "note": 5,
+    "note_max": 20,
+    "date_eval": "2026-10-20",
+    "promo_id": 990001
+   },
+   {
+    "id": 990005,
+    "stagiaire_id": 990004,
+    "type": "Thème",
+    "theme_numero": 1,
+    "competence_code": null,
+    "controle_libelle": null,
+    "note": 9,
+    "note_max": null,
+    "date_eval": "2026-10-20",
+    "promo_id": 990001
+   },
+   {
+    "id": 990006,
+    "stagiaire_id": 990004,
+    "type": "Compétence",
+    "theme_numero": null,
+    "competence_code": "C1",
+    "controle_libelle": null,
+    "note": null,
+    "note_max": 20,
+    "date_eval": "2026-10-20",
+    "promo_id": 990001
+   },
+   {
+    "id": 990007,
+    "stagiaire_id": 990006,
+    "type": "Thème",
+    "theme_numero": 1,
+    "competence_code": null,
+    "controle_libelle": null,
+    "note": 5,
+    "note_max": 0,
+    "date_eval": "2026-10-20",
+    "promo_id": 990001
+   },
+   {
+    "id": 990008,
+    "stagiaire_id": 990005,
+    "type": "Thème",
+    "theme_numero": 1,
+    "competence_code": null,
+    "controle_libelle": null,
+    "note": 15,
+    "note_max": 30,
+    "date_eval": "2026-10-20",
+    "promo_id": 990001
+   },
+   {
+    "id": 990009,
+    "stagiaire_id": 990007,
+    "type": "Thème",
+    "theme_numero": 1,
+    "competence_code": null,
+    "controle_libelle": null,
+    "note": 2,
+    "note_max": 20,
+    "date_eval": "2026-10-20",
+    "promo_id": 990001
+   }
+  ],
+  "tentatives": [
+   {
+    "id": 990001,
+    "qcm_id": 10,
+    "stagiaire_id": 990001,
+    "mode": "entrainement",
+    "score": 8,
+    "total": 10,
+    "note_20": null,
+    "finished_at": "2026-11-03T10:00:00Z",
+    "promo_id": 990001
+   },
+   {
+    "id": 990002,
+    "qcm_id": 11,
+    "stagiaire_id": 990001,
+    "mode": "entrainement",
+    "score": 5,
+    "total": 10,
+    "note_20": null,
+    "finished_at": "2026-11-03T10:00:00Z",
+    "promo_id": 990001
+   },
+   {
+    "id": 990003,
+    "qcm_id": 10,
+    "stagiaire_id": 990002,
+    "mode": "entrainement",
+    "score": 12,
+    "total": 20,
+    "note_20": null,
+    "finished_at": "2026-11-03T10:00:00Z",
+    "promo_id": 990001
+   },
+   {
+    "id": 990004,
+    "qcm_id": 10,
+    "stagiaire_id": 990007,
+    "mode": "entrainement",
+    "score": 10,
+    "total": 10,
+    "note_20": null,
+    "finished_at": "2026-11-03T10:00:00Z",
+    "promo_id": 990001
+   },
+   {
+    "id": 990005,
+    "qcm_id": 12,
+    "stagiaire_id": 990001,
+    "mode": "examen",
+    "score": 12,
+    "total": 20,
+    "note_20": 12,
+    "finished_at": "2026-11-03T10:00:00Z",
+    "promo_id": 990001
+   },
+   {
+    "id": 990006,
+    "qcm_id": 12,
+    "stagiaire_id": 990002,
+    "mode": "examen",
+    "score": 11,
+    "total": 20,
+    "note_20": 11.9,
+    "finished_at": "2026-11-03T10:00:00Z",
+    "promo_id": 990001
+   },
+   {
+    "id": 990007,
+    "qcm_id": 11,
+    "stagiaire_id": 990003,
+    "mode": "examen",
+    "score": 15,
+    "total": 20,
+    "note_20": 15,
+    "finished_at": "2026-11-03T10:00:00Z",
+    "promo_id": 990001
+   },
+   {
+    "id": 990008,
+    "qcm_id": 11,
+    "stagiaire_id": 990004,
+    "mode": "examen",
+    "score": 14,
+    "total": 20,
+    "note_20": 14.5,
+    "finished_at": "2026-11-03T10:00:00Z",
+    "promo_id": 990001
+   },
+   {
+    "id": 990009,
+    "qcm_id": 11,
+    "stagiaire_id": 990007,
+    "mode": "examen",
+    "score": 18,
+    "total": 20,
+    "note_20": 18,
+    "finished_at": "2026-11-03T10:00:00Z",
+    "promo_id": 990001
+   }
+  ],
+  "epcf": [
+   {
+    "id": 990001,
+    "stagiaire_id": 990001,
+    "trame": "salle",
+    "contexte": "EPCF",
+    "auto_eval": false,
+    "date_eval": "2026-10-01",
+    "scores": {
+     "a": "A",
+     "b": "R",
+     "c": "NA"
+    },
+    "promo_id": 990001
+   },
+   {
+    "id": 990002,
+    "stagiaire_id": 990001,
+    "trame": "salle",
+    "contexte": "EPCF",
+    "auto_eval": false,
+    "date_eval": "2026-11-02",
+    "scores": {
+     "a": "A",
+     "b": "A",
+     "c": "R",
+     "d": "NA"
+    },
+    "promo_id": 990001
+   },
+   {
+    "id": 990003,
+    "stagiaire_id": 990002,
+    "trame": "salle",
+    "contexte": "EPCF",
+    "auto_eval": false,
+    "date_eval": "2026-10-20",
+    "scores": {
+     "a": "NA",
+     "b": "NA"
+    },
+    "promo_id": 990001
+   },
+   {
+    "id": 990004,
+    "stagiaire_id": 990002,
+    "trame": "salle",
+    "contexte": "EPCF",
+    "auto_eval": false,
+    "date_eval": "2026-10-20",
+    "scores": {
+     "a": "A",
+     "b": "A",
+     "c": "R"
+    },
+    "promo_id": 990001
+   },
+   {
+    "id": 990005,
+    "stagiaire_id": 990003,
+    "trame": "salle",
+    "contexte": "EPCF",
+    "auto_eval": true,
+    "date_eval": "2026-11-05",
+    "scores": {
+     "a": "A",
+     "b": "A",
+     "c": "A"
+    },
+    "promo_id": 990001
+   },
+   {
+    "id": 990006,
+    "stagiaire_id": 990004,
+    "trame": "vehicule",
+    "contexte": "EPCF",
+    "auto_eval": null,
+    "date_eval": "2026-10-15",
+    "scores": {
+     "a": "A",
+     "b": "NA"
+    },
+    "promo_id": 990001
+   },
+   {
+    "id": 990007,
+    "stagiaire_id": 990001,
+    "trame": "vehicule",
+    "contexte": "EPCF",
+    "auto_eval": false,
+    "date_eval": "2026-10-10",
+    "scores": {
+     "a": "A",
+     "b": "A",
+     "c": "A"
+    },
+    "promo_id": 990001
+   },
+   {
+    "id": 990008,
+    "stagiaire_id": 990005,
+    "trame": "vehicule",
+    "contexte": "EPCF",
+    "auto_eval": false,
+    "date_eval": "2026-09-30",
+    "scores": {
+     "a": "R"
+    },
+    "promo_id": 990001
+   },
+   {
+    "id": 990009,
+    "stagiaire_id": 990005,
+    "trame": "vehicule",
+    "contexte": "EPCF",
+    "auto_eval": false,
+    "date_eval": null,
+    "scores": {
+     "a": "A",
+     "b": "A"
+    },
+    "promo_id": 990001
+   },
+   {
+    "id": 990010,
+    "stagiaire_id": 990006,
+    "trame": "salle",
+    "contexte": "Entraînement",
+    "auto_eval": false,
+    "date_eval": "2026-10-25",
+    "scores": {
+     "a": "A",
+     "b": "A"
+    },
+    "promo_id": 990001
+   },
+   {
+    "id": 990011,
+    "stagiaire_id": 990007,
+    "trame": "salle",
+    "contexte": "EPCF",
+    "auto_eval": false,
+    "date_eval": "2026-10-26",
+    "scores": {
+     "a": "A"
+    },
+    "promo_id": 990001
+   }
+  ]
+ },
+ "referentiel": {
+  "qcm": [
+   {
+    "id": 10,
+    "theme_id": 100,
+    "titre": "QCM Feux",
+    "exam_pass_20": 15
+   },
+   {
+    "id": 11,
+    "theme_id": 101,
+    "titre": "QCM Vitesse",
+    "exam_pass_20": null
+   },
+   {
+    "id": 12,
+    "theme_id": 102,
+    "titre": "QCM Alcool",
+    "exam_pass_20": 12
+   }
+  ],
+  "themes": [
+   {
+    "id": 100,
+    "numero": 1,
+    "titre": "Feux",
+    "type": "theme"
+   },
+   {
+    "id": 101,
+    "numero": 2,
+    "titre": "Vitesse",
+    "type": "theme"
+   },
+   {
+    "id": 102,
+    "numero": 3,
+    "titre": "Alcool",
+    "type": "theme"
+   }
+  ]
+ },
+ "attendu": {
+  "inscrits": 7,
+  "enFormation": 6,
+  "abandons": 1,
+  "absences": 2,
+  "prevus": 8,
+  "qcmBonnes": 25,
+  "qcmQuestions": 40,
+  "examensPasses": 4,
+  "examensReussis": 2,
+  "notesN": 5,
+  "notesSomme": 49,
+  "notesSous10": 2,
+  "epcfAcquis": 8,
+  "epcfRenseignes": 13
+ }
+}

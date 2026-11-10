@@ -5,17 +5,22 @@
 // statut en quatre boutons, réponse, suppression. Une action met la carte à jour sur place : elle ne change
 // pas de sous-onglet avant le prochain affichage de la page.
 
-import { el, clear, toast } from "../utils.js?v=20261110a";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261110a";
+import { el, clear, toast } from "../utils.js?v=20261110e";
+import { confirmer } from "../confirmer.js?v=20261110e";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261110e";
 import {
   listSignalementsApp, captureSignalementApp, traiterSignalementApp, supprimerSignalementApp, liensRegistre, getMesPromos,
-} from "../db.js?v=20261110a";
-import { entreeDepuisSignalement } from "../registre-rules.js?v=20261110a";
-import { chargerEtatSignalements } from "../signalement-etat.js?v=20261110a";
-import { renderSubTabs } from "../subtabs.js?v=20261110a";
+} from "../db.js?v=20261110e";
+import { entreeDepuisSignalement } from "../registre-rules.js?v=20261110e";
+import { chargerEtatSignalements } from "../signalement-etat.js?v=20261110e";
+import { renderSubTabs } from "../subtabs.js?v=20261110e";
 import {
   libelleStatut, resumeContexte, detailContexte, adresseSure, normaliserContexte,
-} from "../signalement-rules.js?v=20261110a";
+} from "../signalement-rules.js?v=20261110e";
+
+// Supprimer un signalement (carte complète ou carte en défaut) : la même question, dans une fenêtre de l'app.
+const QUESTION_SUPPRIMER = { titre: "Supprimer ce signalement ?",
+  phrase: "Il disparaît aussi chez la personne qui l'a envoyé.", oui: "Supprimer" };
 
 const STATUTS = ["nouveau", "en_cours", "regle", "non_retenu"];
 const A_TRAITER = new Set(["nouveau", "en_cours"]);
@@ -92,7 +97,7 @@ function carteSure(s) {
       el("p", { class: "sg-carte-message" }, String(s?.message ?? "")),
       el("div", { class: "sg-carte-actions" }, supprimer), erreur);
     supprimer.addEventListener("click", async () => {
-      if (!confirm("Supprimer ce signalement ? Il disparaît aussi chez la personne.")) return;
+      if (!(await confirmer(QUESTION_SUPPRIMER))) return;
       try {
         await supprimerSignalementApp(s.id);
         noeud.remove();
@@ -125,7 +130,7 @@ function boutonRegistre(s) {
     ouvertureEnCours = true;
     b.setAttribute("aria-disabled", "true");
     try {
-      const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261110a");
+      const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261110e");
       ouvrirFenetreRegistre({
         prerempli: entreeDepuisSignalement(s), promos: getMesPromos(), ancre: b,
         surEnregistre: () => {
@@ -193,7 +198,7 @@ function carte(s) {
 
   const supprimer = el("button", { type: "button", class: "btn ghost", "data-sg": "supprimer" }, "Supprimer");
   supprimer.addEventListener("click", async () => {
-    if (!confirm("Supprimer ce signalement ? Il disparaît aussi chez la personne.")) return;
+    if (!(await confirmer(QUESTION_SUPPRIMER))) return;
     erreur.textContent = "";
     try {
       await supprimerSignalementApp(s.id);

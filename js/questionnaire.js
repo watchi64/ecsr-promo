@@ -10,16 +10,16 @@
 // Rien de la réponse n'est gardé sur l'appareil au-delà de la session : le brouillon vit en mémoire le temps de
 // répondre (fermer par erreur ne perd rien), puis disparaît à l'envoi. Seul « Plus tard » est écrit sur l'appareil.
 
-import { el, isoDate, toast } from "./utils.js?v=20261110a";
-import { getAdminEmail, onAdminChange } from "./auth-admin.js?v=20261110a";
-import { lireQuestionnairesARemplir, envoyerQuestionnaire } from "./db.js?v=20261110a";
-import { QUESTIONNAIRES, ECHELLE } from "./questionnaires-data.js?v=20261110a";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261110a";
+import { el, isoDate, toast } from "./utils.js?v=20261110e";
+import { getAdminEmail, onAdminChange } from "./auth-admin.js?v=20261110e";
+import { lireQuestionnairesARemplir, envoyerQuestionnaire } from "./db.js?v=20261110e";
+import { QUESTIONNAIRES, ECHELLE } from "./questionnaires-data.js?v=20261110e";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261110e";
 import {
   cleMemoire, lireMemoire, memoirePlusTard, idQuestionnaire, questionnaireDuBandeau, questionnaireDuLien,
   sousTitreBandeau, progression, aUneReponse, peutAvancer, premiereManquante, reponsesAEnvoyer,
   annonceEcran, ouvrirApresLecture, memoireDeSession,
-} from "./questionnaire-ecran-rules.js?v=20261110a";
+} from "./questionnaire-ecran-rules.js?v=20261110e";
 
 const MERCI = "Merci, ta réponse est enregistrée sans ton nom.";
 const RIEN_A_REMPLIR = "Pas de questionnaire à remplir pour toi en ce moment : tu as peut-être déjà répondu, "

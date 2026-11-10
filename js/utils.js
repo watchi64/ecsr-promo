@@ -1,4 +1,4 @@
-import { peutMontrer, aReprendre, perimee } from "./messages-rules.js?v=20261110a";
+import { peutMontrer, aReprendre, perimee } from "./messages-rules.js?v=20261110e";
 
 // === Date helpers ===
 
@@ -52,9 +52,10 @@ export function formatDate(d) {
   return `${day}/${month}/${d.getFullYear()}`;
 }
 
-export function formatLongDate(d) {
+// « samedi 9 novembre 2026 » ; avec { sansJour: true } : « 9 novembre 2026 ».
+export function formatLongDate(d, { sansJour = false } = {}) {
   if (!(d instanceof Date)) d = parseDate(d);
-  return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  return d.toLocaleDateString("fr-FR", { ...(sansJour ? {} : { weekday: "long" }), day: "numeric", month: "long", year: "numeric" });
 }
 
 // === DOM helpers ===

@@ -4,8 +4,9 @@
 // ensemble) en une colonne, la moyenne de toutes les notes. Format pour Excel en français :
 // point-virgule, virgule décimale, UTF-8 avec BOM, fins de ligne CRLF.
 
-import { estNotee, score20 } from "./notes-stats.js?v=20261110a";
-import { compareByNom } from "./utils.js?v=20261110a";
+import { estNotee, score20 } from "./notes-stats.js?v=20261110e";
+import { compareByNom } from "./utils.js?v=20261110e";
+import { ratiosDeComptes } from "./comptes-reseau.js?v=20261110e";
 
 const COLONNES_COMPETENCES = [
   { code: "C1", label: "C1" }, { code: "C2", label: "C2" },
@@ -73,4 +74,51 @@ export function slug(texte) {
 
 export function nomFichierCsv(nomPromo, dateIso) {
   return `matrice-notes_${slug(nomPromo) || "promo"}_${dateIso}.csv`;
+}
+
+// === Tableaux de la direction et du siège (lot 5) : mêmes conventions que la matrice (BOM, point-virgule, virgule, CRLF) ===
+
+const pourcent = (r) => (r == null ? "" : nombre(r * 100));
+const sur20 = (r) => (r == null ? "" : nombre(r));
+
+function fichier(entete, lignes) {
+  const fin = String.fromCharCode(13, 10);
+  return String.fromCharCode(0xFEFF) + [entete, ...lignes].map((l) => l.map(cellule).join(";")).join(fin) + fin;
+}
+
+// Une ligne par promo du centre. lignesParPromo : [{ nom, debut, fin, comptes }], `comptes` comme rend
+// comptesDepuisIndicateurs (comptes additifs) ; un ratio sans base reste vide.
+export function tableauCentreCsv(lignesParPromo) {
+  const entete = ["Promo", "Début", "Fin", "Inscrits", "En formation", "Abandons (%)", "Absences (%)", "Réussite aux QCM (%)",
+    "Examens QCM réussis (%)", "Moyenne des notes (/20)", "Critères EPCF acquis (%)"];
+  const lignes = (lignesParPromo || []).map((p) => {
+    const c = p.comptes;
+    const r = ratiosDeComptes(c);
+    return [p.nom, p.debut || "", p.fin || "", c.inscrits, c.enFormation, pourcent(r.abandon), pourcent(r.absences),
+      pourcent(r.reussiteQcm), pourcent(r.examensQcm), sur20(r.notes), pourcent(r.epcf)];
+  });
+  return fichier(entete, lignes);
+}
+
+// Une ligne par centre, puis le total du réseau, puis la démonstration à part. vue : le résultat de vueDuReseau. Un centre masqué
+// n'a aucun chiffre (les comptes qu'il porte sont ignorés), un centre sans promo en cours non plus.
+export function tableauReseauCsv(vue) {
+  const entete = ["Centre", "Promos en cours", "Stagiaires en formation", "Abandons (%)", "Absences (%)", "Réussite aux QCM (%)",
+    "Moyenne des notes (/20)", "Critères EPCF acquis (%)", "Remarque"];
+  const chiffres = (c) => {
+    const r = ratiosDeComptes(c);
+    return [c.enFormation, pourcent(r.abandon), pourcent(r.absences), pourcent(r.reussiteQcm), sur20(r.notes), pourcent(r.epcf)];
+  };
+  const ligne = (nom, c) => {
+    if (c.promosEnCours === 0) return [nom, 0, "", "", "", "", "", "", "aucune promo en cours"];
+    if (c.masque) return [nom, c.promosEnCours, "", "", "", "", "", "", "moins de 5 stagiaires en formation"];
+    return [nom, c.promosEnCours, ...chiffres(c), ""];
+  };
+  const centres = (vue && vue.centres) || [];
+  const lignes = centres.map((c) => ligne(c.lieuNom, c));
+  const actifs = centres.filter((c) => !c.masque && c.promosEnCours > 0);
+  lignes.push(["Total du réseau", actifs.reduce((a, c) => a + c.promosEnCours, 0), ...chiffres(vue.total),
+    "hors centres de moins de 5 stagiaires en formation"]);
+  if (vue.demonstration) lignes.push(ligne("Centre de démonstration (données fictives, hors totaux)", vue.demonstration));
+  return fichier(entete, lignes);
 }

@@ -4,9 +4,10 @@
  */
 // La carte d'authentification et ses modes. Sortie de main.js, qui redevient le
 // fichier du démarrage et des routes.
-import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20261110a";
-import { validerEmail, validerMotDePasse, messageErreurAuth, configMode, MDP_MIN } from "./gate-rules.js?v=20261110a";
-import { toast } from "./utils.js?v=20261110a";
+import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20261110e";
+import { validerEmail, validerMotDePasse, messageErreurAuth, configMode, MDP_MIN } from "./gate-rules.js?v=20261110e";
+import { toast } from "./utils.js?v=20261110e";
+import { PHRASE_CONNEXION } from "./espaces-rules.js?v=20261110e";
 
 // Refus décidé APRÈS une connexion réussie côté serveur (aucune promo, compte non invité) :
 // auth-admin.js émet « ecsr:refus-porte » (detail = le motif) juste avant de déconnecter. Un
@@ -21,6 +22,16 @@ document.addEventListener("ecsr:refus-porte", (e) => {
   if (!motif) return;
   if (afficherRefus) afficherRefus(motif);
   else refusEnAttente = motif;
+});
+
+// Lecture des affectations ratée à l'ouverture de la session (auth-admin.js émet « ecsr:connexion-echouee ») : la personne n'est
+// ni refusée ni déconnectée. La carte dit que la connexion a échoué (phrase commune de l'app) et propose « Réessayer », qui
+// recharge la page (une nouvelle ouverture). Même attente que le refus quand l'événement part avant showGate().
+let connexionEchoueeEnAttente = false;
+let afficherConnexionEchouee = null;
+document.addEventListener("ecsr:connexion-echouee", () => {
+  if (afficherConnexionEchouee) afficherConnexionEchouee();
+  else connexionEchoueeEnAttente = true;
 });
 
 export function showGate(mode = "signin") {
@@ -43,7 +54,7 @@ export function showGate(mode = "signin") {
   document.getElementById("app").classList.add("hidden");
   // Mentions légales et conditions lisibles par tout visiteur, avant connexion.
   const legal = document.getElementById("gate-legal");
-  if (legal) legal.onclick = () => import("./legal.js?v=20261110a").then((m) => m.ouvrirInformationsLegales());
+  if (legal) legal.onclick = () => import("./legal.js?v=20261110e").then((m) => m.ouvrirInformationsLegales());
   // Lien direct …/#/informations-legales (envoyé aux élèves bénévoles, qui n'ont pas de
   // compte) : les textes s'ouvrent d'eux-mêmes par-dessus l'écran de connexion.
   if (legal && /informations-legales/.test(location.hash)) legal.onclick();
@@ -108,6 +119,23 @@ export function showGate(mode = "signin") {
     const motif = refusEnAttente;
     refusEnAttente = null;
     afficherRefus(motif);
+  }
+
+  afficherConnexionEchouee = () => {
+    for (const element of [tabs, subtitle, document.querySelector("#gate .gate-form"), oubli, retour, hint, confirmation]) element?.classList.add("hidden");
+    echec(PHRASE_CONNEXION);
+    document.getElementById("gate-reessayer")?.remove();
+    const bouton = document.createElement("button");
+    bouton.type = "button";
+    bouton.id = "gate-reessayer";
+    bouton.className = "btn primary gate-reessayer";
+    bouton.textContent = "Réessayer";
+    bouton.addEventListener("click", () => { bouton.disabled = true; location.reload(); });
+    error.after(bouton);
+  };
+  if (connexionEchoueeEnAttente) {
+    connexionEchoueeEnAttente = false;
+    afficherConnexionEchouee();
   }
 
   // Verrou d'envoi : au-delà du plafond horaire appliqué par Supabase, on

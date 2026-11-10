@@ -3014,6 +3014,9 @@ body.p-dragging-active {
 }
 .gate-link:hover { color: var(--accent); }
 
+/* « Réessayer » après une lecture des affectations ratée à l'ouverture : cible de 44 px, pleine largeur de la carte. */
+#gate .gate-reessayer { display: block; width: 100%; min-height: 44px; margin-top: 1rem; }
+
 .gate-info {
   margin-top: 0.9rem;
   font-size: 0.85rem;
@@ -3879,6 +3882,14 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 /* Formulaire de question de l'éditeur QCM : il s'ouvre PAR-DESSUS .qcm-overlay
    (z-index 1000), sinon il apparaît derrière et tous les clics vont à l'overlay. */
 .modal-backdrop.qcm-form-backdrop { z-index: 1100; }
+/* Une confirmation (js/confirmer.js) répond au geste qu'on vient de faire, où qu'il soit : au-dessus de l'examen QCM
+   (1000), du formulaire de question (1100), des calques de la navigation (1600), sous les messages du bas (2000). */
+.modal-backdrop.confirmer-fond { z-index: 1700; }
+/* demander() : un champ sous la question, et ce qui ne va pas dans la saisie. */
+.confirmer-champ { display: flex; flex-direction: column; gap: 0.3rem; margin: 0 0 0.6rem; font-weight: 600; }
+.confirmer-champ input { min-height: 44px; font: inherit; font-weight: 400; }
+.confirmer-erreur { margin: 0 0 0.6rem; color: var(--c-stop); }
+.confirmer-erreur:empty { display: none; }
 
 @keyframes backdrop-in {
   from { opacity: 0; }
@@ -5965,7 +5976,8 @@ body.qcm-open { overflow: hidden; }
   box-shadow: var(--shadow-3);
   font-size: 0.85rem;
 }
-.impersonation-banner .imp-eye { font-size: 1rem; line-height: 1; }
+.impersonation-banner .imp-eye { display: inline-flex; align-items: center; flex: none; }
+.impersonation-banner .imp-eye .icon { width: 1.1rem; height: 1.1rem; }
 .impersonation-banner .imp-text { white-space: nowrap; }
 .impersonation-banner strong { font-weight: 600; }
 .impersonation-banner .imp-back {
@@ -8648,6 +8660,46 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .centre-avertissement { background: var(--c-wait-soft); color: var(--text); border-radius: var(--r-sm); padding: 0.55rem 0.7rem; }
 .centre-case { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
 .centre-erreur { padding: 1rem 0; }
+/* Pages de la direction qui regardent tout le centre (lot 5, Task 7) : Vue d'ensemble, Émargement, Notes et examens. */
+.centre-promo { margin-left: 0.5rem; background: var(--bg-soft); color: var(--text-soft); white-space: normal; }
+.centre-vide { padding: 1rem 0; }
+.centre-vide p { margin: 0 0 0.75rem; color: var(--text-soft); }
+.centre-detail-promo { min-width: 0; }
+.centre-table td.liste-actions { white-space: nowrap; text-align: right; }
+.centre-table td.liste-actions .btn { min-height: 44px; }
+/* L'export du tableau du centre (CSV) est offert sur ordinateur seulement. */
+@media screen and (max-width: 1079.98px) {
+  .solo-ordinateur, .btn.solo-ordinateur, .at-tout.solo-ordinateur, .em-ligne-actions.solo-ordinateur { display: none; }
+}
+
+/* Vue d'ensemble du réseau et fiche d'un centre (lot 5, Task 11). */
+.reseau-lien { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent-strong); font-weight: 600; text-decoration: none; }
+.reseau-lien:hover { text-decoration: underline; }
+.reseau-remarque { color: var(--text-soft); }
+.reseau-table td { vertical-align: middle; }
+.reseau-table td.num { text-align: left; }
+
+/* Page Promos de la direction (lot 5, Task 8). */
+.promo-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.75rem; align-items: start; }
+.promo-carte { gap: 0.45rem; }
+.promo-carte-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.promo-carte-tete h4 { font-size: 1rem; color: var(--text); margin-right: 0.2rem; overflow-wrap: anywhere; }
+.promo-carte-tete .centre-promo { margin-left: 0; }
+.promo-etat { background: var(--bg-soft); color: var(--text-soft); white-space: nowrap; }
+.promo-etat-cours { background: var(--c-go-soft); color: var(--c-go); }
+.promo-etat-venir { background: var(--c-wait-soft); color: var(--c-wait); }
+.promo-ligne { margin: 0; font-size: 0.88rem; line-height: 1.4; display: flex; flex-wrap: wrap; gap: 0.1rem 0.6rem; align-items: baseline; }
+.promo-etiquette { flex: none; min-width: 5.6rem; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.promo-avancement { align-items: center; }
+.promo-barre { flex: 1 1 6rem; min-width: 5rem; height: 0.55rem; border-radius: 999px; background: var(--bg-soft); overflow: hidden; display: block; }
+.promo-barre-remplie { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.promo-pct { font-family: var(--font); font-variant-numeric: tabular-nums; font-size: 0.82rem; color: var(--text-soft); white-space: nowrap; }
+.promo-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.35rem; }
+.promo-actions .btn { min-height: 44px; }
+.promo-modules { grid-column: 1 / -1; min-width: 0; }
+.promo-refus { margin: 0; min-height: 1.2em; font-size: 0.9rem; color: var(--c-stop); }
+.promo-fenetre input, .promo-fenetre select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.promo-fenetre .modal-actions .btn { min-height: 44px; }
 
 @media (max-width: 640px) {
   .centre-themes { grid-template-columns: 1fr; }
@@ -8723,6 +8775,80 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 @media (max-width: 760px) {
   .gate-tab, .gate-form .btn, .gate-link { min-height: 44px; }
   .gate-link { display: block; margin-left: auto; margin-right: auto; padding: 0 0.5rem; }
+}
+
+/* Page Stagiaires de la direction (lot 5, Task 9). */
+.stg-filtre { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 0.75rem; margin: 0 0 1.25rem; }
+.stg-filtre .field { min-width: 0; }
+.stg-filtre input, .stg-filtre select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.stg-phrase { margin: 0 0 1rem; padding: 0.6rem 0.8rem; border-radius: 10px; background: var(--bg-soft); color: var(--text); }
+.stg-groupe .stg-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.2rem 0.75rem; }
+.stg-groupe .stg-ligne { min-height: 44px; }
+.stg-compte { font-size: 0.88rem; }
+.stg-anonymises { margin: 0.5rem 0 0; font-size: 0.85rem; }
+.stg-abandons { margin-top: 0.5rem; }
+.stg-abandons summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--text-soft); }
+.stg-ligne-abandon .stg-nom { color: var(--text-soft); font-weight: 500; }
+.stg-gestion { margin-top: 1rem; }
+.stg-groupe .promo-actions { margin-top: 0.75rem; }
+.stg-gestion .config-list li, .stg-gestion .config-add, .stg-gestion .abandon-row { flex-wrap: wrap; }
+.stg-gestion .config-list input, .stg-gestion .config-add input { flex: 1 1 8rem; min-width: 0; }
+.stg-centre .btn, .stg-gestion .config-list input, .stg-gestion .config-add input, .stg-gestion .invite-form select,
+.stg-gestion .invite-form input { min-height: 44px; box-sizing: border-box; }
+@media (max-width: 760px) {
+  .stg-filtre { grid-template-columns: minmax(0, 1fr); }
+  .stg-groupe .stg-liste { display: flex; }
+}
+
+/* Page Équipe de la direction (lot 5, Task 10). */
+.equipe-nom { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.15rem 0.5rem; }
+.equipe-adresse { font-size: 0.82rem; overflow-wrap: anywhere; }
+.equipe-role { background: var(--bg-soft); color: var(--text-soft); white-space: nowrap; }
+.equipe-role-direction { background: var(--accent-soft); color: var(--accent-strong); }
+.equipe-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; }
+.equipe-centre .btn { min-height: 44px; }
+.equipe-actions .btn { display: inline-flex; align-items: center; gap: 0.35rem; }
+.equipe-actions .btn svg { width: 16px; height: 16px; flex: none; }
+.equipe-fenetre { max-height: calc(100dvh - 2rem); overflow-y: auto; }
+.equipe-intro, .equipe-note { margin: 0; font-size: 0.88rem; overflow-wrap: anywhere; }
+.equipe-fenetre input[type="email"], .equipe-fenetre select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.equipe-cases { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.equipe-cases legend { padding: 0; margin-bottom: 0.3rem; font-size: 0.9rem; font-weight: 600; color: var(--text); }
+.equipe-case { display: flex; align-items: center; gap: 0.6rem; min-height: 44px; padding: 0 0.5rem; border-radius: var(--r-sm); cursor: pointer; overflow-wrap: anywhere; }
+.equipe-case:hover { background: var(--bg-subtle); }
+.equipe-case input { width: 20px; height: 20px; flex: none; margin: 0; }
+@media screen and (max-width: 1079.98px) {
+  .equipe-table .liste-actions { order: 5; flex-basis: 100%; margin-left: 0; }
+  .equipe-actions { justify-content: flex-start; }
+}
+
+/* ===== Cours et QCM du siège : sans promo, ni statut ni date (lot 5, tâche 13) =====
+   Le siège rédige les contenus communs : la liste des thèmes n'a que le numéro, le titre, le cours et le QCM. Les grilles
+   reprennent celles d'au-dessus sans les colonnes Statut et Fait le (même ordre des sources, une classe de plus). */
+.themes-list.sans-promo .theme-row { grid-template-columns: 50px 1fr 36px; }
+.themes-list.sans-promo.qcm-on .theme-row { grid-template-columns: 50px 1.2fr minmax(170px, 0.8fr) 36px; }
+.themes-list.sans-promo.cours-on .theme-row { grid-template-columns: 50px 1fr 100px 36px; }
+.themes-list.sans-promo.cours-on.qcm-on .theme-row { grid-template-columns: 50px 1fr 100px minmax(170px, 0.7fr) 36px; }
+@media (max-width: 720px) {
+  .themes-list.sans-promo .theme-row,
+  .themes-list.sans-promo.qcm-on .theme-row,
+  .themes-list.sans-promo.cours-on .theme-row,
+  .themes-list.sans-promo.cours-on.qcm-on .theme-row {
+    grid-template-columns: 36px 1fr;
+    grid-template-areas: "num titre" ". cours" ". qcm";
+  }
+  .themes-list.sans-promo .theme-row .theme-cours-cell { grid-area: cours; margin-top: 0.2rem; justify-self: start; }
+  .themes-list.sans-promo .theme-row .theme-qcm-cell { grid-area: qcm; margin-top: 0.2rem; justify-self: stretch; }
+  .themes-list.sans-promo .theme-titre-link { min-height: 44px; }
+}
+@media (max-width: 480px) {
+  .themes-list.sans-promo .theme-row,
+  .themes-list.sans-promo.qcm-on .theme-row,
+  .themes-list.sans-promo.cours-on .theme-row,
+  .themes-list.sans-promo.cours-on.qcm-on .theme-row {
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "num titre" "cours cours" "qcm qcm";
+  }
 }
 
 /* ============================================================
