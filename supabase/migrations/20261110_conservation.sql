@@ -578,6 +578,23 @@ revoke all on function public.etat_conservation(), public.effacer_promo_etape1(i
 grant execute on function public.etat_conservation(), public.effacer_promo_etape1(integer),
   public.effacer_promo_etape2(integer), public.effacer_sur_demande(integer) to authenticated, service_role;
 
+-- 8 bis. Fiches effacées à la demande, lisibles par toute l'équipe d'une promo (tableau de bord, dossiers) --------------
+-- La règle de lecture du journal suit la seule promo affichée : une lecture directe laisserait vides les lignes des autres
+-- promos pour un formateur. Cette fonction rend les seuls identifiants de fiche (type « demande ») des promos que
+-- l'appelant peut lire, jamais le texte du journal.
+create function public.fiches_effacees_sur_demande(p_promo_ids integer[])
+returns setof integer language sql stable security definer set search_path to 'public', 'pg_temp' as $function$
+  select s.id
+    from stagiaires s
+   where s.promo_id = any (coalesce(p_promo_ids, '{}'::integer[]))
+     and peut_acceder_promo(s.promo_id)
+     and exists (select 1 from effacements_journal j where j.type = 'demande' and j.cible = 'stagiaire ' || s.id)
+   order by s.id;
+$function$;
+
+revoke all on function public.fiches_effacees_sur_demande(integer[]) from public, anon, authenticated, service_role;
+grant execute on function public.fiches_effacees_sur_demande(integer[]) to authenticated, service_role;
+
 -- 9. Émargement : une fiche sans nom ne signe plus, n'est plus annotée, ne reçoit plus d'absence ------------------
 -- create or replace : droits d'exécution du 23/10 gardés. emargement_signer : version du lot 4 (formateur_courant),
 -- emargement_annoter et emargement_clore : versions du 23/10 ; seule la condition sur la fiche change.

@@ -310,6 +310,7 @@ alter table public.questionnaire_participations
 
 -- 1. Fonctions de ce lot ---------------------------------------------------------------------------------------------
 drop function public.effacer_sur_demande(integer);
+drop function public.fiches_effacees_sur_demande(integer[]);
 drop function public.effacer_promo_etape2(integer);
 drop function public.effacer_promo_etape1(integer);
 drop function public.etat_conservation();
