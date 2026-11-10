@@ -8,9 +8,19 @@
 --   3. _anonymiser_stagiaire citait les deux : recréée d'abord sans la ligne fiches_suivi ni la ligne
 --      themes.updated_by_email (la trace de la promo vit dans themes_progression, toujours anonymisée). create or
 --      replace : mêmes paramètres, même retour, droits d'exécution inchangés (postgres et service_role).
+--      Croisement avec Qualiopi Q5 (qui remplace l'anonymisation par effacer_promo_etape1/2 et effacer_sur_demande) :
+--      si effacer_sur_demande existe déjà, la fonction n'est PAS recréée (Q5 l'a retirée). Dans tous les cas, un
+--      contrôle final annule tout si une fonction de la base cite encore fiches_suivi ou themes.updated_by_email.
 -- Un verrou qui tarde fait échouer la migration (rien n'est appliqué, on relance) au lieu de faire attendre l'app.
 set local lock_timeout = '3s';
 
+do $garde$
+begin
+  if to_regproc('public.effacer_sur_demande') is not null then
+    raise notice 'Qualiopi Q5 en place : _anonymiser_stagiaire n''est pas recréée.';
+    return;
+  end if;
+  execute $def$
 CREATE OR REPLACE FUNCTION public._anonymiser_stagiaire(p_id integer)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -112,7 +122,10 @@ begin
 
   return v_n;
 end;
-$function$;
+$function$
+  $def$;
+end
+$garde$;
 
 -- 1. Ménage du multi-promo.
 drop trigger if exists trg_sync_themes_progression on public.themes;
@@ -135,3 +148,15 @@ delete from public.settings where promo_id is null and key in ('cohort_name', 'p
 
 -- 2. Critère « souhaits » du placement.
 drop table if exists public.fiches_suivi;
+
+-- 3. Contrôle : plus aucune fonction ne cite ce qui vient de disparaître (sinon elle échouerait à l'exécution).
+do $controle$
+begin
+  if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public'
+                and (p.prosrc ilike '%fiches_suivi%'
+                     or p.prosrc ~* 'update\s+(public\.)?themes\s+set\s+updated_by_email')) then
+    raise exception 'Une fonction cite encore fiches_suivi ou themes.updated_by_email : migration annulée.';
+  end if;
+end
+$controle$;
