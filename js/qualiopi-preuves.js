@@ -57,7 +57,7 @@ import { estNotee } from "./notes-stats.js?v=20261110a";
 import { ACTIVITY_SHAPES } from "./config.js?v=20261110a";
 import { jourFerie } from "./emargement-rules.js?v=20261110a";
 import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261110a";
-import { presenceDePromo } from "./qualiopi-presence.js?v=20261110a";
+import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261110a";
 import { parseDate, addDays, isoDate } from "./utils.js?v=20261110a";
 import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261110a";
 import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261110a";
@@ -327,9 +327,7 @@ const CONSTRUCTEURS = {
   // effacées à la demande comprises. Une feuille ouverte n'est pas comptée. Sans feuille close, ou lecture en échec, la raison le dit.
   assiduite: ({ presence: p }) => {
     if (p.etat === "non_lue") return absente("feuilles d'émargement non lues (erreur de lecture)");
-    if (p.etat === "absente") {
-      return absente(p.ouvertes ? "feuilles ouvertes seulement, aucune feuille close" : "feuilles d'émargement non utilisées pour cette promo");
-    }
+    if (p.etat === "absente") return absente(raisonAbsence(p));
     const ouvertes = p.ouvertes ? `, ${nb(p.ouvertes, "feuille ouverte non comptée", "feuilles ouvertes non comptées")}` : "";
     return presente(`${avecPlage(nb(p.feuilles, "feuille close", "feuilles closes"), [p.premier, p.dernier])}, ${dureeEnToutesLettres(p.realiseesMin)} réalisées sur ${dureeEnToutesLettres(p.prevuesMin)} prévues (${pct(p.taux)})${ouvertes}`);
   },

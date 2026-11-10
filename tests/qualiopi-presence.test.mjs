@@ -58,7 +58,7 @@ test("presenceDePromo : promo avec feuilles, totaux sur toutes les lignes des fe
 
 test("presenceDePromo : sans feuille, feuilles ouvertes seulement, lecture en échec", () => {
   assert.equal(presenceDePromo({ etat: "lue", seances: [] }, 1).etat, "absente");
-  assert.deepEqual(presenceDePromo({ etat: "lue", seances: [S3] }, 1), { etat: "absente", ouvertes: 1 });
+  assert.deepEqual(presenceDePromo({ etat: "lue", seances: [S3] }, 1), { etat: "absente", motif: "ouvertes", ouvertes: 1 });
   assert.deepEqual(presenceDePromo({ etat: "non_lue" }, 1), { etat: "non_lue" });
   assert.deepEqual(presenceDePromo(undefined, 1), { etat: "non_lue" });
   assert.equal(presenceDePromo({ etat: "lue", seances: [{ ...S1, promo_id: 9 }] }, 1).etat, "absente", "feuille d'une autre promo : écartée");
@@ -150,4 +150,24 @@ test("lecture : une seule lecture des feuilles par promo, légère, qui ne fait 
   assert.equal((db.match(/^\s+lireEmargementDeLaPromo\(promoId\),/gm) || []).length, 1, "appelée une fois par lecture de promo");
   const vue = readFileSync(new URL("../js/views/qualiopi.js", import.meta.url), "utf8");
   assert.ok(!/listEmargement/.test(vue), "la page ne relit pas les feuilles : elle prend celles de la lecture de la promo");
+});
+
+test("quatre cas, la pièce et le dossier disent la même chose : aucune feuille, ouvertes seules, closes sans ligne, closes avec lignes", () => {
+  const cas = [
+    ["aucune feuille", { etat: "lue", seances: [] }, "aucune", "feuilles d'émargement non utilisées pour cette promo"],
+    ["feuilles ouvertes seulement", { etat: "lue", seances: [S3] }, "ouvertes", "feuilles ouvertes seulement, aucune feuille close"],
+    ["closes sans ligne", { etat: "lue", seances: [{ ...S1, lignes: [] }, S3] }, "sans_ligne", "feuilles closes sans aucune ligne de stagiaire"],
+  ];
+  for (const [nom, emargement, motif, raison] of cas) {
+    assert.equal(presenceDePromo(emargement, 1).motif, motif, `${nom} : état`);
+    const { inv, modele } = formation(D(emargement));
+    assert.equal(pieceAssiduite(inv).raison, raison, `${nom} : pièce`);
+    const examen = sectionDe(modele, "examen");
+    assert.ok(examen.paragraphes.includes(`Heures de formation : non mesurées (${raison}).`), `${nom} : phrase du dossier`);
+    assert.ok(examen.tableaux[0].lignes.every((l) => l[3] === `non mesurées (${raison})`), `${nom} : tableau du dossier`);
+    assert.ok(sectionDe(modele, "assiduite").paragraphes[0].includes(raison), `${nom} : section d'assiduité`);
+  }
+  const avec = presenceDePromo(LUE, 1);
+  assert.equal(avec.etat, "mesuree");
+  assert.equal(pieceAssiduite(formation(D(LUE)).inv).presente, true, "closes avec lignes : pièce présente");
 });
