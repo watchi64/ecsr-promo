@@ -213,7 +213,7 @@ Contrôles par vue
     (le premier examen ou stage qui n'est pas passé) : jamais de nombre négatif ; un stage commencé dit « En cours, fin dans N jours » (« fin demain »,
     « fin aujourd'hui ») et sa pastille dit « En cours », sans nombre ni habillage de compte à rebours (vague finale, F9 : jamais « Aujourd'hui ! » pour un stage qui finit
     aujourd'hui) ; un événement à venir garde sa pastille d'avant (« 9 jours », « Aujourd'hui ! » le jour où il commence), sans ligne « en cours » ;
-  * pied de l'Accueil (vague finale, F7, puis audit du 09/11, A8) : avec la nouvelle navigation, « TP ECSR App · Promo <nom de la promo affichée> · connecté comme
+  * pied de l'Accueil (vague finale, F7, puis audit du 09/11, A8) : avec la nouvelle navigation, « TP ECSR App · Promo <nom de la promo affichée> · connecté en tant que
     <rôle> », le vrai rôle (aperçu, fondateur, rôle sur la promo ; jamais « admin ») ; avec l'ancienne, le texte de main (« Promo 2026 » écrit en dur, « admin ») ;
   * Planning > Semaine, sur la semaine du jour : ni « Lecture seule... », ni « Consultation », ni boutons « Cette semaine », « Aujourd'hui »,
     « Revenir à aujourd'hui » ou « Émargement », pour le stagiaire comme pour l'équipe (audit du 09/11, lots E et B) ; hors édition, pas de
@@ -1800,7 +1800,7 @@ async function accueil() {
     carte: carte ? { titre: de(carte, ".home-countdown-title"), pastille: de(carte, ".home-countdown-pill"),
       classe: (carte.querySelector(".home-countdown-pill") || {}).className || null,
       statut: de(carte, ".home-countdown-statut"), texte: texte(carte) } : null,
-    // Vague finale, F7 : le pied de page (« TP ECSR App · Promo ... · connecté comme ... ») et qui est connecté (de quoi en déduire le rôle écrit).
+    // Vague finale, F7 : le pied de page (« TP ECSR App · Promo ... · connecté en tant que ... ») et qui est connecté (de quoi en déduire le rôle écrit).
     piedTexte: (() => { const e = vue.querySelector(".home-footer-v2 p"); return e ? net(e.textContent) : null; })(),
     qui: { admin: auth.isAdmin(), role: (auth.getProfile() || {}).role || null, fondateur: !!(auth.getProfile() || {}).is_founder,
       apercu: auth.getViewAs ? auth.getViewAs() : null, roles: (db.getPromoCourante() || {}).roles || null },
@@ -1817,6 +1817,7 @@ function accueilStagiaire() {
   return {
     pastille: pastille ? { texte: net(pastille.textContent), parties: [...pastille.children].map((e) => net(e.textContent)) } : null,
     titre: (vue.querySelector(".home-title-v2") || {}).textContent || null,
+    salut: (vue.querySelector(".home-salut-v2") || {}).textContent || null,
     cartes: [...vue.querySelectorAll(".acc-carte")].map((c) => { const r = c.getBoundingClientRect();
       return { zone: c.dataset.zone, titre: net(c.querySelector("h2").textContent), texte: net(c.querySelector(".acc-corps").textContent), haut: haut(c), bas: bas(c), gauche: r.left, droite: r.right }; }),
     tuiles: vue.querySelectorAll(".home-tile").length,
@@ -3417,7 +3418,7 @@ def verifier_texte_de_l_anonymat(res, vue, p, type_):
 # suivi se lit aussi chez qui n'a pas cette entrée (fondateur).
 TITRES_DES_PAGES = {
     "equipe": ("home", "emargement", "stagiaires", "notes", "themes", "centre", "config", "ccp2"),
-    "stagiaire": ("themes", "mon-suivi", "ccp2"),
+    "stagiaire": ("home", "themes", "mon-suivi", "ccp2"),   # « home » : titré « Accueil » depuis le 10/11
 }
 # Parmi elles, celles dont le surtitre est le nom de la promo affichée (CCP2 garde « Titre professionnel ECSR »).
 SURTITRE_PROMO = ("emargement", "stagiaires", "notes", "themes", "centre", "config", "mon-suivi")
@@ -3436,7 +3437,7 @@ def verifier_titre_de_page(page, res, sc, route, libelle):
     if p["route"] != route:
         return   # la page n'est pas celle qu'on attendait : le défaut est noté à l'ouverture
     if route == "home":
-        # Aujourd'hui : un titre de la signature de l'app (h1, sous la pastille de date), pas un en-tête de page.
+        # Aujourd'hui (l'équipe) et Accueil (le stagiaire) : un titre de la signature de l'app (h1, sous la pastille de date), pas un en-tête de page.
         titre = page.evaluate("() => (document.querySelector('#view .home-title-v2') || {}).textContent || null")
         if (titre or "").strip() != libelle:
             res.echec("titre de page", vue, "le titre de #/home est « %s », le libellé de son entrée « %s »" % (titre, libelle))
@@ -4184,7 +4185,7 @@ def verifier_pied_et_retenir(res, vue, m, navigation):
 
 
 def verifier_pied_de_l_accueil(res, vue, m, nouvelle):
-    """Le pied de l'Accueil dit la promo et le rôle (vague finale, F7). Avec la nouvelle navigation : « TP ECSR App · Promo <nom de la promo affichée> · connecté comme
+    """Le pied de l'Accueil dit la promo et le rôle (vague finale, F7). Avec la nouvelle navigation : « TP ECSR App · Promo <nom de la promo affichée> · connecté en tant que
     <rôle> », le vrai rôle (audit du 09/11, A8) : l'aperçu « Voir en tant que » (« direction (aperçu) »), sinon « fondateur », sinon le rôle sur la promo
     (formateur, direction, siège, stagiaire), jamais « admin ». Avec l'ancienne : le texte de main, « Promo 2026 » écrit en dur, « admin » compris.
     Le rôle se déduit de la personne connectée, lue dans la page (aperçu, fondateur, rôles sur la promo, administrateur, rôle de profil)."""
@@ -4201,7 +4202,7 @@ def verifier_pied_de_l_accueil(res, vue, m, nouvelle):
     else:
         role = "formateur" if qui["admin"] else {"prof": "formateur", "stagiaire": "stagiaire"}.get(qui["role"], "")
     promo = ("Promo %s" % m["promo"]["nom"]) if nouvelle else "Promo 2026"
-    attendu = "TP ECSR App · %s · connecté comme %s" % (promo, role) if role else "TP ECSR App · %s ·" % promo
+    attendu = "TP ECSR App · %s · connecté en tant que %s" % (promo, role) if role else "TP ECSR App · %s ·" % promo
     if m["piedTexte"] != attendu:
         res.echec("pied de l'accueil", vue, "le pied de page dit « %s », attendu « %s » (%s navigation)" % (m["piedTexte"], attendu, "nouvelle" if nouvelle else "ancienne"))
 
@@ -5207,8 +5208,11 @@ def verifier_accueil_voir_en_tant_que_stagiaire(page, res, sc, vue):
     attendre_accueil(page)
     res.vues += 1
     m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
-    if not re.match(r"^(Bonjour|Bon après-midi|Bonsoir), ", (m["titre"] or "").strip()) or [c["zone"] for c in m["cartes"]] != [z for z, _ in ZONES_DE_L_ACCUEIL]:
-        res.echec("accueil en aperçu stagiaire", vue, "l'accueil n'est pas celui du stagiaire : titre « %s », cartes %s" % (m["titre"], [c["zone"] for c in m["cartes"]]))
+    # Décision du 10/11 : le titre est « Accueil » (une page, un nom), la salutation par le prénom passe dessous.
+    if ((m["titre"] or "").strip() != "Accueil" or not re.match(r"^(Bonjour|Bon après-midi|Bonsoir), ", (m["salut"] or "").strip())
+            or [c["zone"] for c in m["cartes"]] != [z for z, _ in ZONES_DE_L_ACCUEIL]):
+        res.echec("accueil en aperçu stagiaire", vue, "l'accueil n'est pas celui du stagiaire : titre « %s », salutation « %s », cartes %s"
+                  % (m["titre"], m["salut"], [c["zone"] for c in m["cartes"]]))
     if not res.profil_stagiaire:
         dedans = page.evaluate("() => ({ puces: document.querySelectorAll('#view .acc-puce').length, signes: document.querySelectorAll('#view .acc-signe').length,"
                                " boutons: document.querySelectorAll('#view .acc-creneau button.btn').length })")

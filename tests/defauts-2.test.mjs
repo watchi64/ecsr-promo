@@ -147,7 +147,7 @@ test("A7 : passée avec une activité au planning, la case dit « Feuille non fa
     { etat: "Pas de feuille", classe: "vide" });
 });
 
-// === A8 : « connecté comme » dit le vrai rôle ===
+// === A8 : « connecté en tant que » dit le vrai rôle ===
 
 test("A8 : le rôle de la personne sur la promo, ou celui de l'aperçu", () => {
   const promo = (roles) => ({ id: 1, roles });

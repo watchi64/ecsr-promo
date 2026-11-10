@@ -301,7 +301,7 @@ export async function renderHome(container) {
   container.appendChild(el("footer", { class: "home-footer-v2" },
     el("p", {},
       debutDuPied,
-      roleLabel ? el("span", { class: "footer-role" }, "connecté comme " + roleLabel.toLowerCase()) : "",
+      roleLabel ? el("span", { class: "footer-role" }, "connecté en tant que " + roleLabel.toLowerCase()) : "",
     ),
     el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
       lienReglages,   // plus de lien « code source » : décision de Timy du 09/11

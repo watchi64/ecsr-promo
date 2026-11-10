@@ -260,7 +260,7 @@
   --doc-gris-vert: #46554A;
   --doc-avertissement: #8A6A1F;                      /* fiche des résultats à publier : bandeau d'avertissement */
   --doc-avertissement-fond: #FBF2D9;
-  --doc-dp-vide: #9a9a9a;                            /* dossier professionnel : repère de saisie et sommaire vide */
+  --doc-dp-vide: #737373;                            /* dossier professionnel : repère de saisie et sommaire vide ; 4,7:1, était #9a9a9a (2,8:1), décision du 10/11 */
   --doc-dp-note: #716D63;                            /* coupure de page et mention d'une fiche exclue, à l'écran seulement : 5:1 ; était #8a8578 (3,6:1) */
   --doc-dp-exclu-fond: #fbfbfa;
   --doc-dp-exclu-trait: #c9c6bd;
@@ -1769,6 +1769,18 @@ h3 {
 .home-title-v2 em {
   font-style: normal;
   font-weight: var(--poids-titre); /* le prénom garde le poids plein du titre, quel que soit l'habillage */
+  color: var(--accent);
+}
+/* Accueil du stagiaire : la salutation sous le titre « Accueil » (une page, un nom : décision du 10/11). */
+.home-salut-v2 {
+  font-size: 1.25rem;
+  line-height: 1.3;
+  margin: -0.4rem 0 0.35rem;
+  color: var(--text);
+}
+.home-salut-v2 em {
+  font-style: normal;
+  font-weight: var(--poids-titre);
   color: var(--accent);
 }
 .home-lead-v2 {

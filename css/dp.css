@@ -16,7 +16,7 @@
   --dp-magenta: #d60093;
   --dp-texte: #404040;
   --dp-gris-entete: #595959;
-  --dp-gris-pied: #7f7f7f;
+  --dp-gris-pied: #737373;   /* était #7f7f7f (4,0:1) ; #737373 passe 4,7:1, écart invisible à l'œil (décision du 10/11) */
   --dp-filet: #d9d9d9;
   --dp-cadre: #bfbfbf;
   --dp-gris-clair: #f2f2f2;

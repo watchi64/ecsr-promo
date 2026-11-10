@@ -289,7 +289,7 @@ export function renderAujourdhui(container) {
   // Pied de page : celui de l'Accueil d'avant, pour l'équipe.
   const nomPromo = promo?.nom || "";
   container.appendChild(el("footer", { class: "home-footer-v2" },
-    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" }, "connecté comme " + (libelleConnexion({ profil: getProfile(), promo, apercu: getViewAs() }) || "formateur"))),
+    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" }, "connecté en tant que " + (libelleConnexion({ profil: getProfile(), promo, apercu: getViewAs() }) || "formateur"))),
     // Plus de lien « code source » : décision de Timy du 09/11, le code reste discret.
     el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
       el("a", { href: "#/config" }, "réglages")),

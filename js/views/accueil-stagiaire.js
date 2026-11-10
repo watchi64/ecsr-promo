@@ -264,7 +264,9 @@ export function renderAccueilStagiaire(container) {
 
   container.appendChild(el("section", { class: "home-hero-v2" },
     pastilleDuJour(maintenant),
-    el("h1", { class: "home-title-v2" }, salutationDe(maintenant.getHours()) + ", ", el("em", {}, prenom)),
+    // Une page, un nom (décision du 10/11) : le titre est celui de l'entrée, « Accueil » ; la salutation passe dessous.
+    el("h1", { class: "home-title-v2" }, "Accueil"),
+    el("p", { class: "home-salut-v2" }, salutationDe(maintenant.getHours()) + ", ", el("em", {}, prenom)),
     ligne ? el("p", { class: "home-lead-v2" }, ligne) : null,
   ));
   // Questionnaire anonyme à remplir (Qualiopi), sous la salutation et avant les cartes : l'emplacement est posé tout de
@@ -300,7 +302,7 @@ export function renderAccueilStagiaire(container) {
   const nomPromo = getPromoCourante()?.nom || "";
   container.appendChild(el("footer", { class: "home-footer-v2" },
     el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" },
-      "connecté comme " + (libelleConnexion({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() }) || "stagiaire"))),
+      "connecté en tant que " + (libelleConnexion({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() }) || "stagiaire"))),
     // Plus de lien « code source » : décision de Timy du 09/11, le code reste discret.
   ));
 

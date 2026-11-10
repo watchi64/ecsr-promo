@@ -716,6 +716,22 @@ function renderApparenceSection() {
   );
 }
 
+// Réglages de la promo (nouvelle navigation) : au test du premier clic, les formatrices ont cherché les couleurs ici. La
+// section les renvoie à Mes préférences, où le choix se fait pour chaque personne (décision du 10/11, lot 3).
+function renderApparenceRenvoi() {
+  return el("section", { class: "param-section param-renvoi-apparence" },
+    el("div", { class: "param-section-head" },
+      el("div", { class: "param-icon" }, icon.palette()),
+      el("div", {},
+        el("h3", {}, "Apparence"),
+        el("p", { class: "muted" }, "Les couleurs de l'app se choisissent pour chaque personne, dans Mes préférences."),
+      ),
+    ),
+    el("div", { class: "param-block" },
+      el("a", { class: "btn small", href: "#/preferences" }, "Ouvrir Mes préférences")),
+  );
+}
+
 // ====== SECTION Infos ======
 
 function renderInfoSection() {
@@ -808,7 +824,7 @@ async function rerender(container) {
     // Apparence en tête pour qui est en Couleurs ECF seulement (décision H6), le moyen de revenir à ECSR Promo.
     const apparence = !v2 && habillageCourant() === "ecf" ? renderApparenceSection() : null;
     const sections = v2
-      ? [modules, promo, acces, emargement, navigation, donnees]
+      ? [modules, promo, acces, emargement, navigation, donnees, renderApparenceRenvoi()]
       : [apparence, acces, preferences, modules, emargement, navigation, promo, donnees, infos];
     sections.filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);

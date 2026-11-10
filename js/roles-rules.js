@@ -171,7 +171,7 @@ export function etiquetteBadge({ profil, promo } = {}) {
   return { libelle: "", classe: "" };
 }
 
-// Le rôle que dit le pied de page (« connecté comme … ») : celui de l'aperçu « Voir en tant que » s'il y en a un ; sinon
+// Le rôle que dit le pied de page (« connecté en tant que … ») : celui de l'aperçu « Voir en tant que » s'il y en a un ; sinon
 // « fondateur » pour le fondateur (qui peut aussi être stagiaire d'une promo : hors aperçu, il est dans l'espace de l'équipe) ;
 // sinon le rôle réel sur la promo affichée, dans l'ordre du badge (formateur, direction, siège, stagiaire). Avant l'audit du
 // 09/11 (A8), Aujourd'hui écrivait « formateur » pour tout le monde.

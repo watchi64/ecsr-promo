@@ -304,7 +304,7 @@ export async function renderEpcfLivret(container, opts = {}) {
     const mine = (myId != null && rows.find((r) => r.stagiaire_id === myId)) || rows[0];
     if (!mine) {
       container.appendChild(el("p", { class: "muted" },
-        "Ton livret officiel EPCF n'a pas encore été créé par les formateurs."));
+        "Ton livret EPCF n'est pas encore commencé. C'est ton formateur évaluateur qui le remplit."));
       return;
     }
     // Son identité, comme chez le formateur : sans sa fiche, Nom, Prénom et Date de naissance restaient vides tant que le
@@ -316,7 +316,7 @@ export async function renderEpcfLivret(container, opts = {}) {
       fiche = await getStagiaire(myId).catch((e) => { console.error(e); return null; });
       if (opts.isActive && !opts.isActive()) return;
     }
-    showDoc(container, fiche, mine, { readOnly: true, embedded: opts.embedded });
+    showDoc(container, fiche, mine, { readOnly: true, embedded: opts.embedded, pourStagiaire: true });
     return;
   }
 
@@ -400,13 +400,14 @@ async function renderReload(container) {
 
 // Ouvre le document d'un stagiaire. stagiaire=null en mode stagiaire connecté
 // (row déjà chargée). readOnly force la consultation pure.
-function showDoc(container, stagiaire, row, { readOnly, back, embedded } = {}) {
+function showDoc(container, stagiaire, row, { readOnly, back, embedded, pourStagiaire } = {}) {
   clear(container);
   const data = row?.data || {};
   const stagiaireId = stagiaire ? stagiaire.id : row.stagiaire_id;
 
   // --- Barre d'outils écran ---
-  const status = el("span", { class: "lv-status" }, readOnly ? "Lecture seule" : "");
+  // Le stagiaire consulte : la phrase plus bas dit qui remplit, l'étiquette « Lecture seule » ne lui apprend rien de plus.
+  const status = el("span", { class: "lv-status" }, readOnly && !pourStagiaire ? "Lecture seule" : "");
   const toolbar = el("div", { class: "lv-toolbar" });
   if (back) toolbar.appendChild(el("button", { class: "btn small ghost", onClick: () => { teardownLivretPrint(); back(); } }, "← Retour"));
   // Dans Mon suivi ou la fiche du stagiaire, l'onglet (ou le titre de la partie) dit déjà « Livret EPCF », et la fiche dit
@@ -419,6 +420,11 @@ function showDoc(container, stagiaire, row, { readOnly, back, embedded } = {}) {
     window.print();
   } }, "Imprimer / PDF"));
   container.appendChild(toolbar);
+  // Décision du 10/11 : le stagiaire consulte son livret, il n'y remplit rien ; la page dit qui le remplit.
+  if (pourStagiaire) {
+    container.appendChild(el("p", { class: "lv-hint" },
+      "Ton formateur évaluateur remplit ce livret. Tu le consultes ici, et tu peux l'imprimer."));
+  }
   if (!readOnly) {
     container.appendChild(el("p", { class: "lv-hint" },
       "Clique dans les zones en pointillés pour remplir, sur les cases pour cocher. Enregistrement automatique."));
