@@ -1,5 +1,5 @@
 import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261110e";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe } from "../utils.js?v=20261110e";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe, nomLisible } from "../utils.js?v=20261110e";
 import { confirmer } from "../confirmer.js?v=20261110e";
 import { icon } from "../icons.js?v=20261110e";
 import { recordUndo } from "../undo.js?v=20261110e";
@@ -177,7 +177,7 @@ function renderTable(container) {
       onClick: () => openAddModal(() => reload(container), p),
     }, "✎") : null;
 
-    const whoLabel = p.created_by_who || (p.origine === "Planning" ? "Auto" : "-");
+    const whoLabel = nomLisible(p.created_by_who) || (p.origine === "Planning" ? "Auto" : "-");
     const isAdmin_ = whoLabel.includes("@");
 
     const tr = el("tr", {},
@@ -229,7 +229,7 @@ async function openAuditModal() {
     }
     audit.forEach((a) => {
       const time = new Date(a.changed_at).toLocaleString("fr-FR");
-      const who = a.changed_by_who || "Anonyme";
+      const who = nomLisible(a.changed_by_who) || "Anonyme";
       const actLabel = a.action === "insert" ? "Création" : a.action === "update" ? "Modification" : "Suppression";
 
       let summary = "";

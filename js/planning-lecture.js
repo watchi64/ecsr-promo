@@ -4,7 +4,7 @@
 import {
   getPlanning, getHalfMetaForWeek, getJoursOff, listStagiaires, listProfs, listThemes, listBenevolesNoms,
 } from "./db.js?v=20261110e";
-import { displayStagiaire } from "./utils.js?v=20261110e";
+import { displayStagiaire, nomLisible } from "./utils.js?v=20261110e";
 
 export { lundiEnCours } from "./journee-rules.js?v=20261110e";
 
@@ -17,9 +17,7 @@ export function nomsStagiaires(liste) {
 // Nom d'un élève bénévole lu par la fonction benevoles_noms de la base, qui l'écrit encore « M. Pierre » (initiale du
 // nom, point, prénom) : remis au format des écrans, « Pierre M. ». Un nom sans initiale en tête reste tel quel.
 export function nomBenevole(display) {
-  const texte = String(display ?? "").trim();
-  const m = texte.match(/^(\p{Lu})\.\s+(.+)$/u);
-  return m ? `${m[2]} ${m[1]}.` : texte;
+  return nomLisible(display);
 }
 
 // `{ entries, metas, joursOff, noms }` de la semaine du lundi donné. `noms` est la forme

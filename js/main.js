@@ -10,7 +10,7 @@ import {
 } from "./db.js?v=20261110e";
 import { toast, annoncer, el } from "./utils.js?v=20261110e";
 import { icon } from "./icons.js?v=20261110e";
-import { initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu, selonPublic } from "./auth-admin.js?v=20261110e";
+import { initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, getProfileNom, fondateurHorsApercu, selonPublic } from "./auth-admin.js?v=20261110e";
 import { getEspace, getCentre } from "./auth-admin.js?v=20261110e";
 import {
   ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage, promosDuCentre, defautsHabillage,
@@ -105,7 +105,7 @@ function renderTabs() {
     try {
       document.getElementById("tabs").replaceChildren();
       const espace = espaceCourant();
-      const nom = getProfileWho();
+      const nom = getProfileNom();
       monterCoquille({
         espace,
         // Lot 5 : Émargement du centre s'allume quand une promo du centre a l'interrupteur (emargementDansLeCentre, lu au

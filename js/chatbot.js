@@ -136,7 +136,8 @@ async function envoyerQuestion(question, msgs) {
 
     if (resp.status === 429) {
       const j = await resp.json().catch(() => ({}));
-      bulleBot.textContent = j.message || selonPublic("Quota du jour atteint, reviens demain.", "Quota du jour atteint, revenez demain.");
+      // Le serveur écrit son message au « tu » : l'équipe, vouvoyée, a la phrase de l'app.
+      bulleBot.textContent = selonPublic(j.message || "Quota du jour atteint, reviens demain.", "Quota du jour atteint, revenez demain.");
       messageFige = true;
       return;
     }

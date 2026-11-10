@@ -10,7 +10,7 @@ import {
 } from "../db.js?v=20261110e";
 import { el, clear } from "../utils.js?v=20261110e";
 import { icon } from "../icons.js?v=20261110e";
-import { getProfileWho, monStagiaireId, getProfile, getViewAs } from "../auth-admin.js?v=20261110e";
+import { getProfileNom, monStagiaireId, getProfile, getViewAs } from "../auth-admin.js?v=20261110e";
 import { libelleConnexion } from "../roles-rules.js?v=20261110e";
 import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261110e";
 import { carteNouveaute } from "./nouveautes.js?v=20261110e";
@@ -258,7 +258,7 @@ export function renderAccueilStagiaire(container) {
   const { jour, indexJour, lundi } = reperesDuJour(maintenant);
   const moi = monStagiaireId();
   const semaine = semaineDeLaVisite(lundi);
-  const who = getProfileWho();
+  const who = getProfileNom();
   const prenom = prenomDe(who) || who || "stagiaire";
   const ligne = lignePromo(getPromoCourante(), jour);
 

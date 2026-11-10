@@ -134,6 +134,23 @@ export function displayStagiaire(s) {
   return [prenom, initial].filter(Boolean).join(" ");
 }
 
+/** Signature d'un stagiaire dans les champs « qui a modifié » de la base (created_by_who, updated_by_who…) :
+ *  « M. Lucie », l'ancien format, gardé tel quel. L'effacement des données (_anonymiser_stagiaire) retrouve les
+ *  traces d'un stagiaire sous cette forme : la changer laisserait son nom en base après un effacement. L'écran
+ *  remet ces signatures dans l'ordre « Lucie M. » avec nomLisible. */
+export function signatureStagiaire(s) {
+  if (!s) return "";
+  const initial = s.nom ? s.nom.trim().charAt(0).toUpperCase() + "." : "";
+  return initial ? `${initial} ${s.prenom}` : s.prenom;
+}
+
+/** Un nom lu en base au format « M. Pierre » (signature, bénévole) s'affiche « Pierre M. ». Le reste passe tel quel. */
+export function nomLisible(texte) {
+  const t = String(texte ?? "").trim();
+  const m = t.match(/^(\p{Lu})\.\s+(.+)$/u);
+  return m ? `${m[2]} ${m[1]}.` : t;
+}
+
 /** Compare deux stagiaires par nom de famille (alphabétique), fallback prénom. */
 export function compareByNom(a, b) {
   const na = (a.nom || "").trim();

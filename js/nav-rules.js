@@ -174,7 +174,7 @@ export function entreeActive(route, entrees, espace) {
   return ids.includes(cible) ? cible : null;
 }
 
-// Initiales du bouton du compte, tirées du nom que l'app affiche (getProfileWho) : la première
+// Initiales du bouton du compte, tirées du nom que l'app affiche (getProfileNom) : la première
 // lettre du premier et du dernier mot, « Timy V. » (prénom puis initiale du nom, voir
 // displayStagiaire) donnant « TV » ; d'une adresse électronique, sa partie locale.
 // Un nom vide n'en donne aucune (chaîne vide).

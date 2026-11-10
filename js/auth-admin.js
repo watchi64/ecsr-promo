@@ -28,7 +28,7 @@ import {
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
 } from "./espaces-rules.js?v=20261110e";
 import { peutQuitter } from "./navigation.js?v=20261110e";
-import { el, toast, displayStagiaire, isoDate } from "./utils.js?v=20261110e";
+import { el, toast, displayStagiaire, signatureStagiaire, isoDate } from "./utils.js?v=20261110e";
 import { icon } from "./icons.js?v=20261110e";
 import { construirePastille } from "./promo-pastille.js?v=20261110e";
 import { pagePersonnelle, lireAdresse } from "./route-rules.js?v=20261110e";
@@ -282,19 +282,30 @@ export function setViewAs(role) {
   updateBadge();
 }
 
-/** Renvoie le nom lié au profil : « Lucie M. » pour un stagiaire (displayStagiaire), le nom du formateur tel
- *  que l'équipe l'a saisi, ou l'e-mail pour un compte sans fiche. */
+/** La signature enregistrée en base (« qui a modifié ») : « M. Lucie » pour un stagiaire (signatureStagiaire,
+ *  le format que l'effacement des données retrouve), le nom du formateur tel que l'équipe l'a saisi, ou l'e-mail
+ *  pour un compte sans fiche. Pour l'afficher : getProfileNom. */
 export function getProfileWho() {
   if (!currentProfile) return null;
   if (currentProfile.stagiaire_id && stagiaires) {
     const s = stagiaires.find((x) => x.id === currentProfile.stagiaire_id);
-    if (s) return displayStagiaire(s);
+    if (s) return signatureStagiaire(s);
   }
   if (currentProfile.prof_id && profs) {
     const p = profs.find((x) => x.id === currentProfile.prof_id);
     if (p) return p.nom;
   }
   return currentUser?.email || null;
+}
+
+/** Le nom de la personne connectée, tel que les écrans l'affichent : « Lucie M. » pour un stagiaire (displayStagiaire),
+ *  sinon comme getProfileWho. */
+export function getProfileNom() {
+  if (currentProfile?.stagiaire_id && stagiaires) {
+    const s = stagiaires.find((x) => x.id === currentProfile.stagiaire_id);
+    if (s) return displayStagiaire(s);
+  }
+  return getProfileWho();
 }
 
 // === Lifecycle ===
@@ -493,7 +504,7 @@ function updateBadge() {
   if (pastille) slot.appendChild(pastille);
   slot.classList.toggle("avec-pastille", !!pastille);
 
-  const who = getProfileWho() || currentUser.email;
+  const who = getProfileNom() || currentUser.email;
   // Le rôle réel sur la promo affichée (mes_promos), pas l'ancien `role` du profil : une direction n'est pas « formateur »,
   // un compte cumulé est formateur sur sa promo de formateur (roles-rules.js, etiquetteBadge).
   const { libelle: roleLabel, classe: roleClasse } = etiquetteBadge({ profil: currentProfile, promo: getPromoCourante() });
@@ -686,7 +697,7 @@ function openProfileMenu() {
     el("p", { class: "muted", style: "margin:0 0 1.2rem;font-size:0.85rem" },
       "Rôle : ", el("strong", {}, currentProfile?.role === "prof" ? "formateur" : (currentProfile?.role || "?")),
       currentProfile && (currentProfile.stagiaire_id || currentProfile.prof_id)
-        ? el("span", {}, " · profil : ", el("strong", {}, getProfileWho() || "?"))
+        ? el("span", {}, " · profil : ", el("strong", {}, getProfileNom() || "?"))
         : null,
     ),
     persoBtn,

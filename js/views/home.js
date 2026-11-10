@@ -5,7 +5,7 @@
 import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261110e";
 import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261110e";
 import { icon } from "../icons.js?v=20261110e";
-import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261110e";
+import { isAdmin, isProf, getProfile, getProfileNom } from "../auth-admin.js?v=20261110e";
 import {
   nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque, formateurConnecte,
 } from "../modules-etat.js?v=20261110e";
@@ -84,7 +84,7 @@ export async function renderHome(container) {
   clear(container);
 
   const profile = getProfile();
-  const who = getProfileWho();
+  const who = getProfileNom();
   const admin = isAdmin();
   // Le pied de page dit le rôle : sous la nouvelle navigation, un administrateur est un « formateur » (le mot de la barre et des
   // Nouveautés) ; l'ancienne garde « admin ».

@@ -18,7 +18,7 @@
 import { el } from "./utils.js?v=20261110e";
 import { icon, deco } from "./icons.js?v=20261110e";
 import {
-  getProfile, getProfileWho, monStagiaireId, buildViewAsBlock, seDeconnecter, espacesOuverts, setEspace, getCentre,
+  getProfile, getProfileNom, monStagiaireId, buildViewAsBlock, seDeconnecter, espacesOuverts, setEspace, getCentre,
 } from "./auth-admin.js?v=20261110e";
 import { LIBELLES_ESPACE, routeDansLEspace, espaceDePilotage } from "./espaces-rules.js?v=20261110e";
 import { getPromoCourante, getMesPromos } from "./db.js?v=20261110e";
@@ -86,7 +86,7 @@ function ouDansLEspace(espace) {
 // entrées de la barre affichée, qui décident de la ligne de la page à soi. `espace` : celui de la coquille
 // (« stagiaire », « equipe », « direction » ou « siege »), qui décide de la ligne « Signaler un problème ».
 export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = null } = {}) {
-  const nom = getProfileWho() || "";
+  const nom = getProfileNom() || "";
   const quiEtOu = [libelleRole(getProfile(), espace), ouDansLEspace(espace)].filter(Boolean).join(" · ");
   // La page à soi, si elle est dans l'espace (le siège n'a pas de page Stagiaires, la direction pas de Mon suivi).
   const page = pagePersonnelle({ formateur: formateurConnecte(), stagiaireId: monStagiaireId() });

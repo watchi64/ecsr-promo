@@ -9,7 +9,7 @@
 // portent .dp-bloc-exclu et ne s'impriment pas (voir dp-gabarit.js).
 
 import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20261110e";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261110e";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast, nomLisible } from "../utils.js?v=20261110e";
 import { isAdmin, isProf, monStagiaireId as maFiche } from "../auth-admin.js?v=20261110e";
 import { getCurrentWho } from "../identity.js?v=20261110e";
 import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261110e";
@@ -186,7 +186,7 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
   // Qui a écrit en dernier. Le DP est le document du candidat : quand un
   // formateur y touche, cela doit se voir, du candidat comme des autres.
   const derniereMain = row && row.updated_by_who
-    ? "Dernière modification par " + row.updated_by_who
+    ? "Dernière modification par " + nomLisible(row.updated_by_who)
       + (row.updated_at ? " le " + formatDate(new Date(row.updated_at)) : "") + ". "
     : "";
   container.appendChild(el("p", { class: "lv-hint" }, readOnly
