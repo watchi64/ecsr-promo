@@ -601,6 +601,35 @@ export async function purgerBenevoles(ids) {
   return data;
 }
 
+// Suite du lot 5 : les mêmes effacements pour la direction du centre, sur la promo ou le centre qu'elle désigne (et non sur la promo
+// affichée). La base décide (direction du lieu, formateur de la promo ou fondateur ; 42501 sinon) : le refus part tel quel avec son
+// code, l'appelant le dit par phraseDeRefus. L'état et la purge ne touchent pas aux fiches lues en mémoire ; l'anonymisation, si.
+export async function etatAnonymisationPromoDe(promoId) {
+  const { data, error } = await supabase.rpc("etat_anonymisation_promo", { p_promo: promoId });
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
+export async function anonymiserPromoDe(promoId) {
+  const { data, error } = await supabase.rpc("anonymiser_promo", { p_promo: promoId });
+  if (error) throw erreurDeBase(error);
+  invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
+  return data;
+}
+
+export async function listBenevolesAPurgerDuCentre(lieuId) {
+  const { data, error } = await supabase.rpc("benevoles_a_purger", { p_lieu: lieuId });
+  if (error) throw erreurDeBase(error);
+  return data || [];
+}
+
+export async function purgerBenevolesDuCentre(ids, lieuId) {
+  const { data, error } = await supabase.rpc("purger_benevoles", { p_ids: ids, p_lieu: lieuId });
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
 export async function setStagiaireActif(id, actif) {
   const { data, error } = await supabase.from("stagiaires").update({ actif }).eq("id", id).select("id");
   if (error) throw error;

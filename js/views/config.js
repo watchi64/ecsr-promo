@@ -29,7 +29,7 @@ import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation
 import { renderEmargementReglage } from "../emargement-etat.js?v=20261110e";
 import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261110e";
 import { pointsARetenir } from "../accueil-rules.js?v=20261110e";
-import { dateCourte, etatFinDePromo } from "../effacement-rules.js?v=20261110e";
+import { dateCourte, etatFinDePromo, questionAnonymiserPromo, questionPurgerBenevoles } from "../effacement-rules.js?v=20261110e";
 import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261110e";
 import { blocHabillage } from "../habillage-choix.js?v=20261110e";
 import { habillageCourant } from "../habillage.js?v=20261110e";
@@ -477,12 +477,7 @@ async function renderDonneesSection(rerender) {
     if (fin.bouton) {
       blocPromo.appendChild(el("button", { class: "btn danger", onClick: async (e) => {
         const bouton = e.currentTarget;
-        const nom = etat.nom || "cette promo";
-        const saisie = await demander({ titre: `Anonymiser toutes les fiches de « ${nom} » ?`,
-          phrase: "Comptes, e-mails, dates de naissance, livrets, dossiers et commentaires sont effacés ; "
-            + "les résultats restent sans nom. Irréversible.",
-          libelle: "Pour confirmer, tapez ANONYMISER", oui: "Anonymiser",
-          verifier: (v) => v.trim() === "ANONYMISER", erreur: "Saisie différente : rien n'est effacé." });
+        const saisie = await demander(questionAnonymiserPromo(etat.nom));
         if (typeof saisie !== "string") return;
         bouton.disabled = true;
         try {
@@ -516,8 +511,7 @@ async function renderDonneesSection(rerender) {
     blocBnv.appendChild(el("button", { class: "btn danger", onClick: async (e) => {
       const bouton = e.currentTarget;
       const n = benevoles.length;
-      if (!(await confirmer({ titre: `Supprimer ${n} élève${n > 1 ? "s" : ""} bénévole${n > 1 ? "s" : ""} et leurs coordonnées ?`,
-        phrase: "Ils disparaissent aussi des anciens créneaux du planning. Irréversible.", oui: "Supprimer" }))) return;
+      if (!(await confirmer(questionPurgerBenevoles(n)))) return;
       bouton.disabled = true;
       try {
         const nb = await purgerBenevoles(benevoles.map((b) => b.id));
