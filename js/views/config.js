@@ -2,7 +2,9 @@
  * Vue Paramètres (ancienne navigation) et vue Réglages (nouvelle navigation).
  * Ancienne navigation, une seule page, sections : Accès & invitations · Mes préférences · Modules de la
  * promo (js/views/modules-reglage.js) · Émargement (fondateur, js/emargement-etat.js) ·
- * Nouvelle navigation (fondateur, js/nav-etat.js) · Promo · Données personnelles (admins) · Infos.
+ * Nouvelle navigation (fondateur, js/nav-etat.js) · Promo · Données personnelles (équipe) · Infos.
+ * La conservation des fiches (étapes datées, effacement à la demande) vit sur la page Qualiopi, fondateur seul (lot Q5) :
+ * Données personnelles le dit, avec un lien pour le fondateur, et garde la purge des élèves bénévoles.
  * Nouvelle navigation (lot 2A), deux pages : Réglages (#/config, l'équipe) ne garde que la promo, dans
  * l'ordre : Ce que voient les stagiaires (les modules) · Promo · Accès et invitations · Émargement et
  * Nouvelle navigation (fondateur) · Données personnelles ; Mes préférences (#/preferences, tous les
@@ -14,7 +16,7 @@
 import {
   listStagiaires, listProfs,
   addStagiaire, updateStagiaire, updateStagiaireNom, setStagiaireActif,
-  anonymiserStagiaire, etatAnonymisationPromo, anonymiserPromo, listBenevolesAPurger, purgerBenevoles,
+  listBenevolesAPurger, purgerBenevoles,
   getPromoCourante, renommerPromo,
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
@@ -28,7 +30,8 @@ import { renderModulesSection } from "./modules-reglage.js?v=20261110a";
 import { renderEmargementReglage } from "../emargement-etat.js?v=20261110a";
 import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261110a";
 import { pointsARetenir } from "../accueil-rules.js?v=20261110a";
-import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261110a";
+import { dateCourte } from "../effacement-rules.js?v=20261110a";
+import { confirmer } from "../confirmer.js?v=20261110a";
 import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261110a";
 import { blocHabillage } from "../habillage-choix.js?v=20261110a";
 import { habillageCourant } from "../habillage.js?v=20261110a";
@@ -362,10 +365,11 @@ async function renderPromoSection(rerender) {
   const [allStagiaires, profs] = await Promise.all([
     listStagiaires({ includeInactive: true }), listProfs(),
   ]);
-  const stagiairesActifs = allStagiaires.filter((s) => s.actif !== false);
-  // Les fiches anonymisées (données effacées) ne sont plus des abandons : seulement comptées.
-  const stagiairesAbandon = allStagiaires.filter((s) => s.actif === false && !s.anonymise_le);
-  const nbAnonymises = allStagiaires.filter((s) => s.anonymise_le).length;
+  // Une fiche sans nom (anonymise_le : étape des 3 ans, ou effacée à la demande, qui reste « actif ») n'est plus dans les listes.
+  const stagiairesActifs = allStagiaires.filter((s) => s.actif !== false && !s.anonymise_le);
+  // Abandons : ni fiche sans nom, ni fiche dont les données sont effacées (efface_le) ; celles-là sont seulement comptées.
+  const stagiairesAbandon = allStagiaires.filter((s) => s.actif === false && !s.anonymise_le && !s.efface_le);
+  const nbEffacees = allStagiaires.filter((s) => s.anonymise_le || (s.actif === false && s.efface_le)).length;
 
   // Promo affichée : nom modifiable par les admins, lieu en lecture (spec multi-promo C.5).
   function renderPromoCourante() {
@@ -405,7 +409,7 @@ async function renderPromoSection(rerender) {
   // comme le défilement et le reste de la vue ; la liste des personnes invitables suit.
   async function actualiserStagiaires(bloc) {
     const tous = await listStagiaires({ includeInactive: true });
-    const frais = renderList(tous.filter((s) => s.actif !== false), "stagiaire", false);
+    const frais = renderList(tous.filter((s) => s.actif !== false && !s.anonymise_le), "stagiaire", false);
     bloc.querySelector(".block-head").replaceWith(frais.querySelector(".block-head"));
     bloc.querySelector(".config-list").replaceWith(frais.querySelector(".config-list"));
     if (majPersonnesInvitables) majPersonnesInvitables().catch(() => {});
@@ -547,10 +551,8 @@ async function renderPromoSection(rerender) {
     return wrap;
   }
 
-  // Bloc des abandons : réactivation, ou effacement des données personnelles (droit à
-  // l'effacement). Réservé ici : il faut d'abord sortir la personne de la liste active.
-  // Plus de suppression de la fiche : ses résultats lui sont liés en cascade et
-  // disparaîtraient des statistiques ; la fiche est anonymisée par le serveur.
+  // Bloc des abandons : « Réactiver » seulement. L'effacement des données (à la demande de la personne, ou aux dates de
+  // conservation) est sur la page Qualiopi, fondateur seul (lot Q5) : la fiche n'a plus à passer en abandon pour cela.
   function renderAbandons(items) {
     const wrap = el("div", { class: "param-block abandons-block" });
     wrap.appendChild(el("div", { class: "block-head" },
@@ -558,8 +560,7 @@ async function renderPromoSection(rerender) {
       el("span", { class: "count" }, items.length + " stagiaire" + (items.length > 1 ? "s" : "")),
     ));
     wrap.appendChild(el("p", { class: "muted abandons-hint" },
-      "Masqués du planning, des dés et des notes. « Effacer les données » répond à une demande de "
-      + "suppression : la personne disparaît, ses résultats restent sans nom dans les statistiques."));
+      "Masqués du planning, des dés et des notes. « Réactiver » remet la personne dans la promo."));
     const list = el("ul", { class: "config-list" });
     items.forEach((it) => {
       const reactiverBtn = el("button", {
@@ -572,34 +573,16 @@ async function renderPromoSection(rerender) {
           } catch (e) { toast(e.message, "error"); }
         }
       }, "Réactiver");
-      const delBtn = el("button", {
-        class: "btn small danger",
-        title: "Effacer ses données personnelles (irréversible)",
-        onClick: async () => {
-          const saisie = prompt(`Effacer les données de ${it.prenom} ?\n\n`
-            + "Supprimés : compte de connexion, e-mail, date de naissance, livret, dossier pro, fiche de suivi, commentaires.\n"
-            + "Conservés sans nom : notes, QCM, passages, scores EPCF.\n"
-            + "Irréversible.\n\n"
-            + `Pour confirmer, tape le prénom : ${it.prenom}`);
-          if (saisie === null) return;
-          if (!confirmationValide(saisie, it.prenom)) { toast("Prénom différent : rien n'a été effacé.", "error"); return; }
-          try {
-            const details = await anonymiserStagiaire(it.id);
-            toast(resumeEffacement(details), "success", 6000);
-            rerender();
-          } catch (e) { toast(e.message, "error"); }
-        }
-      }, "Effacer les données");
       list.appendChild(el("li", { class: "abandon-row" },
         el("span", { class: "abandon-name" }, it.prenom),
-        reactiverBtn, delBtn,
+        reactiverBtn,
       ));
     });
     wrap.appendChild(list);
-    if (nbAnonymises) {
+    if (nbEffacees) {
       wrap.appendChild(el("p", { class: "muted abandons-hint" },
-        nbAnonymises + (nbAnonymises > 1 ? " fiches anonymisées" : " fiche anonymisée")
-        + " (données effacées, résultats conservés sans nom)."));
+        nbEffacees + (nbEffacees > 1 ? " fiches effacées" : " fiche effacée")
+        + " au titre de la conservation des données : elles ne figurent plus dans ces listes."));
     }
     return wrap;
   }
@@ -607,19 +590,22 @@ async function renderPromoSection(rerender) {
   const blocPromo = renderPromoCourante();
   if (blocPromo) section.appendChild(blocPromo);
   section.appendChild(renderList(stagiairesActifs, "stagiaire"));
-  if (admin && (stagiairesAbandon.length || nbAnonymises)) section.appendChild(renderAbandons(stagiairesAbandon));
+  if (admin && (stagiairesAbandon.length || nbEffacees)) section.appendChild(renderAbandons(stagiairesAbandon));
   section.appendChild(renderList(profs, "prof"));
   return section;
 }
 
-// ====== SECTION Données personnelles (admins) ======
-// Engagements des conditions d'utilisation (sections 7 et 10) : anonymisation 12 mois après la
-// fin de promo, élèves bénévoles supprimés 12 mois après leur dernière venue. Le serveur vérifie
-// tout (droit admin, délais) ; ici on montre l'état et on déclenche.
+// ====== SECTION Données personnelles (équipe) ======
+// Engagements des conditions d'utilisation (sections 7 et 10). La conservation des fiches (étapes à 12 mois et à 3 ans,
+// effacement à la demande) est gérée par le fondateur sur la page Qualiopi (lot Q5) : la section le dit, avec un lien pour
+// le fondateur seulement. Les élèves bénévoles sans venue depuis 12 mois restent ici, pour qui y a droit. Le serveur
+// vérifie tout (droits, délais) ; ici on montre l'état et on déclenche.
+
+export const PHRASE_CONSERVATION = "La conservation des fiches est gérée par le fondateur, sur la page Qualiopi.";
 
 async function renderDonneesSection(rerender) {
   if (!isEquipe()) return null;
-  // L'anonymisation est ouverte à l'équipe de la promo ; la suppression des élèves bénévoles, au formateur seul.
+  // La suppression des élèves bénévoles : le formateur seul (isAdmin).
   const avecBenevoles = isAdmin();
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
@@ -630,39 +616,19 @@ async function renderDonneesSection(rerender) {
     ),
   ));
 
-  const [etat, benevoles] = await Promise.all([
-    etatAnonymisationPromo().catch((e) => { console.error(e); return undefined; }),
-    avecBenevoles ? listBenevolesAPurger().catch((e) => { console.error(e); return undefined; }) : Promise.resolve(undefined),
-  ]);
+  const benevoles = avecBenevoles
+    ? await listBenevolesAPurger().catch((e) => { console.error(e); return undefined; })
+    : undefined;
 
-  // Fin de promo
-  const blocPromo = el("div", { class: "param-block" });
-  blocPromo.appendChild(el("div", { class: "block-head" }, el("h4", {}, "Fin de promo")));
-  if (etat === undefined) {
-    blocPromo.appendChild(el("p", { class: "muted" }, "État indisponible pour le moment."));
-  } else {
-    const fin = etatFinDePromo(etat);
-    blocPromo.appendChild(el("p", { class: "muted donnees-texte" }, fin.texte));
-    if (fin.bouton) {
-      blocPromo.appendChild(el("button", { class: "btn danger", onClick: async (e) => {
-        const bouton = e.currentTarget;
-        const nom = etat.nom || "cette promo";
-        const saisie = prompt(`Anonymiser toutes les fiches de « ${nom} » ?\n\n`
-          + "Comptes, e-mails, dates de naissance, livrets, dossiers et commentaires sont effacés ; "
-          + "les résultats restent sans nom. Irréversible.\n\nPour confirmer, tape : ANONYMISER");
-        if (saisie === null) return;
-        if (saisie.trim() !== "ANONYMISER") { toast("Saisie différente : rien n'a été effacé.", "error"); return; }
-        bouton.disabled = true;
-        try {
-          const r = await anonymiserPromo();
-          const n = r.anonymises;
-          toast(`${n} fiche${n > 1 ? "s" : ""} anonymisée${n > 1 ? "s" : ""}.`, "success", 6000);
-          rerender();
-        } catch (err) { toast(err.message, "error"); rerender(); }
-      } }, "Anonymiser la promo"));
-    }
+  // Conservation des fiches : la phrase pour toute l'équipe, le lien vers la page Qualiopi pour le fondateur seul (la page
+  // est fermée aux autres comptes et à l'aperçu « Voir en tant que »).
+  const blocConservation = el("div", { class: "param-block", "data-conservation": "" });
+  blocConservation.appendChild(el("div", { class: "block-head" }, el("h4", {}, "Conservation des fiches")));
+  blocConservation.appendChild(el("p", { class: "muted donnees-texte" }, PHRASE_CONSERVATION));
+  if (fondateurHorsApercu()) {
+    blocConservation.appendChild(el("a", { class: "btn cons-lien", href: "#/qualiopi", "data-lien-conservation": "" }, "Ouvrir la page Qualiopi"));
   }
-  section.appendChild(blocPromo);
+  section.appendChild(blocConservation);
 
   // Élèves bénévoles inactifs
   const blocBnv = el("div", { class: "param-block" });
@@ -684,8 +650,12 @@ async function renderDonneesSection(rerender) {
     blocBnv.appendChild(el("button", { class: "btn danger", onClick: async (e) => {
       const bouton = e.currentTarget;
       const n = benevoles.length;
-      if (!confirm(`Supprimer ${n} élève${n > 1 ? "s" : ""} bénévole${n > 1 ? "s" : ""} et leurs coordonnées ?\n\n`
-        + "Ils disparaissent aussi des anciens créneaux du planning. Irréversible.")) return;
+      const oui = await confirmer({
+        titre: `Supprimer ${n} élève${n > 1 ? "s" : ""} bénévole${n > 1 ? "s" : ""} et leurs coordonnées ?`,
+        phrase: "Ils disparaissent aussi des anciens créneaux du planning. Irréversible.",
+        oui: n > 1 ? `Supprimer ces ${n} élèves` : "Supprimer cet élève",
+      });
+      if (!oui) return;
       bouton.disabled = true;
       try {
         const nb = await purgerBenevoles(benevoles.map((b) => b.id));

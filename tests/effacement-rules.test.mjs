@@ -1,7 +1,11 @@
 // Effacement des données : confirmation, textes d'état. Lancer depuis la racine du dépôt :
 // node tests/effacement-rules.test.mjs
 import assert from "node:assert/strict";
-import { confirmationValide, dateCourte, dateLongue, echeancesConservation, etatFinDePromo, resumeEffacement, statutFiche } from "../js/effacement-rules.js";
+import {
+  confirmationValide, dateCourte, dateLongue, echeancesConservation, resumeEffacement, statutFiche, CE_QUI_PART, CE_QUI_RESTE,
+  confirmationEcheance, confirmationDemande, compteRenduConservation, rappelConservation, MOT_DE_CONFIRMATION,
+} from "../js/effacement-rules.js";
+import * as regles from "../js/effacement-rules.js";
 
 let n = 0;
 const ok = (c, m) => { assert.ok(c, m); n++; };
@@ -21,18 +25,8 @@ eq(dateLongue("2027-12-11"), "11 décembre 2027", "date dans une phrase");
 eq(dateLongue("2027-03-01"), "1er mars 2027", "le 1er du mois");
 eq(dateLongue(null), "", "date longue absente");
 
-// Fin de promo
-eq(etatFinDePromo(null).bouton, false, "pas de promo");
-ok(/non renseignée/.test(etatFinDePromo({ date_fin: null }).texte), "date de fin absente");
-const avant = etatFinDePromo({ date_fin: "2026-12-11", anonymisable_le: "2027-12-11", anonymisable: false, restants: 15, comptes_admin: 1 });
-eq(avant.bouton, false, "trop tôt : pas de bouton");
-ok(avant.texte.includes("le 11 décembre 2026") && avant.texte.includes("du 11 décembre 2027"), "trop tôt : les deux dates, en toutes lettres");
-const pret = etatFinDePromo({ date_fin: "2025-01-01", anonymisable_le: "2026-01-01", anonymisable: true, restants: 15, comptes_admin: 1 });
-eq(pret.bouton, true, "délai écoulé : bouton");
-ok(pret.texte.includes("14 fiches") && /administrateur/.test(pret.texte), "fiches à traiter hors compte admin");
-const fini = etatFinDePromo({ date_fin: "2025-01-01", anonymisable: true, restants: 1, comptes_admin: 1 });
-eq(fini.bouton, false, "seul le compte admin reste : pas de bouton");
-ok(/anonymisées/.test(fini.texte), "promo traitée");
+// L'ancien bloc « Fin de promo » des Paramètres est retiré (lot Q5, tâche 7) : la page Qualiopi le remplace.
+ok(!("etatFinDePromo" in regles), "etatFinDePromo n'existe plus");
 
 // Compte rendu
 eq(resumeEffacement({ deja: true }), "Ces données étaient déjà effacées.", "déjà fait");
@@ -118,8 +112,79 @@ ok(/commentaire/.test(resumeEffacement({ commentaires_questionnaires: 1 })), "co
 const rs = resumeEffacement({ fiches: 3, questionnaires_commentaires_effaces: true });
 ok(rs.includes("commentaires de questionnaire") && !/\d+ commentaires? de questionnaire/.test(rs), "sous le seuil : commentaires de questionnaire cités sans nombre");
 
+// Accords et textes exacts (relecture de la tâche 1, reprise en tâche 7)
+ok(e2[0].texte.includes("14 fiches perdent leur compte") && e2[0].texte.includes("leurs adresses e-mail"), "pluriel : « 14 fiches perdent leur compte » : " + e2[0].texte);
+const un = echeancesConservation(etat("2027-12-11", [promo({ a_effacer_etape1: 1, comptes_equipe: 0 })]))[0];
+ok(un.texte.includes("1 fiche perd son compte") && un.texte.includes("ses adresses e-mail") && !/compte d'équipe/.test(un.texte), "singulier : « 1 fiche perd son compte », sans note d'équipe : " + un.texte);
+ok(/le livret et les signatures restent/.test(un.texte), "étape 1 : ce qui reste est dit");
+ok(e3[0].texte.includes("15 fiches perdent leur nom") && /« Formateur 1 », « Formateur 2 »/.test(e3[0].texte), "étape 2 : pluriel et formateurs renommés : " + e3[0].texte);
+for (const motif of [/compte de connexion et l'adresse e-mail/, /date de naissance/, /fiche de suivi/, /textes libres/, /observations et les adresses e-mail des feuilles d'émargement/, /commentaires écrits dans les questionnaires/]) {
+  ok(e2[0].part.some((x) => motif.test(x)), "étape 1, ce qui part : " + motif);
+}
+for (const motif of [/nom et le prénom/, /résultats/, /dossier professionnel et le livret/, /présence, heures et signatures/]) {
+  ok(e2[0].reste.some((x) => motif.test(x)), "étape 1, ce qui reste : " + motif);
+}
+for (const motif of [/« Anonyme »/, /dossier professionnel/, /livret EPCF/, /dessins des signatures/, /« Formateur 1 », « Formateur 2 »/, /pourcentages de la promo/, /étape des 12 mois/]) {
+  ok(e3[0].part.some((x) => motif.test(x)), "étape 2, ce qui part : " + motif);
+}
+ok(e3[0].reste.some((x) => /Signature effacée \(durée de conservation\)/.test(x)), "étape 2 : la feuille dit « Signature effacée (durée de conservation) »");
+eq(e2[0].part, CE_QUI_PART.etape1, "la carte reprend la liste de ce qui part");
+eq(e2[0].reste, CE_QUI_RESTE.etape1, "et celle de ce qui reste");
+ok(ef[2].texte.includes("pourcentages du centre") && !/du lieu/.test(ef.map((e) => e.texte).join(" ")), "formateurs : « pourcentages du centre », jamais « du lieu »");
+eq(echeancesConservation(null), [], "état nul : aucune échéance");
+eq(echeancesConservation({}), [], "état vide : aucune échéance");
+const fut = echeancesConservation(etat("2026-06-01", [promo({ a_effacer_etape2: 3 })], { portees_formateurs: [portee] }));
+ok(fut.length === 5 && fut.every((e) => e.bouton === null && !e.due), "rien de dû : aucun bouton, sur toutes les sortes");
+const deux = echeancesConservation(etat("2030-01-01", [promo({ a_effacer_etape1: 2, a_effacer_etape2: 6 })]));
+eq(types(deux), ["etape1", "etape2"], "les deux étapes d'une même promo, dues, l'étape 1 d'abord");
+ok(deux.every((e) => typeof e.bouton === "string"), "les deux ont leur bouton");
+// Étape 2 sans fiche à anonymiser, mais des signatures de formateurs à effacer sur les feuilles (minor de la tâche 2).
+const signatures = echeancesConservation(etat("2030-01-01", [promo({ a_effacer_etape1: 0, a_effacer_etape2: 0, emargement_etape2: 4 })]));
+eq(types(signatures), ["etape2"], "feuilles seules : l'étape 2 reste listée");
+ok(/« Formateur 1 »/.test(signatures[0].texte) && !/\d+ fiches?/.test(signatures[0].texte), "feuilles seules : le texte parle des signatures, pas de fiches");
+
+// Confirmations : exactement ce qui part et ce qui reste, et une saisie.
+eq(MOT_DE_CONFIRMATION, "EFFACER", "le mot à taper");
+const c1 = confirmationEcheance(e2[0]);
+ok(c1 && /« Nîmes mars 2026 »/.test(c1.titre) && /Irréversible\.$/.test(c1.phrase), "étape 1 : titre avec la promo, phrase qui finit par « Irréversible. »");
+eq([c1.part, c1.reste, c1.oui], [CE_QUI_PART.etape1, CE_QUI_RESTE.etape1, e2[0].bouton], "étape 1 : listes et bouton de l'échéance");
+eq(c1.saisie, { consigne: "Pour confirmer, tape EFFACER", attendu: "EFFACER" }, "étape 1 : saisie du mot EFFACER");
+ok(confirmationValide("effacer", c1.saisie.attendu) && !confirmationValide("EFFACE", c1.saisie.attendu), "la saisie se vérifie par confirmationValide");
+eq(confirmationEcheance(e1[0]), null, "échéance pas encore due : pas de confirmation");
+eq(confirmationEcheance(er[0]), null, "registre : pas de confirmation ici (son propre bouton)");
+eq(confirmationEcheance(sans[0]), null, "promo sans date : pas de confirmation");
+ok(/questionnaire des formateurs 2026, Alès/.test(confirmationEcheance(es[2]).titre), "formateurs : le titre nomme l'année et le centre");
+eq(confirmationEcheance(es[2]).part, CE_QUI_PART.figeage_formateurs, "figeage : sa liste");
+const cd = confirmationDemande({ id: 4, prenom: "Hélène", nom: "Durand" });
+ok(cd.titre === "Effacer les données de Hélène Durand ?" && /sans la déclarer en abandon/.test(cd.phrase), "demande : titre et phrase");
+eq(cd.saisie.attendu, "Hélène", "demande : on tape le prénom");
+ok(cd.part.some((x) => /dossier professionnel et le livret/.test(x)) && cd.part.some((x) => /dessins des signatures/.test(x)), "demande : dossier, livret et signatures partent");
+ok(cd.reste.some((x) => /fiche effacée à la demande de la personne/.test(x)) && cd.reste.some((x) => /pas comptée en abandon/.test(x)), "demande : ni abandon, ligne à part");
+
+// Comptes rendus
+eq(compteRenduConservation("etape1", { fiches: 0, comptes_equipe: 1 }), "Rien à effacer : c'était déjà fait.", "étape rejouée");
+ok(/^5 fiches traitées\. Le nom/.test(compteRenduConservation("etape1", { fiches: 5 })), "étape 1 : nombre de fiches et ce qui reste");
+ok(/^1 fiche traitée, 2 signatures de formateurs effacées\. Les résultats et les heures restent/.test(compteRenduConservation("etape2", { fiches: 1, signatures_formateurs: 2 })), "étape 2 : fiches et signatures");
+eq(compteRenduConservation("demande", { deja: true }), "Ces données étaient déjà effacées.", "demande rejouée");
+ok(/^Effacé : compte de connexion/.test(compteRenduConservation("demande", { comptes: 1, signatures: 2 })), "demande : le détail");
+eq(compteRenduConservation("cloture_formateurs", { efface: true }), "C'est effacé.", "clôture faite");
+eq(compteRenduConservation("commentaires_formateurs", { efface: false }), "Rien à effacer : c'était déjà fait.", "commentaires rejoués");
+ok(/aucun pourcentage/.test(compteRenduConservation("figeage_formateurs", { fige: true, sous_seuil: true, reponses: null })), "figeage sous le seuil");
+ok(!/\d/.test(compteRenduConservation("figeage_formateurs", { fige: true, sous_seuil: false, reponses: 6 })), "figeage : aucun nombre de réponses cité");
+
+// Rappel en tête de page
+eq(rappelConservation([]), null, "rien de dû : pas de rappel");
+eq(rappelConservation(er), null, "le registre seul ne fait pas ce rappel (il a le sien)");
+eq(rappelConservation(sans), null, "une promo sans date ne fait pas ce rappel");
+ok(/^Une échéance de conservation des données est passée \(la plus ancienne depuis le 11 décembre 2027\)/.test(rappelConservation(e2)), "une échéance : singulier, la date");
+ok(/^3 échéances/.test(rappelConservation(es)) && /rien ne part sans ton clic/.test(rappelConservation(es)), "plusieurs : pluriel, rien ne part tout seul");
+
 // Textes : ni tiret cadratin ni « prof »
-const tous = [e1, e2, e3, sans, ef, es, er, tri].flat();
+const tous = [e1, e2, e3, sans, ef, es, er, tri, deux, signatures].flat();
+const textesRegles = [...Object.values(CE_QUI_PART), ...Object.values(CE_QUI_RESTE)].flat().concat(c1.titre, c1.phrase, cd.titre, cd.phrase, rappelConservation(es));
+for (const x of textesRegles) {
+  ok(!x.includes(String.fromCharCode(0x2014)) && !/\bprof\b/i.test(x), "listes et confirmations : ni tiret cadratin ni « prof » : " + x.slice(0, 40));
+}
 for (const e of tous) {
   ok(!e.texte.includes(String.fromCharCode(0x2014)), "pas de tiret cadratin : " + e.type);
   ok(!/\bprof\b/i.test(e.texte + (e.bouton || "")), "pas de « prof » : " + e.type);

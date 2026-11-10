@@ -26,6 +26,11 @@
 // forme que la satisfaction : { etat: "lue", entrees } | { etat: "absente" } | { etat: "non_lue" }), relu après chaque
 // enregistrement et chaque effacement, puis l'inventaire est recalculé. En tête de page, quel que soit l'onglet, les entrées à
 // effacer et les entrées à clore.
+//
+// Conservation des données (Qualiopi Q5) : troisième sous-onglet (js/views/conservation.js) : les échéances de toutes les promos
+// et de tous les centres, chacune avec son bouton quand sa date est passée, et l'effacement à la demande sur chaque fiche de la
+// promo choisie. En tête de page, sous le rappel du registre, une ligne quand une échéance attend un clic. Après un effacement
+// qui touche une promo, sa lecture est oubliée et la promo affichée est relue.
 
 import {
   lireDonneesQualiopi, lireReferentielCentre, getMesPromos, getPromoCourante,
@@ -55,6 +60,7 @@ import {
 import { renderSubTabs } from "../subtabs.js?v=20261110a";
 import { aEffacer, aClore } from "../registre-rules.js?v=20261110a";
 import { renderRegistreQualite } from "./registre-qualite.js?v=20261110a";
+import { creerConservation } from "./conservation.js?v=20261110a";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
@@ -376,10 +382,27 @@ export async function renderQualiopi(container) {
       el("button", { class: "btn", type: "button", onClick: () => sousOnglets.activer("registre") }, "Voir le registre"));
   }
 
+  // --- Conservation des données (Q5) : échéances lues une fois par rendu, relues après chaque effacement ---
+  const conservation = creerConservation({
+    ouvrirRegistre: () => sousOnglets.activer("registre"),
+    ouvrirConservation: () => sousOnglets.activer("conservation"),
+    apresEffacement: (promoId) => {
+      if (!pageVivante()) return;
+      if (promoId !== null) lectures.delete(promoId);
+      if (promoId === null || promoId === etat.promo.id) {
+        lectures.delete(etat.promo.id);
+        charger(etat.promo);
+      }
+    },
+  });
+  racine.appendChild(conservation.rappel);
+
   lireRegistre();
+  conservation.lireEtat();
   const sousOnglets = renderSubTabs([
     { key: "inventaire", label: "Inventaire et documents", render: (panneau) => panneau.appendChild(corps) },
     { key: "registre", label: "Registre qualité", render: (panneau) => renderRegistreQualite(panneau, { lire: () => lectureRegistre, surChangement: lireRegistre }) },
+    { key: "conservation", label: "Conservation des données", render: (panneau) => panneau.appendChild(conservation.noeud) },
   ], { storageKey: "qualiopi.subtab" });
   racine.appendChild(sousOnglets);
 
@@ -807,6 +830,7 @@ export async function renderQualiopi(container) {
     clear(corps);
     corps.appendChild(el("div", { class: "loading" }, "Chargement"));
     statutsQq.clear();
+    conservation.majPromo(promo, lire(promo.id).then((d) => d.stagiaires));   // les fiches de la lecture du dossier, sans attendre
     chargerQuestionnaires(promo);   // sans attendre : la section se remplit à son rythme
     try {
       const [referentiel, donnees] = await Promise.all([lireReferentielCentre(), lire(promo.id)]);

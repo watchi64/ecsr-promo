@@ -160,6 +160,68 @@ test("le focus ne revient pas à un champ qui a quitté la page (« Retour » pe
   assert.equal(document.activeElement, oui, "le focus n'est pas rendu à un champ sorti de la page");
 }));
 
+// Geste irréversible de la conservation des données (page Qualiopi, lot Q5) : les listes de ce qui part et de ce qui reste,
+// un champ où taper le mot ou le prénom demandé, et un bouton qui n'agit qu'une fois la saisie juste.
+const champ = (document) => descendants(fenetre(document)).find((n) => n.nodeName === "input") || null;
+const taper = (c, valeur) => { c.value = valeur; c.declencher("input"); };
+const entree = (c) => {
+  const e = { key: "Enter", empeche: false, preventDefault() { this.empeche = true; } };
+  for (const f of c.ecouteurs.get("keydown") || []) f(e);
+  return e;
+};
+const detaillee = () => ({
+  titre: "Effacer les données de Hélène Durand ?", phrase: "Irréversible.",
+  part: ["le dossier professionnel", "le livret EPCF"], reste: ["ses résultats, sans nom"],
+  saisie: { consigne: "Pour confirmer, tape son prénom : Hélène", attendu: "Hélène" }, oui: "Effacer ses données",
+});
+
+test("saisie : les listes et la consigne sont dans la fenêtre, le focus va au champ, le geste attend la bonne saisie", () => avecDocument(async (document) => {
+  const reponse = confirmer(detaillee());
+  await tour();
+  const f = fenetre(document);
+  const textes = descendants(f).map((n) => n.textContent);
+  for (const attendu of ["Ce qui est effacé", "le dossier professionnel", "le livret EPCF", "Ce qui reste", "ses résultats, sans nom", "Pour confirmer, tape son prénom : Hélène"]) {
+    assert.ok(textes.includes(attendu), "la fenêtre dit : " + attendu);
+  }
+  const c = champ(document);
+  assert.ok(c, "un champ de saisie");
+  const etiquette = descendants(f).find((n) => n.nodeName === "label");
+  assert.equal(etiquette.getAttribute("for"), c.getAttribute("id"), "la consigne nomme le champ");
+  assert.equal(document.activeElement, c, "le focus va au champ");
+  const oui = bouton(document, "Effacer ses données");
+  assert.equal(oui.disabled, true, "le geste attend la saisie");
+  oui.click();
+  assert.ok(fenetre(document), "un clic sans saisie ne fait rien");
+  taper(c, "Helene");
+  assert.equal(oui.disabled, true, "sans les accents : toujours non");
+  entree(c);
+  assert.ok(fenetre(document), "Entrée avec une mauvaise saisie ne fait rien");
+  taper(c, "  hélène ");
+  assert.equal(oui.disabled, false, "casse et espaces ignorés : le geste est permis");
+  const e = entree(c);
+  assert.ok(e.empeche, "Entrée ne soumet rien d'autre");
+  assert.equal(await reponse, true, "Entrée dans le champ vaut le geste");
+  assert.equal(fenetre(document), null);
+  assert.equal(clavier().length, 0);
+}));
+
+test("saisie : Tab fait le tour du champ et des boutons, le geste seulement quand il est permis ; Annuler répond non", () => avecDocument(async (document) => {
+  const reponse = confirmer(detaillee());
+  await tour();
+  const c = champ(document), non = bouton(document, "Annuler"), oui = bouton(document, "Effacer ses données");
+  touche("Tab");
+  assert.equal(document.activeElement, non, "du champ à « Annuler »");
+  touche("Tab");
+  assert.equal(document.activeElement, c, "le geste encore interdit est sauté : retour au champ");
+  taper(c, "Hélène");
+  touche("Tab"); touche("Tab");
+  assert.equal(document.activeElement, oui, "permis, le geste entre dans le tour");
+  touche("Tab", { shiftKey: true });
+  assert.equal(document.activeElement, non, "Maj+Tab recule");
+  non.click();
+  assert.equal(await reponse, false);
+}));
+
 test("la page Notes n'ouvre plus aucune boîte du navigateur (effacer une note, partout)", () => {
   for (const fichier of ["js/views/notes.js", "js/views/notes-saisie.js"]) {
     const src = readFileSync(new URL("../" + fichier, import.meta.url), "utf8")

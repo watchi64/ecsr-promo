@@ -247,13 +247,35 @@ eq(DU_LOT(triees(visibles(NOUVEAUTES, true, false))), [coursTel.id], "formateur,
 // « La plus récente » du lot se juge sans les questionnaires anonymes, mis en ligne le même jour et placés en tête du
 // fichier : ce sont eux que montre désormais la carte « Nouveauté » de l'Accueil, dans les deux navigations.
 const JUSQU_AU_LOT = (l) => l.filter((e) => e.date <= JOUR && e.id !== QUESTIONNAIRES_ID);
+// Jusqu'au jour des questionnaires (les Nouveautés plus récentes, comme la conservation des données du lot Q5, sont jugées plus bas).
+const JUSQU_AUX_QUESTIONNAIRES = (l) => l.filter((e) => e.date <= "2026-11-09");
 for (const [formateur, v2] of [[false, false], [false, true], [true, false], [true, true]]) {
-  eq(ids(triees(visibles(NOUVEAUTES, formateur, v2)))[0], QUESTIONNAIRES_ID,
+  eq(ids(triees(JUSQU_AUX_QUESTIONNAIRES(visibles(NOUVEAUTES, formateur, v2))))[0], QUESTIONNAIRES_ID,
     `la plus récente est celle des questionnaires (${formateur ? "formateur" : "stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"})`);
 }
 eq(ids(triees(JUSQU_AU_LOT(visibles(NOUVEAUTES, false, true))))[0], journee.id, "stagiaire, nouvelle navigation : la plus récente est la journée");
 eq(ids(triees(JUSQU_AU_LOT(visibles(NOUVEAUTES, false, false))))[0], coursTel.id, "ancienne navigation : la plus récente est celle des cours");
 ok(!/IA/.test(aujourdhui.resume), "Aujourd'hui : le résumé n'annonce pas Propositions IA à tous (réservé aux administrateurs, dans les étapes)");
+
+// Conservation des données (Qualiopi Q5, tâche 7) : pour les formateurs, dans les deux navigations, datée de la mise en ligne ;
+// en tête de leur liste (carte « Nouveauté » de l'Accueil), jamais chez un stagiaire.
+const CONSERVATION_ID = "2026-11-10-conservation-fondateur";
+const conservation = NOUVEAUTES.find((e) => e.id === CONSERVATION_ID);
+ok(!!conservation && conservation.pour === "formateurs" && conservation.navigation === undefined && conservation.id.startsWith(conservation.date + "-"),
+  "conservation : pour les formateurs, sans champ navigation, id préfixé par sa date");
+for (const v2 of [false, true]) {
+  eq(ids(triees(visibles(NOUVEAUTES, true, v2)))[0], CONSERVATION_ID, `conservation : la plus récente chez un formateur (navigation ${v2 ? "nouvelle" : "ancienne"})`);
+  ok(!ids(visibles(NOUVEAUTES, false, v2)).includes(CONSERVATION_ID), `conservation : jamais chez un stagiaire (navigation ${v2 ? "nouvelle" : "ancienne"})`);
+  eq(ids(triees(visibles(NOUVEAUTES, false, v2)))[0], QUESTIONNAIRES_ID, `stagiaire : la plus récente reste celle des questionnaires (navigation ${v2 ? "nouvelle" : "ancienne"})`);
+}
+for (const motif of [/Effacer les données/, /Anonymiser la promo/, /quittent Réglages/, /31 décembre de la troisième année/, /12 mois/, /fondateur/,
+  /n'a plus à être mis en abandon/, /« Réactiver » reste/, /élèves bénévoles/]) {
+  ok(motif.test(conservation.resume), "conservation : dit " + motif);
+}
+eq(conservation.ou, { label: "Paramètres", route: "config" }, "conservation : Où le trouver, Paramètres (Réglages sous la nouvelle barre)");
+ok(!/vous|votre|vos/i.test(tout(conservation)) && !/\bprofs?\b/i.test(tout(conservation)) && !tout(conservation).includes(String.fromCharCode(0x2014)),
+  "conservation : tutoiement, « formateur » jamais « prof », aucun tiret cadratin");
+ok(!/RPC|Supabase|migration|base de données|anonymise_le|efface_le/i.test(tout(conservation)), "conservation : aucun mot technique");
 
 // Questionnaires anonymes (plan Qualiopi Q3, tâche 5) : pour tous, dans les deux navigations, datée de la mise en ligne.
 const questionnaires = NOUVEAUTES.find((e) => e.id === QUESTIONNAIRES_ID);

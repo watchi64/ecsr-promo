@@ -283,31 +283,8 @@ export async function deleteStagiaire(id) {
 // mais le stagiaire est masqué partout (planning, dés, notes, passages) car
 // listStagiaires() ne renvoie que actif = true. actif=false => abandon, true => réactivé.
 // === Effacement des données personnelles ===
-// COMPATIBILITÉ : à retirer en tâche 7. js/views/config.js importe encore ces trois fonctions ; la base d'après la
-// migration 20261110_conservation ne les porte plus (la page Qualiopi les remplace par les fonctions de conservation
-// plus bas). Tant que la tâche 7 n'a pas réécrit config.js, elles ne servent qu'à garder l'import valide.
-export async function anonymiserStagiaire(id) {
-  const { data, error } = await supabase.rpc("anonymiser_stagiaire", { p_stagiaire_id: id });
-  if (error) throw error;
-  invalidateCache("stagiaires");
-  invalidateCache("stagiaires_all");
-  return data;
-}
-
-export async function etatAnonymisationPromo() {
-  const { data, error } = await supabase.rpc("etat_anonymisation_promo");
-  if (error) throw error;
-  return data;
-}
-
-export async function anonymiserPromo() {
-  const { data, error } = await supabase.rpc("anonymiser_promo");
-  if (error) throw error;
-  invalidateCache("stagiaires");
-  invalidateCache("stagiaires_all");
-  return data;
-}
-
+// La conservation des fiches (étapes à 12 mois et à 3 ans, effacement à la demande) passe par les fonctions de conservation,
+// plus bas (page Qualiopi, fondateur seul). Ici, la purge des élèves bénévoles sans venue depuis 12 mois (Réglages).
 export async function listBenevolesAPurger() {
   const { data, error } = await supabase.rpc("benevoles_a_purger");
   if (error) throw error;

@@ -24,6 +24,22 @@
 // pas de numéro de version, pas de nom de fichier.
 
 export const NOUVEAUTES = [
+  // Conservation des données (Qualiopi Q5), datée du jour de la mise en ligne. Pour l'équipe seulement : les boutons
+  // d'effacement quittent Réglages (ex-Paramètres) pour la page Qualiopi, que seul le fondateur ouvre.
+  {
+    id: "2026-11-10-conservation-fondateur",
+    date: "2026-11-10",
+    pour: "formateurs",
+    titre: "L'effacement des fiches passe par le fondateur",
+    resume: "Les boutons « Effacer les données » (dans Abandons) et « Anonymiser la promo » quittent Réglages. Les fiches "
+          + "des stagiaires sont maintenant gardées plus longtemps, comme preuves de la formation : le nom, le dossier "
+          + "professionnel, le livret et les feuilles d'émargement jusqu'au 31 décembre de la troisième année après la fin ; "
+          + "le compte, l'adresse e-mail et les commentaires partent 12 mois après la fin. C'est le fondateur de l'application "
+          + "qui fait chaque effacement, à la date prévue. Un stagiaire qui demande l'effacement de ses données n'a plus à "
+          + "être mis en abandon : transmets sa demande au fondateur, qui efface tout tout de suite. « Réactiver » reste dans "
+          + "Abandons, et la suppression des élèves bénévoles ne change pas.",
+    ou: { label: "Paramètres", route: "config" },
+  },
   {
     // Mise en ligne du 09/11/2026 (migration appliquée le même jour). Premier du fichier : à date égale avec le lot 2B,
     // c'est elle que montre la carte « Nouveauté » de l'Accueil, la plus récente.
