@@ -10,7 +10,7 @@
 --      replace : mêmes paramètres, même retour, droits d'exécution inchangés (postgres et service_role).
 --      Croisement avec Qualiopi Q5 (qui remplace l'anonymisation par effacer_promo_etape1/2 et effacer_sur_demande) :
 --      si effacer_sur_demande existe déjà, la fonction n'est PAS recréée (Q5 l'a retirée). Dans tous les cas, un
---      contrôle final annule tout si une fonction de la base cite encore fiches_suivi ou themes.updated_by_email.
+--      contrôle final annule tout si _anonymiser_stagiaire cite encore fiches_suivi ou themes.updated_by_email.
 -- Un verrou qui tarde fait échouer la migration (rien n'est appliqué, on relance) au lieu de faire attendre l'app.
 set local lock_timeout = '3s';
 
@@ -149,11 +149,13 @@ delete from public.settings where promo_id is null and key in ('cohort_name', 'p
 -- 2. Critère « souhaits » du placement.
 drop table if exists public.fiches_suivi;
 
--- 3. Contrôle : plus aucune fonction ne cite ce qui vient de disparaître (sinon elle échouerait à l'exécution).
+-- 3. Contrôle : _anonymiser_stagiaire, si elle existe encore, ne cite plus ce qui vient de disparaître (sinon elle
+--    échouerait à l'exécution). Les fonctions d'effacement de Q5 ne sont pas contrôlées ici : elles gardent ces noms
+--    mais ne s'en servent que si la table ou la colonne existe (conditionnelles, prouvées par Q5).
 do $controle$
 begin
   if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-              where n.nspname = 'public'
+              where n.nspname = 'public' and p.proname = '_anonymiser_stagiaire'
                 and (p.prosrc ilike '%fiches_suivi%'
                      or p.prosrc ~* 'update\s+(public\.)?themes\s+set\s+updated_by_email')) then
     raise exception 'Une fonction cite encore fiches_suivi ou themes.updated_by_email : migration annulée.';
