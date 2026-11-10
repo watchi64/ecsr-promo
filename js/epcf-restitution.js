@@ -1,9 +1,9 @@
 // Restitution EPCF : scoring des phases, radar SVG, section réutilisable
 // (affichée dans Mon suivi ; réutilisable ailleurs).
 
-import { el, clear, formatDate } from "./utils.js?v=20261109m";
-import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS, EPCF_PHASE_TEXTE } from "./epcf-trames.js?v=20261109m";
-import { moyennesMontrables, titreEpreuve, PHRASE_SANS_MOYENNE } from "./epcf-classe-rules.js?v=20261109m";
+import { el, clear, formatDate } from "./utils.js?v=20261109o";
+import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS, EPCF_PHASE_TEXTE } from "./epcf-trames.js?v=20261109o";
+import { moyennesMontrables, titreEpreuve, PHRASE_SANS_MOYENNE, scoresDuGroupe, phraseSansEvaluation } from "./epcf-classe-rules.js?v=20261109o";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 function svgEl(tag, attrs = {}) {
@@ -110,7 +110,8 @@ export function renderEpcfTrameSection(trameKey, evals, moyennes) {
   const section = el("div", { class: "epcf-resti" },
     el("h4", { class: "epcf-resti-title" }, "EPCF " + trame.label));
   if (!evals.length) {
-    section.appendChild(el("p", { class: "muted" }, "Pas encore d'évaluation " + trame.label.toLowerCase() + "."));
+    // Quand aucune épreuve n'est évaluée, renderEpcfPersonne montre la carte vide à la place des deux sections.
+    section.appendChild(el("p", { class: "muted" }, phraseSansEvaluation(trameKey)));
     return section;
   }
   const body = el("div");
@@ -121,16 +122,16 @@ export function renderEpcfTrameSection(trameKey, evals, moyennes) {
     const axes = trame.sections.map((s) => ({ label: s.court, color: EPCF_PHASE_COLORS[s.code], texte: EPCF_PHASE_TEXTE[s.code] }));
     const serieMoi = { values: trame.sections.map((s) => phaseScore(s, evalRow.scores)), className: "moi" };
     const series = [serieMoi];
-    const maxEffectif = Math.max(0, ...(moyennes || []).map((m) => m.effectif));
-    if (maxEffectif >= 2) {
-      series.unshift({ values: trame.sections.map((s) => phaseScoreFromMoyennes(s, moyennes)), className: "groupe" });
-    }
+    // k-anonymat (js/epcf-classe-rules.js) : la série du groupe ne compte que les critères évalués chez au moins
+    // 2 stagiaires ; sans aucun, pas de série.
+    const groupe = scoresDuGroupe(trame.sections, moyennes);
+    if (groupe) series.unshift({ values: groupe, className: "groupe" });
     body.appendChild(el("div", { class: "epcf-radar-wrap" }, buildRadar(axes, series)));
     body.appendChild(el("p", { class: "epcf-legende muted" },
       el("span", { class: "epcf-leg moi" }), " Moi",
-      maxEffectif >= 2 ? el("span", {}, "  ·  ") : null,
-      maxEffectif >= 2 ? el("span", { class: "epcf-leg groupe" }) : null,
-      maxEffectif >= 2 ? " Moyenne du groupe" : null,
+      groupe ? el("span", {}, "  ·  ") : null,
+      groupe ? el("span", { class: "epcf-leg groupe" }) : null,
+      groupe ? " Moyenne du groupe" : null,
     ));
     body.appendChild(el("p", { class: "muted epcf-eval-meta" },
       `Évaluation du ${formatDate(evalRow.date_eval)}` +

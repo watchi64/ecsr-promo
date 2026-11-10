@@ -2,7 +2,7 @@
 // Le contrôle qui fait foi est celui du serveur (supabase/functions/qcm-ia/brouillons.mjs) ;
 // celui-ci prévient le formateur s'il ajoute lui-même, en relisant, un article absent du cours.
 
-import { titreDuQcm } from "./qcm-rules.js?v=20261109m";
+import { titreDuQcm } from "./qcm-rules.js?v=20261109o";
 
 // Copie conforme du motif du serveur : un test vérifie que les deux donnent le même résultat.
 const MOTIF_ARTICLE = /\b(?:[RLD]\.?\s?)?\d{2,4}(?:-\d{1,3})+(?!\d)/gi;

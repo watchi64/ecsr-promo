@@ -25,8 +25,13 @@ export function stagiairesEvalues(n) {
   return n === 1 ? "1 stagiaire évalué" : `${n} stagiaires évalués`;
 }
 
+// Le titre d'une épreuve sur la vue de la classe. Le nombre de stagiaires évalués n'est donné que si l'épreuve a une
+// moyenne montrable : un stagiaire ne reçoit pas de la base les critères évalués chez un seul camarade, il lirait
+// « aucun » à tort (peut-être en étant lui-même évalué). Le plus grand effectif d'un critère montrable est aussi le plus
+// grand de tous : le nombre est le même pour l'équipe et pour les stagiaires.
 export function titreEpreuve(label, moyennes) {
-  return `${label} : ${stagiairesEvalues(nbEvalues(moyennes))}`;
+  const montrables = moyennesMontrables(moyennes);
+  return montrables.length ? `${label} : ${stagiairesEvalues(nbEvalues(montrables))}` : label;
 }
 
 // Sous une épreuve qui n'a pas encore de moyenne, quand l'autre en a une.
@@ -70,4 +75,48 @@ export function etatVideEpcf({ moyennesParEpreuve, contexte }) {
     avancement: connu && contexte !== "classe-stagiaire" ? avancement(moyennesParEpreuve) : null,
     actions: connu ? ACTIONS[contexte].slice() : [],
   };
+}
+
+// --- Fiche d'une personne, partie EPCF (Mon suivi, page Stagiaires) ---
+
+// Radar de la fiche : la série « groupe » (moyenne de la classe par phase, sur 0..1) ne compte que les critères
+// montrables. Un critère évalué chez un seul stagiaire n'entre pas dans une phase : sinon une phase qui n'a que lui
+// montrerait sur son axe la note exacte d'un camarade. null (pas de série) dès qu'une phase n'a aucun critère
+// montrable : le radar tracerait ce sommet à 0, ce qui se lirait « le groupe est à 0 ».
+export function scoresDuGroupe(sections, moyennes) {
+  const montrables = moyennesMontrables(moyennes);
+  if (!montrables.length) return null;
+  const parCode = new Map(montrables.map((x) => [x.critere, Number(x.moyenne)]));
+  const scores = (sections || []).map((s) => {
+    const vals = s.criteres.map((c) => parCode.get(c.code)).filter((v) => Number.isFinite(v));
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / (vals.length * 2) : null;
+  });
+  return scores.length && scores.every((v) => v !== null) ? scores : null;
+}
+
+// Où mène le bouton de la carte vide de la fiche : le livret EPCF de la personne (sa partie de Mon suivi).
+export const ACTIONS_FICHE_EPCF = {
+  livret: { libelle: "Voir mon livret EPCF", href: "#/mon-suivi/livret" },
+};
+
+// La partie EPCF d'une fiche quand aucune épreuve n'est évaluée (`nbEvaluations` : { salle, vehicule }), ou null dès
+// qu'une l'est. Le formateur qui évalue (`outils`) a déjà ses lignes « à évaluer » et ses boutons : rien de plus
+// ({ carte: false }). La personne elle-même (`soi`) lit une carte au tutoiement, avec son livret si le module est
+// ouvert ; quelqu'un qui lit sans évaluer (la direction), la même carte à la troisième personne, sans bouton.
+export function etatVideEpcfFiche({ nbEvaluations, soi = false, outils = false, livretOuvert = false }) {
+  if (LIEUX.some(([cle]) => (Number(nbEvaluations?.[cle]) || 0) > 0)) return null;
+  if (outils) return { carte: false };
+  return {
+    carte: true,
+    titre: "Pas encore d'évaluation EPCF",
+    phrase: (soi ? "Tes résultats apparaîtront ici après ta première épreuve"
+      : "Ses résultats apparaîtront ici après sa première épreuve") + ", en salle ou en véhicule.",
+    actions: soi && livretOuvert ? ["livret"] : [],
+  };
+}
+
+// Sous le titre d'une épreuve pas encore évaluée, quand l'autre l'est.
+export function phraseSansEvaluation(cle) {
+  const lieu = (LIEUX.find(([c]) => c === cle) || [cle, "en " + cle])[1];
+  return `Pas encore d'évaluation ${lieu}.`;
 }
