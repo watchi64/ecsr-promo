@@ -567,6 +567,31 @@ begin
 end;
 $function$;
 revoke all on function public._anonymiser_stagiaire(integer) from anon, public, authenticated;
+-- La table fiches_suivi et la colonne themes.updated_by_email peuvent avoir été retirées (branche navigation-unique) :
+-- dans ce cas seulement, les deux écritures qui les citent deviennent des requêtes dynamiques conditionnées (create or
+-- replace : droits gardés). Quand les deux existent, la fonction reste mot pour mot celle d'avant le lot.
+do $retour_objets$
+declare
+  v_def text := pg_get_functiondef('public._anonymiser_stagiaire(integer)'::regprocedure);
+  v_suivi constant text := 'delete from fiches_suivi where stagiaire_id = p_id;     get diagnostics n = row_count; v_n := v_n || jsonb_build_object(''fiche_suivi'', n);';
+  v_themes constant text := 'update themes set updated_by_email = ''anonyme'' where lower(updated_by_email) = any(v_emails);';
+  v_sans_suivi boolean := to_regclass('public.fiches_suivi') is null;
+  v_sans_themes boolean := not exists (select 1 from pg_attribute where attrelid = to_regclass('public.themes')
+                                         and attname = 'updated_by_email' and attnum > 0 and not attisdropped);
+begin
+  if not (v_sans_suivi or v_sans_themes) then
+    return;
+  end if;
+  if position(v_suivi in v_def) = 0 or position(v_themes in v_def) = 0 then
+    raise exception 'conservation: Retour : _anonymiser_stagiaire recréée ne contient pas les écritures attendues.';
+  end if;
+  v_def := replace(v_def, v_suivi,
+    'n := 0; if to_regclass(''public.fiches_suivi'') is not null then execute ''delete from public.fiches_suivi where stagiaire_id = $1'' using p_id; get diagnostics n = row_count; end if; v_n := v_n || jsonb_build_object(''fiche_suivi'', n);');
+  v_def := replace(v_def, v_themes,
+    'if exists (select 1 from pg_attribute where attrelid = to_regclass(''public.themes'') and attname = ''updated_by_email'' and attnum > 0 and not attisdropped) then execute ''update public.themes set updated_by_email = ''''anonyme'''' where lower(updated_by_email) = any($1)'' using v_emails; end if;');
+  execute v_def;
+end
+$retour_objets$;
 
 CREATE OR REPLACE FUNCTION public.anonymiser_promo()
  RETURNS jsonb

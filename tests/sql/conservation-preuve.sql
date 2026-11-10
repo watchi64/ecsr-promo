@@ -26,6 +26,21 @@
 --   psql -p 55517 -U postgres -d cs -1 -v migration=<chemin absolu de 20261110_conservation.sql> \
 --        -v retour=<chemin absolu de 20261110_conservation_retour.sql> -f tests/sql/conservation-preuve.sql
 --   pg_ctl -D $D/pg stop ; rm -rf $D
+-- Variante « navigation-unique » (la branche qui retire la table fiches_suivi et la colonne themes.updated_by_email peut
+-- arriver avant ou après ce lot) : même lancement, avec, entre le schéma minimal et la preuve,
+--   psql -p <port> -U postgres -d cs -c "drop table public.fiches_suivi; alter table public.themes drop column updated_by_email"
+-- La preuve s'y adapte (fiches de suivi comptées 0, thème témoin non créé) ; le retour y recrée _anonymiser_stagiaire avec
+-- ces deux écritures conditionnées, dont le corps est alors mis à part dans l'empreinte (cas dédié).
+--
+-- Résultats du 10/11/2026, indépendance de l'ordre (fiches_suivi, themes.updated_by_email), Postgres 18.4 local, port
+-- 55523, deux bases (complète ; variante sans les deux objets) :
+--   - base complète : VERT 227/0 (trois passages) ; appliquée : VERT 216/0 ; retour hors preuve : empreinte 2109cee5…
+--     avant, 3762102f… appliquée et après la preuve, 2109cee5… après le retour ;
+--   - variante : VERT 228/0 (trois passages) ; appliquée : VERT 216/0 ; retour hors preuve sans erreur, ancienne
+--     _anonymiser_stagiaire jouée ensuite (fiche_suivi 0) ; second aller-retour : empreinte identique (2a5af637…) ;
+--   - contre-épreuves sur la variante : suppression de fiches_suivi non conditionnée ROUGE 181/47 ; mise à jour de
+--     themes.updated_by_email non conditionnée ROUGE 181/47 (les deux restent VERT 227/0 sur la base complète) ;
+--   - sans migration : ROUGE 12/21 (complète), ROUGE 12/22 (variante).
 --
 -- Résultats du 10/11/2026, tâche 4 (journal du registre qualité, Postgres local, port 55561, schéma minimal complété par
 -- la table du registre, section 8) : données RQ1 à RQ6, cas 4.0 bis et 4.9 bis :
@@ -80,6 +95,13 @@ do $preuve$
 declare
   v_jour_reel date := (now() at time zone 'Europe/Paris')::date;
   v_deja boolean := to_regprocedure('public.effacer_sur_demande(integer)') is not null;
+  -- Variante « navigation-unique » : table fiches_suivi et colonne themes.updated_by_email retirées.
+  v_suivi boolean := to_regclass('public.fiches_suivi') is not null;
+  v_themes_email boolean := exists (select 1 from pg_attribute where attrelid = to_regclass('public.themes')
+                                      and attname = 'updated_by_email' and attnum > 0 and not attisdropped);
+  v_variante text := set_config('preuve.variante', case when to_regclass('public.fiches_suivi') is null
+    or not exists (select 1 from pg_attribute where attrelid = to_regclass('public.themes') and attname = 'updated_by_email'
+                     and attnum > 0 and not attisdropped) then 'on' else '' end, true);
   v_empreinte text := $q$
     select md5(string_agg(x, E'\n' order by x)) from (
       select 'rel ' || c.relname || ' ' || c.relkind::text || ' ' || c.relrowsecurity::text || ' ' || coalesce(c.relacl::text, '')
@@ -94,7 +116,10 @@ declare
       select 'con ' || conrelid::regclass::text || ' ' || conname || ' ' || pg_get_constraintdef(oid)
         from pg_constraint where connamespace = 'public'::regnamespace
       union all
-      select 'fn ' || p.oid::regprocedure::text || ' ' || md5(pg_get_functiondef(p.oid)) || ' ' || coalesce(p.proacl::text, '')
+      select 'fn ' || p.oid::regprocedure::text || ' '
+             || case when p.proname = '_anonymiser_stagiaire' and current_setting('preuve.variante', true) = 'on'
+                     then 'corps adapté à la variante' else md5(pg_get_functiondef(p.oid)) end
+             || ' ' || coalesce(p.proacl::text, '')
         from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prokind in ('f', 'p')
       union all
       select 'pol ' || tablename || ' ' || policyname || ' ' || coalesce(qual, '') || ' ' || coalesce(with_check, '')
@@ -178,13 +203,22 @@ begin
     create function pg_temp.jour(p date) returns void language sql as $f$
       select set_config('preuve.jour', coalesce(p::text, ''), true);
     $f$;
+    -- Fiches de suivi d'une fiche (0 si la table a été retirée : variante sans fiches_suivi, voir l'en-tête).
+    create function pg_temp.nb_suivi(p_id integer) returns bigint language plpgsql as $f$
+    declare n bigint := 0;
+    begin
+      if to_regclass('public.fiches_suivi') is not null then
+        execute 'select count(*) from public.fiches_suivi where stagiaire_id = $1' into n using p_id;
+      end if;
+      return n;
+    end $f$;
     -- État d'une fiche, en une ligne : ce que les étapes doivent effacer ou garder.
     create function pg_temp.fiche(p_id integer) returns text language sql as $f$
       select concat_ws(' ',
         'profil:' || (select count(*) from public.user_profiles where stagiaire_id = p_id),
         'compte:' || (select count(*) from auth.users u join pg_temp.preuve_comptes k on k.uid = u.id where k.fiche = p_id),
         'prive:' || (select count(*) from public.stagiaires_prive where stagiaire_id = p_id),
-        'suivi:' || (select count(*) from public.fiches_suivi where stagiaire_id = p_id),
+        'suivi:' || pg_temp.nb_suivi(p_id),
         'textes:' || ((select count(*) from public.evaluations where stagiaire_id = p_id and observation is not null)
                     + (select count(*) from public.epcf_evaluations where stagiaire_id = p_id and commentaire is not null)
                     + (select count(*) from public.passages where stagiaire_id = p_id and commentaire is not null)),
@@ -254,14 +288,15 @@ begin
   -- Données des tables que les étapes touchent (empreinte : contenu ; photo : nombre de lignes et de valeurs non
   -- nulles, hors colonnes nouvelles de ce lot).
   execute $q$
-    create function pg_temp.tables_suivies() returns text[] language sql immutable as $f$
-      select array['lieux', 'promos', 'stagiaires', 'user_profiles', 'affectations', 'profs', 'settings', 'stagiaires_prive',
+    create function pg_temp.tables_suivies() returns text[] language sql stable as $f$
+      select array_agg(t order by o) from unnest(array['lieux', 'promos', 'stagiaires', 'user_profiles', 'affectations', 'profs', 'settings', 'stagiaires_prive',
                    'dp_dossiers', 'epcf_livrets', 'fiches_suivi', 'epcf_evaluations', 'evaluations', 'evaluations_audit',
                    'passages', 'passages_audit', 'agenda_events', 'qcm_signalements', 'themes', 'themes_progression',
                    'conditions_acceptations', 'planning_jours_off', 'emargement_seances', 'emargement_lignes',
                    'emargement_formateurs', 'effacements_journal', 'questionnaire_participations',
                    'questionnaire_reponses', 'questionnaire_ouvertures', 'questionnaire_resultats_figes',
-                   'questionnaire_clotures', 'registre_qualite'];
+                   'questionnaire_clotures', 'registre_qualite']) with ordinality u(t, o)
+       where to_regclass('public.' || t) is not null;
     $f$;
     create function pg_temp.donnees() returns text language plpgsql as $f$
     declare t text; v text; acc text := '';
@@ -373,8 +408,10 @@ begin
   for c in select s.id, k.email from stagiaires s left join pg_temp.preuve_comptes k on k.fiche = s.id and k.nom <> 'E6B'
             where s.id in (S1, S2, S3, SE, S4, S7, S8, S6, SC) loop
     insert into stagiaires_prive (stagiaire_id, date_naissance) values (c.id, date '1990-01-01');
-    insert into fiches_suivi (stagiaire_id, promo_id, besoins)
-      select c.id, promo_id, 'Besoin de la fiche preuve' from stagiaires where id = c.id;
+    if v_suivi then
+      execute 'insert into public.fiches_suivi (stagiaire_id, promo_id, besoins)
+               select $1, promo_id, ''Besoin de la fiche preuve'' from public.stagiaires where id = $1' using c.id;
+    end if;
     insert into dp_dossiers (stagiaire_id, promo_id, data) select c.id, promo_id, '{"preuve": true}' from stagiaires where id = c.id;
     insert into epcf_livrets (stagiaire_id, promo_id, data) select c.id, promo_id, '{"preuve": true}' from stagiaires where id = c.id;
     insert into evaluations (stagiaire_id, promo_id, type, note, observation, created_by_email)
@@ -387,6 +424,10 @@ begin
       insert into conditions_acceptations (email, version) values (c.email, '2026-11-08');
     end if;
   end loop;
+  -- Un thème modifié par S1 (quand la colonne existe : variante sans themes.updated_by_email, voir l'en-tête).
+  if v_themes_email then
+    execute 'insert into public.themes (titre, updated_by_email) values (''Preuve thème'', ''preuve.cons.e1@example.invalid'')';
+  end if;
 
   -- Émargement. PA, feuille close du 05/10/2026 : deux formateurs (Paul signe à 9 h, inscrit en premier ; Marie à 8 h 30),
   -- S1 signe lui-même (observation), S2 signé sur l'appareil du formateur (observation), S3 absent (observation), SE
@@ -532,7 +573,7 @@ begin
   perform pg_temp.cas('contrainte : un tracé ne s''efface pas sans signature_effacee_le (déclencheur ou contrainte)',
     r like 'P0001%' or r like '23514%', r);
   perform pg_temp.cas('état initial de S1 (PA, active, compte)', pg_temp.fiche(S1)
-    = 'profil:1 compte:1 prive:1 suivi:1 textes:3 emails:3 emobs:1 dossier:1 livret:1 traces:1 signees:1 absences:0 nom:nominatif actif:true efface:false anonymise:false',
+    = 'profil:1 compte:1 prive:1 suivi:' || case when v_suivi then 1 else 0 end || ' textes:3 emails:3 emobs:1 dossier:1 livret:1 traces:1 signees:1 absences:0 nom:nominatif actif:true efface:false anonymise:false',
     pg_temp.fiche(S1));
   v_avant_S7 := pg_temp.fiche(S7); v_avant_SC := pg_temp.fiche(SC); v_avant_SE := pg_temp.fiche(SE); v_avant_S8 := pg_temp.fiche(S8);
 
@@ -860,6 +901,19 @@ begin
     r := pg_temp.tente(format('select public.effacer_promo_etape1(%s)::text', PA));
     perform pg_temp.cas('étape 1 acceptée le 11/12/2027 : 3 fiches, 1 compte d''équipe ignoré',
       (pg_temp.res(r) ->> 'fiches')::int = 3 and (pg_temp.res(r) ->> 'comptes_equipe')::int = 1, r);
+    perform pg_temp.cas(format('étape 1 : compte rendu fiche_suivi présent, %s (%s)',
+        case when v_suivi then 3 else 0 end, case when v_suivi then 'table fiches_suivi présente' else 'table retirée' end),
+      (pg_temp.res(r) ->> 'fiche_suivi')::int = case when v_suivi then 3 else 0 end, r);
+    reset role;
+    if v_themes_email then
+      execute 'select string_agg(updated_by_email, '','') from public.themes where titre = ''Preuve thème''' into t;
+      perform pg_temp.cas('étape 1 : e-mail de S1 remplacé dans themes.updated_by_email', t = 'anonyme', t);
+    else
+      perform pg_temp.cas('étape 1 : colonne themes.updated_by_email retirée, rien à remplacer, aucune erreur',
+        not exists (select 1 from pg_attribute where attrelid = 'public.themes'::regclass and attname = 'updated_by_email'
+                       and not attisdropped), null);
+    end if;
+    set local role authenticated;
     perform pg_temp.cas('étape 1 : emargement.effacement et conservation.effacement vides après la fonction',
       coalesce(current_setting('emargement.effacement', true), '') = ''
       and coalesce(current_setting('conservation.effacement', true), '') = '',
@@ -1470,6 +1524,15 @@ begin
       end;
     end if;
     perform pg_temp.cas('retour joué sans erreur', r = 'joué', r);
+    -- Variante sans fiches_suivi ni themes.updated_by_email : le retour recrée _anonymiser_stagiaire avec ces deux
+    -- écritures conditionnées (son corps est donc mis à part dans l'empreinte, voir v_empreinte) ; base complète : mot
+    -- pour mot (compris dans l'empreinte).
+    if not (v_suivi and v_themes_email) then
+      t := pg_get_functiondef(to_regprocedure('public._anonymiser_stagiaire(integer)'));
+      perform pg_temp.cas('variante : _anonymiser_stagiaire recréée avec les écritures conditionnées (fiches_suivi, themes)',
+        position('to_regclass(''public.fiches_suivi'')' in t) > 0 and position('to_regclass(''public.themes'')' in t) > 0
+        and position('delete from fiches_suivi where' in t) = 0, null);
+    end if;
     execute v_empreinte into md5_apres;
     perform pg_temp.cas('retour : empreinte du schéma (droits compris) et des données identique à celle d''avant la migration',
       md5_apres = md5_avant, md5_avant || ' / ' || md5_apres);

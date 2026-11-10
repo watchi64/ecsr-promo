@@ -138,7 +138,13 @@ begin
 
   -- Données privées : supprimées (le dossier professionnel et le livret restent jusqu'à l'étape 2).
   delete from stagiaires_prive where stagiaire_id = p_id; get diagnostics n = row_count; v_n := v_n || jsonb_build_object('date_naissance', n);
-  delete from fiches_suivi where stagiaire_id = p_id;     get diagnostics n = row_count; v_n := v_n || jsonb_build_object('fiche_suivi', n);
+  -- Fiche de suivi : la table peut avoir été retirée (branche navigation-unique) ; requête dynamique, clé gardée à 0.
+  n := 0;
+  if to_regclass('public.fiches_suivi') is not null then
+    execute 'delete from public.fiches_suivi where stagiaire_id = $1' using p_id;
+    get diagnostics n = row_count;
+  end if;
+  v_n := v_n || jsonb_build_object('fiche_suivi', n);
 
   -- Résultats conservés, textes libres vidés (ils peuvent contenir un prénom, une santé…).
   -- (epcf_evaluations.contexte n'est pas un texte libre : c'est un code, « EPCF ».)
@@ -171,7 +177,11 @@ begin
     update evaluations_audit set changed_by_email = 'anonyme' where lower(changed_by_email) = any(v_emails);
     update agenda_events set created_by_email = 'anonyme' where lower(created_by_email) = any(v_emails);
     update qcm_signalements set email = 'anonyme' where lower(email) = any(v_emails);
-    update themes set updated_by_email = 'anonyme' where lower(updated_by_email) = any(v_emails);
+    -- themes.updated_by_email peut avoir été retirée (branche navigation-unique) : requête dynamique.
+    if exists (select 1 from pg_attribute where attrelid = to_regclass('public.themes')
+                  and attname = 'updated_by_email' and attnum > 0 and not attisdropped) then
+      execute 'update public.themes set updated_by_email = ''anonyme'' where lower(updated_by_email) = any($1)' using v_emails;
+    end if;
     update themes_progression set updated_by_email = 'anonyme' where lower(updated_by_email) = any(v_emails);
     update user_profiles set invited_by_email = 'anonyme' where lower(invited_by_email) = any(v_emails);
     delete from conditions_acceptations where lower(email) = any(v_emails);
