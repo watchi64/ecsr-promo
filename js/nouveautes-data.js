@@ -30,6 +30,32 @@
 // l'ancienne barre : ils restent tels quels.
 
 export const NOUVEAUTES = [
+  // Lot D (les mots) et décisions du 10/11.
+  {
+    id: "2026-11-10-des-mots-plus-clairs-equipe",
+    date: "2026-11-10",
+    pour: "formateurs",
+    titre: "L'app vous vouvoie, et ses mots sont plus clairs",
+    resume: "L'app vouvoie désormais l'équipe (formateurs, direction) et tutoie toujours les stagiaires. Les erreurs de "
+          + "QCM remontées par les stagiaires s'appellent « Questions contestées », avec un drapeau ; « Signaler un "
+          + "problème » reste réservé aux problèmes de l'app. Chaque dossier a un seul nom (« Dossier professionnel », "
+          + "« Livret EPCF », « Évaluations EPCF »), « Priorités » devient « Ordre de passage », la « Note » de la "
+          + "feuille d'émargement devient « Remarque », et les stagiaires s'écrivent partout « Lucie M. ». Dans "
+          + "Réglages, « Apparence » mène au choix des couleurs.",
+    guide: [
+      "Ouvrez Cours et QCM, onglet Questions contestées, pour traiter les contestations : « Question corrigée » ou « Pas d'erreur ».",
+    ],
+  },
+  {
+    id: "2026-11-10-des-mots-plus-clairs-stagiaires",
+    date: "2026-11-10",
+    pour: "stagiaires",
+    titre: "Contester une question, et des noms plus clairs",
+    resume: "Une erreur dans un QCM ? Touche « Contester cette question » : ta contestation part aux formateurs. "
+          + "« Signaler un problème » sert aux problèmes de l'app. Ta page d'accueil s'appelle « Accueil », et ton "
+          + "livret EPCF, que ton formateur évaluateur remplit, se consulte dans Mon suivi.",
+    ou: { label: "Accueil", route: "home" },
+  },
   {
     // Mise en ligne du 09/11/2026 (migration appliquée le même jour). Premier du fichier : à date égale avec le lot 2B,
     // c'est elle que montre la carte « Nouveauté » de l'Accueil, la plus récente.

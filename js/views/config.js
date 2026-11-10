@@ -22,7 +22,7 @@ import {
 } from "../db.js?v=20261110b";
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261110b";
 import { icon } from "../icons.js?v=20261110b";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261110b";
+import { selonPublic, isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261110b";
 import { moduleVisible } from "../modules-etat.js?v=20261110b";
 import { renderModulesSection } from "./modules-reglage.js?v=20261110b";
 import { renderEmargementReglage } from "../emargement-etat.js?v=20261110b";
@@ -763,7 +763,7 @@ function renderInfoSection() {
     section.appendChild(el("div", { class: "param-block", "data-a-retenir": "" },
       el("h4", {}, "À retenir"),
       el("ul", { class: "home-info-list" },
-        ...pointsARetenir(true).map((p) => el("li", {}, el("strong", {}, p.gras), p.suite)),
+        ...pointsARetenir(true, selonPublic).map((p) => el("li", {}, el("strong", {}, p.gras), p.suite)),
       ),
     ));
   }
