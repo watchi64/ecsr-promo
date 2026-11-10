@@ -22,6 +22,7 @@ function registre() {
     removeEventListener(type, rappel) { ecouteurs.set(type, (ecouteurs.get(type) || []).filter((f) => f !== rappel)); },
     ecoutes: (type) => ecouteurs.get(type) || [],
     enCapture: (rappel) => captures.has(rappel),
+    declencher(type, evenement = {}) { for (const f of [...(ecouteurs.get(type) || [])]) f({ type, ...evenement }); },
   };
 }
 
@@ -160,10 +161,102 @@ test("le focus ne revient pas à un champ qui a quitté la page (« Retour » pe
   assert.equal(document.activeElement, oui, "le focus n'est pas rendu à un champ sorti de la page");
 }));
 
-test("la page Notes n'ouvre plus aucune boîte du navigateur (effacer une note, partout)", () => {
-  for (const fichier of ["js/views/notes.js", "js/views/notes-saisie.js"]) {
+test("un geste qui n'efface rien : bouton vert (primary) ; la fenêtre passe au-dessus de l'écran d'examen", () => avecDocument(async (document) => {
+  const reponse = confirmer({ titre: "Terminer l'examen ?", oui: "Terminer", non: "Continuer l'examen", danger: false });
+  await tour();
+  const f = fenetre(document);
+  assert.ok(f.classes.has("confirmer-fond"), "le fond porte sa classe (plan au-dessus de l'examen, css/style.css)");
+  assert.ok(bouton(document, "Terminer").classes.has("primary"));
+  assert.ok(!bouton(document, "Terminer").classes.has("danger"));
+  assert.deepEqual(boutons(document).map((b) => b.textContent), ["Continuer l'examen", "Terminer"]);
+  bouton(document, "Terminer").click();
+  assert.equal(await reponse, true);
+}));
+
+test("par défaut le bouton du geste est rouge (danger)", () => avecDocument(async (document) => {
+  const reponse = confirmer({ titre: "Supprimer ce passage ?", oui: "Supprimer" });
+  await tour();
+  assert.ok(bouton(document, "Supprimer").classes.has("danger"));
+  bouton(document, "Annuler").click();
+  assert.equal(await reponse, false);
+}));
+
+test("un signal d'abandon referme la fenêtre (fin du temps d'un examen) : réponse non", () => avecDocument(async (document) => {
+  const arret = new AbortController();
+  const reponse = confirmer({ titre: "Terminer l'examen ?", oui: "Terminer", danger: false, signal: arret.signal });
+  await tour();
+  assert.ok(fenetre(document));
+  arret.abort();
+  assert.equal(await reponse, false);
+  assert.equal(fenetre(document), null, "la fenêtre est partie");
+  assert.equal(clavier().length, 0, "plus d'écoute du clavier");
+}));
+
+test("les autres touches ne vont pas plus loin (Ctrl+Z ne défait rien sous la question) ; Entrée garde son effet", () => avecDocument(async (document) => {
+  const reponse = confirmer({ titre: "Vider les placements de la semaine ?", oui: "Vider" });
+  await tour();
+  let e = touche("z", { ctrlKey: true });
+  assert.ok(e.arrete, "Ctrl+Z s'arrête à la fenêtre");
+  assert.ok(!e.empeche, "sans empêcher le navigateur");
+  e = touche("Enter");
+  assert.ok(e.arrete && !e.empeche, "Entrée : rien d'autre ne la reçoit, mais elle active toujours le bouton qui a le focus");
+  assert.ok(fenetre(document), "la fenêtre reste");
+  bouton(document, "Annuler").click();
+  assert.equal(await reponse, false);
+}));
+
+test("un changement de page (Retour du téléphone) referme la question : réponse non, focus non rendu", () => avecDocument(async (document) => {
+  const champ = document.createElement("input");
+  document.body.appendChild(champ);
+  champ.focus();
+  const reponse = confirmer({ titre: "Vider les placements de la semaine ?", oui: "Vider" });
+  await tour();
+  const oui = bouton(document, "Vider");
+  globalThis.window.declencher("hashchange");
+  assert.equal(await reponse, false);
+  assert.equal(fenetre(document), null);
+  assert.equal(document.activeElement, oui, "le focus n'est pas rendu au champ de la page quittée");
+  assert.equal(clavier().length, 0, "plus d'écoute du clavier");
+  assert.equal(globalThis.window.ecoutes("hashchange").length, 0, "plus d'écoute de l'adresse");
+}));
+
+test("après une réponse, l'arrêt du signal ne fait plus rien (un même signal sert à plusieurs questions)", () => avecDocument(async (document) => {
+  const arret = new AbortController();
+  const reponse = confirmer({ titre: "Terminer l'examen ?", oui: "Terminer", danger: false, signal: arret.signal });
+  await tour();
+  bouton(document, "Terminer").click();
+  assert.equal(await reponse, true);
+  arret.abort();
+  assert.equal(fenetre(document), null);
+}));
+
+test("le plan de la fenêtre : au-dessus des calques de la navigation (1600), sous les messages du bas (2000)", () => {
+  const css = readFileSync(new URL("../css/style.css", import.meta.url), "utf8");
+  const m = css.match(/\.modal-backdrop\.confirmer-fond\s*\{\s*z-index:\s*(\d+)/);
+  assert.ok(m, "la règle .modal-backdrop.confirmer-fond existe");
+  const z = Number(m[1]);
+  assert.ok(z > 1600 && z < 2000, "plan " + z);
+});
+
+test("un signal déjà abandonné : rien ne s'ouvre, réponse non", () => avecDocument(async (document) => {
+  const arret = new AbortController();
+  arret.abort();
+  const reponse = confirmer({ titre: "Terminer l'examen ?", oui: "Terminer", signal: arret.signal });
+  assert.equal(await reponse, false);
+  assert.equal(fenetre(document), null);
+}));
+
+// Les fichiers déjà passés à la fenêtre de l'app : Notes (finitions du lot C), puis le lot A du 09/11 (tout fichier
+// qu'aucun autre chantier ne touchait). Le lot B (réglages, émargement, Cours et QCM, EPCF, garde de sortie) suivra.
+const SANS_CONFIRM_NATIF = ["js/views/notes.js", "js/views/notes-saisie.js",
+  "js/views/benevoles.js", "js/views/calendrier.js", "js/views/modules-reglage.js", "js/views/passages.js",
+  "js/views/planning.js", "js/views/problemes.js", "js/views/qcm.js", "js/views/ressources.js"];
+
+// (Le planning garde un prompt(), le libellé d'un jour désactivé : une fenêtre avec un champ, autre travail.)
+test("ces pages ne demandent plus aucune confirmation au navigateur", () => {
+  for (const fichier of SANS_CONFIRM_NATIF) {
     const src = readFileSync(new URL("../" + fichier, import.meta.url), "utf8")
       .replace(/\/\/.*$/gm, "");   // les commentaires peuvent parler de confirm()
-    assert.doesNotMatch(src, /(^|[^\w.])confirm\s*\(|window\.confirm\s*\(/, fichier + " : un confirm() du navigateur");
+    assert.ok(!/(^|[^\w.])confirm\s*\(|window\.confirm\s*\(/.test(src), fichier + " : un confirm() du navigateur");
   }
 });

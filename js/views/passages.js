@@ -1,11 +1,12 @@
-import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261110a";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe } from "../utils.js?v=20261110a";
-import { icon } from "../icons.js?v=20261110a";
-import { recordUndo } from "../undo.js?v=20261110a";
-import { TYPES, RESULTATS } from "../config.js?v=20261110a";
-import { isAdmin, monStagiaireId } from "../auth-admin.js?v=20261110a";
-import { getCurrentWho } from "../identity.js?v=20261110a";
-import { navigationV2Active } from "../nav-etat.js?v=20261110a";
+import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261110b";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe } from "../utils.js?v=20261110b";
+import { confirmer } from "../confirmer.js?v=20261110b";
+import { icon } from "../icons.js?v=20261110b";
+import { recordUndo } from "../undo.js?v=20261110b";
+import { TYPES, RESULTATS } from "../config.js?v=20261110b";
+import { isAdmin, monStagiaireId } from "../auth-admin.js?v=20261110b";
+import { getCurrentWho } from "../identity.js?v=20261110b";
+import { navigationV2Active } from "../nav-etat.js?v=20261110b";
 
 let stagiaires = [];
 let passages = [];
@@ -155,7 +156,7 @@ function renderTable(container) {
       class: "btn small danger icon-only",
       "aria-label": "Supprimer",
       onClick: async () => {
-        if (!confirm(`Supprimer ce passage ?`)) return;
+        if (!(await confirmer({ titre: "Supprimer ce passage ?", oui: "Supprimer" }))) return;
         const snapshot = { ...p };
         delete snapshot.id; delete snapshot.created_at; delete snapshot.updated_at;
         delete snapshot.stagiaire; delete snapshot.remplacant;

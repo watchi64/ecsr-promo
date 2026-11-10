@@ -11,9 +11,10 @@ import {
   listBenevoles, addBenevole, updateBenevole, setBenevoleActif,
   listAutoEcoles, addAutoEcole, updateAutoEcole, setAutoEcoleActif, deleteAutoEcole,
   listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires, getPromoCourante,
-} from "../db.js?v=20261110a";
-import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261110a";
-import { JOURS } from "../config.js?v=20261110a";
+} from "../db.js?v=20261110b";
+import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261110b";
+import { confirmer } from "../confirmer.js?v=20261110b";
+import { JOURS } from "../config.js?v=20261110b";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [
@@ -429,7 +430,8 @@ function panneau(zone, { fermer = null } = {}) {
         line.appendChild(el("button", { class: "bnv-affilie-x", type: "button",
           title: "Désaffilier de cette auto-école (reste dans la banque)",
           onClick: async () => {
-            if (!confirm(`Désaffilier ${displayStagiaire(b)} de ${a.nom} ? (reste dans la banque)`)) return;
+            if (!(await confirmer({ titre: `Désaffilier ${displayStagiaire(b)} de ${a.nom} ?`,
+              phrase: "Sa fiche reste dans la banque des bénévoles.", oui: "Désaffilier" }))) return;
             try { await updateBenevole(b.id, { auto_ecole_id: null }); dirty = true; await reload(); reopenEcole(); }
             catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
           }}, "×"));
@@ -458,7 +460,8 @@ function panneau(zone, { fermer = null } = {}) {
     const actions = el("div", { class: "modal-actions" });
     if (a && a.actif !== false) {
       actions.appendChild(el("button", { class: "btn ghost bnv-remove", onClick: async () => {
-        if (!confirm(`Retirer ${a.nom} des partenaires ? (réactivable ensuite)`)) return;
+        if (!(await confirmer({ titre: `Retirer ${a.nom} des partenaires ?`,
+          phrase: "Tu pourras la réactiver ensuite.", oui: "Retirer" }))) return;
         try { await setAutoEcoleActif(a.id, false); dirty = true; await reload(); render(); }
         catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
       }}, "Retirer"));
@@ -466,10 +469,10 @@ function panneau(zone, { fermer = null } = {}) {
     if (a) {
       actions.appendChild(el("button", { class: "btn ghost bnv-remove", onClick: async () => {
         const nb = list.filter((x) => x.auto_ecole_id === a.id).length;  // inactifs compris
-        const msg = nb
-          ? `Supprimer définitivement ${a.nom} ?\n\nSes ${nb} bénévole(s) resteront dans la banque, sans auto-école.`
-          : `Supprimer définitivement ${a.nom} ?`;
-        if (!confirm(msg)) return;
+        const phrase = nb === 0 ? null
+          : nb === 1 ? "Son bénévole reste dans la banque, sans auto-école."
+          : `Ses ${nb} bénévoles restent dans la banque, sans auto-école.`;
+        if (!(await confirmer({ titre: `Supprimer définitivement ${a.nom} ?`, phrase, oui: "Supprimer" }))) return;
         try { await deleteAutoEcole(a.id); dirty = true; await reload(); tab = "ecoles"; render(); }
         catch (e) { console.error(e); toast("Erreur de suppression", "error"); }
       }}, "Supprimer"));
@@ -692,7 +695,8 @@ function panneau(zone, { fermer = null } = {}) {
     const actions = el("div", { class: "modal-actions" });
     if (b && b.actif !== false) {
       actions.appendChild(el("button", { class: "btn ghost bnv-remove", onClick: async () => {
-        if (!confirm(`Retirer ${displayStagiaire(b)} de la banque ? (réactivable ensuite)`)) return;
+        if (!(await confirmer({ titre: `Retirer ${displayStagiaire(b)} de la banque ?`,
+          phrase: "Tu pourras réactiver sa fiche ensuite.", oui: "Retirer de la banque" }))) return;
         try {
           await setBenevoleActif(b.id, false); dirty = true; await reload(); done();
         } catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
