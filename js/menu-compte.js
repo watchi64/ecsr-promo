@@ -1,13 +1,11 @@
-// Menu du compte de la nouvelle navigation (refonte, lot 1), ouvert par le bouton du compte des
-// deux espaces (et, sur téléphone, depuis le tiroir « Plus » de l'équipe). Il reprend le menu
-// « Mon compte » de l'ancienne barre (auth-admin.js) : la page à soi (Mon suivi, ou Stagiaires
-// pour un formateur sans profil stagiaire) quand la barre n'y mène pas déjà (ruling R30), le « Voir
-// en tant que » du fondateur, les informations légales et la déconnexion ; il y ajoute ce que
-// l'ancienne barre portait à côté : les Nouveautés (avec le nombre des non-lues, que le bouton du
-// compte ne montre plus que par un point), les Contacts du centre (l'ancien onglet Ressources, qui est
-// maintenant Cours et QCM, Documents), Mes préférences (celles de la personne, pour tous les rôles :
-// les Réglages de la promo sont une entrée de la barre de l'équipe) et « Actualiser », le même geste que
-// le bouton de l'ancienne barre (seul moyen de relire les données dans l'app installée sur iPhone).
+// Menu du compte (refonte, lot 1 ; seul menu du compte depuis le 10/11), ouvert par le bouton du compte
+// de chaque espace (et, sur téléphone, depuis le tiroir « Plus » de l'équipe) : la page à soi (Mon suivi,
+// ou Stagiaires pour un formateur sans profil stagiaire) quand la barre n'y mène pas déjà (ruling R30), le
+// « Voir en tant que » du fondateur, les informations légales et la déconnexion, les Nouveautés (avec le
+// nombre des non-lues, que le bouton du compte ne montre que par un point), les Contacts du centre (Cours
+// et QCM, Documents), Mes préférences (celles de la personne, pour tous les rôles : les Réglages de la
+// promo sont une entrée de la barre de l'équipe) et « Actualiser » (seul moyen de relire les données dans
+// l'app installée sur iPhone).
 // Juste sous la tête du menu (lot 3) : Apparence, le choix de l'habillage (js/habillage-choix.js) ; une pastille
 // touchée change les couleurs sans fermer le menu.
 // Popover sur ordinateur et tablette, tiroir en bas de l'écran sur téléphone (css/navigation.css),
