@@ -20,13 +20,13 @@
 // Les tableaux par stagiaire comptent les mêmes stagiaires que lui : ceux en formation, et le document le dit ; seule la
 // liste nominative de l'effectif montre aussi les abandons.
 
-import { SOURCE } from "./qualiopi-referentiel.js?v=20261110a";
-import { jourDe, rempli, tableau, nb, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261110a";
-import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261110a";
-import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261110a";
-import { estNotee, score20 } from "./notes-stats.js?v=20261110a";
-import { cellule, nombre, slug } from "./centre-csv.js?v=20261110a";
-import { compareByNom } from "./utils.js?v=20261110a";
+import { SOURCE } from "./qualiopi-referentiel.js?v=20261110b";
+import { jourDe, rempli, tableau, nb, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261110b";
+import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261110b";
+import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261110b";
+import { estNotee, score20 } from "./notes-stats.js?v=20261110b";
+import { cellule, nombre, slug } from "./centre-csv.js?v=20261110b";
+import { compareByNom } from "./utils.js?v=20261110b";
 
 export const PHRASE_DE_GARDE = "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
 

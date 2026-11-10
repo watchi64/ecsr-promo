@@ -5,8 +5,8 @@
 // mesure_prevention, etat, clos_le, efface_le, signalement_id, issu_signalement }. Les dates de jour sont « AAAA-MM-JJ ».
 // Aucun nom de personne n'est jamais recopié : l'origine seulement (stagiaire, formateur, équipe...).
 
-import { cellule } from "./centre-csv.js?v=20261110a";
-import { jourParis } from "./questionnaires-gestion-rules.js?v=20261110a";
+import { cellule } from "./centre-csv.js?v=20261110b";
+import { jourParis } from "./questionnaires-gestion-rules.js?v=20261110b";
 
 export const TYPES = { reclamation: "Réclamation", difficulte: "Difficulté", alea: "Aléa", amelioration: "Amélioration", risque: "Risque" };
 export const ORIGINES = {
