@@ -251,7 +251,7 @@ def verifier_envoi(page, res, vue, nav2, role, largeur, captures, nom_capture):
         res.echec(vue, "le champ porte une limite technique (maxlength) qui coupe un collage sans le dire")
     resume_long = ".sg-mes .sg-mien-message summary"
     if largeur < 700 and visible(page, resume_long) and hauteur(page, resume_long) < 44:
-        res.echec(vue, "résumé dépliable de « Mes signalements » sous 44 px (%.0f px)" % hauteur(page, resume_long))
+        res.echec(vue, "résumé dépliable de « Mes problèmes signalés » sous 44 px (%.0f px)" % hauteur(page, resume_long))
     page.fill("#sg-message", "Le bouton Enregistrer ne réagit pas.")
     page.locator("[data-sg='envoyer']").dblclick()
     page.wait_for_timeout(600)
@@ -272,7 +272,7 @@ def verifier_envoi(page, res, vue, nav2, role, largeur, captures, nom_capture):
     cliquer(page, "[data-sg='envoyer']")
     page.wait_for_timeout(400)
     erreur = page.evaluate("document.querySelector('.sg-erreur')?.textContent || ''")
-    if "10 signalements" not in erreur or "Ton texte est gardé" not in erreur:
+    if "10 signalements" not in erreur or "Le texte est gardé" not in erreur:
         res.echec(vue, "refus mal dit : « %s »" % erreur)
     if page.input_value("#sg-message") != "Deuxième essai, refusé.":
         res.echec(vue, "texte perdu après un refus")

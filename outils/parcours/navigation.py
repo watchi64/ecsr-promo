@@ -7,7 +7,7 @@ de l'équipe, barre du bas et « Plus » sur téléphone), allumée promo par pr
 des clics la plus courte qu'offre l'écran ; le robot les compte contre le budget du parcours.
 
 Pages du lot 2B (nouvelle navigation seulement) : « Aujourd'hui » de l'équipe (la route de l'Accueil), les
-sous-onglets « QCM » du stagiaire, « Signalements » et « Propositions IA » de l'équipe, la partie « Livret EPCF »
+sous-onglets « QCM » du stagiaire, « Questions contestées » (« Signalements » avant le lot D) et « Propositions IA » de l'équipe, la partie « Livret EPCF »
 de Mon suivi.
 """
 
@@ -119,7 +119,7 @@ def chemin(destination, navigation, espace, telephone):
               "Notes et examens": "notes", "Cours et QCM": "themes", "CCP2": "ccp2", "Indicateurs": "centre", "Réglages": "config"}
     if destination in routes:
         return _plus_si_telephone(routes[destination], "« %s »" % destination, telephone, BARRE_DU_BAS_EQUIPE)
-    if destination in ("Signalements", "Propositions IA"):
+    if destination in ("Questions contestées", "Propositions IA"):
         # Deux sous-onglets de Cours et QCM réservés à l'équipe (Propositions IA : administrateurs seulement).
         return _plus_si_telephone("themes", "« Cours et QCM »", telephone, BARRE_DU_BAS_EQUIPE) +             [(texte(destination, SOUS_ONGLET), "« %s »" % destination)]
     if destination == "Signaler un problème":
