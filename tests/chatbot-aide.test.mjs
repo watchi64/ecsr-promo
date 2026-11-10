@@ -89,15 +89,17 @@ test("le quota et la limite sur les données personnelles restent dans les deux 
   }
 });
 
-test("la fonction choisit les consignes d'après le champ navigation de la requête", () => {
+test("la fonction prend toujours le guide de la nouvelle barre, choisi par l'espace ; elle ne lit plus le champ navigation", () => {
   const source = lire("../supabase/functions/chatbot/index.ts");
-  assert.ok(source.includes("aide: consignesApp(corps.navigation, corps.espace)"));
+  assert.ok(source.includes('aide: consignesApp("nouvelle", corps.espace)'));
+  assert.ok(!source.includes("corps.navigation"));
   assert.ok(!source.includes("aide: AIDE_APP"));
 });
 
-test("l'app envoie la barre affichée avec chaque question", () => {
+test("l'app envoie l'espace avec chaque question, plus la navigation", () => {
   const source = lire("../js/chatbot.js");
-  assert.match(source, /corpsRequete\(histo, location\.hash, navigationV2Active\(\), getEspace\(\)\)/);
+  assert.match(source, /corpsRequete\(histo, location\.hash, getEspace\(\)\)/);
+  assert.ok(!source.includes("navigationV2Active"));
 });
 
 test("l'ancien guide ne bouge pas d'un octet (empreinte du 08/11, lot 2B)", () => {

@@ -5,8 +5,9 @@
 import assert from "node:assert/strict";
 import {
   espaceDe, entreesNavigation, barreTelephone, entreeActive, redirectionV2, routeVisibleV2, initialesDe,
-  prenomDe, entreeMasquee, libelleRole, nomDuBoutonCompte, pageASoiDuMenu, redirectionAncienne, CLES_SOUS_ONGLETS,
+  prenomDe, entreeMasquee, libelleRole, nomDuBoutonCompte, pageASoiDuMenu, routeApresRedirection, CLES_SOUS_ONGLETS,
 } from "../js/nav-rules.js";
+import { readFileSync } from "node:fs";
 import { pagePersonnelle } from "../js/route-rules.js";
 import { MODULE_DE_ROUTE, ROUTES_SOCLE } from "../js/modules-data.js";
 import { lireAdresse, ouvertureDeMonSuivi } from "../js/route-rules.js";
@@ -124,17 +125,35 @@ for (const ancienne of ["calendrier", "ressources", "notes", "config"]) {
   eq(redirectionV2(lireAdresse("#/" + ancienne), "stagiaire") !== null, true,
     `témoin : lue depuis son hash, #/${ancienne} est reconnue comme ancienne adresse`);
 }
-// Ancienne navigation : Mes préférences n'existe qu'avec la nouvelle, et #/preferences (un favori pris sous la
-// nouvelle, la promo éteinte depuis) mène aux Paramètres. Toute autre adresse reste celle de main : l'interrupteur
-// éteint ne change rien, la table ne redirige que cette route.
-eq(redirectionAncienne(adresse("preferences")), { hash: "#/config", sousOnglet: null }, "ancienne navigation : préférences vers Paramètres");
-eq(redirectionAncienne(lireAdresse("#/config")), null, "la cible des préférences n'est pas redirigée : pas de boucle");
-// `preferences` est une route du socle (des liens « Où le trouver » y mènent) : c'est justement la seule que l'ancienne navigation redirige,
-// elle n'entre donc pas dans la boucle des routes qui ne bougent pas.
+// Une seule navigation depuis le 10/11 : `preferences` est une route du socle (des liens « Où le trouver » y mènent), jamais
+// redirigée, dans aucun espace.
 eq(ROUTES_SOCLE.includes("preferences"), true, "Mes préférences : route du socle");
-for (const route of [...Object.keys(MODULE_DE_ROUTE), ...ROUTES_SOCLE].filter((r) => r !== "preferences")) {
-  eq(redirectionAncienne(adresse(route)), null, `ancienne navigation : #/${route} reste celle de main`);
+for (const espace of ["stagiaire", "equipe", "direction", "siege"]) {
+  eq(redirectionV2(adresse("preferences"), espace), null, `préférences (${espace}) : jamais redirigées`);
 }
+// Un stagiaire qui ouvre Réglages (#/config) arrive sur Mes préférences, quelle que soit la forme de l'adresse (lien, favori,
+// adresse saisie avec un segment de plus) ; ni l'équipe, ni la direction, ni le siège, qui ont chacun leur page Réglages.
+for (const hash of ["#/config", "#/config/", "#/config/acces"]) {
+  eq(redirectionV2(lireAdresse(hash), "stagiaire"), { hash: "#/preferences", sousOnglet: null }, `stagiaire, ${hash} : Mes préférences`);
+}
+for (const espace of ["equipe", "direction", "siege"]) {
+  eq(redirectionV2(lireAdresse("#/config"), espace), null, `${espace}, #/config : sa page Réglages, sans redirection`);
+}
+// La dernière page mémorisée (js/main.js, derniereRoute) se juge sur la page où sa redirection mène : une mémoire d'avant le
+// 10/11 peut valoir calendrier, dashboard, ressources, ou config chez un stagiaire.
+eq(routeApresRedirection("config", "stagiaire"), "preferences", "mémoire config d'un stagiaire : Mes préférences");
+eq(routeApresRedirection("config", "equipe"), "config", "mémoire config de l'équipe : Réglages");
+eq(routeApresRedirection("calendrier", "stagiaire"), "planning", "mémoire calendrier : Planning");
+eq(routeApresRedirection("dashboard", "equipe"), "planning", "mémoire dashboard : Planning");
+eq(routeApresRedirection("ressources", "stagiaire"), "themes", "mémoire ressources : Cours et QCM");
+eq(routeApresRedirection("notes", "stagiaire"), "mon-suivi", "mémoire notes d'un stagiaire : Mon suivi");
+eq(routeApresRedirection("notes", "equipe"), "notes", "mémoire notes de l'équipe : Notes et examens");
+eq(routeApresRedirection("planning", "stagiaire"), "planning", "une route qui ne bouge pas reste elle-même");
+// js/main.js suit redirectionV2 sans condition (plus d'interrupteur), et juge la dernière page par routeApresRedirection.
+const MAIN = readFileSync(new URL("../js/main.js", import.meta.url), "utf8");
+eq(/const cible = redirectionV2\(adresse, espaceCourant\(\)\);/.test(MAIN), true, "main.js : la redirection est toujours suivie");
+eq(/routeApresRedirection\(r, espace\)/.test(MAIN), true, "main.js : la dernière page passe par sa redirection");
+eq(/navigationV2Active|redirectionAncienne|nav-etat/.test(MAIN), false, "main.js : plus d'interrupteur de navigation");
 
 // 6. Pages regroupées : ouvertes dès qu'un de leurs sous-onglets l'est
 const seules = (...routes) => (r) => routes.includes(r);

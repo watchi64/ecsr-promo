@@ -59,7 +59,8 @@ ok(!/^\s*(import|export)\b[^;]*["']\.\/views\/qualiopi\.js/m.test(main), "ni par
 // --- Branchement : route, onglet allumé, porte du fondateur, nettoyage de l'impression ---
 ok(/import \{ teardownQualiopiPrint \} from "\.\/qualiopi-impression\.js\?v=\w+";/.test(main), "main.js importe le nettoyage de l'impression, dans le petit module chargé avec l'app");
 ok(/\n  qualiopi:\s+rendreQualiopi,/.test(main), "la route qualiopi mène au chargeur de la page");
-ok(/const ONGLET_POUR_ROUTE = \{[^}]*\bqualiopi: "home"[^}]*\};/.test(main), "l'ancienne barre allume Accueil sur #/qualiopi");
+ok(!/ONGLET_POUR_ROUTE/.test(main), "plus d'ancienne barre (retirée le 10/11) : l'entrée allumée sur #/qualiopi vient de nav-rules.js");
+ok(/\["qualiopi", "centre"\]/.test(lire("js/nav-rules.js")), "la coquille allume Indicateurs sur #/qualiopi (alias de nav-rules.js)");
 const debutGarde = main.indexOf('else if (route === "qualiopi" && !fondateurHorsApercu()) {');
 ok(debutGarde > 0, "une garde propre à la route qualiopi, hors aperçu comme « problemes »");
 const garde = main.slice(debutGarde, main.indexOf("memoriserRoute(route);", debutGarde));   // la branche, jusqu'à la suite de navigate()
@@ -138,9 +139,8 @@ const textes = (noeud) => (typeof noeud === "string" ? [noeud] : (noeud.enfants 
   eq(t.journal, ["chargement"], "le chargeur n'ajoute ni boîte d'erreur ni message à une erreur de rendu : le routeur prend la main");
 }
 
-// --- Aucune entrée de barre, ni l'ancienne ni la nouvelle ; aucun module ---
-const tabs = main.slice(main.indexOf("const TABS = ["), main.indexOf("];", main.indexOf("const TABS = [")));
-ok(!/qualiopi/i.test(tabs), "l'ancienne barre (TABS) n'a pas d'entrée Qualiopi");
+// --- Aucune entrée de barre ; aucun module ---
+ok(!main.includes("const TABS = ["), "plus d'ancienne barre (TABS), retirée le 10/11");
 for (const fichier of ["js/nav-rules.js", "js/nav-shell.js", "js/menu-compte.js", "js/modules-data.js", "js/modules-etat.js"]) {
   // Seul l'alias de nav-rules (route « qualiopi » -> entrée « centre ») est permis : il n'ajoute aucune entrée à la barre.
   const texteFichier = lire(fichier).split(String.fromCharCode(10)).filter((l) => !/Qualiopi \(fondateur|\["qualiopi", "centre"\],/.test(l)).join(String.fromCharCode(10));
