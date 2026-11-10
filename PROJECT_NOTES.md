@@ -635,6 +635,82 @@ Plan : `docs/superpowers/plans/2026-11-09-qualiopi-q4-registre.md`. Migration `2
   sort rouge sur la couverture de `registre_qualite` (comme sur les tables des questionnaires) ; la ligne de la table est
   déjà écrite sur la branche du lot 5. Ce n'est pas un défaut de Q4.
 
+## Conservation (Qualiopi Q5, novembre 2026, branche `qualiopi-q5`, NON en ligne)
+
+Plan : `docs/superpowers/plans/2026-11-09-qualiopi-q5-conservation.md` ; spec `docs/superpowers/specs/2026-11-08-qualiopi-q3-q5-design.md`
+(§ 3, § 6, § 6.1, § 7, § 8, § 10, § 11.2). Migration `supabase/migrations/20261110_conservation.sql` (retour :
+`20261110_conservation_retour.sql`), **écrite, répétée et prouvée en local, jamais appliquée à la base réelle**. Registre
+des traitements et rappel de la veille : livrés en fichiers pour le dépôt ECSR (tâche 9), rien n'y est commité d'ici.
+
+- **Deux étapes, deux marques sur `stagiaires`.** `efface_le` date l'étape 1 (12 mois après `promos.date_fin` : compte, e-mails,
+  date de naissance, fiche de suivi, textes libres, observations et e-mails de l'émargement, participations aux
+  questionnaires) ; `anonymise_le` garde son sens (plus aucun nom) et date l'étape 2 (à partir du 1er janvier de
+  `extract(year from date_fin) + 4`, donc après le 31 décembre de la 3ᵉ année : dossier professionnel, livret, tracés des
+  signatures, nom, formateurs de l'émargement renommés « Formateur 1 », « Formateur 2 »). L'étape 2 fait l'étape 1 qui manque.
+  Seules les fonctions de conservation écrivent les marques (déclencheur `stagiaires_marques_conservation`). **`actif` n'est
+  jamais écrit** : l'abandon reste une décision de l'équipe. Contrainte : pas d'`anonymise_le` sans `efface_le`.
+- **Dates (jour de Paris, `_questionnaire_jour()`)** : exemple de la promo finie le 11/12/2026 : étape 1 à partir du
+  11/12/2027, étape 2 à partir du 01/01/2030. Formateurs (portée lieu + année) : liste « qui a répondu » effacée et année
+  close à partir du 01/01 de `annee + 1`, commentaires à partir du 31/12 de `annee + 1`, figeage à partir du 01/01 de
+  `annee + 4`. Registre qualité : 3 ans après la clôture (Q4), journal ajouté ici. Une promo sans date de fin n'ouvre aucune
+  étape (la section le dit). Aucune étape ne part toute seule : chaque échéance est un clic du fondateur, rejouable
+  (second appel : rien de changé, rien écrit au journal).
+- **Droits.** Page Qualiopi, troisième sous-onglet « Conservation des données » (`js/views/conservation.js`, règles dans
+  `js/effacement-rules.js`, lecture dans `js/db.js`), réservé au fondateur : chaque fonction exige `peut_gerer_qualite()` ET
+  l'accès à la promo (`peut_acceder_promo`), pour que le lot 5 puisse élargir le droit à la direction sans qu'un centre
+  efface un autre. Paramètres perd « Anonymiser la promo » et « Effacer les données » et garde « Réactiver », la purge des
+  bénévoles et une phrase qui renvoie au fondateur. Un compte d'équipe n'est jamais effacé.
+- **Effacement sur demande** (`effacer_sur_demande(stagiaire)`) : les deux étapes tout de suite, sans abandon préalable ; la
+  demande se lit au journal (`effacements_journal`, type `demande`, cible « stagiaire n »), jamais dans une colonne de
+  `stagiaires` que toute la promo lit. La fiche sort des listes de travail et des feuilles à venir ; sur les feuilles passées
+  elle reste « Anonyme n », signature effacée, comme preuve de présence.
+- **Marques lues partout.** Listes de travail (planning à venir, notes, dés, feuille d'émargement ouverte) excluent les
+  fiches sans nom ; les affichages du passé les gardent en « Anonyme n » ; les indicateurs les comptent. Tableau de bord et
+  dossiers Qualiopi : taux d'abandon inchangé, ligne à part « effacée à la demande » (ni abandon ni « en formation »), pièces
+  « effacé au terme de la durée de conservation » après l'étape 2 (`statutFiche`). Heures de présence des dossiers lues sur
+  les feuilles d'émargement (`js/qualiopi-presence.js`) : l'heure, la présence et le total d'heures survivent à l'effacement
+  du tracé, et la feuille imprimée écrit « Signature effacée (durée de conservation) ».
+- **Questionnaires (tâche 3).** Commentaires effacés à l'étape 1, réponses rebrassées, comptes figés dans
+  `questionnaire_resultats_figes` à l'étape 2 (seuils 5 stagiaires, 3 formateurs ; rien sous le seuil, seulement la marque).
+  La question 1 (option « effacer la liste des répondants à la fermeture ») est restée à la réponse par défaut : la tâche 5
+  n'est pas construite. Limites écrites au registre des traitements : la réponse anonyme d'un questionnaire (commentaire libre
+  compris) reste jusqu'à l'étape 1 après une demande ; dans un lieu à un seul formateur, la marque « il reste à faire » montre
+  au fondateur qu'il a répondu ; un formateur dont le compte est recréé la même année peut répondre deux fois.
+- **Indépendance vis-à-vis de `fiches_suivi` et de `themes.updated_by_email`** (correctif `16735486`) : `_effacer_etape1` et
+  le retour ne citent ces objets que s'ils existent (`to_regclass` / `information_schema`, SQL dynamique), parce que la branche
+  navigation-unique les retire. Preuve jouée avec et sans (VERT 227/0 complète, 228/0 sans les objets, contre-épreuves
+  ROUGES). Si navigation-unique arrive après un retour de Q5 joué sur une base complète, la fonction recréée cite à nouveau les
+  deux objets : à traiter par navigation-unique.
+- **Retour** (`20261110_conservation_retour.sql`). Procédure : **retirer d'abord de l'app le commit des tâches 6-7** (les boutons
+  appellent les nouvelles fonctions) et remettre en ligne la version d'avant, PUIS jouer le retour (`psql -1`,
+  `PGCLIENTENCODING=UTF8`), avant tout retour de Q3. Il refuse tout seul (exception, rien n'est touché) dès qu'un effacement a
+  eu lieu : ligne `etape1`, `etape2`, `demande`, `questionnaires` ou `registre` au journal, fiche marquée, signature effacée,
+  résultat figé ou année des formateurs close. Un effacement ne se défait pas : le retour n'existe que tant que rien n'est parti.
+- **Banc** (`_harness_supabase.js`, non versionné ; `node _harness_build.mjs` rejoué pour le banc compilé) :
+  `_harness.html?role=fondateur&centre=1&demo=1&qualiopi=1&conservation=1` puis `#/qualiopi`, sous-onglet « Conservation des
+  données ». Leviers : `&conservation=absent` (fonctions absentes, PGRST202), `&conservation=droit` (42501 pour un
+  non-fondateur), `&conservation_panne=1`, `&emargement=1` (la fiche 8 a une ligne signée), `&signature=effacee` (dessins
+  effacés, mention imprimée), `&date=AAAA-MM-JJ` (le jour du navigateur simule les échéances ; la base, elle, lit
+  `_questionnaire_jour()`). **Le robot des parcours n'a pas encore de parcours dédié à la conservation** (prévu au plan avant fusion : à ajouter, puis `outils/robot_parcours.py` et `outils/verifier_navigation.py` sans échec propre à la branche). Comme pour Q4, le banc du dépôt principal
+  n'a pas ces sections : à reporter par ajout au moment de la fusion, jamais en écrasant.
+- **Preuves.** `tests/sql/conservation-preuve.sql` (schéma minimal : `conservation-schema-minimal.sql`), méthode de la mémoire :
+  migration et retour par EXECUTE dans le DO, empreinte md5 du schéma et des données avant et après, contre-épreuves ROUGES.
+  Suite node : `for f in tests/*.test.mjs` (`node --test tests/` seul échoue sur Node 24). **Point connu :**
+  `tests/sql/roles-preuve.sql` ne se rejoue que sur la base réelle, **après** la migration (il passe aussi sur les nouvelles
+  fonctions : `effacer_sur_demande`, `effacer_promo_etape1`, `etat_conservation`) ; il est aussi modifié par la branche du
+  lot 5 (conflit de fichier à résoudre par le second arrivé dans `main`). `tests/sql/effacement-preuve.sql` est historique.
+- **Conditions d'utilisation** : rien à changer. La version 2026-11-08 en ligne contient déjà les corrections (ligne
+  « Émargement », « au-delà du 31 décembre de la troisième année », « dans le mois qui suit », liste « qui a répondu »).
+- **Ce qui attend Timy.** (1) L'accord pour appliquer la migration à la base réelle : essai à blanc, application, preuve
+  rejouée, puis fusion et poussée **dans la même fenêtre** (les boutons des Paramètres de l'ancienne app appellent des
+  fonctions que la migration supprime). Jamais de poussée avant la migration. (2) Aucune étape d'effacement n'est lancée par
+  un agent : la première échéance réelle est le 11/12/2027 (Nîmes, mars 2026), les commentaires des formateurs 2026 le
+  31/12/2027 ; la mise en ligne est attendue au plus tard le 30/11/2027. (3) Les arbitrages du 09/11 (douze réponses par
+  défaut) restent révisables sans perte jusque-là. (4) Appliquer au dépôt ECSR le registre des traitements et le rappel de la
+  veille (fichiers livrés dans le dossier d'archive des notes partagées). (5) Mineurs reportés à revoir avant la fusion, dans
+  `.superpowers/sdd/2026-11-09-qualiopi-q5-conservation/progress.md` (lignes « à revoir avant fusion » : textes de
+  confirmation, e-mail de `maj_par` sur demande, fiche sans prénom).
+
 ## Émargement signé (octobre 2026)
 
 Spec : `docs/superpowers/specs/2026-10-23-emargement-design.md` · plan :
