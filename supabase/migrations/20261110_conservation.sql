@@ -1,6 +1,6 @@
 -- Conservation des données à 3 ans (Qualiopi, lot Q5), partie fiches et émargement (tâche 2 du plan
 -- docs/superpowers/plans/2026-11-09-qualiopi-q5-conservation.md ; spec docs/superpowers/specs/2026-11-08-qualiopi-q3-q5-design.md,
--- § 6, § 6.1, § 10), complétée par la tâche 3 (questionnaires, section 10) ; la tâche 4 (registre qualité) la complète.
+-- § 6, § 6.1, § 10), complétée par la tâche 3 (questionnaires, section 10) et la tâche 4 (registre qualité, section 11).
 -- Retour : 20261110_conservation_retour.sql. Preuve : tests/sql/conservation-preuve.sql (schéma minimal :
 -- tests/sql/conservation-schema-minimal.sql). NON APPLIQUÉE : attend l'accord de Timy, et s'applique avec le commit de
 -- l'app des tâches 6-7 (sinon les boutons des Paramètres appellent des fonctions supprimées).
@@ -275,14 +275,17 @@ revoke all on function public._effacer_etape1(integer), public._effacer_etape2(i
 -- { jour, promos: [{ id, nom, lieu_nom, date_fin, etape1_du, etape2_du, a_effacer_etape1, a_effacer_etape2,
 -- comptes_equipe, emargement_etape2 }], portees_formateurs: [{ lieu_id, lieu_nom, annee, a_participations,
 -- participations, cloture_du, close, a_commentaires, commentaires, commentaires_du, a_reponses, reponses, sous_seuil,
--- fige, figeage_du }], registre: null (tâche 4) }. Les promos et les
+-- fige, figeage_du }], registre: { a_effacer, a_clore, efface, prochaine_echeance } }. Les promos et les
 -- lieux accessibles seulement (un lieu l'est par une de ses promos) ; les nombres « à effacer » ne comptent jamais les
 -- comptes d'équipe. emargement_etape2 : les signatures de formateurs et les tracés de fiches déjà sans nom qui restent
 -- à effacer à l'étape 2. portees_formateurs : chaque lieu et année du questionnaire des formateurs qui garde des
 -- réponses, des participations ou des résultats figés. Rien sous le seuil (lot Q3, 3 pour les formateurs) :
 -- a_participations, a_commentaires, a_reponses disent s'il reste quelque chose ; participations, commentaires et
 -- reponses ne sont des nombres que si la portée a au moins le seuil de répondants (sinon nuls, et sous_seuil vrai) ;
--- close : l'année est close ; fige : les résultats sont figés.
+-- close : l'année est close ; fige : les résultats sont figés. registre (lot Q4, section 11) : a_effacer = entrées closes
+-- depuis plus de 3 ans dont les textes sont encore là ; a_clore = entrées jamais closes (jamais effacées sans clôture) ;
+-- efface = entrées déjà vidées ; prochaine_echeance = jour (de Paris) où la prochaine entrée close arrive à l'échéance, nul
+-- s'il n'y en a pas. Des nombres seulement : aucun texte du registre.
 create function public.etat_conservation()
 returns jsonb language plpgsql stable security definer set search_path to 'public', 'pg_temp' as $function$
 declare
@@ -354,7 +357,15 @@ begin
                          (select count(*) from questionnaire_reponses qr
                            where qr.cle = 'fin_formateur' and qr.lieu_id = x.lieu_id and qr.annee = x.annee) as nr) k) c
        where exists (select 1 from promos pr where pr.lieu_id = x.lieu_id and peut_acceder_promo(pr.id))), '[]'::jsonb),
-    'registre', null);
+    'registre', (select jsonb_build_object(
+                   -- Même échéance que effacer_registre_qualite() et le déclencheur du lot Q4.
+                   'a_effacer', count(*) filter (where r.etat = 'clos' and r.efface_le is null and r.clos_le + interval '3 years' < now()),
+                   'a_clore', count(*) filter (where r.etat <> 'clos'),
+                   'efface', count(*) filter (where r.efface_le is not null),
+                   'prochaine_echeance', ((min(r.clos_le + interval '3 years') filter (
+                      where r.etat = 'clos' and r.efface_le is null and r.clos_le + interval '3 years' >= now()))
+                      at time zone 'Europe/Paris')::date)
+                   from registre_qualite r));
 end;
 $function$;
 
@@ -1278,3 +1289,31 @@ revoke all on function public.clore_annee_formateurs(integer, integer), public.e
   public.figer_questionnaire_formateurs(integer, integer) from public, anon, authenticated, service_role;
 grant execute on function public.clore_annee_formateurs(integer, integer), public.effacer_commentaires_formateurs(integer, integer),
   public.figer_questionnaire_formateurs(integer, integer) to authenticated, service_role;
+
+-- 11. Registre qualité (lot Q4) : effacement des textes tracé au journal ---------------------------------------------------
+-- Même signature, mêmes droits, même échéance unique (une entrée close depuis plus de 3 ans ; une entrée jamais close ne
+-- s'efface jamais) que la version du lot Q4 ; en plus, une ligne de type « registre » au journal (cible « registre », nombre
+-- d'entrées vidées) quand au moins une entrée est vidée. Un second appel ne vide rien et n'écrit rien. Le bouton reste celui
+-- du registre ; la page Qualiopi montre l'échéance par etat_conservation() et y renvoie.
+create or replace function public.effacer_registre_qualite()
+returns integer
+language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
+declare
+  n integer;
+begin
+  if not peut_gerer_qualite() then
+    raise exception 'registre: Tu n''as pas accès au registre qualité.';
+  end if;
+  update registre_qualite
+     set description = null, reponse = null, action_decidee = null, mesure_prevention = null, efface_le = now()
+   where etat = 'clos' and efface_le is null and clos_le + interval '3 years' < now();
+  get diagnostics n = row_count;
+  if n > 0 then
+    insert into effacements_journal (type, cible, fait_par_email, details)
+    values ('registre', 'registre', lower(auth.jwt() ->> 'email'), jsonb_build_object('entrees', n));
+  end if;
+  return n;
+end;
+$function$;
+revoke all on function public.effacer_registre_qualite() from public, anon;
+grant execute on function public.effacer_registre_qualite() to authenticated;

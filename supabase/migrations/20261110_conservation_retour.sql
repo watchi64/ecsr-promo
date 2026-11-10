@@ -40,6 +40,25 @@ begin
 end
 $garde$;
 
+-- 0 bis. Registre qualité (tâche 4) : effacer_registre_qualite() telle que le lot Q4 l'a créée (sans journal). Create or
+-- replace : droits gardés.
+create or replace function public.effacer_registre_qualite()
+returns integer
+language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
+declare
+  n integer;
+begin
+  if not peut_gerer_qualite() then
+    raise exception 'registre: Tu n''as pas accès au registre qualité.';
+  end if;
+  update registre_qualite
+     set description = null, reponse = null, action_decidee = null, mesure_prevention = null, efface_le = now()
+   where etat = 'clos' and efface_le is null and clos_le + interval '3 years' < now();
+  get diagnostics n = row_count;
+  return n;
+end;
+$function$;
+
 -- 0. Questionnaires (tâche 3) : fonctions du lot Q3 telles qu'elles étaient (create or replace : droits d'exécution
 -- gardés), puis fonctions et tables de ce lot retirées, participations à leur forme du lot Q3.
 create or replace function public._questionnaire_ouvert(p_cle text, p_promo integer, p_lieu integer, p_annee integer)

@@ -27,6 +27,14 @@
 --        -v retour=<chemin absolu de 20261110_conservation_retour.sql> -f tests/sql/conservation-preuve.sql
 --   pg_ctl -D $D/pg stop ; rm -rf $D
 --
+-- Résultats du 10/11/2026, tâche 4 (journal du registre qualité, Postgres local, port 55561, schéma minimal complété par
+-- la table du registre, section 8) : données RQ1 à RQ6, cas 4.0 bis et 4.9 bis :
+--   - preuve complétée jouée sur la migration d'avant : ROUGE 31/2 (état : « registre » scalaire, empreinte du retour) ;
+--   - migration et retour : VERT 216/0 (trois passages) ; base où la migration est appliquée : VERT 205/0 ; preuve du lot
+--     Q4 (tests/sql/registre-qualite-preuve.sql) rejouée sur cette base : VERT 128/0 ;
+--   - contre-épreuves : journal écrit même à 0 entrée ROUGE 214/2 ; seconde ligne au journal ROUGE 213/3 ; droit d'appel
+--     donné à anon ROUGE 213/3 ; entrées déjà vidées recomptées ROUGE 214/2 ; échéance décalée de 40 jours ROUGE 209/7 ;
+--     journal jamais écrit ROUGE 212/4 ; retour sans la recréation de la version Q4 ROUGE 215/1 (empreinte).
 -- Résultats du 10/11/2026, tâche 3, correction 1 de la relecture (rien sous le seuil : aucun nombre de répondants
 -- sous 5 ou 3 dans etat_conservation, les retours et le journal ; lieu 3 à un seul formateur) :
 --   - nouveaux attendus sur la migration d'avant la correction : ROUGE 189/14 ;
@@ -106,6 +114,7 @@ declare
   c record; v_ok integer; v_ko integer; v_detail text; v_sauve jsonb; v_erreur text;
   v_tr constant text := 'M10 10L20 20L30 25';
   -- Questionnaires (tâche 3).
+  RQ1 bigint; RQ2 bigint; RQ3 bigint; RQ4 bigint; RQ5 bigint; RQ6 bigint;
   v_rs jsonb; v_rf jsonb; j_fin jsonb; j_six jsonb; j_l1 jsonb; j_l2 jsonb; pPA jsonb; pPD jsonb; pL1 jsonb; pL2 jsonb;
   a1 text[]; a2 text[]; v_notes1 text; v_notes2 text; n_part bigint; r2 text; t2 text; m2 bigint; v_lignes bigint;
 begin
@@ -251,7 +260,7 @@ begin
                    'conditions_acceptations', 'planning_jours_off', 'emargement_seances', 'emargement_lignes',
                    'emargement_formateurs', 'effacements_journal', 'questionnaire_participations',
                    'questionnaire_reponses', 'questionnaire_ouvertures', 'questionnaire_resultats_figes',
-                   'questionnaire_clotures'];
+                   'questionnaire_clotures', 'registre_qualite'];
     $f$;
     create function pg_temp.donnees() returns text language plpgsql as $f$
     declare t text; v text; acc text := '';
@@ -334,6 +343,29 @@ begin
                  ('EQ', 'formateur', PB, null)) v(nom, role, promo, lieu)
     join pg_temp.preuve_comptes k on k.nom = v.nom;
   insert into settings (promo_id, key, value) values (PD, 'emargement_actif', 'true');
+
+  -- Registre qualité (lot Q4, tâche 4). RQ1 : close il y a plus de 3 ans. RQ2 : risque clos il y a plus de 3 ans (avec sa
+  -- mesure). RQ3 : close depuis 3 ans moins 30 jours (pas encore due). RQ4 : en cours depuis plus de 5 ans, RQ5 : ouverte
+  -- depuis plus de 5 ans (jamais closes : jamais effacées). RQ6 : close il y a 4 ans et déjà vidée. Le déclencheur du registre
+  -- pose clos_le à la clôture : les dates anciennes se posent déclencheur muet (commande SET, pas set_config).
+  execute 'set local session_replication_role = replica';
+  insert into registre_qualite (type, date_constat, origine, description, reponse, action_decidee, etat, clos_le)
+  values ('reclamation', v_jour_reel - 1600, 'stagiaire', 'Preuve registre RQ1', 'Réponse RQ1', 'Action RQ1', 'clos',
+          now() - interval '3 years' - interval '10 days') returning id into RQ1;
+  insert into registre_qualite (type, date_constat, origine, description, mesure_prevention, etat, clos_le)
+  values ('risque', v_jour_reel - 1600, 'equipe', 'Preuve registre RQ2', 'Mesure RQ2', 'clos',
+          now() - interval '3 years' - interval '2 days') returning id into RQ2;
+  insert into registre_qualite (type, date_constat, origine, description, etat, clos_le)
+  values ('alea', v_jour_reel - 1000, 'formateur', 'Preuve registre RQ3', 'clos',
+          now() - interval '3 years' + interval '30 days') returning id into RQ3;
+  insert into registre_qualite (type, date_constat, origine, description, etat)
+  values ('difficulte', v_jour_reel - 1900, 'entreprise', 'Preuve registre RQ4', 'en_cours') returning id into RQ4;
+  insert into registre_qualite (type, date_constat, origine, description, etat)
+  values ('amelioration', v_jour_reel - 1900, 'autre', 'Preuve registre RQ5', 'ouvert') returning id into RQ5;
+  insert into registre_qualite (type, date_constat, origine, description, etat, clos_le)
+  values ('alea', v_jour_reel - 1600, 'equipe', 'Preuve registre RQ6', 'clos', now() - interval '4 years') returning id into RQ6;
+  update registre_qualite set description = null, efface_le = now() - interval '1 year' where id = RQ6;
+  execute 'set local session_replication_role = origin';
 
   -- Données personnelles de chaque fiche nominative : date de naissance, fiche de suivi, dossier, livret, trois textes
   -- libres, et, pour un compte, une évaluation signée de son e-mail et une acceptation des conditions.
@@ -602,6 +634,27 @@ begin
           r like 'conservation: Retour impossible%', r);
       end loop;
     end if;
+    -- 4.0 bis Retour refusé dès qu'une ligne « registre » est au journal (seule trace de l'effacement du registre).
+    if not v_deja then
+      r := null; r2 := null;
+      begin
+        set local role authenticated;
+        perform pg_temp.qui('FO');
+        r2 := pg_temp.tente('select public.effacer_registre_qualite()::text');
+        reset role;
+        begin
+          execute current_setting('preuve.retour');
+          r := 'joué';
+        exception when others then
+          r := sqlerrm;
+        end;
+        raise exception 'preuve: annulé';
+      exception when others then
+        if sqlerrm <> 'preuve: annulé' then r := 'préparation : ' || sqlerrm; end if;
+      end;
+      perform pg_temp.cas('retour refusé après un effacement du registre qualité (seule ligne « registre » au journal)',
+        r2 = 'ok 2' and r like 'conservation: Retour impossible%', r2 || ' | ' || coalesce(r, 'null'));
+    end if;
     set local role authenticated;
 
     -- 4.1 Étape 1 : la veille, refusée ; état des échéances.
@@ -613,8 +666,10 @@ begin
       and (j ->> 'a_effacer_etape1')::int = 3 and (j ->> 'a_effacer_etape2')::int = 3 and (j ->> 'comptes_equipe')::int = 1
       and j ->> 'lieu_nom' = 'Preuve conservation L1' and j ->> 'nom' = 'Preuve Nîmes'
       and (j ->> 'emargement_etape2')::int = 3, j::text);
-    perform pg_temp.cas('etat_conservation : jour = jour de Paris réglé, registre nul (tâche 4)',
-      pg_temp.etat() ->> 'jour' = '2027-12-10' and pg_temp.etat() -> 'registre' = 'null'::jsonb, (pg_temp.etat() - 'promos')::text);
+    perform pg_temp.cas('etat_conservation : jour = jour de Paris réglé, registre : quatre clés (nombres et une date)',
+      pg_temp.etat() ->> 'jour' = '2027-12-10'
+      and (select array_agg(k order by k) from jsonb_object_keys(pg_temp.etat() -> 'registre') k)
+          = array['a_clore', 'a_effacer', 'efface', 'prochaine_echeance'], (pg_temp.etat() - 'promos')::text);
     j := (select p from jsonb_array_elements(pg_temp.etat() -> 'portees_formateurs') p
            where (p ->> 'lieu_id')::int = L1 and (p ->> 'annee')::int = 2026);
     perform pg_temp.cas('etat_conservation, formateurs 2026 du lieu 1 (au seuil) : 3 participations, 2 commentaires, 3 réponses, dates 01/01/2027, 31/12/2027, 01/01/2030',
@@ -1249,6 +1304,70 @@ begin
       (select string_agg(id || ':' || actif, ',' order by id) from stagiaires where id in (S1, S2, S3, S4, S6))
         = (select string_agg(x.id || ':' || (x.id <> S2), ',' order by x.id) from unnest(array[S1, S2, S3, S4, S6]) x(id)), null);
 
+    -- 4.9 bis Registre qualité : l'effacement à 3 ans écrit une ligne au journal, une seule fois.
+    set local role authenticated;
+    perform pg_temp.qui('FO');
+    j := pg_temp.etat() -> 'registre';
+    reset role;
+    perform pg_temp.cas('etat_conservation, registre avant : 2 entrées à effacer, 2 jamais closes, 1 déjà vidée, prochaine échéance de RQ3',
+      j = jsonb_build_object('a_effacer', 2, 'a_clore', 2, 'efface', 1,
+            'prochaine_echeance', to_char(((select clos_le + interval '3 years' from registre_qualite where id = RQ3)
+                                            at time zone 'Europe/Paris')::date, 'YYYY-MM-DD'))
+      and (j ->> 'prochaine_echeance')::date > (now() at time zone 'Europe/Paris')::date, j::text);
+    -- Refus : ni le formateur administrateur, ni un stagiaire, ni un visiteur ne vident le registre ni ne laissent de ligne.
+    foreach t in array array['FORM', 'E1'] loop
+      set local role authenticated;
+      perform pg_temp.qui(t);
+      r := pg_temp.tente('select public.effacer_registre_qualite()::text');
+      reset role;
+      perform pg_temp.cas('registre : effacement refusé à ' || t, r like 'P0001 registre: %', r);
+    end loop;
+    set local role anon;
+    perform pg_temp.qui(null);
+    r := pg_temp.tente('select public.effacer_registre_qualite()::text');
+    reset role;
+    perform pg_temp.cas('registre : effacement refusé à anon (aucun droit d''appel)', r like '42501%', r);
+    perform pg_temp.cas('registre : les refus n''ont rien vidé ni écrit au journal',
+      (select count(*) from effacements_journal where type = 'registre') = 0
+      and (select count(*) from registre_qualite where efface_le is not null) = 1, null);
+    -- Droits et signature : comme au lot Q4.
+    perform pg_temp.cas('effacer_registre_qualite() : security definer, entier, authenticated seul (ni anon ni public)',
+      (select p.prosecdef and pg_get_function_result(p.oid) = 'integer' from pg_proc p
+        where p.oid = to_regprocedure('public.effacer_registre_qualite()'))
+      and has_function_privilege('authenticated', 'public.effacer_registre_qualite()', 'execute')
+      and not has_function_privilege('anon', 'public.effacer_registre_qualite()', 'execute')
+      and not exists (select 1 from pg_proc p, aclexplode(p.proacl) a
+                       where p.oid = to_regprocedure('public.effacer_registre_qualite()') and a.grantee = 0), null);
+    -- Premier effacement : les deux entrées dues, rien d'autre.
+    set local role authenticated;
+    perform pg_temp.qui('FO');
+    r := pg_temp.tente('select public.effacer_registre_qualite()::text');
+    reset role;
+    perform pg_temp.cas('registre : le fondateur vide 2 entrées dues (RQ1 et RQ2)', r = 'ok 2', r);
+    select string_agg(id || ':' || (description is null)::text || (reponse is null)::text || (action_decidee is null)::text
+                       || (mesure_prevention is null)::text || (efface_le is not null)::text, ',' order by id) into t
+      from registre_qualite where id in (RQ1, RQ2, RQ3, RQ4, RQ5);
+    perform pg_temp.cas('registre : les quatre textes de RQ1 et RQ2 sont vidés ; RQ3 (pas due), RQ4 et RQ5 (jamais closes) gardent les leurs',
+      t = RQ1 || ':truetruetruetruetrue,' || RQ2 || ':truetruetruetruetrue,' || RQ3 || ':falsetruetruetruefalse,'
+          || RQ4 || ':falsetruetruetruefalse,' || RQ5 || ':falsetruetruetruefalse', t);
+    select string_agg(type || '|' || cible || '|' || fait_par_email || '|' || details::text, ' ; ') into t
+      from effacements_journal where type = 'registre';
+    perform pg_temp.cas('journal : une seule ligne « registre », cible « registre », auteur le fondateur, {"entrees": 2}, aucun texte',
+      t = 'registre|registre|preuve.cons.fo@example.invalid|{"entrees": 2}', t);
+    -- Second appel : sans effet, sans ligne de plus.
+    set local role authenticated;
+    perform pg_temp.qui('FO');
+    r := pg_temp.tente('select public.effacer_registre_qualite()::text');
+    j := pg_temp.etat() -> 'registre';
+    reset role;
+    perform pg_temp.cas('registre : un second appel ne vide rien et n''écrit rien au journal',
+      r = 'ok 0' and (select count(*) from effacements_journal where type = 'registre') = 1, r);
+    perform pg_temp.cas('etat_conservation, registre après : rien à effacer, 3 entrées vidées, 2 jamais closes',
+      (j ->> 'a_effacer')::int = 0 and (j ->> 'efface')::int = 3 and (j ->> 'a_clore')::int = 2, j::text);
+    perform pg_temp.cas('registre : RQ3 à 30 jours de l''échéance n''est pas vidée, aucune ligne de plus au journal',
+      (select description from registre_qualite where id = RQ3) = 'Preuve registre RQ3'
+      and (select count(*) from effacements_journal where type = 'registre') = 1, null);
+
     -- 4.10 Retour refusé après une étape.
     if not v_deja then
       begin
@@ -1276,7 +1395,7 @@ begin
     perform pg_temp.cas('structure : les étapes se jouent sans erreur imprévue', false, v_erreur);
   end if;
   perform pg_temp.cas('les étapes ont été annulées (aucune ligne de ce lot au journal, aucun résultat figé, aucune clôture)',
-    (select count(*) from effacements_journal where type in ('etape1', 'etape2', 'demande', 'questionnaires')
+    (select count(*) from effacements_journal where type in ('etape1', 'etape2', 'demande', 'questionnaires', 'registre')
         and fait_par_email like 'preuve.cons.%') = 0
     and pg_temp.lignes('questionnaire_clotures') + pg_temp.lignes('questionnaire_resultats_figes') = v_lignes, null);
 

@@ -25,6 +25,8 @@
 --   7. 20261108_questionnaires.sql rejouée telle quelle (peut_gerer_qualite, _questionnaire_jour, questions, réponses,
 --      participations, ouvertures : tout ce que la partie questionnaires de la migration, tâche 3, réécrit ou complète).
 --      tests/sql/questionnaires-preuve.sql se joue aussi sur ce schéma, avec ou sans la migration de la conservation.
+--   8. 20261028_signalements_app.sql puis 20261109_registre_qualite.sql rejouées telles quelles (tableau et fonction du
+--      registre qualité, que le lot Q5 réécrit : tache 4).
 -- Lancement (psql lit les fichiers rejoués par \ir, le serveur lit les extraits par pg_read_file : superutilisateur
 -- local) :
 --   psql -p <port> -U postgres -d cs -v ON_ERROR_STOP=1 \
@@ -277,3 +279,8 @@ grant execute on function public.anonymiser_promo() to authenticated;
 
 -- 7. Questionnaires (Q3), tels quels -----------------------------------------------------------------------------
 \ir ../../supabase/migrations/20261108_questionnaires.sql
+
+-- 8. Registre qualité (Q4), tel quel : sa table, son déclencheur et effacer_registre_qualite() (version du lot Q4) ----
+-- Il lit signalements_app (20261028_signalements_app.sql, qui lit profs et user_profiles.prof_id, déjà ici) et peut_gerer_qualite() (point 7).
+\ir ../../supabase/migrations/20261028_signalements_app.sql
+\ir ../../supabase/migrations/20261109_registre_qualite.sql
