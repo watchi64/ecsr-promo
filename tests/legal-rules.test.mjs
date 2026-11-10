@@ -40,4 +40,32 @@ ok(!/Gemini|Google|esm\.sh/.test(CONDITIONS_MD), "aucun prestataire retiré n'es
 eq(reperesNonRemplis(CONDITIONS_MD), [], "conditions : repères à compléter");
 eq(reperesNonRemplis(MENTIONS_MD), [], "mentions légales : SIRET et adresse à renseigner");
 
+// 6. Direction du centre et siège (lot K) : le tableau « Qui voit quoi » redit ce que la base fait. Règles : equipe_courante()
+// (formateur de la promo ou direction de son lieu) ouvre stagiaires_prive, fiches_suivi, evaluations (notes masquées
+// comprises), epcf, dp, livret, émargement ; passages et planning sont lus par toute la promo accessible ; le siège ne lit que
+// comptes_reseau() (chiffres par centre, sans nom). Questionnaires : cellule conservée telle quelle (voir le rapport du lot K).
+eq(VERSION_CONDITIONS, "2026-11-10", "version du lot K");
+const tableau = CONDITIONS_MD.split("## 4. Qui voit quoi")[1].split("\n\n")[1].trim().split("\n")
+  .map((l) => l.split("|").slice(1, -1).map((c) => c.trim()));
+eq(tableau[0], ["Donnée", "Vous", "Autres stagiaires", "Formateurs", "Direction de votre centre", "Siège d'ECF"], "colonnes du tableau");
+const ligne = (nom) => { const l = tableau.find((r) => r[0] === nom); ok(l, `ligne « ${nom} »`); eq(l.length, 6, `${nom} : six cellules`); return l; };
+const DIRECTION = {
+  "Notes et évaluations": "Oui, y compris les notes masquées",
+  "Moyennes du groupe": "Oui",
+  "Planning, passages, absences": "Oui",
+  "Date de naissance": "Oui",
+  "Souhaits de séances": "Oui",
+  "Livret, dossier professionnel, EPCF": "Oui",
+  "Feuilles d'émargement": "Oui",
+  "Signalements de problème": "Non",
+};
+for (const [nom, v] of Object.entries(DIRECTION)) eq(ligne(nom)[4], v, `direction : ${nom}`);
+// Le siège ne lit aucune donnée nominative : seulement des totaux par centre.
+for (const nom of ["Date de naissance", "Souhaits de séances", "Feuilles d'émargement", "Signalements de problème"]) eq(ligne(nom)[5], "Non", `siège : ${nom}`);
+for (const nom of ["Notes et évaluations", "Planning, passages, absences", "Livret, dossier professionnel, EPCF"])
+  ok(/^Non, seulement/.test(ligne(nom)[5]), `siège : ${nom}, des totaux par centre seulement`);
+ok(/sans aucun nom de stagiaire/.test(CONDITIONS_MD) && /moins de cinq stagiaires/.test(CONDITIONS_MD), "siège : chiffres par centre, masqués sous cinq");
+ok(/Vos formateurs et la direction de votre centre continuent de les voir/.test(CONDITIONS_MD), "notes masquées : la direction les voit");
+ok(/aucun champ pour le motif d'une absence/.test(CONDITIONS_MD), "motif d'une absence : aucun champ");
+
 console.log(`legal-rules : ${n} vérifications OK`);
