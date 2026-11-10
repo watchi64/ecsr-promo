@@ -4,8 +4,10 @@
 // et js/views/epcf.js (renderEpcf).
 
 // k-anonymat : la vue est affichée aussi aux stagiaires, donc la moyenne d'un critère n'est montrée que si AU MOINS
-// 2 stagiaires ont ce critère. Sinon la « moyenne » serait la note exacte d'une personne.
-export const SEUIL_MOYENNE_EPCF = 2;
+// 3 stagiaires ont ce critère. Avec un seul, la « moyenne » serait sa note ; avec deux, chacun retrouverait la note de
+// l'autre à partir de la moyenne et de la sienne (décision de Timy du 10/11/2026). Même seuil dans la base
+// (epcf_moyennes, migration 20261110_epcf_moyennes_seuil_3) ; les phrases ci-dessous l'écrivent en lettres.
+export const SEUIL_MOYENNE_EPCF = 3;
 
 // Les épreuves, dans l'ordre de l'écran, et la façon de les nommer dans une phrase.
 const LIEUX = [["salle", "en salle"], ["vehicule", "en véhicule"]];
@@ -26,7 +28,7 @@ export function stagiairesEvalues(n) {
 }
 
 // Le titre d'une épreuve sur la vue de la classe. Le nombre de stagiaires évalués n'est donné que si l'épreuve a une
-// moyenne montrable : un stagiaire ne reçoit pas de la base les critères évalués chez un seul camarade, il lirait
+// moyenne montrable : un stagiaire ne reçoit pas de la base les critères évalués chez moins de trois stagiaires, il lirait
 // « aucun » à tort (peut-être en étant lui-même évalué). Le plus grand effectif d'un critère montrable est aussi le plus
 // grand de tous : le nombre est le même pour l'équipe et pour les stagiaires.
 export function titreEpreuve(label, moyennes) {
@@ -35,7 +37,7 @@ export function titreEpreuve(label, moyennes) {
 }
 
 // Sous une épreuve qui n'a pas encore de moyenne, quand l'autre en a une.
-export const PHRASE_SANS_MOYENNE = "La moyenne apparaîtra à partir de deux stagiaires évalués.";
+export const PHRASE_SANS_MOYENNE = "La moyenne apparaîtra à partir de trois stagiaires évalués.";
 
 // Ce que chaque contexte peut faire depuis la carte (contexteEtatVide de js/notes-saisie-rules.js) : le stagiaire va à
 // ses propres résultats EPCF, le formateur évalue un stagiaire, la direction lit sans écrire.
@@ -71,7 +73,7 @@ export function etatVideEpcf({ moyennesParEpreuve, contexte }) {
   const connu = Object.prototype.hasOwnProperty.call(ACTIONS, contexte);
   return {
     titre: "Pas encore de moyennes EPCF",
-    phrase: "Les moyennes de la classe apparaîtront dès que deux stagiaires auront passé la même épreuve, en salle ou en véhicule.",
+    phrase: "Les moyennes de la classe apparaîtront dès que trois stagiaires auront passé la même épreuve, en salle ou en véhicule.",
     avancement: connu && contexte !== "classe-stagiaire" ? avancement(moyennesParEpreuve) : null,
     actions: connu ? ACTIONS[contexte].slice() : [],
   };
@@ -80,8 +82,8 @@ export function etatVideEpcf({ moyennesParEpreuve, contexte }) {
 // --- Fiche d'une personne, partie EPCF (Mon suivi, page Stagiaires) ---
 
 // Radar de la fiche : la série « groupe » (moyenne de la classe par phase, sur 0..1) ne compte que les critères
-// montrables. Un critère évalué chez un seul stagiaire n'entre pas dans une phase : sinon une phase qui n'a que lui
-// montrerait sur son axe la note exacte d'un camarade. null (pas de série) dès qu'une phase n'a aucun critère
+// montrables. Un critère évalué chez moins de trois stagiaires n'entre pas dans une phase : sinon une phase qui n'a que
+// lui montrerait sur son axe la note d'un camarade. null (pas de série) dès qu'une phase n'a aucun critère
 // montrable : le radar tracerait ce sommet à 0, ce qui se lirait « le groupe est à 0 ».
 export function scoresDuGroupe(sections, moyennes) {
   const montrables = moyennesMontrables(moyennes);

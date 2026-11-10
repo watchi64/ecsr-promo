@@ -4516,8 +4516,8 @@ def jouer_ressources_fermees(page, res, sc, options):
 # --------------------------------------------------------------------------------------
 
 # Moyennes EPCF de la classe que le faux Supabase rend (RPC epcf_moyennes ; le banc n'en sert aucune de lui-même, et rend la même liste aux deux
-# épreuves) : (critère, moyenne, effectif). Deux critères de la grille salle sur 3 et 2 stagiaires, un troisième sur un seul (sous le k-anonymat de 2 :
-# jamais montré), un de la grille véhicule sur 3. Posées dans tous les scénarios (nouveau_contexte).
+# épreuves) : (critère, moyenne, effectif). Trois critères de la grille salle sur 3, 2 et 1 stagiaires (les deux derniers sous le k-anonymat de 3 :
+# jamais montrés), un de la grille véhicule sur 3. Posées dans tous les scénarios (nouveau_contexte).
 MOYENNES_EPCF_DU_BANC = {"salle": [("PREP1", 1.5, 3), ("PREP2", 1, 2), ("ANIM1", 0.5, 1)], "vehicule": [("COND1", 1.8, 3)]}
 # Les notes que le banc sert (lot 2A, tâche 5), pour que chaque teinte de l'échelle des notes soit dessinée : (stagiaire, thème, note, date).
 # Moyennes par stagiaire : Cassandre 4 (sous 8), Anissa 8 et Timy 10,2 (sous 12), Valentin 13 (sous 16), Lorie 19 (au-dessus), Céline sans note ;
@@ -4555,7 +4555,7 @@ def stats_notes_du_banc(notes):
 
 
 STATS_NOTES_DU_BANC = stats_notes_du_banc(NOTES_DU_BANC)
-K_ANONYMAT = 2    # une moyenne de la classe n'est montrée qu'à partir de 2 stagiaires évalués (SEUIL_MOYENNE_EPCF, js/epcf-classe-rules.js)
+K_ANONYMAT = 3    # une moyenne de la classe n'est montrée qu'à partir de 3 stagiaires évalués (SEUIL_MOYENNE_EPCF, js/epcf-classe-rules.js)
 DATE_AGENDA_VIDE = "2027-01-15"   # après le dernier événement de l'agenda du banc (11/12/2026) : l'accueil n'a plus d'événement à venir
 
 # Hauteur du bandeau d'émargement de main sur téléphone, horaires affichés, sur deux lignes : 61 px. Sur une ligne, avec son bouton de 44 px, il ne doit pas la dépasser.

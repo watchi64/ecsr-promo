@@ -1,7 +1,7 @@
 import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
-  listUserProfiles, getNotesStatsGroupe, getPromoCourante,
+  listFichesNotesMasquees, getNotesStatsGroupe, getPromoCourante,
 } from "../db.js?v=20261110a";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
@@ -20,7 +20,9 @@ import { noteGradient } from "../echelle-notes.js?v=20261110a";
 import { parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes, contexteEtatVide, phraseNoteRefusee, confirmationEffacement } from "../notes-saisie-rules.js?v=20261110a";
 import { confirmer } from "../confirmer.js?v=20261110a";
 
-let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
+// Fiches de la promo dont les notes sont masquées (anonymat) : la base ne donne plus aux stagiaires les profils des
+// autres (adresse e-mail comprise), seulement ces numéros de fiche (js/notes-masquees.js).
+let fichesMasquees = new Set();
 
 let stagiaires = [];
 let competences = [];
@@ -70,7 +72,7 @@ function stagiaireNbNotes(stagiaireId) {
 }
 
 function isStagiaireAnonymous(stagiaireId) {
-  return userProfiles.some((p) => p.stagiaire_id === stagiaireId && p.anonymous_notes);
+  return fichesMasquees.has(Number(stagiaireId));
 }
 
 function displayName(s) {
@@ -418,7 +420,7 @@ function renderTable(container) {
 }
 
 async function reload(container) {
-  [evaluations, userProfiles, statsServeurGroupe] = await Promise.all([listEvaluations(), listUserProfiles(), chargerStatsGroupe()]);
+  [evaluations, fichesMasquees, statsServeurGroupe] = await Promise.all([listEvaluations(), listFichesNotesMasquees(), chargerStatsGroupe()]);
   rerender(container);
 }
 
@@ -1202,7 +1204,7 @@ function rerender(container) {
 }
 
 // Les moyennes EPCF de la classe, en section de La classe : le rendu de l'onglet EPCF de la page de l'équipe
-// (renderEpcf, donc le même k-anonymat : une moyenne n'est montrée qu'à partir de 2 stagiaires évalués), sous
+// (renderEpcf, donc le même k-anonymat : une moyenne n'est montrée qu'à partir de 3 stagiaires évalués), sous
 // un titre qui nomme l'épreuve et la classe. Sans moyenne montrable, la carte de l'état vide, dont le bouton suit `contexte`.
 function sectionMoyennesEpcf(contexte) {
   const section = el("section", { class: "notes-epcf-classe" });
@@ -1559,8 +1561,8 @@ export async function renderNotes(container, { imbrique = false } = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   let allThemes;
-  [stagiaires, competences, evaluations, allThemes, userProfiles, statsServeurGroupe] = await Promise.all([
-    listStagiaires(), listCompetences(), listEvaluations(), listThemes(), listUserProfiles(), chargerStatsGroupe(),
+  [stagiaires, competences, evaluations, allThemes, fichesMasquees, statsServeurGroupe] = await Promise.all([
+    listStagiaires(), listCompetences(), listEvaluations(), listThemes(), listFichesNotesMasquees(), chargerStatsGroupe(),
   ]);
   themesOfficiels = allThemes.filter((t) => t.type === "theme" && t.numero != null);
   rerender(container);

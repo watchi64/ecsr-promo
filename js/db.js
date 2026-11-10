@@ -4,6 +4,7 @@ import { compteDansEquite } from "./passage-rules.js?v=20261110a";
 import { messageErreurEnvoi } from "./signalement-rules.js?v=20261110a";
 import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261110a";
 import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261110a";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261110a";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
@@ -1450,6 +1451,17 @@ export async function listUserProfiles() {
     .order("invited_at");
   if (error) throw error;
   return data;
+}
+
+// Les fiches de la promo affichée dont le compte a masqué ses notes (Set de numéros de fiche) : tout ce que la vue Notes
+// demande aux comptes des camarades. Un stagiaire ne lit plus le profil des autres (adresse e-mail comprise) : la base
+// le rend par fiches_notes_masquees (migration 20261110_profils_email_stagiaires). Fonction absente (base pas encore
+// migrée) : relu dans les profils, comme avant.
+export async function listFichesNotesMasquees() {
+  const { data, error } = await supabase.rpc("fiches_notes_masquees");
+  if (!error) return fichesDeLaFonction(data);
+  if (!fonctionAbsente(error)) throw error;
+  return fichesDesProfils(await listUserProfiles());
 }
 
 // La RPC applique le verrou anti-yoyo côté serveur (2 min de grâce, puis 24 h)

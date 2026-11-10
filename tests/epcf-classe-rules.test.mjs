@@ -10,15 +10,17 @@ import {
 const m = (critere, moyenne, effectif) => ({ critere, moyenne, effectif });
 
 // --- Nombre de stagiaires évalués : le plus grand effectif d'un critère (la RPC peut rendre des chaînes) ---
-assert.equal(SEUIL_MOYENNE_EPCF, 2);
+assert.equal(SEUIL_MOYENNE_EPCF, 3);
 assert.equal(nbEvalues([]), 0);
 assert.equal(nbEvalues(null), 0);
 assert.equal(nbEvalues(undefined), 0);
 assert.equal(nbEvalues([m("PREP1", "1.5", "3"), m("PREP2", 1, 1)]), 3);
 assert.equal(nbEvalues([m("PREP1", 1, "abc")]), 0);
 
-// --- k-anonymat : une moyenne n'est montrée qu'à partir de 2 stagiaires évalués ---
-assert.deepEqual(moyennesMontrables([m("A", 1, 1), m("B", 1.5, "2"), m("C", 2, 3)]).map((x) => x.critere), ["B", "C"]);
+// --- k-anonymat : une moyenne n'est montrée qu'à partir de 3 stagiaires évalués (à 2, chacun des deux retrouverait la
+// note de l'autre à partir de la moyenne et de la sienne) ---
+assert.deepEqual(moyennesMontrables([m("A", 1, 1), m("B", 1.5, "2"), m("C", 2, 3), m("D", 1, "4")]).map((x) => x.critere),
+  ["C", "D"]);
 assert.deepEqual(moyennesMontrables(null), []);
 
 // --- Le pluriel s'accorde, jamais « stagiaire(s) évalué(s) » ---
@@ -31,18 +33,25 @@ assert.equal(titreEpreuve("Salle", [m("PREP1", 1.5, 3)]), "Salle : 3 stagiaires 
 // qui manque.
 assert.equal(titreEpreuve("Véhicule", [m("COND1", 2, 1)]), "Véhicule");
 assert.equal(titreEpreuve("Véhicule", []), "Véhicule");
-assert.equal(titreEpreuve("Salle", [m("PREP1", 1.5, 2), m("PREP2", 1, 1)]), "Salle : 2 stagiaires évalués");
-assert.equal(PHRASE_SANS_MOYENNE, "La moyenne apparaîtra à partir de deux stagiaires évalués.");
+// Deux évalués ne suffisent pas : pas de moyenne montrable, donc pas de nombre.
+assert.equal(titreEpreuve("Salle", [m("PREP1", 1.5, 2), m("PREP2", 1, 1)]), "Salle");
+assert.equal(titreEpreuve("Salle", [m("PREP1", 1.5, 3), m("PREP2", 1, 2)]), "Salle : 3 stagiaires évalués");
+assert.equal(PHRASE_SANS_MOYENNE, "La moyenne apparaîtra à partir de trois stagiaires évalués.");
 
 // --- La carte vide : seulement quand aucune épreuve n'a de moyenne montrable ---
 const vide = { salle: [], vehicule: [] };
 const unEnSalle = { salle: [m("PREP1", 2, 1)], vehicule: [] };
 const unEnVehicule = { salle: [], vehicule: [m("COND1", 2, 1)] };
 const unPartout = { salle: [m("PREP1", 2, 1)], vehicule: [m("COND1", 1, 1)] };
-const phrase = "Les moyennes de la classe apparaîtront dès que deux stagiaires auront passé la même épreuve, en salle ou en véhicule.";
+const phrase = "Les moyennes de la classe apparaîtront dès que trois stagiaires auront passé la même épreuve, en salle ou en véhicule.";
 
 // Une épreuve montrable suffit : pas de carte (la page montre le tableau, et l'autre épreuve dit ce qui lui manque).
-assert.equal(etatVideEpcf({ moyennesParEpreuve: { salle: [m("PREP1", 1.5, 2)], vehicule: [] }, contexte: "classe-stagiaire" }), null);
+assert.equal(etatVideEpcf({ moyennesParEpreuve: { salle: [m("PREP1", 1.5, 3)], vehicule: [] }, contexte: "classe-stagiaire" }), null);
+// Deux évalués à la même épreuve : toujours la carte, et l'équipe lit où en est la classe.
+assert.equal(etatVideEpcf({ moyennesParEpreuve: { salle: [m("PREP1", 1.5, 2)], vehicule: [] }, contexte: "classe-stagiaire" }).phrase,
+  phrase);
+assert.equal(etatVideEpcf({ moyennesParEpreuve: { salle: [m("PREP1", 1.5, 2)], vehicule: [] }, contexte: "equipe-matrice" }).avancement,
+  "Pour l'instant : 2 stagiaires évalués en salle, aucun en véhicule.");
 assert.equal(etatVideEpcf({ moyennesParEpreuve: { salle: [], vehicule: [m("COND1", 1.8, "3")] }, contexte: "equipe-matrice" }), null);
 
 // Stagiaire : ses propres résultats EPCF, sans avancement de la classe.
@@ -96,15 +105,18 @@ console.log("epcf-classe-rules : OK");
 const sections = [{ criteres: [{ code: "A" }, { code: "B" }] }, { criteres: [{ code: "C" }] }];
 assert.equal(scoresDuGroupe(sections, []), null);
 assert.equal(scoresDuGroupe(sections, null), null);
-// Rien sur 2 stagiaires : pas de série « groupe » du tout.
+// Rien sur 3 stagiaires : pas de série « groupe » du tout.
 assert.equal(scoresDuGroupe(sections, [m("A", 2, 1), m("C", 0, 1)]), null);
+assert.equal(scoresDuGroupe(sections, [m("A", 2, 2), m("B", 1, "2"), m("C", 0, 2)]), null);
 // A sur 3 stagiaires est montrable ; B et C, chacun chez un seul stagiaire, ne comptent pas. La phase de C n'a alors
 // aucun critère montrable : pas de série du tout (un sommet tracé à 0 se lirait « le groupe est à 0 »).
 assert.equal(scoresDuGroupe(sections, [m("A", "2", "3"), m("B", 0, 1), m("C", 1, 1)]), null);
-// Chaque phase a un critère montrable : la série, et un critère d'un seul stagiaire n'entre dans aucune phase (la
-// première ne vaut que A, sinon elle mêlerait la note exacte de B).
-assert.deepEqual(scoresDuGroupe(sections, [m("A", "2", "3"), m("B", 0, 1), m("C", 1, 2)]), [1, 0.5]);
-assert.deepEqual(scoresDuGroupe(sections, [m("A", 1, 2), m("B", 2, 2), m("C", 0.5, 4)]), [0.75, 0.25]);
+// C chez deux stagiaires seulement ne compte pas non plus : sa phase n'a aucun critère montrable, pas de série.
+assert.equal(scoresDuGroupe(sections, [m("A", "2", "3"), m("B", 0, 1), m("C", 1, 2)]), null);
+// Chaque phase a un critère montrable : la série, et un critère de moins de trois stagiaires n'entre dans aucune phase
+// (la première ne vaut que A, sinon elle mêlerait les notes de B).
+assert.deepEqual(scoresDuGroupe(sections, [m("A", "2", "3"), m("B", 0, 2), m("C", 1, 3)]), [1, 0.5]);
+assert.deepEqual(scoresDuGroupe(sections, [m("A", 1, 3), m("B", 2, 3), m("C", 0.5, 4)]), [0.75, 0.25]);
 
 // --- Fiche d'une personne, partie EPCF, aucune épreuve évaluée ---
 const aucune = { salle: 0, vehicule: 0 };
