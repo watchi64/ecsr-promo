@@ -128,11 +128,12 @@ export function peutRetirerCompte({ cible, fondateur } = {}) {
 // manque : l'affichage d'avant, sans message). Un compte du personnel (« formateur » d'après la colonne) qui est direction ou siège
 // perd la pastille « formateur », qu'il ne garde que s'il a une fiche formateur (prof_id) : l'app ne voit pas ses promos de
 // formateur, cette fiche est le seul indice qu'il l'est aussi. Un stagiaire n'est jamais touché. Rend [{ libelle, classe }], la
-// classe étant le suffixe de `role-pill role-…` ; le premier libellé sert au tri.
-export function pastillesDuProfil({ profil, roles, v2 = true } = {}) {
+// classe étant le suffixe de `role-pill role-…` ; le premier libellé sert au tri. Un « admin » se lit « formateur ». L'option
+// `v2` est ignorée (transition : retirée en phase 2 quand les vues ne la passent plus).
+export function pastillesDuProfil({ profil, roles } = {}) {
   if (!profil) return [];
   const brut = String(profil.role ?? "");
-  const base = brut === "prof" || (v2 && brut === "admin") ? "formateur" : brut;
+  const base = brut === "prof" || brut === "admin" ? "formateur" : brut;
   const lignes = Array.isArray(roles) ? roles : [];
   const adresse = String(profil.email ?? "").toLowerCase();
   const a = (role) => lignes.some((l) => l && String(l.email ?? "").toLowerCase() === adresse && l.role === role);
@@ -147,10 +148,10 @@ export function pastillesDuProfil({ profil, roles, v2 = true } = {}) {
 }
 
 // La liste « Personnes avec accès », triée par premier rôle affiché puis par adresse : [{ profil, pastilles }]. Ne change pas qui y
-// figure.
-export function listeAcces({ profils, roles, v2 = true } = {}) {
+// figure. L'option `v2` est ignorée (transition, comme pour pastillesDuProfil).
+export function listeAcces({ profils, roles } = {}) {
   return (Array.isArray(profils) ? profils : [])
-    .map((profil) => ({ profil, pastilles: pastillesDuProfil({ profil, roles, v2 }) }))
+    .map((profil) => ({ profil, pastilles: pastillesDuProfil({ profil, roles }) }))
     .sort((x, y) => (x.pastilles[0]?.libelle ?? "").localeCompare(y.pastilles[0]?.libelle ?? "")
       || String(x.profil.email ?? "").localeCompare(String(y.profil.email ?? "")));
 }
@@ -168,11 +169,12 @@ export function messageInvitation(message, code) {
 
 // Phrase d'une invitation acceptée par la base, d'après ce que rend inviter_compte : `cree` (le profil vient d'être créé) et
 // `affecte` (nombre d'affectations ajoutées). « Rien n'a changé » seulement quand ni l'un ni l'autre : un compte qui existait
-// et vient de gagner une promo a bien changé (relecture finale, I1). `ton` : le type du toast.
-export function messageInvitationReussie({ resultat, email, v2 = true } = {}) {
+// et vient de gagner une promo a bien changé (relecture finale, I1). `ton` : le type du toast. L'option `v2` est ignorée
+// (transition : retirée en phase 2 quand les vues ne la passent plus).
+export function messageInvitationReussie({ resultat, email } = {}) {
   const r = resultat || {};
   if (r.cree !== false) {
-    return { texte: (v2 ? "Ajouté à la liste des invitations : " : "Ajouté à la whitelist : ") + email + ". Partage-lui l'URL.", ton: "success" };
+    return { texte: "Ajouté à la liste des invitations : " + email + ". Partage-lui l'URL.", ton: "success" };
   }
   if (Number(r.affecte) > 0) {
     const quoi = r.role === "direction" ? "ajouté à la direction du centre"

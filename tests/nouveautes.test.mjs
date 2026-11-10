@@ -69,9 +69,8 @@ const ok = (cond, msg) => { assert.ok(cond, msg); n++; };
 const eq = (a, b, msg) => { assert.deepEqual(a, b, msg); n++; };
 const ids = (l) => l.map((e) => e.id);
 
-// Navigation : une entrée « nouvelle » n'est visible que nouvelle navigation allumée, une entrée « ancienne » que si elle est
-// éteinte, une entrée sans ce champ dans les deux (comme avant). Le défaut est l'ancienne navigation : les appelants d'avant
-// la refonte ne voient rien changer.
+// Navigation : une seule depuis le 10/11. Une entrée « ancienne » n'est plus jamais visible, une entrée « nouvelle » ou sans ce
+// champ l'est toujours ; le troisième argument (la navigation de la session, que les vues passent encore) est ignoré.
 const NAV = [
   { id: "nouvelle", date: "2026-10-28", pour: "tous", navigation: "nouvelle" },
   { id: "ancienne", date: "2026-10-03", pour: "tous", navigation: "ancienne" },
@@ -79,27 +78,24 @@ const NAV = [
   { id: "nouvelle-formateurs", date: "2026-10-28", pour: "formateurs", navigation: "nouvelle" },
   { id: "ancienne-formateurs", date: "2026-10-03", pour: "formateurs", navigation: "ancienne" },
 ];
-eq(ids(visibles(NAV, false, true)), ["nouvelle", "sans"], "allumée, stagiaire : la nouvelle visible, l'ancienne cachée");
-eq(ids(visibles(NAV, false, false)), ["ancienne", "sans"], "éteinte, stagiaire : la nouvelle cachée, l'ancienne visible");
-eq(ids(visibles(NAV, true, true)), ["nouvelle", "sans", "nouvelle-formateurs"], "allumée, formateur : tout sauf l'ancienne");
-eq(ids(visibles(NAV, true, false)), ["ancienne", "sans", "ancienne-formateurs"], "éteinte, formateur : tout sauf la nouvelle");
-eq(ids(visibles(NAV, false)), ["ancienne", "sans"], "sans le troisième argument : l'ancienne navigation");
-eq(ids(visibles(NAV, true)), ["ancienne", "sans", "ancienne-formateurs"], "formateur sans le troisième argument : l'ancienne navigation");
-ok(visibles(NAV, false, true).some((e) => e.id === "sans") && visibles(NAV, false, false).some((e) => e.id === "sans"),
-  "une entrée sans champ navigation est visible dans les deux");
-eq(ids(visibles(E, true, true)), ["a", "b", "c", "d"], "des entrées sans champ navigation : comme avant, allumée");
-eq(ids(visibles(E, false, false)), ["b", "c", "d"], "des entrées sans champ navigation : comme avant, éteinte");
+for (const troisieme of [true, false, undefined, null]) {
+  eq(ids(visibles(NAV, false, troisieme)), ["nouvelle", "sans"], `stagiaire (troisième argument ${troisieme}) : la nouvelle visible, l'ancienne cachée`);
+  eq(ids(visibles(NAV, true, troisieme)), ["nouvelle", "sans", "nouvelle-formateurs"], `formateur (troisième argument ${troisieme}) : tout sauf l'ancienne`);
+  eq(ids(visibles(E, true, troisieme)), ["a", "b", "c", "d"], `des entrées sans champ navigation, formateur (${troisieme}) : comme avant`);
+  eq(ids(visibles(E, false, troisieme)), ["b", "c", "d"], `des entrées sans champ navigation, stagiaire (${troisieme}) : comme avant`);
+}
+eq(ids(visibles(NAV, false)), ["nouvelle", "sans"], "sans le troisième argument : l'ancienne cachée aussi");
 
-// Consignes « Comment faire » : `guideNouvelle` remplace `guide` quand la nouvelle navigation est allumée, jamais autrement.
+// Consignes « Comment faire » : `guideNouvelle` remplace `guide` dès qu'il existe ; le second argument est ignoré.
 const AVEC = { id: "g", guide: ["ancien 1", "ancien 2"], guideNouvelle: ["nouveau 1"] };
-eq(guideSelonNavigation(AVEC, true), ["nouveau 1"], "allumée : les étapes de la nouvelle navigation");
-eq(guideSelonNavigation(AVEC, false), ["ancien 1", "ancien 2"], "éteinte : les étapes d'avant");
-eq(guideSelonNavigation(AVEC), ["ancien 1", "ancien 2"], "sans le second argument : les étapes d'avant");
+eq(guideSelonNavigation(AVEC, true), ["nouveau 1"], "les étapes de la nouvelle navigation");
+eq(guideSelonNavigation(AVEC, false), ["nouveau 1"], "second argument faux, ignoré : les étapes de la nouvelle navigation");
+eq(guideSelonNavigation(AVEC), ["nouveau 1"], "sans le second argument : les étapes de la nouvelle navigation");
 eq(guideSelonNavigation({ id: "s", guide: ["ancien"] }, true), ["ancien"], "allumée, sans guideNouvelle : le guide d'avant");
 eq(guideSelonNavigation({ id: "v", guide: ["ancien"], guideNouvelle: [] }, true), ["ancien"], "guideNouvelle vide : le guide d'avant");
 eq(guideSelonNavigation({ id: "x", guide: ["ancien"], guideNouvelle: "pas une liste" }, true), ["ancien"], "guideNouvelle illisible : le guide d'avant");
 eq(guideSelonNavigation({ id: "n" }, true), undefined, "ni l'un ni l'autre : rien");
-eq(guideSelonNavigation({ id: "n", guideNouvelle: ["seul"] }, false), undefined, "éteinte, guideNouvelle seul : rien");
+eq(guideSelonNavigation({ id: "n", guideNouvelle: ["seul"] }, false), ["seul"], "guideNouvelle seul : il se lit");
 
 // Un lien « Où le trouver » vers un sous-onglet de Stagiaires (Élèves bénévoles) l'ouvre par la mémoire de sa barre de sous-onglets.
 eq(STORAGE_SOUS_ONGLET.stagiaires, "stagiaires.subtab", "Stagiaires : sous-onglet mémorisé joignable");
@@ -130,8 +126,8 @@ eq(ids(visibles(NOUVEAUTES, false, true)).filter((id) => id.startsWith("2026-10-
   "allumée, un stagiaire voit la première, pas la seconde");
 eq(ids(visibles(NOUVEAUTES, true, true)).filter((id) => id.startsWith("2026-10-29-nouvelle")),
   ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs"], "allumée, un formateur voit les deux");
-eq(ids(visibles(NOUVEAUTES, true, false)).filter((id) => id.startsWith("2026-10-29-nouvelle")), [], "éteinte, personne ne voit aucune des deux");
-eq(ids(visibles(NOUVEAUTES, false, false)).filter((id) => id.startsWith("2026-10-29-nouvelle")), [], "éteinte, un stagiaire non plus");
+eq(ids(visibles(NOUVEAUTES, true, false)).filter((id) => id.startsWith("2026-10-29-nouvelle")),
+  ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs"], "troisième argument faux, ignoré : un formateur voit les deux");
 // Ce qu'elles disent, après ce lot : le compte sans chiffre, Mes préférences, où sont les notes de la classe et les contacts du centre ; pour
 // l'équipe, le compte et l'assistant en pied de barre sur ordinateur, le bouton Assistant dans l'en-tête sur téléphone.
 const dit = (e, motif) => motif.test(tout(e));
@@ -184,7 +180,6 @@ eq(DU_LANCEMENT(triees(visibles(NOUVEAUTES, false, true))).slice(0, 2), ["2026-1
 eq(DU_LANCEMENT(triees(visibles(NOUVEAUTES, true, true))).slice(0, 3),
   ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs", "2026-10-29-affichage-telephone"],
   "un formateur, nouvelle navigation : les deux lancements, puis les corrections communes");
-eq(DU_LANCEMENT(triees(visibles(NOUVEAUTES, false, false)))[0], "2026-10-29-affichage-telephone", "ancienne navigation, le 29/10 : les corrections communes");
 
 // === Lot 2B (date de la fusion) : la journée sur l'Accueil, Aujourd'hui chez l'équipe, les cours sur téléphone ===
 // La date de la fusion n'a qu'une source : js/nouveautes-data.js. Le test la lit sur l'entrée de la journée et exige la même
@@ -226,15 +221,13 @@ const DU_LOT = (l) => ids(l).filter((id) => [journee.id, aujourdhui.id, coursTel
 // Second lot de corrections : les repères de l'Accueil pour le stagiaire sous la nouvelle barre, les comptes de
 // l'émargement pour l'équipe dans les deux navigations (sa partie Aujourd'hui dans guideNouvelle).
 ok(ids(visibles(NOUVEAUTES, false, true)).includes("2026-11-09-accueil-plus-juste")
-  && !ids(visibles(NOUVEAUTES, false, false)).includes("2026-11-09-accueil-plus-juste"), "repères de l'Accueil : stagiaire, nouvelle barre seulement");
+  && !ids(visibles(NOUVEAUTES, true, true)).includes("2026-11-09-accueil-plus-juste"), "repères de l'Accueil : stagiaire seulement");
 ok(ids(visibles(NOUVEAUTES, true, true)).includes("2026-11-09-emargement-planning-plus-justes")
   && ids(visibles(NOUVEAUTES, true, false)).includes("2026-11-09-emargement-planning-plus-justes")
   && !ids(visibles(NOUVEAUTES, false, true)).includes("2026-11-09-emargement-planning-plus-justes"), "comptes de l'émargement : l'équipe, deux navigations");
 eq(DU_LOT(triees(visibles(NOUVEAUTES, false, true))), [journee.id, coursTel.id], "stagiaire, nouvelle navigation : la journée d'abord (carte de l'Accueil), puis les cours");
 eq(DU_LOT(triees(visibles(NOUVEAUTES, true, true))), [aujourdhui.id, coursTel.id],
   "formateur, nouvelle navigation : Aujourd'hui et les cours, pas la journée du stagiaire");
-eq(DU_LOT(triees(visibles(NOUVEAUTES, false, false))), [coursTel.id], "stagiaire, ancienne navigation : les cours seuls");
-eq(DU_LOT(triees(visibles(NOUVEAUTES, true, false))), [coursTel.id], "formateur, ancienne navigation : les cours seuls");
 // « La plus récente » du lot se juge sans les questionnaires anonymes, mis en ligne le même jour et placés en tête du
 // fichier : ce sont eux que montre désormais la carte « Nouveauté » de l'Accueil, dans les deux navigations.
 const JUSQU_AU_LOT = (l) => l.filter((e) => e.date <= JOUR && e.id !== QUESTIONNAIRES_ID);
@@ -246,7 +239,6 @@ for (const [formateur, v2] of [[false, false], [false, true], [true, false], [tr
     `jusqu'au jour du lot, la plus récente est celle des questionnaires (${formateur ? "formateur" : "stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"})`);
 }
 eq(ids(triees(JUSQU_AU_LOT(visibles(NOUVEAUTES, false, true))))[0], journee.id, "stagiaire, nouvelle navigation : la plus récente est la journée");
-eq(ids(triees(JUSQU_AU_LOT(visibles(NOUVEAUTES, false, false))))[0], coursTel.id, "ancienne navigation : la plus récente est celle des cours");
 ok(!/IA/.test(aujourdhui.resume), "Aujourd'hui : le résumé n'annonce pas Propositions IA à tous (réservé aux administrateurs, dans les étapes)");
 
 // Questionnaires anonymes (plan Qualiopi Q3, tâche 5) : pour tous, dans les deux navigations, datée de la mise en ligne.
@@ -280,18 +272,18 @@ for (const motif of [/menu de ton compte/, /initiales/, /Apparence/, /« Couleur
 }
 ok(!/vous|votre|vos/i.test(tout(couleurs)) && !/\bprofs?\b/i.test(tout(couleurs)), "lot 3 : tutoiement, « formateur », jamais « prof »");
 ok(!/habillage|data-skin|thème|jeton|appareil|compte Supabase/i.test(tout(couleurs)), "lot 3 : pas de vocabulaire technique");
-for (const [formateur, v2, vue] of [[false, true, true], [true, true, true], [false, false, false], [true, false, false]]) {
-  ok(ids(visibles(NOUVEAUTES, formateur, v2)).includes(couleurs.id) === vue,
-    `lot 3 : ${vue ? "lue" : "cachée"} ${formateur ? "chez un formateur" : "chez un stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"}`);
+for (const formateur of [false, true]) {
+  ok(ids(visibles(NOUVEAUTES, formateur, true)).includes(couleurs.id), `lot 3 : lue ${formateur ? "chez un formateur" : "chez un stagiaire"}`);
 }
 
-// Les Nouveautés qui ne décrivent que l'ancienne barre : cachées sous la nouvelle.
+// Les Nouveautés qui ne décrivent que l'ancienne barre : cachées partout depuis le 10/11 (retirées du fichier en phase 2).
 const ANCIENNES = ["2026-10-03-barre-simple", "2026-07-23-espace-personnel", "2026-10-03-sommaire-iphone"];
 eq(NOUVEAUTES.filter((e) => e.navigation === "ancienne").map((e) => e.id).sort(), [...ANCIENNES].sort(),
   "propres à l'ancienne barre : Une barre d'onglets plus simple, L'app s'ouvre sur ton espace personnel, le sommaire sur iPhone");
 for (const id of ANCIENNES) {
-  ok(!ids(visibles(NOUVEAUTES, true, true)).includes(id) && !ids(visibles(NOUVEAUTES, false, true)).includes(id), id + " : cachée sous la nouvelle navigation");
-  ok(ids(visibles(NOUVEAUTES, false, false)).includes(id), id + " : toujours là avec l'ancienne");
+  for (const troisieme of [true, false]) {
+    ok(!ids(visibles(NOUVEAUTES, true, troisieme)).includes(id) && !ids(visibles(NOUVEAUTES, false, troisieme)).includes(id), id + " : cachée partout");
+  }
 }
 
 // Consignes « Comment faire » : les gestes de l'ancienne barre (tuile de l'Accueil, logo, Paramètres, espace personnel...) ne se lisent pas sous
@@ -313,7 +305,7 @@ for (const e of NOUVEAUTES.filter((x) => x.guideNouvelle)) {
   ok(Array.isArray(e.guide) && e.guide.length > 0, e.id + " : le guide d'avant reste pour l'ancienne navigation");
   ok(Array.isArray(e.guideNouvelle) && e.guideNouvelle.length > 0 && e.guideNouvelle.every((s) => typeof s === "string" && s.length > 0), e.id + " : guideNouvelle est une liste de textes");
   eq(guideSelonNavigation(e, true), e.guideNouvelle, e.id + " : la nouvelle navigation lit guideNouvelle");
-  eq(guideSelonNavigation(e, false), e.guide, e.id + " : l'ancienne lit le guide d'avant");
+  eq(guideSelonNavigation(e, false), e.guideNouvelle, e.id + " : le second argument est ignoré, guideNouvelle se lit");
 }
 for (const e of visibles(NOUVEAUTES, true, true)) {
   const lu = (guideSelonNavigation(e, true) || []).join(" ");

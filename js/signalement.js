@@ -1,14 +1,13 @@
-// Fenêtre « Signaler un problème » (spec 2026-10-28, § 4.1, 4.2 et 5.3), commune aux deux navigations :
+// Fenêtre « Signaler un problème » (spec 2026-10-28, § 4.1, 4.2 et 5.3) :
 // un champ, une capture facultative, le contexte joint montré en clair, « Envoyer » ; sous le formulaire,
 // « Mes signalements » ; en tête, chez le fondateur hors aperçu, le lien vers les problèmes signalés.
 // Mécanique des fenêtres de la coquille (js/nav-fenetre.js : une seule ouverte à la fois, Tab gardé dans
 // la fenêtre, Échap, voile, focus rendu, fermeture quand l'adresse change) ; styles à elle
-// (css/signalement.css), valables avec l'ancienne barre comme avec la nouvelle.
+// (css/signalement.css).
 
 import { el, toast } from "./utils.js?v=20261110d";
 import { icon, deco } from "./icons.js?v=20261110d";
 import { getViewAs, fondateurHorsApercu } from "./auth-admin.js?v=20261110d";
-import { navigationV2Active } from "./nav-etat.js?v=20261110d";
 import { signalerProbleme, mesSignalementsApp, marquerSuivisVus } from "./db.js?v=20261110d";
 import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261110d";
 import { dernieresErreurs } from "./journal-erreurs.js?v=20261110d";
@@ -32,10 +31,10 @@ let erreurEnAttente = "";
 function releverContexte() {
   const vue = document.getElementById("view");
   const titre = vue?.querySelector("h1")?.textContent || vue?.querySelector("h2")?.textContent || "";
-  const nav2 = navigationV2Active();
+  // Une seule navigation depuis le 10/11 : « nouvelle » part toujours (les signalements « ancienne » en base se lisent encore).
   return assemblerContexte({
-    adresse: location.hash, titre, version: VERSION, navigation: nav2 ? "nouvelle" : "ancienne",
-    espace: nav2 ? (document.body.dataset.espace || null) : null, apercu: getViewAs(),
+    adresse: location.hash, titre, version: VERSION, navigation: "nouvelle",
+    espace: document.body.dataset.espace || null, apercu: getViewAs(),
     largeur: window.innerWidth, hauteur: window.innerHeight, densite: window.devicePixelRatio,
     tactile: window.matchMedia("(pointer: coarse)").matches,
     ua: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints,

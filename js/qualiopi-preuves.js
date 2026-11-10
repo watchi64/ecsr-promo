@@ -230,10 +230,11 @@ export function intervenantsDistincts(lignes) {
 
 // --- Annonces : celles qu'on peut citer ---
 
-// Les annonces de la rubrique Nouveautés qu'un dossier peut compter et citer. Celles qui décrivent la nouvelle barre
-// (`navigation: "nouvelle"`) ne se lisent que barre allumée : tant qu'elle est éteinte, personne n'a pu les lire dans l'app
-// et un auditeur ne les y trouverait pas. Le filtre est écrit ici une seule fois, pour l'inventaire et le dossier du centre.
-export const nouveautesCitables = (nouveautes) => tableau(nouveautes).filter((x) => x?.navigation !== "nouvelle");
+// Les annonces de la rubrique Nouveautés qu'un dossier peut compter et citer. Depuis le 10/11, toutes les promos ont la
+// nouvelle barre : ses annonces se lisent dans l'app. Celles qui ne décrivent que l'ancienne barre (`navigation: "ancienne"`)
+// n'y sont plus visibles, un auditeur ne les y trouverait pas. Le filtre est écrit ici une seule fois, pour l'inventaire et le
+// dossier du centre.
+export const nouveautesCitables = (nouveautes) => tableau(nouveautes).filter((x) => x?.navigation !== "ancienne");
 
 // --- Satisfaction : le questionnaire de fin de formation ---
 
