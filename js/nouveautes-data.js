@@ -257,6 +257,40 @@ export const NOUVEAUTES = [
     ou: { label: "Mon espace personnel, partie EPCF", route: "mon-suivi", sousOnglet: "epcf" },
     module: "epcf",
   },
+  // Les confirmations dans une fenêtre de l'app (lot A : examen, planning, bénévoles, modules, ressources...).
+  {
+    id: "2026-11-10-confirmations-dans-l-app",
+    date: "2026-11-10",
+    pour: "tous",
+    titre: "Des confirmations plus lisibles",
+    resume: "Quand l'app te demande de confirmer un geste (quitter ou terminer un examen, supprimer, vider les "
+          + "placements du planning...), la question s'affiche maintenant dans une fenêtre de l'app, lisible sur "
+          + "téléphone, au lieu de la petite boîte grise du navigateur. Le bouton dit ce qu'il fait (« Supprimer », "
+          + "« Terminer ») ; « Annuler » (ou « Continuer l'examen ») et Échap referment sans rien changer. Pendant un "
+          + "examen, si le temps s'écoule alors que la question est ouverte, elle se ferme d'elle-même.",
+  },
+  // Confidentialité (10/11) : le seuil des moyennes EPCF passe à trois stagiaires (décision de Timy).
+  {
+    id: "2026-11-10-moyennes-epcf-trois",
+    date: "2026-11-10",
+    pour: "tous",
+    titre: "Moyennes EPCF : à partir de trois stagiaires",
+    resume: "Les moyennes EPCF de la classe n'apparaissent plus qu'à partir de trois stagiaires évalués à la même "
+          + "épreuve, au lieu de deux : à deux, chacun aurait pu retrouver la note de l'autre en la comparant à la "
+          + "sienne. La même règle vaut pour la moyenne du groupe sur ton radar EPCF. Les formateurs voient toujours "
+          + "chaque évaluation.",
+    ou: { label: "Notes, sous-onglet EPCF", route: "notes", sousOnglet: "epcf" },
+    module: "epcf",
+  },
+  // Confidentialité (10/11) : l'adresse e-mail d'un stagiaire n'est plus lisible des autres stagiaires.
+  {
+    id: "2026-11-10-adresse-email-privee",
+    date: "2026-11-10",
+    pour: "stagiaires",
+    titre: "Ton adresse e-mail reste entre toi et l'équipe",
+    resume: "Ton adresse e-mail n'est plus visible des autres stagiaires de la promo : seuls toi et l'équipe "
+          + "(formateurs, direction) la voyez. Le masquage de tes notes, lui, ne change pas.",
+  },
   // Lot de corrections 2 (audit du 09/11) : ce que l'app affiche est juste.
   {
     id: "2026-11-09-accueil-plus-juste",

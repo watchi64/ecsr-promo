@@ -4,13 +4,14 @@
  * Multi-réponses : une question peut avoir plusieurs bonnes réponses.
  * Juste = ensemble coché == ensemble des bonnes réponses (toutes les bonnes, aucune fausse).
  */
-import { el, clear, toast, formatDate } from "../utils.js?v=20261110a";
-import { icon } from "../icons.js?v=20261110a";
+import { el, clear, toast, formatDate } from "../utils.js?v=20261110c";
+import { confirmer } from "../confirmer.js?v=20261110c";
+import { icon } from "../icons.js?v=20261110c";
 import { getQcmFull, insertQcmAttempt, getMyExamAttempt, listMyQcmAttemptsFor,
-         createQcmSignalement } from "../db.js?v=20261110a";
-import { monStagiaireId } from "../auth-admin.js?v=20261110a";
-import { fermerParEchap } from "../fenetre-echap.js?v=20261110a";
-import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261110a";
+         createQcmSignalement } from "../db.js?v=20261110c";
+import { monStagiaireId } from "../auth-admin.js?v=20261110c";
+import { fermerParEchap } from "../fenetre-echap.js?v=20261110c";
+import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261110c";
 
 const MOTIFS = [
   ["reponse_fausse", "La réponse indiquée me semble fausse"],
@@ -533,10 +534,21 @@ function runExam(theme, full, questions, profile) {
   const { overlay, player, close: rawClose } = examOverlay(false);
   let idx = 0;
   let timerId = null;
-  function cleanup() { if (timerId) { clearInterval(timerId); timerId = null; } }
+  // Une question à la fois (Échap deux fois, la croix puis « Terminer ») ; la fin de l'examen (temps écoulé, remise,
+  // fermeture) referme la question encore ouverte.
+  const finExamen = new AbortController();
+  let enQuestion = false;
+  async function demander(question) {
+    if (enQuestion) return false;
+    enQuestion = true;
+    try { return await confirmer({ ...question, non: "Continuer l'examen", signal: finExamen.signal }); }
+    finally { enQuestion = false; }
+  }
+  function cleanup() { finExamen.abort(); if (timerId) { clearInterval(timerId); timerId = null; } }
   function close() { cleanup(); rawClose(); }
-  function requestClose() {
-    if (!submitted && !window.confirm("Quitter l'examen ? Ta progression sera perdue et rien ne sera enregistré.")) return;
+  async function requestClose() {
+    if (!submitted && !(await demander({ titre: "Quitter l'examen ?",
+      phrase: "Ta progression sera perdue et rien ne sera enregistré.", oui: "Quitter" }))) return;
     close();
   }
   // Échap vaut la croix : même confirmation tant que l'examen n'est pas remis.
@@ -627,12 +639,12 @@ function runExam(theme, full, questions, profile) {
     overlay.scrollTop = 0;
   }
 
-  function confirmFinish() {
-    const answeredCount = countAnswered();
-    const msg = answeredCount < total
-      ? `Il te reste ${total - answeredCount} question(s) sans réponse. Terminer quand même ?`
-      : "Terminer et enregistrer ta note ?";
-    if (window.confirm(msg)) finish(false);
+  async function confirmFinish() {
+    const reste = total - countAnswered();
+    const ok = await demander({ titre: "Terminer l'examen ?",
+      phrase: reste > 0 ? `Il te reste ${reste} question${reste > 1 ? "s" : ""} sans réponse.` : "Ta note sera enregistrée.",
+      oui: "Terminer", danger: false });
+    if (ok) finish(false);
   }
 
   async function finish(timedOut) {

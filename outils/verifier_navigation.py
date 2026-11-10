@@ -229,7 +229,7 @@ Contrôles par vue
   * Mon suivi > La classe, pour toute personne qui a une fiche (le contexte décide, pas le rôle : le stagiaire, et le fondateur dans l'espace de l'équipe) : ni
     second titre, ni seconde rangée Matrice / EPCF (aucun libellé « EPCF » isolé), ni « Lecture seule... » ; le stagiaire, qui ne saisit rien, ne lit pas non plus
     la phrase sur la saisie et n'a que le nombre de notes. Sous la vue de la classe, la section « Moyennes EPCF de la classe » (ruling R51) : le rendu de l'onglet
-    EPCF de la page de l'équipe, avec son k-anonymat (le banc sert des moyennes sur 3 et 2 stagiaires, et un critère sur un seul, jamais montré). Notes et examens,
+    EPCF de la page de l'équipe, avec son k-anonymat (le banc sert des moyennes sur 3, 2 et 1 stagiaires ; seules celles sur 3 sont montrées). Notes et examens,
     page de l'équipe : ses deux sous-onglets Matrice et EPCF, et le titre « Moyennes de la classe » du second ;
   * accueil, agenda vide (lot 2A, tour de correction 1) : un scénario à part par moteur et par passe, la date du banc reculée après le dernier événement
     (DATE_AGENDA_VIDE), formateur : avec l'ancienne navigation, la liste dit où ajouter des événements (« l'onglet Calendrier ») et la carte du prochain événement
@@ -4522,8 +4522,8 @@ def jouer_ressources_fermees(page, res, sc, options):
 # --------------------------------------------------------------------------------------
 
 # Moyennes EPCF de la classe que le faux Supabase rend (RPC epcf_moyennes ; le banc n'en sert aucune de lui-même, et rend la même liste aux deux
-# épreuves) : (critère, moyenne, effectif). Deux critères de la grille salle sur 3 et 2 stagiaires, un troisième sur un seul (sous le k-anonymat de 2 :
-# jamais montré), un de la grille véhicule sur 3. Posées dans tous les scénarios (nouveau_contexte).
+# épreuves) : (critère, moyenne, effectif). Trois critères de la grille salle sur 3, 2 et 1 stagiaires (les deux derniers sous le k-anonymat de 3 :
+# jamais montrés), un de la grille véhicule sur 3. Posées dans tous les scénarios (nouveau_contexte).
 MOYENNES_EPCF_DU_BANC = {"salle": [("PREP1", 1.5, 3), ("PREP2", 1, 2), ("ANIM1", 0.5, 1)], "vehicule": [("COND1", 1.8, 3)]}
 # Les notes que le banc sert (lot 2A, tâche 5), pour que chaque teinte de l'échelle des notes soit dessinée : (stagiaire, thème, note, date).
 # Moyennes par stagiaire : Cassandre 4 (sous 8), Anissa 8 et Timy 10,2 (sous 12), Valentin 13 (sous 16), Lorie 19 (au-dessus), Céline sans note ;
@@ -4561,7 +4561,7 @@ def stats_notes_du_banc(notes):
 
 
 STATS_NOTES_DU_BANC = stats_notes_du_banc(NOTES_DU_BANC)
-K_ANONYMAT = 2    # une moyenne de la classe n'est montrée qu'à partir de 2 stagiaires évalués (SEUIL_MOYENNE_EPCF, js/epcf-classe-rules.js)
+K_ANONYMAT = 3    # une moyenne de la classe n'est montrée qu'à partir de 3 stagiaires évalués (SEUIL_MOYENNE_EPCF, js/epcf-classe-rules.js)
 DATE_AGENDA_VIDE = "2027-01-15"   # après le dernier événement de l'agenda du banc (11/12/2026) : l'accueil n'a plus d'événement à venir
 
 # Hauteur du bandeau d'émargement de main sur téléphone, horaires affichés, sur deux lignes : 61 px. Sur une ligne, avec son bouton de 44 px, il ne doit pas la dépasser.
@@ -5527,8 +5527,8 @@ def verifier_epcf_de_l_equipe(page, res, sc):
 
 def verifier_moyennes_epcf(res, vue, e):
     """La section « Moyennes EPCF de la classe » de La classe (m["epcf"] de laClasse()) : titrée, sous la matrice, deux épreuves, le rendu des moyennes
-    de la classe avec son k-anonymat (une moyenne n'est montrée qu'à partir de 2 stagiaires évalués). Le banc sert des moyennes sur 3 et 2 stagiaires,
-    et un critère sur un seul stagiaire, qui ne doit jamais être montré."""
+    de la classe avec son k-anonymat (une moyenne n'est montrée qu'à partir de 3 stagiaires évalués). Le banc sert des moyennes sur 3, 2 et 1
+    stagiaires : celles sur 2 et 1 ne doivent jamais être montrées."""
     if e is None:
         res.echec("la classe, moyennes EPCF", vue, "la section « Moyennes EPCF de la classe » manque sous la vue de la classe (le banc sert des évaluations EPCF)")
         return

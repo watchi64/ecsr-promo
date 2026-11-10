@@ -14,17 +14,17 @@
  *   - un tableau qui porte une colonne « Amende » devient un tableau de
  *     sanctions (montants et points en chiffres tabulaires).
  */
-import { el, clear } from "../utils.js?v=20261110a";
-import { icon } from "../icons.js?v=20261110a";
-import { carteSignal, signalConnu } from "../signaux.js?v=20261110a";
-import { carteMarquage, marquageConnu } from "../marquage.js?v=20261110a";
-import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261110a";
-import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261110a";
-import { listCoursIndex, getCours } from "../db.js?v=20261110a";
-import { isAdmin, isProf, isRedacteur, getViewAs } from "../auth-admin.js?v=20261110a";
+import { el, clear } from "../utils.js?v=20261110c";
+import { icon } from "../icons.js?v=20261110c";
+import { carteSignal, signalConnu } from "../signaux.js?v=20261110c";
+import { carteMarquage, marquageConnu } from "../marquage.js?v=20261110c";
+import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261110c";
+import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261110c";
+import { listCoursIndex, getCours } from "../db.js?v=20261110c";
+import { isAdmin, isProf, isRedacteur, getViewAs } from "../auth-admin.js?v=20261110c";
 import { coursAUnTexte, MESSAGE_COURS_VIDE, titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours,
   coursVisibleEnApercu, classeTableau, etiquetteDeColonne }
-  from "../cours-rules.js?v=20261110a";
+  from "../cours-rules.js?v=20261110c";
 
 // Index des cours visibles, chargé une fois par rendu de la page Thèmes.
 let coursIndex = null;  // Map clé (numéro ou code) -> { id, numero, code, titre, published, updated_by, updated_at }
@@ -492,7 +492,7 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
   // l'éditeur pour lui.
   const modifier = isRedacteur()
     ? el("button", { class: "btn cours-modifier", type: "button", onClick: async () => {
-        const { openCoursEditeur } = await import("./cours-editeur.js?v=20261110a");
+        const { openCoursEditeur } = await import("./cours-editeur.js?v=20261110c");
         close();
         openCoursEditeur(cle, {
           onFerme: (aChange) => { if (aChange) openCoursSheet(theme); },

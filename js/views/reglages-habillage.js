@@ -5,12 +5,12 @@
 // revient à ce que la base a gardé. Les pastilles sont celles du lot 3 (js/habillage-choix.js, mode réglage : rien n'est appliqué à
 // l'écran de la personne qui règle).
 
-import { habillageParDefaut, lireHabillageCentre, reglerHabillageCentre, reglerHabillageReseau } from "../db.js?v=20261110a";
-import { getCentre } from "../auth-admin.js?v=20261110a";
-import { el, clear, toast } from "../utils.js?v=20261110a";
-import { icon } from "../icons.js?v=20261110a";
-import { blocHabillage } from "../habillage-choix.js?v=20261110a";
-import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261110a";
+import { habillageParDefaut, lireHabillageCentre, reglerHabillageCentre, reglerHabillageReseau } from "../db.js?v=20261110c";
+import { getCentre } from "../auth-admin.js?v=20261110c";
+import { el, clear, toast } from "../utils.js?v=20261110c";
+import { icon } from "../icons.js?v=20261110c";
+import { blocHabillage } from "../habillage-choix.js?v=20261110c";
+import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261110c";
 
 export const PHRASE_ECHEC_LECTURE = "Le réglage n'a pas pu être chargé.";
 export const PHRASE_ECHEC_ECRITURE = "Le réglage n'a pas été enregistré. Réessaie dans un instant.";

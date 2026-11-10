@@ -336,13 +336,14 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
   $mx$cree_par = 'PreuveMaj'$mx$, null),
 -- Comptes : le sien ; le personnel (sans fiche, role <> 'stagiaire') pour un compte qui a au moins une promo
 -- accessible, le siège ou Fo (M6) ; les orphelins (sans fiche, role 'stagiaire') pour Fo ou pour qui les a invités
--- (R43) ; les stagiaires de P. Ajout et modification retirés (fonctions serveur) ; suppression jamais du fondateur ni
--- d'un compte affecté : stagiaire de P si E, orphelin si Fo ou si E l'a invité, personnel si Fo.
+-- (R43) ; les stagiaires de P pour E seulement (depuis 20261110_profils_email_stagiaires : un stagiaire ne lit plus le
+-- profil, adresse comprise, des autres stagiaires). Ajout et modification retirés (fonctions serveur) ; suppression
+-- jamais du fondateur ni d'un compte affecté : stagiaire de P si E, orphelin si Fo ou si E l'a invité, personnel si Fo.
 ('public.user_profiles',
   $mx$lower(r.email) = {moi}
      or (r.stagiaire_id is null and r.role <> 'stagiaire' and (cardinality({acces}) > 0 or {S} or {Fo}))
      or (r.stagiaire_id is null and r.role = 'stagiaire' and ({Fo} or lower(r.invited_by_email) = {moi}))
-     or r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = {P})$mx$,
+     or (r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = {P}) and {E})$mx$,
   'false', 'false',
   $mx$not r.is_founder and not exists (select 1 from public.affectations a where a.email = r.email)
      and ((r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = {P}) and {E})
@@ -735,7 +736,7 @@ begin
     ('public.benevoles', format('r.lieu_id = %s and %s', v_lieu, v_e::text)),
     ('public.qcm_questions', 'true'), ('public.themes', 'true'), ('public.contacts', 'true'),
     ('public.cours', format('r.published or (r.code is null and %s)', v_e::text)),
-    ('public.user_profiles', format('lower(r.email) = %L or (r.stagiaire_id is null and r.role <> ''stagiaire'' and %s) or (r.stagiaire_id is null and r.role = ''stagiaire'' and lower(r.invited_by_email) = %L) or r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = %s)', lower(p_email), p_a_promo::text, lower(p_email), v_pp))
+    ('public.user_profiles', format('lower(r.email) = %L or (r.stagiaire_id is null and r.role <> ''stagiaire'' and %s) or (r.stagiaire_id is null and r.role = ''stagiaire'' and lower(r.invited_by_email) = %L) or (%s and r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = %s))', lower(p_email), p_a_promo::text, lower(p_email), v_e::text, v_pp))
   ) t(tbl, pred) loop
     v_x := pg_temp.calcul(format('select count(*)::text from %s r where coalesce(%s, false)', v_t.tbl, v_t.pred));
     v_o := v_o || v_t.tbl || '=' || coalesce(pg_temp.valeur(p_email, p_hdr, null, format('select count(*)::text from %s', v_t.tbl)), 'nul') || ' ';

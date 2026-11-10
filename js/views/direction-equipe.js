@@ -7,12 +7,12 @@
 // d'invitation (envoyerInvitation, stagiaires-gestion.js) ne sert pas ici : il appelle inviter_compte pour UNE fiche et UNE promo
 // affichée, alors que cette page règle plusieurs promos d'un centre d'un coup ; seule la forme de l'adresse est reprise.
 
-import { getMesPromos, lireEquipeDuCentre, lireFichesFormateurLibres, reglerAffectationsFormateur } from "../db.js?v=20261110a";
-import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261110a";
-import { icon } from "../icons.js?v=20261110a";
-import { getCentre, getAdminEmail } from "../auth-admin.js?v=20261110a";
-import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261110a";
-import { equipeAffichee, unionPromos } from "../direction-rules.js?v=20261110a";
+import { getMesPromos, lireEquipeDuCentre, lireFichesFormateurLibres, reglerAffectationsFormateur } from "../db.js?v=20261110c";
+import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261110c";
+import { icon } from "../icons.js?v=20261110c";
+import { getCentre, getAdminEmail } from "../auth-admin.js?v=20261110c";
+import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261110c";
+import { equipeAffichee, unionPromos } from "../direction-rules.js?v=20261110c";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;

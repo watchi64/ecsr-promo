@@ -1,9 +1,9 @@
 // Restitution EPCF : scoring des phases, radar SVG, section réutilisable
 // (affichée dans Mon suivi ; réutilisable ailleurs).
 
-import { el, clear, formatDate } from "./utils.js?v=20261110a";
-import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS, EPCF_PHASE_TEXTE } from "./epcf-trames.js?v=20261110a";
-import { moyennesMontrables, titreEpreuve, PHRASE_SANS_MOYENNE, scoresDuGroupe, phraseSansEvaluation } from "./epcf-classe-rules.js?v=20261110a";
+import { el, clear, formatDate } from "./utils.js?v=20261110c";
+import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS, EPCF_PHASE_TEXTE } from "./epcf-trames.js?v=20261110c";
+import { moyennesMontrables, titreEpreuve, PHRASE_SANS_MOYENNE, scoresDuGroupe, phraseSansEvaluation } from "./epcf-classe-rules.js?v=20261110c";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 function svgEl(tag, attrs = {}) {
@@ -123,7 +123,7 @@ export function renderEpcfTrameSection(trameKey, evals, moyennes) {
     const serieMoi = { values: trame.sections.map((s) => phaseScore(s, evalRow.scores)), className: "moi" };
     const series = [serieMoi];
     // k-anonymat (js/epcf-classe-rules.js) : la série du groupe ne compte que les critères évalués chez au moins
-    // 2 stagiaires ; sans aucun, pas de série.
+    // 3 stagiaires ; sans aucun, pas de série.
     const groupe = scoresDuGroupe(trame.sections, moyennes);
     if (groupe) series.unshift({ values: groupe, className: "groupe" });
     body.appendChild(el("div", { class: "epcf-radar-wrap" }, buildRadar(axes, series)));
@@ -168,7 +168,7 @@ export function renderEpcfClasse(container, moyennesByTrame) {
     const all = (moyennesByTrame && moyennesByTrame[trameKey]) || [];
     const box = el("div", { class: "epcf-classe-trame" }, el("h4", {}, titreEpreuve(trame.label, all)));
     // k-anonymat (js/epcf-classe-rules.js) : cette vue est affichée aussi aux stagiaires, une moyenne n'est montrée
-    // qu'à partir de 2 stagiaires évalués. Quand aucune épreuve n'en a, renderEpcf montre la carte de l'état vide à
+    // qu'à partir de 3 stagiaires évalués. Quand aucune épreuve n'en a, renderEpcf montre la carte de l'état vide à
     // la place de cette vue ; ici, une épreuve sans moyenne dit seulement ce qui lui manque.
     const moyennes = moyennesMontrables(all);
     if (!moyennes.length) {

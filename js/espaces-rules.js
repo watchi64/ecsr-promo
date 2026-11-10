@@ -7,9 +7,9 @@
  * Sources des espaces permis (D2) : siège et direction viennent des affectations du compte ; formateur et
  * stagiaire viennent des rôles du compte dans la promo affichée (`promo.roles`, mes_promos(), lot 4).
  */
-import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261110a";
-import { lireAdresse } from "./route-rules.js?v=20261110a";
-import { habillageValide } from "./habillage-regles.js?v=20261110a";
+import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261110c";
+import { lireAdresse } from "./route-rules.js?v=20261110c";
+import { habillageValide } from "./habillage-regles.js?v=20261110c";
 
 export const ESPACES = ["stagiaire", "equipe", "direction", "siege"];
 export const LIBELLES_ESPACE = { stagiaire: "Stagiaire", equipe: "Formateur", direction: "Direction", siege: "Siège" };

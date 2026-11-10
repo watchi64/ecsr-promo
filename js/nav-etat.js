@@ -5,13 +5,13 @@
 // Les règles pures (clés, décision) vivent dans js/nav-etat-regles.js, que node sait lire :
 // ce module-ci touche au DOM et à la base, node ne peut pas l'importer.
 
-import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261110a";
-import { el, toast } from "./utils.js?v=20261110a";
-import { icon } from "./icons.js?v=20261110a";
-import { isFounder, fondateurHorsApercu, getEspace } from "./auth-admin.js?v=20261110a";
+import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261110c";
+import { el, toast } from "./utils.js?v=20261110c";
+import { icon } from "./icons.js?v=20261110c";
+import { isFounder, fondateurHorsApercu, getEspace } from "./auth-admin.js?v=20261110c";
 import {
   CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, reglageRetenu, cleMemoire, navigationAttendue, etatDeLaCase,
-} from "./nav-etat-regles.js?v=20261110a";
+} from "./nav-etat-regles.js?v=20261110c";
 
 export { decideNavigationV2 };
 

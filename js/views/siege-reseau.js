@@ -3,16 +3,16 @@
 // et masque les centres de moins de 5 stagiaires en formation (aucun chiffre, hors des totaux). Les calculs vivent dans
 // js/comptes-reseau.js et js/centre-csv.js (purs, testés) : ici, seulement l'affichage. Lecture seule.
 
-import { comptesReseau } from "../db.js?v=20261110a";
-import { el, clear, isoDate, toast, tableauEnListe } from "../utils.js?v=20261110a";
-import { icon } from "../icons.js?v=20261110a";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261110a";
-import { lireAdresse } from "../route-rules.js?v=20261110a";
-import { pct } from "../centre-stats.js?v=20261110a";
-import { vueDuReseau, ratiosDeComptes, mentionMasques, SEUIL_SECRET } from "../comptes-reseau.js?v=20261110a";
-import { tableauReseauCsv } from "../centre-csv.js?v=20261110a";
-import { carte, telecharger } from "./centre.js?v=20261110a";
-import { ouvrirAjoutCentre } from "./siege-directions.js?v=20261110a";
+import { comptesReseau } from "../db.js?v=20261110c";
+import { el, clear, isoDate, toast, tableauEnListe } from "../utils.js?v=20261110c";
+import { icon } from "../icons.js?v=20261110c";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261110c";
+import { lireAdresse } from "../route-rules.js?v=20261110c";
+import { pct } from "../centre-stats.js?v=20261110c";
+import { vueDuReseau, ratiosDeComptes, mentionMasques, SEUIL_SECRET } from "../comptes-reseau.js?v=20261110c";
+import { tableauReseauCsv } from "../centre-csv.js?v=20261110c";
+import { carte, telecharger } from "./centre.js?v=20261110c";
+import { ouvrirAjoutCentre } from "./siege-directions.js?v=20261110c";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;

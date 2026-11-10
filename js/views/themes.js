@@ -1,26 +1,26 @@
-import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261110a";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261110a";
-import { icon } from "../icons.js?v=20261110a";
+import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261110c";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261110c";
+import { icon } from "../icons.js?v=20261110c";
 import {
   examenDemarrable, tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture,
   resumeExamen,
-} from "../qcm-exam-rules.js?v=20261110a";
-import { isAdmin, isRedacteur, getEspace, getAdminEmail, isProf, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261110a";
-import { recordUndo } from "../undo.js?v=20261110a";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261110a";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261110a";
-import { renderSubTabs } from "../subtabs.js?v=20261110a";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261110a";
-import { cleCours } from "../cours-rules.js?v=20261110a";
-import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261110a";
-import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261110a";
-import { navigationV2Active } from "../nav-etat.js?v=20261110a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110a";
-import { renderRessources } from "./ressources.js?v=20261110a";
-import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261110a";
-import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261110a";
-import { renderPropositionsIa } from "./propositions-ia.js?v=20261110a";
-import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261110a";
+} from "../qcm-exam-rules.js?v=20261110c";
+import { isAdmin, isRedacteur, getEspace, getAdminEmail, isProf, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261110c";
+import { recordUndo } from "../undo.js?v=20261110c";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261110c";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261110c";
+import { renderSubTabs } from "../subtabs.js?v=20261110c";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261110c";
+import { cleCours } from "../cours-rules.js?v=20261110c";
+import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261110c";
+import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261110c";
+import { navigationV2Active } from "../nav-etat.js?v=20261110c";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110c";
+import { renderRessources } from "./ressources.js?v=20261110c";
+import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261110c";
+import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261110c";
+import { renderPropositionsIa } from "./propositions-ia.js?v=20261110c";
+import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261110c";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }

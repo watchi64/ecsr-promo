@@ -1,16 +1,17 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261110a";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261110a";
-import { compteDansEquite } from "./passage-rules.js?v=20261110a";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261110a";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261110a";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261110a";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261110c";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261110c";
+import { compteDansEquite } from "./passage-rules.js?v=20261110c";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261110c";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261110c";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261110c";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261110c";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261110a";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261110a";
-import { effectifDesFiches } from "./centre-stats.js?v=20261110a";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261110a";
+} from "./promo-rules.js?v=20261110c";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261110c";
+import { effectifDesFiches } from "./centre-stats.js?v=20261110c";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261110c";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -1746,6 +1747,17 @@ export async function lireRolesDuPersonnel() {
   const { data, error } = await supabase.rpc("roles_du_personnel");
   if (error) throw erreurDeBase(error);
   return Array.isArray(data) ? data.map((l) => ({ email: String(l.email ?? "").toLowerCase(), role: l.role })) : [];
+}
+
+// Les fiches de la promo affichée dont le compte a masqué ses notes (Set de numéros de fiche) : tout ce que la vue Notes
+// demande aux comptes des camarades. Un stagiaire ne lit plus le profil des autres (adresse e-mail comprise) : la base
+// le rend par fiches_notes_masquees (migration 20261110_profils_email_stagiaires). Fonction absente (base pas encore
+// migrée) : relu dans les profils, comme avant.
+export async function listFichesNotesMasquees() {
+  const { data, error } = await supabase.rpc("fiches_notes_masquees");
+  if (!error) return fichesDeLaFonction(data);
+  if (!fonctionAbsente(error)) throw error;
+  return fichesDesProfils(await listUserProfiles());
 }
 
 // La RPC applique le verrou anti-yoyo côté serveur (2 min de grâce, puis 24 h)
