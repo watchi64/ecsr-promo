@@ -147,9 +147,15 @@ export function echeancesConservation(etat) {
   }
 
   const r = etat?.registre;
+  // Forme de la base : { a_effacer, a_clore, efface, prochaine_echeance }. Des entrées dues : échéance due aujourd'hui
+  // (le jour de l'état). Sinon la prochaine échéance datée, sans bouton. a_clore n'a pas de ligne ici (rappel du registre).
   if (r && nombre(r.a_effacer) > 0) {
-    ajoute("registre", { kind: "registre" }, r.du,
-      `Registre qualité : à partir du ${dateLongue(r.du)}, ${pluriel(nombre(r.a_effacer), "entrée close depuis plus de 3 ans a ses textes vidés", "entrées closes depuis plus de 3 ans ont leurs textes vidés")}.`,
+    ajoute("registre", { kind: "registre" }, etat.jour,
+      `Registre qualité : ${pluriel(nombre(r.a_effacer), "entrée close depuis plus de 3 ans peut avoir ses textes vidés", "entrées closes depuis plus de 3 ans peuvent avoir leurs textes vidés")}.`,
+      "Vider le registre");
+  } else if (r && r.prochaine_echeance) {
+    ajoute("registre", { kind: "registre" }, r.prochaine_echeance,
+      `Registre qualité : à partir du ${dateLongue(r.prochaine_echeance)}, une entrée close depuis 3 ans peut avoir ses textes vidés.`,
       "Vider le registre");
   }
 

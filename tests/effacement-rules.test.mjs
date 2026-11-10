@@ -86,9 +86,14 @@ for (const e of es) {
 }
 eq(types(echeancesConservation(etat("2030-01-01", [], { portees_formateurs: [{ ...sousSeuil, a_participations: false, a_commentaires: false, a_reponses: false, sous_seuil: false, fige: true }] }))), [], "drapeaux faux : rien à faire");
 
-const er = echeancesConservation(etat("2026-06-01", [], { registre: { a_effacer: 2, du: "2026-05-01" } }));
-eq([types(er), er[0].due], [["registre"], true], "registre dû");
-eq(echeancesConservation(etat("2026-06-01", [], { registre: { a_effacer: 0, du: null } })), [], "registre vide : rien");
+const er = echeancesConservation(etat("2026-06-01", [], { registre: { a_effacer: 2, a_clore: 1, efface: 0, prochaine_echeance: "2027-01-01" } }));
+eq([types(er), er[0].due, er[0].du, er[0].bouton], [["registre"], true, "2026-06-01", "Vider le registre"], "registre dû : date du jour, bouton");
+ok(/2 entrées closes/.test(er[0].texte), "registre dû : texte avec le nombre");
+ok(!/à partir du ,|undefined/.test(er[0].texte), "registre dû : aucune date vide dans le texte : " + er[0].texte);
+const erf = echeancesConservation(etat("2026-06-01", [], { registre: { a_effacer: 0, a_clore: 3, efface: 1, prochaine_echeance: "2027-01-01" } }));
+eq([types(erf), erf[0].due, erf[0].du, erf[0].bouton], [["registre"], false, "2027-01-01", null], "registre futur : date de la prochaine échéance, sans bouton");
+ok(/1er janvier 2027/.test(erf[0].texte), "registre futur : texte daté : " + erf[0].texte);
+eq(echeancesConservation(etat("2026-06-01", [], { registre: { a_effacer: 0, a_clore: 2, efface: 0, prochaine_echeance: null } })), [], "registre sans échéance (a_clore seul) : rien");
 
 // Tri : passées d'abord, puis par date
 const tri = echeancesConservation(etat("2027-12-11", [
