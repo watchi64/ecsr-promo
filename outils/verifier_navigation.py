@@ -229,7 +229,7 @@ Contrôles par vue
   * Mon suivi > La classe, pour toute personne qui a une fiche (le contexte décide, pas le rôle : le stagiaire, et le fondateur dans l'espace de l'équipe) : ni
     second titre, ni seconde rangée Matrice / EPCF (aucun libellé « EPCF » isolé), ni « Lecture seule... » ; le stagiaire, qui ne saisit rien, ne lit pas non plus
     la phrase sur la saisie et n'a que le nombre de notes. Sous la vue de la classe, la section « Moyennes EPCF de la classe » (ruling R51) : le rendu de l'onglet
-    EPCF de la page de l'équipe, avec son k-anonymat (le banc sert des moyennes sur 3 et 2 stagiaires, et un critère sur un seul, jamais montré). Notes et examens,
+    EPCF de la page de l'équipe, avec son k-anonymat (le banc sert des moyennes sur 3, 2 et 1 stagiaires ; seules celles sur 3 sont montrées). Notes et examens,
     page de l'équipe : ses deux sous-onglets Matrice et EPCF, et le titre « Moyennes de la classe » du second ;
   * accueil, agenda vide (lot 2A, tour de correction 1) : un scénario à part par moteur et par passe, la date du banc reculée après le dernier événement
     (DATE_AGENDA_VIDE), formateur : avec l'ancienne navigation, la liste dit où ajouter des événements (« l'onglet Calendrier ») et la carte du prochain événement
@@ -5553,8 +5553,8 @@ def verifier_epcf_de_l_equipe(page, res, sc):
 
 def verifier_moyennes_epcf(res, vue, e):
     """La section « Moyennes EPCF de la classe » de La classe (m["epcf"] de laClasse()) : titrée, sous la matrice, deux épreuves, le rendu des moyennes
-    de la classe avec son k-anonymat (une moyenne n'est montrée qu'à partir de 2 stagiaires évalués). Le banc sert des moyennes sur 3 et 2 stagiaires,
-    et un critère sur un seul stagiaire, qui ne doit jamais être montré."""
+    de la classe avec son k-anonymat (une moyenne n'est montrée qu'à partir de 3 stagiaires évalués). Le banc sert des moyennes sur 3, 2 et 1
+    stagiaires : celles sur 2 et 1 ne doivent jamais être montrées."""
     if e is None:
         res.echec("la classe, moyennes EPCF", vue, "la section « Moyennes EPCF de la classe » manque sous la vue de la classe (le banc sert des évaluations EPCF)")
         return

@@ -4,7 +4,8 @@
 -- Par où passait la lecture : la règle user_profiles_lecture (lot 4) donnait à tout membre de la promo affichée,
 -- stagiaires compris, le profil de chaque stagiaire de la promo (sa dernière clause). Aucune vue ni fonction ne rend
 -- l'adresse d'un stagiaire à un autre (inventaire du 10/11 : tables à colonne d'adresse, vues, fonctions exécutables).
--- L'app ne montrait pas ces adresses ; un stagiaire pouvait les lire par les outils du navigateur.
+-- L'app les montrait dans l'ancienne navigation (Paramètres, « Personnes avec accès », ouvert aux stagiaires) ; dans la
+-- nouvelle, un stagiaire pouvait les lire par les outils du navigateur.
 --
 -- Ce que l'app demandait vraiment à ces profils : qui a masqué ses notes (anonymous_notes), pour retirer son prénom de
 -- la vue Notes des autres stagiaires. Cette information passe désormais par fiches_notes_masquees(), qui ne rend que
@@ -16,6 +17,10 @@
 --    l'équipe de cette promo (equipe_courante() : son formateur, la direction de son lieu, le fondateur hors aperçu).
 --    Les trois autres clauses sont inchangées : son propre profil, les profils du personnel, les invitations de
 --    stagiaires sans fiche (fondateur et auteur de l'invitation).
+-- Ordre de mise en ligne : l'app d'abord (sans la fonction, elle relit l'anonymat dans les profils), la migration
+-- ensuite. Une app restée ouverte sur l'ancienne version ne voit plus, après la migration, qui a masqué ses notes :
+-- jusqu'au rechargement, la ligne d'un camarade masqué y reparaît avec son prénom, sans ses notes (que la base cache
+-- toujours). Aucun stagiaire n'avait masqué ses notes au 10/11.
 -- Preuve : tests/sql/profils-email-preuve.sql (outils/assembler_preuve_profils.mjs). Retour :
 -- 20261110_profils_email_stagiaires_retour.sql.
 

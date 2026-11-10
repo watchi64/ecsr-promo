@@ -208,8 +208,7 @@ export const NOUVEAUTES = [
     pour: "stagiaires",
     titre: "Ton adresse e-mail reste entre toi et l'équipe",
     resume: "Ton adresse e-mail n'est plus visible des autres stagiaires de la promo : seuls toi et l'équipe "
-          + "(formateurs, direction) la voyez. La liste des personnes qui ont accès à l'app ne montre donc plus les "
-          + "autres stagiaires. Le masquage de tes notes, lui, ne change pas.",
+          + "(formateurs, direction) la voyez. Le masquage de tes notes, lui, ne change pas.",
   },
   // Lot de corrections 2 (audit du 09/11) : ce que l'app affiche est juste.
   {

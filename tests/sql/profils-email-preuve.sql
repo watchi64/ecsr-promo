@@ -183,7 +183,7 @@ begin
     reset role;
     if n <> 0 or v <> r.masquees then n_stag_ko := n_stag_ko + 1; end if;
   end loop;
-  if n_stag_ko = 0 then ok := ok + 1;
+  if n_stag > 0 and n_stag_ko = 0 then ok := ok + 1;
   else ko := ko || format('R stagiaires réels : %s sur %s lisent le profil d''un autre stagiaire ou ne reçoivent pas leurs fiches masquées',
                           n_stag_ko, n_stag); end if;
   -- Équipe : chaque formateur (sa promo), chaque direction (les promos de son lieu), le fondateur (toutes les promos)
