@@ -6762,7 +6762,7 @@ body.qcm-open { overflow: hidden; }
 .qcm-signal-item-meta { font-size: 0.76rem; color: var(--text-muted); }
 .qcm-signal-item-motif { font-size: 0.85rem; font-weight: 600; }
 .qcm-signal-item-comment { font-size: 0.85rem; font-style: italic; }
-.qcm-signal-item-actions { display: flex; gap: 0.4rem; margin-top: 0.15rem; }
+.qcm-signal-item-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.15rem; } /* libellés du lot D plus longs : à la ligne sur téléphone */
 .qcm-editor-signal {
   display: inline-flex; align-items: center; gap: 0.25rem;
   padding: 0.1rem 0.45rem; border-radius: 999px;

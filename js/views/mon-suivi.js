@@ -625,7 +625,9 @@ function sousTitreDeMonSuivi() {
     moduleVisible("notes") ? "tes résultats" : null,
     "tes passages (au tableau et en voiture)",
     epcf ? "tes " + DEFINITION_EPCF : null,
-    moduleVisible("livret") ? "ton livret " + (epcf ? "EPCF" : DEFINITION_EPCF) : null,
+    // Le livret n'est nommé que pour porter la définition (EPCF fermé) : sur téléphone, une ligne de plus poussait la fin du
+    // sommaire sous la barre du bas.
+    moduleVisible("livret") && !epcf ? "ton livret " + DEFINITION_EPCF : null,
     moduleVisible("dp") ? "ton dossier professionnel" : null,
   ].filter(Boolean);
   const texte = morceaux.length > 1 ? morceaux.slice(0, -1).join(", ") + " et " + morceaux[morceaux.length - 1] : morceaux[0];
