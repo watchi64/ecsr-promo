@@ -30,31 +30,31 @@
 import {
   lireDonneesQualiopi, lireReferentielCentre, getMesPromos, getPromoCourante,
   lireResultatsQuestionnaire, lireCommentairesQuestionnaire, lireOuverturesQuestionnaires, ouvrirQuestionnaire, lireRegistreQualite,
-} from "../db.js?v=20261110a";
-import { el, clear, isoDate, toast } from "../utils.js?v=20261110a";
-import { indicateursPromo } from "../centre-stats.js?v=20261110a";
-import { inventairePromo, nb, tableau, satisfactionDe } from "../qualiopi-preuves.js?v=20261110a";
+} from "../db.js?v=20261110b";
+import { el, clear, isoDate, toast } from "../utils.js?v=20261110b";
+import { indicateursPromo } from "../centre-stats.js?v=20261110b";
+import { inventairePromo, nb, tableau, satisfactionDe } from "../qualiopi-preuves.js?v=20261110b";
 import {
   modeleDossierFormation, modeleDossierCentre, inventaireCsv, nomFichierQualiopi, periodeEnMots, LIBELLES_NIVEAU, PHRASE_NIVEAU, PHRASE_DE_GARDE,
-} from "../qualiopi-documents.js?v=20261110a";
+} from "../qualiopi-documents.js?v=20261110b";
 import {
   REFERENTIEL_APPLIQUE, REFERENTIEL_DU, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, groupesParCritere,
   titreImpression,
-} from "../qualiopi-page-rules.js?v=20261110a";
+} from "../qualiopi-page-rules.js?v=20261110b";
 import {
   ficheResultats, fichesResultatsTexte, tableauFiche, copierTexte, noteProvisoire, promoTerminee, AUCUNE_FORMATION,
-} from "../qualiopi-resultats.js?v=20261110a";
-import { NOUVEAUTES } from "../nouveautes-data.js?v=20261110a";
-import { telecharger } from "./centre.js?v=20261110a";
-import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261110a";
+} from "../qualiopi-resultats.js?v=20261110b";
+import { NOUVEAUTES } from "../nouveautes-data.js?v=20261110b";
+import { telecharger } from "./centre.js?v=20261110b";
+import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261110b";
 import {
   QUESTIONNAIRES_GESTION, porteeGestion, anneesFormateur, libellePorteeFormateur, ouvertureDe, etatOuverture, actionsOuverture,
   messageOuverture, questionnairesAbsents, resumeReponses, satisfactionGlobale, lignesResultats, commentairesMontrables,
   messageLectureGestion, messageEchecOuverture, jourParis,
-} from "../questionnaires-gestion-rules.js?v=20261110a";
-import { renderSubTabs } from "../subtabs.js?v=20261110a";
-import { aEffacer, aClore } from "../registre-rules.js?v=20261110a";
-import { renderRegistreQualite } from "./registre-qualite.js?v=20261110a";
+} from "../questionnaires-gestion-rules.js?v=20261110b";
+import { renderSubTabs } from "../subtabs.js?v=20261110b";
+import { aEffacer, aClore } from "../registre-rules.js?v=20261110b";
+import { renderRegistreQualite } from "./registre-qualite.js?v=20261110b";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
