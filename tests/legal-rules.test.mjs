@@ -43,7 +43,7 @@ eq(reperesNonRemplis(MENTIONS_MD), [], "mentions légales : SIRET et adresse à 
 // 6. Direction du centre et siège (lot K) : le tableau « Qui voit quoi » redit ce que la base fait. Règles : equipe_courante()
 // (formateur de la promo ou direction de son lieu) ouvre stagiaires_prive, fiches_suivi, evaluations (notes masquées
 // comprises), epcf, dp, livret, émargement ; passages et planning sont lus par toute la promo accessible ; le siège ne lit que
-// comptes_reseau() (chiffres par centre, sans nom). Questionnaires : cellule conservée telle quelle (voir le rapport du lot K).
+// comptes_reseau() (chiffres par centre, sans nom). Questionnaires : seul le fondateur (peut_gerer_qualite) lit les résultats regroupés, ni la direction ni le siège.
 eq(VERSION_CONDITIONS, "2026-11-10", "version du lot K");
 const tableau = CONDITIONS_MD.split("## 4. Qui voit quoi")[1].split("\n\n")[1].trim().split("\n")
   .map((l) => l.split("|").slice(1, -1).map((c) => c.trim()));
@@ -57,6 +57,7 @@ const DIRECTION = {
   "Souhaits de séances": "Oui",
   "Livret, dossier professionnel, EPCF": "Oui",
   "Feuilles d'émargement": "Oui",
+  "Réponses aux questionnaires": "Non ; les résultats regroupés, à partir du seuil, vont aux personnes chargées de la qualité",
   "Signalements de problème": "Non",
 };
 for (const [nom, v] of Object.entries(DIRECTION)) eq(ligne(nom)[4], v, `direction : ${nom}`);

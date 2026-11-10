@@ -39,7 +39,7 @@ export const CONDITIONS_MD = `# Conditions d'utilisation et données personnelle
 > L'application accompagne la formation au Titre professionnel ECSR. Elle est éditée par Timy Studio, la micro-entreprise de Timy Valdivia.
 > Elle enregistre ce qui sert à la formation : profil, notes, QCM, passages, absences, livret, dossier professionnel, et vos réponses aux questionnaires de satisfaction, enregistrées sans votre nom.
 > Vos notes sont visibles des autres stagiaires de votre promo, sauf si vous choisissez de les masquer.
-> Personne d'extérieur à la formation n'y accède, à une exception près : ECF (École de Conduite Française), l'organisme qui assure la formation : la direction de votre centre voit, comme vos formateurs, votre suivi nominatif (notes, planning, passages, absences, date de naissance) ; le siège d'ECF ne voit que des chiffres par centre, sans aucun nom ; ECF peut aussi présenter des documents de la formation à son certificateur Qualiopi et à ses financeurs.
+> Personne d'extérieur à la formation n'y accède, à une exception près : ECF (École de Conduite Française), l'organisme qui assure la formation. La direction de votre centre voit, comme vos formateurs, votre suivi nominatif (notes, planning, passages, absences, date de naissance) ; le siège d'ECF ne voit que des chiffres par centre, sans aucun nom. ECF peut aussi présenter des documents de la formation à son certificateur Qualiopi et à ses financeurs.
 > La base de données est hébergée en France ; l'assistant passe par Scaleway, hébergeur français, qui ne conserve pas les messages.
 > Rien n'est vendu, rien ne sert à la publicité, aucun traceur publicitaire ni mesure d'audience.
 > Douze mois après la formation, les comptes et les textes libres des stagiaires disparaissent ; les preuves de la formation (résultats, heures, présences) sont gardées trois ans, puis rendues anonymes.
@@ -86,7 +86,7 @@ L'application ne collecte ni géolocalisation, ni contacts du téléphone, ni do
 | Souhaits de séances | Oui | Non | Oui | Oui | Non |
 | Livret, dossier professionnel, EPCF | Oui | Non | Oui | Oui | Non, seulement le nombre de compétences EPCF acquises par centre |
 | Feuilles d'émargement | Oui, votre ligne | Non | Oui | Oui | Non |
-| Réponses aux questionnaires | Votre participation seulement | Non | Non | Résultats regroupés, à partir du seuil ; commentaires libres : personnes chargées de la qualité | Non |
+| Réponses aux questionnaires | Votre participation seulement | Non | Non | Non ; les résultats regroupés, à partir du seuil, vont aux personnes chargées de la qualité | Non |
 | Signalements de problème | Oui | Non | Non | Non | Non |
 
 « Direction de votre centre » : les personnes d'ECF affectées à la direction du centre où se déroule votre promo ; elles accèdent aux promos de ce centre, comme un formateur à celles où il est affecté. « Siège d'ECF » : l'équipe du réseau, qui n'accède à aucune promo : elle dispose d'un écran de chiffres par centre (effectifs, absences, résultats aux QCM et aux examens, moyenne des notes, compétences EPCF acquises), calculés par la base de données, sans aucun nom de stagiaire ; quand un centre compte moins de cinq stagiaires en formation, ses chiffres ne sont pas montrés.
@@ -99,7 +99,7 @@ La présentation, par ECF à son certificateur Qualiopi et à ses financeurs, de
 
 Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre promo.
 
-**Absences.** L'application ne prévoit aucun champ pour le motif d'une absence : un passage est marqué « Absence », une feuille d'émargement « absent ». Seule une observation libre d'un formateur peut en porter un, et c'est pourquoi on n'y en écrit pas (section 15). L'observation d'un passage est lue comme le passage lui-même (vos camarades de promo, vos formateurs, la direction de votre centre) ; celle d'une feuille d'émargement, par vous, vos formateurs et la direction de votre centre.
+**Absences.** L'application ne prévoit aucun champ pour le motif d'une absence : un passage est marqué « Absence », une feuille d'émargement « absent ». Les formateurs s'engagent à ne pas en écrire dans une observation libre (section 15). L'observation d'un passage est lue comme le passage lui-même (vos camarades de promo, vos formateurs, la direction de votre centre) ; celle d'une feuille d'émargement, par vous, vos formateurs et la direction de votre centre.
 
 **Questionnaires de satisfaction.** La réponse est enregistrée sans nom, sans compte, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Dans l'application et dans les documents qu'elle produit, personne ne peut voir qui a répondu quoi : les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre (dans ces conditions, « le centre » désigne ECF, l'organisme de formation), dans un ordre aléatoire, sous la même condition.
 
