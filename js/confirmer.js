@@ -84,7 +84,7 @@ function ouvrir({ titre, phrase = null, oui, non = "Annuler", danger = true, sig
     // Tab et Maj+Tab font le tour de la fenêtre sans en sortir ; un focus sorti de la fenêtre y revient.
     const i = ordre.indexOf(document.activeElement);
     const pas = e.shiftKey ? -1 : 1;
-    const suivant = i < 0 ? (e.shiftKey ? ordre.length - 1 : (champ ? 1 : 0)) : (i + pas + ordre.length) % ordre.length;
+    const suivant = i < 0 ? (e.shiftKey ? ordre.length - 1 : 0) : (i + pas + ordre.length) % ordre.length;
     ordre[suivant].focus();
   }
   bd.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-labelledby": id },
@@ -94,7 +94,7 @@ function ouvrir({ titre, phrase = null, oui, non = "Annuler", danger = true, sig
     alerte,
     el("div", { class: "modal-actions" }, boutonNon, boutonOui),
   ));
-  bd.addEventListener("click", (e) => { if (e.target === bd) finir(false); });
+  bd.addEventListener("click", (e) => { if (e.target === bd) finir(refus); });
   window.addEventListener("keydown", auClavier, true);
   window.addEventListener("hashchange", surAbandon);
   signal?.addEventListener("abort", surAbandon);

@@ -483,7 +483,7 @@ async function renderDonneesSection(rerender) {
             + "les résultats restent sans nom. Irréversible.",
           libelle: "Pour confirmer, tapez ANONYMISER", oui: "Anonymiser",
           verifier: (v) => v.trim() === "ANONYMISER", erreur: "Saisie différente : rien n'est effacé." });
-        if (saisie === null) return;
+        if (typeof saisie !== "string") return;
         bouton.disabled = true;
         try {
           const r = await anonymiserPromo();

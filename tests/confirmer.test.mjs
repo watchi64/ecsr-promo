@@ -295,6 +295,26 @@ test("demander : « Annuler » et Échap rendent null", () => avecDocument(async
   assert.equal(await reponse, null);
 }));
 
+test("demander : toucher à côté de la fenêtre rend null (jamais false : un appelant qui efface ne doit rien lancer)", () => avecDocument(async (document) => {
+  const reponse = demander({ titre: "Anonymiser la promo ?", libelle: "Pour confirmer, tapez ANONYMISER", oui: "Anonymiser",
+    verifier: (v) => v.trim() === "ANONYMISER" });
+  await tour();
+  const f = fenetre(document);
+  for (const rappel of f.ecouteurs.get("click") || []) rappel({ type: "click", target: f });
+  assert.equal(await reponse, null);
+}));
+
+test("demander : un focus sorti de la fenêtre revient au champ par Tab", () => avecDocument(async (document) => {
+  const reponse = demander({ titre: "Désactiver lundi ?", libelle: "Libellé", oui: "Désactiver" });
+  await tour();
+  const c = champ(document);
+  document.activeElement = null;
+  touche("Tab");
+  assert.equal(document.activeElement, c);
+  bouton(document, "Annuler").click();
+  assert.equal(await reponse, null);
+}));
+
 test("demander : Entrée dans le champ valide", () => avecDocument(async (document) => {
   const reponse = demander({ titre: "Désactiver lundi ?", libelle: "Libellé", valeur: "Férié", oui: "Désactiver" });
   await tour();

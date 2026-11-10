@@ -2327,7 +2327,7 @@ async function disableDay(d) {
   const jour = JOURS[d].charAt(0) + JOURS[d].slice(1).toLowerCase();
   const label = await demander({ titre: `Désactiver ${jour.toLowerCase()} ?`,
     libelle: "Libellé (par exemple Vacances, Pont, Férié)", valeur: def, oui: "Désactiver", danger: false });
-  if (label === null) return;   // annulé
+  if (typeof label !== "string") return;   // annulé
   try {
     await setJourOff(semaineLundi, d, label.trim() || "Désactivé", getCurrentWho());
     await loadPlanning();
