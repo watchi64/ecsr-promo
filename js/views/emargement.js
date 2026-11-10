@@ -109,7 +109,7 @@ function jourOff(ctx, jour) {
 }
 
 function stagiaireIdsActifs(ctx) {
-  return ctx.stagiairesTous.filter((s) => s.actif).map((s) => s.id);
+  return ctx.stagiairesTous.filter((s) => s.actif && !s.anonymise_le).map((s) => s.id);
 }
 
 function enErreur(e) {

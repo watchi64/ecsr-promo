@@ -71,9 +71,12 @@ export function feuilleDuJour({ seances, stagiaires, entries }) {
   const ouverte = seance.statut === "ouverte";
   const liste = (Array.isArray(stagiaires) ? stagiaires : []).slice().sort(compareByNom);
   // Même lecture que le bandeau : une ligne légère (sans tracé) est signée dès qu'elle a une heure de signature.
-  const lignes = seance.lignes.map((l) => ({ ...l, trace: l.signe_le ? "signé" : null }));
+  // Feuille ouverte : une fiche sans nom (anonymise_le posé) n'est plus comptée ; sur une feuille close, elle reste.
+  const sansNom = new Set(liste.filter((s) => s.anonymise_le).map((s) => s.id));
+  const lignes = seance.lignes.filter((l) => !(ouverte && sansNom.has(l.stagiaire_id)))
+    .map((l) => ({ ...l, trace: l.signe_le ? "signé" : null }));
   const ids = new Set(lignes.map((l) => l.stagiaire_id));
-  if (ouverte) liste.filter((s) => s.actif).forEach((s) => ids.add(s.id));
+  if (ouverte) liste.filter((s) => s.actif && !s.anonymise_le).forEach((s) => ids.add(s.id));
   const r = resumeSeance(lignes, [...ids], !ouverte);
 
   const absentsPlanning = absentsDuPlanning(entries, dayIndexDe(seance.jour), seance.demi_journee);

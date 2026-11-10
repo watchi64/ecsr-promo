@@ -37,7 +37,9 @@ function horodatage(iso) {
 export function stagiairesDeFeuille(seance, stagiairesTous) {
   const ids = new Set((seance?.lignes || []).map((l) => l.stagiaire_id));
   return stagiairesTous
-    .filter((s) => ids.has(s.id) || (seance?.statut !== "close" && s.actif))
+    // Feuille ouverte : une fiche sans nom (anonymise_le posé) ne signe plus et n'est plus listée. Feuille close : elle
+    // reste, en « Anonyme n », comme preuve de présence.
+    .filter((s) => (seance?.statut === "close" || !s.anonymise_le) && (ids.has(s.id) || (seance?.statut !== "close" && s.actif)))
     .sort(compareByNom);
 }
 
