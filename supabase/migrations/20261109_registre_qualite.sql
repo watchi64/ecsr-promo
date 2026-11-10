@@ -2,7 +2,8 @@
 -- Spec : docs/superpowers/specs/2026-11-08-qualiopi-q3-q5-design.md (§ 3 décision 4, § 5, § 7, § 8, § 10). Plan :
 -- docs/superpowers/plans/2026-11-09-qualiopi-q4-registre.md (tâche 2). Règles pures reprises ici : js/registre-rules.js
 -- (echeanceEffacement, aEffacer). Retour : 20261109_registre_qualite_retour.sql. Preuve :
--- tests/sql/registre-qualite-preuve.sql. NON APPLIQUÉE : en production seulement avec l'accord de Timy.
+-- tests/sql/registre-qualite-preuve.sql. Appliquée en production le 10/11/2026, avec l'accord de Timy
+-- (psql -1, PGCLIENTENCODING=UTF8, accents vérifiés) : essai à blanc VERT 131/0, puis preuve VERT 128/0 deux fois.
 --
 -- Une entrée : type, date du constat, origine (jamais le nom d'une personne), promo et lieu facultatifs, description,
 -- réponse et sa date, action décidée, état, mesure de prévention (risque seulement), lien facultatif vers un signalement

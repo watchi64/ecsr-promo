@@ -22,7 +22,8 @@
 --   pg_ctl -D $D/pg stop ; rm -rf $D
 -- (pg_read_file lit les deux fichiers côté serveur : superutilisateur local seulement. Sur une autre base, remplacer
 -- les deux pg_read_file par le texte des fichiers.) Les entrées closes il y a plus de 3 ans se préparent avec
--- session_replication_role = replica (déclencheur muet le temps de l'insertion) : superutilisateur exigé.
+-- session_replication_role = replica (déclencheur muet le temps de l'insertion), posé par une commande SET exécutée
+-- (EXECUTE) et non par set_config() : Supabase n'accepte ce réglage du rôle postgres que par la commande.
 --
 -- Résultats du 09/11/2026, correction 1 de la relecture (Postgres 18.4 local, port 55473, base recréée à chaque
 -- passage, schéma minimal ci-dessus). Le déclencheur ne repose plus le lieu d'après la promo qu'à la création, quand la
@@ -54,6 +55,10 @@
 --     passe (la mise à nul seule du lien sort du déclencheur avant le calcul du lieu), ses cas rougissent par contrecoup ;
 --   - retour joué hors preuve (psql -1 -f) : empreinte 49bb5f5e… avant, c679ef40… migration appliquée, 49bb5f5e… après
 --     le retour ; plus aucune table ni fonction du registre ; peut_gerer_qualite() reste.
+--
+-- Production (10/11/2026, accord de Timy) : les deux pg_read_file remplacés par le texte des fichiers ; essai à blanc
+-- (migration jouée dans le bloc, tout annulé) VERT 131/0 ; migration appliquée (psql -1) ; puis VERT 128/0 deux fois,
+-- aucune ligne laissée (registre, comptes, profils, promos, lieux, signalements de la preuve à 0).
 --
 -- Premiers résultats (09/11/2026, avant la correction 1) : ROUGE 6/121 à vide, VERT 127/0 trois fois, base appliquée
 -- VERT 124/0, contre-épreuves 1 à 5 : ROUGE 119/8, 118/9, 123/4, 123/4 (4b 122/5, 4c 112/15), 110/17 ; empreinte de la
@@ -197,14 +202,14 @@ begin
     create function pg_temp.prep(j jsonb) returns bigint language plpgsql as $f$
     declare cols text; v bigint;
     begin
-      perform set_config('session_replication_role', 'replica', true);
+      execute 'set local session_replication_role = replica';
       select string_agg(quote_ident(k), ', ') into cols from jsonb_object_keys(j) k;
       execute format('insert into public.registre_qualite (%s) select %s from jsonb_populate_record(null::public.registre_qualite, $1) returning id',
                      cols, cols) using j into v;
-      perform set_config('session_replication_role', 'origin', true);
+      execute 'set local session_replication_role = origin';
       return v;
     exception when others then
-      perform set_config('session_replication_role', 'origin', true);
+      execute 'set local session_replication_role = origin';
       return null;
     end $f$;
     create function pg_temp.num(p text) returns bigint language sql as $f$

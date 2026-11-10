@@ -571,9 +571,9 @@ Nouveauté datée du 09/11, branche fusionnée dans `main`.
      PostgREST à chaque rendu de l'Accueil et de Mon espace, et le lien direct affiche son mot doux. Le banc (faux
      client) ne peut pas le montrer.
 
-## Registre qualité (Qualiopi Q4, novembre 2026, branche `qualiopi-q4`, en construction)
+## Registre qualité (Qualiopi Q4, en ligne le 10/11/2026)
 
-Plan : `docs/superpowers/plans/2026-11-09-qualiopi-q4-registre.md`. Migration `20261109_registre_qualite.sql` NON appliquée.
+Plan : `docs/superpowers/plans/2026-11-09-qualiopi-q4-registre.md`. Migration `20261109_registre_qualite.sql` appliquée en production le 10/11/2026 avec l'accord de Timy.
 
 - **Page** : sous-onglets « Inventaire et documents » et « Registre qualité » de `#/qualiopi` (`js/views/qualiopi.js`,
   `js/views/registre-qualite.js`) ; fenêtre de saisie `js/registre-fenetre.js` (`ouvrirFenetreRegistre`), partagée avec
@@ -621,7 +621,10 @@ Plan : `docs/superpowers/plans/2026-11-09-qualiopi-q4-registre.md`. Migration `2
   dans son en-tête, `PGCLIENTENCODING=UTF8`) ; suite node 1 529 verts (`node --test tests/*.test.mjs` : sur Node 24,
   `node --test tests/` seul échoue) ; Couleurs ECF : contraste AA vérifié sur les pastilles d'état (plus bas 4,88:1) et le
   texte du registre et de la fenêtre.
-- **Ce qui attend Timy** : (1) la migration `supabase/migrations/20261109_registre_qualite.sql` (et son retour
+- **Fait le 10/11/2026** : essai à blanc sur la base réelle VERT 131/0 (la commande `set local
+  session_replication_role` passe par `execute` : Supabase refuse ce réglage par `set_config()`), migration appliquée
+  (accents vérifiés), preuve rejouée VERT 128/0 deux fois, rien laissé ; fusion dans `main` et poussée.
+- **Historique, avant la mise en ligne** : (1) la migration `supabase/migrations/20261109_registre_qualite.sql` (et son retour
   `20261109_registre_qualite_retour.sql`) n'est pas appliquée : à jouer sur la base réelle avec son accord, `psql` avec
   `PGCLIENTENCODING=UTF8`, puis la preuve rejouée telle quelle (remplacer ses deux `pg_read_file` par le texte des
   fichiers) ; table vide, règles présentes, `peut_gerer_qualite()` inchangée à contrôler ; fusion et poussée seulement après.
