@@ -14,9 +14,12 @@
 // Options : `danger` (vrai par défaut : bouton rouge ; faux pour un geste qui n'efface rien, bouton vert) ; `signal`
 // (AbortSignal) referme la fenêtre de lui-même, réponse non (la fin du temps d'un examen). La fenêtre passe au-dessus
 // de tout ce qui couvre l'écran, l'examen QCM compris (classe `confirmer-fond`, css/style.css), sous les messages du bas.
+// `demander()` : la même fenêtre avec un champ (à la place de prompt()) ; promesse du texte tapé, ou null. Options en
+// plus : `libelle` (nomme le champ), `valeur` (texte de départ, sélectionné), `verifier` (texte -> vrai si accepté) et
+// `erreur` (dite dans la fenêtre, qui reste ouverte, quand `verifier` refuse : une confirmation à taper).
 // Testé par tests/confirmer.test.mjs.
 
-import { el } from "./utils.js?v=20261110d";
+import { el } from "./utils.js?v=20261110e";
 
 let compteur = 0;
 
@@ -24,12 +27,23 @@ export function confirmer(question) {
   return new Promise((resolve) => {
     setTimeout(() => {
       if (question.signal?.aborted) resolve(false);
-      else ouvrir(question, resolve);
+      else ouvrir(question, resolve, null);
     }, 0);
   });
 }
 
-function ouvrir({ titre, phrase = null, oui, non = "Annuler", danger = true, signal = null }, resolve) {
+export function demander(question) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      if (question.signal?.aborted) resolve(null);
+      else ouvrir(question, resolve, { libelle: question.libelle, valeur: question.valeur ?? "",
+        verifier: question.verifier, erreur: question.erreur });
+    }, 0);
+  });
+}
+
+// `saisie` : null pour une question oui/non (réponse true/false), sinon le champ (réponse : le texte, ou null).
+function ouvrir({ titre, phrase = null, oui, non = "Annuler", danger = true, signal = null }, resolve, saisie) {
   const avant = document.activeElement;
   const id = `confirmer-titre-${++compteur}`;
   const bd = el("div", { class: "modal-backdrop confirmer-fond" });
@@ -44,29 +58,46 @@ function ouvrir({ titre, phrase = null, oui, non = "Annuler", danger = true, sig
     if (rendreLeFocus && avant && avant !== document.body && avant.isConnected && typeof avant.focus === "function") avant.focus();
     resolve(reponse);
   };
-  const surAbandon = () => finir(false, false);
-  const boutonNon = el("button", { class: "btn ghost", type: "button", onClick: () => finir(false) }, non);
-  const boutonOui = el("button", { class: danger ? "btn danger" : "btn primary", type: "button", onClick: () => finir(true) }, oui);
+  const refus = saisie ? null : false;
+  const surAbandon = () => finir(refus, false);
+  const champ = saisie ? el("input", { type: "text", id: id + "-champ", autocomplete: "off" }) : null;
+  if (champ) champ.value = saisie.valeur;
+  const alerte = saisie ? el("p", { class: "confirmer-erreur", role: "alert" }) : null;
+  const valider = () => {
+    if (!saisie) { finir(true); return; }
+    if (saisie.verifier && !saisie.verifier(champ.value)) {
+      alerte.textContent = saisie.erreur || "Saisie différente.";
+      champ.focus();
+      return;
+    }
+    finir(champ.value);
+  };
+  const boutonNon = el("button", { class: "btn ghost", type: "button", onClick: () => finir(refus) }, non);
+  const boutonOui = el("button", { class: danger ? "btn danger" : "btn primary", type: "button", onClick: valider }, oui);
+  const ordre = champ ? [champ, boutonNon, boutonOui] : [boutonNon, boutonOui];
   function auClavier(e) {
     e.stopPropagation();
-    if (e.key === "Escape") { finir(false); return; }
+    if (e.key === "Escape") { finir(refus); return; }
+    if (e.key === "Enter" && champ && document.activeElement === champ) { e.preventDefault(); valider(); return; }
     if (e.key !== "Tab") return;
     e.preventDefault();
-    // Deux boutons : Tab comme Maj+Tab passent à l'autre ; un focus sorti de la fenêtre y revient.
-    const ici = document.activeElement;
-    if (ici === boutonOui) boutonNon.focus();
-    else if (ici === boutonNon) boutonOui.focus();
-    else (e.shiftKey ? boutonOui : boutonNon).focus();
+    // Tab et Maj+Tab font le tour de la fenêtre sans en sortir ; un focus sorti de la fenêtre y revient.
+    const i = ordre.indexOf(document.activeElement);
+    const pas = e.shiftKey ? -1 : 1;
+    const suivant = i < 0 ? (e.shiftKey ? ordre.length - 1 : 0) : (i + pas + ordre.length) % ordre.length;
+    ordre[suivant].focus();
   }
   bd.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-labelledby": id },
     el("h3", { id }, titre),
     phrase ? el("p", { class: "muted", style: "margin:0 0 0.8rem" }, phrase) : null,
+    champ ? el("label", { class: "confirmer-champ", for: champ.getAttribute("id") }, saisie.libelle || "", champ) : null,
+    alerte,
     el("div", { class: "modal-actions" }, boutonNon, boutonOui),
   ));
-  bd.addEventListener("click", (e) => { if (e.target === bd) finir(false); });
+  bd.addEventListener("click", (e) => { if (e.target === bd) finir(refus); });
   window.addEventListener("keydown", auClavier, true);
   window.addEventListener("hashchange", surAbandon);
   signal?.addEventListener("abort", surAbandon);
   document.body.appendChild(bd);
-  boutonOui.focus();
+  if (champ) { champ.focus(); champ.select(); } else boutonOui.focus();
 }

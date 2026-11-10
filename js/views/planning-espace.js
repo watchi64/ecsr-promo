@@ -3,13 +3,13 @@
 // passage (ex-page Priorités). Chaque sous-onglet rend la page actuelle, inchangée. Avec
 // l'ancienne navigation, la route planning rend la semaine seule (js/main.js).
 
-import { el, clear } from "../utils.js?v=20261110d";
-import { renderSubTabs } from "../subtabs.js?v=20261110d";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110d";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode } from "./planning.js?v=20261110d";
-import { renderCalendrier } from "./calendrier.js?v=20261110d";
-import { renderDashboard } from "./dashboard.js?v=20261110d";
-import { afficherErreur } from "./mon-suivi.js?v=20261110d";
+import { el, clear } from "../utils.js?v=20261110e";
+import { renderSubTabs } from "../subtabs.js?v=20261110e";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110e";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode } from "./planning.js?v=20261110e";
+import { renderCalendrier } from "./calendrier.js?v=20261110e";
+import { renderDashboard } from "./dashboard.js?v=20261110e";
+import { afficherErreur } from "./mon-suivi.js?v=20261110e";
 
 // Passer de la semaine à un autre sous-onglet vaut quitter la page du planning (js/main.js) :
 // le mode Modifier retombe, la barre des jours n'est plus suivie et la cible d'impression part
