@@ -259,7 +259,6 @@ body .modal-backdrop[data-nav-coquille="signaler"] > .nav-fenetre.signalement-fe
   font-weight: 600;
   line-height: 1;
 }
-.sg-entree-compte { margin-top: 0.5rem; }
 body[data-nav="v2"] .nav-cote-signaler .nav-pastille { margin-left: auto; }
 /* Colonne d'icônes : la pastille sur le coin de l'icône. */
 body[data-nav="v2"][data-nav-colonne] .nav-cote-signaler .nav-pastille {
@@ -294,7 +293,7 @@ body[data-nav="v2"][data-nav-colonne] .nav-cote-signaler .nav-pastille {
    est masqué (en-tête et barre du bas) : l'entrée est dans le tiroir « Plus ». */
 @media (max-width: 699.98px) {
   body[data-nav="v2"] .nav-cote-signaler { display: none; }
-  .chatbot-signaler-btn, .sg-entree-compte { min-height: 44px; }
+  .chatbot-signaler-btn { min-height: 44px; }
 }
 @media (max-width: 699.98px) {
   .modal-backdrop[data-nav-coquille="signaler"] {

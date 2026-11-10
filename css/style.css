@@ -290,12 +290,10 @@
   --barre-etat: #1A1612;
 
   /* --- Barre collante du haut --- */
-  /* Sa hauteur : la barre de jours du Planning se colle juste dessous. 52 px pour la barre actuelle
-     (95,5 px sous 760 px, voir « Barre du haut sur deux lignes »), valeurs de départ que js/main.js
-     remplace par la hauteur mesurée de la barre (57 px avec la pastille de promo) ; la nouvelle
-     navigation pose celle de son en-tête (css/navigation.css). En px seulement : js/views/planning.js
-     la lit par parseFloat. */
-  --haut-entete: 52px;
+  /* Sa hauteur : la barre de jours du Planning se colle juste dessous. La coquille de navigation pose
+     celle de son en-tête (css/navigation.css) ; 0 sans coquille montée. En px seulement :
+     js/views/planning.js la lit par parseFloat. */
+  --haut-entete: 0px;
 }
 
 
@@ -555,71 +553,6 @@ a { color: inherit; text-decoration: none; }
 }
 .ghost-btn:hover { background: rgba(255,255,255,0.08); }
 .ghost-btn .icon { width: 18px; height: 18px; }
-
-/* ============================================================
-   Top bar
-   ============================================================ */
-
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: var(--bg-deep);
-  color: var(--sur-sombre);
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 1.5rem;
-  padding: 0.6rem 1.5rem;
-  border-bottom: 1px solid var(--sombre-filet);
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  color: inherit;
-  flex-shrink: 0;
-}
-
-.brand-logo {
-  height: 38px;
-  width: auto;
-  display: block;
-  /* logo SVG est noir → on l'inverse pour le rendre crème sur fond espresso */
-  filter: invert(1) brightness(0.95) sepia(0.15);
-}
-
-.tabs {
-  display: flex;
-  gap: 0.15rem;
-  justify-content: center;
-}
-
-.tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.5rem 0.85rem;
-  border-radius: var(--r-sm);
-  color: var(--sur-sombre-doux);
-  font-size: 0.88rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: color 0.15s, background 0.15s;
-  border: none;
-  background: transparent;
-  font-family: inherit;
-  text-decoration: none;
-}
-
-.tab .icon { width: 16px; height: 16px; }
-
-.tab:hover { color: var(--sur-sombre); background: var(--sombre-survol); }
-.tab.active {
-  color: var(--sur-sombre);
-  background: var(--sombre-allume);
-}
-.tab.active .icon { color: var(--accent-on-dark); }
 
 /* ============================================================
    Main view
@@ -2948,21 +2881,6 @@ body.p-dragging-active {
   accent-color: var(--accent);
 }
 
-/* === Badge topbar avec rôle === */
-.admin-role {
-  font-size: 0.66rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  padding: 2px 6px;
-  background: var(--bg-subtle);
-  border-radius: 999px;
-}
-.admin-dot.admin     { background: var(--accent); }
-.admin-dot.prof      { background: var(--c-wait); }
-.admin-dot.stagiaire { background: var(--text-muted); }
-
 /* === Tabs gate (Connexion / Créer un compte) === */
 .gate-tabs {
   display: grid;
@@ -4013,75 +3931,6 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   .bnv-row { flex-direction: column; }
   .bnv-side { flex-direction: row; align-items: center; flex-wrap: wrap; max-width: 100%; }
   .bnv-mail { text-align: left; }
-}
-
-/* ============================================================
-   Admin badge & login
-   ============================================================ */
-
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.admin-login-btn {
-  background: rgba(255,255,255,0.05);
-  color: rgba(255,255,255,0.8);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: var(--r-sm);
-  padding: 0.45rem 0.75rem;
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 500;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  transition: all 0.15s;
-}
-
-.admin-login-btn:hover {
-  background: rgba(255,255,255,0.1);
-  color: white;
-}
-
-.admin-login-btn .icon { width: 14px; height: 14px; }
-
-.admin-badge {
-  background: var(--repere-admin-fond);
-  color: var(--repere-admin);
-  border: 1px solid var(--repere-admin-bord);
-  border-radius: var(--r-sm);
-  padding: 0.4rem 0.7rem;
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 500;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  transition: all 0.15s;
-}
-
-.admin-badge:hover { background: var(--repere-admin-survol); }
-
-.admin-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--repere-admin);
-  box-shadow: 0 0 0 3px var(--repere-admin-halo);
-  animation: pulse 2.5s ease-in-out infinite;
-}
-
-.admin-email {
-  font-family: var(--font); font-variant-numeric: tabular-nums;
-  font-size: 0.78rem;
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ============================================================
@@ -5715,23 +5564,6 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 }
 
 @media (max-width: 760px) {
-  .topbar {
-    grid-template-columns: auto auto;
-    grid-template-rows: auto auto;
-    gap: 0.6rem 1rem;
-    padding: 0.6rem 1rem;
-  }
-  .tabs {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .tabs::-webkit-scrollbar { display: none; }
-  .tab { padding: 0.5rem 0.7rem; }
-  .tab span { display: none; }
-  .brand-text { display: none; }
-
   main { padding: 1.25rem 1rem 4rem; }
 
   .passages-table { font-size: 0.82rem; }
@@ -6894,40 +6726,6 @@ body.qcm-open { overflow: hidden; }
 }
 .nv-guide li { margin-bottom: 0.25rem; }
 
-/* Pastille sur l'onglet Accueil.
-   ATTENTION : le @media mobile plus haut dans ce fichier pose
-   « .tab span { display: none } » (specificite 0,0,1,1). Le selecteur
-   ci-dessous est en 0,0,2,0, donc il gagne, quel que soit l'ordre. Sans ca la
-   pastille serait invisible sur telephone, la ou elle sert le plus. */
-.tab .tab-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  margin-left: 0.15rem;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #FFF;
-  font-size: 0.7rem;
-  font-weight: 600;
-  line-height: 1;
-}
-
-@media (max-width: 760px) {
-  /* Les onglets sont en icone seule : un chiffre serait illisible, on garde un
-     simple point. */
-  .tab .tab-badge {
-    width: 8px;
-    min-width: 8px;
-    height: 8px;
-    padding: 0;
-    margin-left: -4px;
-    align-self: flex-start;
-    font-size: 0;
-  }
-}
 
 /* --- Fenêtre d'ouverture des examens --- */
 /* Bandeau d'échéance dans le panneau formateur. */
@@ -7693,25 +7491,7 @@ body.cours-open { overflow: hidden; }
 .qcm-cell-barre-fill.n-mid { background: var(--note-mid-barre); }
 .qcm-cell-barre-fill.n-low { background: var(--c-stop); }
 
-/* ===== Assistant (bulle flottante) ===== */
-.chatbot-fab {
-  position: fixed;
-  right: 16px;
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  z-index: 60;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  border: 1px solid var(--accent-strong);
-  background: var(--accent);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
-  cursor: pointer;
-}
-.chatbot-fab .icon { width: 26px; height: 26px; }
+/* ===== Assistant (panneau) : sa place et ses tailles sous la coquille sont dans css/navigation.css ===== */
 .chatbot-panel {
   position: fixed;
   right: 16px;
@@ -7785,19 +7565,6 @@ body.cours-open { overflow: hidden; }
 @media (max-width: 600px) {
   .chatbot-panel { right: 8px; left: 8px; width: auto; height: min(70dvh, 560px); }
 }
-/* Bandeaux du bas affichés (aperçu « Voir en tant que », promos non chargées) : js/auth-admin.js pose
-   data-bandeaux-bas et --haut-bandeaux-bas, la hauteur de leur pile. La bulle et le panneau montent
-   d'autant, sinon le bandeau couvre la bulle sur iPhone, et le champ du panneau quand les deux bandeaux
-   sont là ; le panneau raccourcit pour s'arrêter sous la barre du haut. La nouvelle navigation a ses
-   propres règles (css/navigation.css). */
-body:not([data-nav="v2"])[data-bandeaux-bas] { --levee-bandeaux: calc(var(--haut-bandeaux-bas, 0px) + 8px); }
-body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-fab {
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px) + var(--levee-bandeaux));
-}
-body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-panel {
-  bottom: calc(78px + env(safe-area-inset-bottom, 0px) + var(--levee-bandeaux));
-  max-height: calc(100dvh - var(--haut-entete) - 8px - 78px - env(safe-area-inset-bottom, 0px) - var(--levee-bandeaux));
-}
 /* La croix reprenait le blanc des boutons de la barre sombre (.ghost-btn), illisible sur le panneau clair.
    Sur téléphone, la croix et « Envoyer » font 44 px au moins, comme toute zone à toucher. */
 .chatbot-panel .chatbot-close { color: var(--text-soft); }
@@ -7807,7 +7574,7 @@ body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-panel {
   .chatbot-panel .chatbot-form .btn { min-width: 44px; min-height: 44px; }
 }
 @media print {
-  .chatbot-fab, .chatbot-panel { display: none !important; }
+  .chatbot-panel { display: none !important; }
 }
 
 /* ============================================================
@@ -7901,11 +7668,8 @@ body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-panel {
 
 /* ===== Modules débloqués par les formateurs (chantier B, 2026-10) =====
    Repère « Masqué aux stagiaires » : posé chez un formateur sur ce qui est fermé
-   pour la promo (onglets, tuiles, sous-onglets, en-têtes de colonnes, bulle) par
-   repereMasque() de js/modules-etat.js.
-   ATTENTION : le @media mobile pose « .tab span { display: none } » (spécificité
-   0,1,1). « .tab .marque-masque » est en 0,2,0 : il gagne quel que soit l'ordre,
-   sinon l'œil disparaîtrait sur téléphone, là où les onglets sont en icône seule. */
+   pour la promo (entrées de la barre, tuiles, sous-onglets, en-têtes de colonnes) par
+   repereMasque() de js/modules-etat.js. */
 /* Lot 3, tâche 10 : l'œil « Masqué aux stagiaires » (et le titre de l'élément) repère seul ce qui est masqué. L'opacité
    réduite d'avant (55 %) faisait tomber le libellé d'un onglet, d'un sous-onglet ou d'un en-tête à 2,2:1, sous le seuil AA,
    comme dans la coquille, où le repère avait déjà retrouvé l'opacité pleine. */
@@ -7917,35 +7681,6 @@ body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-panel {
   vertical-align: middle;
 }
 .marque-masque .icon { width: 13px; height: 13px; }
-.tab .marque-masque {
-  display: inline-flex;
-  margin-left: 0.1rem;
-  color: inherit;
-}
-.chatbot-fab .marque-masque {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  margin: 0;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--bg-elev);
-  color: var(--text-muted);
-  box-shadow: var(--shadow-1);
-}
-/* Sur téléphone, l'œil se pose sur le coin haut droit de l'icône de l'onglet, hors du flux :
-   il ne coûte aucune largeur à la barre (qui défile). En flux, trois onglets repérés la
-   faisaient déborder à 375 px et l'engrenage de Paramètres était coupé. */
-@media (max-width: 760px) {
-  .tab { position: relative; }
-  .tab .marque-masque {
-    position: absolute;
-    top: 2px;
-    right: 3px;
-    margin: 0;
-  }
-  .tab .marque-masque .icon { width: 10px; height: 10px; }
-}
 
 /* ===== Thèmes : repère des modules fermés, visible sur téléphone (chantier B, 2026-10) =====
    Sous 720 px, le bloc mobile des lignes de thèmes masque l'en-tête du tableau
@@ -8014,10 +7749,8 @@ body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-panel {
 .modules-date { color: var(--accent-strong); }
 
 /* ===== Multi-promo : pastille de la promo affichée (2026-10) =====
-   Devant le badge du nom ; visible seulement à qui a au moins deux promos. Sur
-   téléphone, la flèche et la pastille de rôle du badge s'effacent pour tenir
-   dans la barre. */
-#admin-slot { display: flex; align-items: center; gap: 0.4rem; }
+   Visible seulement à qui a au moins deux promos. Sur téléphone, la flèche
+   s'efface pour tenir dans la barre. */
 .promo-pastille {
   display: inline-flex;
   align-items: center;
@@ -8064,10 +7797,6 @@ body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-panel {
 @media (max-width: 760px) {
   .promo-pastille { padding: 0.35rem 0.5rem; font-size: 0.74rem; }
   .promo-pastille-fleche { display: none; }
-  #admin-slot.avec-pastille .admin-role { display: none; }
-  /* Repli du badge sur l'e-mail (fondateur sans fiche dans la promo, jusqu'à 180 px) : tronqué
-     avec une ellipse, sinon « Actualiser » sort de l'écran à 375 px avec la pastille la plus longue. */
-  #admin-slot.avec-pastille .admin-email { max-width: 5.5rem; }
 }
 
 /* Bandeau d'état dégradé : promos non chargées après deux essais. Persistant, retiré dès qu'un
@@ -8111,19 +7840,9 @@ body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-panel {
 .promos-banner-btn:hover { filter: brightness(0.92); }
 
 /* Multi-promo : sous 360 px, la pastille ne garde que la date (« sept. 2026 ») ; le lieu
-   reste lisible dans la liste des promos. Évite de pousser « Actualiser » hors écran. */
+   reste lisible dans la liste des promos. */
 @media (max-width: 360px) {
   .promo-pastille-lieu { display: none; }
-}
-
-/* Multi-promo : sur portable (jusqu'à 1400 px), la pastille de rôle du badge s'efface comme sur
-   téléphone. Avec la pastille de promo, « Actualiser » était rogné de 16 px à 1280 px pour les
-   formateurs (huit onglets avec leurs libellés dans une seule rangée). */
-@media (max-width: 1400px) {
-  #admin-slot.avec-pastille .admin-role { display: none; }
-  /* Badge de repli sur l'e-mail (fondateur dans une promo où il n'a pas de fiche) : même
-     plafond que sur téléphone, sinon « Actualiser » sort encore de 71 à 101 px à 1280 px. */
-  #admin-slot.avec-pastille .admin-email { max-width: 5.5rem; }
 }
 
 /* ===== Chantier D : barre simple et parcours CCP2 ===== */
@@ -8297,56 +8016,6 @@ body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-panel {
   color: var(--text-soft);
 }
 .promo-choix-segment { display: inline-block; }
-
-/* ===== Barre du haut sur deux lignes sous 760 px (2026-10) =====
-   Avant : la grille à deux colonnes de la règle mobile plus haut plaçait la marque seule, puis les
-   onglets sur toute la largeur (grid-column: 1 / -1), puis, en troisième ligne, la zone d'actions :
-   140 px de barre collante sur iPhone. Ici : ligne 1 = logo (un peu réduit) et les huit onglets, qui
-   se partagent la largeur restante à parts égales (34 px au plus étroit : en dessous, ils défilent
-   comme avant) ; ligne 2 = pastille de promo, badge, calendrier, actualiser. Placement explicite, sans
-   toucher aux règles existantes. Le point de nouveautés de l'onglet Accueil sort du flux et se pose
-   au coin haut droit de l'icône : dans le flux, il décalait l'icône d'Accueil par rapport aux autres
-   sur des onglets devenus aussi étroits. */
-@media (max-width: 760px) {
-  .topbar {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    gap: 0.4rem 0.25rem;
-  }
-  .topbar .brand { grid-column: 1; grid-row: 1; }
-  .topbar .brand-logo { height: 30px; }
-  .topbar .tabs { grid-column: 2; grid-row: 1; min-width: 0; gap: 0; }
-  .topbar .tab {
-    position: relative;
-    flex: 1 0 34px;
-    justify-content: center;
-    min-height: 36px;
-    padding: 0;
-  }
-  .topbar .tab .tab-badge {
-    position: absolute;
-    top: calc(50% - 14px);
-    left: calc(50% + 6px);
-    margin: 0;
-    box-shadow: 0 0 0 2px var(--bg-deep);
-  }
-  .topbar .topbar-actions { grid-column: 1 / -1; grid-row: 2; }
-  /* Barre de jours du Planning : visible sous la barre du haut quand on fait défiler. Elle se colle
-     à la hauteur exacte de cette barre (--haut-entete, lue par son top), 95,5 px à toutes les largeurs
-     de téléphone et pour tous les rôles (1rem = 15px ici) : remplissage haut 9 (0,6rem) + première
-     ligne 36 (hauteur mini d'un onglet) + écart entre les lignes 6 (0,4rem) + seconde ligne 34,5
-     (bouton rond : icône de 18 + 2 x 8,25 de remplissage) + remplissage bas 9 + filet du bas 1. Un
-     top: 96px laisserait une bande de 0,5 px entre les deux barres, où le contenu qui défile pourrait
-     apparaître. À recalculer si la barre du haut change. Empilement : .topbar (z-index 10) reste
-     au-dessus de .p-daynav (9). Avant : 52px (réglage du bureau, barre d'une ligne) puis 0, soit une
-     barre de jours cachée sur téléphone. */
-  :root { --haut-entete: 95.5px; }
-  /* Les sauts vers un jour (boutons de la barre de jours, bouton « Aujourd'hui ») posent la carte du
-     jour à scroll-margin-top du haut de l'écran. Les 104 px du bureau laisseraient 39 px du haut de la
-     carte sous les deux barres : ici 95,5 (barre du haut) + 47,7 (barre de jours) + 4,8 d'air = 148 px,
-     écrits à partir de la hauteur de la barre du haut pour la suivre si elle change. */
-  .p-day-card { scroll-margin-top: calc(var(--haut-entete) + 52.5px); }
-}
 
 /* ===== Planning : le numéro d'un élève bénévole, au toucher (formateurs, 2026-10) =====
    Sur une carte Voiture, le nom d'un élève bénévole est un bouton chez le formateur : un toucher
