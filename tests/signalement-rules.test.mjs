@@ -208,10 +208,19 @@ test("contexte forgé : jamais d'exception, que des chaînes", () => {
 
 test("erreur d'envoi : refus de la base, session expirée, réseau", () => {
   assert.equal(messageErreurEnvoi({ message: "signalement: Tu as déjà envoyé 10 signalements aujourd'hui." }),
-    "Tu as déjà envoyé 10 signalements aujourd'hui.");
+    "Limite de 10 problèmes signalés par jour atteinte : nouvel envoi possible demain.");
   assert.equal(messageErreurEnvoi({ message: "JWT expired", code: "PGRST301" }), "Session expirée : se reconnecter pour signaler un problème.");
   assert.equal(messageErreurEnvoi({ message: "permission denied for function signaler_probleme", code: "42501" }),
     "Session expirée : se reconnecter pour signaler un problème.");
   assert.equal(messageErreurEnvoi({ message: "TypeError: Failed to fetch" }), "L'envoi n'a pas abouti : vérifier la connexion, puis réessayer.");
   assert.equal(messageErreurEnvoi(null), "L'envoi n'a pas abouti : vérifier la connexion, puis réessayer.");
+});
+
+test("lot D : les refus tutoyés de la base sont redits au neutre ; le fondateur stagiaire remis dans l'ordre", () => {
+  assert.equal(messageErreurEnvoi({ message: "signalement: Tu as déjà envoyé 10 signalements aujourd'hui. Réessaie demain." }),
+    "Limite de 10 problèmes signalés par jour atteinte : nouvel envoi possible demain.");
+  assert.equal(messageErreurEnvoi({ message: "signalement: Reconnecte-toi pour signaler un problème." }),
+    "Session expirée : se reconnecter pour signaler un problème.");
+  assert.equal(nomDuSignaleur({ nom: "V. Timy", role: "fondateur" }), "Timy V.");
+  assert.equal(nomDuSignaleur({ nom: "Camille Durand", role: "formateur" }), "Camille Durand");
 });

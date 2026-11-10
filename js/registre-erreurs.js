@@ -20,13 +20,21 @@ function phraseDeLaBase(erreur) {
   return texte.slice(i + PREFIXE.length).trim() || null;
 }
 
+// Refus de la base écrits au tutoiement (20261109_registre_qualite.sql), redits au vous : le registre est à l'équipe.
+const REFUS_AU_VOUS = [
+  [/^Tu n'as pas accès au registre/, "Vous n'avez pas accès au registre qualité."],
+  [/^Le lien vers le signalement ne se change pas/, "Le lien vers le problème signalé ne se change pas : vous pouvez seulement le retirer."],
+];
+
 // Message à afficher pour une erreur d'enregistrement ou de lecture du registre.
 export function messageErreurRegistre(error) {
   const code = String(error?.code ?? "");
   if (code === "23505") return PHRASE_DOUBLON;
   if (code === "42501") return PHRASE_DROIT;
   if (code === "23514") return PHRASE_CONTRAINTE;
-  return phraseDeLaBase(error) ?? PHRASE_RESEAU;
+  const phrase = phraseDeLaBase(error);
+  if (!phrase) return PHRASE_RESEAU;
+  return REFUS_AU_VOUS.find(([motif]) => motif.test(phrase))?.[1] ?? phrase;
 }
 
 // La table n'existe pas dans la base (migration pas encore appliquée).

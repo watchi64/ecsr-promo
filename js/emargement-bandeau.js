@@ -113,7 +113,7 @@ function dessiner(b, seances, actifs) {
     const absent = tries.find((s) => s.lignes.some((x) => x.stagiaire_id === moi && x.absent));
     if (absent && !(isAdmin() || isProf())) {
       b.classList.add("em-bandeau-info");
-      b.appendChild(el("p", {}, `Tu es noté absent sur la feuille ${deLaDemi(absent.demi_journee)}. `
+      b.appendChild(el("p", {}, `Tu es marqué absent sur la feuille ${deLaDemi(absent.demi_journee)}. `
         + "Si tu es là, vois-le avec ton formateur."));
       b.hidden = false;
       return;

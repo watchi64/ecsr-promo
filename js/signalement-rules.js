@@ -189,7 +189,7 @@ const STATUTS = {
 export function nomDuSignaleur(s) {
   const nom = String(s?.nom ?? "").trim();
   if (!nom) return String(s?.email ?? "").trim() || "Quelqu'un";
-  if (s?.role !== "stagiaire") return nom;
+  if (s?.role === "formateur") return nom;   // le fondateur stagiaire est posé « V. Timy » avec le rôle fondateur
   const m = nom.match(/^(\p{Lu})\.\s+(.+)$/u);
   return m ? `${m[2].trim()} ${m[1]}.` : nom;
 }
@@ -261,12 +261,20 @@ export function phraseErreur(message) {
 // Phrase d'une erreur d'envoi ou d'action : le refus de la base (« signalement: ... »), une session expirée
 // (le jeton n'est plus valable et l'appel part sans droits : « JWT expired », fonction refusée), sinon le réseau.
 // Phrases neutres : elles sont fabriquées par js/db.js, qui ne connaît pas le public (stagiaire tutoyé, équipe vouvoyée).
+// Refus de la base écrits au tutoiement (supabase/migrations, signaler_probleme), redits en formule neutre : l'équipe les lit
+// aussi (décision du 10/11).
+const REFUS_NEUTRES = [
+  [/^Reconnecte-toi/, "Session expirée : se reconnecter pour signaler un problème."],
+  [/^Écris quelques mots/, "Quelques mots sur ce qui se passe sont nécessaires."],
+  [/^Tu as déjà envoyé 10 signalements/, "Limite de 10 problèmes signalés par jour atteinte : nouvel envoi possible demain."],
+  [/^Signalement introuvable/, "Problème signalé introuvable."],
+];
 export const PHRASE_SESSION = "Session expirée : se reconnecter pour signaler un problème.";
 export const PHRASE_RESEAU = "L'envoi n'a pas abouti : vérifier la connexion, puis réessayer.";
 export function messageErreurEnvoi(erreur) {
   const texte = String(erreur?.message ?? erreur ?? "");
   const phrase = phraseErreur(texte);
-  if (phrase) return phrase;
+  if (phrase) return REFUS_NEUTRES.find(([motif]) => motif.test(phrase))?.[1] ?? phrase;
   const code = String(erreur?.code ?? "");
   if (/jwt|permission denied for function|not authenticated/i.test(texte) || /^(PGRST30[0-3]|42501)$/.test(code)) {
     return PHRASE_SESSION;

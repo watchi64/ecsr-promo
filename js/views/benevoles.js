@@ -400,7 +400,7 @@ function panneau(zone, { fermer = null } = {}) {
         el("div", { class: "field" }, el("label", {}, "Référent (qui appeler)"), referentIn)),
       el("div", { class: "bnv-form-2col" },
         el("div", { class: "field" }, el("label", {}, "Téléphone"), telIn),
-        el("div", { class: "field" }, el("label", {}, "Email"), emailIn)),
+        el("div", { class: "field" }, el("label", {}, "E-mail"), emailIn)),
       el("div", { class: "field" }, el("label", {}, "Adresse"), adresseIn),
       el("div", { class: "field" }, el("label", {}, "Notes"), notesIn),
     ));

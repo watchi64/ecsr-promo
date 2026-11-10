@@ -367,7 +367,7 @@ function renderTable(container) {
   filtered.forEach((e) => {
     // Nom à l'écran : « Lucie M. » (décision du 10/11), lu dans la liste des stagiaires (la jointure ne donne que le prénom).
     const fiche = stagiaires.find((x) => x.id === e.stagiaire_id);
-    const qui = fiche ? displayName(fiche) : null;
+    const qui = fiche ? displayName(fiche) : (e.stagiaire?.prenom || null);   // stagiaire en abandon : hors de la liste, le prénom de la jointure
     const noteCell = el("td", {},
       e.note == null
         ? el("span", { class: "muted" }, "-")

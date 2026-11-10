@@ -6,7 +6,7 @@ import { renderPassages } from "./passages.js?v=20261110b";
 const SORT_OPTIONS = [
   { key: "priorite",   label: "Ordre de passage" },
   { key: "alpha",      label: "Alphabétique" },
-  { key: "passages",   label: "Le plus de passages faits d'abord" },
+  { key: "passages",   label: "Plus de passages faits d'abord" },
 ];
 
 const VALID_SORTS = new Set(SORT_OPTIONS.map((o) => o.key));
