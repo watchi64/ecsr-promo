@@ -294,7 +294,7 @@ export async function renderEquipeCentre(container) {
         l.nom !== l.email ? el("span", { class: "muted equipe-adresse" }, l.email) : null,
         l.email === moi ? el("span", { class: "chip centre-promo" }, "Toi") : null)),
       el("td", {}, el("span", { class: "chip equipe-role" + (direction ? " equipe-role-direction" : "") }, l.role)),
-      el("td", {}, l.promos || el("span", { class: "muted" }, "Aucune promo")),
+      el("td", {}, l.promos || el("span", { class: "muted" }, direction ? "Tout le centre" : "Aucune promo")),
       el("td", { class: "liste-actions" }, el("div", { class: "equipe-actions" }, ...actions)));
   });
   const table = tableauEnListe(el("table", { class: "centre-table equipe-table" },

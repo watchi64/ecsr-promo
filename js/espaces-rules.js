@@ -330,3 +330,12 @@ export function sousOngletsCours(espace) {
 export function litToutesLesNotes({ admin = false, espace = null } = {}) {
   return !!admin || espace === "direction";
 }
+
+// Réglages d'habillage (centre, réseau) : la ligne d'état sous les pastilles. `repli` : ce que les comptes reçoivent quand rien n'est fixé.
+const NOMS_HABILLAGE = { ecsr: "ECSR Promo", ecf: "Couleurs ECF" };
+export function phraseStatut(habillage, { enregistre = false, repli = "" } = {}) {
+  const base = habillage == null
+    ? "Aucun habillage fixé." + (repli ? " " + repli : "")
+    : "Habillage fixé : " + (NOMS_HABILLAGE[habillage] || habillage) + ".";
+  return enregistre ? "Enregistré. " + base : base;
+}

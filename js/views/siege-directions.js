@@ -20,7 +20,7 @@ export const PHRASE_ECHEC_DIRECTIONS = "Les directions des centres n'ont pas pu 
 export const PHRASE_ADRESSE = "Adresse e-mail invalide.";
 export const PHRASE_CENTRE_REQUIS = "Le centre est requis.";
 export const PHRASE_NOM_REQUIS = "Le nom est requis.";
-export const PHRASE_SANS_DIRECTION = "Aucune direction pour ce centre.";
+export const PHRASE_SANS_DIRECTION = "Aucune direction.";
 export const PHRASE_SANS_CENTRE = "Le réseau n'a pas encore de centre.";
 export const LIBELLE_DEMO = "Centre de démonstration";
 
@@ -134,9 +134,7 @@ function sectionCentre({ centre, directions }, lieux, apres) {
     el("span", { class: "muted" }, pluriel(directions.length, "direction")));
   if (!directions.length) {
     return el("section", { class: "centre-section", "data-centre": String(centre.id) }, tete,
-      el("p", { class: "muted" }, PHRASE_SANS_DIRECTION),
-      el("button", { class: "btn small", type: "button", onClick: (e) => ouvrirInvitationDirection({ lieux, lieuId: centre.id, ancre: e.currentTarget, apres }) },
-        icon.plus(), "Inviter une direction"));
+      el("p", { class: "muted" }, PHRASE_SANS_DIRECTION));
   }
   const lignes = directions.map((d) => el("tr", { "data-email": d.email },
     el("td", { class: "liste-titre" }, el("div", { class: "equipe-nom" }, el("strong", {}, d.libelle),

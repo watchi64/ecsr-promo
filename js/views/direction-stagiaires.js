@@ -97,7 +97,7 @@ export async function renderStagiairesCentre(container) {
   const recharger = () => renderStagiairesCentre(container);
 
   // État de la page : les listes lues, le filtre, la gestion de la promo affichée (construite une fois, elle garde ses saisies).
-  const etat = { listes, filtre: { texte: "", promoId: "" }, phrase: null };
+  const etat = { listes, filtre: { texte: "", promoId: "" }, phrase: null, gestion: false };
   const zoneGestion = el("div", { class: "stg-gestion" });
   let gestionPrete = false;
 
@@ -130,6 +130,12 @@ export async function renderStagiairesCentre(container) {
     const ancien = document.querySelector(`#stg-groupes .stg-groupe[data-promo="${affichee ? affichee.id : ""}"]`);
     const g = entree ? listeDuCentre([entree], etat.filtre)[0] : null;
     if (!ancien || !g || !ancien.contains(zoneGestion)) return false;
+    // En gestion, la liste n'est pas à l'écran (la gestion la remplace) : seul le compte de l'en-tête suit.
+    if (etat.gestion) {
+      const compte = ancien.querySelector(".stg-compte");
+      if (compte) compte.textContent = pluriel(g.enFormation.length, "stagiaire") + " en formation";
+      return true;
+    }
     const neuf = groupe(g, false);
     [...ancien.children].forEach((enfant) => { if (enfant !== zoneGestion) enfant.remove(); });
     [...neuf.children].reverse().forEach((enfant) => ancien.insertBefore(enfant, ancien.firstChild));
@@ -187,7 +193,20 @@ export async function renderStagiairesCentre(container) {
       el("h3", {}, g.nom),
       etatP ? el("span", { class: "chip promo-etat promo-etat-" + (etatP === "en cours" ? "cours" : etatP === "à venir" ? "venir" : "fin") }, etatP) : null,
       estAffichee ? el("span", { class: "chip centre-promo" }, "Affichée") : null,
-      el("span", { class: "muted stg-compte" }, pluriel(g.enFormation.length, "stagiaire") + " en formation")));
+      el("span", { class: "muted stg-compte" }, pluriel(g.enFormation.length, "stagiaire") + " en formation"),
+      estAffichee ? el("button", { class: "btn small stg-gerer", type: "button", "aria-expanded": String(etat.gestion),
+        "aria-label": etat.gestion ? `Fermer la gestion de ${g.nom}` : `Gérer les stagiaires de ${g.nom}`,
+        onClick: () => {
+          etat.gestion = !etat.gestion;
+          dessinerGroupes();
+          const bouton = document.querySelector(`#stg-groupes .stg-groupe[data-promo="${g.promoId}"] .stg-gerer`);
+          if (bouton) bouton.focus({ preventScroll: true });
+        } }, etat.gestion ? "Fermer" : "Gérer") : null));
+    // La gestion prend la place de la liste (renommer, abandon, effacer, ajouter, inviter) : une seule liste à l'écran.
+    if (estAffichee && etat.gestion) {
+      if (avecGestion) section.appendChild(zoneGestion);
+      return section;
+    }
     if (g.enFormation.length) {
       section.appendChild(el("nav", { class: "stg-liste", "aria-label": "Stagiaires de " + g.nom },
         ...g.enFormation.map((s) => ligneStagiaire(g.promoId, s, false))));
@@ -204,9 +223,7 @@ export async function renderStagiairesCentre(container) {
       section.appendChild(el("p", { class: "muted stg-anonymises" },
         pluriel(g.anonymises, "fiche anonymisée", "fiches anonymisées") + " (données effacées, résultats conservés sans nom)."));
     }
-    if (estAffichee) {
-      if (avecGestion) section.appendChild(zoneGestion);
-    } else {
+    if (!estAffichee) {
       section.appendChild(el("div", { class: "promo-actions" },
         el("button", { class: "btn small", type: "button", onClick: () => aller(g.promoId, "#/stagiaires") }, "Gérer cette promo")));
     }

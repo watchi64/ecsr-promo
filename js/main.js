@@ -395,7 +395,9 @@ async function navigate({ force = false } = {}) {
     route = allerA(repli);
   } else if (route === "emargement" && !(espace === "direction" ? emargementDansLeCentre() : emargementActif())) {
     // Interrupteur éteint pour la promo (réglage du fondateur dans Paramètres) ; en direction, pour toutes les promos du centre.
-    toast(espace === "direction" ? "L'émargement n'est activé pour aucune promo du centre." : "L'émargement n'est pas activé pour cette promo.", "info", 3500);
+    toast(espace === "direction"
+      ? "L'émargement n'est activé pour aucune promo du centre. Seul le fondateur l'allume, promo par promo, dans Paramètres."
+      : "L'émargement n'est pas activé pour cette promo. Seul le fondateur l'allume, dans Paramètres.", "info", 8000);
     route = allerA(accueil);
   } else if (route === "qualiopi" && !fondateurHorsApercu()) {
     // Page Qualiopi (spec 2026-10-28, § 6.3) : le fondateur seul, avant la refonte du lot 5. Aucune entrée de barre ne la

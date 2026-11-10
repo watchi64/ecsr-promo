@@ -10,14 +10,13 @@ import { getCentre } from "../auth-admin.js?v=20261109m";
 import { el, clear, toast } from "../utils.js?v=20261109m";
 import { icon } from "../icons.js?v=20261109m";
 import { blocHabillage } from "../habillage-choix.js?v=20261109m";
-import { defautsHabillage, phraseDeRefus, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261109m";
+import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261109m";
 
 export const PHRASE_ECHEC_LECTURE = "Le réglage n'a pas pu être chargé.";
 export const PHRASE_ECHEC_ECRITURE = "Le réglage n'a pas été enregistré. Réessaie dans un instant.";
 export const PHRASE_SANS_CENTRE = "Aucun centre n'est affiché pour ce compte.";
 export const LIBELLE_LIBRE = "Laisser chacun choisir le sien";
 const DELAI_MS = 15000;
-
 let rendu = 0;
 
 // Un refus qui a sa phrase (droit manquant, fonction ou colonne absente avant la migration, phrase de la base) la dit ; toute autre
@@ -56,12 +55,13 @@ function entete(surtitre, titre, sousTitre) {
 // La section d'un réglage : les deux pastilles, « Ne rien fixer », et, pour le centre, « Laisser chacun choisir le sien ».
 // `valeur` : l'habillage gardé (ou null) ; `libre` : vrai quand chacun garde son choix ; `enregistrer({ habillage, libre })` : l'appel à
 // la base. Les enregistrements partent un par un, dans l'ordre des gestes ; un refus ramène l'affichage à ce que la base a gardé.
-function sectionReglage({ titre, intro, valeur, libre, avecLibre, libelleRetrait, enregistrer, messageOk, aideLibre }) {
+function sectionReglage({ titre, intro, valeur, libre, avecLibre, libelleRetrait, enregistrer, messageOk, aideLibre, repli }) {
   let garde = { habillage: valeur, libre };
   let courant = { ...garde };
   let file = Promise.resolve();
   const erreur = el("p", { class: "promo-refus", role: "alert" });
   const titreSection = el("h3", {}, titre);
+  const statut = el("p", { class: "reglage-statut", role: "status" }, phraseStatut(valeur, { repli }));
 
   const sauver = (prochain) => {
     courant = prochain;
@@ -71,12 +71,14 @@ function sectionReglage({ titre, intro, valeur, libre, avecLibre, libelleRetrait
       try {
         await avecDelai(enregistrer(prochain));
         garde = prochain;
+        statut.textContent = phraseStatut(prochain.habillage, { enregistre: true, repli });
         toast(messageOk, "success", 3000);
         return true;
       } catch (e) {
         console.warn("Habillage : réglage refusé ou impossible", e);
         erreur.textContent = e && e.phrase === true ? e.message : phraseDEchec(e, PHRASE_ECHEC_ECRITURE);
         courant = { ...garde };
+        statut.textContent = phraseStatut(garde.habillage, { repli });
         bloc.poserChoix(garde.habillage);
         majControles();
         return false;
@@ -121,11 +123,11 @@ function sectionReglage({ titre, intro, valeur, libre, avecLibre, libelleRetrait
     el("div", { class: "param-section-head" },
       el("div", { class: "param-icon" }, icon.palette()),
       el("div", {}, titreSection, el("p", { class: "muted" }, intro))),
-    el("div", { class: "param-block" }, bloc, el("div", { class: "reglage-actions" }, retrait), ligneLibre, erreur));
+    el("div", { class: "param-block" }, bloc, statut, el("div", { class: "reglage-actions" }, retrait), ligneLibre, erreur));
 }
 
 const aideLibreCentre = (c) => {
-  if (c.habillage == null) return "Choisis d'abord un habillage pour le centre.";
+  if (c.habillage == null) return "Case grisée : tant que le centre n'a fixé aucun habillage, il n'y a rien à imposer. Choisis un habillage plus haut pour l'activer.";
   return c.libre
     ? "Chaque personne du centre peut choisir son apparence. Le choix du centre s'applique à celles qui n'ont rien choisi."
     : "Le choix du centre s'impose à tous les comptes du centre. Il change à leur prochaine ouverture de l'app.";
@@ -186,6 +188,7 @@ export async function renderReglagesCentre(container) {
         enregistrer: ({ habillage, libre }) => reglerHabillageCentre({ lieuId: centre.id, habillage, libre }),
         messageOk: "Réglage du centre enregistré",
         aideLibre: aideLibreCentre,
+        repli: "Les comptes reçoivent celui du réseau.",
       }),
     },
   });
@@ -209,6 +212,7 @@ export async function renderReglagesReseau(container) {
         enregistrer: ({ habillage }) => reglerHabillageReseau(habillage),
         messageOk: "Réglage du réseau enregistré",
         aideLibre: () => "",
+        repli: "Les comptes reçoivent ECSR Promo.",
       }),
     },
   });

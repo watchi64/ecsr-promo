@@ -242,7 +242,7 @@ export async function renderInvitationStagiaire(container, { rerender } = {}) {
   const bloc = el("div", { class: "param-block" });
   bloc.appendChild(el("h4", {}, "Inviter un stagiaire"));
   bloc.appendChild(el("p", { class: "muted" },
-    "Choisis la personne et entre son adresse e-mail. Aucun e-mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec cette adresse et un mot de passe."));
+    "Choisis la personne et entre son adresse e-mail. Aucun e-mail n'est envoyé : tu lui partages le lien de l'app toi-même, puis elle crée son compte avec cette adresse et un mot de passe."));
 
   const personSel = el("select", { class: "invite-person", "aria-label": "Stagiaire à inviter" });
   function actualiserOptions() {

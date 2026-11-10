@@ -1098,6 +1098,20 @@ body[data-nav="v2"] .nav-fenetre .habillage-pastilles { padding: 0 6px 6px; }
 .reglage-habillage .reglage-libre { margin-top: 14px; }
 .reglage-habillage .reglage-libre p { margin: 4px 0 0; }
 .reglage-habillage .promo-refus { margin-top: 10px; }
+.reglage-habillage .reglage-statut { margin: 10px 0 0; font-size: 0.9rem; font-weight: 600; }
+/* Coche de la pastille choisie, en réglage seulement (le choix personnel du menu du compte ne change pas). */
+.habillage-pastille[data-reglage] { position: relative; }
+.habillage-pastille[data-reglage][aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  width: 6px;
+  height: 11px;
+  border: solid var(--accent);
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
+}
 
 /* ----- Impression : ni la coquille, ni ce qu'elle impose à la page ----- */
 /* La marge de la barre latérale battrait le « margin: 0 » de l'impression des Indicateurs (style.css,

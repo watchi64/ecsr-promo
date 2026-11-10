@@ -2001,7 +2001,8 @@ export async function renderThemes(container) {
   // Nouvelle navigation : la page porte le nom de son entrée, « Cours et QCM », avec la promo en surtitre ; la ligne de
   // progression, qui avait le surtitre, termine alors le sous-titre.
   if (donnees) {
-    const surtitre = v2 && !sans ? getPromoCourante()?.nom : null;
+    // Le siège n'a pas de promo : il porte le surtitre « Réseau » des autres pages de son espace.
+    const surtitre = v2 ? (sans ? "Réseau" : getPromoCourante()?.nom) : null;
     const sousTitre = "Les thèmes et les compétences de la formation, avec leurs cours et leurs QCM.";
     ligneProgression = sans ? null : el(v2 ? "span" : "p", v2 ? {} : { class: "eyebrow" }, texteProgression());
     container.appendChild(el("div", { class: "view-header" },
