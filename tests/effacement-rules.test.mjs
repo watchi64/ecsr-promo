@@ -18,6 +18,10 @@ ok(!confirmationValide("Timi", "Timy"), "faute de frappe refusée");
 ok(!confirmationValide("Helene", "Hélène"), "accents exigés");
 ok(confirmationValide("hélène", "Hélène"), "accents en minuscules acceptés");
 ok(!confirmationValide("", ""), "prénom vide jamais valide");
+ok(!confirmationValide("", "   "), "prénom fait d'espaces : jamais valide");
+ok(confirmationValide("Hélène".normalize("NFD"), "Hélène"), "NFC des deux côtés : accents tapés en deux signes acceptés");
+ok(confirmationValide("hélène", "Hélène".normalize("NFD")), "NFC des deux côtés : prénom de la fiche en deux signes");
+ok(!confirmationValide("Helene".normalize("NFD"), "Hélène"), "NFC : sans accent, toujours refusé");
 
 eq(dateCourte("2027-12-11"), "11/12/2027", "date courte");
 eq(dateCourte(null), "", "date absente");
@@ -116,15 +120,23 @@ ok(rs.includes("commentaires de questionnaire") && !/\d+ commentaires? de questi
 ok(e2[0].texte.includes("14 fiches perdent leur compte") && e2[0].texte.includes("leurs adresses e-mail"), "pluriel : « 14 fiches perdent leur compte » : " + e2[0].texte);
 const un = echeancesConservation(etat("2027-12-11", [promo({ a_effacer_etape1: 1, comptes_equipe: 0 })]))[0];
 ok(un.texte.includes("1 fiche perd son compte") && un.texte.includes("ses adresses e-mail") && !/compte d'équipe/.test(un.texte), "singulier : « 1 fiche perd son compte », sans note d'équipe : " + un.texte);
+// La date de fin est dite sur la carte et dans la fenêtre de chaque étape (relecture finale) : une année fausse se voit.
+for (const e of [un, ...echeancesConservation(etat("2030-01-01", [promo({ date_fin: "2026-12-01", a_effacer_etape1: 1, a_effacer_etape2: 2 })])),
+  ...echeancesConservation(etat("2030-01-01", [promo({ date_fin: "2026-12-01", a_effacer_etape1: 0, a_effacer_etape2: 0, emargement_etape2: 3 })]))]) {
+  ok(/\(formation finie le 1(1|er) décembre 2026\)/.test(e.texte) && /\(formation finie le /.test(confirmationEcheance(e)?.phrase ?? e.texte),
+    e.type + " : la date de fin dans la carte et dans la fenêtre : " + e.texte);
+}
 ok(/le livret et les signatures restent/.test(un.texte), "étape 1 : ce qui reste est dit");
 ok(e3[0].texte.includes("15 fiches perdent leur nom") && /« Formateur 1 », « Formateur 2 »/.test(e3[0].texte), "étape 2 : pluriel et formateurs renommés : " + e3[0].texte);
-for (const motif of [/compte de connexion et l'adresse e-mail/, /date de naissance/, /fiche de suivi/, /textes libres/, /observations et les adresses e-mail des feuilles d'émargement/, /commentaires écrits dans les questionnaires/]) {
+for (const motif of [/compte de connexion et l'adresse e-mail/, /date de naissance/, /fiche de suivi/, /textes libres/, /observations et les adresses e-mail des stagiaires sur les feuilles d'émargement/, /commentaires écrits dans les questionnaires/]) {
   ok(e2[0].part.some((x) => motif.test(x)), "étape 1, ce qui part : " + motif);
 }
 for (const motif of [/nom et le prénom/, /résultats/, /dossier professionnel et le livret/, /présence, heures et signatures/]) {
   ok(e2[0].reste.some((x) => motif.test(x)), "étape 1, ce qui reste : " + motif);
 }
-for (const motif of [/« Anonyme »/, /dossier professionnel/, /livret EPCF/, /dessins des signatures/, /« Formateur 1 », « Formateur 2 »/, /pourcentages de la promo/, /étape des 12 mois/]) {
+ok(!e2[0].part.some((x) => /adresses e-mail des feuilles/.test(x)), "étape 1 : seules les adresses des stagiaires partent (celles des formateurs à l'étape 2)");
+for (const motif of [/« Anonyme »/, /dossier professionnel/, /livret EPCF/, /dessins des signatures/, /« Formateur 1 », « Formateur 2 »/, /pourcentages de la promo/, /étape des 12 mois/,
+  /adresses e-mail encore inscrites sur les feuilles d'émargement, dont celles des formateurs/, /textes libres écrits depuis l'étape des 12 mois/]) {
   ok(e3[0].part.some((x) => motif.test(x)), "étape 2, ce qui part : " + motif);
 }
 ok(e3[0].reste.some((x) => /Signature effacée \(durée de conservation\)/.test(x)), "étape 2 : la feuille dit « Signature effacée (durée de conservation) »");
@@ -160,6 +172,13 @@ eq(confirmationEcheance(es[2]).part, CE_QUI_PART.figeage_formateurs, "figeage : 
 const cd = confirmationDemande({ id: 4, prenom: "Hélène", nom: "Durand" });
 ok(cd.titre === "Effacer les données de Hélène Durand ?" && /sans la déclarer en abandon/.test(cd.phrase), "demande : titre et phrase");
 eq(cd.saisie.attendu, "Hélène", "demande : on tape le prénom");
+ok(cd.saisie.verifier("hélène") && !cd.saisie.verifier("Helene") && cd.saisie.verifier("Hélène".normalize("NFD")), "demande : la vérification du prénom (casse, accents, NFC)");
+// Fiche sans prénom (relecture finale) : la saisie attendue n'est jamais vide, on tape EFFACER.
+for (const prenom of ["", "   ", null, undefined]) {
+  const vide = confirmationDemande({ id: 9, prenom, nom: "Martin" });
+  ok(vide.saisie.attendu === "EFFACER" && vide.saisie.consigne === "Pour confirmer, tape EFFACER" && vide.saisie.verifier("effacer")
+    && !vide.saisie.verifier(""), "demande, prénom " + JSON.stringify(prenom) + " : on tape EFFACER");
+}
 ok(cd.part.some((x) => /dossier professionnel et le livret/.test(x)) && cd.part.some((x) => /dessins des signatures/.test(x)), "demande : dossier, livret et signatures partent");
 ok(cd.reste.some((x) => /fiche effacée à la demande de la personne/.test(x)) && cd.reste.some((x) => /pas comptée en abandon/.test(x)), "demande : ni abandon, ligne à part");
 
@@ -169,26 +188,26 @@ const jourDu = (jour, promos, extra) => echeancesConservation(etat(jour, promos,
 const phrase = (e) => confirmationEcheance(e).phrase;
 const p1 = (o) => promo({ comptes_equipe: 0, ...o });
 eq(phrase(jourDu("2027-12-11", [p1({ a_effacer_etape1: 1 })])[0]),
-  "Nîmes mars 2026 : à partir du 11 décembre 2027, 12 mois après la fin de la formation, 1 fiche perd son compte, ses adresses e-mail, "
+  "Nîmes mars 2026 (formation finie le 11 décembre 2026) : à partir du 11 décembre 2027, 12 mois après la fin de la formation, 1 fiche perd son compte, ses adresses e-mail, "
   + "sa fiche de suivi et ses textes libres. Le nom, les résultats, le dossier professionnel, le livret et les signatures restent. Irréversible.",
   "étape 1, une fiche : la phrase entière");
 eq(phrase(jourDu("2027-12-11", [p1({ a_effacer_etape1: 14, comptes_equipe: 1 })])[0]),
-  "Nîmes mars 2026 : à partir du 11 décembre 2027, 12 mois après la fin de la formation, 14 fiches perdent leur compte, leurs adresses e-mail, "
+  "Nîmes mars 2026 (formation finie le 11 décembre 2026) : à partir du 11 décembre 2027, 12 mois après la fin de la formation, 14 fiches perdent leur compte, leurs adresses e-mail, "
   + "leur fiche de suivi et leurs textes libres. Le nom, les résultats, le dossier professionnel, le livret et les signatures restent. "
   + "Le compte d'équipe n'est jamais effacé et n'est pas compté. Irréversible.",
   "étape 1, plusieurs fiches (et un compte d'équipe) : la phrase entière");
 eq(phrase(jourDu("2030-01-01", [p1({ a_effacer_etape1: 0, a_effacer_etape2: 1 })])[0]),
-  "Nîmes mars 2026 : à partir du 1er janvier 2030, fin de la 3e année après la formation, 1 fiche perd son nom, son dossier professionnel, "
+  "Nîmes mars 2026 (formation finie le 11 décembre 2026) : à partir du 1er janvier 2030, fin de la 3e année après la formation, 1 fiche perd son nom, son dossier professionnel, "
   + "son livret et ses signatures ; sur les feuilles d'émargement, les formateurs deviennent « Formateur 1 », « Formateur 2 »… "
   + "Les résultats et les heures restent, sans nom. Irréversible.",
   "étape 2, une fiche : la phrase entière");
 eq(phrase(jourDu("2030-01-01", [p1({ a_effacer_etape1: 0, a_effacer_etape2: 6, comptes_equipe: 2 })])[0]),
-  "Nîmes mars 2026 : à partir du 1er janvier 2030, fin de la 3e année après la formation, 6 fiches perdent leur nom, leur dossier professionnel, "
+  "Nîmes mars 2026 (formation finie le 11 décembre 2026) : à partir du 1er janvier 2030, fin de la 3e année après la formation, 6 fiches perdent leur nom, leur dossier professionnel, "
   + "leur livret et leurs signatures ; sur les feuilles d'émargement, les formateurs deviennent « Formateur 1 », « Formateur 2 »… "
   + "Les résultats et les heures restent, sans nom. Les 2 comptes d'équipe ne sont jamais effacés et ne sont pas comptés. Irréversible.",
   "étape 2, plusieurs fiches (et deux comptes d'équipe) : la phrase entière");
 eq(phrase(jourDu("2030-01-01", [p1({ a_effacer_etape1: 0, a_effacer_etape2: 0, emargement_etape2: 4 })])[0]),
-  "Nîmes mars 2026 : à partir du 1er janvier 2030, fin de la 3e année après la formation, les signatures qui restent sur les feuilles "
+  "Nîmes mars 2026 (formation finie le 11 décembre 2026) : à partir du 1er janvier 2030, fin de la 3e année après la formation, les signatures qui restent sur les feuilles "
   + "d'émargement sont effacées ; les formateurs y deviennent « Formateur 1 », « Formateur 2 »… Les heures restent. Irréversible.",
   "étape 2, feuilles seules : la phrase entière");
 // Demande de la personne : une seule fiche par geste ; titre et phrase entiers, avec et sans nom de famille.
@@ -224,6 +243,26 @@ ok(toutesPhrases.every((x) => !/\bson fiche|\bleurs (compte|nom|fiche|dossier|li
 
 // Comptes rendus
 eq(compteRenduConservation("etape1", { fiches: 0, comptes_equipe: 1 }), "Rien à effacer : c'était déjà fait.", "étape rejouée");
+eq(compteRenduConservation("etape2", { fiches: 0, signatures: 0, signatures_formateurs: 0, emargement_emails: 0, questionnaires_figes: 0 }),
+  "Rien à effacer : c'était déjà fait.", "étape 2 rejouée : tout à zéro");
+// Relecture finale : jamais « Rien à effacer » quand quelque chose est parti ; tout ce que la base dit parti est dit.
+eq(compteRenduConservation("etape1", { fiches: 0, questionnaires_commentaires_effaces: true }),
+  "Commentaires des questionnaires effacés. Le nom, les résultats, le dossier professionnel, le livret et les signatures restent.",
+  "étape 1, seuls des commentaires de questionnaire (sous le seuil) : dit, sans nombre");
+eq(compteRenduConservation("etape1", { fiches: 3, epcf_textes: 2, observations: 1, commentaires_passages: 0, emargement_observations: 1,
+  questionnaires_commentaires_effaces: true, commentaires_questionnaires: 6 }),
+  "3 fiches traitées, 4 textes libres effacés, 6 commentaires de questionnaire effacés. Le nom, les résultats, le dossier professionnel, le livret et les signatures restent.",
+  "étape 1 : fiches, textes libres, commentaires de questionnaire (au seuil, avec leur nombre)");
+eq(compteRenduConservation("etape2", { fiches: 0, signatures: 3, signatures_formateurs: 0, emargement_emails: 0 }),
+  "3 signatures effacées. Les résultats et les heures restent, sans nom.", "étape 2, seules des signatures de fiches déjà sans nom");
+eq(compteRenduConservation("etape2", { fiches: 0, signatures: 0, signatures_formateurs: 0, emargement_emails: 5 }),
+  "Adresses e-mail retirées des feuilles d'émargement. Les résultats et les heures restent, sans nom.", "étape 2, seules des adresses e-mail");
+eq(compteRenduConservation("etape2", { fiches: 0, signatures: 0, signatures_formateurs: 0, emargement_emails: 0, questionnaires_figes: 2 }),
+  "2 questionnaires réduits à leurs pourcentages. Les résultats et les heures restent, sans nom.", "étape 2, seul le figeage");
+eq(compteRenduConservation("etape2", { fiches: 1, signatures: 1, signatures_formateurs: 2, emargement_emails: 4, questionnaires_figes: 1,
+  epcf_textes: 1 }),
+  "1 fiche traitée, 1 texte libre effacé, 1 signature effacée, 2 signatures de formateurs effacées, adresses e-mail retirées des feuilles "
+  + "d'émargement, 1 questionnaire réduit à ses pourcentages. Les résultats et les heures restent, sans nom.", "étape 2 : tout est dit");
 ok(/^5 fiches traitées\. Le nom/.test(compteRenduConservation("etape1", { fiches: 5 })), "étape 1 : nombre de fiches et ce qui reste");
 ok(/^1 fiche traitée, 2 signatures de formateurs effacées\. Les résultats et les heures restent/.test(compteRenduConservation("etape2", { fiches: 1, signatures_formateurs: 2 })), "étape 2 : fiches et signatures");
 eq(compteRenduConservation("demande", { deja: true }), "Ces données étaient déjà effacées.", "demande rejouée");

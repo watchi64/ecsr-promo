@@ -460,3 +460,24 @@ test("échéance due : « Effacer les noms et les preuves » n'agit qu'après EF
   oui.click();
   assert.equal(await reponse, true);
 }));
+
+test("demande : le prénom à taper ; fiche sans prénom : le mot EFFACER", () => avecDocument(async (document) => {
+  let reponse = confirmer(confirmationDemande({ id: 5, prenom: "Hélène", nom: "Durand" }));
+  await tour();
+  let c = champ(document), oui = bouton(document, "Effacer ses données");
+  taper(c, "Helene");
+  assert.equal(oui.disabled, true, "les accents sont exigés");
+  taper(c, "Hélène".normalize("NFD"));
+  assert.equal(oui.disabled, false, "accents décomposés (NFD) : même prénom");
+  oui.click();
+  assert.equal(await reponse, true);
+  reponse = confirmer(confirmationDemande({ id: 6, prenom: "  ", nom: "Martin" }));
+  await tour();
+  c = champ(document); oui = bouton(document, "Effacer ses données");
+  taper(c, "");
+  assert.equal(oui.disabled, true, "une saisie vide ne confirme jamais");
+  taper(c, "EFFACER");
+  assert.equal(oui.disabled, false, "sans prénom, EFFACER");
+  oui.click();
+  assert.equal(await reponse, true);
+}));

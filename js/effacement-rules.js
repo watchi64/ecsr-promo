@@ -2,11 +2,13 @@
 // Le serveur décide (fonctions de conservation de 20261110_conservation.sql et purger_benevoles) ; ces règles ne servent
 // qu'à l'affichage et à la confirmation.
 
-// Confirmation par saisie du prénom : casse et espaces autour ignorés, accents exigés.
+// Confirmation par saisie du prénom (ou du mot EFFACER) : casse et espaces autour ignorés, accents exigés. Les deux côtés
+// sont mis sous la même forme Unicode (NFC) : un « é » tapé en deux signes (e + accent) vaut le « é » de la fiche. Rien
+// d'attendu (prénom vide) : jamais valide.
+const formeComparable = (t) => String(t ?? "").normalize("NFC").trim().toLocaleLowerCase("fr");
 export function confirmationValide(saisie, prenom) {
-  const a = String(saisie ?? "").trim().toLocaleLowerCase("fr");
-  const b = String(prenom ?? "").trim().toLocaleLowerCase("fr");
-  return b.length > 0 && a === b;
+  const b = formeComparable(prenom);
+  return b.length > 0 && formeComparable(saisie) === b;
 }
 
 // « 2027-12-11 » → « 11/12/2027 ».
@@ -60,7 +62,7 @@ export const CE_QUI_PART = {
     "la date de naissance",
     "la fiche de suivi",
     "les textes libres : commentaires des notes, des passages et de l'EPCF",
-    "les observations et les adresses e-mail des feuilles d'émargement",
+    "les observations et les adresses e-mail des stagiaires sur les feuilles d'émargement",
     "les commentaires écrits dans les questionnaires de satisfaction de la promo, et la liste de ceux qui y ont répondu",
   ],
   etape2: [
@@ -69,7 +71,8 @@ export const CE_QUI_PART = {
     "le livret EPCF",
     "les dessins des signatures sur les feuilles d'émargement",
     "les noms et les signatures des formateurs sur ces feuilles : ils deviennent « Formateur 1 », « Formateur 2 »…",
-    "les adresses e-mail encore inscrites sur les feuilles d'émargement",
+    "les adresses e-mail encore inscrites sur les feuilles d'émargement, dont celles des formateurs",
+    "les textes libres écrits depuis l'étape des 12 mois (commentaires des notes, des passages, de l'EPCF, observations d'émargement)",
     "les notes de 1 à 4 des questionnaires de la promo, remplacées par les pourcentages de la promo (s'il y a eu au moins 5 réponses)",
     "pour une fiche qui ne l'a pas encore eue, tout ce que retire l'étape des 12 mois",
   ],
@@ -155,11 +158,13 @@ export function echeancesConservation(etat) {
       });
       continue;
     }
+    // La date de fin est dite : une date mal saisie (année fausse) avancerait les deux étapes.
+    const fin = `formation finie le ${dateLongue(p.date_fin)}`;
     const n1 = nombre(p.a_effacer_etape1);
     if (n1 > 0) {
       const a = accord(n1);
       ajoute("etape1", cible, p.etape1_du,
-        `${nom} : à partir du ${dateLongue(p.etape1_du)}, 12 mois après la fin de la formation, ${n1} ${a.perd} ${a.son} compte, `
+        `${nom} (${fin}) : à partir du ${dateLongue(p.etape1_du)}, 12 mois après la fin de la formation, ${n1} ${a.perd} ${a.son} compte, `
         + `${a.ses} adresses e-mail, ${a.sa} fiche de suivi et ${a.ses} textes libres. Le nom, les résultats, le dossier professionnel, `
         + "le livret et les signatures restent." + noteEquipe(p.comptes_equipe),
         "Effacer les comptes et les textes");
@@ -169,14 +174,14 @@ export function echeancesConservation(etat) {
     if (n2 > 0) {
       const a = accord(n2);
       ajoute("etape2", cible, p.etape2_du,
-        `${nom} : à partir du ${dateLongue(p.etape2_du)}, fin de la 3e année après la formation, ${n2} ${a.perd} ${a.son} nom, `
+        `${nom} (${fin}) : à partir du ${dateLongue(p.etape2_du)}, fin de la 3e année après la formation, ${n2} ${a.perd} ${a.son} nom, `
         + `${a.son} dossier professionnel, ${a.son} livret et ${a.ses} signatures ; sur les feuilles d'émargement, les formateurs deviennent `
         + "« Formateur 1 », « Formateur 2 »… Les résultats et les heures restent, sans nom." + noteEquipe(p.comptes_equipe),
         "Effacer les noms et les preuves");
     } else if (e2 > 0) {
       // Toutes les fiches sont déjà sans nom (effacées à la demande), mais les feuilles portent encore des signatures.
       ajoute("etape2", cible, p.etape2_du,
-        `${nom} : à partir du ${dateLongue(p.etape2_du)}, fin de la 3e année après la formation, les signatures qui restent sur les `
+        `${nom} (${fin}) : à partir du ${dateLongue(p.etape2_du)}, fin de la 3e année après la formation, les signatures qui restent sur les `
         + "feuilles d'émargement sont effacées ; les formateurs y deviennent « Formateur 1 », « Formateur 2 »… Les heures restent.",
         "Effacer les noms et les preuves");
     }
@@ -306,9 +311,9 @@ export function confirmationEcheance(e) {
   };
 }
 
-// La fenêtre d'un effacement à la demande de la personne (sa fiche : prénom, nom).
+// La fenêtre d'un effacement à la demande de la personne (sa fiche : prénom, nom). Fiche sans prénom : on tape EFFACER.
 export function confirmationDemande(fiche) {
-  const prenom = String(fiche?.prenom ?? "").trim();
+  const prenom = String(fiche?.prenom ?? "").normalize("NFC").trim();
   const nomComplet = [prenom, String(fiche?.nom ?? "").trim()].filter(Boolean).join(" ") || "cette personne";
   return {
     titre: `Effacer les données de ${nomComplet} ?`,
@@ -317,7 +322,9 @@ export function confirmationDemande(fiche) {
     part: [...CE_QUI_PART.demande],
     reste: [...CE_QUI_RESTE.demande],
     oui: "Effacer ses données",
-    saisie: saisieAttendue(`Pour confirmer, tape son prénom : ${prenom}`, prenom),
+    saisie: prenom
+      ? saisieAttendue(`Pour confirmer, tape son prénom : ${prenom}`, prenom)
+      : saisieAttendue(`Pour confirmer, tape ${MOT_DE_CONFIRMATION}`, MOT_DE_CONFIRMATION),
   };
 }
 
@@ -327,18 +334,30 @@ export function compteRenduConservation(type, r) {
   const d = r || {};
   if (type === "demande") return resumeEffacement(d);
   if (type === "etape1" || type === "etape2") {
-    const f = nombre(d.fiches);
-    const sf = nombre(d.signatures_formateurs);
-    if (f === 0 && sf === 0 && nombre(d.signatures) === 0 && nombre(d.emargement_emails) === 0) {
-      return "Rien à effacer : c'était déjà fait.";
-    }
+    // Tout ce que la base dit parti est dit ; « Rien à effacer » seulement quand rien n'est parti. Commentaires des
+    // questionnaires : leur nombre n'est donné par la base qu'à partir du seuil de réponses ; sinon le seul drapeau.
     const morceaux = [];
+    const f = nombre(d.fiches);
     if (f > 0) morceaux.push(pluriel(f, "fiche traitée", "fiches traitées"));
+    const textes = nombre(d.epcf_textes) + nombre(d.observations) + nombre(d.commentaires_passages)
+      + nombre(d.emargement_observations);
+    if (textes > 0) morceaux.push(pluriel(textes, "texte libre effacé", "textes libres effacés"));
+    const q = nombre(d.commentaires_questionnaires);
+    if (q > 0) morceaux.push(pluriel(q, "commentaire de questionnaire effacé", "commentaires de questionnaire effacés"));
+    else if (d.questionnaires_commentaires_effaces === true) morceaux.push("commentaires des questionnaires effacés");
+    const sig = nombre(d.signatures);
+    if (sig > 0) morceaux.push(pluriel(sig, "signature effacée", "signatures effacées"));
+    const sf = nombre(d.signatures_formateurs);
     if (sf > 0) morceaux.push(pluriel(sf, "signature de formateur effacée", "signatures de formateurs effacées"));
+    if (nombre(d.emargement_emails) > 0) morceaux.push("adresses e-mail retirées des feuilles d'émargement");
+    const fg = nombre(d.questionnaires_figes);
+    if (fg > 0) morceaux.push(fg > 1 ? `${fg} questionnaires réduits à leurs pourcentages` : "1 questionnaire réduit à ses pourcentages");
+    if (!morceaux.length) return "Rien à effacer : c'était déjà fait.";
     const suite = type === "etape1"
       ? "Le nom, les résultats, le dossier professionnel, le livret et les signatures restent."
       : "Les résultats et les heures restent, sans nom.";
-    return (morceaux.length ? morceaux.join(", ") + ". " : "") + suite;
+    const phrase = morceaux.join(", ");
+    return phrase.charAt(0).toUpperCase() + phrase.slice(1) + ". " + suite;
   }
   if (type === "cloture_formateurs" || type === "commentaires_formateurs") {
     return d.efface ? "C'est effacé." : "Rien à effacer : c'était déjà fait.";
