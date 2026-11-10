@@ -10,7 +10,7 @@ import {
 } from "../db.js?v=20261110d";
 import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261110d";
 import { icon } from "../icons.js?v=20261110d";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261110d";
+import { isAdmin, isProf, isEquipe, getProfile } from "../auth-admin.js?v=20261110d";
 import {
   etatLigne, resumeSeance, resumeEnClair, etatSansFeuille, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,

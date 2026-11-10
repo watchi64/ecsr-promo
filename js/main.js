@@ -4,10 +4,17 @@
  */
 // En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
 import "./journal-erreurs.js?v=20261110d";
-import { getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements } from "./db.js?v=20261110d";
+import {
+  getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements, basculeLancee, getPromoCourante, getMesPromos,
+  habillageParDefaut,
+} from "./db.js?v=20261110d";
 import { toast, annoncer, el } from "./utils.js?v=20261110d";
 import { icon } from "./icons.js?v=20261110d";
-import { initAuth, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu, selonPublic } from "./auth-admin.js?v=20261110d";
+import { initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu, selonPublic } from "./auth-admin.js?v=20261110d";
+import { getEspace, getCentre } from "./auth-admin.js?v=20261110d";
+import {
+  ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage, promosDuCentre, defautsHabillage,
+} from "./espaces-rules.js?v=20261110d";
 import { chargerEtatSignalements } from "./signalement-etat.js?v=20261110d";
 import { messageDemarrage } from "./signalement-rules.js?v=20261110d";
 import { showGate, hideGate } from "./gate.js?v=20261110d";
@@ -21,9 +28,16 @@ import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlan
 import { renderPlanningEspace } from "./views/planning-espace.js?v=20261110d";
 import { teardownDocPrint } from "./doc-officiel.js?v=20261110d";
 import { renderNotes } from "./views/notes.js?v=20261110d";
+import { renderVueCentre, renderEmargementCentre, renderNotesCentre } from "./views/direction-centre.js?v=20261110d";
+import { renderPromosCentre } from "./views/direction-promos.js?v=20261110d";
+import { renderStagiairesCentre } from "./views/direction-stagiaires.js?v=20261110d";
+import { renderEquipeCentre } from "./views/direction-equipe.js?v=20261110d";
+import { renderReseau } from "./views/siege-reseau.js?v=20261110d";
+import { renderDirections } from "./views/siege-directions.js?v=20261110d";
 import { renderRessources } from "./views/ressources.js?v=20261110d";
 import { renderThemes } from "./views/themes.js?v=20261110d";
 import { renderConfig, renderPreferences } from "./views/config.js?v=20261110d";
+import { renderReglagesCentre, renderReglagesReseau } from "./views/reglages-habillage.js?v=20261110d";
 import { renderCalendrier } from "./views/calendrier.js?v=20261110d";
 import { initUndoKeyboard } from "./undo.js?v=20261110d";
 import { renderNouveautes } from "./views/nouveautes.js?v=20261110d";
@@ -35,9 +49,9 @@ import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261110d";
 import { renderEmargement } from "./views/emargement.js?v=20261110d";
 import { renderProblemes } from "./views/problemes.js?v=20261110d";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261110d";
-import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261110d";
+import { chargerEmargementActif, emargementActif, chargerEmargementCentre, emargementDansLeCentre } from "./emargement-etat.js?v=20261110d";
 import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261110d";
-import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261110d";
+import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261110d";
 import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261110d";
 import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261110d";
 import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261110d";

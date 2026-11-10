@@ -27,11 +27,12 @@ import { renderModulesSection } from "./modules-reglage.js?v=20261110d";
 import { renderEmargementReglage } from "../emargement-etat.js?v=20261110d";
 import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261110d";
 import { pointsARetenir } from "../accueil-rules.js?v=20261110d";
-import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261110d";
-import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261110d";
+import { dateCourte, etatFinDePromo } from "../effacement-rules.js?v=20261110d";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261110d";
 import { blocHabillage } from "../habillage-choix.js?v=20261110d";
 import { habillageCourant } from "../habillage.js?v=20261110d";
 import { nomBenevole } from "../planning-lecture.js?v=20261110d";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261110d";
 
 // ====== SECTION Accès & invitations ======
 

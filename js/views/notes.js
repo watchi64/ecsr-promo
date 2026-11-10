@@ -8,7 +8,8 @@ import {
 } from "../notes-stats.js?v=20261110d";
 import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261110d";
 import { icon } from "../icons.js?v=20261110d";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261110d";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace, selonPublic } from "../auth-admin.js?v=20261110d";
+import { litToutesLesNotes } from "../espaces-rules.js?v=20261110d";
 import { recordUndo } from "../undo.js?v=20261110d";
 import { renderSubTabs } from "../subtabs.js?v=20261110d";
 import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261110d";
