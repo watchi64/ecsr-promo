@@ -16,7 +16,7 @@ import {
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
   demiVoisine, notesProposees, roleAuPlanning,
 } from "../emargement-rules.js?v=20261110a";
-import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261110a";
+import { ouvrirSignature, signatureOuMention } from "../signature-pad.js?v=20261110a";
 import {
   feuilleSeance, feuilleSemaine, imprimer, nomComplet, jourLong, DEMI_LONG, stagiairesDeFeuille,
 } from "../emargement-feuilles.js?v=20261110a";
@@ -336,7 +336,7 @@ function dessinerSeance(ctx) {
     actions.appendChild(el("button", { class: "btn small ghost", type: "button",
       onClick: () => ouvrirObservation(ctx, s, st, ligne) }, ligne?.observation ? "Modifier la note" : "Note"));
     ul.appendChild(el("li", { class: "em-ligne em-ligne-" + etat.code },
-      el("div", { class: "em-ligne-sig" }, etat.code === "signe" ? rendreSignature(ligne.trace, { titre: "Signature de " + nomComplet(st) }) : null),
+      el("div", { class: "em-ligne-sig" }, etat.code === "signe" ? signatureOuMention(ligne, "Signature de " + nomComplet(st)) : null),
       el("div", { class: "em-ligne-corps" },
         el("span", { class: "em-ligne-nom" }, nomComplet(st)),
         el("span", { class: "em-ligne-etat" }, etat.libelle,
@@ -410,7 +410,7 @@ function dessinerFormateurs(ctx, s, { ouverte }) {
   const bloc = el("div", { class: "em-formateurs" }, el("h3", {}, "Formateur"));
   for (const f of s.formateurs) {
     bloc.appendChild(el("div", { class: "em-formateur" },
-      el("div", { class: "em-ligne-sig" }, rendreSignature(f.trace, { titre: "Signature de " + f.nom })),
+      el("div", { class: "em-ligne-sig" }, signatureOuMention(f, "Signature de " + f.nom)),
       el("div", { class: "em-ligne-corps" },
         el("span", { class: "em-ligne-nom" }, f.nom),
         el("span", { class: "em-ligne-etat" }, jourLocal(f.signe_le) === s.jour

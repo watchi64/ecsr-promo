@@ -7,7 +7,7 @@
  * Une lecture qui revient après le départ de la page écrit dans un nœud détaché (isConnected) : rien n'est repeint.
  */
 import {
-  getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre,
+  getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande,
 } from "../db.js?v=20261110a";
 import { el, clear, displayStagiaire } from "../utils.js?v=20261110a";
 import { icon } from "../icons.js?v=20261110a";
@@ -228,8 +228,9 @@ async function chargerPlanning(tableau, voiture, indexJour, jour, semaine, moi) 
 async function chargerASuivre(corps, jour, promoId) {
   let ind;
   try {
-    const [referentiel, donnees] = await Promise.all([lireReferentielCentre(), lireDonneesCentre(promoId)]);
-    ind = indicateursPromo(donnees, referentiel, { aujourdhui: jour });
+    const [referentiel, donnees, demandes] = await Promise.all([lireReferentielCentre(), lireDonneesCentre(promoId),
+      lireEffacementsSurDemande(promoId == null ? [] : [promoId])]);
+    ind = indicateursPromo(donnees, referentiel, { aujourdhui: jour, demandes });
   } catch (e) {
     console.error("Aujourd'hui : indicateurs illisibles", e);
     if (corps.isConnected) dire(corps, "Les indicateurs n'ont pas pu être lus. Recharge la page pour réessayer.", "acc-erreur");

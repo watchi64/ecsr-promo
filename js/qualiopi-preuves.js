@@ -18,7 +18,10 @@
 // promo à l'autre.
 //
 // Forme de `donnees` (sortie de lireDonneesQualiopi). Une clé absente vaut [] ; seuls les champs cités sont lus.
-//   stagiaires    [{ id, actif }]
+//   stagiaires    [{ id, actif, anonymise_le }] : `anonymise_le` (étape des 3 ans faite) porte la raison « effacé au terme de la durée de
+//                 conservation » des pièces dont les documents sont effacés
+//   demandes      Set des identifiants de fiches effacées à la demande (lireEffacementsSurDemande) ; absent, ensemble vide : ces fiches
+//                 sont des inscrits, ni en formation ni en abandon, et leurs documents effacés ne sont pas des pièces manquantes
 //   passages, tentatives, evaluations, epcf   lus par indicateursPromo ; ici, en plus, les dates de evaluations
 //                 [{ stagiaire_id, note, note_max, date_eval }] et le compte de epcf [{ stagiaire_id, contexte, auto_eval }]
 //   planning      [{ semaine_lundi, day_index, half_day, activite, sujet, sujet_2, salle_double, prof_ids, prof_autre, autonomie,
@@ -111,6 +114,9 @@ export const PIECES = [
   { cle: "registre", libelle: "Registre qualité", indicateurs: [31, 32] },                // réclamations, difficultés, aléas, améliorations, risques (Q4)
 ];
 
+// Raison fixe d'une pièce dont les documents ont été effacés par l'étape des 3 ans : jamais « aucun dossier enregistré ».
+export const RAISON_EFFACEE = "effacé au terme de la durée de conservation";
+const RAISON_SUR_DEMANDE = "effacé à la demande des personnes";
 const HEURES_NON_BRANCHEES = "calcul des heures pas encore branché";
 const SANS_JURY = "aucun résultat de jury saisi";
 const POPULATION = "(stagiaires en formation uniquement)";   // dit une fois dans la phrase des évaluations
@@ -128,6 +134,8 @@ export const jourDe = (valeur) => (typeof valeur === "string" && ISO_JOUR.test(v
 const jourMois = (jour) => `${jour.slice(8)}/${jour.slice(5, 7)}`;
 export const rempli = (texte) => typeof texte === "string" && texte.trim() !== "";
 export const tableau = (valeur) => (Array.isArray(valeur) ? valeur : []);
+// Les fiches effacées à la demande de la personne, en ensemble d'identifiants (une clé absente vaut l'ensemble vide).
+export const demandesDe = (donnees) => (donnees?.demandes instanceof Set ? donnees.demandes : new Set(tableau(donnees?.demandes)));
 
 // Nombre et mot accordé : « 1 note », « 4 notes ». Le pluriel s'écrit en toutes lettres quand il n'est pas régulier.
 export const nb = (n, singulier, pluriel = singulier + "s") => `${n} ${n > 1 ? pluriel : singulier}`;
@@ -290,7 +298,10 @@ const CONSTRUCTEURS = {
     if (!e.inscrits) return absente("aucun stagiaire inscrit dans cette promo");
     // Sur une promo terminée, personne n'est « en formation » : les stagiaires actifs l'ont suivie jusqu'au bout.
     const actifs = terminee ? `${e.enFormation} ${e.enFormation > 1 ? "ont" : "a"} suivi la formation jusqu'au bout` : `${e.enFormation} en formation`;
-    return presente(`${nb(e.inscrits, "inscrit")}, dont ${actifs} et ${nb(e.abandons, "abandon")}`);
+    const parties = [actifs, nb(e.abandons, "abandon")];
+    if (e.surDemande) parties.push(nb(e.surDemande, "fiche effacée à la demande", "fiches effacées à la demande"));
+    const fin = parties.pop();
+    return presente(`${nb(e.inscrits, "inscrit")}, dont ${parties.join(", ")} et ${fin}`);
   },
 
   deroule: ({ planning }) => {
@@ -325,7 +336,7 @@ const CONSTRUCTEURS = {
     return presente(parties.join(", "));
   },
 
-  evaluations: ({ ind, liste, dedans }) => {
+  evaluations: ({ ind, liste, dedans, etape2 }) => {
     // Les notes et les examens sont comptés comme au tableau de bord ; seules les dates des notes sont relues ici, avec
     // la même règle. Les évaluations EPCF sont toutes comptées, hors auto-évaluation : le tableau de bord n'en garde
     // que la dernière de chaque stagiaire par grille, pour en tirer un score.
@@ -339,14 +350,19 @@ const CONSTRUCTEURS = {
     if (examens) parties.push(nb(examens, "examen QCM", "examens QCM"));
     if (epcf) parties.push(nb(epcf, "évaluation EPCF", "évaluations EPCF"));
     if (livrets) parties.push(nb(livrets, "livret EPCF", "livrets EPCF"));
-    if (!parties.length) return absente(`aucune évaluation enregistrée ; ${SANS_JURY}`);
+    if (!parties.length) return absente(etape2 ? RAISON_EFFACEE : `aucune évaluation enregistrée ; ${SANS_JURY}`);
     return presente(`${parties.join(", ")} ${POPULATION} ; ${SANS_JURY}`);
   },
 
-  dossierPro: ({ ind, liste, dedans }) => {
+  dossierPro: ({ ind, liste, dedans, etape2 }) => {
     const dossiers = liste("dossiers").filter(dedans);
     const stagiaires = new Set(dossiers.map((d) => d.stagiaire_id)).size;
-    if (!stagiaires) return absente("aucun dossier professionnel enregistré par les stagiaires en formation");
+    if (!stagiaires) {
+      if (etape2) return absente(RAISON_EFFACEE);
+      // Toutes les fiches ont été effacées à la demande : ce n'est pas un dossier que les stagiaires n'ont pas fait.
+      if (!ind.effectif.detail.enFormation && ind.effectif.detail.surDemande) return absente(RAISON_SUR_DEMANDE);
+      return absente("aucun dossier professionnel enregistré par les stagiaires en formation");
+    }
     const derniers = dossiers.map((d) => jourDe(d.updated_at)).filter(Boolean).sort();
     const miseAJour = derniers.length ? `, dernière mise à jour le ${jourMois(derniers[derniers.length - 1])}` : "";
     return presente(`enregistré pour ${nb(stagiaires, "stagiaire")} sur ${ind.effectif.detail.enFormation} en formation${miseAJour}`);
@@ -466,7 +482,11 @@ const CONSTRUCTEURS = {
 // bénévoles) passe par là (`lignesDuPlanning`).
 function contexte(donnees, referentiel, { promo, aujourdhui, nouveautes }) {
   const liste = (cle) => tableau(donnees[cle]);
-  const enFormation = new Set(liste("stagiaires").filter((s) => s.actif).map((s) => s.id));
+  const demandes = demandesDe(donnees);
+  const enFormation = new Set(liste("stagiaires").filter((s) => s.actif && !demandes.has(s.id)).map((s) => s.id));
+  // Étape des 3 ans faite : toutes les fiches de la promo (hors celles effacées à la demande) ont perdu leur nom.
+  const fiches = liste("stagiaires").filter((s) => !demandes.has(s.id));
+  const etape2 = fiches.length > 0 && fiches.every((s) => s.anonymise_le);
   const debut = jourDe(promo.date_debut);
   const fin = jourDe(promo.date_fin) ?? jourDe(aujourdhui);
   return {
@@ -476,7 +496,8 @@ function contexte(donnees, referentiel, { promo, aujourdhui, nouveautes }) {
     aujourdhui,
     terminee: promoTerminee(promo, aujourdhui),
     nouveautes: nouveautesCitables(nouveautes),
-    ind: indicateursPromo(donnees, referentiel, { aujourdhui }),
+    etape2,
+    ind: indicateursPromo(donnees, referentiel, { aujourdhui, demandes }),
     dedans: (ligne) => enFormation.has(ligne.stagiaire_id),
     planning: lignesDuPlanning(donnees, promo, aujourdhui),
     dansPeriode: (jour) => jour !== null && (debut === null || jour >= debut) && (fin === null || jour <= fin),

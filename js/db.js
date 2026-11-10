@@ -1716,7 +1716,7 @@ export async function lireDonneesQualiopi(promoId) {
     if (error) throw error;
     return enteteEmargementDuReglage(data?.value ?? null);
   };
-  const [centre, planning, agenda, livrets, dossiers, signalementsLus, cours, autoEcoles, profs, entete, joursOff, versions] = await Promise.all([
+  const [centre, planning, agenda, livrets, dossiers, signalementsLus, cours, autoEcoles, profs, entete, joursOff, versions, demandes] = await Promise.all([
     lireDonneesCentre(promoId),
     parPromo("planning_entries", "id, semaine_lundi, day_index, half_day, activite, sujet, sujet_2, salle_double, prof_ids, prof_autre, autonomie, benevoles_ids, promo_id", "id"),
     parPromo("agenda_events", "id, type, date_start, date_end", "id"),
@@ -1729,10 +1729,11 @@ export async function lireDonneesQualiopi(promoId) {
     lireEntete(),
     parPromo("planning_jours_off", "semaine_lundi, day_index", "id"),
     communes("cours_versions", "cours_id, saved_at", "id"),
+    lireEffacementsSurDemande([promoId]),   // fiches effacées à la demande : un Set, vide si la migration n'est pas appliquée
   ]);
   const stagiairesDeLaPromo = new Set(centre.stagiaires.map((s) => s.id));
   const signalements = signalementsLus.filter((s) => stagiairesDeLaPromo.has(s.stagiaire_id));
-  return { ...centre, planning, agenda, livrets, dossiers, signalements, cours, autoEcoles, profs, entete, joursOff, versions };
+  return { ...centre, planning, agenda, livrets, dossiers, signalements, cours, autoEcoles, profs, entete, joursOff, versions, demandes };
 }
 
 // --- Signalements sur les questions de QCM ---

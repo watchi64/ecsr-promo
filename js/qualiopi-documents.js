@@ -21,12 +21,13 @@
 // liste nominative de l'effectif montre aussi les abandons.
 
 import { SOURCE } from "./qualiopi-referentiel.js?v=20261110a";
-import { jourDe, rempli, tableau, nb, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261110a";
+import { jourDe, rempli, tableau, nb, demandesDe, RAISON_EFFACEE, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261110a";
 import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261110a";
 import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261110a";
 import { estNotee, score20 } from "./notes-stats.js?v=20261110a";
 import { cellule, nombre, slug } from "./centre-csv.js?v=20261110a";
 import { compareByNom } from "./utils.js?v=20261110a";
+import { statutFiche } from "./effacement-rules.js?v=20261110a";
 
 export const PHRASE_DE_GARDE = "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
 
@@ -79,7 +80,11 @@ const nu = (mot) => mot.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 // « Nîmes, mars 2026 » : le centre, puis la promo, sauf quand le nom de la promo contient déjà le centre (« Nîmes, Nîmes, mars 2026 »).
 const centreEtPromo = (centre, promo) => (nu(libellePromo(promo)).includes(nu(centre)) ? libellePromo(promo) : `${centre}, ${libellePromo(promo)}`);
 const nomComplet = (s) => [s?.nom, s?.prenom].filter(rempli).map((x) => x.trim()).join(" ") || "Stagiaire sans nom";
-const enFormationDe = (donnees) => tableau(donnees.stagiaires).filter((s) => s.actif).sort(compareByNom);
+// Les stagiaires en formation : les fiches actives, sans celles effacées à la demande de la personne (comptées à part).
+const enFormationDe = (donnees) => {
+  const demandes = demandesDe(donnees);
+  return tableau(donnees.stagiaires).filter((s) => s.actif && !demandes.has(s.id)).sort(compareByNom);
+};
 // « Édité le 28/10/2026 » : exportée, la fiche des résultats (js/qualiopi-resultats.js) date son édition de la même façon.
 export const edition = (aujourdhui) => `Édité le ${dateFr(jourDe(aujourdhui)) ?? "date non renseignée"}`;
 const REFERENTIEL = `Référentiel appliqué : ${DECRET} (référentiel national qualité), en vigueur le ${dateFr(SOURCE.enVigueur)}, catégorie « action de formation »`;
@@ -198,8 +203,9 @@ function texteEpcf(lignes, trame) {
 }
 
 // Livret ou dossier professionnel d'un stagiaire : « oui », avec la dernière mise à jour si elle est connue.
-function texteDepot(lignes) {
-  if (!lignes.length) return "aucun";
+// Après l'étape des 3 ans (fiche sans nom), un document absent est un document effacé, jamais « aucun ».
+function texteDepot(lignes, stagiaire = null) {
+  if (!lignes.length) return stagiaire?.anonymise_le ? RAISON_EFFACEE : "aucun";
   const derniere = lignes.map((l) => jourDe(l.updated_at)).filter(Boolean).sort().pop();
   return derniere ? `oui, mis à jour le ${dateFr(derniere)}` : "oui";
 }
@@ -273,17 +279,20 @@ const SERVICE_FORMATION = {
 };
 
 // La population des tableaux par stagiaire, dite dans la section (rien s'il n'y a pas de tableau).
-const population = (enFormation, stagiaires) =>
-  (enFormation.length ? [`Stagiaires en formation uniquement : ${enFormation.length} sur ${nb(stagiaires.length, "inscrit")}.`] : []);
+const population = (enFormation, stagiaires, demandes = new Set()) => {
+  const sur = stagiaires.filter((s) => demandes.has(s.id)).length;
+  const dont = sur ? ` (dont ${nb(sur, "fiche effacée", "fiches effacées")} à la demande de la personne)` : "";
+  return enFormation.length ? [`Stagiaires en formation uniquement : ${enFormation.length} sur ${nb(stagiaires.length, "inscrit")}${dont}.`] : [];
+};
 
-function sectionEffectif({ inv, ind, stagiaires, terminee }) {
+function sectionEffectif({ inv, ind, stagiaires, terminee, demandes }) {
   const intro = stagiaires.length
     ? "Liste nominative des stagiaires, puis résultats de la promo avec leur méthode de calcul."
     : "Résultats de la promo avec leur méthode de calcul.";
   return {
     paragraphes: [...phrases(inv, "effectif"), ...(terminee ? [] : ["Promo en cours : les chiffres sont provisoires."]), intro],
     tableaux: [
-      ...table(["Stagiaire", "Statut"], [...stagiaires].sort(compareByNom).map((s) => [nomComplet(s), s.actif ? (terminee ? "Formation suivie" : "En formation") : "Abandon"])),
+      ...table(["Stagiaire", "Statut"], [...stagiaires].sort(compareByNom).map((s) => [nomComplet(s), statutFiche(s, terminee, demandes.has(s.id))])),
       ...table(["Indicateur", "Résultat", "Méthode de calcul"], lignesResultats(ind)),
     ],
   };
@@ -313,41 +322,41 @@ function sectionAssiduite({ inv }) {
   return { paragraphes: piece?.presente ? [phrase(piece)] : [ASSIDUITE_A_JOINDRE], tableaux: [] };
 }
 
-function sectionPassages({ inv, donnees, enFormation, stagiaires }) {
+function sectionPassages({ inv, donnees, enFormation, stagiaires, demandes }) {
   const parId = parStagiaire(donnees.passages);
   const lignes = enFormation.map((s) => {
     const c = comptePassages(parId.get(s.id) || []);
     return [nomComplet(s), String(c.salle), String(c.voiture), String(c.absences)];
   });
   return {
-    paragraphes: [...phrases(inv, "passages"), ...population(enFormation, stagiaires)],
+    paragraphes: [...phrases(inv, "passages"), ...population(enFormation, stagiaires, demandes)],
     tableaux: table(["Stagiaire", "Passages en salle", "Passages en voiture", "Absences de dernière minute"], lignes),
   };
 }
 
-function sectionEvaluations({ inv, donnees, enFormation, stagiaires }) {
+function sectionEvaluations({ inv, donnees, enFormation, stagiaires, demandes }) {
   const notes = parStagiaire(donnees.evaluations);
   const tentatives = parStagiaire(donnees.tentatives);
   const epcf = parStagiaire(donnees.epcf);
   const livrets = parStagiaire(donnees.livrets);
   const lignes = enFormation.map((s) => [
     nomComplet(s), texteNotes(notes.get(s.id) || []), texteExamens(tentatives.get(s.id) || []),
-    texteEpcf(epcf.get(s.id) || [], "salle"), texteEpcf(epcf.get(s.id) || [], "vehicule"), texteDepot(livrets.get(s.id) || []), "non saisi",
+    texteEpcf(epcf.get(s.id) || [], "salle"), texteEpcf(epcf.get(s.id) || [], "vehicule"), texteDepot(livrets.get(s.id) || [], s), "non saisi",
   ]);
   return {
-    paragraphes: [...phrases(inv, "evaluations"), ...population(enFormation, stagiaires)],
+    paragraphes: [...phrases(inv, "evaluations"), ...population(enFormation, stagiaires, demandes)],
     tableaux: table(["Stagiaire", "Notes", "Examens QCM", "EPCF en salle", "EPCF véhicule", "Livret EPCF", "Jury"], lignes),
   };
 }
 
-function sectionRessources({ inv, donnees, enFormation, stagiaires }) {
+function sectionRessources({ inv, donnees, enFormation, stagiaires, demandes }) {
   const tentatives = parStagiaire(donnees.tentatives);
   const lignes = enFormation.map((s) => {
     const e = entrainements(tentatives.get(s.id) || []);
     return [nomComplet(s), String(e.n), String(e.questions), e.taux === null ? "aucune donnée" : pourcent(e.taux)];
   });
   return {
-    paragraphes: [...phrases(inv, "ressources", "misesAJour", "innovations"), ...population(enFormation, stagiaires)],
+    paragraphes: [...phrases(inv, "ressources", "misesAJour", "innovations"), ...population(enFormation, stagiaires, demandes)],
     tableaux: table(["Stagiaire", "QCM d'entraînement faits", "Questions répondues", "Réussite"], lignes),
   };
 }
@@ -408,15 +417,15 @@ function sectionSignalements({ inv, donnees, promo, aujourdhui }) {
   return { paragraphes: [...phrases(inv, "suivi"), ...phrasesSignalements(donnees.signalements), ...r.paragraphes], tableaux: r.tableaux };
 }
 
-function sectionExamen({ inv, donnees, enFormation, stagiaires }) {
+function sectionExamen({ inv, donnees, enFormation, stagiaires, demandes }) {
   const dossiers = parStagiaire(donnees.dossiers);
   const livrets = parStagiaire(donnees.livrets);
-  const lignes = enFormation.map((s) => [nomComplet(s), texteDepot(dossiers.get(s.id) || []), texteDepot(livrets.get(s.id) || []), "non mesurées"]);
+  const lignes = enFormation.map((s) => [nomComplet(s), texteDepot(dossiers.get(s.id) || [], s), texteDepot(livrets.get(s.id) || [], s), "non mesurées"]);
   return {
     paragraphes: [
       ...phrases(inv, "dossierPro"),
       "Heures de formation : non mesurées, le calcul d'après les feuilles d'émargement n'étant pas encore repris.",
-      ...population(enFormation, stagiaires),
+      ...population(enFormation, stagiaires, demandes),
     ],
     tableaux: table(["Stagiaire", "Dossier professionnel", "Livret EPCF", "Heures de formation"], lignes),
   };
@@ -444,7 +453,7 @@ function sectionAppreciations({ inv }) {
 export function modeleDossierFormation({ inv, donnees, ind, promo, lieu, intitule, aujourdhui }) {
   const d = donnees || {};
   const stagiaires = tableau(d.stagiaires);
-  const contexte = { inv, ind, donnees: d, promo, stagiaires, enFormation: enFormationDe(d), terminee: promoTerminee(promo, aujourdhui), aujourdhui };
+  const contexte = { inv, ind, donnees: d, promo, stagiaires, demandes: demandesDe(d), enFormation: enFormationDe(d), terminee: promoTerminee(promo, aujourdhui), aujourdhui };
   const centre = texte(lieu, "centre non renseigné");
   return assembler({
     titre: "Dossier de la formation",

@@ -4,7 +4,7 @@
 
 import { el, compareByNom } from "./utils.js?v=20261110a";
 import { bindDocPrint } from "./doc-officiel.js?v=20261110a";
-import { rendreSignature } from "./signature-pad.js?v=20261110a";
+import { signatureOuMention } from "./signature-pad.js?v=20261110a";
 import {
   etatLigne, libelleCreneau, heureLocale, jourLocal, dureeMinutes, libelleDuree, minutesPresence,
   jourDe, jourFerie, DEMI_JOURNEES,
@@ -90,7 +90,7 @@ export function feuilleSeance({ entete, promo, seance, stagiairesTous, absentsPl
       el("td", { class: "emf-num" }, String(i + 1)),
       el("td", { class: "emf-nom" }, nomComplet(s)),
       el("td", { class: "emf-sig" }, etat.code === "signe"
-        ? rendreSignature(ligne.trace, { titre: "Signature de " + nomComplet(s) })
+        ? signatureOuMention(ligne, "Signature de " + nomComplet(s))
         : el("span", { class: "emf-vide" }, etat.code === "absent" ? "Absent" : "")),
       el("td", { class: "emf-obs" }, ...obs.filter(Boolean).map((t) => el("div", {}, t))),
     );
@@ -99,7 +99,7 @@ export function feuilleSeance({ entete, promo, seance, stagiairesTous, absentsPl
   const formateurs = seance.formateurs.length
     ? seance.formateurs.map((f) => el("tr", {},
         el("td", { class: "emf-nom" }, f.nom),
-        el("td", { class: "emf-sig" }, rendreSignature(f.trace, { titre: "Signature de " + f.nom })),
+        el("td", { class: "emf-sig" }, signatureOuMention(f, "Signature de " + f.nom)),
         el("td", { class: "emf-obs" }, "Signé à " + heureSignature(f.signe_le, seance.jour))))
     : [el("tr", {}, el("td", { class: "emf-nom emf-manque", colspan: "3" }, "Aucune signature de formateur"))];
 
@@ -178,7 +178,7 @@ export function feuilleSemaine({ entete, promo, lundi, seances, stagiairesTous, 
     const etat = etatLigne({ ligne, close: c.seance.statut === "close" });
     if (etat.code === "signe") {
       return el("td", { class: "emf-case" },
-        rendreSignature(ligne.trace, { titre: "Signature de " + nomComplet(s) }),
+        signatureOuMention(ligne, "Signature de " + nomComplet(s)),
         el("span", { class: "emf-heure" }, heureSignature(ligne.signe_le, c.seance.jour)));
     }
     return el("td", { class: "emf-case emf-" + etat.code }, etat.code === "absent" ? "Absent" : "");
@@ -193,7 +193,7 @@ export function feuilleSemaine({ entete, promo, lundi, seances, stagiairesTous, 
     el("td", { class: "emf-nom" }, "Formateur"),
     ...colonnes.map((c) => el("td", { class: "emf-case" + (c.seance ? "" : " emf-sans") },
       ...(c.seance?.formateurs || []).map((f) => el("div", { class: "emf-formateur" },
-        rendreSignature(f.trace, { titre: "Signature de " + f.nom }),
+        signatureOuMention(f, "Signature de " + f.nom),
         el("span", { class: "emf-heure" }, f.nom))))),
     el("td", { class: "emf-heures" }));
 

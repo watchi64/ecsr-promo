@@ -142,6 +142,8 @@ body.sig-ouverte { overflow: hidden; }
   display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
 .em-ligne-sig .sig-rendu { height: 100%; width: 100%; }
+/* Signature effacée à la durée de conservation : la mention remplace le dessin (l'heure et la présence restent). */
+.sig-effacee { font-size: 0.78rem; font-style: italic; line-height: 1.2; text-align: center; padding: 0 0.3rem; color: var(--text-soft); }
 .em-ligne-corps { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
 .em-ligne-nom { font-weight: 600; }
 .em-ligne-etat { font-size: 0.85rem; color: var(--text-muted); }
@@ -234,6 +236,7 @@ body.sig-ouverte { overflow: hidden; }
 .emf-formateurs .emf-sig .sig-rendu { height: 10mm; }
 .emf-formateurs td { height: 12mm; padding-top: 0.4mm; padding-bottom: 0.4mm; }
 .emf-vide { font-style: italic; color: var(--doc-texte-doux); }
+.emf-sig .sig-effacee { font-size: 7.5pt; color: var(--doc-texte-doux); padding: 0; }
 .emf-absent td.emf-sig, .emf-absent td.emf-obs { color: var(--doc-absent); }
 .emf-obs div + div { font-style: italic; }
 .emf-manque { font-style: italic; color: var(--doc-absent); }
@@ -249,6 +252,7 @@ body.sig-ouverte { overflow: hidden; }
 .emf-horaires { display: block; font-weight: 400; font-size: 6pt; color: var(--doc-trait-fort); }
 .emf-case { text-align: center; height: 7.2mm; }
 .emf-case .sig-rendu { height: 4.6mm; width: 100%; }
+.emf-case .sig-effacee { display: block; font-size: 4.4pt; line-height: 1.05; padding: 0; color: var(--doc-texte-doux); }
 .emf-heure { display: block; font-size: 5.5pt; color: var(--doc-trait-fort); line-height: 1; }
 .emf-case.emf-absent { font-style: italic; color: var(--doc-absent); }
 .emf-case.emf-sans { background: repeating-linear-gradient(135deg, var(--doc-sans-fond-1) 0 2mm, var(--doc-sans-fond-2) 2mm 2.6mm); }

@@ -705,7 +705,7 @@ export async function renderQualiopi(container) {
         promo: p,
         donnees,
         inv: inventairePromo({ ...donnees, registre }, referentiel, { promo: p, aujourdhui, alternance, nouveautes: NOUVEAUTES }),
-        ind: indicateursPromo(donnees, referentiel, { aujourdhui }),
+        ind: indicateursPromo(donnees, referentiel, { aujourdhui, demandes: donnees.demandes }),
       }));
       if (!promosLues) return;
       const modele = modeleDossierCentre({ promos: promosLues, lieu: promo.lieu_nom, lieuId: promo.lieu_id, registre, periode, aujourdhui, sansNoms, nouveautes: NOUVEAUTES });
@@ -737,7 +737,7 @@ export async function renderQualiopi(container) {
       const lesFiches = portee === "formation"
         ? Promise.resolve([ficheResultats({ promo, ind: etat.ind, aujourdhui, satisfaction: etat.donnees.satisfaction })])
         : lirePromosDuCentre(moi, promosEtPeriodeDuCentre().retenues, "les résultats du centre ne sont pas préparés",
-          (p, donnees) => ficheResultats({ promo: p, ind: indicateursPromo(donnees, referentiel, { aujourdhui }), aujourdhui, satisfaction: donnees.satisfaction }));
+          (p, donnees) => ficheResultats({ promo: p, ind: indicateursPromo(donnees, referentiel, { aujourdhui, demandes: donnees.demandes }), aujourdhui, satisfaction: donnees.satisfaction }));
       const copie = sortie === "copier" ? copierTexte(lesFiches.then(texteDesFiches)) : null;   // sans await : dans le geste du clic
       const fiches = await lesFiches;
       if (!fiches) return;
@@ -835,7 +835,7 @@ export async function renderQualiopi(container) {
     try {
       const [referentiel, donnees] = await Promise.all([lireReferentielCentre(), lire(promo.id)]);
       if (!chargementVivant(moi)) return;
-      Object.assign(etat, { referentiel, donnees, ind: indicateursPromo(donnees, referentiel, { aujourdhui }) });
+      Object.assign(etat, { referentiel, donnees, ind: indicateursPromo(donnees, referentiel, { aujourdhui, demandes: donnees.demandes }) });
       recalculerInventaire();
     } catch (e) {
       console.error(e);
