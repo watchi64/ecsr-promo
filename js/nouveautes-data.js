@@ -110,8 +110,8 @@ export const NOUVEAUTES = [
   // Lot 5 de la refonte (date de la fusion : à reposer, avec l'id, quand le lot est fusionné). À date égale, l'ordre du fichier est
   // gardé : les entrées du lot 2B restent devant.
   {
-    id: "2026-11-09-espace-direction",
-    date: "2026-11-09",
+    id: "2026-11-10-espace-direction",
+    date: "2026-11-10",
     pour: "direction",
     titre: "Ton espace de direction",
     resume: "Tu as maintenant ton espace pour piloter ton centre. L'Accueil est une vue d'ensemble : les chiffres du centre, "
@@ -138,8 +138,8 @@ export const NOUVEAUTES = [
     ],
   },
   {
-    id: "2026-11-09-espace-siege",
-    date: "2026-11-09",
+    id: "2026-11-10-espace-siege",
+    date: "2026-11-10",
     pour: "siege",
     titre: "L'espace du siège",
     resume: "Le siège a son espace, pour regarder le réseau sans jamais voir un nom. L'Accueil donne les chiffres de chaque "
@@ -160,8 +160,8 @@ export const NOUVEAUTES = [
     ],
   },
   {
-    id: "2026-11-09-menu-espace",
-    date: "2026-11-09",
+    id: "2026-11-10-menu-espace",
+    date: "2026-11-10",
     pour: "formateurs",
     navigation: "nouvelle",
     titre: "Choisis ton espace",
@@ -175,8 +175,8 @@ export const NOUVEAUTES = [
     ],
   },
   {
-    id: "2026-11-09-changer-de-promo",
-    date: "2026-11-09",
+    id: "2026-11-10-changer-de-promo",
+    date: "2026-11-10",
     pour: "stagiaires",
     navigation: "nouvelle",
     titre: "Changer de promo",
