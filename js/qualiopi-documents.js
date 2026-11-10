@@ -28,6 +28,8 @@ import { estNotee, score20 } from "./notes-stats.js?v=20261110a";
 import { cellule, nombre, slug } from "./centre-csv.js?v=20261110a";
 import { compareByNom } from "./utils.js?v=20261110a";
 import { statutFiche } from "./effacement-rules.js?v=20261110a";
+import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261110a";
+import { presenceDePromo } from "./qualiopi-presence.js?v=20261110a";
 
 export const PHRASE_DE_GARDE = "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
 
@@ -41,7 +43,9 @@ export const PHRASE_NIVEAU = "Le niveau dit ce que l'application peut apporter p
 const DECRET = SOURCE.decret.replace(/ relatif .*$/, "");   // « Décret n° 2026-728 du 1er août 2026 »
 const AUCUNE_PROMO = "Aucune promo dans la période.";
 const TYPES_CLES = new Map([["formation", "Formation"], ["stage", "Stage"], ["examen", "Examen"]]);   // types du calendrier qui sont des dates clés
-const ASSIDUITE_A_JOINDRE = "Le calcul des heures d'après les feuilles d'émargement n'est pas encore repris dans ce dossier : joindre les feuilles d'émargement signées.";
+const ASSIDUITE_A_JOINDRE = "Les heures ne sont pas mesurées d'après les feuilles d'émargement pour cette promo : joindre les feuilles d'émargement signées, si elles existent.";
+const HEURES_NON_LUES = "non mesurées (erreur de lecture)";
+const HEURES_SANS_FEUILLES = "non mesurées (feuilles d'émargement non utilisées pour cette promo)";
 const REGLE_DEMI_JOURNEES = "Synthèse par semaine d'après le planning : une demi-journée de formation compte dès qu'une ligne du planning "
   + "porte une activité, un sujet, un formateur, un intervenant extérieur ou l'autonomie du groupe ; les jours désactivés du planning ne comptent pas.";
 const BOM = String.fromCharCode(0xfeff);
@@ -316,10 +320,34 @@ function sectionDeroule({ inv, donnees, promo, aujourdhui }) {
   };
 }
 
-// Tant que l'émargement n'est pas branché, l'inventaire n'a pas la pièce : une phrase utile à l'auditeur.
+// Les heures d'après les feuilles d'émargement closes ; sans feuille, la raison puis une phrase utile à l'auditeur.
 function sectionAssiduite({ inv }) {
   const piece = pieceDe(inv, "assiduite");
-  return { paragraphes: piece?.presente ? [phrase(piece)] : [ASSIDUITE_A_JOINDRE], tableaux: [] };
+  if (!piece?.presente) return { paragraphes: [...(piece ? [phrase(piece)] : []), ASSIDUITE_A_JOINDRE], tableaux: [] };
+  return { paragraphes: [phrase(piece), `Méthode de calcul : ${METHODES_PUBLIQUES.presence}`], tableaux: [] };
+}
+
+// Les heures d'une personne d'après les feuilles closes : « 66 heures 30 minutes sur 70 heures prévues » ; sans feuille à son nom,
+// ou sans mesure pour la promo, le mot qui le dit. Jamais un zéro qui ne serait qu'une absence de feuille.
+function heuresDe(presence, stagiaireId) {
+  if (presence.etat === "non_lue") return HEURES_NON_LUES;
+  if (presence.etat !== "mesuree") return HEURES_SANS_FEUILLES;
+  const b = presence.bilans.get(stagiaireId);
+  if (!b || !b.prevuesMin) return "non mesurées (aucune feuille close à son nom)";
+  return `${dureeEnToutesLettres(b.realiseesMin)} sur ${dureeEnToutesLettres(b.prevuesMin)} prévues`;
+}
+
+// La phrase des heures du tableau de l'examen. Les lignes des fiches hors du tableau (stagiaires partis, fiches sans nom, fiches
+// effacées à la demande) restent comptées dans les totaux de la promo, sans nom.
+function phraseHeures(presence, enFormation) {
+  if (presence.etat === "non_lue") return `Heures de formation : ${HEURES_NON_LUES}.`;
+  if (presence.etat !== "mesuree") return `Heures de formation : ${HEURES_SANS_FEUILLES}.`;
+  const dans = new Set(enFormation.map((s) => s.id));
+  const hors = [...presence.bilans].filter(([id]) => !dans.has(id)).reduce((t, [, b]) => t + b.realiseesMin, 0);
+  const horsPhrase = hors
+    ? ` Les fiches hors du tableau (stagiaires partis, fiches sans nom, fiches effacées à la demande) ajoutent ${dureeEnToutesLettres(hors)} réalisées, comptées dans le total de la promo sans nom.`
+    : "";
+  return `Heures de formation : heures signées sur heures prévues, d'après les feuilles d'émargement closes (une demi-journée signée compte pour sa durée entière).${horsPhrase}`;
 }
 
 function sectionPassages({ inv, donnees, enFormation, stagiaires, demandes }) {
@@ -417,14 +445,15 @@ function sectionSignalements({ inv, donnees, promo, aujourdhui }) {
   return { paragraphes: [...phrases(inv, "suivi"), ...phrasesSignalements(donnees.signalements), ...r.paragraphes], tableaux: r.tableaux };
 }
 
-function sectionExamen({ inv, donnees, enFormation, stagiaires, demandes }) {
+function sectionExamen({ inv, donnees, promo, enFormation, stagiaires, demandes }) {
   const dossiers = parStagiaire(donnees.dossiers);
   const livrets = parStagiaire(donnees.livrets);
-  const lignes = enFormation.map((s) => [nomComplet(s), texteDepot(dossiers.get(s.id) || [], s), texteDepot(livrets.get(s.id) || [], s), "non mesurées"]);
+  const presence = presenceDePromo(donnees.emargement, promo?.id);
+  const lignes = enFormation.map((s) => [nomComplet(s), texteDepot(dossiers.get(s.id) || [], s), texteDepot(livrets.get(s.id) || [], s), heuresDe(presence, s.id)]);
   return {
     paragraphes: [
       ...phrases(inv, "dossierPro"),
-      "Heures de formation : non mesurées, le calcul d'après les feuilles d'émargement n'étant pas encore repris.",
+      phraseHeures(presence, enFormation),
       ...population(enFormation, stagiaires, demandes),
     ],
     tableaux: table(["Stagiaire", "Dossier professionnel", "Livret EPCF", "Heures de formation"], lignes),

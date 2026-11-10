@@ -43,7 +43,9 @@
 //   satisfaction  { etat: "mesuree", taux, repondants, inscrits } | { etat: "sous_seuil" } | { etat: "absente" } | { etat: "non_lue" } : le résultat du
 //                 questionnaire de fin de formation, tel que le rend `satisfactionDe` (lu par la page, hors de l'inventaire) ;
 //                 une clé absente vaut « non_lue ». Jamais un commentaire : seuls des comptes entrent ici.
-// Ne sont pas lus : `profs` et `entete` (les noms) et l'émargement, pas encore branché (voir la pièce `assiduite`).
+//   emargement    { etat: "lue", seances } | { etat: "non_lue" } : les feuilles d'émargement de la promo, légères (js/qualiopi-presence.js) ;
+//                 une clé absente vaut « non_lue »
+// Ne sont pas lus : `profs` et `entete` (les noms).
 //
 // Exports : les aides du planning (`lignesDuPlanning`, `demiJournees`, `intervenantsDistincts`) et les petits outils de
 // phrases (`jourDe`, `rempli`, `tableau`, `nb`) sont réutilisés par js/qualiopi-documents.js, pour que la synthèse par
@@ -54,6 +56,8 @@ import { indicateursPromo, pct } from "./centre-stats.js?v=20261110a";
 import { estNotee } from "./notes-stats.js?v=20261110a";
 import { ACTIVITY_SHAPES } from "./config.js?v=20261110a";
 import { jourFerie } from "./emargement-rules.js?v=20261110a";
+import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261110a";
+import { presenceDePromo } from "./qualiopi-presence.js?v=20261110a";
 import { parseDate, addDays, isoDate } from "./utils.js?v=20261110a";
 import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261110a";
 import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261110a";
@@ -117,7 +121,6 @@ export const PIECES = [
 // Raison fixe d'une pièce dont les documents ont été effacés par l'étape des 3 ans : jamais « aucun dossier enregistré ».
 export const RAISON_EFFACEE = "effacé au terme de la durée de conservation";
 const RAISON_SUR_DEMANDE = "effacé à la demande des personnes";
-const HEURES_NON_BRANCHEES = "calcul des heures pas encore branché";
 const SANS_JURY = "aucun résultat de jury saisi";
 const POPULATION = "(stagiaires en formation uniquement)";   // dit une fois dans la phrase des évaluations
 const TYPES_CLES = ["formation", "stage", "examen"];   // types d'événement du calendrier qui sont des dates clés
@@ -320,10 +323,16 @@ const CONSTRUCTEURS = {
     return presente(avecPlage(`${nb(evenements.length, "événement")} au calendrier (${parType.join(", ")})`, jours));
   },
 
-  // `donnees` ne porte pas encore d'émargement : le calcul des heures (feuilles closes) n'est pas branché, donc
-  // l'assiduité est absente pour toute promo. Aucun nom de champ d'une feuille close n'est deviné ici ; la
-  // tâche qui branchera l'émargement remplacera cette ligne.
-  assiduite: () => absente(HEURES_NON_BRANCHEES),
+  // Les heures d'après les feuilles d'émargement closes (js/qualiopi-presence.js) : toutes les lignes, fiches sans nom et fiches
+  // effacées à la demande comprises. Une feuille ouverte n'est pas comptée. Sans feuille close, ou lecture en échec, la raison le dit.
+  assiduite: ({ presence: p }) => {
+    if (p.etat === "non_lue") return absente("feuilles d'émargement non lues (erreur de lecture)");
+    if (p.etat === "absente") {
+      return absente(p.ouvertes ? "feuilles ouvertes seulement, aucune feuille close" : "feuilles d'émargement non utilisées pour cette promo");
+    }
+    const ouvertes = p.ouvertes ? `, ${nb(p.ouvertes, "feuille ouverte non comptée", "feuilles ouvertes non comptées")}` : "";
+    return presente(`${avecPlage(nb(p.feuilles, "feuille close", "feuilles closes"), [p.premier, p.dernier])}, ${dureeEnToutesLettres(p.realiseesMin)} réalisées sur ${dureeEnToutesLettres(p.prevuesMin)} prévues (${pct(p.taux)})${ouvertes}`);
+  },
 
   passages: ({ ind }) => {
     const { salle, voiture } = ind.passages.detail;   // nuls quand personne n'est en formation
@@ -497,6 +506,7 @@ function contexte(donnees, referentiel, { promo, aujourdhui, nouveautes }) {
     terminee: promoTerminee(promo, aujourdhui),
     nouveautes: nouveautesCitables(nouveautes),
     etape2,
+    presence: presenceDePromo(donnees.emargement, promo.id),
     ind: indicateursPromo(donnees, referentiel, { aujourdhui, demandes }),
     dedans: (ligne) => enFormation.has(ligne.stagiaire_id),
     planning: lignesDuPlanning(donnees, promo, aujourdhui),

@@ -1716,7 +1716,7 @@ export async function lireDonneesQualiopi(promoId) {
     if (error) throw error;
     return enteteEmargementDuReglage(data?.value ?? null);
   };
-  const [centre, planning, agenda, livrets, dossiers, signalementsLus, cours, autoEcoles, profs, entete, joursOff, versions, demandes] = await Promise.all([
+  const [centre, planning, agenda, livrets, dossiers, signalementsLus, cours, autoEcoles, profs, entete, joursOff, versions, demandes, emargement] = await Promise.all([
     lireDonneesCentre(promoId),
     parPromo("planning_entries", "id, semaine_lundi, day_index, half_day, activite, sujet, sujet_2, salle_double, prof_ids, prof_autre, autonomie, benevoles_ids, promo_id", "id"),
     parPromo("agenda_events", "id, type, date_start, date_end", "id"),
@@ -1730,10 +1730,24 @@ export async function lireDonneesQualiopi(promoId) {
     parPromo("planning_jours_off", "semaine_lundi, day_index", "id"),
     communes("cours_versions", "cours_id, saved_at", "id"),
     lireEffacementsSurDemande([promoId]),   // fiches effacées à la demande : un Set, vide si la migration n'est pas appliquée
+    lireEmargementDeLaPromo(promoId),
   ]);
   const stagiairesDeLaPromo = new Set(centre.stagiaires.map((s) => s.id));
   const signalements = signalementsLus.filter((s) => stagiairesDeLaPromo.has(s.stagiaire_id));
-  return { ...centre, planning, agenda, livrets, dossiers, signalements, cours, autoEcoles, profs, entete, joursOff, versions, demandes };
+  return { ...centre, planning, agenda, livrets, dossiers, signalements, cours, autoEcoles, profs, entete, joursOff, versions, demandes, emargement };
+}
+
+// Les feuilles d'émargement de la promo, légères (sans tracé ni signature de formateur : seuls les jours, les horaires, le statut et,
+// par ligne, le stagiaire et l'heure de signature servent aux heures). Une lecture qui échoue ne fait pas échouer le dossier : elle
+// rend { etat: "non_lue" }, que les pièces et les documents disent en toutes lettres (jamais un chiffre faux).
+async function lireEmargementDeLaPromo(promoId) {
+  try {
+    const seances = await lireTable("emargement_seances",
+      "id, promo_id, jour, demi_journee, debut, fin, statut, lignes:emargement_lignes(stagiaire_id, signe_le, absent, absence_origine)", "id", promoId);
+    return { etat: "lue", seances: seances.map((s) => ({ ...s, lignes: s.lignes || [] })) };
+  } catch {
+    return { etat: "non_lue" };
+  }
 }
 
 // --- Signalements sur les questions de QCM ---

@@ -38,6 +38,7 @@ import {
 } from "../db.js?v=20261110a";
 import { el, clear, isoDate, toast } from "../utils.js?v=20261110a";
 import { indicateursPromo } from "../centre-stats.js?v=20261110a";
+import { presenceDePromo, presenceDeLaFiche } from "../qualiopi-presence.js?v=20261110a";
 import { inventairePromo, nb, tableau, satisfactionDe } from "../qualiopi-preuves.js?v=20261110a";
 import {
   modeleDossierFormation, modeleDossierCentre, inventaireCsv, nomFichierQualiopi, periodeEnMots, LIBELLES_NIVEAU, PHRASE_NIVEAU, PHRASE_DE_GARDE,
@@ -735,9 +736,9 @@ export async function renderQualiopi(container) {
       // Les fiches : celle de la promo choisie sur-le-champ, celles du centre après la lecture de ses promos (rien si une promo ne se
       // lit pas ou si l'action devient caduque : le message est alors déjà écrit).
       const lesFiches = portee === "formation"
-        ? Promise.resolve([ficheResultats({ promo, ind: etat.ind, aujourdhui, satisfaction: etat.donnees.satisfaction })])
+        ? Promise.resolve([ficheResultats({ promo, ind: etat.ind, aujourdhui, presence: presenceDeLaFiche(presenceDePromo(etat.donnees.emargement, promo.id)), satisfaction: etat.donnees.satisfaction })])
         : lirePromosDuCentre(moi, promosEtPeriodeDuCentre().retenues, "les résultats du centre ne sont pas préparés",
-          (p, donnees) => ficheResultats({ promo: p, ind: indicateursPromo(donnees, referentiel, { aujourdhui, demandes: donnees.demandes }), aujourdhui, satisfaction: donnees.satisfaction }));
+          (p, donnees) => ficheResultats({ promo: p, ind: indicateursPromo(donnees, referentiel, { aujourdhui, demandes: donnees.demandes }), aujourdhui, presence: presenceDeLaFiche(presenceDePromo(donnees.emargement, p.id)), satisfaction: donnees.satisfaction }));
       const copie = sortie === "copier" ? copierTexte(lesFiches.then(texteDesFiches)) : null;   // sans await : dans le geste du clic
       const fiches = await lesFiches;
       if (!fiches) return;
