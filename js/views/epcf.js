@@ -6,15 +6,20 @@
 //    véhicule ; chez un formateur, la saisie (Évaluer, Modifier, Nouvelle évaluation).
 // L'écriture reste réservée par la base aux formateurs et aux admins.
 
-import { listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20261110d";
-import { el, clear, isoDate, formatDate, displayStagiaire, toast } from "../utils.js?v=20261110d";
-import { getProfile } from "../auth-admin.js?v=20261110d";
-import { getCurrentWho } from "../identity.js?v=20261110d";
-import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20261110d";
-import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20261110d";
-import { poserGardeSortie, leverGardeSortie } from "../navigation.js?v=20261110d";
-import { etatVideEpcf, ACTIONS_CARTE_EPCF, etatVideEpcfFiche, ACTIONS_FICHE_EPCF } from "../epcf-classe-rules.js?v=20261110d";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110d";
+import { listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20261110e";
+import { el, clear, isoDate, formatDate, displayStagiaire, toast } from "../utils.js?v=20261110e";
+import { confirmer } from "../confirmer.js?v=20261110e";
+import { getProfile } from "../auth-admin.js?v=20261110e";
+import { getCurrentWho } from "../identity.js?v=20261110e";
+import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20261110e";
+import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20261110e";
+import { poserGardeSortie, leverGardeSortie } from "../navigation.js?v=20261110e";
+import { etatVideEpcf, ACTIONS_CARTE_EPCF, etatVideEpcfFiche, ACTIONS_FICHE_EPCF } from "../epcf-classe-rules.js?v=20261110e";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110e";
+
+// Quitter une grille commencée (bouton « Retour » ou garde de sortie de js/navigation.js) : la même question.
+export const QUESTION_ABANDON = { titre: "Abandonner la saisie en cours ?",
+  phrase: "Les changements de cette grille ne sont pas enregistrés.", oui: "Abandonner", non: "Continuer la saisie" };
 
 const TRAME_KEYS = ["salle", "vehicule"];
 
@@ -135,12 +140,12 @@ function showForm(body, stagiaire, trameKey, existing, { profs, retour, apresEnr
   const scores = { ...(existing?.scores || {}) };
   const compSel = new Set(existing?.competences_acquises || []);
   let dirty = false;
-  const garde = { estSale: () => dirty, message: "Abandonner la saisie en cours ?" };
+  const garde = { estSale: () => dirty, message: QUESTION_ABANDON.titre, question: QUESTION_ABANDON };
   poserGardeSortie(garde);
 
   body.appendChild(el("div", { class: "epcf-form-head" },
-    el("button", { class: "btn small ghost", type: "button", onClick: () => {
-      if (dirty && !confirm("Abandonner la saisie en cours ?")) return;
+    el("button", { class: "btn small ghost", type: "button", onClick: async () => {
+      if (dirty && !(await confirmer(QUESTION_ABANDON))) return;
       leverGardeSortie(garde);
       retour();
     } }, "← Retour"),

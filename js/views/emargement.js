@@ -7,24 +7,25 @@ import {
   listStagiaires, listProfs, getPlanning, getHalfMetaForWeek, getJoursOff, getPromoCourante,
   listEmargementSeances, ouvrirEmargement, signerEmargement, signerEmargementFormateur,
   annoterEmargement, cloreEmargement, rouvrirEmargement, getEnteteEmargement, setEnteteEmargement,
-} from "../db.js?v=20261110d";
-import { el, clear, toast, isoDate } from "../utils.js?v=20261110d";
-import { icon } from "../icons.js?v=20261110d";
-import { isAdmin, isProf, isEquipe, getProfile } from "../auth-admin.js?v=20261110d";
+} from "../db.js?v=20261110e";
+import { el, clear, toast, isoDate } from "../utils.js?v=20261110e";
+import { confirmer } from "../confirmer.js?v=20261110e";
+import { icon } from "../icons.js?v=20261110e";
+import { isAdmin, isProf, isEquipe, getProfile } from "../auth-admin.js?v=20261110e";
 import {
   etatLigne, resumeSeance, resumeEnClair, etatSansFeuille, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
   demiVoisine, notesProposees, roleAuPlanning,
-} from "../emargement-rules.js?v=20261110d";
-import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261110d";
+} from "../emargement-rules.js?v=20261110e";
+import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261110e";
 import {
   feuilleSeance, feuilleSemaine, imprimer, nomComplet, jourLong, DEMI_LONG, stagiairesDeFeuille,
-} from "../emargement-feuilles.js?v=20261110d";
-import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261110d";
-import { emargementActif } from "../emargement-etat.js?v=20261110d";
-import { navigationV2Active } from "../nav-etat.js?v=20261110d";
-import { estAdresseAttestations } from "../attestations-rules.js?v=20261110d";
-import { renderAttestations } from "./attestations.js?v=20261110d";
+} from "../emargement-feuilles.js?v=20261110e";
+import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261110e";
+import { emargementActif } from "../emargement-etat.js?v=20261110e";
+import { navigationV2Active } from "../nav-etat.js?v=20261110e";
+import { estAdresseAttestations } from "../attestations-rules.js?v=20261110e";
+import { renderAttestations } from "./attestations.js?v=20261110e";
 
 // Horaires par défaut, comme DEFAULT_HALF_META du planning.
 const HORAIRES_DEFAUT = { matin: { debut: "09:00", fin: "12:30" }, aprem: { debut: "13:30", fin: "17:00" } };
@@ -551,10 +552,10 @@ function ouvrirObservation(ctx, s, st, ligne) {
 }
 
 async function cloreFeuille(ctx, s, enAttente) {
-  const texte = enAttente
-    ? `Clore la feuille ? ${enAttente} stagiaire${enAttente > 1 ? "s" : ""} sans signature ${enAttente > 1 ? "seront notés" : "sera noté"} absent${enAttente > 1 ? "s" : ""}.`
-    : "Clore la feuille ? Plus personne ne pourra la signer.";
-  if (!window.confirm(texte)) return;
+  const phrase = enAttente
+    ? `${enAttente} stagiaire${enAttente > 1 ? "s" : ""} sans signature ${enAttente > 1 ? "seront notés" : "sera noté"} absent${enAttente > 1 ? "s" : ""}.`
+    : "Plus personne ne pourra la signer.";
+  if (!(await confirmer({ titre: "Clore la feuille ?", phrase, oui: "Clore la feuille" }))) return;
   try {
     const n = await cloreEmargement(s.id);
     toast(`Feuille close${n ? ` : ${n} absent${n > 1 ? "s" : ""} noté${n > 1 ? "s" : ""}` : ""}.`, "success");

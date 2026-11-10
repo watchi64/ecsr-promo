@@ -1,29 +1,29 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261110d";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261110d";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261110d";
-import { libelleCreneau } from "../emargement-rules.js?v=20261110d";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261110d";
-import { renderEpcfPersonne } from "./epcf.js?v=20261110d";
-import { renderSubTabs } from "../subtabs.js?v=20261110d";
-import { renderDp } from "./dp.js?v=20261110d";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261110d";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261110d";
-import { bandeauAvis } from "../avis.js?v=20261110d";
-import { statsPassages } from "../passages-stats.js?v=20261110d";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261110d";
-import { icon } from "../icons.js?v=20261110d";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261110d";
-import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261110d";
-import { exemplesRemplis } from "../dp-rules.js?v=20261110d";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261110d";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261110d";
-import { navigationV2Active } from "../nav-etat.js?v=20261110d";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110d";
-import { renderNotes } from "./notes.js?v=20261110d";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261110d";
+         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261110e";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261110e";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261110e";
+import { libelleCreneau } from "../emargement-rules.js?v=20261110e";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261110e";
+import { renderEpcfPersonne } from "./epcf.js?v=20261110e";
+import { renderSubTabs } from "../subtabs.js?v=20261110e";
+import { renderDp } from "./dp.js?v=20261110e";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261110e";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261110e";
+import { bandeauAvis } from "../avis.js?v=20261110e";
+import { statsPassages } from "../passages-stats.js?v=20261110e";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261110e";
+import { icon } from "../icons.js?v=20261110e";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261110e";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261110e";
+import { exemplesRemplis } from "../dp-rules.js?v=20261110e";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261110e";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261110e";
+import { navigationV2Active } from "../nav-etat.js?v=20261110e";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110e";
+import { renderNotes } from "./notes.js?v=20261110e";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261110e";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -658,7 +658,7 @@ export function renderFiche(container, d, opts) {
       storageKey: opts.storageKey,
       // L'onglet choisi s'inscrit dans l'adresse, sans étape d'historique.
       onChange: (p) => remplacerAdresse(opts.adresse(p)),
-      avantChangement: () => peutQuitter(),
+      avantChangement: (reprendre) => peutQuitter(reprendre),
     }));
     return "onglets";
   }

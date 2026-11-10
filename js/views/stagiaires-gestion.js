@@ -6,14 +6,14 @@
 import {
   listStagiaires, addStagiaire, updateStagiaire, updateStagiaireNom, setStagiaireActif, anonymiserStagiaire,
   listUserProfiles, inviteUser,
-} from "../db.js?v=20261110d";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261110d";
-import { icon } from "../icons.js?v=20261110d";
-import { isEquipe } from "../auth-admin.js?v=20261110d";
-import { confirmationValide, resumeEffacement } from "../effacement-rules.js?v=20261110d";
-import { messageInvitationReussie } from "../roles-rules.js?v=20261110d";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261110d";
-import { confirmer } from "../confirmer.js?v=20261110d";
+} from "../db.js?v=20261110e";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261110e";
+import { icon } from "../icons.js?v=20261110e";
+import { isEquipe } from "../auth-admin.js?v=20261110e";
+import { confirmationValide, resumeEffacement } from "../effacement-rules.js?v=20261110e";
+import { messageInvitationReussie } from "../roles-rules.js?v=20261110e";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261110e";
+import { confirmer, demander } from "../confirmer.js?v=20261110e";
 
 // Liste des personnes invitables de la section déjà à l'écran. Posée par la section d'invitation qui la montre (js/views/config.js ou
 // renderInvitationStagiaire), appelée après un ajout de stagiaire, qui n'actualise que le bloc « Stagiaires ».
@@ -200,13 +200,12 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
         class: "btn small danger",
         title: "Effacer ses données personnelles (irréversible)",
         onClick: async () => {
-          const saisie = prompt(`Effacer les données de ${it.prenom} ?\n\n`
-            + "Supprimés : compte de connexion, e-mail, date de naissance, livret, dossier pro, fiche de suivi, commentaires.\n"
-            + "Conservés sans nom : notes, QCM, passages, scores EPCF.\n"
-            + "Irréversible.\n\n"
-            + `Pour confirmer, tape le prénom : ${it.prenom}`);
-          if (saisie === null) return;
-          if (!confirmationValide(saisie, it.prenom)) { toast("Prénom différent : rien n'a été effacé.", "error"); return; }
+          const saisie = await demander({ titre: `Effacer les données de ${it.prenom} ?`,
+            phrase: "Supprimés : compte de connexion, e-mail, date de naissance, livret, dossier pro, fiche de suivi, "
+              + "commentaires. Conservés sans nom : notes, QCM, passages, scores EPCF. Irréversible.",
+            libelle: `Pour confirmer, tapez le prénom : ${it.prenom}`, oui: "Effacer les données",
+            verifier: (v) => confirmationValide(v, it.prenom), erreur: "Le prénom ne correspond pas : rien n'est effacé." });
+          if (typeof saisie !== "string") return;
           try {
             const details = await anonymiserStagiaire(it.id);
             toast(resumeEffacement(details), "success", 6000);

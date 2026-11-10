@@ -5,10 +5,10 @@
  * quel ordre, quelle phrase d'état) sont dans js/qcm-rules.js. Modèle de js/views/signalements.js : garde `isActive`,
  * compteur de génération, boîte d'erreur avec « Réessayer ».
  */
-import { el, clear } from "../utils.js?v=20261110d";
-import { listQcmIndex, listMyQcmAttempts } from "../db.js?v=20261110d";
-import { lignesQcmStagiaire, lignesQcmRedaction } from "../qcm-rules.js?v=20261110d";
-import { carte, ligneAction, erreurAvecReessai } from "./pages-cartes.js?v=20261110d";
+import { el, clear } from "../utils.js?v=20261110e";
+import { listQcmIndex, listMyQcmAttempts } from "../db.js?v=20261110e";
+import { lignesQcmStagiaire, lignesQcmRedaction } from "../qcm-rules.js?v=20261110e";
+import { carte, ligneAction, erreurAvecReessai } from "./pages-cartes.js?v=20261110e";
 
 // `onOuvrir(theme, qcm, relire)` : ouvre la fenêtre du QCM (`relire` relit la liste, à rappeler quand l'éditeur se ferme sur un changement) (fournie par js/views/themes.js, qui la possède : l'importer ici ferait
 // un cycle). Un QCM dont le thème est introuvable s'ouvre avec un thème de remplacement qui ne porte que son titre.
