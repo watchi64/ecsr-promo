@@ -2,7 +2,8 @@
 -- docs/superpowers/plans/2026-11-09-qualiopi-q5-conservation.md ; spec docs/superpowers/specs/2026-11-08-qualiopi-q3-q5-design.md,
 -- § 6, § 6.1, § 10). Les tâches 3 (questionnaires) et 4 (registre qualité) complètent ce fichier.
 -- Retour : 20261110_conservation_retour.sql. Preuve : tests/sql/conservation-preuve.sql (schéma minimal :
--- tests/sql/conservation-schema-minimal.sql). NON APPLIQUÉE : attend l'accord de Timy.
+-- tests/sql/conservation-schema-minimal.sql). NON APPLIQUÉE : attend l'accord de Timy, et s'applique avec le commit de
+-- l'app des tâches 6-7 (sinon les boutons des Paramètres appellent des fonctions supprimées).
 --
 -- Avant ce lot, _anonymiser_stagiaire faisait tout d'un coup, 12 mois après la fin de la promo, et passait la fiche en
 -- abandon (actif = false). Ce lot la remplace par deux étapes datées et un effacement sur demande :
@@ -26,7 +27,8 @@
 -- autre ; etat_conservation() ne liste que les promos accessibles. Les deux fonctions internes n'ont aucun droit
 -- d'appel pour les rôles de l'API. Le jour est celui de Paris (_questionnaire_jour(), lot Q3).
 -- Émargement : sa protection (déclencheur emargement_signature_figee) se lève par set_config('emargement.effacement',
--- 'on', true), remis à vide juste après chaque écriture. Une fiche sans nom ne signe plus, n'est plus annotée et ne
+-- 'on', true), remis à vide juste après chaque écriture. Les marques efface_le et anonymise_le ont la même protection
+-- (déclencheur stagiaires_marques_conservation, drapeau conservation.effacement). Une fiche sans nom ne signe plus, n'est plus annotée et ne
 -- reçoit plus d'absence à la clôture.
 -- Les anciennes fonctions anonymiser_promo, anonymiser_stagiaire, etat_anonymisation_promo et _anonymiser_stagiaire sont
 -- supprimées (le retour les recrée). Une fiche déjà anonymisée par l'ancien bouton reçoit efface_le = anonymise_le.
@@ -38,6 +40,27 @@ alter table public.stagiaires add column efface_le timestamptz;
 update public.stagiaires set efface_le = anonymise_le where anonymise_le is not null and efface_le is null;
 alter table public.stagiaires
   add constraint stagiaires_efface_avant_anonyme check (anonymise_le is null or efface_le is not null);
+-- Les deux marques décident seules de ce qui reste à effacer : personne ne les pose ni ne les retire en direct (l'équipe
+-- de la promo peut sinon modifier toute colonne de stagiaires, règle stagiaires_modification du lot 4). Seules les
+-- fonctions de conservation les écrivent, sous set_config('conservation.effacement', 'on', true), remis à vide juste
+-- après. Une fiche ne naît pas non plus marquée.
+create function public._stagiaires_marques_conservation()
+returns trigger language plpgsql set search_path to 'public', 'pg_temp' as $function$
+begin
+  if coalesce(current_setting('conservation.effacement', true), '') = 'on' then
+    return new;
+  end if;
+  if (tg_op = 'INSERT' and (new.efface_le is not null or new.anonymise_le is not null))
+     or (tg_op = 'UPDATE' and (new.efface_le is distinct from old.efface_le
+                               or new.anonymise_le is distinct from old.anonymise_le)) then
+    raise exception 'conservation: Les marques d''effacement d''une fiche ne se posent et ne se retirent que par la conservation des données.';
+  end if;
+  return new;
+end;
+$function$;
+revoke all on function public._stagiaires_marques_conservation() from public, anon, authenticated, service_role;
+create trigger stagiaires_marques_conservation before insert or update on public.stagiaires
+  for each row execute function public._stagiaires_marques_conservation();
 
 -- Émargement : un tracé effacé laisse l'heure et le signataire (« anonyme »), et dit quand il a été effacé.
 alter table public.emargement_lignes add column signature_effacee_le timestamptz;
@@ -174,7 +197,9 @@ begin
   end if;
 
   -- Ni le nom ni actif : la marque seule (date_naissance, déjà vide sur la fiche, est gardée vide).
+  perform set_config('conservation.effacement', 'on', true);
   update stagiaires set date_naissance = null, efface_le = now() where id = p_id;
+  perform set_config('conservation.effacement', '', true);
 
   return v_n;
 end;
@@ -213,7 +238,9 @@ begin
   perform set_config('emargement.effacement', '', true);
   v_n := v_n || jsonb_build_object('signatures', n);
 
+  perform set_config('conservation.effacement', 'on', true);
   update stagiaires set prenom = 'Anonyme ' || p_id, nom = null, anonymise_le = now() where id = p_id;
+  perform set_config('conservation.effacement', '', true);
 
   return v_n;
 end;

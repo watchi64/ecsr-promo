@@ -26,17 +26,19 @@
 --        -v retour=<chemin absolu de 20261110_conservation_retour.sql> -f tests/sql/conservation-preuve.sql
 --   pg_ctl -D $D/pg stop ; rm -rf $D
 --
--- Résultats du 10/11/2026, tâche 2 (fiches et émargement), Postgres 18.4 local, port 55517, schéma minimal
--- tests/sql/conservation-schema-minimal.sql (détail : rapport de la tâche 2 dans .superpowers/sdd/) :
---   - avant la migration (fichiers de migration et de retour vides) : ROUGE 23/74 ;
---   - migration et retour : VERT 97/0 (trois passages) ; base où la migration est appliquée : VERT 92/0, rien laissé
+-- Résultats du 10/11/2026, correction 1 de la relecture (déclencheur des marques efface_le et anonymise_le), Postgres 18.4
+-- local, port 55519, schéma minimal tests/sql/conservation-schema-minimal.sql :
+--   - avant la migration (fichiers de migration et de retour vides) : ROUGE 25/80 ;
+--   - migration et retour : VERT 105/0 (trois passages) ; base où la migration est appliquée : VERT 99/0, rien laissé
 --     (empreinte du schéma et des données identique avant et après) ;
---   - contre-épreuves, une garde retirée à la fois : date ROUGE 92/5 ; droit (peut_gerer_qualite) ROUGE 62/35 ; lieu
---     (peut_acceder_promo) ROUGE 95/2 ; compte d'équipe, garde des fonctions internes ROUGE 95/2 ; compte d'équipe,
---     garde des boucles de promo ROUGE 77/20 ; actif écrit par l'étape 1 ROUGE 90/7 ; revoke des fonctions internes
---     ROUGE 96/1 ; émargement : signature d'une fiche sans nom ROUGE 95/2, clôture ROUGE 96/1, annotation ROUGE 95/2 ;
---   - retour joué hors preuve (psql -1 -f) : empreinte 265d820a… avant, 6f412e78… migration appliquée, 265d820a… après
---     le retour ; retour refusé (exception) quand le journal porte une ligne « etape1 ».
+--   - contre-épreuves, une garde retirée à la fois : date ROUGE 99/6 ; droit ROUGE 68/37 ; lieu ROUGE 103/2 ; équipe,
+--     fonctions internes ROUGE 103/2 ; équipe, boucles de promo ROUGE 84/21 ; actif écrit ROUGE 98/7 ; revoke des
+--     fonctions internes ROUGE 104/1 ; émargement : signature ROUGE 103/2, clôture ROUGE 104/1, annotation ROUGE 103/2 ;
+--     déclencheur des marques retiré ROUGE 96/9 ; drapeau conservation.effacement non remis à vide ROUGE 103/2 ;
+--   - retour joué hors preuve (psql -1 -f) : empreinte 459971c5… avant, 958f4937… migration appliquée (et après la preuve
+--     en mode appliqué), 459971c5… après le retour ; retour refusé quand le journal porte une ligne « etape1 ».
+-- Résultats de la première version (tâche 2, port 55517) : ROUGE 23/74 sans migration, VERT 97/0, VERT 92/0 appliquée ;
+-- contre-épreuves 1 à 10 ROUGES ; retour à empreinte identique (265d820a…).
 
 select length(set_config('preuve.migration', pg_read_file(:'migration'), false)) as migration_lue,
        length(set_config('preuve.retour', pg_read_file(:'retour'), false)) as retour_lu;
@@ -228,9 +230,12 @@ begin
   insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve Six', 'PREUVE', PE, true) returning id into S6;
   insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve Centre', 'PREUVE', PC, true) returning id into SC;
   insert into stagiaires (prenom, nom, promo_id, actif) values ('Anonyme', null, PA, false) returning id into SX;
-  -- (sur une base où ce lot est appliqué, la contrainte demande efface_le avec anonymise_le)
+  -- (sur une base où ce lot est appliqué, la contrainte demande efface_le avec anonymise_le, et le déclencheur des
+  -- marques demande le drapeau de la conservation)
+  perform set_config('conservation.effacement', 'on', true);
   execute format('update stagiaires set prenom = %L, anonymise_le = now() - interval ''1 day''%s where id = %s',
                  'Anonyme ' || SX, case when v_deja then ', efface_le = now() - interval ''1 day''' else '' end, SX);
+  perform set_config('conservation.effacement', '', true);
 
   -- Comptes : FO fondateur (sans fiche ni affectation), FORM formateur de PA et PD, DIR2 direction du lieu 2, E1, E2, EQ,
   -- E4, E7, E6, EC les comptes des fiches. Profils d'abord (liste blanche de la base réelle), puis comptes.
@@ -350,8 +355,13 @@ begin
     and not has_function_privilege('anon', 'public.emargement_signer(bigint, integer, text)', 'execute')
     and not has_function_privilege('anon', 'public.emargement_annoter(bigint, integer, boolean, text)', 'execute')
     and not has_function_privilege('anon', 'public.emargement_clore(bigint)', 'execute'), null);
+  perform set_config('conservation.effacement', 'on', true);  -- pour atteindre la contrainte derrière le déclencheur
   r := pg_temp.tente_blanc('update public.stagiaires set anonymise_le = now() where id = ' || S7 || ' returning id::text');
+  perform set_config('conservation.effacement', '', true);
   perform pg_temp.cas('contrainte : pas d''anonymise_le sans efface_le', r like '23514%', r);
+  r := pg_temp.tente_blanc('update public.stagiaires set efface_le = now() where id = ' || S7 || ' returning id::text');
+  perform pg_temp.cas('déclencheur : même le propriétaire ne pose pas efface_le sans le drapeau de la conservation',
+    r like '%conservation: Les marques d''effacement%', r);
   r := pg_temp.tente_blanc(format('update public.emargement_lignes set trace = null where seance_id = %s and stagiaire_id = %s returning id::text', feA, S1));
   perform pg_temp.cas('contrainte : un tracé ne s''efface pas sans signature_effacee_le (déclencheur ou contrainte)',
     r like 'P0001%' or r like '23514%', r);
@@ -426,6 +436,18 @@ begin
     perform pg_temp.cas('aucun refus n''a rien changé', pg_temp.donnees() = d1, null);
     set local role authenticated;
 
+    -- 4.2 bis Marques : l'équipe de la promo (qui peut modifier une fiche) ne les pose ni ne les retire en direct.
+    perform pg_temp.jour(null);
+    perform pg_temp.qui('FORM', PA);
+    r := pg_temp.tente_blanc(format('update public.stagiaires set efface_le = now() where id = %s returning id::text', S1));
+    perform pg_temp.cas('formateur de la promo : poser efface_le en direct refusé', r like '%conservation: Les marques d''effacement%', r);
+    r := pg_temp.tente_blanc(format('update public.stagiaires set efface_le = now(), anonymise_le = now() where id = %s returning id::text', S1));
+    perform pg_temp.cas('formateur de la promo : poser les deux marques en direct refusé', r like '%conservation: Les marques d''effacement%', r);
+    r := pg_temp.tente_blanc(format('insert into public.stagiaires (prenom, promo_id, efface_le) values (''Preuve marquée'', %s, now()) returning id::text', PA));
+    perform pg_temp.cas('formateur de la promo : créer une fiche déjà marquée refusé', r like '%conservation: Les marques d''effacement%', r);
+    r := pg_temp.tente_blanc(format('update public.stagiaires set nom = ''PREUVE BIS'' where id = %s returning id::text', S1));
+    perform pg_temp.cas('jumeau : le formateur modifie le nom de la fiche', r = 'ok ' || S1, r);
+
     -- 4.3 Lieu : le lot 5 élargira peut_gerer_qualite() à la direction ; simulé ici (sous-transaction annulée), la
     -- direction d'un autre centre reste refusée sur une promo et une fiche hors de son lieu, et ne voit que son lieu.
     perform pg_temp.jour(date '2027-12-11');
@@ -467,8 +489,10 @@ begin
     r := pg_temp.tente(format('select public.effacer_promo_etape1(%s)::text', PA));
     perform pg_temp.cas('étape 1 acceptée le 11/12/2027 : 3 fiches, 1 compte d''équipe ignoré',
       (pg_temp.res(r) ->> 'fiches')::int = 3 and (pg_temp.res(r) ->> 'comptes_equipe')::int = 1, r);
-    perform pg_temp.cas('étape 1 : emargement.effacement vide après la fonction',
-      coalesce(current_setting('emargement.effacement', true), '') = '', current_setting('emargement.effacement', true));
+    perform pg_temp.cas('étape 1 : emargement.effacement et conservation.effacement vides après la fonction',
+      coalesce(current_setting('emargement.effacement', true), '') = ''
+      and coalesce(current_setting('conservation.effacement', true), '') = '',
+      current_setting('emargement.effacement', true) || '/' || current_setting('conservation.effacement', true));
     reset role;
     perform pg_temp.cas('après l''étape 1, S1 (active) : compte, e-mails, naissance, suivi, textes, observations partis ; nom, dossier, livret, tracé restent ; actif vrai',
       pg_temp.fiche(S1) = 'profil:0 compte:0 prive:0 suivi:0 textes:0 emails:0 emobs:0 dossier:1 livret:1 traces:1 signees:1 absences:0 nom:nominatif actif:true efface:true anonymise:false',
@@ -511,6 +535,11 @@ begin
     perform pg_temp.cas('etat_conservation après l''étape 1 : 0 fiche pour l''étape 1, 3 pour l''étape 2',
       (j ->> 'a_effacer_etape1')::int = 0 and (j ->> 'a_effacer_etape2')::int = 3, j::text);
 
+    perform pg_temp.qui('FORM', PA);
+    r := pg_temp.tente_blanc(format('update public.stagiaires set efface_le = null where id = %s returning id::text', S1));
+    perform pg_temp.cas('formateur de la promo : retirer efface_le après l''étape 1 refusé', r like '%conservation: Les marques d''effacement%', r);
+    perform pg_temp.qui('FO');
+
     -- 4.5 Étape 2 : le 31/12 de la 3e année, refusée ; le 01/01, acceptée.
     perform pg_temp.jour(date '2029-12-31');
     r := pg_temp.tente(format('select public.effacer_promo_etape2(%s)::text', PA));
@@ -520,8 +549,10 @@ begin
     perform pg_temp.cas('étape 2 acceptée le 01/01/2030 : 3 fiches, 1 compte d''équipe ignoré, 3 tracés (dont SX), 2 formateurs',
       (pg_temp.res(r) ->> 'fiches')::int = 3 and (pg_temp.res(r) ->> 'comptes_equipe')::int = 1
       and (pg_temp.res(r) ->> 'signatures')::int = 3 and (pg_temp.res(r) ->> 'signatures_formateurs')::int = 2, r);
-    perform pg_temp.cas('étape 2 : emargement.effacement vide après la fonction',
-      coalesce(current_setting('emargement.effacement', true), '') = '', current_setting('emargement.effacement', true));
+    perform pg_temp.cas('étape 2 : emargement.effacement et conservation.effacement vides après la fonction',
+      coalesce(current_setting('emargement.effacement', true), '') = ''
+      and coalesce(current_setting('conservation.effacement', true), '') = '',
+      current_setting('emargement.effacement', true) || '/' || current_setting('conservation.effacement', true));
     reset role;
     perform pg_temp.cas('après l''étape 2, S1 : plus de nom, de dossier, de livret ni de tracé ; signée, actif vrai',
       pg_temp.fiche(S1) = 'profil:0 compte:0 prive:0 suivi:0 textes:0 emails:0 emobs:0 dossier:0 livret:0 traces:0 signees:1 absences:0 nom:anonyme actif:true efface:true anonymise:true',
@@ -587,12 +618,20 @@ begin
     perform pg_temp.qui('FO');
     r := pg_temp.tente(format('select public.effacer_sur_demande(%s)::text', S4));
     perform pg_temp.cas('demande sur une fiche active : acceptée', pg_temp.res(r) is not null and (pg_temp.res(r) ->> 'deja') is null, r);
-    perform pg_temp.cas('demande : emargement.effacement vide après la fonction',
-      coalesce(current_setting('emargement.effacement', true), '') = '', current_setting('emargement.effacement', true));
+    perform pg_temp.cas('demande : emargement.effacement et conservation.effacement vides après la fonction',
+      coalesce(current_setting('emargement.effacement', true), '') = ''
+      and coalesce(current_setting('conservation.effacement', true), '') = '',
+      current_setting('emargement.effacement', true) || '/' || current_setting('conservation.effacement', true));
     reset role;
     perform pg_temp.cas('après la demande, S4 : tout effacé tout de suite, actif toujours vrai (pas d''abandon)',
       pg_temp.fiche(S4) = 'profil:0 compte:0 prive:0 suivi:0 textes:0 emails:0 emobs:0 dossier:0 livret:0 traces:0 signees:1 absences:0 nom:anonyme actif:true efface:true anonymise:true',
       pg_temp.fiche(S4));
+    set local role authenticated;
+    perform pg_temp.qui('FORM', PD);
+    r := pg_temp.tente_blanc(format('update public.stagiaires set efface_le = null, anonymise_le = null where id = %s returning id::text', S4));
+    reset role;
+    perform pg_temp.cas('formateur de la promo : retirer les marques d''une fiche effacée sur demande refusé (elle resterait non signable)',
+      r like '%conservation: Les marques d''effacement%', r);
     perform pg_temp.cas('demande : une ligne « demande », cible « stagiaire n »',
       (select count(*) from effacements_journal where type = 'demande' and cible = 'stagiaire ' || S4) = 1, null);
     d1 := pg_temp.donnees();
@@ -678,9 +717,15 @@ begin
 
   -- 5. Retour : la base revient à l'identique ---------------------------------------------------------------------
   if not v_deja then
+    r := 'joué';
     if btrim(coalesce(current_setting('preuve.retour', true), ''), E' \t\r\n') <> '' then
-      execute current_setting('preuve.retour');
+      begin
+        execute current_setting('preuve.retour');
+      exception when others then
+        r := sqlstate || ' ' || sqlerrm;
+      end;
     end if;
+    perform pg_temp.cas('retour joué sans erreur', r = 'joué', r);
     execute v_empreinte into md5_apres;
     perform pg_temp.cas('retour : empreinte du schéma (droits compris) et des données identique à celle d''avant la migration',
       md5_apres = md5_avant, md5_avant || ' / ' || md5_apres);

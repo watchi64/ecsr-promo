@@ -8,7 +8,8 @@
 -- questionnaires ou registre au journal des effacements, une fiche marquée par une étape (efface_le posé sans
 -- anonymise_le, ou différent de anonymise_le), une signature effacée. Sinon il recrée à l'identique les quatre fonctions
 -- d'anonymisation (version du lot 4, droits du 05/10), emargement_signer (version du lot 4), emargement_annoter et
--- emargement_clore (versions du 23/10), et les contraintes d'origine, puis retire les marques et les fonctions de ce lot.
+-- emargement_clore (versions du 23/10), et les contraintes d'origine, puis retire les marques (et leur déclencheur) et
+-- les fonctions de ce lot.
 set local lock_timeout = '3s';
 
 do $garde$
@@ -393,5 +394,7 @@ alter table public.emargement_lignes drop column signature_effacee_le;
 alter table public.emargement_lignes
   add constraint emargement_lignes_check check ((trace is null) = (signe_le is null) and (trace is null) = (signe_par is null));
 
+drop trigger stagiaires_marques_conservation on public.stagiaires;
+drop function public._stagiaires_marques_conservation();
 alter table public.stagiaires drop constraint stagiaires_efface_avant_anonyme;
 alter table public.stagiaires drop column efface_le;

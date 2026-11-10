@@ -1866,7 +1866,7 @@ begin
   perform pg_temp.cas('inviter_compte', 'M7, jumeau : stag_n réinvité sur sa propre fiche : permis, rien ne change', c_form_n, '1', null, null,
     format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_stag_n, n),
     format('select pg_temp.etat_compte(%L)', c_stag_n), array[format('OK 1 stagiaire/false/%s/- -', n)]);
-  perform pg_temp.cas('inviter_compte', 'fiche anonymisée refusée', c_form_n, '1', null, format('update public.stagiaires set anonymise_le = now() where id = %s', v_f1),
+  perform pg_temp.cas('inviter_compte', 'fiche anonymisée refusée', c_form_n, '1', null, format('select set_config(''conservation.effacement'', ''on'', true); update public.stagiaires set efface_le = now(), anonymise_le = now() where id = %s; select set_config(''conservation.effacement'', '''', true)', v_f1),
     format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_invite, v_f1), format('select pg_temp.etat_compte(%L)', c_invite), array['~REFUS']);
   foreach v_txt in array array['a@b', 'sans-arobase', 'a b@c.d', '@c.d', 'a@.d'] loop
     perform pg_temp.cas('inviter_compte', format('adresse invalide %L refusée', v_txt), c_dir_n, '1', null, null,
