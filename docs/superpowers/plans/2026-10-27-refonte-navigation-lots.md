@@ -3,7 +3,7 @@
 Spec : `docs/superpowers/specs/2026-10-27-refonte-navigation-roles-design.md` (validée par Timy le 27/10,
 avec les 4 choix par défaut : barre du stagiaire en bas sur iPhone, indicateurs gardés par les formateurs
 pour leurs promos, pas de données nominatives au siège, cours publiés par les formateurs et contenus
-communs par le siège). Maquette de référence : `docs/maquettes/refonte-navigation.src.html` (artefact
+communs par le siège). Maquette de référence : `docs/maquettes/refonte-navigation.src.html` (dossier retiré le 10/11, à lire dans l'historique git) (artefact
 « Nouvelle navigation ECSR », version 3).
 
 La spec couvre plusieurs sous-systèmes indépendants : un plan par lot, chacun livrable, testable et

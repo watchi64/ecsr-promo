@@ -255,7 +255,7 @@ ne figurent que s'ils laissent un trou visible.
 
 - Référence : spec `docs/superpowers/specs/2026-10-27-refonte-navigation-roles-design.md` (§ 3, 4.1, 4.2, 4.5, 5),
   découpage `docs/superpowers/plans/2026-10-27-refonte-navigation-lots.md`, annexes du plan du lot 1 (R1 à R36),
-  maquette `docs/maquettes/refonte-navigation.src.html` (fonctions `stAccueil`, `stPlanning`, `stCours`, `stSuivi`,
+  maquette `docs/maquettes/refonte-navigation.src.html` (dossier retiré le 10/11, à lire dans l'historique git) (fonctions `stAccueil`, `stPlanning`, `stCours`, `stSuivi`,
   `fAujourdhui`, `fCours`, `ROLES`, `accountMenu`, `moreSheet`, `assistantSheet`).
 - Banc `http://127.0.0.1:8050/_harness.html`, Chromium (Playwright), allumage simulé comme un vrai : ligne
   `navigation_v2 = true` de la promo 1 semée dans le faux Supabase (servi depuis la mémoire, fichier non modifié),

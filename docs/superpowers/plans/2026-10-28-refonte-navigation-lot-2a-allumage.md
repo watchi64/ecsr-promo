@@ -8,7 +8,7 @@
 
 **Tech Stack:** JavaScript en modules ES sans framework, CSS, Supabase (lectures par `js/db.js`), tests `node --test`, banc d'essai `_harness.html` et Playwright (Python) pour `outils/verifier_navigation.py`.
 
-**Spec:** `docs/superpowers/specs/2026-10-27-refonte-navigation-roles-design.md` ; maquette `docs/maquettes/refonte-navigation.src.html` ; découpage `docs/superpowers/plans/2026-10-27-refonte-navigation-lots.md` ; annexes du lot 1 (`docs/superpowers/plans/2026-10-27-refonte-navigation-lot-1-coquille.md`, décisions R1 à R36) ; constats du 28/10 `docs/superpowers/plans/2026-10-28-refonte-navigation-constats.md` (tests du premier clic et inventaire des écarts, écrit en Task 0).
+**Spec:** `docs/superpowers/specs/2026-10-27-refonte-navigation-roles-design.md` ; maquette `docs/maquettes/refonte-navigation.src.html` (dossier retiré le 10/11, à lire dans l'historique git) ; découpage `docs/superpowers/plans/2026-10-27-refonte-navigation-lots.md` ; annexes du lot 1 (`docs/superpowers/plans/2026-10-27-refonte-navigation-lot-1-coquille.md`, décisions R1 à R36) ; constats du 28/10 `docs/superpowers/plans/2026-10-28-refonte-navigation-constats.md` (tests du premier clic et inventaire des écarts, écrit en Task 0).
 
 ## Global Constraints
 
