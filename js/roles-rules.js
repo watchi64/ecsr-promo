@@ -8,7 +8,7 @@
  * pas migrée (ou si les promos n'ont pas pu être chargées), la colonne manque : l'app se replie alors sur
  * `is_admin` et `role` du profil, comme avant le lot 4.
  */
-import { phraseDeRefus, PHRASE_ECHEC } from "./espaces-rules.js?v=20261110e";
+import { phraseDeRefus, PHRASE_ECHEC } from "./espaces-rules.js?v=20261111a";
 
 // Les aperçus : un fondateur les a tous, un membre de l'équipe a celui du stagiaire. Un aperçu ne fait que
 // RETIRER des droits : une valeur hors de la liste permise est ignorée.
@@ -166,11 +166,22 @@ export function messageInvitation(message, code) {
   return phrase === PHRASE_ECHEC ? "Erreur d'invitation" : phrase;
 }
 
+// Phrase d'une invitation qui a transformé le compte d'un ancien stagiaire (sans fiche) en compte du personnel : au vouvoiement
+// (texte destiné à l'équipe). Le compte existait déjà : la personne se connecte comme avant, avec son mot de passe.
+export function phraseCompteTransforme(role) {
+  const quoi = role === "direction" ? "un compte de la direction du centre"
+    : role === "siege" ? "un compte du siège du réseau"
+    : "un compte de formateur";
+  return `Le compte de cet ancien stagiaire est devenu ${quoi}. La personne se connecte comme avant, avec son mot de passe.`;
+}
+
 // Phrase d'une invitation acceptée par la base, d'après ce que rend inviter_compte : `cree` (le profil vient d'être créé) et
 // `affecte` (nombre d'affectations ajoutées). « Rien n'a changé » seulement quand ni l'un ni l'autre : un compte qui existait
 // et vient de gagner une promo a bien changé (relecture finale, I1). `ton` : le type du toast.
 export function messageInvitationReussie({ resultat, email, v2 = true } = {}) {
   const r = resultat || {};
+  // Suite du lot 5 : l'adresse d'un ancien stagiaire sans fiche a vu son compte transformé en compte du personnel.
+  if (r.transforme === true) return { texte: phraseCompteTransforme(r.role), ton: "success" };
   if (r.cree !== false) {
     // L'équipe est vouvoyée (décision du 10/11) ; la phrase de l'ancienne navigation reste celle de main.
     return { texte: v2 ? "Ajouté à la liste des invitations : " + email + ". Partagez-lui l'URL."

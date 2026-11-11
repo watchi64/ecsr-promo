@@ -1,17 +1,17 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261110e";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261110e";
-import { compteDansEquite } from "./passage-rules.js?v=20261110e";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261110e";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261110e";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261110e";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261110e";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111a";
+import { compteDansEquite } from "./passage-rules.js?v=20261111a";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111a";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111a";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111a";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111a";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261110e";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261110e";
-import { effectifDesFiches } from "./centre-stats.js?v=20261110e";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261110e";
+} from "./promo-rules.js?v=20261111a";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111a";
+import { effectifDesFiches } from "./centre-stats.js?v=20261111a";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111a";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -598,6 +598,35 @@ export async function listBenevolesAPurger() {
 export async function purgerBenevoles(ids) {
   const { data, error } = await supabase.rpc("purger_benevoles", { p_ids: ids });
   if (error) throw error;
+  return data;
+}
+
+// Suite du lot 5 : les mêmes effacements pour la direction du centre, sur la promo ou le centre qu'elle désigne (et non sur la promo
+// affichée). La base décide (direction du lieu, formateur de la promo ou fondateur ; 42501 sinon) : le refus part tel quel avec son
+// code, l'appelant le dit par phraseDeRefus. L'état et la purge ne touchent pas aux fiches lues en mémoire ; l'anonymisation, si.
+export async function etatAnonymisationPromoDe(promoId) {
+  const { data, error } = await supabase.rpc("etat_anonymisation_promo", { p_promo: promoId });
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
+export async function anonymiserPromoDe(promoId) {
+  const { data, error } = await supabase.rpc("anonymiser_promo", { p_promo: promoId });
+  if (error) throw erreurDeBase(error);
+  invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
+  return data;
+}
+
+export async function listBenevolesAPurgerDuCentre(lieuId) {
+  const { data, error } = await supabase.rpc("benevoles_a_purger", { p_lieu: lieuId });
+  if (error) throw erreurDeBase(error);
+  return data || [];
+}
+
+export async function purgerBenevolesDuCentre(ids, lieuId) {
+  const { data, error } = await supabase.rpc("purger_benevoles", { p_ids: ids, p_lieu: lieuId });
+  if (error) throw erreurDeBase(error);
   return data;
 }
 

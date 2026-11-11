@@ -18,22 +18,22 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   setMyAnonymousNotes,
-} from "../db.js?v=20261110e";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261110e";
-import { confirmer, demander } from "../confirmer.js?v=20261110e";
-import { icon } from "../icons.js?v=20261110e";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261110e";
-import { moduleVisible } from "../modules-etat.js?v=20261110e";
-import { renderModulesSection } from "./modules-reglage.js?v=20261110e";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261110e";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261110e";
-import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261110e";
-import { pointsARetenir } from "../accueil-rules.js?v=20261110e";
-import { dateCourte, etatFinDePromo } from "../effacement-rules.js?v=20261110e";
-import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261110e";
-import { blocHabillage } from "../habillage-choix.js?v=20261110e";
-import { habillageCourant } from "../habillage.js?v=20261110e";
-import { nomBenevole } from "../planning-lecture.js?v=20261110e";
+} from "../db.js?v=20261111a";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111a";
+import { confirmer, demander } from "../confirmer.js?v=20261111a";
+import { icon } from "../icons.js?v=20261111a";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261111a";
+import { moduleVisible } from "../modules-etat.js?v=20261111a";
+import { renderModulesSection } from "./modules-reglage.js?v=20261111a";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111a";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261111a";
+import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261111a";
+import { pointsARetenir } from "../accueil-rules.js?v=20261111a";
+import { dateCourte, etatFinDePromo, questionAnonymiserPromo, questionPurgerBenevoles } from "../effacement-rules.js?v=20261111a";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111a";
+import { blocHabillage } from "../habillage-choix.js?v=20261111a";
+import { habillageCourant } from "../habillage.js?v=20261111a";
+import { nomBenevole } from "../planning-lecture.js?v=20261111a";
 
 // ====== SECTION Accès & invitations ======
 
@@ -479,12 +479,7 @@ async function renderDonneesSection(rerender) {
     if (fin.bouton) {
       blocPromo.appendChild(el("button", { class: "btn danger", onClick: async (e) => {
         const bouton = e.currentTarget;
-        const nom = etat.nom || "cette promo";
-        const saisie = await demander({ titre: `Anonymiser toutes les fiches de « ${nom} » ?`,
-          phrase: "Comptes, e-mails, dates de naissance, livrets EPCF, dossiers professionnels et commentaires sont effacés ; "
-            + "les résultats restent sans nom. Irréversible.",
-          libelle: "Pour confirmer, tapez ANONYMISER", oui: "Anonymiser",
-          verifier: (v) => v.trim() === "ANONYMISER", erreur: "Saisie différente : rien n'est effacé." });
+        const saisie = await demander(questionAnonymiserPromo(etat.nom));
         if (typeof saisie !== "string") return;
         bouton.disabled = true;
         try {
@@ -518,8 +513,7 @@ async function renderDonneesSection(rerender) {
     blocBnv.appendChild(el("button", { class: "btn danger", onClick: async (e) => {
       const bouton = e.currentTarget;
       const n = benevoles.length;
-      if (!(await confirmer({ titre: `Supprimer ${n} élève${n > 1 ? "s" : ""} bénévole${n > 1 ? "s" : ""} et leurs coordonnées ?`,
-        phrase: "Ils disparaissent aussi des anciens créneaux du planning. Irréversible.", oui: "Supprimer" }))) return;
+      if (!(await confirmer(questionPurgerBenevoles(n)))) return;
       bouton.disabled = true;
       try {
         const nb = await purgerBenevoles(benevoles.map((b) => b.id));
