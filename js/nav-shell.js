@@ -170,13 +170,6 @@ onAssistantChange((ouvert) => {
 // bouton, ou à son équivalent affiché si la coquille a changé entre-temps (js/nav-fenetre.js).
 const basculerDepuis = (bouton) => basculerAssistant(() => rendreFocus(bouton, "assistant"));
 
-// Depuis le tiroir « Plus » : le tiroir se ferme (le focus revient à « Plus ») et l'assistant s'ouvre, puis
-// rend le focus à « Plus » en se fermant ; déjà ouvert derrière le tiroir, il le reste.
-function assistantDepuisLeTiroir(plus) {
-  fermerFenetre();
-  if (!assistantOuvert()) basculerAssistant(() => rendreFocus(plus, "plus"));
-}
-
 // Bouton « Signaler un problème » (pied de barre de l'équipe, tiroir « Plus ») : `geste(bouton)` ouvre la
 // fenêtre (js/signalement.js). Sa pastille et son nom suivent l'état des signalements : les nouveaux chez
 // le fondateur hors aperçu, ceux de la personne qui ont avancé chez les autres.
@@ -509,7 +502,7 @@ ORDINATEUR.addEventListener("change", appliquerColonne);
 // ----- Téléphone : barre du bas et tiroir « Plus » -----
 
 // `laterale` : l'espace a la barre latérale (équipe, direction, siège) ; « Plus » y est toujours, même sans autre page à ranger :
-// l'Assistant, « Signaler un problème » et le compte sont dans son tiroir.
+// « Signaler un problème » est dans son tiroir (l'Assistant et le compte sont en haut de l'écran).
 function barreDuBas(barre, plus, laterale) {
   const cases = barre.map((e) => {
     const lien = el("a", { href: "#/" + e.route, class: "nav-case", "data-entree": e.id },
@@ -530,33 +523,22 @@ function boutonPlus() {
 
 function ouvrirPlus(bouton) {
   if (!montee) return;
-  const { entrees, nom, initiales, actualiser, espace } = montee;
+  const { entrees, espace } = montee;
   const allumee = entreeActive(montee.route, entrees, espace);
   const autres = entrees.filter((e) => montee.plus.includes(e.id));
   const lien = (e) => prevoirATraiter(reperer(el("a", {
     href: "#/" + e.route, class: "nav-fenetre-lien", "data-entree": e.id, "aria-current": e.id === allumee ? "page" : null,
   }, iconeDe(e.icone), el("span", { class: "nav-fenetre-texte" }, e.libelle)), e), e);
-  const compte = el("button", {
-    type: "button", class: "nav-fenetre-lien", "data-nav-action": "compte", "aria-haspopup": "dialog",
-    title: nomDuBoutonCompte({ nom }),
-  }, avatar(initiales), el("span", { class: "nav-fenetre-texte" }, "Mon compte"));
-  // Le menu du compte prend la place du tiroir ; Échap rend alors le focus à « Plus ».
-  compte.addEventListener("click", () => {
-    fermerFenetre({ focus: false });
-    ouvrirMenuCompte(bouton, { actualiser, entrees, espace });
-  });
+  // L'Assistant et le compte n'y sont plus (11/11/2026, « une chose, un endroit ») : ils sont en haut de l'écran.
   ouvrirFenetre({
     nom: "plus", ancre: bouton, etiquette: "Plus", classe: "nav-tiroir",
     contenu: [
       autres.length ? el("p", { class: "nav-fenetre-section" }, "Autres pages") : null,
       groupes(autres, "plus", lien),
       el("p", { class: "nav-fenetre-section" }, "Outils"),
-      boutonAssistant("nav-fenetre-lien", () => assistantDepuisLeTiroir(bouton),
-        deco(icon.chat()), el("span", { class: "nav-fenetre-texte" }, "Assistant")),
       // La fenêtre de signalement remplace le tiroir ; le focus reviendra à « Plus ».
       boutonSignaler("nav-fenetre-lien", () => ouvrirSignalement({ ancre: bouton }),
         deco(icon.signaler()), el("span", { class: "nav-fenetre-texte" }, "Signaler un problème")),
-      compte,
     ],
   });
   // La pastille de « Cours et QCM » et la phrase « à traiter » de ce tiroir : ce que les comptes disent à cet instant.

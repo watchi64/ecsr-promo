@@ -23,6 +23,18 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // Liste des thèmes compacte et « Plus » allégé (11/11/2026, essai de Timy sur iPhone). Pour tous : neutre.
+  {
+    id: "2026-11-11-themes-compacts",
+    date: "2026-11-11",
+    pour: "tous",
+    titre: "Une ligne par thème dans Cours et QCM",
+    resume: "Chaque thème tient maintenant sur une ligne courte : son numéro, son titre, son état, et une seule pastille "
+          + "pour lire le cours ou ouvrir le QCM. Sur téléphone, une dizaine de thèmes tiennent à l'écran au lieu de deux. "
+          + "Pour l'équipe, l'ouverture de l'examen aux stagiaires, le statut et la date du thème passent par le bouton « … » "
+          + "au bout de la ligne. Le menu « Plus » du téléphone ne répète plus l'Assistant ni le compte, déjà en haut de l'écran.",
+    ou: { label: "Cours et QCM", route: "themes" },
+  },
   // Conservation des données (Qualiopi Q5), datée du jour de la mise en ligne. Pour l'équipe seulement : les boutons
   // d'effacement quittent Réglages (ex-Paramètres) pour la page Qualiopi, que seul le fondateur ouvre.
   {
