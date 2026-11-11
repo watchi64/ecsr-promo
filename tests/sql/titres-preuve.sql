@@ -1291,9 +1291,9 @@ begin
     pg_temp.affecter(c_auth, 'formateur', v_pa, null, '999999999'), 'ERREUR 23503');
   -- La clé étrangère « restrict » refuse la suppression : 23001 (PostgreSQL 18, base locale) ou 23503 (17.6, production) ; le refus compte.
   perform pg_temp.attendre('affectation', 'supprimer un titre encore porté : refusé (restrict : 23001 ou 23503)',
-    regexp_replace(pg_temp.essai(format('delete from public.titres where id = %s', coalesce(v_p2, '0'))), '2300[13]$', '2300x'), 'ERREUR 2300x');
+    regexp_replace(pg_temp.essai(format('delete from public.titres where id = %s', coalesce(v_p2, '0'))), '(23001|23503)$', '23x'), 'ERREUR 23x');
   perform pg_temp.attendre('affectation', 'supprimer un titre fixe encore porté : refusé (restrict : 23001 ou 23503)',
-    regexp_replace(pg_temp.essai($q$delete from public.titres where fixe and niveau = 'promo'$q$), '2300[13]$', '2300x'), 'ERREUR 2300x');
+    regexp_replace(pg_temp.essai($q$delete from public.titres where fixe and niveau = 'promo'$q$), '(23001|23503)$', '23x'), 'ERREUR 23x');
 
   -- 7 bis. Un titre porté (ou fixe) ne change ni de niveau, ni de centre, ni de caractère fixe.
   perform pg_temp.attendre('titres', 'titre porté : changer son niveau est refusé (23514)',
