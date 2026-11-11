@@ -57,6 +57,13 @@ begin
     (55, 'orphelin', 'preuve8.orphelin@exemple.invalid', 'stagiaire');
   insert into public.user_profiles (email, role, is_admin, stagiaire_id)
     select email, role, false, null from perso where nom in ('t_chef', 't_vide', 't_qualite', 't_dirs', 'orphelin');
+  -- Un camarade de la promo 1 qui a masqué ses notes (anonymous_notes), posé en propriétaire.
+  declare v_fiche_anon integer;
+  begin
+    insert into public.stagiaires (prenom, nom, ordre, promo_id) values ('Preuve8 anonyme', 'PREUVE', 991, 1) returning id into v_fiche_anon;
+    insert into public.user_profiles (email, role, is_admin, stagiaire_id, anonymous_notes)
+      values ('preuve8.anonyme@exemple.invalid', 'stagiaire', false, v_fiche_anon, true);
+  end;
   v_chef := pg_temp.calcul(format('insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values (''Preuve8 chef de centre'', ''centre'', %s, %L::jsonb, ''preuve'') returning id::text',
     v_l1, '{"promos":"voir","stagiaires":"voir","equipe":"modifier"}'));
   v_vide := pg_temp.calcul(format('insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values (''Preuve8 titre vide'', ''centre'', %s, %L::jsonb, ''preuve'') returning id::text',
@@ -436,7 +443,7 @@ declare
   v_l1 integer := (select lieu_id from public.promos where id = 1);
   e_promos text := 'preuve8.t.promos@exemple.invalid';
   v_titre_promos text;
-  n_dir text; n_form_l1 text; n_form_autre text; n_stag text;
+  n_dir text; n_form_l1 text; n_form_autre text; n_stag text; n_stag_vis text;
   r record;
   v_avant text; v_apres text;
 begin
@@ -455,6 +462,13 @@ begin
   n_form_l1 := pg_temp.calcul(format($q$select count(*)::text from public.affectations a join public.promos p on p.id = a.promo_id where a.role = 'formateur' and p.lieu_id = %s$q$, v_l1));
   n_form_autre := pg_temp.calcul(format($q$select count(*)::text from public.affectations a join public.promos p on p.id = a.promo_id where a.role = 'formateur' and p.lieu_id <> %s$q$, v_l1));
   n_stag := pg_temp.calcul($q$select count(*)::text from public.stagiaires where promo_id = 1$q$);
+  -- Ce que lit stag_n (sans case Notes) : sa fiche et les fiches de la promo dont aucun profil n'a masqué les notes (règle d'anonymat).
+  -- Le camarade anonyme est posé par poser_titres_gestion : la règle est jugée aussi sur la base locale.
+  n_stag_vis := pg_temp.calcul($q$select count(*)::text from public.stagiaires s where s.promo_id = 1
+    and (s.id = (select u.stagiaire_id from public.user_profiles u where u.email = 'preuve7.eq.stag.n@exemple.invalid')
+         or not exists (select 1 from public.user_profiles u2 where u2.stagiaire_id = s.id and u2.anonymous_notes))$q$);
+  perform pg_temp.verifier('lectures', 'un camarade de la promo 1 a masqué ses notes : stag_n en lit une de moins que le nombre de fiches (règle d''anonymat jugée)',
+    n_stag_vis ~ '^[0-9]+$' and n_stag ~ '^[0-9]+$' and n_stag_vis::integer = n_stag::integer - 1, format('visibles %s, fiches %s', n_stag_vis, n_stag));
   perform pg_temp.verifier('lectures', 'départ : le propriétaire voit des directions, des formateurs dans le centre 1 et dans un autre centre, des stagiaires dans la promo 1',
     n_dir ~ '^[1-9][0-9]*$' and n_form_l1 ~ '^[1-9][0-9]*$' and n_form_autre ~ '^[1-9][0-9]*$' and n_stag ~ '^[1-9][0-9]*$',
     format('directions %s, formateurs du centre %s, formateurs ailleurs %s, stagiaires %s', n_dir, n_form_l1, n_form_autre, n_stag));
@@ -497,7 +511,7 @@ begin
   perform pg_temp.lire_n('t_secr rend 0 identifiant de notes visibles (pas de case Notes)', 't_secr', '1', 'notes_visibles', '0');
   perform pg_temp.lire_n('t_interv rend 0 identifiant de notes visibles', 't_interv', '1', 'notes_visibles', '0');
   perform pg_temp.lire_n('t_rh rend 0 identifiant de notes visibles', 't_rh', '1', 'notes_visibles', '0');
-  perform pg_temp.lire_n('stag_n (membre de la promo 1) lit toujours la liste de la promo', 'stag_n', '1', 'notes_visibles', n_stag);
+  perform pg_temp.lire_n('stag_n (membre de la promo 1) lit la liste de la promo sans les camarades qui ont masqué leurs notes', 'stag_n', '1', 'notes_visibles', n_stag_vis);
   perform pg_temp.lire_n('form_n (Notes et examens : Modifier) lit la liste de la promo', 'form_n', '1', 'notes_visibles', n_stag);
   -- Les titres fixes : mêmes nombres qu'avant la migration pour chaque lecture (relevé d'avant comparé au relevé d'après).
   if p_compare then

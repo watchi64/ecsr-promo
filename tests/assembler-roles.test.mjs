@@ -1091,6 +1091,7 @@ test("la migration 5 : retirer_titre fermée à public, anon et service_role, ou
     const re = new RegExp(`^alter policy ${nom} on public\.affectations\n  [^\n]*;$`, "m");
     assert.equal(re.exec(r)?.[0], re.exec(m3)?.[0], `${nom} : expression de la migration 3`);
   }
+  assert.ok(m.includes("v_email = v_moi and (v_niveau <> 'promo' or not v_fixe) and not est_fondateur()"), "jamais sur soi : l'exemption porte sur le titre fixe Formateur");
   // Partie C : trois fonctions réécrites par fragments (le geste promos.lire, les notes visibles, le personnel) et deux règles de lecture.
   for (const morceau of ["'promos.lire'", "geste_promo(promo_courante(), 'notes.lire')", "membre_stagiaire(promo_courante())", "geste_reseau('directions.lire')"]) {
     assert.ok(m.includes(morceau), `fragment de la partie C : ${morceau}`);

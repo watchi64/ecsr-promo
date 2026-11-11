@@ -57,8 +57,9 @@ begin
       raise exception 'titres: Réservé au fondateur.' using errcode = '42501';
     end if;
   end if;
-  -- Jamais sur soi : la directrice qui forme retire son propre Formateur, le fondateur (hors aperçu) retire ce qu'il veut.
-  if v_email = v_moi and v_niveau <> 'promo' and not est_fondateur() then
+  -- Jamais sur soi : la seule exception est la directrice qui forme, qui retire son propre titre FIXE Formateur (et non un titre de promo
+  -- quelconque : un titre non fixe, retirable à la migration 6, reste soumis à la règle) ; le fondateur (hors aperçu) retire ce qu'il veut.
+  if v_email = v_moi and (v_niveau <> 'promo' or not v_fixe) and not est_fondateur() then
     raise exception 'titres: Vous ne pouvez pas retirer votre propre titre.' using errcode = '42501';
   end if;
   -- L'effet : les lignes de l'adresse (casse ignorée) qui portent ce titre, sur les promos du centre, sur le centre ou sans portée.
@@ -202,10 +203,17 @@ begin
    where p.schemaname = 'public' and p.tablename = 'affectations' and p.policyname = 'affectations_lecture';
   select p.qual into v_prof from pg_policies p
    where p.schemaname = 'public' and p.tablename = 'user_profiles' and p.policyname = 'user_profiles_lecture';
-  if v_aff is null or v_aff not like '%est_direction(%' then
-    raise exception 'titres_5_fermetures : la règle affectations_lecture est absente ou n''est plus celle du lot 4 (elle devrait citer est_direction) ; rien n''est changé';
+  -- Le texte en vigueur doit être celui que la migration remplace en entier (sinon une retouche faite ailleurs serait défaite sans bruit) :
+  -- chaque morceau attendu est présent, et aucun morceau de la version nouvelle.
+  if v_aff is null or v_aff not like '%est_direction(%' or v_aff not like '%est_formateur(%' or v_aff not like '%est_siege()%'
+     or v_aff not like '%est_fondateur()%' or v_aff like '%geste_%' or v_aff like '%_fixe(%' then
+    raise exception 'titres_5_fermetures : la règle affectations_lecture est absente ou n''est plus celle du lot 4 ; rien n''est changé';
   end if;
-  v_n := case when v_prof is null then 0 else (length(v_prof) - length(replace(v_prof, 'est_siege()', ''))) / length('est_siege()') end;
+  if v_prof is null or v_prof not like '%promo_par_defaut()%' or v_prof not like '%est_fondateur()%' or v_prof not like '%invited_by_email%'
+     or v_prof not like '%promo_courante()%' or v_prof not like '%stagiaires.lire%' or v_prof like '%directions.lire%' then
+    raise exception 'titres_5_fermetures : la règle user_profiles_lecture est absente ou n''est plus celle de la migration 3 ; rien n''est changé';
+  end if;
+  v_n := (length(v_prof) - length(replace(v_prof, 'est_siege()', ''))) / length('est_siege()');
   if v_n <> 1 then
     raise exception 'titres_5_fermetures : la règle user_profiles_lecture cite est_siege() % fois (une seule attendue) ; rien n''est changé', v_n;
   end if;
