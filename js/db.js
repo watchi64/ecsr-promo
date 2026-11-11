@@ -1,17 +1,17 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111a";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111a";
-import { compteDansEquite } from "./passage-rules.js?v=20261111a";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111a";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111a";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111a";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111a";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111b";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111b";
+import { compteDansEquite } from "./passage-rules.js?v=20261111b";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111b";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111b";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111b";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111b";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261111a";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111a";
-import { effectifDesFiches } from "./centre-stats.js?v=20261111a";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111a";
+} from "./promo-rules.js?v=20261111b";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111b";
+import { effectifDesFiches } from "./centre-stats.js?v=20261111b";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111b";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -1129,7 +1129,7 @@ export async function uploadQcmImage(file, qcmId, questionId) {
 export async function proposerQuestionsIa(qcmId, nombre, partie) {
   const { data } = await supabase.auth.getSession();
   const jeton = data?.session?.access_token;
-  if (!data?.session) throw new Error("Reconnecte-toi pour utiliser l'IA.");
+  if (!data?.session) throw new Error("Reconnectez-vous pour utiliser l'IA.");
   const entetes = { "Content-Type": "application/json", apikey: SUPABASE_KEY, Authorization: `Bearer ${jeton}` };
   // La promo affichée : la fonction juge le droit de formateur sur elle, comme la base pour l'app (un compte formateur
   // d'une autre promo que celle de sa fiche, relecture finale, I4). L'aperçu, lui, ne part pas vers les fonctions Edge.
@@ -2125,7 +2125,7 @@ export async function lireDonneesQualiopi(promoId) {
 export async function createQcmSignalement({ questionId, motif, commentaire, optionId, optionTexte }) {
   const { data: { user } } = await supabase.auth.getUser();
   const email = user?.email;
-  if (!email) throw new Error("Session expirée : reconnecte-toi pour signaler.");
+  if (!email) throw new Error("Session expirée : il faut se reconnecter pour contester la question.");
   const row = {
     question_id: questionId,
     email,
@@ -2282,7 +2282,7 @@ export async function traiterSignalementApp(id, { statut, reponse }) {
 export async function supprimerSignalementApp(id) {
   const { data, error } = await supabase.from("signalements_app").delete().eq("id", id).select("id");
   if (error) throw erreurSignalement(error);
-  if (!data || !data.length) throw new Error("Ce signalement n'a pas pu être supprimé. Actualise la page et réessaie.");
+  if (!data || !data.length) throw new Error("Ce problème signalé n'a pas pu être supprimé. Rechargez la page et réessayez.");
 }
 
 // === Émargement (spec 2026-10-23) ===
@@ -2493,7 +2493,7 @@ export async function lireOuverturesQuestionnaires() {
     const code = String(error.code ?? "");
     if (code === "PGRST205" || code === "42P01" || /could not find the table|relation .* does not exist/i.test(String(error.message ?? ""))) return null;
     if (code === "42501") throw new Error("Réservé à la gestion de la qualité : ce compte n'a pas ce droit.");
-    throw new Error("Les questionnaires n'ont pas pu être lus : vérifie ta connexion, puis réessaie.");
+    throw new Error("Les questionnaires n'ont pas pu être lus : vérifiez votre connexion, puis réessayez.");
   }
   return Array.isArray(data) ? data : [];
 }
@@ -2551,7 +2551,7 @@ export async function ajouterEntreeRegistre(champs) {
 export async function modifierEntreeRegistre(id, champs) {
   const { data, error } = await supabase.from("registre_qualite").update(champsRegistre(champs)).eq("id", id).select(COLONNES_REGISTRE);
   if (error) throw erreurRegistre(error);
-  if (!data || !data.length) throw new Error("Cette entrée n'a pas pu être enregistrée. Actualise la page et réessaie.");
+  if (!data || !data.length) throw new Error("Cette entrée n'a pas pu être enregistrée. Rechargez la page et réessayez.");
   return data[0];
 }
 

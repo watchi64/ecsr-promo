@@ -19,22 +19,22 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, mesAffectations, oublierPromo, getPromoCourante, getMesPromos, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo,
-} from "./db.js?v=20261111a";
+} from "./db.js?v=20261111b";
 import {
   LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo, etiquetteBadge,
-} from "./roles-rules.js?v=20261111a";
+} from "./roles-rules.js?v=20261111b";
 import {
   LIBELLES_ESPACE, ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, porteSansPromo, decisionPorteSansPromo,
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
-} from "./espaces-rules.js?v=20261111a";
-import { peutQuitter } from "./navigation.js?v=20261111a";
-import { el, toast, displayStagiaire, isoDate } from "./utils.js?v=20261111a";
-import { icon } from "./icons.js?v=20261111a";
-import { construirePastille } from "./promo-pastille.js?v=20261111a";
-import { pagePersonnelle, lireAdresse } from "./route-rules.js?v=20261111a";
-import { etatSignalements } from "./signalement-etat.js?v=20261111a";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261111a";
-import { libellePastille } from "./nouveautes.js?v=20261111a";
+} from "./espaces-rules.js?v=20261111b";
+import { peutQuitter } from "./navigation.js?v=20261111b";
+import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261111b";
+import { icon } from "./icons.js?v=20261111b";
+import { construirePastille } from "./promo-pastille.js?v=20261111b";
+import { pagePersonnelle, lireAdresse } from "./route-rules.js?v=20261111b";
+import { etatSignalements } from "./signalement-etat.js?v=20261111b";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261111b";
+import { libellePastille } from "./nouveautes.js?v=20261111b";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -84,6 +84,11 @@ export function isStagiaire() { return droits().stagiaire; }
 // Gérer la promo (stagiaires, modules, équipe, données personnelles) : formateur, direction, administrateur. Écrire dans le
 // planning, les notes, les évaluations ou les examens reste isAdmin() : la direction lit sans y écrire.
 export function isEquipe()    { return droits().equipe; }
+// Décision du 10/11 : l'app tutoie les stagiaires et vouvoie l'équipe (formateurs, direction, siège, fondateur), car c'est
+// leur outil de travail et ses écrans s'adressent aussi à des centres clients. Pour un texte d'un écran partagé :
+// `selonPublic("Touche ta ligne", "Touchez votre ligne")`. L'aperçu « Stagiaire » du fondateur tutoie, comme le stagiaire.
+export function selonPublic(tu, vous) { return isStagiaire() ? tu : vous; }
+
 // Rédiger les contenus communs (cours de thème, questions de QCM) : le siège, un formateur administrateur ; jamais la direction
 // (D13, ruling R1). Lu sur les droits avant la bride, que peutRedigerContenus applique elle-même.
 export function isRedacteur() { return peutRedigerContenus({ droits: droitsNonBrides(), espace: getEspace() }); }
@@ -277,18 +282,30 @@ export function setViewAs(role) {
   updateBadge();
 }
 
-/** Renvoie le prénom lié au profil (stagiaire ou prof), ou l'email pour admin pur. */
+/** La signature enregistrée en base (« qui a modifié ») : « M. Lucie » pour un stagiaire (signatureStagiaire,
+ *  le format que l'effacement des données retrouve), le nom du formateur tel que l'équipe l'a saisi, ou l'e-mail
+ *  pour un compte sans fiche. Pour l'afficher : getProfileNom. */
 export function getProfileWho() {
   if (!currentProfile) return null;
   if (currentProfile.stagiaire_id && stagiaires) {
     const s = stagiaires.find((x) => x.id === currentProfile.stagiaire_id);
-    if (s) return displayStagiaire(s);
+    if (s) return signatureStagiaire(s);
   }
   if (currentProfile.prof_id && profs) {
     const p = profs.find((x) => x.id === currentProfile.prof_id);
     if (p) return p.nom;
   }
   return currentUser?.email || null;
+}
+
+/** Le nom de la personne connectée, tel que les écrans l'affichent : « Lucie M. » pour un stagiaire (displayStagiaire),
+ *  sinon comme getProfileWho. */
+export function getProfileNom() {
+  if (currentProfile?.stagiaire_id && stagiaires) {
+    const s = stagiaires.find((x) => x.id === currentProfile.stagiaire_id);
+    if (s) return displayStagiaire(s);
+  }
+  return getProfileWho();
 }
 
 // === Lifecycle ===
@@ -396,7 +413,7 @@ export async function initAuth() {
       await refreshProfile();
       if (!currentProfile) {
         // Connecté mais pas dans user_profiles → kick out
-        await refuserSession("Ton compte n'est plus autorisé. Demande une invitation.");
+        await refuserSession("Ce compte n'est plus autorisé. Une nouvelle invitation est nécessaire.");
       } else {
         // L'espace est fixé ici, avant la décision de navigation (D4) ; la direction entre dans son centre (D6).
         fixerEspace();
@@ -440,7 +457,7 @@ export async function initAuth() {
         await Promise.all([loadDirectories(), contexte ? lireAffectations() : null]);
         await refreshProfile();
         if (!currentProfile) {
-          await refuserSession("Email non invité. Demande à un admin de te whitelister.");
+          await refuserSession("Cette adresse e-mail n'a pas été invitée. Une invitation de l'équipe de formation est nécessaire.");
         } else {
           fixerEspace();
           // L'espace a changé sous une session ouverte (affectation ajoutée ou retirée entre deux renouvellements du jeton) :
@@ -487,7 +504,7 @@ function updateBadge() {
   if (pastille) slot.appendChild(pastille);
   slot.classList.toggle("avec-pastille", !!pastille);
 
-  const who = getProfileWho() || currentUser.email;
+  const who = getProfileNom() || currentUser.email;
   // Le rôle réel sur la promo affichée (mes_promos), pas l'ancien `role` du profil : une direction n'est pas « formateur »,
   // un compte cumulé est formateur sur sa promo de formateur (roles-rules.js, etiquetteBadge).
   const { libelle: roleLabel, classe: roleClasse } = etiquetteBadge({ profil: currentProfile, promo: getPromoCourante() });
@@ -648,7 +665,7 @@ function boutonsSignalement(fermer) {
   const signaler = el("button", { class: "btn full sg-entree-compte", type: "button", "data-sg-entree": "compte", "aria-label": nom,
     onClick: () => {
       fermer();
-      import("./signalement.js?v=20261111a").then((m) => m.ouvrirSignalement({ ancre: document.querySelector(".admin-badge") }));
+      import("./signalement.js?v=20261111b").then((m) => m.ouvrirSignalement({ ancre: document.querySelector(".admin-badge") }));
     } }, icon.signaler(), "Signaler un problème", texte ? el("span", { class: "sg-pastille", "aria-hidden": "true" }, texte) : null);
   if (!fondateurHorsApercu()) return [signaler];
   const nouveaux = libellePastille(etat.nouveaux);
@@ -680,7 +697,7 @@ function openProfileMenu() {
     el("p", { class: "muted", style: "margin:0 0 1.2rem;font-size:0.85rem" },
       "Rôle : ", el("strong", {}, currentProfile?.role === "prof" ? "formateur" : (currentProfile?.role || "?")),
       currentProfile && (currentProfile.stagiaire_id || currentProfile.prof_id)
-        ? el("span", {}, " · profil : ", el("strong", {}, getProfileWho() || "?"))
+        ? el("span", {}, " · profil : ", el("strong", {}, getProfileNom() || "?"))
         : null,
     ),
     persoBtn,
@@ -690,7 +707,7 @@ function openProfileMenu() {
     logoutBtn,
     el("button", { class: "gate-link compte-legal", type: "button", onClick: () => {
       backdrop.remove();
-      import("./legal.js?v=20261111a").then((m) => m.ouvrirInformationsLegales());
+      import("./legal.js?v=20261111b").then((m) => m.ouvrirInformationsLegales());
     } }, "Informations légales et données personnelles"),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer"),

@@ -10,7 +10,7 @@ import {
 } from "../js/modules.js";
 import { purger, STORAGE_SOUS_ONGLET } from "../js/nouveautes.js";
 import {
-  MODULES, GROUPES, ROUTES_SOCLE, MODULE_DE_ROUTE, MODULE_DE_SOUS_ONGLET,
+  MODULES, GROUPES, GROUPE_CCP1, GROUPE_CCP2, ROUTES_SOCLE, MODULE_DE_ROUTE, MODULE_DE_SOUS_ONGLET,
   REGLAGE_OUVERT_AUX_FORMATEURS,
 } from "../js/modules-data.js";
 import { NOUVEAUTES } from "../js/nouveautes-data.js";
@@ -188,7 +188,7 @@ eq(typeof REGLAGE_OUVERT_AUX_FORMATEURS, "boolean", "drapeau booléen");
 
 // 11 bis. Chantier D : barre simple et onglet CCP2
 eq(MODULE_DE_ROUTE.ccp2, "ccp2", "CCP2 : route gouvernée par son module");
-eq(MODULES.find((m) => m.cle === "ccp2")?.groupe, "CCP2", "CCP2 : son groupe dans le réglage");
+eq(MODULES.find((m) => m.cle === "ccp2")?.groupe, GROUPE_CCP2, "CCP2 : son groupe dans le réglage");
 eq(MODULES.find((m) => m.cle === "livret").parent, undefined, "livret : plus rangé dans Notes");
 eq(MODULE_DE_SOUS_ONGLET["mon-suivi"].livret, "livret", "livret : sous-onglet de Mon espace");
 eq(STORAGE_SOUS_ONGLET.themes, "themes.subtab", "Cours : sous-onglet mémorisé joignable");
@@ -196,9 +196,34 @@ eq(MODULES.find((m) => m.cle === "themes").nom, "Cours", "Thèmes s'affiche Cour
 const nomsAffiches = MODULES.map((m) => m.nom);
 eq(new Set(nomsAffiches).size, nomsAffiches.length, "noms affichés uniques dans le réglage");
 
+// 11 ter. Les mots du lot D (décisions du 10/11) : un nom par objet, les sigles définis à leur première apparition.
+const module_ = (cle) => MODULES.find((m) => m.cle === cle);
+eq(GROUPE_CCP1, "CCP1 (certificat de compétences professionnelles n° 1)", "groupe CCP1 : le sigle défini");
+eq(GROUPE_CCP2, "CCP2 (certificat de compétences professionnelles n° 2)", "groupe CCP2 : le sigle défini");
+ok(!GROUPES.includes("CCP1") && !GROUPES.includes("CCP2"), "plus de groupe au sigle nu");
+eq(module_("epcf").groupe, GROUPE_CCP1, "EPCF : dans le groupe CCP1");
+eq(module_("livret").groupe, GROUPE_CCP1, "Livret EPCF : dans le groupe CCP1");
+eq(module_("priorites").nom, "Ordre de passage", "Priorités devient Ordre de passage");
+eq(accorder("ouvert", module_("priorites").accord), "ouvert", "« Ordre de passage ouvert » : masculin singulier");
+eq(module_("dp").nom, "Dossier professionnel", "Dossier pro devient Dossier professionnel");
+eq(module_("epcf").nom, "Évaluations EPCF", "la partie EPCF s'appelle Évaluations EPCF");
+eq(accorder("ouvert", module_("epcf").accord), "ouvertes", "« Évaluations EPCF ouvertes » : féminin pluriel");
+ok(module_("epcf").explication.startsWith("EPCF : évaluations passées en cours de formation."),
+  "EPCF : le sigle défini dans l'explication du premier module qui en parle");
+ok(module_("epcf").annonce.resume.includes("EPCF (évaluations passées en cours de formation)"), "EPCF : le sigle défini dans l'annonce");
+ok(module_("ccp2").annonce.resume.includes("CCP2 (certificat de compétences professionnelles n° 2)"), "CCP2 : le sigle défini dans l'annonce");
+eq(module_("ccp2").annonce.titre, "La page CCP2 est ouverte", "CCP2 : une page, plus un onglet");
+eq(module_("livret").annonce.ou.label, "Mon espace personnel, partie Livret EPCF", "Livret EPCF dans le lien");
+eq(module_("dp").annonce.ou.label, "Mon espace personnel, partie Dossier professionnel", "Dossier professionnel dans le lien");
+eq(module_("epcf").annonce.ou.label, "Mon espace personnel, partie Évaluations EPCF", "Évaluations EPCF dans le lien");
+for (const m of MODULES) {
+  const texte = [m.nom, m.explication, m.annonce.titre, m.annonce.resume, m.annonce.ou?.label || ""].join(" ");
+  ok(!/Dossier pro\b|dossier pro\b|\bDP\b|priorités de passage|partie Livret$/.test(texte), m.cle + " : les mots décidés le 10/11");
+}
+
 // 12. Nouveautés déjà écrites rattachées au bon module. Ces entrées historiques
 // mènent à « Mon suivi », « Thèmes » ou « Paramètres » alors qu'elles parlent du
-// Dossier pro, des QCM, des cours ou de l'anonymat : sans champ `module`, une
+// dossier professionnel, des QCM, des cours ou de l'anonymat : sans champ `module`, une
 // promo qui n'a pas ce module les verrait.
 for (const e of NOUVEAUTES) if (e.module) ok(cles.includes(e.module), e.id + " : module connu");
 // La pastille compte un ENSEMBLE d'ids (nouveautesAffichables) et la mémoire des nouveautés

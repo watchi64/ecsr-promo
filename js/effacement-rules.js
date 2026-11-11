@@ -4,7 +4,7 @@
 
 import {
   phraseDeRefus, PHRASE_INDISPONIBLE, PHRASE_CONNEXION, PHRASE_SESSION, PHRASE_SANS_DROIT, PHRASE_ECHEC,
-} from "./espaces-rules.js?v=20261111a";
+} from "./espaces-rules.js?v=20261111b";
 
 // Confirmation par saisie du prénom : casse et espaces autour ignorés, accents exigés.
 export function confirmationValide(saisie, prenom) {
@@ -64,8 +64,8 @@ export function resumeEffacement(details) {
   const parts = [];
   if (Number(d.comptes) > 0) parts.push("compte de connexion");
   if (Number(d.date_naissance) > 0) parts.push("date de naissance");
-  if (Number(d.livret) > 0) parts.push("livret");
-  if (Number(d.dossier_pro) > 0) parts.push("dossier pro");
+  if (Number(d.livret) > 0) parts.push("livret EPCF");
+  if (Number(d.dossier_pro) > 0) parts.push("dossier professionnel");
   if (Number(d.fiche_suivi) > 0) parts.push("fiche de suivi");
   const n = Number(d.epcf_textes || 0) + Number(d.observations || 0) + Number(d.commentaires_passages || 0);
   if (n > 0) parts.push(n + " commentaire" + (n > 1 ? "s" : ""));
@@ -87,7 +87,7 @@ export const PHRASE_SANS_BENEVOLE = "Aucun : tous les élèves enregistrés sont
 export function questionAnonymiserPromo(nom) {
   return {
     titre: `Anonymiser toutes les fiches de « ${nom || "cette promo"} » ?`,
-    phrase: "Comptes, e-mails, dates de naissance, livrets, dossiers et commentaires sont effacés ; "
+    phrase: "Comptes, e-mails, dates de naissance, livrets EPCF, dossiers professionnels et commentaires sont effacés ; "
       + "les résultats restent sans nom. Irréversible.",
     libelle: `Pour confirmer, tapez ${MOT_ANONYMISER}`,
     oui: "Anonymiser",

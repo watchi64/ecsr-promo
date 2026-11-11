@@ -9,7 +9,7 @@
 // (il n'apparaît alors que dans `aFournir`). `sections[].indicateurs` liste ce que la section sert. Un tableau n'est
 // jamais vide (il est omis), aucune cellule n'est vide : une valeur manquante devient un mot.
 //
-// Dossier de la formation : nominatif, il n'existe pas sans les noms. Dossier du centre : promo par promo, jamais en total,
+// Dossier Qualiopi de la formation : nominatif, il n'existe pas sans les noms. Dossier Qualiopi du centre : promo par promo, jamais en total,
 // avec ou sans noms. Sans noms : des agrégats seulement, aucune ligne par personne, aucun texte saisi par une personne
 // (sujet de séance, intervenant « Autre », titre du calendrier), aucun nom de formateur. Bénévoles et auto-écoles ne sont
 // jamais nommés, en nombres seulement dans toutes les versions. Les documents sont impersonnels (ni « tu » ni « vous »),
@@ -20,13 +20,13 @@
 // Les tableaux par stagiaire comptent les mêmes stagiaires que lui : ceux en formation, et le document le dit ; seule la
 // liste nominative de l'effectif montre aussi les abandons.
 
-import { SOURCE } from "./qualiopi-referentiel.js?v=20261111a";
-import { jourDe, rempli, tableau, nb, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261111a";
-import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261111a";
-import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261111a";
-import { estNotee, score20 } from "./notes-stats.js?v=20261111a";
-import { cellule, nombre, slug } from "./centre-csv.js?v=20261111a";
-import { compareByNom } from "./utils.js?v=20261111a";
+import { SOURCE } from "./qualiopi-referentiel.js?v=20261111b";
+import { jourDe, rempli, tableau, nb, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261111b";
+import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261111b";
+import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261111b";
+import { estNotee, score20 } from "./notes-stats.js?v=20261111b";
+import { cellule, nombre, slug } from "./centre-csv.js?v=20261111b";
+import { compareByNom } from "./utils.js?v=20261111b";
 
 export const PHRASE_DE_GARDE = "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
 
@@ -114,8 +114,8 @@ function parSemaine(lignes) {
   return [...semaines].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
-// Le nom d'un formateur d'après la liste des formateurs ; son numéro s'il n'y est pas.
-const nomFormateur = (noms) => (id) => noms.get(id) ?? `formateur n° ${id}`;
+// Le nom d'un formateur d'après la liste des formateurs ; « formateur inconnu » s'il n'y est pas (jamais un numéro interne).
+const nomFormateur = (noms) => (id) => noms.get(id) ?? "formateur inconnu";
 const nomsDesFormateurs = (...listes) => new Map(listes.flatMap((l) => tableau(l)).filter((p) => rempli(p.nom)).map((p) => [p.id, p.nom.trim()]));
 
 // Synthèse du déroulé, une ligne par semaine : demi-journées, activités comptées par demi-journée (« Autonomie » pour un
@@ -257,7 +257,7 @@ const SECTIONS_FORMATION = [
   ["passages", "Passages"],
   ["evaluations", "Évaluations"],
   ["ressources", "Ressources, mises à jour et appropriation"],
-  ["signalements", "Difficultés et signalements traités"],
+  ["signalements", "Difficultés et contestations de QCM traitées"],
   ["examen", "Présentation à l'examen"],
   ["appreciations", "Appréciations"],
 ];
@@ -352,21 +352,21 @@ function sectionRessources({ inv, donnees, enFormation, stagiaires }) {
   };
 }
 
-// Signalements de QCM déposés par les stagiaires de la promo (lecture : ceux dont l'auteur est de la promo) : reçus,
-// traités (date de traitement lisible), en attente, et délai moyen entre dépôt et traitement.
+// Contestations de QCM déposées par les stagiaires de la promo (lecture : celles dont l'auteur est de la promo) : reçues,
+// traitées (date de traitement lisible), en attente, et délai moyen entre dépôt et traitement.
 function phrasesSignalements(signalements) {
   const recus = tableau(signalements);
-  if (!recus.length) return ["Aucun signalement de QCM déposé par les stagiaires de la promo."];
+  if (!recus.length) return ["Aucune contestation de QCM déposée par les stagiaires de la promo."];
   const traites = recus.filter((s) => jourDe(s.traite_at));
   const delais = traites.map((s) => joursEntre(jourDe(s.created_at), jourDe(s.traite_at))).filter((d) => d !== null);
   const phrasesDuDelai = [];
-  if (!traites.length) phrasesDuDelai.push("Aucun signalement traité pour le moment.");
+  if (!traites.length) phrasesDuDelai.push("Aucune contestation traitée pour le moment.");
   else if (delais.length) {
     const delai = moyenne(delais);
     phrasesDuDelai.push(`Délai moyen entre le dépôt et le traitement : ${nombre(delai)} ${delai >= 2 ? "jours" : "jour"}.`);
   }
   return [
-    `Signalements de QCM déposés par les stagiaires de la promo : ${nb(recus.length, "reçu")}, ${nb(traites.length, "traité")}, ${recus.length - traites.length} en attente.`,
+    `Contestations de QCM déposées par les stagiaires de la promo : ${nb(recus.length, "reçue")}, ${nb(traites.length, "traitée")}, ${recus.length - traites.length} en attente.`,
     ...phrasesDuDelai,
   ];
 }
@@ -447,7 +447,7 @@ export function modeleDossierFormation({ inv, donnees, ind, promo, lieu, intitul
   const contexte = { inv, ind, donnees: d, promo, stagiaires, enFormation: enFormationDe(d), terminee: promoTerminee(promo, aujourdhui), aujourdhui };
   const centre = texte(lieu, "centre non renseigné");
   return assembler({
-    titre: "Dossier de la formation",
+    titre: "Dossier Qualiopi de la formation",
     sousTitre: centreEtPromo(centre, promo),
     garde: [
       `Centre : ${centre}`,
@@ -664,7 +664,7 @@ export function modeleDossierCentre({ promos, lieu, lieuId, periode, aujourdhui,
   const centre = texte(lieu, "centre non renseigné");
   const enMots = periodeEnMots(periode?.du, periode?.au);
   return assembler({
-    titre: "Dossier du centre",
+    titre: "Dossier Qualiopi du centre",
     sousTitre: `${centre}, ${enMots}`,
     garde: [
       `Centre : ${centre}`,

@@ -1,14 +1,24 @@
-// Erreurs des questionnaires Qualiopi : ce que la base répond, dit en français lisible à l'écran (tutoiement).
+// Erreurs des questionnaires Qualiopi : ce que la base répond, dit en français lisible à l'écran. Les mêmes messages
+// servent aux stagiaires (tutoyés) et aux formateurs (vouvoyés) : formule neutre, ni « tu » ni « vous » (règle du 10/11).
 // PUR : ni DOM ni réseau. Testé en node (tests/questionnaires-erreurs.test.mjs).
 //
 // La migration lève ses refus sous la forme « questionnaire: <phrase> » : la phrase est déjà du français à l'écran,
-// on la reprend telle quelle, sauf quelques-unes qu'on précise (fermé, déjà répondu). Une fonction absente de la base
-// (migration pas encore appliquée) et une panne de réseau ont chacune leur phrase.
+// on la reprend telle quelle, sauf quelques-unes qu'on précise (fermé, déjà répondu) et celles qui tutoient, redites en
+// formule neutre (REFUS_NEUTRES). Une fonction absente de la base (migration pas encore appliquée) et une panne de réseau
+// ont chacune leur phrase.
 
-export const PHRASE_INDISPONIBLE = "Ce questionnaire n'est pas encore disponible. Réessaie un peu plus tard.";
-export const PHRASE_RESEAU = "L'envoi n'a pas abouti : vérifie ta connexion et réessaie.";
+export const PHRASE_INDISPONIBLE = "Ce questionnaire n'est pas encore disponible. Merci de réessayer un peu plus tard.";
+export const PHRASE_RESEAU = "L'envoi n'a pas abouti : merci de vérifier la connexion et de réessayer.";
 export const PHRASE_FERME = "Ce questionnaire est fermé : la période pour y répondre est terminée ou n'a pas encore commencé.";
-export const PHRASE_DEJA_REPONDU = "Tu as déjà répondu à ce questionnaire : une seule réponse est possible.";
+export const PHRASE_DEJA_REPONDU = "Une réponse à ce questionnaire est déjà enregistrée pour ce compte : une seule réponse est possible.";
+
+// Refus de la base écrits au tutoiement (supabase/migrations/20261108_questionnaires.sql), redits en formule neutre.
+const REFUS_NEUTRES = [
+  [/^Reconnecte-toi/, "La session a expiré : une nouvelle connexion est nécessaire pour répondre."],
+  [/^Le questionnaire a changé/, "Le questionnaire a changé : merci de recharger la page."],
+  [/^Ce questionnaire ne te concerne pas/, "Ce questionnaire ne concerne pas ce compte."],
+  [/^Ton commentaire dépasse/, "Le commentaire dépasse 2 000 caractères."],
+];
 
 const PREFIXE = "questionnaire:";
 
@@ -35,7 +45,8 @@ export function messageErreurQuestionnaire(erreur) {
   if (phrase) {
     if (/^Ce questionnaire est fermé/.test(phrase)) return PHRASE_FERME;
     if (/^Tu as déjà répondu/.test(phrase)) return PHRASE_DEJA_REPONDU;
-    return phrase;
+    const neutre = REFUS_NEUTRES.find(([motif]) => motif.test(phrase));
+    return neutre ? neutre[1] : phrase;
   }
   return PHRASE_RESEAU;
 }

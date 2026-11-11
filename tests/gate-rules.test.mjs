@@ -10,10 +10,10 @@ assert.equal(MDP_MIN, 8);
 // Email : on refuse le vide et les formes evidentes, on tolere les espaces autour.
 assert.equal(validerEmail("jean@exemple.fr"), null);
 assert.equal(validerEmail("  jean@exemple.fr  "), null);
-assert.equal(validerEmail(""), "Email invalide");
-assert.equal(validerEmail("jean"), "Email invalide");
-assert.equal(validerEmail("jean@exemple"), "Email invalide");
-assert.equal(validerEmail(undefined), "Email invalide");
+assert.equal(validerEmail(""), "Adresse e-mail invalide");
+assert.equal(validerEmail("jean"), "Adresse e-mail invalide");
+assert.equal(validerEmail("jean@exemple"), "Adresse e-mail invalide");
+assert.equal(validerEmail(undefined), "Adresse e-mail invalide");
 
 // Mot de passe : requis, longueur, puis correspondance quand une confirmation est demandee.
 assert.equal(validerMotDePasse("motdepasse8"), null);
@@ -25,13 +25,13 @@ assert.equal(validerMotDePasse("motdepasse8", "motdepasse9"), "Les deux mots de 
 assert.equal(validerMotDePasse("motdepasse8", undefined), null);
 
 // Messages Supabase traduits (repris de l'ancien showGate).
-assert.equal(messageErreurAuth("Invalid login credentials"), "Email ou mot de passe incorrect.");
-assert.equal(messageErreurAuth("User already registered"), "Cet email a déjà un compte. Bascule sur la connexion.");
-assert.equal(messageErreurAuth("Database error saving new user"), "Email non whitelisté. Demande à un admin de t'inviter d'abord.");
+assert.equal(messageErreurAuth("Invalid login credentials"), "E-mail ou mot de passe incorrect.");
+assert.equal(messageErreurAuth("User already registered"), "Cette adresse e-mail a déjà un compte : passer par l'onglet « Connexion ».");
+assert.equal(messageErreurAuth("Database error saving new user"), "Cette adresse e-mail n'a pas été invitée. L'inscription demande d'abord une invitation de l'équipe de formation.");
 assert.equal(messageErreurAuth("For security purposes, you can only request this after 47 seconds"),
-  "Trop de demandes. Patiente quelques minutes avant de réessayer.");
+  "Trop de demandes. Merci de patienter quelques minutes avant de réessayer.");
 assert.equal(messageErreurAuth("Email rate limit exceeded"),
-  "Trop de demandes. Patiente quelques minutes avant de réessayer.");
+  "Trop de demandes. Merci de patienter quelques minutes avant de réessayer.");
 // Message inconnu : on le laisse passer tel quel plutot que de mentir.
 assert.equal(messageErreurAuth("Boom"), "Boom");
 assert.equal(messageErreurAuth(""), "Une erreur est survenue.");

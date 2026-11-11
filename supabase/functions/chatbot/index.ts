@@ -100,13 +100,16 @@ Deno.serve(async (req) => {
   if (!autorise) {
     return reponseJson({
       error: "quota",
-      message: `Tu as atteint ton quota du jour (${quota} messages). L'assistant revient demain !`,
+      // Au « vous » pour l'équipe, au « tu » pour un stagiaire ou une app sans espace (décision du 10/11).
+      message: ["equipe", "direction", "siege"].includes(String(corps.espace))
+        ? `Vous avez atteint votre quota du jour (${quota} messages). L'assistant revient demain.`
+        : `Tu as atteint ton quota du jour (${quota} messages). L'assistant revient demain.`,
     }, 429);
   }
 
   // Le guide decrit la barre que voit la personne (champ absent d'une app en cache : l'ancienne) ; l'espace (direction, siege)
   // choisit le guide de son espace.
-  const systeme = { role: "system", content: construirePromptSysteme({ aide: consignesApp(corps.navigation, corps.espace), page }) };
+  const systeme = { role: "system", content: construirePromptSysteme({ aide: consignesApp(corps.navigation, corps.espace), page, espace: corps.espace }) };
   const encodeur = new TextEncoder();
   // Le client peut fermer le panneau en pleine generation : plus aucune ecriture
   // ensuite, et la boucle s'arrete au prochain point de controle.

@@ -27,7 +27,7 @@ test("aucun libellé ni rappel avec tiret cadratin ou « prof »", () => {
     assert.ok(!t.includes(TIRET), t);
     assert.ok(!/prof/i.test(t), t);
   }
-  assert.equal(RAPPEL_VIOLENCES, "Violences, harcèlement, discriminations : ne les écris pas ici. Ils passent par le référent du centre et sa procédure, qui protègent la personne. Ne nomme personne : l'origine suffit.");
+  assert.equal(RAPPEL_VIOLENCES, "Violences, harcèlement, discriminations : ne les écrivez pas ici. Ils passent par le référent du centre et sa procédure, qui protègent la personne. Ne nommez personne : l'origine suffit.");
 });
 
 const complete = () => ({

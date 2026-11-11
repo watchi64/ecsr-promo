@@ -6,16 +6,16 @@
 //    véhicule ; chez un formateur, la saisie (Évaluer, Modifier, Nouvelle évaluation).
 // L'écriture reste réservée par la base aux formateurs et aux admins.
 
-import { listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20261111a";
-import { el, clear, isoDate, formatDate, displayStagiaire, toast } from "../utils.js?v=20261111a";
-import { confirmer } from "../confirmer.js?v=20261111a";
-import { getProfile } from "../auth-admin.js?v=20261111a";
-import { getCurrentWho } from "../identity.js?v=20261111a";
-import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20261111a";
-import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20261111a";
-import { poserGardeSortie, leverGardeSortie } from "../navigation.js?v=20261111a";
-import { etatVideEpcf, ACTIONS_CARTE_EPCF, etatVideEpcfFiche, ACTIONS_FICHE_EPCF } from "../epcf-classe-rules.js?v=20261111a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111a";
+import { listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20261111b";
+import { el, clear, isoDate, formatDate, displayStagiaire, toast } from "../utils.js?v=20261111b";
+import { confirmer } from "../confirmer.js?v=20261111b";
+import { getProfile } from "../auth-admin.js?v=20261111b";
+import { getCurrentWho } from "../identity.js?v=20261111b";
+import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20261111b";
+import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20261111b";
+import { poserGardeSortie, leverGardeSortie } from "../navigation.js?v=20261111b";
+import { etatVideEpcf, ACTIONS_CARTE_EPCF, etatVideEpcfFiche, ACTIONS_FICHE_EPCF } from "../epcf-classe-rules.js?v=20261111b";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111b";
 
 // Quitter une grille commencée (bouton « Retour » ou garde de sortie de js/navigation.js) : la même question.
 export const QUESTION_ABANDON = { titre: "Abandonner la saisie en cours ?",
@@ -34,7 +34,8 @@ export async function renderEpcf(container, opts = {}) {
   clear(container);
   if (!opts.embedded) {
     container.appendChild(el("div", { class: "view-header" },
-      el("div", { class: "view-header-text" }, el("h2", {}, "EPCF"))));
+      el("div", { class: "view-header-text" }, el("h2", {}, "Évaluations EPCF"),
+        el("p", { class: "subtitle" }, "EPCF (évaluations passées en cours de formation), en salle et en véhicule."))));
   }
   const body = el("div", { class: "epcf-body" });
   container.appendChild(body);
@@ -221,8 +222,8 @@ function showForm(body, stagiaire, trameKey, existing, { profs, retour, apresEnr
   evalSel.addEventListener("change", () => { dirty = true; });
 
   const saveBtn = el("button", { class: "btn primary", type: "button", onClick: async () => {
-    if (Object.keys(scores).length === 0) { toast("Renseigne au moins un critère", "error"); return; }
-    if (!dateInput.value) { toast("Renseigne la date", "error"); return; }
+    if (Object.keys(scores).length === 0) { toast("Renseignez au moins un critère", "error"); return; }
+    if (!dateInput.value) { toast("Renseignez la date", "error"); return; }
     saveBtn.disabled = true;
     const prev = saveBtn.textContent;
     saveBtn.textContent = "Enregistrement…";

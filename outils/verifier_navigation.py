@@ -154,7 +154,7 @@ Contrôles par vue
   * l'attente de la coquille (`body[data-nav-attente]`, ruling R17) n'est plus posée, dans les deux passes ;
   * Réglages et Mes préférences (lot 2A, allumé) : chez l'équipe, `#/config` s'appelle « Réglages », son surtitre est la promo
     affichée, il commence par « Ce que voient les stagiaires » et ne garde que la promo dans l'ordre : Ce que voient les stagiaires,
-    Promo, Accès et invitations, Émargement et Nouvelle navigation (fondateur seulement), Données personnelles ; chez le stagiaire,
+    Promo, Accès et invitations, Émargement et Nouvelle navigation (fondateur seulement), Données personnelles, puis le renvoi « Apparence » (10/11) ; chez le stagiaire,
     `#/config` mène à `#/preferences`. `#/preferences`, pour tous, s'appelle « Mes préférences » et ne montre aucune section de la
     promo (seulement sa section de la personne et « Informations »). Aucune de ces pages ne dit « whitelist », « mdp » ni « admin ». Vague finale, F6 : « Mes préférences »
     n'y figure qu'une fois (le titre de la page ; la section de l'anonymat s'appelle « Dans les notes de la classe »), « Réglages personnels » n'y est plus écrit
@@ -170,11 +170,11 @@ Contrôles par vue
     y sèment des brouillons de l'IA, qui ne comptent pas avant le sous-onglet « Propositions IA » du lot 2B, ruling R56 : « 5 » et non « 7 », et six signalements
     de plus pour « 9+ ») dans la barre latérale dès 700 px (une seule, dans son entrée, sans recouvrir l'œil d'un module
     fermé, en ligne comme en colonne d'icônes), dans le tiroir « Plus » sur téléphone, avec le point de « Plus » (nom « Plus, N à traiter ») et la phrase « N à
-    traiter : 5 signalements » en tête du tiroir ouvert ; chaque repère tient 3:1 contre ce qui l'entoure et son chiffre 4,5:1 contre son
+    traiter : 5 questions contestées » en tête du tiroir ouvert ; chaque repère tient 3:1 contre ce qui l'entoure et son chiffre 4,5:1 contre son
     fond ; sur la barre sombre, toute pastille (celle de « Signaler un problème », dont les scénarios avec brouillons sèment les compteurs, comme celle de « Cours et QCM »)
     tient 3:1 contre la barre et son chiffre 4,5:1. Les brouillons de l'IA et les signalements déjà traités ne comptent pas. Le point de « Plus » (vague finale, F10) s'allume aussi
     quand la pastille de « Signaler un problème », que le tiroir contient, est affichée : le scénario « signaler » fait échouer les lectures « à traiter » mais sème des
-    signalements qui ont avancé, et le point, au téléphone, porte alors le nom « Plus, 2 signalements ont avancé » (ni pastille sur « Cours et QCM », ni phrase de tiroir). Lectures en échec (« panne » : le levier `__HARNESS_FAIL` du banc posé le temps des lectures des deux
+    signalements qui ont avancé, et le point, au téléphone, porte alors le nom « Plus, 2 problèmes signalés ont avancé » (ni pastille sur « Cours et QCM », ni phrase de tiroir). Lectures en échec (« panne » : le levier `__HARNESS_FAIL` du banc posé le temps des lectures des deux
     tables seulement) ou qui n'aboutissent pas (« lent », 20 s) : la barre se pose quand même, sans pastille, sans point, sans phrase, sans message ni boîte d'erreur ni
     erreur de console, et le menu du compte s'ouvre. Chez le stagiaire (« Voir en tant que » compris) et interrupteur éteint, aucun de ces repères ;
   * case du fondateur (lot 2A, tâche 6, ruling R54) : la lecture du réglage de la promo échoue ; la case « Nouvelle navigation activée » de Réglages ne dit que le réglage de la
@@ -199,7 +199,7 @@ Contrôles par vue
     le compte, rien ne débordant de la fenêtre, à 375 px puis à 320 px (la page Stagiaires y est mesurée comme toute vue, sans autre scénario) ; le
     tiroir « Plus » s'appelle « Autres pages », sans « Tout l'espace formateur », et garde sa ligne « Assistant » ;
   * Notes et examens (équipe, lot 2A, puis lot C de l'audit du 09/11) : sur un écran tactile (le téléphone du banc), le sous-titre est
-    « Saisis les notes thème par thème, ou touche une case de la matrice. » et la phrase sur Entrée et Échap n'est pas montrée ; avec une
+    « Saisissez les notes thème par thème, ou touchez une case de la matrice. » et la phrase sur Entrée et Échap n'est pas montrée ; avec une
     souris, le sous-titre d'avant et la phrase de la barre d'outils ;
   * comptes en fin de sous-titre (lot 2A, tâche 4, ruling R49) : Notes et examens finit par « N notes enregistrées. », Planning > Dates clés par
     « N dates clés. » (le nombre d'événements que l'app lit, passés compris), Cours et QCM > Documents par « N liens · M contacts. » ; éteint, ils
@@ -208,23 +208,23 @@ Contrôles par vue
     ni son bandeau d'émargement, ne dit « admin ». L'abréviation seule, comme dans Réglages et Mes préférences : « administrateur » et « administration »
     restent permis ;
   * Accueil (lot 2A, tâche 4, deux espaces) : le logo n'y est qu'une fois (celui de la coquille), la phrase sur le suivi de la promo est remplacée par
-    « Promo <nom> · semaine <n> » (la semaine, recalculée par le script depuis la date de début de la promo), aucune tuile ne double la barre ;
+    « Promo <nom> · semaine <n> de formation » (la semaine, recalculée par le script depuis la date de début de la promo), aucune tuile ne double la barre ;
   * carte « Prochain événement majeur » (les deux navigations, correction pour tous) : recalculée par le script depuis l'agenda tel que l'app le lit
     (le premier examen ou stage qui n'est pas passé) : jamais de nombre négatif ; un stage commencé dit « En cours, fin dans N jours » (« fin demain »,
     « fin aujourd'hui ») et sa pastille dit « En cours », sans nombre ni habillage de compte à rebours (vague finale, F9 : jamais « Aujourd'hui ! » pour un stage qui finit
     aujourd'hui) ; un événement à venir garde sa pastille d'avant (« 9 jours », « Aujourd'hui ! » le jour où il commence), sans ligne « en cours » ;
-  * pied de l'Accueil (vague finale, F7, puis audit du 09/11, A8) : avec la nouvelle navigation, « TP ECSR App · Promo <nom de la promo affichée> · connecté comme
+  * pied de l'Accueil (vague finale, F7, puis audit du 09/11, A8) : avec la nouvelle navigation, « TP ECSR App · Promo <nom de la promo affichée> · connecté en tant que
     <rôle> », le vrai rôle (aperçu, fondateur, rôle sur la promo ; jamais « admin ») ; avec l'ancienne, le texte de main (« Promo 2026 » écrit en dur, « admin ») ;
   * Planning > Semaine, sur la semaine du jour : ni « Lecture seule... », ni « Consultation », ni boutons « Cette semaine », « Aujourd'hui »,
     « Revenir à aujourd'hui » ou « Émargement », pour le stagiaire comme pour l'équipe (audit du 09/11, lots E et B) ; hors édition, pas de
     raccourci vers la banque des bénévoles, qui revient en mode Modifier ;
-  * Mon suivi aux libellés clairs (lot 2B, tâche 7), pour toute personne qui a une fiche, à 1 280 et 375 px : les parties dans l'ordre (Résultats, Passages, EPCF,
-    Livret EPCF, Dossier pro), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« EPCF : 0 épreuve sur 2 », « Dossier pro :
+  * Mon suivi aux libellés clairs (lot 2B, tâche 7), pour toute personne qui a une fiche, à 1 280 et 375 px : les parties dans l'ordre (Résultats, Passages, Évaluations EPCF,
+    Livret EPCF, Dossier professionnel), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« Évaluations EPCF : 0 épreuve sur 2 », « Dossier professionnel :
     0 exemple sur 6 »), sans date « 02/10 », jamais coupée, la dernière au-dessus de la barre du bas (à l'ouverture, et page défilée au bout) ; Résultats et son
     groupe « Moi / La classe » (boutons de 44 px, « Moi » par défaut, le choix gardé sur l'appareil, même après un rechargement) ; #/mon-suivi/classe,
     #/mon-suivi/evolution et #/notes (stagiaire) ouvrent Résultats sur la bonne vue, l'adresse devenue #/mon-suivi/resultats, sans étape d'historique ; sur
     téléphone, le retour « ‹ Mon suivi » remplace l'en-tête de la page ; un exemple du dossier enregistré fait passer la ligne à « 1 exemple sur 6 » sans
-    recharger. La fiche d'un stagiaire chez l'équipe garde ses parties de main (Passages, EPCF, Évolution, Livret, Dossier pro), allumé et éteint ; Mon espace
+    recharger. La fiche d'un stagiaire chez l'équipe garde ses parties de main (Passages, Évaluations EPCF, Évolution, Livret EPCF, Dossier professionnel), allumé et éteint ; Mon espace
     éteint aussi ; module des notes fermé (`?modules=depart`), ni Résultats ni « Moi / La classe » ;
   * Mon suivi > La classe, pour toute personne qui a une fiche (le contexte décide, pas le rôle : le stagiaire, et le fondateur dans l'espace de l'équipe) : ni
     second titre, ni seconde rangée Matrice / EPCF (aucun libellé « EPCF » isolé), ni « Lecture seule... » ; le stagiaire, qui ne saisit rien, ne lit pas non plus
@@ -249,7 +249,7 @@ Contrôles par vue
   * Nouveautés et « Où le trouver » (lot 2A, tâche 1) : allumé, la rubrique (#/nouveautes) montre « Une navigation plus simple » à tous et « Côté formateurs, la barre passe à
     gauche » à l'équipe seule (le fondateur en aperçu, sur une promo éteinte, voit les deux ; un stagiaire sans drapeau de fondateur d'une promo allumée, la première seulement),
     et aucune des trois Nouveautés qui ne décrivent que l'ancienne barre. Le lien « Où le trouver » de dix Nouveautés d'avant (cinq de plus pour l'équipe) porte le nom de la
-    nouvelle barre (Mon suivi, La classe ; Planning, Priorités ; Cours et QCM, Documents ; Mes préférences chez le stagiaire, Réglages chez l'équipe, jamais l'inverse), son
+    nouvelle barre (Mon suivi, La classe ; Planning, Ordre de passage ; Cours et QCM, Documents ; Mes préférences chez le stagiaire, Réglages chez l'équipe, jamais l'inverse), son
     adresse restant celle de main ; leur « Comment faire » est celui de la nouvelle barre ; le lien de la Nouveauté de l'équipe ouvre Stagiaires, sous-onglet « Élèves bénévoles ».
     L'accueil ouvre sa section de Nouveautés par celles du lancement. Vague finale : les trois entrées du jour de la mise en ligne portent la date du 29/10/2026 ; « Une navigation plus simple »
     dit que certaines parties s'ouvrent au fil de la formation (F5) et place le bouton « Aujourd'hui » en tête de Planning, Semaine (F4) ; la consigne de « Signaler un problème » est juste
@@ -440,13 +440,13 @@ LENTEUR_DEMARRAGE_MS = 600     # lectures des réglages ralenties dans le scéna
 # ouverts (un par groupe de la console) et aucun brouillon de l'IA ; les scénarios « à traiter » ajoutent des brouillons à relire (BROUILLONS_IA_DU_BANC, comptés depuis
 # le sous-onglet « Propositions IA » du lot 2B), des signalements ouverts (SIGNALEMENTS_EN_PLUS_DU_BANC), des signalements et des brouillons déjà traités (ils
 # ne comptent pas), ou font échouer ou traîner les lectures. Par scénario : la pastille attendue sur l'entrée et la phrase en tête du tiroir
-# « Plus » (« 7 à traiter : 5 signalements, 2 propositions de l'IA »), None quand rien ne doit s'afficher.
+# « Plus » (« 7 à traiter : 5 questions contestées, 2 propositions de l'IA »), None quand rien ne doit s'afficher.
 A_TRAITER_DU_BANC = {
-    "": ("5", "5 à traiter : 5 signalements"),
+    "": ("5", "5 à traiter : 5 questions contestées"),
     # Deux brouillons de l'IA à relire de plus : 5 + 2.
-    "ia": ("7", "7 à traiter : 5 signalements, 2 propositions de l'IA"),
+    "ia": ("7", "7 à traiter : 5 questions contestées, 2 propositions de l'IA"),
     # Six signalements ouverts de plus (5 + 6 = 11) et six brouillons de l'IA : 17, « 9+ ».
-    "beaucoup": ("9+", "17 à traiter : 11 signalements, 6 propositions de l'IA"),
+    "beaucoup": ("9+", "17 à traiter : 11 questions contestées, 6 propositions de l'IA"),
     "panne": (None, None),    # lectures en échec : ni pastille, ni point, ni phrase, ni erreur
     "lent": (None, None),     # lectures qui n'aboutissent pas (20 s) : la barre est là, sans rien
     # Lectures en échec, mais une pastille sur « Signaler un problème » (que le tiroir « Plus » contient) : le seul repère est le point de « Plus ».
@@ -1802,7 +1802,7 @@ async function accueil() {
     carte: carte ? { titre: de(carte, ".home-countdown-title"), pastille: de(carte, ".home-countdown-pill"),
       classe: (carte.querySelector(".home-countdown-pill") || {}).className || null,
       statut: de(carte, ".home-countdown-statut"), texte: texte(carte) } : null,
-    // Vague finale, F7 : le pied de page (« TP ECSR App · Promo ... · connecté comme ... ») et qui est connecté (de quoi en déduire le rôle écrit).
+    // Vague finale, F7 : le pied de page (« TP ECSR App · Promo ... · connecté en tant que ... ») et qui est connecté (de quoi en déduire le rôle écrit).
     piedTexte: (() => { const e = vue.querySelector(".home-footer-v2 p"); return e ? net(e.textContent) : null; })(),
     qui: { admin: auth.isAdmin(), role: (auth.getProfile() || {}).role || null, fondateur: !!(auth.getProfile() || {}).is_founder,
       apercu: auth.getViewAs ? auth.getViewAs() : null, roles: (db.getPromoCourante() || {}).roles || null },
@@ -1819,6 +1819,7 @@ function accueilStagiaire() {
   return {
     pastille: pastille ? { texte: net(pastille.textContent), parties: [...pastille.children].map((e) => net(e.textContent)) } : null,
     titre: (vue.querySelector(".home-title-v2") || {}).textContent || null,
+    salut: (vue.querySelector(".home-salut-v2") || {}).textContent || null,
     cartes: [...vue.querySelectorAll(".acc-carte")].map((c) => { const r = c.getBoundingClientRect();
       return { zone: c.dataset.zone, titre: net(c.querySelector("h2").textContent), texte: net(c.querySelector(".acc-corps").textContent), haut: haut(c), bas: bas(c), gauche: r.left, droite: r.right }; }),
     tuiles: vue.querySelectorAll(".home-tile").length,
@@ -2489,7 +2490,7 @@ def plancher_sous_onglets(route, sc, res):
         # Stagiaire : Thèmes, Compétences, QCM, Documents ; équipe : Thèmes, Compétences, Signalements, Propositions IA, Documents (lot 2B, tâche 6).
         return 0 if depart else (4 if sc.espace == "stagiaire" else 5)
     if route == "mon-suivi" and res.profil_stagiaire:
-        return 0 if depart else 5      # Résultats, Passages, EPCF, Livret EPCF, Dossier pro (lot 2B, tâche 7)
+        return 0 if depart else 5      # Résultats, Passages, Évaluations EPCF, Livret EPCF, Dossier professionnel (lot 2B, tâche 7 ; noms du lot D)
     if route == "stagiaires":
         return 2                       # Stagiaires, Élèves bénévoles (équipe seulement, lot 2A)
     return 0
@@ -2512,7 +2513,7 @@ def sous_vues(page, res, sc, route, options):
         if route == "stagiaires" and libelles[:2] != SOUS_ONGLETS_STAGIAIRES:
             res.echec("sous-onglets de Stagiaires", "%s/%s" % (sc.nom, route), "la page Stagiaires montre « %s », attendu « %s »" % (" », « ".join(libelles), " », « ".join(SOUS_ONGLETS_STAGIAIRES)))
         # « Saisir » (lot C de l'audit du 09/11) : la saisie thème par thème, pour qui écrit des notes ; la direction lit sans écrire.
-        attendu_notes = ["Matrice", "EPCF"] if sc.compte == "direction" else ["Saisir", "Matrice", "EPCF"]
+        attendu_notes = ["Matrice", "Évaluations EPCF"] if sc.compte == "direction" else ["Saisir", "Matrice", "Évaluations EPCF"]   # lot D (10/11)
         if route == "notes" and sc.espace == "equipe" and libelles != attendu_notes:
             res.echec("sous-onglets de Notes", "%s/%s" % (sc.nom, route), "la page Notes de l'équipe montre « %s », attendu « %s »" % (" », « ".join(libelles), " », « ".join(attendu_notes)))
     for i, libelle in enumerate(libelles):
@@ -2664,7 +2665,7 @@ def parcourir_entrees(page, res, sc, entrees, options, avec_sous_vues=True):
 
 # Ruling R26 : les quatre anciennes adresses (liens de l'app, favoris, raccourcis d'écran d'accueil) : la page et le
 # sous-onglet que la nouvelle navigation ouvre.
-ANCIENNES_ADRESSES = {"calendrier": ("#/planning", "Dates clés"), "dashboard": ("#/planning", "Priorités"),
+ANCIENNES_ADRESSES = {"calendrier": ("#/planning", "Dates clés"), "dashboard": ("#/planning", "Ordre de passage"),
                       "ressources": ("#/themes", "Documents"), "notes": ("#/mon-suivi/resultats", "Résultats")}
 # Sous-onglet allumé de la page : la partie de Mon espace sur téléphone (son titre), sinon le premier sous-onglet actif.
 JS_SOUS_ONGLET_ALLUME = """() => {
@@ -2838,10 +2839,12 @@ def verifier_retour_arriere(page, res, sc):
 SECTIONS_REGLAGES = ("Ce que voient les stagiaires", "Promo", "Accès et invitations", "Émargement", "Nouvelle navigation",
                      "Données personnelles")
 SECTIONS_DU_FONDATEUR = ("Émargement", "Nouvelle navigation")
+# En dernier, « Apparence » : un renvoi vers Mes préférences, où se fait le choix des couleurs, pas une section de la promo (décision du 10/11).
+RENVOI_APPARENCE = "Apparence"
 SECTIONS_PREFERENCES = ("Apparence", "Dans les notes de la classe", "Informations")
 # Le sous-titre de Mes préférences : la page a toujours un réglage à soi depuis le lot 3 (Apparence, pour tous les rôles), l'anonymat en plus pour qui a une
 # fiche de stagiaire ; il ne dit donc plus « Les informations sur l'application. » seules.
-SOUS_TITRE_PREFERENCES = "Ce qui ne concerne que toi, et les informations sur l'application."
+SOUS_TITRE_PREFERENCES = "Les réglages personnels et les informations sur l'application."
 # Ce que ces pages ne disent plus : « whitelist », « mdp » et l'abréviation « admin » (le mot « administrateur » reste permis).
 MOTS_BANNIS = re.compile(r"whitelist|mdp|\badmins?\b", re.IGNORECASE)
 
@@ -3086,11 +3089,11 @@ def nombre_de_la_phrase(phrase):
 
 
 def lignes_a_traiter_attendues(phrase):
-    """Les lignes de la carte « À traiter » d'Aujourd'hui que dit la phrase du tiroir (« 7 à traiter : 5 signalements, 2 propositions de l'IA »)."""
+    """Les lignes de la carte « À traiter » d'Aujourd'hui que dit la phrase du tiroir (« 7 à traiter : 5 questions contestées, 2 propositions de l'IA »)."""
     lignes = []
-    m = re.search(r": (\d+) signalements?", phrase)
+    m = re.search(r": (\d+) questions? contestées?", phrase)
     if m:
-        lignes.append("%s signalement%s sur %s" % (m.group(1), "" if m.group(1) == "1" else "s", "un QCM" if m.group(1) == "1" else "des QCM"))
+        lignes.append("1 question contestée" if m.group(1) == "1" else "%s questions contestées" % m.group(1))
     m = re.search(r"(\d+) propositions? de l'IA", phrase)
     if m:
         lignes.append("1 question proposée par l'IA" if m.group(1) == "1" else "%s questions proposées par l'IA" % m.group(1))
@@ -3188,7 +3191,7 @@ def verifier_a_traiter(page, res, sc, tiroir=False):
 def verifier_point_de_signaler(res, vue, sc, m, tiroir):
     """Scénario « signaler » (vague finale, F10) : les lectures « à traiter » échouent (aucun compte), mais la pastille de « Signaler un problème », que le
     tiroir « Plus » contient, est affichée (la personne du banc a des signalements qui ont avancé) : le point de « Plus » s'allume quand même, au téléphone, et
-    son nom dit ce qu'il signale (« Plus, 2 signalements ont avancé »), sans parler d'« à traiter » ; ni pastille sur « Cours et QCM », ni phrase en tête du tiroir.
+    son nom dit ce qu'il signale (« Plus, 2 problèmes signalés ont avancé »), sans parler d'« à traiter » ; ni pastille sur « Cours et QCM », ni phrase en tête du tiroir.
     Sur ordinateur, la barre du bas n'existe pas : aucun point."""
     telephone = sc.largeur < SEUIL_TELEPHONE
     if [p for p in m["pastilles"] if p["visible"]]:
@@ -3210,8 +3213,8 @@ def verifier_point_de_signaler(res, vue, sc, m, tiroir):
     for p in points:
         if min(p["taille"]) < 8:
             res.echec("point de « Plus »", vue, "le point mesure %dx%d px : trop petit pour se voir" % tuple(p["taille"]))
-        if not p["nom"].startswith("Plus, ") or "signalement" not in p["nom"] or "à traiter" in p["nom"]:
-            res.echec("point de « Plus »", vue, "le nom du bouton est « %s » : il devrait dire ce que le point signale (« Plus, 2 signalements ont avancé »), sans « à traiter »" % p["nom"])
+        if not p["nom"].startswith("Plus, ") or "problème signalé" not in p["nom"].replace("problèmes signalés", "problème signalé") or "à traiter" in p["nom"]:
+            res.echec("point de « Plus »", vue, "le nom du bouton est « %s » : il devrait dire ce que le point signale (« Plus, 2 problèmes signalés ont avancé »), sans « à traiter »" % p["nom"])
         for contre, valeur in (("son liseré", p["lisere"]), ("le fond derrière lui", None if p.get("detache") else p["fond"])):
             if valeur is not None and valeur < 3:
                 res.echec("contraste du point de « Plus »", vue, "le point (%s) ne tient que %.2f:1 contre %s, 3:1 au moins pour un repère" % (p["couleur"], valeur, contre))
@@ -3275,7 +3278,7 @@ def verifier_reglages(page, res, sc, regles):
         res.echec("page Réglages", vue, "le surtitre est « %s », attendu le nom de la promo affichée (« %s »)" % (p["surtitre"], p["promo"]))
     if p["sousTitre"] != "Ce que voient les stagiaires, la promo et les accès.":
         res.echec("page Réglages", vue, "le sous-titre est « %s »" % p["sousTitre"])
-    attendues = [s for s in SECTIONS_REGLAGES if s not in SECTIONS_DU_FONDATEUR or regles.get("fondateur")]
+    attendues = [s for s in SECTIONS_REGLAGES if s not in SECTIONS_DU_FONDATEUR or regles.get("fondateur")] + [RENVOI_APPARENCE]
     if p["sections"][:1] != [SECTIONS_REGLAGES[0]]:
         res.echec("page Réglages", vue, "la page commence par « %s », attendu « %s »" % ((p["sections"] or ["rien"])[0], SECTIONS_REGLAGES[0]))
     elif p["sections"] != attendues:
@@ -3420,14 +3423,14 @@ def verifier_texte_de_l_anonymat(res, vue, p, type_):
 # suivi se lit aussi chez qui n'a pas cette entrée (fondateur).
 TITRES_DES_PAGES = {
     "equipe": ("home", "emargement", "stagiaires", "notes", "themes", "centre", "config", "ccp2"),
-    "stagiaire": ("themes", "mon-suivi", "ccp2"),
+    "stagiaire": ("home", "themes", "mon-suivi", "ccp2"),   # « home » : titré « Accueil » depuis le 10/11
 }
 # Parmi elles, celles dont le surtitre est le nom de la promo affichée (CCP2 garde « Titre professionnel ECSR »).
 SURTITRE_PROMO = ("emargement", "stagiaires", "notes", "themes", "centre", "config", "mon-suivi")
 SOUS_ONGLETS_STAGIAIRES = ["Stagiaires", "Élèves bénévoles"]
 # Sous-pages qui ont repris le nom de leur sous-onglet : Planning > Dates clés (ex-Calendrier), Cours et QCM > Documents (ex-Ressources).
 SOUS_PAGES = (("planning", "Dates clés"), ("themes", "Documents"))
-PHRASE_TACTILE = "Saisis les notes thème par thème, ou touche une case de la matrice."   # lot C : la page s'ouvre sur « Saisir »
+PHRASE_TACTILE = "Saisissez les notes thème par thème, ou touchez une case de la matrice."   # lot C : la page s'ouvre sur « Saisir »
 
 
 def verifier_titre_de_page(page, res, sc, route, libelle):
@@ -3439,7 +3442,7 @@ def verifier_titre_de_page(page, res, sc, route, libelle):
     if p["route"] != route:
         return   # la page n'est pas celle qu'on attendait : le défaut est noté à l'ouverture
     if route == "home":
-        # Aujourd'hui : un titre de la signature de l'app (h1, sous la pastille de date), pas un en-tête de page.
+        # Aujourd'hui (l'équipe) et Accueil (le stagiaire) : un titre de la signature de l'app (h1, sous la pastille de date), pas un en-tête de page.
         titre = page.evaluate("() => (document.querySelector('#view .home-title-v2') || {}).textContent || null")
         if (titre or "").strip() != libelle:
             res.echec("titre de page", vue, "le titre de #/home est « %s », le libellé de son entrée « %s »" % (titre, libelle))
@@ -3488,7 +3491,7 @@ def verifier_sous_page(page, res, sc, route, libelle, options):
         vider_console(res, vue)
     elif route == "stagiaires" and libelle == "Élèves bénévoles":
         verifier_panneau_benevoles(page, res, sc, options)
-    elif route == "notes" and libelle == "EPCF":
+    elif route == "notes" and libelle in ("EPCF", "Évaluations EPCF"):   # « Évaluations EPCF » sous la nouvelle navigation (lot D)
         verifier_epcf_de_l_equipe(page, res, sc)
 
 
@@ -3676,7 +3679,7 @@ def verifier_bouton_benevoles(page, res, sc):
 
 
 def verifier_notes_tactile(page, res, sc):
-    """Notes et examens, équipe : sur un écran tactile (le téléphone du banc), le sous-titre dit PHRASE_TACTILE (« Saisis les notes... ») et
+    """Notes et examens, équipe : sur un écran tactile (le téléphone du banc), le sous-titre dit PHRASE_TACTILE (« Saisissez les notes... ») et
     la phrase sur Entrée et Échap, qui suppose un clavier, n'est pas montrée ; avec un clavier, la phrase de la barre d'outils et le
     sous-titre d'avant."""
     vue = "%s/notes/tactile" % sc.nom
@@ -3856,18 +3859,18 @@ TITRES_DE_L_ANCIENNE_BARRE = ("Une barre d'onglets plus simple", "L'app s'ouvre 
 OU_TROUVER = {
     "Les moyennes de la classe ne comptent que les stagiaires en formation":
         ("Mon suivi, partie Résultats", "Notes et examens, Synthèse classe", "Notes, Synthèse classe", "#/notes"),
-    "Tes notes et ta fiche mieux protégées": ("Mon suivi, partie Résultats", "Notes et examens", "Notes", "#/notes"),
-    "Ton Dossier Professionnel se remplit dans l'app":
-        ("Mon suivi, partie Dossier pro", "Mon suivi, partie Dossier pro", "Mon espace personnel, partie Dossier pro", "#/mon-suivi/dp"),
-    "Ton livret officiel TP-01303 se remplit dans l'app":
-        ("Mon suivi, partie Livret EPCF", "Mon suivi, partie Livret EPCF", "Mon espace personnel, partie Livret", "#/mon-suivi/livret"),
+    "Notes et fiche de suivi mieux protégées": ("Mon suivi, partie Résultats", "Notes et examens", "Notes", "#/notes"),
+    "Le dossier professionnel se remplit dans l'app":
+        ("Mon suivi, partie Dossier professionnel", "Mon suivi, partie Dossier professionnel", "Mon espace personnel, partie Dossier professionnel", "#/mon-suivi/dp"),
+    "Le livret EPCF officiel (TP-01303) dans l'app":
+        ("Mon suivi, partie Livret EPCF", "Mon suivi, partie Livret EPCF", "Mon espace personnel, partie Livret EPCF", "#/mon-suivi/livret"),
     "Des vidéos conseillées dans la boîte à outils CCP2":
         ("Cours et QCM, Documents", "Cours et QCM, Documents", "Ressources, Examens", "#/ressources"),
-    "Une boîte à outils numérique pour ton CCP2": ("Cours et QCM, Documents", "Cours et QCM, Documents", "Ressources", "#/ressources"),
-    "Un passage oublié ? Ajoute-le toi-même, même ancien": ("Planning, Priorités", "Planning, Priorités", "Planning, bouton Priorités", "#/dashboard"),
+    "Une boîte à outils numérique pour le CCP2": ("Cours et QCM, Documents", "Cours et QCM, Documents", "Ressources", "#/ressources"),
+    "Un passage oublié ? Chacun peut l'ajouter, même ancien": ("Planning, Ordre de passage", "Planning, Ordre de passage", "Planning, bouton Priorités", "#/dashboard"),
     "Anonyme pour de vrai dans le tableau de notes": ("Mes préférences", "Mes préférences", "Paramètres, Mes préférences", "#/config"),
     "Les cours des 57 thèmes sont ouverts à toute la promo": ("Cours et QCM", "Cours et QCM", "Cours", "#/themes"),
-    "Ta progression d'entraînement se voit d'un coup d'œil": ("Cours et QCM, colonne QCM", "Cours et QCM, colonne QCM", "Cours, colonne QCM", "#/themes"),
+    "La progression d'entraînement se voit d'un coup d'œil": ("Cours et QCM, colonne QCM", "Cours et QCM, colonne QCM", "Cours, colonne QCM", "#/themes"),
     # Lot 2B : l'Accueil de l'équipe s'appelle Aujourd'hui dans sa barre (même adresse) ; la journée n'existe pas avec l'ancienne barre (carte cachée).
     "Ta journée sur l'Accueil": ("Accueil", "Accueil", "(carte cachée avec l'ancienne barre)", "#/home"),
     "Les cours se lisent mieux sur téléphone": ("Cours et QCM", "Cours et QCM", "Cours", "#/themes"),
@@ -3898,49 +3901,49 @@ GUIDES = {
     # « Plus »), celle de main avec l'ancienne (F4). Et le retour au jour de Planning, Semaine, « Revenir à aujourd'hui » depuis une autre semaine (audit du 09/11,
     # lot B ; la carte du lancement est cachée avec l'ancienne barre).
     "Signaler un problème en deux gestes":
-        ("Ouvre ton compte avec tes initiales, en haut à droite, puis choisis « Signaler un problème ». Chez les formateurs, le bouton est en bas de la barre de "
+        ("Ouvrir le compte avec les initiales, en haut à droite, puis choisir « Signaler un problème ». Chez les formateurs, le bouton est en bas de la barre de "
          "gauche sur ordinateur, et dans « Plus » sur téléphone.", "Touche ton nom en haut de l'écran, ou ouvre l'Assistant."),
     TITRE_LANCEMENT:
-        ("Dans Planning, Semaine, la journée du jour est repérée ; depuis une autre semaine, « Revenir à aujourd'hui » t'y ramène.", "(carte cachée avec l'ancienne barre)"),
-    "Ton Dossier Professionnel se remplit dans l'app":
-        ("Ouvre Mon suivi, dans la barre.", "Ouvre ton espace personnel avec le logo en haut à gauche."),
-    "Ton livret officiel TP-01303 se remplit dans l'app":
-        ("Ouvre Mon suivi, partie Livret EPCF.", "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait."),
+        ("Dans Planning, Semaine, la journée du jour est repérée ; depuis une autre semaine, « Revenir à aujourd'hui » y ramène.", "(carte cachée avec l'ancienne barre)"),
+    "Le dossier professionnel se remplit dans l'app":
+        ("Ouvrir Mon suivi, dans la barre.", "Ouvre ton espace personnel avec le logo en haut à gauche."),
+    "Le livret EPCF officiel (TP-01303) dans l'app":
+        ("Ouvrir Mon suivi, partie Livret EPCF.", "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait."),
     "Ta journée sur l'Accueil":
         ("Sur l'Accueil, la carte « Aujourd'hui » montre ton matin et ton après-midi. Quand la feuille d'émargement est ouverte, touche « Signer pour ce "
          "matin » (ou « Signer pour cet après-midi ») : la carte affiche ensuite l'heure de ta signature.", "(carte cachée avec l'ancienne barre)"),
     "Les cours se lisent mieux sur téléphone":
-        ("Ouvre un cours : touche le titre d'un thème, ou son bouton « Cours ».", "Ouvre un cours : touche le titre d'un thème, ou son bouton « Cours »."),
+        ("Ouvrir un cours : toucher le titre d'un thème, ou son bouton « Cours ».", "Ouvrir un cours : toucher le titre d'un thème, ou son bouton « Cours »."),
     "L'app aux couleurs d'ECF":
-        ("Ouvre le menu de ton compte : le rond à tes initiales, en haut à droite de l'écran (chez les formateurs, sur ordinateur, en bas de la barre de "
+        ("Ouvrir le menu du compte : le rond aux initiales, en haut à droite de l'écran (chez les formateurs, sur ordinateur, en bas de la barre de "
          "gauche).", "(carte cachée avec l'ancienne barre)"),
 }
 GUIDES_EQUIPE = {
     "Un tableau de bord du centre, promo par promo":
-        ("Ouvre Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».", "Ouvre l'Accueil, puis la tuile « Tableau de bord »."),
+        ("Ouvrez Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».", "Ouvre l'Accueil, puis la tuile « Tableau de bord »."),
     "Effacer les données d'un stagiaire, à sa demande":
         ("Réglages, partie Promo : « Abandon » sur le stagiaire concerné.", "Paramètres, partie Promo : « Abandon » sur le stagiaire concerné."),
     "Une page Stagiaires : toute la promo, une fiche par personne":
-        ("Ouvre Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).", "Ouvre la tuile Stagiaires de l'Accueil."),
+        ("Ouvrez Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).", "Ouvre la tuile Stagiaires de l'Accueil."),
     "Deux promos dans l'app, et des modules réglés promo par promo":
-        ("Touche la promo en tête de la barre de gauche (sur téléphone, en haut de l'écran).",
+        ("Touchez la promo en tête de la barre de gauche (sur téléphone, en haut de l'écran).",
          "Touche la pastille de la promo en haut de l'écran (« Nîmes · mars 2026 »)."),
     "Aujourd'hui remplace l'Accueil":
-        ("Ouvre Aujourd'hui, en haut de la barre de gauche sur ordinateur, en bas de l'écran sur téléphone.", "(carte cachée avec l'ancienne barre)"),
+        ("Ouvrez Aujourd'hui, en haut de la barre de gauche sur ordinateur, en bas de l'écran sur téléphone.", "(carte cachée avec l'ancienne barre)"),
 }
 LIEN_DES_BENEVOLES = ("Stagiaires, Élèves bénévoles", "#/stagiaires")   # le lien de la Nouveauté de lancement de l'équipe
 PIED_DE_L_ACCUEIL = {"ancienne": ("paramètres", "#/config"), "stagiaire": ("mes préférences", "#/preferences"), "equipe": ("réglages", "#/config")}
 CTRL_Z = {"ancienne": "Ctrl + Z annule la dernière action. Sur Notes, Passages, Thèmes et Calendrier.",
           "nouvelle": "Ctrl + Z annule la dernière action. Sur les notes, les passages, les thèmes et les dates clés."}
 SOCLE = {"ancienne": "Toujours ouverts : Accueil, Mon espace personnel (Passages), Paramètres, Nouveautés.",
-         "nouvelle": "Toujours ouverts : Accueil, Mon suivi (Passages), Mes préférences, Nouveautés."}
+         "nouvelle": "Toujours ouverts : Accueil, Mon suivi (dont les passages), Mes préférences, Nouveautés."}
 LIEN_DOSSIER_PRO = "Ton dossier professionnel, à remplir dans l'app"
 # Les trois Nouveautés du lot 2B (tâche 8), datées du jour de la fusion, lu dans js/nouveautes-data.js (rien à changer ici si elle se fait un autre jour). La
 # journée et Aujourd'hui sont propres à la nouvelle navigation (la première pour les stagiaires, la seconde pour l'équipe) ; les cours se lisent dans les deux, masqués à un
 # stagiaire dont la promo n'a pas ouvert la lecture des cours.
 TITRE_JOURNEE = "Ta journée sur l'Accueil"
 TITRE_AUJOURDHUI_EQUIPE = "Aujourd'hui remplace l'Accueil"
-TITRE_QUESTIONNAIRES = "Ton avis sur la formation, sans ton nom"   # Qualiopi Q3, en ligne le jour même du lot 2B : hors de l'ordre du lot
+TITRE_QUESTIONNAIRES = "Un avis sur la formation, sans nom"   # Qualiopi Q3, en ligne le jour même du lot 2B : hors de l'ordre du lot
 TITRE_COURS_TELEPHONE = "Les cours se lisent mieux sur téléphone"
 TITRE_COULEURS_ECF = "L'app aux couleurs d'ECF"   # lot 3, tâche 11 : pour tous, nouvelle navigation seulement (décision H6)
 # La date vient de js/nouveautes-data.js, seule source : l'id de l'entrée de la journée porte AAAA-MM-JJ.
@@ -4190,7 +4193,7 @@ def verifier_pied_et_retenir(res, vue, m, navigation):
 
 
 def verifier_pied_de_l_accueil(res, vue, m, nouvelle):
-    """Le pied de l'Accueil dit la promo et le rôle (vague finale, F7). Avec la nouvelle navigation : « TP ECSR App · Promo <nom de la promo affichée> · connecté comme
+    """Le pied de l'Accueil dit la promo et le rôle (vague finale, F7). Avec la nouvelle navigation : « TP ECSR App · Promo <nom de la promo affichée> · connecté en tant que
     <rôle> », le vrai rôle (audit du 09/11, A8) : l'aperçu « Voir en tant que » (« direction (aperçu) »), sinon « fondateur », sinon le rôle sur la promo
     (formateur, direction, siège, stagiaire), jamais « admin ». Avec l'ancienne : le texte de main, « Promo 2026 » écrit en dur, « admin » compris.
     Le rôle se déduit de la personne connectée, lue dans la page (aperçu, fondateur, rôles sur la promo, administrateur, rôle de profil)."""
@@ -4207,7 +4210,7 @@ def verifier_pied_de_l_accueil(res, vue, m, nouvelle):
     else:
         role = "formateur" if qui["admin"] else {"prof": "formateur", "stagiaire": "stagiaire"}.get(qui["role"], "")
     promo = ("Promo %s" % m["promo"]["nom"]) if nouvelle else "Promo 2026"
-    attendu = "TP ECSR App · %s · connecté comme %s" % (promo, role) if role else "TP ECSR App · %s ·" % promo
+    attendu = "TP ECSR App · %s · connecté en tant que %s" % (promo, role) if role else "TP ECSR App · %s ·" % promo
     if m["piedTexte"] != attendu:
         res.echec("pied de l'accueil", vue, "le pied de page dit « %s », attendu « %s » (%s navigation)" % (m["piedTexte"], attendu, "nouvelle" if nouvelle else "ancienne"))
 
@@ -4242,7 +4245,7 @@ def verifier_contacts_du_centre(page, res, sc):
 
 def verifier_ccp2(page, res, sc):
     """Parcours CCP2, les deux navigations : le lien vers le dossier professionnel (étape 8) ne nomme plus ni Mon espace ni un sous-onglet, il dit « Ton
-    dossier professionnel, à remplir dans l'app » et mène à la partie Dossier pro (#/mon-suivi/dp). Rien si CCP2 est fermé pour ce stagiaire. Et l'ordre de la
+    dossier professionnel, à remplir dans l'app » et mène à la partie Dossier professionnel (#/mon-suivi/dp). Rien si CCP2 est fermé pour ce stagiaire. Et l'ordre de la
     page (lot 2B, tâche 8) : allumé, les dates, les étapes, puis l'épreuve repliée en bas ; éteint, l'ordre de main (verifier_page_ccp2)."""
     vue = "%s/ccp2/lien-dossier-pro" % sc.nom
     aller_a(page, "#/ccp2")
@@ -4580,13 +4583,13 @@ def lundi_de(jour):
 
 
 def ligne_promo_attendue(promo, aujourdhui):
-    """« Promo <nom> · semaine <n> » : la semaine 1 est celle du premier jour de la promo (du lundi au dimanche) ; pas de numéro avant la promo ni
+    """« Promo <nom> · semaine <n> de formation » : la semaine 1 est celle du premier jour de la promo (du lundi au dimanche) ; pas de numéro avant la promo ni
     après sa date de fin. Recalculé ici, sans reprendre le code de l'app."""
     debut = datetime.date.fromisoformat(promo["debut"])
     fin = datetime.date.fromisoformat(promo["fin"]) if promo["fin"] else None
     if aujourdhui < debut or (fin and aujourdhui > fin):
         return "Promo %s" % promo["nom"]
-    return "Promo %s · semaine %d" % (promo["nom"], 1 + (lundi_de(aujourdhui) - lundi_de(debut)).days // 7)
+    return "Promo %s · semaine %d de formation" % (promo["nom"], 1 + (lundi_de(aujourdhui) - lundi_de(debut)).days // 7)
 
 
 def carte_attendue(evenements, aujourdhui):
@@ -4670,7 +4673,7 @@ def ouvrir_accueil(page, res, vue):
 
 def verifier_accueil(page, res, sc):
     """Accueil, nouvelle navigation, les deux espaces : le logo n'y est qu'une fois (celui de la coquille, pas un second à côté de la date), la phrase qui
-    énumérait les pages de l'ancienne barre est remplacée par « Promo <nom> · semaine <n> », aucune tuile ne double la barre. Le stagiaire a sa page
+    énumérait les pages de l'ancienne barre est remplacée par « Promo <nom> · semaine <n> de formation », aucune tuile ne double la barre. Le stagiaire a sa page
     (lot 2B, tâche 3), l'équipe la sienne, Aujourd'hui (tâche 4)."""
     vue = "%s/accueil" % sc.nom
     equipe = sc.espace == "equipe"
@@ -4803,7 +4806,7 @@ TITRES_AUJOURDHUI = {"a-traiter": "À traiter", "a-suivre": "À suivre de près"
 
 
 def verifier_aujourdhui_equipe(page, res, sc, vue, jour=None, feuille="ouverte", planning=True, avec_feuille=True, benevoles=False):
-    """Aujourd'hui du formateur, nouvelle navigation (lot 2B, tâche 4) : la pastille de date, le titre « Aujourd'hui », la ligne « Promo <nom> · semaine <n> · N stagiaires
+    """Aujourd'hui du formateur, nouvelle navigation (lot 2B, tâche 4) : la pastille de date, le titre « Aujourd'hui », la ligne « Promo <nom> · semaine <n> de formation · N stagiaires
     en formation » ; les cartes dans l'ordre du téléphone (émargement, à traiter, au tableau, en voiture, à suivre) et, dès 1080 px, émargement, au tableau, en voiture sur une
     ligne puis à traiter et à suivre ; aucune Nouveauté, tuile, compte à rebours ni « À retenir » ; l'émargement (« N sur M », jauge, « Voir la feuille », « Pas encore ouverte »
     sans feuille, carte absente promo éteinte) et, pour qui a une fiche de stagiaire, son bouton « Signer » ; au tableau et en voiture selon le planning du jour, les liens vers
@@ -4910,8 +4913,8 @@ def verifier_aujourdhui_equipe(page, res, sc, vue, jour=None, feuille="ouverte",
     if "Tout voir" not in {x["texte"]: x for x in m["plus"]}:
         echec("« À suivre de près » n'a pas son lien « Tout voir »")
     suivre = par["a-suivre"]["texte"]
-    if "Personne ne cumule deux signaux." not in suivre and "À suivre" not in suivre:
-        echec("« À suivre de près » ne dit ni qui suivre ni « Personne ne cumule deux signaux. » : « %s »" % suivre)
+    if "Aucun stagiaire à suivre de près pour l'instant." not in suivre and "À suivre" not in suivre:
+        echec("« À suivre de près » ne dit ni qui suivre ni « Aucun stagiaire à suivre de près pour l'instant. » : « %s »" % suivre)
     # Les erreurs ne s'affichent que dans les pannes que le scénario sème (« À traiter » sans compte).
     attendues_en_panne = 1 if (attendu_pastille is None and sc.a_traiter != "lent") else 0
     if len(m["erreurs"]) != attendues_en_panne:
@@ -5181,8 +5184,11 @@ def verifier_accueil_voir_en_tant_que_stagiaire(page, res, sc, vue):
     attendre_accueil(page)
     res.vues += 1
     m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
-    if not re.match(r"^(Bonjour|Bon après-midi|Bonsoir), ", (m["titre"] or "").strip()) or [c["zone"] for c in m["cartes"]] != [z for z, _ in ZONES_DE_L_ACCUEIL]:
-        res.echec("accueil en aperçu stagiaire", vue, "l'accueil n'est pas celui du stagiaire : titre « %s », cartes %s" % (m["titre"], [c["zone"] for c in m["cartes"]]))
+    # Décision du 10/11 : le titre est « Accueil » (une page, un nom), la salutation par le prénom passe dessous.
+    if ((m["titre"] or "").strip() != "Accueil" or not re.match(r"^(Bonjour|Bon après-midi|Bonsoir), ", (m["salut"] or "").strip())
+            or [c["zone"] for c in m["cartes"]] != [z for z, _ in ZONES_DE_L_ACCUEIL]):
+        res.echec("accueil en aperçu stagiaire", vue, "l'accueil n'est pas celui du stagiaire : titre « %s », salutation « %s », cartes %s"
+                  % (m["titre"], m["salut"], [c["zone"] for c in m["cartes"]]))
     if not res.profil_stagiaire:
         dedans = page.evaluate("() => ({ puces: document.querySelectorAll('#view .acc-puce').length, signes: document.querySelectorAll('#view .acc-signe').length,"
                                " boutons: document.querySelectorAll('#view .acc-creneau button.btn').length })")
@@ -5594,13 +5600,13 @@ def verifier_la_classe(page, res, sc):
 # --------------------------------------------------------------------------------------
 
 # Mon suivi, nouvelle navigation : les parties dans l'ordre (sous-onglets sur ordinateur, lignes du sommaire sur téléphone).
-PARTIES_MON_SUIVI = ["Résultats", "Passages", "EPCF", "Livret EPCF", "Dossier pro"]   # « Livret EPCF » : décision de Timy du 08/11
-# La fiche de main : Mon espace éteint, et la fiche d'un stagiaire chez l'équipe dans les deux navigations.
-PARTIES_FICHE_DE_MAIN = ["Passages", "EPCF", "Évolution", "Livret", "Dossier pro"]
+PARTIES_MON_SUIVI = ["Résultats", "Passages", "Évaluations EPCF", "Livret EPCF", "Dossier professionnel"]   # un nom par objet : décisions du 08/11 et du 10/11 (lot D)
+# La fiche de main : Mon espace éteint, et la fiche d'un stagiaire chez l'équipe dans les deux navigations (noms des parties du lot D, 10/11 : les mêmes partout).
+PARTIES_FICHE_DE_MAIN = ["Passages", "Évaluations EPCF", "Évolution", "Livret EPCF", "Dossier professionnel"]
 # Les lignes du sommaire du stagiaire du banc (Timy, id 1, le 27/10/2026) : aucun passage à venir, aucune épreuve EPCF, pas de livret, un dossier ouvert le 02/10
-# sans exemple rempli (que main écrivait « Dossier pro 02/10 »).
-LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : aucun à venir", "EPCF : 0 épreuve sur 2", "Livret EPCF : pas encore commencé",
-                            "Dossier pro : 0 exemple sur 6"]
+# sans exemple rempli (que main écrivait « Dossier pro 02/10 », avant le lot D).
+LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : aucun à venir", "Évaluations EPCF : 0 épreuve sur 2",
+                            "Livret EPCF : pas encore commencé", "Dossier professionnel : 0 exemple sur 6"]
 CLE_VUE_RESULTATS = "ecsr_resultats_vue"
 # La fiche d'un stagiaire chez l'équipe : Valentin (id 4), EPCF 1 sur 2, livret et dossier.
 ID_DE_LA_FICHE_DE_L_EQUIPE = 4
@@ -5729,7 +5735,7 @@ def jouer_mon_suivi(page, res, sc):
     """Mon suivi aux libellés clairs (lot 2B, tâche 7), nouvelle navigation, toute personne qui a une fiche, à 1 280 et 375 px. Les parties dans l'ordre ; Résultats
     ouvre « Moi » sans mémoire, « La classe » se choisit, se garde en quittant la page et après un rechargement, « Moi » se rechoisit ; sur téléphone, le retour
     ramène au sommaire ; #/mon-suivi/classe, #/mon-suivi/evolution et #/notes (stagiaire) ouvrent Résultats sur la bonne vue, quelle que soit la mémoire, l'adresse
-    devenue celle de Résultats sans étape d'historique ; sur téléphone, un exemple du dossier enregistré fait passer la ligne « Dossier pro » à « 1 exemple sur 6 »."""
+    devenue celle de Résultats sans étape d'historique ; sur téléphone, un exemple du dossier enregistré fait passer la ligne « Dossier professionnel » à « 1 exemple sur 6 »."""
     tel = sc.largeur < SEUIL_TELEPHONE
     base = "%s/mon-suivi" % sc.nom
     memoriser = lambda v: page.evaluate("(a) => { try { if (a[1]) localStorage.setItem(a[0], a[1]); else localStorage.removeItem(a[0]); } catch (e) {} }",
@@ -5826,7 +5832,7 @@ def jouer_compte_du_dossier(page, res, sc):
     try:
         page.wait_for_selector('#view .lv-f[data-k="at1_ex1_titre"]', timeout=6000)
     except DelaiDepasse:
-        res.echec("Mon suivi, dossier", vue, "la partie Dossier pro n'affiche pas le titre du premier exemple à remplir")
+        res.echec("Mon suivi, dossier", vue, "la partie Dossier professionnel n'affiche pas le titre du premier exemple à remplir")
         return
     if not cliquer(page, res, vue, '#view .lv-f[data-k="at1_ex1_titre"]', "titre du premier exemple du dossier"):
         return
@@ -5840,8 +5846,8 @@ def jouer_compte_du_dossier(page, res, sc):
         return
     attendre(page)
     lignes = [l["texte"] for l in lire_mon_suivi(page)["lignes"]]
-    if "Dossier pro : 1 exemple sur 6" not in lignes:
-        res.echec("Mon suivi, dossier", vue, "après l'enregistrement d'un exemple, le sommaire dit %s, attendu la ligne « Dossier pro : 1 exemple sur 6 »" % lignes)
+    if "Dossier professionnel : 1 exemple sur 6" not in lignes:
+        res.echec("Mon suivi, dossier", vue, "après l'enregistrement d'un exemple, le sommaire dit %s, attendu la ligne « Dossier professionnel : 1 exemple sur 6 »" % lignes)
     vider_console(res, vue)
     recharger_au_banc(page, "#/home", ecritures="")
 
@@ -5866,7 +5872,7 @@ def parties_de_main_montrees(f, sc):
 
 
 def verifier_fiche_de_l_equipe(page, res, sc):
-    """La fiche d'un stagiaire vue par l'équipe (page Stagiaires), dans les deux navigations : les parties de main (Passages, EPCF, Évolution, Livret, Dossier pro),
+    """La fiche d'un stagiaire vue par l'équipe (page Stagiaires), dans les deux navigations : les parties de main (Passages, Évaluations EPCF, Évolution, Livret EPCF, Dossier professionnel),
     sans Résultats ni « Moi / La classe » ni sommaire aux libellés clairs ; la partie Évolution s'ouvre sur son graphe."""
     vue = "%s/stagiaires/%d/fiche-de-main" % (sc.nom, ID_DE_LA_FICHE_DE_L_EQUIPE)
     echec = lambda detail: res.echec("fiche d'un stagiaire chez l'équipe", vue, detail)
@@ -5894,7 +5900,7 @@ def verifier_fiche_de_l_equipe(page, res, sc):
 
 
 def verifier_mon_espace_eteint(page, res, sc):
-    """Interrupteur éteint : Mon espace garde les parties de main et leurs états (« EPCF 0/2 », « Dossier pro 02/10 » sont ceux de main), sans Résultats ni
+    """Interrupteur éteint : Mon espace garde les parties de main et leurs états (« 0/2 », « modifié le 02/10 »), sans Résultats ni
     « Moi / La classe » ; #/mon-suivi/evolution ouvre la partie Évolution."""
     vue = "%s/mon-espace-de-main" % sc.nom
     echec = lambda detail: res.echec("Mon espace, interrupteur éteint", vue, detail)
@@ -5995,7 +6001,7 @@ def verifier_bandeau_emargement(page, res, sc):
 # --------------------------------------------------------------------------------------
 
 SOUS_ONGLETS_COURS_STAGIAIRE = ["Thèmes", "Compétences", "QCM", "Documents"]
-SOUS_ONGLETS_COURS_EQUIPE = ["Thèmes", "Compétences", "Signalements", "Propositions IA", "Documents"]
+SOUS_ONGLETS_COURS_EQUIPE = ["Thèmes", "Compétences", "Questions contestées", "Propositions IA", "Documents"]   # « Questions contestées » : lot D (10/11)
 # Ce que le banc sert à la stagiaire du banc : le QCM 50 (thème 22, examen ouvert, deux entraînements à 10/20), le QCM 51 (thème 23, un entraînement à 20/20).
 LIGNES_QCM_DU_BANC = [
     ("Thème 22 · Feux du véhicule", "Dernière note 10/20", ["Examen ouvert"]),
@@ -6006,8 +6012,8 @@ LIGNES_PROPOSITIONS_DU_BANC = [
     ("Thème 23 · Pneumatiques", "1 question à relire, proposée le 12/10/2026"),
     ("Thème 22 · Feux du véhicule", "2 questions à relire, la plus ancienne proposée le 20/10/2026"),
 ]
-A_TRAITER_DU_BANC["propositions"] = ("8", "8 à traiter : 5 signalements, 3 propositions de l'IA")
-A_TRAITER_DU_BANC["propositions-relue"] = ("7", "7 à traiter : 5 signalements, 2 propositions de l'IA")
+A_TRAITER_DU_BANC["propositions"] = ("8", "8 à traiter : 5 questions contestées, 3 propositions de l'IA")
+A_TRAITER_DU_BANC["propositions-relue"] = ("7", "7 à traiter : 5 questions contestées, 2 propositions de l'IA")
 
 JS_LISTE_ACTIONS = r"""() => {
   const vue = document.querySelector('#view');
@@ -6074,7 +6080,7 @@ def verifier_liste_d_actions(res, vue, sc, m, attendues, compte, titre_carte, qu
 
 def jouer_qcm_du_stagiaire(page, res, sc):
     """Cours et QCM > QCM, le stagiaire (lot 2B, tâche 6) : les sous-onglets Thèmes, Compétences, QCM, Documents ; la liste de ses QCM (examen ouvert d'abord, sa DERNIÈRE
-    note d'entraînement, « Examen ouvert » en repère) ; « Ouvrir » ouvre la fenêtre du QCM (entraîner, erreurs, examen), « Fermer » ramène à la liste ; la fenêtre
+    note d'entraînement, « Examen ouvert » en repère) ; « Voir le QCM » ouvre la fenêtre du QCM (entraîner, erreurs, examen), « Fermer » ramène à la liste ; la fenêtre
     d'entraînement s'ouvre puis se ferme sans rien perdre ; un entraînement fini met la note à jour sans recharger ; une lecture en échec dit sa panne et « Réessayer » la relit."""
     vue = "%s/cours/qcm" % sc.nom
     echec = lambda detail: res.echec("sous-onglet QCM du stagiaire", vue, detail)
@@ -6092,12 +6098,12 @@ def jouer_qcm_du_stagiaire(page, res, sc):
     if m["actif"] != "QCM":
         echec("le sous-onglet allumé est « %s », attendu « QCM »" % m["actif"])
     verifier_liste_d_actions(res, vue, sc, m, LIGNES_QCM_DU_BANC, "2 QCM", "Tes QCM", "sous-onglet QCM du stagiaire")
-    if [x["bouton"] for x in m["lignes"]] != ["Ouvrir"] * 2:
-        echec("les boutons sont %s, attendu « Ouvrir » sur chaque ligne" % [x["bouton"] for x in m["lignes"]])
-    # « Ouvrir » : la fenêtre du QCM, avec l'entraînement, les erreurs et l'examen ouvert ; « Fermer » ramène à la liste.
+    if [x["bouton"] for x in m["lignes"]] != ["Voir le QCM"] * 2:
+        echec("les boutons sont %s, attendu « Voir le QCM » sur chaque ligne" % [x["bouton"] for x in m["lignes"]])
+    # « Voir le QCM » : la fenêtre du QCM, avec l'entraînement, les erreurs et l'examen ouvert ; « Fermer » ramène à la liste.
     vue_fenetre = vue + "/fenetre"
     res.vues += 1
-    if not cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="Ouvrir : Thème 22 · Feux du véhicule"]', "bouton « Ouvrir » du thème 22"):
+    if not cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="Voir le QCM : Thème 22 · Feux du véhicule"]', "bouton « Voir le QCM » du thème 22"):
         return
     page.wait_for_selector(".modal-backdrop .theme-modal", timeout=4000)
     page.wait_for_timeout(350)   # l'entrée de la fenêtre
@@ -6130,7 +6136,7 @@ def jouer_qcm_du_stagiaire(page, res, sc):
         res.echec("retour à la liste", vue_fenetre, "après la fenêtre : #/%s, sous-onglet %s, lignes %s ; la liste des QCM devait être là" % (route_courante(page), m["actif"], [x["titre"] for x in m["lignes"]]))
     vider_console(res, vue_fenetre)
     # La fiche se ferme aussi par son bouton « Fermer ».
-    if cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="Ouvrir : Thème 23 · Pneumatiques"]', "bouton « Ouvrir » du thème 23"):
+    if cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="Voir le QCM : Thème 23 · Pneumatiques"]', "bouton « Voir le QCM » du thème 23"):
         page.wait_for_selector(".modal-backdrop .theme-modal", timeout=4000)
         page.wait_for_timeout(350)
         if cliquer(page, res, vue_fenetre, ".modal-backdrop .modal-actions .btn", "« Fermer » de la fiche"):
@@ -6262,7 +6268,7 @@ def jouer_propositions_ia(page, res, sc):
     vue_ligne = vue + "/ligne-d-aujourdhui"
     res.vues += 1
     lignes = page.evaluate("() => [...document.querySelectorAll('#view [data-zone=\"a-traiter\"] a.acc-ligne')].map((a) => [a.innerText.replace(/\\s+/g, ' ').trim(), a.getAttribute('href')])")
-    attendues = [["5 signalements sur des QCM", "#/themes"], ["3 questions proposées par l'IA", "#/themes"]]
+    attendues = [["5 questions contestées", "#/themes"], ["3 questions proposées par l'IA", "#/themes"]]
     if lignes != attendues:
         res.echec("ligne d'Aujourd'hui", vue_ligne, "la carte « À traiter » dit %s, attendu %s" % (lignes, attendues))
         return
@@ -6342,8 +6348,8 @@ def jouer_propositions_ia(page, res, sc):
     carte = page.evaluate(r"""() => { const c = document.querySelector('#view [data-zone="a-traiter"]');
         return { lignes: [...c.querySelectorAll('a.acc-ligne')].map((a) => a.innerText.replace(/\s+/g, ' ').trim()),
                  alertes: [...c.querySelectorAll('.acc-erreur[role="alert"]')].map((p) => p.textContent.trim()) }; }""")
-    if carte["lignes"] != ["3 questions proposées par l'IA"] or carte["alertes"] != ["Le décompte des signalements n'a pas pu être lu."]:
-        res.echec("ligne d'Aujourd'hui", vue_panne_compte, "signalements illisibles : la carte « À traiter » dit %s et %s, attendu la ligne « 3 questions proposées par l'IA » et l'alerte « Le décompte des signalements n'a pas pu être lu. »" % (carte["lignes"], carte["alertes"]))
+    if carte["lignes"] != ["3 questions proposées par l'IA"] or carte["alertes"] != ["Le décompte des questions contestées n'a pas pu être lu."]:
+        res.echec("ligne d'Aujourd'hui", vue_panne_compte, "signalements illisibles : la carte « À traiter » dit %s et %s, attendu la ligne « 3 questions proposées par l'IA » et l'alerte « Le décompte des questions contestées n'a pas pu être lu. »" % (carte["lignes"], carte["alertes"]))
     res.console.clear()   # le « console.error » de la page est le but de l'essai : elle journalise la lecture qui échoue, l'écran dit la panne
     vider_console(res, vue_panne_compte)
     recharger_au_banc(page, "#/home", panne="")

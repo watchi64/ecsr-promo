@@ -3,67 +3,70 @@
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
 // En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
-import "./journal-erreurs.js?v=20261111a";
+import "./journal-erreurs.js?v=20261111b";
 import {
   getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements, basculeLancee, getPromoCourante, getMesPromos,
   habillageParDefaut,
-} from "./db.js?v=20261111a";
-import { toast, annoncer, el } from "./utils.js?v=20261111a";
-import { icon } from "./icons.js?v=20261111a";
-import { initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261111a";
-import { getEspace, getCentre } from "./auth-admin.js?v=20261111a";
+} from "./db.js?v=20261111b";
+import { toast, annoncer, el } from "./utils.js?v=20261111b";
+import { icon } from "./icons.js?v=20261111b";
+import {
+  initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail,
+  getProfile, getProfileWho, fondateurHorsApercu, getProfileNom, selonPublic,
+} from "./auth-admin.js?v=20261111b";
+import { getEspace, getCentre } from "./auth-admin.js?v=20261111b";
 import {
   ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage, promosDuCentre, defautsHabillage,
-} from "./espaces-rules.js?v=20261111a";
-import { chargerEtatSignalements } from "./signalement-etat.js?v=20261111a";
-import { messageDemarrage } from "./signalement-rules.js?v=20261111a";
-import { showGate, hideGate } from "./gate.js?v=20261111a";
-import { exigerAcceptation } from "./legal.js?v=20261111a";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261111a";
-import { habillageAuDemarrage } from "./habillage.js?v=20261111a";
-import { renderHome } from "./views/home.js?v=20261111a";
-import { renderDashboard } from "./views/dashboard.js?v=20261111a";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261111a";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261111a";
-import { renderPlanningEspace } from "./views/planning-espace.js?v=20261111a";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261111a";
-import { renderNotes } from "./views/notes.js?v=20261111a";
-import { renderVueCentre, renderEmargementCentre, renderNotesCentre } from "./views/direction-centre.js?v=20261111a";
-import { renderPromosCentre } from "./views/direction-promos.js?v=20261111a";
-import { renderStagiairesCentre } from "./views/direction-stagiaires.js?v=20261111a";
-import { renderEquipeCentre } from "./views/direction-equipe.js?v=20261111a";
-import { renderReseau } from "./views/siege-reseau.js?v=20261111a";
-import { renderDirections } from "./views/siege-directions.js?v=20261111a";
-import { renderRessources } from "./views/ressources.js?v=20261111a";
-import { renderThemes } from "./views/themes.js?v=20261111a";
-import { renderConfig, renderPreferences } from "./views/config.js?v=20261111a";
-import { renderReglagesCentre, renderReglagesReseau } from "./views/reglages-habillage.js?v=20261111a";
-import { renderCalendrier } from "./views/calendrier.js?v=20261111a";
-import { initUndoKeyboard } from "./undo.js?v=20261111a";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261111a";
-import { libellePastille } from "./nouveautes.js?v=20261111a";
-import { renderCcp2 } from "./views/ccp2.js?v=20261111a";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261111a";
-import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261111a";
-import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261111a";
-import { renderEmargement } from "./views/emargement.js?v=20261111a";
-import { renderProblemes } from "./views/problemes.js?v=20261111a";
-import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261111a";
-import { chargerEmargementActif, emargementActif, chargerEmargementCentre, emargementDansLeCentre } from "./emargement-etat.js?v=20261111a";
-import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261111a";
-import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261111a";
-import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261111a";
-import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261111a";
-import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261111a";
+} from "./espaces-rules.js?v=20261111b";
+import { chargerEtatSignalements } from "./signalement-etat.js?v=20261111b";
+import { messageDemarrage } from "./signalement-rules.js?v=20261111b";
+import { showGate, hideGate } from "./gate.js?v=20261111b";
+import { exigerAcceptation } from "./legal.js?v=20261111b";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261111b";
+import { habillageAuDemarrage } from "./habillage.js?v=20261111b";
+import { renderHome } from "./views/home.js?v=20261111b";
+import { renderDashboard } from "./views/dashboard.js?v=20261111b";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261111b";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261111b";
+import { renderPlanningEspace } from "./views/planning-espace.js?v=20261111b";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261111b";
+import { renderNotes } from "./views/notes.js?v=20261111b";
+import { renderVueCentre, renderEmargementCentre, renderNotesCentre } from "./views/direction-centre.js?v=20261111b";
+import { renderPromosCentre } from "./views/direction-promos.js?v=20261111b";
+import { renderStagiairesCentre } from "./views/direction-stagiaires.js?v=20261111b";
+import { renderEquipeCentre } from "./views/direction-equipe.js?v=20261111b";
+import { renderReseau } from "./views/siege-reseau.js?v=20261111b";
+import { renderDirections } from "./views/siege-directions.js?v=20261111b";
+import { renderRessources } from "./views/ressources.js?v=20261111b";
+import { renderThemes } from "./views/themes.js?v=20261111b";
+import { renderConfig, renderPreferences } from "./views/config.js?v=20261111b";
+import { renderReglagesCentre, renderReglagesReseau } from "./views/reglages-habillage.js?v=20261111b";
+import { renderCalendrier } from "./views/calendrier.js?v=20261111b";
+import { initUndoKeyboard } from "./undo.js?v=20261111b";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261111b";
+import { libellePastille } from "./nouveautes.js?v=20261111b";
+import { renderCcp2 } from "./views/ccp2.js?v=20261111b";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261111b";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261111b";
+import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261111b";
+import { renderEmargement } from "./views/emargement.js?v=20261111b";
+import { renderProblemes } from "./views/problemes.js?v=20261111b";
+import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261111b";
+import { chargerEmargementActif, emargementActif, chargerEmargementCentre, emargementDansLeCentre } from "./emargement-etat.js?v=20261111b";
+import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261111b";
+import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261111b";
+import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261111b";
+import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261111b";
+import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261111b";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261111a";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261111a";
+} from "./navigation.js?v=20261111b";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261111b";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, routeMasquee, repereMasque, nouveautesAffichables, formateurConnecte,
-} from "./modules-etat.js?v=20261111a";
+} from "./modules-etat.js?v=20261111b";
 
 // ===== Tabs =====
 
@@ -105,7 +108,7 @@ function renderTabs() {
     try {
       document.getElementById("tabs").replaceChildren();
       const espace = espaceCourant();
-      const nom = getProfileWho();
+      const nom = getProfileNom();
       monterCoquille({
         espace,
         // Lot 5 : Émargement du centre s'allume quand une promo du centre a l'interrupteur (emargementDansLeCentre, lu au
@@ -217,7 +220,7 @@ function rendreCentre(view) {
 // rien. La boîte d'erreur propose donc de recharger, ce qui suffit pour une page du fondateur.
 function boiteErreurQualiopi() {
   return el("div", { class: "centre-erreur qualiopi-erreur", role: "alert" },
-    el("p", {}, "La page Qualiopi n'a pas pu se charger. Vérifie ta connexion, puis recharge la page."),
+    el("p", {}, "La page Qualiopi n'a pas pu se charger. Vérifiez votre connexion, puis rechargez la page."),
     el("button", { class: "btn small", type: "button", onClick: () => rechargerApresEnregistrements() }, "Recharger la page"));
 }
 
@@ -225,7 +228,7 @@ async function rendreQualiopi(view) {
   afficherChargement();
   let page;
   try {
-    page = await import("./views/qualiopi.js?v=20261111a");
+    page = await import("./views/qualiopi.js?v=20261111b");
   } catch (e) {
     console.error(e);
     if (lastRoute === "qualiopi") view.replaceChildren(boiteErreurQualiopi());
@@ -457,7 +460,8 @@ async function navigate({ force = false } = {}) {
     const sub = document.createElement("p");
     sub.className = "view-error-sub";
     sub.textContent = isTimeout
-      ? "Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie."
+      ? selonPublic("Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie.",
+        "Le serveur n'a pas répondu à temps. Vérifiez votre connexion et réessayez.")
       : "Détail : " + (e?.message || e);
     const retry = document.createElement("button");
     retry.className = "btn primary";
@@ -467,7 +471,7 @@ async function navigate({ force = false } = {}) {
     box.appendChild(sub);
     box.appendChild(retry);
     view.appendChild(box);
-    toast(isTimeout ? "Connexion trop lente, réessaie" : (e?.message || String(e)), "error");
+    toast(isTimeout ? selonPublic("Connexion trop lente, réessaie", "Connexion trop lente, réessayez") : (e?.message || String(e)), "error");
   }
 }
 

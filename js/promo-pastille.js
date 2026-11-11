@@ -4,11 +4,11 @@
 // Pastille du centre (lot 5, D6) : dans la barre de la direction, quand le compte dirige plusieurs centres. Choisir un
 // centre, c'est choisir l'une de ses promos (la première en cours, sinon la plus récente), avec le même rechargement. Les
 // deux choix partagent la même fenêtre (ouvrirListe).
-import { el, isoDate } from "./utils.js?v=20261111a";
-import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261111a";
-import { libelleCourtPromo, resumePromo } from "./promo-rules.js?v=20261111a";
-import { isFounder, apercusOuverts, setViewAs, getAffectations, getCentre } from "./auth-admin.js?v=20261111a";
-import { promoPourLaDirection, promosDuCentre } from "./espaces-rules.js?v=20261111a";
+import { el, isoDate } from "./utils.js?v=20261111b";
+import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261111b";
+import { libelleCourtPromo, resumePromo } from "./promo-rules.js?v=20261111b";
+import { isFounder, apercusOuverts, setViewAs, getAffectations, getCentre } from "./auth-admin.js?v=20261111b";
+import { promoPourLaDirection, promosDuCentre } from "./espaces-rules.js?v=20261111b";
 
 // « Montpellier · sept. 2026 » : le lieu dans son propre span, que le CSS masque sur les
 // écrans les plus étroits (la date suffit à distinguer les promos dans la barre).
@@ -142,7 +142,7 @@ function ouvrirListe({ sorte, titre, enCours, choix, apres = null }) {
   if (document.querySelector(".promo-choix-modal")) return;  // déjà ouvert (clavier)
 
   const backdrop = el("div", { class: "modal-backdrop" });
-  const aide = el("p", { class: "muted", role: "status" }, "Ton choix est mémorisé sur cet appareil.");
+  const aide = el("p", { class: "muted", role: "status" }, "Choix mémorisé sur cet appareil.");
   const liste = el("div", { class: "promo-choix-liste", role: "radiogroup", "aria-label": titre });
 
   // Fermer rend le focus à la pastille, cherchée à ce moment-là : updateBadge() a pu la

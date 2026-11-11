@@ -130,10 +130,10 @@ def passer_un_qcm(v):
 
 
 # Évolution d'abord : c'est le but (« mes résultats ») ; les autres parties sont visitées ensuite, hors budget.
-PARTIES_MON_SUIVI = ("Évolution", "Passages", "EPCF", "Livret", "Dossier pro")
+PARTIES_MON_SUIVI = ("Évolution", "Passages", "Évaluations EPCF", "Livret EPCF", "Dossier professionnel")
 # Nouvelle navigation (lot 2B) : Évolution et La classe sont les deux vues de Résultats, qui s'ouvre sur « Moi » ; le livret
-# s'y appelle « Livret EPCF » (décision de Timy du 08/11).
-PARTIES_MON_SUIVI_V2 = ("Résultats", "Passages", "EPCF", "Livret EPCF", "Dossier pro")
+# s'y appelle « Livret EPCF » (décision de Timy du 08/11) ; un nom par objet dans les deux navigations (lot D, 10/11).
+PARTIES_MON_SUIVI_V2 = ("Résultats", "Passages", "Évaluations EPCF", "Livret EPCF", "Dossier professionnel")
 
 
 @parcours("mon-suivi", "Voir mes résultats et mes passages (Mon suivi)", role="stagiaire", budget=2)
@@ -345,13 +345,13 @@ def jusqu_a_l_examen_pret(v):
     examen = texte("Passer l'examen", "button")
     if not v.voit(examen):
         rangee = "#view .theme-row:has-text(\"%s\") button.theme-qcm-hint" % theme
-        sous_onglet = "#view .acc-ligne:has-text(\"%s\") button:has-text(\"Ouvrir\")" % theme
+        sous_onglet = "#view .acc-ligne:has-text(\"%s\") button:text-is(\"Voir le QCM\")" % theme
         if v.voit(rangee):
             # Un raccourci mène au même endroit que son nom (critère C) : ici, la liste de tous les thèmes.
             v.constat("C", LISTE, "« Examen ouvert : %s » mène à la liste des thèmes, pas au QCM du thème" % theme, capture=True)
             v.toucher(rangee, "le bouton « QCM » du thème %s" % theme)
         elif v.voit(sous_onglet):
-            v.toucher(sous_onglet, "« Ouvrir » (QCM du thème %s)" % theme)
+            v.toucher(sous_onglet, "« Voir le QCM » (thème %s)" % theme)
         else:
             v.echec("après « Examen ouvert », ni la fiche du QCM ni le thème %s à l'écran" % theme)
     v.toucher(examen, "« Passer l'examen »")
@@ -410,12 +410,12 @@ def quitter_un_examen(v):
 @parcours("mes-qcm", "Retrouver mes QCM et ma dernière note (sous-onglet QCM)", role="stagiaire", budget=2,
           navigations=NOUVELLE)
 def mes_qcm(v):
-    """Cours et QCM, sous-onglet QCM : chaque QCM avec sa dernière note ; « Ouvrir » mène à sa fiche."""
+    """Cours et QCM, sous-onglet QCM : chaque QCM avec sa dernière note ; « Voir le QCM » mène à sa fiche."""
     v.aller("QCM")
     v.attendre("#view .acc-ligne:has-text(\"Thème\")", "la liste de mes QCM")
     v.but("liste des QCM affichée")
     v.etape("ouvrir la fiche du premier QCM")
-    v.toucher(texte("Ouvrir", "#view button"), "« Ouvrir » (premier QCM)")
+    v.toucher('#view .acc-ligne-action button:text-is("Voir le QCM")', "« Voir le QCM » (premier QCM)")
     v.attendre(texte("S'entraîner", "button"), "la fiche du QCM")
     v.controler_ecran("fiche du QCM")
     fermer_la_fiche_du_qcm(v)
@@ -436,7 +436,7 @@ def livret_epcf(v):
           budget={"ordinateur": 3, "telephone": 4}, navigations=NOUVELLE)
 def moyennes_epcf_vides(v):
     """Mon suivi, La classe : sans moyenne EPCF montrable (le banc n'en sert aucune), une carte le dit en une phrase, sans
-    l'avancement réservé à l'équipe ; « Voir mon EPCF » ouvre la partie EPCF de Mon suivi. Le stagiaire du banc n'a
+    l'avancement réservé à l'équipe ; « Voir mes évaluations EPCF » ouvre la partie Évaluations EPCF de Mon suivi. Le stagiaire du banc n'a
     aucune épreuve évaluée : sa fiche montre à son tour une carte, dont « Voir mon livret EPCF » ouvre le livret."""
     v.aller("La classe")
     carte = "#view .epcf-vide"
@@ -444,7 +444,7 @@ def moyennes_epcf_vides(v):
     if v.voit(carte + " .notes-vide-info"):
         v.constat("K", BLOQUE, "la carte des moyennes EPCF montre au stagiaire l'avancement réservé à l'équipe", capture=True)
     v.etape("ouvrir mon EPCF")
-    v.toucher(texte("Voir mon EPCF", carte + " a"), "« Voir mon EPCF »")
+    v.toucher(texte("Voir mes évaluations EPCF", carte + " a"), "« Voir mes évaluations EPCF »")
     # Le stagiaire du banc n'a aucune épreuve évaluée : la carte est exigée, et les deux sections vides ne reviennent pas.
     v.attendre("#view .epcf-fiche-vide", "la carte de ma partie EPCF (aucune épreuve évaluée)")
     if v.voit("#view .epcf-resti"):

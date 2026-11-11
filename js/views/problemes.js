@@ -1,25 +1,25 @@
-// Page « Problèmes signalés » (spec 2026-10-28, § 4.3) : les signalements envoyés depuis l'app, pour le
+// Page « Problèmes signalés » (spec 2026-10-28, § 4.3) : les problèmes signalés depuis l'app, pour le
 // fondateur seulement (hors aperçu « Voir en tant que » ; js/main.js ramène les autres ailleurs, la base ne
 // leur rend de toute façon que les leurs). Sous-onglets À traiter, Réglés, Tous ; une carte par
-// signalement : qui et quand, message, contexte (ligne et détail), capture à la demande, lien vers la page,
+// problème signalé : qui et quand, message, contexte (ligne et détail), capture à la demande, lien vers la page,
 // statut en quatre boutons, réponse, suppression. Une action met la carte à jour sur place : elle ne change
 // pas de sous-onglet avant le prochain affichage de la page.
 
-import { el, clear, toast } from "../utils.js?v=20261111a";
-import { confirmer } from "../confirmer.js?v=20261111a";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261111a";
+import { el, clear, toast } from "../utils.js?v=20261111b";
+import { confirmer } from "../confirmer.js?v=20261111b";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261111b";
 import {
   listSignalementsApp, captureSignalementApp, traiterSignalementApp, supprimerSignalementApp, liensRegistre, getMesPromos,
-} from "../db.js?v=20261111a";
-import { entreeDepuisSignalement } from "../registre-rules.js?v=20261111a";
-import { chargerEtatSignalements } from "../signalement-etat.js?v=20261111a";
-import { renderSubTabs } from "../subtabs.js?v=20261111a";
+} from "../db.js?v=20261111b";
+import { entreeDepuisSignalement } from "../registre-rules.js?v=20261111b";
+import { chargerEtatSignalements } from "../signalement-etat.js?v=20261111b";
+import { renderSubTabs } from "../subtabs.js?v=20261111b";
 import {
-  libelleStatut, resumeContexte, detailContexte, adresseSure, normaliserContexte,
-} from "../signalement-rules.js?v=20261111a";
+  libelleStatut, resumeContexte, detailContexte, adresseSure, normaliserContexte, nomDuSignaleur,
+} from "../signalement-rules.js?v=20261111b";
 
-// Supprimer un signalement (carte complète ou carte en défaut) : la même question, dans une fenêtre de l'app.
-const QUESTION_SUPPRIMER = { titre: "Supprimer ce signalement ?",
+// Supprimer un problème signalé (carte complète ou carte en défaut) : la même question, dans une fenêtre de l'app.
+const QUESTION_SUPPRIMER = { titre: "Supprimer ce problème signalé ?",
   phrase: "Il disparaît aussi chez la personne qui l'a envoyé.", oui: "Supprimer" };
 
 const STATUTS = ["nouveau", "en_cours", "regle", "non_retenu"];
@@ -89,11 +89,11 @@ function carteSure(s) {
   try {
     return carte(s);
   } catch (e) {
-    console.error("Problèmes signalés : carte simplifiée pour le signalement " + s?.id, e);
+    console.error("Problèmes signalés : carte simplifiée pour le problème signalé " + s?.id, e);
     const erreur = el("p", { class: "sg-erreur", role: "alert" });
     const supprimer = el("button", { type: "button", class: "btn ghost", "data-sg": "supprimer" }, "Supprimer");
     const noeud = el("article", { class: "sg-carte", "data-sg-id": String(s?.id ?? "") },
-      el("p", { class: "sg-carte-contexte" }, "Ce signalement ne peut pas s'afficher en entier."),
+      el("p", { class: "sg-carte-contexte" }, "Ce problème signalé ne peut pas s'afficher en entier."),
       el("p", { class: "sg-carte-message" }, String(s?.message ?? "")),
       el("div", { class: "sg-carte-actions" }, supprimer), erreur);
     supprimer.addEventListener("click", async () => {
@@ -111,7 +111,7 @@ function carteSure(s) {
 }
 
 // « Ajouter au registre » ouvre la fenêtre du registre préremplie (sans nom ni adresse) ; une fois l'entrée enregistrée, tous
-// les boutons de ce signalement, dans chaque sous-onglet, deviennent « Au registre ».
+// les boutons de ce problème signalé, dans chaque sous-onglet, deviennent « Au registre ».
 function boutonRegistre(s) {
   if (!liensDuRegistre) return null;
   const marquer = (b) => {
@@ -130,7 +130,7 @@ function boutonRegistre(s) {
     ouvertureEnCours = true;
     b.setAttribute("aria-disabled", "true");
     try {
-      const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261111a");
+      const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261111b");
       ouvrirFenetreRegistre({
         prerempli: entreeDepuisSignalement(s), promos: getMesPromos(), ancre: b,
         surEnregistre: () => {
@@ -140,7 +140,7 @@ function boutonRegistre(s) {
         },
       });
     } catch (e) {
-      toast("Le registre n'a pas pu s'ouvrir. Réessaie.", "error");
+      toast("Le registre n'a pas pu s'ouvrir. Réessayez.", "error");
     }
     ouvertureEnCours = false;
     if (!liensDuRegistre.has(s.id)) b.removeAttribute("aria-disabled");
@@ -150,7 +150,7 @@ function boutonRegistre(s) {
 
 function carte(s) {
   const c = normaliserContexte(s.contexte);
-  const qui = s.nom || s.email || "Quelqu'un";
+  const qui = nomDuSignaleur(s);
   const erreur = el("p", { class: "sg-erreur", role: "alert" });
   let noeud = null;
 
@@ -189,7 +189,7 @@ function carte(s) {
 
   const champ = el("textarea", {
     class: "sg-champ sg-carte-reponse", rows: "3", "aria-label": `Réponse à ${qui}`,
-    placeholder: "Ta réponse, que la personne lira dans « Signaler un problème » (facultatif)",
+    placeholder: "Votre réponse, que la personne lira dans « Signaler un problème » (facultatif)",
   });
   champ.value = s.reponse || "";
   const repondre = el("button", { type: "button", class: "btn primary", "data-sg": "repondre" }, "Enregistrer la réponse");
@@ -204,7 +204,7 @@ function carte(s) {
       await supprimerSignalementApp(s.id);
       noeud.remove();
       chargerEtatSignalements();
-      toast("Signalement supprimé.", "success");
+      toast("Problème signalé supprimé.", "success");
     } catch (e) {
       erreur.textContent = e.message || "La suppression n'a pas abouti.";
     }
@@ -254,11 +254,11 @@ export async function renderProblemes(container) {
   container.appendChild(el("section", { class: "sg-page" },
     el("div", { class: "view-header" },
       el("h1", {}, "Problèmes signalés"),
-      el("p", { class: "muted" }, "Signalements envoyés depuis l'app par les stagiaires et les formateurs. Toi seul les vois.")),
+      el("p", { class: "muted" }, "Problèmes envoyés depuis l'app par les stagiaires et les formateurs. Vous seul les voyez.")),
     renderSubTabs([
       { key: "a-traiter", label: `À traiter (${aTraiter.length})`,
-        render: panneau(aTraiter, "Rien à traiter. Les signalements des stagiaires et des formateurs arriveront ici.") },
-      { key: "regles", label: `Réglés (${regles.length})`, render: panneau(regles, "Aucun signalement réglé pour l'instant.") },
-      { key: "tous", label: `Tous (${liste.length})`, render: panneau(liste, "Aucun signalement pour l'instant.") },
+        render: panneau(aTraiter, "Rien à traiter. Les problèmes signalés par les stagiaires et les formateurs arriveront ici.") },
+      { key: "regles", label: `Réglés (${regles.length})`, render: panneau(regles, "Aucun problème réglé pour l'instant.") },
+      { key: "tous", label: `Tous (${liste.length})`, render: panneau(liste, "Aucun problème signalé pour l'instant.") },
     ], { storageKey: "problemes.subtab" })));
 }
