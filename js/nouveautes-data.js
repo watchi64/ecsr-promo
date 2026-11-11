@@ -23,6 +23,20 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // Carte « Aujourd'hui » de l'Accueil refondue (piste C, choisie par Timy le 11/11 sur maquettes) : ton rôle dit en une phrase,
+  // seulement tes activités. Pour les stagiaires, au tutoiement.
+  {
+    id: "2026-11-12-accueil-aujourdhui-roles",
+    date: "2026-11-12",
+    pour: "stagiaires",
+    titre: "Ta journée dite en une phrase",
+    resume: "Sur l'Accueil, la carte « Aujourd'hui » ne montre plus que ce qui te concerne, une phrase par moment de la journée : "
+          + "« Tu passes au tableau », « Tu es en salle », « Tu enseignes en voiture » ou « Tu suis le cours ». En dessous, chacun "
+          + "est nommé par sa place : qui passe au tableau, l'élève bénévole à qui tu enseignes en voiture, le formateur. "
+          + "Les activités des autres stagiaires restent dans le Planning.",
+    ou: { label: "Accueil", route: "home" },
+    module: "planning",
+  },
   // Conservation des données ouverte à la direction (20261111_conservation_direction, décision de Timy du 11/11). Pour la
   // direction, au vouvoiement ; premier du fichier : à date égale, c'est elle que montre la carte « Nouveauté » de son Accueil.
   {

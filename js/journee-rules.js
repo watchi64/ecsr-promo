@@ -131,8 +131,8 @@ function profsDe(e, noms) {
   return out;
 }
 
-// Un seul libellé par rôle, sur la carte de l'Accueil comme dans la grille de la semaine (chasse aux défauts du film,
-// 11/11 : « Tu passes au tableau » d'un côté, « Toi au tableau » de l'autre). La forme courte tient dans une case.
+// Le libellé court du rôle, dans la grille de la semaine (chasse aux défauts du film, 11/11). La carte « Aujourd'hui » de
+// l'Accueil dit le rôle en phrase (« Tu passes au tableau », js/accueil-rules.js momentsDeLaDemi, piste C du 11/11).
 const TEXTE_MOI = {
   tableau: "Toi au tableau",
   voiture: "Toi en voiture",

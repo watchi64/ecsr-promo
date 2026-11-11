@@ -203,12 +203,76 @@ export function salutationDe(heure) {
   return "Bonsoir";
 }
 
-// La ligne des élèves bénévoles d'une carte de la journée : « Élève bénévole : Paul D. ». Le point de fin de phrase
-// ne s'ajoute pas quand le dernier nom finit déjà par un point (initiale abrégée) : « Paul D.. » sinon (relevé du 11/11).
-// null quand la carte n'a pas de bénévole.
-export function ligneBenevoles(noms) {
-  const liste = (noms || []).filter(Boolean);
-  if (!liste.length) return null;
-  const texte = `${liste.length > 1 ? "Élèves bénévoles" : "Élève bénévole"} : ${liste.join(", ")}`;
-  return texte.endsWith(".") ? texte : texte + ".";
+// === La carte « Aujourd'hui » de l'Accueil du stagiaire ===
+// Piste C, choisie par Timy le 11/11 sur maquettes (« j'ai du mal à savoir qui c'est qui passe au tableau, qui est l'élève »,
+// la carte d'avant listait toute la promo) : une phrase par activité qui la concerne, son rôle dit au verbe (« Tu passes au tableau », « Tu enseignes
+// en voiture »), puis une ligne de détail qui nomme chacun par sa place (« à Emma L., élève bénévole, avec Marc »). Les
+// activités où elle n'est pas nommée (la voiture des autres pendant qu'elle est en salle) ne s'affichent pas : elles sont
+// dans le Planning. Un cours, un contrôle, une autonomie ou une autre activité concerne toute la promo : affiché.
+// Sans fiche de stagiaire (`moi` nul, aperçu « Voir en tant que ») : toutes les activités, au neutre.
+// Le libellé court « Toi au tableau » reste celui de la grille de la semaine (js/journee-rules.js), où la place est comptée.
+// `cartes` : celles d'une demi-journée de journeeDuJour. Rend [{ id, genre, ico, titre, detail, note, moi }], `moi` étant le
+// rôle de la personne (« tableau », « eleve », « voiture ») ou null.
+const ICONE_DU_GENRE = { salle: "presentation", voiture: "car", cours: "book", controle: "clipboard", autonomie: "users", autre: "calendar" };
+
+function enumerer(noms) {
+  const l = (noms || []).filter(Boolean);
+  return l.length <= 1 ? (l[0] || "") : `${l.slice(0, -1).join(", ")} et ${l[l.length - 1]}`;
+}
+
+// « tête · sujets, avec Claire et Marc », chaque morceau seulement s'il existe ; null s'il ne reste rien.
+function ligneDeDetail(tete, sujets, formateurs) {
+  const debut = [tete, (sujets || []).join(" · ")].filter(Boolean).join(" · ");
+  const avec = formateurs && formateurs.length ? `avec ${enumerer(formateurs)}` : "";
+  return [debut, avec].filter(Boolean).join(", ") || null;
+}
+
+function lesBenevoles(benevoles) {
+  if (!benevoles || !benevoles.length) return "";
+  return `${enumerer(benevoles)}, ${benevoles.length > 1 ? "élèves bénévoles" : "élève bénévole"}`;
+}
+
+// « Lina R. passe au tableau », « Lina R. et Léo B. passent au tableau » ; vide si personne.
+function quiAuTableau(tableau, moi) {
+  const n = (tableau || []).filter((t) => t.id !== moi).map((t) => t.nom).filter(Boolean);
+  if (!n.length) return "";
+  return `${enumerer(n)} ${n.length > 1 ? "passent" : "passe"} au tableau`;
+}
+
+function momentDeLaCarte(c, moi) {
+  const role = c.moi ? c.moi.role : null;
+  const base = { id: c.id, genre: c.genre, ico: ICONE_DU_GENRE[c.genre] || "calendar", note: c.notes || null, moi: role };
+  if (c.genre === "salle") {
+    if (role === "tableau") {
+      const g = (c.tableau || []).find((t) => t.id === moi);
+      const sujets = c.sujetsParGroupe && g ? c.sujetsParGroupe[g.groupe] : c.sujets;
+      return { ...base, titre: "Tu passes au tableau", detail: ligneDeDetail("en salle", sujets, c.formateurs) };
+    }
+    const titre = role === "eleve" ? "Tu es en salle" : c.titre;
+    return { ...base, titre, detail: ligneDeDetail(quiAuTableau(c.tableau, moi), c.sujets, c.formateurs) };
+  }
+  if (c.genre === "voiture") {
+    const benevoles = lesBenevoles(c.benevoles);
+    if (role === "voiture") {
+      return { ...base, titre: "Tu enseignes en voiture", detail: ligneDeDetail(benevoles ? `à ${benevoles}` : "", c.sujets, c.formateurs) };
+    }
+    const conducteurs = (c.conducteurs || []).map((s) => s.nom).filter(Boolean);
+    const tete = conducteurs.length
+      ? `${enumerer(conducteurs)} ${conducteurs.length > 1 ? "enseignent" : "enseigne"}${benevoles ? ` à ${benevoles}` : ""}`
+      : ["Aucun stagiaire en voiture", benevoles].filter(Boolean).join(" · ");
+    return { ...base, titre: c.titre, detail: ligneDeDetail(tete, c.sujets, c.formateurs) };
+  }
+  if (c.genre === "cours") {
+    return { ...base, titre: moi == null ? c.titre : "Tu suis le cours", detail: ligneDeDetail("", c.sujets, c.formateurs) };
+  }
+  if (c.genre === "autre" && c.notes) {
+    return { ...base, titre: c.notes, note: null, detail: ligneDeDetail("", c.sujets, c.formateurs) };
+  }
+  return { ...base, titre: c.titre, detail: ligneDeDetail("", c.sujets, c.formateurs) };
+}
+
+export function momentsDeLaDemi({ cartes, moi } = {}) {
+  const liste = (Array.isArray(cartes) ? cartes : []).filter(Boolean);
+  const miennes = moi == null ? liste : liste.filter((c) => c.moi || !CARTES_NOMINATIVES.includes(c.genre));
+  return miennes.map((c) => momentDeLaCarte(c, moi));
 }
