@@ -453,7 +453,9 @@ class Visite:
                 # La personne est bloquée là : le parcours s'arrête (sinon une boucle de réponses tournerait à vide).
                 self.echec("bloqué : « %s » ne répond pas" % quoi)
             else:
-                self.constat("E", LISTE, "il a fallu toucher deux fois « %s »" % quoi)
+                # Référentiel §2, critère E : aucun bouton qui ne fait rien. Un bouton qui ne répond qu'au second toucher
+                # trompe la personne au premier : il bloque (audit du 10/11). Le parcours continue, la personne finit par passer.
+                self.constat("E", BLOQUE, "il a fallu toucher deux fois « %s » : le premier toucher ne fait rien" % quoi, capture=True)
         return self._apres_toucher(el)
 
     @property

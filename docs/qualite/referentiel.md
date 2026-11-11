@@ -71,18 +71,22 @@ d'usage), livret et dossier pro (1 mise à jour chacun).
 
 ## 3. Quand on mesure
 
-- **Avant chaque fusion dans main** : `python outils/robot_parcours.py --habillages ecsr,ecf` (une commande,
-  environ 6 minutes, Chromium et WebKit, téléphone et ordinateur, ancienne et nouvelle navigation, ECSR Promo et
-  Couleurs ECF : règle du 10/11/2026). Code de sortie 0 = vert,
-  1 = rouge, 2 = le robot n'a pas pu juger (option mal tapée, passage non joué ou non jugé, moteur absent) : ni
-  vert ni rouge. **Ne pas taper au clavier pendant qu'il tourne** : dans WebKit sous Windows, une touche Maj, Ctrl
+- **Avant chaque fusion dans main** : `python outils/robot_parcours.py --habillages ecsr,ecf --temoin <rapport du robot
+  sur main>` (environ 22 minutes, Chromium et WebKit, téléphone et ordinateur, ancienne et nouvelle navigation, ECSR
+  Promo et Couleurs ECF : règles du 10/11 et du 11/11/2026). Code de sortie 0 = vert, 1 = rouge, 2 = le robot n'a pas
+  pu juger (option mal tapée, passage non joué ou non jugé, moteur absent, témoin illisible) : ni vert ni rouge ;
+  3 = vert, mais la branche ajoute des constats « à corriger par lot » que le témoin de main n'a pas (les temps exceptés) :
+  les lire avant de fusionner. Le banc ne parle qu'à la machine : une requête vers un autre hôte est coupée et listée.
+  Un vert ne prouve pas qu'une écriture est enregistrée ni qu'un droit est tenu (le faux Supabase répond « réussie ») :
+  cela se prouve par les preuves SQL (§4). **Ne pas taper au clavier pendant qu'il tourne** : dans WebKit sous Windows, une touche Maj, Ctrl
   ou Alt tenue sur la machine fausse les touchers du format téléphone (un lien ne s'ouvre plus). Le robot attend
   un clavier libre avant de toucher et rejoue un passage faussé ; faussé trois fois de suite, le passage est
   « non jugé » (constat et contrôle du 09/11/2026 : `python outils/controle_toucher.py --clavier`).
   Un échec qui bloque (colonne « Conséquence ») arrête la fusion ; les autres vont dans la liste du lot
   de corrections suivant. Les défauts bloquants déjà présents sur main (voir `echecs-main-2026-11-08.md`)
-  sont listés dans `outils/parcours/connus.py` : le rapport les montre à part et ils ne bloquent pas la fusion
-  d'un autre chantier ; un défaut **nouveau** la bloque. Qui corrige un défaut connu retire sa ligne.
+  sont listés dans `outils/parcours/connus.py`, chacun avec sa date d'entrée et son échéance : le rapport les montre à
+  part et ils ne bloquent pas la fusion d'un autre chantier ; une ligne échue y est signalée ; un défaut **nouveau** la
+  bloque. Qui corrige un défaut connu retire sa ligne. Un bouton qui ne répond qu'au second toucher bloque (critère E).
   Le rapport (`outils/robot_rapports/<date-heure>/rapport.md`), la planche des écrans de fin et les captures
   restent sur la machine (données fictives du banc, jamais versionnées). Un parcours neuf s'écrit dans
   `outils/parcours/` (une fonction décorée par `@parcours`), une page neuve dans `outils/parcours/navigation.py`.
