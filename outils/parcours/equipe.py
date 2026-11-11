@@ -344,9 +344,9 @@ def ouvrir_un_examen(v):
     v.etape("refermer l'examen")
     v.toucher(ligne + " button.theme-menu", "« … » du thème 23", compte=False)
     v.toucher(".theme-actions button.examen-fermer", "« Fermer l'examen » de la fiche", compte=False)
-    v.attendre(".modal:has-text(\"Fermer l'examen du thème 23\")", "la demande de confirmation")
+    v.attendre(".confirmer-fond:has-text(\"Fermer l'examen du thème 23\")", "la demande de confirmation")
     v.ecouter_messages()
-    v.toucher(texte("Fermer l'examen", ".modal button"), "« Fermer l'examen » de la confirmation", compte=False, ecriture=True)
+    v.toucher(".confirmer-fond button:text-is(\"Fermer l'examen\")", "« Fermer l'examen » de la confirmation", compte=False, ecriture=True)
     v.exiger_confirmation("la fermeture de l'examen", "Examen fermé")
     if v.voit(ligne + " .theme-qcm-exam-on"):
         v.echec("« Examen ouvert » reste sur la ligne après « Fermer l'examen »")
