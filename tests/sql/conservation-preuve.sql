@@ -776,9 +776,9 @@ begin
     r := pg_temp.tente(format('select public.effacer_promo_etape1(%s)::text', PA));
     perform pg_temp.cas('étape 1 refusée la veille (10/12/2027)', r like '%conservation: Possible à partir du 11/12/2027.', r);
     r := pg_temp.tente(format('select public.effacer_promo_etape1(%s)::text', PB));
-    perform pg_temp.cas('étape 1 refusée sans date de fin', r like '%conservation: Renseigne d''abord la date de fin de cette promo.', r);
+    perform pg_temp.cas('étape 1 refusée sans date de fin', r like '%conservation: Renseignez d''abord la date de fin de cette promo.', r);
     r := pg_temp.tente(format('select public.effacer_promo_etape2(%s)::text', PB));
-    perform pg_temp.cas('étape 2 refusée sans date de fin', r like '%conservation: Renseigne d''abord la date de fin de cette promo.', r);
+    perform pg_temp.cas('étape 2 refusée sans date de fin', r like '%conservation: Renseignez d''abord la date de fin de cette promo.', r);
 
     -- 4.1 bis Questionnaires des stagiaires : fermés pour de bon à la date de l'étape 1, ouverture manuelle comprise.
     r := null; t := null;

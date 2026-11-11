@@ -13,8 +13,8 @@ const base = (phrase, code = "P0001") => ({ code, message: "conservation: " + ph
 
 test("refus de la base : la phrase est reprise sans son préfixe", () => {
   assert.equal(phraseConservation(base("Possible à partir du 11/12/2027.")), "Possible à partir du 11/12/2027.");
-  assert.equal(messageErreurConservation(base("Renseigne d'abord la date de fin de cette promo.")),
-    "Renseigne d'abord la date de fin de cette promo.");
+  assert.equal(messageErreurConservation(base("Renseignez d'abord la date de fin de cette promo.")),
+    "Renseignez d'abord la date de fin de cette promo.");
   assert.equal(phraseConservation({ message: "autre chose" }), null);
   assert.equal(phraseConservation(null), null);
 });

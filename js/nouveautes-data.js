@@ -98,7 +98,7 @@ export const NOUVEAUTES = [
     resume: "Les Réglages du centre ont une section « Données personnelles ». Vous y supprimez les élèves bénévoles du "
           + "centre sans venue depuis 12 mois, sans changer la promo affichée. La conservation des fiches des stagiaires "
           + "(12 mois, puis jusqu'au 31 décembre de la troisième année après la fin) est gérée par le fondateur, sur la page "
-          + "Qualiopi : il n'y a rien à anonymiser de votre côté. "
+          + "Qualiopi ; la section le rappelle. "
           + "Autre changement : inviter comme formateur, direction ou siège l'adresse d'un ancien stagiaire dont la fiche n'existe "
           + "plus transforme son compte en compte du personnel, qui se connecte comme avant.",
     ou: { label: "Réglages du centre", route: "config" },

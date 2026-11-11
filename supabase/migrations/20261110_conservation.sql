@@ -473,7 +473,7 @@ begin
   -- Deux appels simultanés sur la même promo passent l'un après l'autre.
   select * into p from promos where id = p_promo for no key update;
   if p.date_fin is null then
-    raise exception 'conservation: Renseigne d''abord la date de fin de cette promo.';
+    raise exception 'conservation: Renseignez d''abord la date de fin de cette promo.';
   end if;
   v_du := (p.date_fin + interval '12 months')::date;
   if _questionnaire_jour() < v_du then
@@ -542,7 +542,7 @@ begin
   end if;
   select * into p from promos where id = p_promo for no key update;
   if p.date_fin is null then
-    raise exception 'conservation: Renseigne d''abord la date de fin de cette promo.';
+    raise exception 'conservation: Renseignez d''abord la date de fin de cette promo.';
   end if;
   v_du := make_date(extract(year from p.date_fin)::integer + 4, 1, 1);
   if _questionnaire_jour() < v_du then

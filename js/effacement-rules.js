@@ -158,7 +158,7 @@ export function echeancesConservation(etat) {
       liste.push({
         type: "date_fin_manquante", cible, du: null, due: false, restant: null, bouton: null, part: [], reste: [],
         texte: `${nom} : la date de fin n'est pas renseignée, donc aucune échéance de conservation ne peut être calculée. `
-          + "Renseigne la date de fin de la promo.",
+          + "Renseignez la date de fin de la promo.",
       });
       continue;
     }

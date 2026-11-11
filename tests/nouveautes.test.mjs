@@ -454,8 +454,8 @@ ok(!!donnees && donnees.date === "2026-11-11" && donnees.pour === "direction" &&
   "données personnelles : datée du 11/11, pour la direction, titre attendu");
 ok(donnees.ou && donnees.ou.route === "config" && donnees.ou.label === "Réglages du centre", "données personnelles : mène aux Réglages du centre");
 ok(Array.isArray(donnees.guide) && donnees.guide.length >= 3, "données personnelles : un « Comment faire » d'au moins trois étapes");
-ok(/vous|ouvrez/i.test(tout(donnees)) && !/(tu|ton|ta|tes|toi)/i.test(tout(donnees)), "données personnelles : vouvoiement (texte de l'équipe)");
-ok(!/profs?/i.test(tout(donnees)) && !tout(donnees).includes(CADRATIN) && !/#[0-9a-f]{3,6}/i.test(tout(donnees)), "données personnelles : « formateur » jamais « prof », aucun tiret cadratin, aucune couleur");
+ok(/vous|ouvrez/i.test(tout(donnees)) && !TUTOIEMENT.test(horsCitations(tout(donnees))), "données personnelles : vouvoiement (texte de l'équipe)");
+ok(!/\bprofs?\b/i.test(tout(donnees)) && !tout(donnees).includes(CADRATIN) && !/#[0-9a-f]{3,6}\b/i.test(tout(donnees)), "données personnelles : « formateur » jamais « prof », aucun tiret cadratin, aucune couleur");
 for (const motif of [/Données personnelles/, /Conservation des fiches/, /fondateur/, /page Qualiopi/, /Élèves bénévoles/, /ancien stagiaire/]) {
   ok(motif.test(tout(donnees)), `données personnelles : dit ${motif}`);
 }

@@ -701,7 +701,7 @@ des traitements et rappel de la veille : livrés en fichiers pour le dépôt ECS
   données ». Leviers : `&conservation=absent` (fonctions absentes, PGRST202), `&conservation=droit` (42501 pour un
   non-fondateur), `&conservation_panne=1`, `&emargement=1` (la fiche 8 a une ligne signée), `&signature=effacee` (dessins
   effacés, mention imprimée), `&date=AAAA-MM-JJ` (le jour du navigateur simule les échéances ; la base, elle, lit
-  `_questionnaire_jour()`). **Le robot des parcours n'a pas encore de parcours dédié à la conservation** (prévu au plan avant fusion : à ajouter, puis `outils/robot_parcours.py` et `outils/verifier_navigation.py` sans échec propre à la branche). Comme pour Q4, le banc du dépôt principal
+  `_questionnaire_jour()`). Le robot des parcours a ses parcours de la conservation (`outils/parcours/conservation.py`, tâche 10 : lecture des échéances, étapes, effacement à la demande, droits, feuille d'émargement), joués avec `outils/robot_parcours.py` ; `outils/verifier_navigation.py` passe sans échec propre à la branche. Comme pour Q4, le banc du dépôt principal
   n'a pas ces sections : à reporter par ajout au moment de la fusion, jamais en écrasant.
 - **Preuves.** `tests/sql/conservation-preuve.sql` (schéma minimal : `conservation-schema-minimal.sql`, qui rejoue l'ordre réel :
   fonctions de la direction du lot 5 étape 4, navigation unique 1 et 2 ; variante avec la phase 2, `fiches_suivi` retirée, le cas

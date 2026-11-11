@@ -178,7 +178,7 @@ test("suite du lot 5 : les données personnelles de la direction et l'ancien sta
   }
   assert.ok(!DIRECTION.includes(String.fromCharCode(0x2014)), "aucun tiret cadratin");
   // Réconciliation avec Q5 : la direction n'anonymise plus (conservation au fondateur, page Qualiopi).
-  assert.ok(!/Anonymiser la promo|ANONYMISER/.test(DIRECTION), "plus de bouton « Anonymiser la promo » chez la direction");
+  assert.ok(!/Anonymiser la promo|ANONYMISER|« Effacer les données »/.test(DIRECTION), "plus de bouton « Anonymiser la promo » ni « Effacer les données » chez la direction");
 });
 
 test("lot 5 : les mots des écrans du siège (plan, tâches 11 à 14)", () => {

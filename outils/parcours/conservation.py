@@ -184,7 +184,7 @@ def lire_les_echeances(v):
     ouvrir_conservation(v)
     v.but("échéances affichées")
     corps = v.texte("#view").lower()   # les titres de rangée sont en capitales à l'écran
-    for morceau in ("À faire maintenant", "À venir", "Renseigne la date de fin"):
+    for morceau in ("À faire maintenant", "À venir", "Renseignez la date de fin"):
         if morceau.lower() not in corps:
             v.constat("F", BLOQUE, "la section ne montre pas « %s »" % morceau, capture=True)
     futur = carte("Fiches : étape des 12 mois", "Nîmes, mars 2026")
