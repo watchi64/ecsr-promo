@@ -8,7 +8,8 @@
 -- Assemblage : outils/assembler_preuve_contacts.mjs remplace la ligne « -- MIGRATION » par la migration (mode essai :
 -- VERT attendu), ou par la migration puis son retour (mode retour : ROUGE attendu, la colonne a disparu, et l'empreinte
 -- d'avant). Contre la base d'avant la migration (mode en-ligne avant application), tout est ROUGE : c'est la fuite.
--- Après application, le mode en-ligne est VERT, à l'empreinte de l'essai.
+-- Après application, le mode en-ligne est VERT, à l'empreinte de l'essai. Contre-épreuve : le mode sans-regle injecte la
+-- migration privée de sa règle restrictive (colonne et données présentes) : ROUGE attendu sur L, W et D.
 --
 -- Contrôles :
 --   L  lectures, par personnage et promo envoyée : nombre de contacts vus à Nîmes / au centre de démonstration / ailleurs ;
@@ -59,6 +60,8 @@ declare
   e_fn text := 'preuve.contacts.formateur@example.invalid';     -- formateur de 9997
   e_dd text := 'preuve.contacts.direction@example.invalid';     -- direction du centre de démonstration
   e_fo text := 'preuve.contacts.fondateur@example.invalid';     -- fondateur
+  e_sp text := 'preuve.contacts.sans.promo@example.invalid';    -- compte connecté sans fiche ni affectation
+  v_lm integer;                                                 -- un autre centre réel (Montpellier), s'il existe
   lire text;
   v_l integer;
   v_avant bigint[];
@@ -94,6 +97,12 @@ begin
   insert into user_profiles (email, role, stagiaire_id) values (e_sn, 'stagiaire', sn), (e_sd, 'stagiaire', sd);
   insert into user_profiles (email, role, is_admin) values (e_fn, 'prof', true), (e_dd, 'prof', false);
   insert into user_profiles (email, role, is_admin, is_founder) values (e_fo, 'prof', true, true);
+  insert into user_profiles (email, role) values (e_sp, 'stagiaire');
+  -- Un contact fictif dans un troisième centre : la troisième colonne des lectures (« ailleurs ») doit rester à 0.
+  select id into v_lm from lieux where id <> 1 and not demonstration order by id limit 1;
+  if v_lm is not null then
+    insert into contacts (prenom, lieu_id) values ('PreuveAutreCentre', v_lm);
+  end if;
   insert into affectations (email, role, promo_id) values (e_fn, 'formateur', v_pn);
   insert into affectations (email, role, lieu_id) values (e_dd, 'direction', v_ld);
   execute 'select count(*) from contacts where lieu_id = 1' into n_n;
@@ -110,7 +119,10 @@ begin
     ('direction de la démonstration envoie la promo de Nîmes', e_dd, v_pn, null, '0/0/0'),
     ('fondateur sur Nîmes', e_fo, v_pn, null, format('%s/0/0', n_n)),
     ('fondateur sur la démonstration', e_fo, v_pd, null, format('0/%s/0', n_d)),
-    ('fondateur en aperçu stagiaire de la démonstration', e_fo, v_pd, 'stagiaire', format('0/%s/0', n_d))
+    ('fondateur en aperçu stagiaire de la démonstration', e_fo, v_pd, 'stagiaire', format('0/%s/0', n_d)),
+    ('fondateur en aperçu siège', e_fo, v_pd, 'siege', '0/0/0'),
+    ('compte sans promo', e_sp, v_pn, null, '0/0/0'),
+    ('stagiaire de Nîmes sans en-tête (promo par défaut)', e_sn, null, null, format('%s/0/0', n_n))
   ) as t(nom, email, promo, apercu, attendu) loop
     v := pg_temp.agir(r.email, r.promo, r.apercu, lire, true);
     if v = r.attendu then ok := ok + 1;
@@ -120,8 +132,9 @@ begin
   v := pg_temp.agir(null, null, null, lire, true);
   if v in ('0/0/0', 'REFUS 42501') then ok := ok + 1; else ko := ko || format('L sans compte : vu %s', v); end if;
   -- Les deux centres ont bien des contacts (sinon L ne prouverait rien).
-  if n_n > 0 and n_d = 2 then ok := ok + 1;
-  else ko := ko || format('L données : %s contacts à Nîmes, %s au centre de démonstration (attendu > 0 et 2)', n_n, n_d); end if;
+  if n_n > 0 and n_d = 2 and v_lm is not null then ok := ok + 1;
+  else ko := ko || format('L données : %s contacts à Nîmes, %s au centre de démonstration, autre centre %s (attendu > 0, 2 et présent)',
+                          n_n, n_d, coalesce(v_lm::text, 'absent')); end if;
 
   -- W : écritures ---------------------------------------------------------------------------------------------
   for r in select * from (values
@@ -137,6 +150,12 @@ begin
       format('update public.contacts set lieu_id = %s where prenom = ''PreuveContactN''', v_ld), 'REFUS 42501'),
     ('formateur de Nîmes modifie tout', e_fn, v_pn,
       'update public.contacts set note = note', format('OK %s', n_n + 1)),
+    ('formateur de Nîmes ajoute chez lui, centre explicite', e_fn, v_pn,
+      'insert into public.contacts (prenom, lieu_id) values (''PreuveExplicite'', 1)', 'OK 1'),
+    ('formateur de Nîmes supprime chez lui', e_fn, v_pn,
+      'delete from public.contacts where prenom = ''PreuveExplicite''', 'OK 1'),
+    ('formateur de Nîmes modifie l''autre centre', e_fn, v_pn,
+      'update public.contacts set note = ''PreuveMaj'' where prenom = ''PreuveAutreCentre''', 'OK 0'),
     ('formateur de Nîmes envoie la promo de démonstration', e_fn, v_pd,
       format('insert into public.contacts (prenom, lieu_id) values (''PreuveContactX'', %s)', v_ld), 'REFUS 42501'),
     ('direction de la démonstration ajoute chez elle', e_dd, v_pd,
@@ -162,6 +181,8 @@ begin
              from contacts where prenom like ''PreuveContact%''' into v using v_ld;
   if v = 'PreuveContactD=D,PreuveContactF=D,PreuveContactN=N' then ok := ok + 1;
   else ko := ko || format('W centre posé d''office : %s', coalesce(v, 'aucun')); end if;
+  if not exists (select 1 from contacts where prenom = 'PreuveExplicite') then ok := ok + 1;
+  else ko := ko || 'W la suppression dans son centre n''a rien supprimé'::text; end if;
   if not exists (select 1 from contacts where note = 'PreuveMaj') then ok := ok + 1;
   else ko := ko || 'W une modification d''un autre centre a été écrite'::text; end if;
 

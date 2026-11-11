@@ -2,7 +2,9 @@
 -- promo affichée. Avant, la table n'avait pas de centre et sa lecture était ouverte à tout compte connecté : la promo de
 -- démonstration et Montpellier voyaient les contacts de Nîmes. Première brique de l'annuaire (spec de l'espace contact du 09/11).
 --   1. Colonne lieu_id, obligatoire, par défaut le centre de la promo affichée (lieu_courant(), comme benevoles et auto_ecoles).
---      Les contacts existants, tous antérieurs au multi-promo (mai 2026), sont rattachés au lieu 1 (Nîmes).
+--      Les contacts existants sont rattachés au lieu 1 (Nîmes) : relevé du 11/11, trois contacts, tous créés le 19/05/2026,
+--      avant le multi-promo (01/10). La colonne naît avec 1 pour défaut (aucune réécriture de la table, aucun déclencheur :
+--      updated_at ne bouge pas), puis prend lieu_courant() pour défaut.
 --   2. Une règle RESTRICTIVE, contacts_meme_centre : une règle restrictive s'ajoute en « et » à toutes les autres. Lecture et
 --      écriture exigent lieu_id = lieu_courant(). Le centre courant n'existe que si la promo affichée est accessible au compte
 --      (promo_courante() vérifie peut_acceder_promo) : stagiaire de la promo, son équipe, la direction du centre, le fondateur.
@@ -26,9 +28,7 @@ begin
   end if;
 end $garde$;
 
-alter table public.contacts add column lieu_id integer references public.lieux(id);
-update public.contacts set lieu_id = 1 where lieu_id is null;
-alter table public.contacts alter column lieu_id set not null;
+alter table public.contacts add column lieu_id integer not null default 1 references public.lieux(id);
 alter table public.contacts alter column lieu_id set default public.lieu_courant();
 create index contacts_lieu_idx on public.contacts (lieu_id);
 
