@@ -10,6 +10,8 @@
   --bg-soft:   #E8EDF5;
   --bg-subtle: #EBEFF6;
   --bg-deep:   #0D2546;
+  --bg-lin:    #EEF2F8;                        /* surface des chiffres clés (le lin du défaut) */
+  --line-lin:  #D6DDE8;
   --bg-survol: #E3E9F2;                        /* survol d'un en-tête de demi-journée */
 
   /* Traits : gris bleutés, du plus net au plus discret. */

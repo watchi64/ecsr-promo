@@ -45,6 +45,9 @@ if [ "$TITRES" = 1 ]; then
     LISTE="$LISTE $(basename "$f" .sql)"
   done
 fi
+# Après les titres en production (11/11) : les contacts rattachés à un centre. Indépendante des titres (sa règle restrictive
+# ne cite que lieu_courant()), elle est jouée dans les deux cas.
+LISTE="$LISTE 20261113_contacts_centre 20261113_contacts_centre_2_montpellier"
 
 # Prérequis : les cinq fonctions de 20261028_signalements_app (signaler_probleme, que le registre qualité appelle, et ses
 # quatre voisines), absentes des clones. On joue la seule partie « fonctions » de la migration (de la section 4 à la fin) :

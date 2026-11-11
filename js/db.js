@@ -1,18 +1,18 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111g";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111g";
-import { compteDansEquite } from "./passage-rules.js?v=20261111g";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111g";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111g";
-import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261111g";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111g";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111g";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111j";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111j";
+import { compteDansEquite } from "./passage-rules.js?v=20261111j";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111j";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111j";
+import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261111j";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111j";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111j";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261111g";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111g";
-import { effectifDesFiches } from "./centre-stats.js?v=20261111g";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111g";
+} from "./promo-rules.js?v=20261111j";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111j";
+import { effectifDesFiches } from "./centre-stats.js?v=20261111j";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111j";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -1518,11 +1518,21 @@ export async function deleteRessource(id) {
 }
 
 // === Contacts (administration, urgences, etc.) ===
+// Chaque contact appartient à un centre (lieu_id, migration 20261113_contacts_centre) : la base ne rend et n'accepte que ceux
+// du centre de la promo affichée (règle restrictive contacts_meme_centre). Le filtre ci-dessous dit la même chose côté app ;
+// l'ajout porte le centre de la promo affichée (la base le pose aussi d'office, et refuse tout autre centre).
+
+function lieuAffiche() {
+  return getPromoCourante()?.lieu_id ?? null;
+}
 
 export async function listContacts() {
+  const lieu = lieuAffiche();
+  if (lieu == null) return [];
   const { data, error } = await supabase
     .from("contacts")
     .select("*")
+    .eq("lieu_id", lieu)
     .order("sort_order", { ascending: true })
     .order("prenom", { ascending: true });
   if (error) throw error;
@@ -1530,8 +1540,9 @@ export async function listContacts() {
 }
 
 export async function addContact(payload) {
+  const lieu = lieuAffiche();
   const { data, error } = await supabase
-    .from("contacts").insert(payload).select().single();
+    .from("contacts").insert(lieu == null ? payload : { lieu_id: lieu, ...payload }).select().single();
   if (error) throw error;
   return data;
 }

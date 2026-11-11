@@ -565,6 +565,8 @@ export const PAIRES = [
   ["#FFFFFF", "--text-muted", 4.5],             // jour fermé ou férié : en-tête de la carte et pastille « FÉRIÉ »
   ["--c-go", "--c-go-soft", 4.5],               // « Examen ouvert » et « Ouverte » : le vert des états ouverts
   ["--c-go", "--bg-elev", 4.5],                 // « Ouverte » en texte sur la feuille d'émargement
+  // Refonte Ordre de passage et Résultats (11/11) : les chiffres clés sur le lin.
+  ["--text", "--bg-lin", 4.5], ["--text-soft", "--bg-lin", 4.5], ["--text-muted", "--bg-lin", 4.5], ["--accent-strong", "--bg-lin", 4.5],
 ];
 
 export function contrastesDe(jetons) {

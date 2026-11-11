@@ -222,8 +222,19 @@ const CONSERVATION_ID = "2026-11-11-conservation-fondateur";
 const conservation = NOUVEAUTES.find((e) => e.id === CONSERVATION_ID);
 ok(!!conservation && conservation.pour === "formateurs" && conservation.navigation === undefined && conservation.id.startsWith(conservation.date + "-"),
   "conservation : pour les formateurs, sans champ navigation, id préfixé par sa date");
+// La liste des thèmes compacte (même jour, placée en tête du fichier) passe devant : la conservation se juge sans elle.
+const THEMES_COMPACTS_ID = "2026-11-11-themes-compacts";
+const SANS_THEMES_COMPACTS = NOUVEAUTES.filter((e) => e.id !== THEMES_COMPACTS_ID);
 for (const espace of [undefined, "equipe"]) {
-  eq(ids(triees(visibles(NOUVEAUTES, true, espace)))[0], CONSERVATION_ID, `conservation : la plus récente chez un formateur (espace ${espace})`);
+  eq(ids(triees(visibles(SANS_THEMES_COMPACTS, true, espace)))[0], CONSERVATION_ID, `conservation : la plus récente chez un formateur (espace ${espace})`);
+}
+// Thèmes compacts (11/11) : pour tous, en tête chez le formateur comme chez le stagiaire ; dit le geste « … » et « Plus ».
+const themesCompacts = NOUVEAUTES.find((e) => e.id === THEMES_COMPACTS_ID);
+ok(!!themesCompacts && themesCompacts.pour === "tous" && /« … »/.test(themesCompacts.resume) && /« Plus »/.test(themesCompacts.resume),
+  "thèmes compacts : pour tous, nomme « … » et « Plus »");
+for (const formateur of [false, true]) {
+  eq(ids(triees(visibles(NOUVEAUTES, formateur, formateur ? "equipe" : "stagiaire")))[0], THEMES_COMPACTS_ID,
+    `thèmes compacts : la plus récente (${formateur ? "formateur" : "stagiaire"})`);
 }
 for (const espace of [undefined, "stagiaire"]) {
   ok(!ids(visibles(NOUVEAUTES, false, espace)).includes(CONSERVATION_ID), `conservation : jamais chez un stagiaire (espace ${espace})`);

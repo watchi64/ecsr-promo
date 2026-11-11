@@ -4,30 +4,30 @@ import {
   saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements,
   setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa,
   accepterBrouillonIa, rejeterBrouillonIa,
-} from "../db.js?v=20261111g";
-import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261111g";
-import { confirmer } from "../confirmer.js?v=20261111g";
-import { icon, deco } from "../icons.js?v=20261111g";
+} from "../db.js?v=20261111j";
+import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261111j";
+import { confirmer } from "../confirmer.js?v=20261111j";
+import { icon, deco } from "../icons.js?v=20261111j";
 import {
   examenDemarrable, tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture,
   resumeExamen,
-} from "../qcm-exam-rules.js?v=20261111g";
-import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111g";
-import { recordUndo } from "../undo.js?v=20261111g";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261111g";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261111g";
-import { renderSubTabs } from "../subtabs.js?v=20261111g";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261111g";
-import { cleCours } from "../cours-rules.js?v=20261111g";
-import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261111g";
-import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261111g";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111g";
-import { renderRessources } from "./ressources.js?v=20261111g";
-import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261111g";
-import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261111g";
-import { renderPropositionsIa } from "./propositions-ia.js?v=20261111g";
-import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261111g";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261111g";
+} from "../qcm-exam-rules.js?v=20261111j";
+import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111j";
+import { recordUndo } from "../undo.js?v=20261111j";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261111j";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261111j";
+import { renderSubTabs } from "../subtabs.js?v=20261111j";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261111j";
+import { cleCours } from "../cours-rules.js?v=20261111j";
+import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261111j";
+import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261111j";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111j";
+import { renderRessources } from "./ressources.js?v=20261111j";
+import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261111j";
+import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261111j";
+import { renderPropositionsIa } from "./propositions-ia.js?v=20261111j";
+import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261111j";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111j";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -177,59 +177,34 @@ function noteClass(n) {
   return "low";
 }
 
-// Cellule QCM de la liste : un bouton d'ouverture + les notes en texte étiqueté
-// (une seule forme = le bouton ; les notes sont nommées, valeur colorée selon le score).
-function qcmCellEl(theme, qcm) {
-  const btn = el("button", {
-    class: "theme-qcm-hint", type: "button", title: "Voir le QCM",
-    onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmSheet(theme, qcm); },
-  }, icon.quiz(), "QCM");
-  const note = myThemeNote(theme, qcm);
-  const train = myTrainNote(qcm);
-  // L'en-tête étale bouton et notes sur toute la largeur de la colonne ;
-  // la barre en dessous matérialise la dernière note d'entraînement.
-  const cell = el("div", { class: "theme-qcm-cell2" },
-    el("div", { class: "qcm-cell-entete" }, btn));
-  // Examen ouvert : reperable d'un coup d'oeil depuis la liste. C'est le filet
-  // contre l'oubli quand un formateur a ouvert sans limite de temps. Le formateur a, à la place, le bloc d'examen
-  // (lot C, en fin de cellule) : l'état en clair et le bouton pour ouvrir ou fermer, sans passer par la fiche du QCM.
-  // Le siège (sans promo) n'a ni l'un ni l'autre (lot 5).
-  if (!sansPromo() && !canManageExam() && examenDemarrable(qcm)) {
+// Repères du QCM sur la ligne d'état d'un thème (liste compacte, 11/11/2026) : examen ouvert, questions contestées.
+function reperesQcm(qcm) {
+  const reperes = [];
+  // Examen ouvert : repérable d'un coup d'oeil depuis la liste, pour tous (le formateur l'ouvre et le ferme par « … »). C'est
+  // le filet contre l'oubli quand un formateur a ouvert sans limite de temps. Le siège (sans promo) n'en a pas (lot 5).
+  if (!sansPromo() && examenDemarrable(qcm)) {
     const restant = tempsRestantMs(qcm);
-    cell.appendChild(el("span", {
+    reperes.push(el("span", {
       class: "theme-qcm-exam-on",
       title: restant == null ? "Examen ouvert sans limite" : `Examen ouvert, ferme dans ${formatTempsRestant(restant)}`,
     }, "Examen ouvert"));
   }
-
   // Questions contestées à traiter : visibles sans ouvrir le QCM, sinon elles passent inaperçues.
   const nbSignal = signalByQcm[qcm.id] || 0;
   if (nbSignal) {
-    cell.appendChild(el("span", {
-      class: "theme-qcm-signal",
-      title: nbSignal + (nbSignal > 1 ? " questions contestées" : " question contestée") + " à traiter dans ce QCM",
-    }, deco(icon.drapeau()), String(nbSignal)));
+    const nom = nbSignal + (nbSignal > 1 ? " questions contestées" : " question contestée") + " à traiter dans ce QCM";
+    reperes.push(el("span", { class: "theme-qcm-signal", title: nom, "aria-label": nom }, deco(icon.drapeau()), String(nbSignal)));
   }
-  if (note != null || train != null) {
-    const row = (lab, val, colored) => el("div", { class: "qcm-cell-note-row" },
-      el("span", { class: "qcm-cell-note-lab" }, lab),
-      el("span", { class: "qcm-cell-note-val " + (colored ? "n-" + noteClass(val) : "is-muted") },
-        val != null ? `${val}/20` : "-"),
-    );
-    cell.querySelector(".qcm-cell-entete").appendChild(el("div", { class: "qcm-cell-notes" },
-      row("Examen", note, true),
-      row("Entraîn.", train, false),
-    ));
-  }
-  if (train != null) {
-    const pct = Math.max(0, Math.min(100, (train / 20) * 100));
-    cell.appendChild(el("div", {
-      class: "qcm-cell-barre",
-      title: `Entraînement : ${train}/20`,
-    }, el("div", { class: "qcm-cell-barre-fill n-" + noteClass(train), style: `width:${pct}%` })));
-  }
-  if (canManageExam() && !sansPromo()) cell.appendChild(blocExamenListe(theme, qcm, () => cell.replaceWith(qcmCellEl(theme, qcm))));
-  return cell;
+  return reperes;
+}
+
+// Les notes de la personne connectée (le stagiaire, le plus souvent), en texte court : « Examen 14/20 · Entraîn. 10/20 ».
+function notesQcm(theme, qcm) {
+  const note = myThemeNote(theme, qcm);
+  const train = myTrainNote(qcm);
+  const n = (lab, val, titre) => val == null ? null
+    : el("span", { class: "theme-note", title: titre }, lab + " ", el("b", { class: "n-" + noteClass(val) }, `${val}/20`));
+  return [n("Examen", note, "Note d'examen"), n("Entraîn.", train, "Dernière note d'entraînement")];
 }
 
 // « Thème 22 · Feux du véhicule » : le thème nommé dans les fenêtres de l'examen (un thème sans numéro : son titre).
@@ -238,19 +213,7 @@ function nomDuTheme(theme) {
   return num != null && num !== "" ? `Thème ${num} · ${theme.titre}` : theme.titre;
 }
 
-// Bloc d'examen de la liste des thèmes (lot C) : « Examen fermé » et « Ouvrir l'examen aux stagiaires », ou « Ouvert jusqu'à 16 h 30 »
-// et « Fermer l'examen ». L'heure de fin plutôt qu'un compte à rebours : elle reste juste si la page reste affichée.
-function blocExamenListe(theme, qcm, apres) {
-  const ouvert = examenDemarrable(qcm);
-  const agir = (fn) => (ev) => { ev.preventDefault(); ev.stopPropagation(); fn(theme, qcm, apres); };
-  return el("div", { class: "theme-qcm-examen" + (ouvert ? " ouvert" : "") },
-    el("span", { class: "theme-qcm-examen-etat" }, libelleOuverture(qcm)),
-    ouvert
-      ? el("button", { type: "button", class: "btn small examen-fermer", onClick: agir(fermerExamen) }, "Fermer l'examen")
-      : el("button", { type: "button", class: "btn small primary examen-ouvrir", onClick: agir(ouvrirExamen) }, "Ouvrir l'examen aux stagiaires"));
-}
-
-// Ouvrir l'examen d'un QCM, depuis la fiche du QCM comme depuis la liste des thèmes (lot C). On demande d'abord POUR
+// Ouvrir l'examen d'un QCM, depuis la fiche du QCM comme depuis « … » d'un thème de la liste. On demande d'abord POUR
 // COMBIEN DE TEMPS ; la fenêtre nomme le thème et résume ce qui part. Une ouverture sans échéance reste possible, mais
 // le formateur devra refermer lui-même : la liste des thèmes l'affiche pour qu'il ne l'oublie pas.
 function ouvrirExamen(theme, qcm, apres) {
@@ -297,7 +260,7 @@ async function publierExamen(qcm, fermeA, apres) {
 }
 
 // Fermer : demandé d'abord, car la base refuse alors aussi la remise d'un examen commencé (qcm_exam_remise_toleree :
-// un examen fermé n'accepte plus rien), et un doigt peut glisser sur la mauvaise ligne de la liste. Échap, « Annuler » ou
+// un examen fermé n'accepte plus rien), et un doigt peut se tromper de thème dans la liste. Échap, « Annuler » ou
 // un toucher à côté referment la question sans rien changer (js/confirmer.js).
 function confirmerFermeture(theme) {
   const num = theme.numero ?? theme.code;
@@ -319,14 +282,12 @@ async function fermerExamen(theme, qcm, apres) {
   } catch (e) { toast("Fermeture impossible : " + (e?.message || e), "error"); }
 }
 
-// Cellule QCM d'un thème sans banque : entrée « Créer QCM » (formateur), ouvre l'éditeur vide.
-function createQcmCellEl(theme) {
-  return el("div", { class: "theme-qcm-cell2" },
-    el("button", {
-      class: "theme-qcm-hint create", type: "button", title: "Créer le QCM de ce thème",
-      onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmEditor(theme, null); },
-    }, icon.plus(), "Créer QCM"),
-  );
+// Thème sans banque : « + QCM » dans la pastille d'accès (formateur), ouvre l'éditeur vide.
+function boutonCreerQcm(theme) {
+  return el("button", {
+    class: "theme-qcm-hint create", type: "button", title: "Créer le QCM de ce thème", "aria-label": "Créer le QCM de ce thème",
+    onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmEditor(theme, null); },
+  }, icon.plus(), "QCM");
 }
 
 // Tire n éléments au hasard (ordre aléatoire). n falsy ou >= longueur => tout.
@@ -1299,7 +1260,7 @@ function toggleStatut(current) {
   return normalizeStatut(current) === "Fait" ? "À faire" : "Fait";
 }
 
-async function cycleStatut(theme, container, chipEl) {
+async function cycleStatut(theme, container, apres) {
   const newStatut = toggleStatut(theme.statut);
   const prevStatut = theme.statut;
   const prevDate = theme.date_fait;
@@ -1311,9 +1272,9 @@ async function cycleStatut(theme, container, chipEl) {
   try {
     await updateTheme(theme.id, patch);
     Object.assign(theme, patch);
-    // Update in-place sans rerender complet (évite le scroll jump)
-    updateThemeRowInPlace(theme, chipEl);
+    apres();
     refreshStatsInPlace(container);
+    toast(newStatut === "Fait" ? "Thème marqué fait" : "Thème marqué à faire", "success", 1500);
     recordUndo("statut thème", async () => {
       await updateTheme(theme.id, { statut: prevStatut, date_fait: prevDate });
       theme.statut = prevStatut;
@@ -1324,35 +1285,7 @@ async function cycleStatut(theme, container, chipEl) {
   }
 }
 
-function updateThemeRowInPlace(theme, chipEl) {
-  const row = chipEl?.closest(".theme-row");
-  if (!row) return;
-  const newColor = normalizeStatut(theme.statut) === "Fait" ? "done" : "todo";
-  row.classList.remove("todo", "done", "doing");
-  row.classList.add(newColor);
-  chipEl.classList.remove("todo", "done", "doing");
-  chipEl.classList.add(newColor);
-  // Update text inside chip
-  const dot = chipEl.querySelector(".theme-statut-dot");
-  clear(chipEl);
-  if (dot) chipEl.appendChild(dot);
-  else chipEl.appendChild(el("span", { class: "theme-statut-dot" }));
-  chipEl.appendChild(document.createTextNode(theme.statut));
-  // Update date column (4th child : .theme-date)
-  const dateEl = row.querySelector(".theme-date");
-  if (dateEl) {
-    clear(dateEl);
-    if (theme.date_fait) {
-      dateEl.classList.remove("muted");
-      dateEl.appendChild(document.createTextNode(formatDate(theme.date_fait)));
-    } else {
-      dateEl.classList.add("muted");
-      dateEl.appendChild(document.createTextNode("-"));
-    }
-  }
-}
-
-function openDateEditor(theme, anchorEl, container) {
+function openDateEditor(theme, container, apres) {
   let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
   const dateInput = el("input", {
     type: "date",
@@ -1376,29 +1309,9 @@ function openDateEditor(theme, anchorEl, container) {
         theme.date_fait = prevDate;
         theme.statut = prevStatut;
       });
-      // Mise à jour locale : le label affiche la nouvelle date sans tout rerender
-      anchorEl.textContent = newDate ? formatDate(newDate) : "+ date";
-      anchorEl.classList.toggle("muted", !newDate);
-      // Si on a posé une date, statut devient Fait → couleur ligne / chip
-      if (newDate) {
-        const row = anchorEl.closest(".theme-row");
-        if (row) {
-          row.classList.remove("todo", "doing");
-          row.classList.add("done");
-          const chip = row.querySelector(".theme-statut");
-          if (chip) {
-            chip.classList.remove("todo", "doing");
-            chip.classList.add("done");
-            const dot = chip.querySelector(".theme-statut-dot");
-            chip.textContent = "";
-            if (dot) chip.appendChild(dot);
-            else chip.appendChild(el("span", { class: "theme-statut-dot" }));
-            chip.appendChild(document.createTextNode("Fait"));
-          }
-        }
-      }
-      refreshStatsInPlace(container);
       modale.fermer();
+      apres();
+      refreshStatsInPlace(container);
       toast("Date mise à jour", "success", 1500);
     } catch (e) {
       toast(e.message, "error");
@@ -1420,6 +1333,52 @@ function openDateEditor(theme, anchorEl, container) {
   );
   modale = ouvrirModale(modal);
   setTimeout(() => dateInput.focus(), 80);
+}
+
+// « … » d'un thème (liste compacte, 11/11/2026) : les gestes du formateur, rangés hors de la ligne. Ouvrir ou fermer l'examen
+// (ses fenêtres et leur texte restent les mêmes), marquer fait ou à faire, la date, et supprimer une notion pédagogique.
+// Chaque geste ferme d'abord cette fiche : le focus revient à « … », puis à la ligne redessinée (apres).
+function ouvrirActionsTheme(theme, container, apres) {
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
+  const sans = sansPromo();
+  const qcm = qcmByTheme.get(theme.id);
+  const fait = normalizeStatut(theme.statut) === "Fait";
+  const examen = !!qcm && canManageExam() && !sans;
+  const etat = [];
+  if (!sans) etat.push(fait ? (theme.date_fait ? `Fait le ${formatDate(theme.date_fait)}` : "Fait") : "À faire");
+  if (examen) etat.push(libelleOuverture(qcm));
+  const geste = (classe, texte, faire) => el("button", {
+    class: "btn full " + classe, type: "button", onClick: () => { modale.fermer(); faire(); },
+  }, texte);
+  const ouvert = examen && examenDemarrable(qcm);
+  const modal = el("div", { class: "modal theme-actions" },
+    el("h3", {}, nomDuTheme(theme)),
+    etat.length ? el("p", { class: "theme-actions-etat" }, etat.join(" · ")) : null,
+    el("div", { class: "theme-actions-liste" },
+      !examen ? null : ouvert
+        ? geste("ghost examen-fermer", "Fermer l'examen", () => fermerExamen(theme, qcm, apres))
+        : geste("primary examen-ouvrir", "Ouvrir l'examen aux stagiaires", () => ouvrirExamen(theme, qcm, apres)),
+      sans ? null : geste("ghost theme-action-statut", fait ? "Marquer à faire" : "Marquer comme fait",
+        () => cycleStatut(theme, container, apres)),
+      sans ? null : geste("ghost theme-action-date", theme.date_fait ? "Changer la date" : "Choisir la date",
+        () => openDateEditor(theme, container, apres)),
+      theme.type === "notion"
+        ? geste("ghost theme-action-supprimer", "Supprimer la notion", async () => {
+            // `themes` est commun à toutes les promos : la suppression emporte en cascade la progression,
+            // les QCM, les états d'examen et les tentatives de TOUTES les promos.
+            if (!(await confirmer({ titre: `Supprimer la notion pédagogique « ${theme.titre} » ?`,
+              phrase: "La suppression vaut pour toutes les promos : la progression, les QCM et les tentatives liés disparaissent avec elle.",
+              oui: "Supprimer la notion" }))) return;
+            await deleteTheme(theme.id);
+            themes = themes.filter((t) => t.id !== theme.id);
+            rerender(container);
+          })
+        : null,
+    ),
+    el("div", { class: "modal-actions" },
+      el("button", { class: "btn ghost", type: "button", onClick: () => modale.fermer() }, "Fermer")),
+  );
+  modale = ouvrirModale(modal);
 }
 
 // Enchaînement cours -> QCM : le lecteur propose l'entraînement du thème en fin
@@ -1467,6 +1426,8 @@ function openThemeModal(theme) {
   modale = ouvrirModale(modal);
 }
 
+// Une ligne compacte par thème (11/11/2026, css/themes-lignes.css) : numéro, titre, ligne d'état (statut, date, repères du QCM,
+// notes), l'accès au cours et au QCM groupé dans une pastille, et « … » pour les gestes du formateur.
 function renderThemeRow(theme, container, coursOn = false) {
   const admin = isAdmin();
   const sans = sansPromo();
@@ -1475,60 +1436,9 @@ function renderThemeRow(theme, container, coursOn = false) {
   const groupe = /^C[1-4]$/.test(theme.code || "");
   const statutNorm = normalizeStatut(theme.statut);
   const color = statutNorm === "Fait" ? "done" : "todo";
+  const qcm = qcmByTheme.get(theme.id);
 
-  // Statut chip cliquable (admin only), toggle binaire
-  const statutChip = el(admin ? "button" : "span", {
-    class: "theme-statut " + color + (admin ? " clickable" : ""),
-    type: admin ? "button" : undefined,
-    title: admin ? "Cliquer pour basculer fait / à faire" : ""
-  },
-    el("span", { class: "theme-statut-dot" }),
-    statutNorm
-  );
-  if (admin) statutChip.addEventListener("click", (ev) => {
-    ev.preventDefault();
-    cycleStatut(theme, container, statutChip);
-  });
-
-  // Date, éditable si admin
-  let dateLabel;
-  if (admin) {
-    dateLabel = el("button", {
-      class: "theme-date editable" + (theme.date_fait ? "" : " muted"),
-      type: "button",
-      title: "Modifier la date",
-      onClick: (ev) => {
-        ev.preventDefault();
-        openDateEditor(theme, dateLabel, container);
-      },
-    }, theme.date_fait ? formatDate(theme.date_fait) : "+ date");
-  } else {
-    dateLabel = theme.date_fait
-      ? el("span", { class: "theme-date" }, formatDate(theme.date_fait))
-      : el("span", { class: "theme-date muted" }, "-");
-  }
-
-  // Delete (admin notion seulement, jamais sur thèmes officiels)
-  let delBtn = null;
-  if (admin && theme.type === "notion") {
-    delBtn = el("button", {
-      class: "btn small danger icon-only", "aria-label": "Supprimer cette notion pédagogique",
-      onClick: async () => {
-        // `themes` est commun à toutes les promos : la suppression emporte en cascade la progression,
-        // les QCM, les états d'examen et les tentatives de TOUTES les promos.
-        if (!(await confirmer({ titre: `Supprimer la notion pédagogique « ${theme.titre} » ?`,
-          phrase: "La suppression vaut pour toutes les promos : la progression, les QCM et les tentatives liés disparaissent avec elle.",
-          oui: "Supprimer la notion" }))) return;
-        await deleteTheme(theme.id);
-        themes = themes.filter((t) => t.id !== theme.id);
-        rerender(container);
-      }
-    });
-    delBtn.appendChild(icon.trash());
-  }
-
-  // Colonne Cours : bouton vif tant que le cours n'a pas été ouvert sur cet
-  // appareil, atténué ensuite. Le clic sur le titre suit le même chemin.
+  // Cours : vif tant que le cours n'a pas été ouvert sur cet appareil, atténué ensuite. Le titre suit le même chemin.
   const coursBtn = coursVisible(theme)
     ? el("button", {
         class: "theme-cours-btn" + (coursDejaOuvert(cleCours(theme)) ? " deja-lu" : ""),
@@ -1536,10 +1446,6 @@ function renderThemeRow(theme, container, coursOn = false) {
         title: coursDejaOuvert(cleCours(theme)) ? "Relire le cours" : "Lire le cours",
       }, icon.edu(), "Cours")
     : null;
-  const coursCell = coursOn
-    ? el("div", { class: "theme-cours-cell" }, coursBtn || el("span"))
-    : null;
-
   function ouvrirCours() {
     coursBtn?.classList.add("deja-lu");
     openCoursSheet(theme, optionsCoursPour(theme));
@@ -1554,31 +1460,57 @@ function renderThemeRow(theme, container, coursOn = false) {
     onClick: () => coursVisible(theme) ? ouvrirCours() : openThemeModal(theme),
   }, theme.titre);
 
-  // Colonne QCM : cellule dédiée à droite, jamais sous le titre. Un stagiaire n'y
-  // voit un bouton que si le thème a un QCM publié ; « Créer QCM » reste au formateur de la promo (la règle qcm_ecriture de la
-  // base refuse l'ajout au siège et à la direction : le siège rédige les questions des QCM existants, pas les QCM).
-  const qcm = qcmByTheme.get(theme.id);
-  const qcmCell = canSeeQcm()
-    ? el("div", { class: "theme-qcm-cell" },
-        qcm ? qcmCellEl(theme, qcm) : (canManageExam() ? createQcmCellEl(theme) : null))
+  // QCM : un stagiaire n'a un bouton que si le thème a un QCM publié ; « + QCM » reste au formateur de la promo (la règle
+  // qcm_ecriture de la base refuse l'ajout au siège et à la direction : le siège rédige les questions des QCM existants).
+  const qcmBtn = !canSeeQcm() ? null
+    : qcm ? el("button", {
+        class: "theme-qcm-hint", type: "button", title: "Voir le QCM",
+        onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmSheet(theme, qcm); },
+      }, icon.quiz(), "QCM")
+      : (canManageExam() ? boutonCreerQcm(theme) : null);
+
+  const etiquette = theme.numero != null || theme.code ? `thème ${num}`
+    : `${theme.type === "notion" ? "la notion" : "thème"} « ${theme.titre} »`;
+  const acces = coursBtn || qcmBtn
+    ? el("div", { class: "theme-acces", role: "group", "aria-label": `Cours et QCM : ${etiquette}` }, coursBtn, qcmBtn)
     : null;
 
-  return el("div", { class: "theme-row " + color + (groupe ? " theme-row-groupe" : ""), dataset: { id: theme.id } },
-    el("span", { class: "theme-num" + (theme.code ? " code" : "") }, num),
-    el("div", { class: "theme-titre-block" },
-      titreBtn,
-      theme.categorie
-        ? el("div", { class: "theme-titre-meta" },
-            el("span", { class: "theme-cat" }, theme.categorie),
-          )
-        : null,
-    ),
-    sans ? null : statutChip,
-    sans ? null : dateLabel,
-    coursCell,
-    qcmCell,
-    delBtn || el("span"),
+  const meta = el("div", { class: "theme-meta" },
+    sans ? null : el("span", { class: "theme-statut " + color }, el("span", { class: "theme-statut-dot" }), statutNorm),
+    !sans && theme.date_fait ? el("span", { class: "theme-date", title: "Fait le" }, formatDate(theme.date_fait)) : null,
+    qcm && canSeeQcm() ? reperesQcm(qcm) : null,
+    qcm && canSeeQcm() ? notesQcm(theme, qcm) : null,
   );
+
+  // « … » : les gestes du formateur (examen, statut, date ; supprimer une notion). Le siège n'a que la suppression d'une notion.
+  const avecMenu = admin && (!sans || theme.type === "notion");
+  const row = el("div", {
+    class: "theme-row " + color + (groupe ? " theme-row-groupe" : "") + (avecMenu ? " avec-menu" : ""),
+    dataset: { id: theme.id },
+  },
+    el("span", { class: "theme-num" + (theme.code ? " code" : "") }, num),
+    titreBtn,
+    meta.childNodes.length ? meta : null,
+    acces,
+  );
+  if (avecMenu) {
+    const menu = el("button", {
+      type: "button", class: "theme-menu", "aria-haspopup": "dialog",
+      "aria-label": `Actions : ${etiquette}`, title: "Examen, statut et date",
+    }, deco(icon.plusDActions()));
+    // Après un geste, la ligne se redessine ; le focus revient à son « … » s'il était dans l'ancienne (ou perdu sur la page).
+    const apres = () => {
+      if (!row.isConnected) return;
+      const actif = document.activeElement;
+      const avaitLeFocus = row.contains(actif) || !actif || actif === document.body;
+      const neuve = renderThemeRow(theme, container, coursOn);
+      row.replaceWith(neuve);
+      if (avaitLeFocus) neuve.querySelector(".theme-menu")?.focus({ preventScroll: true });
+    };
+    menu.addEventListener("click", () => ouvrirActionsTheme(theme, container, apres));
+    row.appendChild(menu);
+  }
+  return row;
 }
 
 function openAddNotionModal(onSaved) {

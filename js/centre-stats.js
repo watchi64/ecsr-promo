@@ -7,10 +7,10 @@
 // Population : les inscrits sont toutes les fiches de la promo, les « en formation » les
 // fiches actives. Tout sauf l'effectif et les abandons porte sur les stagiaires en formation.
 
-import { estNotee, score20, mediane } from "./notes-stats.js?v=20261111g";
-import { NOTE_VALUES } from "./epcf-trames.js?v=20261111g";
-import { compareByNom } from "./utils.js?v=20261111g";
-import { fr1, pct } from "./nombres.js?v=20261111g";
+import { estNotee, score20, mediane } from "./notes-stats.js?v=20261111j";
+import { NOTE_VALUES } from "./epcf-trames.js?v=20261111j";
+import { compareByNom } from "./utils.js?v=20261111j";
+import { fr1, pct } from "./nombres.js?v=20261111j";
 
 // Hypothèse du réseau : un parcours de formation représente 3 500 à 5 000 €.
 export const COUT_ABANDON_ESTIME = [3500, 5000];
@@ -253,8 +253,9 @@ function stagiairesASuivre({ enFormation, parStag, entrainements, notees, aujour
   const debutFenetre = decalerJour(aujourdhui, -JOURS_INACTIVITE);
   const dansFenetre = (t) => { const j = jourDe(t.finished_at); return j > debutFenetre && j <= aujourdhui; };
   const promoActive = entrainements.some(dansFenetre);
-  // Compteur de la page Ordre de passage : faits + bonus + absences ; objectif = moyenne arrondie.
-  const prio = (c) => c.fait + c.bonus + c.absence;
+  // Compteur de la page Ordre de passage (js/ordre-passage-rules.js, règle du placement depuis le 11/11) : faits + absences,
+  // le bonus ne compte pas ; objectif = moyenne arrondie.
+  const prio = (c) => c.fait + c.absence;
   const objectif = (type) => Math.round(somme(enFormation.map((s) => prio(parStag.get(s.id)[type]))) / enFormation.length);
   const objSalle = objectif("Salle");
   const objVoiture = objectif("Voiture");

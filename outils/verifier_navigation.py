@@ -176,7 +176,7 @@ Contrôles par vue
     au-dessus de l'écran ; Chromium la remet en haut et ne montre pas le défaut) ;
   * en-tête de l'équipe sur téléphone (lot 2A) : un seul bouton « Assistant » (data-nav-action=assistant, de 44 px) dans l'en-tête, entre la promo et
     le compte, rien ne débordant de la fenêtre, à 375 px puis à 320 px (la page Stagiaires y est mesurée comme toute vue, sans autre scénario) ; le
-    tiroir « Plus » s'appelle « Autres pages », sans « Tout l'espace formateur », et garde sa ligne « Assistant » ;
+    tiroir « Plus » s'appelle « Autres pages », sans « Tout l'espace formateur », garde « Signaler un problème » et ne répète ni l'Assistant ni le compte (11/11) ;
   * Notes et examens (équipe, lot 2A, puis lot C de l'audit du 09/11) : sur un écran tactile (le téléphone du banc), le sous-titre est
     « Saisissez les notes thème par thème, ou touchez une case de la matrice. » et la phrase sur Entrée et Échap n'est pas montrée ; avec une
     souris, le sous-titre d'avant et la phrase de la barre d'outils ;
@@ -3528,21 +3528,23 @@ def verifier_assistant_en_tete(page, res, sc, options):
             verifier_vue(page, res, sc, "assistant-en-tete@%d" % largeur, options)
     page.set_viewport_size({"width": sc.largeur, "height": HAUTEUR[sc.largeur]})
     attendre(page, calme=250)
-    # Le tiroir « Plus » : son premier titre, et la ligne « Assistant » qu'il garde.
+    # Le tiroir « Plus » : son premier titre, « Signaler un problème », et ni l'Assistant ni le compte (en haut de l'écran :
+    # une chose, un endroit, 11/11/2026).
     vue = "%s/tiroir-plus" % sc.nom
     if cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="plus"]', "bouton « Plus »"):
         page.wait_for_timeout(250)
         t = page.evaluate("""() => ({ titres: [...document.querySelectorAll('[data-nav-coquille="plus"] .nav-fenetre-section')].map((e) => e.textContent.trim()),
-            assistant: !!document.querySelector('[data-nav-coquille="plus"] [data-nav-action="assistant"]') })""")
+            assistant: !!document.querySelector('[data-nav-coquille="plus"] [data-nav-action="assistant"]'),
+            compte: !!document.querySelector('[data-nav-coquille="plus"] [data-nav-action="compte"]'),
+            signaler: !!document.querySelector('[data-nav-coquille="plus"] [data-nav-action="signaler"]') })""")
         if "Autres pages" not in t["titres"] or "Tout l'espace formateur" in t["titres"]:
             res.echec("tiroir Plus", vue, "titres du tiroir : %s ; attendu « Autres pages » et plus « Tout l'espace formateur »" % (", ".join(t["titres"]) or "aucun"))
-        if not t["assistant"]:
-            res.echec("tiroir Plus", vue, "le tiroir n'a plus de ligne « Assistant »")
-        elif cliquer(page, res, vue, '[data-nav-coquille="plus"] [data-nav-action="assistant"]', "ligne « Assistant » du tiroir"):
-            page.wait_for_timeout(300)
-            if page.evaluate("() => window.__verifNav.controlesAssistant()") is None:
-                res.echec("tiroir Plus", vue, "la ligne « Assistant » du tiroir n'ouvre pas le panneau de l'assistant")
-        page.keyboard.press("Escape")   # ferme le panneau de l'assistant ouvert par la ligne, ou le tiroir resté ouvert
+        if t["assistant"] or t["compte"]:
+            res.echec("tiroir Plus", vue, "le tiroir répète %s, déjà en haut de l'écran" % " et ".join(
+                n for n, v in (("l'Assistant", t["assistant"]), ("le compte", t["compte"])) if v))
+        if not t["signaler"]:
+            res.echec("tiroir Plus", vue, "le tiroir n'a plus « Signaler un problème »")
+        page.keyboard.press("Escape")   # ferme le tiroir
         page.wait_for_timeout(250)
     vider_console(res, vue)
 
@@ -5990,16 +5992,15 @@ def focus_garde(page, res, vue, geste):
 def jouer_focus_des_fenetres(page, res, sc):
     """Téléphone, fondateur dans l'espace de l'équipe : quand une fenêtre de la coquille se ferme et que son
     bouton a disparu ou ne s'affiche plus, le focus reste dans la coquille, jamais sur body. Deux chemins :
-    « Plus », « Mon compte », Voir en tant que « Stagiaire » (la coquille du stagiaire n'a pas de « Plus ») ;
+    le compte (en haut de l'écran), Voir en tant que « Stagiaire » (la coquille change, le bouton du compte avec elle) ;
     tiroir ouvert puis écran élargi au-delà de 700 px (un iPhone couché), où le tiroir doit se fermer."""
     vue = "%s/focus-des-fenetres" % sc.nom
     aller_a(page, "#/planning")
     attendre(page)
-    if (cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="plus"]', "bouton « Plus »")
-            and cliquer(page, res, vue, '[role="dialog"] [data-nav-action="compte"]', "« Mon compte » du tiroir")
+    if (cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="compte"]:visible', "bouton du compte")
             and cliquer(page, res, vue, '[role="dialog"] button:text-is("Stagiaire")', "« Stagiaire » de Voir en tant que")):
         attendre(page, calme=250)
-        focus_garde(page, res, vue, "« Plus », « Mon compte », Voir en tant que « Stagiaire »")
+        focus_garde(page, res, vue, "le compte, Voir en tant que « Stagiaire »")
     page.evaluate("(r) => window.__verifNav.voirEnTantQue(r)", None)
     attendre(page, calme=250)
     if cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="plus"]', "bouton « Plus »"):
@@ -6053,16 +6054,11 @@ def jouer_voir_en_tant_que(page, res, sc, options):
 
 def verifier_assistant_sous_bandeau(page, res, sc, vue):
     """« Voir en tant que » pose le bandeau d'aperçu en bas de l'écran : l'assistant, ouvert depuis la coquille (son bouton de l'en-tête
-    ou de la barre, par « Plus » seulement si aucun n'est affiché), garde son champ et « Envoyer » à portée, rien ne couvre leur centre."""
+    ou de la barre ; « Plus » ne l'a plus depuis le 11/11), garde son champ et « Envoyer » à portée, rien ne couvre leur centre."""
     if not page.evaluate("() => !!document.getElementById('impersonation-banner')"):
         res.echec("bandeau d'aperçu absent", vue, "« Voir en tant que » ne montre pas le bandeau d'aperçu en bas de l'écran")
         return
     selecteur = '[data-nav-coquille] [data-nav-action="assistant"]:visible'
-    if not page.locator(selecteur).count() and sc.largeur < SEUIL_TELEPHONE:
-        if not cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="plus"]', "bouton « Plus »"):
-            return
-        page.wait_for_timeout(250)
-        selecteur = '[data-nav-coquille="plus"] [data-nav-action="assistant"]'
     if not cliquer(page, res, vue, selecteur, "bouton « Assistant »"):
         return
     page.wait_for_timeout(300)
