@@ -533,6 +533,149 @@ begin
   perform pg_temp.essai('delete from pg_temp.perso where nom = ''t_promos''');
 end $tgl$;
 
+-- Aides de l'étape 2b. L'adresse d'un personnage ; l'identifiant (en texte) du premier titre qu'il porte ; le verrou des titres non fixes
+-- ouvert ou fermé en propriétaire (le groupe verrou, lui, le règle par la fonction du fondateur).
+create or replace function pg_temp.e(p_nom text)
+returns text language sql as $tg15a$
+  select email from pg_temp.perso where nom = p_nom;
+$tg15a$;
+
+create or replace function pg_temp.titre_de(p_nom text)
+returns text language sql as $tg15b$
+  select pg_temp.calcul(format('select a.titre_id::text from public.affectations a join pg_temp.perso p on lower(a.email) = p.email where p.nom = %L order by a.id limit 1', p_nom));
+$tg15b$;
+
+create or replace function pg_temp.verrou(p_ouvert boolean)
+returns text language plpgsql as $tg15c$
+begin
+  perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+  if p_ouvert then
+    return pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('titres_ouverts', 'oui', null)$q$);
+  end if;
+  return 'OK';
+end $tg15c$;
+
+-- Groupe verrou (migration 6, partie A) : le verrou des titres non fixes (réglé par le fondateur seul) et les aides de décision
+-- (_cases_effectives, _depasse), jugées ici une à une ; leurs règles sont jugées par les groupes donner, retirer et gerer.
+create or replace function pg_temp.groupe_verrou()
+returns void language plpgsql as $tgvr$
+declare
+  t_form text := pg_temp.calcul($q$select public.titre_fixe('promo')::text$q$);
+  t_dir text := pg_temp.calcul($q$select public.titre_fixe('centre')::text$q$);
+  t_siege text := pg_temp.calcul($q$select public.titre_fixe('reseau')::text$q$);
+  t_interv text := pg_temp.titre_de('t_interv');
+  t_secr text := pg_temp.titre_de('t_secr');
+  t_rh text := pg_temp.titre_de('t_rh');
+  t_contenus text := pg_temp.titre_de('t_contenus');
+  t_chef text := pg_temp.titre_de('t_chef');
+  t_vide text := pg_temp.titre_de('t_vide');
+  t_qualite text := pg_temp.titre_de('t_qualite');
+  t_dirs text := pg_temp.titre_de('t_dirs');
+  c_form constant text := '{"planning":"modifier","emargement":"modifier","stagiaires":"modifier","notes":"modifier","cours":"modifier","ccp2":"voir","indicateurs":"voir","reglages":"modifier"}';
+  c_dir constant text := '{"promos":"modifier","stagiaires":"modifier","emargement":"voir","notes":"voir","equipe":"modifier","reglages":"modifier"}';
+  c_siege constant text := '{"cours":"modifier","directions":"modifier","reglages":"modifier"}';
+  c_interv constant text := '{"planning":"voir","emargement":"modifier","stagiaires":"voir","notes":"non","cours":"voir","ccp2":"non","indicateurs":"non","reglages":"non"}';
+  c_rh constant text := '{"promos":"voir","stagiaires":"non","emargement":"non","notes":"non","equipe":"voir","reglages":"non"}';
+  c_vide constant text := '{"promos":"non","stagiaires":"non","emargement":"non","notes":"non","equipe":"non","reglages":"non"}';
+begin
+  -- Le départ : aucune ligne, verrou fermé pour tous.
+  perform pg_temp.attendre('verrou', 'départ : aucune ligne titres_ouverts dans les réglages',
+    pg_temp.calcul($q$select count(*)::text from public.settings where promo_id is null and key = 'titres_ouverts'$q$), '0');
+  perform pg_temp.attendre('verrou', 'titres_ouverts() est faux au départ (propriétaire)', pg_temp.calcul('select public.titres_ouverts()::text'), 'false');
+  perform pg_temp.attendre('verrou', 'titres_ouverts() est faux au départ (dir_n)', pg_temp.appeler_a('dir_n', '1', null, 'select public.titres_ouverts()::text'), 'OK false');
+  -- Seul le fondateur le règle.
+  perform pg_temp.attendre('verrou', 'dir_n ne lève pas le verrou : refusé (42501)',
+    pg_temp.appeler_a('dir_n', '1', null, 'select public.regler_titres_ouverts(true)::text'), 'ERREUR 42501 titres: Réservé au fondateur.');
+  perform pg_temp.attendre('verrou', 'siege ne lève pas le verrou : refusé (42501)',
+    pg_temp.appeler_a('siege', null, null, 'select public.regler_titres_ouverts(true)::text'), 'ERREUR 42501 titres: Réservé au fondateur.');
+  perform pg_temp.attendre('verrou', 't_dirs (Directions : Modifier) ne lève pas le verrou : refusé (42501)',
+    pg_temp.appeler_a('t_dirs', null, null, 'select public.regler_titres_ouverts(true)::text'), 'ERREUR 42501 titres: Réservé au fondateur.');
+  perform pg_temp.attendre('verrou', 'un jeton sans adresse ne règle pas le verrou : refusé (42501)',
+    pg_temp.appeler_a(null, null, null, 'select public.regler_titres_ouverts(true)::text'), 'ERREUR 42501 titres: Réservé au fondateur.');
+  perform pg_temp.attendre('verrou', 'le fondateur en aperçu siège ne règle pas le verrou : refusé (42501)',
+    pg_temp.appeler_a('fond', null, 'siege', 'select public.regler_titres_ouverts(true)::text'), 'ERREUR 42501 titres: Réservé au fondateur.');
+  perform pg_temp.attendre('verrou', 'le fondateur en aperçu direction ne le règle pas non plus',
+    pg_temp.appeler_a('fond', '1', 'direction', 'select public.regler_titres_ouverts(true)::text'), 'ERREUR 42501 titres: Réservé au fondateur.');
+  perform pg_temp.attendre('verrou', 'les refus n''ont rien écrit : le verrou est toujours fermé',
+    pg_temp.calcul('select public.titres_ouverts()::text'), 'false');
+  -- Le fondateur lève puis ferme le verrou.
+  perform pg_temp.attendre('verrou', 'le fondateur lève le verrou : vrai',
+    pg_temp.appeler_a('fond', '1', null, 'select public.regler_titres_ouverts(true)::text'), 'OK true');
+  perform pg_temp.attendre('verrou', 'après sa levée, titres_ouverts() est vrai pour tous (dir_n)',
+    pg_temp.appeler_a('dir_n', '1', null, 'select public.titres_ouverts()::text'), 'OK true');
+  perform pg_temp.attendre('verrou', 'la levée est une seule ligne globale (sans promo)',
+    pg_temp.calcul($q$select count(*)::text || '/' || min(value) from public.settings where promo_id is null and key = 'titres_ouverts'$q$), '1/oui');
+  perform pg_temp.attendre('verrou', 'lever deux fois ne double pas la ligne',
+    pg_temp.appeler_a('fond', '1', null, 'select public.regler_titres_ouverts(true)::text') || ' / '
+      || pg_temp.calcul($q$select count(*)::text from public.settings where promo_id is null and key = 'titres_ouverts'$q$), 'OK true / 1');
+  perform pg_temp.attendre('verrou', 'le fondateur ferme le verrou : faux',
+    pg_temp.appeler_a('fond', '1', null, 'select public.regler_titres_ouverts(false)::text'), 'OK false');
+  perform pg_temp.attendre('verrou', 'après sa fermeture, la ligne a disparu et titres_ouverts() est faux',
+    pg_temp.calcul($q$select count(*)::text from public.settings where promo_id is null and key = 'titres_ouverts'$q$) || ' / '
+      || pg_temp.calcul('select public.titres_ouverts()::text'), '0 / false');
+  perform pg_temp.attendre('verrou', 'regler_titres_ouverts(nul) vaut fermer',
+    pg_temp.appeler_a('fond', '1', null, 'select public.regler_titres_ouverts(null)::text'), 'OK false');
+  -- La contrainte des réglages globaux : la clé du verrou est admise sans promo, une clé inconnue reste refusée.
+  perform pg_temp.attendre('verrou', 'une ligne titres_ouverts sans promo est admise par la contrainte des réglages globaux',
+    pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('titres_ouverts', 'oui', null)$q$), 'OK');
+  perform pg_temp.attendre('verrou', 'la ligne posée à la main ouvre le verrou : titres_ouverts() est vrai',
+    pg_temp.calcul('select public.titres_ouverts()::text'), 'true');
+  perform pg_temp.verrou(false);
+  perform pg_temp.attendre('verrou', 'une clé globale inconnue reste refusée (23514)',
+    pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('cle_inconnue_preuve8', 'oui', null)$q$), 'ERREUR 23514');
+  perform pg_temp.attendre('verrou', 'une clé d''avant reste admise sans promo (habillage_reseau)',
+    pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('habillage_reseau', 'ecsr', null)$q$), 'OK');
+  perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'habillage_reseau'$q$);
+  -- Les droits d'exécution : le verrou à authenticated seul, les aides à personne.
+  perform pg_temp.attendre('verrou', 'droits : titres_ouverts et regler_titres_ouverts pour authenticated, pas pour anon',
+    pg_temp.calcul($q$select concat_ws('/',
+      has_function_privilege('authenticated', 'public.titres_ouverts()', 'execute')::text,
+      has_function_privilege('authenticated', 'public.regler_titres_ouverts(boolean)', 'execute')::text,
+      has_function_privilege('anon', 'public.titres_ouverts()', 'execute')::text,
+      has_function_privilege('anon', 'public.regler_titres_ouverts(boolean)', 'execute')::text)$q$), 'true/true/false/false');
+  perform pg_temp.attendre('verrou', 'droits : les aides internes existent et n''ont aucun droit d''exécution (authenticated, anon, service_role)',
+    pg_temp.calcul($q$select count(*)::text from (values ('public._cases_effectives(bigint)'), ('public._depasse(jsonb, jsonb)'),
+      ('public._refus_titre(bigint, integer, text, text)'), ('public._cases_appelant(text, integer)')) f(sig)
+      cross join (values ('authenticated'), ('anon'), ('service_role')) r(nom)
+      where to_regprocedure(f.sig) is null or has_function_privilege(r.nom, f.sig, 'execute')$q$), '0');
+
+  -- _cases_effectives : un titre fixe est au plafond de chaque page de son niveau, un titre non fixe donne ses cases (pages absentes à non).
+  perform pg_temp.attendre('verrou', '_cases_effectives(Formateur) : huit pages au plafond',
+    pg_temp.calcul(format($q$select (public._cases_effectives(%s) = %L::jsonb)::text$q$, t_form, c_form)), 'true');
+  perform pg_temp.attendre('verrou', '_cases_effectives(Direction de centre) : six pages au plafond',
+    pg_temp.calcul(format($q$select (public._cases_effectives(%s) = %L::jsonb)::text$q$, t_dir, c_dir)), 'true');
+  perform pg_temp.attendre('verrou', '_cases_effectives(Siège) : trois pages à Modifier',
+    pg_temp.calcul(format($q$select (public._cases_effectives(%s) = %L::jsonb)::text$q$, t_siege, c_siege)), 'true');
+  perform pg_temp.attendre('verrou', '_cases_effectives(Intervenant) : ses quatre cases, les quatre autres pages à non',
+    pg_temp.calcul(format($q$select (public._cases_effectives(%s) = %L::jsonb)::text$q$, t_interv, c_interv)), 'true');
+  perform pg_temp.attendre('verrou', '_cases_effectives(titre de t_rh) : six pages, Promos et Équipe à Voir, le reste à non',
+    pg_temp.calcul(format($q$select (public._cases_effectives(%s) = %L::jsonb)::text$q$, t_rh, c_rh)), 'true');
+  perform pg_temp.attendre('verrou', '_cases_effectives(titre vide de t_vide) : six pages, toutes à non',
+    pg_temp.calcul(format($q$select (public._cases_effectives(%s) = %L::jsonb)::text$q$, t_vide, c_vide)), 'true');
+  perform pg_temp.attendre('verrou', '_cases_effectives(titre inconnu) : nul', pg_temp.calcul('select public._cases_effectives(-1)::text'), null);
+  -- _depasse : la première page, dans l'ordre des pages du niveau, où les cases ouvrent plus que la limite.
+  perform pg_temp.attendre('verrou', '_depasse(Secrétariat, titre de t_chef) : stagiaires (Modifier contre Voir), avant émargement',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_secr, t_chef)), 'stagiaires');
+  perform pg_temp.attendre('verrou', '_depasse(titre de t_chef, Secrétariat) : equipe (Modifier contre Voir)',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_chef, t_secr)), 'equipe');
+  perform pg_temp.attendre('verrou', '_depasse(titre de t_rh, titre de t_chef) : nul (au plus égal)',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_rh, t_chef)), null);
+  perform pg_temp.attendre('verrou', '_depasse(un titre, lui-même) : nul',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_secr, t_secr)), null);
+  perform pg_temp.attendre('verrou', '_depasse(Contenus, titre de t_dirs) : cours (Modifier contre Voir), au réseau',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_contenus, t_dirs)), 'cours');
+  perform pg_temp.attendre('verrou', '_depasse(Qualité, titre de t_dirs) : nul',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_qualite, t_dirs)), null);
+  perform pg_temp.attendre('verrou', '_depasse(Intervenant, Formateur) : nul (un titre fixe est au plafond)',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_interv, t_form)), null);
+  perform pg_temp.attendre('verrou', '_depasse(Formateur, Intervenant) : planning (la première page de l''ordre du niveau)',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_form, t_interv)), 'planning');
+  perform pg_temp.attendre('verrou', '_depasse : des cases partielles (pages absentes = non) se jugent comme les autres',
+    pg_temp.calcul(format($q$select public._depasse('{"promos":"voir","equipe":"modifier"}'::jsonb, public._cases_effectives(%s))$q$, t_rh)), 'equipe');
+  perform pg_temp.attendre('verrou', '_depasse : une page de plus que la limite ne dit rien d''une page absente des deux côtés',
+    pg_temp.calcul(format($q$select public._depasse('{"promos":"voir","notes":"non"}'::jsonb, public._cases_effectives(%s))$q$, t_rh)), null);
+end $tgvr$;
+
 do $tprg$
 declare
   v_mode constant text :=
@@ -600,6 +743,9 @@ begin
   end if;
   if pg_temp.groupe_a_jouer('lectures', v_etat5, 'public.retirer_titre(text, bigint, integer)', v_mode) then
     perform pg_temp.groupe_lectures(v_etat5 = 'jouée');
+  end if;
+  if pg_temp.groupe_a_jouer('verrou', v_etat6, 'public.regler_titres_ouverts(boolean)', v_mode) then
+    perform pg_temp.groupe_verrou();
   end if;
 
   -- 5. Les retours, dans l'ordre inverse (6, 5, 4).
