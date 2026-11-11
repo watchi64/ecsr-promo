@@ -19,21 +19,21 @@
   <title>TP ECSR App</title>
 
   <!-- Polices auto-hébergées (RGPD : aucun appel Google Fonts) -->
-  <link rel="stylesheet" href="css/fonts.css?v=20261111b" />
-  <link rel="stylesheet" href="css/style.css?v=20261111b" />
-  <link rel="stylesheet" href="css/habillage-ecf.css?v=20261111b" />
-  <link rel="stylesheet" href="css/livret.css?v=20261111b" />
-  <link rel="stylesheet" href="css/dp.css?v=20261111b" />
-  <link rel="stylesheet" href="css/cours-blocs.css?v=20261111b" />
-  <link rel="stylesheet" href="css/emargement.css?v=20261111b" />
-  <link rel="stylesheet" href="css/qualiopi.css?v=20261111b" />
-  <link rel="stylesheet" href="css/navigation.css?v=20261111b" />
-  <link rel="stylesheet" href="css/signalement.css?v=20261111b" />
-  <link rel="stylesheet" href="css/pages.css?v=20261111b" />
-  <link rel="stylesheet" href="css/questionnaire.css?v=20261111b" />
+  <link rel="stylesheet" href="css/fonts.css?v=20261111c" />
+  <link rel="stylesheet" href="css/style.css?v=20261111c" />
+  <link rel="stylesheet" href="css/habillage-ecf.css?v=20261111c" />
+  <link rel="stylesheet" href="css/livret.css?v=20261111c" />
+  <link rel="stylesheet" href="css/dp.css?v=20261111c" />
+  <link rel="stylesheet" href="css/cours-blocs.css?v=20261111c" />
+  <link rel="stylesheet" href="css/emargement.css?v=20261111c" />
+  <link rel="stylesheet" href="css/qualiopi.css?v=20261111c" />
+  <link rel="stylesheet" href="css/navigation.css?v=20261111c" />
+  <link rel="stylesheet" href="css/signalement.css?v=20261111c" />
+  <link rel="stylesheet" href="css/pages.css?v=20261111c" />
+  <link rel="stylesheet" href="css/questionnaire.css?v=20261111c" />
   <!-- Habillage choisi (ECSR Promo ou Couleurs ECF) : posé avant la première peinture, d'après ce que l'appareil
        a retenu. Script classique, après les feuilles de style pour que la couleur de la barre d'état se lise. -->
-  <script src="js/habillage-avant-peinture.js?v=20261111b"></script>
+  <script src="js/habillage-avant-peinture.js?v=20261111c"></script>
   <link rel="icon" href="assets/logo/tpecsr-logo.svg" type="image/svg+xml" />
   <!-- Écran d'accueil iOS : Safari n'accepte pas de SVG et rend la transparence en noir.
        PNG 180x180 opaque (pictogramme clair sur le fond espresso de l'app), coins laissés
@@ -81,25 +81,12 @@
 
   <!-- App -->
   <div id="app" class="hidden">
-    <header class="topbar">
-      <a href="#/mon-suivi" class="brand">
-        <img class="brand-logo" src="assets/logo/tpecsr-logo.svg" alt="TP ECSR" />
-      </a>
-
-      <nav class="tabs" id="tabs"></nav>
-
-      <div class="topbar-actions">
-        <div id="admin-slot"></div>
-        <button id="today-btn" class="ghost-btn" title="Aujourd'hui au planning" aria-label="Aller à la journée d'aujourd'hui au planning"></button>
-        <button id="refresh-btn" class="ghost-btn" title="Actualiser" aria-label="Actualiser"></button>
-      </div>
-    </header>
-
+    <!-- La barre de navigation (js/nav-shell.js) se monte ici, en tête de #app. -->
     <main id="view"></main>
 
     <div id="toast" class="toast hidden"></div>
   </div>
 
-  <script type="module" src="js/main.js?v=20261111b"></script>
+  <script type="module" src="js/main.js?v=20261111c"></script>
 </body>
 </html>

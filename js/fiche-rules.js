@@ -82,9 +82,9 @@ export function etatsSommaire({ aVenir, evals, livret, dossier, soi }) {
   };
 }
 
-// États de Mon suivi, nouvelle navigation (lot 2B, tâche 7) : la ligne entière, nom de la
-// partie compris, pour qu'elle se lise seule (« Évaluations EPCF : 0 épreuve sur 2 », jamais « 0/2 » ;
-// « Dossier professionnel : 2 exemples sur 6 », jamais « 02/10 », qui se lisait comme une date, ruling R65).
+// États de Mon suivi (lot 2B, tâche 7) : la ligne entière, nom de la
+// partie compris, pour qu'elle se lise seule (« Évaluations EPCF : 0 épreuve sur 2 », jamais « 0/2 » ; « Dossier
+// professionnel : 2 exemples sur 6 », jamais « 02/10 », qui se lisait comme une date, ruling R65).
 // `exemplesDossier` : exemples remplis (exemplesRemplis de js/dp-rules.js), null sans dossier.
 // Le texte de Résultats ne dépend d'aucune donnée : il dit ce que la partie contient. Comme
 // pour etatsSommaire de soi, seul le dossier, qui dépend du stagiaire, passe en orange ; il le

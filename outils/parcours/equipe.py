@@ -26,8 +26,7 @@ def emargement_du_jour(v):
 
 
 @parcours("indicateurs-du-centre", "Voir les indicateurs (tableau de bord du centre)", role="formateur", budget=UN_CLIC,
-          banc={"centre": "1", "demo": "1"},
-          semis=("FIXTURES.settings.push({ key: 'navigation_v2', value: String(PARAMS_BANC.get('nav2') === '1'), promo_id: 7 });",))
+          banc={"centre": "1", "demo": "1"})
 def indicateurs(v):
     """Ouvrir Indicateurs (tableau de bord du centre) sur la promo de démonstration : chiffres et sections."""
     v.aller("Indicateurs")
@@ -378,11 +377,10 @@ def evaluer_depuis_l_epcf_vide(v):
 FENETRE_REGISTRE = ".registre-fenetre"
 CARTES_REGISTRE = "#view .rg-cartes .rg-carte"
 BANC_REGISTRE = {"registre": "1", "centre": "1"}
-SEMIS_NAV2 = ("FIXTURES.settings.push({ key: 'navigation_v2', value: String(PARAMS_BANC.get('nav2') === '1'), promo_id: 7 });",)
 
 
 @parcours("registre-qualite", "Tenir le registre qualité : filtrer les entrées closes, ajouter une amélioration (fondateur)",
-          role="fondateur", budget={"ordinateur": 4, "telephone": 4}, banc=BANC_REGISTRE, semis=SEMIS_NAV2)
+          role="fondateur", budget={"ordinateur": 4, "telephone": 4}, banc=BANC_REGISTRE)
 def registre_qualite(v):
     """Indicateurs, « Qualiopi », sous-onglet « Registre qualité » : les entrées en cartes ; le filtre « Clos » ne garde que
     les closes ; « Exporter en tableau (CSV) » est actif ; « Ajouter » ouvre la fenêtre de saisie (rappel violences compris), une
@@ -452,7 +450,7 @@ def ajouter_au_registre(v):
 
 
 @parcours("qualiopi-absent-pour-le-formateur", "Qualiopi n'existe pas pour un formateur", role="formateur", budget={"ordinateur": 2, "telephone": 2},
-          banc={"centre": "1", "registre": "1", "signalements": "1"}, semis=SEMIS_NAV2)
+          banc={"centre": "1", "registre": "1", "signalements": "1"})
 def qualiopi_absent_formateur(v):
     """Indicateurs : le bouton « Qualiopi » n'y est pas ; l'adresse #/qualiopi tapée à la main ramène à l'accueil, sans
     registre."""

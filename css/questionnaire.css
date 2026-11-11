@@ -1,6 +1,5 @@
 /* Questionnaires anonymes (Qualiopi, indicateur 30) : le bandeau d'Accueil et de Mon espace, et la fenêtre qui
-   pose les questions (js/questionnaire.js). Valable avec l'ancienne barre comme avec la nouvelle : rien n'est rangé
-   sous body[data-nav="v2"], et le sélecteur de la fenêtre bat ceux des fenêtres de la coquille (css/navigation.css),
+   pose les questions (js/questionnaire.js). Rien n'est rangé sous body[data-nav="v2"], et le sélecteur de la fenêtre bat ceux des fenêtres de la coquille (css/navigation.css),
    dont elle reprend la mécanique, comme « Signaler un problème ». Cibles de 44 px au moins, aucune couleur d'alerte. */
 
 /* ----- Bandeau ----- */

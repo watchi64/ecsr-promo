@@ -4,16 +4,16 @@
 
 // Toutes les parties qu'une adresse peut nommer (Mon espace et page Stagiaires). L'ordre
 // d'affichage d'une fiche est celui de partiesDeLaFiche. `evolution` et `classe` restent
-// lisibles sous la nouvelle navigation, où elles ouvrent Résultats (ouvertureDeMonSuivi) :
+// lisibles, où elles ouvrent Résultats (ouvertureDeMonSuivi) :
 // favoris et liens d'avant gardent leur destination.
 export const PARTIES = ["resultats", "passages", "epcf", "evolution", "livret", "dp", "classe"];
 
-// Parties d'une fiche, dans l'ordre d'affichage. Mon suivi sous la nouvelle navigation (lot 2B,
-// tâche 7) : Résultats d'abord, qui réunit Évolution (« Moi ») et les notes de la classe (« La
-// classe ») ; deux mots vagues de moins sur le sommaire. La fiche d'un stagiaire vue par
-// l'équipe et l'ancienne navigation gardent la fiche de main.
-export function partiesDeLaFiche({ soi = false, navigationV2 = false } = {}) {
-  return soi && navigationV2
+// Parties d'une fiche, dans l'ordre d'affichage. Mon suivi (lot 2B, tâche 7) : Résultats d'abord,
+// qui réunit Évolution (« Moi ») et les notes de la classe (« La classe ») ; deux mots vagues de
+// moins sur le sommaire. La fiche d'un stagiaire vue par l'équipe garde la fiche de main.
+// L'option `navigationV2` est ignorée (transition : retirée en phase 2 quand les vues ne la passent plus).
+export function partiesDeLaFiche({ soi = false } = {}) {
+  return soi
     ? ["resultats", "passages", "epcf", "livret", "dp"]
     : ["passages", "epcf", "evolution", "livret", "dp"];
 }

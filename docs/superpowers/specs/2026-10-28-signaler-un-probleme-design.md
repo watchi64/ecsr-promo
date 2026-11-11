@@ -311,7 +311,7 @@ Fonctions (définies en `security definer`, chemin de recherche fixé) :
   visés. Jouée sur une base Postgres locale jetable (comme `qcm-ia-preuve.sql`), puis, après l'accord
   de Timy et l'application, rejouée sur la base réelle dans son bloc qui s'annule.
 - Banc d'essai (`_harness.html`, faux Supabase, jamais la base réelle) et script
-  `outils/verifier_signalement.py` (Chromium et WebKit ; stagiaire, formateur, fondateur ; les deux
+  `outils/verifier_signalement.py` (retiré le 10/11, couvert par le robot des parcours) (Chromium et WebKit ; stagiaire, formateur, fondateur ; les deux
   navigations ; 1 280, 900 et 375 px) : chaque entrée du § 5 visible et à 44 px sur téléphone, fenêtre
   ouverte puis fermée par Échap avec le focus rendu, envoi avec le bon contexte, image réduite sous la
   limite, échec d'envoi qui garde le texte, page du fondateur (sous-onglets, statut, réponse, suppression),

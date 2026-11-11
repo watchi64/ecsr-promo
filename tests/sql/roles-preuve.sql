@@ -53,7 +53,7 @@
 --                   voit les mêmes lignes que form_n, dir_n, siege (comparaison exacte, hors navigation et lignes de la
 --                   personne) ; un compte qui envoie un en-tête qui n'est pas pour lui ne voit rien de plus ni de moins ;
 --                   en aperçu stagiaire, direction ou siège, plus d'ajout au planning ni de note.
---   R32             navigation_v2 et emargement_actif (forme « insérer ou mettre à jour » de l'app) : le fondateur seul,
+--   R32             emargement_actif (navigation_v2 jusqu'au 11/11, réglage retiré avec l'ancienne navigation) (forme « insérer ou mettre à jour » de l'app) : le fondateur seul,
 --                   hors aperçu ; modules : l'équipe de la promo.
 --   comptes         (suite) nul ne se donne is_founder ou is_admin ; ni le fondateur ni un compte du personnel affecté ne
 --                   se supprime ; un compte de stagiaire de sa promo, oui ; une fiche de stagiaire se supprime par le
@@ -247,11 +247,11 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
 ('public.stagiaires_prive',
   $mx$exists (select 1 from public.stagiaires s where s.id = r.stagiaire_id and s.promo_id = {P}) and ({E} or r.stagiaire_id = {fiche_p})$mx$,
   'false', 'false', 'false', $mx$updated_at = '2031-01-06 00:00:00+00'$mx$, null),
--- Réglages : P (inchangé) ; écriture P et, selon la clé, Fo (navigation_v2, emargement_actif), E (modules), F (autres).
+-- Réglages : P (inchangé) ; écriture P et, selon la clé, Fo (emargement_actif ; navigation_v2 jusqu'au 11/11), E (modules), F (autres).
 ('public.settings', $mx$r.promo_id = {P}$mx$,
-  $mx$r.promo_id = {P} and case when r.key in ('navigation_v2', 'emargement_actif') then {Fo} when r.key = 'modules' then {E} else {F} end$mx$,
-  $mx$r.promo_id = {P} and case when r.key in ('navigation_v2', 'emargement_actif') then {Fo} when r.key = 'modules' then {E} else {F} end$mx$,
-  $mx$r.promo_id = {P} and case when r.key in ('navigation_v2', 'emargement_actif') then {Fo} when r.key = 'modules' then {E} else {F} end$mx$,
+  $mx$r.promo_id = {P} and case when r.key = 'emargement_actif' then {Fo} when r.key = 'modules' then {E} else {F} end$mx$,
+  $mx$r.promo_id = {P} and case when r.key = 'emargement_actif' then {Fo} when r.key = 'modules' then {E} else {F} end$mx$,
+  $mx$r.promo_id = {P} and case when r.key = 'emargement_actif' then {Fo} when r.key = 'modules' then {E} else {F} end$mx$,
   $mx$value = 'PreuveMaj'$mx$, null),
 -- Notes : P et (E ou fiche dans notes_stagiaires_visibles(), réécrite ici : sa fiche, ou les fiches de P dont aucun
 -- profil ne masque ses notes, s'il ne masque pas les siennes) ; écriture P et F.
@@ -711,7 +711,7 @@ declare
   v_autre integer := (select x from unnest(array[1, 2, 7]) x where x is distinct from p_p order by x limit 1);
   v_pf text := 'r.promo_id = ' || coalesce(p_p::text, 'null') || ' and ' || p_f::text;
   v_pe text := 'r.promo_id = ' || coalesce(p_p::text, 'null') || ' and ' || (p_f or p_d)::text;
-  v_pcle text := 'r.promo_id = ' || coalesce(p_p::text, 'null') || ' and case when r.key in (''navigation_v2'', ''emargement_actif'') then false'
+  v_pcle text := 'r.promo_id = ' || coalesce(p_p::text, 'null') || ' and case when r.key = ''emargement_actif'' then false'
                  || ' when r.key = ''modules'' then ' || (p_f or p_d)::text || ' else ' || p_f::text || ' end';
   v_t record; v_res text[]; v_a text; v_o text; v_x text; v_maj text; v_prep text; v_bad text;
 begin
@@ -784,8 +784,8 @@ begin
     ('settings modules', format('delete from public.settings where promo_id = %s and key = ''modules''', v_cible),
       format('insert into public.settings (key, value, promo_id) values (''modules'', ''PreuveAjout'', %s)', v_cible),
       p_p is not null and v_e),
-    ('settings navigation_v2', format('delete from public.settings where promo_id = %s and key = ''navigation_v2''', v_cible),
-      format('insert into public.settings (key, value, promo_id) values (''navigation_v2'', ''PreuveAjout'', %s)', v_cible),
+    ('settings emargement_actif', format('delete from public.settings where promo_id = %s and key = ''emargement_actif''', v_cible),
+      format('insert into public.settings (key, value, promo_id) values (''emargement_actif'', ''PreuveAjout'', %s)', v_cible),
       false)
   ) t(lib, prep, sqltxt, permis) loop
     v_res := pg_temp.tenter(p_email, p_hdr, null, v_t.prep, null, v_t.sqltxt, null);
@@ -1727,21 +1727,21 @@ begin
     'select count(*)::text from public.passages where commentaire = ''PreuveApercu''', array['OK 1 1']);
   perform pg_temp.cas('aperçu', 'fondateur en aperçu direction, promo 1 : ajout d''un passage à sa fiche refusé', c_fond, '1', 'direction', null,
     format('insert into public.passages (date, stagiaire_id, type, resultat, commentaire) values (''2031-02-03'', %s, ''Salle'', ''Effectué'', ''PreuveApercu'')', n), null, array['REFUS 42501']);
-  --    e) R32 : navigation_v2 et emargement_actif réservés au fondateur (réel, hors aperçu), modules à l'équipe de la promo.
+  --    e) R32 : emargement_actif réservé au fondateur (réel, hors aperçu), modules à l'équipe de la promo.
   --       La forme est celle de l'app (db.js, upsert sur promo_id,key : insérer ou mettre à jour, promo par défaut).
   for v_x in select * from (values ('fondateur', c_fond, null::text, true), ('form_n', c_form_n, null, false), ('dir_n', c_dir_n, null, false),
                                    ('stag_n', c_stag_n, null, false), ('fondateur en aperçu formateur', c_fond, 'formateur', false)) a(nom, email, apercu, permis) loop
-    foreach v_t in array array['navigation_v2', 'emargement_actif'] loop
+    foreach v_t in array array['emargement_actif'] loop
       perform pg_temp.cas('R32', format('%s écrit par %s : %s', v_t, v_x.nom, case when v_x.permis then 'permis' else 'refusé' end), v_x.email, '1', v_x.apercu, null,
         format(c_reglage, v_t, 'PreuveR32'), format('select value from public.settings where promo_id = 1 and key = %L', v_t),
         case when v_x.permis then array['OK 1 PreuveR32'] else array['REFUS 42501'] end);
     end loop;
   end loop;
-  perform pg_temp.cas('R32', 'navigation_v2 absent, inséré par le fondateur : permis', c_fond, '1', null,
-    'delete from public.settings where promo_id = 1 and key = ''navigation_v2''', format(c_reglage, 'navigation_v2', 'PreuveR32'),
-    'select value from public.settings where promo_id = 1 and key = ''navigation_v2''', array['OK 1 PreuveR32']);
-  perform pg_temp.cas('R32', 'navigation_v2 absent, inséré par form_n : refusé', c_form_n, '1', null,
-    'delete from public.settings where promo_id = 1 and key = ''navigation_v2''', format(c_reglage, 'navigation_v2', 'PreuveR32'), null, array['REFUS 42501']);
+  perform pg_temp.cas('R32', 'emargement_actif absent, inséré par le fondateur : permis', c_fond, '1', null,
+    'delete from public.settings where promo_id = 1 and key = ''emargement_actif''', format(c_reglage, 'emargement_actif', 'PreuveR32'),
+    'select value from public.settings where promo_id = 1 and key = ''emargement_actif''', array['OK 1 PreuveR32']);
+  perform pg_temp.cas('R32', 'emargement_actif absent, inséré par form_n : refusé', c_form_n, '1', null,
+    'delete from public.settings where promo_id = 1 and key = ''emargement_actif''', format(c_reglage, 'emargement_actif', 'PreuveR32'), null, array['REFUS 42501']);
   perform pg_temp.cas('R32', 'modules écrit par form_n en promo 1 : permis', c_form_n, '1', null, null, format(c_reglage, 'modules', 'PreuveR32'),
     'select value from public.settings where promo_id = 1 and key = ''modules''', array['OK 1 PreuveR32']);
   perform pg_temp.cas('R32', 'modules écrit par dir_n en promo 1 : permis', c_dir_n, '1', null, null, format(c_reglage, 'modules', 'PreuveR32'),

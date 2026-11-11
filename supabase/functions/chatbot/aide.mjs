@@ -1,37 +1,14 @@
 // Guide de l'app injecte dans le prompt systeme. Une entree par page/module.
 // A tenir a jour quand l'app change (fichier texte, pas de logique).
 
-// Ce qui ne depend pas de la barre affichee.
-const AIDE_COMMUNE = `QCM : en entraînement, les questions échouées reviennent en premier aux passages suivants. En examen, tirage de N questions et note sur 20 au seuil fixé par les formateurs. Chaque question a une explication sourcée. Un bouton de signalement permet de remonter une question douteuse aux formateurs.
+// Ce qui vaut pour les stagiaires et les formateurs.
+const AIDE_COMMUNE = `QCM : en entraînement, les questions échouées reviennent en premier aux passages suivants. En examen, tirage de N questions et note sur 20 au seuil fixé par les formateurs. Chaque question a une explication sourcée. « Contester cette question », pendant un QCM, remonte une question douteuse aux formateurs.
 
 LIVRET EPCF ET DOSSIER PROFESSIONNEL : documents officiels remplissables dans l'app puis imprimables au format officiel (impression via le bouton dédié, pas Ctrl+P depuis n'importe où).`;
 
-// Ancienne navigation.
+// Stagiaires et formateurs : memes noms que la barre (js/nav-rules.js). Une seule navigation depuis le 11/11 (l'ancienne
+// barre est retiree de l'app).
 export const AIDE_APP = `
-PAGES DE L'APP (navigation par onglets en haut ; le logo ramène à l'espace perso « Mon espace », ou à la page Stagiaires pour un formateur sans profil stagiaire)
-
-- mon-suivi (Mon espace personnel) : page d'ouverture de l'app, la fiche de la personne connectée. Parties Passages (planning personnel à venir, passages effectués), EPCF, Évolution (graphe des notes), Livret (son livret officiel, en lecture ; la date de naissance s'y règle, reportée sur le livret) et Dossier pro. Sur ordinateur, des onglets ; sur téléphone, un sommaire avec l'état de chaque partie, puis la partie en plein écran (retour en haut à gauche ou geste retour).
-- dashboard (Priorités) : qui doit passer en priorité dans la promo, d'après les compteurs de passages. Vue promo, pas personnelle. Plus d'onglet : bouton « Priorités » en haut du Planning.
-- stagiaires (page Stagiaires, formateurs et admins) : la liste de la promo avec l'état de chacun (épreuves EPCF évaluées sur 2, livret, dossier pro), et la fiche d'un stagiaire avec les outils du formateur : saisie des grilles EPCF (Évaluer, Modifier, Nouvelle évaluation), livret EPCF en saisie, dossier pro. On l'ouvre par la tuile Stagiaires de l'Accueil ; un formateur sans profil stagiaire y arrive aussi par le bouton de son compte.
-- planning : semaine de la promo, demi-journées matin et après-midi. En lecture pour tous ; le mode Modifier (admin/formateur) se déverrouille par le bouton Modifier, au-dessus de la semaine, Échap ou le bouton pour sortir. Bouton « Aujourd'hui » dans la barre du haut pour sauter à la journée en cours. Les semaines passées se verrouillent.
-- calendrier : liste des dates importantes de la formation (examens, stages, formations, fériés), à venir ou toutes.
-- themes (onglet Cours) : sous-onglets Thèmes (les 57 thèmes officiels et les QCM transversaux) et Compétences (compétences de l'enseignant, de conduite, notions pédagogiques). Chaque thème porte son cours complet (bouton de lecture, temps de lecture estimé) et ses QCM : entraînement (questions ratées reproposées en premier) et examen blanc (tirage aléatoire, seuil de réussite). Les formateurs y gèrent aussi l'éditeur de cours, l'éditeur de QCM et, dans un troisième sous-onglet, les signalements de questions. Dans l'éditeur de QCM d'un thème, « Proposer avec l'IA » rédige des brouillons de questions à partir du seul cours vérifié du thème : le formateur relit, corrige, accepte ou rejette chaque brouillon ; rien n'est visible des stagiaires avant acceptation, et une question acceptée porte la mention « IA · validée par » suivie du nom du formateur. Le sous-onglet Compétences accueille aussi, au fil de leur publication par les formateurs, les cours des compétences de conduite C1 à C4 du permis B, avec schémas animés, quiz et cartes d'autoévaluation.
-- notes : la classe, pour tout le monde. Matrice des évaluations sur 20 par thème, moyennes, synthèse, et sous-onglet EPCF (moyennes de la classe). La saisie EPCF, le livret et le dossier de chacun sont dans sa fiche (page Stagiaires pour les formateurs).
-- ccp2 (onglet CCP2, quand un formateur l'ouvre) : parcours guidé en 8 étapes (trouver un commanditaire, analyser la demande, construire l'action, animer la séance, analyser sa pratique, rédiger le dossier de 40 000 à 45 000 caractères, préparer l'oral, le jour de l'épreuve). Chaque étape donne ce que le jury regarde, des conseils, ce qu'il faut garder pour le dossier et des liens utiles ; les dates de stage et d'examen CCP2 viennent du calendrier de la promo.
-- centre (Tableau de bord, formateurs) : tuile « Tableau de bord » de l'Accueil. Les chiffres d'une promo (effectif, abandons, absences aux passages, passages réalisés, QCM, examens, notes, EPCF), les thèmes à retravailler et les stagiaires à suivre, avec pour chaque chiffre sa méthode de calcul ; comparaison des promos, export PDF et matrice des notes en CSV.
-- ressources (Ressources & contacts) : les contacts de l'administration du centre (pour prévenir d'une absence) et des cartes de liens officiels (REMC, référentiels, ONISR, PDF hébergés par l'app).
-- config (Paramètres) : les préférences de la personne (anonymat dans les notes de la classe) ; les admins y gèrent les comptes (invitations) et réglages.
-- nouveautes : journal des nouveautés de l'app, accessible depuis l'accueil (pastille sur l'onglet Accueil quand il y a du nouveau).
-
-BOUTONS GLOBAUX (barre du haut) : logo = espace perso ; calendrier pointé = aujourd'hui au planning ; flèche circulaire = actualiser les données.
-
-${AIDE_COMMUNE}
-
-ASSISTANT (toi) : bouton rond en bas à droite, disponible partout. Chacun dispose d'un quota de 30 questions par jour. Tu ne vois pas les données personnelles des stagiaires.
-`;
-
-// Nouvelle navigation : memes noms que la barre (js/nav-rules.js) et que la Nouveaute de lancement.
-export const AIDE_APP_V2 = `
 L'APP A DEUX BARRES, celle des stagiaires et celle des formateurs. Quand la réponse dépend du rôle et que tu ne connais pas celui de la personne, donne les deux réponses en nommant le rôle. Emploie toujours les noms affichés, jamais les noms internes des pages (le mot avant la parenthèse dans la liste PAGES).
 
 BARRE DES STAGIAIRES : Accueil, Planning, Cours et QCM, Mon suivi, CCP2. Sur ordinateur, des onglets en haut ; sur téléphone, une barre en bas de l'écran. Le logo, en haut à gauche, ramène à l'Accueil. En haut à droite : le bouton Assistant et les initiales de la personne, qui ouvrent son compte.
@@ -53,15 +30,15 @@ PAGES
   Ordre de passage : qui doit passer en priorité dans la promo, d'après les compteurs de passages. Vue promo, pas personnelle.
 - emargement (Émargement, formateurs, quand il est activé pour la promo) : la semaine en dix demi-journées ; ouvrir une feuille, faire signer, noter absences et observations, signer, clore, rouvrir, imprimer. Le stagiaire n'a pas de page : son Accueil lui propose « Signer pour ce matin » ou « Signer pour cet après-midi » quand la feuille est ouverte. Sur les autres pages, un bandeau en haut de l'app propose aussi « Signer » tant que la feuille du jour est ouverte.
 - stagiaires (Stagiaires, formateurs) : sous-onglets Stagiaires et Élèves bénévoles (ce dernier pour les formateurs administrateurs). Stagiaires : la liste de la promo avec l'état de chacun (épreuves EPCF évaluées sur 2, livret EPCF, dossier professionnel), et la fiche d'un stagiaire avec les outils du formateur : saisie des grilles EPCF (Évaluer, Modifier, Nouvelle évaluation), livret EPCF à remplir (le formateur évaluateur le remplit, le stagiaire le consulte), dossier professionnel.
-- notes (Notes et examens, formateurs ; Notes sur la barre du téléphone) : sous-onglets Matrice (évaluations sur 20 par thème, moyennes, synthèse) et Évaluations EPCF (moyennes de la classe). La saisie des EPCF, le livret EPCF et le dossier professionnel de chacun sont dans sa fiche, page Stagiaires. Les stagiaires voient les notes de la classe dans Mon suivi, Résultats, La classe.
+- notes (Notes et examens, formateurs ; Notes sur la barre du téléphone) : sous-onglets Saisir (la saisie des notes d'un thème, pour les formateurs qui notent), Matrice (évaluations sur 20 par thème, moyennes, synthèse) et Évaluations EPCF (moyennes de la classe). La saisie des EPCF, le livret EPCF et le dossier professionnel de chacun sont dans sa fiche, page Stagiaires. Les stagiaires voient les notes de la classe dans Mon suivi, Résultats, La classe.
 - themes (Cours et QCM) : sous-onglets Thèmes (les 57 thèmes officiels et les QCM transversaux), Compétences (compétences de l'enseignant, de conduite, notions pédagogiques) et Documents ; pour un stagiaire, un sous-onglet QCM de plus (ses QCM, sa dernière note, le bouton « Voir le QCM » qui mène à l'entraînement, à ses erreurs et à l'examen quand il est ouvert) ; pour les formateurs, Questions contestées (les questions de QCM que des stagiaires contestent, avec « Question corrigée » ou « Pas d'erreur » pour y répondre) et Propositions IA (les questions proposées par l'IA à relire, ouvertes dans l'éditeur du QCM). Chaque thème porte son cours complet (bouton de lecture, temps de lecture estimé) et ses QCM : entraînement (questions ratées reproposées en premier) et examen blanc (tirage aléatoire, seuil de réussite). Les formateurs y gèrent aussi l'éditeur de cours et l'éditeur de QCM. Dans l'éditeur de QCM d'un thème, « Proposer avec l'IA » rédige des brouillons de questions à partir du seul cours vérifié du thème : le formateur relit, corrige, accepte ou rejette chaque brouillon ; rien n'est visible des stagiaires avant acceptation, et une question acceptée porte la mention « IA · validée par » suivie du nom du formateur. Le sous-onglet Compétences accueille aussi, au fil de leur publication par les formateurs, les cours des compétences de conduite C1 à C4 du permis B, avec schémas animés, quiz et cartes d'autoévaluation.
   Documents : les contacts du centre (pour prévenir d'une absence) et des cartes de liens officiels (REMC, référentiels, ONISR, PDF hébergés par l'app).
 - mon-suivi (Mon suivi) : la fiche de la personne connectée. Parties Résultats (deux volets : « Moi », ses notes et leur évolution en graphe, et « La classe », les notes de la classe, anonymes : matrice, moyennes, moyennes EPCF), Passages (planning personnel à venir, passages effectués), Évaluations EPCF (évaluations passées en cours de formation), Livret EPCF (son livret officiel, en lecture : le formateur évaluateur le remplit ; la date de naissance s'y règle, reportée sur le livret) et Dossier professionnel. Sur ordinateur, des onglets ; sur téléphone, un sommaire qui dit l'état de chaque partie (« Évaluations EPCF : 0 épreuve sur 2 », « Dossier professionnel : 2 exemples sur 6 »), puis la partie en plein écran (retour en haut à gauche ou geste retour).
 - ccp2 (CCP2, quand un formateur l'ouvre) : parcours guidé en 8 étapes (trouver un commanditaire, analyser la demande, construire l'action, animer la séance, analyser sa pratique, rédiger le dossier de 40 000 à 45 000 caractères, préparer l'oral, le jour de l'épreuve). L'onglet s'ouvre sur les dates et les 8 étapes ; « L'épreuve en bref » est replié en bas. Chaque étape donne ce que le jury regarde, des conseils, ce qu'il faut garder pour le dossier et des liens utiles ; les dates de stage et d'examen CCP2 viennent des dates clés de la promo.
 - centre (Indicateurs, formateurs) : les chiffres d'une promo (effectif, abandons, absences aux passages, passages réalisés, QCM, examens, notes, EPCF), les thèmes les moins réussis et les stagiaires à suivre, avec pour chaque chiffre sa méthode de calcul ; comparaison des promos, export PDF et matrice des notes en CSV.
 - config (Réglages, formateurs) : les réglages de la promo : Ce que voient les stagiaires, Promo, Accès et invitations, Données personnelles.
-- preferences (Mes préférences, menu du compte) : les réglages de la personne : son anonymat dans les notes de la classe, si elle a une fiche de stagiaire, et les informations sur l'app.
-- nouveautes (Nouveautés) : journal des nouveautés de l'app, depuis l'Accueil et le menu du compte.
+- preferences (Mes préférences, menu du compte) : les réglages de la personne : Apparence (« ECSR Promo » ou « Couleurs ECF »), son anonymat dans les notes de la classe, si elle a une fiche de stagiaire, et les informations sur l'app, dont « À retenir » (les règles courtes de l'app).
+- nouveautes (Nouveautés) : journal des nouveautés de l'app, depuis le menu du compte ; l'Accueil des stagiaires montre la plus récente.
 
 ${AIDE_COMMUNE}
 
@@ -82,7 +59,7 @@ ANCIENS NOMS (où sont passées les pages de l'ancienne barre) :
 - Mon espace (ou Mon espace personnel) : Mon suivi.
 - Évolution et La classe de Mon suivi : réunies dans Résultats (« Moi » et « La classe »).
 - Tableau de bord : Indicateurs.
-- Élèves bénévoles (bouton du Planning, qui y mène encore, sauf sur une semaine verrouillée) : Stagiaires, Élèves bénévoles.
+- Élèves bénévoles : Stagiaires, Élèves bénévoles (en mode Modifier du Planning, un bouton y mène aussi).
 - Bouton « Aujourd'hui » de la barre : Planning, Semaine, « Revenir à aujourd'hui » dans la barre de la semaine (seulement quand on regarde une autre semaine).
 - Flèche pour actualiser, Actualiser : Recharger les données, dans le menu du compte.
 - Bulle ronde de l'assistant : bouton Assistant.
@@ -110,7 +87,7 @@ PAGES
 
 COMPTE (initiales en haut à droite ; sur ordinateur, en bas de la barre de gauche) : Nouveautés (un point signale celles qui ne sont pas lues), Mes préférences, Recharger les données, Informations légales et Se déconnecter. Une personne qui a plusieurs espaces (Formateur, Direction, Siège) y trouve la section « Espace », une ligne par espace, l'espace actuel coché : choisir un autre espace recharge l'app sur son accueil.
 
-PAS DANS CET ESPACE : l'allumage de l'émargement et de la navigation pour une promo (réservé au fondateur), Planning, Cours et QCM, Mon suivi et CCP2 (espace Formateur).
+PAS DANS CET ESPACE : l'allumage de l'émargement pour une promo (réservé au fondateur), Planning, Cours et QCM, Mon suivi et CCP2 (espace Formateur).
 
 SIGNALER UN PROBLÈME : pour un bug ou quelque chose de pas clair dans l'app. En bas de la barre de gauche, dans « Plus » sur téléphone ; un lien dans le panneau de l'assistant aussi. On écrit son message, on peut ajouter une capture d'écran, et la réponse s'affiche au même endroit.
 
@@ -142,12 +119,10 @@ SIGNALER UN PROBLÈME : pour un bug ou quelque chose de pas clair dans l'app. En
 ASSISTANT (toi) : bouton Assistant en bas de la barre de gauche sur ordinateur, dans « Plus » sur téléphone. Chacun dispose d'un quota de 30 questions par jour. Tu ne vois pas les données personnelles des stagiaires.
 `;
 
-// Le guide de la barre que voit la personne. Tout ce qui n'est pas "nouvelle" (champ absent d'une
-// app en cache, valeur inattendue) garde l'ancienne barre.
-export function consignesApp(navigation, espace) {
-  // Lot 5 : la direction et le siège ont toujours la nouvelle navigation (D4) et leur propre guide, choisi par l'espace. Un
-  // client d'avant (champ absent) ou une valeur inattendue retombe sur le guide de la barre, comme avant.
+// Le guide de l'espace de la personne : la direction et le siege ont le leur ; les stagiaires et les formateurs, tout autre
+// espace et une valeur inattendue (une app en cache n'en envoie pas) ont le guide de leur barre.
+export function consignesApp(espace) {
   if (espace === "direction") return AIDE_APP_DIRECTION;
   if (espace === "siege") return AIDE_APP_SIEGE;
-  return navigation === "nouvelle" ? AIDE_APP_V2 : AIDE_APP;
+  return AIDE_APP;
 }

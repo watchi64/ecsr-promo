@@ -1,23 +1,22 @@
-// Fenêtre « Signaler un problème » (spec 2026-10-28, § 4.1, 4.2 et 5.3), commune aux deux navigations :
+// Fenêtre « Signaler un problème » (spec 2026-10-28, § 4.1, 4.2 et 5.3) :
 // un champ, une capture facultative, le contexte joint montré en clair, « Envoyer » ; sous le formulaire,
 // « Mes problèmes signalés » ; en tête, chez le fondateur hors aperçu, le lien vers les problèmes signalés.
 // Fenêtre ouverte à tous : tutoiement du stagiaire, vouvoiement de l'équipe (selonPublic) ou phrase neutre.
 // Mécanique des fenêtres de la coquille (js/nav-fenetre.js : une seule ouverte à la fois, Tab gardé dans
 // la fenêtre, Échap, voile, focus rendu, fermeture quand l'adresse change) ; styles à elle
-// (css/signalement.css), valables avec l'ancienne barre comme avec la nouvelle.
+// (css/signalement.css).
 
-import { el, toast } from "./utils.js?v=20261111b";
-import { icon, deco } from "./icons.js?v=20261111b";
-import { getViewAs, fondateurHorsApercu, selonPublic } from "./auth-admin.js?v=20261111b";
-import { navigationV2Active } from "./nav-etat.js?v=20261111b";
-import { signalerProbleme, mesSignalementsApp, marquerSuivisVus } from "./db.js?v=20261111b";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261111b";
-import { dernieresErreurs } from "./journal-erreurs.js?v=20261111b";
-import { etatSignalements, poserEtatSignalements, chargerEtatSignalements } from "./signalement-etat.js?v=20261111b";
+import { el, toast } from "./utils.js?v=20261111c";
+import { icon, deco } from "./icons.js?v=20261111c";
+import { getViewAs, fondateurHorsApercu, selonPublic } from "./auth-admin.js?v=20261111c";
+import { signalerProbleme, mesSignalementsApp, marquerSuivisVus } from "./db.js?v=20261111c";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261111c";
+import { dernieresErreurs } from "./journal-erreurs.js?v=20261111c";
+import { etatSignalements, poserEtatSignalements, chargerEtatSignalements } from "./signalement-etat.js?v=20261111c";
 import {
   LIMITE_CAPTURE, COTE_MAX_CAPTURE, MAX_MES_SIGNALEMENTS, assemblerContexte, resumeContexte, detailContexte,
   verifierMessage, libelleStatut, dimensionsReduites,
-} from "./signalement-rules.js?v=20261111b";
+} from "./signalement-rules.js?v=20261111c";
 
 // Jeton de version des fichiers de l'app (« 20261028a ») : il dit quelle version la personne utilisait.
 const VERSION = new URL(import.meta.url).searchParams.get("v") || "";
@@ -33,10 +32,10 @@ let erreurEnAttente = "";
 function releverContexte() {
   const vue = document.getElementById("view");
   const titre = vue?.querySelector("h1")?.textContent || vue?.querySelector("h2")?.textContent || "";
-  const nav2 = navigationV2Active();
+  // Une seule navigation depuis le 10/11 : « nouvelle » part toujours (les signalements « ancienne » en base se lisent encore).
   return assemblerContexte({
-    adresse: location.hash, titre, version: VERSION, navigation: nav2 ? "nouvelle" : "ancienne",
-    espace: nav2 ? (document.body.dataset.espace || null) : null, apercu: getViewAs(),
+    adresse: location.hash, titre, version: VERSION, navigation: "nouvelle",
+    espace: document.body.dataset.espace || null, apercu: getViewAs(),
     largeur: window.innerWidth, hauteur: window.innerHeight, densite: window.devicePixelRatio,
     tactile: window.matchMedia("(pointer: coarse)").matches,
     ua: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints,

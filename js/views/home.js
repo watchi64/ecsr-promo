@@ -2,20 +2,20 @@
  * Page d'accueil : version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261111b";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261111b";
-import { icon } from "../icons.js?v=20261111b";
-import { isAdmin, isProf, getProfile, getProfileWho, getProfileNom } from "../auth-admin.js?v=20261111b";
+import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261111c";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261111c";
+import { icon } from "../icons.js?v=20261111c";
+import { isAdmin, isProf, getProfile, getProfileWho, getProfileNom } from "../auth-admin.js?v=20261111c";
 import {
   nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque, formateurConnecte,
-} from "../modules-etat.js?v=20261111b";
-import { carteNouveaute } from "./nouveautes.js?v=20261111b";
-import { emargementActif } from "../emargement-etat.js?v=20261111b";
-import { navigationV2Active } from "../nav-etat.js?v=20261111b";
-import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, pointsARetenir, salutationDe } from "../accueil-rules.js?v=20261111b";
-import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261111b";
-import { renderAujourdhui } from "./aujourdhui.js?v=20261111b";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111b";
+} from "../modules-etat.js?v=20261111c";
+import { carteNouveaute } from "./nouveautes.js?v=20261111c";
+import { emargementActif } from "../emargement-etat.js?v=20261111c";
+import { navigationV2Active } from "../nav-etat.js?v=20261111c";
+import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, pointsARetenir, salutationDe } from "../accueil-rules.js?v=20261111c";
+import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261111c";
+import { renderAujourdhui } from "./aujourdhui.js?v=20261111c";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111c";
 
 function greetingByHour() {
   return salutationDe(new Date().getHours());

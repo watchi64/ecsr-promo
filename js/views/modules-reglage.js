@@ -6,16 +6,16 @@
 // js/modules-data.js, ouvert avec le multi-promo). La section se
 // redessine elle-même après chaque écriture, réussie ou non (voir redessiner) :
 // pas de rechargement de toute la page Paramètres.
-import { el, toast } from "../utils.js?v=20261111b";
-import { confirmer } from "../confirmer.js?v=20261111b";
-import { icon } from "../icons.js?v=20261111b";
-import { MODULES, GROUPES } from "../modules-data.js?v=20261111b";
-import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261111b";
+import { el, toast } from "../utils.js?v=20261111c";
+import { confirmer } from "../confirmer.js?v=20261111c";
+import { icon } from "../icons.js?v=20261111c";
+import { MODULES, GROUPES } from "../modules-data.js?v=20261111c";
+import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261111c";
 import {
   etatModules, peutRegler, basculerModule, appliquerEnsembleDeDepart,
-} from "../modules-etat.js?v=20261111b";
-import { getPromoCourante } from "../db.js?v=20261111b";
-import { navigationV2Active } from "../nav-etat.js?v=20261111b";
+} from "../modules-etat.js?v=20261111c";
+import { getPromoCourante } from "../db.js?v=20261111c";
+import { navigationV2Active } from "../nav-etat.js?v=20261111c";
 
 // La section règle la promo AFFICHÉE (pastille) : on la nomme partout, pour qu'un formateur
 // arrivé par défaut sur une promo ne règle jamais l'autre par mégarde.

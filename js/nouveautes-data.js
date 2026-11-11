@@ -30,6 +30,29 @@
 // l'ancienne barre : ils restent tels quels.
 
 export const NOUVEAUTES = [
+  {
+    // Navigation unique (11/11/2026) : l'ancienne barre est retirée, toutes les promos ont la nouvelle. Premier du fichier : la
+    // plus récente, celle que montre la carte « Nouveauté » de l'Accueil.
+    id: "2026-11-11-une-seule-navigation",
+    date: "2026-11-11",
+    pour: "tous",
+    titre: "Une seule barre de navigation pour toutes les promos",
+    resume: "Toutes les promos ont maintenant la même barre. Côté stagiaires : Accueil, Planning, Cours et QCM, Mon suivi "
+          + "et CCP2, en bas de l'écran sur téléphone, en haut sur ordinateur. Côté équipe : une barre à gauche qui commence "
+          + "par Aujourd'hui (sur téléphone, les autres pages sont dans « Plus »). Rien n'est perdu : chaque page a "
+          + "trouvé sa place, et les anciennes adresses mènent au bon endroit.",
+    ou: { label: "Accueil", route: "home" },
+    guide: [
+      "Les dates importantes de la formation sont dans Planning, Dates clés ; les documents et liens utiles dans Cours et "
+        + "QCM, Documents.",
+      "La fiche personnelle (notes, passages, livret EPCF, dossier professionnel) s'appelle Mon suivi ; les préférences sont "
+        + "dans « Mes préférences », dans le menu du compte (les initiales : en haut à droite, ou en bas de la barre de gauche "
+        + "pour l'équipe sur ordinateur).",
+      "Le menu du compte réunit aussi Nouveautés, Contacts du centre, Recharger les données et Se déconnecter.",
+      "Pour une question sur l'app ou sur un cours : le bouton « Assistant », en haut de l'écran (pour l'équipe sur "
+        + "ordinateur, en bas de la barre de gauche).",
+    ],
+  },
   // Lot D (les mots) et décisions du 10/11.
   {
     id: "2026-11-10-des-mots-plus-clairs-equipe",

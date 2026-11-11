@@ -18,22 +18,22 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   setMyAnonymousNotes,
-} from "../db.js?v=20261111b";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111b";
-import { confirmer, demander } from "../confirmer.js?v=20261111b";
-import { icon } from "../icons.js?v=20261111b";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261111b";
-import { moduleVisible } from "../modules-etat.js?v=20261111b";
-import { renderModulesSection } from "./modules-reglage.js?v=20261111b";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111b";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261111b";
-import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261111b";
-import { pointsARetenir } from "../accueil-rules.js?v=20261111b";
-import { dateCourte, etatFinDePromo, questionAnonymiserPromo, questionPurgerBenevoles } from "../effacement-rules.js?v=20261111b";
-import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111b";
-import { blocHabillage } from "../habillage-choix.js?v=20261111b";
-import { habillageCourant } from "../habillage.js?v=20261111b";
-import { nomBenevole } from "../planning-lecture.js?v=20261111b";
+} from "../db.js?v=20261111c";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111c";
+import { confirmer, demander } from "../confirmer.js?v=20261111c";
+import { icon } from "../icons.js?v=20261111c";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261111c";
+import { moduleVisible } from "../modules-etat.js?v=20261111c";
+import { renderModulesSection } from "./modules-reglage.js?v=20261111c";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111c";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261111c";
+import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261111c";
+import { pointsARetenir } from "../accueil-rules.js?v=20261111c";
+import { dateCourte, etatFinDePromo, questionAnonymiserPromo, questionPurgerBenevoles } from "../effacement-rules.js?v=20261111c";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111c";
+import { blocHabillage } from "../habillage-choix.js?v=20261111c";
+import { habillageCourant } from "../habillage.js?v=20261111c";
+import { nomBenevole } from "../planning-lecture.js?v=20261111c";
 
 // ====== SECTION Accès & invitations ======
 

@@ -9,13 +9,13 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261111b";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261111b";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261111b";
-import { getCurrentWho } from "../identity.js?v=20261111b";
-import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261111b";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261111c";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261111c";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261111c";
+import { getCurrentWho } from "../identity.js?v=20261111c";
+import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261111c";
 import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261111b";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261111c";
 
 // Noms historiques conservés : main.js et le banc d'essai _preview_livret.html
 // les importent depuis ce module. La mécanique vit désormais dans doc-officiel.js,

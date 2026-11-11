@@ -19,22 +19,18 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, mesAffectations, oublierPromo, getPromoCourante, getMesPromos, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo,
-} from "./db.js?v=20261111b";
+} from "./db.js?v=20261111c";
 import {
-  LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo, etiquetteBadge,
-} from "./roles-rules.js?v=20261111b";
+  LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo,
+} from "./roles-rules.js?v=20261111c";
 import {
-  LIBELLES_ESPACE, ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, porteSansPromo, decisionPorteSansPromo,
+  ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, porteSansPromo, decisionPorteSansPromo,
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
-} from "./espaces-rules.js?v=20261111b";
-import { peutQuitter } from "./navigation.js?v=20261111b";
-import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261111b";
-import { icon } from "./icons.js?v=20261111b";
-import { construirePastille } from "./promo-pastille.js?v=20261111b";
-import { pagePersonnelle, lireAdresse } from "./route-rules.js?v=20261111b";
-import { etatSignalements } from "./signalement-etat.js?v=20261111b";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261111b";
-import { libellePastille } from "./nouveautes.js?v=20261111b";
+} from "./espaces-rules.js?v=20261111c";
+import { peutQuitter } from "./navigation.js?v=20261111c";
+import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261111c";
+import { icon } from "./icons.js?v=20261111c";
+import { lireAdresse } from "./route-rules.js?v=20261111c";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -52,7 +48,7 @@ let viewAs = null;  // null = rôle réel ; sinon l'un de APERCUS
 // Lot 5 : les affectations du compte (`{ role, promo_id, lieu_id, lieu_nom }` : siège, direction d'un centre, formateur d'une
 // promo), relues à chaque ouverture de session. Le siège et la direction en tirent leur espace (D2).
 let affectations = [];
-// L'espace de la session (D2) : fixé à la porte, avant la décision de navigation (D4, js/nav-etat.js). Il ne change en cours de
+// L'espace de la session (D2) : fixé à la porte, avant le montage de la barre (D4, js/main.js). Il ne change en cours de
 // session que sur place, entre formateur et stagiaire (« Voir comme un stagiaire », comme au lot 4) ; entrer dans la direction ou
 // le siège, ou en sortir, recharge l'app. Le choix fait dans le menu « Espace » est mémorisé sur l'appareil, par compte.
 let espace = null;
@@ -196,7 +192,7 @@ function rechargerSurLAccueil(e) {
   rechargerApresEnregistrements();
 }
 
-// Changer d'espace depuis le menu du compte (ancien et nouveau) : le choix est mémorisé sur l'appareil (D2), puis l'app se recharge
+// Changer d'espace depuis le menu du compte (js/menu-compte.js) : le choix est mémorisé sur l'appareil (D2), puis l'app se recharge
 // sur l'accueil du nouvel espace. Quand la promo affichée ne donne pas cet espace (la direction d'un autre centre, la promo où l'on
 // forme), l'app s'ouvre sur une promo qui le donne (ouvrirDansUnePromo). Une saisie en cours demande d'abord confirmation ; un espace
 // déjà affiché, ou qui n'est pas ouvert au compte, ne change rien.
@@ -279,7 +275,7 @@ export function setViewAs(role) {
     return;
   }
   listeners.forEach((cb) => cb(currentUser, currentProfile));  // déclenche navigate()
-  updateBadge();
+  majBandeaux();
 }
 
 /** La signature enregistrée en base (« qui a modifié ») : « M. Lucie » pour un stagiaire (signatureStagiaire,
@@ -477,9 +473,9 @@ export async function initAuth() {
       oublierPromo();
     }
     listeners.forEach((cb) => cb(currentUser, currentProfile));
-    updateBadge();
+    majBandeaux();
   });
-  updateBadge();
+  majBandeaux();
 }
 
 export function onAdminChange(cb) {
@@ -490,31 +486,11 @@ export function onAdminChange(cb) {
 // Compat avec ancien code qui importait ces fonctions.
 export async function refreshAllowedEmails() { /* no-op, géré via user_profiles + RLS */ }
 
-// === UI : badge dans la topbar ===
+// === UI : bandeaux de la session ===
 
-function updateBadge() {
-  const slot = document.getElementById("admin-slot");
-  if (!slot) return;
-  slot.innerHTML = "";
-  if (!currentUser) { updateImpersonationBanner(); updatePromosBanner(); suivreBandeauxBas(); return; }
-
-  // Pastille de promo devant le badge (formateurs et fondateur, au moins deux promos). Pas dans
-  // l'aperçu « Stagiaire » : un stagiaire n'en a pas, l'aperçu doit rester fidèle.
-  const pastille = getViewAs() === "stagiaire" ? null : construirePastille();
-  if (pastille) slot.appendChild(pastille);
-  slot.classList.toggle("avec-pastille", !!pastille);
-
-  const who = getProfileNom() || currentUser.email;
-  // Le rôle réel sur la promo affichée (mes_promos), pas l'ancien `role` du profil : une direction n'est pas « formateur »,
-  // un compte cumulé est formateur sur sa promo de formateur (roles-rules.js, etiquetteBadge).
-  const { libelle: roleLabel, classe: roleClasse } = etiquetteBadge({ profil: currentProfile, promo: getPromoCourante() });
-
-  const badge = el("button", { class: "admin-badge", "aria-haspopup": "dialog", onClick: openProfileMenu },
-    el("span", { class: "admin-dot " + roleClasse }),
-    el("span", { class: "admin-email" }, who),
-    roleLabel ? el("span", { class: "admin-role" }, roleLabel) : null,
-  );
-  slot.appendChild(badge);
+// Bandeaux de la session : aperçu « Voir en tant que », promos non chargées, et la pile du bas de l'écran
+// (data-bandeaux-bas). Rejoué à chaque changement de session, d'aperçu ou de promo.
+function majBandeaux() {
   updateImpersonationBanner();
   updatePromosBanner();
   suivreBandeauxBas();
@@ -522,8 +498,8 @@ function updateBadge() {
 
 // Bandeaux du bas de l'écran (aperçu, promos non chargées) : tant qu'il y en a un d'affiché, le corps de la
 // page porte data-bandeaux-bas et --haut-bandeaux-bas, la hauteur de leur pile, mesurée puis suivie (un
-// texte qui passe à la ligne, l'app qui s'affiche). Ce qui s'ouvre au même endroit s'en écarte : la bulle
-// et le panneau de l'assistant (css/style.css avec l'ancienne barre, css/navigation.css avec la nouvelle).
+// texte qui passe à la ligne, l'app qui s'affiche). Ce qui s'ouvre au même endroit s'en écarte : le panneau
+// de l'assistant (css/navigation.css).
 const SEL_BANDEAUX_BAS = "#impersonation-banner, #promos-banner";
 let suiviBandeaux = null;
 
@@ -593,7 +569,7 @@ function updateImpersonationBanner() {
     onClick: () => setViewAs(null) }, isFounder() ? "Revenir fondateur" : "Quitter l'aperçu"));
 }
 
-// Sélecteur « Voir en tant que », aussi dans le menu du compte de la nouvelle navigation (js/menu-compte.js).
+// Sélecteur « Voir en tant que », dans le menu du compte (js/menu-compte.js).
 // Fondateur : cinq boutons (Fondateur, Formateur, Direction, Siège, Stagiaire) qui passent à la ligne. Équipe d'une
 // promo (formateur, direction) : une ligne « Voir comme un stagiaire », ou « Quitter l'aperçu » une fois dedans.
 // Autres : rien.
@@ -624,96 +600,12 @@ export function buildViewAsBlock(onPick) {
   );
 }
 
-// Section « Espace » du menu « Mon compte » de l'ancienne barre (lot 5) : une direction qui forme dans une promo dont
-// l'interrupteur est éteint y retrouve sa direction. Un bouton par espace ouvert au compte, l'actuel coché (aria-pressed) ; rien
-// quand il n'y en a qu'un. Le menu de la nouvelle barre a la sienne, en lignes (js/menu-compte.js).
-function blocEspace(fermer) {
-  const ouverts = espacesOuverts();
-  if (ouverts.length < 2) return null;
-  const actuel = getEspace();
-  const titre = el("p", { class: "muted", id: "compte-espace-titre", style: "margin:0 0 0.4rem;font-size:0.82rem" }, "Espace");
-  const seg = el("div", { class: "view-as-seg", role: "group", "aria-labelledby": "compte-espace-titre" },
-    ouverts.map((e) => el("button", {
-      class: "view-as-btn" + (e === actuel ? " active" : ""), type: "button", "data-espace-choix": e,
-      "aria-pressed": e === actuel ? "true" : "false",
-      onClick: () => {
-        if (e === actuel) return;
-        fermer();
-        setEspace(e);
-      },
-    }, LIBELLES_ESPACE[e])));
-  return el("div", { class: "view-as-block" }, titre, seg);
-}
-
-// Déconnexion, pour le menu « Mon compte » (ancien et nouveau) : la session se ferme, puis la page
-// se recharge. `apresDeconnexion` : ce qui se retire de l'écran entre les deux (la fenêtre du menu).
+// Déconnexion, pour le menu du compte (js/menu-compte.js) et l'écran de repli de js/main.js : la session se
+// ferme, puis la page se recharge. `apresDeconnexion` : ce qui se retire de l'écran entre les deux (la fenêtre du menu).
 export async function seDeconnecter(apresDeconnexion) {
   await signOut();
   if (apresDeconnexion) apresDeconnexion();
   toast("Déconnecté", "success");
   // Le hashchange + onAuthChange rechargeront le gate
   location.reload();
-}
-
-// « Signaler un problème » dans la fenêtre « Mon compte » de l'ancienne barre (spec 2026-10-28, § 5.1) :
-// la fenêtre de signalement la remplace, et le focus reviendra au badge du nom. Sa pastille : les
-// signalements de la personne qui ont avancé. Chez le fondateur hors aperçu, en plus, la page des
-// problèmes reçus, avec le nombre de nouveaux. Import différé de js/signalement.js (qui importe ce module).
-function boutonsSignalement(fermer) {
-  const etat = etatSignalements();
-  const { texte, nom } = pastilleSignalement({ fondateur: false, ...etat });
-  const signaler = el("button", { class: "btn full sg-entree-compte", type: "button", "data-sg-entree": "compte", "aria-label": nom,
-    onClick: () => {
-      fermer();
-      import("./signalement.js?v=20261111b").then((m) => m.ouvrirSignalement({ ancre: document.querySelector(".admin-badge") }));
-    } }, icon.signaler(), "Signaler un problème", texte ? el("span", { class: "sg-pastille", "aria-hidden": "true" }, texte) : null);
-  if (!fondateurHorsApercu()) return [signaler];
-  const nouveaux = libellePastille(etat.nouveaux);
-  const problemes = el("button", { class: "btn full sg-entree-compte", type: "button", "data-sg-entree": "problemes",
-    "aria-label": nouveaux ? `Problèmes signalés, ${etat.nouveaux} nouveaux` : "Problèmes signalés",
-    onClick: () => { fermer(); location.hash = "#/problemes"; } },
-  icon.list(), "Problèmes signalés", nouveaux ? el("span", { class: "sg-pastille", "aria-hidden": "true" }, nouveaux) : null);
-  return [signaler, problemes];
-}
-
-function openProfileMenu() {
-  const backdrop = el("div", { class: "modal-backdrop" });
-  const logoutBtn = el("button", { class: "btn danger full", onClick: () => seDeconnecter(() => backdrop.remove()) },
-    "Se déconnecter");
-
-  // Accès direct à sa page depuis le badge : « cliquer sur mon nom » mène chez soi.
-  // Un formateur sans profil stagiaire n'a pas de Mon espace : sa page est la page
-  // Stagiaires (chantier D, lot 2). On change juste le hash, le routeur fait le rendu.
-  const versStagiaires = pagePersonnelle({ formateur: isAdmin() || isProf(), stagiaireId: monStagiaireId() }) === "stagiaires";
-  const persoBtn = el("button", { class: "btn full", onClick: () => {
-    backdrop.remove();
-    location.hash = versStagiaires ? "#/stagiaires" : "#/mon-suivi";
-  }}, versStagiaires ? icon.users() : icon.user(), versStagiaires ? "Stagiaires" : "Mon espace personnel");
-
-  const modal = el("div", { class: "modal" },
-    el("h3", {}, "Mon compte"),
-    el("p", { class: "muted", style: "margin:0 0 0.4rem;font-size:0.9rem" },
-      "Connecté en tant que ", el("strong", {}, currentUser.email)),
-    el("p", { class: "muted", style: "margin:0 0 1.2rem;font-size:0.85rem" },
-      "Rôle : ", el("strong", {}, currentProfile?.role === "prof" ? "formateur" : (currentProfile?.role || "?")),
-      currentProfile && (currentProfile.stagiaire_id || currentProfile.prof_id)
-        ? el("span", {}, " · profil : ", el("strong", {}, getProfileNom() || "?"))
-        : null,
-    ),
-    persoBtn,
-    ...boutonsSignalement(() => backdrop.remove()),
-    blocEspace(() => backdrop.remove()),
-    buildViewAsBlock(() => backdrop.remove()),
-    logoutBtn,
-    el("button", { class: "gate-link compte-legal", type: "button", onClick: () => {
-      backdrop.remove();
-      import("./legal.js?v=20261111b").then((m) => m.ouvrirInformationsLegales());
-    } }, "Informations légales et données personnelles"),
-    el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer"),
-    )
-  );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
 }
