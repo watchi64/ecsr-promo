@@ -1,5 +1,6 @@
 -- Preuve : chaque contact appartient à un centre, et chacun ne lit ou n'écrit que les contacts du centre de la promo
--- affichée (migration 20261113_contacts_centre).
+-- affichée (migration 20261113_contacts_centre) ; Montpellier a reçu la copie des contacts de Nîmes (même secrétariat,
+-- migration 20261113_contacts_centre_2_montpellier).
 -- Rejouable à volonté : le bloc lève TOUJOURS une exception à la fin, qui annule toutes les données de test et porte le
 -- verdict (« VERT n/0 » ou « ROUGE n/k : ... »), suivi de l'empreinte md5 des règles de la table contacts.
 -- Données fictives (adresses en example.invalid, promos 9997 à Nîmes et 9998 au centre de démonstration). Les comptes
@@ -17,7 +18,8 @@
 --   W  écritures : l'équipe d'un centre ajoute chez elle (le centre est posé d'office), jamais chez l'autre, ni en
 --      envoyant la promo de l'autre ; elle ne modifie ni ne supprime une ligne de l'autre et ne peut pas y déplacer la
 --      sienne ; un stagiaire n'écrit rien ;
---   D  données : colonne obligatoire ; les contacts d'avant sont tous à Nîmes ; deux contacts fictifs (demo.test, 01 99 00)
+--   D  données : colonne obligatoire ; les contacts d'avant sont à Nîmes ou en sont la copie à Montpellier, qui a exactement
+--      les contacts de Nîmes ; deux contacts fictifs (demo.test, 01 99 00)
 --      par centre de démonstration, aucun ailleurs ; la règle restrictive est en place ;
 --   R  comptes réels : chaque stagiaire (promo de sa fiche), chaque formateur (sa promo), chaque direction (les promos de son
 --      centre) et le fondateur (toutes les promos) voient exactement les contacts du centre de la promo affichée.
@@ -189,9 +191,22 @@ begin
   -- D : données -----------------------------------------------------------------------------------------------
   if exists (select 1 from pg_attribute where attrelid = 'public.contacts'::regclass and attname = 'lieu_id' and attnotnull)
   then ok := ok + 1; else ko := ko || 'D colonne lieu_id absente ou facultative'::text; end if;
-  execute 'select count(*) from contacts where id = any($1) and lieu_id is distinct from 1' into n using v_avant;
+  execute 'select count(*) from contacts c where c.id = any($1) and c.lieu_id is distinct from 1
+             and not (c.lieu_id = 2 and exists (select 1 from contacts n where n.lieu_id = 1 and n.prenom = c.prenom
+                                                 and n.phone is not distinct from c.phone))' into n using v_avant;
   if n = 0 and cardinality(v_avant) > 0 then ok := ok + 1;
-  else ko := ko || format('D contacts d''avant hors de Nîmes : %s sur %s', n, cardinality(v_avant)); end if;
+  else ko := ko || format('D contacts d''avant hors de Nîmes (ni copie à Montpellier) : %s sur %s', n, cardinality(v_avant)); end if;
+  -- Montpellier (lieu 2) a exactement les contacts de Nîmes, hors lignes fictives de cette preuve.
+  execute 'select count(*) from (
+             (select prenom, role, phone, email, note, category, sort_order from contacts where lieu_id = 1 and prenom not like ''Preuve%''
+              except all
+              select prenom, role, phone, email, note, category, sort_order from contacts where lieu_id = 2 and prenom not like ''Preuve%'')
+             union all
+             (select prenom, role, phone, email, note, category, sort_order from contacts where lieu_id = 2 and prenom not like ''Preuve%''
+              except all
+              select prenom, role, phone, email, note, category, sort_order from contacts where lieu_id = 1 and prenom not like ''Preuve%'')) e' into n;
+  if n = 0 and exists (select 1 from contacts where lieu_id = 2 and prenom not like 'Preuve%') then ok := ok + 1;
+  else ko := ko || format('D Montpellier n''a pas exactement les contacts de Nîmes : %s écarts', n); end if;
   execute 'select count(*) from lieux l where l.demonstration and (select count(*) from contacts c where c.lieu_id = l.id
              and c.email like ''%@demo.test'' and c.phone like ''01 99 00 %'') <> 2' into n;
   if n = 0 and exists (select 1 from lieux where demonstration) then ok := ok + 1;
