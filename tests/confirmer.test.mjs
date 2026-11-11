@@ -240,6 +240,41 @@ test("le plan de la fenêtre : au-dessus des calques de la navigation (1600), so
   assert.ok(z > 1600 && z < 2000, "plan " + z);
 });
 
+// Constat du 09/11/2026 (registre qualité) : à 375 px, un libellé long (« Continuer l'examen », « Changer les questions »)
+// poussait le premier bouton hors du cadre, les boutons de l'app ne passant jamais à la ligne. Toute confirmation, simple ou
+// détaillée, porte la classe `confirmer`, dont les boutons passent à la ligne et s'empilent sur téléphone. Le rendu réel
+// (Chromium et WebKit, 375 et 1 280 px) se vérifie au banc ; ici, la classe et les règles qui le garantissent.
+test("toute confirmation porte la classe `confirmer` (boutons qui passent à la ligne, css/style.css)", () => avecDocument(async (document) => {
+  const modale = () => descendants(fenetre(document)).find((n) => n.classes?.has("modal"));
+  const simple = confirmer({ titre: "Changer les questions de l'examen ?", oui: "Changer les questions", non: "Continuer l'examen" });
+  await tour();
+  assert.ok(modale().classes.has("confirmer"), "question simple");
+  bouton(document, "Continuer l'examen").click();
+  assert.equal(await simple, false);
+  const detaillee = confirmer({ titre: "Effacer ?", part: ["les noms"], reste: ["les dates"], oui: "Effacer" });
+  await tour();
+  assert.ok(modale().classes.has("confirmer") && modale().classes.has("confirmer-detaille"), "question détaillée");
+  bouton(document, "Annuler").click();
+  assert.equal(await detaillee, false);
+}));
+
+test("les boutons d'une confirmation ne sortent jamais du cadre : à la ligne, puis empilés sur téléphone", () => {
+  const css = readFileSync(new URL("../css/style.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const regle = (selecteur) => {
+    const debut = css.indexOf(selecteur + " {");
+    return debut < 0 ? "" : css.slice(debut, css.indexOf("}", debut));
+  };
+  assert.match(regle(".modal.confirmer .modal-actions"), /flex-wrap:\s*wrap/, "la rangée de boutons passe à la ligne");
+  const btn = regle(".modal.confirmer .modal-actions .btn");
+  assert.match(btn, /white-space:\s*normal/, "un libellé long passe à la ligne (les .btn sont en nowrap)");
+  assert.match(btn, /min-width:\s*0/, "un bouton peut rétrécir sous la largeur de son libellé");
+  assert.match(btn, /max-width:\s*100%/, "un bouton ne dépasse jamais la rangée");
+  assert.match(btn, /min-height:\s*44px/, "cible de 44 px");
+  const tel = css.match(/@media\s*\(max-width:\s*(\d+)px\)\s*\{\s*\.modal\.confirmer \.modal-actions \.btn\s*\{\s*flex:\s*1 1 100%/);
+  assert.ok(tel, "sur téléphone, les boutons s'empilent sur toute la largeur");
+  assert.ok(Number(tel[1]) >= 375, "dès 375 px");
+});
+
 test("un signal déjà abandonné : rien ne s'ouvre, réponse non", () => avecDocument(async (document) => {
   const arret = new AbortController();
   arret.abort();
