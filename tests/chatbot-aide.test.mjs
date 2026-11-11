@@ -171,13 +171,15 @@ test("lot 5 : les mots des écrans de la direction (plan, tâches 7 à 10 et 14)
 });
 
 test("suite du lot 5 : les données personnelles de la direction et l'ancien stagiaire transformé", () => {
-  for (const mot of ["Données personnelles", "Conservation des fiches", "la conservation des fiches est gérée par le fondateur",
+  for (const mot of ["Données personnelles", "Conservation des fiches", "échéances de conservation des promos du centre", "À faire maintenant",
+    "Effacer les comptes et les textes", "Effacer les noms et les preuves", "EFFACER", "se transmet au fondateur", "Fiches : date de fin à vérifier", "jusqu'au 31 décembre de la troisième année après la fin",
     "Élèves bénévoles sans venue depuis 12 mois", "Supprimer",
     "ancien stagiaire", "Le compte de cet ancien stagiaire est devenu un compte de formateur."]) {
     assert.ok(DIRECTION.includes(mot), mot);
   }
   assert.ok(!DIRECTION.includes(String.fromCharCode(0x2014)), "aucun tiret cadratin");
-  // Réconciliation avec Q5 : la direction n'anonymise plus (conservation au fondateur, page Qualiopi).
+  // Réconciliation avec Q5 : la direction n'anonymise plus ; depuis le 11/11, elle lance les deux étapes de Q5 de son centre.
+  assert.ok(!DIRECTION.includes("la conservation des fiches est gérée par le fondateur"), "la phrase de l'intérim a quitté le guide de la direction");
   assert.ok(!/Anonymiser la promo|ANONYMISER|« Effacer les données »/.test(DIRECTION), "plus de bouton « Anonymiser la promo » ni « Effacer les données » chez la direction");
 });
 

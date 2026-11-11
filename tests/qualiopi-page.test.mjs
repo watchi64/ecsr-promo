@@ -22,6 +22,8 @@ const impression = lire("js/qualiopi-impression.js");
 const centre = lire("js/views/centre.js");
 const css = lire("css/qualiopi.css");
 const conservationVue = lire("js/views/conservation.js");
+// Les cartes des échéances et leurs gestes, partagés avec les Réglages du centre (direction) : module à part.
+const cartesVue = lire("js/views/conservation-cartes.js");
 const config = lire("js/views/config.js");
 
 // --- Jeton de version : celui du reste de l'app, dans l'index et dans chaque import de la page ---
@@ -29,7 +31,7 @@ const jeton = index.match(/js\/main\.js\?v=(\w+)/)[1];
 eq(index.match(/css\/qualiopi\.css\?v=(\w+)/)?.[1], jeton, "la feuille de style est liée dans index.html avec le jeton des autres");
 eq(index.match(/css\/emargement\.css\?v=(\w+)/)[1], jeton, "(témoin) la feuille voisine porte ce jeton");
 for (const [nom, source] of [["js/views/qualiopi.js", vue], ["js/qualiopi-page-rules.js", lire("js/qualiopi-page-rules.js")], ["js/qualiopi-resultats.js", lire("js/qualiopi-resultats.js")], ["js/views/centre.js", centre], ["js/main.js", main],
-  ["js/views/conservation.js", conservationVue], ["js/views/config.js", config], ["js/confirmer.js", lire("js/confirmer.js")]]) {
+  ["js/views/conservation.js", conservationVue], ["js/views/conservation-cartes.js", cartesVue], ["js/views/config.js", config], ["js/confirmer.js", lire("js/confirmer.js")]]) {
   const imports = [...source.matchAll(/from "(\.\.?\/[^"]+)"/g)].map((m) => m[1]);
   ok(imports.length > 0, `${nom} : des imports relatifs`);
   ok(imports.every((a) => a.endsWith(`.js?v=${jeton}`)), `${nom} : chaque import porte le jeton ${jeton} (un module chargé sous deux adresses le serait deux fois)`);
@@ -58,6 +60,8 @@ eq(demarrage.filter((f) => /qualiopi/.test(f)), ["js/qualiopi-impression.js"],
   "du démarrage, seul le petit module d'impression de Qualiopi est atteint : ni la page, ni le référentiel, l'inventaire, les modèles, les règles de la page");
 ok(!importsStatiques(resolve(RACINE, "js/main.js")).some((spec) => /views\/qualiopi\.js/.test(spec)), "main.js n'importe pas la page statiquement");
 ok(!demarrage.includes("js/views/conservation.js"), "la section Conservation des données part avec la page, pas avec l'app");
+ok(demarrage.includes("js/views/conservation-cartes.js") && !/qualiopi/.test(cartesVue.split("\n").filter((l) => /^import/.test(l)).join("\n")),
+  "les cartes des échéances partent avec l'app (Réglages du centre) sans tirer la page Qualiopi");
 ok(!/^\s*(import|export)\b[^;]*["']\.\/views\/qualiopi\.js/m.test(main), "ni par un import, ni par un export (sous aucune forme)");
 
 // --- Branchement : route, onglet allumé, porte du fondateur, nettoyage de l'impression ---
@@ -277,7 +281,7 @@ ok(/ouvrirRegistre: \(\) => sousOnglets\.activer\("registre"\)/.test(vue) && /ou
 ok(/conservation\.majPromo\(promo, lire\(promo\.id\)\.then\(\(d\) => d\.stagiaires\)\)/.test(vue), "les fiches de la promo choisie viennent de la lecture du dossier, par identifiant");
 ok(/lectures\.delete\(promoId\)/.test(vue) && /charger\(etat\.promo\)/.test(vue.slice(vue.indexOf("apresEffacement"))), "après un effacement, la promo touchée est relue");
 
-const codeCons = conservationVue.replace(/\/\/.*$/gm, "");
+const codeCons = (conservationVue + "\n" + cartesVue).replace(/\/\/.*$/gm, "");
 for (const [type, fonction, args] of [["etape1", "effacerPromoEtape1", "c\\.id"], ["etape2", "effacerPromoEtape2", "c\\.id"],
   ["cloture_formateurs", "cloreAnneeFormateurs", "c\\.lieu_id, c\\.annee"], ["commentaires_formateurs", "effacerCommentairesFormateurs", "c\\.lieu_id, c\\.annee"],
   ["figeage_formateurs", "figerQuestionnaireFormateurs", "c\\.lieu_id, c\\.annee"]]) {
@@ -289,7 +293,7 @@ ok(!/(^|[^\w.])(confirm|prompt|alert)\s*\(|window\.(confirm|prompt|alert)\s*\(/.
   "aucune boîte du navigateur : la fenêtre de l'app (js/confirmer.js)");
 ok(!/effacerRegistreQualite/.test(codeCons) && /"Voir le registre qualité"/.test(codeCons) && /onClick: \(\) => ouvrirRegistre\(\)/.test(codeCons),
   "le registre garde son seul bouton : la section renvoie à son sous-onglet");
-ok(conservationVue.includes('export const CONSERVATION_ABSENTE = "La conservation sera disponible après la mise à jour de la base.";')
+ok(cartesVue.includes('export const CONSERVATION_ABSENTE = "La conservation sera disponible après la mise à jour de la base.";')
   && /etat === null \? \{ absent: true \}/.test(codeCons), "migration pas appliquée : la phrase convenue, sans erreur");
 ok(/"Effacer à la demande"/.test(codeCons) && /sansNom \? null : el\("button"/.test(codeCons), "« Effacer à la demande » sur chaque fiche qui a encore un nom");
 ok(!/<table|el\("table"/.test(codeCons), "une liste de cartes, jamais un tableau");
@@ -313,12 +317,29 @@ ok(!/anonymiser|etatAnonymisationPromo|etatFinDePromo|Anonymiser la promo|"Effac
   "plus d'anonymisation ni d'effacement dans la gestion des stagiaires (Réglages, direction)");
 ok(/s\.actif === false && !s\.anonymise_le && !s\.efface_le/.test(gestion) && /"Réactiver"/.test(gestion), "Abandons : « Réactiver » seul, sans les fiches effacées");
 ok(/s\.actif !== false && !s\.anonymise_le/.test(gestion), "Stagiaires : une fiche sans nom n'est plus dans la liste");
-// Réglages du centre (direction, suite du lot 5) : la même phrase à la place de « Anonymiser la promo » (réconciliation avec Q5,
-// question 3 du plan : effacements au fondateur seul) ; la purge des élèves bénévoles du centre reste.
+// Réglages du centre (direction) : les deux étapes de Q5 pour les promos du centre (20261111_conservation_direction, décision de
+// Timy du 11/11), avec les cartes et la confirmation par saisie de la page Qualiopi ; la phrase de l'intérim y disparaît (elle
+// reste dans Réglages, pour les formateurs) ; la purge des élèves bénévoles du centre reste.
 const reglagesDonnees = lire("js/views/reglages-donnees.js");
 const codeDonnees = reglagesDonnees.replace(/\/\/.*$/gm, "");
-ok(/el\("p", \{ class: "muted donnees-texte" \}, PHRASE_CONSERVATION\)/.test(codeDonnees) && /"Conservation des fiches"/.test(codeDonnees),
-  "Réglages du centre : la phrase de la conservation, sous un titre");
+ok(/"Conservation des fiches"/.test(codeDonnees) && !/PHRASE_CONSERVATION\b/.test(codeDonnees) && /PHRASE_CONSERVATION_CENTRE/.test(codeDonnees),
+  "Réglages du centre : la conservation des fiches, sans la phrase de l'intérim");
+ok(/lireEtatConservationCentre\(centre\.id\)/.test(codeDonnees) && /echeancesConservation\(etat\)/.test(codeDonnees),
+  "Réglages du centre : les échéances du centre choisi (etat_conservation_centre), calculées comme sur la page Qualiopi");
+ok(/import \{ carteEcheance, ACTIONS, CONSERVATION_ABSENTE \} from "\.\/conservation-cartes\.js/.test(codeDonnees)
+  && /carteEcheance\(e, \{ agir:/.test(codeDonnees) && /export function carteEcheance\(e, \{ agir, ouvrirRegistre \}\)/.test(codeCons)
+  && /export const ACTIONS = \{/.test(codeCons),
+  "Réglages du centre : les cartes et les boutons de la page Qualiopi, réutilisés (pas recopiés)");
+ok(/const question = confirmationEcheance\(e\);/.test(codeDonnees) && /if \(!\(await confirmer\(question\)\)\) return;/.test(codeDonnees)
+  && /await ACTIONS\[e\.type\]\(e\.cible\)/.test(codeDonnees),
+  "Réglages du centre : chaque étape confirme par saisie (fenêtre de l'app) avant d'agir");
+ok(!/effacerSurDemande|cloreAnneeFormateurs|effacerCommentairesFormateurs|figerQuestionnaireFormateurs|effacerRegistreQualite|lireEtatConservation\(\)/.test(codeDonnees),
+  "Réglages du centre : ni effacement à la demande, ni questionnaire des formateurs, ni registre (fondateur seul)");
+ok(/etat === null \? \{ absent: true \}/.test(codeDonnees) && /CONSERVATION_ABSENTE/.test(codeDonnees),
+  "Réglages du centre : migration pas appliquée, la phrase convenue, sans erreur");
+const effRules = lire("js/effacement-rules.js");
+ok(/export const PHRASE_CONSERVATION_CENTRE = /.test(effRules) && /export const PHRASE_SANS_ECHEANCE = /.test(effRules),
+  "les phrases de la conservation du centre sont dans js/effacement-rules.js");
 ok(!/anonymis|Anonymiser la promo|ANONYMISER|demander\(|prompt\(|etat_anonymisation_promo|anonymiser_promo/i.test(codeDonnees),
   "Réglages du centre : plus aucune anonymisation (ni bouton, ni lecture d'état, ni saisie)");
 ok(/listBenevolesAPurgerDuCentre\(centre\.id\)/.test(codeDonnees) && /purgerBenevolesDuCentre\(/.test(codeDonnees) && /await confirmer\(questionPurgerBenevoles\(/.test(codeDonnees),
@@ -337,7 +358,7 @@ ok(/\.modal\.confirmer-detaille \{[^}]*overflow-x: hidden;[^}]*overflow-y: auto/
 
 // --- Hygiène des fichiers de la tâche ---
 for (const fichier of ["js/views/qualiopi.js", "js/qualiopi-page-rules.js", "js/qualiopi-impression.js", "js/qualiopi-resultats.js", "css/qualiopi.css",
-  "js/views/conservation.js", "js/effacement-rules.js", "js/confirmer.js"]) {
+  "js/views/conservation.js", "js/views/conservation-cartes.js", "js/views/reglages-donnees.js", "js/effacement-rules.js", "js/confirmer.js"]) {
   const texte = lire(fichier);
   ok(!texte.includes(TIRET_CADRATIN), `${fichier} : aucun tiret cadratin`);
   ok(!/\bprof\b/i.test(texte.replace(/\bprofil\w*/gi, "")), `${fichier} : « formateur », jamais « prof »`);
