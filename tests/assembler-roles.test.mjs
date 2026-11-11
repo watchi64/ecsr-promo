@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  ETAPES, ETAPES_TITRES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, MIGRATION_ESPACES_4, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
+  ETAPES, ETAPES_GESTION, ETAPES_TITRES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, MIGRATION_ESPACES_4, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
 } from "../outils/assembler_repetition_roles.mjs";
 
 // outils/assembler_repetition_roles.mjs fabrique le fichier SQL d'une répétition du lot 4 : le gabarit de la preuve,
@@ -800,6 +800,8 @@ test("le retour de la migration 4 remet les fragments d'origine (les mêmes, dan
 // --- Chantier titres et droits à la carte : modes titres, titres-contre-epreuve, titres-en-ligne ------------------------------
 
 const GABARIT_TITRES = "tests/sql/titres-preuve.sql";
+const AIDES_TITRES = "tests/sql/titres-aides.sql";
+const GABARIT_GESTION = "tests/sql/titres-gestion-preuve.sql";
 const TITRES_1 = ETAPES_TITRES[1];
 // Les fichiers des étapes 2 à 4 n'existent qu'avec leurs tâches : des textes factices en mémoire, pour juger l'assembleur seul.
 const FACTICES_TITRES = Object.fromEntries([2, 3, 4].flatMap((n) => [
@@ -814,7 +816,7 @@ const ORDRE_TITRES = [1, 2, 3, 4].map((n) => ETAPES_TITRES[n].migration).concat(
 test("titres : migrations 1 à 4 puis retours 4, 3, 2, 1 injectés octet pour octet, dans l'ordre du gabarit, après l'empreinte", () => {
   const r = assemblerMode("titres", RACINE, { lire: depotTitres });
   assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...ORDRE_TITRES]);
-  assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES]);
+  assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES, AIDES_TITRES]);
   assert.deepEqual(r.neutralises, []);
   verifierInjections(r, depotTitres);
   assert.equal(r.mode, "titres (etapes 1, 2, 3, 4 injectees)");
@@ -856,7 +858,7 @@ test("titres : étapes refusées (hors 1 à 4, non consécutives), --etapes refu
     assert.throws(() => decrireMode("titres", { etapes: mauvaise }), /étapes refusées/, JSON.stringify(mauvaise));
   }
   for (const mode of ["titres-contre-epreuve", "titres-en-ligne"]) {
-    assert.throws(() => decrireMode(mode, { etapes: [1] }), /--etapes ne vaut que pour le mode repetition ou titres/, mode);
+    assert.throws(() => decrireMode(mode, { etapes: [1] }), /--etapes ne vaut que pour le mode repetition, titres ou gestion/, mode);
   }
   assert.throws(() => decrireMode("repetition", { etapes: [1, 2, 3, 4] }), /étapes refusées/);
   assert.deepEqual(decrireMode("repetition", { etapes: [1, 2, 3] }).etapes, [1, 2, 3]);
@@ -891,7 +893,7 @@ test("la preuve des titres : mode en ligne reconnu par préfixe, pas de $$, aucu
 });
 
 test("les fichiers du chantier titres présents : aucun tiret cadratin, fins de ligne LF, aucune adresse de connexion, lock_timeout en tête des migrations", () => {
-  for (const chemin of [...TOUS_FICHIERS_TITRES.filter((c) => existsSync(join(RACINE, c))), GABARIT_TITRES]) {
+  for (const chemin of [...TOUS_FICHIERS_TITRES.filter((c) => existsSync(join(RACINE, c))), GABARIT_TITRES, AIDES_TITRES, GABARIT_GESTION]) {
     const brut = readFileSync(join(RACINE, chemin), "utf8");
     assert.ok(!brut.includes(String.fromCharCode(0x2014)), `${chemin} : aucun tiret cadratin`);
     assert.ok(!brut.includes("\r"), `${chemin} : fins de ligne LF`);
@@ -943,4 +945,109 @@ test("la migration 2 des titres (A) : dix fonctions stable security definer, ex�
   const ordreRetrait = ["geste_reseau", "geste_centre", "geste_promo", "membre_stagiaire", "siege_fixe", "direction_fixe", "formateur_fixe", "case_reseau", "case_centre", "case_promo"]
     .map((nom) => r.indexOf(`drop function if exists public.${nom}(`));
   assert.deepEqual([...ordreRetrait].sort((a, b) => a - b), ordreRetrait, "retraits dans l'ordre inverse");
+});
+
+// --- Étape 2 du chantier : modes gestion, gestion-contre-epreuve, gestion-en-ligne ---------------------------------------------
+
+const GESTION_4 = ETAPES_GESTION[4];
+const GESTION_5 = ETAPES_GESTION[5];
+const GESTION_6 = ETAPES_GESTION[6];
+const TOUS_FICHIERS_GESTION = [4, 5, 6].flatMap((n) => [ETAPES_GESTION[n].migration, ETAPES_GESTION[n].retour]);
+// Les fichiers des migrations 5 et 6 naissent avec leurs tâches : des textes factices en mémoire, pour juger l'assembleur seul.
+const FACTICES_GESTION = Object.fromEntries([5, 6].flatMap((n) => [
+  [ETAPES_GESTION[n].migration, `-- factice : gestion migration ${n}\r\nselect ${n};\r\n`],
+  [ETAPES_GESTION[n].retour, `-- factice : gestion retour ${n}\r\nselect -${n};\r\n`]]));
+const depotGestion = (chemin) => duDisque(chemin) ?? FACTICES_GESTION[chemin] ?? null;
+const sansGestion = (garde) => (chemin) => (TOUS_FICHIERS_GESTION.includes(chemin) && !garde.includes(chemin) ? null : depotGestion(chemin));
+// L'ordre du gabarit : migrations 4, 5, 6 puis retours 6, 5, 4.
+const ORDRE_GESTION = [4, 5, 6].map((n) => ETAPES_GESTION[n].migration).concat([6, 5, 4].map((n) => ETAPES_GESTION[n].retour));
+
+test("gestion : étapes 5 et 6 par défaut, injectées octet pour octet dans l'ordre du gabarit, la migration 4 et son retour neutralisés et non lus", () => {
+  const lus = [];
+  const r = assemblerMode("gestion", RACINE, { lire: (c) => { lus.push(c); return depotGestion(c); } });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, GESTION_5.migration, GESTION_6.migration, GESTION_6.retour, GESTION_5.retour]);
+  assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES, AIDES_TITRES]);
+  assert.deepEqual([...r.neutralises].sort(), [GESTION_4.migration, GESTION_4.retour].sort());
+  assert.ok(!lus.includes(GESTION_4.migration) && !lus.includes(GESTION_4.retour), "étape 4 non demandée, donc non lue");
+  verifierInjections(r, depotGestion);
+  assert.equal(r.mode, "gestion (etapes 5, 6 injectees)");
+  assert.ok(r.texte.includes("\n'gestion (etapes 5, 6 injectees)'\n"));
+});
+
+test("gestion --etapes 5, 5,6 ou 4,5,6 : les étapes demandées injectées dans l'ordre du gabarit, les autres neutralisées et non lues", () => {
+  for (const [etapes, mode] of [[[5], "gestion (etape 5 injectees)"], [[5, 6], "gestion (etapes 5, 6 injectees)"], [[4, 5, 6], "gestion (etapes 4, 5, 6 injectees)"]]) {
+    const lus = [];
+    const r = assemblerMode("gestion", RACINE, { etapes, lire: (c) => { lus.push(c); return depotGestion(c); } });
+    const attendus = ORDRE_GESTION.filter((c) => etapes.some((n) => c === ETAPES_GESTION[n].migration || c === ETAPES_GESTION[n].retour));
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...attendus], JSON.stringify(etapes));
+    assert.equal(r.neutralises.length, 6 - attendus.length, JSON.stringify(etapes));
+    for (const c of r.neutralises) assert.ok(!lus.includes(c), `${c} neutralisé donc non lu`);
+    assert.equal(r.mode, mode);
+    verifierInjections(r, depotGestion);
+  }
+});
+
+test("gestion : étapes refusées (la 6 demande la 5, la 4 demande les deux), un fichier manquant d'une étape demandée arrête l'assemblage", () => {
+  assert.deepEqual(decrireMode("gestion").etapesGestion, [5, 6]);
+  for (const mauvaise of [[], [6], [4], [4, 5], [5, 4], [6, 5], [4, 6], [5, 6, 4], [7], [5, 5]]) {
+    assert.throws(() => decrireMode("gestion", { etapes: mauvaise }), /étapes refusées/, JSON.stringify(mauvaise));
+  }
+  assert.throws(() => assemblerMode("gestion", RACINE, { etapes: [6], lire: depotGestion }), /étapes refusées/);
+  assert.throws(() => assemblerMode("gestion", RACINE, { lire: sansGestion([]) }),
+    /Étape 5 demandée \(gestion\) : supabase\/migrations\/20261112_titres_5_fermetures\.sql n'existe pas encore.*gestion-contre-epreuve/s);
+  assert.throws(() => assemblerMode("gestion", RACINE, { etapes: [5], lire: sansGestion([]) }), /Étape 5 demandée \(gestion\)/);
+  assert.throws(() => assemblerMode("gestion", RACINE, { lire: sansGestion([GESTION_5.migration, GESTION_5.retour]) }),
+    /Étape 6 demandée \(gestion\) : supabase\/migrations\/20261112_titres_6_gestion\.sql n'existe pas encore.*gestion --etapes 5/s);
+  // Seul le retour manque : l'étape demandée arrête aussi l'assemblage.
+  assert.throws(() => assemblerMode("gestion", RACINE, { etapes: [5], lire: (c) => (c === GESTION_5.retour ? null : depotGestion(c)) }),
+    /Étape 5 demandée \(gestion\) : supabase\/migrations\/20261112_titres_5_fermetures_retour\.sql n'existe pas encore/);
+  // La migration 4 est dans le dépôt, mais les étapes 5 et 6 se jouent sans elle : un fichier de la 4 absent ne gêne pas.
+  assert.doesNotThrow(() => assemblerMode("gestion", RACINE, {
+    lire: (c) => (c === GESTION_4.migration || c === GESTION_4.retour ? null : depotGestion(c)) }));
+  for (const mode of ["gestion-contre-epreuve", "gestion-en-ligne"]) {
+    assert.throws(() => decrireMode(mode, { etapes: [5] }), /--etapes ne vaut que pour le mode repetition, titres ou gestion/, mode);
+  }
+});
+
+test("gestion-contre-epreuve et gestion-en-ligne : les six fichiers neutralisés et non lus, l'empreinte toujours là, libellés distincts", () => {
+  for (const mode of ["gestion-contre-epreuve", "gestion-en-ligne"]) {
+    const lus = [];
+    const r = assemblerMode(mode, RACINE, { lire: (chemin) => { lus.push(chemin); return depotGestion(chemin); } });
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE], mode);
+    assert.deepEqual([...r.neutralises].sort(), [...TOUS_FICHIERS_GESTION].sort(), mode);
+    assert.ok(TOUS_FICHIERS_GESTION.every((c) => !lus.includes(c)), mode + " : fichiers non lus");
+    assert.equal(r.neutralises.length, 6);
+  }
+  assert.ok(decrireMode("gestion-en-ligne").mode.startsWith("gestion-en-ligne"));
+  assert.ok(!decrireMode("gestion-contre-epreuve").mode.startsWith("gestion-en-ligne"));
+});
+
+test("la preuve de gestion : mode en ligne reconnu par préfixe, pas de $$, aucune adresse qui ne soit fictive, aucun délimiteur partagé avec les migrations, aides sans marqueur", () => {
+  const gabarit = texteDuDepot(GABARIT_GESTION);
+  assert.ok(!/\$\$/.test(gabarit), "pas de $$");
+  const m = /v_en_ligne := v_mode like '([^'%]*)%'/.exec(gabarit);
+  assert.ok(m && decrireMode("gestion-en-ligne").mode.startsWith(m[1]));
+  assert.ok(!/@@(?:INJECTER|INCLURE|MODE)/.test(texteDuDepot(AIDES_TITRES)), "les aides collées telles quelles ne portent aucun marqueur");
+  const adresses = [...(gabarit.match(/[\w.+-]+@[\w.-]+\.[a-z]+/g) ?? []), ...(texteDuDepot(AIDES_TITRES).match(/[\w.+-]+@[\w.-]+\.[a-z]+/g) ?? [])];
+  for (const adresse of adresses) assert.ok(adresse.endsWith("@exemple.invalid"), `adresse de la preuve fictive : ${adresse}`);
+  const delimiteurs = new Set(gabarit.match(/\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/g));
+  for (const chemin of TOUS_FICHIERS_GESTION.filter((c) => existsSync(join(RACINE, c)))) {
+    for (const d of delimiteurs) assert.ok(!texteDuDepot(chemin).includes(d), `${chemin} : ${d} figure aussi dans le gabarit`);
+  }
+});
+
+test("gestion : la ligne de commande écrit hors du dépôt et refuse une suite d'étapes impossible avec un message clair", () => {
+  const dossier = mkdtempSync(join(tmpdir(), "gestion-"));
+  try {
+    const sortie = join(dossier, "gestion.sql");
+    const erreurs = [];
+    const code = principal(["gestion-contre-epreuve", sortie], { racine: RACINE, journal: () => {}, erreur: (m) => erreurs.push(m) });
+    assert.equal(code, 0, erreurs.join("\n"));
+    assert.ok(readFileSync(sortie, "utf8").includes("-- mode : gestion-contre-epreuve (aucune migration injectee)"));
+    const refus = [];
+    assert.equal(principal(["gestion", "--etapes", "6", join(dossier, "refus.sql")], { racine: RACINE, journal: () => {}, erreur: (m) => refus.push(m) }), 1);
+    assert.match(refus.join("\n"), /étapes refusées/);
+  } finally {
+    rmSync(dossier, { recursive: true, force: true });
+  }
 });
