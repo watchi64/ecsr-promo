@@ -1,4 +1,7 @@
 -- Conservation des données à 3 ans (Qualiopi, lot Q5), partie fiches et émargement (tâche 2 du plan
+-- Appliquée en production le 11/11/2026, avec l'accord de Timy (psql -1, PGCLIENTENCODING=UTF8, accents vérifiés), après la
+-- phase 2 de la navigation : essai à blanc VERT 240/0, puis preuve VERT 227/0 deux fois ; preuves Q3 (207/0) et Q4 (128/0)
+-- rejouées sur la base migrée ; aucune étape d'effacement lancée.
 -- docs/superpowers/plans/2026-11-09-qualiopi-q5-conservation.md ; spec docs/superpowers/specs/2026-11-08-qualiopi-q3-q5-design.md,
 -- § 6, § 6.1, § 10), complétée par la tâche 3 (questionnaires, section 10) et la tâche 4 (registre qualité, section 11).
 -- Retour : 20261110_conservation_retour.sql. Preuve : tests/sql/conservation-preuve.sql (schéma minimal :

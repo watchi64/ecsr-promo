@@ -127,12 +127,14 @@ create table public.evaluations (id serial primary key,
   note_max numeric default 20, observation text, date_eval date not null default current_date, created_by_email text,
   updated_by_email text, created_at timestamptz default now(), updated_at timestamptz default now(),
   qcm_attempt_id bigint, promo_id integer not null references public.promos(id));
-create table public.evaluations_audit (id serial primary key, evaluation_id integer, action text not null,
+create table public.evaluations_audit (id serial primary key, evaluation_id integer,
+  action text not null check (action = any (array['insert', 'update', 'delete'])),
   before_data jsonb, after_data jsonb, changed_by_email text, changed_at timestamptz default now(),
   promo_id integer not null references public.promos(id));
 create table public.passages (id serial primary key, date date not null,
-  stagiaire_id integer not null references public.stagiaires(id) on delete cascade, type text not null,
-  resultat text not null, remplacant_id integer references public.stagiaires(id) on delete set null,
+  stagiaire_id integer not null references public.stagiaires(id) on delete cascade,
+  type text not null check (type = any (array['Salle', 'Voiture'])),
+  resultat text not null check (resultat = any (array['Effectué', 'Absence', 'Bonus', 'Report'])), remplacant_id integer references public.stagiaires(id) on delete set null,
   origine text not null default 'Manuel', commentaire text, semaine_lundi date, created_at timestamptz default now(),
   created_by_who text, updated_by_who text, prof_id bigint references public.profs(id), avec_eleve boolean,
   promo_id integer not null references public.promos(id));

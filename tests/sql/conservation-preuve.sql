@@ -1,4 +1,8 @@
 -- Preuve de la migration 20261110_conservation (conservation à 3 ans, Qualiopi Q5) : fiches et émargement (tâche 2),
+-- Production (11/11/2026) : essai à blanc VERT 240/0 puis, migration appliquée, VERT 227/0 deux fois, rien laissé. Deux
+-- ajustements pour la vraie base : passage d'essai en « Voiture / Effectué » et audit en « update » (contraintes de la
+-- production, reportées dans le schéma minimal) ; empreinte sans retours chariot (effacer_registre_qualite de Q4 a été
+-- appliquée depuis un fichier CRLF : le retour la recrée identique aux retours chariot près).
 -- questionnaires (tâche 3 : sections 3 bis, 4.0, 4.1 bis, 4.7 bis, 4.9 et les cas ajoutés aux étapes).
 -- Remplace tests/sql/effacement-preuve.sql (migration du 05/10), qui ne se joue plus après ce lot.
 -- Rejouable : le bloc lève TOUJOURS une exception à la fin (verdict « VERT n/0 » ou « ROUGE ok/ko : cas »), tout est
@@ -134,7 +138,7 @@ declare
         from pg_constraint where connamespace = 'public'::regnamespace
       union all
       select 'fn ' || p.oid::regprocedure::text || ' '
-             || md5(pg_get_functiondef(p.oid))
+             || md5(replace(pg_get_functiondef(p.oid), chr(13), ''))
              || ' ' || coalesce(p.proacl::text, '')
         from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prokind in ('f', 'p')
       union all
@@ -449,7 +453,7 @@ begin
     insert into epcf_evaluations (stagiaire_id, promo_id, trame, commentaire)
       select c.id, promo_id, 'salle', 'Commentaire preuve' from stagiaires where id = c.id;
     insert into passages (stagiaire_id, promo_id, date, type, resultat, commentaire)
-      select c.id, promo_id, date '2026-10-01', 'Conduite', 'Réussi', 'Commentaire preuve' from stagiaires where id = c.id;
+      select c.id, promo_id, date '2026-10-01', 'Voiture', 'Effectué', 'Commentaire preuve' from stagiaires where id = c.id;
     if c.email is not null then
       insert into conditions_acceptations (email, version) values (c.email, '2026-11-08');
     end if;
@@ -1026,7 +1030,7 @@ begin
     update passages set commentaire = 'Commentaire tardif' where stagiaire_id = S1;
     update epcf_evaluations set commentaire = 'Commentaire tardif' where stagiaire_id = S1;
     insert into evaluations_audit (evaluation_id, action, before_data, after_data, changed_by_email, promo_id)
-    select e.id, 'UPDATE', jsonb_build_object('stagiaire_id', S1, 'observation', null),
+    select e.id, 'update', jsonb_build_object('stagiaire_id', S1, 'observation', null),
            jsonb_build_object('stagiaire_id', S1, 'observation', 'Observation tardive'), 'preuve.cons.form@example.invalid', PA
       from evaluations e where e.stagiaire_id = S1;
     v_tard := pg_temp.fiche(S1);
