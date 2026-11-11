@@ -465,7 +465,12 @@ function listeSujets(titre, sujets) {
 }
 
 function forcesSection(evaluations) {
-  const { forts, faibles } = forcesEtFaiblesses(notesSur20(evaluations), describeEval);
+  // Un sujet précis seulement : une note sans titre (« Thème », « Contrôle », « C1 · » sans libellé) ne forme pas un sujet.
+  const sujet = (e) => {
+    const lib = describeEval(e);
+    return /^(Thème|Compétence|Contrôle|Évaluation)$/.test(lib) || / ·\s*$/.test(lib) ? null : lib;
+  };
+  const { forts, faibles } = forcesEtFaiblesses(notesSur20(evaluations), sujet);
   if (!forts.length) return null;
   return el("div", { class: "res-forces" }, listeSujets("Points forts", forts), listeSujets("À retravailler", faibles));
 }
