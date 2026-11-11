@@ -7,12 +7,13 @@
 // d'invitation (envoyerInvitation, stagiaires-gestion.js) ne sert pas ici : il appelle inviter_compte pour UNE fiche et UNE promo
 // affichée, alors que cette page règle plusieurs promos d'un centre d'un coup ; seule la forme de l'adresse est reprise.
 
-import { getMesPromos, lireEquipeDuCentre, lireFichesFormateurLibres, reglerAffectationsFormateur } from "../db.js?v=20261110e";
-import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261110e";
-import { icon } from "../icons.js?v=20261110e";
-import { getCentre, getAdminEmail } from "../auth-admin.js?v=20261110e";
-import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261110e";
-import { equipeAffichee, unionPromos } from "../direction-rules.js?v=20261110e";
+import { getMesPromos, lireEquipeDuCentre, lireFichesFormateurLibres, reglerAffectationsFormateur } from "../db.js?v=20261111a";
+import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261111a";
+import { icon } from "../icons.js?v=20261111a";
+import { getCentre, getAdminEmail } from "../auth-admin.js?v=20261111a";
+import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261111a";
+import { equipeAffichee, unionPromos } from "../direction-rules.js?v=20261111a";
+import { phraseCompteTransforme } from "../roles-rules.js?v=20261111a";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
@@ -146,12 +147,12 @@ function ouvrirInvitation({ centre, promos, equipe, ancre, apres }) {
     },
     enregistrer: async (v) => {
       const r = await reglerAffectationsFormateur({ email: v.email, lieuId: centre.id, promoIds: v.promoIds, profId: v.profId });
-      let phrase = r.cree ? PHRASE_COMPTE_CREE : PHRASE_PROMOS_MAJ;
+      let phrase = r.transforme === true ? phraseCompteTransforme("formateur") : r.cree ? PHRASE_COMPTE_CREE : PHRASE_PROMOS_MAJ;
       // La base rend ce qu'elle a retiré : si c'est non vide (une promo ôtée entre-temps), la phrase le dit.
       const retirees = (r.retirees || []).map((id) => (promos.find((p) => p.id === id) || {}).nom || "promo " + id);
       if (retirees.length) phrase += ` Retirée${retirees.length > 1 ? "s" : ""} : ${retirees.join(", ")}.`;
       // Un compte qui existe déjà garde sa fiche : celle qui a été choisie n'est pas reliée.
-      if (!r.cree && v.profId != null) phrase += " Ce compte existait déjà : la fiche formateur choisie n'a pas été reliée.";
+      if (!r.cree && r.transforme !== true && v.profId != null) phrase += " Ce compte existait déjà : la fiche formateur choisie n'a pas été reliée.";
       toast(phrase, "success", 7000);
       await apres(v.email);
     },

@@ -5,12 +5,13 @@
 // revient à ce que la base a gardé. Les pastilles sont celles du lot 3 (js/habillage-choix.js, mode réglage : rien n'est appliqué à
 // l'écran de la personne qui règle).
 
-import { habillageParDefaut, lireHabillageCentre, reglerHabillageCentre, reglerHabillageReseau } from "../db.js?v=20261110e";
-import { getCentre } from "../auth-admin.js?v=20261110e";
-import { el, clear, toast } from "../utils.js?v=20261110e";
-import { icon } from "../icons.js?v=20261110e";
-import { blocHabillage } from "../habillage-choix.js?v=20261110e";
-import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261110e";
+import { habillageParDefaut, lireHabillageCentre, reglerHabillageCentre, reglerHabillageReseau } from "../db.js?v=20261111a";
+import { getCentre } from "../auth-admin.js?v=20261111a";
+import { el, clear, toast } from "../utils.js?v=20261111a";
+import { icon } from "../icons.js?v=20261111a";
+import { blocHabillage } from "../habillage-choix.js?v=20261111a";
+import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261111a";
+import { sectionDonneesCentre } from "./reglages-donnees.js?v=20261111a";
 
 export const PHRASE_ECHEC_LECTURE = "Le réglage n'a pas pu être chargé.";
 export const PHRASE_ECHEC_ECRITURE = "Le réglage n'a pas été enregistré. Réessaie dans un instant.";
@@ -151,12 +152,16 @@ async function rendre(container, { surtitre, titre, lire, construire }) {
     clear(racine);
     racine.appendChild(entete(surtitre.chargement, titre, null));
     racine.appendChild(boiteErreur(phraseDEchec(e, PHRASE_ECHEC_LECTURE), relire));
+    // La section des données personnelles se charge seule : un habillage illisible ne la cache pas.
+    if (construire.suite) racine.appendChild(construire.suite(null));
     return;
   }
   if (jeton !== rendu) return;
   clear(racine);
   racine.appendChild(entete(surtitre.pret(donnees), titre, construire.sousTitre));
   racine.appendChild(construire.section(donnees));
+  // Suite du lot 5 : une section de plus sous l'habillage (les données personnelles du centre), qui se charge pour son compte.
+  if (construire.suite) racine.appendChild(construire.suite(donnees));
 }
 
 // Réglages du centre (espace direction) : l'habillage du centre affiché.
@@ -178,7 +183,8 @@ export async function renderReglagesCentre(container) {
     titre: "Réglages du centre",
     lire: () => lireHabillageCentre(centre.id),
     construire: {
-      sousTitre: "L'apparence de l'app pour les comptes du centre",
+      sousTitre: "L'apparence de l'app pour les comptes du centre, et les données personnelles",
+      suite: () => sectionDonneesCentre(centre),
       section: (ligne) => sectionReglage({
         titre: "Habillage par défaut du centre",
         intro: "L'apparence que reçoivent les comptes du centre tant qu'ils n'ont rien choisi. Sans réglage, c'est celle du réseau.",

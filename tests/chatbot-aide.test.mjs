@@ -170,6 +170,14 @@ test("lot 5 : les mots des écrans de la direction (plan, tâches 7 à 10 et 14)
   }
 });
 
+test("suite du lot 5 : les données personnelles de la direction et l'ancien stagiaire transformé", () => {
+  for (const mot of ["Données personnelles", "Anonymiser la promo", "ANONYMISER", "Élèves bénévoles sans venue depuis 12 mois", "Supprimer",
+    "ancien stagiaire", "Le compte de cet ancien stagiaire est devenu un compte de formateur."]) {
+    assert.ok(DIRECTION.includes(mot), mot);
+  }
+  assert.ok(!DIRECTION.includes(String.fromCharCode(0x2014)), "aucun tiret cadratin");
+});
+
 test("lot 5 : les mots des écrans du siège (plan, tâches 11 à 14)", () => {
   for (const mot of ["Vue d'ensemble", "Réseau", "Chiffres agrégés par centre, sans données nominatives", "Exporter le tableau (CSV)",
     "Centre de démonstration (données fictives, hors totaux)", "moins de 5 stagiaires en formation",

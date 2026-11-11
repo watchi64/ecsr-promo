@@ -480,3 +480,42 @@ def panne_creer_promo(v):
     v.etape("phrase : " + phrase[:60])
     fermer_la_fenetre(v, "la fenêtre de création")
     v.terminer()
+
+
+# --- Les données personnelles du centre (suite du lot 5) ---------------------------------------------------------------------------
+
+
+@parcours("direction-donnees-personnelles", "Suite du lot 5 · La direction ouvre les Données personnelles de ses Réglages du centre", role="direction",
+          budget=2, banc={"compte": "direction", "donnees": "pret"}, navigations=NOUVELLE, depart=DEPART)
+def donnees_personnelles(v):
+    """Réglages du centre : sous l'habillage, la section « Données personnelles » (une ligne par promo du centre, « Anonymiser la promo »
+    pour celle dont les 12 mois sont écoulés, puis les élèves bénévoles à supprimer). Rien n'est anonymisé ni supprimé."""
+    v.aller("Réglages du centre")
+    attendre_page(v, "Réglages du centre")
+    v.attendre('#view .reglage-donnees h3:has-text("Données personnelles")', "la section « Données personnelles »")
+    v.attendre("#view .reglage-donnees .donnees-promo", "une ligne par promo du centre")
+    lignes = v.page.locator("#view .reglage-donnees .donnees-promo").count()
+    if lignes != 2:
+        v.constat("E", BLOQUE, "la section montre %d promo(s) au lieu des 2 promos de Nîmes" % lignes, capture=True)
+    v.attendre('#view .reglage-donnees button:has-text("Anonymiser la promo")', "« Anonymiser la promo » pour la promo dont les 12 mois sont écoulés")
+    v.attendre('#view .reglage-donnees button:has-text("Supprimer ces 2 élèves")', "« Supprimer ces 2 élèves » pour les élèves bénévoles")
+    v.but("section Données personnelles")
+    v.terminer()
+
+
+@parcours("panne-direction-donnees-personnelles", "Suite du lot 5 · Base en panne : les Données personnelles disent la panne et proposent Réessayer",
+          role="direction", budget=2, banc={"compte": "direction", "donnees": "pret", "panne": "etat_anonymisation_promo,benevoles_a_purger"},
+          navigations=NOUVELLE, depart=DEPART)
+def panne_donnees_personnelles(v):
+    """Les lectures des données personnelles en panne : chaque bloc dit que la connexion a échoué, avec « Réessayer »."""
+    v.console_attendue("TypeError: Failed to fetch")
+    v.aller("Réglages du centre")
+    attendre_page(v, "Réglages du centre")
+    v.attendre("#view .reglage-donnees .centre-erreur", "la phrase de la panne dans la section")
+    v.but("Données personnelles en panne")
+    phrases = [t.strip() for t in v.page.locator("#view .reglage-donnees .centre-erreur p").all_inner_texts()]
+    if not phrases or any(f != PHRASE_CONNEXION for f in phrases):
+        v.constat("E", BLOQUE, "la panne se dit « %s » au lieu de « %s »" % (" / ".join(phrases)[:80], PHRASE_CONNEXION), capture=True)
+    if not v.voit('#view .reglage-donnees .centre-erreur button:has-text("Réessayer")'):
+        v.constat("E", BLOQUE, "aucun « Réessayer » dans la section en panne", capture=True)
+    v.terminer()
