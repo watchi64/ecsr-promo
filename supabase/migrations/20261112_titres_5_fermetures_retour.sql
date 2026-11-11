@@ -12,6 +12,17 @@ begin
   end if;
 end $garde$;
 
+-- B. Les droits d'insertion et de suppression de authenticated sur affectations, et les deux expressions de la migration 3
+-- (20261112_titres_3_regles.sql, relues dans le fichier : une seule source).
+grant delete on public.affectations to authenticated;
+grant insert (email, role, promo_id, lieu_id) on public.affectations to authenticated;
+
+alter policy affectations_ajout on public.affectations
+  with check ((role = 'formateur' and public.geste_centre(public.lieu_de_promo(promo_id), 'formateurs.nommer')) or (role = 'direction' and (select public.geste_reseau('directions.nommer'))) or (role = 'siege' and (select public.est_fondateur())));
+
+alter policy affectations_retrait on public.affectations
+  using ((role = 'formateur' and public.geste_centre(public.lieu_de_promo(promo_id), 'formateurs.nommer')) or (role = 'direction' and (select public.geste_reseau('directions.nommer'))) or (role = 'siege' and (select public.est_fondateur())));
+
 do $migration$
 declare
   v_fonctions text[] := array[

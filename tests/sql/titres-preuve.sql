@@ -630,15 +630,26 @@ declare
   jr3 constant text := 'Preuve7.JR.Maj@exemple.invalid';
   jr4 constant text := 'preuve7.jr.cascade@exemple.invalid';
   v_t text; v_t2 text; v_promo text; v_fiche text; v_n_avant text; v_n_dir text; v_res text;
+  -- Une fois retirer_titre posée (migration 5 de l'étape 2), les écritures directes sur affectations sont fermées : dir_n donne et retire
+  -- par inviter_compte et retirer_titre, et le journal doit montrer les mêmes lignes.
+  v_ferme constant boolean := to_regprocedure('public.retirer_titre(text, bigint, integer)') is not null;
 begin
   perform pg_temp.proprio();
   insert into public.user_profiles (email, role, is_admin) values (jr1, 'prof', false), (jr2, 'prof', false), (jr3, 'prof', false), (jr4, 'prof', false);
 
-  -- 1. donne et retire : dir_n, par écriture directe, sur la promo 1.
-  perform pg_temp.attendre('journal', 'dir_n ajoute un formateur à la promo 1 (écriture directe)',
-    (left(pg_temp.valeur(v_dir, '1', null, format('insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1) returning id::text', jr1)), 6) <> 'ERREUR')::text, 'true');
-  perform pg_temp.attendre('journal', 'dir_n retire ce formateur (écriture directe)',
-    pg_temp.valeur(v_dir, '1', null, format('with d as (delete from public.affectations where email = %L and promo_id = 1 returning 1) select count(*)::text from d', jr1)), '1');
+  -- 1. donne et retire : dir_n, sur la promo 1, par écriture directe tant qu'elle est ouverte, par les fonctions une fois fermée.
+  if v_ferme then
+    perform pg_temp.attendre('journal', 'dir_n ajoute un formateur à la promo 1 (inviter_compte)',
+      pg_temp.valeur(v_dir, '1', null, format($q$select (public.inviter_compte(%L, 'formateur'))->>'affecte'$q$, jr1)), '1');
+    perform pg_temp.attendre('journal', 'dir_n retire ce formateur (retirer_titre)',
+      pg_temp.valeur(v_dir, '1', null, format($q$select (public.retirer_titre(%L, %s, %s))->>'retirees'$q$, jr1,
+        pg_temp.calcul($t$select public.titre_fixe('promo')::text$t$), v_l1)), '1');
+  else
+    perform pg_temp.attendre('journal', 'dir_n ajoute un formateur à la promo 1 (écriture directe)',
+      (left(pg_temp.valeur(v_dir, '1', null, format('insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1) returning id::text', jr1)), 6) <> 'ERREUR')::text, 'true');
+    perform pg_temp.attendre('journal', 'dir_n retire ce formateur (écriture directe)',
+      pg_temp.valeur(v_dir, '1', null, format('with d as (delete from public.affectations where email = %L and promo_id = 1 returning 1) select count(*)::text from d', jr1)), '1');
+  end if;
   perform pg_temp.attendre('journal', 'deux lignes, donne puis retire : par = son adresse, niveau promo, centre de la promo 1, promo 1, titre Formateur',
     pg_temp.lignes_journal(format('pour = %L', jr1)),
     format('donne|%s|promo|%s|1|Formateur ; retire|%s|promo|%s|1|Formateur', v_dirl, v_l1, v_dirl, v_l1));
@@ -1070,9 +1081,11 @@ begin
     pg_temp.calcul($q$select has_column_privilege('anon', 'public.affectations', 'titre_id', 'insert')::text$q$), 'false');
   perform pg_temp.attendre('droits', 'un client qui cite titre_id à l''ajout : refusé (42501)',
     pg_temp.valeur(c_auth, null, null, format('insert into public.affectations (email, role, promo_id, titre_id) values (%L, ''formateur'', %s, 1) returning id::text', c_auth, v_pa)), 'ERREUR 42501');
-  perform pg_temp.attendre('droits', 'le droit d''insertion par colonne des affectations garde ses quatre colonnes',
-    pg_temp.calcul($q$select string_agg(a.attname, ',' order by a.attname collate "C") from pg_attribute a where a.attrelid = 'public.affectations'::regclass and a.attnum > 0 and not a.attisdropped and has_column_privilege('authenticated', a.attrelid, a.attnum, 'insert')$q$),
-    'email,lieu_id,promo_id,role');
+  -- Les quatre colonnes insérables par authenticated sont celles d'avant la migration 5 de l'étape 2 ; une fois les écritures directes fermées, aucune.
+  perform pg_temp.attendre('droits', case when to_regprocedure('public.retirer_titre(text, bigint, integer)') is not null
+      then 'le droit d''insertion par colonne des affectations est retiré (aucune colonne)' else 'le droit d''insertion par colonne des affectations garde ses quatre colonnes' end,
+    pg_temp.calcul($q$select coalesce(string_agg(a.attname, ',' order by a.attname collate "C"), 'aucune') from pg_attribute a where a.attrelid = 'public.affectations'::regclass and a.attnum > 0 and not a.attisdropped and has_column_privilege('authenticated', a.attrelid, a.attnum, 'insert')$q$),
+    case when to_regprocedure('public.retirer_titre(text, bigint, integer)') is not null then 'aucune' else 'email,lieu_id,promo_id,role' end);
   perform pg_temp.attendre('droits', 'titres : sécurité par ligne active, et aucune règle (la lecture passera par des fonctions)',
     pg_temp.calcul($q$select (c.relrowsecurity and not exists (select 1 from pg_policies p where p.schemaname = 'public' and p.tablename = 'titres'))::text from pg_class c where c.oid = 'public.titres'::regclass$q$), 'true');
   perform pg_temp.attendre('droits', 'les cinq fonctions de la migration 1 n''ont aucun droit d''exécution pour anon ni authenticated',

@@ -135,3 +135,32 @@ begin
   end loop;
 end
 $migration$;
+
+-- B. Plus aucune écriture directe sur affectations. Jusqu'ici une ligne d'affectation pouvait être ajoutée ou retirée par un client avec
+-- ses seuls droits de colonne (ajout) et de table (retrait), jugés par deux règles ; un siège pouvait ainsi se nommer direction de
+-- centre à sa propre adresse (relecture finale de l'étape 1, I4). Désormais les deux règles refusent tout (alter policy : nom, commande et
+-- rôles inchangés) ET le droit d'insertion et de suppression de authenticated est retiré (le droit de lecture reste) : les seuls
+-- chemins sont les fonctions security definer (inviter_compte, regler_affectations_formateur, retirer_titre). Le retour redonne les
+-- droits et les deux expressions de 20261112_titres_3_regles.sql.
+-- Garde : les deux règles existent et citent geste_centre (texte de la migration 3) ; sinon la migration s'arrête sans rien changer.
+do $garde_b$
+declare
+  v_ajout text;
+  v_retrait text;
+begin
+  select p.with_check into v_ajout from pg_policies p
+   where p.schemaname = 'public' and p.tablename = 'affectations' and p.policyname = 'affectations_ajout';
+  select p.qual into v_retrait from pg_policies p
+   where p.schemaname = 'public' and p.tablename = 'affectations' and p.policyname = 'affectations_retrait';
+  if v_ajout is null or v_ajout not like '%geste_centre%' or v_retrait is null or v_retrait not like '%geste_centre%' then
+    raise exception 'titres_5_fermetures : les règles affectations_ajout et affectations_retrait de la migration 3 sont absentes ou ne citent pas geste_centre ; rien n''est changé';
+  end if;
+end $garde_b$;
+
+revoke insert, delete on public.affectations from authenticated;
+
+alter policy affectations_ajout on public.affectations
+  with check (false);
+
+alter policy affectations_retrait on public.affectations
+  using (false);

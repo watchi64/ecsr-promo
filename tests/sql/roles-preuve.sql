@@ -225,6 +225,11 @@ insert into personnages (ordre, nom, email, role, is_admin, promo_fiche, formate
 -- (promos où il est formateur), {dir_de} (lieux où il est direction). maj : la modification jouée sur toute la
 -- table (une colonne, une valeur constante qui n'existe nulle part). prep_suppr : obstacle levé en propriétaire avant
 -- la suppression. « false » : aucune écriture depuis l'app (fonction serveur, déclencheur, droit retiré).
+-- L'état de la migration 5 du chantier titres, lu une fois : une fois retirer_titre posée, les écritures directes sur affectations sont
+-- fermées (droit d'insertion et de suppression retiré, règles à false) ; la matrice et le groupe h se jugent alors à l'état fermé.
+drop table if exists pg_temp.etat_titres;
+create temp table etat_titres as
+  select to_regprocedure('public.retirer_titre(text, bigint, integer)') is not null as ferme;
 drop table if exists pg_temp.matrice;
 create temp table matrice (tbl text primary key, lecture text not null, ajout text not null, modif text not null,
   suppr text not null, maj text not null, prep_suppr text);
@@ -434,6 +439,10 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
   select 'public.journal_droits', 'false', 'false', 'false', 'false', $mx$action = 'PreuveMaj'$mx$, null
    where to_regclass('public.journal_droits') is not null;
+-- Affectations, état fermé (migration 5 du chantier titres) : ni ajout ni retrait en écriture directe, quel que soit l'acteur ; les fonctions
+-- inviter_compte, regler_affectations_formateur et retirer_titre sont le seul chemin (groupe h).
+update matrice set ajout = 'false', suppr = 'false'
+ where tbl = 'public.affectations' and (select ferme from pg_temp.etat_titres);
 
 -- Les ajouts tentés, table par table. sorte : promo (promo affichée, autre promo), lieu (lieu affiché, autre lieu),
 -- stagiaire (sa fiche, autre fiche de la promo affichée, fiche d'une autre promo), benevole (du lieu affiché, d'un
@@ -1083,7 +1092,7 @@ declare
   c_fond constant text := 'preuve.fond@exemple.invalid';
   c_invite constant text := 'preuve.invite@exemple.invalid';
   c_exempts constant text[] := array['public.promos', 'public.lieux', 'public.user_profiles', 'public.conditions_acceptations', 'public.qcm_signalements'];
-  v_qcm_d bigint; v_f1 integer; v_f2 integer; v_l1 integer; v_l2 integer; v_prof integer; v_sl bigint; v_sc boolean;
+  v_qcm_d bigint; v_f1 integer; v_f2 integer; v_l1 integer; v_l2 integer; v_prof integer; v_sl bigint; v_sc boolean; v_ferme boolean; v_tform bigint;
   -- Le réglage écrit sous la forme de l'app (db.js : upsert sur promo_id,key ; la promo vient de l'en-tête).
   c_examen constant text := $pv$insert into public.qcm_examens (qcm_id, published, published_by_email) values (%s, true, 'preuve.examen@exemple.invalid') on conflict (promo_id, qcm_id) do update set qcm_id = excluded.qcm_id, published = excluded.published, published_by_email = excluded.published_by_email$pv$;
   c_reglage constant text := $pv$insert into public.settings (key, value, updated_at) values (%L, %L, now()) on conflict (promo_id, key) do update set value = excluded.value, updated_at = excluded.updated_at$pv$;
@@ -1916,30 +1925,70 @@ begin
                                and not has_function_privilege('anon', f, 'execute') end)
        from unnest(array['public.inviter_compte(text, text, integer, integer, integer)', 'public.creer_promo(integer, text, date, date)',
                          'public.modifier_dates_promo(integer, date, date)']) f), 'droits');
-  --    h) Affectations, par écriture directe : la direction du lieu affecte ses formateurs, le siège ses directions, le
-  --       fondateur le siège ; nul ne modifie une ligne.
-  for v_x in select * from (values
-    ('dir_n affecte form_m à la promo 1 : permis', c_dir_n, 'insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1)', c_form_m, array['OK 1 1']),
-    ('dir_n affecte form_m à la promo 2 : refusé', c_dir_n, 'insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 2)', c_form_m, array['REFUS 42501']),
-    ('form_n n''affecte personne comme formateur : refusé', c_form_n, 'insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1)', c_personnel, array['REFUS 42501']),
-    ('form_n n''affecte personne à la direction : refusé', c_form_n, 'insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', ' || v_l1 || ')', c_personnel, array['REFUS 42501']),
-    ('form_n n''affecte personne au siège : refusé', c_form_n, 'insert into public.affectations (email, role) values (%L, ''siege'')', c_personnel, array['REFUS 42501']),
-    ('dir_n n''affecte personne à la direction : refusé', c_dir_n, 'insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', ' || v_l1 || ')', c_personnel, array['REFUS 42501']),
-    ('stag_n n''affecte personne : refusé', c_stag_n, 'insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1)', c_personnel, array['REFUS 42501']),
-    ('le siège ajoute une direction : permis', c_siege, 'insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', ' || v_l1 || ')', c_personnel, array['OK 1 1']),
-    ('le siège n''ajoute pas un siège : refusé', c_siege, 'insert into public.affectations (email, role) values (%L, ''siege'')', c_personnel, array['REFUS 42501']),
-    ('le fondateur ajoute un siège : permis', c_fond, 'insert into public.affectations (email, role) values (%L, ''siege'')', c_personnel, array['OK 1 1'])
-  ) a(lib, email, sql, cible, att) loop
-    perform pg_temp.cas('affectations', v_x.lib, v_x.email, '1', null, null, format(v_x.sql, v_x.cible),
-      format('select count(*)::text from public.affectations where email = %L and promo_id is not distinct from %s', v_x.cible,
-             case when v_x.sql like '%promo_id%' then (case when v_x.lib like '%promo 2%' then '2' else '1' end) else 'null' end), v_x.att);
-  end loop;
-  perform pg_temp.cas('affectations', 'dir_n retire un formateur de sa promo : permis', c_dir_n, '1', null, null,
-    format('delete from public.affectations where email = %L and role = ''formateur''', c_form_n), format('select count(*)::text from public.affectations where email = %L', c_form_n), array['OK 1 0']);
-  perform pg_temp.cas('affectations', 'form_n ne retire pas sa propre affectation : refusé', c_form_n, '1', null, null,
-    format('delete from public.affectations where email = %L and role = ''formateur''', c_form_n), format('select count(*)::text from public.affectations where email = %L', c_form_n), array['OK 0 1', 'REFUS 42501']);
-  perform pg_temp.cas('affectations', 'dir_n ne modifie aucune affectation : refusé', c_dir_n, '1', null, null,
-    format('update public.affectations set promo_id = 2 where email = %L and role = ''formateur''', c_form_n), null, array['REFUS 42501']);
+  --    h) Affectations : tant que retirer_titre n'existe pas (avant la migration 5 du chantier titres), par écriture directe : la
+  --       direction du lieu affecte ses formateurs, le siège ses directions, le fondateur le siège ; nul ne modifie une ligne.
+  --       Une fois la migration 5 posée, par les fonctions (mêmes attendus) et plus aucune écriture directe.
+  v_ferme := (select ferme from pg_temp.etat_titres);
+  if not v_ferme then
+    for v_x in select * from (values
+      ('dir_n affecte form_m à la promo 1 : permis', c_dir_n, 'insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1)', c_form_m, array['OK 1 1']),
+      ('dir_n affecte form_m à la promo 2 : refusé', c_dir_n, 'insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 2)', c_form_m, array['REFUS 42501']),
+      ('form_n n''affecte personne comme formateur : refusé', c_form_n, 'insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1)', c_personnel, array['REFUS 42501']),
+      ('form_n n''affecte personne à la direction : refusé', c_form_n, 'insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', ' || v_l1 || ')', c_personnel, array['REFUS 42501']),
+      ('form_n n''affecte personne au siège : refusé', c_form_n, 'insert into public.affectations (email, role) values (%L, ''siege'')', c_personnel, array['REFUS 42501']),
+      ('dir_n n''affecte personne à la direction : refusé', c_dir_n, 'insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', ' || v_l1 || ')', c_personnel, array['REFUS 42501']),
+      ('stag_n n''affecte personne : refusé', c_stag_n, 'insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1)', c_personnel, array['REFUS 42501']),
+      ('le siège ajoute une direction : permis', c_siege, 'insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', ' || v_l1 || ')', c_personnel, array['OK 1 1']),
+      ('le siège n''ajoute pas un siège : refusé', c_siege, 'insert into public.affectations (email, role) values (%L, ''siege'')', c_personnel, array['REFUS 42501']),
+      ('le fondateur ajoute un siège : permis', c_fond, 'insert into public.affectations (email, role) values (%L, ''siege'')', c_personnel, array['OK 1 1'])
+    ) a(lib, email, sql, cible, att) loop
+      perform pg_temp.cas('affectations', v_x.lib, v_x.email, '1', null, null, format(v_x.sql, v_x.cible),
+        format('select count(*)::text from public.affectations where email = %L and promo_id is not distinct from %s', v_x.cible,
+               case when v_x.sql like '%promo_id%' then (case when v_x.lib like '%promo 2%' then '2' else '1' end) else 'null' end), v_x.att);
+    end loop;
+    perform pg_temp.cas('affectations', 'dir_n retire un formateur de sa promo : permis', c_dir_n, '1', null, null,
+      format('delete from public.affectations where email = %L and role = ''formateur''', c_form_n), format('select count(*)::text from public.affectations where email = %L', c_form_n), array['OK 1 0']);
+    perform pg_temp.cas('affectations', 'form_n ne retire pas sa propre affectation : refusé', c_form_n, '1', null, null,
+      format('delete from public.affectations where email = %L and role = ''formateur''', c_form_n), format('select count(*)::text from public.affectations where email = %L', c_form_n), array['OK 0 1', 'REFUS 42501']);
+    perform pg_temp.cas('affectations', 'dir_n ne modifie aucune affectation : refusé', c_dir_n, '1', null, null,
+      format('update public.affectations set promo_id = 2 where email = %L and role = ''formateur''', c_form_n), null, array['REFUS 42501']);
+  else
+    -- État fermé (migration 5 du chantier titres) : plus aucune écriture directe ; les mêmes treize cas, par les fonctions, aux mêmes attendus.
+    v_tform := (select public.titre_fixe('promo'));
+    for v_x in select * from (values
+      ('dir_n invite form_m comme formateur de la promo 1 : permis', c_dir_n, '1', format('select public.inviter_compte(%L, ''formateur'')', c_form_m),
+        format('select count(*)::text from public.affectations where email = %L and promo_id = 1', c_form_m), array['OK 1 1']),
+      ('dir_n règle form_m sur la promo 2 d''un autre centre : refusé', c_dir_n, '1', format('select public.regler_affectations_formateur(%L, %s, ''{2}'')', c_form_m, v_l2), null, array['REFUS 42501']),
+      ('form_n n''invite personne comme formateur : refusé', c_form_n, '1', format('select public.inviter_compte(%L, ''formateur'')', c_personnel), null, array['REFUS 42501']),
+      ('form_n n''invite personne à la direction : refusé', c_form_n, '1', format('select public.inviter_compte(%L, ''direction'', null, null, %s)', c_personnel, v_l1), null, array['REFUS 42501']),
+      ('form_n n''invite personne au siège : refusé', c_form_n, '1', format('select public.inviter_compte(%L, ''siege'')', c_personnel), null, array['REFUS 42501']),
+      ('dir_n n''invite personne à la direction : refusé', c_dir_n, '1', format('select public.inviter_compte(%L, ''direction'', null, null, %s)', c_personnel, v_l1), null, array['REFUS 42501']),
+      ('stag_n n''invite personne : refusé', c_stag_n, '1', format('select public.inviter_compte(%L, ''formateur'')', c_personnel), null, array['REFUS 42501']),
+      ('le siège invite une direction : permis', c_siege, null, format('select public.inviter_compte(%L, ''direction'', null, null, %s)', c_personnel, v_l1),
+        format('select count(*)::text from public.affectations where email = %L and role = ''direction''', c_personnel), array['OK 1 1']),
+      ('le siège n''invite pas un siège : refusé', c_siege, null, format('select public.inviter_compte(%L, ''siege'')', c_personnel), null, array['REFUS 42501']),
+      ('le fondateur invite un siège : permis', c_fond, '1', format('select public.inviter_compte(%L, ''siege'')', c_personnel),
+        format('select count(*)::text from public.affectations where email = %L and role = ''siege''', c_personnel), array['OK 1 1']),
+      ('dir_n retire le Formateur de form_n par retirer_titre : permis', c_dir_n, '1', format('select public.retirer_titre(%L, %s, %s)', c_form_n, v_tform, v_l1),
+        format('select count(*)::text from public.affectations where email = %L', c_form_n), array['OK 1 0']),
+      ('form_n ne retire pas sa propre ligne par retirer_titre : refusé', c_form_n, '1', format('select public.retirer_titre(%L, %s, %s)', c_form_n, v_tform, v_l1), null, array['REFUS 42501'])
+    ) a(lib, email, ctx, sql, constat, att) loop
+      perform pg_temp.cas('affectations', v_x.lib, v_x.email, v_x.ctx, null, null, v_x.sql, v_x.constat, v_x.att);
+    end loop;
+    perform pg_temp.cas('affectations', 'dir_n ne modifie aucune affectation : refusé', c_dir_n, '1', null, null,
+      format('update public.affectations set promo_id = 2 where email = %L and role = ''formateur''', c_form_n), null, array['REFUS 42501']);
+    -- Et aucune écriture directe, pour aucun acteur : une insertion et une suppression chacun, tous refusés (42501).
+    for v_x in select * from (values
+      ('dir_n', c_dir_n, '1', format('insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1)', c_form_m), format('delete from public.affectations where email = %L', c_form_n)),
+      ('form_n', c_form_n, '1', format('insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1)', c_personnel), format('delete from public.affectations where email = %L', c_form_n)),
+      ('stag_n', c_stag_n, '1', format('insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1)', c_personnel), format('delete from public.affectations where email = %L', c_form_n)),
+      ('siege', c_siege, null, format('insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', %s)', c_personnel, v_l1), format('delete from public.affectations where email = %L', c_dir_n)),
+      ('fond', c_fond, '1', format('insert into public.affectations (email, role) values (%L, ''siege'')', c_personnel), format('delete from public.affectations where email = %L', c_form_n))
+    ) a(nom, email, ctx, ins, sup) loop
+      perform pg_temp.cas('affectations', v_x.nom || ' : l''insertion directe dans affectations est refusée', v_x.email, v_x.ctx, null, null, v_x.ins, null, array['REFUS 42501']);
+      perform pg_temp.cas('affectations', v_x.nom || ' : la suppression directe dans affectations est refusée', v_x.email, v_x.ctx, null, null, v_x.sup, null, array['REFUS 42501']);
+    end loop;
+  end if;
   --    i) Promos : créer et changer les dates par les fonctions (direction du lieu ou fondateur), renommer par le formateur de
   --       la promo ou la direction du lieu, et rien d'autre en écriture directe (m8 : date_debut, date_fin et lieu_id ne se
   --       modifient pas directement, même par qui a le droit de renommer). creer_promo consomme une identité de promo, que

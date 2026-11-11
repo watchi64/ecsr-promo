@@ -5,6 +5,8 @@
 --                chaque migration et chaque retour injectés se jouent sans erreur, personnages de l'étape 2 posés.
 --   retrait      (migration 5, A) retirer_titre pour les titres fixes : droits, phrases de refus, jamais sur soi, aperçu du fondateur.
 --   soi          (migration 5, A) personne ne se nomme soi-même à la direction par inviter_compte (le fondateur, hors aperçu, excepté).
+--   ecritures    (migration 5, B) plus aucune écriture directe sur affectations (droits de table, règles à false, chaque acteur), les fonctions
+--                restent le seul chemin ; le scénario de la relecture finale (un siège ne se nomme pas direction) ne lit rien.
 --   retour       les retours défont tout, dans l'ordre inverse (6, 5, 4) : l'empreinte (règles, fonctions, droits) égale celle d'avant.
 -- Les groupes des migrations 5 et 6 s'ajoutent avec leurs tâches (retrait, soi, ecritures, lectures ; puis verrou, donner, retirer,
 -- gerer, lire, immediat, journal). Un groupe dont la fonction n'existe pas est sauté, avec une ligne d'information, en mode
@@ -291,6 +293,101 @@ begin
   perform pg_temp.essai('delete from pg_temp.perso where nom = ''fond2''');
 end $tgs$;
 
+-- Une écriture directe sur affectations qui doit être refusée (42501) ou ne toucher aucune ligne (OK 0), sans jamais écrire ni retirer :
+-- p_sql rend le nombre de lignes touchées ; p_lignes (jouée par le propriétaire) dit combien de lignes de la cible existent après, et
+-- p_attendu combien il devait en rester.
+create or replace function pg_temp.ecriture_refusee(p_libelle text, p_qui text, p_entete text, p_apercu text, p_sql text, p_lignes text, p_attendu text)
+returns void language plpgsql as $ter$
+declare r text; v_n text;
+begin
+  r := pg_temp.appeler_a(p_qui, p_entete, p_apercu, p_sql);
+  v_n := pg_temp.calcul(p_lignes);
+  perform pg_temp.verifier('ecritures', p_libelle, (r like 'ERREUR 42501%' or r = 'OK 0') and v_n = p_attendu,
+    format('obtenu %s, lignes restantes %s ; attendu 42501 ou OK 0, lignes %s', left(r, 90), coalesce(v_n, 'nul'), p_attendu));
+end $ter$;
+
+-- Groupe ecritures (migration 5, partie B) : plus aucune écriture directe sur affectations, quel que soit l'acteur ; les fonctions
+-- (inviter_compte, regler_affectations_formateur, retirer_titre) restent le seul chemin.
+create or replace function pg_temp.groupe_ecritures()
+returns void language plpgsql as $tge$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  e_x text := (select email from pg_temp.perso where nom = 'x');
+  e_y text := (select email from pg_temp.perso where nom = 'y');
+  e_form_n text := (select email from pg_temp.perso where nom = 'form_n');
+  e_form_m text := (select email from pg_temp.perso where nom = 'form_m');
+  e_dir_n text := (select email from pg_temp.perso where nom = 'dir_n');
+  e_siege text := (select email from pg_temp.perso where nom = 'siege');
+  e_siege_form text := (select email from pg_temp.perso where nom = 'siege_form');
+  v_ligne_x text;
+  v_acteurs text[][] := array[['dir_n', '1'], ['siege', null], ['form_n', '1'], ['stag_n', '1'], ['fond', '1']];
+  v_a text[];
+  v_sql text;
+  v_depart text;
+begin
+  -- y a un profil et aucune ligne : la cible des insertions (sans profil, la clé étrangère répondrait avant les droits).
+  insert into public.user_profiles (email, role, is_admin, stagiaire_id) values (e_y, 'prof', false, null);
+  v_ligne_x := format('select count(*)::text from public.affectations where lower(email) = lower(%L)', e_y);
+  perform pg_temp.verifier('ecritures', 'départ : y (profil seul) n''a aucune ligne, form_m en a une, siege_form une, dir_n une direction',
+    pg_temp.calcul(v_ligne_x) = '0' and pg_temp.lignes(e_form_m, 'formateur') = '1' and pg_temp.lignes(e_siege_form, 'siege') = '1' and pg_temp.lignes(e_dir_n, 'direction') = '1',
+    format('y %s, form_m %s, siege_form %s, dir_n %s', pg_temp.calcul(v_ligne_x), pg_temp.lignes(e_form_m, 'formateur'), pg_temp.lignes(e_siege_form, 'siege'), pg_temp.lignes(e_dir_n, 'direction')));
+  -- Les droits de la table : plus d'insertion ni de suppression pour authenticated, la lecture reste.
+  perform pg_temp.attendre('ecritures', 'authenticated : pas d''insertion, pas de suppression, pas de modification, la lecture reste',
+    pg_temp.calcul($q$select concat_ws('/', has_table_privilege('authenticated', 'public.affectations', 'insert')::text,
+      has_table_privilege('authenticated', 'public.affectations', 'delete')::text, has_table_privilege('authenticated', 'public.affectations', 'update')::text,
+      has_table_privilege('authenticated', 'public.affectations', 'select')::text)$q$), 'false/false/false/true');
+  perform pg_temp.attendre('ecritures', 'aucune colonne d''affectations n''est insérable ni modifiable par authenticated',
+    pg_temp.calcul($q$select count(*)::text from pg_attribute a where a.attrelid = 'public.affectations'::regclass and a.attnum > 0 and not a.attisdropped
+      and (has_column_privilege('authenticated', a.attrelid, a.attnum, 'insert') or has_column_privilege('authenticated', a.attrelid, a.attnum, 'update'))$q$), '0');
+  perform pg_temp.attendre('ecritures', 'anon : ni insertion, ni suppression, ni lecture',
+    pg_temp.calcul($q$select concat_ws('/', has_table_privilege('anon', 'public.affectations', 'insert')::text, has_table_privilege('anon', 'public.affectations', 'delete')::text,
+      has_table_privilege('anon', 'public.affectations', 'select')::text)$q$), 'false/false/false');
+  perform pg_temp.attendre('ecritures', 'les deux règles d''écriture refusent tout (with check false, using false) et gardent leurs noms et leurs commandes',
+    pg_temp.calcul($q$select string_agg(policyname || ':' || cmd || ':' || coalesce(with_check, qual), ',' order by policyname collate "C") from pg_policies
+      where schemaname = 'public' and tablename = 'affectations' and policyname in ('affectations_ajout', 'affectations_retrait')$q$),
+    'affectations_ajout:INSERT:false,affectations_retrait:DELETE:false');
+  -- Chaque acteur, une insertion et une suppression : jamais une ligne écrite ni retirée.
+  foreach v_a slice 1 in array v_acteurs loop
+    v_sql := case v_a[1]
+      when 'siege' then format('with i as (insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', %s) returning 1) select count(*)::text from i', e_y, v_l1)
+      when 'fond' then format('with i as (insert into public.affectations (email, role) values (%L, ''siege'') returning 1) select count(*)::text from i', e_y)
+      else format('with i as (insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1) returning 1) select count(*)::text from i', e_y)
+    end;
+    perform pg_temp.ecriture_refusee(v_a[1] || ' n''insère aucune ligne dans affectations', v_a[1], v_a[2], null, v_sql, v_ligne_x, '0');
+  end loop;
+  perform pg_temp.ecriture_refusee('dir_n ne retire pas le formateur form_n de son centre', 'dir_n', '1', null,
+    format('with d as (delete from public.affectations where lower(email) = %L and role = ''formateur'' returning 1) select count(*)::text from d', e_form_n),
+    format('select count(*)::text from public.affectations where lower(email) = %L and role = ''formateur''', e_form_n), '1');
+  perform pg_temp.ecriture_refusee('siege ne retire pas la direction de dir_n', 'siege', null, null,
+    format('with d as (delete from public.affectations where lower(email) = %L and role = ''direction'' returning 1) select count(*)::text from d', e_dir_n),
+    format('select count(*)::text from public.affectations where lower(email) = %L and role = ''direction''', e_dir_n), '1');
+  perform pg_temp.ecriture_refusee('fond ne retire pas le siège de siege_form', 'fond', '1', null,
+    format('with d as (delete from public.affectations where lower(email) = %L and role = ''siege'' returning 1) select count(*)::text from d', e_siege_form),
+    format('select count(*)::text from public.affectations where lower(email) = %L and role = ''siege''', e_siege_form), '1');
+  perform pg_temp.ecriture_refusee('form_n ne retire pas sa propre ligne', 'form_n', '1', null,
+    format('with d as (delete from public.affectations where lower(email) = %L and role = ''formateur'' returning 1) select count(*)::text from d', e_form_n),
+    format('select count(*)::text from public.affectations where lower(email) = %L and role = ''formateur''', e_form_n), '1');
+  perform pg_temp.ecriture_refusee('stag_n ne retire aucune ligne', 'stag_n', '1', null,
+    format('with d as (delete from public.affectations where lower(email) = %L returning 1) select count(*)::text from d', e_form_m),
+    format('select count(*)::text from public.affectations where lower(email) = %L', e_form_m), '1');
+  perform pg_temp.ecriture_refusee('fond en aperçu direction n''insère rien non plus', 'fond', '1', 'direction',
+    format('with i as (insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1) returning 1) select count(*)::text from i', e_y), v_ligne_x, '0');
+  -- Le scénario de la relecture finale (I4) : un siège ne se nomme pas direction par écriture directe, puis ne lit pas les stagiaires.
+  perform pg_temp.ecriture_refusee('I4 : siege insère une ligne direction à sa propre adresse sur le centre de la promo 1 : refusé, aucune ligne', 'siege', '1', null,
+    format('with i as (insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', %s) returning 1) select count(*)::text from i', e_siege, v_l1),
+    format('select count(*)::text from public.affectations where lower(email) = %L and role = ''direction''', e_siege), '0');
+  perform pg_temp.attendre('ecritures', 'I4 : siege, sous l''en-tête de la promo 1, ne lit aucun stagiaire',
+    pg_temp.appeler_a('siege', '1', null, 'select count(*)::text from public.stagiaires'), 'OK 0');
+  -- Les fonctions écrivent toujours (security definer) : c'est le seul chemin.
+  perform pg_temp.attendre('ecritures', 'inviter_compte écrit encore : dir_n invite x comme formateur de la promo 1, une ligne',
+    pg_temp.appeler_a('dir_n', '1', null, format($q$select (public.inviter_compte(%L, 'formateur'))->>'affecte'$q$, e_x)) || ' / ' || pg_temp.lignes(e_x, 'formateur'),
+    'OK 1 / 1');
+  perform pg_temp.attendre('ecritures', 'regler_affectations_formateur écrit encore : dir_n retire x de la promo 1 (liste vide), une ligne retirée',
+    pg_temp.appeler_a('dir_n', '1', null, format($q$select (public.regler_affectations_formateur(%L, %s, '{}'))->>'retirees'$q$, e_x, v_l1)) || ' / ' || pg_temp.lignes(e_x, 'formateur'),
+    'OK [1] / 0');
+  perform pg_temp.essai(format('delete from public.user_profiles where lower(email) in (%L, %L)', e_x, e_y));
+end $tge$;
+
 do $tprg$
 declare
   v_mode constant text :=
@@ -350,6 +447,9 @@ begin
   end if;
   if pg_temp.groupe_a_jouer('soi', v_etat5, 'public.retirer_titre(text, bigint, integer)', v_mode) then
     perform pg_temp.groupe_soi();
+  end if;
+  if pg_temp.groupe_a_jouer('ecritures', v_etat5, 'public.retirer_titre(text, bigint, integer)', v_mode) then
+    perform pg_temp.groupe_ecritures();
   end if;
 
   -- 5. Les retours, dans l'ordre inverse (6, 5, 4).

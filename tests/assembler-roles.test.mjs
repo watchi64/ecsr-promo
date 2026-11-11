@@ -1051,3 +1051,46 @@ test("gestion : la ligne de commande écrit hors du dépôt et refuse une suite 
     rmSync(dossier, { recursive: true, force: true });
   }
 });
+
+test("les fichiers de la migration 5 : aucun tiret cadratin, fins de ligne LF, lock_timeout en tête, aucune adresse de connexion", () => {
+  for (const chemin of [GESTION_5.migration, GESTION_5.retour, "outils/generer_fragments_titres_5.py"]) {
+    const brut = readFileSync(join(RACINE, chemin), "utf8");
+    assert.ok(!brut.includes(String.fromCharCode(0x2014)), `${chemin} : aucun tiret cadratin`);
+    assert.ok(!brut.includes("\r") || chemin.endsWith(".py"), `${chemin} : fins de ligne LF`);
+    assert.ok(!/postgres(ql)?:\/\/[^\s"')]*:[^\s"')]*@/.test(brut), `${chemin} : aucune adresse de connexion avec mot de passe`);
+    if (chemin.startsWith("supabase/")) assert.match(brut, /^set local lock_timeout = '3s';$/m, `${chemin} : lock_timeout`);
+  }
+});
+
+test("la migration 5 : retirer_titre fermée à public, anon et service_role, ouverte à authenticated seul ; règles réécrites par alter policy, jamais drop + create ; retour dans l'ordre inverse", () => {
+  const m = texteDuDepot(GESTION_5.migration);
+  assert.match(m, /revoke all on function public\.retirer_titre\(text, bigint, integer\) from public, anon, service_role;/);
+  assert.match(m, /grant execute on function public\.retirer_titre\(text, bigint, integer\) to authenticated;/);
+  assert.match(m, /language plpgsql security definer\s+set search_path to 'public', 'pg_temp'/);
+  assert.match(m, /revoke insert, delete on public\.affectations from authenticated;/);
+  assert.match(m, /alter policy affectations_ajout on public\.affectations\s+with check \(false\);/);
+  assert.match(m, /alter policy affectations_retrait on public\.affectations\s+using \(false\);/);
+  assert.ok(!/drop policy|create policy/.test(m), "aucune règle supprimée ni recréée");
+  // Les phrases de refus de retirer_titre commencent par « titres: » ; un droit manquant lève 42501.
+  assert.equal((m.match(/errcode = '42501'/g) ?? []).length >= 5, true);
+  for (const phrase of ["Connexion requise.", "Titre introuvable.", "Ce titre ne se retire pas encore ici.", "Le centre est requis.", "Réservé à la direction du centre.",
+    "Réservé au siège.", "Réservé au fondateur.", "Vous ne pouvez pas retirer votre propre titre.", "Cette personne n''a pas ce titre ici."]) {
+    assert.ok(m.includes(`'titres: ${phrase}'`), `phrase « ${phrase} »`);
+  }
+  assert.ok(m.includes("invitation: Vous ne pouvez pas vous nommer vous-même à la direction."), "phrase d'inviter_compte");
+  const r = texteDuDepot(GESTION_5.retour);
+  assert.match(r, /grant delete on public\.affectations to authenticated;/);
+  assert.match(r, /grant insert \(email, role, promo_id, lieu_id\) on public\.affectations to authenticated;/);
+  assert.match(r, /drop function if exists public\.retirer_titre\(text, bigint, integer\);/);
+  assert.ok(r.indexOf("grant delete on public.affectations") < r.indexOf("do $migration$"), "droits et règles d'abord, puis les fragments, puis la fonction");
+  assert.ok(r.indexOf("do $migration$") < r.indexOf("drop function if exists public.retirer_titre"), "la fonction part en dernier");
+  assert.match(r, /proname = 'donner_titre'/, "garde d'ordre : retour 6 d'abord");
+  // Les deux expressions du retour sont celles de la migration 3, relues dans le fichier.
+  const m3 = texteDuDepot(ETAPES_TITRES[3].migration);
+  for (const nom of ["affectations_ajout", "affectations_retrait"]) {
+    const re = new RegExp(`^alter policy ${nom} on public\.affectations\n  [^\n]*;$`, "m");
+    assert.equal(re.exec(r)?.[0], re.exec(m3)?.[0], `${nom} : expression de la migration 3`);
+  }
+  // Le retour 3 refuse de se jouer tant que retirer_titre existe.
+  assert.match(texteDuDepot(ETAPES_TITRES[3].retour), /to_regprocedure\('public\.retirer_titre\(text, bigint, integer\)'\) is not null/);
+});
