@@ -10,6 +10,11 @@
 --               benevoles_a_purger(p_lieu) et purger_benevoles(p_ids, p_lieu) : la direction du lieu, jamais un autre lieu.
 --   Retour      les deux fonctions redéfinies ont le texte d'avant (md5), les nouvelles n'existent plus, les versions sans
 --               argument n'ont jamais bougé, l'empreinte (règles, fonctions, droits) égale celle d'avant.
+--   Q5          la conservation à 3 ans (20261110_conservation.sql, Qualiopi Q5) retire _anonymiser_stagiaire, les deux versions
+--               sans argument (etat_anonymisation_promo(), anonymiser_promo()) et les deux versions à argument de cette
+--               migration : la conservation des fiches est au fondateur, sur la page Qualiopi. Les cas de l'anonymisation ne se
+--               jouent que si ces fonctions existent (base sans Q5) ; base où Q5 est appliquée (effacer_sur_demande existe), mode
+--               donnees-en-ligne : un cas vérifie leur absence à toutes, et la purge des bénévoles reste prouvée.
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes (tests/sql/roles-aides.sql),
 -- le libellé du mode, la requête d'empreinte et la migration 4 avec son retour :
 --   node outils/assembler_repetition_roles.mjs donnees <sortie.sql>                 la migration injectée : VERT attendu
@@ -149,6 +154,8 @@ declare
   c_refus_promo constant text := 'ERREUR 42501 Réservé à la direction du centre ou au formateur de la promo';
   c_refus_centre constant text := 'ERREUR 42501 Réservé à la direction du centre';
   v_en_ligne boolean;
+  -- Qualiopi Q5 appliquée (voir l'en-tête) : les fonctions d'anonymisation n'existent plus.
+  v_q5 constant boolean := to_regprocedure('public.effacer_sur_demande(integer)') is not null;
   v_etat text; v_retour text;
   v_av_regles text; v_av_fonctions text; v_av_droits text;
   v_ap_regles text; v_ap_fonctions text; v_ap_droits text;
@@ -168,7 +175,7 @@ begin
   select e.regles, e.fonctions, e.droits into v_av_regles, v_av_fonctions, v_av_droits from pg_temp.empreinte() e;
   v_ic_md5 := md5(pg_get_functiondef('public.inviter_compte(text, text, integer, integer, integer)'::regprocedure));
   v_rg_md5 := md5(pg_get_functiondef('public.regler_affectations_formateur(text, integer, integer[], integer)'::regprocedure));
-  v_anciennes := (select string_agg(md5(pg_get_functiondef(x::regprocedure)), ',' order by x)
+  v_anciennes := (select string_agg(coalesce(md5(pg_get_functiondef(to_regprocedure(x))), 'absente'), ',' order by x)
                     from unnest(array['public.etat_anonymisation_promo()', 'public.anonymiser_promo()',
                                       'public.benevoles_a_purger()', 'public.purger_benevoles(integer[])']) x);
   v_lieu1 := (select lieu_id from public.promos where id = 1);
@@ -177,10 +184,12 @@ begin
   perform pg_temp.verifier('structure', 'un fondateur trouvé par requête (adresse jamais affichée), les promos 1 et 2 et leurs centres',
     v_fond is not null and v_lieu1 is not null and v_lieu2 is not null and v_lieu1 <> v_lieu2,
     format('centres des promos 1 et 2 : %s et %s', coalesce(v_lieu1::text, 'nul'), coalesce(v_lieu2::text, 'nul')));
-  perform pg_temp.verifier('structure', 'les trois fonctions d''avant la migration 4 existent (étape 2 jouée)',
+  perform pg_temp.verifier('structure', 'les trois fonctions d''avant la migration 4 existent (étape 2 jouée ; etat_anonymisation_promo() retirée si Q5 est appliquée)',
     to_regprocedure('public._profil_formateur(text, integer, text)') is not null
     and to_regprocedure('public.regler_affectations_formateur(text, integer, integer[], integer)') is not null
-    and to_regprocedure('public.etat_anonymisation_promo()') is not null, '');
+    and (v_q5 or to_regprocedure('public.etat_anonymisation_promo()') is not null), '');
+  perform pg_temp.informer('Qualiopi Q5', case when v_q5 then 'appliquée : cas de l''anonymisation remplacés par le contrôle de son absence'
+                                              else 'absente : cas de l''anonymisation joués' end);
 
   -- 2. La migration, injectée telle quelle (neutralisée dans les modes sans elle).
   v_etat := pg_temp.jouer('migration 4',
@@ -343,119 +352,130 @@ begin
          else pg_temp.calcul(format(c_exec, 'public._orphelin_en_personnel(text, boolean, integer, text)')) end, 'f,f,f');
 
   -- 5. Données personnelles : état et anonymisation d'une promo, par la direction du centre.
-  perform pg_temp.attendre('donnees', 'droit d''exécution de etat_anonymisation_promo(integer) : authenticated oui, anon et service_role non',
-    case when to_regprocedure('public.etat_anonymisation_promo(integer)') is null then 'absente'
-         else pg_temp.calcul(format(c_exec, 'public.etat_anonymisation_promo(integer)')) end, 't,f,f');
-  perform pg_temp.attendre('donnees', 'droit d''exécution de anonymiser_promo(integer) : authenticated oui, anon et service_role non',
-    case when to_regprocedure('public.anonymiser_promo(integer)') is null then 'absente'
-         else pg_temp.calcul(format(c_exec, 'public.anonymiser_promo(integer)')) end, 't,f,f');
   perform pg_temp.attendre('donnees', 'droit d''exécution de benevoles_a_purger(integer) : authenticated oui, anon et service_role non',
     case when to_regprocedure('public.benevoles_a_purger(integer)') is null then 'absente'
          else pg_temp.calcul(format(c_exec, 'public.benevoles_a_purger(integer)')) end, 't,f,f');
   perform pg_temp.attendre('donnees', 'droit d''exécution de purger_benevoles(integer[], integer) : authenticated oui, anon et service_role non',
     case when to_regprocedure('public.purger_benevoles(integer[], integer)') is null then 'absente'
          else pg_temp.calcul(format(c_exec, 'public.purger_benevoles(integer[], integer)')) end, 't,f,f');
-  perform pg_temp.attendre('donnees', 'les versions sans argument sont intactes (md5 des quatre définitions d''avant)',
-    (select string_agg(md5(pg_get_functiondef(x::regprocedure)), ',' order by x)
+  perform pg_temp.attendre('donnees', 'les versions sans argument sont intactes (md5 des quatre définitions d''avant ; « absente » des deux d''anonymisation si Q5 est appliquée)',
+    (select string_agg(coalesce(md5(pg_get_functiondef(to_regprocedure(x))), 'absente'), ',' order by x)
        from unnest(array['public.etat_anonymisation_promo()', 'public.anonymiser_promo()',
                          'public.benevoles_a_purger()', 'public.purger_benevoles(integer[])']) x), v_anciennes);
-  -- 5.1 Lecture de l'état par la direction du lieu 1, promo 1 affichée (donc pas la promo lue).
-  perform pg_temp.attendre('donnees', 'la direction du lieu 1 lit l''état d''une promo finie depuis plus de 12 mois qui n''est pas la promo affichée (anonymisable, 2 restants, 1 compte du personnel, 0 anonymisé)',
-    pg_temp.appeler(c_dir1, '1', null, format('select concat_ws('' '', r->>''anonymisable'', r->>''restants'', r->>''comptes_admin'', r->>''anonymises'') from (select public.etat_anonymisation_promo(%s) r) z', v_pf1)),
-    'OK true 2 1 0');
-  perform pg_temp.attendre('donnees', 'la même, avec une autre promo affichée (promo 2, d''un autre lieu) : l''en-tête ne change rien',
-    pg_temp.appeler(c_dir1, '2', null, format('select concat_ws('' '', r->>''anonymisable'', r->>''restants'') from (select public.etat_anonymisation_promo(%s) r) z', v_pf1)),
-    'OK true 2');
-  perform pg_temp.attendre('donnees', 'promo finie depuis moins de 12 mois : pas anonymisable, date de possibilité rendue',
-    pg_temp.appeler(c_dir1, '1', null, format('select concat_ws('' '', r->>''anonymisable'', r->>''restants'', ((r->>''anonymisable_le'')::date = (current_date - 30 + interval ''12 months'')::date)::text) from (select public.etat_anonymisation_promo(%s) r) z', v_pr1)),
-    'OK false 1 true');
-  perform pg_temp.attendre('donnees', 'promo sans date de fin : pas anonymisable, pas de date',
-    pg_temp.appeler(c_dir1, '1', null, format('select concat_ws('' '', r->>''anonymisable'', coalesce(r->>''anonymisable_le'', ''nul'')) from (select public.etat_anonymisation_promo(%s) r) z', v_pe1)),
-    'OK false nul');
-  perform pg_temp.attendre('donnees', 'le formateur de la promo lit son état',
-    pg_temp.appeler(c_form_a, '1', null, format('select (public.etat_anonymisation_promo(%s)->>''promo_id'')', v_pf1)), 'OK ' || v_pf1);
-  perform pg_temp.attendre('donnees', 'la direction du lieu 2 lit l''état de la promo de son lieu',
-    pg_temp.appeler(c_dir2, '2', null, format('select (public.etat_anonymisation_promo(%s)->>''restants'')', v_pf2)), 'OK 1');
-  perform pg_temp.attendre('donnees', 'le fondateur lit l''état d''une promo quelconque',
-    pg_temp.appeler(v_fond, '1', null, format('select (public.etat_anonymisation_promo(%s)->>''restants'')', v_pf2)), 'OK 1');
-  perform pg_temp.attendre('donnees', 'promo inconnue : le fondateur reçoit nul, sans erreur',
-    pg_temp.appeler(v_fond, '1', null, 'select public.etat_anonymisation_promo(990999)::text'), 'OK nul');
-  -- 5.2 Refus de l'état.
-  perform pg_temp.attendre('donnees', 'la direction du lieu 1 ne lit pas l''état d''une promo du lieu 2 (42501, avec la phrase)',
-    pg_temp.appeler(c_dir1, '1', null, format('select public.etat_anonymisation_promo(%s)::text', v_pf2)), c_refus_promo);
-  perform pg_temp.attendre('donnees', 'la direction du lieu 2 ne lit pas l''état d''une promo du lieu 1',
-    left(pg_temp.appeler(c_dir2, '2', null, format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), 12), 'ERREUR 42501');
-  perform pg_temp.attendre('donnees', 'un formateur d''une autre promo (même lieu) ne lit pas l''état',
-    pg_temp.appeler(c_form_b, '1', null, format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), c_refus_promo);
-  perform pg_temp.attendre('donnees', 'le siège (sans être direction) ne lit pas l''état',
-    pg_temp.appeler(c_siege, null, null, format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), c_refus_promo);
-  perform pg_temp.attendre('donnees', 'un stagiaire ne lit pas l''état',
-    pg_temp.appeler(c_stag, '1', null, format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), c_refus_promo);
-  perform pg_temp.attendre('donnees', 'un compte sans rôle ne lit pas l''état',
-    left(pg_temp.appeler(c_sans, null, null, format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), 12), 'ERREUR 42501');
-  perform pg_temp.attendre('donnees', 'le fondateur en aperçu siège ne lit pas l''état (droits du rôle simulé)',
-    left(pg_temp.appeler(v_fond, '1', 'siege', format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), 12), 'ERREUR 42501');
-  perform pg_temp.attendre('donnees', 'le fondateur en aperçu stagiaire ne lit pas l''état',
-    left(pg_temp.appeler(v_fond, '1', 'stagiaire', format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), 12), 'ERREUR 42501');
-  perform pg_temp.attendre('donnees', 'anon est refusé (42501, pas de droit d''exécution)',
-    left(pg_temp.appeler(null, null, null, format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), 12), 'ERREUR 42501');
-  -- 5.3 Anonymisation : refus d'abord (rien ne doit bouger).
-  perform pg_temp.attendre('donnees', 'la direction du lieu 1 n''anonymise pas une promo du lieu 2 (42501)',
-    pg_temp.appeler(c_dir1, '1', null, format('select public.anonymiser_promo(%s)::text', v_pf2)), c_refus_promo);
-  perform pg_temp.attendre('donnees', 'un formateur d''une autre promo n''anonymise pas',
-    pg_temp.appeler(c_form_b, '1', null, format('select public.anonymiser_promo(%s)::text', v_pf1)), c_refus_promo);
-  perform pg_temp.attendre('donnees', 'le siège n''anonymise pas',
-    pg_temp.appeler(c_siege, null, null, format('select public.anonymiser_promo(%s)::text', v_pf1)), c_refus_promo);
-  perform pg_temp.attendre('donnees', 'un stagiaire n''anonymise pas',
-    pg_temp.appeler(c_stag, '1', null, format('select public.anonymiser_promo(%s)::text', v_pf1)), c_refus_promo);
-  perform pg_temp.attendre('donnees', 'le fondateur en aperçu siège n''anonymise pas',
-    left(pg_temp.appeler(v_fond, '1', 'siege', format('select public.anonymiser_promo(%s)::text', v_pf1)), 12), 'ERREUR 42501');
-  perform pg_temp.attendre('donnees', 'anon n''anonymise pas',
-    left(pg_temp.appeler(null, null, null, format('select public.anonymiser_promo(%s)::text', v_pf1)), 12), 'ERREUR 42501');
-  perform pg_temp.attendre('donnees', 'avant 12 mois : refus avec la date de possibilité',
-    pg_temp.appeler(c_dir1, '1', null, format('select public.anonymiser_promo(%s)::text', v_pr1)),
-    'ERREUR P0001 Anonymisation possible à partir du ' || to_char((current_date - 30 + interval '12 months')::date, 'DD/MM/YYYY'));
-  perform pg_temp.attendre('donnees', 'sans date de fin : refus',
-    pg_temp.appeler(c_dir1, '1', null, format('select public.anonymiser_promo(%s)::text', v_pe1)), 'ERREUR P0001 Date de fin de promo non renseignée');
-  perform pg_temp.attendre('donnees', 'promo inconnue : refus pour la direction (42501), erreur claire pour le fondateur',
-    left(pg_temp.appeler(c_dir1, '1', null, 'select public.anonymiser_promo(990999)::text'), 12) || ' / ' || pg_temp.appeler(v_fond, '1', null, 'select public.anonymiser_promo(990999)::text'),
-    'ERREUR 42501 / ERREUR P0001 Promo introuvable');
-  perform pg_temp.attendre('donnees', 'aucun refus n''a anonymisé quelqu''un ni écrit au journal',
-    (select format('%s %s', (select count(*) from public.stagiaires where id between 990601 and 990604 and anonymise_le is not null),
-                           (select count(*) from public.effacements_journal where type = 'promo' and cible in ('promo ' || v_pf1, 'promo ' || v_pf2, 'promo ' || v_pr1, 'promo ' || v_pe1)))), '0 0');
-  -- 5.3 bis Le fondateur en aperçu : les droits du rôle simulé seulement, promo 1 affichée (lieu 1).
-  perform pg_temp.attendre('donnees', 'le fondateur en aperçu direction (promo 1 affichée) ne lit pas l''état d''une promo du lieu 2',
-    pg_temp.appeler(v_fond, '1', 'direction', format('select public.etat_anonymisation_promo(%s)::text', v_pf2)), c_refus_promo);
-  perform pg_temp.attendre('donnees', 'le fondateur en aperçu direction n''anonymise pas une promo du lieu 2',
-    pg_temp.appeler(v_fond, '1', 'direction', format('select public.anonymiser_promo(%s)::text', v_pf2)), c_refus_promo);
-  perform pg_temp.attendre('donnees', 'le fondateur en aperçu direction lit l''état d''une promo du lieu affiché',
-    pg_temp.appeler(v_fond, '1', 'direction', format('select (public.etat_anonymisation_promo(%s)->>''restants'')', v_pf1)), 'OK 2');
-  perform pg_temp.attendre('donnees', 'le fondateur en aperçu formateur (promo 1 affichée) ne lit pas l''état d''une autre promo, même du lieu affiché',
-    pg_temp.appeler(v_fond, '1', 'formateur', format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), c_refus_promo);
-  perform pg_temp.attendre('donnees', 'le fondateur en aperçu formateur n''anonymise pas une autre promo que l''affichée',
-    pg_temp.appeler(v_fond, '1', 'formateur', format('select public.anonymiser_promo(%s)::text', v_pf1)), c_refus_promo);
-  -- 5.4 Anonymisation réussie par la direction du lieu 1, promo 1 affichée.
-  perform pg_temp.attendre('donnees', 'la direction du lieu 1 anonymise une promo de son lieu qui n''est pas la promo affichée (1 anonymisé, 1 compte du personnel gardé)',
-    pg_temp.appeler(c_dir1, '1', null, format('select concat_ws('' '', r->>''anonymises'', r->>''comptes_admin_ignores'') from (select public.anonymiser_promo(%s) r) z', v_pf1)),
-    'OK 1 1');
-  perform pg_temp.attendre('donnees', 'les fiches : la fiche simple est anonymisée, celle du compte du personnel est gardée, les autres promos ne bougent pas',
-    (select string_agg(format('%s:%s', s.id, (s.anonymise_le is not null)::text), ' ' order by s.id) from public.stagiaires s where s.id between 990601 and 990604),
-    '990601:true 990602:false 990603:false 990604:false');
-  perform pg_temp.attendre('donnees', 'le journal des effacements note la promo, la direction qui l''a faite et les comptes',
-    (select format('%s %s %s', count(*), min(j.fait_par_email), min(j.details::text)) from public.effacements_journal j where j.type = 'promo' and j.cible = 'promo ' || v_pf1),
-    format('1 %s {"anonymises": 1, "comptes_admin_ignores": 1}', c_dir1));
-  perform pg_temp.attendre('donnees', 'rejouée, l''anonymisation ne refait rien (0 anonymisé, le compte du personnel toujours gardé)',
-    pg_temp.appeler(c_dir1, '1', null, format('select concat_ws('' '', r->>''anonymises'', r->>''comptes_admin_ignores'') from (select public.anonymiser_promo(%s) r) z', v_pf1)),
-    'OK 0 1');
-  perform pg_temp.attendre('donnees', 'l''état après coup : 1 restant, 1 compte du personnel, 1 anonymisé',
-    pg_temp.appeler(c_dir1, '1', null, format('select concat_ws('' '', r->>''restants'', r->>''comptes_admin'', r->>''anonymises'') from (select public.etat_anonymisation_promo(%s) r) z', v_pf1)),
-    'OK 1 1 1');
-  perform pg_temp.attendre('donnees', 'le formateur de la promo anonymise la sienne (rien à faire de plus ici : état lu)',
-    pg_temp.appeler(c_form_a, '1', null, format('select concat_ws('' '', r->>''anonymises'', r->>''comptes_admin_ignores'') from (select public.anonymiser_promo(%s) r) z', v_pf1)),
-    'OK 0 1');
-  perform pg_temp.attendre('donnees', 'la direction du lieu 2 anonymise la promo de son lieu',
-    pg_temp.appeler(c_dir2, '2', null, format('select concat_ws('' '', r->>''anonymises'', r->>''comptes_admin_ignores'') from (select public.anonymiser_promo(%s) r) z', v_pf2)),
-    'OK 1 0');
+  if v_q5 then
+    -- Q5 appliquée : plus aucune anonymisation, ni pour l'équipe ni pour la direction (la conservation est au fondateur).
+    perform pg_temp.attendre('donnees', 'Q5 appliquée : les versions à argument et sans argument de l''anonymisation et _anonymiser_stagiaire n''existent plus',
+      (select string_agg(x || ':' || (to_regprocedure(x) is null)::text, ',' order by x)
+         from unnest(array['public.etat_anonymisation_promo(integer)', 'public.anonymiser_promo(integer)', 'public.etat_anonymisation_promo()',
+                           'public.anonymiser_promo()', 'public._anonymiser_stagiaire(integer)']) x),
+      'public._anonymiser_stagiaire(integer):true,public.anonymiser_promo():true,public.anonymiser_promo(integer):true,'
+      || 'public.etat_anonymisation_promo():true,public.etat_anonymisation_promo(integer):true');
+  else
+    perform pg_temp.attendre('donnees', 'droit d''exécution de etat_anonymisation_promo(integer) : authenticated oui, anon et service_role non',
+      case when to_regprocedure('public.etat_anonymisation_promo(integer)') is null then 'absente'
+           else pg_temp.calcul(format(c_exec, 'public.etat_anonymisation_promo(integer)')) end, 't,f,f');
+    perform pg_temp.attendre('donnees', 'droit d''exécution de anonymiser_promo(integer) : authenticated oui, anon et service_role non',
+      case when to_regprocedure('public.anonymiser_promo(integer)') is null then 'absente'
+           else pg_temp.calcul(format(c_exec, 'public.anonymiser_promo(integer)')) end, 't,f,f');
+    -- 5.1 Lecture de l'état par la direction du lieu 1, promo 1 affichée (donc pas la promo lue).
+    perform pg_temp.attendre('donnees', 'la direction du lieu 1 lit l''état d''une promo finie depuis plus de 12 mois qui n''est pas la promo affichée (anonymisable, 2 restants, 1 compte du personnel, 0 anonymisé)',
+      pg_temp.appeler(c_dir1, '1', null, format('select concat_ws('' '', r->>''anonymisable'', r->>''restants'', r->>''comptes_admin'', r->>''anonymises'') from (select public.etat_anonymisation_promo(%s) r) z', v_pf1)),
+      'OK true 2 1 0');
+    perform pg_temp.attendre('donnees', 'la même, avec une autre promo affichée (promo 2, d''un autre lieu) : l''en-tête ne change rien',
+      pg_temp.appeler(c_dir1, '2', null, format('select concat_ws('' '', r->>''anonymisable'', r->>''restants'') from (select public.etat_anonymisation_promo(%s) r) z', v_pf1)),
+      'OK true 2');
+    perform pg_temp.attendre('donnees', 'promo finie depuis moins de 12 mois : pas anonymisable, date de possibilité rendue',
+      pg_temp.appeler(c_dir1, '1', null, format('select concat_ws('' '', r->>''anonymisable'', r->>''restants'', ((r->>''anonymisable_le'')::date = (current_date - 30 + interval ''12 months'')::date)::text) from (select public.etat_anonymisation_promo(%s) r) z', v_pr1)),
+      'OK false 1 true');
+    perform pg_temp.attendre('donnees', 'promo sans date de fin : pas anonymisable, pas de date',
+      pg_temp.appeler(c_dir1, '1', null, format('select concat_ws('' '', r->>''anonymisable'', coalesce(r->>''anonymisable_le'', ''nul'')) from (select public.etat_anonymisation_promo(%s) r) z', v_pe1)),
+      'OK false nul');
+    perform pg_temp.attendre('donnees', 'le formateur de la promo lit son état',
+      pg_temp.appeler(c_form_a, '1', null, format('select (public.etat_anonymisation_promo(%s)->>''promo_id'')', v_pf1)), 'OK ' || v_pf1);
+    perform pg_temp.attendre('donnees', 'la direction du lieu 2 lit l''état de la promo de son lieu',
+      pg_temp.appeler(c_dir2, '2', null, format('select (public.etat_anonymisation_promo(%s)->>''restants'')', v_pf2)), 'OK 1');
+    perform pg_temp.attendre('donnees', 'le fondateur lit l''état d''une promo quelconque',
+      pg_temp.appeler(v_fond, '1', null, format('select (public.etat_anonymisation_promo(%s)->>''restants'')', v_pf2)), 'OK 1');
+    perform pg_temp.attendre('donnees', 'promo inconnue : le fondateur reçoit nul, sans erreur',
+      pg_temp.appeler(v_fond, '1', null, 'select public.etat_anonymisation_promo(990999)::text'), 'OK nul');
+    -- 5.2 Refus de l'état.
+    perform pg_temp.attendre('donnees', 'la direction du lieu 1 ne lit pas l''état d''une promo du lieu 2 (42501, avec la phrase)',
+      pg_temp.appeler(c_dir1, '1', null, format('select public.etat_anonymisation_promo(%s)::text', v_pf2)), c_refus_promo);
+    perform pg_temp.attendre('donnees', 'la direction du lieu 2 ne lit pas l''état d''une promo du lieu 1',
+      left(pg_temp.appeler(c_dir2, '2', null, format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), 12), 'ERREUR 42501');
+    perform pg_temp.attendre('donnees', 'un formateur d''une autre promo (même lieu) ne lit pas l''état',
+      pg_temp.appeler(c_form_b, '1', null, format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), c_refus_promo);
+    perform pg_temp.attendre('donnees', 'le siège (sans être direction) ne lit pas l''état',
+      pg_temp.appeler(c_siege, null, null, format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), c_refus_promo);
+    perform pg_temp.attendre('donnees', 'un stagiaire ne lit pas l''état',
+      pg_temp.appeler(c_stag, '1', null, format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), c_refus_promo);
+    perform pg_temp.attendre('donnees', 'un compte sans rôle ne lit pas l''état',
+      left(pg_temp.appeler(c_sans, null, null, format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), 12), 'ERREUR 42501');
+    perform pg_temp.attendre('donnees', 'le fondateur en aperçu siège ne lit pas l''état (droits du rôle simulé)',
+      left(pg_temp.appeler(v_fond, '1', 'siege', format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), 12), 'ERREUR 42501');
+    perform pg_temp.attendre('donnees', 'le fondateur en aperçu stagiaire ne lit pas l''état',
+      left(pg_temp.appeler(v_fond, '1', 'stagiaire', format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), 12), 'ERREUR 42501');
+    perform pg_temp.attendre('donnees', 'anon est refusé (42501, pas de droit d''exécution)',
+      left(pg_temp.appeler(null, null, null, format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), 12), 'ERREUR 42501');
+    -- 5.3 Anonymisation : refus d'abord (rien ne doit bouger).
+    perform pg_temp.attendre('donnees', 'la direction du lieu 1 n''anonymise pas une promo du lieu 2 (42501)',
+      pg_temp.appeler(c_dir1, '1', null, format('select public.anonymiser_promo(%s)::text', v_pf2)), c_refus_promo);
+    perform pg_temp.attendre('donnees', 'un formateur d''une autre promo n''anonymise pas',
+      pg_temp.appeler(c_form_b, '1', null, format('select public.anonymiser_promo(%s)::text', v_pf1)), c_refus_promo);
+    perform pg_temp.attendre('donnees', 'le siège n''anonymise pas',
+      pg_temp.appeler(c_siege, null, null, format('select public.anonymiser_promo(%s)::text', v_pf1)), c_refus_promo);
+    perform pg_temp.attendre('donnees', 'un stagiaire n''anonymise pas',
+      pg_temp.appeler(c_stag, '1', null, format('select public.anonymiser_promo(%s)::text', v_pf1)), c_refus_promo);
+    perform pg_temp.attendre('donnees', 'le fondateur en aperçu siège n''anonymise pas',
+      left(pg_temp.appeler(v_fond, '1', 'siege', format('select public.anonymiser_promo(%s)::text', v_pf1)), 12), 'ERREUR 42501');
+    perform pg_temp.attendre('donnees', 'anon n''anonymise pas',
+      left(pg_temp.appeler(null, null, null, format('select public.anonymiser_promo(%s)::text', v_pf1)), 12), 'ERREUR 42501');
+    perform pg_temp.attendre('donnees', 'avant 12 mois : refus avec la date de possibilité',
+      pg_temp.appeler(c_dir1, '1', null, format('select public.anonymiser_promo(%s)::text', v_pr1)),
+      'ERREUR P0001 Anonymisation possible à partir du ' || to_char((current_date - 30 + interval '12 months')::date, 'DD/MM/YYYY'));
+    perform pg_temp.attendre('donnees', 'sans date de fin : refus',
+      pg_temp.appeler(c_dir1, '1', null, format('select public.anonymiser_promo(%s)::text', v_pe1)), 'ERREUR P0001 Date de fin de promo non renseignée');
+    perform pg_temp.attendre('donnees', 'promo inconnue : refus pour la direction (42501), erreur claire pour le fondateur',
+      left(pg_temp.appeler(c_dir1, '1', null, 'select public.anonymiser_promo(990999)::text'), 12) || ' / ' || pg_temp.appeler(v_fond, '1', null, 'select public.anonymiser_promo(990999)::text'),
+      'ERREUR 42501 / ERREUR P0001 Promo introuvable');
+    perform pg_temp.attendre('donnees', 'aucun refus n''a anonymisé quelqu''un ni écrit au journal',
+      (select format('%s %s', (select count(*) from public.stagiaires where id between 990601 and 990604 and anonymise_le is not null),
+                             (select count(*) from public.effacements_journal where type = 'promo' and cible in ('promo ' || v_pf1, 'promo ' || v_pf2, 'promo ' || v_pr1, 'promo ' || v_pe1)))), '0 0');
+    -- 5.3 bis Le fondateur en aperçu : les droits du rôle simulé seulement, promo 1 affichée (lieu 1).
+    perform pg_temp.attendre('donnees', 'le fondateur en aperçu direction (promo 1 affichée) ne lit pas l''état d''une promo du lieu 2',
+      pg_temp.appeler(v_fond, '1', 'direction', format('select public.etat_anonymisation_promo(%s)::text', v_pf2)), c_refus_promo);
+    perform pg_temp.attendre('donnees', 'le fondateur en aperçu direction n''anonymise pas une promo du lieu 2',
+      pg_temp.appeler(v_fond, '1', 'direction', format('select public.anonymiser_promo(%s)::text', v_pf2)), c_refus_promo);
+    perform pg_temp.attendre('donnees', 'le fondateur en aperçu direction lit l''état d''une promo du lieu affiché',
+      pg_temp.appeler(v_fond, '1', 'direction', format('select (public.etat_anonymisation_promo(%s)->>''restants'')', v_pf1)), 'OK 2');
+    perform pg_temp.attendre('donnees', 'le fondateur en aperçu formateur (promo 1 affichée) ne lit pas l''état d''une autre promo, même du lieu affiché',
+      pg_temp.appeler(v_fond, '1', 'formateur', format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), c_refus_promo);
+    perform pg_temp.attendre('donnees', 'le fondateur en aperçu formateur n''anonymise pas une autre promo que l''affichée',
+      pg_temp.appeler(v_fond, '1', 'formateur', format('select public.anonymiser_promo(%s)::text', v_pf1)), c_refus_promo);
+    -- 5.4 Anonymisation réussie par la direction du lieu 1, promo 1 affichée.
+    perform pg_temp.attendre('donnees', 'la direction du lieu 1 anonymise une promo de son lieu qui n''est pas la promo affichée (1 anonymisé, 1 compte du personnel gardé)',
+      pg_temp.appeler(c_dir1, '1', null, format('select concat_ws('' '', r->>''anonymises'', r->>''comptes_admin_ignores'') from (select public.anonymiser_promo(%s) r) z', v_pf1)),
+      'OK 1 1');
+    perform pg_temp.attendre('donnees', 'les fiches : la fiche simple est anonymisée, celle du compte du personnel est gardée, les autres promos ne bougent pas',
+      (select string_agg(format('%s:%s', s.id, (s.anonymise_le is not null)::text), ' ' order by s.id) from public.stagiaires s where s.id between 990601 and 990604),
+      '990601:true 990602:false 990603:false 990604:false');
+    perform pg_temp.attendre('donnees', 'le journal des effacements note la promo, la direction qui l''a faite et les comptes',
+      (select format('%s %s %s', count(*), min(j.fait_par_email), min(j.details::text)) from public.effacements_journal j where j.type = 'promo' and j.cible = 'promo ' || v_pf1),
+      format('1 %s {"anonymises": 1, "comptes_admin_ignores": 1}', c_dir1));
+    perform pg_temp.attendre('donnees', 'rejouée, l''anonymisation ne refait rien (0 anonymisé, le compte du personnel toujours gardé)',
+      pg_temp.appeler(c_dir1, '1', null, format('select concat_ws('' '', r->>''anonymises'', r->>''comptes_admin_ignores'') from (select public.anonymiser_promo(%s) r) z', v_pf1)),
+      'OK 0 1');
+    perform pg_temp.attendre('donnees', 'l''état après coup : 1 restant, 1 compte du personnel, 1 anonymisé',
+      pg_temp.appeler(c_dir1, '1', null, format('select concat_ws('' '', r->>''restants'', r->>''comptes_admin'', r->>''anonymises'') from (select public.etat_anonymisation_promo(%s) r) z', v_pf1)),
+      'OK 1 1 1');
+    perform pg_temp.attendre('donnees', 'le formateur de la promo anonymise la sienne (rien à faire de plus ici : état lu)',
+      pg_temp.appeler(c_form_a, '1', null, format('select concat_ws('' '', r->>''anonymises'', r->>''comptes_admin_ignores'') from (select public.anonymiser_promo(%s) r) z', v_pf1)),
+      'OK 0 1');
+    perform pg_temp.attendre('donnees', 'la direction du lieu 2 anonymise la promo de son lieu',
+      pg_temp.appeler(c_dir2, '2', null, format('select concat_ws('' '', r->>''anonymises'', r->>''comptes_admin_ignores'') from (select public.anonymiser_promo(%s) r) z', v_pf2)),
+      'OK 1 0');
+
+  end if;
 
   -- 6. Élèves bénévoles d'un centre.
   insert into public.benevoles (prenom, nom, lieu_id, created_at) values ('Preuve6 un', 'BENEVOLE', v_lieu1, now() - interval '400 days') returning id into v_b1;
@@ -554,7 +574,7 @@ begin
          (select count(*) from pg_proc where pronamespace = 'public'::regnamespace and proname = 'benevoles_a_purger' and pronargs = 1),
          (select count(*) from pg_proc where pronamespace = 'public'::regnamespace and proname = 'purger_benevoles' and pronargs = 2))), '0 0 0 0 0');
     perform pg_temp.attendre('retour', 'après le retour : les versions sans argument sont toujours là, intactes (md5)',
-      (select string_agg(md5(pg_get_functiondef(x::regprocedure)), ',' order by x)
+      (select string_agg(coalesce(md5(pg_get_functiondef(to_regprocedure(x))), 'absente'), ',' order by x)
          from unnest(array['public.etat_anonymisation_promo()', 'public.anonymiser_promo()',
                            'public.benevoles_a_purger()', 'public.purger_benevoles(integer[])']) x), v_anciennes);
     perform pg_temp.attendre('retour', 'après le retour : empreinte regles identique à celle d''avant', v_ap_regles, v_av_regles);

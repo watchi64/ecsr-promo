@@ -2050,6 +2050,11 @@ def servir_depuis_le_cache(route, lignes):
     Pour ce contexte seulement, `lignes` s'ajoute à la fin du faux Supabase (le semis du réglage ou
     du profil) : le fichier du banc n'est jamais modifié sur le disque."""
     requete = route.request
+    # Le banc ne parle qu'à la machine (audit du 10/11) : une requête vers un autre hôte (la vraie base, l'assistant) est
+    # coupée ; rien ne sort de la machine.
+    if requete.url.startswith(("http:", "https:")) and urllib.parse.urlparse(requete.url).hostname not in ("127.0.0.1", "localhost"):
+        route.abort("blockedbyclient")
+        return
     chemin = urllib.parse.urlparse(requete.url).path
     if requete.method != "GET" or not chemin.startswith(STATIQUES):
         route.continue_()
@@ -3629,8 +3634,10 @@ GUIDES = {
 GUIDES_EQUIPE = {
     "Un tableau de bord du centre, promo par promo":
         ("Ouvrez Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».", "Ouvre l'Accueil, puis la tuile « Tableau de bord »."),
+    # Étapes réécrites au lot Q5 (conservation des données) : la demande se transmet au fondateur, dans les deux navigations.
     "Effacer les données d'un stagiaire, à sa demande":
-        ("Réglages, partie Promo : « Abandon » sur le stagiaire concerné.", "Paramètres, partie Promo : « Abandon » sur le stagiaire concerné."),
+        ("L'effacement des données se demande maintenant au fondateur : transmettez-lui la demande de la personne, sans la marquer en abandon.",
+         "L'effacement des données se demande maintenant au fondateur : transmettez-lui la demande de la personne, sans la marquer en abandon."),
     "Une page Stagiaires : toute la promo, une fiche par personne":
         ("Ouvrez Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).", "Ouvre la tuile Stagiaires de l'Accueil."),
     "Deux promos dans l'app, et des modules réglés promo par promo":
@@ -6306,7 +6313,15 @@ def banc_perime(url):
     except (urllib.error.URLError, OSError):
         return []
     fichiers = lambda texte: set(re.findall(r'(?:href|src)="((?:css|js)/[^"?]+)', texte))
-    return sorted(fichiers(index.read_text(encoding="utf-8", errors="replace")) - fichiers(banc))
+    source = index.read_text(encoding="utf-8", errors="replace")
+    manquants = sorted(fichiers(source) - fichiers(banc))
+    # Un banc à l'ancien jeton charge d'anciens modules sous les mêmes noms de fichiers (audit du 10/11) : on compare aussi
+    # le jeton de cache d'index.html à ceux que la page du banc sert.
+    jetons = lambda texte: set(re.findall(r"\?v=(\d{8}[a-z]?)", texte))
+    perimes = sorted(jetons(source) - jetons(banc))
+    if perimes:
+        manquants.append("jeton %s d'index.html absent du banc (il sert %s)" % (", ".join(perimes), ", ".join(sorted(jetons(banc))) or "aucun jeton"))
+    return manquants
 
 
 def adresse_du_banc(demandee, garder_hote):
@@ -6358,6 +6373,11 @@ def main(argv=None):
         print("Le banc ne répond pas à %s (lancer le serveur « maquette-nav » du worktree)." % url)
         return 2
     absents = banc_perime(url)
+    if absents:
+        # Un banc périmé ne juge pas l'app : rien n'est joué, le code 2 dit « non jugé » (audit du 10/11 : il donnait un rouge).
+        print("Banc périmé : _harness.html ne charge pas %s, qu'index.html charge. Recopier le faux Supabase de TP_ECSR_App si "
+              "besoin, relancer `node _harness_build.mjs`, puis le vérificateur." % ", ".join(absents))
+        return 2
     options = {"sans_menus": args.sans_menus,
                "captures": args.captures, "script_init": os.path.abspath(args.script_init) if args.script_init else None}
 
@@ -6380,9 +6400,6 @@ def main(argv=None):
                 sorties.append(futur.result())
                 print("  %s : %d scénario(s) joué(s) (%.0f s)" % (sorties[-1]["moteur"], len(sorties[-1]["resultats"]), time.time() - debut), flush=True)
     resultats, globaux = [], []   # globaux : échecs qui ne tiennent à aucune vue
-    if absents:
-        # Un banc périmé rend tout le reste trompeur : un échec à lui seul.
-        globaux.append(("banc périmé", "banc", "_harness.html ne charge pas %s, qu'index.html charge : relancer `node _harness_build.mjs`" % ", ".join(absents)))
     for sortie in sorties:
         if sortie["indisponible"]:
             globaux.append(("moteur indisponible", sortie["moteur"], "%s : ses vues n'ont pas été jouées (l'écarter avec --moteurs)" % sortie["raison"]))

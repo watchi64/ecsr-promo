@@ -11,10 +11,10 @@ import {
   listBenevoles, addBenevole, updateBenevole, setBenevoleActif,
   listAutoEcoles, addAutoEcole, updateAutoEcole, setAutoEcoleActif, deleteAutoEcole,
   listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires, getPromoCourante,
-} from "../db.js?v=20261111e";
-import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261111e";
-import { confirmer } from "../confirmer.js?v=20261111e";
-import { JOURS } from "../config.js?v=20261111e";
+} from "../db.js?v=20261111f";
+import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261111f";
+import { confirmer } from "../confirmer.js?v=20261111f";
+import { JOURS } from "../config.js?v=20261111f";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [

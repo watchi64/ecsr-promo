@@ -7,10 +7,10 @@
 // Population : les inscrits sont toutes les fiches de la promo, les « en formation » les
 // fiches actives. Tout sauf l'effectif et les abandons porte sur les stagiaires en formation.
 
-import { estNotee, score20, mediane } from "./notes-stats.js?v=20261111e";
-import { NOTE_VALUES } from "./epcf-trames.js?v=20261111e";
-import { compareByNom } from "./utils.js?v=20261111e";
-import { fr1, pct } from "./nombres.js?v=20261111e";
+import { estNotee, score20, mediane } from "./notes-stats.js?v=20261111f";
+import { NOTE_VALUES } from "./epcf-trames.js?v=20261111f";
+import { compareByNom } from "./utils.js?v=20261111f";
+import { fr1, pct } from "./nombres.js?v=20261111f";
 
 // Hypothèse du réseau : un parcours de formation représente 3 500 à 5 000 €.
 export const COUT_ABANDON_ESTIME = [3500, 5000];
@@ -26,8 +26,8 @@ const SIGNAL_RETARD = 2;
 const SIGNAUX_A_SUIVRE = 2;
 
 export const METHODES = {
-  effectif: "Inscrits : toutes les fiches de la promo. En formation : les fiches actives. Abandons : les fiches passées en abandon.",
-  abandon: "Abandons divisés par les inscrits. La date de l'abandon n'est pas enregistrée dans l'app : le taux porte sur toute la durée de la promo.",
+  effectif: "Inscrits : toutes les fiches de la promo. En formation : les fiches actives. Abandons : les fiches passées en abandon par l'équipe. Les fiches effacées à la demande de la personne sont comptées parmi les inscrits, à part : ni en formation, ni en abandon.",
+  abandon: "Abandons divisés par les inscrits. Seule la décision de l'équipe compte : un effacement de données, à la demande de la personne ou au terme de la durée de conservation, n'est pas un abandon. La date de l'abandon n'est pas enregistrée dans l'app : le taux porte sur toute la durée de la promo.",
   valeurAbandons: "Nombre d'abandons multiplié par 3 500 à 5 000 €, hypothèse du coût d'un parcours de formation. C'est un ordre de grandeur, pas un montant comptable.",
   absences: "Absences de dernière minute divisées par les passages prévus (passages faits plus absences), stagiaires en formation. Ne couvre que les passages en salle et en voiture, pas la présence en formation : l'émargement la couvrira.",
   passages: "Passages faits plus remplacements (bonus), en salle et en voiture, rapportés aux stagiaires en formation ; plus bas et plus haut nombre d'une personne.",
@@ -79,12 +79,18 @@ function indicateur(cle, valeur, detail, nature = "mesuré", n = null) {
 
 // donnees : { stagiaires, passages, evaluations, tentatives, epcf } (lireDonneesCentre)
 // referentiel : { qcm, themes } (lireReferentielCentre) ; aujourdhui : « AAAA-MM-JJ ».
-export function indicateursPromo(donnees, referentiel, { aujourdhui }) {
+// demandes : Set des identifiants de fiches effacées à la demande (lireEffacementsSurDemande) ; absent, ensemble vide.
+// Une telle fiche est un inscrit, ni en formation ni abandon : comptée à part (effectif.detail.surDemande). Un abandon est une
+// décision de l'équipe (`actif` à faux) ; les étapes d'effacement ne touchent jamais `actif` et ne font pas bouger le taux d'abandon.
+export function indicateursPromo(donnees, referentiel, { aujourdhui, demandes } = {}) {
+  const surDemandeIds = demandes instanceof Set ? demandes : new Set(demandes || []);
   const stagiaires = donnees.stagiaires || [];
-  const enFormation = stagiaires.filter((s) => s.actif);
+  const surDemande = stagiaires.filter((s) => surDemandeIds.has(s.id)).length;
+  const enFormation = stagiaires.filter((s) => s.actif && !surDemandeIds.has(s.id));
   const ids = new Set(enFormation.map((s) => s.id));
   const nbForm = enFormation.length;
-  const { abandons } = effectifDesFiches(stagiaires);
+  // Abandons au sens de la Vue d'ensemble (effectifDesFiches), hors fiches effacées à la demande.
+  const { abandons } = effectifDesFiches(stagiaires.filter((s) => !surDemandeIds.has(s.id)));
   const dedans = (r) => ids.has(r.stagiaire_id);
 
   const passages = (donnees.passages || []).filter(dedans);
@@ -147,7 +153,7 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui }) {
   const critTous = critA + epcfSalle.R + epcfVehicule.R + epcfSalle.NA + epcfVehicule.NA;
 
   const ind = {
-    effectif: indicateur("effectif", stagiaires.length, { inscrits: stagiaires.length, enFormation: nbForm, abandons }),
+    effectif: indicateur("effectif", stagiaires.length, { inscrits: stagiaires.length, enFormation: nbForm, abandons, surDemande }),
     abandon: indicateur("abandon", ratio(abandons, stagiaires.length), { abandons, inscrits: stagiaires.length },
       "mesuré", stagiaires.length),
     valeurAbandons: indicateur("valeurAbandons",
@@ -289,8 +295,9 @@ export function ligneComparaison(ind) {
   const rien = "aucune donnée";
   const e = ind.effectif.valeur;
   const ex = ind.examensQcm.detail;
+  const sd = ind.effectif.detail?.surDemande || 0;
   return {
-    effectif: `${e} inscrit${e > 1 ? "s" : ""}`,
+    effectif: `${e} inscrit${e > 1 ? "s" : ""}` + (sd ? ` (dont ${sd} effacée${sd > 1 ? "s" : ""} à la demande)` : ""),
     abandon: ind.abandon.valeur == null ? rien : `${pct(ind.abandon.valeur)} (${ind.abandon.detail.abandons})`,
     absences: ind.absences.valeur == null ? rien : pct(ind.absences.valeur),
     passages: ind.passages.valeur == null ? rien : `${fr1(ind.passages.valeur)} par stagiaire`,

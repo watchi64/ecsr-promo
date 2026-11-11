@@ -76,7 +76,7 @@ end $f$;
 
 do $preuve$
 declare
-  a text; b text; r text;
+  a text; b text; r text; autres text;
   inconnu constant text := 'inconnu.habillage@exemple.invalid';
   v_ok int; v_ko int; v_liste text;
 begin
@@ -126,6 +126,12 @@ begin
   end if;
   perform pg_temp.verifier('colonne habillage présente',
     exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'user_profiles' and column_name = 'habillage'));
+  -- Depuis la mise en ligne (09/11), des comptes ont choisi un habillage : A et B repartent de zéro dans la
+  -- transaction (annulée à la fin, rien n'est écrit), et « aucune autre ligne ne change » se compare à l'état relevé
+  -- ici, pas à zéro (la preuve sortait ROUGE 19/1 contre la base réelle le 10/11 ; la base n'avait rien de faux).
+  update user_profiles set habillage = null where email in (a, b);
+  select md5(coalesce(string_agg(email || '=' || coalesce(habillage, ''), ',' order by email), '')) into autres
+    from user_profiles where email not in (a, b);
   perform pg_temp.verifier('départ : A et B n''ont aucun choix enregistré',
     (select habillage from user_profiles where email = a) is null and (select habillage from user_profiles where email = b) is null);
 
@@ -145,7 +151,8 @@ begin
   perform pg_temp.verifier('A choisit ecf : la ligne de B est intacte',
     (select habillage from user_profiles where email = b) is null);
   perform pg_temp.verifier('A choisit ecf : aucune autre ligne ne change',
-    (select count(*) from user_profiles where habillage is not null) = 1);
+    (select md5(coalesce(string_agg(email || '=' || coalesce(habillage, ''), ',' order by email), ''))
+       from user_profiles where email not in (a, b)) = autres);
 
   -- 3. Un stagiaire relit sa colonne par la lecture de son profil (RLS).
   r := pg_temp.essai(a, format('select habillage from public.user_profiles where email = %L', a));

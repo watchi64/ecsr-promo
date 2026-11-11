@@ -11,8 +11,11 @@ connu qu'aucun passage n'a revu est signalé « peut-être corrigé, ligne à re
 Chaque ligne : le parcours, le critère, un morceau du message (sans les nombres qui varient), et la raison.
 """
 
-# `ou` (facultatif) : les formats et navigations où le défaut se voit ; sert seulement à dire qu'un défaut
-# connu n'a pas été revu alors que le passage l'aurait montré (donc qu'il est peut-être corrigé).
+# `ou` (facultatif) : les dimensions où le défaut se voit (format, navigation, moteur, habillage : toute clé d'un passage) ;
+# un défaut vu hors de ces dimensions est nouveau, et un défaut attendu qu'aucun passage n'a revu est « peut-être corrigé ».
+# `depuis` : date d'entrée de la ligne ; `echeance` : date à laquelle le défaut doit être corrigé (ou sa ligne revue). Le
+# rapport signale une ligne échue. Chaque ligne a sa tâche dans ROADMAP.md (audit du 10/11 : une ligne sans échéance
+# reste pour toujours).
 DEFAUTS_CONNUS = [
     # Les défauts n° 4 (boutons de l'ancienne barre coupés à 1 280 px) et n° 5 (budgets de clics dépassés par l'ancienne
     # navigation) sont partis avec l'ancienne barre, retirée le 10/11 : plus aucun défaut connu.
@@ -34,3 +37,8 @@ def connu(resultat, constat):
         if attendu_dans(d, resultat) and d["critere"] == constat["critere"] and d["contient"] in constat["message"]:
             return d
     return None
+
+
+def echues(aujourdhui):
+    """Les lignes dont l'échéance (AAAA-MM-JJ) est passée à cette date (AAAA-MM-JJ)."""
+    return [d for d in DEFAUTS_CONNUS if d.get("echeance") and d["echeance"] < aujourdhui]

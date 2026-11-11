@@ -77,7 +77,7 @@ const D = { stagiaires: STAG, passages: PASSAGES, evaluations: EVALS, tentatives
 const ind = indicateursPromo(D, REF, { aujourdhui: "2026-10-23" });
 
 // Effectif et abandons : 5 inscrits, 4 en formation, 1 abandon, 1/5.
-eq(ind.effectif.detail, { inscrits: 5, enFormation: 4, abandons: 1 }, "effectif");
+eq(ind.effectif.detail, { inscrits: 5, enFormation: 4, abandons: 1, surDemande: 0 }, "effectif");
 eq(ind.effectif.valeur, 5, "effectif = inscrits");
 proche(ind.abandon.valeur, 0.2, "taux d'abandon 1/5");
 eq(ind.abandon.nature, "mesuré", "abandon mesuré");

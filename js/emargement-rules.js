@@ -1,8 +1,8 @@
 // Émargement (spec 2026-10-23) : règles pures, sans DOM ni base. Lu par node
 // (tests/emargement-rules.test.mjs), par l'app et par le générateur de signatures
 // fictives de la démonstration (scripts/emargement-demo.mjs).
-import { jourDe, dayIndexDe, lundiDe, jourParis } from "./dates.js?v=20261111e";
-import { pluriel } from "./nombres.js?v=20261111e";
+import { jourDe, dayIndexDe, lundiDe, jourParis } from "./dates.js?v=20261111f";
+import { pluriel } from "./nombres.js?v=20261111f";
 
 // Interrupteur par promo (demande de Timy du 23/10 : éteint partout, allumé pour la seule
 // promo de démonstration tant qu'il n'en décide pas autrement). Réglage `settings`
@@ -96,9 +96,24 @@ const LIBELLE_ABSENCE = {
   non_signe: "Absent (non signé)",
 };
 
+// Une ligne (d'un stagiaire ou d'un formateur) est signée quand son dessin est là, quand l'heure de signature est posée
+// (les lectures légères n'ont pas le dessin) ou quand la signature a été effacée à la durée de conservation
+// (`signature_effacee_le`) : la base garde alors l'heure, la présence et le total d'heures, seul le dessin part.
+export function ligneSignee(ligne) {
+  return Boolean(ligne && (ligne.trace || ligne.signe_le || ligne.signature_effacee_le));
+}
+
+// Vrai quand la ligne est signée mais que son dessin n'existe plus (étape des 3 ans).
+export function signatureEffacee(ligne) {
+  return ligneSignee(ligne) && !ligne.trace;
+}
+
+// Ce que la feuille écrit à la place du dessin effacé.
+export const MENTION_SIGNATURE_EFFACEE = "Signature effacée (durée de conservation)";
+
 // État d'un stagiaire sur une séance. `ligne` : sa ligne d'émargement (ou null).
 export function etatLigne({ ligne, absentPlanning = false, close = false }) {
-  if (ligne && ligne.trace) {
+  if (ligneSignee(ligne)) {
     return {
       code: "signe",
       libelle: "Signé à " + heureLocale(ligne.signe_le),
@@ -299,7 +314,7 @@ export function nomsFormateursProposes({ entries, profs, monNom }) {
 // Minutes de présence (séances signées) d'un stagiaire sur un ensemble de séances.
 export function minutesPresence(seances, lignes, stagiaireId) {
   const signees = new Set((lignes || [])
-    .filter((l) => l.stagiaire_id === stagiaireId && l.trace)
+    .filter((l) => l.stagiaire_id === stagiaireId && ligneSignee(l))
     .map((l) => l.seance_id));
   return (seances || [])
     .filter((s) => signees.has(s.id))

@@ -1,19 +1,19 @@
 // Gestion des stagiaires d'une promo (lot 5, Task 9) : la liste modifiable (prénom, nom de famille, abandon, ajout), les abandons
-// (réactivation, effacement des données) et l'invitation du compte d'une fiche. Sortie de js/views/config.js (section Promo des
+// (réactivation) et l'invitation du compte d'une fiche. L'effacement des données (à la demande de la personne, ou aux dates de
+// conservation) est sur la page Qualiopi, fondateur seul (lot Q5). Sortie de js/views/config.js (section Promo des
 // Réglages du formateur) pour être montée aussi dans la page Stagiaires de la direction. Tout porte sur la promo affichée : la base
 // n'accepte d'écrire une fiche que dans la promo courante (équipe de la promo ou direction de son centre).
 
 import {
-  listStagiaires, addStagiaire, updateStagiaire, updateStagiaireNom, setStagiaireActif, anonymiserStagiaire,
+  listStagiaires, addStagiaire, updateStagiaire, updateStagiaireNom, setStagiaireActif,
   listUserProfiles, inviteUser,
-} from "../db.js?v=20261111e";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111e";
-import { icon } from "../icons.js?v=20261111e";
-import { isEquipe } from "../auth-admin.js?v=20261111e";
-import { confirmationValide, resumeEffacement } from "../effacement-rules.js?v=20261111e";
-import { messageInvitationReussie } from "../roles-rules.js?v=20261111e";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261111e";
-import { confirmer, demander } from "../confirmer.js?v=20261111e";
+} from "../db.js?v=20261111f";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111f";
+import { icon } from "../icons.js?v=20261111f";
+import { isEquipe } from "../auth-admin.js?v=20261111f";
+import { messageInvitationReussie } from "../roles-rules.js?v=20261111f";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261111f";
+import { confirmer } from "../confirmer.js?v=20261111f";
 
 // Liste des personnes invitables de la section déjà à l'écran. Posée par la section d'invitation qui la montre (js/views/config.js ou
 // renderInvitationStagiaire), appelée après un ajout de stagiaire, qui n'actualise que le bloc « Stagiaires ».
@@ -33,17 +33,18 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
   // Gérer la liste de la promo : formateur et direction (la base le permet à l'équipe de la promo).
   const admin = isEquipe();
   const allStagiaires = await listStagiaires({ includeInactive: true });
-  const stagiairesActifs = allStagiaires.filter((s) => s.actif !== false);
-  // Les fiches anonymisées (données effacées) ne sont plus des abandons : seulement comptées.
-  const stagiairesAbandon = allStagiaires.filter((s) => s.actif === false && !s.anonymise_le);
-  const nbAnonymises = allStagiaires.filter((s) => s.anonymise_le).length;
+  // Une fiche sans nom (anonymise_le : étape des 3 ans, ou effacée à la demande, qui reste « actif ») n'est plus dans les listes.
+  const stagiairesActifs = allStagiaires.filter((s) => s.actif !== false && !s.anonymise_le);
+  // Abandons : ni fiche sans nom, ni fiche dont les données sont effacées (efface_le) ; celles-là sont seulement comptées.
+  const stagiairesAbandon = allStagiaires.filter((s) => s.actif === false && !s.anonymise_le && !s.efface_le);
+  const nbEffacees = allStagiaires.filter((s) => s.anonymise_le || (s.actif === false && s.efface_le)).length;
 
   // Après un ajout de stagiaire : relit la liste et n'actualise que l'en-tête (compteur) et les lignes du
   // bloc « Stagiaires ». Le formulaire d'ajout reste en place, avec son focus (et le clavier de l'iPhone),
   // comme le défilement et le reste de la vue ; la liste des personnes invitables suit.
   async function actualiserStagiaires(bloc) {
     const tous = await listStagiaires({ includeInactive: true });
-    const frais = renderList(tous.filter((s) => s.actif !== false), false);
+    const frais = renderList(tous.filter((s) => s.actif !== false && !s.anonymise_le), false);
     bloc.querySelector(".block-head").replaceWith(frais.querySelector(".block-head"));
     bloc.querySelector(".config-list").replaceWith(frais.querySelector(".config-list"));
     if (majPersonnesInvitables) majPersonnesInvitables().catch(() => {});
@@ -171,10 +172,8 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
     return wrap;
   }
 
-  // Bloc des abandons : réactivation, ou effacement des données personnelles (droit à
-  // l'effacement). Réservé ici : il faut d'abord sortir la personne de la liste active.
-  // Plus de suppression de la fiche : ses résultats lui sont liés en cascade et
-  // disparaîtraient des statistiques ; la fiche est anonymisée par le serveur.
+  // Bloc des abandons : « Réactiver » seulement. L'effacement des données (à la demande de la personne, ou aux dates de
+  // conservation) est sur la page Qualiopi, fondateur seul (lot Q5) : la fiche n'a plus à passer en abandon pour cela.
   function renderAbandons(items) {
     const wrap = el("div", { class: "param-block abandons-block" });
     wrap.appendChild(el("div", { class: "block-head" },
@@ -182,8 +181,7 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
       el("span", { class: "count" }, items.length + " stagiaire" + (items.length > 1 ? "s" : "")),
     ));
     wrap.appendChild(el("p", { class: "muted abandons-hint" },
-      "Masqués du planning, des dés et des notes. « Effacer les données » répond à une demande de "
-      + "suppression : la personne disparaît, ses résultats restent sans nom dans les statistiques."));
+      "Masqués du planning, des dés et des notes. « Réactiver » remet la personne dans la promo."));
     const list = el("ul", { class: "config-list" });
     items.forEach((it) => {
       const reactiverBtn = el("button", {
@@ -196,39 +194,22 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
           } catch (e) { toast(messageErreurStagiaire(e), "error"); }
         }
       }, "Réactiver");
-      const delBtn = el("button", {
-        class: "btn small danger",
-        title: "Effacer ses données personnelles (irréversible)",
-        onClick: async () => {
-          const saisie = await demander({ titre: `Effacer les données de ${displayStagiaire(it)} ?`,
-            phrase: "Supprimés : compte de connexion, e-mail, date de naissance, livret EPCF, dossier professionnel, "
-              + "commentaires. Conservés sans nom : notes, QCM, passages, évaluations EPCF. Irréversible.",
-            libelle: `Pour confirmer, tapez le prénom : ${it.prenom}`, oui: "Effacer les données",
-            verifier: (v) => confirmationValide(v, it.prenom), erreur: "Le prénom ne correspond pas : rien n'est effacé." });
-          if (typeof saisie !== "string") return;
-          try {
-            const details = await anonymiserStagiaire(it.id);
-            toast(resumeEffacement(details), "success", 6000);
-            rerender();
-          } catch (e) { toast(messageErreurStagiaire(e), "error"); }
-        }
-      }, "Effacer les données");
       list.appendChild(el("li", { class: "abandon-row" },
         el("span", { class: "abandon-name" }, displayStagiaire(it)),
-        reactiverBtn, delBtn,
+        reactiverBtn,
       ));
     });
     wrap.appendChild(list);
-    if (nbAnonymises) {
+    if (nbEffacees) {
       wrap.appendChild(el("p", { class: "muted abandons-hint" },
-        nbAnonymises + (nbAnonymises > 1 ? " fiches anonymisées" : " fiche anonymisée")
-        + " (données effacées, résultats conservés sans nom)."));
+        nbEffacees + (nbEffacees > 1 ? " fiches effacées" : " fiche effacée")
+        + " au titre de la conservation des données : elles ne figurent plus dans ces listes."));
     }
     return wrap;
   }
 
   container.appendChild(renderList(stagiairesActifs));
-  if (admin && (stagiairesAbandon.length || nbAnonymises)) container.appendChild(renderAbandons(stagiairesAbandon));
+  if (admin && (stagiairesAbandon.length || nbEffacees)) container.appendChild(renderAbandons(stagiairesAbandon));
 }
 
 // L'invitation du compte d'un stagiaire de la promo affichée, pour la direction (page Stagiaires du centre) : choisir la fiche,
