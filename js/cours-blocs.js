@@ -37,12 +37,12 @@
  * affirmation) ; la zone d'état (role="status") dit le score, la bonne réponse et l'explication de
  * ce qui est faux ; une option verrouillée est aria-disabled ; chaque question est un groupe nommé.
  */
-import { el } from "./utils.js?v=20261111i";
+import { el } from "./utils.js?v=20261111j";
 import { analyserScene, analyserDessin, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
   corrigerOption, MARQUES_CHOIX, BLOCS_INTERACTIFS, erreurDirective, erreurNonRefermee, messageOrdre, messageVraiFaux,
   messageChoix, creerChargeur, adresseDeReprise, piloterBloc, trouverDansRegistre, messageCodeInconnu }
-  from "./cours-blocs-rules.js?v=20261111i";
-import { entreeBloc } from "./catalogue-blocs.js?v=20261111i";
+  from "./cours-blocs-rules.js?v=20261111j";
+import { entreeBloc } from "./catalogue-blocs.js?v=20261111j";
 
 // Modules chargés à la demande, un import littéral par module (le jeton de cache s'y lit et s'y réécrit, scripts/cache-bust.js).
 // `essai` : le nombre d'échecs déjà essuyés pour ce module (0 au premier chargement). Un import() qui a échoué reste en échec
@@ -70,16 +70,16 @@ const importer = creerImporteur(JETON, (adresse) => import(adresse));
  *  redemande vraiment le module (tests/chargement.test.mjs). */
 export const CHARGEURS = {
   route: (essai) => Promise.all([
-    importer(essai, "./scenes.js", () => import("./scenes.js?v=20261111i")),
-    importer(essai, "./scene-moteur.js", () => import("./scene-moteur.js?v=20261111i")),
+    importer(essai, "./scenes.js", () => import("./scenes.js?v=20261111j")),
+    importer(essai, "./scene-moteur.js", () => import("./scene-moteur.js?v=20261111j")),
   ]).then(([registre, moteur]) => ({ SCENES: registre.SCENES, monterScene: moteur.monterScene })),
-  geste: (essai) => importer(essai, "./geste-moteur.js", () => import("./geste-moteur.js?v=20261111i")),
-  poste: (essai) => importer(essai, "./dessins-poste.js", () => import("./dessins-poste.js?v=20261111i")),
-  voyants: (essai) => importer(essai, "./dessins-voyants.js", () => import("./dessins-voyants.js?v=20261111i")),
-  conducteur: (essai) => importer(essai, "./dessins-conducteur.js", () => import("./dessins-conducteur.js?v=20261111i")),
-  entretien: (essai) => importer(essai, "./dessins-entretien.js", () => import("./dessins-entretien.js?v=20261111i")),
-  visibilite: (essai) => importer(essai, "./dessins-visibilite.js", () => import("./dessins-visibilite.js?v=20261111i")),
-  dessus: (essai) => importer(essai, "./dessins-dessus.js", () => import("./dessins-dessus.js?v=20261111i")),
+  geste: (essai) => importer(essai, "./geste-moteur.js", () => import("./geste-moteur.js?v=20261111j")),
+  poste: (essai) => importer(essai, "./dessins-poste.js", () => import("./dessins-poste.js?v=20261111j")),
+  voyants: (essai) => importer(essai, "./dessins-voyants.js", () => import("./dessins-voyants.js?v=20261111j")),
+  conducteur: (essai) => importer(essai, "./dessins-conducteur.js", () => import("./dessins-conducteur.js?v=20261111j")),
+  entretien: (essai) => importer(essai, "./dessins-entretien.js", () => import("./dessins-entretien.js?v=20261111j")),
+  visibilite: (essai) => importer(essai, "./dessins-visibilite.js", () => import("./dessins-visibilite.js?v=20261111j")),
+  dessus: (essai) => importer(essai, "./dessins-dessus.js", () => import("./dessins-dessus.js?v=20261111j")),
 };
 export const chargerModule = creerChargeur(CHARGEURS);
 

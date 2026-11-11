@@ -5,11 +5,11 @@
 // Le dossier du centre ne filtre pas lui-même les promos par période : la vue ne lui passe que celles que
 // `promosDuCentre` retient (même lieu, dates qui chevauchent les 12 derniers mois).
 
-import { SOURCE, CRITERES } from "./qualiopi-referentiel.js?v=20261111i";
-import { jourDe, rempli } from "./qualiopi-preuves.js?v=20261111i";
-import { LIBELLES_NIVEAU, nomFichierQualiopi } from "./qualiopi-documents.js?v=20261111i";
-import { dateLongue } from "./dates.js?v=20261111i";
-import { pluriel } from "./nombres.js?v=20261111i";
+import { SOURCE, CRITERES } from "./qualiopi-referentiel.js?v=20261111j";
+import { jourDe, rempli } from "./qualiopi-preuves.js?v=20261111j";
+import { LIBELLES_NIVEAU, nomFichierQualiopi } from "./qualiopi-documents.js?v=20261111j";
+import { dateLongue } from "./dates.js?v=20261111j";
+import { pluriel } from "./nombres.js?v=20261111j";
 
 // Le référentiel appliqué, tel que la page l'écrit : « Décret n° 2026-728 du 1er août 2026, en vigueur le 1er novembre 2026 »
 // (la source du référentiel, sans l'objet du décret).

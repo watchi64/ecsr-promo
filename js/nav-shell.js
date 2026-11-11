@@ -11,11 +11,11 @@
 // entrées groupées, l'Assistant et le compte en pied), en colonne d'icônes quand elle est repliée
 // (choix mémorisé sur l'appareil) et toujours sur tablette. Sur téléphone, la même barre devient
 // l'en-tête (promo, Assistant en icône, compte) et les entrées passent dans la barre du bas : quatre,
-// plus « Plus », qui ouvre un tiroir avec les autres pages (« Autres pages »), l'Assistant et le compte.
+// plus « Plus », qui ouvre un tiroir avec les autres pages (« Autres pages ») et « Signaler un problème ».
 // Une entrée dont la page est fermée aux stagiaires porte le repère « masqué aux stagiaires » (œil barré).
 // Direction et siège (lot 5) : la même barre latérale (barreLaterale de js/espaces-rules.js), avec leur contexte en tête
 // (« Centre » et le nom du lieu, le choix du centre quand le compte en dirige plusieurs ; « Réseau » et le nombre de centres)
-// et toujours « Plus » sur téléphone (l'Assistant, « Signaler un problème » et le compte y sont). Ni repère des modules
+// et toujours « Plus » sur téléphone (« Signaler un problème » y est ; l'Assistant et le compte sont en haut de l'écran). Ni repère des modules
 // fermés ni comptes « à traiter » : ils restent au formateur.
 //
 // Crochets : chaque racine porte data-nav-coquille (« haut » en-tête du stagiaire, « cote » barre
@@ -37,27 +37,27 @@
 // ne les attend jamais : ils sont lus après le montage, relus à chaque page affichée (au plus toutes les 30 secondes),
 // et un compte illisible ne montre ni pastille ni erreur.
 
-import { el } from "./utils.js?v=20261111i";
-import { icon, deco } from "./icons.js?v=20261111i";
-import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261111i";
-import { getPromoCourante, getLieuxLus } from "./db.js?v=20261111i";
-import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261111i";
-import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261111i";
-import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261111i";
-import { libellePastille } from "./nouveautes.js?v=20261111i";
+import { el } from "./utils.js?v=20261111j";
+import { icon, deco } from "./icons.js?v=20261111j";
+import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261111j";
+import { getPromoCourante, getLieuxLus } from "./db.js?v=20261111j";
+import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261111j";
+import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261111j";
+import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261111j";
+import { libellePastille } from "./nouveautes.js?v=20261111j";
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole, nomDuBoutonCompte,
-} from "./nav-rules.js?v=20261111i";
-import { chargerATraiter } from "./a-traiter.js?v=20261111i";
+} from "./nav-rules.js?v=20261111j";
+import { chargerATraiter } from "./a-traiter.js?v=20261111j";
 import {
   ENTREE_A_TRAITER, resumeATraiter, nomAvecATraiter, phraseATraiter, pointSurPlus, nomDePlus,
-} from "./a-traiter-rules.js?v=20261111i";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261111i";
-import { ouvrirMenuCompte } from "./menu-compte.js?v=20261111i";
-import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261111i";
-import { ouvrirSignalement } from "./signalement.js?v=20261111i";
-import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261111i";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261111i";
+} from "./a-traiter-rules.js?v=20261111j";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261111j";
+import { ouvrirMenuCompte } from "./menu-compte.js?v=20261111j";
+import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261111j";
+import { ouvrirSignalement } from "./signalement.js?v=20261111j";
+import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261111j";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261111j";
 
 // Barre latérale repliée en colonne d'icônes : choix mémorisé sur l'appareil.
 const CLE_REPLIEE = "ecsr_nav_repliee";
@@ -169,13 +169,6 @@ onAssistantChange((ouvert) => {
 // En-tête du stagiaire, barre latérale : le panneau s'ouvre ou se ferme ; fermé, il rend le focus à ce
 // bouton, ou à son équivalent affiché si la coquille a changé entre-temps (js/nav-fenetre.js).
 const basculerDepuis = (bouton) => basculerAssistant(() => rendreFocus(bouton, "assistant"));
-
-// Depuis le tiroir « Plus » : le tiroir se ferme (le focus revient à « Plus ») et l'assistant s'ouvre, puis
-// rend le focus à « Plus » en se fermant ; déjà ouvert derrière le tiroir, il le reste.
-function assistantDepuisLeTiroir(plus) {
-  fermerFenetre();
-  if (!assistantOuvert()) basculerAssistant(() => rendreFocus(plus, "plus"));
-}
 
 // Bouton « Signaler un problème » (pied de barre de l'équipe, tiroir « Plus ») : `geste(bouton)` ouvre la
 // fenêtre (js/signalement.js). Sa pastille et son nom suivent l'état des signalements : les nouveaux chez
@@ -509,7 +502,7 @@ ORDINATEUR.addEventListener("change", appliquerColonne);
 // ----- Téléphone : barre du bas et tiroir « Plus » -----
 
 // `laterale` : l'espace a la barre latérale (équipe, direction, siège) ; « Plus » y est toujours, même sans autre page à ranger :
-// l'Assistant, « Signaler un problème » et le compte sont dans son tiroir.
+// « Signaler un problème » est dans son tiroir (l'Assistant et le compte sont en haut de l'écran).
 function barreDuBas(barre, plus, laterale) {
   const cases = barre.map((e) => {
     const lien = el("a", { href: "#/" + e.route, class: "nav-case", "data-entree": e.id },
@@ -530,33 +523,22 @@ function boutonPlus() {
 
 function ouvrirPlus(bouton) {
   if (!montee) return;
-  const { entrees, nom, initiales, actualiser, espace } = montee;
+  const { entrees, espace } = montee;
   const allumee = entreeActive(montee.route, entrees, espace);
   const autres = entrees.filter((e) => montee.plus.includes(e.id));
   const lien = (e) => prevoirATraiter(reperer(el("a", {
     href: "#/" + e.route, class: "nav-fenetre-lien", "data-entree": e.id, "aria-current": e.id === allumee ? "page" : null,
   }, iconeDe(e.icone), el("span", { class: "nav-fenetre-texte" }, e.libelle)), e), e);
-  const compte = el("button", {
-    type: "button", class: "nav-fenetre-lien", "data-nav-action": "compte", "aria-haspopup": "dialog",
-    title: nomDuBoutonCompte({ nom }),
-  }, avatar(initiales), el("span", { class: "nav-fenetre-texte" }, "Mon compte"));
-  // Le menu du compte prend la place du tiroir ; Échap rend alors le focus à « Plus ».
-  compte.addEventListener("click", () => {
-    fermerFenetre({ focus: false });
-    ouvrirMenuCompte(bouton, { actualiser, entrees, espace });
-  });
+  // L'Assistant et le compte n'y sont plus (11/11/2026, « une chose, un endroit ») : ils sont en haut de l'écran.
   ouvrirFenetre({
     nom: "plus", ancre: bouton, etiquette: "Plus", classe: "nav-tiroir",
     contenu: [
       autres.length ? el("p", { class: "nav-fenetre-section" }, "Autres pages") : null,
       groupes(autres, "plus", lien),
       el("p", { class: "nav-fenetre-section" }, "Outils"),
-      boutonAssistant("nav-fenetre-lien", () => assistantDepuisLeTiroir(bouton),
-        deco(icon.chat()), el("span", { class: "nav-fenetre-texte" }, "Assistant")),
       // La fenêtre de signalement remplace le tiroir ; le focus reviendra à « Plus ».
       boutonSignaler("nav-fenetre-lien", () => ouvrirSignalement({ ancre: bouton }),
         deco(icon.signaler()), el("span", { class: "nav-fenetre-texte" }, "Signaler un problème")),
-      compte,
     ],
   });
   // La pastille de « Cours et QCM » et la phrase « à traiter » de ce tiroir : ce que les comptes disent à cet instant.

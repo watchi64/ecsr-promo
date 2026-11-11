@@ -1,29 +1,29 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante, getNotesStatsGroupe } from "../db.js?v=20261111i";
-import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261111i";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261111i";
-import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261111i";
-import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111i";
-import { renderEpcfPersonne } from "./epcf.js?v=20261111i";
-import { renderSubTabs } from "../subtabs.js?v=20261111i";
-import { renderDp } from "./dp.js?v=20261111i";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261111i";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261111i";
-import { lundiEnCours } from "../journee-rules.js?v=20261111i";
-import { bandeauAvis } from "../avis.js?v=20261111i";
-import { statsPassages } from "../passages-stats.js?v=20261111i";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261111i";
-import { icon } from "../icons.js?v=20261111i";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261111i";
-import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261111i";
-import { exemplesRemplis } from "../dp-rules.js?v=20261111i";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261111i";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261111i";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111i";
-import { renderNotes } from "./notes.js?v=20261111i";
-import { notesSur20, moyenne, tendance, forcesEtFaiblesses, moyenneDuGroupe, formatNote } from "../resultats-rules.js?v=20261111i";
+         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante, getNotesStatsGroupe } from "../db.js?v=20261111j";
+import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261111j";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261111j";
+import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261111j";
+import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111j";
+import { renderEpcfPersonne } from "./epcf.js?v=20261111j";
+import { renderSubTabs } from "../subtabs.js?v=20261111j";
+import { renderDp } from "./dp.js?v=20261111j";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261111j";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261111j";
+import { lundiEnCours } from "../journee-rules.js?v=20261111j";
+import { bandeauAvis } from "../avis.js?v=20261111j";
+import { statsPassages } from "../passages-stats.js?v=20261111j";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261111j";
+import { icon } from "../icons.js?v=20261111j";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261111j";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261111j";
+import { exemplesRemplis } from "../dp-rules.js?v=20261111j";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261111j";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261111j";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111j";
+import { renderNotes } from "./notes.js?v=20261111j";
+import { notesSur20, moyenne, tendance, forcesEtFaiblesses, moyenneDuGroupe, formatNote } from "../resultats-rules.js?v=20261111j";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 

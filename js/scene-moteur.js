@@ -32,16 +32,16 @@
  * Rien n'apparaît hors du cadre : le dessin est découpé au cadre courant, et la
  * boîte du SVG prend les proportions de ce cadre (css/cours-blocs.css).
  */
-import { preparerScene, etatActeur, pointA, GABARITS, DEG, PORTIERE, anglePortiere } from "./scene-geometrie.js?v=20261111i";
-import { regardDessine } from "./scene-regard.js?v=20261111i";
+import { preparerScene, etatActeur, pointA, GABARITS, DEG, PORTIERE, anglePortiere } from "./scene-geometrie.js?v=20261111j";
+import { regardDessine } from "./scene-regard.js?v=20261111j";
 import { TEINTES, RAYON_REPERE, clignotantAllume, feuxDeRecul, cadreCamera, cadreReduit, reperesEtapes,
   demiLargeurRepere, libelleRepere, emprisePanneau, feuxStop }
-  from "./scene-rendu.js?v=20261111i";
-import { urlSignalVerifie } from "./signaux.js?v=20261111i";
-import { monterLecteur } from "./lecteur-anime.js?v=20261111i";
-import { etapeA } from "./lecteur-anime-regles.js?v=20261111i";
-import { versDom } from "./dessin-svg.js?v=20261111i";
-import { cycliste } from "./piece-cycliste.js?v=20261111i";
+  from "./scene-rendu.js?v=20261111j";
+import { urlSignalVerifie } from "./signaux.js?v=20261111j";
+import { monterLecteur } from "./lecteur-anime.js?v=20261111j";
+import { etapeA } from "./lecteur-anime-regles.js?v=20261111j";
+import { versDom } from "./dessin-svg.js?v=20261111j";
+import { cycliste } from "./piece-cycliste.js?v=20261111j";
 
 const NS = "http://www.w3.org/2000/svg";
 // Opacité du regard : un cône, en lecture comme sur une image figée (les quatre cônes d'un tour du regard figé compris),

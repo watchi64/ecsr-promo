@@ -6,14 +6,14 @@
 // disent par leur phrase (phraseDeRefus), une lecture qui échoue par sa phrase et « Réessayer ». Textes destinés à l'équipe : au
 // vouvoiement.
 
-import { listBenevolesAPurgerDuCentre, purgerBenevolesDuCentre } from "../db.js?v=20261111i";
-import { el, clear, toast } from "../utils.js?v=20261111i";
-import { icon } from "../icons.js?v=20261111i";
-import { confirmer } from "../confirmer.js?v=20261111i";
+import { listBenevolesAPurgerDuCentre, purgerBenevolesDuCentre } from "../db.js?v=20261111j";
+import { el, clear, toast } from "../utils.js?v=20261111j";
+import { icon } from "../icons.js?v=20261111j";
+import { confirmer } from "../confirmer.js?v=20261111j";
 import {
   questionPurgerBenevoles, phrasePurges, phraseDePanne, phraseDEffacement, PHRASE_CONSERVATION, PHRASE_SANS_BENEVOLE,
-} from "../effacement-rules.js?v=20261111i";
-import { dateFr } from "../dates.js?v=20261111i";
+} from "../effacement-rules.js?v=20261111j";
+import { dateFr } from "../dates.js?v=20261111j";
 
 function boiteErreur(phrase, reessayer) {
   return el("div", { class: "centre-erreur", role: "alert" },
