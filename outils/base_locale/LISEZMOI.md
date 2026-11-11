@@ -62,9 +62,8 @@ Pour que les preuves donnent les mêmes verdicts qu'en production, le script ajo
 
 Verdicts de départ attendus après `reconstruire.sh` puis `rejouer_suite.sh` (sans `--avec-titres`) : rôles en ligne VERT
 11372/0, espaces en ligne VERT 240/0, données en ligne VERT 59/0, EPCF VERT 17/0, profils VERT 32/0, questionnaires VERT
-207/0, registre qualité VERT 128/0, habillage VERT 20/0 (cette dernière suppose qu'aucun compte n'a choisi d'habillage). La preuve de la conservation (`tests/sql/conservation-preuve.sql`, avec
-`-v migration=... -v retour=...`) sort ROUGE 223/4 sur cette base locale (droits du 23/10 des fonctions d'émargement absents des clones) : ce
-verdict est le départ à retrouver à l'identique après les titres.
+207/0, registre qualité VERT 128/0, habillage VERT 20/0 (cette dernière suppose qu'aucun compte n'a choisi d'habillage). La preuve de la conservation (`tests/sql/conservation-preuve.sql`, avec `-v migration=... -v retour=...`) sort VERT 227/0 : le script
+rejoue aussi les droits de l'émargement du 23/10 (fonctions internes fermées à `authenticated`, deux fonctions absentes des clones créées).
 
 ## Production
 

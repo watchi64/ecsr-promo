@@ -1064,7 +1064,7 @@ declare
   c_x constant text := 'preuve7.form.x@exemple.invalid';
   v_n_juge text;
   v_c1 text; v_c2 text; v_p1 text; v_p2 text; v_r1 text; v_x text;
-  v_p record; v_req_eq text;
+  v_p record; v_req_eq text; v_feuille_droit boolean;
 begin
   perform set_config('lock_timeout', '3s', true);
   v_en_ligne := v_mode like 'titres-en-ligne%';
@@ -1289,10 +1289,11 @@ begin
     pg_temp.essai(format('update public.affectations set promo_id = %s where lower(email) = %L and promo_id = %s', v_pc, c_c, v_pa)), 'ERREUR 23514');
   perform pg_temp.attendre('affectation', 'un titre qui n''existe pas : refusé par la clé étrangère (23503)',
     pg_temp.affecter(c_auth, 'formateur', v_pa, null, '999999999'), 'ERREUR 23503');
-  perform pg_temp.attendre('affectation', 'supprimer un titre encore porté : refusé (23001, restrict)',
-    pg_temp.essai(format('delete from public.titres where id = %s', coalesce(v_p2, '0'))), 'ERREUR 23001');
-  perform pg_temp.attendre('affectation', 'supprimer un titre fixe encore porté : refusé (23001, restrict)',
-    pg_temp.essai($q$delete from public.titres where fixe and niveau = 'promo'$q$), 'ERREUR 23001');
+  -- La clé étrangère « restrict » refuse la suppression : 23001 (PostgreSQL 18, base locale) ou 23503 (17.6, production) ; le refus compte.
+  perform pg_temp.attendre('affectation', 'supprimer un titre encore porté : refusé (restrict : 23001 ou 23503)',
+    regexp_replace(pg_temp.essai(format('delete from public.titres where id = %s', coalesce(v_p2, '0'))), '2300[13]$', '2300x'), 'ERREUR 2300x');
+  perform pg_temp.attendre('affectation', 'supprimer un titre fixe encore porté : refusé (restrict : 23001 ou 23503)',
+    regexp_replace(pg_temp.essai($q$delete from public.titres where fixe and niveau = 'promo'$q$), '2300[13]$', '2300x'), 'ERREUR 2300x');
 
   -- 7 bis. Un titre porté (ou fixe) ne change ni de niveau, ni de centre, ni de caractère fixe.
   perform pg_temp.attendre('titres', 'titre porté : changer son niveau est refusé (23514)',
@@ -1487,7 +1488,17 @@ begin
         and has_function_privilege('anon', pr.oid, 'execute') and has_function_privilege('authenticated', pr.oid, 'execute')$q$), '10/10');
 
   -- 8 quater. Groupe fonctions : les 30 fonctions de l'app (29 d'avant Q5, plus fiches_effacees_sur_demande de Q5) (migration 2, partie B).
+  -- En production, authenticated n'a pas le droit d'exécuter emargement_feuille (fonction interne, droits de 20261023_emargement.sql) : un
+  -- appel direct rend 42501 avant toute garde. Les cas du groupe testent la LOGIQUE de la garde, quel que soit ce droit : il est accordé le
+  -- temps du groupe (le bloc est annulé à la fin) puis retiré s'il n'y était pas, pour que l'empreinte des droits reste celle d'avant.
+  v_feuille_droit := has_function_privilege('authenticated', 'public.emargement_feuille(bigint, boolean)', 'execute');
+  if not v_feuille_droit then
+    execute 'grant execute on function public.emargement_feuille(bigint, boolean) to authenticated';
+  end if;
   perform pg_temp.groupe_fonctions();
+  if not v_feuille_droit then
+    execute 'revoke execute on function public.emargement_feuille(bigint, boolean) from authenticated';
+  end if;
 
   -- 8 quinquies. Groupe cases : les 93 règles passent par les gestes (migration 3).
   perform pg_temp.groupe_cases();

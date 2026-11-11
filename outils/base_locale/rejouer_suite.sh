@@ -63,4 +63,14 @@ grant all on public.registre_qualite to service_role;
 revoke all on function public.epcf_moyennes(text) from public, anon;
 grant execute on function public.epcf_moyennes(text) to authenticated, service_role;
 SQL
+# 3. Droits de l'émargement du 23/10 (20261023_emargement.sql), absents des clones : emargement_signer_formateur et emargement_rouvrir
+#    n'y existent pas, et les autres fonctions y gardent l'exécution par défaut (PUBLIC). En production : emargement_jour_paris,
+#    emargement_trace_valide et emargement_feuille sont internes (aucun droit pour anon, PUBLIC ni authenticated), les autres
+#    fonctions s'exécutent par authenticated seulement. On rejoue, tels quels, les deux create function manquants et les revoke /
+#    grant du fichier (extraits par motif, pas par numéro de ligne). Q5 recrée emargement_signer, _annoter et _clore par create or
+#    replace, qui garde ces droits.
+{
+  awk '/^create function public\.emargement_(signer_formateur|rouvrir)\(/ {f=1} f {print} /^\$function\$;/ {f=0}' "$MIGRATIONS/20261023_emargement.sql"
+  awk '/^(revoke all on function public\.emargement_(jour_paris|ouvrir)|grant execute on function public\.emargement_ouvrir)/ {f=1} f {print} f && /;[ ]*$/ {f=0}' "$MIGRATIONS/20261023_emargement.sql"
+} | $P -1 || { echo "échec : droits de l'émargement" >&2; exit 3; }
 echo "OK : suite rejouée ($N migrations)"
