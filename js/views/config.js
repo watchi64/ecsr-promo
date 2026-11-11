@@ -14,21 +14,21 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   setMyAnonymousNotes,
-} from "../db.js?v=20261111j";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111j";
-import { confirmer } from "../confirmer.js?v=20261111j";
-import { icon } from "../icons.js?v=20261111j";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261111j";
-import { moduleVisible } from "../modules-etat.js?v=20261111j";
-import { renderModulesSection } from "./modules-reglage.js?v=20261111j";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111j";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261111j";
-import { pointsARetenir } from "../accueil-rules.js?v=20261111j";
-import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261111j";
-import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111j";
-import { blocHabillage } from "../habillage-choix.js?v=20261111j";
-import { nomBenevole } from "../planning-lecture.js?v=20261111j";
-import { dateFr } from "../dates.js?v=20261111j";
+} from "../db.js?v=20261111l";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111l";
+import { confirmer } from "../confirmer.js?v=20261111l";
+import { icon } from "../icons.js?v=20261111l";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261111l";
+import { moduleVisible } from "../modules-etat.js?v=20261111l";
+import { renderModulesSection } from "./modules-reglage.js?v=20261111l";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111l";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261111l";
+import { pointsARetenir } from "../accueil-rules.js?v=20261111l";
+import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261111l";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111l";
+import { blocHabillage } from "../habillage-choix.js?v=20261111l";
+import { nomBenevole } from "../planning-lecture.js?v=20261111l";
+import { dateFr } from "../dates.js?v=20261111l";
 
 // ====== SECTION Accès & invitations ======
 

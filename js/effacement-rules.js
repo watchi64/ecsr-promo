@@ -4,9 +4,9 @@
 
 import {
   phraseDeRefus, PHRASE_INDISPONIBLE, PHRASE_CONNEXION, PHRASE_SESSION, PHRASE_SANS_DROIT, PHRASE_ECHEC,
-} from "./espaces-rules.js?v=20261111j";
-import { dateLongue } from "./dates.js?v=20261111j";
-import { pluriel } from "./nombres.js?v=20261111j";
+} from "./espaces-rules.js?v=20261111l";
+import { dateLongue } from "./dates.js?v=20261111l";
+import { pluriel } from "./nombres.js?v=20261111l";
 
 // Confirmation par saisie du prénom (ou du mot EFFACER) : casse et espaces autour ignorés, accents exigés. Les deux côtés
 // sont mis sous la même forme Unicode (NFC) : un « é » tapé en deux signes (e + accent) vaut le « é » de la fiche. Rien
@@ -145,6 +145,20 @@ export function echeancesConservation(etat) {
         texte: `${nom} : la date de fin n'est pas renseignée, donc aucune échéance de conservation ne peut être calculée. `
           + "Renseignez la date de fin de la promo.",
       });
+      continue;
+    }
+    // Direction (Réglages du centre) : des activités de la promo sont datées après sa date de fin (fin_contredite_le, donnée par
+    // etat_conservation_centre pour la direction seulement). La base refuse alors les deux étapes à la direction : aucun bouton, la
+    // raison et la marche à suivre à la place. Rien à effacer : rien à dire.
+    if (p.fin_contredite_le) {
+      if (nombre(p.a_effacer_etape1) + nombre(p.a_effacer_etape2) + nombre(p.emargement_etape2) > 0) {
+        liste.push({
+          type: "fin_contredite", cible, du: null, due: false, restant: null, bouton: null, part: [], reste: [],
+          texte: `${nom} : des activités de la promo sont datées après sa date de fin (le ${dateLongue(p.date_fin)}), jusqu'au `
+            + `${dateLongue(p.fin_contredite_le)}. Les étapes ne se lancent pas ici. Si cette date de fin est fausse, corrigez-la ; `
+            + "si elle est juste, demandez l'effacement au fondateur.",
+        });
+      }
       continue;
     }
     // La date de fin est dite : une date mal saisie (année fausse) avancerait les deux étapes.
@@ -374,10 +388,17 @@ export function rappelConservation(echeances) {
 }
 
 // --- Données personnelles du centre (suite du lot 5) : la direction purge les élèves bénévoles de son centre sans passer par la
-// promo affichée (même confirmation que chez le formateur). La conservation des fiches (étapes à 12 mois et à 3 ans, effacement à
-// la demande) est au fondateur, sur la page Qualiopi (lot Q5) : Réglages et Réglages du centre le disent par la même phrase.
+// promo affichée (même confirmation que chez le formateur), et lance les deux étapes de conservation des promos de son centre
+// (20261111_conservation_direction : mêmes cartes et même confirmation que la page Qualiopi). L'effacement à la demande, le
+// questionnaire des formateurs et le registre restent au fondateur, page Qualiopi. Réglages (formateurs) le dit par
+// PHRASE_CONSERVATION ; les Réglages du centre présentent les échéances par PHRASE_CONSERVATION_CENTRE.
 
 export const PHRASE_CONSERVATION = "La conservation des fiches est gérée par le fondateur, sur la page Qualiopi.";
+export const PHRASE_CONSERVATION_CENTRE = "Les fiches des promos du centre : 12 mois après la fin d'une formation, les comptes et les "
+  + "textes libres partent ; les noms et les preuves sont gardés jusqu'au 31 décembre de la troisième année après la fin. Rien ne "
+  + "part tout seul : à chaque date, un bouton s'allume ici et attend votre clic. L'effacement à la demande d'une personne se fait "
+  + "auprès du fondateur.";
+export const PHRASE_SANS_ECHEANCE = "Aucune échéance : rien n'est à effacer pour le moment.";
 export const PHRASE_DONNEES_ECHEC = "Les données personnelles du centre n'ont pas pu être chargées.";
 export const PHRASE_SANS_BENEVOLE = "Aucun : tous les élèves enregistrés sont venus dans les 12 derniers mois.";
 

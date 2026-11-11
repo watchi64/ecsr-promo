@@ -8,15 +8,15 @@ import {
   getMesPromos, getPromoCourante, ouvrirDansUnePromo, creerPromo, modifierDatesPromo, renommerPromo, chargerMesPromos, choisirPromo,
   rechargerApresEnregistrements,
   lireEffectifsPromos, lireFormateursPromos,
-} from "../db.js?v=20261111j";
-import { el, clear, isoDate, formatLongDate, toast } from "../utils.js?v=20261111j";
-import { getCentre, getAffectations, getAdminEmail } from "../auth-admin.js?v=20261111j";
-import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261111j";
-import { validerPromo, etatPromo, partEcoulee } from "../direction-rules.js?v=20261111j";
-import { peutRegler } from "../modules-etat.js?v=20261111j";
-import { renderModulesSection } from "./modules-reglage.js?v=20261111j";
-import { entier, pluriel } from "../nombres.js?v=20261111j";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261111j";
+} from "../db.js?v=20261111l";
+import { el, clear, isoDate, formatLongDate, toast } from "../utils.js?v=20261111l";
+import { getCentre, getAffectations, getAdminEmail } from "../auth-admin.js?v=20261111l";
+import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261111l";
+import { validerPromo, etatPromo, partEcoulee } from "../direction-rules.js?v=20261111l";
+import { peutRegler } from "../modules-etat.js?v=20261111l";
+import { renderModulesSection } from "./modules-reglage.js?v=20261111l";
+import { entier, pluriel } from "../nombres.js?v=20261111l";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111l";
 
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";
 const PHRASE_SANS_PROMO = "Ce centre n'a pas encore de promo";

@@ -23,6 +23,29 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // Conservation des données ouverte à la direction (20261111_conservation_direction, décision de Timy du 11/11). Pour la
+  // direction, au vouvoiement ; premier du fichier : à date égale, c'est elle que montre la carte « Nouveauté » de son Accueil.
+  {
+    id: "2026-11-11-conservation-direction",
+    date: "2026-11-11",
+    pour: "direction",
+    titre: "La conservation des fiches de votre centre",
+    resume: "Dans les Réglages du centre, la partie « Conservation des fiches » montre maintenant les échéances des promos de "
+          + "votre centre, avec leur bouton. 12 mois après la fin d'une formation, les comptes, les adresses e-mail et les "
+          + "textes libres partent ; les noms, le dossier professionnel, le livret et les signatures sont gardés jusqu'au "
+          + "31 décembre de la troisième année après la fin. Rien ne part tout seul : le bouton s'allume à la date prévue et "
+          + "attend votre clic. Une promo dont des activités sont datées après sa date de fin n'a pas de bouton : "
+          + "corrigez sa date de fin si elle est fausse, sinon demandez l'effacement au fondateur. L'effacement à la demande d'une personne reste au fondateur.",
+    ou: { label: "Réglages du centre", route: "config" },
+    guide: [
+      "Ouvrez Réglages du centre, puis la section « Données personnelles », partie « Conservation des fiches ».",
+      "Chaque promo du centre y a ses échéances : « À faire maintenant » quand la date est passée, « À venir » sinon. "
+        + "« Ce qui part, ce qui reste » détaille chaque étape.",
+      "Le bouton de l'étape ouvre une fenêtre qui dit exactement ce qui part ; tapez EFFACER pour confirmer. Le geste est "
+        + "irréversible.",
+      "Une personne vous demande d'effacer ses données ? Transmettez sa demande au fondateur, qui efface tout, tout de suite.",
+    ],
+  },
   // Liste des thèmes compacte et « Plus » allégé (11/11/2026, essai de Timy sur iPhone). Pour tous : neutre.
   {
     id: "2026-11-11-themes-compacts",

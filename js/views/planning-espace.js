@@ -1,13 +1,13 @@
 // Refonte, lot 1 : la page Planning regroupe trois sous-onglets, la semaine, les dates clés
 // (ex-page Calendrier) et l'ordre de passage (ex-page Priorités).
 
-import { el, clear } from "../utils.js?v=20261111j";
-import { renderSubTabs } from "../subtabs.js?v=20261111j";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111j";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode } from "./planning.js?v=20261111j";
-import { renderCalendrier } from "./calendrier.js?v=20261111j";
-import { renderDashboard } from "./dashboard.js?v=20261111j";
-import { afficherErreur } from "./mon-suivi.js?v=20261111j";
+import { el, clear } from "../utils.js?v=20261111l";
+import { renderSubTabs } from "../subtabs.js?v=20261111l";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111l";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode } from "./planning.js?v=20261111l";
+import { renderCalendrier } from "./calendrier.js?v=20261111l";
+import { renderDashboard } from "./dashboard.js?v=20261111l";
+import { afficherErreur } from "./mon-suivi.js?v=20261111l";
 
 // Passer de la semaine à un autre sous-onglet vaut quitter la page du planning (js/main.js) :
 // le mode Modifier retombe, la barre des jours n'est plus suivie et la cible d'impression part

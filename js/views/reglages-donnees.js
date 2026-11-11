@@ -1,19 +1,23 @@
 // Données personnelles du centre (suite du lot 5) : la section des Réglages du centre où la direction applique les durées de
-// conservation promises dans les conditions d'utilisation, sur son centre et sans changer la promo affichée. La conservation des
-// fiches (étapes à 12 mois et à 3 ans, effacement à la demande) est au fondateur, sur la page Qualiopi (lot Q5, question 3 du
-// plan) : la section le dit par la phrase de Réglages, sans bouton. Restent les élèves bénévoles du centre sans venue depuis
-// 12 mois. La base décide de tout (droit, délais) : benevoles_a_purger(p_lieu) et purger_benevoles(p_ids, p_lieu) ; ses refus se
-// disent par leur phrase (phraseDeRefus), une lecture qui échoue par sa phrase et « Réessayer ». Textes destinés à l'équipe : au
-// vouvoiement.
+// conservation promises dans les conditions d'utilisation, sur son centre et sans changer la promo affichée. Deux blocs :
+//   - Conservation des fiches (20261111_conservation_direction, décision de Timy du 11/11) : les échéances des deux étapes de Q5
+//     pour les promos du centre (etat_conservation_centre(p_lieu), echeancesConservation), avec les cartes, les boutons et la
+//     fenêtre de confirmation par saisie de la page Qualiopi (carteEcheance et ACTIONS de js/views/conservation-cartes.js,
+//     confirmationEcheance). L'effacement à la demande, le questionnaire des formateurs et le registre restent au fondateur.
+//   - Les élèves bénévoles du centre sans venue depuis 12 mois : benevoles_a_purger(p_lieu), purger_benevoles(p_ids, p_lieu).
+// La base décide de tout (droit, délais) ; ses refus se disent par leur phrase, une lecture qui échoue par sa phrase et
+// « Réessayer ». Textes destinés à l'équipe : au vouvoiement.
 
-import { listBenevolesAPurgerDuCentre, purgerBenevolesDuCentre } from "../db.js?v=20261111j";
-import { el, clear, toast } from "../utils.js?v=20261111j";
-import { icon } from "../icons.js?v=20261111j";
-import { confirmer } from "../confirmer.js?v=20261111j";
+import { listBenevolesAPurgerDuCentre, purgerBenevolesDuCentre, lireEtatConservationCentre } from "../db.js?v=20261111l";
+import { el, clear, toast } from "../utils.js?v=20261111l";
+import { icon } from "../icons.js?v=20261111l";
+import { confirmer } from "../confirmer.js?v=20261111l";
 import {
-  questionPurgerBenevoles, phrasePurges, phraseDePanne, phraseDEffacement, PHRASE_CONSERVATION, PHRASE_SANS_BENEVOLE,
-} from "../effacement-rules.js?v=20261111j";
-import { dateFr } from "../dates.js?v=20261111j";
+  questionPurgerBenevoles, phrasePurges, phraseDePanne, phraseDEffacement, PHRASE_CONSERVATION_CENTRE, PHRASE_SANS_BENEVOLE,
+  PHRASE_SANS_ECHEANCE, echeancesConservation, confirmationEcheance, compteRenduConservation,
+} from "../effacement-rules.js?v=20261111l";
+import { carteEcheance, ACTIONS, CONSERVATION_ABSENTE } from "./conservation-cartes.js?v=20261111l";
+import { dateFr } from "../dates.js?v=20261111l";
 
 function boiteErreur(phrase, reessayer) {
   return el("div", { class: "centre-erreur", role: "alert" },
@@ -30,6 +34,8 @@ export function sectionDonneesCentre(centre) {
       el("p", { class: "muted" }, "Durées de conservation promises dans les conditions d'utilisation."))));
   const corps = el("div", { class: "reglage-donnees-corps" });
   section.appendChild(corps);
+  // Le compte rendu du dernier geste, relu par les lecteurs d'écran ; gardé d'un chargement à l'autre.
+  const annonce = el("p", { class: "cons-statut", role: "status", "aria-live": "polite" });
   let jeton = 0;
   let occupe = false;
 
@@ -37,18 +43,79 @@ export function sectionDonneesCentre(centre) {
     const mien = ++jeton;
     clear(corps);
     corps.appendChild(el("div", { class: "loading", role: "status" }, "Chargement"));
-    const benevoles = await listBenevolesAPurgerDuCentre(centre.id).then((liste) => ({ liste }), (erreur) => ({ erreur }));
+    const [conservation, benevoles] = await Promise.all([
+      lireEtatConservationCentre(centre.id).then(
+        (etat) => (etat === null ? { absent: true } : { etat, echeances: echeancesConservation(etat) }),
+        (erreur) => ({ erreur })),
+      listBenevolesAPurgerDuCentre(centre.id).then((liste) => ({ liste }), (erreur) => ({ erreur })),
+    ]);
     if (mien !== jeton) return;
     clear(corps);
-    corps.appendChild(blocConservation());
+    corps.appendChild(blocConservation(conservation));
     corps.appendChild(blocBenevoles(benevoles));
   }
 
-  // La conservation des fiches : la phrase de Réglages, sans bouton (le fondateur fait chaque effacement, page Qualiopi).
-  function blocConservation() {
-    return el("div", { class: "param-block", "data-conservation": "" },
+  function dire(texte, erreur = false) {
+    annonce.textContent = "";
+    annonce.classList.toggle("erreur", erreur);
+    if (texte) setTimeout(() => { annonce.textContent = texte; }, 50);   // vidée puis remplie : le même message est relu
+  }
+
+  // La conservation des fiches : les échéances des deux étapes pour les promos du centre, leur bouton quand la date est passée.
+  function blocConservation(lecture) {
+    const bloc = el("div", { class: "param-block", "data-conservation": "" },
       el("div", { class: "block-head" }, el("h4", {}, "Conservation des fiches")),
-      el("p", { class: "muted donnees-texte" }, PHRASE_CONSERVATION));
+      el("p", { class: "muted donnees-texte" }, PHRASE_CONSERVATION_CENTRE),
+      annonce);
+    if (lecture.absent) {
+      bloc.appendChild(el("p", { class: "muted donnees-texte" }, CONSERVATION_ABSENTE));
+      return bloc;
+    }
+    if (lecture.erreur) {
+      console.warn("Données personnelles : échéances illisibles", lecture.erreur);
+      bloc.appendChild(boiteErreur(lecture.erreur.message || phraseDePanne(lecture.erreur), charger));
+      return bloc;
+    }
+    const echeances = lecture.echeances;
+    if (!echeances.length) {
+      bloc.appendChild(el("p", { class: "muted donnees-texte" }, PHRASE_SANS_ECHEANCE));
+      return bloc;
+    }
+    const carte = (e) => carteEcheance(e, { agir: (x) => agir(x), ouvrirRegistre: () => {} });
+    const dues = echeances.filter((e) => e.due);
+    const avenir = echeances.filter((e) => !e.due);
+    if (dues.length) {
+      bloc.append(el("p", { class: "qualiopi-rangee-titre" }, "À faire maintenant"),
+        el("ul", { class: "cons-cartes" }, ...dues.map(carte)));
+    }
+    if (avenir.length) {
+      bloc.append(el("p", { class: "qualiopi-rangee-titre" }, "À venir"),
+        el("ul", { class: "cons-cartes" }, ...avenir.map(carte)));
+    }
+    return bloc;
+  }
+
+  // Une étape : la fenêtre de l'app dit exactement ce qui part et ce qui reste, et n'agit qu'après la saisie du mot EFFACER.
+  async function agir(e) {
+    if (occupe) return;
+    const question = confirmationEcheance(e);
+    if (!question || !ACTIONS[e.type]) return;
+    if (!(await confirmer(question))) return;
+    occupe = true;
+    section.querySelectorAll("button[data-cons]").forEach((b) => { b.disabled = true; });
+    try {
+      const texte = compteRenduConservation(e.type, await ACTIONS[e.type](e.cible));
+      dire(texte);
+      toast(texte, "success", 6000);
+    } catch (err) {
+      console.error(err);
+      const phrase = err.message || "L'opération n'a pas abouti.";
+      dire(phrase, true);
+      toast(phrase, "error");
+    } finally {
+      occupe = false;
+    }
+    await charger();
   }
 
   function blocBenevoles(lecture) {

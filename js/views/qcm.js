@@ -4,14 +4,14 @@
  * Multi-réponses : une question peut avoir plusieurs bonnes réponses.
  * Juste = ensemble coché == ensemble des bonnes réponses (toutes les bonnes, aucune fausse).
  */
-import { el, clear, toast, formatDate, shuffle } from "../utils.js?v=20261111j";
-import { confirmer } from "../confirmer.js?v=20261111j";
-import { icon, deco } from "../icons.js?v=20261111j";
-import { getQcmFull, insertQcmAttempt, getMyExamAttempt, listMyQcmAttemptsFor, createQcmSignalement } from "../db.js?v=20261111j";
-import { monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111j";
-import { fermerParEchap } from "../fenetre-echap.js?v=20261111j";
-import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261111j";
-import { dixieme } from "../nombres.js?v=20261111j";
+import { el, clear, toast, formatDate, shuffle } from "../utils.js?v=20261111l";
+import { confirmer } from "../confirmer.js?v=20261111l";
+import { icon, deco } from "../icons.js?v=20261111l";
+import { getQcmFull, insertQcmAttempt, getMyExamAttempt, listMyQcmAttemptsFor, createQcmSignalement } from "../db.js?v=20261111l";
+import { monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111l";
+import { fermerParEchap } from "../fenetre-echap.js?v=20261111l";
+import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261111l";
+import { dixieme } from "../nombres.js?v=20261111l";
 
 const MOTIFS = [
   ["reponse_fausse", "La réponse indiquée me semble fausse"],

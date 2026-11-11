@@ -1,8 +1,8 @@
 // Règles PURES de l'Ordre de passage (Planning), spec docs/superpowers/specs/2026-11-11-ordre-passage-resultats-design.md.
 // Module sans DOM ni réseau, testé en node (tests/ordre-passage-rules.test.mjs).
 // Comptage : la règle d'équité du placement (compteDansEquite) : Effectué et Absence comptent, Bonus et Report non.
-import { compteDansEquite } from "./passage-rules.js?v=20261111j";
-import { rolesPourEntry } from "./creneaux-rules.js?v=20261111j";
+import { compteDansEquite } from "./passage-rules.js?v=20261111l";
+import { rolesPourEntry } from "./creneaux-rules.js?v=20261111l";
 
 export const TYPES = ["Salle", "Voiture"];
 
