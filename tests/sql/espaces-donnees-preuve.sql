@@ -310,7 +310,7 @@ begin
     pg_temp.appeler(c_dir1, '1', null, format('select public.inviter_compte(%L, ''formateur'', null, null, null)::text', o_double)),
     'ERREUR P0001 invitation: Deux comptes existent pour cette adresse (écrite avec des majuscules sur l''un) : à régler par le fondateur.');
   perform pg_temp.attendre('orphelin', 'ce refus n''a rien changé (profils, affectations)',
-    pg_temp.instantane() || ' ' || (select string_agg(u.role || ':' || u.email, ',' order by u.email) from public.user_profiles u where lower(u.email) = o_double),
+    pg_temp.instantane() || ' ' || (select string_agg(u.role || ':' || u.email, ',' order by u.email collate "C") from public.user_profiles u where lower(u.email) = o_double),
     v_snap || ' stagiaire:' || upper(o_double) || ',stagiaire:' || o_double);
   -- 4.9 Un profil relié à une fiche de stagiaire reste refusé, dans les quatre chemins, sans rien écrire.
   v_snap := pg_temp.instantane();
