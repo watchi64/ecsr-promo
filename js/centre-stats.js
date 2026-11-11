@@ -56,7 +56,6 @@ export const METHODES_PUBLIQUES = {
 
 const somme = (l) => l.reduce((a, b) => a + b, 0);
 const ratio = (num, den) => (den ? num / den : null);
-// Exporté : la fiche des résultats (js/qualiopi-resultats.js) écrit ses taux de la même façon (arrondi, espace insécable).
 const jourDe = (horodatage) => String(horodatage || "").slice(0, 10);
 
 function decalerJour(iso, jours) {

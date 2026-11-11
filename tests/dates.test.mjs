@@ -93,6 +93,13 @@ test("getMonday (une Date) suit lundiDe : minuit local, jour par jour sur deux a
   }
   assert.equal(isoDate(getMonday("2026-11-11T12:00:00")), "2026-11-09", "une chaîne est lue comme avant (new Date)");
   assert.ok(Number.isNaN(getMonday("pas une date").getTime()), "une date illisible reste illisible");
+  for (const annee of [2, 20, 202]) {   // une année tapée à moitié dans « Aller à la semaine d'une date »
+    const d = new Date(2026, 10, 11, 15);
+    d.setFullYear(annee);
+    const lundi = getMonday(d);
+    assert.equal(lundi.getDay(), 1, `année ${annee} : un lundi`);
+    assert.ok(d - lundi >= 0 && d - lundi < 7 * 24 * 3600 * 1000, `année ${annee} : la même semaine`);
+  }
 });
 
 test("shuffle : une copie mélangée, la liste de départ intacte", () => {

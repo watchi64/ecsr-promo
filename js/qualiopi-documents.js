@@ -49,8 +49,9 @@ const BOM = String.fromCharCode(0xfeff);
 
 // --- Petits outils : dates, mots, nombres ---
 
-// Les petits outils de l'inventaire (jourDe, rempli, tableau, nb) et ses aides du planning sont importés de
-// js/qualiopi-preuves.js, jamais recopiés : les dossiers suivent ainsi toujours la règle de l'inventaire.
+// Les petits outils de l'inventaire (jourDe, rempli, tableau) et ses aides du planning sont importés de
+// js/qualiopi-preuves.js, jamais recopiés : les dossiers suivent ainsi toujours la règle de l'inventaire. Les dates et les
+// nombres écrits viennent de js/dates.js et js/nombres.js, comme partout dans l'app.
 const texte = (valeur, defaut) => (rempli(valeur) ? valeur.trim() : defaut);
 const somme = (liste) => liste.reduce((a, b) => a + b, 0);
 const enFrancais = (a, b) => a.localeCompare(b, "fr");

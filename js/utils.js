@@ -26,7 +26,9 @@ export function parseDate(str) {
 export function getMonday(d) {
   const date = d instanceof Date ? d : new Date(d);
   if (Number.isNaN(date.getTime())) return new Date(NaN);
-  return parseDate(lundiDe(isoDate(date)));
+  // L'année sur quatre chiffres : une année tapée à moitié (« 0002 », dans « Aller à la semaine d'une date ») reste lisible.
+  const jour = String(date.getFullYear()).padStart(4, "0") + isoDate(date).slice(-6);
+  return parseDate(lundiDe(jour));
 }
 
 export function addDays(d, n) {

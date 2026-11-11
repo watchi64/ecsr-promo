@@ -378,14 +378,14 @@ function openQcmSheet(theme, qcm) {
 
     // S'entraîner (tout le monde). Ordre adaptatif : mes erreurs passées d'abord.
     body.appendChild(el("button", { class: "btn primary full", type: "button",
-      onClick: () => { modale.fermer(); openQcmEntrainement(theme, qcm); } }, icon.play(), "S'entraîner"));
+      onClick: () => { modale.fermer({ focus: false }); openQcmEntrainement(theme, qcm); } }, icon.play(), "S'entraîner"));
     body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
       "Libre, illimité, ne compte pas dans les notes. Les questions déjà ratées passent en premier."));
 
     // Revoir mes erreurs : rejoue uniquement les questions échouées (les 2 modes comptent).
     if (stagiaireAvecFiche) {
       body.appendChild(el("button", { class: "btn ghost full", type: "button", style: "margin-top:0.45rem",
-        onClick: () => { modale.fermer(); openQcmEntrainement(theme, qcm, { errorsOnly: true }); } },
+        onClick: () => { modale.fermer({ focus: false }); openQcmEntrainement(theme, qcm, { errorsOnly: true }); } },
         icon.history(), "Revoir mes erreurs"));
     }
 
@@ -394,7 +394,7 @@ function openQcmSheet(theme, qcm) {
       if (examenDemarrable(qcm)) {
         const restant = tempsRestantMs(qcm);
         body.appendChild(el("button", { class: "btn accent full", type: "button", style: "margin-top:0.9rem",
-          onClick: () => { modale.fermer(); openQcmExamen(theme, qcm); } }, "Passer l'examen"));
+          onClick: () => { modale.fermer({ focus: false }); openQcmExamen(theme, qcm); } }, "Passer l'examen"));
         body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
           "Une seule passe, chronométrée, notée sur 20."
           + (restant == null ? "" : ` L'examen ferme dans ${formatTempsRestant(restant)}.`)));
@@ -412,7 +412,7 @@ function openQcmSheet(theme, qcm) {
     if (canManageExam() && nbSignal) {
       const voir = el("button", { class: "btn full", type: "button", style: "margin-top:0.9rem" },
         deco(icon.drapeau()), `${nbSignal} question${nbSignal > 1 ? "s" : ""} contestée${nbSignal > 1 ? "s" : ""} à traiter`);
-      voir.addEventListener("click", () => { modale.fermer(); openQcmEditor(theme, qcm.id); });
+      voir.addEventListener("click", () => { modale.fermer({ focus: false }); openQcmEditor(theme, qcm.id); });
       body.appendChild(voir);
       body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
         nbSignal > 1
@@ -621,7 +621,7 @@ function themeExamPanel(theme, qcm, onPublishChange) {
     // dessous (z-index:200). L'éditeur (z-index:1000) s'ouvre au premier plan ; à sa fermeture
     // le formateur retombe sur la fiche QCM (son point de départ), pas sur la liste nue.
     function editQuestions() {
-      modale.fermer();
+      modale.fermer({ focus: false });
       openQcmEditor(theme, qcm.id);
     }
 
@@ -1443,7 +1443,7 @@ function openThemeModal(theme) {
     coursVisible(theme)
       ? el("div", { class: "theme-cours-cta" },
           el("button", { class: "btn primary full", type: "button",
-            onClick: () => { modale.fermer(); openCoursSheet(theme, optionsCoursPour(theme)); } },
+            onClick: () => { modale.fermer({ focus: false }); openCoursSheet(theme, optionsCoursPour(theme)); } },
             icon.edu(), "Lire le cours"),
           el("p", { class: "theme-cours-hint" },
             "Synthèse, contenu détaillé, sanctions sourcées, chiffres clés et aide-mémoire."),

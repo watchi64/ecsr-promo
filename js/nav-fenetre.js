@@ -171,7 +171,8 @@ function auClavier(e) {
 // Les fenêtres s'empilent (un formulaire ouvert depuis un autre) : seule celle du dessus écoute le clavier, et Échap s'arrête
 // là (le planning ne quitte pas son mode Modifier derrière). Une confirmation (js/confirmer.js) passe au-dessus de tout et
 // garde le clavier pour elle. `auClavier` (facultatif) reçoit les autres touches (les flèches d'une liste de choix).
-// Rend { fond, fenetre, fermer, demanderFermeture } : fermer() ferme sans demander (après un enregistrement) ;
+// Rend { fond, fenetre, fermer, demanderFermeture } : fermer() ferme sans demander (après un enregistrement ; fermer({ focus:
+// false }) quand un écran plein prend la suite) ;
 // `apresFermeture` est appelée une fois, quel que soit le chemin. Une fenêtre retirée de la page par son écran (ancienne
 // manière, fond.remove()) est oubliée à la touche suivante. Testé par tests/nav-fenetre.test.mjs.
 
@@ -208,7 +209,8 @@ export function ouvrirModale(fenetre, {
   const entree = { fond, fenetre, autresTouches };
   let fini = false;
 
-  const fermer = () => {
+  // `focus: false` : un écran plein (examen, éditeur, cours) s'ouvre à la place, le focus ne retourne pas sous lui.
+  const fermer = ({ focus: rendre = true } = {}) => {
     if (fini) return;
     fini = true;
     retirer(entree);
@@ -216,7 +218,7 @@ export function ouvrirModale(fenetre, {
     let cible = null;
     try { cible = typeof retour === "function" ? retour() : retour; } catch (e) { cible = null; }
     if (!retour) cible = avant;
-    if (cible && cible !== document.body && affiche(cible) && typeof cible.focus === "function") cible.focus({ preventScroll: true });
+    if (rendre && cible && cible !== document.body && affiche(cible) && typeof cible.focus === "function") cible.focus({ preventScroll: true });
     if (typeof apresFermeture === "function") {
       try { apresFermeture(); } catch (e) { console.error(e); }
     }

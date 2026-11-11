@@ -256,7 +256,7 @@ export function ouvrirEntete(ctx, { apres = null } = {}) {
     ),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"), enregistrer),
-  ), { fermerAuVoile: false, focus: organisme });
+  ), { fermerAuVoile: false, focus: organisme, avantFermeture: () => !enregistrer.disabled });
 }
 
 // ===================================================================== Demi-journée
