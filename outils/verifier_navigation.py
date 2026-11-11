@@ -5117,7 +5117,7 @@ def verifier_moyennes_epcf(res, vue, e):
         if not re.fullmatch(r".+ : %s" % re.escape(accorde), epreuve["titre"]):
             res.echec("la classe, moyennes EPCF", vue, "le titre d'une épreuve est « %s », attendu « <épreuve> : %s »" % (epreuve["titre"], accorde))
         montrees = [(ligne[1], ligne[2]) for ligne in epreuve["lignes"] if len(ligne) == 3 and ligne[2]]
-        attendues = [("%.2f" % moyenne, str(n)) for (_, moyenne, n) in rangees if n >= K_ANONYMAT]
+        attendues = [(("%.2f" % moyenne).replace(".", ","), str(n)) for (_, moyenne, n) in rangees if n >= K_ANONYMAT]  # virgule (film, 11/11)
         if montrees != attendues:
             res.echec("la classe, moyennes EPCF", vue, "« %s » montre les critères évalués %s, attendu %s (k-anonymat de %d : un critère sur moins de %d stagiaires n'est jamais montré)"
                       % (epreuve["titre"], montrees, attendues, K_ANONYMAT, K_ANONYMAT))
