@@ -32,6 +32,9 @@
 -- Relecture du 11/11 (correctif critique) : une direction qui recule la date de fin d'une promo en cours (modifier_dates_promo)
 -- est refusée ; chaque source d'activité datée après la fin bloque la direction à elle seule ; une activité le jour même de la fin
 -- ne bloque pas ; le fondateur garde la règle de Q5 ; l'en-tête x-apercu-role d'une direction n'ouvre rien hors de son centre.
+-- Relecture ciblée (cycle 2) : sources ajoutées (signatures d'émargement, essais de QCM, livret, dossier professionnel, audits des
+-- notes et des passages : une suppression tardive bloque, une modification non ; fiche de suivi si la table existe), la date de
+-- création des fiches n'est plus lue ; fondateur en aperçu direction bloqué par une activité ; direction, date de fin nulle.
 -- Les dates de création et d'activité des données de la preuve sont posées en dur (rejouable à toute date).
 
 select length(set_config('preuve.migration', pg_read_file(:'migration'), false)) as migration_lue,
@@ -101,7 +104,7 @@ $g$;
   -- Direction (hors fondateur) : la date de fin, qu'elle peut modifier, ne suffit pas. Aucune activité de la promo ne doit être
   -- datée après sa fin (_activite_apres_fin), relue après le verrou : un changement de dates simultané attend la fin de l'étape.
   if not (peut_gerer_qualite() and peut_acceder_promo(p_promo)) and _activite_apres_fin(p_promo) is not null then
-    raise exception 'conservation: Des activités de cette promo sont datées après sa date de fin (jusqu''au %) : vérifiez la date de fin de la promo, ou demandez cet effacement au fondateur.', to_char(_activite_apres_fin(p_promo), 'DD/MM/YYYY');
+    raise exception 'conservation: Des activités de cette promo sont datées après sa date de fin (jusqu''au %) : si cette date est fausse, corrigez-la ; sinon, demandez cet effacement au fondateur.', to_char(_activite_apres_fin(p_promo), 'DD/MM/YYYY');
   end if;
 $g$;
   REFUS_A text;
@@ -376,30 +379,74 @@ begin
     set local role authenticated;
 
     -- 4.2 bis Relecture du 11/11 : l'activité après la date de fin bloque la direction, jamais le fondateur.
-    REFUS_A := '%conservation: Des activités de cette promo sont datées après sa date de fin (jusqu''au @) : vérifiez la date de fin de la promo, ou demandez cet effacement au fondateur.';
-    -- Chaque source, seule, sur PA1 (finie le 11/12/2026) : une ligne datée du 15/01/2027, la direction est refusée.
-    foreach t in array array[
-        format('update promos set created_at = timestamptz ''2027-01-15 10:00+01'' where id = %s', PA1),
-        format('update stagiaires set created_at = timestamptz ''2027-01-15 10:00+01'' where id = %s', SA2),
-        format('insert into emargement_seances (promo_id, jour, demi_journee, debut, fin, statut, ouverte_par) values (%s, date ''2027-01-15'', ''matin'', ''08:30'', ''12:00'', ''ouverte'', ''preuve@example.invalid'')', PA1),
-        format('insert into planning_entries (semaine_lundi, day_index, half_day, slot, promo_id) values (date ''2027-01-11'', 4, ''matin'', 0, %s)', PA1),
-        format('insert into evaluations (stagiaire_id, promo_id, type, note, date_eval) values (%s, %s, ''Thème'', 10, date ''2027-01-15'')', SA1, PA1),
-        format('insert into epcf_evaluations (stagiaire_id, promo_id, trame, date_eval) values (%s, %s, ''salle'', date ''2027-01-15'')', SA1, PA1),
-        format('insert into passages (stagiaire_id, promo_id, date, type, resultat) values (%s, %s, date ''2027-01-15'', ''Voiture'', ''Effectué'')', SA1, PA1)] loop
+    REFUS_A := '%conservation: Des activités de cette promo sont datées après sa date de fin (jusqu''au @) : si cette date est fausse, corrigez-la ; sinon, demandez cet effacement au fondateur.';
+    -- Chaque source, seule, sur PA1 (finie le 11/12/2026) : une ligne datée du 15/01/2027. « bloque » : la direction est refusée et
+    -- la date est dite ; « passe » : l'étape se fait (2 fiches). La fiche de suivi n'est jouée que si sa table existe.
+    for c in select * from (values
+        ('bloque', 'création de la promo', format('update promos set created_at = timestamptz ''2027-01-15 10:00+01'' where id = %s', PA1)),
+        ('bloque', 'séance d''émargement', format('insert into emargement_seances (promo_id, jour, demi_journee, debut, fin, statut, ouverte_par) values (%s, date ''2027-01-15'', ''matin'', ''08:30'', ''12:00'', ''ouverte'', ''preuve@example.invalid'')', PA1)),
+        ('bloque', 'signature d''émargement', format('with s as (insert into emargement_seances (promo_id, jour, demi_journee, debut, fin, statut, ouverte_par) values (%s, date ''2026-12-10'', ''matin'', ''08:30'', ''12:00'', ''ouverte'', ''preuve@example.invalid'') returning id) insert into emargement_lignes (seance_id, promo_id, stagiaire_id, trace, signe_le, signe_par, maj_par) select s.id, %s, %s, ''M10 10L20 20L30 25'', timestamptz ''2027-01-15 10:00+01'', ''preuve@example.invalid'', ''preuve@example.invalid'' from s', PA1, PA1, SA1)),
+        ('bloque', 'créneau du planning', format('insert into planning_entries (semaine_lundi, day_index, half_day, slot, promo_id) values (date ''2027-01-11'', 4, ''matin'', 0, %s)', PA1)),
+        ('bloque', 'note', format('insert into evaluations (stagiaire_id, promo_id, type, note, date_eval) values (%s, %s, ''Thème'', 10, date ''2027-01-15'')', SA1, PA1)),
+        ('bloque', 'évaluation EPCF', format('insert into epcf_evaluations (stagiaire_id, promo_id, trame, date_eval) values (%s, %s, ''salle'', date ''2027-01-15'')', SA1, PA1)),
+        ('bloque', 'passage', format('insert into passages (stagiaire_id, promo_id, date, type, resultat) values (%s, %s, date ''2027-01-15'', ''Voiture'', ''Effectué'')', SA1, PA1)),
+        ('bloque', 'essai de QCM', format('insert into qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20, finished_at, promo_id) select min(id), %s, ''entrainement'', 1, 2, 10, timestamptz ''2027-01-15 10:00+01'', %s from qcm having min(id) is not null', SA1, PA1)),
+        ('bloque', 'livret EPCF', format('insert into epcf_livrets (stagiaire_id, promo_id, updated_at) values (%s, %s, timestamptz ''2027-01-15 10:00+01'')', SA1, PA1)),
+        ('bloque', 'dossier professionnel', format('insert into dp_dossiers (stagiaire_id, promo_id, updated_at) values (%s, %s, timestamptz ''2027-01-15 10:00+01'')', SA1, PA1)),
+        ('bloque', 'note supprimée après la fin (audit)', format('insert into evaluations_audit (evaluation_id, action, before_data, changed_at, promo_id) values (999999, ''delete'', ''{}'', timestamptz ''2027-01-15 10:00+01'', %s)', PA1)),
+        ('bloque', 'passage supprimé après la fin (audit)', format('insert into passages_audit (passage_id, action, before_data, changed_at, promo_id) values (999999, ''delete'', ''{}'', timestamptz ''2027-01-15 10:00+01'', %s)', PA1)),
+        ('passe', 'note modifiée après la fin (audit « update »)', format('insert into evaluations_audit (evaluation_id, action, before_data, after_data, changed_at, promo_id) values (999999, ''update'', ''{}'', ''{}'', timestamptz ''2027-01-15 10:00+01'', %s)', PA1)),
+        ('passe', 'passage modifié après la fin (audit « update »)', format('insert into passages_audit (passage_id, action, before_data, after_data, changed_at, promo_id) values (999999, ''update'', ''{}'', ''{}'', timestamptz ''2027-01-15 10:00+01'', %s)', PA1)),
+        ('passe', 'fiche créée après la fin (date modifiable par la direction : non lue)', format('update stagiaires set created_at = timestamptz ''2027-01-15 10:00+01'' where id = %s', SA2)),
+        ('bloque', 'fiche de suivi', case when to_regclass('public.fiches_suivi') is not null then format('insert into fiches_suivi (stagiaire_id, promo_id, updated_at) values (%s, %s, timestamptz ''2027-01-15 10:00+01'')', SA1, PA1) end)
+      ) v(attendu, lib, sql) loop
+      if c.sql is null then continue; end if;
       r := null;
       begin
         reset role;
-        execute t;
+        execute c.sql;
+        get diagnostics n = row_count;
+        if n = 0 then raise exception 'aucune ligne écrite'; end if;
         set local role authenticated;
         perform pg_temp.qui('DA');
-        r := pg_temp.tente(format('select public.effacer_promo_etape1(%s)::text', PA1));
+        r := pg_temp.tente(format('select public.effacer_promo_etape1(%s) ->> ''fiches''', PA1));
         raise exception 'preuve: annulé';
       exception when others then
         if sqlerrm <> 'preuve: annulé' then r := 'préparation : ' || sqlerrm; end if;
       end;
-      perform pg_temp.cas('activité après la fin (' || split_part(split_part(t, 'update ', 2) || split_part(t, 'into ', 2), ' ', 1)
-        || ') : la direction est refusée, la date est dite', r like replace(REFUS_A, '@', '15/01/2027'), r);
+      if c.attendu = 'bloque' then
+        perform pg_temp.cas('activité après la fin (' || c.lib || ') : la direction est refusée, la date est dite',
+          r like replace(REFUS_A, '@', '15/01/2027'), r);
+      else
+        perform pg_temp.cas('jumeau, ' || c.lib || ' : l''étape se fait', r = 'ok 2', r);
+      end if;
     end loop;
+    -- Fondateur en aperçu direction (promo PA1 affichée) : même chemin que la direction, bloqué par une activité après la fin.
+    r := null;
+    begin
+      reset role;
+      execute format('insert into passages (stagiaire_id, promo_id, date, type, resultat) values (%s, %s, date ''2027-01-15'', ''Voiture'', ''Effectué'')', SA1, PA1);
+      set local role authenticated;
+      perform pg_temp.qui('FO');
+      perform pg_temp.apercu('direction', PA1);
+      r := pg_temp.tente(format('select public.effacer_promo_etape1(%s)::text', PA1));
+      j := pg_temp.res(pg_temp.tente(format('select public.etat_conservation_centre(%s)::text', LA)));
+      raise exception 'preuve: annulé';
+    exception when others then
+      if sqlerrm <> 'preuve: annulé' then r := 'préparation : ' || sqlerrm; end if;
+    end;
+    perform pg_temp.cas('fondateur en aperçu direction : bloqué par une activité après la fin, comme la direction (étape et état)',
+      r like replace(REFUS_A, '@', '15/01/2027')
+      and (select p ->> 'fin_contredite_le' from jsonb_array_elements(j -> 'promos') p where (p ->> 'id')::int = PA1) = '2027-01-15', r);
+    -- Direction, date de fin nulle (PA2) : refus de Q5, aucune date contredite dans l'état.
+    perform pg_temp.qui('DA');
+    r := pg_temp.tente(format('select public.effacer_promo_etape1(%s)::text', PA2));
+    r2 := pg_temp.tente(format('select public.effacer_promo_etape2(%s)::text', PA2));
+    j := pg_temp.res(pg_temp.tente(format('select public.etat_conservation_centre(%s)::text', LA)));
+    perform pg_temp.cas('direction, date de fin nulle : étapes refusées (« Renseignez d''abord la date de fin »), fin_contredite_le nulle',
+      r like '%conservation: Renseignez d''abord la date de fin de cette promo.' and r2 like '%conservation: Renseignez d''abord la date de fin de cette promo.'
+      and (select p -> 'fin_contredite_le' from jsonb_array_elements(j -> 'promos') p where (p ->> 'id')::int = PA2) = 'null'::jsonb,
+      r || ' | ' || r2);
     -- Jumeau : une séance le jour même de la fin ne bloque pas.
     r := null;
     begin

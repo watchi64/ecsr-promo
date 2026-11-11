@@ -34,8 +34,8 @@ export const NOUVEAUTES = [
           + "votre centre, avec leur bouton. 12 mois après la fin d'une formation, les comptes, les adresses e-mail et les "
           + "textes libres partent ; les noms, le dossier professionnel, le livret et les signatures sont gardés jusqu'au "
           + "31 décembre de la troisième année après la fin. Rien ne part tout seul : le bouton s'allume à la date prévue et "
-          + "attend votre clic. Une promo dont des activités sont datées après sa date de fin n'a pas de bouton : vérifiez sa "
-          + "date de fin. L'effacement à la demande d'une personne reste au fondateur.",
+          + "attend votre clic. Une promo dont des activités sont datées après sa date de fin n'a pas de bouton : "
+          + "corrigez sa date de fin si elle est fausse, sinon demandez l'effacement au fondateur. L'effacement à la demande d'une personne reste au fondateur.",
     ou: { label: "Réglages du centre", route: "config" },
     guide: [
       "Ouvrez Réglages du centre, puis la section « Données personnelles », partie « Conservation des fiches ».",

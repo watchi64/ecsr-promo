@@ -179,7 +179,7 @@ def direction_fin_a_verifier(v):
     v.attendre(a_verifier, "la carte « Fiches : date de fin à vérifier » de Nîmes, mars 2023")
     v.but("carte affichée")
     texte_carte = v.texte(a_verifier)
-    for morceau in ("datées après sa date de fin", "vérifiez la date de fin", "fondateur"):
+    for morceau in ("datées après sa date de fin", "Si cette date de fin est fausse, corrigez-la", "si elle est juste", "fondateur"):
         if morceau not in texte_carte:
             v.constat("F", BLOQUE, "la carte ne dit pas « %s »" % morceau, capture=True)
     if v.voit(a_verifier + " button[data-cons]"):

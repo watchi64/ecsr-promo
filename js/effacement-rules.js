@@ -155,8 +155,8 @@ export function echeancesConservation(etat) {
         liste.push({
           type: "fin_contredite", cible, du: null, due: false, restant: null, bouton: null, part: [], reste: [],
           texte: `${nom} : des activités de la promo sont datées après sa date de fin (le ${dateLongue(p.date_fin)}), jusqu'au `
-            + `${dateLongue(p.fin_contredite_le)}. Aucun effacement n'est possible ici : vérifiez la date de fin de la promo, ou `
-            + "demandez l'effacement au fondateur.",
+            + `${dateLongue(p.fin_contredite_le)}. Les étapes ne se lancent pas ici. Si cette date de fin est fausse, corrigez-la ; `
+            + "si elle est juste, demandez l'effacement au fondateur.",
         });
       }
       continue;

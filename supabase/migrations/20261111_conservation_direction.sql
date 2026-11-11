@@ -14,17 +14,18 @@
 --   2 bis. _activite_apres_fin(p_promo) : la dernière date d'activité de la promo postérieure à sa date de fin, nulle s'il n'y en
 --      a pas (ou pas de date de fin). Relecture du 11/11 : la direction peut changer les dates d'une promo (modifier_dates_promo,
 --      geste promos.gerer) ; reculer la fin d'une promo en cours (ou se tromper d'année) rendrait une étape « due ». Pour la
---      direction (hors fondateur), chaque étape exige donc en plus qu'aucune activité ne soit datée après la fin. Dates relues :
---      création de la promo et de ses fiches (que la direction ne peut pas antidater), séances d'émargement (jour), créneaux du
---      planning (lundi + jour), notes (date_eval), évaluations EPCF (date_eval), passages (date). Jours de Paris pour les
---      horodatages. Le fondateur garde la règle de Q5 telle quelle. Interne.
+--      direction (hors fondateur), chaque étape exige donc en plus qu'aucune activité ne soit datée après la fin. Seules des dates
+--      que la direction ne peut ni modifier ni supprimer (relu dans les règles des titres, 20261112_titres_3_regles.sql, et les
+--      droits de la production) : voir le détail au-dessus de la fonction. La date de création des fiches n'est PAS lue : la
+--      direction la modifie (geste stagiaires.gerer, règle stagiaires_modification). Ni l'agenda ni les jours off (une date
+--      d'examen après la fin est normale). Jours de Paris pour les horodatages. Le fondateur garde la règle de Q5. Interne.
 --   3. effacer_promo_etape1 et effacer_promo_etape2 : redéfinies à partir de leur définition en base au moment de l'exécution
 --      (pg_get_functiondef), par remplacement de deux fragments, chacun attendu exactement une fois dans chacune : la garde, et la
 --      ligne du verrou de la promo, suivie du contrôle des activités pour la direction (après le verrou : un changement de dates
 --      simultané attend). Même corps, mêmes dates, même journal. Les refus de Q5 restent : « Réservé à la gestion de la qualité. »
 --      pour qui n'est pas le fondateur, « Cette promo n'est pas dans votre périmètre. » pour le fondateur (promo nulle ou
 --      inconnue) ; la direction reçoit en plus « Des activités de cette promo sont datées après sa date de fin (jusqu'au …) :
---      vérifiez la date de fin de la promo, ou demandez cet effacement au fondateur. ». Si un fragment n'est pas trouvé exactement
+--      si cette date est fausse, corrigez-la ; sinon, demandez cet effacement au fondateur. ». Si un fragment n'est pas trouvé exactement
 --      une fois, la migration s'arrête sans rien changer.
 --   4. etat_conservation_centre(p_lieu) : la forme de etat_conservation(), restreinte aux promos du centre p_lieu où les étapes
 --      sont permises à l'appelant (_peut_conserver_promo), plus une clé fin_contredite_le : pour la direction (hors fondateur), la
@@ -51,19 +52,62 @@ returns boolean language sql stable security definer set search_path to 'public'
           or _peut_conserver_centre(lieu_de_promo(p_promo)));
 $function$;
 
+-- Les dates lues, et pourquoi la direction (sans affectation de formateur sur la promo) ne peut ni les modifier ni les supprimer :
+--   promos.created_at            : seul update (nom) est accordé (20261001_multi_promo_1_fondations.sql) ; creer_promo et
+--                                  modifier_dates_promo n'écrivent que les dates.
+--   emargement_seances.jour,     : lecture seule par règle (emargement_lignes_lecture, emargement.lire) ; toute écriture passe par
+--   emargement_lignes.signe_le     les fonctions de l'émargement (feuille tenue par le formateur, emargement.tenir = case de promo).
+--   planning_entries (lundi+jour): écriture par planning.modifier (case de promo : formateur seulement).
+--   evaluations.date_eval,       : écriture et suppression par notes.saisir (case de promo : formateur seulement).
+--   epcf_evaluations.date_eval,
+--   qcm_attempts.finished_at,    : idem (notes.saisir) ; un stagiaire n'ajoute que ses propres essais.
+--   epcf_livrets.updated_at      : idem (notes.saisir).
+--   dp_dossiers.updated_at       : notes.saisir ou le stagiaire lui-même ; jamais la direction.
+--   passages.date                : écriture et suppression par planning.modifier (formateur).
+--   evaluations_audit.changed_at,: écrites par déclencheur, aucune règle d'écriture ni de suppression pour authenticated ; elles
+--   passages_audit.changed_at      gardent la trace d'un ajout ou d'une suppression (supprimer une activité tardive ne lève pas le
+--                                  refus). Seules les lignes « insert » et « delete » comptent : les étapes elles-mêmes modifient
+--                                  des notes et des passages (textes libres, adresses), ce qui écrit des lignes « update ».
+--   fiches_suivi.updated_at      : seulement si la table existe encore (retirée en production le 11/11) ; notes.saisir.
+-- Une direction qui est aussi formatrice de la promo peut supprimer des créneaux, des notes ou des passages : les tables d'audit et
+-- promos.created_at gardent alors la trace. Plpgsql et requête dynamique pour fiches_suivi : la fonction se crée même sans elle.
 create function public._activite_apres_fin(p_promo integer)
-returns date language sql stable security definer set search_path to 'public', 'pg_temp' as $function$
-  select max(x.d)
-    from promos pr
-    cross join lateral (
-      select (pr.created_at at time zone 'Europe/Paris')::date
-      union all select (s.created_at at time zone 'Europe/Paris')::date from stagiaires s where s.promo_id = pr.id
-      union all select es.jour from emargement_seances es where es.promo_id = pr.id
-      union all select pe.semaine_lundi + pe.day_index from planning_entries pe where pe.promo_id = pr.id
-      union all select ev.date_eval from evaluations ev where ev.promo_id = pr.id
-      union all select ee.date_eval from epcf_evaluations ee where ee.promo_id = pr.id
-      union all select pa.date from passages pa where pa.promo_id = pr.id) x(d)
-   where pr.id = p_promo and pr.date_fin is not null and x.d > pr.date_fin;
+returns date language plpgsql stable security definer set search_path to 'public', 'pg_temp' as $function$
+declare
+  v_fin date;
+  v_cree timestamptz;
+  v_max date;
+  v_suivi date;
+begin
+  select pr.date_fin, pr.created_at into v_fin, v_cree from promos pr where pr.id = p_promo;
+  if v_fin is null then
+    return null;
+  end if;
+  select max(x.d) into v_max from (
+    select (v_cree at time zone 'Europe/Paris')::date
+    union all select es.jour from emargement_seances es where es.promo_id = p_promo
+    union all select (el.signe_le at time zone 'Europe/Paris')::date from emargement_lignes el where el.promo_id = p_promo
+    union all select pe.semaine_lundi + pe.day_index from planning_entries pe where pe.promo_id = p_promo
+    union all select ev.date_eval from evaluations ev where ev.promo_id = p_promo
+    union all select (ea.changed_at at time zone 'Europe/Paris')::date from evaluations_audit ea
+               where ea.promo_id = p_promo and ea.action in ('insert', 'delete')
+    union all select ee.date_eval from epcf_evaluations ee where ee.promo_id = p_promo
+    union all select (q.finished_at at time zone 'Europe/Paris')::date from qcm_attempts q where q.promo_id = p_promo
+    union all select (lv.updated_at at time zone 'Europe/Paris')::date from epcf_livrets lv where lv.promo_id = p_promo
+    union all select (dp.updated_at at time zone 'Europe/Paris')::date from dp_dossiers dp where dp.promo_id = p_promo
+    union all select pa.date from passages pa where pa.promo_id = p_promo
+    union all select (pau.changed_at at time zone 'Europe/Paris')::date from passages_audit pau
+               where pau.promo_id = p_promo and pau.action in ('insert', 'delete')) x(d)
+   where x.d > v_fin;
+  if to_regclass('public.fiches_suivi') is not null then
+    execute 'select max((f.updated_at at time zone ''Europe/Paris'')::date) from public.fiches_suivi f where f.promo_id = $1'
+      into v_suivi using p_promo;
+    if v_suivi > v_fin and (v_max is null or v_suivi > v_max) then
+      v_max := v_suivi;
+    end if;
+  end if;
+  return v_max;
+end;
 $function$;
 
 revoke all on function public._peut_conserver_centre(integer), public._peut_conserver_promo(integer),
@@ -98,7 +142,7 @@ $nouveau$, $nouveau$
   -- Direction (hors fondateur) : la date de fin, qu'elle peut modifier, ne suffit pas. Aucune activité de la promo ne doit être
   -- datée après sa fin (_activite_apres_fin), relue après le verrou : un changement de dates simultané attend la fin de l'étape.
   if not (peut_gerer_qualite() and peut_acceder_promo(p_promo)) and _activite_apres_fin(p_promo) is not null then
-    raise exception 'conservation: Des activités de cette promo sont datées après sa date de fin (jusqu''au %) : vérifiez la date de fin de la promo, ou demandez cet effacement au fondateur.', to_char(_activite_apres_fin(p_promo), 'DD/MM/YYYY');
+    raise exception 'conservation: Des activités de cette promo sont datées après sa date de fin (jusqu''au %) : si cette date est fausse, corrigez-la ; sinon, demandez cet effacement au fondateur.', to_char(_activite_apres_fin(p_promo), 'DD/MM/YYYY');
   end if;
 $nouveau$];
   v_def text;

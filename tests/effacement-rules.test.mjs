@@ -310,7 +310,8 @@ for (const e of tous) {
     promos: [{ ...etatCentre.promos[0], fin_contredite_le: "2027-01-15" }] });
   eq(contredit.map((e) => `${e.type}:${e.due}:${e.bouton}`).join(","), "fin_contredite:false:null",
     "fin contredite : une seule carte, sans bouton, même quand les deux dates sont passées");
-  ok(/datées après sa date de fin/.test(contredit[0].texte) && /15 janvier 2027/.test(contredit[0].texte) && /vérifiez la date de fin/.test(contredit[0].texte)
+  ok(/datées après sa date de fin/.test(contredit[0].texte) && /15 janvier 2027/.test(contredit[0].texte) && /Si cette date de fin est fausse, corrigez-la/.test(contredit[0].texte)
+    && /si elle est juste, demandez l'effacement au fondateur/.test(contredit[0].texte)
     && /fondateur/.test(contredit[0].texte) && confirmationEcheance(contredit[0]) === null,
     "fin contredite : la raison, la date de la dernière activité, quoi faire ; aucune confirmation possible");
   eq(echeancesConservation({ ...etatCentre, promos: [{ ...etatCentre.promos[0], fin_contredite_le: "2027-01-15", a_effacer_etape1: 0,
