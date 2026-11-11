@@ -6,12 +6,13 @@
 **But :** donner à chaque membre du personnel un titre (nom + cases par page : Non, Voir, Modifier) que la base vérifie à
 chaque demande, sans qu'aucun compte existant ne gagne ni ne perde un droit.
 
-**Architecture :** l'étape 1 (seule détaillée ici) pose la base invisible : la table `titres` et ses trois titres fixes,
+**Architecture :** l'étape 1 (en ligne depuis le 11/11, migrations 1 à 3 ; la 4 attend les conditions) pose la base invisible : la table `titres` et ses trois titres fixes,
 `affectations.titre_id` rempli d'office, un vocabulaire de « gestes » (`geste_promo`, `geste_centre`, `geste_reseau`) qui
 lit les cases du titre, la réécriture de chaque règle RLS et de chaque fonction `security definer` qui décide d'un droit
 avec le vocabulaire du lot 4, et le journal des droits écrit par déclencheurs. Avec les seuls titres fixes, chaque geste
-vaut exactement le prédicat qu'il remplace : la preuve du lot 4 et celles du lot 5 restent vertes à l'identique. Les
-étapes 2 (fonctions de gestion), 3 (écrans) et 4 (catalogue, conditions d'utilisation) sont esquissées en fin de plan.
+vaut exactement le prédicat qu'il remplace : la preuve du lot 4 et celles du lot 5 restent vertes à l'identique. L'étape 2
+(fonctions de gestion, section 4) est détaillée en deux mises en ligne, 2a (sécurité) puis 2b (gestion) ; les étapes 3
+(écrans) et 4 (catalogue, conditions d'utilisation) sont esquissées en fin de plan.
 
 **Technique :** PostgreSQL 17 (Supabase), règles RLS, fonctions `security definer` (`search_path` public puis pg_temp),
 preuves SQL rejouables assemblées par `outils/assembler_repetition_roles.mjs`, base locale jetable
@@ -115,7 +116,7 @@ matrice de `tests/sql/roles-preuve.sql` (F, D, E, R, S, Fo).
 | `geste_centre(l, 'promos.gerer')` | `cc(promos)=2` | `est_direction(l)` | Promos | | `creer_promo`, `modifier_dates_promo` |
 | `geste_centre(l, 'reglages.modifier')` | `cc(reglages)=2` | `est_direction(l)` | Réglages du centre | | `regler_habillage_centre` |
 | `geste_centre(l, 'donnees.purger')` | `df` | `est_direction(l)` | définitif (décision T1) | | `benevoles_a_purger(l)`, `purger_benevoles(ids, l)` |
-| `geste_centre(l, 'formateurs.nommer')` | `df` (l'étape 2 l'ouvre aux titres de promo non fixes) | `est_direction(l)` | Équipe | `affectations_ajout`, `affectations_retrait` (ligne formateur) | `regler_affectations_formateur`, `inviter_compte` (branche formateur) |
+| `geste_centre(l, 'formateurs.nommer')` | `df` (reste `df` : à l'étape 2, le don d'un titre de promo non fixe passe par `_refus_titre`, Équipe sur Modifier) | `est_direction(l)` | Équipe | `affectations_ajout`, `affectations_retrait` (ligne formateur) | `regler_affectations_formateur`, `inviter_compte` (branche formateur) |
 | `geste_centre(l, 'equipe.lire')` | `cc(equipe)>=1` | aucun | Équipe | | (étape 2 : lecture du journal du centre) |
 | `geste_reseau('centres.creer')` | `cr(directions)=2` | `est_siege()` | Directions de centre | | `creer_centre` |
 | `geste_reseau('directions.nommer')` | `sf` | `est_siege()` | Directions de centre | `affectations_ajout`, `affectations_retrait` (ligne direction) | `inviter_compte` (branche direction) |
@@ -478,33 +479,545 @@ chose (seuls des titres fixes existent) : aucune fenêtre de droit.
 
 ---
 
-## 4. Étape 2 : fonctions de gestion des titres (grandes lignes)
+## 4. Étape 2 : fonctions de gestion des titres
 
-- **Task A : lectures.** `titres_visibles(p_lieu integer)`, `mes_titres()`, `journal_des_droits(p_lieu integer)` (centre :
-  `geste_centre(l, 'equipe.lire')` ; réseau : `geste_reseau('directions.lire')`, lignes de niveau centre et réseau ;
-  fondateur : tout ; 3 ans au plus).
-- **Task B : donner et retirer.** `donner_titre(p_email, p_titre_id, p_promo_ids integer[] default null)`,
-  `retirer_titre(p_email, p_titre_id, p_lieu_id)` : règles du § 7 (jamais sur soi sauf Direction qui se donne Formateur ;
-  sur son terrain ; jamais plus que soi au même niveau ; retirer = pouvoir donner ; aucune adresse avec fiche de
-  stagiaire, `_orphelin_en_personnel` repris ; un titre par niveau et par centre ; un siège ne se nomme pas direction).
-  `geste_centre(l, 'formateurs.nommer')` s'ouvre aux titres de promo non fixes pour Équipe sur Modifier.
-- **Task C : créer, ajuster, supprimer** (§ 6.3) : `creer_titre(p_depuis, p_nom, p_lieu_id)`, `ajuster_titre(p_titre_id,
-  p_nom, p_cases)` (version de centre d'un titre du réseau, porteurs du centre basculés), `supprimer_titre(p_titre_id)`
-  (refus s'il est porté) ; titres fixes intouchables.
-- **Task D : invitations.** `inviter_compte` et `regler_affectations_formateur` gagnent `p_titre_id` (défaut : le titre fixe,
-  appels actuels inchangés).
-- **Task E : fermer les écritures directes** sur `affectations` (règles `affectations_ajout` et `_retrait` retirées, droits
-  `insert` et `delete` repris) ; `js/db.js` `retirerAffectation` passe par `retirer_titre` (seul appel d'app touché) ; les
-  cas « affectations » de `roles-preuve.sql` (l. 1899 à 1922, groupe h) deviennent des cas de fonction, aux mêmes attendus.
-- **Task F : verrou des titres non fixes** : `donner_titre` refuse un titre non fixe tant que la clé globale
-  `titres_ouverts` (à admettre dans `settings_globaux_prevus`) n'est pas posée par le fondateur (§ 12).
-- **À resserrer avant tout titre non fixe (relecture de la tâche 5)** : `affectations_lecture` (laissée telle quelle à l'étape 1)
-  garde `est_siege()` / `est_direction()`, que remplit toute affectation : un titre dont la case Équipe ou Directions de centre est
-  « Non » lit encore les adresses du personnel ; la réécrire avec `geste_centre(l, 'equipe.lire')` ou `direction_fixe(l)` et
-  `geste_reseau('directions.lire')` ou `siege_fixe()`, et ajouter au groupe `cases` « t_contenus ne lit aucune affectation de
-  direction ». `notes_stagiaires_visibles()` rend encore les identifiants des fiches non masquées à un compte sans fiche ni case
-  Notes : la garder par `membre_stagiaire(P) or geste_promo(P, 'notes.lire')`, comme `notes_stats_groupe`.
-- Preuves : cas pour chaque règle du § 7, chaque titre fictif, retrait immédiat (demande suivante refusée), journal.
+État de départ (11/11) : migrations `20261112_titres_1_tables`, `_2_gestes`, `_3_regles` appliquées en production ;
+`_4_journal` dans main, **non appliquée** (elle attend la version des conditions, étape 4). Verdicts de production après
+l'étape 1, référence de toute comparaison : titres-en-ligne 375/0, rôles 11518/0, espaces 240/0, données 59/0, EPCF 17/0,
+profils 32/0, questionnaires 207/0, registre 128/0, conservation 227/0 (la base locale peut différer : la Task 9 relève les siens).
+
+Deux mises en ligne, chacune avec sa migration, son retour, sa répétition, son essai à blanc et l'accord de Timy :
+- **2a, sécurité** (migration `20261112_titres_5_fermetures`) : plus aucune écriture directe sur `affectations`, aucun compte
+  ne se nomme lui-même, et les lectures qu'une case « Non » doit fermer le sont. Seul changement d'app : le retrait d'une
+  direction (page Directions de centre) passe par `retirer_titre`. Rien ne change pour les titres fixes, rien ne se voit.
+- **2b, gestion** (migration `20261112_titres_6_gestion`) : le verrou des titres non fixes, donner, retirer, créer, ajuster,
+  supprimer, et les lectures dont l'étape 3 a besoin. Aucun fichier `js/`, rien ne se voit, aucun titre non fixe donnable
+  en production (verrou fermé jusqu'à l'étape 4). Le journal reste non appliqué : ses lectures rendent une liste vide.
+
+### 4.0 Décisions de découpage (à relire par Timy, § 7 : T9 à T17)
+
+- **`retirer_titre` dès 2a, mais pour les seuls titres fixes (T10).** Sa signature est définitive (`p_email, p_titre_id,
+  p_lieu_id`), donc `js/db.js` ne change qu'une fois ; la branche des titres non fixes (règles 3 et 4 du § 7, comparaison des
+  cases) n'a d'objet que lorsqu'un titre non fixe peut être porté, donc en 2b, où un fragment remplace la ligne de refus de 2a.
+  Une fonction minimale « retirer une ligne d'affectation » aurait demandé une seconde retouche de l'app en 2b.
+- **`inviter_compte` et `regler_affectations_formateur` gardent leur signature (T9, écart à la spec § 14).** Leur ajouter
+  `p_titre_id` changerait leur signature : PostgREST refuserait deux surcharges, et les preuves des lots 4 et 5 citent
+  `inviter_compte(text, text, integer, integer, integer)`. L'invitation avec un titre est `donner_titre`, qui crée le profil
+  s'il manque. `inviter_compte` reste le chemin des stagiaires et des titres fixes ; l'étape 3 bascule les écrans sur
+  `donner_titre`.
+- **Les écritures directes se ferment par les droits ET par les règles** : `revoke insert, delete` pour authenticated, et
+  `affectations_ajout` / `affectations_retrait` réécrites à `false` (alter policy : leurs noms restent, le retour 3 de l'étape
+  1 les retrouve). Ni `drop policy` ni `drop` + `create`.
+- **Une preuve à part, `tests/sql/titres-gestion-preuve.sql`**, jouée sur une base où 1, 2, 3 sont appliquées (l'état de la
+  production) : la preuve de l'étape 1 injecte 1 à 4 et ne peut plus se jouer en mode injecté en production. Les aides et
+  les personnages communs passent dans `tests/sql/titres-aides.sql`, inclus par les deux.
+
+### 4.1 Fichiers de l'étape 2
+
+| Fichier | Rôle |
+|---|---|
+| `outils/base_locale/rejouer_suite.sh`, `LISEZMOI.md` | option `--titres 1,2,3[,4][,5][,6]` (les titres dans l'ordre donné) ; `--avec-titres` vaut `--titres 1,2,3,4` |
+| `tests/sql/titres-aides.sql` (créé), `tests/sql/titres-preuve.sql` | aides et personnages communs sortis de la preuve de l'étape 1 ; contrôles de l'étape 1 que la migration 5 invalide rendus dépendants de l'état |
+| `tests/sql/titres-gestion-preuve.sql` (créé) | preuve de l'étape 2 (groupes `structure`, `retrait`, `soi`, `ecritures`, `lectures`, `verrou`, `donner`, `retirer`, `gerer`, `lire`, `immediat`, `journal`, `retour`) |
+| `outils/assembler_repetition_roles.mjs`, `tests/assembler-roles.test.mjs` | modes `gestion [--etapes 5\|5,6\|4,5,6]`, `gestion-contre-epreuve`, `gestion-en-ligne` |
+| `supabase/migrations/20261112_titres_5_fermetures.sql` et `_retour.sql` | 2a |
+| `supabase/migrations/20261112_titres_6_gestion.sql` et `_retour.sql` | 2b |
+| `outils/generer_fragments_titres_5.py`, `outils/generer_fragments_titres_6.py` | blocs de fragments, aller et retour d'une seule source (comme `generer_fragments_titres_2.py`) |
+| `tests/sql/roles-preuve.sql` | ligne de matrice des affectations et groupe h, selon l'état (avant ou après la migration 5) |
+| `js/db.js`, `js/views/siege-directions.js`, `js/espaces-rules.js`, `tests/espaces-rules.test.mjs` | 2a seulement : `retirerTitre`, préfixe de refus `titres:` |
+| `_harness_supabase.js` (banc, hors git) | 2a : la RPC `retirer_titre` à la place du `delete` direct |
+
+Ordre d'application en production : 5, puis 6 (4 plus tard, avec les conditions). Retours : 6 puis 5. Gardes d'ordre, comme
+celle du retour 1 : le retour 5 refuse de se jouer si `donner_titre` existe (retour 6 d'abord) ; le retour 3 de l'étape 1
+gagne en tête un refus si `retirer_titre` existe (retour 5 d'abord).
+
+### Global Constraints (étape 2, en plus de celles du haut)
+
+- Les phrases de refus commencent par `titres:` (nouvelles fonctions) ou gardent leur préfixe d'origine (`invitation:`,
+  `equipe:`) ; droit manquant : `42501`. Textes au vouvoiement (équipe). L'app retire le préfixe (`PREFIXES_DE_REFUS`).
+- Toute fonction nouvelle : `security definer`, `search_path` public puis pg_temp, adresse du jeton en minuscules,
+  `revoke all ... from public, anon, service_role`, `grant execute ... to authenticated` ; les aides internes (`_...`) :
+  aucun droit d'exécution.
+- Pour les titres fixes, chaque fonction et chaque règle touchée donne exactement les réponses d'aujourd'hui : la matrice
+  du lot 4 reste verte au même compte, à la seule différence des écritures directes sur `affectations` (spec § 14).
+- Une fonction qui lit `journal_droits` se joue sans la table : `to_regclass('public.journal_droits')` nul, liste vide,
+  aucune erreur (corps en `plpgsql`, requête par `execute`).
+- Les gardes de dérive de l'étape 1 s'appliquent : fragment trouvé exactement une fois (retours chariot suivis), règle
+  nommée présente, sinon la migration s'arrête sans rien changer.
+
+### Review Focus (étape 2)
+
+1. **Se nommer soi-même par un autre chemin** : un siège qui passe par `inviter_compte`, `donner_titre`, une écriture directe,
+   ou l'aperçu du fondateur ; une personne qui ajuste le titre qu'elle porte (groupes `soi`, `donner`, `gerer`).
+2. **Le remplacement d'un titre au même niveau** (T13) : il retire l'ancien, donc obéit aux règles du retrait ; un Équipe :
+   Modifier ne remplace pas le Formateur d'une directrice (groupe `donner`).
+3. **Le titre du réseau ajusté depuis un centre** : les porteurs des autres centres ne bougent pas, la version du centre garde
+   le nom, un second ajustement modifie la version au lieu d'en créer une autre (groupe `gerer`).
+4. **Le retrait immédiat** : la demande suivante de la personne est refusée, sans reconnexion (groupe `immediat`).
+5. **Le journal absent** : `journal_des_droits` rend une liste vide et ne lève pas ; présent, il ne rend au siège aucune ligne
+   de niveau promo (groupes `lire`, `journal`).
+
+---
+
+### 2a : sécurité
+
+### Task 9 : Outils de l'étape 2 (base locale, aides, gabarit, assembleur)
+
+**Files:**
+- Modify: `outils/base_locale/rejouer_suite.sh`, `outils/base_locale/LISEZMOI.md`, `tests/sql/titres-preuve.sql`,
+  `outils/assembler_repetition_roles.mjs`, `tests/assembler-roles.test.mjs`
+- Create: `tests/sql/titres-aides.sql`, `tests/sql/titres-gestion-preuve.sql`
+
+**Interfaces:**
+- Produces :
+  - `bash outils/base_locale/rejouer_suite.sh [--port N] [--titres 1,2,3]` : après la suite, applique
+    `20261112_titres_<n>_*` dans l'ordre de la liste ; fichier manquant : code 3 et son nom. Sortie `OK : suite rejouée
+    (14 + k migrations)`.
+  - `tests/sql/titres-aides.sql` : les fonctions `pg_temp` de `titres-preuve.sql` qui ne sont pas des groupes (`jouer`,
+    `etape`, `essai`, `nouveau_titre`, `affecter`, `cases`, `verdict_titres`, `poser_perso`, `poser_titres_gestes`,
+    `appeler`, `cas_apercu`, `cas`, `poser_titres_fonctions`, `cas_lecture`, `cas_refus`), sans changement de corps.
+    `titres-preuve.sql` l'inclut par `-- @@INCLURE tests/sql/titres-aides.sql@@` après `roles-aides.sql`.
+  - `tests/sql/titres-gestion-preuve.sql` : même forme que `titres-preuve.sql` (empreinte avant, migrations 4, 5, 6 en
+    `-- @@INJECTER ...@@`, groupes, retours 6, 5, 4, groupe `retour`, verdict par `verdict_titres`). Prérequis contrôlé au
+    groupe `structure` : `titre_fixe`, `geste_promo`, et la règle `affectations_ajout` réécrite par la migration 3 existent.
+    Un groupe dont la fonction n'existe pas (2b avant la migration 6) est sauté avec une ligne d'information en mode
+    `gestion-en-ligne`, et compte comme échec dans les modes injectés.
+  - Personnages de l'étape 2, posés en propriétaire par `pg_temp.poser_titres_gestion()` (dans la preuve de gestion), en plus
+    de ceux de `titres-aides.sql` : une promo « Preuve8 promo A » dans le centre de la promo 1 ; `t_chef` (centre 1,
+    `{"promos":"voir","stagiaires":"voir","equipe":"modifier"}`), `t_vide` (centre 1, `{}`), `t_qualite` (réseau,
+    `{"cours":"voir","directions":"voir"}`), `t_dirs` (réseau, `{"cours":"voir","directions":"modifier"}`) ; des adresses
+    libres `x`, `y`, `z`, `u`, `v` (`preuve8.*@exemple.invalid`) et un orphelin (profil stagiaire sans fiche).
+  - Modes : `gestion [--etapes 5|5,6|4,5,6]` (défaut `5,6` ; étape demandée absente : arrêt avec message),
+    `gestion-contre-epreuve` (rien d'injecté), `gestion-en-ligne` (rien d'injecté, après application réelle).
+
+- [ ] **Step 1 : base locale au niveau de la production.** `reconstruire.sh` puis `rejouer_suite.sh --titres 1,2,3`.
+  Expected : `OK : suite rejouée (17 migrations)`.
+- [ ] **Step 2 : aides partagées.** Déplacer les fonctions listées dans `titres-aides.sql`. Run : `titres-en-ligne` sur cette
+  base, puis `titres --etapes 1,2,3,4` sur une base reconstruite et rejouée sans titres. Expected : mêmes comptes par groupe
+  qu'avant le déplacement (375/0 en ligne ; 433/0 injecté sur la suite), md5 du texte assemblé différent (attendu).
+- [ ] **Step 3 : assembleur.** Modes et tests (`node --test tests/assembler-roles.test.mjs`) : chaque mode a ses marqueurs ;
+  `gestion --etapes 6` sans 5 refusé ; `gestion` ne lit pas un fichier d'une étape non demandée. Expected : PASS.
+- [ ] **Step 4 : gabarit vide et contre-épreuve.** Le gabarit ne porte que `structure` et `retour`. Run :
+  `gestion-contre-epreuve` sur la base de l'étape 1. Expected : `VERT` sur `structure` (prérequis présents), et
+  `gestion --etapes 5` refusé tant que la migration 5 manque.
+- [ ] **Step 5 : verdicts de départ** dans `.base-locale/verdicts/avant-2/` : `titres-en-ligne`, `en-ligne` (rôles),
+  `espaces-en-ligne`, `donnees-en-ligne`, EPCF et profils `en-ligne`, questionnaires, registre, conservation, habillage.
+  Expected : `VERT` partout ; comptes notés dans le rapport.
+- [ ] **Step 6 : commit** `Titres, étape 2 : outils (base locale --titres, aides partagées, preuve de gestion)`.
+
+### Task 10 : `retirer_titre` (titres fixes) et « jamais sur soi » dans `inviter_compte` (migration 5, partie A)
+
+**Files:**
+- Create: `supabase/migrations/20261112_titres_5_fermetures.sql`, `20261112_titres_5_fermetures_retour.sql`,
+  `outils/generer_fragments_titres_5.py`
+- Modify: `tests/sql/titres-gestion-preuve.sql`
+
+**Interfaces:**
+- Consumes : `geste_centre`, `geste_reseau`, `est_fondateur`, `titre_fixe` (étape 1).
+- Produces :
+  - `public.retirer_titre(p_email text, p_titre_id bigint, p_lieu_id integer) returns jsonb` :
+    `{email, titre_id, lieu_id, retirees}` (`retirees` : nombre de lignes). Ordre des contrôles et phrases :
+    1. jeton sans adresse : `titres: Connexion requise.` (42501) ;
+    2. titre absent : `titres: Titre introuvable.` ; titre non fixe : `titres: Ce titre ne se retire pas encore ici.`
+       (ligne seule, remplacée en 2b) ;
+    3. niveau promo ou centre sans centre existant : `titres: Le centre est requis.` ; niveau réseau : `p_lieu_id` ignoré ;
+    4. droit (42501) : Formateur, `geste_centre(p_lieu_id, 'formateurs.nommer')`, sinon `titres: Réservé à la direction du
+       centre.` ; Direction de centre, `geste_reseau('directions.nommer')`, sinon `titres: Réservé au siège.` ; Siège,
+       `est_fondateur()`, sinon `titres: Réservé au fondateur.` ;
+    5. soi (42501) : cible = appelant, sauf Formateur (la directrice qui forme) et sauf `est_fondateur()` :
+       `titres: Vous ne pouvez pas retirer votre propre titre.` ;
+    6. effet : supprime les lignes de l'adresse (casse ignorée) qui portent ce titre, sur les promos du centre (promo), sur
+       le centre (centre) ou sans portée (réseau) ; aucune : `titres: Cette personne n'a pas ce titre ici.`
+  - `inviter_compte`, un fragment (branche direction), inséré avant la ligne
+    `    -- Un compte qui a une fiche de stagiaire n'est jamais affecté à la direction.` :
+    refus `invitation: Vous ne pouvez pas vous nommer vous-même à la direction.` (42501) si `v_email = v_moi and not
+    est_fondateur()`. Même signature, mêmes droits ; retour : fragment inverse.
+
+- [ ] **Step 1 : preuve, groupe `retrait`** (personnages de `titres-aides.sql` ; attendus en dur, « OK n » = lignes retirées) :
+  `dir_n` retire Formateur de `form_n` (centre de la promo 1) : `OK 1`, puis `form_n` n'a plus de ligne ; `dir_n` retire
+  Formateur de `form_m` sur le centre de la promo 2 : `ERREUR 42501` ; `form_n` se retire Formateur : `ERREUR 42501`
+  (droit), sa ligne reste ; `dir_n` se donne Formateur sur la promo 1 (`regler_affectations_formateur`) puis se le retire :
+  `OK 1` (la directrice qui forme) ; `siege` retire
+  Direction de centre de `dir_n` : `OK 1` ; `dir_n` se retire Direction de centre : `ERREUR 42501` ; `dir_n` retire la
+  direction de `dir_deux` : `ERREUR 42501` ; `siege` retire Siège de `siege_form` : `ERREUR 42501` ; le fondateur le fait :
+  `OK 1` ; titre absent, centre absent, personne sans ce titre : phrases exactes ci-dessus ; un titre non fixe
+  (`t_interv`, posé en propriétaire) : `Ce titre ne se retire pas encore ici.` ; fondateur en aperçu direction sur la promo
+  1 : retire Formateur de `form_n` (`OK 1`) ; en aperçu siège, retire Siège : `ERREUR 42501`.
+- [ ] **Step 2 : preuve, groupe `soi`** : `siege` appelle `inviter_compte(<son adresse>, 'direction', null, null, <lieu
+  1>)` : `ERREUR 42501` avec la phrase, aucune ligne écrite ; `siege` invite `c_personnel` à la direction : `OK`, une ligne ;
+  le fondateur s'invite à la direction : permis ; le fondateur en aperçu siège s'invite : `ERREUR 42501`.
+- [ ] **Step 3 : contre-épreuve.** `gestion-contre-epreuve` : ROUGE sur `retrait` et `soi`.
+- [ ] **Step 4 : écrire la partie A** (fonction nouvelle ; un bloc `do` de fragments comme `20261111_espaces_4_donnees.sql`,
+  tableau produit par `generer_fragments_titres_5.py aller|retour`) et son retour (fragment inverse, `drop function
+  retirer_titre`).
+- [ ] **Step 5 : vert.** `gestion --etapes 5` : `VERT n/0`, `retour` : empreinte d'après le retour 5 égale à celle d'avant.
+- [ ] **Step 6 : commit** `Titres, étape 2a, migration 5 (A) : retirer_titre (titres fixes), personne ne se nomme à la direction`.
+
+### Task 11 : Fermer les écritures directes sur `affectations` (migration 5, partie B)
+
+**Files:**
+- Modify: `supabase/migrations/20261112_titres_5_fermetures.sql`, `_retour.sql`, `tests/sql/titres-gestion-preuve.sql`,
+  `tests/sql/roles-preuve.sql`, `tests/sql/titres-preuve.sql`, `supabase/migrations/20261112_titres_3_regles_retour.sql`
+  (garde d'ordre en tête)
+
+**Interfaces:**
+- Consumes : `retirer_titre` (Task 10), `inviter_compte`, `regler_affectations_formateur`.
+- Produces :
+  - `revoke insert, delete on public.affectations from authenticated` (le droit `select` reste) ;
+    `alter policy affectations_ajout on public.affectations with check (false)` ; `alter policy affectations_retrait on
+    public.affectations using (false)`. Garde : les deux règles existent et citent `geste_centre` (texte de la migration 3).
+  - Retour : `grant delete` et `grant insert (email, role, promo_id, lieu_id)` à authenticated, les deux expressions de
+    `20261112_titres_3_regles.sql` relues dans le fichier (jamais de mémoire).
+  - `roles-preuve.sql` : l'état se lit une fois, `v_ferme := to_regprocedure('public.retirer_titre(text, bigint, integer)')
+    is not null`. La ligne de matrice `public.affectations` prend, pour l'ajout et le retrait, `'false'` si `v_ferme`, les
+    prédicats d'aujourd'hui sinon (lecture inchangée). Le groupe h garde ses 13 cas tant que `v_ferme` est faux ; sinon
+    il joue les 13 cas de fonction ci-dessous, aux mêmes attendus, plus « écriture directe refusée à tous ».
+
+- [ ] **Step 1 : preuve, groupe `ecritures`** (titres-gestion) : pour `dir_n`, `siege`, `form_n`, `stag_n` et le fondateur
+  (hors aperçu), `insert into public.affectations (...)` et `delete from public.affectations where email = ...` :
+  `ERREUR 42501` ou `OK 0`, jamais une ligne écrite ou retirée ; `has_table_privilege('authenticated', 'public.affectations',
+  'insert')` et `'delete'` faux, `'select'` vrai ; le scénario de la relecture finale (I4) : `siege` insère une ligne
+  `direction` à son adresse sur le centre de la promo 1, puis lit `stagiaires` sous l'en-tête 1 : `ERREUR 42501` puis `0`
+  ligne.
+- [ ] **Step 2 : `roles-preuve.sql`, groupe h en cas de fonction** (si `v_ferme`), attendus d'aujourd'hui :
+  ```text
+  dir_n   inviter_compte(form_m, 'formateur') en-tête 1              OK, 1 ligne promo 1
+  dir_n   regler_affectations_formateur(form_m, <lieu 2>, '{2}')      REFUS 42501
+  form_n  inviter_compte(personnel, 'formateur') en-tête 1           REFUS 42501
+  form_n  inviter_compte(personnel, 'direction', null, null, <l1>)   REFUS 42501
+  form_n  inviter_compte(personnel, 'siege')                         REFUS 42501
+  dir_n   inviter_compte(personnel, 'direction', null, null, <l1>)   REFUS 42501
+  stag_n  inviter_compte(personnel, 'formateur') en-tête 1           REFUS 42501
+  siege   inviter_compte(personnel, 'direction', null, null, <l1>)   OK, 1 ligne
+  siege   inviter_compte(personnel, 'siege')                         REFUS 42501
+  fond    inviter_compte(personnel, 'siege')                         OK, 1 ligne
+  dir_n   retirer_titre(form_n, <Formateur>, <l1>)                   OK, 0 ligne restante
+  form_n  retirer_titre(form_n, <Formateur>, <l1>)                   REFUS 42501, 1 ligne restante
+  dir_n   update public.affectations set promo_id = 2 ...            REFUS 42501 (inchangé)
+  ```
+  plus un cas « écriture directe refusée » par acteur de la liste (`REFUS 42501`).
+- [ ] **Step 3 : `titres-preuve.sql` dépendant de l'état** (même `v_ferme`) : groupe `journal`, `dir_n` donne et retire par
+  `inviter_compte` et `retirer_titre` au lieu de l'écriture directe (mêmes lignes de journal attendues) ; groupe `droits`,
+  « le droit d'insertion par colonne garde ses quatre colonnes » devient « aucune colonne ». Garde d'ordre du retour 3 :
+  essayée à la main sur la base locale (migration 5 appliquée, retour 3 joué seul : refus clair, rien ne change).
+- [ ] **Step 4 : contre-épreuve.** `gestion --etapes 5` avec la seule partie A : ROUGE sur `ecritures`.
+- [ ] **Step 5 : écrire la partie B et son retour ; vert.** `gestion --etapes 5` : `VERT n/0` ; puis, base `--titres
+  1,2,3,5` : `en-ligne` (rôles) VERT, matrice et groupe h jugés à l'état fermé ; base `--titres 1,2,3` : `en-ligne` égal à
+  `avant-2` (même compte).
+- [ ] **Step 6 : commit** `Titres, étape 2a, migration 5 (B) : écritures directes sur affectations fermées`.
+
+### Task 12 : Les lectures qu'une case « Non » ferme (migration 5, partie C)
+
+**Files:**
+- Modify: `supabase/migrations/20261112_titres_5_fermetures.sql`, `_retour.sql`, `outils/generer_fragments_titres_5.py`,
+  `tests/sql/titres-gestion-preuve.sql`, `tests/sql/titres-preuve.sql` (groupe `cases` : si la migration 5 est là, la seule
+  règle qui cite encore `est_*` est `public.lieux_lecture`)
+
+**Interfaces:**
+- Consumes : `geste_promo`, `geste_centre`, `geste_reseau`, `formateur_fixe`, `siege_fixe`, `membre_stagiaire` (étape 1).
+- Produces :
+  - `geste_centre`, un fragment : `when 'promos.lire' then return coalesce(case_centre(l, 'promos') >= 1, false);` inséré
+    avant `    when 'equipe.lire' then` (les cartes Promos montrent les noms des formateurs, spec § 5.4 ; T11).
+  - `alter policy affectations_lecture` :
+    `lower(email) = <jeton> or (select est_fondateur())`
+    `or (role = 'formateur' and (formateur_fixe(promo_id) or geste_centre(lieu_de_promo(promo_id), 'equipe.lire')`
+    `    or geste_centre(lieu_de_promo(promo_id), 'promos.lire')))`
+    `or (role = 'direction' and (geste_centre(lieu_id, 'equipe.lire') or (select geste_reseau('directions.lire'))))`
+    `or (role = 'siege' and (select siege_fixe()))`.
+  - `notes_stagiaires_visibles()`, un fragment : après `   where s.promo_id = promo_courante()`, la ligne
+    `     and (membre_stagiaire(promo_courante()) or geste_promo(promo_courante(), 'notes.lire'))`.
+  - `roles_du_personnel()`, un fragment : `(equipe_courante() or est_siege() or est_fondateur())` devient
+    `(geste_promo(promo_courante(), 'reglages.modifier') or geste_centre(lieu_de_promo(promo_courante()), 'equipe.lire') or
+    geste_reseau('directions.lire') or est_fondateur())` (« Personnes avec accès » est dans Réglages de la promo ; T12).
+  - `alter policy user_profiles_lecture` : dans la clause du personnel, `(select public.est_siege())` devient
+    `(select public.geste_reseau('directions.lire'))` ; le reste de l'expression de la migration 3, relu dans le fichier.
+    Garde : l'expression en vigueur contient `est_siege()` exactement une fois.
+  - Retour : les quatre textes de la migration 3 et des fragments d'origine.
+  - Pour les titres fixes, chaque remplacement vaut l'ancien prédicat (équivalences prouvées à l'étape 1 : `equipe.lire`
+    contre `est_direction`, `directions.lire` contre `est_siege`, `*_fixe` contre `est_*`).
+
+- [ ] **Step 1 : preuve, groupe `lectures`** (en nombre de lignes, attendus en dur ; titres non fixes posés en propriétaire)
+  : `t_contenus` (réseau, Directions : Non) ne lit aucune affectation de direction ni aucun profil du personnel, et
+  `roles_du_personnel()` lui rend 0 ligne ; un titre du réseau « Directions : Voir » (`t_qualite`, posé ici) lit les
+  affectations de direction, aucune de siège ; `t_interv` (Réglages : Non) : `roles_du_personnel()` 0 ligne, aucune
+  affectation d'un autre formateur ; `t_rh` (Promos : Voir) lit les lignes formateur des promos de son centre, aucune
+  d'un autre centre ; un titre de centre Promos : Non, Équipe : Non (`t_vide`) n'en lit aucune ; `t_secr`, `t_interv`,
+  `t_rh` sous l'en-tête 1 : `notes_stagiaires_visibles()` rend 0 identifiant ; `stag_n` en rend autant qu'avant la
+  migration (valeur relevée avant, comparée après) ; `form_n`, `dir_n`, `siege`, le fondateur : mêmes nombres qu'avant pour
+  chaque lecture du groupe.
+- [ ] **Step 2 : contre-épreuve.** `gestion --etapes 5` sans la partie C : ROUGE sur `lectures`.
+- [ ] **Step 3 : écrire la partie C et son retour ; vert.** `gestion --etapes 5` : `VERT n/0`.
+- [ ] **Step 4 : non-régression locale.** Base `--titres 1,2,3,5` : les dix preuves de `avant-2` ; Expected : `VERT`,
+  comptes égaux à `avant-2` groupe par groupe, sauf rôles (groupe h, cas de fonction : nombre annoncé dans le rapport) et
+  titres-en-ligne (contrôles dépendants de l'état). Les empreintes rendues en information par EPCF et profils changent.
+- [ ] **Step 5 : commit** `Titres, étape 2a, migration 5 (C) : affectations, notes visibles, personnel, lus selon les cases`.
+
+### Task 13 : L'app retire une direction par `retirer_titre`
+
+**Files:**
+- Modify: `js/db.js` (l. 305 à 327), `js/views/siege-directions.js` (import l. 8, `ouvrirRetrait` l. 113 à 125),
+  `js/espaces-rules.js` (`PREFIXES_DE_REFUS`, l. 281), `tests/espaces-rules.test.mjs`, `_harness_supabase.js` (banc)
+
+**Interfaces:**
+- Consumes : `retirer_titre(p_email, p_titre_id, p_lieu_id)` (Task 10).
+- Produces : `retirerTitre({ email, titreId, lieuId })` dans `js/db.js` (rend le jsonb de la base ; une erreur part par
+  `erreurDeBase`) ; `retirerAffectation` supprimée (seul appelant : `siege-directions.js`) ; `lireDirectionsDuReseau()` lit
+  aussi `titre_id` et rend `{ id, email, nom, lieu_id, titre_id }`.
+
+- [ ] **Step 1 : test rouge.** `tests/espaces-rules.test.mjs` : `phraseDeRefus("titres: Réservé au siège.", "42501")` vaut
+  `"Réservé au siège."`. Run : `node --test tests/espaces-rules.test.mjs`. Expected : FAIL.
+- [ ] **Step 2 : `titres` dans `PREFIXES_DE_REFUS`**, `retirerTitre`, `lireDirectionsDuReseau`, et `ouvrirRetrait` qui
+  appelle `retirerTitre({ email: direction.email, titreId: direction.titre_id, lieuId: centre.id })` (le refus s'affiche
+  dans la fenêtre par la voie actuelle). Run : `node --test "tests/*.test.mjs"`. Expected : PASS.
+- [ ] **Step 3 : banc.** Dans `_harness_supabase.js`, la RPC `retirer_titre` remplace la branche `affectations` +
+  `delete` (siège seul, ligne `direction` de l'adresse et du centre ; mêmes leviers `__HARNESS_RETRAIT_FAIL` et
+  `__HARNESS_RETRAIT_VIDE`, ce dernier rendant `titres: Cette personne n'a pas ce titre ici.`) ; les lignes d'affectation
+  du banc gagnent `titre_id`.
+- [ ] **Step 4 : robot.** Compétence `robot-des-parcours` : parcours du siège (`tour_du_reseau`, « retirer une direction »)
+  et `outils/verifier_navigation.py`. Expected : VERT.
+- [ ] **Step 5 : commit** `Titres, étape 2a : le retrait d'une direction passe par retirer_titre`. Aucune entrée Nouveautés :
+  la page fait la même chose qu'avant (le dire à Timy).
+
+### Task 14 : Répétition, essai à blanc et mise en ligne de 2a
+
+- [ ] **Step 1 : répétition locale complète.** `reconstruire.sh`, `rejouer_suite.sh --titres 1,2,3` ; verdicts `avant-2` ;
+  `gestion --etapes 5 --compact` (VERT, md5 noté) ; application `psql -1 -f` de la migration 5 ; `gestion-en-ligne` et les
+  dix preuves (`apres-2a/`) ; retour 5 réel puis les dix preuves : égales à `avant-2`. `git diff main --stat -- js` : les
+  seuls fichiers de la Task 13.
+- [ ] **Step 2 : essai à blanc en production, accord explicite de Timy.** Lui montrer : la migration 5 (ce qu'elle ferme), les
+  verdicts locaux, ce qui part dans l'app. Contrôles en lecture seule d'abord : aucune affectation de siège réelle, nombre
+  de lignes par rôle, texte en vigueur de `affectations_lecture` et `user_profiles_lecture` (égal à la migration 3).
+  `gestion --etapes 5 --compact`, joué par Timy (`outils/psql_prod.sh`) ou par la session principale avec son accord.
+  Expected : `VERT n/0`, md5 égal. Deux passages au plus.
+- [ ] **Step 3 : application** (même accord) : migration 5, `psql -1 -v ON_ERROR_STOP=1 -f` ; aussitôt, fusion de la branche
+  dans main et poussée (l'app suit la base de quelques minutes : aucun compte siège réel ne retire de direction entre les
+  deux, contrôle du Step 2). Jeton de cache : posé par le crochet de main, vérifier qu'il a changé.
+- [ ] **Step 4 : preuves après, en production** : `gestion-en-ligne`, `titres-en-ligne`, `en-ligne` (rôles),
+  `espaces-en-ligne`, `donnees-en-ligne`, EPCF, profils, questionnaires, registre, conservation (habillage : local
+  seulement, comme à l'étape 1). Expected : `VERT`, comptes de la Task 12, Step 4. Un ROUGE : retour 5 aussitôt (accord donné au Step 2), puis diagnostic.
+- [ ] **Step 5 : traces.** `ROADMAP.md` et en-tête de `POINT-DE-REPRISE.md` (compétence `roadmap`) : 2a en ligne, faille
+  « un siège se nomme direction » fermée, T9 à T17 en attente ; rapport : pas d'entrée Nouveautés (rien de visible).
+- [ ] **Step 6 : commit** `Titres, étape 2a en ligne : écritures fermées, lectures resserrées (<date>)`.
+
+### 2b : gestion
+
+### Task 15 : Le verrou des titres non fixes et les aides de décision (migration 6, partie A)
+
+**Files:**
+- Create: `supabase/migrations/20261112_titres_6_gestion.sql`, `_retour.sql`
+- Modify: `tests/sql/titres-gestion-preuve.sql`
+
+**Interfaces:**
+- Produces :
+  - contrainte `settings_globaux_prevus` : la liste d'aujourd'hui plus `'titres_ouverts'` (garde : la définition en vigueur
+    est celle de `20261108_espaces_3_habillage.sql`, sinon arrêt ; le retour la remet après avoir supprimé une ligne
+    `titres_ouverts`).
+  - `public.titres_ouverts() returns boolean` (stable ; vrai si la ligne globale `titres_ouverts` vaut `oui`).
+  - `public.regler_titres_ouverts(p_ouvert boolean) returns boolean` : `est_fondateur()` seul, sinon
+    `titres: Réservé au fondateur.` (42501) ; écrit ou supprime la ligne ; rend l'état.
+  - `public._cases_effectives(p_titre_id bigint) returns jsonb` : titre fixe, chaque page de son niveau à son plafond ;
+    sinon ses cases, pages absentes à `non`. Valeurs `non`, `voir`, `modifier`.
+  - `public._depasse(p_cases jsonb, p_limite jsonb) returns text` : la première page (ordre de `_pages_du_niveau`) où
+    `p_cases` ouvre plus que `p_limite`, nul sinon.
+  - `public._refus_titre(p_titre_id bigint, p_lieu_id integer, p_cible text, p_action text, out etat text, out phrase text)`
+    (`p_action` : `donner` ou `retirer`) : `etat` et `phrase` nuls si permis ; sinon l'état à lever (`42501` ou `P0001`) et la
+    phrase. `p_cible` nul (liste des titres donnables) : les règles 5 et 6 ne jouent pas. Règles, dans cet ordre :
+    1. titre introuvable ; centre requis (niveaux promo et centre) ; titre d'un autre centre (`lieu_id` du titre non nul
+       et différent) : `titres: Ce titre appartient à un autre centre.` ;
+    2. `donner` et titre non fixe et `not titres_ouverts()` : `titres: Ce titre ne peut pas encore être donné.` ;
+    3. droit (42501) : Formateur fixe, `geste_centre(l, 'formateurs.nommer')` ; Direction de centre fixe,
+       `geste_reseau('directions.nommer')` ; Siège fixe, `est_fondateur()` ; titre de promo non fixe, `case_centre(l,
+       'equipe') = 2` ; titre de centre non fixe, `case_centre(l, 'equipe') = 2 or case_reseau('directions') = 2` ; titre
+       du réseau non fixe, `case_reseau('directions') = 2` ; `est_fondateur()` passe toujours. Phrases :
+       `titres: Réservé à la direction du centre.`, `titres: Réservé au siège.`, `titres: Réservé au fondateur.`,
+       `titres: Réservé à l'équipe du centre.` (Équipe sur Modifier), `titres: Réservé au réseau.` (Directions sur Modifier) ;
+    4. jamais plus que soi (42501), titres non fixes, même niveau seulement : titre de centre donné par un appelant dont le
+       droit vient de son titre de centre (ni `direction_fixe(l)`, ni `case_reseau('directions') = 2`),
+       `_depasse(cases du titre, cases de son titre de centre sur l)` ; titre du réseau donné par un appelant sans
+       `siege_fixe()`, de même avec son titre du réseau : `titres: Ce titre ouvre plus que le vôtre (<page>).` ;
+    5. soi (42501) : cible = appelant, sauf Formateur fixe donné ou retiré par `direction_fixe(l)`, sauf `est_fondateur()` :
+       `titres: Vous ne pouvez pas changer vos propres titres.` ;
+    6. `donner` seulement : adresse d'un compte qui a une fiche de stagiaire : `titres: Cette adresse est celle d'un compte
+       stagiaire.`
+  - Aides internes : aucun droit d'exécution ; `titres_ouverts` et `regler_titres_ouverts` : authenticated.
+
+- [ ] **Step 1 : preuve, groupe `verrou`** : `titres_ouverts()` faux au départ ; `dir_n` puis `siege` appellent
+  `regler_titres_ouverts(true)` : `ERREUR 42501` ; le fondateur : `true`, puis `false` ; en aperçu siège : `ERREUR 42501` ;
+  une ligne `titres_ouverts` sans promo est admise par la contrainte, une clé globale inconnue reste refusée (`23514`).
+- [ ] **Step 2 : contre-épreuve** (`gestion --etapes 5`) : ROUGE sur `verrou`.
+- [ ] **Step 3 : écrire la partie A et son retour ; vert.** `gestion --etapes 5,6` : `verrou` vert (les aides internes sont
+  jugées par les groupes des Tasks 16 et 17).
+- [ ] **Step 4 : commit** `Titres, étape 2b, migration 6 (A) : verrou des titres non fixes, règles du § 7 en une aide`.
+
+### Task 16 : Donner et retirer (migration 6, partie B)
+
+**Files:**
+- Modify: `supabase/migrations/20261112_titres_6_gestion.sql`, `_retour.sql`, `outils/generer_fragments_titres_6.py`,
+  `tests/sql/titres-gestion-preuve.sql`
+
+**Interfaces:**
+- Consumes : `_refus_titre`, `_orphelin_en_personnel`, `_profil_formateur`, `retirer_titre` (2a).
+- Produces :
+  - `public.donner_titre(p_email text, p_titre_id bigint, p_lieu_id integer, p_promo_ids integer[] default null, p_prof_id
+    integer default null) returns jsonb` : `{email, titre_id, cree, transforme, remplace, ajoutees, retirees}`.
+    - adresse invalide : `titres: Adresse e-mail invalide.` ; `_refus_titre(..., 'donner')` ;
+    - promo : `p_promo_ids` non vide (`titres: Choisissez au moins une promo.`), toutes du centre (`titres: Une promo
+      choisie n'est pas dans ce centre.`) ; pose exactement ces promos pour ce titre dans ce centre (comme
+      `regler_affectations_formateur`) ; centre : une ligne `direction` sur `p_lieu_id` ; réseau : une ligne `siege` ;
+    - profil absent : créé (`_profil_formateur` pour un titre de promo ; sinon rôle `prof`, `is_admin` faux, invité par
+      l'appelant) ; orphelin : `_orphelin_en_personnel` (`is_admin` vrai pour un titre de promo) ;
+    - la personne a déjà un autre titre au même niveau dans ce centre (ou au réseau) : remplacé (T13), après
+      `_refus_titre(<ancien>, ..., 'retirer')` ; les lignes de l'ancien titre sont supprimées puis les nouvelles posées
+      (le déclencheur refuse un changement de titre de groupe, rapport de la tâche 2) ; `remplace` : l'identifiant de
+      l'ancien titre, sinon nul.
+  - `retirer_titre`, un fragment : la ligne `titres: Ce titre ne se retire pas encore ici.` et les contrôles 3 à 5 de 2a
+    remplacés par l'appel à `_refus_titre(p_titre_id, p_lieu_id, v_cible, 'retirer')` (mêmes phrases pour les titres fixes :
+    les cas du groupe `retrait` restent verts à l'identique).
+
+- [ ] **Step 1 : preuve, groupe `donner`** (verrou ouvert en propriétaire après le premier cas ; titres de la preuve :
+  Intervenant de promo `t_interv`, `t_secr`, `t_rh` sur le centre de la promo 1, `t_contenus`, `t_qualite` au réseau ;
+  appelants `t_chef` et `t_dirs`, Task 9), attendus en dur :
+  ```text
+  verrou fermé : dir_n donne Intervenant à x (promo 1)              titres: Ce titre ne peut pas encore être donné.
+  dir_n se donne Formateur (promo 1)                                 OK
+  dir_n donne Direction de centre à x                                ERREUR 42501 Réservé au siège.
+  siege se donne Direction de centre (centre 1)                      ERREUR 42501 Vous ne pouvez pas changer vos propres titres.
+  siege donne Direction de centre à x (centre 1)                     OK, profil créé (cree vrai)
+  siege donne Siège à x                                              ERREUR 42501 Réservé au fondateur.
+  t_chef donne Intervenant à y (promos 1 et A)                       OK, ajoutees [1, A]
+  t_chef redonne Intervenant à y (promo A seule)                     OK, retirees [1]
+  t_chef donne Intervenant à y sur la promo 2                        Une promo choisie n'est pas dans ce centre.
+  t_chef donne Formateur à y                                         ERREUR 42501 Réservé à la direction du centre.
+  t_chef donne le titre de t_secr (Stagiaires : Modifier) à y        ERREUR 42501 ... plus que le vôtre (stagiaires).
+  t_chef donne le titre de t_rh à y                                  OK
+  t_chef se donne le titre de t_rh                                   ERREUR 42501 ... vos propres titres.
+  t_rh donne le titre de t_rh à z                                    ERREUR 42501 Réservé à l'équipe du centre.
+  t_chef donne Intervenant à form_n (Formateur, promo 1)             ERREUR 42501 (remplacer = retirer Formateur)
+  dir_n donne Intervenant à form_n (promo 1)                         OK, remplace = Formateur
+  t_chef donne un titre à stag_n                                     Cette adresse est celle d'un compte stagiaire.
+  t_chef donne un titre à un orphelin                                OK, transforme vrai, rôle prof
+  t_dirs donne le titre de t_qualite à z                             OK
+  t_dirs donne le titre de t_contenus à z                            ERREUR 42501 ... plus que le vôtre (cours).
+  t_dirs donne le titre de t_secr dans le centre 2                   Ce titre appartient à un autre centre.
+  t_dirs donne Direction de centre à z                               ERREUR 42501 Réservé au siège.
+  fondateur en aperçu siège se donne Direction de centre             ERREUR 42501
+  ```
+- [ ] **Step 2 : preuve, groupe `retirer`** (titres non fixes) : `t_chef` retire Intervenant de `y` : `OK` ; retire Direction
+  de centre de `dir_n` : `ERREUR 42501` ; retire le titre de `t_secr` à `t_secr` : `ERREUR 42501` (plus que le sien) ;
+  `t_rh` retire : `ERREUR 42501` ; `t_chef` se retire le sien : `ERREUR 42501` ; groupe `retrait` de 2a : inchangé.
+- [ ] **Step 3 : preuve, groupe `immediat`** : `y` (Intervenant, promo 1) lit des lignes de `planning_entries` et ouvre une
+  feuille (`emargement_ouvrir`, émargement allumé en propriétaire) ; `t_chef` lui retire le titre ; la demande suivante de
+  `y` : 0 ligne et `ERREUR 42501`.
+- [ ] **Step 4 : contre-épreuve** (partie A seule) : ROUGE sur `donner`, `retirer`, `immediat`.
+- [ ] **Step 5 : écrire la partie B et son retour ; vert.** `gestion --etapes 5,6` : `VERT n/0`.
+- [ ] **Step 6 : commit** `Titres, étape 2b, migration 6 (B) : donner_titre, retirer_titre pour tous les titres`.
+
+### Task 17 : Créer, ajuster, supprimer un titre (migration 6, partie C)
+
+**Files:**
+- Modify: `supabase/migrations/20261112_titres_6_gestion.sql`, `_retour.sql`, `tests/sql/titres-gestion-preuve.sql`
+
+**Interfaces:**
+- Consumes : `_cases_effectives`, `_depasse`, `_cases_valides`.
+- Produces :
+  - `alter table public.titres drop constraint titres_centre_requis` : un titre de promo ou de centre sans centre est un titre
+    du réseau, utilisable dans tous les centres (catalogue § 6.2, T14). Retour : la contrainte remise, garde « aucun titre non
+    fixe de promo ou de centre sans centre », sinon arrêt.
+  - `public._refus_gestion(p_niveau text, p_lieu_id integer, p_cases jsonb) returns text` : titre de centre (`p_lieu_id` non
+    nul, niveau promo ou centre) : `case_centre(p_lieu_id, 'equipe') = 2`, et pour le niveau centre sans `direction_fixe`,
+    `_depasse(p_cases, <ses cases de centre>)` nul ; titre du réseau (`p_lieu_id` nul, tout niveau) : `case_reseau('directions')
+    = 2`, et pour le niveau réseau sans `siege_fixe()`, `_depasse` nul ; `est_fondateur()` passe toujours. Mêmes phrases
+    que `_refus_titre`.
+  - `public.creer_titre(p_depuis bigint, p_nom text, p_lieu_id integer) returns bigint` : même niveau que `p_depuis`, cases
+    `= _cases_effectives(p_depuis)`, `origine_id` nul, `cree_par` = appelant ; nom vide : `titres: Le nom est requis.` ;
+    doublon de portée (casse ignorée, état 23505 rattrapé) : `titres: Un titre de ce nom existe déjà ici.` ;
+    `_refus_gestion`.
+  - `public.ajuster_titre(p_titre_id bigint, p_lieu_id integer, p_nom text, p_cases jsonb) returns jsonb` :
+    `{titre_id, version_creee, porteurs_bascules}`. Titre fixe : `titres: Un titre fixe ne se modifie pas.` ; cases non
+    valides : `titres: Ces cases ne sont pas valides.` ; l'appelant porte ce titre (ou sa version) : `titres: Vous ne pouvez
+    pas modifier un titre que vous portez.` (42501) ; `_refus_gestion`. Titre du réseau de niveau promo ou centre ajusté avec
+    `p_lieu_id` non nul : crée la version du centre (même nom, `origine_id`, `lieu_id`) si elle n'existe pas, y fait passer
+    les porteurs de ce centre (suppression puis repose ligne par ligne, T17), rend son identifiant ; sinon modifie le titre
+    (`modifie_le`, `modifie_par`).
+  - `public.supprimer_titre(p_titre_id bigint) returns void` : fixe : `titres: Un titre fixe ne se supprime pas.` ; porté :
+    `titres: Ce titre est encore porté : retirez-le d'abord.` ; `_refus_gestion`.
+
+- [ ] **Step 1 : preuve, groupe `gerer`** (attendus en dur) : `t_chef` crée « Preuve accueil » depuis le titre de `t_rh` sur
+  le centre 1 : niveau centre, cases égales, centre 1 ; crée depuis Formateur : niveau promo, huit cases au plafond ; crée
+  depuis le titre de `t_secr` : `ERREUR 42501` (plus que le sien) ; même nom en majuscules : `Un titre de ce nom existe
+  déjà ici.` ; nom vide : refus ; `t_rh` crée : `ERREUR 42501` ; `t_dirs` crée un titre du réseau depuis celui de
+  `t_contenus` : `ERREUR 42501` ; `siege` crée un titre de centre du réseau (sans centre) depuis celui de `t_secr` : `OK`,
+  `lieu_id` nul ; `t_chef` ajuste « Preuve accueil » en `{"promos":"voir","equipe":"voir","stagiaires":"voir"}` : `OK` ;
+  avec `"stagiaires":"modifier"` : `ERREUR 42501` ; avec `{"notes":"voir"}` : `Ces cases ne sont pas valides.` ; ajuster
+  Formateur : refus ; `t_chef` ajuste son propre titre : `ERREUR 42501` ; titre du réseau R (niveau centre, sans centre)
+  porté par `u` au centre 1 et `v` au centre 2 : `t_chef` l'ajuste depuis le centre 1 : `version_creee` vrai,
+  `porteurs_bascules` 1, `u` porte la version (même nom), `v` porte toujours R ; second ajustement : `version_creee` faux,
+  même identifiant ; `supprimer_titre` d'un titre porté : refus ; non porté : `OK` ; d'un titre fixe : refus ; un titre de
+  promo du centre 1 créé pour ce cas (Émargement : Modifier, Stagiaires : Voir), donné à `y` : `y` ouvre une feuille ;
+  `t_chef` passe Émargement à « Voir » : la demande suivante de `y` (`emargement_ouvrir`) est refusée.
+- [ ] **Step 2 : contre-épreuve** (parties A et B seules) : ROUGE sur `gerer`.
+- [ ] **Step 3 : écrire la partie C et son retour ; vert.** `gestion --etapes 5,6` : `VERT n/0`.
+- [ ] **Step 4 : commit** `Titres, étape 2b, migration 6 (C) : créer, ajuster, supprimer un titre`.
+
+### Task 18 : Les lectures de l'étape 3 (migration 6, partie D)
+
+**Files:**
+- Modify: `supabase/migrations/20261112_titres_6_gestion.sql`, `_retour.sql`, `tests/sql/titres-gestion-preuve.sql`
+
+**Interfaces:**
+- Produces (lecture seule, `stable`, authenticated ; refus 42501 avec les phrases de `_refus_titre`) :
+  - `public.titres_visibles(p_lieu_id integer) returns table(id bigint, nom text, niveau text, lieu_id integer, fixe boolean,
+    origine_id bigint, cases jsonb, porteurs integer, donnable boolean)` : centre (`geste_centre(l, 'equipe.lire')`) : les
+    titres fixes de promo et de centre, les titres du réseau de niveau promo et centre sans version dans ce centre, ceux du
+    centre ; réseau (`p_lieu_id` nul, `geste_reseau('directions.lire')`) : tous les titres sans centre ; fondateur : selon le
+    même paramètre. `cases` : `_cases_effectives` ; `porteurs` : adresses distinctes qui le portent dans ce centre (ou dans
+    le réseau) ; `donnable` : `_refus_titre(id, p_lieu_id, null, 'donner')` sans refus (verrou compris).
+  - `public.mes_titres() returns table(titre_id bigint, nom text, niveau text, lieu_id integer, lieu_nom text, promo_ids
+    integer[], cases jsonb)` : une ligne par titre porté par l'appelant (titre de promo : ses promos du centre groupées).
+  - `public.personnes_et_titres(p_lieu_id integer default null, p_promo_id integer default null) returns table(email text,
+    titre_id bigint, titre_nom text, niveau text, lieu_id integer, promo_ids integer[])` : promo (`geste_promo(p,
+    'reglages.modifier') or geste_centre(lieu_de_promo(p), 'equipe.lire')`) : titres de promo sur p et titres de centre de son
+    centre ; centre (`geste_centre(l, 'equipe.lire')`) : titres de promo et de centre du centre ; réseau (les deux nuls, `geste_reseau('directions.lire')`) :
+    titres de centre et du réseau, jamais de niveau promo.
+  - `public.journal_des_droits(p_lieu_id integer default null) returns table(quand timestamptz, par text, action text, pour
+    text, titre_nom text, niveau text, lieu_id integer, promo_id integer, avant jsonb, apres jsonb)` : centre,
+    `geste_centre(l, 'equipe.lire')`, lignes de ce centre ; réseau, `geste_reseau('directions.lire')`, lignes de niveau centre
+    et réseau ; fondateur : tout ; trois ans au plus ; table absente : aucune ligne, aucune erreur.
+
+- [ ] **Step 1 : preuve, groupe `lire`** : `titres_visibles(<centre 1>)` par `t_rh` : Formateur, Direction de centre, les
+  titres du centre 1, aucun du centre 2, `donnable` faux partout ; par `t_chef` : `donnable` vrai pour l'Intervenant et le
+  titre de `t_rh` (verrou ouvert), faux pour Formateur et pour le titre de `t_secr` ; par `stag_n` et `t_interv` : `ERREUR 42501` ;
+  `titres_visibles(null)` par `siege` : aucun titre d'un centre ; `mes_titres()` : `t_interv` une ligne (promos `[1]`,
+  cases de son titre), `dir_form` deux lignes aux cases plafond, `stag_n` aucune ; `personnes_et_titres(<centre 1>)` par
+  `dir_n` et `t_rh` : mêmes lignes ; par `t_interv` : refus ; `personnes_et_titres(null, 1)` par `form_n` : les titres de
+  la promo 1 et du centre 1 ; `personnes_et_titres()` par `siege` : aucune ligne de niveau promo ; par `t_contenus` : refus ;
+  `journal_des_droits(<centre 1>)` par `dir_n`, migration 4 absente : 0 ligne, pas d'erreur.
+- [ ] **Step 2 : preuve, groupe `journal`** (mode `gestion --etapes 4,5,6` seulement ; sauté sinon, avec une information) :
+  `donner_titre` puis `retirer_titre` par `t_chef` : lignes `donne` et `retire`, `par` = son adresse ; `creer_titre`,
+  `ajuster_titre`, `supprimer_titre` : `cree`, `ajuste`, `supprime` ; `journal_des_droits(<centre 1>)` par `t_rh` les rend,
+  par `t_interv` : refus ; `journal_des_droits()` par `siege` : aucune ligne de niveau promo.
+- [ ] **Step 3 : contre-épreuve** (parties A à C) : ROUGE sur `lire`.
+- [ ] **Step 4 : écrire la partie D et son retour ; vert.** `gestion --etapes 5,6` puis `--etapes 4,5,6` : `VERT n/0` ;
+  `retour` : empreinte d'après les retours égale à celle d'avant.
+- [ ] **Step 5 : commit** `Titres, étape 2b, migration 6 (D) : lectures des titres, des personnes et du journal`.
+
+### Task 19 : Répétition, essai à blanc et mise en ligne de 2b
+
+- [ ] **Step 1 : répétition locale.** Base `--titres 1,2,3,5` (production après 2a) ; verdicts `avant-2b/` ; `gestion
+  --etapes 6 --compact` (VERT, md5) ; application de la migration 6 ; `gestion-en-ligne` et les dix preuves : égales à
+  `avant-2b` (aucune règle touchée par la migration 6 ; seule la contrainte de `settings` et celle de `titres` changent) ;
+  retour 6 réel puis les dix preuves : égales. `git diff main --stat -- js` vide. `node --test "tests/*.test.mjs"` vert.
+- [ ] **Step 2 : essai à blanc en production, accord explicite de Timy** : la migration 6, ce qu'elle permet et ce qu'elle
+  ne permet pas encore (verrou fermé, aucun écran), les verdicts locaux ; contrôle en lecture seule : aucun titre non fixe
+  en base, aucune ligne `titres_ouverts`. Expected : `VERT n/0`, md5 égal.
+- [ ] **Step 3 : application** (même accord) puis preuves après en production (même liste que la Task 14, Step 4).
+  Un ROUGE : retour 6 aussitôt.
+- [ ] **Step 4 : traces** : `ROADMAP.md`, en-tête de `POINT-DE-REPRISE.md` ; rapport : aucune entrée Nouveautés (rien de
+  visible), robot non joué (aucun fichier de l'app touché).
+- [ ] **Step 5 : commit** `Titres, étape 2b en ligne : fonctions de gestion, verrou fermé (<date>)`.
+
+Taille estimée : 2a, migration 5 environ 350 lignes et retour 200, preuve 450, `roles-preuve.sql` 80, app 40 ; 2b, migration
+6 environ 750 lignes et retour 150, preuve 900. Six tâches en 2a (9 à 14), cinq en 2b (15 à 19).
 
 ## 5. Étape 3 : écrans (grandes lignes)
 
@@ -543,3 +1056,21 @@ chose (seuls des titres fixes existent) : aucune fenêtre de droit.
 - **T7** Journal : purge à l'écriture des lignes de plus de 3 ans (pas de tâche planifiée).
 - **T8** Étape 1 sans entrée Nouveautés (rien de visible).
 - **Conditions d'utilisation** (§ 12) : rien avant l'étape 4 ; la date dépend de Q5.
+
+Étape 2 (section 4), propositions retenues provisoirement comme T1 à T8 ; chacune laisse les titres fixes inchangés :
+- **T9** `inviter_compte` et `regler_affectations_formateur` gardent leur signature ; l'invitation avec un titre est
+  `donner_titre` (écart à la spec § 14 : signatures citées par les preuves des lots 4 et 5, surcharges refusées par PostgREST).
+- **T10** `retirer_titre` part en 2a pour les seuls titres fixes ; les titres non fixes s'y ajoutent en 2b.
+- **T11** Les lignes d'affectation des formateurs se lisent sous Promos : Voir ou Équipe : Voir (noms des formateurs sur les
+  cartes Promos, spec § 5.4) ; entre formateurs d'une même promo, Formateur fixe seulement.
+- **T12** `roles_du_personnel()` suit Réglages de la promo, Équipe ou Directions de centre ; les profils du personnel ne se
+  lisent au réseau que sous Directions de centre : Voir.
+- **T13** Donner un titre à qui en a déjà un autre au même niveau dans le même centre le remplace (avec les règles du retrait
+  sur l'ancien), au lieu de refuser.
+- **T14** La contrainte `titres_centre_requis` de l'étape 1 est levée : un titre de promo ou de centre sans centre est un
+  titre du réseau (catalogue § 6.2).
+- **T15** Le fondateur (hors aperçu) échappe à « jamais sur soi » (§ 7 : « Fondateur : tout »).
+- **T16** Le verrou `titres_ouverts` bloque le don d'un titre non fixe, à tous, fondateur compris ; il ne bloque ni la
+  création ni l'ajustement d'un titre (qui ne changent aucun lecteur tant que personne ne le porte).
+- **T17** Le passage des porteurs d'un centre à la version du centre se fait par retrait puis repose des lignes : le journal,
+  une fois appliqué, écrira « retire » et « donne » plutôt que « change ».

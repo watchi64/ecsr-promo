@@ -315,6 +315,15 @@ set local lock_timeout = '3s';
 -- 20261110_profils_email_stagiaires). Même garde que l'aller : une règle absente arrête la migration avec son nom.
 -- Généré par outils/generer_regles_titres_3.py : ne pas éditer à la main.
 set local lock_timeout = '3s';
+
+-- Garde d'ordre : ce retour se joue après le retour de la migration 5 (étape 2). Joué seul, il remettrait des règles d'avant sur des
+-- écritures directes encore fermées par les droits, alors que retirer_titre existe encore.
+do $garde_ordre$
+begin
+  if to_regprocedure('public.retirer_titre(text, bigint, integer)') is not null then
+    raise exception 'titres_3_regles_retour : jouer d''abord le retour de la migration 5 (20261112_titres_5_fermetures_retour.sql) ; rien n''est changé' using errcode = 'P0001';
+  end if;
+end $garde_ordre$;
 """)
         lignes.append("""do $garde$
 declare
