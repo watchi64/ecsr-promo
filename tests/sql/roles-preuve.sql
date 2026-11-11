@@ -1855,9 +1855,6 @@ begin
   v_txt := format($aj$insert into public.stagiaires (id, promo_id, prenom, actif) values (987001, 1, 'PreuveFiche', false);
     insert into public.user_profiles (email, role, is_admin, stagiaire_id) values (%L, 'prof', false, 987001);
     update public.promos set date_fin = date '2020-01-01' where id = 1;$aj$, 'preuve.equipe.fiche@exemple.invalid');
-  -- Ces contrôles ne valent que tant que l'anonymisation existe (Qualiopi Q5 la remplace par des fonctions effacer_*).
-  if to_regprocedure('public.anonymiser_stagiaire(integer)') is not null and to_regprocedure('public.anonymiser_promo()') is not null
-     and to_regprocedure('public.etat_anonymisation_promo()') is not null then
   for v_x in select * from (values
     ('effacer_sur_demande : fiche d''un compte à affectation direction (is_admin faux) : jamais effacée', true,
        'do $d$ begin perform public.effacer_sur_demande(987001); exception when others then null; end $d$', 'false 1'),

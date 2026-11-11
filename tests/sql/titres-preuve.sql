@@ -10,9 +10,9 @@
 --               contexte (en-tête promo 1, 2, 7 ou aucun ; aperçu du fondateur ; aperçu refusé à un autre compte) : 0 écart.
 --   gestes      (migration 2, partie A) attendus écrits en dur pour des titres non fixes (secrétariat, intervenant, ressources humaines,
 --               contenus), la direction fixe, le siège ; sans promo affichée tout geste de promo est faux, jamais nul ; code inconnu : 22023.
---   fonctions   (migration 2, partie B) les 29 fonctions de l'app qui décidaient d'un droit passent par les gestes : pour chacune, un cas qu'une
+--   fonctions   (migration 2, partie B) les 30 fonctions de l'app (29 d'avant Q5, plus fiches_effacees_sur_demande de Q5) qui décidaient d'un droit passent par les gestes : pour chacune, un cas qu'une
 --               case refuse et, quand un titre non fixe peut l'ouvrir, un cas qu'elle ouvre (attendus et phrases de refus écrits en dur) ;
---               les gestes définitifs et les droits sans page restent aux titres fixes ; après la migration les 29 définitions ont changé,
+--               les gestes définitifs et les droits sans page restent aux titres fixes ; après la migration les 30 définitions ont changé,
 --               après son retour chacune retrouve exactement son empreinte d'avant.
 --   cases       (migration 3) les 93 règles passent par les gestes : lectures en nombre de lignes, écritures par leur refus (0 ligne ou 42501),
 --               pour des titres fictifs (secrétariat, intervenant, ressources humaines, contenus), un stagiaire membre de la promo, un cumul,
@@ -363,7 +363,7 @@ begin
     pg_temp.valeur((select email from pg_temp.perso where nom = p_qui), p_entete, p_apercu, p_sql), p_attendu);
 end $tag$;
 
--- Groupe fonctions (migration 2, partie B) : les 29 fonctions de l'app qui décident d'un droit passent par les gestes.
+-- Groupe fonctions (migration 2, partie B) : les 30 fonctions de l'app (29 d'avant Q5, plus fiches_effacees_sur_demande de Q5) qui décident d'un droit passent par les gestes.
 -- Les vingt-neuf, avec leur signature : une seule liste, pour l'empreinte avant et après.
 create or replace function pg_temp.fonctions_b()
 returns regprocedure[] language sql as $tfb$
@@ -383,7 +383,7 @@ returns regprocedure[] language sql as $tfb$
     'public.creer_promo(integer, text, date, date)', 'public.modifier_dates_promo(integer, date, date)',
     'public.regler_habillage_centre(integer, text, boolean)', 'public.regler_habillage_reseau(text)',
     'public.creer_centre(text)', 'public.regler_affectations_formateur(text, integer, integer[], integer)',
-    'public.inviter_compte(text, text, integer, integer, integer)'
+    'public.inviter_compte(text, text, integer, integer, integer)', 'public.fiches_effacees_sur_demande(integer[])'
   ]) with ordinality u(s, o) where to_regprocedure(s) is not null;
 $tfb$;
 
@@ -538,6 +538,29 @@ begin
     format('select public.set_date_naissance(%s, date ''2000-01-02'')::text', v_stag), 'OK');
   perform pg_temp.cas('set_date_naissance : form_n refusé sur un stagiaire d''une autre promo', 'form_n', '1',
     format('select public.set_date_naissance(%s, date ''2000-01-02'')::text', v_stag_m), 'ERREUR P0001 Non autorise : ce stagiaire n''appartient pas a la promo affichee');
+  -- Qualiopi Q5 : fiches_effacees_sur_demande lit le journal des effacements au geste stagiaires.lire (seulement si la fonction existe).
+  if to_regprocedure('public.fiches_effacees_sur_demande(integer[])') is not null then
+    perform pg_temp.proprio();
+    insert into public.effacements_journal (type, cible, fait_par_email) values ('demande', 'stagiaire ' || v_stag, 'preuve7');
+    perform pg_temp.cas('fiches_effacees_sur_demande : t_secr (Stagiaires du centre) lit', 't_secr', '1',
+      'select string_agg(f::text, '','') from public.fiches_effacees_sur_demande(array[1]) f', 'OK ' || v_stag);
+    perform pg_temp.cas('fiches_effacees_sur_demande : t_interv (Stagiaires : Voir de la promo) lit', 't_interv', '1',
+      'select string_agg(f::text, '','') from public.fiches_effacees_sur_demande(array[1]) f', 'OK ' || v_stag);
+    perform pg_temp.cas('fiches_effacees_sur_demande : t_rh (aucune case Stagiaires) ne lit rien', 't_rh', '1',
+      'select string_agg(f::text, '','') from public.fiches_effacees_sur_demande(array[1]) f', 'OK nul');
+    perform pg_temp.cas('fiches_effacees_sur_demande : stag_n ne lit rien', 'stag_n', '1',
+      'select string_agg(f::text, '','') from public.fiches_effacees_sur_demande(array[1]) f', 'OK nul');
+    perform pg_temp.cas('fiches_effacees_sur_demande : form_n lit', 'form_n', '1',
+      'select string_agg(f::text, '','') from public.fiches_effacees_sur_demande(array[1]) f', 'OK ' || v_stag);
+    perform pg_temp.cas('fiches_effacees_sur_demande : dir_n lit', 'dir_n', '1',
+      'select string_agg(f::text, '','') from public.fiches_effacees_sur_demande(array[1]) f', 'OK ' || v_stag);
+    perform pg_temp.cas('fiches_effacees_sur_demande : form_m (promo 2) ne lit rien de la promo 1', 'form_m', '2',
+      'select string_agg(f::text, '','') from public.fiches_effacees_sur_demande(array[1]) f', 'OK nul');
+    perform pg_temp.cas_apercu('fiches_effacees_sur_demande : le fondateur en aperçu stagiaire ne lit rien', 'fond', '1', 'stagiaire',
+      'select string_agg(f::text, '','') from public.fiches_effacees_sur_demande(array[1]) f', 'OK nul');
+    perform pg_temp.cas_apercu('fiches_effacees_sur_demande : le fondateur en aperçu formateur lit', 'fond', '1', 'formateur',
+      'select string_agg(f::text, '','') from public.fiches_effacees_sur_demande(array[1]) f', 'OK ' || v_stag);
+  end if;
   perform pg_temp.cas_apercu('set_date_naissance : le fondateur en aperçu stagiaire sur une promo sans sa fiche est refusé (le trou d''avant)', 'fond', '2', 'stagiaire',
     format('select public.set_date_naissance(%s, date ''2000-01-02'')::text', v_stag_m), v_refus_naiss);
   perform pg_temp.cas_apercu('set_date_naissance : le fondateur en aperçu formateur sur la promo 2 peut', 'fond', '2', 'formateur',
@@ -1080,7 +1103,7 @@ begin
   if v_en_ligne or v_etat <> 'jouée' then
     perform pg_temp.informer('fonctions : empreinte avant/après', 'non jugeable (migration 2 non injectée ou déjà appliquée)');
   else
-    perform pg_temp.attendre('fonctions', 'après la migration 2 : toutes les fonctions présentes (29 sans Q5) ont une définition nouvelle (aucune n''est restée telle quelle)',
+    perform pg_temp.attendre('fonctions', 'après la migration 2 : toutes les fonctions présentes (30) ont une définition nouvelle (aucune n''est restée telle quelle)',
       (select count(*)::text || '/' || cardinality(pg_temp.fonctions_b())::text from pg_temp.fn_av a
          where md5(pg_get_functiondef(a.sig::regprocedure)) <> a.h), cardinality(pg_temp.fonctions_b())::text || '/' || cardinality(pg_temp.fonctions_b())::text);
   end if;
@@ -1463,14 +1486,20 @@ begin
         and pr.proname in ('case_promo', 'case_centre', 'case_reseau', 'formateur_fixe', 'direction_fixe', 'siege_fixe', 'membre_stagiaire', 'geste_promo', 'geste_centre', 'geste_reseau')
         and has_function_privilege('anon', pr.oid, 'execute') and has_function_privilege('authenticated', pr.oid, 'execute')$q$), '10/10');
 
-  -- 8 quater. Groupe fonctions : les 29 fonctions de l'app (migration 2, partie B).
+  -- 8 quater. Groupe fonctions : les 30 fonctions de l'app (29 d'avant Q5, plus fiches_effacees_sur_demande de Q5) (migration 2, partie B).
   perform pg_temp.groupe_fonctions();
 
   -- 8 quinquies. Groupe cases : les 93 règles passent par les gestes (migration 3).
   perform pg_temp.groupe_cases();
 
   -- 8 sexies. Groupe journal : le journal des droits du personnel (migration 4).
-  perform pg_temp.groupe_journal();
+  -- En ligne, la migration 4 peut ne pas être appliquée (le journal attend la nouvelle version des conditions d'utilisation) : le groupe
+  -- est alors sauté. Avec les migrations injectées (ou le mode contre-épreuve), un journal absent reste un échec.
+  if v_en_ligne and to_regclass('public.journal_droits') is null then
+    perform pg_temp.informer('journal', 'groupe sauté : la migration 4 n''est pas appliquée (mode en ligne)');
+  else
+    perform pg_temp.groupe_journal();
+  end if;
 
   -- 9. Les retours, dans l'ordre inverse (4, 3, 2, 1).
   v_retour := pg_temp.jouer('retour 4',
@@ -1488,7 +1517,7 @@ begin
   if v_en_ligne or v_etat2 <> 'jouée' or v_retour <> 'jouée' then
     perform pg_temp.informer('fonctions : empreinte après le retour 2', 'non jugeable (migration 2 ou son retour non injectés, ou déjà appliquée)');
   else
-    perform pg_temp.attendre('fonctions', 'après le retour 2 : chacune des fonctions présentes (29 sans Q5) retrouve exactement son empreinte d''avant la migration',
+    perform pg_temp.attendre('fonctions', 'après le retour 2 : chacune des fonctions présentes (30) retrouve exactement son empreinte d''avant la migration',
       (select count(*)::text || '/' || cardinality(pg_temp.fonctions_b())::text from pg_temp.fn_av a
          where md5(pg_get_functiondef(a.sig::regprocedure)) = a.h), cardinality(pg_temp.fonctions_b())::text || '/' || cardinality(pg_temp.fonctions_b())::text);
   end if;

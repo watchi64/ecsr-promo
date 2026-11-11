@@ -4,7 +4,6 @@
 #
 # Usage : outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres]
 #   --port         port de la base locale (défaut 55435)
-#   --avec-phase2  ajoute 20261111_navigation_unique_3_phase2 (supprime fiches_suivi et le réglage current_week_lundi), avant les titres
 #   --avec-titres  ajoute ensuite les migrations 20261112_titres_1 à _4 (chantier titres et droits à la carte)
 # Code de sortie : 0 si tout passe ; sinon 3 (le nom du fichier en échec est écrit sur la sortie d'erreur).
 # Note : 20261028_signalements_app n'est pas dans la liste : ses tables sont dans clone_3_tables.sql ; seules ses fonctions sont jouées.
@@ -12,11 +11,9 @@ set -u
 RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PORT=55435
 TITRES=0
-PHASE2=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --port) PORT="$2"; shift 2 ;;
-    --avec-phase2) PHASE2=1; shift ;;
     --avec-titres) TITRES=1; shift ;;
     *) echo "argument inconnu : $1" >&2; exit 2 ;;
   esac
@@ -28,10 +25,10 @@ P="psql -h 127.0.0.1 -p $PORT -U postgres -d postgres -v ON_ERROR_STOP=1 -q"
 LISTE="20261108_espaces_1_siege 20261108_espaces_2_equipe 20261108_espaces_3_habillage 20261108_questionnaires
 20261109_epcf_moyennes_anonymat 20261109_habillage 20261109_registre_qualite 20261110_epcf_moyennes_seuil_3
 20261110_profils_email_stagiaires 20261111_espaces_4_donnees
-20261110_navigation_unique_1_reglages 20261110_navigation_unique_2_menage"
-if [ "$PHASE2" = 1 ]; then
-  LISTE="$LISTE 20261111_navigation_unique_3_phase2"
-fi
+20261110_navigation_unique_1_reglages 20261110_navigation_unique_2_menage 20261111_navigation_unique_3_phase2
+20261110_conservation"
+# Ordre de la production : la navigation unique (phase 2 : fiches_suivi disparaît), puis la conservation des données (Qualiopi Q5 :
+# anonymiser_promo, etat_anonymisation_promo et _anonymiser_stagiaire disparaissent, les fonctions effacer_* arrivent), puis les titres.
 if [ "$TITRES" = 1 ]; then
   for n in 1 2 3 4; do
     f="$(ls "$MIGRATIONS"/20261112_titres_${n}_*.sql 2>/dev/null | grep -v '_retour\.sql$' | head -n 1)"

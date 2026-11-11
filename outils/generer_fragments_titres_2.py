@@ -74,7 +74,12 @@ f("inviter_compte(text, text, integer, integer, integer)",
   ("if v_promo is null or not est_direction(lieu_de_promo(v_promo)) then",
    "if v_promo is null or not geste_centre(lieu_de_promo(v_promo), 'formateurs.nommer') then"),
   ("    if not est_siege() then\n", "    if not geste_reseau('directions.nommer') then\n"))
-assert len(T) == 29, len(T)
+# Venue de Qualiopi Q5 (20261110_conservation) : lister les fiches effacées sur demande est une lecture du journal des effacements, au
+# geste de lecture des stagiaires (comme la règle effacements_journal_lecture) ; le fondateur hors aperçu garde son entrée propre.
+f("fiches_effacees_sur_demande(integer[])",
+  ("(est_fondateur() or est_formateur(s.promo_id) or est_direction(lieu_de_promo(s.promo_id)))",
+   "(est_fondateur() or geste_promo(s.promo_id, 'stagiaires.lire'))"))
+assert len(T) == 30, len(T)
 
 
 def bloc(inverse, nom):

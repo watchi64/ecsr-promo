@@ -1,5 +1,5 @@
 -- Titres et droits à la carte, étape 1, migration 2. Partie A : le vocabulaire des cases et des gestes (aucune règle ni aucune fonction
--- existante ne change). Partie B (en fin de fichier) : 29 fonctions de l'app, qui décidaient d'un droit par l'ancien prédicat, passent par
+-- existante ne change). Partie B (en fin de fichier) : 30 fonctions de l'app, qui décidaient d'un droit par l'ancien prédicat, passent par
 -- les gestes ; avec les seuls titres fixes d'aujourd'hui, chacune répond comme avant (même signature, même retour, mêmes phrases de
 -- refus, mêmes droits d'exécution), sauf notes_stats_groupe qui reçoit une garde (nul sans « Notes et examens », décision T4).
 --   case_promo(p, page)     la case de la page, pour la promo p : 0 Non, 1 Voir, 2 Modifier. Le titre de la ligne formateur de
@@ -273,7 +273,7 @@ grant execute on function public.case_promo(integer, text), public.case_centre(i
   public.formateur_fixe(integer), public.direction_fixe(integer), public.siege_fixe(), public.membre_stagiaire(integer),
   public.geste_promo(integer, text), public.geste_centre(integer, text), public.geste_reseau(text) to anon, authenticated;
 
--- 6. Partie B : 29 fonctions passent par les gestes -----------------------------------------------------------------------------
+-- 6. Partie B : 30 fonctions passent par les gestes -----------------------------------------------------------------------------
 -- Chaque fonction est redéfinie à partir de sa définition en base au moment de l'exécution (pg_get_functiondef), par remplacement
 -- de fragments, chacun attendu exactement une fois (garde : formateur_courant() ou equipe_courante() devient geste_promo(promo_courante(),
 -- code), l'ancien prédicat sur une promo devient geste_promo(p, code), est_direction(l) devient geste_centre(l, code), est_siege()
@@ -322,9 +322,10 @@ declare
     'public.regler_habillage_reseau(text)',
     'public.creer_centre(text)',
     'public.regler_affectations_formateur(text, integer, integer[], integer)',
-    'public.inviter_compte(text, text, integer, integer, integer)'];
+    'public.inviter_compte(text, text, integer, integer, integer)',
+    'public.fiches_effacees_sur_demande(integer[])'];
   -- La fonction de chaque fragment (rang dans v_fonctions).
-  v_de integer[] := array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 29, 29];
+  v_de integer[] := array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 29, 29, 30];
   v_anciens text[] := array[
 $ancien$(select public.equipe_courante())$ancien$,
 $ancien$if not formateur_courant() then$ancien$,
@@ -362,7 +363,8 @@ $ancien$or not coalesce(est_direction(p_lieu_id), false) then$ancien$,
 $ancien$if v_promo_fiche is null or not (est_formateur(v_promo_fiche) or est_direction(lieu_de_promo(v_promo_fiche))) then$ancien$,
 $ancien$if v_promo is null or not est_direction(lieu_de_promo(v_promo)) then$ancien$,
 $ancien$    if not est_siege() then
-$ancien$];
+$ancien$,
+$ancien$(est_fondateur() or est_formateur(s.promo_id) or est_direction(lieu_de_promo(s.promo_id)))$ancien$];
   v_nouveaux text[] := array[
 $nouveau$(select public.geste_promo(promo_courante(), 'stagiaires.gerer'))$nouveau$,
 $nouveau$if not geste_promo(promo_courante(), 'contenus.traiter') then$nouveau$,
@@ -400,7 +402,8 @@ $nouveau$or not geste_centre(p_lieu_id, 'formateurs.nommer') then$nouveau$,
 $nouveau$if v_promo_fiche is null or not geste_promo(v_promo_fiche, 'stagiaires.gerer') then$nouveau$,
 $nouveau$if v_promo is null or not geste_centre(lieu_de_promo(v_promo), 'formateurs.nommer') then$nouveau$,
 $nouveau$    if not geste_reseau('directions.nommer') then
-$nouveau$];
+$nouveau$,
+$nouveau$(est_fondateur() or geste_promo(s.promo_id, 'stagiaires.lire'))$nouveau$];
   f integer;
   i integer;
   v_oid regprocedure;
