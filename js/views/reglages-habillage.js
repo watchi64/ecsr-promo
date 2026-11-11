@@ -152,6 +152,8 @@ async function rendre(container, { surtitre, titre, lire, construire }) {
     clear(racine);
     racine.appendChild(entete(surtitre.chargement, titre, null));
     racine.appendChild(boiteErreur(phraseDEchec(e, PHRASE_ECHEC_LECTURE), relire));
+    // La section des données personnelles se charge seule : un habillage illisible ne la cache pas.
+    if (construire.suite) racine.appendChild(construire.suite(null));
     return;
   }
   if (jeton !== rendu) return;

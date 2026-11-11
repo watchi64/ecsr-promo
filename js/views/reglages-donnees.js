@@ -65,7 +65,8 @@ export function sectionDonneesCentre(centre) {
       return bloc;
     }
     const liste = el("ul", { class: "config-list donnees-liste donnees-promos" });
-    for (const l of lignesDonneesCentre(promos, etats)) {
+    const lignes = lignesDonneesCentre(promos, etats);
+    for (const l of lignes) {
       const texte = el("div", { class: "donnees-promo-texte" },
         el("strong", {}, l.nom),
         el("p", { class: "muted donnees-texte" }, l.texte));
@@ -79,6 +80,10 @@ export function sectionDonneesCentre(centre) {
       liste.appendChild(ligne);
     }
     bloc.appendChild(liste);
+    // Une partie seulement des lectures a échoué : les lignes le disent, et on peut relire.
+    if (lignes.some((l) => l.indisponible)) {
+      bloc.appendChild(el("button", { class: "btn small", type: "button", onClick: charger }, "Réessayer"));
+    }
     return bloc;
   }
 

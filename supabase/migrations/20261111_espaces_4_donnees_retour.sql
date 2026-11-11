@@ -94,10 +94,9 @@ $ancien$];
   v_def text;
   v_ancien text;
   v_nouveau text;
-  v_dernier jsonb;
   n integer;
 begin
-  -- Tout est vérifié avant la moindre exécution : un seul fragment manquant ou en double, et rien n'est changé.
+  -- Le bloc est atomique : un seul fragment manquant ou en double annule tout, rien n'est changé.
   for f in 1..2 loop
     v_def := pg_get_functiondef(v_fonctions[f]);
     for i in 1..cardinality(v_de) loop

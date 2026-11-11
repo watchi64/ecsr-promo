@@ -139,6 +139,10 @@ declare
   o_mixte constant text := 'Preuve6.Orphelin.Mixte@Exemple.Invalid';
   o_fonda constant text := 'preuve6.orphelin.fondateur@exemple.invalid';
   o_refus constant text := 'preuve6.orphelin.refus@exemple.invalid';
+  o_aff constant text := 'preuve6.orphelin.affecte@exemple.invalid';
+  o_admin constant text := 'preuve6.orphelin.admin@exemple.invalid';
+  o_double constant text := 'preuve6.orphelin.double@exemple.invalid';
+  c_autre_par constant text := 'preuve6.autre.invitant@exemple.invalid';
   c_neuf constant text := 'preuve6.neuf@exemple.invalid';
   c_exec constant text := 'select concat_ws('','', has_function_privilege(''authenticated'', ''%1$s'', ''execute''), has_function_privilege(''anon'', ''%1$s'', ''execute''), has_function_privilege(''service_role'', ''%1$s'', ''execute''))';
   c_phrase_stag constant text := 'ERREUR P0001 invitation: Cette adresse est celle d''un compte stagiaire.';
@@ -213,11 +217,15 @@ begin
     (o_siege, 'stagiaire', false, null, null), (o_regler, 'stagiaire', false, null, null), (o_vide, 'stagiaire', false, null, null),
     (o_mixte, 'stagiaire', false, null, null), (o_refus, 'stagiaire', false, null, null);
   insert into public.user_profiles (email, role, is_admin, is_founder, stagiaire_id) values (o_fonda, 'stagiaire', false, true, null);
+  insert into public.user_profiles (email, role, is_admin, stagiaire_id, invited_by_email) values
+    (o_aff, 'stagiaire', false, null, c_autre_par), (o_admin, 'stagiaire', true, null, null),
+    (o_double, 'stagiaire', false, null, null), (upper(o_double), 'stagiaire', false, null, null);
+  insert into public.affectations (email, role, promo_id, lieu_id) values (o_aff, 'direction', null, v_lieu2);
   insert into public.affectations (email, role, promo_id, lieu_id) values
     (c_siege, 'siege', null, null), (c_dir1, 'direction', null, v_lieu1), (c_dir2, 'direction', null, v_lieu2),
     (c_form_a, 'formateur', v_pf1, null), (c_form_b, 'formateur', v_pg1, null);
   perform pg_temp.verifier('structure', 'personnages, promos, fiches et orphelins posés',
-    (select count(*) from public.user_profiles where email like 'preuve6.%' or lower(email) like 'preuve6.%') = 17
+    (select count(*) from public.user_profiles where email like 'preuve6.%' or lower(email) like 'preuve6.%') = 21
     and (select count(*) from public.promos where id between v_pf1 and v_pg1) = 5
     and (select count(*) from public.stagiaires where id between 990601 and 990605) = 5, '');
   v_snap := pg_temp.instantane();
@@ -288,6 +296,22 @@ begin
   perform pg_temp.appeler(v_fond, '1', null, format('select public.inviter_compte(%L, ''siege'', null, null, null)::text', o_fonda));
   perform pg_temp.attendre('orphelin', 'un profil fondateur sans fiche n''est pas transformé (rôle et droits inchangés)',
     (select concat_ws(' ; ', u.role, u.is_admin::text, u.is_founder::text) from public.user_profiles u where u.email = o_fonda), v_profil_avant);
+  -- 4.8 bis Un orphelin déjà affecté est réparé sans rien perdre : is_admin ne baisse jamais, invited_by n'est jamais réécrit.
+  v_r := pg_temp.reponse(pg_temp.appeler(c_dir1, '1', null, format('select public.inviter_compte(%L, ''formateur'', null, null, null)::text', o_aff)));
+  perform pg_temp.attendre('orphelin', 'orphelin déjà direction d''un autre centre, invité formateur : transformé (rôle prof, is_admin vrai), invité par inchangé, ses deux affectations',
+    concat_ws(' ; ', v_r ->> 'transforme', pg_temp.profil(o_aff), pg_temp.affectations_de(o_aff)),
+    format('true ; prof ; true ; false ; sans fiche ; %s ; direction:-:%s,formateur:1:-', c_autre_par, v_lieu2));
+  v_r := pg_temp.reponse(pg_temp.appeler(c_siege, null, null, format('select public.inviter_compte(%L, ''direction'', null, null, %s)::text', o_admin, v_lieu2)));
+  perform pg_temp.attendre('orphelin', 'orphelin à is_admin vrai invité direction : transformé, is_admin reste vrai (jamais rétrogradé)',
+    concat_ws(' ; ', v_r ->> 'transforme', pg_temp.profil(o_admin)), format('true ; prof ; true ; false ; sans fiche ; %s', c_siege));
+  -- Deux profils à la même adresse à la casse près : phrase claire, rien n'est changé.
+  v_snap := pg_temp.instantane();
+  perform pg_temp.attendre('orphelin', 'deux orphelins à la même adresse (casse différente) : phrase claire, pas de message technique',
+    pg_temp.appeler(c_dir1, '1', null, format('select public.inviter_compte(%L, ''formateur'', null, null, null)::text', o_double)),
+    'ERREUR P0001 invitation: Deux comptes existent pour cette adresse (écrite avec des majuscules sur l''un) : à régler par le fondateur.');
+  perform pg_temp.attendre('orphelin', 'ce refus n''a rien changé (profils, affectations)',
+    pg_temp.instantane() || ' ' || (select string_agg(u.role || ':' || u.email, ',' order by u.email) from public.user_profiles u where lower(u.email) = o_double),
+    v_snap || ' stagiaire:' || upper(o_double) || ',stagiaire:' || o_double);
   -- 4.9 Un profil relié à une fiche de stagiaire reste refusé, dans les quatre chemins, sans rien écrire.
   v_snap := pg_temp.instantane();
   perform pg_temp.attendre('orphelin', 'formateur : l''adresse d''un compte stagiaire (avec fiche) reste refusée, même phrase',
@@ -399,6 +423,17 @@ begin
   perform pg_temp.attendre('donnees', 'aucun refus n''a anonymisé quelqu''un ni écrit au journal',
     (select format('%s %s', (select count(*) from public.stagiaires where id between 990601 and 990604 and anonymise_le is not null),
                            (select count(*) from public.effacements_journal where type = 'promo' and cible in ('promo ' || v_pf1, 'promo ' || v_pf2, 'promo ' || v_pr1, 'promo ' || v_pe1)))), '0 0');
+  -- 5.3 bis Le fondateur en aperçu : les droits du rôle simulé seulement, promo 1 affichée (lieu 1).
+  perform pg_temp.attendre('donnees', 'le fondateur en aperçu direction (promo 1 affichée) ne lit pas l''état d''une promo du lieu 2',
+    pg_temp.appeler(v_fond, '1', 'direction', format('select public.etat_anonymisation_promo(%s)::text', v_pf2)), c_refus_promo);
+  perform pg_temp.attendre('donnees', 'le fondateur en aperçu direction n''anonymise pas une promo du lieu 2',
+    pg_temp.appeler(v_fond, '1', 'direction', format('select public.anonymiser_promo(%s)::text', v_pf2)), c_refus_promo);
+  perform pg_temp.attendre('donnees', 'le fondateur en aperçu direction lit l''état d''une promo du lieu affiché',
+    pg_temp.appeler(v_fond, '1', 'direction', format('select (public.etat_anonymisation_promo(%s)->>''restants'')', v_pf1)), 'OK 2');
+  perform pg_temp.attendre('donnees', 'le fondateur en aperçu formateur (promo 1 affichée) ne lit pas l''état d''une autre promo, même du lieu affiché',
+    pg_temp.appeler(v_fond, '1', 'formateur', format('select public.etat_anonymisation_promo(%s)::text', v_pf1)), c_refus_promo);
+  perform pg_temp.attendre('donnees', 'le fondateur en aperçu formateur n''anonymise pas une autre promo que l''affichée',
+    pg_temp.appeler(v_fond, '1', 'formateur', format('select public.anonymiser_promo(%s)::text', v_pf1)), c_refus_promo);
   -- 5.4 Anonymisation réussie par la direction du lieu 1, promo 1 affichée.
   perform pg_temp.attendre('donnees', 'la direction du lieu 1 anonymise une promo de son lieu qui n''est pas la promo affichée (1 anonymisé, 1 compte du personnel gardé)',
     pg_temp.appeler(c_dir1, '1', null, format('select concat_ws('' '', r->>''anonymises'', r->>''comptes_admin_ignores'') from (select public.anonymiser_promo(%s) r) z', v_pf1)),
@@ -447,6 +482,18 @@ begin
     'ERREUR 42501 / ERREUR 42501 / ERREUR 42501 / ERREUR 42501');
   perform pg_temp.attendre('benevoles', 'le fondateur lit la liste d''un lieu quelconque',
     pg_temp.appeler(v_fond, '1', null, format('select string_agg(a.id::text, '','') from public.benevoles_a_purger(%s) a where a.id = %s', v_lieu2, v_b3)), 'OK ' || v_b3);
+  perform pg_temp.attendre('benevoles', 'le fondateur en aperçu direction (promo 1 affichée) ne lit ni ne purge le lieu 2',
+    concat_ws(' / ', left(pg_temp.appeler(v_fond, '1', 'direction', format('select count(*)::text from public.benevoles_a_purger(%s)', v_lieu2)), 12),
+      left(pg_temp.appeler(v_fond, '1', 'direction', format('select public.purger_benevoles(array[%s]::integer[], %s)::text', v_b3, v_lieu2)), 12)),
+    'ERREUR 42501 / ERREUR 42501');
+  perform pg_temp.attendre('benevoles', 'le fondateur en aperçu direction lit la liste du lieu affiché',
+    pg_temp.appeler(v_fond, '1', 'direction', format('select string_agg(a.id::text, '','' order by a.id) from public.benevoles_a_purger(%s) a where a.id in (%s)', v_lieu1, v_ids)),
+    format('OK %s,%s', v_b1, v_b4));
+  perform pg_temp.attendre('benevoles', 'le fondateur en aperçu siège ou formateur ne lit ni ne purge',
+    concat_ws(' / ', left(pg_temp.appeler(v_fond, '1', 'siege', format('select count(*)::text from public.benevoles_a_purger(%s)', v_lieu1)), 12),
+      left(pg_temp.appeler(v_fond, '1', 'siege', format('select public.purger_benevoles(array[%s]::integer[], %s)::text', v_b1, v_lieu1)), 12),
+      left(pg_temp.appeler(v_fond, '1', 'formateur', format('select count(*)::text from public.benevoles_a_purger(%s)', v_lieu1)), 12)),
+    'ERREUR 42501 / ERREUR 42501 / ERREUR 42501');
   -- Purge : refus d'abord.
   v_snap := (select count(*)::text from public.benevoles where id in (v_b1, v_b2, v_b3, v_b4, v_b5));
   perform pg_temp.attendre('benevoles', 'la direction du lieu 1 ne purge pas dans le lieu 2 (42501)',

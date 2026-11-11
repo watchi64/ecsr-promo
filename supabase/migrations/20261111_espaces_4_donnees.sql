@@ -22,7 +22,7 @@ set local lock_timeout = '3s';
 
 -- Transforme le profil orphelin de l'adresse p_email (s'il y en a un) en compte du personnel. p_admin : valeur de is_admin ;
 -- p_prof_id : fiche formateur à relier (posée seulement si elle existe et n'est reliée à aucun compte, comme _profil_formateur) ;
--- p_par : qui invite. L'adresse du profil passe en minuscules (comme celle que les insertions suivantes écrivent). Rend vrai si un profil a été transformé. Interne : inviter_compte et regler_affectations_formateur.
+-- p_par : qui invite (posé seulement si le profil n'a pas d'inviteur). Un compte déjà affecté est réparé sans rien perdre. L'adresse du profil passe en minuscules (comme celle que les insertions suivantes écrivent). Rend vrai si un profil a été transformé. Interne : inviter_compte et regler_affectations_formateur.
 create function public._orphelin_en_personnel(p_email text, p_admin boolean, p_prof_id integer, p_par text)
  returns boolean
  language plpgsql
@@ -33,10 +33,19 @@ declare
   v_prof integer;
   v_n bigint;
 begin
+  -- Deux profils à la même adresse, à la casse près (l'ancienne clé, sensible à la casse, le permettait) : la mise en minuscules
+  -- créerait un doublon. Refus clair, rien n'est changé.
+  if exists (select 1 from user_profiles u where lower(u.email) = lower(p_email) and u.role = 'stagiaire' and u.stagiaire_id is null and not u.is_founder)
+     and (select count(*) from user_profiles u where lower(u.email) = lower(p_email)) > 1 then
+    raise exception 'invitation: Deux comptes existent pour cette adresse (écrite avec des majuscules sur l''un) : à régler par le fondateur.';
+  end if;
   select pf.id into v_prof from profs pf
    where pf.id = p_prof_id and not exists (select 1 from user_profiles u where u.prof_id = pf.id);
+  -- Rien n'est retiré à un compte déjà affecté : is_admin ne passe jamais de vrai à faux, invited_by_email n'est jamais réécrit
+  -- (posé seulement s'il manque), la fiche formateur n'est posée que si le profil n'en a pas.
   update user_profiles u
-     set role = 'prof', is_admin = p_admin, prof_id = coalesce(v_prof, u.prof_id), invited_by_email = p_par,
+     set role = 'prof', is_admin = u.is_admin or p_admin, prof_id = coalesce(u.prof_id, v_prof),
+         invited_by_email = coalesce(u.invited_by_email, p_par),
          email = lower(u.email)   -- adresse en minuscules (les affectations suivent, FK on update cascade) : pas de doublon à l'insertion qui suit
    where lower(u.email) = lower(p_email) and u.role = 'stagiaire' and u.stagiaire_id is null and not u.is_founder;
   get diagnostics v_n = row_count;
@@ -136,10 +145,9 @@ $nouveau$];
   v_def text;
   v_ancien text;
   v_nouveau text;
-  v_dernier jsonb;
   n integer;
 begin
-  -- Tout est vérifié avant la moindre exécution : un seul fragment manquant ou en double, et rien n'est changé.
+  -- Le bloc est atomique : un seul fragment manquant ou en double annule tout, rien n'est changé.
   for f in 1..2 loop
     v_def := pg_get_functiondef(v_fonctions[f]);
     for i in 1..cardinality(v_de) loop
