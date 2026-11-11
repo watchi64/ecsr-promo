@@ -1,17 +1,17 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111d";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111d";
-import { compteDansEquite } from "./passage-rules.js?v=20261111d";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111d";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111d";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111d";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111d";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111e";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111e";
+import { compteDansEquite } from "./passage-rules.js?v=20261111e";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111e";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111e";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111e";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111e";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261111d";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111d";
-import { effectifDesFiches } from "./centre-stats.js?v=20261111d";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111d";
+} from "./promo-rules.js?v=20261111e";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111e";
+import { effectifDesFiches } from "./centre-stats.js?v=20261111e";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111e";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -555,13 +555,6 @@ export async function updateStagiaireNom(id, nom) {
   invalidateCache("stagiaires_all");
 }
 
-export async function deleteStagiaire(id) {
-  const { error } = await supabase.from("stagiaires").delete().eq("id", id);
-  if (error) throw error;
-  invalidateCache("stagiaires");
-  invalidateCache("stagiaires_all");
-}
-
 // Désactivation douce (abandon) : la ligne reste en base (historique / stats futures)
 // mais le stagiaire est masqué partout (planning, dés, notes, passages) car
 // listStagiaires() ne renvoie que actif = true. actif=false => abandon, true => réactivé.
@@ -960,15 +953,6 @@ export async function unpublishQcm(qcmId) {
   await ecrireExamen(qcmId, { published: false, exam_ferme_a: null });
 }
 
-// Régénère le tirage gelé sans toucher à l'état de publication.
-export async function setExamDraw(qcmId, { examQuestionIds, drawMode, nbQuestions }) {
-  await ecrireExamen(qcmId, {
-    exam_question_ids: examQuestionIds,
-    exam_draw_mode: drawMode,
-    exam_nb_questions: nbQuestions ?? null,
-  });
-}
-
 // Met à jour la config d'examen sans changer l'état de publication. Un champ qui ne
 // relève pas de l'examen (titre...) va à la banque commune.
 export async function updateExamConfig(qcmId, patch) {
@@ -1345,16 +1329,6 @@ export async function getNotesStatsGroupe() {
   return data;
 }
 
-export async function listAuditForEvaluation(evaluation_id) {
-  const { data, error } = await supabase
-    .from("evaluations_audit")
-    .select("*")
-    .eq("evaluation_id", evaluation_id)
-    .order("changed_at", { ascending: false });
-  if (error) throw error;
-  return data;
-}
-
 // === EPCF (évaluations en cours de formation) ===
 
 export async function listEpcf(filters = {}) {
@@ -1388,11 +1362,6 @@ export async function upsertEpcf(evalRow) {
   const { data, error } = await q;
   if (error) throw error;
   return data;
-}
-
-export async function deleteEpcf(id) {
-  const { error } = await supabase.from("epcf_evaluations").delete().eq("id", id);
-  if (error) throw error;
 }
 
 // La date de naissance vit dans stagiaires_prive (lisible du stagiaire lui-même et du
@@ -1952,26 +1921,6 @@ export async function signOut() {
 
 export function onAuthChange(callback) {
   return supabase.auth.onAuthStateChange((event, session) => callback(session?.user ?? null));
-}
-
-// === Fiches de suivi (souhaits compétences permis B + besoins) ===
-
-export async function listFiches() {
-  const { data, error } = await supabase.from("fiches_suivi").select("*");
-  if (error) throw error;
-  return data;
-}
-
-export async function upsertFiche({ stagiaire_id, souhaits, besoins, updated_by_who }) {
-  // On n'écrit QUE les colonnes explicitement fournies : un appel qui passe seulement
-  // `souhaits` ne doit pas effacer `besoins` (et inversement) sur les fiches existantes.
-  const payload = { stagiaire_id, updated_by_who, updated_at: new Date().toISOString() };
-  if (souhaits !== undefined) payload.souhaits = souhaits;
-  if (besoins !== undefined) payload.besoins = besoins;
-  const { error } = await supabase
-    .from("fiches_suivi")
-    .upsert(payload, { onConflict: "stagiaire_id" });
-  if (error) throw error;
 }
 
 // Agrégats voiture par stagiaire pour le placement : nb de séances avec élève,

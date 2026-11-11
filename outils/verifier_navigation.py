@@ -2668,8 +2668,8 @@ def verifier_retour_arriere(page, res, sc):
 # Réglages, Mes préférences, bouton et menu du compte (lot 2A)
 # --------------------------------------------------------------------------------------
 
-# Sections de Réglages (#/config) sous la nouvelle navigation, dans l'ordre : la promo seule. Émargement et Nouvelle
-# navigation sont les interrupteurs du fondateur (js/emargement-etat.js, js/nav-etat.js). Mes préférences (#/preferences)
+# Sections de Réglages (#/config), dans l'ordre : la promo seule. Émargement est l'interrupteur du fondateur
+# (js/emargement-etat.js). Mes préférences (#/preferences)
 # n'en montre aucune : seulement « Mes préférences » (si un réglage est à montrer) et « Informations ».
 SECTIONS_REGLAGES = ("Ce que voient les stagiaires", "Promo", "Accès et invitations", "Émargement", "Données personnelles")
 SECTIONS_DU_FONDATEUR = ("Émargement",)
@@ -5159,11 +5159,12 @@ def verifier_la_classe(page, res, sc):
 
 # Mon suivi, nouvelle navigation : les parties dans l'ordre (sous-onglets sur ordinateur, lignes du sommaire sur téléphone).
 PARTIES_MON_SUIVI = ["Résultats", "Passages", "Évaluations EPCF", "Livret EPCF", "Dossier professionnel"]   # un nom par objet : décisions du 08/11 et du 10/11 (lot D)
-# La fiche de main : Mon espace éteint, et la fiche d'un stagiaire chez l'équipe dans les deux navigations (noms des parties du lot D, 10/11 : les mêmes partout).
+# La fiche d'un stagiaire chez l'équipe (noms des parties du lot D, 10/11 : les mêmes partout).
 PARTIES_FICHE_DE_MAIN = ["Passages", "Évaluations EPCF", "Évolution", "Livret EPCF", "Dossier professionnel"]
-# Les lignes du sommaire du stagiaire du banc (Timy, id 1, le 27/10/2026) : aucun passage à venir, aucune épreuve EPCF, pas de livret, un dossier ouvert le 02/10
-# sans exemple rempli (que main écrivait « Dossier pro 02/10 », avant le lot D).
-LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : aucun à venir", "Évaluations EPCF : 0 épreuve sur 2",
+# Les lignes du sommaire du stagiaire du banc (Timy, id 1, le 27/10/2026) : trois passages à venir, aucune épreuve EPCF, pas de livret, un dossier ouvert le
+# 02/10 sans exemple rempli (que main écrivait « Dossier pro 02/10 », avant le lot D). Les passages : depuis le 11/11 (navigation unique, phase 2), Mon suivi
+# lit la semaine en cours, celle du planning du banc ; il lisait avant la semaine épinglée du banc (deux semaines plus tôt, vide), d'où « aucun à venir ».
+LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : 3 à venir", "Évaluations EPCF : 0 épreuve sur 2",
                             "Livret EPCF : pas encore commencé", "Dossier professionnel : 0 exemple sur 6"]
 CLE_VUE_RESULTATS = "ecsr_resultats_vue"
 # La fiche d'un stagiaire chez l'équipe : Valentin (id 4), EPCF 1 sur 2, livret et dossier.

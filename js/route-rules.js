@@ -11,7 +11,6 @@ export const PARTIES = ["resultats", "passages", "epcf", "evolution", "livret", 
 // Parties d'une fiche, dans l'ordre d'affichage. Mon suivi (lot 2B, tâche 7) : Résultats d'abord,
 // qui réunit Évolution (« Moi ») et les notes de la classe (« La classe ») ; deux mots vagues de
 // moins sur le sommaire. La fiche d'un stagiaire vue par l'équipe garde la fiche de main.
-// L'option `navigationV2` est ignorée (transition : retirée en phase 2 quand les vues ne la passent plus).
 export function partiesDeLaFiche({ soi = false } = {}) {
   return soi
     ? ["resultats", "passages", "epcf", "livret", "dp"]
@@ -24,7 +23,7 @@ export const VUES_RESULTATS = ["moi", "classe"];
 export const CLE_VUE_RESULTATS = "ecsr_resultats_vue";
 const VUE_DE_PARTIE = new Map([["evolution", "moi"], ["classe", "classe"]]);
 
-// Ce que Mon suivi ouvre pour une partie lue dans l'adresse, sous la nouvelle navigation :
+// Ce que Mon suivi ouvre pour une partie lue dans l'adresse :
 // Évolution et La classe deviennent Résultats sur leur vue ; `vue` nulle, la mémoire décide.
 export function ouvertureDeMonSuivi(partie) {
   const vue = VUE_DE_PARTIE.get(partie) || null;

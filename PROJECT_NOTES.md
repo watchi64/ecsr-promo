@@ -19,7 +19,7 @@ Web app de suivi des promotions **TP ECSR** : depuis octobre 2026, plusieurs pro
 |---|---|
 | Frontend | HTML/CSS/JS vanilla, modules ES, **pas de framework** (refus assumé) |
 | Backend | Supabase Postgres, project `crpduennbqaemhfaywrz` (eu-west-3 Paris, org Timy Studio : migré le 17/06/2026 depuis dacqponglpeuscbgwfqn) |
-| Edge Function | `invite-user` (deploy via MCP `mcp__800314df__deploy_edge_function`) |
+| Edge Functions | `chatbot`, `qcm-ia` (deploy via MCP `mcp__800314df__deploy_edge_function`) ; les invitations passent par la fonction SQL `inviter_compte` |
 | Hébergement | GitHub Pages, branche `main` |
 | Typo | Canela (display, self-hosted .otf) + Outfit (Google Fonts body) + Geist Mono (numéros) |
 | Logo | `assets/logo/tpecsr-logo.svg` (capsule TP) : SVG seul, le PNG a été supprimé |
@@ -119,9 +119,13 @@ Liste : ALEXER Audrick, ANKPRA Gaëlle, AQUILA Céline, BAILLY Mickael, BLANC Ju
 - Triggers `audit_passages`, `audit_evaluations` : INSERT/UPDATE/DELETE → row dans `*_audit`, identité depuis `auth.jwt()->>email`
 - Trigger `agenda_touch_updated`, `contacts_touch_updated` : updated_at auto
 
-### Edge Function `invite-user`
+### Invitations : fonction SQL `inviter_compte`
 
-Vérifie le JWT de l'appelant, check `is_admin = true` en lecture service_role, upsert dans user_profiles. **Plus d'envoi de mail** (depuis v3 du 18 mai : l'app fait du signup classique côté navigateur).
+Depuis le lot 4 (08/11/2026), l'app invite par la fonction de la base `inviter_compte` (migration
+`20261028_roles_2_fonctions.sql`) : elle crée le profil s'il manque puis l'affectation, et vérifie elle-même qui peut
+inviter quel rôle sur quelle promo ou quel lieu. Aucun e-mail n'est envoyé : la personne crée son compte côté navigateur
+avec l'adresse invitée. L'ancienne Edge Function `invite-user` (clé de service, simple drapeau `is_admin`) est retirée du
+dépôt le 11/11/2026 (navigation unique, phase 2).
 
 ## Absences & comptage des passages (19/07/2026)
 
@@ -147,13 +151,13 @@ Chaque stagiaire remplit **son** DP dans l'app (Notes → sous-onglet « Dossier
 - **Droits (revises le 16/09)** : les formateurs ECRIVENT dans le DP, pas seulement en lecture. `is_prof()` est dans les politiques INSERT et UPDATE de `dp_dossiers`. Le DP reste le document du candidat : `updated_by_who` trace la derniere main et la vue l'affiche. Retour arriere : rejouer les deux politiques sans `OR is_prof()`.
 - **Derniere page (16/09)** : `js/main.js` memorise la route courante dans `localStorage` (cle `derniere-route`) et y revient au demarrage a froid, au lieu de forcer `mon-suivi`. Le sous-onglet, lui, se souvenait deja tout seul via `storageKey` de `js/subtabs.js`.
 - **Pagination dans `js/dp-pagination.js`** : le gabarit produit un flux de blocs, le moteur les mesure et les repartit en feuilles A4, en coupant les zones de redaction entre deux lignes visuelles. En edition le flux n'est pas coupe, les coupures sont seulement materialisees : un champ reparti sur deux feuilles ne serait plus editable. Le document imprime est toujours le document compose, et il ne porte jamais de `data-k` : seul le flux d'edition est lu par `collectData`. Habillage releve dans le .docx officiel, voir `docs/specs/2026-09-14-dp-mise-en-page-officielle-design.md`.
-- **Bancs du DP** : `_preview_dp.html` (document complet, sommaire, impression), `_preview_dp_moteur.html` (mecanique de composition, 21 controles dont deux scenarios eprouves par sabotage), `_preview_dp_vue.html` (la vraie vue avec modules factices, les deux roles). Couverture des cles : `node tests/dp-gabarit-cles.test.mjs`.
+- **Bancs du DP** : `_preview_dp.html` (document complet, sommaire, impression), `_preview_dp_moteur.html` (mecanique de composition, 21 controles dont deux scenarios eprouves par sabotage). Couverture des cles : `node tests/dp-gabarit-cles.test.mjs`. Le banc de la vue (`_preview_dp_vue.html`) est retiré le 11/11/2026 : il chargeait la vraie base ; le robot des parcours joue désormais la vue.
 - **Piège résolu** : en édition, `buildDpFlux(data, { edition: true })` rend les **6** fiches, sinon le candidat n'aurait aucun champ où saisir sa 2e ou sa 3e. Les fiches vides portent `.dp-bloc-exclu` et leur mention, et sont absentes du flux d'impression, construit avec `edition: false`.
 - **Re-rendu à pagination changeante** : remplir ou vider un exemple change sommaire et numérotation, donc le document est reconstruit. `wireDocEditing` pose ses écouteurs en **délégation** sur le conteneur : ils survivent au `innerHTML` et ne doivent être posés qu'une fois (drapeau `editionCablee`), sinon une frappe déclencherait N enregistrements. Seul `applyEditable(doc)` est ré-appliqué. Le curseur est replacé dans le champ actif après reconstruction.
 - **Texte long jamais perdu** : une feuille a désormais une hauteur FIXE et le moteur répartit le texte sur autant de feuilles qu'il faut, en coupant les zones entre deux lignes visuelles. Conséquence à connaître : `corps.scrollHeight` vaut toujours `clientHeight` tant qu'il n'y a pas débordement, il ne mesure donc PAS la place consommée. La place restante se lit sur le bas du dernier élément posé. Un bloc insécable plus haut qu'une feuille est gardé entier et le corps reçoit `.dp-corps-deborde` : mieux vaut une feuille trop pleine qu'un texte rogné.
 - **Deux entrées** : Notes → « Dossier pro » (liste pour les formateurs, son dossier pour un stagiaire) ET Mon suivi → sous-onglet « Dossier pro », qui ouvre le dossier de l'élève affiché via `renderDp(p, { stagiaireId })`. Édition si c'est le sien, consultation sinon. Un formateur **qui est aussi stagiaire** (cas `is_admin` + `stagiaire_id`, le compte du fondateur) voit sur sa propre ligne de la liste un bouton « Commencer / Remplir mon dossier » qui ouvre en édition : sans lui, il n'aurait aucun moyen de remplir son propre DP.
 - **⚠️ `#dp-print { display: none }` hors `@media print`** : le clone d'impression vit en permanence dans le `<body>` tant qu'un dossier est ouvert. Sans cette règle, le document s'affiche **une seconde fois sous la vue**, en pleine largeur 210mm collé à gauche (symptôme constaté le 31/07). `livret.css` a la même règle pour `#livret-print`. La règle `body.dp-printable #dp-print { display: block !important }` de `@media print` la surcharge, l'impression n'est pas affectée.
-- **Bancs d'essai** : `_preview_dp.html` (document seul, pagination, impression) et `_preview_dp_vue.html` (la vraie vue, `?role=stagiaire|formateur`, `?moi=1` pour le cas admin+stagiaire, `?dossier=<id>` pour l'entrée Mon suivi), via une **import map** qui substitue `_preview_stubs/db.js` et `_preview_stubs/auth-admin.js`. Aucune requête vers la prod.
+- **Banc d'essai** : `_preview_dp.html` (document seul, pagination, impression). Aucune requête vers la prod.
 - **⚠️ Piège de cache sur les branches de feature** : le hook ne re-versionne les tokens `?v=` que sur `main`, donc en local le navigateur resert indéfiniment l'ancien `dp.js?v=…` ET l'ancien `dp.css` (mesuré : 11 451 octets servis contre 12 294 sur le disque). Un rechargement forcé ne suffit pas toujours. Les deux bancs chargent donc leurs modules et leurs feuilles avec un `?cb=Date.now()`. Pour tester l'app elle-même : onglet privé, ou DevTools avec « Disable cache ».
 - **Hors périmètre v1** : pièces jointes (pas de Storage), export `.docx`, signature électronique.
 
@@ -183,12 +187,8 @@ canal de notification.
   Vérifié au banc, ordre défavorable compris.
 - **⚠️ Ordre dans Accueil** : le compteur J−N vise `.home-nouveautes` en priorité, sinon il
   s'insérerait sous les nouveautés puisqu'il ciblait `.home-tiles`, descendu d'un cran.
-- **Deux bancs d'essai**, tous deux en `?role=stagiaire|formateur`, réutilisant le stub
-  `_preview_stubs/auth-admin.js` du Dossier Professionnel :
-  - `_preview_nouveautes.html` : la page complète (filtre d'audience, marquage, lien de sous-onglet).
-  - `_preview_home.html` : fait tourner le vrai `renderHome` (base factice `_preview_stubs/db-home.js`)
-    et **affiche un verdict OK/ECHEC** sur l'ordre des sections et le marquage partiel. Il existe
-    parce que l'ordre d'Accueil est un couplage fragile que rien ne signale à l'écran.
+- **Bancs d'essai** : `_preview_nouveautes.html` et `_preview_home.html` sont retirés le 11/11/2026 (navigation
+  unique, phase 2 : l'ancien Accueil n'existe plus) ; le robot des parcours joue la page Nouveautés.
 - **⚠️ Un banc doit importer en dynamique avec `Date.now()`**, jamais `?cb=1`. Une constante est
   mise en cache par le navigateur : le banc resert alors la version d'avant la modification et
   valide du code qui n'est plus sur le disque. Constaté le 01/08 en réintroduisant volontairement
@@ -278,9 +278,9 @@ Les formateurs ouvrent les parties de l'app au fil de la progression d'une promo
   qu'une bascule soit postérieure au réglage factice du 05/10), `?lenteur=<ms>` (retarde chaque
   lecture du faux client : preuve du démarrage borné ; ajouter `&lenteur_tables=settings` pour ne
   pas retarder aussi l'ouverture de l'app). `_harness_build.mjs` génère la page et remappe
-  chaque module vers une URL neuve : plus besoin de re-versionner une branche pour tester. Seuls
-  `_preview_modules.html` (peint par le pane, `?fondateur=1`, fermé au réseau par sa CSP, jeton lu
-  dans `index.html`) et ses doublures `_preview_stubs/` sont versionnés.
+  chaque module vers une URL neuve : plus besoin de re-versionner une branche pour tester. Le banc
+  `_preview_modules.html` et sa doublure `_preview_stubs/db-modules.js` sont retirés le 11/11/2026 (le robot des
+  parcours joue la page Réglages).
 - **Preuve RLS** (02/10, avant multi-promo, transaction annulée) : un stagiaire ne peut pas écrire
   la clé `modules`, un formateur le peut. À rejouer avec l'en-tête `x-promo-id` une fois A en ligne.
 

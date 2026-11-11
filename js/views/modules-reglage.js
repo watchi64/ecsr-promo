@@ -6,16 +6,15 @@
 // js/modules-data.js, ouvert avec le multi-promo). La section se
 // redessine elle-même après chaque écriture, réussie ou non (voir redessiner) :
 // pas de rechargement de toute la page Paramètres.
-import { el, toast } from "../utils.js?v=20261111d";
-import { confirmer } from "../confirmer.js?v=20261111d";
-import { icon } from "../icons.js?v=20261111d";
-import { MODULES, GROUPES } from "../modules-data.js?v=20261111d";
-import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261111d";
+import { el, toast } from "../utils.js?v=20261111e";
+import { confirmer } from "../confirmer.js?v=20261111e";
+import { icon } from "../icons.js?v=20261111e";
+import { MODULES, GROUPES } from "../modules-data.js?v=20261111e";
+import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261111e";
 import {
   etatModules, peutRegler, basculerModule, appliquerEnsembleDeDepart,
-} from "../modules-etat.js?v=20261111d";
-import { getPromoCourante } from "../db.js?v=20261111d";
-import { navigationV2Active } from "../nav-etat.js?v=20261111d";
+} from "../modules-etat.js?v=20261111e";
+import { getPromoCourante } from "../db.js?v=20261111e";
 
 // La section règle la promo AFFICHÉE (pastille) : on la nomme partout, pour qu'un formateur
 // arrivé par défaut sur une promo ne règle jamais l'autre par mégarde.
@@ -27,12 +26,9 @@ function laPromo() {
   return nom ? `la promo « ${nom} »` : "la promo affichée";
 }
 
-// Ce qu'un stagiaire a toujours, quel que soit le réglage, sous le nom que lui donne sa barre. Lu au rendu et non à
-// l'import : la navigation de la session n'est connue qu'après le démarrage. Nouvelle navigation : sa page est Mon suivi,
-// et ses préférences (Mes préférences, jamais Réglages, la page de la promo) s'ouvrent par le menu du compte.
-const socle = () => (navigationV2Active()
-  ? "Toujours ouverts : Accueil, Mon suivi (dont les passages), Mes préférences, Nouveautés."
-  : "Toujours ouverts : Accueil, Mon espace personnel (Passages), Paramètres, Nouveautés.");
+// Ce qu'un stagiaire a toujours, quel que soit le réglage : sa page est Mon suivi, et ses préférences (Mes préférences,
+// jamais Réglages, la page de la promo) s'ouvrent par le menu du compte.
+const socle = () => "Toujours ouverts : Accueil, Mon suivi (dont les passages), Mes préférences, Nouveautés.";
 
 // Demandée avant la première bascule d'une case sur une promo libre ou illisible : cette
 // bascule fige un réglage pour tous les stagiaires de la promo, et l'état « aucun réglage »
@@ -112,9 +108,9 @@ export function renderModulesSection() {
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.eyeOff()),
     el("div", {},
-      // Nouvelle navigation : la section ouvre la page Réglages sous le nom de ce qu'elle règle. Le titre se
-      // décide ici et non dans la page : redessiner() reconstruit la section seule après chaque écriture.
-      el("h3", {}, navigationV2Active() ? "Ce que voient les stagiaires" : "Modules de la promo"),
+      // La section ouvre la page Réglages sous le nom de ce qu'elle règle. Le titre se décide ici et non dans la
+      // page : redessiner() reconstruit la section seule après chaque écriture.
+      el("h3", {}, "Ce que voient les stagiaires"),
       el("p", {}, "Promo réglée : ", el("strong", {}, nomPromo())),
       el("p", { class: "muted" },
         "Ouvrez les parties de l'app au fil de la formation. Une partie fermée est invisible "

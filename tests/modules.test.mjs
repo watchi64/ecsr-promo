@@ -213,9 +213,9 @@ ok(module_("epcf").explication.startsWith("EPCF : évaluations passées en cours
 ok(module_("epcf").annonce.resume.includes("EPCF (évaluations passées en cours de formation)"), "EPCF : le sigle défini dans l'annonce");
 ok(module_("ccp2").annonce.resume.includes("CCP2 (certificat de compétences professionnelles n° 2)"), "CCP2 : le sigle défini dans l'annonce");
 eq(module_("ccp2").annonce.titre, "La page CCP2 est ouverte", "CCP2 : une page, plus un onglet");
-eq(module_("livret").annonce.ou.label, "Mon espace personnel, partie Livret EPCF", "Livret EPCF dans le lien");
-eq(module_("dp").annonce.ou.label, "Mon espace personnel, partie Dossier professionnel", "Dossier professionnel dans le lien");
-eq(module_("epcf").annonce.ou.label, "Mon espace personnel, partie Évaluations EPCF", "Évaluations EPCF dans le lien");
+eq(module_("livret").annonce.ou.label, "Mon suivi, partie Livret EPCF", "Livret EPCF dans le lien");
+eq(module_("dp").annonce.ou.label, "Mon suivi, partie Dossier professionnel", "Dossier professionnel dans le lien");
+eq(module_("epcf").annonce.ou.label, "Mon suivi, partie Évaluations EPCF", "Évaluations EPCF dans le lien");
 for (const m of MODULES) {
   const texte = [m.nom, m.explication, m.annonce.titre, m.annonce.resume, m.annonce.ou?.label || ""].join(" ");
   ok(!/Dossier pro\b|dossier pro\b|\bDP\b|priorités de passage|partie Livret$/.test(texte), m.cle + " : les mots décidés le 10/11");
@@ -263,7 +263,7 @@ ok(!libelles.some((l) => /sous-onglet Livret EPCF/.test(l)), "plus de « sous-on
 const pageStagiaires = NOUVEAUTES.find((e) => e.id === "2026-10-03-page-stagiaires");
 ok(pageStagiaires && pageStagiaires.pour === "formateurs" && pageStagiaires.ou.route === "stagiaires",
    "nouveauté formateurs : la page Stagiaires");
-ok(NOUVEAUTES.some((e) => e.id === "2026-10-03-sommaire-iphone" && e.pour === "tous"),
-   "nouveauté pour tous : le sommaire sur iPhone");
+// « Le sommaire sur iPhone » ne décrivait que l'ancienne barre : retirée avec elle (navigation unique, phase 2).
+ok(!NOUVEAUTES.some((e) => e.id === "2026-10-03-sommaire-iphone"), "nouveauté de l'ancienne barre retirée : le sommaire sur iPhone");
 
 console.log(`modules : ${n} assertions OK`);

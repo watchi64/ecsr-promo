@@ -5,13 +5,13 @@
 // d'ordre (centres par nom, démonstration en dernier) vivent dans js/siege-rules.js. Aucune donnée de stagiaire n'est lue ici.
 // Les fenêtres sont celles de la page Équipe de la direction (ouvrirFenetre).
 
-import { lireLieuxDuReseau, lireDirectionsDuReseau, retirerAffectation, creerCentre, inviteUser } from "../db.js?v=20261111d";
-import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261111d";
-import { icon } from "../icons.js?v=20261111d";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261111d";
-import { messageInvitationReussie } from "../roles-rules.js?v=20261111d";
-import { directionsParCentre } from "../siege-rules.js?v=20261111d";
-import { ouvrirFenetre } from "./direction-equipe.js?v=20261111d";
+import { lireLieuxDuReseau, lireDirectionsDuReseau, retirerAffectation, creerCentre, inviteUser } from "../db.js?v=20261111e";
+import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261111e";
+import { icon } from "../icons.js?v=20261111e";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261111e";
+import { messageInvitationReussie } from "../roles-rules.js?v=20261111e";
+import { directionsParCentre } from "../siege-rules.js?v=20261111e";
+import { ouvrirFenetre } from "./direction-equipe.js?v=20261111e";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;

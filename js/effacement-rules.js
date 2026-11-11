@@ -4,7 +4,7 @@
 
 import {
   phraseDeRefus, PHRASE_INDISPONIBLE, PHRASE_CONNEXION, PHRASE_SESSION, PHRASE_SANS_DROIT, PHRASE_ECHEC,
-} from "./espaces-rules.js?v=20261111d";
+} from "./espaces-rules.js?v=20261111e";
 
 // Confirmation par saisie du prénom : casse et espaces autour ignorés, accents exigés.
 export function confirmationValide(saisie, prenom) {

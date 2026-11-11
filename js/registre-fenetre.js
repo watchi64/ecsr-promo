@@ -11,13 +11,13 @@
 // Avant l'envoi, un champ vide part en null, dates comprises : jamais une chaîne vide vers la base.
 // Fenêtre de l'équipe : ses textes vouvoient (règle du 10/11).
 
-import { el, toast } from "./utils.js?v=20261111d";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, demanderFermeture } from "./nav-fenetre.js?v=20261111d";
-import { confirmer } from "./confirmer.js?v=20261111d";
-import { ajouterEntreeRegistre, modifierEntreeRegistre } from "./db.js?v=20261111d";
-import { TYPES, ORIGINES, ETATS, RAPPEL_VIOLENCES, LIMITE_TEXTE, validerEntree } from "./registre-rules.js?v=20261111d";
-import { jourParis } from "./questionnaires-gestion-rules.js?v=20261111d";
-import { libelleOptionPromo } from "./qualiopi-page-rules.js?v=20261111d";
+import { el, toast } from "./utils.js?v=20261111e";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, demanderFermeture } from "./nav-fenetre.js?v=20261111e";
+import { confirmer } from "./confirmer.js?v=20261111e";
+import { ajouterEntreeRegistre, modifierEntreeRegistre } from "./db.js?v=20261111e";
+import { TYPES, ORIGINES, ETATS, RAPPEL_VIOLENCES, LIMITE_TEXTE, validerEntree } from "./registre-rules.js?v=20261111e";
+import { jourParis } from "./questionnaires-gestion-rules.js?v=20261111e";
+import { libelleOptionPromo } from "./qualiopi-page-rules.js?v=20261111e";
 
 const NOM = "registre";
 export const NE_NOMME_PERSONNE = "Ne nommez personne : l'origine suffit.";

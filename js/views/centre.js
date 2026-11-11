@@ -4,13 +4,11 @@
 // (impression du navigateur) et CSV de la matrice des notes. Les calculs vivent dans
 // js/centre-stats.js et js/centre-csv.js (purs, testés) : ici, seulement l'affichage.
 
-import { lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261111d";
-import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261111d";
-import { icon } from "../icons.js?v=20261111d";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261111d";
-import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261111d";
-import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261111d";
-import { navigationV2Active } from "../nav-etat.js?v=20261111d";
+import { lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261111e";
+import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261111e";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261111e";
+import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261111e";
+import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261111e";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
@@ -300,14 +298,11 @@ export async function renderCentre(container) {
        promo.date_fin ? "au " + formatDate(promo.date_fin) : (promo.date_debut ? "(fin non fixée)" : null)]
         .filter(Boolean).join(" ")
     : "";
-  // Nouvelle navigation : la page porte le nom de son entrée, « Indicateurs », avec la promo en surtitre (avant : le
-  // surtitre « Tableau de bord du centre », et la promo pour titre).
-  const v2 = navigationV2Active();
+  // La page porte le nom de son entrée, « Indicateurs », avec la promo en surtitre.
   racine.appendChild(el("div", { class: "view-header centre-entete" },
     el("div", { class: "view-header-text" },
-      v2 ? (promo?.nom ? el("p", { class: "eyebrow" }, promo.nom) : null)
-        : el("p", { class: "eyebrow" }, "Tableau de bord du centre"),
-      el("h2", {}, v2 ? "Indicateurs" : (promo?.nom || "Promo courante")),
+      promo?.nom ? el("p", { class: "eyebrow" }, promo.nom) : null,
+      el("h2", {}, "Indicateurs"),
       el("p", { class: "subtitle" }, [periode, promo?.lieu_nom ? "Lieu : " + promo.lieu_nom : null,
         "Édité le " + formatDate(aujourdhui)].filter(Boolean).join(" · "))),
     el("div", { class: "centre-actions" },
