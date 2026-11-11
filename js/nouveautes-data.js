@@ -51,6 +51,20 @@ export const NOUVEAUTES = [
           + "Abandons, et la suppression des élèves bénévoles ne change pas.",
     ou: { label: "Paramètres", route: "config" },
   },
+  // Contacts du centre propres à chaque centre (11/11) : avant, toutes les promos voyaient les contacts de Nîmes. Placée après
+  // la conservation, qui reste la carte du jour de l'équipe. Pour l'équipe seulement : un stagiaire voit simplement les
+  // contacts de son centre, sans rien à apprendre.
+  {
+    id: "2026-11-11-contacts-par-centre",
+    date: "2026-11-11",
+    pour: "formateurs",
+    titre: "Chaque centre a ses propres contacts",
+    resume: "La carte « Contacts du centre » ne montre plus que les contacts du centre de la promo affichée. Nîmes et "
+          + "Montpellier gardent les mêmes contacts, mais chaque centre a maintenant sa propre liste : un numéro qui change "
+          + "se corrige dans chacun des deux. Un contact que vous ajoutez appartient au centre de la promo affichée ; pour en "
+          + "ajouter un à un autre centre, affichez d'abord une de ses promos.",
+    ou: { label: "Cours et QCM, Documents", route: "ressources" },
+  },
   {
     // Navigation unique (11/11/2026) : l'ancienne barre est retirée, toutes les promos ont la nouvelle. Premier du fichier : la
     // plus récente, celle que montre la carte « Nouveauté » de l'Accueil.

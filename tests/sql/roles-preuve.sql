@@ -366,9 +366,11 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
 ('public.themes', 'true', $mx${F}$mx$, $mx${F}$mx$, $mx${F}$mx$, $mx$categorie = 'PreuveMaj'$mx$, null),
 ('public.competences', 'true', $mx${F}$mx$, $mx${F}$mx$, $mx${F}$mx$, $mx$libelle = 'PreuveMaj'$mx$, null),
 ('public.ressources', 'true', $mx${F}$mx$, $mx${F}$mx$, $mx${F}$mx$, $mx$description = 'PreuveMaj'$mx$, null),
--- Contacts et formateurs (profs) : tous les connectés (inchangé) ; écriture E. Les passages et EPCF qui citent un
--- formateur (clés sans cascade) en sont détachés avant la suppression.
-('public.contacts', 'true', $mx${E}$mx$, $mx${E}$mx$, $mx${E}$mx$, $mx$note = 'PreuveMaj'$mx$, null),
+-- Contacts : ceux du centre de la promo affichée (20261113_contacts_centre) ; écriture E, dans ce centre seulement.
+-- Formateurs (profs) : tous les connectés (inchangé) ; écriture E. Les passages et EPCF qui citent un formateur (clés
+-- sans cascade) en sont détachés avant la suppression.
+('public.contacts', $mx$r.lieu_id = {L}$mx$, $mx$r.lieu_id = {L} and {E}$mx$, $mx$r.lieu_id = {L} and {E}$mx$,
+  $mx$r.lieu_id = {L} and {E}$mx$, $mx$note = 'PreuveMaj'$mx$, null),
 ('public.profs', 'true', $mx${E}$mx$, $mx${E}$mx$, $mx${E}$mx$, $mx$ordre = 424242$mx$,
   $mx$update public.passages set prof_id = null where prof_id is not null;
      update public.epcf_evaluations set evaluateur_prof_id = null where evaluateur_prof_id is not null$mx$),
@@ -572,8 +574,8 @@ insert into ajouts (tbl, sorte, libelle, modele, marque, prep) values
 ('public.ressources', 'unique', null,
   $aj$insert into public.ressources (titre, url, categorie, description) values ('PreuveAjout', 'https://exemple.invalid', 'preuve', 'PreuveAjout')$aj$,
   $aj$r.titre = 'PreuveAjout'$aj$, null),
-('public.contacts', 'unique', null,
-  $aj$insert into public.contacts (prenom, note) values ('PreuveAjout', 'PreuveAjout')$aj$, $aj$r.prenom = 'PreuveAjout'$aj$, null),
+('public.contacts', 'lieu', null,
+  $aj$insert into public.contacts (prenom, note, lieu_id) values ('PreuveAjout', 'PreuveAjout', {c_lieu})$aj$, $aj$r.prenom = 'PreuveAjout'$aj$, null),
 ('public.profs', 'unique', null,
   $aj$insert into public.profs (nom) values ('PreuveAjout')$aj$, $aj$r.nom = 'PreuveAjout'$aj$, null),
 ('public.qcm_signalements', 'unique', 'à son nom',
@@ -751,7 +753,7 @@ begin
     ('public.epcf_livrets', format('r.promo_id = %s and (%s or r.stagiaire_id = %s)', v_pp, v_e::text, v_fi)),
     ('public.emargement_formateurs', format('r.promo_id = %s and %s', v_pp, v_e::text)),
     ('public.benevoles', format('r.lieu_id = %s and %s', v_lieu, v_e::text)),
-    ('public.qcm_questions', 'true'), ('public.themes', 'true'), ('public.contacts', 'true'),
+    ('public.qcm_questions', 'true'), ('public.themes', 'true'), ('public.contacts', 'r.lieu_id = ' || v_lieu),
     ('public.cours', format('r.published or (r.code is null and %s)', v_e::text)),
     ('public.user_profiles', format('lower(r.email) = %L or (r.stagiaire_id is null and r.role <> ''stagiaire'' and %s) or (r.stagiaire_id is null and r.role = ''stagiaire'' and lower(r.invited_by_email) = %L) or (%s and r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = %s))', lower(p_email), p_a_promo::text, lower(p_email), v_e::text, v_pp))
   ) t(tbl, pred) where to_regclass(t.tbl) is not null loop
@@ -774,7 +776,7 @@ begin
     ('public.benevoles', 'r.lieu_id = ' || v_lieu || ' and ' || p_f::text, 'r.lieu_id = ' || v_lieu || ' and ' || p_f::text),
     ('public.qcm_questions', p_f::text, p_f::text),
     ('public.themes', p_f::text, p_f::text),
-    ('public.contacts', v_e::text, v_e::text)
+    ('public.contacts', 'r.lieu_id = ' || v_lieu || ' and ' || v_e::text, 'r.lieu_id = ' || v_lieu || ' and ' || v_e::text)
   ) t(tbl, pm, ps) loop
     select m.maj, m.prep_suppr into v_maj, v_prep from matrice m where m.tbl = v_t.tbl;
     v_x := pg_temp.calcul(format('select count(*)::text from %s r where coalesce(%s, false)', v_t.tbl, v_t.pm));
