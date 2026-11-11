@@ -162,7 +162,7 @@ eq(MOT_DE_CONFIRMATION, "EFFACER", "le mot à taper");
 const c1 = confirmationEcheance(e2[0]);
 ok(c1 && /« Nîmes mars 2026 »/.test(c1.titre) && /Irréversible\.$/.test(c1.phrase), "étape 1 : titre avec la promo, phrase qui finit par « Irréversible. »");
 eq([c1.part, c1.reste, c1.oui], [CE_QUI_PART.etape1, CE_QUI_RESTE.etape1, e2[0].bouton], "étape 1 : listes et bouton de l'échéance");
-eq([c1.saisie.consigne, c1.saisie.attendu], ["Pour confirmer, tape EFFACER", "EFFACER"], "étape 1 : saisie du mot EFFACER");
+eq([c1.saisie.consigne, c1.saisie.attendu], ["Pour confirmer, tapez EFFACER", "EFFACER"], "étape 1 : saisie du mot EFFACER");
 ok(confirmationValide("effacer", c1.saisie.attendu) && !confirmationValide("EFFACE", c1.saisie.attendu), "la saisie se vérifie par confirmationValide");
 ok(typeof c1.saisie.verifier === "function" && c1.saisie.verifier(" effacer ") && !c1.saisie.verifier("EFFACE") && !c1.saisie.verifier(""),
   "la fenêtre reçoit la vérification (confirmationValide) : js/confirmer.js n'active le bouton qu'avec elle");
@@ -178,7 +178,7 @@ ok(cd.saisie.verifier("hélène") && !cd.saisie.verifier("Helene") && cd.saisie.
 // Fiche sans prénom (relecture finale) : la saisie attendue n'est jamais vide, on tape EFFACER.
 for (const prenom of ["", "   ", null, undefined]) {
   const vide = confirmationDemande({ id: 9, prenom, nom: "Martin" });
-  ok(vide.saisie.attendu === "EFFACER" && vide.saisie.consigne === "Pour confirmer, tape EFFACER" && vide.saisie.verifier("effacer")
+  ok(vide.saisie.attendu === "EFFACER" && vide.saisie.consigne === "Pour confirmer, tapez EFFACER" && vide.saisie.verifier("effacer")
     && !vide.saisie.verifier(""), "demande, prénom " + JSON.stringify(prenom) + " : on tape EFFACER");
 }
 ok(cd.part.some((x) => /dossier professionnel et le livret/.test(x)) && cd.part.some((x) => /dessins des signatures/.test(x)), "demande : dossier, livret et signatures partent");
@@ -279,7 +279,7 @@ eq(rappelConservation([]), null, "rien de dû : pas de rappel");
 eq(rappelConservation(er), null, "le registre seul ne fait pas ce rappel (il a le sien)");
 eq(rappelConservation(sans), null, "une promo sans date ne fait pas ce rappel");
 ok(/^Une échéance de conservation des données est passée \(la plus ancienne depuis le 11 décembre 2027\)/.test(rappelConservation(e2)), "une échéance : singulier, la date");
-ok(/^3 échéances/.test(rappelConservation(es)) && /rien ne part sans ton clic/.test(rappelConservation(es)), "plusieurs : pluriel, rien ne part tout seul");
+ok(/^3 échéances/.test(rappelConservation(es)) && /rien ne part sans votre clic/.test(rappelConservation(es)), "plusieurs : pluriel, rien ne part tout seul");
 
 // Textes : ni tiret cadratin ni « prof »
 const tous = [e1, e2, e3, sans, ef, es, er, tri, deux, signatures].flat();

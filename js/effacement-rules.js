@@ -311,7 +311,7 @@ export function confirmationEcheance(e) {
     part: [...CE_QUI_PART[e.type]],
     reste: [...CE_QUI_RESTE[e.type]],
     oui: e.bouton,
-    saisie: saisieAttendue(`Pour confirmer, tape ${MOT_DE_CONFIRMATION}`, MOT_DE_CONFIRMATION),
+    saisie: saisieAttendue(`Pour confirmer, tapez ${MOT_DE_CONFIRMATION}`, MOT_DE_CONFIRMATION),
   };
 }
 
@@ -327,8 +327,8 @@ export function confirmationDemande(fiche) {
     reste: [...CE_QUI_RESTE.demande],
     oui: "Effacer ses données",
     saisie: prenom
-      ? saisieAttendue(`Pour confirmer, tape son prénom : ${prenom}`, prenom)
-      : saisieAttendue(`Pour confirmer, tape ${MOT_DE_CONFIRMATION}`, MOT_DE_CONFIRMATION),
+      ? saisieAttendue(`Pour confirmer, tapez son prénom : ${prenom}`, prenom)
+      : saisieAttendue(`Pour confirmer, tapez ${MOT_DE_CONFIRMATION}`, MOT_DE_CONFIRMATION),
   };
 }
 
@@ -384,8 +384,8 @@ export function rappelConservation(echeances) {
   const plusAncienne = dues.reduce((a, e) => (a === null || (e.du && e.du < a) ? e.du : a), null);
   const depuis = plusAncienne ? ` (la plus ancienne depuis le ${dateLongue(plusAncienne)})` : "";
   return dues.length > 1
-    ? `${dues.length} échéances de conservation des données sont passées${depuis} : rien ne part sans ton clic.`
-    : `Une échéance de conservation des données est passée${depuis} : rien ne part sans ton clic.`;
+    ? `${dues.length} échéances de conservation des données sont passées${depuis} : rien ne part sans votre clic.`
+    : `Une échéance de conservation des données est passée${depuis} : rien ne part sans votre clic.`;
 }
 
 // --- Données personnelles du centre (suite du lot 5) : la direction purge les élèves bénévoles de son centre sans passer par la

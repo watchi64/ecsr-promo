@@ -468,7 +468,7 @@ begin
     raise exception 'conservation: Réservé à la gestion de la qualité.';
   end if;
   if p_promo is null or not peut_acceder_promo(p_promo) then
-    raise exception 'conservation: Cette promo n''est pas dans ton périmètre.';
+    raise exception 'conservation: Cette promo n''est pas dans votre périmètre.';
   end if;
   -- Deux appels simultanés sur la même promo passent l'un après l'autre.
   select * into p from promos where id = p_promo for no key update;
@@ -538,7 +538,7 @@ begin
     raise exception 'conservation: Réservé à la gestion de la qualité.';
   end if;
   if p_promo is null or not peut_acceder_promo(p_promo) then
-    raise exception 'conservation: Cette promo n''est pas dans ton périmètre.';
+    raise exception 'conservation: Cette promo n''est pas dans votre périmètre.';
   end if;
   select * into p from promos where id = p_promo for no key update;
   if p.date_fin is null then
@@ -638,7 +638,7 @@ begin
     raise exception 'conservation: Fiche introuvable.';
   end if;
   if not peut_acceder_promo(v_promo) then
-    raise exception 'conservation: Cette fiche n''est pas dans ton périmètre.';
+    raise exception 'conservation: Cette fiche n''est pas dans votre périmètre.';
   end if;
   v := _effacer_etape2(p_stagiaire_id);
   if not coalesce((v ->> 'deja')::boolean, false) then
@@ -1278,7 +1278,7 @@ begin
     raise exception 'conservation: Réservé à la gestion de la qualité.';
   end if;
   if p_lieu is null or not exists (select 1 from promos pr where pr.lieu_id = p_lieu and peut_acceder_promo(pr.id)) then
-    raise exception 'conservation: Ce lieu n''est pas dans ton périmètre.';
+    raise exception 'conservation: Ce lieu n''est pas dans votre périmètre.';
   end if;
   if p_annee is null or p_annee not between 2000 and 2100 then
     raise exception 'conservation: Année illisible.';
@@ -1316,7 +1316,7 @@ begin
     raise exception 'conservation: Réservé à la gestion de la qualité.';
   end if;
   if p_lieu is null or not exists (select 1 from promos pr where pr.lieu_id = p_lieu and peut_acceder_promo(pr.id)) then
-    raise exception 'conservation: Ce lieu n''est pas dans ton périmètre.';
+    raise exception 'conservation: Ce lieu n''est pas dans votre périmètre.';
   end if;
   if p_annee is null or p_annee not between 2000 and 2100 then
     raise exception 'conservation: Année illisible.';
@@ -1354,7 +1354,7 @@ begin
     raise exception 'conservation: Réservé à la gestion de la qualité.';
   end if;
   if p_lieu is null or not exists (select 1 from promos pr where pr.lieu_id = p_lieu and peut_acceder_promo(pr.id)) then
-    raise exception 'conservation: Ce lieu n''est pas dans ton périmètre.';
+    raise exception 'conservation: Ce lieu n''est pas dans votre périmètre.';
   end if;
   if p_annee is null or p_annee not between 2000 and 2100 then
     raise exception 'conservation: Année illisible.';

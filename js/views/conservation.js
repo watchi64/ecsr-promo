@@ -70,7 +70,7 @@ export function creerConservation({ ouvrirRegistre, ouvrirConservation, apresEff
     el("h3", { class: "qualiopi-titre", id: "cons-titre" }, "Conservation des données"),
     el("p", { class: "qualiopi-intro" },
       "Les preuves d'une formation sont gardées jusqu'au 31 décembre de la 3e année après sa fin, le reste part 12 mois après "
-      + "la fin. Rien ne part tout seul : à chaque date, un bouton s'allume ici et attend ton clic."),
+      + "la fin. Rien ne part tout seul : à chaque date, un bouton s'allume ici et attend votre clic."),
     annonce,
     el("h4", { class: "cons-sous-titre" }, "Échéances, toutes promos et tous centres"),
     zoneEcheances,

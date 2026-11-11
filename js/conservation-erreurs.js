@@ -1,13 +1,13 @@
 // Erreurs de la conservation des données (page Qualiopi) : ce que la base répond, dit en français lisible à l'écran
-// (tutoiement). PUR : ni DOM ni réseau. Testé en node (tests/conservation-lecture.test.mjs).
+// (vouvoiement : la page est au fondateur, l'équipe est vouvoyée depuis le lot D). PUR : ni DOM ni réseau. Testé en node (tests/conservation-lecture.test.mjs).
 //
 // La migration lève ses refus sous la forme « conservation: <phrase> » : la phrase est déjà du français à l'écran, on la
 // reprend telle quelle. Un refus de droit (42501) sans phrase, une fonction absente de la base (migration pas encore
 // appliquée) et une panne de réseau ont chacun la leur.
 
 export const PHRASE_DROIT = "Réservé à la gestion de la qualité : ce compte n'a pas ce droit.";
-export const PHRASE_INDISPONIBLE = "La conservation des données n'est pas encore disponible. Réessaie un peu plus tard.";
-export const PHRASE_RESEAU = "L'opération n'a pas abouti : vérifie ta connexion, puis réessaie.";
+export const PHRASE_INDISPONIBLE = "La conservation des données n'est pas encore disponible. Réessayez un peu plus tard.";
+export const PHRASE_RESEAU = "L'opération n'a pas abouti : vérifiez votre connexion, puis réessayez.";
 
 const PREFIXE = "conservation:";
 

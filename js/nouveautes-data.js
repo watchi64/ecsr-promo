@@ -41,8 +41,8 @@ export const NOUVEAUTES = [
           + "des stagiaires sont maintenant gardées plus longtemps, comme preuves de la formation : le nom, le dossier "
           + "professionnel, le livret et les feuilles d'émargement jusqu'au 31 décembre de la troisième année après la fin ; "
           + "le compte, l'adresse e-mail et les commentaires partent 12 mois après la fin. C'est le fondateur de l'application "
-          + "qui fait chaque effacement, à la date prévue. Un stagiaire qui demande l'effacement de ses données n'a plus à "
-          + "être mis en abandon : transmets sa demande au fondateur, qui efface tout, tout de suite. « Réactiver » reste dans "
+          + "qui fait chaque effacement, à la date prévue. Un stagiaire qui vous demande l'effacement de ses données n'a "
+          + "plus à être mis en abandon : transmettez sa demande au fondateur, qui efface tout, tout de suite. « Réactiver » reste dans "
           + "Abandons, et la suppression des élèves bénévoles ne change pas.",
     ou: { label: "Paramètres", route: "config" },
   },
@@ -746,12 +746,12 @@ export const NOUVEAUTES = [
     // Étapes réécrites au lot Q5 (conservation des données) : le bouton « Effacer les données » a quitté les Abandons, et une
     // demande ne passe plus par l'abandon (elle fausserait le taux). Le titre et le récit, datés, restent ceux du 05/10.
     guide: [
-      "L'effacement des données se demande maintenant au fondateur : transmets-lui la demande de la personne, sans la marquer en abandon.",
+      "L'effacement des données se demande maintenant au fondateur : transmettez-lui la demande de la personne, sans la marquer en abandon.",
       "Le fondateur efface tout, tout de suite, sur sa page Qualiopi ; la personne n'est pas comptée en abandon.",
       "Partie « Données personnelles » : les élèves bénévoles inactifs.",
     ],
     guideNouvelle: [
-      "L'effacement des données se demande maintenant au fondateur : transmets-lui la demande de la personne, sans la marquer en abandon.",
+      "L'effacement des données se demande maintenant au fondateur : transmettez-lui la demande de la personne, sans la marquer en abandon.",
       "Le fondateur efface tout, tout de suite, sur sa page Qualiopi ; la personne n'est pas comptée en abandon.",
       "Réglages, partie « Données personnelles » : les élèves bénévoles inactifs.",
     ],

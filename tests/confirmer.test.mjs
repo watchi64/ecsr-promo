@@ -360,7 +360,7 @@ const taper = (c, valeur) => { c.value = valeur; c.declencher("input"); };
 const detaillee = () => ({
   titre: "Effacer les données de Hélène Durand ?", phrase: "Irréversible.",
   part: ["le dossier professionnel", "le livret EPCF"], reste: ["ses résultats, sans nom"],
-  saisie: { consigne: "Pour confirmer, tape son prénom : Hélène", verifier: (t) => t.trim().toLowerCase() === "hélène" },
+  saisie: { consigne: "Pour confirmer, tapez son prénom : Hélène", verifier: (t) => t.trim().toLowerCase() === "hélène" },
   oui: "Effacer ses données",
 });
 
@@ -375,7 +375,7 @@ test("saisie : les listes et la consigne sont dans la fenêtre, le focus va au c
   const c = champ(document);
   assert.ok(c, "un champ de saisie");
   const etiquette = descendants(f).find((n) => n.nodeName === "label");
-  assert.ok(etiquette.textContent.includes("Pour confirmer, tape son prénom : Hélène"), "la consigne nomme le champ");
+  assert.ok(etiquette.textContent.includes("Pour confirmer, tapez son prénom : Hélène"), "la consigne nomme le champ");
   assert.equal(etiquette.getAttribute("for"), c.getAttribute("id"));
   assert.equal(document.activeElement, c, "le focus va au champ");
   const oui = bouton(document, "Effacer ses données");
@@ -416,7 +416,7 @@ test("saisie : Tab fait le tour du champ et des boutons, le geste seulement quan
 }));
 
 test("saisie sans `verifier` : le geste ne s'active jamais (aucun effacement par défaut)", () => avecDocument(async (document) => {
-  const reponse = confirmer({ titre: "Effacer ?", oui: "Effacer", saisie: { consigne: "Pour confirmer, tape EFFACER" } });
+  const reponse = confirmer({ titre: "Effacer ?", oui: "Effacer", saisie: { consigne: "Pour confirmer, tapez EFFACER" } });
   await tour();
   const c = champ(document), oui = bouton(document, "Effacer");
   taper(c, "EFFACER");

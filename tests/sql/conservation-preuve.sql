@@ -904,13 +904,13 @@ begin
     end;
     set local role authenticated;
     perform pg_temp.cas('direction d''un autre centre (droit élargi) : refusée sur PA et sur une fiche de PA',
-      r like '%conservation: Cette promo n''est pas dans ton périmètre.%conservation: Cette promo n''est pas dans ton périmètre.%conservation: Cette fiche n''est pas dans ton périmètre.', r);
+      r like '%conservation: Cette promo n''est pas dans votre périmètre.%conservation: Cette promo n''est pas dans votre périmètre.%conservation: Cette fiche n''est pas dans votre périmètre.', r);
     perform pg_temp.cas('direction d''un autre centre (droit élargi) : etat_conservation ne liste que la promo de son lieu',
       t = PC::text, t);
     perform pg_temp.cas('direction d''un autre centre (droit élargi), jumeau : étape 1 de sa promo PC acceptée',
       j #>> '{}' = 'ok 1' and m = 0, j::text || ' / profil ' || m);
     perform pg_temp.cas('direction d''un autre centre (droit élargi) : refusée sur les questionnaires des formateurs du lieu 1',
-      r2 like '%conservation: Ce lieu n''est pas dans ton périmètre.%conservation: Ce lieu n''est pas dans ton périmètre.%conservation: Ce lieu n''est pas dans ton périmètre.', r2);
+      r2 like '%conservation: Ce lieu n''est pas dans votre périmètre.%conservation: Ce lieu n''est pas dans votre périmètre.%conservation: Ce lieu n''est pas dans votre périmètre.', r2);
     perform pg_temp.cas('direction d''un autre centre (droit élargi) : etat_conservation ne liste que les formateurs de son lieu',
       t2 = L2::text, t2);
     perform pg_temp.cas('direction d''un autre centre (droit élargi), jumeau : clôture des formateurs 2026 de son lieu acceptée',

@@ -265,8 +265,8 @@ for (const motif of [/Effacer les données/, /Anonymiser la promo/, /quittent R�
   ok(motif.test(conservation.resume), "conservation : dit " + motif);
 }
 eq(conservation.ou, { label: "Paramètres", route: "config" }, "conservation : Où le trouver, Paramètres (Réglages sous la nouvelle barre)");
-ok(!/vous|votre|vos/i.test(tout(conservation)) && !/\bprofs?\b/i.test(tout(conservation)) && !tout(conservation).includes(String.fromCharCode(0x2014)),
-  "conservation : tutoiement, « formateur » jamais « prof », aucun tiret cadratin");
+ok(VOUVOIEMENT.test(horsCitations(tout(conservation))) && !TUTOIEMENT.test(horsCitations(tout(conservation))) && !/\bprofs?\b/i.test(tout(conservation)) && !tout(conservation).includes(String.fromCharCode(0x2014)),
+  "conservation : vouvoiement (texte de l'équipe, lot D), « formateur » jamais « prof », aucun tiret cadratin");
 ok(!/RPC|Supabase|migration|base de données|anonymise_le|efface_le/i.test(tout(conservation)), "conservation : aucun mot technique");
 
 // Questionnaires anonymes (plan Qualiopi Q3, tâche 5) : pour tous, dans les deux navigations, datée de la mise en ligne.
@@ -343,7 +343,7 @@ for (const e of visibles(NOUVEAUTES, true, true)) {
 // Les consignes exactes des gestes réécrits (inventaire des textes, § 2.3).
 // Au vous pour les formateurs, à l'infinitif pour tous (décision du 10/11).
 eq(par("2026-10-23-tableau-de-bord-centre").guideNouvelle[0], "Ouvrez Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».", "tableau de bord : Indicateurs");
-eq([par("2026-10-05-effacement-donnees").guide[0], par("2026-10-05-effacement-donnees").guideNouvelle[0]], ["L'effacement des données se demande maintenant au fondateur : transmets-lui la demande de la personne, sans la marquer en abandon.", "L'effacement des données se demande maintenant au fondateur : transmets-lui la demande de la personne, sans la marquer en abandon."],
+eq([par("2026-10-05-effacement-donnees").guide[0], par("2026-10-05-effacement-donnees").guideNouvelle[0]], ["L'effacement des données se demande maintenant au fondateur : transmettez-lui la demande de la personne, sans la marquer en abandon.", "L'effacement des données se demande maintenant au fondateur : transmettez-lui la demande de la personne, sans la marquer en abandon."],
   "effacement (05/10) : depuis le lot Q5, la demande se transmet au fondateur, dans les deux navigations");
 ok(![...par("2026-10-05-effacement-donnees").guide, ...par("2026-10-05-effacement-donnees").guideNouvelle].some((s) => /« Abandon » sur|« Effacer les données »/.test(s)),
   "effacement (05/10) : plus aucune étape vers « Abandon » ni vers le bouton « Effacer les données », qui n'existe plus");
