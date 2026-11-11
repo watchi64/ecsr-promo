@@ -126,5 +126,5 @@ test("aperçu : deux stagiaires dans la même voiture, puis une voiture sans sta
 
 test("aucune phrase ne porte de tiret cadratin", () => {
   const tout = JSON.stringify([moments(MATIN, 1), moments(MATIN, 2), moments(MATIN, 3), moments(MATIN, null)]);
-  assert.ok(!tout.includes("—"));
+  assert.ok(!tout.includes("\u2014"));
 });
