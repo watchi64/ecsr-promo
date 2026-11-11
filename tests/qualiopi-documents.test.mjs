@@ -1140,13 +1140,13 @@ ok(!source.includes(TIRET_CADRATIN), "aucun tiret cadratin dans le module");
 const code = source.replace(/\/\/.*$/gm, "");
 ok(!/\bdocument\.|\bwindow\.|\bfetch\(|\bsupabase\b|\blocalStorage\b/.test(code), "le module est pur : ni DOM, ni réseau, ni base");
 eq(code.match(/^import .* from "(.*)";$/gm).map((l) => l.match(/from "(.*)"/)[1].replace(/\?v=\w+$/, "")),
-  ["./qualiopi-referentiel.js", "./qualiopi-preuves.js", "./registre-rules.js", "./centre-stats.js", "./notes-stats.js", "./centre-csv.js", "./utils.js"],
+  ["./qualiopi-referentiel.js", "./qualiopi-preuves.js", "./registre-rules.js", "./centre-stats.js", "./notes-stats.js", "./centre-csv.js", "./utils.js", "./nombres.js", "./dates.js"],
   "il n'importe que des modules purs de l'app, avec le jeton de version des autres imports");
 // Les aides de l'inventaire sont importées, jamais recopiées : la synthèse par semaine suit la règle de l'inventaire.
-const AIDES = ["jourDe", "rempli", "tableau", "nb", "promoTerminee", "nouveautesCitables", "lignesDuPlanning", "demiJournees", "intervenantsDistincts"];
+const AIDES = ["jourDe", "rempli", "tableau", "promoTerminee", "nouveautesCitables", "lignesDuPlanning", "demiJournees", "intervenantsDistincts"];
 const importPreuves = code.match(/import \{([^}]*)\} from "\.\/qualiopi-preuves\.js\?v=\w+";/);
 eq(importPreuves && importPreuves[1].split(",").map((s) => s.trim()), AIDES, "il importe de l'inventaire les petits outils et les aides du planning");
-["ISO_JOUR", "porteQuelqueChose", "cleJour", "jourDeLigne", ...AIDES].forEach((nom) =>
+["ISO_JOUR", "porteQuelqueChose", "cleJour", "jourDeLigne", "pluriel", "dateFr", "fr1", ...AIDES].forEach((nom) =>
   ok(!new RegExp(`\\b(const|let|var|function)\\s+${nom}\\b`).test(code), `le module ne redéfinit pas ${nom}`));
 ok(!/prof_ids|prof_autre|benevoles_ids/.test(code), "le module ne lit pas lui-même les champs des intervenants : la règle est celle de l'inventaire");
 const ceTest = readFileSync(new URL(import.meta.url), "utf8");

@@ -22,7 +22,8 @@ import { renderModulesSection } from "./modules-reglage.js?v=20261111e";
 import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111e";
 import { renderEmargementReglage } from "../emargement-etat.js?v=20261111e";
 import { pointsARetenir } from "../accueil-rules.js?v=20261111e";
-import { dateCourte, etatFinDePromo, questionAnonymiserPromo, questionPurgerBenevoles } from "../effacement-rules.js?v=20261111e";
+import { etatFinDePromo, questionAnonymiserPromo, questionPurgerBenevoles } from "../effacement-rules.js?v=20261111e";
+import { dateFr } from "../dates.js?v=20261111e";
 import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111e";
 import { blocHabillage } from "../habillage-choix.js?v=20261111e";
 import { nomBenevole } from "../planning-lecture.js?v=20261111e";
@@ -489,7 +490,7 @@ async function renderDonneesSection(rerender) {
     const liste = el("ul", { class: "config-list donnees-liste" });
     benevoles.forEach((b) => liste.appendChild(el("li", {},
       el("span", {}, nomBenevole(b.display)),
-      el("span", { class: "muted" }, b.derniere_venue ? "dernière venue le " + dateCourte(b.derniere_venue) : "jamais venu"),
+      el("span", { class: "muted" }, b.derniere_venue ? "dernière venue le " + dateFr(b.derniere_venue) : "jamais venu"),
     )));
     blocBnv.appendChild(liste);
     blocBnv.appendChild(el("button", { class: "btn danger", onClick: async (e) => {

@@ -27,9 +27,7 @@ import {
 import { surChangementAdresse } from "../navigation.js?v=20261111e";
 import { renderEmargement } from "./emargement.js?v=20261111e";
 import { renderNotes } from "./notes.js?v=20261111e";
-
-const entier = (x) => Number(x).toLocaleString("fr-FR");
-const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
+import { entier, pluriel } from "../nombres.js?v=20261111e";
 
 export const PHRASE_SANS_PROMO = "Ce centre n'a pas encore de promo";
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";

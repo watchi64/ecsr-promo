@@ -15,9 +15,7 @@ import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261111e";
 import { validerPromo, etatPromo, partEcoulee } from "../direction-rules.js?v=20261111e";
 import { peutRegler } from "../modules-etat.js?v=20261111e";
 import { renderModulesSection } from "./modules-reglage.js?v=20261111e";
-
-const entier = (x) => Number(x).toLocaleString("fr-FR");
-const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
+import { entier, pluriel } from "../nombres.js?v=20261111e";
 
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";
 const PHRASE_SANS_PROMO = "Ce centre n'a pas encore de promo";

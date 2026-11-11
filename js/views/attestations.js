@@ -6,11 +6,12 @@
 import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261111e";
 import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261111e";
 import { isAdmin } from "../auth-admin.js?v=20261111e";
-import { libelleDuree, jourDe } from "../emargement-rules.js?v=20261111e";
+import { libelleDuree } from "../emargement-rules.js?v=20261111e";
+import { jourDe, dateFr } from "../dates.js?v=20261111e";
 import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261111e";
 import {
   bilanStagiaire, stagiairesDeLaPeriode, feuillesOuvertes, demiJourneesSansFeuille, periodeParDefaut,
-  moisDeLaPeriode, seancesDeLaPromo, dateFr, datePeriodeValide, estAdresseAttestations,
+  moisDeLaPeriode, seancesDeLaPromo, datePeriodeValide, estAdresseAttestations,
 } from "../attestations-rules.js?v=20261111e";
 import { certificatRealisation, attestationAssiduite, liasse } from "../attestations-documents.js?v=20261111e";
 

@@ -514,8 +514,8 @@ eq(rejetsOublies, [], "aucune promesse rejetée n'est restée sans gestionnaire 
   const source = lire("js/qualiopi-resultats.js");
   const code = source.replace(/\/\/.*$/gm, "");
   ok(!/\bdocument\b|\bwindow\b|\bfetch\s*\(|localStorage|sessionStorage|\bimport\s*\(/.test(code), "module pur : ni DOM, ni réseau, ni stockage");
-  eq([...source.matchAll(/from "(\.\/[^"]+)"/g)].map((m) => m[1].split("?")[0]).sort(), ["./centre-stats.js", "./qualiopi-documents.js", "./qualiopi-preuves.js", "./questionnaires-rules.js"],
-    "n'importe que le tableau de bord, les dossiers, l'inventaire et la phrase de seuil des questionnaires");
+  eq([...source.matchAll(/from "(\.\/[^"]+)"/g)].map((m) => m[1].split("?")[0]).sort(), ["./centre-stats.js", "./nombres.js", "./qualiopi-documents.js", "./qualiopi-preuves.js", "./questionnaires-rules.js"],
+    "n'importe que le tableau de bord, les dossiers, l'inventaire, la phrase de seuil des questionnaires et les nombres écrits");
   ok(/navigator\.clipboard\.write\(\[new ClipboardItem\(\{ "text\/plain": blob \}\)\]\)/.test(code) && /new Blob\(\[texte\], \{ type: "text\/plain" \}\)/.test(code),
     "la copie passe par navigator.clipboard.write avec un ClipboardItem « text/plain » qui reçoit la promesse d'un Blob");
   ok(/navigator\.clipboard\.writeText\(aCopier\)/.test(code), "et, en repli, par navigator.clipboard.writeText avec le texte arrivé");

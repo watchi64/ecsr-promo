@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  dateLongue, REFERENTIEL_APPLIQUE, REFERENTIEL_DU, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, resumeNiveaux,
+  REFERENTIEL_APPLIQUE, REFERENTIEL_DU, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, resumeNiveaux,
   groupesParCritere, titreImpression,
 } from "../js/qualiopi-page-rules.js";
 import { inventairePromo } from "../js/qualiopi-preuves.js";
@@ -25,17 +25,6 @@ function geler(v) {
 // =====================================================================================================
 // Dates en toutes lettres et référentiel appliqué
 // =====================================================================================================
-eq(dateLongue("2026-11-01"), "1er novembre 2026", "le premier du mois s'écrit « 1er »");
-eq(dateLongue("2026-08-01"), "1er août 2026", "le décret : 1er août 2026");
-eq(dateLongue("2026-10-28"), "28 octobre 2026", "un jour ordinaire");
-eq(dateLongue("2026-12-02"), "2 décembre 2026", "pas de zéro devant le jour");
-eq(dateLongue("2026-02-11T09:30:00+00:00"), "11 février 2026", "un horodatage compte par son jour");
-eq(dateLongue("2026-03-31"), "31 mars 2026", "un 31");
-eq(dateLongue("demain"), null, "texte illisible");
-eq(dateLongue("2026-13-01"), null, "mois impossible");
-eq(dateLongue(null), null, "valeur nulle");
-eq(dateLongue(undefined), null, "valeur absente");
-eq(dateLongue(20261101), null, "un nombre n'est pas une date");
 eq(REFERENTIEL_APPLIQUE, "Décret n° 2026-728 du 1er août 2026, en vigueur le 1er novembre 2026", "le référentiel appliqué, sans l'objet du décret");
 eq(REFERENTIEL_DU, "référentiel du 1er novembre 2026", "l'en-tête de la page");
 
@@ -193,7 +182,7 @@ ok(!source.includes(TIRET_CADRATIN), "aucun tiret cadratin dans le module");
 const code = source.replace(/\/\/.*$/gm, "");
 ok(!/\bdocument\.|\bwindow\.|\bfetch\(|\bsupabase\b|\blocalStorage\b|\bnew Date\(\)/.test(code), "le module est pur : ni DOM, ni réseau, ni base, ni horloge");
 eq(code.match(/^import .* from "(.*)";$/gm).map((l) => l.match(/from "(.*)"/)[1].replace(/\?v=\w+$/, "")),
-  ["./qualiopi-referentiel.js", "./qualiopi-preuves.js", "./qualiopi-documents.js"], "il n'importe que des modules purs de l'app, avec le jeton de version");
+  ["./qualiopi-referentiel.js", "./qualiopi-preuves.js", "./qualiopi-documents.js", "./dates.js", "./nombres.js"], "il n'importe que des modules purs de l'app, avec le jeton de version");
 ok(!/prof\b/i.test(source.replace(/profil/gi, "")), "aucun « prof » dans le module");
 const ceTest = readFileSync(new URL(import.meta.url), "utf8");
 ok(!ceTest.includes(TIRET_CADRATIN), "aucun tiret cadratin dans ce test");

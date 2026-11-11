@@ -9,7 +9,7 @@ import {
   getVoitureAggregats, getSalleAggregats,
   avantChangementPromo,
 } from "../db.js?v=20261111e";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261111e";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom, shuffle } from "../utils.js?v=20261111e";
 import { confirmer, demander } from "../confirmer.js?v=20261111e";
 import { icon, deco } from "../icons.js?v=20261111e";
 import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20261111e";
@@ -560,15 +560,6 @@ function cleanupDrag() {
 
 // === Tirage aléatoire (Pédagogue, élèves Pédagogie salle, élèves Voiture) ===
 // Règle commune : pas de doublon dans la semaine pour la même activité.
-
-function shuffle(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 /**
  * Compte, pour la semaine courante, le nb d'apparitions de chaque stagiaire dans un rôle

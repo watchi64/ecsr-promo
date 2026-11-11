@@ -7,8 +7,9 @@ import { bindDocPrint } from "./doc-officiel.js?v=20261111e";
 import { rendreSignature } from "./signature-pad.js?v=20261111e";
 import {
   etatLigne, libelleCreneau, heureLocale, jourLocal, dureeMinutes, libelleDuree, minutesPresence,
-  jourDe, jourFerie, DEMI_JOURNEES,
+  jourFerie, DEMI_JOURNEES,
 } from "./emargement-rules.js?v=20261111e";
+import { jourDe } from "./dates.js?v=20261111e";
 
 // Nom complet sur un document officiel : NOM en capitales, puis le prénom.
 export function nomComplet(s) {

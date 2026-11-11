@@ -6,6 +6,7 @@
 
 import { libellePastille } from "./nouveautes.js?v=20261111e";
 import { LIBELLES_APERCU } from "./roles-rules.js?v=20261111e";
+import { deuxChiffres } from "./dates.js?v=20261111e";
 
 // L'espace de la coquille, en mots simples (lot 5 : direction et siège en plus). Inconnu ou absent : le stagiaire, comme avant.
 const ESPACE_EN_MOTS = { stagiaire: "stagiaire", equipe: "équipe", direction: "direction", siege: "siège" };
@@ -127,8 +128,6 @@ function appareilLisible(c) {
   if (!systeme || systeme === "inconnu") return c.appareil;
   return `${c.appareil} ${systeme.split(" ")[0]}`;
 }
-
-const deuxChiffres = (n) => String(n).padStart(2, "0");
 
 // La ligne « Envoyé avec ton message : ... » de la fenêtre : page, appareil, navigateur (sans sa version mineure),
 // heure (celle de `maintenant`, l'envoi étant immédiat).

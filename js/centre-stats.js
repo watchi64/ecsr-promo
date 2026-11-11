@@ -10,6 +10,7 @@
 import { estNotee, score20, mediane } from "./notes-stats.js?v=20261111e";
 import { NOTE_VALUES } from "./epcf-trames.js?v=20261111e";
 import { compareByNom } from "./utils.js?v=20261111e";
+import { fr1, pct } from "./nombres.js?v=20261111e";
 
 // Hypothèse du réseau : un parcours de formation représente 3 500 à 5 000 €.
 export const COUT_ABANDON_ESTIME = [3500, 5000];
@@ -55,9 +56,7 @@ export const METHODES_PUBLIQUES = {
 
 const somme = (l) => l.reduce((a, b) => a + b, 0);
 const ratio = (num, den) => (den ? num / den : null);
-const fr1 = (x) => x.toFixed(1).replace(".", ",");
 // Exporté : la fiche des résultats (js/qualiopi-resultats.js) écrit ses taux de la même façon (arrondi, espace insécable).
-export const pct = (x) => Math.round(x * 100) + " %";
 const jourDe = (horodatage) => String(horodatage || "").slice(0, 10);
 
 function decalerJour(iso, jours) {

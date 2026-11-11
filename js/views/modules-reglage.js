@@ -10,7 +10,8 @@ import { el, toast } from "../utils.js?v=20261111e";
 import { confirmer } from "../confirmer.js?v=20261111e";
 import { icon } from "../icons.js?v=20261111e";
 import { MODULES, GROUPES } from "../modules-data.js?v=20261111e";
-import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261111e";
+import { estReglee, estOuvert, accorder } from "../modules.js?v=20261111e";
+import { jourParis } from "../dates.js?v=20261111e";
 import {
   etatModules, peutRegler, basculerModule, appliquerEnsembleDeDepart,
 } from "../modules-etat.js?v=20261111e";

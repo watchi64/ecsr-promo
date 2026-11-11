@@ -14,9 +14,10 @@ import { icon } from "../icons.js?v=20261111e";
 import { isAdmin, isEquipe, getProfile } from "../auth-admin.js?v=20261111e";
 import {
   etatLigne, resumeSeance, resumeEnClair, etatSansFeuille, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
-  adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
+  adresseSeance, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
   demiVoisine, notesProposees, roleAuPlanning,
 } from "../emargement-rules.js?v=20261111e";
+import { lundiDe, jourDe, dayIndexDe } from "../dates.js?v=20261111e";
 import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261111e";
 import {
   feuilleSeance, feuilleSemaine, imprimer, nomComplet, jourLong, DEMI_LONG, stagiairesDeFeuille,

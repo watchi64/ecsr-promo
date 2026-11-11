@@ -13,9 +13,10 @@ import { icon } from "../icons.js?v=20261111e";
 import { demander, confirmer } from "../confirmer.js?v=20261111e";
 import { promosDuCentre } from "../espaces-rules.js?v=20261111e";
 import {
-  dateCourte, lignesDonneesCentre, questionAnonymiserPromo, questionPurgerBenevoles, phraseAnonymises, phrasePurges,
+  lignesDonneesCentre, questionAnonymiserPromo, questionPurgerBenevoles, phraseAnonymises, phrasePurges,
   phraseDePanne, phraseDEffacement, PHRASE_SANS_PROMO_CENTRE, PHRASE_SANS_BENEVOLE,
 } from "../effacement-rules.js?v=20261111e";
+import { dateFr } from "../dates.js?v=20261111e";
 
 function boiteErreur(phrase, reessayer) {
   return el("div", { class: "centre-erreur", role: "alert" },
@@ -122,7 +123,7 @@ export function sectionDonneesCentre(centre) {
     const ul = el("ul", { class: "config-list donnees-liste" });
     liste.forEach((b) => ul.appendChild(el("li", {},
       el("span", {}, b.display),
-      el("span", { class: "muted" }, b.derniere_venue ? "dernière venue le " + dateCourte(b.derniere_venue) : "jamais venu"))));
+      el("span", { class: "muted" }, b.derniere_venue ? "dernière venue le " + dateFr(b.derniere_venue) : "jamais venu"))));
     bloc.appendChild(ul);
     bloc.appendChild(el("button", { class: "btn danger", type: "button", onClick: (e) => purger(liste, e.currentTarget) },
       liste.length > 1 ? `Supprimer ces ${liste.length} élèves` : "Supprimer cet élève"));

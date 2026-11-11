@@ -17,6 +17,7 @@ import {
   LIMITE_CAPTURE, COTE_MAX_CAPTURE, MAX_MES_SIGNALEMENTS, assemblerContexte, resumeContexte, detailContexte,
   verifierMessage, libelleStatut, dimensionsReduites,
 } from "./signalement-rules.js?v=20261111e";
+import { deuxChiffres } from "./dates.js?v=20261111e";
 
 // Jeton de version des fichiers de l'app (« 20261028a ») : il dit quelle version la personne utilisait.
 const VERSION = new URL(import.meta.url).searchParams.get("v") || "";
@@ -88,8 +89,6 @@ async function lireCapture(fichier) {
   }
   throw new Error(IMAGE_ILLISIBLE);
 }
-
-const deuxChiffres = (n) => String(n).padStart(2, "0");
 
 // « 28/10 à 10 h 42 »
 function dateCourte(iso) {

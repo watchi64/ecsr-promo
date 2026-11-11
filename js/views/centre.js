@@ -9,13 +9,9 @@ import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe
 import { fondateurHorsApercu } from "../auth-admin.js?v=20261111e";
 import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261111e";
 import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261111e";
+import { entier, fr1, pct, pluriel } from "../nombres.js?v=20261111e";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
-
-const pct = (x) => Math.round(x * 100) + " %";
-const fr1 = (x) => x.toFixed(1).replace(".", ",");
-const entier = (x) => Number(x).toLocaleString("fr-FR");
-const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
 
 const LIBELLES_COMPARAISON = [
   ["effectif", "Effectif"],

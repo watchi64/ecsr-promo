@@ -20,6 +20,7 @@ import { icon } from "../icons.js?v=20261111e";
 import {
   ciblesDeSaisie, filtrerCibles, derniereNote, avancement, libelleAvancement, origineNote, etatDeLigne,
 } from "../notes-saisie-rules.js?v=20261111e";
+import { dateLongue } from "../dates.js?v=20261111e";
 
 // Ce qui reste d'un rendu du panneau à l'autre (changer de sous-onglet puis revenir) : la cible ouverte, la recherche.
 let cleOuverte = null;
@@ -27,13 +28,6 @@ let recherche = "";
 // Les enregistrements partis et pas encore revenus : la liste recompte quand ils aboutissent (on peut toucher
 // « Retour » pendant qu'une note part, à la perte du champ).
 const enAttente = new Set();
-
-function dateLongue(iso) {
-  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return iso || "";
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-    .toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-}
 
 function noteEnFrancais(n) {
   return String(n).replace(".", ",");

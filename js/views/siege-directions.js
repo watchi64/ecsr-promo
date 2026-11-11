@@ -12,9 +12,7 @@ import { phraseDeRefus } from "../espaces-rules.js?v=20261111e";
 import { messageInvitationReussie } from "../roles-rules.js?v=20261111e";
 import { directionsParCentre } from "../siege-rules.js?v=20261111e";
 import { ouvrirFenetre } from "./direction-equipe.js?v=20261111e";
-
-const entier = (x) => Number(x).toLocaleString("fr-FR");
-const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
+import { entier, pluriel } from "../nombres.js?v=20261111e";
 
 export const PHRASE_ECHEC_DIRECTIONS = "Les directions des centres n'ont pas pu être chargées.";
 export const PHRASE_ADRESSE = "Adresse e-mail invalide.";

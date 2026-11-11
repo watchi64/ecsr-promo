@@ -8,8 +8,7 @@ import { el, clear, formatDate } from "../utils.js?v=20261111e";
 import { listBrouillonsIaARelire } from "../db.js?v=20261111e";
 import { groupesDeBrouillons } from "../qcm-ia-rules.js?v=20261111e";
 import { carte, ligneAction, erreurAvecReessai } from "./pages-cartes.js?v=20261111e";
-
-const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
+import { pluriel } from "../nombres.js?v=20261111e";
 
 // `onOuvrirEditeur(groupe, recharger)` : ouvre l'éditeur du QCM du groupe (js/views/themes.js, qui possède l'éditeur) et
 // appelle `recharger` à sa fermeture, pour que la liste dise ce qui reste à relire.

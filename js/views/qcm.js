@@ -4,7 +4,7 @@
  * Multi-réponses : une question peut avoir plusieurs bonnes réponses.
  * Juste = ensemble coché == ensemble des bonnes réponses (toutes les bonnes, aucune fausse).
  */
-import { el, clear, toast, formatDate } from "../utils.js?v=20261111e";
+import { el, clear, toast, formatDate, shuffle } from "../utils.js?v=20261111e";
 import { confirmer } from "../confirmer.js?v=20261111e";
 import { icon, deco } from "../icons.js?v=20261111e";
 import { getQcmFull, insertQcmAttempt, getMyExamAttempt, listMyQcmAttemptsFor, createQcmSignalement } from "../db.js?v=20261111e";
@@ -81,16 +81,6 @@ function signalerBloc(question, options = []) {
 
   return wrap;
 }
-
-function shuffle(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 
 // Illustration d'une question. Un panneau (SVG) doit rester petit et centre :
 // affiche a 100 % de la largeur il ecrase l'enonce, alors qu'une photo de

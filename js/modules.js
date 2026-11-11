@@ -9,6 +9,7 @@
 //   { statut: "reglee", depuis, ouverts }  seuls les modules de `ouverts` sont
 //     ouverts ; `ouverts` associe une clé de module à son heure d'ouverture
 //     (ISO 8601, UTC) ; `depuis` est l'heure de la mise en place.
+import { jourParis } from "./dates.js?v=20261111e";
 
 export const VERSION = 1;
 
@@ -79,18 +80,6 @@ export function basculer(etat, cle, ouvrir, modules, maintenant) {
     delete suivant.ouverts[cle];
   }
   return suivant;
-}
-
-// Jour (AAAA-MM-JJ) d'une heure ISO, en heure de Paris : une ouverture à 00 h 30
-// est datée du jour même, pas de la veille en UTC.
-export function jourParis(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  const parts = new Intl.DateTimeFormat("fr-FR", {
-    timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(d);
-  const v = (type) => parts.find((p) => p.type === type).value;
-  return `${v("year")}-${v("month")}-${v("day")}`;
 }
 
 // Une annonce par module ouvert (parent compris) après la mise en place.

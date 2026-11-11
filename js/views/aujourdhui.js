@@ -27,14 +27,13 @@ import {
 import {
   carte, plusLien, ligneLien, erreurAvecReessai, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
 } from "./pages-cartes.js?v=20261111e";
+import { pluriel } from "../nombres.js?v=20261111e";
 
 const RELECTURE_SEANCES_MS = 60000;
 const NB_A_SUIVRE = 5;
 
-
 const DEMI_LONG = { matin: "Matin", aprem: "Après-midi" };
 const SIGNER = { matin: "Signer pour ce matin", aprem: "Signer pour cet après-midi" };
-const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 
 // Un message dans le corps d'une carte, au ton de la carte (« muted » pour une absence, erreur pour une panne).
 function dire(corps, texte, classe = "muted") {

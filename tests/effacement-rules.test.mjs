@@ -2,7 +2,7 @@
 // node tests/effacement-rules.test.mjs
 import assert from "node:assert/strict";
 import {
-  confirmationValide, dateCourte, dateLongue, etatFinDePromo, resumeEffacement,
+  confirmationValide, etatFinDePromo, resumeEffacement,
   questionAnonymiserPromo, questionPurgerBenevoles, phraseAnonymises, phrasePurges, lignesDonneesCentre,
   phraseDePanne, phraseDEffacement, PHRASE_ETAT_INDISPONIBLE, PHRASE_DONNEES_ECHEC, MOT_ANONYMISER,
 } from "../js/effacement-rules.js";
@@ -18,12 +18,6 @@ ok(!confirmationValide("Timi", "Timy"), "faute de frappe refusée");
 ok(!confirmationValide("Helene", "Hélène"), "accents exigés");
 ok(confirmationValide("hélène", "Hélène"), "accents en minuscules acceptés");
 ok(!confirmationValide("", ""), "prénom vide jamais valide");
-
-eq(dateCourte("2027-12-11"), "11/12/2027", "date courte");
-eq(dateCourte(null), "", "date absente");
-eq(dateLongue("2027-12-11"), "11 décembre 2027", "date dans une phrase");
-eq(dateLongue("2027-03-01"), "1er mars 2027", "le 1er du mois");
-eq(dateLongue(null), "", "date longue absente");
 
 // Fin de promo
 eq(etatFinDePromo(null).bouton, false, "pas de promo");

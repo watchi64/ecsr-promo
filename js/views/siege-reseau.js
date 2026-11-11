@@ -8,15 +8,11 @@ import { el, clear, isoDate, toast, tableauEnListe } from "../utils.js?v=2026111
 import { icon } from "../icons.js?v=20261111e";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261111e";
 import { lireAdresse } from "../route-rules.js?v=20261111e";
-import { pct } from "../centre-stats.js?v=20261111e";
 import { vueDuReseau, ratiosDeComptes, mentionMasques, SEUIL_SECRET } from "../comptes-reseau.js?v=20261111e";
 import { tableauReseauCsv } from "../centre-csv.js?v=20261111e";
 import { carte, telecharger } from "./centre.js?v=20261111e";
 import { ouvrirAjoutCentre } from "./siege-directions.js?v=20261111e";
-
-const entier = (x) => Number(x).toLocaleString("fr-FR");
-const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
-const fr1 = (x) => x.toFixed(1).replace(".", ",");
+import { entier, fr1, pct, pluriel } from "../nombres.js?v=20261111e";
 
 export const PHRASE_ECHEC_RESEAU = "Les chiffres du réseau n'ont pas pu être chargés.";
 export const PHRASE_MASQUE = `Moins de ${SEUIL_SECRET} stagiaires en formation : chiffres non affichés.`;

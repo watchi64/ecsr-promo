@@ -6,7 +6,8 @@
 import { el } from "./utils.js?v=20261111e";
 import { libelleCreneau, libelleDuree } from "./emargement-rules.js?v=20261111e";
 import { nomComplet, jourLong } from "./emargement-feuilles.js?v=20261111e";
-import { dureeEnToutesLettres, dateFr, LIBELLE_ORIGINE } from "./attestations-rules.js?v=20261111e";
+import { dureeEnToutesLettres, LIBELLE_ORIGINE } from "./attestations-rules.js?v=20261111e";
+import { dateFr } from "./dates.js?v=20261111e";
 
 // Champ du modèle : la valeur, ou la consigne du modèle et des pointillés à compléter à la main.
 function champ(valeur, consigne = "", { consigneApres = false } = {}) {

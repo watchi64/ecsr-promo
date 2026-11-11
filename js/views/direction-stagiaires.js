@@ -18,9 +18,7 @@ import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261111e";
 import { surChangementAdresse, remplacerAdresse } from "../navigation.js?v=20261111e";
 import { renderGestionStagiaires, renderInvitationStagiaire } from "./stagiaires-gestion.js?v=20261111e";
 import { chargerContexteFiche, chargerFiche, renderFiche, dispositionFiche, afficherErreur } from "./mon-suivi.js?v=20261111e";
-
-const entier = (x) => Number(x).toLocaleString("fr-FR");
-const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
+import { entier, pluriel } from "../nombres.js?v=20261111e";
 
 export const PHRASE_FICHE_HORS_CENTRE = "Cette fiche n'est pas dans votre centre.";
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";

@@ -16,7 +16,7 @@ import { ouvrirFenetre, fermerFenetre, fenetreOuverte, demanderFermeture } from 
 import { confirmer } from "./confirmer.js?v=20261111e";
 import { ajouterEntreeRegistre, modifierEntreeRegistre } from "./db.js?v=20261111e";
 import { TYPES, ORIGINES, ETATS, RAPPEL_VIOLENCES, LIMITE_TEXTE, validerEntree } from "./registre-rules.js?v=20261111e";
-import { jourParis } from "./questionnaires-gestion-rules.js?v=20261111e";
+import { jourParis } from "./dates.js?v=20261111e";
 import { libelleOptionPromo } from "./qualiopi-page-rules.js?v=20261111e";
 
 const NOM = "registre";

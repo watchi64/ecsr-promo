@@ -17,6 +17,7 @@ import { renderSubTabs } from "../subtabs.js?v=20261111e";
 import {
   libelleStatut, resumeContexte, detailContexte, adresseSure, normaliserContexte, nomDuSignaleur,
 } from "../signalement-rules.js?v=20261111e";
+import { dateHeure } from "../dates.js?v=20261111e";
 
 // Supprimer un problème signalé (carte complète ou carte en défaut) : la même question, dans une fenêtre de l'app.
 const QUESTION_SUPPRIMER = { titre: "Supprimer ce problème signalé ?",
@@ -29,15 +30,6 @@ const ROLES = { stagiaire: "Stagiaire", formateur: "Formateur", fondateur: "Fond
 // Les signalements déjà versés au registre : lu une fois au rendu de la page, partagé par les trois sous-onglets.
 // null : la table du registre n'existe pas (ou n'a pas pu être lue), la page n'offre alors aucun bouton.
 let liensDuRegistre = null;
-
-const deuxChiffres = (n) => String(n).padStart(2, "0");
-
-// « 28/10/2026 à 10 h 42 »
-function dateLongue(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return `${deuxChiffres(d.getDate())}/${deuxChiffres(d.getMonth() + 1)}/${d.getFullYear()} à ${d.getHours()} h ${deuxChiffres(d.getMinutes())}`;
-}
 
 // Le détail du contexte, les erreurs techniques et l'identifiant brut du navigateur.
 function detail(c) {
@@ -220,7 +212,7 @@ function carte(s) {
     el("div", { class: "sg-carte-tete" },
       el("span", { class: "sg-carte-qui" }, el("b", {}, qui),
         [ROLES[s.role], s.promo?.nom].filter(Boolean).length ? ` · ${[ROLES[s.role], s.promo?.nom].filter(Boolean).join(" · ")}` : ""),
-      el("span", { class: "sg-carte-date" }, dateLongue(s.created_at)),
+      el("span", { class: "sg-carte-date" }, dateHeure(s.created_at)),
       el("span", { class: "sg-statut sg-statut-" + s.statut }, libelleStatut(s.statut, "fondateur"))),
     el("p", { class: "sg-carte-message" }, s.message),
     el("p", { class: "sg-carte-contexte" }, ligneContexte),

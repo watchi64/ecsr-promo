@@ -6,7 +6,7 @@
 // Aucun nom de personne n'est jamais recopié : l'origine seulement (stagiaire, formateur, équipe...).
 
 import { cellule } from "./centre-csv.js?v=20261111e";
-import { jourParis } from "./questionnaires-gestion-rules.js?v=20261111e";
+import { jourParis } from "./dates.js?v=20261111e";
 
 export const TYPES = { reclamation: "Réclamation", difficulte: "Difficulté", alea: "Aléa", amelioration: "Amélioration", risque: "Risque" };
 export const ORIGINES = {

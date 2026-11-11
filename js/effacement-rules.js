@@ -5,28 +5,13 @@
 import {
   phraseDeRefus, PHRASE_INDISPONIBLE, PHRASE_CONNEXION, PHRASE_SESSION, PHRASE_SANS_DROIT, PHRASE_ECHEC,
 } from "./espaces-rules.js?v=20261111e";
+import { dateLongue } from "./dates.js?v=20261111e";
 
 // Confirmation par saisie du prénom : casse et espaces autour ignorés, accents exigés.
 export function confirmationValide(saisie, prenom) {
   const a = String(saisie ?? "").trim().toLocaleLowerCase("fr");
   const b = String(prenom ?? "").trim().toLocaleLowerCase("fr");
   return b.length > 0 && a === b;
-}
-
-// « 2027-12-11 » → « 11/12/2027 ».
-export function dateCourte(iso) {
-  const m = String(iso ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
-}
-
-// « 2027-12-11 » → « 11 décembre 2027 » : une date dans une phrase s'écrit en toutes lettres, comme ailleurs dans l'app
-// (audit du 09/11, lot E). Le 1er du mois garde son ordinal.
-const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-export function dateLongue(iso) {
-  const m = String(iso ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return "";
-  const j = Number(m[3]);
-  return `${j === 1 ? "1er" : j} ${MOIS[Number(m[2]) - 1]} ${m[1]}`;
 }
 
 // Texte du bloc « Fin de promo » à partir de etat_anonymisation_promo().

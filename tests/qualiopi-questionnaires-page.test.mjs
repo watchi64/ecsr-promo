@@ -20,7 +20,7 @@ test("la page prend les lectures et l'ouverture de js/db.js, et ses règles du m
   assert.match(vue, new RegExp(`\\} from "\\.\\./questionnaires-gestion-rules\\.js\\?v=${jeton}";`));
   const regles = lire("js/questionnaires-gestion-rules.js");
   const imports = [...regles.matchAll(/from "(\.\.?\/[^"]+)"/g)].map((m) => m[1]);
-  assert.ok(imports.length === 3 && imports.every((a) => a.endsWith(`.js?v=${jeton}`)), "le module pur importe au jeton de l'app");
+  assert.ok(imports.length === 5 && imports.every((a) => a.endsWith(`.js?v=${jeton}`)), "le module pur importe au jeton de l'app");
   assert.ok(!/document\.|window\.|fetch\(|new Date\(\)|Date\.now/.test(sansCommentaires(regles)), "le module de règles est pur : il reçoit l'instant, il ne lit pas l'horloge");
 });
 
