@@ -8,10 +8,11 @@
 -- des signalements, brouillons IA) ; il ne gagne rien. Un titre non fixe n'ouvre que ce que ses cases ouvrent.
 --   * Lectures « P » (toute personne qui a accès à la promo affichée) : membre stagiaire de la promo, ou geste de lecture de la page.
 --   * Clauses « M » (sa fiche, son adresse, son identifiant) et clauses du fondateur : inchangées.
---   * Réglages : la clé « modules » suit le geste modules.modifier, les clés navigation_v2 et emargement_actif restent au fondateur.
+--   * Réglages : la clé « modules » suit le geste modules.modifier, la clé emargement_actif reste au fondateur.
 --   * Affectations : formateurs.nommer pour une ligne de formateur, directions.nommer pour une ligne de direction ; la ligne de siège
 --     reste au fondateur.
--- Garde : chaque règle nommée doit exister, sinon la migration s'arrête avec son nom et ne change rien.
+-- Garde : chaque règle nommée doit exister (pour les tables présentes : celles de fiches_suivi sont sautées si la table a disparu),
+-- sinon la migration s'arrête avec son nom et ne change rien.
 -- Marche arrière : 20261112_titres_3_regles_retour.sql (remet l'expression d'origine, relue dans les fichiers de migration).
 -- Généré par outils/generer_regles_titres_3.py : ne pas éditer à la main.
 set local lock_timeout = '3s';
@@ -117,7 +118,8 @@ begin
     ('public', 'affectations', 'affectations_ajout'),
     ('public', 'affectations', 'affectations_retrait')
       ) as g(schema_name, table_name, policy_name)
-     where not exists (select 1 from pg_policies p
+     where (to_regclass(format('%I.%I', g.schema_name, g.table_name)) is not null or g.table_name <> all (array['fiches_suivi']))
+       and not exists (select 1 from pg_policies p
                         where p.schemaname = g.schema_name and p.tablename = g.table_name and p.policyname = g.policy_name)
   loop
     raise exception 'titres_3: la règle % sur %.% n''existe pas', v_regle.policy_name, v_regle.schema_name, v_regle.table_name;
@@ -315,21 +317,29 @@ alter policy dp_dossiers_suppression on public.dp_dossiers
   using (promo_id = (select public.promo_courante()) and (select public.geste_promo((select public.promo_courante()), 'notes.saisir')));
 
 -- fiches_suivi.fiches_suivi_lecture
-alter policy fiches_suivi_lecture on public.fiches_suivi
-  using (promo_id = (select public.promo_courante()) and ((select public.geste_promo((select public.promo_courante()), 'notes.lire')) or stagiaire_id = (select public.my_stagiaire_id())));
+do $opt$ begin if to_regclass('public.fiches_suivi') is not null then
+execute $r$alter policy fiches_suivi_lecture on public.fiches_suivi
+  using (promo_id = (select public.promo_courante()) and ((select public.geste_promo((select public.promo_courante()), 'notes.lire')) or stagiaire_id = (select public.my_stagiaire_id())))$r$;
+end if; end $opt$;
 
 -- fiches_suivi.fiches_suivi_ajout
-alter policy fiches_suivi_ajout on public.fiches_suivi
-  with check (promo_id = (select public.promo_courante()) and ((select public.geste_promo((select public.promo_courante()), 'notes.saisir')) or stagiaire_id = (select public.my_stagiaire_id())));
+do $opt$ begin if to_regclass('public.fiches_suivi') is not null then
+execute $r$alter policy fiches_suivi_ajout on public.fiches_suivi
+  with check (promo_id = (select public.promo_courante()) and ((select public.geste_promo((select public.promo_courante()), 'notes.saisir')) or stagiaire_id = (select public.my_stagiaire_id())))$r$;
+end if; end $opt$;
 
 -- fiches_suivi.fiches_suivi_modification
-alter policy fiches_suivi_modification on public.fiches_suivi
+do $opt$ begin if to_regclass('public.fiches_suivi') is not null then
+execute $r$alter policy fiches_suivi_modification on public.fiches_suivi
   using (promo_id = (select public.promo_courante()) and ((select public.geste_promo((select public.promo_courante()), 'notes.saisir')) or stagiaire_id = (select public.my_stagiaire_id())))
-  with check (promo_id = (select public.promo_courante()) and ((select public.geste_promo((select public.promo_courante()), 'notes.saisir')) or stagiaire_id = (select public.my_stagiaire_id())));
+  with check (promo_id = (select public.promo_courante()) and ((select public.geste_promo((select public.promo_courante()), 'notes.saisir')) or stagiaire_id = (select public.my_stagiaire_id())))$r$;
+end if; end $opt$;
 
 -- fiches_suivi.fiches_suivi_suppression
-alter policy fiches_suivi_suppression on public.fiches_suivi
-  using (promo_id = (select public.promo_courante()) and (select public.geste_promo((select public.promo_courante()), 'notes.saisir')));
+do $opt$ begin if to_regclass('public.fiches_suivi') is not null then
+execute $r$alter policy fiches_suivi_suppression on public.fiches_suivi
+  using (promo_id = (select public.promo_courante()) and (select public.geste_promo((select public.promo_courante()), 'notes.saisir')))$r$;
+end if; end $opt$;
 
 -- qcm_attempts.qcm_attempts_lecture
 alter policy qcm_attempts_lecture on public.qcm_attempts
@@ -461,8 +471,8 @@ alter policy qcm_ia_brouillons_lecture on public.qcm_ia_brouillons
 
 -- settings.settings_ecriture
 alter policy settings_ecriture on public.settings
-  using (promo_id = (select public.promo_courante()) and case when key in ('navigation_v2', 'emargement_actif') then (select public.est_fondateur()) when key = 'modules' then (select public.geste_promo((select public.promo_courante()), 'modules.modifier')) else (select public.geste_promo((select public.promo_courante()), 'reglages.modifier')) end)
-  with check (promo_id = (select public.promo_courante()) and case when key in ('navigation_v2', 'emargement_actif') then (select public.est_fondateur()) when key = 'modules' then (select public.geste_promo((select public.promo_courante()), 'modules.modifier')) else (select public.geste_promo((select public.promo_courante()), 'reglages.modifier')) end);
+  using (promo_id = (select public.promo_courante()) and case when key = 'emargement_actif' then (select public.est_fondateur()) when key = 'modules' then (select public.geste_promo((select public.promo_courante()), 'modules.modifier')) else (select public.geste_promo((select public.promo_courante()), 'reglages.modifier')) end)
+  with check (promo_id = (select public.promo_courante()) and case when key = 'emargement_actif' then (select public.est_fondateur()) when key = 'modules' then (select public.geste_promo((select public.promo_courante()), 'modules.modifier')) else (select public.geste_promo((select public.promo_courante()), 'reglages.modifier')) end);
 
 -- contacts.contacts_ecriture
 alter policy contacts_ecriture on public.contacts

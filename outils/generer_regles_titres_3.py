@@ -109,6 +109,9 @@ AFF = ("(role = 'formateur' and public.geste_centre(public.lieu_de_promo(promo_i
        " or (role = 'direction' and (select public.geste_reseau('directions.nommer')))"
        " or (role = 'siege' and (select public.est_fondateur()))")
 ATTENDU = 93
+# Tables qu'une migration plus récente peut retirer (fiches_suivi part avec la phase 2 de la navigation unique) : leurs règles sont
+# sautées sans erreur quand la table est absente, et la garde « chaque règle nommée existe » ne vaut que pour les tables présentes.
+OPTIONNELLES = ("fiches_suivi",)
 
 
 def ignorer_chaine(s, i):
@@ -297,10 +300,11 @@ def main():
 -- des signalements, brouillons IA) ; il ne gagne rien. Un titre non fixe n'ouvre que ce que ses cases ouvrent.
 --   * Lectures « P » (toute personne qui a accès à la promo affichée) : membre stagiaire de la promo, ou geste de lecture de la page.
 --   * Clauses « M » (sa fiche, son adresse, son identifiant) et clauses du fondateur : inchangées.
---   * Réglages : la clé « modules » suit le geste modules.modifier, les clés navigation_v2 et emargement_actif restent au fondateur.
+--   * Réglages : la clé « modules » suit le geste modules.modifier, la clé emargement_actif reste au fondateur.
 --   * Affectations : formateurs.nommer pour une ligne de formateur, directions.nommer pour une ligne de direction ; la ligne de siège
 --     reste au fondateur.
--- Garde : chaque règle nommée doit exister, sinon la migration s'arrête avec son nom et ne change rien.
+-- Garde : chaque règle nommée doit exister (pour les tables présentes : celles de fiches_suivi sont sautées si la table a disparu),
+-- sinon la migration s'arrête avec son nom et ne change rien.
 -- Marche arrière : 20261112_titres_3_regles_retour.sql (remet l'expression d'origine, relue dans les fichiers de migration).
 -- Généré par outils/generer_regles_titres_3.py : ne pas éditer à la main.
 set local lock_timeout = '3s';
@@ -321,19 +325,24 @@ begin
       from (values
     @@GARDE@@
       ) as g(schema_name, table_name, policy_name)
-     where not exists (select 1 from pg_policies p
+     where (to_regclass(format('%I.%I', g.schema_name, g.table_name)) is not null or g.table_name <> all (array[@@OPT@@]))
+       and not exists (select 1 from pg_policies p
                         where p.schemaname = g.schema_name and p.tablename = g.table_name and p.policyname = g.policy_name)
   loop
     raise exception 'titres_3: la règle % sur %.% n''existe pas', v_regle.policy_name, v_regle.schema_name, v_regle.table_name;
   end loop;
 end
 $garde$;
-""".replace("@@GARDE@@", garde))
+""".replace("@@GARDE@@", garde).replace("@@OPT@@", ", ".join("'%s'" % x for x in OPTIONNELLES)))
         for nom, table, uo, co, un, cn, src in lst:
             if sens == "aller":
-                lignes.append("-- %s.%s\n%s" % (table, nom, alter(nom, table, un, cn)))
+                entete, instr = "-- %s.%s\n" % (table, nom), alter(nom, table, un, cn)
             else:
-                lignes.append("-- %s.%s (%s)\n%s" % (table, nom, src, alter(nom, table, uo, co)))
+                entete, instr = "-- %s.%s (%s)\n" % (table, nom, src), alter(nom, table, uo, co)
+            if table in OPTIONNELLES:
+                instr = ("do $opt$ begin if to_regclass('public.%s') is not null then\nexecute $r$%s$r$;\nend if; end $opt$;\n"
+                         % (table, instr.rstrip().rstrip(";")))
+            lignes.append(entete + instr)
         return "\n".join(lignes)
 
     for sens, nomf in (("aller", "20261112_titres_3_regles.sql"), ("retour", "20261112_titres_3_regles_retour.sql")):

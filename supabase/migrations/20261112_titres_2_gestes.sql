@@ -21,6 +21,8 @@
 -- (comme l'ancien « ou »), jamais d'erreur.
 -- Toutes stable, security definer, search_path public puis pg_temp ; l'appelant est l'adresse du jeton, comparée en minuscules ;
 -- exécution accordée à anon et authenticated comme les fonctions du lot 4. Le retour (20261112_titres_2_gestes_retour.sql) les retire.
+-- Partie B robuste à l'ordre des migrations : une fonction de la liste qui n'existe plus (l'anonymisation, retirée par Qualiopi Q5) est
+-- sautée sans erreur, et son retour aussi. Les fragments cherchés sont ceux du texte en vigueur au moment de l'application.
 set local lock_timeout = '3s';
 
 -- 1. Les cases ---------------------------------------------------------------------------------------------------------------
@@ -291,36 +293,36 @@ grant execute on function public.case_promo(integer, text), public.case_centre(i
 
 do $migration$
 declare
-  v_fonctions regprocedure[] := array[
-    'public.a_une_affectation(text)'::regprocedure,
-    'public.accepter_brouillon_ia(bigint, text, text, text, jsonb)'::regprocedure,
-    'public.rejeter_brouillon_ia(bigint)'::regprocedure,
-    'public.anonymiser_promo()'::regprocedure,
-    'public.etat_anonymisation_promo()'::regprocedure,
-    'public.anonymiser_stagiaire(integer)'::regprocedure,
-    'public.anonymiser_promo(integer)'::regprocedure,
-    'public.etat_anonymisation_promo(integer)'::regprocedure,
-    'public.benevoles_a_purger()'::regprocedure,
-    'public.benevoles_a_purger(integer)'::regprocedure,
-    'public.purger_benevoles(integer[])'::regprocedure,
-    'public.purger_benevoles(integer[], integer)'::regprocedure,
-    'public.venues_benevoles()'::regprocedure,
-    'public.notes_stagiaires_visibles()'::regprocedure,
-    'public.epcf_moyennes(text)'::regprocedure,
-    'public.notes_stats_groupe()'::regprocedure,
-    'public.set_date_naissance(integer, date)'::regprocedure,
-    'public.emargement_feuille(bigint, boolean)'::regprocedure,
-    'public.emargement_ouvrir(text, text, text)'::regprocedure,
-    'public.emargement_signer(bigint, integer, text)'::regprocedure,
-    'public.is_admin()'::regprocedure,
-    'public.is_prof()'::regprocedure,
-    'public.creer_promo(integer, text, date, date)'::regprocedure,
-    'public.modifier_dates_promo(integer, date, date)'::regprocedure,
-    'public.regler_habillage_centre(integer, text, boolean)'::regprocedure,
-    'public.regler_habillage_reseau(text)'::regprocedure,
-    'public.creer_centre(text)'::regprocedure,
-    'public.regler_affectations_formateur(text, integer, integer[], integer)'::regprocedure,
-    'public.inviter_compte(text, text, integer, integer, integer)'::regprocedure];
+  v_fonctions text[] := array[
+    'public.a_une_affectation(text)',
+    'public.accepter_brouillon_ia(bigint, text, text, text, jsonb)',
+    'public.rejeter_brouillon_ia(bigint)',
+    'public.anonymiser_promo()',
+    'public.etat_anonymisation_promo()',
+    'public.anonymiser_stagiaire(integer)',
+    'public.anonymiser_promo(integer)',
+    'public.etat_anonymisation_promo(integer)',
+    'public.benevoles_a_purger()',
+    'public.benevoles_a_purger(integer)',
+    'public.purger_benevoles(integer[])',
+    'public.purger_benevoles(integer[], integer)',
+    'public.venues_benevoles()',
+    'public.notes_stagiaires_visibles()',
+    'public.epcf_moyennes(text)',
+    'public.notes_stats_groupe()',
+    'public.set_date_naissance(integer, date)',
+    'public.emargement_feuille(bigint, boolean)',
+    'public.emargement_ouvrir(text, text, text)',
+    'public.emargement_signer(bigint, integer, text)',
+    'public.is_admin()',
+    'public.is_prof()',
+    'public.creer_promo(integer, text, date, date)',
+    'public.modifier_dates_promo(integer, date, date)',
+    'public.regler_habillage_centre(integer, text, boolean)',
+    'public.regler_habillage_reseau(text)',
+    'public.creer_centre(text)',
+    'public.regler_affectations_formateur(text, integer, integer[], integer)',
+    'public.inviter_compte(text, text, integer, integer, integer)'];
   -- La fonction de chaque fragment (rang dans v_fonctions).
   v_de integer[] := array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 29, 29];
   v_anciens text[] := array[
@@ -401,6 +403,7 @@ $nouveau$    if not geste_reseau('directions.nommer') then
 $nouveau$];
   f integer;
   i integer;
+  v_oid regprocedure;
   v_def text;
   v_ancien text;
   v_nouveau text;
@@ -408,7 +411,13 @@ $nouveau$];
 begin
   -- Le bloc est atomique : un seul fragment manquant ou en double annule tout, rien n'est changé.
   for f in 1..cardinality(v_fonctions) loop
-    v_def := pg_get_functiondef(v_fonctions[f]);
+    -- Une fonction absente (retirée par une migration plus récente, par exemple la qualité Q5) est sautée sans erreur.
+    v_oid := to_regprocedure(v_fonctions[f]);
+    if v_oid is null then
+      raise notice 'titres_2_gestes : % n''existe pas, sautée', v_fonctions[f];
+      continue;
+    end if;
+    v_def := pg_get_functiondef(v_oid);
     for i in 1..cardinality(v_de) loop
       if v_de[i] <> f then continue; end if;
       v_ancien := v_anciens[i];
@@ -420,7 +429,7 @@ begin
       end if;
       n := (length(v_def) - length(replace(v_def, v_ancien, ''))) / length(v_ancien);
       if n <> 1 then
-        raise exception 'titres_2_gestes : le fragment % attendu dans % est présent % fois (une seule attendue) ; rien n''est changé', i, v_fonctions[f]::text, n;
+        raise exception 'titres_2_gestes : le fragment % attendu dans % est présent % fois (une seule attendue) ; rien n''est changé', i, v_fonctions[f], n;
       end if;
       v_def := replace(v_def, v_ancien, v_nouveau);
     end loop;

@@ -78,7 +78,7 @@ assert len(T) == 29, len(T)
 
 
 def bloc(inverse, nom):
-    fonctions = ",\n".join(f"    '{P}{s}'::regprocedure" for s, _ in T)
+    fonctions = ",\n".join(f"    '{P}{s}'" for s, _ in T)
     de, anc, nou = [], [], []
     for i, (s, pairs) in enumerate(T, 1):
         for a, n in pairs:
@@ -93,7 +93,7 @@ def bloc(inverse, nom):
 
     return f"""do $migration$
 declare
-  v_fonctions regprocedure[] := array[
+  v_fonctions text[] := array[
 {fonctions}];
   -- La fonction de chaque fragment (rang dans v_fonctions).
   v_de integer[] := array[{', '.join(map(str, de))}];
@@ -103,6 +103,7 @@ declare
 {arr(nou, 'nouveau')}];
   f integer;
   i integer;
+  v_oid regprocedure;
   v_def text;
   v_ancien text;
   v_nouveau text;
@@ -110,7 +111,13 @@ declare
 begin
   -- Le bloc est atomique : un seul fragment manquant ou en double annule tout, rien n'est changé.
   for f in 1..cardinality(v_fonctions) loop
-    v_def := pg_get_functiondef(v_fonctions[f]);
+    -- Une fonction absente (retirée par une migration plus récente, par exemple la qualité Q5) est sautée sans erreur.
+    v_oid := to_regprocedure(v_fonctions[f]);
+    if v_oid is null then
+      raise notice '{nom} : % n''existe pas, sautée', v_fonctions[f];
+      continue;
+    end if;
+    v_def := pg_get_functiondef(v_oid);
     for i in 1..cardinality(v_de) loop
       if v_de[i] <> f then continue; end if;
       v_ancien := v_anciens[i];
@@ -122,7 +129,7 @@ begin
       end if;
       n := (length(v_def) - length(replace(v_def, v_ancien, ''))) / length(v_ancien);
       if n <> 1 then
-        raise exception '{nom} : le fragment % attendu dans % est présent % fois (une seule attendue) ; rien n''est changé', i, v_fonctions[f]::text, n;
+        raise exception '{nom} : le fragment % attendu dans % est présent % fois (une seule attendue) ; rien n''est changé', i, v_fonctions[f], n;
       end if;
       v_def := replace(v_def, v_ancien, v_nouveau);
     end loop;

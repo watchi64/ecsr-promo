@@ -41,12 +41,13 @@ qu'elle fait est annulé. Modes : voir l'en-tête de `outils/assembler_repetitio
 ## Rejouer la suite
 
 ```
-bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres]
+bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-phase2] [--avec-titres]
 ```
 
-À lancer juste après `reconstruire.sh` : applique, avec `psql -1 -v ON_ERROR_STOP=1`, les dix migrations postérieures au
-lot 4 (`20261108_espaces_1_siege` à `20261111_espaces_4_donnees`), dans l'ordre où la production les a reçues. Avec
-`--avec-titres`, elle joue ensuite `20261112_titres_1` à `_4`. Sortie : `OK : suite rejouée (10 migrations)`, ou le nom du
+À lancer juste après `reconstruire.sh` : applique, avec `psql -1 -v ON_ERROR_STOP=1`, les douze migrations postérieures au
+lot 4 (`20261108_espaces_1_siege` à `20261111_espaces_4_donnees`, puis `20261110_navigation_unique_1_reglages` et `_2_menage`), dans
+l'ordre où la production les a reçues. Avec `--avec-phase2`, elle joue aussi `20261111_navigation_unique_3_phase2` (la table
+`fiches_suivi` disparaît). Avec `--avec-titres`, elle joue ensuite `20261112_titres_1` à `_4`. Sortie : `OK : suite rejouée (12 migrations)` (13 avec la phase 2), ou le nom du
 fichier en échec (code 3). Elle n'est pas rejouable sur une base déjà rejouée : reconstruire d'abord.
 
 Pour que les preuves donnent les mêmes verdicts qu'en production, le script ajoute ce que les clones ne portent pas :

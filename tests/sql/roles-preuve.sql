@@ -275,11 +275,8 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
 ('public.epcf_livrets', $mx$r.promo_id = {P} and ({E} or r.stagiaire_id = {fiche_p})$mx$,
   $mx$r.promo_id = {P} and {F}$mx$, $mx$r.promo_id = {P} and {F}$mx$, $mx$r.promo_id = {P} and {F}$mx$,
   $mx$updated_by_who = 'PreuveMaj'$mx$, null),
--- Dossier professionnel et fiche de suivi : P et (E ou M) ; ajout et modification P et (F ou M) ; suppression P et F.
+-- Dossier professionnel (la fiche de suivi a sa ligne plus bas, tant que la table existe) : P et (E ou M) ; ajout et modification P et (F ou M) ; suppression P et F.
 ('public.dp_dossiers', $mx$r.promo_id = {P} and ({E} or r.stagiaire_id = {fiche_p})$mx$,
-  $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche_p})$mx$, $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche_p})$mx$,
-  $mx$r.promo_id = {P} and {F}$mx$, $mx$updated_by_who = 'PreuveMaj'$mx$, null),
-('public.fiches_suivi', $mx$r.promo_id = {P} and ({E} or r.stagiaire_id = {fiche_p})$mx$,
   $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche_p})$mx$, $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche_p})$mx$,
   $mx$r.promo_id = {P} and {F}$mx$, $mx$updated_by_who = 'PreuveMaj'$mx$, null),
 -- Passages : P (inchangé) ; P et F, plus l'ajout et la modification des siens (fiche du profil, inchangé).
@@ -419,6 +416,13 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
   select 'public.registre_qualite', '{Fo}', '{Fo}', '{Fo}', 'false', $mx$description = 'PreuveMaj'$mx$, null
    where to_regclass('public.registre_qualite') is not null;
+-- Fiche de suivi (retirée avec la phase 2 de la navigation unique, 20261111_navigation_unique_3_phase2) : P et (E ou M) ; ajout et
+-- modification P et (F ou M) ; suppression P et F. La ligne n'entre que si la table existe : la preuve est verte avec ou sans elle.
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select 'public.fiches_suivi', $mx$r.promo_id = {P} and ({E} or r.stagiaire_id = {fiche_p})$mx$,
+    $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche_p})$mx$, $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche_p})$mx$,
+    $mx$r.promo_id = {P} and {F}$mx$, $mx$updated_by_who = 'PreuveMaj'$mx$, null
+   where to_regclass('public.fiches_suivi') is not null;
 -- Titres et droits à la carte (chantier titres, migration 20261112_titres_1 et _4) : la table des titres et le journal des droits
 -- n'ont aucune règle ni aucun droit pour anon et authenticated (tout passe par des fonctions) : rien ne se lit, rien ne s'écrit.
 -- Les lignes n'entrent que si la table existe : la preuve reste verte avant et après la migration.
@@ -476,9 +480,6 @@ insert into ajouts (tbl, sorte, libelle, modele, marque, prep) values
 ('public.dp_dossiers', 'stagiaire', null,
   $aj$insert into public.dp_dossiers (stagiaire_id, updated_by_who) values ({c_stag}, 'PreuveAjout')$aj$,
   $aj$r.updated_by_who = 'PreuveAjout'$aj$, $aj$delete from public.dp_dossiers where stagiaire_id = {c_stag}$aj$),
-('public.fiches_suivi', 'stagiaire', null,
-  $aj$insert into public.fiches_suivi (stagiaire_id, besoins) values ({c_stag}, 'PreuveAjout')$aj$,
-  $aj$r.besoins = 'PreuveAjout'$aj$, $aj$delete from public.fiches_suivi where stagiaire_id = {c_stag}$aj$),
 ('public.passages', 'stagiaire', null,
   $aj$insert into public.passages (date, stagiaire_id, type, resultat, commentaire) values ('2031-01-06', {c_stag}, 'Salle', 'Effectué', 'PreuveAjout')$aj$,
   $aj$r.commentaire = 'PreuveAjout'$aj$, null),
@@ -609,6 +610,12 @@ insert into ajouts (tbl, sorte, libelle, modele, marque, prep) values
 ('storage.objects', 'unique', 'image de QCM',
   $aj$insert into storage.objects (bucket_id, name) values ('qcm-images', 'preuve/ajout.png')$aj$,
   $aj$r.name = 'preuve/ajout.png'$aj$, null);
+-- Fiche de suivi (tant que la table existe).
+insert into ajouts (tbl, sorte, libelle, modele, marque, prep)
+  select 'public.fiches_suivi', 'stagiaire', null,
+    $aj$insert into public.fiches_suivi (stagiaire_id, besoins) values ({c_stag}, 'PreuveAjout')$aj$,
+    $aj$r.besoins = 'PreuveAjout'$aj$, $aj$delete from public.fiches_suivi where stagiaire_id = {c_stag}$aj$
+   where to_regclass('public.fiches_suivi') is not null;
 -- Registre qualité (Q4) : le minimum qu'un ajout doit fournir (type, date du constat, origine, description de 3
 -- caractères ou plus) ; le déclencheur pose le reste. Seulement si la table existe.
 insert into ajouts (tbl, sorte, libelle, modele, marque, prep)
@@ -746,7 +753,7 @@ begin
     ('public.qcm_questions', 'true'), ('public.themes', 'true'), ('public.contacts', 'true'),
     ('public.cours', format('r.published or (r.code is null and %s)', v_e::text)),
     ('public.user_profiles', format('lower(r.email) = %L or (r.stagiaire_id is null and r.role <> ''stagiaire'' and %s) or (r.stagiaire_id is null and r.role = ''stagiaire'' and lower(r.invited_by_email) = %L) or (%s and r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = %s))', lower(p_email), p_a_promo::text, lower(p_email), v_e::text, v_pp))
-  ) t(tbl, pred) loop
+  ) t(tbl, pred) where to_regclass(t.tbl) is not null loop
     v_x := pg_temp.calcul(format('select count(*)::text from %s r where coalesce(%s, false)', v_t.tbl, v_t.pred));
     v_o := v_o || v_t.tbl || '=' || coalesce(pg_temp.valeur(p_email, p_hdr, null, format('select count(*)::text from %s', v_t.tbl)), 'nul') || ' ';
     v_a := v_a || v_t.tbl || '=' || coalesce(v_x, 'nul') || ' ';
@@ -1344,7 +1351,9 @@ begin
       insert into public.epcf_evaluations (stagiaire_id, trame, commentaire) values (v_r.id, 'salle', 'Preuve');
       insert into public.epcf_livrets (stagiaire_id) values (v_r.id);
       insert into public.dp_dossiers (stagiaire_id) values (v_r.id);
-      insert into public.fiches_suivi (stagiaire_id) values (v_r.id);
+      if to_regclass('public.fiches_suivi') is not null then
+        execute 'insert into public.fiches_suivi (stagiaire_id) values ($1)' using v_r.id;
+      end if;
       insert into public.passages (date, stagiaire_id, type, resultat, commentaire) values ('2030-01-07', v_r.id, 'Salle', 'Effectué', 'Preuve');
       insert into public.qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20) values (v_qcm_a, v_r.id, 'entrainement', 1, 2, 10);
       insert into public.emargement_lignes (seance_id, promo_id, stagiaire_id) values (v_seance, v_pr, v_r.id);
@@ -1848,6 +1857,9 @@ begin
   v_txt := format($aj$insert into public.stagiaires (id, promo_id, prenom, actif) values (987001, 1, 'PreuveFiche', false);
     insert into public.user_profiles (email, role, is_admin, stagiaire_id) values (%L, 'prof', false, 987001);
     update public.promos set date_fin = date '2020-01-01' where id = 1;$aj$, 'preuve.equipe.fiche@exemple.invalid');
+  -- Ces contrôles ne valent que tant que l'anonymisation existe (Qualiopi Q5 la remplace par des fonctions effacer_*).
+  if to_regprocedure('public.anonymiser_stagiaire(integer)') is not null and to_regprocedure('public.anonymiser_promo()') is not null
+     and to_regprocedure('public.etat_anonymisation_promo()') is not null then
   for v_x in select * from (values
     ('anonymiser_stagiaire : fiche d''un compte à affectation direction (is_admin faux) : jamais anonymisée', true,
        'do $d$ begin perform public.anonymiser_stagiaire(987001); exception when others then null; end $d$', 'false 1'),
@@ -1871,6 +1883,7 @@ begin
         'select 1', 'select public.etat_anonymisation_promo() ->> ''comptes_admin''')::int
         = pg_temp.essai_proprio(c_dir_n, '1', null, v_txt, 'select 1', 'select public.etat_anonymisation_promo() ->> ''comptes_admin''')::int + 1,
     'etat_anonymisation_promo : comptes_admin');
+  end if;
   perform pg_temp.cas('inviter_compte', 'prof_id inconnu : le profil est créé sans fiche formateur', c_dir_n, '1', null, null,
     format('select public.inviter_compte(%L, ''formateur'', null, 987654)', c_invite), format('select pg_temp.etat_compte(%L)', c_invite), array['OK 1 prof/true/-/- formateur:1']);
   perform pg_temp.cas('inviter_compte', 'prof_id déjà relié à un autre compte : le profil est créé sans fiche formateur', c_dir_n, '1', null,
@@ -1993,12 +2006,14 @@ begin
       'select public.emargement_ouvrir(''matin'', ''08:00'', ''12:00'')',
       format('select count(*)::text from public.emargement_seances where promo_id = %s and jour = public.emargement_jour_paris() and demi_journee = ''matin'' and ouverte_par = %L', v_x.promo, lower(v_x.email)), v_x.att);
   end loop;
+  if to_regprocedure('public.anonymiser_stagiaire(integer)') is not null and to_regprocedure('public.etat_anonymisation_promo()') is not null then
   perform pg_temp.cas('fonctions serveur', 'anonymiser_stagiaire : dir_n : permis', c_dir_n, '1', null, format('update public.stagiaires set actif = false where id = %s', v_f1),
     format('select public.anonymiser_stagiaire(%s)', v_f1), format('select (anonymise_le is not null)::text from public.stagiaires where id = %s', v_f1), array['OK 1 true']);
   perform pg_temp.cas('fonctions serveur', 'anonymiser_stagiaire : stag_n : refusé', c_stag_n, '1', null, format('update public.stagiaires set actif = false where id = %s', v_f1),
     format('select public.anonymiser_stagiaire(%s)', v_f1), null, array['~REFUS']);
   perform pg_temp.val('fonctions serveur', 'etat_anonymisation_promo : dir_n : permis', c_dir_n, '1', null, 'select public.etat_anonymisation_promo() ->> ''promo_id''', array['1']);
   perform pg_temp.val('fonctions serveur', 'etat_anonymisation_promo : stag_n : refusé', c_stag_n, '1', null, 'select public.etat_anonymisation_promo() ->> ''promo_id''', array['~ERREUR']);
+  end if;
   perform pg_temp.val('fonctions serveur', 'purger_benevoles : form_n : permis', c_form_n, '1', null, 'select public.purger_benevoles(''{}''::integer[])::text', array['0']);
   perform pg_temp.val('fonctions serveur', 'purger_benevoles : dir_n : refusé', c_dir_n, '1', null, 'select public.purger_benevoles(''{}''::integer[])::text', array['~ERREUR']);
   perform pg_temp.val('fonctions serveur', 'purger_benevoles : stag_n : refusé', c_stag_n, '1', null, 'select public.purger_benevoles(''{}''::integer[])::text', array['~ERREUR']);
@@ -2105,7 +2120,7 @@ begin
       (select bool_and(q.cpt > 0) from (select (select count(*) from public.planning_entries where promo_id = x) as cpt from unnest(array[1, 2]) x
         union all select (select count(*) from public.dp_dossiers where promo_id = x) from unnest(array[1, 2]) x
         union all select (select count(*) from public.epcf_livrets where promo_id = x) from unnest(array[1, 2]) x
-        union all select (select count(*) from public.fiches_suivi where promo_id = x) from unnest(array[1, 2]) x
+        union all select case when to_regclass('public.fiches_suivi') is null then 1 else pg_temp.calcul(format('select count(*) from public.fiches_suivi where promo_id = %s', x))::bigint end from unnest(array[1, 2]) x
         union all select (select count(*) from public.benevoles where lieu_id = (select pr.lieu_id from public.promos pr where pr.id = x)) from unnest(array[1, 2]) x) q),
       'tables vides = zéros sans valeur');
 
@@ -2202,7 +2217,7 @@ begin
       'promo de la fiche : ' || coalesce((select s.promo_id::text from public.stagiaires s where s.id = v_fi), 'absente'));
     perform pg_temp.verifier('fiche déplacée', 'stag_n avait des données privées en promo 1 (sinon les zéros ne prouvent rien)',
       (select count(*) from public.dp_dossiers where stagiaire_id = v_fi) + (select count(*) from public.epcf_livrets where stagiaire_id = v_fi)
-      + (select count(*) from public.fiches_suivi where stagiaire_id = v_fi) > 0, 'aucun dossier, livret ni fiche de suivi pour cette fiche');
+      + (case when to_regclass('public.fiches_suivi') is null then 0 else pg_temp.calcul(format('select count(*) from public.fiches_suivi where stagiaire_id = %s', v_fi))::bigint end) > 0, 'aucun dossier, livret ni fiche de suivi pour cette fiche');
     foreach v_ctx in array c_contextes loop
       v_pc := case v_ctx when '2' then 2 when '1' then null when '7' then null else 2 end;
       perform pg_temp.sondes('fiche déplacée', 'stag_n fiche en promo 2', c_stag_n, v_ctx, v_pc, false, false, case when v_pc = 2 then v_fi end, true);

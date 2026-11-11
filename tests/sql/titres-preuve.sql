@@ -367,22 +367,24 @@ end $tag$;
 -- Les vingt-neuf, avec leur signature : une seule liste, pour l'empreinte avant et après.
 create or replace function pg_temp.fonctions_b()
 returns regprocedure[] language sql as $tfb$
-  select array[
-    'public.a_une_affectation(text)'::regprocedure, 'public.accepter_brouillon_ia(bigint, text, text, text, jsonb)'::regprocedure,
-    'public.rejeter_brouillon_ia(bigint)'::regprocedure, 'public.anonymiser_promo()'::regprocedure,
-    'public.etat_anonymisation_promo()'::regprocedure, 'public.anonymiser_stagiaire(integer)'::regprocedure,
-    'public.anonymiser_promo(integer)'::regprocedure, 'public.etat_anonymisation_promo(integer)'::regprocedure,
-    'public.benevoles_a_purger()'::regprocedure, 'public.benevoles_a_purger(integer)'::regprocedure,
-    'public.purger_benevoles(integer[])'::regprocedure, 'public.purger_benevoles(integer[], integer)'::regprocedure,
-    'public.venues_benevoles()'::regprocedure, 'public.notes_stagiaires_visibles()'::regprocedure,
-    'public.epcf_moyennes(text)'::regprocedure, 'public.notes_stats_groupe()'::regprocedure,
-    'public.set_date_naissance(integer, date)'::regprocedure, 'public.emargement_feuille(bigint, boolean)'::regprocedure,
-    'public.emargement_ouvrir(text, text, text)'::regprocedure, 'public.emargement_signer(bigint, integer, text)'::regprocedure,
-    'public.is_admin()'::regprocedure, 'public.is_prof()'::regprocedure, 'public.creer_promo(integer, text, date, date)'::regprocedure,
-    'public.modifier_dates_promo(integer, date, date)'::regprocedure, 'public.regler_habillage_centre(integer, text, boolean)'::regprocedure,
-    'public.regler_habillage_reseau(text)'::regprocedure, 'public.creer_centre(text)'::regprocedure,
-    'public.regler_affectations_formateur(text, integer, integer[], integer)'::regprocedure,
-    'public.inviter_compte(text, text, integer, integer, integer)'::regprocedure];
+  -- Seules les fonctions qui existent : Qualiopi Q5 retire l'anonymisation (la migration 2 saute une fonction absente).
+  select coalesce(array_agg(to_regprocedure(s) order by o), '{}') from unnest(array[
+    'public.a_une_affectation(text)', 'public.accepter_brouillon_ia(bigint, text, text, text, jsonb)',
+    'public.rejeter_brouillon_ia(bigint)', 'public.anonymiser_promo()',
+    'public.etat_anonymisation_promo()', 'public.anonymiser_stagiaire(integer)',
+    'public.anonymiser_promo(integer)', 'public.etat_anonymisation_promo(integer)',
+    'public.benevoles_a_purger()', 'public.benevoles_a_purger(integer)',
+    'public.purger_benevoles(integer[])', 'public.purger_benevoles(integer[], integer)',
+    'public.venues_benevoles()', 'public.notes_stagiaires_visibles()',
+    'public.epcf_moyennes(text)', 'public.notes_stats_groupe()',
+    'public.set_date_naissance(integer, date)', 'public.emargement_feuille(bigint, boolean)',
+    'public.emargement_ouvrir(text, text, text)', 'public.emargement_signer(bigint, integer, text)',
+    'public.is_admin()', 'public.is_prof()',
+    'public.creer_promo(integer, text, date, date)', 'public.modifier_dates_promo(integer, date, date)',
+    'public.regler_habillage_centre(integer, text, boolean)', 'public.regler_habillage_reseau(text)',
+    'public.creer_centre(text)', 'public.regler_affectations_formateur(text, integer, integer[], integer)',
+    'public.inviter_compte(text, text, integer, integer, integer)'
+  ]) with ordinality u(s, o) where to_regprocedure(s) is not null;
 $tfb$;
 
 -- Un appel de fonction par un personnage : « OK <valeur> » (la valeur en texte, « nul » si nulle) ou « ERREUR <état> <message> ».
@@ -563,6 +565,9 @@ begin
     format($q$select (public.inviter_compte('preuve7.fn.invite.a@exemple.invalid', 'stagiaire', %s))->>'role'$q$, v_fiche), 'OK stagiaire');
 
   -- Effacements : les gestes définitifs restent aux titres fixes (anonymiser, benevoles.purger, donnees.purger).
+  if to_regprocedure('public.anonymiser_stagiaire(integer)') is not null and to_regprocedure('public.anonymiser_promo()') is not null
+     and to_regprocedure('public.etat_anonymisation_promo()') is not null and to_regprocedure('public.anonymiser_promo(integer)') is not null
+     and to_regprocedure('public.etat_anonymisation_promo(integer)') is not null then
   perform pg_temp.cas('anonymiser_stagiaire : t_secr refusé (la phrase ne change pas)', 't_secr', '1',
     format('select public.anonymiser_stagiaire(%s)::text', v_stag), v_refus_admin);
   perform pg_temp.cas('anonymiser_stagiaire : t_interv refusé', 't_interv', '1', format('select public.anonymiser_stagiaire(%s)::text', v_stag), v_refus_admin);
@@ -583,6 +588,7 @@ begin
   perform pg_temp.cas('etat_anonymisation_promo(p) : t_rh refusé', 't_rh', '1', 'select (public.etat_anonymisation_promo(990701))->>''promo_id''', v_refus_promo);
   perform pg_temp.cas('etat_anonymisation_promo(p) : dir_n obtient l''état', 'dir_n', '1', 'select (public.etat_anonymisation_promo(990701))->>''promo_id''', 'OK 990701');
   perform pg_temp.cas('etat_anonymisation_promo(p) : form_n obtient l''état de sa promo', 'form_n', '1', 'select (public.etat_anonymisation_promo(1))->>''promo_id''', 'OK 1');
+  end if;
 
   -- Élèves bénévoles : lire (benevoles.lire), purger (benevoles.purger du formateur ; donnees.purger de la direction).
   perform pg_temp.cas('venues_benevoles : t_interv (Stagiaires : Voir) lit les venues', 't_interv', '1',
@@ -1074,9 +1080,9 @@ begin
   if v_en_ligne or v_etat <> 'jouée' then
     perform pg_temp.informer('fonctions : empreinte avant/après', 'non jugeable (migration 2 non injectée ou déjà appliquée)');
   else
-    perform pg_temp.attendre('fonctions', 'après la migration 2 : les 29 fonctions ont une définition nouvelle (aucune n''est restée telle quelle)',
+    perform pg_temp.attendre('fonctions', 'après la migration 2 : toutes les fonctions présentes (29 sans Q5) ont une définition nouvelle (aucune n''est restée telle quelle)',
       (select count(*)::text || '/' || cardinality(pg_temp.fonctions_b())::text from pg_temp.fn_av a
-         where md5(pg_get_functiondef(a.sig::regprocedure)) <> a.h), '29/29');
+         where md5(pg_get_functiondef(a.sig::regprocedure)) <> a.h), cardinality(pg_temp.fonctions_b())::text || '/' || cardinality(pg_temp.fonctions_b())::text);
   end if;
   v_etat := pg_temp.jouer('migration 3',
 -- @@INJECTER supabase/migrations/20261112_titres_3_regles.sql@@
@@ -1482,9 +1488,9 @@ begin
   if v_en_ligne or v_etat2 <> 'jouée' or v_retour <> 'jouée' then
     perform pg_temp.informer('fonctions : empreinte après le retour 2', 'non jugeable (migration 2 ou son retour non injectés, ou déjà appliquée)');
   else
-    perform pg_temp.attendre('fonctions', 'après le retour 2 : chacune des 29 fonctions retrouve exactement son empreinte d''avant la migration',
+    perform pg_temp.attendre('fonctions', 'après le retour 2 : chacune des fonctions présentes (29 sans Q5) retrouve exactement son empreinte d''avant la migration',
       (select count(*)::text || '/' || cardinality(pg_temp.fonctions_b())::text from pg_temp.fn_av a
-         where md5(pg_get_functiondef(a.sig::regprocedure)) = a.h), '29/29');
+         where md5(pg_get_functiondef(a.sig::regprocedure)) = a.h), cardinality(pg_temp.fonctions_b())::text || '/' || cardinality(pg_temp.fonctions_b())::text);
   end if;
   v_retour := pg_temp.jouer('retour 1',
 -- @@INJECTER supabase/migrations/20261112_titres_1_tables_retour.sql@@

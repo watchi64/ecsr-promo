@@ -105,7 +105,8 @@ begin
     ('public', 'affectations', 'affectations_ajout'),
     ('public', 'affectations', 'affectations_retrait')
       ) as g(schema_name, table_name, policy_name)
-     where not exists (select 1 from pg_policies p
+     where (to_regclass(format('%I.%I', g.schema_name, g.table_name)) is not null or g.table_name <> all (array['fiches_suivi']))
+       and not exists (select 1 from pg_policies p
                         where p.schemaname = g.schema_name and p.tablename = g.table_name and p.policyname = g.policy_name)
   loop
     raise exception 'titres_3: la règle % sur %.% n''existe pas', v_regle.policy_name, v_regle.schema_name, v_regle.table_name;
@@ -376,21 +377,26 @@ alter policy dp_dossiers_suppression on public.dp_dossiers
   using (promo_id = (select public.promo_courante()) and (select public.formateur_courant()));
 
 -- fiches_suivi.fiches_suivi_lecture (20261028_roles_3_regles.sql)
-alter policy fiches_suivi_lecture on public.fiches_suivi
+do $opt$ begin if to_regclass('public.fiches_suivi') is not null then
+execute $r$alter policy fiches_suivi_lecture on public.fiches_suivi
   using (
     promo_id = (select public.promo_courante())
     and ((select public.equipe_courante()) or stagiaire_id = (select public.my_stagiaire_id()))
-  );
+  )$r$;
+end if; end $opt$;
 
 -- fiches_suivi.fiches_suivi_ajout (20261028_roles_3_regles.sql)
-alter policy fiches_suivi_ajout on public.fiches_suivi
+do $opt$ begin if to_regclass('public.fiches_suivi') is not null then
+execute $r$alter policy fiches_suivi_ajout on public.fiches_suivi
   with check (
     promo_id = (select public.promo_courante())
     and ((select public.formateur_courant()) or stagiaire_id = (select public.my_stagiaire_id()))
-  );
+  )$r$;
+end if; end $opt$;
 
 -- fiches_suivi.fiches_suivi_modification (20261028_roles_3_regles.sql)
-alter policy fiches_suivi_modification on public.fiches_suivi
+do $opt$ begin if to_regclass('public.fiches_suivi') is not null then
+execute $r$alter policy fiches_suivi_modification on public.fiches_suivi
   using (
     promo_id = (select public.promo_courante())
     and ((select public.formateur_courant()) or stagiaire_id = (select public.my_stagiaire_id()))
@@ -398,11 +404,14 @@ alter policy fiches_suivi_modification on public.fiches_suivi
   with check (
     promo_id = (select public.promo_courante())
     and ((select public.formateur_courant()) or stagiaire_id = (select public.my_stagiaire_id()))
-  );
+  )$r$;
+end if; end $opt$;
 
 -- fiches_suivi.fiches_suivi_suppression (20261028_roles_3_regles.sql)
-alter policy fiches_suivi_suppression on public.fiches_suivi
-  using (promo_id = (select public.promo_courante()) and (select public.formateur_courant()));
+do $opt$ begin if to_regclass('public.fiches_suivi') is not null then
+execute $r$alter policy fiches_suivi_suppression on public.fiches_suivi
+  using (promo_id = (select public.promo_courante()) and (select public.formateur_courant()))$r$;
+end if; end $opt$;
 
 -- qcm_attempts.qcm_attempts_lecture (20261028_roles_3_regles.sql)
 alter policy qcm_attempts_lecture on public.qcm_attempts
@@ -582,23 +591,23 @@ alter policy qcm_signalement_instruction_lecture on public.qcm_signalement_instr
 alter policy qcm_ia_brouillons_lecture on public.qcm_ia_brouillons
   using ((select public.formateur_courant()));
 
--- settings.settings_ecriture (20261028_roles_3_regles.sql)
+-- settings.settings_ecriture (20261110_navigation_unique_1_reglages.sql)
 alter policy settings_ecriture on public.settings
   using (
     promo_id = (select public.promo_courante())
     and case
-          when key in ('navigation_v2', 'emargement_actif') then (select public.est_fondateur())
-          when key = 'modules' then (select public.equipe_courante())
-          else (select public.formateur_courant())
-        end
+      when key = 'emargement_actif' then (select public.est_fondateur())
+      when key = 'modules' then (select public.equipe_courante())
+      else (select public.formateur_courant())
+    end
   )
   with check (
     promo_id = (select public.promo_courante())
     and case
-          when key in ('navigation_v2', 'emargement_actif') then (select public.est_fondateur())
-          when key = 'modules' then (select public.equipe_courante())
-          else (select public.formateur_courant())
-        end
+      when key = 'emargement_actif' then (select public.est_fondateur())
+      when key = 'modules' then (select public.equipe_courante())
+      else (select public.formateur_courant())
+    end
   );
 
 -- contacts.contacts_ecriture (20261028_roles_3_regles.sql)
