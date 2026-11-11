@@ -3,6 +3,8 @@
 -- après l'étape 1) ; la migration 4 (journal) n'y est pas, sauf demande (--etapes 4,5,6).
 --   structure    prérequis de l'étape 1 présents (titre_fixe, geste_promo, la règle affectations_ajout réécrite par la migration 3),
 --                chaque migration et chaque retour injectés se jouent sans erreur, personnages de l'étape 2 posés.
+--   retrait      (migration 5, A) retirer_titre pour les titres fixes : droits, phrases de refus, jamais sur soi, aperçu du fondateur.
+--   soi          (migration 5, A) personne ne se nomme soi-même à la direction par inviter_compte (le fondateur, hors aperçu, excepté).
 --   retour       les retours défont tout, dans l'ordre inverse (6, 5, 4) : l'empreinte (règles, fonctions, droits) égale celle d'avant.
 -- Les groupes des migrations 5 et 6 s'ajoutent avec leurs tâches (retrait, soi, ecritures, lectures ; puis verrou, donner, retirer,
 -- gerer, lire, immediat, journal). Un groupe dont la fonction n'existe pas est sauté, avec une ligne d'information, en mode
@@ -95,6 +97,200 @@ begin
   return true;
 end $tgp$;
 
+-- Un appel de fonction par un personnage, avec un en-tête de promo et un éventuel aperçu du fondateur : « OK <valeur> » (la valeur en
+-- texte, « nul » si nulle) ou « ERREUR <état> <message> ». Rend la main au propriétaire. p_qui nul : un jeton sans adresse (rôle
+-- authenticated, aucun e-mail dans les claims).
+create or replace function pg_temp.appeler_a(p_qui text, p_entete text, p_apercu text, p_sql text)
+returns text language plpgsql as $tap2$
+declare v text; r text;
+begin
+  if p_qui is null then
+    perform pg_temp.contexte('x@exemple.invalid', p_entete, p_apercu);
+    perform set_config('request.jwt.claims', '{"role":"authenticated"}', true);
+    set local role authenticated;
+  else
+    perform pg_temp.incarner((select email from pg_temp.perso where nom = p_qui), p_entete, p_apercu);
+  end if;
+  begin
+    execute p_sql into v;
+    r := rtrim('OK ' || coalesce(v, 'nul'));
+  exception when others then
+    r := 'ERREUR ' || sqlstate || ' ' || sqlerrm;
+  end;
+  perform pg_temp.proprio();
+  return r;
+end $tap2$;
+
+-- retirer_titre(adresse, titre, centre) jouée par un personnage : « OK <lignes retirées> » ou l'erreur. p_titre et p_lieu en texte
+-- (un identifiant ou « null »).
+create or replace function pg_temp.retirer(p_qui text, p_entete text, p_apercu text, p_email text, p_titre text, p_lieu text)
+returns text language sql as $tre$
+  select pg_temp.appeler_a(p_qui, p_entete, p_apercu,
+    format($q$select (public.retirer_titre(%L, %s, %s))->>'retirees'$q$, p_email, p_titre, p_lieu));
+$tre$;
+
+-- Le nombre de lignes d'affectation d'une adresse (casse ignorée) pour un rôle, en texte.
+create or replace function pg_temp.lignes(p_email text, p_role text)
+returns text language sql as $tli$
+  select pg_temp.calcul(format('select count(*)::text from public.affectations where lower(email) = lower(%L) and role = %L', p_email, p_role));
+$tli$;
+
+-- Groupe retrait (migration 5, partie A) : retirer_titre pour les titres fixes. Attendus écrits en dur ; chaque retrait réussi est
+-- suivi de la remise de la ligne, pour que les groupes suivants retrouvent leurs personnages.
+create or replace function pg_temp.groupe_retrait()
+returns void language plpgsql as $tgr$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_l2 integer := (select lieu_id from public.promos where id = 2);
+  t_form text := pg_temp.calcul($q$select public.titre_fixe('promo')::text$q$);
+  t_dir text := pg_temp.calcul($q$select public.titre_fixe('centre')::text$q$);
+  t_siege text := pg_temp.calcul($q$select public.titre_fixe('reseau')::text$q$);
+  t_interv text := pg_temp.calcul($q$select a.titre_id::text from public.affectations a join pg_temp.perso p on lower(a.email) = p.email where p.nom = 't_interv'$q$);
+  e_form_n text := (select email from pg_temp.perso where nom = 'form_n');
+  e_form_m text := (select email from pg_temp.perso where nom = 'form_m');
+  e_dir_n text := (select email from pg_temp.perso where nom = 'dir_n');
+  e_dir_deux text := (select email from pg_temp.perso where nom = 'dir_deux');
+  e_siege text := (select email from pg_temp.perso where nom = 'siege');
+  e_siege_form text := (select email from pg_temp.perso where nom = 'siege_form');
+  e_fond text := (select email from pg_temp.perso where nom = 'fond');
+  e_x text := (select email from pg_temp.perso where nom = 'x');
+  e_interv text := (select email from pg_temp.perso where nom = 't_interv');
+  v_l1t text := v_l1::text;
+  v_l2t text := v_l2::text;
+begin
+  -- Le titre fixe de chaque niveau existe et les personnages portent bien leurs lignes (jamais un contrôle à vide).
+  perform pg_temp.verifier('retrait', 'départ : form_n a une ligne formateur, dir_n une ligne direction, siege_form une ligne siège, et les titres existent',
+    pg_temp.lignes(e_form_n, 'formateur') = '1' and pg_temp.lignes(e_dir_n, 'direction') = '1' and pg_temp.lignes(e_siege_form, 'siege') = '1'
+    and t_form ~ '^[0-9]+$' and t_dir ~ '^[0-9]+$' and t_siege ~ '^[0-9]+$' and t_interv ~ '^[0-9]+$' and t_interv <> t_form,
+    format('lignes %s/%s/%s ; titres %s %s %s %s', pg_temp.lignes(e_form_n, 'formateur'), pg_temp.lignes(e_dir_n, 'direction'),
+      pg_temp.lignes(e_siege_form, 'siege'), t_form, t_dir, t_siege, t_interv));
+
+  -- La direction retire un Formateur de son centre.
+  perform pg_temp.attendre('retrait', 'dir_n retire Formateur de form_n (centre de la promo 1) : une ligne',
+    pg_temp.retirer('dir_n', '1', null, e_form_n, t_form, v_l1t), 'OK 1');
+  perform pg_temp.attendre('retrait', 'après ce retrait, form_n n''a plus de ligne formateur', pg_temp.lignes(e_form_n, 'formateur'), '0');
+  perform pg_temp.affecter(e_form_n, 'formateur', 1, null, null);
+  perform pg_temp.attendre('retrait', 'dir_n retire Formateur de form_n avec l''adresse écrite en majuscules (casse ignorée) : une ligne',
+    pg_temp.retirer('dir_n', '1', null, upper(e_form_n), t_form, v_l1t), 'OK 1');
+  perform pg_temp.affecter(e_form_n, 'formateur', 1, null, null);
+  perform pg_temp.attendre('retrait', 'dir_n retire Formateur de form_m sur le centre de la promo 2 : refusé (42501), la ligne reste',
+    pg_temp.retirer('dir_n', '1', null, e_form_m, t_form, v_l2t) || ' / ' || pg_temp.lignes(e_form_m, 'formateur'),
+    'ERREUR 42501 titres: Réservé à la direction du centre. / 1');
+  perform pg_temp.attendre('retrait', 'form_n se retire Formateur : refusé (42501, droit), sa ligne reste',
+    pg_temp.retirer('form_n', '1', null, e_form_n, t_form, v_l1t) || ' / ' || pg_temp.lignes(e_form_n, 'formateur'),
+    'ERREUR 42501 titres: Réservé à la direction du centre. / 1');
+  -- La directrice qui forme : elle retire son propre Formateur.
+  perform pg_temp.attendre('retrait', 'dir_n se donne Formateur sur la promo 1 (regler_affectations_formateur)',
+    pg_temp.appeler_a('dir_n', '1', null, format($q$select (public.regler_affectations_formateur(%L, %s, '{1}'))->>'ajoutees'$q$, e_dir_n, v_l1t))
+      || ' / ' || pg_temp.lignes(e_dir_n, 'formateur'), 'OK [1] / 1');
+  perform pg_temp.attendre('retrait', 'dir_n se retire Formateur (la directrice qui forme) : permis, une ligne ; sa direction reste',
+    pg_temp.retirer('dir_n', '1', null, e_dir_n, t_form, v_l1t) || ' / ' || pg_temp.lignes(e_dir_n, 'formateur') || ' / ' || pg_temp.lignes(e_dir_n, 'direction'),
+    'OK 1 / 0 / 1');
+  -- Direction de centre : le siège ; jamais sur soi.
+  perform pg_temp.attendre('retrait', 'siege retire Direction de centre de dir_n : une ligne',
+    pg_temp.retirer('siege', null, null, e_dir_n, t_dir, v_l1t) || ' / ' || pg_temp.lignes(e_dir_n, 'direction'), 'OK 1 / 0');
+  perform pg_temp.affecter(e_dir_n, 'direction', null, v_l1, null);
+  perform pg_temp.attendre('retrait', 'dir_n se retire Direction de centre : refusé (42501), la ligne reste',
+    pg_temp.retirer('dir_n', '1', null, e_dir_n, t_dir, v_l1t) || ' / ' || pg_temp.lignes(e_dir_n, 'direction'),
+    'ERREUR 42501 titres: Réservé au siège. / 1');
+  perform pg_temp.attendre('retrait', 'dir_n retire la direction de dir_deux : refusé (42501), les deux lignes restent',
+    pg_temp.retirer('dir_n', '1', null, e_dir_deux, t_dir, v_l1t) || ' / ' || pg_temp.lignes(e_dir_deux, 'direction'),
+    'ERREUR 42501 titres: Réservé au siège. / 2');
+  perform pg_temp.attendre('retrait', 'siege retire la direction du centre 1 de dir_deux : une ligne, celle du centre 2 reste',
+    pg_temp.retirer('siege', null, null, e_dir_deux, t_dir, v_l1t) || ' / ' || pg_temp.lignes(e_dir_deux, 'direction'), 'OK 1 / 1');
+  perform pg_temp.affecter(e_dir_deux, 'direction', null, v_l1, null);
+  -- Jamais sur soi, sans exemption pour le siège : un siège qui tient aussi une direction ne s'en défait pas lui-même.
+  perform pg_temp.affecter(e_siege, 'direction', null, v_l1, null);
+  perform pg_temp.attendre('retrait', 'siege qui tient aussi une direction : se retirer cette Direction de centre est refusé (42501, jamais sur soi), la ligne reste',
+    pg_temp.retirer('siege', null, null, e_siege, t_dir, v_l1t) || ' / ' || pg_temp.lignes(e_siege, 'direction'),
+    'ERREUR 42501 titres: Vous ne pouvez pas retirer votre propre titre. / 1');
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L and role = ''direction''', e_siege));
+  -- Siège : le fondateur seul ; le centre donné est ignoré au niveau du réseau.
+  perform pg_temp.attendre('retrait', 'siege retire Siège de siege_form : refusé (42501), la ligne reste',
+    pg_temp.retirer('siege', null, null, e_siege_form, t_siege, 'null') || ' / ' || pg_temp.lignes(e_siege_form, 'siege'),
+    'ERREUR 42501 titres: Réservé au fondateur. / 1');
+  perform pg_temp.attendre('retrait', 'fond retire Siège de siege_form (un centre quelconque donné, ignoré) : une ligne',
+    pg_temp.retirer('fond', '1', null, e_siege_form, t_siege, v_l2t) || ' / ' || pg_temp.lignes(e_siege_form, 'siege'), 'OK 1 / 0');
+  perform pg_temp.affecter(e_siege_form, 'siege', null, null, null);
+  perform pg_temp.affecter(e_fond, 'siege', null, null, null);
+  perform pg_temp.attendre('retrait', 'fond, qui tient une ligne Siège, se la retire : permis (le fondateur est excepté de « jamais sur soi »)',
+    pg_temp.retirer('fond', '1', null, e_fond, t_siege, 'null') || ' / ' || pg_temp.lignes(e_fond, 'siege'), 'OK 1 / 0');
+  -- Les phrases de refus, dans l'ordre des contrôles.
+  perform pg_temp.attendre('retrait', 'un titre qui n''existe pas : « Titre introuvable. »',
+    pg_temp.retirer('dir_n', '1', null, e_form_n, '999999999', v_l1t), 'ERREUR P0001 titres: Titre introuvable.');
+  perform pg_temp.attendre('retrait', 'un titre de promo sans centre : « Le centre est requis. »',
+    pg_temp.retirer('dir_n', '1', null, e_form_n, t_form, 'null'), 'ERREUR P0001 titres: Le centre est requis.');
+  perform pg_temp.attendre('retrait', 'un titre de centre avec un centre qui n''existe pas : « Le centre est requis. »',
+    pg_temp.retirer('siege', null, null, e_dir_n, t_dir, '999999999'), 'ERREUR P0001 titres: Le centre est requis.');
+  perform pg_temp.attendre('retrait', 'une personne qui n''a pas ce titre : « Cette personne n''a pas ce titre ici. »',
+    pg_temp.retirer('dir_n', '1', null, e_x, t_form, v_l1t), 'ERREUR P0001 titres: Cette personne n''a pas ce titre ici.');
+  perform pg_temp.attendre('retrait', 'un Formateur d''un autre centre (form_m, centre 2) retiré par dir_n sur son propre centre : « Cette personne n''a pas ce titre ici. »',
+    pg_temp.retirer('dir_n', '1', null, e_form_m, t_form, v_l1t), 'ERREUR P0001 titres: Cette personne n''a pas ce titre ici.');
+  perform pg_temp.attendre('retrait', 'un titre non fixe (t_interv) : « Ce titre ne se retire pas encore ici. », la ligne reste',
+    pg_temp.retirer('dir_n', '1', null, e_interv, t_interv, v_l1t) || ' / ' || pg_temp.lignes(e_interv, 'formateur'),
+    'ERREUR P0001 titres: Ce titre ne se retire pas encore ici. / 1');
+  perform pg_temp.attendre('retrait', 'un jeton sans adresse : « Connexion requise. » (42501)',
+    pg_temp.retirer(null, '1', null, e_form_n, t_form, v_l1t), 'ERREUR 42501 titres: Connexion requise.');
+  -- L'aperçu du fondateur : il vaut le rôle simulé, jamais plus.
+  perform pg_temp.attendre('retrait', 'fond en aperçu direction sur la promo 1 retire Formateur de form_n : une ligne',
+    pg_temp.retirer('fond', '1', 'direction', e_form_n, t_form, v_l1t), 'OK 1');
+  perform pg_temp.affecter(e_form_n, 'formateur', 1, null, null);
+  perform pg_temp.attendre('retrait', 'fond en aperçu direction retire Direction de centre : refusé (42501), la ligne reste',
+    pg_temp.retirer('fond', '1', 'direction', e_dir_n, t_dir, v_l1t) || ' / ' || pg_temp.lignes(e_dir_n, 'direction'),
+    'ERREUR 42501 titres: Réservé au siège. / 1');
+  perform pg_temp.attendre('retrait', 'fond en aperçu siège retire Siège de siege_form : refusé (42501), la ligne reste',
+    pg_temp.retirer('fond', null, 'siege', e_siege_form, t_siege, 'null') || ' / ' || pg_temp.lignes(e_siege_form, 'siege'),
+    'ERREUR 42501 titres: Réservé au fondateur. / 1');
+  perform pg_temp.attendre('retrait', 'fond en aperçu stagiaire ne retire rien : refusé (42501), la ligne reste',
+    pg_temp.retirer('fond', '1', 'stagiaire', e_form_n, t_form, v_l1t) || ' / ' || pg_temp.lignes(e_form_n, 'formateur'),
+    'ERREUR 42501 titres: Réservé à la direction du centre. / 1');
+  perform pg_temp.attendre('retrait', 'form_n qui envoie un en-tête d''aperçu direction (qu''il n''a pas le droit d''envoyer) ne gagne rien : refusé (42501)',
+    pg_temp.retirer('form_n', '1', 'direction', e_form_m, t_form, v_l1t), 'ERREUR 42501 titres: Réservé à la direction du centre.');
+  perform pg_temp.attendre('retrait', 'les droits d''exécution : authenticated oui, anon non, PUBLIC non',
+    pg_temp.calcul($q$select concat_ws('/', has_function_privilege('authenticated', 'public.retirer_titre(text, bigint, integer)', 'execute')::text,
+      has_function_privilege('anon', 'public.retirer_titre(text, bigint, integer)', 'execute')::text,
+      (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = 'public.retirer_titre(text, bigint, integer)'::regprocedure and a.grantee = 0)::text)$q$),
+    'true/false/0');
+end $tgr$;
+
+-- Groupe soi (migration 5, partie A) : personne ne se nomme soi-même à la direction par inviter_compte (le fondateur, hors aperçu, excepté).
+create or replace function pg_temp.groupe_soi()
+returns void language plpgsql as $tgs$
+declare
+  v_l1t text := (select lieu_id::text from public.promos where id = 1);
+  e_siege text := (select email from pg_temp.perso where nom = 'siege');
+  e_x text := (select email from pg_temp.perso where nom = 'x');
+  e_f2 text := 'preuve8.fond2@exemple.invalid';
+  v_phrase constant text := 'ERREUR 42501 invitation: Vous ne pouvez pas vous nommer vous-même à la direction.';
+begin
+  -- Un fondateur sans fiche de stagiaire (le fondateur de la preuve précédente en a une, ce que inviter_compte refuse pour un autre motif).
+  insert into pg_temp.perso (ordre, nom, email, role, fondateur) values (56, 'fond2', e_f2, 'prof', true);
+  insert into public.user_profiles (email, role, is_admin, is_founder, stagiaire_id) values (e_f2, 'prof', true, true, null);
+  perform pg_temp.attendre('soi', 'siege s''invite à la direction : refusé (42501, la phrase exacte), aucune ligne écrite',
+    pg_temp.appeler_a('siege', null, null, format($q$select (public.inviter_compte(%L, 'direction', null, null, %s))->>'affecte'$q$, e_siege, v_l1t))
+      || ' / ' || pg_temp.lignes(e_siege, 'direction'), v_phrase || ' / 0');
+  perform pg_temp.attendre('soi', 'siege invite une autre adresse à la direction : une ligne écrite',
+    pg_temp.appeler_a('siege', null, null, format($q$select (public.inviter_compte(%L, 'direction', null, null, %s))->>'affecte'$q$, e_x, v_l1t))
+      || ' / ' || pg_temp.lignes(e_x, 'direction'), 'OK 1 / 1');
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L', e_x));
+  perform pg_temp.essai(format('delete from public.user_profiles where lower(email) = %L', e_x));
+  perform pg_temp.attendre('soi', 'fond2 (fondateur sans fiche) s''invite à la direction : permis, une ligne',
+    pg_temp.appeler_a('fond2', '1', null, format($q$select (public.inviter_compte(%L, 'direction', null, null, %s))->>'affecte'$q$, e_f2, v_l1t))
+      || ' / ' || pg_temp.lignes(e_f2, 'direction'), 'OK 1 / 1');
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L', e_f2));
+  perform pg_temp.attendre('soi', 'fond2 en aperçu siège s''invite à la direction : refusé (42501), aucune ligne',
+    pg_temp.appeler_a('fond2', null, 'siege', format($q$select (public.inviter_compte(%L, 'direction', null, null, %s))->>'affecte'$q$, e_f2, v_l1t))
+      || ' / ' || pg_temp.lignes(e_f2, 'direction'), v_phrase || ' / 0');
+  perform pg_temp.attendre('soi', 'fond2 en aperçu direction ne s''invite pas non plus (réservé au siège : 42501)',
+    pg_temp.appeler_a('fond2', '1', 'direction', format($q$select (public.inviter_compte(%L, 'direction', null, null, %s))->>'affecte'$q$, e_f2, v_l1t))
+      || ' / ' || pg_temp.lignes(e_f2, 'direction'), 'ERREUR 42501 invitation: Réservé au siège. / 0');
+  perform pg_temp.attendre('soi', 'la casse ne contourne pas la règle : siege s''invite avec son adresse en majuscules, refusé (42501), aucune ligne',
+    pg_temp.appeler_a('siege', null, null, format($q$select (public.inviter_compte(%L, 'direction', null, null, %s))->>'affecte'$q$, upper(e_siege), v_l1t))
+      || ' / ' || pg_temp.lignes(e_siege, 'direction'), v_phrase || ' / 0');
+  perform pg_temp.essai(format('delete from public.user_profiles where lower(email) = %L', e_f2));
+  perform pg_temp.essai('delete from pg_temp.perso where nom = ''fond2''');
+end $tgs$;
+
 do $tprg$
 declare
   v_mode constant text :=
@@ -148,7 +344,13 @@ begin
       (select count(*) from public.affectations a join public.titres t on t.id = a.titre_id where not t.fixe and a.email like 'preuve8.t.%')::text)$q$),
     '4/5/1/1/4');
 
-  -- 4. Les groupes des migrations 5 et 6 s'ajoutent ici, avec leurs tâches.
+  -- 4. Les groupes de la migration 5 (fermetures), puis de la migration 6 (gestion), avec leurs tâches.
+  if pg_temp.groupe_a_jouer('retrait', v_etat5, 'public.retirer_titre(text, bigint, integer)', v_mode) then
+    perform pg_temp.groupe_retrait();
+  end if;
+  if pg_temp.groupe_a_jouer('soi', v_etat5, 'public.retirer_titre(text, bigint, integer)', v_mode) then
+    perform pg_temp.groupe_soi();
+  end if;
 
   -- 5. Les retours, dans l'ordre inverse (6, 5, 4).
   v_retour6 := pg_temp.jouer('retour 6',
