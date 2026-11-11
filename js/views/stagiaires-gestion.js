@@ -201,7 +201,7 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
         title: "Effacer ses données personnelles (irréversible)",
         onClick: async () => {
           const saisie = await demander({ titre: `Effacer les données de ${displayStagiaire(it)} ?`,
-            phrase: "Supprimés : compte de connexion, e-mail, date de naissance, livret EPCF, dossier professionnel, fiche de suivi, "
+            phrase: "Supprimés : compte de connexion, e-mail, date de naissance, livret EPCF, dossier professionnel, "
               + "commentaires. Conservés sans nom : notes, QCM, passages, évaluations EPCF. Irréversible.",
             libelle: `Pour confirmer, tapez le prénom : ${it.prenom}`, oui: "Effacer les données",
             verifier: (v) => confirmationValide(v, it.prenom), erreur: "Le prénom ne correspond pas : rien n'est effacé." });
