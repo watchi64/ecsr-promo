@@ -907,15 +907,14 @@ function rerender(container) {
   const onglets = [
     admin && !laClasse && !dansCentre ? { key: "saisir", label: "Saisir", render: (p) => renderSaisie(p, ctxSaisie) } : null,
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
-    // « Évaluations EPCF » : le nom de la partie EPCF sous la nouvelle navigation (lot D du 10/11) ; l'ancienne garde « EPCF ».
-    { key: "epcf", label: v2 ? "Évaluations EPCF" : "EPCF", module: "epcf", render: (p, ctx) => {
+    // « Évaluations EPCF » : le nom de la partie EPCF (lot D du 10/11).
+    { key: "epcf", label: "Évaluations EPCF", module: "epcf", render: (p, ctx) => {
         renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive,
           contexte: contexteEtatVide({ classe: false, admin, personnel: formateurConnecte() || dansCentre }) })
           .catch((e) => {
             console.error(e);
             if (!ctx || ctx.isActive()) {
               clear(p);
-              // L'onglet est aussi celui des stagiaires sous l'ancienne navigation.
               p.appendChild(el("p", { class: "muted" }, selonPublic(
                 "Erreur de chargement des évaluations EPCF. Reviens sur l'onglet pour réessayer.",
                 "Erreur de chargement des évaluations EPCF. Revenez sur l'onglet pour réessayer.")));

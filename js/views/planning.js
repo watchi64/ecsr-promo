@@ -3005,6 +3005,10 @@ function nonEmpty(v) {
 }
 
 function lookupProf(id) { return profs.find((p) => p.id === id)?.nom || ""; }
+function lookupStagiaire(id) {
+  const s = stagiaires.find((x) => x.id === id);
+  return s ? displayStagiaire(s) : "";
+}
 function lookupBenevole(id) { return benevoles.find((b) => b.id === id)?.display || ""; }
 
 // Nom affiché à l'impression : « Lucie M. » (displayStagiaire), le format de tous les écrans (décision du 10/11) ;
