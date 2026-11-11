@@ -19,7 +19,7 @@ import { getCurrentWho } from "../identity.js?v=20261110e";
 import { telLink } from "./benevoles.js?v=20261110e";
 import { meilleurResultat } from "../passage-rules.js?v=20261110e";
 import { formateurConnecte } from "../modules-etat.js?v=20261110e";
-import { libelleHeure } from "../emargement-rules.js?v=20261110e";
+import { libelleHeure, jourFerie } from "../emargement-rules.js?v=20261110e";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110e";
 import {
   entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe, colonnesParalleles,
@@ -139,41 +139,7 @@ function metaFor(d, half) {
       || { day_index: d, half_day: half, ...DEFAULT_HALF_META[half] };
 }
 
-// === Jours fériés français (calculés, pas stockés) + jours désactivés manuellement ===
-
-// Dimanche de Pâques (algorithme de Meeus/Butcher) → base des fériés mobiles.
-function easterSunday(year) {
-  const a = year % 19, b = Math.floor(year / 100), c = year % 100;
-  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const month = Math.floor((h + l - 7 * m + 114) / 31);   // 3 = mars, 4 = avril
-  const day = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(year, month - 1, day);
-}
-
-// Map "AAAA-MM-JJ" -> libellé, pour une année. Fériés nationaux métropole.
-const _holidayCache = {};
-function frenchHolidays(year) {
-  if (_holidayCache[year]) return _holidayCache[year];
-  const map = {};
-  const add = (dt, label) => { map[isoDate(dt)] = label; };
-  add(new Date(year, 0, 1), "Jour de l'an");
-  add(new Date(year, 4, 1), "Fête du Travail");
-  add(new Date(year, 4, 8), "Victoire 1945");
-  add(new Date(year, 6, 14), "Fête nationale");
-  add(new Date(year, 7, 15), "Assomption");
-  add(new Date(year, 10, 1), "Toussaint");
-  add(new Date(year, 10, 11), "Armistice");
-  add(new Date(year, 11, 25), "Noël");
-  const easter = easterSunday(year);
-  add(addDays(easter, 1), "Lundi de Pâques");
-  add(addDays(easter, 39), "Ascension");
-  add(addDays(easter, 50), "Lundi de Pentecôte");
-  _holidayCache[year] = map;
-  return map;
-}
+// === Jours fériés français (calculés, pas stockés : jourFerie, js/emargement-rules.js) + jours désactivés manuellement ===
 
 // État d'un jour : off (désactivé), son libellé, et s'il est manuel (donc réactivable en 1 clic)
 // ou automatique (férié calculé, pas de ligne en base).
@@ -181,7 +147,7 @@ function dayOffInfo(dayIndex, monday) {
   const manual = joursOff.find((j) => j.day_index === dayIndex);
   if (manual) return { off: true, label: manual.label || "Désactivé", manual: true };
   const date = addDays(monday, dayIndex);
-  const holiday = frenchHolidays(date.getFullYear())[isoDate(date)];
+  const holiday = jourFerie(isoDate(date));
   if (holiday) return { off: true, label: holiday, manual: false, ferie: true };
   return { off: false };
 }
