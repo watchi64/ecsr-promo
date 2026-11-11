@@ -275,11 +275,8 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
 ('public.epcf_livrets', $mx$r.promo_id = {P} and ({E} or r.stagiaire_id = {fiche_p})$mx$,
   $mx$r.promo_id = {P} and {F}$mx$, $mx$r.promo_id = {P} and {F}$mx$, $mx$r.promo_id = {P} and {F}$mx$,
   $mx$updated_by_who = 'PreuveMaj'$mx$, null),
--- Dossier professionnel et fiche de suivi : P et (E ou M) ; ajout et modification P et (F ou M) ; suppression P et F.
+-- Dossier professionnel (fiche de suivi jusqu'au 11/11, table supprimée) : P et (E ou M) ; ajout et modification P et (F ou M) ; suppression P et F.
 ('public.dp_dossiers', $mx$r.promo_id = {P} and ({E} or r.stagiaire_id = {fiche_p})$mx$,
-  $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche_p})$mx$, $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche_p})$mx$,
-  $mx$r.promo_id = {P} and {F}$mx$, $mx$updated_by_who = 'PreuveMaj'$mx$, null),
-('public.fiches_suivi', $mx$r.promo_id = {P} and ({E} or r.stagiaire_id = {fiche_p})$mx$,
   $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche_p})$mx$, $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche_p})$mx$,
   $mx$r.promo_id = {P} and {F}$mx$, $mx$updated_by_who = 'PreuveMaj'$mx$, null),
 -- Passages : P (inchangé) ; P et F, plus l'ajout et la modification des siens (fiche du profil, inchangé).
@@ -467,9 +464,6 @@ insert into ajouts (tbl, sorte, libelle, modele, marque, prep) values
 ('public.dp_dossiers', 'stagiaire', null,
   $aj$insert into public.dp_dossiers (stagiaire_id, updated_by_who) values ({c_stag}, 'PreuveAjout')$aj$,
   $aj$r.updated_by_who = 'PreuveAjout'$aj$, $aj$delete from public.dp_dossiers where stagiaire_id = {c_stag}$aj$),
-('public.fiches_suivi', 'stagiaire', null,
-  $aj$insert into public.fiches_suivi (stagiaire_id, besoins) values ({c_stag}, 'PreuveAjout')$aj$,
-  $aj$r.besoins = 'PreuveAjout'$aj$, $aj$delete from public.fiches_suivi where stagiaire_id = {c_stag}$aj$),
 ('public.passages', 'stagiaire', null,
   $aj$insert into public.passages (date, stagiaire_id, type, resultat, commentaire) values ('2031-01-06', {c_stag}, 'Salle', 'Effectué', 'PreuveAjout')$aj$,
   $aj$r.commentaire = 'PreuveAjout'$aj$, null),
@@ -731,7 +725,6 @@ begin
     ('public.stagiaires', 'r.promo_id = ' || v_pp),
     ('public.dp_dossiers', format('r.promo_id = %s and (%s or r.stagiaire_id = %s)', v_pp, v_e::text, v_fi)),
     ('public.epcf_livrets', format('r.promo_id = %s and (%s or r.stagiaire_id = %s)', v_pp, v_e::text, v_fi)),
-    ('public.fiches_suivi', format('r.promo_id = %s and (%s or r.stagiaire_id = %s)', v_pp, v_e::text, v_fi)),
     ('public.emargement_formateurs', format('r.promo_id = %s and %s', v_pp, v_e::text)),
     ('public.benevoles', format('r.lieu_id = %s and %s', v_lieu, v_e::text)),
     ('public.qcm_questions', 'true'), ('public.themes', 'true'), ('public.contacts', 'true'),
@@ -1333,7 +1326,6 @@ begin
       insert into public.epcf_evaluations (stagiaire_id, trame, commentaire) values (v_r.id, 'salle', 'Preuve');
       insert into public.epcf_livrets (stagiaire_id) values (v_r.id);
       insert into public.dp_dossiers (stagiaire_id) values (v_r.id);
-      insert into public.fiches_suivi (stagiaire_id) values (v_r.id);
       insert into public.passages (date, stagiaire_id, type, resultat, commentaire) values ('2030-01-07', v_r.id, 'Salle', 'Effectué', 'Preuve');
       insert into public.qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20) values (v_qcm_a, v_r.id, 'entrainement', 1, 2, 10);
       insert into public.emargement_lignes (seance_id, promo_id, stagiaire_id) values (v_seance, v_pr, v_r.id);
@@ -2088,11 +2080,10 @@ begin
     v_l1 := (select pr.lieu_id from public.promos pr where pr.id = 1);
     v_l2 := (select pr.lieu_id from public.promos pr where pr.id = 2);
     -- Les tables sondées ont des lignes dans les promos 1 et 2 : les zéros qui suivent sont de vrais zéros.
-    perform pg_temp.verifier('sans rôle', 'les tables sondées ont des lignes dans les promos 1 et 2 (planning, dossiers, livrets, fiches de suivi, bénévoles du lieu)',
+    perform pg_temp.verifier('sans rôle', 'les tables sondées ont des lignes dans les promos 1 et 2 (planning, dossiers, livrets, bénévoles du lieu)',
       (select bool_and(q.cpt > 0) from (select (select count(*) from public.planning_entries where promo_id = x) as cpt from unnest(array[1, 2]) x
         union all select (select count(*) from public.dp_dossiers where promo_id = x) from unnest(array[1, 2]) x
         union all select (select count(*) from public.epcf_livrets where promo_id = x) from unnest(array[1, 2]) x
-        union all select (select count(*) from public.fiches_suivi where promo_id = x) from unnest(array[1, 2]) x
         union all select (select count(*) from public.benevoles where lieu_id = (select pr.lieu_id from public.promos pr where pr.id = x)) from unnest(array[1, 2]) x) q),
       'tables vides = zéros sans valeur');
 
@@ -2189,7 +2180,7 @@ begin
       'promo de la fiche : ' || coalesce((select s.promo_id::text from public.stagiaires s where s.id = v_fi), 'absente'));
     perform pg_temp.verifier('fiche déplacée', 'stag_n avait des données privées en promo 1 (sinon les zéros ne prouvent rien)',
       (select count(*) from public.dp_dossiers where stagiaire_id = v_fi) + (select count(*) from public.epcf_livrets where stagiaire_id = v_fi)
-      + (select count(*) from public.fiches_suivi where stagiaire_id = v_fi) > 0, 'aucun dossier, livret ni fiche de suivi pour cette fiche');
+      > 0, 'aucun dossier ni livret pour cette fiche');
     foreach v_ctx in array c_contextes loop
       v_pc := case v_ctx when '2' then 2 when '1' then null when '7' then null else 2 end;
       perform pg_temp.sondes('fiche déplacée', 'stag_n fiche en promo 2', c_stag_n, v_ctx, v_pc, false, false, case when v_pc = 2 then v_fi end, true);
