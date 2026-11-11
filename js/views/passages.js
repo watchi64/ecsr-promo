@@ -1,12 +1,11 @@
-import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261111b";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe, nomLisible } from "../utils.js?v=20261111b";
-import { confirmer } from "../confirmer.js?v=20261111b";
-import { icon } from "../icons.js?v=20261111b";
-import { recordUndo } from "../undo.js?v=20261111b";
-import { TYPES, RESULTATS } from "../config.js?v=20261111b";
-import { isAdmin, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111b";
-import { getCurrentWho } from "../identity.js?v=20261111b";
-import { navigationV2Active } from "../nav-etat.js?v=20261111b";
+import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261111e";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe, nomLisible } from "../utils.js?v=20261111e";
+import { confirmer } from "../confirmer.js?v=20261111e";
+import { icon } from "../icons.js?v=20261111e";
+import { recordUndo } from "../undo.js?v=20261111e";
+import { TYPES, RESULTATS } from "../config.js?v=20261111e";
+import { isAdmin, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111e";
+import { getCurrentWho } from "../identity.js?v=20261111e";
 
 let stagiaires = [];
 let passages = [];
@@ -301,11 +300,11 @@ function rerender(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, passages.length + " entrées au total"),
       el("h2", {}, "Historique des passages"),
-      // Nouvelle navigation : « formateurs », le mot de l'app (un stagiaire lit cette page dans Planning > Ordre de passage).
+      // « formateurs », le mot de l'app (un stagiaire lit cette page dans Planning > Ordre de passage).
       // « passages » se définit à sa première apparition visible de l'écran (lot D du 10/11).
       el("p", { class: "subtitle" }, peutAjouter
         ? "Tous les passages (au tableau et en voiture). Ajout ouvert à tous, suppression réservée aux "
-          + (navigationV2Active() ? "formateurs" : "admins") + ". Chaque action est tracée."
+          + "formateurs. Chaque action est tracée."
         : "Tous les passages (au tableau et en voiture) de la promo, en lecture. Chaque action est tracée."),
     ),
     el("div", { style: "display:flex;gap:0.5rem;flex-wrap:wrap" }, histBtn, peutAjouter ? addBtn : null),

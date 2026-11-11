@@ -709,8 +709,12 @@ ok(section(c, "innovations").paragraphes.slice(2).every((p) => /^\d{2}\/\d{2}\/\
 eq(section(centre({ nouveautes: [] }), "innovations"),
   { id: "innovations", titre: "Innovations", indicateurs: [25], paragraphes: ["Aucune annonce de l'application dans la période."], tableaux: [] },
   "aucune annonce");
+eq(section(centre({ nouveautes: [...NOUVEAUTES, { ...NOUVEAUTE("n", "2026-10-10", "Une barre d'onglets plus simple"), navigation: "ancienne" }] }), "innovations").paragraphes,
+  section(c, "innovations").paragraphes, "une annonce de l'ancienne barre (retirée le 10/11) n'est ni comptée ni citée");
 eq(section(centre({ nouveautes: [...NOUVEAUTES, { ...NOUVEAUTE("n", "2026-10-10", "Une navigation plus simple"), navigation: "nouvelle" }] }), "innovations").paragraphes,
-  section(c, "innovations").paragraphes, "une annonce de la nouvelle barre n'est ni comptée ni citée tant qu'elle est éteinte");
+  ["4 annonces de l'application du 15/09/2026 au 20/10/2026.", INTRO_ANNONCES,
+    "15/09/2026 : « Nouveauté publique a »", ENTREE_B, "10/10/2026 : « Une navigation plus simple »", ENTREE_C],
+  "une annonce de la nouvelle barre est comptée et citée (une seule navigation depuis le 10/11)");
 eq(section(centre({ periode: { du: "2026-10-01", au: "2026-10-20" } }), "innovations").paragraphes,
   ["2 annonces de l'application du 02/10/2026 au 20/10/2026.", INTRO_ANNONCES, ENTREE_B, ENTREE_C], "bornes de la période comprises");
 eq(section(centre({ periode: { du: "2026-10-20", au: "2026-10-28" } }), "innovations").paragraphes,
@@ -1110,7 +1114,7 @@ const reelNominatif = centre({ periode: periodeLarge, nouveautes: NOUVEAUTES_REE
 const reelSans = centre({ periode: periodeLarge, nouveautes: NOUVEAUTES_REELLES, sansNoms: true });
 formeBien(reelNominatif, "centre (vraies annonces)");
 formeBien(reelSans, "centre sans noms (vraies annonces)");
-const datees = NOUVEAUTES_REELLES.filter((x) => x.date && x.navigation !== "nouvelle");   // celles de la nouvelle barre ne sont pas citées tant qu'elle est éteinte
+const datees = NOUVEAUTES_REELLES.filter((x) => x.date && x.navigation !== "ancienne");   // celles de l'ancienne barre (retirée le 10/11) ne sont pas citées
 const jourFr = (jour) => `${jour.slice(8)}/${jour.slice(5, 7)}/${jour.slice(0, 4)}`;
 const joursReels = datees.map((x) => x.date).sort();
 const annoncesReelles = section(reelSans, "innovations").paragraphes;

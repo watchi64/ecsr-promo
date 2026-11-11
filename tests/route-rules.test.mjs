@@ -53,16 +53,13 @@ eq(pagePersonnelle({ formateur: false, stagiaireId: null }), "mon-suivi", "compt
 
 eq(PARTIES, ["resultats", "passages", "epcf", "evolution", "livret", "dp", "classe"], "toutes les parties connues d'une adresse");
 
-// 5. Parties d'une fiche, dans l'ordre d'affichage (lot 2B, tâche 7). Mon suivi sous la nouvelle navigation : Résultats
-// d'abord, qui réunit Évolution (« Moi ») et La classe. Ailleurs (fiche d'un stagiaire chez l'équipe, ancienne
-// navigation), la fiche de main.
-eq(partiesDeLaFiche({ soi: true, navigationV2: true }), ["resultats", "passages", "epcf", "livret", "dp"], "Mon suivi, nouvelle navigation");
-eq(partiesDeLaFiche({ soi: true, navigationV2: false }), ["passages", "epcf", "evolution", "livret", "dp"], "Mon espace, ancienne navigation : inchangé");
-eq(partiesDeLaFiche({ soi: false, navigationV2: true }), ["passages", "epcf", "evolution", "livret", "dp"], "fiche d'un stagiaire chez l'équipe, nouvelle navigation : inchangée");
-eq(partiesDeLaFiche({ soi: false, navigationV2: false }), ["passages", "epcf", "evolution", "livret", "dp"], "fiche d'un stagiaire chez l'équipe, ancienne navigation");
+// 5. Parties d'une fiche, dans l'ordre d'affichage (lot 2B, tâche 7). Mon suivi : Résultats d'abord, qui réunit Évolution
+// (« Moi ») et La classe. La fiche d'un stagiaire chez l'équipe garde la fiche de main.
+eq(partiesDeLaFiche({ soi: true }), ["resultats", "passages", "epcf", "livret", "dp"], "Mon suivi");
+eq(partiesDeLaFiche({ soi: false }), ["passages", "epcf", "evolution", "livret", "dp"], "fiche d'un stagiaire chez l'équipe");
 eq(partiesDeLaFiche(), ["passages", "epcf", "evolution", "livret", "dp"], "sans option : la fiche de main");
-eq(partiesDeLaFiche({ soi: true, navigationV2: true }) === partiesDeLaFiche({ soi: true, navigationV2: true }), false, "une copie à chaque appel");
-for (const opts of [{ soi: true, navigationV2: true }, { soi: false, navigationV2: false }]) {
+eq(partiesDeLaFiche({ soi: true }) === partiesDeLaFiche({ soi: true }), false, "une copie à chaque appel");
+for (const opts of [{ soi: true }, { soi: false }]) {
   for (const p of partiesDeLaFiche(opts)) eq(PARTIES.includes(p), true, "partie connue des adresses : " + p);
 }
 

@@ -1,4 +1,4 @@
-// Règles de la rubrique Nouveautés : tri, audience, navigation, non-lu.
+// Règles de la rubrique Nouveautés : tri, audience, non-lu.
 //
 // Aucune dépendance autre que nav-rules.js (module pur, source de la clé du
 // sous-onglet de Cours), aucun accès au DOM. Les fonctions de décision reçoivent
@@ -10,8 +10,8 @@
 // subtabs.js : en cas d'échec tout paraît neuf à chaque visite, ce qui est une
 // dégradation acceptable, mais rien n'explose.
 
-import { CLES_SOUS_ONGLETS } from "./nav-rules.js?v=20261111b";
-import { routeDansLEspace } from "./espaces-rules.js?v=20261111b";
+import { CLES_SOUS_ONGLETS } from "./nav-rules.js?v=20261111e";
+import { routeDansLEspace } from "./espaces-rules.js?v=20261111e";
 
 export const CLE_VUES = "ecsr_nouveautes_vues";
 
@@ -40,10 +40,7 @@ export function triees(entrees) {
 }
 
 // Une entrée « formateurs » n'est visible que d'un formateur ou d'un admin, une entrée « stagiaires » que d'un stagiaire (elle
-// décrit des pages que l'équipe n'a pas). Une entrée qui porte
-// `navigation: "nouvelle"` n'est visible que nouvelle navigation allumée (`navigationV2`, js/nav-etat.js), une entrée
-// `navigation: "ancienne"` que si elle est éteinte (elle ne décrit que l'ancienne barre) ; sans ce champ, l'entrée se lit
-// dans les deux. Le défaut est l'ancienne navigation : un appelant d'avant la refonte ne voit rien changer.
+// décrit des pages que l'équipe n'a pas).
 //
 // Lot 5, `espace` (« stagiaire », « equipe », « direction » ou « siege » ; l'espace affiché, l'aperçu du fondateur compris) :
 //   - « direction » et « siege » ne se lisent que dans cet espace (sans `espace`, nulle part) ;
@@ -55,7 +52,7 @@ export function triees(entrees) {
 //     sans lien reste ;
 //   - « tous » ne change pas pour le formateur et le stagiaire.
 // Un appelant qui ne passe pas `espace` garde la règle d'avant (formateur ou non).
-export function visibles(entrees, formateur, navigationV2 = false, espace = undefined) {
+export function visibles(entrees, formateur, espace = undefined) {
   const ditEspace = espace !== undefined && espace !== null;
   return entrees.filter((e) => {
     if (e.pour === "direction" || e.pour === "siege") {
@@ -65,16 +62,8 @@ export function visibles(entrees, formateur, navigationV2 = false, espace = unde
     } else if (e.pour === "stagiaires") {
       if (formateur || (ditEspace && espace !== "stagiaire")) return false;
     }
-    if ((espace === "direction" || espace === "siege") && e.ou && e.ou.route && !routeDansLEspace(espace, e.ou.route)) return false;
-    return (e.navigation !== "nouvelle" || !!navigationV2) && (e.navigation !== "ancienne" || !navigationV2);
+    return !((espace === "direction" || espace === "siege") && e.ou && e.ou.route && !routeDansLEspace(espace, e.ou.route));
   });
-}
-
-// Étapes « Comment faire » d'une entrée selon la navigation : `guideNouvelle` (facultatif) remplace `guide` quand la nouvelle
-// navigation est allumée, jamais autrement. Une liste vide ou illisible vaut son absence : le guide d'avant se lit.
-export function guideSelonNavigation(entree, navigationV2 = false) {
-  const nouvelle = entree.guideNouvelle;
-  return navigationV2 && Array.isArray(nouvelle) && nouvelle.length > 0 ? nouvelle : entree.guide;
 }
 
 // Entrées dont l'id n'a pas encore été vu.

@@ -3,7 +3,7 @@
 // une page, quelle entrée de l'équipe porte le repère « masqué aux stagiaires », où mènent les
 // anciennes adresses, les initiales, le prénom et le nom du bouton du compte, la ligne « page à soi »
 // du menu du compte. Module pur, sans DOM ni stockage : testé en node.
-import { LIBELLES_ESPACE } from "./espaces-rules.js?v=20261111b";
+import { LIBELLES_ESPACE } from "./espaces-rules.js?v=20261111e";
 
 // Clé de mémoire du sous-onglet ouvert, par page à sous-onglets (le `storageKey` de
 // renderSubTabs). Une redirection l'écrit pour ouvrir le bon sous-onglet ; le bouton « Élèves bénévoles »
@@ -102,7 +102,7 @@ export function espaceDe({ formateur }) {
   return formateur ? "equipe" : "stagiaire";
 }
 
-// Une page est-elle ouverte sous la nouvelle navigation ? Une page qui regroupe d'anciennes
+// Une page est-elle ouverte ? Une page qui regroupe d'anciennes
 // pages en sous-onglets (Planning : Dates clés et Priorités ; Cours : Documents) l'est dès que
 // l'un d'eux l'est, chaque sous-onglet suivant le module de son ancienne page (celles de
 // REDIRECTIONS). Cours s'ouvre donc avec ses seuls Documents tant que les cours sont fermés
@@ -229,7 +229,7 @@ export function pageASoiDuMenu(page, entrees) {
   return entrees.some((e) => e.route === page) ? null : page;
 }
 
-// Où mène une ancienne adresse sous la nouvelle navigation : null (rien à rediriger) ou la
+// Où mène une ancienne adresse : null (rien à rediriger) ou la
 // nouvelle adresse avec le sous-onglet à ouvrir (`cle` : sa clé de mémoire, `valeur` : son
 // identifiant). Seule la route décide : `id` et `partie` n'existent que pour Stagiaires et
 // Mon espace, jamais redirigés. `notes` ne bouge que chez le stagiaire (Mon suivi, Résultats,
@@ -253,10 +253,10 @@ export function redirectionV2({ route }, espace) {
   return null;
 }
 
-// Le même geste avec l'ancienne navigation (interrupteur éteint) : Mes préférences n'existe qu'avec la
-// nouvelle, et #/preferences (un favori pris sous la nouvelle, la promo éteinte depuis) mène à Paramètres,
-// où vivent ces réglages. Toute autre adresse reste celle de main. Même forme que redirectionV2 ; la cible
-// n'est pas elle-même redirigée.
-export function redirectionAncienne({ route }) {
-  return route === "preferences" ? { hash: "#/config", sousOnglet: null } : null;
+// La page où mène une route une fois sa redirection suivie (redirectionV2) : la route elle-même quand rien ne la redirige.
+// Juge la dernière page mémorisée sur l'appareil (js/main.js, derniereRoute), qui peut dater d'avant le 10/11 : « calendrier »
+// se juge sur Planning, « ressources » sur Cours et QCM, « config » d'un stagiaire sur Mes préférences.
+export function routeApresRedirection(route, espace) {
+  const cible = redirectionV2({ route, id: null, partie: null }, espace);
+  return cible ? cible.hash.replace(/^#\//, "").split("/")[0] : route;
 }

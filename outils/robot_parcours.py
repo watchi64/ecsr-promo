@@ -11,8 +11,8 @@ Usage
 
 Ce qu'il fait : il sert l'app sur un port libre de la machine (banc d'essai, faux Supabase, données
 fictives, aucune requête vers la base), ouvre Chromium et WebKit (le moteur de Safari, donc de l'iPhone)
-sans fenêtre, en iPhone (375 px, tactile) et en ordinateur (1 280 px), dans l'ancienne et la nouvelle
-navigation, et joue chaque parcours (outils/parcours/stagiaire.py, equipe.py) comme une personne : en
+sans fenêtre, en iPhone (375 px, tactile) et en ordinateur (1 280 px), dans la navigation de l'app (une
+seule depuis le 10/11), et joue chaque parcours (outils/parcours/stagiaire.py, equipe.py) comme une personne : en
 cliquant sur ce qu'elle voit. Il compte les clics, chronomètre l'affichage, et contrôle chaque écran
 selon le référentiel (docs/qualite/referentiel.md).
 
@@ -58,11 +58,12 @@ from parcours.connus import connu, attendu_dans, echues, DEFAUTS_CONNUS  # noqa:
 
 MOTEURS = ("chromium", "webkit")
 FORMATS = ("ordinateur", "telephone")
-NAVIGATIONS = ("ancienne", "nouvelle")
+# Une seule navigation depuis le 10/11 (l'ancienne barre est retirée) ; la dimension reste dans les résultats et les rapports.
+NAVIGATIONS = ("nouvelle",)
 HABILLAGES = ("ecsr", "ecf")    # data-skin de <html> ; « ecsr » est le défaut, l'appareil vierge
 CLES_SCENARIO = ("moteur", "format", "navigation", "habillage")
 NOMS = {"chromium": "Chromium", "webkit": "WebKit", "ordinateur": "ordinateur", "telephone": "téléphone",
-        "ancienne": "ancienne navigation", "nouvelle": "nouvelle navigation"}
+        "nouvelle": "nouvelle navigation"}
 
 JS_CLIQUABLES = r"""() => [...document.querySelectorAll('a[href], button, [role=tab], input, select, textarea')]
   .filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight; })
@@ -326,7 +327,7 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, 
     L.append("")
     L.append("## Parcours")
     L.append("")
-    L.append("Clics jusqu'au but, par navigation (ancienne / nouvelle) et par format (ordinateur, téléphone). « x » : le parcours n'aboutit pas.")
+    L.append("Clics jusqu'au but, par format (ordinateur, téléphone). « x » : le parcours n'aboutit pas.")
     L.append("")
     L.append("| Parcours | Rôle | Budget (ord. / tél.) | Ordinateur | Téléphone | Habillages | Aboutit | Bloquants nouveaux |")
     L.append("|---|---|---|---|---|---|---|---|")

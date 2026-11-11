@@ -237,8 +237,8 @@ function jourValide(s) {
   return !Number.isNaN(d.getTime()) && versIso(d) === s;
 }
 
-// Jours fériés nationaux (métropole), mêmes règles que js/views/planning.js
-// (frenchHolidays, non exporté) : libellé du jour, ou null.
+// Jours fériés nationaux (métropole) : libellé du jour, ou null. Seul calcul de l'app : le planning et Mon suivi le lisent
+// aussi (tests/jours-feries.test.mjs).
 function paques(annee) {
   const a = annee % 19, b = Math.floor(annee / 100), c = annee % 100;
   const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);

@@ -320,8 +320,6 @@ class Visite:
         params["role"] = "formateur" if self.parcours.role in ("direction", "siege") else self.parcours.role
         if self.parcours.role != "fondateur":
             params["fondateur"] = "0"          # le cas des vrais comptes : ni aperçu ni droits du fondateur
-        if self.navigation == "nouvelle":
-            params["nav2"] = "1"
         params.update(self.parcours.banc)
         params["cb"] = "%d" % (time.time() * 1000)
         adresse = self.base_url + "_harness.html?" + "&".join("%s=%s" % kv for kv in params.items())
@@ -492,8 +490,7 @@ class Visite:
                          % (quoi, notes[0].split(" : ", 1)[-1]))
 
     def _apres_toucher(self, el):
-        # Budget dépassé : bloque dans les deux navigations (référentiel, critère B). Les dépassements de l'ancienne
-        # navigation déjà présents sur main sont dans connus.py.
+        # Budget dépassé : bloque (référentiel, critère B), sauf un défaut déjà connu de main (connus.py).
         if not self.but_atteint and self.clics == self.budget + 1:
             self.constat("B", BLOQUE, "plus de %d clic%s avant le but (budget du référentiel)" % (self.budget, "s" if self.budget > 1 else ""))
         return el
@@ -533,7 +530,7 @@ class Visite:
     def aller(self, destination):
         """Va vers une page par le chemin le plus court qu'offre la navigation (navigation.py), en cliquant."""
         self.etape("aller vers « %s »" % destination)
-        chemin = navigation.chemin(destination, self.navigation, self.espace, self.telephone)
+        chemin = navigation.chemin(destination, self.espace, self.telephone)
         for selecteur, quoi in chemin:
             self.toucher(selecteur, quoi)
         self.controler_ecran(destination)

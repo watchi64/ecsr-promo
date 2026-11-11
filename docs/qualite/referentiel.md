@@ -72,7 +72,7 @@ d'usage), livret et dossier pro (1 mise à jour chacun).
 ## 3. Quand on mesure
 
 - **Avant chaque fusion dans main** : `python outils/robot_parcours.py --habillages ecsr,ecf --temoin <rapport du robot
-  sur main>` (environ 22 minutes, Chromium et WebKit, téléphone et ordinateur, ancienne et nouvelle navigation, ECSR
+  sur main>` (Chromium et WebKit, téléphone et ordinateur, une seule navigation depuis le 11/11, ECSR
   Promo et Couleurs ECF : règles du 10/11 et du 11/11/2026). Code de sortie 0 = vert, 1 = rouge, 2 = le robot n'a pas
   pu juger (option mal tapée, passage non joué ou non jugé, moteur absent, témoin illisible) : ni vert ni rouge ;
   3 = vert, mais la branche ajoute des constats « à corriger par lot » que le témoin de main n'a pas (les temps exceptés) :

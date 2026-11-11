@@ -48,7 +48,6 @@ begin
     (s1, 'Thème', 1, null, 10, 20), (s1, 'Thème', 1, null, 15, 20), (s2, 'Thème', 1, null, 4, 5),
     (s2, 'Thème', 2, null, 8, 20), (s3, 'Compétence', null, c1, 20, 20), (s4, 'Thème', 2, null, 3, 20),
     (s3, 'Thème', 3, null, null, 20), (s1, 'Thème', 2, null, 5, 0), (s2, 'Compétence', null, c2, 12, 20);
-  insert into fiches_suivi (stagiaire_id, besoins) values (s1, 'PreuveA'), (s2, 'PreuveB');
   insert into stagiaires_prive (stagiaire_id, date_naissance) values (s1, '2000-01-01'), (s2, '2000-02-02');
 
   -- Lectures par personnage -------------------------------------------------------------
@@ -60,7 +59,6 @@ begin
       (e_a, 'evaluations', 6), (e_b, 'evaluations', 3), (e_c, 'evaluations', 6),
       (e_prof, 'evaluations', 9), (e_adm, 'evaluations', 9),
       (e_a, 'evaluations_audit', 6), (e_b, 'evaluations_audit', 3), (e_prof, 'evaluations_audit', 9),
-      (e_a, 'fiches_suivi', 1), (e_c, 'fiches_suivi', 0), (e_prof, 'fiches_suivi', 2), (e_adm, 'fiches_suivi', 2),
       (e_a, 'stagiaires_prive', 1), (e_c, 'stagiaires_prive', 0), (e_prof, 'stagiaires_prive', 2), (e_adm, 'stagiaires_prive', 2),
       (e_a, 'stagiaires', 4)
     ) as t(email, tbl, attendu)

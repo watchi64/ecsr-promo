@@ -46,15 +46,15 @@
 // phrases (`jourDe`, `rempli`, `tableau`, `nb`) sont réutilisés par js/qualiopi-documents.js, pour que la synthèse par
 // semaine des dossiers suive toujours la règle de l'inventaire au lieu d'en recopier une version.
 
-import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261111b";
-import { indicateursPromo, pct } from "./centre-stats.js?v=20261111b";
-import { estNotee } from "./notes-stats.js?v=20261111b";
-import { ACTIVITY_SHAPES } from "./config.js?v=20261111b";
-import { jourFerie } from "./emargement-rules.js?v=20261111b";
-import { parseDate, addDays, isoDate } from "./utils.js?v=20261111b";
-import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261111b";
-import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261111b";
-import { TYPES, entreesPourPromo, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261111b";
+import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261111e";
+import { indicateursPromo, pct } from "./centre-stats.js?v=20261111e";
+import { estNotee } from "./notes-stats.js?v=20261111e";
+import { ACTIVITY_SHAPES } from "./config.js?v=20261111e";
+import { jourFerie } from "./emargement-rules.js?v=20261111e";
+import { parseDate, addDays, isoDate } from "./utils.js?v=20261111e";
+import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261111e";
+import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261111e";
+import { TYPES, entreesPourPromo, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261111e";
 
 // Annexe A de la spec, cellule par cellule, pour les 28 indicateurs d'un centre de formation continue (les 27 plus
 // le 13 de l'alternance). niveau : « prouve » (l'app fournit l'essentiel), « partiel » (en partie) ou « hors »
@@ -232,10 +232,11 @@ export function intervenantsDistincts(lignes) {
 
 // --- Annonces : celles qu'on peut citer ---
 
-// Les annonces de la rubrique Nouveautés qu'un dossier peut compter et citer. Celles qui décrivent la nouvelle barre
-// (`navigation: "nouvelle"`) ne se lisent que barre allumée : tant qu'elle est éteinte, personne n'a pu les lire dans l'app
-// et un auditeur ne les y trouverait pas. Le filtre est écrit ici une seule fois, pour l'inventaire et le dossier du centre.
-export const nouveautesCitables = (nouveautes) => tableau(nouveautes).filter((x) => x?.navigation !== "nouvelle");
+// Les annonces de la rubrique Nouveautés qu'un dossier peut compter et citer. Depuis le 10/11, toutes les promos ont la
+// nouvelle barre : ses annonces se lisent dans l'app. Celles qui ne décrivent que l'ancienne barre (`navigation: "ancienne"`)
+// n'y sont plus visibles, un auditeur ne les y trouverait pas. Le filtre est écrit ici une seule fois, pour l'inventaire et le
+// dossier du centre.
+export const nouveautesCitables = (nouveautes) => tableau(nouveautes).filter((x) => x?.navigation !== "ancienne");
 
 // --- Satisfaction : le questionnaire de fin de formation ---
 

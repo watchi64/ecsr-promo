@@ -8,7 +8,7 @@
 
 **Tech Stack:** JavaScript en modules ES sans framework, CSS, Supabase (table `settings`), tests `node --test`, banc d'essai `_harness.html` et Playwright (Python) pour la vérification.
 
-**Spec:** `docs/superpowers/specs/2026-10-27-refonte-navigation-roles-design.md` ; maquette `docs/maquettes/refonte-navigation.src.html` ; découpage `docs/superpowers/plans/2026-10-27-refonte-navigation-lots.md`.
+**Spec:** `docs/superpowers/specs/2026-10-27-refonte-navigation-roles-design.md` ; maquette `docs/maquettes/refonte-navigation.src.html` (dossier retiré le 10/11, à lire dans l'historique git) ; découpage `docs/superpowers/plans/2026-10-27-refonte-navigation-lots.md`.
 
 ## Global Constraints
 
@@ -215,7 +215,7 @@ console.log(`nav-rules : ${n} assertions OK`);
 **Interfaces:**
 - Produces : `python outils/verifier_navigation.py <url_du_banc>` affiche « N vues, 0 échec » ou la liste des échecs, et sort en code 1 s'il y en a.
 - Vues : rôles `stagiaire`, `prof`, `fondateur` ; largeurs 1280, 1100, 900, 375 ; chaque entrée de la coquille et chaque sous-onglet de Planning, Cours et Mon espace ; aperçu allumé (`localStorage ecsr_nav_v2 = "1"`, fondateur) ; plus une passe interrupteur éteint.
-- Contrôles par vue (repris de `docs/maquettes/tests_maquette.js`) : aucun élément ne déborde de la fenêtre et aucune zone ne défile de côté hors `.matrice-wrap` ; une seule entrée allumée dans la coquille visible ; zones à toucher de 44 px à 375 px ; contraste du texte de la coquille 4,5:1 ; barre du bas de 5 entrées au plus ; menus dans l'écran et fermés par Échap ; aucune erreur dans la console.
+- Contrôles par vue (repris de `docs/maquettes/tests_maquette.js` (dossier retiré le 10/11, à lire dans l'historique git)) : aucun élément ne déborde de la fenêtre et aucune zone ne défile de côté hors `.matrice-wrap` ; une seule entrée allumée dans la coquille visible ; zones à toucher de 44 px à 375 px ; contraste du texte de la coquille 4,5:1 ; barre du bas de 5 entrées au plus ; menus dans l'écran et fermés par Échap ; aucune erreur dans la console.
 
 - [ ] **Step 1:** Écrire le script ; le lancer sur la branche avant les Tasks 4 et 5 pour voir ses échecs attendus (coquille absente), puis après.
 - [ ] **Step 2:** Lancer sur la branche complète. Expected : 0 échec dans les deux moteurs.

@@ -129,19 +129,16 @@ def passer_un_qcm(v):
     v.terminer()
 
 
-# Évolution d'abord : c'est le but (« mes résultats ») ; les autres parties sont visitées ensuite, hors budget.
-PARTIES_MON_SUIVI = ("Évolution", "Passages", "Évaluations EPCF", "Livret EPCF", "Dossier professionnel")
-# Nouvelle navigation (lot 2B) : Évolution et La classe sont les deux vues de Résultats, qui s'ouvre sur « Moi » ; le livret
-# s'y appelle « Livret EPCF » (décision de Timy du 08/11) ; un nom par objet dans les deux navigations (lot D, 10/11).
-PARTIES_MON_SUIVI_V2 = ("Résultats", "Passages", "Évaluations EPCF", "Livret EPCF", "Dossier professionnel")
+# Résultats d'abord : c'est le but (« mes résultats ») ; les autres parties sont visitées ensuite, hors budget. Lot 2B : Évolution
+# et La classe sont les deux vues de Résultats, qui s'ouvre sur « Moi » ; le livret s'appelle « Livret EPCF » (décision du 08/11).
+PARTIES_MON_SUIVI = ("Résultats", "Passages", "Évaluations EPCF", "Livret EPCF", "Dossier professionnel")
 
 
 @parcours("mon-suivi", "Voir mes résultats et mes passages (Mon suivi)", role="stagiaire", budget=2)
 def mon_suivi(v):
     """Ouvrir Mon suivi, puis chacune de ses parties : chacune s'affiche sans défaut."""
     v.aller("Mon suivi")
-    parties = PARTIES_MON_SUIVI_V2 if v.navigation == "nouvelle" else PARTIES_MON_SUIVI
-    for i, partie in enumerate(parties):
+    for i, partie in enumerate(PARTIES_MON_SUIVI):
         v.etape("partie « %s »" % partie)
         if i and v.telephone:
             # Sur téléphone, chaque partie est une page : on revient au sommaire par son lien de retour (hors budget).
@@ -156,11 +153,11 @@ def mon_suivi(v):
     v.terminer()
 
 
-# Téléphone, nouvelle navigation : Mon suivi, la ligne Résultats du sommaire, puis « La classe » (3, règle générale
-# du référentiel : toute tâche courante en 3 clics au plus) ; ancienne navigation : l'onglet Notes, en 1.
+# Téléphone : Mon suivi, la ligne Résultats du sommaire, puis « La classe » (3, règle générale du référentiel : toute
+# tâche courante en 3 clics au plus).
 @parcours("notes-de-la-classe", "Voir les notes de la classe", role="stagiaire", budget={"ordinateur": 2, "telephone": 3})
 def notes_de_la_classe(v):
-    """Ouvrir les notes de la classe (onglet Notes, ou Mon suivi, La classe)."""
+    """Ouvrir les notes de la classe (Mon suivi, Résultats, La classe)."""
     v.aller("La classe")
     # Une classe sans note montre la carte de l'état vide (lot C) au lieu d'un tableau de cases vides.
     v.attendre("#view :is(table, .notes-chart-svg-wrap, .matrice-wrap, .card, .notes-vide)", "les notes de la classe")

@@ -11,10 +11,10 @@ import {
   listBenevoles, addBenevole, updateBenevole, setBenevoleActif,
   listAutoEcoles, addAutoEcole, updateAutoEcole, setAutoEcoleActif, deleteAutoEcole,
   listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires, getPromoCourante,
-} from "../db.js?v=20261111b";
-import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261111b";
-import { confirmer } from "../confirmer.js?v=20261111b";
-import { JOURS } from "../config.js?v=20261111b";
+} from "../db.js?v=20261111e";
+import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261111e";
+import { confirmer } from "../confirmer.js?v=20261111e";
+import { JOURS } from "../config.js?v=20261111e";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [
@@ -113,19 +113,15 @@ function mailLink(email) {
   return el("a", { class: "bnv-tel bnv-mail", href: "mailto:" + String(email).trim() }, email);
 }
 
-// Le panneau, séparé de son contenant : tout son contenu se dessine dans `zone`, et rien ici ne suppose une
-// fenêtre. Deux contenants le posent : la fenêtre de l'ancienne navigation (openBenevolesPanel, qui passe `fermer`
-// pour que le panneau montre ses boutons « Fermer ») et, avec la nouvelle, le sous-onglet « Élèves bénévoles » de la
-// page Stagiaires (renderBenevoles), où il n'y a rien à fermer. Rend `charger` (lit la banque, dessine l'onglet) et
-// `modifie` (au moins une écriture : le contenant dit au Planning de relire sa banque).
-function panneau(zone, { fermer = null } = {}) {
+// Le panneau : tout son contenu se dessine dans `zone`, le sous-onglet « Élèves bénévoles » de la page Stagiaires
+// (renderBenevoles). Rend `charger` (lit la banque, dessine l'onglet).
+function panneau(zone) {
   let list = [];
   let ecoles = [];
   let venues = [];        // cartes planning portant des bénévoles (venues déduites)
   let stagiaires = [];    // pour nommer les élèves moniteurs dans le suivi
   let tab = "benevoles";  // "benevoles" | "ecoles"
   let filtre = { jour: "", demi: "" };
-  let dirty = false;  // au moins une écriture => le planning recharge sa banque à la fermeture
 
   async function reload() {
     [list, ecoles, venues, stagiaires] = await Promise.all([
@@ -280,16 +276,11 @@ function panneau(zone, { fermer = null } = {}) {
           el("div", { class: "bnv-side" },
             el("button", { class: "btn small ghost", onClick: async () => {
               try {
-                await setBenevoleActif(b.id, true); dirty = true; await reload(); render();
+                await setBenevoleActif(b.id, true); await reload(); render();
               } catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
             }}, "Réactiver"))));
       });
       zone.appendChild(det);
-    }
-
-    if (fermer) {
-      zone.appendChild(el("div", { class: "modal-actions" },
-        el("button", { class: "btn ghost", onClick: fermer }, "Fermer")));
     }
   }
 
@@ -338,25 +329,19 @@ function panneau(zone, { fermer = null } = {}) {
           el("div", { class: "bnv-info" }, el("div", { class: "bnv-name" }, a.nom)),
           el("div", { class: "bnv-side" },
             el("button", { class: "btn small ghost", onClick: async () => {
-              try { await setAutoEcoleActif(a.id, true); dirty = true; await reload(); render(); }
+              try { await setAutoEcoleActif(a.id, true); await reload(); render(); }
               catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
             }}, "Réactiver"))));
       });
       zone.appendChild(det);
     }
-
-    if (fermer) {
-      zone.appendChild(el("div", { class: "modal-actions" },
-        el("button", { class: "btn ghost", onClick: fermer }, "Fermer")));
-    }
   }
 
-  // Posé dans la page (`fermer` nul : pas de fenêtre), le panneau garde la position de défilement de la page quand un formulaire prend la
-  // place de la liste, souvent longue : après « Modifier », le formulaire pouvait se trouver hors de l'écran. On le ramène en haut du bloc
-  // (la marge de défilement de .bnv-page, css/navigation.css, tient compte de l'en-tête collant du téléphone). Dans la fenêtre, c'est
-  // la fenêtre qui défile : rien à faire.
+  // Posé dans la page, le panneau garde la position de défilement de la page quand un formulaire prend la place de la liste,
+  // souvent longue : après « Modifier », le formulaire pouvait se trouver hors de l'écran. On le ramène en haut du bloc (la marge
+  // de défilement de .bnv-page, css/navigation.css, tient compte de l'en-tête collant du téléphone).
   function ramenerALEcran() {
-    if (!fermer) zone.scrollIntoView({ block: "start" });
+    zone.scrollIntoView({ block: "start" });
   }
 
   // Fiche auto-école. onSaved (optionnel) sert au flux « + Nouvelle auto-école »
@@ -388,7 +373,6 @@ function panneau(zone, { fermer = null } = {}) {
         let saved = a;
         if (a) await updateAutoEcole(a.id, payload);
         else saved = await addAutoEcole(payload);
-        dirty = true;
         await reload();
         if (onSaved) onSaved(saved); else render();
       } catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
@@ -432,7 +416,7 @@ function panneau(zone, { fermer = null } = {}) {
           onClick: async () => {
             if (!(await confirmer({ titre: `Désaffilier ${displayStagiaire(b)} de ${a.nom} ?`,
               phrase: "Sa fiche reste dans la banque des bénévoles.", oui: "Désaffilier" }))) return;
-            try { await updateBenevole(b.id, { auto_ecole_id: null }); dirty = true; await reload(); reopenEcole(); }
+            try { await updateBenevole(b.id, { auto_ecole_id: null }); await reload(); reopenEcole(); }
             catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
           }}, "×"));
         bloc.appendChild(line);
@@ -450,7 +434,7 @@ function panneau(zone, { fermer = null } = {}) {
         const val = affSel.value;
         if (!val) return;
         if (val === "__new") { renderForm(null, { auto_ecole_id: a.id }, reopenEcole); return; }
-        try { await updateBenevole(Number(val), { auto_ecole_id: a.id }); dirty = true; await reload(); reopenEcole(); }
+        try { await updateBenevole(Number(val), { auto_ecole_id: a.id }); await reload(); reopenEcole(); }
         catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
       });
       bloc.appendChild(affSel);
@@ -462,7 +446,7 @@ function panneau(zone, { fermer = null } = {}) {
       actions.appendChild(el("button", { class: "btn ghost bnv-remove", onClick: async () => {
         if (!(await confirmer({ titre: `Retirer ${a.nom} des partenaires ?`,
           phrase: "Vous pourrez la réactiver ensuite.", oui: "Retirer" }))) return;
-        try { await setAutoEcoleActif(a.id, false); dirty = true; await reload(); render(); }
+        try { await setAutoEcoleActif(a.id, false); await reload(); render(); }
         catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
       }}, "Retirer"));
     }
@@ -473,7 +457,7 @@ function panneau(zone, { fermer = null } = {}) {
           : nb === 1 ? "Son bénévole reste dans la banque, sans auto-école."
           : `Ses ${nb} bénévoles restent dans la banque, sans auto-école.`;
         if (!(await confirmer({ titre: `Supprimer définitivement ${a.nom} ?`, phrase, oui: "Supprimer" }))) return;
-        try { await deleteAutoEcole(a.id); dirty = true; await reload(); tab = "ecoles"; render(); }
+        try { await deleteAutoEcole(a.id); await reload(); tab = "ecoles"; render(); }
         catch (e) { console.error(e); toast("Erreur de suppression", "error"); }
       }}, "Supprimer"));
     }
@@ -592,7 +576,6 @@ function panneau(zone, { fermer = null } = {}) {
       try {
         if (b) await updateBenevole(b.id, payload);
         else await addBenevole(payload);
-        dirty = true;
         await reload();
         done();
       } catch (e) {
@@ -698,7 +681,7 @@ function panneau(zone, { fermer = null } = {}) {
         if (!(await confirmer({ titre: `Retirer ${displayStagiaire(b)} de la banque ?`,
           phrase: "Vous pourrez réactiver sa fiche ensuite.", oui: "Retirer de la banque" }))) return;
         try {
-          await setBenevoleActif(b.id, false); dirty = true; await reload(); done();
+          await setBenevoleActif(b.id, false); await reload(); done();
         } catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
       }}, "Retirer de la banque"));
     }
@@ -709,16 +692,14 @@ function panneau(zone, { fermer = null } = {}) {
     ramenerALEcran();
   }
 
-  // Lit la banque puis dessine l'onglet courant. Une erreur de lecture se dit dans la zone : « Fermer » dans une
-  // fenêtre, « Réessayer » dans la page (où rien ne se ferme).
+  // Lit la banque puis dessine l'onglet courant. Une erreur de lecture se dit dans la zone, avec « Réessayer ».
   function charger() {
     return reload().then(render).catch((e) => {
       console.error(e);
       clear(zone);
       zone.appendChild(el("p", { class: "muted" }, "Erreur de chargement de la banque."));
-      zone.appendChild(el("div", { class: "modal-actions" }, fermer
-        ? el("button", { class: "btn ghost", onClick: fermer }, "Fermer")
-        : el("button", { class: "btn ghost", onClick: () => {
+      zone.appendChild(el("div", { class: "modal-actions" },
+        el("button", { class: "btn ghost", onClick: () => {
           clear(zone);
           zone.appendChild(el("div", { class: "loading" }, "Chargement"));
           charger();
@@ -726,29 +707,11 @@ function panneau(zone, { fermer = null } = {}) {
     });
   }
 
-  return { charger, modifie: () => dirty };
+  return { charger };
 }
 
-// La fenêtre de l'ancienne navigation, ouverte par le bouton « Élèves bénévoles » du Planning. Une écriture faite
-// dans le panneau fait relire sa banque au Planning à la fermeture (`onClose`).
-export function openBenevolesPanel({ onClose } = {}) {
-  const backdrop = el("div", { class: "modal-backdrop" });
-  const modal = el("div", { class: "modal bnv-modal" });
-  backdrop.appendChild(modal);
-
-  let contenu = null;
-  const close = () => { backdrop.remove(); if (contenu.modifie() && onClose) onClose(); };
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
-  contenu = panneau(modal, { fermer: close });
-
-  modal.appendChild(el("div", { class: "loading" }, "Chargement"));
-  document.body.appendChild(backdrop);
-  contenu.charger();
-}
-
-// Nouvelle navigation : le même panneau, dans la page, au lieu d'une fenêtre. C'est le sous-onglet « Élèves
-// bénévoles » de la page Stagiaires (js/views/stagiaires.js) ; le Planning relit sa banque à chaque rendu, il n'a
-// donc rien à apprendre des écritures faites ici.
+// Le sous-onglet « Élèves bénévoles » de la page Stagiaires (js/views/stagiaires.js) ; le Planning relit sa banque à
+// chaque rendu, il n'a donc rien à apprendre des écritures faites ici.
 export function renderBenevoles(container) {
   clear(container);
   const zone = el("div", { class: "bnv-page" }, el("div", { class: "loading" }, "Chargement"));

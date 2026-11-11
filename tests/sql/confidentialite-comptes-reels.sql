@@ -30,7 +30,7 @@ begin
     select coalesce(bool_or(anonymous_notes), false) into v_anon
       from user_profiles where lower(email) = lower(r.email);
 
-    foreach t in array array['evaluations', 'evaluations_audit', 'fiches_suivi', 'stagiaires_prive'] loop
+    foreach t in array array['evaluations', 'evaluations_audit', 'stagiaires_prive'] loop
       -- Attendu, calculé en propriétaire.
       if t = 'evaluations' then
         select count(*) into att from evaluations e where e.promo_id = r.promo

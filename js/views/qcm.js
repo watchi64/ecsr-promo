@@ -4,13 +4,13 @@
  * Multi-réponses : une question peut avoir plusieurs bonnes réponses.
  * Juste = ensemble coché == ensemble des bonnes réponses (toutes les bonnes, aucune fausse).
  */
-import { el, clear, toast, formatDate } from "../utils.js?v=20261111b";
-import { confirmer } from "../confirmer.js?v=20261111b";
-import { icon, deco } from "../icons.js?v=20261111b";
-import { getQcmFull, insertQcmAttempt, getMyExamAttempt, listMyQcmAttemptsFor, createQcmSignalement } from "../db.js?v=20261111b";
-import { monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111b";
-import { fermerParEchap } from "../fenetre-echap.js?v=20261111b";
-import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261111b";
+import { el, clear, toast, formatDate } from "../utils.js?v=20261111e";
+import { confirmer } from "../confirmer.js?v=20261111e";
+import { icon, deco } from "../icons.js?v=20261111e";
+import { getQcmFull, insertQcmAttempt, getMyExamAttempt, listMyQcmAttemptsFor, createQcmSignalement } from "../db.js?v=20261111e";
+import { monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111e";
+import { fermerParEchap } from "../fenetre-echap.js?v=20261111e";
+import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261111e";
 
 const MOTIFS = [
   ["reponse_fausse", "La réponse indiquée me semble fausse"],

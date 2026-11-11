@@ -6,16 +6,16 @@
 //    véhicule ; chez un formateur, la saisie (Évaluer, Modifier, Nouvelle évaluation).
 // L'écriture reste réservée par la base aux formateurs et aux admins.
 
-import { listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20261111b";
-import { el, clear, isoDate, formatDate, displayStagiaire, toast } from "../utils.js?v=20261111b";
-import { confirmer } from "../confirmer.js?v=20261111b";
-import { getProfile } from "../auth-admin.js?v=20261111b";
-import { getCurrentWho } from "../identity.js?v=20261111b";
-import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20261111b";
-import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20261111b";
-import { poserGardeSortie, leverGardeSortie } from "../navigation.js?v=20261111b";
-import { etatVideEpcf, ACTIONS_CARTE_EPCF, etatVideEpcfFiche, ACTIONS_FICHE_EPCF } from "../epcf-classe-rules.js?v=20261111b";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111b";
+import { listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20261111e";
+import { el, clear, isoDate, formatDate, displayStagiaire, toast } from "../utils.js?v=20261111e";
+import { confirmer } from "../confirmer.js?v=20261111e";
+import { getProfile } from "../auth-admin.js?v=20261111e";
+import { getCurrentWho } from "../identity.js?v=20261111e";
+import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20261111e";
+import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20261111e";
+import { poserGardeSortie, leverGardeSortie } from "../navigation.js?v=20261111e";
+import { etatVideEpcf, ACTIONS_CARTE_EPCF, etatVideEpcfFiche, ACTIONS_FICHE_EPCF } from "../epcf-classe-rules.js?v=20261111e";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111e";
 
 // Quitter une grille commencée (bouton « Retour » ou garde de sortie de js/navigation.js) : la même question.
 export const QUESTION_ABANDON = { titre: "Abandonner la saisie en cours ?",

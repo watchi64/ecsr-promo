@@ -1,5 +1,4 @@
-// « Où le trouver » selon la navigation (refonte, lot 2A) : module pur, sans DOM ni stockage, testé en node
-// (tests/ou-trouver.test.mjs).
+// « Où le trouver » (refonte, lot 2A) : module pur, sans DOM ni stockage, testé en node (tests/ou-trouver.test.mjs).
 //
 // Les liens des Nouveautés (js/nouveautes-data.js) et des annonces d'ouverture de module (js/modules-data.js) sont écrits avec les
 // noms de l'ancienne barre : « Calendrier », « Ressources », « Mon espace personnel, partie Livret », « Paramètres »... Avec la
@@ -7,8 +6,7 @@
 // (les redirections du lot 1, js/nav-rules.js, mènent chaque ancienne adresse à sa nouvelle page, le bon sous-onglet ouvert) ; seul
 // le nom écrit à l'écran est celui que la personne lit dans sa barre, à deux destinations près, qui ont vraiment changé de place et que
 // le lien suit (destinationChangee) : les réglages de la personne (Mes préférences, route `preferences`, ruling R55) et la banque des
-// élèves bénévoles (Stagiaires, sous-onglet `benevoles`). Avec l'ancienne navigation, `ou` est rendu tel quel : l'app d'une promo
-// éteinte reste celle de main.
+// élèves bénévoles (Stagiaires, sous-onglet `benevoles`).
 
 // Sous-onglets de Mon espace devenus des vues de Résultats sous la nouvelle navigation.
 const PARTIES_DE_RESULTATS = ["evolution", "classe"];
@@ -87,10 +85,10 @@ function destinationChangee(ou) {
 }
 
 // `ou` : { label, route, sousOnglet? }, tel que l'écrivent les Nouveautés et le catalogue des modules. Rend `ou` lui-même quand rien
-// ne change (ancienne navigation, ou libellé déjà à jour), sinon une copie dont seul le libellé diffère, hors les deux destinations
+// ne change (libellé déjà à jour), sinon une copie dont seul le libellé diffère, hors les deux destinations
 // qui ont changé de place (destinationChangee : libellé, route et sous-onglet). `ou` n'est jamais modifié.
-export function ouSelonNavigation(ou, { navigationV2 = false, espace = "stagiaire" } = {}) {
-  if (!ou || !navigationV2) return ou;
+export function ouSelonNavigation(ou, { espace = "stagiaire" } = {}) {
+  if (!ou) return ou;
   const deplace = destinationChangee(ou);
   if (deplace) return { ...ou, ...deplace };
   const label = libelleNouvelle(ou, espace);

@@ -9,19 +9,16 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261111b";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261111b";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261111b";
-import { getCurrentWho } from "../identity.js?v=20261111b";
-import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261111b";
-import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261111b";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261111e";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261111e";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261111e";
+import { getCurrentWho } from "../identity.js?v=20261111e";
+import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261111e";
+import { collectData, fillData, wireDocEditing,
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261111e";
 
-// Noms historiques conservés : main.js et le banc d'essai _preview_livret.html
-// les importent depuis ce module. La mécanique vit désormais dans doc-officiel.js,
-// partagée avec le Dossier Professionnel.
-export { collectData, fillData, applyEditable, wireDocEditing };
-export const teardownLivretPrint = teardownDocPrint;
+// La mécanique vit dans doc-officiel.js, partagée avec le Dossier Professionnel.
+const teardownLivretPrint = teardownDocPrint;
 
 // ---------------------------------------------------------------------------
 // Gabarit du document (contenu officiel, ne pas modifier sans nouveau modèle)
@@ -187,8 +184,7 @@ function synthActiviteRows(num, titre, competences, key) {
       <td class="lv-s11">NON ${cb(`syn.at${num}.non`, key)}</td></tr>`;
 }
 
-// Exporté pour le banc d'essai visuel (_preview_livret.html), sans effet en prod.
-export function buildDocHTML() {
+function buildDocHTML() {
   const p1 = `<div class="lv-page lv-p1">
     <div class="lv-head">
       <div class="lv-head-logo"><img src="assets/livret/ministere-travail.png" alt="Ministère du Travail, de l'Emploi et de l'Insertion"></div>

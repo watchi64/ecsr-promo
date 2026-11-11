@@ -446,7 +446,7 @@ ci-dessus>, maxTouchPoints: 5, installee: true, langue: "fr-FR", enLigne: true, 
 ### Task 8 : script de vérification et captures
 
 **Files :**
-- Create : `outils/verifier_signalement.py`
+- Create : `outils/verifier_signalement.py` (retiré le 10/11, couvert par le robot des parcours)
 - Modify (hors git) : `C:\Users\watch\Dev\ECSR\.claude\launch.json` (entrée `banc-signalement`, port 8060,
   `python -m http.server 8060 --bind 127.0.0.1 --directory C:/Users/watch/Dev/ecsr-promo-signalement`),
   retirée en fin de chantier

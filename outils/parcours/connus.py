@@ -15,24 +15,10 @@ Chaque ligne : le parcours, le critère, un morceau du message (sans les nombres
 # un défaut vu hors de ces dimensions est nouveau, et un défaut attendu qu'aucun passage n'a revu est « peut-être corrigé ».
 # `depuis` : date d'entrée de la ligne ; `echeance` : date à laquelle le défaut doit être corrigé (ou sa ligne revue). Le
 # rapport signale une ligne échue. Chaque ligne a sa tâche dans ROADMAP.md (audit du 10/11 : une ligne sans échéance
-# reste pour toujours). Les lignes du 08/11 portent sur l'ancienne navigation, retirée d'ici la fin novembre.
+# reste pour toujours).
 DEFAUTS_CONNUS = [
-    {"parcours": "indicateurs-du-centre", "critere": "G", "contient": "div.topbar-actions",
-     "depuis": "2026-11-08", "echeance": "2026-11-30", "note": "n° 4 : ancienne barre à 1 280 px, boutons coupés avec un nom de promo long",
-     "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},
-    # Le même défaut n° 4, vu par le parcours du fondateur sur la promo de démonstration (lot 5, P5) : son nom est long.
-    {"parcours": "apercus-du-fondateur-promo-7", "critere": "G", "contient": "div.topbar-actions",
-     "depuis": "2026-11-08", "echeance": "2026-11-30", "note": "n° 4 : ancienne barre à 1 280 px, boutons coupés avec le nom de la promo de démonstration",
-     "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},
-    # Budgets de clics que l'ancienne navigation dépasse (la nouvelle les tient) : n° 5 de la liste des échecs.
-    {"parcours": "indicateurs-du-centre", "critere": "B", "contient": "avant le but",
-     "depuis": "2026-11-08", "echeance": "2026-11-30", "note": "n° 5 : Indicateurs passe par la tuile de l'Accueil", "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},
-    {"parcours": "emargement-du-jour", "critere": "B", "contient": "avant le but",
-     "depuis": "2026-11-08", "echeance": "2026-11-30", "note": "n° 5 : Émargement passe par la tuile de l'Accueil", "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},
-    {"parcours": "signaler-un-probleme-formateur", "critere": "B", "contient": "avant le but",
-     "depuis": "2026-11-08", "echeance": "2026-11-30", "note": "n° 5 : « Signaler » est dans le menu du compte", "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},
-    {"parcours": "problemes-signales", "critere": "B", "contient": "avant le but",
-     "depuis": "2026-11-08", "echeance": "2026-11-30", "note": "n° 5 : « Signaler » est dans le menu du compte", "ou": {"format": ["ordinateur"], "navigation": ["ancienne"]}},
+    # Les défauts n° 4 (boutons de l'ancienne barre coupés à 1 280 px) et n° 5 (budgets de clics dépassés par l'ancienne
+    # navigation) sont partis avec l'ancienne barre, retirée le 10/11 : plus aucun défaut connu.
 ]
 
 

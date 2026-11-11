@@ -6,14 +6,14 @@
 import {
   listStagiaires, addStagiaire, updateStagiaire, updateStagiaireNom, setStagiaireActif, anonymiserStagiaire,
   listUserProfiles, inviteUser,
-} from "../db.js?v=20261111b";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111b";
-import { icon } from "../icons.js?v=20261111b";
-import { isEquipe } from "../auth-admin.js?v=20261111b";
-import { confirmationValide, resumeEffacement } from "../effacement-rules.js?v=20261111b";
-import { messageInvitationReussie } from "../roles-rules.js?v=20261111b";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261111b";
-import { confirmer, demander } from "../confirmer.js?v=20261111b";
+} from "../db.js?v=20261111e";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111e";
+import { icon } from "../icons.js?v=20261111e";
+import { isEquipe } from "../auth-admin.js?v=20261111e";
+import { confirmationValide, resumeEffacement } from "../effacement-rules.js?v=20261111e";
+import { messageInvitationReussie } from "../roles-rules.js?v=20261111e";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261111e";
+import { confirmer, demander } from "../confirmer.js?v=20261111e";
 
 // Liste des personnes invitables de la section déjà à l'écran. Posée par la section d'invitation qui la montre (js/views/config.js ou
 // renderInvitationStagiaire), appelée après un ajout de stagiaire, qui n'actualise que le bloc « Stagiaires ».
@@ -201,7 +201,7 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
         title: "Effacer ses données personnelles (irréversible)",
         onClick: async () => {
           const saisie = await demander({ titre: `Effacer les données de ${displayStagiaire(it)} ?`,
-            phrase: "Supprimés : compte de connexion, e-mail, date de naissance, livret EPCF, dossier professionnel, fiche de suivi, "
+            phrase: "Supprimés : compte de connexion, e-mail, date de naissance, livret EPCF, dossier professionnel, "
               + "commentaires. Conservés sans nom : notes, QCM, passages, évaluations EPCF. Irréversible.",
             libelle: `Pour confirmer, tapez le prénom : ${it.prenom}`, oui: "Effacer les données",
             verifier: (v) => confirmationValide(v, it.prenom), erreur: "Le prénom ne correspond pas : rien n'est effacé." });
@@ -268,7 +268,7 @@ export async function renderInvitationStagiaire(container, { rerender } = {}) {
   const libelle = "Ajouter à la liste des invitations";
   const sendBtn = el("button", { class: "btn accent", type: "button" }, icon.plus(), libelle);
   sendBtn.addEventListener("click", () => envoyerInvitation({
-    bouton: sendBtn, libelle, emailInput, personId: personSel.value ? Number(personSel.value) : null, role: "stagiaire", v2: true, apres: rerender,
+    bouton: sendBtn, libelle, emailInput, personId: personSel.value ? Number(personSel.value) : null, role: "stagiaire", apres: rerender,
   }));
   emailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendBtn.click(); });
   bloc.appendChild(el("div", { class: "invite-form" },
@@ -280,7 +280,7 @@ export async function renderInvitationStagiaire(container, { rerender } = {}) {
 // Envoi d'une invitation depuis un formulaire (Réglages du formateur, page Stagiaires de la direction) : adresse valide, personne
 // choisie, appel de la base avec un délai de 15 s, message de réussite ou phrase d'erreur, bouton remis en état. `personId` est
 // l'identifiant de la fiche (stagiaire) ou du formateur (rôle « prof »). `apres()` est appelé après une invitation acceptée.
-export async function envoyerInvitation({ bouton, libelle, emailInput, personId, role, v2, apres }) {
+export async function envoyerInvitation({ bouton, libelle, emailInput, personId, role, apres }) {
   const email = emailInput.value.trim().toLowerCase();
   if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("E-mail invalide", "error"); return; }
   // Le siège n'est lié à aucune fiche : l'adresse suffit.
@@ -304,7 +304,7 @@ export async function envoyerInvitation({ bouton, libelle, emailInput, personId,
       new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15 s). Réseau lent : réessayez dans un instant.")), 15000)),
     ]);
     // Profil créé, compte existant qui gagne la promo, ou rien de changé (roles-rules.js, messageInvitationReussie).
-    const { texte, ton } = messageInvitationReussie({ resultat, email, v2 });
+    const { texte, ton } = messageInvitationReussie({ resultat, email });
     toast(texte, ton, 4500);
     emailInput.value = "";
     if (apres) apres();

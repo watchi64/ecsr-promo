@@ -1,7 +1,8 @@
-import { listStagiaires, getStats, getSetting } from "../db.js?v=20261111b";
-import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20261111b";
-import { icon } from "../icons.js?v=20261111b";
-import { renderPassages } from "./passages.js?v=20261111b";
+import { listStagiaires, getStats } from "../db.js?v=20261111e";
+import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261111e";
+import { lundiEnCours } from "../journee-rules.js?v=20261111e";
+import { icon } from "../icons.js?v=20261111e";
+import { renderPassages } from "./passages.js?v=20261111e";
 
 const SORT_OPTIONS = [
   { key: "priorite",   label: "Ordre de passage" },
@@ -110,19 +111,16 @@ function explainPanel(objSalle, objVoiture) {
   );
 }
 
-// opts.embedded : rendu dans le sous-onglet Ordre de passage de Planning (nouvelle navigation,
-// js/views/planning-espace.js) ; la barre des sous-onglets remplace le retour au Planning.
-export async function renderDashboard(container, { embedded = false } = {}) {
+// Rendu dans le sous-onglet Ordre de passage de Planning (js/views/planning-espace.js) : la barre des sous-onglets tient
+// lieu de retour au Planning (#/dashboard y mène, js/nav-rules.js).
+export async function renderDashboard(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
-  const [stagiaires, stats, semaineLundi] = await Promise.all([
-    listStagiaires(),
-    getStats(),
-    getSetting("current_week_lundi"),
-  ]);
+  const [stagiaires, stats] = await Promise.all([listStagiaires(), getStats()]);
 
-  const monday = semaineLundi || isoDate(getMonday(new Date()));
+  // La semaine en cours, la suivante le week-end (comme le planning : ruling R59).
+  const monday = lundiEnCours(new Date());
 
   // Objectif par type = moyenne de classe du compteur de priorité (faits + bonus + refus), arrondie.
   const n = stagiaires.length || 1;
@@ -151,12 +149,6 @@ export async function renderDashboard(container, { embedded = false } = {}) {
   };
 
   clear(container);
-
-  // L'ordre de passage (ex-Priorités) se consulte depuis le Planning (chantier D) : retour en un geste.
-  if (!embedded) {
-    container.appendChild(el("button", { class: "btn small ghost dash-retour", type: "button",
-      onClick: () => { location.hash = "#/planning"; } }, icon.chevronLeft(), "Planning"));
-  }
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },

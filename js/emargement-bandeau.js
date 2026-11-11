@@ -4,15 +4,14 @@
 // Relu au démarrage, à chaque changement de page, au retour au premier plan et toutes
 // les 60 secondes quand l'app est visible. Aucune erreur affichée : ce n'est qu'un rappel.
 
-import { getEmargementsOuverts, signerEmargement, listStagiaires } from "./db.js?v=20261111b";
-import { el, clear, isoDate, toast } from "./utils.js?v=20261111b";
-import { isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261111b";
-import { ouvrirSignature } from "./signature-pad.js?v=20261111b";
-import { libelleCreneau, heureLocale, adresseSeance, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261111b";
-import { jourLong, DEMI_LONG, nomComplet } from "./emargement-feuilles.js?v=20261111b";
-import { emargementActif } from "./emargement-etat.js?v=20261111b";
-import { navigationV2Active } from "./nav-etat.js?v=20261111b";
-import { lireAdresse } from "./route-rules.js?v=20261111b";
+import { getEmargementsOuverts, signerEmargement, listStagiaires } from "./db.js?v=20261111e";
+import { el, clear, isoDate, toast } from "./utils.js?v=20261111e";
+import { isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261111e";
+import { ouvrirSignature } from "./signature-pad.js?v=20261111e";
+import { libelleCreneau, heureLocale, adresseSeance, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261111e";
+import { jourLong, DEMI_LONG, nomComplet } from "./emargement-feuilles.js?v=20261111e";
+import { emargementActif } from "./emargement-etat.js?v=20261111e";
+import { lireAdresse } from "./route-rules.js?v=20261111e";
 
 const INTERVALLE_MS = 60000;
 let initialise = false;
@@ -63,12 +62,11 @@ export function rafraichirBandeauEmargement() {
   return lecture;
 }
 
-// Sous la nouvelle navigation, la page d'accueil porte elle-même la feuille d'émargement : le stagiaire y signe dans la
-// rangée de la séance ouverte et y lit « Signé à ... », le formateur y lit la carte « Émargement » (et le fondateur qui a
-// une fiche de stagiaire, son bouton « Signer »). Le bandeau n'y double rien. Les autres pages, et l'ancienne
-// navigation partout, gardent le bandeau d'avant.
+// La page d'accueil porte elle-même la feuille d'émargement : le stagiaire y signe dans la rangée de la séance ouverte et
+// y lit « Signé à ... », le formateur y lit la carte « Émargement » (et le fondateur qui a une fiche de stagiaire, son
+// bouton « Signer »). Le bandeau n'y double rien. Les autres pages gardent le bandeau.
 function accueilPorteLaFeuille() {
-  return navigationV2Active() && lireAdresse(location.hash).route === "home";
+  return lireAdresse(location.hash).route === "home";
 }
 
 // Les séances ouvertes aujourd'hui, lignes de présence comprises : ce que lit le bandeau, rendu à la page

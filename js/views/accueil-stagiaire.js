@@ -7,23 +7,23 @@
  */
 import {
   listAgendaEvents, getPromoCourante, listQcmIndex, listMyQcmAttempts, listThemes, getDpDossier,
-} from "../db.js?v=20261111b";
-import { el, clear } from "../utils.js?v=20261111b";
-import { icon } from "../icons.js?v=20261111b";
-import { getProfileWho, monStagiaireId, getProfile, getViewAs, getProfileNom } from "../auth-admin.js?v=20261111b";
-import { libelleConnexion } from "../roles-rules.js?v=20261111b";
-import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261111b";
-import { carteNouveaute } from "./nouveautes.js?v=20261111b";
-import { prenomDe } from "../nav-rules.js?v=20261111b";
-import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi } from "../accueil-rules.js?v=20261111b";
-import { journeeDuJour } from "../journee-rules.js?v=20261111b";
-import { effSujets, sujetsDe } from "../planning-roles.js?v=20261111b";
-import { exemplesRemplis } from "../dp-rules.js?v=20261111b";
-import { heureLocale } from "../emargement-rules.js?v=20261111b";
-import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261111b";
-import { ouvrirSignalement } from "../signalement.js?v=20261111b";
-import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261111b";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111b";
+} from "../db.js?v=20261111e";
+import { el, clear } from "../utils.js?v=20261111e";
+import { icon } from "../icons.js?v=20261111e";
+import { getProfileWho, monStagiaireId, getProfile, getViewAs, getProfileNom } from "../auth-admin.js?v=20261111e";
+import { libelleConnexion } from "../roles-rules.js?v=20261111e";
+import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261111e";
+import { carteNouveaute } from "./nouveautes.js?v=20261111e";
+import { prenomDe } from "../nav-rules.js?v=20261111e";
+import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi, ligneBenevoles } from "../accueil-rules.js?v=20261111e";
+import { journeeDuJour } from "../journee-rules.js?v=20261111e";
+import { effSujets, sujetsDe } from "../planning-roles.js?v=20261111e";
+import { exemplesRemplis } from "../dp-rules.js?v=20261111e";
+import { heureLocale } from "../emargement-rules.js?v=20261111e";
+import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261111e";
+import { ouvrirSignalement } from "../signalement.js?v=20261111e";
+import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261111e";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111e";
 
 const RELECTURE_SEANCES_MS = 60000;
 
@@ -56,7 +56,7 @@ function rangeeCarte(c) {
   return el("div", { class: "acc-carte-jour" },
     el("b", {}, c.titre + sujets),
     equipe ? el("p", {}, equipe) : null,
-    c.benevoles.length ? el("p", {}, `${c.benevoles.length > 1 ? "Élèves bénévoles" : "Élève bénévole"} : ${c.benevoles.join(", ")}.`) : null,
+    ligneBenevoles(c.benevoles) ? el("p", {}, ligneBenevoles(c.benevoles)) : null,
     c.notes ? el("p", { class: "acc-note" }, c.notes) : null,
     etiquette,
   );

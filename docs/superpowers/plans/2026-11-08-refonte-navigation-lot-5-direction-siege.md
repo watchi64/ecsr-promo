@@ -22,7 +22,7 @@ et `outils/verifier_navigation.py` (Chromium et WebKit).
 **Spec :** `docs/superpowers/specs/2026-10-27-refonte-navigation-roles-design.md` (§ 4.2 Direction et Siège, § 4.3,
 § 4.4, § 6 : décisions du 27/10, dont « pas de données nominatives au siège ») ; découpage
 `docs/superpowers/plans/2026-10-27-refonte-navigation-lots.md` (lot 5) ; maquette
-`docs/maquettes/refonte-navigation.src.html` (fonctions `dPromos` à `sReglages`, objet `ROLES`) ; lot 4
+`docs/maquettes/refonte-navigation.src.html` (dossier retiré le 10/11, à lire dans l'historique git) (fonctions `dPromos` à `sReglages`, objet `ROLES`) ; lot 4
 `docs/superpowers/plans/2026-10-28-refonte-navigation-lot-4-roles.md` (modèle, vocabulaire, matrice) ; tableau de bord du
 centre `docs/superpowers/specs/2026-10-23-tableau-de-bord-centre-design.md` ; dossier Qualiopi
 `docs/superpowers/specs/2026-10-28-dossier-qualiopi-design.md` (§ 6.9).

@@ -4,7 +4,7 @@
 //
 // Les dates sont des chaînes « AAAA-MM-JJ » calculées en UTC : pas de décalage d'heure d'été.
 
-import { QUESTIONNAIRES, seuilDe } from "./questionnaires-data.js?v=20261111b";
+import { QUESTIONNAIRES, seuilDe } from "./questionnaires-data.js?v=20261111e";
 
 const FORMAT_JOUR = /^(\d{4})-(\d{2})-(\d{2})/;
 

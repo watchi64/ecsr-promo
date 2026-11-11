@@ -1,15 +1,9 @@
 /*
- * Vue Paramètres (ancienne navigation) et vue Réglages (nouvelle navigation).
- * Ancienne navigation, une seule page, sections : Accès & invitations · Mes préférences · Modules de la
- * promo (js/views/modules-reglage.js) · Émargement (fondateur, js/emargement-etat.js) ·
- * Nouvelle navigation (fondateur, js/nav-etat.js) · Promo · Données personnelles (admins) · Infos.
- * Nouvelle navigation (lot 2A), deux pages : Réglages (#/config, l'équipe) ne garde que la promo, dans
- * l'ordre : Ce que voient les stagiaires (les modules) · Promo · Accès et invitations · Émargement et
- * Nouvelle navigation (fondateur) · Données personnelles ; Mes préférences (#/preferences, tous les
- * rôles, renderPreferences) garde ce qui est à la personne : Apparence (lot 3, pour tous) · Dans les notes de la classe
- * (l'anonymat, pour qui a une fiche de stagiaire) · Informations (dont « À retenir », les règles courtes que l'Accueil ne porte plus).
- * Paramètres de l'ancienne barre : Apparence en tête, seulement pour qui est en Couleurs ECF (décision H6 : le choix se fait dans
- * la nouvelle navigation, mais personne ne reste coincé dans un habillage qu'il ne peut pas quitter).
+ * Deux pages (lot 2A) : Réglages (#/config, l'équipe) ne garde que la promo, dans l'ordre : Ce que voient les
+ * stagiaires (les modules, js/views/modules-reglage.js) · Promo · Accès et invitations · Émargement (fondateur,
+ * js/emargement-etat.js) · Données personnelles ; Mes préférences (#/preferences, tous les rôles, renderPreferences)
+ * garde ce qui est à la personne : Apparence (lot 3, pour tous) · Dans les notes de la classe (l'anonymat, pour qui a
+ * une fiche de stagiaire) · Informations (dont « À retenir », les règles courtes que l'Accueil ne porte plus).
  */
 import {
   listStagiaires, listProfs,
@@ -18,22 +12,20 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   setMyAnonymousNotes,
-} from "../db.js?v=20261111b";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111b";
-import { confirmer, demander } from "../confirmer.js?v=20261111b";
-import { icon } from "../icons.js?v=20261111b";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261111b";
-import { moduleVisible } from "../modules-etat.js?v=20261111b";
-import { renderModulesSection } from "./modules-reglage.js?v=20261111b";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111b";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261111b";
-import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261111b";
-import { pointsARetenir } from "../accueil-rules.js?v=20261111b";
-import { dateCourte, etatFinDePromo, questionAnonymiserPromo, questionPurgerBenevoles } from "../effacement-rules.js?v=20261111b";
-import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111b";
-import { blocHabillage } from "../habillage-choix.js?v=20261111b";
-import { habillageCourant } from "../habillage.js?v=20261111b";
-import { nomBenevole } from "../planning-lecture.js?v=20261111b";
+} from "../db.js?v=20261111e";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111e";
+import { confirmer, demander } from "../confirmer.js?v=20261111e";
+import { icon } from "../icons.js?v=20261111e";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261111e";
+import { moduleVisible } from "../modules-etat.js?v=20261111e";
+import { renderModulesSection } from "./modules-reglage.js?v=20261111e";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111e";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261111e";
+import { pointsARetenir } from "../accueil-rules.js?v=20261111e";
+import { dateCourte, etatFinDePromo, questionAnonymiserPromo, questionPurgerBenevoles } from "../effacement-rules.js?v=20261111e";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111e";
+import { blocHabillage } from "../habillage-choix.js?v=20261111e";
+import { nomBenevole } from "../planning-lecture.js?v=20261111e";
 
 // ====== SECTION Accès & invitations ======
 
@@ -42,19 +34,15 @@ async function renderAccessSection(rerender) {
   // La direction du centre n'est pas « admin » mais peut inviter (un formateur compris) : le formulaire lui est ouvert.
   const peutInviter = admin || peutInviterFormateur({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() });
   const currentEmail = getAdminEmail();
-  // Nouvelle navigation : les mots de la page sont ceux de l'équipe, sans « whitelist », « admin » ni « mdp »
-  // (constats du 28/10) ; l'ancienne garde ses textes.
-  const v2 = navigationV2Active();
-  const libelleAjout = v2 ? "Ajouter à la liste des invitations" : "Ajouter à la whitelist";
+  // Les mots de la page sont ceux de l'équipe, sans « whitelist », « admin » ni « mdp » (constats du 28/10).
+  const libelleAjout = "Ajouter à la liste des invitations";
   poserMajPersonnesInvitables(null);  // le formulaire d'un rendu précédent ne doit pas survivre à celui-ci
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.shield()),
     el("div", {},
-      el("h3", {}, v2 ? "Accès et invitations" : "Accès & invitations"),
-      el("p", { class: "muted" }, v2
-        ? "Personnes invitées à utiliser l'app : stagiaires et formateurs."
-        : "Personnes invitées à utiliser l'app (stagiaires, formateurs, admins)."),
+      el("h3", {}, "Accès et invitations"),
+      el("p", { class: "muted" }, "Personnes invitées à utiliser l'app : stagiaires et formateurs."),
     ),
   ));
 
@@ -68,9 +56,7 @@ async function renderAccessSection(rerender) {
   if (peutInviter) {
     const inviteBlock = el("div", { class: "param-block" });
     inviteBlock.appendChild(el("h4", {}, "Autoriser une personne"));
-    const phraseHabituelle = v2
-      ? "Choisissez le rôle et la personne, entrez son adresse e-mail. Aucun e-mail n'est envoyé : vous lui partagez l'URL vous-même, puis elle crée son compte avec cette adresse et un mot de passe."
-      : "Choisis le rôle et la personne, entre son email. Aucun mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec son email + un mdp.";
+    const phraseHabituelle = "Choisissez le rôle et la personne, entrez son adresse e-mail. Aucun e-mail n'est envoyé : vous lui partagez l'URL vous-même, puis elle crée son compte avec cette adresse et un mot de passe.";
     // Le siège n'a pas de personne à choisir : la phrase ne la mentionne plus.
     const phraseSiege = "Entrez l'adresse e-mail de la personne qui rejoint le siège du réseau. Aucun e-mail n'est envoyé : vous lui partagez l'URL vous-même, puis elle crée son compte avec cette adresse et un mot de passe.";
     const aideInvitation = el("p", { class: "muted" }, phraseHabituelle);
@@ -126,7 +112,7 @@ async function renderAccessSection(rerender) {
     const sendBtn = el("button", { class: "btn accent" }, icon.plus(), libelleAjout);
     sendBtn.addEventListener("click", () => envoyerInvitation({
       bouton: sendBtn, libelle: libelleAjout, emailInput, personId: personSel.value ? Number(personSel.value) : null,
-      role: roleSel.value, v2, apres: rerender,
+      role: roleSel.value, apres: rerender,
     }));
 
     function restoreBtnInitial() {
@@ -159,7 +145,7 @@ async function renderAccessSection(rerender) {
     listBlock.appendChild(el("p", { class: "muted" }, "Personne pour l'instant. Invitez quelqu'un ci-dessus."));
   } else {
     const list = el("ul", { class: "admin-list" });
-    listeAcces({ profils: profiles, roles: rolesPersonnel, v2 })
+    listeAcces({ profils: profiles, roles: rolesPersonnel })
       .forEach(({ profil: p, pastilles }) => {
         let who = "";
         if (p.stagiaire_id) {
@@ -169,12 +155,12 @@ async function renderAccessSection(rerender) {
           const pr = profs.find((x) => x.id === p.prof_id);
           if (pr) who = pr.nom;
         }
-        // Nouvelle navigation : un compte « admin » est un formateur, et le droit d'inviter et de modifier se dit
+        // Un compte « admin » est un formateur, et le droit d'inviter et de modifier se dit
         // « gestion » (court : la colonne de la pastille fait 80 px), avec le détail en infobulle.
         const pills = el("div", { class: "role-pills" },
           ...pastilles.map((x) => el("span", { class: "role-pill role-" + x.classe }, x.libelle)),
           (p.is_admin && p.role !== "admin")
-            ? el("span", { class: "role-pill role-admin", title: v2 ? "Peut inviter et modifier" : null }, v2 ? "gestion" : "admin")
+            ? el("span", { class: "role-pill role-admin", title: "Peut inviter et modifier" }, "gestion")
             : null,
         );
         const item = el("li", { class: "admin-item" },
@@ -211,20 +197,18 @@ function renderMyPreferencesSection(rerender) {
   // Seul réglage de la section : l'anonymat dans les notes de la classe. Module Notes
   // fermé pour la promo : la section n'a plus d'objet pour un stagiaire.
   if (!moduleVisible("notes")) return null;
-  // Nouvelle navigation : l'anonymat ne concerne que qui a une fiche de stagiaire (un formateur n'a pas de notes dans la classe, et voit
-  // tout) ; sans fiche (monStagiaireId() nul, « Voir en tant que » Formateur compris), le réglage est masqué. L'ancienne navigation
-  // le garde pour tous, comme avant.
-  const v2 = navigationV2Active();
-  if (v2 && monStagiaireId() == null) return null;
+  // L'anonymat ne concerne que qui a une fiche de stagiaire (un formateur n'a pas de notes dans la classe, et voit tout) ;
+  // sans fiche (monStagiaireId() nul, « Voir en tant que » Formateur compris), le réglage est masqué.
+  if (monStagiaireId() == null) return null;
 
   const section = el("section", { class: "param-section" });
-  // Nouvelle navigation : la page s'appelle déjà « Mes préférences » et « Réglages » est la page de l'équipe : la section dit ce qu'elle
-  // règle, une seule fois le titre de la page. L'ancienne garde ses mots.
+  // La page s'appelle déjà « Mes préférences » et « Réglages » est la page de l'équipe : la section dit ce qu'elle règle, une
+  // seule fois le titre de la page.
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.user ? icon.user() : icon.users()),
     el("div", {},
-      el("h3", {}, v2 ? "Dans les notes de la classe" : "Mes préférences"),
-      el("p", { class: "muted" }, v2 ? "Ce que les autres stagiaires voient de toi." : "Réglages personnels visibles uniquement par toi."),
+      el("h3", {}, "Dans les notes de la classe"),
+      el("p", { class: "muted" }, "Ce que les autres stagiaires voient de toi."),
     ),
   ));
 
@@ -240,7 +224,7 @@ function renderMyPreferencesSection(rerender) {
   const noLock = !!(profile.is_admin || profile.is_founder);
   block.appendChild(el("p", { class: "muted" },
     noLock
-      ? (navigationV2Active() ? "Réglage modifiable librement, sans verrou." : "Ton profil admin change librement, sans verrou.")
+      ? "Réglage modifiable librement, sans verrou."
       : "Après un changement, tu as 2 minutes pour annuler ; ensuite le réglage est verrouillé pendant 24 h."));
 
   const checkbox = el("input", { type: "checkbox", id: "pref-anon" });
@@ -323,9 +307,7 @@ async function renderPromoSection(rerender) {
       el("h3", {}, "Promo"),
       el("p", { class: "muted" }, admin
         ? "Gérer la liste des stagiaires et formateurs."
-        : (navigationV2Active()
-          ? "Liste des stagiaires et formateurs. Vous ne pouvez pas la modifier."
-          : "Liste des stagiaires et formateurs. Édition admin only.")),
+        : "Liste des stagiaires et formateurs. Vous ne pouvez pas la modifier."),
     ),
   ));
 
@@ -544,7 +526,7 @@ function renderApparenceSection() {
   );
 }
 
-// Réglages de la promo (nouvelle navigation) : au test du premier clic, les formatrices ont cherché les couleurs ici. La
+// Réglages de la promo : au test du premier clic, les formatrices ont cherché les couleurs ici. La
 // section les renvoie à Mes préférences, où le choix se fait pour chaque personne (décision du 10/11, lot 3).
 function renderApparenceRenvoi() {
   return el("section", { class: "param-section param-renvoi-apparence" },
@@ -582,16 +564,14 @@ function renderInfoSection() {
       el("dd", {}, "Propriétaire."),   // plus de lien vers le dépôt : décision de Timy du 09/11
     )
   ));
-  // Nouvelle navigation : l'Accueil ne porte plus « À retenir » (ce n'est pas ce qu'on vient y chercher chaque jour) ;
-  // les règles vivent ici, pour tous les rôles. Avec l'ancienne, elles restent sur l'Accueil.
-  if (navigationV2Active()) {
-    section.appendChild(el("div", { class: "param-block", "data-a-retenir": "" },
-      el("h4", {}, "À retenir"),
-      el("ul", { class: "home-info-list" },
-        ...pointsARetenir(true, selonPublic).map((p) => el("li", {}, el("strong", {}, p.gras), p.suite)),
-      ),
-    ));
-  }
+  // L'Accueil ne porte pas « À retenir » (ce n'est pas ce qu'on vient y chercher chaque jour) : les règles vivent ici,
+  // pour tous les rôles, au tutoiement pour un stagiaire, au vouvoiement pour l'équipe (selonPublic).
+  section.appendChild(el("div", { class: "param-block", "data-a-retenir": "" },
+    el("h4", {}, "À retenir"),
+    el("ul", { class: "home-info-list" },
+      ...pointsARetenir(selonPublic).map((p) => el("li", {}, el("strong", {}, p.gras), p.suite)),
+    ),
+  ));
   return section;
 }
 
@@ -607,18 +587,14 @@ function withTimeout(promise, ms, label) {
 async function rerender(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
-  // Nouvelle navigation : la page se nomme Réglages et ne garde que la promo ; ce qui est à la personne a
-  // sa page (renderPreferences). Avec l'ancienne, la page Paramètres d'avant, d'un seul tenant.
-  const v2 = navigationV2Active();
-  const titre = v2 ? "Réglages" : "Paramètres";
+  // La page se nomme Réglages et ne garde que la promo ; ce qui est à la personne a sa page (renderPreferences).
+  const titre = "Réglages";
 
   try {
-    const [acces, preferences, promo, donnees, infos] = await withTimeout(Promise.all([
+    const [acces, promo, donnees] = await withTimeout(Promise.all([
       renderAccessSection(() => rerender(container)),
-      v2 ? null : renderMyPreferencesSection(() => rerender(container)),
       renderPromoSection(() => rerender(container)),
       renderDonneesSection(() => rerender(container)),
-      v2 ? null : renderInfoSection(),
     ]), 12000, titre);
     // La section « Modules de la promo » est construite ICI, après l'attente, et non dans le
     // tableau ci-dessus : elle montre l'état des modules tel qu'il est au moment de son
@@ -628,33 +604,22 @@ async function rerender(container) {
     const modules = renderModulesSection();
     // Interrupteur de l'émargement, propre à la promo (fondateur seulement, sinon null).
     const emargement = renderEmargementReglage();
-    // Interrupteur de la nouvelle navigation et aperçu de l'appareil (fondateur seulement, sinon null).
-    const navigation = renderNavigationReglage();
 
     clear(container);
-    // Surtitre de la nouvelle navigation : la promo affichée, celle que règle la page (absente si les
-    // promos ne sont pas chargées).
-    const surtitre = v2 ? getPromoCourante()?.nom : "Système";
+    // Surtitre : la promo affichée, celle que règle la page (absente si les promos ne sont pas chargées).
+    const surtitre = getPromoCourante()?.nom;
     container.appendChild(el("div", { class: "view-header" },
       el("div", { class: "view-header-text" },
         surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
         el("h2", {}, titre),
-        el("p", { class: "subtitle" }, v2
-          ? "Ce que voient les stagiaires, la promo et les accès."
-          : (isEquipe() ? "Accès, gestion de la promo, infos."
-            : "Accès, gestion de la promo, infos. Connecte-toi en admin pour inviter ou modifier.")),
+        el("p", { class: "subtitle" }, "Ce que voient les stagiaires, la promo et les accès."),
       ),
     ));
 
     const grid = el("div", { class: "param-grid" });
-    // Nouvelle navigation : ce que voient les stagiaires d'abord (le réglage qui sert le plus), puis la promo
-    // et les accès, les interrupteurs du fondateur, les données personnelles. Ancienne : l'ordre d'avant, et
-    // Apparence en tête pour qui est en Couleurs ECF seulement (décision H6), le moyen de revenir à ECSR Promo.
-    const apparence = !v2 && habillageCourant() === "ecf" ? renderApparenceSection() : null;
-    const sections = v2
-      ? [modules, promo, acces, emargement, navigation, donnees, renderApparenceRenvoi()]
-      : [apparence, acces, preferences, modules, emargement, navigation, promo, donnees, infos];
-    sections.filter(Boolean).forEach((s) => grid.appendChild(s));
+    // Ce que voient les stagiaires d'abord (le réglage qui sert le plus), puis la promo et les accès,
+    // l'interrupteur du fondateur, les données personnelles, et le renvoi vers Apparence (Mes préférences).
+    [modules, promo, acces, emargement, donnees, renderApparenceRenvoi()].filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
     console.error(titre + " : erreur de chargement", e);
@@ -664,9 +629,6 @@ async function rerender(container) {
         el("h2", {}, titre),
       ),
     ));
-    // Ancienne barre en Couleurs ECF : Apparence ne demande aucune lecture, elle se pose quand même, pour que la
-    // personne ne reste pas piégée en ECF tant que la page ne se charge pas (décision H6).
-    if (!v2 && habillageCourant() === "ecf") container.appendChild(renderApparenceSection());
     container.appendChild(el("div", { class: "param-error" },
       el("p", {}, "Le chargement a échoué. " + (e.message || "")),
       el("button", {
@@ -681,7 +643,7 @@ export async function renderConfig(container) {
   await rerender(container);
 }
 
-// Nouvelle navigation : « Mes préférences » (#/preferences), que le menu du compte ouvre pour tous les rôles :
+// « Mes préférences » (#/preferences), que le menu du compte ouvre pour tous les rôles :
 // ce qui ne concerne que la personne (l'apparence, l'anonymat dans les notes) et les informations sur l'app. Rien
 // de la promo, qui vit dans Réglages (#/config), la page de l'équipe. Les sections ne demandent aucune lecture :
 // la page se pose d'un coup.

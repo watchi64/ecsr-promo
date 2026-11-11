@@ -8,7 +8,7 @@
 
 **Tech Stack:** JavaScript en modules ES sans framework, CSS, Supabase (lectures par `js/db.js`, aucune migration), tests `node --test`, banc `_harness.html`, Playwright (Python) pour `outils/verifier_navigation.py`.
 
-**Spec:** `docs/superpowers/specs/2026-10-27-refonte-navigation-roles-design.md` ; maquette `docs/maquettes/refonte-navigation.src.html` (`stAccueil` l. 929, `weekGrid` et `vueToggle` l. 997-1010, `qcmList` l. 1048, `resultats` et `stSuivi` l. 1064-1091, `fAujourdhui` l. 1101, `fCours` l. 1190) ; constats `docs/superpowers/plans/2026-10-28-refonte-navigation-constats.md` ; annexe et rulings R37 à R57 de `docs/superpowers/plans/2026-10-28-refonte-navigation-lot-2a-allumage.md`.
+**Spec:** `docs/superpowers/specs/2026-10-27-refonte-navigation-roles-design.md` ; maquette `docs/maquettes/refonte-navigation.src.html` (dossier retiré le 10/11, à lire dans l'historique git) (`stAccueil` l. 929, `weekGrid` et `vueToggle` l. 997-1010, `qcmList` l. 1048, `resultats` et `stSuivi` l. 1064-1091, `fAujourdhui` l. 1101, `fCours` l. 1190) ; constats `docs/superpowers/plans/2026-10-28-refonte-navigation-constats.md` ; annexe et rulings R37 à R57 de `docs/superpowers/plans/2026-10-28-refonte-navigation-lot-2a-allumage.md`.
 
 ## Global Constraints
 

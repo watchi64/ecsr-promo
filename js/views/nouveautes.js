@@ -4,25 +4,24 @@
 // La page n'est PAS dans la barre d'onglets : on y arrive par le lien
 // « Tout voir » d'Accueil, comme #/mon-suivi n'a pas d'onglet non plus.
 
-import { el, clear, formatLongDate } from "../utils.js?v=20261111b";
-import { nouveautesAffichables, marquerLues } from "../modules-etat.js?v=20261111b";
-import { STORAGE_SOUS_ONGLET, guideSelonNavigation } from "../nouveautes.js?v=20261111b";
-import { hrefLien } from "../route-rules.js?v=20261111b";
-import { navigationV2Active } from "../nav-etat.js?v=20261111b";
-import { getEspace } from "../auth-admin.js?v=20261111b";
-import { ouSelonNavigation } from "../ou-trouver.js?v=20261111b";
+import { el, clear, formatLongDate } from "../utils.js?v=20261111e";
+import { nouveautesAffichables, marquerLues } from "../modules-etat.js?v=20261111e";
+import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261111e";
+import { hrefLien } from "../route-rules.js?v=20261111e";
+import { getEspace } from "../auth-admin.js?v=20261111e";
+import { ouSelonNavigation } from "../ou-trouver.js?v=20261111e";
 
 // Lien « Où le trouver ». Une partie de Mon espace se vise par l'adresse
 // (#/mon-suivi/dp) ; un sous-onglet de Notes, de Cours ou de Stagiaires, par la clé que
 // renderSubTabs relit à l'ouverture de la vue : sans ça, un lien « Notes,
 // sous-onglet EPCF » atterrirait sur la Matrice, et le lecteur devrait
 // chercher lui-même ce qu'on venait de lui indiquer.
-// Le libellé suit la navigation de la personne (js/ou-trouver.js) : « Mon suivi, partie Livret »
-// à la place de « Mon espace personnel, partie Livret » sous la nouvelle barre ; la route, le
-// sous-onglet et l'adresse restent ceux de l'entrée. L'espace est celui de la session (lot 5 : direction et siège compris).
+// Le libellé suit la barre de la personne (js/ou-trouver.js) : « Mon suivi, partie Livret »
+// à la place de « Mon espace personnel, partie Livret » ; la route, le sous-onglet et l'adresse
+// restent ceux de l'entrée. L'espace est celui de la session (lot 5 : direction et siège compris).
 function lienOu(ou) {
   if (!ou) return null;
-  const cible = ouSelonNavigation(ou, { navigationV2: navigationV2Active(), espace: getEspace() });
+  const cible = ouSelonNavigation(ou, { espace: getEspace() });
   const href = hrefLien(cible);
   return el("a", {
     class: "nv-ou",
@@ -56,8 +55,7 @@ export function carteNouveaute(entree, opts = {}) {
     el("h3", { class: "nv-titre" }, entree.titre),
     el("p", { class: "nv-resume" }, entree.resume),
     lienOu(entree.ou),
-    // Les étapes de la nouvelle navigation (`guideNouvelle`) remplacent celles d'avant quand elle est allumée.
-    blocGuide(guideSelonNavigation(entree, navigationV2Active()), guideDeplie),
+    blocGuide(entree.guide, guideDeplie),
   );
 }
 

@@ -1,9 +1,8 @@
 /* ============================================================
    Nouvelle navigation (refonte, lot 1) : la coquille
-   Posée par js/nav-shell.js quand l'interrupteur de la promo est allumé. Toutes les règles vivent
-   sous body[data-nav="v2"] (et une sous body[data-nav-attente], posé à l'ouverture seulement quand
-   la coquille est attendue) : interrupteur éteint, aucune ne s'applique et l'app reste celle
-   d'avant. Couleurs, rayons et ombres : les jetons de css/style.css.
+   Posée par js/nav-shell.js ; seule navigation depuis le 10/11. Les règles vivent sous
+   body[data-nav="v2"], que la coquille pose (le préfixe garde leur spécificité sur celles de
+   css/style.css). Couleurs, rayons et ombres : les jetons de css/style.css.
    Tailles : téléphone sous 700 px, tablette de 700 à 1079 px, ordinateur au-delà.
    Stagiaire : en-tête clair (onglets en capsule). Équipe : barre latérale sombre, en colonne
    d'icônes quand body porte data-nav-colonne (tablette, ou barre repliée sur ordinateur).
@@ -11,22 +10,12 @@
    pour les trois (js/nav-shell.js, barreLaterale de js/espaces-rules.js), data-espace dit lequel.
    ============================================================ */
 
-/* L'ancienne barre du haut cède la place à la coquille. */
-body[data-nav="v2"] header.topbar { display: none; }
-
-/* Ouverture de l'app quand la coquille est attendue (ruling R17, js/main.js) : l'ancienne barre ne se
-   peint pas avant la décision. visibility et non display : si la décision est de la garder, elle revient
-   à sa place sans décaler la page. */
-body[data-nav-attente] header.topbar { visibility: hidden; }
-
-/* Hauteur de l'en-tête collant de la coquille, à la place de celle de l'ancienne barre (style.css,
-   :root) : la barre de jours du Planning se colle dessous (top) et un saut vers un jour pose la carte
+/* Hauteur de l'en-tête collant de la coquille (style.css, :root, n'en pose que la valeur de repli) : la barre de jours du Planning se colle dessous (top) et un saut vers un jour pose la carte
    sous les deux (scroll-margin-top : l'en-tête, puis 52 px pour la barre de jours et un peu d'air). En
    px, lue par js/views/planning.js. Stagiaire : 66 px ; équipe : pas d'en-tête (barre latérale), 0 ;
    téléphone : 56 px dans les deux espaces (plus bas). */
 body[data-nav="v2"][data-espace="stagiaire"] { --haut-entete: 66px; }
 body[data-nav="v2"][data-barre="laterale"] { --haut-entete: 0px; }
-/* La valeur de l'ancienne barre sur téléphone (148 px, style.css) ne vaut pas sous la coquille. */
 body[data-nav="v2"] .p-day-card { scroll-margin-top: calc(var(--haut-entete) + 52px); }
 
 /* Bord bas des bandeaux du bas de l'écran (js/auth-admin.js : aperçu, promos non chargées) : celui de
@@ -718,7 +707,6 @@ body[data-nav="v2"] .nav-bas { display: none; }
 
 /* ----- Assistant (js/chatbot.js) : ouvert par les boutons « Assistant » de la coquille ----- */
 /* Plus de bulle flottante : elle masquait du contenu sur téléphone. */
-body[data-nav="v2"] #chatbot-fab { display: none; }
 /* Le panneau s'ouvre près de son bouton : sous l'en-tête, à droite, chez le stagiaire ; en bas, à droite
    de la barre latérale, dans l'équipe (comme le menu du compte). */
 body[data-nav="v2"][data-espace="stagiaire"] .chatbot-panel {
@@ -971,14 +959,13 @@ body[data-nav="v2"] .nav-fenetre-haut { display: none; }
 }
 
 /* ----- Planning > Semaine : le bouton « Aujourd'hui » (ruling R29, js/views/planning.js) ----- */
-/* Le bouton de l'ancienne barre du haut, en tête de la vue de la semaine : 44 px à toute taille, ses
-   voisins de la rangée (Émargement) s'étirant à sa hauteur. */
+/* Le retour au jour, dans la barre de la semaine : 44 px à toute taille. */
 body[data-nav="v2"] .p-aujourdhui { min-height: 44px; }
 
 /* ----- Stagiaires > Élèves bénévoles (lot 2A, js/views/stagiaires.js et js/views/benevoles.js) ----- */
-/* Le panneau de la banque, posé dans la page au lieu d'une fenêtre : la largeur de la fenêtre d'avant, son titre
-   (.modal h3) et ses règles contre le débordement des champs (.bnv-modal .field) : le select du niveau, aux options
-   très longues, ferait sinon déborder la colonne de la grille du formulaire. */
+/* Le panneau de la banque, posé dans la page : la largeur de l'ancienne fenêtre, son titre (.modal h3) et des règles
+   contre le débordement des champs : le select du niveau, aux options très longues, ferait sinon déborder la colonne
+   de la grille du formulaire. */
 body[data-nav="v2"] .bnv-page { max-width: 680px; }
 /* Après « Modifier », le formulaire est ramené en haut du bloc (scrollIntoView, js/views/benevoles.js) : sous l'en-tête collant du téléphone, pas derrière lui. */
 body[data-nav="v2"] .bnv-page { scroll-margin-top: calc(var(--haut-entete) + 8px); }
@@ -1038,9 +1025,8 @@ body[data-nav="v2"] .qcm-close { width: 44px; height: 44px; }
 .impersonation-banner.imp-long .imp-text { white-space: normal; }
 .impersonation-banner.imp-long .imp-back { flex: none; min-height: 44px; }
 /* ----- Apparence : le choix de l'habillage (lot 3, js/habillage-choix.js) ----- */
-/* Hors de body[data-nav="v2"], à la différence du reste de cette feuille : la section Apparence s'affiche aussi dans les
-   Paramètres de l'ancienne barre, pour qui est en Couleurs ECF (décision H6). Ses classes ne servent nulle part ailleurs :
-   rien d'autre ne bouge. Deux pastilles côte à côte, 52 px de haut à toute taille (44 au moins sur téléphone) ; la pressée
+/* Hors de body[data-nav="v2"], à la différence du reste de cette feuille (la section ne vit que dans Mes préférences ; ses
+   classes ne servent nulle part ailleurs). Deux pastilles côte à côte, 52 px de haut à toute taille (44 au moins sur téléphone) ; la pressée
    est bordée de l'accent, avec un anneau. La pastille de couleur montre son habillage (jetons --apercu-*, famille fixe). */
 .habillage-pastilles {
   display: grid;
@@ -1128,3 +1114,21 @@ body[data-nav="v2"] .nav-fenetre .habillage-pastilles { padding: 0 6px 6px; }
   body[data-nav="v2"][data-barre="laterale"] #app { margin-left: 0; }
   body[data-nav="v2"] { margin-bottom: 0; }
 }
+
+/* Écran de repli (js/main.js, ecranSansNavigation) : la barre n'a pas pu se monter. Hors de body[data-nav="v2"],
+   que la coquille n'a pas posé. Une phrase et deux gestes, cibles de 44 px, à la ligne sur téléphone. */
+.nav-repli {
+  max-width: 32rem;
+  margin: 3rem auto;
+  padding: 0 16px;
+  text-align: center;
+}
+.nav-repli-titre { margin: 0 0 0.5rem; font-size: 1.25rem; }
+.nav-repli-gestes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+.nav-repli-gestes .btn { min-height: 44px; min-width: 44px; }

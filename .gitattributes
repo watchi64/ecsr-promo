@@ -2,3 +2,5 @@
 *.sh text eol=lf
 # Les migrations et preuves SQL restent en LF (une extraction neuve en CRLF ferait échouer la garde de la migration 2 et laisserait des retours chariot dans son retour).
 *.sql text eol=lf
+# La notice de la base locale reste en LF (tests/assembler-roles.test.mjs l'exige ; core.autocrlf=true la passait en CRLF).
+outils/base_locale/*.md text eol=lf
