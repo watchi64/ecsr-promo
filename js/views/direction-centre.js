@@ -8,26 +8,26 @@
 import {
   lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante, lireReglagePromo, lireEmargementPromo,
   ouvrirDansUnePromo, lireEffacementsSurDemande,
-} from "../db.js?v=20261111j";
-import { el, clear, isoDate, formatDate, formatLongDate, toast, tableauEnListe } from "../utils.js?v=20261111j";
-import { getCentre } from "../auth-admin.js?v=20261111j";
-import { promosDuCentre } from "../espaces-rules.js?v=20261111j";
+} from "../db.js?v=20261111k";
+import { el, clear, isoDate, formatDate, formatLongDate, toast, tableauEnListe } from "../utils.js?v=20261111k";
+import { getCentre } from "../auth-admin.js?v=20261111k";
+import { promosDuCentre } from "../espaces-rules.js?v=20261111k";
 import {
   indicateursPromo, ligneComparaison, aSuivrePromo, fusionnerASuivre,
-} from "../centre-stats.js?v=20261111j";
-import { comptesDepuisIndicateurs, concatenerDonnees, promosEnCours } from "../comptes-reseau.js?v=20261111j";
-import { tableauCentreCsv, slug } from "../centre-csv.js?v=20261111j";
-import { resumeEmargement, lireAdresseEmargement, CLE_ACTIVATION, estActif } from "../emargement-rules.js?v=20261111j";
-import { estAdresseAttestations } from "../attestations-rules.js?v=20261111j";
-import { jourLong, DEMI_LONG } from "../emargement-feuilles.js?v=20261111j";
+} from "../centre-stats.js?v=20261111k";
+import { comptesDepuisIndicateurs, concatenerDonnees, promosEnCours } from "../comptes-reseau.js?v=20261111k";
+import { tableauCentreCsv, slug } from "../centre-csv.js?v=20261111k";
+import { resumeEmargement, lireAdresseEmargement, CLE_ACTIVATION, estActif } from "../emargement-rules.js?v=20261111k";
+import { estAdresseAttestations } from "../attestations-rules.js?v=20261111k";
+import { jourLong, DEMI_LONG } from "../emargement-feuilles.js?v=20261111k";
 import {
   cartesCles, cartesResultats, sectionThemes, sectionASuivre, sectionComparaison, sectionMethodes, etiquette,
   telecharger,
-} from "./centre.js?v=20261111j";
-import { surChangementAdresse } from "../navigation.js?v=20261111j";
-import { renderEmargement } from "./emargement.js?v=20261111j";
-import { renderNotes } from "./notes.js?v=20261111j";
-import { entier, pluriel } from "../nombres.js?v=20261111j";
+} from "./centre.js?v=20261111k";
+import { surChangementAdresse } from "../navigation.js?v=20261111k";
+import { renderEmargement } from "./emargement.js?v=20261111k";
+import { renderNotes } from "./notes.js?v=20261111k";
+import { entier, pluriel } from "../nombres.js?v=20261111k";
 
 export const PHRASE_SANS_PROMO = "Ce centre n'a pas encore de promo";
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";

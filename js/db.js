@@ -1,18 +1,18 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111j";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111j";
-import { compteDansEquite } from "./passage-rules.js?v=20261111j";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111j";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111j";
-import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261111j";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111j";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111j";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111k";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111k";
+import { compteDansEquite } from "./passage-rules.js?v=20261111k";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111k";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111k";
+import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261111k";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111k";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111k";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261111j";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111j";
-import { effectifDesFiches } from "./centre-stats.js?v=20261111j";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111j";
+} from "./promo-rules.js?v=20261111k";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111k";
+import { effectifDesFiches } from "./centre-stats.js?v=20261111k";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111k";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -2535,6 +2535,18 @@ function invaliderStagiaires() {
 // Des nombres et des dates seulement, jamais un nom. Fonction absente (migration pas encore appliquée) : null.
 export async function lireEtatConservation() {
   const { data, error } = await supabase.rpc("etat_conservation");
+  if (error) {
+    if (conservationAbsente(error)) return null;
+    throw erreurConservation(error);
+  }
+  return data;
+}
+
+// Les échéances des promos d'un centre, pour sa direction (Réglages du centre, section « Données personnelles ») : même forme
+// que lireEtatConservation(), restreinte aux promos du centre où les étapes sont permises ; portees_formateurs vide, registre
+// nul (ils restent au fondateur, page Qualiopi). Fonction absente (migration pas encore appliquée) : null.
+export async function lireEtatConservationCentre(lieuId) {
+  const { data, error } = await supabase.rpc("etat_conservation_centre", { p_lieu: lieuId });
   if (error) {
     if (conservationAbsente(error)) return null;
     throw erreurConservation(error);

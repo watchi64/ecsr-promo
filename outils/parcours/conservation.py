@@ -3,6 +3,9 @@
 de l'app qui demande de taper EFFACER, efface une fiche à la demande ; le formateur et le stagiaire n'ont ni bouton ni page ;
 la feuille d'émargement garde l'heure et la présence quand le dessin est effacé.
 
+Depuis le 11/11 (20261111_conservation_direction), la direction lance aussi les deux étapes des promos de son centre, depuis les
+Réglages du centre (section « Données personnelles »), avec les mêmes cartes et la même fenêtre.
+
 Le faux Supabase (`_harness_supabase.js`, `?conservation=1`) simule les fonctions de la migration 20261110_conservation.sql avec
 les mêmes refus et un journal en mémoire (`window.__HARNESS_CONSERVATION`, appels dans `window.__HARNESS_CONSERVATION_APPELS`).
 À la date gelée du robot (28/10/2026), sont dues : l'étape des 12 mois et l'étape des 3 ans de « Montpellier, mars 2021 »,
@@ -74,12 +77,13 @@ def exiger_la_saisie(v):
         v.constat("E", BLOQUE, "le bouton du geste reste inactif après le mot de confirmation", capture=True)
 
 
-def lancer_une_etape(v, sorte, titre, type_echeance, appel, quoi, titre_fenetre, attendu, journal_type, retirees=1):
+def lancer_une_etape(v, sorte, titre, type_echeance, appel, quoi, titre_fenetre, attendu, journal_type, retirees=1,
+                     ouvrir=ouvrir_conservation):
     """Le chemin complet d'une échéance due : fenêtre, mot de confirmation, confirmation à l'écran, carte disparue, une ligne
     de journal sans nom. `retirees` : le nombre de cartes qui disparaissent (l'étape des 3 ans fait d'abord l'étape des 12 mois qui
-    manque, donc emporte aussi la carte de celle-ci)."""
+    manque, donc emporte aussi la carte de celle-ci). `ouvrir` : l'écran des cartes (page Qualiopi, ou Réglages du centre)."""
     c = carte(sorte, titre, type_echeance)
-    ouvrir_conservation(v)
+    ouvrir(v)
     avant = v.page.locator(CARTE).count()
     v.etape("ouvrir la fenêtre de " + quoi)
     texte_fenetre = ouvrir_la_fenetre(v, c, type_echeance, quoi)
@@ -131,6 +135,61 @@ def etape_des_3_ans(v):
     partent, un message confirme (les résultats et les heures restent), la carte disparaît."""
     lancer_une_etape(v, "Fiches : étape des 3 ans", "Montpellier, mars 2021", "etape2", "effacer_promo_etape2",
                      "l'étape des 3 ans", "Effacer les noms et les preuves de", "Les résultats et les heures restent", "promo", retirees=2)
+
+
+def ouvrir_reglages_du_centre(v):
+    """La direction : Réglages du centre, section « Données personnelles », partie « Conservation des fiches »."""
+    v.aller("Réglages du centre")
+    v.attendre("#view .reglage-donnees [data-conservation] .cons-carte", "les échéances des promos du centre")
+
+
+@parcours("conservation-direction-etape-des-12-mois",
+          "Effacer les comptes et les textes d'une promo de son centre à l'échéance des 12 mois (direction)",
+          role="direction", budget=3, banc={"compte": "direction", "conservation": "1"},
+          navigations=("nouvelle",), depart="#/promos")
+def direction_etape_des_12_mois(v):
+    """Réglages du centre, « Données personnelles » : seules les promos de Nîmes (le centre de la direction) ont leurs cartes, sans
+    questionnaire des formateurs ni registre ; la carte « Fiches : étape des 12 mois » de Nîmes, mars 2023 ouvre la même fenêtre
+    que la page Qualiopi, le bouton n'agit qu'après EFFACER, un message confirme, la carte disparaît, une ligne au journal."""
+    ouvrir_reglages_du_centre(v)
+    v.etape("seules les promos du centre")
+    cartes = v.texte("#view .reglage-donnees [data-conservation]")
+    if "Montpellier" in cartes:
+        v.constat("D", BLOQUE, "la direction de Nîmes voit une échéance d'un autre centre (Montpellier)", capture=True)
+    for intrus in ("Questionnaire des formateurs", "Registre qualité", "Effacer à la demande"):
+        if intrus.lower() in cartes.lower():
+            v.constat("D", BLOQUE, "la direction voit « %s », réservé au fondateur" % intrus, capture=True)
+    if "gérée par le fondateur" in cartes:
+        v.constat("F", BLOQUE, "la phrase de l'intérim est encore là", capture=True)
+    lancer_une_etape(v, "Fiches : étape des 12 mois", "Nîmes, mars 2023", "etape1", "effacer_promo_etape1",
+                     "l'étape des 12 mois", "Effacer les comptes et les textes de", "fiches traitées", "promo",
+                     ouvrir=lambda _v: None)
+
+
+@parcours("conservation-direction-fin-a-verifier",
+          "Une promo dont des activités sont datées après sa fin n'a pas de bouton d'effacement (direction)",
+          role="direction", budget=2, banc={"compte": "direction", "conservation": "1", "fin": "contredite"},
+          navigations=("nouvelle",), depart="#/promos")
+def direction_fin_a_verifier(v):
+    """Relecture du 11/11 : la base refuse les étapes à la direction quand des activités de la promo sont datées après sa fin
+    (date de fin reculée ou mal saisie). Réglages du centre : « Nîmes, mars 2023 » n'a plus de carte d'étape ni de bouton, mais une
+    carte « Fiches : date de fin à vérifier » qui dit pourquoi et quoi faire ; aucune fonction d'effacement n'est appelée."""
+    ouvrir_reglages_du_centre(v)
+    a_verifier = carte("Fiches : date de fin à vérifier", "Nîmes, mars 2023")
+    v.attendre(a_verifier, "la carte « Fiches : date de fin à vérifier » de Nîmes, mars 2023")
+    v.but("carte affichée")
+    texte_carte = v.texte(a_verifier)
+    for morceau in ("datées après sa date de fin", "Si cette date de fin est fausse, corrigez-la", "si elle est juste", "fondateur"):
+        if morceau not in texte_carte:
+            v.constat("F", BLOQUE, "la carte ne dit pas « %s »" % morceau, capture=True)
+    if v.voit(a_verifier + " button[data-cons]"):
+        v.constat("E", BLOQUE, "la carte « date de fin à vérifier » porte un bouton d'effacement", capture=True)
+    if v.voit(carte("Fiches : étape des 12 mois", "Nîmes, mars 2023")) or v.voit(carte("Fiches : étape des 3 ans", "Nîmes, mars 2023")):
+        v.constat("E", BLOQUE, "les cartes d'étape de Nîmes, mars 2023 restent affichées", capture=True)
+    if any(nom.startswith("effacer_") for nom in appels(v)):
+        v.constat("E", BLOQUE, "une fonction d'effacement a été appelée")
+    v.controler_ecran("carte « date de fin à vérifier »")
+    v.terminer()
 
 
 @parcours("conservation-liste-des-formateurs", "Effacer la liste des formateurs qui ont répondu au questionnaire (fondateur)",

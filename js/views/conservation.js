@@ -10,45 +10,19 @@
 // sous 3 formateurs (5 stagiaires). Migration pas encore appliquée : lireEtatConservation() rend null, la section le dit.
 // Une liste de cartes, jamais un tableau, sur téléphone comme sur ordinateur.
 
-import { el, clear, toast } from "../utils.js?v=20261111j";
-import {
-  lireEtatConservation, effacerPromoEtape1, effacerPromoEtape2, effacerSurDemande,
-  cloreAnneeFormateurs, effacerCommentairesFormateurs, figerQuestionnaireFormateurs, lireEffacementsSurDemande,
-} from "../db.js?v=20261111j";
+import { el, clear, toast } from "../utils.js?v=20261111k";
+import { lireEtatConservation, effacerSurDemande, lireEffacementsSurDemande } from "../db.js?v=20261111k";
 import {
   echeancesConservation, confirmationEcheance, confirmationDemande, compteRenduConservation, rappelConservation, statutFiche,
-} from "../effacement-rules.js?v=20261111j";
-import { dateLongue } from "../dates.js?v=20261111j";
-import { confirmer } from "../confirmer.js?v=20261111j";
-import { tableau } from "../qualiopi-preuves.js?v=20261111j";
-import { nomPromo } from "../qualiopi-page-rules.js?v=20261111j";
+} from "../effacement-rules.js?v=20261111k";
+import { confirmer } from "../confirmer.js?v=20261111k";
+import { tableau } from "../qualiopi-preuves.js?v=20261111k";
+import { nomPromo } from "../qualiopi-page-rules.js?v=20261111k";
+// Les cartes des échéances et leurs gestes, partagés avec les Réglages du centre (direction) : module à part, qui part avec l'app
+// sans tirer la page Qualiopi.
+import { ACTIONS, CONSERVATION_ABSENTE, carteEcheance } from "./conservation-cartes.js?v=20261111k";
 
-export const CONSERVATION_ABSENTE = "La conservation sera disponible après la mise à jour de la base.";
-
-// Le geste de chaque échéance : la fonction de js/db.js qu'appelle son bouton.
-const ACTIONS = {
-  etape1: (c) => effacerPromoEtape1(c.id),
-  etape2: (c) => effacerPromoEtape2(c.id),
-  cloture_formateurs: (c) => cloreAnneeFormateurs(c.lieu_id, c.annee),
-  commentaires_formateurs: (c) => effacerCommentairesFormateurs(c.lieu_id, c.annee),
-  figeage_formateurs: (c) => figerQuestionnaireFormateurs(c.lieu_id, c.annee),
-};
-
-const SORTES = {
-  etape1: "Fiches : étape des 12 mois",
-  etape2: "Fiches : étape des 3 ans",
-  date_fin_manquante: "Fiches : date de fin manquante",
-  cloture_formateurs: "Questionnaire des formateurs",
-  commentaires_formateurs: "Questionnaire des formateurs",
-  figeage_formateurs: "Questionnaire des formateurs",
-  registre: "Registre qualité",
-};
-
-function quand(e) {
-  if (!e.du) return "Sans date";
-  if (e.due) return e.restant === 0 ? "À faire aujourd'hui" : `À faire depuis le ${dateLongue(e.du)}`;
-  return `À partir du ${dateLongue(e.du)}`;
-}
+export { CONSERVATION_ABSENTE };
 
 // La section. `ouvrirRegistre()` passe au sous-onglet « Registre qualité » ; `ouvrirConservation()` à celui-ci (le bouton du
 // rappel) ; `apresEffacement(promoId)` relit la promo touchée (null : aucune promo en particulier). Rend { noeud, rappel,
@@ -116,33 +90,6 @@ export function creerConservation({ ouvrirRegistre, ouvrirConservation, apresEff
       el("button", { class: "btn", type: "button", onClick: () => ouvrirConservation() }, "Voir la conservation"));
   }
 
-  function carteEcheance(e) {
-    const titre = e.cible?.kind === "promo" ? (e.cible.nom || "Promo") : e.cible?.kind === "formateurs"
-      ? `${e.cible.annee}, ${e.cible.lieu_nom || "centre"}` : "Tout l'organisme";
-    const details = e.part.length || e.reste.length
-      ? el("details", { class: "cons-details" },
-        el("summary", {}, "Ce qui part, ce qui reste"),
-        el("p", { class: "cons-liste-titre" }, "Ce qui est effacé"),
-        el("ul", { class: "cons-liste" }, ...e.part.map((x) => el("li", {}, x))),
-        el("p", { class: "cons-liste-titre" }, "Ce qui reste"),
-        el("ul", { class: "cons-liste" }, ...e.reste.map((x) => el("li", {}, x))))
-      : null;
-    let action = null;
-    if (e.type === "registre") {
-      action = el("button", { class: "btn", type: "button", onClick: () => ouvrirRegistre() }, "Voir le registre qualité");
-    } else if (e.bouton) {
-      action = el("button", { class: "btn primary", type: "button", "data-cons": e.type, onClick: () => agir(e) }, e.bouton);
-    }
-    return el("li", { class: "cons-carte" + (e.due ? " due" : "") },
-      el("div", { class: "cons-carte-tete" },
-        el("span", { class: "cons-sorte" }, SORTES[e.type] ?? ""),
-        el("span", { class: "cons-quand" + (e.due ? " due" : "") }, quand(e))),
-      el("p", { class: "cons-carte-titre" }, titre),
-      el("p", { class: "cons-texte" }, e.texte),
-      details,
-      action ? el("div", { class: "qualiopi-boutons" }, action) : null);
-  }
-
   function afficherEcheances() {
     clear(zoneEcheances);
     const lu = s.lu;
@@ -162,11 +109,11 @@ export function creerConservation({ ouvrirRegistre, ouvrirConservation, apresEff
     }
     if (dues.length) {
       zoneEcheances.append(el("p", { class: "qualiopi-rangee-titre" }, "À faire maintenant"),
-        el("ul", { class: "cons-cartes" }, ...dues.map(carteEcheance)));
+        el("ul", { class: "cons-cartes" }, ...dues.map((e) => carteEcheance(e, { agir, ouvrirRegistre }))));
     }
     if (avenir.length) {
       zoneEcheances.append(el("p", { class: "qualiopi-rangee-titre" }, "À venir"),
-        el("ul", { class: "cons-cartes" }, ...avenir.map(carteEcheance)));
+        el("ul", { class: "cons-cartes" }, ...avenir.map((e) => carteEcheance(e, { agir, ouvrirRegistre }))));
     }
   }
 
