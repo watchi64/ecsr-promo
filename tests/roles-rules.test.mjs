@@ -146,8 +146,8 @@ test("messageInvitationReussie : « rien n'a changé » seulement si ni profil c
   const email = "x@exemple.fr";
   assert.deepEqual(messageInvitationReussie({ resultat: { cree: true, affecte: 1, role: "formateur" }, email }),
     { texte: "Ajouté à la liste des invitations : x@exemple.fr. Partage-lui l'URL.", ton: "success" });
-  // L'option v2, que les vues passent encore, est ignorée (une seule navigation depuis le 10/11) : plus de « whitelist ».
-  assert.deepEqual(messageInvitationReussie({ resultat: { cree: true, affecte: 0, role: "stagiaire" }, email, v2: false }),
+  // Plus de « whitelist ».
+  assert.deepEqual(messageInvitationReussie({ resultat: { cree: true, affecte: 0, role: "stagiaire" }, email }),
     { texte: "Ajouté à la liste des invitations : x@exemple.fr. Partage-lui l'URL.", ton: "success" });
   // Un compte qui existait gagne la promo : ce n'est pas « rien n'a changé ».
   assert.deepEqual(messageInvitationReussie({ resultat: { cree: false, affecte: 1, role: "formateur" }, email }),
@@ -211,8 +211,6 @@ test("pastillesDuProfil : direction et formateur gardent les deux pastilles quan
 test("pastillesDuProfil : un formateur sans rôle de direction ou de siège reste « formateur », comme avant", () => {
   assert.equal(lib(pastillesDuProfil({ profil: formateurSimple, roles })), "formateur");
   assert.equal(pastillesDuProfil({ profil: formateurSimple, roles })[0].classe, "prof");
-  assert.equal(lib(pastillesDuProfil({ profil: { email: "a@x.fr", role: "admin" }, roles: [], v2: true })), "formateur");
-  assert.equal(lib(pastillesDuProfil({ profil: { email: "a@x.fr", role: "admin" }, roles: [], v2: false })), "formateur", "option v2 ignorée");
   assert.equal(lib(pastillesDuProfil({ profil: { email: "a@x.fr", role: "admin" }, roles: [] })), "formateur");
   assert.equal(lib(pastillesDuProfil({ profil: { email: "e@x.fr", role: "stagiaire" }, roles })), "stagiaire");
 });

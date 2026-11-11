@@ -87,10 +87,10 @@ eq(etatsClairs({ aVenir: 0, evals: [], livret: null, exemplesDossier: 6 }).dp, {
 eq(etatsClairs({}).passages.texte, "Passages : aucun à venir", "rien de lu : aucun à venir");
 // Contrat du sommaire (rendreSommaire retire le libellé de la partie du texte pour en faire le nom en gras) :
 // chaque texte d'états clairs commence par le libellé de sa partie, lu dans la table de la vue.
-// Sous la nouvelle navigation, la seule où ces états s'affichent, le livret s'appelle « Livret EPCF » (libellePartie de la vue).
+// Dans Mon suivi, la seule page où ces états s'affichent, le livret s'appelle « Livret EPCF » (libellePartie de la vue).
 const sourceVue = readFileSync(new URL("../js/views/mon-suivi.js", import.meta.url), "utf8");
 const tableVue = sourceVue.match(/const LIBELLE_PARTIE = \{([^}]*)\}/)[1];
-eq(/p === "livret" && opts\?\.soi && navigationV2Active\(\) \? "Livret EPCF"/.test(sourceVue), true, "Mon suivi nomme le livret « Livret EPCF » sous la nouvelle navigation");
+eq(/p === "livret" && opts\?\.soi \? "Livret EPCF"/.test(sourceVue), true, "Mon suivi nomme le livret « Livret EPCF »");
 for (const [p, e] of Object.entries(c)) {
   const libelle = p === "livret" ? "Livret EPCF" : (tableVue.match(new RegExp(p + ': "([^"]+)"')) || [])[1];
   eq(typeof libelle, "string", `${p} : libellé trouvé dans la vue`);

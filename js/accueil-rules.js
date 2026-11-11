@@ -1,7 +1,7 @@
 // Accueil (refonte, lot 2A) : les règles seulement. Où en est un événement par rapport à aujourd'hui
 // (à venir, en cours, passé), le texte qui le dit, et la ligne « Promo <nom> · semaine <n> » sous la
-// salutation. Module pur, sans DOM ni stockage : testé en node. La carte « Prochain événement majeur »
-// de l'accueil les lit ; le prochain rendez-vous et l'à-faire de l'accueil du stagiaire (lot 2B) les lisent de même.
+// salutation. Module pur, sans DOM ni stockage : testé en node. Le prochain rendez-vous et l'à-faire de l'accueil
+// du stagiaire (lot 2B) les lisent.
 import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "./qcm-exam-rules.js?v=20261110e";
 
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000;
@@ -57,23 +57,6 @@ export function libelleDecompte(decompte) {
     return `En cours, fin dans ${jours} jours`;
   }
   return "";
-}
-
-// La pastille de la carte « Prochain événement majeur » (le résultat d'etatEvenement) : { ton, nombre, unite }, ou null quand il n'y
-// a rien à montrer (événement passé, état ou nombre illisibles). À venir : le nombre de jours jusqu'au début, habillé selon
-// l'urgence (`ton` : « today » le jour même, « soon » jusqu'à 7 jours, « later » au-delà). Commencé : « En cours », sans nombre et
-// sans habillage de compte à rebours (`ton` : « en-cours ») : les jours qui restent sont dans la ligne « En cours, fin dans N jours »,
-// et « Aujourd'hui ! » ne se dit jamais d'un stage qui finit aujourd'hui, seulement d'un événement qui commence aujourd'hui.
-export function pastilleDeLaCarte(decompte) {
-  const { etat, jours } = decompte || {};
-  if (!Number.isInteger(jours) || jours < 0) return null;
-  if (etat === "en-cours") return { ton: "en-cours", nombre: "", unite: "En cours" };
-  if (etat !== "a-venir") return null;
-  return {
-    ton: jours === 0 ? "today" : jours <= 7 ? "soon" : "later",
-    nombre: String(jours),
-    unite: jours === 0 ? "Aujourd'hui !" : jours === 1 ? "jour" : "jours",
-  };
 }
 
 // Lundi de la semaine d'un jour (son numéro, voir numeroDeJour) : le 01/01/1970, jour 0, était un jeudi.
@@ -196,17 +179,15 @@ export function sansPlaceDansLaDemi({ demi, cartes, moi } = {}) {
   return (demi === "aprem" ? "Cet après-midi" : "Ce matin") + ", ton nom ne figure sur aucune activité du planning.";
 }
 
-// « À retenir » : les quatre règles courtes de l'app, lues par l'Accueil d'avant et, sous la nouvelle navigation, par
-// Mes préférences (section Informations) : une information ne se perd pas quand la page change. La dernière dit les pages
-// par leur nom : celui de la nouvelle barre (Notes n'est plus un onglet du stagiaire, Calendrier s'appelle Dates clés).
+// « À retenir » : les quatre règles courtes de l'app, lues par Mes préférences (section Informations). La dernière dit
+// les pages par leur nom, celui de la barre (Notes n'est pas un onglet du stagiaire, les dates sont les Dates clés).
 // `[{ gras, suite }]` : le début en gras, puis la suite de la phrase.
-export function pointsARetenir(navigationV2) {
+export function pointsARetenir() {
   return [
     { gras: "Ton identité est liée à ton email.", suite: " Tes ajouts de passages et tes notes sont signés automatiquement." },
     { gras: "Tu ajoutes et corriges tes passages toi-même.", suite: " Pour en supprimer un, demande à un formateur." },
     { gras: "Tout est tracé.", suite: " Chaque modification (passage, note, planning) est historisée avec son auteur." },
-    { gras: "Ctrl + Z annule la dernière action.",
-      suite: navigationV2 ? " Sur les notes, les passages, les thèmes et les dates clés." : " Sur Notes, Passages, Thèmes et Calendrier." },
+    { gras: "Ctrl + Z annule la dernière action.", suite: " Sur les notes, les passages, les thèmes et les dates clés." },
   ];
 }
 

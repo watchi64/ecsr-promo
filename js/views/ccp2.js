@@ -8,7 +8,6 @@ import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261110e";
 import { hrefLien } from "../route-rules.js?v=20261110e";
 import { datesCcp2, insecables } from "../ccp-rules.js?v=20261110e";
 import { EPREUVE, ETAPES } from "../ccp2-parcours-data.js?v=20261110e";
-import { navigationV2Active } from "../nav-etat.js?v=20261110e";
 import { icon } from "../icons.js?v=20261110e";
 
 // Dernière étape ouverte, rouverte au retour sur l'onglet.
@@ -56,15 +55,7 @@ function rubrique(titre, points) {
   );
 }
 
-function carteEpreuve() {
-  return el("section", { class: "ccp2-epreuve" },
-    el("h3", {}, EPREUVE.titre),
-    el("ul", { class: "ccp2-epreuve-points" }, ...EPREUVE.points.map((p) => el("li", {}, insecables(p)))),
-    listeLiens(EPREUVE.liens),
-  );
-}
-
-// Nouvelle navigation (lot 2B) : la page ouvre sur le parcours, et l'épreuve, utile une fois
+// Lot 2B : la page ouvre sur le parcours, et l'épreuve, utile une fois
 // mais pas à chaque visite, se replie en bas de page. Même dessin qu'une carte d'étape (pastille,
 // titre, une ligne de résumé, chevron) pour qu'on la lise comme une carte qui s'ouvre. Toujours
 // repliée à l'arrivée : seule l'étape ouverte la dernière fois est mémorisée.
@@ -83,7 +74,7 @@ function epreuveRepliee() {
   );
 }
 
-// Repère d'ouverture des cartes repliables (nouvelle navigation) : un chevron qui pivote à l'ouverture.
+// Repère d'ouverture des cartes repliables : un chevron qui pivote à l'ouverture.
 function chevron() {
   return el("span", { class: "ccp2-chevron", "aria-hidden": "true" }, icon.chevronDown());
 }
@@ -111,14 +102,14 @@ async function remplirDates(section) {
   section.hidden = false;
 }
 
-function carteEtape(etape, ouverte, v2) {
+function carteEtape(etape, ouverte) {
   const liens = listeLiens(etape.liens);
   const details = el("details", { class: "ccp2-etape", open: ouverte ? "" : null },
     el("summary", {},
       el("span", { class: "ccp2-etape-num" }, String(etape.num)),
       el("span", { class: "ccp2-etape-titre" }, etape.titre),
       el("span", { class: "ccp2-etape-bref" }, insecables(etape.enBref)),
-      v2 ? chevron() : null,
+      chevron(),
     ),
     el("div", { class: "ccp2-etape-corps" },
       rubrique(etape.titreAttendus || "Ce que le jury regarde", etape.attendus),
@@ -146,10 +137,8 @@ export async function renderCcp2(container) {
         + "du commanditaire au jour de l'épreuve.")),
     ),
   ));
-  // Nouvelle navigation : tes dates, les étapes, puis l'épreuve repliée en bas. Ancienne : l'épreuve
-  // d'abord, comme sur main. Aucun avancement calculé : la base ne sait pas où en est chacun (R66).
-  const v2 = navigationV2Active();
-  if (!v2) container.appendChild(carteEpreuve());
+  // Tes dates, les étapes, puis l'épreuve repliée en bas. Aucun avancement calculé : la base ne sait pas où
+  // en est chacun (R66).
   // Masquée tant qu'elle est vide (pas de date CCP2, Calendrier fermé, lecture en échec) : la page
   // commence alors par les étapes, sans trou (css : marge du titre des étapes).
   const dates = el("section", { class: "ccp2-dates", hidden: "" });
@@ -157,8 +146,8 @@ export async function renderCcp2(container) {
   const ouverte = lireEtape();
   container.appendChild(el("h3", { class: "ccp2-etapes-titre" }, `Les ${ETAPES.length} étapes`));
   container.appendChild(el("div", { class: "ccp2-etapes" },
-    ...ETAPES.map((e) => carteEtape(e, e.cle === ouverte, v2))));
-  if (v2) container.appendChild(epreuveRepliee());
+    ...ETAPES.map((e) => carteEtape(e, e.cle === ouverte))));
+  container.appendChild(epreuveRepliee());
   // Les dates suivent le module Calendrier, comme l'agenda d'Accueil. Pas d'attente :
   // le parcours s'affiche tout de suite, les dates arrivent quand elles sont lues.
   if (routeVisible("calendrier")) remplirDates(dates);

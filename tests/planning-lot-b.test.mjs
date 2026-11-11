@@ -17,28 +17,29 @@ test("B1 : chaque créneau a ses propres colonnes, et une carte étroite garde l
   assert.match(style, /\.p-lane-activite-wrap \{ flex: 1 1 9\.5rem; min-width: min\(9\.5rem, 100%\); \}/);
 });
 
-test("B2 : nouvelle navigation, le planning d'abord", () => {
-  // L'en-tête ne double plus la navigation : ni « Émargement » (sa page, son bandeau), ni « Aujourd'hui » (l'onglet d'accueil de l'équipe).
-  assert.match(planning, /admin && emargementActif\(\) && !v2/);
+test("B2 : le planning d'abord", () => {
+  // L'en-tête ne double plus la navigation : ni « Émargement » (sa page, son bandeau), ni « Priorités », ni « Aujourd'hui »
+  // (l'onglet d'accueil de l'équipe).
+  assert.ok(!/p-entete-actions|"#\/emargement"|"#\/dashboard"/.test(planning), "plus de bouton d'en-tête vers Émargement ou Priorités");
   assert.ok(!/deco\(icon\.today\(\)\), "Aujourd'hui"\)/.test(planning), "plus de bouton nommé « Aujourd'hui » dans la page");
   // Le retour au jour : « Revenir à aujourd'hui », hors de la semaine du jour seulement.
-  assert.match(planning, /const retourBtn = avecAujourdhui && horsSemaineDuJour/);
+  assert.match(planning, /const retourBtn = gesteAujourdhui && horsSemaineDuJour/);
   assert.match(planning, /"Revenir à aujourd'hui"\)/);
-  // « Lecture seule... » redisait « Modifier » : partie sous la nouvelle navigation, gardée sous l'ancienne.
-  assert.match(planning, /\(v2 \? null : "Lecture seule\. Clique « Modifier » pour éditer la semaine\."\)/);
+  // « Lecture seule... » redisait « Modifier » : partie.
+  assert.ok(!planning.includes("Clique « Modifier » pour éditer la semaine"));
   // La bascule rejoint les actions de la semaine ; plus de ligne à elle sous les sous-onglets.
   assert.match(planning, /if \(groupeVue\) actionsGroup\.appendChild\(groupeVue\)/);
   assert.ok(!/plan-bar/.test(planning + lire("css/pages.css")), "plus de .plan-bar");
-  // La banque des bénévoles : raccourci en mode Modifier seulement (nouvelle navigation).
-  assert.match(planning, /if \(!v2\) actionsGroup\.appendChild\(bnvBtn\(\)\)/);
+  // La banque des bénévoles : raccourci en mode Modifier seulement.
+  assert.equal((planning.match(/actionsGroup\.appendChild\(bnvBtn\(\)\)/g) || []).length, 1);
   // Imprimer : l'icône d'imprimante.
   assert.match(planning, /printBtn\.appendChild\(deco\(icon\.printer\(\)\)\)/);
   assert.match(lire("js/icons.js"), /^\s+printer: /m);
 });
 
 test("B3 : le stagiaire ne lit plus ce qui s'adresse à qui place", () => {
-  // Nouvelle navigation : les règles pour l'équipe seule ; l'ancienne (celle des promos en service) les garde pour tous.
-  assert.match(planning, /if \(formateurConnecte\(\) \|\| !v2\) container\.appendChild\(buildRulesNote\(\)\)/);
+  // Les règles pour l'équipe seule.
+  assert.match(planning, /if \(formateurConnecte\(\)\) container\.appendChild\(buildRulesNote\(\)\)/);
   // Le retour au jour suit la semaine où mène le geste (le lundi suivant le week-end).
   assert.match(planning, /const horsSemaineDuJour = semaineLundi !== lundiEnCours\(new Date\(\)\)/);
   assert.match(planning, /if \(editing\) container\.appendChild\(el\("div", \{ class: "planning-helper" \}/);

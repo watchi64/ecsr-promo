@@ -1,7 +1,5 @@
-// Nouvelle navigation (refonte, lot 1) : la page Planning regroupe trois sous-onglets, la
-// semaine (le planning actuel), les dates clés (ex-page Calendrier) et les priorités de
-// passage (ex-page Priorités). Chaque sous-onglet rend la page actuelle, inchangée. Avec
-// l'ancienne navigation, la route planning rend la semaine seule (js/main.js).
+// Refonte, lot 1 : la page Planning regroupe trois sous-onglets, la semaine, les dates clés
+// (ex-page Calendrier) et les priorités de passage (ex-page Priorités).
 
 import { el, clear } from "../utils.js?v=20261110e";
 import { renderSubTabs } from "../subtabs.js?v=20261110e";
@@ -42,8 +40,8 @@ function dansUnConteneur(rendre) {
 
 // Chaque sous-onglet suit le module de son ancienne page : la page s'ouvre dès que l'un d'eux
 // est ouvert (routeVisibleV2, js/nav-rules.js) et ne montre que ceux-là chez un stagiaire.
-// `aujourdhui` : le geste du bouton « Aujourd'hui » de l'ancienne barre (js/main.js), que la semaine
-// porte dans sa barre, « Revenir à aujourd'hui » (ruling R29, puis audit du 09/11, lot B).
+// `aujourdhui` : le geste de retour au jour (js/main.js, allerAujourdhui), que la semaine porte dans
+// sa barre, « Revenir à aujourd'hui » (ruling R29, puis audit du 09/11, lot B).
 export async function renderPlanningEspace(view, { aujourdhui = null } = {}) {
   clear(view);
   view.appendChild(renderSubTabs([
@@ -51,6 +49,6 @@ export async function renderPlanningEspace(view, { aujourdhui = null } = {}) {
     { key: "dates", label: "Dates clés", module: "calendrier",
       render: dansUnConteneur((c) => { quitterSemaine(); return renderCalendrier(c); }) },
     { key: "priorites", label: "Priorités", module: "priorites",
-      render: dansUnConteneur((c) => { quitterSemaine(); return renderDashboard(c, { embedded: true }); }) },
+      render: dansUnConteneur((c) => { quitterSemaine(); return renderDashboard(c); }) },
   ], { storageKey: CLES_SOUS_ONGLETS.planning }));
 }

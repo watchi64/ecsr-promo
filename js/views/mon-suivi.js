@@ -20,10 +20,8 @@ import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT
 import { exemplesRemplis } from "../dp-rules.js?v=20261110e";
 import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261110e";
 import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261110e";
-import { navigationV2Active } from "../nav-etat.js?v=20261110e";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110e";
 import { renderNotes } from "./notes.js?v=20261110e";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261110e";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -524,10 +522,9 @@ function renderEffectuesSection(rows, soi = true) {
 
 const LIBELLE_PARTIE = { resultats: "Résultats", passages: "Passages", epcf: "EPCF", evolution: "Évolution", livret: "Livret",
   dp: "Dossier pro" };
-// Nom affiché d'une partie : dans Mon suivi (sa propre fiche, `soi`) sous la nouvelle navigation, le livret s'appelle « Livret
-// EPCF » (décision de Timy du 08/11, « Livret » seul ne disait pas lequel). La fiche d'un stagiaire chez l'équipe garde les
-// parties de main, et l'ancienne navigation « Livret ».
-const libellePartie = (p, opts) => (p === "livret" && opts?.soi && navigationV2Active() ? "Livret EPCF" : LIBELLE_PARTIE[p]);
+// Nom affiché d'une partie : dans Mon suivi (sa propre fiche, `soi`), le livret s'appelle « Livret EPCF » (décision de Timy
+// du 08/11, « Livret » seul ne disait pas lequel). La fiche d'un stagiaire chez l'équipe garde « Livret ».
+const libellePartie = (p, opts) => (p === "livret" && opts?.soi ? "Livret EPCF" : LIBELLE_PARTIE[p]);
 // Module de chaque partie (js/modules-data.js) : fermé pour la promo, la partie
 // disparaît chez un stagiaire et porte le repère chez un formateur. Résultats réunit
 // Évolution et l'ancienne page Notes (La classe) : elle suit le module des notes, comme elles.
@@ -602,11 +599,10 @@ export function afficherErreur(zone, e, reessayer) {
   toast(isTimeout ? "Connexion trop lente, réessaie" : (e?.message || String(e)), "error");
 }
 
-// Résultats (Moi et La classe, nouvelle navigation) n'appartient qu'à Mon suivi, la fiche de la
-// personne connectée, qui a donc un profil stagiaire : la page Stagiaires et l'ancienne
-// navigation gardent la fiche d'avant (partiesDeLaFiche).
+// Résultats (Moi et La classe) n'appartient qu'à Mon suivi, la fiche de la personne connectée, qui
+// a donc un profil stagiaire : la page Stagiaires garde la fiche d'avant (partiesDeLaFiche).
 function partiesVisibles(opts) {
-  return partiesDeLaFiche({ soi: !!opts.soi, navigationV2: navigationV2Active() })
+  return partiesDeLaFiche({ soi: !!opts.soi })
     .filter((p) => !MODULE_DE_PARTIE[p] || moduleVisible(MODULE_DE_PARTIE[p]));
 }
 
@@ -614,7 +610,7 @@ function lienRetour(label, href) {
   return el("a", { class: "fiche-retour", href }, icon.chevronLeft(), el("span", {}, label));
 }
 
-// Sous-titre de Mon suivi, nouvelle navigation : ce que la page contient, au tutoiement comme le reste de la page, en ne
+// Sous-titre de Mon suivi : ce que la page contient, au tutoiement comme le reste de la page, en ne
 // nommant que les parties ouvertes à la promo (un module fermé retire sa partie, il ne doit pas rester annoncé).
 function sousTitreDeMonSuivi() {
   const morceaux = [
@@ -628,9 +624,8 @@ function sousTitreDeMonSuivi() {
   return texte.charAt(0).toUpperCase() + texte.slice(1) + ".";
 }
 
-// Nom de la page de la personne connectée : « Mon suivi » sous la nouvelle navigation, le nom de son
-// entrée (ruling R30 : une page, un nom), « Mon espace » avec l'ancienne.
-const nomDeMonSuivi = () => (navigationV2Active() ? "Mon suivi" : "Mon espace");
+// Nom de la page de la personne connectée : « Mon suivi », le nom de son entrée (ruling R30 : une page, un nom).
+const nomDeMonSuivi = () => "Mon suivi";
 
 // Renvoie ce qui est affiché : "onglets", "sommaire", "partie" (iPhone, avec un
 // retour) ou "unique" (iPhone, une seule partie ouverte, montrée directement).
@@ -680,9 +675,9 @@ export function renderFiche(container, d, opts) {
 
 function rendreSommaire(d, parties, opts) {
   const aVenir = passagesAVenir(d.items, isoDate(new Date()));
-  // Mon suivi, nouvelle navigation : chaque ligne dit sa partie et son état en une phrase entière
-  // (« EPCF : 0 épreuve sur 2 »), qui passe à la ligne plutôt que d'être coupée. Ailleurs, le sommaire de main.
-  const clairs = !!opts.soi && navigationV2Active();
+  // Mon suivi : chaque ligne dit sa partie et son état en une phrase entière (« EPCF : 0 épreuve sur 2 »),
+  // qui passe à la ligne plutôt que d'être coupée. Ailleurs, le sommaire de main.
+  const clairs = !!opts.soi;
   const etats = clairs
     ? etatsClairs({ aVenir, evals: d.epcfEvals, livret: d.livret, exemplesDossier: d.exemplesDossier })
     : etatsSommaire({ aVenir, evals: d.epcfEvals, livret: d.livret, dossier: d.dossier, soi: !!opts.soi });
@@ -834,25 +829,20 @@ export async function renderMonSuivi(container) {
   await chargerContexteFiche();
   clear(container);
 
-  // Nouvelle navigation : la promo en surtitre, comme sur les pages de l'équipe (avant : « Espace personnel »).
-  const surtitre = navigationV2Active() ? getPromoCourante()?.nom : "Espace personnel";
+  // La promo en surtitre, comme sur les pages de l'équipe.
+  const surtitre = getPromoCourante()?.nom;
   const header = el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
       el("h2", {}, nomDeMonSuivi()),
-      el("p", { class: "subtitle" }, navigationV2Active() ? sousTitreDeMonSuivi()
-        : moduleVisible("notes") ? "Mon planning à venir et l'évolution de mes résultats."
-        : "Mon planning à venir."),
+      el("p", { class: "subtitle" }, sousTitreDeMonSuivi()),
     ),
   );
   const corps = el("div", { class: "ms-body" });
   const bandeau = bandeauAvis();
-  // Questionnaire anonyme à remplir (Qualiopi) : Mon espace est la page d'ouverture des stagiaires dans l'ancienne
-  // navigation. Dans la nouvelle, l'ouverture est l'Accueil (« Ta journée », qui porte le bandeau) et Mon suivi garde son
-  // sommaire entier au-dessus de la barre du bas sur téléphone (contrôle du vérificateur de navigation).
-  const questionnaire = navigationV2Active() ? null : bandeauQuestionnaire();
+  // Le questionnaire anonyme (Qualiopi) est porté par l'Accueil (« Ta journée ») : Mon suivi garde son sommaire entier
+  // au-dessus de la barre du bas sur téléphone (contrôle du vérificateur de navigation).
   container.appendChild(header);
-  if (questionnaire) container.appendChild(questionnaire);
   if (bandeau) container.appendChild(bandeau);
   container.appendChild(corps);
   if (monId == null) {
@@ -861,43 +851,37 @@ export async function renderMonSuivi(container) {
   }
 
   let d = null;
-  const v2 = navigationV2Active();
   // Vue de Résultats demandée par l'adresse ou choisie sur la page : portée par l'appel, jamais relue
   // dans le stockage.
   let vueDemandee = null;
   const dessiner = (adr) => {
     const disposition = dispositionFiche();
-    let partie = adr.partie;
-    if (v2) {
-      // Nouvelle navigation : #/mon-suivi/evolution et #/mon-suivi/classe ouvrent Résultats sur « Moi » ou
-      // « La classe » ; l'adresse devient celle de Résultats (sans étape d'historique), pour que la partie
-      // affichée et l'adresse disent la même chose. Résultats fermé (module des notes) : l'adresse reste.
-      const ouverture = ouvertureDeMonSuivi(partie);
-      if (ouverture.vue && moduleVisible(MODULE_DE_PARTIE.resultats)) {
-        vueDemandee = ouverture.vue;
-        remplacerAdresse(adresseFiche("mon-suivi", null, ouverture.partie));
-      }
-      partie = ouverture.partie;
+    // #/mon-suivi/evolution et #/mon-suivi/classe ouvrent Résultats sur « Moi » ou « La classe » ; l'adresse
+    // devient celle de Résultats (sans étape d'historique), pour que la partie affichée et l'adresse disent la
+    // même chose. Résultats fermé (module des notes) : l'adresse reste.
+    const ouverture = ouvertureDeMonSuivi(adr.partie);
+    if (ouverture.vue && moduleVisible(MODULE_DE_PARTIE.resultats)) {
+      vueDemandee = ouverture.vue;
+      remplacerAdresse(adresseFiche("mon-suivi", null, ouverture.partie));
     }
+    const partie = ouverture.partie;
     const affiche = renderFiche(corps, d, {
       soi: true, partie, disposition, titre: null, retour: null,
       vue: vueDemandee, surVue: (v) => { vueDemandee = v; },
       adresse: (p) => adresseFiche("mon-suivi", null, p),
       storageKey: "ecsr_monsuivi_subtab",
     });
-    // iPhone, dans une partie : le retour « ‹ Mon espace » (« ‹ Mon suivi » sous la nouvelle
-    // navigation) remplace l'en-tête.
+    // iPhone, dans une partie : le retour « ‹ Mon suivi » remplace l'en-tête.
     header.hidden = affiche === "partie";
     if (bandeau) bandeau.hidden = affiche === "partie";
-    if (questionnaire) questionnaire.hidden = affiche === "partie";
-    // Nouvelle navigation : le retour, le titre de la partie et son contenu se tiennent (css/pages.css).
-    corps.classList.toggle("ms-body-partie", v2 && affiche === "partie");
+    // Le retour, le titre de la partie et son contenu se tiennent (css/pages.css).
+    corps.classList.toggle("ms-body-partie", affiche === "partie");
     if (disposition === "sommaire") window.scrollTo(0, 0);
   };
   const charger = async () => {
     clear(corps);
     corps.appendChild(el("div", { class: "loading" }, "Chargement"));
-    try { d = await chargerFiche(monId, { compterExemples: v2 && moduleVisible("dp") }); }
+    try { d = await chargerFiche(monId, { compterExemples: moduleVisible("dp") }); }
     catch (e) { afficherErreur(corps, e, charger); return; }
     dessiner(lireAdresse(location.hash));
   };

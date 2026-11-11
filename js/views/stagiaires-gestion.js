@@ -268,7 +268,7 @@ export async function renderInvitationStagiaire(container, { rerender } = {}) {
   const libelle = "Ajouter à la liste des invitations";
   const sendBtn = el("button", { class: "btn accent", type: "button" }, icon.plus(), libelle);
   sendBtn.addEventListener("click", () => envoyerInvitation({
-    bouton: sendBtn, libelle, emailInput, personId: personSel.value ? Number(personSel.value) : null, role: "stagiaire", v2: true, apres: rerender,
+    bouton: sendBtn, libelle, emailInput, personId: personSel.value ? Number(personSel.value) : null, role: "stagiaire", apres: rerender,
   }));
   emailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendBtn.click(); });
   bloc.appendChild(el("div", { class: "invite-form" },
@@ -280,7 +280,7 @@ export async function renderInvitationStagiaire(container, { rerender } = {}) {
 // Envoi d'une invitation depuis un formulaire (Réglages du formateur, page Stagiaires de la direction) : adresse valide, personne
 // choisie, appel de la base avec un délai de 15 s, message de réussite ou phrase d'erreur, bouton remis en état. `personId` est
 // l'identifiant de la fiche (stagiaire) ou du formateur (rôle « prof »). `apres()` est appelé après une invitation acceptée.
-export async function envoyerInvitation({ bouton, libelle, emailInput, personId, role, v2, apres }) {
+export async function envoyerInvitation({ bouton, libelle, emailInput, personId, role, apres }) {
   const email = emailInput.value.trim().toLowerCase();
   if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("Email invalide", "error"); return; }
   // Le siège n'est lié à aucune fiche : l'adresse suffit.
@@ -304,7 +304,7 @@ export async function envoyerInvitation({ bouton, libelle, emailInput, personId,
       new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15 s). Réseau lent : réessaie dans un instant.")), 15000)),
     ]);
     // Profil créé, compte existant qui gagne la promo, ou rien de changé (roles-rules.js, messageInvitationReussie).
-    const { texte, ton } = messageInvitationReussie({ resultat, email, v2 });
+    const { texte, ton } = messageInvitationReussie({ resultat, email });
     toast(texte, ton, 4500);
     emailInput.value = "";
     if (apres) apres();

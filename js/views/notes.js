@@ -13,7 +13,6 @@ import { litToutesLesNotes } from "../espaces-rules.js?v=20261110e";
 import { recordUndo } from "../undo.js?v=20261110e";
 import { renderSubTabs } from "../subtabs.js?v=20261110e";
 import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261110e";
-import { navigationV2Active } from "../nav-etat.js?v=20261110e";
 import { renderEpcf } from "./epcf.js?v=20261110e";
 import { noteGradient } from "../echelle-notes.js?v=20261110e";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110e";
@@ -1067,18 +1066,17 @@ function rerender(container) {
   // Initialise la date courante si pas encore définie
   if (!currentEvalDate) currentEvalDate = isoDate(new Date());
 
-  // Nouvelle navigation : la page de l'équipe porte le nom de son entrée, « Notes et examens », avec la promo en
-  // surtitre, et le nombre de notes termine alors son sous-titre. Sur un écran tactile, on touche une case : le
+  // La page de l'équipe porte le nom de son entrée, « Notes et examens », avec la promo en surtitre, et le nombre de
+  // notes termine alors son sous-titre. Sur un écran tactile, on touche une case : le
   // sous-titre le dit, et la phrase de la barre d'outils sur Entrée et Échap, qui suppose un clavier, disparaît.
   // Imbriquée dans Mon suivi (La classe, pour toute personne qui y ouvre la classe, stagiaire ou formateur), la vue vit
   // déjà sous le titre de Mon suivi : ni titre à elle ni « Lecture seule... » ; la phrase sur la saisie n'y est lue que
   // par qui saisit des notes ; le nombre de notes reste, seul sinon.
-  const v2 = navigationV2Active();
-  const dansCentre = v2 && dansLesCentres.has(container);
-  const laClasse = v2 && (imbriques.has(container) || dansCentre);
-  const equipe = v2 && !laClasse && formateurConnecte();
+  const dansCentre = dansLesCentres.has(container);
+  const laClasse = imbriques.has(container) || dansCentre;
+  const equipe = !laClasse && formateurConnecte();
   const surtitre = getPromoCourante()?.nom;
-  const tactile = v2 && window.matchMedia("(pointer: coarse)").matches;
+  const tactile = window.matchMedia("(pointer: coarse)").matches;
   const compte = nbLignes + " note" + (nbLignes > 1 ? "s" : "") + " enregistrée" + (nbLignes > 1 ? "s" : "");
   const phrase = admin && tactile
     ? "Saisis les notes thème par thème, ou touche une case de la matrice."

@@ -2667,8 +2667,8 @@ def verifier_retour_arriere(page, res, sc):
 # Réglages, Mes préférences, bouton et menu du compte (lot 2A)
 # --------------------------------------------------------------------------------------
 
-# Sections de Réglages (#/config) sous la nouvelle navigation, dans l'ordre : la promo seule. Émargement et Nouvelle
-# navigation sont les interrupteurs du fondateur (js/emargement-etat.js, js/nav-etat.js). Mes préférences (#/preferences)
+# Sections de Réglages (#/config), dans l'ordre : la promo seule. Émargement est l'interrupteur du fondateur
+# (js/emargement-etat.js). Mes préférences (#/preferences)
 # n'en montre aucune : seulement « Mes préférences » (si un réglage est à montrer) et « Informations ».
 SECTIONS_REGLAGES = ("Ce que voient les stagiaires", "Promo", "Accès et invitations", "Émargement", "Données personnelles")
 SECTIONS_DU_FONDATEUR = ("Émargement",)

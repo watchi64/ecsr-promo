@@ -110,9 +110,9 @@ function explainPanel(objSalle, objVoiture) {
   );
 }
 
-// opts.embedded : rendu dans le sous-onglet Priorités de Planning (nouvelle navigation,
-// js/views/planning-espace.js) ; la barre des sous-onglets remplace le retour au Planning.
-export async function renderDashboard(container, { embedded = false } = {}) {
+// Rendu dans le sous-onglet Priorités de Planning (js/views/planning-espace.js) : la barre des sous-onglets tient lieu de
+// retour au Planning (#/dashboard y mène, js/nav-rules.js).
+export async function renderDashboard(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
@@ -151,12 +151,6 @@ export async function renderDashboard(container, { embedded = false } = {}) {
   };
 
   clear(container);
-
-  // Priorités se consulte depuis le Planning (chantier D) : retour en un geste.
-  if (!embedded) {
-    container.appendChild(el("button", { class: "btn small ghost dash-retour", type: "button",
-      onClick: () => { location.hash = "#/planning"; } }, icon.chevronLeft(), "Planning"));
-  }
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },

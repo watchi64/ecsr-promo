@@ -6,7 +6,6 @@
 import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261110e";
 import { el, clear, toast, isoDate } from "../utils.js?v=20261110e";
 import { isAdmin } from "../auth-admin.js?v=20261110e";
-import { navigationV2Active } from "../nav-etat.js?v=20261110e";
 import { libelleDuree, jourDe } from "../emargement-rules.js?v=20261110e";
 import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261110e";
 import {
@@ -91,8 +90,8 @@ function dessiner(ctx) {
   ctx.page = page;
   container.appendChild(page);
 
-  // Nouvelle navigation : la promo seule en surtitre, comme la page Émargement.
-  const surtitre = navigationV2Active() ? (promo?.nom || "") : "Émargement" + (promo ? " · " + promo.nom : "");
+  // La promo seule en surtitre, comme la page Émargement.
+  const surtitre = promo?.nom || "";
   page.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,

@@ -7,7 +7,6 @@ import { confirmer } from "../confirmer.js?v=20261110e";
 import { icon, deco } from "../icons.js?v=20261110e";
 import { isAdmin } from "../auth-admin.js?v=20261110e";
 import { recordUndo } from "../undo.js?v=20261110e";
-import { navigationV2Active } from "../nav-etat.js?v=20261110e";
 
 let ressources = [];
 let contacts = [];
@@ -246,27 +245,24 @@ function rerender(container) {
 
   const admin = isAdmin();
 
-  // Nouvelle navigation : la page est Cours et QCM, Documents ; elle porte ce nom, avec la promo en surtitre (avant :
-  // « Ressources & contacts », et le nombre de liens et de contacts pour surtitre). La section des contacts s'appelle
-  // alors « Contacts du centre », comme la ligne du menu du compte qui y mène. Le nombre de liens et de contacts
+  // La page est Cours et QCM, Documents ; elle porte ce nom, avec la promo en surtitre. La section des contacts
+  // s'appelle « Contacts du centre », comme la ligne du menu du compte qui y mène. Le nombre de liens et de contacts
   // termine le sous-titre.
-  const v2 = navigationV2Active();
   const surtitre = getPromoCourante()?.nom;
   const compte = `${ressources.length} lien${ressources.length > 1 ? "s" : ""} · ${contacts.length} contact${contacts.length > 1 ? "s" : ""}`;
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      v2 ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null)
-        : el("p", { class: "eyebrow" }, ressources.length + " liens curés · " + contacts.length + " contacts"),
-      el("h2", {}, v2 ? "Documents" : "Ressources & contacts"),
-      el("p", { class: "subtitle" }, (v2 ? "Contacts du centre" : "Contacts administration")
-        + " (absences, justificatifs) + textes officiels & sites pédagogiques." + (v2 ? ` ${compte}.` : "")),
+      surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
+      el("h2", {}, "Documents"),
+      el("p", { class: "subtitle" }, "Contacts du centre"
+        + " (absences, justificatifs) + textes officiels & sites pédagogiques." + ` ${compte}.`),
     ),
   ));
 
   // === Section Contacts ===
   const contactsSection = el("section", { class: "contacts-section" });
   contactsSection.appendChild(el("div", { class: "contacts-section-head" },
-    el("h3", { class: "ressource-section-title" }, v2 ? "Contacts du centre" : "Contacts administration"),
+    el("h3", { class: "ressource-section-title" }, "Contacts du centre"),
     admin ? el("button", {
       class: "btn small accent",
       onClick: () => openContactModal(null, () => reload(container)),

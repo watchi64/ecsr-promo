@@ -6,7 +6,6 @@ import { recordUndo } from "../undo.js?v=20261110e";
 import { TYPES, RESULTATS } from "../config.js?v=20261110e";
 import { isAdmin, monStagiaireId } from "../auth-admin.js?v=20261110e";
 import { getCurrentWho } from "../identity.js?v=20261110e";
-import { navigationV2Active } from "../nav-etat.js?v=20261110e";
 
 let stagiaires = [];
 let passages = [];
@@ -300,10 +299,10 @@ function rerender(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, passages.length + " entrées au total"),
       el("h2", {}, "Historique des passages"),
-      // Nouvelle navigation : « formateurs », le mot de l'app (un stagiaire lit cette page dans Planning > Priorités).
+      // « formateurs », le mot de l'app (un stagiaire lit cette page dans Planning > Priorités).
       el("p", { class: "subtitle" }, peutAjouter
         ? "Tous les passages. Ajout ouvert à tous, suppression réservée aux "
-          + (navigationV2Active() ? "formateurs" : "admins") + ". Chaque action est tracée."
+          + "formateurs. Chaque action est tracée."
         : "Tous les passages de la promo, en lecture. Chaque action est tracée."),
     ),
     el("div", { style: "display:flex;gap:0.5rem;flex-wrap:wrap" }, histBtn, peutAjouter ? addBtn : null),

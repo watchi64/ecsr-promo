@@ -15,7 +15,6 @@ import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./
 import { cleCours } from "../cours-rules.js?v=20261110e";
 import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261110e";
 import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261110e";
-import { navigationV2Active } from "../nav-etat.js?v=20261110e";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110e";
 import { renderRessources } from "./ressources.js?v=20261110e";
 import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261110e";
@@ -1989,12 +1988,10 @@ export async function renderThemes(container) {
   // n'écrive dans un écran disparu, ou refuse d'écrire dans celui qui vient de naître.
   lastContainer = null;
   themesActif = () => true;
-  // Nouvelle navigation : Cours s'ouvre aussi quand seuls les Documents sont ouverts pour la
-  // promo (routeVisibleV2, js/nav-rules.js). Thèmes et Compétences suivent alors le module des
-  // cours : fermé, un stagiaire n'a ni ces sous-onglets, ni l'en-tête qui les présente, et leurs
-  // données ne sont pas lues. Avec l'ancienne navigation, la page reste celle des cours.
-  const v2 = navigationV2Active();
-  const coursOuverts = !v2 || moduleVisible("themes");
+  // Cours s'ouvre aussi quand seuls les Documents sont ouverts pour la promo (routeVisibleV2,
+  // js/nav-rules.js). Thèmes et Compétences suivent alors le module des cours : fermé, un stagiaire
+  // n'a ni ces sous-onglets, ni l'en-tête qui les présente, et leurs données ne sont pas lues.
+  const coursOuverts = moduleVisible("themes");
   // Le sous-onglet QCM du stagiaire vit de la même lecture (la liste des thèmes, l'index des QCM, le module « qcm ») : un
   // module des cours fermé et celui des QCM ouvert doivent donc la faire aussi, avec l'en-tête qui présente la page.
   const donnees = coursOuverts || moduleVisible("qcm");
@@ -2007,26 +2004,26 @@ export async function renderThemes(container) {
 
   // En-tête de Cours, au-dessus des sous-onglets. La ligne de progression est tenue à
   // jour par refreshStatsInPlace (statut basculé, date corrigée).
-  // Nouvelle navigation : la page porte le nom de son entrée, « Cours et QCM », avec la promo en surtitre ; la ligne de
-  // progression, qui avait le surtitre, termine alors le sous-titre.
+  // La page porte le nom de son entrée, « Cours et QCM », avec la promo en surtitre ; la ligne de progression termine
+  // le sous-titre.
   if (donnees) {
     // Le siège n'a pas de promo : il porte le surtitre « Réseau » des autres pages de son espace.
-    const surtitre = v2 ? (sans ? "Réseau" : getPromoCourante()?.nom) : null;
+    const surtitre = sans ? "Réseau" : getPromoCourante()?.nom;
     const sousTitre = "Les thèmes et les compétences de la formation, avec leurs cours et leurs QCM.";
-    ligneProgression = sans ? null : el(v2 ? "span" : "p", v2 ? {} : { class: "eyebrow" }, texteProgression());
+    ligneProgression = sans ? null : el("span", {}, texteProgression());
     container.appendChild(el("div", { class: "view-header" },
       el("div", { class: "view-header-text" },
-        v2 ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null) : ligneProgression,
-        el("h2", {}, v2 ? "Cours et QCM" : "Cours"),
-        el("p", { class: "subtitle" }, v2 && ligneProgression ? [sousTitre + " ", ligneProgression, "."] : sousTitre),
+        surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
+        el("h2", {}, "Cours et QCM"),
+        el("p", { class: "subtitle" }, ligneProgression ? [sousTitre + " ", ligneProgression, "."] : sousTitre),
       ),
       isAdmin() ? el("button", { class: "btn primary", onClick: () => openAddNotionModal(() => reload(lastContainer)) },
         icon.plus(), "Ajouter une notion") : null,
     ));
   }
 
-  // Thèmes et Compétences pour tous (sous la nouvelle navigation, selon le module des cours :
-  // fermé, retirés chez un stagiaire et repérés chez un formateur) ; la console des
+  // Thèmes et Compétences pour tous (selon le module des cours : fermé, retirés chez un
+  // stagiaire et repérés chez un formateur) ; la console des
   // signalements pour les formateurs seulement (la RLS ne suffit pas : elle rend à un élève
   // SES propres signalements).
   // lastContainer devient le PANNEAU : c'est lui que reload() doit repeindre.
@@ -2036,16 +2033,16 @@ export async function renderThemes(container) {
     themesActif = ctx?.isActive || (() => true);
     rerender(p);
   };
-  const moduleCours = v2 ? "themes" : undefined;
+  const moduleCours = "themes";
   const onglets = [
     { key: "themes", label: "Thèmes", module: moduleCours, render: liste("themes") },
     { key: "competences", label: "Compétences", module: moduleCours, render: liste("competences") },
   ];
-  // Nouvelle navigation, stagiaire : ses QCM sur une liste, avec sa dernière note et « S'entraîner » (le module « qcm » les
+  // Stagiaire : ses QCM sur une liste, avec sa dernière note et « S'entraîner » (le module « qcm » les
   // ferme pour la promo). L'équipe garde la colonne QCM de la liste des thèmes, pas de sous-onglet. Toute l'équipe : la
   // direction et le siège lisent sans écrire (canManageExam faux) mais n'ont pas de fiche de stagiaire, la même règle que
   // l'espace de la coquille.
-  if (v2 && (!formateurConnecte() || sans)) {
+  if (!formateurConnecte() || sans) {
     // Le siège rédige les questions : sa liste mène à l'éditeur, sans note ni examen (js/qcm-rules.js, lignesQcmRedaction).
     onglets.push({ key: "qcm", label: "QCM", module: "qcm",
       render: (p, ctx) => {
@@ -2055,33 +2052,31 @@ export async function renderThemes(container) {
       } });
   }
   if (canManageExam()) {
-    onglets.push({ key: "signalements", label: v2 ? "Signalements" : "⚑ Signalements",
+    onglets.push({ key: "signalements", label: "Signalements",
       render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } });
   }
-  // Nouvelle navigation, formateurs de la promo (isAdmin, formateur_courant en base) : les questions que l'IA a proposées
+  // Formateurs de la promo (isAdmin, formateur_courant en base) : les questions que l'IA a proposées
   // et que personne n'a relues. La table des brouillons n'est lisible que par eux (RLS) : la direction et le siège n'ont
   // pas ce sous-onglet, et la pastille « à traiter » ne les compte pas pour eux (elle lit la même table).
-  if (v2 && isAdmin()) {
+  if (isAdmin()) {
     onglets.push({ key: "ia", label: "Propositions IA",
       render: (p, ctx) => { renderPropositionsIa(p, { themes, onOuvrirEditeur: ouvrirDepuisIa, isActive: ctx?.isActive }); } });
   }
-  // Nouvelle navigation : les Ressources rejoignent les Cours, en dernier sous-onglet. La page
-  // se rend dans son propre conteneur : un rendu tardif (sous-onglet quitté pendant le
-  // chargement) écrit dans un nœud détaché, pas dans le panneau partagé.
-  if (v2) {
-    onglets.push({ key: "documents", label: "Documents", module: "ressources",
-      render: (p, ctx) => {
-        const zone = el("div");
-        p.appendChild(zone);
-        renderRessources(zone).catch((e) => {
-          console.error(e);
-          if (!ctx || ctx.isActive()) {
-            clear(zone);
-            zone.appendChild(el("p", { class: "muted" }, "Erreur de chargement des documents. Reviens sur l'onglet pour réessayer."));
-          }
-        });
-      } });
-  }
+  // Les Documents rejoignent les Cours, en dernier sous-onglet. La page se rend dans son propre
+  // conteneur : un rendu tardif (sous-onglet quitté pendant le chargement) écrit dans un nœud
+  // détaché, pas dans le panneau partagé.
+  onglets.push({ key: "documents", label: "Documents", module: "ressources",
+    render: (p, ctx) => {
+      const zone = el("div");
+      p.appendChild(zone);
+      renderRessources(zone).catch((e) => {
+        console.error(e);
+        if (!ctx || ctx.isActive()) {
+          clear(zone);
+          zone.appendChild(el("p", { class: "muted" }, "Erreur de chargement des documents. Reviens sur l'onglet pour réessayer."));
+        }
+      });
+    } });
   // Les sous-onglets que l'espace permet (js/espaces-rules.js, sousOngletsCours) : le siège n'a ni Signalements ni Propositions IA.
   const permis = sousOngletsCours(getEspace());
   const aGarder = permis.length ? onglets.filter((o) => permis.includes(o.key)) : onglets;

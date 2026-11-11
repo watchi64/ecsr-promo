@@ -6,22 +6,20 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-  getVoitureAggregats, listFiches, getSalleAggregats,
+  getVoitureAggregats, getSalleAggregats,
   avantChangementPromo,
 } from "../db.js?v=20261110e";
 import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261110e";
 import { confirmer, demander } from "../confirmer.js?v=20261110e";
 import { icon, deco } from "../icons.js?v=20261110e";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261110e";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20261110e";
 import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261110e";
 import { recordUndo } from "../undo.js?v=20261110e";
 import { getCurrentWho } from "../identity.js?v=20261110e";
-import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261110e";
+import { telLink } from "./benevoles.js?v=20261110e";
 import { meilleurResultat } from "../passage-rules.js?v=20261110e";
-import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261110e";
-import { emargementActif } from "../emargement-etat.js?v=20261110e";
+import { formateurConnecte } from "../modules-etat.js?v=20261110e";
 import { libelleHeure } from "../emargement-rules.js?v=20261110e";
-import { navigationV2Active } from "../nav-etat.js?v=20261110e";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110e";
 import {
   entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe, colonnesParalleles,
@@ -41,7 +39,6 @@ let halfMetas = [];  // [{semaine_lundi, day_index, half_day, start_time, end_ti
 let joursOff = [];   // [{day_index, label}] jours désactivés manuellement de la semaine affichée
 let autresProfsMem = [];  // noms de formateurs « Autre » déjà saisis (mémorisés, réutilisables)
 let voitureStats = {};   // getVoitureAggregats() : { [stagiaire_id]: { total, avecEleve, byProf } }
-let fichesSuivi = [];    // rows fiches_suivi (souhaits par stagiaire)
 let salleStats = {};     // getSalleAggregats() : { [stagiaire_id]: nb passages Salle historiques }
 let semaineLundi = null;
 let currentContainer = null;
@@ -56,7 +53,7 @@ function isLocked(lundi) { return lockedWeeks.has(lundi); }
 // Remplace les gardes isAdmin() partout où il s'agit d'ÉDITER la semaine affichée.
 function canEditWeek() { return isAdmin() && editMode && !isLocked(semaineLundi); }
 
-// === La semaine en grille (nouvelle navigation, lot 2B) ===
+// === La semaine en grille (lot 2B) ===
 // Hors mode Modifier, la semaine se lit en grille (jours en colonnes) ou en liste (les cartes du planning d'avant).
 // La forme choisie se garde sur l'appareil ; le jour montré sur téléphone se garde le temps de la visite.
 let vuePlanning = null;       // "grille" | "liste", lue une fois de la mémoire de l'appareil
@@ -72,12 +69,12 @@ function vueChoisie() {
 }
 
 // La grille remplace les cartes dès qu'on ne modifie pas : stagiaires, formateur hors mode Modifier, semaine verrouillée.
-function grilleAffichee() { return navigationV2Active() && !canEditWeek() && vueChoisie() === "grille"; }
+function grilleAffichee() { return !canEditWeek() && vueChoisie() === "grille"; }
 
 // Le groupe « Grille / Liste » (« Jour / Liste » sur téléphone), rangé avec les actions de la barre de la semaine
-// (audit du 09/11, lot B) ; null hors de la nouvelle navigation et en mode Modifier, où l'éditeur est la liste.
+// (audit du 09/11, lot B) ; null en mode Modifier, où l'éditeur est la liste.
 function basculeDeLaVue() {
-  if (!navigationV2Active() || canEditWeek()) return null;
+  if (canEditWeek()) return null;
   return bascule({
     vue: vueChoisie(),
     onChange: (vue) => {
@@ -773,25 +770,13 @@ function slotOccupants(entry, exceptField) {
 //      ou le lendemain (voitDays = jours de placement voiture par stagiaire) ;
 //  [3] séances avec élève (historique passages avec_eleve=true + placements de la semaine
 //      sur des créneaux avec bénévoles) : critère principal (équité d'exposition) ;
-//  [4] match souhaits × niveau des bénévoles du créneau (0 = matche, 1 = neutre) ;
-//  [5] passages déjà faits avec le prof du créneau (variété formateur) ;
-//  [6] total placements voiture de la semaine (équilibre intra-semaine).
+//  [4] passages déjà faits avec le formateur du créneau (variété formateur) ;
+//  [5] total placements voiture de la semaine (équilibre intra-semaine).
+// Le critère des souhaits (fiches de suivi) est retiré le 11/11 : plus aucun écran ne les saisissait.
 // Le shuffle préalable conserve l'aléa entre ex æquo.
-function matchesSouhait(souhait, niveau) {
-  return niveau === souhait || niveau.startsWith(souhait + ".") || souhait.startsWith(niveau + ".");
-}
 function voitureScore(stagiaireId, entry, weekAvecEleve, weekVoit, voitDays) {
   const agg = voitureStats[stagiaireId] || { avecEleve: 0, byProf: {} };
   const avecEleve = agg.avecEleve + (weekAvecEleve[stagiaireId] || 0);
-
-  let match = 1;
-  const niveaux = (entry.benevoles_ids || [])
-    .map((id) => benevoles.find((b) => b.id === id)?.niveau)
-    .filter(Boolean);
-  if (niveaux.length) {
-    const souhaits = fichesSuivi.find((f) => f.stagiaire_id === stagiaireId)?.souhaits || [];
-    if (souhaits.some((w) => niveaux.some((n) => matchesSouhait(w, n)))) match = 0;
-  }
 
   const profId = entry.prof_ids && entry.prof_ids.length ? entry.prof_ids[0] : (entry.prof_id ?? null);
   const profCount = profId != null ? (agg.byProf[profId] || 0) : 0;
@@ -803,9 +788,8 @@ function voitureScore(stagiaireId, entry, weekAvecEleve, weekVoit, voitDays) {
     (weekVoit[stagiaireId] || 0) >= 2 ? 1 : 0,             // [0] plafond : 2 voitures/semaine max (souple)
     hasAdjacentDay ? 1 : 0,                                 // [1] éviter même jour / veille / lendemain
     avecEleve,                                              // [2] équité d'exposition (critère principal)
-    match,                                                  // [3] souhaits × niveau bénévole
-    profCount,                                              // [4] variété formateur
-    weekVoit[stagiaireId] || 0,                             // [5] équilibre intra-semaine
+    profCount,                                              // [3] variété formateur
+    weekVoit[stagiaireId] || 0,                             // [4] équilibre intra-semaine
   ];
 }
 function cmpScores(a, b) {
@@ -2305,14 +2289,9 @@ function openHalfMetaEditor(d, half, anchorEl) {
 async function changeWeek(dateStr) {
   editMode = false;   // chaque semaine se rouvre en lecture seule (spec 2026-07-20)
   jourTelephone = null;   // une autre semaine : le jour du téléphone repart d'aujourd'hui ou du lundi
+  // Navigation personnelle : la semaine choisie n'est écrite nulle part, chacun rouvre le planning sur la semaine en
+  // cours (ruling R59, renderPlanning).
   semaineLundi = dateStr;
-  // La « semaine affichée » est persistée comme réglage GLOBAL de la promo (table settings,
-  // écriture admin-only en RLS) : c'est la semaine que tout le monde retrouve à l'ouverture.
-  // Les non-admins naviguent donc en LOCAL uniquement : persister ici levait une erreur RLS
-  // qui court-circuitait loadPlanning/renderInto → navigation bloquée pour les stagiaires
-  // (bug Gaëlle 2026-07-02), alors qu'un stagiaire ne doit de toute façon pas déplacer la
-  // semaine courante de toute la promo.
-  if (isAdmin()) await setSetting("current_week_lundi", dateStr);
   await loadPlanning();
   renderInto(currentContainer);
 }
@@ -2582,7 +2561,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
 
       // Les nouveaux passages changent l'équité : rafraîchit les stats du placement.
       try {
-        [voitureStats, fichesSuivi, salleStats] = await Promise.all([getVoitureAggregats(), listFiches(), getSalleAggregats()]);
+        [voitureStats, salleStats] = await Promise.all([getVoitureAggregats(), getSalleAggregats()]);
       } catch (e) { console.warn("rafraîchissement stats voiture impossible", e?.message || e); }
 
       // Marque les thèmes « Fait » à la date du créneau ; mémorise l'état pour Ctrl+Z.
@@ -2750,19 +2729,14 @@ function scrollToDay(d) {
 // endroit où l'on sait quelle semaine est chargée et où les cartes existent déjà pour
 // pouvoir défiler jusqu'à la bonne.
 let pendingTodayJump = false;
-// Nouvelle navigation (ruling R29) : le bouton de la barre du haut, masquée, revient en haut de la
-// semaine, avec le même geste (js/main.js, allerAujourdhui), que la page Planning de la nouvelle
-// navigation transmet à renderPlanning (js/views/planning-espace.js). null avec l'ancienne
-// navigation : le bouton est dans la barre du haut.
+// Ruling R29 : le retour au jour de la barre de la semaine, avec le même geste (js/main.js, allerAujourdhui), que la
+// page Planning transmet à renderPlanning (js/views/planning-espace.js).
 let gesteAujourdhui = null;
 export function requestPlanningToday() {
   pendingTodayJump = true;
-  // Nouvelle navigation : la semaine est le sous-onglet « Semaine » de Planning
-  // (js/views/planning-espace.js). C'est lui qui doit s'ouvrir, sinon le saut attendrait
-  // derrière Dates clés ou Priorités.
-  if (navigationV2Active()) {
-    try { localStorage.setItem(CLES_SOUS_ONGLETS.planning, "semaine"); } catch (e) { /* mode privé */ }
-  }
+  // La semaine est le sous-onglet « Semaine » de Planning (js/views/planning-espace.js). C'est lui qui doit
+  // s'ouvrir, sinon le saut attendrait derrière Dates clés ou Priorités.
+  try { localStorage.setItem(CLES_SOUS_ONGLETS.planning, "semaine"); } catch (e) { /* mode privé */ }
 }
 
 // Jour visé : aujourd'hui du lundi au vendredi ; le week-end, « aujourd'hui » n'existe
@@ -2795,9 +2769,8 @@ function buildDayNav(monday) {
 }
 
 // Ce qui couvre le haut de l'écran au-dessus des cartes : la barre du haut puis la barre de
-// jours (52 px). La hauteur de la barre du haut est la variable CSS --haut-entete, lue sur body :
-// mesurée sur l'ancienne barre (js/main.js, posée sur <html>, dont body hérite), posée par la
-// coquille sous la nouvelle navigation (css/navigation.css) ; 52 px tant qu'elle n'est pas lue.
+// jours (52 px). La hauteur de la barre du haut est la variable CSS --haut-entete, lue sur body,
+// posée par la coquille (css/navigation.css) ; 52 px tant qu'elle n'est pas lue.
 function hautDesBarres() {
   const entete = parseFloat(getComputedStyle(document.body).getPropertyValue("--haut-entete"));
   return (Number.isFinite(entete) ? entete : 52) + 52;
@@ -2846,19 +2819,17 @@ function detachDayNavHighlight() {
 }
 
 function renderInto(container) {
-  // Conteneur sorti de la page (nouvelle navigation : sous-onglet Semaine quitté avant la fin
-  // d'un rendu ou d'une action) : rien à dessiner, et surtout pas currentContainer, la barre
-  // des jours ni la cible d'impression, qui appartiennent à ce qui est affiché. Sans
-  // sous-onglets, le conteneur est #view, toujours dans la page.
+  // Conteneur sorti de la page (sous-onglet Semaine quitté avant la fin d'un rendu ou d'une
+  // action) : rien à dessiner, et surtout pas currentContainer, la barre des jours ni la cible
+  // d'impression, qui appartiennent à ce qui est affiché.
   if (!container.isConnected) return;
   currentContainer = container;
   clear(container);
 
   const admin = isAdmin();
   const editing = canEditWeek();
-  // Nouvelle navigation, côté stagiaire : le planning se lit seulement, sans phrase qui parle d'administration, et
-  // « Revenir à aujourd'hui » (hors de la semaine du jour) tient lieu de « Cette semaine » (barre de la semaine).
-  const eleve = navigationV2Active() && !formateurConnecte();
+  // Côté stagiaire : le planning se lit seulement, sans phrase qui parle d'administration.
+  const eleve = !formateurConnecte();
   // Lecture seule dès qu'on n'est pas en édition explicite (stagiaire, admin hors
   // mode Modifier, ou semaine verrouillée) : la CSS .read-only fait le gros du travail.
   container.classList.toggle("read-only", !editing);
@@ -2872,15 +2843,10 @@ function renderInto(container) {
 
   const monday = new Date(semaineLundi + "T00:00:00");
   const longLabel = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-  // Nouvelle navigation (audit du 09/11, lot B) : le planning d'abord. La phrase « Lecture seule... » redisait le bouton
-  // « Modifier », et les boutons de l'en-tête doublaient la navigation (« Émargement », qui a sa page et son bandeau) ou
-  // portaient le nom de l'onglet d'accueil de l'équipe (« Aujourd'hui », devenu « Revenir à aujourd'hui » dans la barre
-  // de la semaine, montré seulement hors de la semaine du jour).
-  const v2 = navigationV2Active();
+  // Audit du 09/11, lot B : le planning d'abord. Pas de phrase « Lecture seule... » qui redirait le bouton « Modifier », ni
+  // de bouton d'en-tête qui doublerait la navigation (Priorités et Émargement ont leur place dans la barre).
   const phraseLecture = admin
-    ? (isLocked(semaineLundi)
-        ? "Semaine validée et verrouillée. « Déverrouiller » pour corriger."
-        : (v2 ? null : "Lecture seule. Clique « Modifier » pour éditer la semaine."))
+    ? (isLocked(semaineLundi) ? "Semaine validée et verrouillée. « Déverrouiller » pour corriger." : null)
     : "Lecture seule. Connexion admin requise pour modifier.";
 
   container.appendChild(el("div", { class: "view-header" },
@@ -2893,28 +2859,6 @@ function renderInto(container) {
           ? "Sélectionne les activités, formateurs et stagiaires. Tout s'enregistre automatiquement."
           : phraseLecture
       ) : null,
-    ),
-    // Priorités de passage : rangées dans le Planning, plus d'onglet (chantier D).
-    // Visibles des formateurs, et des stagiaires si le module est ouvert pour leur
-    // promo ; repère « Masqué aux stagiaires » chez un formateur quand il est fermé.
-    // Nouvelle navigation : Priorités est un sous-onglet de Planning, pas de bouton en double ; le retour au jour est
-    // dans la barre de la semaine.
-    el("div", { class: "p-entete-actions" },
-      routeVisible("dashboard") && !v2
-        ? repereMasque(el("button", { class: "btn small", type: "button",
-            title: "Qui doit passer en priorité, au tableau et en voiture",
-            onClick: () => { location.hash = "#/dashboard"; } },
-            icon.target(), "Priorités"), routeMasquee("dashboard"))
-        : null,
-      // Émargement (spec 2026-10-23) : page des formateurs, si le fondateur l'a activé pour la promo (pas la direction
-      // avant le lot 5 : la page lui répondrait par un refus). Nouvelle navigation : la page est dans la barre, et le
-      // bandeau mène à la feuille ouverte (audit, B2).
-      admin && emargementActif() && !v2
-        ? el("button", { class: "btn small", type: "button",
-            title: "Ouvrir l'émargement du jour, imprimer les feuilles",
-            onClick: () => { location.hash = "#/emargement"; } },
-            icon.clipboard(), "Émargement")
-        : null,
     ),
   ));
 
@@ -2934,9 +2878,6 @@ function renderInto(container) {
     changeWeek(isoDate(d));
   });
 
-  const todayBtn = el("button", { class: "btn small" }, "Cette semaine");
-  todayBtn.addEventListener("click", () => changeWeek(isoDate(getMonday(new Date()))));
-
   // « Imprimer / PDF » sur grand écran, « PDF » sur téléphone (le mot long est masqué
   // en CSS) : sans ça, les trois actions débordent sur une deuxième ligne à 375 px.
   const printBtn = el("button", { class: "btn small", onClick: () => printPlanning() });
@@ -2947,39 +2888,27 @@ function renderInto(container) {
   // Barre en DEUX groupes : « se déplacer » puis « agir », séparés par un filet.
   // Le libellé « Semaine du » a été retiré : l'en-tête juste au-dessus dit déjà
   // « Semaine du 6 juillet 2026 ».
-  // « Cette semaine » ne reste que dans l'ancienne navigation (relecture du lot 2B ; audit du 09/11, lots E et B).
-  // Nouvelle navigation (audit du 09/11, lot B) : le retour au jour (ruling R29) ne se montre que hors de la semaine du
-  // jour, où la bande et la barre des jours repèrent déjà aujourd'hui ; il ne s'appelle plus « Aujourd'hui », le nom de
-  // l'onglet d'accueil de l'équipe.
-  const avecAujourdhui = v2 && !!gesteAujourdhui;
+  // Audit du 09/11, lot B : le retour au jour (ruling R29) ne se montre que hors de la semaine du jour, où la bande et la
+  // barre des jours repèrent déjà aujourd'hui ; il ne s'appelle pas « Aujourd'hui », le nom de l'onglet d'accueil de
+  // l'équipe.
   // La semaine « du jour » est celle où le geste mène : le lundi suivant le week-end (lundiEnCours, comme todayJumpTarget).
   const horsSemaineDuJour = semaineLundi !== lundiEnCours(new Date());
-  const retourBtn = avecAujourdhui && horsSemaineDuJour
+  const retourBtn = gesteAujourdhui && horsSemaineDuJour
     ? el("button", { class: "btn small p-aujourdhui", type: "button",
         title: "Revenir à la semaine du jour, sur la journée d'aujourd'hui", onClick: () => gesteAujourdhui() },
         deco(icon.today()), "Revenir à aujourd'hui")
     : null;
-  const navGroup = el("div", { class: "week-bar-nav" }, dateInput, prevBtn, nextBtn,
-    eleve || avecAujourdhui ? retourBtn : todayBtn);
+  const navGroup = el("div", { class: "week-bar-nav" }, dateInput, prevBtn, nextBtn, retourBtn);
   const actionsGroup = el("div", { class: "week-bar-actions" });
   const weekBar = el("div", { class: "week-bar" }, navGroup, actionsGroup);
-  // Banque d'élèves bénévoles : accessible aussi en lecture seule (consulter une fiche
-  // ou un téléphone ne doit pas obliger à passer en édition), mais pas sur semaine
-  // verrouillée (barre réduite au badge + Déverrouiller, design validé).
-  // Nouvelle navigation : la banque est le sous-onglet « Élèves bénévoles » de la page Stagiaires ; le bouton écrit la
-  // mémoire de ce sous-onglet (comme une redirection du lot 1) puis ouvre la page. Ancienne : la fenêtre d'avant.
+  // Banque d'élèves bénévoles : le sous-onglet « Élèves bénévoles » de la page Stagiaires ; le bouton écrit la mémoire
+  // de ce sous-onglet (comme une redirection du lot 1) puis ouvre la page. Il n'est montré qu'en mode Modifier, où l'on
+  // place les bénévoles.
   const bnvBtn = () => el("button", { class: "btn small",
     title: "Banque d'élèves bénévoles (voiture) : fiches, dispos, téléphones",
     onClick: () => {
-      if (navigationV2Active()) {
-        try { localStorage.setItem(CLES_SOUS_ONGLETS.stagiaires, "benevoles"); } catch (e) { /* mode privé */ }
-        location.hash = "#/stagiaires";
-        return;
-      }
-      openBenevolesPanel({ onClose: async () => {
-        benevoles = await loadBenevoles();
-        renderInto(currentContainer);
-      }});
+      try { localStorage.setItem(CLES_SOUS_ONGLETS.stagiaires, "benevoles"); } catch (e) { /* mode privé */ }
+      location.hash = "#/stagiaires";
     } },
     el("span", { class: "btn-long" }, "Élèves bénévoles"),
     el("span", { class: "btn-short" }, "Bénévoles"));
@@ -2997,15 +2926,14 @@ function renderInto(container) {
         renderInto(currentContainer);
       } }, "Déverrouiller"));
   } else if (admin && !editing) {
-    // - Lecture seule (défaut) : Modifier + banque bénévoles. Nouvelle navigation : la banque est le sous-onglet
-    //   « Élèves bénévoles » de Stagiaires ; le raccourci ne reste qu'en mode Modifier, où l'on place les bénévoles.
+    // - Lecture seule (défaut) : Modifier. La banque est le sous-onglet « Élèves bénévoles » de Stagiaires ; le
+    //   raccourci ne reste qu'en mode Modifier, où l'on place les bénévoles.
     const editBtn = el("button", { class: "btn small primary",
       title: "Passer la semaine affichée en mode édition",
       onClick: () => { editMode = true; renderInto(currentContainer); } });
     editBtn.appendChild(deco(icon.pencil()));
     editBtn.appendChild(document.createTextNode("Modifier"));
     actionsGroup.appendChild(editBtn);
-    if (!v2) actionsGroup.appendChild(bnvBtn());
   } else if (admin && editing) {
     // - Mode édition (audit du 09/11, lot B, B5) : « Quitter l'édition » ne valide rien (tout s'enregistre au fil de la
     //   saisie), « Valider la semaine » transforme le planning en passages : deux gestes différents, deux mots différents.
@@ -3088,8 +3016,7 @@ function renderInto(container) {
 
   // Les règles du placement automatique et l'aide sur « À la suite » et « Parallèle » parlent à qui place les stagiaires
   // (audit du 09/11, lot B, B3) : l'équipe pour les règles ; le mode Modifier pour l'aide, qui décrit ses boutons.
-  // Ancienne navigation (celle des promos en service) : le mémo reste pour tous, comme sur main.
-  if (formateurConnecte() || !v2) container.appendChild(buildRulesNote());
+  if (formateurConnecte()) container.appendChild(buildRulesNote());
   if (editing) container.appendChild(el("div", { class: "planning-helper" },
     el("strong", {}, "À la suite : "), "un nouveau créneau, après celui qui précède. ",
     el("strong", {}, "En parallèle : "), "une autre activité au même horaire (par exemple une voiture qui tourne pendant un cours)."
@@ -3110,10 +3037,6 @@ function nonEmpty(v) {
 
 function lookupProf(id) { return profs.find((p) => p.id === id)?.nom || ""; }
 function lookupBenevole(id) { return benevoles.find((b) => b.id === id)?.display || ""; }
-function lookupStagiaire(id) {
-  const s = stagiaires.find((x) => x.id === id);
-  return s ? displayStagiaire(s) : "";
-}
 
 // Prénoms portés par AU MOINS 2 stagiaires (normalisés) → il faut garder l'initiale du
 // nom pour les distinguer. Recalculé à chaque impression (liste ~15 stagiaires).
@@ -3473,18 +3396,15 @@ async function printPlanning() {
   window.print();
 }
 
-// `aujourdhui` : le geste du bouton « Aujourd'hui » de l'ancienne barre, que la nouvelle navigation pose dans la barre de la
-// semaine sous le nom « Revenir à aujourd'hui » (js/views/planning-espace.js) ; absent avec l'ancienne, dont la barre du haut
-// porte le bouton.
+// `aujourdhui` : le geste de retour au jour (js/main.js, allerAujourdhui), que la page Planning pose dans la barre de la
+// semaine sous le nom « Revenir à aujourd'hui » (js/views/planning-espace.js).
 export async function renderPlanning(container, { aujourdhui = null } = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
-  // Nouvelle navigation : la semaine est un sous-onglet de Planning. Quittée pendant son
-  // chargement, son conteneur n'est plus dans la page : le rendu s'arrête avant d'écrire l'état
-  // du module (données, semaine affichée, saut « Aujourd'hui »), qui appartient au rendu
-  // affiché. Sans sous-onglets, le conteneur est #view, toujours dans la page : chaque arrêt
-  // ci-dessous est sans effet et l'ordre des écritures est celui d'avant.
+  // La semaine est un sous-onglet de Planning. Quittée pendant son chargement, son conteneur
+  // n'est plus dans la page : le rendu s'arrête avant d'écrire l'état du module (données,
+  // semaine affichée, saut « Aujourd'hui »), qui appartient au rendu affiché.
   const references = await Promise.all([
     listStagiaires(), listProfs(), listThemes(), loadBenevoles(),
   ]);
@@ -3492,30 +3412,22 @@ export async function renderPlanning(container, { aujourdhui = null } = {}) {
   [stagiaires, profs, themes, benevoles] = references;
   let stats;
   try {
-    stats = await Promise.all([getVoitureAggregats(), listFiches(), getSalleAggregats()]);
+    stats = await Promise.all([getVoitureAggregats(), getSalleAggregats()]);
   } catch (e) {
-    console.warn("stats voiture / fiches indisponibles (migration manquante ?)", e?.message || e);
-    stats = [{}, [], {}];
+    console.warn("stats voiture indisponibles (migration manquante ?)", e?.message || e);
+    stats = [{}, {}];
   }
   if (!container.isConnected) return;
-  [voitureStats, fichesSuivi, salleStats] = stats;
+  [voitureStats, salleStats] = stats;
   const autres = await getSetting("profs_autres");
   if (!container.isConnected) return;
   autresProfsMem = parseAutresProfs(autres);
-  // Raccourci « Aujourd'hui » : on force la semaine en cours en LOCAL, sans écrire le
-  // réglage global « current_week_lundi » : c'est une navigation personnelle, elle n'a
-  // pas à déplacer la semaine affichée pour toute la promo (même logique que pour un
-  // stagiaire qui feuillette les semaines).
+  // Raccourci « Aujourd'hui » : la semaine du jour, sur la journée d'aujourd'hui.
   const jump = pendingTodayJump ? todayJumpTarget() : null;
   pendingTodayJump = false;
-  // Nouvelle navigation (ruling R59) : le Planning s'ouvre sur la semaine en cours (la suivante le week-end), et non sur
-  // la semaine que le formateur a épinglée pour la promo. Les flèches de la barre de semaine gardent leur effet.
-  const nouvelle = navigationV2Active();
-  const weekSetting = nouvelle ? null : await getSetting("current_week_lundi");
-  if (!container.isConnected) return;
-  semaineLundi = jump
-    ? isoDate(getMonday(jump.date))
-    : nouvelle ? lundiEnCours(new Date()) : (weekSetting || isoDate(getMonday(new Date())));
+  // Ruling R59 : le Planning s'ouvre sur la semaine en cours (la suivante le week-end) ; aucune semaine n'est épinglée
+  // pour la promo. Les flèches de la barre de semaine gardent leur effet, le temps de la visite.
+  semaineLundi = jump ? isoDate(getMonday(jump.date)) : lundiEnCours(new Date());
   jourTelephone = jump ? jump.dayIndex : null;
   await loadPlanning();
   if (!container.isConnected) return;

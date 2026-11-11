@@ -128,8 +128,7 @@ export function peutRetirerCompte({ cible, fondateur } = {}) {
 // manque : l'affichage d'avant, sans message). Un compte du personnel (« formateur » d'après la colonne) qui est direction ou siège
 // perd la pastille « formateur », qu'il ne garde que s'il a une fiche formateur (prof_id) : l'app ne voit pas ses promos de
 // formateur, cette fiche est le seul indice qu'il l'est aussi. Un stagiaire n'est jamais touché. Rend [{ libelle, classe }], la
-// classe étant le suffixe de `role-pill role-…` ; le premier libellé sert au tri. Un « admin » se lit « formateur ». L'option
-// `v2` est ignorée (transition : retirée en phase 2 quand les vues ne la passent plus).
+// classe étant le suffixe de `role-pill role-…` ; le premier libellé sert au tri. Un « admin » se lit « formateur ».
 export function pastillesDuProfil({ profil, roles } = {}) {
   if (!profil) return [];
   const brut = String(profil.role ?? "");
@@ -148,7 +147,7 @@ export function pastillesDuProfil({ profil, roles } = {}) {
 }
 
 // La liste « Personnes avec accès », triée par premier rôle affiché puis par adresse : [{ profil, pastilles }]. Ne change pas qui y
-// figure. L'option `v2` est ignorée (transition, comme pour pastillesDuProfil).
+// figure.
 export function listeAcces({ profils, roles } = {}) {
   return (Array.isArray(profils) ? profils : [])
     .map((profil) => ({ profil, pastilles: pastillesDuProfil({ profil, roles }) }))
@@ -169,8 +168,7 @@ export function messageInvitation(message, code) {
 
 // Phrase d'une invitation acceptée par la base, d'après ce que rend inviter_compte : `cree` (le profil vient d'être créé) et
 // `affecte` (nombre d'affectations ajoutées). « Rien n'a changé » seulement quand ni l'un ni l'autre : un compte qui existait
-// et vient de gagner une promo a bien changé (relecture finale, I1). `ton` : le type du toast. L'option `v2` est ignorée
-// (transition : retirée en phase 2 quand les vues ne la passent plus).
+// et vient de gagner une promo a bien changé (relecture finale, I1). `ton` : le type du toast.
 export function messageInvitationReussie({ resultat, email } = {}) {
   const r = resultat || {};
   if (r.cree !== false) {
