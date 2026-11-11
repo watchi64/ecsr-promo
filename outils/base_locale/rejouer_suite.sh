@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Rejoue, sur la base locale reconstruite (reconstruire.sh), les migrations du dépôt postérieures au lot 4, dans l'ordre
+# où la production les a reçues, pour que les preuves SQL se jouent sur un état identique à la production.
+#
+# Usage : outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres]
+#   --port         port de la base locale (défaut 55435)
+#   --avec-titres  ajoute ensuite les migrations 20261112_titres_1 à _4 (chantier titres et droits à la carte)
+# Code de sortie : 0 si tout passe ; sinon 3 (le nom du fichier en échec est écrit sur la sortie d'erreur).
+# Note : 20261028_signalements_app n'est pas dans la liste : ses tables sont dans clone_3_tables.sql ; seules ses fonctions sont jouées.
+set -u
+RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+PORT=55435
+TITRES=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --port) PORT="$2"; shift 2 ;;
+    --avec-titres) TITRES=1; shift ;;
+    *) echo "argument inconnu : $1" >&2; exit 2 ;;
+  esac
+done
+MIGRATIONS="$RACINE/supabase/migrations"
+export PGOPTIONS="-c check_function_bodies=off" PGCLIENTENCODING=UTF8
+P="psql -h 127.0.0.1 -p $PORT -U postgres -d postgres -v ON_ERROR_STOP=1 -q"
+
+LISTE="20261108_espaces_1_siege 20261108_espaces_2_equipe 20261108_espaces_3_habillage 20261108_questionnaires
+20261109_epcf_moyennes_anonymat 20261109_habillage 20261109_registre_qualite 20261110_epcf_moyennes_seuil_3
+20261110_profils_email_stagiaires 20261111_espaces_4_donnees"
+if [ "$TITRES" = 1 ]; then
+  for n in 1 2 3 4; do
+    f="$(ls "$MIGRATIONS"/20261112_titres_${n}_*.sql 2>/dev/null | grep -v '_retour\.sql$' | head -n 1)"
+    [ -n "$f" ] || { echo "migration introuvable : 20261112_titres_${n}_*" >&2; exit 3; }
+    LISTE="$LISTE $(basename "$f" .sql)"
+  done
+fi
+
+# Prérequis : les cinq fonctions de 20261028_signalements_app (signaler_probleme, que le registre qualité appelle, et ses
+# quatre voisines), absentes des clones. On joue la seule partie « fonctions » de la migration (de la section 4 à la fin) :
+# ses tables et ses règles sont déjà dans clone_3_tables.sql, et la migration entière rétablirait des règles d'avant le
+# lot 4 (elles citent is_founder), ce que la couverture de la preuve des rôles refuse. Pas comptée dans la suite.
+sed -n '/^-- 4\. Envoyer/,$p' "$MIGRATIONS/20261028_signalements_app.sql" | $P -1 || { echo "échec : 20261028_signalements_app (fonctions)" >&2; exit 3; }
+N=0
+for f in $LISTE; do
+  $P -1 -f "$MIGRATIONS/$f.sql" || { echo "échec : $f" >&2; exit 3; }
+  N=$((N + 1))
+done
+# Droits propres à la production, que les clones ne portent pas (écarts de la base locale constatés le 10/11 et le 11/11) :
+# 1. registre_qualite : en production, service_role y écrit (la preuve du registre le contrôle) ; ici la table naît de la
+#    migration 20261109 sans ce droit, d'où un 42501. Pas de droit général sur les tables : la preuve des questionnaires
+#    exige que service_role n'ait aucun droit sur les siennes.
+# 2. epcf_moyennes : en production, un visiteur (anon) n'a pas le droit de l'exécuter. Ici la fonction naît de la
+#    migration 20261109 sans droits explicites, donc PostgreSQL laisse EXECUTE à PUBLIC. On retire PUBLIC et anon et on
+#    donne authenticated et service_role. (Ne pas poser « revoke ... on functions from public » par défaut : les
+#    fonctions que les preuves créent dans pg_temp deviendraient inutilisables par les rôles testés.)
+$P <<'SQL' || { echo "échec : droits de la production" >&2; exit 3; }
+grant all on public.registre_qualite to service_role;
+revoke all on function public.epcf_moyennes(text) from public, anon;
+grant execute on function public.epcf_moyennes(text) to authenticated, service_role;
+SQL
+echo "OK : suite rejouée ($N migrations)"
