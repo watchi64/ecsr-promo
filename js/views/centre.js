@@ -6,7 +6,6 @@
 
 import { lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261110e";
 import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261110e";
-import { icon } from "../icons.js?v=20261110e";
 import { fondateurHorsApercu } from "../auth-admin.js?v=20261110e";
 import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261110e";
 import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261110e";

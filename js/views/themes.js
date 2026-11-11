@@ -6,7 +6,7 @@ import {
   examenDemarrable, tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture,
   resumeExamen,
 } from "../qcm-exam-rules.js?v=20261110e";
-import { isAdmin, isRedacteur, getEspace, getAdminEmail, isProf, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261110e";
+import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261110e";
 import { recordUndo } from "../undo.js?v=20261110e";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261110e";
 import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261110e";
@@ -1307,8 +1307,6 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = [], { 
   setTimeout(() => enonceInput.focus(), 80);
 }
 let filterStatut = "";
-let filterType = "";
-let filterCategorie = "";
 let search = "";
 
 const STATUTS = [
@@ -1610,24 +1608,6 @@ function renderThemeRow(theme, container, coursOn = false) {
     qcmCell,
     delBtn || el("span"),
   );
-}
-
-function uniqueCategories(list) {
-  return [...new Set(list.map((t) => t.categorie).filter(Boolean))];
-}
-
-function matchesFilters(t) {
-  if (filterStatut    && normalizeStatut(t.statut) !== filterStatut) return false;
-  if (filterType      && t.type      !== filterType)      return false;
-  if (filterCategorie && t.categorie !== filterCategorie) return false;
-  if (search) {
-    const q = search.toLowerCase();
-    const inTitle = t.titre.toLowerCase().includes(q);
-    const inNum = t.numero != null && String(t.numero).includes(q);
-    const inCat = (t.categorie || "").toLowerCase().includes(q);
-    if (!inTitle && !inNum && !inCat) return false;
-  }
-  return true;
 }
 
 function openAddNotionModal(onSaved) {

@@ -363,7 +363,6 @@ const OEIL_CONDUCTEUR = { avant: 0.2, gauche: 0.4 };                            
 const EMPATTEMENT = 2.6, VOIE = 1.52;
 const ESSIEU_AVANT = EMPATTEMENT - GABARIT.essieu, ESSIEU_ARRIERE = -GABARIT.essieu;
 const ROUE = { diametre: 0.64, largeur: 0.21, jante: 0.41 };
-const RAYON_ROUE = ROUE.diametre / 2;
 const BRAQUAGE_MAX = 40;
 // Rétroviseur extérieur droit (le gauche en miroir) : miroir sur la face arrière du boîtier, son centre, et le boîtier vu
 // du dessus (avant, pied sur la portière, bout).

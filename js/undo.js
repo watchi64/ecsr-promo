@@ -37,8 +37,6 @@ export async function undoLast() {
   }
 }
 
-export function clearUndoStack() { stack.length = 0; }
-
 export function initUndoKeyboard() {
   document.addEventListener("keydown", (e) => {
     const isUndo = (e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "z" || e.key === "Z");

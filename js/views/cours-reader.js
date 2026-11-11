@@ -21,7 +21,7 @@ import { carteMarquage, marquageConnu } from "../marquage.js?v=20261110e";
 import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261110e";
 import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261110e";
 import { listCoursIndex, getCours } from "../db.js?v=20261110e";
-import { isAdmin, isProf, isRedacteur, getViewAs } from "../auth-admin.js?v=20261110e";
+import { isProf, isRedacteur, getViewAs } from "../auth-admin.js?v=20261110e";
 import { coursAUnTexte, MESSAGE_COURS_VIDE, titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours,
   coursVisibleEnApercu, classeTableau, etiquetteDeColonne }
   from "../cours-rules.js?v=20261110e";

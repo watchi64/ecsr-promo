@@ -6,8 +6,6 @@ import {
 } from "./db.js?v=20261110e";
 import { displayStagiaire } from "./utils.js?v=20261110e";
 
-export { lundiEnCours } from "./journee-rules.js?v=20261110e";
-
 // Prénom seul, sauf s'il est porté par au moins deux stagiaires : « Initiale. Prénom », comme
 // l'impression du planning.
 export function nomsStagiaires(liste) {

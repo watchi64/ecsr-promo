@@ -140,16 +140,6 @@ export function compareByNom(a, b) {
   return (a.prenom || "").localeCompare(b.prenom || "", "fr");
 }
 
-// === Crypto ===
-
-export async function sha256(str) {
-  const buf = new TextEncoder().encode(str);
-  const hash = await crypto.subtle.digest("SHA-256", buf);
-  return Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 // === Toast ===
 // Le message du bas n'a qu'une place (règles dans js/messages-rules.js) : un message (toast : confirmation d'un geste,
 // erreur) s'affiche tout de suite ; une annonce (annoncer : un mot de l'app à l'ouverture) attend que la place soit libre

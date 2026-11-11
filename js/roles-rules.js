@@ -185,7 +185,7 @@ export function messageInvitationReussie({ resultat, email } = {}) {
   return { texte: "Ce compte existe déjà : rien n'a changé.", ton: "info" };
 }
 
-// Étiquette du badge de l'ancienne barre : le rôle réel sur la promo affichée (colonne `roles` de mes_promos), et sa
+// Étiquette du rôle (lue par libelleConnexion, ci-dessous) : le rôle réel sur la promo affichée (colonne `roles` de mes_promos), et sa
 // couleur (classe du point : admin, prof ou stagiaire). Tant que la base ne donne pas les rôles, l'ancien `role` du
 // profil (profil effectif de la promo). Le fondateur sans rôle sur la promo garde « admin » (relecture finale, M4).
 export function etiquetteBadge({ profil, promo } = {}) {

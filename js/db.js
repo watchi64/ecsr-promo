@@ -555,13 +555,6 @@ export async function updateStagiaireNom(id, nom) {
   invalidateCache("stagiaires_all");
 }
 
-export async function deleteStagiaire(id) {
-  const { error } = await supabase.from("stagiaires").delete().eq("id", id);
-  if (error) throw error;
-  invalidateCache("stagiaires");
-  invalidateCache("stagiaires_all");
-}
-
 // Désactivation douce (abandon) : la ligne reste en base (historique / stats futures)
 // mais le stagiaire est masqué partout (planning, dés, notes, passages) car
 // listStagiaires() ne renvoie que actif = true. actif=false => abandon, true => réactivé.
@@ -929,15 +922,6 @@ export async function publishQcm(qcmId, { examQuestionIds, drawMode, nbQuestions
 // examen fermé ne garde pas d'échéance fantôme, qui réapparaîtrait à la réouverture.
 export async function unpublishQcm(qcmId) {
   await ecrireExamen(qcmId, { published: false, exam_ferme_a: null });
-}
-
-// Régénère le tirage gelé sans toucher à l'état de publication.
-export async function setExamDraw(qcmId, { examQuestionIds, drawMode, nbQuestions }) {
-  await ecrireExamen(qcmId, {
-    exam_question_ids: examQuestionIds,
-    exam_draw_mode: drawMode,
-    exam_nb_questions: nbQuestions ?? null,
-  });
 }
 
 // Met à jour la config d'examen sans changer l'état de publication. Un champ qui ne
@@ -1316,16 +1300,6 @@ export async function getNotesStatsGroupe() {
   return data;
 }
 
-export async function listAuditForEvaluation(evaluation_id) {
-  const { data, error } = await supabase
-    .from("evaluations_audit")
-    .select("*")
-    .eq("evaluation_id", evaluation_id)
-    .order("changed_at", { ascending: false });
-  if (error) throw error;
-  return data;
-}
-
 // === EPCF (évaluations en cours de formation) ===
 
 export async function listEpcf(filters = {}) {
@@ -1359,11 +1333,6 @@ export async function upsertEpcf(evalRow) {
   const { data, error } = await q;
   if (error) throw error;
   return data;
-}
-
-export async function deleteEpcf(id) {
-  const { error } = await supabase.from("epcf_evaluations").delete().eq("id", id);
-  if (error) throw error;
 }
 
 // La date de naissance vit dans stagiaires_prive (lisible du stagiaire lui-même et du

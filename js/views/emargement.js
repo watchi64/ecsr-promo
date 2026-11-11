@@ -11,7 +11,7 @@ import {
 import { el, clear, toast, isoDate } from "../utils.js?v=20261110e";
 import { confirmer } from "../confirmer.js?v=20261110e";
 import { icon } from "../icons.js?v=20261110e";
-import { isAdmin, isProf, isEquipe, getProfile } from "../auth-admin.js?v=20261110e";
+import { isAdmin, isEquipe, getProfile } from "../auth-admin.js?v=20261110e";
 import {
   etatLigne, resumeSeance, resumeEnClair, etatSansFeuille, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
