@@ -21,6 +21,20 @@ f("inviter_compte(text, text, integer, integer, integer)",
    "      raise exception 'invitation: Vous ne pouvez pas vous nommer vous-même à la direction.' using errcode = '42501';\n"
    "    end if;\n" + LIGNE_DIRECTION))
 
+# Partie C : les lectures qu'une case « Non » ferme.
+# geste_centre : un code de plus, promos.lire (les cartes Promos montrent les noms des formateurs).
+f("geste_centre(integer, text)",
+  ("    when 'equipe.lire' then\n",
+   "    when 'promos.lire' then\n      return coalesce(case_centre(l, 'promos') >= 1, false);\n    when 'equipe.lire' then\n"))
+# notes_stagiaires_visibles : seuls les membres de la promo et les titres qui ont « Notes et examens » en lisent la liste.
+f("notes_stagiaires_visibles()",
+  ("   where s.promo_id = promo_courante()\n",
+   "   where s.promo_id = promo_courante()\n     and (membre_stagiaire(promo_courante()) or geste_promo(promo_courante(), 'notes.lire'))\n"))
+# roles_du_personnel : « Personnes avec accès » est dans les Réglages de la promo.
+f("roles_du_personnel()",
+  ("(equipe_courante() or est_siege() or est_fondateur())",
+   "(geste_promo(promo_courante(), 'reglages.modifier') or geste_centre(lieu_de_promo(promo_courante()), 'equipe.lire') or geste_reseau('directions.lire') or est_fondateur())"))
+
 
 def bloc(inverse, nom):
     fonctions = ",\n".join(f"    '{P}{s}'" for s, _ in T)

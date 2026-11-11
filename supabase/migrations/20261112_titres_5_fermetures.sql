@@ -88,19 +88,35 @@ grant execute on function public.retirer_titre(text, bigint, integer) to authent
 do $migration$
 declare
   v_fonctions text[] := array[
-    'public.inviter_compte(text, text, integer, integer, integer)'];
+    'public.inviter_compte(text, text, integer, integer, integer)',
+    'public.geste_centre(integer, text)',
+    'public.notes_stagiaires_visibles()',
+    'public.roles_du_personnel()'];
   -- La fonction de chaque fragment (rang dans v_fonctions).
-  v_de integer[] := array[1];
+  v_de integer[] := array[1, 2, 3, 4];
   v_anciens text[] := array[
 $ancien$    -- Un compte qui a une fiche de stagiaire n'est jamais affecté à la direction.
-$ancien$];
+$ancien$,
+$ancien$    when 'equipe.lire' then
+$ancien$,
+$ancien$   where s.promo_id = promo_courante()
+$ancien$,
+$ancien$(equipe_courante() or est_siege() or est_fondateur())$ancien$];
   v_nouveaux text[] := array[
 $nouveau$    -- Personne ne se nomme soi-même à la direction (le fondateur, hors aperçu, excepté).
     if v_email = v_moi and not est_fondateur() then
       raise exception 'invitation: Vous ne pouvez pas vous nommer vous-même à la direction.' using errcode = '42501';
     end if;
     -- Un compte qui a une fiche de stagiaire n'est jamais affecté à la direction.
-$nouveau$];
+$nouveau$,
+$nouveau$    when 'promos.lire' then
+      return coalesce(case_centre(l, 'promos') >= 1, false);
+    when 'equipe.lire' then
+$nouveau$,
+$nouveau$   where s.promo_id = promo_courante()
+     and (membre_stagiaire(promo_courante()) or geste_promo(promo_courante(), 'notes.lire'))
+$nouveau$,
+$nouveau$(geste_promo(promo_courante(), 'reglages.modifier') or geste_centre(lieu_de_promo(promo_courante()), 'equipe.lire') or geste_reseau('directions.lire') or est_fondateur())$nouveau$];
   f integer;
   i integer;
   v_oid regprocedure;
@@ -164,3 +180,49 @@ alter policy affectations_ajout on public.affectations
 
 alter policy affectations_retrait on public.affectations
   using (false);
+
+-- C. Les lectures qu'une case « Non » ferme. Pour les titres fixes, chaque remplacement vaut l'ancien prédicat (équivalences de l'étape 1 :
+-- equipe.lire contre est_direction, directions.lire contre est_siege, formateur_fixe et siege_fixe contre est_formateur et est_siege) ;
+-- un titre non fixe ne lit plus que ce que ses cases ouvrent.
+--   * geste_centre gagne promos.lire (les cartes Promos montrent les noms des formateurs) ;
+--   * affectations_lecture : formateurs lus par le titre fixe, l'équipe ou les promos du centre ; directions lues par l'équipe du centre
+--     ou la lecture des directions ; sièges lus par le titre fixe du siège ;
+--   * notes_stagiaires_visibles() : seuls les membres de la promo et les titres qui ont « Notes et examens » en lisent la liste ;
+--   * roles_du_personnel() : « Personnes avec accès » est dans les Réglages de la promo (ou l'équipe du centre, ou la lecture des directions) ;
+--   * user_profiles_lecture : le personnel est lu par qui lit les directions (au lieu du siège).
+-- (Les trois fonctions sont réécrites par le bloc de fragments ci-dessus.) Garde : affectations_lecture est encore celle du lot 4 (elle
+-- cite est_direction) et user_profiles_lecture cite est_siege() exactement une fois ; sinon la migration s'arrête sans rien changer.
+do $garde_c$
+declare
+  v_aff text;
+  v_prof text;
+  v_n integer;
+begin
+  select p.qual into v_aff from pg_policies p
+   where p.schemaname = 'public' and p.tablename = 'affectations' and p.policyname = 'affectations_lecture';
+  select p.qual into v_prof from pg_policies p
+   where p.schemaname = 'public' and p.tablename = 'user_profiles' and p.policyname = 'user_profiles_lecture';
+  if v_aff is null or v_aff not like '%est_direction(%' then
+    raise exception 'titres_5_fermetures : la règle affectations_lecture est absente ou n''est plus celle du lot 4 (elle devrait citer est_direction) ; rien n''est changé';
+  end if;
+  v_n := case when v_prof is null then 0 else (length(v_prof) - length(replace(v_prof, 'est_siege()', ''))) / length('est_siege()') end;
+  if v_n <> 1 then
+    raise exception 'titres_5_fermetures : la règle user_profiles_lecture cite est_siege() % fois (une seule attendue) ; rien n''est changé', v_n;
+  end if;
+end $garde_c$;
+
+alter policy affectations_lecture on public.affectations
+  using (
+       lower(email) = lower((select auth.jwt() ->> 'email'))
+    or (select public.est_fondateur())
+    or (role = 'formateur'
+        and (public.formateur_fixe(promo_id)
+             or public.geste_centre(public.lieu_de_promo(promo_id), 'equipe.lire')
+             or public.geste_centre(public.lieu_de_promo(promo_id), 'promos.lire')))
+    or (role = 'direction'
+        and (public.geste_centre(lieu_id, 'equipe.lire') or (select public.geste_reseau('directions.lire'))))
+    or (role = 'siege' and (select public.siege_fixe()))
+  );
+
+alter policy user_profiles_lecture on public.user_profiles
+  using (lower(email) = lower((select auth.jwt() ->> 'email')) or (stagiaire_id is null and role <> 'stagiaire' and ((select public.promo_par_defaut()) is not null or (select public.geste_reseau('directions.lire')) or (select public.est_fondateur()))) or (stagiaire_id is null and role = 'stagiaire' and ((select public.est_fondateur()) or lower(invited_by_email) = lower((select auth.jwt() ->> 'email')))) or (stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = (select public.promo_courante())) and (select public.geste_promo((select public.promo_courante()), 'stagiaires.lire'))));

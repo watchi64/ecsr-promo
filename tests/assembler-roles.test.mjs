@@ -1091,6 +1091,15 @@ test("la migration 5 : retirer_titre fermée à public, anon et service_role, ou
     const re = new RegExp(`^alter policy ${nom} on public\.affectations\n  [^\n]*;$`, "m");
     assert.equal(re.exec(r)?.[0], re.exec(m3)?.[0], `${nom} : expression de la migration 3`);
   }
+  // Partie C : trois fonctions réécrites par fragments (le geste promos.lire, les notes visibles, le personnel) et deux règles de lecture.
+  for (const morceau of ["'promos.lire'", "geste_promo(promo_courante(), 'notes.lire')", "membre_stagiaire(promo_courante())", "geste_reseau('directions.lire')"]) {
+    assert.ok(m.includes(morceau), `fragment de la partie C : ${morceau}`);
+  }
+  assert.match(m, /alter policy affectations_lecture on public\.affectations\s+using \(/);
+  assert.match(m, /alter policy user_profiles_lecture on public\.user_profiles\s+using \(/);
+  assert.ok(!/alter policy user_profiles_lecture[^;]*public\.est_siege\(\)/.test(m), "user_profiles_lecture ne cite plus est_siege");
+  assert.ok(/alter policy user_profiles_lecture[^;]*public\.est_siege\(\)/.test(texteDuDepot(GESTION_5.retour)), "le retour remet est_siege dans user_profiles_lecture");
+  assert.match(r, /public\.est_direction\(public\.lieu_de_promo\(promo_id\)\)/, "le retour remet affectations_lecture du lot 4");
   // Le retour 3 refuse de se jouer tant que retirer_titre existe.
   assert.match(texteDuDepot(ETAPES_TITRES[3].retour), /to_regprocedure\('public\.retirer_titre\(text, bigint, integer\)'\) is not null/);
 });

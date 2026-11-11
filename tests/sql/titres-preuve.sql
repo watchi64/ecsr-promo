@@ -518,11 +518,16 @@ begin
     pg_temp.calcul($q$select coalesce(string_agg(schemaname || '.' || policyname, ',' order by schemaname || '.' || policyname collate "C"), 'aucune')
       from pg_policies where schemaname in ('public', 'storage')
        and coalesce(qual, '') || coalesce(with_check, '') ~ '(formateur_courant|equipe_courante|direction_courante|redacteur_contenus|is_admin|is_prof)\('$q$), 'aucune');
-  perform pg_temp.attendre('cases', 'les seules règles qui citent encore est_siege, est_formateur ou est_direction sont les trois voulues par le plan',
+  -- Une fois la migration 5 de l'étape 2 posée (retirer_titre existe), affectations_lecture et la clause « personnel » de user_profiles_lecture
+  -- passent aussi par les gestes : la seule règle qui cite encore un ancien prédicat est lieux_lecture (étiquettes des lieux).
+  perform pg_temp.attendre('cases', case when to_regprocedure('public.retirer_titre(text, bigint, integer)') is not null
+      then 'la seule règle qui cite encore est_siege, est_formateur ou est_direction est lieux_lecture (voulue par le plan)'
+      else 'les seules règles qui citent encore est_siege, est_formateur ou est_direction sont les trois voulues par le plan' end,
     pg_temp.calcul($q$select coalesce(string_agg(schemaname || '.' || policyname, ',' order by schemaname || '.' || policyname collate "C"), 'aucune')
       from pg_policies where schemaname in ('public', 'storage')
        and coalesce(qual, '') || coalesce(with_check, '') ~ '(est_siege|est_formateur|est_direction)\('$q$),
-    'public.affectations_lecture,public.lieux_lecture,public.user_profiles_lecture');
+    case when to_regprocedure('public.retirer_titre(text, bigint, integer)') is not null then 'public.lieux_lecture'
+         else 'public.affectations_lecture,public.lieux_lecture,public.user_profiles_lecture' end);
   -- Donnée d'essai posée en propriétaire : le cours du thème 57 repasse en brouillon (un cours de thème non publié).
   update public.cours set published = false where numero = 57;
   -- t_rh (Promos Voir, Équipe Voir) : « Non » ferme la lecture des données de la page.

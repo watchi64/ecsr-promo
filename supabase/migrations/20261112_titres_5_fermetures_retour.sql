@@ -12,6 +12,21 @@ begin
   end if;
 end $garde$;
 
+-- C. Les deux règles de lecture retrouvent leur expression d'origine : affectations_lecture celle du lot 4 (20261028_roles_1_fondations.sql),
+-- user_profiles_lecture celle de 20261112_titres_3_regles.sql, relues dans les fichiers (une seule source).
+alter policy affectations_lecture on public.affectations
+  using (
+       lower(email) = lower((select auth.jwt() ->> 'email'))
+    or (select public.est_fondateur())
+    or (role = 'formateur'
+        and (public.est_formateur(promo_id) or public.est_direction(public.lieu_de_promo(promo_id))))
+    or (role = 'direction' and public.est_direction(lieu_id))
+    or (role in ('direction', 'siege') and (select public.est_siege()))
+  );
+
+alter policy user_profiles_lecture on public.user_profiles
+  using (lower(email) = lower((select auth.jwt() ->> 'email')) or (stagiaire_id is null and role <> 'stagiaire' and ((select public.promo_par_defaut()) is not null or (select public.est_siege()) or (select public.est_fondateur()))) or (stagiaire_id is null and role = 'stagiaire' and ((select public.est_fondateur()) or lower(invited_by_email) = lower((select auth.jwt() ->> 'email')))) or (stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = (select public.promo_courante())) and (select public.geste_promo((select public.promo_courante()), 'stagiaires.lire'))));
+
 -- B. Les droits d'insertion et de suppression de authenticated sur affectations, et les deux expressions de la migration 3
 -- (20261112_titres_3_regles.sql, relues dans le fichier : une seule source).
 grant delete on public.affectations to authenticated;
@@ -26,19 +41,35 @@ alter policy affectations_retrait on public.affectations
 do $migration$
 declare
   v_fonctions text[] := array[
-    'public.inviter_compte(text, text, integer, integer, integer)'];
+    'public.inviter_compte(text, text, integer, integer, integer)',
+    'public.geste_centre(integer, text)',
+    'public.notes_stagiaires_visibles()',
+    'public.roles_du_personnel()'];
   -- La fonction de chaque fragment (rang dans v_fonctions).
-  v_de integer[] := array[1];
+  v_de integer[] := array[1, 2, 3, 4];
   v_anciens text[] := array[
 $ancien$    -- Personne ne se nomme soi-même à la direction (le fondateur, hors aperçu, excepté).
     if v_email = v_moi and not est_fondateur() then
       raise exception 'invitation: Vous ne pouvez pas vous nommer vous-même à la direction.' using errcode = '42501';
     end if;
     -- Un compte qui a une fiche de stagiaire n'est jamais affecté à la direction.
-$ancien$];
+$ancien$,
+$ancien$    when 'promos.lire' then
+      return coalesce(case_centre(l, 'promos') >= 1, false);
+    when 'equipe.lire' then
+$ancien$,
+$ancien$   where s.promo_id = promo_courante()
+     and (membre_stagiaire(promo_courante()) or geste_promo(promo_courante(), 'notes.lire'))
+$ancien$,
+$ancien$(geste_promo(promo_courante(), 'reglages.modifier') or geste_centre(lieu_de_promo(promo_courante()), 'equipe.lire') or geste_reseau('directions.lire') or est_fondateur())$ancien$];
   v_nouveaux text[] := array[
 $nouveau$    -- Un compte qui a une fiche de stagiaire n'est jamais affecté à la direction.
-$nouveau$];
+$nouveau$,
+$nouveau$    when 'equipe.lire' then
+$nouveau$,
+$nouveau$   where s.promo_id = promo_courante()
+$nouveau$,
+$nouveau$(equipe_courante() or est_siege() or est_fondateur())$nouveau$];
   f integer;
   i integer;
   v_oid regprocedure;

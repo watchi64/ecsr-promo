@@ -7,6 +7,8 @@
 --   soi          (migration 5, A) personne ne se nomme soi-même à la direction par inviter_compte (le fondateur, hors aperçu, excepté).
 --   ecritures    (migration 5, B) plus aucune écriture directe sur affectations (droits de table, règles à false, chaque acteur), les fonctions
 --                restent le seul chemin ; le scénario de la relecture finale (un siège ne se nomme pas direction) ne lit rien.
+--   lectures     (migration 5, C) les lectures qu'une case « Non » ferme (affectations, profils du personnel, roles_du_personnel, notes visibles),
+--                en nombre de lignes ; les titres fixes lisent les mêmes nombres qu'avant la migration (relevé avant, comparé après).
 --   retour       les retours défont tout, dans l'ordre inverse (6, 5, 4) : l'empreinte (règles, fonctions, droits) égale celle d'avant.
 -- Les groupes des migrations 5 et 6 s'ajoutent avec leurs tâches (retrait, soi, ecritures, lectures ; puis verrou, donner, retirer,
 -- gerer, lire, immediat, journal). Un groupe dont la fonction n'existe pas est sauté, avec une ligne d'information, en mode
@@ -388,6 +390,135 @@ begin
   perform pg_temp.essai(format('delete from public.user_profiles where lower(email) in (%L, %L)', e_x, e_y));
 end $tge$;
 
+-- Le relevé des lectures des personnages dont les nombres ne doivent pas bouger, avant et après la migration.
+drop table if exists pg_temp.releves;
+create temp table releves (etape text, qui text, lecture text, valeur text);
+
+-- Les lectures du groupe lectures : une requête par nom, jouée par un personnage, qui rend un nombre de lignes (en texte).
+create or replace function pg_temp.lecture_sql(p_lecture text)
+returns text language sql immutable as $tls$
+  select case p_lecture
+    when 'affectations' then 'select count(*)::text from public.affectations'
+    when 'formateurs' then 'select count(*)::text from public.affectations where role = ''formateur'''
+    when 'directions' then 'select count(*)::text from public.affectations where role = ''direction'''
+    when 'sieges' then 'select count(*)::text from public.affectations where role = ''siege'''
+    when 'personnel' then 'select count(*)::text from public.user_profiles where stagiaire_id is null and role <> ''stagiaire'''
+    when 'roles_du_personnel' then 'select count(*)::text from public.roles_du_personnel()'
+    when 'notes_visibles' then 'select count(*)::text from public.notes_stagiaires_visibles()'
+  end;
+$tls$;
+
+-- Le relevé de toutes les lectures par les cinq personnages dont les nombres ne doivent pas bouger (stag_n, form_n, dir_n, siege, fond),
+-- rangé dans pg_temp.releves sous le nom de l'étape ('avant' ou 'apres').
+create or replace function pg_temp.releve(p_etape text)
+returns void language plpgsql as $trel$
+declare p record; l text;
+begin
+  for p in select * from (values ('stag_n', '1'), ('form_n', '1'), ('dir_n', '1'), ('siege', null), ('fond', '1')) x(qui, entete) loop
+    foreach l in array array['affectations', 'formateurs', 'directions', 'sieges', 'personnel', 'roles_du_personnel', 'notes_visibles'] loop
+      insert into pg_temp.releves (etape, qui, lecture, valeur) values (p_etape, p.qui, l, pg_temp.appeler_a(p.qui, p.entete, null, pg_temp.lecture_sql(l)));
+    end loop;
+  end loop;
+end $trel$;
+
+-- Une lecture d'un personnage, comparée à un nombre attendu écrit en dur : le libellé dit la lecture ; l'attendu est « OK <n> ».
+create or replace function pg_temp.lire_n(p_libelle text, p_qui text, p_entete text, p_lecture text, p_attendu text)
+returns void language sql as $tln$
+  select pg_temp.attendre('lectures', p_libelle, pg_temp.appeler_a(p_qui, p_entete, null, pg_temp.lecture_sql(p_lecture)), 'OK ' || p_attendu);
+$tln$;
+
+-- Groupe lectures (migration 5, partie C) : les lectures qu'une case « Non » ferme. Titres non fixes posés en propriétaire (t_contenus,
+-- t_qualite, t_interv, t_rh, t_secr, t_vide, et t_promos, posé ici : Promos Voir seulement). Les nombres sont ceux du propriétaire,
+-- jugés non nuls quand ils servent d'attendu (jamais un contrôle à vide). p_compare : le relevé d'avant la migration est comparable.
+create or replace function pg_temp.groupe_lectures(p_compare boolean)
+returns void language plpgsql as $tgl$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  e_promos text := 'preuve8.t.promos@exemple.invalid';
+  v_titre_promos text;
+  n_dir text; n_form_l1 text; n_form_autre text; n_stag text;
+  r record;
+  v_avant text; v_apres text;
+begin
+  -- Le relevé d'après, avant de poser quoi que ce soit de plus (t_promos, ci-dessous, s'ajouterait aux lignes lues).
+  if p_compare then
+    perform pg_temp.releve('apres');
+  end if;
+  -- Un titre de centre « Promos : Voir » seul (ni Équipe, ni Réglages), porté par t_promos, pour le geste promos.lire.
+  insert into pg_temp.perso (ordre, nom, email, role) values (57, 't_promos', e_promos, 'prof');
+  insert into public.user_profiles (email, role, is_admin) values (e_promos, 'prof', false);
+  v_titre_promos := pg_temp.nouveau_titre('Preuve8 promos seules', 'centre', v_l1);
+  perform pg_temp.essai(format('update public.titres set cases = %L::jsonb where id = %s', '{"promos":"voir"}', v_titre_promos));
+  perform pg_temp.affecter(e_promos, 'direction', null, v_l1, v_titre_promos);
+  -- Les nombres du propriétaire.
+  n_dir := pg_temp.calcul($q$select count(*)::text from public.affectations where role = 'direction'$q$);
+  n_form_l1 := pg_temp.calcul(format($q$select count(*)::text from public.affectations a join public.promos p on p.id = a.promo_id where a.role = 'formateur' and p.lieu_id = %s$q$, v_l1));
+  n_form_autre := pg_temp.calcul(format($q$select count(*)::text from public.affectations a join public.promos p on p.id = a.promo_id where a.role = 'formateur' and p.lieu_id <> %s$q$, v_l1));
+  n_stag := pg_temp.calcul($q$select count(*)::text from public.stagiaires where promo_id = 1$q$);
+  perform pg_temp.verifier('lectures', 'départ : le propriétaire voit des directions, des formateurs dans le centre 1 et dans un autre centre, des stagiaires dans la promo 1',
+    n_dir ~ '^[1-9][0-9]*$' and n_form_l1 ~ '^[1-9][0-9]*$' and n_form_autre ~ '^[1-9][0-9]*$' and n_stag ~ '^[1-9][0-9]*$',
+    format('directions %s, formateurs du centre %s, formateurs ailleurs %s, stagiaires %s', n_dir, n_form_l1, n_form_autre, n_stag));
+  -- t_contenus (réseau : Cours Modifier, Directions Non) : ni direction, ni profil du personnel, ni personne ; seule sa propre ligne.
+  perform pg_temp.lire_n('t_contenus (Directions : Non) ne lit aucune affectation de direction', 't_contenus', null, 'directions', '0');
+  perform pg_temp.lire_n('t_contenus (Directions : Non) ne lit aucune affectation de formateur', 't_contenus', null, 'formateurs', '0');
+  perform pg_temp.lire_n('t_contenus lit sa propre ligne de siège et aucune autre', 't_contenus', null, 'sieges', '1');
+  perform pg_temp.lire_n('t_contenus (Directions : Non) ne lit aucun profil du personnel autre que le sien', 't_contenus', null, 'personnel', '1');
+  perform pg_temp.lire_n('t_contenus (Directions : Non) : roles_du_personnel() rend 0 ligne', 't_contenus', null, 'roles_du_personnel', '0');
+  -- t_qualite (réseau : Directions Voir) : lit les directions, jamais les sièges des autres.
+  perform pg_temp.lire_n('t_qualite (Directions : Voir) lit toutes les affectations de direction', 't_qualite', null, 'directions', n_dir);
+  perform pg_temp.lire_n('t_qualite (Directions : Voir) ne lit que sa propre ligne de siège', 't_qualite', null, 'sieges', '1');
+  perform pg_temp.lire_n('t_qualite (Directions : Voir) ne lit aucune affectation de formateur', 't_qualite', null, 'formateurs', '0');
+  perform pg_temp.verifier('lectures', 't_qualite (Directions : Voir) : roles_du_personnel() rend au moins une ligne (geste directions.lire)',
+    pg_temp.appeler_a('t_qualite', null, null, pg_temp.lecture_sql('roles_du_personnel')) ~ '^OK [1-9]', pg_temp.appeler_a('t_qualite', null, null, pg_temp.lecture_sql('roles_du_personnel')));
+  -- t_dirs (réseau : Directions Modifier) : lit les directions, pas les sièges des autres.
+  perform pg_temp.lire_n('t_dirs (Directions : Modifier) lit toutes les affectations de direction', 't_dirs', null, 'directions', n_dir);
+  perform pg_temp.lire_n('t_dirs (Directions : Modifier) ne lit que sa propre ligne de siège', 't_dirs', null, 'sieges', '1');
+  -- t_interv (promo : Réglages Non) : aucune affectation d'un autre formateur, roles_du_personnel() vide.
+  perform pg_temp.lire_n('t_interv (Réglages : Non) : roles_du_personnel() rend 0 ligne', 't_interv', '1', 'roles_du_personnel', '0');
+  perform pg_temp.lire_n('t_interv ne lit que sa propre ligne de formateur', 't_interv', '1', 'formateurs', '1');
+  perform pg_temp.lire_n('t_interv ne lit aucune affectation de direction', 't_interv', '1', 'directions', '0');
+  -- t_rh (centre : Promos Voir, Équipe Voir) : les formateurs des promos de son centre, aucun d'un autre centre ; la direction de son centre (Équipe).
+  perform pg_temp.lire_n('t_rh (Promos : Voir) lit les affectations de formateur des promos de son centre, aucune d''un autre centre', 't_rh', '1', 'formateurs', n_form_l1);
+  perform pg_temp.lire_n('t_rh ne lit aucune affectation de siège', 't_rh', '1', 'sieges', '0');
+  -- t_promos (centre : Promos Voir seul) : le geste promos.lire ouvre les formateurs du centre, et rien d'autre.
+  perform pg_temp.lire_n('t_promos (Promos : Voir seul) lit les affectations de formateur des promos de son centre (promos.lire)', 't_promos', '1', 'formateurs', n_form_l1);
+  perform pg_temp.lire_n('t_promos (Équipe : Non) ne lit que sa propre direction', 't_promos', '1', 'directions', '1');
+  perform pg_temp.lire_n('t_promos (Réglages : Non) : roles_du_personnel() rend 0 ligne', 't_promos', '1', 'roles_du_personnel', '0');
+  -- t_vide (centre : tout Non) : ni formateur, ni autre direction que la sienne.
+  perform pg_temp.lire_n('t_vide (Promos : Non, Équipe : Non) ne lit aucune affectation de formateur', 't_vide', '1', 'formateurs', '0');
+  perform pg_temp.lire_n('t_vide (Équipe : Non) ne lit que sa propre direction', 't_vide', '1', 'directions', '1');
+  perform pg_temp.lire_n('t_vide : roles_du_personnel() rend 0 ligne', 't_vide', '1', 'roles_du_personnel', '0');
+  -- t_chef (centre : Promos Voir, Stagiaires Voir, Équipe Modifier) : la direction et les formateurs de son centre.
+  perform pg_temp.lire_n('t_chef (Équipe : Modifier) lit les affectations de formateur des promos de son centre', 't_chef', '1', 'formateurs', n_form_l1);
+  perform pg_temp.verifier('lectures', 't_chef (Équipe : Modifier) : roles_du_personnel() rend au moins une ligne',
+    (select rr.valeur ~ '^OK [1-9]' from (select pg_temp.appeler_a('t_chef', '1', null, pg_temp.lecture_sql('roles_du_personnel')) as valeur) rr),
+    pg_temp.appeler_a('t_chef', '1', null, pg_temp.lecture_sql('roles_du_personnel')));
+  -- Les notes visibles : seuls les membres de la promo et les titres qui ont « Notes et examens » en lisent la liste.
+  perform pg_temp.lire_n('t_secr rend 0 identifiant de notes visibles (pas de case Notes)', 't_secr', '1', 'notes_visibles', '0');
+  perform pg_temp.lire_n('t_interv rend 0 identifiant de notes visibles', 't_interv', '1', 'notes_visibles', '0');
+  perform pg_temp.lire_n('t_rh rend 0 identifiant de notes visibles', 't_rh', '1', 'notes_visibles', '0');
+  perform pg_temp.lire_n('stag_n (membre de la promo 1) lit toujours la liste de la promo', 'stag_n', '1', 'notes_visibles', n_stag);
+  perform pg_temp.lire_n('form_n (Notes et examens : Modifier) lit la liste de la promo', 'form_n', '1', 'notes_visibles', n_stag);
+  -- Les titres fixes : mêmes nombres qu'avant la migration pour chaque lecture (relevé d'avant comparé au relevé d'après).
+  if p_compare then
+    for r in select a.qui, a.lecture, a.valeur as avant, b.valeur as apres
+               from pg_temp.releves a join pg_temp.releves b on b.qui = a.qui and b.lecture = a.lecture and b.etape = 'apres'
+              where a.etape = 'avant' order by a.qui collate "C", a.lecture collate "C" loop
+      perform pg_temp.verifier('lectures', format('%s : %s rend le même nombre qu''avant la migration', r.qui, r.lecture), r.avant is not distinct from r.apres,
+        format('avant %s ; après %s', r.avant, r.apres));
+    end loop;
+    perform pg_temp.verifier('lectures', 'le relevé d''avant porte 35 nombres, tous lus (jamais un contrôle à vide)',
+      (select count(*) = 35 and bool_and(valeur ~ '^OK [0-9]+$') from pg_temp.releves where etape = 'avant'),
+      (select string_agg(qui || '.' || lecture || '=' || valeur, ' ; ') from pg_temp.releves where etape = 'avant' and valeur !~ '^OK [0-9]+$'));
+  else
+    perform pg_temp.informer('lectures : même nombre qu''avant la migration', 'non jugeable (migration 5 non injectée dans ce mode)');
+  end if;
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L', e_promos));
+  perform pg_temp.essai(format('delete from public.user_profiles where lower(email) = %L', e_promos));
+  perform pg_temp.essai(format('delete from public.titres where id = %s', v_titre_promos));
+  perform pg_temp.essai('delete from pg_temp.perso where nom = ''t_promos''');
+end $tgl$;
+
 do $tprg$
 declare
   v_mode constant text :=
@@ -413,7 +544,23 @@ begin
   perform pg_temp.verifier('structure', 'prérequis : la règle affectations_ajout existe, réécrite par la migration 3 (elle cite geste_centre) ou déjà fermée (false)',
     v_regle like '%geste_centre%' or v_regle = 'false', 'with check : ' || coalesce(left(v_regle, 120), 'règle absente'));
 
-  -- 2. Les migrations, dans l'ordre d'application (neutralisées dans les modes sans elles) : 4 (journal), 5 (fermetures), 6 (gestion).
+  -- 2. Les personnages, posés AVANT les migrations (comme les comptes de la production) : ceux de l'étape 1 (titres-aides.sql), puis ceux de l'étape 2.
+  perform pg_temp.poser_perso();
+  perform pg_temp.poser_titres_gestes();
+  perform pg_temp.poser_titres_gestion();
+  perform pg_temp.attendre('structure', 'les personnages de l''étape 2 sont posés (4 titres non fixes portés, 5 adresses libres, un orphelin, une promo)',
+    pg_temp.calcul($q$select concat_ws('/',
+      (select count(*) from perso where nom in ('t_chef', 't_vide', 't_qualite', 't_dirs') and info ~ '^[0-9]+$')::text,
+      (select count(*) from perso p where p.nom in ('x', 'y', 'z', 'u', 'v') and not exists (select 1 from public.user_profiles u where u.email = p.email)
+         and not exists (select 1 from public.affectations a where lower(a.email) = p.email))::text,
+      (select count(*) from perso p join public.user_profiles u on u.email = p.email where p.nom = 'orphelin' and u.role = 'stagiaire' and u.stagiaire_id is null)::text,
+      (select count(*) from public.promos where id = 990801 and nom = 'Preuve8 promo A')::text,
+      (select count(*) from public.affectations a join public.titres t on t.id = a.titre_id where not t.fixe and a.email like 'preuve8.t.%')::text)$q$),
+    '4/5/1/1/4');
+  -- Le relevé de leurs lectures avant la migration (comparé après, groupe lectures).
+  perform pg_temp.releve('avant');
+
+  -- 3. Les migrations, dans l'ordre d'application (neutralisées dans les modes sans elles) : 4 (journal), 5 (fermetures), 6 (gestion).
   v_etat4 := pg_temp.jouer('migration 4',
 -- @@INJECTER supabase/migrations/20261112_titres_4_journal.sql@@
   );
@@ -427,20 +574,6 @@ begin
   );
   perform pg_temp.etape('migration 6', v_etat6, v_mode);
 
-  -- 3. Les personnages : ceux de l'étape 1 (titres-aides.sql), puis ceux de l'étape 2.
-  perform pg_temp.poser_perso();
-  perform pg_temp.poser_titres_gestes();
-  perform pg_temp.poser_titres_gestion();
-  perform pg_temp.attendre('structure', 'les personnages de l''étape 2 sont posés (4 titres non fixes portés, 5 adresses libres, un orphelin, une promo)',
-    pg_temp.calcul($q$select concat_ws('/',
-      (select count(*) from perso where nom in ('t_chef', 't_vide', 't_qualite', 't_dirs') and info ~ '^[0-9]+$')::text,
-      (select count(*) from perso p where p.nom in ('x', 'y', 'z', 'u', 'v') and not exists (select 1 from public.user_profiles u where u.email = p.email)
-         and not exists (select 1 from public.affectations a where lower(a.email) = p.email))::text,
-      (select count(*) from perso p join public.user_profiles u on u.email = p.email where p.nom = 'orphelin' and u.role = 'stagiaire' and u.stagiaire_id is null)::text,
-      (select count(*) from public.promos where id = 990801 and nom = 'Preuve8 promo A')::text,
-      (select count(*) from public.affectations a join public.titres t on t.id = a.titre_id where not t.fixe and a.email like 'preuve8.t.%')::text)$q$),
-    '4/5/1/1/4');
-
   -- 4. Les groupes de la migration 5 (fermetures), puis de la migration 6 (gestion), avec leurs tâches.
   if pg_temp.groupe_a_jouer('retrait', v_etat5, 'public.retirer_titre(text, bigint, integer)', v_mode) then
     perform pg_temp.groupe_retrait();
@@ -450,6 +583,9 @@ begin
   end if;
   if pg_temp.groupe_a_jouer('ecritures', v_etat5, 'public.retirer_titre(text, bigint, integer)', v_mode) then
     perform pg_temp.groupe_ecritures();
+  end if;
+  if pg_temp.groupe_a_jouer('lectures', v_etat5, 'public.retirer_titre(text, bigint, integer)', v_mode) then
+    perform pg_temp.groupe_lectures(v_etat5 = 'jouée');
   end if;
 
   -- 5. Les retours, dans l'ordre inverse (6, 5, 4).
