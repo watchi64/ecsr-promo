@@ -1517,11 +1517,21 @@ export async function deleteRessource(id) {
 }
 
 // === Contacts (administration, urgences, etc.) ===
+// Chaque contact appartient à un centre (lieu_id, migration 20261113_contacts_centre) : la base ne rend et n'accepte que ceux
+// du centre de la promo affichée (règle restrictive contacts_meme_centre). Le filtre ci-dessous dit la même chose côté app ;
+// l'ajout porte le centre de la promo affichée (la base le pose aussi d'office, et refuse tout autre centre).
+
+function lieuAffiche() {
+  return getPromoCourante()?.lieu_id ?? null;
+}
 
 export async function listContacts() {
+  const lieu = lieuAffiche();
+  if (lieu == null) return [];
   const { data, error } = await supabase
     .from("contacts")
     .select("*")
+    .eq("lieu_id", lieu)
     .order("sort_order", { ascending: true })
     .order("prenom", { ascending: true });
   if (error) throw error;
@@ -1529,8 +1539,9 @@ export async function listContacts() {
 }
 
 export async function addContact(payload) {
+  const lieu = lieuAffiche();
   const { data, error } = await supabase
-    .from("contacts").insert(payload).select().single();
+    .from("contacts").insert(lieu == null ? payload : { lieu_id: lieu, ...payload }).select().single();
   if (error) throw error;
   return data;
 }

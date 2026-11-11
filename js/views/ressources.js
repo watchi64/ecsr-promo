@@ -270,7 +270,7 @@ function rerender(container) {
       + selonPublic("Tape sur un numéro pour appeler directement.", "Tapez sur un numéro pour appeler directement.")));
 
   if (contacts.length === 0) {
-    contactsSection.appendChild(el("p", { class: "muted", style: "padding:1rem;text-align:center" }, "Aucun contact enregistré."));
+    contactsSection.appendChild(el("p", { class: "muted", style: "padding:1rem;text-align:center" }, "Aucun contact enregistré pour ce centre."));
   } else {
     const grid = el("div", { class: "contacts-grid" });
     contacts.forEach((c) => grid.appendChild(renderContactCard(c, () => reload(container))));
