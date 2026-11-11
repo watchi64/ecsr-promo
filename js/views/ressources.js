@@ -1,13 +1,13 @@
 import {
   listRessources, addRessource, updateRessource, deleteRessource,
   listContacts, addContact, updateContact, deleteContact, getPromoCourante,
-} from "../db.js?v=20261111g";
-import { el, clear, toast } from "../utils.js?v=20261111g";
-import { confirmer } from "../confirmer.js?v=20261111g";
-import { icon, deco } from "../icons.js?v=20261111g";
-import { isAdmin, selonPublic } from "../auth-admin.js?v=20261111g";
-import { recordUndo } from "../undo.js?v=20261111g";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261111g";
+} from "../db.js?v=20261111h";
+import { el, clear, toast } from "../utils.js?v=20261111h";
+import { confirmer } from "../confirmer.js?v=20261111h";
+import { icon, deco } from "../icons.js?v=20261111h";
+import { isAdmin, selonPublic } from "../auth-admin.js?v=20261111h";
+import { recordUndo } from "../undo.js?v=20261111h";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111h";
 
 let ressources = [];
 let contacts = [];
@@ -270,7 +270,7 @@ function rerender(container) {
       + selonPublic("Tape sur un numéro pour appeler directement.", "Tapez sur un numéro pour appeler directement.")));
 
   if (contacts.length === 0) {
-    contactsSection.appendChild(el("p", { class: "muted", style: "padding:1rem;text-align:center" }, "Aucun contact enregistré."));
+    contactsSection.appendChild(el("p", { class: "muted", style: "padding:1rem;text-align:center" }, "Aucun contact enregistré pour ce centre."));
   } else {
     const grid = el("div", { class: "contacts-grid" });
     contacts.forEach((c) => grid.appendChild(renderContactCard(c, () => reload(container))));

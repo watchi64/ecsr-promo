@@ -1,5 +1,5 @@
-import { peutMontrer, aReprendre, perimee } from "./messages-rules.js?v=20261111g";
-import { lundiDe } from "./dates.js?v=20261111g";
+import { peutMontrer, aReprendre, perimee } from "./messages-rules.js?v=20261111h";
+import { lundiDe } from "./dates.js?v=20261111h";
 
 // === Date helpers ===
 

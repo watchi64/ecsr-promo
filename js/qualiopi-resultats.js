@@ -20,11 +20,11 @@
 // Jamais de valeur « null », « undefined » ou « NaN » dans la fiche ni dans ses textes : ce qui manque devient un mot. Sans
 // indicateurs exploitables, la fiche est celle d'une promo sans inscrit.
 
-import { METHODES_PUBLIQUES } from "./centre-stats.js?v=20261111g";
-import { pct, pluriel } from "./nombres.js?v=20261111g";
-import { promoTerminee, periodeEnMots, edition } from "./qualiopi-documents.js?v=20261111g";
-import { rempli, tableau } from "./qualiopi-preuves.js?v=20261111g";
-import { texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261111g";
+import { METHODES_PUBLIQUES } from "./centre-stats.js?v=20261111h";
+import { pct, pluriel } from "./nombres.js?v=20261111h";
+import { promoTerminee, periodeEnMots, edition } from "./qualiopi-documents.js?v=20261111h";
+import { rempli, tableau } from "./qualiopi-preuves.js?v=20261111h";
+import { texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261111h";
 
 // L'interface du plan : la règle « terminée » est celle des dossiers et les méthodes publiques celles du tableau de bord
 // (js/centre-stats.js, à côté de METHODES) ; ni l'une ni les autres ne sont réécrites ici, seulement réexportées.
