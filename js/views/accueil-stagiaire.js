@@ -51,7 +51,7 @@ const DEMI = {
 function rangeeCarte(c) {
   const sujets = c.sujets.length ? ` : ${c.sujets.join(" · ")}` : "";
   const equipe = c.formateurs.length ? `Avec ${c.formateurs.join(", ")}.` : "";
-  // Étiquette « Tu passes au tableau » : le texte de la journée (journee-rules), l'accent de la grille de la semaine.
+  // Étiquette « Toi au tableau » : le texte de la journée (journee-rules), l'accent de la grille de la semaine.
   const etiquette = c.moi ? el("span", { class: "acc-puce", "data-moi": c.moi.role }, c.moi.texte) : null;
   return el("div", { class: "acc-carte-jour" },
     el("b", {}, c.titre + sujets),
@@ -301,7 +301,7 @@ export function renderAccueilStagiaire(container) {
 
   const nomPromo = getPromoCourante()?.nom || "";
   container.appendChild(el("footer", { class: "home-footer-v2" },
-    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" },
+    el("p", {}, (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" },
       "connecté en tant que " + (libelleConnexion({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() }) || "stagiaire"))),
     // Plus de lien « code source » : décision de Timy du 09/11, le code reste discret.
   ));

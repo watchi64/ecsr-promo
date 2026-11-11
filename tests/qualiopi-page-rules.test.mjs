@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  REFERENTIEL_APPLIQUE, REFERENTIEL_DU, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, resumeNiveaux,
+  REFERENTIEL_APPLIQUE, referentielDu, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, resumeNiveaux,
   groupesParCritere, titreImpression,
 } from "../js/qualiopi-page-rules.js";
 import { inventairePromo } from "../js/qualiopi-preuves.js";
@@ -26,7 +26,10 @@ function geler(v) {
 // Dates en toutes lettres et référentiel appliqué
 // =====================================================================================================
 eq(REFERENTIEL_APPLIQUE, "Décret n° 2026-728 du 1er août 2026, en vigueur le 1er novembre 2026", "le référentiel appliqué, sans l'objet du décret");
-eq(REFERENTIEL_DU, "référentiel du 1er novembre 2026", "l'en-tête de la page");
+eq(referentielDu("2026-11-11"), "référentiel du 1er novembre 2026", "l'en-tête de la page, le référentiel en vigueur");
+eq(referentielDu("2026-11-01"), "référentiel du 1er novembre 2026", "le jour même de son entrée en vigueur");
+eq(referentielDu("2026-10-28"), "référentiel applicable à partir du 1er novembre 2026", "avant son entrée en vigueur, il ne paraît pas en vigueur");
+eq(referentielDu(null), "référentiel du 1er novembre 2026", "sans jour lisible, la forme d'en vigueur");
 
 // =====================================================================================================
 // Période des 12 derniers mois

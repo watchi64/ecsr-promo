@@ -3,6 +3,7 @@ import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJo
          getStagiaire, setDateNaissance, listPassages,
          listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261111h";
 import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261111h";
+import { dixieme, fr1 } from "../nombres.js?v=20261111h";
 import { HALF_DAYS, RESULTATS } from "../config.js?v=20261111h";
 import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261111h";
 import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111h";
@@ -294,8 +295,8 @@ function buildChart(evals, largeur) {
     svg.appendChild(svgEl("circle", {
       cx: x(i), cy: y(e.norm), r: rCible, class: "ms-pt-hit", "data-i": String(i),
       "data-lib": describeEval(e),
-      "data-note": `${e.note}/${e.note_max}`,
-      "data-norm": e.norm.toFixed(1),
+      "data-note": `${dixieme(e.note)}/${dixieme(e.note_max)}`,
+      "data-norm": fr1(e.norm),
       "data-date": formatDate(e.date_eval),
     }));
   });

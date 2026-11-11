@@ -14,8 +14,13 @@ import { pluriel } from "./nombres.js?v=20261111h";
 // Le référentiel appliqué, tel que la page l'écrit : « Décret n° 2026-728 du 1er août 2026, en vigueur le 1er novembre 2026 »
 // (la source du référentiel, sans l'objet du décret).
 export const REFERENTIEL_APPLIQUE = `${SOURCE.decret.replace(/ relatif .*$/, "")}, en vigueur le ${dateLongue(SOURCE.enVigueur)}`;
-// La date d'entrée en vigueur seule, pour l'en-tête : « référentiel du 1er novembre 2026 ».
-export const REFERENTIEL_DU = `référentiel du ${dateLongue(SOURCE.enVigueur)}`;
+// La date d'entrée en vigueur seule, pour l'en-tête : « référentiel du 1er novembre 2026 ». Avant cette date (jour
+// « AAAA-MM-JJ » du calendrier de Paris), l'en-tête dit qu'il s'applique à partir d'elle : il ne paraît pas en vigueur
+// avant de l'être (chasse aux défauts du film, 11/11). Sans jour lisible, la forme d'en vigueur.
+export function referentielDu(jour) {
+  const date = dateLongue(SOURCE.enVigueur);
+  return typeof jour === "string" && jour < SOURCE.enVigueur ? `référentiel applicable à partir du ${date}` : `référentiel du ${date}`;
+}
 
 // Les 12 derniers mois jusqu'à aujourd'hui (« AAAA-MM-JJ »), bornes comprises : du lendemain du même jour de l'année
 // précédente (le 28 février quand le jour est un 29 février) à aujourd'hui, soit 12 mois exactement : le 28/10/2026 donne

@@ -2,7 +2,7 @@
 // noms (pluriel, nb, nombre), les pourcentages et les décimales en plusieurs.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { entier, pct, fr1, pluriel } from "../js/nombres.js";
+import { entier, pct, fr1, pluriel, dixieme, fr2 } from "../js/nombres.js";
 
 const FINE = " ";   // espace insécable fine, séparateur des milliers en français
 const INSECABLE = " ";
@@ -32,4 +32,16 @@ test("pluriel : zéro et un au singulier, pluriel régulier ou donné", () => {
   assert.equal(pluriel(1, "absent prévu", "absents prévus"), "1 absent prévu");
   assert.equal(pluriel(3, "absent prévu", "absents prévus"), "3 absents prévus");
   assert.equal(pluriel(1500, "heure"), `1${FINE}500 heures`, "les milliers séparés comme partout");
+});
+
+test("dixieme : une note au dixième, virgule, sans « ,0 » (chasse aux défauts du film, 11/11)", () => {
+  assert.equal(dixieme(13.46), "13,5");
+  assert.equal(dixieme(14), "14");
+  assert.equal(dixieme("12.25"), "12,3", "une note lue en base comme texte");
+  assert.equal(dixieme(0), "0");
+});
+
+test("fr2 : deux décimales, virgule (scores des grilles EPCF)", () => {
+  assert.equal(fr2(1.256), "1,26");
+  assert.equal(fr2(2), "2,00");
 });

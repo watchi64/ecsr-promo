@@ -7365,7 +7365,7 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   white-space: nowrap;
 }
 .centre-nature.mesure { background: var(--c-go-soft); color: var(--c-go); }
-.centre-nature.estime { background: var(--c-wait-soft); color: var(--c-wait); }
+.centre-nature.estime { background: var(--accent-soft); color: var(--accent-strong); }  /* olive, plus d'ambre (film, 11/11) */
 .centre-nature.non-mesure { background: var(--bg-soft); color: var(--text-muted); }
 
 .centre-methode { margin-top: auto; padding-top: 0.25rem; font-size: 0.8rem; }

@@ -3885,7 +3885,8 @@ def verifier_pied_de_l_accueil(res, vue, m, nouvelle):
     else:
         role = "formateur" if qui["admin"] else {"prof": "formateur", "stagiaire": "stagiaire"}.get(qui["role"], "")
     promo = ("Promo %s" % m["promo"]["nom"]) if nouvelle else "Promo 2026"
-    attendu = "TP ECSR App · %s · connecté en tant que %s" % (promo, role) if role else "TP ECSR App · %s ·" % promo
+    # Le pied ne porte plus le nom du produit (chasse aux défauts du film, 11/11) : la promo, puis qui est connecté.
+    attendu = "%s · connecté en tant que %s" % (promo, role) if role else "%s ·" % promo
     if m["piedTexte"] != attendu:
         res.echec("pied de l'accueil", vue, "le pied de page dit « %s », attendu « %s » (%s navigation)" % (m["piedTexte"], attendu, "nouvelle" if nouvelle else "ancienne"))
 
@@ -4795,7 +4796,7 @@ def jouer_signature_d_aujourdhui(page, res, sc):
 
 def verifier_accueil_voir_en_tant_que_stagiaire(page, res, sc, vue):
     """Le fondateur voit l'app en stagiaire : l'accueil est celui du stagiaire (salutation par le prénom, ses cartes), jamais Aujourd'hui. Sans fiche de stagiaire, aucune
-    étiquette « Tu passes au tableau » ni signature."""
+    étiquette « Toi au tableau » ni signature."""
     aller_a(page, "#/home")
     attendre(page)
     attendre_accueil(page)

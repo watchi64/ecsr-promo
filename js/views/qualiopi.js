@@ -45,7 +45,7 @@ import {
   modeleDossierFormation, modeleDossierCentre, inventaireCsv, nomFichierQualiopi, periodeEnMots, LIBELLES_NIVEAU, PHRASE_NIVEAU, PHRASE_DE_GARDE,
 } from "../qualiopi-documents.js?v=20261111h";
 import {
-  REFERENTIEL_APPLIQUE, REFERENTIEL_DU, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, groupesParCritere,
+  REFERENTIEL_APPLIQUE, referentielDu, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, groupesParCritere,
   titreImpression,
 } from "../qualiopi-page-rules.js?v=20261111h";
 import {
@@ -255,7 +255,7 @@ export async function renderQualiopi(container) {
 
   const racine = el("div", { class: "qualiopi" });
   container.appendChild(racine);
-  const sousTitre = el("p", { class: "subtitle" }, REFERENTIEL_DU);
+  const sousTitre = el("p", { class: "subtitle" }, referentielDu(jourParis(new Date())));
   racine.appendChild(el("div", { class: "view-header qualiopi-entete" },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Qualité"),
@@ -336,7 +336,7 @@ export async function renderQualiopi(container) {
 
   function majEntete(promo) {
     const centre = texteOu(promo.lieu_nom, null);
-    sousTitre.textContent = [centre ?? "centre non renseigné", nomPromo(promo), REFERENTIEL_DU].join(" · ");
+    sousTitre.textContent = [centre ?? "centre non renseigné", nomPromo(promo), referentielDu(jourParis(new Date()))].join(" · ");
     texteCentre.textContent = centre ?? "non renseigné";
     texteDates.textContent = periodeEnMots(promo.date_debut, promo.date_fin);
   }

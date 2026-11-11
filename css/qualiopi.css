@@ -502,7 +502,7 @@ button.rg-carte:hover { border-color: var(--accent); }
   background: var(--bg-soft);
   color: var(--text-muted);
 }
-.rg-carte-etat.ouvert { background: var(--c-wait-soft); color: var(--c-wait); }
+.rg-carte-etat.ouvert { background: var(--bg-soft); color: var(--text-muted); }  /* neutre, plus d'ambre (film, 11/11) */
 .rg-carte-etat.en_cours { background: var(--accent-soft); color: var(--accent-strong); }
 .rg-carte-etat.clos { background: var(--c-go-soft); color: var(--c-go); }
 .rg-carte-meta { font-size: 0.85rem; line-height: 1.45; color: var(--text-muted); }
