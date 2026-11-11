@@ -100,13 +100,15 @@ Deno.serve(async (req) => {
   if (!autorise) {
     return reponseJson({
       error: "quota",
-      message: `Tu as atteint ton quota du jour (${quota} messages). L'assistant revient demain !`,
+      message: corps.espace === "stagiaire"
+        ? `Tu as atteint ton quota du jour (${quota} messages). L'assistant revient demain !`
+        : `Vous avez atteint votre quota du jour (${quota} messages). L'assistant revient demain.`,
     }, 429);
   }
 
-  // Une seule navigation depuis le 10/11 : le guide de la nouvelle barre, quel que soit le champ `navigation` qu'une app en cache
-  // enverrait encore ; l'espace (direction, siege) choisit le guide de son espace.
-  const systeme = { role: "system", content: construirePromptSysteme({ aide: consignesApp("nouvelle", corps.espace), page }) };
+  // Une seule navigation depuis le 11/11 : l'espace choisit le guide (direction, siege, sinon celui des stagiaires et des
+  // formateurs) et le ton (tutoiement des stagiaires, vouvoiement de l'equipe). Le champ `navigation` d'une app en cache est ignore.
+  const systeme = { role: "system", content: construirePromptSysteme({ aide: consignesApp(corps.espace), page, espace: corps.espace }) };
   const encodeur = new TextEncoder();
   // Le client peut fermer le panneau en pleine generation : plus aucune ecriture
   // ensuite, et la boucle s'arrete au prochain point de controle.

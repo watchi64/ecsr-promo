@@ -1,11 +1,13 @@
--- Navigation unique et ménage (10/11/2026), décisions du fondateur du 10/11. À appliquer APRÈS la mise en ligne de
--- l'app qui ne lit plus `fiches_suivi`. Copie de sauvegarde des données retirées faite hors du dépôt avant application.
+-- Navigation unique et ménage (10/11/2026), décisions du fondateur du 10/11. Phase 1 : applicable dès la mise en ligne
+-- (l'app écrase ces colonnes depuis le 03/10). Copie de sauvegarde des données retirées faite hors du dépôt avant.
 --   1. Ménage du multi-promo (étape 5, écrite le 01/10 dans 20261001_multi_promo_5_menage.sql, jamais appliquée, que
 --      cette migration remplace) : synchronisation de bascule et anciennes colonnes de progression et d'examen. Tout vit
 --      dans themes_progression et qcm_examens ; l'app écrase ces colonnes depuis le 03/10 (fusionnerProgression,
 --      fusionnerExamen). Deux réglages sans lecteur partent aussi (cohort_name, password_hash).
---   2. Critère « souhaits » du placement retiré : `fiches_suivi` (plus écrite depuis le 14/07) disparaît.
---   3. _anonymiser_stagiaire citait les deux : recréée d'abord sans la ligne fiches_suivi ni la ligne
+--   2. Le critère « souhaits » du placement part en phase 2 (20261111_navigation_unique_3_phase2.sql) : `fiches_suivi`
+--      reste jusque-là, le planning la lit encore. La fonction recréée ne la vide déjà plus (écart sans effet : la table
+--      disparaît avec la phase 2).
+--   3. _anonymiser_stagiaire citait fiches_suivi et themes.updated_by_email : recréée d'abord sans la ligne fiches_suivi ni la ligne
 --      themes.updated_by_email (la trace de la promo vit dans themes_progression, toujours anonymisée). create or
 --      replace : mêmes paramètres, même retour, droits d'exécution inchangés (postgres et service_role).
 --      Croisement avec Qualiopi Q5 (qui remplace l'anonymisation par effacer_promo_etape1/2 et effacer_sur_demande) :
@@ -146,10 +148,7 @@ alter table public.qcm
   drop column if exists exam_seconds_per_question, drop column if exists exam_ferme_a;
 delete from public.settings where promo_id is null and key in ('cohort_name', 'password_hash');
 
--- 2. Critère « souhaits » du placement.
-drop table if exists public.fiches_suivi;
-
--- 3. Contrôle : _anonymiser_stagiaire, si elle existe encore, ne cite plus ce qui vient de disparaître (sinon elle
+-- 2. Contrôle : _anonymiser_stagiaire, si elle existe encore, ne cite plus ce qui vient de disparaître (sinon elle
 --    échouerait à l'exécution). Les fonctions d'effacement de Q5 ne sont pas contrôlées ici : elles gardent ces noms
 --    mais ne s'en servent que si la table ou la colonne existe (conditionnelles, prouvées par Q5).
 do $controle$
