@@ -24,14 +24,26 @@ test("messages précisés : fermé, déjà répondu, absent, réseau", () => {
 });
 
 test("les autres refus de la migration sont repris tels quels", () => {
-  for (const p of ["Ce questionnaire ne te concerne pas.", "Il manque des réponses.", "Le questionnaire a changé : recharge la page.",
-    "Ton commentaire dépasse 2 000 caractères.", "Reconnecte-toi pour répondre."]) {
+  for (const p of ["Il manque des réponses.", "Questionnaire inconnu.", "Réservé à la gestion de la qualité.", "Promo introuvable."]) {
     assert.equal(messageErreurQuestionnaire(base(p)), p);
   }
   assert.equal(phraseDeLaBase({ message: "autre chose" }), null);
 });
 
-test("aucun message ne contient de tiret cadratin", () => {
+test("les refus de la migration qui tutoient sont redits en formule neutre (stagiaires et formateurs, règle du 10/11)", () => {
+  assert.equal(messageErreurQuestionnaire(base("Ce questionnaire ne te concerne pas.")), "Ce questionnaire ne concerne pas ce compte.");
+  assert.equal(messageErreurQuestionnaire(base("Le questionnaire a changé : recharge la page.")), "Le questionnaire a changé : merci de recharger la page.");
+  assert.equal(messageErreurQuestionnaire(base("Ton commentaire dépasse 2 000 caractères.")), "Le commentaire dépasse 2 000 caractères.");
+  assert.equal(messageErreurQuestionnaire(base("Reconnecte-toi pour répondre.")), "La session a expiré : une nouvelle connexion est nécessaire pour répondre.");
+});
+
+test("aucun message ne contient de tiret cadratin, ni « tu » ni « vous »", () => {
   const cadratin = String.fromCharCode(0x2014);
-  for (const p of [PHRASE_INDISPONIBLE, PHRASE_RESEAU, PHRASE_FERME, PHRASE_DEJA_REPONDU]) assert.equal(p.includes(cadratin), false);
+  const refus = ["Ce questionnaire ne te concerne pas.", "Le questionnaire a changé : recharge la page.",
+    "Ton commentaire dépasse 2 000 caractères.", "Reconnecte-toi pour répondre.", "Tu as déjà répondu à ce questionnaire."]
+    .map((p) => messageErreurQuestionnaire(base(p)));
+  for (const p of [PHRASE_INDISPONIBLE, PHRASE_RESEAU, PHRASE_FERME, PHRASE_DEJA_REPONDU, ...refus]) {
+    assert.equal(p.includes(cadratin), false);
+    assert.doesNotMatch(p, /\b(tu|ton|ta|tes|te|toi|vous|votre|vos)\b|-toi\b/i, p);
+  }
 });

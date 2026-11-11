@@ -57,9 +57,9 @@ test("page : en tête, quel que soit l'onglet, les entrées à effacer et à clo
   assert.ok(ordre[0] > 0 && ordre[0] < ordre[1], "le rappel est au-dessus des sous-onglets, donc visible sous les deux");
 });
 
-test("fenêtre : rappel des violences en tête, « Ne nomme personne » sous la description, erreurs sous chaque champ", () => {
+test("fenêtre : rappel des violences en tête, « Ne nommez personne » sous la description, erreurs sous chaque champ", () => {
   assert.match(fenetre, /el\("p", \{ class: "rg-rappel" \}, RAPPEL_VIOLENCES\)/);
-  assert.equal(lire("js/registre-fenetre.js").match(/NE_NOMME_PERSONNE = "([^"]+)"/)[1], "Ne nomme personne : l'origine suffit.");
+  assert.equal(lire("js/registre-fenetre.js").match(/NE_NOMME_PERSONNE = "([^"]+)"/)[1], "Ne nommez personne : l'origine suffit.");
   const description = fenetre.slice(fenetre.indexOf('"Description")'), fenetre.indexOf("suite,", fenetre.indexOf('"Description")')));
   assert.ok(description.indexOf("champDescription") < description.indexOf("NE_NOMME_PERSONNE"), "le rappel est juste sous le champ");
   assert.match(fenetre, /validerEntree\(champs, aujourdhui\)/);
@@ -115,7 +115,7 @@ test("panneau : export de la liste filtrée par registreCsv, carte effacée sans
   const exporter = panneau.slice(panneau.indexOf('boutonExporter.addEventListener("click"'), panneau.indexOf("zone.append("));
   assert.match(exporter, /telecharger\(nomFichierRegistre\(jourParis\(new Date\(\)\)\), registreCsv\(filtrees, nomsP, nomsL\)\)/);
   assert.match(panneau, /filtrees = filtrerRegistre\(entrees, filtres\);/);
-  assert.match(panneau, /ne le transmets qu'à l'auditeur/);
+  assert.match(panneau, /ne le transmettez qu'à l'auditeur/);
   const carte = panneau.slice(panneau.indexOf("function carte(e)"), panneau.indexOf("function majListe()"));
   const efface = carte.slice(carte.indexOf("if (estEfface(e))"), carte.indexOf("const bouton ="));
   assert.match(efface, /el\("article", \{ class: "rg-carte rg-carte-lecture"/, "une carte effacée est un article, pas un bouton");
@@ -206,7 +206,7 @@ test("retouche 1 : le bouton « Ajouter au registre » reste focalisable (aria-d
   assert.match(css_style(), /\.btn\[aria-disabled="true"\],\s*\.btn:disabled \{/, "même apparence que disabled");
 });
 
-test("retouche 2 : « Ne nomme personne » relié au champ Description par aria-describedby", () => {
+test("retouche 2 : « Ne nommez personne » relié au champ Description par aria-describedby", () => {
   assert.match(fenetre, /class: "rg-aide rg-personne", id: "rg-personne"/);
   assert.match(fenetre, /cle === "description" \? "rg-personne " : ""\) \+ "rg-erreur-" \+ cle/);
 });

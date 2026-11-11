@@ -1,14 +1,14 @@
-// Erreurs du registre qualité : ce que la base répond, dit en français lisible à l'écran (tutoiement).
-// PUR : ni DOM ni réseau. Testé en node (tests/registre-erreurs.test.mjs).
+// Erreurs du registre qualité : ce que la base répond, dit en français lisible à l'écran (vouvoiement : le registre est
+// réservé à l'équipe, règle du 10/11). PUR : ni DOM ni réseau. Testé en node (tests/registre-erreurs.test.mjs).
 //
 // La migration lève ses refus sous la forme « registre: <phrase> » : la phrase est déjà du français à l'écran, on la
-// reprend telle quelle. Un doublon de signalement (23505), un refus de droit (42501), un refus de contrainte (23514) et une panne de réseau ont chacun
-// leur phrase.
+// reprend telle quelle. Un problème signalé déjà versé au registre (doublon, 23505), un refus de droit (42501), un refus de
+// contrainte (23514) et une panne de réseau ont chacun leur phrase.
 
-export const PHRASE_DOUBLON = "Ce signalement est déjà au registre.";
+export const PHRASE_DOUBLON = "Ce problème est déjà au registre.";
 export const PHRASE_DROIT = "Réservé à la gestion de la qualité : ce compte n'a pas ce droit.";
-export const PHRASE_CONTRAINTE = "Une valeur n'est pas acceptée par le registre : vérifie les dates et les champs, puis réessaie.";
-export const PHRASE_RESEAU = "Le registre n'a pas pu être enregistré : vérifie ta connexion, puis réessaie.";
+export const PHRASE_CONTRAINTE = "Une valeur n'est pas acceptée par le registre : vérifiez les dates et les champs, puis réessayez.";
+export const PHRASE_RESEAU = "Le registre n'a pas pu être enregistré : vérifiez votre connexion, puis réessayez.";
 
 const PREFIXE = "registre:";
 
@@ -20,13 +20,21 @@ function phraseDeLaBase(erreur) {
   return texte.slice(i + PREFIXE.length).trim() || null;
 }
 
+// Refus de la base écrits au tutoiement (20261109_registre_qualite.sql), redits au vous : le registre est à l'équipe.
+const REFUS_AU_VOUS = [
+  [/^Tu n'as pas accès au registre/, "Vous n'avez pas accès au registre qualité."],
+  [/^Le lien vers le signalement ne se change pas/, "Le lien vers le problème signalé ne se change pas : vous pouvez seulement le retirer."],
+];
+
 // Message à afficher pour une erreur d'enregistrement ou de lecture du registre.
 export function messageErreurRegistre(error) {
   const code = String(error?.code ?? "");
   if (code === "23505") return PHRASE_DOUBLON;
   if (code === "42501") return PHRASE_DROIT;
   if (code === "23514") return PHRASE_CONTRAINTE;
-  return phraseDeLaBase(error) ?? PHRASE_RESEAU;
+  const phrase = phraseDeLaBase(error);
+  if (!phrase) return PHRASE_RESEAU;
+  return REFUS_AU_VOUS.find(([motif]) => motif.test(phrase))?.[1] ?? phrase;
 }
 
 // La table n'existe pas dans la base (migration pas encore appliquée).

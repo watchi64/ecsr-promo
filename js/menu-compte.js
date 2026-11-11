@@ -4,7 +4,7 @@
 // « Voir en tant que » du fondateur, les informations légales et la déconnexion, les Nouveautés (avec le
 // nombre des non-lues, que le bouton du compte ne montre que par un point), les Contacts du centre (Cours
 // et QCM, Documents), Mes préférences (celles de la personne, pour tous les rôles : les Réglages de la
-// promo sont une entrée de la barre de l'équipe) et « Actualiser » (seul moyen de relire les données dans
+// promo sont une entrée de la barre de l'équipe) et « Recharger les données » (seul moyen de relire les données dans
 // l'app installée sur iPhone).
 // Juste sous la tête du menu (lot 3) : Apparence, le choix de l'habillage (js/habillage-choix.js) ; une pastille
 // touchée change les couleurs sans fermer le menu.
@@ -13,24 +13,24 @@
 // Lot 5 : une section « Espace » (une ligne par espace ouvert au compte, l'actuel coché) quand il y en a deux ou plus ; dans la
 // direction et au siège, ni les contacts du centre ni une page à soi hors de l'espace.
 
-import { el } from "./utils.js?v=20261111a";
-import { icon, deco } from "./icons.js?v=20261111a";
+import { el } from "./utils.js?v=20261111b";
+import { icon, deco } from "./icons.js?v=20261111b";
 import {
-  getProfile, getProfileWho, monStagiaireId, buildViewAsBlock, seDeconnecter, espacesOuverts, setEspace, getCentre,
-} from "./auth-admin.js?v=20261111a";
-import { LIBELLES_ESPACE, routeDansLEspace, espaceDePilotage } from "./espaces-rules.js?v=20261111a";
-import { getPromoCourante, getMesPromos } from "./db.js?v=20261111a";
-import { ouvrirChoixPromo } from "./promo-pastille.js?v=20261111a";
-import { pagePersonnelle } from "./route-rules.js?v=20261111a";
-import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261111a";
-import { libellePastille } from "./nouveautes.js?v=20261111a";
-import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261111a";
-import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261111a";
-import { fondateurHorsApercu } from "./auth-admin.js?v=20261111a";
-import { ouvrirSignalement } from "./signalement.js?v=20261111a";
-import { etatSignalements } from "./signalement-etat.js?v=20261111a";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261111a";
-import { blocHabillage } from "./habillage-choix.js?v=20261111a";
+  getProfile, getProfileWho, monStagiaireId, buildViewAsBlock, seDeconnecter, espacesOuverts, setEspace, getCentre, getProfileNom,
+} from "./auth-admin.js?v=20261111b";
+import { LIBELLES_ESPACE, routeDansLEspace, espaceDePilotage } from "./espaces-rules.js?v=20261111b";
+import { getPromoCourante, getMesPromos } from "./db.js?v=20261111b";
+import { ouvrirChoixPromo } from "./promo-pastille.js?v=20261111b";
+import { pagePersonnelle } from "./route-rules.js?v=20261111b";
+import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261111b";
+import { libellePastille } from "./nouveautes.js?v=20261111b";
+import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261111b";
+import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261111b";
+import { fondateurHorsApercu } from "./auth-admin.js?v=20261111b";
+import { ouvrirSignalement } from "./signalement.js?v=20261111b";
+import { etatSignalements } from "./signalement-etat.js?v=20261111b";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261111b";
+import { blocHabillage } from "./habillage-choix.js?v=20261111b";
 
 // Une ligne du menu : un lien (page) ou un bouton (geste), icône et libellé, `fin` à droite.
 const ligne = (tag, attrs, icone, texte, fin = null) => el(tag, { class: "nav-fenetre-lien", ...attrs },
@@ -45,8 +45,8 @@ function lignePageASoi(page) {
   return null;
 }
 
-// « Signaler un problème », dans l'espace stagiaire (l'équipe l'a en pied de barre) : la fenêtre de
-// signalement remplace le menu, et le focus reviendra au bouton du compte. Pastille et nom comme dans la
+// « Signaler un problème », dans l'espace stagiaire (l'équipe l'a en pied de barre) : la fenêtre
+// « Signaler un problème » remplace le menu, et le focus reviendra au bouton du compte. Pastille et nom comme dans la
 // coquille (pastilleSignalement).
 function ligneSignaler(ancre) {
   const { texte, nom } = pastilleSignalement({ fondateur: fondateurHorsApercu(), ...etatSignalements() });
@@ -80,11 +80,11 @@ function ouDansLEspace(espace) {
   return getPromoCourante()?.nom || null;
 }
 
-// `actualiser` : le geste « Actualiser » de l'app (main.js) ; sans lui, pas de ligne. `entrees` : les
+// `actualiser` : le geste « Recharger les données » de l'app (main.js) ; sans lui, pas de ligne. `entrees` : les
 // entrées de la barre affichée, qui décident de la ligne de la page à soi. `espace` : celui de la coquille
 // (« stagiaire », « equipe », « direction » ou « siege »), qui décide de la ligne « Signaler un problème ».
 export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = null } = {}) {
-  const nom = getProfileWho() || "";
+  const nom = getProfileNom() || "";
   const quiEtOu = [libelleRole(getProfile(), espace), ouDansLEspace(espace)].filter(Boolean).join(" · ");
   // La page à soi, si elle est dans l'espace (le siège n'a pas de page Stagiaires, la direction pas de Mon suivi).
   const page = pagePersonnelle({ formateur: formateurConnecte(), stagiaireId: monStagiaireId() });
@@ -115,7 +115,7 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
       // menu ouvre ceux de la personne.
       ligne("a", { href: "#/preferences" }, icon.settings(), "Mes préférences"),
       actualiser
-        ? ligne("button", { type: "button", onClick: () => { fermerFenetre(); actualiser(); } }, icon.refresh(), "Actualiser")
+        ? ligne("button", { type: "button", onClick: () => { fermerFenetre(); actualiser(); } }, icon.refresh(), "Recharger les données")
         : null,
       // Un compte qui a plusieurs promos (stagiaire dans l'une, formateur dans l'autre) doit pouvoir passer de l'une à l'autre : la
       // barre du stagiaire n'a pas de pastille de promo, la ligne est ici. L'équipe a la sienne dans sa colonne.
@@ -131,7 +131,7 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
       filet(),
       ligne("button", { type: "button", onClick: () => {
         fermerFenetre({ focus: false });
-        import("./legal.js?v=20261111a").then((m) => m.ouvrirInformationsLegales());
+        import("./legal.js?v=20261111b").then((m) => m.ouvrirInformationsLegales());
       } }, icon.shield(), "Informations légales"),
       ligne("button", { type: "button", onClick: () => seDeconnecter(() => fermerFenetre({ focus: false })) },
         icon.logout(), "Se déconnecter"),

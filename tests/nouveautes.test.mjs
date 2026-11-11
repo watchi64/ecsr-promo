@@ -198,10 +198,17 @@ for (const e of [journee, aujourdhui, coursTel]) {
   ok(e.date === JOUR && e.id.startsWith(JOUR + "-"), e.id + " : même date que les autres entrées du lot, id préfixé par elle");
   ok(!!e.ou && typeof e.ou.label === "string" && typeof e.ou.route === "string", e.id + " : un « Où le trouver »");
   ok(Array.isArray(e.guide) && e.guide.length >= 3 && !e.guideNouvelle, e.id + " : un « Comment faire » d'au moins trois étapes, le même dans les deux navigations");
-  ok(!/vous|votre|vos/i.test(tout(e)), e.id + " : tutoiement, jamais de vouvoiement");
 }
-// La journée : la carte de l'Accueil, la signature, À faire, la grille du planning, les QCM et Mon suivi ; le bouton d'une ligne de QCM s'appelle « Ouvrir ».
-for (const motif of [/« Aujourd'hui »/, /Signer pour ce matin/, /« À faire »/, /grille/, /sous-onglet QCM/, /« Ouvrir »/, /Mon suivi, partie Résultats/, /« Moi »/, /« La classe »/]) {
+// Le ton (décision du 10/11) : la journée (stagiaires) tutoie, Aujourd'hui (formateurs) vouvoie, les cours (pour tous) restent
+// neutres ; la règle générale est vérifiée plus bas sur toutes les entrées.
+const TUTOIEMENT = /(?<!\p{L})(tu|te|toi|ton|ta|tes|tien|tiens|tienne)(?!\p{L})|(?<!\p{L})t'(?=\p{L})/iu;
+const VOUVOIEMENT = /(?<!rendez-)(?<!\p{L})(vous|votre|vos|vôtre)(?!\p{L})/iu;
+const horsCitations = (s) => s.replace(/«[^»]*»/g, "");
+ok(!VOUVOIEMENT.test(horsCitations(tout(journee))), "journée : tutoiement, jamais de vouvoiement");
+ok(VOUVOIEMENT.test(tout(aujourdhui)) && !TUTOIEMENT.test(horsCitations(tout(aujourdhui))), "Aujourd'hui : vouvoiement, jamais de tutoiement");
+ok(!TUTOIEMENT.test(horsCitations(tout(coursTel))) && !VOUVOIEMENT.test(horsCitations(tout(coursTel))), "cours : pour tous, ni tu ni vous");
+// La journée : la carte de l'Accueil, la signature, À faire, la grille du planning, les QCM et Mon suivi ; le bouton d'une ligne de QCM s'appelle « Voir le QCM ».
+for (const motif of [/« Aujourd'hui »/, /Signer pour ce matin/, /« À faire »/, /grille/, /onglet QCM/, /« Voir le QCM »/, /Mon suivi, partie Résultats/, /« Moi »/, /« La classe »/]) {
   ok(motif.test(tout(journee)), `journée : dit ${motif}`);
 }
 ok(!/formateurs/.test(tout(journee)), "journée : ne parle pas de l'équipe, elle ne la lit pas");
@@ -245,12 +252,12 @@ ok(!/IA/.test(aujourdhui.resume), "Aujourd'hui : le résumé n'annonce pas Propo
 const questionnaires = NOUVEAUTES.find((e) => e.id === QUESTIONNAIRES_ID);
 ok(!!questionnaires && questionnaires.pour === "tous" && questionnaires.date === "2026-11-09" && questionnaires.navigation === undefined,
   "questionnaires : pour tous, du 09/11, sans champ navigation");
-ok(/sans ton nom/.test(questionnaires.resume) && /Sans avis/.test(questionnaires.resume) && /Plus tard/.test(questionnaires.resume),
+ok(/sans nom/.test(questionnaires.resume) && /Sans avis/.test(questionnaires.resume) && /Plus tard/.test(questionnaires.resume),
   "questionnaires : anonymat, « Sans avis » et « Plus tard » expliqués");
 ok(/dans l'application, personne ne peut voir qui a répondu quoi/.test(questionnaires.resume)
   && /à partir de 5 réponses/.test(questionnaires.resume) && !/personne ne peut savoir/.test(questionnaires.resume),
   "questionnaires : la promesse s'arrête à l'application et au seuil (relecture finale, I1)");
-ok(!/profs?/i.test(tout(questionnaires)) && !tout(questionnaires).includes(String.fromCharCode(0x2014)),
+ok(!/\bprofs?\b/i.test(tout(questionnaires)) && !tout(questionnaires).includes(String.fromCharCode(0x2014)),
   "questionnaires : « formateur », jamais « prof », et aucun tiret cadratin");
 for (const [formateur, v2] of [[false, false], [false, true], [true, false], [true, true]]) {
   ok(ids(visibles(NOUVEAUTES, formateur, v2)).includes(QUESTIONNAIRES_ID),
@@ -267,10 +274,11 @@ ok(couleurs.pour === "tous" && couleurs.navigation === "nouvelle" && couleurs.ti
 eq(couleurs.ou, { label: "Mes préférences", route: "preferences" }, "lot 3 : Où le trouver, Mes préférences");
 ok(couleurs.module === undefined && !couleurs.guideNouvelle, "lot 3 : aucun module ne la cache, un seul guide (elle n'existe que sous la nouvelle barre)");
 ok(Array.isArray(couleurs.guide) && couleurs.guide.length >= 3, "lot 3 : un « Comment faire » d'au moins trois étapes");
-for (const motif of [/menu de ton compte/, /initiales/, /Apparence/, /« Couleurs ECF »/, /« ECSR Promo »/, /revenir/, /Mes préférences/]) {
+for (const motif of [/menu du compte/, /initiales/, /Apparence/, /« Couleurs ECF »/, /« ECSR Promo »/, /revenir/, /Mes préférences/]) {
   ok(motif.test(tout(couleurs)), `lot 3 : dit ${motif}`);
 }
-ok(!/vous|votre|vos/i.test(tout(couleurs)) && !/\bprofs?\b/i.test(tout(couleurs)), "lot 3 : tutoiement, « formateur », jamais « prof »");
+ok(!TUTOIEMENT.test(horsCitations(tout(couleurs))) && !VOUVOIEMENT.test(horsCitations(tout(couleurs))) && !/\bprofs?\b/i.test(tout(couleurs)),
+  "lot 3 : pour tous, ni tu ni vous (décision du 10/11), « formateur », jamais « prof »");
 ok(!/habillage|data-skin|thème|jeton|appareil|compte Supabase/i.test(tout(couleurs)), "lot 3 : pas de vocabulaire technique");
 for (const formateur of [false, true]) {
   ok(ids(visibles(NOUVEAUTES, formateur, true)).includes(couleurs.id), `lot 3 : lue ${formateur ? "chez un formateur" : "chez un stagiaire"}`);
@@ -312,11 +320,12 @@ for (const e of visibles(NOUVEAUTES, true, true)) {
   ok(!GESTE_D_AVANT.test(lu), `${e.id} : sous la nouvelle navigation, le guide ne décrit pas l'ancienne barre`);
 }
 // Les consignes exactes des gestes réécrits (inventaire des textes, § 2.3).
-eq(par("2026-10-23-tableau-de-bord-centre").guideNouvelle[0], "Ouvre Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».", "tableau de bord : Indicateurs");
+// Au vous pour les formateurs, à l'infinitif pour tous (décision du 10/11).
+eq(par("2026-10-23-tableau-de-bord-centre").guideNouvelle[0], "Ouvrez Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».", "tableau de bord : Indicateurs");
 eq(par("2026-10-05-effacement-donnees").guideNouvelle[0], "Réglages, partie Promo : « Abandon » sur le stagiaire concerné.", "effacement : Réglages, partie Promo");
-eq(par("2026-10-03-page-stagiaires").guideNouvelle[0], "Ouvre Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).", "page Stagiaires : la barre de gauche");
-eq(par("2026-07-31-dossier-professionnel").guideNouvelle[0], "Ouvre Mon suivi, dans la barre.", "dossier professionnel : Mon suivi");
-eq(par("2026-07-19-livret-epcf").guideNouvelle[0], "Ouvre Mon suivi, partie Livret EPCF.", "livret : Mon suivi, partie Livret EPCF");
+eq(par("2026-10-03-page-stagiaires").guideNouvelle[0], "Ouvrez Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).", "page Stagiaires : la barre de gauche");
+eq(par("2026-07-31-dossier-professionnel").guideNouvelle[0], "Ouvrir Mon suivi, dans la barre.", "dossier professionnel : Mon suivi");
+eq(par("2026-07-19-livret-epcf").guideNouvelle[0], "Ouvrir Mon suivi, partie Livret EPCF.", "livret : Mon suivi, partie Livret EPCF");
 ok(par("2026-07-19-livret-epcf").guideNouvelle.some((s) => /date de naissance/.test(s)), "livret : la date de naissance se renseigne toujours");
 // « Signaler un problème » : la consigne d'avant (« Touche ton nom en haut de l'écran ») est fausse sous la nouvelle barre, pour les deux espaces. Le
 // stagiaire a la ligne dans le menu de son compte (ses initiales, en haut à droite), l'équipe un bouton en bas de la barre de gauche sur ordinateur,
@@ -324,12 +333,13 @@ ok(par("2026-07-19-livret-epcf").guideNouvelle.some((s) => /date de naissance/.t
 const signaler = par("2026-10-28-signaler-un-probleme");
 ok(/Touche ton nom en haut de l'écran/.test(signaler.guide[0]), "signaler : la consigne d'avant reste pour l'ancienne navigation");
 const premiereEtape = signaler.guideNouvelle[0];
-ok(/tes initiales/.test(premiereEtape) && /en haut à droite/.test(premiereEtape), "signaler : le stagiaire ouvre son compte par ses initiales, en haut à droite");
+ok(/les initiales/.test(premiereEtape) && /en haut à droite/.test(premiereEtape), "signaler : le stagiaire ouvre son compte par ses initiales, en haut à droite");
 ok(/formateurs/.test(premiereEtape) && /en bas de la barre de gauche/.test(premiereEtape) && /ordinateur/.test(premiereEtape), "signaler : l'équipe, en bas de la barre de gauche sur ordinateur");
 ok(/« Plus »/.test(premiereEtape) && /téléphone/.test(premiereEtape), "signaler : l'équipe, dans « Plus » sur téléphone");
 ok(!/nom en haut/.test(signaler.guideNouvelle.join(" ")), "signaler : plus « ton nom en haut de l'écran » sous la nouvelle navigation");
-ok(/Écris ce qui se passe/.test(signaler.guideNouvelle[signaler.guideNouvelle.length - 1]), "signaler : la dernière étape est celle d'écrire le message");
-ok(par("2026-10-03-deux-promos").guideNouvelle.some((s) => /Touche la promo en tête de la barre de gauche/.test(s)), "deux promos : la promo en tête de la barre de gauche");
+ok(/Écrire ce qui se passe/.test(signaler.guideNouvelle[signaler.guideNouvelle.length - 1]), "signaler : la dernière étape est celle d'écrire le message");
+ok(par("2026-10-03-deux-promos").guideNouvelle.some((s) => /Touchez la promo en tête de la barre de gauche/.test(s)), "deux promos : la promo en tête de la barre de gauche");
+ok(par("2026-10-03-deux-promos").guideNouvelle.some((s) => /« Revenir aux modules de départ »/.test(s)), "deux promos : le bouton s'appelle Revenir aux modules de départ");
 ok(par("2026-10-03-deux-promos").guideNouvelle.some((s) => /Réglages, « Ce que voient les stagiaires »/.test(s)), "deux promos : le réglage des modules s'appelle Ce que voient les stagiaires");
 
 // Le récit de la plus récente des Nouveautés d'avant le lancement : « le bouton de l'assistant », pas la bulle de l'ancienne navigation.
@@ -348,18 +358,70 @@ for (const m of MODULES) {
 const mod = (cle) => MODULES.find((m) => m.cle === cle);
 // Audit du 09/11, lot B : plus de bouton « Aujourd'hui » dans le Planning de la nouvelle barre ; la journée du jour y est repérée dans les deux.
 eq(mod("planning").annonce.resume.endsWith("La journée du jour y est repérée."), true, "Planning : la journée du jour repérée");
-eq(mod("priorites").explication, "Qui doit passer en priorité, en salle et en voiture, dans le Planning.", "Priorités : explication");
-ok(mod("priorites").annonce.resume.startsWith("Dans le Planning, Priorités montre qui doit passer en priorité"), "Priorités : annonce");
+eq(mod("priorites").explication, "Qui doit passer en priorité, en salle et en voiture, dans le Planning.", "Ordre de passage : explication");
+ok(mod("priorites").annonce.resume.startsWith("Dans le Planning, Ordre de passage montre qui doit passer en premier"), "Ordre de passage : annonce");
 eq(mod("notes").explication, "Matrice des notes, courbe d'évolution de chaque stagiaire, anonymat.", "Notes : explication");
-eq(mod("notes").annonce.resume, "Tes notes de thèmes s'affichent avec la synthèse de la classe, et une courbe trace ta progression. "
-  + "Si tu préfères, tu peux masquer ton prénom et tes notes aux autres dans Mes préférences.", "Notes : annonce, Mes préférences (page de la personne, jamais Réglages)");
-ok(mod("epcf").explication.includes("les siennes dans son suivi") && mod("epcf").explication.includes("les moyennes de la classe avec les notes"), "EPCF : explication");
-eq(mod("epcf").annonce.resume, "Tes évaluations EPCF du CCP1, en salle et en véhicule, s'affichent dans l'app, avec les moyennes de la classe.", "EPCF : annonce");
-ok(mod("livret").explication.includes("celui du stagiaire dans son suivi"), "Livret : explication");
-ok(mod("livret").annonce.resume.startsWith("Ton livret d'évaluation officiel se consulte dans l'app."), "Livret : annonce");
-ok(mod("dp").explication.includes("celui du stagiaire dans son suivi"), "Dossier pro : explication");
+eq(mod("notes").annonce.resume, "Les notes de thèmes s'affichent avec la synthèse de la classe, et une courbe trace la progression de "
+  + "chaque stagiaire. Chaque stagiaire peut masquer son prénom et ses notes aux autres dans Mes préférences.",
+  "Notes : annonce, Mes préférences (page de la personne, jamais Réglages)");
+ok(mod("epcf").explication.includes("Celles du stagiaire dans son suivi") && mod("epcf").explication.includes("les moyennes de la classe avec les notes"), "EPCF : explication");
+eq(mod("epcf").annonce.resume, "Les résultats des EPCF (évaluations passées en cours de formation) du CCP1, en salle et en véhicule, "
+  + "s'affichent dans l'app, avec les moyennes de la classe.", "EPCF : annonce, le sigle défini");
+ok(mod("livret").explication.includes("le stagiaire le consulte dans son suivi") && mod("livret").explication.includes("le formateur évaluateur le remplit"),
+  "Livret EPCF : explication (le stagiaire consulte, le formateur évaluateur remplit)");
+ok(mod("livret").annonce.resume.startsWith("Le livret EPCF officiel de chaque stagiaire se consulte dans l'app"), "Livret EPCF : annonce");
+ok(mod("dp").explication.includes("celui du stagiaire dans son suivi"), "Dossier professionnel : explication");
 eq(mod("assistant").explication, "Assistant qui répond sur les cours et le Code de la route.", "Assistant : explication");
-ok(mod("assistant").annonce.resume.startsWith("L'assistant répond à tes questions sur les cours et le Code de la route."), "Assistant : annonce");
+ok(mod("assistant").annonce.resume.startsWith("L'assistant répond aux questions sur les cours et le Code de la route."), "Assistant : annonce");
+// Les annonces sont envoyées à tous (pour: "tous") : ni tu ni vous (décision du 10/11). Les explications se lisent dans Réglages,
+// par l'équipe : jamais de tutoiement.
+for (const m of MODULES) {
+  for (const [quoi, texte] of [["titre de l'annonce", m.annonce.titre], ["annonce", m.annonce.resume]]) {
+    ok(!TUTOIEMENT.test(horsCitations(texte)) && !VOUVOIEMENT.test(horsCitations(texte)), `${m.cle} : ${quoi} neutre, ni tu ni vous (« ${texte.slice(0, 40)}… »)`);
+  }
+  ok(!TUTOIEMENT.test(horsCitations(m.explication)), `${m.cle} : explication sans tutoiement`);
+}
+
+// === Le ton de toutes les Nouveautés (décision du 10/11) ===
+// Stagiaires : tutoiement ; formateurs : vouvoiement ; pour tous : formule neutre, ni tu ni vous. On lit ce que la nouvelle barre
+// montre (guideNouvelle quand il existe) ; les entrées propres à l'ancienne barre, le `guide` d'avant d'une entrée qui a un
+// `guideNouvelle` et les liens « Où le trouver » (réécrits par ou-trouver.js sous la nouvelle barre) gardent leur texte. Les citations
+// entre guillemets français (noms de boutons, SMS à envoyer) ne comptent pas.
+const luSousLaNouvelle = (e) => horsCitations([e.titre, e.resume, ...(e.guideNouvelle || e.guide || [])].join(" "));
+for (const e of NOUVEAUTES.filter((x) => x.navigation !== "ancienne")) {
+  const texte = luSousLaNouvelle(e);
+  if (e.pour === "stagiaires") ok(!VOUVOIEMENT.test(texte), `${e.id} : pour les stagiaires, tutoiement, jamais de vouvoiement`);
+  if (e.pour === "formateurs") ok(!TUTOIEMENT.test(texte), `${e.id} : pour les formateurs, vouvoiement, jamais de tutoiement`);
+  if (e.pour === "tous") ok(!TUTOIEMENT.test(texte) && !VOUVOIEMENT.test(texte), `${e.id} : pour tous, ni tu ni vous`);
+}
+// Les deux entrées reprises explicitement.
+ok(/si vous remettez la note d'avant/.test(par("2026-11-09-notes-finitions").resume)
+  && /une fenêtre de l'app vous demande confirmation/.test(par("2026-11-09-notes-finitions").resume), "notes, finitions : au vous");
+ok(par("2026-11-10-confirmations-dans-l-app").resume.startsWith("Quand l'app demande de confirmer un geste"), "confirmations : formule neutre");
+
+// === Les mots du lot D (10/11) : un nom par objet, dans tout ce que les Nouveautés montrent encore ===
+// Questions contestées et contestations (plus de « signalement » de QCM), Dossier professionnel, Livret EPCF, onglet (plus de
+// sous-onglet), Recharger les données, Revenir aux modules de départ, difficultés (plus de signaux), Ordre de passage.
+const MOTS_D_AVANT = /signalement|sous-onglet|Dossier pro\b|dossier pro\b|\bDP\b|« Actualiser »|signaux|Partir de l'ensemble de départ|« Ouvrir l'examen »|« Corrigé »|« Rien à corriger »|« Ouvrir »|les priorités/;
+for (const e of NOUVEAUTES.filter((x) => x.navigation !== "ancienne")) {
+  const texte = [e.titre, e.resume, ...(e.guideNouvelle || e.guide || [])].join(" ");
+  const trouve = texte.match(MOTS_D_AVANT);
+  ok(!trouve, `${e.id} : les mots décidés le 10/11${trouve ? " (reste « " + trouve[0] + " »)" : ""}`);
+}
+const console_ = par("2026-08-08-console-signalements");
+ok(/Questions contestées/.test(console_.titre + console_.resume) && /« Question corrigée »/.test(console_.guide.join(" "))
+  && /« Pas d'erreur »/.test(console_.guide.join(" ")), "questions contestées : le nom de l'onglet et les deux boutons");
+eq(console_.ou.label, "Cours, onglet Questions contestées", "questions contestées : Où le trouver");
+// Le livret EPCF : le stagiaire le consulte, le formateur évaluateur le remplit (décision du 10/11).
+const livretEpcf = par("2026-07-19-livret-epcf");
+ok(/formateur évaluateur/.test(livretEpcf.resume) && /consulte/.test(livretEpcf.resume) && !/se remplit/.test(livretEpcf.titre),
+  "livret EPCF : rempli par le formateur évaluateur, consulté par le stagiaire");
+ok(livretEpcf.guideNouvelle.some((s) => /^Consulter le livret EPCF/.test(s)) && !livretEpcf.guideNouvelle.some((s) => /Rempli/.test(s)),
+  "livret EPCF : l'étape est de le consulter, plus de le remplir");
+// Les liens vers les parties renommées de Mon suivi (lus tels quels avec l'ancienne barre).
+for (const e of NOUVEAUTES.filter((x) => x.ou && x.ou.route === "mon-suivi" && x.navigation !== "ancienne")) {
+  ok(!/partie (Livret|EPCF|Dossier pro)$/.test(e.ou.label), `${e.id} : lien vers une partie au nom décidé (« ${e.ou.label} »)`);
+}
 // Les libellés « Où le trouver » du catalogue gardent leur forme de main : c'est ouSelonNavigation qui les réécrit.
 eq(mod("calendrier").annonce.ou.label, "Calendrier", "Calendrier : libellé d'avant, réécrit par ouSelonNavigation");
 eq(mod("notes").annonce.ou.label, "Notes", "Notes : libellé d'avant, réécrit par ouSelonNavigation");
@@ -393,7 +455,7 @@ const changerPromo = NOUVEAUTES.find((e) => e.id.endsWith("-changer-de-promo"));
 const DATE5 = direction.date;
 eq(NOUVEAUTES.filter((e) => e.pour === "direction").map((e) => e.id).sort(), ["2026-11-10-espace-direction", "2026-11-11-donnees-personnelles-centre"], "deux Nouveautés pour la direction : l'espace, puis les données personnelles");
 eq(NOUVEAUTES.filter((e) => e.pour === "siege").length, 1, "une seule Nouveauté pour le siège");
-ok(direction.titre === "Ton espace de direction" && siege.titre === "L'espace du siège", "titres : « Ton espace de direction », « L'espace du siège »");
+ok(direction.titre === "Votre espace de direction" && siege.titre === "L'espace du siège", "titres : « Votre espace de direction », « L'espace du siège »");
 ok(!!menuEspace && menuEspace.pour === "formateurs" && menuEspace.navigation === "nouvelle", "menu Espace : pour les formateurs, nouvelle navigation");
 ok(!!changerPromo && changerPromo.pour === "stagiaires" && changerPromo.navigation === "nouvelle" && changerPromo.titre === "Changer de promo",
   "Changer de promo : pour les stagiaires, nouvelle navigation");
@@ -401,7 +463,10 @@ for (const e of [direction, siege, menuEspace, changerPromo]) {
   ok(/^\d{4}-\d{2}-\d{2}$/.test(e.date) && e.id.startsWith(e.date + "-"), e.id + " : id préfixé par sa date");
   eq(e.date, DATE5, e.id + " : même date que les autres entrées du lot (posée à la fusion)");
   ok(Array.isArray(e.guide) && e.guide.length >= 3 && !e.guideNouvelle, e.id + " : un « Comment faire » d'au moins trois étapes");
-  ok(!/vous|votre|vos/i.test(tout(e)) && !/\bprofs?\b/i.test(tout(e)), e.id + " : tutoiement, « formateur » jamais « prof »");
+  // Le ton (décision du 10/11) : l'équipe (direction, siège, formateurs) est vouvoyée, le stagiaire tutoyé.
+  if (e === changerPromo) ok(!VOUVOIEMENT.test(horsCitations(tout(e))), e.id + " : pour les stagiaires, tutoiement");
+  else ok(!TUTOIEMENT.test(horsCitations(tout(e))), e.id + " : pour l'équipe, vouvoiement, jamais de tutoiement");
+  ok(!/\bprofs?\b/i.test(tout(e)), e.id + " : « formateur » jamais « prof »");
   ok(!tout(e).includes(CADRATIN), e.id + " : aucun tiret cadratin");
   ok(!/#[0-9a-f]{3,6}\b/i.test(tout(e)), e.id + " : aucune couleur écrite");
 }
@@ -443,7 +508,7 @@ for (const motif of [/Vue d'ensemble/, /Promos/, /Stagiaires/, /Émargement/, /N
 for (const motif of [/Vue d'ensemble/, /sans aucun nom/, /Directions de centre/, /Ajouter un centre/, /Inviter une direction/, /Cours et QCM/, /moins de 5/]) {
   ok(motif.test(tout(siege)), `siège : dit ${motif}`);
 }
-ok(/« Espace »/.test(tout(menuEspace)) && /menu de ton compte/.test(tout(menuEspace)), "menu Espace : « Espace » dans le menu du compte");
+ok(/« Espace »/.test(tout(menuEspace)) && /menu de votre compte/.test(tout(menuEspace)), "menu Espace : « Espace » dans le menu du compte");
 ok(/« Changer de promo »/.test(tout(changerPromo)) && /menu de ton compte/.test(tout(changerPromo)), "Changer de promo : dans le menu du compte");
 ok(!/(direction|siège)/i.test(tout(changerPromo)), "Changer de promo : ne parle pas des espaces de pilotage");
 // Aucun lien « Où le trouver » qui serait réécrit à tort : « centre » devient « Indicateurs » sous la nouvelle barre (formateur).

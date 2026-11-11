@@ -4,7 +4,7 @@ import {
   MIN_MESSAGE, LIMITE_MESSAGE, LIMITE_CAPTURE, COTE_MAX_CAPTURE, MAX_ERREURS, LIMITE_ERREUR, MAX_MES_SIGNALEMENTS,
   lireNavigateur, classeAppareil, assemblerContexte, resumeContexte, detailContexte, verifierMessage,
   libelleStatut, pastilleSignalement, messageDemarrage, entreeErreur, ajouterErreur, dimensionsReduites,
-  phraseErreur, adresseSure, normaliserContexte, messageErreurEnvoi,
+  phraseErreur, adresseSure, normaliserContexte, messageErreurEnvoi, nomDuSignaleur,
 } from "../js/signalement-rules.js";
 
 const UA_IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
@@ -73,10 +73,10 @@ test("classe d'appareil aux seuils de la navigation", () => {
 });
 
 test("message : bornes comptées en points de code", () => {
-  assert.deepEqual(verifierMessage("  a "), { ok: false, erreur: "Écris quelques mots sur ce qui se passe." });
+  assert.deepEqual(verifierMessage("  a "), { ok: false, erreur: "Message trop court : quelques mots sur ce qui se passe suffisent." });
   assert.deepEqual(verifierMessage("  Le bouton ne marche pas \n"), { ok: true, message: "Le bouton ne marche pas" });
   assert.equal(verifierMessage("😀".repeat(2000)).ok, true);
-  assert.deepEqual(verifierMessage("😀".repeat(2001)), { ok: false, erreur: "2 000 caractères au plus (tu en as 2 001)." });
+  assert.deepEqual(verifierMessage("😀".repeat(2001)), { ok: false, erreur: "2 000 caractères au plus (le message en compte 2 001)." });
   assert.equal(verifierMessage(undefined).ok, false);
 });
 
@@ -142,19 +142,30 @@ test("statuts", () => {
   assert.equal(libelleStatut("regle", "fondateur"), "Réglé");
 });
 
+test("qui a signalé : « Lucie M. » pour un stagiaire, le nom tel quel pour un formateur", () => {
+  assert.equal(nomDuSignaleur({ nom: "M. Lucie", role: "stagiaire" }), "Lucie M.", "l'ancien format posé par la base, remis dans l'ordre");
+  assert.equal(nomDuSignaleur({ nom: "É. Marie Claire", role: "stagiaire" }), "Marie Claire É.", "prénom composé, initiale accentuée");
+  assert.equal(nomDuSignaleur({ nom: "Lucie M.", role: "stagiaire" }), "Lucie M.", "déjà au bon format");
+  assert.equal(nomDuSignaleur({ nom: "Lucie", role: "stagiaire" }), "Lucie", "prénom seul");
+  assert.equal(nomDuSignaleur({ nom: "J. Dupont", role: "formateur" }), "J. Dupont", "nom d'un formateur : champ libre, tel quel");
+  assert.equal(nomDuSignaleur({ nom: "", email: "a@b.fr", role: "stagiaire" }), "a@b.fr");
+  assert.equal(nomDuSignaleur({}), "Quelqu'un");
+  assert.equal(nomDuSignaleur(null), "Quelqu'un");
+});
+
 test("pastille et message de démarrage", () => {
   assert.deepEqual(pastilleSignalement({ fondateur: true, nouveaux: 2, suivis: 1 }),
-    { texte: "2", nom: "Signaler un problème, 2 nouveaux signalements" });
+    { texte: "2", nom: "Signaler un problème, 2 nouveaux problèmes signalés" });
   assert.deepEqual(pastilleSignalement({ fondateur: false, nouveaux: 0, suivis: 1 }),
-    { texte: "1", nom: "Signaler un problème, 1 signalement a avancé" });
+    { texte: "1", nom: "Signaler un problème, 1 problème signalé a avancé" });
   assert.deepEqual(pastilleSignalement({ fondateur: false, nouveaux: 3, suivis: 0 }),
     { texte: "", nom: "Signaler un problème" });
   assert.equal(messageDemarrage({ fondateur: true, nouveaux: 1, suivis: 0 }), "1 nouveau problème signalé.");
   assert.equal(messageDemarrage({ fondateur: true, nouveaux: 2, suivis: 0 }), "2 nouveaux problèmes signalés.");
   assert.equal(messageDemarrage({ fondateur: false, nouveaux: 0, suivis: 1 }),
-    "Ton signalement a avancé : ouvre « Signaler un problème » pour voir la suite.");
+    "Du nouveau sur un problème signalé : la suite est dans « Signaler un problème ».");
   assert.equal(messageDemarrage({ fondateur: false, nouveaux: 0, suivis: 2 }),
-    "Tes signalements ont avancé : ouvre « Signaler un problème » pour voir la suite.");
+    "Du nouveau sur 2 problèmes signalés : la suite est dans « Signaler un problème ».");
   assert.equal(messageDemarrage({ fondateur: false, nouveaux: 5, suivis: 0 }), null);
 });
 
@@ -203,10 +214,19 @@ test("contexte forgé : jamais d'exception, que des chaînes", () => {
 
 test("erreur d'envoi : refus de la base, session expirée, réseau", () => {
   assert.equal(messageErreurEnvoi({ message: "signalement: Tu as déjà envoyé 10 signalements aujourd'hui." }),
-    "Tu as déjà envoyé 10 signalements aujourd'hui.");
-  assert.equal(messageErreurEnvoi({ message: "JWT expired", code: "PGRST301" }), "Reconnecte-toi pour signaler un problème.");
+    "Limite de 10 problèmes signalés par jour atteinte : nouvel envoi possible demain.");
+  assert.equal(messageErreurEnvoi({ message: "JWT expired", code: "PGRST301" }), "Session expirée : se reconnecter pour signaler un problème.");
   assert.equal(messageErreurEnvoi({ message: "permission denied for function signaler_probleme", code: "42501" }),
-    "Reconnecte-toi pour signaler un problème.");
-  assert.equal(messageErreurEnvoi({ message: "TypeError: Failed to fetch" }), "L'envoi n'a pas abouti. Vérifie ta connexion et réessaie.");
-  assert.equal(messageErreurEnvoi(null), "L'envoi n'a pas abouti. Vérifie ta connexion et réessaie.");
+    "Session expirée : se reconnecter pour signaler un problème.");
+  assert.equal(messageErreurEnvoi({ message: "TypeError: Failed to fetch" }), "L'envoi n'a pas abouti : vérifier la connexion, puis réessayer.");
+  assert.equal(messageErreurEnvoi(null), "L'envoi n'a pas abouti : vérifier la connexion, puis réessayer.");
+});
+
+test("lot D : les refus tutoyés de la base sont redits au neutre ; le fondateur stagiaire remis dans l'ordre", () => {
+  assert.equal(messageErreurEnvoi({ message: "signalement: Tu as déjà envoyé 10 signalements aujourd'hui. Réessaie demain." }),
+    "Limite de 10 problèmes signalés par jour atteinte : nouvel envoi possible demain.");
+  assert.equal(messageErreurEnvoi({ message: "signalement: Reconnecte-toi pour signaler un problème." }),
+    "Session expirée : se reconnecter pour signaler un problème.");
+  assert.equal(nomDuSignaleur({ nom: "V. Timy", role: "fondateur" }), "Timy V.");
+  assert.equal(nomDuSignaleur({ nom: "Camille Durand", role: "formateur" }), "Camille Durand");
 });

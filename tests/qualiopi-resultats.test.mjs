@@ -333,8 +333,8 @@ process.on("unhandledRejection", (raison) => rejetsOublies.push(raison));
 const refus = () => Object.assign(new Error("denied"), { name: "NotAllowedError" });
 const differe = () => { const d = {}; d.promesse = new Promise((resoudre, rejeter) => { d.resoudre = resoudre; d.rejeter = rejeter; }); return d; };
 const tic = (ms = 5) => new Promise((resoudre) => setTimeout(resoudre, ms));
-const MESSAGE_REFUS = "Le navigateur a refusé la copie. Clique à nouveau sur « Copier le texte », ou imprime la fiche en PDF.";
-const MESSAGE_ABSENT = "La copie n'est pas disponible dans ce navigateur. Imprime la fiche en PDF, ou ouvre la page dans un autre navigateur.";
+const MESSAGE_REFUS = "Le navigateur a refusé la copie. Cliquez à nouveau sur « Copier le texte », ou imprimez la fiche en PDF.";
+const MESSAGE_ABSENT = "La copie n'est pas disponible dans ce navigateur. Imprimez la fiche en PDF, ou ouvrez la page dans un autre navigateur.";
 const REUSSI = { copie: true, message: "Texte copié." };
 // Un navigateur factice. Son ClipboardItem garde ses représentations comme le vrai ; write les attend (le vrai attend les Blob) puis
 // range ce qu'il reçoit ; writeText range son texte. `journal` note les appels dans l'ordre, `copies` ce qui est arrivé dans le

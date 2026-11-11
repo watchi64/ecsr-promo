@@ -8,21 +8,21 @@
 
 import {
   getMesPromos, getPromoCourante, lireStagiairesPromo, ouvrirDansUnePromo,
-} from "../db.js?v=20261111a";
-import { el, clear, isoDate, displayStagiaire, toast } from "../utils.js?v=20261111a";
-import { icon } from "../icons.js?v=20261111a";
-import { getCentre } from "../auth-admin.js?v=20261111a";
-import { promosDuCentre } from "../espaces-rules.js?v=20261111a";
-import { etatPromo, ouTrouverFiche, listeDuCentre } from "../direction-rules.js?v=20261111a";
-import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261111a";
-import { surChangementAdresse, remplacerAdresse } from "../navigation.js?v=20261111a";
-import { renderGestionStagiaires, renderInvitationStagiaire } from "./stagiaires-gestion.js?v=20261111a";
-import { chargerContexteFiche, chargerFiche, renderFiche, dispositionFiche, afficherErreur } from "./mon-suivi.js?v=20261111a";
+} from "../db.js?v=20261111b";
+import { el, clear, isoDate, displayStagiaire, toast } from "../utils.js?v=20261111b";
+import { icon } from "../icons.js?v=20261111b";
+import { getCentre } from "../auth-admin.js?v=20261111b";
+import { promosDuCentre } from "../espaces-rules.js?v=20261111b";
+import { etatPromo, ouTrouverFiche, listeDuCentre } from "../direction-rules.js?v=20261111b";
+import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261111b";
+import { surChangementAdresse, remplacerAdresse } from "../navigation.js?v=20261111b";
+import { renderGestionStagiaires, renderInvitationStagiaire } from "./stagiaires-gestion.js?v=20261111b";
+import { chargerContexteFiche, chargerFiche, renderFiche, dispositionFiche, afficherErreur } from "./mon-suivi.js?v=20261111b";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
 
-export const PHRASE_FICHE_HORS_CENTRE = "Cette fiche n'est pas dans ton centre.";
+export const PHRASE_FICHE_HORS_CENTRE = "Cette fiche n'est pas dans votre centre.";
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";
 const PHRASE_SANS_PROMO = "Ce centre n'a pas encore de promo";
 const PHRASE_LECTURE_ECHEC = "Les stagiaires du centre n'ont pas pu être chargés.";

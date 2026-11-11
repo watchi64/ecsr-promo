@@ -1,25 +1,27 @@
 // Fenêtre « Signaler un problème » (spec 2026-10-28, § 4.1, 4.2 et 5.3) :
 // un champ, une capture facultative, le contexte joint montré en clair, « Envoyer » ; sous le formulaire,
-// « Mes signalements » ; en tête, chez le fondateur hors aperçu, le lien vers les problèmes signalés.
+// « Mes problèmes signalés » ; en tête, chez le fondateur hors aperçu, le lien vers les problèmes signalés.
+// Fenêtre ouverte à tous : tutoiement du stagiaire, vouvoiement de l'équipe (selonPublic) ou phrase neutre.
 // Mécanique des fenêtres de la coquille (js/nav-fenetre.js : une seule ouverte à la fois, Tab gardé dans
 // la fenêtre, Échap, voile, focus rendu, fermeture quand l'adresse change) ; styles à elle
 // (css/signalement.css).
 
-import { el, toast } from "./utils.js?v=20261111a";
-import { icon, deco } from "./icons.js?v=20261111a";
-import { getViewAs, fondateurHorsApercu } from "./auth-admin.js?v=20261111a";
-import { signalerProbleme, mesSignalementsApp, marquerSuivisVus } from "./db.js?v=20261111a";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261111a";
-import { dernieresErreurs } from "./journal-erreurs.js?v=20261111a";
-import { etatSignalements, poserEtatSignalements, chargerEtatSignalements } from "./signalement-etat.js?v=20261111a";
+import { el, toast } from "./utils.js?v=20261111b";
+import { icon, deco } from "./icons.js?v=20261111b";
+import { getViewAs, fondateurHorsApercu, selonPublic } from "./auth-admin.js?v=20261111b";
+import { navigationV2Active } from "./nav-etat.js?v=20261111b";
+import { signalerProbleme, mesSignalementsApp, marquerSuivisVus } from "./db.js?v=20261111b";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261111b";
+import { dernieresErreurs } from "./journal-erreurs.js?v=20261111b";
+import { etatSignalements, poserEtatSignalements, chargerEtatSignalements } from "./signalement-etat.js?v=20261111b";
 import {
   LIMITE_CAPTURE, COTE_MAX_CAPTURE, MAX_MES_SIGNALEMENTS, assemblerContexte, resumeContexte, detailContexte,
   verifierMessage, libelleStatut, dimensionsReduites,
-} from "./signalement-rules.js?v=20261111a";
+} from "./signalement-rules.js?v=20261111b";
 
 // Jeton de version des fichiers de l'app (« 20261028a ») : il dit quelle version la personne utilisait.
 const VERSION = new URL(import.meta.url).searchParams.get("v") || "";
-const IMAGE_ILLISIBLE = "Cette image ne passe pas : choisis une capture d'écran (PNG ou JPEG).";
+const IMAGE_ILLISIBLE = "Cette image ne passe pas : une capture d'écran (PNG ou JPEG) est attendue.";
 
 // Brouillon gardé jusqu'à l'envoi réussi : fermer la fenêtre sans envoyer ne perd ni le texte ni l'image.
 let brouillon = { texte: "", capture: null };
@@ -97,7 +99,7 @@ function dateCourte(iso) {
   return `${deuxChiffres(d.getDate())}/${deuxChiffres(d.getMonth() + 1)} à ${d.getHours()} h ${deuxChiffres(d.getMinutes())}`;
 }
 
-// Un signalement de la personne : date, statut, repère « Nouveau » s'il vient d'avancer, message (déplié
+// Un problème signalé par la personne : date, statut, repère « Nouveau » s'il vient d'avancer, message (déplié
 // à la demande quand il est long), réponse de l'éditeur.
 function itemMien(s, nouveau) {
   const long = [...String(s.message || "")].length > 90;
@@ -114,14 +116,15 @@ function itemMien(s, nouveau) {
     s.reponse ? el("p", { class: "sg-reponse" }, el("b", {}, "Réponse : "), s.reponse) : null);
 }
 
-// « Mes signalements » : lu à l'ouverture ; ce qui avait avancé sans être vu porte « Nouveau » pendant
+// « Mes problèmes signalés » : lu à l'ouverture ; ce qui avait avancé sans être vu porte « Nouveau » pendant
 // cette ouverture, et la base le note comme vu (la pastille s'éteint).
 async function chargerMesSignalements(zone) {
   let liste;
   try {
     liste = await mesSignalementsApp();
   } catch (e) {
-    if (zone.isConnected) zone.replaceChildren(el("p", { class: "sg-mes-vide" }, "Tes signalements n'ont pas pu être chargés."));
+    if (zone.isConnected) zone.replaceChildren(el("p", { class: "sg-mes-vide" },
+      selonPublic("Tes problèmes signalés n'ont pas pu être chargés.", "Vos problèmes signalés n'ont pas pu être chargés.")));
     return;
   }
   if (!zone.isConnected) return;
@@ -131,7 +134,7 @@ async function chargerMesSignalements(zone) {
   }
   const nonVus = new Set(liste.filter((s) => s.suivi_le && !s.suivi_lu_le).map((s) => s.id));
   zone.replaceChildren(
-    el("h3", { class: "sg-mes-titre" }, "Mes signalements"),
+    el("h3", { class: "sg-mes-titre" }, "Mes problèmes signalés"),
     el("ul", { class: "sg-mes-liste" }, liste.slice(0, MAX_MES_SIGNALEMENTS).map((s) => itemMien(s, nonVus.has(s.id)))));
   if (!nonVus.size) return;
   try {
@@ -140,12 +143,12 @@ async function chargerMesSignalements(zone) {
   } catch (e) { /* le repère reviendra à la prochaine ouverture */ }
 }
 
-// Chez le fondateur hors aperçu : où en sont les signalements reçus, et le lien vers leur page.
+// Chez le fondateur hors aperçu : où en sont les problèmes signalés reçus, et le lien vers leur page.
 function blocFondateur() {
   const n = etatSignalements().nouveaux;
   return el("div", { class: "sg-fondateur" },
     el("span", {}, "Problèmes signalés : ", el("b", {}, n === 0 ? "aucun nouveau" : n === 1 ? "1 nouveau" : `${n} nouveaux`)),
-    el("a", { href: "#/problemes", class: "sg-fondateur-lien" }, "Ouvrir"));
+    el("a", { href: "#/problemes", class: "sg-fondateur-lien" }, "Voir les problèmes signalés"));
 }
 
 // Ouvre la fenêtre. `ancre` : le bouton qui l'ouvre, à qui le focus revient à la fermeture (ou, s'il a
@@ -209,7 +212,8 @@ export function ouvrirSignalement({ ancre = null } = {}) {
 
   const lignesDetail = detailContexte(contexte).flatMap(([cle, valeur]) => [el("dt", {}, cle), el("dd", {}, valeur)]);
   const joint = el("div", { class: "sg-joint" },
-    el("p", { class: "sg-joint-ligne" }, el("span", { class: "sg-joint-titre" }, "Joint d'office : "),
+    el("p", { class: "sg-joint-ligne" }, el("span", { class: "sg-joint-titre" },
+      selonPublic("Envoyé avec ton message : ", "Envoyé avec votre message : ")),
       resumeContexte(contexte, new Date())),
     el("details", { class: "sg-detail" },
       el("summary", {}, "Voir le détail"),
@@ -241,7 +245,7 @@ export function ouvrirSignalement({ ancre = null } = {}) {
       toast("Merci, c'est transmis. La réponse s'affichera dans « Signaler un problème ».", "success", 4500);
       chargerEtatSignalements();
     } catch (e) {
-      const phrase = `${e.message} Ton texte est gardé.`;
+      const phrase = `${e.message} Le texte est gardé.`;
       if (erreur.isConnected) erreur.textContent = phrase;
       else erreurEnAttente = phrase;
     } finally {
@@ -251,7 +255,7 @@ export function ouvrirSignalement({ ancre = null } = {}) {
     }
   });
 
-  const mes = el("section", { class: "sg-mes", "aria-label": "Mes signalements" });
+  const mes = el("section", { class: "sg-mes", "aria-label": "Mes problèmes signalés" });
   const fermer = el("button", { type: "button", class: "sg-fermer", "data-sg": "fermer" }, "Fermer");
   fermer.addEventListener("click", () => fermerFenetre());
 

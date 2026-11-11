@@ -2,8 +2,8 @@
 // qu'elle couvre, qui passe au tableau et qui conduit, où en est la feuille d'émargement du jour, ce qui attend le
 // formateur, la ligne sous le titre. Module pur, sans DOM ni stockage : testé en node. Les cartes lues arrivent de
 // journeeDuJour (js/journee-rules.js), qui a déjà appliqué les remplacements et retiré les absents sans remplaçant.
-import { absentsDuPlanning, dayIndexDe, etatLigne, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261111a";
-import { displayStagiaire, compareByNom } from "./utils.js?v=20261111a";
+import { absentsDuPlanning, dayIndexDe, etatLigne, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261111b";
+import { displayStagiaire, compareByNom } from "./utils.js?v=20261111b";
 
 const ORDRE_DEMI = { matin: 0, aprem: 1 };
 
@@ -107,7 +107,7 @@ export function lignesATraiter({ signalements, propositionsIA } = {}) {
   if (compteValide(signalements)) {
     lignes.push({
       cle: "signalements", nombre: signalements, sousOnglet: "signalements",
-      titre: signalements === 1 ? "1 signalement sur un QCM" : `${signalements} signalements sur des QCM`,
+      titre: signalements === 1 ? "1 question contestée" : `${signalements} questions contestées`,
     });
   }
   if (compteValide(propositionsIA)) {

@@ -7,23 +7,23 @@
  */
 import {
   listAgendaEvents, getPromoCourante, listQcmIndex, listMyQcmAttempts, listThemes, getDpDossier,
-} from "../db.js?v=20261111a";
-import { el, clear } from "../utils.js?v=20261111a";
-import { icon } from "../icons.js?v=20261111a";
-import { getProfileWho, monStagiaireId, getProfile, getViewAs } from "../auth-admin.js?v=20261111a";
-import { libelleConnexion } from "../roles-rules.js?v=20261111a";
-import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261111a";
-import { carteNouveaute } from "./nouveautes.js?v=20261111a";
-import { prenomDe } from "../nav-rules.js?v=20261111a";
-import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi } from "../accueil-rules.js?v=20261111a";
-import { journeeDuJour } from "../journee-rules.js?v=20261111a";
-import { effSujets, sujetsDe } from "../planning-roles.js?v=20261111a";
-import { exemplesRemplis } from "../dp-rules.js?v=20261111a";
-import { heureLocale } from "../emargement-rules.js?v=20261111a";
-import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261111a";
-import { ouvrirSignalement } from "../signalement.js?v=20261111a";
-import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261111a";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111a";
+} from "../db.js?v=20261111b";
+import { el, clear } from "../utils.js?v=20261111b";
+import { icon } from "../icons.js?v=20261111b";
+import { getProfileWho, monStagiaireId, getProfile, getViewAs, getProfileNom } from "../auth-admin.js?v=20261111b";
+import { libelleConnexion } from "../roles-rules.js?v=20261111b";
+import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261111b";
+import { carteNouveaute } from "./nouveautes.js?v=20261111b";
+import { prenomDe } from "../nav-rules.js?v=20261111b";
+import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi } from "../accueil-rules.js?v=20261111b";
+import { journeeDuJour } from "../journee-rules.js?v=20261111b";
+import { effSujets, sujetsDe } from "../planning-roles.js?v=20261111b";
+import { exemplesRemplis } from "../dp-rules.js?v=20261111b";
+import { heureLocale } from "../emargement-rules.js?v=20261111b";
+import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261111b";
+import { ouvrirSignalement } from "../signalement.js?v=20261111b";
+import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261111b";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111b";
 
 const RELECTURE_SEANCES_MS = 60000;
 
@@ -258,13 +258,15 @@ export function renderAccueilStagiaire(container) {
   const { jour, indexJour, lundi } = reperesDuJour(maintenant);
   const moi = monStagiaireId();
   const semaine = semaineDeLaVisite(lundi);
-  const who = getProfileWho();
+  const who = getProfileNom();
   const prenom = prenomDe(who) || who || "stagiaire";
   const ligne = lignePromo(getPromoCourante(), jour);
 
   container.appendChild(el("section", { class: "home-hero-v2" },
     pastilleDuJour(maintenant),
-    el("h1", { class: "home-title-v2" }, salutationDe(maintenant.getHours()) + ", ", el("em", {}, prenom)),
+    // Une page, un nom (décision du 10/11) : le titre est celui de l'entrée, « Accueil » ; la salutation passe dessous.
+    el("h1", { class: "home-title-v2" }, "Accueil"),
+    el("p", { class: "home-salut-v2" }, salutationDe(maintenant.getHours()) + ", ", el("em", {}, prenom)),
     ligne ? el("p", { class: "home-lead-v2" }, ligne) : null,
   ));
   // Questionnaire anonyme à remplir (Qualiopi), sous la salutation et avant les cartes : l'emplacement est posé tout de
@@ -300,7 +302,7 @@ export function renderAccueilStagiaire(container) {
   const nomPromo = getPromoCourante()?.nom || "";
   container.appendChild(el("footer", { class: "home-footer-v2" },
     el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" },
-      "connecté comme " + (libelleConnexion({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() }) || "stagiaire"))),
+      "connecté en tant que " + (libelleConnexion({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() }) || "stagiaire"))),
     // Plus de lien « code source » : décision de Timy du 09/11, le code reste discret.
   ));
 

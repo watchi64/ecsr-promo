@@ -41,7 +41,8 @@ ok(/anonymisées/.test(fini.texte), "promo traitée");
 // Compte rendu
 eq(resumeEffacement({ deja: true }), "Ces données étaient déjà effacées.", "déjà fait");
 const r = resumeEffacement({ comptes: 1, date_naissance: 1, livret: 1, dossier_pro: 0, fiche_suivi: 1, epcf_textes: 2, observations: 1, commentaires_passages: 0 });
-ok(r.startsWith("Effacé : compte de connexion, date de naissance, livret, fiche de suivi, 3 commentaires."), "compte rendu détaillé");
+ok(r.startsWith("Effacé : compte de connexion, date de naissance, livret EPCF, fiche de suivi, 3 commentaires."), "compte rendu détaillé");
+ok(resumeEffacement({ dossier_pro: 1 }).startsWith("Effacé : dossier professionnel."), "le dossier professionnel, en toutes lettres");
 ok(/sans nom/.test(resumeEffacement({})), "compte rendu minimal");
 
 // Données personnelles du centre (suite du lot 5)
@@ -78,8 +79,8 @@ ok(/sans nom/.test(resumeEffacement({})), "compte rendu minimal");
   eq(lignesDonneesCentre(null, null), [], "entrées absentes");
   // Les pannes se disent par leur phrase, jamais par un texte technique.
   eq(phraseDePanne({ code: "PGRST202", message: "Could not find the function public.benevoles_a_purger" }), "Cette action n'est pas encore disponible.", "fonction absente");
-  eq(phraseDePanne({ message: "TypeError: Failed to fetch" }), "La connexion a échoué. Vérifie le réseau, puis réessaie.", "réseau coupé");
-  eq(phraseDePanne({ code: "42501", message: "Réservé à la direction du centre" }), "Tu n'as pas le droit de faire cela ici.", "droit manquant");
+  eq(phraseDePanne({ message: "TypeError: Failed to fetch" }), "La connexion a échoué. Vérifier le réseau, puis réessayer.", "réseau coupé (phrase neutre, lot D)");
+  eq(phraseDePanne({ code: "42501", message: "Réservé à la direction du centre" }), "Vous n'avez pas le droit de faire cela ici.", "droit manquant (équipe vouvoyée, lot D)");
   eq(phraseDePanne({ code: "XX000", message: "internal error at line 12" }), PHRASE_DONNEES_ECHEC, "toute autre panne : la phrase de la section");
   eq(phraseDePanne(null), PHRASE_DONNEES_ECHEC, "panne sans détail");
   eq(phraseDEffacement({ code: "P0001", message: "Anonymisation possible à partir du 12/10/2027" }), "Anonymisation possible à partir du 12/10/2027", "phrase de la base gardée");

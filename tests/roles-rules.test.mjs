@@ -63,6 +63,8 @@ test("messageSansPromo : un seul refus, sans « arrive bientôt » (lot 5 : le s
   }
   assert.ok(!/bientôt/.test(MESSAGE_SANS_PROMO));
   assert.ok(!MESSAGE_SANS_PROMO.includes("\u2014"));
+  // Refus à la porte : formule neutre, ni tu ni vous (décision du 10/11).
+  assert.doesNotMatch(MESSAGE_SANS_PROMO, /\b(tu|ton|ta|tes|toi|vous|votre|vos)\b|\bt'/i);
 });
 
 test("pas de profil : aucun droit", () => {
@@ -145,10 +147,10 @@ test("messageInvitation : fonction absente de la base, phrase sans terme techniq
 test("messageInvitationReussie : « rien n'a changé » seulement si ni profil créé ni affectation ajoutée (I1)", () => {
   const email = "x@exemple.fr";
   assert.deepEqual(messageInvitationReussie({ resultat: { cree: true, affecte: 1, role: "formateur" }, email }),
-    { texte: "Ajouté à la liste des invitations : x@exemple.fr. Partage-lui l'URL.", ton: "success" });
+    { texte: "Ajouté à la liste des invitations : x@exemple.fr. Partagez-lui l'URL.", ton: "success" });
   // L'option v2, que les vues passent encore, est ignorée (une seule navigation depuis le 10/11) : plus de « whitelist ».
   assert.deepEqual(messageInvitationReussie({ resultat: { cree: true, affecte: 0, role: "stagiaire" }, email, v2: false }),
-    { texte: "Ajouté à la liste des invitations : x@exemple.fr. Partage-lui l'URL.", ton: "success" });
+    { texte: "Ajouté à la liste des invitations : x@exemple.fr. Partagez-lui l'URL.", ton: "success" });
   // Un compte qui existait gagne la promo : ce n'est pas « rien n'a changé ».
   assert.deepEqual(messageInvitationReussie({ resultat: { cree: false, affecte: 1, role: "formateur" }, email }),
     { texte: "Déjà inscrit : ajouté comme formateur de cette promo.", ton: "success" });
@@ -180,7 +182,7 @@ test("messageInvitationReussie : le compte d'un ancien stagiaire devenu compte d
   assert.equal(messageInvitationReussie({ resultat: { cree: false, affecte: 1, role: "direction", transforme: false }, email }).texte,
     "Déjà inscrit : ajouté à la direction du centre.");
   assert.equal(messageInvitationReussie({ resultat: { cree: true, affecte: 1, role: "formateur", transforme: false }, email }).texte,
-    "Ajouté à la liste des invitations : ancien@exemple.invalid. Partage-lui l'URL.");
+    "Ajouté à la liste des invitations : ancien@exemple.invalid. Partagez-lui l'URL.");
   assert.equal(phraseCompteTransforme(undefined), phraseCompteTransforme("formateur"), "rôle absent : formateur");
   for (const role of ["formateur", "direction", "siege"]) {
     const t = phraseCompteTransforme(role);

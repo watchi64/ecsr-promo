@@ -1,7 +1,7 @@
 // Fenêtre de saisie d'une entrée du registre qualité (Qualiopi Q4, indicateurs 31 et 32), commune à la page Qualiopi
-// (sous-onglet « Registre qualité », js/views/registre-qualite.js) et à la page « Problèmes signalés » (un signalement versé
-// au registre). Une fenêtre courte : le rappel des violences en tête, le type en cinq boutons, la date (aujourd'hui par
-// défaut), l'origine, la promo ou, sans promo, le centre, la description avec « Ne nomme personne » juste dessous, puis,
+// (sous-onglet « Registre qualité », js/views/registre-qualite.js) et à la page « Problèmes signalés » (un problème signalé
+// versé au registre). Une fenêtre courte : le rappel des violences en tête, le type en cinq boutons, la date (aujourd'hui par
+// défaut), l'origine, la promo ou, sans promo, le centre, la description avec « Ne nommez personne » juste dessous, puis,
 // repliés, la réponse et la suite. Les règles (js/registre-rules.js) disent les erreurs, sous chaque champ ; la base garde
 // les siennes (js/registre-erreurs.js).
 //
@@ -9,17 +9,18 @@
 // saisie modifiée ne se perd pas d'un geste : « Fermer », le voile ou Échap demandent d'abord « Fermer sans enregistrer ? »
 // dans une fenêtre de l'app (js/confirmer.js, jamais la boîte du navigateur), et la fenêtre se ferme elle-même sur « oui ».
 // Avant l'envoi, un champ vide part en null, dates comprises : jamais une chaîne vide vers la base.
+// Fenêtre de l'équipe : ses textes vouvoient (règle du 10/11).
 
-import { el, toast } from "./utils.js?v=20261111a";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, demanderFermeture } from "./nav-fenetre.js?v=20261111a";
-import { confirmer } from "./confirmer.js?v=20261111a";
-import { ajouterEntreeRegistre, modifierEntreeRegistre } from "./db.js?v=20261111a";
-import { TYPES, ORIGINES, ETATS, RAPPEL_VIOLENCES, LIMITE_TEXTE, validerEntree } from "./registre-rules.js?v=20261111a";
-import { jourParis } from "./questionnaires-gestion-rules.js?v=20261111a";
-import { libelleOptionPromo } from "./qualiopi-page-rules.js?v=20261111a";
+import { el, toast } from "./utils.js?v=20261111b";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, demanderFermeture } from "./nav-fenetre.js?v=20261111b";
+import { confirmer } from "./confirmer.js?v=20261111b";
+import { ajouterEntreeRegistre, modifierEntreeRegistre } from "./db.js?v=20261111b";
+import { TYPES, ORIGINES, ETATS, RAPPEL_VIOLENCES, LIMITE_TEXTE, validerEntree } from "./registre-rules.js?v=20261111b";
+import { jourParis } from "./questionnaires-gestion-rules.js?v=20261111b";
+import { libelleOptionPromo } from "./qualiopi-page-rules.js?v=20261111b";
 
 const NOM = "registre";
-export const NE_NOMME_PERSONNE = "Ne nomme personne : l'origine suffit.";
+export const NE_NOMME_PERSONNE = "Ne nommez personne : l'origine suffit.";
 
 // Les champs de la saisie, dans l'ordre de la fenêtre (le premier en erreur prend le focus).
 const ORDRE = ["type", "date_constat", "origine", "description", "reponse", "date_reponse", "action_decidee", "mesure_prevention"];
@@ -41,7 +42,7 @@ export function lieuxDesPromos(promos) {
 }
 
 // Ouvre la fenêtre. `entree` : une entrée à modifier (jamais une entrée effacée) ; sinon une entrée nouvelle, `prerempli`
-// donnant ses premiers champs (entreeDepuisSignalement : type, origine, promo, description, date, lien du signalement).
+// donnant ses premiers champs (entreeDepuisSignalement : type, origine, promo, description, date, lien du problème signalé).
 // `promos` : celles du compte ; `ancre` : le bouton qui l'ouvre ; `surEnregistre(entree)` : l'entrée telle que la base l'a
 // enregistrée, après la fermeture de la fenêtre.
 export function ouvrirFenetreRegistre({ entree = null, prerempli = null, promos = [], ancre = null, surEnregistre = null } = {}) {
@@ -59,7 +60,7 @@ export function ouvrirFenetreRegistre({ entree = null, prerempli = null, promos 
     return erreurs[cle];
   };
   const champ = (cle, noeud) => {
-    // La consigne « Ne nomme personne » est lue avant l'erreur à l'entrée dans la description.
+    // La consigne « Ne nommez personne » est lue avant l'erreur à l'entrée dans la description.
     noeud.setAttribute("aria-describedby", (cle === "description" ? "rg-personne " : "") + "rg-erreur-" + cle);
     return noeud;
   };
@@ -77,7 +78,7 @@ export function ouvrirFenetreRegistre({ entree = null, prerempli = null, promos 
   champDate.value = jour(depart.date_constat) || aujourdhui;
 
   const champOrigine = champ("origine", el("select", { id: "rg-origine", class: "rg-champ" },
-    el("option", { value: "" }, "Choisis l'origine"),
+    el("option", { value: "" }, "Choisir l'origine"),
     ...Object.entries(ORIGINES).map(([cle, libelle]) => el("option", { value: cle }, libelle))));
   champOrigine.value = Object.prototype.hasOwnProperty.call(ORIGINES, depart.origine) ? depart.origine : "";
 
@@ -220,7 +221,7 @@ export function ouvrirFenetreRegistre({ entree = null, prerempli = null, promos 
       if (typeof surEnregistre === "function") surEnregistre(enregistree);
     } catch (e) {
       console.error(e);
-      erreurGenerale.textContent = `${e.message || "L'entrée n'a pas pu être enregistrée."} Ta saisie est gardée.`;
+      erreurGenerale.textContent = `${e.message || "L'entrée n'a pas pu être enregistrée."} Votre saisie est gardée.`;
     } finally {
       envoiEnCours = false;
       boutonEnregistrer.textContent = "Enregistrer";
@@ -234,7 +235,7 @@ export function ouvrirFenetreRegistre({ entree = null, prerempli = null, promos 
     if (enregistre || !modifiee()) return true;
     if (confirmationEnCours) return false;
     confirmationEnCours = true;
-    confirmer({ titre: "Fermer sans enregistrer ?", phrase: "Ce que tu as saisi sera perdu.", oui: "Fermer", non: "Continuer" })
+    confirmer({ titre: "Fermer sans enregistrer ?", phrase: "Ce que vous avez saisi sera perdu.", oui: "Fermer", non: "Continuer" })
       .then((oui) => {
         confirmationEnCours = false;
         if (oui && fenetreOuverte() === NOM && fenetre.isConnected) fermerFenetre();
@@ -250,7 +251,7 @@ export function ouvrirFenetreRegistre({ entree = null, prerempli = null, promos 
       el("div", { class: "rg-tete" }, el("h2", { class: "rg-titre" }, titre), fermer),
       el("p", { class: "rg-rappel" }, RAPPEL_VIOLENCES),
       (modification && entree.issu_signalement) || (!modification && prerempli?.signalement_id != null)
-        ? el("p", { class: "rg-aide" }, "Entrée issue d'un signalement « Signaler un problème ».") : null,
+        ? el("p", { class: "rg-aide" }, "Entrée issue d'un problème signalé dans l'app.") : null,
       el("div", { class: "rg-bloc" },
         el("p", { class: "rg-etiquette", id: "rg-type-titre" }, "Type"),
         groupeType,

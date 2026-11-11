@@ -61,7 +61,7 @@ assert.equal(origineNote(evs[0]), "Saisie le 1 oct.");
 assert.equal(etatVideNotes({ nbNotes: 3, contexte: "equipe-matrice" }), null);
 assert.deepEqual(etatVideNotes({ nbNotes: 0, contexte: "equipe-matrice" }), {
   titre: "Aucune note pour l'instant",
-  phrase: "Les notes arrivent ici toutes seules quand un stagiaire passe un examen QCM. Tu peux aussi les saisir toi-même.",
+  phrase: "Les notes arrivent ici toutes seules quand un stagiaire passe un examen QCM. Vous pouvez aussi les saisir vous-même.",
   actions: ["examen", "saisir"] });
 assert.deepEqual(etatVideNotes({ nbNotes: 0, contexte: "equipe-saisir" }).actions, ["examen"]);
 assert.deepEqual(etatVideNotes({ nbNotes: 0, contexte: "classe-stagiaire" }), {
@@ -77,9 +77,9 @@ assert.deepEqual(etatVideNotes({ nbNotes: 0, contexte: "direction" }), {
 // --- La raison d'un échec d'écriture, en français (jamais le message brut du réseau ou de la base) ---
 assert.equal(raisonEchecNote(new TypeError("Failed to fetch")), "la connexion a échoué");
 assert.equal(raisonEchecNote({ message: "network error" }), "la connexion a échoué");
-assert.equal(raisonEchecNote({ message: "JWT expired", code: "PGRST301" }), "ta session a expiré, reconnecte-toi");
+assert.equal(raisonEchecNote({ message: "JWT expired", code: "PGRST301" }), "votre session a expiré, reconnectez-vous");
 assert.equal(raisonEchecNote({ message: "new row violates row-level security policy", code: "42501" }),
-  "tu n'as pas le droit de modifier cette note");
+  "vous n'avez pas le droit de modifier cette note");
 assert.equal(raisonEchecNote(null), "la connexion a échoué");
 
 // --- Quelle carte vide, selon la page et la personne : la direction (personnel sans droit d'écrire) n'a ni
@@ -92,7 +92,7 @@ assert.equal(contexteEtatVide({ classe: true, admin: false, personnel: true }), 
 assert.equal(contexteEtatVide({ classe: true, admin: false, personnel: false }), "classe-stagiaire");
 
 // --- Finitions du lot C : une note refusée se dit en une phrase, qui commence par ce qui s'est passé ---
-assert.equal(parseNoteInput("abc").error, "tape une note de 0 à 20, ou par exemple 7/10");
+assert.equal(parseNoteInput("abc").error, "tapez une note de 0 à 20, ou par exemple 7/10");
 assert.equal(parseNoteInput("21").error, "la note va de 0 à 20");
 assert.equal(parseNoteInput("-3").error, "la note va de 0 à 20");
 assert.equal(parseNoteInput("12/10").error, "sur 10, la note va de 0 à 10");
@@ -113,7 +113,7 @@ assert.deepEqual(etatDeLigne({ etat: "gardee" }, examenDu), ok("Examen QCM du 6 
 assert.deepEqual(etatDeLigne({ etat: "gardee" }, null), ok(""));
 // Une saisie refusée : une seule phrase, en erreur, sans « Réessayer » (il faut retaper).
 assert.deepEqual(etatDeLigne({ etat: "invalide", message: parseNoteInput("abc").error }, saisieDu),
-  { texte: "Pas enregistrée : tape une note de 0 à 20, ou par exemple 7/10.", erreur: true, reessayer: false });
+  { texte: "Pas enregistrée : tapez une note de 0 à 20, ou par exemple 7/10.", erreur: true, reessayer: false });
 assert.equal((etatDeLigne({ etat: "invalide", message: parseNoteInput("abc").error }, null).texte.match(/\./g) || []).length, 1,
   "une seule phrase (un seul point)");
 // Une connexion perdue : « Réessayer » ; une session expirée ou un droit refusé : réessayer ne servirait à rien.

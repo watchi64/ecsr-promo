@@ -8,29 +8,29 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
   avantChangementPromo,
-} from "../db.js?v=20261111a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261111a";
-import { confirmer, demander } from "../confirmer.js?v=20261111a";
-import { icon, deco } from "../icons.js?v=20261111a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261111a";
-import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261111a";
-import { recordUndo } from "../undo.js?v=20261111a";
-import { getCurrentWho } from "../identity.js?v=20261111a";
-import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261111a";
-import { meilleurResultat } from "../passage-rules.js?v=20261111a";
-import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261111a";
-import { emargementActif } from "../emargement-etat.js?v=20261111a";
-import { libelleHeure } from "../emargement-rules.js?v=20261111a";
-import { navigationV2Active } from "../nav-etat.js?v=20261111a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111a";
+} from "../db.js?v=20261111b";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261111b";
+import { confirmer, demander } from "../confirmer.js?v=20261111b";
+import { icon, deco } from "../icons.js?v=20261111b";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261111b";
+import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261111b";
+import { recordUndo } from "../undo.js?v=20261111b";
+import { getCurrentWho } from "../identity.js?v=20261111b";
+import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261111b";
+import { meilleurResultat } from "../passage-rules.js?v=20261111b";
+import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261111b";
+import { emargementActif } from "../emargement-etat.js?v=20261111b";
+import { libelleHeure } from "../emargement-rules.js?v=20261111b";
+import { navigationV2Active } from "../nav-etat.js?v=20261111b";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111b";
 import {
   entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe, colonnesParalleles,
-} from "../planning-roles.js?v=20261111a";
+} from "../planning-roles.js?v=20261111b";
 import {
   DEFAULT_HALF_META, semaineEnGrille, jourParDefaut, lundiEnCours, vuePlanningInitiale,
-} from "../journee-rules.js?v=20261111a";
-import { nomsStagiaires } from "../planning-lecture.js?v=20261111a";
-import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261111a";
+} from "../journee-rules.js?v=20261111b";
+import { nomsStagiaires, nomBenevole } from "../planning-lecture.js?v=20261111b";
+import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261111b";
 
 let stagiaires = [];
 let profs = [];
@@ -448,7 +448,7 @@ async function confirmerSurCePlanning(question) {
   const charge = entries;
   const oui = await confirmer(question);
   if (oui && entries !== charge) {
-    toast("Le planning a été rechargé pendant la question : rien n'a été fait. Recommence si besoin.", "info", 4000);
+    toast("Le planning a été rechargé pendant la question : rien n'a été fait. Recommencez si besoin.", "info", 4000);
     return false;
   }
   return oui;
@@ -997,7 +997,7 @@ async function autoPlaceWeek() {
 
   const reroll = !targets.some((e) => placementEmpties(e).length > 0);
   if (reroll && !(await confirmerSurCePlanning({ titre: "Tout remélanger la semaine ?",
-    phrase: "Toute la semaine est déjà placée. Tes ajustements à la main (tableaux et stagiaires) seront remplacés. "
+    phrase: "Toute la semaine est déjà placée. Vos ajustements à la main (tableaux et stagiaires) seront remplacés. "
       + "Ctrl+Z annule ensuite.", oui: "Tout remélanger" }))) return;
   if (!reroll) {
     const cartes = targets.filter((e) => placementEmpties(e).length > 0).length;
@@ -1599,10 +1599,10 @@ function renderAbsenceRows(entry, lid, group = null) {
     roleIds.forEach((id) => { if (id !== a.sid) occupied.add(id); });
     const options = stagiaires.filter((x) => x.id !== a.sid);
     wrap.appendChild(el("div", { class: "abs-row" },
-      el("span", { class: "abs-row-name" }, "⊘ " + (s ? displayStagiaire(s) : "?") + " absent(e) → remplacé(e) par"),
+      el("span", { class: "abs-row-name" }, "⊘ " + (s ? displayStagiaire(s) : "Stagiaire inconnu") + " absent(e) → remplacé(e) par"),
       personSelect(options, a.rid, (id) => setAbsence(lid, a.sid, "replace", id), counts, "personne", {
         itemBadge: (x) => occupied.has(x.id)
-          ? el("span", { class: "prio-badge abs-occupied", title: "Déjà pris sur ce créneau : à toi de juger" }, "occupé")
+          ? el("span", { class: "prio-badge abs-occupied", title: "Déjà pris sur ce créneau : à vous de juger" }, "occupé")
           : null,
       }),
     ));
@@ -1691,7 +1691,7 @@ function sujetMultiSelect(currentValue, onChange) {
     matches = matches.slice(0, 12);
     if (matches.length === 0) {
       dropdown.appendChild(el("div", { class: "sujet-ac-empty muted" },
-        q ? "Aucun thème. Tape virgule ou Entrée pour l'ajouter tel quel." : "Plus de thèmes à ajouter."));
+        q ? "Aucun thème. Tapez virgule ou Entrée pour l'ajouter tel quel." : "Plus de thèmes à ajouter."));
       return;
     }
     matches.forEach((t) => {
@@ -2208,7 +2208,7 @@ async function loadBenevoles() {
     const list = await listBenevoles();
     return list.map((b) => ({ ...b, display: displayStagiaire(b) }));
   }
-  return await listBenevolesNoms();
+  return (await listBenevolesNoms()).map((b) => ({ ...b, display: nomBenevole(b.display) }));
 }
 
 async function loadPlanning() {
@@ -2456,7 +2456,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   const backdrop = el("div", { class: "modal-backdrop" });
   const nameOf = (id) => {
     const s = stagiaires.find((x) => x.id === id);
-    return s ? displayStagiaire(s) : "?";
+    return s ? displayStagiaire(s) : "Stagiaire inconnu";
   };
   const dayLabel = (di) => {
     const j = JOURS[di] || "";
@@ -2651,7 +2651,10 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
 
 // Mémo des règles de placement, en langage simple, lisible par toute la promo.
 // ⚠️ À tenir à jour à chaque évolution des règles du planning.
+// Nouvelle navigation : le mémo n'est montré qu'à l'équipe (renderInto), qui est vouvoyée (décision du 10/11) ;
+// l'ancienne navigation, qui le montre à toute la promo, garde son texte.
 function buildRulesNote() {
+  const v2 = navigationV2Active();
   const details = el("details", { class: "planning-rules" });
   const li = (...c) => el("li", {}, ...c);
   const b = (t) => el("strong", {}, t);
@@ -2695,8 +2698,10 @@ function buildRulesNote() {
 
   body.appendChild(el("p", {}, b("Absences :")));
   body.appendChild(el("ul", {},
-    li(b("Dernière minute / pas prévenu"), " : marque l'absence sur la carte (« Absent » à côté du stagiaire au tableau, un toucher sur son nom en voiture). Le passage ", b("compte quand même"), " pour l'absent (son tour est consommé) ; le remplaçant fait un passage ", b("bonus"), " qui ne lui sera pas décompté la semaine suivante."),
-    li(b("Prévenu à l'avance"), " : remplace simplement le nom sur la carte, le remplaçant fait un passage normal, l'absent garde sa priorité."),
+    li(b("Dernière minute / pas prévenu"), v2 ? " : marquez l'absence sur la carte" : " : marque l'absence sur la carte",
+      " (« Absent » à côté du stagiaire au tableau, un toucher sur son nom en voiture). Le passage ", b("compte quand même"), " pour l'absent (son tour est consommé) ; le remplaçant fait un passage ", b("bonus"), " qui ne lui sera pas décompté la semaine suivante."),
+    li(b("Prévenu à l'avance"), v2 ? " : remplacez simplement le nom sur la carte" : " : remplace simplement le nom sur la carte",
+      ", le remplaçant fait un passage normal, l'absent garde sa priorité."),
   ));
 
   body.appendChild(el("p", {}, b("Stagiaires qui font les élèves (salle) :")));
@@ -2709,7 +2714,8 @@ function buildRulesNote() {
   body.appendChild(el("ul", {},
     li(b("Placer la semaine"), " : remplit les tableaux d'abord, puis les élèves (demande confirmation, annulable par Ctrl+Z)."),
     li(b("Vider les placements"), " : retire tous les stagiaires de la semaine, mais garde activités, formateurs, sujets, notes et élèves bénévoles."),
-    li(b("Valider la semaine"), " : le planning fait foi, prévu non marqué = « effectué », marqué absent = « absence » (comptée) + « bonus » pour le remplaçant. Un cas particulier ? Corrige ensuite dans l'onglet Passages."),
+    li(b("Valider la semaine"), " : le planning fait foi, prévu non marqué = « effectué », marqué absent = « absence » (comptée) + « bonus » pour le remplaçant. Un cas particulier ? ",
+      v2 ? "Corrigez ensuite dans l'historique des passages (onglet Ordre de passage)." : "Corrige ensuite dans l'onglet Passages."),
   ));
 
   body.appendChild(el("p", { class: "planning-rules-foot" },
@@ -2890,11 +2896,11 @@ function renderInto(container) {
       el("h2", {}, "Planning de la semaine"),
       eleve ? null : (editing || phraseLecture) ? el("p", { class: "subtitle" },
         editing
-          ? "Sélectionne les activités, formateurs et stagiaires. Tout s'enregistre automatiquement."
+          ? "Sélectionnez les activités, formateurs et stagiaires. Tout s'enregistre automatiquement."
           : phraseLecture
       ) : null,
     ),
-    // Priorités de passage : rangées dans le Planning, plus d'onglet (chantier D).
+    // Ordre de passage (ex-Priorités) : rangé dans le Planning, plus d'onglet (chantier D).
     // Visibles des formateurs, et des stagiaires si le module est ouvert pour leur
     // promo ; repère « Masqué aux stagiaires » chez un formateur quand il est fermé.
     // Nouvelle navigation : Priorités est un sous-onglet de Planning, pas de bouton en double ; le retour au jour est
@@ -3069,8 +3075,8 @@ function renderInto(container) {
       if (now - lastHintAt < 5000) return;   // max 1 toast / 5 s
       lastHintAt = now;
       toast(isLocked(semaineLundi)
-        ? "Semaine validée : clique « Déverrouiller » pour corriger"
-        : "Semaine en lecture seule : clique « Modifier » pour éditer", "info", 3200);
+        ? "Semaine validée : cliquez sur « Déverrouiller » pour corriger"
+        : "Semaine en lecture seule : cliquez sur « Modifier » pour éditer", "info", 3200);
     });
   }
   container.appendChild(enGrille ? grilleDeLaSemaine() : wrap);
@@ -3115,27 +3121,13 @@ function lookupStagiaire(id) {
   return s ? displayStagiaire(s) : "";
 }
 
-// Prénoms portés par AU MOINS 2 stagiaires (normalisés) → il faut garder l'initiale du
-// nom pour les distinguer. Recalculé à chaque impression (liste ~15 stagiaires).
-function ambiguousPrenoms() {
-  const count = {};
-  stagiaires.forEach((s) => {
-    const p = (s.prenom || "").trim().toLowerCase();
-    if (p) count[p] = (count[p] || 0) + 1;
-  });
-  return new Set(Object.keys(count).filter((p) => count[p] >= 2));
+// Nom affiché à l'impression : « Lucie M. » (displayStagiaire), le format de tous les écrans (décision du 10/11) ;
+// plus de prénom seul ni de cas particulier pour deux prénoms identiques.
+function printName(id) {
+  return lookupStagiaire(id);
 }
 
-// Nom affiché à l'impression : PRÉNOM SEUL, sauf si le prénom est ambigu (partagé par un
-// autre stagiaire) → « Initiale. Prénom » (displayStagiaire) pour lever le doute.
-function printName(id, ambig) {
-  const s = stagiaires.find((x) => x.id === id);
-  if (!s) return "";
-  const p = (s.prenom || "").trim().toLowerCase();
-  return (p && ambig.has(p)) ? displayStagiaire(s) : (s.prenom || displayStagiaire(s));
-}
-
-function printEntryCell(e, ambig) {
+function printEntryCell(e) {
   const cell = el("div", { class: "pp-cell", dataset: { activite: e.activite || "" } });
 
   // Ligne titre : activité + prof
@@ -3186,13 +3178,13 @@ function printEntryCell(e, ambig) {
   // resté sur une Voiture). Noms seulement s'ils se résolvent (évite un label orphelin).
   // « Au tableau » (1 personne) reste en ligne ; les élèves sont listés UN PAR LIGNE.
   const addTableau = (key, id) => {
-    const n = id ? printName(id, ambig) : "";
+    const n = id ? printName(id) : "";
     if (nonEmpty(n)) cell.appendChild(el("div", { class: "pp-line" },
       el("span", { class: "pp-key" }, key + " : "),
       el("span", { class: "pp-val" }, n)));
   };
   const addEleves = (key, ids) => {
-    const names = (ids || []).map((id) => printName(id, ambig)).filter(Boolean);
+    const names = (ids || []).map((id) => printName(id)).filter(Boolean);
     if (!names.length) return;
     cell.appendChild(el("div", { class: "pp-line" }, el("span", { class: "pp-key" }, key + " :")));
     names.forEach((n) => cell.appendChild(el("div", { class: "pp-line pp-eleve" }, n)));
@@ -3215,7 +3207,7 @@ function printEntryCell(e, ambig) {
     addEleves("Stagiaires", effElevesIds(e, 1));
   }
 
-  // Bénévoles (voiture) : sous les élèves moniteurs, en italique. Format « N. Prénom »
+  // Bénévoles (voiture) : sous les élèves moniteurs, en italique. Format « Prénom N. »
   // (banque séparée : pas de dédoublonnage avec les prénoms des stagiaires).
   const bnvNames = effBenevolesIds(e).map(lookupBenevole).filter(Boolean);
   if (bnvNames.length) {
@@ -3233,7 +3225,6 @@ function printEntryCell(e, ambig) {
 
 function buildPrintHtml(monday) {
   const root = el("div", { class: "print-root" });
-  const ambig = ambiguousPrenoms();  // prénoms à désambiguïser (gardent l'initiale)
 
   // En-tête
   const semaineLabel = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
@@ -3291,7 +3282,7 @@ function buildPrintHtml(monday) {
       } else {
         rows.forEach((row) => {
           const rowEl = el("div", { class: "pp-row" });
-          row.lanes.forEach((e) => rowEl.appendChild(printEntryCell(e, ambig)));
+          row.lanes.forEach((e) => rowEl.appendChild(printEntryCell(e)));
           halfBlock.appendChild(rowEl);
         });
       }
@@ -3525,6 +3516,6 @@ export async function renderPlanning(container, { aujourdhui = null } = {}) {
     // En grille, le jour est déjà repéré (colonne, ou jour choisi sur téléphone) : on amène la grille à l'écran.
     if (grilleAffichee()) container.querySelector(".wsem")?.scrollIntoView({ block: "start" });
     else scrollToDay(jump.dayIndex);
-    if (jump.weekend) toast("Week-end : on t'emmène au lundi qui suit.", "info", 3000);
+    if (jump.weekend) toast("Week-end : voici le lundi qui suit.", "info", 3000);
   }
 }

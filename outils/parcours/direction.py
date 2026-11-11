@@ -334,8 +334,8 @@ def apercus_promo_7(v):
 # --- Une adresse tapée hors de son espace (P6, P7), la porte (P8), la fiche d'un autre centre (P9) -------------------------------
 
 ADRESSES_NEUVES = ["#/promos", "#/equipe", "#/reseau", "#/directions"]
-PHRASE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à ta direction ou à un formateur de t'ajouter."
-PHRASE_FICHE_AILLEURS = "Cette fiche n'est pas dans ton centre."
+PHRASE_SANS_PROMO = "Aucune promo n'est associée à ce compte : la direction du centre ou un formateur peut l'ajouter à une promo."
+PHRASE_FICHE_AILLEURS = "Cette fiche n'est pas dans votre centre."
 
 
 def saisir_une_adresse(v, adresse):
@@ -401,7 +401,7 @@ def sans_role(v):
 @parcours("direction-fiche-d-un-autre-centre", "P9 · Une direction tape l'adresse d'une fiche d'un autre centre", role="direction", budget=1,
           banc={"compte": "direction", "lieux": "2", "emargement2": "1"}, navigations=NOUVELLE, depart=DEPART)
 def fiche_d_un_autre_centre(v):
-    """Direction de Nîmes, fiche d'un stagiaire de Montpellier : « Cette fiche n'est pas dans ton centre. », rien de Montpellier à l'écran."""
+    """Direction de Nîmes, fiche d'un stagiaire de Montpellier : « Cette fiche n'est pas dans votre centre. », rien de Montpellier à l'écran."""
     v.aller("Vue d'ensemble")
     attendre_page(v, "Vue d'ensemble")
     v.but("accueil du centre")
@@ -418,7 +418,7 @@ def fiche_d_un_autre_centre(v):
 # --- La base en panne (P10) --------------------------------------------------------------------------------------------------------
 
 
-PHRASE_CONNEXION = "La connexion a échoué. Vérifie le réseau, puis réessaie."
+PHRASE_CONNEXION = "La connexion a échoué. Vérifier le réseau, puis réessayer."
 
 
 def exiger_une_phrase_dans_la_fenetre(v, quoi):

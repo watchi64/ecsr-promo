@@ -1,13 +1,13 @@
 import {
   listRessources, addRessource, updateRessource, deleteRessource,
   listContacts, addContact, updateContact, deleteContact, getPromoCourante,
-} from "../db.js?v=20261111a";
-import { el, clear, toast } from "../utils.js?v=20261111a";
-import { confirmer } from "../confirmer.js?v=20261111a";
-import { icon, deco } from "../icons.js?v=20261111a";
-import { isAdmin } from "../auth-admin.js?v=20261111a";
-import { recordUndo } from "../undo.js?v=20261111a";
-import { navigationV2Active } from "../nav-etat.js?v=20261111a";
+} from "../db.js?v=20261111b";
+import { el, clear, toast } from "../utils.js?v=20261111b";
+import { confirmer } from "../confirmer.js?v=20261111b";
+import { icon, deco } from "../icons.js?v=20261111b";
+import { isAdmin, selonPublic } from "../auth-admin.js?v=20261111b";
+import { recordUndo } from "../undo.js?v=20261111b";
+import { navigationV2Active } from "../nav-etat.js?v=20261111b";
 
 let ressources = [];
 let contacts = [];
@@ -36,7 +36,7 @@ function openEditModal(existing, onSaved) {
     catSel.appendChild(opt);
   });
 
-  const badgeInput = el("input", { type: "text", placeholder: "Badge (Officiel, PDF, etc.)", value: existing?.badge || "" });
+  const badgeInput = el("input", { type: "text", placeholder: "Étiquette (Officiel, PDF…)", value: existing?.badge || "" });
 
   async function save() {
     if (!titreInput.value.trim() || !urlInput.value.trim()) {
@@ -72,7 +72,7 @@ function openEditModal(existing, onSaved) {
       el("div", { class: "field" }, el("label", {}, "URL"), urlInput),
       el("div", { class: "field" }, el("label", {}, "Description"), descInput),
       el("div", { class: "field" }, el("label", {}, "Catégorie"), catSel),
-      el("div", { class: "field" }, el("label", {}, "Badge (optionnel)"), badgeInput),
+      el("div", { class: "field" }, el("label", {}, "Étiquette (facultatif)"), badgeInput),
     ),
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn)
   );
@@ -130,7 +130,7 @@ function openContactModal(existing, onSaved) {
   const prenomInput = el("input", { type: "text", placeholder: "Prénom (ou nom)", value: existing?.prenom || "" });
   const roleInput = el("input", { type: "text", placeholder: "Rôle / fonction (ex. Service entreprise, CP)", value: existing?.role || "" });
   const phoneInput = el("input", { type: "tel", placeholder: "04 12 34 56 78", value: existing?.phone || "" });
-  const emailInput = el("input", { type: "email", placeholder: "email@ecf-sps.fr", value: existing?.email || "" });
+  const emailInput = el("input", { type: "email", placeholder: "adresse@ecf-sps.fr", value: existing?.email || "" });
   const noteInput = el("input", { type: "text", placeholder: "Note (ex. si X et Y indisponibles)", value: existing?.note || "" });
 
   async function save() {
@@ -171,7 +171,7 @@ function openContactModal(existing, onSaved) {
       el("div", { class: "field" }, el("label", {}, "Rôle"), roleInput),
       el("div", { class: "field-pair" },
         el("div", { class: "field" }, el("label", {}, "Téléphone"), phoneInput),
-        el("div", { class: "field" }, el("label", {}, "Email"), emailInput),
+        el("div", { class: "field" }, el("label", {}, "E-mail"), emailInput),
       ),
       el("div", { class: "field" }, el("label", {}, "Note"), noteInput),
     ),
@@ -273,7 +273,8 @@ function rerender(container) {
     }, icon.plus(), "Ajouter un contact") : null,
   ));
   contactsSection.appendChild(el("p", { class: "muted contacts-section-sub" },
-    "Numéros à appeler en cas d'absence ou de question administrative. Tape sur un numéro pour appeler directement."));
+    "Numéros à appeler en cas d'absence ou de question administrative. "
+      + selonPublic("Tape sur un numéro pour appeler directement.", "Tapez sur un numéro pour appeler directement.")));
 
   if (contacts.length === 0) {
     contactsSection.appendChild(el("p", { class: "muted", style: "padding:1rem;text-align:center" }, "Aucun contact enregistré."));
