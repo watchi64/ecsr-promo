@@ -11,11 +11,11 @@
 // entrées groupées, l'Assistant et le compte en pied), en colonne d'icônes quand elle est repliée
 // (choix mémorisé sur l'appareil) et toujours sur tablette. Sur téléphone, la même barre devient
 // l'en-tête (promo, Assistant en icône, compte) et les entrées passent dans la barre du bas : quatre,
-// plus « Plus », qui ouvre un tiroir avec les autres pages (« Autres pages »), l'Assistant et le compte.
+// plus « Plus », qui ouvre un tiroir avec les autres pages (« Autres pages ») et « Signaler un problème ».
 // Une entrée dont la page est fermée aux stagiaires porte le repère « masqué aux stagiaires » (œil barré).
 // Direction et siège (lot 5) : la même barre latérale (barreLaterale de js/espaces-rules.js), avec leur contexte en tête
 // (« Centre » et le nom du lieu, le choix du centre quand le compte en dirige plusieurs ; « Réseau » et le nombre de centres)
-// et toujours « Plus » sur téléphone (l'Assistant, « Signaler un problème » et le compte y sont). Ni repère des modules
+// et toujours « Plus » sur téléphone (« Signaler un problème » y est ; l'Assistant et le compte sont en haut de l'écran). Ni repère des modules
 // fermés ni comptes « à traiter » : ils restent au formateur.
 //
 // Crochets : chaque racine porte data-nav-coquille (« haut » en-tête du stagiaire, « cote » barre

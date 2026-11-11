@@ -176,7 +176,7 @@ Contrôles par vue
     au-dessus de l'écran ; Chromium la remet en haut et ne montre pas le défaut) ;
   * en-tête de l'équipe sur téléphone (lot 2A) : un seul bouton « Assistant » (data-nav-action=assistant, de 44 px) dans l'en-tête, entre la promo et
     le compte, rien ne débordant de la fenêtre, à 375 px puis à 320 px (la page Stagiaires y est mesurée comme toute vue, sans autre scénario) ; le
-    tiroir « Plus » s'appelle « Autres pages », sans « Tout l'espace formateur », et garde sa ligne « Assistant » ;
+    tiroir « Plus » s'appelle « Autres pages », sans « Tout l'espace formateur », garde « Signaler un problème » et ne répète ni l'Assistant ni le compte (11/11) ;
   * Notes et examens (équipe, lot 2A, puis lot C de l'audit du 09/11) : sur un écran tactile (le téléphone du banc), le sous-titre est
     « Saisissez les notes thème par thème, ou touchez une case de la matrice. » et la phrase sur Entrée et Échap n'est pas montrée ; avec une
     souris, le sous-titre d'avant et la phrase de la barre d'outils ;

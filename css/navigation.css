@@ -562,7 +562,7 @@ body[data-nav="v2"] .nav-bas { display: none; }
   body[data-nav="v2"] .nav-assistant { height: 44px; }
 
   /* Équipe : la barre latérale devient l'en-tête (la promo, l'Assistant, le compte) ; ses entrées
-     passent dans la barre du bas et le tiroir « Plus » (qui garde aussi une ligne Assistant). */
+     passent dans la barre du bas et le tiroir « Plus » (« Signaler un problème » ; l'Assistant et le compte restent dans l'en-tête). */
   body[data-nav="v2"] .nav-cote {
     position: sticky;
     top: 0;

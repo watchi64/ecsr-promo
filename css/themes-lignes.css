@@ -8,7 +8,7 @@
 
 #view .themes-list > .theme-row:not(.theme-header) {
   display: grid;
-  grid-template-columns: 2.1rem minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(2.1rem, auto) minmax(0, 1fr) auto auto;
   grid-template-areas:
     "num titre acces menu"
     "num meta  acces menu";
@@ -45,7 +45,7 @@
 .theme-note b { font-weight: 700; }
 .theme-note b.n-great { color: var(--c-go); }
 .theme-note b.n-ok { color: var(--accent-strong); }
-.theme-note b.n-mid { color: var(--note-mid, var(--c-wait)); }
+.theme-note b.n-mid { color: var(--note-mid-texte); }
 .theme-note b.n-low { color: var(--c-stop); }
 
 /* Cours et QCM : une pastille, deux moitiés. Pastille de 34 px, chaque moitié touchable sur 44 px (marges négatives). */
@@ -84,7 +84,7 @@
 #view .themes-list > .theme-row.theme-header.a-repere {
   display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; justify-content: flex-end;
 }
-#view .themes-list > .theme-row.theme-header.a-repere > span:not(:has(.module-masque)) { display: none; }
+#view .themes-list > .theme-row.theme-header.a-repere > span:not(.module-masque) { display: none; }
 
 /* La fiche des actions d'un thème. */
 .theme-actions .theme-actions-etat { margin: 0 0 0.8rem; font-size: 0.85rem; color: var(--text-muted); }
@@ -93,7 +93,7 @@
 
 @media (max-width: 720px) {
   #view .themes-list > .theme-row:not(.theme-header) {
-    grid-template-columns: 1.8rem minmax(0, 1fr) auto 44px;
+    grid-template-columns: minmax(1.8rem, auto) minmax(0, 1fr) auto 44px;
     grid-template-areas:
       "num titre titre menu"
       "num meta  acces menu";
@@ -102,7 +102,7 @@
   }
   /* Sans « … » (stagiaire), le titre et l'accès vont jusqu'au bord. */
   #view .themes-list > .theme-row:not(.theme-header):not(.avec-menu) {
-    grid-template-columns: 1.8rem minmax(0, 1fr) auto;
+    grid-template-columns: minmax(1.8rem, auto) minmax(0, 1fr) auto;
     grid-template-areas:
       "num titre titre"
       "num meta  acces";
@@ -112,4 +112,7 @@
   #view .themes-list > .theme-row > .theme-menu { align-self: center; }
   #view .themes-list > .theme-row:not(.theme-header) > .theme-num { align-self: start; padding-top: 2px; }
   #view .theme-acces > button { padding: 0 0.65rem; }
+  /* Sans ligne d'état (siège), le titre reste sur la première ligne : l'accès occupe la seconde. */
+  #view .themes-list > .theme-row:not(:has(> .theme-meta)) > .theme-titre-link { grid-row: 1; }
+  /* La colonne du numéro s'élargit au besoin (minmax ci-dessus) : la pastille d'un code (« C2.4 ») ne couvre pas le titre. */
 }

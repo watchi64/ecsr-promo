@@ -285,7 +285,7 @@ async function fermerExamen(theme, qcm, apres) {
 // Thème sans banque : « + QCM » dans la pastille d'accès (formateur), ouvre l'éditeur vide.
 function boutonCreerQcm(theme) {
   return el("button", {
-    class: "theme-qcm-hint create", type: "button", title: "Créer le QCM de ce thème",
+    class: "theme-qcm-hint create", type: "button", title: "Créer le QCM de ce thème", "aria-label": "Créer le QCM de ce thème",
     onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmEditor(theme, null); },
   }, icon.plus(), "QCM");
 }
@@ -1469,9 +1469,10 @@ function renderThemeRow(theme, container, coursOn = false) {
       }, icon.quiz(), "QCM")
       : (canManageExam() ? boutonCreerQcm(theme) : null);
 
-  const etiquette = theme.numero != null || theme.code ? `thème ${num}` : `« ${theme.titre} »`;
+  const etiquette = theme.numero != null || theme.code ? `thème ${num}`
+    : `${theme.type === "notion" ? "la notion" : "thème"} « ${theme.titre} »`;
   const acces = coursBtn || qcmBtn
-    ? el("div", { class: "theme-acces", role: "group", "aria-label": `Cours et QCM du ${etiquette}` }, coursBtn, qcmBtn)
+    ? el("div", { class: "theme-acces", role: "group", "aria-label": `Cours et QCM : ${etiquette}` }, coursBtn, qcmBtn)
     : null;
 
   const meta = el("div", { class: "theme-meta" },
@@ -1495,7 +1496,7 @@ function renderThemeRow(theme, container, coursOn = false) {
   if (avecMenu) {
     const menu = el("button", {
       type: "button", class: "theme-menu", "aria-haspopup": "dialog",
-      "aria-label": `Actions du ${etiquette}`, title: "Examen, statut et date",
+      "aria-label": `Actions : ${etiquette}`, title: "Examen, statut et date",
     }, deco(icon.plusDActions()));
     // Après un geste, la ligne se redessine ; le focus revient à son « … » s'il était dans l'ancienne (ou perdu sur la page).
     const apres = () => {
