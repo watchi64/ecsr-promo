@@ -7,26 +7,26 @@
 
 import {
   lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante, lireReglagePromo, lireEmargementPromo,
-  ouvrirDansUnePromo,
-} from "../db.js?v=20261111e";
-import { el, clear, isoDate, formatDate, formatLongDate, toast, tableauEnListe } from "../utils.js?v=20261111e";
-import { getCentre } from "../auth-admin.js?v=20261111e";
-import { promosDuCentre } from "../espaces-rules.js?v=20261111e";
+  ouvrirDansUnePromo, lireEffacementsSurDemande,
+} from "../db.js?v=20261111f";
+import { el, clear, isoDate, formatDate, formatLongDate, toast, tableauEnListe } from "../utils.js?v=20261111f";
+import { getCentre } from "../auth-admin.js?v=20261111f";
+import { promosDuCentre } from "../espaces-rules.js?v=20261111f";
 import {
   indicateursPromo, ligneComparaison, aSuivrePromo, fusionnerASuivre,
-} from "../centre-stats.js?v=20261111e";
-import { comptesDepuisIndicateurs, concatenerDonnees, promosEnCours } from "../comptes-reseau.js?v=20261111e";
-import { tableauCentreCsv, slug } from "../centre-csv.js?v=20261111e";
-import { resumeEmargement, lireAdresseEmargement, CLE_ACTIVATION, estActif } from "../emargement-rules.js?v=20261111e";
-import { estAdresseAttestations } from "../attestations-rules.js?v=20261111e";
-import { jourLong, DEMI_LONG } from "../emargement-feuilles.js?v=20261111e";
+} from "../centre-stats.js?v=20261111f";
+import { comptesDepuisIndicateurs, concatenerDonnees, promosEnCours } from "../comptes-reseau.js?v=20261111f";
+import { tableauCentreCsv, slug } from "../centre-csv.js?v=20261111f";
+import { resumeEmargement, lireAdresseEmargement, CLE_ACTIVATION, estActif } from "../emargement-rules.js?v=20261111f";
+import { estAdresseAttestations } from "../attestations-rules.js?v=20261111f";
+import { jourLong, DEMI_LONG } from "../emargement-feuilles.js?v=20261111f";
 import {
   cartesCles, cartesResultats, sectionThemes, sectionASuivre, sectionComparaison, sectionMethodes, etiquette,
   telecharger,
-} from "./centre.js?v=20261111e";
-import { surChangementAdresse } from "../navigation.js?v=20261111e";
-import { renderEmargement } from "./emargement.js?v=20261111e";
-import { renderNotes } from "./notes.js?v=20261111e";
+} from "./centre.js?v=20261111f";
+import { surChangementAdresse } from "../navigation.js?v=20261111f";
+import { renderEmargement } from "./emargement.js?v=20261111f";
+import { renderNotes } from "./notes.js?v=20261111f";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
@@ -77,10 +77,12 @@ async function aller(promoId, adresse) {
 }
 
 // Les données brutes de chaque promo du centre, par l'en-tête de lecture. Une promo illisible fait échouer l'ensemble : des
-// totaux sans l'une des promos seraient faux sans le dire.
+// totaux sans l'une des promos seraient faux sans le dire. `demandes` : les fiches effacées à la demande de la personne (lot Q5),
+// ni en formation ni abandon dans les indicateurs.
 async function lireToutesLesPromos(promos) {
-  const [referentiel, ...donnees] = await Promise.all([lireReferentielCentre(), ...promos.map((p) => lireDonneesCentre(p.id))]);
-  return { referentiel, parPromo: new Map(promos.map((p, i) => [p.id, donnees[i]])) };
+  const [referentiel, demandes, ...donnees] = await Promise.all([lireReferentielCentre(),
+    lireEffacementsSurDemande(promos.map((p) => p.id)), ...promos.map((p) => lireDonneesCentre(p.id))]);
+  return { referentiel, demandes, parPromo: new Map(promos.map((p, i) => [p.id, donnees[i]])) };
 }
 
 // ============================================================== Vue d'ensemble
@@ -116,13 +118,13 @@ export async function renderVueCentre(container) {
     return;
   }
   if (jeton !== renduVue) return;
-  const { referentiel, parPromo } = lu;
+  const { referentiel, parPromo, demandes } = lu;
   const enCours = promosEnCours(promos, aujourdhui);
   // Les indicateurs de chaque promo, calculés une fois ; ceux du centre, une fois sur les données des promos en cours.
-  const indParPromo = new Map(promos.map((p) => [p.id, indicateursPromo(parPromo.get(p.id), referentiel, { aujourdhui })]));
+  const indParPromo = new Map(promos.map((p) => [p.id, indicateursPromo(parPromo.get(p.id), referentiel, { aujourdhui, demandes })]));
   const indDe = (p) => indParPromo.get(p.id);
   const indCentre = enCours.length
-    ? indicateursPromo(concatenerDonnees(enCours.map((p) => parPromo.get(p.id))), referentiel, { aujourdhui }) : null;
+    ? indicateursPromo(concatenerDonnees(enCours.map((p) => parPromo.get(p.id))), referentiel, { aujourdhui, demandes }) : null;
   const lignesParPromo = promos.map((p) => ({ nom: p.nom, debut: p.date_debut ? formatDate(p.date_debut) : "",
     fin: p.date_fin ? formatDate(p.date_fin) : "", comptes: comptesDepuisIndicateurs(indDe(p)) }));
 
@@ -323,7 +325,7 @@ export async function renderNotesCentre(container) {
   if (jeton !== renduNotes) return;
   clear(racine);
   racine.appendChild(entete(centre, "Notes et examens", sousTitre));
-  const lignes = promos.map((p) => ({ p, texte: ligneComparaison(indicateursPromo(lu.parPromo.get(p.id), lu.referentiel, { aujourdhui })) }));
+  const lignes = promos.map((p) => ({ p, texte: ligneComparaison(indicateursPromo(lu.parPromo.get(p.id), lu.referentiel, { aujourdhui, demandes: lu.demandes })) }));
   const table = tableauEnListe(el("table", { class: "centre-table centre-notes-promos" },
     el("thead", {}, el("tr", {}, ...["Promo", "Moyenne des notes", "Critères EPCF acquis", "Examens QCM réussis", ""]
       .map((t) => el("th", { scope: "col", "aria-label": t || "Matrice" }, t)))),

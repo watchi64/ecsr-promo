@@ -21,12 +21,15 @@ const vue = lire("js/views/qualiopi.js");
 const impression = lire("js/qualiopi-impression.js");
 const centre = lire("js/views/centre.js");
 const css = lire("css/qualiopi.css");
+const conservationVue = lire("js/views/conservation.js");
+const config = lire("js/views/config.js");
 
 // --- Jeton de version : celui du reste de l'app, dans l'index et dans chaque import de la page ---
 const jeton = index.match(/js\/main\.js\?v=(\w+)/)[1];
 eq(index.match(/css\/qualiopi\.css\?v=(\w+)/)?.[1], jeton, "la feuille de style est liée dans index.html avec le jeton des autres");
 eq(index.match(/css\/emargement\.css\?v=(\w+)/)[1], jeton, "(témoin) la feuille voisine porte ce jeton");
-for (const [nom, source] of [["js/views/qualiopi.js", vue], ["js/qualiopi-page-rules.js", lire("js/qualiopi-page-rules.js")], ["js/qualiopi-resultats.js", lire("js/qualiopi-resultats.js")], ["js/views/centre.js", centre], ["js/main.js", main]]) {
+for (const [nom, source] of [["js/views/qualiopi.js", vue], ["js/qualiopi-page-rules.js", lire("js/qualiopi-page-rules.js")], ["js/qualiopi-resultats.js", lire("js/qualiopi-resultats.js")], ["js/views/centre.js", centre], ["js/main.js", main],
+  ["js/views/conservation.js", conservationVue], ["js/views/config.js", config], ["js/confirmer.js", lire("js/confirmer.js")]]) {
   const imports = [...source.matchAll(/from "(\.\.?\/[^"]+)"/g)].map((m) => m[1]);
   ok(imports.length > 0, `${nom} : des imports relatifs`);
   ok(imports.every((a) => a.endsWith(`.js?v=${jeton}`)), `${nom} : chaque import porte le jeton ${jeton} (un module chargé sous deux adresses le serait deux fois)`);
@@ -54,6 +57,7 @@ for (const attendu of ["js/main.js", "js/db.js", "js/views/centre.js", "js/quali
 eq(demarrage.filter((f) => /qualiopi/.test(f)), ["js/qualiopi-impression.js"],
   "du démarrage, seul le petit module d'impression de Qualiopi est atteint : ni la page, ni le référentiel, l'inventaire, les modèles, les règles de la page");
 ok(!importsStatiques(resolve(RACINE, "js/main.js")).some((spec) => /views\/qualiopi\.js/.test(spec)), "main.js n'importe pas la page statiquement");
+ok(!demarrage.includes("js/views/conservation.js"), "la section Conservation des données part avec la page, pas avec l'app");
 ok(!/^\s*(import|export)\b[^;]*["']\.\/views\/qualiopi\.js/m.test(main), "ni par un import, ni par un export (sous aucune forme)");
 
 // --- Branchement : route, onglet allumé, porte du fondateur, nettoyage de l'impression ---
@@ -211,7 +215,7 @@ ok(!/Résultats provisoires : la formation|"non mesuré"|"non saisi"|"non mesur�
 ok(!/navigator\.clipboard|ClipboardItem/.test(codeVue), "la page ne parle jamais au presse-papiers : copierTexte le fait");
 const sortir = codeVue.slice(codeVue.indexOf("async function sortirFiches("), codeVue.indexOf("function construireActions()"));
 ok(sortir.length > 200, "sortirFiches est lisible");
-ok(/ficheResultats\(\{ promo, ind: etat\.ind, aujourdhui, satisfaction: etat\.donnees\.satisfaction \}\)/.test(sortir), "Cette formation : la fiche de la promo choisie, avec ses indicateurs déjà calculés");
+ok(/ficheResultats\(\{ promo, ind: etat\.ind, aujourdhui, presence: presenceDeLaFiche\(presenceDePromo\(etat\.donnees\.emargement, promo\.id\)\), satisfaction: etat\.donnees\.satisfaction \}\)/.test(sortir), "Cette formation : la fiche de la promo choisie, avec ses indicateurs déjà calculés");
 ok(/if \(!fiches\.length\) \{[^}]*ecrireStatut\(AUCUNE_FORMATION\);\s*return;/.test(sortir), "Le centre sans promo dans la période : un message, ni page blanche à imprimer ni phrase vide à copier");
 ok(/promosEtPeriodeDuCentre\(\)/.test(sortir) && /lirePromosDuCentre\(/.test(sortir), "Le centre : les promos retenues pour le dossier du centre (même lieu, même période), lues une à une");
 ok(!/reduce\(|\+=|Math\.(sum|max|min)/.test(sortir), "aucun total, aucune somme : une fiche par promo");
@@ -259,8 +263,81 @@ ok(/\.qres-fiche \{[^}]*break-after: page/.test(hors_commentaires) && /\.qres-fi
 ok(/\.qres-avertissement \{[^}]*font-weight: 600/.test(hors_commentaires) && !/\.qres-[^{]*\{[^}]*(red|#[dD][0-9a-fA-F]{5}|#[cC][0-9a-fA-F]{5})/.test(hors_commentaires), "l'avertissement est en gras, sans rouge");
 ok(/\.qualiopi-rangee-titre \{/.test(hors_commentaires), "le titre de la rangée « Résultats à publier » est stylé");
 
+// --- Conservation des données (lot Q5, tâche 7) : sous-onglet de la page, fondateur seul ---
+ok(/import \{ creerConservation \} from "\.\/conservation\.js\?v=\w+";/.test(vue), "la page importe la section Conservation des données");
+ok(/\{ key: "conservation", label: "Conservation des données", render: \(panneau\) => panneau\.appendChild\(conservation\.noeud\) \}/.test(vue),
+  "troisième sous-onglet « Conservation des données », après l'inventaire et le registre");
+const ordreOnglets = ["key: \"inventaire\"", "key: \"registre\"", "key: \"conservation\""].map((k) => vue.indexOf(k));
+ok(ordreOnglets.every((i, n) => i > 0 && (n === 0 || i > ordreOnglets[n - 1])), "dans cet ordre");
+ok(/racine\.appendChild\(rappelRegistre\);[\s\S]*racine\.appendChild\(conservation\.rappel\);[\s\S]*racine\.appendChild\(sousOnglets\);/.test(vue),
+  "le rappel de la conservation est en tête de page, sous celui du registre, au-dessus des sous-onglets");
+ok(/conservation\.lireEtat\(\);/.test(vue), "les échéances sont lues à chaque rendu de la page, quel que soit l'onglet (le rappel en dépend)");
+ok(/ouvrirRegistre: \(\) => sousOnglets\.activer\("registre"\)/.test(vue) && /ouvrirConservation: \(\) => sousOnglets\.activer\("conservation"\)/.test(vue),
+  "la carte du registre renvoie au sous-onglet « Registre qualité », le rappel à « Conservation des données »");
+ok(/conservation\.majPromo\(promo, lire\(promo\.id\)\.then\(\(d\) => d\.stagiaires\)\)/.test(vue), "les fiches de la promo choisie viennent de la lecture du dossier, par identifiant");
+ok(/lectures\.delete\(promoId\)/.test(vue) && /charger\(etat\.promo\)/.test(vue.slice(vue.indexOf("apresEffacement"))), "après un effacement, la promo touchée est relue");
+
+const codeCons = conservationVue.replace(/\/\/.*$/gm, "");
+for (const [type, fonction, args] of [["etape1", "effacerPromoEtape1", "c\\.id"], ["etape2", "effacerPromoEtape2", "c\\.id"],
+  ["cloture_formateurs", "cloreAnneeFormateurs", "c\\.lieu_id, c\\.annee"], ["commentaires_formateurs", "effacerCommentairesFormateurs", "c\\.lieu_id, c\\.annee"],
+  ["figeage_formateurs", "figerQuestionnaireFormateurs", "c\\.lieu_id, c\\.annee"]]) {
+  ok(new RegExp(`${type}: \\(c\\) => ${fonction}\\(${args}\\)`).test(codeCons), `le bouton « ${type} » appelle ${fonction}`);
+}
+ok(/await effacerSurDemande\(f\.id\)/.test(codeCons) && /confirmer\(confirmationDemande\(f\)\)/.test(codeCons), "« Effacer à la demande » confirme (prénom), puis efface la fiche");
+ok(/const question = confirmationEcheance\(e\);/.test(codeCons) && /if \(!\(await confirmer\(question\)\)\) return;/.test(codeCons), "chaque échéance confirme avant d'agir, avec la liste exacte");
+ok(!/(^|[^\w.])(confirm|prompt|alert)\s*\(|window\.(confirm|prompt|alert)\s*\(/.test(codeCons) && !/(^|[^\w.])(confirm|prompt|alert)\s*\(/.test(vue.replace(/\/\/.*$/gm, "")),
+  "aucune boîte du navigateur : la fenêtre de l'app (js/confirmer.js)");
+ok(!/effacerRegistreQualite/.test(codeCons) && /"Voir le registre qualité"/.test(codeCons) && /onClick: \(\) => ouvrirRegistre\(\)/.test(codeCons),
+  "le registre garde son seul bouton : la section renvoie à son sous-onglet");
+ok(conservationVue.includes('export const CONSERVATION_ABSENTE = "La conservation sera disponible après la mise à jour de la base.";')
+  && /etat === null \? \{ absent: true \}/.test(codeCons), "migration pas appliquée : la phrase convenue, sans erreur");
+ok(/"Effacer à la demande"/.test(codeCons) && /sansNom \? null : el\("button"/.test(codeCons), "« Effacer à la demande » sur chaque fiche qui a encore un nom");
+ok(!/<table|el\("table"/.test(codeCons), "une liste de cartes, jamais un tableau");
+ok(/lireEffacementsSurDemande\(\[promo\.id\]\)/.test(codeCons) && /statutFiche\(/.test(codeCons), "la fiche effacée à la demande le dit (journal, jamais une colonne de la fiche)");
+
+// --- Paramètres (Réglages) : la conservation n'y est plus qu'une phrase, et un lien pour le fondateur seul ---
+const donnees = config.slice(config.indexOf("async function renderDonneesSection("), config.indexOf("// ====== SECTION Apparence"));
+ok(lire("js/effacement-rules.js").includes('export const PHRASE_CONSERVATION = "La conservation des fiches est gérée par le fondateur, sur la page Qualiopi.";')
+  && /import \{[^}]*PHRASE_CONSERVATION[^}]*\} from "\.\.\/effacement-rules\.js/.test(config)
+  && /el\("p", \{ class: "muted donnees-texte" \}, PHRASE_CONSERVATION\)/.test(donnees), "la phrase convenue, pour toute l'équipe");
+ok(/if \(fondateurHorsApercu\(\)\) \{\s*blocConservation\.appendChild\(el\("a", \{ class: "btn cons-lien", href: "#\/qualiopi"/.test(donnees),
+  "le lien vers la page Qualiopi : fondateur hors aperçu seulement (ni formateur, ni direction, ni aperçu)");
+ok((config.match(/#\/qualiopi/g) || []).length === 1, "un seul lien vers la page dans Réglages");
+ok(/el\("h3", \{\}, "Données personnelles"\)/.test(donnees) && /if \(!isEquipe\(\)\) return null;/.test(donnees), "la section « Données personnelles » reste, pour l'équipe (outils/verifier_navigation.py)");
+ok(/const avecBenevoles = isAdmin\(\);/.test(donnees) && /if \(avecBenevoles\) section\.appendChild\(blocBnv\);/.test(donnees), "la purge des élèves bénévoles reste, pour qui y a droit");
+ok(!/(^|[^\w.])(confirm|prompt)\s*\(/.test(donnees.replace(/\/\/.*$/gm, "")) && /await confirmer\((\{|questionPurgerBenevoles\()/.test(donnees), "la purge confirme dans la fenêtre de l'app");
+ok(!/anonymiser|etatAnonymisationPromo|etatFinDePromo|Anonymiser la promo|"Effacer les données"|prompt\(/i.test(config.replace(/\/\/.*$/gm, "")), "plus d'anonymisation ni d'effacement dans Réglages");
+// La gestion des stagiaires est sortie de Réglages par le lot 5 (js/views/stagiaires-gestion.js, montée aussi chez la direction).
+const gestion = lire("js/views/stagiaires-gestion.js");
+ok(!/anonymiser|etatAnonymisationPromo|etatFinDePromo|Anonymiser la promo|"Effacer les données"|demander\(|prompt\(/i.test(gestion.replace(/\/\/.*$/gm, "")),
+  "plus d'anonymisation ni d'effacement dans la gestion des stagiaires (Réglages, direction)");
+ok(/s\.actif === false && !s\.anonymise_le && !s\.efface_le/.test(gestion) && /"Réactiver"/.test(gestion), "Abandons : « Réactiver » seul, sans les fiches effacées");
+ok(/s\.actif !== false && !s\.anonymise_le/.test(gestion), "Stagiaires : une fiche sans nom n'est plus dans la liste");
+// Réglages du centre (direction, suite du lot 5) : la même phrase à la place de « Anonymiser la promo » (réconciliation avec Q5,
+// question 3 du plan : effacements au fondateur seul) ; la purge des élèves bénévoles du centre reste.
+const reglagesDonnees = lire("js/views/reglages-donnees.js");
+const codeDonnees = reglagesDonnees.replace(/\/\/.*$/gm, "");
+ok(/el\("p", \{ class: "muted donnees-texte" \}, PHRASE_CONSERVATION\)/.test(codeDonnees) && /"Conservation des fiches"/.test(codeDonnees),
+  "Réglages du centre : la phrase de la conservation, sous un titre");
+ok(!/anonymis|Anonymiser la promo|ANONYMISER|demander\(|prompt\(|etat_anonymisation_promo|anonymiser_promo/i.test(codeDonnees),
+  "Réglages du centre : plus aucune anonymisation (ni bouton, ni lecture d'état, ni saisie)");
+ok(/listBenevolesAPurgerDuCentre\(centre\.id\)/.test(codeDonnees) && /purgerBenevolesDuCentre\(/.test(codeDonnees) && /await confirmer\(questionPurgerBenevoles\(/.test(codeDonnees),
+  "Réglages du centre : la purge des élèves bénévoles reste, confirmée dans la fenêtre de l'app");
+const db = lire("js/db.js");
+ok(!/export async function (anonymiserStagiaire|anonymiserPromo|etatAnonymisationPromo)\b/.test(db), "les exportations de compatibilité de js/db.js sont retirées");
+
+// --- Feuille de style de la conservation : cibles de 44 px, jetons de titre ---
+for (const [selecteur, nom] of [[".cons-details > summary", "« Ce qui part, ce qui reste »"], [".cons-fiche", "carte d'une fiche"], [".modal.confirmer-detaille .confirmer-champ input", "champ de saisie"],
+  [".modal.confirmer-detaille .btn", "boutons de la fenêtre"], [".cons-lien", "lien de Réglages"]]) {
+  ok(new RegExp(selecteur.replace(/[.*+?^${}()|[\]\\>]/g, "\\$&") + " \\{[^}]*min-height: 44px").test(hors_commentaires), `cible de 44 px : ${nom}`);
+}
+ok(/\.cons-sous-titre \{[^}]*font-weight: var\(--poids-titre-moyen\)/.test(hors_commentaires) && /\.cons-carte-titre \{[^}]*font-weight: var\(--poids-titre-moyen\)/.test(hors_commentaires),
+  "titres de la section : épaisseur par jeton");
+ok(/\.modal\.confirmer-detaille \{[^}]*overflow-x: hidden;[^}]*overflow-y: auto/.test(hors_commentaires), "la fenêtre détaillée défile de haut en bas, jamais de côté");
+
 // --- Hygiène des fichiers de la tâche ---
-for (const fichier of ["js/views/qualiopi.js", "js/qualiopi-page-rules.js", "js/qualiopi-impression.js", "js/qualiopi-resultats.js", "css/qualiopi.css"]) {
+for (const fichier of ["js/views/qualiopi.js", "js/qualiopi-page-rules.js", "js/qualiopi-impression.js", "js/qualiopi-resultats.js", "css/qualiopi.css",
+  "js/views/conservation.js", "js/effacement-rules.js", "js/confirmer.js"]) {
   const texte = lire(fichier);
   ok(!texte.includes(TIRET_CADRATIN), `${fichier} : aucun tiret cadratin`);
   ok(!/\bprof\b/i.test(texte.replace(/\bprofil\w*/gi, "")), `${fichier} : « formateur », jamais « prof »`);
@@ -268,7 +345,7 @@ for (const fichier of ["js/views/qualiopi.js", "js/qualiopi-page-rules.js", "js/
 for (const fichier of ["tests/qualiopi-page.test.mjs", "tests/qualiopi-page-rules.test.mjs", "tests/qualiopi-impression.test.mjs", "tests/qualiopi-resultats.test.mjs"]) {
   ok(!lire(fichier).includes(TIRET_CADRATIN), `${fichier} : aucun tiret cadratin`);
 }
-const diff = ["js/main.js", "js/views/centre.js", "index.html"].map((f) => [f, lire(f)]);
+const diff = ["js/main.js", "js/views/centre.js", "index.html", "js/views/config.js", "js/nouveautes-data.js", "js/db.js", "tests/effacement-rules.test.mjs", "tests/confirmer.test.mjs"].map((f) => [f, lire(f)]);
 diff.forEach(([f, t]) => ok(!t.includes(TIRET_CADRATIN), `${f} : aucun tiret cadratin`));
 
 console.log(`qualiopi-page : ${n} assertions OK`);

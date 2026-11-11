@@ -7,24 +7,24 @@ import {
   listStagiaires, listProfs, getPlanning, getHalfMetaForWeek, getJoursOff, getPromoCourante,
   listEmargementSeances, ouvrirEmargement, signerEmargement, signerEmargementFormateur,
   annoterEmargement, cloreEmargement, rouvrirEmargement, getEnteteEmargement, setEnteteEmargement,
-} from "../db.js?v=20261111e";
-import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261111e";
-import { confirmer } from "../confirmer.js?v=20261111e";
-import { icon } from "../icons.js?v=20261111e";
-import { isAdmin, isEquipe, getProfile } from "../auth-admin.js?v=20261111e";
+} from "../db.js?v=20261111f";
+import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261111f";
+import { confirmer } from "../confirmer.js?v=20261111f";
+import { icon } from "../icons.js?v=20261111f";
+import { isAdmin, isEquipe, getProfile } from "../auth-admin.js?v=20261111f";
 import {
   etatLigne, resumeSeance, resumeEnClair, etatSansFeuille, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
   demiVoisine, notesProposees, roleAuPlanning,
-} from "../emargement-rules.js?v=20261111e";
-import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261111e";
+} from "../emargement-rules.js?v=20261111f";
+import { ouvrirSignature, signatureOuMention } from "../signature-pad.js?v=20261111f";
 import {
   feuilleSeance, feuilleSemaine, imprimer, nomComplet, jourLong, DEMI_LONG, stagiairesDeFeuille,
-} from "../emargement-feuilles.js?v=20261111e";
-import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261111e";
-import { emargementActif } from "../emargement-etat.js?v=20261111e";
-import { estAdresseAttestations } from "../attestations-rules.js?v=20261111e";
-import { renderAttestations } from "./attestations.js?v=20261111e";
+} from "../emargement-feuilles.js?v=20261111f";
+import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261111f";
+import { emargementActif } from "../emargement-etat.js?v=20261111f";
+import { estAdresseAttestations } from "../attestations-rules.js?v=20261111f";
+import { renderAttestations } from "./attestations.js?v=20261111f";
 
 // Horaires par défaut, comme DEFAULT_HALF_META du planning.
 const HORAIRES_DEFAUT = { matin: { debut: "09:00", fin: "12:30" }, aprem: { debut: "13:30", fin: "17:00" } };
@@ -112,7 +112,7 @@ function jourOff(ctx, jour) {
 }
 
 function stagiaireIdsActifs(ctx) {
-  return ctx.stagiairesTous.filter((s) => s.actif).map((s) => s.id);
+  return ctx.stagiairesTous.filter((s) => s.actif && !s.anonymise_le).map((s) => s.id);
 }
 
 function enErreur(e) {
@@ -342,7 +342,7 @@ function dessinerSeance(ctx) {
       onClick: () => ouvrirObservation(ctx, s, st, ligne) }, ligne?.observation ? "Modifier la remarque" : "Remarque"));
     }
     ul.appendChild(el("li", { class: "em-ligne em-ligne-" + etat.code },
-      el("div", { class: "em-ligne-sig" }, etat.code === "signe" ? rendreSignature(ligne.trace, { titre: "Signature de " + displayStagiaire(st) }) : null),
+      el("div", { class: "em-ligne-sig" }, etat.code === "signe" ? signatureOuMention(ligne, "Signature de " + displayStagiaire(st)) : null),
       el("div", { class: "em-ligne-corps" },
         el("span", { class: "em-ligne-nom" }, displayStagiaire(st)),
         el("span", { class: "em-ligne-etat" }, etat.libelle,
@@ -422,7 +422,7 @@ function dessinerFormateurs(ctx, s, { ouverte }) {
   const bloc = el("div", { class: "em-formateurs" }, el("h3", {}, "Formateur"));
   for (const f of s.formateurs) {
     bloc.appendChild(el("div", { class: "em-formateur" },
-      el("div", { class: "em-ligne-sig" }, rendreSignature(f.trace, { titre: "Signature de " + f.nom })),
+      el("div", { class: "em-ligne-sig" }, signatureOuMention(f, "Signature de " + f.nom)),
       el("div", { class: "em-ligne-corps" },
         el("span", { class: "em-ligne-nom" }, f.nom),
         el("span", { class: "em-ligne-etat" }, jourLocal(f.signe_le) === s.jour

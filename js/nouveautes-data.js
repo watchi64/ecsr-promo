@@ -23,6 +23,22 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // Conservation des données (Qualiopi Q5), datée du jour de la mise en ligne. Pour l'équipe seulement : les boutons
+  // d'effacement quittent Réglages (ex-Paramètres) pour la page Qualiopi, que seul le fondateur ouvre.
+  {
+    id: "2026-11-11-conservation-fondateur",
+    date: "2026-11-11",
+    pour: "formateurs",
+    titre: "L'effacement des fiches passe par le fondateur",
+    resume: "Les boutons « Effacer les données » (dans Abandons) et « Anonymiser la promo » quittent Réglages. Les fiches "
+          + "des stagiaires sont maintenant gardées plus longtemps, comme preuves de la formation : le nom, le dossier "
+          + "professionnel, le livret et les feuilles d'émargement jusqu'au 31 décembre de la troisième année après la fin ; "
+          + "le compte, l'adresse e-mail et les commentaires partent 12 mois après la fin. C'est le fondateur de l'application "
+          + "qui fait chaque effacement, à la date prévue. Un stagiaire qui vous demande l'effacement de ses données n'a "
+          + "plus à être mis en abandon : transmettez sa demande au fondateur, qui efface tout, tout de suite. « Réactiver » reste dans "
+          + "Abandons, et la suppression des élèves bénévoles ne change pas.",
+    ou: { label: "Paramètres", route: "config" },
+  },
   {
     // Navigation unique (11/11/2026) : l'ancienne barre est retirée, toutes les promos ont la nouvelle. Premier du fichier : la
     // plus récente, celle que montre la carte « Nouveauté » de l'Accueil.
@@ -73,21 +89,23 @@ export const NOUVEAUTES = [
     ou: { label: "Accueil", route: "home" },
   },
   {
-    // Suite du lot 5 (mise en ligne du 11/11/2026). Texte destiné à l'équipe : au vouvoiement.
+    // Suite du lot 5 (mise en ligne du 11/11/2026). Texte destiné à l'équipe : au vouvoiement. Récit et étapes réécrits le jour
+    // même par le lot Q5 : l'anonymisation des promos, qui ne tenait pas les 3 ans promis, passe au fondateur (page Qualiopi).
     id: "2026-11-11-donnees-personnelles-centre",
     date: "2026-11-11",
     pour: "direction",
     titre: "Données personnelles dans les Réglages du centre",
-    resume: "Les Réglages du centre ont une section « Données personnelles ». Vous y voyez, pour chaque promo du centre, "
-          + "si les fiches peuvent être anonymisées (12 mois après la fin de la promo) et vous les anonymisez d'un geste, "
-          + "sans changer la promo affichée. Vous y supprimez aussi les élèves bénévoles du centre sans venue depuis 12 mois. "
+    resume: "Les Réglages du centre ont une section « Données personnelles ». Vous y supprimez les élèves bénévoles du "
+          + "centre sans venue depuis 12 mois, sans changer la promo affichée. La conservation des fiches des stagiaires "
+          + "(12 mois, puis jusqu'au 31 décembre de la troisième année après la fin) est gérée par le fondateur, sur la page "
+          + "Qualiopi ; la section le rappelle. "
           + "Autre changement : inviter comme formateur, direction ou siège l'adresse d'un ancien stagiaire dont la fiche n'existe "
           + "plus transforme son compte en compte du personnel, qui se connecte comme avant.",
     ou: { label: "Réglages du centre", route: "config" },
     guide: [
       "Ouvrez Réglages du centre, puis la section « Données personnelles », sous l'habillage.",
-      "Chaque promo du centre indique son état. Quand « Anonymiser la promo » apparaît, ouvrez-la, tapez ANONYMISER pour "
-        + "confirmer : les comptes, e-mails et dates de naissance sont effacés, les résultats restent sans nom.",
+      "La partie « Conservation des fiches » rappelle que le fondateur fait chaque effacement des fiches, à la date prévue ; "
+        + "transmettez-lui une demande d'effacement d'un stagiaire.",
       "Plus bas, « Élèves bénévoles sans venue depuis 12 mois » liste ceux du centre ; « Supprimer » les retire, y compris "
         + "des anciens créneaux du planning, après confirmation.",
     ],
@@ -688,10 +706,12 @@ export const NOUVEAUTES = [
           + "moyennes. Une nouvelle partie « Données personnelles » montre aussi quand une promo pourra "
           + "être anonymisée (12 mois après sa fin) et les élèves bénévoles à supprimer.",
     ou: { label: "Paramètres", route: "config" },
+    // Étapes réécrites au lot Q5 (conservation des données) : le bouton « Effacer les données » a quitté les Abandons, et une
+    // demande ne passe plus par l'abandon (elle fausserait le taux). Le titre et le récit, datés, restent ceux du 05/10.
     guide: [
-      "Réglages, partie Promo : « Abandon » sur le stagiaire concerné.",
-      "Dans « Abandons », bouton « Effacer les données », puis tapez son prénom pour confirmer.",
-      "Partie « Données personnelles » : l'anonymisation de la promo et les élèves bénévoles inactifs.",
+      "L'effacement des données se demande maintenant au fondateur : transmettez-lui la demande de la personne, sans la marquer en abandon.",
+      "Le fondateur efface tout, tout de suite, sur sa page Qualiopi ; la personne n'est pas comptée en abandon.",
+      "Réglages, partie « Données personnelles » : les élèves bénévoles inactifs.",
     ],
   },
   {

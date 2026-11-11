@@ -12,7 +12,7 @@ import {
 } from "../js/qualiopi-documents.js";
 import { inventairePromo, lignesDuPlanning, demiJournees, intervenantsDistincts } from "../js/qualiopi-preuves.js";
 import { INDICATEURS } from "../js/qualiopi-referentiel.js";
-import { indicateursPromo, ligneComparaison, METHODES } from "../js/centre-stats.js";
+import { indicateursPromo, ligneComparaison, METHODES, METHODES_PUBLIQUES } from "../js/centre-stats.js";
 import { slug } from "../js/centre-csv.js";
 import { NOUVEAUTES as NOUVEAUTES_REELLES } from "../js/nouveautes-data.js";
 
@@ -507,15 +507,16 @@ eq(lignesDe(avecHors, "deroule", 1), lignesDe(f, "deroule", 1), "déroulé : les
 
 // --- Assiduité
 eq(section(f, "assiduite").paragraphes,
-  ["Le calcul des heures d'après les feuilles d'émargement n'est pas encore repris dans ce dossier : joindre les feuilles d'émargement signées."],
-  "assiduité : tant que l'émargement n'est pas branché, une phrase utile à l'auditeur");
+  ["Assiduité : feuilles d'émargement non lues (erreur de lecture).",
+    "Les heures ne sont pas mesurées d'après les feuilles d'émargement pour cette promo : joindre les feuilles d'émargement signées, si elles existent."],
+  "assiduité : feuilles non lues, la raison puis une phrase utile à l'auditeur");
 eq(section(f, "assiduite").tableaux, [], "assiduité : aucun tableau");
 // Quand l'inventaire aura la pièce, le dossier en reprend la phrase.
 const invAvecHeures = JSON.parse(JSON.stringify(inv));
 invAvecHeures.indicateurs.forEach((i) => i.pieces.forEach((p) => {
   if (p.cle === "assiduite") Object.assign(p, { presente: true, detail: "120 heures prévues, 118 réalisées", raison: null });
 }));
-eq(section(formation({ inv: invAvecHeures }), "assiduite").paragraphes, ["Assiduité : 120 heures prévues, 118 réalisées."],
+eq(section(formation({ inv: invAvecHeures }), "assiduite").paragraphes, ["Assiduité : 120 heures prévues, 118 réalisées.", `Méthode de calcul : ${METHODES_PUBLIQUES.presence}`],
   "assiduité présente : la phrase de l'inventaire");
 
 // --- Passages (stagiaires en formation uniquement)
@@ -588,14 +589,14 @@ eq(signalements([{ id: 1, created_at: null, traite_at: "2026-10-02T10:00:00+00:0
 const examen = section(f, "examen");
 eq(examen.paragraphes, [
   "Dossier professionnel : enregistré pour 1 stagiaire sur 3 en formation, dernière mise à jour le 10/10.",
-  "Heures de formation : non mesurées, le calcul d'après les feuilles d'émargement n'étant pas encore repris.",
+  "Heures de formation : non mesurées (erreur de lecture).",
   "Stagiaires en formation uniquement : 3 sur 4 inscrits.",
 ], "examen : dossier professionnel, heures, population");
 eq(entetesDe(f, "examen"), ["Stagiaire", "Dossier professionnel", "Livret EPCF", "Heures de formation"], "examen : en-têtes");
 eq(lignesDe(f, "examen"), [
-  ["Delmas Bastien", "oui, mis à jour le 10/10/2026", "aucun", "non mesurées"],
-  ["Lambert Kevin", "aucun", "aucun", "non mesurées"],
-  ["Marchand Anaïs", "aucun", "oui, mis à jour le 15/10/2026", "non mesurées"],
+  ["Delmas Bastien", "oui, mis à jour le 10/10/2026", "aucun", "non mesurées (erreur de lecture)"],
+  ["Lambert Kevin", "aucun", "aucun", "non mesurées (erreur de lecture)"],
+  ["Marchand Anaïs", "aucun", "oui, mis à jour le 15/10/2026", "non mesurées (erreur de lecture)"],
 ], "examen : par stagiaire en formation");
 
 // --- Appréciations
@@ -861,7 +862,7 @@ eq(presence(9, "Dates clés"),
 eq(presence(16, "Dossier professionnel"),
   "présente pour 1 promo sur 2 ; absente pour 1 promo sur 2 : aucun dossier professionnel enregistré par les stagiaires en formation",
   "même règle pour le dossier professionnel");
-eq(presence(10, "Assiduité"), "absente pour 2 promos sur 2 : calcul des heures pas encore branché", "absente pour toutes les promos");
+eq(presence(10, "Assiduité"), "absente pour 2 promos sur 2 : feuilles d'émargement non lues (erreur de lecture)", "absente pour toutes les promos");
 eq(lignesDe(c, "inventaire", 1).filter((l) => l[0] === "10").map((l) => l[1]), ["Effectif, abandons", "Assiduité", "Passages", "Suivi"],
   "inventaire : les pièces d'un indicateur dans l'ordre du tableau du § 6.2");
 ok(!lignesDe(c, "inventaire", 1).some((l) => l[0] === "1"), "un indicateur hors de l'app n'a aucune pièce de l'application");
@@ -881,7 +882,7 @@ const troisPromos = centre({ promos: [
   { promo: { ...EN_COURS, id: 10, nom: "Promo 10" }, inv: invRaison("raison A"), ind: ind8, donnees: D8 },
 ] });
 eq(lignesDe(troisPromos, "inventaire", 1).find((l) => l[0] === "10" && l[1] === "Assiduité")[2],
-  "absente pour 4 promos sur 4 : calcul des heures pas encore branché (1 promo) ; raison A (2 promos) ; raison B (1 promo)",
+  "absente pour 4 promos sur 4 : feuilles d'émargement non lues (erreur de lecture) (1 promo) ; raison A (2 promos) ; raison B (1 promo)",
   "raisons regroupées par texte, chacune avec son nombre de promos");
 
 // =====================================================================================================
@@ -1059,7 +1060,7 @@ eq(tableCsv.find((l) => l[0] === "10"), [
   "10", "3", "Adapter l'accompagnement et le suivi", "Prouvé",
   "Effectif, abandons : 4 inscrits, dont 3 ont suivi la formation jusqu'au bout et 1 abandon | Passages : 3 passages en salle et 3 en voiture (remplacements compris), 2 absences de dernière minute | "
     + "Suivi : " + inv.indicateurs.find((i) => i.numero === 10).pieces.find((p) => p.cle === "suivi").detail,
-  "Assiduité : calcul des heures pas encore branché",
+  "Assiduité : feuilles d'émargement non lues (erreur de lecture)",
   "aucune",
 ], "10 : plusieurs pièces présentes, une absente avec sa raison");
 eq(tableCsv.find((l) => l[0] === "1"), ["1", "1", court(1), "Hors de l'app", "aucune", "aucune", "Site, Catalogue, Fiche formation"],
@@ -1140,10 +1141,10 @@ ok(!source.includes(TIRET_CADRATIN), "aucun tiret cadratin dans le module");
 const code = source.replace(/\/\/.*$/gm, "");
 ok(!/\bdocument\.|\bwindow\.|\bfetch\(|\bsupabase\b|\blocalStorage\b/.test(code), "le module est pur : ni DOM, ni réseau, ni base");
 eq(code.match(/^import .* from "(.*)";$/gm).map((l) => l.match(/from "(.*)"/)[1].replace(/\?v=\w+$/, "")),
-  ["./qualiopi-referentiel.js", "./qualiopi-preuves.js", "./registre-rules.js", "./centre-stats.js", "./notes-stats.js", "./centre-csv.js", "./utils.js"],
+  ["./qualiopi-referentiel.js", "./qualiopi-preuves.js", "./registre-rules.js", "./centre-stats.js", "./notes-stats.js", "./centre-csv.js", "./utils.js", "./effacement-rules.js", "./attestations-rules.js", "./qualiopi-presence.js"],
   "il n'importe que des modules purs de l'app, avec le jeton de version des autres imports");
 // Les aides de l'inventaire sont importées, jamais recopiées : la synthèse par semaine suit la règle de l'inventaire.
-const AIDES = ["jourDe", "rempli", "tableau", "nb", "promoTerminee", "nouveautesCitables", "lignesDuPlanning", "demiJournees", "intervenantsDistincts"];
+const AIDES = ["jourDe", "rempli", "tableau", "nb", "demandesDe", "RAISON_EFFACEE", "promoTerminee", "nouveautesCitables", "lignesDuPlanning", "demiJournees", "intervenantsDistincts"];
 const importPreuves = code.match(/import \{([^}]*)\} from "\.\/qualiopi-preuves\.js\?v=\w+";/);
 eq(importPreuves && importPreuves[1].split(",").map((s) => s.trim()), AIDES, "il importe de l'inventaire les petits outils et les aides du planning");
 ["ISO_JOUR", "porteQuelqueChose", "cleJour", "jourDeLigne", ...AIDES].forEach((nom) =>

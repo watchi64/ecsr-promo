@@ -3634,8 +3634,10 @@ GUIDES = {
 GUIDES_EQUIPE = {
     "Un tableau de bord du centre, promo par promo":
         ("Ouvrez Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».", "Ouvre l'Accueil, puis la tuile « Tableau de bord »."),
+    # Étapes réécrites au lot Q5 (conservation des données) : la demande se transmet au fondateur, dans les deux navigations.
     "Effacer les données d'un stagiaire, à sa demande":
-        ("Réglages, partie Promo : « Abandon » sur le stagiaire concerné.", "Paramètres, partie Promo : « Abandon » sur le stagiaire concerné."),
+        ("L'effacement des données se demande maintenant au fondateur : transmettez-lui la demande de la personne, sans la marquer en abandon.",
+         "L'effacement des données se demande maintenant au fondateur : transmettez-lui la demande de la personne, sans la marquer en abandon."),
     "Une page Stagiaires : toute la promo, une fiche par personne":
         ("Ouvrez Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).", "Ouvre la tuile Stagiaires de l'Accueil."),
     "Deux promos dans l'app, et des modules réglés promo par promo":

@@ -8,8 +8,8 @@
 // sinon ses résultats sont provisoires : la fiche porte l'avertissement « Ne pas publier » et n'est jamais publiable.
 //
 // Les chiffres viennent du tableau de bord du centre (indicateursPromo, js/centre-stats.js) et les méthodes de METHODES_PUBLIQUES
-// (même fichier), écrites pour le public. Trois mesures ne sont pas encore produites par l'application : la présence
-// (l'émargement n'est pas branché), l'obtention du titre (les résultats de jury ne sont pas saisis) et la satisfaction
+// (même fichier), écrites pour le public. Trois mesures peuvent manquer à l'application : la présence
+// (elle vient des feuilles d'émargement closes de la promo, { etat: "non_lue" } si leur lecture échoue), l'obtention du titre (les résultats de jury ne sont pas saisis) et la satisfaction
 // (questionnaires du lot Q3). Elles se disent en toutes lettres (« non mesuré », « non saisi », « non mesurée ») ; le jour où
 // l'une arrive, l'appelant la passe sous la forme { taux, effectif } (taux de 0 à 1, effectif : le nombre de stagiaires sur
 // lequel il porte) et la fiche l'écrit. Une mesure inutilisable vaut une mesure absente.
@@ -20,10 +20,10 @@
 // Jamais de valeur « null », « undefined » ou « NaN » dans la fiche ni dans ses textes : ce qui manque devient un mot. Sans
 // indicateurs exploitables, la fiche est celle d'une promo sans inscrit.
 
-import { METHODES_PUBLIQUES, pct } from "./centre-stats.js?v=20261111e";
-import { promoTerminee, periodeEnMots, edition } from "./qualiopi-documents.js?v=20261111e";
-import { rempli, tableau, nb } from "./qualiopi-preuves.js?v=20261111e";
-import { texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261111e";
+import { METHODES_PUBLIQUES, pct } from "./centre-stats.js?v=20261111f";
+import { promoTerminee, periodeEnMots, edition } from "./qualiopi-documents.js?v=20261111f";
+import { rempli, tableau, nb } from "./qualiopi-preuves.js?v=20261111f";
+import { texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261111f";
 
 // L'interface du plan : la règle « terminée » est celle des dossiers et les méthodes publiques celles du tableau de bord
 // (js/centre-stats.js, à côté de METHODES) ; ni l'une ni les autres ne sont réécrites ici, seulement réexportées.
@@ -71,6 +71,7 @@ export function ficheResultats({ promo, ind, aujourdhui, presence = null, obtent
   // absente n'a ni effectif ni méthode de calcul : elle ne décrit pas un calcul qui n'a pas eu lieu.
   const mesure = (cle, donnee) => {
     const t = taux(donnee?.taux);
+    if (donnee?.etat === "non_lue") return ligne(cle, "non lue (erreur de lecture)", SANS_OBJET, MESURE_NON_DISPONIBLE);
     return t === null ? ligne(cle, VALEURS_ABSENTES[cle], SANS_OBJET, MESURE_NON_DISPONIBLE) : ligne(cle, pct(t), entier(donnee.effectif) ?? inscrits);
   };
   // La satisfaction du questionnaire de fin de formation : le taux est un entier de 0 à 100, l'effectif est celui des avis notés,

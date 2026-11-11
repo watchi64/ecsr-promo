@@ -3,11 +3,18 @@
 // js/emargement-rules.js : la zone peut changer de taille (rotation du téléphone) sans
 // déformer le tracé, et le chemin envoyé est celui que le serveur vérifie.
 
-import { el } from "./utils.js?v=20261111e";
-import { REPERE, cheminDepuisTraits, traitsSuffisants } from "./emargement-rules.js?v=20261111e";
+import { el } from "./utils.js?v=20261111f";
+import { REPERE, cheminDepuisTraits, traitsSuffisants, signatureEffacee, MENTION_SIGNATURE_EFFACEE } from "./emargement-rules.js?v=20261111f";
 
 const SVG = "http://www.w3.org/2000/svg";
 const EPAISSEUR = 3.2;   // en unités du repère : environ 0,3 mm sur une case de feuille
+
+// Le dessin d'une ligne d'émargement, ou la mention écrite à sa place quand il a été effacé à la durée de conservation
+// (l'heure, la présence et le total d'heures restent). `ligne` : une ligne de stagiaire ou de formateur.
+export function signatureOuMention(ligne, titre) {
+  if (signatureEffacee(ligne)) return el("span", { class: "sig-effacee" }, MENTION_SIGNATURE_EFFACEE);
+  return rendreSignature(ligne?.trace, { titre });
+}
 
 // Signature enregistrée → SVG à l'échelle de son conteneur (écran comme impression).
 export function rendreSignature(trace, { classe = "sig-rendu", titre = "Signature" } = {}) {

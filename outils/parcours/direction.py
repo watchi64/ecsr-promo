@@ -419,6 +419,7 @@ def fiche_d_un_autre_centre(v):
 
 
 PHRASE_CONNEXION = "La connexion a échoué. Vérifier le réseau, puis réessayer."
+PHRASE_CONSERVATION = "La conservation des fiches est gérée par le fondateur, sur la page Qualiopi."   # js/effacement-rules.js (lot Q5)
 
 
 def exiger_une_phrase_dans_la_fenetre(v, quoi):
@@ -488,26 +489,25 @@ def panne_creer_promo(v):
 @parcours("direction-donnees-personnelles", "Suite du lot 5 · La direction ouvre les Données personnelles de ses Réglages du centre", role="direction",
           budget=2, banc={"compte": "direction", "donnees": "pret"}, navigations=NOUVELLE, depart=DEPART)
 def donnees_personnelles(v):
-    """Réglages du centre : sous l'habillage, la section « Données personnelles » (une ligne par promo du centre, « Anonymiser la promo »
-    pour celle dont les 12 mois sont écoulés, puis les élèves bénévoles à supprimer). Rien n'est anonymisé ni supprimé."""
+    """Réglages du centre : sous l'habillage, la section « Données personnelles » (la phrase de la conservation des fiches, gérée par
+    le fondateur depuis le lot Q5, sans aucun bouton d'anonymisation, puis les élèves bénévoles à supprimer). Rien n'est supprimé."""
     v.aller("Réglages du centre")
     attendre_page(v, "Réglages du centre")
     v.attendre('#view .reglage-donnees h3:has-text("Données personnelles")', "la section « Données personnelles »")
-    v.attendre("#view .reglage-donnees .donnees-promo", "une ligne par promo du centre")
-    lignes = v.page.locator("#view .reglage-donnees .donnees-promo").count()
-    if lignes != 2:
-        v.constat("E", BLOQUE, "la section montre %d promo(s) au lieu des 2 promos de Nîmes" % lignes, capture=True)
-    v.attendre('#view .reglage-donnees button:has-text("Anonymiser la promo")', "« Anonymiser la promo » pour la promo dont les 12 mois sont écoulés")
+    v.attendre('#view .reglage-donnees [data-conservation] p:has-text("%s")' % PHRASE_CONSERVATION, "la phrase : la conservation des fiches est au fondateur")
+    if v.voit('#view .reglage-donnees button:has-text("Anonymiser")') or v.voit("#view .reglage-donnees .donnees-promo"):
+        v.constat("E", BLOQUE, "la direction voit encore l'anonymisation des promos (réservée au fondateur depuis le lot Q5)", capture=True)
     v.attendre('#view .reglage-donnees button:has-text("Supprimer ces 2 élèves")', "« Supprimer ces 2 élèves » pour les élèves bénévoles")
     v.but("section Données personnelles")
     v.terminer()
 
 
 @parcours("panne-direction-donnees-personnelles", "Suite du lot 5 · Base en panne : les Données personnelles disent la panne et proposent Réessayer",
-          role="direction", budget=2, banc={"compte": "direction", "donnees": "pret", "panne": "etat_anonymisation_promo,benevoles_a_purger"},
+          role="direction", budget=2, banc={"compte": "direction", "donnees": "pret", "panne": "benevoles_a_purger"},
           navigations=NOUVELLE, depart=DEPART)
 def panne_donnees_personnelles(v):
-    """Les lectures des données personnelles en panne : chaque bloc dit que la connexion a échoué, avec « Réessayer »."""
+    """La lecture des élèves bénévoles en panne : le bloc dit que la connexion a échoué, avec « Réessayer » ; la phrase de la
+    conservation (sans lecture) reste."""
     v.console_attendue("TypeError: Failed to fetch")
     v.aller("Réglages du centre")
     attendre_page(v, "Réglages du centre")

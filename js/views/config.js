@@ -4,28 +4,30 @@
  * js/emargement-etat.js) · Données personnelles ; Mes préférences (#/preferences, tous les rôles, renderPreferences)
  * garde ce qui est à la personne : Apparence (lot 3, pour tous) · Dans les notes de la classe (l'anonymat, pour qui a
  * une fiche de stagiaire) · Informations (dont « À retenir », les règles courtes que l'Accueil ne porte plus).
+ * La conservation des fiches (étapes datées, effacement à la demande) vit sur la page Qualiopi, fondateur seul (lot Q5) :
+ * Données personnelles le dit, avec un lien pour le fondateur, et garde la purge des élèves bénévoles.
  */
 import {
   listStagiaires, listProfs,
-  etatAnonymisationPromo, anonymiserPromo, listBenevolesAPurger, purgerBenevoles,
+  listBenevolesAPurger, purgerBenevoles,
   getPromoCourante, renommerPromo,
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   setMyAnonymousNotes,
-} from "../db.js?v=20261111e";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111e";
-import { confirmer, demander } from "../confirmer.js?v=20261111e";
-import { icon } from "../icons.js?v=20261111e";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261111e";
-import { moduleVisible } from "../modules-etat.js?v=20261111e";
-import { renderModulesSection } from "./modules-reglage.js?v=20261111e";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111e";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261111e";
-import { pointsARetenir } from "../accueil-rules.js?v=20261111e";
-import { dateCourte, etatFinDePromo, questionAnonymiserPromo, questionPurgerBenevoles } from "../effacement-rules.js?v=20261111e";
-import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111e";
-import { blocHabillage } from "../habillage-choix.js?v=20261111e";
-import { nomBenevole } from "../planning-lecture.js?v=20261111e";
+} from "../db.js?v=20261111f";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111f";
+import { confirmer } from "../confirmer.js?v=20261111f";
+import { icon } from "../icons.js?v=20261111f";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261111f";
+import { moduleVisible } from "../modules-etat.js?v=20261111f";
+import { renderModulesSection } from "./modules-reglage.js?v=20261111f";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111f";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261111f";
+import { pointsARetenir } from "../accueil-rules.js?v=20261111f";
+import { dateCourte, questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261111f";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111f";
+import { blocHabillage } from "../habillage-choix.js?v=20261111f";
+import { nomBenevole } from "../planning-lecture.js?v=20261111f";
 
 // ====== SECTION Accès & invitations ======
 
@@ -427,14 +429,15 @@ async function renderPromoSection(rerender) {
   return section;
 }
 
-// ====== SECTION Données personnelles (admins) ======
-// Engagements des conditions d'utilisation (sections 7 et 10) : anonymisation 12 mois après la
-// fin de promo, élèves bénévoles supprimés 12 mois après leur dernière venue. Le serveur vérifie
-// tout (droit admin, délais) ; ici on montre l'état et on déclenche.
+// ====== SECTION Données personnelles (équipe) ======
+// Engagements des conditions d'utilisation (sections 7 et 10). La conservation des fiches (étapes à 12 mois et à 3 ans,
+// effacement à la demande) est gérée par le fondateur sur la page Qualiopi (lot Q5) : la section le dit, avec un lien pour
+// le fondateur seulement. Les élèves bénévoles sans venue depuis 12 mois restent ici, pour qui y a droit. Le serveur
+// vérifie tout (droits, délais) ; ici on montre l'état et on déclenche.
 
 async function renderDonneesSection(rerender) {
   if (!isEquipe()) return null;
-  // L'anonymisation est ouverte à l'équipe de la promo ; la suppression des élèves bénévoles, au formateur seul.
+  // La suppression des élèves bénévoles : le formateur seul (isAdmin).
   const avecBenevoles = isAdmin();
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
@@ -445,35 +448,19 @@ async function renderDonneesSection(rerender) {
     ),
   ));
 
-  const [etat, benevoles] = await Promise.all([
-    etatAnonymisationPromo().catch((e) => { console.error(e); return undefined; }),
-    avecBenevoles ? listBenevolesAPurger().catch((e) => { console.error(e); return undefined; }) : Promise.resolve(undefined),
-  ]);
+  const benevoles = avecBenevoles
+    ? await listBenevolesAPurger().catch((e) => { console.error(e); return undefined; })
+    : undefined;
 
-  // Fin de promo
-  const blocPromo = el("div", { class: "param-block" });
-  blocPromo.appendChild(el("div", { class: "block-head" }, el("h4", {}, "Fin de promo")));
-  if (etat === undefined) {
-    blocPromo.appendChild(el("p", { class: "muted" }, "État indisponible pour le moment."));
-  } else {
-    const fin = etatFinDePromo(etat);
-    blocPromo.appendChild(el("p", { class: "muted donnees-texte" }, fin.texte));
-    if (fin.bouton) {
-      blocPromo.appendChild(el("button", { class: "btn danger", onClick: async (e) => {
-        const bouton = e.currentTarget;
-        const saisie = await demander(questionAnonymiserPromo(etat.nom));
-        if (typeof saisie !== "string") return;
-        bouton.disabled = true;
-        try {
-          const r = await anonymiserPromo();
-          const n = r.anonymises;
-          toast(`${n} fiche${n > 1 ? "s" : ""} anonymisée${n > 1 ? "s" : ""}.`, "success", 6000);
-          rerender();
-        } catch (err) { toast(err.message, "error"); rerender(); }
-      } }, "Anonymiser la promo"));
-    }
+  // Conservation des fiches : la phrase pour toute l'équipe, le lien vers la page Qualiopi pour le fondateur seul (la page
+  // est fermée aux autres comptes et à l'aperçu « Voir en tant que »).
+  const blocConservation = el("div", { class: "param-block", "data-conservation": "" });
+  blocConservation.appendChild(el("div", { class: "block-head" }, el("h4", {}, "Conservation des fiches")));
+  blocConservation.appendChild(el("p", { class: "muted donnees-texte" }, PHRASE_CONSERVATION));
+  if (fondateurHorsApercu()) {
+    blocConservation.appendChild(el("a", { class: "btn cons-lien", href: "#/qualiopi", "data-lien-conservation": "" }, "Ouvrir la page Qualiopi"));
   }
-  section.appendChild(blocPromo);
+  section.appendChild(blocConservation);
 
   // Élèves bénévoles inactifs
   const blocBnv = el("div", { class: "param-block" });

@@ -2,13 +2,13 @@
 // semaine (paysage). Construites hors écran puis clonées pour l'impression par le mécanisme
 // des documents officiels (js/doc-officiel.js) : seul #emargement-print s'imprime.
 
-import { el, compareByNom } from "./utils.js?v=20261111e";
-import { bindDocPrint } from "./doc-officiel.js?v=20261111e";
-import { rendreSignature } from "./signature-pad.js?v=20261111e";
+import { el, compareByNom } from "./utils.js?v=20261111f";
+import { bindDocPrint } from "./doc-officiel.js?v=20261111f";
+import { signatureOuMention } from "./signature-pad.js?v=20261111f";
 import {
   etatLigne, libelleCreneau, heureLocale, jourLocal, dureeMinutes, libelleDuree, minutesPresence,
   jourDe, jourFerie, DEMI_JOURNEES,
-} from "./emargement-rules.js?v=20261111e";
+} from "./emargement-rules.js?v=20261111f";
 
 // Nom complet sur un document officiel : NOM en capitales, puis le prénom.
 export function nomComplet(s) {
@@ -37,7 +37,9 @@ function horodatage(iso) {
 export function stagiairesDeFeuille(seance, stagiairesTous) {
   const ids = new Set((seance?.lignes || []).map((l) => l.stagiaire_id));
   return stagiairesTous
-    .filter((s) => ids.has(s.id) || (seance?.statut !== "close" && s.actif))
+    // Feuille ouverte : une fiche sans nom (anonymise_le posé) ne signe plus et n'est plus listée. Feuille close : elle
+    // reste, en « Anonyme n », comme preuve de présence.
+    .filter((s) => (seance?.statut === "close" || !s.anonymise_le) && (ids.has(s.id) || (seance?.statut !== "close" && s.actif)))
     .sort(compareByNom);
 }
 
@@ -88,7 +90,7 @@ export function feuilleSeance({ entete, promo, seance, stagiairesTous, absentsPl
       el("td", { class: "emf-num" }, String(i + 1)),
       el("td", { class: "emf-nom" }, nomComplet(s)),
       el("td", { class: "emf-sig" }, etat.code === "signe"
-        ? rendreSignature(ligne.trace, { titre: "Signature de " + nomComplet(s) })
+        ? signatureOuMention(ligne, "Signature de " + nomComplet(s))
         : el("span", { class: "emf-vide" }, etat.code === "absent" ? "Absent" : "")),
       el("td", { class: "emf-obs" }, ...obs.filter(Boolean).map((t) => el("div", {}, t))),
     );
@@ -97,7 +99,7 @@ export function feuilleSeance({ entete, promo, seance, stagiairesTous, absentsPl
   const formateurs = seance.formateurs.length
     ? seance.formateurs.map((f) => el("tr", {},
         el("td", { class: "emf-nom" }, f.nom),
-        el("td", { class: "emf-sig" }, rendreSignature(f.trace, { titre: "Signature de " + f.nom })),
+        el("td", { class: "emf-sig" }, signatureOuMention(f, "Signature de " + f.nom)),
         el("td", { class: "emf-obs" }, "Signé à " + heureSignature(f.signe_le, seance.jour))))
     : [el("tr", {}, el("td", { class: "emf-nom emf-manque", colspan: "3" }, "Aucune signature de formateur"))];
 
@@ -156,7 +158,10 @@ export function feuilleSemaine({ entete, promo, lundi, seances, stagiairesTous, 
   }
   const ids = new Set(seances.flatMap((s) => s.lignes.map((l) => l.stagiaire_id)));
   const ouverte = seances.some((s) => s.statut !== "close");
-  const liste = stagiairesTous.filter((s) => ids.has(s.id) || (ouverte && s.actif)).sort(compareByNom);
+  // Semaine ouverte : une fiche sans nom (anonymise_le posé) n'est plus listée ; semaine close, elle reste en « Anonyme n ».
+  const liste = stagiairesTous
+    .filter((s) => (!ouverte || !s.anonymise_le) && (ids.has(s.id) || (ouverte && s.actif)))
+    .sort(compareByNom);
   const toutesLignes = seances.flatMap((s) => s.lignes);
 
   const enteteJours = el("tr", {},
@@ -173,7 +178,7 @@ export function feuilleSemaine({ entete, promo, lundi, seances, stagiairesTous, 
     const etat = etatLigne({ ligne, close: c.seance.statut === "close" });
     if (etat.code === "signe") {
       return el("td", { class: "emf-case" },
-        rendreSignature(ligne.trace, { titre: "Signature de " + nomComplet(s) }),
+        signatureOuMention(ligne, "Signature de " + nomComplet(s)),
         el("span", { class: "emf-heure" }, heureSignature(ligne.signe_le, c.seance.jour)));
     }
     return el("td", { class: "emf-case emf-" + etat.code }, etat.code === "absent" ? "Absent" : "");
@@ -188,7 +193,7 @@ export function feuilleSemaine({ entete, promo, lundi, seances, stagiairesTous, 
     el("td", { class: "emf-nom" }, "Formateur"),
     ...colonnes.map((c) => el("td", { class: "emf-case" + (c.seance ? "" : " emf-sans") },
       ...(c.seance?.formateurs || []).map((f) => el("div", { class: "emf-formateur" },
-        rendreSignature(f.trace, { titre: "Signature de " + f.nom }),
+        signatureOuMention(f, "Signature de " + f.nom),
         el("span", { class: "emf-heure" }, f.nom))))),
     el("td", { class: "emf-heures" }));
 

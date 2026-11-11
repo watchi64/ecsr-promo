@@ -4,11 +4,11 @@
 // (impression du navigateur) et CSV de la matrice des notes. Les calculs vivent dans
 // js/centre-stats.js et js/centre-csv.js (purs, testés) : ici, seulement l'affichage.
 
-import { lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261111e";
-import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261111e";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261111e";
-import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261111e";
-import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261111e";
+import { lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande, getMesPromos, getPromoCourante } from "../db.js?v=20261111f";
+import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261111f";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261111f";
+import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261111f";
+import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261111f";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
@@ -67,7 +67,8 @@ export function cartesCles(ind) {
   return [
     carte({ cle: "effectif", titre: "Effectif", nature: "mesuré",
       valeur: pluriel(ef.inscrits, "inscrit"),
-      detail: `${pluriel(ef.enFormation, "en formation", "en formation")} · ${pluriel(ef.abandons, "abandon")}` }),
+      detail: `${pluriel(ef.enFormation, "en formation", "en formation")} · ${pluriel(ef.abandons, "abandon")}`
+        + (ef.surDemande ? ` · ${pluriel(ef.surDemande, "effacée à la demande", "effacées à la demande")}` : "") }),
     carte({ cle: "abandon", titre: "Taux d'abandon", nature: "mesuré",
       valeur: ab.valeur == null ? null : pct(ab.valeur),
       detail: ab.valeur == null ? null : `${pluriel(ab.detail.abandons, "abandon")} sur ${pluriel(ab.detail.inscrits, "inscrit")}` }),
@@ -273,9 +274,12 @@ export async function renderCentre(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   const promo = getPromoCourante();
-  let referentiel, donnees;
+  let referentiel, donnees, demandes;
   try {
-    [referentiel, donnees] = await Promise.all([lireReferentielCentre(), lireDonneesCentre(promo?.id ?? null)]);
+    // Les fiches effacées à la demande, de la promo affichée et des autres promos du tableau de comparaison : lues une fois.
+    const idsPromos = [...new Set([promo?.id, ...getMesPromos().map((p) => p.id)].filter((id) => id != null))];
+    [referentiel, donnees, demandes] = await Promise.all([lireReferentielCentre(), lireDonneesCentre(promo?.id ?? null),
+      lireEffacementsSurDemande(idsPromos)]);
   } catch (e) {
     console.error(e);
     if (jeton !== rendu) return;
@@ -287,7 +291,7 @@ export async function renderCentre(container) {
   }
   if (jeton !== rendu) return;
   const aujourdhui = isoDate(new Date());
-  const ind = indicateursPromo(donnees, referentiel, { aujourdhui });
+  const ind = indicateursPromo(donnees, referentiel, { aujourdhui, demandes });
 
   clear(container);
   const racine = el("div", { class: "centre" });
@@ -337,7 +341,7 @@ export async function renderCentre(container) {
     for (const p of comparaison.autres) {
       let ligne = null;
       try {
-        ligne = ligneComparaison(indicateursPromo(await lireDonneesCentre(p.id), referentiel, { aujourdhui }));
+        ligne = ligneComparaison(indicateursPromo(await lireDonneesCentre(p.id), referentiel, { aujourdhui, demandes }));
       } catch (e) { console.error("tableau de bord : promo " + p.id, e); }
       if (jeton !== rendu) return;
       comparaison.remplir(p.id, ligne);

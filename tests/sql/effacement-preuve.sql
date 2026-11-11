@@ -1,4 +1,7 @@
 -- Preuve de l'effacement et de l'anonymisation (migration 20261005_effacement_donnees).
+-- HISTORIQUE, à ne plus jouer après le lot Q5 (20261110_conservation.sql) : les fonctions qu'elle appelle
+-- (anonymiser_stagiaire, anonymiser_promo, etat_anonymisation_promo) sont supprimées par ce lot. Elle est remplacée par
+-- tests/sql/conservation-preuve.sql.
 -- Rejouable : le bloc lève TOUJOURS une exception à la fin (verdict « VERT n/0 » ou « ROUGE »),
 -- tout est annulé. Données 100 % fictives (example.invalid, promo 9999).
 -- Répétition avant application : envoyer la migration puis ce fichier dans UNE seule requête.

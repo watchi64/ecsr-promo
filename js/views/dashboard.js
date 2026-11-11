@@ -1,8 +1,8 @@
-import { listStagiaires, getStats } from "../db.js?v=20261111e";
-import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261111e";
-import { lundiEnCours } from "../journee-rules.js?v=20261111e";
-import { icon } from "../icons.js?v=20261111e";
-import { renderPassages } from "./passages.js?v=20261111e";
+import { listStagiaires, getStats } from "../db.js?v=20261111f";
+import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261111f";
+import { lundiEnCours } from "../journee-rules.js?v=20261111f";
+import { icon } from "../icons.js?v=20261111f";
+import { renderPassages } from "./passages.js?v=20261111f";
 
 const SORT_OPTIONS = [
   { key: "priorite",   label: "Ordre de passage" },

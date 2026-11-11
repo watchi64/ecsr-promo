@@ -632,6 +632,106 @@ body .modal-backdrop[data-nav-coquille="registre"] > .nav-fenetre.registre-fenet
   .rg-actions .btn { flex: 1 1 100%; }
 }
 
+/* ============================================================
+   Conservation des données (Q5) : sous-onglet de la page (js/views/conservation.js),
+   une carte par échéance et par fiche (jamais un tableau), et la fenêtre de confirmation
+   détaillée (js/confirmer.js : listes et saisie), qui s'ouvre hors de .qualiopi.
+   ============================================================ */
+
+.cons { display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
+.cons-sous-titre { margin: 0.9rem 0 0.1rem; font-size: 1rem; font-weight: var(--poids-titre-moyen); }
+.cons-zone { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.cons-zone > .qualiopi-rangee-titre { margin: 0.5rem 0 0; }
+.cons-statut { margin: 0; min-height: 1.3em; font-size: 0.92rem; color: var(--text-soft); }
+.cons-statut:empty { min-height: 0; }
+.cons-statut.erreur:not(:empty) { padding: 0.55rem 0.75rem; border-radius: var(--r-sm); background: var(--c-wait-soft); color: var(--text); }
+
+.cons-cartes, .cons-fiches { display: flex; flex-direction: column; gap: 0.55rem; margin: 0; padding: 0; list-style: none; }
+.cons-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg-elev);
+}
+.cons-carte.due { border-color: var(--c-wait-bord); }
+.cons-carte-tete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.3rem 0.75rem; }
+.cons-sorte { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.cons-quand { font-size: 0.85rem; font-weight: 600; color: var(--text-soft); }
+.cons-quand.due { padding: 0.15rem 0.6rem; border-radius: 999px; background: var(--c-wait-soft); color: var(--text); }
+.cons-carte-titre { margin: 0; font-size: 1rem; font-weight: var(--poids-titre-moyen); }
+.cons-texte { margin: 0; font-size: 0.92rem; line-height: 1.5; }
+.cons-details > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+  color: var(--accent-strong);
+  cursor: pointer;
+}
+.cons-details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cons-liste-titre, .confirmer-liste-titre { margin: 0.4rem 0 0.2rem; font-size: 0.88rem; font-weight: 600; }
+.cons-liste, .confirmer-liste { margin: 0 0 0.3rem; padding-left: 1.2rem; font-size: 0.9rem; line-height: 1.45; }
+.cons-liste li + li, .confirmer-liste li + li { margin-top: 0.15rem; }
+
+.cons-fiche {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg-elev);
+}
+.cons-fiche-texte { flex: 1 1 14rem; min-width: 0; }
+.cons-fiche-nom { margin: 0; font-weight: 600; }
+.cons-fiche-statut { margin: 0.1rem 0 0; font-size: 0.85rem; color: var(--text-muted); }
+.cons-fiche.sans-nom .cons-fiche-nom { color: var(--text-soft); }
+.cons-aide { margin: 0; }
+
+/* Le lien « Ouvrir la page Qualiopi » de Réglages, partie Données personnelles (fondateur seul) : cible de 44 px. */
+.cons-lien { display: inline-flex; align-items: center; min-height: 44px; }
+
+/* Fenêtre de confirmation détaillée : elle peut être longue sur téléphone, elle défile de haut en bas, jamais de côté. */
+.modal.confirmer-detaille {
+  max-width: 560px;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+.modal.confirmer-detaille h3 { margin-bottom: 0.8rem; }
+/* Le champ de la saisie (EFFACER ou le prénom) : l'étiquette est celle de demander() (.confirmer-champ, css/style.css). */
+.modal.confirmer-detaille .confirmer-champ { margin-top: 0.8rem; }
+.modal.confirmer-detaille .confirmer-champ input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--text-muted);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+.modal.confirmer-detaille .confirmer-champ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.modal.confirmer-detaille .modal-actions { flex-wrap: wrap; }
+.modal.confirmer-detaille .btn { min-height: 44px; white-space: normal; }
+.modal.confirmer-detaille .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+@media (max-width: 640px) {
+  .cons-fiche .btn { flex: 1 1 100%; }
+  .modal.confirmer-detaille .modal-actions .btn { flex: 1 1 100%; }
+}
+
 @media (max-width: 640px) {
   .qualiopi-fiche { padding: 0.25rem 0.85rem 0.15rem; }
   .qualiopi-fiche-ligne { grid-template-columns: minmax(0, 1fr); gap: 0.1rem; min-height: 0; padding: 0.55rem 0; }

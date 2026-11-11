@@ -216,7 +216,32 @@ for (const formateur of [false, true]) {
 eq(ids(triees(JUSQU_AU_LOT(visibles(NOUVEAUTES, false))))[0], journee.id, "stagiaire : la plus récente est la journée");
 ok(!/IA/.test(aujourdhui.resume), "Aujourd'hui : le résumé n'annonce pas Propositions IA à tous (réservé aux administrateurs, dans les étapes)");
 
-// Questionnaires anonymes (plan Qualiopi Q3, tâche 5) : pour tous, datée de la mise en ligne.
+// Conservation des données (Qualiopi Q5, tâche 7) : pour les formateurs, datée de la mise en ligne ; en tête de leur liste (carte
+// « Nouveauté » de l'Accueil), jamais chez un stagiaire. Une seule navigation depuis la phase 2 : visibles(entrées, formateur, espace).
+const CONSERVATION_ID = "2026-11-11-conservation-fondateur";
+const conservation = NOUVEAUTES.find((e) => e.id === CONSERVATION_ID);
+ok(!!conservation && conservation.pour === "formateurs" && conservation.navigation === undefined && conservation.id.startsWith(conservation.date + "-"),
+  "conservation : pour les formateurs, sans champ navigation, id préfixé par sa date");
+for (const espace of [undefined, "equipe"]) {
+  eq(ids(triees(visibles(NOUVEAUTES, true, espace)))[0], CONSERVATION_ID, `conservation : la plus récente chez un formateur (espace ${espace})`);
+}
+for (const espace of [undefined, "stagiaire"]) {
+  ok(!ids(visibles(NOUVEAUTES, false, espace)).includes(CONSERVATION_ID), `conservation : jamais chez un stagiaire (espace ${espace})`);
+  ok(ids(triees(visibles(NOUVEAUTES, false, espace)))[0] !== CONSERVATION_ID, `stagiaire : la plus récente n'est jamais la conservation (espace ${espace})`);
+}
+for (const espace of ["direction", "siege"]) {
+  ok(!ids(visibles(NOUVEAUTES, true, espace)).includes(CONSERVATION_ID), `conservation : jamais dans l'espace ${espace}`);
+}
+for (const motif of [/Effacer les données/, /Anonymiser la promo/, /quittent Réglages/, /31 décembre de la troisième année/, /12 mois/, /fondateur/,
+  /n'a plus à être mis en abandon/, /« Réactiver » reste/, /élèves bénévoles/]) {
+  ok(motif.test(conservation.resume), "conservation : dit " + motif);
+}
+eq(conservation.ou, { label: "Paramètres", route: "config" }, "conservation : Où le trouver, Paramètres (Réglages sous la nouvelle barre)");
+ok(VOUVOIEMENT.test(horsCitations(tout(conservation))) && !TUTOIEMENT.test(horsCitations(tout(conservation))) && !/\bprofs?\b/i.test(tout(conservation)) && !tout(conservation).includes(String.fromCharCode(0x2014)),
+  "conservation : vouvoiement (texte de l'équipe, lot D), « formateur » jamais « prof », aucun tiret cadratin");
+ok(!/RPC|Supabase|migration|base de données|anonymise_le|efface_le/i.test(tout(conservation)), "conservation : aucun mot technique");
+
+// Questionnaires anonymes (plan Qualiopi Q3, tâche 5) : pour tous, dans les deux navigations, datée de la mise en ligne.
 const questionnaires = NOUVEAUTES.find((e) => e.id === QUESTIONNAIRES_ID);
 ok(!!questionnaires && questionnaires.pour === "tous" && questionnaires.date === "2026-11-09",
   "questionnaires : pour tous, du 09/11");
@@ -265,7 +290,12 @@ for (const e of NOUVEAUTES) {
 // Les consignes exactes des gestes réécrits (inventaire des textes, § 2.3).
 // Au vous pour les formateurs, à l'infinitif pour tous (décision du 10/11).
 eq(par("2026-10-23-tableau-de-bord-centre").guide[0], "Ouvrez Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».", "tableau de bord : Indicateurs");
-eq(par("2026-10-05-effacement-donnees").guide[0], "Réglages, partie Promo : « Abandon » sur le stagiaire concerné.", "effacement : Réglages, partie Promo");
+eq(par("2026-10-05-effacement-donnees").guide[0], "L'effacement des données se demande maintenant au fondateur : transmettez-lui la demande de la personne, sans la marquer en abandon.",
+  "effacement (05/10) : depuis le lot Q5, la demande se transmet au fondateur");
+ok(!par("2026-10-05-effacement-donnees").guide.some((s) => /« Abandon » sur|« Effacer les données »/.test(s)),
+  "effacement (05/10) : plus aucune étape vers « Abandon » ni vers le bouton « Effacer les données », qui n'existe plus");
+eq(par("2026-10-05-effacement-donnees").titre, "Effacer les données d'un stagiaire, à sa demande", "effacement (05/10) : le titre daté est gardé");
+ok(/Marquez-le d'abord en abandon/.test(par("2026-10-05-effacement-donnees").resume), "effacement (05/10) : le récit daté n'est pas réécrit");
 eq(par("2026-10-03-page-stagiaires").guide[0], "Ouvrez Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).", "page Stagiaires : la barre de gauche");
 eq(par("2026-07-31-dossier-professionnel").guide[0], "Ouvrir Mon suivi, dans la barre.", "dossier professionnel : Mon suivi");
 eq(par("2026-07-19-livret-epcf").guide[0], "Ouvrir Mon suivi, partie Livret EPCF.", "livret : Mon suivi, partie Livret EPCF");
@@ -424,11 +454,13 @@ ok(!!donnees && donnees.date === "2026-11-11" && donnees.pour === "direction" &&
   "données personnelles : datée du 11/11, pour la direction, titre attendu");
 ok(donnees.ou && donnees.ou.route === "config" && donnees.ou.label === "Réglages du centre", "données personnelles : mène aux Réglages du centre");
 ok(Array.isArray(donnees.guide) && donnees.guide.length >= 3, "données personnelles : un « Comment faire » d'au moins trois étapes");
-ok(/vous|ouvrez/i.test(tout(donnees)) && !/(tu|ton|ta|tes|toi)/i.test(tout(donnees)), "données personnelles : vouvoiement (texte de l'équipe)");
-ok(!/profs?/i.test(tout(donnees)) && !tout(donnees).includes(CADRATIN) && !/#[0-9a-f]{3,6}/i.test(tout(donnees)), "données personnelles : « formateur » jamais « prof », aucun tiret cadratin, aucune couleur");
-for (const motif of [/Données personnelles/, /Anonymiser la promo/, /ANONYMISER/, /Élèves bénévoles/, /ancien stagiaire/]) {
+ok(/vous|ouvrez/i.test(tout(donnees)) && !TUTOIEMENT.test(horsCitations(tout(donnees))), "données personnelles : vouvoiement (texte de l'équipe)");
+ok(!/\bprofs?\b/i.test(tout(donnees)) && !tout(donnees).includes(CADRATIN) && !/#[0-9a-f]{3,6}\b/i.test(tout(donnees)), "données personnelles : « formateur » jamais « prof », aucun tiret cadratin, aucune couleur");
+for (const motif of [/Données personnelles/, /Conservation des fiches/, /fondateur/, /page Qualiopi/, /Élèves bénévoles/, /ancien stagiaire/]) {
   ok(motif.test(tout(donnees)), `données personnelles : dit ${motif}`);
 }
+// Réconciliation avec Q5 (11/11) : plus d'anonymisation par la direction, la Nouveauté ne mène plus vers un bouton disparu.
+ok(!/Anonymiser la promo|ANONYMISER|anonymisez/.test(tout(donnees)), "données personnelles : plus aucune étape vers « Anonymiser la promo »");
 ok(lesEspacesDonnees("direction") && !lesEspacesDonnees("siege") && !lesEspacesDonnees("equipe") && !lesEspacesDonnees("stagiaire"), "données personnelles : lue dans l'espace direction seulement");
 function lesEspacesDonnees(espace) { return ids(visibles(NOUVEAUTES, true, espace)).includes(donnees.id); }
 // Qui voit quoi, sur les vraies entrées.
