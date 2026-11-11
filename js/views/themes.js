@@ -27,6 +27,7 @@ import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261111e";
 import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261111e";
 import { renderPropositionsIa } from "./propositions-ia.js?v=20261111e";
 import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261111e";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111e";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -253,11 +254,11 @@ function blocExamenListe(theme, qcm, apres) {
 // COMBIEN DE TEMPS ; la fenêtre nomme le thème et résume ce qui part. Une ouverture sans échéance reste possible, mais
 // le formateur devra refermer lui-même : la liste des thèmes l'affiche pour qu'il ne l'oublie pas.
 function ouvrirExamen(theme, qcm, apres) {
-  const bd = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
   const choix = el("div", { class: "exam-duree-choix" });
   DUREES_OUVERTURE.forEach((d) => {
     const b = el("button", { class: "btn ghost full", type: "button" }, d.label);
-    b.addEventListener("click", () => { bd.remove(); publierExamen(qcm, echeanceDepuisChoix(d), apres); });
+    b.addEventListener("click", () => { modale.fermer(); publierExamen(qcm, echeanceDepuisChoix(d), apres); });
     choix.appendChild(b);
   });
   const modal = el("div", { class: "modal" },
@@ -268,11 +269,9 @@ function ouvrirExamen(theme, qcm, apres) {
       "Les stagiaires pourront démarrer pendant cette durée. Celui qui a démarré à temps peut terminer sa passe."),
     choix,
     el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", type: "button", onClick: () => bd.remove() }, "Annuler")),
+      el("button", { class: "btn ghost", type: "button", onClick: () => modale.fermer() }, "Annuler")),
   );
-  bd.appendChild(modal);
-  bd.addEventListener("click", (e) => { if (e.target === bd) bd.remove(); });
-  document.body.appendChild(bd);
+  modale = ouvrirModale(modal);
 }
 
 // Publier : met en ligne avec la config actuelle (gèle toutes les questions si aucun tirage défini).
@@ -298,28 +297,15 @@ async function publierExamen(qcm, fermeA, apres) {
 }
 
 // Fermer : demandé d'abord, car la base refuse alors aussi la remise d'un examen commencé (qcm_exam_remise_toleree :
-// un examen fermé n'accepte plus rien), et un doigt peut glisser sur la mauvaise ligne de la liste. Une fenêtre de
-// l'app plutôt que confirm() du navigateur (Échap ou « Annuler » la referment sans rien changer).
+// un examen fermé n'accepte plus rien), et un doigt peut glisser sur la mauvaise ligne de la liste. Échap, « Annuler » ou
+// un toucher à côté referment la question sans rien changer (js/confirmer.js).
 function confirmerFermeture(theme) {
-  return new Promise((resolve) => {
-    const num = theme.numero ?? theme.code;
-    const quel = num != null && num !== "" ? `l'examen du thème ${num}` : `l'examen « ${theme.titre} »`;
-    const bd = el("div", { class: "modal-backdrop" });
-    const finir = (oui) => { document.removeEventListener("keydown", echap, true); bd.remove(); resolve(oui); };
-    const echap = (e) => { if (e.key === "Escape") { e.stopPropagation(); finir(false); } };
-    const fermer = el("button", { class: "btn danger", type: "button", onClick: () => finir(true) }, "Fermer l'examen");
-    bd.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "exam-fermer-titre" },
-      el("h3", { id: "exam-fermer-titre" }, `Fermer ${quel} ?`),
-      el("p", { class: "muted", style: "margin:0 0 0.8rem" },
-        "Les stagiaires ne pourront plus le démarrer, et ceux qui l'ont commencé ne pourront plus le rendre."),
-      el("div", { class: "modal-actions" },
-        el("button", { class: "btn ghost", type: "button", onClick: () => finir(false) }, "Annuler"),
-        fermer),
-    ));
-    bd.addEventListener("click", (e) => { if (e.target === bd) finir(false); });
-    document.addEventListener("keydown", echap, true);
-    document.body.appendChild(bd);
-    fermer.focus();
+  const num = theme.numero ?? theme.code;
+  const quel = num != null && num !== "" ? `l'examen du thème ${num}` : `l'examen « ${theme.titre} »`;
+  return confirmer({
+    titre: `Fermer ${quel} ?`,
+    phrase: "Les stagiaires ne pourront plus le démarrer, et ceux qui l'ont commencé ne pourront plus le rendre.",
+    oui: "Fermer l'examen",
   });
 }
 
@@ -363,7 +349,7 @@ function sansPromo() { return getEspace() === "siege"; }
 // Fiche QCM dédiée, ouverte depuis la colonne QCM de la liste.
 // Regroupe : mes notes, l'entraînement, l'examen (stagiaire) et la gestion (formateur).
 function openQcmSheet(theme, qcm) {
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
   const body = el("div", { class: "qcm-sheet-body" });
 
   // Corps re-rendable : re-appelé après Publier/Dépublier pour que le bloc
@@ -392,14 +378,14 @@ function openQcmSheet(theme, qcm) {
 
     // S'entraîner (tout le monde). Ordre adaptatif : mes erreurs passées d'abord.
     body.appendChild(el("button", { class: "btn primary full", type: "button",
-      onClick: () => { backdrop.remove(); openQcmEntrainement(theme, qcm); } }, icon.play(), "S'entraîner"));
+      onClick: () => { modale.fermer(); openQcmEntrainement(theme, qcm); } }, icon.play(), "S'entraîner"));
     body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
       "Libre, illimité, ne compte pas dans les notes. Les questions déjà ratées passent en premier."));
 
     // Revoir mes erreurs : rejoue uniquement les questions échouées (les 2 modes comptent).
     if (stagiaireAvecFiche) {
       body.appendChild(el("button", { class: "btn ghost full", type: "button", style: "margin-top:0.45rem",
-        onClick: () => { backdrop.remove(); openQcmEntrainement(theme, qcm, { errorsOnly: true }); } },
+        onClick: () => { modale.fermer(); openQcmEntrainement(theme, qcm, { errorsOnly: true }); } },
         icon.history(), "Revoir mes erreurs"));
     }
 
@@ -408,7 +394,7 @@ function openQcmSheet(theme, qcm) {
       if (examenDemarrable(qcm)) {
         const restant = tempsRestantMs(qcm);
         body.appendChild(el("button", { class: "btn accent full", type: "button", style: "margin-top:0.9rem",
-          onClick: () => { backdrop.remove(); openQcmExamen(theme, qcm); } }, "Passer l'examen"));
+          onClick: () => { modale.fermer(); openQcmExamen(theme, qcm); } }, "Passer l'examen"));
         body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
           "Une seule passe, chronométrée, notée sur 20."
           + (restant == null ? "" : ` L'examen ferme dans ${formatTempsRestant(restant)}.`)));
@@ -426,7 +412,7 @@ function openQcmSheet(theme, qcm) {
     if (canManageExam() && nbSignal) {
       const voir = el("button", { class: "btn full", type: "button", style: "margin-top:0.9rem" },
         deco(icon.drapeau()), `${nbSignal} question${nbSignal > 1 ? "s" : ""} contestée${nbSignal > 1 ? "s" : ""} à traiter`);
-      voir.addEventListener("click", () => { backdrop.remove(); openQcmEditor(theme, qcm.id); });
+      voir.addEventListener("click", () => { modale.fermer(); openQcmEditor(theme, qcm.id); });
       body.appendChild(voir);
       body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
         nbSignal > 1
@@ -456,12 +442,10 @@ function openQcmSheet(theme, qcm) {
     ),
     body,
     el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer"),
+      el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Fermer"),
     ),
   );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
 }
 
 // Panneau formateur : statut + deux actions (ouvrir/retirer l'examen, Modifier).
@@ -523,7 +507,7 @@ function themeExamPanel(theme, qcm, onPublishChange) {
 
   // Modale « Modifier » : temps, questions (au hasard / à la main), tentatives.
   function openConfig() {
-    const bd = el("div", { class: "modal-backdrop" });
+    let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
     const summary = el("p", { class: "muted", style: "font-size:0.82rem;margin:0 0 0.6rem" });
     function refreshSummary() {
       const frozenN = Array.isArray(qcm.exam_question_ids) ? qcm.exam_question_ids.length : qcm.nb_questions;
@@ -564,7 +548,7 @@ function themeExamPanel(theme, qcm, onPublishChange) {
       catch (e) { toast("Chargement impossible : " + (e?.message || e), "error"); return; }
       const qs = (full.questions || []).filter((q) => (q.options || []).length > 0);
       const preset = new Set(Array.isArray(qcm.exam_question_ids) ? qcm.exam_question_ids : []);
-      const backdrop = el("div", { class: "modal-backdrop" });
+      let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
       const list = el("div", { class: "exam-pick-list" });
       const countEl = el("span", { class: "muted", style: "font-size:0.82rem;margin-left:auto" });
       function updateCount() { countEl.textContent = `${list.querySelectorAll("input[type=checkbox]:checked").length} / ${qs.length} sélectionnées`; }
@@ -585,23 +569,21 @@ function themeExamPanel(theme, qcm, onPublishChange) {
         ),
         list,
         el("div", { class: "modal-actions" },
-          el("button", { class: "btn ghost", type: "button", onClick: () => backdrop.remove() }, "Annuler"),
+          el("button", { class: "btn ghost", type: "button", onClick: () => modale.fermer() }, "Annuler"),
           el("button", { class: "btn primary", type: "button", onClick: async () => {
             const ids = qs.filter((q) => list.querySelector(`input[data-qid="${q.id}"]`).checked).map((q) => q.id);
             if (!ids.length) { toast("Sélectionnez au moins une question.", "error"); return; }
             try {
               await updateExamConfig(qcm.id, { exam_question_ids: ids, exam_draw_mode: "manual", exam_nb_questions: ids.length });
               Object.assign(qcm, { exam_question_ids: ids, exam_draw_mode: "manual", exam_nb_questions: ids.length });
-              backdrop.remove();
+              modale.fermer();
               toast(`Sélection de ${ids.length} questions.`, "success"); refreshStatus(); refreshSummary();
             } catch (e) { toast("Impossible : " + (e?.message || e), "error"); }
           } }, "Valider la sélection"),
         ),
       );
       updateCount();
-      backdrop.appendChild(modal2);
-      backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-      document.body.appendChild(backdrop);
+      modale = ouvrirModale(modal2);
     }
 
     async function manageAttempts() {
@@ -610,7 +592,7 @@ function themeExamPanel(theme, qcm, onPublishChange) {
       // (chargerAuteurs, celle de la console des questions contestées ; un échec y retombe sur le prénom).
       try { await chargerAuteurs(); attempts = await listExamAttempts(qcm.id); }
       catch (e) { toast("Chargement impossible : " + (e?.message || e), "error"); return; }
-      const backdrop = el("div", { class: "modal-backdrop" });
+      let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
       const bodyA = el("div", { class: "exam-attempts-list" });
       function fill() {
         clear(bodyA);
@@ -630,18 +612,16 @@ function themeExamPanel(theme, qcm, onPublishChange) {
       fill();
       const modal3 = el("div", { class: "modal" },
         el("h3", {}, "Tentatives d'examen"), bodyA,
-        el("div", { class: "modal-actions" }, el("button", { class: "btn ghost", type: "button", onClick: () => backdrop.remove() }, "Fermer")),
+        el("div", { class: "modal-actions" }, el("button", { class: "btn ghost", type: "button", onClick: () => modale.fermer() }, "Fermer")),
       );
-      backdrop.appendChild(modal3);
-      backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-      document.body.appendChild(backdrop);
+      modale = ouvrirModale(modal3);
     }
 
     // Ouvre l'éditeur de la banque : ferme la modale « Modifier » mais LAISSE la fiche QCM
     // dessous (z-index:200). L'éditeur (z-index:1000) s'ouvre au premier plan ; à sa fermeture
     // le formateur retombe sur la fiche QCM (son point de départ), pas sur la liste nue.
     function editQuestions() {
-      bd.remove();
+      modale.fermer();
       openQcmEditor(theme, qcm.id);
     }
 
@@ -668,12 +648,10 @@ function themeExamPanel(theme, qcm, onPublishChange) {
         el("button", { class: "btn ghost full", type: "button", onClick: manageAttempts }, "Gérer les tentatives"),
       ),
       el("div", { class: "modal-actions" },
-        el("button", { class: "btn primary", type: "button", onClick: () => bd.remove() }, "Fermer"),
+        el("button", { class: "btn primary", type: "button", onClick: () => modale.fermer() }, "Fermer"),
       ),
     );
-    bd.appendChild(modal);
-    bd.addEventListener("click", (e) => { if (e.target === bd) bd.remove(); });
-    document.body.appendChild(bd);
+    modale = ouvrirModale(modal);
   }
 
   panel.appendChild(el("p", { class: "theme-exam-panel-title" }, "Examen (formateur)"));
@@ -916,9 +894,9 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
   }
 
   // Demande de brouillons : nombre et partie du cours. Au-dessus de l'éditeur (classe
-  // qcm-form-backdrop), et l'Échap de l'éditeur s'efface devant elle.
+  // qcm-form-backdrop), et l'Échap de l'éditeur s'efface devant elle. Pendant la demande, rien ne la ferme.
   function openPropositionIa() {
-    const backdrop = el("div", { class: "modal-backdrop qcm-form-backdrop" });
+    let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
     const nombre = el("select", {}, ...[1, 2, 3, 4, 5].map((k) => el("option", { value: String(k) }, String(k))));
     nombre.value = "3";
     const partie = el("select", { disabled: true }, el("option", { value: "" }, "Chargement du cours…"));
@@ -929,11 +907,7 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
 
     function fermer() {
       if (enCours) return;
-      document.removeEventListener("keydown", onKey);
-      backdrop.remove();
-    }
-    function onKey(e) {
-      if (e.key === "Escape") { e.preventDefault(); fermer(); }
+      modale.fermer();
     }
     function bloquer(oui) {
       enCours = oui;
@@ -971,7 +945,7 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
       }
     });
 
-    backdrop.appendChild(el("div", { class: "modal qcm-form-modal qcm-ia-modal" },
+    modale = ouvrirModale(el("div", { class: "modal qcm-form-modal qcm-ia-modal" },
       el("h3", {}, "Proposer des questions avec l'IA"),
       el("p", { class: "qcm-ia-note" },
         "L'IA lit le cours vérifié de ce thème et rédige des brouillons. Ils restent invisibles des stagiaires : "
@@ -980,9 +954,7 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
       el("div", { class: "field" }, el("label", {}, "Partie du cours"), partie),
       etat,
       el("div", { class: "modal-actions" }, annuler, proposer),
-    ));
-    document.addEventListener("keydown", onKey);
-    document.body.appendChild(backdrop);
+    ), { classeFond: "qcm-form-backdrop", fermerAuVoile: false, avantFermeture: () => !enCours });
   }
 
   // Les questions contestées en tête de l'éditeur : c'est là que le formateur corrige,
@@ -1112,10 +1084,8 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = [], { 
   // (.qcm-overlay, z-index 1000). Sans cette classe le formulaire s'ouvrait derrière :
   // il paraissait « ouvrir la question du dessous » et tout clic atterrissait sur
   // l'overlay, qui fermait l'éditeur entier.
-  const backdrop = el("div", { class: "modal-backdrop qcm-form-backdrop" });
-  // Réassignée plus bas (retire aussi l'écouteur clavier) ; ce défaut sert si save()
-  // aboutit avant l'installation du gestionnaire de fermeture.
-  let closeForm = () => backdrop.remove();
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
+  const closeForm = () => modale.fermer();   // save() ferme ainsi la fenêtre enregistrée
 
   const sectionInput = el("input", { type: "text", placeholder: "Section (optionnel)", value: question?.section || "" });
   const enonceInput = el("textarea", { rows: 3, placeholder: "Énoncé de la question" }, question?.enonce || "");
@@ -1291,7 +1261,6 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = [], { 
         brouillon ? "Accepter dans le QCM" : "Enregistrer"),
     ),
   );
-  backdrop.appendChild(modal);
 
   // Saisie en cours : on ne perd JAMAIS le travail sur un clic à côté.
   // Le clic sur le fond est ignoré ; Annuler et Échap demandent confirmation si le
@@ -1300,22 +1269,16 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = [], { 
   modal.addEventListener("input", () => { touched = true; });
   modal.addEventListener("change", () => { touched = true; });
 
-  function close() {
-    document.removeEventListener("keydown", onKey);
-    backdrop.remove();
-  }
   async function requestCancel() {
     if (touched && !(await confirmer({ titre: "Abandonner les modifications de cette question ?",
       oui: "Abandonner", non: "Continuer" }))) return;
-    close();
+    closeForm();
   }
-  function onKey(e) {
-    if (e.key === "Escape") { e.preventDefault(); requestCancel(); }
-  }
-  document.addEventListener("keydown", onKey);
-  closeForm = close;  // utilisé par save() pour fermer proprement
-
-  document.body.appendChild(backdrop);
+  // Échap passe par la même demande qu'Annuler : la fenêtre reste ouverte, requestCancel() la ferme si on confirme.
+  modale = ouvrirModale(modal, {
+    classeFond: "qcm-form-backdrop", fermerAuVoile: false,
+    avantFermeture: () => { requestCancel(); return false; },
+  });
   setTimeout(() => enonceInput.focus(), 80);
 }
 let filterStatut = "";
@@ -1390,7 +1353,7 @@ function updateThemeRowInPlace(theme, chipEl) {
 }
 
 function openDateEditor(theme, anchorEl, container) {
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
   const dateInput = el("input", {
     type: "date",
     value: theme.date_fait || isoDate(new Date()),
@@ -1435,7 +1398,7 @@ function openDateEditor(theme, anchorEl, container) {
         }
       }
       refreshStatsInPlace(container);
-      backdrop.remove();
+      modale.fermer();
       toast("Date mise à jour", "success", 1500);
     } catch (e) {
       toast(e.message, "error");
@@ -1450,14 +1413,12 @@ function openDateEditor(theme, anchorEl, container) {
       el("div", { class: "field" }, el("label", {}, "Date"), dateInput),
     ),
     el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler"),
+      el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Annuler"),
       theme.date_fait ? el("button", { class: "btn danger", onClick: () => save(null) }, "Effacer") : null,
       el("button", { class: "btn primary", onClick: () => save(dateInput.value) }, icon.check(), "Enregistrer"),
     )
   );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
   setTimeout(() => dateInput.focus(), 80);
 }
 
@@ -1471,7 +1432,7 @@ function optionsCoursPour(theme) {
 }
 
 function openThemeModal(theme) {
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
   const num = theme.code || (theme.numero ? String(theme.numero).padStart(2, "0") : null);
   const modal = el("div", { class: "modal theme-modal" },
     el("div", { class: "theme-modal-head" },
@@ -1482,7 +1443,7 @@ function openThemeModal(theme) {
     coursVisible(theme)
       ? el("div", { class: "theme-cours-cta" },
           el("button", { class: "btn primary full", type: "button",
-            onClick: () => { backdrop.remove(); openCoursSheet(theme, optionsCoursPour(theme)); } },
+            onClick: () => { modale.fermer(); openCoursSheet(theme, optionsCoursPour(theme)); } },
             icon.edu(), "Lire le cours"),
           el("p", { class: "theme-cours-hint" },
             "Synthèse, contenu détaillé, sanctions sourcées, chiffres clés et aide-mémoire."),
@@ -1500,12 +1461,10 @@ function openThemeModal(theme) {
             : null,
         ),
     el("div", { class: "modal-actions" },
-      el("button", { class: "btn primary", onClick: () => backdrop.remove() }, "Fermer"),
+      el("button", { class: "btn primary", onClick: () => modale.fermer() }, "Fermer"),
     ),
   );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
 }
 
 function renderThemeRow(theme, container, coursOn = false) {
@@ -1623,7 +1582,7 @@ function renderThemeRow(theme, container, coursOn = false) {
 }
 
 function openAddNotionModal(onSaved) {
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
 
   const titreInput = el("input", { type: "text", placeholder: "Ex. Matrice GDE" });
   const catInput = el("input", { type: "text", placeholder: "Catégorie (optionnel)", value: "Notion pédagogique" });
@@ -1639,7 +1598,7 @@ function openAddNotionModal(onSaved) {
         updated_by_email: getAdminEmail(),
       });
       toast("Notion ajoutée pour toutes les promos", "success");
-      backdrop.remove();
+      modale.fermer();
       onSaved();
     } catch (e) { toast(e.message, "error"); }
   }
@@ -1651,13 +1610,11 @@ function openAddNotionModal(onSaved) {
       el("div", { class: "field" }, el("label", {}, "Catégorie"), catInput),
     ),
     el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler"),
+      el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Annuler"),
       el("button", { class: "btn primary", onClick: save }, icon.check(), "Enregistrer"),
     )
   );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
 }
 
 // Méta de présentation par "famille" (groupe top-level dans la nav)

@@ -10,6 +10,7 @@ import { confirmer } from "../confirmer.js?v=20261111e";
 import { icon } from "../icons.js?v=20261111e";
 import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261111e";
 import { recordUndo } from "../undo.js?v=20261111e";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111e";
 
 let events = [];
 
@@ -85,7 +86,7 @@ function countdownInfo(e) {
 
 function openEventModal(existing, onSaved) {
   const isNew = !existing;
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
 
   const typeSel = el("select");
   EVENT_TYPES.forEach((t) => {
@@ -152,7 +153,7 @@ function openEventModal(existing, onSaved) {
         });
         toast("Événement mis à jour", "success", 1800);
       }
-      backdrop.remove();
+      modale.fermer();
       onSaved();
     } catch (e) {
       console.error(e);
@@ -173,13 +174,11 @@ function openEventModal(existing, onSaved) {
       el("div", { class: "field" }, el("label", {}, "Notes"), descInput),
     ),
     el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler"),
+      el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Annuler"),
       el("button", { class: "btn primary", onClick: save }, icon.check(), "Enregistrer"),
     )
   );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
   setTimeout(() => titleInput.focus(), 80);
 }
 

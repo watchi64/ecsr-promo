@@ -29,6 +29,7 @@ import {
 } from "../journee-rules.js?v=20261111e";
 import { nomsStagiaires, nomBenevole } from "../planning-lecture.js?v=20261111e";
 import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261111e";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111e";
 
 let stagiaires = [];
 let profs = [];
@@ -2200,7 +2201,7 @@ async function saveHalfMeta(d, half, patch) {
 
 function openHalfMetaEditor(d, half, anchorEl) {
   const meta = metaFor(d, half);
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
 
   const startInput = el("input", { type: "time", value: meta.start_time });
   const endInput = el("input", { type: "time", value: meta.end_time });
@@ -2216,7 +2217,7 @@ function openHalfMetaEditor(d, half, anchorEl) {
       pause_start: pauseInput.value || null,
       pause_minutes: Number(pauseMinInput.value) || 20,
     });
-    backdrop.remove();
+    modale.fermer();
   }
 
   const modal = el("div", { class: "modal" },
@@ -2234,13 +2235,11 @@ function openHalfMetaEditor(d, half, anchorEl) {
       ),
     ),
     el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler"),
+      el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Annuler"),
       el("button", { class: "btn primary", onClick: save }, icon.check(), "Enregistrer"),
     )
   );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
 }
 
 async function changeWeek(dateStr) {
@@ -2389,7 +2388,7 @@ function openValiderSemaineModal() {
 }
 
 function renderValiderModal(toCreate, already, existKey, themeCandidates) {
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
   const nameOf = (id) => {
     const s = stagiaires.find((x) => x.id === id);
     return s ? displayStagiaire(s) : "Stagiaire inconnu";
@@ -2477,7 +2476,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   const lockRow = el("label", { class: "valider-lock-row", for: "valider-lock-cb" },
     lockCb, " Verrouiller la semaine après enregistrement");
 
-  const cancelBtn = el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler");
+  const cancelBtn = el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Annuler");
   const saveBtn = el("button", { class: "btn primary" }, icon.check(), "Enregistrer");
 
   async function save() {
@@ -2558,7 +2557,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
           editMode = true;
         }
       });
-      backdrop.remove();
+      modale.fermer();
       if (wantLock) renderInto(currentContainer);   // bascule badge + read-only + compact
     } catch (e) {
       console.error(e);
@@ -2580,9 +2579,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn),
   );
 
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
 }
 
 // Mémo des règles de placement, en langage simple.

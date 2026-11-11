@@ -7,6 +7,7 @@ import { rendreMarkdown } from "./views/cours-reader.js?v=20261111e";
 import { CONDITIONS_MD, MENTIONS_MD, VERSION_CONDITIONS } from "./legal-data.js?v=20261111e";
 import { doitAccepter, aDejaAccepte, lignesEssentiel, dateVersion } from "./legal-rules.js?v=20261111e";
 import { listMesAcceptations, accepterConditions, signOut } from "./db.js?v=20261111e";
+import { ouvrirModale } from "./nav-fenetre.js?v=20261111e";
 
 const ONGLETS = [
   { cle: "conditions", libelle: "Conditions d'utilisation", md: CONDITIONS_MD },
@@ -88,7 +89,7 @@ export async function exigerAcceptation(email) {
 
 function fenetreAcceptation(miseAJour) {
   return new Promise((resolve) => {
-    const backdrop = el("div", { class: "modal-backdrop legal-backdrop" });
+    let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
     const coche = el("input", { type: "checkbox", id: "legal-coche" });
     const erreur = el("p", { class: "error hidden" });
     const continuer = el("button", { class: "btn primary full", type: "button", disabled: true }, "Continuer");
@@ -99,7 +100,7 @@ function fenetreAcceptation(miseAJour) {
       erreur.classList.add("hidden");
       try {
         await accepterConditions(VERSION_CONDITIONS);
-        backdrop.remove();
+        modale.fermer();
         toast("Merci, c'est enregistré.", "success", 2000);
         resolve();
       } catch (e) {
@@ -133,7 +134,7 @@ function fenetreAcceptation(miseAJour) {
         location.reload();
       } }, "Se déconnecter"),
     );
-    backdrop.appendChild(modal);
-    document.body.appendChild(backdrop);
+    // Bloquante : ni Échap ni un toucher à côté ne la ferment, seuls « Continuer » (après l'accord) ou « Se déconnecter ».
+    modale = ouvrirModale(modal, { classeFond: "legal-backdrop", fermerAuVoile: false, avantFermeture: () => false });
   });
 }

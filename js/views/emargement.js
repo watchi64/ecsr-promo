@@ -26,6 +26,7 @@ import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261111
 import { emargementActif } from "../emargement-etat.js?v=20261111e";
 import { estAdresseAttestations } from "../attestations-rules.js?v=20261111e";
 import { renderAttestations } from "./attestations.js?v=20261111e";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111e";
 
 // Horaires par défaut, comme DEFAULT_HALF_META du planning.
 const HORAIRES_DEFAUT = { matin: { debut: "09:00", fin: "12:30" }, aprem: { debut: "13:30", fin: "17:00" } };
@@ -224,8 +225,8 @@ export function ouvrirEntete(ctx, { apres = null } = {}) {
   const signataire = champ("signataire", 80, { placeholder: "Prénom et nom" });
   const qualite = champ("qualite", 80, { placeholder: "Directeur, responsable pédagogique…" });
   const lieu = champ("lieu", 60, { placeholder: ctx.promo?.lieu_nom || "" });
-  const fond = el("div", { class: "modal-backdrop" });
-  const fermer = () => fond.remove();
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
+  const fermer = () => modale.fermer();
   const enregistrer = el("button", { class: "btn primary", type: "button", onClick: async () => {
     enregistrer.disabled = true;
     try {
@@ -239,7 +240,7 @@ export function ouvrirEntete(ctx, { apres = null } = {}) {
       if (apres) apres(ctx.entete);
     } catch (e) { enregistrer.disabled = false; enErreur(e); }
   } }, "Enregistrer");
-  fond.appendChild(el("div", { class: "modal em-modal-entete", role: "dialog", "aria-modal": "true", "aria-label": "En-tête des documents" },
+  modale = ouvrirModale(el("div", { class: "modal em-modal-entete", role: "dialog", "aria-modal": "true", "aria-label": "En-tête des documents" },
     el("h3", {}, "En-tête des documents"),
     el("div", { class: "modal-form" },
       el("label", {}, "Organisme de formation", organisme),
@@ -255,9 +256,7 @@ export function ouvrirEntete(ctx, { apres = null } = {}) {
     ),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"), enregistrer),
-  ));
-  document.body.appendChild(fond);
-  organisme.focus();
+  ), { fermerAuVoile: false, focus: organisme });
 }
 
 // ===================================================================== Demi-journée
@@ -498,14 +497,14 @@ function pucesDeNotes(notes, choisir) {
 // planning de la demi-journée, rappel de le remplacer sur sa carte.
 function ouvrirAbsence(ctx, s, st) {
   const precision = el("input", { type: "text", maxlength: "200", placeholder: "Autre précision (facultatif)" });
-  const fond = el("div", { class: "modal-backdrop" });
-  const fermer = () => fond.remove();
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
+  const fermer = () => modale.fermer();
   const marquer = async (observation) => {
     fermer();
     await annoter(ctx, s, st, { absent: true, observation: observation || null }, `${displayStagiaire(st)} marqué absent.`);
   };
   const role = roleAuPlanning(ctx.entries, dayIndexDe(s.jour), s.demi_journee, st.id);
-  fond.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Marquer absent" },
+  modale = ouvrirModale(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Marquer absent" },
     el("h3", {}, "Absent : " + displayStagiaire(st)),
     role ? el("p", { class: "em-alerte" }, `Prévu ${role} sur le planning de cette demi-journée : pensez à le remplacer sur sa carte. `,
       el("a", { href: "#/planning" }, "Ouvrir le planning")) : null,
@@ -516,16 +515,15 @@ function ouvrirAbsence(ctx, s, st) {
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"),
       el("button", { class: "btn primary", type: "button", onClick: () => marquer(precision.value.trim()) },
         "Marquer absent")),
-  ));
-  document.body.appendChild(fond);
+  ), { fermerAuVoile: false });
 }
 
 function ouvrirObservation(ctx, s, st, ligne) {
   const champ = el("input", { type: "text", value: ligne?.observation || "", maxlength: "200",
     placeholder: "Ex. : arrivé à 9 h 40, absence justifiée" });
   const puces = pucesDeNotes(notesDeLaSemaine(ctx), (t) => { champ.value = t; champ.focus(); });
-  const fond = el("div", { class: "modal-backdrop" });
-  const fermer = () => fond.remove();
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
+  const fermer = () => modale.fermer();
   const enregistrer = async (texte) => {
     try {
       await annoterEmargement(s.id, st.id, { observation: texte });
@@ -534,7 +532,7 @@ function ouvrirObservation(ctx, s, st, ligne) {
       await recharger(ctx);
     } catch (e) { enErreur(e); }
   };
-  fond.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Remarque sur la feuille" },
+  modale = ouvrirModale(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Remarque sur la feuille" },
     el("h3", {}, "Remarque : " + displayStagiaire(st)),
     el("div", { class: "modal-form" },
       puces,
@@ -543,9 +541,7 @@ function ouvrirObservation(ctx, s, st, ligne) {
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"),
       ligne?.observation ? el("button", { class: "btn", type: "button", onClick: () => enregistrer("") }, "Effacer") : null,
       el("button", { class: "btn primary", type: "button", onClick: () => enregistrer(champ.value.trim()) }, "Enregistrer")),
-  ));
-  document.body.appendChild(fond);
-  champ.focus();
+  ), { fermerAuVoile: false, focus: champ });
 }
 
 async function cloreFeuille(ctx, s, enAttente) {

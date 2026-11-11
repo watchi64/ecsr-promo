@@ -10,6 +10,7 @@ import { fondateurHorsApercu } from "../auth-admin.js?v=20261111e";
 import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261111e";
 import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261111e";
 import { entier, fr1, pct, pluriel } from "../nombres.js?v=20261111e";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111e";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
@@ -241,9 +242,9 @@ export function telecharger(nomFichier, texte) {
 }
 
 function ouvrirExportCsv(promo, donnees) {
-  const fond = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
   const caseAnon = el("input", { type: "checkbox", id: "centre-csv-anon" });
-  const fermer = () => fond.remove();
+  const fermer = () => modale.fermer();
   const valider = () => {
     const anonymiser = caseAnon.checked;
     const texte = matriceNotesCsv({ stagiaires: donnees.stagiaires, evaluations: donnees.evaluations, anonymiser });
@@ -251,8 +252,7 @@ function ouvrirExportCsv(promo, donnees) {
     toast(anonymiser ? "Matrice anonyme téléchargée" : "Matrice des notes téléchargée", "success");
     fermer();
   };
-  fond.addEventListener("click", (e) => { if (e.target === fond) fermer(); });
-  fond.appendChild(el("div", { class: "modal centre-modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "centre-csv-titre" },
+  modale = ouvrirModale(el("div", { class: "modal centre-modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "centre-csv-titre" },
     el("h3", { id: "centre-csv-titre" }, "Matrice des notes en tableau (CSV)"),
     el("p", {}, "Une ligne par stagiaire en formation, une colonne par compétence et par thème : la dernière note, ramenée sur 20, et la moyenne de toutes les notes. Le fichier s'ouvre dans Excel."),
     el("p", { class: "centre-avertissement" }, "Le fichier contient des notes nominatives : il reste dans l'équipe pédagogique. Pour le transmettre au-delà, remplacez les noms par des numéros."),
@@ -260,7 +260,6 @@ function ouvrirExportCsv(promo, donnees) {
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"),
       el("button", { class: "btn primary", type: "button", onClick: valider }, "Télécharger"))));
-  document.body.appendChild(fond);
 }
 
 // --- Page ---

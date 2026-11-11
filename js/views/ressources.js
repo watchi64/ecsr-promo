@@ -7,6 +7,7 @@ import { confirmer } from "../confirmer.js?v=20261111e";
 import { icon, deco } from "../icons.js?v=20261111e";
 import { isAdmin, selonPublic } from "../auth-admin.js?v=20261111e";
 import { recordUndo } from "../undo.js?v=20261111e";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111e";
 
 let ressources = [];
 let contacts = [];
@@ -22,7 +23,7 @@ const CATEGORY_ICONS = {
 
 function openEditModal(existing, onSaved) {
   const isNew = !existing;
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
 
   const titreInput = el("input", { type: "text", placeholder: "Titre", value: existing?.titre || "" });
   const urlInput = el("input", { type: "url", placeholder: "https://…", value: existing?.url || "" });
@@ -53,7 +54,7 @@ function openEditModal(existing, onSaved) {
       if (isNew) await addRessource(payload);
       else await updateRessource(existing.id, payload);
       toast(isNew ? "Ressource ajoutée" : "Ressource mise à jour", "success");
-      backdrop.remove();
+      modale.fermer();
       onSaved();
     } catch (e) {
       console.error(e);
@@ -61,7 +62,7 @@ function openEditModal(existing, onSaved) {
     }
   }
 
-  const cancelBtn = el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler");
+  const cancelBtn = el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Annuler");
   const saveBtn = el("button", { class: "btn primary", onClick: save }, icon.check(), "Enregistrer");
 
   const modal = el("div", { class: "modal" },
@@ -75,9 +76,7 @@ function openEditModal(existing, onSaved) {
     ),
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn)
   );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
 }
 
 function renderRessourceCard(r, onChange) {
@@ -124,7 +123,7 @@ function renderRessourceCard(r, onChange) {
 
 function openContactModal(existing, onSaved) {
   const isNew = !existing;
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
 
   const prenomInput = el("input", { type: "text", placeholder: "Prénom (ou nom)", value: existing?.prenom || "" });
   const roleInput = el("input", { type: "text", placeholder: "Rôle / fonction (ex. Service entreprise, CP)", value: existing?.role || "" });
@@ -158,7 +157,7 @@ function openContactModal(existing, onSaved) {
         });
         toast("Contact mis à jour", "success", 1800);
       }
-      backdrop.remove();
+      modale.fermer();
       onSaved();
     } catch (e) { toast(e.message, "error"); }
   }
@@ -175,13 +174,11 @@ function openContactModal(existing, onSaved) {
       el("div", { class: "field" }, el("label", {}, "Note"), noteInput),
     ),
     el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler"),
+      el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Annuler"),
       el("button", { class: "btn primary", onClick: save }, icon.check(), "Enregistrer"),
     )
   );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
   setTimeout(() => prenomInput.focus(), 80);
 }
 
