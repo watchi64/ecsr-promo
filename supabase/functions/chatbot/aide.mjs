@@ -2,7 +2,7 @@
 // A tenir a jour quand l'app change (fichier texte, pas de logique).
 
 // Ce qui vaut pour les stagiaires et les formateurs.
-const AIDE_COMMUNE = `QCM : en entraînement, les questions échouées reviennent en premier aux passages suivants. En examen, tirage de N questions et note sur 20 au seuil fixé par les formateurs. Chaque question a une explication sourcée. Un bouton de signalement permet de remonter une question douteuse aux formateurs.
+const AIDE_COMMUNE = `QCM : en entraînement, les questions échouées reviennent en premier aux passages suivants. En examen, tirage de N questions et note sur 20 au seuil fixé par les formateurs. Chaque question a une explication sourcée. « Contester cette question », pendant un QCM, remonte une question douteuse aux formateurs.
 
 LIVRET EPCF ET DOSSIER PROFESSIONNEL : documents officiels remplissables dans l'app puis imprimables au format officiel (impression via le bouton dédié, pas Ctrl+P depuis n'importe où).`;
 
