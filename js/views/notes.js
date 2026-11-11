@@ -166,7 +166,12 @@ const compteDeNotes = (n) => pluriel(n, "note") + " enregistrée" + (n > 1 ? "s"
 
 function refreshAnalyticsInPlace(container) {
   const n = statsGroupe().n_lignes;
-  container.querySelectorAll(".notes-compte").forEach((s) => { s.textContent = compteDeNotes(n); });
+  container.querySelectorAll(".notes-compte").forEach((s) => {
+    s.textContent = compteDeNotes(n);
+    // La classe sans note n'affiche pas « 0 note » : son sous-titre, créé masqué, paraît à la première saisie.
+    const sousTitre = s.closest("[data-masque-sans-note]");
+    if (sousTitre) sousTitre.hidden = n === 0;
+  });
   // État vide (lot C) : la première note remplace la carte par la synthèse et les graphiques ; effacer la dernière
   // rend la carte.
   const vide = statsGroupe().n === 0;
@@ -815,8 +820,7 @@ function rerender(container) {
         : el("p", { class: "eyebrow" }, compte),
       laClasse ? null : el("h2", {}, equipe ? "Notes et examens" : "Notes & évaluations"),
       // La classe sans note : la carte de l'état vide dit déjà tout (lot C), pas de « 0 note enregistrée. » au-dessus.
-      laClasse && nbLignes === 0 ? null
-        : el("p", { class: "subtitle" }, ...(dansCentre ? ["Matrice et notes de la promo, en lecture. ", compte, "."]
+      el("p", { class: "subtitle", ...(laClasse ? { "data-masque-sans-note": "1", hidden: nbLignes === 0 } : {}) }, ...(dansCentre ? ["Matrice et notes de la promo, en lecture. ", compte, "."]
           : laClasse ? [admin ? phrase + " " : "", compte, "."] : equipe ? [phrase + " ", compte, "."] : [phrase])),
     ),
     // Direction (lot 5) : le sous-titre dit déjà « en lecture ».
