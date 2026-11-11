@@ -4,30 +4,31 @@ import {
   saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements,
   setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa,
   accepterBrouillonIa, rejeterBrouillonIa,
-} from "../db.js?v=20261111l";
-import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261111l";
-import { confirmer } from "../confirmer.js?v=20261111l";
-import { icon, deco } from "../icons.js?v=20261111l";
+} from "../db.js?v=20261111m";
+import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261111m";
+import { confirmer } from "../confirmer.js?v=20261111m";
+import { icon, deco } from "../icons.js?v=20261111m";
+import { dixieme } from "../nombres.js?v=20261111m";
 import {
   examenDemarrable, tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture,
   resumeExamen,
-} from "../qcm-exam-rules.js?v=20261111l";
-import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111l";
-import { recordUndo } from "../undo.js?v=20261111l";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261111l";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261111l";
-import { renderSubTabs } from "../subtabs.js?v=20261111l";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261111l";
-import { cleCours } from "../cours-rules.js?v=20261111l";
-import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261111l";
-import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261111l";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111l";
-import { renderRessources } from "./ressources.js?v=20261111l";
-import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261111l";
-import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261111l";
-import { renderPropositionsIa } from "./propositions-ia.js?v=20261111l";
-import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261111l";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261111l";
+} from "../qcm-exam-rules.js?v=20261111m";
+import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111m";
+import { recordUndo } from "../undo.js?v=20261111m";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261111m";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261111m";
+import { renderSubTabs } from "../subtabs.js?v=20261111m";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261111m";
+import { cleCours } from "../cours-rules.js?v=20261111m";
+import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261111m";
+import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261111m";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111m";
+import { renderRessources } from "./ressources.js?v=20261111m";
+import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261111m";
+import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261111m";
+import { renderPropositionsIa } from "./propositions-ia.js?v=20261111m";
+import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261111m";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111m";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -203,7 +204,7 @@ function notesQcm(theme, qcm) {
   const note = myThemeNote(theme, qcm);
   const train = myTrainNote(qcm);
   const n = (lab, val, titre) => val == null ? null
-    : el("span", { class: "theme-note", title: titre }, lab + " ", el("b", { class: "n-" + noteClass(val) }, `${val}/20`));
+    : el("span", { class: "theme-note", title: titre }, lab + " ", el("b", { class: "n-" + noteClass(val) }, `${dixieme(val)}/20`));
   return [n("Examen", note, "Note d'examen"), n("Entraîn.", train, "Dernière note d'entraînement")];
 }
 
@@ -327,11 +328,11 @@ function openQcmSheet(theme, qcm) {
     if (stagiaireAvecFiche) {
       body.appendChild(el("div", { class: "qcm-note-cards" },
         el("div", { class: "qcm-note-card n-" + noteClass(note) },
-          el("span", { class: "qcm-note-card-val" }, note != null ? `${note}/20` : "-"),
+          el("span", { class: "qcm-note-card-val" }, note != null ? `${dixieme(note)}/20` : "-"),
           el("span", { class: "qcm-note-card-lab" }, "Ma note d'examen"),
         ),
         el("div", { class: "qcm-note-card n-" + noteClass(train) },
-          el("span", { class: "qcm-note-card-val" }, train != null ? `${train}/20` : "-"),
+          el("span", { class: "qcm-note-card-val" }, train != null ? `${dixieme(train)}/20` : "-"),
           el("span", { class: "qcm-note-card-lab" }, "Dernier entraînement"),
         ),
       ));
@@ -560,7 +561,7 @@ function themeExamPanel(theme, qcm, onPublishChange) {
         if (!attempts.length) { bodyA.appendChild(el("p", { class: "muted" }, "Aucune tentative pour l'instant.")); return; }
         attempts.forEach((a) => {
           bodyA.appendChild(el("div", { class: "exam-attempt-row" },
-            el("span", {}, (nomStagiaire(a.stagiaire_id) || displayStagiaire(a.stagiaire) || "Stagiaire inconnu") + ` : ${a.note_20}/20`),
+            el("span", {}, (nomStagiaire(a.stagiaire_id) || displayStagiaire(a.stagiaire) || "Stagiaire inconnu") + ` : ${dixieme(a.note_20)}/20`),
             el("button", { class: "btn danger", type: "button", onClick: async () => {
               if (!(await confirmer({ titre: "Réinitialiser cette tentative ?", phrase: "La note sera supprimée.",
                 oui: "Réinitialiser" }))) return;

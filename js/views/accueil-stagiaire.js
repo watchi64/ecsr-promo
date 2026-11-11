@@ -7,23 +7,23 @@
  */
 import {
   listAgendaEvents, getPromoCourante, listQcmIndex, listMyQcmAttempts, listThemes, getDpDossier,
-} from "../db.js?v=20261111l";
-import { el, clear } from "../utils.js?v=20261111l";
-import { icon } from "../icons.js?v=20261111l";
-import { getProfileWho, monStagiaireId, getProfile, getViewAs, getProfileNom } from "../auth-admin.js?v=20261111l";
-import { libelleConnexion } from "../roles-rules.js?v=20261111l";
-import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261111l";
-import { carteNouveaute } from "./nouveautes.js?v=20261111l";
-import { prenomDe } from "../nav-rules.js?v=20261111l";
-import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi, ligneBenevoles } from "../accueil-rules.js?v=20261111l";
-import { journeeDuJour } from "../journee-rules.js?v=20261111l";
-import { effSujets, sujetsDe } from "../planning-roles.js?v=20261111l";
-import { exemplesRemplis } from "../dp-rules.js?v=20261111l";
-import { heureLocale } from "../emargement-rules.js?v=20261111l";
-import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261111l";
-import { ouvrirSignalement } from "../signalement.js?v=20261111l";
-import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261111l";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111l";
+} from "../db.js?v=20261111m";
+import { el, clear } from "../utils.js?v=20261111m";
+import { icon } from "../icons.js?v=20261111m";
+import { getProfileWho, monStagiaireId, getProfile, getViewAs, getProfileNom } from "../auth-admin.js?v=20261111m";
+import { libelleConnexion } from "../roles-rules.js?v=20261111m";
+import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261111m";
+import { carteNouveaute } from "./nouveautes.js?v=20261111m";
+import { prenomDe } from "../nav-rules.js?v=20261111m";
+import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi, ligneBenevoles } from "../accueil-rules.js?v=20261111m";
+import { journeeDuJour } from "../journee-rules.js?v=20261111m";
+import { effSujets, sujetsDe } from "../planning-roles.js?v=20261111m";
+import { exemplesRemplis } from "../dp-rules.js?v=20261111m";
+import { heureLocale } from "../emargement-rules.js?v=20261111m";
+import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261111m";
+import { ouvrirSignalement } from "../signalement.js?v=20261111m";
+import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261111m";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111m";
 
 const RELECTURE_SEANCES_MS = 60000;
 
@@ -51,7 +51,7 @@ const DEMI = {
 function rangeeCarte(c) {
   const sujets = c.sujets.length ? ` : ${c.sujets.join(" · ")}` : "";
   const equipe = c.formateurs.length ? `Avec ${c.formateurs.join(", ")}.` : "";
-  // Étiquette « Tu passes au tableau » : le texte de la journée (journee-rules), l'accent de la grille de la semaine.
+  // Étiquette « Toi au tableau » : le texte de la journée (journee-rules), l'accent de la grille de la semaine.
   const etiquette = c.moi ? el("span", { class: "acc-puce", "data-moi": c.moi.role }, c.moi.texte) : null;
   return el("div", { class: "acc-carte-jour" },
     el("b", {}, c.titre + sujets),
@@ -301,8 +301,8 @@ export function renderAccueilStagiaire(container) {
 
   const nomPromo = getPromoCourante()?.nom || "";
   container.appendChild(el("footer", { class: "home-footer-v2" },
-    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" },
-      "connecté en tant que " + (libelleConnexion({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() }) || "stagiaire"))),
+    el("p", {}, (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" },
+      (nomPromo ? "connecté" : "Connecté") + " en tant que " + (libelleConnexion({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() }) || "stagiaire"))),
     // Plus de lien « code source » : décision de Timy du 09/11, le code reste discret.
   ));
 

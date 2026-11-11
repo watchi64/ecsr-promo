@@ -5,9 +5,9 @@
  * reconstruire. Les cartes viennent de semaineEnGrille (js/journee-rules.js) : ce module ne calcule aucune règle, il
  * dessine. Les classes sont celles de la maquette (wgrid, wg-*, daystrip, vue-toggle).
  */
-import { el } from "../utils.js?v=20261111l";
-import { icon, deco } from "../icons.js?v=20261111l";
-import { etiquetteSemaine, alerteDeCarte } from "../journee-rules.js?v=20261111l";
+import { el } from "../utils.js?v=20261111m";
+import { icon, deco } from "../icons.js?v=20261111m";
+import { etiquetteSemaine, alerteDeCarte } from "../journee-rules.js?v=20261111m";
 
 // Mémoire de l'appareil : la forme choisie (js/journee-rules.js, vuePlanningInitiale).
 export const CLE_VUE_PLANNING = "planning.vue";

@@ -3,8 +3,8 @@
 // dans js/journee-rules.js (pur) ; ce module n'est que le branchement sur la base.
 import {
   getPlanning, getHalfMetaForWeek, getJoursOff, listStagiaires, listProfs, listThemes, listBenevolesNoms,
-} from "./db.js?v=20261111l";
-import { displayStagiaire, nomLisible } from "./utils.js?v=20261111l";
+} from "./db.js?v=20261111m";
+import { displayStagiaire, nomLisible } from "./utils.js?v=20261111m";
 
 // Nom de chaque stagiaire, id → « Lucie M. » : toujours le format complet de tous les écrans (décision du 10/11),
 // comme l'impression du planning. Plus de prénom seul : le format ne change plus quand un homonyme arrive.

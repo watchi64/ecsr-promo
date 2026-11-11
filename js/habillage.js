@@ -6,7 +6,7 @@
 
 import {
   CLE_APPAREIL, habillageValide, lireAppareil, ecrireAppareil, habillageRetenu,
-} from "./habillage-regles.js?v=20261111l";
+} from "./habillage-regles.js?v=20261111m";
 
 // Les dépendances par défaut sont lues au moment de l'appel (rien à l'import) : les tests en node
 // n'ont ni document ni localStorage, et db.js / auth-admin.js ne se chargent que si on en a besoin.
@@ -18,11 +18,11 @@ function documentDe(deps) {
 }
 async function enregistrerDe(deps) {
   if (deps.enregistrer) return deps.enregistrer;
-  return (await import("./db.js?v=20261111l")).setMonHabillage;
+  return (await import("./db.js?v=20261111m")).setMonHabillage;
 }
 async function emailDe(deps) {
   if ("email" in deps) return deps.email;
-  return (await import("./auth-admin.js?v=20261111l")).getAdminEmail();
+  return (await import("./auth-admin.js?v=20261111m")).getAdminEmail();
 }
 
 function lireStockage(deps) {

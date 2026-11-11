@@ -2,9 +2,9 @@
  * Page d'accueil (#/home) : un aiguillage. Chaque espace a sa page, le stagiaire son Accueil
  * (js/views/accueil-stagiaire.js), l'équipe Aujourd'hui (js/views/aujourdhui.js).
  */
-import { formateurConnecte } from "../modules-etat.js?v=20261111l";
-import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261111l";
-import { renderAujourdhui } from "./aujourdhui.js?v=20261111l";
+import { formateurConnecte } from "../modules-etat.js?v=20261111m";
+import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261111m";
+import { renderAujourdhui } from "./aujourdhui.js?v=20261111m";
 
 export async function renderHome(container) {
   return formateurConnecte() ? renderAujourdhui(container) : renderAccueilStagiaire(container);

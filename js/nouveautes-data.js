@@ -74,6 +74,17 @@ export const NOUVEAUTES = [
           + "Abandons, et la suppression des élèves bénévoles ne change pas.",
     ou: { label: "Paramètres", route: "config" },
   },
+  // Retouches relevées pendant le tournage du film de présentation (11/11/2026). Pour tous : formule neutre.
+  {
+    id: "2026-11-11-retouches-du-film",
+    date: "2026-11-11",
+    pour: "tous",
+    titre: "Des chiffres et des étiquettes plus cohérents",
+    resume: "Les notes et les moyennes s'écrivent partout avec une virgule (14,5). Le compteur de notes se met à jour dès "
+          + "qu'une note est saisie. Le planning dit « Toi au tableau », « Toi en voiture » ou « Toi en salle », sur "
+          + "l'Accueil comme dans la semaine. Quelques pastilles reprennent les couleurs de l'app.",
+    ou: { label: "Accueil", route: "home" },
+  },
   // Contacts du centre propres à chaque centre (11/11) : avant, toutes les promos voyaient les contacts de Nîmes. Placée après
   // la conservation, qui reste la carte du jour de l'équipe. Pour l'équipe seulement : un stagiaire voit simplement les
   // contacts de son centre, sans rien à apprendre.

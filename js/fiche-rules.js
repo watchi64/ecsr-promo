@@ -1,6 +1,6 @@
 // États affichés par la fiche d'une personne (sommaire sur iPhone) et par la
 // liste de la page Stagiaires (chantier D, lot 2). Module pur : testé en node.
-import { pluriel } from "./nombres.js?v=20261111l";
+import { pluriel } from "./nombres.js?v=20261111m";
 
 export const EPREUVES_EPCF = ["salle", "vehicule"];
 

@@ -3887,7 +3887,8 @@ def verifier_pied_de_l_accueil(res, vue, m, nouvelle):
     else:
         role = "formateur" if qui["admin"] else {"prof": "formateur", "stagiaire": "stagiaire"}.get(qui["role"], "")
     promo = ("Promo %s" % m["promo"]["nom"]) if nouvelle else "Promo 2026"
-    attendu = "TP ECSR App · %s · connecté en tant que %s" % (promo, role) if role else "TP ECSR App · %s ·" % promo
+    # Le pied ne porte plus le nom du produit (chasse aux défauts du film, 11/11) : la promo, puis qui est connecté.
+    attendu = "%s · connecté en tant que %s" % (promo, role) if role else "%s ·" % promo
     if m["piedTexte"] != attendu:
         res.echec("pied de l'accueil", vue, "le pied de page dit « %s », attendu « %s » (%s navigation)" % (m["piedTexte"], attendu, "nouvelle" if nouvelle else "ancienne"))
 
@@ -4248,7 +4249,7 @@ DATE_AGENDA_VIDE = "2027-01-15"   # après le dernier événement de l'agenda du
 HAUTEUR_BANDEAU_DEUX_LIGNES = 61
 
 # La fin d'un sous-titre, quand la nouvelle navigation y remet le compte de l'ancien surtitre (R49) : « 12 notes enregistrées. »
-COMPTE_NOTES = re.compile(r"\d+ notes? enregistrées?\.$")
+COMPTE_NOTES = re.compile(r"\d[\d\u202f\u00a0 ]* notes? enregistrées?\.$")  # « 1 040 notes » : milliers séparés
 
 
 def pluriel(n):
@@ -4797,7 +4798,7 @@ def jouer_signature_d_aujourdhui(page, res, sc):
 
 def verifier_accueil_voir_en_tant_que_stagiaire(page, res, sc, vue):
     """Le fondateur voit l'app en stagiaire : l'accueil est celui du stagiaire (salutation par le prénom, ses cartes), jamais Aujourd'hui. Sans fiche de stagiaire, aucune
-    étiquette « Tu passes au tableau » ni signature."""
+    étiquette « Toi au tableau » ni signature."""
     aller_a(page, "#/home")
     attendre(page)
     attendre_accueil(page)
@@ -5118,7 +5119,7 @@ def verifier_moyennes_epcf(res, vue, e):
         if not re.fullmatch(r".+ : %s" % re.escape(accorde), epreuve["titre"]):
             res.echec("la classe, moyennes EPCF", vue, "le titre d'une épreuve est « %s », attendu « <épreuve> : %s »" % (epreuve["titre"], accorde))
         montrees = [(ligne[1], ligne[2]) for ligne in epreuve["lignes"] if len(ligne) == 3 and ligne[2]]
-        attendues = [("%.2f" % moyenne, str(n)) for (_, moyenne, n) in rangees if n >= K_ANONYMAT]
+        attendues = [(("%.2f" % moyenne).replace(".", ","), str(n)) for (_, moyenne, n) in rangees if n >= K_ANONYMAT]  # virgule (film, 11/11)
         if montrees != attendues:
             res.echec("la classe, moyennes EPCF", vue, "« %s » montre les critères évalués %s, attendu %s (k-anonymat de %d : un critère sur moins de %d stagiaires n'est jamais montré)"
                       % (epreuve["titre"], montrees, attendues, K_ANONYMAT, K_ANONYMAT))

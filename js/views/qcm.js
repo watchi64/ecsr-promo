@@ -4,13 +4,14 @@
  * Multi-réponses : une question peut avoir plusieurs bonnes réponses.
  * Juste = ensemble coché == ensemble des bonnes réponses (toutes les bonnes, aucune fausse).
  */
-import { el, clear, toast, formatDate, shuffle } from "../utils.js?v=20261111l";
-import { confirmer } from "../confirmer.js?v=20261111l";
-import { icon, deco } from "../icons.js?v=20261111l";
-import { getQcmFull, insertQcmAttempt, getMyExamAttempt, listMyQcmAttemptsFor, createQcmSignalement } from "../db.js?v=20261111l";
-import { monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111l";
-import { fermerParEchap } from "../fenetre-echap.js?v=20261111l";
-import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261111l";
+import { el, clear, toast, formatDate, shuffle } from "../utils.js?v=20261111m";
+import { confirmer } from "../confirmer.js?v=20261111m";
+import { icon, deco } from "../icons.js?v=20261111m";
+import { getQcmFull, insertQcmAttempt, getMyExamAttempt, listMyQcmAttemptsFor, createQcmSignalement } from "../db.js?v=20261111m";
+import { monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111m";
+import { fermerParEchap } from "../fenetre-echap.js?v=20261111m";
+import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261111m";
+import { dixieme } from "../nombres.js?v=20261111m";
 
 const MOTIFS = [
   ["reponse_fausse", "La réponse indiquée me semble fausse"],
@@ -334,7 +335,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
     player.appendChild(el("div", { class: "qcm-results" },
       el("div", { class: "qcm-score-circle" },
         el("span", { class: "qcm-score-big" }, `${score}/${total}`),
-        el("small", {}, `${note20}/20`),
+        el("small", {}, `${dixieme(note20)}/20`),
       ),
       el("p", { class: "qcm-results-sub" },
         pct >= 100 ? "Sans faute, bravo."
@@ -468,7 +469,7 @@ function showExamBlocked(theme, full, attempt) {
   player.appendChild(examHeader(theme, close));
   player.appendChild(el("div", { class: "qcm-results" },
     el("div", { class: "qcm-score-circle" },
-      el("span", { class: "qcm-score-big" }, `${attempt.note_20}/20`),
+      el("span", { class: "qcm-score-big" }, `${dixieme(attempt.note_20)}/20`),
       el("small", {}, "sur 20"),
     ),
     el("p", { class: "qcm-results-sub" }, "Tu as déjà passé cet examen."),
@@ -677,7 +678,7 @@ function runExam(theme, full, questions, profile) {
     player.appendChild(el("div", { class: "qcm-results" },
       el("div", { class: "qcm-score-circle" },
         el("span", { class: "qcm-score-big" }, `${score}/${total}`),
-        el("small", {}, `${note20}/20`),
+        el("small", {}, `${dixieme(note20)}/20`),
       ),
       el("p", { class: "qcm-results-sub" }, "Examen terminé."),
       timedOut ? el("p", { class: "qcm-head-sub", style: "text-align:center" },

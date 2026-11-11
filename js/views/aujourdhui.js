@@ -8,26 +8,26 @@
  */
 import {
   getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande,
-} from "../db.js?v=20261111l";
-import { el, clear, displayStagiaire } from "../utils.js?v=20261111l";
-import { icon } from "../icons.js?v=20261111l";
-import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261111l";
-import { libelleConnexion } from "../roles-rules.js?v=20261111l";
-import { emargementActif } from "../emargement-etat.js?v=20261111l";
-import { lignePromo } from "../accueil-rules.js?v=20261111l";
-import { journeeDuJour } from "../journee-rules.js?v=20261111l";
-import { indicateursPromo } from "../centre-stats.js?v=20261111l";
-import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261111l";
-import { signerSeance } from "../emargement-bandeau.js?v=20261111l";
-import { chargerATraiter } from "../a-traiter.js?v=20261111l";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111l";
+} from "../db.js?v=20261111m";
+import { el, clear, displayStagiaire } from "../utils.js?v=20261111m";
+import { icon } from "../icons.js?v=20261111m";
+import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261111m";
+import { libelleConnexion } from "../roles-rules.js?v=20261111m";
+import { emargementActif } from "../emargement-etat.js?v=20261111m";
+import { lignePromo } from "../accueil-rules.js?v=20261111m";
+import { journeeDuJour } from "../journee-rules.js?v=20261111m";
+import { indicateursPromo } from "../centre-stats.js?v=20261111m";
+import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261111m";
+import { signerSeance } from "../emargement-bandeau.js?v=20261111m";
+import { chargerATraiter } from "../a-traiter.js?v=20261111m";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111m";
 import {
   titreSelonDemis, auTableauDuJour, enVoitureDuJour, feuilleDuJour, lignesATraiter, ligneDeLEnTete,
-} from "../aujourdhui-rules.js?v=20261111l";
+} from "../aujourdhui-rules.js?v=20261111m";
 import {
   carte, plusLien, ligneLien, erreurAvecReessai, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
-} from "./pages-cartes.js?v=20261111l";
-import { pluriel } from "../nombres.js?v=20261111l";
+} from "./pages-cartes.js?v=20261111m";
+import { pluriel } from "../nombres.js?v=20261111m";
 
 const RELECTURE_SEANCES_MS = 60000;
 const NB_A_SUIVRE = 5;
@@ -290,7 +290,7 @@ export function renderAujourdhui(container) {
   // Pied de page : celui de l'Accueil d'avant, pour l'équipe.
   const nomPromo = promo?.nom || "";
   container.appendChild(el("footer", { class: "home-footer-v2" },
-    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" }, "connecté en tant que " + (libelleConnexion({ profil: getProfile(), promo, apercu: getViewAs() }) || "formateur"))),
+    el("p", {}, (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" }, (nomPromo ? "connecté" : "Connecté") + " en tant que " + (libelleConnexion({ profil: getProfile(), promo, apercu: getViewAs() }) || "formateur"))),
     // Plus de lien « code source » : décision de Timy du 09/11, le code reste discret.
     el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
       el("a", { href: "#/config" }, "réglages")),

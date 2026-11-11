@@ -2,7 +2,8 @@
 // tests/qcm-stagiaire-rules.test.mjs. Quels QCM, dans quel ordre, avec quelle phrase d'état. L'affichage
 // (js/views/qcm-stagiaire.js) ne fait que les poser.
 
-import { examenDemarrable } from "./qcm-exam-rules.js?v=20261111l";
+import { examenDemarrable } from "./qcm-exam-rules.js?v=20261111m";
+import { dixieme } from "./nombres.js?v=20261111m";
 
 /** Un QCM transversal (sanctions, psychologie, pédagogie...) : une notion de la formation, sans numéro de thème. */
 export function estTransversal(theme) {
@@ -22,7 +23,7 @@ export function titreDuQcm(theme, qcm) {
 
 // 13.5 -> « 13,5 », 14 -> « 14 » : l'écriture de la page (une note ne prend qu'une décimale).
 function noteEnFrancais(n) {
-  return String(Math.round(n * 10) / 10).replace(".", ",");
+  return dixieme(n);
 }
 
 // Dernière tentative d'ENTRAÎNEMENT de chaque QCM, par date de fin : c'est elle que la ligne dit, pas la meilleure

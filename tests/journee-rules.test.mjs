@@ -86,9 +86,9 @@ test("moi : au tableau, élève en salle, au volant", () => {
   const salle = carte({ pedagogue_id: 2, eleves_ids: [3, 4] });
   const voiture = carte({ id: 2, half_day: "aprem", activite: "Voiture (conduite)", eleves_ids: [1, 2] });
   const au = (moi) => jour([salle, voiture], { moi });
-  assert.deepEqual(matin(au(2)).cartes[0].moi, { role: "tableau", texte: "Tu passes au tableau" });
-  assert.deepEqual(matin(au(3)).cartes[0].moi, { role: "eleve", texte: "En salle" });
-  assert.deepEqual(aprem(au(1)).cartes[0].moi, { role: "voiture", texte: "Tu conduis" });
+  assert.deepEqual(matin(au(2)).cartes[0].moi, { role: "tableau", texte: "Toi au tableau" });
+  assert.deepEqual(matin(au(3)).cartes[0].moi, { role: "eleve", texte: "Toi en salle" });
+  assert.deepEqual(aprem(au(1)).cartes[0].moi, { role: "voiture", texte: "Toi en voiture" });
   assert.equal(matin(au(5)).cartes[0].moi, null);
   assert.equal(matin(jour([salle, voiture], { moi: null })).cartes[0].moi, null);
 });
@@ -248,9 +248,9 @@ test("semaineEnGrille : le 11 novembre est un repos, les cartes suivent leur jou
 });
 
 test("etiquetteSemaine", () => {
-  assert.equal(etiquetteSemaine({ role: "tableau", texte: "Tu passes au tableau" }), "Toi au tableau");
-  assert.equal(etiquetteSemaine({ role: "voiture", texte: "Tu conduis" }), "Toi en voiture");
-  assert.equal(etiquetteSemaine({ role: "eleve", texte: "En salle" }), "Toi en salle");
+  assert.equal(etiquetteSemaine({ role: "tableau", texte: "Toi au tableau" }), "Toi au tableau");
+  assert.equal(etiquetteSemaine({ role: "voiture", texte: "Toi en voiture" }), "Toi en voiture");
+  assert.equal(etiquetteSemaine({ role: "eleve", texte: "Toi en salle" }), "Toi en salle");
   assert.equal(etiquetteSemaine(null), null);
 });
 

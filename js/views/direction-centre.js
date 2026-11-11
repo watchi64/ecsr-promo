@@ -8,26 +8,26 @@
 import {
   lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante, lireReglagePromo, lireEmargementPromo,
   ouvrirDansUnePromo, lireEffacementsSurDemande,
-} from "../db.js?v=20261111l";
-import { el, clear, isoDate, formatDate, formatLongDate, toast, tableauEnListe } from "../utils.js?v=20261111l";
-import { getCentre } from "../auth-admin.js?v=20261111l";
-import { promosDuCentre } from "../espaces-rules.js?v=20261111l";
+} from "../db.js?v=20261111m";
+import { el, clear, isoDate, formatDate, formatLongDate, toast, tableauEnListe } from "../utils.js?v=20261111m";
+import { getCentre } from "../auth-admin.js?v=20261111m";
+import { promosDuCentre } from "../espaces-rules.js?v=20261111m";
 import {
   indicateursPromo, ligneComparaison, aSuivrePromo, fusionnerASuivre,
-} from "../centre-stats.js?v=20261111l";
-import { comptesDepuisIndicateurs, concatenerDonnees, promosEnCours } from "../comptes-reseau.js?v=20261111l";
-import { tableauCentreCsv, slug } from "../centre-csv.js?v=20261111l";
-import { resumeEmargement, lireAdresseEmargement, CLE_ACTIVATION, estActif } from "../emargement-rules.js?v=20261111l";
-import { estAdresseAttestations } from "../attestations-rules.js?v=20261111l";
-import { jourLong, DEMI_LONG } from "../emargement-feuilles.js?v=20261111l";
+} from "../centre-stats.js?v=20261111m";
+import { comptesDepuisIndicateurs, concatenerDonnees, promosEnCours } from "../comptes-reseau.js?v=20261111m";
+import { tableauCentreCsv, slug } from "../centre-csv.js?v=20261111m";
+import { resumeEmargement, lireAdresseEmargement, CLE_ACTIVATION, estActif } from "../emargement-rules.js?v=20261111m";
+import { estAdresseAttestations } from "../attestations-rules.js?v=20261111m";
+import { jourLong, DEMI_LONG } from "../emargement-feuilles.js?v=20261111m";
 import {
   cartesCles, cartesResultats, sectionThemes, sectionASuivre, sectionComparaison, sectionMethodes, etiquette,
   telecharger,
-} from "./centre.js?v=20261111l";
-import { surChangementAdresse } from "../navigation.js?v=20261111l";
-import { renderEmargement } from "./emargement.js?v=20261111l";
-import { renderNotes } from "./notes.js?v=20261111l";
-import { entier, pluriel } from "../nombres.js?v=20261111l";
+} from "./centre.js?v=20261111m";
+import { surChangementAdresse } from "../navigation.js?v=20261111m";
+import { renderEmargement } from "./emargement.js?v=20261111m";
+import { renderNotes } from "./notes.js?v=20261111m";
+import { entier, pluriel } from "../nombres.js?v=20261111m";
 
 export const PHRASE_SANS_PROMO = "Ce centre n'a pas encore de promo";
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";
@@ -202,7 +202,7 @@ function ligneEmargement(p, etat, affichee) {
   const voir = memeP ? null : el("button", { class: "btn small", type: "button", onClick: () => aller(p.id, "#/emargement") },
     "Voir les feuilles");
   return el("tr", {}, titre,
-    el("td", {}, "Activé", r.feuilleOuverte ? el("span", { class: "chip centre-signal" }, "Feuille ouverte") : null),
+    el("td", {}, "Activé", r.feuilleOuverte ? el("span", { class: "chip centre-ouverte" }, "Feuille ouverte") : null),
     el("td", {}, r.derniere ? libelleFeuille(r.derniere) : "Aucune feuille"),
     el("td", { class: "num" }, String(r.feuillesCloses)),
     el("td", { class: "num" }, String(r.absences)),

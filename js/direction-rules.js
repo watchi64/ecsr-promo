@@ -2,8 +2,8 @@
 // (tests/direction-rules.test.mjs). L'autorité reste la base : ces fonctions décident de ce que l'app affiche et refusent tôt,
 // avec les mêmes phrases que creer_promo et modifier_dates_promo (supabase/migrations/20261028_roles_2_fonctions.sql).
 
-import { promosEnCours } from "./comptes-reseau.js?v=20261111l";
-import { compareByNom } from "./utils.js?v=20261111l";
+import { promosEnCours } from "./comptes-reseau.js?v=20261111m";
+import { compareByNom } from "./utils.js?v=20261111m";
 
 // === Promos ===
 

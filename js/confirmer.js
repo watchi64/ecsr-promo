@@ -23,7 +23,7 @@
 // sans `verifier`, il ne s'active jamais. Entrée dans le champ vaut le bouton. La réponse reste oui ou non.
 // Testé par tests/confirmer.test.mjs.
 
-import { el } from "./utils.js?v=20261111l";
+import { el } from "./utils.js?v=20261111m";
 
 let compteur = 0;
 

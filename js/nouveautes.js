@@ -10,8 +10,8 @@
 // subtabs.js : en cas d'échec tout paraît neuf à chaque visite, ce qui est une
 // dégradation acceptable, mais rien n'explose.
 
-import { CLES_SOUS_ONGLETS } from "./nav-rules.js?v=20261111l";
-import { routeDansLEspace } from "./espaces-rules.js?v=20261111l";
+import { CLES_SOUS_ONGLETS } from "./nav-rules.js?v=20261111m";
+import { routeDansLEspace } from "./espaces-rules.js?v=20261111m";
 
 export const CLE_VUES = "ecsr_nouveautes_vues";
 

@@ -2,9 +2,9 @@
 // node, sans DOM ni base). Les pages Accueil, Aujourd'hui et la grille de la semaine ne
 // recalculent rien : elles reçoivent ces cartes toutes lues (rôles effectifs, absences,
 // horaires, repos). Ni heure ni lieu par carte : la base n'en a pas.
-import { effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe } from "./planning-roles.js?v=20261111l";
-import { rolesPourEntry } from "./creneaux-rules.js?v=20261111l";
-import { jourFerie } from "./emargement-rules.js?v=20261111l";
+import { effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe } from "./planning-roles.js?v=20261111m";
+import { rolesPourEntry } from "./creneaux-rules.js?v=20261111m";
+import { jourFerie } from "./emargement-rules.js?v=20261111m";
 
 // Défauts horaires quand aucune ligne de planning_half_meta n'existe (déplacés de planning.js).
 export const DEFAULT_HALF_META = {
@@ -131,10 +131,12 @@ function profsDe(e, noms) {
   return out;
 }
 
+// Un seul libellé par rôle, sur la carte de l'Accueil comme dans la grille de la semaine (chasse aux défauts du film,
+// 11/11 : « Tu passes au tableau » d'un côté, « Toi au tableau » de l'autre). La forme courte tient dans une case.
 const TEXTE_MOI = {
-  tableau: "Tu passes au tableau",
-  voiture: "Tu conduis",
-  eleve: "En salle",
+  tableau: "Toi au tableau",
+  voiture: "Toi en voiture",
+  eleve: "Toi en salle",
 };
 
 // Le rôle de la personne sur la carte, tel que le lisent les rôles du suivi (rolesPourEntry) ;
@@ -237,9 +239,7 @@ export function alerteDeCarte(c) {
 // Étiquette du rôle de la personne dans une case de la grille.
 export function etiquetteSemaine(moi) {
   if (!moi) return null;
-  if (moi.role === "tableau") return "Toi au tableau";
-  if (moi.role === "voiture") return "Toi en voiture";
-  return "Toi en salle";
+  return TEXTE_MOI[moi.role] || TEXTE_MOI.eleve;
 }
 
 // La forme du planning à l'ouverture, d'après ce que l'appareil a mémorisé (`planning.vue`) : la

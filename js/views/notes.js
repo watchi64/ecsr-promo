@@ -2,26 +2,27 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation,
   listFichesNotesMasquees, getNotesStatsGroupe, getPromoCourante,
-} from "../db.js?v=20261111l";
+} from "../db.js?v=20261111m";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261111l";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261111l";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace, selonPublic } from "../auth-admin.js?v=20261111l";
-import { litToutesLesNotes } from "../espaces-rules.js?v=20261111l";
-import { recordUndo } from "../undo.js?v=20261111l";
-import { renderSubTabs } from "../subtabs.js?v=20261111l";
-import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261111l";
-import { renderEpcf } from "./epcf.js?v=20261111l";
-import { noteGradient } from "../echelle-notes.js?v=20261111l";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111l";
-import { renderSaisie } from "./notes-saisie.js?v=20261111l";
+} from "../notes-stats.js?v=20261111m";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261111m";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace, selonPublic } from "../auth-admin.js?v=20261111m";
+import { litToutesLesNotes } from "../espaces-rules.js?v=20261111m";
+import { recordUndo } from "../undo.js?v=20261111m";
+import { renderSubTabs } from "../subtabs.js?v=20261111m";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261111m";
+import { renderEpcf } from "./epcf.js?v=20261111m";
+import { noteGradient } from "../echelle-notes.js?v=20261111m";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111m";
+import { renderSaisie } from "./notes-saisie.js?v=20261111m";
+import { pluriel, dixieme } from "../nombres.js?v=20261111m";
 import {
   parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes,
   contexteEtatVide, phraseNoteRefusee, confirmationEffacement,
-} from "../notes-saisie-rules.js?v=20261111l";
-import { confirmer } from "../confirmer.js?v=20261111l";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261111l";
+} from "../notes-saisie-rules.js?v=20261111m";
+import { confirmer } from "../confirmer.js?v=20261111m";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111m";
 
 // Fiches de la promo dont les notes sont masquées (anonymat) : la base ne donne plus aux stagiaires les profils des
 // autres (adresse e-mail comprise), seulement ces numéros de fiche (js/notes-masquees.js).
@@ -159,7 +160,18 @@ async function reload(container) {
 
 // Rafraîchit uniquement les panneaux Synthèse + Graphiques, sans toucher à la matrice
 // (préserve les autres inputs ouverts pendant qu'on enchaîne les notes)
+// « 140 notes enregistrées » : le compteur de l'en-tête, recalculé après chaque saisie (chasse aux défauts du film, 11/11 :
+// il restait au nombre de l'ouverture de la page).
+const compteDeNotes = (n) => pluriel(n, "note") + " enregistrée" + (n > 1 ? "s" : "");
+
 function refreshAnalyticsInPlace(container) {
+  const n = statsGroupe().n_lignes;
+  container.querySelectorAll(".notes-compte").forEach((s) => {
+    s.textContent = compteDeNotes(n);
+    // La classe sans note n'affiche pas « 0 note » : son sous-titre, créé masqué, paraît à la première saisie.
+    const sousTitre = s.closest("[data-masque-sans-note]");
+    if (sousTitre) sousTitre.hidden = n === 0;
+  });
   // État vide (lot C) : la première note remplace la carte par la synthèse et les graphiques ; effacer la dernière
   // rend la carte.
   const vide = statsGroupe().n === 0;
@@ -371,7 +383,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
     inputmode: "decimal",
     enterkeyhint: "done",
     class: "matrice-inline-input matrice-popover-input",
-    value: existing?.note != null ? String(existing.note) : "",
+    value: existing?.note != null ? dixieme(existing.note) : "",
     placeholder: "/20 ou X/Y",
   });
   const okBtn = el("button", {
@@ -426,9 +438,9 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
     }
     if (r.etat === "invalide" || r.etat === "erreur") toast(phraseNoteRefusee(r.message, r.effacement), "error");
     if (r.etat !== "enregistree") { restore(); return; }
-    if (r.converti) toast(`${r.converti} → ${r.note}/20`, "success", 1800);
+    if (r.converti) toast(`${r.converti} → ${dixieme(r.note)}/20`, "success", 1800);
     // Met à jour la cellule en place (sans détruire les autres inputs)
-    td.textContent = String(r.note);
+    td.textContent = dixieme(r.note);
     td.className = "m-td-cell" + (isAdmin() ? " editable" : "");
     applyNoteCellStyle(td, r.note);
     td.style.position = originalPosition;
@@ -467,10 +479,9 @@ function openStagiaireDetail(stagiaire, themeByNum, container) {
     const allEvals = evaluations.filter((e) => e.stagiaire_id === stagiaire.id && e.note != null && e.note_max);
     if (allEvals.length > 0) {
       const avg = allEvals.reduce((sum, e) => sum + (Number(e.note) / Number(e.note_max)) * 20, 0) / allEvals.length;
-      const rounded = Math.round(avg * 10) / 10;
       const cls = cellColorClass(avg / 20);
       body.appendChild(el("div", { class: "sd-avg " + cls },
-        el("span", { class: "sd-avg-num" }, String(rounded)),
+        el("span", { class: "sd-avg-num" }, dixieme(avg)),
         el("span", { class: "sd-avg-max" }, "/20"),
         el("span", { class: "sd-avg-count muted" }, allEvals.length + " note" + (allEvals.length > 1 ? "s" : "")),
       ));
@@ -488,7 +499,7 @@ function openStagiaireDetail(stagiaire, themeByNum, container) {
       if (ev && ev.note != null) {
         const ratio = Number(ev.note) / (Number(ev.note_max) || 20);
         const cls = cellColorClass(ratio);
-        valueWrap.appendChild(el("span", { class: "sd-note " + cls }, String(ev.note)));
+        valueWrap.appendChild(el("span", { class: "sd-note " + cls }, dixieme(ev.note)));
       } else {
         valueWrap.appendChild(el("span", { class: "sd-note empty" }, "-"));
       }
@@ -554,7 +565,7 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
     type: "text", inputmode: "decimal", enterkeyhint: "done",
     class: "matrice-inline-input sd-edit-input",
     style: "flex:1;min-width:0;",
-    value: existing?.note != null ? String(existing.note) : "",
+    value: existing?.note != null ? dixieme(existing.note) : "",
     placeholder: "/20 ou X/Y",
   });
   const saveBtn = el("button", {
@@ -582,7 +593,7 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
       return;
     }
     if (r.etat === "effacee") toast("Note effacée · Ctrl+Z pour annuler", "success", 2200);
-    if (r.converti) toast(`${r.converti} → ${r.note}/20`, "success", 1800);
+    if (r.converti) toast(`${r.converti} → ${dixieme(r.note)}/20`, "success", 1800);
     modale.fermer();
     await reload(container);
   }
@@ -652,8 +663,7 @@ function renderMatrice(container) {
     const allEvals = evaluations.filter((e) => e.stagiaire_id === s.id && e.note != null && e.note_max);
     if (allEvals.length > 0) {
       const avg = allEvals.reduce((sum, e) => sum + (Number(e.note) / Number(e.note_max)) * 20, 0) / allEvals.length;
-      const rounded = Math.round(avg * 10) / 10;
-      const tdAvg = el("td", { class: "m-td-avg", title: allEvals.length + " évaluations" }, String(rounded));
+      const tdAvg = el("td", { class: "m-td-avg", title: allEvals.length + " évaluations" }, dixieme(avg));
       applyNoteCellStyle(tdAvg, avg);
       tr.appendChild(tdAvg);
     } else {
@@ -667,8 +677,8 @@ function renderMatrice(container) {
       const td = el("td", { class: "m-td-cell" + (cell ? "" : " empty") });
       if (cell) {
         applyNoteCellStyle(td, cell.ratio * 20);
-        td.textContent = String(cell.note);
-        td.title = `${c.label} : ${cell.note}/${cell.max} le ${formatDate(cell.eval.date_eval)}`;
+        td.textContent = dixieme(cell.note);
+        td.title = `${c.label} : ${dixieme(cell.note)}/${cell.max} le ${formatDate(cell.eval.date_eval)}`;
       }
       if (admin) {
         td.classList.add("editable");
@@ -687,9 +697,9 @@ function renderMatrice(container) {
       if (grp) td.colSpan = grp.length;
       if (cell) {
         applyNoteCellStyle(td, cell.ratio * 20);
-        td.textContent = String(cell.note);
+        td.textContent = dixieme(cell.note);
         const libelle = grp ? `Thèmes ${grp.join(" + ")} (évalués ensemble)` : `Thème ${n}`;
-        td.title = `${libelle} : ${cell.note}/${cell.max} le ${formatDate(cell.eval.date_eval)}`;
+        td.title = `${libelle} : ${dixieme(cell.note)}/${cell.max} le ${formatDate(cell.eval.date_eval)}`;
       }
       if (admin) {
         td.classList.add("editable");
@@ -737,7 +747,7 @@ function buildGroupAvgRow() {
   function avgCell(avg, cls, title) {
     const td = el("td", { class: cls + (avg == null ? " empty" : "") });
     if (avg != null) {
-      td.textContent = String(Math.round(avg * 10) / 10);
+      td.textContent = dixieme(avg);
       applyNoteCellStyle(td, avg);
       if (title) td.title = title;
     }
@@ -797,7 +807,7 @@ function rerender(container) {
   const equipe = !laClasse && formateurConnecte();
   const surtitre = getPromoCourante()?.nom;
   const tactile = window.matchMedia("(pointer: coarse)").matches;
-  const compte = nbLignes + " note" + (nbLignes > 1 ? "s" : "") + " enregistrée" + (nbLignes > 1 ? "s" : "");
+  const compte = el("span", { class: "notes-compte" }, compteDeNotes(nbLignes));
   const phrase = admin && tactile
     ? "Saisissez les notes thème par thème, ou touchez une case de la matrice."
     : selonPublic("Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note.",
@@ -810,8 +820,8 @@ function rerender(container) {
         : el("p", { class: "eyebrow" }, compte),
       laClasse ? null : el("h2", {}, equipe ? "Notes et examens" : "Notes & évaluations"),
       // La classe sans note : la carte de l'état vide dit déjà tout (lot C), pas de « 0 note enregistrée. » au-dessus.
-      laClasse && nbLignes === 0 ? null
-        : el("p", { class: "subtitle" }, dansCentre ? "Matrice et notes de la promo, en lecture. " + compte + "." : laClasse ? (admin ? phrase + " " : "") + compte + "." : equipe ? phrase + " " + compte + "." : phrase),
+      el("p", { class: "subtitle", ...(laClasse ? { "data-masque-sans-note": "1", hidden: nbLignes === 0 } : {}) }, ...(dansCentre ? ["Matrice et notes de la promo, en lecture. ", compte, "."]
+          : laClasse ? [admin ? phrase + " " : "", compte, "."] : equipe ? [phrase + " ", compte, "."] : [phrase])),
     ),
     // Direction (lot 5) : le sous-titre dit déjà « en lecture ».
     admin || laClasse || dansCentre ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
@@ -995,8 +1005,8 @@ function renderSynthese() {
       el("span", { class: "notes-kpi-label" }, label),
     );
   }
-  kpis.appendChild(kpi("Moyenne classe", classAvg != null ? (Math.round(classAvg * 10) / 10) + " /20" : "-", cellColorClassFromAvg(classAvg)));
-  kpis.appendChild(kpi("Médiane", classMed != null ? (Math.round(classMed * 10) / 10) + " /20" : "-", cellColorClassFromAvg(classMed)));
+  kpis.appendChild(kpi("Moyenne classe", classAvg != null ? dixieme(classAvg) + " /20" : "-", cellColorClassFromAvg(classAvg)));
+  kpis.appendChild(kpi("Médiane", classMed != null ? dixieme(classMed) + " /20" : "-", cellColorClassFromAvg(classMed)));
   kpis.appendChild(kpi("Notes saisies", String(st.n)));
   kpis.appendChild(kpi("Notes sous 10/20", String(below10), below10 > 0 ? "bad" : ""));
   wrap.appendChild(kpis);
@@ -1012,14 +1022,14 @@ function renderSynthese() {
   const strong = stats.slice().sort((a, b) => b.avg - a.avg).slice(0, 3);
 
   function themeCard(t) {
-    const avgR = Math.round(t.avg * 10) / 10;
+    const avgR = dixieme(t.avg);
     return el("div", { class: "theme-stat-card " + cellColorClassFromAvg(t.avg) },
       el("span", { class: "theme-stat-num" }, String(t.num).padStart(2, "0")),
       el("div", { class: "theme-stat-body" },
         el("span", { class: "theme-stat-title" }, t.titre || `Thème ${t.num}`),
         el("span", { class: "theme-stat-meta" },
           el("strong", {}, avgR + "/20"),
-          " · médiane ", String(Math.round(t.med * 10) / 10),
+          " · médiane ", dixieme(t.med),
           " · ", t.count, " note" + (t.count > 1 ? "s" : ""),
         ),
       )
@@ -1286,7 +1296,7 @@ function horizontalBarChart(toutes, barHeight = 22, labelWidth = 100) {
       val.setAttribute("x", gauche + w + 6); val.setAttribute("y", y + barHeight / 2 + 4);
       val.setAttribute("font-size", "10"); val.setAttribute("font-weight", "700");
       val.setAttribute("class", "notes-valeur");
-      val.textContent = (Math.round(d.avg * 10) / 10).toString() + (d.count != null ? ` · ${d.count}n` : "");
+      val.textContent = dixieme(d.avg) + (d.count != null ? ` · ${d.count}n` : "");
       svg.appendChild(val);
     }
   });
@@ -1392,7 +1402,7 @@ function renderAveragesChart() {
       val.style.fontVariantNumeric = "tabular-nums";
       val.setAttribute("font-weight", "700");
       val.setAttribute("class", "notes-valeur");
-      val.textContent = (Math.round(d.avg * 10) / 10).toString() + " / 20";
+      val.textContent = dixieme(d.avg) + " / 20";
       svg.appendChild(val);
     } else {
       const val = document.createElementNS(svgNS, "text");

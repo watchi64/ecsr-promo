@@ -1,29 +1,30 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante, getNotesStatsGroupe } from "../db.js?v=20261111l";
-import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261111l";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261111l";
-import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261111l";
-import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111l";
-import { renderEpcfPersonne } from "./epcf.js?v=20261111l";
-import { renderSubTabs } from "../subtabs.js?v=20261111l";
-import { renderDp } from "./dp.js?v=20261111l";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261111l";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261111l";
-import { lundiEnCours } from "../journee-rules.js?v=20261111l";
-import { bandeauAvis } from "../avis.js?v=20261111l";
-import { statsPassages } from "../passages-stats.js?v=20261111l";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261111l";
-import { icon } from "../icons.js?v=20261111l";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261111l";
-import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261111l";
-import { exemplesRemplis } from "../dp-rules.js?v=20261111l";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261111l";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261111l";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111l";
-import { renderNotes } from "./notes.js?v=20261111l";
-import { notesSur20, moyenne, tendance, forcesEtFaiblesses, moyenneDuGroupe, formatNote } from "../resultats-rules.js?v=20261111l";
+         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante, getNotesStatsGroupe } from "../db.js?v=20261111m";
+import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261111m";
+import { dixieme, fr1, pluriel } from "../nombres.js?v=20261111m";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261111m";
+import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261111m";
+import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111m";
+import { renderEpcfPersonne } from "./epcf.js?v=20261111m";
+import { renderSubTabs } from "../subtabs.js?v=20261111m";
+import { renderDp } from "./dp.js?v=20261111m";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261111m";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261111m";
+import { lundiEnCours } from "../journee-rules.js?v=20261111m";
+import { bandeauAvis } from "../avis.js?v=20261111m";
+import { statsPassages } from "../passages-stats.js?v=20261111m";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261111m";
+import { icon } from "../icons.js?v=20261111m";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261111m";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261111m";
+import { exemplesRemplis } from "../dp-rules.js?v=20261111m";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261111m";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261111m";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111m";
+import { renderNotes } from "./notes.js?v=20261111m";
+import { notesSur20, moyenne, tendance, forcesEtFaiblesses, moyenneDuGroupe, formatNote } from "../resultats-rules.js?v=20261111m";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -297,8 +298,8 @@ function buildChart(evals, largeur) {
     svg.appendChild(svgEl("circle", {
       cx: x(i), cy: y(e.norm), r: rCible, class: "ms-pt-hit", "data-i": String(i),
       "data-lib": describeEval(e),
-      "data-note": `${e.note}/${e.note_max}`,
-      "data-norm": e.norm.toFixed(1),
+      "data-note": `${dixieme(e.note)}/${dixieme(e.note_max)}`,
+      "data-norm": fr1(e.norm),
       "data-date": formatDate(e.date_eval),
     }));
   });
@@ -425,7 +426,7 @@ function renderChartSection(evaluations, soi = true, { sansMoyenne = false } = {
   if (sansMoyenne) return section;   // Résultats : la moyenne est dans la carte du haut
   const avg = Math.round((noted.reduce((s, e) => s + e.norm, 0) / noted.length) * 10) / 10;
   section.appendChild(el("p", { class: "ms-chart-legend muted" },
-    `Moyenne actuelle : ${avg}/20 · ${noted.length} évaluation(s)`));
+    `Moyenne actuelle : ${dixieme(avg)}/20 · ${pluriel(noted.length, "évaluation")}`));
   return section;
 }
 

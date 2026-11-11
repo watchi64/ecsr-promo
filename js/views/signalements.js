@@ -5,11 +5,11 @@
 // Ce module ne connaît PAS l'éditeur : il reçoit `onOuvrirEditeur` de la part de
 // themes.js. Importer themes.js ici créerait un import circulaire entre deux vues.
 
-import { el, clear, formatDate, toast, displayStagiaire } from "../utils.js?v=20261111l";
-import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20261111l";
-import { listTousSignalements, setQcmSignalementStatut, listStagiaires } from "../db.js?v=20261111l";
-import { getAdminEmail } from "../auth-admin.js?v=20261111l";
-import { icon, deco } from "../icons.js?v=20261111l";
+import { el, clear, formatDate, toast, displayStagiaire } from "../utils.js?v=20261111m";
+import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20261111m";
+import { listTousSignalements, setQcmSignalementStatut, listStagiaires } from "../db.js?v=20261111m";
+import { getAdminEmail } from "../auth-admin.js?v=20261111m";
+import { icon, deco } from "../icons.js?v=20261111m";
 
 export const MOTIF_LABELS = {
   reponse_fausse: "Réponse fausse",
