@@ -60,8 +60,10 @@
   font: inherit; font-size: 0.8rem; font-weight: 600; white-space: nowrap;
   color: var(--accent-strong); cursor: pointer;
 }
-#view .theme-acces > button + button {
-  background: linear-gradient(var(--line), var(--line)) left center / 1px 18px no-repeat;
+/* Le trait entre les deux moitiés : un élément à part, pas un fond (le contraste du texte reste mesurable). */
+#view .theme-acces > button + button { position: relative; }
+#view .theme-acces > button + button::before {
+  content: ""; position: absolute; left: 0; top: 50%; width: 1px; height: 18px; margin-top: -9px; background: var(--line);
 }
 #view .theme-acces > button .icon { width: 15px; height: 15px; }
 #view .theme-acces > button:hover { color: var(--text); }
