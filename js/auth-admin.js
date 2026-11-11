@@ -18,7 +18,7 @@ import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, mesAffectations, oublierPromo, getPromoCourante, getMesPromos, rechargerApresEnregistrements,
-  bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo,
+  bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo, stagiaireVitrineCourante,
 } from "./db.js?v=20261111g";
 import {
   LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo,
@@ -227,14 +227,14 @@ export function apercusOuverts() {
 // pas, comme un vrai formateur (chantier D).
 export function monStagiaireId() {
   if (viewAs && viewAs !== "stagiaire") return null;
-  return currentProfile?.stagiaire_id ?? null;
+  return stagiaireVitrineCourante() ?? currentProfile?.stagiaire_id ?? null;
 }
 
 // Retient l'aperçu et l'envoie à la base. Les données lues sous l'ancien aperçu sont oubliées.
 function appliquerApercu(role) {
   const change = role !== viewAs;
   viewAs = role;
-  poserApercu(role);
+  poserApercu(role, { fondateur: isFounder() });
   if (change) invalidateCache();
 }
 
@@ -297,8 +297,9 @@ export function getProfileWho() {
 /** Le nom de la personne connectée, tel que les écrans l'affichent : « Lucie M. » pour un stagiaire (displayStagiaire),
  *  sinon comme getProfileWho. */
 export function getProfileNom() {
-  if (currentProfile?.stagiaire_id && stagiaires) {
-    const s = stagiaires.find((x) => x.id === currentProfile.stagiaire_id);
+  const fiche = stagiaireVitrineCourante() ?? currentProfile?.stagiaire_id;
+  if (fiche && stagiaires) {
+    const s = stagiaires.find((x) => x.id === fiche);
     if (s) return displayStagiaire(s);
   }
   return getProfileWho();

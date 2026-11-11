@@ -11,6 +11,7 @@ import {
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
 } from "./promo-rules.js?v=20261111g";
 import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111g";
+import { stagiaireVitrine } from "./vitrine-rules.js?v=20261111g";
 import { effectifDesFiches } from "./centre-stats.js?v=20261111g";
 import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111g";
 
@@ -25,6 +26,7 @@ let epoque = 0;              // incrémentée à la déconnexion : un chargement
 let basculeEnCours = false;  // une seule bascule à la fois (double appui, deux choix rapides)
 let requetesBloquees = false; // rechargement décidé : plus aucune requête de données ne part
 let apercuEnvoye = null;     // aperçu de rôle en cours (x-apercu-role) ; nul hors aperçu
+let apercuDuFondateur = false; // l'aperçu est celui du fondateur (vitrine de la promo de démonstration, js/vitrine-rules.js)
 const avantBascule = new Set();
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
@@ -58,7 +60,10 @@ function fetchWithTimeout(input, init = {}) {
     if (promo != null) entetes.set(ENTETE_PROMO, String(promo));
     // Aperçu de rôle : à côté de x-promo-id, vers l'API de données seulement (jamais le stockage ni les
     // fonctions Edge, qui gardent les droits réels). La base ne fait que retirer des droits.
-    if (apercuEnvoye) entetes.set(ENTETE_APERCU, apercuEnvoye); else entetes.delete(ENTETE_APERCU);
+    // Vitrine de la promo de démonstration : pas d'aperçu envoyé, la base lit avec les droits du fondateur (js/vitrine-rules.js).
+    const apercuPose = apercuEnvoye && !stagiaireVitrine({ promoId: promo, apercu: apercuEnvoye, fondateur: apercuDuFondateur })
+      ? apercuEnvoye : null;
+    if (apercuPose) entetes.set(ENTETE_APERCU, apercuPose); else entetes.delete(ENTETE_APERCU);
     if (promo != null || demandee != null || apercuEnvoye) options = { ...init, headers: entetes };
   }
   const controller = new AbortController();
@@ -160,8 +165,9 @@ export function getMesPromos() { return mesPromos; }
 
 // Pose (ou retire, avec null) l'aperçu de rôle envoyé dans l'en-tête x-apercu-role. Une valeur inconnue
 // retire l'aperçu. Les données déjà en mémoire ont été lues sous l'ancien aperçu : on les oublie.
-export function poserApercu(role) {
+export function poserApercu(role, { fondateur = false } = {}) {
   const nouveau = normaliserApercu(role);
+  apercuDuFondateur = !!fondateur;
   if (nouveau === apercuEnvoye) return;
   apercuEnvoye = nouveau;
   recalculerPromosVisibles();
@@ -169,7 +175,14 @@ export function poserApercu(role) {
 }
 
 export function getPromoCourante() {
-  return mesPromos.find((p) => p.id === promoCouranteId) || null;
+  const promo = mesPromos.find((p) => p.id === promoCouranteId) || null;
+  const vitrine = promo && stagiaireVitrineCourante();
+  return vitrine ? { ...promo, stagiaire_id: vitrine } : promo;
+}
+
+// La fiche montrée par la vitrine de la promo affichée (js/vitrine-rules.js), ou null.
+export function stagiaireVitrineCourante() {
+  return stagiaireVitrine({ promoId: promoCouranteId, apercu: apercuEnvoye, fondateur: apercuDuFondateur });
 }
 
 // Déconnexion : le contexte est oublié en mémoire (le choix mémorisé, propre au compte, reste).
