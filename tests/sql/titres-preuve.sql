@@ -134,6 +134,11 @@ declare
   v_av_regles text; v_av_fonctions text; v_av_droits text;
   v_ap_regles text; v_ap_fonctions text; v_ap_droits text;
   v_lieu1 integer; v_lieu2 integer;
+  s_form constant text := 'preuve7.seed.form@exemple.invalid';
+  s_dir constant text := 'preuve7.seed.dir@exemple.invalid';
+  s_siege constant text := 'preuve7.seed.siege@exemple.invalid';
+  c_x constant text := 'preuve7.form.x@exemple.invalid';
+  v_n_juge text;
   v_c1 text; v_c2 text; v_p1 text; v_p2 text; v_r1 text; v_x text;
 begin
   perform set_config('lock_timeout', '3s', true);
@@ -146,6 +151,16 @@ begin
   perform pg_temp.verifier('structure', 'les promos 1 et 2 sont dans deux centres différents',
     v_lieu1 is not null and v_lieu2 is not null and v_lieu1 <> v_lieu2,
     format('centres des promos 1 et 2 : %s et %s', coalesce(v_lieu1::text, 'nul'), coalesce(v_lieu2::text, 'nul')));
+
+  -- 1 bis. Des lignes d'affectation d'avant la migration (un formateur, une direction, un siège) : le remplissage se juge sur elles.
+  insert into public.promos (id, lieu_id, nom, date_debut, date_fin) values
+    (v_pa, v_lieu1, 'Preuve7 promo A', current_date - 20, null),
+    (v_pb, v_lieu1, 'Preuve7 promo B', current_date - 20, null),
+    (v_pc, v_lieu2, 'Preuve7 promo C', current_date - 20, null);
+  insert into public.user_profiles (email, role, is_admin, stagiaire_id, prof_id) values
+    (s_form, 'prof', true, null, null), (s_dir, 'prof', false, null, null), (s_siege, 'prof', false, null, null);
+  insert into public.affectations (email, role, promo_id, lieu_id) values
+    (s_form, 'formateur', v_pa, null), (s_dir, 'direction', null, v_lieu1), (s_siege, 'siege', null, null);
 
   -- 2. Les migrations, dans l'ordre (neutralisées dans les modes sans elles).
   v_etat := pg_temp.jouer('migration 1',
@@ -172,6 +187,13 @@ begin
     'centre:Direction de centre,promo:Formateur,reseau:Siège');
   perform pg_temp.attendre('titres', 'chaque affectation porte le titre fixe de son niveau',
     pg_temp.calcul($q$select count(*)::text from public.affectations a join public.titres t on t.id = a.titre_id where not t.fixe or t.niveau <> case a.role when 'formateur' then 'promo' when 'direction' then 'centre' else 'reseau' end$q$), '0');
+  perform pg_temp.attendre('titres', 'le remplissage, ligne à ligne : le formateur, la direction et le siège d''avant la migration ont le titre de leur niveau',
+    pg_temp.calcul(format('select string_agg(a.email || ''>'' || t.nom, '','' order by a.email collate "C") from public.affectations a join public.titres t on t.id = a.titre_id where a.email in (%L, %L, %L)', s_form, s_dir, s_siege)),
+    format('%s>Direction de centre,%s>Formateur,%s>Siège', s_dir, s_form, s_siege));
+  v_n_juge := pg_temp.calcul($q$select count(*)::text from public.affectations a join public.titres t on t.id = a.titre_id where t.fixe and t.niveau = case a.role when 'formateur' then 'promo' when 'direction' then 'centre' else 'reseau' end$q$);
+  perform pg_temp.informer('lignes d''affectation jugées (titre fixe de leur niveau)', v_n_juge);
+  perform pg_temp.attendre('titres', 'au moins trois lignes jugées (une de chaque rôle), jamais un contrôle à vide',
+    (v_n_juge ~ '^[0-9]+$' and v_n_juge::integer >= 3)::text, 'true');
   perform pg_temp.attendre('titres', 'aucune affectation sans titre',
     pg_temp.calcul($q$select count(*)::text from public.affectations where titre_id is null$q$), '0');
   perform pg_temp.attendre('titres', 'les titres fixes ont des cases vides, aucun centre, la marque de la migration',
@@ -228,13 +250,9 @@ begin
   perform pg_temp.cases('reseau', '{"reglages":"voir"}', false);
   perform pg_temp.cases('autre', '{}', false);
 
-  -- 5. Personnages et promos d'essai, en propriétaire.
-  insert into public.promos (id, lieu_id, nom, date_debut, date_fin) values
-    (v_pa, v_lieu1, 'Preuve7 promo A', current_date - 20, null),
-    (v_pb, v_lieu1, 'Preuve7 promo B', current_date - 20, null),
-    (v_pc, v_lieu2, 'Preuve7 promo C', current_date - 20, null);
+  -- 5. Personnages d'essai, en propriétaire.
   insert into public.user_profiles (email, role, is_admin, stagiaire_id, prof_id) values
-    (c_a, 'prof', true, null, null), (c_b, 'prof', true, null, null), (c_c, 'prof', true, null, null),
+    (c_x, 'prof', true, null, null), (c_a, 'prof', true, null, null), (c_b, 'prof', true, null, null), (c_c, 'prof', true, null, null),
     (c_dir, 'prof', false, null, null), (c_dir2, 'prof', false, null, null), (c_siege, 'prof', false, null, null),
     (c_auth, 'prof', false, null, null);
 
@@ -269,9 +287,13 @@ begin
   perform pg_temp.attendre('titres', 'des cases inadmissibles (page inconnue) : refusées (23514)',
     pg_temp.essai($q$insert into public.titres (nom, niveau, cases) values ('Preuve7 cases', 'reseau', '{"inconnue":"voir"}')$q$), 'ERREUR 23514');
   perform pg_temp.attendre('titres', 'des cases qui trahissent § 5.4 : refusées (23514)',
-    pg_temp.essai($q$insert into public.titres (nom, niveau, cases) values ('Preuve7 cases deux', 'promo', '{"notes":"voir"}')$q$), 'ERREUR 23514');
+    pg_temp.essai(format('insert into public.titres (nom, niveau, lieu_id, cases) values (''Preuve7 cases deux'', ''promo'', %s, ''{"notes":"voir"}'')', v_lieu1)), 'ERREUR 23514');
   perform pg_temp.attendre('titres', 'des cases admissibles : permises',
-    pg_temp.essai($q$insert into public.titres (nom, niveau, cases) values ('Preuve7 cases trois', 'promo', '{"notes":"voir","stagiaires":"voir"}')$q$), 'OK');
+    pg_temp.essai(format('insert into public.titres (nom, niveau, lieu_id, cases) values (''Preuve7 cases trois'', ''promo'', %s, ''{"notes":"voir","stagiaires":"voir"}'')', v_lieu1)), 'OK');
+  perform pg_temp.attendre('titres', 'un titre non fixe de promo sans centre : refusé (23514)',
+    pg_temp.essai($q$insert into public.titres (nom, niveau) values ('Preuve7 promo sans centre', 'promo')$q$), 'ERREUR 23514');
+  perform pg_temp.attendre('titres', 'un titre non fixe de centre sans centre : refusé (23514)',
+    pg_temp.essai($q$insert into public.titres (nom, niveau) values ('Preuve7 centre sans centre', 'centre')$q$), 'ERREUR 23514');
   perform pg_temp.attendre('titres', 'des cases modifiées en cases inadmissibles : refusées (23514)',
     pg_temp.essai($q$update public.titres set cases = '{"ccp2":"modifier"}' where nom = 'Preuve7 cases trois'$q$), 'ERREUR 23514');
   perform pg_temp.attendre('titres', 'supprimer le titre d''origine laisse la version du centre sans origine',
@@ -319,6 +341,9 @@ begin
   perform pg_temp.attendre('affectation', 'retirer l''autre ligne du centre, puis changer le titre de la dernière : permis',
     pg_temp.essai(format('delete from public.affectations where lower(email) = %L and promo_id = %s', c_c, v_pb)) || ' ' ||
     pg_temp.essai(format('update public.affectations set titre_id = %s where lower(email) = %L and promo_id = %s', coalesce(v_p2, 'null'), c_c, v_pa)), 'OK OK');
+  perform pg_temp.attendre('affectation', 'une ligne dont l''adresse change vers une personne qui a déjà un autre titre de promo dans le centre : refusé (23514)',
+    pg_temp.affecter(c_x, 'formateur', v_pb, null, null) || ' ' ||
+    pg_temp.essai(format('update public.affectations set email = %L where email = %L', c_c, c_x)), 'OK ERREUR 23514');
   perform pg_temp.attendre('affectation', 'une promo changée vers un autre centre avec un titre du premier centre : refusé (23514)',
     pg_temp.essai(format('update public.affectations set promo_id = %s where lower(email) = %L and promo_id = %s', v_pc, c_c, v_pa)), 'ERREUR 23514');
   perform pg_temp.attendre('affectation', 'un titre qui n''existe pas : refusé par la clé étrangère (23503)',
@@ -327,6 +352,23 @@ begin
     pg_temp.essai(format('delete from public.titres where id = %s', coalesce(v_p2, '0'))), 'ERREUR 23001');
   perform pg_temp.attendre('affectation', 'supprimer un titre fixe encore porté : refusé (23001, restrict)',
     pg_temp.essai($q$delete from public.titres where fixe and niveau = 'promo'$q$), 'ERREUR 23001');
+
+  -- 7 bis. Un titre porté (ou fixe) ne change ni de niveau, ni de centre, ni de caractère fixe.
+  perform pg_temp.attendre('titres', 'titre porté : changer son niveau est refusé (23514)',
+    pg_temp.essai(format('update public.titres set niveau = ''centre'' where id = %s', coalesce(v_p2, '0'))), 'ERREUR 23514');
+  perform pg_temp.attendre('titres', 'titre porté : changer son centre est refusé (23514)',
+    pg_temp.essai(format('update public.titres set lieu_id = %s where id = %s', v_lieu2, coalesce(v_p2, '0'))), 'ERREUR 23514');
+  perform pg_temp.attendre('titres', 'titre porté : le rendre fixe est refusé (23514)',
+    pg_temp.essai(format('update public.titres set fixe = true, lieu_id = null where id = %s', coalesce(v_p2, '0'))), 'ERREUR 23514');
+  perform pg_temp.attendre('titres', 'titre fixe : changer son niveau est refusé (23514)',
+    pg_temp.essai($q$update public.titres set niveau = 'reseau' where fixe and niveau = 'promo'$q$), 'ERREUR 23514');
+  perform pg_temp.attendre('titres', 'titre fixe : le rendre non fixe est refusé (23514)',
+    pg_temp.essai($q$update public.titres set fixe = false where fixe and niveau = 'centre'$q$), 'ERREUR 23514');
+  perform pg_temp.attendre('titres', 'titre porté : le nom et les cases se modifient (OK OK)',
+    pg_temp.essai(format('update public.titres set nom = ''Preuve7 promo deux bis'' where id = %s', coalesce(v_p2, '0'))) || ' ' ||
+    pg_temp.essai(format('update public.titres set cases = ''{"cours":"voir"}'' where id = %s', coalesce(v_p2, '0'))), 'OK OK');
+  perform pg_temp.attendre('titres', 'titre non porté : son centre peut changer',
+    pg_temp.essai(format('update public.titres set lieu_id = %s where id = %s', v_lieu2, coalesce(v_c1, '0'))), 'OK');
 
   -- 8. Groupe droits : aucun accès direct aux titres, jamais de titre_id choisi par un client.
   perform pg_temp.attendre('droits', 'authenticated ne lit pas titres (42501)',
@@ -340,7 +382,7 @@ begin
   perform pg_temp.attendre('droits', 'authenticated ne modifie ni ne supprime les titres (42501)',
     pg_temp.valeur(c_auth, null, null, $q$update public.titres set nom = 'x' returning id::text$q$) || ' ' ||
     pg_temp.valeur(c_auth, null, null, $q$delete from public.titres returning id::text$q$), 'ERREUR 42501 ERREUR 42501');
-  perform pg_temp.attendre('droits', 'aucun droit de table sur titres pour anon, authenticated ni PUBLIC',
+  perform pg_temp.attendre('droits', 'aucun droit de table sur titres pour anon ni authenticated (PUBLIC compris, par héritage)',
     pg_temp.calcul($q$select count(*)::text from (select unnest(array['select','insert','update','delete','truncate','references','trigger']) p) x, unnest(array['anon','authenticated']) r where has_table_privilege(r, 'public.titres', x.p)$q$), '0');
   perform pg_temp.attendre('droits', 'authenticated n''insère pas titre_id dans affectations (droit de colonne)',
     pg_temp.calcul($q$select has_column_privilege('authenticated', 'public.affectations', 'titre_id', 'insert')::text$q$), 'false');
@@ -353,8 +395,8 @@ begin
     'email,lieu_id,promo_id,role');
   perform pg_temp.attendre('droits', 'titres : sécurité par ligne active, et aucune règle (la lecture passera par des fonctions)',
     pg_temp.calcul($q$select (c.relrowsecurity and not exists (select 1 from pg_policies p where p.schemaname = 'public' and p.tablename = 'titres'))::text from pg_class c where c.oid = 'public.titres'::regclass$q$), 'true');
-  perform pg_temp.attendre('droits', 'les quatre fonctions de la migration 1 n''ont aucun droit d''exécution pour anon ni authenticated',
-    pg_temp.calcul($q$select count(*)::text from unnest(array['public._pages_du_niveau(text)', 'public._cases_valides(text, jsonb)', 'public.titre_fixe(text)', 'public._affectations_titre()']) f, unnest(array['anon','authenticated']) r where has_function_privilege(r, f, 'execute')$q$), '0');
+  perform pg_temp.attendre('droits', 'les cinq fonctions de la migration 1 n''ont aucun droit d''exécution pour anon ni authenticated',
+    pg_temp.calcul($q$select count(*)::text from unnest(array['public._pages_du_niveau(text)', 'public._cases_valides(text, jsonb)', 'public.titre_fixe(text)', 'public._affectations_titre()', 'public._titres_stable()']) f, unnest(array['anon','authenticated']) r where has_function_privilege(r, f, 'execute')$q$), '0');
 
   -- 9. Les retours, dans l'ordre inverse (4, 3, 2, 1).
   v_retour := pg_temp.jouer('retour 4',
@@ -384,8 +426,8 @@ begin
         (select count(*) from pg_attribute where attrelid = 'public.affectations'::regclass and attname = 'titre_id' and not attisdropped)::text,
         (select count(*) from pg_trigger where tgrelid = 'public.affectations'::regclass and tgname = 'affectations_titre')::text)$q$),
       'sans table/0/0');
-    perform pg_temp.attendre('retour', 'après les retours : les quatre fonctions de la migration 1 ont disparu',
-      pg_temp.calcul($q$select count(*)::text from pg_proc where pronamespace = 'public'::regnamespace and proname in ('_pages_du_niveau', '_cases_valides', 'titre_fixe', '_affectations_titre')$q$), '0');
+    perform pg_temp.attendre('retour', 'après les retours : les cinq fonctions de la migration 1 ont disparu',
+      pg_temp.calcul($q$select count(*)::text from pg_proc where pronamespace = 'public'::regnamespace and proname in ('_pages_du_niveau', '_cases_valides', 'titre_fixe', '_affectations_titre', '_titres_stable')$q$), '0');
     perform pg_temp.attendre('retour', 'après les retours : empreinte regles identique à celle d''avant', v_ap_regles, v_av_regles);
     perform pg_temp.attendre('retour', 'après les retours : empreinte fonctions identique à celle d''avant', v_ap_fonctions, v_av_fonctions);
     perform pg_temp.attendre('retour', 'après les retours : empreinte droits identique à celle d''avant', v_ap_droits, v_av_droits);

@@ -7,6 +7,7 @@ drop trigger if exists affectations_titre on public.affectations;
 drop function if exists public._affectations_titre();
 alter table public.affectations drop column if exists titre_id;
 drop table if exists public.titres;
+drop function if exists public._titres_stable();
 drop function if exists public.titre_fixe(text);
 drop function if exists public._cases_valides(text, jsonb);
 drop function if exists public._pages_du_niveau(text);

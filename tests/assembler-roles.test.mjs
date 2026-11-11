@@ -913,14 +913,14 @@ test("la migration 1 des titres : fonctions internes sans droit d'exécution, ta
   const m = texteDuDepot(TITRES_1.migration);
   assert.match(m, /revoke all on public\.titres from public, anon, authenticated;/);
   assert.match(m, /alter table public\.titres enable row level security;/);
-  for (const f of ["_pages_du_niveau\\(text\\)", "_cases_valides\\(text, jsonb\\)", "titre_fixe\\(text\\)", "_affectations_titre\\(\\)"]) {
+  for (const f of ["_pages_du_niveau\\(text\\)", "_cases_valides\\(text, jsonb\\)", "titre_fixe\\(text\\)", "_affectations_titre\\(\\)", "_titres_stable\\(\\)"]) {
     assert.match(m, new RegExp(`revoke all on function public\\.${f} from public, anon, authenticated, service_role;`), f);
   }
   assert.ok(!/^\s*grant /m.test(m), "aucun grant : rien n'est donné aux comptes connectés avant l'étape 2");
   assert.ok(!/create policy/.test(m), "aucune règle sur titres");
-  assert.match(m, /before insert or update of titre_id, role, promo_id, lieu_id on public\.affectations/);
+  assert.match(m, /before insert or update of titre_id, email, role, promo_id, lieu_id on public\.affectations/);
   const r = texteDuDepot(TITRES_1.retour);
-  const ordre = ["drop trigger", "drop function if exists public._affectations_titre", "drop column if exists titre_id", "drop table if exists public.titres",
+  const ordre = ["drop trigger", "drop function if exists public._affectations_titre", "drop column if exists titre_id", "drop table if exists public.titres", "drop function if exists public._titres_stable",
     "drop function if exists public.titre_fixe", "drop function if exists public._cases_valides", "drop function if exists public._pages_du_niveau"];
   const places = ordre.map((x) => r.indexOf(x));
   assert.ok(places.every((x) => x >= 0), "tous les retraits présents");

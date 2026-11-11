@@ -7,6 +7,7 @@
 --                              fixes (Formateur, Direction de centre, Siège) n'ont pas de centre ; leurs cases restent vides
 --                              (« toutes au maximum » se lit dans le niveau, pas dans le jsonb). Aucun droit pour anon ni
 --                              authenticated : les fonctions de l'étape 2 en donneront la lecture.
+--   _titres_stable()           déclencheur de titres : un titre porté (ou fixe) ne change ni de niveau, ni de centre, ni de fixe.
 --   affectations.titre_id      le titre porté par chaque ligne ; un client ne le choisit jamais (le droit d'insertion par
 --                              colonne ne change pas), le déclencheur le pose d'après le rôle et refuse toute incohérence.
 -- Le retour (20261112_titres_1_tables_retour.sql) remet la base dans l'état d'avant.
@@ -93,6 +94,7 @@ create table public.titres (
   constraint titres_fixe_sans_centre check (not fixe or lieu_id is null),
   constraint titres_reseau_sans_centre check (niveau <> 'reseau' or lieu_id is null),
   constraint titres_origine_dun_centre check (origine_id is null or lieu_id is not null),
+  constraint titres_centre_requis check (fixe or niveau = 'reseau' or lieu_id is not null),
   constraint titres_cases_valides check (public._cases_valides(niveau, cases))
 );
 create unique index titres_portee_nom on public.titres (lieu_id, lower(nom)) nulls not distinct;
@@ -100,6 +102,27 @@ create unique index titres_fixe_du_niveau on public.titres (niveau) where fixe;
 alter table public.titres enable row level security;
 revoke all on public.titres from public, anon, authenticated;
 revoke all on sequence public.titres_id_seq from public, anon, authenticated;
+
+-- Un titre porté ne change ni de niveau, ni de centre, ni de caractère fixe : les affectations qui le portent resteraient
+-- avec une cohérence que le déclencheur des affectations aurait refusée. Un titre fixe ne change jamais. Les cases et le nom
+-- se modifient librement.
+create or replace function public._titres_stable()
+returns trigger
+language plpgsql
+security definer
+set search_path to 'public', 'pg_temp'
+as $f$
+begin
+  if (new.niveau, new.fixe, new.lieu_id) is distinct from (old.niveau, old.fixe, old.lieu_id)
+     and (old.fixe or exists (select 1 from public.affectations a where a.titre_id = old.id)) then
+    raise exception 'titres: Le niveau, le centre et le caractère fixe d''un titre porté ne changent pas.' using errcode = '23514';
+  end if;
+  return new;
+end $f$;
+revoke all on function public._titres_stable() from public, anon, authenticated, service_role;
+create trigger titres_stable
+  before update on public.titres
+  for each row execute function public._titres_stable();
 
 -- 4. Les trois titres fixes.
 insert into public.titres (nom, niveau, fixe, cases, cree_par) values
@@ -171,5 +194,5 @@ end $f$;
 revoke all on function public._affectations_titre() from public, anon, authenticated, service_role;
 
 create trigger affectations_titre
-  before insert or update of titre_id, role, promo_id, lieu_id on public.affectations
+  before insert or update of titre_id, email, role, promo_id, lieu_id on public.affectations
   for each row execute function public._affectations_titre();
