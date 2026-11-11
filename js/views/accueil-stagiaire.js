@@ -57,6 +57,7 @@ function rangeeMoment(m) {
     el("div", { class: "acc-moment-texte" },
       el("b", {}, m.titre),
       m.detail ? el("p", {}, m.detail) : null,
+      m.aussi ? el("p", {}, m.aussi) : null,
       m.note ? el("p", { class: "acc-note" }, m.note) : null,
     ),
   );
@@ -100,7 +101,7 @@ function dessinerJournee(corps, etat, relirePlanning, redessiner) {
     if (!planningRempli && !sign) return null;
     const cartes = plan ? plan.cartes : [];
     const horaire = plan ? plan.horaire : (seance ? horaireDeSeance(seance) : "");
-    // Aucune carte ne le nomme : la rangée le lui dit avant les activités des autres (audit du 09/11, A3).
+    // Aucune carte ne le nomme : la rangée le lui dit, à la place de ses activités (audit du 09/11, A3).
     const sansPlace = sansPlaceDansLaDemi({ demi, cartes, moi });
     // Seules ses activités : la voiture des autres pendant qu'elle est en salle est dans le Planning.
     const moments = momentsDeLaDemi({ cartes, moi });

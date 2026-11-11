@@ -118,7 +118,6 @@
 .acc-moment-texte p { margin: 3px 0 0; color: var(--text-soft); overflow-wrap: anywhere; }
 .acc-moment-texte .acc-note { color: var(--text-muted); font-size: 0.9rem; }
 .acc-quoi > p.muted { margin: 0; }
-.acc-quoi > p.muted + .acc-moment { margin-top: 12px; }
 
 .acc-actions { margin-top: 12px; }
 .acc-actions .btn { min-height: 44px; }

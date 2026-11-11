@@ -171,12 +171,17 @@ function carteJour(e, noms, moi) {
   return {
     id: e.id ?? `${e.day_index}-${e.half_day}-${e.slot ?? 0}-${e.lane ?? 0}`,
     genre,
+    // L'activité du planning, même quand le genre dit « autonomie » (une salle ou une voiture sans formateur) : la carte
+    // « Aujourd'hui » de l'Accueil y lit le rôle de chacun.
+    activite: e.activite ?? null,
     titre: TITRES[genre],
     sujets: effSujets(e).flatMap((v) => sujetsDe(v, titres)),
     sujetsParGroupe: parGroupe,
     formateurs: profsDe(e, noms),
     tableau,
     eleves: voiture ? [] : ids.map(nomStagiaire),
+    // Les stagiaires de chaque groupe (ids, remplacements faits) : en salle double, chacun ne suit que la vague de son groupe.
+    elevesParGroupe: voiture ? { 1: [], 2: [] } : { 1: effElevesIds(present, 1), 2: effElevesIds(present, 2) },
     conducteurs: voiture ? ids.map(nomStagiaire) : [],
     benevoles: effBenevolesIds(e).map((id) => noms.benevoles?.get(id)).filter(Boolean),
     notes: e.notes && String(e.notes).trim() ? String(e.notes).trim() : "",

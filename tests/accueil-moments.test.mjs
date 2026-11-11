@@ -124,6 +124,53 @@ test("aperçu : deux stagiaires dans la même voiture, puis une voiture sans sta
   assert.equal(b.detail, "Aucun stagiaire en voiture · Paul D., élève bénévole, avec Marc");
 });
 
+// Relecture neuve du 11/11 : quatre cas que la première version disait mal.
+
+test("salle en autonomie : le rôle reste dit, « en autonomie » à la place du formateur", () => {
+  const e = [carte({ autonomie: true, prof_ids: [], pedagogue_id: 1, eleves_ids: [3], sujet: "Feux" })];
+  assert.deepEqual(lu(moments(e, 1)), [
+    { ico: "presentation", titre: "Tu passes au tableau", detail: "en salle · Feux, en autonomie", note: null, moi: "tableau" },
+  ]);
+  assert.equal(moments(e, 3)[0].detail, "Lina R. passe au tableau · Feux, en autonomie");
+  assert.deepEqual(moments(e, 2), [], "une salle en autonomie qui ne la nomme pas reste au Planning");
+});
+
+test("voiture en autonomie : « Tu enseignes en voiture » et ses élèves bénévoles", () => {
+  const e = [carte({ activite: "Voiture (conduite)", autonomie: true, prof_ids: [], eleves_ids: [2], benevoles_ids: [1] })];
+  assert.deepEqual(lu(moments(e, 2)), [
+    { ico: "car", titre: "Tu enseignes en voiture", detail: "à Paul D., élève bénévole, en autonomie", note: null, moi: "voiture" },
+  ]);
+});
+
+test("autonomie qui ne nomme personne : toute la promo, sans phrase « ton nom ne figure… »", () => {
+  const e = [carte({ autonomie: true, prof_ids: [], notes: "Révisions" })];
+  assert.deepEqual(lu(moments(e, 1)), [{ ico: "users", titre: "Autonomie", detail: null, note: "Révisions", moi: null }]);
+});
+
+test("salle double : l'élève d'un seul groupe ne lit que sa vague", () => {
+  const e = [carte({ salle_double: true, pedagogue_id: 1, pedagogue_id_2: 2, eleves_ids: [3], eleves_ids_2: [4],
+    sujet: "Feux", sujet_2: "Pneus" })];
+  assert.equal(moments(e, 4)[0].detail, "Léo B. passe au tableau · Pneus, avec Claire");
+  assert.equal(moments(e, 3)[0].detail, "Lina R. passe au tableau · Feux, avec Claire");
+});
+
+test("salle double : pédagogue du groupe 1 et élève du groupe 2, les deux rôles sont dits", () => {
+  const e = [carte({ salle_double: true, pedagogue_id: 1, pedagogue_id_2: 2, eleves_ids: [3], eleves_ids_2: [1, 4],
+    sujet: "Feux", sujet_2: "Pneus" })];
+  const [m] = moments(e, 1);
+  assert.equal(m.titre, "Tu passes au tableau");
+  assert.equal(m.detail, "en salle · Feux, avec Claire");
+  assert.equal(m.aussi, "Tu es aussi en salle quand Léo B. passe au tableau · Pneus.");
+});
+
+test("voiture à deux stagiaires : l'autre est nommé à part, le formateur reste seul après « avec »", () => {
+  const e = [carte({ activite: "Voiture (conduite)", prof_ids: [2], eleves_ids: [1, 2], benevoles_ids: [1, 2] })];
+  const [m] = moments(e, 1);
+  assert.equal(m.detail, "à Paul D. et Emma L., élèves bénévoles, avec Marc");
+  assert.equal(m.aussi, "Léo B. enseigne aussi dans cette voiture.");
+  assert.equal(moments([carte({ activite: "Voiture (conduite)", prof_ids: [2], eleves_ids: [2], benevoles_ids: [1] })], 2)[0].aussi, null);
+});
+
 test("aucune phrase ne porte de tiret cadratin", () => {
   const tout = JSON.stringify([moments(MATIN, 1), moments(MATIN, 2), moments(MATIN, 3), moments(MATIN, null)]);
   assert.ok(!tout.includes("\u2014"));
