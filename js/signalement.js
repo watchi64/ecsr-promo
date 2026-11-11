@@ -9,7 +9,6 @@
 import { el, toast } from "./utils.js?v=20261111b";
 import { icon, deco } from "./icons.js?v=20261111b";
 import { getViewAs, fondateurHorsApercu, selonPublic } from "./auth-admin.js?v=20261111b";
-import { navigationV2Active } from "./nav-etat.js?v=20261111b";
 import { signalerProbleme, mesSignalementsApp, marquerSuivisVus } from "./db.js?v=20261111b";
 import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261111b";
 import { dernieresErreurs } from "./journal-erreurs.js?v=20261111b";

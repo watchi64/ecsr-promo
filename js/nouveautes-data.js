@@ -46,9 +46,11 @@ export const NOUVEAUTES = [
       "Les dates importantes de la formation sont dans Planning, Dates clés ; les documents et liens utiles dans Cours et "
         + "QCM, Documents.",
       "La fiche personnelle (notes, passages, livret EPCF, dossier professionnel) s'appelle Mon suivi ; les préférences sont "
-        + "dans « Mes préférences », dans le menu du compte (les initiales, en haut à droite).",
+        + "dans « Mes préférences », dans le menu du compte (les initiales : en haut à droite, ou en bas de la barre de gauche "
+        + "pour l'équipe sur ordinateur).",
       "Le menu du compte réunit aussi Nouveautés, Contacts du centre, Recharger les données et Se déconnecter.",
-      "Pour une question sur l'app ou sur un cours : le bouton « Assistant », en haut de l'écran.",
+      "Pour une question sur l'app ou sur un cours : le bouton « Assistant », en haut de l'écran (pour l'équipe sur "
+        + "ordinateur, en bas de la barre de gauche).",
     ],
   },
   // Lot D (les mots) et décisions du 10/11.

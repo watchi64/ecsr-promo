@@ -106,6 +106,8 @@ function renderTabs() {
   } catch (e) {
     console.error("Navigation : la barre n'a pas pu se monter.", e);
     document.querySelectorAll("[data-nav-coquille]").forEach((r) => r.remove());
+    // Plus de coquille : ses marques sur le corps de page partent aussi (sinon le repli garderait la marge de la barre).
+    for (const cle of ["nav", "barre", "espace"]) delete document.body.dataset[cle];
     navigationEnPanne = true;
     ecranSansNavigation();
     return false;
@@ -119,7 +121,7 @@ function ecranSansNavigation() {
   if (!view) return;
   view.replaceChildren(el("div", { class: "nav-repli", role: "alert" },
     el("h1", { class: "nav-repli-titre" }, "L'app n'a pas pu s'afficher"),
-    el("p", {}, "Recharge la page. Si le problème revient, déconnecte-toi puis reconnecte-toi."),
+    el("p", {}, "Recharger la page ; si le problème revient, se déconnecter puis se reconnecter."),
     el("div", { class: "nav-repli-gestes" },
       el("button", { class: "btn primary", type: "button", onClick: () => rechargerApresEnregistrements() }, "Recharger"),
       el("button", { class: "btn", type: "button", onClick: () => seDeconnecter() }, "Se déconnecter"))));
@@ -487,6 +489,9 @@ async function bootApp() {
   // formateurs (décision du 13/10) : le texte s'adresse aux stagiaires, et un formateur
   // salarié du centre n'a pas à accepter en son nom les conditions de l'éditeur ; ce sera
   // couvert par le contrat avec le centre. Vrai rôle, pas l'aperçu « Voir en tant que ».
+  // Une erreur avant la barre (conditions, lectures du démarrage) ne laisse jamais la page sur « Chargement » sans sortie :
+  // l'écran de repli propose de recharger ou de se déconnecter (relecture du 11/11).
+  try {
   if (getProfile()?.role !== "prof") await exigerAcceptation(getAdminEmail());
   // Interrupteur de l'émargement (propre à la promo) lu en même temps que les modules, avant le premier rendu.
   // Sans promo (le siège, une direction dont le centre n'en a pas encore), les modules et l'émargement n'ont rien à lire : les
@@ -498,6 +503,11 @@ async function bootApp() {
     unePromo ? chargerModulesAuDemarrage() : null, unePromo ? chargerEmargementActif() : null,
     centre ? chargerEmargementCentre(promosDuCentre(getMesPromos(), centre.id)) : null,
   ]);
+  } catch (e) {
+    console.error("Démarrage : lecture impossible avant la barre.", e);
+    ecranSansNavigation();
+    return;
+  }
   // La coquille, ou l'écran de repli si elle ne peut pas se monter : jamais une page sans barre.
   renderTabs();
   majBadgeNouveautes();

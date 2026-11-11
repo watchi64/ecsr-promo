@@ -87,7 +87,7 @@ PAGES
 
 COMPTE (initiales en haut à droite ; sur ordinateur, en bas de la barre de gauche) : Nouveautés (un point signale celles qui ne sont pas lues), Mes préférences, Recharger les données, Informations légales et Se déconnecter. Une personne qui a plusieurs espaces (Formateur, Direction, Siège) y trouve la section « Espace », une ligne par espace, l'espace actuel coché : choisir un autre espace recharge l'app sur son accueil.
 
-PAS DANS CET ESPACE : l'allumage de l'émargement et de la navigation pour une promo (réservé au fondateur), Planning, Cours et QCM, Mon suivi et CCP2 (espace Formateur).
+PAS DANS CET ESPACE : l'allumage de l'émargement pour une promo (réservé au fondateur), Planning, Cours et QCM, Mon suivi et CCP2 (espace Formateur).
 
 SIGNALER UN PROBLÈME : pour un bug ou quelque chose de pas clair dans l'app. En bas de la barre de gauche, dans « Plus » sur téléphone ; un lien dans le panneau de l'assistant aussi. On écrit son message, on peut ajouter une capture d'écran, et la réponse s'affiche au même endroit.
 
