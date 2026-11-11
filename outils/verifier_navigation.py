@@ -5155,9 +5155,10 @@ def verifier_la_classe(page, res, sc):
 PARTIES_MON_SUIVI = ["Résultats", "Passages", "EPCF", "Livret EPCF", "Dossier pro"]   # « Livret EPCF » : décision de Timy du 08/11
 # La fiche de main : Mon espace éteint, et la fiche d'un stagiaire chez l'équipe dans les deux navigations.
 PARTIES_FICHE_DE_MAIN = ["Passages", "EPCF", "Évolution", "Livret", "Dossier pro"]
-# Les lignes du sommaire du stagiaire du banc (Timy, id 1, le 27/10/2026) : aucun passage à venir, aucune épreuve EPCF, pas de livret, un dossier ouvert le 02/10
-# sans exemple rempli (que main écrivait « Dossier pro 02/10 »).
-LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : aucun à venir", "EPCF : 0 épreuve sur 2", "Livret EPCF : pas encore commencé",
+# Les lignes du sommaire du stagiaire du banc (Timy, id 1, le 27/10/2026) : trois passages à venir, aucune épreuve EPCF, pas de livret, un dossier ouvert le
+# 02/10 sans exemple rempli (que main écrivait « Dossier pro 02/10 »). Les passages : depuis le 11/11 (navigation unique, phase 2), Mon suivi lit la semaine
+# en cours, celle du planning du banc ; il lisait avant la semaine épinglée du banc (deux semaines plus tôt, vide), d'où « aucun à venir ».
+LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : 3 à venir", "EPCF : 0 épreuve sur 2", "Livret EPCF : pas encore commencé",
                             "Dossier pro : 0 exemple sur 6"]
 CLE_VUE_RESULTATS = "ecsr_resultats_vue"
 # La fiche d'un stagiaire chez l'équipe : Valentin (id 4), EPCF 1 sur 2, livret et dossier.
