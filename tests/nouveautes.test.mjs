@@ -360,8 +360,16 @@ ok(mod("livret").annonce.resume.startsWith("Ton livret d'évaluation officiel se
 ok(mod("dp").explication.includes("celui du stagiaire dans son suivi"), "Dossier pro : explication");
 eq(mod("assistant").explication, "Assistant qui répond sur les cours et le Code de la route.", "Assistant : explication");
 ok(mod("assistant").annonce.resume.startsWith("L'assistant répond à tes questions sur les cours et le Code de la route."), "Assistant : annonce");
-// Les libellés « Où le trouver » du catalogue gardent leur forme de main : c'est ouSelonNavigation qui les réécrit.
-eq(mod("calendrier").annonce.ou.label, "Calendrier", "Calendrier : libellé d'avant, réécrit par ouSelonNavigation");
+// Dates clés et Documents (11/11) : leurs libellés « Où le trouver » sont ceux de la barre ; les autres gardent leur forme de main,
+// que ouSelonNavigation réécrit.
+eq(mod("calendrier").nom, "Dates clés", "calendrier : nommé Dates clés");
+eq(mod("ressources").nom, "Documents", "ressources : nommé Documents");
+eq(mod("calendrier").annonce.ou.label, "Planning, Dates clés", "Dates clés : libellé de la barre");
+eq(mod("ressources").annonce.ou.label, "Cours et QCM, Documents", "Documents : libellé de la barre");
+for (const m of MODULES) {
+  const textes = [m.explication, m.annonce?.titre, m.annonce?.resume, m.annonce?.ou?.label].filter(Boolean).join(" ");
+  ok(!/Mon espace personnel|compte à rebours|Onglet Cours|onglet Cours/.test(textes), m.cle + " : ni Mon espace personnel, ni compte à rebours, ni onglet Cours");
+}
 eq(mod("notes").annonce.ou.label, "Notes", "Notes : libellé d'avant, réécrit par ouSelonNavigation");
 
 // === Lot 5 : audiences par espace (direction, siège), Nouveautés des nouveaux espaces ===
