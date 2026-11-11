@@ -166,6 +166,32 @@ def direction_etape_des_12_mois(v):
                      ouvrir=lambda _v: None)
 
 
+@parcours("conservation-direction-fin-a-verifier",
+          "Une promo dont des activités sont datées après sa fin n'a pas de bouton d'effacement (direction)",
+          role="direction", budget=2, banc={"compte": "direction", "conservation": "1", "fin": "contredite"},
+          navigations=("nouvelle",), depart="#/promos")
+def direction_fin_a_verifier(v):
+    """Relecture du 11/11 : la base refuse les étapes à la direction quand des activités de la promo sont datées après sa fin
+    (date de fin reculée ou mal saisie). Réglages du centre : « Nîmes, mars 2023 » n'a plus de carte d'étape ni de bouton, mais une
+    carte « Fiches : date de fin à vérifier » qui dit pourquoi et quoi faire ; aucune fonction d'effacement n'est appelée."""
+    ouvrir_reglages_du_centre(v)
+    a_verifier = carte("Fiches : date de fin à vérifier", "Nîmes, mars 2023")
+    v.attendre(a_verifier, "la carte « Fiches : date de fin à vérifier » de Nîmes, mars 2023")
+    v.but("carte affichée")
+    texte_carte = v.texte(a_verifier)
+    for morceau in ("datées après sa date de fin", "vérifiez la date de fin", "fondateur"):
+        if morceau not in texte_carte:
+            v.constat("F", BLOQUE, "la carte ne dit pas « %s »" % morceau, capture=True)
+    if v.voit(a_verifier + " button[data-cons]"):
+        v.constat("E", BLOQUE, "la carte « date de fin à vérifier » porte un bouton d'effacement", capture=True)
+    if v.voit(carte("Fiches : étape des 12 mois", "Nîmes, mars 2023")) or v.voit(carte("Fiches : étape des 3 ans", "Nîmes, mars 2023")):
+        v.constat("E", BLOQUE, "les cartes d'étape de Nîmes, mars 2023 restent affichées", capture=True)
+    if any(nom.startswith("effacer_") for nom in appels(v)):
+        v.constat("E", BLOQUE, "une fonction d'effacement a été appelée")
+    v.controler_ecran("carte « date de fin à vérifier »")
+    v.terminer()
+
+
 @parcours("conservation-liste-des-formateurs", "Effacer la liste des formateurs qui ont répondu au questionnaire (fondateur)",
           role="fondateur", budget=BUDGET, banc=BANC, semis=NAV2)
 def liste_des_formateurs(v):

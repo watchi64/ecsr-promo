@@ -26,6 +26,7 @@ const SORTES = {
   etape1: "Fiches : étape des 12 mois",
   etape2: "Fiches : étape des 3 ans",
   date_fin_manquante: "Fiches : date de fin manquante",
+  fin_contredite: "Fiches : date de fin à vérifier",
   cloture_formateurs: "Questionnaire des formateurs",
   commentaires_formateurs: "Questionnaire des formateurs",
   figeage_formateurs: "Questionnaire des formateurs",
@@ -33,6 +34,7 @@ const SORTES = {
 };
 
 function quand(e) {
+  if (e.type === "fin_contredite") return "À vérifier";
   if (!e.du) return "Sans date";
   if (e.due) return e.restant === 0 ? "À faire aujourd'hui" : `À faire depuis le ${dateLongue(e.du)}`;
   return `À partir du ${dateLongue(e.du)}`;

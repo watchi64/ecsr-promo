@@ -29,6 +29,10 @@
 --        -v retour=<chemin absolu de 20261111_conservation_direction_retour.sql> \
 --        -v retour_q5=<chemin absolu de 20261110_conservation_retour.sql> -f tests/sql/conservation-direction-preuve.sql
 -- Contre-épreuves : la même commande avec une copie de la migration où une garde est retirée (ROUGE attendu).
+-- Relecture du 11/11 (correctif critique) : une direction qui recule la date de fin d'une promo en cours (modifier_dates_promo)
+-- est refusée ; chaque source d'activité datée après la fin bloque la direction à elle seule ; une activité le jour même de la fin
+-- ne bloque pas ; le fondateur garde la règle de Q5 ; l'en-tête x-apercu-role d'une direction n'ouvre rien hors de son centre.
+-- Les dates de création et d'activité des données de la preuve sont posées en dur (rejouable à toute date).
 
 select length(set_config('preuve.migration', pg_read_file(:'migration'), false)) as migration_lue,
        length(set_config('preuve.retour', pg_read_file(:'retour'), false)) as retour_lu,
@@ -80,6 +84,28 @@ declare
     raise exception 'conservation: Cette promo n''est pas dans votre périmètre.';
   end if;
 $g$;
+  v_garde_lot constant text := $g$
+  -- Fondateur (garde de Q5) ou direction du centre de la promo (_peut_conserver_promo) ; les refus restent ceux de Q5.
+  if p_promo is null or not _peut_conserver_promo(p_promo) then
+    if not peut_gerer_qualite() then
+      raise exception 'conservation: Réservé à la gestion de la qualité.';
+    end if;
+    raise exception 'conservation: Cette promo n''est pas dans votre périmètre.';
+  end if;
+$g$;
+  v_verrou_q5 constant text := $g$
+  select * into p from promos where id = p_promo for no key update;
+$g$;
+  v_verrou_lot constant text := $g$
+  select * into p from promos where id = p_promo for no key update;
+  -- Direction (hors fondateur) : la date de fin, qu'elle peut modifier, ne suffit pas. Aucune activité de la promo ne doit être
+  -- datée après sa fin (_activite_apres_fin), relue après le verrou : un changement de dates simultané attend la fin de l'étape.
+  if not (peut_gerer_qualite() and peut_acceder_promo(p_promo)) and _activite_apres_fin(p_promo) is not null then
+    raise exception 'conservation: Des activités de cette promo sont datées après sa date de fin (jusqu''au %) : vérifiez la date de fin de la promo, ou demandez cet effacement au fondateur.', to_char(_activite_apres_fin(p_promo), 'DD/MM/YYYY');
+  end if;
+$g$;
+  REFUS_A text;
+  PA3 integer; SA3 integer;
   md5_avant text; md5_apres text; photo_avant text; photo_apres text; intactes_avant text; intactes_apres text;
   etapes_avant text[]; etapes_apres text[];
   LA integer; LB integer; PA1 integer; PA2 integer; PB1 integer; SA1 integer; SA2 integer; SB1 integer;
@@ -173,15 +199,23 @@ begin
   -- promo PB1 (mêmes dates que PA1).
   insert into lieux (nom) values ('Preuve direction A') returning id into LA;
   insert into lieux (nom) values ('Preuve direction B') returning id into LB;
-  insert into promos (lieu_id, nom, date_debut, date_fin) values (LA, 'Preuve A finie', date '2026-03-02', date '2026-12-11') returning id into PA1;
-  insert into promos (lieu_id, nom, date_debut, date_fin) values (LA, 'Preuve A sans date', date '2026-09-01', null) returning id into PA2;
-  insert into promos (lieu_id, nom, date_debut, date_fin) values (LB, 'Preuve B finie', date '2026-03-02', date '2026-12-11') returning id into PB1;
-  insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve Alba', 'PREUVENOM', PA1, true) returning id into SA1;
-  insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve Basile', 'PREUVENOM', PA1, false) returning id into SA2;
-  insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve Corto', 'PREUVENOM', PB1, true) returning id into SB1;
+  -- PA3 : promo de A en formation (fin le 30/06/2027), avec des créneaux, une séance, une note et un passage (relecture du 11/11).
+  insert into promos (lieu_id, nom, date_debut, date_fin, created_at) values (LA, 'Preuve A finie', date '2026-03-02', date '2026-12-11', timestamptz '2026-02-15 10:00+01') returning id into PA1;
+  insert into promos (lieu_id, nom, date_debut, date_fin, created_at) values (LA, 'Preuve A sans date', date '2026-09-01', null, timestamptz '2026-08-15 10:00+02') returning id into PA2;
+  insert into promos (lieu_id, nom, date_debut, date_fin, created_at) values (LB, 'Preuve B finie', date '2026-03-02', date '2026-12-11', timestamptz '2026-02-15 10:00+01') returning id into PB1;
+  insert into promos (lieu_id, nom, date_debut, date_fin, created_at) values (LA, 'Preuve A en formation', date '2026-09-07', date '2027-06-30', timestamptz '2026-08-20 10:00+02') returning id into PA3;
+  insert into stagiaires (prenom, nom, promo_id, actif, created_at) values ('Preuve Alba', 'PREUVENOM', PA1, true, timestamptz '2026-02-20 10:00+01') returning id into SA1;
+  insert into stagiaires (prenom, nom, promo_id, actif, created_at) values ('Preuve Basile', 'PREUVENOM', PA1, false, timestamptz '2026-02-20 10:00+01') returning id into SA2;
+  insert into stagiaires (prenom, nom, promo_id, actif, created_at) values ('Preuve Corto', 'PREUVENOM', PB1, true, timestamptz '2026-02-20 10:00+01') returning id into SB1;
+  insert into stagiaires (prenom, nom, promo_id, actif, created_at) values ('Preuve Dora', 'PREUVENOM', PA3, true, timestamptz '2026-08-25 10:00+02') returning id into SA3;
+  insert into evaluations (stagiaire_id, promo_id, type, note, date_eval) values (SA3, PA3, 'Thème', 14, date '2026-11-05');
+  insert into passages (stagiaire_id, promo_id, date, type, resultat) values (SA3, PA3, date '2026-11-09', 'Voiture', 'Effectué');
+  insert into planning_entries (semaine_lundi, day_index, half_day, slot, promo_id) values (date '2027-01-11', 4, 'matin', 0, PA3);
+  insert into emargement_seances (promo_id, jour, demi_journee, debut, fin, statut, ouverte_par)
+  values (PA3, date '2026-11-10', 'matin', '08:30', '12:00', 'ouverte', 'preuve.consdir.form@example.invalid');
   insert into stagiaires_prive (stagiaire_id, date_naissance) values (SA1, date '1990-01-01'), (SB1, date '1991-02-02');
-  insert into evaluations (stagiaire_id, promo_id, type, note, observation)
-  values (SA1, PA1, 'Thème', 12, 'Observation preuve'), (SB1, PB1, 'Thème', 13, 'Observation preuve');
+  insert into evaluations (stagiaire_id, promo_id, type, note, observation, date_eval)
+  values (SA1, PA1, 'Thème', 12, 'Observation preuve', date '2026-10-01'), (SB1, PB1, 'Thème', 13, 'Observation preuve', date '2026-10-01');
 
   -- Comptes : FO fondateur ; DA direction de LA ; DB direction de LB ; FORM formateur de PA1 ; SIEGE siège ; EA1 et EB1 les
   -- comptes des fiches SA1 et SB1. Profils d'abord, puis comptes.
@@ -222,19 +256,23 @@ begin
   end if;
 
   -- 3. Catalogue -----------------------------------------------------------------------------------------------------------
-  perform pg_temp.cas('les trois fonctions du lot existent',
-    to_regprocedure('public._peut_conserver_promo(integer)') is not null
+  perform pg_temp.cas('les quatre fonctions du lot existent',
+    to_regprocedure('public._activite_apres_fin(integer)') is not null
+    and to_regprocedure('public._peut_conserver_promo(integer)') is not null
     and to_regprocedure('public._peut_conserver_centre(integer)') is not null
     and to_regprocedure('public.etat_conservation_centre(integer)') is not null, null);
   if to_regprocedure('public.etat_conservation_centre(integer)') is not null then
     select string_agg(coalesce(proacl::text, 'nul'), ' ' order by oid) into t
-      from pg_proc where oid in ('public._peut_conserver_promo(integer)'::regprocedure, 'public._peut_conserver_centre(integer)'::regprocedure);
+      from pg_proc where oid in ('public._peut_conserver_promo(integer)'::regprocedure, 'public._peut_conserver_centre(integer)'::regprocedure,
+                   'public._activite_apres_fin(integer)'::regprocedure);
     perform pg_temp.cas('fonctions internes : aucun droit d''exécution pour anon, authenticated, service_role, public (propriétaire seul)',
       (select bool_and(not has_function_privilege(rl, f, 'execute'))
          from unnest(array['anon', 'authenticated', 'service_role']) rl,
-              unnest(array['public._peut_conserver_promo(integer)', 'public._peut_conserver_centre(integer)']) f)
+              unnest(array['public._peut_conserver_promo(integer)', 'public._peut_conserver_centre(integer)',
+                           'public._activite_apres_fin(integer)']) f)
       and (select bool_and(proacl is not null and array_length(proacl, 1) = 1 and proacl[1]::text like (pg_get_userbyid(proowner) || '=X/%'))
-             from pg_proc where oid in ('public._peut_conserver_promo(integer)'::regprocedure, 'public._peut_conserver_centre(integer)'::regprocedure)),
+             from pg_proc where oid in ('public._peut_conserver_promo(integer)'::regprocedure, 'public._peut_conserver_centre(integer)'::regprocedure,
+                   'public._activite_apres_fin(integer)'::regprocedure)),
       t);
     perform pg_temp.cas('etat_conservation_centre : authenticated et service_role oui, anon non',
       has_function_privilege('authenticated', 'public.etat_conservation_centre(integer)', 'execute')
@@ -263,18 +301,11 @@ begin
     null);
   if not v_deja then
     -- Même corps que Q5 : la garde de ce lot remplacée par celle de Q5 redonne exactement la définition d'avant.
-    select array_agg(md5(replace(replace(replace(pg_get_functiondef(f::regprocedure), chr(13), ''), $l$
-  -- Fondateur (garde de Q5) ou direction du centre de la promo (_peut_conserver_promo) ; les refus restent ceux de Q5.
-  if p_promo is null or not _peut_conserver_promo(p_promo) then
-    if not peut_gerer_qualite() then
-      raise exception 'conservation: Réservé à la gestion de la qualité.';
-    end if;
-    raise exception 'conservation: Cette promo n''est pas dans votre périmètre.';
-  end if;
-$l$, v_garde_q5), chr(13), '')) order by o)
+    select array_agg(md5(replace(replace(replace(pg_get_functiondef(f::regprocedure), chr(13), ''), v_verrou_lot, v_verrou_q5),
+                                 v_garde_lot, v_garde_q5)) order by o)
       into etapes_apres from unnest(array['public.effacer_promo_etape1(integer)', 'public.effacer_promo_etape2(integer)'])
            with ordinality u(f, o);
-    perform pg_temp.cas('étapes 1 et 2 : même corps que Q5 (seule la garde change)',
+    perform pg_temp.cas('étapes 1 et 2 : même corps que Q5 (seuls la garde et le contrôle des activités changent)',
       etapes_avant = etapes_apres, array_to_string(etapes_avant || etapes_apres, ' '));
   end if;
 
@@ -297,9 +328,9 @@ $l$, v_garde_q5), chr(13), '')) order by o)
     -- 4.2 Le jour de l'étape 1 (11/12/2027) : l'état du centre A, et les refus.
     perform pg_temp.jour(date '2027-12-11');
     j := pg_temp.res(pg_temp.tente(format('select public.etat_conservation_centre(%s)::text', LA)));
-    perform pg_temp.cas('etat_conservation_centre(A) pour la direction de A : les promos de A seulement (PA1, PA2), jour du 11/12/2027',
+    perform pg_temp.cas('etat_conservation_centre(A) pour la direction de A : les promos de A seulement (PA1, PA2, PA3), jour du 11/12/2027',
       j is not null and j ->> 'jour' = '2027-12-11'
-      and (select string_agg(p ->> 'id', ',' order by (p ->> 'id')::int) from jsonb_array_elements(j -> 'promos') p) = PA1 || ',' || PA2,
+      and (select string_agg(p ->> 'id', ',' order by (p ->> 'id')::int) from jsonb_array_elements(j -> 'promos') p) = PA1 || ',' || PA2 || ',' || PA3,
       coalesce(j::text, 'refusée'));
     j := (select p from jsonb_array_elements(j -> 'promos') p where (p ->> 'id')::int = PA1);
     perform pg_temp.cas('etat_conservation_centre : PA1 avec ses dates et ses nombres, même forme que etat_conservation()',
@@ -308,7 +339,8 @@ $l$, v_garde_q5), chr(13), '')) order by o)
       and j ->> 'lieu_nom' = 'Preuve direction A' and j ? 'emargement_etape2' and j ->> 'nom' = 'Preuve A finie'
       and (select array_agg(k order by k) from jsonb_object_keys(j) k)
           = array['a_effacer_etape1', 'a_effacer_etape2', 'comptes_equipe', 'date_fin', 'emargement_etape2', 'etape1_du',
-                  'etape2_du', 'id', 'lieu_nom', 'nom'],
+                  'etape2_du', 'fin_contredite_le', 'id', 'lieu_nom', 'nom']
+      and j -> 'fin_contredite_le' = 'null'::jsonb,
       coalesce(j::text, 'absente'));
     j := pg_temp.res(pg_temp.tente(format('select public.etat_conservation_centre(%s)::text', LA)));
     perform pg_temp.cas('etat_conservation_centre : portées des formateurs vides, registre nul, aucun nom de personne',
@@ -336,11 +368,83 @@ $l$, v_garde_q5), chr(13), '')) order by o)
     r := pg_temp.tente('select public.effacer_registre_qualite()::text');
     perform pg_temp.cas('direction de A : effacer_registre_qualite refusé (fondateur seul)', r not like 'ok%', r);
     r := pg_temp.tente(format('select public._peut_conserver_promo(%s)::text', PA1))
-         || ' | ' || pg_temp.tente(format('select public._peut_conserver_centre(%s)::text', LA));
-    perform pg_temp.cas('direction de A : les fonctions internes ne s''appellent pas (42501)', r like '42501%| 42501%', r);
+         || ' | ' || pg_temp.tente(format('select public._peut_conserver_centre(%s)::text', LA))
+         || ' | ' || pg_temp.tente(format('select public._activite_apres_fin(%s)::text', PA1));
+    perform pg_temp.cas('direction de A : les fonctions internes ne s''appellent pas (42501)', r like '42501%| 42501%| 42501%', r);
     reset role;
     perform pg_temp.cas('aucun refus n''a rien changé', pg_temp.donnees() = d1, null);
     set local role authenticated;
+
+    -- 4.2 bis Relecture du 11/11 : l'activité après la date de fin bloque la direction, jamais le fondateur.
+    REFUS_A := '%conservation: Des activités de cette promo sont datées après sa date de fin (jusqu''au @) : vérifiez la date de fin de la promo, ou demandez cet effacement au fondateur.';
+    -- Chaque source, seule, sur PA1 (finie le 11/12/2026) : une ligne datée du 15/01/2027, la direction est refusée.
+    foreach t in array array[
+        format('update promos set created_at = timestamptz ''2027-01-15 10:00+01'' where id = %s', PA1),
+        format('update stagiaires set created_at = timestamptz ''2027-01-15 10:00+01'' where id = %s', SA2),
+        format('insert into emargement_seances (promo_id, jour, demi_journee, debut, fin, statut, ouverte_par) values (%s, date ''2027-01-15'', ''matin'', ''08:30'', ''12:00'', ''ouverte'', ''preuve@example.invalid'')', PA1),
+        format('insert into planning_entries (semaine_lundi, day_index, half_day, slot, promo_id) values (date ''2027-01-11'', 4, ''matin'', 0, %s)', PA1),
+        format('insert into evaluations (stagiaire_id, promo_id, type, note, date_eval) values (%s, %s, ''Thème'', 10, date ''2027-01-15'')', SA1, PA1),
+        format('insert into epcf_evaluations (stagiaire_id, promo_id, trame, date_eval) values (%s, %s, ''salle'', date ''2027-01-15'')', SA1, PA1),
+        format('insert into passages (stagiaire_id, promo_id, date, type, resultat) values (%s, %s, date ''2027-01-15'', ''Voiture'', ''Effectué'')', SA1, PA1)] loop
+      r := null;
+      begin
+        reset role;
+        execute t;
+        set local role authenticated;
+        perform pg_temp.qui('DA');
+        r := pg_temp.tente(format('select public.effacer_promo_etape1(%s)::text', PA1));
+        raise exception 'preuve: annulé';
+      exception when others then
+        if sqlerrm <> 'preuve: annulé' then r := 'préparation : ' || sqlerrm; end if;
+      end;
+      perform pg_temp.cas('activité après la fin (' || split_part(split_part(t, 'update ', 2) || split_part(t, 'into ', 2), ' ', 1)
+        || ') : la direction est refusée, la date est dite', r like replace(REFUS_A, '@', '15/01/2027'), r);
+    end loop;
+    -- Jumeau : une séance le jour même de la fin ne bloque pas.
+    r := null;
+    begin
+      reset role;
+      execute format('insert into emargement_seances (promo_id, jour, demi_journee, debut, fin, statut, ouverte_par) values (%s, date ''2026-12-11'', ''matin'', ''08:30'', ''12:00'', ''ouverte'', ''preuve@example.invalid'')', PA1);
+      set local role authenticated;
+      perform pg_temp.qui('DA');
+      r := pg_temp.tente(format('select public.effacer_promo_etape1(%s) ->> ''fiches''', PA1));
+      raise exception 'preuve: annulé';
+    exception when others then
+      if sqlerrm <> 'preuve: annulé' then r := 'préparation : ' || sqlerrm; end if;
+    end;
+    perform pg_temp.cas('jumeau : une séance le jour même de la fin ne bloque pas la direction', r = 'ok 2', r);
+    -- La direction recule la date de fin de PA3 (en formation) : la base accepte le changement, puis refuse les étapes.
+    perform pg_temp.qui('DA');
+    r := pg_temp.tente(format('select public.modifier_dates_promo(%s, date ''2020-01-06'', date ''2020-03-31'')::text', PA3));
+    perform pg_temp.cas('la direction de A peut reculer la date de fin de PA3 (modifier_dates_promo)', r like 'ok%', r);
+    r := pg_temp.tente(format('select public.effacer_promo_etape1(%s)::text', PA3));
+    r2 := pg_temp.tente(format('select public.effacer_promo_etape2(%s)::text', PA3));
+    perform pg_temp.cas('date de fin reculée d''une promo en formation : étapes 1 et 2 refusées à la direction',
+      r like replace(REFUS_A, '@', '15/01/2027') and r2 like replace(REFUS_A, '@', '15/01/2027'), r || ' | ' || r2);
+    reset role;
+    perform pg_temp.cas('date de fin reculée : rien n''est effacé de PA3', pg_temp.fiche(SA3) = 'efface:false anonyme:false profil:0 naissance:0 nom:PREUVENOM',
+      pg_temp.fiche(SA3));
+    set local role authenticated;
+    perform pg_temp.qui('DA');
+    j := pg_temp.res(pg_temp.tente(format('select public.etat_conservation_centre(%s)::text', LA)));
+    perform pg_temp.cas('etat_conservation_centre : PA3 porte fin_contredite_le (dernière activité), PA1 non',
+      (select p ->> 'fin_contredite_le' from jsonb_array_elements(j -> 'promos') p where (p ->> 'id')::int = PA3) = '2027-01-15'
+      and (select p -> 'fin_contredite_le' from jsonb_array_elements(j -> 'promos') p where (p ->> 'id')::int = PA1) = 'null'::jsonb,
+      coalesce(j::text, 'refusée'));
+    perform pg_temp.qui('FO');
+    r := pg_temp.tente_blanc(format('select public.effacer_promo_etape1(%s) ->> ''fiches''', PA3));
+    j := pg_temp.res(pg_temp.tente(format('select public.etat_conservation_centre(%s)::text', LA)));
+    perform pg_temp.cas('fondateur : la règle de Q5 telle quelle (étape 1 de PA3 permise, fin_contredite_le nulle)',
+      r = 'ok 1' and (select p -> 'fin_contredite_le' from jsonb_array_elements(j -> 'promos') p where (p ->> 'id')::int = PA3) = 'null'::jsonb,
+      r);
+    -- En-tête x-apercu-role direction envoyé par la direction de A, promo de B affichée : refusée (seul le fondateur a un aperçu).
+    perform pg_temp.qui('DA');
+    perform pg_temp.apercu('direction', PB1);
+    r := pg_temp.tente(format('select public.effacer_promo_etape1(%s)::text', PB1));
+    r2 := pg_temp.tente(format('select public.etat_conservation_centre(%s)::text', LB));
+    perform pg_temp.cas('direction de A avec l''en-tête x-apercu-role direction sur une promo de B : refusée',
+      r like REFUS_Q and r2 like REFUS_C, r || ' | ' || r2);
+    perform pg_temp.qui('DA');
 
     -- 4.3 L'étape 1 de PA1 par la direction de A, le jour même.
     perform pg_temp.qui('DA');
@@ -526,8 +630,8 @@ $l$, v_garde_q5), chr(13), '')) order by o)
     execute v_empreinte into md5_apres;
     perform pg_temp.cas('retour : empreinte du schéma (droits compris) et des données identique à celle d''avant la migration',
       md5_apres = md5_avant, md5_avant || ' / ' || md5_apres);
-    perform pg_temp.cas('retour : les trois fonctions du lot sont parties, la garde de Q5 est revenue',
-      to_regprocedure('public._peut_conserver_promo(integer)') is null and to_regprocedure('public._peut_conserver_centre(integer)') is null
+    perform pg_temp.cas('retour : les quatre fonctions du lot sont parties, la garde de Q5 est revenue',
+      to_regprocedure('public._activite_apres_fin(integer)') is null and to_regprocedure('public._peut_conserver_promo(integer)') is null and to_regprocedure('public._peut_conserver_centre(integer)') is null
       and to_regprocedure('public.etat_conservation_centre(integer)') is null
       and (select bool_and(position(v_garde_q5 in replace(pg_get_functiondef(f::regprocedure), chr(13), '')) > 0)
              from unnest(array['public.effacer_promo_etape1(integer)', 'public.effacer_promo_etape2(integer)']) f), null);

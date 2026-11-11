@@ -147,6 +147,20 @@ export function echeancesConservation(etat) {
       });
       continue;
     }
+    // Direction (Réglages du centre) : des activités de la promo sont datées après sa date de fin (fin_contredite_le, donnée par
+    // etat_conservation_centre pour la direction seulement). La base refuse alors les deux étapes à la direction : aucun bouton, la
+    // raison et la marche à suivre à la place. Rien à effacer : rien à dire.
+    if (p.fin_contredite_le) {
+      if (nombre(p.a_effacer_etape1) + nombre(p.a_effacer_etape2) + nombre(p.emargement_etape2) > 0) {
+        liste.push({
+          type: "fin_contredite", cible, du: null, due: false, restant: null, bouton: null, part: [], reste: [],
+          texte: `${nom} : des activités de la promo sont datées après sa date de fin (le ${dateLongue(p.date_fin)}), jusqu'au `
+            + `${dateLongue(p.fin_contredite_le)}. Aucun effacement n'est possible ici : vérifiez la date de fin de la promo, ou `
+            + "demandez l'effacement au fondateur.",
+        });
+      }
+      continue;
+    }
     // La date de fin est dite : une date mal saisie (année fausse) avancerait les deux étapes.
     const fin = `formation finie le ${dateLongue(p.date_fin)}`;
     const n1 = nombre(p.a_effacer_etape1);
@@ -381,8 +395,9 @@ export function rappelConservation(echeances) {
 
 export const PHRASE_CONSERVATION = "La conservation des fiches est gérée par le fondateur, sur la page Qualiopi.";
 export const PHRASE_CONSERVATION_CENTRE = "Les fiches des promos du centre : 12 mois après la fin d'une formation, les comptes et les "
-  + "textes libres partent ; le 31 décembre de la 3e année, les noms et les preuves. Rien ne part tout seul : à chaque date, un "
-  + "bouton s'allume ici et attend votre clic. L'effacement à la demande d'une personne se fait auprès du fondateur.";
+  + "textes libres partent ; les noms et les preuves sont gardés jusqu'au 31 décembre de la troisième année après la fin. Rien ne "
+  + "part tout seul : à chaque date, un bouton s'allume ici et attend votre clic. L'effacement à la demande d'une personne se fait "
+  + "auprès du fondateur.";
 export const PHRASE_SANS_ECHEANCE = "Aucune échéance : rien n'est à effacer pour le moment.";
 export const PHRASE_DONNEES_ECHEC = "Les données personnelles du centre n'ont pas pu être chargées.";
 export const PHRASE_SANS_BENEVOLE = "Aucun : tous les élèves enregistrés sont venus dans les 12 derniers mois.";

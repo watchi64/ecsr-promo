@@ -11,15 +11,26 @@
 --      n'auront que cette fonction à remplacer.
 --   2. _peut_conserver_promo(p_promo) : (peut_gerer_qualite() et peut_acceder_promo(p_promo), la garde de Q5) ou
 --      _peut_conserver_centre(lieu de la promo). Faux pour une promo nulle ou inconnue. Interne.
+--   2 bis. _activite_apres_fin(p_promo) : la dernière date d'activité de la promo postérieure à sa date de fin, nulle s'il n'y en
+--      a pas (ou pas de date de fin). Relecture du 11/11 : la direction peut changer les dates d'une promo (modifier_dates_promo,
+--      geste promos.gerer) ; reculer la fin d'une promo en cours (ou se tromper d'année) rendrait une étape « due ». Pour la
+--      direction (hors fondateur), chaque étape exige donc en plus qu'aucune activité ne soit datée après la fin. Dates relues :
+--      création de la promo et de ses fiches (que la direction ne peut pas antidater), séances d'émargement (jour), créneaux du
+--      planning (lundi + jour), notes (date_eval), évaluations EPCF (date_eval), passages (date). Jours de Paris pour les
+--      horodatages. Le fondateur garde la règle de Q5 telle quelle. Interne.
 --   3. effacer_promo_etape1 et effacer_promo_etape2 : redéfinies à partir de leur définition en base au moment de l'exécution
---      (pg_get_functiondef), par remplacement de la seule garde, attendue exactement une fois dans chacune ; même corps, mêmes
---      dates, même journal. Les refus restent ceux de Q5 : « Réservé à la gestion de la qualité. » pour qui n'est pas le
---      fondateur, « Cette promo n'est pas dans votre périmètre. » pour le fondateur (promo nulle ou inconnue). Si la garde n'est
---      pas trouvée exactement une fois, la migration s'arrête sans rien changer.
+--      (pg_get_functiondef), par remplacement de deux fragments, chacun attendu exactement une fois dans chacune : la garde, et la
+--      ligne du verrou de la promo, suivie du contrôle des activités pour la direction (après le verrou : un changement de dates
+--      simultané attend). Même corps, mêmes dates, même journal. Les refus de Q5 restent : « Réservé à la gestion de la qualité. »
+--      pour qui n'est pas le fondateur, « Cette promo n'est pas dans votre périmètre. » pour le fondateur (promo nulle ou
+--      inconnue) ; la direction reçoit en plus « Des activités de cette promo sont datées après sa date de fin (jusqu'au …) :
+--      vérifiez la date de fin de la promo, ou demandez cet effacement au fondateur. ». Si un fragment n'est pas trouvé exactement
+--      une fois, la migration s'arrête sans rien changer.
 --   4. etat_conservation_centre(p_lieu) : la forme de etat_conservation(), restreinte aux promos du centre p_lieu où les étapes
---      sont permises à l'appelant (_peut_conserver_promo) ; portees_formateurs vide, registre nul (ils restent au fondateur, page
---      Qualiopi). Fondateur (peut_gerer_qualite()) ou _peut_conserver_centre(p_lieu) ; sinon refus « conservation: Réservé à la
---      direction du centre. ».
+--      sont permises à l'appelant (_peut_conserver_promo), plus une clé fin_contredite_le : pour la direction (hors fondateur), la
+--      date rendue par _activite_apres_fin (l'écran n'allume alors aucun bouton et dit pourquoi) ; nulle pour le fondateur.
+--      portees_formateurs vide, registre nul (ils restent au fondateur, page Qualiopi). Fondateur (peut_gerer_qualite()) ou
+--      _peut_conserver_centre(p_lieu) ; sinon refus « conservation: Réservé à la direction du centre. ».
 -- INCHANGÉS (fondateur seul) : etat_conservation(), effacer_sur_demande, les fonctions des questionnaires des formateurs, le
 -- registre qualité. Aucune table, aucune règle de sécurité touchée.
 -- Retour : 20261111_conservation_direction_retour.sql (remet la garde de Q5, retire les trois fonctions de ce lot). Preuve :
@@ -40,24 +51,41 @@ returns boolean language sql stable security definer set search_path to 'public'
           or _peut_conserver_centre(lieu_de_promo(p_promo)));
 $function$;
 
-revoke all on function public._peut_conserver_centre(integer), public._peut_conserver_promo(integer)
-  from public, anon, authenticated, service_role;
+create function public._activite_apres_fin(p_promo integer)
+returns date language sql stable security definer set search_path to 'public', 'pg_temp' as $function$
+  select max(x.d)
+    from promos pr
+    cross join lateral (
+      select (pr.created_at at time zone 'Europe/Paris')::date
+      union all select (s.created_at at time zone 'Europe/Paris')::date from stagiaires s where s.promo_id = pr.id
+      union all select es.jour from emargement_seances es where es.promo_id = pr.id
+      union all select pe.semaine_lundi + pe.day_index from planning_entries pe where pe.promo_id = pr.id
+      union all select ev.date_eval from evaluations ev where ev.promo_id = pr.id
+      union all select ee.date_eval from epcf_evaluations ee where ee.promo_id = pr.id
+      union all select pa.date from passages pa where pa.promo_id = pr.id) x(d)
+   where pr.id = p_promo and pr.date_fin is not null and x.d > pr.date_fin;
+$function$;
 
--- 3. Les deux étapes : la garde seule change -------------------------------------------------------------------------------
+revoke all on function public._peut_conserver_centre(integer), public._peut_conserver_promo(integer),
+  public._activite_apres_fin(integer) from public, anon, authenticated, service_role;
+
+-- 3. Les deux étapes : la garde et le contrôle des activités ---------------------------------------------------------------
 do $migration$
 declare
   v_fonctions regprocedure[] := array[
     'public.effacer_promo_etape1(integer)'::regprocedure,
     'public.effacer_promo_etape2(integer)'::regprocedure];
-  v_ancien_lf constant text := $ancien$
+  v_anciens_lf constant text[] := array[$ancien$
   if not peut_gerer_qualite() then
     raise exception 'conservation: Réservé à la gestion de la qualité.';
   end if;
   if p_promo is null or not peut_acceder_promo(p_promo) then
     raise exception 'conservation: Cette promo n''est pas dans votre périmètre.';
   end if;
-$ancien$;
-  v_nouveau_lf constant text := $nouveau$
+$ancien$, $ancien$
+  select * into p from promos where id = p_promo for no key update;
+$ancien$];
+  v_nouveaux_lf constant text[] := array[$nouveau$
   -- Fondateur (garde de Q5) ou direction du centre de la promo (_peut_conserver_promo) ; les refus restent ceux de Q5.
   if p_promo is null or not _peut_conserver_promo(p_promo) then
     if not peut_gerer_qualite() then
@@ -65,36 +93,47 @@ $ancien$;
     end if;
     raise exception 'conservation: Cette promo n''est pas dans votre périmètre.';
   end if;
-$nouveau$;
+$nouveau$, $nouveau$
+  select * into p from promos where id = p_promo for no key update;
+  -- Direction (hors fondateur) : la date de fin, qu'elle peut modifier, ne suffit pas. Aucune activité de la promo ne doit être
+  -- datée après sa fin (_activite_apres_fin), relue après le verrou : un changement de dates simultané attend la fin de l'étape.
+  if not (peut_gerer_qualite() and peut_acceder_promo(p_promo)) and _activite_apres_fin(p_promo) is not null then
+    raise exception 'conservation: Des activités de cette promo sont datées après sa date de fin (jusqu''au %) : vérifiez la date de fin de la promo, ou demandez cet effacement au fondateur.', to_char(_activite_apres_fin(p_promo), 'DD/MM/YYYY');
+  end if;
+$nouveau$];
   v_def text;
   v_ancien text;
   v_nouveau text;
   n integer;
 begin
-  -- Le bloc est atomique : une garde manquante ou en double annule tout, rien n'est changé.
+  -- Le bloc est atomique : un fragment manquant ou en double annule tout, rien n'est changé.
   for f in 1..2 loop
     v_def := pg_get_functiondef(v_fonctions[f]);
-    v_ancien := v_ancien_lf;
-    v_nouveau := v_nouveau_lf;
-    -- Une définition posée depuis un fichier à fins de ligne Windows garde ses retours chariot : les fragments suivent.
-    if position(E'\r' in v_def) > 0 then
-      v_ancien := replace(v_ancien, E'\n', E'\r\n');
-      v_nouveau := replace(v_nouveau, E'\n', E'\r\n');
-    end if;
-    n := (length(v_def) - length(replace(v_def, v_ancien, ''))) / length(v_ancien);
-    if n <> 1 then
-      raise exception 'conservation_direction : la garde de Q5 attendue dans % est présente % fois (une seule attendue) ; rien n''est changé', v_fonctions[f]::text, n;
-    end if;
+    for i in 1..2 loop
+      v_ancien := v_anciens_lf[i];
+      v_nouveau := v_nouveaux_lf[i];
+      -- Une définition posée depuis un fichier à fins de ligne Windows garde ses retours chariot : les fragments suivent.
+      if position(E'\r' in v_def) > 0 then
+        v_ancien := replace(v_ancien, E'\n', E'\r\n');
+        v_nouveau := replace(v_nouveau, E'\n', E'\r\n');
+      end if;
+      n := (length(v_def) - length(replace(v_def, v_ancien, ''))) / length(v_ancien);
+      if n <> 1 then
+        raise exception 'conservation_direction : le fragment % de Q5 attendu dans % est présent % fois (une seule attendue) ; rien n''est changé', i, v_fonctions[f]::text, n;
+      end if;
+      v_def := replace(v_def, v_ancien, v_nouveau);
+    end loop;
     -- create or replace (pg_get_functiondef) : droits d'exécution de Q5 gardés.
-    execute replace(v_def, v_ancien, v_nouveau);
+    execute v_def;
   end loop;
 end
 $migration$;
 
 -- 4. État de la conservation d'un centre (Réglages du centre, section « Données personnelles ») ----------------------------
 -- { jour, promos: [{ id, nom, lieu_nom, date_fin, etape1_du, etape2_du, a_effacer_etape1, a_effacer_etape2, comptes_equipe,
--- emargement_etape2 }], portees_formateurs: [], registre: null } : les mêmes clés et les mêmes calculs que etat_conservation(),
--- pour les promos du centre p_lieu où l'appelant peut lancer les étapes. Des nombres et des dates seulement, jamais un nom.
+-- emargement_etape2, fin_contredite_le }], portees_formateurs: [], registre: null } : les clés et les calculs de etat_conservation(),
+-- pour les promos du centre p_lieu où l'appelant peut lancer les étapes, plus fin_contredite_le (direction seulement : la dernière
+-- activité datée après la fin, qui bloque ses étapes ; nulle pour le fondateur). Des nombres et des dates seulement, jamais un nom.
 create function public.etat_conservation_centre(p_lieu integer)
 returns jsonb language plpgsql stable security definer set search_path to 'public', 'pg_temp' as $function$
 declare
@@ -116,7 +155,9 @@ begin
                'a_effacer_etape1', c.etape1,
                'a_effacer_etape2', c.etape2,
                'comptes_equipe', c.equipe,
-               'emargement_etape2', c.emargement) order by pr.id)
+               'emargement_etape2', c.emargement,
+               'fin_contredite_le', case when not (peut_gerer_qualite() and peut_acceder_promo(pr.id))
+                                         then _activite_apres_fin(pr.id) end) order by pr.id)
         from promos pr
         join lieux l on l.id = pr.lieu_id
         cross join lateral (

@@ -32,9 +32,10 @@ export const NOUVEAUTES = [
     titre: "La conservation des fiches de votre centre",
     resume: "Dans les Réglages du centre, la partie « Conservation des fiches » montre maintenant les échéances des promos de "
           + "votre centre, avec leur bouton. 12 mois après la fin d'une formation, les comptes, les adresses e-mail et les "
-          + "textes libres partent ; le 31 décembre de la troisième année, les noms, le dossier professionnel, le livret et "
-          + "les signatures. Rien ne part tout seul : le bouton s'allume à la date prévue et attend votre clic. "
-          + "L'effacement à la demande d'une personne reste au fondateur.",
+          + "textes libres partent ; les noms, le dossier professionnel, le livret et les signatures sont gardés jusqu'au "
+          + "31 décembre de la troisième année après la fin. Rien ne part tout seul : le bouton s'allume à la date prévue et "
+          + "attend votre clic. Une promo dont des activités sont datées après sa date de fin n'a pas de bouton : vérifiez sa "
+          + "date de fin. L'effacement à la demande d'une personne reste au fondateur.",
     ou: { label: "Réglages du centre", route: "config" },
     guide: [
       "Ouvrez Réglages du centre, puis la section « Données personnelles », partie « Conservation des fiches ».",

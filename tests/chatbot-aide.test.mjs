@@ -172,7 +172,7 @@ test("lot 5 : les mots des écrans de la direction (plan, tâches 7 à 10 et 14)
 
 test("suite du lot 5 : les données personnelles de la direction et l'ancien stagiaire transformé", () => {
   for (const mot of ["Données personnelles", "Conservation des fiches", "échéances de conservation des promos du centre", "À faire maintenant",
-    "Effacer les comptes et les textes", "Effacer les noms et les preuves", "EFFACER", "se transmet au fondateur",
+    "Effacer les comptes et les textes", "Effacer les noms et les preuves", "EFFACER", "se transmet au fondateur", "Fiches : date de fin à vérifier", "jusqu'au 31 décembre de la troisième année après la fin",
     "Élèves bénévoles sans venue depuis 12 mois", "Supprimer",
     "ancien stagiaire", "Le compte de cet ancien stagiaire est devenu un compte de formateur."]) {
     assert.ok(DIRECTION.includes(mot), mot);

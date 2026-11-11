@@ -304,6 +304,19 @@ for (const e of tous) {
     "etape1:true:Effacer les comptes et les textes,etape2:false:null", "état d'un centre : l'étape 1 due avec son bouton, l'étape 2 à venir sans bouton");
   ok(confirmationEcheance(ech[0])?.saisie?.attendu === MOT_DE_CONFIRMATION && confirmationEcheance(ech[1]) === null,
     "état d'un centre : même confirmation par saisie que la page Qualiopi, rien à confirmer avant la date");
+  // Relecture du 11/11 : des activités datées après la fin (fin_contredite_le, direction seulement) : aucun bouton, la raison et la
+  // marche à suivre ; rien à confirmer.
+  const contredit = echeancesConservation({ ...etatCentre, jour: "2031-01-01",
+    promos: [{ ...etatCentre.promos[0], fin_contredite_le: "2027-01-15" }] });
+  eq(contredit.map((e) => `${e.type}:${e.due}:${e.bouton}`).join(","), "fin_contredite:false:null",
+    "fin contredite : une seule carte, sans bouton, même quand les deux dates sont passées");
+  ok(/datées après sa date de fin/.test(contredit[0].texte) && /15 janvier 2027/.test(contredit[0].texte) && /vérifiez la date de fin/.test(contredit[0].texte)
+    && /fondateur/.test(contredit[0].texte) && confirmationEcheance(contredit[0]) === null,
+    "fin contredite : la raison, la date de la dernière activité, quoi faire ; aucune confirmation possible");
+  eq(echeancesConservation({ ...etatCentre, promos: [{ ...etatCentre.promos[0], fin_contredite_le: "2027-01-15", a_effacer_etape1: 0,
+    a_effacer_etape2: 0, emargement_etape2: 0 }] }).length, 0, "fin contredite sans rien à effacer : aucune carte");
+  ok(/jusqu'au 31 décembre de la troisième année après la fin/.test(regles.PHRASE_CONSERVATION_CENTRE),
+    "la phrase des Réglages du centre : les noms et les preuves gardés jusqu'au 31 décembre de la troisième année après la fin");
   for (const nom of ["questionAnonymiserPromo", "phraseAnonymises", "lignesDonneesCentre", "MOT_ANONYMISER", "PHRASE_ETAT_INDISPONIBLE", "etatFinDePromo"]) {
     ok(!(nom in regles), "plus d'anonymisation de promo dans les règles : " + nom);
   }
