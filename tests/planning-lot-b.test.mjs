@@ -87,5 +87,5 @@ test("semaine épinglée retirée : chacun suit la semaine en cours", () => {
   }
   assert.match(planning, /semaineLundi = jump \? isoDate\(getMonday\(jump\.date\)\) : lundiEnCours\(new Date\(\)\);/);
   assert.match(lire("js/views/mon-suivi.js"), /const mondayIso = lundiEnCours\(new Date\(\)\);/);
-  assert.match(lire("js/views/dashboard.js"), /const monday = lundiEnCours\(new Date\(\)\);/);
+  assert.match(lire("js/views/dashboard.js"), /const lundi = lundiEnCours\(new Date\(\)\);/);
 });

@@ -1,218 +1,176 @@
-import { listStagiaires, getStats } from "../db.js?v=20261111g";
-import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261111g";
+import { listStagiaires, listPassages, getPlanning, getJoursOff } from "../db.js?v=20261111g";
+import { el, clear, displayStagiaire, isoDate, addDays } from "../utils.js?v=20261111g";
 import { lundiEnCours } from "../journee-rules.js?v=20261111g";
+import { jourFerie } from "../emargement-rules.js?v=20261111g";
+import { isAdmin, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261111g";
+import { ordreDePassage, placesDeLaSemaine, maSituation, TYPES } from "../ordre-passage-rules.js?v=20261111g";
+import { rolesPourEntry } from "../creneaux-rules.js?v=20261111g";
 import { icon } from "../icons.js?v=20261111g";
 import { renderPassages } from "./passages.js?v=20261111g";
 
-const SORT_OPTIONS = [
-  { key: "priorite",   label: "Ordre de passage" },
-  { key: "alpha",      label: "Alphabétique" },
-  { key: "passages",   label: "Plus de passages faits d'abord" },
-];
+// Ordre de passage (sous-onglet de Planning, js/views/planning-espace.js), refonte du 11/11
+// (docs/superpowers/specs/2026-11-11-ordre-passage-resultats-design.md) : chacun sa vue. Le stagiaire voit sa situation
+// et son prochain passage, jamais les retards des autres ; l'équipe voit qui placer cette semaine, file par file.
+// Comptage unique : celui du placement (js/ordre-passage-rules.js).
 
-const VALID_SORTS = new Set(SORT_OPTIONS.map((o) => o.key));
-let currentSort = localStorage.getItem("ecsr_dash_sort");
-if (!VALID_SORTS.has(currentSort)) currentSort = "priorite";
+const NOMS_TYPE = { Salle: "Salle", Voiture: "Voiture" };
+const ICONE_TYPE = { Salle: () => icon.presentation(), Voiture: () => icon.car() };
 
-function sortEnriched(list, mode) {
-  const arr = list.slice();
-  switch (mode) {
-    case "alpha":
-      arr.sort((a, b) => compareByNom(a.s, b.s));
-      break;
-    case "passages":
-      arr.sort((a, b) => (b.sa.effectif + b.vo.effectif) - (a.sa.effectif + a.vo.effectif));
-      break;
-    case "priorite":
-    default:
-      // Le plus de retard sur la moyenne d'abord
-      arr.sort((a, b) => b.score - a.score || a.s.ordre - b.s.ordre);
-      break;
+function jourLong(lundi, dayIndex) {
+  return addDays(new Date(lundi + "T00:00:00"), dayIndex).toLocaleDateString("fr-FR", { weekday: "long" });
+}
+
+// Jours désactivés ou fériés d'une semaine (day_index), comme le planning et Mon suivi.
+function joursFermes(lundi, joursOff) {
+  const set = new Set((joursOff || []).map((j) => j.day_index));
+  for (let i = 0; i < 7; i++) {
+    if (jourFerie(isoDate(addDays(new Date(lundi + "T00:00:00"), i)))) set.add(i);
   }
-  return arr;
+  return set;
 }
 
-// prio = "tours utilisés" = passages faits (+ bonus) + refus/absences. Un refus compte comme un
-// tour : il fait perdre la place de prioritaire, mais le vrai compteur (effectif) reste plus bas.
-// Comptés UNIQUEMENT depuis les passages enregistrés (table `passages`, via « Valider la
-// semaine » ou saisie manuelle) : le planning seul ne compte pas → suivi sans ambiguïté.
-function statForType(s, type) {
-  const e = s?.[type]?.["Effectué"] || 0;
-  const b = s?.[type]?.["Bonus"] || 0;
-  const a = s?.[type]?.["Absence"] || 0;
-  return { effectif: e, bonus: b, absence: a, prio: e + b + a };
+function enTete(lundi, sousTitre) {
+  return el("div", { class: "view-header" },
+    el("div", { class: "view-header-text" },
+      el("p", { class: "eyebrow" }, "Semaine du " + new Date(lundi + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })),
+      el("h2", {}, "Ordre de passage"),
+      el("p", { class: "subtitle" }, sousTitre),
+    ));
 }
 
-function priorityLabel(prio, objectif) {
-  return prio >= objectif ? "a-jour" : "a-prioriser";
+function retardTexte(n) {
+  return n > 0 ? (n + " de retard") : "À jour";
 }
 
-function labelText(key) {
-  return { "a-prioriser": "À prioriser", "a-jour": "À jour" }[key];
-}
-
-function badgeTitle(stat, objectif) {
-  const done = stat.effectif + stat.bonus;
-  const detail = stat.absence ? `${done} fait(s) + ${stat.absence} refus/absence` : `${done} fait(s)`;
-  return `Compté ${stat.prio} (${detail}) · objectif ${objectif}`;
-}
-
-function cardClass(salleKey, voitureKey) {
-  return (salleKey === "a-prioriser" || voitureKey === "a-prioriser") ? "urgent" : "ok";
-}
-
-function buildStatPill(iconFn, stat) {
-  return el("span", { class: "stat-pill" }, iconFn(), String(stat.effectif));
-}
-
-function priorityBadge(scope, key, retard, stat, objectif) {
-  return el("span", { class: "priority-badge " + key, title: badgeTitle(stat, objectif) },
-    el("span", { class: "dot" }),
-    el("span", { class: "scope" }, scope),
-    el("span", { class: "plabel" }, labelText(key)),
-    retard > 0 ? el("span", { class: "retard", title: "retard sur la moyenne" }, "−" + retard) : null,
-  );
-}
-
-function renderCard(x, objSalle, objVoiture) {
-  const { s, sa, vo, prioSalle, prioVoiture, retardSalle, retardVoiture } = x;
-  return el("article", { class: "dashboard-card " + cardClass(prioSalle, prioVoiture) },
-    el("div", { class: "card-head" },
-      el("h3", { class: "name" }, displayStagiaire(s)),
-    ),
-    el("div", { class: "dashboard-stats" },
-      buildStatPill(icon.presentation, sa),
-      buildStatPill(icon.car,          vo),
-    ),
-    el("div", { class: "priority-row" },
-      priorityBadge("Salle", prioSalle, retardSalle, sa, objSalle),
-      priorityBadge("Voiture", prioVoiture, retardVoiture, vo, objVoiture),
-    )
-  );
-}
-
-function explainPanel(objSalle, objVoiture) {
+function explication(objectif, tu) {
   return el("details", { class: "dash-explain" },
-    el("summary", {}, "Comment la priorité est calculée ?"),
+    el("summary", {}, tu ? "Comment la priorité est calculée ?" : "Comment la priorité est calculée"),
     el("div", { class: "dash-explain-body" },
-      el("p", {},
-        el("strong", {}, "Les passages se comptent à « Valider la semaine »."),
-        " Placer quelqu'un dans le planning, c'est planifier : ça ne compte pas tant que la semaine n'est pas validée. Cette page n'affiche que les passages enregistrés."),
-      el("p", {},
-        el("strong", {}, "Objectif = moyenne de la classe"),
-        ` (cette semaine : Salle ${objSalle}, Voiture ${objVoiture}). Au niveau ou au-dessus → `,
-        el("em", {}, "à jour"), ". En dessous → ", el("em", {}, "à prioriser"),
-        " ; plus le retard est grand, plus c'est prioritaire."),
-      el("p", {},
-        el("strong", {}, "Un refus ou une absence compte comme un tour utilisé."),
-        " Il fait perdre sa place de prioritaire : refuser n'est donc pas « gratuit ». Mais le vrai compteur de passages, lui, reste en dessous, on redevient prioritaire dès que la classe avance. ",
-        el("strong", {}, "On rattrape son retard, le refus a juste coûté un tour.")),
-    ),
-  );
+      el("p", {}, `Objectif = la moyenne de la classe : ${objectif.Salle} en salle, ${objectif.Voiture} en voiture. `
+        + "En dessous, on passe en priorité ; plus le retard est grand, plus on passe tôt."),
+      el("p", {}, "Comptent les passages enregistrés depuis le début de la formation : un passage fait, ou une absence "
+        + "de dernière minute (le tour est consommé). Un remplacement au pied levé ne compte pas."),
+      el("p", {}, "Placer quelqu'un dans le planning ne compte pas tant que la semaine n'est pas validée."),
+    ));
 }
 
-// Rendu dans le sous-onglet Ordre de passage de Planning (js/views/planning-espace.js) : la barre des sous-onglets tient
-// lieu de retour au Planning (#/dashboard y mène, js/nav-rules.js).
+// Prochain passage du stagiaire : premier créneau où il passe (au tableau, au volant), aujourd'hui compris.
+function prochainPassage(semaines, id, aujourdhuiIso) {
+  const items = [];
+  semaines.forEach(({ lundi, entries, fermes }) => {
+    (entries || []).forEach((e) => {
+      if (fermes.has(e.day_index)) return;
+      rolesPourEntry(e, id).forEach((r) => {
+        if (r.role !== "passage") return;
+        const iso = isoDate(addDays(new Date(lundi + "T00:00:00"), e.day_index));
+        if (iso >= aujourdhuiIso) items.push({ iso, half: e.half_day, type: r.type, lundi, day: e.day_index });
+      });
+    });
+  });
+  items.sort((a, b) => a.iso.localeCompare(b.iso) || (a.half === "matin" ? -1 : 1));
+  return items[0] || null;
+}
+
+function vueStagiaire(container, o, id, prochain, lundi) {
+  container.appendChild(enTete(lundi, "Ta place dans l'ordre de passage, par rapport à la moyenne de la classe."));
+  const moi = o.parId[id];
+  if (!moi) {
+    container.appendChild(el("p", { class: "muted" }, "Ta fiche n'est pas dans la promo en formation."));
+    return;
+  }
+  const lignes = TYPES.map((t) => el("div", { class: "op-ligne" },
+    el("span", { class: "op-ligne-type" }, ICONE_TYPE[t](), NOMS_TYPE[t]),
+    el("span", { class: "op-etat" + (moi.retard[t] > 0 ? " retard" : "") }, retardTexte(moi.retard[t]))));
+  const carte = el("section", { class: "op-carte op-cle", "aria-label": "Mes passages" },
+    el("h3", { class: "op-carte-titre" }, "Mes passages"), ...lignes);
+  container.appendChild(carte);
+  container.appendChild(el("p", { class: "op-phrase" }, maSituation(moi.retard)));
+  if (prochain) {
+    const date = new Date(prochain.iso + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+    container.appendChild(el("p", { class: "op-prochain" }, icon.calendar(),
+      `Prochain passage : ${date}, ${prochain.half === "matin" ? "matin" : "après-midi"}, ${prochain.type === "Salle" ? "au tableau" : "en voiture"}.`));
+  }
+  container.appendChild(explication(o.objectif, true));
+}
+
+function chiffre(valeur, libelle) {
+  return el("div", { class: "op-chiffre" }, el("span", { class: "op-chiffre-val" }, String(valeur)), el("span", { class: "op-chiffre-lib" }, libelle));
+}
+
+function file(type, items, lundi) {
+  const titre = el("h3", { class: "op-carte-titre" }, ICONE_TYPE[type](), NOMS_TYPE[type]);
+  if (!items.length) {
+    return el("section", { class: "op-carte" }, titre,
+      el("p", { class: "op-vide" }, type === "Salle" ? "Tout le monde est à jour en salle." : "Tout le monde est à jour en voiture."));
+  }
+  const liste = el("ol", { class: "op-file" });
+  items.forEach((x, i) => {
+    liste.appendChild(el("li", { class: "op-ligne" },
+      el("span", { class: "op-nom" }, el("span", { class: "op-rang" }, String(i + 1)), displayStagiaire(x.s)),
+      el("span", { class: "op-ligne-fin" },
+        x.placeLe != null ? el("span", { class: "op-place" }, "placé " + jourLong(lundi, x.placeLe)) : null,
+        el("span", { class: "op-etat retard" }, retardTexte(x.retard)))));
+  });
+  return el("section", { class: "op-carte" }, titre, liste);
+}
+
+function vueEquipe(container, o, lundi) {
+  container.appendChild(enTete(lundi, "Qui faire passer en priorité, par rapport à la moyenne de la classe."));
+  container.appendChild(el("div", { class: "op-chiffres op-cle" },
+    chiffre(o.resume.aPlacer, "À placer cette semaine"),
+    chiffre(o.resume.dejaPlaces, "Déjà placés"),
+    chiffre(o.resume.aJour, "À jour partout")));
+  const files = el("div", { class: "op-files" }, file("Salle", o.files.Salle, lundi), file("Voiture", o.files.Voiture, lundi));
+  container.appendChild(files);
+  if (o.aJour.length) {
+    container.appendChild(el("details", { class: "op-ajour" },
+      el("summary", {}, o.aJour.length === 1 ? "1 stagiaire à jour partout" : `${o.aJour.length} stagiaires à jour partout`),
+      el("p", {}, o.aJour.map((s) => displayStagiaire(s)).join(", ") + ".")));
+  }
+  if (isAdmin()) {
+    container.appendChild(el("div", { class: "op-actions" },
+      // Le sous-onglet Semaine du Planning (wrap.activer, js/subtabs.js), où se trouve « Placer la semaine ».
+      el("button", { type: "button", class: "btn primary", onClick: () => {
+        const onglets = container.closest(".subtabs");
+        if (onglets && onglets.activer) { onglets.activer("semaine"); window.scrollTo(0, 0); }
+      } }, "Ouvrir la semaine")));
+  }
+  container.appendChild(explication(o.objectif, false));
+}
+
 export async function renderDashboard(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
+  const lundi = lundiEnCours(new Date());
+  const suivant = isoDate(addDays(new Date(lundi + "T00:00:00"), 7));
+  const vueEleve = isStagiaire();
+  const id = monStagiaireId();
 
-  const [stagiaires, stats] = await Promise.all([listStagiaires(), getStats()]);
-
-  // La semaine en cours, la suivante le week-end (comme le planning : ruling R59).
-  const monday = lundiEnCours(new Date());
-
-  // Objectif par type = moyenne de classe du compteur de priorité (faits + bonus + refus), arrondie.
-  const n = stagiaires.length || 1;
-  let sumSalle = 0, sumVoiture = 0;
-  stagiaires.forEach((s) => {
-    sumSalle += statForType(stats[s.id], "Salle").prio;
-    sumVoiture += statForType(stats[s.id], "Voiture").prio;
-  });
-  const objSalle = Math.round(sumSalle / n);
-  const objVoiture = Math.round(sumVoiture / n);
-
-  const enriched = stagiaires.map((s) => {
-    const sa = statForType(stats[s.id], "Salle");
-    const vo = statForType(stats[s.id], "Voiture");
-    const prioSalle = priorityLabel(sa.prio, objSalle);
-    const prioVoiture = priorityLabel(vo.prio, objVoiture);
-    const retardSalle = Math.max(0, objSalle - sa.prio);
-    const retardVoiture = Math.max(0, objVoiture - vo.prio);
-    const score = retardSalle + retardVoiture;  // tri priorité : plus de retard d'abord
-    return { s, sa, vo, prioSalle, prioVoiture, retardSalle, retardVoiture, score };
-  });
-
-  const summary = {
-    aPrioriser: enriched.filter((x) => x.prioSalle === "a-prioriser" || x.prioVoiture === "a-prioriser").length,
-    aJour:      enriched.filter((x) => x.prioSalle === "a-jour" && x.prioVoiture === "a-jour").length,
-  };
+  const [stagiaires, rows, entries, off, entries2, off2] = await Promise.all([
+    listStagiaires(), listPassages(), getPlanning(lundi), getJoursOff(lundi),
+    vueEleve ? getPlanning(suivant) : Promise.resolve([]), vueEleve ? getJoursOff(suivant) : Promise.resolve([]),
+  ]);
+  const fermes = joursFermes(lundi, off);
+  const o = ordreDePassage(stagiaires, rows, placesDeLaSemaine(entries, fermes));
 
   clear(container);
+  if (vueEleve) {
+    if (id == null) {
+      container.appendChild(enTete(lundi, "Ta place dans l'ordre de passage."));
+      container.appendChild(el("p", { class: "muted" }, "Aucun profil stagiaire n'est relié à ce compte."));
+    } else {
+      const prochain = prochainPassage([
+        { lundi, entries, fermes },
+        { lundi: suivant, entries: entries2, fermes: joursFermes(suivant, off2) },
+      ], id, isoDate(new Date()));
+      vueStagiaire(container, o, id, prochain, lundi);
+    }
+  } else {
+    vueEquipe(container, o, lundi);
+  }
 
-  container.appendChild(el("div", { class: "view-header" },
-    el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, "Semaine du " + new Date(monday + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })),
-      el("h2", {}, "Ordre de passage"),
-      el("p", { class: "subtitle" }, "Qui doit passer en priorité, par rapport à la moyenne de la classe."),
-    ),
-  ));
-
-  container.appendChild(explainPanel(objSalle, objVoiture));
-
-  // Toolbar de tri
-  const sortSel = el("select", { class: "dash-sort" });
-  SORT_OPTIONS.forEach((o) => {
-    const opt = el("option", { value: o.key }, o.label);
-    if (o.key === currentSort) opt.selected = true;
-    sortSel.appendChild(opt);
-  });
-  const grid = el("div", { class: "dashboard-grid" });
-  const fillGrid = () => {
-    clear(grid);
-    sortEnriched(enriched, currentSort).forEach((x) => grid.appendChild(renderCard(x, objSalle, objVoiture)));
-  };
-  sortSel.addEventListener("change", () => {
-    currentSort = sortSel.value;
-    localStorage.setItem("ecsr_dash_sort", currentSort);
-    fillGrid();
-  });
-  container.appendChild(el("div", { class: "dash-toolbar" },
-    el("label", {}, "Trier par"),
-    sortSel,
-  ));
-
-  // Sommaire
-  container.appendChild(el("div", { class: "dashboard-meta" },
-    el("div", { class: "stat-block" },
-      el("span", { class: "value" }, String(summary.aPrioriser)),
-      el("span", { class: "label" }, "À prioriser"),
-    ),
-    el("div", { class: "stat-block" },
-      el("span", { class: "value" }, String(summary.aJour)),
-      el("span", { class: "label" }, "À jour"),
-    ),
-    el("div", { class: "stat-block" },
-      el("span", { class: "value" }, objSalle + " · " + objVoiture),
-      el("span", { class: "label" }, "Objectif S · V"),
-    ),
-    el("div", { class: "stat-block" },
-      el("span", { class: "value" }, String(stagiaires.length)),
-      el("span", { class: "label" }, "Stagiaires"),
-    ),
-  ));
-
-  fillGrid();
-  container.appendChild(grid);
-
-  container.appendChild(el("div", { class: "dashboard-legend" },
-    el("span", {}, el("span", { class: "dot", style: "background:var(--c-stop)" }), "À prioriser : sous la moyenne (le nombre = retard)"),
-    el("span", {}, el("span", { class: "dot", style: "background:var(--c-go)" }), "À jour : au niveau du groupe (≥ moyenne)"),
-  ));
-
-  // Historique des passages : fusionné dans le même onglet (c'est la même donnée
-  // vue autrement : priorités au-dessus, détail des passages en dessous).
-  const passagesSection = el("section", { style: "margin-top:2.5rem" });
+  // Historique des passages : inchangé, sous l'ordre de passage.
+  const passagesSection = el("section", { class: "op-historique" });
   container.appendChild(passagesSection);
   await renderPassages(passagesSection);
 }

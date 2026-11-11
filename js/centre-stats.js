@@ -253,8 +253,9 @@ function stagiairesASuivre({ enFormation, parStag, entrainements, notees, aujour
   const debutFenetre = decalerJour(aujourdhui, -JOURS_INACTIVITE);
   const dansFenetre = (t) => { const j = jourDe(t.finished_at); return j > debutFenetre && j <= aujourdhui; };
   const promoActive = entrainements.some(dansFenetre);
-  // Compteur de la page Ordre de passage : faits + bonus + absences ; objectif = moyenne arrondie.
-  const prio = (c) => c.fait + c.bonus + c.absence;
+  // Compteur de la page Ordre de passage (js/ordre-passage-rules.js, règle du placement depuis le 11/11) : faits + absences,
+  // le bonus ne compte pas ; objectif = moyenne arrondie.
+  const prio = (c) => c.fait + c.absence;
   const objectif = (type) => Math.round(somme(enFormation.map((s) => prio(parStag.get(s.id)[type]))) / enFormation.length);
   const objSalle = objectif("Salle");
   const objVoiture = objectif("Voiture");
