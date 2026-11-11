@@ -216,7 +216,7 @@ export function decrireMode(mode, { etapes } = {}) {
       throw new Error(`étapes refusées : « ${etapes.join(",")} » (attendu : 1, 1,2, 1,2,3 ou 1,2,3,4 ; chaque étape s'appuie sur la précédente).`);
     }
     // Les fichiers présents se jugent sur le disque, dans assemblerMode : ici, seulement ce que l'appelant a demandé.
-    return { gabarit: d.gabarit, titres: true, etapesTitres: etapes ?? null, neutres: [], etapes: null, mode: null, requis: [] };
+    return { gabarit: d.gabarit, titres: true, etapesTitres: etapes ?? [1, 2, 3, 4], neutres: [], etapes: null, mode: null, requis: [] };
   }
   if (!d.etapes) return { gabarit: d.gabarit, neutres: d.neutres, etapes: null, mode: d.libelle ?? null, requis: [] };
   const choisies = etapes ?? d.etapes;

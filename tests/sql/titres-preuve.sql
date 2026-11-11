@@ -23,8 +23,8 @@
 --               pour anon ni authenticated ; purge à trois ans à l'écriture ; effacement d'une adresse réservé au fondateur.
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes (tests/sql/roles-aides.sql),
 -- le libellé du mode, la requête d'empreinte, puis les migrations 1 à 4 et leurs retours :
---   node outils/assembler_repetition_roles.mjs titres [--etapes 1,2] <sortie.sql>   les étapes dont les fichiers existent
---                                                                                   (ou celles demandées) : VERT attendu
+--   node outils/assembler_repetition_roles.mjs titres [--etapes 1,2] <sortie.sql>   étapes 1,2,3,4 par défaut
+--                                                                                   : VERT attendu
 --   node outils/assembler_repetition_roles.mjs titres-contre-epreuve <sortie.sql>   sans aucune migration : ROUGE attendu sur
 --                                                                                   chaque contrôle du groupe titres
 --   node outils/assembler_repetition_roles.mjs titres-en-ligne <sortie.sql>         rien d'injecté, après application réelle
@@ -52,7 +52,7 @@ begin
     execute p_sql;
     return 'jouée';
   exception when others then
-    return 'ERREUR ' || sqlstate;
+    return 'ERREUR ' || sqlstate || ' ' || left(sqlerrm, 300);
   end;
 end $tj$;
 
@@ -1422,6 +1422,24 @@ begin
     $q$select concat_ws(' ', (public.geste_promo(1, 'anonymiser'))::text, (public.geste_promo(2, 'anonymiser'))::text, (public.geste_promo(7, 'anonymiser'))::text, (public.geste_promo(1, 'planning.modifier'))::text)$q$, 'true true false false');
   perform pg_temp.attendu_geste('cumuls : siege_form a les gestes du réseau et ceux de formateur sur la promo 1 seulement', 'siege_form', null, null,
     $q$select concat_ws(' ', (public.geste_reseau('centres.creer'))::text, (public.geste_promo(1, 'planning.modifier'))::text, (public.geste_promo(2, 'planning.modifier'))::text, (public.geste_promo(1, 'anonymiser'))::text)$q$, 'true true false true');
+  -- Un doublon d'adresse à la casse près (même personne fictive, deux profils, deux lignes par niveau) : les cases et les gestes répondent
+  -- comme avant les migrations (le plus large des titres au même niveau), sans jamais lever.
+  perform pg_temp.proprio();
+  insert into public.user_profiles (email, role, is_admin) values
+    ('Preuve7.Dbl@exemple.invalid', 'prof', false), ('preuve7.dbl@exemple.invalid', 'prof', false);
+  insert into public.affectations (email, role, promo_id, lieu_id) values
+    ('Preuve7.Dbl@exemple.invalid', 'formateur', 1, null), ('preuve7.dbl@exemple.invalid', 'formateur', 1, null),
+    ('Preuve7.Dbl@exemple.invalid', 'direction', null, (select lieu_id from public.promos where id = 1)),
+    ('preuve7.dbl@exemple.invalid', 'direction', null, (select lieu_id from public.promos where id = 1)),
+    ('Preuve7.Dbl@exemple.invalid', 'siege', null, null), ('preuve7.dbl@exemple.invalid', 'siege', null, null);
+  perform pg_temp.attendre('gestes', 'doublon de casse : les cases (promo, centre, réseau) répondent sans erreur, au plafond',
+    pg_temp.valeur('preuve7.dbl@exemple.invalid', '1', null,
+      $q$select concat_ws(' ', (public.case_promo(1, 'planning'))::text, (public.case_centre(public.lieu_de_promo(1), 'promos'))::text, (public.case_reseau('cours'))::text)$q$), '2 2 2');
+  perform pg_temp.attendre('gestes', 'doublon de casse : les gestes répondent sans erreur (formateur, direction et siège fixes)',
+    pg_temp.valeur('preuve7.dbl@exemple.invalid', '1', null,
+      $q$select concat_ws(' ', (public.geste_promo(1, 'planning.modifier'))::text, (public.geste_centre(public.lieu_de_promo(1), 'promos.gerer'))::text, (public.geste_reseau('centres.creer'))::text)$q$), 'true true true');
+  perform pg_temp.attendre('gestes', 'doublon de casse : la lecture du planning ne lève pas (comme avant les migrations, des lignes)',
+    pg_temp.valeur('preuve7.dbl@exemple.invalid', '1', null, 'select (count(*) > 0)::text from public.planning_entries where promo_id = 1'), 'true');
   perform pg_temp.attendu_geste('aperçu siège refusé à form_n (qui n''est pas le fondateur) : il garde ses droits de formateur et rien de plus', 'form_n', '1', 'siege',
     $q$select concat_ws(' ', (public.geste_promo(1, 'planning.modifier'))::text, (public.geste_reseau('centres.creer'))::text)$q$, 'true false');
   perform pg_temp.attendu_geste('fond en aperçu direction : emargement.tenir faux, anonymiser vrai ; en aperçu stagiaire : tout faux', 'fond', '1', 'direction',

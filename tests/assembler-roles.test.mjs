@@ -821,22 +821,13 @@ test("titres : migrations 1 à 4 puis retours 4, 3, 2, 1 injectés octet pour oc
   assert.ok(r.texte.includes("\n'titres (etapes 1, 2, 3, 4 injectees)'\n"));
 });
 
-test("titres sans --etapes : une étape dont un fichier manque est neutralisée et non lue (migration et retour ensemble)", () => {
-  const lus = [];
-  const lire = (chemin) => { lus.push(chemin); return sansTitres([TITRES_1.migration, TITRES_1.retour])(chemin); };
-  const r = assemblerMode("titres", RACINE, { lire });
-  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, TITRES_1.migration, TITRES_1.retour]);
-  assert.deepEqual([...r.neutralises].sort(), TOUS_FICHIERS_TITRES.filter((c) => c !== TITRES_1.migration && c !== TITRES_1.retour).sort());
-  assert.equal(r.mode, "titres (etape 1 injectees)");
-  // Une étape dont seule la migration manque est neutralisée : ni elle ni son retour ne sont injectés.
-  const moitie = assemblerMode("titres", RACINE, { lire: (c) => (c === ETAPES_TITRES[2].migration ? null : depotTitres(c)) });
-  assert.ok(moitie.neutralises.includes(ETAPES_TITRES[2].migration) && moitie.neutralises.includes(ETAPES_TITRES[2].retour));
-  assert.ok(!moitie.injections.some((x) => x.chemin === ETAPES_TITRES[2].retour));
-  // Aucun fichier du chantier : tout est neutralisé.
-  const rien = assemblerMode("titres", RACINE, { lire: sansTitres([]) });
-  assert.deepEqual(rien.injections.map((x) => x.chemin), [EMPREINTE]);
-  assert.equal(rien.neutralises.length, 8);
-  assert.equal(rien.mode, "titres (aucune etape injectee)");
+test("titres sans --etapes : les quatre étapes par défaut, un fichier manquant arrête l'assemblage (jamais un VERT sur moins d'étapes)", () => {
+  const r = assemblerMode("titres", RACINE, { lire: depotTitres });
+  assert.equal(r.mode, "titres (etapes 1, 2, 3, 4 injectees)");
+  assert.deepEqual(r.neutralises, []);
+  assert.throws(() => assemblerMode("titres", RACINE, { lire: sansTitres([TITRES_1.migration, TITRES_1.retour]) }),
+    /Étape 2 demandée \(titres\) : supabase\/migrations\/20261112_titres_2_gestes\.sql n'existe pas encore/);
+  assert.throws(() => assemblerMode("titres", RACINE, { lire: sansTitres([]) }), /Étape 1 demandée \(titres\)/);
 });
 
 test("titres --etapes 1 à 1,2,3,4 : les étapes demandées injectées, les autres neutralisées et non lues ; un fichier manquant d'une étape demandée arrête l'assemblage", () => {
@@ -859,7 +850,7 @@ test("titres --etapes 1 à 1,2,3,4 : les étapes demandées injectées, les autr
 });
 
 test("titres : étapes refusées (hors 1 à 4, non consécutives), --etapes refusé ailleurs, mode repetition inchangé", () => {
-  assert.equal(decrireMode("titres").etapesTitres, null);
+  assert.deepEqual(decrireMode("titres").etapesTitres, [1, 2, 3, 4]);
   assert.deepEqual(decrireMode("titres", { etapes: [1, 2, 3, 4] }).etapesTitres, [1, 2, 3, 4]);
   for (const mauvaise of [[], [2], [1, 3], [2, 1], [1, 2, 3, 4, 5], [0]]) {
     assert.throws(() => decrireMode("titres", { etapes: mauvaise }), /étapes refusées/, JSON.stringify(mauvaise));

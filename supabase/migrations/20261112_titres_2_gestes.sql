@@ -17,6 +17,8 @@
 --   geste_centre(l, code)   (une faute de frappe dans une règle échoue au lieu de fermer en silence). Jamais nul. p ou l nul : faux,
 --   geste_reseau(code)      sauf la partie « réseau » de contenus.lire_internes et de contenus.rediger : le siège lit et rédige les
 --                           contenus communs sans promo affichée (comme est_siege() aujourd'hui, en aperçu siège compris).
+-- Si une même personne a plusieurs lignes au même niveau (adresse écrite deux fois, à la casse près), la case la plus large l'emporte
+-- (comme l'ancien « ou »), jamais d'erreur.
 -- Toutes stable, security definer, search_path public puis pg_temp ; l'appelant est l'adresse du jeton, comparée en minuscules ;
 -- exécution accordée à anon et authenticated comme les fonctions du lot 4. Le retour (20261112_titres_2_gestes_retour.sql) les retire.
 set local lock_timeout = '3s';
@@ -33,9 +35,9 @@ as $f$
                case when apercu.role = 'formateur' and coalesce(p = promo_courante(), false) then pg.plafond else 0 end
              when fondateur_reel() then pg.plafond
              else coalesce((
-               select case when t.fixe then pg.plafond
-                           else least(pg.plafond, case t.cases ->> p_page when 'voir' then 1 when 'modifier' then 2 else 0 end)
-                      end
+               select max(case when t.fixe then pg.plafond
+                               else least(pg.plafond, case t.cases ->> p_page when 'voir' then 1 when 'modifier' then 2 else 0 end)
+                          end)
                  from affectations af
                  join titres t on t.id = af.titre_id
                 where lower(af.email) = lower((select auth.jwt() ->> 'email'))
@@ -57,9 +59,9 @@ as $f$
                case when apercu.role = 'direction' and coalesce(l = lieu_courant(), false) then pg.plafond else 0 end
              when fondateur_reel() then pg.plafond
              else coalesce((
-               select case when t.fixe then pg.plafond
-                           else least(pg.plafond, case t.cases ->> p_page when 'voir' then 1 when 'modifier' then 2 else 0 end)
-                      end
+               select max(case when t.fixe then pg.plafond
+                               else least(pg.plafond, case t.cases ->> p_page when 'voir' then 1 when 'modifier' then 2 else 0 end)
+                          end)
                  from affectations af
                  join titres t on t.id = af.titre_id
                 where lower(af.email) = lower((select auth.jwt() ->> 'email'))
@@ -80,9 +82,9 @@ as $f$
                case when apercu.role = 'siege' then pg.plafond else 0 end
              when fondateur_reel() then pg.plafond
              else coalesce((
-               select case when t.fixe then pg.plafond
-                           else least(pg.plafond, case t.cases ->> p_page when 'voir' then 1 when 'modifier' then 2 else 0 end)
-                      end
+               select max(case when t.fixe then pg.plafond
+                               else least(pg.plafond, case t.cases ->> p_page when 'voir' then 1 when 'modifier' then 2 else 0 end)
+                          end)
                  from affectations af
                  join titres t on t.id = af.titre_id
                 where lower(af.email) = lower((select auth.jwt() ->> 'email'))
