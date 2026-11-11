@@ -51,6 +51,7 @@ fichier en échec (code 3). Elle n'est pas rejouable sur une base déjà rejoué
 
 Pour que les preuves donnent les mêmes verdicts qu'en production, le script ajoute ce que les clones ne portent pas :
 
+- `notes_stats_groupe` (`20261023_notes_stats_en_formation`, sans dépendance), absente des clones et réécrite par `20261112_titres_2` ;
 - les cinq fonctions de `20261028_signalements_app` (dont `signaler_probleme`, appelée par le registre qualité) ; ses tables
   et ses règles sont dans les clones, et rejouer la migration entière rétablirait des règles d'avant le lot 4 ;
 - les droits de production sur `registre_qualite` (écriture par `service_role`) et sur `epcf_moyennes` (refusée à `anon`) ;

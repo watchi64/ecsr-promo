@@ -10,7 +10,11 @@
 --               contexte (en-tête promo 1, 2, 7 ou aucun ; aperçu du fondateur ; aperçu refusé à un autre compte) : 0 écart.
 --   gestes      (migration 2, partie A) attendus écrits en dur pour des titres non fixes (secrétariat, intervenant, ressources humaines,
 --               contenus), la direction fixe, le siège ; sans promo affichée tout geste de promo est faux, jamais nul ; code inconnu : 22023.
--- Les groupes des migrations 2 (partie B) à 4 s'ajoutent ici, avec leurs tâches.
+--   fonctions   (migration 2, partie B) les 29 fonctions de l'app qui décidaient d'un droit passent par les gestes : pour chacune, un cas qu'une
+--               case refuse et, quand un titre non fixe peut l'ouvrir, un cas qu'elle ouvre (attendus et phrases de refus écrits en dur) ;
+--               les gestes définitifs et les droits sans page restent aux titres fixes ; après la migration les 29 définitions ont changé,
+--               après son retour chacune retrouve exactement son empreinte d'avant.
+-- Les groupes des migrations 3 et 4 s'ajoutent ici, avec leurs tâches.
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes (tests/sql/roles-aides.sql),
 -- le libellé du mode, la requête d'empreinte, puis les migrations 1 à 4 et leurs retours :
 --   node outils/assembler_repetition_roles.mjs titres [--etapes 1,2] <sortie.sql>   les étapes dont les fichiers existent
@@ -353,6 +357,313 @@ begin
     pg_temp.valeur((select email from pg_temp.perso where nom = p_qui), p_entete, p_apercu, p_sql), p_attendu);
 end $tag$;
 
+-- Groupe fonctions (migration 2, partie B) : les 29 fonctions de l'app qui décident d'un droit passent par les gestes.
+-- Les vingt-neuf, avec leur signature : une seule liste, pour l'empreinte avant et après.
+create or replace function pg_temp.fonctions_b()
+returns regprocedure[] language sql as $tfb$
+  select array[
+    'public.a_une_affectation(text)'::regprocedure, 'public.accepter_brouillon_ia(bigint, text, text, text, jsonb)'::regprocedure,
+    'public.rejeter_brouillon_ia(bigint)'::regprocedure, 'public.anonymiser_promo()'::regprocedure,
+    'public.etat_anonymisation_promo()'::regprocedure, 'public.anonymiser_stagiaire(integer)'::regprocedure,
+    'public.anonymiser_promo(integer)'::regprocedure, 'public.etat_anonymisation_promo(integer)'::regprocedure,
+    'public.benevoles_a_purger()'::regprocedure, 'public.benevoles_a_purger(integer)'::regprocedure,
+    'public.purger_benevoles(integer[])'::regprocedure, 'public.purger_benevoles(integer[], integer)'::regprocedure,
+    'public.venues_benevoles()'::regprocedure, 'public.notes_stagiaires_visibles()'::regprocedure,
+    'public.epcf_moyennes(text)'::regprocedure, 'public.notes_stats_groupe()'::regprocedure,
+    'public.set_date_naissance(integer, date)'::regprocedure, 'public.emargement_feuille(bigint, boolean)'::regprocedure,
+    'public.emargement_ouvrir(text, text, text)'::regprocedure, 'public.emargement_signer(bigint, integer, text)'::regprocedure,
+    'public.is_admin()'::regprocedure, 'public.is_prof()'::regprocedure, 'public.creer_promo(integer, text, date, date)'::regprocedure,
+    'public.modifier_dates_promo(integer, date, date)'::regprocedure, 'public.regler_habillage_centre(integer, text, boolean)'::regprocedure,
+    'public.regler_habillage_reseau(text)'::regprocedure, 'public.creer_centre(text)'::regprocedure,
+    'public.regler_affectations_formateur(text, integer, integer[], integer)'::regprocedure,
+    'public.inviter_compte(text, text, integer, integer, integer)'::regprocedure];
+$tfb$;
+
+-- Un appel de fonction par un personnage : « OK <valeur> » (la valeur en texte, « nul » si nulle) ou « ERREUR <état> <message> ».
+-- Ce que l'appel a réussi reste fait (la preuve annule tout à la fin) ; un appel refusé ne laisse rien.
+create or replace function pg_temp.appeler(p_qui text, p_entete text, p_sql text)
+returns text language plpgsql as $tap$
+declare v text; r text;
+begin
+  perform pg_temp.incarner((select email from pg_temp.perso where nom = p_qui), p_entete, null);
+  begin
+    execute p_sql into v;
+    r := rtrim('OK ' || coalesce(v, 'nul'));
+  exception when others then
+    r := 'ERREUR ' || sqlstate || ' ' || sqlerrm;
+  end;
+  perform pg_temp.proprio();
+  return r;
+end $tap$;
+
+-- Un cas du groupe fonctions : qui, avec quel en-tête de promo, appelle quoi, et ce qu'il doit obtenir (écrit en dur).
+create or replace function pg_temp.cas(p_libelle text, p_qui text, p_entete text, p_sql text, p_attendu text)
+returns void language sql as $tcs$
+  select pg_temp.attendre('fonctions', p_libelle, pg_temp.appeler(p_qui, p_entete, p_sql), p_attendu);
+$tcs$;
+
+-- Quatre personnages de plus, aux titres non fixes qui ouvrent ce que les trois premiers ne couvrent pas (notes, cours, promos et
+-- réglages d'un centre, directions et réglages du réseau). Si la table des titres manque, la pose échoue en silence.
+create or replace function pg_temp.poser_titres_fonctions()
+returns void language plpgsql as $tpf$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_notes text; v_cours text; v_promos text; v_reseau text;
+begin
+  insert into pg_temp.perso (ordre, nom, email, role) values
+    (25, 't_notes', 'preuve7.eq.t.notes@exemple.invalid', 'prof'),
+    (26, 't_cours', 'preuve7.eq.t.cours@exemple.invalid', 'prof'),
+    (27, 't_promos', 'preuve7.eq.t.promos@exemple.invalid', 'prof'),
+    (28, 't_reseau', 'preuve7.eq.t.reseau@exemple.invalid', 'prof');
+  insert into public.user_profiles (email, role, is_admin) select email, role, false from pg_temp.perso where ordre >= 25;
+  v_notes := pg_temp.nouveau_titre('Preuve7 notes', 'promo', v_l1);
+  v_cours := pg_temp.nouveau_titre('Preuve7 cours', 'promo', v_l1);
+  v_promos := pg_temp.nouveau_titre('Preuve7 promos et réglages', 'centre', v_l1);
+  v_reseau := pg_temp.nouveau_titre('Preuve7 directions et réglages', 'reseau', null);
+  perform pg_temp.essai(format('update public.titres set cases = %L::jsonb where id = %s', '{"notes":"voir","stagiaires":"voir"}', v_notes));
+  perform pg_temp.essai(format('update public.titres set cases = %L::jsonb where id = %s', '{"cours":"modifier"}', v_cours));
+  perform pg_temp.essai(format('update public.titres set cases = %L::jsonb where id = %s', '{"promos":"modifier","reglages":"modifier"}', v_promos));
+  perform pg_temp.essai(format('update public.titres set cases = %L::jsonb where id = %s', '{"directions":"modifier","reglages":"modifier"}', v_reseau));
+  perform pg_temp.affecter((select email from pg_temp.perso where nom = 't_notes'), 'formateur', 1, null, v_notes);
+  perform pg_temp.affecter((select email from pg_temp.perso where nom = 't_cours'), 'formateur', 1, null, v_cours);
+  perform pg_temp.affecter((select email from pg_temp.perso where nom = 't_promos'), 'direction', null, v_l1, v_promos);
+  perform pg_temp.affecter((select email from pg_temp.perso where nom = 't_reseau'), 'siege', null, null, v_reseau);
+end $tpf$;
+
+-- Le groupe : pour chaque fonction, un cas qu'une case refuse et, quand un titre non fixe peut l'ouvrir, un cas qu'elle ouvre ;
+-- les gestes définitifs et les droits sans page restent refusés aux titres non fixes (les phrases de refus ne changent pas).
+create or replace function pg_temp.groupe_fonctions()
+returns void language plpgsql as $tgf$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_stag integer := (select u.stagiaire_id from public.user_profiles u where u.email = 'preuve7.eq.stag.n@exemple.invalid');
+  v_stag_email constant text := 'preuve7.eq.stag.n@exemple.invalid';
+  v_fiche integer; v_b1 integer; v_b2 integer; v_b3 integer; v_seance_m text;
+  v_refus_form constant text := 'ERREUR P0001 emargement: Réservé aux formateurs.';
+  v_refus_admin constant text := 'ERREUR P0001 Réservé aux administrateurs';
+  v_refus_promo constant text := 'ERREUR 42501 Réservé à la direction du centre ou au formateur de la promo';
+  v_refus_naiss constant text := 'ERREUR P0001 Non autorise : seul le stagiaire concerne ou un formateur peut modifier cette date';
+begin
+  perform pg_temp.poser_titres_fonctions();
+  -- Les données d'essai, posées en propriétaire.
+  delete from public.settings where promo_id = 1 and key = 'emargement_actif';
+  insert into public.settings (key, value, promo_id) values ('emargement_actif', 'true', 1);
+  insert into public.stagiaires (prenom, nom, ordre, promo_id) values ('Preuve7 invitee', 'PREUVE', 991, 1) returning id into v_fiche;
+  insert into public.benevoles (prenom, lieu_id, created_at) values ('Preuve7 b1', v_l1, now() - interval '2 years') returning id into v_b1;
+  insert into public.benevoles (prenom, lieu_id, created_at) values ('Preuve7 b2', v_l1, now() - interval '2 years') returning id into v_b2;
+  insert into public.benevoles (prenom, lieu_id) values ('Preuve7 b3', v_l1) returning id into v_b3;
+  insert into public.planning_entries (semaine_lundi, day_index, half_day, slot, promo_id, sujet, benevoles_ids)
+    values (current_date - 7, 0, 'matin', 91, 1, 'preuve7 venue', array[v_b3]);
+  update public.user_profiles set anonymous_notes = true where lower(email) = v_stag_email;
+  insert into public.epcf_evaluations (stagiaire_id, trame, scores, promo_id) values (v_stag, 'salle', '{"preuve7_critere":"A"}'::jsonb, 1);
+
+  -- is_admin() et is_prof() : la case Cours en Modifier (contenus.traiter), pas le titre fixe de formateur seul.
+  perform pg_temp.cas('is_admin() : t_cours (Cours : Modifier) vrai', 't_cours', '1', 'select public.is_admin()::text', 'OK true');
+  perform pg_temp.cas('is_admin() : t_interv (Cours : Voir) faux', 't_interv', '1', 'select public.is_admin()::text', 'OK false');
+  perform pg_temp.cas('is_admin() : form_n vrai', 'form_n', '1', 'select public.is_admin()::text', 'OK true');
+  perform pg_temp.cas('is_admin() : dir_n faux', 'dir_n', '1', 'select public.is_admin()::text', 'OK false');
+  perform pg_temp.cas('is_admin() : stag_n faux', 'stag_n', '1', 'select public.is_admin()::text', 'OK false');
+  perform pg_temp.cas('is_prof() : t_cours vrai', 't_cours', '1', 'select public.is_prof()::text', 'OK true');
+  perform pg_temp.cas('is_prof() : t_interv faux', 't_interv', '1', 'select public.is_prof()::text', 'OK false');
+  perform pg_temp.cas('is_prof() : form_n vrai', 'form_n', '1', 'select public.is_prof()::text', 'OK true');
+  -- rejeter_brouillon_ia et accepter_brouillon_ia : la même case ; le brouillon -1 n'existe pas, donc passer la garde mène à la
+  -- phrase suivante de la fonction.
+  perform pg_temp.cas('rejeter_brouillon_ia : t_interv refusé (la phrase ne change pas)', 't_interv', '1',
+    'select public.rejeter_brouillon_ia(-1)::text', 'ERREUR 42501 Réservé aux formateurs');
+  perform pg_temp.cas('rejeter_brouillon_ia : t_cours passe la garde (brouillon déjà traité ou introuvable)', 't_cours', '1',
+    'select public.rejeter_brouillon_ia(-1)::text', 'ERREUR P0001 Ce brouillon a déjà été traité');
+  perform pg_temp.cas('accepter_brouillon_ia : t_interv refusé (la phrase ne change pas)', 't_interv', '1',
+    $q$select public.accepter_brouillon_ia(-1, 's', 'e', 'x', '[]'::jsonb)::text$q$, 'ERREUR 42501 Réservé aux formateurs');
+  perform pg_temp.cas('accepter_brouillon_ia : form_n passe la garde (brouillon introuvable)', 'form_n', '1',
+    $q$select public.accepter_brouillon_ia(-1, 's', 'e', 'x', '[]'::jsonb)::text$q$, 'ERREUR P0001 Brouillon introuvable');
+
+  -- Émargement : la case Émargement en Modifier (emargement.tenir). t_interv ouvre, tient et signe ; t_secr (Émargement : Voir) non.
+  perform pg_temp.cas('emargement_ouvrir : t_secr refusé (la phrase ne change pas)', 't_secr', '1',
+    $q$select public.emargement_ouvrir('matin', '08:30', '12:00')::text$q$, v_refus_form);
+  perform pg_temp.cas('emargement_ouvrir : t_interv (Émargement : Modifier) ouvre la feuille du matin', 't_interv', '1',
+    $q$select (public.emargement_ouvrir('matin', '08:30', '12:00') is not null)::text$q$, 'OK true');
+  perform pg_temp.cas('emargement_ouvrir : form_n ouvre celle de l''après-midi', 'form_n', '1',
+    $q$select (public.emargement_ouvrir('aprem', '13:30', '17:00') is not null)::text$q$, 'OK true');
+  v_seance_m := pg_temp.calcul('select id::text from public.emargement_seances where promo_id = 1 and demi_journee = ''matin'' order by id desc limit 1');
+  perform pg_temp.cas('emargement_feuille(..., formateur) : t_secr refusé (la phrase ne change pas)', 't_secr', '1',
+    format('select (public.emargement_feuille(%s, true)).id::text', v_seance_m), v_refus_form);
+  perform pg_temp.cas('emargement_feuille(..., formateur) : t_interv obtient la feuille', 't_interv', '1',
+    format('select ((public.emargement_feuille(%s, true)).id = %s)::text', v_seance_m, v_seance_m), 'OK true');
+  perform pg_temp.cas('emargement_feuille(..., stagiaire) : t_secr (Émargement : Voir) obtient la feuille sans la tenir', 't_secr', '1',
+    format('select ((public.emargement_feuille(%s, false)).id = %s)::text', v_seance_m, v_seance_m), 'OK true');
+  perform pg_temp.cas('emargement_signer : t_secr ne signe pas pour un stagiaire', 't_secr', '1',
+    format($q$select public.emargement_signer(%s, %s, 'M10 10L20 20')::text$q$, v_seance_m, v_stag), 'ERREUR P0001 emargement: Tu ne peux signer que pour toi.');
+  perform pg_temp.cas('emargement_signer : t_interv signe sur l''appareil du formateur', 't_interv', '1',
+    format($q$select (public.emargement_signer(%s, %s, 'M10 10L20 20') is not null)::text$q$, v_seance_m, v_stag), 'OK true');
+
+  -- Stagiaires : la case Stagiaires en Modifier, sur la promo ou sur le centre (stagiaires.gerer).
+  perform pg_temp.cas('set_date_naissance : t_secr (Stagiaires : Modifier du centre) peut', 't_secr', '1',
+    format('select public.set_date_naissance(%s, date ''2000-01-02'')::text', v_stag), 'OK');
+  perform pg_temp.cas('set_date_naissance : t_interv (Stagiaires : Voir) refusé (la phrase ne change pas)', 't_interv', '1',
+    format('select public.set_date_naissance(%s, date ''2000-01-02'')::text', v_stag), v_refus_naiss);
+  perform pg_temp.cas('set_date_naissance : t_rh refusé', 't_rh', '1',
+    format('select public.set_date_naissance(%s, date ''2000-01-02'')::text', v_stag), v_refus_naiss);
+  perform pg_temp.cas('set_date_naissance : stag_n pour lui-même', 'stag_n', '1',
+    format('select public.set_date_naissance(%s, date ''2000-01-02'')::text', v_stag), 'OK');
+  perform pg_temp.cas('a_une_affectation : t_secr (peut gérer les stagiaires) : un compte sans affectation reste faux', 't_secr', '1',
+    format('select public.a_une_affectation(%L)::text', v_stag_email), 'OK false');
+  perform pg_temp.cas('a_une_affectation : t_interv (ne gère pas) : toujours vrai', 't_interv', '1',
+    format('select public.a_une_affectation(%L)::text', v_stag_email), 'OK true');
+  perform pg_temp.cas('a_une_affectation : form_n faux', 'form_n', '1', format('select public.a_une_affectation(%L)::text', v_stag_email), 'OK false');
+  perform pg_temp.cas('inviter_compte (stagiaire) : t_interv refusé (la phrase ne change pas)', 't_interv', '1',
+    format($q$select (public.inviter_compte('preuve7.fn.invite.a@exemple.invalid', 'stagiaire', %s))->>'role'$q$, v_fiche),
+    'ERREUR 42501 invitation: Pas de droit sur la promo de ce stagiaire.');
+  perform pg_temp.cas('inviter_compte (stagiaire) : t_rh refusé', 't_rh', '1',
+    format($q$select (public.inviter_compte('preuve7.fn.invite.a@exemple.invalid', 'stagiaire', %s))->>'role'$q$, v_fiche),
+    'ERREUR 42501 invitation: Pas de droit sur la promo de ce stagiaire.');
+  perform pg_temp.cas('inviter_compte (stagiaire) : t_secr (Stagiaires : Modifier du centre) invite', 't_secr', '1',
+    format($q$select (public.inviter_compte('preuve7.fn.invite.a@exemple.invalid', 'stagiaire', %s))->>'role'$q$, v_fiche), 'OK stagiaire');
+
+  -- Effacements : les gestes définitifs restent aux titres fixes (anonymiser, benevoles.purger, donnees.purger).
+  perform pg_temp.cas('anonymiser_stagiaire : t_secr refusé (la phrase ne change pas)', 't_secr', '1',
+    format('select public.anonymiser_stagiaire(%s)::text', v_stag), v_refus_admin);
+  perform pg_temp.cas('anonymiser_stagiaire : t_interv refusé', 't_interv', '1', format('select public.anonymiser_stagiaire(%s)::text', v_stag), v_refus_admin);
+  perform pg_temp.cas('anonymiser_stagiaire : form_n passe la garde (le stagiaire est encore actif)', 'form_n', '1',
+    format('select public.anonymiser_stagiaire(%s)::text', v_stag), 'ERREUR P0001 Marquez d''abord ce stagiaire en abandon');
+  perform pg_temp.cas('anonymiser_stagiaire : dir_n passe la garde', 'dir_n', '1',
+    format('select public.anonymiser_stagiaire(%s)::text', v_stag), 'ERREUR P0001 Marquez d''abord ce stagiaire en abandon');
+  perform pg_temp.cas('anonymiser_promo() : t_secr refusé', 't_secr', '990701', 'select public.anonymiser_promo()::text', v_refus_admin);
+  perform pg_temp.cas('anonymiser_promo() : dir_n passe la garde (promo sans date de fin)', 'dir_n', '990701', 'select public.anonymiser_promo()::text',
+    'ERREUR P0001 Date de fin de promo non renseignée');
+  perform pg_temp.cas('etat_anonymisation_promo() : t_interv refusé', 't_interv', '1', 'select (public.etat_anonymisation_promo())->>''promo_id''', v_refus_admin);
+  perform pg_temp.cas('etat_anonymisation_promo() : form_n obtient l''état de la promo 1', 'form_n', '1', 'select (public.etat_anonymisation_promo())->>''promo_id''', 'OK 1');
+  perform pg_temp.cas('etat_anonymisation_promo() : dir_n obtient l''état de la promo A', 'dir_n', '990701', 'select (public.etat_anonymisation_promo())->>''promo_id''', 'OK 990701');
+  perform pg_temp.cas('anonymiser_promo(p) : t_secr refusé (la phrase ne change pas)', 't_secr', '1', 'select public.anonymiser_promo(990701)::text', v_refus_promo);
+  perform pg_temp.cas('anonymiser_promo(p) : t_interv refusé sur sa propre promo', 't_interv', '1', 'select public.anonymiser_promo(1)::text', v_refus_promo);
+  perform pg_temp.cas('anonymiser_promo(p) : dir_n passe la garde', 'dir_n', '1', 'select public.anonymiser_promo(990701)::text', 'ERREUR P0001 Date de fin de promo non renseignée');
+  perform pg_temp.cas('etat_anonymisation_promo(p) : t_secr refusé', 't_secr', '1', 'select (public.etat_anonymisation_promo(990701))->>''promo_id''', v_refus_promo);
+  perform pg_temp.cas('etat_anonymisation_promo(p) : t_rh refusé', 't_rh', '1', 'select (public.etat_anonymisation_promo(990701))->>''promo_id''', v_refus_promo);
+  perform pg_temp.cas('etat_anonymisation_promo(p) : dir_n obtient l''état', 'dir_n', '1', 'select (public.etat_anonymisation_promo(990701))->>''promo_id''', 'OK 990701');
+  perform pg_temp.cas('etat_anonymisation_promo(p) : form_n obtient l''état de sa promo', 'form_n', '1', 'select (public.etat_anonymisation_promo(1))->>''promo_id''', 'OK 1');
+
+  -- Élèves bénévoles : lire (benevoles.lire), purger (benevoles.purger du formateur ; donnees.purger de la direction).
+  perform pg_temp.cas('venues_benevoles : t_interv (Stagiaires : Voir) lit les venues', 't_interv', '1',
+    $q$select count(*)::text from public.venues_benevoles() where sujet = 'preuve7 venue'$q$, 'OK 1');
+  perform pg_temp.cas('venues_benevoles : t_secr (case du centre seulement) n''en lit aucune', 't_secr', '1',
+    $q$select count(*)::text from public.venues_benevoles() where sujet = 'preuve7 venue'$q$, 'OK 0');
+  perform pg_temp.cas('venues_benevoles : t_rh n''en lit aucune', 't_rh', '1',
+    $q$select count(*)::text from public.venues_benevoles() where sujet = 'preuve7 venue'$q$, 'OK 0');
+  perform pg_temp.cas('venues_benevoles : dir_n (direction fixe) les lit', 'dir_n', '1',
+    $q$select count(*)::text from public.venues_benevoles() where sujet = 'preuve7 venue'$q$, 'OK 1');
+  perform pg_temp.cas('venues_benevoles : form_n les lit', 'form_n', '1',
+    $q$select count(*)::text from public.venues_benevoles() where sujet = 'preuve7 venue'$q$, 'OK 1');
+  perform pg_temp.cas('benevoles_a_purger() : t_interv n''en voit aucun', 't_interv', '1',
+    format('select count(*)::text from public.benevoles_a_purger() where id = %s', v_b1), 'OK 0');
+  perform pg_temp.cas('benevoles_a_purger() : dir_n (pas formateur) n''en voit aucun', 'dir_n', '1',
+    format('select count(*)::text from public.benevoles_a_purger() where id = %s', v_b1), 'OK 0');
+  perform pg_temp.cas('benevoles_a_purger() : form_n voit le bénévole sans venue depuis deux ans', 'form_n', '1',
+    format('select count(*)::text from public.benevoles_a_purger() where id = %s', v_b1), 'OK 1');
+  perform pg_temp.cas('purger_benevoles(ids) : t_secr refusé (la phrase ne change pas)', 't_secr', '1',
+    format('select public.purger_benevoles(array[%s])::text', v_b1), v_refus_admin);
+  perform pg_temp.cas('purger_benevoles(ids) : t_interv refusé', 't_interv', '1', format('select public.purger_benevoles(array[%s])::text', v_b1), v_refus_admin);
+  perform pg_temp.cas('purger_benevoles(ids) : form_n purge le bénévole', 'form_n', '1', format('select public.purger_benevoles(array[%s])::text', v_b1), 'OK 1');
+  perform pg_temp.cas('benevoles_a_purger(centre) : t_secr refusé (la phrase ne change pas)', 't_secr', '1',
+    format('select count(*)::text from public.benevoles_a_purger(%s) where id = %s', v_l1, v_b2), 'ERREUR 42501 Réservé à la direction du centre');
+  perform pg_temp.cas('benevoles_a_purger(centre) : t_promos refusé', 't_promos', '1',
+    format('select count(*)::text from public.benevoles_a_purger(%s) where id = %s', v_l1, v_b2), 'ERREUR 42501 Réservé à la direction du centre');
+  perform pg_temp.cas('benevoles_a_purger(centre) : dir_n voit le bénévole', 'dir_n', '1',
+    format('select count(*)::text from public.benevoles_a_purger(%s) where id = %s', v_l1, v_b2), 'OK 1');
+  perform pg_temp.cas('purger_benevoles(ids, centre) : t_secr refusé', 't_secr', '1',
+    format('select public.purger_benevoles(array[%s], %s)::text', v_b2, v_l1), 'ERREUR 42501 Réservé à la direction du centre');
+  perform pg_temp.cas('purger_benevoles(ids, centre) : form_n refusé', 'form_n', '1',
+    format('select public.purger_benevoles(array[%s], %s)::text', v_b2, v_l1), 'ERREUR 42501 Réservé à la direction du centre');
+  perform pg_temp.cas('purger_benevoles(ids, centre) : dir_n purge', 'dir_n', '1', format('select public.purger_benevoles(array[%s], %s)::text', v_b2, v_l1), 'OK 1');
+
+  -- Notes : la case Notes et examens (notes.lire). t_notes (Notes : Voir) lit ; t_interv et t_secr non.
+  perform pg_temp.cas('notes_stagiaires_visibles : t_notes voit le stagiaire aux notes anonymes', 't_notes', '1',
+    format('select count(*)::text from public.notes_stagiaires_visibles() v where v = %s', v_stag), 'OK 1');
+  perform pg_temp.cas('notes_stagiaires_visibles : t_interv ne le voit pas', 't_interv', '1',
+    format('select count(*)::text from public.notes_stagiaires_visibles() v where v = %s', v_stag), 'OK 0');
+  perform pg_temp.cas('notes_stagiaires_visibles : t_secr ne le voit pas', 't_secr', '1',
+    format('select count(*)::text from public.notes_stagiaires_visibles() v where v = %s', v_stag), 'OK 0');
+  perform pg_temp.cas('notes_stagiaires_visibles : form_n le voit', 'form_n', '1',
+    format('select count(*)::text from public.notes_stagiaires_visibles() v where v = %s', v_stag), 'OK 1');
+  perform pg_temp.cas('notes_stagiaires_visibles : dir_n le voit', 'dir_n', '1',
+    format('select count(*)::text from public.notes_stagiaires_visibles() v where v = %s', v_stag), 'OK 1');
+  perform pg_temp.cas('epcf_moyennes : t_notes obtient un critère à un seul effectif', 't_notes', '1',
+    $q$select count(*)::text from public.epcf_moyennes('salle') where critere = 'preuve7_critere'$q$, 'OK 1');
+  perform pg_temp.cas('epcf_moyennes : t_interv n''en obtient aucun (effectif sous 3)', 't_interv', '1',
+    $q$select count(*)::text from public.epcf_moyennes('salle') where critere = 'preuve7_critere'$q$, 'OK 0');
+  perform pg_temp.cas('epcf_moyennes : t_secr n''en obtient aucun', 't_secr', '1',
+    $q$select count(*)::text from public.epcf_moyennes('salle') where critere = 'preuve7_critere'$q$, 'OK 0');
+  perform pg_temp.cas('epcf_moyennes : form_n en obtient un', 'form_n', '1',
+    $q$select count(*)::text from public.epcf_moyennes('salle') where critere = 'preuve7_critere'$q$, 'OK 1');
+  perform pg_temp.cas('epcf_moyennes : dir_n en obtient un', 'dir_n', '1',
+    $q$select count(*)::text from public.epcf_moyennes('salle') where critere = 'preuve7_critere'$q$, 'OK 1');
+  perform pg_temp.cas('notes_stats_groupe : t_notes obtient les chiffres', 't_notes', '1', 'select (public.notes_stats_groupe() is null)::text', 'OK false');
+  perform pg_temp.cas('notes_stats_groupe : t_interv obtient nul (garde ajoutée)', 't_interv', '1', 'select (public.notes_stats_groupe() is null)::text', 'OK true');
+  perform pg_temp.cas('notes_stats_groupe : t_secr obtient nul', 't_secr', '1', 'select (public.notes_stats_groupe() is null)::text', 'OK true');
+  perform pg_temp.cas('notes_stats_groupe : t_cours obtient nul', 't_cours', '1', 'select (public.notes_stats_groupe() is null)::text', 'OK true');
+  perform pg_temp.cas('notes_stats_groupe : form_n obtient les chiffres', 'form_n', '1', 'select (public.notes_stats_groupe() is null)::text', 'OK false');
+  perform pg_temp.cas('notes_stats_groupe : dir_n obtient les chiffres', 'dir_n', '1', 'select (public.notes_stats_groupe() is null)::text', 'OK false');
+  perform pg_temp.cas('notes_stats_groupe : stag_n, membre de la promo, obtient les chiffres', 'stag_n', '1', 'select (public.notes_stats_groupe() is null)::text', 'OK false');
+  perform pg_temp.cas('notes_stats_groupe : le siège sans promo affichée obtient nul', 'siege', null, 'select (public.notes_stats_groupe() is null)::text', 'OK true');
+
+  -- Équipe : l'invitation d'un formateur et l'affectation aux promos restent à la direction fixe (formateurs.nommer).
+  perform pg_temp.cas('inviter_compte (formateur) : t_secr refusé (la phrase ne change pas)', 't_secr', '1',
+    $q$select (public.inviter_compte('preuve7.fn.invite.f@exemple.invalid', 'formateur'))->>'role'$q$, 'ERREUR 42501 invitation: Réservé à la direction du centre.');
+  perform pg_temp.cas('inviter_compte (formateur) : t_promos refusé', 't_promos', '1',
+    $q$select (public.inviter_compte('preuve7.fn.invite.f@exemple.invalid', 'formateur'))->>'role'$q$, 'ERREUR 42501 invitation: Réservé à la direction du centre.');
+  perform pg_temp.cas('inviter_compte (formateur) : form_n refusé', 'form_n', '1',
+    $q$select (public.inviter_compte('preuve7.fn.invite.f@exemple.invalid', 'formateur'))->>'role'$q$, 'ERREUR 42501 invitation: Réservé à la direction du centre.');
+  perform pg_temp.cas('inviter_compte (formateur) : dir_n invite', 'dir_n', '1',
+    $q$select (public.inviter_compte('preuve7.fn.invite.f@exemple.invalid', 'formateur'))->>'role'$q$, 'OK formateur');
+  perform pg_temp.cas('regler_affectations_formateur : t_secr refusé (la phrase ne change pas)', 't_secr', '1',
+    format($q$select (public.regler_affectations_formateur('preuve7.fn.reg@exemple.invalid', %s, array[1]))->>'email'$q$, v_l1), 'ERREUR 42501 equipe: Réservé à la direction du centre.');
+  perform pg_temp.cas('regler_affectations_formateur : t_rh refusé', 't_rh', '1',
+    format($q$select (public.regler_affectations_formateur('preuve7.fn.reg@exemple.invalid', %s, array[1]))->>'email'$q$, v_l1), 'ERREUR 42501 equipe: Réservé à la direction du centre.');
+  perform pg_temp.cas('regler_affectations_formateur : dir_n règle', 'dir_n', '1',
+    format($q$select (public.regler_affectations_formateur('preuve7.fn.reg@exemple.invalid', %s, array[1]))->>'email'$q$, v_l1), 'OK preuve7.fn.reg@exemple.invalid');
+  perform pg_temp.cas('inviter_compte (direction) : t_contenus refusé (la phrase ne change pas)', 't_contenus', null,
+    format($q$select (public.inviter_compte('preuve7.fn.invite.d@exemple.invalid', 'direction', null, null, %s))->>'role'$q$, v_l1), 'ERREUR 42501 invitation: Réservé au siège.');
+  perform pg_temp.cas('inviter_compte (direction) : t_reseau (Directions : Modifier) refusé, nommer est un geste du siège fixe', 't_reseau', null,
+    format($q$select (public.inviter_compte('preuve7.fn.invite.d@exemple.invalid', 'direction', null, null, %s))->>'role'$q$, v_l1), 'ERREUR 42501 invitation: Réservé au siège.');
+  perform pg_temp.cas('inviter_compte (direction) : dir_n refusé', 'dir_n', '1',
+    format($q$select (public.inviter_compte('preuve7.fn.invite.d@exemple.invalid', 'direction', null, null, %s))->>'role'$q$, v_l1), 'ERREUR 42501 invitation: Réservé au siège.');
+  perform pg_temp.cas('inviter_compte (direction) : le siège invite', 'siege', null,
+    format($q$select (public.inviter_compte('preuve7.fn.invite.d@exemple.invalid', 'direction', null, null, %s))->>'role'$q$, v_l1), 'OK direction');
+  perform pg_temp.cas('inviter_compte (siège) : le siège refusé, le fondateur seul (inchangé)', 'siege', null,
+    $q$select (public.inviter_compte('preuve7.fn.invite.s@exemple.invalid', 'siege'))->>'role'$q$, 'ERREUR 42501 invitation: Réservé au fondateur.');
+
+  -- Promos et réglages d'un centre : les cases Promos et Réglages du centre en Modifier (promos.gerer, reglages.modifier).
+  perform pg_temp.cas('creer_promo : t_rh (Promos : Voir) refusé (la phrase ne change pas)', 't_rh', '1',
+    format($q$select public.creer_promo(%s, 'Preuve7 fn promo', current_date, null)::text$q$, v_l1), 'ERREUR 42501 promo: Réservé à la direction du centre.');
+  perform pg_temp.cas('creer_promo : t_secr (Promos : Voir) refusé', 't_secr', '1',
+    format($q$select public.creer_promo(%s, 'Preuve7 fn promo', current_date, null)::text$q$, v_l1), 'ERREUR 42501 promo: Réservé à la direction du centre.');
+  perform pg_temp.cas('creer_promo : t_promos (Promos : Modifier) crée', 't_promos', '1',
+    format($q$select (public.creer_promo(%s, 'Preuve7 fn promo', current_date, null) > 0)::text$q$, v_l1), 'OK true');
+  perform pg_temp.cas('creer_promo : dir_n crée', 'dir_n', '1',
+    format($q$select (public.creer_promo(%s, 'Preuve7 fn promo bis', current_date, null) > 0)::text$q$, v_l1), 'OK true');
+  perform pg_temp.cas('modifier_dates_promo : t_rh refusé', 't_rh', '1',
+    $q$select public.modifier_dates_promo(990701, current_date - 20, current_date + 20)::text$q$, 'ERREUR 42501 promo: Réservé à la direction du centre.');
+  perform pg_temp.cas('modifier_dates_promo : t_promos modifie', 't_promos', '1',
+    $q$select public.modifier_dates_promo(990701, current_date - 20, current_date + 20)::text$q$, 'OK');
+  perform pg_temp.cas('regler_habillage_centre : t_secr (Réglages : Non) refusé', 't_secr', '1',
+    format('select (public.regler_habillage_centre(%s, ''ecf'', false))->>''habillage''', v_l1), 'ERREUR 42501 habillage: Réservé à la direction du centre.');
+  perform pg_temp.cas('regler_habillage_centre : t_promos (Réglages : Modifier) règle', 't_promos', '1',
+    format('select (public.regler_habillage_centre(%s, ''ecf'', false))->>''habillage''', v_l1), 'OK ecf');
+  perform pg_temp.cas('regler_habillage_centre : dir_n règle', 'dir_n', '1',
+    format('select (public.regler_habillage_centre(%s, ''ecsr'', false))->>''habillage''', v_l1), 'OK ecsr');
+
+  -- Réseau : creer_centre (Directions : Modifier) et regler_habillage_reseau (Réglages : Modifier).
+  perform pg_temp.cas('creer_centre : t_contenus (Cours seulement) refusé (la phrase ne change pas)', 't_contenus', null,
+    $q$select public.creer_centre('Preuve7 fn centre a')::text$q$, 'ERREUR 42501 centre: Réservé au siège.');
+  perform pg_temp.cas('creer_centre : dir_n refusé', 'dir_n', '1', $q$select public.creer_centre('Preuve7 fn centre a')::text$q$, 'ERREUR 42501 centre: Réservé au siège.');
+  perform pg_temp.cas('creer_centre : t_reseau (Directions : Modifier) crée', 't_reseau', null,
+    $q$select (public.creer_centre('Preuve7 fn centre a') > 0)::text$q$, 'OK true');
+  perform pg_temp.cas('creer_centre : le siège crée', 'siege', null, $q$select (public.creer_centre('Preuve7 fn centre b') > 0)::text$q$, 'OK true');
+  perform pg_temp.cas('regler_habillage_reseau : t_contenus refusé (la phrase ne change pas)', 't_contenus', null,
+    $q$select (public.regler_habillage_reseau('ecf'))->>'habillage'$q$, 'ERREUR 42501 habillage: Réservé au siège.');
+  perform pg_temp.cas('regler_habillage_reseau : t_reseau (Réglages : Modifier) règle', 't_reseau', null,
+    $q$select (public.regler_habillage_reseau('ecf'))->>'habillage'$q$, 'OK ecf');
+  perform pg_temp.cas('regler_habillage_reseau : le siège règle', 'siege', null, $q$select (public.regler_habillage_reseau('ecsr'))->>'habillage'$q$, 'OK ecsr');
+end $tgf$;
+
 do $tprv$
 declare
   v_mode constant text :=
@@ -368,7 +679,7 @@ declare
   c_auth constant text := 'preuve7.compte@exemple.invalid';
   v_pa constant integer := 990701; v_pb constant integer := 990702; v_pc constant integer := 990703;
   v_en_ligne boolean;
-  v_etat text; v_etat1 text; v_retour text; v_retour1 text;
+  v_etat text; v_etat1 text; v_etat2 text; v_retour text; v_retour1 text;
   v_av_regles text; v_av_fonctions text; v_av_droits text;
   v_ap_regles text; v_ap_fonctions text; v_ap_droits text;
   v_lieu1 integer; v_lieu2 integer;
@@ -385,6 +696,8 @@ begin
 
   -- 1. Avant les migrations : empreinte de la base, centres des promos 1 et 2.
   select e.regles, e.fonctions, e.droits into v_av_regles, v_av_fonctions, v_av_droits from pg_temp.empreinte() e;
+  drop table if exists pg_temp.fn_av;
+  create temp table fn_av as select p.oid::regprocedure::text as sig, md5(pg_get_functiondef(p.oid)) as h from pg_proc p where p.oid = any (pg_temp.fonctions_b());
   v_lieu1 := (select lieu_id from public.promos where id = 1);
   v_lieu2 := (select lieu_id from public.promos where id = 2);
   perform pg_temp.verifier('structure', 'les promos 1 et 2 sont dans deux centres différents',
@@ -410,7 +723,15 @@ begin
   v_etat := pg_temp.jouer('migration 2',
 -- @@INJECTER supabase/migrations/20261112_titres_2_gestes.sql@@
   );
+  v_etat2 := v_etat;
   perform pg_temp.etape('migration 2', v_etat, v_mode);
+  if v_en_ligne or v_etat <> 'jouée' then
+    perform pg_temp.informer('fonctions : empreinte avant/après', 'non jugeable (migration 2 non injectée ou déjà appliquée)');
+  else
+    perform pg_temp.attendre('fonctions', 'après la migration 2 : les 29 fonctions ont une définition nouvelle (aucune n''est restée telle quelle)',
+      (select count(*)::text || '/' || cardinality(pg_temp.fonctions_b())::text from pg_temp.fn_av a
+         where md5(pg_get_functiondef(a.sig::regprocedure)) <> a.h), '29/29');
+  end if;
   v_etat := pg_temp.jouer('migration 3',
 -- @@INJECTER supabase/migrations/20261112_titres_3_regles.sql@@
   );
@@ -766,6 +1087,9 @@ begin
         and pr.proname in ('case_promo', 'case_centre', 'case_reseau', 'formateur_fixe', 'direction_fixe', 'siege_fixe', 'membre_stagiaire', 'geste_promo', 'geste_centre', 'geste_reseau')
         and has_function_privilege('anon', pr.oid, 'execute') and has_function_privilege('authenticated', pr.oid, 'execute')$q$), '10/10');
 
+  -- 8 quater. Groupe fonctions : les 29 fonctions de l'app (migration 2, partie B).
+  perform pg_temp.groupe_fonctions();
+
   -- 9. Les retours, dans l'ordre inverse (4, 3, 2, 1).
   v_retour := pg_temp.jouer('retour 4',
 -- @@INJECTER supabase/migrations/20261112_titres_4_journal_retour.sql@@
@@ -779,6 +1103,13 @@ begin
 -- @@INJECTER supabase/migrations/20261112_titres_2_gestes_retour.sql@@
   );
   perform pg_temp.etape('retour 2', v_retour, v_mode);
+  if v_en_ligne or v_etat2 <> 'jouée' or v_retour <> 'jouée' then
+    perform pg_temp.informer('fonctions : empreinte après le retour 2', 'non jugeable (migration 2 ou son retour non injectés, ou déjà appliquée)');
+  else
+    perform pg_temp.attendre('fonctions', 'après le retour 2 : chacune des 29 fonctions retrouve exactement son empreinte d''avant la migration',
+      (select count(*)::text || '/' || cardinality(pg_temp.fonctions_b())::text from pg_temp.fn_av a
+         where md5(pg_get_functiondef(a.sig::regprocedure)) = a.h), '29/29');
+  end if;
   v_retour := pg_temp.jouer('retour 1',
 -- @@INJECTER supabase/migrations/20261112_titres_1_tables_retour.sql@@
   );

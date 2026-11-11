@@ -38,6 +38,9 @@ fi
 # ses tables et ses règles sont déjà dans clone_3_tables.sql, et la migration entière rétablirait des règles d'avant le
 # lot 4 (elles citent is_founder), ce que la couverture de la preuve des rôles refuse. Pas comptée dans la suite.
 sed -n '/^-- 4\. Envoyer/,$p' "$MIGRATIONS/20261028_signalements_app.sql" | $P -1 || { echo "échec : 20261028_signalements_app (fonctions)" >&2; exit 3; }
+# Prérequis aussi : notes_stats_groupe (20261023, remplacée telle quelle, sans dépendance), absente des clones et réécrite par
+# la migration 20261112_titres_2. Pas comptée dans la suite.
+$P -1 -f "$MIGRATIONS/20261023_notes_stats_en_formation.sql" || { echo "échec : 20261023_notes_stats_en_formation" >&2; exit 3; }
 N=0
 for f in $LISTE; do
   $P -1 -f "$MIGRATIONS/$f.sql" || { echo "échec : $f" >&2; exit 3; }
