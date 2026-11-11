@@ -4,14 +4,14 @@
 // Relu au démarrage, à chaque changement de page, au retour au premier plan et toutes
 // les 60 secondes quand l'app est visible. Aucune erreur affichée : ce n'est qu'un rappel.
 
-import { getEmargementsOuverts, signerEmargement, listStagiaires } from "./db.js?v=20261110e";
-import { el, clear, isoDate, toast } from "./utils.js?v=20261110e";
-import { isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261110e";
-import { ouvrirSignature } from "./signature-pad.js?v=20261110e";
-import { libelleCreneau, heureLocale, adresseSeance, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261110e";
-import { jourLong, DEMI_LONG, nomComplet } from "./emargement-feuilles.js?v=20261110e";
-import { emargementActif } from "./emargement-etat.js?v=20261110e";
-import { lireAdresse } from "./route-rules.js?v=20261110e";
+import { getEmargementsOuverts, signerEmargement, listStagiaires } from "./db.js?v=20261111d";
+import { el, clear, isoDate, toast } from "./utils.js?v=20261111d";
+import { isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261111d";
+import { ouvrirSignature } from "./signature-pad.js?v=20261111d";
+import { libelleCreneau, heureLocale, adresseSeance, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261111d";
+import { jourLong, DEMI_LONG, nomComplet } from "./emargement-feuilles.js?v=20261111d";
+import { emargementActif } from "./emargement-etat.js?v=20261111d";
+import { lireAdresse } from "./route-rules.js?v=20261111d";
 
 const INTERVALLE_MS = 60000;
 let initialise = false;
@@ -111,7 +111,7 @@ function dessiner(b, seances, actifs) {
     const absent = tries.find((s) => s.lignes.some((x) => x.stagiaire_id === moi && x.absent));
     if (absent && !(isAdmin() || isProf())) {
       b.classList.add("em-bandeau-info");
-      b.appendChild(el("p", {}, `Tu es noté absent sur la feuille ${deLaDemi(absent.demi_journee)}. `
+      b.appendChild(el("p", {}, `Tu es marqué absent sur la feuille ${deLaDemi(absent.demi_journee)}. `
         + "Si tu es là, vois-le avec ton formateur."));
       b.hidden = false;
       return;

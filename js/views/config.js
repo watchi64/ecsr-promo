@@ -12,19 +12,20 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   setMyAnonymousNotes,
-} from "../db.js?v=20261110e";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261110e";
-import { confirmer, demander } from "../confirmer.js?v=20261110e";
-import { icon } from "../icons.js?v=20261110e";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261110e";
-import { moduleVisible } from "../modules-etat.js?v=20261110e";
-import { renderModulesSection } from "./modules-reglage.js?v=20261110e";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261110e";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261110e";
-import { pointsARetenir } from "../accueil-rules.js?v=20261110e";
-import { dateCourte, etatFinDePromo } from "../effacement-rules.js?v=20261110e";
-import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261110e";
-import { blocHabillage } from "../habillage-choix.js?v=20261110e";
+} from "../db.js?v=20261111d";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111d";
+import { confirmer, demander } from "../confirmer.js?v=20261111d";
+import { icon } from "../icons.js?v=20261111d";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261111d";
+import { moduleVisible } from "../modules-etat.js?v=20261111d";
+import { renderModulesSection } from "./modules-reglage.js?v=20261111d";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111d";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261111d";
+import { pointsARetenir } from "../accueil-rules.js?v=20261111d";
+import { dateCourte, etatFinDePromo, questionAnonymiserPromo, questionPurgerBenevoles } from "../effacement-rules.js?v=20261111d";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111d";
+import { blocHabillage } from "../habillage-choix.js?v=20261111d";
+import { nomBenevole } from "../planning-lecture.js?v=20261111d";
 
 // ====== SECTION Accès & invitations ======
 
@@ -55,9 +56,9 @@ async function renderAccessSection(rerender) {
   if (peutInviter) {
     const inviteBlock = el("div", { class: "param-block" });
     inviteBlock.appendChild(el("h4", {}, "Autoriser une personne"));
-    const phraseHabituelle = "Choisis le rôle et la personne, entre son adresse e-mail. Aucun e-mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec cette adresse et un mot de passe.";
+    const phraseHabituelle = "Choisissez le rôle et la personne, entrez son adresse e-mail. Aucun e-mail n'est envoyé : vous lui partagez l'URL vous-même, puis elle crée son compte avec cette adresse et un mot de passe.";
     // Le siège n'a pas de personne à choisir : la phrase ne la mentionne plus.
-    const phraseSiege = "Entre l'adresse e-mail de la personne qui rejoint le siège du réseau. Aucun e-mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec cette adresse et un mot de passe.";
+    const phraseSiege = "Entrez l'adresse e-mail de la personne qui rejoint le siège du réseau. Aucun e-mail n'est envoyé : vous lui partagez l'URL vous-même, puis elle crée son compte avec cette adresse et un mot de passe.";
     const aideInvitation = el("p", { class: "muted" }, phraseHabituelle);
     inviteBlock.appendChild(aideInvitation);
 
@@ -87,7 +88,8 @@ async function renderAccessSection(rerender) {
         .map((p) => role === "stagiaire" ? p.stagiaire_id : p.prof_id));
       list.forEach((it) => {
         const isTaken = taken.has(it.id);
-        const baseLabel = it.prenom ? (it.nom ? `${it.nom} ${it.prenom}` : it.prenom) : it.nom;
+        // Stagiaire : « Lucie M. », le format de tous les écrans (décision du 10/11) ; formateur : son nom tel que saisi.
+        const baseLabel = it.prenom ? displayStagiaire(it) : it.nom;
         const label = baseLabel + (isTaken ? " (déjà invité)" : "");
         const opt = el("option", { value: String(it.id) }, label);
         if (isTaken) opt.disabled = true;
@@ -129,7 +131,7 @@ async function renderAccessSection(rerender) {
         libellePersonne, personSel,
       ),
       el("div", { class: "invite-row" },
-        el("label", {}, "Email"), emailInput,
+        el("label", {}, "E-mail"), emailInput,
         sendBtn,
       ),
     ));
@@ -140,7 +142,7 @@ async function renderAccessSection(rerender) {
   const listBlock = el("div", { class: "param-block" });
   listBlock.appendChild(el("h4", {}, `Personnes avec accès (${profiles.length})`));
   if (profiles.length === 0) {
-    listBlock.appendChild(el("p", { class: "muted" }, "Personne pour l'instant. Invite quelqu'un ci-dessus."));
+    listBlock.appendChild(el("p", { class: "muted" }, "Personne pour l'instant. Invitez quelqu'un ci-dessus."));
   } else {
     const list = el("ul", { class: "admin-list" });
     listeAcces({ profils: profiles, roles: rolesPersonnel })
@@ -222,7 +224,7 @@ function renderMyPreferencesSection(rerender) {
   const noLock = !!(profile.is_admin || profile.is_founder);
   block.appendChild(el("p", { class: "muted" },
     noLock
-      ? "Tu peux changer ce réglage librement, sans verrou."
+      ? "Réglage modifiable librement, sans verrou."
       : "Après un changement, tu as 2 minutes pour annuler ; ensuite le réglage est verrouillé pendant 24 h."));
 
   const checkbox = el("input", { type: "checkbox", id: "pref-anon" });
@@ -305,7 +307,7 @@ async function renderPromoSection(rerender) {
       el("h3", {}, "Promo"),
       el("p", { class: "muted" }, admin
         ? "Gérer la liste des stagiaires et formateurs."
-        : "Liste des stagiaires et formateurs. Tu ne peux pas la modifier."),
+        : "Liste des stagiaires et formateurs. Vous ne pouvez pas la modifier."),
     ),
   ));
 
@@ -459,12 +461,7 @@ async function renderDonneesSection(rerender) {
     if (fin.bouton) {
       blocPromo.appendChild(el("button", { class: "btn danger", onClick: async (e) => {
         const bouton = e.currentTarget;
-        const nom = etat.nom || "cette promo";
-        const saisie = await demander({ titre: `Anonymiser toutes les fiches de « ${nom} » ?`,
-          phrase: "Comptes, e-mails, dates de naissance, livrets, dossiers et commentaires sont effacés ; "
-            + "les résultats restent sans nom. Irréversible.",
-          libelle: "Pour confirmer, tapez ANONYMISER", oui: "Anonymiser",
-          verifier: (v) => v.trim() === "ANONYMISER", erreur: "Saisie différente : rien n'est effacé." });
+        const saisie = await demander(questionAnonymiserPromo(etat.nom));
         if (typeof saisie !== "string") return;
         bouton.disabled = true;
         try {
@@ -491,15 +488,14 @@ async function renderDonneesSection(rerender) {
   } else {
     const liste = el("ul", { class: "config-list donnees-liste" });
     benevoles.forEach((b) => liste.appendChild(el("li", {},
-      el("span", {}, b.display),
+      el("span", {}, nomBenevole(b.display)),
       el("span", { class: "muted" }, b.derniere_venue ? "dernière venue le " + dateCourte(b.derniere_venue) : "jamais venu"),
     )));
     blocBnv.appendChild(liste);
     blocBnv.appendChild(el("button", { class: "btn danger", onClick: async (e) => {
       const bouton = e.currentTarget;
       const n = benevoles.length;
-      if (!(await confirmer({ titre: `Supprimer ${n} élève${n > 1 ? "s" : ""} bénévole${n > 1 ? "s" : ""} et leurs coordonnées ?`,
-        phrase: "Ils disparaissent aussi des anciens créneaux du planning. Irréversible.", oui: "Supprimer" }))) return;
+      if (!(await confirmer(questionPurgerBenevoles(n)))) return;
       bouton.disabled = true;
       try {
         const nb = await purgerBenevoles(benevoles.map((b) => b.id));
@@ -523,10 +519,26 @@ function renderApparenceSection() {
       el("div", { class: "param-icon" }, icon.palette()),
       el("div", {},
         titre,
-        el("p", { class: "muted" }, "Les couleurs de l'app, à ton choix."),
+        el("p", { class: "muted" }, "Les couleurs de l'app, au choix."),
       ),
     ),
     el("div", { class: "param-block" }, blocHabillage({ titre })),
+  );
+}
+
+// Réglages de la promo : au test du premier clic, les formatrices ont cherché les couleurs ici. La
+// section les renvoie à Mes préférences, où le choix se fait pour chaque personne (décision du 10/11, lot 3).
+function renderApparenceRenvoi() {
+  return el("section", { class: "param-section param-renvoi-apparence" },
+    el("div", { class: "param-section-head" },
+      el("div", { class: "param-icon" }, icon.palette()),
+      el("div", {},
+        el("h3", {}, "Apparence"),
+        el("p", { class: "muted" }, "Les couleurs de l'app se choisissent pour chaque personne, dans Mes préférences."),
+      ),
+    ),
+    el("div", { class: "param-block" },
+      el("a", { class: "btn small", href: "#/preferences" }, "Ouvrir Mes préférences")),
   );
 }
 
@@ -553,11 +565,11 @@ function renderInfoSection() {
     )
   ));
   // L'Accueil ne porte pas « À retenir » (ce n'est pas ce qu'on vient y chercher chaque jour) : les règles vivent ici,
-  // pour tous les rôles.
+  // pour tous les rôles, au tutoiement pour un stagiaire, au vouvoiement pour l'équipe (selonPublic).
   section.appendChild(el("div", { class: "param-block", "data-a-retenir": "" },
     el("h4", {}, "À retenir"),
     el("ul", { class: "home-info-list" },
-      ...pointsARetenir().map((p) => el("li", {}, el("strong", {}, p.gras), p.suite)),
+      ...pointsARetenir(selonPublic).map((p) => el("li", {}, el("strong", {}, p.gras), p.suite)),
     ),
   ));
   return section;
@@ -606,8 +618,8 @@ async function rerender(container) {
 
     const grid = el("div", { class: "param-grid" });
     // Ce que voient les stagiaires d'abord (le réglage qui sert le plus), puis la promo et les accès,
-    // l'interrupteur du fondateur, les données personnelles.
-    [modules, promo, acces, emargement, donnees].filter(Boolean).forEach((s) => grid.appendChild(s));
+    // l'interrupteur du fondateur, les données personnelles, et le renvoi vers Apparence (Mes préférences).
+    [modules, promo, acces, emargement, donnees, renderApparenceRenvoi()].filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
     console.error(titre + " : erreur de chargement", e);
@@ -644,7 +656,7 @@ export function renderPreferences(container) {
       el("h2", {}, "Mes préférences"),
       // Apparence est toujours là : la page a toujours un réglage à soi, quel que soit le rôle. « Réglages » est le nom de
       // la page de l'équipe : il n'est pas repris ici.
-      el("p", { class: "subtitle" }, "Ce qui ne concerne que toi, et les informations sur l'application."),
+      el("p", { class: "subtitle" }, "Les réglages personnels et les informations sur l'application."),
     ),
   ));
   const grid = el("div", { class: "param-grid" });

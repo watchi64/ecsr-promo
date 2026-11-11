@@ -5,8 +5,9 @@ Une seule navigation depuis le 10/11 (la refonte : onglets du stagiaire, barre l
 direction et du siège, barre du bas et « Plus » sur téléphone ; l'ancienne barre d'onglets est retirée). Chaque
 chemin est la suite des clics la plus courte qu'offre l'écran ; le robot les compte contre le budget du parcours.
 
-Pages du lot 2B : « Aujourd'hui » de l'équipe (la route de l'Accueil), les sous-onglets « QCM » du stagiaire,
-« Signalements » et « Propositions IA » de l'équipe, la partie « Livret EPCF » de Mon suivi.
+Pages du lot 2B : « Aujourd'hui » de l'équipe (la route de l'Accueil), les
+sous-onglets « QCM » du stagiaire, « Questions contestées » (« Signalements » avant le lot D) et « Propositions IA » de l'équipe, la partie « Livret EPCF »
+de Mon suivi.
 """
 
 # Réglages du banc communs à tous les parcours : un mercredi gelé à 10 h (émargement du matin ouvert),
@@ -124,7 +125,7 @@ def chemin(destination, espace, telephone):
               "Notes et examens": "notes", "Cours et QCM": "themes", "CCP2": "ccp2", "Indicateurs": "centre", "Réglages": "config"}
     if destination in routes:
         return _plus_si_telephone(routes[destination], "« %s »" % destination, telephone, BARRE_DU_BAS_EQUIPE)
-    if destination in ("Signalements", "Propositions IA"):
+    if destination in ("Questions contestées", "Propositions IA"):
         # Deux sous-onglets de Cours et QCM réservés à l'équipe (Propositions IA : administrateurs seulement).
         return _plus_si_telephone("themes", "« Cours et QCM »", telephone, BARRE_DU_BAS_EQUIPE) +             [(texte(destination, SOUS_ONGLET), "« %s »" % destination)]
     if destination == "Signaler un problème":

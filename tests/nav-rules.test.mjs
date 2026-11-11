@@ -200,10 +200,11 @@ barreTelephone("stagiaire", entrees).barre.pop();
 eq(ids(entrees), ordre, "barre du stagiaire : copie de la liste");
 
 // 8. Initiales du bouton du compte, tirées du nom affiché par l'app
-eq(initialesDe("V. Timy"), "TV", "stagiaire « V. Timy » (initiale du nom, prénom) : prénom d'abord");
+eq(initialesDe("Timy V."), "TV", "stagiaire « Timy V. » (prénom, initiale du nom) : prénom d'abord");
+eq(initialesDe("Lucie M."), "LM", "stagiaire « Lucie M. »");
 eq(initialesDe("Camille Martin"), "CM", "prénom et nom");
 eq(initialesDe("Jean-Marc Dupont"), "JD", "prénom composé : premier et dernier mot");
-eq(initialesDe("  V.   Timy "), "TV", "espaces en trop");
+eq(initialesDe("  Timy   V. "), "TV", "espaces en trop");
 eq(initialesDe("Timy"), "T", "un seul mot : une lettre");
 eq(initialesDe("élodie"), "É", "accent gardé, en capitale");
 eq(initialesDe("jean.dupont@example.fr"), "JD", "adresse électronique : sa partie locale");
@@ -212,12 +213,13 @@ eq(initialesDe(""), "", "nom vide : aucune initiale");
 eq(initialesDe(null), "", "nom absent : aucune initiale");
 
 // 9. Prénom affiché à côté des initiales (bouton du compte du stagiaire)
-eq(prenomDe("V. Timy"), "Timy", "stagiaire « V. Timy » : le prénom, après l'initiale du nom");
+eq(prenomDe("Timy V."), "Timy", "stagiaire « Timy V. » : le prénom, avant l'initiale du nom");
+eq(prenomDe("Lucie M."), "Lucie", "stagiaire « Lucie M. »");
 eq(prenomDe("Camille Martin"), "Camille", "prénom et nom : le premier mot");
 eq(prenomDe("Romain"), "Romain", "un seul mot : lui-même");
-eq(prenomDe("V. Jean-Marc"), "Jean-Marc", "prénom composé gardé entier");
-eq(prenomDe("K. Anne Marie"), "Anne Marie", "prénom en deux mots après l'initiale du nom");
-eq(prenomDe("  V.   Timy "), "Timy", "espaces en trop");
+eq(prenomDe("Jean-Marc V."), "Jean-Marc", "prénom composé gardé entier");
+eq(prenomDe("Marie Claire D."), "Marie Claire", "prénom en deux mots avant l'initiale du nom");
+eq(prenomDe("  Timy   V. "), "Timy", "espaces en trop");
 eq(prenomDe("jean.dupont@example.fr"), "", "adresse électronique : pas de prénom");
 eq(prenomDe(""), "", "nom vide : pas de prénom");
 eq(prenomDe(null), "", "nom absent : pas de prénom");
@@ -254,21 +256,21 @@ for (const espace of ["stagiaire", "equipe"]) {
 // puis les nouveautés non lues (le texte de libellePastille : "", "1" à "9", "9+"). Le bouton ne montre plus
 // qu'un point sans chiffre (lot 2A) : c'est son nom, et lui seul, qui dit combien il y en a.
 eq(nomDuBoutonCompte({ nonLues: "9" }), "Mon compte, 9 nouveautés non lues", "le nombre est dans le nom, pas sur le bouton");
-eq(nomDuBoutonCompte({ nom: "V. Timy" }), "Mon compte (V. Timy)", "en-tête du stagiaire : le nom, sans rôle affiché");
-eq(nomDuBoutonCompte({ nom: "V. Timy", role: "Fondateur" }), "Mon compte (V. Timy, Fondateur)",
+eq(nomDuBoutonCompte({ nom: "Timy V." }), "Mon compte (Timy V.)", "en-tête du stagiaire : le nom, sans rôle affiché");
+eq(nomDuBoutonCompte({ nom: "Timy V.", role: "Fondateur" }), "Mon compte (Timy V., Fondateur)",
   "barre de l'équipe : le nom et le rôle qu'elle affiche");
 eq(nomDuBoutonCompte({ nom: "Romain", role: "Formateur", nonLues: "2" }),
   "Mon compte (Romain, Formateur), 2 nouveautés non lues", "nouveautés non lues : le nombre de la pastille");
-eq(nomDuBoutonCompte({ nom: "V. Timy", nonLues: "1" }), "Mon compte (V. Timy), 1 nouveauté non lue", "une seule : au singulier");
-eq(nomDuBoutonCompte({ nom: "V. Timy", nonLues: "9+" }), "Mon compte (V. Timy), 9+ nouveautés non lues", "au-delà de 9 : « 9+ »");
-eq(nomDuBoutonCompte({ nom: "V. Timy", role: "Fondateur", nonLues: "" }), "Mon compte (V. Timy, Fondateur)",
+eq(nomDuBoutonCompte({ nom: "Timy V.", nonLues: "1" }), "Mon compte (Timy V.), 1 nouveauté non lue", "une seule : au singulier");
+eq(nomDuBoutonCompte({ nom: "Timy V.", nonLues: "9+" }), "Mon compte (Timy V.), 9+ nouveautés non lues", "au-delà de 9 : « 9+ »");
+eq(nomDuBoutonCompte({ nom: "Timy V.", role: "Fondateur", nonLues: "" }), "Mon compte (Timy V., Fondateur)",
   "aucune non lue : rien n'est ajouté");
 eq(nomDuBoutonCompte({ role: "Formateur" }), "Mon compte (Formateur)", "sans nom : le rôle affiché sous « Mon compte »");
 eq(nomDuBoutonCompte({}), "Mon compte", "ni nom ni rôle");
 eq(nomDuBoutonCompte(), "Mon compte", "sans argument");
 // Le nom contient chaque texte visible du bouton de l'équipe (le nom en gras, le rôle dessous, la pastille).
-const nomEquipe = nomDuBoutonCompte({ nom: "V. Timy", role: libelleRole({ role: "stagiaire", is_founder: true }), nonLues: "3" });
-eq(["V. Timy", "Fondateur", "3"].every((t) => nomEquipe.includes(t)), true, "le nom contient le texte visible");
+const nomEquipe = nomDuBoutonCompte({ nom: "Timy V.", role: libelleRole({ role: "stagiaire", is_founder: true }), nonLues: "3" });
+eq(["Timy V.", "Fondateur", "3"].every((t) => nomEquipe.includes(t)), true, "le nom contient le texte visible");
 
 // 14. Ligne « page à soi » du menu du compte (ruling R30) : seulement quand la barre affichée n'y mène pas déjà
 const formateurSansProfil = pagePersonnelle({ formateur: true, stagiaireId: null });

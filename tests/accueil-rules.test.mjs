@@ -2,7 +2,7 @@
 // « Promo <nom> · semaine <n> ». Règles pures seulement (js/accueil-rules.js) : le prochain rendez-vous du lot 2B
 // les lit.
 import assert from "node:assert/strict";
-import { etatEvenement, libelleDecompte, lignePromo, prochainRendezVous, aFaireStagiaire } from "../js/accueil-rules.js";
+import { etatEvenement, libelleDecompte, lignePromo, prochainRendezVous, aFaireStagiaire, pointsARetenir } from "../js/accueil-rules.js";
 
 let n = 0;
 const eq = (a, b, msg) => { assert.deepEqual(a, b, msg); n++; };
@@ -96,24 +96,24 @@ eq(libelleDecompte({ etat: "a-venir", jours: 1.5 }), "", "ni un nombre de jours 
 
 // 9. « Promo <nom> · semaine <n> » : la semaine 1 est celle du premier jour de la promo (du lundi au dimanche)
 const NIMES = { nom: "Nîmes, mars 2026", date_debut: "2026-03-30", date_fin: "2026-12-11" };   // le 30/03/2026 est un lundi
-eq(lignePromo(NIMES, "2026-10-28"), "Promo Nîmes, mars 2026 · semaine 31", "mercredi 28/10 : la 31e semaine (lundi 26/10 : 30 semaines après le 30/03)");
-eq(lignePromo(NIMES, "2026-10-27"), "Promo Nîmes, mars 2026 · semaine 31", "mardi 27/10, la maquette : semaine 31");
-eq(lignePromo(NIMES, "2026-10-25"), "Promo Nîmes, mars 2026 · semaine 30", "dimanche 25/10 : encore la semaine d'avant");
-eq(lignePromo(NIMES, "2026-10-26"), "Promo Nîmes, mars 2026 · semaine 31", "lundi 26/10 : la semaine change le lundi");
-eq(lignePromo(NIMES, "2026-03-30"), "Promo Nîmes, mars 2026 · semaine 1", "le premier jour : semaine 1");
-eq(lignePromo(NIMES, "2026-04-05"), "Promo Nîmes, mars 2026 · semaine 1", "le dimanche qui suit : toujours semaine 1");
-eq(lignePromo(NIMES, "2026-04-06"), "Promo Nîmes, mars 2026 · semaine 2", "le lundi suivant : semaine 2");
-eq(lignePromo(NIMES, "2026-12-11"), "Promo Nîmes, mars 2026 · semaine 37", "le dernier jour de la promo : encore numéroté");
-eq(lignePromo({ nom: "Alès, avril 2026", date_debut: "2026-04-01" }, "2026-04-05"), "Promo Alès, avril 2026 · semaine 1",
+eq(lignePromo(NIMES, "2026-10-28"), "Promo Nîmes, mars 2026 · semaine 31 de formation", "mercredi 28/10 : la 31e semaine (lundi 26/10 : 30 semaines après le 30/03)");
+eq(lignePromo(NIMES, "2026-10-27"), "Promo Nîmes, mars 2026 · semaine 31 de formation", "mardi 27/10, la maquette : semaine 31");
+eq(lignePromo(NIMES, "2026-10-25"), "Promo Nîmes, mars 2026 · semaine 30 de formation", "dimanche 25/10 : encore la semaine d'avant");
+eq(lignePromo(NIMES, "2026-10-26"), "Promo Nîmes, mars 2026 · semaine 31 de formation", "lundi 26/10 : la semaine change le lundi");
+eq(lignePromo(NIMES, "2026-03-30"), "Promo Nîmes, mars 2026 · semaine 1 de formation", "le premier jour : semaine 1");
+eq(lignePromo(NIMES, "2026-04-05"), "Promo Nîmes, mars 2026 · semaine 1 de formation", "le dimanche qui suit : toujours semaine 1");
+eq(lignePromo(NIMES, "2026-04-06"), "Promo Nîmes, mars 2026 · semaine 2 de formation", "le lundi suivant : semaine 2");
+eq(lignePromo(NIMES, "2026-12-11"), "Promo Nîmes, mars 2026 · semaine 37 de formation", "le dernier jour de la promo : encore numéroté");
+eq(lignePromo({ nom: "Alès, avril 2026", date_debut: "2026-04-01" }, "2026-04-05"), "Promo Alès, avril 2026 · semaine 1 de formation",
   "une promo qui commence un mercredi : sa semaine 1 est celle de ce mercredi");
-eq(lignePromo({ nom: "Alès, avril 2026", date_debut: "2026-04-01" }, "2026-04-06"), "Promo Alès, avril 2026 · semaine 2", "et la 2 commence le lundi suivant");
+eq(lignePromo({ nom: "Alès, avril 2026", date_debut: "2026-04-01" }, "2026-04-06"), "Promo Alès, avril 2026 · semaine 2 de formation", "et la 2 commence le lundi suivant");
 eq(lignePromo({ nom: "Alès, avril 2026", date_debut: "2026-04-01" }, "2026-03-31"), "Promo Alès, avril 2026",
   "la veille du premier jour, dans la même semaine du calendrier : la promo n'a pas commencé, pas de semaine 1");
-eq(lignePromo(NIMES, new Date(2026, 9, 28, 23, 50)), "Promo Nîmes, mars 2026 · semaine 31", "une date locale : le jour, pas l'heure");
+eq(lignePromo(NIMES, new Date(2026, 9, 28, 23, 50)), "Promo Nîmes, mars 2026 · semaine 31 de formation", "une date locale : le jour, pas l'heure");
 // Pas de numéro quand il ne dirait rien de vrai : promo pas commencée, promo finie
 eq(lignePromo(NIMES, "2026-03-27"), "Promo Nîmes, mars 2026", "avant la promo : pas de semaine 0 ni négative");
 eq(lignePromo(NIMES, "2026-12-14"), "Promo Nîmes, mars 2026", "après la fin de la promo : pas de semaine qui continue de compter");
-eq(lignePromo({ nom: "Nîmes, septembre 2026", date_debut: "2026-09-30", date_fin: null }, "2026-10-28"), "Promo Nîmes, septembre 2026 · semaine 5",
+eq(lignePromo({ nom: "Nîmes, septembre 2026", date_debut: "2026-09-30", date_fin: null }, "2026-10-28"), "Promo Nîmes, septembre 2026 · semaine 5 de formation",
   "sans date de fin : la numérotation continue");
 eq(lignePromo({ nom: "Sans dates" }, "2026-10-28"), "Promo Sans dates", "sans date de début : le nom seul");
 eq(lignePromo({ nom: "Nîmes, mars 2026", date_debut: "pas une date" }, "2026-10-28"), "Promo Nîmes, mars 2026", "date de début illisible : le nom seul");
@@ -121,6 +121,18 @@ eq(lignePromo({ nom: "Nîmes, mars 2026", date_debut: "2026-03-30" }, "pas une d
 eq(lignePromo(null, "2026-10-28"), "", "promo pas encore chargée : aucune ligne");
 eq(lignePromo({ date_debut: "2026-03-30" }, "2026-10-28"), "", "promo sans nom : aucune ligne");
 eq(lignePromo({ nom: "   " }, "2026-10-28"), "", "nom vide : aucune ligne");
+
+// 10. « À retenir » selon le public (décision du 10/11) : tutoiement par défaut (stagiaire), vouvoiement quand
+// l'appelant passe l'aiguilleur de l'équipe (Mes préférences : selonPublic).
+const auStagiaire = pointsARetenir();
+eq(auStagiaire[0].gras, "Ton identité est liée à ton e-mail.", "stagiaire : tutoiement, « e-mail »");
+eq(auStagiaire[1].gras, "Tu ajoutes et corriges tes passages toi-même.", "stagiaire : ses passages");
+const aLEquipe = pointsARetenir((tu, vous) => vous);
+eq(aLEquipe[0].gras, "Votre identité est liée à votre e-mail.", "équipe : vouvoiement");
+eq(aLEquipe[1], { gras: "Les stagiaires ajoutent et corrigent leurs passages eux-mêmes.", suite: " Pour en supprimer un, ils s'adressent à un formateur." },
+  "équipe : la règle des passages dite des stagiaires");
+eq(aLEquipe.slice(2), auStagiaire.slice(2), "les deux dernières règles, sans pronom, sont les mêmes");
+eq(aLEquipe.some((p) => /\b(tu|ton|ta|tes|toi)\b/i.test(p.gras + p.suite)), false, "aucun tutoiement chez l'équipe");
 
 console.log(`accueil-rules : ${n} assertions OK`);
 

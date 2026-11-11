@@ -1,13 +1,13 @@
-import { listStagiaires, getStats } from "../db.js?v=20261110e";
-import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261110e";
-import { lundiEnCours } from "../journee-rules.js?v=20261110e";
-import { icon } from "../icons.js?v=20261110e";
-import { renderPassages } from "./passages.js?v=20261110e";
+import { listStagiaires, getStats } from "../db.js?v=20261111d";
+import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261111d";
+import { lundiEnCours } from "../journee-rules.js?v=20261111d";
+import { icon } from "../icons.js?v=20261111d";
+import { renderPassages } from "./passages.js?v=20261111d";
 
 const SORT_OPTIONS = [
-  { key: "priorite",   label: "Priorité de passage" },
+  { key: "priorite",   label: "Ordre de passage" },
   { key: "alpha",      label: "Alphabétique" },
-  { key: "passages",   label: "Plus de passages d'abord" },
+  { key: "passages",   label: "Plus de passages faits d'abord" },
 ];
 
 const VALID_SORTS = new Set(SORT_OPTIONS.map((o) => o.key));
@@ -97,7 +97,7 @@ function explainPanel(objSalle, objVoiture) {
     el("div", { class: "dash-explain-body" },
       el("p", {},
         el("strong", {}, "Les passages se comptent à « Valider la semaine »."),
-        " Placer quelqu'un dans le planning, c'est planifier : ça ne compte pas tant que la semaine n'est pas validée. Le tableau de bord n'affiche que les passages enregistrés."),
+        " Placer quelqu'un dans le planning, c'est planifier : ça ne compte pas tant que la semaine n'est pas validée. Cette page n'affiche que les passages enregistrés."),
       el("p", {},
         el("strong", {}, "Objectif = moyenne de la classe"),
         ` (cette semaine : Salle ${objSalle}, Voiture ${objVoiture}). Au niveau ou au-dessus → `,
@@ -111,8 +111,8 @@ function explainPanel(objSalle, objVoiture) {
   );
 }
 
-// Rendu dans le sous-onglet Priorités de Planning (js/views/planning-espace.js) : la barre des sous-onglets tient lieu de
-// retour au Planning (#/dashboard y mène, js/nav-rules.js).
+// Rendu dans le sous-onglet Ordre de passage de Planning (js/views/planning-espace.js) : la barre des sous-onglets tient
+// lieu de retour au Planning (#/dashboard y mène, js/nav-rules.js).
 export async function renderDashboard(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
@@ -153,7 +153,7 @@ export async function renderDashboard(container) {
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Semaine du " + new Date(monday + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })),
-      el("h2", {}, "Priorités de passage"),
+      el("h2", {}, "Ordre de passage"),
       el("p", { class: "subtitle" }, "Qui doit passer en priorité, par rapport à la moyenne de la classe."),
     ),
   ));

@@ -334,8 +334,8 @@ def apercus_promo_7(v):
 # --- Une adresse tapée hors de son espace (P6, P7), la porte (P8), la fiche d'un autre centre (P9) -------------------------------
 
 ADRESSES_NEUVES = ["#/promos", "#/equipe", "#/reseau", "#/directions"]
-PHRASE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à ta direction ou à un formateur de t'ajouter."
-PHRASE_FICHE_AILLEURS = "Cette fiche n'est pas dans ton centre."
+PHRASE_SANS_PROMO = "Aucune promo n'est associée à ce compte : la direction du centre ou un formateur peut l'ajouter à une promo."
+PHRASE_FICHE_AILLEURS = "Cette fiche n'est pas dans votre centre."
 
 
 def saisir_une_adresse(v, adresse):
@@ -401,7 +401,7 @@ def sans_role(v):
 @parcours("direction-fiche-d-un-autre-centre", "P9 · Une direction tape l'adresse d'une fiche d'un autre centre", role="direction", budget=1,
           banc={"compte": "direction", "lieux": "2", "emargement2": "1"}, navigations=NOUVELLE, depart=DEPART)
 def fiche_d_un_autre_centre(v):
-    """Direction de Nîmes, fiche d'un stagiaire de Montpellier : « Cette fiche n'est pas dans ton centre. », rien de Montpellier à l'écran."""
+    """Direction de Nîmes, fiche d'un stagiaire de Montpellier : « Cette fiche n'est pas dans votre centre. », rien de Montpellier à l'écran."""
     v.aller("Vue d'ensemble")
     attendre_page(v, "Vue d'ensemble")
     v.but("accueil du centre")
@@ -418,7 +418,7 @@ def fiche_d_un_autre_centre(v):
 # --- La base en panne (P10) --------------------------------------------------------------------------------------------------------
 
 
-PHRASE_CONNEXION = "La connexion a échoué. Vérifie le réseau, puis réessaie."
+PHRASE_CONNEXION = "La connexion a échoué. Vérifier le réseau, puis réessayer."
 
 
 def exiger_une_phrase_dans_la_fenetre(v, quoi):
@@ -479,4 +479,43 @@ def panne_creer_promo(v):
         v.constat("E", BLOQUE, "le nom saisi est perdu après l'échec de la création", capture=True)
     v.etape("phrase : " + phrase[:60])
     fermer_la_fenetre(v, "la fenêtre de création")
+    v.terminer()
+
+
+# --- Les données personnelles du centre (suite du lot 5) ---------------------------------------------------------------------------
+
+
+@parcours("direction-donnees-personnelles", "Suite du lot 5 · La direction ouvre les Données personnelles de ses Réglages du centre", role="direction",
+          budget=2, banc={"compte": "direction", "donnees": "pret"}, navigations=NOUVELLE, depart=DEPART)
+def donnees_personnelles(v):
+    """Réglages du centre : sous l'habillage, la section « Données personnelles » (une ligne par promo du centre, « Anonymiser la promo »
+    pour celle dont les 12 mois sont écoulés, puis les élèves bénévoles à supprimer). Rien n'est anonymisé ni supprimé."""
+    v.aller("Réglages du centre")
+    attendre_page(v, "Réglages du centre")
+    v.attendre('#view .reglage-donnees h3:has-text("Données personnelles")', "la section « Données personnelles »")
+    v.attendre("#view .reglage-donnees .donnees-promo", "une ligne par promo du centre")
+    lignes = v.page.locator("#view .reglage-donnees .donnees-promo").count()
+    if lignes != 2:
+        v.constat("E", BLOQUE, "la section montre %d promo(s) au lieu des 2 promos de Nîmes" % lignes, capture=True)
+    v.attendre('#view .reglage-donnees button:has-text("Anonymiser la promo")', "« Anonymiser la promo » pour la promo dont les 12 mois sont écoulés")
+    v.attendre('#view .reglage-donnees button:has-text("Supprimer ces 2 élèves")', "« Supprimer ces 2 élèves » pour les élèves bénévoles")
+    v.but("section Données personnelles")
+    v.terminer()
+
+
+@parcours("panne-direction-donnees-personnelles", "Suite du lot 5 · Base en panne : les Données personnelles disent la panne et proposent Réessayer",
+          role="direction", budget=2, banc={"compte": "direction", "donnees": "pret", "panne": "etat_anonymisation_promo,benevoles_a_purger"},
+          navigations=NOUVELLE, depart=DEPART)
+def panne_donnees_personnelles(v):
+    """Les lectures des données personnelles en panne : chaque bloc dit que la connexion a échoué, avec « Réessayer »."""
+    v.console_attendue("TypeError: Failed to fetch")
+    v.aller("Réglages du centre")
+    attendre_page(v, "Réglages du centre")
+    v.attendre("#view .reglage-donnees .centre-erreur", "la phrase de la panne dans la section")
+    v.but("Données personnelles en panne")
+    phrases = [t.strip() for t in v.page.locator("#view .reglage-donnees .centre-erreur p").all_inner_texts()]
+    if not phrases or any(f != PHRASE_CONNEXION for f in phrases):
+        v.constat("E", BLOQUE, "la panne se dit « %s » au lieu de « %s »" % (" / ".join(phrases)[:80], PHRASE_CONNEXION), capture=True)
+    if not v.voit('#view .reglage-donnees .centre-erreur button:has-text("Réessayer")'):
+        v.constat("E", BLOQUE, "aucun « Réessayer » dans la section en panne", capture=True)
     v.terminer()

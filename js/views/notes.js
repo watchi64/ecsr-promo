@@ -2,25 +2,25 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation,
   listFichesNotesMasquees, getNotesStatsGroupe, getPromoCourante,
-} from "../db.js?v=20261110e";
+} from "../db.js?v=20261111d";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261110e";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261110e";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace } from "../auth-admin.js?v=20261110e";
-import { litToutesLesNotes } from "../espaces-rules.js?v=20261110e";
-import { recordUndo } from "../undo.js?v=20261110e";
-import { renderSubTabs } from "../subtabs.js?v=20261110e";
-import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261110e";
-import { renderEpcf } from "./epcf.js?v=20261110e";
-import { noteGradient } from "../echelle-notes.js?v=20261110e";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110e";
-import { renderSaisie } from "./notes-saisie.js?v=20261110e";
+} from "../notes-stats.js?v=20261111d";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261111d";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace, selonPublic } from "../auth-admin.js?v=20261111d";
+import { litToutesLesNotes } from "../espaces-rules.js?v=20261111d";
+import { recordUndo } from "../undo.js?v=20261111d";
+import { renderSubTabs } from "../subtabs.js?v=20261111d";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261111d";
+import { renderEpcf } from "./epcf.js?v=20261111d";
+import { noteGradient } from "../echelle-notes.js?v=20261111d";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111d";
+import { renderSaisie } from "./notes-saisie.js?v=20261111d";
 import {
   parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes,
   contexteEtatVide, phraseNoteRefusee, confirmationEffacement,
-} from "../notes-saisie-rules.js?v=20261110e";
-import { confirmer } from "../confirmer.js?v=20261110e";
+} from "../notes-saisie-rules.js?v=20261111d";
+import { confirmer } from "../confirmer.js?v=20261111d";
 
 // Fiches de la promo dont les notes sont masquées (anonymat) : la base ne donne plus aux stagiaires les profils des
 // autres (adresse e-mail comprise), seulement ces numéros de fiche (js/notes-masquees.js).
@@ -530,7 +530,7 @@ function openStagiaireDetail(stagiaire, themeByNum, container) {
     el("div", { class: "sd-head" },
       el("h3", {}, displayName(stagiaire)),
       el("p", { class: "muted", style: "margin:0;font-size:0.85rem" },
-        admin ? "Clique sur une note pour la modifier." : "Lecture seule."),
+        admin ? "Cliquez sur une note pour la modifier." : "Lecture seule."),
     ),
     buildBody(),
     el("div", { class: "modal-actions" },
@@ -800,8 +800,9 @@ function rerender(container) {
   const tactile = window.matchMedia("(pointer: coarse)").matches;
   const compte = nbLignes + " note" + (nbLignes > 1 ? "s" : "") + " enregistrée" + (nbLignes > 1 ? "s" : "");
   const phrase = admin && tactile
-    ? "Saisis les notes thème par thème, ou touche une case de la matrice."
-    : "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note.";
+    ? "Saisissez les notes thème par thème, ou touchez une case de la matrice."
+    : selonPublic("Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note.",
+      "Tableau matrice : stagiaires × thèmes/compétences. Cliquez sur une cellule pour saisir la note.");
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
@@ -849,7 +850,7 @@ function rerender(container) {
       dateInput,
       todayBtn,
       tactile ? null : el("span", { class: "matrice-toolbar-hint muted" },
-        "→ clique une cellule, tape une note (0-20), Entrée valide, Esc annule."
+        "→ cliquez sur une cellule, tapez une note (0-20), Entrée valide, Esc annule."
       ),
     );
   } else {
@@ -906,14 +907,18 @@ function rerender(container) {
   const onglets = [
     admin && !laClasse && !dansCentre ? { key: "saisir", label: "Saisir", render: (p) => renderSaisie(p, ctxSaisie) } : null,
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
-    { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
+    // « Évaluations EPCF » : le nom de la partie EPCF sous la nouvelle navigation (lot D du 10/11) ; l'ancienne garde « EPCF ».
+    { key: "epcf", label: v2 ? "Évaluations EPCF" : "EPCF", module: "epcf", render: (p, ctx) => {
         renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive,
           contexte: contexteEtatVide({ classe: false, admin, personnel: formateurConnecte() || dansCentre }) })
           .catch((e) => {
             console.error(e);
             if (!ctx || ctx.isActive()) {
               clear(p);
-              p.appendChild(el("p", { class: "muted" }, "Erreur de chargement de l'espace EPCF. Reviens sur l'onglet pour réessayer."));
+              // L'onglet est aussi celui des stagiaires sous l'ancienne navigation.
+              p.appendChild(el("p", { class: "muted" }, selonPublic(
+                "Erreur de chargement des évaluations EPCF. Reviens sur l'onglet pour réessayer.",
+                "Erreur de chargement des évaluations EPCF. Revenez sur l'onglet pour réessayer.")));
             }
           });
       } },
@@ -946,7 +951,9 @@ function sectionMoyennesEpcf(contexte) {
     .catch((e) => {
       console.error(e);
       clear(section);
-      section.appendChild(el("p", { class: "muted" }, "Erreur de chargement des moyennes EPCF de la classe. Recharge la page pour réessayer."));
+      section.appendChild(el("p", { class: "muted" }, selonPublic(
+        "Erreur de chargement des moyennes EPCF de la classe. Recharge la page pour réessayer.",
+        "Erreur de chargement des moyennes EPCF de la classe. Rechargez la page pour réessayer.")));
     });
   return section;
 }
@@ -1024,7 +1031,7 @@ function renderSynthese() {
   wrap.appendChild(el("div", { class: "notes-rankings" },
     el("div", { class: "ranking-block" },
       el("h4", { class: "ranking-title weak" }, "3 thèmes les plus faibles"),
-      el("p", { class: "muted ranking-sub" }, "À retravailler en priorité"),
+      el("p", { class: "muted ranking-sub" }, "Les moyennes les plus basses"),
       ...weak.map(themeCard),
     ),
     el("div", { class: "ranking-block" },

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 ﻿import test from "node:test";
 import assert from "node:assert/strict";
-import { OUTILS, construirePromptSysteme, etiquetteCours, tonDuPublic } from "../supabase/functions/chatbot/outils.mjs";
+import { OUTILS, construirePromptSysteme, etiquetteCours, regleDeTon } from "../supabase/functions/chatbot/outils.mjs";
 import { AIDE_APP } from "../supabase/functions/chatbot/aide.mjs";
 
 test("OUTILS expose les deux outils au format OpenAI", () => {
@@ -69,15 +69,9 @@ test("etiquetteCours : une ligne de l'ancienne forme, sans cle code, donne le li
   assert.equal(etiquetteCours(ancienne), "Theme 05 : Alcool et stupefiants");
 });
 
-test("le ton suit le public : tutoiement des stagiaires, vouvoiement de l'équipe et d'une app sans espace", () => {
-  assert.equal(tonDuPublic("stagiaire"), "tu tutoies");
-  for (const e of ["equipe", "direction", "siege", undefined, null, "", "Stagiaire"]) assert.equal(tonDuPublic(e), "tu vouvoies", String(e));
-  assert.match(construirePromptSysteme({ aide: "x", page: "#/home", espace: "stagiaire" }), /tu tutoies la personne/);
-  assert.match(construirePromptSysteme({ aide: "x", page: "#/home", espace: "equipe" }), /tu vouvoies la personne/);
-});
-
-test("le message de quota suit aussi le public", () => {
-  const source = readFileSync(new URL("../supabase/functions/chatbot/index.ts", import.meta.url), "utf8");
-  assert.match(source, /Tu as atteint ton quota du jour/);
-  assert.match(source, /Vous avez atteint votre quota du jour/);
+test("ton de l'assistant : stagiaire tutoyé, équipe, direction et siège vouvoyés, app sans espace comme avant (10/11)", () => {
+  for (const e of ["equipe", "direction", "siege"]) assert.match(regleDeTon(e), /tu vouvoies/, e);
+  for (const e of ["stagiaire", undefined, "inconnu"]) assert.match(regleDeTon(e), /tu tutoies/, String(e));
+  assert.match(construirePromptSysteme({ aide: "X", page: "home", espace: "direction" }), /tu vouvoies/);
+  assert.match(construirePromptSysteme({ aide: "X", page: "home" }), /tu tutoies/);
 });

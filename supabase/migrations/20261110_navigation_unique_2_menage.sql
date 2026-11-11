@@ -5,8 +5,8 @@
 --      dans themes_progression et qcm_examens ; l'app écrase ces colonnes depuis le 03/10 (fusionnerProgression,
 --      fusionnerExamen). Deux réglages sans lecteur partent aussi (cohort_name, password_hash).
 --   2. Le critère « souhaits » du placement part en phase 2 (20261111_navigation_unique_3_phase2.sql) : `fiches_suivi`
---      reste jusque-là, le planning la lit encore. La fonction recréée ne la vide déjà plus (écart sans effet : la table
---      disparaît avec la phase 2).
+--      reste jusque-là, le planning la lit encore. La fonction recréée la vide tant qu'elle existe (SQL dynamique gardé par
+--      to_regclass, comme Q5), puis plus rien à faire quand elle a disparu.
 --   3. _anonymiser_stagiaire citait fiches_suivi et themes.updated_by_email : recréée d'abord sans la ligne fiches_suivi ni la ligne
 --      themes.updated_by_email (la trace de la promo vit dans themes_progression, toujours anonymisée). create or
 --      replace : mêmes paramètres, même retour, droits d'exécution inchangés (postgres et service_role).
@@ -58,6 +58,11 @@ begin
   delete from stagiaires_prive where stagiaire_id = p_id; get diagnostics n = row_count; v_n := v_n || jsonb_build_object('date_naissance', n);
   delete from dp_dossiers where stagiaire_id = p_id;      get diagnostics n = row_count; v_n := v_n || jsonb_build_object('dossier_pro', n);
   delete from epcf_livrets where stagiaire_id = p_id;     get diagnostics n = row_count; v_n := v_n || jsonb_build_object('livret', n);
+  -- Fiche de suivi : tant que la table existe (elle part avec la phase 2), en SQL dynamique, comme Qualiopi Q5.
+  if to_regclass('public.fiches_suivi') is not null then
+    execute 'delete from public.fiches_suivi where stagiaire_id = $1' using p_id;
+    get diagnostics n = row_count; v_n := v_n || jsonb_build_object('fiche_suivi', n);
+  end if;
 
   -- Résultats conservés, textes libres vidés (ils peuvent contenir un prénom, une santé…).
   -- (epcf_evaluations.contexte n'est pas un texte libre : c'est un code, « EPCF ».)
@@ -155,7 +160,7 @@ do $controle$
 begin
   if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
               where n.nspname = 'public' and p.proname = '_anonymiser_stagiaire'
-                and (p.prosrc ilike '%fiches_suivi%'
+                and ((p.prosrc ilike '%fiches_suivi%' and p.prosrc not ilike '%to_regclass(''public.fiches_suivi'')%')
                      or p.prosrc ~* 'update\s+(public\.)?themes\s+set\s+updated_by_email')) then
     raise exception 'Une fonction cite encore fiches_suivi ou themes.updated_by_email : migration annulée.';
   end if;

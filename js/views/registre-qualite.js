@@ -1,20 +1,21 @@
 // Sous-onglet « Registre qualité » de la page Qualiopi (Q4, indicateurs 31 et 32) : réclamations, difficultés, aléas,
 // améliorations et risques de tout l'organisme (le choix de promo de la page ne le filtre pas). Filtres par état et par
 // type, « Ajouter », une carte par entrée (toucher une carte l'ouvre en modification, sauf une entrée effacée, en lecture
-// seule), « Exporter (CSV) » de la liste filtrée, et « Effacer les textes » quand des entrées closes ont passé leurs 3 ans.
+// seule), « Exporter en tableau (CSV) » de la liste filtrée, et « Effacer les textes » quand des entrées closes ont passé leurs
+// 3 ans. Page de l'équipe : ses textes vouvoient (règle du 10/11).
 // Une liste de cartes, jamais un tableau, sur téléphone comme sur ordinateur. La page lit le registre (js/views/qualiopi.js) :
 // `lire()` rend la lecture en cours ou faite ({ etat: "lue", entrees } | { etat: "absente" } | { etat: "non_lue" }),
 // `surChangement()` la refait (après un enregistrement, un effacement, ou « Réessayer ») et rend la nouvelle.
 
-import { el, clear, toast } from "../utils.js?v=20261110e";
-import { getMesPromos, effacerRegistreQualite } from "../db.js?v=20261110e";
-import { TYPES, ORIGINES, ETATS, filtrerRegistre, registreCsv, nomFichierRegistre, aEffacer } from "../registre-rules.js?v=20261110e";
-import { jourParis } from "../questionnaires-gestion-rules.js?v=20261110e";
-import { nomPromo } from "../qualiopi-page-rules.js?v=20261110e";
-import { nb } from "../qualiopi-preuves.js?v=20261110e";
-import { confirmer } from "../confirmer.js?v=20261110e";
-import { telecharger } from "./centre.js?v=20261110e";
-import { ouvrirFenetreRegistre, lieuxDesPromos } from "../registre-fenetre.js?v=20261110e";
+import { el, clear, toast } from "../utils.js?v=20261111d";
+import { getMesPromos, effacerRegistreQualite } from "../db.js?v=20261111d";
+import { TYPES, ORIGINES, ETATS, filtrerRegistre, registreCsv, nomFichierRegistre, aEffacer } from "../registre-rules.js?v=20261111d";
+import { jourParis } from "../questionnaires-gestion-rules.js?v=20261111d";
+import { nomPromo } from "../qualiopi-page-rules.js?v=20261111d";
+import { nb } from "../qualiopi-preuves.js?v=20261111d";
+import { confirmer } from "../confirmer.js?v=20261111d";
+import { telecharger } from "./centre.js?v=20261111d";
+import { ouvrirFenetreRegistre, lieuxDesPromos } from "../registre-fenetre.js?v=20261111d";
 
 export const REGISTRE_ABSENT = "Le registre sera disponible après la mise à jour de la base.";
 const FILTRES_ETAT = [["tous", "Tous"], ["ouvert", "Ouverts"], ["en_cours", "En cours"], ["clos", "Clos"]];
@@ -50,7 +51,7 @@ function contenuCarte(e, nomsPromos, nomsLieux) {
       el("span", { class: "rg-carte-etat " + (e.etat || "") }, ETATS[e.etat] ?? e.etat)),
     el("span", { class: "rg-carte-meta" },
       [enFrancais(jour(e.date_constat)), ORIGINES[e.origine] ?? e.origine, rangement(e, nomsPromos, nomsLieux)].join(" · "),
-      e.issu_signalement ? el("span", { class: "rg-carte-marque" }, "issue d'un signalement") : null),
+      e.issu_signalement ? el("span", { class: "rg-carte-marque" }, "issue d'un problème signalé") : null),
     efface
       ? el("span", { class: "rg-carte-efface" }, `Textes effacés le ${enFrancais(jourParis(e.efface_le) || "")}`)
       : el("span", { class: "rg-carte-desc" }, e.description || ""),
@@ -115,7 +116,7 @@ export function renderRegistreQualite(panneau, { lire, surChangement }) {
 
     const boutonAjouter = el("button", { class: "btn primary", type: "button", "data-rg": "ajouter" }, "Ajouter");
     boutonAjouter.addEventListener("click", () => ouvrir(boutonAjouter));
-    const boutonExporter = el("button", { class: "btn", type: "button", "data-rg": "exporter" }, "Exporter (CSV)");
+    const boutonExporter = el("button", { class: "btn", type: "button", "data-rg": "exporter" }, "Exporter en tableau (CSV)");
 
     // --- Effacement à 3 ans ---
     const dus = aEffacer(entrees, new Date());
@@ -201,13 +202,13 @@ export function renderRegistreQualite(panneau, { lire, surChangement }) {
         toast("Registre téléchargé", "success");
       } catch (e) {
         console.error(e);
-        statut.textContent = "Le registre n'a pas pu être téléchargé. Recharge la page, puis réessaie.";
+        statut.textContent = "Le registre n'a pas pu être téléchargé. Rechargez la page, puis réessayez.";
       }
     });
 
     zone.append(...[
       el("div", { class: "qualiopi-boutons rg-actions-page" }, boutonAjouter, boutonExporter),
-      el("p", { class: "qualiopi-aide" }, "L'export reprend la liste filtrée. Le fichier contient les descriptions : ne le transmets qu'à l'auditeur."),
+      el("p", { class: "qualiopi-aide" }, "L'export reprend la liste filtrée. Le fichier contient les descriptions : ne le transmettez qu'à l'auditeur."),
       blocEffacement,
       el("div", { class: "rg-filtres" },
         el("div", { class: "rg-filtres-etat", role: "group", "aria-label": "Filtrer par état" }, ...boutonsEtat),

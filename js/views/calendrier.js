@@ -4,12 +4,12 @@
  */
 import {
   listAgendaEvents, addAgendaEvent, updateAgendaEvent, deleteAgendaEvent, getPromoCourante,
-} from "../db.js?v=20261110e";
-import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261110e";
-import { confirmer } from "../confirmer.js?v=20261110e";
-import { icon } from "../icons.js?v=20261110e";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261110e";
-import { recordUndo } from "../undo.js?v=20261110e";
+} from "../db.js?v=20261111d";
+import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261111d";
+import { confirmer } from "../confirmer.js?v=20261111d";
+import { icon } from "../icons.js?v=20261111d";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261111d";
+import { recordUndo } from "../undo.js?v=20261111d";
 
 let events = [];
 
@@ -300,7 +300,7 @@ function rerender(container) {
   if (filtered.length === 0) {
     container.appendChild(el("div", { class: "agenda-empty" },
       el("p", {}, showPast ? "Aucun événement enregistré." : "Aucun événement à venir."),
-      admin ? el("p", { class: "muted" }, "Clique « Ajouter un événement » pour commencer.") : null,
+      admin ? el("p", { class: "muted" }, "Cliquez sur « Ajouter un événement » pour commencer.") : null,
     ));
     return;
   }

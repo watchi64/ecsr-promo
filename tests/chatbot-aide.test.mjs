@@ -27,10 +27,10 @@ test("le guide est substantiel et sans tiret cadratin", () => {
 });
 
 test("nouvelle navigation : les noms de la barre, du compte et des sous-onglets", () => {
-  for (const nom of ["Accueil", "Planning", "Semaine", "Dates clés", "Priorités", "Cours et QCM", "Thèmes", "Compétences",
+  for (const nom of ["Accueil", "Planning", "Semaine", "Dates clés", "Ordre de passage", "Cours et QCM", "Thèmes", "Compétences",
     "Documents", "Mon suivi", "La classe", "CCP2", "Émargement", "Stagiaires", "Élèves bénévoles", "Notes et examens",
-    "Signalements", "Indicateurs", "Réglages", "Plus", "Assistant", "Nouveautés", "Contacts du centre", "Mes préférences",
-    "Actualiser", "Se déconnecter", "Signaler un problème"]) {
+    "Questions contestées", "Question corrigée", "Pas d'erreur", "Indicateurs", "Réglages", "Plus", "Assistant", "Nouveautés", "Contacts du centre", "Mes préférences",
+    "Recharger les données", "Se déconnecter", "Signaler un problème"]) {
     assert.ok(avantAnciensNoms.includes(nom), nom);
   }
 });
@@ -101,8 +101,8 @@ test("l'app envoie l'espace avec chaque question, plus la navigation", () => {
 
 test("lot 2B : le nouveau guide décrit Aujourd'hui, l'Accueil, la grille, les sous-onglets et Mon suivi", () => {
   for (const nom of ["Aujourd'hui", "À traiter", "À suivre de près", "Propositions IA", "Résultats", "Grille", "Liste",
-    "le bouton « Ouvrir »", "Signer pour ce matin", "Signer pour cet après-midi", "À faire", "Prochain rendez-vous",
-    "L'épreuve en bref", "EPCF : 0 épreuve sur 2", "Livret EPCF (son livret officiel", "Dossier pro : 2 exemples sur 6", "Moi"]) {
+    "le bouton « Voir le QCM »", "Signer pour ce matin", "Signer pour cet après-midi", "À faire", "Prochain rendez-vous",
+    "L'épreuve en bref", "Évaluations EPCF : 0 épreuve sur 2", "Livret EPCF (son livret officiel", "Dossier professionnel : 2 exemples sur 6", "Moi"]) {
     assert.ok(avantAnciensNoms.includes(nom), nom);
   }
   assert.match(avantAnciensNoms, /bandeau en haut de l'app propose aussi « Signer » tant que la feuille du jour est ouverte/);
@@ -161,13 +161,21 @@ test("lot 5 : chaque guide nomme chaque entrée de sa barre, dans l'ordre, puis 
 });
 
 test("lot 5 : les mots des écrans de la direction (plan, tâches 7 à 10 et 14)", () => {
-  for (const mot of ["Vue d'ensemble", "Centre de", "À suivre de près", "Thèmes à retravailler", "Exporter le tableau (CSV)",
+  for (const mot of ["Vue d'ensemble", "Centre de", "À suivre de près", "Thèmes les moins réussis", "Exporter le tableau (CSV)",
     "Ce centre n'a pas encore de promo", "Créer une promo", "Réessayer", "Modifier", "Modules", "Gérer cette promo",
     "Voir les feuilles", "Voir la matrice", "Inviter un formateur", "Retirer du centre",
     "Compte créé. La personne crée son mot de passe avec cette adresse, onglet Créer mon compte.",
     "Habillage par défaut du centre", "Laisser chacun choisir le sien", "Promos mises à jour."]) {
     assert.ok(DIRECTION.includes(mot), mot);
   }
+});
+
+test("suite du lot 5 : les données personnelles de la direction et l'ancien stagiaire transformé", () => {
+  for (const mot of ["Données personnelles", "Anonymiser la promo", "ANONYMISER", "Élèves bénévoles sans venue depuis 12 mois", "Supprimer",
+    "ancien stagiaire", "Le compte de cet ancien stagiaire est devenu un compte de formateur."]) {
+    assert.ok(DIRECTION.includes(mot), mot);
+  }
+  assert.ok(!DIRECTION.includes(String.fromCharCode(0x2014)), "aucun tiret cadratin");
 });
 
 test("lot 5 : les mots des écrans du siège (plan, tâches 11 à 14)", () => {

@@ -6,14 +6,14 @@
 import {
   listStagiaires, addStagiaire, updateStagiaire, updateStagiaireNom, setStagiaireActif, anonymiserStagiaire,
   listUserProfiles, inviteUser,
-} from "../db.js?v=20261110e";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261110e";
-import { icon } from "../icons.js?v=20261110e";
-import { isEquipe } from "../auth-admin.js?v=20261110e";
-import { confirmationValide, resumeEffacement } from "../effacement-rules.js?v=20261110e";
-import { messageInvitationReussie } from "../roles-rules.js?v=20261110e";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261110e";
-import { confirmer, demander } from "../confirmer.js?v=20261110e";
+} from "../db.js?v=20261111d";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111d";
+import { icon } from "../icons.js?v=20261111d";
+import { isEquipe } from "../auth-admin.js?v=20261111d";
+import { confirmationValide, resumeEffacement } from "../effacement-rules.js?v=20261111d";
+import { messageInvitationReussie } from "../roles-rules.js?v=20261111d";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261111d";
+import { confirmer, demander } from "../confirmer.js?v=20261111d";
 
 // Liste des personnes invitables de la section déjà à l'écran. Posée par la section d'invitation qui la montre (js/views/config.js ou
 // renderInvitationStagiaire), appelée après un ajout de stagiaire, qui n'actualise que le bloc « Stagiaires ».
@@ -91,13 +91,13 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
           title: "Marquer en abandon : masqué partout (planning, dés, notes), données conservées",
           onClick: async () => {
             // Fenêtre de l'app plutôt que confirm() (le robot des parcours ne sait pas répondre à la boîte du navigateur).
-            const ok = await confirmer({ titre: `Marquer ${it.prenom} en abandon ?`,
+            const ok = await confirmer({ titre: `Marquer ${displayStagiaire(it)} en abandon ?`,
               phrase: "Ce stagiaire disparaît du planning, des dés et des notes. Ses données restent conservées et réactivables.",
               oui: "Marquer en abandon" });
             if (!ok) return;
             try {
               await setStagiaireActif(it.id, false);
-              toast(`${it.prenom} marqué(e) en abandon`, "success");
+              toast(`${displayStagiaire(it)} marqué(e) en abandon`, "success");
               rerender();
             } catch (e) { toast(messageErreurStagiaire(e), "error"); }
           }
@@ -136,7 +136,7 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
         if (!v) {
           // Seul le nom de famille est rempli : on le dit et on renvoie sur le prénom, plutôt que de ne rien faire.
           if (addNom && addNom.value.trim()) {
-            toast("Renseigne d'abord le prénom.", "error");
+            toast("Renseignez d'abord le prénom.", "error");
             addInput.focus();
           }
           return;
@@ -191,7 +191,7 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
         onClick: async () => {
           try {
             await setStagiaireActif(it.id, true);
-            toast(`${it.prenom} réactivé(e)`, "success");
+            toast(`${displayStagiaire(it)} réactivé(e)`, "success");
             rerender();
           } catch (e) { toast(messageErreurStagiaire(e), "error"); }
         }
@@ -200,9 +200,9 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
         class: "btn small danger",
         title: "Effacer ses données personnelles (irréversible)",
         onClick: async () => {
-          const saisie = await demander({ titre: `Effacer les données de ${it.prenom} ?`,
-            phrase: "Supprimés : compte de connexion, e-mail, date de naissance, livret, dossier pro, fiche de suivi, "
-              + "commentaires. Conservés sans nom : notes, QCM, passages, scores EPCF. Irréversible.",
+          const saisie = await demander({ titre: `Effacer les données de ${displayStagiaire(it)} ?`,
+            phrase: "Supprimés : compte de connexion, e-mail, date de naissance, livret EPCF, dossier professionnel, fiche de suivi, "
+              + "commentaires. Conservés sans nom : notes, QCM, passages, évaluations EPCF. Irréversible.",
             libelle: `Pour confirmer, tapez le prénom : ${it.prenom}`, oui: "Effacer les données",
             verifier: (v) => confirmationValide(v, it.prenom), erreur: "Le prénom ne correspond pas : rien n'est effacé." });
           if (typeof saisie !== "string") return;
@@ -214,7 +214,7 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
         }
       }, "Effacer les données");
       list.appendChild(el("li", { class: "abandon-row" },
-        el("span", { class: "abandon-name" }, it.prenom),
+        el("span", { class: "abandon-name" }, displayStagiaire(it)),
         reactiverBtn, delBtn,
       ));
     });
@@ -241,7 +241,7 @@ export async function renderInvitationStagiaire(container, { rerender } = {}) {
   const bloc = el("div", { class: "param-block" });
   bloc.appendChild(el("h4", {}, "Inviter un stagiaire"));
   bloc.appendChild(el("p", { class: "muted" },
-    "Choisis la personne et entre son adresse e-mail. Aucun e-mail n'est envoyé : tu lui partages le lien de l'app toi-même, puis elle crée son compte avec cette adresse et un mot de passe."));
+    "Choisissez la personne et entrez son adresse e-mail. Aucun e-mail n'est envoyé : vous lui partagez le lien de l'app vous-même, puis elle crée son compte avec cette adresse et un mot de passe."));
 
   const personSel = el("select", { class: "invite-person", "aria-label": "Stagiaire à inviter" });
   function actualiserOptions() {
@@ -273,7 +273,7 @@ export async function renderInvitationStagiaire(container, { rerender } = {}) {
   emailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendBtn.click(); });
   bloc.appendChild(el("div", { class: "invite-form" },
     el("div", { class: "invite-row" }, el("label", {}, "Personne"), personSel),
-    el("div", { class: "invite-row" }, el("label", {}, "Email"), emailInput, sendBtn)));
+    el("div", { class: "invite-row" }, el("label", {}, "E-mail"), emailInput, sendBtn)));
   container.appendChild(bloc);
 }
 
@@ -282,9 +282,9 @@ export async function renderInvitationStagiaire(container, { rerender } = {}) {
 // l'identifiant de la fiche (stagiaire) ou du formateur (rôle « prof »). `apres()` est appelé après une invitation acceptée.
 export async function envoyerInvitation({ bouton, libelle, emailInput, personId, role, apres }) {
   const email = emailInput.value.trim().toLowerCase();
-  if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("Email invalide", "error"); return; }
+  if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("E-mail invalide", "error"); return; }
   // Le siège n'est lié à aucune fiche : l'adresse suffit.
-  if (!personId && role !== "siege") { toast("Choisis la personne à lier", "error"); return; }
+  if (!personId && role !== "siege") { toast("Choisissez la personne à lier", "error"); return; }
   const remettre = () => {
     bouton.disabled = false;
     bouton.textContent = "";
@@ -301,7 +301,7 @@ export async function envoyerInvitation({ bouton, libelle, emailInput, personId,
         prof_id: role === "prof" ? personId : null,
       }),
       // Délai de 15 s pour éviter l'attente infinie.
-      new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15 s). Réseau lent : réessaie dans un instant.")), 15000)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15 s). Réseau lent : réessayez dans un instant.")), 15000)),
     ]);
     // Profil créé, compte existant qui gagne la promo, ou rien de changé (roles-rules.js, messageInvitationReussie).
     const { texte, ton } = messageInvitationReussie({ resultat, email });

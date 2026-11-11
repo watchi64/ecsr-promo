@@ -6,15 +6,15 @@
 // js/modules-data.js, ouvert avec le multi-promo). La section se
 // redessine elle-même après chaque écriture, réussie ou non (voir redessiner) :
 // pas de rechargement de toute la page Paramètres.
-import { el, toast } from "../utils.js?v=20261110e";
-import { confirmer } from "../confirmer.js?v=20261110e";
-import { icon } from "../icons.js?v=20261110e";
-import { MODULES, GROUPES } from "../modules-data.js?v=20261110e";
-import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261110e";
+import { el, toast } from "../utils.js?v=20261111d";
+import { confirmer } from "../confirmer.js?v=20261111d";
+import { icon } from "../icons.js?v=20261111d";
+import { MODULES, GROUPES } from "../modules-data.js?v=20261111d";
+import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261111d";
 import {
   etatModules, peutRegler, basculerModule, appliquerEnsembleDeDepart,
-} from "../modules-etat.js?v=20261110e";
-import { getPromoCourante } from "../db.js?v=20261110e";
+} from "../modules-etat.js?v=20261111d";
+import { getPromoCourante } from "../db.js?v=20261111d";
 
 // La section règle la promo AFFICHÉE (pastille) : on la nomme partout, pour qu'un formateur
 // arrivé par défaut sur une promo ne règle jamais l'autre par mégarde.
@@ -28,11 +28,11 @@ function laPromo() {
 
 // Ce qu'un stagiaire a toujours, quel que soit le réglage : sa page est Mon suivi, et ses préférences (Mes préférences,
 // jamais Réglages, la page de la promo) s'ouvrent par le menu du compte.
-const socle = () => "Toujours ouverts : Accueil, Mon suivi (Passages), Mes préférences, Nouveautés.";
+const socle = () => "Toujours ouverts : Accueil, Mon suivi (dont les passages), Mes préférences, Nouveautés.";
 
 // Demandée avant la première bascule d'une case sur une promo libre ou illisible : cette
 // bascule fige un réglage pour tous les stagiaires de la promo, et l'état « aucun réglage »
-// ne se retrouve plus ensuite. Le bouton « Partir de l'ensemble de départ » a la sienne.
+// ne se retrouve plus ensuite. Le bouton « Revenir aux modules de départ » a la sienne.
 const confirmationPremierReglage = () => `Pour ${laPromo()}, aucun réglage n'existe encore : `
   + "tout est ouvert. Changer une case crée un réglage qui s'applique à tous ses stagiaires, "
   + "et on ne pourra plus revenir à l'état « aucun réglage ».";
@@ -113,8 +113,8 @@ export function renderModulesSection() {
       el("h3", {}, "Ce que voient les stagiaires"),
       el("p", {}, "Promo réglée : ", el("strong", {}, nomPromo())),
       el("p", { class: "muted" },
-        "Ouvre les parties de l'app au fil de la formation. Une partie fermée est invisible "
-        + "pour les stagiaires ; tu la vois toujours, avec le repère « Masqué aux stagiaires »."),
+        "Ouvrez les parties de l'app au fil de la formation. Une partie fermée est invisible "
+        + "pour les stagiaires ; vous la voyez toujours, avec le repère « Masqué aux stagiaires »."),
     ),
   ));
 
@@ -134,9 +134,9 @@ export function renderModulesSection() {
 
 function bandeauDepart(etat) {
   const noms = enumerer(MODULES.filter((m) => m.depart).map((m) => m.nom));
-  const bouton = el("button", { class: "btn primary", type: "button" }, "Partir de l'ensemble de départ");
+  const bouton = el("button", { class: "btn primary", type: "button" }, "Revenir aux modules de départ");
   bouton.addEventListener("click", async () => {
-    if (!(await confirmer({ titre: "Partir de l'ensemble de départ ?",
+    if (!(await confirmer({ titre: "Revenir aux modules de départ ?",
       phrase: `Pour ${laPromo()}, seuls ${noms} resteront visibles pour les stagiaires.`,
       oui: "Appliquer", danger: false }))) return;
     bouton.disabled = true;

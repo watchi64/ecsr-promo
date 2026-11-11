@@ -3,16 +3,16 @@
 // pour une période, les heures de chaque stagiaire d'après les feuilles closes, puis son
 // certificat de réalisation et son attestation d'assiduité, ou ceux de toute la promo.
 
-import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261110e";
-import { el, clear, toast, isoDate } from "../utils.js?v=20261110e";
-import { isAdmin } from "../auth-admin.js?v=20261110e";
-import { libelleDuree, jourDe } from "../emargement-rules.js?v=20261110e";
-import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261110e";
+import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261111d";
+import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261111d";
+import { isAdmin } from "../auth-admin.js?v=20261111d";
+import { libelleDuree, jourDe } from "../emargement-rules.js?v=20261111d";
+import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261111d";
 import {
   bilanStagiaire, stagiairesDeLaPeriode, feuillesOuvertes, demiJourneesSansFeuille, periodeParDefaut,
   moisDeLaPeriode, seancesDeLaPromo, dateFr, datePeriodeValide, estAdresseAttestations,
-} from "../attestations-rules.js?v=20261110e";
-import { certificatRealisation, attestationAssiduite, liasse } from "../attestations-documents.js?v=20261110e";
+} from "../attestations-rules.js?v=20261111d";
+import { certificatRealisation, attestationAssiduite, liasse } from "../attestations-documents.js?v=20261111d";
 
 // Période choisie, gardée par promo le temps de la visite (retour depuis la semaine).
 const periodes = new Map();
@@ -163,7 +163,8 @@ function dessinerCorps(ctx) {
       onClick: () => imprimerPieces(ctx, [ligne], certificat) }, "Certificat");
     ul.appendChild(el("li", { class: "em-ligne at-ligne" },
       el("div", { class: "em-ligne-corps" },
-        el("span", { class: "em-ligne-nom" }, nomComplet(s), s.actif ? null : el("span", { class: "at-parti" }, "ne suit plus la formation")),
+        // À l'écran, « Lucie M. » comme partout (décision du 10/11) ; le certificat et l'attestation imprimés gardent le nom complet.
+        el("span", { class: "em-ligne-nom" }, displayStagiaire(s), s.actif ? null : el("span", { class: "at-parti" }, "ne suit plus la formation")),
         el("span", { class: "em-ligne-etat" },
           b.demiSignees ? `Du ${dateFr(b.premierSigne)} au ${dateFr(b.dernierSigne)}` : "Aucune demi-journée signée")),
       el("div", { class: "at-chiffres" },

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import {
   APERCUS, LIBELLES_APERCU, ENTETE_APERCU, normaliserApercu, apercusPermis, droitsAffiches,
   peutInviterFormateur, peutRetirerCompte, messageInvitation, messageSansPromo, MESSAGE_SANS_PROMO,
-  messageInvitationReussie, etiquetteBadge, pastillesDuProfil, listeAcces,
+  messageInvitationReussie, phraseCompteTransforme, etiquetteBadge, pastillesDuProfil, listeAcces,
 } from "../js/roles-rules.js";
 
 const formateur = { profil: { role: "prof", is_admin: true }, promo: { roles: ["formateur"] } };
@@ -63,6 +63,8 @@ test("messageSansPromo : un seul refus, sans « arrive bientôt » (lot 5 : le s
   }
   assert.ok(!/bientôt/.test(MESSAGE_SANS_PROMO));
   assert.ok(!MESSAGE_SANS_PROMO.includes("\u2014"));
+  // Refus à la porte : formule neutre, ni tu ni vous (décision du 10/11).
+  assert.doesNotMatch(MESSAGE_SANS_PROMO, /\b(tu|ton|ta|tes|toi|vous|votre|vos)\b|\bt'/i);
 });
 
 test("pas de profil : aucun droit", () => {
@@ -145,10 +147,10 @@ test("messageInvitation : fonction absente de la base, phrase sans terme techniq
 test("messageInvitationReussie : « rien n'a changé » seulement si ni profil créé ni affectation ajoutée (I1)", () => {
   const email = "x@exemple.fr";
   assert.deepEqual(messageInvitationReussie({ resultat: { cree: true, affecte: 1, role: "formateur" }, email }),
-    { texte: "Ajouté à la liste des invitations : x@exemple.fr. Partage-lui l'URL.", ton: "success" });
+    { texte: "Ajouté à la liste des invitations : x@exemple.fr. Partagez-lui l'URL.", ton: "success" });
   // Plus de « whitelist ».
   assert.deepEqual(messageInvitationReussie({ resultat: { cree: true, affecte: 0, role: "stagiaire" }, email }),
-    { texte: "Ajouté à la liste des invitations : x@exemple.fr. Partage-lui l'URL.", ton: "success" });
+    { texte: "Ajouté à la liste des invitations : x@exemple.fr. Partagez-lui l'URL.", ton: "success" });
   // Un compte qui existait gagne la promo : ce n'est pas « rien n'a changé ».
   assert.deepEqual(messageInvitationReussie({ resultat: { cree: false, affecte: 1, role: "formateur" }, email }),
     { texte: "Déjà inscrit : ajouté comme formateur de cette promo.", ton: "success" });
@@ -167,6 +169,24 @@ test("messageInvitationReussie : « rien n'a changé » seulement si ni profil c
   assert.equal(messageInvitationReussie({ resultat: null, email }).ton, "success");
   for (const r of [{ cree: true }, { cree: false, affecte: 1 }, { cree: false, affecte: 0 }, { cree: false }]) {
     assert.ok(!messageInvitationReussie({ resultat: r, email }).texte.includes(String.fromCharCode(0x2014)));
+  }
+});
+
+test("messageInvitationReussie : le compte d'un ancien stagiaire devenu compte du personnel le dit, au vouvoiement (suite du lot 5)", () => {
+  const email = "ancien@exemple.invalid";
+  for (const [role, quoi] of [["formateur", "un compte de formateur"], ["direction", "un compte de la direction du centre"], ["siege", "un compte du siège du réseau"]]) {
+    assert.deepEqual(messageInvitationReussie({ resultat: { cree: false, affecte: 1, role, transforme: true }, email }),
+      { texte: `Le compte de cet ancien stagiaire est devenu ${quoi}. La personne se connecte comme avant, avec son mot de passe.`, ton: "success" });
+  }
+  // `transforme` faux ou absent : les phrases d'avant ne changent pas.
+  assert.equal(messageInvitationReussie({ resultat: { cree: false, affecte: 1, role: "direction", transforme: false }, email }).texte,
+    "Déjà inscrit : ajouté à la direction du centre.");
+  assert.equal(messageInvitationReussie({ resultat: { cree: true, affecte: 1, role: "formateur", transforme: false }, email }).texte,
+    "Ajouté à la liste des invitations : ancien@exemple.invalid. Partagez-lui l'URL.");
+  assert.equal(phraseCompteTransforme(undefined), phraseCompteTransforme("formateur"), "rôle absent : formateur");
+  for (const role of ["formateur", "direction", "siege"]) {
+    const t = phraseCompteTransforme(role);
+    assert.ok(!t.includes(String.fromCharCode(0x2014)) && !/tu|ta|ton|prof/i.test(t), role);
   }
 });
 

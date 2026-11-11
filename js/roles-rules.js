@@ -8,7 +8,7 @@
  * pas migrée (ou si les promos n'ont pas pu être chargées), la colonne manque : l'app se replie alors sur
  * `is_admin` et `role` du profil, comme avant le lot 4.
  */
-import { phraseDeRefus, PHRASE_ECHEC } from "./espaces-rules.js?v=20261110e";
+import { phraseDeRefus, PHRASE_ECHEC } from "./espaces-rules.js?v=20261111d";
 
 // Les aperçus : un fondateur les a tous, un membre de l'équipe a celui du stagiaire. Un aperçu ne fait que
 // RETIRER des droits : une valeur hors de la liste permise est ignorée.
@@ -166,13 +166,24 @@ export function messageInvitation(message, code) {
   return phrase === PHRASE_ECHEC ? "Erreur d'invitation" : phrase;
 }
 
+// Phrase d'une invitation qui a transformé le compte d'un ancien stagiaire (sans fiche) en compte du personnel : au vouvoiement
+// (texte destiné à l'équipe). Le compte existait déjà : la personne se connecte comme avant, avec son mot de passe.
+export function phraseCompteTransforme(role) {
+  const quoi = role === "direction" ? "un compte de la direction du centre"
+    : role === "siege" ? "un compte du siège du réseau"
+    : "un compte de formateur";
+  return `Le compte de cet ancien stagiaire est devenu ${quoi}. La personne se connecte comme avant, avec son mot de passe.`;
+}
+
 // Phrase d'une invitation acceptée par la base, d'après ce que rend inviter_compte : `cree` (le profil vient d'être créé) et
 // `affecte` (nombre d'affectations ajoutées). « Rien n'a changé » seulement quand ni l'un ni l'autre : un compte qui existait
 // et vient de gagner une promo a bien changé (relecture finale, I1). `ton` : le type du toast.
 export function messageInvitationReussie({ resultat, email } = {}) {
   const r = resultat || {};
+  // Suite du lot 5 : l'adresse d'un ancien stagiaire sans fiche a vu son compte transformé en compte du personnel.
+  if (r.transforme === true) return { texte: phraseCompteTransforme(r.role), ton: "success" };
   if (r.cree !== false) {
-    return { texte: "Ajouté à la liste des invitations : " + email + ". Partage-lui l'URL.", ton: "success" };
+    return { texte: "Ajouté à la liste des invitations : " + email + ". Partagez-lui l'URL.", ton: "success" };
   }
   if (Number(r.affecte) > 0) {
     const quoi = r.role === "direction" ? "ajouté à la direction du centre"
@@ -205,7 +216,7 @@ export function etiquetteBadge({ profil, promo } = {}) {
   return { libelle: "", classe: "" };
 }
 
-// Le rôle que dit le pied de page (« connecté comme … ») : celui de l'aperçu « Voir en tant que » s'il y en a un ; sinon
+// Le rôle que dit le pied de page (« connecté en tant que … ») : celui de l'aperçu « Voir en tant que » s'il y en a un ; sinon
 // « fondateur » pour le fondateur (qui peut aussi être stagiaire d'une promo : hors aperçu, il est dans l'espace de l'équipe) ;
 // sinon le rôle réel sur la promo affichée, dans l'ordre du badge (formateur, direction, siège, stagiaire). Avant l'audit du
 // 09/11 (A8), Aujourd'hui écrivait « formateur » pour tout le monde.
@@ -222,8 +233,8 @@ export function libelleConnexion({ profil, promo, apercu } = {}) {
 
 // Phrase du refus à la porte, quand le compte n'a aucune promo. Depuis le lot 5, le siège et la direction entrent sans promo
 // (porteSansPromo, js/espaces-rules.js) : le refus ne concerne plus que les autres comptes, et une seule phrase leur suffit.
-// Les rôles que les appelants du lot 4 lui passent n'y changent plus rien.
-export const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à ta direction ou à un formateur de t'ajouter.";
+// Les rôles que les appelants du lot 4 lui passent n'y changent plus rien. Formule neutre, ni tu ni vous (décision du 10/11).
+export const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ce compte : la direction du centre ou un formateur peut l'ajouter à une promo.";
 export function messageSansPromo() {
   return MESSAGE_SANS_PROMO;
 }

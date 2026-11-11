@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   cleMemoire, idQuestionnaire, lireMemoire, memoirePlusTard, questionnairesAffichables, questionnaireDuBandeau,
   questionnaireDuLien, sousTitreBandeau, progression, aUneReponse, peutAvancer, premiereManquante, reponsesAEnvoyer,
-  annonceEcran, ouvrirApresLecture, memoireDeSession,
+  annonceEcran, ouvrirApresLecture, memoireDeSession, selonQuestionnaire, merciQuestionnaire,
 } from "../js/questionnaire-ecran-rules.js";
 import { QUESTIONNAIRES } from "../js/questionnaires-data.js";
 
@@ -79,6 +79,15 @@ test("lien direct : ouvre le questionnaire de la liste, même remis à plus tard
 test("textes : sous-titre et progression", () => {
   assert.equal(sousTitreBandeau(QUESTIONNAIRES.fin_stagiaire),
     `${QUESTIONNAIRES.fin_stagiaire.questions.length} questions courtes. Ta réponse est enregistrée sans ton nom.`);
+  // Le questionnaire des formateurs vouvoie (règle du 10/11), ceux des stagiaires tutoient.
+  assert.equal(sousTitreBandeau(QUESTIONNAIRES.fin_formateur),
+    `${QUESTIONNAIRES.fin_formateur.questions.length} questions courtes. Votre réponse est enregistrée sans votre nom.`);
+  assert.equal(merciQuestionnaire(QUESTIONNAIRES.fin_stagiaire), "Merci, ta réponse est enregistrée sans ton nom.");
+  assert.equal(merciQuestionnaire(QUESTIONNAIRES.six_mois_stagiaire), "Merci, ta réponse est enregistrée sans ton nom.");
+  assert.equal(merciQuestionnaire(QUESTIONNAIRES.fin_formateur), "Merci, votre réponse est enregistrée sans votre nom.");
+  assert.equal(selonQuestionnaire({ public: "formateur" }, "tu", "vous"), "vous");
+  assert.equal(selonQuestionnaire({ public: "stagiaire" }, "tu", "vous"), "tu");
+  assert.equal(selonQuestionnaire(null, "tu", "vous"), "tu");
   assert.deepEqual(progression(3, 10), { texte: "Question 3 sur 10", pourcent: 30 });
   assert.deepEqual(progression(10, 10), { texte: "Question 10 sur 10", pourcent: 100 });
   assert.equal(progression(0, 0).pourcent, 0);

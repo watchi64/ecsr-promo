@@ -1,12 +1,12 @@
-// Règles d'affichage de l'instruction automatique d'un signalement.
+// Règles d'affichage de l'analyse automatique d'une question contestée (« instruction » dans le code et la base).
 // Module PUR : aucun DOM, aucun réseau, aucune écriture. L'application ne produit jamais
 // un verdict, elle ne fait que le lire, c'est le second verrou de la règle non négociable.
 
 export const VERDICTS = {
-  fonde:         "Signalement fondé",
-  confirme:      "Question confirmée",
-  ambigu:        "Ambigu",
-  non_concluant: "Non concluant",
+  fonde:         "Contestation fondée",
+  confirme:      "Question correcte",
+  ambigu:        "Ambiguë",
+  non_concluant: "Sans conclusion",
 };
 
 export function libelleVerdict(verdict) {
@@ -69,15 +69,16 @@ export function morceaux(texte) {
   return out;
 }
 
-// Ordre des groupes de la console, du plus exigeant au moins exigeant.
+// Ordre des groupes de la console, du plus exigeant au moins exigeant. Le drapeau du groupe
+// « fonde » est posé par la console (icon.drapeau), pas par ce module sans DOM.
 // « non_concluant » est placé AVANT « confirme » et non parmi eux : c'est un aveu
 // d'aveuglement de l'agent (PISTE muet, question à image), pas un verdict rassurant.
 export const GROUPES = [
-  { cle: "fonde",         titre: "⚑ Signalement fondé, à corriger" },
-  { cle: "ambigu",        titre: "Ambigu, à trancher" },
-  { cle: "non_concluant", titre: "Non concluant, à lire" },
-  { cle: "confirme",      titre: "Question confirmée, rien à corriger" },
-  { cle: "non_instruit",  titre: "Pas encore instruit" },
+  { cle: "fonde",         titre: "Contestation fondée, à corriger" },
+  { cle: "ambigu",        titre: "Ambiguë, à trancher" },
+  { cle: "non_concluant", titre: "Sans conclusion, à lire" },
+  { cle: "confirme",      titre: "Question correcte, rien à corriger" },
+  { cle: "non_instruit",  titre: "Pas encore analysées" },
 ];
 
 // Range les signalements par verdict, dans l'ordre de GROUPES. Les groupes vides sont

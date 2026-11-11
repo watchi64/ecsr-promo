@@ -13,17 +13,17 @@ import { pastilleSignalement } from "../js/signalement-rules.js";
 
 test("le résumé : les deux parties, au pluriel", () => {
   assert.deepEqual(resumeATraiter({ signalements: 3, propositionsIA: 2 }),
-    { total: 5, texte: "3 signalements, 2 propositions de l'IA" });
+    { total: 5, texte: "3 questions contestées, 2 propositions de l'IA" });
 });
 
-test("le résumé : un seul signalement, au singulier, sans la partie nulle", () => {
-  assert.deepEqual(resumeATraiter({ signalements: 1, propositionsIA: 0 }), { total: 1, texte: "1 signalement" });
+test("le résumé : une seule question contestée, au singulier, sans la partie nulle", () => {
+  assert.deepEqual(resumeATraiter({ signalements: 1, propositionsIA: 0 }), { total: 1, texte: "1 question contestée" });
 });
 
 test("le résumé : une seule proposition de l'IA, au singulier", () => {
   assert.deepEqual(resumeATraiter({ signalements: 0, propositionsIA: 1 }), { total: 1, texte: "1 proposition de l'IA" });
   assert.deepEqual(resumeATraiter({ signalements: 1, propositionsIA: 1 }),
-    { total: 2, texte: "1 signalement, 1 proposition de l'IA" });
+    { total: 2, texte: "1 question contestée, 1 proposition de l'IA" });
 });
 
 test("le résumé : rien à traiter, total nul et texte vide", () => {
@@ -32,7 +32,7 @@ test("le résumé : rien à traiter, total nul et texte vide", () => {
 
 test("le résumé : un compte illisible (null) ne compte pas, l'autre compte", () => {
   assert.deepEqual(resumeATraiter({ signalements: null, propositionsIA: 2 }), { total: 2, texte: "2 propositions de l'IA" });
-  assert.deepEqual(resumeATraiter({ signalements: 4, propositionsIA: null }), { total: 4, texte: "4 signalements" });
+  assert.deepEqual(resumeATraiter({ signalements: 4, propositionsIA: null }), { total: 4, texte: "4 questions contestées" });
   assert.deepEqual(resumeATraiter({ signalements: null, propositionsIA: null }), { total: 0, texte: "" });
 });
 
@@ -55,10 +55,10 @@ test("le nom d'une entrée dit ce qui est à traiter, sans rien changer à zéro
   assert.equal(nomAvecATraiter("Plus", resumeATraiter({ signalements: null, propositionsIA: null })), "Plus");
 });
 
-test("la phrase du tiroir : le total, puis le détail (spec : « 5 à traiter : 3 signalements, 2 propositions de l'IA »)", () => {
+test("la phrase du tiroir : le total, puis le détail (« 5 à traiter : 3 questions contestées, 2 propositions de l'IA »)", () => {
   assert.equal(phraseATraiter(resumeATraiter({ signalements: 3, propositionsIA: 2 })),
-    "5 à traiter : 3 signalements, 2 propositions de l'IA");
-  assert.equal(phraseATraiter(resumeATraiter({ signalements: 1, propositionsIA: 0 })), "1 à traiter : 1 signalement");
+    "5 à traiter : 3 questions contestées, 2 propositions de l'IA");
+  assert.equal(phraseATraiter(resumeATraiter({ signalements: 1, propositionsIA: 0 })), "1 à traiter : 1 question contestée");
   assert.equal(phraseATraiter(resumeATraiter({ signalements: 0, propositionsIA: 0 })), "");
   assert.equal(phraseATraiter(resumeATraiter({ signalements: null, propositionsIA: null })), "");
 });
@@ -77,7 +77,7 @@ test("le point de « Plus » : la pastille de « Signaler un problème », rang�
   const tiroir = ["emargement", "themes", "ccp2"];
   const rien = resumeATraiter({ signalements: 0, propositionsIA: 0 });
   const cinq = resumeATraiter({ signalements: 5 });
-  assert.equal(pointSurPlus(tiroir, rien, "3"), true, "rien à traiter, mais des signalements de problème : le point s'allume");
+  assert.equal(pointSurPlus(tiroir, rien, "3"), true, "rien à traiter, mais des problèmes signalés : le point s'allume");
   assert.equal(pointSurPlus(["emargement", "ccp2", "centre", "config"], rien, "2"), true, "même quand « Cours et QCM » est dans la barre : « Signaler un problème » est toujours dans le tiroir");
   assert.equal(pointSurPlus(tiroir, cinq, "3"), true, "les deux ensemble : un seul point");
   assert.equal(pointSurPlus(tiroir, rien, ""), false, "ni l'un ni l'autre");
@@ -87,7 +87,7 @@ test("le point de « Plus » : la pastille de « Signaler un problème », rang�
   assert.equal(pointSurPlus(tiroir, cinq, "3") === pointSurPlus(tiroir, cinq), true, "déjà allumé par « Cours et QCM » : rien ne change");
 });
 
-test("le nom du bouton « Plus » dit ce que son point signale, sans parler des signalements de QCM comme des problèmes de l'app", () => {
+test("le nom du bouton « Plus » dit ce que son point signale, sans confondre questions contestées et problèmes de l'app", () => {
   const cinq = resumeATraiter({ signalements: 5 });
   const rien = resumeATraiter({});
   const nouveaux = pastilleSignalement({ fondateur: true, nouveaux: 2, suivis: 0 });
@@ -95,9 +95,9 @@ test("le nom du bouton « Plus » dit ce que son point signale, sans parler des 
   const aucune = pastilleSignalement({ fondateur: false, nouveaux: 3, suivis: 0 });
   assert.equal(nomDePlus(cinq, aucune.nom), "Plus, 5 à traiter", "comme avant : le nombre à traiter");
   assert.equal(nomDePlus(rien, aucune.nom), "Plus", "rien à dire : le nom seul");
-  assert.equal(nomDePlus(rien, nouveaux.nom), "Plus, 2 nouveaux signalements", "les signalements de problème, quand c'est tout");
-  assert.equal(nomDePlus(rien, avances.nom), "Plus, 1 signalement a avancé");
-  assert.equal(nomDePlus(cinq, nouveaux.nom), "Plus, 5 à traiter, 2 nouveaux signalements", "les deux, dans cet ordre");
+  assert.equal(nomDePlus(rien, nouveaux.nom), "Plus, 2 nouveaux problèmes signalés", "les problèmes signalés, quand c'est tout");
+  assert.equal(nomDePlus(rien, avances.nom), "Plus, 1 problème signalé a avancé");
+  assert.equal(nomDePlus(cinq, nouveaux.nom), "Plus, 5 à traiter, 2 nouveaux problèmes signalés", "les deux, dans cet ordre");
   assert.equal(nomDePlus(cinq), "Plus, 5 à traiter", "sans nom de « Signaler un problème » : comme avant");
   assert.equal(nomDePlus(undefined, undefined), "Plus", "rien du tout");
   assert.ok(nomDePlus(rien, nouveaux.nom).startsWith("Plus"), "le nom contient le libellé visible (WCAG 2.5.3)");
@@ -150,7 +150,7 @@ test("la lecture : les deux lectures partent ensemble, la lente ne retarde pas l
   assert.deepEqual(await lecture, { signalements: 4, propositionsIA: 1 });
 });
 
-test("la pastille compte les signalements ET les propositions de l'IA : leur liste existe (lot 2B)", async () => {
+test("la pastille compte les questions contestées ET les propositions de l'IA : leur liste existe (lot 2B)", async () => {
   assert.equal(COMPTER_LES_PROPOSITIONS_IA, true, "le sous-onglet « Propositions IA » de Cours et QCM est la liste derrière le compte");
   let appelsIA = 0;
   const comptes = await lireLesComptes(lecteursDeLaPastille({
@@ -160,8 +160,8 @@ test("la pastille compte les signalements ET les propositions de l'IA : leur lis
   assert.deepEqual(comptes, { signalements: 3, propositionsIA: 2 });
   assert.equal(appelsIA, 1, "la table des brouillons est lue");
   const resume = resumeATraiter(comptes);
-  assert.deepEqual(resume, { total: 5, texte: "3 signalements, 2 propositions de l'IA" });
-  assert.equal(phraseATraiter(resume), "5 à traiter : 3 signalements, 2 propositions de l'IA");
+  assert.deepEqual(resume, { total: 5, texte: "3 questions contestées, 2 propositions de l'IA" });
+  assert.equal(phraseATraiter(resume), "5 à traiter : 3 questions contestées, 2 propositions de l'IA");
   assert.equal(nomAvecATraiter("Cours et QCM", resume), "Cours et QCM, 5 à traiter");
 });
 

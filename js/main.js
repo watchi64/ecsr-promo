@@ -3,65 +3,68 @@
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
 // En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
-import "./journal-erreurs.js?v=20261110e";
+import "./journal-erreurs.js?v=20261111d";
 import {
   getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements, basculeLancee, getPromoCourante, getMesPromos,
   habillageParDefaut,
-} from "./db.js?v=20261110e";
-import { toast, annoncer, el } from "./utils.js?v=20261110e";
-import { initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261110e";
-import { getEspace, getCentre, seDeconnecter } from "./auth-admin.js?v=20261110e";
+} from "./db.js?v=20261111d";
+import { toast, annoncer, el } from "./utils.js?v=20261111d";
+import {
+  initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail,
+  getProfile, getProfileWho, fondateurHorsApercu, getProfileNom, selonPublic,
+} from "./auth-admin.js?v=20261111d";
+import { getEspace, getCentre, seDeconnecter } from "./auth-admin.js?v=20261111d";
 import {
   ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage, promosDuCentre, defautsHabillage,
-} from "./espaces-rules.js?v=20261110e";
-import { chargerEtatSignalements } from "./signalement-etat.js?v=20261110e";
-import { messageDemarrage } from "./signalement-rules.js?v=20261110e";
-import { showGate, hideGate } from "./gate.js?v=20261110e";
-import { exigerAcceptation } from "./legal.js?v=20261110e";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261110e";
-import { habillageAuDemarrage } from "./habillage.js?v=20261110e";
-import { renderHome } from "./views/home.js?v=20261110e";
-import { renderDashboard } from "./views/dashboard.js?v=20261110e";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261110e";
-import { teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261110e";
-import { renderPlanningEspace } from "./views/planning-espace.js?v=20261110e";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261110e";
-import { renderNotes } from "./views/notes.js?v=20261110e";
-import { renderVueCentre, renderEmargementCentre, renderNotesCentre } from "./views/direction-centre.js?v=20261110e";
-import { renderPromosCentre } from "./views/direction-promos.js?v=20261110e";
-import { renderStagiairesCentre } from "./views/direction-stagiaires.js?v=20261110e";
-import { renderEquipeCentre } from "./views/direction-equipe.js?v=20261110e";
-import { renderReseau } from "./views/siege-reseau.js?v=20261110e";
-import { renderDirections } from "./views/siege-directions.js?v=20261110e";
-import { renderRessources } from "./views/ressources.js?v=20261110e";
-import { renderThemes } from "./views/themes.js?v=20261110e";
-import { renderConfig, renderPreferences } from "./views/config.js?v=20261110e";
-import { renderReglagesCentre, renderReglagesReseau } from "./views/reglages-habillage.js?v=20261110e";
-import { renderCalendrier } from "./views/calendrier.js?v=20261110e";
-import { initUndoKeyboard } from "./undo.js?v=20261110e";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261110e";
-import { libellePastille } from "./nouveautes.js?v=20261110e";
-import { renderCcp2 } from "./views/ccp2.js?v=20261110e";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261110e";
-import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261110e";
-import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261110e";
-import { renderEmargement } from "./views/emargement.js?v=20261110e";
-import { renderProblemes } from "./views/problemes.js?v=20261110e";
-import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261110e";
-import { chargerEmargementActif, emargementActif, chargerEmargementCentre, emargementDansLeCentre } from "./emargement-etat.js?v=20261110e";
-import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, routeApresRedirection } from "./nav-rules.js?v=20261110e";
-import { monterCoquille, majEntreeActive, coquilleMontee, majNouveautesCompte } from "./nav-shell.js?v=20261110e";
-import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261110e";
-import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261110e";
+} from "./espaces-rules.js?v=20261111d";
+import { chargerEtatSignalements } from "./signalement-etat.js?v=20261111d";
+import { messageDemarrage } from "./signalement-rules.js?v=20261111d";
+import { showGate, hideGate } from "./gate.js?v=20261111d";
+import { exigerAcceptation } from "./legal.js?v=20261111d";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261111d";
+import { habillageAuDemarrage } from "./habillage.js?v=20261111d";
+import { renderHome } from "./views/home.js?v=20261111d";
+import { renderDashboard } from "./views/dashboard.js?v=20261111d";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261111d";
+import { teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261111d";
+import { renderPlanningEspace } from "./views/planning-espace.js?v=20261111d";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261111d";
+import { renderNotes } from "./views/notes.js?v=20261111d";
+import { renderVueCentre, renderEmargementCentre, renderNotesCentre } from "./views/direction-centre.js?v=20261111d";
+import { renderPromosCentre } from "./views/direction-promos.js?v=20261111d";
+import { renderStagiairesCentre } from "./views/direction-stagiaires.js?v=20261111d";
+import { renderEquipeCentre } from "./views/direction-equipe.js?v=20261111d";
+import { renderReseau } from "./views/siege-reseau.js?v=20261111d";
+import { renderDirections } from "./views/siege-directions.js?v=20261111d";
+import { renderRessources } from "./views/ressources.js?v=20261111d";
+import { renderThemes } from "./views/themes.js?v=20261111d";
+import { renderConfig, renderPreferences } from "./views/config.js?v=20261111d";
+import { renderReglagesCentre, renderReglagesReseau } from "./views/reglages-habillage.js?v=20261111d";
+import { renderCalendrier } from "./views/calendrier.js?v=20261111d";
+import { initUndoKeyboard } from "./undo.js?v=20261111d";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261111d";
+import { libellePastille } from "./nouveautes.js?v=20261111d";
+import { renderCcp2 } from "./views/ccp2.js?v=20261111d";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261111d";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261111d";
+import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261111d";
+import { renderEmargement } from "./views/emargement.js?v=20261111d";
+import { renderProblemes } from "./views/problemes.js?v=20261111d";
+import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261111d";
+import { chargerEmargementActif, emargementActif, chargerEmargementCentre, emargementDansLeCentre } from "./emargement-etat.js?v=20261111d";
+import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, routeApresRedirection } from "./nav-rules.js?v=20261111d";
+import { monterCoquille, majEntreeActive, coquilleMontee, majNouveautesCompte } from "./nav-shell.js?v=20261111d";
+import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261111d";
+import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261111d";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261110e";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261110e";
+} from "./navigation.js?v=20261111d";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261111d";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, nouveautesAffichables, formateurConnecte,
-} from "./modules-etat.js?v=20261110e";
+} from "./modules-etat.js?v=20261111d";
 
 // Espace de la session : « stagiaire », « equipe » (formateur), « direction » ou « siege » (lot 5). Fixé à la porte
 // (js/auth-admin.js, getEspace) ; la coquille, la redirection des anciennes adresses, les routes permises et la mémoire de la
@@ -83,7 +86,7 @@ let navigationEnPanne = false;
 function renderTabs() {
   try {
     const espace = espaceCourant();
-    const nom = getProfileWho();
+    const nom = getProfileNom();
     monterCoquille({
       espace,
       // Lot 5 : Émargement du centre s'allume quand une promo du centre a l'interrupteur (emargementDansLeCentre, lu au
@@ -103,6 +106,8 @@ function renderTabs() {
   } catch (e) {
     console.error("Navigation : la barre n'a pas pu se monter.", e);
     document.querySelectorAll("[data-nav-coquille]").forEach((r) => r.remove());
+    // Plus de coquille : ses marques sur le corps de page partent aussi (sinon le repli garderait la marge de la barre).
+    for (const cle of ["nav", "barre", "espace"]) delete document.body.dataset[cle];
     navigationEnPanne = true;
     ecranSansNavigation();
     return false;
@@ -116,7 +121,7 @@ function ecranSansNavigation() {
   if (!view) return;
   view.replaceChildren(el("div", { class: "nav-repli", role: "alert" },
     el("h1", { class: "nav-repli-titre" }, "L'app n'a pas pu s'afficher"),
-    el("p", {}, "Recharge la page. Si le problème revient, déconnecte-toi puis reconnecte-toi."),
+    el("p", {}, "Recharger la page ; si le problème revient, se déconnecter puis se reconnecter."),
     el("div", { class: "nav-repli-gestes" },
       el("button", { class: "btn primary", type: "button", onClick: () => rechargerApresEnregistrements() }, "Recharger"),
       el("button", { class: "btn", type: "button", onClick: () => seDeconnecter() }, "Se déconnecter"))));
@@ -150,7 +155,7 @@ function rendreCentre(view) {
 // rien. La boîte d'erreur propose donc de recharger, ce qui suffit pour une page du fondateur.
 function boiteErreurQualiopi() {
   return el("div", { class: "centre-erreur qualiopi-erreur", role: "alert" },
-    el("p", {}, "La page Qualiopi n'a pas pu se charger. Vérifie ta connexion, puis recharge la page."),
+    el("p", {}, "La page Qualiopi n'a pas pu se charger. Vérifiez votre connexion, puis rechargez la page."),
     el("button", { class: "btn small", type: "button", onClick: () => rechargerApresEnregistrements() }, "Recharger la page"));
 }
 
@@ -158,7 +163,7 @@ async function rendreQualiopi(view) {
   afficherChargement();
   let page;
   try {
-    page = await import("./views/qualiopi.js?v=20261110e");
+    page = await import("./views/qualiopi.js?v=20261111d");
   } catch (e) {
     console.error(e);
     if (lastRoute === "qualiopi") view.replaceChildren(boiteErreurQualiopi());
@@ -383,7 +388,8 @@ async function navigate({ force = false } = {}) {
     const sub = document.createElement("p");
     sub.className = "view-error-sub";
     sub.textContent = isTimeout
-      ? "Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie."
+      ? selonPublic("Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie.",
+        "Le serveur n'a pas répondu à temps. Vérifiez votre connexion et réessayez.")
       : "Détail : " + (e?.message || e);
     const retry = document.createElement("button");
     retry.className = "btn primary";
@@ -393,7 +399,7 @@ async function navigate({ force = false } = {}) {
     box.appendChild(sub);
     box.appendChild(retry);
     view.appendChild(box);
-    toast(isTimeout ? "Connexion trop lente, réessaie" : (e?.message || String(e)), "error");
+    toast(isTimeout ? selonPublic("Connexion trop lente, réessaie", "Connexion trop lente, réessayez") : (e?.message || String(e)), "error");
   }
 }
 
@@ -483,6 +489,9 @@ async function bootApp() {
   // formateurs (décision du 13/10) : le texte s'adresse aux stagiaires, et un formateur
   // salarié du centre n'a pas à accepter en son nom les conditions de l'éditeur ; ce sera
   // couvert par le contrat avec le centre. Vrai rôle, pas l'aperçu « Voir en tant que ».
+  // Une erreur avant la barre (conditions, lectures du démarrage) ne laisse jamais la page sur « Chargement » sans sortie :
+  // l'écran de repli propose de recharger ou de se déconnecter (relecture du 11/11).
+  try {
   if (getProfile()?.role !== "prof") await exigerAcceptation(getAdminEmail());
   // Interrupteur de l'émargement (propre à la promo) lu en même temps que les modules, avant le premier rendu.
   // Sans promo (le siège, une direction dont le centre n'en a pas encore), les modules et l'émargement n'ont rien à lire : les
@@ -494,6 +503,11 @@ async function bootApp() {
     unePromo ? chargerModulesAuDemarrage() : null, unePromo ? chargerEmargementActif() : null,
     centre ? chargerEmargementCentre(promosDuCentre(getMesPromos(), centre.id)) : null,
   ]);
+  } catch (e) {
+    console.error("Démarrage : lecture impossible avant la barre.", e);
+    ecranSansNavigation();
+    return;
+  }
   // La coquille, ou l'écran de repli si elle ne peut pas se monter : jamais une page sans barre.
   renderTabs();
   majBadgeNouveautes();

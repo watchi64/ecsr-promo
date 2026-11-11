@@ -1,14 +1,15 @@
 /**
  * Cours et QCM, sous-onglet « QCM » du stagiaire (nouvelle navigation, lot 2B) : tous ses QCM sur une seule liste, avec
- * la dernière note d'entraînement de chacun et un bouton « Ouvrir » qui ouvre la fenêtre du QCM (celle de la colonne
+ * la dernière note d'entraînement de chacun et un bouton « Voir le QCM » qui ouvre la fenêtre du QCM (celle de la colonne
  * QCM de la liste des thèmes : entraînement, erreurs à revoir, examen quand le formateur l'a ouvert). Les règles (quels QCM,
- * quel ordre, quelle phrase d'état) sont dans js/qcm-rules.js. Modèle de js/views/signalements.js : garde `isActive`,
+ * quel ordre, quelle phrase d'état) sont dans js/qcm-rules.js. Modèle de js/views/signalements.js (console des questions
+ * contestées) : garde `isActive`,
  * compteur de génération, boîte d'erreur avec « Réessayer ».
  */
-import { el, clear } from "../utils.js?v=20261110e";
-import { listQcmIndex, listMyQcmAttempts } from "../db.js?v=20261110e";
-import { lignesQcmStagiaire, lignesQcmRedaction } from "../qcm-rules.js?v=20261110e";
-import { carte, ligneAction, erreurAvecReessai } from "./pages-cartes.js?v=20261110e";
+import { el, clear } from "../utils.js?v=20261111d";
+import { listQcmIndex, listMyQcmAttempts } from "../db.js?v=20261111d";
+import { lignesQcmStagiaire, lignesQcmRedaction } from "../qcm-rules.js?v=20261111d";
+import { carte, ligneAction, erreurAvecReessai } from "./pages-cartes.js?v=20261111d";
 
 // `onOuvrir(theme, qcm, relire)` : ouvre la fenêtre du QCM (`relire` relit la liste, à rappeler quand l'éditeur se ferme sur un changement) (fournie par js/views/themes.js, qui la possède : l'importer ici ferait
 // un cycle). Un QCM dont le thème est introuvable s'ouvre avec un thème de remplacement qui ne porte que son titre.

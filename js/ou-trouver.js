@@ -28,7 +28,7 @@ function libelleNouvelle(ou, espace) {
   switch (ou.route) {
     case "calendrier": return "Planning, Dates clés";
     case "ressources": return "Cours et QCM, Documents";
-    case "dashboard": return "Planning, Priorités";
+    case "dashboard": return "Planning, Ordre de passage";
     case "centre": return "Indicateurs";
     case "themes": {
       const suite = reste(label, "Cours");
@@ -37,8 +37,11 @@ function libelleNouvelle(ou, espace) {
     case "mon-suivi": {
       // Évolution et La classe sont réunies dans la partie Résultats (lot 2B, tâche 7) ; le lien garde son adresse, qui ouvre la bonne vue.
       if (PARTIES_DE_RESULTATS.includes(ou.sousOnglet)) return "Mon suivi, partie Résultats";
-      // La partie Livret s'appelle « Livret EPCF » sous la nouvelle navigation (décision de Timy du 08/11).
+      // La partie Livret s'appelle « Livret EPCF » sous la nouvelle navigation (décision de Timy du 08/11) ; un nom par objet
+      // (lot D du 10/11) : la partie Dossier pro s'appelle « Dossier professionnel », la partie EPCF « Évaluations EPCF ».
       if (ou.sousOnglet === "livret") return "Mon suivi, partie Livret EPCF";
+      if (ou.sousOnglet === "dp") return "Mon suivi, partie Dossier professionnel";
+      if (ou.sousOnglet === "epcf") return "Mon suivi, partie Évaluations EPCF";
       // « Mon espace personnel, partie X » devient « Mon suivi, partie X » ; un geste de l'ancienne barre (« Le logo en haut à
       // gauche ») devient le nom de la page.
       const suite = reste(label, "Mon espace personnel") ?? reste(label, "Mon espace");
@@ -49,6 +52,8 @@ function libelleNouvelle(ou, espace) {
       // Chez le stagiaire, les notes de la classe sont une vue de la partie Résultats de Mon suivi (#/notes y mène, vue La classe) ;
       // chez l'équipe (formateur, direction, siège), la page garde son entrée.
       if (!REGLAGES_DE_L_ESPACE[espace]) return "Mon suivi, partie Résultats";
+      // Le sous-onglet EPCF de Notes et examens s'appelle « Évaluations EPCF » (lot D du 10/11).
+      if (ou.sousOnglet === "epcf") return "Notes et examens, Évaluations EPCF";
       const suite = reste(label, "Notes");
       return suite === null ? label : "Notes et examens" + suite;
     }

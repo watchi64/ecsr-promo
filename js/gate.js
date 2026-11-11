@@ -3,11 +3,12 @@
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
 // La carte d'authentification et ses modes. Sortie de main.js, qui redevient le
-// fichier du démarrage et des routes.
-import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20261110e";
-import { validerEmail, validerMotDePasse, messageErreurAuth, configMode, MDP_MIN } from "./gate-rules.js?v=20261110e";
-import { toast } from "./utils.js?v=20261110e";
-import { PHRASE_CONNEXION } from "./espaces-rules.js?v=20261110e";
+// fichier du démarrage et des routes. Textes en formule neutre (ni « tu » ni « vous ») :
+// personne n'est encore identifié.
+import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20261111d";
+import { validerEmail, validerMotDePasse, messageErreurAuth, configMode, MDP_MIN } from "./gate-rules.js?v=20261111d";
+import { toast } from "./utils.js?v=20261111d";
+import { PHRASE_CONNEXION } from "./espaces-rules.js?v=20261111d";
 
 // Refus décidé APRÈS une connexion réussie côté serveur (aucune promo, compte non invité) :
 // auth-admin.js émet « ecsr:refus-porte » (detail = le motif) juste avant de déconnecter. Un
@@ -54,7 +55,7 @@ export function showGate(mode = "signin") {
   document.getElementById("app").classList.add("hidden");
   // Mentions légales et conditions lisibles par tout visiteur, avant connexion.
   const legal = document.getElementById("gate-legal");
-  if (legal) legal.onclick = () => import("./legal.js?v=20261110e").then((m) => m.ouvrirInformationsLegales());
+  if (legal) legal.onclick = () => import("./legal.js?v=20261111d").then((m) => m.ouvrirInformationsLegales());
   // Lien direct …/#/informations-legales (envoyé aux élèves bénévoles, qui n'ont pas de
   // compte) : les textes s'ouvrent d'eux-mêmes par-dessus l'écran de connexion.
   if (legal && /informations-legales/.test(location.hash)) legal.onclick();
@@ -147,7 +148,7 @@ export function showGate(mode = "signin") {
     const erreurEmail = validerEmail(email);
     if (erreurEmail) return echec(erreurEmail);
     const reste = Math.ceil((verrouJusqua - Date.now()) / 1000);
-    if (reste > 0) return echec("Patiente " + reste + " secondes avant un nouvel envoi.");
+    if (reste > 0) return echec("Nouvel envoi possible dans " + reste + " secondes.");
 
     // Mode retenu au moment de l'appel : si la carte a change de mode pendant
     // que la requete est en vol (ex. clic sur "Retour a la connexion"),
@@ -169,7 +170,7 @@ export function showGate(mode = "signin") {
     if (courant !== modeAppel) return;
     // Message identique quoi qu'il arrive : aucune énumération de comptes.
     info.textContent = "Si un compte existe pour cette adresse, un lien vient de partir. "
-                     + "Pense à regarder les indésirables.";
+                     + "Penser à regarder dans les courriers indésirables.";
     info.classList.remove("hidden");
     submit.textContent = configMode("reset-request").bouton;
     submit.disabled = false;

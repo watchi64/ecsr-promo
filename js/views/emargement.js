@@ -7,24 +7,24 @@ import {
   listStagiaires, listProfs, getPlanning, getHalfMetaForWeek, getJoursOff, getPromoCourante,
   listEmargementSeances, ouvrirEmargement, signerEmargement, signerEmargementFormateur,
   annoterEmargement, cloreEmargement, rouvrirEmargement, getEnteteEmargement, setEnteteEmargement,
-} from "../db.js?v=20261110e";
-import { el, clear, toast, isoDate } from "../utils.js?v=20261110e";
-import { confirmer } from "../confirmer.js?v=20261110e";
-import { icon } from "../icons.js?v=20261110e";
-import { isAdmin, isEquipe, getProfile } from "../auth-admin.js?v=20261110e";
+} from "../db.js?v=20261111d";
+import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261111d";
+import { confirmer } from "../confirmer.js?v=20261111d";
+import { icon } from "../icons.js?v=20261111d";
+import { isAdmin, isEquipe, getProfile } from "../auth-admin.js?v=20261111d";
 import {
   etatLigne, resumeSeance, resumeEnClair, etatSansFeuille, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
   demiVoisine, notesProposees, roleAuPlanning,
-} from "../emargement-rules.js?v=20261110e";
-import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261110e";
+} from "../emargement-rules.js?v=20261111d";
+import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261111d";
 import {
   feuilleSeance, feuilleSemaine, imprimer, nomComplet, jourLong, DEMI_LONG, stagiairesDeFeuille,
-} from "../emargement-feuilles.js?v=20261110e";
-import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261110e";
-import { emargementActif } from "../emargement-etat.js?v=20261110e";
-import { estAdresseAttestations } from "../attestations-rules.js?v=20261110e";
-import { renderAttestations } from "./attestations.js?v=20261110e";
+} from "../emargement-feuilles.js?v=20261111d";
+import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261111d";
+import { emargementActif } from "../emargement-etat.js?v=20261111d";
+import { estAdresseAttestations } from "../attestations-rules.js?v=20261111d";
+import { renderAttestations } from "./attestations.js?v=20261111d";
 
 // Horaires par défaut, comme DEFAULT_HALF_META du planning.
 const HORAIRES_DEFAUT = { matin: { debut: "09:00", fin: "12:30" }, aprem: { debut: "13:30", fin: "17:00" } };
@@ -134,9 +134,9 @@ function dessinerSemaine(ctx) {
         ctx.promo ? el("p", { class: "eyebrow" }, ctx.promo.nom) : null,
         el("h2", {}, "Émargement"),
         el("p", { class: "subtitle" }, ctx.lecture
-          ? "Les feuilles de la promo, en lecture. Tu peux imprimer les feuilles closes et les attestations."
-          : "Ouvre la feuille de la demi-journée en cours : chaque stagiaire signe sur son téléphone, "
-            + "puis tu signes et tu clos. Les absences notées au planning sont reprises."),
+          ? "Les feuilles de la promo, en lecture. Vous pouvez imprimer les feuilles closes et les attestations."
+          : "Ouvrez la feuille de la demi-journée en cours : chaque stagiaire signe sur son téléphone, "
+            + "puis vous signez et vous la clôturez. Les absences notées au planning sont reprises."),
       ),
     ));
   }
@@ -310,13 +310,13 @@ function dessinerSeance(ctx) {
   const liste = stagiairesDeFeuille(s, ctx.stagiairesTous);
   const r = resumeSeance(s.lignes, liste.map((x) => x.id), !ouverte, absentsPlanning);
 
-  // Signés, absents notés, en attente et absents prévus au planning : la même lecture que la carte d'« Aujourd'hui » (A1).
+  // Signés, marqués absents, en attente et absents prévus au planning : la même lecture que la carte d'« Aujourd'hui » (A1).
   page.appendChild(el("div", { class: "em-resume" },
     el("span", { class: "em-resume-chiffre" }, `${r.signes} sur ${r.total}`), resumeEnClair(r, { ouverte }),
   ));
   if (ouverte && !duJour && !ctx.lecture) {
     page.appendChild(el("p", { class: "em-alerte" },
-      "Cette feuille date d'un autre jour : les stagiaires ne peuvent plus la signer. Signe-la si ce n'est pas fait, puis clos-la."));
+      "Cette feuille date d'un autre jour : les stagiaires ne peuvent plus la signer. Signez-la si ce n'est pas fait, puis clôturez-la."));
   }
 
   const ul = el("ul", { class: "em-liste" });
@@ -339,12 +339,12 @@ function dessinerSeance(ctx) {
         onClick: () => annoter(ctx, s, st, { absent: false }, "Absence retirée.") }, "Retirer l'absence"));
     }
     actions.appendChild(el("button", { class: "btn small ghost", type: "button",
-      onClick: () => ouvrirObservation(ctx, s, st, ligne) }, ligne?.observation ? "Modifier la note" : "Note"));
+      onClick: () => ouvrirObservation(ctx, s, st, ligne) }, ligne?.observation ? "Modifier la remarque" : "Remarque"));
     }
     ul.appendChild(el("li", { class: "em-ligne em-ligne-" + etat.code },
-      el("div", { class: "em-ligne-sig" }, etat.code === "signe" ? rendreSignature(ligne.trace, { titre: "Signature de " + nomComplet(st) }) : null),
+      el("div", { class: "em-ligne-sig" }, etat.code === "signe" ? rendreSignature(ligne.trace, { titre: "Signature de " + displayStagiaire(st) }) : null),
       el("div", { class: "em-ligne-corps" },
-        el("span", { class: "em-ligne-nom" }, nomComplet(st)),
+        el("span", { class: "em-ligne-nom" }, displayStagiaire(st)),
         el("span", { class: "em-ligne-etat" }, etat.libelle,
           etat.code === "signe" && ligne.sur_appareil_formateur ? " · sur l'appareil du formateur" : ""),
         ligne?.observation ? el("span", { class: "em-ligne-obs" }, ligne.observation) : null,
@@ -414,7 +414,7 @@ function dessinerOuverture(ctx, { off }) {
     el("div", { class: "em-horaires" }, el("label", {}, "Début", debut), el("label", {}, "Fin", fin)),
     ouvrir,
     el("p", { class: "muted em-note" }, "Dès l'ouverture, un bandeau « Signer » apparaît dans l'app de chaque stagiaire. "
-      + "Pour un stagiaire sans téléphone, « Faire signer ici » sur ton appareil."),
+      + "Pour un stagiaire sans téléphone, « Faire signer ici » sur votre appareil."),
   ));
 }
 
@@ -444,7 +444,7 @@ function dessinerFormateurs(ctx, s, { ouverte }) {
     bloc.appendChild(el("div", { class: "em-signer-formateur" }, nom,
       el("button", { class: "btn small primary", type: "button", onClick: async () => {
         const n = nom.value.trim();
-        if (!n) { toast("Indique le nom du formateur.", "error"); nom.focus(); return; }
+        if (!n) { toast("Indiquez le nom du formateur.", "error"); nom.focus(); return; }
         const ok = await ouvrirSignature({
           titre: "Signature du formateur",
           attestation: `${n} atteste avoir assuré la formation du ${jourLong(s.jour).toLowerCase()}, ${DEMI_LONG[s.demi_journee]} (${libelleCreneau(s)}).`,
@@ -461,7 +461,8 @@ function dessinerFormateurs(ctx, s, { ouverte }) {
 
 async function faireSigner(ctx, s, st) {
   const ok = await ouvrirSignature({
-    titre: "Signature de " + nomComplet(st),
+    titre: "Signature de " + displayStagiaire(st),
+    // L'attestation engage la personne : nom complet, comme sur la feuille imprimée (décision du 10/11).
     attestation: `${nomComplet(st)} atteste sa présence à la formation du ${jourLong(s.jour).toLowerCase()}, `
       + `${DEMI_LONG[s.demi_journee]} (${libelleCreneau(s)}). Signature recueillie sur l'appareil du formateur.`,
     libelleValider: "Valider la signature",
@@ -481,7 +482,7 @@ async function annoter(ctx, s, st, changement, message) {
   } catch (e) { enErreur(e); }
 }
 
-// Notes déjà écrites sur les feuilles de la semaine affichée : proposées en un clic.
+// Remarques déjà écrites sur les feuilles de la semaine affichée : proposées en un clic.
 function notesDeLaSemaine(ctx) {
   return notesProposees(ctx.seances.flatMap((x) => x.lignes.map((l) => l.observation)),
     heureLocale(new Date().toISOString()));
@@ -500,12 +501,12 @@ function ouvrirAbsence(ctx, s, st) {
   const fermer = () => fond.remove();
   const marquer = async (observation) => {
     fermer();
-    await annoter(ctx, s, st, { absent: true, observation: observation || null }, `${nomComplet(st)} noté absent.`);
+    await annoter(ctx, s, st, { absent: true, observation: observation || null }, `${displayStagiaire(st)} marqué absent.`);
   };
   const role = roleAuPlanning(ctx.entries, dayIndexDe(s.jour), s.demi_journee, st.id);
   fond.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Marquer absent" },
-    el("h3", {}, "Absent : " + nomComplet(st)),
-    role ? el("p", { class: "em-alerte" }, `Prévu ${role} sur le planning de cette demi-journée : pense à le remplacer sur sa carte. `,
+    el("h3", {}, "Absent : " + displayStagiaire(st)),
+    role ? el("p", { class: "em-alerte" }, `Prévu ${role} sur le planning de cette demi-journée : pensez à le remplacer sur sa carte. `,
       el("a", { href: "#/planning" }, "Ouvrir le planning")) : null,
     el("div", { class: "modal-form" },
       pucesDeNotes(["Absence injustifiée", "Absence justifiée", "Rendez-vous médical"], marquer),
@@ -528,15 +529,15 @@ function ouvrirObservation(ctx, s, st, ligne) {
     try {
       await annoterEmargement(s.id, st.id, { observation: texte });
       fermer();
-      toast(texte ? "Note enregistrée." : "Note effacée.", "success");
+      toast(texte ? "Remarque enregistrée." : "Remarque effacée.", "success");
       await recharger(ctx);
     } catch (e) { enErreur(e); }
   };
-  fond.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Note sur la feuille" },
-    el("h3", {}, "Note : " + nomComplet(st)),
+  fond.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Remarque sur la feuille" },
+    el("h3", {}, "Remarque : " + displayStagiaire(st)),
     el("div", { class: "modal-form" },
       puces,
-      el("label", {}, "Imprimée dans la colonne Observations", champ)),
+      el("label", {}, "Imprimée dans la colonne Observations de la feuille", champ)),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"),
       ligne?.observation ? el("button", { class: "btn", type: "button", onClick: () => enregistrer("") }, "Effacer") : null,
@@ -548,12 +549,12 @@ function ouvrirObservation(ctx, s, st, ligne) {
 
 async function cloreFeuille(ctx, s, enAttente) {
   const phrase = enAttente
-    ? `${enAttente} stagiaire${enAttente > 1 ? "s" : ""} sans signature ${enAttente > 1 ? "seront notés" : "sera noté"} absent${enAttente > 1 ? "s" : ""}.`
+    ? `${enAttente} stagiaire${enAttente > 1 ? "s" : ""} sans signature ${enAttente > 1 ? "seront marqués" : "sera marqué"} absent${enAttente > 1 ? "s" : ""}.`
     : "Plus personne ne pourra la signer.";
   if (!(await confirmer({ titre: "Clore la feuille ?", phrase, oui: "Clore la feuille" }))) return;
   try {
     const n = await cloreEmargement(s.id);
-    toast(`Feuille close${n ? ` : ${n} absent${n > 1 ? "s" : ""} noté${n > 1 ? "s" : ""}` : ""}.`, "success");
+    toast(`Feuille close${n ? ` : ${n} marqué${n > 1 ? "s" : ""} absent${n > 1 ? "s" : ""}` : ""}.`, "success");
     rafraichirBandeauEmargement();
     await recharger(ctx);
   } catch (e) { enErreur(e); }

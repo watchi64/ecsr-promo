@@ -4,10 +4,10 @@
  * d'abord. « Relire » ouvre l'éditeur du QCM ; l'acceptation et l'écart restent dans l'éditeur. Modèle de
  * js/views/signalements.js : garde `isActive`, compteur de génération, boîte d'erreur avec « Réessayer ».
  */
-import { el, clear, formatDate } from "../utils.js?v=20261110e";
-import { listBrouillonsIaARelire } from "../db.js?v=20261110e";
-import { groupesDeBrouillons } from "../qcm-ia-rules.js?v=20261110e";
-import { carte, ligneAction, erreurAvecReessai } from "./pages-cartes.js?v=20261110e";
+import { el, clear, formatDate } from "../utils.js?v=20261111d";
+import { listBrouillonsIaARelire } from "../db.js?v=20261111d";
+import { groupesDeBrouillons } from "../qcm-ia-rules.js?v=20261111d";
+import { carte, ligneAction, erreurAvecReessai } from "./pages-cartes.js?v=20261111d";
 
 const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 
@@ -51,7 +51,7 @@ export async function renderPropositionsIa(panel, { themes = [], onOuvrirEditeur
       return;
     }
     c.corps.appendChild(el("p", { class: "acc-intro" },
-      "L'IA propose des questions à partir des cours. Aucune n'est publiée avant ta relecture : tu les acceptes ou les écartes dans l'éditeur du QCM."));
+      "L'IA propose des questions à partir des cours. Aucune n'est publiée avant votre relecture : vous les acceptez ou les écartez dans l'éditeur du QCM."));
     c.corps.appendChild(el("div", { class: "acc-lignes" }, ...groupes.map((g) => ligneAction({
       ico: "quiz", titre: g.titre,
       detail: g.plusAncien

@@ -37,27 +37,27 @@
 // ne les attend jamais : ils sont lus après le montage, relus à chaque page affichée (au plus toutes les 30 secondes),
 // et un compte illisible ne montre ni pastille ni erreur.
 
-import { el } from "./utils.js?v=20261110e";
-import { icon, deco } from "./icons.js?v=20261110e";
-import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261110e";
-import { getPromoCourante, getLieuxLus } from "./db.js?v=20261110e";
-import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261110e";
-import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261110e";
-import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261110e";
-import { libellePastille } from "./nouveautes.js?v=20261110e";
+import { el } from "./utils.js?v=20261111d";
+import { icon, deco } from "./icons.js?v=20261111d";
+import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261111d";
+import { getPromoCourante, getLieuxLus } from "./db.js?v=20261111d";
+import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261111d";
+import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261111d";
+import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261111d";
+import { libellePastille } from "./nouveautes.js?v=20261111d";
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole, nomDuBoutonCompte,
-} from "./nav-rules.js?v=20261110e";
-import { chargerATraiter } from "./a-traiter.js?v=20261110e";
+} from "./nav-rules.js?v=20261111d";
+import { chargerATraiter } from "./a-traiter.js?v=20261111d";
 import {
   ENTREE_A_TRAITER, resumeATraiter, nomAvecATraiter, phraseATraiter, pointSurPlus, nomDePlus,
-} from "./a-traiter-rules.js?v=20261110e";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261110e";
-import { ouvrirMenuCompte } from "./menu-compte.js?v=20261110e";
-import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261110e";
-import { ouvrirSignalement } from "./signalement.js?v=20261110e";
-import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261110e";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261110e";
+} from "./a-traiter-rules.js?v=20261111d";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261111d";
+import { ouvrirMenuCompte } from "./menu-compte.js?v=20261111d";
+import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261111d";
+import { ouvrirSignalement } from "./signalement.js?v=20261111d";
+import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261111d";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261111d";
 
 // Barre latérale repliée en colonne d'icônes : choix mémorisé sur l'appareil.
 const CLE_REPLIEE = "ecsr_nav_repliee";
@@ -67,7 +67,7 @@ const ORDINATEUR = window.matchMedia("(min-width: 1080px)");
 
 // La coquille en place (null tant qu'aucune n'est montée) : son espace, ses entrées, celles que le
 // téléphone range dans « Plus », la route de la page affichée, la personne et le geste
-// « Actualiser » de l'app, que le menu du compte propose.
+// « Recharger les données » de l'app, que le menu du compte propose.
 let montee = null;
 // Choix « barre repliée », lu une fois ; gardé ici quand le stockage de l'appareil est indisponible.
 let repliee = null;
@@ -581,7 +581,7 @@ function focusDansLaCoquille() {
 // Monte la coquille de l'espace dans #app : sa barre (en-tête du stagiaire ou barre latérale de
 // l'équipe) en tête de #app, la barre du téléphone juste après (navigation avant le contenu, dans
 // l'ordre du clavier). Remonter remplace la coquille en place. `actualiser` : le geste
-// « Actualiser » de l'app, proposé par le menu du compte.
+// « Recharger les données » de l'app, proposé par le menu du compte.
 export function monterCoquille({ espace, entrees, nom, initiales, actualiser }) {
   const app = document.getElementById("app");
   if (!app) return;

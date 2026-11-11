@@ -1085,6 +1085,13 @@ body[data-nav="v2"] .nav-fenetre .habillage-pastilles { padding: 0 6px 6px; }
 .reglage-habillage .reglage-libre p { margin: 4px 0 0; }
 .reglage-habillage .promo-refus { margin-top: 10px; }
 .reglage-habillage .reglage-statut { margin: 10px 0 0; font-size: 0.9rem; font-weight: 600; }
+/* Données personnelles du centre (js/views/reglages-donnees.js) : une ligne par promo, le texte puis le bouton, à la ligne sur
+   téléphone ; jamais de défilement horizontal. */
+.reglage-donnees .param-block + .param-block { margin-top: 14px; }
+.reglage-donnees .donnees-promos li { align-items: center; }
+.reglage-donnees .donnees-promo-texte { flex: 1 1 14rem; min-width: 0; overflow-wrap: anywhere; }
+.reglage-donnees .donnees-promo-texte p { margin: 2px 0 0; }
+.reglage-donnees .btn { min-height: 44px; }
 /* Coche de la pastille choisie, en réglage seulement (le choix personnel du menu du compte ne change pas). */
 .habillage-pastille[data-reglage] { position: relative; }
 .habillage-pastille[data-reglage][aria-pressed="true"]::after {

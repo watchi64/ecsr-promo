@@ -20,10 +20,10 @@
 // Jamais de valeur « null », « undefined » ou « NaN » dans la fiche ni dans ses textes : ce qui manque devient un mot. Sans
 // indicateurs exploitables, la fiche est celle d'une promo sans inscrit.
 
-import { METHODES_PUBLIQUES, pct } from "./centre-stats.js?v=20261110e";
-import { promoTerminee, periodeEnMots, edition } from "./qualiopi-documents.js?v=20261110e";
-import { rempli, tableau, nb } from "./qualiopi-preuves.js?v=20261110e";
-import { texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261110e";
+import { METHODES_PUBLIQUES, pct } from "./centre-stats.js?v=20261111d";
+import { promoTerminee, periodeEnMots, edition } from "./qualiopi-documents.js?v=20261111d";
+import { rempli, tableau, nb } from "./qualiopi-preuves.js?v=20261111d";
+import { texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261111d";
 
 // L'interface du plan : la règle « terminée » est celle des dossiers et les méthodes publiques celles du tableau de bord
 // (js/centre-stats.js, à côté de METHODES) ; ni l'une ni les autres ne sont réécrites ici, seulement réexportées.
@@ -154,8 +154,8 @@ export function noteProvisoire(fiches) {
 // =====================================================================================================
 
 const MESSAGE_COPIE_FAITE = "Texte copié.";
-const MESSAGE_COPIE_ABSENTE = "La copie n'est pas disponible dans ce navigateur. Imprime la fiche en PDF, ou ouvre la page dans un autre navigateur.";
-const MESSAGE_COPIE_REFUSEE = "Le navigateur a refusé la copie. Clique à nouveau sur « Copier le texte », ou imprime la fiche en PDF.";
+const MESSAGE_COPIE_ABSENTE = "La copie n'est pas disponible dans ce navigateur. Imprimez la fiche en PDF, ou ouvrez la page dans un autre navigateur.";
+const MESSAGE_COPIE_REFUSEE = "Le navigateur a refusé la copie. Cliquez à nouveau sur « Copier le texte », ou imprimez la fiche en PDF.";
 
 // Un texte vide, ou qui n'en est pas un, n'est jamais copié : il viderait le presse-papiers.
 const enBlob = (texte) => {

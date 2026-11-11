@@ -5,11 +5,13 @@
  * Le panneau s'ouvre par les boutons « Assistant » de la coquille (js/nav-shell.js), qui appellent
  * basculerAssistant().
  */
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261110e";
-import { supabase } from "./db.js?v=20261110e";
-import { corpsRequete, extraireEvenements } from "./chatbot-rules.js?v=20261110e";
-import { moduleVisible } from "./modules-etat.js?v=20261110e";
-import { getEspace } from "./auth-admin.js?v=20261110e";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111d";
+import { supabase } from "./db.js?v=20261111d";
+import { corpsRequete, extraireEvenements } from "./chatbot-rules.js?v=20261111d";
+// Panneau ouvert à tous : le stagiaire est tutoyé, l'équipe vouvoyée (décision du 10/11). Les textes du panneau, posés une
+// fois à l'initialisation, sont neutres ; les messages de l'échange, écrits au moment où ils s'affichent, passent par selonPublic.
+import { moduleVisible } from "./modules-etat.js?v=20261111d";
+import { getEspace, selonPublic } from "./auth-admin.js?v=20261111d";
 
 const CLE_HISTO = "chatbot_histo";
 let histo = [];
@@ -77,7 +79,7 @@ function sauverHisto() {
 
 async function rendreEnMarkdown(noeud, texte) {
   try {
-    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261110e");
+    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261111d");
     // blocs: false : une réponse qui recopie un bloc de cours (schéma, quiz, cartes) le laisse en texte brut,
     // elle ne monte ni schéma animé ni quiz dans la bulle.
     const { noeuds } = rendreMarkdown(texte, { blocs: false });
@@ -114,7 +116,11 @@ async function envoyerQuestion(question, msgs) {
   try {
     const { data } = await supabase.auth.getSession();
     const session = data?.session;
-    if (!session) { bulleBot.textContent = "Reconnecte-toi pour utiliser l'assistant."; messageFige = true; return; }
+    if (!session) {
+      bulleBot.textContent = selonPublic("Reconnecte-toi pour utiliser l'assistant.", "Reconnectez-vous pour utiliser l'assistant.");
+      messageFige = true;
+      return;
+    }
 
     const resp = await fetch(`${SUPABASE_URL}/functions/v1/chatbot`, {
       method: "POST",
@@ -128,12 +134,14 @@ async function envoyerQuestion(question, msgs) {
 
     if (resp.status === 429) {
       const j = await resp.json().catch(() => ({}));
-      bulleBot.textContent = j.message || "Quota du jour atteint, reviens demain.";
+      // Le serveur écrit son message au « tu » : l'équipe, vouvoyée, a la phrase de l'app.
+      bulleBot.textContent = selonPublic(j.message || "Quota du jour atteint, reviens demain.", "Quota du jour atteint, revenez demain.");
       messageFige = true;
       return;
     }
     if (!resp.ok) {
-      bulleBot.textContent = "L'assistant est indisponible pour le moment, réessaie un peu plus tard.";
+      bulleBot.textContent = selonPublic("L'assistant est indisponible pour le moment, réessaie un peu plus tard.",
+        "L'assistant est indisponible pour le moment, réessayez un peu plus tard.");
       messageFige = true;
       return;
     }
@@ -163,7 +171,7 @@ async function envoyerQuestion(question, msgs) {
     }
   } catch (e) {
     console.error("chatbot:", e);
-    if (!texte) { bulleBot.textContent = "Connexion interrompue, réessaie."; messageFige = true; }
+    if (!texte) { bulleBot.textContent = selonPublic("Connexion interrompue, réessaie.", "Connexion interrompue, réessayez."); messageFige = true; }
   } finally {
     enCours = false;
     if (texte) {
@@ -172,7 +180,7 @@ async function envoyerQuestion(question, msgs) {
       await rendreEnMarkdown(bulleBot, texte);
     } else if (!messageFige) {
       // Couvre aussi un flux coupe apres un statut outil ("Recherche...")
-      bulleBot.textContent = "Pas de réponse, réessaie.";
+      bulleBot.textContent = selonPublic("Pas de réponse, réessaie.", "Pas de réponse, réessayez.");
     }
     msgs.scrollTop = msgs.scrollHeight;
   }
@@ -191,12 +199,12 @@ export function initChatbot() {
       <p class="chatbot-titre">Assistant <span class="chatbot-beta">bêta</span></p>
       <button type="button" class="ghost-btn chatbot-close" aria-label="Fermer l'assistant">&times;</button>
     </div>
-    <p class="chatbot-disclaimer">Version bêta : l'assistant peut se tromper, vérifie les points importants dans les cours. La qualité des réponses va s'améliorer.</p>
+    <p class="chatbot-disclaimer">Version bêta : l'assistant peut se tromper, les points importants sont à vérifier dans les cours. La qualité des réponses va s'améliorer.</p>
     <p class="chatbot-signaler">Un souci avec l'app ? <button type="button" class="chatbot-signaler-btn" data-sg-entree="assistant" aria-haspopup="dialog">Signaler un problème</button></p>
     <div class="chatbot-msgs"></div>
     <form class="chatbot-form">
-      <textarea rows="1" placeholder="Pose ta question…" maxlength="2000"
-        aria-label="Ta question à l'assistant"></textarea>
+      <textarea rows="1" placeholder="Écrire une question…" maxlength="2000"
+        aria-label="Question à l'assistant"></textarea>
       <button type="submit" class="btn primary" aria-label="Envoyer">Envoyer</button>
     </form>`;
   app.appendChild(panneau);
@@ -212,14 +220,14 @@ export function initChatbot() {
     }
   } else {
     ajouterBulle(msgs, "assistant",
-      "Salut ! Je peux t'expliquer l'app, t'aider à réviser les 57 thèmes et vérifier la réglementation sur Légifrance. Qu'est-ce qu'il te faut ?");
+      "Bonjour ! Je suis là pour expliquer l'app, aider à réviser les 57 thèmes et vérifier la réglementation sur Légifrance. Une question ?");
   }
 
   panneau.querySelector(".chatbot-close").addEventListener("click", fermerPanneau);
   // Signaler un problème (spec 2026-10-28) : la fenêtre s'ouvre par-dessus le panneau, qui reste ouvert.
   const signaler = panneau.querySelector(".chatbot-signaler-btn");
   signaler.addEventListener("click", () => {
-    import("./signalement.js?v=20261110e").then((m) => m.ouvrirSignalement({ ancre: signaler }));
+    import("./signalement.js?v=20261111d").then((m) => m.ouvrirSignalement({ ancre: signaler }));
   });
   // Capture : Échap ferme le panneau sans atteindre une fenêtre restée dessous (un QCM, par exemple). Panneau fermé,
   // la touche passe aux autres fenêtres.

@@ -77,7 +77,7 @@ test("champs nommés : les filtres et dates relevés par le robot portent un nom
   const attendus = [
     ["js/views/themes.js", /"aria-label": "Rechercher un thème"/], ["js/views/themes.js", /"aria-label": "Filtrer par statut"/],
     ["js/views/notes.js", /"aria-label": "Trier la matrice"/], ["js/views/notes.js", /"aria-label": "Date des notes"/],
-    ["js/views/signalements.js", /"aria-label": "Signalements à afficher"/],
+    ["js/views/signalements.js", /"aria-label": "Questions contestées à afficher"/],
     ["js/views/mon-suivi.js", /"aria-label": "Date de naissance"/],
     ["js/views/planning.js", /"aria-label": "Aller à la semaine d'une date"/],
   ];

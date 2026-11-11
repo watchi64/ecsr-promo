@@ -148,16 +148,16 @@ test("phraseDeRefus", () => {
   const indispo = "Cette action n'est pas encore disponible.";
   assert.equal(phraseDeRefus("anything", "PGRST202"), indispo);
   assert.equal(phraseDeRefus("Could not find the function public.creer_centre(p_nom) in the schema cache"), indispo);
-  assert.equal(phraseDeRefus("permission denied for table affectations", "42501"), "Tu n'as pas le droit de faire cela ici.");
+  assert.equal(phraseDeRefus("permission denied for table affectations", "42501"), "Vous n'avez pas le droit de faire cela ici.");
   assert.equal(phraseDeRefus("", undefined), "L'opération n'a pas abouti.");
   assert.equal(phraseDeRefus(null, null), "L'opération n'a pas abouti.");
   // Réseau coupé (Chrome, Safari, Firefox) et session expirée : une phrase en français, jamais le texte technique.
-  const connexion = "La connexion a échoué. Vérifie le réseau, puis réessaie.";
+  const connexion = "La connexion a échoué. Vérifier le réseau, puis réessayer.";
   assert.equal(phraseDeRefus("TypeError: Failed to fetch"), connexion);
   assert.equal(phraseDeRefus("Load failed"), connexion);
   assert.equal(phraseDeRefus("NetworkError when attempting to fetch resource."), connexion);
-  assert.equal(phraseDeRefus("JWT expired", "PGRST301"), "Ta session a expiré. Reconnecte-toi, puis réessaie.");
-  assert.equal(phraseDeRefus("Délai dépassé (15 s). Réseau lent : réessaie dans un instant."), "Délai dépassé (15 s). Réseau lent : réessaie dans un instant.", "une phrase de l'app passe telle quelle");
+  assert.equal(phraseDeRefus("JWT expired", "PGRST301"), "Votre session a expiré. Reconnectez-vous, puis réessayez.");
+  assert.equal(phraseDeRefus("Délai dépassé (15 s). Réseau lent : réessayez dans un instant."), "Délai dépassé (15 s). Réseau lent : réessayez dans un instant.", "une phrase de l'app passe telle quelle");
 });
 
 test("messageInvitation délègue à phraseDeRefus", () => {
@@ -294,7 +294,7 @@ test("promosVisiblesEnApercu : la liste des promos que charge l'app, selon l'ape
 });
 
 test("texteBandeauApercu : ce que dit le bandeau d'aperçu (les modifications d'un aperçu sont réelles)", () => {
-  const reel = "Ce que tu modifies ici est vraiment enregistré.";
+  const reel = "Ce que vous modifiez ici est vraiment enregistré.";
   assert.deepEqual(texteBandeauApercu("direction", { id: 1, nom: "Nîmes" }), { libelle: "Direction du centre Nîmes", suite: reel });
   assert.deepEqual(texteBandeauApercu("direction", null), { libelle: "Direction", suite: reel });
   assert.deepEqual(texteBandeauApercu("direction", { id: 1, nom: null }), { libelle: "Direction", suite: reel });

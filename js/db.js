@@ -1,17 +1,17 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261110e";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261110e";
-import { compteDansEquite } from "./passage-rules.js?v=20261110e";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261110e";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261110e";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261110e";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261110e";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111d";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111d";
+import { compteDansEquite } from "./passage-rules.js?v=20261111d";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111d";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111d";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111d";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111d";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261110e";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261110e";
-import { effectifDesFiches } from "./centre-stats.js?v=20261110e";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261110e";
+} from "./promo-rules.js?v=20261111d";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111d";
+import { effectifDesFiches } from "./centre-stats.js?v=20261111d";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111d";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -594,6 +594,35 @@ export async function purgerBenevoles(ids) {
   return data;
 }
 
+// Suite du lot 5 : les mêmes effacements pour la direction du centre, sur la promo ou le centre qu'elle désigne (et non sur la promo
+// affichée). La base décide (direction du lieu, formateur de la promo ou fondateur ; 42501 sinon) : le refus part tel quel avec son
+// code, l'appelant le dit par phraseDeRefus. L'état et la purge ne touchent pas aux fiches lues en mémoire ; l'anonymisation, si.
+export async function etatAnonymisationPromoDe(promoId) {
+  const { data, error } = await supabase.rpc("etat_anonymisation_promo", { p_promo: promoId });
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
+export async function anonymiserPromoDe(promoId) {
+  const { data, error } = await supabase.rpc("anonymiser_promo", { p_promo: promoId });
+  if (error) throw erreurDeBase(error);
+  invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
+  return data;
+}
+
+export async function listBenevolesAPurgerDuCentre(lieuId) {
+  const { data, error } = await supabase.rpc("benevoles_a_purger", { p_lieu: lieuId });
+  if (error) throw erreurDeBase(error);
+  return data || [];
+}
+
+export async function purgerBenevolesDuCentre(ids, lieuId) {
+  const { data, error } = await supabase.rpc("purger_benevoles", { p_ids: ids, p_lieu: lieuId });
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
 export async function setStagiaireActif(id, actif) {
   const { data, error } = await supabase.from("stagiaires").update({ actif }).eq("id", id).select("id");
   if (error) throw error;
@@ -1084,7 +1113,7 @@ export async function uploadQcmImage(file, qcmId, questionId) {
 export async function proposerQuestionsIa(qcmId, nombre, partie) {
   const { data } = await supabase.auth.getSession();
   const jeton = data?.session?.access_token;
-  if (!data?.session) throw new Error("Reconnecte-toi pour utiliser l'IA.");
+  if (!data?.session) throw new Error("Reconnectez-vous pour utiliser l'IA.");
   const entetes = { "Content-Type": "application/json", apikey: SUPABASE_KEY, Authorization: `Bearer ${jeton}` };
   // La promo affichée : la fonction juge le droit de formateur sur elle, comme la base pour l'app (un compte formateur
   // d'une autre promo que celle de sa fiche, relecture finale, I4). L'aperçu, lui, ne part pas vers les fonctions Edge.
@@ -2045,7 +2074,7 @@ export async function lireDonneesQualiopi(promoId) {
 export async function createQcmSignalement({ questionId, motif, commentaire, optionId, optionTexte }) {
   const { data: { user } } = await supabase.auth.getUser();
   const email = user?.email;
-  if (!email) throw new Error("Session expirée : reconnecte-toi pour signaler.");
+  if (!email) throw new Error("Session expirée : il faut se reconnecter pour contester la question.");
   const row = {
     question_id: questionId,
     email,
@@ -2202,7 +2231,7 @@ export async function traiterSignalementApp(id, { statut, reponse }) {
 export async function supprimerSignalementApp(id) {
   const { data, error } = await supabase.from("signalements_app").delete().eq("id", id).select("id");
   if (error) throw erreurSignalement(error);
-  if (!data || !data.length) throw new Error("Ce signalement n'a pas pu être supprimé. Actualise la page et réessaie.");
+  if (!data || !data.length) throw new Error("Ce problème signalé n'a pas pu être supprimé. Rechargez la page et réessayez.");
 }
 
 // === Émargement (spec 2026-10-23) ===
@@ -2413,7 +2442,7 @@ export async function lireOuverturesQuestionnaires() {
     const code = String(error.code ?? "");
     if (code === "PGRST205" || code === "42P01" || /could not find the table|relation .* does not exist/i.test(String(error.message ?? ""))) return null;
     if (code === "42501") throw new Error("Réservé à la gestion de la qualité : ce compte n'a pas ce droit.");
-    throw new Error("Les questionnaires n'ont pas pu être lus : vérifie ta connexion, puis réessaie.");
+    throw new Error("Les questionnaires n'ont pas pu être lus : vérifiez votre connexion, puis réessayez.");
   }
   return Array.isArray(data) ? data : [];
 }
@@ -2471,7 +2500,7 @@ export async function ajouterEntreeRegistre(champs) {
 export async function modifierEntreeRegistre(id, champs) {
   const { data, error } = await supabase.from("registre_qualite").update(champsRegistre(champs)).eq("id", id).select(COLONNES_REGISTRE);
   if (error) throw erreurRegistre(error);
-  if (!data || !data.length) throw new Error("Cette entrée n'a pas pu être enregistrée. Actualise la page et réessaie.");
+  if (!data || !data.length) throw new Error("Cette entrée n'a pas pu être enregistrée. Rechargez la page et réessayez.");
   return data[0];
 }
 
