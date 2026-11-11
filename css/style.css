@@ -34,6 +34,9 @@
   --bg-soft:   #E7ECE3;
   --bg-subtle: #EAEFE6;
   --bg-deep:   #14201C;
+  /* Lin (DA « Lin », docs/direction-artistique.md) : surface d'accent des chiffres clés, deux ou trois par écran. */
+  --bg-lin:    #F5F1E8;
+  --line-lin:  #E4DAC4;
 
   --line:        #D8DED2;
   --line-strong: #B7C0AA;
@@ -7749,3 +7752,69 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   .theme-qcm-examen-etat { flex: 1 1 100%; }
   .theme-qcm-examen .btn { flex: 1 1 auto; min-height: 44px; }
 }
+
+/* === Ordre de passage (Planning), refonte du 11/11 : chacun sa vue ===
+   docs/superpowers/specs/2026-11-11-ordre-passage-resultats-design.md. Téléphone d'abord, lignes de 44 px. */
+.op-carte, .res-carte { background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-lg);
+  padding: 0.75rem 1rem; margin: 0 0 0.75rem; }
+.op-cle, .res-cle { background: var(--bg-lin); border: 1px solid var(--line-lin); border-radius: var(--r-lg);
+  padding: 0.85rem 1rem; margin: 0 0 0.75rem; }
+.op-carte-titre, .res-carte-titre { display: flex; align-items: center; gap: 0.45rem; margin: 0 0 0.25rem;
+  font-size: 0.95rem; font-weight: 600; color: var(--accent-strong); }
+.op-carte-titre svg { width: 18px; height: 18px; }
+.op-file { list-style: none; margin: 0; padding: 0; }
+.op-ligne { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: 44px;
+  border-top: 1px solid var(--line-faint); }
+.op-file .op-ligne:first-child, .op-cle .op-carte-titre + .op-ligne { border-top: 0; }
+.op-ligne-type { display: inline-flex; align-items: center; gap: 0.45rem; }
+.op-ligne-type svg { width: 18px; height: 18px; color: var(--accent); }
+.op-nom { display: inline-flex; align-items: center; gap: 0.6rem; min-width: 0; overflow-wrap: anywhere; }
+.op-rang { color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 1.2em; }
+.op-ligne-fin { display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
+.op-etat { font-weight: 600; color: var(--accent-strong); white-space: nowrap; }
+.op-etat.retard { background: var(--accent-soft); color: var(--accent-strong); border-radius: 999px;
+  padding: 0.15rem 0.6rem; font-size: 0.85rem; }
+.op-place { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+.op-vide { margin: 0.35rem 0 0.2rem; color: var(--text-soft); }
+.op-phrase { margin: 0 0 0.4rem; font-size: 1.05rem; color: var(--text); }
+.op-prochain { display: flex; align-items: center; gap: 0.45rem; margin: 0 0 1rem; color: var(--text-soft); }
+.op-prochain svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
+.op-chiffres { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.op-chiffre { display: flex; flex-direction: column; gap: 0.15rem; }
+.op-chiffre-val { font-size: 1.75rem; font-weight: 600; color: var(--accent-strong); line-height: 1.1;
+  font-variant-numeric: tabular-nums; }
+.op-chiffre-lib { font-size: 0.85rem; color: var(--text-soft); line-height: 1.25; }
+.op-files { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 1rem; }
+@media (min-width: 761px) { .op-files { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.op-ajour { margin: 0 0 0.75rem; }
+.op-ajour summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--accent-strong);
+  font-weight: 600; }
+.op-ajour p { margin: 0 0 0.5rem; color: var(--text-soft); }
+.op-actions { margin: 0 0 1rem; }
+.op-actions .btn { min-height: 44px; }
+.op-historique { margin-top: 2.5rem; }
+
+/* === Mon suivi > Résultats, vue « Moi » : le tableau de bord (refonte du 11/11) === */
+.res-cle-ligne { display: flex; align-items: baseline; gap: 0.4rem; margin: 0; }
+.res-cle-moy { font-size: 2.25rem; font-weight: 600; color: var(--accent-strong); line-height: 1.1;
+  font-variant-numeric: tabular-nums; }
+.res-cle-sur { color: var(--text-soft); }
+.res-cle-detail { margin: 0.2rem 0 0; color: var(--text-soft); }
+.res-forces { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 1rem; margin-top: 1rem; }
+@media (min-width: 761px) { .res-forces { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.res-sujets { list-style: none; margin: 0; padding: 0; }
+.res-sujet { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: 44px;
+  border-top: 1px solid var(--line-faint); }
+.res-sujet:first-child { border-top: 0; }
+.res-sujet-lib { min-width: 0; overflow-wrap: anywhere; }
+.res-sujet-note { font-weight: 600; color: var(--accent-strong); font-variant-numeric: tabular-nums; }
+.res-lien { display: flex; align-items: center; justify-content: space-between; min-height: 44px; box-sizing: border-box;
+  color: var(--text); text-decoration: none; font-weight: 600; }
+.res-lien:hover { border-color: var(--line-strong); }
+.res-lien-fin { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--text-soft); font-weight: 400; }
+.res-lien-fin svg { width: 18px; height: 18px; }
+.op-ajour summary { list-style: none; gap: 0.4rem; }
+.op-ajour summary::-webkit-details-marker { display: none; }
+.op-ajour summary::after { content: ""; width: 0.45em; height: 0.45em; border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-2px); margin-left: 0.35rem; }
+.op-ajour[open] summary::after { transform: rotate(-135deg) translateY(-1px); }

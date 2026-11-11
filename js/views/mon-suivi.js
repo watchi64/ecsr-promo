@@ -1,29 +1,30 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261111h";
-import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261111h";
-import { dixieme, fr1, pluriel } from "../nombres.js?v=20261111h";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261111h";
-import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261111h";
-import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111h";
-import { renderEpcfPersonne } from "./epcf.js?v=20261111h";
-import { renderSubTabs } from "../subtabs.js?v=20261111h";
-import { renderDp } from "./dp.js?v=20261111h";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261111h";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261111h";
-import { lundiEnCours } from "../journee-rules.js?v=20261111h";
-import { bandeauAvis } from "../avis.js?v=20261111h";
-import { statsPassages } from "../passages-stats.js?v=20261111h";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261111h";
-import { icon } from "../icons.js?v=20261111h";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261111h";
-import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261111h";
-import { exemplesRemplis } from "../dp-rules.js?v=20261111h";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261111h";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261111h";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111h";
-import { renderNotes } from "./notes.js?v=20261111h";
+         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante, getNotesStatsGroupe } from "../db.js?v=20261111j";
+import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261111j";
+import { dixieme, fr1, pluriel } from "../nombres.js?v=20261111j";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261111j";
+import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261111j";
+import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111j";
+import { renderEpcfPersonne } from "./epcf.js?v=20261111j";
+import { renderSubTabs } from "../subtabs.js?v=20261111j";
+import { renderDp } from "./dp.js?v=20261111j";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261111j";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261111j";
+import { lundiEnCours } from "../journee-rules.js?v=20261111j";
+import { bandeauAvis } from "../avis.js?v=20261111j";
+import { statsPassages } from "../passages-stats.js?v=20261111j";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261111j";
+import { icon } from "../icons.js?v=20261111j";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261111j";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261111j";
+import { exemplesRemplis } from "../dp-rules.js?v=20261111j";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261111j";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261111j";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111j";
+import { renderNotes } from "./notes.js?v=20261111j";
+import { notesSur20, moyenne, tendance, forcesEtFaiblesses, moyenneDuGroupe, formatNote } from "../resultats-rules.js?v=20261111j";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -38,6 +39,8 @@ let stagiaireNoms = {};
 // Sert à retrouver le numéro quand la ligne d'éval ne le porte pas (ou quand un
 // « Contrôle » a pour intitulé un thème officiel).
 let themeNumByTitre = {};
+// Stagiaires actifs de la promo : le seuil d'anonymat de la moyenne du groupe (Résultats) se lit sur leur nombre.
+let effectifActif = 0;
 
 function normTitre(s) {
   return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -314,7 +317,7 @@ function renvoiNotesQcm() {
     el("a", { href: "#/themes", onClick: memoriser }, "Cours et QCM, partie QCM"), ".");
 }
 
-function renderChartSection(evaluations, soi = true) {
+function renderChartSection(evaluations, soi = true, { sansMoyenne = false } = {}) {
   const section = el("section", { class: "ms-section" },
     el("h3", { class: "ms-section-title" }, soi ? "Mon évolution" : "Évolution"));
   const noted = (evaluations || [])
@@ -420,10 +423,66 @@ function renderChartSection(evaluations, soi = true) {
   }
 
   section.appendChild(outer);
+  if (sansMoyenne) return section;   // Résultats : la moyenne est dans la carte du haut
   const avg = Math.round((noted.reduce((s, e) => s + e.norm, 0) / noted.length) * 10) / 10;
   section.appendChild(el("p", { class: "ms-chart-legend muted" },
     `Moyenne actuelle : ${dixieme(avg)}/20 · ${pluriel(noted.length, "évaluation")}`));
   return section;
+}
+
+// Résultats, vue « Moi » (refonte du 11/11, docs/superpowers/specs/2026-11-11-ordre-passage-resultats-design.md) : en
+// tête, la moyenne, la tendance sur un mois et la moyenne du groupe (seulement à partir de 3 stagiaires actifs, js/resultats-rules.js).
+// La moyenne du groupe vient de la fonction agrégée de la base (aucune note nominative) ; elle arrive après coup.
+function carteChiffre(evaluations, soi) {
+  const notes = notesSur20(evaluations);
+  if (!notes.length) return null;
+  const moy = moyenne(notes);
+  const t = tendance(notes, isoDate(new Date()));
+  const detail = el("p", { class: "res-cle-detail" });
+  const morceaux = [];
+  if (t != null) morceaux.push(t === 0 ? "stable sur un mois" : (t > 0 ? "+" : "") + formatNote(t) + " en un mois");
+  const ecrire = (groupe) => {
+    const parts = morceaux.slice();
+    if (groupe != null) parts.push("groupe : " + formatNote(groupe));
+    detail.textContent = parts.join(" · ");
+    detail.hidden = !parts.length;
+  };
+  ecrire(null);
+  getNotesStatsGroupe()
+    .then((stats) => ecrire(moyenneDuGroupe(stats, effectifActif)))
+    .catch((e) => console.error(e));
+  return el("section", { class: "res-cle", "aria-label": soi ? "Ma moyenne" : "Moyenne" },
+    el("p", { class: "res-cle-ligne" },
+      el("span", { class: "res-cle-moy" }, formatNote(moy)),
+      el("span", { class: "res-cle-sur" }, "/20 · " + (notes.length === 1 ? "1 note" : notes.length + " notes"))),
+    detail);
+}
+
+function listeSujets(titre, sujets) {
+  const liste = el("ul", { class: "res-sujets" });
+  sujets.forEach((x) => liste.appendChild(el("li", { class: "res-sujet" },
+    el("span", { class: "res-sujet-lib" }, x.lib), el("span", { class: "res-sujet-note" }, formatNote(x.moyenne)))));
+  return el("section", { class: "res-carte" }, el("h3", { class: "res-carte-titre" }, titre), liste);
+}
+
+function forcesSection(evaluations) {
+  // Un sujet précis seulement : une note sans titre (« Thème », « Contrôle », « C1 · » sans libellé) ne forme pas un sujet.
+  const sujet = (e) => {
+    const lib = describeEval(e);
+    return /^(Thème|Compétence|Contrôle|Évaluation)$/.test(lib) || / ·\s*$/.test(lib) ? null : lib;
+  };
+  const { forts, faibles } = forcesEtFaiblesses(notesSur20(evaluations), sujet);
+  if (!forts.length) return null;
+  return el("div", { class: "res-forces" }, listeSujets("Points forts", forts), listeSujets("À retravailler", faibles));
+}
+
+// Une ligne vers la partie Évaluations EPCF de la fiche ; rien sans épreuve ou module fermé.
+function ligneEpcf(d, opts) {
+  const n = (d.epcfEvals || []).length;
+  if (!n || !moduleVisible("epcf") || !opts.adresse) return null;
+  return el("a", { class: "res-carte res-lien", href: opts.adresse("epcf") },
+    el("span", {}, "EPCF"),
+    el("span", { class: "res-lien-fin" }, n === 1 ? "1 épreuve évaluée" : n + " épreuves évaluées", icon.chevronRight()));
 }
 
 // « Passages effectués » : compteurs (règle d'équité) + historique détaillé, depuis
@@ -515,6 +574,7 @@ export async function chargerContexteFiche() {
   (themesData || []).forEach((t) => {
     if (t.type === "theme" && t.numero != null && t.titre) themeNumByTitre[normTitre(t.titre)] = t.numero;
   });
+  effectifActif = (stagiairesData || []).length;
   stagiaireNoms = {};
   (stagiairesData || []).forEach((s) => { stagiaireNoms[s.id] = displayStagiaire(s); });
   return stagiairesData || [];
@@ -702,7 +762,13 @@ function rendreResultats(panel, d, soi, isActive, opts = {}) {
     Object.entries(boutons).forEach(([k, b]) => b.setAttribute("aria-pressed", k === cible ? "true" : "false"));
     clear(zone);
     if (cible === "moi") {
-      zone.appendChild(renderChartSection(d.evaluations, soi));
+      const cle = carteChiffre(d.evaluations, soi);
+      if (cle) zone.appendChild(cle);
+      zone.appendChild(renderChartSection(d.evaluations, soi, { sansMoyenne: !!cle }));
+      const forces = forcesSection(d.evaluations);
+      if (forces) zone.appendChild(forces);
+      const epcf = ligneEpcf(d, opts);
+      if (epcf) zone.appendChild(epcf);
       // Les notes des QCM ne sont pas des évaluations : on dit où elles sont (audit du 09/11, A5).
       if (soi && moduleVisible("qcm")) zone.appendChild(renvoiNotesQcm());
       return;

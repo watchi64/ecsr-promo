@@ -326,25 +326,30 @@ def saisir_puis_retour(v):
 
 
 @parcours("ouvrir-un-examen", "Ouvrir un examen depuis la liste des thèmes", role="formateur",
-          budget={"ordinateur": 3, "telephone": 4}, navigations=NOUVELLE)
+          budget={"ordinateur": 4, "telephone": 5}, navigations=NOUVELLE)
 def ouvrir_un_examen(v):
-    """Cours et QCM, « Ouvrir l'examen aux stagiaires » sur la ligne du thème 23 (son QCM est fermé au banc), puis « 1 heure » : un
-    message confirme et la ligne dit « Ouvert jusqu'à … ». Puis « Fermer l'examen », confirmé dans la fenêtre de l'app :
-    « Examen fermé »."""
+    """Cours et QCM, « … » sur la ligne du thème 23 (son QCM est fermé au banc), « Ouvrir l'examen aux stagiaires », puis
+    « 1 heure » : un message confirme et la ligne porte « Examen ouvert ». Puis « … », « Fermer l'examen », confirmé dans la
+    fenêtre de l'app : le repère quitte la ligne. Depuis le 11/11, l'examen passe par « … » (liste compacte) : un toucher de plus."""
     v.aller("Cours et QCM")
     ligne = '#view .theme-row[data-id="2"]'
     v.etape("ouvrir l'examen du thème 23")
-    v.toucher(ligne + " button.examen-ouvrir", "« Ouvrir l'examen aux stagiaires » du thème 23")
+    v.toucher(ligne + " button.theme-menu", "« … » du thème 23")
+    v.toucher(".theme-actions button.examen-ouvrir", "« Ouvrir l'examen aux stagiaires »")
     v.ecouter_messages()
     v.toucher(texte("1 heure", ".modal button"), "« 1 heure »", ecriture=True)
     v.exiger_confirmation("l'ouverture de l'examen", "Examen ouvert")
-    v.attendre(ligne + " .theme-qcm-examen:has-text(\"Ouvert jusqu\")", "« Ouvert jusqu'à … » sur la ligne")
+    v.attendre(ligne + " .theme-qcm-exam-on", "« Examen ouvert » sur la ligne")
     v.but("examen ouvert depuis la liste")
     v.etape("refermer l'examen")
-    v.toucher(ligne + " button.examen-fermer", "« Fermer l'examen » de la ligne", compte=False)
-    v.attendre(".modal:has-text(\"Fermer l'examen du thème 23\")", "la demande de confirmation")
-    v.toucher(texte("Fermer l'examen", ".modal button"), "« Fermer l'examen » de la confirmation", compte=False, ecriture=True)
-    v.attendre(ligne + " .theme-qcm-examen:has-text(\"Examen fermé\")", "« Examen fermé » sur la ligne")
+    v.toucher(ligne + " button.theme-menu", "« … » du thème 23", compte=False)
+    v.toucher(".theme-actions button.examen-fermer", "« Fermer l'examen » de la fiche", compte=False)
+    v.attendre(".confirmer-fond:has-text(\"Fermer l'examen du thème 23\")", "la demande de confirmation")
+    v.ecouter_messages()
+    v.toucher(".confirmer-fond button:text-is(\"Fermer l'examen\")", "« Fermer l'examen » de la confirmation", compte=False, ecriture=True)
+    v.exiger_confirmation("la fermeture de l'examen", "Examen fermé")
+    if v.voit(ligne + " .theme-qcm-exam-on"):
+        v.echec("« Examen ouvert » reste sur la ligne après « Fermer l'examen »")
     v.terminer()
 
 
