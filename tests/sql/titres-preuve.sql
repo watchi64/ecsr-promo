@@ -18,7 +18,9 @@
 --               pour des titres fictifs (secrétariat, intervenant, ressources humaines, contenus), un stagiaire membre de la promo, un cumul,
 --               une direction qui forme ; « Non » ferme la lecture des données de la page, « Voir » ferme l'écriture, un titre non fixe
 --               n'ouvre aucun geste définitif ni aucune fiche interne.
--- Le groupe de la migration 4 s'ajoutera ici, avec sa tâche.
+--   journal     (migration 4) donne, retire, change, cree, ajuste, supprime écrits par déclencheurs (par, pour, niveau, centre, promo, avant, après,
+--               sans adresse) ; rien pour les lignes existantes, les mises en minuscules ni les invitations de stagiaires ; aucun accès
+--               pour anon ni authenticated ; purge à trois ans à l'écriture ; effacement d'une adresse réservé au fondateur.
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes (tests/sql/roles-aides.sql),
 -- le libellé du mode, la requête d'empreinte, puis les migrations 1 à 4 et leurs retours :
 --   node outils/assembler_repetition_roles.mjs titres [--etapes 1,2] <sortie.sql>   les étapes dont les fichiers existent
@@ -823,6 +825,191 @@ begin
   perform pg_temp.cas_lecture('dir_form lit les notes de la promo 2 (formateur)', 'dir_form', '2', 'public.evaluations', 'promo_id = 2', true);
 end $tgc$;
 
+-- Groupe journal (migration 4) : le journal des droits du personnel, écrit par déclencheurs.
+-- Les lignes du journal qui répondent à une condition, en une chaîne « action|par|niveau|centre|promo|titre ; ... » dans l'ordre d'écriture
+-- (« - » pour une valeur nulle). Si la table manque (contre-épreuve), le calcul rend « incalculable » et le contrôle est rouge.
+create or replace function pg_temp.lignes_journal(p_cond text)
+returns text language sql as $tlj$
+  select pg_temp.calcul(format($q$select coalesce(string_agg(concat_ws('|', action, par, niveau, coalesce(lieu_id::text, '-'),
+      coalesce(promo_id::text, '-'), titre_nom), ' ; ' order by id), 'aucune') from public.journal_droits where %s$q$, p_cond));
+$tlj$;
+
+-- Une ligne ancienne posée en propriétaire, sous session_replication_role = replica (SET LOCAL par execute, jamais set_config) :
+-- « OK » ou « ERREUR <état> ».
+create or replace function pg_temp.poser_vieille(p_par text, p_ecart interval)
+returns text language plpgsql as $tpv$
+begin
+  perform pg_temp.proprio();
+  begin
+    execute 'set local session_replication_role = replica';
+    insert into public.journal_droits (quand, par, action, titre_nom, niveau)
+    values (now() - p_ecart, p_par, 'donne', 'Preuve7 ancienne', 'promo');
+    execute 'set local session_replication_role = origin';
+    return 'OK';
+  exception when others then
+    return 'ERREUR ' || sqlstate;
+  end;
+end $tpv$;
+
+create or replace function pg_temp.groupe_journal()
+returns void language plpgsql as $tgj$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_dir text := (select email from pg_temp.perso where nom = 'dir_n');
+  v_fond text := (select email from pg_temp.perso where nom = 'fond');
+  v_dirl text := lower((select email from pg_temp.perso where nom = 'dir_n'));
+  jr1 constant text := 'preuve7.jr.un@exemple.invalid';
+  jr2 constant text := 'preuve7.jr.deux@exemple.invalid';
+  jr3 constant text := 'Preuve7.JR.Maj@exemple.invalid';
+  jr4 constant text := 'preuve7.jr.cascade@exemple.invalid';
+  v_t text; v_t2 text; v_promo text; v_fiche text; v_n_avant text; v_n_dir text; v_res text;
+begin
+  perform pg_temp.proprio();
+  insert into public.user_profiles (email, role, is_admin) values (jr1, 'prof', false), (jr2, 'prof', false), (jr3, 'prof', false), (jr4, 'prof', false);
+
+  -- 1. donne et retire : dir_n, par écriture directe, sur la promo 1.
+  perform pg_temp.attendre('journal', 'dir_n ajoute un formateur à la promo 1 (écriture directe)',
+    (left(pg_temp.valeur(v_dir, '1', null, format('insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1) returning id::text', jr1)), 6) <> 'ERREUR')::text, 'true');
+  perform pg_temp.attendre('journal', 'dir_n retire ce formateur (écriture directe)',
+    pg_temp.valeur(v_dir, '1', null, format('with d as (delete from public.affectations where email = %L and promo_id = 1 returning 1) select count(*)::text from d', jr1)), '1');
+  perform pg_temp.attendre('journal', 'deux lignes, donne puis retire : par = son adresse, niveau promo, centre de la promo 1, promo 1, titre Formateur',
+    pg_temp.lignes_journal(format('pour = %L', jr1)),
+    format('donne|%s|promo|%s|1|Formateur ; retire|%s|promo|%s|1|Formateur', v_dirl, v_l1, v_dirl, v_l1));
+  perform pg_temp.attendre('journal', 'donne : pas d''avant, un après ; retire : un avant, pas d''après',
+    pg_temp.calcul(format($q$select string_agg((avant is null)::text || '/' || (apres is null)::text, ' ; ' order by id) from public.journal_droits where pour = %L$q$, jr1)),
+    'true/false ; false/true');
+  perform pg_temp.attendre('journal', 'l''avant et l''après portent le titre fixe, son nom, ses cases et sa portée',
+    pg_temp.calcul(format($q$select count(*)::text from public.journal_droits j where j.pour = %L
+      and coalesce(j.apres, j.avant) = jsonb_build_object('titre_id', public.titre_fixe('promo'), 'nom', 'Formateur', 'cases', '{}'::jsonb,
+                                                          'niveau', 'promo', 'lieu_id', %s, 'promo_id', 1)$q$, jr1, v_l1)), '2');
+
+  -- 2. cree, ajuste, supprime : un titre de centre, en propriétaire puis par un jeton (adresse en majuscules).
+  v_t := pg_temp.nouveau_titre('Preuve7 journal', 'centre', v_l1);
+  perform pg_temp.attendre('journal', 'un titre créé en propriétaire : cree, par système, niveau centre, centre, pas de promo',
+    pg_temp.lignes_journal($q$titre_nom = 'Preuve7 journal'$q$), format('cree|système|centre|%s|-|Preuve7 journal', v_l1));
+  perform pg_temp.essai(format($q$update public.titres set cases = cases, modifie_par = 'preuve' where id = %s$q$, coalesce(v_t, '0')));
+  perform pg_temp.attendre('journal', 'une modification qui ne touche ni le nom, ni les cases, ni la portée n''écrit rien',
+    pg_temp.calcul($q$select count(*)::text from public.journal_droits where titre_nom = 'Preuve7 journal'$q$), '1');
+  perform pg_temp.attendre('journal', 'les cases du titre ajustées par un jeton (adresse en majuscules) : ajuste, par son adresse en minuscules',
+    (left(pg_temp.valeur_proprio(upper(v_dir), null, null,
+      format($q$update public.titres set cases = '{"promos":"voir","equipe":"voir"}' where id = %s returning id::text$q$, coalesce(v_t, '0'))), 6) <> 'ERREUR' and
+    pg_temp.lignes_journal($q$titre_nom = 'Preuve7 journal' and action = 'ajuste'$q$) = format('ajuste|%s|centre|%s|-|Preuve7 journal', v_dirl, v_l1))::text, 'true');
+  perform pg_temp.attendre('journal', 'ajuste : l''avant et l''après diffèrent par les cases',
+    pg_temp.calcul($q$select count(*)::text from public.journal_droits where action = 'ajuste' and titre_nom = 'Preuve7 journal'
+      and avant -> 'cases' = '{}'::jsonb and apres -> 'cases' = '{"promos":"voir","equipe":"voir"}'::jsonb$q$), '1');
+  perform pg_temp.essai(format('delete from public.titres where id = %s', coalesce(v_t, '0')));
+  perform pg_temp.attendre('journal', 'le titre supprimé en propriétaire : cree, ajuste, supprime',
+    pg_temp.calcul($q$select string_agg(action || '/' || par, ' ; ' order by id) from public.journal_droits where titre_nom = 'Preuve7 journal'$q$),
+    format('cree/système ; ajuste/%s ; supprime/système', v_dirl));
+
+  -- 3. change : une ligne qui change de titre.
+  v_t2 := pg_temp.nouveau_titre('Preuve7 journal promo', 'promo', v_l1);
+  perform pg_temp.affecter(jr2, 'formateur', 1, null, null);
+  perform pg_temp.essai(format($q$update public.affectations set cree_par = 'preuve' where email = %L$q$, jr2));
+  perform pg_temp.attendre('journal', 'une modification qui ne change pas le titre n''écrit rien',
+    pg_temp.calcul(format('select count(*)::text from public.journal_droits where pour = %L', jr2)), '1');
+  perform pg_temp.essai(format('update public.affectations set titre_id = %s where email = %L', coalesce(v_t2, '0'), jr2));
+  perform pg_temp.attendre('journal', 'un changement de titre : donne puis change, avec le nouveau titre',
+    pg_temp.lignes_journal(format('pour = %L', jr2)),
+    format('donne|système|promo|%s|1|Formateur ; change|système|promo|%s|1|Preuve7 journal promo', v_l1, v_l1));
+  perform pg_temp.attendre('journal', 'change : l''avant porte le titre fixe, l''après le nouveau titre',
+    pg_temp.calcul(format($q$select (avant ->> 'titre_id') || '>' || (apres ->> 'titre_id') = public.titre_fixe('promo')::text || '>' || %L
+      from public.journal_droits where pour = %L and action = 'change'$q$, coalesce(v_t2, '0'), jr2)), 'true');
+
+  -- 4. La mise en minuscules d'une adresse (cascade) n'écrit rien.
+  perform pg_temp.affecter(jr3, 'formateur', 1, null, null);
+  perform pg_temp.attendre('journal', 'une adresse en majuscules : une ligne donne, adresse écrite en minuscules',
+    pg_temp.lignes_journal(format('pour = %L', lower(jr3))), format('donne|système|promo|%s|1|Formateur', v_l1));
+  perform pg_temp.essai(format('update public.user_profiles set email = lower(email) where email = %L', jr3));
+  perform pg_temp.essai(format('update public.affectations set email = lower(email) where email = %L', lower(jr3)));
+  perform pg_temp.attendre('journal', 'la mise en minuscules de l''adresse (cascade comprise) n''écrit rien',
+    pg_temp.calcul(format($q$select count(*)::text || '/' || (select count(*) from public.affectations where email = %L)::text from public.journal_droits where lower(pour) = %L$q$, lower(jr3), lower(jr3))), '1/1');
+
+  -- 5. Une promo qui part en cascade : retire, par système, centre inconnu.
+  v_promo := pg_temp.calcul(format($q$insert into public.promos (lieu_id, nom, date_debut) values (%s, 'Preuve7 journal cascade', current_date) returning id::text$q$, v_l1));
+  perform pg_temp.affecter(jr4, 'formateur', v_promo::integer, null, null);
+  perform pg_temp.essai(format('delete from public.promos where id = %s', coalesce(v_promo, '0')));
+  perform pg_temp.attendre('journal', 'la promo supprimée emporte l''affectation : retire, par système, centre inconnu (la promo n''existe plus)',
+    pg_temp.lignes_journal(format('pour = %L', jr4)),
+    format('donne|système|promo|%s|%s|Formateur ; retire|système|promo|-|%s|Formateur', v_l1, v_promo, v_promo));
+
+  -- 6. Une invitation de stagiaire n'écrit rien, et aucune adresse de compte à fiche n'est dans le journal.
+  v_fiche := pg_temp.calcul($q$insert into public.stagiaires (prenom, nom, ordre, promo_id) values ('Preuve7 invité', 'JOURNAL', 991, 1) returning id::text$q$);
+  v_n_avant := pg_temp.calcul('select count(*)::text from public.journal_droits');
+  v_res := pg_temp.appeler('dir_n', '1', format($q$select public.inviter_compte('preuve7.jr.stagiaire@exemple.invalid', 'stagiaire', %s)::text$q$, coalesce(v_fiche, '0')));
+  perform pg_temp.attendre('journal', 'dir_n invite un stagiaire : accepté', left(v_res, 2), 'OK');
+  perform pg_temp.attendre('journal', 'une invitation de stagiaire n''écrit rien dans le journal',
+    pg_temp.calcul('select count(*)::text from public.journal_droits'), v_n_avant);
+  perform pg_temp.attendre('journal', 'aucune ligne du journal ne contient l''adresse d''un compte qui a une fiche (hors personnel)',
+    pg_temp.calcul($q$select count(*)::text from public.journal_droits j, public.user_profiles u
+      where u.stagiaire_id is not null and not exists (select 1 from public.affectations a where lower(a.email) = lower(u.email))
+        and (lower(j.par) = lower(u.email) or lower(j.pour) = lower(u.email) or j.titre_nom ilike '%' || u.email || '%'
+             or j.avant::text ilike '%' || u.email || '%' or j.apres::text ilike '%' || u.email || '%')$q$), '0');
+  perform pg_temp.attendre('journal', 'aucune adresse dans l''avant ni l''après d''aucune ligne',
+    pg_temp.calcul($q$select count(*)::text from public.journal_droits where avant::text like '%@%' or apres::text like '%@%'$q$), '0');
+  perform pg_temp.attendre('journal', 'le journal a bien des lignes à juger (jamais un contrôle à vide)',
+    pg_temp.calcul($q$select (count(*) >= 10)::text from public.journal_droits$q$), 'true');
+
+  -- 7. Droits : ni lecture ni écriture pour anon ni authenticated.
+  perform pg_temp.attendre('journal', 'authenticated ne lit pas le journal (42501)', pg_temp.valeur(v_dir, '1', null, 'select count(*)::text from public.journal_droits'), 'ERREUR 42501');
+  perform pg_temp.attendre('journal', 'anon ne lit pas le journal (42501)', pg_temp.valeur(null, null, null, 'select count(*)::text from public.journal_droits'), 'ERREUR 42501');
+  perform pg_temp.attendre('journal', 'authenticated n''écrit pas dans le journal (insertion, modification, suppression : 42501)',
+    pg_temp.valeur(v_dir, '1', null, $q$insert into public.journal_droits (par, action, titre_nom, niveau) values ('x', 'donne', 'x', 'promo') returning id::text$q$) || ' ' ||
+    pg_temp.valeur(v_dir, '1', null, $q$update public.journal_droits set par = 'x' returning id::text$q$) || ' ' ||
+    pg_temp.valeur(v_dir, '1', null, $q$delete from public.journal_droits returning id::text$q$), 'ERREUR 42501 ERREUR 42501 ERREUR 42501');
+  perform pg_temp.attendre('journal', 'anon n''écrit pas dans le journal (42501)',
+    pg_temp.valeur(null, null, null, $q$insert into public.journal_droits (par, action, titre_nom, niveau) values ('x', 'donne', 'x', 'promo') returning id::text$q$) || ' ' ||
+    pg_temp.valeur(null, null, null, $q$delete from public.journal_droits returning id::text$q$), 'ERREUR 42501 ERREUR 42501');
+  perform pg_temp.attendre('journal', 'aucun droit de table ni de séquence pour anon ni authenticated (PUBLIC compris, par héritage)',
+    pg_temp.calcul($q$select ((select count(*) from (select unnest(array['select','insert','update','delete','truncate','references','trigger']) p) x, unnest(array['anon','authenticated']) r
+        where has_table_privilege(r, 'public.journal_droits', x.p))
+      + (select count(*) from (select unnest(array['usage','select','update']) p) x, unnest(array['anon','authenticated']) r
+        where has_sequence_privilege(r, 'public.journal_droits_id_seq', x.p)))::text$q$), '0');
+  perform pg_temp.attendre('journal', 'sécurité par ligne active, aucune règle',
+    pg_temp.calcul($q$select (c.relrowsecurity and not exists (select 1 from pg_policies p where p.schemaname = 'public' and p.tablename = 'journal_droits'))::text from pg_class c where c.oid = 'public.journal_droits'::regclass$q$), 'true');
+  perform pg_temp.attendre('journal', 'les deux déclencheurs n''ont aucun droit d''exécution ; effacer_adresse_journal : authenticated oui, anon non',
+    pg_temp.calcul($q$select ((select count(*) from unnest(array['public._journal_affectations()', 'public._journal_titres()']) f, unnest(array['anon','authenticated']) r where has_function_privilege(r, f, 'execute'))
+      || '/' || has_function_privilege('authenticated', 'public.effacer_adresse_journal(text)', 'execute')::text
+      || '/' || has_function_privilege('anon', 'public.effacer_adresse_journal(text)', 'execute')::text)$q$), '0/true/false');
+  perform pg_temp.attendre('journal', 'quatre déclencheurs : deux sur les affectations, deux sur les titres',
+    pg_temp.calcul($q$select string_agg(tgrelid::regclass::text || ':' || tgname, ',' order by tgname collate "C") from pg_trigger
+      where tgname in ('journal_affectations_ecriture', 'journal_affectations_titre', 'journal_titres_ecriture', 'journal_titres_ajuste')$q$),
+    'affectations:journal_affectations_ecriture,affectations:journal_affectations_titre,titres:journal_titres_ajuste,titres:journal_titres_ecriture');
+
+  -- 8. La purge à trois ans, à l'écriture.
+  perform pg_temp.attendre('journal', 'deux lignes posées sous replica : une de 3 ans et 1 jour, une de 2 ans et 364 jours',
+    pg_temp.poser_vieille('Preuve7 trois ans un jour', interval '3 years 1 day') || ' ' || pg_temp.poser_vieille('Preuve7 presque trois ans', interval '2 years 364 days'), 'OK OK');
+  perform pg_temp.attendre('journal', 'avant toute écriture : les deux lignes anciennes sont là',
+    pg_temp.calcul($q$select count(*)::text from public.journal_droits where titre_nom = 'Preuve7 ancienne'$q$), '2');
+  perform pg_temp.nouveau_titre('Preuve7 purge titre', 'reseau', null);
+  perform pg_temp.attendre('journal', 'après l''écriture d''un titre : la ligne de 3 ans et 1 jour a disparu, celle de 2 ans et 364 jours reste',
+    pg_temp.calcul($q$select string_agg(par, ',' order by par collate "C") from public.journal_droits where titre_nom = 'Preuve7 ancienne'$q$), 'Preuve7 presque trois ans');
+  perform pg_temp.attendre('journal', 'une autre ligne de 3 ans et 1 jour posée de nouveau',
+    pg_temp.poser_vieille('Preuve7 trois ans un jour bis', interval '3 years 1 day'), 'OK');
+  perform pg_temp.affecter(jr1, 'formateur', 1, null, null);
+  perform pg_temp.attendre('journal', 'après l''écriture d''une affectation : elle a disparu aussi, l''autre reste',
+    pg_temp.calcul($q$select string_agg(par, ',' order by par collate "C") from public.journal_droits where titre_nom = 'Preuve7 ancienne'$q$), 'Preuve7 presque trois ans');
+
+  -- 9. L'effacement d'une adresse.
+  perform pg_temp.attendre('journal', 'effacer_adresse_journal refusée à dir_n (42501, phrase du refus)',
+    pg_temp.appeler('dir_n', '1', format('select public.effacer_adresse_journal(%L)::text', jr2)), 'ERREUR 42501 journal: Réservé au fondateur.');
+  perform pg_temp.attendre('journal', 'effacer_adresse_journal refusée au fondateur en aperçu direction (42501)',
+    pg_temp.valeur(v_fond, '1', 'direction', format('select public.effacer_adresse_journal(%L)::text', jr2)), 'ERREUR 42501');
+  perform pg_temp.attendre('journal', 'effacer_adresse_journal refusée à anon (42501)',
+    pg_temp.valeur(null, null, null, format('select public.effacer_adresse_journal(%L)::text', jr2)), 'ERREUR 42501');
+  perform pg_temp.attendre('journal', 'le fondateur remplace les 3 lignes qui portent l''adresse du premier formateur (casse ignorée) : donne, retire, puis donne de nouveau',
+    pg_temp.appeler('fond', '1', format('select public.effacer_adresse_journal(%L)::text', upper(jr1))), 'OK 3');
+  perform pg_temp.attendre('journal', 'après l''effacement : plus aucune ligne à cette adresse, « compte effacé » à la place, le geste et son auteur restent',
+    pg_temp.calcul(format($q$select (select count(*) from public.journal_droits where lower(pour) = %L)::text || '/'
+      || (select count(*) from public.journal_droits where pour = 'compte effacé' and titre_nom = 'Formateur' and par in (%L, 'système'))::text$q$, jr1, v_dirl)), '0/3');
+  -- L'adresse de l'auteur, cette fois dans « par » : toutes les lignes écrites par dir_n.
+  v_n_dir := pg_temp.calcul(format('select count(*)::text from public.journal_droits where lower(par) = %L or lower(pour) = %L', v_dirl, v_dirl));
+  perform pg_temp.attendre('journal', 'le fondateur efface l''adresse de dir_n (par) : le nombre de lignes touchées égale le nombre de lignes à son adresse',
+    pg_temp.appeler('fond', '1', format('select public.effacer_adresse_journal(%L)::text', v_dir)), 'OK ' || v_n_dir);
+  perform pg_temp.attendre('journal', 'après l''effacement de dir_n : plus aucune ligne à son adresse, et il y en avait',
+    pg_temp.calcul(format($q$select (count(*) filter (where lower(par) = %L or lower(pour) = %L))::text || '/' || (%s > 0)::text from public.journal_droits$q$, v_dirl, v_dirl, v_n_dir)), '0/true');
+end $tgj$;
+
 do $tprv$
 declare
   v_mode constant text :=
@@ -899,6 +1086,12 @@ begin
 -- @@INJECTER supabase/migrations/20261112_titres_4_journal.sql@@
   );
   perform pg_temp.etape('migration 4', v_etat, v_mode);
+  if v_en_ligne or v_etat <> 'jouée' then
+    perform pg_temp.informer('journal : rien pour les lignes existantes', 'non jugeable (migration 4 non injectée ou déjà appliquée)');
+  else
+    perform pg_temp.attendre('journal', 'rien n''est journalisé pour les lignes existantes (affectations d''avant, fixes comprises)',
+      pg_temp.calcul($q$select count(*)::text from public.journal_droits$q$), '0');
+  end if;
 
   -- 3. Groupe titres : les lignes que la migration 1 pose d'elle-même, avant tout essai.
   perform pg_temp.attendre('titres', 'trois titres fixes, un par niveau',
@@ -1252,6 +1445,9 @@ begin
   -- 8 quinquies. Groupe cases : les 93 règles passent par les gestes (migration 3).
   perform pg_temp.groupe_cases();
 
+  -- 8 sexies. Groupe journal : le journal des droits du personnel (migration 4).
+  perform pg_temp.groupe_journal();
+
   -- 9. Les retours, dans l'ordre inverse (4, 3, 2, 1).
   v_retour := pg_temp.jouer('retour 4',
 -- @@INJECTER supabase/migrations/20261112_titres_4_journal_retour.sql@@
@@ -1289,6 +1485,11 @@ begin
       'sans table/0/0');
     perform pg_temp.attendre('retour', 'après les retours : les cinq fonctions de la migration 1 ont disparu',
       pg_temp.calcul($q$select count(*)::text from pg_proc where pronamespace = 'public'::regnamespace and proname in ('_pages_du_niveau', '_cases_valides', 'titre_fixe', '_affectations_titre', '_titres_stable')$q$), '0');
+    perform pg_temp.attendre('retour', 'après les retours : plus de journal, plus de déclencheur du journal, plus de fonction du journal',
+      pg_temp.calcul($q$select concat_ws('/', coalesce(to_regclass('public.journal_droits')::text, 'sans table'),
+        (select count(*) from pg_trigger where tgname like 'journal\_%')::text,
+        (select count(*) from pg_proc where pronamespace = 'public'::regnamespace and proname in ('_journal_affectations', '_journal_titres', 'effacer_adresse_journal'))::text)$q$),
+      'sans table/0/0');
     perform pg_temp.attendre('retour', 'après les retours : empreinte regles identique à celle d''avant', v_ap_regles, v_av_regles);
     perform pg_temp.attendre('retour', 'après les retours : empreinte fonctions identique à celle d''avant', v_ap_fonctions, v_av_fonctions);
     perform pg_temp.attendre('retour', 'après les retours : empreinte droits identique à celle d''avant', v_ap_droits, v_av_droits);

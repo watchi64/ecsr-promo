@@ -851,7 +851,8 @@ begin
     'dir_de', quote_literal((case when p_fondateur then p_lieux else p_direction_de end)::text) || '::integer[]');
 end $fx$;
 
--- Nombre total de lignes d'une promo dans toutes les tables de public qui portent une colonne promo_id, vu par un compte
+-- Nombre total de lignes d'une promo dans toutes les tables de public qui portent une colonne promo_id (sauf les questionnaires et le
+-- journal des droits, qui ne se lisent que par des fonctions), vu par un compte
 -- (ou, avec p_proprio, par le propriétaire, sans contexte).
 create or replace function pg_temp.lignes_de_promo(p_email text, p_hdr text, p_promo integer, p_proprio boolean default false)
 returns text language plpgsql as $fx$
@@ -861,7 +862,8 @@ begin
     into v_sql
     from information_schema.columns c
     join information_schema.tables t on t.table_schema = c.table_schema and t.table_name = c.table_name and t.table_type = 'BASE TABLE'
-   where c.table_schema = 'public' and c.column_name = 'promo_id' and c.table_name not like 'questionnaire\_%';
+   where c.table_schema = 'public' and c.column_name = 'promo_id' and c.table_name not like 'questionnaire\_%'
+     and c.table_name <> 'journal_droits';
   return case when p_proprio then pg_temp.calcul(v_sql) else pg_temp.valeur(p_email, p_hdr, null, v_sql) end;
 end $fx$;
 
