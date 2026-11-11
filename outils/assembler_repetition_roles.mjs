@@ -37,6 +37,14 @@
 //                              20261111_espaces_4_donnees et son retour injectés (après les migrations 1 à 3 du lot) ;
 //   donnees-contre-epreuve     la même sans la migration ni son retour : ROUGE attendu sur ses seules lignes ;
 //   donnees-en-ligne           la même sans rien d'injecté, après l'application réelle de la migration.
+//   titres [--etapes 1,2]      preuve du chantier « titres et droits à la carte » (tests/sql/titres-preuve.sql) : les
+//                              migrations 20261112_titres_1 à _4 puis, dans l'ordre inverse (4, 3, 2, 1), leurs retours ;
+//                              une étape dont la migration ou le retour manque est neutralisée (select 1) tant que sa tâche
+//                              n'est pas faite ; --etapes (1 à 1,2,3,4) fixe les étapes injectées, et une étape demandée
+//                              dont un fichier manque arrête l'assemblage ;
+//   titres-contre-epreuve      la même preuve sans aucune migration ni retour (neutralisés, non lus) : ROUGE attendu sur
+//                              chaque contrôle du groupe titres ;
+//   titres-en-ligne            la même sans rien d'injecté, après l'application réelle des migrations.
 //
 // Option --compact (tous les modes) : retire du gabarit et des aides les lignes vides et les lignes de commentaire, pour
 // une requête plus courte à transmettre (R27). Les textes injectés (migrations, retours, requête d'empreinte) restent
@@ -60,6 +68,7 @@ const GABARIT_1 = "tests/sql/roles-1-preuve.sql";
 const GABARIT_ROLES = "tests/sql/roles-preuve.sql";
 const GABARIT_ESPACES = "tests/sql/espaces-preuve.sql";
 const GABARIT_DONNEES = "tests/sql/espaces-donnees-preuve.sql";
+const GABARIT_TITRES = "tests/sql/titres-preuve.sql";
 
 /** Lot 5, étape 1 : la migration du siège et son retour. */
 export const MIGRATION_ESPACES = { migration: "supabase/migrations/20261108_espaces_1_siege.sql",
@@ -87,6 +96,20 @@ export const ETAPES = {
        retour: "supabase/migrations/20261028_roles_3_regles_retour.sql" },
 };
 
+/** Chantier titres et droits à la carte : les quatre migrations du chantier, chacune avec son retour. */
+export const ETAPES_TITRES = {
+  1: { migration: "supabase/migrations/20261112_titres_1_tables.sql",
+       retour: "supabase/migrations/20261112_titres_1_tables_retour.sql" },
+  2: { migration: "supabase/migrations/20261112_titres_2_gestes.sql",
+       retour: "supabase/migrations/20261112_titres_2_gestes_retour.sql" },
+  3: { migration: "supabase/migrations/20261112_titres_3_regles.sql",
+       retour: "supabase/migrations/20261112_titres_3_regles_retour.sql" },
+  4: { migration: "supabase/migrations/20261112_titres_4_journal.sql",
+       retour: "supabase/migrations/20261112_titres_4_journal_retour.sql" },
+};
+const NB_ETAPES_TITRES = 4;
+const TOUS_TITRES = Object.values(ETAPES_TITRES).flatMap((e) => [e.migration, e.retour]);
+
 /** Les modes : le gabarit et, soit les injections à neutraliser (preuve de l'étape 1), soit les étapes à injecter
  *  (preuve rôle par rôle, les autres étapes étant neutralisées). */
 export const MODES = {
@@ -112,6 +135,11 @@ export const MODES = {
                               libelle: "donnees-contre-epreuve (migration 4 non injectee)" },
   "donnees-en-ligne": { gabarit: GABARIT_DONNEES, neutres: [MIGRATION_ESPACES_4.migration, MIGRATION_ESPACES_4.retour],
                         libelle: "donnees-en-ligne (aucune migration injectee)" },
+  // Chantier titres : preuve à part, jouée après la suite du lot 5. Le mode « titres » décide des étapes injectées selon les
+  // fichiers présents (ou --etapes) ; les deux autres neutralisent tout.
+  "titres": { gabarit: GABARIT_TITRES, titres: true, etapesAuChoix: true },
+  "titres-contre-epreuve": { gabarit: GABARIT_TITRES, neutres: TOUS_TITRES, libelle: "titres-contre-epreuve (aucune migration injectee)" },
+  "titres-en-ligne": { gabarit: GABARIT_TITRES, neutres: TOUS_TITRES, libelle: "titres-en-ligne (aucune migration injectee)" },
   "espaces-en-ligne": { gabarit: GABARIT_ESPACES,
                         neutres: [MIGRATION_ESPACES.migration, MIGRATION_ESPACES.retour, MIGRATION_ESPACES_2.migration, MIGRATION_ESPACES_2.retour,
                                   MIGRATION_ESPACES_3.migration, MIGRATION_ESPACES_3.retour],
@@ -162,9 +190,14 @@ export function lireEtapes(etapes) {
   return etapes.flatMap((n) => [ETAPES[n].migration, ETAPES[n].retour]);
 }
 
-/** Les étapes admises : chacune s'appuie sur la précédente (1 ; 1, 2 ; 1, 2, 3). */
-function etapesValides(etapes) {
-  return Array.isArray(etapes) && etapes.length >= 1 && etapes.length <= 3 && etapes.every((n, i) => n === i + 1);
+/** Les étapes admises : chacune s'appuie sur la précédente (1 ; 1, 2 ; 1, 2, 3 ; au plus `max`). */
+function etapesValides(etapes, max = 3) {
+  return Array.isArray(etapes) && etapes.length >= 1 && etapes.length <= max && etapes.every((n, i) => n === i + 1);
+}
+
+/** Les fichiers des étapes du chantier titres, étape par étape : la migration, puis son retour. */
+export function lireEtapesTitres(etapes) {
+  return etapes.flatMap((n) => [ETAPES_TITRES[n].migration, ETAPES_TITRES[n].retour]);
 }
 
 /**
@@ -176,7 +209,14 @@ export function decrireMode(mode, { etapes } = {}) {
   const d = MODES[mode];
   if (!d) throw new Error(`Mode inconnu « ${mode} » (modes : ${Object.keys(MODES).join(", ")}).`);
   if (etapes !== undefined && !d.etapesAuChoix) {
-    throw new Error(`--etapes ne vaut que pour le mode repetition (mode demandé : ${mode}).`);
+    throw new Error(`--etapes ne vaut que pour le mode repetition ou titres (mode demandé : ${mode}).`);
+  }
+  if (d.titres) {
+    if (etapes !== undefined && !etapesValides(etapes, NB_ETAPES_TITRES)) {
+      throw new Error(`étapes refusées : « ${etapes.join(",")} » (attendu : 1, 1,2, 1,2,3 ou 1,2,3,4 ; chaque étape s'appuie sur la précédente).`);
+    }
+    // Les fichiers présents se jugent sur le disque, dans assemblerMode : ici, seulement ce que l'appelant a demandé.
+    return { gabarit: d.gabarit, titres: true, etapesTitres: etapes ?? [1, 2, 3, 4], neutres: [], etapes: null, mode: null, requis: [] };
   }
   if (!d.etapes) return { gabarit: d.gabarit, neutres: d.neutres, etapes: null, mode: d.libelle ?? null, requis: [] };
   const choisies = etapes ?? d.etapes;
@@ -350,9 +390,33 @@ export function assemblerMode(mode, racine = RACINE, { etapes, lire, compact = f
       }
     }
   }
+  let { neutres, mode: libelle } = decrit;
+  if (decrit.titres) {
+    // Étapes injectées : celles qu'on a demandées (un fichier manquant arrête alors l'assemblage), sinon celles dont la
+    // migration et le retour existent déjà ; les autres sont neutralisées, sans être lues.
+    const injectees = [];
+    for (let n = 1; n <= NB_ETAPES_TITRES; n++) {
+      const fichiers = lireEtapesTitres([n]);
+      if (decrit.etapesTitres) {
+        if (!decrit.etapesTitres.includes(n)) continue;
+        for (const chemin of fichiers) {
+          if (lireFichier(chemin) == null) {
+            const pretes = [1, 2, 3, 4].filter((k) => k < n);
+            throw new Error(`Étape ${n} demandée (${mode}) : ${chemin} n'existe pas encore. En attendant : mode titres-contre-epreuve, ou titres${pretes.length ? ` --etapes ${pretes.join(",")}` : ""}.`);
+          }
+        }
+        injectees.push(n);
+      } else if (fichiers.every((chemin) => lireFichier(chemin) != null)) {
+        injectees.push(n);
+      }
+    }
+    neutres = lireEtapesTitres([1, 2, 3, 4].filter((n) => !injectees.includes(n)));
+    libelle = injectees.length === 0 ? "titres (aucune etape injectee)"
+      : `titres (${injectees.length === 1 ? "etape" : "etapes"} ${injectees.join(", ")} injectees)`;
+  }
   const gabarit = lireFichier(decrit.gabarit);
   if (gabarit == null) throw new Error(`Gabarit introuvable : ${decrit.gabarit}.`);
-  return assembler(gabarit, lireFichier, { nom: decrit.gabarit, neutres: decrit.neutres, mode: decrit.mode, compact });
+  return assembler(gabarit, lireFichier, { nom: decrit.gabarit, neutres, mode: libelle, compact });
 }
 
 /** Une liste d'étapes écrite en ligne de commande (« 1,2 ») ; la validité se juge dans decrireMode. */

@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  ETAPES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, MIGRATION_ESPACES_4, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
+  ETAPES, ETAPES_TITRES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, MIGRATION_ESPACES_4, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
 } from "../outils/assembler_repetition_roles.mjs";
 
 // outils/assembler_repetition_roles.mjs fabrique le fichier SQL d'une répétition du lot 4 : le gabarit de la preuve,
@@ -795,4 +795,152 @@ test("le retour de la migration 4 remet les fragments d'origine (les mêmes, dan
     assert.match(r, new RegExp(`drop function if exists public\\.${f};`), f);
   }
   assert.ok(!/drop function[^;]*(anonymiser_promo\(\)|etat_anonymisation_promo\(\)|benevoles_a_purger\(\)|purger_benevoles\(integer\[\]\))/.test(r), "les versions sans argument ne sont jamais retirées");
+});
+
+// --- Chantier titres et droits à la carte : modes titres, titres-contre-epreuve, titres-en-ligne ------------------------------
+
+const GABARIT_TITRES = "tests/sql/titres-preuve.sql";
+const TITRES_1 = ETAPES_TITRES[1];
+// Les fichiers des étapes 2 à 4 n'existent qu'avec leurs tâches : des textes factices en mémoire, pour juger l'assembleur seul.
+const FACTICES_TITRES = Object.fromEntries([2, 3, 4].flatMap((n) => [
+  [ETAPES_TITRES[n].migration, `-- factice : titres migration ${n}\r\nselect ${n};\r\n`],
+  [ETAPES_TITRES[n].retour, `-- factice : titres retour ${n}\r\nselect -${n};\r\n`]]));
+const depotTitres = (chemin) => duDisque(chemin) ?? FACTICES_TITRES[chemin] ?? null;
+const TOUS_FICHIERS_TITRES = Object.values(ETAPES_TITRES).flatMap((e) => [e.migration, e.retour]);
+// Le dépôt réel, privé de tout fichier du chantier sauf ceux qu'on garde (le cas d'une étape non encore faite).
+const sansTitres = (garde) => (chemin) => (TOUS_FICHIERS_TITRES.includes(chemin) && !garde.includes(chemin) ? null : duDisque(chemin));
+const ORDRE_TITRES = [1, 2, 3, 4].map((n) => ETAPES_TITRES[n].migration).concat([4, 3, 2, 1].map((n) => ETAPES_TITRES[n].retour));
+
+test("titres : migrations 1 à 4 puis retours 4, 3, 2, 1 injectés octet pour octet, dans l'ordre du gabarit, après l'empreinte", () => {
+  const r = assemblerMode("titres", RACINE, { lire: depotTitres });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...ORDRE_TITRES]);
+  assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES]);
+  assert.deepEqual(r.neutralises, []);
+  verifierInjections(r, depotTitres);
+  assert.equal(r.mode, "titres (etapes 1, 2, 3, 4 injectees)");
+  assert.ok(r.texte.includes("\n'titres (etapes 1, 2, 3, 4 injectees)'\n"));
+});
+
+test("titres sans --etapes : les quatre étapes par défaut, un fichier manquant arrête l'assemblage (jamais un VERT sur moins d'étapes)", () => {
+  const r = assemblerMode("titres", RACINE, { lire: depotTitres });
+  assert.equal(r.mode, "titres (etapes 1, 2, 3, 4 injectees)");
+  assert.deepEqual(r.neutralises, []);
+  assert.throws(() => assemblerMode("titres", RACINE, { lire: sansTitres([TITRES_1.migration, TITRES_1.retour]) }),
+    /Étape 2 demandée \(titres\) : supabase\/migrations\/20261112_titres_2_gestes\.sql n'existe pas encore/);
+  assert.throws(() => assemblerMode("titres", RACINE, { lire: sansTitres([]) }), /Étape 1 demandée \(titres\)/);
+});
+
+test("titres --etapes 1 à 1,2,3,4 : les étapes demandées injectées, les autres neutralisées et non lues ; un fichier manquant d'une étape demandée arrête l'assemblage", () => {
+  for (const [etapes, mode] of [[[1], "titres (etape 1 injectees)"], [[1, 2], "titres (etapes 1, 2 injectees)"], [[1, 2, 3], "titres (etapes 1, 2, 3 injectees)"], [[1, 2, 3, 4], "titres (etapes 1, 2, 3, 4 injectees)"]]) {
+    const lus = [];
+    const r = assemblerMode("titres", RACINE, { etapes, lire: (c) => { lus.push(c); return depotTitres(c); } });
+    const injectes = etapes.flatMap((n) => [ETAPES_TITRES[n].migration, ETAPES_TITRES[n].retour]);
+    assert.deepEqual(r.injections.map((x) => x.chemin).sort(), [EMPREINTE, ...injectes].sort(), JSON.stringify(etapes));
+    for (const c of r.neutralises) assert.ok(!lus.includes(c), `${c} neutralisé donc non lu`);
+    assert.equal(r.neutralises.length, 8 - injectes.length);
+    assert.equal(r.mode, mode);
+  }
+  assert.throws(() => assemblerMode("titres", RACINE, { etapes: [1, 2], lire: sansTitres([TITRES_1.migration, TITRES_1.retour]) }),
+    /Étape 2 demandée \(titres\) : supabase\/migrations\/20261112_titres_2_gestes\.sql n'existe pas encore.*titres-contre-epreuve.*--etapes 1/s);
+  assert.throws(() => assemblerMode("titres", RACINE, { etapes: [1], lire: sansTitres([]) }),
+    /Étape 1 demandée \(titres\) : supabase\/migrations\/20261112_titres_1_tables\.sql n'existe pas encore.*titres-contre-epreuve/s);
+  // Seul le retour manque : l'étape demandée arrête aussi l'assemblage.
+  assert.throws(() => assemblerMode("titres", RACINE, { etapes: [1, 2], lire: (c) => (c === ETAPES_TITRES[2].retour ? null : depotTitres(c)) }),
+    /Étape 2 demandée \(titres\) : supabase\/migrations\/20261112_titres_2_gestes_retour\.sql n'existe pas encore/);
+});
+
+test("titres : étapes refusées (hors 1 à 4, non consécutives), --etapes refusé ailleurs, mode repetition inchangé", () => {
+  assert.deepEqual(decrireMode("titres").etapesTitres, [1, 2, 3, 4]);
+  assert.deepEqual(decrireMode("titres", { etapes: [1, 2, 3, 4] }).etapesTitres, [1, 2, 3, 4]);
+  for (const mauvaise of [[], [2], [1, 3], [2, 1], [1, 2, 3, 4, 5], [0]]) {
+    assert.throws(() => decrireMode("titres", { etapes: mauvaise }), /étapes refusées/, JSON.stringify(mauvaise));
+  }
+  for (const mode of ["titres-contre-epreuve", "titres-en-ligne"]) {
+    assert.throws(() => decrireMode(mode, { etapes: [1] }), /--etapes ne vaut que pour le mode repetition ou titres/, mode);
+  }
+  assert.throws(() => decrireMode("repetition", { etapes: [1, 2, 3, 4] }), /étapes refusées/);
+  assert.deepEqual(decrireMode("repetition", { etapes: [1, 2, 3] }).etapes, [1, 2, 3]);
+});
+
+test("titres-contre-epreuve et titres-en-ligne : les huit fichiers neutralisés et non lus, l'empreinte toujours là, libellés distincts", () => {
+  for (const mode of ["titres-contre-epreuve", "titres-en-ligne"]) {
+    const lus = [];
+    const r = assemblerMode(mode, RACINE, { lire: (chemin) => { lus.push(chemin); return duDisque(chemin); } });
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE], mode);
+    assert.deepEqual([...r.neutralises].sort(), [...TOUS_FICHIERS_TITRES].sort(), mode);
+    assert.ok(TOUS_FICHIERS_TITRES.every((c) => !lus.includes(c)), mode + " : fichiers non lus");
+    assert.equal(r.neutralises.length, 8);
+  }
+  assert.ok(decrireMode("titres-en-ligne").mode.startsWith("titres-en-ligne"));
+  assert.ok(!decrireMode("titres-contre-epreuve").mode.startsWith("titres-en-ligne"));
+});
+
+test("la preuve des titres : mode en ligne reconnu par préfixe, pas de $$, aucune adresse qui ne soit fictive, aucun délimiteur partagé avec les migrations", () => {
+  const gabarit = texteDuDepot(GABARIT_TITRES);
+  assert.ok(!/\$\$/.test(gabarit), "pas de $$");
+  const m = /v_mode like '([^'%]*)%'/.exec(gabarit);
+  assert.ok(m && decrireMode("titres-en-ligne").mode.startsWith(m[1]));
+  for (const adresse of gabarit.match(/[\w.+-]+@[\w.-]+\.[a-z]+/g) ?? []) {
+    assert.ok(adresse.endsWith("@exemple.invalid"), `adresse de la preuve fictive : ${adresse}`);
+  }
+  // Une migration qui utiliserait un délimiteur déjà dans le gabarit ferait refuser l'assemblage : on le garde ici.
+  const delimiteurs = new Set(gabarit.match(/\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/g));
+  for (const chemin of TOUS_FICHIERS_TITRES.filter((c) => existsSync(join(RACINE, c)))) {
+    for (const d of delimiteurs) assert.ok(!texteDuDepot(chemin).includes(d), `${chemin} : ${d} figure aussi dans le gabarit`);
+  }
+});
+
+test("les fichiers du chantier titres présents : aucun tiret cadratin, fins de ligne LF, aucune adresse de connexion, lock_timeout en tête des migrations", () => {
+  for (const chemin of [...TOUS_FICHIERS_TITRES.filter((c) => existsSync(join(RACINE, c))), GABARIT_TITRES]) {
+    const brut = readFileSync(join(RACINE, chemin), "utf8");
+    assert.ok(!brut.includes(String.fromCharCode(0x2014)), `${chemin} : aucun tiret cadratin`);
+    assert.ok(!brut.includes("\r"), `${chemin} : fins de ligne LF`);
+    assert.ok(!/postgres(ql)?:\/\/[^\s"')]*:[^\s"')]*@/.test(brut), `${chemin} : aucune adresse de connexion avec mot de passe`);
+    if (chemin.startsWith("supabase/")) assert.match(brut, /^set local lock_timeout = '3s';$/m, `${chemin} : lock_timeout`);
+  }
+});
+
+test("la migration 1 des titres : fonctions internes sans droit d'exécution, table sans droit pour anon ni authenticated, aucun grant, retour dans l'ordre inverse", () => {
+  const m = texteDuDepot(TITRES_1.migration);
+  assert.match(m, /revoke all on public\.titres from public, anon, authenticated;/);
+  assert.match(m, /alter table public\.titres enable row level security;/);
+  for (const f of ["_pages_du_niveau\\(text\\)", "_cases_valides\\(text, jsonb\\)", "titre_fixe\\(text\\)", "_affectations_titre\\(\\)", "_titres_stable\\(\\)"]) {
+    assert.match(m, new RegExp(`revoke all on function public\\.${f} from public, anon, authenticated, service_role;`), f);
+  }
+  assert.ok(!/^\s*grant /m.test(m), "aucun grant : rien n'est donné aux comptes connectés avant l'étape 2");
+  assert.ok(!/create policy/.test(m), "aucune règle sur titres");
+  assert.match(m, /before insert or update of titre_id, email, role, promo_id, lieu_id on public\.affectations/);
+  const r = texteDuDepot(TITRES_1.retour);
+  const ordre = ["drop trigger", "drop function if exists public._affectations_titre", "drop column if exists titre_id", "drop table if exists public.titres", "drop function if exists public._titres_stable",
+    "drop function if exists public.titre_fixe", "drop function if exists public._cases_valides", "drop function if exists public._pages_du_niveau"];
+  const places = ordre.map((x) => r.indexOf(x));
+  assert.ok(places.every((x) => x >= 0), "tous les retraits présents");
+  assert.deepEqual([...places].sort((a, b) => a - b), places, "retraits dans l'ordre");
+});
+
+test("la migration 2 des titres (A) : dix fonctions stable security definer, exécution pour anon et authenticated sans PUBLIC, code inconnu 22023, retour qui les retire", () => {
+  const m = texteDuDepot(ETAPES_TITRES[2].migration);
+  const fonctions = ["case_promo(integer, text)", "case_centre(integer, text)", "case_reseau(text)", "formateur_fixe(integer)", "direction_fixe(integer)",
+    "siege_fixe()", "membre_stagiaire(integer)", "geste_promo(integer, text)", "geste_centre(integer, text)", "geste_reseau(text)"];
+  assert.equal((m.match(/^create function public\./gm) ?? []).length, fonctions.length);
+  assert.equal((m.match(/language (?:sql|plpgsql) stable security definer/g) ?? []).length, fonctions.length);
+  assert.equal((m.match(/set search_path to 'public', 'pg_temp'/g) ?? []).length, fonctions.length);
+  for (const f of fonctions) {
+    assert.ok(m.includes(`public.${f}`), `${f} citée dans les droits`);
+  }
+  const revoke = /revoke all on function ([^;]*) from public;/.exec(m);
+  const grant = /grant execute on function ([^;]*) to anon, authenticated;/.exec(m);
+  assert.ok(revoke && grant, "revoke from public puis grant to anon, authenticated");
+  for (const f of fonctions) {
+    assert.ok(revoke[1].includes(`public.${f}`) && grant[1].includes(`public.${f}`), `${f} : droits`);
+  }
+  assert.ok(!/\$\$/.test(m), "délimiteur $f$ seul");
+  assert.equal((m.match(/errcode = '22023'/g) ?? []).length, 3, "un code inconnu lève 22023 dans les trois fonctions de gestes");
+  assert.ok(!/create policy|alter policy/.test(m), "aucune règle touchée");
+  const r = texteDuDepot(ETAPES_TITRES[2].retour);
+  const places = fonctions.map((f) => r.indexOf(`drop function if exists public.${f};`));
+  assert.ok(places.every((x) => x >= 0), "tous les retraits présents");
+  const ordreRetrait = ["geste_reseau", "geste_centre", "geste_promo", "membre_stagiaire", "siege_fixe", "direction_fixe", "formateur_fixe", "case_reseau", "case_centre", "case_promo"]
+    .map((nom) => r.indexOf(`drop function if exists public.${nom}(`));
+  assert.deepEqual([...ordreRetrait].sort((a, b) => a - b), ordreRetrait, "retraits dans l'ordre inverse");
 });

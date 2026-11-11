@@ -418,6 +418,22 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
   select 'public.registre_qualite', '{Fo}', '{Fo}', '{Fo}', 'false', $mx$description = 'PreuveMaj'$mx$, null
    where to_regclass('public.registre_qualite') is not null;
+-- Fiche de suivi (retirée avec la phase 2 de la navigation unique, 20261111_navigation_unique_3_phase2) : P et (E ou M) ; ajout et
+-- modification P et (F ou M) ; suppression P et F. La ligne n'entre que si la table existe : la preuve est verte avec ou sans elle.
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select 'public.fiches_suivi', $mx$r.promo_id = {P} and ({E} or r.stagiaire_id = {fiche_p})$mx$,
+    $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche_p})$mx$, $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche_p})$mx$,
+    $mx$r.promo_id = {P} and {F}$mx$, $mx$updated_by_who = 'PreuveMaj'$mx$, null
+   where to_regclass('public.fiches_suivi') is not null;
+-- Titres et droits à la carte (chantier titres, migration 20261112_titres_1 et _4) : la table des titres et le journal des droits
+-- n'ont aucune règle ni aucun droit pour anon et authenticated (tout passe par des fonctions) : rien ne se lit, rien ne s'écrit.
+-- Les lignes n'entrent que si la table existe : la preuve reste verte avant et après la migration.
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select 'public.titres', 'false', 'false', 'false', 'false', $mx$nom = 'PreuveMaj'$mx$, null
+   where to_regclass('public.titres') is not null;
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select 'public.journal_droits', 'false', 'false', 'false', 'false', $mx$action = 'PreuveMaj'$mx$, null
+   where to_regclass('public.journal_droits') is not null;
 
 -- Les ajouts tentés, table par table. sorte : promo (promo affichée, autre promo), lieu (lieu affiché, autre lieu),
 -- stagiaire (sa fiche, autre fiche de la promo affichée, fiche d'une autre promo), benevole (du lieu affiché, d'un
@@ -596,6 +612,12 @@ insert into ajouts (tbl, sorte, libelle, modele, marque, prep) values
 ('storage.objects', 'unique', 'image de QCM',
   $aj$insert into storage.objects (bucket_id, name) values ('qcm-images', 'preuve/ajout.png')$aj$,
   $aj$r.name = 'preuve/ajout.png'$aj$, null);
+-- Fiche de suivi (tant que la table existe).
+insert into ajouts (tbl, sorte, libelle, modele, marque, prep)
+  select 'public.fiches_suivi', 'stagiaire', null,
+    $aj$insert into public.fiches_suivi (stagiaire_id, besoins) values ({c_stag}, 'PreuveAjout')$aj$,
+    $aj$r.besoins = 'PreuveAjout'$aj$, $aj$delete from public.fiches_suivi where stagiaire_id = {c_stag}$aj$
+   where to_regclass('public.fiches_suivi') is not null;
 -- Registre qualité (Q4) : le minimum qu'un ajout doit fournir (type, date du constat, origine, description de 3
 -- caractères ou plus) ; le déclencheur pose le reste. Seulement si la table existe.
 insert into ajouts (tbl, sorte, libelle, modele, marque, prep)
@@ -732,7 +754,7 @@ begin
     ('public.qcm_questions', 'true'), ('public.themes', 'true'), ('public.contacts', 'true'),
     ('public.cours', format('r.published or (r.code is null and %s)', v_e::text)),
     ('public.user_profiles', format('lower(r.email) = %L or (r.stagiaire_id is null and r.role <> ''stagiaire'' and %s) or (r.stagiaire_id is null and r.role = ''stagiaire'' and lower(r.invited_by_email) = %L) or (%s and r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = %s))', lower(p_email), p_a_promo::text, lower(p_email), v_e::text, v_pp))
-  ) t(tbl, pred) loop
+  ) t(tbl, pred) where to_regclass(t.tbl) is not null loop
     v_x := pg_temp.calcul(format('select count(*)::text from %s r where coalesce(%s, false)', v_t.tbl, v_t.pred));
     v_o := v_o || v_t.tbl || '=' || coalesce(pg_temp.valeur(p_email, p_hdr, null, format('select count(*)::text from %s', v_t.tbl)), 'nul') || ' ';
     v_a := v_a || v_t.tbl || '=' || coalesce(v_x, 'nul') || ' ';
@@ -837,7 +859,8 @@ begin
     'dir_de', quote_literal((case when p_fondateur then p_lieux else p_direction_de end)::text) || '::integer[]');
 end $fx$;
 
--- Nombre total de lignes d'une promo dans toutes les tables de public qui portent une colonne promo_id, vu par un compte
+-- Nombre total de lignes d'une promo dans toutes les tables de public qui portent une colonne promo_id (sauf les questionnaires et le
+-- journal des droits, qui ne se lisent que par des fonctions), vu par un compte
 -- (ou, avec p_proprio, par le propriétaire, sans contexte).
 create or replace function pg_temp.lignes_de_promo(p_email text, p_hdr text, p_promo integer, p_proprio boolean default false)
 returns text language plpgsql as $fx$
@@ -847,7 +870,8 @@ begin
     into v_sql
     from information_schema.columns c
     join information_schema.tables t on t.table_schema = c.table_schema and t.table_name = c.table_name and t.table_type = 'BASE TABLE'
-   where c.table_schema = 'public' and c.column_name = 'promo_id' and c.table_name not like 'questionnaire\_%';
+   where c.table_schema = 'public' and c.column_name = 'promo_id' and c.table_name not like 'questionnaire\_%'
+     and c.table_name <> 'journal_droits';
   return case when p_proprio then pg_temp.calcul(v_sql) else pg_temp.valeur(p_email, p_hdr, null, v_sql) end;
 end $fx$;
 
@@ -1526,9 +1550,11 @@ begin
       v_obt := pg_temp.valeur(v_c.email, v_c.hdr, v_c.apercu, format(c_vue, v_m.tbl));
       v_att := v_attendus[1];
       -- (L'acteur anonyme n'a le droit de lire qu'un petit nombre de tables : sur les autres, le refus de droit, 42501,
-      -- vaut « aucune ligne ».)
+      -- vaut « aucune ligne ». Même chose, pour tout acteur, sur une table dont la ligne de matrice dit lecture « false » : titres,
+      -- journal_droits, qui ne se lisent que par des fonctions.)
       perform pg_temp.verifier_m(v_c.groupe, v_c.qui, v_c.ctx, v_m.tbl, 'lecture',
-        v_obt = v_att or (v_c.qui = 'anon' and v_obt = 'ERREUR 42501' and split_part(v_att, ':', 1) = '0'),
+        v_obt = v_att or (v_obt = 'ERREUR 42501' and split_part(v_att, ':', 1) = '0'
+                          and (v_c.qui = 'anon' or v_m0.lecture = 'false')),
         format('vu %s, attendu %s', coalesce(split_part(v_obt, ':', 1), 'nul'), coalesce(split_part(v_att, ':', 1), v_txt))
         || case when split_part(v_obt, ':', 1) = split_part(v_att, ':', 1) and v_obt <> v_att then ' (autres lignes)' else '' end);
       -- Les contextes d'aperçu ne jouent que la lecture (leurs écritures sont des contrôles ciblés).
@@ -2263,7 +2289,8 @@ begin
                      where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p') and a.attnum > 0 and not a.attisdropped
                        and a.attname in ('promo_id', 'lieu_id') and c.relname <> 'affectations' and c.relname not like 'questionnaire\_%'
                     union select 'public.stagiaires_prive') l) x
-     where v is distinct from '0';
+     where v is distinct from '0'
+       and not (v = 'ERREUR 42501' and exists (select 1 from matrice m where m.tbl = x.t and m.lecture = 'false'));
     v_obt := pg_temp.valeur('preuve.siege@exemple.invalid', c_contextes[n], null,
       'select count(*)::text from public.user_profiles where stagiaire_id is not null');
     perform pg_temp.verifier('siège',
