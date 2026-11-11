@@ -623,8 +623,10 @@ function sousTitreDeMonSuivi() {
   const epcf = moduleVisible("epcf");
   const morceaux = [
     moduleVisible("notes") ? "tes résultats" : null,
+    // Le sous-titre tient en deux lignes sur téléphone : au-delà, la dernière partie du sommaire passe sous la barre du bas.
     "tes passages (au tableau et en voiture)",
-    epcf ? "tes " + DEFINITION_EPCF : null,
+    // « évaluations EPCF » dit ce que sont les EPCF : la définition complète faisait passer le sous-titre à trois lignes.
+    epcf ? "tes évaluations EPCF" : null,
     // Le livret n'est nommé que pour porter la définition (EPCF fermé) : sur téléphone, une ligne de plus poussait la fin du
     // sommaire sous la barre du bas.
     moduleVisible("livret") && !epcf ? "ton livret " + DEFINITION_EPCF : null,

@@ -342,7 +342,7 @@ def apercus_promo_7(v):
 # --- Une adresse tapée hors de son espace (P6, P7), la porte (P8), la fiche d'un autre centre (P9) -------------------------------
 
 ADRESSES_NEUVES = ["#/promos", "#/equipe", "#/reseau", "#/directions"]
-PHRASE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à ta direction ou à un formateur de t'ajouter."
+PHRASE_SANS_PROMO = "Aucune promo n'est associée à ce compte : la direction du centre ou un formateur peut l'ajouter à une promo."
 PHRASE_FICHE_AILLEURS = "Cette fiche n'est pas dans votre centre."
 
 
