@@ -419,6 +419,15 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
   select 'public.registre_qualite', '{Fo}', '{Fo}', '{Fo}', 'false', $mx$description = 'PreuveMaj'$mx$, null
    where to_regclass('public.registre_qualite') is not null;
+-- Titres et droits à la carte (chantier titres, migration 20261112_titres_1 et _4) : la table des titres et le journal des droits
+-- n'ont aucune règle ni aucun droit pour anon et authenticated (tout passe par des fonctions) : rien ne se lit, rien ne s'écrit.
+-- Les lignes n'entrent que si la table existe : la preuve reste verte avant et après la migration.
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select 'public.titres', 'false', 'false', 'false', 'false', $mx$nom = 'PreuveMaj'$mx$, null
+   where to_regclass('public.titres') is not null;
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select 'public.journal_droits', 'false', 'false', 'false', 'false', $mx$action = 'PreuveMaj'$mx$, null
+   where to_regclass('public.journal_droits') is not null;
 
 -- Les ajouts tentés, table par table. sorte : promo (promo affichée, autre promo), lieu (lieu affiché, autre lieu),
 -- stagiaire (sa fiche, autre fiche de la promo affichée, fiche d'une autre promo), benevole (du lieu affiché, d'un
@@ -1532,9 +1541,11 @@ begin
       v_obt := pg_temp.valeur(v_c.email, v_c.hdr, v_c.apercu, format(c_vue, v_m.tbl));
       v_att := v_attendus[1];
       -- (L'acteur anonyme n'a le droit de lire qu'un petit nombre de tables : sur les autres, le refus de droit, 42501,
-      -- vaut « aucune ligne ».)
+      -- vaut « aucune ligne ». Même chose pour une table dont le droit de lecture est retiré aux connectés eux-mêmes : titres,
+      -- journal_droits, qui ne se lisent que par des fonctions.)
       perform pg_temp.verifier_m(v_c.groupe, v_c.qui, v_c.ctx, v_m.tbl, 'lecture',
-        v_obt = v_att or (v_c.qui = 'anon' and v_obt = 'ERREUR 42501' and split_part(v_att, ':', 1) = '0'),
+        v_obt = v_att or (v_obt = 'ERREUR 42501' and split_part(v_att, ':', 1) = '0'
+                          and (v_c.qui = 'anon' or not has_table_privilege('authenticated', v_m.tbl, 'select'))),
         format('vu %s, attendu %s', coalesce(split_part(v_obt, ':', 1), 'nul'), coalesce(split_part(v_att, ':', 1), v_txt))
         || case when split_part(v_obt, ':', 1) = split_part(v_att, ':', 1) and v_obt <> v_att then ' (autres lignes)' else '' end);
       -- Les contextes d'aperçu ne jouent que la lecture (leurs écritures sont des contrôles ciblés).
@@ -2266,6 +2277,7 @@ begin
                       from pg_attribute a join pg_class c on c.oid = a.attrelid
                      where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p') and a.attnum > 0 and not a.attisdropped
                        and a.attname in ('promo_id', 'lieu_id') and c.relname <> 'affectations' and c.relname not like 'questionnaire\_%'
+                       and c.relname not in ('titres', 'journal_droits')
                     union select 'public.stagiaires_prive') l) x
      where v is distinct from '0';
     v_obt := pg_temp.valeur('preuve.siege@exemple.invalid', c_contextes[n], null,

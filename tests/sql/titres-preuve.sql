@@ -14,7 +14,11 @@
 --               case refuse et, quand un titre non fixe peut l'ouvrir, un cas qu'elle ouvre (attendus et phrases de refus écrits en dur) ;
 --               les gestes définitifs et les droits sans page restent aux titres fixes ; après la migration les 29 définitions ont changé,
 --               après son retour chacune retrouve exactement son empreinte d'avant.
--- Les groupes des migrations 3 et 4 s'ajoutent ici, avec leurs tâches.
+--   cases       (migration 3) les 93 règles passent par les gestes : lectures en nombre de lignes, écritures par leur refus (0 ligne ou 42501),
+--               pour des titres fictifs (secrétariat, intervenant, ressources humaines, contenus), un stagiaire membre de la promo, un cumul,
+--               une direction qui forme ; « Non » ferme la lecture des données de la page, « Voir » ferme l'écriture, un titre non fixe
+--               n'ouvre aucun geste définitif ni aucune fiche interne.
+-- Le groupe de la migration 4 s'ajoutera ici, avec sa tâche.
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes (tests/sql/roles-aides.sql),
 -- le libellé du mode, la requête d'empreinte, puis les migrations 1 à 4 et leurs retours :
 --   node outils/assembler_repetition_roles.mjs titres [--etapes 1,2] <sortie.sql>   les étapes dont les fichiers existent
@@ -701,6 +705,107 @@ begin
   perform pg_temp.cas('regler_habillage_reseau : le siège règle', 'siege', null, $q$select (public.regler_habillage_reseau('ecsr'))->>'habillage'$q$, 'OK ecsr');
 end $tgf$;
 
+-- Groupe cases (migration 3) : les règles passent par les gestes. Les lectures se comptent en lignes (le nombre attendu est celui du
+-- propriétaire, jugé non nul pour que le contrôle ne passe jamais à vide), les écritures par leur refus (0 ligne ou 42501) ou par ce
+-- qu'elles touchent. Titres fictifs des gestes : t_secr (centre : Promos Voir, Stagiaires Modifier, Émargement Voir, Équipe Voir),
+-- t_interv (promo : Planning Voir, Émargement Modifier, Stagiaires Voir, Cours Voir), t_rh (centre : Promos Voir, Équipe Voir),
+-- t_contenus (réseau : Cours Modifier).
+create or replace function pg_temp.cas_lecture(p_libelle text, p_qui text, p_entete text, p_table text, p_ou text, p_tout boolean)
+returns void language plpgsql as $tcl$
+declare v_n text;
+begin
+  v_n := pg_temp.calcul(format('select count(*)::text from %s where %s', p_table, p_ou));
+  if p_tout then
+    perform pg_temp.verifier('cases', p_libelle || ' : lignes d''essai présentes (jamais un contrôle à vide)', v_n ~ '^[0-9]+$' and v_n::integer > 0, 'lignes du propriétaire : ' || coalesce(v_n, 'nul'));
+    perform pg_temp.attendre('cases', p_libelle, pg_temp.appeler(p_qui, p_entete, format('select count(*)::text from %s where %s', p_table, p_ou)), 'OK ' || v_n);
+  else
+    perform pg_temp.attendre('cases', p_libelle, pg_temp.appeler(p_qui, p_entete, format('select count(*)::text from %s where %s', p_table, p_ou)), 'OK 0');
+  end if;
+end $tcl$;
+
+-- Une écriture qui doit être refusée : 0 ligne touchée ou état 42501.
+create or replace function pg_temp.cas_refus(p_libelle text, p_qui text, p_entete text, p_sql text)
+returns void language plpgsql as $tcr$
+declare v_r text;
+begin
+  v_r := pg_temp.appeler(p_qui, p_entete, p_sql);
+  perform pg_temp.verifier('cases', p_libelle, v_r = 'OK 0' or v_r like 'ERREUR 42501%', 'obtenu ' || v_r || ' ; attendu 0 ligne ou 42501');
+end $tcr$;
+
+create or replace function pg_temp.groupe_cases()
+returns void language plpgsql as $tgc$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_s1 integer := (select min(id) from public.stagiaires where promo_id = 1);
+  v_q integer := (select min(id) from public.qcm_questions);
+  v_tout constant text := 'promo_id = 1';
+begin
+  -- Donnée d'essai posée en propriétaire : le cours du thème 57 repasse en brouillon (un cours de thème non publié).
+  update public.cours set published = false where numero = 57;
+  -- t_rh (Promos Voir, Équipe Voir) : « Non » ferme la lecture des données de la page.
+  perform pg_temp.cas_lecture('t_rh ne lit aucune fiche de stagiaire', 't_rh', '1', 'public.stagiaires', v_tout, false);
+  perform pg_temp.cas_lecture('t_rh ne lit aucune fiche privée', 't_rh', '1', 'public.stagiaires_prive', 'true', false);
+  perform pg_temp.cas_lecture('t_rh ne lit aucun passage', 't_rh', '1', 'public.passages', v_tout, false);
+  perform pg_temp.cas_lecture('t_rh ne lit aucune note', 't_rh', '1', 'public.evaluations', v_tout, false);
+  perform pg_temp.cas_lecture('t_rh ne lit aucune ligne d''émargement', 't_rh', '1', 'public.emargement_lignes', v_tout, false);
+  perform pg_temp.cas_lecture('t_rh ne lit pas le planning', 't_rh', '1', 'public.planning_entries', v_tout, false);
+  -- t_secr (Stagiaires Modifier, Émargement Voir, ni Planning ni Notes).
+  perform pg_temp.cas_lecture('t_secr lit les fiches de stagiaires', 't_secr', '1', 'public.stagiaires', v_tout, true);
+  perform pg_temp.cas_lecture('t_secr lit les passages', 't_secr', '1', 'public.passages', v_tout, true);
+  perform pg_temp.cas_lecture('t_secr ne lit aucune note', 't_secr', '1', 'public.evaluations', v_tout, false);
+  perform pg_temp.cas_lecture('t_secr ne lit pas le planning', 't_secr', '1', 'public.planning_entries', v_tout, false);
+  perform pg_temp.cas_lecture('t_secr ne lit aucun bénévole', 't_secr', '1', 'public.benevoles', format('lieu_id = %s', v_l1), false);
+  perform pg_temp.cas_refus('t_secr ne supprime aucune fiche (geste définitif)', 't_secr', '1',
+    'with d as (delete from public.stagiaires where promo_id = 1 returning 1) select count(*)::text from d');
+  perform pg_temp.attendre('cases', 't_secr modifie les fiches de stagiaires (Stagiaires Modifier au centre)',
+    pg_temp.appeler('t_secr', '1', 'with u as (update public.stagiaires set ordre = ordre where promo_id = 1 returning 1) select (count(*) > 0)::text from u'), 'OK true');
+  -- t_interv (Planning Voir, Émargement Modifier, Stagiaires Voir, Cours Voir).
+  perform pg_temp.cas_lecture('t_interv lit le planning', 't_interv', '1', 'public.planning_entries', v_tout, true);
+  perform pg_temp.cas_refus('t_interv n''ajoute pas au planning (Voir ferme l''écriture)', 't_interv', '1',
+    'with i as (insert into public.planning_entries (semaine_lundi, day_index, half_day, slot, promo_id) values (''2031-02-03'', 0, ''matin'', 9, 1) returning 1) select count(*)::text from i');
+  perform pg_temp.cas_refus('t_interv ne modifie pas le planning', 't_interv', '1',
+    'with u as (update public.planning_entries set slot = slot where promo_id = 1 returning 1) select count(*)::text from u');
+  perform pg_temp.cas_lecture('t_interv lit les lignes d''émargement', 't_interv', '1', 'public.emargement_lignes', v_tout, true);
+  perform pg_temp.cas_lecture('t_interv lit les fiches de stagiaires', 't_interv', '1', 'public.stagiaires', v_tout, true);
+  perform pg_temp.cas_lecture('t_interv ne lit aucune note', 't_interv', '1', 'public.evaluations', v_tout, false);
+  perform pg_temp.cas_refus('t_interv n''ajoute aucune note', 't_interv', '1',
+    format('with i as (insert into public.evaluations (stagiaire_id, type, note, promo_id) values (%s, ''Thème'', 10, 1) returning 1) select count(*)::text from i', v_s1));
+  perform pg_temp.cas_refus('t_interv ne supprime aucune fiche (geste définitif)', 't_interv', '1',
+    'with d as (delete from public.stagiaires where promo_id = 1 returning 1) select count(*)::text from d');
+  perform pg_temp.cas_refus('t_interv ne supprime aucun bénévole (geste définitif)', 't_interv', '1',
+    'with d as (delete from public.benevoles returning 1) select count(*)::text from d');
+  perform pg_temp.cas_refus('t_interv n''écrit pas dans les formateurs (fiche interne)', 't_interv', '1',
+    'with i as (insert into public.profs (nom) values (''Preuve7 formateur'') returning 1) select count(*)::text from i');
+  perform pg_temp.cas_refus('t_interv n''écrit pas dans les contacts (fiche interne)', 't_interv', '1',
+    'with i as (insert into public.contacts (prenom) values (''Preuve7 contact'') returning 1) select count(*)::text from i');
+  perform pg_temp.cas_lecture('t_interv lit les cours de thème non publiés', 't_interv', '1', 'public.cours', 'numero = 57', true);
+  perform pg_temp.cas_refus('t_interv ne modifie pas un cours de thème', 't_interv', '1',
+    'with u as (update public.cours set corps_md = ''y'' where numero = 57 returning 1) select count(*)::text from u');
+  -- t_contenus (réseau : Cours Modifier).
+  perform pg_temp.attendre('cases', 't_contenus modifie une question de QCM', pg_temp.appeler('t_contenus', '1',
+    format('with u as (update public.qcm_questions set ordre = ordre where id = %s returning 1) select count(*)::text from u', v_q)), 'OK 1');
+  perform pg_temp.attendre('cases', 't_contenus modifie un cours de thème', pg_temp.appeler('t_contenus', '1',
+    'with u as (update public.cours set corps_md = corps_md where numero = 57 returning 1) select count(*)::text from u'), 'OK 1');
+  perform pg_temp.cas_refus('t_contenus n''écrit pas dans les QCM (référentiel)', 't_contenus', '1',
+    'with u as (update public.qcm set titre = titre returning 1) select count(*)::text from u');
+  perform pg_temp.cas_refus('t_contenus n''écrit pas dans les thèmes (référentiel)', 't_contenus', '1',
+    'with u as (update public.themes set titre = titre returning 1) select count(*)::text from u');
+  -- Un stagiaire de la promo 1 lit toujours le planning, les séances, la liste, les examens et la progression (membre de la promo).
+  perform pg_temp.cas_lecture('stag_n lit le planning de sa promo', 'stag_n', '1', 'public.planning_entries', v_tout, true);
+  perform pg_temp.cas_lecture('stag_n lit les séances d''émargement de sa promo', 'stag_n', '1', 'public.emargement_seances', v_tout, true);
+  perform pg_temp.cas_lecture('stag_n lit la liste de sa promo', 'stag_n', '1', 'public.stagiaires', v_tout, true);
+  perform pg_temp.cas_lecture('stag_n lit les examens de sa promo', 'stag_n', '1', 'public.qcm_examens', v_tout, true);
+  perform pg_temp.cas_lecture('stag_n lit la progression des thèmes de sa promo', 'stag_n', '1', 'public.themes_progression', v_tout, true);
+  perform pg_temp.cas_refus('stag_n n''écrit pas au planning', 'stag_n', '1',
+    'with u as (update public.planning_entries set slot = slot where promo_id = 1 returning 1) select count(*)::text from u');
+  -- Le cumul : fiche dans la promo 1 (membre) et formateur de la promo 2 ; la lecture par membre et la lecture par geste ne se masquent pas.
+  perform pg_temp.cas_lecture('cumul lit le planning de la promo 1 (membre)', 'cumul', '1', 'public.planning_entries', v_tout, true);
+  perform pg_temp.cas_lecture('cumul lit le planning de la promo 2 (formateur)', 'cumul', '2', 'public.planning_entries', 'promo_id = 2', true);
+  -- Une direction qui forme (direction du centre de la promo 1, formateur de la promo 2).
+  perform pg_temp.cas_lecture('dir_form lit les notes de la promo 1 (direction)', 'dir_form', '1', 'public.evaluations', v_tout, true);
+  perform pg_temp.cas_lecture('dir_form lit les notes de la promo 2 (formateur)', 'dir_form', '2', 'public.evaluations', 'promo_id = 2', true);
+end $tgc$;
+
 do $tprv$
 declare
   v_mode constant text :=
@@ -1126,6 +1231,9 @@ begin
 
   -- 8 quater. Groupe fonctions : les 29 fonctions de l'app (migration 2, partie B).
   perform pg_temp.groupe_fonctions();
+
+  -- 8 quinquies. Groupe cases : les 93 règles passent par les gestes (migration 3).
+  perform pg_temp.groupe_cases();
 
   -- 9. Les retours, dans l'ordre inverse (4, 3, 2, 1).
   v_retour := pg_temp.jouer('retour 4',
