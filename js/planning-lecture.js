@@ -3,10 +3,10 @@
 // dans js/journee-rules.js (pur) ; ce module n'est que le branchement sur la base.
 import {
   getPlanning, getHalfMetaForWeek, getJoursOff, listStagiaires, listProfs, listThemes, listBenevolesNoms,
-} from "./db.js?v=20261111c";
-import { displayStagiaire, nomLisible } from "./utils.js?v=20261111c";
+} from "./db.js?v=20261111d";
+import { displayStagiaire, nomLisible } from "./utils.js?v=20261111d";
 
-export { lundiEnCours } from "./journee-rules.js?v=20261111c";
+export { lundiEnCours } from "./journee-rules.js?v=20261111d";
 
 // Nom de chaque stagiaire, id → « Lucie M. » : toujours le format complet de tous les écrans (décision du 10/11),
 // comme l'impression du planning. Plus de prénom seul : le format ne change plus quand un homonyme arrive.

@@ -4,10 +4,10 @@
  * d'abord. « Relire » ouvre l'éditeur du QCM ; l'acceptation et l'écart restent dans l'éditeur. Modèle de
  * js/views/signalements.js : garde `isActive`, compteur de génération, boîte d'erreur avec « Réessayer ».
  */
-import { el, clear, formatDate } from "../utils.js?v=20261111c";
-import { listBrouillonsIaARelire } from "../db.js?v=20261111c";
-import { groupesDeBrouillons } from "../qcm-ia-rules.js?v=20261111c";
-import { carte, ligneAction, erreurAvecReessai } from "./pages-cartes.js?v=20261111c";
+import { el, clear, formatDate } from "../utils.js?v=20261111d";
+import { listBrouillonsIaARelire } from "../db.js?v=20261111d";
+import { groupesDeBrouillons } from "../qcm-ia-rules.js?v=20261111d";
+import { carte, ligneAction, erreurAvecReessai } from "./pages-cartes.js?v=20261111d";
 
 const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 

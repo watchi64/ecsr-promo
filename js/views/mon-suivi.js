@@ -1,29 +1,29 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261111c";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261111c";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261111c";
-import { libelleCreneau } from "../emargement-rules.js?v=20261111c";
-import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111c";
-import { renderEpcfPersonne } from "./epcf.js?v=20261111c";
-import { renderSubTabs } from "../subtabs.js?v=20261111c";
-import { renderDp } from "./dp.js?v=20261111c";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261111c";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261111c";
-import { bandeauAvis } from "../avis.js?v=20261111c";
-import { statsPassages } from "../passages-stats.js?v=20261111c";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261111c";
-import { icon } from "../icons.js?v=20261111c";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261111c";
-import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261111c";
-import { exemplesRemplis } from "../dp-rules.js?v=20261111c";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261111c";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261111c";
-import { navigationV2Active } from "../nav-etat.js?v=20261111c";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111c";
-import { renderNotes } from "./notes.js?v=20261111c";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111c";
+         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261111d";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261111d";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261111d";
+import { libelleCreneau } from "../emargement-rules.js?v=20261111d";
+import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111d";
+import { renderEpcfPersonne } from "./epcf.js?v=20261111d";
+import { renderSubTabs } from "../subtabs.js?v=20261111d";
+import { renderDp } from "./dp.js?v=20261111d";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261111d";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261111d";
+import { bandeauAvis } from "../avis.js?v=20261111d";
+import { statsPassages } from "../passages-stats.js?v=20261111d";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261111d";
+import { icon } from "../icons.js?v=20261111d";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261111d";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261111d";
+import { exemplesRemplis } from "../dp-rules.js?v=20261111d";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261111d";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261111d";
+import { navigationV2Active } from "../nav-etat.js?v=20261111d";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111d";
+import { renderNotes } from "./notes.js?v=20261111d";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111d";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 

@@ -5,18 +5,18 @@
 // statut en quatre boutons, réponse, suppression. Une action met la carte à jour sur place : elle ne change
 // pas de sous-onglet avant le prochain affichage de la page.
 
-import { el, clear, toast } from "../utils.js?v=20261111c";
-import { confirmer } from "../confirmer.js?v=20261111c";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261111c";
+import { el, clear, toast } from "../utils.js?v=20261111d";
+import { confirmer } from "../confirmer.js?v=20261111d";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261111d";
 import {
   listSignalementsApp, captureSignalementApp, traiterSignalementApp, supprimerSignalementApp, liensRegistre, getMesPromos,
-} from "../db.js?v=20261111c";
-import { entreeDepuisSignalement } from "../registre-rules.js?v=20261111c";
-import { chargerEtatSignalements } from "../signalement-etat.js?v=20261111c";
-import { renderSubTabs } from "../subtabs.js?v=20261111c";
+} from "../db.js?v=20261111d";
+import { entreeDepuisSignalement } from "../registre-rules.js?v=20261111d";
+import { chargerEtatSignalements } from "../signalement-etat.js?v=20261111d";
+import { renderSubTabs } from "../subtabs.js?v=20261111d";
 import {
   libelleStatut, resumeContexte, detailContexte, adresseSure, normaliserContexte, nomDuSignaleur,
-} from "../signalement-rules.js?v=20261111c";
+} from "../signalement-rules.js?v=20261111d";
 
 // Supprimer un problème signalé (carte complète ou carte en défaut) : la même question, dans une fenêtre de l'app.
 const QUESTION_SUPPRIMER = { titre: "Supprimer ce problème signalé ?",
@@ -130,7 +130,7 @@ function boutonRegistre(s) {
     ouvertureEnCours = true;
     b.setAttribute("aria-disabled", "true");
     try {
-      const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261111c");
+      const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261111d");
       ouvrirFenetreRegistre({
         prerempli: entreeDepuisSignalement(s), promos: getMesPromos(), ancre: b,
         surEnregistre: () => {

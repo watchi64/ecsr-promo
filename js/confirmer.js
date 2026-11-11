@@ -19,7 +19,7 @@
 // `erreur` (dite dans la fenêtre, qui reste ouverte, quand `verifier` refuse : une confirmation à taper).
 // Testé par tests/confirmer.test.mjs.
 
-import { el } from "./utils.js?v=20261111c";
+import { el } from "./utils.js?v=20261111d";
 
 let compteur = 0;
 

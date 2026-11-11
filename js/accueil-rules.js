@@ -2,7 +2,7 @@
 // (à venir, en cours, passé), le texte qui le dit, et la ligne « Promo <nom> · semaine <n> » sous la
 // salutation. Module pur, sans DOM ni stockage : testé en node. La carte « Prochain événement majeur »
 // de l'accueil les lit ; le prochain rendez-vous et l'à-faire de l'accueil du stagiaire (lot 2B) les lisent de même.
-import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "./qcm-exam-rules.js?v=20261111c";
+import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "./qcm-exam-rules.js?v=20261111d";
 
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000;
 
@@ -220,4 +220,14 @@ export function salutationDe(heure) {
   if (heure < 12) return "Bonjour";
   if (heure < 18) return "Bon après-midi";
   return "Bonsoir";
+}
+
+// La ligne des élèves bénévoles d'une carte de la journée : « Élève bénévole : Paul D. ». Le point de fin de phrase
+// ne s'ajoute pas quand le dernier nom finit déjà par un point (initiale abrégée) : « Paul D.. » sinon (relevé du 11/11).
+// null quand la carte n'a pas de bénévole.
+export function ligneBenevoles(noms) {
+  const liste = (noms || []).filter(Boolean);
+  if (!liste.length) return null;
+  const texte = `${liste.length > 1 ? "Élèves bénévoles" : "Élève bénévole"} : ${liste.join(", ")}`;
+  return texte.endsWith(".") ? texte : texte + ".";
 }

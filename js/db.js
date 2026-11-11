@@ -1,17 +1,17 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111c";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111c";
-import { compteDansEquite } from "./passage-rules.js?v=20261111c";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111c";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111c";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111c";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111c";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111d";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111d";
+import { compteDansEquite } from "./passage-rules.js?v=20261111d";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111d";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111d";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111d";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111d";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261111c";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111c";
-import { effectifDesFiches } from "./centre-stats.js?v=20261111c";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111c";
+} from "./promo-rules.js?v=20261111d";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111d";
+import { effectifDesFiches } from "./centre-stats.js?v=20261111d";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111d";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.

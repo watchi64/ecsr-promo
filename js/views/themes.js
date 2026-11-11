@@ -4,30 +4,30 @@ import {
   saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements,
   setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa,
   accepterBrouillonIa, rejeterBrouillonIa,
-} from "../db.js?v=20261111c";
-import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261111c";
-import { confirmer } from "../confirmer.js?v=20261111c";
-import { icon, deco } from "../icons.js?v=20261111c";
+} from "../db.js?v=20261111d";
+import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261111d";
+import { confirmer } from "../confirmer.js?v=20261111d";
+import { icon, deco } from "../icons.js?v=20261111d";
 import {
   examenDemarrable, tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture,
   resumeExamen,
-} from "../qcm-exam-rules.js?v=20261111c";
-import { isAdmin, isRedacteur, getEspace, getAdminEmail, isProf, isStagiaire, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111c";
-import { recordUndo } from "../undo.js?v=20261111c";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261111c";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261111c";
-import { renderSubTabs } from "../subtabs.js?v=20261111c";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261111c";
-import { cleCours } from "../cours-rules.js?v=20261111c";
-import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261111c";
-import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261111c";
-import { navigationV2Active } from "../nav-etat.js?v=20261111c";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111c";
-import { renderRessources } from "./ressources.js?v=20261111c";
-import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261111c";
-import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261111c";
-import { renderPropositionsIa } from "./propositions-ia.js?v=20261111c";
-import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261111c";
+} from "../qcm-exam-rules.js?v=20261111d";
+import { isAdmin, isRedacteur, getEspace, getAdminEmail, isProf, isStagiaire, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111d";
+import { recordUndo } from "../undo.js?v=20261111d";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261111d";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261111d";
+import { renderSubTabs } from "../subtabs.js?v=20261111d";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261111d";
+import { cleCours } from "../cours-rules.js?v=20261111d";
+import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261111d";
+import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261111d";
+import { navigationV2Active } from "../nav-etat.js?v=20261111d";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111d";
+import { renderRessources } from "./ressources.js?v=20261111d";
+import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261111d";
+import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261111d";
+import { renderPropositionsIa } from "./propositions-ia.js?v=20261111d";
+import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261111d";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
