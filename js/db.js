@@ -2530,6 +2530,18 @@ export async function lireEtatConservation() {
   return data;
 }
 
+// Les échéances des promos d'un centre, pour sa direction (Réglages du centre, section « Données personnelles ») : même forme
+// que lireEtatConservation(), restreinte aux promos du centre où les étapes sont permises ; portees_formateurs vide, registre
+// nul (ils restent au fondateur, page Qualiopi). Fonction absente (migration pas encore appliquée) : null.
+export async function lireEtatConservationCentre(lieuId) {
+  const { data, error } = await supabase.rpc("etat_conservation_centre", { p_lieu: lieuId });
+  if (error) {
+    if (conservationAbsente(error)) return null;
+    throw erreurConservation(error);
+  }
+  return data;
+}
+
 // Étape 1 d'une promo (12 mois après la fin) : { fiches, comptes_equipe, ...nombres par sorte de donnée }. Rejouable.
 export async function effacerPromoEtape1(promoId) {
   const data = await rpcConservation("effacer_promo_etape1", { p_promo: promoId });

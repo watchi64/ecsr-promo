@@ -374,10 +374,16 @@ export function rappelConservation(echeances) {
 }
 
 // --- Données personnelles du centre (suite du lot 5) : la direction purge les élèves bénévoles de son centre sans passer par la
-// promo affichée (même confirmation que chez le formateur). La conservation des fiches (étapes à 12 mois et à 3 ans, effacement à
-// la demande) est au fondateur, sur la page Qualiopi (lot Q5) : Réglages et Réglages du centre le disent par la même phrase.
+// promo affichée (même confirmation que chez le formateur), et lance les deux étapes de conservation des promos de son centre
+// (20261111_conservation_direction : mêmes cartes et même confirmation que la page Qualiopi). L'effacement à la demande, le
+// questionnaire des formateurs et le registre restent au fondateur, page Qualiopi. Réglages (formateurs) le dit par
+// PHRASE_CONSERVATION ; les Réglages du centre présentent les échéances par PHRASE_CONSERVATION_CENTRE.
 
 export const PHRASE_CONSERVATION = "La conservation des fiches est gérée par le fondateur, sur la page Qualiopi.";
+export const PHRASE_CONSERVATION_CENTRE = "Les fiches des promos du centre : 12 mois après la fin d'une formation, les comptes et les "
+  + "textes libres partent ; le 31 décembre de la 3e année, les noms et les preuves. Rien ne part tout seul : à chaque date, un "
+  + "bouton s'allume ici et attend votre clic. L'effacement à la demande d'une personne se fait auprès du fondateur.";
+export const PHRASE_SANS_ECHEANCE = "Aucune échéance : rien n'est à effacer pour le moment.";
 export const PHRASE_DONNEES_ECHEC = "Les données personnelles du centre n'ont pas pu être chargées.";
 export const PHRASE_SANS_BENEVOLE = "Aucun : tous les élèves enregistrés sont venus dans les 12 derniers mois.";
 

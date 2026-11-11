@@ -289,7 +289,21 @@ for (const e of tous) {
 // Données personnelles du centre (suite du lot 5), réconciliées avec Q5 : la conservation des fiches est au fondateur (une phrase,
 // aucune anonymisation pour la direction) ; la purge des élèves bénévoles reste.
 {
-  eq(PHRASE_CONSERVATION, "La conservation des fiches est gérée par le fondateur, sur la page Qualiopi.", "la phrase de Réglages et des Réglages du centre");
+  eq(PHRASE_CONSERVATION, "La conservation des fiches est gérée par le fondateur, sur la page Qualiopi.", "la phrase de Réglages (formateurs)");
+  // Réglages du centre (20261111_conservation_direction) : la direction lance les deux étapes de ses promos ; la phrase le dit, au
+  // vouvoiement, et renvoie l'effacement à la demande au fondateur.
+  ok(/votre clic/.test(regles.PHRASE_CONSERVATION_CENTRE) && /fondateur/.test(regles.PHRASE_CONSERVATION_CENTRE)
+    && !/\b(tu|ton|ta|tes)\b/i.test(regles.PHRASE_CONSERVATION_CENTRE) && !regles.PHRASE_CONSERVATION_CENTRE.includes(String.fromCharCode(0x2014)),
+    "la phrase des Réglages du centre : vouvoiement, fondateur pour la demande, sans tiret cadratin");
+  // L'état d'un centre (etat_conservation_centre) : portées des formateurs vides, registre nul ; seules les étapes des promos.
+  const etatCentre = { jour: "2027-12-11", portees_formateurs: [], registre: null, promos: [
+    { id: 5, nom: "Nîmes", lieu_nom: "Nîmes", date_fin: "2026-12-11", etape1_du: "2027-12-11", etape2_du: "2030-01-01",
+      a_effacer_etape1: 2, a_effacer_etape2: 2, comptes_equipe: 0, emargement_etape2: 0 }] };
+  const ech = echeancesConservation(etatCentre);
+  eq(ech.map((e) => `${e.type}:${e.due}:${e.bouton}`).join(","),
+    "etape1:true:Effacer les comptes et les textes,etape2:false:null", "état d'un centre : l'étape 1 due avec son bouton, l'étape 2 à venir sans bouton");
+  ok(confirmationEcheance(ech[0])?.saisie?.attendu === MOT_DE_CONFIRMATION && confirmationEcheance(ech[1]) === null,
+    "état d'un centre : même confirmation par saisie que la page Qualiopi, rien à confirmer avant la date");
   for (const nom of ["questionAnonymiserPromo", "phraseAnonymises", "lignesDonneesCentre", "MOT_ANONYMISER", "PHRASE_ETAT_INDISPONIBLE", "etatFinDePromo"]) {
     ok(!(nom in regles), "plus d'anonymisation de promo dans les règles : " + nom);
   }

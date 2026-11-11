@@ -1092,6 +1092,9 @@ body[data-nav="v2"] .nav-fenetre .habillage-pastilles { padding: 0 6px 6px; }
 .reglage-donnees .donnees-promo-texte { flex: 1 1 14rem; min-width: 0; overflow-wrap: anywhere; }
 .reglage-donnees .donnees-promo-texte p { margin: 2px 0 0; }
 .reglage-donnees .btn { min-height: 44px; }
+/* Conservation des fiches de la direction (cartes de la page Qualiopi, js/views/conservation.js). */
+.reglage-donnees [data-conservation] > .qualiopi-rangee-titre { margin: 0.6rem 0 0.4rem; }
+.reglage-donnees [data-conservation] > .cons-statut:not(:empty) { margin-bottom: 0.6rem; }
 /* Coche de la pastille choisie, en réglage seulement (le choix personnel du menu du compte ne change pas). */
 .habillage-pastille[data-reglage] { position: relative; }
 .habillage-pastille[data-reglage][aria-pressed="true"]::after {
