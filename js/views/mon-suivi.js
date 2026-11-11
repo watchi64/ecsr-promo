@@ -1,29 +1,29 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261110e";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261110e";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261110e";
-import { libelleCreneau } from "../emargement-rules.js?v=20261110e";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261110e";
-import { renderEpcfPersonne } from "./epcf.js?v=20261110e";
-import { renderSubTabs } from "../subtabs.js?v=20261110e";
-import { renderDp } from "./dp.js?v=20261110e";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261110e";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261110e";
-import { bandeauAvis } from "../avis.js?v=20261110e";
-import { statsPassages } from "../passages-stats.js?v=20261110e";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261110e";
-import { icon } from "../icons.js?v=20261110e";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261110e";
-import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261110e";
-import { exemplesRemplis } from "../dp-rules.js?v=20261110e";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261110e";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261110e";
-import { navigationV2Active } from "../nav-etat.js?v=20261110e";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261110e";
-import { renderNotes } from "./notes.js?v=20261110e";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261110e";
+         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261111d";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261111d";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261111d";
+import { libelleCreneau } from "../emargement-rules.js?v=20261111d";
+import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111d";
+import { renderEpcfPersonne } from "./epcf.js?v=20261111d";
+import { renderSubTabs } from "../subtabs.js?v=20261111d";
+import { renderDp } from "./dp.js?v=20261111d";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261111d";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261111d";
+import { bandeauAvis } from "../avis.js?v=20261111d";
+import { statsPassages } from "../passages-stats.js?v=20261111d";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261111d";
+import { icon } from "../icons.js?v=20261111d";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261111d";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261111d";
+import { exemplesRemplis } from "../dp-rules.js?v=20261111d";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261111d";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261111d";
+import { navigationV2Active } from "../nav-etat.js?v=20261111d";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111d";
+import { renderNotes } from "./notes.js?v=20261111d";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111d";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -31,7 +31,7 @@ const HALF_ORDER = { matin: 0, aprem: 1 };
 let profs = [];
 let moySalle = [];
 let moyVehicule = [];
-// id stagiaire -> "V. Timy" : sert à nommer le stagiaire au tableau sur les
+// id stagiaire -> "Timy V." : sert à nommer le stagiaire au tableau sur les
 // créneaux où l'utilisateur est élève.
 let stagiaireNoms = {};
 // Titre de thème (normalisé) -> numéro, construit depuis les 57 thèmes officiels.
@@ -522,12 +522,11 @@ function renderEffectuesSection(rows, soi = true) {
 // stagiaire, vue par un formateur). Deux dispositions, choisies à l'affichage :
 // onglets sur ordinateur ; sur iPhone, un sommaire puis la partie en plein écran.
 
-const LIBELLE_PARTIE = { resultats: "Résultats", passages: "Passages", epcf: "EPCF", evolution: "Évolution", livret: "Livret",
-  dp: "Dossier pro" };
-// Nom affiché d'une partie : dans Mon suivi (sa propre fiche, `soi`) sous la nouvelle navigation, le livret s'appelle « Livret
-// EPCF » (décision de Timy du 08/11, « Livret » seul ne disait pas lequel). La fiche d'un stagiaire chez l'équipe garde les
-// parties de main, et l'ancienne navigation « Livret ».
-const libellePartie = (p, opts) => (p === "livret" && opts?.soi && navigationV2Active() ? "Livret EPCF" : LIBELLE_PARTIE[p]);
+// Nom affiché d'une partie, le même dans Mon suivi et dans la fiche d'un stagiaire chez l'équipe, dans les deux navigations
+// (décisions du 08/11 et du 10/11 : un nom par objet, « Livret » ou « Dossier pro » seuls ne disaient pas lequel).
+const LIBELLE_PARTIE = { resultats: "Résultats", passages: "Passages", epcf: "Évaluations EPCF", evolution: "Évolution",
+  livret: "Livret EPCF", dp: "Dossier professionnel" };
+const libellePartie = (p) => LIBELLE_PARTIE[p];
 // Module de chaque partie (js/modules-data.js) : fermé pour la promo, la partie
 // disparaît chez un stagiaire et porte le repère chez un formateur. Résultats réunit
 // Évolution et l'ancienne page Notes (La classe) : elle suit le module des notes, comme elles.
@@ -596,10 +595,11 @@ export function afficherErreur(zone, e, reessayer) {
   zone.appendChild(el("div", { class: "view-error-box" },
     el("p", { class: "view-error-title" }, isTimeout ? "Connexion trop lente" : "Une erreur est survenue"),
     el("p", { class: "view-error-sub" }, isTimeout
-      ? "Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie."
+      ? selonPublic("Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie.",
+        "Le serveur n'a pas répondu à temps. Vérifiez votre connexion et réessayez.")
       : "Détail : " + (e?.message || e)),
     retry));
-  toast(isTimeout ? "Connexion trop lente, réessaie" : (e?.message || String(e)), "error");
+  toast(isTimeout ? selonPublic("Connexion trop lente, réessaie", "Connexion trop lente, réessayez") : (e?.message || String(e)), "error");
 }
 
 // Résultats (Moi et La classe, nouvelle navigation) n'appartient qu'à Mon suivi, la fiche de la
@@ -615,14 +615,22 @@ function lienRetour(label, href) {
 }
 
 // Sous-titre de Mon suivi, nouvelle navigation : ce que la page contient, au tutoiement comme le reste de la page, en ne
-// nommant que les parties ouvertes à la promo (un module fermé retire sa partie, il ne doit pas rester annoncé).
+// nommant que les parties ouvertes à la promo (un module fermé retire sa partie, il ne doit pas rester annoncé). Les mots
+// d'atelier s'y définissent à leur première apparition : les passages, et le sigle EPCF (par les évaluations ou, si elles
+// sont fermées, par le livret).
+const DEFINITION_EPCF = "EPCF (évaluations passées en cours de formation)";
 function sousTitreDeMonSuivi() {
+  const epcf = moduleVisible("epcf");
   const morceaux = [
     moduleVisible("notes") ? "tes résultats" : null,
-    "tes passages",
-    moduleVisible("epcf") ? "l'EPCF" : null,
-    moduleVisible("livret") ? "ton livret" : null,
-    moduleVisible("dp") ? "ton dossier pro" : null,
+    // Le sous-titre tient en deux lignes sur téléphone : au-delà, la dernière partie du sommaire passe sous la barre du bas.
+    "tes passages (au tableau et en voiture)",
+    // « évaluations EPCF » dit ce que sont les EPCF : la définition complète faisait passer le sous-titre à trois lignes.
+    epcf ? "tes évaluations EPCF" : null,
+    // Le livret n'est nommé que pour porter la définition (EPCF fermé) : sur téléphone, une ligne de plus poussait la fin du
+    // sommaire sous la barre du bas.
+    moduleVisible("livret") && !epcf ? "ton livret " + DEFINITION_EPCF : null,
+    moduleVisible("dp") ? "ton dossier professionnel" : null,
   ].filter(Boolean);
   const texte = morceaux.length > 1 ? morceaux.slice(0, -1).join(", ") + " et " + morceaux[morceaux.length - 1] : morceaux[0];
   return texte.charAt(0).toUpperCase() + texte.slice(1) + ".";
@@ -651,7 +659,7 @@ export function renderFiche(container, d, opts) {
   if (opts.disposition === "onglets") {
     if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
     container.appendChild(renderSubTabs(parties.map((p) => ({
-      key: p, label: libellePartie(p, opts), module: MODULE_DE_PARTIE[p] || undefined,
+      key: p, label: libellePartie(p), module: MODULE_DE_PARTIE[p] || undefined,
       render: (panel, ctx) => rendrePartie(panel, p, d, opts, ctx),
     })), {
       activeKey: partie || undefined,
@@ -665,7 +673,7 @@ export function renderFiche(container, d, opts) {
   if (partie) {
     // iPhone, une partie en plein écran : le retour mène au sommaire.
     container.appendChild(lienRetour(opts.titre || nomDeMonSuivi(), opts.adresse(null)));
-    container.appendChild(el("h2", { class: "fiche-titre" }, libellePartie(partie, opts)));
+    container.appendChild(el("h2", { class: "fiche-titre" }, libellePartie(partie)));
     const panel = el("div", { class: "fiche-partie" });
     container.appendChild(panel);
     rendrePartie(panel, partie, d, opts, { isActive: () => panel.isConnected });
@@ -681,7 +689,7 @@ export function renderFiche(container, d, opts) {
 function rendreSommaire(d, parties, opts) {
   const aVenir = passagesAVenir(d.items, isoDate(new Date()));
   // Mon suivi, nouvelle navigation : chaque ligne dit sa partie et son état en une phrase entière
-  // (« EPCF : 0 épreuve sur 2 »), qui passe à la ligne plutôt que d'être coupée. Ailleurs, le sommaire de main.
+  // (« Évaluations EPCF : 0 épreuve sur 2 »), qui passe à la ligne plutôt que d'être coupée. Ailleurs, le sommaire de main.
   const clairs = !!opts.soi && navigationV2Active();
   const etats = clairs
     ? etatsClairs({ aVenir, evals: d.epcfEvals, livret: d.livret, exemplesDossier: d.exemplesDossier })
@@ -689,13 +697,13 @@ function rendreSommaire(d, parties, opts) {
   const liste = el("nav", { class: "fiche-sommaire" + (clairs ? " fiche-sommaire-clair" : ""), "aria-label": "Parties de la fiche" });
   parties.forEach((p) => {
     const etat = etats[p];
-    const nom = el("span", { class: "fiche-ligne-nom" }, libellePartie(p, opts));
+    const nom = el("span", { class: "fiche-ligne-nom" }, libellePartie(p));
     let ligne;
     if (clairs && etat) {
-      // Le nom de la partie en tête, son état à sa suite, dans un seul texte : « Dossier pro : 2 exemples sur 6 ».
+      // Le nom de la partie en tête, son état à sa suite, dans un seul texte : « Dossier professionnel : 2 exemples sur 6 ».
       ligne = el("a", { class: "fiche-ligne", href: opts.adresse(p) },
         el("span", { class: "fiche-ligne-texte" },
-          nom, el("span", { class: "fiche-ligne-etat" + (etat.afaire ? " afaire" : "") }, etat.texte.slice(libellePartie(p, opts).length))),
+          nom, el("span", { class: "fiche-ligne-etat" + (etat.afaire ? " afaire" : "") }, etat.texte.slice(libellePartie(p).length))),
         icon.chevronRight());
     } else {
       ligne = el("a", { class: "fiche-ligne", href: opts.adresse(p) },
@@ -741,7 +749,8 @@ function rendreResultats(panel, d, soi, isActive, opts = {}) {
     zone.appendChild(classe);
     renderNotes(classe, { imbrique: true })
       .catch(erreurPartie(classe, () => classe.isConnected && (!isActive || isActive()),
-        "Erreur de chargement des notes de la classe. Rouvre la partie pour réessayer."));
+        selonPublic("Erreur de chargement des notes de la classe. Rouvre la partie pour réessayer.",
+          "Erreur de chargement des notes de la classe. Rouvrez la partie pour réessayer.")));
   };
   const bouton = (cible, libelle) => {
     const b = el("button", { type: "button", "data-vue": cible, "aria-pressed": "false",
@@ -757,7 +766,7 @@ function rendreResultats(panel, d, soi, isActive, opts = {}) {
 }
 
 // Date de naissance du profil, reportée sur le livret : la personne elle-même,
-// un formateur ou un admin la saisit. Rangée dans la partie Livret, seule à s'en servir.
+// un formateur ou un admin la saisit. Rangée dans la partie Livret EPCF, seule à s'en servir.
 function champNaissance(d, soi) {
   if (!(soi || isAdmin() || isProf())) return null;
   const dob = el("input", { type: "date", value: d.stagiaireRow?.date_naissance || "", "aria-label": "Date de naissance" });
@@ -817,12 +826,14 @@ function rendrePartie(panel, partie, d, opts, ctx) {
     const zone = el("div");
     panel.appendChild(zone);
     renderEpcfLivret(zone, { stagiaireId: d.id, embedded: true, isActive })
-      .catch(erreurPartie(zone, isActive, "Erreur de chargement du livret EPCF. Rouvre la partie pour réessayer."));
+      .catch(erreurPartie(zone, isActive, selonPublic("Erreur de chargement du livret EPCF. Rouvre la partie pour réessayer.",
+        "Erreur de chargement du livret EPCF. Rouvrez la partie pour réessayer.")));
   } else if (partie === "dp") {
-    // Le DP appartient au candidat : éditable dans son espace ; un formateur
+    // Le dossier professionnel appartient au candidat : éditable dans son espace ; un formateur
     // peut aussi y écrire pour l'accompagner (droits révisés le 16/09).
     renderDp(panel, { stagiaireId: d.id, embedded: true, isActive })
-      .catch(erreurPartie(panel, isActive, "Erreur de chargement du dossier professionnel. Rouvre la partie pour réessayer."));
+      .catch(erreurPartie(panel, isActive, selonPublic("Erreur de chargement du dossier professionnel. Rouvre la partie pour réessayer.",
+        "Erreur de chargement du dossier professionnel. Rouvrez la partie pour réessayer.")));
   }
 }
 

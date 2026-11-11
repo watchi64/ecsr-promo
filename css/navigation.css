@@ -1,9 +1,8 @@
 /* ============================================================
    Nouvelle navigation (refonte, lot 1) : la coquille
-   Posée par js/nav-shell.js quand l'interrupteur de la promo est allumé. Toutes les règles vivent
-   sous body[data-nav="v2"] (et une sous body[data-nav-attente], posé à l'ouverture seulement quand
-   la coquille est attendue) : interrupteur éteint, aucune ne s'applique et l'app reste celle
-   d'avant. Couleurs, rayons et ombres : les jetons de css/style.css.
+   Posée par js/nav-shell.js ; seule navigation depuis le 10/11. Les règles vivent sous
+   body[data-nav="v2"], que la coquille pose (le préfixe garde leur spécificité sur celles de
+   css/style.css). Couleurs, rayons et ombres : les jetons de css/style.css.
    Tailles : téléphone sous 700 px, tablette de 700 à 1079 px, ordinateur au-delà.
    Stagiaire : en-tête clair (onglets en capsule). Équipe : barre latérale sombre, en colonne
    d'icônes quand body porte data-nav-colonne (tablette, ou barre repliée sur ordinateur).
@@ -11,22 +10,12 @@
    pour les trois (js/nav-shell.js, barreLaterale de js/espaces-rules.js), data-espace dit lequel.
    ============================================================ */
 
-/* L'ancienne barre du haut cède la place à la coquille. */
-body[data-nav="v2"] header.topbar { display: none; }
-
-/* Ouverture de l'app quand la coquille est attendue (ruling R17, js/main.js) : l'ancienne barre ne se
-   peint pas avant la décision. visibility et non display : si la décision est de la garder, elle revient
-   à sa place sans décaler la page. */
-body[data-nav-attente] header.topbar { visibility: hidden; }
-
-/* Hauteur de l'en-tête collant de la coquille, à la place de celle de l'ancienne barre (style.css,
-   :root) : la barre de jours du Planning se colle dessous (top) et un saut vers un jour pose la carte
+/* Hauteur de l'en-tête collant de la coquille (style.css, :root, n'en pose que la valeur de repli) : la barre de jours du Planning se colle dessous (top) et un saut vers un jour pose la carte
    sous les deux (scroll-margin-top : l'en-tête, puis 52 px pour la barre de jours et un peu d'air). En
    px, lue par js/views/planning.js. Stagiaire : 66 px ; équipe : pas d'en-tête (barre latérale), 0 ;
    téléphone : 56 px dans les deux espaces (plus bas). */
 body[data-nav="v2"][data-espace="stagiaire"] { --haut-entete: 66px; }
 body[data-nav="v2"][data-barre="laterale"] { --haut-entete: 0px; }
-/* La valeur de l'ancienne barre sur téléphone (148 px, style.css) ne vaut pas sous la coquille. */
 body[data-nav="v2"] .p-day-card { scroll-margin-top: calc(var(--haut-entete) + 52px); }
 
 /* Bord bas des bandeaux du bas de l'écran (js/auth-admin.js : aperçu, promos non chargées) : celui de
@@ -718,7 +707,6 @@ body[data-nav="v2"] .nav-bas { display: none; }
 
 /* ----- Assistant (js/chatbot.js) : ouvert par les boutons « Assistant » de la coquille ----- */
 /* Plus de bulle flottante : elle masquait du contenu sur téléphone. */
-body[data-nav="v2"] #chatbot-fab { display: none; }
 /* Le panneau s'ouvre près de son bouton : sous l'en-tête, à droite, chez le stagiaire ; en bas, à droite
    de la barre latérale, dans l'équipe (comme le menu du compte). */
 body[data-nav="v2"][data-espace="stagiaire"] .chatbot-panel {
@@ -1099,6 +1087,13 @@ body[data-nav="v2"] .nav-fenetre .habillage-pastilles { padding: 0 6px 6px; }
 .reglage-habillage .reglage-libre p { margin: 4px 0 0; }
 .reglage-habillage .promo-refus { margin-top: 10px; }
 .reglage-habillage .reglage-statut { margin: 10px 0 0; font-size: 0.9rem; font-weight: 600; }
+/* Données personnelles du centre (js/views/reglages-donnees.js) : une ligne par promo, le texte puis le bouton, à la ligne sur
+   téléphone ; jamais de défilement horizontal. */
+.reglage-donnees .param-block + .param-block { margin-top: 14px; }
+.reglage-donnees .donnees-promos li { align-items: center; }
+.reglage-donnees .donnees-promo-texte { flex: 1 1 14rem; min-width: 0; overflow-wrap: anywhere; }
+.reglage-donnees .donnees-promo-texte p { margin: 2px 0 0; }
+.reglage-donnees .btn { min-height: 44px; }
 /* Coche de la pastille choisie, en réglage seulement (le choix personnel du menu du compte ne change pas). */
 .habillage-pastille[data-reglage] { position: relative; }
 .habillage-pastille[data-reglage][aria-pressed="true"]::after {
@@ -1121,3 +1116,21 @@ body[data-nav="v2"] .nav-fenetre .habillage-pastilles { padding: 0 6px 6px; }
   body[data-nav="v2"][data-barre="laterale"] #app { margin-left: 0; }
   body[data-nav="v2"] { margin-bottom: 0; }
 }
+
+/* Écran de repli (js/main.js, ecranSansNavigation) : la barre n'a pas pu se monter. Hors de body[data-nav="v2"],
+   que la coquille n'a pas posé. Une phrase et deux gestes, cibles de 44 px, à la ligne sur téléphone. */
+.nav-repli {
+  max-width: 32rem;
+  margin: 3rem auto;
+  padding: 0 16px;
+  text-align: center;
+}
+.nav-repli-titre { margin: 0 0 0.5rem; font-size: 1.25rem; }
+.nav-repli-gestes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+.nav-repli-gestes .btn { min-height: 44px; min-width: 44px; }

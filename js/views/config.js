@@ -20,21 +20,22 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   setMyAnonymousNotes,
-} from "../db.js?v=20261110e";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261110e";
-import { confirmer } from "../confirmer.js?v=20261110e";
-import { icon } from "../icons.js?v=20261110e";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261110e";
-import { moduleVisible } from "../modules-etat.js?v=20261110e";
-import { renderModulesSection } from "./modules-reglage.js?v=20261110e";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261110e";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261110e";
-import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261110e";
-import { pointsARetenir } from "../accueil-rules.js?v=20261110e";
-import { dateCourte } from "../effacement-rules.js?v=20261110e";
-import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261110e";
-import { blocHabillage } from "../habillage-choix.js?v=20261110e";
-import { habillageCourant } from "../habillage.js?v=20261110e";
+} from "../db.js?v=20261111d";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111d";
+import { confirmer } from "../confirmer.js?v=20261111d";
+import { icon } from "../icons.js?v=20261111d";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261111d";
+import { moduleVisible } from "../modules-etat.js?v=20261111d";
+import { renderModulesSection } from "./modules-reglage.js?v=20261111d";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111d";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261111d";
+import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261111d";
+import { pointsARetenir } from "../accueil-rules.js?v=20261111d";
+import { dateCourte, questionPurgerBenevoles } from "../effacement-rules.js?v=20261111d";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111d";
+import { blocHabillage } from "../habillage-choix.js?v=20261111d";
+import { habillageCourant } from "../habillage.js?v=20261111d";
+import { nomBenevole } from "../planning-lecture.js?v=20261111d";
 
 // ====== SECTION Accès & invitations ======
 
@@ -70,10 +71,10 @@ async function renderAccessSection(rerender) {
     const inviteBlock = el("div", { class: "param-block" });
     inviteBlock.appendChild(el("h4", {}, "Autoriser une personne"));
     const phraseHabituelle = v2
-      ? "Choisis le rôle et la personne, entre son adresse e-mail. Aucun e-mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec cette adresse et un mot de passe."
+      ? "Choisissez le rôle et la personne, entrez son adresse e-mail. Aucun e-mail n'est envoyé : vous lui partagez l'URL vous-même, puis elle crée son compte avec cette adresse et un mot de passe."
       : "Choisis le rôle et la personne, entre son email. Aucun mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec son email + un mdp.";
     // Le siège n'a pas de personne à choisir : la phrase ne la mentionne plus.
-    const phraseSiege = "Entre l'adresse e-mail de la personne qui rejoint le siège du réseau. Aucun e-mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec cette adresse et un mot de passe.";
+    const phraseSiege = "Entrez l'adresse e-mail de la personne qui rejoint le siège du réseau. Aucun e-mail n'est envoyé : vous lui partagez l'URL vous-même, puis elle crée son compte avec cette adresse et un mot de passe.";
     const aideInvitation = el("p", { class: "muted" }, phraseHabituelle);
     inviteBlock.appendChild(aideInvitation);
 
@@ -103,7 +104,8 @@ async function renderAccessSection(rerender) {
         .map((p) => role === "stagiaire" ? p.stagiaire_id : p.prof_id));
       list.forEach((it) => {
         const isTaken = taken.has(it.id);
-        const baseLabel = it.prenom ? (it.nom ? `${it.nom} ${it.prenom}` : it.prenom) : it.nom;
+        // Stagiaire : « Lucie M. », le format de tous les écrans (décision du 10/11) ; formateur : son nom tel que saisi.
+        const baseLabel = it.prenom ? displayStagiaire(it) : it.nom;
         const label = baseLabel + (isTaken ? " (déjà invité)" : "");
         const opt = el("option", { value: String(it.id) }, label);
         if (isTaken) opt.disabled = true;
@@ -145,7 +147,7 @@ async function renderAccessSection(rerender) {
         libellePersonne, personSel,
       ),
       el("div", { class: "invite-row" },
-        el("label", {}, "Email"), emailInput,
+        el("label", {}, "E-mail"), emailInput,
         sendBtn,
       ),
     ));
@@ -156,7 +158,7 @@ async function renderAccessSection(rerender) {
   const listBlock = el("div", { class: "param-block" });
   listBlock.appendChild(el("h4", {}, `Personnes avec accès (${profiles.length})`));
   if (profiles.length === 0) {
-    listBlock.appendChild(el("p", { class: "muted" }, "Personne pour l'instant. Invite quelqu'un ci-dessus."));
+    listBlock.appendChild(el("p", { class: "muted" }, "Personne pour l'instant. Invitez quelqu'un ci-dessus."));
   } else {
     const list = el("ul", { class: "admin-list" });
     listeAcces({ profils: profiles, roles: rolesPersonnel, v2 })
@@ -240,7 +242,7 @@ function renderMyPreferencesSection(rerender) {
   const noLock = !!(profile.is_admin || profile.is_founder);
   block.appendChild(el("p", { class: "muted" },
     noLock
-      ? (navigationV2Active() ? "Tu peux changer ce réglage librement, sans verrou." : "Ton profil admin change librement, sans verrou.")
+      ? (navigationV2Active() ? "Réglage modifiable librement, sans verrou." : "Ton profil admin change librement, sans verrou.")
       : "Après un changement, tu as 2 minutes pour annuler ; ensuite le réglage est verrouillé pendant 24 h."));
 
   const checkbox = el("input", { type: "checkbox", id: "pref-anon" });
@@ -324,7 +326,7 @@ async function renderPromoSection(rerender) {
       el("p", { class: "muted" }, admin
         ? "Gérer la liste des stagiaires et formateurs."
         : (navigationV2Active()
-          ? "Liste des stagiaires et formateurs. Tu ne peux pas la modifier."
+          ? "Liste des stagiaires et formateurs. Vous ne pouvez pas la modifier."
           : "Liste des stagiaires et formateurs. Édition admin only.")),
     ),
   ));
@@ -493,15 +495,14 @@ async function renderDonneesSection(rerender) {
   } else {
     const liste = el("ul", { class: "config-list donnees-liste" });
     benevoles.forEach((b) => liste.appendChild(el("li", {},
-      el("span", {}, b.display),
+      el("span", {}, nomBenevole(b.display)),
       el("span", { class: "muted" }, b.derniere_venue ? "dernière venue le " + dateCourte(b.derniere_venue) : "jamais venu"),
     )));
     blocBnv.appendChild(liste);
     blocBnv.appendChild(el("button", { class: "btn danger", onClick: async (e) => {
       const bouton = e.currentTarget;
       const n = benevoles.length;
-      if (!(await confirmer({ titre: `Supprimer ${n} élève${n > 1 ? "s" : ""} bénévole${n > 1 ? "s" : ""} et leurs coordonnées ?`,
-        phrase: "Ils disparaissent aussi des anciens créneaux du planning. Irréversible.", oui: "Supprimer" }))) return;
+      if (!(await confirmer(questionPurgerBenevoles(n)))) return;
       bouton.disabled = true;
       try {
         const nb = await purgerBenevoles(benevoles.map((b) => b.id));
@@ -525,10 +526,26 @@ function renderApparenceSection() {
       el("div", { class: "param-icon" }, icon.palette()),
       el("div", {},
         titre,
-        el("p", { class: "muted" }, "Les couleurs de l'app, à ton choix."),
+        el("p", { class: "muted" }, "Les couleurs de l'app, au choix."),
       ),
     ),
     el("div", { class: "param-block" }, blocHabillage({ titre })),
+  );
+}
+
+// Réglages de la promo (nouvelle navigation) : au test du premier clic, les formatrices ont cherché les couleurs ici. La
+// section les renvoie à Mes préférences, où le choix se fait pour chaque personne (décision du 10/11, lot 3).
+function renderApparenceRenvoi() {
+  return el("section", { class: "param-section param-renvoi-apparence" },
+    el("div", { class: "param-section-head" },
+      el("div", { class: "param-icon" }, icon.palette()),
+      el("div", {},
+        el("h3", {}, "Apparence"),
+        el("p", { class: "muted" }, "Les couleurs de l'app se choisissent pour chaque personne, dans Mes préférences."),
+      ),
+    ),
+    el("div", { class: "param-block" },
+      el("a", { class: "btn small", href: "#/preferences" }, "Ouvrir Mes préférences")),
   );
 }
 
@@ -560,7 +577,7 @@ function renderInfoSection() {
     section.appendChild(el("div", { class: "param-block", "data-a-retenir": "" },
       el("h4", {}, "À retenir"),
       el("ul", { class: "home-info-list" },
-        ...pointsARetenir(true).map((p) => el("li", {}, el("strong", {}, p.gras), p.suite)),
+        ...pointsARetenir(true, selonPublic).map((p) => el("li", {}, el("strong", {}, p.gras), p.suite)),
       ),
     ));
   }
@@ -624,7 +641,7 @@ async function rerender(container) {
     // Apparence en tête pour qui est en Couleurs ECF seulement (décision H6), le moyen de revenir à ECSR Promo.
     const apparence = !v2 && habillageCourant() === "ecf" ? renderApparenceSection() : null;
     const sections = v2
-      ? [modules, promo, acces, emargement, navigation, donnees]
+      ? [modules, promo, acces, emargement, navigation, donnees, renderApparenceRenvoi()]
       : [apparence, acces, preferences, modules, emargement, navigation, promo, donnees, infos];
     sections.filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
@@ -666,7 +683,7 @@ export function renderPreferences(container) {
       el("h2", {}, "Mes préférences"),
       // Apparence est toujours là : la page a toujours un réglage à soi, quel que soit le rôle. « Réglages » est le nom de
       // la page de l'équipe : il n'est pas repris ici.
-      el("p", { class: "subtitle" }, "Ce qui ne concerne que toi, et les informations sur l'application."),
+      el("p", { class: "subtitle" }, "Les réglages personnels et les informations sur l'application."),
     ),
   ));
   const grid = el("div", { class: "param-grid" });

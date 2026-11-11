@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Vérification de la nouvelle navigation au banc d'essai (refonte, lot 1 : la coquille).
+"""Vérification de la navigation au banc d'essai (refonte, lot 1 : la coquille ; seule navigation depuis le 10/11).
+
+Depuis le 10/11, toutes les promos ont la nouvelle navigation et l'ancienne barre est retirée : la passe « éteint », les leviers
+d'allumage (aperçu de l'appareil, réglage `navigation_v2` de la promo, mémoire de l'appareil), l'ouverture du ruling R17 et la case
+du fondateur sont partis avec elle. Plus bas, les mentions « allumé » et « éteint » des contrôles et des preuves par sabotage sont
+l'historique de ce qui a été prouvé avant ce retrait.
 
 Usage
 -----
@@ -26,49 +31,27 @@ Ce que le script joue
 ---------------------
 Pour chaque moteur (Chromium, puis WebKit, par `executable_path` quand celui que Playwright attend
 manque) :
-  * Passe « allumé », rôles stagiaire, prof et fondateur, largeurs 1280, 1100, 900 et 375 px. Le
-    fondateur et le stagiaire du banc (fondateur lui aussi) passent par l'aperçu de l'appareil
-    (localStorage `ecsr_nav_v2` = "1", posé avant le chargement). Le formateur prof, qui n'est pas
-    fondateur et n'a donc aucun aperçu, passe par le réglage de la promo (ligne `navigation_v2` de
-    `settings`, semée dans le faux Supabase par une interception de `_harness_supabase.js` : le
-    fichier du banc n'est jamais modifié). S'y ajoutent un stagiaire qui n'est pas fondateur (réglage
-    de la promo, `is_founder` retiré : le cas de la plupart des vrais comptes), le stagiaire et le prof
-    avec `?modules=depart` (modules fermés : pas de case vide, repères), et le « Voir en tant que » du
-    fondateur, à 1280, 900 et 375 px (Stagiaire, Formateur, Stagiaire, puis son rôle réel : la
-    coquille change d'espace sans recharger la page, et l'entrée allumée suit la page affichée ; sur
-    téléphone, il passe aussi par « Plus », « Mon compte », « Stagiaire », puis ouvre le tiroir et
-    élargit l'écran à 900 px : le tiroir se ferme et le focus ne tombe jamais sur body ; à chaque rôle
-    vu, le bandeau d'aperçu est en bas de l'écran et l'assistant, ouvert depuis la coquille, garde son
-    champ et « Envoyer » à portée : rien ne couvre leur centre). S'y ajoute, une fois par moteur,
-    l'ouverture d'un formateur dont l'appareil a vu la promo allumée (mémoire `ecsr_nav_v2_promo:1`,
-    ruling R17), lectures des réglages ralenties : l'ancienne barre ne se peint à aucune image avant
-    la coquille (échantillon à chaque image) et l'attente (`body[data-nav-attente]`) est levée. Et, le module Ressources
-    fermé pour la promo (lot 2A, tâche 1), un stagiaire sans drapeau de fondateur puis un formateur : la ligne « Contacts du centre » du menu du compte.
-  * Passe « éteint » : aucun aperçu, rien ne doit changer par rapport à main (aucune coquille,
-    l'ancienne barre d'onglets, pas de sous-onglets regroupés, aucun défilement ni débordement de côté),
-    sauf quatre défauts de main corrigés depuis : la barre des
-    jours du planning se colle juste sous l'ancienne barre, quelle que soit sa hauteur, et, bandeaux du
-    bas affichés (« Voir en tant que », promos non chargées), la bulle de l'assistant et le champ de son
-    panneau restent à portée, sa croix se lit et ses boutons font 44 px sur téléphone ; la carte
-    « Prochain événement majeur » de l'accueil, où un stage commencé n'est plus un nombre de jours négatif
-    (lot 2A, tâche 4) mais « En cours » (vague finale, F9) ; et le graphe d'évolution de la fiche d'un stagiaire, dessiné à
-    la largeur de son conteneur (vague finale, F1). Y sont gardés, avec leurs textes d'avant : l'accueil (logo à côté de la date,
-    phrase sur le suivi de la promo, tuiles, pied de page « Promo 2026 » et « admin »), le Planning (« Cette semaine », « Lecture seule... »), la
-    page Notes du stagiaire, les comptes en surtitre, les horaires du bandeau d'émargement sur téléphone, les Nouveautés d'avant (leurs « Où le trouver » et leurs « Comment faire »,
-    sans les deux de lancement, mais avec la Nouveauté pour tous « Des pages mieux tenues sur le téléphone »). S'y ajoute un stagiaire sans drapeau de fondateur dont l'appareil porte l'aperçu d'un fondateur (lot 2A, tâche 1) : l'aperçu n'est pas pour lui.
-Habillages (lot 3, tâche 10 ; option `--habillages`, défaut `ecsr,ecf`) : la passe allumée, tous ses scénarios, est jouée dans
+  * Rôles stagiaire, prof et fondateur, largeurs 1280, 1100, 900 et 375 px. S'y ajoutent un stagiaire qui n'est pas fondateur
+    (`is_founder` retiré : le cas de la plupart des vrais comptes), le stagiaire et le prof avec `?modules=depart` (modules fermés :
+    pas de case vide, repères), et le « Voir en tant que » du fondateur, à 1280, 900 et 375 px (Stagiaire, Formateur, Stagiaire,
+    puis son rôle réel : la coquille change d'espace sans recharger la page, et l'entrée allumée suit la page affichée ; sur
+    téléphone, il passe aussi par « Plus », « Mon compte », « Stagiaire », puis ouvre le tiroir et élargit l'écran à 900 px : le
+    tiroir se ferme et le focus ne tombe jamais sur body ; à chaque rôle vu, le bandeau d'aperçu est en bas de l'écran et
+    l'assistant, ouvert depuis la coquille, garde son champ et « Envoyer » à portée : rien ne couvre leur centre). Et, le module
+    Ressources fermé pour la promo (lot 2A, tâche 1), un stagiaire sans drapeau de fondateur puis un formateur : la ligne
+    « Contacts du centre » du menu du compte. Un stagiaire qui ouvre `#/config` arrive sur Mes préférences, sans aucune section de
+    la promo ni la liste « Personnes avec accès » (10/11).
+Habillages (lot 3, tâche 10 ; option `--habillages`, défaut `ecsr,ecf`) : tous les scénarios sont joués dans
 chaque habillage demandé : « ecsr » (ECSR Promo, le défaut) sur un appareil vierge, « ecf » (Couleurs ECF) par le levier de
 tout robot, `localStorage.ecsr_habillage = {"nom": "ecf"}` posé avant le premier chargement (l'app pose `data-skin` elle-même).
-La passe éteinte est jouée dans le défaut. Avec « ecf » s'y ajoutent : la passe éteinte d'un appareil en ECF, chaque rôle à
-1280 et 375 px (Review Focus 4, décision H6 : l'habillage s'applique dans les deux navigations ; le retour à ECSR Promo depuis
-l'ancienne barre arrive à la Task 11), et, une fois par moteur, l'appareil d'une autre personne (Review Focus 1) : l'appareil
+Avec « ecf » s'y ajoute, une fois par moteur, l'appareil d'une autre personne (Review Focus 1) : l'appareil
 retient `{"nom": "ecf", "email": "autre@example.test"}` ; la page porte « ecf » avant la lecture du profil (avant-peinture),
 puis « ecsr » une fois le démarrage fini, sans rechargement, n'y revient jamais, n'envoie pas ce choix au compte (aucun
 `set_my_habillage("ecf")`), l'appareil le retient comme habillage appliqué non choisi, sans l'e-mail de l'autre ; rechargée, la
 page s'ouvre directement dans le défaut. La pastille « ECSR Promo » pressée du menu du compte, qui n'existe pas encore, est
 vérifiée par la Task 11.
 Sur téléphone, le contexte de l'équipe joue en plus l'en-tête à 320 px (LARGEUR_ETROITE) : la fenêtre se resserre le temps de la vérification de l'Assistant.
-À 1 100 px, le contexte de l'équipe joue en plus la fiche d'un stagiaire (partie Évolution) à 768 px (LARGEUR_TABLETTE, vague finale, F1), dans les deux passes : la fenêtre se resserre sur place.
+À 1 100 px, le contexte de l'équipe joue en plus la fiche d'un stagiaire (partie Évolution) à 768 px (LARGEUR_TABLETTE, vague finale, F1) : la fenêtre se resserre sur place.
 Dans chaque contexte : l'arrivée à froid, chaque entrée de la coquille (cliquée dans la coquille, ou
 via « Plus » sur téléphone quand elle y est rangée ; la liste vient des règles de js/nav-rules.js,
 lues dans la page), chaque sous-onglet des pages qui en ont (Planning, Cours, Mon espace, Notes...), les
@@ -151,10 +134,9 @@ Contrôles par vue
   * Planning > Semaine (ruling R29, puis audit du 09/11, lot B) : allumé, aucun bouton de retour sur la semaine du jour ; sur une autre,
     un bouton nommé « Revenir à aujourd'hui », de 44 px, qui affiche la semaine du jour et amène sa carte en haut de l'écran ;
     éteint, la page n'en a pas (celui de la barre du haut reste) ;
-  * l'attente de la coquille (`body[data-nav-attente]`, ruling R17) n'est plus posée, dans les deux passes ;
   * Réglages et Mes préférences (lot 2A, allumé) : chez l'équipe, `#/config` s'appelle « Réglages », son surtitre est la promo
     affichée, il commence par « Ce que voient les stagiaires » et ne garde que la promo dans l'ordre : Ce que voient les stagiaires,
-    Promo, Accès et invitations, Émargement et Nouvelle navigation (fondateur seulement), Données personnelles ; chez le stagiaire,
+    Promo, Accès et invitations, Émargement et Nouvelle navigation (fondateur seulement), Données personnelles, puis le renvoi « Apparence » (10/11) ; chez le stagiaire,
     `#/config` mène à `#/preferences`. `#/preferences`, pour tous, s'appelle « Mes préférences » et ne montre aucune section de la
     promo (seulement sa section de la personne et « Informations »). Aucune de ces pages ne dit « whitelist », « mdp » ni « admin ». Vague finale, F6 : « Mes préférences »
     n'y figure qu'une fois (le titre de la page ; la section de l'anonymat s'appelle « Dans les notes de la classe »), « Réglages personnels » n'y est plus écrit
@@ -170,16 +152,13 @@ Contrôles par vue
     y sèment des brouillons de l'IA, qui ne comptent pas avant le sous-onglet « Propositions IA » du lot 2B, ruling R56 : « 5 » et non « 7 », et six signalements
     de plus pour « 9+ ») dans la barre latérale dès 700 px (une seule, dans son entrée, sans recouvrir l'œil d'un module
     fermé, en ligne comme en colonne d'icônes), dans le tiroir « Plus » sur téléphone, avec le point de « Plus » (nom « Plus, N à traiter ») et la phrase « N à
-    traiter : 5 signalements » en tête du tiroir ouvert ; chaque repère tient 3:1 contre ce qui l'entoure et son chiffre 4,5:1 contre son
+    traiter : 5 questions contestées » en tête du tiroir ouvert ; chaque repère tient 3:1 contre ce qui l'entoure et son chiffre 4,5:1 contre son
     fond ; sur la barre sombre, toute pastille (celle de « Signaler un problème », dont les scénarios avec brouillons sèment les compteurs, comme celle de « Cours et QCM »)
     tient 3:1 contre la barre et son chiffre 4,5:1. Les brouillons de l'IA et les signalements déjà traités ne comptent pas. Le point de « Plus » (vague finale, F10) s'allume aussi
     quand la pastille de « Signaler un problème », que le tiroir contient, est affichée : le scénario « signaler » fait échouer les lectures « à traiter » mais sème des
-    signalements qui ont avancé, et le point, au téléphone, porte alors le nom « Plus, 2 signalements ont avancé » (ni pastille sur « Cours et QCM », ni phrase de tiroir). Lectures en échec (« panne » : le levier `__HARNESS_FAIL` du banc posé le temps des lectures des deux
+    signalements qui ont avancé, et le point, au téléphone, porte alors le nom « Plus, 2 problèmes signalés ont avancé » (ni pastille sur « Cours et QCM », ni phrase de tiroir). Lectures en échec (« panne » : le levier `__HARNESS_FAIL` du banc posé le temps des lectures des deux
     tables seulement) ou qui n'aboutissent pas (« lent », 20 s) : la barre se pose quand même, sans pastille, sans point, sans phrase, sans message ni boîte d'erreur ni
     erreur de console, et le menu du compte s'ouvre. Chez le stagiaire (« Voir en tant que » compris) et interrupteur éteint, aucun de ces repères ;
-  * case du fondateur (lot 2A, tâche 6, ruling R54) : la lecture du réglage de la promo échoue ; la case « Nouvelle navigation activée » de Réglages ne dit que le réglage de la
-    promo (la mémoire de l'appareil pour cette promo, ruling R17), jamais l'aperçu de l'appareil : cochée seulement quand la mémoire dit « allumée ». Les six combinaisons du
-    fondateur (aperçu aucun, allumé ou éteint, croisé avec la mémoire de la promo présente ou absente), la barre appliquée comprise : elle suit l'aperçu, la case non ;
   * titres des pages (lot 2A, allumé) : le titre (h2) de chaque page du menu est le libellé de son entrée (équipe : Émargement, Stagiaires, Notes et
     examens, Cours et QCM, Indicateurs, Réglages, CCP2 ; stagiaire : Cours et QCM, Mon suivi, CCP2) et, sauf pour CCP2, son surtitre est le nom de la
     promo affichée. L'Accueil du stagiaire et Planning n'en font pas partie (TITRES_DES_PAGES) : l'accueil du stagiaire salue par son prénom, le Planning garde
@@ -199,7 +178,7 @@ Contrôles par vue
     le compte, rien ne débordant de la fenêtre, à 375 px puis à 320 px (la page Stagiaires y est mesurée comme toute vue, sans autre scénario) ; le
     tiroir « Plus » s'appelle « Autres pages », sans « Tout l'espace formateur », et garde sa ligne « Assistant » ;
   * Notes et examens (équipe, lot 2A, puis lot C de l'audit du 09/11) : sur un écran tactile (le téléphone du banc), le sous-titre est
-    « Saisis les notes thème par thème, ou touche une case de la matrice. » et la phrase sur Entrée et Échap n'est pas montrée ; avec une
+    « Saisissez les notes thème par thème, ou touchez une case de la matrice. » et la phrase sur Entrée et Échap n'est pas montrée ; avec une
     souris, le sous-titre d'avant et la phrase de la barre d'outils ;
   * comptes en fin de sous-titre (lot 2A, tâche 4, ruling R49) : Notes et examens finit par « N notes enregistrées. », Planning > Dates clés par
     « N dates clés. » (le nombre d'événements que l'app lit, passés compris), Cours et QCM > Documents par « N liens · M contacts. » ; éteint, ils
@@ -208,23 +187,23 @@ Contrôles par vue
     ni son bandeau d'émargement, ne dit « admin ». L'abréviation seule, comme dans Réglages et Mes préférences : « administrateur » et « administration »
     restent permis ;
   * Accueil (lot 2A, tâche 4, deux espaces) : le logo n'y est qu'une fois (celui de la coquille), la phrase sur le suivi de la promo est remplacée par
-    « Promo <nom> · semaine <n> » (la semaine, recalculée par le script depuis la date de début de la promo), aucune tuile ne double la barre ;
+    « Promo <nom> · semaine <n> de formation » (la semaine, recalculée par le script depuis la date de début de la promo), aucune tuile ne double la barre ;
   * carte « Prochain événement majeur » (les deux navigations, correction pour tous) : recalculée par le script depuis l'agenda tel que l'app le lit
     (le premier examen ou stage qui n'est pas passé) : jamais de nombre négatif ; un stage commencé dit « En cours, fin dans N jours » (« fin demain »,
     « fin aujourd'hui ») et sa pastille dit « En cours », sans nombre ni habillage de compte à rebours (vague finale, F9 : jamais « Aujourd'hui ! » pour un stage qui finit
     aujourd'hui) ; un événement à venir garde sa pastille d'avant (« 9 jours », « Aujourd'hui ! » le jour où il commence), sans ligne « en cours » ;
-  * pied de l'Accueil (vague finale, F7, puis audit du 09/11, A8) : avec la nouvelle navigation, « TP ECSR App · Promo <nom de la promo affichée> · connecté comme
+  * pied de l'Accueil (vague finale, F7, puis audit du 09/11, A8) : avec la nouvelle navigation, « TP ECSR App · Promo <nom de la promo affichée> · connecté en tant que
     <rôle> », le vrai rôle (aperçu, fondateur, rôle sur la promo ; jamais « admin ») ; avec l'ancienne, le texte de main (« Promo 2026 » écrit en dur, « admin ») ;
   * Planning > Semaine, sur la semaine du jour : ni « Lecture seule... », ni « Consultation », ni boutons « Cette semaine », « Aujourd'hui »,
     « Revenir à aujourd'hui » ou « Émargement », pour le stagiaire comme pour l'équipe (audit du 09/11, lots E et B) ; hors édition, pas de
     raccourci vers la banque des bénévoles, qui revient en mode Modifier ;
-  * Mon suivi aux libellés clairs (lot 2B, tâche 7), pour toute personne qui a une fiche, à 1 280 et 375 px : les parties dans l'ordre (Résultats, Passages, EPCF,
-    Livret EPCF, Dossier pro), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« EPCF : 0 épreuve sur 2 », « Dossier pro :
+  * Mon suivi aux libellés clairs (lot 2B, tâche 7), pour toute personne qui a une fiche, à 1 280 et 375 px : les parties dans l'ordre (Résultats, Passages, Évaluations EPCF,
+    Livret EPCF, Dossier professionnel), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« Évaluations EPCF : 0 épreuve sur 2 », « Dossier professionnel :
     0 exemple sur 6 »), sans date « 02/10 », jamais coupée, la dernière au-dessus de la barre du bas (à l'ouverture, et page défilée au bout) ; Résultats et son
     groupe « Moi / La classe » (boutons de 44 px, « Moi » par défaut, le choix gardé sur l'appareil, même après un rechargement) ; #/mon-suivi/classe,
     #/mon-suivi/evolution et #/notes (stagiaire) ouvrent Résultats sur la bonne vue, l'adresse devenue #/mon-suivi/resultats, sans étape d'historique ; sur
     téléphone, le retour « ‹ Mon suivi » remplace l'en-tête de la page ; un exemple du dossier enregistré fait passer la ligne à « 1 exemple sur 6 » sans
-    recharger. La fiche d'un stagiaire chez l'équipe garde ses parties de main (Passages, EPCF, Évolution, Livret, Dossier pro), allumé et éteint ; Mon espace
+    recharger. La fiche d'un stagiaire chez l'équipe garde ses parties de main (Passages, Évaluations EPCF, Évolution, Livret EPCF, Dossier professionnel), allumé et éteint ; Mon espace
     éteint aussi ; module des notes fermé (`?modules=depart`), ni Résultats ni « Moi / La classe » ;
   * Mon suivi > La classe, pour toute personne qui a une fiche (le contexte décide, pas le rôle : le stagiaire, et le fondateur dans l'espace de l'équipe) : ni
     second titre, ni seconde rangée Matrice / EPCF (aucun libellé « EPCF » isolé), ni « Lecture seule... » ; le stagiaire, qui ne saisit rien, ne lit pas non plus
@@ -249,7 +228,7 @@ Contrôles par vue
   * Nouveautés et « Où le trouver » (lot 2A, tâche 1) : allumé, la rubrique (#/nouveautes) montre « Une navigation plus simple » à tous et « Côté formateurs, la barre passe à
     gauche » à l'équipe seule (le fondateur en aperçu, sur une promo éteinte, voit les deux ; un stagiaire sans drapeau de fondateur d'une promo allumée, la première seulement),
     et aucune des trois Nouveautés qui ne décrivent que l'ancienne barre. Le lien « Où le trouver » de dix Nouveautés d'avant (cinq de plus pour l'équipe) porte le nom de la
-    nouvelle barre (Mon suivi, La classe ; Planning, Priorités ; Cours et QCM, Documents ; Mes préférences chez le stagiaire, Réglages chez l'équipe, jamais l'inverse), son
+    nouvelle barre (Mon suivi, La classe ; Planning, Ordre de passage ; Cours et QCM, Documents ; Mes préférences chez le stagiaire, Réglages chez l'équipe, jamais l'inverse), son
     adresse restant celle de main ; leur « Comment faire » est celui de la nouvelle barre ; le lien de la Nouveauté de l'équipe ouvre Stagiaires, sous-onglet « Élèves bénévoles ».
     L'accueil ouvre sa section de Nouveautés par celles du lancement. Vague finale : les trois entrées du jour de la mise en ligne portent la date du 29/10/2026 ; « Une navigation plus simple »
     dit que certaines parties s'ouvrent au fil de la formation (F5) et place le bouton « Aujourd'hui » en tête de Planning, Semaine (F4) ; la consigne de « Signaler un problème » est juste
@@ -293,7 +272,7 @@ contexte) et les contrôles de la page sont joués quand même.
   * Une entrée sans libellé visible (colonne d'icônes) porte `aria-label` et `title`. « Visible » se mesure
     sur la boîte affichée du texte : un libellé réservé aux lecteurs d'écran (1 px, `clip`) ne compte pas.
 
-Options utiles pendant le développement : `--roles`, `--moteurs`, `--largeurs`, `--passes`, `--habillages`,
+Options utiles pendant le développement : `--roles`, `--moteurs`, `--largeurs`, `--habillages`,
 `--sans-menus` (boutons du compte et de « Plus » pas encore câblés, avant la Task 5), `--tout` (liste chaque
 échec), `--captures DOSSIER` (une capture par vue en échec), `--jobs N` (processus en parallèle, deux par
 moteur par défaut).
@@ -423,30 +402,26 @@ LARGEUR_TABLETTE = 768         # une tablette : jamais un scénario non plus, se
 HAUTEUR[LARGEUR_TABLETTE] = 1024
 SEUIL_TELEPHONE = 700          # largeur de fenêtre sous laquelle la coquille passe en mode téléphone
 DATE_DU_BANC = "2026-10-27"    # « aujourd'hui » figé (même date que les autres vérifications du lot)
-CLE_APERCU = "ecsr_nav_v2"     # aperçu du fondateur, propre à l'appareil (js/nav-etat-regles.js)
 # Habillages (lot 3) : « ecsr » (ECSR Promo, le défaut) et « ecf » (Couleurs ECF). Levier, le même que pour tout robot
 # (outils/captures_habillages.py) : avant le chargement, l'appareil retient `{ nom }` sous CLE_HABILLAGE ; l'app pose data-skin
 # elle-même (avant-peinture, puis accord avec le compte au démarrage). Le défaut est joué sur un appareil vierge.
 HABILLAGES = ("ecsr", "ecf")
 CLE_HABILLAGE = "ecsr_habillage"   # js/habillage-regles.js, CLE_APPAREIL
 EMAIL_D_AUTRUI = "autre@example.test"   # l'autre personne de l'appareil partagé (Review Focus 1)
-CLE_REGLAGE = "navigation_v2"  # réglage de la promo, ligne de `settings` (js/nav-etat-regles.js)
-CLE_MEMOIRE_PROMO_1 = "ecsr_nav_v2_promo:1"   # mémoire de l'appareil pour la promo 1 du banc (cleMemoire, ruling R17)
 CLE_SOUS_ONGLET_STAGIAIRES = "stagiaires.subtab"   # mémoire du sous-onglet de la page Stagiaires (CLES_SOUS_ONGLETS, js/nav-rules.js)
 CLE_SOUS_ONGLET_COURS = "themes.subtab"          # celle de Cours et QCM
-LENTEUR_DEMARRAGE_MS = 600     # lectures des réglages ralenties dans le scénario de l'ouverture (ruling R17)
 
 # « À traiter » (lot 2A, tâche 6, puis lot 2B, tâche 6) : ce que la barre de l'équipe montre sur « Cours et QCM » (js/a-traiter.js). Le banc sert cinq signalements
 # ouverts (un par groupe de la console) et aucun brouillon de l'IA ; les scénarios « à traiter » ajoutent des brouillons à relire (BROUILLONS_IA_DU_BANC, comptés depuis
 # le sous-onglet « Propositions IA » du lot 2B), des signalements ouverts (SIGNALEMENTS_EN_PLUS_DU_BANC), des signalements et des brouillons déjà traités (ils
 # ne comptent pas), ou font échouer ou traîner les lectures. Par scénario : la pastille attendue sur l'entrée et la phrase en tête du tiroir
-# « Plus » (« 7 à traiter : 5 signalements, 2 propositions de l'IA »), None quand rien ne doit s'afficher.
+# « Plus » (« 7 à traiter : 5 questions contestées, 2 propositions de l'IA »), None quand rien ne doit s'afficher.
 A_TRAITER_DU_BANC = {
-    "": ("5", "5 à traiter : 5 signalements"),
+    "": ("5", "5 à traiter : 5 questions contestées"),
     # Deux brouillons de l'IA à relire de plus : 5 + 2.
-    "ia": ("7", "7 à traiter : 5 signalements, 2 propositions de l'IA"),
+    "ia": ("7", "7 à traiter : 5 questions contestées, 2 propositions de l'IA"),
     # Six signalements ouverts de plus (5 + 6 = 11) et six brouillons de l'IA : 17, « 9+ ».
-    "beaucoup": ("9+", "17 à traiter : 11 signalements, 6 propositions de l'IA"),
+    "beaucoup": ("9+", "17 à traiter : 11 questions contestées, 6 propositions de l'IA"),
     "panne": (None, None),    # lectures en échec : ni pastille, ni point, ni phrase, ni erreur
     "lent": (None, None),     # lectures qui n'aboutissent pas (20 s) : la barre est là, sans rien
     # Lectures en échec, mais une pastille sur « Signaler un problème » (que le tiroir « Plus » contient) : le seul repère est le point de « Plus ».
@@ -468,21 +443,6 @@ def levier_de_panne(condition):
 
 # Les deux lectures « à traiter » en échec (scénario « panne »).
 JS_PANNE_A_TRAITER = levier_de_panne("%s.includes(this.table)" % json.dumps(list(LECTURES_A_TRAITER)))
-# La lecture du réglage de la promo (ligne `navigation_v2` de `settings`) en échec, les autres lectures de `settings` se lisant : la décision de la session revient à la mémoire
-# de l'appareil (ruling R17) et le réglage reste null (lot 2A, tâche 6 : la case du fondateur dans Réglages).
-JS_REGLAGE_ILLISIBLE = levier_de_panne("this.table === 'settings' && this.filters.some((f) => f.col === 'key' && f.val === 'navigation_v2')")
-# La case « Nouvelle navigation activée » de Réglages après une lecture ratée du réglage de la promo (lot 2A, tâche 6, ruling R54) : elle ne dit que le réglage de la
-# promo (la mémoire de l'appareil pour cette promo, ruling R17), jamais l'aperçu de l'appareil. Les six combinaisons du fondateur, l'aperçu (aucun, allumé, éteint)
-# croisé avec la mémoire de la promo (vue allumée sur l'appareil ou non) : clé -> (aperçu posé sur l'appareil, mémoire posée, la barre appliquée est la nouvelle,
-# la case est cochée). La barre suit l'aperçu dès qu'il y en a un, la case jamais.
-CASES_DU_FONDATEUR = {
-    "aucun-memoire": (None, True, True, True),
-    "aucun-sans": (None, False, False, False),
-    "allume-memoire": ("1", True, True, True),
-    "allume-sans": ("1", False, True, False),    # aperçu allumé, promo éteinte : la barre est la nouvelle, la case reste décochée
-    "eteint-memoire": ("0", True, False, True),   # aperçu éteint, promo allumée : la barre est l'ancienne, la case reste cochée
-    "eteint-sans": ("0", False, False, False),
-}
 # « Signaler un problème » : le banc ne sert aucun compteur ; les scénarios « à traiter » avec brouillons en sèment (`compter_signalements_app`) pour que la pastille de ce
 # bouton, sur la barre sombre, soit mesurée à côté de celle de « Cours et QCM ». Le formateur du banc n'est pas le fondateur : il voit ses signalements qui ont avancé.
 COMPTEURS_SIGNALER_DU_BANC = {"nouveaux": 3, "suivis": 2}
@@ -623,8 +583,8 @@ function modulesDeLApp(noms) {
 }
 async function regles() {
   try {
-    const [rules, mods, em, auth, etat] = await modulesDeLApp(
-      ["nav-rules", "modules-etat", "emargement-etat", "auth-admin", "nav-etat"]);
+    const [rules, mods, em, auth] = await modulesDeLApp(
+      ["nav-rules", "modules-etat", "emargement-etat", "auth-admin"]);
     // Lot 5 : l'espace de la session (direction et siège compris), fixé à la porte ; le lot 1 le déduisait des droits.
     const espace = auth.getEspace ? auth.getEspace() : rules.espaceDe({ formateur: auth.isAdmin() || auth.isProf() });
     const entrees = rules.entreesNavigation(espace, { routeVisible: mods.routeVisible, emargementActif: em.emargementActif() });
@@ -632,7 +592,7 @@ async function regles() {
     return {
       espace, entrees, barre: tel.barre.map((e) => e.id), plus: tel.plus.map((e) => e.id),
       lit: (route) => rules.entreeActive(route, entrees, espace),
-      actif: etat.navigationV2Active(), fondateur: auth.isFounder(), profilStagiaire: auth.monStagiaireId() != null,
+      fondateur: auth.isFounder(), profilStagiaire: auth.monStagiaireId() != null,
       setViewAs: auth.setViewAs,
     };
   } catch (e) { return { erreur: String((e && e.message) || e) }; }
@@ -641,7 +601,7 @@ async function reglesSimples() {
   const r = await regles();
   if (r.erreur) return { erreur: r.erreur };
   return { espace: r.espace, entrees: r.entrees.map((e) => ({ id: e.id, route: e.route, libelle: e.libelle, court: e.court })),
-    barre: r.barre, plus: r.plus, actif: r.actif, fondateur: r.fondateur, profilStagiaire: r.profilStagiaire };
+    barre: r.barre, plus: r.plus, fondateur: r.fondateur, profilStagiaire: r.profilStagiaire };
 }
 async function voirEnTantQue(role) {
   const r = await regles();
@@ -1359,7 +1319,6 @@ async function mesurer(o) {
   const echecs = [], avert = [];
   const W = largeur(), H = hauteur();
   const tel = W < o.seuilTelephone;
-  const allume = o.passe === "allume";
   const route = (location.hash || "").replace(/^#\//, "").split("/")[0];
   window.scrollTo(0, 0);
   const vue = document.getElementById("view");
@@ -1373,25 +1332,20 @@ async function mesurer(o) {
   const boite = vue && vue.querySelector(".view-error-box");
   if (boite) echecs.push(["page en erreur", texte(boite).slice(0, 120)]);
   else if (!vue || !vue.children.length) echecs.push(["page vide", "#view n'a aucun contenu"]);
-  // Ruling R17 : l'attente de la coquille est levée une fois l'app ouverte (sinon l'ancienne barre, si elle
-  // reste, ne se peint plus).
-  if (document.body.hasAttribute("data-nav-attente")) echecs.push(["attente de la coquille non levée", "body[data-nav-attente] est encore posé, l'app ouverte"]);
   // Lot 2A, tâche 4 : aucune page d'un stagiaire (nouvelle navigation) ne parle d'administration (« Connexion admin requise... »). Seule
   // l'abréviation « admin » est refusée, comme dans Réglages et Mes préférences : les mots « administrateur » et « administration » restent permis.
-  if (allume && o.espace === "stagiaire" && vue) {
+  if (o.espace === "stagiaire" && vue) {
     const lu = net([vue, document.getElementById("emargement-bandeau")].filter(Boolean).map((e) => e.innerText).join(" "));
     const dit = /\badmins?\b/i.exec(lu);
     if (dit) echecs.push(["texte d'administration chez le stagiaire", `la page dit « ${dit[0]} » : …${lu.slice(Math.max(0, dit.index - 30), dit.index + 30)}…`]);
   }
-  // Lot 2A, tâche 1 : sous la nouvelle navigation, rien de ce que la personne lit ne nomme une destination de l'ancienne barre.
-  if (allume && o.coquille) {
+  // Lot 2A, tâche 1 : rien de ce que la personne lit ne nomme une destination de l'ancienne barre.
+  if (o.coquille) {
     const mots = motsDAvant();
     if (mots) echecs.push(["mots de l'ancienne barre", mots]);
   }
 
-  // Défilements et débordements de côté : la même classification interrupteur allumé ou éteint, car la
-  // passe éteinte est le garde de « l'app reste identique à main » (une règle du lot qui déborde de
-  // body[data-nav="v2"] se voit là). Aucun conteneur n'a d'exception, hors la matrice des notes.
+  // Défilements et débordements de côté. Aucun conteneur n'a d'exception, hors la matrice des notes.
   const trouves = debordements(o);
   trouves.forEach((t) => {
     if (t.cat === "ignore") return;
@@ -1410,20 +1364,19 @@ async function mesurer(o) {
   // Tableaux : une liste sous 1 080 px, un tableau au-delà (lot 2A, tâche 5), dans les deux passes.
   tableauxEnListes().forEach((detail) => echecs.push(["tableau en liste", detail]));
 
-  // Barres de sous-onglets : une seule allumée ; zones à toucher sous la nouvelle navigation.
+  // Barres de sous-onglets : une seule allumée ; zones à toucher.
   const barres = [...document.querySelectorAll(".subtabs-bar")].filter(visible);
   barres.forEach((b) => {
     const n = b.querySelectorAll(".subtab.active").length;
     if (n !== 1) echecs.push(["sous-onglet allumé", `${n} sous-onglet(s) allumé(s) dans ${nom(b)}`]);
   });
-  if (allume) {
+  {
     const min = tel ? 44 : 24;
     mesurerCibles([...document.querySelectorAll(".subtabs-bar .subtab")], min, echecs, "zone à toucher (sous-onglet)");
     mesurerCibles([...document.querySelectorAll(".invite-admin-toggle")], min, echecs, "zone à toucher (case de réglage)");
   }
 
-  if (allume && o.coquille) mesurerCoquille(o, route, W, H, tel, echecs, avert, await regles());
-  if (!allume) mesurerAncienne(route, echecs, barres);
+  if (o.coquille) mesurerCoquille(o, route, W, H, tel, echecs, avert, await regles());
   window.scrollTo(0, 0);
 
   // Lot 3, tâche 10 : contraste de toute la page (la coquille, l'ancienne barre, #view, les fenêtres et panneaux posés sur body), repères
@@ -1436,44 +1389,12 @@ async function mesurer(o) {
   return { route, echecs, avert };
 }
 
-function mesurerAncienne(route, echecs, barres) {
-  if (document.body.dataset.nav || document.body.dataset.espace) echecs.push(["coquille présente, interrupteur éteint", `body[data-nav] = ${document.body.dataset.nav}, body[data-espace] = ${document.body.dataset.espace}`]);
-  if (racines().length) echecs.push(["coquille présente, interrupteur éteint", `${racines().length} élément(s) [data-nav-coquille]`]);
-  // Les pastilles « à traiter » (lot 2A, tâche 6) sont celles de la coquille : l'ancienne barre n'en a aucune, ni point sur « Plus », ni phrase de tiroir.
-  const aTraiterPose = document.querySelectorAll(".nav-a-traiter, .nav-plus-point, .nav-fenetre-atraiter, [data-nom-base]").length;
-  if (aTraiterPose) echecs.push(["à traiter, interrupteur éteint", `${aTraiterPose} repère(s) « à traiter » dans la page de l'ancienne navigation`]);
-  const onglets = [...document.querySelectorAll("#tabs .tab")].filter(visible);
-  if (!onglets.length) echecs.push(["ancienne barre absente", "aucun onglet visible dans #tabs"]);
-  const allumes = onglets.filter((t) => t.getAttribute("aria-current") === "page");
-  if (allumes.length > 1) echecs.push(["entrée allumée", `${allumes.length} onglets allumés dans l'ancienne barre`]);
-  // L'interrupteur éteint garde les pages de main : pas de regroupement en sous-onglets.
-  const libelles = [...document.querySelectorAll("#view .subtab, #view .fiche-ligne")].map((e) => sansAccent(texte(e)));
-  if (route === "planning" && barres.length) echecs.push(["page regroupée, interrupteur éteint", "le Planning montre des sous-onglets"]);
-  if (route === "themes" && libelles.some((l) => l.startsWith("documents"))) echecs.push(["page regroupée, interrupteur éteint", "Cours montre un sous-onglet Documents"]);
-  if (route === "mon-suivi" && libelles.some((l) => l.startsWith("la classe"))) echecs.push(["page regroupée, interrupteur éteint", "Mon espace montre la partie La classe"]);
-  if (route === "mon-suivi" && libelles.some((l) => l.startsWith("resultats"))) echecs.push(["page regroupée, interrupteur éteint", "Mon espace montre la partie Résultats"]);
-  if (route === "mon-suivi" && document.querySelector("#view .res-bar, #view .fiche-sommaire-clair")) echecs.push(["page regroupée, interrupteur éteint", "Mon espace montre « Moi / La classe » ou le sommaire aux libellés clairs"]);
-  // Le bouton « Aujourd'hui » de la page (ruling R29) n'appartient qu'à la nouvelle navigation : éteint, il est dans la barre du haut.
-  if (route === "planning" && document.querySelector("#view .p-aujourdhui")) echecs.push(["page regroupée, interrupteur éteint", "le Planning montre le bouton « Aujourd'hui » de la nouvelle navigation"]);
-  // Lot 2A, tâche 1 : « Mon suivi » est le nom que la nouvelle navigation donne à Mon espace ; l'ancienne ne le dit nulle part (page et barre), hors deux textes de main : le
-  // récit daté d'une ancienne Nouveauté (« ouvrir l'app te ramenait toujours sur Mon suivi », 16/09) et la règle du Planning sur la « fiche « Mon suivi » » du stagiaire (planning.js).
-  const lu = document.getElementById("view").cloneNode(true);
-  lu.querySelectorAll(".nv-titre, .nv-resume").forEach((e) => e.remove());
-  const barre = document.getElementById("tabs");
-  const nouveau = /\bMon suivi\b/.exec(net(lu.textContent + " " + (barre ? barre.textContent : "")).replace(/fiche « Mon suivi »/g, ""));
-  if (nouveau) echecs.push(["texte de la nouvelle navigation, interrupteur éteint", `la page dit « ${nouveau[0]} », le nom que ne connaît que la nouvelle navigation`]);
-}
-
 function mesurerCoquille(o, route, W, H, tel, echecs, avert, R) {
   const vue = document.getElementById("view");
   if (document.body.dataset.nav !== "v2") echecs.push(["coquille disparue", `body[data-nav] = ${document.body.dataset.nav || "absent"}`]);
   if (document.body.dataset.espace !== o.espace) echecs.push(["espace de la coquille", `attendu ${o.espace}, body[data-espace] = ${document.body.dataset.espace || "absent"}`]);
   const visibles = racines().filter(visible);
   if (!visibles.length) echecs.push(["coquille invisible", `${racines().length} racine(s) [data-nav-coquille], aucune visible`]);
-
-  // L'ancienne barre d'onglets ne reste pas affichée.
-  const anciens = [...document.querySelectorAll("#tabs .tab")].filter(visible);
-  if (anciens.length) echecs.push(["ancienne barre visible", `${anciens.length} onglet(s) de #tabs encore visible(s)`]);
 
   // Une seule entrée allumée, celle que donne entreeActive.
   const allumees = [...document.querySelectorAll('[data-nav-coquille] [aria-current="page"], [data-nav-coquille][aria-current="page"]')].filter(visible);
@@ -1802,7 +1723,7 @@ async function accueil() {
     carte: carte ? { titre: de(carte, ".home-countdown-title"), pastille: de(carte, ".home-countdown-pill"),
       classe: (carte.querySelector(".home-countdown-pill") || {}).className || null,
       statut: de(carte, ".home-countdown-statut"), texte: texte(carte) } : null,
-    // Vague finale, F7 : le pied de page (« TP ECSR App · Promo ... · connecté comme ... ») et qui est connecté (de quoi en déduire le rôle écrit).
+    // Vague finale, F7 : le pied de page (« TP ECSR App · Promo ... · connecté en tant que ... ») et qui est connecté (de quoi en déduire le rôle écrit).
     piedTexte: (() => { const e = vue.querySelector(".home-footer-v2 p"); return e ? net(e.textContent) : null; })(),
     qui: { admin: auth.isAdmin(), role: (auth.getProfile() || {}).role || null, fondateur: !!(auth.getProfile() || {}).is_founder,
       apercu: auth.getViewAs ? auth.getViewAs() : null, roles: (db.getPromoCourante() || {}).roles || null },
@@ -1819,6 +1740,7 @@ function accueilStagiaire() {
   return {
     pastille: pastille ? { texte: net(pastille.textContent), parties: [...pastille.children].map((e) => net(e.textContent)) } : null,
     titre: (vue.querySelector(".home-title-v2") || {}).textContent || null,
+    salut: (vue.querySelector(".home-salut-v2") || {}).textContent || null,
     cartes: [...vue.querySelectorAll(".acc-carte")].map((c) => { const r = c.getBoundingClientRect();
       return { zone: c.dataset.zone, titre: net(c.querySelector("h2").textContent), texte: net(c.querySelector(".acc-corps").textContent), haut: haut(c), bas: bas(c), gauche: r.left, droite: r.right }; }),
     tuiles: vue.querySelectorAll(".home-tile").length,
@@ -1913,28 +1835,6 @@ window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLie
 })();
 """
 
-# Ouverture de l'app (scénario « demarrage », ruling R17), injecté avant le chargement : à chaque image jusqu'à la
-# coquille, l'ancienne barre est-elle peinte (l'app affichée, la barre ni masquée ni invisible) ?
-JS_IMAGES_OUVERTURE = r"""
-(() => {
-  const images = window.__vnImages = { eclair: 0, premiere: null, coquille: false };
-  const t0 = performance.now();
-  const tic = () => {
-    const app = document.getElementById("app"), barre = document.querySelector("header.topbar");
-    images.coquille = !!document.body && document.body.dataset.nav === "v2" && !!document.querySelector("[data-nav-coquille]");
-    if (images.coquille) return;
-    if (app && barre && !app.classList.contains("hidden")) {
-      const s = getComputedStyle(barre);
-      if (s.display !== "none" && s.visibility !== "hidden" && barre.getBoundingClientRect().height > 0) {
-        images.eclair++;
-        if (images.premiere === null) images.premiere = Math.round(performance.now() - t0);
-      }
-    }
-    if (performance.now() - t0 < 15000) requestAnimationFrame(tic);
-  };
-  requestAnimationFrame(tic);
-})();
-"""
 
 # Appareil d'une autre personne (lot 3, tâche 10, Review Focus 1), injecté avant le chargement : la suite des habillages que la page
 # porte (html[data-skin]), dans l'ordre, du script d'avant-peinture à la fin du démarrage.
@@ -1981,19 +1881,15 @@ JS_ATTENTE = r"""async (o) => {
 @dataclass
 class Scenario:
     moteur: str
-    passe: str                  # "allume" ou "eteint"
     role: str                   # valeur de ?role= dans le banc
     largeur: int
-    allumage: str = "aucun"     # "apercu" (localStorage), "reglage" (réglage de la promo) ou "aucun"
-    espace: str = ""            # espace attendu de la coquille : "stagiaire" ou "equipe"
+    espace: str = ""            # espace attendu de la coquille : "stagiaire", "equipe" ou "direction"
     sans_droits: bool = False   # le profil du banc perd is_founder (vrai compte de stagiaire)
     modules: str = ""           # ?modules= (scénario de modules fermés)
     voir_en_tant_que: bool = False
-    demarrage: bool = False     # ouverture seule, mémoire de l'appareil allumée (ruling R17)
     promos_en_panne: bool = False   # ?mes_promos=erreur : le bandeau des promos non chargées s'ajoute à l'aperçu
     agenda_vide: bool = False   # la date du banc recule après le dernier événement : l'accueil n'a rien à venir (lot 2A, tour de correction 1)
     a_traiter: str = ""         # scénario « à traiter » (A_TRAITER_DU_BANC) : "ia", "beaucoup", "panne" ou "lent" ; vide pour tous les autres (lot 2A, tâche 6)
-    reglage_illisible: str = ""       # la lecture du réglage de la promo échoue : la case du fondateur, une clé de CASES_DU_FONDATEUR (lot 2A, tâche 6, ruling R54)
     ressources_fermees: bool = False  # le module Ressources est fermé pour la promo : la ligne « Contacts du centre » du menu du compte (lot 2A, tâche 1)
     compte: str = ""            # ?compte= du banc : un compte réel du lot 4 ("direction" : son espace depuis le lot 5), joué par jouer_direction (relecture finale du lot 2B)
     habillage: str = "ecsr"     # habillage attendu de la page (lot 3, tâche 10) : "ecsr" (défaut, appareil vierge) ou "ecf" (levier de l'appareil posé avant le chargement)
@@ -2004,18 +1900,14 @@ class Scenario:
         variante = "-sans-droits" if self.sans_droits else ""
         variante += "-ecf" if self.habillage == "ecf" else ""
         variante += "-appareil-d-autrui" if self.appareil_d_autrui else ""
-        # Passe éteinte avec un aperçu sur l'appareil : celui d'un fondateur, posé chez qui ne l'est pas (il n'est pas pour lui).
-        variante += "-apercu-ignore" if self.passe == "eteint" and self.allumage == "apercu" else ""
         variante += "-ressources-fermees" if self.ressources_fermees else ""
         variante += ("-" + self.modules) if self.modules else ""
         variante += "-voir-en-tant-que" if self.voir_en_tant_que else ""
-        variante += "-demarrage" if self.demarrage else ""
         variante += "-promos-en-panne" if self.promos_en_panne else ""
         variante += "-agenda-vide" if self.agenda_vide else ""
         variante += ("-a-traiter-" + self.a_traiter) if self.a_traiter else ""
-        variante += ("-reglage-illisible-" + self.reglage_illisible) if self.reglage_illisible else ""
         variante += ("-compte-" + self.compte) if self.compte else ""
-        return "%s/%s/%s%s@%d" % (self.moteur, self.passe, self.role, variante, self.largeur)
+        return "%s/%s%s@%d" % (self.moteur, self.role, variante, self.largeur)
 
 
 class Resultat:
@@ -2045,93 +1937,56 @@ class Resultat:
                 "clics": self.clics, "duree": self.duree}
 
 
-def construire_scenarios(moteurs, roles, largeurs, passes, habillages=HABILLAGES):
-    """Les contextes à jouer, dans l'ordre : par moteur, la passe allumée dans chaque habillage, puis la passe éteinte (dans le
-    défaut), puis, avec « Couleurs ECF », la passe éteinte d'un appareil en ECF et l'appareil d'une autre personne (lot 3, tâche 10)."""
+def construire_scenarios(moteurs, roles, largeurs, habillages=HABILLAGES):
+    """Les contextes à jouer, dans l'ordre : par moteur, tous les scénarios dans chaque habillage, puis, avec « Couleurs ECF », l'appareil
+    d'une autre personne (lot 3, tâche 10). Une seule navigation depuis le 10/11 : plus de passe éteinte ni de levier d'allumage."""
     espace_de = {"stagiaire": "stagiaire", "prof": "equipe", "fondateur": "equipe"}
-    # Le fondateur et le stagiaire du banc (fondateur lui aussi) ont l'aperçu de l'appareil ; le
-    # formateur prof, qui n'est pas fondateur, n'en a pas : le réglage de la promo l'allume.
-    allumage_de = {"stagiaire": "apercu", "prof": "reglage", "fondateur": "apercu"}
     etroit = [l for l in (1280, 375) if l in largeurs]
     # « Voir en tant que » joue aussi 900 px : la colonne d'icônes de l'équipe, où le panneau de l'assistant se pose
     # contre le bandeau d'aperçu, comme à 1280 px (barre dépliée) et à 375 px (barre du bas).
     voir = [l for l in (1280, 900, 375) if l in largeurs]
     resultat = []
     for moteur in moteurs:
-        # Les scénarios du moteur dans le défaut, passe par passe : la passe allumée est rejouée telle quelle dans chaque habillage.
         scenarios = []
-        if "allume" in passes:
-            for role in roles:
-                for l in largeurs:
-                    scenarios.append(Scenario(moteur, "allume", role, l, allumage_de[role], espace_de[role]))
-            if "stagiaire" in roles:
-                for l in etroit:
-                    scenarios.append(Scenario(moteur, "allume", "stagiaire", l, "reglage", "stagiaire", sans_droits=True))
-                    scenarios.append(Scenario(moteur, "allume", "stagiaire", l, "apercu", "stagiaire", modules="depart"))
-            if "prof" in roles:
-                for l in etroit:
-                    scenarios.append(Scenario(moteur, "allume", "prof", l, "reglage", "equipe", modules="depart"))
-            if "fondateur" in roles:
-                for l in voir:
-                    scenarios.append(Scenario(moteur, "allume", "fondateur", l, "apercu", "equipe", voir_en_tant_que=True))
-                # Le fondateur et un réglage de la promo qu'il ne lit pas : la case de Réglages ne dit que le réglage de la promo (la mémoire de l'appareil), jamais
-                # l'aperçu, dans les six combinaisons d'aperçu et de mémoire.
-                for cle in CASES_DU_FONDATEUR:
-                    scenarios.append(Scenario(moteur, "allume", "fondateur", largeurs[0], "aucun", "equipe", reglage_illisible=cle))
-            # Le module Ressources fermé (lot 2A, tâche 1) : la ligne « Contacts du centre » du menu du compte, absente chez un stagiaire (elle ne mènerait nulle
-            # part), gardée par l'équipe qui voit tout.
-            if "stagiaire" in roles:
-                scenarios.append(Scenario(moteur, "allume", "stagiaire", largeurs[0], "reglage", "stagiaire", sans_droits=True, ressources_fermees=True))
-            if "prof" in roles:
-                scenarios.append(Scenario(moteur, "allume", "prof", largeurs[0], "reglage", "equipe", ressources_fermees=True))
-            if "prof" in roles:
-                # Un formateur sans aperçu, dont l'appareil a vu la promo allumée : son ouverture seule (ruling R17).
-                scenarios.append(Scenario(moteur, "allume", "prof", largeurs[0], "reglage", "equipe", demarrage=True))
-                # Son accueil quand plus aucun événement n'est à venir : où ajouter des événements, selon la navigation.
-                scenarios.append(Scenario(moteur, "allume", "prof", largeurs[0], "reglage", "equipe", agenda_vide=True))
-                # Ce qui attend l'équipe dans Cours et QCM (lot 2A, tâche 6) : des brouillons de l'IA qui ne comptent pas (ruling R56), onze signalements (la
-                # pastille dit « 9+ » sur ordinateur, avec l'œil « masqué aux stagiaires » d'un module fermé, en ligne puis en colonne d'icônes), lectures en
-                # échec, lectures qui n'aboutissent pas.
-                # « signaler » : les lectures échouent, mais « Signaler un problème », dans le tiroir, porte une pastille : le point de « Plus » (F10).
-                for a_traiter, largeur, modules in (("ia", 375, ""), ("ia", 1280, "ferme"), ("beaucoup", 1280, ""), ("beaucoup", 900, "ferme"),
-                                                    ("panne", 1280, ""), ("panne", 375, ""), ("lent", 375, ""), ("signaler", 375, "")):
-                    if largeur in largeurs:
-                        scenarios.append(Scenario(moteur, "allume", "prof", largeur, "reglage", "equipe", modules=modules, a_traiter=a_traiter))
-                # La direction du centre (relecture finale du lot 2B) : depuis le lot 5, son espace (barre de la direction, D2, D4) et non plus
-                # l'espace de l'équipe en lecture seule ; aucune entrée ne mène à une page qui la refuse.
-                for l in etroit:
-                    scenarios.append(Scenario(moteur, "allume", "prof", l, "reglage", "direction", compte="direction"))
-        allumes, scenarios = scenarios, []
+        for role in roles:
+            for l in largeurs:
+                scenarios.append(Scenario(moteur, role, l, espace_de[role]))
+        if "stagiaire" in roles:
+            for l in etroit:
+                scenarios.append(Scenario(moteur, "stagiaire", l, "stagiaire", sans_droits=True))
+                scenarios.append(Scenario(moteur, "stagiaire", l, "stagiaire", modules="depart"))
+        if "prof" in roles:
+            for l in etroit:
+                scenarios.append(Scenario(moteur, "prof", l, "equipe", modules="depart"))
+        if "fondateur" in roles:
+            for l in voir:
+                scenarios.append(Scenario(moteur, "fondateur", l, "equipe", voir_en_tant_que=True))
+        # Le module Ressources fermé (lot 2A, tâche 1) : la ligne « Contacts du centre » du menu du compte, absente chez un stagiaire (elle ne mènerait nulle
+        # part), gardée par l'équipe qui voit tout.
+        if "stagiaire" in roles:
+            scenarios.append(Scenario(moteur, "stagiaire", largeurs[0], "stagiaire", sans_droits=True, ressources_fermees=True))
+        if "prof" in roles:
+            scenarios.append(Scenario(moteur, "prof", largeurs[0], "equipe", ressources_fermees=True))
+            # Son accueil quand plus aucun événement n'est à venir : Aujourd'hui ne lit pas l'agenda.
+            scenarios.append(Scenario(moteur, "prof", largeurs[0], "equipe", agenda_vide=True))
+            # Ce qui attend l'équipe dans Cours et QCM (lot 2A, tâche 6) : des brouillons de l'IA qui ne comptent pas (ruling R56), onze signalements (la
+            # pastille dit « 9+ » sur ordinateur, avec l'œil « masqué aux stagiaires » d'un module fermé, en ligne puis en colonne d'icônes), lectures en
+            # échec, lectures qui n'aboutissent pas.
+            # « signaler » : les lectures échouent, mais « Signaler un problème », dans le tiroir, porte une pastille : le point de « Plus » (F10).
+            for a_traiter, largeur, modules in (("ia", 375, ""), ("ia", 1280, "ferme"), ("beaucoup", 1280, ""), ("beaucoup", 900, "ferme"),
+                                                ("panne", 1280, ""), ("panne", 375, ""), ("lent", 375, ""), ("signaler", 375, "")):
+                if largeur in largeurs:
+                    scenarios.append(Scenario(moteur, "prof", largeur, "equipe", modules=modules, a_traiter=a_traiter))
+            # La direction du centre (relecture finale du lot 2B) : depuis le lot 5, son espace (barre de la direction, D2, D4) et non plus
+            # l'espace de l'équipe en lecture seule ; aucune entrée ne mène à une page qui la refuse.
+            for l in etroit:
+                scenarios.append(Scenario(moteur, "prof", l, "direction", compte="direction"))
         for habillage in habillages:
-            resultat += [replace(sc, habillage=habillage) for sc in allumes]
-        if "eteint" in passes:
-            for role in roles:
-                for l in largeurs:
-                    scenarios.append(Scenario(moteur, "eteint", role, l))
-            if "prof" in roles:
-                scenarios.append(Scenario(moteur, "eteint", "prof", largeurs[0], agenda_vide=True))
-            if "stagiaire" in roles:
-                # Un stagiaire sans drapeau de fondateur, sur une promo éteinte, dont l'appareil porte l'aperçu d'un fondateur (lot 2A, tâche 1) : l'aperçu
-                # n'est pas pour lui, la navigation reste l'ancienne et aucune Nouveauté de la nouvelle ne s'affiche.
-                scenarios.append(Scenario(moteur, "eteint", "stagiaire", largeurs[0], "apercu", sans_droits=True))
-            if "fondateur" in roles:
-                # Ancienne barre, les deux bandeaux du bas affichés : la bulle et le panneau de l'assistant
-                # restent à portée (à 375 et 900 px, ils les couvraient sur main).
-                for l in voir:
-                    scenarios.append(Scenario(moteur, "eteint", "fondateur", l, voir_en_tant_que=True, promos_en_panne=True))
-        if "ecsr" in habillages:
-            resultat += scenarios
-        if "ecf" in habillages:
-            if "eteint" in passes:
-                # Ancienne barre (Nîmes, Montpellier), appareil en « Couleurs ECF » (Review Focus 4, décision H6) : l'habillage s'applique
-                # dans les deux navigations ; chaque rôle, sur ordinateur et sur téléphone, avec tous les contrôles de couleur.
-                for role in roles:
-                    for l in etroit:
-                        resultat.append(Scenario(moteur, "eteint", role, l, habillage="ecf"))
-            if "allume" in passes and "stagiaire" in roles:
-                # Appareil partagé (Review Focus 1) : l'appareil garde le choix ECF d'une autre personne ; la page le montre avant que le
-                # profil soit lu, puis prend celui de la personne connectée (ici le défaut), et ne l'envoie jamais à son compte.
-                resultat.append(Scenario(moteur, "allume", "stagiaire", largeurs[0], "apercu", "stagiaire", appareil_d_autrui=True))
+            resultat += [replace(sc, habillage=habillage) for sc in scenarios]
+        if "ecf" in habillages and "stagiaire" in roles:
+            # Appareil partagé (Review Focus 1) : l'appareil garde le choix ECF d'une autre personne ; la page le montre avant que le
+            # profil soit lu, puis prend celui de la personne connectée (ici le défaut), et ne l'envoie jamais à son compte.
+            resultat.append(Scenario(moteur, "stagiaire", largeurs[0], "stagiaire", appareil_d_autrui=True))
     return resultat
 
 
@@ -2233,14 +2088,7 @@ def nouveau_contexte(navigateur, sc, options):
                                  % (json.dumps(CLE_HABILLAGE), json.dumps(json.dumps(appareil))))
     if sc.appareil_d_autrui:
         contexte.add_init_script(JS_SUITE_DES_HABILLAGES)
-    if sc.allumage == "apercu":
-        contexte.add_init_script("try { localStorage.setItem('%s', '1'); } catch (e) { /* stockage bloqué */ }" % CLE_APERCU)
-    if sc.demarrage:
-        contexte.add_init_script("try { localStorage.setItem('%s', '1'); } catch (e) { /* stockage bloqué */ }" % CLE_MEMOIRE_PROMO_1)
-        contexte.add_init_script(JS_IMAGES_OUVERTURE)
     lignes = []
-    if sc.allumage == "reglage":
-        lignes.append("FIXTURES.settings.push({ key: '%s', value: 'true', promo_id: 1 });" % CLE_REGLAGE)
     if sc.sans_droits:
         lignes.append("FIXTURES.user_profiles[0].is_founder = false;")
     lignes.append("RPC.epcf_moyennes = %s;" % json.dumps([{"critere": c, "moyenne": m, "effectif": n}
@@ -2279,13 +2127,6 @@ def nouveau_contexte(navigateur, sc, options):
         lignes.append(js_compteurs_signaler())
     if sc.a_traiter == "panne":
         lignes.append(JS_PANNE_A_TRAITER)
-    if sc.reglage_illisible:
-        apercu, memoire, _, _ = CASES_DU_FONDATEUR[sc.reglage_illisible]
-        if apercu is not None:
-            contexte.add_init_script("try { localStorage.setItem('%s', '%s'); } catch (e) { /* stockage bloqué */ }" % (CLE_APERCU, apercu))
-        if memoire:
-            contexte.add_init_script("try { localStorage.setItem('%s', '1'); } catch (e) { /* stockage bloqué */ }" % CLE_MEMOIRE_PROMO_1)
-        lignes.append(JS_REGLAGE_ILLISIBLE)
     if sc.modules == "ferme":
         # Aucun module ouvert pour la promo : chaque entrée de l'équipe porte l'œil « masqué aux stagiaires » (le banc n'a pas de scénario qui ferme aussi les Documents,
         # et Cours et QCM n'est repéré que quand ses Documents le sont aussi).
@@ -2327,8 +2168,6 @@ def adresse_de_page(url, sc):
     q.pop("mes_promos", None)
     if sc.promos_en_panne:
         q["mes_promos"] = "erreur"
-    if sc.demarrage:
-        q.update(lenteur=str(LENTEUR_DEMARRAGE_MS), lenteur_tables="settings")
     if sc.a_traiter == "lent":
         q.update(lenteur=str(LENTEUR_A_TRAITER_MS), lenteur_tables=",".join(LECTURES_A_TRAITER))
     return urllib.parse.urlunparse(p._replace(query=urllib.parse.urlencode(q), fragment=""))
@@ -2389,7 +2228,7 @@ def verifier_vue(page, res, sc, titre, options):
     """Attend la page, la mesure, range échecs et avertissements."""
     attendre(page)
     res.vues += 1
-    o = {"passe": sc.passe, "espace": sc.espace, "coquille": res.coquille, "seuilTelephone": SEUIL_TELEPHONE,
+    o = {"espace": sc.espace, "coquille": res.coquille, "seuilTelephone": SEUIL_TELEPHONE,
          "exception": EXCEPTION_ADMISE, "habillage": sc.habillage}
     avant = len(res.echecs)
     try:
@@ -2489,7 +2328,7 @@ def plancher_sous_onglets(route, sc, res):
         # Stagiaire : Thèmes, Compétences, QCM, Documents ; équipe : Thèmes, Compétences, Signalements, Propositions IA, Documents (lot 2B, tâche 6).
         return 0 if depart else (4 if sc.espace == "stagiaire" else 5)
     if route == "mon-suivi" and res.profil_stagiaire:
-        return 0 if depart else 5      # Résultats, Passages, EPCF, Livret EPCF, Dossier pro (lot 2B, tâche 7)
+        return 0 if depart else 5      # Résultats, Passages, Évaluations EPCF, Livret EPCF, Dossier professionnel (lot 2B, tâche 7 ; noms du lot D)
     if route == "stagiaires":
         return 2                       # Stagiaires, Élèves bénévoles (équipe seulement, lot 2A)
     return 0
@@ -2497,14 +2336,14 @@ def plancher_sous_onglets(route, sc, res):
 
 def sous_vues(page, res, sc, route, options):
     """Chaque sous-onglet de la première barre de la page, ou chaque ligne du sommaire de Mon
-    espace sur téléphone (la partie s'ouvre alors par son adresse). Nouvelle navigation allumée, une page
-    qui devrait en montrer et n'en montre pas assez (barre perdue) échoue."""
+    espace sur téléphone (la partie s'ouvre alors par son adresse). Une page qui devrait en montrer et n'en
+    montre pas assez (barre perdue) échoue."""
     libelles = page.evaluate("""() => {
         const b = document.querySelector('#view .subtabs-bar');
         if (!b) return [];
         return [...b.querySelectorAll(':scope > .subtab')].map((x) => (x.childNodes[0] ? x.childNodes[0].textContent : x.textContent).trim());
     }""")
-    if sc.passe == "allume":
+    if True:
         attendu = plancher_sous_onglets(route, sc, res)
         nb = len(libelles) or page.evaluate("() => document.querySelectorAll('#view nav.fiche-sommaire a.fiche-ligne').length")
         if nb < attendu:
@@ -2512,7 +2351,7 @@ def sous_vues(page, res, sc, route, options):
         if route == "stagiaires" and libelles[:2] != SOUS_ONGLETS_STAGIAIRES:
             res.echec("sous-onglets de Stagiaires", "%s/%s" % (sc.nom, route), "la page Stagiaires montre « %s », attendu « %s »" % (" », « ".join(libelles), " », « ".join(SOUS_ONGLETS_STAGIAIRES)))
         # « Saisir » (lot C de l'audit du 09/11) : la saisie thème par thème, pour qui écrit des notes ; la direction lit sans écrire.
-        attendu_notes = ["Matrice", "EPCF"] if sc.compte == "direction" else ["Saisir", "Matrice", "EPCF"]
+        attendu_notes = ["Matrice", "Évaluations EPCF"] if sc.compte == "direction" else ["Saisir", "Matrice", "Évaluations EPCF"]   # lot D (10/11)
         if route == "notes" and sc.espace == "equipe" and libelles != attendu_notes:
             res.echec("sous-onglets de Notes", "%s/%s" % (sc.nom, route), "la page Notes de l'équipe montre « %s », attendu « %s »" % (" », « ".join(libelles), " », « ".join(attendu_notes)))
     for i, libelle in enumerate(libelles):
@@ -2523,7 +2362,7 @@ def sous_vues(page, res, sc, route, options):
         except (DelaiDepasse, ErreurPlaywright) as e:
             res.echec("clic impossible", "%s/%s" % (sc.nom, titre), "sous-onglet « %s » : %s" % (libelle, motif_du_clic(e)))
             continue
-        if sc.passe == "allume" and res.coquille:
+        if res.coquille:
             verifier_sous_page(page, res, sc, route, libelle, options)
         verifier_vue(page, res, sc, titre, options)
     adresses = page.evaluate("() => [...document.querySelectorAll('#view nav.fiche-sommaire a.fiche-ligne')].map((a) => a.getAttribute('href'))")
@@ -2635,9 +2474,7 @@ def regles_de_la_page(page, res, sc):
 
 
 def preparer_coquille(page, res, sc, regles):
-    """Vérifie l'interrupteur et la présence de la coquille, une fois par contexte."""
-    if not regles.get("actif"):
-        res.echec("interrupteur", sc.nom, "la nouvelle navigation n'est pas allumée dans ce contexte (navigationV2Active() est faux) : l'allumage du banc a échoué")
+    """Vérifie l'espace et la présence de la coquille, une fois par contexte."""
     if regles.get("espace") != sc.espace:
         res.echec("espace du banc", sc.nom, "les règles donnent l'espace « %s », le scénario attendait « %s »" % (regles.get("espace"), sc.espace))
     if sc.sans_droits and regles.get("fondateur"):
@@ -2653,7 +2490,7 @@ def parcourir_entrees(page, res, sc, entrees, options, avec_sous_vues=True):
     for entree in entrees:
         ouvrir_entree(page, res, sc, entree)
         verifier_vue(page, res, sc, entree["route"], options)
-        if sc.passe == "allume" and res.coquille:
+        if res.coquille:
             if entree["route"] in TITRES_DES_PAGES[sc.espace]:
                 verifier_titre_de_page(page, res, sc, entree["route"], entree["libelle"])
             if entree["route"] == "notes" and sc.espace == "equipe":
@@ -2664,7 +2501,7 @@ def parcourir_entrees(page, res, sc, entrees, options, avec_sous_vues=True):
 
 # Ruling R26 : les quatre anciennes adresses (liens de l'app, favoris, raccourcis d'écran d'accueil) : la page et le
 # sous-onglet que la nouvelle navigation ouvre.
-ANCIENNES_ADRESSES = {"calendrier": ("#/planning", "Dates clés"), "dashboard": ("#/planning", "Priorités"),
+ANCIENNES_ADRESSES = {"calendrier": ("#/planning", "Dates clés"), "dashboard": ("#/planning", "Ordre de passage"),
                       "ressources": ("#/themes", "Documents"), "notes": ("#/mon-suivi/resultats", "Résultats")}
 # Sous-onglet allumé de la page : la partie de Mon espace sur téléphone (son titre), sinon le premier sous-onglet actif.
 JS_SOUS_ONGLET_ALLUME = """() => {
@@ -2678,14 +2515,13 @@ def jouer_anciennes_adresses(page, res, sc):
     y ramène après la première), les deux suivantes depuis la page où la précédente a atterri. Nouvelle navigation : elle
     mène à sa nouvelle page, le sous-onglet visé allumé (module fermé, stagiaire au départ : le premier visible, ou aucun
     s'il est seul) ; Notes garde sa page chez l'équipe. « Précédent » quitte la page redirigée sans étape d'historique de
-    plus (même mécanisme pour les quatre adresses : vérifié sur la première seulement). Interrupteur éteint : l'adresse
-    reste celle d'aujourd'hui."""
+    plus (même mécanisme pour les quatre adresses : vérifié sur la première seulement)."""
     depart = sc.modules == "depart" and sc.espace == "stagiaire"
     aller_a(page, "#/home")
     attendre(page)
     for ancienne, (nouvelle, sous_onglet) in ANCIENNES_ADRESSES.items():
         vue = "%s/ancienne-adresse/%s" % (sc.nom, ancienne)
-        if sc.passe == "eteint" or (ancienne == "notes" and sc.espace == "equipe"):
+        if ancienne == "notes" and sc.espace == "equipe":
             nouvelle, sous_onglet = "#/" + ancienne, None
         elif depart and ancienne != "calendrier":
             sous_onglet = "Semaine" if ancienne == "dashboard" else None
@@ -2835,13 +2671,14 @@ def verifier_retour_arriere(page, res, sc):
 # Sections de Réglages (#/config) sous la nouvelle navigation, dans l'ordre : la promo seule. Émargement et Nouvelle
 # navigation sont les interrupteurs du fondateur (js/emargement-etat.js, js/nav-etat.js). Mes préférences (#/preferences)
 # n'en montre aucune : seulement « Mes préférences » (si un réglage est à montrer) et « Informations ».
-SECTIONS_REGLAGES = ("Ce que voient les stagiaires", "Promo", "Accès et invitations", "Émargement", "Nouvelle navigation",
-                     "Données personnelles")
-SECTIONS_DU_FONDATEUR = ("Émargement", "Nouvelle navigation")
+SECTIONS_REGLAGES = ("Ce que voient les stagiaires", "Promo", "Accès et invitations", "Émargement", "Données personnelles")
+SECTIONS_DU_FONDATEUR = ("Émargement",)
+# En dernier, « Apparence » : un renvoi vers Mes préférences, où se fait le choix des couleurs, pas une section de la promo (décision du 10/11).
+RENVOI_APPARENCE = "Apparence"
 SECTIONS_PREFERENCES = ("Apparence", "Dans les notes de la classe", "Informations")
 # Le sous-titre de Mes préférences : la page a toujours un réglage à soi depuis le lot 3 (Apparence, pour tous les rôles), l'anonymat en plus pour qui a une
 # fiche de stagiaire ; il ne dit donc plus « Les informations sur l'application. » seules.
-SOUS_TITRE_PREFERENCES = "Ce qui ne concerne que toi, et les informations sur l'application."
+SOUS_TITRE_PREFERENCES = "Les réglages personnels et les informations sur l'application."
 # Ce que ces pages ne disent plus : « whitelist », « mdp » et l'abréviation « admin » (le mot « administrateur » reste permis).
 MOTS_BANNIS = re.compile(r"whitelist|mdp|\badmins?\b", re.IGNORECASE)
 
@@ -3086,11 +2923,11 @@ def nombre_de_la_phrase(phrase):
 
 
 def lignes_a_traiter_attendues(phrase):
-    """Les lignes de la carte « À traiter » d'Aujourd'hui que dit la phrase du tiroir (« 7 à traiter : 5 signalements, 2 propositions de l'IA »)."""
+    """Les lignes de la carte « À traiter » d'Aujourd'hui que dit la phrase du tiroir (« 7 à traiter : 5 questions contestées, 2 propositions de l'IA »)."""
     lignes = []
-    m = re.search(r": (\d+) signalements?", phrase)
+    m = re.search(r": (\d+) questions? contestées?", phrase)
     if m:
-        lignes.append("%s signalement%s sur %s" % (m.group(1), "" if m.group(1) == "1" else "s", "un QCM" if m.group(1) == "1" else "des QCM"))
+        lignes.append("1 question contestée" if m.group(1) == "1" else "%s questions contestées" % m.group(1))
     m = re.search(r"(\d+) propositions? de l'IA", phrase)
     if m:
         lignes.append("1 question proposée par l'IA" if m.group(1) == "1" else "%s questions proposées par l'IA" % m.group(1))
@@ -3188,7 +3025,7 @@ def verifier_a_traiter(page, res, sc, tiroir=False):
 def verifier_point_de_signaler(res, vue, sc, m, tiroir):
     """Scénario « signaler » (vague finale, F10) : les lectures « à traiter » échouent (aucun compte), mais la pastille de « Signaler un problème », que le
     tiroir « Plus » contient, est affichée (la personne du banc a des signalements qui ont avancé) : le point de « Plus » s'allume quand même, au téléphone, et
-    son nom dit ce qu'il signale (« Plus, 2 signalements ont avancé »), sans parler d'« à traiter » ; ni pastille sur « Cours et QCM », ni phrase en tête du tiroir.
+    son nom dit ce qu'il signale (« Plus, 2 problèmes signalés ont avancé »), sans parler d'« à traiter » ; ni pastille sur « Cours et QCM », ni phrase en tête du tiroir.
     Sur ordinateur, la barre du bas n'existe pas : aucun point."""
     telephone = sc.largeur < SEUIL_TELEPHONE
     if [p for p in m["pastilles"] if p["visible"]]:
@@ -3210,8 +3047,8 @@ def verifier_point_de_signaler(res, vue, sc, m, tiroir):
     for p in points:
         if min(p["taille"]) < 8:
             res.echec("point de « Plus »", vue, "le point mesure %dx%d px : trop petit pour se voir" % tuple(p["taille"]))
-        if not p["nom"].startswith("Plus, ") or "signalement" not in p["nom"] or "à traiter" in p["nom"]:
-            res.echec("point de « Plus »", vue, "le nom du bouton est « %s » : il devrait dire ce que le point signale (« Plus, 2 signalements ont avancé »), sans « à traiter »" % p["nom"])
+        if not p["nom"].startswith("Plus, ") or "problème signalé" not in p["nom"].replace("problèmes signalés", "problème signalé") or "à traiter" in p["nom"]:
+            res.echec("point de « Plus »", vue, "le nom du bouton est « %s » : il devrait dire ce que le point signale (« Plus, 2 problèmes signalés ont avancé »), sans « à traiter »" % p["nom"])
         for contre, valeur in (("son liseré", p["lisere"]), ("le fond derrière lui", None if p.get("detache") else p["fond"])):
             if valeur is not None and valeur < 3:
                 res.echec("contraste du point de « Plus »", vue, "le point (%s) ne tient que %.2f:1 contre %s, 3:1 au moins pour un repère" % (p["couleur"], valeur, contre))
@@ -3254,8 +3091,9 @@ def jouer_a_traiter(page, res, sc, options):
 
 def verifier_reglages(page, res, sc, regles):
     """Réglages (#/config) sous la nouvelle navigation. Équipe : titre « Réglages », surtitre la promo affichée, la page commence par
-    « Ce que voient les stagiaires » et ne garde que la promo, dans l'ordre (SECTIONS_REGLAGES : Émargement et Nouvelle navigation
-    pour le fondateur seulement), sans « whitelist », « admin » ni « mdp ». Stagiaire : #/config le mène à Mes préférences."""
+    « Ce que voient les stagiaires » et ne garde que la promo, dans l'ordre (SECTIONS_REGLAGES : Émargement pour le fondateur
+    seulement ; plus de section « Nouvelle navigation » depuis le 10/11), sans « whitelist », « admin » ni « mdp ». Stagiaire : #/config
+    le mène à Mes préférences, sans aucune section de la promo ni la liste « Personnes avec accès »."""
     vue = "%s/reglages" % sc.nom
     res.vues += 1
     aller_a(page, "#/config")
@@ -3265,6 +3103,11 @@ def verifier_reglages(page, res, sc, regles):
         if p["route"] != "preferences" or p["titre"] != "Mes préférences":
             res.echec("page Réglages", vue, "un stagiaire qui ouvre #/config arrive sur #/%s (« %s »), attendu #/preferences (« Mes préférences »)"
                       % (p["route"], p["titre"]))
+        if "Personnes avec accès" in p["texte"]:
+            res.echec("page Réglages", vue, "un stagiaire qui ouvre #/config voit la liste « Personnes avec accès » de la promo")
+        de_la_promo = [s for s in p["sections"] if s in SECTIONS_REGLAGES]
+        if de_la_promo:
+            res.echec("page Réglages", vue, "un stagiaire qui ouvre #/config voit des sections de la promo : %s" % ", ".join(de_la_promo))
         vider_console(res, vue)
         return
     if p["route"] != "config":
@@ -3275,7 +3118,7 @@ def verifier_reglages(page, res, sc, regles):
         res.echec("page Réglages", vue, "le surtitre est « %s », attendu le nom de la promo affichée (« %s »)" % (p["surtitre"], p["promo"]))
     if p["sousTitre"] != "Ce que voient les stagiaires, la promo et les accès.":
         res.echec("page Réglages", vue, "le sous-titre est « %s »" % p["sousTitre"])
-    attendues = [s for s in SECTIONS_REGLAGES if s not in SECTIONS_DU_FONDATEUR or regles.get("fondateur")]
+    attendues = [s for s in SECTIONS_REGLAGES if s not in SECTIONS_DU_FONDATEUR or regles.get("fondateur")] + [RENVOI_APPARENCE]
     if p["sections"][:1] != [SECTIONS_REGLAGES[0]]:
         res.echec("page Réglages", vue, "la page commence par « %s », attendu « %s »" % ((p["sections"] or ["rien"])[0], SECTIONS_REGLAGES[0]))
     elif p["sections"] != attendues:
@@ -3338,67 +3181,6 @@ def verifier_preferences(page, res, sc):
     vider_console(res, vue)
 
 
-def verifier_preferences_eteint(page, res, sc):
-    """Interrupteur éteint : Mes préférences n'existe pas, #/preferences mène à Paramètres (#/config), la page de main."""
-    vue = "%s/preferences" % sc.nom
-    res.vues += 1
-    aller_a(page, "#/preferences")
-    attendre(page, calme=150)
-    p = page.evaluate("() => window.__verifNav.pageDeReglages()")
-    if p["route"] != "config" or p["titre"] != "Paramètres":
-        res.echec("préférences, interrupteur éteint", vue, "#/preferences ouvre #/%s (« %s »), attendu #/config (« Paramètres »)" % (p["route"], p["titre"]))
-    # Lot 2A, tâche 1 : le texte de l'anonymat est le même dans les deux navigations ; la phrase des modules toujours ouverts est celle de main.
-    verifier_texte_de_l_anonymat(res, vue, p, "préférences, interrupteur éteint")
-    if p["socle"] is not None and p["socle"] != SOCLE["ancienne"]:
-        res.echec("préférences, interrupteur éteint", vue, "la phrase des modules toujours ouverts est « %s », celle de main « %s »" % (p["socle"], SOCLE["ancienne"]))
-    # Lot 3, tâche 11, décision H6 : le choix ne se fait que dans la nouvelle navigation ; Paramètres ne montre Apparence qu'à qui est en « Couleurs ECF »,
-    # pour pouvoir revenir. En « ECSR Promo », la page de main, sans rien de plus.
-    a = lire_apparence(page, "page")
-    if a["skin"] == "ecf":
-        if verifier_apparence(page, res, sc, vue, "page", a) is not None and "Apparence" not in p["sections"]:
-            res.echec("préférences, interrupteur éteint", vue, "le groupe « Apparence » n'est pas dans une section « Apparence » (sections : %s)" % ", ".join(p["sections"]))
-    elif a["groupes"] or "Apparence" in p["sections"]:
-        res.echec("préférences, interrupteur éteint", vue, "Paramètres montre Apparence à qui est en « ECSR Promo » : avec l'ancienne barre, rien ne change (décision H6)")
-    vider_console(res, vue)
-
-
-def jouer_retour_par_parametres(page, res, sc):
-    """Ancienne barre, appareil en « Couleurs ECF » (décision H6) : Apparence, dans Paramètres, ramène à ECSR Promo sans recharger ; rechargée, la page
-    reste en ECSR Promo, l'appareil le retient comme un choix, et Paramètres ne montre plus Apparence. Le banc est rechargé : joué en dernier."""
-    vue = "%s/apparence/retour-par-parametres" % sc.nom
-    res.vues += 1
-    aller_a(page, "#/config")
-    attendre(page, calme=150)
-    attendre_habillage(page, "ecf")
-    # Paramètres qui ne se charge pas (toute lecture rejetée le temps de l'ouvrir) : la boîte d'erreur s'affiche et Apparence reste là, pour ne pas piéger en ECF.
-    page.evaluate("() => { window.__HARNESS_FAIL = 'panne du banc'; }")
-    aller_a(page, "#/home")
-    aller_a(page, "#/config")
-    page.wait_for_selector(".param-error", timeout=20000)
-    if not lire_apparence(page, "page")["groupes"]:
-        res.echec("apparence, Paramètres en échec", vue, "la page ne se charge pas et Apparence manque : une personne en « Couleurs ECF » ne peut pas revenir")
-    page.evaluate("() => { window.__HARNESS_FAIL = null; }")
-    res.console.clear()   # l'erreur de chargement journalisée est celle que la panne provoque, attendue ici
-    aller_a(page, "#/home")
-    aller_a(page, "#/config")
-    attendre(page, calme=150)
-    verifier_choix(page, res, sc, vue, "page", "ecsr", choisir_habillage(page, res, vue, "page", "ecsr"))
-    vider_console(res, vue)
-    vue = "%s/rechargement" % vue
-    res.vues += 1
-    recharger_la_page(page)
-    attendre_habillage(page, "ecsr", False)
-    skin = page.evaluate("() => document.documentElement.dataset.skin || null")
-    a = page.evaluate("(cle) => { try { return JSON.parse(localStorage.getItem(cle)); } catch (e) { return null; } }", CLE_HABILLAGE) or {}
-    if skin != "ecsr" or a.get("nom") != "ecsr" or a.get("choisi") is not True:
-        res.echec("retour à ECSR Promo", vue, "rechargée, la page porte « %s » et l'appareil retient %s : attendu « ecsr », choisi" % (skin, json.dumps(a)))
-    aller_a(page, "#/config")
-    attendre(page, calme=150)
-    if lire_apparence(page, "page")["groupes"]:
-        res.echec("retour à ECSR Promo", vue, "revenu en ECSR Promo, Paramètres montre encore Apparence (décision H6 : seulement pour qui est en « Couleurs ECF »)")
-    vider_console(res, vue)
-
-
 def verifier_texte_de_l_anonymat(res, vue, p, type_):
     """Le texte de l'anonymat des notes (Mes préférences, ou Paramètres), juste dans les deux navigations (lot 2A, tâche 1) : « ni ton prénom ni tes notes dans
     les notes de la classe », non plus « sur la page Notes », qui n'existe plus comme page du stagiaire. Absent quand le module Notes est fermé."""
@@ -3420,14 +3202,14 @@ def verifier_texte_de_l_anonymat(res, vue, p, type_):
 # suivi se lit aussi chez qui n'a pas cette entrée (fondateur).
 TITRES_DES_PAGES = {
     "equipe": ("home", "emargement", "stagiaires", "notes", "themes", "centre", "config", "ccp2"),
-    "stagiaire": ("themes", "mon-suivi", "ccp2"),
+    "stagiaire": ("home", "themes", "mon-suivi", "ccp2"),   # « home » : titré « Accueil » depuis le 10/11
 }
 # Parmi elles, celles dont le surtitre est le nom de la promo affichée (CCP2 garde « Titre professionnel ECSR »).
 SURTITRE_PROMO = ("emargement", "stagiaires", "notes", "themes", "centre", "config", "mon-suivi")
 SOUS_ONGLETS_STAGIAIRES = ["Stagiaires", "Élèves bénévoles"]
 # Sous-pages qui ont repris le nom de leur sous-onglet : Planning > Dates clés (ex-Calendrier), Cours et QCM > Documents (ex-Ressources).
 SOUS_PAGES = (("planning", "Dates clés"), ("themes", "Documents"))
-PHRASE_TACTILE = "Saisis les notes thème par thème, ou touche une case de la matrice."   # lot C : la page s'ouvre sur « Saisir »
+PHRASE_TACTILE = "Saisissez les notes thème par thème, ou touchez une case de la matrice."   # lot C : la page s'ouvre sur « Saisir »
 
 
 def verifier_titre_de_page(page, res, sc, route, libelle):
@@ -3439,7 +3221,7 @@ def verifier_titre_de_page(page, res, sc, route, libelle):
     if p["route"] != route:
         return   # la page n'est pas celle qu'on attendait : le défaut est noté à l'ouverture
     if route == "home":
-        # Aujourd'hui : un titre de la signature de l'app (h1, sous la pastille de date), pas un en-tête de page.
+        # Aujourd'hui (l'équipe) et Accueil (le stagiaire) : un titre de la signature de l'app (h1, sous la pastille de date), pas un en-tête de page.
         titre = page.evaluate("() => (document.querySelector('#view .home-title-v2') || {}).textContent || null")
         if (titre or "").strip() != libelle:
             res.echec("titre de page", vue, "le titre de #/home est « %s », le libellé de son entrée « %s »" % (titre, libelle))
@@ -3488,7 +3270,7 @@ def verifier_sous_page(page, res, sc, route, libelle, options):
         vider_console(res, vue)
     elif route == "stagiaires" and libelle == "Élèves bénévoles":
         verifier_panneau_benevoles(page, res, sc, options)
-    elif route == "notes" and libelle == "EPCF":
+    elif route == "notes" and libelle in ("EPCF", "Évaluations EPCF"):   # « Évaluations EPCF » sous la nouvelle navigation (lot D)
         verifier_epcf_de_l_equipe(page, res, sc)
 
 
@@ -3676,7 +3458,7 @@ def verifier_bouton_benevoles(page, res, sc):
 
 
 def verifier_notes_tactile(page, res, sc):
-    """Notes et examens, équipe : sur un écran tactile (le téléphone du banc), le sous-titre dit PHRASE_TACTILE (« Saisis les notes... ») et
+    """Notes et examens, équipe : sur un écran tactile (le téléphone du banc), le sous-titre dit PHRASE_TACTILE (« Saisissez les notes... ») et
     la phrase sur Entrée et Échap, qui suppose un clavier, n'est pas montrée ; avec un clavier, la phrase de la barre d'outils et le
     sous-titre d'avant."""
     vue = "%s/notes/tactile" % sc.nom
@@ -3760,77 +3542,6 @@ def verifier_assistant_en_tete(page, res, sc, options):
     vider_console(res, vue)
 
 
-# Interrupteur éteint : les pages gardent leurs titres d'avant et la banque des bénévoles reste une fenêtre, comme sur main.
-TITRES_AVANT = (
-    # (route, équipe seulement, titre, surtitre, ce qui doit s'y lire en plus)
-    ("stagiaires", True, "Stagiaires", "Formateurs", None),
-    ("notes", False, "Notes & évaluations", None, None),
-    ("themes", False, "Cours", None, None),
-    ("calendrier", False, "Calendrier", None, None),
-    ("ressources", False, "Ressources & contacts", None, "Contacts administration"),
-    ("centre", True, None, "Tableau de bord du centre", None),
-    ("mon-suivi", False, "Mon espace", "Espace personnel", None),
-)
-
-
-def verifier_titres_eteint(page, res, sc):
-    """Interrupteur éteint : titres et surtitres de main (Calendrier, Ressources & contacts, Notes & évaluations, Cours, Tableau de bord du
-    centre, Espace personnel...), page Stagiaires sans sous-onglets de page."""
-    equipe = sc.role in ("prof", "fondateur")
-    for route, equipe_seule, titre, surtitre, section in TITRES_AVANT:
-        if equipe_seule and not equipe:
-            continue
-        vue = "%s/titre-avant/%s" % (sc.nom, route)
-        res.vues += 1
-        aller_a(page, "#/" + route)
-        attendre(page)
-        p = page.evaluate("() => window.__verifNav.enTeteDePage()")
-        tete = p["entetes"][0] if p["entetes"] else {"titre": None, "surtitre": None}
-        if p["route"] != route:
-            continue   # une page que ce rôle n'ouvre pas (module fermé, rôle) : rien à comparer
-        if titre and tete["titre"] != titre:
-            res.echec("titre, interrupteur éteint", vue, "le titre de #/%s est « %s », celui de main « %s »" % (route, tete["titre"], titre))
-        if route == "centre" and tete["titre"] != p["promo"]:
-            res.echec("titre, interrupteur éteint", vue, "le titre de #/centre est « %s », celui de main est le nom de la promo (« %s »)" % (tete["titre"], p["promo"]))
-        if surtitre and tete["surtitre"] != surtitre:
-            res.echec("surtitre, interrupteur éteint", vue, "le surtitre de #/%s est « %s », celui de main « %s »" % (route, tete["surtitre"], surtitre))
-        if route == "calendrier" and not (tete["surtitre"] or "").endswith("au calendrier"):
-            res.echec("surtitre, interrupteur éteint", vue, "le surtitre de #/calendrier est « %s », celui de main compte les événements « N événement(s) au calendrier »" % tete["surtitre"])
-        if route == "notes" and not COMPTE_NOTES.search((tete["surtitre"] or "") + "."):
-            res.echec("surtitre, interrupteur éteint", vue, "le surtitre de #/notes est « %s », celui de main compte les notes « N note(s) enregistrée(s) »" % tete["surtitre"])
-        if route == "ressources" and not re.fullmatch(r"\d+ liens curés · \d+ contacts", tete["surtitre"] or ""):
-            res.echec("surtitre, interrupteur éteint", vue, "le surtitre de #/ressources est « %s », celui de main compte « N liens curés · M contacts »" % tete["surtitre"])
-        if section and not any(section in s for s in p["sections"]):
-            res.echec("titre, interrupteur éteint", vue, "#/%s n'a pas la section « %s » de main (sections : %s)" % (route, section, ", ".join(p["sections"]) or "aucune"))
-        if route == "stagiaires" and page.evaluate("() => !!document.querySelector('#view .stg-page, #view .bnv-page')"):
-            res.echec("page regroupée, interrupteur éteint", vue, "la page Stagiaires montre les sous-onglets de la nouvelle navigation")
-        vider_console(res, vue)
-
-
-def verifier_benevoles_eteint(page, res, sc):
-    """Interrupteur éteint : le bouton « Élèves bénévoles » du Planning ouvre la fenêtre de main (avec son « Fermer »), sans quitter le
-    Planning ; elle se ferme."""
-    vue = "%s/planning/benevoles" % sc.nom
-    aller_a(page, "#/planning")
-    attendre(page)
-    bouton = page.locator('#view button[title^="Banque d\'élèves bénévoles"]')
-    if not bouton.count():
-        return   # pas de banque pour ce rôle (stagiaire)
-    res.vues += 1
-    bouton.first.click()
-    page.wait_for_timeout(300)
-    m = page.evaluate("() => ({ hash: location.hash, fenetre: !!document.querySelector('.modal-backdrop .bnv-modal'), "
-                      "fermer: [...document.querySelectorAll('.bnv-modal button')].some((b) => b.textContent.trim() === 'Fermer') })")
-    if m["hash"] != "#/planning" or not m["fenetre"]:
-        res.echec("bénévoles, interrupteur éteint", vue, "le bouton mène à %s, fenêtre %s ; attendu la fenêtre de main sur #/planning" % (m["hash"], "ouverte" if m["fenetre"] else "absente"))
-    elif not m["fermer"]:
-        res.echec("bénévoles, interrupteur éteint", vue, "la fenêtre n'a plus son bouton « Fermer »")
-    else:
-        page.locator(".bnv-modal button", has_text="Fermer").first.click()
-        page.wait_for_timeout(250)
-        if page.locator(".modal-backdrop .bnv-modal").count():
-            res.echec("bénévoles, interrupteur éteint", vue, "« Fermer » ne ferme pas la fenêtre")
-    vider_console(res, vue)
 
 
 # --------------------------------------------------------------------------------------
@@ -3856,18 +3567,18 @@ TITRES_DE_L_ANCIENNE_BARRE = ("Une barre d'onglets plus simple", "L'app s'ouvre 
 OU_TROUVER = {
     "Les moyennes de la classe ne comptent que les stagiaires en formation":
         ("Mon suivi, partie Résultats", "Notes et examens, Synthèse classe", "Notes, Synthèse classe", "#/notes"),
-    "Tes notes et ta fiche mieux protégées": ("Mon suivi, partie Résultats", "Notes et examens", "Notes", "#/notes"),
-    "Ton Dossier Professionnel se remplit dans l'app":
-        ("Mon suivi, partie Dossier pro", "Mon suivi, partie Dossier pro", "Mon espace personnel, partie Dossier pro", "#/mon-suivi/dp"),
-    "Ton livret officiel TP-01303 se remplit dans l'app":
-        ("Mon suivi, partie Livret EPCF", "Mon suivi, partie Livret EPCF", "Mon espace personnel, partie Livret", "#/mon-suivi/livret"),
+    "Notes et fiche de suivi mieux protégées": ("Mon suivi, partie Résultats", "Notes et examens", "Notes", "#/notes"),
+    "Le dossier professionnel se remplit dans l'app":
+        ("Mon suivi, partie Dossier professionnel", "Mon suivi, partie Dossier professionnel", "Mon espace personnel, partie Dossier professionnel", "#/mon-suivi/dp"),
+    "Le livret EPCF officiel (TP-01303) dans l'app":
+        ("Mon suivi, partie Livret EPCF", "Mon suivi, partie Livret EPCF", "Mon espace personnel, partie Livret EPCF", "#/mon-suivi/livret"),
     "Des vidéos conseillées dans la boîte à outils CCP2":
         ("Cours et QCM, Documents", "Cours et QCM, Documents", "Ressources, Examens", "#/ressources"),
-    "Une boîte à outils numérique pour ton CCP2": ("Cours et QCM, Documents", "Cours et QCM, Documents", "Ressources", "#/ressources"),
-    "Un passage oublié ? Ajoute-le toi-même, même ancien": ("Planning, Priorités", "Planning, Priorités", "Planning, bouton Priorités", "#/dashboard"),
+    "Une boîte à outils numérique pour le CCP2": ("Cours et QCM, Documents", "Cours et QCM, Documents", "Ressources", "#/ressources"),
+    "Un passage oublié ? Chacun peut l'ajouter, même ancien": ("Planning, Ordre de passage", "Planning, Ordre de passage", "Planning, bouton Priorités", "#/dashboard"),
     "Anonyme pour de vrai dans le tableau de notes": ("Mes préférences", "Mes préférences", "Paramètres, Mes préférences", "#/config"),
     "Les cours des 57 thèmes sont ouverts à toute la promo": ("Cours et QCM", "Cours et QCM", "Cours", "#/themes"),
-    "Ta progression d'entraînement se voit d'un coup d'œil": ("Cours et QCM, colonne QCM", "Cours et QCM, colonne QCM", "Cours, colonne QCM", "#/themes"),
+    "La progression d'entraînement se voit d'un coup d'œil": ("Cours et QCM, colonne QCM", "Cours et QCM, colonne QCM", "Cours, colonne QCM", "#/themes"),
     # Lot 2B : l'Accueil de l'équipe s'appelle Aujourd'hui dans sa barre (même adresse) ; la journée n'existe pas avec l'ancienne barre (carte cachée).
     "Ta journée sur l'Accueil": ("Accueil", "Accueil", "(carte cachée avec l'ancienne barre)", "#/home"),
     "Les cours se lisent mieux sur téléphone": ("Cours et QCM", "Cours et QCM", "Cours", "#/themes"),
@@ -3898,51 +3609,48 @@ GUIDES = {
     # « Plus »), celle de main avec l'ancienne (F4). Et le retour au jour de Planning, Semaine, « Revenir à aujourd'hui » depuis une autre semaine (audit du 09/11,
     # lot B ; la carte du lancement est cachée avec l'ancienne barre).
     "Signaler un problème en deux gestes":
-        ("Ouvre ton compte avec tes initiales, en haut à droite, puis choisis « Signaler un problème ». Chez les formateurs, le bouton est en bas de la barre de "
+        ("Ouvrir le compte avec les initiales, en haut à droite, puis choisir « Signaler un problème ». Chez les formateurs, le bouton est en bas de la barre de "
          "gauche sur ordinateur, et dans « Plus » sur téléphone.", "Touche ton nom en haut de l'écran, ou ouvre l'Assistant."),
     TITRE_LANCEMENT:
-        ("Dans Planning, Semaine, la journée du jour est repérée ; depuis une autre semaine, « Revenir à aujourd'hui » t'y ramène.", "(carte cachée avec l'ancienne barre)"),
-    "Ton Dossier Professionnel se remplit dans l'app":
-        ("Ouvre Mon suivi, dans la barre.", "Ouvre ton espace personnel avec le logo en haut à gauche."),
-    "Ton livret officiel TP-01303 se remplit dans l'app":
-        ("Ouvre Mon suivi, partie Livret EPCF.", "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait."),
+        ("Dans Planning, Semaine, la journée du jour est repérée ; depuis une autre semaine, « Revenir à aujourd'hui » y ramène.", "(carte cachée avec l'ancienne barre)"),
+    "Le dossier professionnel se remplit dans l'app":
+        ("Ouvrir Mon suivi, dans la barre.", "Ouvre ton espace personnel avec le logo en haut à gauche."),
+    "Le livret EPCF officiel (TP-01303) dans l'app":
+        ("Ouvrir Mon suivi, partie Livret EPCF.", "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait."),
     "Ta journée sur l'Accueil":
         ("Sur l'Accueil, la carte « Aujourd'hui » montre ton matin et ton après-midi. Quand la feuille d'émargement est ouverte, touche « Signer pour ce "
          "matin » (ou « Signer pour cet après-midi ») : la carte affiche ensuite l'heure de ta signature.", "(carte cachée avec l'ancienne barre)"),
     "Les cours se lisent mieux sur téléphone":
-        ("Ouvre un cours : touche le titre d'un thème, ou son bouton « Cours ».", "Ouvre un cours : touche le titre d'un thème, ou son bouton « Cours »."),
+        ("Ouvrir un cours : toucher le titre d'un thème, ou son bouton « Cours ».", "Ouvrir un cours : toucher le titre d'un thème, ou son bouton « Cours »."),
     "L'app aux couleurs d'ECF":
-        ("Ouvre le menu de ton compte : le rond à tes initiales, en haut à droite de l'écran (chez les formateurs, sur ordinateur, en bas de la barre de "
+        ("Ouvrir le menu du compte : le rond aux initiales, en haut à droite de l'écran (chez les formateurs, sur ordinateur, en bas de la barre de "
          "gauche).", "(carte cachée avec l'ancienne barre)"),
 }
 GUIDES_EQUIPE = {
     "Un tableau de bord du centre, promo par promo":
-        ("Ouvre Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».", "Ouvre l'Accueil, puis la tuile « Tableau de bord »."),
+        ("Ouvrez Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».", "Ouvre l'Accueil, puis la tuile « Tableau de bord »."),
     # Étapes réécrites au lot Q5 (conservation des données) : la demande se transmet au fondateur, dans les deux navigations.
     "Effacer les données d'un stagiaire, à sa demande":
         ("L'effacement des données se demande maintenant au fondateur : transmets-lui la demande de la personne, sans la marquer en abandon.",
          "L'effacement des données se demande maintenant au fondateur : transmets-lui la demande de la personne, sans la marquer en abandon."),
     "Une page Stagiaires : toute la promo, une fiche par personne":
-        ("Ouvre Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).", "Ouvre la tuile Stagiaires de l'Accueil."),
+        ("Ouvrez Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).", "Ouvre la tuile Stagiaires de l'Accueil."),
     "Deux promos dans l'app, et des modules réglés promo par promo":
-        ("Touche la promo en tête de la barre de gauche (sur téléphone, en haut de l'écran).",
+        ("Touchez la promo en tête de la barre de gauche (sur téléphone, en haut de l'écran).",
          "Touche la pastille de la promo en haut de l'écran (« Nîmes · mars 2026 »)."),
     "Aujourd'hui remplace l'Accueil":
-        ("Ouvre Aujourd'hui, en haut de la barre de gauche sur ordinateur, en bas de l'écran sur téléphone.", "(carte cachée avec l'ancienne barre)"),
+        ("Ouvrez Aujourd'hui, en haut de la barre de gauche sur ordinateur, en bas de l'écran sur téléphone.", "(carte cachée avec l'ancienne barre)"),
 }
 LIEN_DES_BENEVOLES = ("Stagiaires, Élèves bénévoles", "#/stagiaires")   # le lien de la Nouveauté de lancement de l'équipe
-PIED_DE_L_ACCUEIL = {"ancienne": ("paramètres", "#/config"), "stagiaire": ("mes préférences", "#/preferences"), "equipe": ("réglages", "#/config")}
-CTRL_Z = {"ancienne": "Ctrl + Z annule la dernière action. Sur Notes, Passages, Thèmes et Calendrier.",
-          "nouvelle": "Ctrl + Z annule la dernière action. Sur les notes, les passages, les thèmes et les dates clés."}
-SOCLE = {"ancienne": "Toujours ouverts : Accueil, Mon espace personnel (Passages), Paramètres, Nouveautés.",
-         "nouvelle": "Toujours ouverts : Accueil, Mon suivi (Passages), Mes préférences, Nouveautés."}
+CTRL_Z = {"nouvelle": "Ctrl + Z annule la dernière action. Sur les notes, les passages, les thèmes et les dates clés."}
+SOCLE = {"nouvelle": "Toujours ouverts : Accueil, Mon suivi (dont les passages), Mes préférences, Nouveautés."}
 LIEN_DOSSIER_PRO = "Ton dossier professionnel, à remplir dans l'app"
 # Les trois Nouveautés du lot 2B (tâche 8), datées du jour de la fusion, lu dans js/nouveautes-data.js (rien à changer ici si elle se fait un autre jour). La
 # journée et Aujourd'hui sont propres à la nouvelle navigation (la première pour les stagiaires, la seconde pour l'équipe) ; les cours se lisent dans les deux, masqués à un
 # stagiaire dont la promo n'a pas ouvert la lecture des cours.
 TITRE_JOURNEE = "Ta journée sur l'Accueil"
 TITRE_AUJOURDHUI_EQUIPE = "Aujourd'hui remplace l'Accueil"
-TITRE_QUESTIONNAIRES = "Ton avis sur la formation, sans ton nom"   # Qualiopi Q3, en ligne le jour même du lot 2B : hors de l'ordre du lot
+TITRE_QUESTIONNAIRES = "Un avis sur la formation, sans nom"   # Qualiopi Q3, en ligne le jour même du lot 2B : hors de l'ordre du lot
 TITRE_COURS_TELEPHONE = "Les cours se lisent mieux sur téléphone"
 TITRE_COULEURS_ECF = "L'app aux couleurs d'ECF"   # lot 3, tâche 11 : pour tous, nouvelle navigation seulement (décision H6)
 # La date vient de js/nouveautes-data.js, seule source : l'id de l'entrée de la journée porte AAAA-MM-JJ.
@@ -4127,31 +3835,6 @@ def verifier_nouveaute_commune(res, vue, cartes):
         res.echec("Nouveauté pour tous", vue, "« %s » nomme « %s », que les stagiaires ne voient pas" % (TITRE_AFFICHAGE, dit.group(0)))
 
 
-def verifier_nouveautes_eteint(page, res, sc):
-    """Interrupteur éteint : ni l'une ni l'autre des Nouveautés de lancement, même pour l'équipe ; les Nouveautés qui ne décrivent que l'ancienne barre sont
-    là ; les « Où le trouver » et les « Comment faire » sont ceux de main, au caractère près. Joué aussi pour un stagiaire sans drapeau de fondateur
-    dont l'appareil porte l'aperçu d'un fondateur (le réglage de la promo est éteint) : l'aperçu n'est pas pour lui, il reste sur l'ancienne navigation."""
-    vue = "%s/nouveautes" % sc.nom
-    res.vues += 1
-    aller_a(page, "#/nouveautes")
-    attendre(page)
-    cartes = {c["titre"]: c for c in page.evaluate("() => window.__verifNav.nouveautes()")}
-    for titre in (TITRE_LANCEMENT, TITRE_LANCEMENT_EQUIPE):
-        if titre in cartes:
-            res.echec("Nouveauté de lancement, interrupteur éteint", vue, "« %s » est montrée : elle est propre à la nouvelle navigation" % titre)
-    for titre in TITRES_DE_L_ANCIENNE_BARRE:
-        if titre not in cartes:
-            res.echec("Nouveauté de l'ancienne barre", vue, "« %s » manque : avec l'ancienne navigation, elle se lit comme avant" % titre)
-    # F3 : la Nouveauté des corrections communes vaut aussi avec l'ancienne barre.
-    verifier_nouveaute_commune(res, vue, cartes)
-    if TITRE_AFFICHAGE in cartes and cartes[TITRE_AFFICHAGE]["date"] != DATE_DU_LANCEMENT:
-        res.echec("Nouveauté pour tous", vue, "« %s » est datée du %s, attendu le %s" % (TITRE_AFFICHAGE, cartes[TITRE_AFFICHAGE]["date"], DATE_DU_LANCEMENT))
-    verifier_liens_et_guides(res, vue, cartes, sc.role in ("prof", "fondateur"), False)
-    verifier_nouveautes_du_lot_2b(page, res, sc, vue, cartes, False)
-    verifier_nouveaute_couleurs_ecf(res, vue, cartes, False)
-    vider_console(res, vue)
-
-
 def verifier_nouveautes_de_l_accueil(page, res, vue, equipe):
     """Accueil, nouvelle navigation : les Nouveautés de l'accueil commencent par la plus récente, « Ta journée sur l'Accueil » chez le stagiaire,
     « Aujourd'hui remplace l'Accueil » chez l'équipe (lot 2B) ; l'équipe voit aussi celle du lot 4 (rôles par promo). Appelé depuis l'accueil déjà ouvert.
@@ -4179,20 +3862,8 @@ def verifier_nouveautes_de_l_accueil(page, res, vue, equipe):
         res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu « %s »" % (" », « ".join(titres[:len(attendus)]), " », « ".join(attendus)))
 
 
-def verifier_pied_et_retenir(res, vue, m, navigation):
-    """Les deux textes de l'accueil que les deux navigations ne disent pas pareil : la dernière ligne de « À retenir » (Ctrl + Z : « Sur Notes, Passages,
-    Thèmes et Calendrier » avec l'ancienne, les noms de la nouvelle barre avec elle) et le lien de réglage du pied de page (« paramètres » avec l'ancienne ;
-    avec la nouvelle, « mes préférences » chez un stagiaire, « réglages » chez l'équipe). `navigation` : « ancienne », « stagiaire » ou « equipe »."""
-    attendu_retenir = CTRL_Z["ancienne" if navigation == "ancienne" else "nouvelle"]
-    if m["retenir"] != attendu_retenir:
-        res.echec("accueil, À retenir", vue, "la dernière ligne de « À retenir » est « %s », attendu « %s »" % (m["retenir"], attendu_retenir))
-    texte, adresse = PIED_DE_L_ACCUEIL[navigation]
-    if m["pied"] is None or (m["pied"]["texte"], m["pied"]["href"]) != (texte, adresse):
-        res.echec("accueil, pied de page", vue, "le lien de réglage du pied est %s, attendu « %s » (%s)" % (m["pied"] and (m["pied"]["texte"], m["pied"]["href"]), texte, adresse))
-
-
 def verifier_pied_de_l_accueil(res, vue, m, nouvelle):
-    """Le pied de l'Accueil dit la promo et le rôle (vague finale, F7). Avec la nouvelle navigation : « TP ECSR App · Promo <nom de la promo affichée> · connecté comme
+    """Le pied de l'Accueil dit la promo et le rôle (vague finale, F7). Avec la nouvelle navigation : « TP ECSR App · Promo <nom de la promo affichée> · connecté en tant que
     <rôle> », le vrai rôle (audit du 09/11, A8) : l'aperçu « Voir en tant que » (« direction (aperçu) »), sinon « fondateur », sinon le rôle sur la promo
     (formateur, direction, siège, stagiaire), jamais « admin ». Avec l'ancienne : le texte de main, « Promo 2026 » écrit en dur, « admin » compris.
     Le rôle se déduit de la personne connectée, lue dans la page (aperçu, fondateur, rôles sur la promo, administrateur, rôle de profil)."""
@@ -4209,7 +3880,7 @@ def verifier_pied_de_l_accueil(res, vue, m, nouvelle):
     else:
         role = "formateur" if qui["admin"] else {"prof": "formateur", "stagiaire": "stagiaire"}.get(qui["role"], "")
     promo = ("Promo %s" % m["promo"]["nom"]) if nouvelle else "Promo 2026"
-    attendu = "TP ECSR App · %s · connecté comme %s" % (promo, role) if role else "TP ECSR App · %s ·" % promo
+    attendu = "TP ECSR App · %s · connecté en tant que %s" % (promo, role) if role else "TP ECSR App · %s ·" % promo
     if m["piedTexte"] != attendu:
         res.echec("pied de l'accueil", vue, "le pied de page dit « %s », attendu « %s » (%s navigation)" % (m["piedTexte"], attendu, "nouvelle" if nouvelle else "ancienne"))
 
@@ -4244,7 +3915,7 @@ def verifier_contacts_du_centre(page, res, sc):
 
 def verifier_ccp2(page, res, sc):
     """Parcours CCP2, les deux navigations : le lien vers le dossier professionnel (étape 8) ne nomme plus ni Mon espace ni un sous-onglet, il dit « Ton
-    dossier professionnel, à remplir dans l'app » et mène à la partie Dossier pro (#/mon-suivi/dp). Rien si CCP2 est fermé pour ce stagiaire. Et l'ordre de la
+    dossier professionnel, à remplir dans l'app » et mène à la partie Dossier professionnel (#/mon-suivi/dp). Rien si CCP2 est fermé pour ce stagiaire. Et l'ordre de la
     page (lot 2B, tâche 8) : allumé, les dates, les étapes, puis l'épreuve repliée en bas ; éteint, l'ordre de main (verifier_page_ccp2)."""
     vue = "%s/ccp2/lien-dossier-pro" % sc.nom
     aller_a(page, "#/ccp2")
@@ -4257,7 +3928,7 @@ def verifier_ccp2(page, res, sc):
         res.echec("parcours CCP2", vue, "le parcours n'a pas de lien vers le dossier professionnel (#/mon-suivi/dp)")
     elif lien["texte"] != LIEN_DOSSIER_PRO:
         res.echec("parcours CCP2", vue, "le lien vers le dossier professionnel dit « %s », attendu « %s »" % (lien["texte"], LIEN_DOSSIER_PRO))
-    verifier_page_ccp2(page, res, "%s/ccp2/ordre" % sc.nom, sc.passe == "allume")
+    verifier_page_ccp2(page, res, "%s/ccp2/ordre" % sc.nom, True)
     vider_console(res, vue)
 
 
@@ -4582,71 +4253,13 @@ def lundi_de(jour):
 
 
 def ligne_promo_attendue(promo, aujourdhui):
-    """« Promo <nom> · semaine <n> » : la semaine 1 est celle du premier jour de la promo (du lundi au dimanche) ; pas de numéro avant la promo ni
+    """« Promo <nom> · semaine <n> de formation » : la semaine 1 est celle du premier jour de la promo (du lundi au dimanche) ; pas de numéro avant la promo ni
     après sa date de fin. Recalculé ici, sans reprendre le code de l'app."""
     debut = datetime.date.fromisoformat(promo["debut"])
     fin = datetime.date.fromisoformat(promo["fin"]) if promo["fin"] else None
     if aujourdhui < debut or (fin and aujourdhui > fin):
         return "Promo %s" % promo["nom"]
-    return "Promo %s · semaine %d" % (promo["nom"], 1 + (lundi_de(aujourdhui) - lundi_de(debut)).days // 7)
-
-
-def carte_attendue(evenements, aujourdhui):
-    """(événement, état, jours) de la carte « Prochain événement majeur » : le premier examen ou stage qui n'est pas passé, dans l'ordre de l'agenda ;
-    None sans événement majeur à venir. « a-venir » : jours jusqu'au début ; « en-cours » : commencé avant aujourd'hui, jours jusqu'à la fin. Recalculé
-    ici, sans reprendre le code de l'app."""
-    for e in evenements:
-        if e["type"] not in ("examen", "stage"):
-            continue
-        debut = datetime.date.fromisoformat(e["debut"])
-        fin = datetime.date.fromisoformat(e["fin"] or e["debut"])
-        if aujourdhui > fin:
-            continue
-        if aujourdhui > debut:
-            return e, "en-cours", (fin - aujourdhui).days
-        return e, "a-venir", (debut - aujourdhui).days
-    return None
-
-
-def verifier_carte(res, vue, m):
-    """La carte « Prochain événement majeur » (correction pour tous, les deux navigations) : le premier examen ou stage qui n'est pas passé, jamais un
-    nombre négatif. Commencé, il est « En cours, fin dans N jours » (« fin demain », « fin aujourd'hui ») et sa pastille dit « En cours », sans nombre ni
-    habillage de compte à rebours (vague finale, F9) ; à venir, il garde sa pastille d'avant (N jours, « Aujourd'hui ! » le jour même), sans ligne « en cours »."""
-    attendu = carte_attendue(m["evenements"], datetime.date.fromisoformat(DATE_DU_BANC))
-    carte = m["carte"]
-    if attendu is None:
-        if carte:
-            res.echec("carte du prochain événement", vue, "la carte montre « %s » alors qu'aucun examen ni stage n'est à venir" % carte["titre"])
-        return
-    evenement, etat, jours = attendu
-    if not carte:
-        res.echec("carte du prochain événement", vue, "la carte « Prochain événement majeur » manque (attendu : « %s », %s)" % (evenement["titre"], etat))
-        return
-    if carte["titre"] != evenement["titre"]:
-        res.echec("carte du prochain événement", vue, "la carte montre « %s », le premier examen ou stage qui n'est pas passé est « %s »" % (carte["titre"], evenement["titre"]))
-    dit = "%s %s" % (carte["pastille"] or "", carte["statut"] or "")
-    if re.search(r"[-−]\s*\d", dit):
-        res.echec("carte du prochain événement", vue, "la carte montre un nombre négatif : « %s »" % dit.strip())
-    # Un événement commencé : « En cours », sans nombre ni habillage de compte à rebours (jamais « Aujourd'hui ! » pour un stage qui finit aujourd'hui) ; un
-    # événement à venir : les jours avant son début, habillés selon l'urgence (vague finale, F9).
-    if etat == "en-cours":
-        pastille, habillage = "En cours", "en-cours"
-    else:
-        pastille = "%d %s" % (jours, "Aujourd'hui !" if jours == 0 else "jour" if jours == 1 else "jours")
-        habillage = "today" if jours == 0 else "soon" if jours <= 7 else "later"
-    if carte["pastille"] != pastille:
-        res.echec("carte du prochain événement", vue, "la pastille dit « %s », attendu « %s » (%s%s)"
-                  % (carte["pastille"], pastille, etat, ", %d jour(s) jusqu'à son début" % jours if etat == "a-venir" else " : « En cours », sans nombre"))
-    classes = (carte["classe"] or "").split()
-    autres = [c for c in classes if c in ("today", "soon", "later", "en-cours") and c != habillage]
-    if habillage not in classes or autres:
-        res.echec("carte du prochain événement", vue, "la pastille porte l'habillage « %s », attendu « %s » (%s)" % (" ".join(classes), habillage, etat))
-    if etat == "en-cours":
-        mots = "fin aujourd'hui" if jours == 0 else "fin demain" if jours == 1 else "fin dans %d jours" % jours
-        if carte["statut"] != "En cours, " + mots:
-            res.echec("carte du prochain événement", vue, "la ligne de l'événement commencé est « %s », attendu « En cours, %s »" % (carte["statut"], mots))
-    elif carte["statut"]:
-        res.echec("carte du prochain événement", vue, "un événement à venir porte la ligne « %s » : seul un événement commencé est en cours" % carte["statut"])
+    return "Promo %s · semaine %d de formation" % (promo["nom"], 1 + (lundi_de(aujourdhui) - lundi_de(debut)).days // 7)
 
 
 def attendre_accueil(page, sauf=""):
@@ -4672,7 +4285,7 @@ def ouvrir_accueil(page, res, vue):
 
 def verifier_accueil(page, res, sc):
     """Accueil, nouvelle navigation, les deux espaces : le logo n'y est qu'une fois (celui de la coquille, pas un second à côté de la date), la phrase qui
-    énumérait les pages de l'ancienne barre est remplacée par « Promo <nom> · semaine <n> », aucune tuile ne double la barre. Le stagiaire a sa page
+    énumérait les pages de l'ancienne barre est remplacée par « Promo <nom> · semaine <n> de formation », aucune tuile ne double la barre. Le stagiaire a sa page
     (lot 2B, tâche 3), l'équipe la sienne, Aujourd'hui (tâche 4)."""
     vue = "%s/accueil" % sc.nom
     equipe = sc.espace == "equipe"
@@ -4805,7 +4418,7 @@ TITRES_AUJOURDHUI = {"a-traiter": "À traiter", "a-suivre": "À suivre de près"
 
 
 def verifier_aujourdhui_equipe(page, res, sc, vue, jour=None, feuille="ouverte", planning=True, avec_feuille=True, benevoles=False):
-    """Aujourd'hui du formateur, nouvelle navigation (lot 2B, tâche 4) : la pastille de date, le titre « Aujourd'hui », la ligne « Promo <nom> · semaine <n> · N stagiaires
+    """Aujourd'hui du formateur, nouvelle navigation (lot 2B, tâche 4) : la pastille de date, le titre « Aujourd'hui », la ligne « Promo <nom> · semaine <n> de formation · N stagiaires
     en formation » ; les cartes dans l'ordre du téléphone (émargement, à traiter, au tableau, en voiture, à suivre) et, dès 1080 px, émargement, au tableau, en voiture sur une
     ligne puis à traiter et à suivre ; aucune Nouveauté, tuile, compte à rebours ni « À retenir » ; l'émargement (« N sur M », jauge, « Voir la feuille », « Pas encore ouverte »
     sans feuille, carte absente promo éteinte) et, pour qui a une fiche de stagiaire, son bouton « Signer » ; au tableau et en voiture selon le planning du jour, les liens vers
@@ -4912,8 +4525,8 @@ def verifier_aujourdhui_equipe(page, res, sc, vue, jour=None, feuille="ouverte",
     if "Tout voir" not in {x["texte"]: x for x in m["plus"]}:
         echec("« À suivre de près » n'a pas son lien « Tout voir »")
     suivre = par["a-suivre"]["texte"]
-    if "Personne ne cumule deux signaux." not in suivre and "À suivre" not in suivre:
-        echec("« À suivre de près » ne dit ni qui suivre ni « Personne ne cumule deux signaux. » : « %s »" % suivre)
+    if "Aucun stagiaire à suivre de près pour l'instant." not in suivre and "À suivre" not in suivre:
+        echec("« À suivre de près » ne dit ni qui suivre ni « Aucun stagiaire à suivre de près pour l'instant. » : « %s »" % suivre)
     # Les erreurs ne s'affichent que dans les pannes que le scénario sème (« À traiter » sans compte).
     attendues_en_panne = 1 if (attendu_pastille is None and sc.a_traiter != "lent") else 0
     if len(m["erreurs"]) != attendues_en_panne:
@@ -5183,8 +4796,11 @@ def verifier_accueil_voir_en_tant_que_stagiaire(page, res, sc, vue):
     attendre_accueil(page)
     res.vues += 1
     m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
-    if not re.match(r"^(Bonjour|Bon après-midi|Bonsoir), ", (m["titre"] or "").strip()) or [c["zone"] for c in m["cartes"]] != [z for z, _ in ZONES_DE_L_ACCUEIL]:
-        res.echec("accueil en aperçu stagiaire", vue, "l'accueil n'est pas celui du stagiaire : titre « %s », cartes %s" % (m["titre"], [c["zone"] for c in m["cartes"]]))
+    # Décision du 10/11 : le titre est « Accueil » (une page, un nom), la salutation par le prénom passe dessous.
+    if ((m["titre"] or "").strip() != "Accueil" or not re.match(r"^(Bonjour|Bon après-midi|Bonsoir), ", (m["salut"] or "").strip())
+            or [c["zone"] for c in m["cartes"]] != [z for z, _ in ZONES_DE_L_ACCUEIL]):
+        res.echec("accueil en aperçu stagiaire", vue, "l'accueil n'est pas celui du stagiaire : titre « %s », salutation « %s », cartes %s"
+                  % (m["titre"], m["salut"], [c["zone"] for c in m["cartes"]]))
     if not res.profil_stagiaire:
         dedans = page.evaluate("() => ({ puces: document.querySelectorAll('#view .acc-puce').length, signes: document.querySelectorAll('#view .acc-signe').length,"
                                " boutons: document.querySelectorAll('#view .acc-creneau button.btn').length })")
@@ -5220,30 +4836,6 @@ def jouer_signature_de_l_accueil(page, res, sc):
     bandeau = page.evaluate("() => window.__verifNav.bandeauEmargement()")
     if bandeau and re.search(r"Signer", bandeau["texte"]):
         res.echec("signature depuis l'Accueil", vue, "le Planning propose encore « Signer » après la signature : « %s »" % bandeau["texte"])
-    vider_console(res, vue)
-
-
-def verifier_accueil_eteint(page, res, sc):
-    """Interrupteur éteint : l'accueil de main (le logo à côté de la date, la phrase sur le suivi de la promo, les tuiles), à une correction près, celle de
-    la carte du prochain événement majeur, qui ne montre plus de nombre négatif."""
-    vue = "%s/accueil" % sc.nom
-    m = ouvrir_accueil(page, res, vue)
-    if m is None:
-        return
-    if m["logos"] != 1:
-        res.echec("accueil, interrupteur éteint", vue, "%d logo(s) à côté de la date, main en a 1" % m["logos"])
-    if not m["tuiles"]:
-        res.echec("accueil, interrupteur éteint", vue, "aucune tuile : main montre les raccourcis")
-    if not (m["lead"] or "").startswith("Tout le suivi de la promo TP ECSR"):
-        res.echec("accueil, interrupteur éteint", vue, "la phrase sous la salutation est « %s », celle de main commence par « Tout le suivi de la promo TP ECSR »" % m["lead"])
-    # Lot 2A, tâche 1 : la ligne Ctrl + Z et le lien du pied sont ceux de main, et aucune Nouveauté du lancement n'ouvre la section.
-    verifier_pied_et_retenir(res, vue, m, "ancienne")
-    verifier_pied_de_l_accueil(res, vue, m, False)
-    lancement = [c["titre"] for c in page.evaluate("() => window.__verifNav.nouveautes()") if c["titre"] in (TITRE_LANCEMENT, TITRE_LANCEMENT_EQUIPE)]
-    if lancement:
-        res.echec("Nouveautés de l'accueil, interrupteur éteint", vue, "l'accueil montre « %s » : propre à la nouvelle navigation" % " », « ".join(lancement))
-    if m["agenda"]:
-        verifier_carte(res, vue, m)
     vider_console(res, vue)
 
 
@@ -5485,34 +5077,6 @@ def jouer_planning_etroit(page, res, sc):
     vider_console(res, vue)
 
 
-def verifier_planning_eteint(page, res, sc):
-    """Interrupteur éteint : le Planning de main, « Cette semaine » et la phrase « Lecture seule... » pour tous."""
-    vue = "%s/planning/semaine" % sc.nom
-    aller_a(page, "#/planning")
-    attendre(page)
-    res.vues += 1
-    m = page.evaluate("() => window.__verifNav.planningSemaine()")
-    if m["cetteSemaine"] != 1:
-        res.echec("planning, interrupteur éteint", vue, "%d bouton(s) « Cette semaine », main en a 1 pour tous" % m["cetteSemaine"])
-    if not m["lecture"]:
-        res.echec("planning, interrupteur éteint", vue, "la phrase « Lecture seule... » de main manque")
-    vider_console(res, vue)
-
-
-def verifier_planning_grille_eteint(page, res, sc):
-    """Interrupteur éteint : le planning de main, sans bascule Grille / Liste ni grille, avec ses cinq cartes de jour."""
-    vue = "%s/planning/grille-eteint" % sc.nom
-    aller_a(page, "#/planning")
-    attendre(page)
-    res.vues += 1
-    m = page.evaluate(JS_MESURE_GRILLE)
-    if m["bascule"] or m["racine"]:
-        res.echec("planning, interrupteur éteint", vue, "%d bascule(s) et grille %s : main n'en a aucune" % (len(m["bascule"]), m["racine"]))
-    if m["cartesListe"] != 5:
-        res.echec("planning, interrupteur éteint", vue, "%d cartes de jour, main en a 5" % m["cartesListe"])
-    vider_console(res, vue)
-
-
 def verifier_epcf_de_l_equipe(page, res, sc):
     """Notes et examens > EPCF, page de l'équipe : le sous-onglet garde son rendu des moyennes de la classe sous son titre « Moyennes de la classe » (celui
     de La classe de Mon suivi est « Moyennes EPCF de la classe »), pour les deux épreuves."""
@@ -5596,13 +5160,13 @@ def verifier_la_classe(page, res, sc):
 # --------------------------------------------------------------------------------------
 
 # Mon suivi, nouvelle navigation : les parties dans l'ordre (sous-onglets sur ordinateur, lignes du sommaire sur téléphone).
-PARTIES_MON_SUIVI = ["Résultats", "Passages", "EPCF", "Livret EPCF", "Dossier pro"]   # « Livret EPCF » : décision de Timy du 08/11
-# La fiche de main : Mon espace éteint, et la fiche d'un stagiaire chez l'équipe dans les deux navigations.
-PARTIES_FICHE_DE_MAIN = ["Passages", "EPCF", "Évolution", "Livret", "Dossier pro"]
+PARTIES_MON_SUIVI = ["Résultats", "Passages", "Évaluations EPCF", "Livret EPCF", "Dossier professionnel"]   # un nom par objet : décisions du 08/11 et du 10/11 (lot D)
+# La fiche de main : Mon espace éteint, et la fiche d'un stagiaire chez l'équipe dans les deux navigations (noms des parties du lot D, 10/11 : les mêmes partout).
+PARTIES_FICHE_DE_MAIN = ["Passages", "Évaluations EPCF", "Évolution", "Livret EPCF", "Dossier professionnel"]
 # Les lignes du sommaire du stagiaire du banc (Timy, id 1, le 27/10/2026) : aucun passage à venir, aucune épreuve EPCF, pas de livret, un dossier ouvert le 02/10
-# sans exemple rempli (que main écrivait « Dossier pro 02/10 »).
-LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : aucun à venir", "EPCF : 0 épreuve sur 2", "Livret EPCF : pas encore commencé",
-                            "Dossier pro : 0 exemple sur 6"]
+# sans exemple rempli (que main écrivait « Dossier pro 02/10 », avant le lot D).
+LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : aucun à venir", "Évaluations EPCF : 0 épreuve sur 2",
+                            "Livret EPCF : pas encore commencé", "Dossier professionnel : 0 exemple sur 6"]
 CLE_VUE_RESULTATS = "ecsr_resultats_vue"
 # La fiche d'un stagiaire chez l'équipe : Valentin (id 4), EPCF 1 sur 2, livret et dossier.
 ID_DE_LA_FICHE_DE_L_EQUIPE = 4
@@ -5731,7 +5295,7 @@ def jouer_mon_suivi(page, res, sc):
     """Mon suivi aux libellés clairs (lot 2B, tâche 7), nouvelle navigation, toute personne qui a une fiche, à 1 280 et 375 px. Les parties dans l'ordre ; Résultats
     ouvre « Moi » sans mémoire, « La classe » se choisit, se garde en quittant la page et après un rechargement, « Moi » se rechoisit ; sur téléphone, le retour
     ramène au sommaire ; #/mon-suivi/classe, #/mon-suivi/evolution et #/notes (stagiaire) ouvrent Résultats sur la bonne vue, quelle que soit la mémoire, l'adresse
-    devenue celle de Résultats sans étape d'historique ; sur téléphone, un exemple du dossier enregistré fait passer la ligne « Dossier pro » à « 1 exemple sur 6 »."""
+    devenue celle de Résultats sans étape d'historique ; sur téléphone, un exemple du dossier enregistré fait passer la ligne « Dossier professionnel » à « 1 exemple sur 6 »."""
     tel = sc.largeur < SEUIL_TELEPHONE
     base = "%s/mon-suivi" % sc.nom
     memoriser = lambda v: page.evaluate("(a) => { try { if (a[1]) localStorage.setItem(a[0], a[1]); else localStorage.removeItem(a[0]); } catch (e) {} }",
@@ -5828,7 +5392,7 @@ def jouer_compte_du_dossier(page, res, sc):
     try:
         page.wait_for_selector('#view .lv-f[data-k="at1_ex1_titre"]', timeout=6000)
     except DelaiDepasse:
-        res.echec("Mon suivi, dossier", vue, "la partie Dossier pro n'affiche pas le titre du premier exemple à remplir")
+        res.echec("Mon suivi, dossier", vue, "la partie Dossier professionnel n'affiche pas le titre du premier exemple à remplir")
         return
     if not cliquer(page, res, vue, '#view .lv-f[data-k="at1_ex1_titre"]', "titre du premier exemple du dossier"):
         return
@@ -5842,8 +5406,8 @@ def jouer_compte_du_dossier(page, res, sc):
         return
     attendre(page)
     lignes = [l["texte"] for l in lire_mon_suivi(page)["lignes"]]
-    if "Dossier pro : 1 exemple sur 6" not in lignes:
-        res.echec("Mon suivi, dossier", vue, "après l'enregistrement d'un exemple, le sommaire dit %s, attendu la ligne « Dossier pro : 1 exemple sur 6 »" % lignes)
+    if "Dossier professionnel : 1 exemple sur 6" not in lignes:
+        res.echec("Mon suivi, dossier", vue, "après l'enregistrement d'un exemple, le sommaire dit %s, attendu la ligne « Dossier professionnel : 1 exemple sur 6 »" % lignes)
     vider_console(res, vue)
     recharger_au_banc(page, "#/home", ecritures="")
 
@@ -5868,7 +5432,7 @@ def parties_de_main_montrees(f, sc):
 
 
 def verifier_fiche_de_l_equipe(page, res, sc):
-    """La fiche d'un stagiaire vue par l'équipe (page Stagiaires), dans les deux navigations : les parties de main (Passages, EPCF, Évolution, Livret, Dossier pro),
+    """La fiche d'un stagiaire vue par l'équipe (page Stagiaires), dans les deux navigations : les parties de main (Passages, Évaluations EPCF, Évolution, Livret EPCF, Dossier professionnel),
     sans Résultats ni « Moi / La classe » ni sommaire aux libellés clairs ; la partie Évolution s'ouvre sur son graphe."""
     vue = "%s/stagiaires/%d/fiche-de-main" % (sc.nom, ID_DE_LA_FICHE_DE_L_EQUIPE)
     echec = lambda detail: res.echec("fiche d'un stagiaire chez l'équipe", vue, detail)
@@ -5895,28 +5459,6 @@ def verifier_fiche_de_l_equipe(page, res, sc):
     vider_console(res, vue)
 
 
-def verifier_mon_espace_eteint(page, res, sc):
-    """Interrupteur éteint : Mon espace garde les parties de main et leurs états (« EPCF 0/2 », « Dossier pro 02/10 » sont ceux de main), sans Résultats ni
-    « Moi / La classe » ; #/mon-suivi/evolution ouvre la partie Évolution."""
-    vue = "%s/mon-espace-de-main" % sc.nom
-    echec = lambda detail: res.echec("Mon espace, interrupteur éteint", vue, detail)
-    aller_a(page, "#/mon-suivi")
-    attendre(page)
-    res.vues += 1
-    f = lire_fiche_de_main(page)
-    montrees = parties_de_main_montrees(f, sc)
-    if montrees != PARTIES_FICHE_DE_MAIN:
-        echec("les parties sont %s, attendu celles de main %s" % (montrees, PARTIES_FICHE_DE_MAIN))
-    if f["ajouts"] or "Résultats" in montrees:
-        echec("Mon espace montre Résultats, « Moi / La classe » ou le sommaire aux libellés clairs de la nouvelle navigation")
-    aller_a(page, "#/mon-suivi/evolution")
-    attendre(page)
-    m = lire_mon_suivi(page)
-    if m["hash"] != "#/mon-suivi/evolution" or m["resultats"]:
-        echec("#/mon-suivi/evolution devient %s%s, attendu la partie Évolution de main" % (m["hash"], " avec « Moi / La classe »" if m["resultats"] else ""))
-    vider_console(res, vue)
-
-
 def verifier_resultats_fermes(page, res, sc):
     """Module des notes fermé (`?modules=depart`), stagiaire : ni partie Résultats ni « Moi / La classe », ni par Mon suivi ni par #/mon-suivi/classe."""
     vue = "%s/mon-suivi/resultats-fermes" % sc.nom
@@ -5930,23 +5472,6 @@ def verifier_resultats_fermes(page, res, sc):
         noms = m["onglets"] + [l["texte"] for l in m["lignes"]] + ([m["titre"]] if m["titre"] else [])
         if m["resultats"] or any(n.startswith("Résultats") for n in noms):
             res.echec("Mon suivi, notes fermées", vue, "%s montre Résultats (%s) alors que le module des notes est fermé" % (adresse, noms))
-    vider_console(res, vue)
-
-
-def verifier_notes_eteint(page, res, sc):
-    """Interrupteur éteint, stagiaire : la page Notes de main (ses deux phrases, « Clique une cellule... » et « Lecture seule... », et ses deux sous-onglets)."""
-    vue = "%s/notes" % sc.nom
-    aller_a(page, "#/notes")
-    attendre(page)
-    res.vues += 1
-    m = page.evaluate("""() => ({ texte: document.getElementById('view').innerText,
-        onglets: [...document.querySelectorAll('#view .subtabs-bar > .subtab')].map((b) => b.textContent.trim()) })""")
-    if "Lecture seule. Connexion admin requise pour modifier." not in m["texte"]:
-        res.echec("notes, interrupteur éteint", vue, "la phrase « Lecture seule. Connexion admin requise pour modifier. » de main manque")
-    if "Clique une cellule pour saisir la note" not in m["texte"]:
-        res.echec("notes, interrupteur éteint", vue, "la phrase « Clique une cellule pour saisir la note » de main manque")
-    if m["onglets"] != ["Matrice", "EPCF"]:
-        res.echec("notes, interrupteur éteint", vue, "les sous-onglets sont « %s », main a « Matrice », « EPCF »" % " », « ".join(m["onglets"]))
     vider_console(res, vue)
 
 
@@ -5972,7 +5497,7 @@ def verifier_bandeau_emargement(page, res, sc):
         return
     if not m["details"]:
         res.echec("bandeau d'émargement", vue, "le texte du bandeau n'a pas de détail à cacher (.em-bandeau-detail) : « %s »" % m["texte"])
-    elif sc.passe == "allume" and sc.largeur < SEUIL_TELEPHONE:
+    elif sc.largeur < SEUIL_TELEPHONE:
         montres = [d["texte"] for d in m["details"] if d["visible"]]
         if montres:
             res.echec("bandeau d'émargement", vue, "détail montré sur téléphone : « %s » (« %s »)" % (" », « ".join(montres), m["texte"]))
@@ -5988,7 +5513,7 @@ def verifier_bandeau_emargement(page, res, sc):
         caches = [d["texte"] for d in m["details"] if not d["visible"]]
         if caches:
             res.echec("bandeau d'émargement", vue, "détail caché alors que la page est %s : « %s »"
-                      % ("celle de main" if sc.passe == "eteint" else "large de %d px" % sc.largeur, " », « ".join(caches)))
+                      % ("large de %d px" % sc.largeur, " », « ".join(caches)))
     vider_console(res, vue)
 
 
@@ -5997,7 +5522,7 @@ def verifier_bandeau_emargement(page, res, sc):
 # --------------------------------------------------------------------------------------
 
 SOUS_ONGLETS_COURS_STAGIAIRE = ["Thèmes", "Compétences", "QCM", "Documents"]
-SOUS_ONGLETS_COURS_EQUIPE = ["Thèmes", "Compétences", "Signalements", "Propositions IA", "Documents"]
+SOUS_ONGLETS_COURS_EQUIPE = ["Thèmes", "Compétences", "Questions contestées", "Propositions IA", "Documents"]   # « Questions contestées » : lot D (10/11)
 # Ce que le banc sert à la stagiaire du banc : le QCM 50 (thème 22, examen ouvert, deux entraînements à 10/20), le QCM 51 (thème 23, un entraînement à 20/20).
 LIGNES_QCM_DU_BANC = [
     ("Thème 22 · Feux du véhicule", "Dernière note 10/20", ["Examen ouvert"]),
@@ -6008,8 +5533,8 @@ LIGNES_PROPOSITIONS_DU_BANC = [
     ("Thème 23 · Pneumatiques", "1 question à relire, proposée le 12/10/2026"),
     ("Thème 22 · Feux du véhicule", "2 questions à relire, la plus ancienne proposée le 20/10/2026"),
 ]
-A_TRAITER_DU_BANC["propositions"] = ("8", "8 à traiter : 5 signalements, 3 propositions de l'IA")
-A_TRAITER_DU_BANC["propositions-relue"] = ("7", "7 à traiter : 5 signalements, 2 propositions de l'IA")
+A_TRAITER_DU_BANC["propositions"] = ("8", "8 à traiter : 5 questions contestées, 3 propositions de l'IA")
+A_TRAITER_DU_BANC["propositions-relue"] = ("7", "7 à traiter : 5 questions contestées, 2 propositions de l'IA")
 
 JS_LISTE_ACTIONS = r"""() => {
   const vue = document.querySelector('#view');
@@ -6076,7 +5601,7 @@ def verifier_liste_d_actions(res, vue, sc, m, attendues, compte, titre_carte, qu
 
 def jouer_qcm_du_stagiaire(page, res, sc):
     """Cours et QCM > QCM, le stagiaire (lot 2B, tâche 6) : les sous-onglets Thèmes, Compétences, QCM, Documents ; la liste de ses QCM (examen ouvert d'abord, sa DERNIÈRE
-    note d'entraînement, « Examen ouvert » en repère) ; « Ouvrir » ouvre la fenêtre du QCM (entraîner, erreurs, examen), « Fermer » ramène à la liste ; la fenêtre
+    note d'entraînement, « Examen ouvert » en repère) ; « Voir le QCM » ouvre la fenêtre du QCM (entraîner, erreurs, examen), « Fermer » ramène à la liste ; la fenêtre
     d'entraînement s'ouvre puis se ferme sans rien perdre ; un entraînement fini met la note à jour sans recharger ; une lecture en échec dit sa panne et « Réessayer » la relit."""
     vue = "%s/cours/qcm" % sc.nom
     echec = lambda detail: res.echec("sous-onglet QCM du stagiaire", vue, detail)
@@ -6094,12 +5619,12 @@ def jouer_qcm_du_stagiaire(page, res, sc):
     if m["actif"] != "QCM":
         echec("le sous-onglet allumé est « %s », attendu « QCM »" % m["actif"])
     verifier_liste_d_actions(res, vue, sc, m, LIGNES_QCM_DU_BANC, "2 QCM", "Tes QCM", "sous-onglet QCM du stagiaire")
-    if [x["bouton"] for x in m["lignes"]] != ["Ouvrir"] * 2:
-        echec("les boutons sont %s, attendu « Ouvrir » sur chaque ligne" % [x["bouton"] for x in m["lignes"]])
-    # « Ouvrir » : la fenêtre du QCM, avec l'entraînement, les erreurs et l'examen ouvert ; « Fermer » ramène à la liste.
+    if [x["bouton"] for x in m["lignes"]] != ["Voir le QCM"] * 2:
+        echec("les boutons sont %s, attendu « Voir le QCM » sur chaque ligne" % [x["bouton"] for x in m["lignes"]])
+    # « Voir le QCM » : la fenêtre du QCM, avec l'entraînement, les erreurs et l'examen ouvert ; « Fermer » ramène à la liste.
     vue_fenetre = vue + "/fenetre"
     res.vues += 1
-    if not cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="Ouvrir : Thème 22 · Feux du véhicule"]', "bouton « Ouvrir » du thème 22"):
+    if not cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="Voir le QCM : Thème 22 · Feux du véhicule"]', "bouton « Voir le QCM » du thème 22"):
         return
     page.wait_for_selector(".modal-backdrop .theme-modal", timeout=4000)
     page.wait_for_timeout(350)   # l'entrée de la fenêtre
@@ -6132,7 +5657,7 @@ def jouer_qcm_du_stagiaire(page, res, sc):
         res.echec("retour à la liste", vue_fenetre, "après la fenêtre : #/%s, sous-onglet %s, lignes %s ; la liste des QCM devait être là" % (route_courante(page), m["actif"], [x["titre"] for x in m["lignes"]]))
     vider_console(res, vue_fenetre)
     # La fiche se ferme aussi par son bouton « Fermer ».
-    if cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="Ouvrir : Thème 23 · Pneumatiques"]', "bouton « Ouvrir » du thème 23"):
+    if cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="Voir le QCM : Thème 23 · Pneumatiques"]', "bouton « Voir le QCM » du thème 23"):
         page.wait_for_selector(".modal-backdrop .theme-modal", timeout=4000)
         page.wait_for_timeout(350)
         if cliquer(page, res, vue_fenetre, ".modal-backdrop .modal-actions .btn", "« Fermer » de la fiche"):
@@ -6264,7 +5789,7 @@ def jouer_propositions_ia(page, res, sc):
     vue_ligne = vue + "/ligne-d-aujourdhui"
     res.vues += 1
     lignes = page.evaluate("() => [...document.querySelectorAll('#view [data-zone=\"a-traiter\"] a.acc-ligne')].map((a) => [a.innerText.replace(/\\s+/g, ' ').trim(), a.getAttribute('href')])")
-    attendues = [["5 signalements sur des QCM", "#/themes"], ["3 questions proposées par l'IA", "#/themes"]]
+    attendues = [["5 questions contestées", "#/themes"], ["3 questions proposées par l'IA", "#/themes"]]
     if lignes != attendues:
         res.echec("ligne d'Aujourd'hui", vue_ligne, "la carte « À traiter » dit %s, attendu %s" % (lignes, attendues))
         return
@@ -6344,8 +5869,8 @@ def jouer_propositions_ia(page, res, sc):
     carte = page.evaluate(r"""() => { const c = document.querySelector('#view [data-zone="a-traiter"]');
         return { lignes: [...c.querySelectorAll('a.acc-ligne')].map((a) => a.innerText.replace(/\s+/g, ' ').trim()),
                  alertes: [...c.querySelectorAll('.acc-erreur[role="alert"]')].map((p) => p.textContent.trim()) }; }""")
-    if carte["lignes"] != ["3 questions proposées par l'IA"] or carte["alertes"] != ["Le décompte des signalements n'a pas pu être lu."]:
-        res.echec("ligne d'Aujourd'hui", vue_panne_compte, "signalements illisibles : la carte « À traiter » dit %s et %s, attendu la ligne « 3 questions proposées par l'IA » et l'alerte « Le décompte des signalements n'a pas pu être lu. »" % (carte["lignes"], carte["alertes"]))
+    if carte["lignes"] != ["3 questions proposées par l'IA"] or carte["alertes"] != ["Le décompte des questions contestées n'a pas pu être lu."]:
+        res.echec("ligne d'Aujourd'hui", vue_panne_compte, "signalements illisibles : la carte « À traiter » dit %s et %s, attendu la ligne « 3 questions proposées par l'IA » et l'alerte « Le décompte des questions contestées n'a pas pu être lu. »" % (carte["lignes"], carte["alertes"]))
     res.console.clear()   # le « console.error » de la page est le but de l'essai : elle journalise la lecture qui échoue, l'écran dit la panne
     vider_console(res, vue_panne_compte)
     recharger_au_banc(page, "#/home", panne="")
@@ -6548,44 +6073,14 @@ def verifier_assistant_sous_bandeau(page, res, sc, vue):
 
 
 def jouer_agenda_vide(page, res, sc):
-    """Accueil d'un formateur quand plus aucun événement n'est à venir (la date du banc recule après le dernier) : avec l'ancienne navigation, la liste le dit et dit où
-    en ajouter (« l'onglet Calendrier ») et la carte « Prochain événement majeur » n'y est pas ; avec la nouvelle, Aujourd'hui ne lit pas l'agenda et n'en montre rien."""
+    """Aujourd'hui d'un formateur quand plus aucun événement n'est à venir (la date du banc recule après le dernier) : la page ne lit pas l'agenda
+    (lot 2B, tâche 4) et n'en montre rien, ni liste, ni carte, ni phrase sur l'agenda vide ; elle se pose comme un autre jour."""
     vue = "%s/accueil" % sc.nom
     m = ouvrir_accueil(page, res, vue)
     if m is None:
         return
-    if sc.passe == "allume":
-        # Aujourd'hui (lot 2B, tâche 4) ne lit pas l'agenda : ni liste, ni carte, ni phrase sur l'agenda vide ; la page se pose comme un autre jour.
-        if m["agenda"] or m["carte"] or page.evaluate("() => !!document.querySelector('#view .home-empty-line')"):
-            res.echec("accueil, agenda vide", vue, "Aujourd'hui montre l'agenda (liste %s, carte %s) : la page n'en lit aucun" % (m["agenda"], bool(m["carte"])))
-        vider_console(res, vue)
-        return
-    attendu = "Aucun événement à venir. " + ("Ajoute-en depuis Planning, Dates clés." if sc.passe == "allume" else "Ajoute-en depuis l'onglet Calendrier.")
-    dit = page.evaluate("() => { const e = document.querySelector('#view .home-empty-line'); return e ? e.textContent.trim() : null; }")
-    if dit != attendu:
-        res.echec("accueil, agenda vide", vue, "la ligne de l'agenda vide est « %s », attendu « %s »" % (dit, attendu))
-    if m["carte"]:
-        res.echec("accueil, agenda vide", vue, "la carte « Prochain événement majeur » (« %s ») est affichée alors qu'aucun événement n'est à venir" % m["carte"]["titre"])
-    vider_console(res, vue)
-
-
-def jouer_demarrage(page, res, sc):
-    """Ruling R17 : l'appareil a vu la promo allumée à l'ouverture précédente et les lectures des réglages sont
-    ralenties ; l'ancienne barre ne se peint à aucune image avant la coquille, et l'attente est levée l'app ouverte.
-    Les pages et les menus sont joués par les autres scénarios."""
-    vue = "%s/ouverture" % sc.nom
-    res.vues += 1
-    m = page.evaluate("() => ({ images: window.__vnImages || null, attente: document.body.hasAttribute('data-nav-attente'),"
-                      " coquille: document.body.dataset.nav === 'v2' && !!document.querySelector('[data-nav-coquille]') })")
-    if not m["coquille"]:
-        res.echec("coquille absente", vue, "la nouvelle navigation ne s'est pas montée à l'ouverture (réglage de la promo semé)")
-    if not m["images"]:
-        res.echec("mesure impossible", vue, "l'échantillon des images de l'ouverture n'a pas tourné")
-    elif m["images"]["eclair"]:
-        res.echec("ancienne barre avant la coquille", vue, "l'ancienne barre est peinte pendant %d image(s) avant la coquille, dès %d ms, la mémoire de l'appareil disant « allumée »"
-                  % (m["images"]["eclair"], m["images"]["premiere"]))
-    if m["attente"]:
-        res.echec("attente de la coquille non levée", vue, "body[data-nav-attente] est encore posé, l'app ouverte")
+    if m["agenda"] or m["carte"] or page.evaluate("() => !!document.querySelector('#view .home-empty-line')"):
+        res.echec("accueil, agenda vide", vue, "Aujourd'hui montre l'agenda (liste %s, carte %s) : la page n'en lit aucun" % (m["agenda"], bool(m["carte"])))
     vider_console(res, vue)
 
 
@@ -6672,146 +6167,6 @@ def jouer_appareil_d_autrui(page, res, sc, options):
     vider_console(res, vue)
 
 
-def jouer_case_du_fondateur(page, res, sc):
-    """Le fondateur ouvre l'app, la lecture du réglage de la promo échoue (lot 2A, tâche 6, ruling R54) : la décision de la session est celle de l'aperçu de l'appareil s'il y
-    en a un, sinon celle de la mémoire de l'appareil pour la promo (ruling R17). La case « Nouvelle navigation activée » de Réglages, elle, ne dit que le réglage de la promo,
-    c'est-à-dire cette mémoire : cochée quand la promo a été vue allumée sur l'appareil, décochée sinon, quel que soit l'aperçu. Les six combinaisons (CASES_DU_FONDATEUR),
-    la barre appliquée comprise (nouvelle ou ancienne) : c'est elle qui montre que la case ne la suit pas."""
-    apercu, memoire, barre_nouvelle, cochee = CASES_DU_FONDATEUR[sc.reglage_illisible]
-    vue = "%s/reglages/case-de-la-promo" % sc.nom
-    res.vues += 1
-    etat = page.evaluate("() => ({ nav: document.body.dataset.nav || null, coquilles: document.querySelectorAll('[data-nav-coquille]').length })")
-    nouvelle = etat["nav"] == "v2" and etat["coquilles"] > 0
-    contexte = "aperçu %s, mémoire de la promo %s, lecture du réglage ratée" % ({None: "aucun", "1": "allumé", "0": "éteint"}[apercu], "allumée" if memoire else "absente")
-    if nouvelle != barre_nouvelle:
-        res.echec("barre du banc", vue, "la barre est %s, attendue %s (%s)" % ("la nouvelle" if nouvelle else "l'ancienne", "la nouvelle" if barre_nouvelle else "l'ancienne", contexte))
-    aller_a(page, "#/config")
-    attendre(page, calme=250)
-    coche = page.evaluate("() => { const c = document.getElementById('navigation-v2-promo'); return c ? c.checked : null; }")
-    if coche is None:
-        res.echec("case de la promo", vue, "la case « Nouvelle navigation activée pour la promo » est absente de Réglages (le fondateur la voit)")
-    elif coche is not cochee:
-        res.echec("case de la promo", vue, "la case est %s, attendue %s : elle ne dit que le réglage de la promo (la mémoire de l'appareil quand sa lecture a échoué), jamais l'aperçu (%s)"
-                  % ("cochée" if coche else "décochée", "cochée" if cochee else "décochée", contexte))
-    vider_console(res, vue)
-
-
-def verifier_barre_des_jours(page, res, sc):
-    """Ancienne barre : la barre des jours du planning se colle juste sous la barre du haut, quelle que soit sa
-    hauteur (52 px, 57 avec la pastille de promo, 95,5 sur téléphone) ; aucune bande d'elle ne passe dessous."""
-    aller_a(page, "#/planning")
-    attendre(page, calme=250)
-    m = page.evaluate("""() => { const b = document.querySelector('header.topbar'), j = document.querySelector('.p-daynav');
-      return b && j && j.getClientRects().length
-        ? { barre: b.getBoundingClientRect().height, top: parseFloat(getComputedStyle(j).top) } : null; }""")
-    if m is None:
-        return   # pas de planning ouvert à cette promo : rien à mesurer
-    res.vues += 1
-    if abs(m["barre"] - m["top"]) > 0.5:
-        res.echec("barre des jours mal collée", "%s/planning/barre-des-jours" % sc.nom,
-                  "la barre des jours se colle à %.1f px du haut, la barre du haut mesure %.1f px" % (m["top"], m["barre"]))
-
-
-def verifier_bulle_sous_bandeaux(page, res, sc, options):
-    """Ancienne barre, « Voir en tant que » et promos non chargées : les deux bandeaux du bas sont affichés. La bulle
-    de l'assistant, puis le champ et « Envoyer » de son panneau, restent à portée : rien ne couvre leur centre. Le
-    panneau s'arrête sous la barre du haut, sa croix se lit et, sur téléphone, croix et « Envoyer » font 44 px."""
-    vue = "%s/assistant" % sc.nom
-    res.vues += 1
-    # Les promos sont en panne à dessein : les erreurs de leur chargement, à l'ouverture, sont attendues.
-    res.console.clear()
-    erreur = page.evaluate("(r) => window.__verifNav.voirEnTantQue(r)", "prof")
-    if erreur:
-        res.echec("règles illisibles", vue, erreur)
-        return
-    attendre(page, calme=250)
-    bandeaux = page.evaluate("""() => ['impersonation-banner', 'promos-banner'].filter((i) => {
-      const e = document.getElementById(i); return e && e.getClientRects().length; })""")
-    if len(bandeaux) < 2:
-        res.echec("bandeaux absents", vue, "attendus : le bandeau d'aperçu et celui des promos ; affichés : %s" % (", ".join(bandeaux) or "aucun"))
-        return
-    bulle = page.evaluate("""() => { const e = document.getElementById('chatbot-fab');
-      if (!e || !e.getClientRects().length) return 'bulle absente';
-      const r = e.getBoundingClientRect(), t = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2);
-      return t && e.contains(t) ? null : (t ? ((t.closest('[id]') || t).id || t.tagName) : 'rien'); }""")
-    if bulle:
-        res.echec("assistant recouvert", vue, "bulle de l'assistant : %s en son centre, bandeaux du bas affichés" % bulle)
-    page.evaluate("() => document.getElementById('chatbot-fab')?.click()")
-    page.wait_for_timeout(300)
-    controles = page.evaluate("() => window.__verifNav.controlesAssistant()")
-    if controles is None:
-        res.echec("le panneau ne s'ouvre pas", vue, "la bulle n'ouvre pas le panneau de l'assistant")
-    else:
-        for c in controles:
-            if c["dessus"]:
-                res.echec("assistant recouvert", vue, "%s du panneau de l'assistant : %s en son centre, bandeaux du bas affichés" % (c["nom"], c["dessus"]))
-        geo = page.evaluate("""() => { const p = document.getElementById('chatbot-panel'), b = document.querySelector('header.topbar');
-          const taille = (s) => { const e = p.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect();
-            return [Math.round(r.width), Math.round(r.height)]; };
-          // Contraste de la croix sur le fond du panneau (couleurs rgb ; une autre écriture n'est pas mesurée).
-          const lum = (c) => { const m = /^rgba?\\(([^)]+)\\)$/.exec(c); if (!m) return null;
-            const v = m[1].split(/[,\\s/]+/).filter(Boolean).slice(0, 3).map((x) => { x = Number(x) / 255;
-              return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
-            return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
-          const x = p.querySelector('.chatbot-close');
-          const a = x ? lum(getComputedStyle(x).color) : null, f = lum(getComputedStyle(p).backgroundColor);
-          const contraste = a === null || f === null ? null : (Math.max(a, f) + 0.05) / (Math.min(a, f) + 0.05);
-          return { haut: p.getBoundingClientRect().top, barre: b ? b.getBoundingClientRect().bottom : 0,
-                   croix: taille('.chatbot-close'), envoyer: taille('.chatbot-form .btn'), contraste }; }""")
-        if geo["contraste"] is not None and geo["contraste"] < 3:
-            res.echec("contraste (assistant)", vue, "la croix « Fermer » du panneau : %.2f:1 sur son fond (3:1 au moins)" % geo["contraste"])
-        if geo["haut"] < geo["barre"] - 0.5:
-            res.echec("assistant sous la barre du haut", vue, "le panneau commence à %.1f px, la barre du haut finit à %.1f px" % (geo["haut"], geo["barre"]))
-        if sc.largeur < SEUIL_TELEPHONE:
-            for quoi, t in (("la croix « Fermer »", geo["croix"]), ("« Envoyer »", geo["envoyer"])):
-                if t and min(t) < 44:
-                    res.echec("zone à toucher (assistant)", vue, "%s du panneau : %dx%d px (44 px au moins)" % (quoi, t[0], t[1]))
-        # La vue entière, panneau ouvert : contrastes (la croix comprise), débordements.
-        verifier_vue(page, res, sc, "assistant/ouvert", options)
-    page.keyboard.press("Escape")
-    page.wait_for_timeout(250)
-    vider_console(res, vue)
-
-
-def jouer_eteint(page, res, sc, options):
-    if sc.voir_en_tant_que:
-        verifier_bulle_sous_bandeaux(page, res, sc, options)
-        return
-    verifier_vue(page, res, sc, "ouverture/" + route_courante(page), options)
-    routes = page.evaluate("""() => [...document.querySelectorAll('#tabs .tab')].filter((t) => t.getBoundingClientRect().width > 0)
-        .map((t) => t.dataset.route)""")
-    for route in dict.fromkeys(routes + ["mon-suivi"]):
-        aller_a(page, "#/" + route)
-        verifier_vue(page, res, sc, route, options)
-        sous_vues(page, res, sc, route, options)
-    if sc.role in ("prof", "fondateur") and sc.largeur == LARGEUR_DE_LA_FICHE:
-        verifier_graphe_de_la_fiche(page, res, sc, options)
-    jouer_anciennes_adresses(page, res, sc)
-    verifier_preferences_eteint(page, res, sc)
-    verifier_titres_eteint(page, res, sc)
-    verifier_nouveautes_eteint(page, res, sc)
-    verifier_ccp2(page, res, sc)
-    verifier_accueil_eteint(page, res, sc)
-    verifier_planning_eteint(page, res, sc)
-    verifier_planning_grille_eteint(page, res, sc)
-    if sc.role == "stagiaire":
-        verifier_notes_eteint(page, res, sc)
-    # Lot 2B, tâche 7 : éteint, Mon espace et la fiche d'un stagiaire chez l'équipe gardent les parties de main.
-    if sc.largeur in (375, 1280) and not sc.voir_en_tant_que and not sc.agenda_vide:
-        if sc.role in ("stagiaire", "fondateur"):
-            verifier_mon_espace_eteint(page, res, sc)
-        if sc.role in ("prof", "fondateur"):
-            verifier_fiche_de_l_equipe(page, res, sc)
-    verifier_bandeau_emargement(page, res, sc)
-    if sc.role in ("prof", "fondateur"):
-        verifier_benevoles_eteint(page, res, sc)
-    verifier_barre_des_jours(page, res, sc)
-    verifier_lecteur(page, res, sc, options)
-    # Lot 3, tâche 11 : appareil en « Couleurs ECF », le retour à ECSR Promo par Paramètres (la page change d'habillage, puis se recharge : en dernier).
-    if sc.habillage == "ecf" and not sc.voir_en_tant_que:
-        jouer_retour_par_parametres(page, res, sc)
-
-
 def jouer_scenario(navigateur, url, sc, options):
     res = Resultat(sc)
     debut = time.time()
@@ -6822,22 +6177,16 @@ def jouer_scenario(navigateur, url, sc, options):
         charger(page, url, sc)
         if sc.appareil_d_autrui:
             jouer_appareil_d_autrui(page, res, sc, options)
-        elif sc.demarrage:
-            jouer_demarrage(page, res, sc)
         elif sc.agenda_vide:
             jouer_agenda_vide(page, res, sc)
         elif sc.a_traiter:
             jouer_a_traiter(page, res, sc, options)
-        elif sc.reglage_illisible:
-            jouer_case_du_fondateur(page, res, sc)
         elif sc.ressources_fermees:
             jouer_ressources_fermees(page, res, sc, options)
         elif sc.compte == "direction":
             jouer_direction(page, res, sc)
-        elif sc.passe == "allume":
-            jouer_allume(page, res, sc, options)
         else:
-            jouer_eteint(page, res, sc, options)
+            jouer_allume(page, res, sc, options)
     except (DelaiDepasse, ErreurPlaywright) as e:
         res.echec("le script n'a pas pu continuer", sc.nom, "%s (dernière vue mesurée : %s)" % (str(e).strip().splitlines()[0][:200], res.derniere_vue or "aucune"))
     except Exception as e:   # une erreur du script lui-même : visible, et les autres scénarios continuent
@@ -6987,9 +6336,8 @@ def main(argv=None):
     ap.add_argument("--moteurs", default=",".join(MOTEURS))
     ap.add_argument("--roles", default=",".join(ROLES))
     ap.add_argument("--largeurs", default=",".join(str(l) for l in LARGEURS))
-    ap.add_argument("--passes", default="allume,eteint")
     ap.add_argument("--habillages", default=",".join(HABILLAGES),
-                    help="habillages de la passe allumée (lot 3) : ecsr (défaut), ecf ; avec ecf s'ajoutent la passe éteinte d'un appareil en ECF et l'appareil d'une autre personne")
+                    help="habillages joués (lot 3) : ecsr (défaut), ecf ; avec ecf s'ajoute l'appareil d'une autre personne")
     ap.add_argument("--sans-menus", action="store_true", help="ne joue pas les menus (boutons du compte et de « Plus » pas encore câblés)")
     ap.add_argument("--tout", action="store_true", help="liste chaque échec et chaque avertissement")
     ap.add_argument("--captures", metavar="DOSSIER", help="une capture d'écran par vue en échec")
@@ -7001,9 +6349,8 @@ def main(argv=None):
     moteurs = liste_de(args.moteurs, MOTEURS, "moteurs")
     roles = liste_de(args.roles, ROLES, "roles")
     largeurs = liste_de(args.largeurs, LARGEURS, "largeurs", int)
-    passes = liste_de(args.passes, ("allume", "eteint"), "passes")
     habillages = liste_de(args.habillages, HABILLAGES, "habillages")
-    scenarios = construire_scenarios(moteurs, roles, largeurs, passes, habillages)
+    scenarios = construire_scenarios(moteurs, roles, largeurs, habillages)
     if not scenarios:
         raise SystemExit("rien à jouer avec ces options")
 

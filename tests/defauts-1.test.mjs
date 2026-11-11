@@ -63,6 +63,12 @@ test("lecture en échec : un message précis selon ce qui n'a pas pu être lu", 
   assert.equal(messageLectureEnEchec({ cours: true, qcm: true }), "Cours et QCM non chargés. Vérifie ta connexion.");
 });
 
+test("lecture en échec : l'équipe est vouvoyée (vouvoiement du 10/11)", () => {
+  assert.equal(messageLectureEnEchec({ qcm: true, vous: true }), "QCM non chargés. Vérifiez votre connexion.");
+  assert.equal(messageLectureEnEchec({ cours: true, qcm: true, vous: true }), "Cours et QCM non chargés. Vérifiez votre connexion.");
+  assert.equal(messageLectureEnEchec({ vous: true }), null);
+});
+
 test("aucune lecture en échec : pas de message (le cas « aucun QCM » garde son affichage)", () => {
   assert.equal(messageLectureEnEchec({}), null);
   assert.equal(messageLectureEnEchec(), null);

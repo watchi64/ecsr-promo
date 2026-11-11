@@ -7,8 +7,7 @@
 // (les redirections du lot 1, js/nav-rules.js, mènent chaque ancienne adresse à sa nouvelle page, le bon sous-onglet ouvert) ; seul
 // le nom écrit à l'écran est celui que la personne lit dans sa barre, à deux destinations près, qui ont vraiment changé de place et que
 // le lien suit (destinationChangee) : les réglages de la personne (Mes préférences, route `preferences`, ruling R55) et la banque des
-// élèves bénévoles (Stagiaires, sous-onglet `benevoles`). Avec l'ancienne navigation, `ou` est rendu tel quel : l'app d'une promo
-// éteinte reste celle de main.
+// élèves bénévoles (Stagiaires, sous-onglet `benevoles`). Une seule navigation depuis le 10/11 : le libellé est toujours réécrit.
 
 // Sous-onglets de Mon espace devenus des vues de Résultats sous la nouvelle navigation.
 const PARTIES_DE_RESULTATS = ["evolution", "classe"];
@@ -30,7 +29,7 @@ function libelleNouvelle(ou, espace) {
   switch (ou.route) {
     case "calendrier": return "Planning, Dates clés";
     case "ressources": return "Cours et QCM, Documents";
-    case "dashboard": return "Planning, Priorités";
+    case "dashboard": return "Planning, Ordre de passage";
     case "centre": return "Indicateurs";
     case "themes": {
       const suite = reste(label, "Cours");
@@ -39,8 +38,11 @@ function libelleNouvelle(ou, espace) {
     case "mon-suivi": {
       // Évolution et La classe sont réunies dans la partie Résultats (lot 2B, tâche 7) ; le lien garde son adresse, qui ouvre la bonne vue.
       if (PARTIES_DE_RESULTATS.includes(ou.sousOnglet)) return "Mon suivi, partie Résultats";
-      // La partie Livret s'appelle « Livret EPCF » sous la nouvelle navigation (décision de Timy du 08/11).
+      // La partie Livret s'appelle « Livret EPCF » sous la nouvelle navigation (décision de Timy du 08/11) ; un nom par objet
+      // (lot D du 10/11) : la partie Dossier pro s'appelle « Dossier professionnel », la partie EPCF « Évaluations EPCF ».
       if (ou.sousOnglet === "livret") return "Mon suivi, partie Livret EPCF";
+      if (ou.sousOnglet === "dp") return "Mon suivi, partie Dossier professionnel";
+      if (ou.sousOnglet === "epcf") return "Mon suivi, partie Évaluations EPCF";
       // « Mon espace personnel, partie X » devient « Mon suivi, partie X » ; un geste de l'ancienne barre (« Le logo en haut à
       // gauche ») devient le nom de la page.
       const suite = reste(label, "Mon espace personnel") ?? reste(label, "Mon espace");
@@ -51,6 +53,8 @@ function libelleNouvelle(ou, espace) {
       // Chez le stagiaire, les notes de la classe sont une vue de la partie Résultats de Mon suivi (#/notes y mène, vue La classe) ;
       // chez l'équipe (formateur, direction, siège), la page garde son entrée.
       if (!REGLAGES_DE_L_ESPACE[espace]) return "Mon suivi, partie Résultats";
+      // Le sous-onglet EPCF de Notes et examens s'appelle « Évaluations EPCF » (lot D du 10/11).
+      if (ou.sousOnglet === "epcf") return "Notes et examens, Évaluations EPCF";
       const suite = reste(label, "Notes");
       return suite === null ? label : "Notes et examens" + suite;
     }
@@ -82,10 +86,11 @@ function destinationChangee(ou) {
 }
 
 // `ou` : { label, route, sousOnglet? }, tel que l'écrivent les Nouveautés et le catalogue des modules. Rend `ou` lui-même quand rien
-// ne change (ancienne navigation, ou libellé déjà à jour), sinon une copie dont seul le libellé diffère, hors les deux destinations
-// qui ont changé de place (destinationChangee : libellé, route et sous-onglet). `ou` n'est jamais modifié.
-export function ouSelonNavigation(ou, { navigationV2 = false, espace = "stagiaire" } = {}) {
-  if (!ou || !navigationV2) return ou;
+// ne change (libellé déjà à jour), sinon une copie dont seul le libellé diffère, hors les deux destinations
+// qui ont changé de place (destinationChangee : libellé, route et sous-onglet). `ou` n'est jamais modifié. L'option `navigationV2`
+// est ignorée (transition : retirée en phase 2 quand les vues ne la passent plus).
+export function ouSelonNavigation(ou, { espace = "stagiaire" } = {}) {
+  if (!ou) return ou;
   const deplace = destinationChangee(ou);
   if (deplace) return { ...ou, ...deplace };
   const label = libelleNouvelle(ou, espace);

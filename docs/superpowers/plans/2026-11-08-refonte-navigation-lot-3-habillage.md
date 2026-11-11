@@ -8,7 +8,7 @@
 
 **Tech Stack:** JavaScript en modules ES sans framework, un script classique pour l'avant-peinture, CSS (variables), Supabase (une colonne, une fonction, une preuve SQL), tests `node --test`, banc `_harness.html`, Playwright (Python) et Pillow pour `outils/verifier_navigation.py` et `outils/captures_habillages.py`.
 
-**Spec:** `docs/superpowers/specs/2026-10-27-refonte-navigation-roles-design.md`, § 3 (anti-objectifs) et § 4.4 (habillage ECF) ; découpage `docs/superpowers/plans/2026-10-27-refonte-navigation-lots.md` (lot 3) ; maquette `docs/maquettes/refonte-navigation.src.html` (jetons ECF l. 127-139, repère rouge l. 238, salutation l. 303, pastilles d'habillage l. 553-558 et 1427-1429, menu du compte l. 1524-1525, liseré l. 284) ; règle de Timy du 08/11 (expérience et robustesse avant la DA, habillage aussi beau que le défaut, un thème = un jeu de variables, AA dans les deux thèmes).
+**Spec:** `docs/superpowers/specs/2026-10-27-refonte-navigation-roles-design.md`, § 3 (anti-objectifs) et § 4.4 (habillage ECF) ; découpage `docs/superpowers/plans/2026-10-27-refonte-navigation-lots.md` (lot 3) ; maquette `docs/maquettes/refonte-navigation.src.html` (dossier retiré le 10/11, à lire dans l'historique git) (jetons ECF l. 127-139, repère rouge l. 238, salutation l. 303, pastilles d'habillage l. 553-558 et 1427-1429, menu du compte l. 1524-1525, liseré l. 284) ; règle de Timy du 08/11 (expérience et robustesse avant la DA, habillage aussi beau que le défaut, un thème = un jeu de variables, AA dans les deux thèmes).
 
 ## Global Constraints
 

@@ -95,7 +95,7 @@ def tour_du_reseau(v):
     v.aller("Cours et QCM")
     attendre_page(v, "Cours et QCM")
     aucun_nom_de_stagiaire(v, "Cours et QCM")
-    for interdit in ("Signalements", "Propositions IA"):
+    for interdit in ("Questions contestées", "Signalements", "Propositions IA"):
         if v.voit(texte(interdit, "#view button, #view [role=tab]")):
             v.constat("D", BLOQUE, "le siège voit « %s » dans Cours et QCM (D13)" % interdit, capture=True)
     v.terminer()

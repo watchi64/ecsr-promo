@@ -5,12 +5,13 @@
 // Logique pure de la carte d'authentification : validation, traduction des
 // erreurs Supabase, lecture du jeton de récupération, description des modes.
 // Aucun DOM ici, aucun appel réseau : c'est ce qui rend ce fichier testable.
+// Formule neutre partout (ni « tu » ni « vous ») : personne n'est encore identifié sur cet écran.
 
 export const MDP_MIN = 8;
 
 export function validerEmail(email) {
   const v = (email || "").trim();
-  return /^\S+@\S+\.\S+$/.test(v) ? null : "Email invalide";
+  return /^\S+@\S+\.\S+$/.test(v) ? null : "Adresse e-mail invalide";
 }
 
 // `confirmation` vaut undefined quand l'écran ne demande pas de confirmation :
@@ -27,13 +28,13 @@ export function validerMotDePasse(mdp, confirmation) {
 export function messageErreurAuth(brut) {
   const msg = brut ? String(brut) : "";
   if (!msg) return "Une erreur est survenue.";
-  if (/Invalid login credentials/i.test(msg)) return "Email ou mot de passe incorrect.";
-  if (/User already registered/i.test(msg)) return "Cet email a déjà un compte. Bascule sur la connexion.";
+  if (/Invalid login credentials/i.test(msg)) return "E-mail ou mot de passe incorrect.";
+  if (/User already registered/i.test(msg)) return "Cette adresse e-mail a déjà un compte : passer par l'onglet « Connexion ».";
   if (/non autorisé/i.test(msg) || /Database error/i.test(msg)) {
-    return "Email non whitelisté. Demande à un admin de t'inviter d'abord.";
+    return "Cette adresse e-mail n'a pas été invitée. L'inscription demande d'abord une invitation de l'équipe de formation.";
   }
   if (/For security purposes/i.test(msg) || /rate limit/i.test(msg)) {
-    return "Trop de demandes. Patiente quelques minutes avant de réessayer.";
+    return "Trop de demandes. Merci de patienter quelques minutes avant de réessayer.";
   }
   return msg;
 }
@@ -50,10 +51,10 @@ export function lireJetonRecuperation(search) {
 
 const MODES = {
   "signin": {
-    sousTitre: "Entre ton email et ton mot de passe.",
+    sousTitre: "Saisir l'adresse e-mail et le mot de passe du compte.",
     bouton: "Se connecter",
     boutonEnCours: "Connexion…",
-    hint: "Pas encore inscrit ? Bascule sur « Créer un compte » (ton email doit être whitelisté).",
+    hint: "Pas encore de compte ? Passer par l'onglet « Créer un compte » (l'adresse e-mail doit avoir reçu une invitation).",
     champs: { email: true, password: true, confirmation: false },
     autocomplete: "current-password",
     onglets: true,
@@ -61,10 +62,10 @@ const MODES = {
     retour: false,
   },
   "signup": {
-    sousTitre: "Crée ton compte : email (whitelisté par un admin) + choisis un mot de passe.",
+    sousTitre: "Créer le compte : l'adresse e-mail invitée par l'équipe de formation, puis un mot de passe au choix.",
     bouton: "Créer mon compte",
     boutonEnCours: "Création…",
-    hint: "Tu dois avoir été invité au préalable. Sinon l'inscription sera refusée.",
+    hint: "Une invitation préalable est nécessaire : sans elle, l'inscription est refusée.",
     champs: { email: true, password: true, confirmation: false },
     autocomplete: "new-password",
     onglets: true,
@@ -72,7 +73,7 @@ const MODES = {
     retour: false,
   },
   "reset-request": {
-    sousTitre: "Entre ton email : on t'envoie un lien pour choisir un nouveau mot de passe.",
+    sousTitre: "Saisir l'adresse e-mail du compte : un lien pour choisir un nouveau mot de passe y sera envoyé.",
     bouton: "Envoyer le lien",
     boutonEnCours: "Envoi…",
     hint: "Le lien est valable une heure.",
@@ -83,7 +84,7 @@ const MODES = {
     retour: true,
   },
   "reset-set": {
-    sousTitre: "Choisis ton nouveau mot de passe (" + MDP_MIN + " caractères minimum).",
+    sousTitre: "Choisir un nouveau mot de passe (" + MDP_MIN + " caractères minimum).",
     bouton: "Enregistrer",
     boutonEnCours: "Enregistrement…",
     hint: "",

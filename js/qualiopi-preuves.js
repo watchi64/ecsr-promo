@@ -51,22 +51,24 @@
 // phrases (`jourDe`, `rempli`, `tableau`, `nb`) sont réutilisés par js/qualiopi-documents.js, pour que la synthèse par
 // semaine des dossiers suive toujours la règle de l'inventaire au lieu d'en recopier une version.
 
-import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261110e";
-import { indicateursPromo, pct } from "./centre-stats.js?v=20261110e";
-import { estNotee } from "./notes-stats.js?v=20261110e";
-import { ACTIVITY_SHAPES } from "./config.js?v=20261110e";
-import { jourFerie } from "./emargement-rules.js?v=20261110e";
-import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261110e";
-import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261110e";
-import { parseDate, addDays, isoDate } from "./utils.js?v=20261110e";
-import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261110e";
-import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261110e";
-import { TYPES, entreesPourPromo, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261110e";
+import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261111d";
+import { indicateursPromo, pct } from "./centre-stats.js?v=20261111d";
+import { estNotee } from "./notes-stats.js?v=20261111d";
+import { ACTIVITY_SHAPES } from "./config.js?v=20261111d";
+import { jourFerie } from "./emargement-rules.js?v=20261111d";
+import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261111d";
+import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261111d";
+import { parseDate, addDays, isoDate } from "./utils.js?v=20261111d";
+import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261111d";
+import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261111d";
+import { TYPES, entreesPourPromo, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261111d";
 
 // Annexe A de la spec, cellule par cellule, pour les 28 indicateurs d'un centre de formation continue (les 27 plus
 // le 13 de l'alternance). niveau : « prouve » (l'app fournit l'essentiel), « partiel » (en partie) ou « hors »
 // (hors de l'app). apporte : ce que l'app apporte. ajout : le lot qui l'enrichira (§ 6.7), nul s'il n'y en a pas.
 // aFournir : les pièces que le centre fournit lui-même (cellule découpée sur « , »), vide s'il n'y en a pas.
+// Les mots de la colonne « apporte » ont suivi ceux de l'app le 10/11 (indicateurs 7, 10, 11, 12, 31 et 32 : livret EPCF,
+// ordre de passage, difficultés, contestations de QCM, thèmes les moins réussis) ; le sens de l'annexe A est inchangé.
 export const NIVEAUX = {
   1: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["site", "catalogue", "fiche formation"] },
   2: { niveau: "partiel", apporte: "indicateurs du tableau de bord, chacun avec sa méthode", ajout: "fiche résultats (Q2)", aFournir: ["publication sur le site"] },
@@ -74,12 +76,12 @@ export const NIVEAUX = {
   4: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["entretien", "dossier d'entrée"] },
   5: { niveau: "partiel", apporte: "thèmes, compétences C1 à C4, CCP, tous évalués", ajout: null, aFournir: ["programme de formation"] },
   6: { niveau: "partiel", apporte: "cours, déroulé réalisé du planning", ajout: null, aFournir: ["programme", "progression"] },
-  7: { niveau: "partiel", apporte: "grilles EPCF et livret au modèle officiel", ajout: null, aFournir: ["agrément du centre"] },
+  7: { niveau: "partiel", apporte: "grilles EPCF et livret EPCF au modèle officiel", ajout: null, aFournir: ["agrément du centre"] },
   8: { niveau: "hors", apporte: "rien", ajout: "positionnement (plus tard)", aFournir: ["tests ou entretiens d'entrée"] },
   9: { niveau: "partiel", apporte: "planning, dates clés, contacts", ajout: "livret d'accueil lu (plus tard)", aFournir: ["livret d'accueil", "règlement intérieur"] },
-  10: { niveau: "prouve", apporte: "priorités, « à suivre de près », passages, Mon suivi", ajout: null, aFournir: [] },
-  11: { niveau: "prouve", apporte: "notes, examens QCM, EPCF, livret", ajout: null, aFournir: [] },
-  12: { niveau: "partiel", apporte: "assiduité, signaux, abandons (sans date)", ajout: "date et motif d'abandon (plus tard)", aFournir: ["procédure et référent violences"] },
+  10: { niveau: "prouve", apporte: "ordre de passage, « à suivre de près », passages, Mon suivi", ajout: null, aFournir: [] },
+  11: { niveau: "prouve", apporte: "notes, examens QCM, EPCF, livret EPCF", ajout: null, aFournir: [] },
+  12: { niveau: "partiel", apporte: "assiduité, difficultés, abandons (sans date)", ajout: "date et motif d'abandon (plus tard)", aFournir: ["procédure et référent violences"] },
   13: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["coordination avec l'entreprise"] },
   16: { niveau: "prouve", apporte: "dossier professionnel et livret EPCF au modèle officiel, heures", ajout: null, aFournir: ["inscription à la session"] },
   17: { niveau: "partiel", apporte: "formateurs par séance, ressources en ligne", ajout: null, aFournir: ["locaux", "véhicules", "matériel"] },
@@ -94,8 +96,8 @@ export const NIVEAUX = {
   27: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["contrats"] },
   28: { niveau: "partiel", apporte: "auto-écoles partenaires, dates de stage", ajout: "lieu de stage (plus tard)", aFournir: ["conventions de stage"] },
   30: { niveau: "partiel", apporte: "enquête hors de l'app", ajout: "questionnaires (Q3)", aFournir: ["avis des financeurs et entreprises"] },
-  31: { niveau: "partiel", apporte: "signalements de QCM instruits puis tranchés, registre qualité", ajout: null, aFournir: ["procédure de réclamation"] },
-  32: { niveau: "partiel", apporte: "comparaison des promos, thèmes à retravailler, registre qualité", ajout: null, aFournir: ["plan d'amélioration"] },
+  31: { niveau: "partiel", apporte: "contestations de QCM analysées puis tranchées, registre qualité", ajout: null, aFournir: ["procédure de réclamation"] },
+  32: { niveau: "partiel", apporte: "comparaison des promos, thèmes les moins réussis, registre qualité", ajout: null, aFournir: ["plan d'amélioration"] },
 };
 
 // Les 15 pièces de l'app et les indicateurs qu'elles servent (tableau du § 6.2). L'ordre de la liste est celui
@@ -109,7 +111,7 @@ export const PIECES = [
   { cle: "evaluations", libelle: "Évaluations", indicateurs: [11, 16] },                  // notes, QCM, EPCF, livrets, jury
   { cle: "dossierPro", libelle: "Dossier professionnel", indicateurs: [16] },             // un dossier par stagiaire
   { cle: "ressources", libelle: "Ressources", indicateurs: [19] },                        // cours publiés, QCM, activité
-  { cle: "misesAJour", libelle: "Mises à jour", indicateurs: [19, 23, 31] },              // modifications des cours, signalements traités
+  { cle: "misesAJour", libelle: "Mises à jour", indicateurs: [19, 23, 31] },              // modifications des cours, contestations de QCM traitées
   { cle: "innovations", libelle: "Innovations", indicateurs: [25] },                      // Nouveautés datées
   { cle: "intervenants", libelle: "Intervenants et partenaires", indicateurs: [17, 18, 28] },
   { cle: "resultats", libelle: "Résultats et méthodes", indicateurs: [2, 3, 32] },        // tableau de bord du centre
@@ -241,10 +243,11 @@ export function intervenantsDistincts(lignes) {
 
 // --- Annonces : celles qu'on peut citer ---
 
-// Les annonces de la rubrique Nouveautés qu'un dossier peut compter et citer. Celles qui décrivent la nouvelle barre
-// (`navigation: "nouvelle"`) ne se lisent que barre allumée : tant qu'elle est éteinte, personne n'a pu les lire dans l'app
-// et un auditeur ne les y trouverait pas. Le filtre est écrit ici une seule fois, pour l'inventaire et le dossier du centre.
-export const nouveautesCitables = (nouveautes) => tableau(nouveautes).filter((x) => x?.navigation !== "nouvelle");
+// Les annonces de la rubrique Nouveautés qu'un dossier peut compter et citer. Depuis le 10/11, toutes les promos ont la
+// nouvelle barre : ses annonces se lisent dans l'app. Celles qui ne décrivent que l'ancienne barre (`navigation: "ancienne"`)
+// n'y sont plus visibles, un auditeur ne les y trouverait pas. Le filtre est écrit ici une seule fois, pour l'inventaire et le
+// dossier du centre.
+export const nouveautesCitables = (nouveautes) => tableau(nouveautes).filter((x) => x?.navigation !== "ancienne");
 
 // --- Satisfaction : le questionnaire de fin de formation ---
 
@@ -395,7 +398,7 @@ const CONSTRUCTEURS = {
     const joursModifications = modifies.flat().map(jourDe);
     const joursSignalements = liste("signalements").map((s) => jourDe(s.traite_at)).filter(dansPeriode);
     if (!modifies.length && !joursSignalements.length) {
-      return absente("aucun cours publié modifié ni signalement de QCM traité pendant la formation");
+      return absente("aucun cours publié modifié ni contestation de QCM traitée pendant la formation");
     }
     const parties = [];
     if (modifies.length) {
@@ -403,7 +406,7 @@ const CONSTRUCTEURS = {
       parties.push(`${avecPlage(nbCours, joursModifications)} (${nb(joursModifications.length, "modification")})`);
     }
     if (joursSignalements.length) {
-      parties.push(avecPlage(nb(joursSignalements.length, "signalement de QCM traité", "signalements de QCM traités"), joursSignalements));
+      parties.push(avecPlage(nb(joursSignalements.length, "contestation de QCM traitée", "contestations de QCM traitées"), joursSignalements));
     }
     return presente(parties.join(" ; "));
   },
@@ -470,7 +473,7 @@ const CONSTRUCTEURS = {
     const parQcm = ind.themes.qcm.length;
     const parNotes = ind.themes.notes.length;
     if (!aSuivre && !parQcm && !parNotes) {
-      return absente("personne ne cumule deux signaux et aucun thème n'a encore assez de réponses ou de notes");
+      return absente("aucun stagiaire n'est à suivre de près et aucun thème n'a encore assez de réponses ou de notes");
     }
     const plusFaibles = (nombre) => (nombre > 1 ? `les ${nombre} thèmes les plus faibles` : "le thème le plus faible");
     const qcm = parQcm

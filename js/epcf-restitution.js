@@ -1,9 +1,9 @@
 // Restitution EPCF : scoring des phases, radar SVG, section réutilisable
 // (affichée dans Mon suivi ; réutilisable ailleurs).
 
-import { el, clear, formatDate } from "./utils.js?v=20261110e";
-import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS, EPCF_PHASE_TEXTE } from "./epcf-trames.js?v=20261110e";
-import { moyennesMontrables, titreEpreuve, PHRASE_SANS_MOYENNE, scoresDuGroupe, phraseSansEvaluation } from "./epcf-classe-rules.js?v=20261110e";
+import { el, clear, formatDate } from "./utils.js?v=20261111d";
+import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS, EPCF_PHASE_TEXTE } from "./epcf-trames.js?v=20261111d";
+import { moyennesMontrables, titreEpreuve, PHRASE_SANS_MOYENNE, scoresDuGroupe, phraseSansEvaluation } from "./epcf-classe-rules.js?v=20261111d";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 function svgEl(tag, attrs = {}) {
@@ -41,7 +41,7 @@ export function buildRadar(axes, series, size = 340) {
   const px = (i, f) => cx + Math.cos(ang(i)) * R * f;
   const py = (i, f) => cy + Math.sin(ang(i)) * R * f;
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${size}`, class: "epcf-radar", role: "img",
-    "aria-label": "Radar EPCF" });
+    "aria-label": "Graphique des évaluations EPCF par phase" });
   [0.25, 0.5, 0.75, 1].forEach((f) => {
     const pts = Array.from({ length: n }, (_, i) => `${px(i, f)},${py(i, f)}`).join(" ");
     svg.appendChild(svgEl("polygon", { points: pts, class: "epcf-radar-ring" }));

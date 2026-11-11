@@ -3,201 +3,139 @@
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
 // En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
-import "./journal-erreurs.js?v=20261110e";
+import "./journal-erreurs.js?v=20261111d";
 import {
   getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements, basculeLancee, getPromoCourante, getMesPromos,
   habillageParDefaut,
-} from "./db.js?v=20261110e";
-import { toast, annoncer, el } from "./utils.js?v=20261110e";
-import { icon } from "./icons.js?v=20261110e";
-import { initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261110e";
-import { getEspace, getCentre } from "./auth-admin.js?v=20261110e";
+} from "./db.js?v=20261111d";
+import { toast, annoncer, el } from "./utils.js?v=20261111d";
+import {
+  initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail,
+  getProfile, getProfileWho, fondateurHorsApercu, getProfileNom, selonPublic,
+} from "./auth-admin.js?v=20261111d";
+import { getEspace, getCentre, seDeconnecter } from "./auth-admin.js?v=20261111d";
 import {
   ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage, promosDuCentre, defautsHabillage,
-} from "./espaces-rules.js?v=20261110e";
-import { chargerEtatSignalements } from "./signalement-etat.js?v=20261110e";
-import { messageDemarrage } from "./signalement-rules.js?v=20261110e";
-import { showGate, hideGate } from "./gate.js?v=20261110e";
-import { exigerAcceptation } from "./legal.js?v=20261110e";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261110e";
-import { habillageAuDemarrage } from "./habillage.js?v=20261110e";
-import { renderHome } from "./views/home.js?v=20261110e";
-import { renderDashboard } from "./views/dashboard.js?v=20261110e";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261110e";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261110e";
-import { renderPlanningEspace } from "./views/planning-espace.js?v=20261110e";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261110e";
-import { renderNotes } from "./views/notes.js?v=20261110e";
-import { renderVueCentre, renderEmargementCentre, renderNotesCentre } from "./views/direction-centre.js?v=20261110e";
-import { renderPromosCentre } from "./views/direction-promos.js?v=20261110e";
-import { renderStagiairesCentre } from "./views/direction-stagiaires.js?v=20261110e";
-import { renderEquipeCentre } from "./views/direction-equipe.js?v=20261110e";
-import { renderReseau } from "./views/siege-reseau.js?v=20261110e";
-import { renderDirections } from "./views/siege-directions.js?v=20261110e";
-import { renderRessources } from "./views/ressources.js?v=20261110e";
-import { renderThemes } from "./views/themes.js?v=20261110e";
-import { renderConfig, renderPreferences } from "./views/config.js?v=20261110e";
-import { renderReglagesCentre, renderReglagesReseau } from "./views/reglages-habillage.js?v=20261110e";
-import { renderCalendrier } from "./views/calendrier.js?v=20261110e";
-import { initUndoKeyboard } from "./undo.js?v=20261110e";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261110e";
-import { libellePastille } from "./nouveautes.js?v=20261110e";
-import { renderCcp2 } from "./views/ccp2.js?v=20261110e";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261110e";
-import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261110e";
-import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261110e";
-import { renderEmargement } from "./views/emargement.js?v=20261110e";
-import { renderProblemes } from "./views/problemes.js?v=20261110e";
-import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261110e";
-import { chargerEmargementActif, emargementActif, chargerEmargementCentre, emargementDansLeCentre } from "./emargement-etat.js?v=20261110e";
-import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261110e";
-import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261110e";
-import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261110e";
-import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261110e";
-import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261110e";
+} from "./espaces-rules.js?v=20261111d";
+import { chargerEtatSignalements } from "./signalement-etat.js?v=20261111d";
+import { messageDemarrage } from "./signalement-rules.js?v=20261111d";
+import { showGate, hideGate } from "./gate.js?v=20261111d";
+import { exigerAcceptation } from "./legal.js?v=20261111d";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261111d";
+import { habillageAuDemarrage } from "./habillage.js?v=20261111d";
+import { renderHome } from "./views/home.js?v=20261111d";
+import { renderDashboard } from "./views/dashboard.js?v=20261111d";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261111d";
+import { teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261111d";
+import { renderPlanningEspace } from "./views/planning-espace.js?v=20261111d";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261111d";
+import { renderNotes } from "./views/notes.js?v=20261111d";
+import { renderVueCentre, renderEmargementCentre, renderNotesCentre } from "./views/direction-centre.js?v=20261111d";
+import { renderPromosCentre } from "./views/direction-promos.js?v=20261111d";
+import { renderStagiairesCentre } from "./views/direction-stagiaires.js?v=20261111d";
+import { renderEquipeCentre } from "./views/direction-equipe.js?v=20261111d";
+import { renderReseau } from "./views/siege-reseau.js?v=20261111d";
+import { renderDirections } from "./views/siege-directions.js?v=20261111d";
+import { renderRessources } from "./views/ressources.js?v=20261111d";
+import { renderThemes } from "./views/themes.js?v=20261111d";
+import { renderConfig, renderPreferences } from "./views/config.js?v=20261111d";
+import { renderReglagesCentre, renderReglagesReseau } from "./views/reglages-habillage.js?v=20261111d";
+import { renderCalendrier } from "./views/calendrier.js?v=20261111d";
+import { initUndoKeyboard } from "./undo.js?v=20261111d";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261111d";
+import { libellePastille } from "./nouveautes.js?v=20261111d";
+import { renderCcp2 } from "./views/ccp2.js?v=20261111d";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261111d";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261111d";
+import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261111d";
+import { renderEmargement } from "./views/emargement.js?v=20261111d";
+import { renderProblemes } from "./views/problemes.js?v=20261111d";
+import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261111d";
+import { chargerEmargementActif, emargementActif, chargerEmargementCentre, emargementDansLeCentre } from "./emargement-etat.js?v=20261111d";
+import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, routeApresRedirection } from "./nav-rules.js?v=20261111d";
+import { monterCoquille, majEntreeActive, coquilleMontee, majNouveautesCompte } from "./nav-shell.js?v=20261111d";
+import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261111d";
+import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261111d";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261110e";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261110e";
+} from "./navigation.js?v=20261111d";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261111d";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
-  routeVisible, routeMasquee, repereMasque, nouveautesAffichables, formateurConnecte,
-} from "./modules-etat.js?v=20261110e";
-
-// ===== Tabs =====
-
-const TABS = [
-  { route: "home",       label: "Accueil",         icon: "info"      },
-  // L'espace perso n'a pas d'onglet : on y accède par l'ouverture de l'app, le logo et
-  // la pastille à son nom ; la route mon-suivi reste dans `routes` ci-dessous. Sur
-  // #/mon-suivi, aucun onglet n'est actif : assumé. Priorités n'a plus d'onglet non
-  // plus (chantier D) : bouton en haut du Planning, dont l'onglet reste allumé sur
-  // #/dashboard (voir ONGLET_POUR_ROUTE).
-  { route: "planning",   label: "Planning",        icon: "calendar"  },
-  { route: "calendrier", label: "Calendrier",      icon: "clock"     },
-  // « Cours » garde la route themes : favoris et liens existants restent valides.
-  { route: "themes",     label: "Cours",           icon: "book"      },
-  { route: "notes",      label: "Notes",           icon: "edu"       },
-  // CCP2 apparaît quand un formateur ouvre le module pour la promo (module ccp2).
-  { route: "ccp2",       label: "CCP2",            icon: "ccp2"      },
-  { route: "ressources", label: "Ressources",      icon: "signpost"  },
-  { route: "config",     label: "Paramètres",      icon: "settings"  },
-];
+  routeVisible, nouveautesAffichables, formateurConnecte,
+} from "./modules-etat.js?v=20261111d";
 
 // Espace de la session : « stagiaire », « equipe » (formateur), « direction » ou « siege » (lot 5). Fixé à la porte
-// (js/auth-admin.js, getEspace), avant la décision de navigation ; la coquille, la redirection des anciennes adresses, les
-// routes permises et la mémoire de la dernière page le lisent ici.
+// (js/auth-admin.js, getEspace) ; la coquille, la redirection des anciennes adresses, les routes permises et la mémoire de la
+// dernière page le lisent ici.
 function espaceCourant() {
   return getEspace();
 }
 
-// Barre de navigation. Nouvelle navigation : la coquille de l'espace (js/nav-shell.js), remontée à
-// chaque appel (rôle changé par « Voir en tant que », modules ouverts ou fermés) ; l'ancienne barre,
-// masquée, est vidée pour ne garder aucun onglet d'un rôle précédent. Interrupteur éteint : la barre
-// actuelle.
-// Repli (relecture finale, mineur 8) : si la coquille lève une exception, elle est retirée, la session
-// repasse à l'ancienne navigation (barre et pages) et l'erreur part en console ; rien ne remonte à
-// l'appelant, donc le démarrage continue (assistant, écouteurs, premier navigate(), qui rend l'ancienne
-// page). En cours de session, la page affichée garde sa forme jusqu'au rendu suivant.
+// Vrai quand la coquille n'a pas pu se monter : il n'y a pas d'autre barre, les pages laissent la place à un écran de
+// repli (ecranSansNavigation) jusqu'à ce qu'un montage réussisse.
+let navigationEnPanne = false;
+
+// Barre de navigation : la coquille de l'espace (js/nav-shell.js), remontée à chaque appel (rôle changé par
+// « Voir en tant que », modules ouverts ou fermés).
+// Repli : si la coquille lève une exception, ce qu'elle a pu poser est retiré, l'erreur part en console et la page
+// laisse la place à un écran minimal (Recharger, Se déconnecter) ; rien ne remonte à l'appelant, donc le démarrage
+// continue. Rend vrai quand un montage réussit après une panne : l'appelant rejoue alors la page (navigate), que l'écran
+// de repli remplaçait.
 function renderTabs() {
-  if (navigationV2Active()) {
-    try {
-      document.getElementById("tabs").replaceChildren();
-      const espace = espaceCourant();
-      const nom = getProfileWho();
-      monterCoquille({
-        espace,
-        // Lot 5 : Émargement du centre s'allume quand une promo du centre a l'interrupteur (emargementDansLeCentre, lu au
-        // démarrage) ; Réglages du centre et Réglages du réseau ont leur page (js/views/reglages-habillage.js) : leur entrée est là.
-        entrees: entreesNavigation(espace, {
-          routeVisible, emargementActif: emargementActif(), formateur: isAdmin(), emargementDansLeCentre: emargementDansLeCentre(),
-          reglagesEspace: espaceDePilotage(espace),
-        }),
-        nom,
-        initiales: initialesDe(nom),
-        actualiser,
-      });
-      marquerOngletActif();
-      return;
-    } catch (e) {
-      console.error("Navigation : la nouvelle barre n'a pas pu se monter, retour à la barre actuelle pour la session.", e);
-      retirerCoquille();
-      renoncerNavigationV2();
-    }
+  try {
+    const espace = espaceCourant();
+    const nom = getProfileNom();
+    monterCoquille({
+      espace,
+      // Lot 5 : Émargement du centre s'allume quand une promo du centre a l'interrupteur (emargementDansLeCentre, lu au
+      // démarrage) ; Réglages du centre et Réglages du réseau ont leur page (js/views/reglages-habillage.js) : leur entrée est là.
+      entrees: entreesNavigation(espace, {
+        routeVisible, emargementActif: emargementActif(), formateur: isAdmin(), emargementDansLeCentre: emargementDansLeCentre(),
+        reglagesEspace: espaceDePilotage(espace),
+      }),
+      nom,
+      initiales: initialesDe(nom),
+      actualiser,
+    });
+    const reprise = navigationEnPanne;
+    navigationEnPanne = false;
+    marquerOngletActif();
+    return reprise;
+  } catch (e) {
+    console.error("Navigation : la barre n'a pas pu se monter.", e);
+    document.querySelectorAll("[data-nav-coquille]").forEach((r) => r.remove());
+    // Plus de coquille : ses marques sur le corps de page partent aussi (sinon le repli garderait la marge de la barre).
+    for (const cle of ["nav", "barre", "espace"]) delete document.body.dataset[cle];
+    navigationEnPanne = true;
+    ecranSansNavigation();
+    return false;
   }
-  renderBarreActuelle();
 }
 
-// Barre actuelle (interrupteur éteint).
-function renderBarreActuelle() {
-  const nav = document.getElementById("tabs");
-  nav.innerHTML = "";
-  TABS.filter((t) => (!t.visible || t.visible()) && routeVisible(t.route)).forEach((t) => {
-    const a = document.createElement("a");
-    a.href = "#/" + t.route;
-    a.className = "tab";
-    a.dataset.route = t.route;
-    a.appendChild(icon[t.icon]());
-    const span = document.createElement("span");
-    span.textContent = t.label;
-    a.appendChild(span);
-    // Module fermé pour la promo : seul un formateur voit encore l'onglet, repéré.
-    repereMasque(a, routeMasquee(t.route));
-    nav.appendChild(a);
-  });
-  // La barre vient d'être reconstruite : sans ça, un redessin dû aux modules la
-  // laisserait sans onglet allumé.
-  marquerOngletActif();
+// Écran de repli, quand la barre n'a pas pu se monter : une phrase et deux gestes (css/navigation.css, .nav-repli),
+// au lieu d'une page sans navigation.
+function ecranSansNavigation() {
+  const view = document.getElementById("view");
+  if (!view) return;
+  view.replaceChildren(el("div", { class: "nav-repli", role: "alert" },
+    el("h1", { class: "nav-repli-titre" }, "L'app n'a pas pu s'afficher"),
+    el("p", {}, "Recharger la page ; si le problème revient, se déconnecter puis se reconnecter."),
+    el("div", { class: "nav-repli-gestes" },
+      el("button", { class: "btn primary", type: "button", onClick: () => rechargerApresEnregistrements() }, "Recharger"),
+      el("button", { class: "btn", type: "button", onClick: () => seDeconnecter() }, "Se déconnecter"))));
 }
 
-// Allume l'entrée de la page affichée : dans la coquille quand elle est montée, sinon dans la
-// barre actuelle.
+// Allume l'entrée de la page affichée dans la coquille (sans coquille montée, rien).
 function marquerOngletActif() {
-  if (coquilleMontee()) {
-    majEntreeActive(lastRoute);
-    return;
-  }
-  marquerOngletActuel();
+  majEntreeActive(lastRoute);
 }
 
-// Allume l'onglet de la route affichée (ou celui qui l'héberge, voir ONGLET_POUR_ROUTE).
-function marquerOngletActuel() {
-  const ongletActif = ONGLET_POUR_ROUTE[lastRoute] || lastRoute;
-  document.querySelectorAll(".tab").forEach((t) => {
-    const active = t.dataset.route === ongletActif;
-    t.classList.toggle("active", active);
-    if (active) t.setAttribute("aria-current", "page");
-    else t.removeAttribute("aria-current");
-  });
-}
-
-// Pastille de nouveautés sur l'onglet Accueil. Elle se modifie sur place, sur
-// l'onglet existant : renderTabs() reconstruit la barre sans elle, donc cette
-// fonction se rappelle après chaque renderTabs().
-// Nouvelle navigation : un point sans chiffre, sur les boutons du compte de la coquille (js/nav-shell.js) ;
-// le nombre est sur la ligne « Nouveautés » du menu du compte (js/menu-compte.js).
+// Nouveautés non lues : un point sans chiffre, sur les boutons du compte de la coquille (js/nav-shell.js) ; le nombre est
+// sur la ligne « Nouveautés » du menu du compte (js/menu-compte.js).
 function majBadgeNouveautes() {
-  if (coquilleMontee()) {
-    majNouveautesCompte(libellePastille(nouveautesAffichables().neuves.size));
-    return;
-  }
-  const tab = document.querySelector('.tab[data-route="home"]');
-  if (!tab) return;
-  // Nouveautés écrites et annonces d'ouverture de module, pas encore lues.
-  const texte = libellePastille(nouveautesAffichables().neuves.size);
-  let badge = tab.querySelector(".tab-badge");
-  if (!texte) {
-    if (badge) badge.remove();
-    return;
-  }
-  if (!badge) {
-    badge = document.createElement("span");
-    badge.className = "tab-badge";
-    badge.setAttribute("aria-label", "nouveautés non lues");
-    tab.appendChild(badge);
-  }
-  badge.textContent = texte;
+  if (coquilleMontee()) majNouveautesCompte(libellePastille(nouveautesAffichables().neuves.size));
 }
 
 // ===== Router =====
@@ -217,7 +155,7 @@ function rendreCentre(view) {
 // rien. La boîte d'erreur propose donc de recharger, ce qui suffit pour une page du fondateur.
 function boiteErreurQualiopi() {
   return el("div", { class: "centre-erreur qualiopi-erreur", role: "alert" },
-    el("p", {}, "La page Qualiopi n'a pas pu se charger. Vérifie ta connexion, puis recharge la page."),
+    el("p", {}, "La page Qualiopi n'a pas pu se charger. Vérifiez votre connexion, puis rechargez la page."),
     el("button", { class: "btn small", type: "button", onClick: () => rechargerApresEnregistrements() }, "Recharger la page"));
 }
 
@@ -225,7 +163,7 @@ async function rendreQualiopi(view) {
   afficherChargement();
   let page;
   try {
-    page = await import("./views/qualiopi.js?v=20261110e");
+    page = await import("./views/qualiopi.js?v=20261111d");
   } catch (e) {
     console.error(e);
     if (lastRoute === "qualiopi") view.replaceChildren(boiteErreurQualiopi());
@@ -239,12 +177,9 @@ const routes = {
   home:       renderHome,
   dashboard:  renderDashboard,
   "mon-suivi": renderMonSuivi,
-  // Nouvelle navigation : Planning regroupe Semaine, Dates clés et Priorités en sous-onglets, et
-  // la Semaine porte le bouton « Aujourd'hui » de l'ancienne barre (ruling R29), au même geste.
-  // Décidé au rendu (la décision est connue au démarrage, après la construction de la table).
-  planning:   (view) => (navigationV2Active()
-    ? renderPlanningEspace(view, { aujourdhui: allerAujourdhui })
-    : renderPlanning(view)),
+  // Planning regroupe Semaine, Dates clés et Priorités en sous-onglets, et la Semaine porte le retour au jour
+  // (ruling R29, allerAujourdhui).
+  planning:   (view) => renderPlanningEspace(view, { aujourdhui: allerAujourdhui }),
   calendrier: renderCalendrier,
   themes:     renderThemes,
   notes:      (view) => (espaceCourant() === "direction" ? renderNotesCentre(view) : renderNotes(view)),
@@ -257,8 +192,7 @@ const routes = {
   // Lot 5 : « Réglages » est la page de l'équipe ; la direction y trouve les Réglages du centre, le siège ceux du réseau.
   config:     (view) => (espaceCourant() === "direction" ? renderReglagesCentre(view)
     : espaceCourant() === "siege" ? renderReglagesReseau(view) : renderConfig(view)),
-  // Nouvelle navigation seulement : « Mes préférences », ouverte par le menu du compte. Avec l'ancienne,
-  // l'adresse mène à Paramètres avant d'arriver ici (suivreRedirection).
+  // « Mes préférences », ouverte par le menu du compte.
   preferences: renderPreferences,
   nouveautes: renderNouveautes,
   problemes:  renderProblemes,
@@ -269,19 +203,13 @@ const routes = {
   directions: renderDirections,
 };
 
-// Routes sans onglet propre qui doivent quand même allumer un onglet. On arrive
-// sur #/nouveautes depuis Accueil, et sur #/dashboard (Priorités) depuis le
-// Planning : laisser la barre sans onglet actif donnerait l'impression d'être
-// sorti de l'app. Qualiopi (page du fondateur, sans entrée de barre) s'appuie sur Accueil comme le tableau de bord du centre.
-const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "home", qualiopi: "home", emargement: "planning", problemes: "config" };
-
 let lastRoute = null;
 
-// Une page est-elle une destination pour la personne connectée ? Sous la nouvelle navigation,
-// une page à sous-onglets l'est dès que l'un d'eux l'est (Cours avec ses seuls Documents tant
-// que les cours sont fermés, voir routeVisibleV2) ; avec l'ancienne, la règle de toujours.
+// Une page est-elle une destination pour la personne connectée ? Une page à sous-onglets l'est dès
+// que l'un d'eux l'est (Cours avec ses seuls Documents tant que les cours sont fermés, voir
+// routeVisibleV2).
 function routeOuverte(route) {
-  return navigationV2Active() ? routeVisibleV2(route, routeVisible) : routeVisible(route);
+  return routeVisibleV2(route, routeVisible);
 }
 
 // Derniere page visitee, pour y revenir au prochain demarrage. Le sous-onglet,
@@ -294,20 +222,25 @@ function memoriserRoute(route) {
 
 // Renvoie la derniere route connue, ou null si elle est absente ou n'existe plus
 // (onglet supprime depuis, stockage vide, navigation privee).
+// Une mémoire d'avant le 10/11 peut nommer une ancienne adresse (calendrier, dashboard, ressources ; config chez un
+// stagiaire) : elle se juge sur la page où sa redirection mène (routeApresRedirection), et c'est elle qui est rendue,
+// pour que navigate() suive la redirection et ouvre le bon sous-onglet.
 function derniereRoute() {
   try {
-    const r = localStorage.getItem(cleDerniereRoute(espaceCourant()));
+    const espace = espaceCourant();
+    const r = localStorage.getItem(cleDerniereRoute(espace));
+    if (!r || !routes[r]) return null;
+    const cible = routeApresRedirection(r, espace);
     // Une page dont le module est fermé pour la promo n'est pas une destination :
     // repli silencieux, la dernière page n'est qu'une commodité. Une page hors de l'espace non plus (D16 : l'accueil, sans phrase).
-    return r && routes[r] && routeOuverte(r) && routeDansLEspace(espaceCourant(), r) ? r : null;
+    return routes[cible] && routeOuverte(cible) && routeDansLEspace(espace, cible) ? r : null;
   } catch (e) {
     return null;
   }
 }
 
-// Nouvelle navigation : une ancienne adresse cède la place à sa nouvelle adresse avant que
-// navigate() n'en lise la route. Y arrive toute adresse que navigate() lit : la navigation dans
-// l'app (liens, lien d'une nouveauté) ; une adresse saisie, ou un favori ouvert, dans l'onglet où
+// Une ancienne adresse cède la place à sa nouvelle adresse avant que navigate() n'en lise la route.
+// Y arrive toute adresse que navigate() lit : la navigation dans l'app (liens, lien d'une nouveauté) ; une adresse saisie, ou un favori ouvert, dans l'onglet où
 // l'app est déjà ouverte (`hashchange`) ; un rechargement et « Précédent » ou « Suivant », qui
 // gardent l'adresse (voir isColdStart) ; à l'ouverture à froid, la dernière page mémorisée
 // (`derniere-route`), car l'app ignore alors l'adresse demandée (favori, raccourci d'écran
@@ -318,13 +251,10 @@ function derniereRoute() {
 // replaceState ne déclenche aucun `hashchange` et n'ajoute aucune étape d'historique : un seul
 // rendu, et « Précédent » quitte la page redirigée. Une seule redirection par appel : aucune cible
 // n'est elle-même une ancienne adresse (tests/nav-rules.test.mjs).
-// Deux adresses ont leur redirection dans chaque navigation (lot 2A) : sous la nouvelle, un stagiaire
-// qui ouvre Réglages (#/config) arrive sur Mes préférences (#/preferences) ; sous l'ancienne, qui n'a
-// pas Mes préférences, #/preferences mène à Paramètres (#/config). Rien d'autre ne bouge sous
-// l'ancienne : l'interrupteur éteint garde les adresses de main.
+// Un stagiaire qui ouvre Réglages (#/config) arrive sur Mes préférences (#/preferences, lot 2A).
 function suivreRedirection() {
   const adresse = lireAdresse(location.hash);
-  const cible = navigationV2Active() ? redirectionV2(adresse, espaceCourant()) : redirectionAncienne(adresse);
+  const cible = redirectionV2(adresse, espaceCourant());
   if (!cible) return;
   if (cible.sousOnglet) {
     try { localStorage.setItem(cible.sousOnglet.cle, cible.sousOnglet.valeur); } catch (e) { /* mode privé */ }
@@ -340,9 +270,10 @@ async function navigate({ force = false } = {}) {
   const reprendre = () => { if (location.hash !== voulue) location.hash = voulue; else navigate({ force }); };
   if (!peutQuitter(reprendre)) { remplacerAdresse(adresseCourante()); return; }
   leverGardeSortie();
-  // Nouvelle navigation : les quatre anciennes adresses mènent à leur nouvel emplacement, et Réglages
-  // du stagiaire à Mes préférences. Après la garde, donc suivre une redirection demande la même
-  // confirmation que n'importe quel départ.
+  // La barre n'a pas pu se monter : l'écran de repli reste, aucune page ne se rend sans navigation.
+  if (navigationEnPanne) { ecranSansNavigation(); return; }
+  // Les anciennes adresses mènent à leur nouvel emplacement, et Réglages du stagiaire à Mes préférences.
+  // Après la garde, donc suivre une redirection demande la même confirmation que n'importe quel départ.
   suivreRedirection();
   // Espace de la session (lot 5) : la direction et le siège n'ont ni Mon suivi ni Accueil du formateur ; leur page de repli est
   // leur accueil (#/centre, #/reseau), où « home » mène aussi. Le stagiaire et le formateur gardent les replis de main.
@@ -457,7 +388,8 @@ async function navigate({ force = false } = {}) {
     const sub = document.createElement("p");
     sub.className = "view-error-sub";
     sub.textContent = isTimeout
-      ? "Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie."
+      ? selonPublic("Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie.",
+        "Le serveur n'a pas répondu à temps. Vérifiez votre connexion et réessayez.")
       : "Détail : " + (e?.message || e);
     const retry = document.createElement("button");
     retry.className = "btn primary";
@@ -467,7 +399,7 @@ async function navigate({ force = false } = {}) {
     box.appendChild(sub);
     box.appendChild(retry);
     view.appendChild(box);
-    toast(isTimeout ? "Connexion trop lente, réessaie" : (e?.message || String(e)), "error");
+    toast(isTimeout ? selonPublic("Connexion trop lente, réessaie", "Connexion trop lente, réessayez") : (e?.message || String(e)), "error");
   }
 }
 
@@ -483,9 +415,8 @@ function afficherChargement() {
   document.getElementById("view").replaceChildren(chargement);
 }
 
-// « Actualiser » : relit les données et rejoue la page. Bouton de l'ancienne barre, et ligne du menu
-// du compte sous la nouvelle navigation (le seul moyen de relire les données dans l'app installée
-// sur iPhone, qui n'a pas de bouton de rechargement).
+// « Actualiser » : relit les données et rejoue la page. Ligne du menu du compte (le seul moyen de relire
+// les données dans l'app installée sur iPhone, qui n'a pas de bouton de rechargement).
 async function actualiser() {
   // Saisie en cours : pas de rechargement sans accord (un accord relance « Actualiser »).
   if (!peutQuitter(actualiser)) return;
@@ -498,18 +429,9 @@ async function actualiser() {
   navigate({ force: true });
 }
 
-function setupRefreshBtn() {
-  const btn = document.getElementById("refresh-btn");
-  btn.innerHTML = "";
-  btn.appendChild(icon.refresh());
-  btn.addEventListener("click", actualiser);
-}
-
-// Raccourci « Aujourd'hui » : ouvre le planning sur la journée du jour, depuis n'importe
-// quelle vue. Déjà sur le planning, le hash ne change pas → aucun `hashchange` : on
-// re-rend à la main, sinon le bouton serait inerte pile là où on s'en sert le plus.
-// Bouton de l'ancienne barre ; sous la nouvelle navigation, bouton du haut de Planning > Semaine
-// (ruling R29, js/views/planning.js), toujours ce geste-ci.
+// Retour au jour : ouvre le planning sur la journée du jour. Déjà sur le planning, le hash ne change
+// pas, donc aucun `hashchange` : on re-rend à la main, sinon le bouton serait inerte pile là où on s'en
+// sert le plus. Bouton de Planning > Semaine (ruling R29, js/views/planning.js).
 async function allerAujourdhui() {
   if (!peutQuitter(allerAujourdhui)) return;
   requestPlanningToday();
@@ -517,41 +439,9 @@ async function allerAujourdhui() {
   else location.hash = "#/planning";
 }
 
-function setupTodayBtn() {
-  const btn = document.getElementById("today-btn");
-  btn.innerHTML = "";
-  btn.appendChild(icon.today());
-  btn.addEventListener("click", allerAujourdhui);
-}
-
-// Le raccourci « Aujourd'hui » mène au planning : il suit donc le module Planning.
-// style.display plutôt que l'attribut hidden, que la règle .ghost-btn écraserait.
-function majBoutonAujourdhui() {
-  const btn = document.getElementById("today-btn");
-  if (btn) btn.style.display = routeVisible("planning") ? "" : "none";
-}
-
-// Ce qui, hors de la barre d'onglets, dépend des modules : bouton du haut et bulle.
+// Ce qui, hors de la barre, dépend des modules : le panneau de l'assistant.
 function majPresenceModules() {
-  majBoutonAujourdhui();
   appliquerModuleAssistant();
-}
-
-// Hauteur réelle de l'ancienne barre (52 px d'ordinaire, 57 avec la pastille de promo, 95,5 sur
-// téléphone), publiée dans --haut-entete sur <html> : la barre des jours du planning se colle juste
-// dessous au lieu de passer en partie sous elle, et le saut vers un jour s'arrête sous les deux barres.
-// Suivie : pastille qui apparaît, texte qui passe à la ligne, largeur qui change. Sous la nouvelle
-// navigation, la coquille pose sa propre valeur sur body (css/navigation.css) : rien n'est publié ici.
-function suivreHauteurBarre() {
-  const barre = document.querySelector("header.topbar");
-  if (!barre || typeof ResizeObserver !== "function") return;
-  const publier = () => {
-    const haut = barre.getBoundingClientRect().height;
-    if (!navigationV2Active() && haut > 0) document.documentElement.style.setProperty("--haut-entete", haut + "px");
-    else document.documentElement.style.removeProperty("--haut-entete");
-  };
-  new ResizeObserver(publier).observe(barre);
-  publier();
 }
 
 // « Ouvrir l'app » = démarrage à froid. Un raccourci d'écran d'accueil, un favori ou un
@@ -589,45 +479,38 @@ async function bootApp() {
   // réseau coupé) donne des défauts nuls, sans message, et l'habillage de l'appareil, déjà posé par l'avant-peinture, reste en place.
   habillageDuDemarrage()
     .catch((e) => console.warn("Habillage : démarrage impossible", e));
-  // Ruling R17 : quand la coquille est attendue (la promo l'avait la dernière fois sur cet appareil, ou
-  // l'aperçu du fondateur), l'ancienne barre attend la décision sans se peindre (css/navigation.css) ;
-  // posé avant que l'app ne s'affiche, levé dès la première barre dessinée, quelle qu'elle soit.
-  if (navigationV2Attendue()) document.body.dataset.navAttente = "";
+  hideGate();
+  // L'état des modules décide des entrées visibles : il est lu avant de dessiner la barre.
+  // La lecture est bornée (chargerModulesAuDemarrage : copie de l'appareil au-delà de
+  // 3,5 s, la vraie réponse redessine la barre à son arrivée) et la vue dit « Chargement ».
+  afficherChargement();
+  // Conditions d'utilisation : rien ne s'ouvre tant que la version en vigueur n'est pas
+  // acceptée (fenêtre bloquante ; laisse passer si la lecture échoue). Pas pour les
+  // formateurs (décision du 13/10) : le texte s'adresse aux stagiaires, et un formateur
+  // salarié du centre n'a pas à accepter en son nom les conditions de l'éditeur ; ce sera
+  // couvert par le contrat avec le centre. Vrai rôle, pas l'aperçu « Voir en tant que ».
+  // Une erreur avant la barre (conditions, lectures du démarrage) ne laisse jamais la page sur « Chargement » sans sortie :
+  // l'écran de repli propose de recharger ou de se déconnecter (relecture du 11/11).
   try {
-    hideGate();
-    // L'état des modules décide des onglets visibles : il est lu avant de dessiner la barre.
-    // La lecture est bornée (chargerModulesAuDemarrage : copie de l'appareil au-delà de
-    // 3,5 s, la vraie réponse redessine la barre à son arrivée) et la vue dit « Chargement ».
-    afficherChargement();
-    // Conditions d'utilisation : rien ne s'ouvre tant que la version en vigueur n'est pas
-    // acceptée (fenêtre bloquante ; laisse passer si la lecture échoue). Pas pour les
-    // formateurs (décision du 13/10) : le texte s'adresse aux stagiaires, et un formateur
-    // salarié du centre n'a pas à accepter en son nom les conditions de l'éditeur ; ce sera
-    // couvert par le contrat avec le centre. Vrai rôle, pas l'aperçu « Voir en tant que ».
-    if (getProfile()?.role !== "prof") await exigerAcceptation(getAdminEmail());
-    // Interrupteurs de l'émargement et de la nouvelle navigation (propres à la promo) lus en même
-    // temps que les modules. La navigation est décidée ici, une fois pour la session, avant le
-    // premier rendu (aperçu du fondateur compris).
-    // Sans promo (le siège, une direction dont le centre n'en a pas encore), les modules et l'émargement n'ont rien à lire : les
-    // modules gardent leur état par défaut, l'émargement reste éteint (aucune lecture ne part sans en-tête de promo).
-    const unePromo = !!getPromoCourante();
-    // Direction : l'interrupteur de chaque promo du centre se lit aussi, une fois, pour allumer l'entrée Émargement de la barre.
-    const centre = getEspace() === "direction" ? getCentre() : null;
-    await Promise.all([
-      unePromo ? chargerModulesAuDemarrage() : null, unePromo ? chargerEmargementActif() : null, chargerNavigationV2(),
-      centre ? chargerEmargementCentre(promosDuCentre(getMesPromos(), centre.id)) : null,
-    ]);
-    renderTabs();
-  } finally {
-    // La barre de la session est posée (coquille, ou ancienne barre si la décision est « éteint ») : plus
-    // rien n'attend. Si quoi que ce soit échoue en chemin, l'ancienne barre revient aussi : jamais une
-    // page sans barre.
-    delete document.body.dataset.navAttente;
+  if (getProfile()?.role !== "prof") await exigerAcceptation(getAdminEmail());
+  // Interrupteur de l'émargement (propre à la promo) lu en même temps que les modules, avant le premier rendu.
+  // Sans promo (le siège, une direction dont le centre n'en a pas encore), les modules et l'émargement n'ont rien à lire : les
+  // modules gardent leur état par défaut, l'émargement reste éteint (aucune lecture ne part sans en-tête de promo).
+  const unePromo = !!getPromoCourante();
+  // Direction : l'interrupteur de chaque promo du centre se lit aussi, une fois, pour allumer l'entrée Émargement de la barre.
+  const centre = getEspace() === "direction" ? getCentre() : null;
+  await Promise.all([
+    unePromo ? chargerModulesAuDemarrage() : null, unePromo ? chargerEmargementActif() : null,
+    centre ? chargerEmargementCentre(promosDuCentre(getMesPromos(), centre.id)) : null,
+  ]);
+  } catch (e) {
+    console.error("Démarrage : lecture impossible avant la barre.", e);
+    ecranSansNavigation();
+    return;
   }
+  // La coquille, ou l'écran de repli si elle ne peut pas se monter : jamais une page sans barre.
+  renderTabs();
   majBadgeNouveautes();
-  setupRefreshBtn();
-  setupTodayBtn();
-  suivreHauteurBarre();
   initChatbot();
   majPresenceModules();
   // Signaler un problème : compteurs des pastilles, et un mot à l'ouverture quand un signalement a avancé
@@ -646,10 +529,10 @@ async function bootApp() {
   // barre, pastille et raccourcis suivent. La vue n'est rejouée que si elle vient
   // d'être fermée, pour ne pas détruire une saisie en cours.
   onModulesChange(() => {
-    renderTabs();
+    const reprise = renderTabs();
     majBadgeNouveautes();
     majPresenceModules();
-    if (lastRoute && !routeOuverte(lastRoute)) navigate({ force: true });
+    if (reprise || (lastRoute && !routeOuverte(lastRoute))) navigate({ force: true });
   });
   surveillerPremierPlan();
   // Émis par la page et par la section d'Accueil après marquage.
@@ -658,15 +541,15 @@ async function bootApp() {
   installerGardeNavigateur();
   // Bandeau d'émargement (signer, ou rappel d'une feuille ouverte) : relu seul ensuite.
   initBandeauEmargement();
-  // À l'ouverture, on revient sur la page quittée la dernière fois, et à défaut
-  // sur « Mon suivi » (nouvelle navigation : l'Accueil, ruling R60). replaceState plutôt que location.hash : pas de
-  // `hashchange` (donc pas de double rendu avec le navigate() ci-dessous) et pas
-  // d'entrée d'historique parasite.
-  // Direction et siège (lot 5) : l'accueil de leur espace (#/centre, #/reseau).
+  // À l'ouverture, on revient sur la page quittée la dernière fois, et à défaut sur l'accueil de
+  // l'espace (ruling R60 : l'Accueil ; direction et siège, lot 5 : #/centre, #/reseau). replaceState
+  // plutôt que location.hash : pas de `hashchange` (donc pas de double rendu avec le navigate()
+  // ci-dessous) et pas d'entrée d'historique parasite. Une ancienne adresse mémorisée suit sa
+  // redirection dans navigate().
   // Exception : un lien vers un questionnaire (#/questionnaire/<clé>, WhatsApp) s'ouvre aussi à froid.
   if (!location.hash || (isColdStart() && !cleQuestionnaire(location.hash))) {
     const accueil = ACCUEIL_ESPACE[espaceCourant()] || "home";
-    const cible = "#/" + (derniereRoute() || (espaceDePilotage(espaceCourant()) ? accueil : navigationV2Active() ? "home" : "mon-suivi"));
+    const cible = "#/" + (derniereRoute() || accueil);
     try { history.replaceState(null, "", cible); }
     catch (e) { location.hash = cible; }
   }

@@ -1,6 +1,5 @@
 /* Signaler un problème (spec 2026-10-28) : la fenêtre (js/signalement.js), ses entrées et la page
-   « Problèmes signalés » (js/views/problemes.js). Valable avec l'ancienne barre comme avec la nouvelle :
-   rien n'est rangé sous body[data-nav="v2"], et le sélecteur de la fenêtre bat ceux des fenêtres de la
+   « Problèmes signalés » (js/views/problemes.js). Rien n'est rangé sous body[data-nav="v2"], et le sélecteur de la fenêtre bat ceux des fenêtres de la
    coquille (css/navigation.css), dont elle reprend la mécanique. */
 
 /* ----- La fenêtre ----- */
@@ -243,23 +242,7 @@ body .modal-backdrop[data-nav-coquille="signaler"] > .nav-fenetre.signalement-fe
   .sg-statut-btn, .sg-carte-actions .btn, .sg-carte-lien, .sg-carte-capture-zone .btn { min-height: 44px; }
 }
 
-/* ----- Les entrées : coquille (js/nav-shell.js, js/menu-compte.js), Assistant, ancienne barre ----- */
-/* Pastille hors coquille (fenêtre « Mon compte » de l'ancienne barre) : le dessin de .nav-pastille. */
-.sg-pastille {
-  display: inline-grid;
-  place-items: center;
-  min-width: 20px;
-  height: 20px;
-  margin-left: 8px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--bg-elev);
-  font-size: 0.72rem;
-  font-weight: 600;
-  line-height: 1;
-}
-.sg-entree-compte { margin-top: 0.5rem; }
+/* ----- Les entrées : coquille (js/nav-shell.js, js/menu-compte.js), Assistant ----- */
 body[data-nav="v2"] .nav-cote-signaler .nav-pastille { margin-left: auto; }
 /* Colonne d'icônes : la pastille sur le coin de l'icône. */
 body[data-nav="v2"][data-nav-colonne] .nav-cote-signaler .nav-pastille {
@@ -294,7 +277,7 @@ body[data-nav="v2"][data-nav-colonne] .nav-cote-signaler .nav-pastille {
    est masqué (en-tête et barre du bas) : l'entrée est dans le tiroir « Plus ». */
 @media (max-width: 699.98px) {
   body[data-nav="v2"] .nav-cote-signaler { display: none; }
-  .chatbot-signaler-btn, .sg-entree-compte { min-height: 44px; }
+  .chatbot-signaler-btn { min-height: 44px; }
 }
 @media (max-width: 699.98px) {
   .modal-backdrop[data-nav-coquille="signaler"] {

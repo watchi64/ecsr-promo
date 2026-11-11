@@ -2,9 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { messageErreurRegistre, tableAbsente, PHRASE_DOUBLON, PHRASE_DROIT, PHRASE_CONTRAINTE, PHRASE_RESEAU } from "../js/registre-erreurs.js";
 
-test("doublon de signalement (23505)", () => {
-  assert.equal(messageErreurRegistre({ code: "23505", message: "duplicate key" }), "Ce signalement est déjà au registre.");
-  assert.equal(PHRASE_DOUBLON, "Ce signalement est déjà au registre.");
+test("doublon : problème signalé déjà au registre (23505)", () => {
+  assert.equal(messageErreurRegistre({ code: "23505", message: "duplicate key" }), "Ce problème est déjà au registre.");
+  assert.equal(PHRASE_DOUBLON, "Ce problème est déjà au registre.");
 });
 
 test("refus de droit (42501)", () => {
@@ -13,8 +13,8 @@ test("refus de droit (42501)", () => {
 });
 
 test("refus d'une contrainte de la base (23514)", () => {
-  assert.equal(messageErreurRegistre({ code: "23514", message: 'new row violates check constraint "registre_qualite_date_reponse_ordre"' }), "Une valeur n'est pas acceptée par le registre : vérifie les dates et les champs, puis réessaie.");
-  assert.equal(PHRASE_CONTRAINTE, "Une valeur n'est pas acceptée par le registre : vérifie les dates et les champs, puis réessaie.");
+  assert.equal(messageErreurRegistre({ code: "23514", message: 'new row violates check constraint "registre_qualite_date_reponse_ordre"' }), "Une valeur n'est pas acceptée par le registre : vérifiez les dates et les champs, puis réessayez.");
+  assert.equal(PHRASE_CONTRAINTE, "Une valeur n'est pas acceptée par le registre : vérifiez les dates et les champs, puis réessayez.");
 });
 
 test("phrase de la base : « registre: phrase » devient « phrase »", () => {
@@ -23,7 +23,7 @@ test("phrase de la base : « registre: phrase » devient « phrase »", () => {
 });
 
 test("toute autre erreur : phrase de réseau", () => {
-  const attendu = "Le registre n'a pas pu être enregistré : vérifie ta connexion, puis réessaie.";
+  const attendu = "Le registre n'a pas pu être enregistré : vérifiez votre connexion, puis réessayez.";
   assert.equal(PHRASE_RESEAU, attendu);
   assert.equal(messageErreurRegistre({ message: "Failed to fetch" }), attendu);
   assert.equal(messageErreurRegistre({ code: "P0001", message: "registre:" }), attendu);

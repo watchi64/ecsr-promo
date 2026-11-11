@@ -10,20 +10,21 @@
 // Rien de la réponse n'est gardé sur l'appareil au-delà de la session : le brouillon vit en mémoire le temps de
 // répondre (fermer par erreur ne perd rien), puis disparaît à l'envoi. Seul « Plus tard » est écrit sur l'appareil.
 
-import { el, isoDate, toast } from "./utils.js?v=20261110e";
-import { getAdminEmail, onAdminChange } from "./auth-admin.js?v=20261110e";
-import { lireQuestionnairesARemplir, envoyerQuestionnaire } from "./db.js?v=20261110e";
-import { QUESTIONNAIRES, ECHELLE } from "./questionnaires-data.js?v=20261110e";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261110e";
+import { el, isoDate, toast } from "./utils.js?v=20261111d";
+import { getAdminEmail, onAdminChange } from "./auth-admin.js?v=20261111d";
+import { lireQuestionnairesARemplir, envoyerQuestionnaire } from "./db.js?v=20261111d";
+import { QUESTIONNAIRES, ECHELLE } from "./questionnaires-data.js?v=20261111d";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261111d";
 import {
   cleMemoire, lireMemoire, memoirePlusTard, idQuestionnaire, questionnaireDuBandeau, questionnaireDuLien,
   sousTitreBandeau, progression, aUneReponse, peutAvancer, premiereManquante, reponsesAEnvoyer,
-  annonceEcran, ouvrirApresLecture, memoireDeSession,
-} from "./questionnaire-ecran-rules.js?v=20261110e";
+  annonceEcran, ouvrirApresLecture, memoireDeSession, selonQuestionnaire, merciQuestionnaire,
+} from "./questionnaire-ecran-rules.js?v=20261111d";
 
-const MERCI = "Merci, ta réponse est enregistrée sans ton nom.";
-const RIEN_A_REMPLIR = "Pas de questionnaire à remplir pour toi en ce moment : tu as peut-être déjà répondu, "
-  + "ou la période pour y répondre n'est pas ouverte.";
+// Le ton suit le public du questionnaire ouvert (selonQuestionnaire : tu pour les stagiaires, vous pour les formateurs). Le
+// lien direct sans questionnaire à remplir n'a pas de public : formule neutre.
+const RIEN_A_REMPLIR = "Aucun questionnaire à remplir en ce moment : la réponse est peut-être déjà envoyée, "
+  + "ou la période pour répondre n'est pas ouverte.";
 const LONGUEUR_MAX = 2000;
 
 // Brouillons de la session, par questionnaire (idQuestionnaire) : { reponses, etape }. Étape 0 : l'accueil de la
@@ -136,6 +137,8 @@ export function ouvrirQuestionnaire(item, { ancre = null } = {}) {
   if (!brouillons.has(id)) brouillons.set(id, { reponses: {}, etape: 0 });
   const etat = brouillons.get(id);
   const total = q.questions.length;
+  const ton = (tu, vous) => selonQuestionnaire(q, tu, vous);
+  const merci = merciQuestionnaire(q);
 
   const corps = el("div", { class: "qn-corps" });
   const fermer = el("button", { type: "button", class: "qn-fermer" }, "Fermer");
@@ -164,7 +167,7 @@ export function ouvrirQuestionnaire(item, { ancre = null } = {}) {
       titre,
       el("p", { class: "qn-intro" }, q.intro),
       el("p", { class: "qn-intro qn-intro-detail" },
-        `${total} questions, une par écran. Tu peux revenir en arrière avant d'envoyer.`),
+        `${total} questions, une par écran. ${ton("Tu peux", "Vous pouvez")} revenir en arrière avant d'envoyer.`),
       el("div", { class: "qn-actions" }, commencer),
     );
     return titre;
@@ -229,8 +232,10 @@ export function ouvrirQuestionnaire(item, { ancre = null } = {}) {
       if (envoiEnCours) return;
       if (!peutAvancer(question, etat.reponses)) {
         aide.textContent = question.type === "echelle"
-          ? "Choisis une réponse pour continuer. Si tu ne sais pas, « Sans avis » compte comme une réponse."
-          : "Choisis la réponse qui te correspond le mieux pour continuer.";
+          ? ton("Choisis une réponse pour continuer. Si tu ne sais pas, « Sans avis » compte comme une réponse.",
+            "Choisissez une réponse pour continuer. Si vous ne savez pas, « Sans avis » compte comme une réponse.")
+          : ton("Choisis la réponse qui te correspond le mieux pour continuer.",
+            "Choisissez la réponse qui vous correspond le mieux pour continuer.");
         champ.querySelector("input")?.focus();
         return;
       }
@@ -247,7 +252,7 @@ export function ouvrirQuestionnaire(item, { ancre = null } = {}) {
         envoyes.add(id);
         brouillons.delete(id);
         if (fenetreOuverte() === "questionnaire" && corps.isConnected) { annonce.textContent = ""; montrer(ecranMerci()); }
-        else toast(MERCI, "success", 4500);
+        else toast(merci, "success", 4500);
       } catch (e) {
         // Le message vient de js/questionnaires-erreurs.js : déjà répondu, fermé, connexion... Montré dans la fenêtre.
         if (aide.isConnected) aide.textContent = e.message;
@@ -270,7 +275,7 @@ export function ouvrirQuestionnaire(item, { ancre = null } = {}) {
         }, el("div", { class: "qn-barre-remplie", style: `width: ${pourcent}%` })),
       ),
       titre,
-      question.facultative ? el("p", { class: "qn-facultative" }, "Facultative : tu peux passer.") : null,
+      question.facultative ? el("p", { class: "qn-facultative" }, ton("Facultative : tu peux passer.", "Facultative : vous pouvez passer.")) : null,
       champ,
       aide,
       el("div", { class: "qn-actions" }, retour, suivant),
@@ -279,7 +284,7 @@ export function ouvrirQuestionnaire(item, { ancre = null } = {}) {
   };
 
   const ecranMerci = () => {
-    const titre = el("h3", { class: "qn-question qn-merci", tabindex: "-1" }, MERCI);
+    const titre = el("h3", { class: "qn-question qn-merci", tabindex: "-1" }, merci);
     const fin = el("button", { type: "button", class: "btn primary qn-suivant" }, "Fermer");
     fin.addEventListener("click", () => fermerFenetre());
     corps.replaceChildren(

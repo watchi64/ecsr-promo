@@ -8,32 +8,32 @@
 import {
   lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante, lireReglagePromo, lireEmargementPromo,
   ouvrirDansUnePromo, lireEffacementsSurDemande,
-} from "../db.js?v=20261110e";
-import { el, clear, isoDate, formatDate, formatLongDate, toast, tableauEnListe } from "../utils.js?v=20261110e";
-import { getCentre } from "../auth-admin.js?v=20261110e";
-import { promosDuCentre } from "../espaces-rules.js?v=20261110e";
+} from "../db.js?v=20261111d";
+import { el, clear, isoDate, formatDate, formatLongDate, toast, tableauEnListe } from "../utils.js?v=20261111d";
+import { getCentre } from "../auth-admin.js?v=20261111d";
+import { promosDuCentre } from "../espaces-rules.js?v=20261111d";
 import {
   indicateursPromo, ligneComparaison, aSuivrePromo, fusionnerASuivre,
-} from "../centre-stats.js?v=20261110e";
-import { comptesDepuisIndicateurs, concatenerDonnees, promosEnCours } from "../comptes-reseau.js?v=20261110e";
-import { tableauCentreCsv, slug } from "../centre-csv.js?v=20261110e";
-import { resumeEmargement, lireAdresseEmargement, CLE_ACTIVATION, estActif } from "../emargement-rules.js?v=20261110e";
-import { estAdresseAttestations } from "../attestations-rules.js?v=20261110e";
-import { jourLong, DEMI_LONG } from "../emargement-feuilles.js?v=20261110e";
+} from "../centre-stats.js?v=20261111d";
+import { comptesDepuisIndicateurs, concatenerDonnees, promosEnCours } from "../comptes-reseau.js?v=20261111d";
+import { tableauCentreCsv, slug } from "../centre-csv.js?v=20261111d";
+import { resumeEmargement, lireAdresseEmargement, CLE_ACTIVATION, estActif } from "../emargement-rules.js?v=20261111d";
+import { estAdresseAttestations } from "../attestations-rules.js?v=20261111d";
+import { jourLong, DEMI_LONG } from "../emargement-feuilles.js?v=20261111d";
 import {
   cartesCles, cartesResultats, sectionThemes, sectionASuivre, sectionComparaison, sectionMethodes, etiquette,
   telecharger,
-} from "./centre.js?v=20261110e";
-import { surChangementAdresse } from "../navigation.js?v=20261110e";
-import { renderEmargement } from "./emargement.js?v=20261110e";
-import { renderNotes } from "./notes.js?v=20261110e";
+} from "./centre.js?v=20261111d";
+import { surChangementAdresse } from "../navigation.js?v=20261111d";
+import { renderEmargement } from "./emargement.js?v=20261111d";
+import { renderNotes } from "./notes.js?v=20261111d";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
 
 export const PHRASE_SANS_PROMO = "Ce centre n'a pas encore de promo";
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";
-const phraseHorsCentre = (quoi, geste) => `La promo affichée n'est pas une promo de ce centre : ${quoi} ne sont pas montrées ici. Ouvre une promo du centre avec « ${geste} ».`;
+const phraseHorsCentre = (quoi, geste) => `La promo affichée n'est pas une promo de ce centre : ${quoi} ne sont pas montrées ici. Ouvrez une promo du centre avec « ${geste} ».`;
 const PHRASE_LECTURE_ECHEC = "Les chiffres du centre n'ont pas pu être chargés.";
 
 // Le centre dirigé et ses promos (la plus récente d'abord) ; `affichee` : la promo affichée SI elle est de ce centre, sinon nulle

@@ -13,7 +13,7 @@ compare les deux jeux image par image.
   * Levier d'habillage, le même pour tout robot : avant le chargement, `localStorage.ecsr_habillage = JSON.stringify({ nom })`
     (nom : « ecsr » ou « ecf »). Le script d'avant-peinture de l'app (js/habillage-avant-peinture.js) pose alors
     `data-skin` lui-même : plus rien n'est forcé depuis le robot.
-  * Vues, par rôle (la nouvelle navigation est allumée comme dans outils/verifier_navigation.py, dont les aides sont
+  * Vues, par rôle (avec les scénarios de outils/verifier_navigation.py, dont les aides sont
     réutilisées : aucun chemin de page n'est écrit ici) : chaque entrée de la coquille et chacun de ses sous-onglets,
     le menu du compte ouvert, le tiroir « Plus » (téléphone, équipe), Mes préférences, Nouveautés, la feuille
     d'émargement en aperçu d'impression (équipe), la page Qualiopi (fondateur) ; et, hors rôle, l'écran de connexion
@@ -47,7 +47,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import verifier_navigation as vn   # noqa: E402  (le chemin ci-dessus doit précéder l'import)
 from verifier_navigation import (   # noqa: E402
-    CLE_APERCU, HAUTEUR, attendre, charger, nouveau_contexte, ouvrir_entree, regles_de_la_page,
+    HAUTEUR, attendre, charger, nouveau_contexte, ouvrir_entree, regles_de_la_page,
 )
 from playwright.sync_api import Error as ErreurPlaywright   # noqa: E402
 from playwright.sync_api import TimeoutError as DelaiDepasse   # noqa: E402
@@ -62,10 +62,8 @@ LARGEURS = (1280, 375)
 HAUTEUR_MAX = 12000       # px CSS : la hauteur au-delà de laquelle une capture est coupée
 CLE_HABILLAGE = "ecsr_habillage"   # localStorage : { "nom": "ecsr" | "ecf" }
 
-# Le même rôle et le même allumage que construire_scenarios du vérificateur : le fondateur et le stagiaire du banc ont
-# l'aperçu de l'appareil, le formateur (qui n'est pas fondateur) a le réglage de la promo.
+# Le même espace que construire_scenarios du vérificateur (une seule navigation depuis le 10/11 : plus de levier d'allumage).
 ESPACE_DE = {"stagiaire": "stagiaire", "prof": "equipe", "fondateur": "equipe"}
-ALLUMAGE_DE = {"stagiaire": "apercu", "prof": "reglage", "fondateur": "apercu"}
 
 # Attend que toute image de la page soit décodée : une image arrivée tard ferait deux captures différentes.
 JS_PRET = """async () => {
@@ -241,9 +239,9 @@ def jouer_role(navigateur, url, tache, dossier):
     sortie = pathlib.Path(dossier) / moteur / habillage
     sortie.mkdir(parents=True, exist_ok=True)
     if role == "anon":
-        sc = vn.Scenario(moteur, "eteint", "anon", largeur)
+        sc = vn.Scenario(moteur, "anon", largeur)
     else:
-        sc = vn.Scenario(moteur, "allume", role, largeur, ALLUMAGE_DE[role], ESPACE_DE[role])
+        sc = vn.Scenario(moteur, role, largeur, ESPACE_DE[role])
     prise = Prise(None, sortie, "%s-%d" % (role, largeur))
     res = vn.Resultat(sc)
     contexte = None
@@ -261,7 +259,7 @@ def jouer_role(navigateur, url, tache, dossier):
         res.profil_stagiaire = bool(regles.get("profilStagiaire"))
         vn.preparer_coquille(page, res, sc, regles)
         if not res.coquille:
-            prise.erreurs.append(("coquille", "la nouvelle navigation n'est pas allumée dans ce contexte"))
+            prise.erreurs.append(("coquille", "la barre de navigation n'est pas montée dans ce contexte"))
         entrees = regles["entrees"]
         for entree in entrees:
             ouvrir_entree(page, res, sc, entree)
@@ -305,7 +303,7 @@ def jouer_documents(navigateur, url, moteur, habillage, dossier):
     sortie.mkdir(parents=True, exist_ok=True)
     faites, erreurs = [], []
     for role, document in (("prof", "feuille-emargement"), ("fondateur", "qualiopi-dossier")):
-        sc = vn.Scenario(moteur, "allume", role, 1280, ALLUMAGE_DE[role], ESPACE_DE[role])
+        sc = vn.Scenario(moteur, role, 1280, ESPACE_DE[role])
         prise = Prise(None, sortie, "%s-1280" % role)
         res = vn.Resultat(sc)
         contexte = None
@@ -324,8 +322,8 @@ def jouer_documents(navigateur, url, moteur, habillage, dossier):
                 page.evaluate(JS_SANS_IMPRESSION)
                 vn.aller_a(page, "#/qualiopi")
                 attendre(page, calme=200)
-                page.wait_for_function("() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Dossier de la formation'); return b && !b.disabled; }", timeout=8000)
-                page.get_by_role("button", name="Dossier de la formation").first.click(timeout=4000)
+                page.wait_for_function("() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Dossier Qualiopi de la formation'); return b && !b.disabled; }", timeout=8000)
+                page.get_by_role("button", name="Dossier Qualiopi de la formation").first.click(timeout=4000)
                 page.wait_for_selector("#qualiopi-print .qdoc", state="attached", timeout=8000)
                 page.emulate_media(media="print", reduced_motion="reduce")
                 prise.photographier("qualiopi-dossier", element="#qualiopi-print")

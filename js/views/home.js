@@ -2,20 +2,20 @@
  * Page d'accueil : version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261110e";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261110e";
-import { icon } from "../icons.js?v=20261110e";
-import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261110e";
+import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261111d";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261111d";
+import { icon } from "../icons.js?v=20261111d";
+import { isAdmin, isProf, getProfile, getProfileWho, getProfileNom } from "../auth-admin.js?v=20261111d";
 import {
   nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque, formateurConnecte,
-} from "../modules-etat.js?v=20261110e";
-import { carteNouveaute } from "./nouveautes.js?v=20261110e";
-import { emargementActif } from "../emargement-etat.js?v=20261110e";
-import { navigationV2Active } from "../nav-etat.js?v=20261110e";
-import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, pointsARetenir, salutationDe } from "../accueil-rules.js?v=20261110e";
-import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261110e";
-import { renderAujourdhui } from "./aujourdhui.js?v=20261110e";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261110e";
+} from "../modules-etat.js?v=20261111d";
+import { carteNouveaute } from "./nouveautes.js?v=20261111d";
+import { emargementActif } from "../emargement-etat.js?v=20261111d";
+import { navigationV2Active } from "../nav-etat.js?v=20261111d";
+import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, pointsARetenir, salutationDe } from "../accueil-rules.js?v=20261111d";
+import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261111d";
+import { renderAujourdhui } from "./aujourdhui.js?v=20261111d";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111d";
 
 function greetingByHour() {
   return salutationDe(new Date().getHours());
@@ -84,7 +84,7 @@ export async function renderHome(container) {
   clear(container);
 
   const profile = getProfile();
-  const who = getProfileWho();
+  const who = getProfileNom();
   const admin = isAdmin();
   // Le pied de page dit le rôle : sous la nouvelle navigation, un administrateur est un « formateur » (le mot de la barre et des
   // Nouveautés) ; l'ancienne garde « admin ».
@@ -301,7 +301,7 @@ export async function renderHome(container) {
   container.appendChild(el("footer", { class: "home-footer-v2" },
     el("p", {},
       debutDuPied,
-      roleLabel ? el("span", { class: "footer-role" }, "connecté comme " + roleLabel.toLowerCase()) : "",
+      roleLabel ? el("span", { class: "footer-role" }, "connecté en tant que " + roleLabel.toLowerCase()) : "",
     ),
     el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
       lienReglages,   // plus de lien « code source » : décision de Timy du 09/11

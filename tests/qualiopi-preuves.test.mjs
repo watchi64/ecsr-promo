@@ -41,21 +41,23 @@ Object.entries(NIVEAUX).forEach(([num, v]) => {
     `${num} : pièces à fournir`);
 });
 eq(NIVEAUX[1], { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["site", "catalogue", "fiche formation"] }, "1");
-eq(NIVEAUX[10], { niveau: "prouve", apporte: "priorités, « à suivre de près », passages, Mon suivi", ajout: null, aFournir: [] },
+eq(NIVEAUX[10], { niveau: "prouve", apporte: "ordre de passage, « à suivre de près », passages, Mon suivi", ajout: null, aFournir: [] },
   "10 : cellules vides, ajout nul et rien à fournir");
 eq(NIVEAUX[11].aFournir, [], "11 : rien à fournir");
 eq(NIVEAUX[12], {
-  niveau: "partiel", apporte: "assiduité, signaux, abandons (sans date)",
+  niveau: "partiel", apporte: "assiduité, difficultés, abandons (sans date)",
   ajout: "date et motif d'abandon (plus tard)", aFournir: ["procédure et référent violences"],
 }, "12");
 eq(NIVEAUX[19].aFournir, ["référent pédagogique si le seuil l'exige"], "19 : une seule pièce, la virgule n'y est pas");
 eq(NIVEAUX[21].aFournir, ["CV", "titres", "autorisations d'enseigner"], "21 : trois pièces, découpées sur la virgule");
 // Empreinte de l'annexe A de la spec : lignes « n° | niveau | apporte | ajout | à fournir » séparées par des
-// tabulations, tirées du tableau de la spec par un script jetable. Toute retouche de NIVEAUX la change.
-const ANNEXE_A = "fd11e12b74a70adcc631f22922a5eba891eca78855167a1e8a0c15b682fd2f6e";
+// tabulations, tirées du tableau de la spec par un script jetable. Toute retouche de NIVEAUX la change. Recalculée le
+// 10/11 : la colonne « apporte » des indicateurs 7, 10, 11, 12, 31 et 32 a pris les mots de l'app (livret EPCF, ordre de
+// passage, difficultés, contestations de QCM analysées, thèmes les moins réussis), le sens de la spec est inchangé.
+const ANNEXE_A = "6a028538d1e5c2e7dbc2bed5ccaf34ba39e91f100176a431ad29536346473899";
 const canon = Object.entries(NIVEAUX)
   .map(([num, v]) => [num, v.niveau, v.apporte, v.ajout ?? "", v.aFournir.join(", ")].join("\t")).join("\n");
-eq(createHash("sha256").update(canon).digest("hex"), ANNEXE_A, "NIVEAUX reprend l'annexe A de la spec mot pour mot");
+eq(createHash("sha256").update(canon).digest("hex"), ANNEXE_A, "NIVEAUX reprend l'annexe A de la spec (mots du 10/11)");
 
 // =====================================================================================================
 // PIECES : le tableau du § 6.2
@@ -340,7 +342,7 @@ eq(piece(inv, "dossierPro"),
 eq(piece(inv, "ressources"), attendue("ressources",
   "2 cours publiés, 3 QCM ; QCM d'entraînement faits par 2 stagiaires sur 2 en formation (3 tentatives)"), "ressources");
 eq(piece(inv, "misesAJour"), attendue("misesAJour",
-  "2 cours publiés modifiés du 05/10 au 20/10 (3 modifications) ; 1 signalement de QCM traité le 12/10"), "mises à jour");
+  "2 cours publiés modifiés du 05/10 au 20/10 (3 modifications) ; 1 contestation de QCM traitée le 12/10"), "mises à jour");
 eq(piece(inv, "innovations"), attendue("innovations", "2 nouveautés datées du 02/10 au 20/10"), "innovations");
 eq(piece(inv, "intervenants"),
   attendue("intervenants", "3 formateurs, 1 intervenant extérieur, 2 bénévoles, 2 auto-écoles partenaires"), "intervenants");
@@ -368,12 +370,12 @@ eq(piece(fiches, "dossierPro"),
   manquante("dossierPro", "aucun dossier professionnel enregistré par les stagiaires en formation"), "fiches : dossier professionnel");
 eq(piece(fiches, "ressources"), manquante("ressources", "aucun cours publié"), "fiches : ressources");
 eq(piece(fiches, "misesAJour"), manquante("misesAJour",
-  "aucun cours publié modifié ni signalement de QCM traité pendant la formation"), "fiches : mises à jour");
+  "aucun cours publié modifié ni contestation de QCM traitée pendant la formation"), "fiches : mises à jour");
 eq(piece(fiches, "innovations"), manquante("innovations", "aucune nouveauté datée pendant la formation"), "fiches : innovations");
 eq(piece(fiches, "intervenants"), manquante("intervenants",
   "aucun formateur, intervenant extérieur ni bénévole au planning, aucune auto-école partenaire active"), "fiches : intervenants");
 eq(piece(fiches, "suivi"), manquante("suivi",
-  "personne ne cumule deux signaux et aucun thème n'a encore assez de réponses ou de notes"), "fiches : suivi");
+  "aucun stagiaire n'est à suivre de près et aucun thème n'a encore assez de réponses ou de notes"), "fiches : suivi");
 
 // Des cours publiés sans aucun QCM d'entraînement fait : la pièce est présente et le dit.
 const sansActivite = inventairePromo({ ...D, tentatives: [] }, REF, OPTIONS);
@@ -403,7 +405,7 @@ const seuils = (reponses, notes) => piece(inventairePromo({
   tentatives: [T(1, 10, "entrainement", 10, reponses, 10, "2026-10-20")],
   evaluations: plage(1, notes).map(() => E(1, "Thème", 1, 12, 20, "2026-10-06")),
 }, REF, OPTIONS), "suivi");
-eq(seuils(19, 2), manquante("suivi", "personne ne cumule deux signaux et aucun thème n'a encore assez de réponses ou de notes"),
+eq(seuils(19, 2), manquante("suivi", "aucun stagiaire n'est à suivre de près et aucun thème n'a encore assez de réponses ou de notes"),
   "19 réponses et 2 notes : aucun thème classé, personne à suivre : la pièce est absente");
 eq(seuils(20, 2).detail, "stagiaires à suivre de près : 0 ; le thème le plus faible d'après les QCM (au moins 20 réponses par thème) ; "
   + "aucun thème n'a au moins 3 notes", "20 réponses : un thème classé d'après les QCM, au singulier");
@@ -458,10 +460,10 @@ const unCours = (id, archives, courante, published = true) => ({
   versions: archives.map((jour) => ({ cours_id: id, saved_at: horodatage(jour) })),
 });
 const misesAJourDe = (extra) => piece(avec({ signalements: [], ...extra }), "misesAJour");
-const AUCUNE_MODIFICATION = manquante("misesAJour", "aucun cours publié modifié ni signalement de QCM traité pendant la formation");
+const AUCUNE_MODIFICATION = manquante("misesAJour", "aucun cours publié modifié ni contestation de QCM traitée pendant la formation");
 eq(misesAJourDe({}).detail, "2 cours publiés modifiés du 05/10 au 20/10 (3 modifications)",
   "le jeu principal sans signalement : 2 cours, 3 modifications");
-eq(piece(avec({ versions: [] }), "misesAJour").detail, "1 signalement de QCM traité le 12/10",
+eq(piece(avec({ versions: [] }), "misesAJour").detail, "1 contestation de QCM traitée le 12/10",
   "sans version, un cours n'a que sa sauvegarde en vigueur, c'est-à-dire sa création : aucune modification, il reste le signalement");
 // (a) Créé avant la période, sauvegardé une seule fois pendant : aucune version n'est datée de la période, seul `updated_at` la
 // porte. C'était le cas perdu en lisant les seules versions.
@@ -501,10 +503,11 @@ eq(misesAJourDe({ cours: [1, 2, 3].map((id) => ({ id, published: true, updated_a
     { cours_id: 3, saved_at: horodatage("2026-08-26") }, { cours_id: 3, saved_at: horodatage("2026-10-02") }, { cours_id: 3, saved_at: horodatage("2026-10-09") }] }).detail,
   "3 cours publiés modifiés du 02/10 au 20/10 (6 modifications)", "trois cours, 1 + 2 + 3 modifications");
 // Les nouveautés d'un seul jour.
-// Les annonces de la nouvelle barre ne sont ni comptées ni citées tant qu'elle est éteinte (relecture finale, M4).
+// Une seule navigation depuis le 10/11 : les annonces de la nouvelle barre se lisent dans l'app, elles sont comptées et citées ; celles
+// qui ne décrivent que l'ancienne barre n'y sont plus visibles, elles ne le sont pas (relecture finale, M4, revue au retrait).
 const avecNouvelleBarre = [...NOUVEAUTES, { ...NOUVEAUTE("n", "2026-10-10"), navigation: "nouvelle" }, { ...NOUVEAUTE("o", "2026-10-11"), navigation: "ancienne" }];
-eq(piece(inventairePromo(D, REF, { ...OPTIONS, nouveautes: avecNouvelleBarre }), "innovations").detail, "3 nouveautés datées du 02/10 au 20/10", "une annonce « nouvelle » n'est pas comptée, une « ancienne » l'est");
-eq(nouveautesCitables(avecNouvelleBarre).map((x) => x.id), ["a", "b", "c", "d", "e", "o"], "le filtre partagé écarte les seules annonces de la nouvelle barre");
+eq(piece(inventairePromo(D, REF, { ...OPTIONS, nouveautes: avecNouvelleBarre }), "innovations").detail, "3 nouveautés datées du 02/10 au 20/10", "une annonce « nouvelle » est comptée, une « ancienne » ne l'est pas");
+eq(nouveautesCitables(avecNouvelleBarre).map((x) => x.id), ["a", "b", "c", "d", "e", "n"], "le filtre partagé écarte les seules annonces de l'ancienne barre");
 eq(nouveautesCitables(null), [], "pas de liste, pas d'annonce");
 eq(piece(inventairePromo(D, REF, { ...OPTIONS, nouveautes: [NOUVEAUTE("a", "2026-10-02")] }), "innovations").detail,
   "1 nouveauté datée le 02/10", "une nouveauté");
@@ -627,7 +630,7 @@ eq(piece(enCours2, "innovations").detail, "3 nouveautés datées du 02/10 au 05/
 // Une promo qui n'a pas commencé : rien dans la période, et la même raison que pour toute autre promo (R24).
 const future = { id: 9, lieu_id: 2, nom: "Promo future", date_debut: "2026-11-02", date_fin: null };
 const avant = inventairePromo(D, REF, { ...OPTIONS, promo: future });
-eq(piece(avant, "misesAJour").raison, "aucun cours publié modifié ni signalement de QCM traité pendant la formation", "promo future : mises à jour");
+eq(piece(avant, "misesAJour").raison, "aucun cours publié modifié ni contestation de QCM traitée pendant la formation", "promo future : mises à jour");
 eq(piece(avant, "innovations").raison, "aucune nouveauté datée pendant la formation", "promo future : innovations");
 
 // =====================================================================================================
@@ -709,9 +712,9 @@ eq(problemes({ indicateurs: cassee.indicateurs, nonApplicables: cassee.nonApplic
 // Registre qualité (Q4) : indicateurs 31 et 32, des nombres et des dates, jamais un texte saisi
 // =====================================================================================================
 {
-  eq(NIVEAUX[31], { niveau: "partiel", apporte: "signalements de QCM instruits puis tranchés, registre qualité", ajout: null, aFournir: ["procédure de réclamation"] },
+  eq(NIVEAUX[31], { niveau: "partiel", apporte: "contestations de QCM analysées puis tranchées, registre qualité", ajout: null, aFournir: ["procédure de réclamation"] },
     "31 : le registre qualité s'ajoute à l'apport, sans ajout à venir");
-  eq(NIVEAUX[32], { niveau: "partiel", apporte: "comparaison des promos, thèmes à retravailler, registre qualité", ajout: null, aFournir: ["plan d'amélioration"] },
+  eq(NIVEAUX[32], { niveau: "partiel", apporte: "comparaison des promos, thèmes les moins réussis, registre qualité", ajout: null, aFournir: ["plan d'amélioration"] },
     "32 : de même");
   const E = (id, extra) => ({ id, type: "reclamation", origine: "stagiaire", promo_id: null, lieu_id: null, description: "Texte libre secret " + id,
     date_constat: "2026-10-05", reponse: "Réponse secrète", date_reponse: null, action_decidee: "Action secrète", mesure_prevention: "Mesure secrète",

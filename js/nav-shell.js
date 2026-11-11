@@ -1,9 +1,8 @@
-// Coquille de la nouvelle navigation (refonte, lot 1) : la barre de l'espace, montée dans #app
-// quand l'interrupteur de la promo est allumé (js/nav-etat.js). Rendu seulement : les entrées,
-// l'entrée allumée, la barre du téléphone et le repère des modules fermés viennent de
-// js/nav-rules.js. Les entrées sont des liens « #/route » : un clic passe par navigate() et sa
-// garde de saisie. L'ancienne barre (header.topbar) reste dans la page, masquée par
-// css/navigation.css sous body[data-nav="v2"].
+// Coquille de la navigation (refonte, lot 1 ; seule navigation depuis le 10/11) : la barre de l'espace,
+// montée dans #app par js/main.js. Rendu seulement : les entrées, l'entrée allumée, la barre du téléphone
+// et le repère des modules fermés viennent de js/nav-rules.js. Les entrées sont des liens « #/route » : un
+// clic passe par navigate() et sa garde de saisie. Elle pose body[data-nav="v2"], que css/navigation.css
+// lit pour sa mise en page.
 //
 // Stagiaire : un en-tête collant (logo et promo, onglets en capsule, Assistant, compte) ; sur
 // téléphone, l'en-tête garde le logo, l'Assistant et le compte, et les onglets passent dans une
@@ -38,27 +37,27 @@
 // ne les attend jamais : ils sont lus après le montage, relus à chaque page affichée (au plus toutes les 30 secondes),
 // et un compte illisible ne montre ni pastille ni erreur.
 
-import { el } from "./utils.js?v=20261110e";
-import { icon, deco } from "./icons.js?v=20261110e";
-import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261110e";
-import { getPromoCourante, getLieuxLus } from "./db.js?v=20261110e";
-import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261110e";
-import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261110e";
-import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261110e";
-import { libellePastille } from "./nouveautes.js?v=20261110e";
+import { el } from "./utils.js?v=20261111d";
+import { icon, deco } from "./icons.js?v=20261111d";
+import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261111d";
+import { getPromoCourante, getLieuxLus } from "./db.js?v=20261111d";
+import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261111d";
+import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261111d";
+import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261111d";
+import { libellePastille } from "./nouveautes.js?v=20261111d";
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole, nomDuBoutonCompte,
-} from "./nav-rules.js?v=20261110e";
-import { chargerATraiter } from "./a-traiter.js?v=20261110e";
+} from "./nav-rules.js?v=20261111d";
+import { chargerATraiter } from "./a-traiter.js?v=20261111d";
 import {
   ENTREE_A_TRAITER, resumeATraiter, nomAvecATraiter, phraseATraiter, pointSurPlus, nomDePlus,
-} from "./a-traiter-rules.js?v=20261110e";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261110e";
-import { ouvrirMenuCompte } from "./menu-compte.js?v=20261110e";
-import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261110e";
-import { ouvrirSignalement } from "./signalement.js?v=20261110e";
-import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261110e";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261110e";
+} from "./a-traiter-rules.js?v=20261111d";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261111d";
+import { ouvrirMenuCompte } from "./menu-compte.js?v=20261111d";
+import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261111d";
+import { ouvrirSignalement } from "./signalement.js?v=20261111d";
+import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261111d";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261111d";
 
 // Barre latérale repliée en colonne d'icônes : choix mémorisé sur l'appareil.
 const CLE_REPLIEE = "ecsr_nav_repliee";
@@ -68,7 +67,7 @@ const ORDINATEUR = window.matchMedia("(min-width: 1080px)");
 
 // La coquille en place (null tant qu'aucune n'est montée) : son espace, ses entrées, celles que le
 // téléphone range dans « Plus », la route de la page affichée, la personne et le geste
-// « Actualiser » de l'app, que le menu du compte propose.
+// « Recharger les données » de l'app, que le menu du compte propose.
 let montee = null;
 // Choix « barre repliée », lu une fois ; gardé ici quand le stockage de l'appareil est indisponible.
 let repliee = null;
@@ -145,8 +144,8 @@ export function majNouveautesCompte(texte) {
 }
 
 // Bouton « Assistant » : `geste(bouton)` ouvre ou ferme le panneau de l'assistant (js/chatbot.js). Il suit
-// le module « assistant » comme la bulle de l'ancienne navigation : absent chez un stagiaire quand le
-// module est fermé pour la promo, repéré chez un formateur. Son nom ne dépend pas de son libellé, que la
+// le module « assistant » : absent chez un stagiaire quand le module est fermé pour la promo, repéré chez
+// un formateur. Son nom ne dépend pas de son libellé, que la
 // tablette, la colonne d'icônes et l'en-tête du téléphone de l'équipe masquent.
 function boutonAssistant(classe, geste, ...contenu) {
   if (!moduleVisible("assistant")) return null;
@@ -331,7 +330,7 @@ function poserATraiter() {
 }
 
 // poserATraiter sans jamais laisser une levée en sortir : un repère qui manque n'est pas une erreur à montrer. Appelée à la fin de
-// monterCoquille (une exception y ferait replier toute la session sur l'ancienne barre, js/main.js), à l'arrivée des comptes (elle
+// monterCoquille (une exception y ferait passer la session sur l'écran de repli, js/main.js), à l'arrivée des comptes (elle
 // laisserait un rejet non géré) et à l'ouverture du tiroir.
 function majATraiter() {
   try {
@@ -582,7 +581,7 @@ function focusDansLaCoquille() {
 // Monte la coquille de l'espace dans #app : sa barre (en-tête du stagiaire ou barre latérale de
 // l'équipe) en tête de #app, la barre du téléphone juste après (navigation avant le contenu, dans
 // l'ordre du clavier). Remonter remplace la coquille en place. `actualiser` : le geste
-// « Actualiser » de l'app, proposé par le menu du compte.
+// « Recharger les données » de l'app, proposé par le menu du compte.
 export function monterCoquille({ espace, entrees, nom, initiales, actualiser }) {
   const app = document.getElementById("app");
   if (!app) return;
@@ -595,9 +594,7 @@ export function monterCoquille({ espace, entrees, nom, initiales, actualiser }) 
   const laterale = aLaBarreLaterale(espace);
   // L'état est posé avant de dessiner : le repère des modules fermés lit l'espace (reperer).
   montee = { espace, entrees: entrees.map((e) => ({ ...e })), plus: plus.map((e) => e.id), route: null, nom, initiales, actualiser };
-  // Avant header.topbar, toujours : à la fermeture du choix de la promo, js/promo-pastille.js rend le
-  // focus à la PREMIÈRE .promo-pastille du document, et l'ancienne barre, masquée, en garde une dans
-  // #admin-slot (updateBadge) ; celle de la barre de l'équipe doit donc venir avant elle.
+  // En tête de #app : la navigation passe avant le contenu, dans l'ordre du clavier.
   app.prepend(laterale ? barreDeCote(espace, entrees, nom, initiales) : enTeteStagiaire(entrees, nom, initiales),
     barreDuBas(barre, plus, laterale));
   document.body.dataset.nav = "v2";
@@ -611,19 +608,6 @@ export function monterCoquille({ espace, entrees, nom, initiales, actualiser }) 
   if (rendreFocusDeLaFenetre) rendreFocusDeLaFenetre();
   else if (focus) document.querySelector(focus)?.focus();
   relireATraiter({ force: true });
-}
-
-// Retire tout ce que la coquille pose : ses barres et sa fenêtre ouverte, ses attributs de body, son état.
-// Seul appelant : le repli de js/main.js, quand le montage lève une exception (la coquille peut alors être
-// à moitié posée) ; la session repasse à l'ancienne navigation. Sinon rien ne démonte la coquille (R8, R22).
-export function retirerCoquille() {
-  fermerFenetre({ focus: false });
-  document.querySelectorAll("[data-nav-coquille]").forEach((r) => r.remove());
-  delete document.body.dataset.nav;
-  delete document.body.dataset.espace;
-  delete document.body.dataset.barre;
-  delete document.body.dataset.navColonne;
-  montee = null;
 }
 
 // Allume l'entrée de la page affichée (entreeActive : alias compris), et « Plus » quand le

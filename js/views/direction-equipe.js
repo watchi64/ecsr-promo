@@ -7,12 +7,13 @@
 // d'invitation (envoyerInvitation, stagiaires-gestion.js) ne sert pas ici : il appelle inviter_compte pour UNE fiche et UNE promo
 // affichée, alors que cette page règle plusieurs promos d'un centre d'un coup ; seule la forme de l'adresse est reprise.
 
-import { getMesPromos, lireEquipeDuCentre, lireFichesFormateurLibres, reglerAffectationsFormateur } from "../db.js?v=20261110e";
-import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261110e";
-import { icon } from "../icons.js?v=20261110e";
-import { getCentre, getAdminEmail } from "../auth-admin.js?v=20261110e";
-import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261110e";
-import { equipeAffichee, unionPromos } from "../direction-rules.js?v=20261110e";
+import { getMesPromos, lireEquipeDuCentre, lireFichesFormateurLibres, reglerAffectationsFormateur } from "../db.js?v=20261111d";
+import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261111d";
+import { icon } from "../icons.js?v=20261111d";
+import { getCentre, getAdminEmail } from "../auth-admin.js?v=20261111d";
+import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261111d";
+import { equipeAffichee, unionPromos } from "../direction-rules.js?v=20261111d";
+import { phraseCompteTransforme } from "../roles-rules.js?v=20261111d";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
@@ -20,7 +21,7 @@ const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? m
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";
 const PHRASE_LECTURE_ECHEC = "L'équipe du centre n'a pas pu être chargée.";
 const PHRASE_ADRESSE = "Adresse e-mail invalide.";
-const PHRASE_SANS_PROMO_CHOISIE = "Choisis au moins une promo.";
+const PHRASE_SANS_PROMO_CHOISIE = "Choisissez au moins une promo.";
 export const PHRASE_COMPTE_CREE = "Compte créé. La personne crée son mot de passe avec cette adresse, onglet Créer mon compte.";
 export const PHRASE_PROMOS_MAJ = "Promos mises à jour.";
 const PHRASE_RIEN_A_CHANGER = "Rien à changer : les promos sont les mêmes.";
@@ -42,7 +43,7 @@ function contexte() {
 function avecDelai(promesse) {
   let minuteur;
   const delai = new Promise((_, rejet) => {
-    minuteur = setTimeout(() => rejet(Object.assign(new Error("Délai dépassé (15 s). Réseau lent : réessaie dans un instant."), { phrase: true })), DELAI_MS);
+    minuteur = setTimeout(() => rejet(Object.assign(new Error("Délai dépassé (15 s). Réseau lent : réessayez dans un instant."), { phrase: true })), DELAI_MS);
   });
   return Promise.race([promesse, delai]).finally(() => clearTimeout(minuteur));
 }
@@ -121,11 +122,11 @@ function ouvrirInvitation({ centre, promos, equipe, ancre, apres }) {
     for (const f of fiches) choixFiche.appendChild(el("option", { value: String(f.id) }, f.nom));
     choixFiche.disabled = false;
     noteFiche.textContent = fiches.length
-      ? "Relie la personne à une fiche formateur existante, si elle en a une. Sinon, laisse « Aucune fiche »."
+      ? "Reliez la personne à une fiche formateur existante, si elle en a une. Sinon, laissez « Aucune fiche »."
       : "Aucune fiche formateur libre : la personne sera invitée sans fiche.";
   }).catch((e) => {
     console.error("fiches formateur libres", e);
-    noteFiche.textContent = "Les fiches formateur n'ont pas pu être lues : tu peux inviter sans fiche.";
+    noteFiche.textContent = "Les fiches formateur n'ont pas pu être lues : vous pouvez inviter sans fiche.";
   });
   ouvrirFenetre({
     titre: "Inviter un formateur",
@@ -146,12 +147,12 @@ function ouvrirInvitation({ centre, promos, equipe, ancre, apres }) {
     },
     enregistrer: async (v) => {
       const r = await reglerAffectationsFormateur({ email: v.email, lieuId: centre.id, promoIds: v.promoIds, profId: v.profId });
-      let phrase = r.cree ? PHRASE_COMPTE_CREE : PHRASE_PROMOS_MAJ;
+      let phrase = r.transforme === true ? phraseCompteTransforme("formateur") : r.cree ? PHRASE_COMPTE_CREE : PHRASE_PROMOS_MAJ;
       // La base rend ce qu'elle a retiré : si c'est non vide (une promo ôtée entre-temps), la phrase le dit.
       const retirees = (r.retirees || []).map((id) => (promos.find((p) => p.id === id) || {}).nom || "promo " + id);
       if (retirees.length) phrase += ` Retirée${retirees.length > 1 ? "s" : ""} : ${retirees.join(", ")}.`;
       // Un compte qui existe déjà garde sa fiche : celle qui a été choisie n'est pas reliée.
-      if (!r.cree && v.profId != null) phrase += " Ce compte existait déjà : la fiche formateur choisie n'a pas été reliée.";
+      if (!r.cree && r.transforme !== true && v.profId != null) phrase += " Ce compte existait déjà : la fiche formateur choisie n'a pas été reliée.";
       toast(phrase, "success", 7000);
       await apres(v.email);
     },
@@ -168,7 +169,7 @@ function ouvrirModification({ centre, promos, ligne, ancre, apres }) {
     valider: () => {
       const ids = choisies();
       // Une direction peut n'être formateur d'aucune promo ; un formateur sans promo n'est plus de l'équipe (c'est « Retirer du centre »).
-      if (!ids.length && !ligne.direction) return PHRASE_SANS_PROMO_CHOISIE + " Pour le retirer du centre, utilise « Retirer du centre ».";
+      if (!ids.length && !ligne.direction) return PHRASE_SANS_PROMO_CHOISIE + " Pour le retirer du centre, utilisez « Retirer du centre ».";
       return { promoIds: ids };
     },
     enregistrer: async (v) => {
@@ -269,7 +270,7 @@ export async function renderEquipeCentre(container) {
     if (promos.length) {
       racine.appendChild(el("div", { class: "centre-section centre-vide" },
         el("p", {}, "Aucun formateur dans ce centre pour le moment."),
-        el("p", { class: "muted" }, "Invite un formateur : il choisira son mot de passe avec l'adresse que tu donnes.")));
+        el("p", { class: "muted" }, "Invitez un formateur : il choisira son mot de passe avec l'adresse que vous donnez.")));
     }
     return;
   }
@@ -292,7 +293,7 @@ export async function renderEquipeCentre(container) {
     return el("tr", { "data-email": l.email },
       el("td", { class: "liste-titre" }, el("div", { class: "equipe-nom" }, el("strong", {}, l.nom),
         l.nom !== l.email ? el("span", { class: "muted equipe-adresse" }, l.email) : null,
-        l.email === moi ? el("span", { class: "chip centre-promo" }, "Toi") : null)),
+        l.email === moi ? el("span", { class: "chip centre-promo" }, "Vous") : null)),
       el("td", {}, el("span", { class: "chip equipe-role" + (direction ? " equipe-role-direction" : "") }, l.role)),
       el("td", {}, l.promos || el("span", { class: "muted" }, direction ? "Tout le centre" : "Aucune promo")),
       el("td", { class: "liste-actions" }, el("div", { class: "equipe-actions" }, ...actions)));

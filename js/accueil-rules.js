@@ -2,7 +2,7 @@
 // (à venir, en cours, passé), le texte qui le dit, et la ligne « Promo <nom> · semaine <n> » sous la
 // salutation. Module pur, sans DOM ni stockage : testé en node. La carte « Prochain événement majeur »
 // de l'accueil les lit ; le prochain rendez-vous et l'à-faire de l'accueil du stagiaire (lot 2B) les lisent de même.
-import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "./qcm-exam-rules.js?v=20261110e";
+import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "./qcm-exam-rules.js?v=20261111d";
 
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000;
 
@@ -79,7 +79,7 @@ export function pastilleDeLaCarte(decompte) {
 // Lundi de la semaine d'un jour (son numéro, voir numeroDeJour) : le 01/01/1970, jour 0, était un jeudi.
 const lundiDe = (numero) => numero - (((numero + 3) % 7) + 7) % 7;
 
-// « Promo Nîmes, mars 2026 · semaine 31 » : la semaine 1 est celle du premier jour de la promo (du lundi au
+// « Promo Nîmes, mars 2026 · semaine 31 de formation » : la semaine 1 est celle du premier jour de la promo (du lundi au
 // dimanche), la suivante commence le lundi. Pas de numéro quand il ne dirait rien de vrai : promo pas encore
 // commencée, promo finie (après sa date de fin), dates absentes ou illisibles ; le nom seul alors, et rien sans
 // nom (promo pas encore chargée). `promo` : la ligne de la promo (nom, date_debut, date_fin). `aujourdhui` :
@@ -91,7 +91,7 @@ export function lignePromo(promo, aujourdhui) {
   const fin = promo.date_fin ? numeroDeJour(promo.date_fin) : Infinity;
   const ce = numeroDeJour(aujourdhui);
   if (!(ce >= debut && ce <= fin)) return `Promo ${nom}`;
-  return `Promo ${nom} · semaine ${1 + (lundiDe(ce) - lundiDe(debut)) / 7}`;
+  return `Promo ${nom} · semaine ${1 + (lundiDe(ce) - lundiDe(debut)) / 7} de formation`;
 }
 
 // === Accueil du stagiaire (lot 2B) ===
@@ -199,11 +199,15 @@ export function sansPlaceDansLaDemi({ demi, cartes, moi } = {}) {
 // « À retenir » : les quatre règles courtes de l'app, lues par l'Accueil d'avant et, sous la nouvelle navigation, par
 // Mes préférences (section Informations) : une information ne se perd pas quand la page change. La dernière dit les pages
 // par leur nom : celui de la nouvelle barre (Notes n'est plus un onglet du stagiaire, Calendrier s'appelle Dates clés).
-// `[{ gras, suite }]` : le début en gras, puis la suite de la phrase.
-export function pointsARetenir(navigationV2) {
+// `[{ gras, suite }]` : le début en gras, puis la suite de la phrase. `selon(tu, vous)` choisit le texte du public :
+// Mes préférences, que l'équipe lit aussi, passe `selonPublic` de js/auth-admin.js (décision du 10/11 : les stagiaires
+// tutoyés, l'équipe vouvoyée) ; sans lui, le tutoiement de l'Accueil d'avant. Module pur : l'aiguilleur vient de l'appelant.
+export function pointsARetenir(navigationV2, selon = (tu) => tu) {
   return [
-    { gras: "Ton identité est liée à ton email.", suite: " Tes ajouts de passages et tes notes sont signés automatiquement." },
-    { gras: "Tu ajoutes et corriges tes passages toi-même.", suite: " Pour en supprimer un, demande à un formateur." },
+    selon({ gras: "Ton identité est liée à ton e-mail.", suite: " Tes ajouts de passages et tes notes sont signés automatiquement." },
+      { gras: "Votre identité est liée à votre e-mail.", suite: " Vos ajouts de passages et vos notes sont signés automatiquement." }),
+    selon({ gras: "Tu ajoutes et corriges tes passages toi-même.", suite: " Pour en supprimer un, demande à un formateur." },
+      { gras: "Les stagiaires ajoutent et corrigent leurs passages eux-mêmes.", suite: " Pour en supprimer un, ils s'adressent à un formateur." }),
     { gras: "Tout est tracé.", suite: " Chaque modification (passage, note, planning) est historisée avec son auteur." },
     { gras: "Ctrl + Z annule la dernière action.",
       suite: navigationV2 ? " Sur les notes, les passages, les thèmes et les dates clés." : " Sur Notes, Passages, Thèmes et Calendrier." },
@@ -216,4 +220,14 @@ export function salutationDe(heure) {
   if (heure < 12) return "Bonjour";
   if (heure < 18) return "Bon après-midi";
   return "Bonsoir";
+}
+
+// La ligne des élèves bénévoles d'une carte de la journée : « Élève bénévole : Paul D. ». Le point de fin de phrase
+// ne s'ajoute pas quand le dernier nom finit déjà par un point (initiale abrégée) : « Paul D.. » sinon (relevé du 11/11).
+// null quand la carte n'a pas de bénévole.
+export function ligneBenevoles(noms) {
+  const liste = (noms || []).filter(Boolean);
+  if (!liste.length) return null;
+  const texte = `${liste.length > 1 ? "Élèves bénévoles" : "Élève bénévole"} : ${liste.join(", ")}`;
+  return texte.endsWith(".") ? texte : texte + ".";
 }

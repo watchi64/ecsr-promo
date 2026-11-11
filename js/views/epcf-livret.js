@@ -9,13 +9,13 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261110e";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261110e";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261110e";
-import { getCurrentWho } from "../identity.js?v=20261110e";
-import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261110e";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261111d";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261111d";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261111d";
+import { getCurrentWho } from "../identity.js?v=20261111d";
+import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261111d";
 import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261110e";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261111d";
 
 // Noms historiques conservés : main.js et le banc d'essai _preview_livret.html
 // les importent depuis ce module. La mécanique vit désormais dans doc-officiel.js,
@@ -304,7 +304,7 @@ export async function renderEpcfLivret(container, opts = {}) {
     const mine = (myId != null && rows.find((r) => r.stagiaire_id === myId)) || rows[0];
     if (!mine) {
       container.appendChild(el("p", { class: "muted" },
-        "Ton livret officiel EPCF n'a pas encore été créé par les formateurs."));
+        "Ton livret EPCF n'est pas encore commencé. C'est ton formateur évaluateur qui le remplit."));
       return;
     }
     // Son identité, comme chez le formateur : sans sa fiche, Nom, Prénom et Date de naissance restaient vides tant que le
@@ -316,7 +316,7 @@ export async function renderEpcfLivret(container, opts = {}) {
       fiche = await getStagiaire(myId).catch((e) => { console.error(e); return null; });
       if (opts.isActive && !opts.isActive()) return;
     }
-    showDoc(container, fiche, mine, { readOnly: true, embedded: opts.embedded });
+    showDoc(container, fiche, mine, { readOnly: true, embedded: opts.embedded, pourStagiaire: true });
     return;
   }
 
@@ -357,11 +357,11 @@ function showListe(container) {
   clear(container);
   teardownLivretPrint();
   container.appendChild(el("p", { class: "lv-hint" },
-    "Livret officiel « Évaluations passées en cours de formation » (ministère du travail, TP-01303). ",
+    "Livret EPCF (évaluations passées en cours de formation), modèle officiel du ministère du Travail, TP-01303. ",
     "Un livret par stagiaire, imprimable à l'identique du document officiel."));
   const table = el("table", { class: "lv-liste-table" });
   table.appendChild(el("thead", {}, el("tr", {},
-    el("th", {}, "Stagiaire"), el("th", {}, "Livret"))));
+    el("th", {}, "Stagiaire"), el("th", {}, "Livret EPCF"))));
   const tbody = el("tbody");
   stagiaires.forEach((s) => {
     const row = livretsIndex.find((l) => l.stagiaire_id === s.id);
@@ -369,9 +369,9 @@ function showListe(container) {
     if (row) {
       // updated_at est un timestamptz ISO complet : parseDate (formats jour) ne
       // sait pas le lire, on passe par Date directement.
-      cell.appendChild(el("span", { class: "lv-statut ok" }, "rempli · màj " + formatDate(new Date(row.updated_at))));
+      cell.appendChild(el("span", { class: "lv-statut ok" }, "rempli, modifié le " + formatDate(new Date(row.updated_at))));
     } else {
-      cell.appendChild(el("span", { class: "lv-statut" }, "vierge"));
+      cell.appendChild(el("span", { class: "lv-statut" }, "pas commencé"));
     }
     cell.appendChild(el("button", {
       class: "btn small " + (row || !isAdmin() ? "ghost" : "primary"),
@@ -384,7 +384,7 @@ function showListe(container) {
         const naissance = await getDateNaissance(s.id).catch((e) => { console.error(e); return null; });
         showDoc(container, { ...s, date_naissance: naissance }, full, { readOnly: !isAdmin(), back: () => renderReload(container) });
       },
-    }, row || !isAdmin() ? "Ouvrir" : "Créer"));
+    }, row || !isAdmin() ? "Ouvrir ce livret" : "Commencer ce livret"));
     tbody.appendChild(el("tr", {},
       el("td", {}, el("div", { class: "lv-name-cell" }, el("span", {}, displayStagiaire(s)))),
       cell));
@@ -400,13 +400,14 @@ async function renderReload(container) {
 
 // Ouvre le document d'un stagiaire. stagiaire=null en mode stagiaire connecté
 // (row déjà chargée). readOnly force la consultation pure.
-function showDoc(container, stagiaire, row, { readOnly, back, embedded } = {}) {
+function showDoc(container, stagiaire, row, { readOnly, back, embedded, pourStagiaire } = {}) {
   clear(container);
   const data = row?.data || {};
   const stagiaireId = stagiaire ? stagiaire.id : row.stagiaire_id;
 
   // --- Barre d'outils écran ---
-  const status = el("span", { class: "lv-status" }, readOnly ? "Lecture seule" : "");
+  // Le stagiaire consulte : la phrase plus bas dit qui remplit, l'étiquette « Lecture seule » ne lui apprend rien de plus.
+  const status = el("span", { class: "lv-status" }, readOnly && !pourStagiaire ? "Lecture seule" : "");
   const toolbar = el("div", { class: "lv-toolbar" });
   if (back) toolbar.appendChild(el("button", { class: "btn small ghost", onClick: () => { teardownLivretPrint(); back(); } }, "← Retour"));
   // Dans Mon suivi ou la fiche du stagiaire, l'onglet (ou le titre de la partie) dit déjà « Livret EPCF », et la fiche dit
@@ -419,9 +420,14 @@ function showDoc(container, stagiaire, row, { readOnly, back, embedded } = {}) {
     window.print();
   } }, "Imprimer / PDF"));
   container.appendChild(toolbar);
+  // Décision du 10/11 : le stagiaire consulte son livret, il n'y remplit rien ; la page dit qui le remplit.
+  if (pourStagiaire) {
+    container.appendChild(el("p", { class: "lv-hint" },
+      "Ton formateur évaluateur remplit ce livret EPCF. Tu le consultes ici, et tu peux l'imprimer."));
+  }
   if (!readOnly) {
     container.appendChild(el("p", { class: "lv-hint" },
-      "Clique dans les zones en pointillés pour remplir, sur les cases pour cocher. Enregistrement automatique."));
+      "Cliquez dans les zones en pointillés pour remplir, sur les cases pour cocher. Enregistrement automatique."));
   }
 
   // --- Document ---
@@ -477,7 +483,7 @@ function showDoc(container, stagiaire, row, { readOnly, back, embedded } = {}) {
         data: collectData(doc),
         updated_by_who: getCurrentWho(),
       });
-      // La fiche et la page Stagiaires mettent leur état « Livret » à jour.
+      // La fiche et la page Stagiaires mettent leur état « Livret EPCF » à jour.
       document.dispatchEvent(new CustomEvent(EVT_DOCUMENT, { detail: {
         genre: "livret", stagiaireId, updatedAt: row?.updated_at || new Date().toISOString() } }));
       status.textContent = "Enregistré ✓";
@@ -486,7 +492,7 @@ function showDoc(container, stagiaire, row, { readOnly, back, embedded } = {}) {
       console.error(e);
       status.textContent = "Non enregistré !";
       status.className = "lv-status error";
-      toast("Enregistrement du livret impossible : " + (e?.message || e), "error");
+      toast("Enregistrement du livret EPCF impossible : " + (e?.message || e), "error");
     } finally {
       saving = false;
       if (pendingAgain) { pendingAgain = false; saveNow(); }

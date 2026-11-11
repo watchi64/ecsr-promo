@@ -32,7 +32,11 @@
 //   espaces-contre-epreuve-3   la même preuve avec les migrations du siège et de l'équipe seules : ROUGE attendu sur les seuls
 //                              contrôles de l'habillage (migration 3 et son retour neutralisés) ;
 //   espaces-en-ligne           la même preuve sans aucune migration, après leur application réelle (la fixture, elle, reste
-//                              injectée).
+//                              injectée) ;
+//   donnees                    preuve de la suite du lot 5 (tests/sql/espaces-donnees-preuve.sql) : la migration
+//                              20261111_espaces_4_donnees et son retour injectés (après les migrations 1 à 3 du lot) ;
+//   donnees-contre-epreuve     la même sans la migration ni son retour : ROUGE attendu sur ses seules lignes ;
+//   donnees-en-ligne           la même sans rien d'injecté, après l'application réelle de la migration.
 //
 // Option --compact (tous les modes) : retire du gabarit et des aides les lignes vides et les lignes de commentaire, pour
 // une requête plus courte à transmettre (R27). Les textes injectés (migrations, retours, requête d'empreinte) restent
@@ -55,6 +59,7 @@ export const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const GABARIT_1 = "tests/sql/roles-1-preuve.sql";
 const GABARIT_ROLES = "tests/sql/roles-preuve.sql";
 const GABARIT_ESPACES = "tests/sql/espaces-preuve.sql";
+const GABARIT_DONNEES = "tests/sql/espaces-donnees-preuve.sql";
 
 /** Lot 5, étape 1 : la migration du siège et son retour. */
 export const MIGRATION_ESPACES = { migration: "supabase/migrations/20261108_espaces_1_siege.sql",
@@ -67,6 +72,10 @@ export const MIGRATION_ESPACES_2 = { migration: "supabase/migrations/20261108_es
 /** Lot 5, étape 3 : la migration de l'habillage par défaut du centre et du réseau, et son retour. */
 export const MIGRATION_ESPACES_3 = { migration: "supabase/migrations/20261108_espaces_3_habillage.sql",
                                      retour: "supabase/migrations/20261108_espaces_3_habillage_retour.sql" };
+
+/** Lot 5, suite (étape 4) : l'ancien stagiaire invité au personnel et les données personnelles de la direction, avec le retour. */
+export const MIGRATION_ESPACES_4 = { migration: "supabase/migrations/20261111_espaces_4_donnees.sql",
+                                     retour: "supabase/migrations/20261111_espaces_4_donnees_retour.sql" };
 
 /** Les trois étapes du lot : la migration et son retour. */
 export const ETAPES = {
@@ -97,6 +106,12 @@ export const MODES = {
                                 libelle: "espaces-contre-epreuve-2 (migrations équipe et habillage non injectées)" },
   "espaces-contre-epreuve-3": { gabarit: GABARIT_ESPACES, neutres: [MIGRATION_ESPACES_3.migration, MIGRATION_ESPACES_3.retour],
                                 libelle: "espaces-contre-epreuve-3 (migration habillage non injectée)" },
+  // Lot 5, suite : preuve à part (tests/sql/espaces-donnees-preuve.sql), jouée après les migrations 1 à 3 du lot 5.
+  "donnees": { gabarit: GABARIT_DONNEES, neutres: [], libelle: "donnees (migration 4 injectee)" },
+  "donnees-contre-epreuve": { gabarit: GABARIT_DONNEES, neutres: [MIGRATION_ESPACES_4.migration, MIGRATION_ESPACES_4.retour],
+                              libelle: "donnees-contre-epreuve (migration 4 non injectee)" },
+  "donnees-en-ligne": { gabarit: GABARIT_DONNEES, neutres: [MIGRATION_ESPACES_4.migration, MIGRATION_ESPACES_4.retour],
+                        libelle: "donnees-en-ligne (aucune migration injectee)" },
   "espaces-en-ligne": { gabarit: GABARIT_ESPACES,
                         neutres: [MIGRATION_ESPACES.migration, MIGRATION_ESPACES.retour, MIGRATION_ESPACES_2.migration, MIGRATION_ESPACES_2.retour,
                                   MIGRATION_ESPACES_3.migration, MIGRATION_ESPACES_3.retour],

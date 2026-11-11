@@ -7,9 +7,9 @@
 // Population : les inscrits sont toutes les fiches de la promo, les « en formation » les
 // fiches actives. Tout sauf l'effectif et les abandons porte sur les stagiaires en formation.
 
-import { estNotee, score20, mediane } from "./notes-stats.js?v=20261110e";
-import { NOTE_VALUES } from "./epcf-trames.js?v=20261110e";
-import { compareByNom } from "./utils.js?v=20261110e";
+import { estNotee, score20, mediane } from "./notes-stats.js?v=20261111d";
+import { NOTE_VALUES } from "./epcf-trames.js?v=20261111d";
+import { compareByNom } from "./utils.js?v=20261111d";
 
 // Hypothèse du réseau : un parcours de formation représente 3 500 à 5 000 €.
 export const COUT_ABANDON_ESTIME = [3500, 5000];
@@ -39,7 +39,7 @@ export const METHODES = {
   presence: "Heures réalisées divisées par heures prévues, sur les feuilles d'émargement closes de la promo, toutes lignes comprises : un stagiaire parti figure sur les feuilles jusqu'à son départ.",
   satisfaction: "Réponses favorables (plutôt oui, tout à fait) à la question globale du questionnaire de fin de formation, divisées par les avis notés (« sans avis » exclu) ; réponses enregistrées sans nom ; résultat affiché à partir de 5 avis notés.",
   themes: "D'après les QCM : bonnes réponses divisées par les questions répondues, thèmes d'au moins 20 réponses. D'après les notes : moyenne sur 20, thèmes d'au moins 3 notes. Stagiaires en formation.",
-  aSuivre: "Au moins deux signaux parmi quatre : deux absences de dernière minute ou plus ; moyenne des notes sous 10 (au moins 3 notes) ; aucun QCM d'entraînement depuis 14 jours alors que la promo en a fait ; au moins 2 tours de retard sur la moyenne en salle ou en voiture (compteur de la page Priorités). Un repère pour le formateur, pas une prédiction.",
+  aSuivre: "Au moins deux difficultés parmi quatre : deux absences de dernière minute ou plus ; moyenne des notes sous 10 (au moins 3 notes) ; aucun QCM d'entraînement depuis 14 jours alors que la promo en a fait ; au moins 2 tours de retard sur la moyenne en salle ou en voiture (compteur de la page Ordre de passage). Un repère pour le formateur, pas une prédiction.",
 };
 
 // Les mêmes méthodes, écrites pour le public : la fiche « résultats » que le centre publie (js/qualiopi-resultats.js, spec
@@ -255,7 +255,7 @@ function stagiairesASuivre({ enFormation, parStag, entrainements, notees, aujour
   const debutFenetre = decalerJour(aujourdhui, -JOURS_INACTIVITE);
   const dansFenetre = (t) => { const j = jourDe(t.finished_at); return j > debutFenetre && j <= aujourdhui; };
   const promoActive = entrainements.some(dansFenetre);
-  // Compteur de la page Priorités : faits + bonus + absences ; objectif = moyenne arrondie.
+  // Compteur de la page Ordre de passage : faits + bonus + absences ; objectif = moyenne arrondie.
   const prio = (c) => c.fait + c.bonus + c.absence;
   const objectif = (type) => Math.round(somme(enFormation.map((s) => prio(parStag.get(s.id)[type]))) / enFormation.length);
   const objSalle = objectif("Salle");

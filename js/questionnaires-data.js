@@ -20,7 +20,10 @@ export const ECHELLE = [
   { valeur: null, libelle: "Sans avis" },
 ];
 
+// Le ton suit le public (règle du 10/11) : les questionnaires des stagiaires tutoient, celui des formateurs vouvoie. Le
+// changement de ton du 10/11 ne change le sens d'aucune question : la version reste 1.
 const CONSIGNE_COMMENTAIRE = "Si tu veux ajouter quelque chose, écris-le ici. Ne cite personne : parle de ce que tu as vécu, pas de qui.";
+const CONSIGNE_COMMENTAIRE_VOUS = "Si vous voulez ajouter quelque chose, écrivez-le ici. Ne citez personne : parlez de ce que vous avez vécu, pas de qui.";
 
 export const QUESTIONNAIRES = {
   fin_stagiaire: {
@@ -62,16 +65,16 @@ export const QUESTIONNAIRES = {
     cle: "fin_formateur",
     public: "formateur",
     version: 1,
-    titre: "Ton avis de formateur",
-    intro: "Ces questions portent sur la formation telle que tu l'as animée cette année. Ta réponse est enregistrée sans ton nom, sans ton compte et sans date, et regroupée avec celles des autres formateurs du centre : les résultats ne s'affichent qu'à partir de 3 réponses. Compte trois minutes.",
+    titre: "Votre avis de formateur",
+    intro: "Ces questions portent sur la formation telle que vous l'avez animée cette année. Votre réponse est enregistrée sans votre nom, sans votre compte et sans date, et regroupée avec celles des autres formateurs du centre : les résultats ne s'affichent qu'à partir de 3 réponses. Comptez trois minutes.",
     questions: [
       { id: "objectifs", type: "echelle", facultative: false, texte: "Les objectifs de la formation sont clairs et réalistes pour les stagiaires." },
-      { id: "supports", type: "echelle", facultative: false, texte: "Les supports et les outils mis à ta disposition te permettent d'enseigner correctement." },
-      { id: "organisation", type: "echelle", facultative: false, texte: "L'organisation (plannings, salles, véhicules, informations reçues) te convient." },
+      { id: "supports", type: "echelle", facultative: false, texte: "Les supports et les outils mis à votre disposition vous permettent d'enseigner correctement." },
+      { id: "organisation", type: "echelle", facultative: false, texte: "L'organisation (plannings, salles, véhicules, informations reçues) vous convient." },
       { id: "niveau", type: "echelle", facultative: false, texte: "Le niveau des stagiaires correspond à ce que la formation demande." },
-      { id: "suivi", type: "echelle", facultative: false, texte: "Tu disposes des moyens de suivre chaque stagiaire et de l'aider en cas de difficulté." },
-      { id: "globalement", type: "echelle", facultative: false, globale: true, texte: "Globalement, les conditions dans lesquelles la formation se déroule te satisfont." },
-      { id: "commentaire", type: "commentaire", facultative: true, texte: CONSIGNE_COMMENTAIRE },
+      { id: "suivi", type: "echelle", facultative: false, texte: "Vous disposez des moyens de suivre chaque stagiaire et de l'aider en cas de difficulté." },
+      { id: "globalement", type: "echelle", facultative: false, globale: true, texte: "Globalement, les conditions dans lesquelles la formation se déroule vous satisfont." },
+      { id: "commentaire", type: "commentaire", facultative: true, texte: CONSIGNE_COMMENTAIRE_VOUS },
     ],
   },
 };

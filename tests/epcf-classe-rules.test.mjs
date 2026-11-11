@@ -87,7 +87,7 @@ assert.deepEqual(etatVideEpcf({ moyennesParEpreuve: vide, contexte: "equipe-matr
 
 // Où mènent les boutons : le stagiaire à sa propre partie EPCF de Mon suivi ; le formateur à la page Stagiaires, sur la
 // liste (et non sur les élèves bénévoles, que la page rouvre si c'est son dernier sous-onglet).
-assert.deepEqual(ACTIONS_CARTE_EPCF["mon-epcf"], { libelle: "Voir mon EPCF", href: "#/mon-suivi/epcf" });
+assert.deepEqual(ACTIONS_CARTE_EPCF["mon-epcf"], { libelle: "Voir mes évaluations EPCF", href: "#/mon-suivi/epcf" });
 assert.deepEqual(ACTIONS_CARTE_EPCF.evaluer, { libelle: "Évaluer un stagiaire", href: "#/stagiaires", sousOnglet: "stagiaires" });
 // Chaque action qu'une carte peut proposer a sa destination.
 ["classe-stagiaire", "classe-formateur", "equipe-matrice", "direction"].forEach((contexte) => {

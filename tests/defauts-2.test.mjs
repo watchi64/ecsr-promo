@@ -47,8 +47,8 @@ test("A1 : « Aujourd'hui » nomme les absents (prévus au planning ou notés su
     seances: [seance("ouverte", [sig(2), { stagiaire_id: 3, absent: true, signe_le: null }])],
     stagiaires, entries: [carteAbsent(4)],
   });
-  assert.deepEqual(f.enAttente, ["V. Timy"]);
-  assert.deepEqual(f.absents, ["M. Lorie", "R. Valentin"]);
+  assert.deepEqual(f.enAttente, ["Timy V."]);
+  assert.deepEqual(f.absents, ["Lorie M.", "Valentin R."]);
   assert.equal(f.signes + f.enAttente.length + f.absents.length, f.total);
 });
 
@@ -59,8 +59,8 @@ test("A1 : un absent prévu qui a signé est signé ; un absent prévu aussi not
     stagiaires: avecAbandon, entries: [carteAbsent(4), carteAbsent(3)],
   });
   assert.equal(f.signes, 1, "l'absent prévu qui a signé compte comme signé");
-  assert.deepEqual(f.absents, ["A. Zoé", "M. Lorie"]);
-  assert.deepEqual(f.enAttente, ["B. Anissa", "V. Timy"]);
+  assert.deepEqual(f.absents, ["Zoé A.", "Lorie M."]);
+  assert.deepEqual(f.enAttente, ["Anissa B.", "Timy V."]);
   assert.equal(f.signes + f.enAttente.length + f.absents.length, f.total);
 });
 
@@ -147,7 +147,7 @@ test("A7 : passée avec une activité au planning, la case dit « Feuille non fa
     { etat: "Pas de feuille", classe: "vide" });
 });
 
-// === A8 : « connecté comme » dit le vrai rôle ===
+// === A8 : « connecté en tant que » dit le vrai rôle ===
 
 test("A8 : le rôle de la personne sur la promo, ou celui de l'aperçu", () => {
   const promo = (roles) => ({ id: 1, roles });
@@ -175,7 +175,7 @@ test("A9 : une carte de voiture sans conducteur porte une alerte ; les autres no
   assert.equal(alerteDeCarte({ genre: "voiture", conducteurs: [] }), "Aucun stagiaire en voiture");
   assert.equal(alerteDeCarte({ genre: "voiture", conducteurs: [{ id: 1, nom: "Timy" }] }), null);
   assert.equal(alerteDeCarte({ genre: "salle", conducteurs: [] }), null);
-  assert.equal(alerteDeCarte({ genre: "voiture", conducteurs: [], benevoles: ["C. Camille"] }), "Aucun stagiaire en voiture",
+  assert.equal(alerteDeCarte({ genre: "voiture", conducteurs: [], benevoles: ["Camille C."] }), "Aucun stagiaire en voiture",
     "des élèves bénévoles sans stagiaire au volant : l'alerte reste");
 });
 

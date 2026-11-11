@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Comment une personne atteint chaque page, selon la navigation, son espace et son écran.
+"""Comment une personne atteint chaque page, selon son espace et son écran.
 
-Deux navigations coexistent dans main : l'« ancienne » (une barre de 8 onglets, en icônes sur téléphone),
-celle des promos de Nîmes et Montpellier, et la « nouvelle » (refonte : onglets du stagiaire, barre latérale
-de l'équipe, barre du bas et « Plus » sur téléphone), allumée promo par promo. Chaque chemin est la suite
-des clics la plus courte qu'offre l'écran ; le robot les compte contre le budget du parcours.
+Une seule navigation depuis le 10/11 (la refonte : onglets du stagiaire, barre latérale de l'équipe, de la
+direction et du siège, barre du bas et « Plus » sur téléphone ; l'ancienne barre d'onglets est retirée). Chaque
+chemin est la suite des clics la plus courte qu'offre l'écran ; le robot les compte contre le budget du parcours.
 
-Pages du lot 2B (nouvelle navigation seulement) : « Aujourd'hui » de l'équipe (la route de l'Accueil), les
-sous-onglets « QCM » du stagiaire, « Signalements » et « Propositions IA » de l'équipe, la partie « Livret EPCF »
+Pages du lot 2B : « Aujourd'hui » de l'équipe (la route de l'Accueil), les
+sous-onglets « QCM » du stagiaire, « Questions contestées » (« Signalements » avant le lot D) et « Propositions IA » de l'équipe, la partie « Livret EPCF »
 de Mon suivi.
 """
 
@@ -15,14 +14,13 @@ de Mon suivi.
 # l'émargement allumé pour la promo 1.
 PARAMS_COMMUNS = {"date": "2026-10-28", "emargement": "1"}
 
-# Les liens de navigation, toutes formes confondues : onglets de l'ancienne barre, onglets du stagiaire,
-# barre du bas, barre latérale, tiroir « Plus ».
-_LIENS = "#tabs a.tab, a.nav-onglet, a.nav-case, a.nav-entree, a.nav-fenetre-lien"
+# Les liens de navigation, toutes formes confondues : onglets du stagiaire, barre du bas, barre latérale,
+# tiroir « Plus ».
+_LIENS = "a.nav-onglet, a.nav-case, a.nav-entree, a.nav-fenetre-lien"
 SELECTEUR_LIENS = _LIENS
-SELECTEUR_BARRE = ":is(#tabs a.tab, a.nav-onglet, a.nav-case, a.nav-entree):visible"
+SELECTEUR_BARRE = ":is(a.nav-onglet, a.nav-case, a.nav-entree):visible"
 
-# Page de départ de chaque parcours, posée par l'adresse (sans clic) : une page de tous les rôles et des deux
-# navigations, qui n'est la destination d'aucun parcours. Le budget se compte depuis là.
+# Page de départ de chaque parcours, posée par l'adresse (sans clic) : une page de tous les rôles, qui n'est la destination d'aucun parcours. Le budget se compte depuis là.
 DEPART = "#/planning"
 
 
@@ -31,8 +29,8 @@ FENETRES = ("Signaler un problème",)
 
 
 def ouvre_une_page(selecteur):
-    """Le clic ouvre-t-il une page à part entière (lien de la barre, tuile de l'Accueil, logo) ?"""
-    return selecteur.startswith((":is(%s)" % _LIENS, "a.home-tile", "a.brand"))
+    """Le clic ouvre-t-il une page à part entière (lien de la barre, tuile de l'Accueil) ?"""
+    return selecteur.startswith((":is(%s)" % _LIENS, "a.home-tile"))
 
 
 def lien(route):
@@ -46,12 +44,11 @@ def texte(nom, balises="a, button, [role=tab], [role=menuitem]"):
 
 SOUS_ONGLET = "button.subtab, [role=tab], a.fiche-ligne"
 PLUS = ("button.nav-plus", "« Plus »")
-COMPTE_V1 = ("button.admin-badge", "le bouton du compte")
 COMPTE_V2_STAGIAIRE = ("button.nav-compte", "le bouton du compte")
 
 
 def dans_le_menu_du_compte(nom):
-    """Une ligne du menu du compte de la nouvelle navigation (calque `data-nav-coquille="compte"`) : la page
+    """Une ligne du menu du compte (calque `data-nav-coquille="compte"`) : la page
     derrière peut porter le même texte (le pied de l'Accueil a un lien « mes préférences »)."""
     return "[data-nav-coquille=\"compte\"] :is(a, button):visible:has-text(\"%s\")" % nom
 
@@ -68,7 +65,7 @@ def _plus_si_telephone(route, nom, telephone, barre_du_bas):
 
 BARRE_DU_BAS_EQUIPE = ("home", "planning", "stagiaires", "notes")
 
-# Lot 5 : la direction d'un centre et le siège du réseau ont leur barre (nouvelle navigation seulement). Sur téléphone, la barre du bas
+# Lot 5 : la direction d'un centre et le siège du réseau ont leur barre. Sur téléphone, la barre du bas
 # garde quatre entrées de la direction et trois du siège ; le reste passe par « Plus ». « Accueil » est le nom de l'entrée, « Vue
 # d'ensemble » le titre de la page qu'elle ouvre (D16) : les deux noms mènent à la même entrée.
 ENTREES_DIRECTION = {"Accueil": "centre", "Vue d'ensemble": "centre", "Promos": "promos", "Stagiaires": "stagiaires",
@@ -87,9 +84,8 @@ def titre_attendu(espace, nom_entree):
     return TITRE_DE_L_ENTREE.get((espace, (nom_entree or "").strip().splitlines()[0] if (nom_entree or "").strip() else ""), nom_entree)
 
 
-def chemin(destination, navigation, espace, telephone):
+def chemin(destination, espace, telephone):
     """La liste des clics (sélecteur, ce que la personne touche) pour atteindre `destination`."""
-    # La direction et le siège n'ont qu'une barre, la nouvelle, même quand l'interrupteur de la promo est éteint.
     if espace in ("direction", "siege"):
         entrees, barre = (ENTREES_DIRECTION, BARRE_DU_BAS_DIRECTION) if espace == "direction" else (ENTREES_SIEGE, BARRE_DU_BAS_SIEGE)
         if destination in entrees:
@@ -98,31 +94,12 @@ def chemin(destination, navigation, espace, telephone):
             if telephone:
                 return [PLUS, (texte("Signaler un problème", "button.nav-fenetre-lien"), "« Signaler un problème »")]
             return [("button.nav-cote-signaler", "« Signaler un problème »")]
-        raise KeyError("destination inconnue pour la %s (nouvelle navigation) : %s" % (espace, destination))
+        raise KeyError("destination inconnue pour la %s : %s" % (espace, destination))
 
     if destination == "Qualiopi":
         # Le fondateur y entre par le lien « Qualiopi » du tableau de bord du centre (Indicateurs).
-        return chemin("Indicateurs", navigation, espace, telephone) + [("a.centre-lien-qualiopi", "« Qualiopi »")]
-    if navigation == "ancienne":
-        onglets = {"Accueil": ("home", "l'onglet Accueil"), "Cours et QCM": ("themes", "l'onglet Cours"),
-                   "La classe": ("notes", "l'onglet Notes"), "CCP2": ("ccp2", "l'onglet CCP2"),
-                   "Documents": ("ressources", "l'onglet Ressources"), "Mes préférences": ("config", "l'onglet Paramètres"),
-                   "Réglages": ("config", "l'onglet Paramètres"), "Planning": ("planning", "l'onglet Planning")}
-        if destination in onglets:
-            route, nom = onglets[destination]
-            return [(lien(route), nom)]
-        if destination == "Mon suivi":
-            return [("a.brand", "le logo (Mon espace)")]
-        if destination == "Signaler un problème":
-            return [COMPTE_V1, (texte("Signaler un problème", "button"), "« Signaler un problème »")]
-        tuiles = {"Émargement": ("emargement", "la tuile Émargement"), "Indicateurs": ("centre", "la tuile Tableau de bord"),
-                  "Stagiaires": ("stagiaires", "la tuile Stagiaires")}
-        if destination in tuiles:
-            route, nom = tuiles[destination]
-            return [(lien("home"), "l'onglet Accueil"), ("a.home-tile[href=\"#/%s\"]" % route, nom)]
-        raise KeyError("destination inconnue pour l'ancienne navigation : %s" % destination)
+        return chemin("Indicateurs", espace, telephone) + [("a.centre-lien-qualiopi", "« Qualiopi »")]
 
-    # Nouvelle navigation.
     if espace == "stagiaire":
         routes = {"Accueil": "home", "Planning": "planning", "Cours et QCM": "themes", "Mon suivi": "mon-suivi", "CCP2": "ccp2"}
         if destination in routes:
@@ -141,18 +118,18 @@ def chemin(destination, navigation, espace, telephone):
             return [(lien("mon-suivi"), "« Mon suivi »"), (texte("Livret EPCF", SOUS_ONGLET), "« Livret EPCF »")]
         if destination in ("Mes préférences", "Signaler un problème"):
             return [COMPTE_V2_STAGIAIRE, (dans_le_menu_du_compte(destination), "« %s »" % destination)]
-        raise KeyError("destination inconnue pour le stagiaire (nouvelle navigation) : %s" % destination)
+        raise KeyError("destination inconnue pour le stagiaire : %s" % destination)
 
     # « Aujourd'hui » : l'entrée de l'équipe pour la route de l'Accueil (lot 2B).
     routes = {"Accueil": "home", "Aujourd'hui": "home", "Planning": "planning", "Émargement": "emargement", "Stagiaires": "stagiaires",
               "Notes et examens": "notes", "Cours et QCM": "themes", "CCP2": "ccp2", "Indicateurs": "centre", "Réglages": "config"}
     if destination in routes:
         return _plus_si_telephone(routes[destination], "« %s »" % destination, telephone, BARRE_DU_BAS_EQUIPE)
-    if destination in ("Signalements", "Propositions IA"):
+    if destination in ("Questions contestées", "Propositions IA"):
         # Deux sous-onglets de Cours et QCM réservés à l'équipe (Propositions IA : administrateurs seulement).
         return _plus_si_telephone("themes", "« Cours et QCM »", telephone, BARRE_DU_BAS_EQUIPE) +             [(texte(destination, SOUS_ONGLET), "« %s »" % destination)]
     if destination == "Signaler un problème":
         if telephone:
             return [PLUS, (texte("Signaler un problème", "button.nav-fenetre-lien"), "« Signaler un problème »")]
         return [("button.nav-cote-signaler", "« Signaler un problème »")]
-    raise KeyError("destination inconnue pour l'équipe (nouvelle navigation) : %s" % destination)
+    raise KeyError("destination inconnue pour l'équipe : %s" % destination)
