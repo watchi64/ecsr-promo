@@ -47,10 +47,10 @@ export const NOUVEAUTES = [
     date: "2026-11-11",
     pour: "formateurs",
     titre: "Chaque centre a ses propres contacts",
-    resume: "La carte « Contacts du centre » ne montre plus que les contacts du centre de la promo affichée : les stagiaires "
-          + "d'un autre centre ne voient plus les numéros de Nîmes. Les contacts déjà enregistrés restent ceux de Nîmes. Un "
-          + "contact que vous ajoutez appartient au centre de la promo affichée ; pour en ajouter un à un autre centre, "
-          + "affichez d'abord une de ses promos.",
+    resume: "La carte « Contacts du centre » ne montre plus que les contacts du centre de la promo affichée. Nîmes et "
+          + "Montpellier gardent les mêmes contacts, mais chaque centre a maintenant sa propre liste : un numéro qui change "
+          + "se corrige dans chacun des deux. Un contact que vous ajoutez appartient au centre de la promo affichée ; pour en "
+          + "ajouter un à un autre centre, affichez d'abord une de ses promos.",
     ou: { label: "Cours et QCM, Documents", route: "ressources" },
   },
   {
