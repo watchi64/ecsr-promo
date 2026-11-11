@@ -35,6 +35,14 @@
 -- La preuve s'y adapte (fiches de suivi comptées 0) ; thème témoin jamais créé depuis la phase 1 (colonne retirée). Le retour
 -- recrée les six fonctions d'anonymisation mot pour mot (versions en base avant ce lot) : l'empreinte les compte toutes.
 --
+-- Résultats du 11/11/2026, réconciliation avec la suite du lot 5 (fusion de main d5e60dc7 : lot 5 étape 4, navigation unique
+-- phase 1), Postgres 18.4 local, port 55587, schéma minimal dans l'ordre réel :
+--   - avec fiches_suivi (navigation unique 1 et 2) : VERT 240/0 (deux passages, puis encore après le retour) ; appliquée : VERT
+--     227/0 ; questionnaires-preuve.sql et registre-qualite-preuve.sql sur la base appliquée : VERT 207/0 et VERT 128/0 ; retour
+--     hors preuve : empreinte du schéma 69ea1dfa… avant, a8d210ac… appliquée et après les preuves, 69ea1dfa… après le retour ;
+--   - variante phase 2 (fiches_suivi retirée, le cas réel) : mêmes verdicts ; empreinte f1a0d9d4… avant et après le retour ;
+--   - contre-épreuve, migration et retour d'avant la réconciliation (b50cebeb) : ROUGE 234/6 (versions à argument restées,
+--     « ton périmètre », retour sans les versions à argument).
 -- Résultats du 11/11/2026, vague finale (fusion de main ce08b81, relecture finale : e-mails d'un compte déjà retiré,
 -- textes écrits après l'étape 1), Postgres local, port 55623, tous les fichiers SQL en LF comme leurs blobs :
 --   - base complète : VERT 237/0 (trois passages) ; variante sans fiches_suivi ni themes.updated_by_email : VERT 238/0
