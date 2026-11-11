@@ -38,6 +38,10 @@
 -- comptées 0 sans la table) ; thème témoin jamais créé depuis la phase 1 (colonne retirée). Le retour recrée les six fonctions
 -- d'anonymisation mot pour mot (versions en base avant ce lot) : l'empreinte les compte toutes.
 --
+-- Conservation ouverte à la direction (20261111_conservation_direction.sql, 11/11/2026) : sur une base où elle est appliquée,
+-- le cas 4.2 « fondateur en aperçu direction » joue les deux étapes de PA à blanc et les attend permises (comme la purge des
+-- bénévoles, même geste) ; tout le reste est inchangé. Base locale (outils/base_locale, suite rejouée, titres 1 à 3, migration
+-- de la direction appliquée), port 55571 : VERT 227/0. Les autres cas de la direction : tests/sql/conservation-direction-preuve.sql.
 -- Résultats du 11/11/2026, réconciliation avec la suite du lot 5 (fusion de main d5e60dc7 : lot 5 étape 4, navigation unique
 -- phase 1), Postgres 18.4 local, port 55587, schéma minimal dans l'ordre réel :
 --   - avec fiches_suivi (navigation unique 1 et 2) : VERT 240/0 (deux passages, puis encore après le retour) ; appliquée : VERT
@@ -843,6 +847,16 @@ begin
                                format('select public.clore_annee_formateurs(%s, 2026)::text', L1),
                                format('select public.effacer_commentaires_formateurs(%s, 2026)::text', L1),
                                format('select public.figer_questionnaire_formateurs(%s, 2026)::text', L1)] loop
+        -- Conservation ouverte à la direction (20261111_conservation_direction, si appliquée) : en aperçu direction sur le
+        -- centre de PA, le fondateur a les deux étapes de PA, comme la purge des bénévoles (geste donnees.purger) ; jouées à
+        -- blanc. Tout le reste est toujours refusé.
+        if c.apercu = 'direction' and to_regprocedure('public._peut_conserver_promo(integer)') is not null
+           and t like '%effacer_promo_etape%' then
+          r := pg_temp.tente_blanc(t);
+          perform pg_temp.cas(format('%s, conservation ouverte à la direction : %s permise (à blanc)', c.lib,
+            split_part(split_part(t, 'public.', 2), '(', 1)), r like 'ok {%', r);
+          continue;
+        end if;
         r := pg_temp.tente(t);
         perform pg_temp.cas(format('%s refusé : %s', c.lib, split_part(split_part(t, 'public.', 2), '(', 1)),
           r like '%conservation: Réservé à la gestion de la qualité.', r);
