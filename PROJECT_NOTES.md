@@ -660,6 +660,13 @@ des traitements et rappel de la veille : livrés en fichiers pour le dépôt ECS
   l'accès à la promo (`peut_acceder_promo`), pour que le lot 5 puisse élargir le droit à la direction sans qu'un centre
   efface un autre. Paramètres perd « Anonymiser la promo » et « Effacer les données » et garde « Réactiver », la purge des
   bénévoles et une phrase qui renvoie au fondateur. Un compte d'équipe n'est jamais effacé.
+- **Réconciliation avec la suite du lot 5 (11/11).** La migration `20261111_espaces_4_donnees.sql` (en ligne le 11/11) avait
+  donné à la direction `etat_anonymisation_promo(p_promo)` et `anonymiser_promo(p_promo)`, qui appelaient `_anonymiser_stagiaire`
+  et anonymisaient à 12 mois. Décision (question 3 du plan, effacements au fondateur seul) : la migration de Q5 les supprime aussi
+  (drop explicite), le retour les recrée à l'identique (droits compris) ; « Données personnelles » des Réglages du centre
+  (`js/views/reglages-donnees.js`) montre la même phrase que Réglages (`PHRASE_CONSERVATION`, `js/effacement-rules.js`) sous
+  « Conservation des fiches » et garde la purge des élèves bénévoles du centre. Nouveauté de la direction du 11/11, guide de
+  l'assistant (`supabase/functions/chatbot/aide.mjs`, à redéployer avec la mise en ligne) et robot alignés.
 - **Effacement sur demande** (`effacer_sur_demande(stagiaire)`) : les deux étapes tout de suite, sans abandon préalable ; la
   demande se lit au journal (`effacements_journal`, type `demande`, cible « stagiaire n »), jamais dans une colonne de
   `stagiaires` que toute la promo lit. La fiche sort des listes de travail et des feuilles à venir ; sur les feuilles passées
@@ -681,7 +688,10 @@ des traitements et rappel de la veille : livrés en fichiers pour le dépôt ECS
   navigation-unique les retire. Preuve jouée avec et sans (VERT 227/0 complète, 228/0 sans les objets, contre-épreuves
   ROUGES). Si navigation-unique arrive après un retour de Q5 joué sur une base complète, la fonction recréée cite à nouveau les
   deux objets : à traiter par navigation-unique.
-- **Retour** (`20261110_conservation_retour.sql`). Procédure : **retirer d'abord de l'app le commit des tâches 6-7** (les boutons
+- **Retour** (`20261110_conservation_retour.sql`). Il recrée les six fonctions d'anonymisation telles qu'en base avant Q5
+  (relevé du 11/11 après 14 h, `fonctions-reelles-v3.sql` du dossier de la tâche) : `_anonymiser_stagiaire` dans la version de
+  la navigation unique (fiche de suivi conditionnelle, plus de `themes.updated_by_email` : plus de réécriture textuelle), les
+  trois sans argument du lot 4 et les deux à argument de la direction. Procédure : **retirer d'abord de l'app le commit des tâches 6-7** (les boutons
   appellent les nouvelles fonctions) et remettre en ligne la version d'avant, PUIS jouer le retour (`psql -1`,
   `PGCLIENTENCODING=UTF8`), avant tout retour de Q3. Il refuse tout seul (exception, rien n'est touché) dès qu'un effacement a
   eu lieu : ligne `etape1`, `etape2`, `demande`, `questionnaires` ou `registre` au journal, fiche marquée, signature effacée,
@@ -693,12 +703,14 @@ des traitements et rappel de la veille : livrés en fichiers pour le dépôt ECS
   effacés, mention imprimée), `&date=AAAA-MM-JJ` (le jour du navigateur simule les échéances ; la base, elle, lit
   `_questionnaire_jour()`). **Le robot des parcours n'a pas encore de parcours dédié à la conservation** (prévu au plan avant fusion : à ajouter, puis `outils/robot_parcours.py` et `outils/verifier_navigation.py` sans échec propre à la branche). Comme pour Q4, le banc du dépôt principal
   n'a pas ces sections : à reporter par ajout au moment de la fusion, jamais en écrasant.
-- **Preuves.** `tests/sql/conservation-preuve.sql` (schéma minimal : `conservation-schema-minimal.sql`), méthode de la mémoire :
+- **Preuves.** `tests/sql/conservation-preuve.sql` (schéma minimal : `conservation-schema-minimal.sql`, qui rejoue l'ordre réel :
+  fonctions de la direction du lot 5 étape 4, navigation unique 1 et 2 ; variante avec la phase 2, `fiches_suivi` retirée, le cas
+  réel), méthode de la mémoire :
   migration et retour par EXECUTE dans le DO, empreinte md5 du schéma et des données avant et après, contre-épreuves ROUGES.
   Suite node : `for f in tests/*.test.mjs` (`node --test tests/` seul échoue sur Node 24). **Point connu :**
   `tests/sql/roles-preuve.sql` ne se rejoue que sur la base réelle, **après** la migration (il passe aussi sur les nouvelles
-  fonctions : `effacer_sur_demande`, `effacer_promo_etape1`, `etat_conservation`) ; il est aussi modifié par la branche du
-  lot 5 (conflit de fichier à résoudre par le second arrivé dans `main`). `tests/sql/effacement-preuve.sql` est historique.
+  fonctions : `effacer_sur_demande`, `effacer_promo_etape1`, `etat_conservation`). `tests/sql/espaces-donnees-preuve.sql` (lot 5,
+  mode donnees-en-ligne) ne joue les cas de l'anonymisation que si les fonctions existent : VERT avec et sans Q5. `tests/sql/effacement-preuve.sql` est historique.
 - **Conditions d'utilisation** : rien à changer. La version 2026-11-08 en ligne contient déjà les corrections (ligne
   « Émargement », « au-delà du 31 décembre de la troisième année », « dans le mois qui suit », liste « qui a répondu »).
 - **Ce qui attend Timy.** (1) L'accord pour appliquer la migration à la base réelle : essai à blanc, application, preuve

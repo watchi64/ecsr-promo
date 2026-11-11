@@ -31,7 +31,7 @@ import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation
 import { renderEmargementReglage } from "../emargement-etat.js?v=20261111d";
 import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261111d";
 import { pointsARetenir } from "../accueil-rules.js?v=20261111d";
-import { dateCourte, questionPurgerBenevoles } from "../effacement-rules.js?v=20261111d";
+import { dateCourte, questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261111d";
 import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111d";
 import { blocHabillage } from "../habillage-choix.js?v=20261111d";
 import { habillageCourant } from "../habillage.js?v=20261111d";
@@ -452,8 +452,6 @@ async function renderPromoSection(rerender) {
 // effacement à la demande) est gérée par le fondateur sur la page Qualiopi (lot Q5) : la section le dit, avec un lien pour
 // le fondateur seulement. Les élèves bénévoles sans venue depuis 12 mois restent ici, pour qui y a droit. Le serveur
 // vérifie tout (droits, délais) ; ici on montre l'état et on déclenche.
-
-export const PHRASE_CONSERVATION = "La conservation des fiches est gérée par le fondateur, sur la page Qualiopi.";
 
 async function renderDonneesSection(rerender) {
   if (!isEquipe()) return null;

@@ -171,11 +171,14 @@ test("lot 5 : les mots des écrans de la direction (plan, tâches 7 à 10 et 14)
 });
 
 test("suite du lot 5 : les données personnelles de la direction et l'ancien stagiaire transformé", () => {
-  for (const mot of ["Données personnelles", "Anonymiser la promo", "ANONYMISER", "Élèves bénévoles sans venue depuis 12 mois", "Supprimer",
+  for (const mot of ["Données personnelles", "Conservation des fiches", "la conservation des fiches est gérée par le fondateur",
+    "Élèves bénévoles sans venue depuis 12 mois", "Supprimer",
     "ancien stagiaire", "Le compte de cet ancien stagiaire est devenu un compte de formateur."]) {
     assert.ok(DIRECTION.includes(mot), mot);
   }
   assert.ok(!DIRECTION.includes(String.fromCharCode(0x2014)), "aucun tiret cadratin");
+  // Réconciliation avec Q5 : la direction n'anonymise plus (conservation au fondateur, page Qualiopi).
+  assert.ok(!/Anonymiser la promo|ANONYMISER/.test(DIRECTION), "plus de bouton « Anonymiser la promo » chez la direction");
 });
 
 test("lot 5 : les mots des écrans du siège (plan, tâches 11 à 14)", () => {

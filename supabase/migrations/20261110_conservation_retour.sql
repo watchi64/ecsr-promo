@@ -6,8 +6,8 @@
 -- Réversible seulement AVANT toute étape : un effacement ne se défait pas. Le retour commence donc par refuser (exception,
 -- rien n'est touché) dès qu'une étape de ce lot a laissé une trace : une ligne de type etape1, etape2, demande,
 -- questionnaires ou registre au journal des effacements, une fiche marquée par une étape (efface_le posé sans
--- anonymise_le, ou différent de anonymise_le), une signature effacée. Sinon il recrée à l'identique les quatre fonctions
--- d'anonymisation (version du lot 4, droits du 05/10), emargement_signer (version du lot 4), emargement_annoter et
+-- anonymise_le, ou différent de anonymise_le), une signature effacée. Sinon il recrée à l'identique les six fonctions
+-- d'anonymisation telles qu'en base avant ce lot (section 3), emargement_signer (version du lot 4), emargement_annoter et
 -- emargement_clore (versions du 23/10), et les contraintes d'origine, puis retire les marques (et leur déclencheur) et
 -- les fonctions de ce lot. Questionnaires (tâche 3) : refus aussi dès qu'un résultat est figé (seule copie des
 -- pourcentages) ou qu'une année des formateurs est close ; sinon les cinq fonctions réécrites du lot Q3 reviennent
@@ -462,7 +462,11 @@ begin
 end;
 $function$;
 
--- 3. Les quatre fonctions d'anonymisation, version du lot 4, droits du 05/10 ------------------------------------------
+-- 3. Les fonctions d'anonymisation telles qu'elles sont en base avant ce lot (relevé du 11/11 après 14 h, fonctions-reelles-v3 du
+-- dossier de la tâche) : _anonymiser_stagiaire dans la version de la navigation unique (20261110_navigation_unique_2_menage.sql :
+-- fiche de suivi effacée seulement si la table existe, plus de themes.updated_by_email), anonymiser_promo, anonymiser_stagiaire et
+-- etat_anonymisation_promo sans argument (lot 4, droits du 05/10), puis anonymiser_promo(p_promo) et etat_anonymisation_promo(p_promo)
+-- de la direction (20261111_espaces_4_donnees.sql, mêmes droits). Mot pour mot : l'empreinte de la preuve revient à l'identique.
 CREATE OR REPLACE FUNCTION public._anonymiser_stagiaire(p_id integer)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -498,7 +502,11 @@ begin
   delete from stagiaires_prive where stagiaire_id = p_id; get diagnostics n = row_count; v_n := v_n || jsonb_build_object('date_naissance', n);
   delete from dp_dossiers where stagiaire_id = p_id;      get diagnostics n = row_count; v_n := v_n || jsonb_build_object('dossier_pro', n);
   delete from epcf_livrets where stagiaire_id = p_id;     get diagnostics n = row_count; v_n := v_n || jsonb_build_object('livret', n);
-  delete from fiches_suivi where stagiaire_id = p_id;     get diagnostics n = row_count; v_n := v_n || jsonb_build_object('fiche_suivi', n);
+  -- Fiche de suivi : tant que la table existe (elle part avec la phase 2), en SQL dynamique, comme Qualiopi Q5.
+  if to_regclass('public.fiches_suivi') is not null then
+    execute 'delete from public.fiches_suivi where stagiaire_id = $1' using p_id;
+    get diagnostics n = row_count; v_n := v_n || jsonb_build_object('fiche_suivi', n);
+  end if;
 
   -- Résultats conservés, textes libres vidés (ils peuvent contenir un prénom, une santé…).
   -- (epcf_evaluations.contexte n'est pas un texte libre : c'est un code, « EPCF ».)
@@ -516,7 +524,6 @@ begin
     update evaluations_audit set changed_by_email = 'anonyme' where lower(changed_by_email) = any(v_emails);
     update agenda_events set created_by_email = 'anonyme' where lower(created_by_email) = any(v_emails);
     update qcm_signalements set email = 'anonyme' where lower(email) = any(v_emails);
-    update themes set updated_by_email = 'anonyme' where lower(updated_by_email) = any(v_emails);
     update themes_progression set updated_by_email = 'anonyme' where lower(updated_by_email) = any(v_emails);
     update user_profiles set invited_by_email = 'anonyme' where lower(invited_by_email) = any(v_emails);
     delete from conditions_acceptations where lower(email) = any(v_emails);
@@ -568,31 +575,6 @@ begin
 end;
 $function$;
 revoke all on function public._anonymiser_stagiaire(integer) from anon, public, authenticated;
--- La table fiches_suivi et la colonne themes.updated_by_email peuvent avoir été retirées (branche navigation-unique) :
--- dans ce cas seulement, les deux écritures qui les citent deviennent des requêtes dynamiques conditionnées (create or
--- replace : droits gardés). Quand les deux existent, la fonction reste mot pour mot celle d'avant le lot.
-do $retour_objets$
-declare
-  v_def text := pg_get_functiondef('public._anonymiser_stagiaire(integer)'::regprocedure);
-  v_suivi constant text := 'delete from fiches_suivi where stagiaire_id = p_id;     get diagnostics n = row_count; v_n := v_n || jsonb_build_object(''fiche_suivi'', n);';
-  v_themes constant text := 'update themes set updated_by_email = ''anonyme'' where lower(updated_by_email) = any(v_emails);';
-  v_sans_suivi boolean := to_regclass('public.fiches_suivi') is null;
-  v_sans_themes boolean := not exists (select 1 from pg_attribute where attrelid = to_regclass('public.themes')
-                                         and attname = 'updated_by_email' and attnum > 0 and not attisdropped);
-begin
-  if not (v_sans_suivi or v_sans_themes) then
-    return;
-  end if;
-  if position(v_suivi in v_def) = 0 or position(v_themes in v_def) = 0 then
-    raise exception 'conservation: Retour : _anonymiser_stagiaire recréée ne contient pas les écritures attendues.';
-  end if;
-  v_def := replace(v_def, v_suivi,
-    'n := 0; if to_regclass(''public.fiches_suivi'') is not null then execute ''delete from public.fiches_suivi where stagiaire_id = $1'' using p_id; get diagnostics n = row_count; end if; v_n := v_n || jsonb_build_object(''fiche_suivi'', n);');
-  v_def := replace(v_def, v_themes,
-    'if exists (select 1 from pg_attribute where attrelid = to_regclass(''public.themes'') and attname = ''updated_by_email'' and attnum > 0 and not attisdropped) then execute ''update public.themes set updated_by_email = ''''anonyme'''' where lower(updated_by_email) = any($1)'' using v_emails; end if;');
-  execute v_def;
-end
-$retour_objets$;
 
 CREATE OR REPLACE FUNCTION public.anonymiser_promo()
  RETURNS jsonb
@@ -686,6 +668,76 @@ end;
 $function$;
 revoke all on function public.etat_anonymisation_promo() from anon, public;
 grant execute on function public.etat_anonymisation_promo() to authenticated;
+
+CREATE OR REPLACE FUNCTION public.etat_anonymisation_promo(p_promo integer)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  p record;
+begin
+  if not (coalesce(est_formateur(p_promo), false) or coalesce(est_direction(lieu_de_promo(p_promo)), false)) then
+    raise exception 'Réservé à la direction du centre ou au formateur de la promo' using errcode = '42501';
+  end if;
+  select * into p from promos where id = p_promo;
+  if not found then return null; end if;
+  return jsonb_build_object(
+    'promo_id', p.id,
+    'nom', p.nom,
+    'date_fin', p.date_fin,
+    'anonymisable_le', case when p.date_fin is null then null else (p.date_fin + interval '12 months')::date end,
+    'anonymisable', p.date_fin is not null and current_date >= (p.date_fin + interval '12 months')::date,
+    'restants', (select count(*) from stagiaires where promo_id = p.id and anonymise_le is null),
+    'comptes_admin', (select count(*) from stagiaires s where s.promo_id = p.id and s.anonymise_le is null
+                        and exists (select 1 from user_profiles u where u.stagiaire_id = s.id
+                                       and (u.is_admin or u.is_founder or exists (select 1 from affectations a where lower(a.email) = lower(u.email))))),
+    'anonymises', (select count(*) from stagiaires where promo_id = p.id and anonymise_le is not null)
+  );
+end;
+$function$;
+revoke all on function public.etat_anonymisation_promo(integer) from public, anon, service_role;
+grant execute on function public.etat_anonymisation_promo(integer) to authenticated;
+
+CREATE OR REPLACE FUNCTION public.anonymiser_promo(p_promo integer)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  p record;
+  s record;
+  v_faits integer := 0;
+  v_ignores integer := 0;
+begin
+  if not (coalesce(est_formateur(p_promo), false) or coalesce(est_direction(lieu_de_promo(p_promo)), false)) then
+    raise exception 'Réservé à la direction du centre ou au formateur de la promo' using errcode = '42501';
+  end if;
+  select * into p from promos where id = p_promo;
+  if not found then raise exception 'Promo introuvable'; end if;
+  if p.date_fin is null then raise exception 'Date de fin de promo non renseignée'; end if;
+  if current_date < (p.date_fin + interval '12 months')::date then
+    raise exception 'Anonymisation possible à partir du %', to_char((p.date_fin + interval '12 months')::date, 'DD/MM/YYYY');
+  end if;
+  for s in select id from stagiaires where promo_id = p.id and anonymise_le is null order by id loop
+    if exists (select 1 from user_profiles u where u.stagiaire_id = s.id
+                  and (u.is_admin or u.is_founder or exists (select 1 from affectations a where lower(a.email) = lower(u.email)))) then
+      v_ignores := v_ignores + 1;
+      continue;
+    end if;
+    perform _anonymiser_stagiaire(s.id);
+    v_faits := v_faits + 1;
+  end loop;
+  insert into effacements_journal (type, cible, fait_par_email, details)
+  values ('promo', 'promo ' || p.id, lower(auth.jwt() ->> 'email'),
+          jsonb_build_object('anonymises', v_faits, 'comptes_admin_ignores', v_ignores));
+  return jsonb_build_object('anonymises', v_faits, 'comptes_admin_ignores', v_ignores);
+end;
+$function$;
+revoke all on function public.anonymiser_promo(integer) from public, anon, service_role;
+grant execute on function public.anonymiser_promo(integer) to authenticated;
 
 -- 4. Contraintes et marques d'origine ----------------------------------------------------------------------------------
 alter table public.effacements_journal drop constraint effacements_journal_type_check;

@@ -585,23 +585,10 @@ export async function purgerBenevoles(ids) {
   return data;
 }
 
-// Suite du lot 5 : les mêmes effacements pour la direction du centre, sur la promo ou le centre qu'elle désigne (et non sur la promo
-// affichée). La base décide (direction du lieu, formateur de la promo ou fondateur ; 42501 sinon) : le refus part tel quel avec son
-// code, l'appelant le dit par phraseDeRefus. L'état et la purge ne touchent pas aux fiches lues en mémoire ; l'anonymisation, si.
-export async function etatAnonymisationPromoDe(promoId) {
-  const { data, error } = await supabase.rpc("etat_anonymisation_promo", { p_promo: promoId });
-  if (error) throw erreurDeBase(error);
-  return data;
-}
-
-export async function anonymiserPromoDe(promoId) {
-  const { data, error } = await supabase.rpc("anonymiser_promo", { p_promo: promoId });
-  if (error) throw erreurDeBase(error);
-  invalidateCache("stagiaires");
-  invalidateCache("stagiaires_all");
-  return data;
-}
-
+// Suite du lot 5 : la purge des élèves bénévoles pour la direction du centre, sur le centre qu'elle désigne (et non sur la promo
+// affichée). La base décide (direction du lieu ou fondateur ; 42501 sinon) : le refus part tel quel avec son code, l'appelant le dit
+// par phraseDeRefus. L'anonymisation d'une promo par la direction (etat_anonymisation_promo(p_promo), anonymiser_promo(p_promo)) est
+// retirée par le lot Q5 : la conservation des fiches est au fondateur, page Qualiopi.
 export async function listBenevolesAPurgerDuCentre(lieuId) {
   const { data, error } = await supabase.rpc("benevoles_a_purger", { p_lieu: lieuId });
   if (error) throw erreurDeBase(error);

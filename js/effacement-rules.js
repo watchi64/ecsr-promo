@@ -388,27 +388,13 @@ export function rappelConservation(echeances) {
     : `Une échéance de conservation des données est passée${depuis} : rien ne part sans ton clic.`;
 }
 
-// --- Données personnelles du centre (suite du lot 5) : la direction anonymise les promos de son centre et purge ses élèves bénévoles
-// sans passer par la promo affichée. Mêmes confirmations que chez le formateur (une seule définition de la question).
+// --- Données personnelles du centre (suite du lot 5) : la direction purge les élèves bénévoles de son centre sans passer par la
+// promo affichée (même confirmation que chez le formateur). La conservation des fiches (étapes à 12 mois et à 3 ans, effacement à
+// la demande) est au fondateur, sur la page Qualiopi (lot Q5) : Réglages et Réglages du centre le disent par la même phrase.
 
-export const MOT_ANONYMISER = "ANONYMISER";
-export const PHRASE_ETAT_INDISPONIBLE = "État indisponible pour le moment.";
+export const PHRASE_CONSERVATION = "La conservation des fiches est gérée par le fondateur, sur la page Qualiopi.";
 export const PHRASE_DONNEES_ECHEC = "Les données personnelles du centre n'ont pas pu être chargées.";
-export const PHRASE_SANS_PROMO_CENTRE = "Ce centre n'a encore aucune promo.";
 export const PHRASE_SANS_BENEVOLE = "Aucun : tous les élèves enregistrés sont venus dans les 12 derniers mois.";
-
-// La question posée avant d'anonymiser une promo (paramètres de demander() de js/confirmer.js) : la saisie du mot ANONYMISER.
-export function questionAnonymiserPromo(nom) {
-  return {
-    titre: `Anonymiser toutes les fiches de « ${nom || "cette promo"} » ?`,
-    phrase: "Comptes, e-mails, dates de naissance, livrets EPCF, dossiers professionnels et commentaires sont effacés ; "
-      + "les résultats restent sans nom. Irréversible.",
-    libelle: `Pour confirmer, tapez ${MOT_ANONYMISER}`,
-    oui: "Anonymiser",
-    verifier: (v) => String(v ?? "").trim() === MOT_ANONYMISER,
-    erreur: "Saisie différente : rien n'est effacé.",
-  };
-}
 
 // La question posée avant de supprimer n élèves bénévoles (paramètres de confirmer()).
 export function questionPurgerBenevoles(n) {
@@ -420,28 +406,10 @@ export function questionPurgerBenevoles(n) {
   };
 }
 
-// Phrases de compte rendu après l'effacement.
-export function phraseAnonymises(n) {
-  const k = Number(n) || 0;
-  return `${k} fiche${k > 1 ? "s" : ""} anonymisée${k > 1 ? "s" : ""}.`;
-}
+// Phrase de compte rendu après la purge.
 export function phrasePurges(n) {
   const k = Number(n) || 0;
   return `${k} élève${k > 1 ? "s" : ""} bénévole${k > 1 ? "s" : ""} supprimé${k > 1 ? "s" : ""}.`;
-}
-
-// Les lignes de la section « Données personnelles » de la direction : une par promo du centre. `promos` : [{ id, nom, date_debut }] ;
-// `etats` : { [id]: etat_anonymisation_promo(id) } pour les promos lues, et rien pour celles dont la lecture a échoué (la ligne le
-// dit sans bloquer les autres). Les promos qui ont une anonymisation à faire passent d'abord, puis la plus récente d'abord.
-export function lignesDonneesCentre(promos, etats) {
-  const lus = etats && typeof etats === "object" ? etats : {};
-  const lignes = (Array.isArray(promos) ? promos : []).map((p) => {
-    const etat = lus[p.id];
-    if (etat === undefined) return { promoId: p.id, nom: p.nom, debut: p.date_debut || "", texte: PHRASE_ETAT_INDISPONIBLE, bouton: false, indisponible: true };
-    const fin = etatFinDePromo(etat);
-    return { promoId: p.id, nom: p.nom, debut: p.date_debut || "", texte: fin.texte, bouton: fin.bouton, indisponible: false };
-  });
-  return lignes.sort((a, b) => Number(b.bouton) - Number(a.bouton) || String(b.debut).localeCompare(String(a.debut)) || a.promoId - b.promoId);
 }
 
 // La phrase d'une lecture qui échoue : celles qui ont leur phrase (droit, fonction absente avant la migration, réseau, session),
@@ -451,8 +419,8 @@ export function phraseDePanne(e, generique = PHRASE_DONNEES_ECHEC) {
   return [PHRASE_INDISPONIBLE, PHRASE_CONNEXION, PHRASE_SESSION, PHRASE_SANS_DROIT].includes(phrase) ? phrase : generique;
 }
 
-// La phrase d'un effacement refusé : celle de la base quand elle en a une (« Anonymisation possible à partir du … »), sinon la phrase
-// générique de la section.
+// La phrase d'un effacement refusé (la purge des bénévoles) : celle de la base quand elle en a une, sinon la phrase générique de la
+// section.
 export function phraseDEffacement(e) {
   const phrase = phraseDeRefus(e && e.message, e && e.code);
   return phrase === PHRASE_ECHEC ? PHRASE_DONNEES_ECHEC : phrase;

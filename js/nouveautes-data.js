@@ -96,21 +96,23 @@ export const NOUVEAUTES = [
     ou: { label: "Accueil", route: "home" },
   },
   {
-    // Suite du lot 5 (mise en ligne du 11/11/2026). Texte destiné à l'équipe : au vouvoiement.
+    // Suite du lot 5 (mise en ligne du 11/11/2026). Texte destiné à l'équipe : au vouvoiement. Récit et étapes réécrits le jour
+    // même par le lot Q5 : l'anonymisation des promos, qui ne tenait pas les 3 ans promis, passe au fondateur (page Qualiopi).
     id: "2026-11-11-donnees-personnelles-centre",
     date: "2026-11-11",
     pour: "direction",
     titre: "Données personnelles dans les Réglages du centre",
-    resume: "Les Réglages du centre ont une section « Données personnelles ». Vous y voyez, pour chaque promo du centre, "
-          + "si les fiches peuvent être anonymisées (12 mois après la fin de la promo) et vous les anonymisez d'un geste, "
-          + "sans changer la promo affichée. Vous y supprimez aussi les élèves bénévoles du centre sans venue depuis 12 mois. "
+    resume: "Les Réglages du centre ont une section « Données personnelles ». Vous y supprimez les élèves bénévoles du "
+          + "centre sans venue depuis 12 mois, sans changer la promo affichée. La conservation des fiches des stagiaires "
+          + "(12 mois, puis jusqu'au 31 décembre de la troisième année après la fin) est gérée par le fondateur, sur la page "
+          + "Qualiopi : il n'y a rien à anonymiser de votre côté. "
           + "Autre changement : inviter comme formateur, direction ou siège l'adresse d'un ancien stagiaire dont la fiche n'existe "
           + "plus transforme son compte en compte du personnel, qui se connecte comme avant.",
     ou: { label: "Réglages du centre", route: "config" },
     guide: [
       "Ouvrez Réglages du centre, puis la section « Données personnelles », sous l'habillage.",
-      "Chaque promo du centre indique son état. Quand « Anonymiser la promo » apparaît, ouvrez-la, tapez ANONYMISER pour "
-        + "confirmer : les comptes, e-mails et dates de naissance sont effacés, les résultats restent sans nom.",
+      "La partie « Conservation des fiches » rappelle que le fondateur fait chaque effacement des fiches, à la date prévue ; "
+        + "transmettez-lui une demande d'effacement d'un stagiaire.",
       "Plus bas, « Élèves bénévoles sans venue depuis 12 mois » liste ceux du centre ; « Supprimer » les retire, y compris "
         + "des anciens créneaux du planning, après confirmation.",
     ],

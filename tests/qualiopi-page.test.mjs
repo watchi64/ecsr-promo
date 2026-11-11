@@ -297,7 +297,8 @@ ok(/lireEffacementsSurDemande\(\[promo\.id\]\)/.test(codeCons) && /statutFiche\(
 
 // --- Paramètres (Réglages) : la conservation n'y est plus qu'une phrase, et un lien pour le fondateur seul ---
 const donnees = config.slice(config.indexOf("async function renderDonneesSection("), config.indexOf("// ====== SECTION Apparence"));
-ok(config.includes('export const PHRASE_CONSERVATION = "La conservation des fiches est gérée par le fondateur, sur la page Qualiopi.";')
+ok(lire("js/effacement-rules.js").includes('export const PHRASE_CONSERVATION = "La conservation des fiches est gérée par le fondateur, sur la page Qualiopi.";')
+  && /import \{[^}]*PHRASE_CONSERVATION[^}]*\} from "\.\.\/effacement-rules\.js/.test(config)
   && /el\("p", \{ class: "muted donnees-texte" \}, PHRASE_CONSERVATION\)/.test(donnees), "la phrase convenue, pour toute l'équipe");
 ok(/if \(fondateurHorsApercu\(\)\) \{\s*blocConservation\.appendChild\(el\("a", \{ class: "btn cons-lien", href: "#\/qualiopi"/.test(donnees),
   "le lien vers la page Qualiopi : fondateur hors aperçu seulement (ni formateur, ni direction, ni aperçu)");
@@ -312,6 +313,16 @@ ok(!/anonymiser|etatAnonymisationPromo|etatFinDePromo|Anonymiser la promo|"Effac
   "plus d'anonymisation ni d'effacement dans la gestion des stagiaires (Réglages, direction)");
 ok(/s\.actif === false && !s\.anonymise_le && !s\.efface_le/.test(gestion) && /"Réactiver"/.test(gestion), "Abandons : « Réactiver » seul, sans les fiches effacées");
 ok(/s\.actif !== false && !s\.anonymise_le/.test(gestion), "Stagiaires : une fiche sans nom n'est plus dans la liste");
+// Réglages du centre (direction, suite du lot 5) : la même phrase à la place de « Anonymiser la promo » (réconciliation avec Q5,
+// question 3 du plan : effacements au fondateur seul) ; la purge des élèves bénévoles du centre reste.
+const reglagesDonnees = lire("js/views/reglages-donnees.js");
+const codeDonnees = reglagesDonnees.replace(/\/\/.*$/gm, "");
+ok(/el\("p", \{ class: "muted donnees-texte" \}, PHRASE_CONSERVATION\)/.test(codeDonnees) && /"Conservation des fiches"/.test(codeDonnees),
+  "Réglages du centre : la phrase de la conservation, sous un titre");
+ok(!/anonymis|Anonymiser la promo|ANONYMISER|demander\(|prompt\(|etat_anonymisation_promo|anonymiser_promo/i.test(codeDonnees),
+  "Réglages du centre : plus aucune anonymisation (ni bouton, ni lecture d'état, ni saisie)");
+ok(/listBenevolesAPurgerDuCentre\(centre\.id\)/.test(codeDonnees) && /purgerBenevolesDuCentre\(/.test(codeDonnees) && /await confirmer\(questionPurgerBenevoles\(/.test(codeDonnees),
+  "Réglages du centre : la purge des élèves bénévoles reste, confirmée dans la fenêtre de l'app");
 const db = lire("js/db.js");
 ok(!/export async function (anonymiserStagiaire|anonymiserPromo|etatAnonymisationPromo)\b/.test(db), "les exportations de compatibilité de js/db.js sont retirées");
 

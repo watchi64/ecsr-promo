@@ -27,6 +27,16 @@
 --      tests/sql/questionnaires-preuve.sql se joue aussi sur ce schéma, avec ou sans la migration de la conservation.
 --   8. 20261028_signalements_app.sql puis 20261109_registre_qualite.sql rejouées telles quelles (tableau et fonction du
 --      registre qualité, que le lot Q5 réécrit : tache 4).
+--   9. Suite du lot 5, étape 4 (20261111_espaces_4_donnees.sql, appliquée le 11/11) : ses sections 3 et 4 EXTRAITES et jouées
+--      telles quelles, droits compris (etat_anonymisation_promo(p_promo) et anonymiser_promo(p_promo), que le lot Q5 retire et
+--      que son retour recrée ; benevoles_a_purger(p_lieu) et purger_benevoles(p_ids, p_lieu), qu'il ne touche pas). Ses
+--      sections 1 et 2 (ancien stagiaire invité au personnel) réécrivent inviter_compte et regler_affectations_formateur,
+--      absentes d'ici et sans lien avec la conservation : non jouées.
+--  10. Navigation unique, phase 1 (appliquée le 11/11), rejouée telle quelle : 20261110_navigation_unique_1_reglages.sql
+--      (règle d'écriture des réglages) puis 20261110_navigation_unique_2_menage.sql (colonnes de themes et de qcm retirées,
+--      themes.updated_by_email comprise ; _anonymiser_stagiaire recréée dans sa version propre, fiches_suivi conditionnelle).
+--      La table qcm n'existe ici que pour ses colonnes retirées. La phase 2 (20261111_navigation_unique_3_phase2.sql,
+--      fiches_suivi retirée) se joue à part : variante de la preuve (voir l'en-tête de tests/sql/conservation-preuve.sql).
 -- Lancement (psql lit les fichiers rejoués par \ir, le serveur lit les extraits par pg_read_file : superutilisateur
 -- local) :
 --   psql -p <port> -U postgres -d cs -v ON_ERROR_STOP=1 \
@@ -143,6 +153,10 @@ create table public.themes_progression (promo_id integer not null references pub
   theme_id integer not null references public.themes(id) on delete cascade, statut text not null default 'À faire',
   date_fait date, date_qcm date, notes text, updated_by_email text, updated_at timestamptz not null default now(),
   primary key (promo_id, theme_id));
+-- qcm : seules les colonnes que la navigation unique (phase 1) retire, relevées le 10/11 (schema-reel-colonnes-v2.txt).
+create table public.qcm (id serial primary key, published boolean not null default false, published_by_email text,
+  published_at timestamptz, exam_nb_questions integer, exam_question_ids jsonb, exam_draw_mode text,
+  exam_seconds_per_question integer not null default 30, exam_ferme_a timestamptz);
 create table public.conditions_acceptations (id bigserial primary key, email text not null, version text not null,
   accepted_at timestamptz not null default now(), unique (email, version));
 create table public.planning_jours_off (id bigint generated always as identity primary key, semaine_lundi date not null,
@@ -287,3 +301,13 @@ grant execute on function public.anonymiser_promo() to authenticated;
 -- Il lit signalements_app (20261028_signalements_app.sql, qui lit profs et user_profiles.prof_id, déjà ici) et peut_gerer_qualite() (point 7).
 \ir ../../supabase/migrations/20261028_signalements_app.sql
 \ir ../../supabase/migrations/20261109_registre_qualite.sql
+
+-- 9. Suite du lot 5, étape 4 : les fonctions de la direction (sections 3 et 4), droits compris ------------------------
+do $$ begin
+  execute pg_temp.extrait('20261111_espaces_4_donnees.sql',
+    '(create function public\.etat_anonymisation_promo\(p_promo integer\).*?grant execute on function public\.purger_benevoles\(integer\[\], integer\) to authenticated;)');
+end $$;
+
+-- 10. Navigation unique, phase 1, telle quelle -------------------------------------------------------------------------
+\ir ../../supabase/migrations/20261110_navigation_unique_1_reglages.sql
+\ir ../../supabase/migrations/20261110_navigation_unique_2_menage.sql

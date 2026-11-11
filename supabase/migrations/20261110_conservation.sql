@@ -36,7 +36,10 @@
 -- (déclencheur stagiaires_marques_conservation, drapeau conservation.effacement). Une fiche sans nom ne signe plus, n'est plus annotée et ne
 -- reçoit plus d'absence à la clôture.
 -- Les anciennes fonctions anonymiser_promo, anonymiser_stagiaire, etat_anonymisation_promo et _anonymiser_stagiaire sont
--- supprimées (le retour les recrée). Une fiche déjà anonymisée par l'ancien bouton reçoit efface_le = anonymise_le.
+-- supprimées (le retour les recrée), versions à argument de la direction comprises (anonymiser_promo(p_promo) et
+-- etat_anonymisation_promo(p_promo), 20261111_espaces_4_donnees.sql : elles appelaient _anonymiser_stagiaire et anonymisaient à
+-- 12 mois). La conservation des fiches reste au fondateur, sur la page Qualiopi (question 3 du plan) ; la direction garde la
+-- purge des élèves bénévoles de son centre (benevoles_a_purger(p_lieu), purger_benevoles(p_ids, p_lieu)). Une fiche déjà anonymisée par l'ancien bouton reçoit efface_le = anonymise_le.
 -- Questionnaires (tâche 3, spec § 6.1 ; question 1 du plan : notes gardées 3 ans, puis pourcentages seulement) :
 --   - Stagiaires : à l'étape 1 de la promo, les commentaires libres des deux questionnaires de la promo sont effacés et
 --     les réponses rebrassées (nouvel identifiant, réécriture dans un ordre tiré au hasard, comme à chaque envoi) ; à
@@ -106,8 +109,10 @@ alter table public.effacements_journal add constraint effacements_journal_type_c
 
 -- 2. Anciennes fonctions supprimées --------------------------------------------------------------------------------
 drop function public.anonymiser_promo();
+drop function public.anonymiser_promo(integer);
 drop function public.anonymiser_stagiaire(integer);
 drop function public.etat_anonymisation_promo();
+drop function public.etat_anonymisation_promo(integer);
 drop function public._anonymiser_stagiaire(integer);
 
 -- 2 bis. Textes libres d'une fiche (interne) -----------------------------------------------------------------------

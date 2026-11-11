@@ -504,9 +504,11 @@ ok(donnees.ou && donnees.ou.route === "config" && donnees.ou.label === "Réglage
 ok(Array.isArray(donnees.guide) && donnees.guide.length >= 3 && !donnees.guideNouvelle, "données personnelles : un « Comment faire » d'au moins trois étapes");
 ok(/vous|ouvrez/i.test(tout(donnees)) && !/(tu|ton|ta|tes|toi)/i.test(tout(donnees)), "données personnelles : vouvoiement (texte de l'équipe)");
 ok(!/profs?/i.test(tout(donnees)) && !tout(donnees).includes(CADRATIN) && !/#[0-9a-f]{3,6}/i.test(tout(donnees)), "données personnelles : « formateur » jamais « prof », aucun tiret cadratin, aucune couleur");
-for (const motif of [/Données personnelles/, /Anonymiser la promo/, /ANONYMISER/, /Élèves bénévoles/, /ancien stagiaire/]) {
+for (const motif of [/Données personnelles/, /Conservation des fiches/, /fondateur/, /page Qualiopi/, /Élèves bénévoles/, /ancien stagiaire/]) {
   ok(motif.test(tout(donnees)), `données personnelles : dit ${motif}`);
 }
+// Réconciliation avec Q5 (11/11) : plus d'anonymisation par la direction, la Nouveauté ne mène plus vers un bouton disparu.
+ok(!/Anonymiser la promo|ANONYMISER|anonymisez/.test(tout(donnees)), "données personnelles : plus aucune étape vers « Anonymiser la promo »");
 ok(lesEspacesDonnees("direction") && !lesEspacesDonnees("siege") && !lesEspacesDonnees("equipe") && !lesEspacesDonnees("stagiaire"), "données personnelles : lue dans l'espace direction seulement");
 function lesEspacesDonnees(espace) { return ids(visibles(NOUVEAUTES, true, true, espace)).includes(donnees.id); }
 // Qui voit quoi, sur les vraies entrées.

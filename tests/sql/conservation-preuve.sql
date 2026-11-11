@@ -26,11 +26,14 @@
 --   psql -p 55517 -U postgres -d cs -1 -v migration=<chemin absolu de 20261110_conservation.sql> \
 --        -v retour=<chemin absolu de 20261110_conservation_retour.sql> -f tests/sql/conservation-preuve.sql
 --   pg_ctl -D $D/pg stop ; rm -rf $D
--- Variante « navigation-unique » (la branche qui retire la table fiches_suivi et la colonne themes.updated_by_email peut
--- arriver avant ou après ce lot) : même lancement, avec, entre le schéma minimal et la preuve,
---   psql -p <port> -U postgres -d cs -c "drop table public.fiches_suivi; alter table public.themes drop column updated_by_email"
--- La preuve s'y adapte (fiches de suivi comptées 0, thème témoin non créé) ; le retour y recrée _anonymiser_stagiaire avec
--- ces deux écritures conditionnées, dont le corps est alors mis à part dans l'empreinte (cas dédié).
+-- Ordre réel (11/11) : le schéma minimal rejoue la suite du lot 5 (20261111_espaces_4_donnees, fonctions de la direction),
+-- puis la navigation unique, phase 1 (20261110_navigation_unique_1_reglages et _2_menage : themes.updated_by_email retirée,
+-- _anonymiser_stagiaire recréée sans elle et conditionnelle sur fiches_suivi). Variante « phase 2 » (le cas réel de la mise
+-- en ligne : 20261111_navigation_unique_3_phase2 appliquée avant ce lot, fiches_suivi retirée) : même lancement, avec, entre
+-- le schéma minimal et la preuve,
+--   psql -p <port> -U postgres -d cs -1 -f supabase/migrations/20261111_navigation_unique_3_phase2.sql
+-- La preuve s'y adapte (fiches de suivi comptées 0) ; thème témoin jamais créé depuis la phase 1 (colonne retirée). Le retour
+-- recrée les six fonctions d'anonymisation mot pour mot (versions en base avant ce lot) : l'empreinte les compte toutes.
 --
 -- Résultats du 11/11/2026, vague finale (fusion de main ce08b81, relecture finale : e-mails d'un compte déjà retiré,
 -- textes écrits après l'étape 1), Postgres local, port 55623, tous les fichiers SQL en LF comme leurs blobs :
@@ -109,9 +112,6 @@ declare
   v_suivi boolean := to_regclass('public.fiches_suivi') is not null;
   v_themes_email boolean := exists (select 1 from pg_attribute where attrelid = to_regclass('public.themes')
                                       and attname = 'updated_by_email' and attnum > 0 and not attisdropped);
-  v_variante text := set_config('preuve.variante', case when to_regclass('public.fiches_suivi') is null
-    or not exists (select 1 from pg_attribute where attrelid = to_regclass('public.themes') and attname = 'updated_by_email'
-                     and attnum > 0 and not attisdropped) then 'on' else '' end, true);
   v_empreinte text := $q$
     select md5(string_agg(x, E'\n' order by x)) from (
       select 'rel ' || c.relname || ' ' || c.relkind::text || ' ' || c.relrowsecurity::text || ' ' || coalesce(c.relacl::text, '')
@@ -127,8 +127,7 @@ declare
         from pg_constraint where connamespace = 'public'::regnamespace
       union all
       select 'fn ' || p.oid::regprocedure::text || ' '
-             || case when p.proname = '_anonymiser_stagiaire' and current_setting('preuve.variante', true) = 'on'
-                     then 'corps adapté à la variante' else md5(pg_get_functiondef(p.oid)) end
+             || md5(pg_get_functiondef(p.oid))
              || ' ' || coalesce(p.proacl::text, '')
         from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prokind in ('f', 'p')
       union all
@@ -561,7 +560,9 @@ begin
     (select to_jsonb(s) ->> 'efface_le' = to_jsonb(s) ->> 'anonymise_le' from stagiaires s where s.id = SX), null);
   select count(*) into n from pg_proc where pronamespace = 'public'::regnamespace
      and proname in ('anonymiser_promo', 'anonymiser_stagiaire', 'etat_anonymisation_promo', '_anonymiser_stagiaire');
-  perform pg_temp.cas('les quatre anciennes fonctions d''anonymisation sont supprimées', n = 0, n::text);
+  perform pg_temp.cas('les anciennes fonctions d''anonymisation sont supprimées (sans argument, à argument de la direction, interne)', n = 0, n::text);
+  perform pg_temp.cas('les deux versions à argument de la direction (20261111_espaces_4_donnees) n''existent plus après la migration',
+    to_regprocedure('public.anonymiser_promo(integer)') is null and to_regprocedure('public.etat_anonymisation_promo(integer)') is null, null);
   select string_agg(ro.rol || ':' || f.fn, ',' order by ro.rol, f.fn) into t
     from (values ('anon'), ('authenticated'), ('service_role')) ro(rol),
          (values ('public._effacer_etape1(integer)'), ('public._effacer_etape2(integer)'),
@@ -1631,15 +1632,18 @@ begin
       end;
     end if;
     perform pg_temp.cas('retour joué sans erreur', r = 'joué', r);
-    -- Variante sans fiches_suivi ni themes.updated_by_email : le retour recrée _anonymiser_stagiaire avec ces deux
-    -- écritures conditionnées (son corps est donc mis à part dans l'empreinte, voir v_empreinte) ; base complète : mot
-    -- pour mot (compris dans l'empreinte).
-    if not (v_suivi and v_themes_email) then
-      t := pg_get_functiondef(to_regprocedure('public._anonymiser_stagiaire(integer)'));
-      perform pg_temp.cas('variante : _anonymiser_stagiaire recréée avec les écritures conditionnées (fiches_suivi, themes)',
-        position('to_regclass(''public.fiches_suivi'')' in t) > 0 and position('to_regclass(''public.themes'')' in t) > 0
-        and position('delete from fiches_suivi where' in t) = 0, null);
-    end if;
+    -- _anonymiser_stagiaire revient dans la version de la navigation unique (fiche de suivi effacée seulement si la table
+    -- existe, plus de themes.updated_by_email), avec ou sans fiches_suivi ; le reste est dans l'empreinte, mot pour mot.
+    t := pg_get_functiondef(to_regprocedure('public._anonymiser_stagiaire(integer)'));
+    perform pg_temp.cas('retour : _anonymiser_stagiaire dans la version de la navigation unique (fiches_suivi conditionnelle, sans themes.updated_by_email)',
+      position('to_regclass(''public.fiches_suivi'')' in t) > 0 and t !~* 'update\s+(public\.)?themes\s+set'
+      and position('delete from fiches_suivi where' in t) = 0, null);
+    perform pg_temp.cas('retour : les deux versions à argument de la direction reviennent, avec leurs droits (authenticated oui ; anon et service_role non)',
+      (select string_agg(f || ':' || case when to_regprocedure(f) is null then 'absente'
+                                          else has_function_privilege('authenticated', f, 'execute')::text || has_function_privilege('anon', f, 'execute')::text
+                                               || has_function_privilege('service_role', f, 'execute')::text end, ',' order by f)
+         from unnest(array['public.anonymiser_promo(integer)', 'public.etat_anonymisation_promo(integer)']) f(f))
+      = 'public.anonymiser_promo(integer):truefalsefalse,public.etat_anonymisation_promo(integer):truefalsefalse', null);
     execute v_empreinte into md5_apres;
     perform pg_temp.cas('retour : empreinte du schéma (droits compris) et des données identique à celle d''avant la migration',
       md5_apres = md5_avant, md5_avant || ' / ' || md5_apres);
@@ -1651,8 +1655,8 @@ begin
                        'figer_questionnaire_formateurs', '_questionnaire_rebrasser', '_questionnaire_comptes',
                        '_questionnaire_effacer_commentaires', '_questionnaire_figer', '_questionnaire_clore',
                        '_questionnaire_clos');
-    perform pg_temp.cas('retour : les quatre anciennes fonctions sont revenues, les quinze de ce lot sont parties',
-      n = 4 and m = 0, n || '/' || m);
+    perform pg_temp.cas('retour : les six anciennes fonctions sont revenues (dont les deux à argument de la direction), les quinze de ce lot sont parties',
+      n = 6 and m = 0, n || '/' || m);
     select string_agg(attname, ',' order by attname) into t from pg_attribute
      where attrelid = 'public.questionnaire_participations'::regclass and attnum > 0 and not attisdropped;
     perform pg_temp.cas('retour : participations à leur forme du lot Q3, tables des résultats figés et des clôtures retirées',
