@@ -20,13 +20,18 @@
 // Les tableaux par stagiaire comptent les mêmes stagiaires que lui : ceux en formation, et le document le dit ; seule la
 // liste nominative de l'effectif montre aussi les abandons.
 
-import { SOURCE } from "./qualiopi-referentiel.js?v=20261111c";
-import { jourDe, rempli, tableau, nb, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261111c";
-import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261111c";
-import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261111c";
-import { estNotee, score20 } from "./notes-stats.js?v=20261111c";
-import { cellule, nombre, slug } from "./centre-csv.js?v=20261111c";
-import { compareByNom } from "./utils.js?v=20261111c";
+import { SOURCE } from "./qualiopi-referentiel.js?v=20261111g";
+import { jourDe, rempli, tableau, demandesDe, RAISON_EFFACEE, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261111g";
+import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261111g";
+import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261111g";
+import { estNotee, score20 } from "./notes-stats.js?v=20261111g";
+import { cellule, nombre, slug } from "./centre-csv.js?v=20261111g";
+import { compareByNom } from "./utils.js?v=20261111g";
+import { statutFiche } from "./effacement-rules.js?v=20261111g";
+import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261111g";
+import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261111g";
+import { fr1, pluriel } from "./nombres.js?v=20261111g";
+import { dateFr } from "./dates.js?v=20261111g";
 
 export const PHRASE_DE_GARDE = "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
 
@@ -40,22 +45,22 @@ export const PHRASE_NIVEAU = "Le niveau dit ce que l'application peut apporter p
 const DECRET = SOURCE.decret.replace(/ relatif .*$/, "");   // « Décret n° 2026-728 du 1er août 2026 »
 const AUCUNE_PROMO = "Aucune promo dans la période.";
 const TYPES_CLES = new Map([["formation", "Formation"], ["stage", "Stage"], ["examen", "Examen"]]);   // types du calendrier qui sont des dates clés
-const ASSIDUITE_A_JOINDRE = "Le calcul des heures d'après les feuilles d'émargement n'est pas encore repris dans ce dossier : joindre les feuilles d'émargement signées.";
+const ASSIDUITE_A_JOINDRE = "Les heures ne sont pas mesurées d'après les feuilles d'émargement pour cette promo : joindre les feuilles d'émargement signées, si elles existent.";
+const HEURES_NON_LUES = "non mesurées (erreur de lecture)";
 const REGLE_DEMI_JOURNEES = "Synthèse par semaine d'après le planning : une demi-journée de formation compte dès qu'une ligne du planning "
   + "porte une activité, un sujet, un formateur, un intervenant extérieur ou l'autonomie du groupe ; les jours désactivés du planning ne comptent pas.";
 const BOM = String.fromCharCode(0xfeff);
 
 // --- Petits outils : dates, mots, nombres ---
 
-// Les petits outils de l'inventaire (jourDe, rempli, tableau, nb) et ses aides du planning sont importés de
-// js/qualiopi-preuves.js, jamais recopiés : les dossiers suivent ainsi toujours la règle de l'inventaire.
-const dateFr = (jour) => (jour ? `${jour.slice(8)}/${jour.slice(5, 7)}/${jour.slice(0, 4)}` : null);
+// Les petits outils de l'inventaire (jourDe, rempli, tableau) et ses aides du planning sont importés de
+// js/qualiopi-preuves.js, jamais recopiés : les dossiers suivent ainsi toujours la règle de l'inventaire. Les dates et les
+// nombres écrits viennent de js/dates.js et js/nombres.js, comme partout dans l'app.
 const texte = (valeur, defaut) => (rempli(valeur) ? valeur.trim() : defaut);
 const somme = (liste) => liste.reduce((a, b) => a + b, 0);
 const enFrancais = (a, b) => a.localeCompare(b, "fr");
 const majuscule = (mot) => mot.charAt(0).toUpperCase() + mot.slice(1);
 const pourcent = (x) => `${Math.round(x * 100)}${String.fromCharCode(0xa0)}%`;   // espace insécable avant « % », comme centre-stats.js
-const fr1 = (x) => x.toFixed(1).replace(".", ",");   // comme le tableau de comparaison : « 11,8/20 »
 
 // Un tableau, ou rien s'il n'a pas de ligne : à étaler dans la liste des tableaux d'une section.
 const table = (entetes, lignes) => (lignes.length ? [{ entetes, lignes }] : []);
@@ -79,7 +84,11 @@ const nu = (mot) => mot.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 // « Nîmes, mars 2026 » : le centre, puis la promo, sauf quand le nom de la promo contient déjà le centre (« Nîmes, Nîmes, mars 2026 »).
 const centreEtPromo = (centre, promo) => (nu(libellePromo(promo)).includes(nu(centre)) ? libellePromo(promo) : `${centre}, ${libellePromo(promo)}`);
 const nomComplet = (s) => [s?.nom, s?.prenom].filter(rempli).map((x) => x.trim()).join(" ") || "Stagiaire sans nom";
-const enFormationDe = (donnees) => tableau(donnees.stagiaires).filter((s) => s.actif).sort(compareByNom);
+// Les stagiaires en formation : les fiches actives, sans celles effacées à la demande de la personne (comptées à part).
+const enFormationDe = (donnees) => {
+  const demandes = demandesDe(donnees);
+  return tableau(donnees.stagiaires).filter((s) => s.actif && !demandes.has(s.id)).sort(compareByNom);
+};
 // « Édité le 28/10/2026 » : exportée, la fiche des résultats (js/qualiopi-resultats.js) date son édition de la même façon.
 export const edition = (aujourdhui) => `Édité le ${dateFr(jourDe(aujourdhui)) ?? "date non renseignée"}`;
 const REFERENTIEL = `Référentiel appliqué : ${DECRET} (référentiel national qualité), en vigueur le ${dateFr(SOURCE.enVigueur)}, catégorie « action de formation »`;
@@ -168,14 +177,14 @@ const moyenne = (valeurs) => (valeurs.length ? somme(valeurs) / valeurs.length :
 
 function texteNotes(lignes) {
   const notes = lignes.filter(estNotee).map(score20).filter(Number.isFinite);
-  return notes.length ? `${nb(notes.length, "note")}, moyenne ${fr1(moyenne(notes))}/20` : "aucune";
+  return notes.length ? `${pluriel(notes.length, "note")}, moyenne ${fr1(moyenne(notes))}/20` : "aucune";
 }
 
 function texteExamens(lignes) {
   const examens = lignes.filter((t) => t.mode === "examen");
   if (!examens.length) return "aucun";
   const notes = examens.map((t) => t.note_20).filter((v) => v != null && Number.isFinite(Number(v))).map(Number);
-  return notes.length ? `${nb(examens.length, "examen")}, moyenne ${fr1(moyenne(notes))}/20` : nb(examens.length, "examen");
+  return notes.length ? `${pluriel(examens.length, "examen")}, moyenne ${fr1(moyenne(notes))}/20` : pluriel(examens.length, "examen");
 }
 
 function entrainements(lignes) {
@@ -198,8 +207,9 @@ function texteEpcf(lignes, trame) {
 }
 
 // Livret ou dossier professionnel d'un stagiaire : « oui », avec la dernière mise à jour si elle est connue.
-function texteDepot(lignes) {
-  if (!lignes.length) return "aucun";
+// Après l'étape des 3 ans (fiche sans nom), un document absent est un document effacé, jamais « aucun ».
+function texteDepot(lignes, stagiaire = null) {
+  if (!lignes.length) return stagiaire?.anonymise_le ? RAISON_EFFACEE : "aucun";
   const derniere = lignes.map((l) => jourDe(l.updated_at)).filter(Boolean).sort().pop();
   return derniere ? `oui, mis à jour le ${dateFr(derniere)}` : "oui";
 }
@@ -273,17 +283,20 @@ const SERVICE_FORMATION = {
 };
 
 // La population des tableaux par stagiaire, dite dans la section (rien s'il n'y a pas de tableau).
-const population = (enFormation, stagiaires) =>
-  (enFormation.length ? [`Stagiaires en formation uniquement : ${enFormation.length} sur ${nb(stagiaires.length, "inscrit")}.`] : []);
+const population = (enFormation, stagiaires, demandes = new Set()) => {
+  const sur = stagiaires.filter((s) => demandes.has(s.id)).length;
+  const dont = sur ? ` (dont ${pluriel(sur, "fiche effacée", "fiches effacées")} à la demande de la personne)` : "";
+  return enFormation.length ? [`Stagiaires en formation uniquement : ${enFormation.length} sur ${pluriel(stagiaires.length, "inscrit")}${dont}.`] : [];
+};
 
-function sectionEffectif({ inv, ind, stagiaires, terminee }) {
+function sectionEffectif({ inv, ind, stagiaires, terminee, demandes }) {
   const intro = stagiaires.length
     ? "Liste nominative des stagiaires, puis résultats de la promo avec leur méthode de calcul."
     : "Résultats de la promo avec leur méthode de calcul.";
   return {
     paragraphes: [...phrases(inv, "effectif"), ...(terminee ? [] : ["Promo en cours : les chiffres sont provisoires."]), intro],
     tableaux: [
-      ...table(["Stagiaire", "Statut"], [...stagiaires].sort(compareByNom).map((s) => [nomComplet(s), s.actif ? (terminee ? "Formation suivie" : "En formation") : "Abandon"])),
+      ...table(["Stagiaire", "Statut"], [...stagiaires].sort(compareByNom).map((s) => [nomComplet(s), statutFiche(s, terminee, demandes.has(s.id))])),
       ...table(["Indicateur", "Résultat", "Méthode de calcul"], lignesResultats(ind)),
     ],
   };
@@ -307,47 +320,71 @@ function sectionDeroule({ inv, donnees, promo, aujourdhui }) {
   };
 }
 
-// Tant que l'émargement n'est pas branché, l'inventaire n'a pas la pièce : une phrase utile à l'auditeur.
+// Les heures d'après les feuilles d'émargement closes ; sans feuille, la raison puis une phrase utile à l'auditeur.
 function sectionAssiduite({ inv }) {
   const piece = pieceDe(inv, "assiduite");
-  return { paragraphes: piece?.presente ? [phrase(piece)] : [ASSIDUITE_A_JOINDRE], tableaux: [] };
+  if (!piece?.presente) return { paragraphes: [...(piece ? [phrase(piece)] : []), ASSIDUITE_A_JOINDRE], tableaux: [] };
+  return { paragraphes: [phrase(piece), `Méthode de calcul : ${METHODES_PUBLIQUES.presence}`], tableaux: [] };
 }
 
-function sectionPassages({ inv, donnees, enFormation, stagiaires }) {
+// Les heures d'une personne d'après les feuilles closes : « 66 heures 30 minutes sur 70 heures prévues » ; sans feuille à son nom,
+// ou sans mesure pour la promo, le mot qui le dit. Jamais un zéro qui ne serait qu'une absence de feuille.
+function heuresDe(presence, stagiaireId) {
+  if (presence.etat === "non_lue") return HEURES_NON_LUES;
+  if (presence.etat !== "mesuree") return `non mesurées (${raisonAbsence(presence)})`;
+  const b = presence.bilans.get(stagiaireId);
+  if (!b || !b.prevuesMin) return "non mesurées (aucune feuille close à son nom)";
+  return `${dureeEnToutesLettres(b.realiseesMin)} sur ${dureeEnToutesLettres(b.prevuesMin)} prévues`;
+}
+
+// La phrase des heures du tableau de l'examen. Les lignes des fiches hors du tableau (stagiaires partis, fiches sans nom, fiches
+// effacées à la demande) restent comptées dans les totaux de la promo, sans nom.
+function phraseHeures(presence, enFormation) {
+  if (presence.etat === "non_lue") return `Heures de formation : ${HEURES_NON_LUES}.`;
+  if (presence.etat !== "mesuree") return `Heures de formation : non mesurées (${raisonAbsence(presence)}).`;
+  const dans = new Set(enFormation.map((s) => s.id));
+  const hors = [...presence.bilans].filter(([id]) => !dans.has(id)).reduce((t, [, b]) => t + b.realiseesMin, 0);
+  const horsPhrase = hors
+    ? ` Les fiches hors du tableau (stagiaires partis, fiches sans nom, fiches effacées à la demande) ajoutent ${dureeEnToutesLettres(hors)} réalisées, comptées dans le total de la promo sans nom.`
+    : "";
+  return `Heures de formation : heures signées sur heures prévues, d'après les feuilles d'émargement closes (une demi-journée signée compte pour sa durée entière).${horsPhrase}`;
+}
+
+function sectionPassages({ inv, donnees, enFormation, stagiaires, demandes }) {
   const parId = parStagiaire(donnees.passages);
   const lignes = enFormation.map((s) => {
     const c = comptePassages(parId.get(s.id) || []);
     return [nomComplet(s), String(c.salle), String(c.voiture), String(c.absences)];
   });
   return {
-    paragraphes: [...phrases(inv, "passages"), ...population(enFormation, stagiaires)],
+    paragraphes: [...phrases(inv, "passages"), ...population(enFormation, stagiaires, demandes)],
     tableaux: table(["Stagiaire", "Passages en salle", "Passages en voiture", "Absences de dernière minute"], lignes),
   };
 }
 
-function sectionEvaluations({ inv, donnees, enFormation, stagiaires }) {
+function sectionEvaluations({ inv, donnees, enFormation, stagiaires, demandes }) {
   const notes = parStagiaire(donnees.evaluations);
   const tentatives = parStagiaire(donnees.tentatives);
   const epcf = parStagiaire(donnees.epcf);
   const livrets = parStagiaire(donnees.livrets);
   const lignes = enFormation.map((s) => [
     nomComplet(s), texteNotes(notes.get(s.id) || []), texteExamens(tentatives.get(s.id) || []),
-    texteEpcf(epcf.get(s.id) || [], "salle"), texteEpcf(epcf.get(s.id) || [], "vehicule"), texteDepot(livrets.get(s.id) || []), "non saisi",
+    texteEpcf(epcf.get(s.id) || [], "salle"), texteEpcf(epcf.get(s.id) || [], "vehicule"), texteDepot(livrets.get(s.id) || [], s), "non saisi",
   ]);
   return {
-    paragraphes: [...phrases(inv, "evaluations"), ...population(enFormation, stagiaires)],
+    paragraphes: [...phrases(inv, "evaluations"), ...population(enFormation, stagiaires, demandes)],
     tableaux: table(["Stagiaire", "Notes", "Examens QCM", "EPCF en salle", "EPCF véhicule", "Livret EPCF", "Jury"], lignes),
   };
 }
 
-function sectionRessources({ inv, donnees, enFormation, stagiaires }) {
+function sectionRessources({ inv, donnees, enFormation, stagiaires, demandes }) {
   const tentatives = parStagiaire(donnees.tentatives);
   const lignes = enFormation.map((s) => {
     const e = entrainements(tentatives.get(s.id) || []);
     return [nomComplet(s), String(e.n), String(e.questions), e.taux === null ? "aucune donnée" : pourcent(e.taux)];
   });
   return {
-    paragraphes: [...phrases(inv, "ressources", "misesAJour", "innovations"), ...population(enFormation, stagiaires)],
+    paragraphes: [...phrases(inv, "ressources", "misesAJour", "innovations"), ...population(enFormation, stagiaires, demandes)],
     tableaux: table(["Stagiaire", "QCM d'entraînement faits", "Questions répondues", "Réussite"], lignes),
   };
 }
@@ -366,7 +403,7 @@ function phrasesSignalements(signalements) {
     phrasesDuDelai.push(`Délai moyen entre le dépôt et le traitement : ${nombre(delai)} ${delai >= 2 ? "jours" : "jour"}.`);
   }
   return [
-    `Contestations de QCM déposées par les stagiaires de la promo : ${nb(recus.length, "reçue")}, ${nb(traites.length, "traitée")}, ${recus.length - traites.length} en attente.`,
+    `Contestations de QCM déposées par les stagiaires de la promo : ${pluriel(recus.length, "reçue")}, ${pluriel(traites.length, "traitée")}, ${recus.length - traites.length} en attente.`,
     ...phrasesDuDelai,
   ];
 }
@@ -391,7 +428,7 @@ function sectionRegistre(registre, entrees, { periode, lignes = true }) {
   const triees = [...entrees].sort((a, b) => String(a.date_constat).localeCompare(String(b.date_constat)) || (a.id ?? 0) - (b.id ?? 0));
   return {
     paragraphes: [
-      `Registre qualité : ${nb(total, "entrée")} pendant ${periode}.`,
+      `Registre qualité : ${pluriel(total, "entrée")} pendant ${periode}.`,
       `Par type : ${liste(TYPES, parType)}.`,
       `Par état : ${liste(ETATS, parEtat)}.`,
       `Délai médian de réponse : ${delai}.`,
@@ -408,15 +445,16 @@ function sectionSignalements({ inv, donnees, promo, aujourdhui }) {
   return { paragraphes: [...phrases(inv, "suivi"), ...phrasesSignalements(donnees.signalements), ...r.paragraphes], tableaux: r.tableaux };
 }
 
-function sectionExamen({ inv, donnees, enFormation, stagiaires }) {
+function sectionExamen({ inv, donnees, promo, enFormation, stagiaires, demandes }) {
   const dossiers = parStagiaire(donnees.dossiers);
   const livrets = parStagiaire(donnees.livrets);
-  const lignes = enFormation.map((s) => [nomComplet(s), texteDepot(dossiers.get(s.id) || []), texteDepot(livrets.get(s.id) || []), "non mesurées"]);
+  const presence = presenceDePromo(donnees.emargement, promo?.id);
+  const lignes = enFormation.map((s) => [nomComplet(s), texteDepot(dossiers.get(s.id) || [], s), texteDepot(livrets.get(s.id) || [], s), heuresDe(presence, s.id)]);
   return {
     paragraphes: [
       ...phrases(inv, "dossierPro"),
-      "Heures de formation : non mesurées, le calcul d'après les feuilles d'émargement n'étant pas encore repris.",
-      ...population(enFormation, stagiaires),
+      phraseHeures(presence, enFormation),
+      ...population(enFormation, stagiaires, demandes),
     ],
     tableaux: table(["Stagiaire", "Dossier professionnel", "Livret EPCF", "Heures de formation"], lignes),
   };
@@ -444,7 +482,7 @@ function sectionAppreciations({ inv }) {
 export function modeleDossierFormation({ inv, donnees, ind, promo, lieu, intitule, aujourdhui }) {
   const d = donnees || {};
   const stagiaires = tableau(d.stagiaires);
-  const contexte = { inv, ind, donnees: d, promo, stagiaires, enFormation: enFormationDe(d), terminee: promoTerminee(promo, aujourdhui), aujourdhui };
+  const contexte = { inv, ind, donnees: d, promo, stagiaires, demandes: demandesDe(d), enFormation: enFormationDe(d), terminee: promoTerminee(promo, aujourdhui), aujourdhui };
   const centre = texte(lieu, "centre non renseigné");
   return assembler({
     titre: "Dossier Qualiopi de la formation",
@@ -497,7 +535,7 @@ function sectionResultatsCentre({ promos, aujourdhui }) {
   const terminees = lignes.filter((x) => x.terminee).length;
   return {
     paragraphes: [
-      `Résultats donnés promo par promo, sans total : ${nb(promos.length, "promo")}, dont ${nb(terminees, "terminée")} et ${promos.length - terminees} en cours.`,
+      `Résultats donnés promo par promo, sans total : ${pluriel(promos.length, "promo")}, dont ${pluriel(terminees, "terminée")} et ${promos.length - terminees} en cours.`,
       "Une promo est terminée quand sa date de fin est renseignée et passée ; les chiffres d'une promo en cours sont provisoires.",
       `Satisfaction des stagiaires, méthode de calcul : ${METHODES_PUBLIQUES.satisfaction}`,
     ],
@@ -541,7 +579,7 @@ function sectionInnovationsCentre({ nouveautes, periode }) {
   const etendue = premiere === derniere ? `le ${dateFr(premiere)}` : `du ${dateFr(premiere)} au ${dateFr(derniere)}`;
   return {
     paragraphes: [
-      `${nb(retenues.length, "annonce")} de l'application ${etendue}.`,
+      `${pluriel(retenues.length, "annonce")} de l'application ${etendue}.`,
       "Annonces de l'application, citées telles qu'elles ont été publiées :",
       ...retenues.map((x) => `${dateFr(x.jour)} : « ${x.titre} »`),
     ],
@@ -593,8 +631,8 @@ function sectionAmeliorationCentre({ promos, registre, lieuId, periode, sansNoms
   // Sans promo dans la période, le registre reste : les entrées du lieu et de l'organisme, datées dans la période, comptent encore.
   if (!promos.length) return { paragraphes: [AUCUNE_PROMO, ...r.paragraphes], tableaux: r.tableaux };
   const themes = promos.flatMap(({ promo, ind }) => [
-    ...tableau(ind?.themes?.qcm).map((t) => [libellePromo(promo), "QCM", libelleTheme(t), `${pourcent(t.taux)} sur ${nb(t.n, "réponse")}`]),
-    ...tableau(ind?.themes?.notes).map((t) => [libellePromo(promo), "Notes", libelleTheme(t), `${fr1(t.moyenne)}/20 sur ${nb(t.n, "note")}`]),
+    ...tableau(ind?.themes?.qcm).map((t) => [libellePromo(promo), "QCM", libelleTheme(t), `${pourcent(t.taux)} sur ${pluriel(t.n, "réponse")}`]),
+    ...tableau(ind?.themes?.notes).map((t) => [libellePromo(promo), "Notes", libelleTheme(t), `${fr1(t.moyenne)}/20 sur ${pluriel(t.n, "note")}`]),
   ]);
   return {
     paragraphes: [
@@ -631,10 +669,10 @@ function fusionInventaires(promos) {
 
 function presenceEnMots({ vues, presentes, raisons }) {
   const parties = [];
-  if (presentes) parties.push(`présente pour ${nb(presentes, "promo")} sur ${vues}`);
+  if (presentes) parties.push(`présente pour ${pluriel(presentes, "promo")} sur ${vues}`);
   if (vues > presentes) {
-    const motifs = [...raisons].map(([raison, k]) => (raisons.size > 1 ? `${raison} (${nb(k, "promo")})` : raison)).join(" ; ");
-    parties.push(`absente pour ${nb(vues - presentes, "promo")} sur ${vues} : ${motifs}`);
+    const motifs = [...raisons].map(([raison, k]) => (raisons.size > 1 ? `${raison} (${pluriel(k, "promo")})` : raison)).join(" ; ");
+    parties.push(`absente pour ${pluriel(vues - presentes, "promo")} sur ${vues} : ${motifs}`);
   }
   return parties.join(" ; ");
 }
@@ -669,7 +707,7 @@ export function modeleDossierCentre({ promos, lieu, lieuId, periode, aujourdhui,
     garde: [
       `Centre : ${centre}`,
       `Période : ${enMots}`,
-      `Promos retenues : ${liste.length ? `${nb(liste.length, "promo")} (${liste.map(({ promo }) => libellePromo(promo)).join(", ")})` : "aucune"}`,
+      `Promos retenues : ${liste.length ? `${pluriel(liste.length, "promo")} (${liste.map(({ promo }) => libellePromo(promo)).join(", ")})` : "aucune"}`,
       `Version : ${contexte.sansNoms ? "sans aucun nom (nombres, taux, dates et inventaire)" : "avec les noms des formateurs (stagiaires, bénévoles et auto-écoles en nombres seulement)"}`,
       REFERENTIEL,
       edition(aujourdhui),

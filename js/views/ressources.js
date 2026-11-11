@@ -1,13 +1,13 @@
 import {
   listRessources, addRessource, updateRessource, deleteRessource,
   listContacts, addContact, updateContact, deleteContact, getPromoCourante,
-} from "../db.js?v=20261111c";
-import { el, clear, toast } from "../utils.js?v=20261111c";
-import { confirmer } from "../confirmer.js?v=20261111c";
-import { icon, deco } from "../icons.js?v=20261111c";
-import { isAdmin, selonPublic } from "../auth-admin.js?v=20261111c";
-import { recordUndo } from "../undo.js?v=20261111c";
-import { navigationV2Active } from "../nav-etat.js?v=20261111c";
+} from "../db.js?v=20261111g";
+import { el, clear, toast } from "../utils.js?v=20261111g";
+import { confirmer } from "../confirmer.js?v=20261111g";
+import { icon, deco } from "../icons.js?v=20261111g";
+import { isAdmin, selonPublic } from "../auth-admin.js?v=20261111g";
+import { recordUndo } from "../undo.js?v=20261111g";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111g";
 
 let ressources = [];
 let contacts = [];
@@ -23,7 +23,7 @@ const CATEGORY_ICONS = {
 
 function openEditModal(existing, onSaved) {
   const isNew = !existing;
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
 
   const titreInput = el("input", { type: "text", placeholder: "Titre", value: existing?.titre || "" });
   const urlInput = el("input", { type: "url", placeholder: "https://…", value: existing?.url || "" });
@@ -54,7 +54,7 @@ function openEditModal(existing, onSaved) {
       if (isNew) await addRessource(payload);
       else await updateRessource(existing.id, payload);
       toast(isNew ? "Ressource ajoutée" : "Ressource mise à jour", "success");
-      backdrop.remove();
+      modale.fermer();
       onSaved();
     } catch (e) {
       console.error(e);
@@ -62,7 +62,7 @@ function openEditModal(existing, onSaved) {
     }
   }
 
-  const cancelBtn = el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler");
+  const cancelBtn = el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Annuler");
   const saveBtn = el("button", { class: "btn primary", onClick: save }, icon.check(), "Enregistrer");
 
   const modal = el("div", { class: "modal" },
@@ -76,9 +76,7 @@ function openEditModal(existing, onSaved) {
     ),
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn)
   );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
 }
 
 function renderRessourceCard(r, onChange) {
@@ -125,7 +123,7 @@ function renderRessourceCard(r, onChange) {
 
 function openContactModal(existing, onSaved) {
   const isNew = !existing;
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
 
   const prenomInput = el("input", { type: "text", placeholder: "Prénom (ou nom)", value: existing?.prenom || "" });
   const roleInput = el("input", { type: "text", placeholder: "Rôle / fonction (ex. Service entreprise, CP)", value: existing?.role || "" });
@@ -159,7 +157,7 @@ function openContactModal(existing, onSaved) {
         });
         toast("Contact mis à jour", "success", 1800);
       }
-      backdrop.remove();
+      modale.fermer();
       onSaved();
     } catch (e) { toast(e.message, "error"); }
   }
@@ -176,13 +174,11 @@ function openContactModal(existing, onSaved) {
       el("div", { class: "field" }, el("label", {}, "Note"), noteInput),
     ),
     el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler"),
+      el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Annuler"),
       el("button", { class: "btn primary", onClick: save }, icon.check(), "Enregistrer"),
     )
   );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
   setTimeout(() => prenomInput.focus(), 80);
 }
 
@@ -246,27 +242,24 @@ function rerender(container) {
 
   const admin = isAdmin();
 
-  // Nouvelle navigation : la page est Cours et QCM, Documents ; elle porte ce nom, avec la promo en surtitre (avant :
-  // « Ressources & contacts », et le nombre de liens et de contacts pour surtitre). La section des contacts s'appelle
-  // alors « Contacts du centre », comme la ligne du menu du compte qui y mène. Le nombre de liens et de contacts
+  // La page est Cours et QCM, Documents ; elle porte ce nom, avec la promo en surtitre. La section des contacts
+  // s'appelle « Contacts du centre », comme la ligne du menu du compte qui y mène. Le nombre de liens et de contacts
   // termine le sous-titre.
-  const v2 = navigationV2Active();
   const surtitre = getPromoCourante()?.nom;
   const compte = `${ressources.length} lien${ressources.length > 1 ? "s" : ""} · ${contacts.length} contact${contacts.length > 1 ? "s" : ""}`;
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      v2 ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null)
-        : el("p", { class: "eyebrow" }, ressources.length + " liens curés · " + contacts.length + " contacts"),
-      el("h2", {}, v2 ? "Documents" : "Ressources & contacts"),
-      el("p", { class: "subtitle" }, (v2 ? "Contacts du centre" : "Contacts administration")
-        + " (absences, justificatifs) + textes officiels & sites pédagogiques." + (v2 ? ` ${compte}.` : "")),
+      surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
+      el("h2", {}, "Documents"),
+      el("p", { class: "subtitle" }, "Contacts du centre"
+        + " (absences, justificatifs) + textes officiels & sites pédagogiques." + ` ${compte}.`),
     ),
   ));
 
   // === Section Contacts ===
   const contactsSection = el("section", { class: "contacts-section" });
   contactsSection.appendChild(el("div", { class: "contacts-section-head" },
-    el("h3", { class: "ressource-section-title" }, v2 ? "Contacts du centre" : "Contacts administration"),
+    el("h3", { class: "ressource-section-title" }, "Contacts du centre"),
     admin ? el("button", {
       class: "btn small accent",
       onClick: () => openContactModal(null, () => reload(container)),

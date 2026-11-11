@@ -4,20 +4,15 @@
 // (impression du navigateur) et CSV de la matrice des notes. Les calculs vivent dans
 // js/centre-stats.js et js/centre-csv.js (purs, testés) : ici, seulement l'affichage.
 
-import { lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261111c";
-import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261111c";
-import { icon } from "../icons.js?v=20261111c";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261111c";
-import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261111c";
-import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261111c";
-import { navigationV2Active } from "../nav-etat.js?v=20261111c";
+import { lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande, getMesPromos, getPromoCourante } from "../db.js?v=20261111g";
+import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261111g";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261111g";
+import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261111g";
+import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261111g";
+import { entier, fr1, pct, pluriel } from "../nombres.js?v=20261111g";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111g";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
-
-const pct = (x) => Math.round(x * 100) + " %";
-const fr1 = (x) => x.toFixed(1).replace(".", ",");
-const entier = (x) => Number(x).toLocaleString("fr-FR");
-const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
 
 const LIBELLES_COMPARAISON = [
   ["effectif", "Effectif"],
@@ -69,7 +64,8 @@ export function cartesCles(ind) {
   return [
     carte({ cle: "effectif", titre: "Effectif", nature: "mesuré",
       valeur: pluriel(ef.inscrits, "inscrit"),
-      detail: `${pluriel(ef.enFormation, "en formation", "en formation")} · ${pluriel(ef.abandons, "abandon")}` }),
+      detail: `${pluriel(ef.enFormation, "en formation", "en formation")} · ${pluriel(ef.abandons, "abandon")}`
+        + (ef.surDemande ? ` · ${pluriel(ef.surDemande, "effacée à la demande", "effacées à la demande")}` : "") }),
     carte({ cle: "abandon", titre: "Taux d'abandon", nature: "mesuré",
       valeur: ab.valeur == null ? null : pct(ab.valeur),
       detail: ab.valeur == null ? null : `${pluriel(ab.detail.abandons, "abandon")} sur ${pluriel(ab.detail.inscrits, "inscrit")}` }),
@@ -247,9 +243,9 @@ export function telecharger(nomFichier, texte) {
 }
 
 function ouvrirExportCsv(promo, donnees) {
-  const fond = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
   const caseAnon = el("input", { type: "checkbox", id: "centre-csv-anon" });
-  const fermer = () => fond.remove();
+  const fermer = () => modale.fermer();
   const valider = () => {
     const anonymiser = caseAnon.checked;
     const texte = matriceNotesCsv({ stagiaires: donnees.stagiaires, evaluations: donnees.evaluations, anonymiser });
@@ -257,8 +253,7 @@ function ouvrirExportCsv(promo, donnees) {
     toast(anonymiser ? "Matrice anonyme téléchargée" : "Matrice des notes téléchargée", "success");
     fermer();
   };
-  fond.addEventListener("click", (e) => { if (e.target === fond) fermer(); });
-  fond.appendChild(el("div", { class: "modal centre-modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "centre-csv-titre" },
+  modale = ouvrirModale(el("div", { class: "modal centre-modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "centre-csv-titre" },
     el("h3", { id: "centre-csv-titre" }, "Matrice des notes en tableau (CSV)"),
     el("p", {}, "Une ligne par stagiaire en formation, une colonne par compétence et par thème : la dernière note, ramenée sur 20, et la moyenne de toutes les notes. Le fichier s'ouvre dans Excel."),
     el("p", { class: "centre-avertissement" }, "Le fichier contient des notes nominatives : il reste dans l'équipe pédagogique. Pour le transmettre au-delà, remplacez les noms par des numéros."),
@@ -266,7 +261,6 @@ function ouvrirExportCsv(promo, donnees) {
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"),
       el("button", { class: "btn primary", type: "button", onClick: valider }, "Télécharger"))));
-  document.body.appendChild(fond);
 }
 
 // --- Page ---
@@ -275,9 +269,12 @@ export async function renderCentre(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   const promo = getPromoCourante();
-  let referentiel, donnees;
+  let referentiel, donnees, demandes;
   try {
-    [referentiel, donnees] = await Promise.all([lireReferentielCentre(), lireDonneesCentre(promo?.id ?? null)]);
+    // Les fiches effacées à la demande, de la promo affichée et des autres promos du tableau de comparaison : lues une fois.
+    const idsPromos = [...new Set([promo?.id, ...getMesPromos().map((p) => p.id)].filter((id) => id != null))];
+    [referentiel, donnees, demandes] = await Promise.all([lireReferentielCentre(), lireDonneesCentre(promo?.id ?? null),
+      lireEffacementsSurDemande(idsPromos)]);
   } catch (e) {
     console.error(e);
     if (jeton !== rendu) return;
@@ -289,7 +286,7 @@ export async function renderCentre(container) {
   }
   if (jeton !== rendu) return;
   const aujourdhui = isoDate(new Date());
-  const ind = indicateursPromo(donnees, referentiel, { aujourdhui });
+  const ind = indicateursPromo(donnees, referentiel, { aujourdhui, demandes });
 
   clear(container);
   const racine = el("div", { class: "centre" });
@@ -300,14 +297,11 @@ export async function renderCentre(container) {
        promo.date_fin ? "au " + formatDate(promo.date_fin) : (promo.date_debut ? "(fin non fixée)" : null)]
         .filter(Boolean).join(" ")
     : "";
-  // Nouvelle navigation : la page porte le nom de son entrée, « Indicateurs », avec la promo en surtitre (avant : le
-  // surtitre « Tableau de bord du centre », et la promo pour titre).
-  const v2 = navigationV2Active();
+  // La page porte le nom de son entrée, « Indicateurs », avec la promo en surtitre.
   racine.appendChild(el("div", { class: "view-header centre-entete" },
     el("div", { class: "view-header-text" },
-      v2 ? (promo?.nom ? el("p", { class: "eyebrow" }, promo.nom) : null)
-        : el("p", { class: "eyebrow" }, "Tableau de bord du centre"),
-      el("h2", {}, v2 ? "Indicateurs" : (promo?.nom || "Promo courante")),
+      promo?.nom ? el("p", { class: "eyebrow" }, promo.nom) : null,
+      el("h2", {}, "Indicateurs"),
       el("p", { class: "subtitle" }, [periode, promo?.lieu_nom ? "Lieu : " + promo.lieu_nom : null,
         "Édité le " + formatDate(aujourdhui)].filter(Boolean).join(" · "))),
     el("div", { class: "centre-actions" },
@@ -342,7 +336,7 @@ export async function renderCentre(container) {
     for (const p of comparaison.autres) {
       let ligne = null;
       try {
-        ligne = ligneComparaison(indicateursPromo(await lireDonneesCentre(p.id), referentiel, { aujourdhui }));
+        ligne = ligneComparaison(indicateursPromo(await lireDonneesCentre(p.id), referentiel, { aujourdhui, demandes }));
       } catch (e) { console.error("tableau de bord : promo " + p.id, e); }
       if (jeton !== rendu) return;
       comparaison.remplir(p.id, ligne);

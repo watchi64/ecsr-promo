@@ -5,19 +5,11 @@
 // Le dossier du centre ne filtre pas lui-même les promos par période : la vue ne lui passe que celles que
 // `promosDuCentre` retient (même lieu, dates qui chevauchent les 12 derniers mois).
 
-import { SOURCE, CRITERES } from "./qualiopi-referentiel.js?v=20261111c";
-import { jourDe, rempli, nb } from "./qualiopi-preuves.js?v=20261111c";
-import { LIBELLES_NIVEAU, nomFichierQualiopi } from "./qualiopi-documents.js?v=20261111c";
-
-const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-
-// « 2026-11-01 » donne « 1er novembre 2026 » ; nul si la valeur n'est pas une date « AAAA-MM-JJ ».
-export function dateLongue(valeur) {
-  const jour = jourDe(valeur);
-  if (jour === null) return null;
-  const numero = Number(jour.slice(8, 10));
-  return `${numero === 1 ? "1er" : numero} ${MOIS[Number(jour.slice(5, 7)) - 1]} ${jour.slice(0, 4)}`;
-}
+import { SOURCE, CRITERES } from "./qualiopi-referentiel.js?v=20261111g";
+import { jourDe, rempli } from "./qualiopi-preuves.js?v=20261111g";
+import { LIBELLES_NIVEAU, nomFichierQualiopi } from "./qualiopi-documents.js?v=20261111g";
+import { dateLongue } from "./dates.js?v=20261111g";
+import { pluriel } from "./nombres.js?v=20261111g";
 
 // Le référentiel appliqué, tel que la page l'écrit : « Décret n° 2026-728 du 1er août 2026, en vigueur le 1er novembre 2026 »
 // (la source du référentiel, sans l'objet du décret).
@@ -79,7 +71,7 @@ export function resumeNiveaux(indicateurs) {
     [nombre("partiel"), () => LIBELLES_NIVEAU.partiel.toLowerCase()],
     [nombre("hors"), () => LIBELLES_NIVEAU.hors.toLowerCase()],
   ].filter(([k]) => k > 0).map(([k, mot]) => `${k} ${mot(k)}`);
-  return `${nb(liste.length, "indicateur")} : ${parties.join(", ")}`;
+  return `${pluriel(liste.length, "indicateur")} : ${parties.join(", ")}`;
 }
 
 // Les 7 critères dans l'ordre du décret, chacun avec ses indicateurs applicables (ceux de l'inventaire, dans l'ordre des

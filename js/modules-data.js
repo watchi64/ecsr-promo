@@ -25,8 +25,7 @@ export const GROUPES = ["Démarrage", "Suivi de la formation", GROUPE_CCP1, "Dos
 // stagiaires : page des formateurs, hors modules (chantier D, lot 2).
 // emargement : page des formateurs (spec 2026-10-23) ; un stagiaire ne voit rien tant
 // qu'aucune feuille n'est ouverte, il n'y a donc rien à masquer par un module.
-// preferences : Mes préférences, la page de la personne sous la nouvelle navigation (menu du compte) ;
-// avec l'ancienne, son adresse mène à config (js/nav-rules.js).
+// preferences : Mes préférences, la page de la personne (menu du compte).
 export const ROUTES_SOCLE = ["home", "mon-suivi", "config", "nouveautes", "stagiaires", "emargement", "preferences"];
 
 // Route d'un onglet vers le module qui la gouverne.
@@ -42,9 +41,8 @@ export const MODULE_DE_ROUTE = {
 
 // Sous-onglets rattachés à un module, par route. Sert aux liens « Où le
 // trouver » des nouveautés ; les vues, elles, déclarent `module` sur leurs
-// sous-onglets (js/views/notes.js, js/views/mon-suivi.js, et sous la nouvelle
-// navigation js/views/planning-espace.js et js/views/themes.js). Garder les deux
-// d'accord.
+// sous-onglets (js/views/notes.js, js/views/mon-suivi.js, js/views/planning-espace.js
+// et js/views/themes.js). Garder les deux d'accord.
 export const MODULE_DE_SOUS_ONGLET = {
   notes: { matrice: "notes", epcf: "epcf" },
   "mon-suivi": { evolution: "notes", epcf: "epcf", livret: "livret", dp: "dp", classe: "notes" },
@@ -69,22 +67,23 @@ export const MODULES = [
     },
   },
   {
-    cle: "calendrier", nom: "Calendrier", accord: "ms", groupe: "Démarrage", depart: true,
+    // Clé historique « calendrier » (stockée en base, jamais renommée) : la partie s'affiche « Dates clés » depuis le 11/11.
+    cle: "calendrier", nom: "Dates clés", accord: "fp", groupe: "Démarrage", depart: true,
     explication: "Dates clés : périodes en centre, stages, examens.",
     annonce: {
-      titre: "Le calendrier est ouvert",
-      resume: "Les grandes dates de la formation : périodes en centre, stages, examens. "
-            + "L'Accueil affiche aussi le compte à rebours jusqu'au prochain rendez-vous important.",
-      ou: { label: "Calendrier", route: "calendrier" },
+      titre: "Les dates clés sont ouvertes",
+      resume: "Les grandes dates de la formation : périodes en centre, stages, examens.",
+      ou: { label: "Planning, Dates clés", route: "calendrier" },
     },
   },
   {
-    cle: "ressources", nom: "Ressources", accord: "fp", groupe: "Démarrage", depart: true,
+    // Clé historique « ressources » (stockée en base, jamais renommée) : la partie s'affiche « Documents » depuis le 11/11.
+    cle: "ressources", nom: "Documents", accord: "mp", groupe: "Démarrage", depart: true,
     explication: "Contacts du centre et liens utiles.",
     annonce: {
-      titre: "Les ressources sont ouvertes",
+      titre: "Les documents sont ouverts",
       resume: "Les contacts utiles du centre et une sélection de liens et de documents pour réviser.",
-      ou: { label: "Ressources", route: "ressources" },
+      ou: { label: "Cours et QCM, Documents", route: "ressources" },
     },
   },
   {
@@ -111,12 +110,12 @@ export const MODULES = [
     },
   },
   {
-    // Clé historique « themes » (stockée en base, jamais renommée) : l'onglet s'affiche
-    // désormais « Cours », avec ses sous-onglets Thèmes et Compétences.
+    // Clé historique « themes » (stockée en base, jamais renommée) : les sous-onglets Thèmes et Compétences
+    // de Cours et QCM.
     cle: "themes", nom: "Cours", accord: "mp", groupe: "Suivi de la formation",
-    explication: "Onglet Cours : thèmes, compétences et progression de la classe.",
+    explication: "Cours et QCM, Thèmes et Compétences : thèmes, compétences et progression de la classe.",
     annonce: {
-      titre: "L'onglet Cours est ouvert",
+      titre: "Les thèmes et les compétences sont ouverts",
       resume: "Les thèmes et les compétences de la formation, avec ceux déjà traités en classe "
             + "et leur date.",
       ou: { label: "Cours", route: "themes" },
@@ -128,7 +127,7 @@ export const MODULES = [
     annonce: {
       titre: "Les cours sont ouverts",
       resume: "Chaque thème a son cours à lire : l'essentiel en quelques lignes, les règles, "
-            + "les sanctions et les chiffres clés. Pour le lire, dans l'onglet Cours, toucher le titre "
+            + "les sanctions et les chiffres clés. Pour le lire, dans Cours et QCM, toucher le titre "
             + "d'un thème ou son bouton Cours.",
       ou: { label: "Cours, colonne Cours", route: "themes" },
     },
@@ -153,11 +152,11 @@ export const MODULES = [
       titre: "Les évaluations EPCF sont ouvertes",
       resume: "Les résultats des EPCF (évaluations passées en cours de formation) du CCP1, en salle "
             + "et en véhicule, s'affichent dans l'app, avec les moyennes de la classe.",
-      ou: { label: "Mon espace personnel, partie Évaluations EPCF", route: "mon-suivi", sousOnglet: "epcf" },
+      ou: { label: "Mon suivi, partie Évaluations EPCF", route: "mon-suivi", sousOnglet: "epcf" },
     },
   },
   {
-    // Plus de parent : le livret vit dans la fiche (Mon espace, page Stagiaires).
+    // Plus de parent : le livret vit dans la fiche (Mon suivi, page Stagiaires).
     cle: "livret", nom: "Livret EPCF", accord: "ms", groupe: GROUPE_CCP1,
     explication: "Livret EPCF officiel : le stagiaire le consulte dans son suivi, le formateur évaluateur le remplit dans la page Stagiaires.",
     annonce: {
@@ -165,7 +164,7 @@ export const MODULES = [
       resume: "Le livret EPCF officiel de chaque stagiaire se consulte dans l'app : c'est le formateur "
             + "évaluateur qui le remplit. La date de naissance, à indiquer dans l'app, y est reportée "
             + "automatiquement.",
-      ou: { label: "Mon espace personnel, partie Livret EPCF", route: "mon-suivi", sousOnglet: "livret" },
+      ou: { label: "Mon suivi, partie Livret EPCF", route: "mon-suivi", sousOnglet: "livret" },
     },
   },
   {
@@ -176,7 +175,7 @@ export const MODULES = [
       resume: "Chaque stagiaire remplit son dossier professionnel directement dans l'app, puis l'imprime "
             + "ou l'enregistre en PDF au format officiel. Les formateurs peuvent le relire et "
             + "aider le stagiaire.",
-      ou: { label: "Mon espace personnel, partie Dossier professionnel", route: "mon-suivi", sousOnglet: "dp" },
+      ou: { label: "Mon suivi, partie Dossier professionnel", route: "mon-suivi", sousOnglet: "dp" },
     },
   },
   {

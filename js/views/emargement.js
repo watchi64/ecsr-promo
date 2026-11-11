@@ -7,25 +7,26 @@ import {
   listStagiaires, listProfs, getPlanning, getHalfMetaForWeek, getJoursOff, getPromoCourante,
   listEmargementSeances, ouvrirEmargement, signerEmargement, signerEmargementFormateur,
   annoterEmargement, cloreEmargement, rouvrirEmargement, getEnteteEmargement, setEnteteEmargement,
-} from "../db.js?v=20261111c";
-import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261111c";
-import { confirmer } from "../confirmer.js?v=20261111c";
-import { icon } from "../icons.js?v=20261111c";
-import { isAdmin, isProf, isEquipe, getProfile } from "../auth-admin.js?v=20261111c";
+} from "../db.js?v=20261111g";
+import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261111g";
+import { confirmer } from "../confirmer.js?v=20261111g";
+import { icon } from "../icons.js?v=20261111g";
+import { isAdmin, isEquipe, getProfile } from "../auth-admin.js?v=20261111g";
 import {
   etatLigne, resumeSeance, resumeEnClair, etatSansFeuille, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
-  adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
+  adresseSeance, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
   demiVoisine, notesProposees, roleAuPlanning,
-} from "../emargement-rules.js?v=20261111c";
-import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261111c";
+} from "../emargement-rules.js?v=20261111g";
+import { lundiDe, jourDe, dayIndexDe } from "../dates.js?v=20261111g";
+import { ouvrirSignature, signatureOuMention } from "../signature-pad.js?v=20261111g";
 import {
   feuilleSeance, feuilleSemaine, imprimer, nomComplet, jourLong, DEMI_LONG, stagiairesDeFeuille,
-} from "../emargement-feuilles.js?v=20261111c";
-import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261111c";
-import { emargementActif } from "../emargement-etat.js?v=20261111c";
-import { navigationV2Active } from "../nav-etat.js?v=20261111c";
-import { estAdresseAttestations } from "../attestations-rules.js?v=20261111c";
-import { renderAttestations } from "./attestations.js?v=20261111c";
+} from "../emargement-feuilles.js?v=20261111g";
+import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261111g";
+import { emargementActif } from "../emargement-etat.js?v=20261111g";
+import { estAdresseAttestations } from "../attestations-rules.js?v=20261111g";
+import { renderAttestations } from "./attestations.js?v=20261111g";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111g";
 
 // Horaires par défaut, comme DEFAULT_HALF_META du planning.
 const HORAIRES_DEFAUT = { matin: { debut: "09:00", fin: "12:30" }, aprem: { debut: "13:30", fin: "17:00" } };
@@ -113,7 +114,7 @@ function jourOff(ctx, jour) {
 }
 
 function stagiaireIdsActifs(ctx) {
-  return ctx.stagiairesTous.filter((s) => s.actif).map((s) => s.id);
+  return ctx.stagiairesTous.filter((s) => s.actif && !s.anonymise_le).map((s) => s.id);
 }
 
 function enErreur(e) {
@@ -128,16 +129,12 @@ function dessinerSemaine(ctx) {
   const titre = `Semaine du ${jourLong(lundi, { annee: false }).toLowerCase()} au ${jourLong(vendredi).toLowerCase()}`;
   const aller = (j) => { location.hash = adresseSeance(j, null); };
 
-  // Nouvelle navigation : la page porte le nom de son entrée, « Émargement », avec la promo en surtitre, comme les autres
-  // pages de l'équipe (le surtitre ne répète pas alors le titre).
-  const v2 = navigationV2Active();
+  // La page porte le nom de son entrée, « Émargement », avec la promo en surtitre, comme les autres pages de l'équipe.
   if (!ctx.dansLeCentre) {
     page.appendChild(el("div", { class: "view-header" },
       el("div", { class: "view-header-text" },
-        v2
-          ? (ctx.promo ? el("p", { class: "eyebrow" }, ctx.promo.nom) : null)
-          : el("p", { class: "eyebrow" }, "Émargement" + (ctx.promo ? " · " + ctx.promo.nom : "")),
-        el("h2", {}, v2 ? "Émargement" : "Feuilles d'émargement"),
+        ctx.promo ? el("p", { class: "eyebrow" }, ctx.promo.nom) : null,
+        el("h2", {}, "Émargement"),
         el("p", { class: "subtitle" }, ctx.lecture
           ? "Les feuilles de la promo, en lecture. Vous pouvez imprimer les feuilles closes et les attestations."
           : "Ouvrez la feuille de la demi-journée en cours : chaque stagiaire signe sur son téléphone, "
@@ -228,8 +225,8 @@ export function ouvrirEntete(ctx, { apres = null } = {}) {
   const signataire = champ("signataire", 80, { placeholder: "Prénom et nom" });
   const qualite = champ("qualite", 80, { placeholder: "Directeur, responsable pédagogique…" });
   const lieu = champ("lieu", 60, { placeholder: ctx.promo?.lieu_nom || "" });
-  const fond = el("div", { class: "modal-backdrop" });
-  const fermer = () => fond.remove();
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
+  const fermer = () => modale.fermer();
   const enregistrer = el("button", { class: "btn primary", type: "button", onClick: async () => {
     enregistrer.disabled = true;
     try {
@@ -243,7 +240,7 @@ export function ouvrirEntete(ctx, { apres = null } = {}) {
       if (apres) apres(ctx.entete);
     } catch (e) { enregistrer.disabled = false; enErreur(e); }
   } }, "Enregistrer");
-  fond.appendChild(el("div", { class: "modal em-modal-entete", role: "dialog", "aria-modal": "true", "aria-label": "En-tête des documents" },
+  modale = ouvrirModale(el("div", { class: "modal em-modal-entete", role: "dialog", "aria-modal": "true", "aria-label": "En-tête des documents" },
     el("h3", {}, "En-tête des documents"),
     el("div", { class: "modal-form" },
       el("label", {}, "Organisme de formation", organisme),
@@ -259,9 +256,7 @@ export function ouvrirEntete(ctx, { apres = null } = {}) {
     ),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"), enregistrer),
-  ));
-  document.body.appendChild(fond);
-  organisme.focus();
+  ), { fermerAuVoile: false, focus: organisme, avantFermeture: () => !enregistrer.disabled });
 }
 
 // ===================================================================== Demi-journée
@@ -347,7 +342,7 @@ function dessinerSeance(ctx) {
       onClick: () => ouvrirObservation(ctx, s, st, ligne) }, ligne?.observation ? "Modifier la remarque" : "Remarque"));
     }
     ul.appendChild(el("li", { class: "em-ligne em-ligne-" + etat.code },
-      el("div", { class: "em-ligne-sig" }, etat.code === "signe" ? rendreSignature(ligne.trace, { titre: "Signature de " + displayStagiaire(st) }) : null),
+      el("div", { class: "em-ligne-sig" }, etat.code === "signe" ? signatureOuMention(ligne, "Signature de " + displayStagiaire(st)) : null),
       el("div", { class: "em-ligne-corps" },
         el("span", { class: "em-ligne-nom" }, displayStagiaire(st)),
         el("span", { class: "em-ligne-etat" }, etat.libelle,
@@ -427,7 +422,7 @@ function dessinerFormateurs(ctx, s, { ouverte }) {
   const bloc = el("div", { class: "em-formateurs" }, el("h3", {}, "Formateur"));
   for (const f of s.formateurs) {
     bloc.appendChild(el("div", { class: "em-formateur" },
-      el("div", { class: "em-ligne-sig" }, rendreSignature(f.trace, { titre: "Signature de " + f.nom })),
+      el("div", { class: "em-ligne-sig" }, signatureOuMention(f, "Signature de " + f.nom)),
       el("div", { class: "em-ligne-corps" },
         el("span", { class: "em-ligne-nom" }, f.nom),
         el("span", { class: "em-ligne-etat" }, jourLocal(f.signe_le) === s.jour
@@ -502,14 +497,14 @@ function pucesDeNotes(notes, choisir) {
 // planning de la demi-journée, rappel de le remplacer sur sa carte.
 function ouvrirAbsence(ctx, s, st) {
   const precision = el("input", { type: "text", maxlength: "200", placeholder: "Autre précision (facultatif)" });
-  const fond = el("div", { class: "modal-backdrop" });
-  const fermer = () => fond.remove();
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
+  const fermer = () => modale.fermer();
   const marquer = async (observation) => {
     fermer();
     await annoter(ctx, s, st, { absent: true, observation: observation || null }, `${displayStagiaire(st)} marqué absent.`);
   };
   const role = roleAuPlanning(ctx.entries, dayIndexDe(s.jour), s.demi_journee, st.id);
-  fond.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Marquer absent" },
+  modale = ouvrirModale(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Marquer absent" },
     el("h3", {}, "Absent : " + displayStagiaire(st)),
     role ? el("p", { class: "em-alerte" }, `Prévu ${role} sur le planning de cette demi-journée : pensez à le remplacer sur sa carte. `,
       el("a", { href: "#/planning" }, "Ouvrir le planning")) : null,
@@ -520,16 +515,15 @@ function ouvrirAbsence(ctx, s, st) {
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"),
       el("button", { class: "btn primary", type: "button", onClick: () => marquer(precision.value.trim()) },
         "Marquer absent")),
-  ));
-  document.body.appendChild(fond);
+  ), { fermerAuVoile: false });
 }
 
 function ouvrirObservation(ctx, s, st, ligne) {
   const champ = el("input", { type: "text", value: ligne?.observation || "", maxlength: "200",
     placeholder: "Ex. : arrivé à 9 h 40, absence justifiée" });
   const puces = pucesDeNotes(notesDeLaSemaine(ctx), (t) => { champ.value = t; champ.focus(); });
-  const fond = el("div", { class: "modal-backdrop" });
-  const fermer = () => fond.remove();
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
+  const fermer = () => modale.fermer();
   const enregistrer = async (texte) => {
     try {
       await annoterEmargement(s.id, st.id, { observation: texte });
@@ -538,7 +532,7 @@ function ouvrirObservation(ctx, s, st, ligne) {
       await recharger(ctx);
     } catch (e) { enErreur(e); }
   };
-  fond.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Remarque sur la feuille" },
+  modale = ouvrirModale(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Remarque sur la feuille" },
     el("h3", {}, "Remarque : " + displayStagiaire(st)),
     el("div", { class: "modal-form" },
       puces,
@@ -547,9 +541,7 @@ function ouvrirObservation(ctx, s, st, ligne) {
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"),
       ligne?.observation ? el("button", { class: "btn", type: "button", onClick: () => enregistrer("") }, "Effacer") : null,
       el("button", { class: "btn primary", type: "button", onClick: () => enregistrer(champ.value.trim()) }, "Enregistrer")),
-  ));
-  document.body.appendChild(fond);
-  champ.focus();
+  ), { fermerAuVoile: false, focus: champ });
 }
 
 async function cloreFeuille(ctx, s, enAttente) {

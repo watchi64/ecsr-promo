@@ -1,6 +1,8 @@
 // Émargement (spec 2026-10-23) : règles pures, sans DOM ni base. Lu par node
 // (tests/emargement-rules.test.mjs), par l'app et par le générateur de signatures
 // fictives de la démonstration (scripts/emargement-demo.mjs).
+import { jourDe, dayIndexDe, lundiDe, jourParis } from "./dates.js?v=20261111g";
+import { pluriel } from "./nombres.js?v=20261111g";
 
 // Interrupteur par promo (demande de Timy du 23/10 : éteint partout, allumé pour la seule
 // promo de démonstration tant qu'il n'en décide pas autrement). Réglage `settings`
@@ -94,9 +96,24 @@ const LIBELLE_ABSENCE = {
   non_signe: "Absent (non signé)",
 };
 
+// Une ligne (d'un stagiaire ou d'un formateur) est signée quand son dessin est là, quand l'heure de signature est posée
+// (les lectures légères n'ont pas le dessin) ou quand la signature a été effacée à la durée de conservation
+// (`signature_effacee_le`) : la base garde alors l'heure, la présence et le total d'heures, seul le dessin part.
+export function ligneSignee(ligne) {
+  return Boolean(ligne && (ligne.trace || ligne.signe_le || ligne.signature_effacee_le));
+}
+
+// Vrai quand la ligne est signée mais que son dessin n'existe plus (étape des 3 ans).
+export function signatureEffacee(ligne) {
+  return ligneSignee(ligne) && !ligne.trace;
+}
+
+// Ce que la feuille écrit à la place du dessin effacé.
+export const MENTION_SIGNATURE_EFFACEE = "Signature effacée (durée de conservation)";
+
 // État d'un stagiaire sur une séance. `ligne` : sa ligne d'émargement (ou null).
 export function etatLigne({ ligne, absentPlanning = false, close = false }) {
-  if (ligne && ligne.trace) {
+  if (ligneSignee(ligne)) {
     return {
       code: "signe",
       libelle: "Signé à " + heureLocale(ligne.signe_le),
@@ -131,17 +148,15 @@ export function resumeSeance(lignes, stagiaireIds, close, absentsPlanning = null
   return r;
 }
 
-const nombre = (n, un, plusieurs) => `${n} ${n > 1 ? plusieurs : un}`;
-
 // La suite du résumé d'une feuille, après « 2 sur 6 » : les signés, les absents notés, ceux qui
 // n'ont rien dit et, à part, les absents prévus au planning. Les quatre font le total.
 export function resumeEnClair(r, { ouverte }) {
   const attente = ouverte ? r.attente - (r.prevus || 0) : 0;
   const prevus = ouverte ? r.prevus || 0 : 0;
   return " ont signé"
-    + (r.absents ? " · " + nombre(r.absents, "absent", "absents") : "")
+    + (r.absents ? " · " + pluriel(r.absents, "absent") : "")
     + (attente ? ` · ${attente} en attente` : "")
-    + (prevus ? " · " + nombre(prevus, "absent prévu", "absents prévus") + " au planning" : "");
+    + (prevus ? " · " + pluriel(prevus, "absent prévu", "absents prévus") + " au planning" : "");
 }
 
 // La case d'une demi-journée sans feuille, dans la semaine de l'émargement (hors jour désactivé et
@@ -203,42 +218,18 @@ export function heureLocale(iso) {
   return heureEcrite(h, m);
 }
 
-const FORMAT_JOUR_PARIS = new Intl.DateTimeFormat("fr-CA", {
-  timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit",
-});
-
-// Jour de Paris (AAAA-MM-JJ) d'un horodatage du serveur.
+// Jour de Paris (AAAA-MM-JJ) d'un horodatage du serveur ; chaîne vide sans horodatage.
 export function jourLocal(iso) {
-  return iso ? FORMAT_JOUR_PARIS.format(new Date(iso)) : "";
-}
-
-// Calculs de dates sur des chaînes AAAA-MM-JJ, en UTC : aucun fuseau ne s'en mêle.
-const versDate = (iso) => new Date(iso + "T00:00:00Z");
-const versIso = (d) => d.toISOString().slice(0, 10);
-
-export function jourDe(lundiIso, dayIndex) {
-  const d = versDate(lundiIso);
-  d.setUTCDate(d.getUTCDate() + dayIndex);
-  return versIso(d);
-}
-
-// 0 = lundi … 6 = dimanche.
-export function dayIndexDe(jourIso) {
-  return (versDate(jourIso).getUTCDay() + 6) % 7;
-}
-
-export function lundiDe(jourIso) {
-  return jourDe(jourIso, -dayIndexDe(jourIso));
+  return iso ? jourParis(iso) ?? "" : "";
 }
 
 function jourValide(s) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(s || ""))) return false;
-  const d = versDate(s);
-  return !Number.isNaN(d.getTime()) && versIso(d) === s;
+  return !Number.isNaN(Date.parse(s + "T00:00:00Z")) && jourDe(s, 0) === s;
 }
 
-// Jours fériés nationaux (métropole), mêmes règles que js/views/planning.js
-// (frenchHolidays, non exporté) : libellé du jour, ou null.
+// Jours fériés nationaux (métropole) : libellé du jour, ou null. Seul calcul de l'app : le planning et Mon suivi le lisent
+// aussi (tests/jours-feries.test.mjs).
 function paques(annee) {
   const a = annee % 19, b = Math.floor(annee / 100), c = annee % 100;
   const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
@@ -323,7 +314,7 @@ export function nomsFormateursProposes({ entries, profs, monNom }) {
 // Minutes de présence (séances signées) d'un stagiaire sur un ensemble de séances.
 export function minutesPresence(seances, lignes, stagiaireId) {
   const signees = new Set((lignes || [])
-    .filter((l) => l.stagiaire_id === stagiaireId && l.trace)
+    .filter((l) => l.stagiaire_id === stagiaireId && ligneSignee(l))
     .map((l) => l.seance_id));
   return (seances || [])
     .filter((s) => signees.has(s.id))

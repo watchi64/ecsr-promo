@@ -37,27 +37,27 @@
 // ne les attend jamais : ils sont lus après le montage, relus à chaque page affichée (au plus toutes les 30 secondes),
 // et un compte illisible ne montre ni pastille ni erreur.
 
-import { el } from "./utils.js?v=20261111c";
-import { icon, deco } from "./icons.js?v=20261111c";
-import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261111c";
-import { getPromoCourante, getLieuxLus } from "./db.js?v=20261111c";
-import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261111c";
-import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261111c";
-import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261111c";
-import { libellePastille } from "./nouveautes.js?v=20261111c";
+import { el } from "./utils.js?v=20261111g";
+import { icon, deco } from "./icons.js?v=20261111g";
+import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261111g";
+import { getPromoCourante, getLieuxLus } from "./db.js?v=20261111g";
+import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261111g";
+import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261111g";
+import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261111g";
+import { libellePastille } from "./nouveautes.js?v=20261111g";
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole, nomDuBoutonCompte,
-} from "./nav-rules.js?v=20261111c";
-import { chargerATraiter } from "./a-traiter.js?v=20261111c";
+} from "./nav-rules.js?v=20261111g";
+import { chargerATraiter } from "./a-traiter.js?v=20261111g";
 import {
   ENTREE_A_TRAITER, resumeATraiter, nomAvecATraiter, phraseATraiter, pointSurPlus, nomDePlus,
-} from "./a-traiter-rules.js?v=20261111c";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261111c";
-import { ouvrirMenuCompte } from "./menu-compte.js?v=20261111c";
-import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261111c";
-import { ouvrirSignalement } from "./signalement.js?v=20261111c";
-import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261111c";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261111c";
+} from "./a-traiter-rules.js?v=20261111g";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261111g";
+import { ouvrirMenuCompte } from "./menu-compte.js?v=20261111g";
+import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261111g";
+import { ouvrirSignalement } from "./signalement.js?v=20261111g";
+import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261111g";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261111g";
 
 // Barre latérale repliée en colonne d'icônes : choix mémorisé sur l'appareil.
 const CLE_REPLIEE = "ecsr_nav_repliee";

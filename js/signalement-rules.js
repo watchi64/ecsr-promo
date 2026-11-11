@@ -4,8 +4,9 @@
 // journal des erreurs, réduction de la capture, phrase d'un refus du serveur, adresse sûre pour un lien.
 // Module pur, sans DOM ni stockage : testé en node.
 
-import { libellePastille } from "./nouveautes.js?v=20261111c";
-import { LIBELLES_APERCU } from "./roles-rules.js?v=20261111c";
+import { libellePastille } from "./nouveautes.js?v=20261111g";
+import { LIBELLES_APERCU } from "./roles-rules.js?v=20261111g";
+import { deuxChiffres } from "./dates.js?v=20261111g";
 
 // L'espace de la coquille, en mots simples (lot 5 : direction et siège en plus). Inconnu ou absent : le stagiaire, comme avant.
 const ESPACE_EN_MOTS = { stagiaire: "stagiaire", equipe: "équipe", direction: "direction", siege: "siège" };
@@ -127,8 +128,6 @@ function appareilLisible(c) {
   if (!systeme || systeme === "inconnu") return c.appareil;
   return `${c.appareil} ${systeme.split(" ")[0]}`;
 }
-
-const deuxChiffres = (n) => String(n).padStart(2, "0");
 
 // La ligne « Envoyé avec ton message : ... » de la fenêtre : page, appareil, navigateur (sans sa version mineure),
 // heure (celle de `maintenant`, l'envoi étant immédiat).

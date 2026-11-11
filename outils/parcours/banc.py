@@ -169,6 +169,14 @@ def lancer_navigateur(p, moteur):
 
 STATIQUES = ("/js/", "/css/", "/assets/", "/vendor/", "/scripts/", "/_harness_supabase.js", "/_banc_")
 CACHE = {}
+# Le banc ne parle qu'à la machine (audit du 10/11) : une requête vers un autre hôte (la vraie base, l'assistant, une police)
+# est coupée et notée ici, pour que le rapport dise ce que le banc ne simule pas. Rien ne sort de la machine.
+HOTES_LOCAUX = ("127.0.0.1",)
+SORTANTES = []
+
+
+def hote_local(url):
+    return (urllib.parse.urlparse(url).hostname or "") in HOTES_LOCAUX
 
 
 def _servir(route, semis):
@@ -176,6 +184,10 @@ def _servir(route, semis):
     n'est pas noyé quand plusieurs pages chargent ensemble). Le semis du parcours s'ajoute en fin du faux
     Supabase pour ce contexte seulement : le fichier du banc n'est jamais modifié sur le disque."""
     requete = route.request
+    if requete.url.startswith(("http:", "https:")) and not hote_local(requete.url):
+        SORTANTES.append("%s %s" % (requete.method, requete.url.split("?")[0][:160]))
+        route.abort("blockedbyclient")
+        return
     chemin = urllib.parse.urlparse(requete.url).path
     if requete.method != "GET" or not chemin.startswith(STATIQUES):
         route.continue_()

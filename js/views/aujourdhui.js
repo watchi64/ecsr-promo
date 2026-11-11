@@ -7,34 +7,33 @@
  * Une lecture qui revient après le départ de la page écrit dans un nœud détaché (isConnected) : rien n'est repeint.
  */
 import {
-  getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre,
-} from "../db.js?v=20261111c";
-import { el, clear, displayStagiaire } from "../utils.js?v=20261111c";
-import { icon } from "../icons.js?v=20261111c";
-import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261111c";
-import { libelleConnexion } from "../roles-rules.js?v=20261111c";
-import { emargementActif } from "../emargement-etat.js?v=20261111c";
-import { lignePromo } from "../accueil-rules.js?v=20261111c";
-import { journeeDuJour } from "../journee-rules.js?v=20261111c";
-import { indicateursPromo } from "../centre-stats.js?v=20261111c";
-import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261111c";
-import { signerSeance } from "../emargement-bandeau.js?v=20261111c";
-import { chargerATraiter } from "../a-traiter.js?v=20261111c";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111c";
+  getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande,
+} from "../db.js?v=20261111g";
+import { el, clear, displayStagiaire } from "../utils.js?v=20261111g";
+import { icon } from "../icons.js?v=20261111g";
+import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261111g";
+import { libelleConnexion } from "../roles-rules.js?v=20261111g";
+import { emargementActif } from "../emargement-etat.js?v=20261111g";
+import { lignePromo } from "../accueil-rules.js?v=20261111g";
+import { journeeDuJour } from "../journee-rules.js?v=20261111g";
+import { indicateursPromo } from "../centre-stats.js?v=20261111g";
+import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261111g";
+import { signerSeance } from "../emargement-bandeau.js?v=20261111g";
+import { chargerATraiter } from "../a-traiter.js?v=20261111g";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111g";
 import {
   titreSelonDemis, auTableauDuJour, enVoitureDuJour, feuilleDuJour, lignesATraiter, ligneDeLEnTete,
-} from "../aujourdhui-rules.js?v=20261111c";
+} from "../aujourdhui-rules.js?v=20261111g";
 import {
   carte, plusLien, ligneLien, erreurAvecReessai, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
-} from "./pages-cartes.js?v=20261111c";
+} from "./pages-cartes.js?v=20261111g";
+import { pluriel } from "../nombres.js?v=20261111g";
 
 const RELECTURE_SEANCES_MS = 60000;
 const NB_A_SUIVRE = 5;
 
-
 const DEMI_LONG = { matin: "Matin", aprem: "Après-midi" };
 const SIGNER = { matin: "Signer pour ce matin", aprem: "Signer pour cet après-midi" };
-const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 
 // Un message dans le corps d'une carte, au ton de la carte (« muted » pour une absence, erreur pour une panne).
 function dire(corps, texte, classe = "muted") {
@@ -229,8 +228,9 @@ async function chargerPlanning(tableau, voiture, indexJour, jour, semaine, moi) 
 async function chargerASuivre(corps, jour, promoId) {
   let ind;
   try {
-    const [referentiel, donnees] = await Promise.all([lireReferentielCentre(), lireDonneesCentre(promoId)]);
-    ind = indicateursPromo(donnees, referentiel, { aujourdhui: jour });
+    const [referentiel, donnees, demandes] = await Promise.all([lireReferentielCentre(), lireDonneesCentre(promoId),
+      lireEffacementsSurDemande(promoId == null ? [] : [promoId])]);
+    ind = indicateursPromo(donnees, referentiel, { aujourdhui: jour, demandes });
   } catch (e) {
     console.error("Aujourd'hui : indicateurs illisibles", e);
     if (corps.isConnected) dire(corps, "Les indicateurs n'ont pas pu être lus. Rechargez la page pour réessayer.", "acc-erreur");

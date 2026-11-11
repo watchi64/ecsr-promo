@@ -331,7 +331,7 @@ eq(piece(inv, "effectif"), attendue("effectif", "3 inscrits, dont 2 ont suivi la
 eq(piece(inv, "deroule"), attendue("deroule", "5 demi-journées de formation du 05/10 au 15/10"), "déroulé : 5 demi-journées");
 eq(piece(inv, "datesCles"),
   attendue("datesCles", "3 événements au calendrier (1 formation, 1 stage, 1 examen) du 28/09 au 18/12"), "dates clés");
-eq(piece(inv, "assiduite"), manquante("assiduite", "calcul des heures pas encore branché"), "assiduité : calcul des heures pas branché");
+eq(piece(inv, "assiduite"), manquante("assiduite", "feuilles d'émargement non lues (erreur de lecture)"), "assiduité : sans lecture des feuilles, la raison le dit");
 eq(piece(inv, "passages"),
   attendue("passages", "3 passages en salle et 1 en voiture (remplacements compris), 2 absences de dernière minute"), "passages");
 eq(piece(inv, "evaluations"), attendue("evaluations",
@@ -362,7 +362,7 @@ eq(piece(fiches, "resultats"), attendue("resultats",
 eq(piece(fiches, "deroule"), manquante("deroule", "aucune demi-journée renseignée au planning de cette promo"), "fiches : déroulé");
 eq(piece(fiches, "datesCles"),
   manquante("datesCles", "aucune date de formation, de stage ou d'examen au calendrier"), "fiches : dates clés");
-eq(piece(fiches, "assiduite"), manquante("assiduite", "calcul des heures pas encore branché"), "fiches : assiduité");
+eq(piece(fiches, "assiduite"), manquante("assiduite", "feuilles d'émargement non lues (erreur de lecture)"), "fiches : assiduité");
 eq(piece(fiches, "passages"), manquante("passages", "aucun passage en salle ou en voiture enregistré"), "fiches : passages");
 eq(piece(fiches, "evaluations"),
   manquante("evaluations", "aucune évaluation enregistrée ; aucun résultat de jury saisi"), "fiches : évaluations et jury");

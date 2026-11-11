@@ -41,6 +41,7 @@ import html
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import time
@@ -53,7 +54,7 @@ if hasattr(sys.stdout, "reconfigure"):
 from parcours import charger_tous  # noqa: E402
 from parcours import banc  # noqa: E402
 from parcours.visite import Visite, Echec, Fausse, NonJuge, CRITERES, BLOQUE, LISTE  # noqa: E402
-from parcours.connus import connu, attendu_dans, DEFAUTS_CONNUS  # noqa: E402
+from parcours.connus import connu, attendu_dans, echues, DEFAUTS_CONNUS  # noqa: E402
 
 MOTEURS = ("chromium", "webkit")
 FORMATS = ("ordinateur", "telephone")
@@ -84,17 +85,34 @@ def jouer_un(navigateur, p, sc, base_url, dossier):
     clavier de la machine (visite.Fausse) ne dit rien de l'app : il est rejoué dans un contexte neuf, clavier libre,
     et seul le dernier essai compte. Faussé ESSAIS_MAX fois de suite, il est « non jugé » : ni vert ni rouge."""
     reprises = []
+    # Les constats relevés avant le geste faussé sont de vrais constats sur l'app : ils sont gardés, la reprise ne les efface
+    # pas (audit du 10/11 : rejouer jusqu'au succès cache les défauts).
+    anterieurs = []
     for _ in range(ESSAIS_MAX):
         if sc["moteur"] == "webkit" and sc["format"] == "telephone":
             banc.attendre_clavier_libre(30)
         r = _jouer_une_fois(navigateur, p, sc, base_url, dossier)
         if "fausse" not in r:
             r["reprises"] = reprises
+            r["constats"] = _avec_anterieurs(r.get("constats") or [], anterieurs)
             return r  # un passage non jugé (NonJuge) est rendu tel quel, sans reprise : le rejouer n'y change rien
         reprises.append(r["fausse"])
+        anterieurs.extend(r.get("constats") or [])
     return {"parcours": p.id, **sc, "abouti": False, "non_juge": "geste faussé %d fois par le clavier de la machine (dernier : %s)"
             % (len(reprises), reprises[-1]), "reprises": reprises, "clics": 0, "clics_au_but": None, "budget": None, "duree": 0,
-            "ouverture_ms": None, "etapes": [], "constats": [], "capture_finale": None}
+            "ouverture_ms": None, "etapes": [], "constats": _avec_anterieurs([], anterieurs), "capture_finale": None}
+
+
+def _avec_anterieurs(constats, anterieurs):
+    """Ajoute aux constats du dernier essai ceux des essais faussés, sans doublon (même critère, gravité et message)."""
+    vus = {(c["critere"], c["gravite"], c["message"]) for c in constats}
+    out = list(constats)
+    for c in anterieurs:
+        cle = (c["critere"], c["gravite"], c["message"])
+        if cle not in vus:
+            vus.add(cle)
+            out.append({**c, "etape": "%s (essai repris)" % c.get("etape")})
+    return out
 
 
 def _jouer_une_fois(navigateur, p, sc, base_url, dossier):
@@ -104,8 +122,12 @@ def _jouer_une_fois(navigateur, p, sc, base_url, dossier):
     contexte.set_default_timeout(10000)    # aucun geste ne reste pendu plus de 10 s
     page = contexte.new_page()
     page.on("pageerror", lambda e: erreurs.append("erreur de page : %s" % str(e).splitlines()[0][:200]))
-    page.on("console", lambda m: erreurs.append("console : %s" % m.text[:200]) if m.type == "error" else None)
+    # Le chargement refusé d'une requête vers l'extérieur (coupée par le banc) n'est pas un défaut de l'app : le rapport la liste
+    # à part. Toute autre erreur de console reste un défaut.
+    page.on("console", lambda m: erreurs.append("console : %s" % m.text[:200])
+            if m.type == "error" and banc.hote_local((m.location or {}).get("url") or "http://127.0.0.1/") else None)
     page.on("dialog", lambda d: (erreurs.append("boîte de dialogue inattendue : %s" % d.message[:120]), d.dismiss()))
+    sortantes_avant = len(banc.SORTANTES)
     v = Visite(page, sc, p, base_url, dossier, erreurs)
     t0 = time.perf_counter()
     abouti, raison = True, None
@@ -124,7 +146,7 @@ def _jouer_une_fois(navigateur, p, sc, base_url, dossier):
             contexte.close()
         except Exception:
             pass
-        return {"fausse": str(e)}
+        return {"fausse": str(e), "constats": list(v.constats)}
     except NonJuge as e:
         try:
             contexte.close()
@@ -152,7 +174,7 @@ def _jouer_une_fois(navigateur, p, sc, base_url, dossier):
         pass
     return {"parcours": p.id, **sc, "abouti": abouti, "clics": v.clics, "clics_au_but": v.clics_au_but, "budget": v.budget,
             "duree": round(duree, 1), "ouverture_ms": v.temps.get("ouverture"), "etapes": v.etapes, "vues": len(v._vues_controlees), "constats": v.constats,
-            "capture_finale": getattr(v, "capture_finale", None)}
+            "capture_finale": getattr(v, "capture_finale", None), "sortantes": sorted(set(banc.SORTANTES[sortantes_avant:]))}
 
 
 def travailleur(moteur, format_, scenarios, base_url, dossier):
@@ -210,7 +232,38 @@ def git_info():
         return "?", "?"
 
 
-def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, attendus, non_juges=()):
+def cle_constat(r, c):
+    """Clé de comparaison d'un constat « à corriger par lot » avec le témoin de main : le parcours, le critère et le message,
+    chiffres effacés (une durée ou une taille mesurée varie d'un passage à l'autre)."""
+    return (r["parcours"], c["critere"], re.sub(r"\d+(?:[.,]\d+)?", "#", c["message"]))
+
+
+def charger_temoin(chemin):
+    """Les constats « à corriger par lot » d'un passage du robot sur main (dossier de rapport ou son resultats.json), et ses
+    dimensions jouées. Sert à dire lesquels la branche ajoute (audit du 10/11 : un VERT les laissait passer sans les voir)."""
+    p = pathlib.Path(chemin)
+    if p.is_dir():
+        p = p / "resultats.json"
+    donnees = json.loads(p.read_text(encoding="utf-8"))
+    cles = {cle_constat(r, c) for r in donnees for c in r.get("constats") or [] if c.get("gravite") == LISTE}
+    dims = {k: {r.get(k, "ecsr" if k == "habillage" else None) for r in donnees} for k in CLES_SCENARIO}
+    return {"chemin": str(p), "cles": cles, "dims": dims, "parcours": {r["parcours"] for r in donnees}}
+
+
+def constats_nouveaux(resultats, temoin):
+    """Les constats « à corriger par lot » de la branche absents du témoin, groupés par clé. Un parcours que le témoin n'a pas
+    joué (nouveau parcours) compte : ses constats sont tous nouveaux pour main."""
+    nouveaux = {}
+    for r in resultats:
+        for c in r["constats"]:
+            # Les temps (critère I) varient d'un passage à l'autre autour de leur seuil : un dépassement isolé n'est pas un
+            # constat nouveau de la branche (constaté le 11/11 : « 3.0 s pour un seuil de 3 s »). Ils restent dans le rapport.
+            if c["gravite"] == LISTE and c["critere"] != "I" and cle_constat(r, c) not in temoin["cles"]:
+                nouveaux.setdefault(cle_constat(r, c), []).append((r, c))
+    return nouveaux
+
+
+def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, attendus, non_juges=(), temoin=None):
     branche, tete = git_info()
     tous_bloquants = [(r, c) for r in resultats for c in r["constats"] if c["gravite"] == BLOQUE]
     # Un défaut déjà présent sur main (parcours/connus.py) est montré à part et ne bloque pas.
@@ -229,6 +282,21 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, 
              "(ne bloquent pas) ; %d constat(s) distinct(s) à corriger par lot." % (
         "VERT" if vert else ("ROUGE" if bloquants else "INCOMPLET"), len(bloquants), len({id(r) for r, _ in bloquants}),
         len({d["contient"] for _, _, d in deja_connus}), len({(c["critere"], c["message"]) for _, c in a_lister})))
+    nouveaux = constats_nouveaux(resultats, temoin) if temoin else {}
+    if temoin:
+        L.append("")
+        L.append("**Comparé au témoin de main** (`%s`) : %d constat(s) « à corriger par lot » nouveau(x) sur cette branche%s." % (
+            temoin["chemin"], len(nouveaux), " : à lire avant de fusionner (section « Nouveaux par rapport à main »)" if nouveaux else ""))
+        manque = ["%s %s" % (k, ", ".join(sorted(str(v) for v in {r.get(k, "ecsr") for r in resultats} - temoin["dims"][k])))
+                  for k in CLES_SCENARIO if {r.get(k, "ecsr") for r in resultats} - temoin["dims"][k]]
+        if manque:
+            L.append("")
+            L.append("Attention : le témoin n'a pas joué %s ; les constats de ces dimensions paraissent nouveaux. Rejouer le témoin "
+                     "avec les mêmes options." % " ; ".join(manque))
+    else:
+        L.append("")
+        L.append("Constats « à corriger par lot » non comparés à main : relancer avec `--temoin <rapport du robot sur main>` "
+                 "pour savoir lesquels cette branche ajoute.")
     for e in erreurs_moteurs:
         L.append("")
         L.append("**Moteur indisponible** : %s" % e)
@@ -239,6 +307,14 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, 
         L.append("")
         L.append("**Passage non jugé** : %s (%s), %s. Le résultat ne peut pas être vert : %s." % (
                      r["parcours"], libelle(r), r["non_juge"], r.get("conseil") or "relancer le robot sans taper au clavier pendant qu'il tourne"))
+    coupees = {}
+    for r in resultats:
+        for s in r.get("sortantes") or []:
+            coupees.setdefault(s, set()).add(r["parcours"])
+    if coupees:
+        L.append("")
+        L.append("Requêtes vers l'extérieur coupées par le banc (rien ne sort de la machine ; ce que le banc ne simule pas) : %s." % " ; ".join(
+            "%s (%s)" % (s, ", ".join(sorted(ps)[:3])) for s, ps in sorted(coupees.items())))
     rejoues = [r for r in resultats if r.get("reprises")]
     if rejoues:
         L.append("")
@@ -307,11 +383,21 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, 
                      ", ".join(sorted({libelle(r) for r, _ in occ}))))
         elif any(attendu_dans(d, r) for r in resultats):
             L.append("- **%s** (%s, %s) : **revu dans aucun passage : peut-être corrigé, ligne à retirer**." % (d["parcours"], d["critere"], d["note"]))
+    for d in echues(debut.strftime("%Y-%m-%d")):
+        L.append("- **%s** (%s, %s) : **échéance du %s passée** : corriger le défaut ou faire revoir la ligne par Timy." % (
+            d["parcours"], d["critere"], d["note"], d["echeance"]))
     L.append("")
     L.append("## À corriger par lot")
     L.append("")
     if not a_lister:
         L.append("Rien.")
+    if nouveaux:
+        L.append("## Nouveaux par rapport à main (à lire avant de fusionner)")
+        L.append("")
+        for (pid, crit, _), occ in sorted(nouveaux.items()):
+            ctx = sorted({libelle(r) for r, _ in occ})
+            L.append("- **%s**, %s. %s : %s (%s)" % (pid, crit, CRITERES[crit], occ[0][1]["message"], "; ".join(ctx[:4]) + (" ..." if len(ctx) > 4 else "")))
+        L.append("")
     groupes = {}
     for r, c in a_lister:
         groupes.setdefault((c["critere"], c["message"]), []).append((r, c))
@@ -340,7 +426,7 @@ def ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, 
         "main{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}figure{margin:0;background:#fff;padding:8px;border-radius:8px}"
         "img{width:100%;height:auto;border:1px solid #ddd}figcaption{margin-top:6px;color:#333}</style><h1>Écrans de fin des parcours</h1><main>"
         + "".join(cartes) + "</main>", encoding="utf-8")
-    return vert, len(bloquants)
+    return vert, len(bloquants), len(nouveaux)
 
 
 def main(argv=None):
@@ -353,6 +439,8 @@ def main(argv=None):
     ap.add_argument("--sortie", help="dossier du rapport (défaut : outils/robot_rapports/<date-heure>)")
     ap.add_argument("--liste", action="store_true", help="liste les parcours et s'arrête")
     ap.add_argument("--processus", type=int, default=4, help="processus en parallèle (défaut 4)")
+    ap.add_argument("--temoin", help="rapport du robot joué sur main avec les mêmes options (dossier ou resultats.json) : "
+                    "les constats « à corriger par lot » que la branche ajoute sont listés, et la sortie vaut 3 s'il y en a")
     a = ap.parse_args(argv)
 
     registre = charger_tous()
@@ -377,6 +465,13 @@ def main(argv=None):
         choix[nom] = valeurs
     moteurs, formats, navigations, habillages = choix["moteurs"], choix["formats"], choix["navigations"], choix["habillages"]
 
+    temoin = None
+    if a.temoin:
+        try:
+            temoin = charger_temoin(a.temoin)
+        except (OSError, ValueError) as e:
+            print("--temoin : rapport illisible (%s)" % e)
+            return 2
     debut = datetime.datetime.now()
     dossier = pathlib.Path(a.sortie) if a.sortie else banc.RACINE / "outils" / "robot_rapports" / debut.strftime("%Y-%m-%d_%H%M%S")
     (dossier / "captures").mkdir(parents=True, exist_ok=True)
@@ -429,7 +524,7 @@ def main(argv=None):
 
     resultats, non_juges = separer_non_juges(resultats)
     ecarts_entre_moteurs(resultats)
-    vert, nb = ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, total, non_juges)
+    vert, nb, nb_nouveaux = ecrire_rapport(dossier, resultats, registre, debut, duree, erreurs_moteurs, total, non_juges, temoin)
     incomplet = erreurs_moteurs or len(resultats) < total
     print("\n%d passages sur %d en %.1f min. %s" % (len(resultats), total, duree / 60,
           "VERT : aucun défaut bloquant nouveau." if vert else
@@ -437,7 +532,11 @@ def main(argv=None):
            else "ROUGE : %d défaut(s) bloquant(s)." % nb)))
     print("Rapport : %s" % (dossier / "rapport.md"))
     print("Planche des écrans de fin : %s" % (dossier / "planche.html"))
-    return code_de_sortie(vert, nb)
+    if temoin:
+        print("Comparé à main : %d constat(s) à corriger nouveau(x)%s." % (nb_nouveaux, " : à lire dans le rapport avant de fusionner" if nb_nouveaux else ""))
+    else:
+        print("Constats à corriger non comparés à main (option --temoin).")
+    return code_de_sortie(vert, nb, nb_nouveaux)
 
 
 def separer_non_juges(resultats):
@@ -446,10 +545,11 @@ def separer_non_juges(resultats):
     return [r for r in resultats if not r.get("non_juge")], [r for r in resultats if r.get("non_juge")]
 
 
-def code_de_sortie(vert, nb):
-    """0 vert ; 1 rouge (défaut bloquant nouveau) ; 2 le robot n'a pas pu juger (passage manquant ou non jugé)."""
+def code_de_sortie(vert, nb, nouveaux=0):
+    """0 vert ; 1 rouge (défaut bloquant nouveau) ; 2 le robot n'a pas pu juger (passage manquant ou non jugé) ; 3 vert, mais
+    la branche ajoute des constats « à corriger par lot » que le témoin de main n'a pas (--temoin) : à lire avant de fusionner."""
     if vert:
-        return 0
+        return 3 if nouveaux else 0
     return 1 if nb else 2
 
 

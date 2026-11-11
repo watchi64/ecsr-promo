@@ -1,12 +1,13 @@
 // Informations légales : lecture des conditions d'utilisation et des mentions légales
 // (plein écran, ouvrable même sans être connecté, depuis l'écran de connexion), et fenêtre
 // d'acceptation bloquante au démarrage quand la version en vigueur n'a pas été acceptée.
-import { el, clear, toast } from "./utils.js?v=20261111c";
-import { icon } from "./icons.js?v=20261111c";
-import { rendreMarkdown } from "./views/cours-reader.js?v=20261111c";
-import { CONDITIONS_MD, MENTIONS_MD, VERSION_CONDITIONS } from "./legal-data.js?v=20261111c";
-import { doitAccepter, aDejaAccepte, lignesEssentiel, dateVersion } from "./legal-rules.js?v=20261111c";
-import { listMesAcceptations, accepterConditions, signOut } from "./db.js?v=20261111c";
+import { el, clear, toast } from "./utils.js?v=20261111g";
+import { icon } from "./icons.js?v=20261111g";
+import { rendreMarkdown } from "./views/cours-reader.js?v=20261111g";
+import { CONDITIONS_MD, MENTIONS_MD, VERSION_CONDITIONS } from "./legal-data.js?v=20261111g";
+import { doitAccepter, aDejaAccepte, lignesEssentiel, dateVersion } from "./legal-rules.js?v=20261111g";
+import { listMesAcceptations, accepterConditions, signOut } from "./db.js?v=20261111g";
+import { ouvrirModale } from "./nav-fenetre.js?v=20261111g";
 
 const ONGLETS = [
   { cle: "conditions", libelle: "Conditions d'utilisation", md: CONDITIONS_MD },
@@ -88,7 +89,7 @@ export async function exigerAcceptation(email) {
 
 function fenetreAcceptation(miseAJour) {
   return new Promise((resolve) => {
-    const backdrop = el("div", { class: "modal-backdrop legal-backdrop" });
+    let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
     const coche = el("input", { type: "checkbox", id: "legal-coche" });
     const erreur = el("p", { class: "error hidden" });
     const continuer = el("button", { class: "btn primary full", type: "button", disabled: true }, "Continuer");
@@ -99,7 +100,7 @@ function fenetreAcceptation(miseAJour) {
       erreur.classList.add("hidden");
       try {
         await accepterConditions(VERSION_CONDITIONS);
-        backdrop.remove();
+        modale.fermer();
         toast("Merci, c'est enregistré.", "success", 2000);
         resolve();
       } catch (e) {
@@ -133,7 +134,7 @@ function fenetreAcceptation(miseAJour) {
         location.reload();
       } }, "Se déconnecter"),
     );
-    backdrop.appendChild(modal);
-    document.body.appendChild(backdrop);
+    // Bloquante : ni Échap ni un toucher à côté ne la ferment, seuls « Continuer » (après l'accord) ou « Se déconnecter ».
+    modale = ouvrirModale(modal, { classeFond: "legal-backdrop", fermerAuVoile: false, avantFermeture: () => false });
   });
 }

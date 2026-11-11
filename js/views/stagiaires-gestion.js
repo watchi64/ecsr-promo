@@ -1,19 +1,19 @@
 // Gestion des stagiaires d'une promo (lot 5, Task 9) : la liste modifiable (prénom, nom de famille, abandon, ajout), les abandons
-// (réactivation, effacement des données) et l'invitation du compte d'une fiche. Sortie de js/views/config.js (section Promo des
+// (réactivation) et l'invitation du compte d'une fiche. L'effacement des données (à la demande de la personne, ou aux dates de
+// conservation) est sur la page Qualiopi, fondateur seul (lot Q5). Sortie de js/views/config.js (section Promo des
 // Réglages du formateur) pour être montée aussi dans la page Stagiaires de la direction. Tout porte sur la promo affichée : la base
 // n'accepte d'écrire une fiche que dans la promo courante (équipe de la promo ou direction de son centre).
 
 import {
-  listStagiaires, addStagiaire, updateStagiaire, updateStagiaireNom, setStagiaireActif, anonymiserStagiaire,
+  listStagiaires, addStagiaire, updateStagiaire, updateStagiaireNom, setStagiaireActif,
   listUserProfiles, inviteUser,
-} from "../db.js?v=20261111c";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111c";
-import { icon } from "../icons.js?v=20261111c";
-import { isEquipe } from "../auth-admin.js?v=20261111c";
-import { confirmationValide, resumeEffacement } from "../effacement-rules.js?v=20261111c";
-import { messageInvitationReussie } from "../roles-rules.js?v=20261111c";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261111c";
-import { confirmer, demander } from "../confirmer.js?v=20261111c";
+} from "../db.js?v=20261111g";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111g";
+import { icon } from "../icons.js?v=20261111g";
+import { isEquipe } from "../auth-admin.js?v=20261111g";
+import { messageInvitationReussie } from "../roles-rules.js?v=20261111g";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261111g";
+import { confirmer } from "../confirmer.js?v=20261111g";
 
 // Liste des personnes invitables de la section déjà à l'écran. Posée par la section d'invitation qui la montre (js/views/config.js ou
 // renderInvitationStagiaire), appelée après un ajout de stagiaire, qui n'actualise que le bloc « Stagiaires ».
@@ -33,17 +33,18 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
   // Gérer la liste de la promo : formateur et direction (la base le permet à l'équipe de la promo).
   const admin = isEquipe();
   const allStagiaires = await listStagiaires({ includeInactive: true });
-  const stagiairesActifs = allStagiaires.filter((s) => s.actif !== false);
-  // Les fiches anonymisées (données effacées) ne sont plus des abandons : seulement comptées.
-  const stagiairesAbandon = allStagiaires.filter((s) => s.actif === false && !s.anonymise_le);
-  const nbAnonymises = allStagiaires.filter((s) => s.anonymise_le).length;
+  // Une fiche sans nom (anonymise_le : étape des 3 ans, ou effacée à la demande, qui reste « actif ») n'est plus dans les listes.
+  const stagiairesActifs = allStagiaires.filter((s) => s.actif !== false && !s.anonymise_le);
+  // Abandons : ni fiche sans nom, ni fiche dont les données sont effacées (efface_le) ; celles-là sont seulement comptées.
+  const stagiairesAbandon = allStagiaires.filter((s) => s.actif === false && !s.anonymise_le && !s.efface_le);
+  const nbEffacees = allStagiaires.filter((s) => s.anonymise_le || (s.actif === false && s.efface_le)).length;
 
   // Après un ajout de stagiaire : relit la liste et n'actualise que l'en-tête (compteur) et les lignes du
   // bloc « Stagiaires ». Le formulaire d'ajout reste en place, avec son focus (et le clavier de l'iPhone),
   // comme le défilement et le reste de la vue ; la liste des personnes invitables suit.
   async function actualiserStagiaires(bloc) {
     const tous = await listStagiaires({ includeInactive: true });
-    const frais = renderList(tous.filter((s) => s.actif !== false), false);
+    const frais = renderList(tous.filter((s) => s.actif !== false && !s.anonymise_le), false);
     bloc.querySelector(".block-head").replaceWith(frais.querySelector(".block-head"));
     bloc.querySelector(".config-list").replaceWith(frais.querySelector(".config-list"));
     if (majPersonnesInvitables) majPersonnesInvitables().catch(() => {});
@@ -171,10 +172,8 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
     return wrap;
   }
 
-  // Bloc des abandons : réactivation, ou effacement des données personnelles (droit à
-  // l'effacement). Réservé ici : il faut d'abord sortir la personne de la liste active.
-  // Plus de suppression de la fiche : ses résultats lui sont liés en cascade et
-  // disparaîtraient des statistiques ; la fiche est anonymisée par le serveur.
+  // Bloc des abandons : « Réactiver » seulement. L'effacement des données (à la demande de la personne, ou aux dates de
+  // conservation) est sur la page Qualiopi, fondateur seul (lot Q5) : la fiche n'a plus à passer en abandon pour cela.
   function renderAbandons(items) {
     const wrap = el("div", { class: "param-block abandons-block" });
     wrap.appendChild(el("div", { class: "block-head" },
@@ -182,8 +181,7 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
       el("span", { class: "count" }, items.length + " stagiaire" + (items.length > 1 ? "s" : "")),
     ));
     wrap.appendChild(el("p", { class: "muted abandons-hint" },
-      "Masqués du planning, des dés et des notes. « Effacer les données » répond à une demande de "
-      + "suppression : la personne disparaît, ses résultats restent sans nom dans les statistiques."));
+      "Masqués du planning, des dés et des notes. « Réactiver » remet la personne dans la promo."));
     const list = el("ul", { class: "config-list" });
     items.forEach((it) => {
       const reactiverBtn = el("button", {
@@ -196,39 +194,22 @@ export async function renderGestionStagiaires(container, { rerender, surChangeme
           } catch (e) { toast(messageErreurStagiaire(e), "error"); }
         }
       }, "Réactiver");
-      const delBtn = el("button", {
-        class: "btn small danger",
-        title: "Effacer ses données personnelles (irréversible)",
-        onClick: async () => {
-          const saisie = await demander({ titre: `Effacer les données de ${displayStagiaire(it)} ?`,
-            phrase: "Supprimés : compte de connexion, e-mail, date de naissance, livret EPCF, dossier professionnel, fiche de suivi, "
-              + "commentaires. Conservés sans nom : notes, QCM, passages, évaluations EPCF. Irréversible.",
-            libelle: `Pour confirmer, tapez le prénom : ${it.prenom}`, oui: "Effacer les données",
-            verifier: (v) => confirmationValide(v, it.prenom), erreur: "Le prénom ne correspond pas : rien n'est effacé." });
-          if (typeof saisie !== "string") return;
-          try {
-            const details = await anonymiserStagiaire(it.id);
-            toast(resumeEffacement(details), "success", 6000);
-            rerender();
-          } catch (e) { toast(messageErreurStagiaire(e), "error"); }
-        }
-      }, "Effacer les données");
       list.appendChild(el("li", { class: "abandon-row" },
         el("span", { class: "abandon-name" }, displayStagiaire(it)),
-        reactiverBtn, delBtn,
+        reactiverBtn,
       ));
     });
     wrap.appendChild(list);
-    if (nbAnonymises) {
+    if (nbEffacees) {
       wrap.appendChild(el("p", { class: "muted abandons-hint" },
-        nbAnonymises + (nbAnonymises > 1 ? " fiches anonymisées" : " fiche anonymisée")
-        + " (données effacées, résultats conservés sans nom)."));
+        nbEffacees + (nbEffacees > 1 ? " fiches effacées" : " fiche effacée")
+        + " au titre de la conservation des données : elles ne figurent plus dans ces listes."));
     }
     return wrap;
   }
 
   container.appendChild(renderList(stagiairesActifs));
-  if (admin && (stagiairesAbandon.length || nbAnonymises)) container.appendChild(renderAbandons(stagiairesAbandon));
+  if (admin && (stagiairesAbandon.length || nbEffacees)) container.appendChild(renderAbandons(stagiairesAbandon));
 }
 
 // L'invitation du compte d'un stagiaire de la promo affichée, pour la direction (page Stagiaires du centre) : choisir la fiche,
@@ -268,7 +249,7 @@ export async function renderInvitationStagiaire(container, { rerender } = {}) {
   const libelle = "Ajouter à la liste des invitations";
   const sendBtn = el("button", { class: "btn accent", type: "button" }, icon.plus(), libelle);
   sendBtn.addEventListener("click", () => envoyerInvitation({
-    bouton: sendBtn, libelle, emailInput, personId: personSel.value ? Number(personSel.value) : null, role: "stagiaire", v2: true, apres: rerender,
+    bouton: sendBtn, libelle, emailInput, personId: personSel.value ? Number(personSel.value) : null, role: "stagiaire", apres: rerender,
   }));
   emailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendBtn.click(); });
   bloc.appendChild(el("div", { class: "invite-form" },
@@ -280,7 +261,7 @@ export async function renderInvitationStagiaire(container, { rerender } = {}) {
 // Envoi d'une invitation depuis un formulaire (Réglages du formateur, page Stagiaires de la direction) : adresse valide, personne
 // choisie, appel de la base avec un délai de 15 s, message de réussite ou phrase d'erreur, bouton remis en état. `personId` est
 // l'identifiant de la fiche (stagiaire) ou du formateur (rôle « prof »). `apres()` est appelé après une invitation acceptée.
-export async function envoyerInvitation({ bouton, libelle, emailInput, personId, role, v2, apres }) {
+export async function envoyerInvitation({ bouton, libelle, emailInput, personId, role, apres }) {
   const email = emailInput.value.trim().toLowerCase();
   if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("E-mail invalide", "error"); return; }
   // Le siège n'est lié à aucune fiche : l'adresse suffit.
@@ -304,7 +285,7 @@ export async function envoyerInvitation({ bouton, libelle, emailInput, personId,
       new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15 s). Réseau lent : réessayez dans un instant.")), 15000)),
     ]);
     // Profil créé, compte existant qui gagne la promo, ou rien de changé (roles-rules.js, messageInvitationReussie).
-    const { texte, ton } = messageInvitationReussie({ resultat, email, v2 });
+    const { texte, ton } = messageInvitationReussie({ resultat, email });
     toast(texte, ton, 4500);
     emailInput.value = "";
     if (apres) apres();

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   bilanStagiaire, stagiairesDeLaPeriode, feuillesOuvertes, demiJourneesSansFeuille, periodeParDefaut,
-  moisDeLaPeriode, dureeEnToutesLettres, dateFr, estAdresseAttestations, seancesDeLaPromo, LIBELLE_ORIGINE,
+  moisDeLaPeriode, dureeEnToutesLettres, estAdresseAttestations, seancesDeLaPromo, LIBELLE_ORIGINE,
   datePeriodeValide,
 } from "../js/attestations-rules.js";
 
@@ -116,8 +116,6 @@ test("durée en toutes lettres et dates", () => {
   assert.equal(dureeEnToutesLettres(60), "1 heure");
   assert.equal(dureeEnToutesLettres(61), "1 heure 1 minute");
   assert.equal(dureeEnToutesLettres(0), "0 heure");
-  assert.equal(dateFr("2026-10-12"), "12/10/2026");
-  assert.equal(dateFr(null), "");
 });
 
 test("adresse de la page", () => {

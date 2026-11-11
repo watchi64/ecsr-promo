@@ -1,17 +1,18 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111c";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111c";
-import { compteDansEquite } from "./passage-rules.js?v=20261111c";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111c";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111c";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111c";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111c";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111g";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111g";
+import { compteDansEquite } from "./passage-rules.js?v=20261111g";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111g";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111g";
+import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261111g";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111g";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111g";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261111c";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111c";
-import { effectifDesFiches } from "./centre-stats.js?v=20261111c";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111c";
+} from "./promo-rules.js?v=20261111g";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111g";
+import { effectifDesFiches } from "./centre-stats.js?v=20261111g";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111g";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -335,13 +336,14 @@ export async function creerCentre(nom) {
 }
 
 // Effectif de chaque promo : { enFormation, abandons } (effectifDesFiches, centre-stats.js : la définition de la Vue d'ensemble et du
-// siège, une fiche anonymisée compte parmi les abandons), par l'en-tête de lecture de la promo. Une promo illisible rend null : la
-// page le dit sur sa carte.
+// siège), par l'en-tête de lecture de la promo. Une fiche effacée à la demande de la personne (lot Q5) n'est ni en formation ni un
+// abandon : elle n'est pas comptée, comme dans indicateursPromo. Une promo illisible rend null : la page le dit sur sa carte.
 export async function lireEffectifsPromos(promoIds) {
   const parPromo = new Map();
+  const demandes = await lireEffacementsSurDemande(promoIds).catch((e) => { console.error(e); return new Set(); });
   await Promise.all(promoIds.map(async (id) => {
     try {
-      const lignes = await lireTable("stagiaires", "id, actif", "id", id);
+      const lignes = (await lireTable("stagiaires", "id, actif", "id", id)).filter((s) => !demandes.has(s.id));
       const { enFormation, abandons } = effectifDesFiches(lignes);
       parPromo.set(id, { enFormation, abandons });
     } catch (e) {
@@ -495,14 +497,17 @@ export async function reglerHabillageReseau(habillage) {
 
 // === Stagiaires & Profs ===
 
-// Par défaut, ne renvoie que les stagiaires actifs (les abandons sont masqués
-// partout : planning, notes, passages, liste d'invitation). Passer
-// { includeInactive: true } pour récupérer aussi les abandons (gestion admin).
+// Par défaut, ne renvoie que les stagiaires actifs ET nommés (les abandons et les fiches sans nom sont masqués
+// partout : planning, notes, passages, liste d'invitation). Passer { includeInactive: true } pour récupérer aussi les
+// abandons et les fiches sans nom (gestion, feuilles closes, semaines passées) : chaque liste de choix que ce chargement
+// alimente doit alors retirer les fiches dont anonymise_le est posé.
 export async function listStagiaires({ includeInactive = false } = {}) {
   const key = includeInactive ? "stagiaires_all" : "stagiaires";
   return cachedQuery(key, async () => {
     let q = supabase.from("stagiaires").select("*").order("ordre");
-    if (!includeInactive) q = q.eq("actif", true);
+    // Liste de travail (planning à venir, notes, dés, passages) : ni abandon, ni fiche sans nom (anonymise_le posé, y
+    // compris une fiche effacée à la demande, qui reste « actif »). Les affichages du passé passent par includeInactive.
+    if (!includeInactive) q = q.eq("actif", true).is("anonymise_le", null);
     const { data, error } = await q;
     if (error) throw error;
     return data;
@@ -555,40 +560,12 @@ export async function updateStagiaireNom(id, nom) {
   invalidateCache("stagiaires_all");
 }
 
-export async function deleteStagiaire(id) {
-  const { error } = await supabase.from("stagiaires").delete().eq("id", id);
-  if (error) throw error;
-  invalidateCache("stagiaires");
-  invalidateCache("stagiaires_all");
-}
-
 // Désactivation douce (abandon) : la ligne reste en base (historique / stats futures)
 // mais le stagiaire est masqué partout (planning, dés, notes, passages) car
 // listStagiaires() ne renvoie que actif = true. actif=false => abandon, true => réactivé.
-// === Effacement des données personnelles (fonctions serveur réservées aux admins) ===
-// Le stagiaire doit d'abord être en abandon ; ses résultats restent, sans nom.
-export async function anonymiserStagiaire(id) {
-  const { data, error } = await supabase.rpc("anonymiser_stagiaire", { p_stagiaire_id: id });
-  if (error) throw error;
-  invalidateCache("stagiaires");
-  invalidateCache("stagiaires_all");
-  return data;
-}
-
-export async function etatAnonymisationPromo() {
-  const { data, error } = await supabase.rpc("etat_anonymisation_promo");
-  if (error) throw error;
-  return data;
-}
-
-export async function anonymiserPromo() {
-  const { data, error } = await supabase.rpc("anonymiser_promo");
-  if (error) throw error;
-  invalidateCache("stagiaires");
-  invalidateCache("stagiaires_all");
-  return data;
-}
-
+// === Effacement des données personnelles ===
+// La conservation des fiches (étapes à 12 mois et à 3 ans, effacement à la demande) passe par les fonctions de conservation,
+// plus bas (page Qualiopi, fondateur seul). Ici, la purge des élèves bénévoles sans venue depuis 12 mois (Réglages).
 export async function listBenevolesAPurger() {
   const { data, error } = await supabase.rpc("benevoles_a_purger");
   if (error) throw error;
@@ -601,23 +578,10 @@ export async function purgerBenevoles(ids) {
   return data;
 }
 
-// Suite du lot 5 : les mêmes effacements pour la direction du centre, sur la promo ou le centre qu'elle désigne (et non sur la promo
-// affichée). La base décide (direction du lieu, formateur de la promo ou fondateur ; 42501 sinon) : le refus part tel quel avec son
-// code, l'appelant le dit par phraseDeRefus. L'état et la purge ne touchent pas aux fiches lues en mémoire ; l'anonymisation, si.
-export async function etatAnonymisationPromoDe(promoId) {
-  const { data, error } = await supabase.rpc("etat_anonymisation_promo", { p_promo: promoId });
-  if (error) throw erreurDeBase(error);
-  return data;
-}
-
-export async function anonymiserPromoDe(promoId) {
-  const { data, error } = await supabase.rpc("anonymiser_promo", { p_promo: promoId });
-  if (error) throw erreurDeBase(error);
-  invalidateCache("stagiaires");
-  invalidateCache("stagiaires_all");
-  return data;
-}
-
+// Suite du lot 5 : la purge des élèves bénévoles pour la direction du centre, sur le centre qu'elle désigne (et non sur la promo
+// affichée). La base décide (direction du lieu ou fondateur ; 42501 sinon) : le refus part tel quel avec son code, l'appelant le dit
+// par phraseDeRefus. L'anonymisation d'une promo par la direction (etat_anonymisation_promo(p_promo), anonymiser_promo(p_promo)) est
+// retirée par le lot Q5 : la conservation des fiches est au fondateur, page Qualiopi.
 export async function listBenevolesAPurgerDuCentre(lieuId) {
   const { data, error } = await supabase.rpc("benevoles_a_purger", { p_lieu: lieuId });
   if (error) throw erreurDeBase(error);
@@ -958,15 +922,6 @@ export async function publishQcm(qcmId, { examQuestionIds, drawMode, nbQuestions
 // examen fermé ne garde pas d'échéance fantôme, qui réapparaîtrait à la réouverture.
 export async function unpublishQcm(qcmId) {
   await ecrireExamen(qcmId, { published: false, exam_ferme_a: null });
-}
-
-// Régénère le tirage gelé sans toucher à l'état de publication.
-export async function setExamDraw(qcmId, { examQuestionIds, drawMode, nbQuestions }) {
-  await ecrireExamen(qcmId, {
-    exam_question_ids: examQuestionIds,
-    exam_draw_mode: drawMode,
-    exam_nb_questions: nbQuestions ?? null,
-  });
 }
 
 // Met à jour la config d'examen sans changer l'état de publication. Un champ qui ne
@@ -1345,16 +1300,6 @@ export async function getNotesStatsGroupe() {
   return data;
 }
 
-export async function listAuditForEvaluation(evaluation_id) {
-  const { data, error } = await supabase
-    .from("evaluations_audit")
-    .select("*")
-    .eq("evaluation_id", evaluation_id)
-    .order("changed_at", { ascending: false });
-  if (error) throw error;
-  return data;
-}
-
 // === EPCF (évaluations en cours de formation) ===
 
 export async function listEpcf(filters = {}) {
@@ -1388,11 +1333,6 @@ export async function upsertEpcf(evalRow) {
   const { data, error } = await q;
   if (error) throw error;
   return data;
-}
-
-export async function deleteEpcf(id) {
-  const { error } = await supabase.from("epcf_evaluations").delete().eq("id", id);
-  if (error) throw error;
 }
 
 // La date de naissance vit dans stagiaires_prive (lisible du stagiaire lui-même et du
@@ -1954,26 +1894,6 @@ export function onAuthChange(callback) {
   return supabase.auth.onAuthStateChange((event, session) => callback(session?.user ?? null));
 }
 
-// === Fiches de suivi (souhaits compétences permis B + besoins) ===
-
-export async function listFiches() {
-  const { data, error } = await supabase.from("fiches_suivi").select("*");
-  if (error) throw error;
-  return data;
-}
-
-export async function upsertFiche({ stagiaire_id, souhaits, besoins, updated_by_who }) {
-  // On n'écrit QUE les colonnes explicitement fournies : un appel qui passe seulement
-  // `souhaits` ne doit pas effacer `besoins` (et inversement) sur les fiches existantes.
-  const payload = { stagiaire_id, updated_by_who, updated_at: new Date().toISOString() };
-  if (souhaits !== undefined) payload.souhaits = souhaits;
-  if (besoins !== undefined) payload.besoins = besoins;
-  const { error } = await supabase
-    .from("fiches_suivi")
-    .upsert(payload, { onConflict: "stagiaire_id" });
-  if (error) throw error;
-}
-
 // Agrégats voiture par stagiaire pour le placement : nb de séances avec élève,
 // répartition par formateur. Règle 2026-07-19 : une ABSENCE COMPTE (tour consommé,
 // y compris avec_eleve si le créneau avait un bénévole) ; Bonus/Report ne comptent pas.
@@ -2048,7 +1968,7 @@ export async function lireStagiairesPromo(promoId) {
 export async function lireDonneesCentre(promoId) {
   const lire = (table, colonnes, ordre) => lireTable(table, colonnes, ordre, promoId);
   const [stagiaires, passages, evaluations, tentatives, epcf] = await Promise.all([
-    lire("stagiaires", "id, prenom, nom, actif, ordre, anonymise_le", "id"),
+    lire("stagiaires", "id, prenom, nom, actif, ordre, anonymise_le, efface_le", "id"),
     lire("passages", "id, stagiaire_id, type, resultat, date", "id"),
     lire("evaluations", "id, stagiaire_id, type, theme_numero, competence_code, controle_libelle, note, note_max, date_eval", "id"),
     lire("qcm_attempts", "id, qcm_id, stagiaire_id, mode, score, total, note_20, finished_at", "id"),
@@ -2093,7 +2013,7 @@ export async function lireDonneesQualiopi(promoId) {
     if (error) throw error;
     return enteteEmargementDuReglage(data?.value ?? null);
   };
-  const [centre, planning, agenda, livrets, dossiers, signalementsLus, cours, autoEcoles, profs, entete, joursOff, versions] = await Promise.all([
+  const [centre, planning, agenda, livrets, dossiers, signalementsLus, cours, autoEcoles, profs, entete, joursOff, versions, demandes, emargement] = await Promise.all([
     lireDonneesCentre(promoId),
     parPromo("planning_entries", "id, semaine_lundi, day_index, half_day, activite, sujet, sujet_2, salle_double, prof_ids, prof_autre, autonomie, benevoles_ids, promo_id", "id"),
     parPromo("agenda_events", "id, type, date_start, date_end", "id"),
@@ -2106,10 +2026,25 @@ export async function lireDonneesQualiopi(promoId) {
     lireEntete(),
     parPromo("planning_jours_off", "semaine_lundi, day_index", "id"),
     communes("cours_versions", "cours_id, saved_at", "id"),
+    lireEffacementsSurDemande([promoId]),   // fiches effacées à la demande : un Set, vide si la migration n'est pas appliquée
+    lireEmargementDeLaPromo(promoId),
   ]);
   const stagiairesDeLaPromo = new Set(centre.stagiaires.map((s) => s.id));
   const signalements = signalementsLus.filter((s) => stagiairesDeLaPromo.has(s.stagiaire_id));
-  return { ...centre, planning, agenda, livrets, dossiers, signalements, cours, autoEcoles, profs, entete, joursOff, versions };
+  return { ...centre, planning, agenda, livrets, dossiers, signalements, cours, autoEcoles, profs, entete, joursOff, versions, demandes, emargement };
+}
+
+// Les feuilles d'émargement de la promo, légères (sans tracé ni signature de formateur : seuls les jours, les horaires, le statut et,
+// par ligne, le stagiaire et l'heure de signature servent aux heures). Une lecture qui échoue ne fait pas échouer le dossier : elle
+// rend { etat: "non_lue" }, que les pièces et les documents disent en toutes lettres (jamais un chiffre faux).
+async function lireEmargementDeLaPromo(promoId) {
+  try {
+    const seances = await lireTable("emargement_seances",
+      "id, promo_id, jour, demi_journee, debut, fin, statut, lignes:emargement_lignes(stagiaire_id, signe_le, absent, absence_origine)", "id", promoId);
+    return { etat: "lue", seances: seances.map((s) => ({ ...s, lignes: s.lignes || [] })) };
+  } catch {
+    return { etat: "non_lue" };
+  }
 }
 
 // --- Signalements sur les questions de QCM ---
@@ -2317,7 +2252,8 @@ export async function listEmargementSeances(jourDebut, jourFin) {
 
 // Feuilles d'une période, légères (sans tracé ni signature de formateur) : sert aux
 // certificats et attestations (spec 2026-10-24), qui peuvent couvrir toute une formation.
-// Une ligne est signée quand `signe_le` est posé (la base lie tracé et heure).
+// Une ligne est signée quand `signe_le` est posé, même si le dessin est effacé (étape des 3 ans) : la base lie le tracé
+// à l'heure à la signature, puis garde l'heure, la présence et le total d'heures quand elle efface le dessin.
 export async function listEmargementPresences(jourDebut, jourFin) {
   const { data, error } = await supabase
     .from("emargement_seances")
@@ -2560,6 +2496,91 @@ export async function effacerRegistreQualite() {
   const { data, error } = await supabase.rpc("effacer_registre_qualite");
   if (error) throw erreurRegistre(error);
   return Number(data) || 0;
+}
+
+// --- Conservation des données (Qualiopi Q5) : lecture et actions du fondateur ---
+// Fonctions de la base réservées à la gestion de la qualité. Aucun effacement ne part tout seul : chaque échéance attend
+// un clic. Les refus commencent par « conservation: » (phrase montrée telle quelle, voir js/conservation-erreurs.js) ;
+// l'erreur levée porte aussi le code de la base (42501 : refus de droit).
+function erreurConservation(error) {
+  const erreur = new Error(messageErreurConservation(error));
+  if (error?.code) erreur.code = String(error.code);
+  return erreur;
+}
+
+async function rpcConservation(nom, params) {
+  const { data, error } = await supabase.rpc(nom, params);
+  if (error) throw erreurConservation(error);
+  return data;
+}
+
+function invaliderStagiaires() {
+  invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
+}
+
+// Toutes les échéances des promos et lieux accessibles : { jour, promos: [...], portees_formateurs: [...], registre }.
+// Des nombres et des dates seulement, jamais un nom. Fonction absente (migration pas encore appliquée) : null.
+export async function lireEtatConservation() {
+  const { data, error } = await supabase.rpc("etat_conservation");
+  if (error) {
+    if (conservationAbsente(error)) return null;
+    throw erreurConservation(error);
+  }
+  return data;
+}
+
+// Étape 1 d'une promo (12 mois après la fin) : { fiches, comptes_equipe, ...nombres par sorte de donnée }. Rejouable.
+export async function effacerPromoEtape1(promoId) {
+  const data = await rpcConservation("effacer_promo_etape1", { p_promo: promoId });
+  invaliderStagiaires();
+  return data;
+}
+
+// Étape 2 d'une promo (31/12 de la 3e année après la fin) : fait d'abord l'étape 1 des fiches qui ne l'ont pas eue.
+export async function effacerPromoEtape2(promoId) {
+  const data = await rpcConservation("effacer_promo_etape2", { p_promo: promoId });
+  invaliderStagiaires();
+  return data;
+}
+
+// Effacement sur demande de la personne : les deux étapes tout de suite, sans condition de date ni d'abandon.
+export async function effacerSurDemande(stagiaireId) {
+  const data = await rpcConservation("effacer_sur_demande", { p_stagiaire_id: stagiaireId });
+  invaliderStagiaires();
+  return data;
+}
+
+// Questionnaire des formateurs, par lieu et année : liste « qui a répondu » (1er janvier suivant), commentaires libres
+// (31/12 de l'année suivante), résultats figés (1er janvier de l'année + 4). Retours : { efface, ... } (nombres au seuil
+// seulement) ; figeage : { fige, sous_seuil, reponses }.
+export async function cloreAnneeFormateurs(lieuId, annee) {
+  return rpcConservation("clore_annee_formateurs", { p_lieu: lieuId, p_annee: annee });
+}
+
+export async function effacerCommentairesFormateurs(lieuId, annee) {
+  return rpcConservation("effacer_commentaires_formateurs", { p_lieu: lieuId, p_annee: annee });
+}
+
+export async function figerQuestionnaireFormateurs(lieuId, annee) {
+  return rpcConservation("figer_questionnaire_formateurs", { p_lieu: lieuId, p_annee: annee });
+}
+
+// Identifiants des fiches effacées à la demande dans les promos données (type « demande » du journal), pour la ligne
+// « effacée à la demande » du tableau de bord et des dossiers. Passe par une fonction de la base : la règle de lecture du
+// journal suit la seule promo affichée, une lecture directe laisserait vides les autres promos. Fonction absente
+// (migration pas encore appliquée) ou aucune promo : ensemble vide.
+export async function lireEffacementsSurDemande(promoIds) {
+  const ids = (Array.isArray(promoIds) ? promoIds : [promoIds]).map(Number).filter((n) => Number.isInteger(n));
+  if (!ids.length) return new Set();
+  const { data, error } = await supabase.rpc("fiches_effacees_sur_demande", { p_promo_ids: ids });
+  if (error) {
+    if (conservationAbsente(error)) return new Set();
+    throw erreurConservation(error);
+  }
+  return new Set((Array.isArray(data) ? data : [])
+    .map((x) => Number(x !== null && typeof x === "object" ? Object.values(x)[0] : x))
+    .filter((n) => Number.isFinite(n)));
 }
 
 // Signalements déjà versés au registre (identifiants), pour le bouton « Au registre » de Problèmes signalés.

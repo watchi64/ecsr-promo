@@ -1,29 +1,28 @@
-import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
+import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261111c";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261111c";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261111c";
-import { libelleCreneau } from "../emargement-rules.js?v=20261111c";
-import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111c";
-import { renderEpcfPersonne } from "./epcf.js?v=20261111c";
-import { renderSubTabs } from "../subtabs.js?v=20261111c";
-import { renderDp } from "./dp.js?v=20261111c";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261111c";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261111c";
-import { bandeauAvis } from "../avis.js?v=20261111c";
-import { statsPassages } from "../passages-stats.js?v=20261111c";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261111c";
-import { icon } from "../icons.js?v=20261111c";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261111c";
-import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261111c";
-import { exemplesRemplis } from "../dp-rules.js?v=20261111c";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261111c";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261111c";
-import { navigationV2Active } from "../nav-etat.js?v=20261111c";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111c";
-import { renderNotes } from "./notes.js?v=20261111c";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111c";
+         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261111g";
+import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261111g";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261111g";
+import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261111g";
+import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111g";
+import { renderEpcfPersonne } from "./epcf.js?v=20261111g";
+import { renderSubTabs } from "../subtabs.js?v=20261111g";
+import { renderDp } from "./dp.js?v=20261111g";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261111g";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261111g";
+import { lundiEnCours } from "../journee-rules.js?v=20261111g";
+import { bandeauAvis } from "../avis.js?v=20261111g";
+import { statsPassages } from "../passages-stats.js?v=20261111g";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261111g";
+import { icon } from "../icons.js?v=20261111g";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261111g";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261111g";
+import { exemplesRemplis } from "../dp-rules.js?v=20261111g";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261111g";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261111g";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111g";
+import { renderNotes } from "./notes.js?v=20261111g";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -71,44 +70,12 @@ function dayDateLabel(date) {
   return capitalize(date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }));
 }
 
-// Jours fériés français (calculés) + jours désactivés manuellement : même logique que le planning.
-function easterSunday(year) {
-  const a = year % 19, b = Math.floor(year / 100), c = year % 100;
-  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const month = Math.floor((h + l - 7 * m + 114) / 31);
-  const day = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(year, month - 1, day);
-}
-
-const _holidayCache = {};
-function frenchHolidays(year) {
-  if (_holidayCache[year]) return _holidayCache[year];
-  const map = {};
-  const add = (dt, label) => { map[isoDate(dt)] = label; };
-  add(new Date(year, 0, 1), "Jour de l'an");
-  add(new Date(year, 4, 1), "Fête du Travail");
-  add(new Date(year, 4, 8), "Victoire 1945");
-  add(new Date(year, 6, 14), "Fête nationale");
-  add(new Date(year, 7, 15), "Assomption");
-  add(new Date(year, 10, 1), "Toussaint");
-  add(new Date(year, 10, 11), "Armistice");
-  add(new Date(year, 11, 25), "Noël");
-  const easter = easterSunday(year);
-  add(addDays(easter, 1), "Lundi de Pâques");
-  add(addDays(easter, 39), "Ascension");
-  add(addDays(easter, 50), "Lundi de Pentecôte");
-  _holidayCache[year] = map;
-  return map;
-}
-
-// Un jour (index 0..n) de la semaine commençant à `monday` est-il désactivé (manuel) ou férié ?
+// Jours fériés français (calculés : jourFerie, js/emargement-rules.js) + jours désactivés manuellement : même logique
+// que le planning. Un jour (index 0..n) de la semaine commençant à `monday` est-il désactivé (manuel) ou férié ?
 function dayIsOff(joursOff, monday, day_index) {
   if ((joursOff || []).some((j) => j.day_index === day_index)) return true;
   const date = addDays(monday, day_index);
-  return Boolean(frenchHolidays(date.getFullYear())[isoDate(date)]);
+  return Boolean(jourFerie(isoDate(date)));
 }
 
 // Créneaux du stagiaire sur une semaine : ses passages (tableau salle, conduite,
@@ -134,9 +101,9 @@ function extractMyCreneaux(entries, metas, monday, id, joursOff) {
   return out;
 }
 
-// Semaine active (settings) + semaine suivante si un planning y existe.
+// Semaine en cours (la suivante le week-end, comme le planning : ruling R59) + semaine d'après si un planning y existe.
 async function loadUpcoming(id) {
-  const mondayIso = (await getSetting("current_week_lundi")) || isoDate(getMonday(new Date()));
+  const mondayIso = lundiEnCours(new Date());
   const monday1 = new Date(mondayIso + "T00:00:00");
   const nextIso = isoDate(addDays(monday1, 7));
   const monday2 = new Date(nextIso + "T00:00:00");
@@ -522,8 +489,8 @@ function renderEffectuesSection(rows, soi = true) {
 // stagiaire, vue par un formateur). Deux dispositions, choisies à l'affichage :
 // onglets sur ordinateur ; sur iPhone, un sommaire puis la partie en plein écran.
 
-// Nom affiché d'une partie, le même dans Mon suivi et dans la fiche d'un stagiaire chez l'équipe, dans les deux navigations
-// (décisions du 08/11 et du 10/11 : un nom par objet, « Livret » ou « Dossier pro » seuls ne disaient pas lequel).
+// Nom affiché d'une partie, le même dans Mon suivi et dans la fiche d'un stagiaire chez l'équipe (décisions du 08/11
+// et du 10/11 : un nom par objet, « Livret » ou « Dossier pro » seuls ne disaient pas lequel).
 const LIBELLE_PARTIE = { resultats: "Résultats", passages: "Passages", epcf: "Évaluations EPCF", evolution: "Évolution",
   livret: "Livret EPCF", dp: "Dossier professionnel" };
 const libellePartie = (p) => LIBELLE_PARTIE[p];
@@ -602,11 +569,10 @@ export function afficherErreur(zone, e, reessayer) {
   toast(isTimeout ? selonPublic("Connexion trop lente, réessaie", "Connexion trop lente, réessayez") : (e?.message || String(e)), "error");
 }
 
-// Résultats (Moi et La classe, nouvelle navigation) n'appartient qu'à Mon suivi, la fiche de la
-// personne connectée, qui a donc un profil stagiaire : la page Stagiaires et l'ancienne
-// navigation gardent la fiche d'avant (partiesDeLaFiche).
+// Résultats (Moi et La classe) n'appartient qu'à Mon suivi, la fiche de la personne connectée, qui
+// a donc un profil stagiaire : la page Stagiaires garde la fiche d'avant (partiesDeLaFiche).
 function partiesVisibles(opts) {
-  return partiesDeLaFiche({ soi: !!opts.soi, navigationV2: navigationV2Active() })
+  return partiesDeLaFiche({ soi: !!opts.soi })
     .filter((p) => !MODULE_DE_PARTIE[p] || moduleVisible(MODULE_DE_PARTIE[p]));
 }
 
@@ -614,7 +580,7 @@ function lienRetour(label, href) {
   return el("a", { class: "fiche-retour", href }, icon.chevronLeft(), el("span", {}, label));
 }
 
-// Sous-titre de Mon suivi, nouvelle navigation : ce que la page contient, au tutoiement comme le reste de la page, en ne
+// Sous-titre de Mon suivi : ce que la page contient, au tutoiement comme le reste de la page, en ne
 // nommant que les parties ouvertes à la promo (un module fermé retire sa partie, il ne doit pas rester annoncé). Les mots
 // d'atelier s'y définissent à leur première apparition : les passages, et le sigle EPCF (par les évaluations ou, si elles
 // sont fermées, par le livret).
@@ -636,9 +602,8 @@ function sousTitreDeMonSuivi() {
   return texte.charAt(0).toUpperCase() + texte.slice(1) + ".";
 }
 
-// Nom de la page de la personne connectée : « Mon suivi » sous la nouvelle navigation, le nom de son
-// entrée (ruling R30 : une page, un nom), « Mon espace » avec l'ancienne.
-const nomDeMonSuivi = () => (navigationV2Active() ? "Mon suivi" : "Mon espace");
+// Nom de la page de la personne connectée : « Mon suivi », le nom de son entrée (ruling R30 : une page, un nom).
+const nomDeMonSuivi = () => "Mon suivi";
 
 // Renvoie ce qui est affiché : "onglets", "sommaire", "partie" (iPhone, avec un
 // retour) ou "unique" (iPhone, une seule partie ouverte, montrée directement).
@@ -688,9 +653,9 @@ export function renderFiche(container, d, opts) {
 
 function rendreSommaire(d, parties, opts) {
   const aVenir = passagesAVenir(d.items, isoDate(new Date()));
-  // Mon suivi, nouvelle navigation : chaque ligne dit sa partie et son état en une phrase entière
-  // (« Évaluations EPCF : 0 épreuve sur 2 »), qui passe à la ligne plutôt que d'être coupée. Ailleurs, le sommaire de main.
-  const clairs = !!opts.soi && navigationV2Active();
+  // Mon suivi : chaque ligne dit sa partie et son état en une phrase entière (« Évaluations EPCF : 0 épreuve sur 2 »),
+  // qui passe à la ligne plutôt que d'être coupée. Ailleurs, le sommaire de main.
+  const clairs = !!opts.soi;
   const etats = clairs
     ? etatsClairs({ aVenir, evals: d.epcfEvals, livret: d.livret, exemplesDossier: d.exemplesDossier })
     : etatsSommaire({ aVenir, evals: d.epcfEvals, livret: d.livret, dossier: d.dossier, soi: !!opts.soi });
@@ -845,25 +810,20 @@ export async function renderMonSuivi(container) {
   await chargerContexteFiche();
   clear(container);
 
-  // Nouvelle navigation : la promo en surtitre, comme sur les pages de l'équipe (avant : « Espace personnel »).
-  const surtitre = navigationV2Active() ? getPromoCourante()?.nom : "Espace personnel";
+  // La promo en surtitre, comme sur les pages de l'équipe.
+  const surtitre = getPromoCourante()?.nom;
   const header = el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
       el("h2", {}, nomDeMonSuivi()),
-      el("p", { class: "subtitle" }, navigationV2Active() ? sousTitreDeMonSuivi()
-        : moduleVisible("notes") ? "Mon planning à venir et l'évolution de mes résultats."
-        : "Mon planning à venir."),
+      el("p", { class: "subtitle" }, sousTitreDeMonSuivi()),
     ),
   );
   const corps = el("div", { class: "ms-body" });
   const bandeau = bandeauAvis();
-  // Questionnaire anonyme à remplir (Qualiopi) : Mon espace est la page d'ouverture des stagiaires dans l'ancienne
-  // navigation. Dans la nouvelle, l'ouverture est l'Accueil (« Ta journée », qui porte le bandeau) et Mon suivi garde son
-  // sommaire entier au-dessus de la barre du bas sur téléphone (contrôle du vérificateur de navigation).
-  const questionnaire = navigationV2Active() ? null : bandeauQuestionnaire();
+  // Le questionnaire anonyme (Qualiopi) est porté par l'Accueil (« Ta journée ») : Mon suivi garde son sommaire entier
+  // au-dessus de la barre du bas sur téléphone (contrôle du vérificateur de navigation).
   container.appendChild(header);
-  if (questionnaire) container.appendChild(questionnaire);
   if (bandeau) container.appendChild(bandeau);
   container.appendChild(corps);
   if (monId == null) {
@@ -872,43 +832,37 @@ export async function renderMonSuivi(container) {
   }
 
   let d = null;
-  const v2 = navigationV2Active();
   // Vue de Résultats demandée par l'adresse ou choisie sur la page : portée par l'appel, jamais relue
   // dans le stockage.
   let vueDemandee = null;
   const dessiner = (adr) => {
     const disposition = dispositionFiche();
-    let partie = adr.partie;
-    if (v2) {
-      // Nouvelle navigation : #/mon-suivi/evolution et #/mon-suivi/classe ouvrent Résultats sur « Moi » ou
-      // « La classe » ; l'adresse devient celle de Résultats (sans étape d'historique), pour que la partie
-      // affichée et l'adresse disent la même chose. Résultats fermé (module des notes) : l'adresse reste.
-      const ouverture = ouvertureDeMonSuivi(partie);
-      if (ouverture.vue && moduleVisible(MODULE_DE_PARTIE.resultats)) {
-        vueDemandee = ouverture.vue;
-        remplacerAdresse(adresseFiche("mon-suivi", null, ouverture.partie));
-      }
-      partie = ouverture.partie;
+    // #/mon-suivi/evolution et #/mon-suivi/classe ouvrent Résultats sur « Moi » ou « La classe » ; l'adresse
+    // devient celle de Résultats (sans étape d'historique), pour que la partie affichée et l'adresse disent la
+    // même chose. Résultats fermé (module des notes) : l'adresse reste.
+    const ouverture = ouvertureDeMonSuivi(adr.partie);
+    if (ouverture.vue && moduleVisible(MODULE_DE_PARTIE.resultats)) {
+      vueDemandee = ouverture.vue;
+      remplacerAdresse(adresseFiche("mon-suivi", null, ouverture.partie));
     }
+    const partie = ouverture.partie;
     const affiche = renderFiche(corps, d, {
       soi: true, partie, disposition, titre: null, retour: null,
       vue: vueDemandee, surVue: (v) => { vueDemandee = v; },
       adresse: (p) => adresseFiche("mon-suivi", null, p),
       storageKey: "ecsr_monsuivi_subtab",
     });
-    // iPhone, dans une partie : le retour « ‹ Mon espace » (« ‹ Mon suivi » sous la nouvelle
-    // navigation) remplace l'en-tête.
+    // iPhone, dans une partie : le retour « ‹ Mon suivi » remplace l'en-tête.
     header.hidden = affiche === "partie";
     if (bandeau) bandeau.hidden = affiche === "partie";
-    if (questionnaire) questionnaire.hidden = affiche === "partie";
-    // Nouvelle navigation : le retour, le titre de la partie et son contenu se tiennent (css/pages.css).
-    corps.classList.toggle("ms-body-partie", v2 && affiche === "partie");
+    // Le retour, le titre de la partie et son contenu se tiennent (css/pages.css).
+    corps.classList.toggle("ms-body-partie", affiche === "partie");
     if (disposition === "sommaire") window.scrollTo(0, 0);
   };
   const charger = async () => {
     clear(corps);
     corps.appendChild(el("div", { class: "loading" }, "Chargement"));
-    try { d = await chargerFiche(monId, { compterExemples: v2 && moduleVisible("dp") }); }
+    try { d = await chargerFiche(monId, { compterExemples: moduleVisible("dp") }); }
     catch (e) { afficherErreur(corps, e, charger); return; }
     dessiner(lireAdresse(location.hash));
   };

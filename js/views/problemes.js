@@ -5,18 +5,19 @@
 // statut en quatre boutons, réponse, suppression. Une action met la carte à jour sur place : elle ne change
 // pas de sous-onglet avant le prochain affichage de la page.
 
-import { el, clear, toast } from "../utils.js?v=20261111c";
-import { confirmer } from "../confirmer.js?v=20261111c";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261111c";
+import { el, clear, toast } from "../utils.js?v=20261111g";
+import { confirmer } from "../confirmer.js?v=20261111g";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261111g";
 import {
   listSignalementsApp, captureSignalementApp, traiterSignalementApp, supprimerSignalementApp, liensRegistre, getMesPromos,
-} from "../db.js?v=20261111c";
-import { entreeDepuisSignalement } from "../registre-rules.js?v=20261111c";
-import { chargerEtatSignalements } from "../signalement-etat.js?v=20261111c";
-import { renderSubTabs } from "../subtabs.js?v=20261111c";
+} from "../db.js?v=20261111g";
+import { entreeDepuisSignalement } from "../registre-rules.js?v=20261111g";
+import { chargerEtatSignalements } from "../signalement-etat.js?v=20261111g";
+import { renderSubTabs } from "../subtabs.js?v=20261111g";
 import {
   libelleStatut, resumeContexte, detailContexte, adresseSure, normaliserContexte, nomDuSignaleur,
-} from "../signalement-rules.js?v=20261111c";
+} from "../signalement-rules.js?v=20261111g";
+import { dateHeure } from "../dates.js?v=20261111g";
 
 // Supprimer un problème signalé (carte complète ou carte en défaut) : la même question, dans une fenêtre de l'app.
 const QUESTION_SUPPRIMER = { titre: "Supprimer ce problème signalé ?",
@@ -29,15 +30,6 @@ const ROLES = { stagiaire: "Stagiaire", formateur: "Formateur", fondateur: "Fond
 // Les signalements déjà versés au registre : lu une fois au rendu de la page, partagé par les trois sous-onglets.
 // null : la table du registre n'existe pas (ou n'a pas pu être lue), la page n'offre alors aucun bouton.
 let liensDuRegistre = null;
-
-const deuxChiffres = (n) => String(n).padStart(2, "0");
-
-// « 28/10/2026 à 10 h 42 »
-function dateLongue(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return `${deuxChiffres(d.getDate())}/${deuxChiffres(d.getMonth() + 1)}/${d.getFullYear()} à ${d.getHours()} h ${deuxChiffres(d.getMinutes())}`;
-}
 
 // Le détail du contexte, les erreurs techniques et l'identifiant brut du navigateur.
 function detail(c) {
@@ -130,7 +122,7 @@ function boutonRegistre(s) {
     ouvertureEnCours = true;
     b.setAttribute("aria-disabled", "true");
     try {
-      const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261111c");
+      const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261111g");
       ouvrirFenetreRegistre({
         prerempli: entreeDepuisSignalement(s), promos: getMesPromos(), ancre: b,
         surEnregistre: () => {
@@ -220,7 +212,7 @@ function carte(s) {
     el("div", { class: "sg-carte-tete" },
       el("span", { class: "sg-carte-qui" }, el("b", {}, qui),
         [ROLES[s.role], s.promo?.nom].filter(Boolean).length ? ` · ${[ROLES[s.role], s.promo?.nom].filter(Boolean).join(" · ")}` : ""),
-      el("span", { class: "sg-carte-date" }, dateLongue(s.created_at)),
+      el("span", { class: "sg-carte-date" }, dateHeure(s.created_at)),
       el("span", { class: "sg-statut sg-statut-" + s.statut }, libelleStatut(s.statut, "fondateur"))),
     el("p", { class: "sg-carte-message" }, s.message),
     el("p", { class: "sg-carte-contexte" }, ligneContexte),

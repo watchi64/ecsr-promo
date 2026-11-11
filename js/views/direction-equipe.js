@@ -7,16 +7,15 @@
 // d'invitation (envoyerInvitation, stagiaires-gestion.js) ne sert pas ici : il appelle inviter_compte pour UNE fiche et UNE promo
 // affichée, alors que cette page règle plusieurs promos d'un centre d'un coup ; seule la forme de l'adresse est reprise.
 
-import { getMesPromos, lireEquipeDuCentre, lireFichesFormateurLibres, reglerAffectationsFormateur } from "../db.js?v=20261111c";
-import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261111c";
-import { icon } from "../icons.js?v=20261111c";
-import { getCentre, getAdminEmail } from "../auth-admin.js?v=20261111c";
-import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261111c";
-import { equipeAffichee, unionPromos } from "../direction-rules.js?v=20261111c";
-import { phraseCompteTransforme } from "../roles-rules.js?v=20261111c";
-
-const entier = (x) => Number(x).toLocaleString("fr-FR");
-const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
+import { getMesPromos, lireEquipeDuCentre, lireFichesFormateurLibres, reglerAffectationsFormateur } from "../db.js?v=20261111g";
+import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261111g";
+import { icon } from "../icons.js?v=20261111g";
+import { getCentre, getAdminEmail } from "../auth-admin.js?v=20261111g";
+import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261111g";
+import { equipeAffichee, unionPromos } from "../direction-rules.js?v=20261111g";
+import { phraseCompteTransforme } from "../roles-rules.js?v=20261111g";
+import { entier, pluriel } from "../nombres.js?v=20261111g";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111g";
 
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";
 const PHRASE_LECTURE_ECHEC = "L'équipe du centre n'a pas pu être chargée.";
@@ -53,20 +52,13 @@ const phraseDe = (err) => (err && err.phrase === true ? err.message : phraseDeRe
 
 // Fenêtre générique : `corps` (nœuds du formulaire), `valeurs()` rend les saisies ou une phrase de refus (texte), `enregistrer(valeurs)`
 // rend une promesse (si elle lève, la phrase s'affiche dans la fenêtre et la saisie reste ; sinon la fenêtre se ferme).
-export function ouvrirFenetre({ titre, intro, corps, ancre, libelleBouton, valider, enregistrer, premierChamp, apresFermeture }) {
+export function ouvrirFormulaire({ titre, intro, corps, ancre, libelleBouton, valider, enregistrer, premierChamp, apresFermeture }) {
   const message = el("p", { class: "promo-refus", role: "alert" });
   const annuler = el("button", { class: "btn ghost", type: "button" }, "Annuler");
   const ok = el("button", { class: "btn primary", type: "submit" }, libelleBouton);
-  const fond = el("div", { class: "modal-backdrop" });
-  const fermer = () => {
-    document.removeEventListener("keydown", auClavier, true);
-    fond.remove();
-    if (ancre && ancre.isConnected) ancre.focus({ preventScroll: true });
-  };
-  function auClavier(e) {
-    if (e.key === "Escape") { e.stopPropagation(); if (!ok.disabled) fermer(); }
-  }
-  annuler.addEventListener("click", () => { if (!ok.disabled) fermer(); });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
+  const fermer = () => modale.fermer();
+  annuler.addEventListener("click", () => modale.demanderFermeture());
   const formulaire = el("form", { class: "modal-form", novalidate: "" },
     intro ? el("p", { class: "muted equipe-intro" }, intro) : null,
     ...corps, message,
@@ -91,11 +83,12 @@ export function ouvrirFenetre({ titre, intro, corps, ancre, libelleBouton, valid
       annuler.disabled = false;
     }
   });
-  fond.appendChild(el("div", { class: "modal promo-fenetre equipe-fenetre", role: "dialog", "aria-modal": "true", "aria-labelledby": "equipe-fenetre-titre" },
-    el("h3", { id: "equipe-fenetre-titre" }, titre), formulaire));
-  document.addEventListener("keydown", auClavier, true);
-  document.body.appendChild(fond);
-  (premierChamp ? premierChamp() : ok).focus();
+  // Pendant l'envoi, ni Annuler ni Échap ne ferment ; le focus revient au bouton qui a ouvert la fenêtre.
+  modale = ouvrirModale(el("div", { class: "modal promo-fenetre equipe-fenetre", role: "dialog", "aria-modal": "true", "aria-labelledby": "equipe-fenetre-titre" },
+    el("h3", { id: "equipe-fenetre-titre" }, titre), formulaire), {
+    fermerAuVoile: false, retour: ancre, avantFermeture: () => !ok.disabled,
+    focus: () => (premierChamp ? premierChamp() : ok),
+  });
 }
 
 // Les cases « promos du centre » : une case par promo, cible de 44 px. `cochees` : identifiants déjà cochés.
@@ -128,7 +121,7 @@ function ouvrirInvitation({ centre, promos, equipe, ancre, apres }) {
     console.error("fiches formateur libres", e);
     noteFiche.textContent = "Les fiches formateur n'ont pas pu être lues : vous pouvez inviter sans fiche.";
   });
-  ouvrirFenetre({
+  ouvrirFormulaire({
     titre: "Inviter un formateur",
     intro: "Aucun e-mail n'est envoyé : la personne crée son mot de passe avec cette adresse, onglet Créer mon compte.",
     corps: [
@@ -161,7 +154,7 @@ function ouvrirInvitation({ centre, promos, equipe, ancre, apres }) {
 
 function ouvrirModification({ centre, promos, ligne, ancre, apres }) {
   const { groupe, choisies } = casesPromos(promos, ligne.promoIds);
-  ouvrirFenetre({
+  ouvrirFormulaire({
     titre: "Modifier les promos",
     intro: ligne.nom === ligne.email ? ligne.email : `${ligne.nom} (${ligne.email})`,
     corps: [groupe],
@@ -182,7 +175,7 @@ function ouvrirModification({ centre, promos, ligne, ancre, apres }) {
 }
 
 function ouvrirRetrait({ centre, ligne, ancre, apres }) {
-  ouvrirFenetre({
+  ouvrirFormulaire({
     titre: "Retirer du centre",
     intro: `${ligne.nom === ligne.email ? ligne.email : `${ligne.nom} (${ligne.email})`} ne sera plus formateur d'aucune promo de ${centre.nom || "ce centre"}. `
       + "Son compte et ses promos dans d'autres centres ne changent pas.",

@@ -7,15 +7,15 @@
 // `lire()` rend la lecture en cours ou faite ({ etat: "lue", entrees } | { etat: "absente" } | { etat: "non_lue" }),
 // `surChangement()` la refait (après un enregistrement, un effacement, ou « Réessayer ») et rend la nouvelle.
 
-import { el, clear, toast } from "../utils.js?v=20261111c";
-import { getMesPromos, effacerRegistreQualite } from "../db.js?v=20261111c";
-import { TYPES, ORIGINES, ETATS, filtrerRegistre, registreCsv, nomFichierRegistre, aEffacer } from "../registre-rules.js?v=20261111c";
-import { jourParis } from "../questionnaires-gestion-rules.js?v=20261111c";
-import { nomPromo } from "../qualiopi-page-rules.js?v=20261111c";
-import { nb } from "../qualiopi-preuves.js?v=20261111c";
-import { confirmer } from "../confirmer.js?v=20261111c";
-import { telecharger } from "./centre.js?v=20261111c";
-import { ouvrirFenetreRegistre, lieuxDesPromos } from "../registre-fenetre.js?v=20261111c";
+import { el, clear, toast } from "../utils.js?v=20261111g";
+import { getMesPromos, effacerRegistreQualite } from "../db.js?v=20261111g";
+import { TYPES, ORIGINES, ETATS, filtrerRegistre, registreCsv, nomFichierRegistre, aEffacer } from "../registre-rules.js?v=20261111g";
+import { jourParis } from "../dates.js?v=20261111g";
+import { nomPromo } from "../qualiopi-page-rules.js?v=20261111g";
+import { confirmer } from "../confirmer.js?v=20261111g";
+import { telecharger } from "./centre.js?v=20261111g";
+import { ouvrirFenetreRegistre, lieuxDesPromos } from "../registre-fenetre.js?v=20261111g";
+import { pluriel } from "../nombres.js?v=20261111g";
 
 export const REGISTRE_ABSENT = "Le registre sera disponible après la mise à jour de la base.";
 const FILTRES_ETAT = [["tous", "Tous"], ["ouvert", "Ouverts"], ["en_cours", "En cours"], ["clos", "Clos"]];
@@ -33,7 +33,7 @@ function delaiEnMots(e) {
   const [d, r] = [jour(e.date_constat), jour(e.date_reponse)];
   const jours = Math.round((Date.parse(r + "T00:00:00Z") - Date.parse(d + "T00:00:00Z")) / 86400000);
   if (!Number.isFinite(jours)) return "Réponse le " + enFrancais(r);
-  return jours <= 0 ? "Réponse le jour même" : `Réponse en ${nb(jours, "jour")}`;
+  return jours <= 0 ? "Réponse le jour même" : `Réponse en ${pluriel(jours, "jour")}`;
 }
 
 // Où se range l'entrée : sa promo, sinon son centre, sinon tout l'organisme.
@@ -126,7 +126,7 @@ export function renderRegistreQualite(panneau, { lire, surChangement }) {
       boutonEffacer.addEventListener("click", async () => {
         if (occupe) return;
         const oui = await confirmer({
-          titre: `Effacer les textes de ${nb(dus.length, "entrée")} ?`,
+          titre: `Effacer les textes de ${pluriel(dus.length, "entrée")} ?`,
           phrase: "La description, la réponse, l'action décidée et la mesure de prévention sont vidées pour de bon. Le type, "
             + "l'origine, la promo, le centre, les dates et l'état restent.",
           oui: "Effacer les textes",
@@ -136,7 +136,7 @@ export function renderRegistreQualite(panneau, { lire, surChangement }) {
         boutonEffacer.disabled = true;
         try {
           const n = await effacerRegistreQualite();
-          toast(n ? `${nb(n, "entrée effacée", "entrées effacées")}` : "Aucune entrée à effacer", "success");
+          toast(n ? `${pluriel(n, "entrée effacée", "entrées effacées")}` : "Aucune entrée à effacer", "success");
           if (vivant()) await apresChangement("ajouter");
         } catch (e) {
           console.error(e);
@@ -149,7 +149,7 @@ export function renderRegistreQualite(panneau, { lire, surChangement }) {
         }
       });
       blocEffacement = el("div", { class: "rg-effacement" },
-        el("p", {}, `${nb(dus.length, "entrée close", "entrées closes")} depuis plus de 3 ans : leurs textes sont à effacer.`),
+        el("p", {}, `${pluriel(dus.length, "entrée close", "entrées closes")} depuis plus de 3 ans : leurs textes sont à effacer.`),
         boutonEffacer);
     }
 
@@ -190,8 +190,8 @@ export function renderRegistreQualite(panneau, { lire, surChangement }) {
       statut.textContent = entrees.length === 0
         ? "Aucune entrée au registre pour l'instant."
         : filtrees.length === entrees.length
-          ? nb(entrees.length, "entrée")
-          : `${nb(filtrees.length, "entrée")} sur ${entrees.length}`;
+          ? pluriel(entrees.length, "entrée")
+          : `${pluriel(filtrees.length, "entrée")} sur ${entrees.length}`;
     }
 
     boutonExporter.addEventListener("click", () => {

@@ -19,18 +19,18 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, mesAffectations, oublierPromo, getPromoCourante, getMesPromos, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo,
-} from "./db.js?v=20261111c";
+} from "./db.js?v=20261111g";
 import {
   LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo,
-} from "./roles-rules.js?v=20261111c";
+} from "./roles-rules.js?v=20261111g";
 import {
-  ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, porteSansPromo, decisionPorteSansPromo,
+  ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, decisionPorteSansPromo,
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
-} from "./espaces-rules.js?v=20261111c";
-import { peutQuitter } from "./navigation.js?v=20261111c";
-import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261111c";
-import { icon } from "./icons.js?v=20261111c";
-import { lireAdresse } from "./route-rules.js?v=20261111c";
+} from "./espaces-rules.js?v=20261111g";
+import { peutQuitter } from "./navigation.js?v=20261111g";
+import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261111g";
+import { icon } from "./icons.js?v=20261111g";
+import { lireAdresse } from "./route-rules.js?v=20261111g";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -482,9 +482,6 @@ export function onAdminChange(cb) {
   listeners.add(cb);
   return () => listeners.delete(cb);
 }
-
-// Compat avec ancien code qui importait ces fonctions.
-export async function refreshAllowedEmails() { /* no-op, géré via user_profiles + RLS */ }
 
 // === UI : bandeaux de la session ===
 

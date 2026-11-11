@@ -1,4 +1,4 @@
-// Stub d'auth pour le banc d'essai du Dossier Professionnel (_preview_dp_vue.html).
+// Stub d'auth pour le banc d'essai des cours (_preview_cours.html, exclu de git), né avec celui du Dossier Professionnel.
 // Injecté à la place de js/auth-admin.js par l'import map du banc : permet de
 // jouer les deux rôles sans authentification et sans toucher la base de prod.
 //
@@ -14,8 +14,7 @@ const MON_ID = Number(params.get("stagiaire") || 15);
 export function isAdmin() { return ROLE === "formateur"; }
 export function isProf() { return ROLE === "formateur"; }
 export function isStagiaire() { return ROLE === "stagiaire"; }
-// ?fondateur=1 : le banc des modules (_preview_modules.html) joue le fondateur,
-// seul autorisé à régler les modules tant que le multi-promo n'est pas en ligne.
+// ?fondateur=1 : joue le fondateur.
 export function isFounder() { return params.get("fondateur") === "1"; }
 export function getViewAs() { return null; }
 export function isAuth() { return true; }

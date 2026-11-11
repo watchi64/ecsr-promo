@@ -8,8 +8,8 @@
 // sinon ses résultats sont provisoires : la fiche porte l'avertissement « Ne pas publier » et n'est jamais publiable.
 //
 // Les chiffres viennent du tableau de bord du centre (indicateursPromo, js/centre-stats.js) et les méthodes de METHODES_PUBLIQUES
-// (même fichier), écrites pour le public. Trois mesures ne sont pas encore produites par l'application : la présence
-// (l'émargement n'est pas branché), l'obtention du titre (les résultats de jury ne sont pas saisis) et la satisfaction
+// (même fichier), écrites pour le public. Trois mesures peuvent manquer à l'application : la présence
+// (elle vient des feuilles d'émargement closes de la promo, { etat: "non_lue" } si leur lecture échoue), l'obtention du titre (les résultats de jury ne sont pas saisis) et la satisfaction
 // (questionnaires du lot Q3). Elles se disent en toutes lettres (« non mesuré », « non saisi », « non mesurée ») ; le jour où
 // l'une arrive, l'appelant la passe sous la forme { taux, effectif } (taux de 0 à 1, effectif : le nombre de stagiaires sur
 // lequel il porte) et la fiche l'écrit. Une mesure inutilisable vaut une mesure absente.
@@ -20,10 +20,11 @@
 // Jamais de valeur « null », « undefined » ou « NaN » dans la fiche ni dans ses textes : ce qui manque devient un mot. Sans
 // indicateurs exploitables, la fiche est celle d'une promo sans inscrit.
 
-import { METHODES_PUBLIQUES, pct } from "./centre-stats.js?v=20261111c";
-import { promoTerminee, periodeEnMots, edition } from "./qualiopi-documents.js?v=20261111c";
-import { rempli, tableau, nb } from "./qualiopi-preuves.js?v=20261111c";
-import { texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261111c";
+import { METHODES_PUBLIQUES } from "./centre-stats.js?v=20261111g";
+import { pct, pluriel } from "./nombres.js?v=20261111g";
+import { promoTerminee, periodeEnMots, edition } from "./qualiopi-documents.js?v=20261111g";
+import { rempli, tableau } from "./qualiopi-preuves.js?v=20261111g";
+import { texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261111g";
 
 // L'interface du plan : la règle « terminée » est celle des dossiers et les méthodes publiques celles du tableau de bord
 // (js/centre-stats.js, à côté de METHODES) ; ni l'une ni les autres ne sont réécrites ici, seulement réexportées.
@@ -48,9 +49,9 @@ const ENTETES_TABLEAU = ["Indicateur", "Résultat", "Effectif", "Période", "Mé
 
 // --- Petits outils ---
 
-const entier = (x) => (Number.isInteger(x) && x >= 0 ? x : null);
+const entierOuNul = (x) => (Number.isInteger(x) && x >= 0 ? x : null);
 const taux = (x) => (typeof x === "number" && Number.isFinite(x) && x >= 0 && x <= 1 ? x : null);
-const stagiaires = (n) => (n === SANS_OBJET ? SANS_OBJET : !Number.isInteger(n) || n < 0 ? "non renseigné" : n === 0 ? "aucun stagiaire" : nb(n, "stagiaire"));
+const stagiaires = (n) => (n === SANS_OBJET ? SANS_OBJET : !Number.isInteger(n) || n < 0 ? "non renseigné" : n === 0 ? "aucun stagiaire" : pluriel(n, "stagiaire"));
 
 // =====================================================================================================
 // La fiche d'une promo
@@ -65,13 +66,14 @@ export function ficheResultats({ promo, ind, aujourdhui, presence = null, obtent
   const periode = periodeEnMots(promo?.date_debut, promo?.date_fin);
   // Les inscrits : l'effectif du tableau de bord, ou à défaut ce que l'abandon en dit ; sans rien d'exploitable, personne.
   const inscrits = [ind?.effectif?.valeur, ind?.effectif?.detail?.inscrits, ind?.abandon?.n, ind?.abandon?.detail?.inscrits]
-    .map(entier).find((x) => x !== null) ?? 0;
+    .map(entierOuNul).find((x) => x !== null) ?? 0;
   const ligne = (cle, valeur, effectif, methode = METHODES_PUBLIQUES[cle]) => ({ cle, libelle: LIBELLES[cle], valeur, effectif, periode, methode });
   // Une mesure fournie par l'appelant, ou le mot qui dit qu'elle manque. Un effectif illisible est celui des inscrits. Une mesure
   // absente n'a ni effectif ni méthode de calcul : elle ne décrit pas un calcul qui n'a pas eu lieu.
   const mesure = (cle, donnee) => {
     const t = taux(donnee?.taux);
-    return t === null ? ligne(cle, VALEURS_ABSENTES[cle], SANS_OBJET, MESURE_NON_DISPONIBLE) : ligne(cle, pct(t), entier(donnee.effectif) ?? inscrits);
+    if (donnee?.etat === "non_lue") return ligne(cle, "non lue (erreur de lecture)", SANS_OBJET, MESURE_NON_DISPONIBLE);
+    return t === null ? ligne(cle, VALEURS_ABSENTES[cle], SANS_OBJET, MESURE_NON_DISPONIBLE) : ligne(cle, pct(t), entierOuNul(donnee.effectif) ?? inscrits);
   };
   // La satisfaction du questionnaire de fin de formation : le taux est un entier de 0 à 100, l'effectif est celui des avis notés,
   // dit avec celui des inscrits (`effectifTexte`). Sous le seuil, la phrase fixe et aucun chiffre ; sinon l'ancienne forme.
@@ -82,8 +84,8 @@ export function ficheResultats({ promo, ind, aujourdhui, presence = null, obtent
       ? satisfaction.taux / 100 : null;
     if (t === null) return mesure("satisfaction", satisfaction?.repondants === undefined ? satisfaction : null);
     const l = ligne("satisfaction", pct(t), satisfaction.repondants);
-    const sur = entier(satisfaction.inscrits) > 0 ? ` sur ${nb(satisfaction.inscrits, "inscrit")}` : "";
-    return { ...l, effectifTexte: `${nb(satisfaction.repondants, "avis noté", "avis notés")}${sur}` };
+    const sur = entierOuNul(satisfaction.inscrits) > 0 ? ` sur ${pluriel(satisfaction.inscrits, "inscrit")}` : "";
+    return { ...l, effectifTexte: `${pluriel(satisfaction.repondants, "avis noté", "avis notés")}${sur}` };
   };
   const abandon = taux(ind?.abandon?.valeur);
   return {
@@ -98,7 +100,7 @@ export function ficheResultats({ promo, ind, aujourdhui, presence = null, obtent
     publiable: terminee,
     avertissement: terminee ? "" : AVERTISSEMENT_PROVISOIRE,
     lignes: [
-      ligne("effectif", inscrits === 0 ? "aucun inscrit" : nb(inscrits, "inscrit"), inscrits),
+      ligne("effectif", inscrits === 0 ? "aucun inscrit" : pluriel(inscrits, "inscrit"), inscrits),
       ligne("abandon", abandon === null ? "non calculable" : pct(abandon), inscrits),
       mesure("presence", presence),
       mesure("titre", obtention),
@@ -146,7 +148,7 @@ export function tableauFiche(fiche) {
 // Ce que la page dit après une sortie quand des promos sont en cours : vide si toutes sont terminées.
 export function noteProvisoire(fiches) {
   const enCours = tableau(fiches).filter((f) => f && !f.publiable).length;
-  return enCours ? `${nb(enCours, "formation")} en cours : résultats provisoires, à ne pas publier.` : "";
+  return enCours ? `${pluriel(enCours, "formation")} en cours : résultats provisoires, à ne pas publier.` : "";
 }
 
 // =====================================================================================================

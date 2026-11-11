@@ -11,25 +11,34 @@
 // module est fermé). Sans `module`, il est déduit du lien `ou` ; le préciser
 // dès que le lien ne suffit pas (une nouveauté sur les QCM qui mène à Thèmes).
 //
-// Deux navigations coexistent (js/nav-etat.js : l'interrupteur de la promo). Le champ
-// `navigation` ("nouvelle" | "ancienne") réserve une entrée à l'une : « nouvelle » ne se lit que
-// nouvelle barre allumée, « ancienne » que si elle est éteinte (l'entrée ne décrit que l'ancienne
-// barre) ; sans lui, l'entrée se lit dans les deux. `guideNouvelle` (facultatif) remplace `guide`
-// quand la nouvelle navigation est allumée. Une entrée d'avant la refonte garde le nom de
-// l'ancienne barre dans `ou.label` et dans `guide` : le libellé du lien est réécrit au
-// rendu (js/ou-trouver.js), les étapes ont leur `guideNouvelle`, le récit daté (titre, resume)
-// n'est pas réécrit.
+// Une seule navigation depuis le 10/11. Les étapes (`guide`) décrivent la barre d'aujourd'hui. Une entrée d'avant
+// la refonte peut garder le nom d'une ancienne page dans `ou.label` : le libellé du lien est réécrit au rendu
+// (js/ou-trouver.js) ; le récit daté (titre, resume) n'est pas réécrit.
 //
 // Public : la promo, des adultes en reconversion. Pas de vocabulaire technique,
 // pas de numéro de version, pas de nom de fichier.
 //
 // Ton (décision du 10/11) : `pour: "stagiaires"` tutoie ; `pour: "formateurs"` vouvoie ;
 // `pour: "tous"` reste neutre, ni tu ni vous (étapes à l'infinitif, « Ouvrir le menu du
-// compte », descriptions impersonnelles, « Chaque stagiaire peut… »). Les entrées
-// `navigation: "ancienne"` et les `guide` doublés d'un `guideNouvelle` ne se lisent qu'avec
-// l'ancienne barre : ils restent tels quels.
+// compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // Conservation des données (Qualiopi Q5), datée du jour de la mise en ligne. Pour l'équipe seulement : les boutons
+  // d'effacement quittent Réglages (ex-Paramètres) pour la page Qualiopi, que seul le fondateur ouvre.
+  {
+    id: "2026-11-11-conservation-fondateur",
+    date: "2026-11-11",
+    pour: "formateurs",
+    titre: "L'effacement des fiches passe par le fondateur",
+    resume: "Les boutons « Effacer les données » (dans Abandons) et « Anonymiser la promo » quittent Réglages. Les fiches "
+          + "des stagiaires sont maintenant gardées plus longtemps, comme preuves de la formation : le nom, le dossier "
+          + "professionnel, le livret et les feuilles d'émargement jusqu'au 31 décembre de la troisième année après la fin ; "
+          + "le compte, l'adresse e-mail et les commentaires partent 12 mois après la fin. C'est le fondateur de l'application "
+          + "qui fait chaque effacement, à la date prévue. Un stagiaire qui vous demande l'effacement de ses données n'a "
+          + "plus à être mis en abandon : transmettez sa demande au fondateur, qui efface tout, tout de suite. « Réactiver » reste dans "
+          + "Abandons, et la suppression des élèves bénévoles ne change pas.",
+    ou: { label: "Paramètres", route: "config" },
+  },
   {
     // Navigation unique (11/11/2026) : l'ancienne barre est retirée, toutes les promos ont la nouvelle. Premier du fichier : la
     // plus récente, celle que montre la carte « Nouveauté » de l'Accueil.
@@ -80,21 +89,23 @@ export const NOUVEAUTES = [
     ou: { label: "Accueil", route: "home" },
   },
   {
-    // Suite du lot 5 (mise en ligne du 11/11/2026). Texte destiné à l'équipe : au vouvoiement.
+    // Suite du lot 5 (mise en ligne du 11/11/2026). Texte destiné à l'équipe : au vouvoiement. Récit et étapes réécrits le jour
+    // même par le lot Q5 : l'anonymisation des promos, qui ne tenait pas les 3 ans promis, passe au fondateur (page Qualiopi).
     id: "2026-11-11-donnees-personnelles-centre",
     date: "2026-11-11",
     pour: "direction",
     titre: "Données personnelles dans les Réglages du centre",
-    resume: "Les Réglages du centre ont une section « Données personnelles ». Vous y voyez, pour chaque promo du centre, "
-          + "si les fiches peuvent être anonymisées (12 mois après la fin de la promo) et vous les anonymisez d'un geste, "
-          + "sans changer la promo affichée. Vous y supprimez aussi les élèves bénévoles du centre sans venue depuis 12 mois. "
+    resume: "Les Réglages du centre ont une section « Données personnelles ». Vous y supprimez les élèves bénévoles du "
+          + "centre sans venue depuis 12 mois, sans changer la promo affichée. La conservation des fiches des stagiaires "
+          + "(12 mois, puis jusqu'au 31 décembre de la troisième année après la fin) est gérée par le fondateur, sur la page "
+          + "Qualiopi ; la section le rappelle. "
           + "Autre changement : inviter comme formateur, direction ou siège l'adresse d'un ancien stagiaire dont la fiche n'existe "
           + "plus transforme son compte en compte du personnel, qui se connecte comme avant.",
     ou: { label: "Réglages du centre", route: "config" },
     guide: [
       "Ouvrez Réglages du centre, puis la section « Données personnelles », sous l'habillage.",
-      "Chaque promo du centre indique son état. Quand « Anonymiser la promo » apparaît, ouvrez-la, tapez ANONYMISER pour "
-        + "confirmer : les comptes, e-mails et dates de naissance sont effacés, les résultats restent sans nom.",
+      "La partie « Conservation des fiches » rappelle que le fondateur fait chaque effacement des fiches, à la date prévue ; "
+        + "transmettez-lui une demande d'effacement d'un stagiaire.",
       "Plus bas, « Élèves bénévoles sans venue depuis 12 mois » liste ceux du centre ; « Supprimer » les retire, y compris "
         + "des anciens créneaux du planning, après confirmation.",
     ],
@@ -120,7 +131,6 @@ export const NOUVEAUTES = [
     id: "2026-11-09-ta-journee-accueil",
     date: "2026-11-09",
     pour: "stagiaires",
-    navigation: "nouvelle",
     titre: "Ta journée sur l'Accueil",
     resume: "L'Accueil s'ouvre maintenant sur ta journée : ce que tu fais le matin et l'après-midi, avec qui, et le "
           + "bouton pour signer l'émargement. Juste dessous, « À faire » rassemble ce qui t'attend, puis vient ton "
@@ -145,7 +155,6 @@ export const NOUVEAUTES = [
     id: "2026-11-09-aujourdhui-formateurs",
     date: "2026-11-09",
     pour: "formateurs",
-    navigation: "nouvelle",
     titre: "Aujourd'hui remplace l'Accueil",
     resume: "Votre première page s'appelle maintenant Aujourd'hui et montre la journée de la promo : la feuille "
           + "d'émargement du jour, qui passe au tableau, qui est en voiture, ce qui est à traiter dans Cours et QCM, "
@@ -238,7 +247,6 @@ export const NOUVEAUTES = [
     id: "2026-11-10-menu-espace",
     date: "2026-11-10",
     pour: "formateurs",
-    navigation: "nouvelle",
     titre: "Choisissez votre espace",
     resume: "Si vous dirigez un centre ou si vous travaillez pour le siège, en plus de former, le menu de votre compte a maintenant "
           + "une section « Espace » : une ligne par espace (Formateur, Direction, Siège), l'espace actuel est coché. Choisir "
@@ -253,7 +261,6 @@ export const NOUVEAUTES = [
     id: "2026-11-10-changer-de-promo",
     date: "2026-11-10",
     pour: "stagiaires",
-    navigation: "nouvelle",
     titre: "Changer de promo",
     resume: "Si tu fais partie de plusieurs promos, le menu de ton compte a une ligne « Changer de promo » : elle ouvre le choix "
           + "de la promo, et l'app se recharge sur celle que tu choisis.",
@@ -383,7 +390,6 @@ export const NOUVEAUTES = [
     id: "2026-11-09-accueil-plus-juste",
     date: "2026-11-09",
     pour: "stagiaires",
-    navigation: "nouvelle",
     titre: "Accueil et Mon suivi : des repères plus justes",
     resume: "Quand ton nom ne figure sur aucune activité du matin ou de l'après-midi, l'Accueil te le dit. Dans "
           + "« À faire », un examen ouvert ou le QCM d'un thème t'emmène directement à tes QCM. Ton livret EPCF n'y "
@@ -404,10 +410,6 @@ export const NOUVEAUTES = [
     guide: [
       "Sur la feuille d'émargement, le résumé du haut sépare ceux qui attendent des absents prévus au planning.",
       "Dans la semaine de l'émargement, « Feuille non faite » signale une demi-journée de cours restée sans feuille.",
-    ],
-    guideNouvelle: [
-      "Sur la feuille d'émargement, le résumé du haut sépare ceux qui attendent des absents prévus au planning.",
-      "Dans la semaine de l'émargement, « Feuille non faite » signale une demi-journée de cours restée sans feuille.",
       "Sur Aujourd'hui, la carte « Émargement » nomme ceux qui attendent et, à part, les absents : avec les signés, "
         + "ils font le total.",
       "Dans le Planning en grille, une voiture sans stagiaire au volant affiche « Aucun stagiaire en voiture ».",
@@ -415,13 +417,12 @@ export const NOUVEAUTES = [
         + "de l'ouverture attend que le menu « Plus » soit refermé.",
     ],
   },
-  // Lot 3 de la refonte (date de la fusion) : le choix de l'habillage, qui ne se fait que sous la nouvelle barre. À date
+  // Lot 3 de la refonte (date de la fusion) : le choix de l'habillage. À date
   // égale, il vient après le lot 2B : la carte « Nouveauté » de l'Accueil garde la journée du stagiaire et Aujourd'hui.
   {
     id: "2026-11-09-couleurs-ecf",
     date: "2026-11-09",
     pour: "tous",
-    navigation: "nouvelle",
     titre: "L'app aux couleurs d'ECF",
     resume: "Chacun peut habiller l'app aux couleurs d'ECF : son bleu, son bleu nuit et une touche de rouge. Les "
           + "couleurs et la police des titres changent : chaque page reste à sa place, et les notes gardent leurs couleurs. L'app retient ce "
@@ -441,8 +442,8 @@ export const NOUVEAUTES = [
     pour: "tous",
     titre: "Des écrans plus nets",
     resume: "Les heures s'écrivent partout de la même façon : « 9 h à 12 h 30 ». Un examen ouvert s'affiche en vert, "
-          + "comme une feuille d'émargement ouverte. Les jours fériés se lisent mieux dans le planning. Avec la "
-          + "nouvelle barre, sur téléphone, les boutons et les cases à remplir sont plus grands sous le doigt.",
+          + "comme une feuille d'émargement ouverte. Les jours fériés se lisent mieux dans le planning. Sur "
+          + "téléphone, les boutons et les cases à remplir sont plus grands sous le doigt.",
     ou: { label: "Planning", route: "planning" },
   },
   {
@@ -471,13 +472,6 @@ export const NOUVEAUTES = [
         + "la semaine ».",
       "Sur une carte, les dés disent « Tirer » ou « Tirer au sort », et le bouton d'absence dit « Absent ». Sur téléphone, "
         + "chaque commande de l'éditeur est assez grande pour le doigt.",
-    ],
-    guideNouvelle: [
-      "En mode Modifier, « Quitter l'édition » revient à la lecture : tout est déjà enregistré. « Valider la semaine » "
-        + "enregistre les passages des jours écoulés. « Vider les placements » est en bout de barre, à l'écart de « Placer "
-        + "la semaine ».",
-      "Sur une carte, les dés disent « Tirer » ou « Tirer au sort », et le bouton d'absence dit « Absent ». Sur téléphone, "
-        + "chaque commande de l'éditeur est assez grande pour le doigt.",
       "La grille de la semaine donne les prénoms : qui passe au tableau, qui conduit, quels élèves bénévoles.",
       "Dans la barre de la semaine, « Grille / Liste » (« Jour / Liste » sur téléphone) est à côté de « Modifier » et "
         + "d'« Imprimer ». « Revenir à aujourd'hui » apparaît quand vous regardez une autre semaine. L'émargement s'ouvre par "
@@ -491,8 +485,7 @@ export const NOUVEAUTES = [
     titre: "Planning : des icônes à la place des émojis",
     resume: "Dans le planning, les petits dessins en couleur laissent la place aux icônes du reste de l'app : un "
           + "crayon pour « Modifier », des dés pour le placement automatique, une gomme pour « Vider les placements ». "
-          + "Avec la nouvelle barre, le bouton « Cette semaine » disparaît, sur ordinateur comme sur téléphone ; "
-          + "l'ancienne barre le garde.",
+          + "Le bouton « Cette semaine » disparaît, sur ordinateur comme sur téléphone.",
     ou: { label: "Planning", route: "planning" },
   },
   {
@@ -516,7 +509,6 @@ export const NOUVEAUTES = [
     id: "2026-10-29-nouvelle-navigation",
     date: "2026-10-29",
     pour: "tous",
-    navigation: "nouvelle",
     titre: "Une navigation plus simple",
     resume: "La barre de l'app change pour aller plus vite à l'essentiel. Sur le téléphone, les pages "
           + "principales sont en bas de l'écran, à portée de pouce, chacune avec son nom. Le Planning regroupe "
@@ -538,7 +530,6 @@ export const NOUVEAUTES = [
     id: "2026-10-29-nouvelle-navigation-formateurs",
     date: "2026-10-29",
     pour: "formateurs",
-    navigation: "nouvelle",
     titre: "Côté formateurs, la barre passe à gauche",
     resume: "Sur ordinateur, la barre de l'équipe est maintenant à gauche, avec la promo en tête ; elle se "
           + "replie en colonne d'icônes et l'app s'en souvient. Le compte et l'assistant sont en bas de cette "
@@ -577,11 +568,6 @@ export const NOUVEAUTES = [
           + "problème » : la page, l'appareil et l'heure partent avec le message, et une capture d'écran peut "
           + "s'y ajouter. La réponse s'affiche au même endroit.",
     guide: [
-      "Touche ton nom en haut de l'écran, ou ouvre l'Assistant.",
-      "Choisis « Signaler un problème ».",
-      "Écris ce qui se passe, ajoute une capture si tu veux, puis « Envoyer ».",
-    ],
-    guideNouvelle: [
       "Ouvrir le compte avec les initiales, en haut à droite, puis choisir « Signaler un problème ». Chez les formateurs, "
         + "le bouton est en bas de la barre de gauche sur ordinateur, et dans « Plus » sur téléphone.",
       "Dans l'Assistant, la ligne « Un souci avec l'app ? » mène au même endroit.",
@@ -646,7 +632,7 @@ export const NOUVEAUTES = [
     ou: { label: "Cours", route: "themes" },
     module: "qcm",
     guide: [
-      "Cours, onglet Thèmes : ouvrez le QCM d'un thème, puis « Modifier » et « Éditer les questions ».",
+      "Cours et QCM, onglet Thèmes : ouvrez le QCM d'un thème, puis « Modifier » et « Éditer les questions ».",
       "En bas de l'éditeur, « Proposer avec l'IA » : choisissez le nombre de questions et la partie du cours.",
       "Chaque brouillon : « Relire et accepter » (corrigez si besoin, puis « Accepter dans le QCM ») ou « Rejeter ».",
     ],
@@ -674,11 +660,6 @@ export const NOUVEAUTES = [
           + "des notes se télécharge pour Excel, avec ou sans les noms.",
     ou: { label: "Accueil, tuile Tableau de bord", route: "centre" },
     guide: [
-      "Ouvre l'Accueil, puis la tuile « Tableau de bord ».",
-      "Touche « Méthode » sous un chiffre pour voir son calcul.",
-      "« Exporter en PDF » pour l'imprimer ; « Matrice des notes (CSV) » pour l'ouvrir dans Excel.",
-    ],
-    guideNouvelle: [
       "Ouvrez Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».",
       "Touchez « Méthode » sous un chiffre pour voir son calcul.",
       "« Exporter en PDF » pour l'imprimer ; « Matrice des notes (CSV) » pour l'ouvrir dans Excel.",
@@ -700,7 +681,7 @@ export const NOUVEAUTES = [
     date: "2026-10-15",
     pour: "formateurs",
     titre: "Un bandeau pour recueillir l'avis des stagiaires de Nîmes",
-    resume: "Jusqu'au 30 novembre, les stagiaires de la promo de Nîmes voient en haut de « Mon espace » "
+    resume: "Jusqu'au 30 novembre, les stagiaires de la promo de Nîmes voient en haut de « Mon suivi » "
           + "une invitation à donner leur avis sur l'app, en cinq minutes. Le questionnaire est anonyme : "
           + "il se remplit sur Google Forms, sans nom ni adresse, et l'app n'enregistre aucune réponse. "
           + "Chacun peut répondre, repousser au lendemain ou ne plus afficher le bandeau.",
@@ -725,15 +706,12 @@ export const NOUVEAUTES = [
           + "moyennes. Une nouvelle partie « Données personnelles » montre aussi quand une promo pourra "
           + "être anonymisée (12 mois après sa fin) et les élèves bénévoles à supprimer.",
     ou: { label: "Paramètres", route: "config" },
+    // Étapes réécrites au lot Q5 (conservation des données) : le bouton « Effacer les données » a quitté les Abandons, et une
+    // demande ne passe plus par l'abandon (elle fausserait le taux). Le titre et le récit, datés, restent ceux du 05/10.
     guide: [
-      "Paramètres, partie Promo : « Abandon » sur le stagiaire concerné.",
-      "Dans « Abandons », bouton « Effacer les données », puis tape son prénom pour confirmer.",
-      "Partie « Données personnelles » : l'anonymisation de la promo et les élèves bénévoles inactifs.",
-    ],
-    guideNouvelle: [
-      "Réglages, partie Promo : « Abandon » sur le stagiaire concerné.",
-      "Dans « Abandons », bouton « Effacer les données », puis tapez son prénom pour confirmer.",
-      "Partie « Données personnelles » : l'anonymisation de la promo et les élèves bénévoles inactifs.",
+      "L'effacement des données se demande maintenant au fondateur : transmettez-lui la demande de la personne, sans la marquer en abandon.",
+      "Le fondateur efface tout, tout de suite, sur sa page Qualiopi ; la personne n'est pas comptée en abandon.",
+      "Réglages, partie « Données personnelles » : les élèves bénévoles inactifs.",
     ],
   },
   {
@@ -757,7 +735,7 @@ export const NOUVEAUTES = [
           + "de compétences arriveront au fil de leur vérification.",
     ou: { label: "Cours, onglet Compétences", route: "themes", sousOnglet: "competences" },
     guide: [
-      "Ouvrez Cours, puis l'onglet Compétences.",
+      "Ouvrez Cours et QCM, puis l'onglet Compétences.",
       "Dans un cours, le schéma se lance quand il apparaît à l'écran ; touchez une étape pour y revenir.",
       "Bouton Modifier, puis Blocs, pour ajouter un schéma, un quiz ou des cartes dans un cours.",
     ],
@@ -826,28 +804,11 @@ export const NOUVEAUTES = [
           + "Notes garde la vue de la classe.",
     ou: { label: "Accueil, tuile Stagiaires", route: "stagiaires" },
     guide: [
-      "Ouvre la tuile Stagiaires de l'Accueil.",
-      "Choisis un stagiaire : sa fiche s'ouvre à côté de la liste, ou en plein écran sur téléphone.",
-      "Partie EPCF : Évaluer ou Modifier chaque épreuve. Parties Livret et Dossier pro : remplis-les ou relis-les.",
-    ],
-    guideNouvelle: [
       "Ouvrez Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).",
       "Choisissez un stagiaire : sa fiche s'ouvre à côté de la liste, ou en plein écran sur téléphone.",
       "Partie Évaluations EPCF : Évaluer ou Modifier chaque épreuve. Parties Livret EPCF et Dossier professionnel : "
         + "remplissez-les ou relisez-les.",
     ],
-  },
-  {
-    id: "2026-10-03-sommaire-iphone",
-    date: "2026-10-03",
-    pour: "tous",
-    navigation: "ancienne",
-    titre: "Ton espace personnel sur téléphone : un sommaire",
-    resume: "Sur téléphone, ton espace s'ouvre sur un sommaire : Passages, EPCF, Évolution, Livret "
-          + "et Dossier pro, chacun avec son état. Touche une ligne pour l'ouvrir ; la flèche en "
-          + "haut à gauche, ou le geste retour, te ramène au sommaire. Ta date de naissance se "
-          + "règle maintenant dans la partie Livret.",
-    ou: { label: "Le logo en haut à gauche", route: "mon-suivi" },
   },
   {
     id: "2026-10-03-deux-promos",
@@ -864,38 +825,12 @@ export const NOUVEAUTES = [
           + "affichée, et d'elle seule.",
     ou: { label: "Pastille en haut, à côté de ton nom", route: "home" },
     guide: [
-      "Touche la pastille de la promo en haut de l'écran (« Nîmes · mars 2026 »).",
-      "Choisis « Montpellier, septembre 2026 » : la page se recharge sur cette promo.",
-      "Dans Paramètres, ajoute les stagiaires de la promo (prénom et nom de famille), puis "
-        + "prépare le calendrier et le planning.",
-      "Avant d'inviter les stagiaires de septembre : Paramètres, « Modules de la promo », "
-        + "« Partir de l'ensemble de départ ».",
-    ],
-    guideNouvelle: [
       "Touchez la promo en tête de la barre de gauche (sur téléphone, en haut de l'écran).",
       "Choisissez « Montpellier, septembre 2026 » : la page se recharge sur cette promo.",
       "Dans Réglages, ajoutez les stagiaires de la promo (prénom et nom de famille), puis "
         + "préparez les dates clés et le planning.",
       "Avant d'inviter les stagiaires de septembre : Réglages, « Ce que voient les stagiaires », "
         + "« Revenir aux modules de départ ».",
-    ],
-  },
-  {
-    id: "2026-10-03-barre-simple",
-    date: "2026-10-03",
-    pour: "tous",
-    navigation: "ancienne",
-    module: "themes",
-    titre: "Une barre d'onglets plus simple",
-    resume: "L'onglet Thèmes s'appelle maintenant Cours, avec deux sous-onglets : Thèmes et "
-          + "Compétences. Les priorités de passage se trouvent en haut du Planning. Ton livret "
-          + "EPCF et ton dossier professionnel sont rangés dans ton espace personnel, avec tout "
-          + "ce qui est à toi.",
-    ou: { label: "Cours", route: "themes" },
-    guide: [
-      "Cours : choisis Thèmes ou Compétences juste sous le titre.",
-      "Planning : le bouton Priorités est en haut de la page.",
-      "Ton espace personnel (le logo en haut à gauche) : parties Livret et Dossier pro.",
     ],
   },
   {
@@ -1079,7 +1014,7 @@ export const NOUVEAUTES = [
           + "enregistrement garde une version : rien ne se perd, tout se restaure.",
     ou: { label: "Cours, colonne Cours", route: "themes" },
     guide: [
-      "Ouvrez l'onglet Thèmes : chaque thème a sa colonne Cours. Le bouton reste "
+      "Ouvrez Cours et QCM, onglet Thèmes : chaque thème a sa colonne Cours. Le bouton reste "
         + "en couleur tant que vous n'avez pas encore ouvert ce cours sur votre appareil.",
       "« Modifier » ouvre l'éditeur : corrigez à gauche, contrôlez l'aperçu à droite.",
       "Le bouton Panneaux ouvre la galerie : cherchez un panneau par son nom, un clic l'insère.",
@@ -1117,7 +1052,7 @@ export const NOUVEAUTES = [
           + "corrige jamais une question de lui-même.",
     ou: { label: "Cours, onglet Questions contestées", route: "themes", sousOnglet: "signalements" },
     guide: [
-      "Ouvrez Cours, puis l'onglet Questions contestées.",
+      "Ouvrez Cours et QCM, puis l'onglet Questions contestées.",
       "Lisez l'avis en dépliant « Voir l'analyse », puis tranchez avec « Question corrigée » ou « Pas d'erreur ».",
       "« Ouvrir dans l'éditeur » vous emmène directement sur la question à réécrire.",
     ],
@@ -1133,8 +1068,8 @@ export const NOUVEAUTES = [
           + "pour travailler ce qui manque plutôt que ce qui est déjà su.",
     ou: { label: "Cours, colonne QCM", route: "themes" },
     guide: [
-      "Ouvrir l'onglet Thèmes.",
-      "Cliquer sur le bouton QCM à droite du thème choisi.",
+      "Ouvrir Cours et QCM, onglet QCM (pour l'équipe : onglet Thèmes, colonne QCM).",
+      "Ouvrir le QCM du thème voulu.",
       "Choisir « S'entraîner », ou « Revoir mes erreurs » pour ne rejouer que les questions ratées.",
     ],
   },
@@ -1164,30 +1099,9 @@ export const NOUVEAUTES = [
     ou: { label: "Mon espace personnel, partie Dossier professionnel",
           route: "mon-suivi", sousOnglet: "dp" },
     guide: [
-      "Ouvre ton espace personnel avec le logo en haut à gauche.",
-      "Va sur le sous-onglet « Dossier pro ».",
-      "Remplis tes exemples, puis imprime ou enregistre en PDF quand tu es prêt.",
-    ],
-    guideNouvelle: [
       "Ouvrir Mon suivi, dans la barre.",
       "Aller dans la partie « Dossier professionnel ».",
       "Remplir les exemples, puis imprimer ou enregistrer en PDF une fois le dossier prêt.",
-    ],
-  },
-  {
-    id: "2026-07-23-espace-personnel",
-    date: "2026-07-23",
-    pour: "tous",
-    navigation: "ancienne",
-    titre: "L'app s'ouvre sur ton espace personnel",
-    resume: "En arrivant, tu vois d'abord ce qui te concerne : tes prochains créneaux, tes "
-          + "passages déjà effectués et tes résultats. L'ancien tableau de bord s'appelle "
-          + "maintenant « Priorités » et sert à voir qui doit passer dans la promo.",
-    ou: { label: "Le logo en haut à gauche", route: "mon-suivi" },
-    guide: [
-      "Clique sur le logo en haut à gauche pour revenir à ton espace à tout moment.",
-      "Le sous-onglet « Passages » compte ce que tu as déjà fait, en salle et en voiture.",
-      "Le bouton « Aujourd'hui au planning » t'emmène directement à la journée en cours.",
     ],
   },
   {
@@ -1215,11 +1129,6 @@ export const NOUVEAUTES = [
           + "depuis le profil, sans ressaisie.",
     ou: { label: "Mon espace personnel, partie Livret EPCF", route: "mon-suivi", sousOnglet: "livret" },
     guide: [
-      "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait.",
-      "Ouvre l'onglet Notes, sous-onglet « Livret EPCF ».",
-      "Remplis le livret, puis imprime ou enregistre en PDF.",
-    ],
-    guideNouvelle: [
       "Ouvrir Mon suivi, partie Livret EPCF.",
       "Renseigner la date de naissance si ce n'est pas déjà fait.",
       "Consulter le livret EPCF, puis l'imprimer ou l'enregistrer en PDF.",
@@ -1235,7 +1144,7 @@ export const NOUVEAUTES = [
           + "avec un commentaire par venue.",
     ou: { label: "Planning, bouton Bénévoles", route: "planning" },
     guide: [
-      "Ouvrez le planning et cliquez sur « Bénévoles » dans la barre de semaine.",
+      "Ouvrez Stagiaires, onglet « Élèves bénévoles ».",
       "Basculez sur l'onglet « Auto-écoles » du panneau.",
       "Ouvrez une fiche pour voir ses bénévoles, en affilier d'autres ou en créer un directement rattaché.",
     ],
@@ -1250,7 +1159,7 @@ export const NOUVEAUTES = [
           + "jour-là remontent en tête de liste.",
     ou: { label: "Planning, bouton Bénévoles", route: "planning" },
     guide: [
-      "Ouvrez le planning et cliquez sur « Bénévoles » dans la barre de semaine.",
+      "Ouvrez Stagiaires, onglet « Élèves bénévoles ».",
       "Ajoutez une fiche : seul le prénom est obligatoire, le reste se complète plus tard.",
       "Renseignez la grille de disponibilités pour que le filtre « qui est dispo jeudi matin » fonctionne.",
     ],

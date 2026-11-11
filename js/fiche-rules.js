@@ -1,5 +1,6 @@
 // États affichés par la fiche d'une personne (sommaire sur iPhone) et par la
 // liste de la page Stagiaires (chantier D, lot 2). Module pur : testé en node.
+import { pluriel } from "./nombres.js?v=20261111g";
 
 export const EPREUVES_EPCF = ["salle", "vehicule"];
 
@@ -53,8 +54,6 @@ function texteDossier(dossier, prefixe) {
   const etat = !dossier ? "pas commencé" : date ? "modifié le " + date : "commencé";
   return prefixe ? prefixe + " : " + etat : etat;
 }
-
-const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 
 // Ligne d'état de la page Stagiaires (vue formateur) : `afaire` pour ce qui
 // reste à faire, affiché en orange.

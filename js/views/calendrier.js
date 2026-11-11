@@ -4,13 +4,13 @@
  */
 import {
   listAgendaEvents, addAgendaEvent, updateAgendaEvent, deleteAgendaEvent, getPromoCourante,
-} from "../db.js?v=20261111c";
-import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261111c";
-import { confirmer } from "../confirmer.js?v=20261111c";
-import { icon } from "../icons.js?v=20261111c";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261111c";
-import { recordUndo } from "../undo.js?v=20261111c";
-import { navigationV2Active } from "../nav-etat.js?v=20261111c";
+} from "../db.js?v=20261111g";
+import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261111g";
+import { confirmer } from "../confirmer.js?v=20261111g";
+import { icon } from "../icons.js?v=20261111g";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261111g";
+import { recordUndo } from "../undo.js?v=20261111g";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111g";
 
 let events = [];
 
@@ -86,7 +86,7 @@ function countdownInfo(e) {
 
 function openEventModal(existing, onSaved) {
   const isNew = !existing;
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
 
   const typeSel = el("select");
   EVENT_TYPES.forEach((t) => {
@@ -153,7 +153,7 @@ function openEventModal(existing, onSaved) {
         });
         toast("Événement mis à jour", "success", 1800);
       }
-      backdrop.remove();
+      modale.fermer();
       onSaved();
     } catch (e) {
       console.error(e);
@@ -174,13 +174,11 @@ function openEventModal(existing, onSaved) {
       el("div", { class: "field" }, el("label", {}, "Notes"), descInput),
     ),
     el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler"),
+      el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Annuler"),
       el("button", { class: "btn primary", onClick: save }, icon.check(), "Enregistrer"),
     )
   );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
   setTimeout(() => titleInput.focus(), 80);
 }
 
@@ -266,19 +264,16 @@ function rerender(container) {
   clear(container);
   const admin = isAdmin();
 
-  // Nouvelle navigation : la page est Planning, Dates clés ; elle porte ce nom, avec la promo en surtitre (avant :
-  // « Calendrier », et le nombre d'événements pour surtitre) ; le nombre de dates clés, passées comprises, termine
-  // alors le sous-titre.
-  const v2 = navigationV2Active();
+  // La page est Planning, Dates clés ; elle porte ce nom, avec la promo en surtitre ; le nombre de dates clés,
+  // passées comprises, termine le sous-titre.
   const surtitre = getPromoCourante()?.nom;
   const pluriel = events.length > 1 ? "s" : "";
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      v2 ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null)
-        : el("p", { class: "eyebrow" }, events.length + " événement" + (events.length > 1 ? "s" : "") + " au calendrier"),
-      el("h2", {}, v2 ? "Dates clés" : "Calendrier"),
+      surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
+      el("h2", {}, "Dates clés"),
       el("p", { class: "subtitle" }, "Dates importantes : examens, stages, formations, fériés."
-        + (v2 ? ` ${events.length} date${pluriel} clé${pluriel}.` : "")),
+        + ` ${events.length} date${pluriel} clé${pluriel}.`),
     ),
     admin ? el("button", {
       class: "btn primary",

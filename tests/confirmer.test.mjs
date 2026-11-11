@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { ElementFactice, NoeudFactice, descendants, installerDocument } from "./aides-dom.mjs";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { confirmer, demander } from "../js/confirmer.js";
+import { confirmationEcheance, confirmationDemande, echeancesConservation } from "../js/effacement-rules.js";
 
 // Finitions du lot C : la confirmation d'un geste qui efface (une note) se fait dans une fenêtre de l'app, plus par la
 // boîte du navigateur (confirm()), que le robot et le vérificateur comptent comme un défaut. Ce que la fenêtre garantit,
@@ -350,4 +351,133 @@ test("demander : Tab passe du champ aux deux boutons et revient", () => avecDocu
   touche("Tab", { shiftKey: true }); assert.equal(document.activeElement, oui, "Maj+Tab sur le champ : le dernier bouton");
   non.click();
   assert.equal(await reponse, null);
+}));
+
+// --- Geste irréversible de la conservation des données (page Qualiopi, lot Q5) : confirmer() avec `part`, `reste` et `saisie`.
+// Les listes de ce qui part et de ce qui reste, un champ où taper le mot ou le prénom demandé, et un bouton qui n'agit
+// qu'une fois la saisie juste (la seule barrière de l'app devant un effacement irréversible).
+const taper = (c, valeur) => { c.value = valeur; c.declencher("input"); };
+const detaillee = () => ({
+  titre: "Effacer les données de Hélène Durand ?", phrase: "Irréversible.",
+  part: ["le dossier professionnel", "le livret EPCF"], reste: ["ses résultats, sans nom"],
+  saisie: { consigne: "Pour confirmer, tapez son prénom : Hélène", verifier: (t) => t.trim().toLowerCase() === "hélène" },
+  oui: "Effacer ses données",
+});
+
+test("saisie : les listes et la consigne sont dans la fenêtre, le focus va au champ, le geste attend la bonne saisie", () => avecDocument(async (document) => {
+  const reponse = confirmer(detaillee());
+  await tour();
+  const f = fenetre(document);
+  const textes = descendants(f).map((n) => n.textContent);
+  for (const attendu of ["Ce qui est effacé", "le dossier professionnel", "le livret EPCF", "Ce qui reste", "ses résultats, sans nom"]) {
+    assert.ok(textes.includes(attendu), "la fenêtre dit : " + attendu);
+  }
+  const c = champ(document);
+  assert.ok(c, "un champ de saisie");
+  const etiquette = descendants(f).find((n) => n.nodeName === "label");
+  assert.ok(etiquette.textContent.includes("Pour confirmer, tapez son prénom : Hélène"), "la consigne nomme le champ");
+  assert.equal(etiquette.getAttribute("for"), c.getAttribute("id"));
+  assert.equal(document.activeElement, c, "le focus va au champ");
+  const oui = bouton(document, "Effacer ses données");
+  assert.equal(oui.disabled, true, "le geste attend la saisie");
+  assert.equal(oui.getAttribute("aria-disabled"), "true");
+  oui.click();
+  await tour();
+  assert.ok(fenetre(document), "un clic sans saisie ne fait rien");
+  taper(c, "Helene");
+  assert.equal(oui.disabled, true, "une autre saisie : toujours non");
+  touche("Enter");
+  await tour();
+  assert.ok(fenetre(document), "Entrée avec une mauvaise saisie ne fait rien");
+  taper(c, "  hélène ");
+  assert.equal(oui.disabled, false, "la bonne saisie : le geste est permis");
+  const e = touche("Enter");
+  assert.ok(e.empeche, "Entrée ne soumet rien d'autre");
+  assert.equal(await reponse, true, "Entrée dans le champ vaut le geste ; la réponse reste oui ou non");
+  assert.equal(fenetre(document), null);
+  assert.equal(clavier().length, 0);
+}));
+
+test("saisie : Tab fait le tour du champ et des boutons, le geste seulement quand il est permis ; Annuler répond non", () => avecDocument(async (document) => {
+  const reponse = confirmer(detaillee());
+  await tour();
+  const c = champ(document), non = bouton(document, "Annuler"), oui = bouton(document, "Effacer ses données");
+  touche("Tab");
+  assert.equal(document.activeElement, non, "du champ à « Annuler »");
+  touche("Tab");
+  assert.equal(document.activeElement, c, "le geste encore interdit est sauté : retour au champ");
+  taper(c, "Hélène");
+  touche("Tab"); touche("Tab");
+  assert.equal(document.activeElement, oui, "permis, le geste entre dans le tour");
+  touche("Tab", { shiftKey: true });
+  assert.equal(document.activeElement, non, "Maj+Tab recule");
+  non.click();
+  assert.equal(await reponse, false);
+}));
+
+test("saisie sans `verifier` : le geste ne s'active jamais (aucun effacement par défaut)", () => avecDocument(async (document) => {
+  const reponse = confirmer({ titre: "Effacer ?", oui: "Effacer", saisie: { consigne: "Pour confirmer, tapez EFFACER" } });
+  await tour();
+  const c = champ(document), oui = bouton(document, "Effacer");
+  taper(c, "EFFACER");
+  assert.equal(oui.disabled, true);
+  oui.click();
+  touche("Enter");
+  await tour();
+  assert.ok(fenetre(document), "rien ne part");
+  touche("Escape");
+  assert.equal(await reponse, false);
+}));
+
+test("saisie : toucher à côté et Échap répondent non (jamais oui), comme une question simple", () => avecDocument(async (document) => {
+  let reponse = confirmer(detaillee());
+  await tour();
+  const f = fenetre(document);
+  for (const rappel of f.ecouteurs.get("click") || []) rappel({ type: "click", target: f });
+  assert.equal(await reponse, false);
+  reponse = confirmer(detaillee());
+  await tour();
+  touche("Escape");
+  assert.equal(await reponse, false);
+}));
+
+// Bout à bout : la fenêtre réelle d'une échéance due (confirmationEcheance) et d'une demande (confirmationDemande) n'agit
+// qu'après le mot EFFACER ou le prénom ; sans cela, le premier clic ne fait rien (régression possible à la fusion du lot B).
+test("échéance due : « Effacer les noms et les preuves » n'agit qu'après EFFACER", () => avecDocument(async (document) => {
+  const etat = { jour: "2030-01-02", promos: [{ id: 3, nom: "Nîmes, mars 2026", date_fin: "2026-12-11", etape1_du: "2027-12-11",
+    etape2_du: "2030-01-01", a_effacer_etape1: 0, a_effacer_etape2: 4, comptes_equipe: 0, emargement_etape2: 0 }] };
+  const e = echeancesConservation(etat).find((x) => x.type === "etape2");
+  const reponse = confirmer(confirmationEcheance(e));
+  await tour();
+  const c = champ(document), oui = bouton(document, "Effacer les noms et les preuves");
+  assert.ok(c && oui, "un champ et le bouton du geste");
+  assert.equal(oui.disabled, true);
+  oui.click();
+  await tour();
+  assert.ok(fenetre(document), "le premier clic ne fait rien");
+  taper(c, "effacer");
+  assert.equal(oui.disabled, false, "EFFACER, casse ignorée");
+  oui.click();
+  assert.equal(await reponse, true);
+}));
+
+test("demande : le prénom à taper ; fiche sans prénom : le mot EFFACER", () => avecDocument(async (document) => {
+  let reponse = confirmer(confirmationDemande({ id: 5, prenom: "Hélène", nom: "Durand" }));
+  await tour();
+  let c = champ(document), oui = bouton(document, "Effacer ses données");
+  taper(c, "Helene");
+  assert.equal(oui.disabled, true, "les accents sont exigés");
+  taper(c, "Hélène".normalize("NFD"));
+  assert.equal(oui.disabled, false, "accents décomposés (NFD) : même prénom");
+  oui.click();
+  assert.equal(await reponse, true);
+  reponse = confirmer(confirmationDemande({ id: 6, prenom: "  ", nom: "Martin" }));
+  await tour();
+  c = champ(document); oui = bouton(document, "Effacer ses données");
+  taper(c, "");
+  assert.equal(oui.disabled, true, "une saisie vide ne confirme jamais");
+  taper(c, "EFFACER");
+  assert.equal(oui.disabled, false, "sans prénom, EFFACER");
+  oui.click();
+  assert.equal(await reponse, true);
 }));

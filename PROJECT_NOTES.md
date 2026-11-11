@@ -19,7 +19,7 @@ Web app de suivi des promotions **TP ECSR** : depuis octobre 2026, plusieurs pro
 |---|---|
 | Frontend | HTML/CSS/JS vanilla, modules ES, **pas de framework** (refus assumé) |
 | Backend | Supabase Postgres, project `crpduennbqaemhfaywrz` (eu-west-3 Paris, org Timy Studio : migré le 17/06/2026 depuis dacqponglpeuscbgwfqn) |
-| Edge Function | `invite-user` (deploy via MCP `mcp__800314df__deploy_edge_function`) |
+| Edge Functions | `chatbot`, `qcm-ia` (deploy via MCP `mcp__800314df__deploy_edge_function`) ; les invitations passent par la fonction SQL `inviter_compte` |
 | Hébergement | GitHub Pages, branche `main` |
 | Typo | Canela (display, self-hosted .otf) + Outfit (Google Fonts body) + Geist Mono (numéros) |
 | Logo | `assets/logo/tpecsr-logo.svg` (capsule TP) : SVG seul, le PNG a été supprimé |
@@ -119,9 +119,13 @@ Liste : ALEXER Audrick, ANKPRA Gaëlle, AQUILA Céline, BAILLY Mickael, BLANC Ju
 - Triggers `audit_passages`, `audit_evaluations` : INSERT/UPDATE/DELETE → row dans `*_audit`, identité depuis `auth.jwt()->>email`
 - Trigger `agenda_touch_updated`, `contacts_touch_updated` : updated_at auto
 
-### Edge Function `invite-user`
+### Invitations : fonction SQL `inviter_compte`
 
-Vérifie le JWT de l'appelant, check `is_admin = true` en lecture service_role, upsert dans user_profiles. **Plus d'envoi de mail** (depuis v3 du 18 mai : l'app fait du signup classique côté navigateur).
+Depuis le lot 4 (08/11/2026), l'app invite par la fonction de la base `inviter_compte` (migration
+`20261028_roles_2_fonctions.sql`) : elle crée le profil s'il manque puis l'affectation, et vérifie elle-même qui peut
+inviter quel rôle sur quelle promo ou quel lieu. Aucun e-mail n'est envoyé : la personne crée son compte côté navigateur
+avec l'adresse invitée. L'ancienne Edge Function `invite-user` (clé de service, simple drapeau `is_admin`) est retirée du
+dépôt le 11/11/2026 (navigation unique, phase 2).
 
 ## Absences & comptage des passages (19/07/2026)
 
@@ -147,13 +151,13 @@ Chaque stagiaire remplit **son** DP dans l'app (Notes → sous-onglet « Dossier
 - **Droits (revises le 16/09)** : les formateurs ECRIVENT dans le DP, pas seulement en lecture. `is_prof()` est dans les politiques INSERT et UPDATE de `dp_dossiers`. Le DP reste le document du candidat : `updated_by_who` trace la derniere main et la vue l'affiche. Retour arriere : rejouer les deux politiques sans `OR is_prof()`.
 - **Derniere page (16/09)** : `js/main.js` memorise la route courante dans `localStorage` (cle `derniere-route`) et y revient au demarrage a froid, au lieu de forcer `mon-suivi`. Le sous-onglet, lui, se souvenait deja tout seul via `storageKey` de `js/subtabs.js`.
 - **Pagination dans `js/dp-pagination.js`** : le gabarit produit un flux de blocs, le moteur les mesure et les repartit en feuilles A4, en coupant les zones de redaction entre deux lignes visuelles. En edition le flux n'est pas coupe, les coupures sont seulement materialisees : un champ reparti sur deux feuilles ne serait plus editable. Le document imprime est toujours le document compose, et il ne porte jamais de `data-k` : seul le flux d'edition est lu par `collectData`. Habillage releve dans le .docx officiel, voir `docs/specs/2026-09-14-dp-mise-en-page-officielle-design.md`.
-- **Bancs du DP** : `_preview_dp.html` (document complet, sommaire, impression), `_preview_dp_moteur.html` (mecanique de composition, 21 controles dont deux scenarios eprouves par sabotage), `_preview_dp_vue.html` (la vraie vue avec modules factices, les deux roles). Couverture des cles : `node tests/dp-gabarit-cles.test.mjs`.
+- **Bancs du DP** : `_preview_dp.html` (document complet, sommaire, impression), `_preview_dp_moteur.html` (mecanique de composition, 21 controles dont deux scenarios eprouves par sabotage). Couverture des cles : `node tests/dp-gabarit-cles.test.mjs`. Le banc de la vue (`_preview_dp_vue.html`) est retiré le 11/11/2026 : il chargeait la vraie base ; le robot des parcours joue désormais la vue.
 - **Piège résolu** : en édition, `buildDpFlux(data, { edition: true })` rend les **6** fiches, sinon le candidat n'aurait aucun champ où saisir sa 2e ou sa 3e. Les fiches vides portent `.dp-bloc-exclu` et leur mention, et sont absentes du flux d'impression, construit avec `edition: false`.
 - **Re-rendu à pagination changeante** : remplir ou vider un exemple change sommaire et numérotation, donc le document est reconstruit. `wireDocEditing` pose ses écouteurs en **délégation** sur le conteneur : ils survivent au `innerHTML` et ne doivent être posés qu'une fois (drapeau `editionCablee`), sinon une frappe déclencherait N enregistrements. Seul `applyEditable(doc)` est ré-appliqué. Le curseur est replacé dans le champ actif après reconstruction.
 - **Texte long jamais perdu** : une feuille a désormais une hauteur FIXE et le moteur répartit le texte sur autant de feuilles qu'il faut, en coupant les zones entre deux lignes visuelles. Conséquence à connaître : `corps.scrollHeight` vaut toujours `clientHeight` tant qu'il n'y a pas débordement, il ne mesure donc PAS la place consommée. La place restante se lit sur le bas du dernier élément posé. Un bloc insécable plus haut qu'une feuille est gardé entier et le corps reçoit `.dp-corps-deborde` : mieux vaut une feuille trop pleine qu'un texte rogné.
 - **Deux entrées** : Notes → « Dossier pro » (liste pour les formateurs, son dossier pour un stagiaire) ET Mon suivi → sous-onglet « Dossier pro », qui ouvre le dossier de l'élève affiché via `renderDp(p, { stagiaireId })`. Édition si c'est le sien, consultation sinon. Un formateur **qui est aussi stagiaire** (cas `is_admin` + `stagiaire_id`, le compte du fondateur) voit sur sa propre ligne de la liste un bouton « Commencer / Remplir mon dossier » qui ouvre en édition : sans lui, il n'aurait aucun moyen de remplir son propre DP.
 - **⚠️ `#dp-print { display: none }` hors `@media print`** : le clone d'impression vit en permanence dans le `<body>` tant qu'un dossier est ouvert. Sans cette règle, le document s'affiche **une seconde fois sous la vue**, en pleine largeur 210mm collé à gauche (symptôme constaté le 31/07). `livret.css` a la même règle pour `#livret-print`. La règle `body.dp-printable #dp-print { display: block !important }` de `@media print` la surcharge, l'impression n'est pas affectée.
-- **Bancs d'essai** : `_preview_dp.html` (document seul, pagination, impression) et `_preview_dp_vue.html` (la vraie vue, `?role=stagiaire|formateur`, `?moi=1` pour le cas admin+stagiaire, `?dossier=<id>` pour l'entrée Mon suivi), via une **import map** qui substitue `_preview_stubs/db.js` et `_preview_stubs/auth-admin.js`. Aucune requête vers la prod.
+- **Banc d'essai** : `_preview_dp.html` (document seul, pagination, impression). Aucune requête vers la prod.
 - **⚠️ Piège de cache sur les branches de feature** : le hook ne re-versionne les tokens `?v=` que sur `main`, donc en local le navigateur resert indéfiniment l'ancien `dp.js?v=…` ET l'ancien `dp.css` (mesuré : 11 451 octets servis contre 12 294 sur le disque). Un rechargement forcé ne suffit pas toujours. Les deux bancs chargent donc leurs modules et leurs feuilles avec un `?cb=Date.now()`. Pour tester l'app elle-même : onglet privé, ou DevTools avec « Disable cache ».
 - **Hors périmètre v1** : pièces jointes (pas de Storage), export `.docx`, signature électronique.
 
@@ -183,12 +187,8 @@ canal de notification.
   Vérifié au banc, ordre défavorable compris.
 - **⚠️ Ordre dans Accueil** : le compteur J−N vise `.home-nouveautes` en priorité, sinon il
   s'insérerait sous les nouveautés puisqu'il ciblait `.home-tiles`, descendu d'un cran.
-- **Deux bancs d'essai**, tous deux en `?role=stagiaire|formateur`, réutilisant le stub
-  `_preview_stubs/auth-admin.js` du Dossier Professionnel :
-  - `_preview_nouveautes.html` : la page complète (filtre d'audience, marquage, lien de sous-onglet).
-  - `_preview_home.html` : fait tourner le vrai `renderHome` (base factice `_preview_stubs/db-home.js`)
-    et **affiche un verdict OK/ECHEC** sur l'ordre des sections et le marquage partiel. Il existe
-    parce que l'ordre d'Accueil est un couplage fragile que rien ne signale à l'écran.
+- **Bancs d'essai** : `_preview_nouveautes.html` et `_preview_home.html` sont retirés le 11/11/2026 (navigation
+  unique, phase 2 : l'ancien Accueil n'existe plus) ; le robot des parcours joue la page Nouveautés.
 - **⚠️ Un banc doit importer en dynamique avec `Date.now()`**, jamais `?cb=1`. Une constante est
   mise en cache par le navigateur : le banc resert alors la version d'avant la modification et
   valide du code qui n'est plus sur le disque. Constaté le 01/08 en réintroduisant volontairement
@@ -278,9 +278,9 @@ Les formateurs ouvrent les parties de l'app au fil de la progression d'une promo
   qu'une bascule soit postérieure au réglage factice du 05/10), `?lenteur=<ms>` (retarde chaque
   lecture du faux client : preuve du démarrage borné ; ajouter `&lenteur_tables=settings` pour ne
   pas retarder aussi l'ouverture de l'app). `_harness_build.mjs` génère la page et remappe
-  chaque module vers une URL neuve : plus besoin de re-versionner une branche pour tester. Seuls
-  `_preview_modules.html` (peint par le pane, `?fondateur=1`, fermé au réseau par sa CSP, jeton lu
-  dans `index.html`) et ses doublures `_preview_stubs/` sont versionnés.
+  chaque module vers une URL neuve : plus besoin de re-versionner une branche pour tester. Le banc
+  `_preview_modules.html` et sa doublure `_preview_stubs/db-modules.js` sont retirés le 11/11/2026 (le robot des
+  parcours joue la page Réglages).
 - **Preuve RLS** (02/10, avant multi-promo, transaction annulée) : un stagiaire ne peut pas écrire
   la clé `modules`, un formateur le peut. À rejouer avec l'en-tête `x-promo-id` une fois A en ligne.
 
@@ -634,6 +634,94 @@ Plan : `docs/superpowers/plans/2026-11-09-qualiopi-q4-registre.md`. Migration `2
 - **Point connu tant que le lot 5 n'est pas dans `main`** : la preuve des droits du lot 4 (`tests/sql/roles-preuve.sql`)
   sort rouge sur la couverture de `registre_qualite` (comme sur les tables des questionnaires) ; la ligne de la table est
   déjà écrite sur la branche du lot 5. Ce n'est pas un défaut de Q4.
+
+## Conservation (Qualiopi Q5, novembre 2026, branche `qualiopi-q5`, NON en ligne)
+
+Plan : `docs/superpowers/plans/2026-11-09-qualiopi-q5-conservation.md` ; spec `docs/superpowers/specs/2026-11-08-qualiopi-q3-q5-design.md`
+(§ 3, § 6, § 6.1, § 7, § 8, § 10, § 11.2). Migration `supabase/migrations/20261110_conservation.sql` (retour :
+`20261110_conservation_retour.sql`), **écrite, répétée et prouvée en local, jamais appliquée à la base réelle**. Registre
+des traitements et rappel de la veille : livrés en fichiers pour le dépôt ECSR (tâche 9), rien n'y est commité d'ici.
+
+- **Deux étapes, deux marques sur `stagiaires`.** `efface_le` date l'étape 1 (12 mois après `promos.date_fin` : compte, e-mails,
+  date de naissance, fiche de suivi, textes libres, observations et e-mails de l'émargement, participations aux
+  questionnaires) ; `anonymise_le` garde son sens (plus aucun nom) et date l'étape 2 (à partir du 1er janvier de
+  `extract(year from date_fin) + 4`, donc après le 31 décembre de la 3ᵉ année : dossier professionnel, livret, tracés des
+  signatures, nom, formateurs de l'émargement renommés « Formateur 1 », « Formateur 2 »). L'étape 2 fait l'étape 1 qui manque.
+  Seules les fonctions de conservation écrivent les marques (déclencheur `stagiaires_marques_conservation`). **`actif` n'est
+  jamais écrit** : l'abandon reste une décision de l'équipe. Contrainte : pas d'`anonymise_le` sans `efface_le`.
+- **Dates (jour de Paris, `_questionnaire_jour()`)** : exemple de la promo finie le 11/12/2026 : étape 1 à partir du
+  11/12/2027, étape 2 à partir du 01/01/2030. Formateurs (portée lieu + année) : liste « qui a répondu » effacée et année
+  close à partir du 01/01 de `annee + 1`, commentaires à partir du 31/12 de `annee + 1`, figeage à partir du 01/01 de
+  `annee + 4`. Registre qualité : 3 ans après la clôture (Q4), journal ajouté ici. Une promo sans date de fin n'ouvre aucune
+  étape (la section le dit). Aucune étape ne part toute seule : chaque échéance est un clic du fondateur, rejouable
+  (second appel : rien de changé, rien écrit au journal).
+- **Droits.** Page Qualiopi, troisième sous-onglet « Conservation des données » (`js/views/conservation.js`, règles dans
+  `js/effacement-rules.js`, lecture dans `js/db.js`), réservé au fondateur : chaque fonction exige `peut_gerer_qualite()` ET
+  l'accès à la promo (`peut_acceder_promo`), pour que le lot 5 puisse élargir le droit à la direction sans qu'un centre
+  efface un autre. Paramètres perd « Anonymiser la promo » et « Effacer les données » et garde « Réactiver », la purge des
+  bénévoles et une phrase qui renvoie au fondateur. Un compte d'équipe n'est jamais effacé.
+- **Réconciliation avec la suite du lot 5 (11/11).** La migration `20261111_espaces_4_donnees.sql` (en ligne le 11/11) avait
+  donné à la direction `etat_anonymisation_promo(p_promo)` et `anonymiser_promo(p_promo)`, qui appelaient `_anonymiser_stagiaire`
+  et anonymisaient à 12 mois. Décision (question 3 du plan, effacements au fondateur seul) : la migration de Q5 les supprime aussi
+  (drop explicite), le retour les recrée à l'identique (droits compris) ; « Données personnelles » des Réglages du centre
+  (`js/views/reglages-donnees.js`) montre la même phrase que Réglages (`PHRASE_CONSERVATION`, `js/effacement-rules.js`) sous
+  « Conservation des fiches » et garde la purge des élèves bénévoles du centre. Nouveauté de la direction du 11/11, guide de
+  l'assistant (`supabase/functions/chatbot/aide.mjs`, à redéployer avec la mise en ligne) et robot alignés.
+- **Effacement sur demande** (`effacer_sur_demande(stagiaire)`) : les deux étapes tout de suite, sans abandon préalable ; la
+  demande se lit au journal (`effacements_journal`, type `demande`, cible « stagiaire n »), jamais dans une colonne de
+  `stagiaires` que toute la promo lit. La fiche sort des listes de travail et des feuilles à venir ; sur les feuilles passées
+  elle reste « Anonyme n », signature effacée, comme preuve de présence.
+- **Marques lues partout.** Listes de travail (planning à venir, notes, dés, feuille d'émargement ouverte) excluent les
+  fiches sans nom ; les affichages du passé les gardent en « Anonyme n » ; les indicateurs les comptent. Tableau de bord et
+  dossiers Qualiopi : taux d'abandon inchangé, ligne à part « effacée à la demande » (ni abandon ni « en formation »), pièces
+  « effacé au terme de la durée de conservation » après l'étape 2 (`statutFiche`). Heures de présence des dossiers lues sur
+  les feuilles d'émargement (`js/qualiopi-presence.js`) : l'heure, la présence et le total d'heures survivent à l'effacement
+  du tracé, et la feuille imprimée écrit « Signature effacée (durée de conservation) ».
+- **Questionnaires (tâche 3).** Commentaires effacés à l'étape 1, réponses rebrassées, comptes figés dans
+  `questionnaire_resultats_figes` à l'étape 2 (seuils 5 stagiaires, 3 formateurs ; rien sous le seuil, seulement la marque).
+  La question 1 (option « effacer la liste des répondants à la fermeture ») est restée à la réponse par défaut : la tâche 5
+  n'est pas construite. Limites écrites au registre des traitements : la réponse anonyme d'un questionnaire (commentaire libre
+  compris) reste jusqu'à l'étape 1 après une demande ; dans un lieu à un seul formateur, la marque « il reste à faire » montre
+  au fondateur qu'il a répondu ; un formateur dont le compte est recréé la même année peut répondre deux fois.
+- **Indépendance vis-à-vis de `fiches_suivi` et de `themes.updated_by_email`** (correctif `16735486`) : `_effacer_etape1` et
+  le retour ne citent ces objets que s'ils existent (`to_regclass` / `information_schema`, SQL dynamique), parce que la branche
+  navigation-unique les retire. Preuve jouée avec et sans (VERT 227/0 complète, 228/0 sans les objets, contre-épreuves
+  ROUGES). Si navigation-unique arrive après un retour de Q5 joué sur une base complète, la fonction recréée cite à nouveau les
+  deux objets : à traiter par navigation-unique.
+- **Retour** (`20261110_conservation_retour.sql`). Il recrée les six fonctions d'anonymisation telles qu'en base avant Q5
+  (relevé du 11/11 après 14 h, `fonctions-reelles-v3.sql` du dossier de la tâche) : `_anonymiser_stagiaire` dans la version de
+  la navigation unique (fiche de suivi conditionnelle, plus de `themes.updated_by_email` : plus de réécriture textuelle), les
+  trois sans argument du lot 4 et les deux à argument de la direction. Procédure : **retirer d'abord de l'app le commit des tâches 6-7** (les boutons
+  appellent les nouvelles fonctions) et remettre en ligne la version d'avant, PUIS jouer le retour (`psql -1`,
+  `PGCLIENTENCODING=UTF8`), avant tout retour de Q3. Il refuse tout seul (exception, rien n'est touché) dès qu'un effacement a
+  eu lieu : ligne `etape1`, `etape2`, `demande`, `questionnaires` ou `registre` au journal, fiche marquée, signature effacée,
+  résultat figé ou année des formateurs close. Un effacement ne se défait pas : le retour n'existe que tant que rien n'est parti.
+- **Banc** (`_harness_supabase.js`, non versionné ; `node _harness_build.mjs` rejoué pour le banc compilé) :
+  `_harness.html?role=fondateur&centre=1&demo=1&qualiopi=1&conservation=1` puis `#/qualiopi`, sous-onglet « Conservation des
+  données ». Leviers : `&conservation=absent` (fonctions absentes, PGRST202), `&conservation=droit` (42501 pour un
+  non-fondateur), `&conservation_panne=1`, `&emargement=1` (la fiche 8 a une ligne signée), `&signature=effacee` (dessins
+  effacés, mention imprimée), `&date=AAAA-MM-JJ` (le jour du navigateur simule les échéances ; la base, elle, lit
+  `_questionnaire_jour()`). Le robot des parcours a ses parcours de la conservation (`outils/parcours/conservation.py`, tâche 10 : lecture des échéances, étapes, effacement à la demande, droits, feuille d'émargement), joués avec `outils/robot_parcours.py` ; `outils/verifier_navigation.py` passe sans échec propre à la branche. Comme pour Q4, le banc du dépôt principal
+  n'a pas ces sections : à reporter par ajout au moment de la fusion, jamais en écrasant.
+- **Preuves.** `tests/sql/conservation-preuve.sql` (schéma minimal : `conservation-schema-minimal.sql`, qui rejoue l'ordre réel :
+  fonctions de la direction du lot 5 étape 4, navigation unique 1 et 2 ; variante avec la phase 2, `fiches_suivi` retirée, le cas
+  réel), méthode de la mémoire :
+  migration et retour par EXECUTE dans le DO, empreinte md5 du schéma et des données avant et après, contre-épreuves ROUGES.
+  Suite node : `for f in tests/*.test.mjs` (`node --test tests/` seul échoue sur Node 24). **Point connu :**
+  `tests/sql/roles-preuve.sql` ne se rejoue que sur la base réelle, **après** la migration (il passe aussi sur les nouvelles
+  fonctions : `effacer_sur_demande`, `effacer_promo_etape1`, `etat_conservation`). `tests/sql/espaces-donnees-preuve.sql` (lot 5,
+  mode donnees-en-ligne) ne joue les cas de l'anonymisation que si les fonctions existent : VERT avec et sans Q5. `tests/sql/effacement-preuve.sql` est historique.
+- **Conditions d'utilisation** : rien à changer. La version 2026-11-08 en ligne contient déjà les corrections (ligne
+  « Émargement », « au-delà du 31 décembre de la troisième année », « dans le mois qui suit », liste « qui a répondu »).
+- **Ce qui attend Timy.** (1) L'accord pour appliquer la migration à la base réelle : essai à blanc, application, preuve
+  rejouée, puis fusion et poussée **dans la même fenêtre** (les boutons des Paramètres de l'ancienne app appellent des
+  fonctions que la migration supprime). Jamais de poussée avant la migration. (2) Aucune étape d'effacement n'est lancée par
+  un agent : la première échéance réelle est le 11/12/2027 (Nîmes, mars 2026), les commentaires des formateurs 2026 le
+  31/12/2027 ; la mise en ligne est attendue au plus tard le 30/11/2027. (3) Les arbitrages du 09/11 (douze réponses par
+  défaut) restent révisables sans perte jusque-là. (4) Appliquer au dépôt ECSR le registre des traitements et le rappel de la
+  veille : fichiers, diffs et `LISEZMOI.md` dans `C:\Users\watch\AppData\Local\Claude-Data\claude_pzs8sxrjxfjjc\side-session-notes\local_ef2fa5b2-7428-4bd7-a3e4-5d2676c41680\archive-qualiopi-q5\` (le skill `veille-reglementaire` est aussi à compléter, ligne proposée dans le `LISEZMOI.md`). (5) Mineurs reportés à revoir avant la fusion, dans
+  `.superpowers/sdd/2026-11-09-qualiopi-q5-conservation/progress.md` (lignes « à revoir avant fusion » : textes de
+  confirmation, e-mail de `maj_par` sur demande, fiche sans prénom).
 
 ## Émargement signé (octobre 2026)
 

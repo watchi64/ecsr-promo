@@ -3,17 +3,17 @@
 // pour une période, les heures de chaque stagiaire d'après les feuilles closes, puis son
 // certificat de réalisation et son attestation d'assiduité, ou ceux de toute la promo.
 
-import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261111c";
-import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261111c";
-import { isAdmin } from "../auth-admin.js?v=20261111c";
-import { navigationV2Active } from "../nav-etat.js?v=20261111c";
-import { libelleDuree, jourDe } from "../emargement-rules.js?v=20261111c";
-import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261111c";
+import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261111g";
+import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261111g";
+import { isAdmin } from "../auth-admin.js?v=20261111g";
+import { libelleDuree } from "../emargement-rules.js?v=20261111g";
+import { jourDe, dateFr } from "../dates.js?v=20261111g";
+import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261111g";
 import {
   bilanStagiaire, stagiairesDeLaPeriode, feuillesOuvertes, demiJourneesSansFeuille, periodeParDefaut,
-  moisDeLaPeriode, seancesDeLaPromo, dateFr, datePeriodeValide, estAdresseAttestations,
-} from "../attestations-rules.js?v=20261111c";
-import { certificatRealisation, attestationAssiduite, liasse } from "../attestations-documents.js?v=20261111c";
+  moisDeLaPeriode, seancesDeLaPromo, datePeriodeValide, estAdresseAttestations,
+} from "../attestations-rules.js?v=20261111g";
+import { certificatRealisation, attestationAssiduite, liasse } from "../attestations-documents.js?v=20261111g";
 
 // Période choisie, gardée par promo le temps de la visite (retour depuis la semaine).
 const periodes = new Map();
@@ -91,8 +91,8 @@ function dessiner(ctx) {
   ctx.page = page;
   container.appendChild(page);
 
-  // Nouvelle navigation : la promo seule en surtitre, comme la page Émargement.
-  const surtitre = navigationV2Active() ? (promo?.nom || "") : "Émargement" + (promo ? " · " + promo.nom : "");
+  // La promo seule en surtitre, comme la page Émargement.
+  const surtitre = promo?.nom || "";
   page.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,

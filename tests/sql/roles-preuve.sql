@@ -13,6 +13,8 @@
 --   ... --compact <sortie.sql>   (avec n'importe quel mode) retire du gabarit et des aides les lignes vides et de
 --                                commentaire ; les textes injectés restent intacts. C'est la copie à transmettre à la base
 --                                (R27) ; l'assembleur en affiche la longueur et le md5, que la preuve rend à son tour.
+-- Depuis le lot Q5 (20261110_conservation.sql), le mode répétition, qui rejoue l'étape 2 d'origine (anonymiser_*), ne se
+-- joue plus sur une base où ce lot est appliqué ; en mode en-ligne, les cas d'anonymat passent par ses fonctions.
 -- Le fichier assemblé se joue en une requête (MCP execute_sql). Tout se passe dans le bloc do final, qui finit TOUJOURS
 -- par une levée : migrations, personnages fictifs, données d'essai, écritures et retours sont annulés, rien ne reste.
 -- Le verdict est le message de la levée : « VERT n/0 » ou « ROUGE réussis/échecs », le mode, la durée, les contrôles
@@ -64,7 +66,7 @@
 --   affectations    la direction affecte ses formateurs, le siège ses directions, le fondateur le siège ; aucune
 --                   modification.
 --   promos          creer_promo, modifier_dates_promo, renommage ; date_debut, date_fin, lieu_id non modifiables en direct.
---   fonctions serveur  emargement_ouvrir, anonymiser_stagiaire, etat_anonymisation_promo, purger_benevoles,
+--   fonctions serveur  emargement_ouvrir, effacer_sur_demande, etat_conservation, purger_benevoles,
 --                   venues_benevoles selon l'équipe, le formateur ou le siège.
 --   contenus        le siège modifie et publie un cours de thème, modifie une question, n'écrit ni qcm_examens ni qcm ; la
 --                   direction ne modifie aucun cours.
@@ -275,7 +277,7 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
 ('public.epcf_livrets', $mx$r.promo_id = {P} and ({E} or r.stagiaire_id = {fiche_p})$mx$,
   $mx$r.promo_id = {P} and {F}$mx$, $mx$r.promo_id = {P} and {F}$mx$, $mx$r.promo_id = {P} and {F}$mx$,
   $mx$updated_by_who = 'PreuveMaj'$mx$, null),
--- Dossier professionnel (la fiche de suivi a sa ligne plus bas, tant que la table existe) : P et (E ou M) ; ajout et modification P et (F ou M) ; suppression P et F.
+-- Dossier professionnel (fiche de suivi jusqu'au 11/11, table supprimée) : P et (E ou M) ; ajout et modification P et (F ou M) ; suppression P et F.
 ('public.dp_dossiers', $mx$r.promo_id = {P} and ({E} or r.stagiaire_id = {fiche_p})$mx$,
   $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche_p})$mx$, $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche_p})$mx$,
   $mx$r.promo_id = {P} and {F}$mx$, $mx$updated_by_who = 'PreuveMaj'$mx$, null),
@@ -747,7 +749,6 @@ begin
     ('public.stagiaires', 'r.promo_id = ' || v_pp),
     ('public.dp_dossiers', format('r.promo_id = %s and (%s or r.stagiaire_id = %s)', v_pp, v_e::text, v_fi)),
     ('public.epcf_livrets', format('r.promo_id = %s and (%s or r.stagiaire_id = %s)', v_pp, v_e::text, v_fi)),
-    ('public.fiches_suivi', format('r.promo_id = %s and (%s or r.stagiaire_id = %s)', v_pp, v_e::text, v_fi)),
     ('public.emargement_formateurs', format('r.promo_id = %s and %s', v_pp, v_e::text)),
     ('public.benevoles', format('r.lieu_id = %s and %s', v_lieu, v_e::text)),
     ('public.qcm_questions', 'true'), ('public.themes', 'true'), ('public.contacts', 'true'),
@@ -1351,9 +1352,6 @@ begin
       insert into public.epcf_evaluations (stagiaire_id, trame, commentaire) values (v_r.id, 'salle', 'Preuve');
       insert into public.epcf_livrets (stagiaire_id) values (v_r.id);
       insert into public.dp_dossiers (stagiaire_id) values (v_r.id);
-      if to_regclass('public.fiches_suivi') is not null then
-        execute 'insert into public.fiches_suivi (stagiaire_id) values ($1)' using v_r.id;
-      end if;
       insert into public.passages (date, stagiaire_id, type, resultat, commentaire) values ('2030-01-07', v_r.id, 'Salle', 'Effectué', 'Preuve');
       insert into public.qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20) values (v_qcm_a, v_r.id, 'entrainement', 1, 2, 10);
       insert into public.emargement_lignes (seance_id, promo_id, stagiaire_id) values (v_seance, v_pr, v_r.id);
@@ -1861,29 +1859,28 @@ begin
   if to_regprocedure('public.anonymiser_stagiaire(integer)') is not null and to_regprocedure('public.anonymiser_promo()') is not null
      and to_regprocedure('public.etat_anonymisation_promo()') is not null then
   for v_x in select * from (values
-    ('anonymiser_stagiaire : fiche d''un compte à affectation direction (is_admin faux) : jamais anonymisée', true,
-       'do $d$ begin perform public.anonymiser_stagiaire(987001); exception when others then null; end $d$', 'false 1'),
-    ('anonymiser_stagiaire : jumeau sans affectation : anonymisée', false,
-       'do $d$ begin perform public.anonymiser_stagiaire(987001); exception when others then null; end $d$', 'true 0'),
-    ('anonymiser_promo : fiche d''un compte à affectation direction (is_admin faux) : ignorée', true,
-       'select public.anonymiser_promo()', 'false 1'),
-    ('anonymiser_promo : jumeau sans affectation : anonymisée', false,
-       'select public.anonymiser_promo()', 'true 0')
+    ('effacer_sur_demande : fiche d''un compte à affectation direction (is_admin faux) : jamais effacée', true,
+       'do $d$ begin perform public.effacer_sur_demande(987001); exception when others then null; end $d$', 'false 1'),
+    ('effacer_sur_demande : jumeau sans affectation : effacée', false,
+       'do $d$ begin perform public.effacer_sur_demande(987001); exception when others then null; end $d$', 'true 0'),
+    ('effacer_promo_etape1 : fiche d''un compte à affectation direction (is_admin faux) : ignorée', true,
+       'select public.effacer_promo_etape1(1)', 'false 1'),
+    ('effacer_promo_etape1 : jumeau sans affectation : effacée', false,
+       'select public.effacer_promo_etape1(1)', 'true 0')
   ) a(lib, equipe, sql, att) loop
-    perform pg_temp.verifier('anonymat', v_x.lib, pg_temp.essai_proprio(c_dir_n, '1', null,
+    perform pg_temp.verifier('anonymat', v_x.lib, pg_temp.essai_proprio(c_fond, '1', null,
       v_txt || case when v_x.equipe then format(' insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', %s);', 'preuve.equipe.fiche@exemple.invalid', v_l1) else '' end,
       v_x.sql,
-      format('select (select (anonymise_le is not null)::text from public.stagiaires where id = 987001) || '' '' || (select count(*) from public.user_profiles where email = %L)', 'preuve.equipe.fiche@exemple.invalid')) = v_x.att,
+      format('select (select (efface_le is not null)::text from public.stagiaires where id = 987001) || '' '' || (select count(*) from public.user_profiles where email = %L)', 'preuve.equipe.fiche@exemple.invalid')) = v_x.att,
       v_x.lib);
   end loop;
-  perform pg_temp.verifier('anonymat', 'etat_anonymisation_promo : un compte à affectation compte comme équipe (un de plus que son jumeau)',
-    pg_temp.essai_proprio(c_dir_n, '1', null, v_txt || format(' insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', %s);', 'preuve.equipe.fiche@exemple.invalid', v_l1),
-        'select 1', 'select public.etat_anonymisation_promo() ->> ''comptes_admin''') ~ '^[0-9]+$'
-    and pg_temp.essai_proprio(c_dir_n, '1', null, v_txt || format(' insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', %s);', 'preuve.equipe.fiche@exemple.invalid', v_l1),
-        'select 1', 'select public.etat_anonymisation_promo() ->> ''comptes_admin''')::int
-        = pg_temp.essai_proprio(c_dir_n, '1', null, v_txt, 'select 1', 'select public.etat_anonymisation_promo() ->> ''comptes_admin''')::int + 1,
-    'etat_anonymisation_promo : comptes_admin');
-  end if;
+  perform pg_temp.verifier('anonymat', 'etat_conservation : un compte à affectation compte comme équipe (un de plus que son jumeau)',
+    pg_temp.essai_proprio(c_fond, '1', null, v_txt || format(' insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', %s);', 'preuve.equipe.fiche@exemple.invalid', v_l1),
+        'select 1', 'select p ->> ''comptes_equipe'' from jsonb_array_elements(public.etat_conservation() -> ''promos'') p where (p ->> ''id'')::int = 1') ~ '^[0-9]+$'
+    and pg_temp.essai_proprio(c_fond, '1', null, v_txt || format(' insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', %s);', 'preuve.equipe.fiche@exemple.invalid', v_l1),
+        'select 1', 'select p ->> ''comptes_equipe'' from jsonb_array_elements(public.etat_conservation() -> ''promos'') p where (p ->> ''id'')::int = 1')::int
+        = pg_temp.essai_proprio(c_fond, '1', null, v_txt, 'select 1', 'select p ->> ''comptes_equipe'' from jsonb_array_elements(public.etat_conservation() -> ''promos'') p where (p ->> ''id'')::int = 1')::int + 1,
+    'etat_conservation : comptes_equipe');
   perform pg_temp.cas('inviter_compte', 'prof_id inconnu : le profil est créé sans fiche formateur', c_dir_n, '1', null, null,
     format('select public.inviter_compte(%L, ''formateur'', null, 987654)', c_invite), format('select pg_temp.etat_compte(%L)', c_invite), array['OK 1 prof/true/-/- formateur:1']);
   perform pg_temp.cas('inviter_compte', 'prof_id déjà relié à un autre compte : le profil est créé sans fiche formateur', c_dir_n, '1', null,
@@ -1910,7 +1907,7 @@ begin
   perform pg_temp.cas('inviter_compte', 'M7, jumeau : stag_n réinvité sur sa propre fiche : permis, rien ne change', c_form_n, '1', null, null,
     format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_stag_n, n),
     format('select pg_temp.etat_compte(%L)', c_stag_n), array[format('OK 1 stagiaire/false/%s/- -', n)]);
-  perform pg_temp.cas('inviter_compte', 'fiche anonymisée refusée', c_form_n, '1', null, format('update public.stagiaires set anonymise_le = now() where id = %s', v_f1),
+  perform pg_temp.cas('inviter_compte', 'fiche anonymisée refusée', c_form_n, '1', null, format('select set_config(''conservation.effacement'', ''on'', true); update public.stagiaires set efface_le = now(), anonymise_le = now() where id = %s; select set_config(''conservation.effacement'', '''', true)', v_f1),
     format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_invite, v_f1), format('select pg_temp.etat_compte(%L)', c_invite), array['~REFUS']);
   foreach v_txt in array array['a@b', 'sans-arobase', 'a b@c.d', '@c.d', 'a@.d'] loop
     perform pg_temp.cas('inviter_compte', format('adresse invalide %L refusée', v_txt), c_dir_n, '1', null, null,
@@ -2006,14 +2003,15 @@ begin
       'select public.emargement_ouvrir(''matin'', ''08:00'', ''12:00'')',
       format('select count(*)::text from public.emargement_seances where promo_id = %s and jour = public.emargement_jour_paris() and demi_journee = ''matin'' and ouverte_par = %L', v_x.promo, lower(v_x.email)), v_x.att);
   end loop;
-  if to_regprocedure('public.anonymiser_stagiaire(integer)') is not null and to_regprocedure('public.etat_anonymisation_promo()') is not null then
-  perform pg_temp.cas('fonctions serveur', 'anonymiser_stagiaire : dir_n : permis', c_dir_n, '1', null, format('update public.stagiaires set actif = false where id = %s', v_f1),
-    format('select public.anonymiser_stagiaire(%s)', v_f1), format('select (anonymise_le is not null)::text from public.stagiaires where id = %s', v_f1), array['OK 1 true']);
-  perform pg_temp.cas('fonctions serveur', 'anonymiser_stagiaire : stag_n : refusé', c_stag_n, '1', null, format('update public.stagiaires set actif = false where id = %s', v_f1),
-    format('select public.anonymiser_stagiaire(%s)', v_f1), null, array['~REFUS']);
-  perform pg_temp.val('fonctions serveur', 'etat_anonymisation_promo : dir_n : permis', c_dir_n, '1', null, 'select public.etat_anonymisation_promo() ->> ''promo_id''', array['1']);
-  perform pg_temp.val('fonctions serveur', 'etat_anonymisation_promo : stag_n : refusé', c_stag_n, '1', null, 'select public.etat_anonymisation_promo() ->> ''promo_id''', array['~ERREUR']);
-  end if;
+  perform pg_temp.cas('fonctions serveur', 'effacer_sur_demande : le fondateur : permis', c_fond, '1', null, null,
+    format('select public.effacer_sur_demande(%s)', v_f1), format('select (anonymise_le is not null)::text from public.stagiaires where id = %s', v_f1), array['OK 1 true']);
+  perform pg_temp.cas('fonctions serveur', 'effacer_sur_demande : dir_n : refusé', c_dir_n, '1', null, null,
+    format('select public.effacer_sur_demande(%s)', v_f1), null, array['~REFUS']);
+  perform pg_temp.cas('fonctions serveur', 'effacer_sur_demande : stag_n : refusé', c_stag_n, '1', null, null,
+    format('select public.effacer_sur_demande(%s)', v_f1), null, array['~REFUS']);
+  perform pg_temp.val('fonctions serveur', 'etat_conservation : le fondateur : permis', c_fond, '1', null, 'select p ->> ''id'' from jsonb_array_elements(public.etat_conservation() -> ''promos'') p where (p ->> ''id'')::int = 1', array['1']);
+  perform pg_temp.val('fonctions serveur', 'etat_conservation : dir_n : refusé', c_dir_n, '1', null, 'select public.etat_conservation()::text', array['~ERREUR']);
+  perform pg_temp.val('fonctions serveur', 'etat_conservation : stag_n : refusé', c_stag_n, '1', null, 'select public.etat_conservation()::text', array['~ERREUR']);
   perform pg_temp.val('fonctions serveur', 'purger_benevoles : form_n : permis', c_form_n, '1', null, 'select public.purger_benevoles(''{}''::integer[])::text', array['0']);
   perform pg_temp.val('fonctions serveur', 'purger_benevoles : dir_n : refusé', c_dir_n, '1', null, 'select public.purger_benevoles(''{}''::integer[])::text', array['~ERREUR']);
   perform pg_temp.val('fonctions serveur', 'purger_benevoles : stag_n : refusé', c_stag_n, '1', null, 'select public.purger_benevoles(''{}''::integer[])::text', array['~ERREUR']);
@@ -2116,11 +2114,10 @@ begin
     v_l1 := (select pr.lieu_id from public.promos pr where pr.id = 1);
     v_l2 := (select pr.lieu_id from public.promos pr where pr.id = 2);
     -- Les tables sondées ont des lignes dans les promos 1 et 2 : les zéros qui suivent sont de vrais zéros.
-    perform pg_temp.verifier('sans rôle', 'les tables sondées ont des lignes dans les promos 1 et 2 (planning, dossiers, livrets, fiches de suivi, bénévoles du lieu)',
+    perform pg_temp.verifier('sans rôle', 'les tables sondées ont des lignes dans les promos 1 et 2 (planning, dossiers, livrets, bénévoles du lieu)',
       (select bool_and(q.cpt > 0) from (select (select count(*) from public.planning_entries where promo_id = x) as cpt from unnest(array[1, 2]) x
         union all select (select count(*) from public.dp_dossiers where promo_id = x) from unnest(array[1, 2]) x
         union all select (select count(*) from public.epcf_livrets where promo_id = x) from unnest(array[1, 2]) x
-        union all select case when to_regclass('public.fiches_suivi') is null then 1 else pg_temp.calcul(format('select count(*) from public.fiches_suivi where promo_id = %s', x))::bigint end from unnest(array[1, 2]) x
         union all select (select count(*) from public.benevoles where lieu_id = (select pr.lieu_id from public.promos pr where pr.id = x)) from unnest(array[1, 2]) x) q),
       'tables vides = zéros sans valeur');
 
@@ -2217,7 +2214,7 @@ begin
       'promo de la fiche : ' || coalesce((select s.promo_id::text from public.stagiaires s where s.id = v_fi), 'absente'));
     perform pg_temp.verifier('fiche déplacée', 'stag_n avait des données privées en promo 1 (sinon les zéros ne prouvent rien)',
       (select count(*) from public.dp_dossiers where stagiaire_id = v_fi) + (select count(*) from public.epcf_livrets where stagiaire_id = v_fi)
-      + (case when to_regclass('public.fiches_suivi') is null then 0 else pg_temp.calcul(format('select count(*) from public.fiches_suivi where stagiaire_id = %s', v_fi))::bigint end) > 0, 'aucun dossier, livret ni fiche de suivi pour cette fiche');
+      > 0, 'aucun dossier ni livret pour cette fiche');
     foreach v_ctx in array c_contextes loop
       v_pc := case v_ctx when '2' then 2 when '1' then null when '7' then null else 2 end;
       perform pg_temp.sondes('fiche déplacée', 'stag_n fiche en promo 2', c_stag_n, v_ctx, v_pc, false, false, case when v_pc = 2 then v_fi end, true);

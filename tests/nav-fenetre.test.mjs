@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ElementFactice, NoeudFactice, descendants, installerDocument } from "./aides-dom.mjs";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, demanderFermeture } from "../js/nav-fenetre.js";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, demanderFermeture, ouvrirModale } from "../js/nav-fenetre.js";
 
 // Lot 2A, tâche 6 : les fenêtres de la coquille (menu du compte, tiroir « Plus ») sur un DOM factice. Ce que la
 // mécanique garantit sans navigateur : une adresse qui change ferme la fenêtre et rend le focus ; une fenêtre déjà sortie
@@ -214,3 +214,154 @@ test("sans avantFermeture, rien ne change : Échap et le voile ferment", () => a
   echap(document);
   assert.equal(fenetreOuverte(), null);
 }));
+
+// =====================================================================================================================
+// Fenêtres des écrans (ouvrirModale, ménage du 11/11/2026) : ce que chaque écran refaisait à sa façon, une seule fois.
+// =====================================================================================================================
+
+// Le document voit les voiles posés dans le corps de la page, comme querySelectorAll(".modal-backdrop, ...") du navigateur.
+function avecModales(corps) {
+  return avecFenetres((env) => {
+    env.document.querySelectorAll = (sel) => (sel.includes("modal-backdrop")
+      ? env.document.body.childNodes.filter((n) => n.classes?.has("modal-backdrop")) : []);
+    return corps(env);
+  });
+}
+// Une fenêtre d'écran : un .modal et ses boutons, ceux que Tab parcourt.
+function fenetreEcran(document, ...noms) {
+  const f = document.createElement("div");
+  f.classList.add("modal");
+  const boutons = noms.map((n) => { const b = document.createElement("button"); b.textContent = n; f.appendChild(b); return b; });
+  f.querySelectorAll = () => boutons.filter((b) => b.isConnected);
+  return { f, boutons };
+}
+const touche = (key, plus = {}) => ({ key, shiftKey: false, defaultPrevented: false, arrete: false,
+  preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.arrete = true; }, ...plus });
+// Échap tapé dans la fenêtre : il remonte jusqu'à son voile.
+const echapDans = (fond, plus = {}) => {
+  const e = touche("Escape", { target: fond, ...plus });
+  for (const f of fond.ecouteurs.get("keydown") || []) f(e);
+  return e;
+};
+const voiles = (document) => document.body.childNodes.filter((n) => n.classes?.has("modal-backdrop"));
+
+test("ouvrirModale : voile, rôle et nom, focus dans la fenêtre puis rendu ; Échap ferme une fois", () => avecModales(({ document }) => {
+  const ouvreur = bouton(document, "ouvrir");
+  ouvreur.focus();
+  const { f } = fenetreEcran(document, "Annuler", "Enregistrer");
+  let apres = 0;
+  const m = ouvrirModale(f, { etiquette: "Ajouter un passage", classeFond: "qcm-form-backdrop", apresFermeture: () => { apres += 1; } });
+  assert.equal(m.fond.className, "modal-backdrop qcm-form-backdrop");
+  assert.equal(m.fond.parentNode, document.body);
+  assert.equal(f.getAttribute("role"), "dialog");
+  assert.equal(f.getAttribute("aria-modal"), "true");
+  assert.equal(f.getAttribute("aria-label"), "Ajouter un passage");
+  assert.equal(f.getAttribute("tabindex"), "-1");
+  assert.equal(document.activeElement, f, "le focus va à la fenêtre, pas à un champ (pas de clavier imposé au téléphone)");
+  assert.equal(document.ecoutes("keydown").length, 1, "un écouteur de clavier pendant l'ouverture");
+  const e = echapDans(m.fond);
+  assert.equal(e.arrete, true, "Échap s'arrête là : le planning derrière ne le voit pas");
+  assert.equal(voiles(document).length, 0);
+  assert.equal(document.activeElement, ouvreur, "le focus revient où il était");
+  assert.equal(document.ecoutes("keydown").length, 0, "plus d'écouteur de clavier");
+  m.fermer();
+  assert.equal(apres, 1, "apresFermeture une seule fois");
+}));
+
+test("ouvrirModale : un champ qui se sert d'Échap (preventDefault) garde la fenêtre ouverte", () => avecModales(({ document }) => {
+  const m = ouvrirModale(fenetreEcran(document, "OK").f);
+  echapDans(m.fond, { defaultPrevented: true });
+  assert.equal(voiles(document).length, 1);
+  m.fermer();
+  assert.equal(voiles(document).length, 0);
+}));
+
+test("ouvrirModale : avantFermeture garde la fenêtre (Échap, voile, Annuler) ; fermer() ne la consulte pas", () => avecModales(({ document }) => {
+  let envoi = true;
+  const m = ouvrirModale(fenetreEcran(document, "OK").f, { avantFermeture: () => !envoi });
+  echapDans(m.fond);
+  m.fond.declencher("click");
+  m.demanderFermeture();
+  assert.equal(voiles(document).length, 1, "envoi en cours : gardée");
+  envoi = false;
+  m.demanderFermeture();
+  assert.equal(voiles(document).length, 0, "envoi fini : fermée");
+  const m2 = ouvrirModale(fenetreEcran(document, "OK").f, { avantFermeture: () => false });
+  m2.fermer();
+  assert.equal(voiles(document).length, 0, "fermer() après un enregistrement");
+}));
+
+test("ouvrirModale : fermerAuVoile false ignore le toucher à côté ; un toucher dans la fenêtre ne ferme jamais", () => avecModales(({ document }) => {
+  const m = ouvrirModale(fenetreEcran(document, "OK").f, { fermerAuVoile: false });
+  m.fond.declencher("click");
+  assert.equal(voiles(document).length, 1);
+  m.fermer();
+  const m2 = ouvrirModale(fenetreEcran(document, "OK").f);
+  for (const r of m2.fond.ecouteurs.get("click")) r({ type: "click", target: m2.fenetre });
+  assert.equal(voiles(document).length, 1, "clic dans la fenêtre");
+  m2.fond.declencher("click");
+  assert.equal(voiles(document).length, 0, "clic sur le voile");
+}));
+
+test("ouvrirModale : Tab et Maj+Tab tournent dans la fenêtre du dessus, focus et retour sur demande", () => avecModales(({ document }) => {
+  const point = bouton(document, "pastille");
+  const { f, boutons: [a, b, c] } = fenetreEcran(document, "A", "B", "C");
+  const m = ouvrirModale(f, { focus: () => b, retour: () => point });
+  assert.equal(document.activeElement, b, "focus demandé");
+  document.declencher("keydown", touche("Tab", { target: b }));
+  assert.equal(document.activeElement, c);
+  document.declencher("keydown", touche("Tab", { target: c }));
+  assert.equal(document.activeElement, a, "après le dernier, le premier");
+  document.declencher("keydown", touche("Tab", { target: a, shiftKey: true }));
+  assert.equal(document.activeElement, c, "Maj+Tab du premier : le dernier");
+  m.fermer();
+  assert.equal(document.activeElement, point, "le point de retour plutôt que l'ouvreur");
+}));
+
+test("ouvrirModale : deux fenêtres empilées, seule celle du dessus répond ; Échap tapé hors fenêtre ferme celle du dessus", () => avecModales(({ document }) => {
+  const dessous = ouvrirModale(fenetreEcran(document, "Choisir à la main").f);
+  const { f, boutons: [x] } = fenetreEcran(document, "Valider");
+  const dessus = ouvrirModale(f);
+  echapDans(dessous.fond);
+  assert.equal(voiles(document).length, 2, "la fenêtre du dessous ne se ferme pas par-dessous");
+  document.declencher("keydown", touche("Tab", { target: x }));
+  assert.equal(document.activeElement, x, "Tab reste dans celle du dessus");
+  let arrete = false;
+  document.declencher("keydown", touche("Escape", { target: document.body, stopPropagation() { arrete = true; } }));
+  assert.equal(arrete, true, "Échap s'arrête là");
+  assert.deepEqual(voiles(document), [dessous.fond], "celle du dessus fermée, l'autre reste");
+  assert.equal(document.ecoutes("keydown").length, 1);
+  dessus.fermer();
+  dessous.fermer();
+  assert.equal(document.ecoutes("keydown").length, 0);
+}));
+
+test("ouvrirModale : une fenêtre de navigation posée par-dessus garde le clavier ; une fenêtre retirée par son écran est oubliée", () => avecModales(({ document }) => {
+  const m = ouvrirModale(fenetreEcran(document, "OK").f);
+  const ancre = bouton(document, "compte");
+  ouvrir(ancre);
+  document.declencher("keydown", touche("Escape", { target: document.body }));
+  assert.equal(fenetreOuverte(), null, "Échap ferme le menu du compte, au-dessus");
+  assert.equal(voiles(document).length, 1, "la fenêtre d'écran reste dessous");
+  m.fond.remove();   // ancienne manière : l'écran retire son voile lui-même
+  document.declencher("keydown", touche("Tab", { target: document.body }));
+  assert.equal(document.ecoutes("keydown").length, 0, "oubliée à la touche suivante");
+}));
+
+test("une seule fabrique de fenêtres : aucun écran ne bâtit plus son voile .modal-backdrop lui-même", async () => {
+  const { readdirSync, readFileSync, statSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const racine = new URL("../js", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+  const fichiers = [];
+  const parcourir = (dossier) => {
+    for (const nom of readdirSync(dossier)) {
+      const chemin = join(dossier, nom);
+      if (statSync(chemin).isDirectory()) parcourir(chemin);
+      else if (nom.endsWith(".js")) fichiers.push(chemin);
+    }
+  };
+  parcourir(racine);
+  const fabriques = fichiers.filter((f) => /class:\s*\(?["'`]modal-backdrop/.test(readFileSync(f, "utf8")))
+    .map((f) => f.split("\\").join("/").replace(/^.*\/js\//, "js/")).sort();
+  assert.deepEqual(fabriques, ["js/confirmer.js", "js/nav-fenetre.js"]);
+});

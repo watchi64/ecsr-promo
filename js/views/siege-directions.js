@@ -3,18 +3,16 @@
 // supprime l'affectation, « Ajouter un centre » crée le centre (creer_centre) puis propose d'inviter sa direction. La base décide de
 // tout (siège seul, centre requis, nom en double) : ses refus se disent par leur phrase (phraseDeRefus), la saisie gardée. Les règles
 // d'ordre (centres par nom, démonstration en dernier) vivent dans js/siege-rules.js. Aucune donnée de stagiaire n'est lue ici.
-// Les fenêtres sont celles de la page Équipe de la direction (ouvrirFenetre).
+// Les fenêtres sont celles de la page Équipe de la direction (ouvrirFormulaire).
 
-import { lireLieuxDuReseau, lireDirectionsDuReseau, retirerAffectation, creerCentre, inviteUser } from "../db.js?v=20261111c";
-import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261111c";
-import { icon } from "../icons.js?v=20261111c";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261111c";
-import { messageInvitationReussie } from "../roles-rules.js?v=20261111c";
-import { directionsParCentre } from "../siege-rules.js?v=20261111c";
-import { ouvrirFenetre } from "./direction-equipe.js?v=20261111c";
-
-const entier = (x) => Number(x).toLocaleString("fr-FR");
-const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
+import { lireLieuxDuReseau, lireDirectionsDuReseau, retirerAffectation, creerCentre, inviteUser } from "../db.js?v=20261111g";
+import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261111g";
+import { icon } from "../icons.js?v=20261111g";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261111g";
+import { messageInvitationReussie } from "../roles-rules.js?v=20261111g";
+import { directionsParCentre } from "../siege-rules.js?v=20261111g";
+import { ouvrirFormulaire } from "./direction-equipe.js?v=20261111g";
+import { entier, pluriel } from "../nombres.js?v=20261111g";
 
 export const PHRASE_ECHEC_DIRECTIONS = "Les directions des centres n'ont pas pu être chargées.";
 export const PHRASE_ADRESSE = "Adresse e-mail invalide.";
@@ -54,7 +52,7 @@ function optionsCentres(lieux, choisi) {
 export function ouvrirInvitationDirection({ lieux, lieuId = null, intro = null, ancre, apres }) {
   const champEmail = el("input", { type: "email", id: "direction-email", autocomplete: "off", maxlength: "200", placeholder: "prenom.nom@exemple.fr" });
   const choixCentre = el("select", { id: "direction-centre" }, el("option", { value: "" }, "Choisir un centre"), ...optionsCentres(lieux, lieuId));
-  ouvrirFenetre({
+  ouvrirFormulaire({
     titre: "Inviter une direction",
     intro: intro || "Aucun e-mail n'est envoyé : la personne crée son mot de passe avec cette adresse, onglet Créer mon compte.",
     corps: [
@@ -82,7 +80,7 @@ export function ouvrirInvitationDirection({ lieux, lieuId = null, intro = null, 
 export function ouvrirAjoutCentre({ ancre, apres }) {
   let ouvrirSuite = null;
   const champNom = el("input", { type: "text", id: "centre-nom", autocomplete: "off", maxlength: "120", placeholder: "Nom du centre" });
-  ouvrirFenetre({
+  ouvrirFormulaire({
     titre: "Ajouter un centre",
     intro: "Le centre est créé sans promo. Vous pourrez ensuite inviter sa direction.",
     corps: [el("div", { class: "field" }, el("label", { for: "centre-nom" }, "Nom du centre"), champNom)],
@@ -112,7 +110,7 @@ export function ouvrirAjoutCentre({ ancre, apres }) {
 }
 
 function ouvrirRetrait({ centre, direction, ancre, apres }) {
-  ouvrirFenetre({
+  ouvrirFormulaire({
     titre: "Retirer une direction",
     intro: `${direction.libelle === direction.email ? direction.email : `${direction.libelle} (${direction.email})`} ne dirigera plus ${centre.nom}. `
       + "Son compte et ses autres rôles ne changent pas.",

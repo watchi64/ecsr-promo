@@ -17,9 +17,13 @@
 // `demander()` : la même fenêtre avec un champ (à la place de prompt()) ; promesse du texte tapé, ou null. Options en
 // plus : `libelle` (nomme le champ), `valeur` (texte de départ, sélectionné), `verifier` (texte -> vrai si accepté) et
 // `erreur` (dite dans la fenêtre, qui reste ouverte, quand `verifier` refuse : une confirmation à taper).
+// Geste irréversible (page Qualiopi, conservation des données, lot Q5) : la question de `confirmer()` peut porter `part` et
+// `reste` (ce qui est effacé, ce qui reste, en listes) et `saisie` ({ consigne, verifier }) : un champ où taper le mot ou le
+// prénom demandé. Le bouton du geste reste inactif (et hors du tour de Tab) tant que `verifier(texte)` ne répond pas vrai ;
+// sans `verifier`, il ne s'active jamais. Entrée dans le champ vaut le bouton. La réponse reste oui ou non.
 // Testé par tests/confirmer.test.mjs.
 
-import { el } from "./utils.js?v=20261111c";
+import { el } from "./utils.js?v=20261111g";
 
 let compteur = 0;
 
@@ -43,7 +47,10 @@ export function demander(question) {
 }
 
 // `saisie` : null pour une question oui/non (réponse true/false), sinon le champ (réponse : le texte, ou null).
-function ouvrir({ titre, phrase = null, oui, non = "Annuler", danger = true, signal = null }, resolve, saisie) {
+// `aTaper` : la confirmation par saisie d'un geste irréversible (option `saisie` de confirmer()), réponse true/false.
+function ouvrir({ titre, phrase = null, part = null, reste = null, saisie: aTaper = null, oui, non = "Annuler", danger = true,
+  signal = null }, resolve, saisie) {
+  if (saisie) aTaper = null;
   const avant = document.activeElement;
   const id = `confirmer-titre-${++compteur}`;
   const bd = el("div", { class: "modal-backdrop confirmer-fond" });
@@ -60,10 +67,13 @@ function ouvrir({ titre, phrase = null, oui, non = "Annuler", danger = true, sig
   };
   const refus = saisie ? null : false;
   const surAbandon = () => finir(refus, false);
-  const champ = saisie ? el("input", { type: "text", id: id + "-champ", autocomplete: "off" }) : null;
-  if (champ) champ.value = saisie.valeur;
+  const champ = saisie || aTaper ? el("input", { type: "text", id: id + "-champ", autocomplete: "off",
+    ...(aTaper ? { autocapitalize: "off", spellcheck: "false" } : {}) }) : null;
+  if (champ) champ.value = saisie ? saisie.valeur : "";
   const alerte = saisie ? el("p", { class: "confirmer-erreur", role: "alert" }) : null;
+  const saisieJuste = () => !aTaper || (typeof aTaper.verifier === "function" && aTaper.verifier(champ.value) === true);
   const valider = () => {
+    if (aTaper) { if (saisieJuste()) finir(true); return; }
     if (!saisie) { finir(true); return; }
     if (saisie.verifier && !saisie.verifier(champ.value)) {
       alerte.textContent = saisie.erreur || "Saisie différente.";
@@ -74,7 +84,14 @@ function ouvrir({ titre, phrase = null, oui, non = "Annuler", danger = true, sig
   };
   const boutonNon = el("button", { class: "btn ghost", type: "button", onClick: () => finir(refus) }, non);
   const boutonOui = el("button", { class: danger ? "btn danger" : "btn primary", type: "button", onClick: valider }, oui);
-  const ordre = champ ? [champ, boutonNon, boutonOui] : [boutonNon, boutonOui];
+  // Le geste d'une confirmation par saisie attend la bonne saisie : inactif, et hors du tour de Tab, jusque-là.
+  const majBouton = () => {
+    const juste = saisieJuste();
+    boutonOui.disabled = !juste;
+    boutonOui.setAttribute("aria-disabled", juste ? "false" : "true");
+  };
+  if (aTaper) { champ.addEventListener("input", majBouton); majBouton(); }
+  const ordre = () => [champ, boutonNon, boutonOui.disabled ? null : boutonOui].filter(Boolean);
   function auClavier(e) {
     e.stopPropagation();
     if (e.key === "Escape") { finir(refus); return; }
@@ -82,15 +99,22 @@ function ouvrir({ titre, phrase = null, oui, non = "Annuler", danger = true, sig
     if (e.key !== "Tab") return;
     e.preventDefault();
     // Tab et Maj+Tab font le tour de la fenêtre sans en sortir ; un focus sorti de la fenêtre y revient.
-    const i = ordre.indexOf(document.activeElement);
+    const tour = ordre();
+    const i = tour.indexOf(document.activeElement);
     const pas = e.shiftKey ? -1 : 1;
-    const suivant = i < 0 ? (e.shiftKey ? ordre.length - 1 : 0) : (i + pas + ordre.length) % ordre.length;
-    ordre[suivant].focus();
+    const suivant = i < 0 ? (e.shiftKey ? tour.length - 1 : 0) : (i + pas + tour.length) % tour.length;
+    tour[suivant].focus();
   }
-  bd.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-labelledby": id },
+  const listeTitree = (titreListe, items) => (items && items.length
+    ? [el("p", { class: "confirmer-liste-titre" }, titreListe), el("ul", { class: "confirmer-liste" }, ...items.map((x) => el("li", {}, x)))]
+    : []);
+  const detaillee = !!(part?.length || reste?.length || aTaper);
+  bd.appendChild(el("div", { class: "modal" + (detaillee ? " confirmer-detaille" : ""), role: "dialog", "aria-modal": "true", "aria-labelledby": id },
     el("h3", { id }, titre),
     phrase ? el("p", { class: "muted", style: "margin:0 0 0.8rem" }, phrase) : null,
-    champ ? el("label", { class: "confirmer-champ", for: champ.getAttribute("id") }, saisie.libelle || "", champ) : null,
+    ...listeTitree("Ce qui est effacé", part),
+    ...listeTitree("Ce qui reste", reste),
+    champ ? el("label", { class: "confirmer-champ", for: champ.getAttribute("id") }, (saisie ? saisie.libelle : aTaper.consigne) || "", champ) : null,
     alerte,
     el("div", { class: "modal-actions" }, boutonNon, boutonOui),
   ));
@@ -99,5 +123,5 @@ function ouvrir({ titre, phrase = null, oui, non = "Annuler", danger = true, sig
   window.addEventListener("hashchange", surAbandon);
   signal?.addEventListener("abort", surAbandon);
   document.body.appendChild(bd);
-  if (champ) { champ.focus(); champ.select(); } else boutonOui.focus();
+  if (champ) { champ.focus(); if (saisie) champ.select(); } else boutonOui.focus();
 }

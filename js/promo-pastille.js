@@ -4,11 +4,12 @@
 // Pastille du centre (lot 5, D6) : dans la barre de la direction, quand le compte dirige plusieurs centres. Choisir un
 // centre, c'est choisir l'une de ses promos (la première en cours, sinon la plus récente), avec le même rechargement. Les
 // deux choix partagent la même fenêtre (ouvrirListe).
-import { el, isoDate } from "./utils.js?v=20261111c";
-import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261111c";
-import { libelleCourtPromo, resumePromo } from "./promo-rules.js?v=20261111c";
-import { isFounder, apercusOuverts, setViewAs, getAffectations, getCentre } from "./auth-admin.js?v=20261111c";
-import { promoPourLaDirection, promosDuCentre } from "./espaces-rules.js?v=20261111c";
+import { el, isoDate } from "./utils.js?v=20261111g";
+import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261111g";
+import { libelleCourtPromo, resumePromo } from "./promo-rules.js?v=20261111g";
+import { isFounder, apercusOuverts, setViewAs, getAffectations, getCentre } from "./auth-admin.js?v=20261111g";
+import { promoPourLaDirection, promosDuCentre } from "./espaces-rules.js?v=20261111g";
+import { ouvrirModale } from "./nav-fenetre.js?v=20261111g";
 
 // « Montpellier · sept. 2026 » : le lieu dans son propre span, que le CSS masque sur les
 // écrans les plus étroits (la date suffit à distinguer les promos dans la barre).
@@ -141,19 +142,14 @@ function ouvrirChoixCentre() {
 function ouvrirListe({ sorte, titre, enCours, choix, apres = null }) {
   if (document.querySelector(".promo-choix-modal")) return;  // déjà ouvert (clavier)
 
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
   const aide = el("p", { class: "muted", role: "status" }, "Choix mémorisé sur cet appareil.");
   const liste = el("div", { class: "promo-choix-liste", role: "radiogroup", "aria-label": titre });
 
   // Fermer rend le focus à la pastille, cherchée à ce moment-là : updateBadge() a pu la
   // redessiner depuis l'ouverture. Sans effet pendant la bascule (rien ne ferme avant le
-  // rechargement).
-  const fermer = () => {
-    if (bascule) return;
-    document.removeEventListener("keydown", auClavier, true);
-    backdrop.remove();
-    document.querySelector(".promo-pastille")?.focus();
-  };
+  // rechargement) : voir avantFermeture plus bas.
+  const fermer = () => modale.demanderFermeture();
 
   // Choisir une promo n'a qu'une issue : le rechargement. D'ici là (attente des
   // enregistrements en cours), tout le contrôle est verrouillé, pastille de la barre comprise.
@@ -162,7 +158,7 @@ function ouvrirListe({ sorte, titre, enCours, choix, apres = null }) {
     bascule = true;
     liste.classList.add("en-cours");
     aide.textContent = enCours;
-    backdrop.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+    modal.querySelectorAll("button").forEach((b) => { b.disabled = true; });
     document.querySelectorAll(".promo-pastille").forEach((b) => { b.disabled = true; });
     modal.focus();
   };
@@ -206,37 +202,17 @@ function ouvrirListe({ sorte, titre, enCours, choix, apres = null }) {
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Fermer"),
     ),
   );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) fermer(); });
-  document.body.appendChild(backdrop);
-  document.addEventListener("keydown", auClavier, true);
-  liste.querySelector(".promo-choix.active")?.focus();  // le clavier part de la promo cochée
+  // Échap, Tab qui tourne dans la fenêtre et le toucher à côté viennent de ouvrirModale ; ici, les flèches circulent
+  // dans le groupe sans choisir (choisir recharge la page).
+  modale = ouvrirModale(modal, {
+    retour: () => document.querySelector(".promo-pastille"),
+    avantFermeture: () => !bascule,
+    focus: () => liste.querySelector(".promo-choix.active"),   // le clavier part de la promo cochée
+    auClavier,
+  });
 
-  // Clavier, écouté sur le document (en capture) tant que la fenêtre est ouverte :
-  //  - Échap ferme, sauf pendant la bascule. L'événement s'arrête là : sinon le planning
-  //    quitterait le mode Modifier derrière la fenêtre (son garde sur .modal-backdrop arrive
-  //    trop tard, fermer() a déjà retiré le fond), et l'assistant fermerait son panneau ;
-  //  - Tab reste dans la fenêtre (aria-modal) ;
-  //  - les flèches circulent dans le groupe sans choisir : choisir recharge la page.
   function auClavier(e) {
-    if (!backdrop.isConnected) { document.removeEventListener("keydown", auClavier, true); return; }
     const ici = document.activeElement;
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      fermer();
-      return;
-    }
-    if (e.key === "Tab") {
-      const cibles = [...backdrop.querySelectorAll("button:not(:disabled)")];
-      if (cibles.length === 0) { e.preventDefault(); return; }  // bascule en cours : rien à atteindre
-      const premiere = cibles[0];
-      const derniere = cibles[cibles.length - 1];
-      if (!backdrop.contains(ici)) { e.preventDefault(); (e.shiftKey ? derniere : premiere).focus(); }
-      else if (e.shiftKey && (ici === premiere || ici === modal)) { e.preventDefault(); derniere.focus(); }
-      else if (!e.shiftKey && ici === derniere) { e.preventDefault(); premiere.focus(); }
-      return;
-    }
     const boutons = [...liste.querySelectorAll(".promo-choix:not(:disabled)")];
     const i = boutons.indexOf(ici);
     if (i < 0 || bascule) return;

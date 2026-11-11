@@ -6,9 +6,11 @@
 // L'affichage part du catalogue (QUESTIONNAIRES[cle].questions), jamais des comptes rendus par la base : une question sans
 // aucune réponse s'affiche donc « moins de N réponses », comme une question sous le seuil.
 
-import { QUESTIONNAIRES, ECHELLE, seuilDe } from "./questionnaires-data.js?v=20261111c";
-import { fenetreQuestionnaire, resultatsAffichables, tauxSatisfaction, texteSousSeuil } from "./questionnaires-rules.js?v=20261111c";
-import { phraseDeLaBase, PHRASE_RESEAU } from "./questionnaires-erreurs.js?v=20261111c";
+import { QUESTIONNAIRES, ECHELLE, seuilDe } from "./questionnaires-data.js?v=20261111g";
+import { fenetreQuestionnaire, resultatsAffichables, tauxSatisfaction, texteSousSeuil } from "./questionnaires-rules.js?v=20261111g";
+import { phraseDeLaBase, PHRASE_RESEAU } from "./questionnaires-erreurs.js?v=20261111g";
+import { pluriel } from "./nombres.js?v=20261111g";
+import { dateFr, jourParis } from "./dates.js?v=20261111g";
 
 const ESPACE_INSECABLE = String.fromCharCode(0xa0);
 const FORMAT_JOUR = /^(\d{4})-(\d{2})-(\d{2})/;
@@ -16,22 +18,8 @@ const anneeDe = (jour) => {
   const m = typeof jour === "string" ? FORMAT_JOUR.exec(jour) : null;
   return m ? Number(m[1]) : null;
 };
-const dateFr = (jour) => `${jour.slice(8, 10)}/${jour.slice(5, 7)}/${jour.slice(0, 4)}`;
 const periode = (fenetre) => `du ${dateFr(fenetre.du)} au ${dateFr(fenetre.au)}`;
-const entier = (v) => Number.isInteger(v) && v > 0;
-const pluriel = (n, singulier, pluriel_ = singulier + "s") => `${n} ${n > 1 ? pluriel_ : singulier}`;
-
-// Le jour « AAAA-MM-JJ » à Paris pour un instant donné. La base décide de l'ouverture avec le même jour :
-// _questionnaire_jour() vaut (now() at time zone 'Europe/Paris')::date (supabase/migrations/20261108_questionnaires.sql),
-// indépendamment du fuseau de la session. La page calcule donc l'état « selon les dates » avec ce jour-là, jamais avec le
-// fuseau de l'appareil, et le recalcule à chaque lecture. Nul si l'instant est illisible.
-const FORMAT_PARIS = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" });
-export function jourParis(instant) {
-  const date = instant instanceof Date ? instant : new Date(instant);
-  if (Number.isNaN(date.getTime())) return null;
-  const parties = Object.fromEntries(FORMAT_PARIS.formatToParts(date).map((p) => [p.type, p.value]));
-  return `${parties.year}-${parties.month}-${parties.day}`;
-}
+const estEntierPositif = (v) => Number.isInteger(v) && v > 0;
 
 // Les trois questionnaires, dans l'ordre de la page, avec leur nom côté gestion (le titre du catalogue s'adresse à la
 // personne qui répond : « Ton avis sur la formation », « Votre avis de formateur »). La gestion est réservée à l'équipe :
@@ -46,9 +34,9 @@ export const QUESTIONNAIRES_GESTION = [
 // promo n'a pas d'identifiant, pas de centre (formateurs) ou si l'année est illisible.
 export function porteeGestion(cle, promo, annee) {
   if (QUESTIONNAIRES[cle]?.public === "formateur") {
-    return entier(promo?.lieu_id) && Number.isInteger(annee) ? { lieu_id: promo.lieu_id, annee } : null;
+    return estEntierPositif(promo?.lieu_id) && Number.isInteger(annee) ? { lieu_id: promo.lieu_id, annee } : null;
   }
-  return QUESTIONNAIRES[cle] && entier(promo?.id) ? { promo_id: promo.id } : null;
+  return QUESTIONNAIRES[cle] && estEntierPositif(promo?.id) ? { promo_id: promo.id } : null;
 }
 
 // Années à proposer pour le questionnaire des formateurs : l'année du jour et celles que touchent les fenêtres des promos du
