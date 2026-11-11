@@ -46,6 +46,18 @@ export const NOUVEAUTES = [
       "Une personne vous demande d'effacer ses données ? Transmettez sa demande au fondateur, qui efface tout, tout de suite.",
     ],
   },
+  // Liste des thèmes compacte et « Plus » allégé (11/11/2026, essai de Timy sur iPhone). Pour tous : neutre.
+  {
+    id: "2026-11-11-themes-compacts",
+    date: "2026-11-11",
+    pour: "tous",
+    titre: "Une ligne par thème dans Cours et QCM",
+    resume: "Chaque thème tient maintenant sur une ligne courte : son numéro, son titre, son état, et une seule pastille "
+          + "pour lire le cours ou ouvrir le QCM. Sur téléphone, une dizaine de thèmes tiennent à l'écran au lieu de deux. "
+          + "Pour l'équipe, l'ouverture de l'examen aux stagiaires, le statut et la date du thème passent par le bouton « … » "
+          + "au bout de la ligne. Le menu « Plus » du téléphone ne répète plus l'Assistant ni le compte, déjà en haut de l'écran.",
+    ou: { label: "Cours et QCM", route: "themes" },
+  },
   // Conservation des données (Qualiopi Q5), datée du jour de la mise en ligne. Pour l'équipe seulement : les boutons
   // d'effacement quittent Réglages (ex-Paramètres) pour la page Qualiopi, que seul le fondateur ouvre.
   {
@@ -61,6 +73,44 @@ export const NOUVEAUTES = [
           + "plus à être mis en abandon : transmettez sa demande au fondateur, qui efface tout, tout de suite. « Réactiver » reste dans "
           + "Abandons, et la suppression des élèves bénévoles ne change pas.",
     ou: { label: "Paramètres", route: "config" },
+  },
+  // Contacts du centre propres à chaque centre (11/11) : avant, toutes les promos voyaient les contacts de Nîmes. Placée après
+  // la conservation, qui reste la carte du jour de l'équipe. Pour l'équipe seulement : un stagiaire voit simplement les
+  // contacts de son centre, sans rien à apprendre.
+  {
+    id: "2026-11-11-contacts-par-centre",
+    date: "2026-11-11",
+    pour: "formateurs",
+    titre: "Chaque centre a ses propres contacts",
+    resume: "La carte « Contacts du centre » ne montre plus que les contacts du centre de la promo affichée. Nîmes et "
+          + "Montpellier gardent les mêmes contacts, mais chaque centre a maintenant sa propre liste : un numéro qui change "
+          + "se corrige dans chacun des deux. Un contact que vous ajoutez appartient au centre de la promo affichée ; pour en "
+          + "ajouter un à un autre centre, affichez d'abord une de ses promos.",
+    ou: { label: "Cours et QCM, Documents", route: "ressources" },
+  },
+  // Refonte de l'Ordre de passage et des Résultats (maquettes choisies par Timy le 11/11) : une carte par public. Placées après la conservation, qui reste la
+  // carte du jour de l'équipe.
+  {
+    id: "2026-11-11-ordre-passage-resultats-stagiaires",
+    date: "2026-11-11",
+    pour: "stagiaires",
+    titre: "Tes résultats et ta place dans l'ordre de passage, en un coup d'œil",
+    resume: "Dans Mon suivi, Résultats commence par ta moyenne, son évolution sur un mois et la moyenne du groupe, puis "
+          + "ta courbe, tes points forts et les sujets à retravailler. Dans le Planning, Ordre de passage te dit si tu es à "
+          + "jour en salle et en voiture, et quand tu passes la prochaine fois. Tu n'y vois plus le retard des autres.",
+    ou: { label: "Mon suivi, Résultats", route: "mon-suivi", sousOnglet: "resultats" },
+  },
+  {
+    id: "2026-11-11-ordre-passage-resultats-equipe",
+    date: "2026-11-11",
+    pour: "formateurs",
+    titre: "Un Ordre de passage plus simple à lire",
+    resume: "Ordre de passage montre trois chiffres (à placer cette semaine, déjà placés, à jour partout), puis deux files, "
+          + "salle et voiture, du plus grand retard au plus petit, avec le jour où chacun est déjà placé. Le compte suit "
+          + "maintenant la règle du placement : un remplacement au pied levé ne compte plus, une absence de dernière minute "
+          + "compte toujours. Chaque stagiaire n'y voit plus que sa propre situation. Dans la fiche d'un stagiaire, "
+          + "Résultats s'ouvre sur sa moyenne, sa tendance, ses points forts et ses sujets à retravailler.",
+    ou: { label: "Planning, Ordre de passage", route: "dashboard" },
   },
   {
     // Navigation unique (11/11/2026) : l'ancienne barre est retirée, toutes les promos ont la nouvelle. Premier du fichier : la
