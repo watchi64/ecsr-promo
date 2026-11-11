@@ -34,7 +34,7 @@ export const NOUVEAUTES = [
           + "« Tu passes au tableau », « Tu es en salle », « Tu enseignes en voiture » ou « Tu suis le cours ». En dessous, chacun "
           + "est nommé par sa place : qui passe au tableau, l'élève bénévole à qui tu enseignes en voiture, le formateur. "
           + "Les activités des autres stagiaires restent dans le Planning.",
-    ou: { label: "Accueil", route: "home" },
+    // Sans « ou » : elle s'affiche sur l'Accueil même, un lien vers l'Accueil n'y mènerait nulle part.
     module: "planning",
   },
   // Conservation des données ouverte à la direction (20261111_conservation_direction, décision de Timy du 11/11). Pour la
