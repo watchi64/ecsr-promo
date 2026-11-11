@@ -196,7 +196,7 @@ function nouveautesDeLaPromo() {
 // Une entrée qui ne décrit que l'ancienne barre (retirée le 10/11) ne se montre plus : la
 // page, la section d'Accueil et la pastille du compte comptent donc les mêmes entrées.
 export function nouveautesAffichables() {
-  const entrees = triees(visibles(nouveautesDeLaPromo(), formateurConnecte(), null, getEspace()));
+  const entrees = triees(visibles(nouveautesDeLaPromo(), formateurConnecte(), getEspace()));
   // Amorce à la date de la promo affichée (spec multi-promo C.6).
   const vues = vuesEffectives(toutesLesNouveautes(), amorcePour(getPromoCourante()?.date_debut));
   const neuves = new Set(nonLues(entrees, vues).map((e) => e.id));

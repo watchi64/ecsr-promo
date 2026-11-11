@@ -6,7 +6,7 @@
 
 import { el, clear, formatLongDate } from "../utils.js?v=20261110e";
 import { nouveautesAffichables, marquerLues } from "../modules-etat.js?v=20261110e";
-import { STORAGE_SOUS_ONGLET, guideSelonNavigation } from "../nouveautes.js?v=20261110e";
+import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261110e";
 import { hrefLien } from "../route-rules.js?v=20261110e";
 import { getEspace } from "../auth-admin.js?v=20261110e";
 import { ouSelonNavigation } from "../ou-trouver.js?v=20261110e";
@@ -55,7 +55,7 @@ export function carteNouveaute(entree, opts = {}) {
     el("h3", { class: "nv-titre" }, entree.titre),
     el("p", { class: "nv-resume" }, entree.resume),
     lienOu(entree.ou),
-    blocGuide(guideSelonNavigation(entree), guideDeplie),
+    blocGuide(entree.guide, guideDeplie),
   );
 }
 

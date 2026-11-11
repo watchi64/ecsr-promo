@@ -238,7 +238,7 @@ ok(!libelles.some((l) => /sous-onglet Livret EPCF/.test(l)), "plus de « sous-on
 const pageStagiaires = NOUVEAUTES.find((e) => e.id === "2026-10-03-page-stagiaires");
 ok(pageStagiaires && pageStagiaires.pour === "formateurs" && pageStagiaires.ou.route === "stagiaires",
    "nouveauté formateurs : la page Stagiaires");
-ok(NOUVEAUTES.some((e) => e.id === "2026-10-03-sommaire-iphone" && e.pour === "tous"),
-   "nouveauté pour tous : le sommaire sur iPhone");
+// « Le sommaire sur iPhone » ne décrivait que l'ancienne barre : retirée avec elle (navigation unique, phase 2).
+ok(!NOUVEAUTES.some((e) => e.id === "2026-10-03-sommaire-iphone"), "nouveauté de l'ancienne barre retirée : le sommaire sur iPhone");
 
 console.log(`modules : ${n} assertions OK`);
