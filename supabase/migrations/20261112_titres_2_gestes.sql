@@ -282,9 +282,10 @@ grant execute on function public.case_promo(integer, text), public.case_centre(i
 -- rejeter_brouillon_ia, is_admin, is_prof) ; promos.gerer (creer_promo, modifier_dates_promo) ; reglages.modifier (habillages du centre
 -- et du réseau) ; formateurs.nommer (regler_affectations_formateur, inviter_compte branche formateur) ; centres.creer (creer_centre) ;
 -- directions.nommer (inviter_compte branche direction).
--- Une seule différence de texte hors garde : set_date_naissance lit « stagiaire concerné » avec coalesce(..., false). Sans fiche, my_stagiaire_id()
--- est nul et « non (faux ou nul) » est nul : la fonction laissait passer. Inatteignable aujourd'hui (ne parviennent là que les équipes, qui
--- passent la garde, et les stagiaires, qui ont une fiche), atteignable avec un titre sans la case Stagiaires en Modifier.
+-- Une seule différence de texte hors garde : set_date_naissance lit « stagiaire concerné » avec coalesce(..., false). Sans fiche dans la promo
+-- affichée, my_stagiaire_id() est nul et « non (faux ou nul) » est nul : l'ancienne fonction laissait passer. Le cas est atteignable
+-- aujourd'hui par le fondateur en aperçu (stagiaire, ou siège avec promo) sur une promo où il n'a pas de fiche : il pouvait écrire la date de
+-- naissance de n'importe quel stagiaire ; il est désormais refusé, comme l'aperçu stagiaire doit le faire. Aucun autre compte n'est touché.
 
 do $migration$
 declare

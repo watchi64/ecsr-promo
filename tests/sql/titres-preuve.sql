@@ -396,6 +396,22 @@ begin
   return r;
 end $tap$;
 
+-- Même appel, avec un en-tête d'aperçu du fondateur (x-apercu-role).
+create or replace function pg_temp.cas_apercu(p_libelle text, p_qui text, p_entete text, p_apercu text, p_sql text, p_attendu text)
+returns void language plpgsql as $tca$
+declare v text; r text;
+begin
+  perform pg_temp.incarner((select email from pg_temp.perso where nom = p_qui), p_entete, p_apercu);
+  begin
+    execute p_sql into v;
+    r := rtrim('OK ' || coalesce(v, 'nul'));
+  exception when others then
+    r := 'ERREUR ' || sqlstate || ' ' || sqlerrm;
+  end;
+  perform pg_temp.proprio();
+  perform pg_temp.attendre('fonctions', p_libelle, r, p_attendu);
+end $tca$;
+
 -- Un cas du groupe fonctions : qui, avec quel en-tête de promo, appelle quoi, et ce qu'il doit obtenir (écrit en dur).
 create or replace function pg_temp.cas(p_libelle text, p_qui text, p_entete text, p_sql text, p_attendu text)
 returns void language sql as $tcs$
@@ -438,6 +454,7 @@ declare
   v_l1 integer := (select lieu_id from public.promos where id = 1);
   v_stag integer := (select u.stagiaire_id from public.user_profiles u where u.email = 'preuve7.eq.stag.n@exemple.invalid');
   v_stag_email constant text := 'preuve7.eq.stag.n@exemple.invalid';
+  v_stag_m integer := (select u.stagiaire_id from public.user_profiles u where u.email = 'preuve7.eq.stag.m@exemple.invalid');
   v_fiche integer; v_b1 integer; v_b2 integer; v_b3 integer; v_seance_m text;
   v_refus_form constant text := 'ERREUR P0001 emargement: Réservé aux formateurs.';
   v_refus_admin constant text := 'ERREUR P0001 Réservé aux administrateurs';
@@ -495,6 +512,12 @@ begin
     format($q$select public.emargement_signer(%s, %s, 'M10 10L20 20')::text$q$, v_seance_m, v_stag), 'ERREUR P0001 emargement: Tu ne peux signer que pour toi.');
   perform pg_temp.cas('emargement_signer : t_interv signe sur l''appareil du formateur', 't_interv', '1',
     format($q$select (public.emargement_signer(%s, %s, 'M10 10L20 20') is not null)::text$q$, v_seance_m, v_stag), 'OK true');
+  perform pg_temp.cas('emargement_ouvrir : dir_n (direction fixe) ne tient pas la feuille', 'dir_n', '1',
+    $q$select public.emargement_ouvrir('matin', '08:30', '12:00')::text$q$, v_refus_form);
+  perform pg_temp.cas('emargement_feuille(..., formateur) : dir_n refusé', 'dir_n', '1',
+    format('select (public.emargement_feuille(%s, true)).id::text', v_seance_m), v_refus_form);
+  perform pg_temp.cas('emargement_signer : dir_n ne signe pas comme formateur', 'dir_n', '1',
+    format($q$select public.emargement_signer(%s, %s, 'M10 10L20 20')::text$q$, v_seance_m, v_stag), 'ERREUR P0001 emargement: Tu ne peux signer que pour toi.');
 
   -- Stagiaires : la case Stagiaires en Modifier, sur la promo ou sur le centre (stagiaires.gerer).
   perform pg_temp.cas('set_date_naissance : t_secr (Stagiaires : Modifier du centre) peut', 't_secr', '1',
@@ -503,6 +526,20 @@ begin
     format('select public.set_date_naissance(%s, date ''2000-01-02'')::text', v_stag), v_refus_naiss);
   perform pg_temp.cas('set_date_naissance : t_rh refusé', 't_rh', '1',
     format('select public.set_date_naissance(%s, date ''2000-01-02'')::text', v_stag), v_refus_naiss);
+  perform pg_temp.cas('set_date_naissance : dir_n (Stagiaires : Modifier du centre) peut', 'dir_n', '1',
+    format('select public.set_date_naissance(%s, date ''2000-01-02'')::text', v_stag), 'OK');
+  perform pg_temp.cas('set_date_naissance : form_n refusé sur un stagiaire d''une autre promo', 'form_n', '1',
+    format('select public.set_date_naissance(%s, date ''2000-01-02'')::text', v_stag_m), 'ERREUR P0001 Non autorise : ce stagiaire n''appartient pas a la promo affichee');
+  perform pg_temp.cas_apercu('set_date_naissance : le fondateur en aperçu stagiaire sur une promo sans sa fiche est refusé (le trou d''avant)', 'fond', '2', 'stagiaire',
+    format('select public.set_date_naissance(%s, date ''2000-01-02'')::text', v_stag_m), v_refus_naiss);
+  perform pg_temp.cas_apercu('set_date_naissance : le fondateur en aperçu formateur sur la promo 2 peut', 'fond', '2', 'formateur',
+    format('select public.set_date_naissance(%s, date ''2000-01-02'')::text', v_stag_m), 'OK');
+  perform pg_temp.cas_apercu('purger_benevoles(ids) : le fondateur en aperçu formateur passe la garde', 'fond', '1', 'formateur',
+    'select public.purger_benevoles(array[-1])::text', 'OK 0');
+  perform pg_temp.cas_apercu('purger_benevoles(ids) : le fondateur en aperçu direction refusé (fonction de formateur seul)', 'fond', '1', 'direction',
+    'select public.purger_benevoles(array[-1])::text', v_refus_admin);
+  perform pg_temp.cas_apercu('emargement_ouvrir : le fondateur en aperçu direction refusé', 'fond', '1', 'direction',
+    $q$select public.emargement_ouvrir('matin', '08:30', '12:00')::text$q$, v_refus_form);
   perform pg_temp.cas('set_date_naissance : stag_n pour lui-même', 'stag_n', '1',
     format('select public.set_date_naissance(%s, date ''2000-01-02'')::text', v_stag), 'OK');
   perform pg_temp.cas('a_une_affectation : t_secr (peut gérer les stagiaires) : un compte sans affectation reste faux', 't_secr', '1',
