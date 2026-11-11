@@ -1,5 +1,6 @@
-import { listStagiaires, getStats, getSetting } from "../db.js?v=20261110e";
-import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20261110e";
+import { listStagiaires, getStats } from "../db.js?v=20261110e";
+import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261110e";
+import { lundiEnCours } from "../journee-rules.js?v=20261110e";
 import { icon } from "../icons.js?v=20261110e";
 import { renderPassages } from "./passages.js?v=20261110e";
 
@@ -116,13 +117,10 @@ export async function renderDashboard(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
-  const [stagiaires, stats, semaineLundi] = await Promise.all([
-    listStagiaires(),
-    getStats(),
-    getSetting("current_week_lundi"),
-  ]);
+  const [stagiaires, stats] = await Promise.all([listStagiaires(), getStats()]);
 
-  const monday = semaineLundi || isoDate(getMonday(new Date()));
+  // La semaine en cours, la suivante le week-end (comme le planning : ruling R59).
+  const monday = lundiEnCours(new Date());
 
   // Objectif par type = moyenne de classe du compteur de priorité (faits + bonus + refus), arrondie.
   const n = stagiaires.length || 1;

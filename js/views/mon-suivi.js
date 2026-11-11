@@ -1,8 +1,8 @@
-import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
+import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
          listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261110e";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261110e";
+import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261110e";
 import { HALF_DAYS, RESULTATS } from "../config.js?v=20261110e";
 import { libelleCreneau } from "../emargement-rules.js?v=20261110e";
 import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261110e";
@@ -11,6 +11,7 @@ import { renderSubTabs } from "../subtabs.js?v=20261110e";
 import { renderDp } from "./dp.js?v=20261110e";
 import { renderEpcfLivret } from "./epcf-livret.js?v=20261110e";
 import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261110e";
+import { lundiEnCours } from "../journee-rules.js?v=20261110e";
 import { bandeauAvis } from "../avis.js?v=20261110e";
 import { statsPassages } from "../passages-stats.js?v=20261110e";
 import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261110e";
@@ -132,9 +133,9 @@ function extractMyCreneaux(entries, metas, monday, id, joursOff) {
   return out;
 }
 
-// Semaine active (settings) + semaine suivante si un planning y existe.
+// Semaine en cours (la suivante le week-end, comme le planning : ruling R59) + semaine d'après si un planning y existe.
 async function loadUpcoming(id) {
-  const mondayIso = (await getSetting("current_week_lundi")) || isoDate(getMonday(new Date()));
+  const mondayIso = lundiEnCours(new Date());
   const monday1 = new Date(mondayIso + "T00:00:00");
   const nextIso = isoDate(addDays(monday1, 7));
   const monday2 = new Date(nextIso + "T00:00:00");

@@ -77,3 +77,15 @@ test("téléphone, mode Modifier : les commandes de l'éditeur à 44 px", () => 
     assert.ok(bloc.includes(cible), cible);
   }
 });
+
+// Navigation unique, phase 2 (11/11) : plus de semaine épinglée pour la promo. Le planning, Mon suivi (Mon planning à venir)
+// et les Priorités suivent la semaine en cours, la suivante le week-end (lundiEnCours, ruling R59) ; le réglage n'est plus
+// ni lu ni écrit (la migration 20261111_navigation_unique_3_phase2.sql supprime ses lignes).
+test("semaine épinglée retirée : chacun suit la semaine en cours", () => {
+  for (const f of ["js/views/planning.js", "js/views/mon-suivi.js", "js/views/dashboard.js", "js/db.js"]) {
+    assert.ok(!lire(f).includes("current_week_lundi"), f);
+  }
+  assert.match(planning, /semaineLundi = jump \? isoDate\(getMonday\(jump\.date\)\) : lundiEnCours\(new Date\(\)\);/);
+  assert.match(lire("js/views/mon-suivi.js"), /const mondayIso = lundiEnCours\(new Date\(\)\);/);
+  assert.match(lire("js/views/dashboard.js"), /const monday = lundiEnCours\(new Date\(\)\);/);
+});
