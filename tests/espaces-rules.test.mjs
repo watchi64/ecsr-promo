@@ -142,7 +142,7 @@ test("routeDansLEspace : tableau des routes par espace", () => {
 
 test("phraseDeRefus", () => {
   for (const [pre, texte] of [["equipe", "Réservé à la direction du centre."], ["promo", "Cette promo n'est pas dans ton centre."],
-    ["centre", "Le nom est requis."], ["reseau", "Réservé au siège."], ["invitation", "Ce compte est déjà lié."], ["habillage", "Choix inconnu."]]) {
+    ["centre", "Le nom est requis."], ["reseau", "Réservé au siège."], ["invitation", "Ce compte est déjà lié."], ["habillage", "Choix inconnu."], ["titres", "Réservé au siège."]]) {
     assert.equal(phraseDeRefus(`${pre}: ${texte}`, "42501"), texte);
   }
   const indispo = "Cette action n'est pas encore disponible.";

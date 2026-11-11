@@ -7,9 +7,9 @@
  * Sources des espaces permis (D2) : siège et direction viennent des affectations du compte ; formateur et
  * stagiaire viennent des rôles du compte dans la promo affichée (`promo.roles`, mes_promos(), lot 4).
  */
-import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261111k";
-import { lireAdresse } from "./route-rules.js?v=20261111k";
-import { habillageValide } from "./habillage-regles.js?v=20261111k";
+import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261111l";
+import { lireAdresse } from "./route-rules.js?v=20261111l";
+import { habillageValide } from "./habillage-regles.js?v=20261111l";
 
 export const ESPACES = ["stagiaire", "equipe", "direction", "siege"];
 export const LIBELLES_ESPACE = { stagiaire: "Stagiaire", equipe: "Formateur", direction: "Direction", siege: "Siège" };
@@ -278,7 +278,7 @@ export const PHRASE_CONNEXION = "La connexion a échoué. Vérifier le réseau, 
 export const PHRASE_SESSION = "Votre session a expiré. Reconnectez-vous, puis réessayez.";
 const ERREUR_RESEAU = /failed to fetch|load failed|networkerror|network request failed|fetch failed/i;
 const ERREUR_SESSION = /jwt|not authenticated/i;
-const PREFIXES_DE_REFUS = /^\s*(?:equipe|promo|centre|reseau|invitation|habillage):\s*/i;
+const PREFIXES_DE_REFUS = /^\s*(?:equipe|promo|centre|reseau|invitation|habillage|titres):\s*/i;
 export function phraseDeRefus(message, code) {
   const brut = String(message ?? "");
   if (code === "PGRST202" || /could not find the function/i.test(brut)) return PHRASE_INDISPONIBLE;

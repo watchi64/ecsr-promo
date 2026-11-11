@@ -45,6 +45,15 @@
 //   titres-contre-epreuve      la même preuve sans aucune migration ni retour (neutralisés, non lus) : ROUGE attendu sur
 //                              chaque contrôle du groupe titres ;
 //   titres-en-ligne            la même sans rien d'injecté, après l'application réelle des migrations.
+//   gestion [--etapes 5|5,6|4,5,6]  preuve de l'étape 2 du chantier (tests/sql/titres-gestion-preuve.sql), jouée sur une base où
+//                              les migrations 1, 2 et 3 sont appliquées (l'état de la production) : les migrations demandées
+//                              (5 et 6 par défaut ; 4 seulement avec 5 et 6) puis, dans l'ordre inverse, leurs retours ; les
+//                              étapes non demandées sont neutralisées et non lues ; une étape demandée dont un fichier manque
+//                              arrête l'assemblage ; la 6 demande la 5, la 4 demande les deux ;
+//   gestion-contre-epreuve     la même preuve sans aucune migration ni retour (neutralisés, non lus) : ROUGE attendu sur chaque
+//                              groupe qui dépend de la migration 5 ou 6 ;
+//   gestion-en-ligne           la même sans rien d'injecté, après l'application réelle (un groupe dont la fonction manque est
+//                              sauté, avec une ligne d'information).
 //
 // Option --compact (tous les modes) : retire du gabarit et des aides les lignes vides et les lignes de commentaire, pour
 // une requête plus courte à transmettre (R27). Les textes injectés (migrations, retours, requête d'empreinte) restent
@@ -69,6 +78,7 @@ const GABARIT_ROLES = "tests/sql/roles-preuve.sql";
 const GABARIT_ESPACES = "tests/sql/espaces-preuve.sql";
 const GABARIT_DONNEES = "tests/sql/espaces-donnees-preuve.sql";
 const GABARIT_TITRES = "tests/sql/titres-preuve.sql";
+const GABARIT_GESTION = "tests/sql/titres-gestion-preuve.sql";
 
 /** Lot 5, étape 1 : la migration du siège et son retour. */
 export const MIGRATION_ESPACES = { migration: "supabase/migrations/20261108_espaces_1_siege.sql",
@@ -110,6 +120,20 @@ export const ETAPES_TITRES = {
 const NB_ETAPES_TITRES = 4;
 const TOUS_TITRES = Object.values(ETAPES_TITRES).flatMap((e) => [e.migration, e.retour]);
 
+/** Étape 2 du chantier : la preuve de gestion peut injecter la migration 4 (journal), la 5 (fermetures) et la 6 (gestion). */
+export const ETAPES_GESTION = {
+  4: ETAPES_TITRES[4],
+  5: { migration: "supabase/migrations/20261112_titres_5_fermetures.sql",
+       retour: "supabase/migrations/20261112_titres_5_fermetures_retour.sql" },
+  6: { migration: "supabase/migrations/20261112_titres_6_gestion.sql",
+       retour: "supabase/migrations/20261112_titres_6_gestion_retour.sql" },
+};
+const NUMEROS_GESTION = [4, 5, 6];
+/** Les suites admises : la 6 s'appuie sur la 5, la 4 sur les deux autres (ordre d'application : 5, 6, puis 4 avec les conditions). */
+const SUITES_GESTION = [[5], [5, 6], [4, 5, 6]];
+const SUITE_PAR_DEFAUT_GESTION = [5, 6];
+const TOUS_GESTION = NUMEROS_GESTION.flatMap((n) => [ETAPES_GESTION[n].migration, ETAPES_GESTION[n].retour]);
+
 /** Les modes : le gabarit et, soit les injections à neutraliser (preuve de l'étape 1), soit les étapes à injecter
  *  (preuve rôle par rôle, les autres étapes étant neutralisées). */
 export const MODES = {
@@ -140,6 +164,10 @@ export const MODES = {
   "titres": { gabarit: GABARIT_TITRES, titres: true, etapesAuChoix: true },
   "titres-contre-epreuve": { gabarit: GABARIT_TITRES, neutres: TOUS_TITRES, libelle: "titres-contre-epreuve (aucune migration injectee)" },
   "titres-en-ligne": { gabarit: GABARIT_TITRES, neutres: TOUS_TITRES, libelle: "titres-en-ligne (aucune migration injectee)" },
+  // Étape 2 du chantier : preuve à part (tests/sql/titres-gestion-preuve.sql), jouée sur la base de la production (migrations 1, 2, 3).
+  "gestion": { gabarit: GABARIT_GESTION, gestion: true, etapesAuChoix: true },
+  "gestion-contre-epreuve": { gabarit: GABARIT_GESTION, neutres: TOUS_GESTION, libelle: "gestion-contre-epreuve (aucune migration injectee)" },
+  "gestion-en-ligne": { gabarit: GABARIT_GESTION, neutres: TOUS_GESTION, libelle: "gestion-en-ligne (aucune migration injectee)" },
   "espaces-en-ligne": { gabarit: GABARIT_ESPACES,
                         neutres: [MIGRATION_ESPACES.migration, MIGRATION_ESPACES.retour, MIGRATION_ESPACES_2.migration, MIGRATION_ESPACES_2.retour,
                                   MIGRATION_ESPACES_3.migration, MIGRATION_ESPACES_3.retour],
@@ -209,7 +237,14 @@ export function decrireMode(mode, { etapes } = {}) {
   const d = MODES[mode];
   if (!d) throw new Error(`Mode inconnu « ${mode} » (modes : ${Object.keys(MODES).join(", ")}).`);
   if (etapes !== undefined && !d.etapesAuChoix) {
-    throw new Error(`--etapes ne vaut que pour le mode repetition ou titres (mode demandé : ${mode}).`);
+    throw new Error(`--etapes ne vaut que pour le mode repetition, titres ou gestion (mode demandé : ${mode}).`);
+  }
+  if (d.gestion) {
+    const choisies = etapes ?? SUITE_PAR_DEFAUT_GESTION;
+    if (!SUITES_GESTION.some((suite) => suite.join(",") === choisies.join(","))) {
+      throw new Error(`étapes refusées : « ${choisies.join(",")} » (attendu : 5, 5,6 ou 4,5,6 ; la 6 demande la 5, la 4 demande la 5 et la 6).`);
+    }
+    return { gabarit: d.gabarit, gestion: true, etapesGestion: choisies, neutres: [], etapes: null, mode: null, requis: [] };
   }
   if (d.titres) {
     if (etapes !== undefined && !etapesValides(etapes, NB_ETAPES_TITRES)) {
@@ -391,6 +426,19 @@ export function assemblerMode(mode, racine = RACINE, { etapes, lire, compact = f
     }
   }
   let { neutres, mode: libelle } = decrit;
+  if (decrit.gestion) {
+    // Les étapes demandées se lisent (un fichier manquant arrête l'assemblage) ; les autres sont neutralisées et ne sont jamais lues.
+    for (const n of decrit.etapesGestion) {
+      for (const chemin of [ETAPES_GESTION[n].migration, ETAPES_GESTION[n].retour]) {
+        if (lireFichier(chemin) == null) {
+          const pretes = NUMEROS_GESTION.filter((k) => k < n && k !== 4);
+          throw new Error(`Étape ${n} demandée (${mode}) : ${chemin} n'existe pas encore. En attendant : mode gestion-contre-epreuve${pretes.length ? `, ou gestion --etapes ${pretes.join(",")}` : ""}.`);
+        }
+      }
+    }
+    neutres = NUMEROS_GESTION.filter((n) => !decrit.etapesGestion.includes(n)).flatMap((n) => [ETAPES_GESTION[n].migration, ETAPES_GESTION[n].retour]);
+    libelle = `gestion (${decrit.etapesGestion.length === 1 ? "etape" : "etapes"} ${decrit.etapesGestion.join(", ")} injectees)`;
+  }
   if (decrit.titres) {
     // Étapes injectées : celles qu'on a demandées (un fichier manquant arrête alors l'assemblage), sinon celles dont la
     // migration et le retour existent déjà ; les autres sont neutralisées, sans être lues.
