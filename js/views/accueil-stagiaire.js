@@ -15,7 +15,7 @@ import { libelleConnexion } from "../roles-rules.js?v=20261111c";
 import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261111c";
 import { carteNouveaute } from "./nouveautes.js?v=20261111c";
 import { prenomDe } from "../nav-rules.js?v=20261111c";
-import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi } from "../accueil-rules.js?v=20261111c";
+import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi, ligneBenevoles } from "../accueil-rules.js?v=20261111c";
 import { journeeDuJour } from "../journee-rules.js?v=20261111c";
 import { effSujets, sujetsDe } from "../planning-roles.js?v=20261111c";
 import { exemplesRemplis } from "../dp-rules.js?v=20261111c";
@@ -56,7 +56,7 @@ function rangeeCarte(c) {
   return el("div", { class: "acc-carte-jour" },
     el("b", {}, c.titre + sujets),
     equipe ? el("p", {}, equipe) : null,
-    c.benevoles.length ? el("p", {}, `${c.benevoles.length > 1 ? "Élèves bénévoles" : "Élève bénévole"} : ${c.benevoles.join(", ")}.`) : null,
+    ligneBenevoles(c.benevoles) ? el("p", {}, ligneBenevoles(c.benevoles)) : null,
     c.notes ? el("p", { class: "acc-note" }, c.notes) : null,
     etiquette,
   );
