@@ -25,6 +25,26 @@
 
 export const NOUVEAUTES = [
   {
+    // Suite du lot 5 (mise en ligne du 11/11/2026). Texte destiné à l'équipe : au vouvoiement.
+    id: "2026-11-11-donnees-personnelles-centre",
+    date: "2026-11-11",
+    pour: "direction",
+    titre: "Données personnelles dans les Réglages du centre",
+    resume: "Les Réglages du centre ont une section « Données personnelles ». Vous y voyez, pour chaque promo du centre, "
+          + "si les fiches peuvent être anonymisées (12 mois après la fin de la promo) et vous les anonymisez d'un geste, "
+          + "sans changer la promo affichée. Vous y supprimez aussi les élèves bénévoles du centre sans venue depuis 12 mois. "
+          + "Autre changement : inviter comme formateur, direction ou siège l'adresse d'un ancien stagiaire dont la fiche n'existe "
+          + "plus transforme son compte en compte du personnel, qui se connecte comme avant.",
+    ou: { label: "Réglages du centre", route: "config" },
+    guide: [
+      "Ouvrez Réglages du centre, puis la section « Données personnelles », sous l'habillage.",
+      "Chaque promo du centre indique son état. Quand « Anonymiser la promo » apparaît, ouvrez-la, tapez ANONYMISER pour "
+        + "confirmer : les comptes, e-mails et dates de naissance sont effacés, les résultats restent sans nom.",
+      "Plus bas, « Élèves bénévoles sans venue depuis 12 mois » liste ceux du centre ; « Supprimer » les retire, y compris "
+        + "des anciens créneaux du planning, après confirmation.",
+    ],
+  },
+  {
     // Mise en ligne du 09/11/2026 (migration appliquée le même jour). Premier du fichier : à date égale avec le lot 2B,
     // c'est elle que montre la carte « Nouveauté » de l'Accueil, la plus récente.
     id: "2026-11-09-questionnaires-anonymes",

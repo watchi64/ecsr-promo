@@ -394,12 +394,12 @@ eq(ids(visibles(ESP, true, true, "n'importe quoi")), ["t"], "espace inconnu : se
 ok(ids(visibles(ESP, true, true, "stagiaire")).join() === "t", "un formateur dans l'espace stagiaire ne lit pas les entrées qui mènent à des pages de formateur");
 
 // Les Nouveautés réelles du lot 5.
-const direction = NOUVEAUTES.find((e) => e.pour === "direction");
+const direction = NOUVEAUTES.find((e) => e.id === "2026-11-10-espace-direction");
 const siege = NOUVEAUTES.find((e) => e.pour === "siege");
 const menuEspace = NOUVEAUTES.find((e) => e.id.endsWith("-menu-espace"));
 const changerPromo = NOUVEAUTES.find((e) => e.id.endsWith("-changer-de-promo"));
 const DATE5 = direction.date;
-eq(NOUVEAUTES.filter((e) => e.pour === "direction").length, 1, "une seule Nouveauté pour la direction");
+eq(NOUVEAUTES.filter((e) => e.pour === "direction").map((e) => e.id).sort(), ["2026-11-10-espace-direction", "2026-11-11-donnees-personnelles-centre"], "deux Nouveautés pour la direction : l'espace, puis les données personnelles");
 eq(NOUVEAUTES.filter((e) => e.pour === "siege").length, 1, "une seule Nouveauté pour le siège");
 ok(direction.titre === "Ton espace de direction" && siege.titre === "L'espace du siège", "titres : « Ton espace de direction », « L'espace du siège »");
 ok(!!menuEspace && menuEspace.pour === "formateurs" && menuEspace.navigation === "nouvelle", "menu Espace : pour les formateurs, nouvelle navigation");
@@ -413,6 +413,19 @@ for (const e of [direction, siege, menuEspace, changerPromo]) {
   ok(!tout(e).includes(CADRATIN), e.id + " : aucun tiret cadratin");
   ok(!/#[0-9a-f]{3,6}\b/i.test(tout(e)), e.id + " : aucune couleur écrite");
 }
+// Suite du lot 5 : les données personnelles dans les Réglages du centre (texte de l'équipe, au vouvoiement).
+const donnees = NOUVEAUTES.find((e) => e.id === "2026-11-11-donnees-personnelles-centre");
+ok(!!donnees && donnees.date === "2026-11-11" && donnees.pour === "direction" && donnees.titre === "Données personnelles dans les Réglages du centre",
+  "données personnelles : datée du 11/11, pour la direction, titre attendu");
+ok(donnees.ou && donnees.ou.route === "config" && donnees.ou.label === "Réglages du centre", "données personnelles : mène aux Réglages du centre");
+ok(Array.isArray(donnees.guide) && donnees.guide.length >= 3 && !donnees.guideNouvelle, "données personnelles : un « Comment faire » d'au moins trois étapes");
+ok(/vous|ouvrez/i.test(tout(donnees)) && !/(tu|ton|ta|tes|toi)/i.test(tout(donnees)), "données personnelles : vouvoiement (texte de l'équipe)");
+ok(!/profs?/i.test(tout(donnees)) && !tout(donnees).includes(CADRATIN) && !/#[0-9a-f]{3,6}/i.test(tout(donnees)), "données personnelles : « formateur » jamais « prof », aucun tiret cadratin, aucune couleur");
+for (const motif of [/Données personnelles/, /Anonymiser la promo/, /ANONYMISER/, /Élèves bénévoles/, /ancien stagiaire/]) {
+  ok(motif.test(tout(donnees)), `données personnelles : dit ${motif}`);
+}
+ok(lesEspacesDonnees("direction") && !lesEspacesDonnees("siege") && !lesEspacesDonnees("equipe") && !lesEspacesDonnees("stagiaire"), "données personnelles : lue dans l'espace direction seulement");
+function lesEspacesDonnees(espace) { return ids(visibles(NOUVEAUTES, true, true, espace)).includes(donnees.id); }
 // Qui voit quoi, sur les vraies entrées.
 const lesEspaces = (formateur, espace) => ids(visibles(NOUVEAUTES, formateur, true, espace));
 ok(lesEspaces(true, "direction").includes(direction.id) && !lesEspaces(true, "direction").includes(siege.id), "direction : sa Nouveauté, pas celle du siège");

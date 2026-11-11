@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  ETAPES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
+  ETAPES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, MIGRATION_ESPACES_4, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
 } from "../outils/assembler_repetition_roles.mjs";
 
 // outils/assembler_repetition_roles.mjs fabrique le fichier SQL d'une répétition du lot 4 : le gabarit de la preuve,
@@ -710,4 +710,89 @@ test("la migration de l'équipe : fragment cherché exactement une fois dans la 
 
 test(".gitattributes garde les scripts shell en LF", () => {
   assert.match(readFileSync(join(RACINE, ".gitattributes"), "utf8"), /^\*\.sh text eol=lf$/m);
+});
+
+// --- Suite du lot 5 (étape 4) : l'ancien stagiaire invité au personnel, les données personnelles de la direction -----------------
+
+const GABARIT_DONNEES = "tests/sql/espaces-donnees-preuve.sql";
+const MIGRATION_8 = MIGRATION_ESPACES_4.migration;
+const RETOUR_8 = MIGRATION_ESPACES_4.retour;
+
+test("donnees : la requête d'empreinte, la migration 4 puis son retour sont injectées octet pour octet (md5), une fois chacune, dans l'ordre du gabarit", () => {
+  const r = assemblerMode("donnees", RACINE, { lire: duDisque });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, MIGRATION_8, RETOUR_8]);
+  assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES]);
+  assert.deepEqual(r.neutralises, []);
+  for (const x of r.injections) {
+    assert.equal(x.md5, md5(texteDuDepot(x.chemin)), x.chemin);
+    assert.ok(r.texte.includes(x.delimiteur + texteDuDepot(x.chemin) + x.delimiteur), x.chemin + " : injecté tel quel");
+  }
+  assert.equal(r.mode, "donnees (migration 4 injectee)");
+  assert.ok(r.texte.includes("\n'donnees (migration 4 injectee)'\n"));
+});
+
+test("donnees-contre-epreuve et donnees-en-ligne : migration et retour neutralisés et non lus, l'empreinte toujours là", () => {
+  for (const mode of ["donnees-contre-epreuve", "donnees-en-ligne"]) {
+    const lus = [];
+    const r = assemblerMode(mode, RACINE, { lire: (chemin) => { lus.push(chemin); return duDisque(chemin); } });
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE], mode);
+    assert.deepEqual([...r.neutralises].sort(), [MIGRATION_8, RETOUR_8].sort(), mode);
+    assert.ok(!lus.includes(MIGRATION_8) && !lus.includes(RETOUR_8), mode + " : fichiers non lus");
+  }
+  assert.ok(decrireMode("donnees-en-ligne").mode.startsWith("donnees-en-ligne"));
+  assert.ok(!decrireMode("donnees").mode.startsWith("donnees-en-ligne") && !decrireMode("donnees-contre-epreuve").mode.startsWith("donnees-en-ligne"));
+  assert.throws(() => assemblerMode("donnees", RACINE, { lire: (chemin) => (chemin === MIGRATION_8 ? null : duDisque(chemin)) }),
+    /Fichier introuvable : supabase\/migrations\/20261111_espaces_4_donnees\.sql/);
+});
+
+test("la preuve des données : mode en ligne reconnu par préfixe, pas de $$, aucune adresse qui ne soit fictive", () => {
+  const gabarit = texteDuDepot(GABARIT_DONNEES);
+  assert.ok(!/\$\$/.test(gabarit), "pas de $$");
+  const m = /v_mode like '([^'%]*)%'/.exec(gabarit);
+  assert.ok(m && decrireMode("donnees-en-ligne").mode.startsWith(m[1]));
+  for (const adresse of gabarit.match(/[\w.+-]+@[\w.-]+\.[a-z]+/g) ?? []) {
+    assert.ok(adresse.endsWith("@exemple.invalid"), `adresse de la preuve fictive : ${adresse}`);
+  }
+});
+
+test("les fichiers de la suite du lot 5 : aucun tiret cadratin, fins de ligne LF, aucune adresse de connexion", () => {
+  for (const chemin of [MIGRATION_8, RETOUR_8, GABARIT_DONNEES]) {
+    const brut = readFileSync(join(RACINE, chemin), "utf8");
+    assert.ok(!brut.includes(String.fromCharCode(0x2014)), `${chemin} : aucun tiret cadratin`);
+    assert.ok(!brut.includes("\r"), `${chemin} : fins de ligne LF`);
+    assert.ok(!/postgres(ql)?:\/\/[^\s"')]*:[^\s"')]*@/.test(brut), `${chemin} : aucune adresse de connexion avec mot de passe`);
+  }
+});
+
+test("la migration 4 : fragments cherchés exactement une fois, retours chariot suivis, fonction interne fermée, droits des nouvelles fonctions aux comptes connectés seulement", () => {
+  const m = texteDuDepot(MIGRATION_8);
+  assert.match(m, /pg_get_functiondef\(v_fonctions\[f\]\)/);
+  assert.match(m, /if n <> 1 then\s+raise exception 'espaces_4_donnees/);
+  assert.match(m, /position\(E'\\r' in v_def\) > 0/);
+  assert.match(m, /revoke all on function public\._orphelin_en_personnel\(text, boolean, integer, text\) from public, anon, authenticated, service_role;/);
+  assert.ok(!/grant execute on function public\._orphelin_en_personnel/.test(m));
+  for (const f of ["etat_anonymisation_promo\\(integer\\)", "anonymiser_promo\\(integer\\)", "benevoles_a_purger\\(integer\\)", "purger_benevoles\\(integer\\[\\], integer\\)"]) {
+    assert.match(m, new RegExp(`revoke all on function public\\.${f} from public, anon, service_role;`), f);
+    assert.match(m, new RegExp(`grant execute on function public\\.${f} to authenticated;`), f);
+  }
+  assert.ok(!/grant execute[^;]* to [^;]*\b(anon|public)\b/.test(m), "jamais de droit à anon ni à public");
+});
+
+test("le retour de la migration 4 remet les fragments d'origine (les mêmes, dans l'autre sens) et retire les cinq fonctions du lot", () => {
+  const fragments = (texte, tableau) => {
+    const debut = texte.indexOf(`${tableau} text[] := array[`);
+    const fin = texte.indexOf("];", debut);
+    return [...texte.slice(debut, fin + 2).matchAll(/\$(ancien|nouveau)\$([\s\S]*?)\$\1\$/g)].map((x) => x[2]);
+  };
+  const m = texteDuDepot(MIGRATION_8);
+  const r = texteDuDepot(RETOUR_8);
+  assert.equal(fragments(m, "v_anciens").length, 8);
+  assert.deepEqual(fragments(r, "v_anciens"), fragments(m, "v_nouveaux"));
+  assert.deepEqual(fragments(r, "v_nouveaux"), fragments(m, "v_anciens"));
+  assert.match(r, /if n <> 1 then\s+raise exception 'espaces_4_donnees_retour/);
+  for (const f of ["purger_benevoles\\(integer\\[\\], integer\\)", "benevoles_a_purger\\(integer\\)", "anonymiser_promo\\(integer\\)", "etat_anonymisation_promo\\(integer\\)",
+    "_orphelin_en_personnel\\(text, boolean, integer, text\\)"]) {
+    assert.match(r, new RegExp(`drop function if exists public\\.${f};`), f);
+  }
+  assert.ok(!/drop function[^;]*(anonymiser_promo\(\)|etat_anonymisation_promo\(\)|benevoles_a_purger\(\)|purger_benevoles\(integer\[\]\))/.test(r), "les versions sans argument ne sont jamais retirées");
 });
