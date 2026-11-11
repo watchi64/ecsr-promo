@@ -6,6 +6,7 @@ import {
   accepterBrouillonIa, rejeterBrouillonIa,
 } from "../db.js?v=20261111h";
 import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261111h";
+import { dixieme } from "../nombres.js?v=20261111h";
 import { confirmer } from "../confirmer.js?v=20261111h";
 import { icon, deco } from "../icons.js?v=20261111h";
 import {
@@ -214,7 +215,7 @@ function qcmCellEl(theme, qcm) {
     const row = (lab, val, colored) => el("div", { class: "qcm-cell-note-row" },
       el("span", { class: "qcm-cell-note-lab" }, lab),
       el("span", { class: "qcm-cell-note-val " + (colored ? "n-" + noteClass(val) : "is-muted") },
-        val != null ? `${val}/20` : "-"),
+        val != null ? `${dixieme(val)}/20` : "-"),
     );
     cell.querySelector(".qcm-cell-entete").appendChild(el("div", { class: "qcm-cell-notes" },
       row("Examen", note, true),
@@ -225,7 +226,7 @@ function qcmCellEl(theme, qcm) {
     const pct = Math.max(0, Math.min(100, (train / 20) * 100));
     cell.appendChild(el("div", {
       class: "qcm-cell-barre",
-      title: `Entraînement : ${train}/20`,
+      title: `Entraînement : ${dixieme(train)}/20`,
     }, el("div", { class: "qcm-cell-barre-fill n-" + noteClass(train), style: `width:${pct}%` })));
   }
   if (canManageExam() && !sansPromo()) cell.appendChild(blocExamenListe(theme, qcm, () => cell.replaceWith(qcmCellEl(theme, qcm))));
@@ -366,11 +367,11 @@ function openQcmSheet(theme, qcm) {
     if (stagiaireAvecFiche) {
       body.appendChild(el("div", { class: "qcm-note-cards" },
         el("div", { class: "qcm-note-card n-" + noteClass(note) },
-          el("span", { class: "qcm-note-card-val" }, note != null ? `${note}/20` : "-"),
+          el("span", { class: "qcm-note-card-val" }, note != null ? `${dixieme(note)}/20` : "-"),
           el("span", { class: "qcm-note-card-lab" }, "Ma note d'examen"),
         ),
         el("div", { class: "qcm-note-card n-" + noteClass(train) },
-          el("span", { class: "qcm-note-card-val" }, train != null ? `${train}/20` : "-"),
+          el("span", { class: "qcm-note-card-val" }, train != null ? `${dixieme(train)}/20` : "-"),
           el("span", { class: "qcm-note-card-lab" }, "Dernier entraînement"),
         ),
       ));
@@ -599,7 +600,7 @@ function themeExamPanel(theme, qcm, onPublishChange) {
         if (!attempts.length) { bodyA.appendChild(el("p", { class: "muted" }, "Aucune tentative pour l'instant.")); return; }
         attempts.forEach((a) => {
           bodyA.appendChild(el("div", { class: "exam-attempt-row" },
-            el("span", {}, (nomStagiaire(a.stagiaire_id) || displayStagiaire(a.stagiaire) || "Stagiaire inconnu") + ` : ${a.note_20}/20`),
+            el("span", {}, (nomStagiaire(a.stagiaire_id) || displayStagiaire(a.stagiaire) || "Stagiaire inconnu") + ` : ${dixieme(a.note_20)}/20`),
             el("button", { class: "btn danger", type: "button", onClick: async () => {
               if (!(await confirmer({ titre: "Réinitialiser cette tentative ?", phrase: "La note sera supprimée.",
                 oui: "Réinitialiser" }))) return;

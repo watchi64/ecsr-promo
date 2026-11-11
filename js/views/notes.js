@@ -378,7 +378,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
     inputmode: "decimal",
     enterkeyhint: "done",
     class: "matrice-inline-input matrice-popover-input",
-    value: existing?.note != null ? String(existing.note) : "",
+    value: existing?.note != null ? dixieme(existing.note) : "",
     placeholder: "/20 ou X/Y",
   });
   const okBtn = el("button", {
@@ -433,7 +433,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
     }
     if (r.etat === "invalide" || r.etat === "erreur") toast(phraseNoteRefusee(r.message, r.effacement), "error");
     if (r.etat !== "enregistree") { restore(); return; }
-    if (r.converti) toast(`${r.converti} → ${r.note}/20`, "success", 1800);
+    if (r.converti) toast(`${r.converti} → ${dixieme(r.note)}/20`, "success", 1800);
     // Met à jour la cellule en place (sans détruire les autres inputs)
     td.textContent = dixieme(r.note);
     td.className = "m-td-cell" + (isAdmin() ? " editable" : "");
@@ -560,7 +560,7 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
     type: "text", inputmode: "decimal", enterkeyhint: "done",
     class: "matrice-inline-input sd-edit-input",
     style: "flex:1;min-width:0;",
-    value: existing?.note != null ? String(existing.note) : "",
+    value: existing?.note != null ? dixieme(existing.note) : "",
     placeholder: "/20 ou X/Y",
   });
   const saveBtn = el("button", {
@@ -588,7 +588,7 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
       return;
     }
     if (r.etat === "effacee") toast("Note effacée · Ctrl+Z pour annuler", "success", 2200);
-    if (r.converti) toast(`${r.converti} → ${r.note}/20`, "success", 1800);
+    if (r.converti) toast(`${r.converti} → ${dixieme(r.note)}/20`, "success", 1800);
     modale.fermer();
     await reload(container);
   }

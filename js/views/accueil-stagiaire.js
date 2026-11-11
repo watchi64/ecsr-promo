@@ -302,7 +302,7 @@ export function renderAccueilStagiaire(container) {
   const nomPromo = getPromoCourante()?.nom || "";
   container.appendChild(el("footer", { class: "home-footer-v2" },
     el("p", {}, (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" },
-      "connecté en tant que " + (libelleConnexion({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() }) || "stagiaire"))),
+      (nomPromo ? "connecté" : "Connecté") + " en tant que " + (libelleConnexion({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() }) || "stagiaire"))),
     // Plus de lien « code source » : décision de Timy du 09/11, le code reste discret.
   ));
 

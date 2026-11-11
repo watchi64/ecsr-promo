@@ -4247,7 +4247,7 @@ DATE_AGENDA_VIDE = "2027-01-15"   # après le dernier événement de l'agenda du
 HAUTEUR_BANDEAU_DEUX_LIGNES = 61
 
 # La fin d'un sous-titre, quand la nouvelle navigation y remet le compte de l'ancien surtitre (R49) : « 12 notes enregistrées. »
-COMPTE_NOTES = re.compile(r"\d+ notes? enregistrées?\.$")
+COMPTE_NOTES = re.compile(r"\d[\d\u202f\u00a0 ]* notes? enregistrées?\.$")  # « 1 040 notes » : milliers séparés
 
 
 def pluriel(n):

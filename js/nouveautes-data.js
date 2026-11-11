@@ -47,7 +47,7 @@ export const NOUVEAUTES = [
     titre: "Des chiffres et des étiquettes plus cohérents",
     resume: "Les notes et les moyennes s'écrivent partout avec une virgule (14,5). Le compteur de notes se met à jour dès "
           + "qu'une note est saisie. Le planning dit « Toi au tableau », « Toi en voiture » ou « Toi en salle », sur "
-          + "l'Accueil comme dans la semaine. Les pastilles « Estimé » des Indicateurs reprennent les couleurs de l'app.",
+          + "l'Accueil comme dans la semaine. Quelques pastilles reprennent les couleurs de l'app.",
     ou: { label: "Accueil", route: "home" },
   },
   // Contacts du centre propres à chaque centre (11/11) : avant, toutes les promos voyaient les contacts de Nîmes. Placée après

@@ -3,7 +3,7 @@ import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJo
          getStagiaire, setDateNaissance, listPassages,
          listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261111h";
 import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261111h";
-import { dixieme, fr1 } from "../nombres.js?v=20261111h";
+import { dixieme, fr1, pluriel } from "../nombres.js?v=20261111h";
 import { HALF_DAYS, RESULTATS } from "../config.js?v=20261111h";
 import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261111h";
 import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111h";
@@ -422,7 +422,7 @@ function renderChartSection(evaluations, soi = true) {
   section.appendChild(outer);
   const avg = Math.round((noted.reduce((s, e) => s + e.norm, 0) / noted.length) * 10) / 10;
   section.appendChild(el("p", { class: "ms-chart-legend muted" },
-    `Moyenne actuelle : ${avg}/20 · ${noted.length} évaluation(s)`));
+    `Moyenne actuelle : ${dixieme(avg)}/20 · ${pluriel(noted.length, "évaluation")}`));
   return section;
 }
 
