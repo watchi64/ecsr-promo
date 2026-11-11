@@ -1925,26 +1925,6 @@ export function onAuthChange(callback) {
   return supabase.auth.onAuthStateChange((event, session) => callback(session?.user ?? null));
 }
 
-// === Fiches de suivi (souhaits compétences permis B + besoins) ===
-
-export async function listFiches() {
-  const { data, error } = await supabase.from("fiches_suivi").select("*");
-  if (error) throw error;
-  return data;
-}
-
-export async function upsertFiche({ stagiaire_id, souhaits, besoins, updated_by_who }) {
-  // On n'écrit QUE les colonnes explicitement fournies : un appel qui passe seulement
-  // `souhaits` ne doit pas effacer `besoins` (et inversement) sur les fiches existantes.
-  const payload = { stagiaire_id, updated_by_who, updated_at: new Date().toISOString() };
-  if (souhaits !== undefined) payload.souhaits = souhaits;
-  if (besoins !== undefined) payload.besoins = besoins;
-  const { error } = await supabase
-    .from("fiches_suivi")
-    .upsert(payload, { onConflict: "stagiaire_id" });
-  if (error) throw error;
-}
-
 // Agrégats voiture par stagiaire pour le placement : nb de séances avec élève,
 // répartition par formateur. Règle 2026-07-19 : une ABSENCE COMPTE (tour consommé,
 // y compris avec_eleve si le créneau avait un bénévole) ; Bonus/Report ne comptent pas.
