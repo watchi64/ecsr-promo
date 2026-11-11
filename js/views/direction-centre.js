@@ -202,7 +202,7 @@ function ligneEmargement(p, etat, affichee) {
   const voir = memeP ? null : el("button", { class: "btn small", type: "button", onClick: () => aller(p.id, "#/emargement") },
     "Voir les feuilles");
   return el("tr", {}, titre,
-    el("td", {}, "Activé", r.feuilleOuverte ? el("span", { class: "chip centre-signal" }, "Feuille ouverte") : null),
+    el("td", {}, "Activé", r.feuilleOuverte ? el("span", { class: "chip centre-ouverte" }, "Feuille ouverte") : null),
     el("td", {}, r.derniere ? libelleFeuille(r.derniere) : "Aucune feuille"),
     el("td", { class: "num" }, String(r.feuillesCloses)),
     el("td", { class: "num" }, String(r.absences)),

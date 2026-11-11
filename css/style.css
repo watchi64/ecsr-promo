@@ -7411,6 +7411,8 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .centre-suivre-nom { font-weight: 600; color: var(--text); }
 .centre-signaux { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .centre-signal { background: var(--c-wait-soft); color: var(--c-wait); white-space: normal; }
+/* Une feuille ouverte n'est pas une alerte : le vert de « Ouverte » (Aujourd'hui), pas l'ambre des signaux (film, 11/11). */
+.centre-ouverte { background: var(--c-go-soft); color: var(--c-go); }
 
 .centre-methodes dl { margin: 0.5rem 0 0; font-size: 0.85rem; }
 .centre-methodes dt { font-weight: 600; margin-top: 0.6rem; }

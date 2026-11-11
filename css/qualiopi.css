@@ -199,7 +199,7 @@
   white-space: nowrap;
 }
 .qualiopi-niveau.prouve, .qualiopi-piece-etat.presente { background: var(--c-go-soft); color: var(--c-go); }
-.qualiopi-niveau.partiel { background: var(--c-wait-soft); color: var(--c-wait); }
+.qualiopi-niveau.partiel { background: var(--accent-soft); color: var(--accent-strong); }  /* olive, plus d'ambre (film, 11/11) */
 .qualiopi-niveau.hors, .qualiopi-piece-etat.absente { background: var(--bg-soft); color: var(--text-muted); }
 
 .qualiopi-apporte { margin: 0.5rem 0 0; font-size: 0.88rem; line-height: 1.45; color: var(--text-soft); }
