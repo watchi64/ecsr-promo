@@ -9,8 +9,8 @@
 --   formateur_fixe(p)       vrai si la personne porte le titre fixe sur p (resp. direction_fixe(l), siege_fixe()) : même forme,
 --   direction_fixe(l)       titre fixe seul. Les gestes définitifs et les droits sans page restent à ces titres.
 --   siege_fixe()
---   membre_stagiaire(p)     vrai si l'appelant est stagiaire de la promo p : (aperçu stagiaire et p = promo_courante()) ou, sans
---                           aperçu, une fiche de l'appelant dans p. Ce que lit aujourd'hui un stagiaire par les lectures « P ».
+--   membre_stagiaire(p)     vrai si l'appelant est stagiaire de la promo p : sans aperçu, une fiche de l'appelant dans p ; en
+--                           aperçu stagiaire, p = promo_courante() et (fondateur, titre fixe sur p ou son centre, ou fiche dans p). Ce que lit aujourd'hui un stagiaire par les lectures « P ».
 --   geste_promo(p, code)    les gestes des tables 1.1 et 1.2 du plan, un « case » par code. Un code inconnu lève l'état 22023
 --   geste_centre(l, code)   (une faute de frappe dans une règle échoue au lieu de fermer en silence). Jamais nul. p ou l nul : faux,
 --   geste_reseau(code)      sauf la partie « réseau » de contenus.lire_internes et de contenus.rediger : le siège lit et rédige les
@@ -143,7 +143,17 @@ set search_path to 'public', 'pg_temp'
 as $f$
   select coalesce(case
            when p is null then false
-           when apercu.role is not null then apercu.role = 'stagiaire' and coalesce(p = promo_courante(), false)
+           when apercu.role is not null then
+             apercu.role = 'stagiaire' and coalesce(p = promo_courante(), false)
+             -- l'aperçu stagiaire n'ouvre la lecture qu'à qui pouvait déjà tout lire de cette promo (fondateur, titres fixes) ou
+             -- y a une vraie fiche : un titre non fixe n'y gagne rien.
+             and (fondateur_reel()
+                  or exists (select 1 from affectations af join titres t on t.id = af.titre_id
+                              where lower(af.email) = lower((select auth.jwt() ->> 'email')) and t.fixe
+                                and ((af.role = 'formateur' and af.promo_id = p)
+                                     or (af.role = 'direction' and af.lieu_id = lieu_de_promo(p))))
+                  or exists (select 1 from user_profiles up join stagiaires s on s.id = up.stagiaire_id
+                              where lower(up.email) = lower((select auth.jwt() ->> 'email')) and s.promo_id = p))
            else exists (select 1 from user_profiles up join stagiaires s on s.id = up.stagiaire_id
                          where lower(up.email) = lower((select auth.jwt() ->> 'email')) and s.promo_id = p)
          end, false)

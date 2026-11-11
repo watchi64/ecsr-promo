@@ -128,6 +128,7 @@ returns void language plpgsql as $tpp$
 declare
   v_l1 integer := (select lieu_id from public.promos where id = 1);
   v_l4 integer := (select lieu_id from public.promos where id = 7);
+  v_l2 integer := (select lieu_id from public.promos where id = 2);
   r record; n integer;
 begin
   drop table if exists pg_temp.perso;
@@ -147,7 +148,9 @@ begin
     (11, 'dir_form', 'preuve7.eq.dir.form@exemple.invalid', 'prof', false, false, null),
     (12, 'stag_s', 'preuve7.eq.stag.s@exemple.invalid', 'stagiaire', false, false, 7),
     (13, 'form_s', 'preuve7.eq.form.s@exemple.invalid', 'prof', true, false, null),
-    (14, 'dir_s', 'preuve7.eq.dir.s@exemple.invalid', 'prof', false, false, null);
+    (14, 'dir_s', 'preuve7.eq.dir.s@exemple.invalid', 'prof', false, false, null),
+    (15, 'dir_deux', 'preuve7.eq.dir.deux@exemple.invalid', 'prof', false, false, null),
+    (16, 'siege_form', 'preuve7.eq.siege.form@exemple.invalid', 'prof', true, false, null);
   for r in select * from perso order by ordre loop
     n := null;
     if r.promo_fiche is not null then
@@ -158,12 +161,12 @@ begin
   -- cumul : fiche de la promo 1 et formateur de la promo 2 ; dir_form : direction du centre de la promo 1 et formateur de la promo 2.
   insert into public.affectations (email, role, promo_id, lieu_id)
     select p.email, 'formateur', x.promo, null::integer
-      from perso p join (values ('form_n', 1), ('form_m', 2), ('form_s', 7), ('cumul', 2), ('dir_form', 2)) x(nom, promo) on x.nom = p.nom
+      from perso p join (values ('form_n', 1), ('form_m', 2), ('form_s', 7), ('cumul', 2), ('dir_form', 2), ('siege_form', 1)) x(nom, promo) on x.nom = p.nom
     union all
     select p.email, 'direction', null::integer, x.lieu
-      from perso p join (values ('dir_n', v_l1), ('dir_form', v_l1), ('dir_s', v_l4)) x(nom, lieu) on x.nom = p.nom
+      from perso p join (values ('dir_n', v_l1), ('dir_form', v_l1), ('dir_s', v_l4), ('dir_deux', v_l1), ('dir_deux', v_l2)) x(nom, lieu) on x.nom = p.nom
     union all
-    select p.email, 'siege', null::integer, null::integer from perso p where p.nom = 'siege';
+    select p.email, 'siege', null::integer, null::integer from perso p where p.nom in ('siege', 'siege_form');
 end $tpp$;
 
 -- Les personnages des titres non fixes (spec § 5) et une direction d'un centre sans promo. Les titres se posent en propriétaire ; si
@@ -243,6 +246,10 @@ begin
   -- Lecture « P » (toute promo accessible, y compris par sa fiche) : le geste ou le stagiaire de la promo, contre la promo affichée.
   r := r || format('%L || coalesce((geste_promo(promo_courante(), ''planning.lire'') or membre_stagiaire(promo_courante()))::text, ''nul'') || ''/'' || coalesce((promo_courante() is not null)::text, ''nul'')',
     'planning.lire+membre|p:promo_courante()=');
+  foreach lf in array array['stagiaires.lire', 'emargement.lire', 'notes.lire'] loop
+    r := r || format('%L || coalesce((geste_promo(promo_courante(), %L) or membre_stagiaire(promo_courante()))::text, ''nul'') || ''/'' || coalesce((promo_courante() is not null)::text, ''nul'')',
+      lf || '+membre|p:promo_courante()=', lf);
+  end loop;
   for g in select * from (values ('promos.gerer'), ('reglages.modifier'), ('donnees.purger'), ('formateurs.nommer'), ('equipe.lire')) v(code) loop
     foreach lf in array array['lieu_courant()', '1', '2', '4'] loop
       r := r || format('%L || coalesce((geste_centre(%s, %L))::text, ''nul'') || ''/'' || coalesce((est_direction(%s))::text, ''nul'')',
@@ -728,6 +735,20 @@ begin
     $q$select concat_ws(' ', (public.geste_promo(1, 'emargement.tenir'))::text, (public.geste_promo(2, 'emargement.tenir'))::text, (public.geste_promo(1, 'emargement.lire'))::text)$q$, 'false true true');
   perform pg_temp.attendu_geste('membre_stagiaire : form_n en aperçu stagiaire sur la promo 1 oui, sur la promo 2 non', 'form_n', '1', 'stagiaire',
     $q$select concat_ws(' ', (public.membre_stagiaire(1))::text, (public.membre_stagiaire(2))::text, (public.geste_promo(1, 'planning.modifier'))::text)$q$, 'true false false');
+  perform pg_temp.attendu_geste('membre_stagiaire en aperçu stagiaire : t_rh (titre de centre non fixe) n''y gagne rien, ni le planning', 't_rh', '1', 'stagiaire',
+    $q$select concat_ws(' ', (public.membre_stagiaire(1))::text, (public.geste_promo(1, 'planning.lire'))::text, (public.geste_promo(1, 'stagiaires.lire'))::text)$q$, 'false false false');
+  perform pg_temp.attendu_geste('membre_stagiaire en aperçu stagiaire : t_interv (titre de promo non fixe) n''y gagne rien', 't_interv', '1', 'stagiaire',
+    $q$select concat_ws(' ', (public.membre_stagiaire(1))::text, (public.geste_promo(1, 'planning.lire'))::text, (public.geste_promo(1, 'notes.lire'))::text)$q$, 'false false false');
+  perform pg_temp.attendu_geste('membre_stagiaire en aperçu stagiaire : stag_n (vraie fiche) oui', 'stag_n', '1', 'stagiaire',
+    $q$select (public.membre_stagiaire(1))::text$q$, 'true');
+  perform pg_temp.attendu_geste('membre_stagiaire en aperçu stagiaire : dir_n (direction fixe) oui', 'dir_n', '1', 'stagiaire',
+    $q$select (public.membre_stagiaire(1))::text$q$, 'true');
+  perform pg_temp.attendu_geste('membre_stagiaire en aperçu stagiaire : fond oui', 'fond', '1', 'stagiaire',
+    $q$select (public.membre_stagiaire(1))::text$q$, 'true');
+  perform pg_temp.attendu_geste('cumuls : dir_deux (direction de deux centres) a la direction des deux promos, siege_form (siège + formateur de la promo 1) forme la promo 1 seulement', 'dir_deux', null, null,
+    $q$select concat_ws(' ', (public.geste_promo(1, 'anonymiser'))::text, (public.geste_promo(2, 'anonymiser'))::text, (public.geste_promo(7, 'anonymiser'))::text, (public.geste_promo(1, 'planning.modifier'))::text)$q$, 'true true false false');
+  perform pg_temp.attendu_geste('cumuls : siege_form a les gestes du réseau et ceux de formateur sur la promo 1 seulement', 'siege_form', null, null,
+    $q$select concat_ws(' ', (public.geste_reseau('centres.creer'))::text, (public.geste_promo(1, 'planning.modifier'))::text, (public.geste_promo(2, 'planning.modifier'))::text, (public.geste_promo(1, 'anonymiser'))::text)$q$, 'true true false true');
   perform pg_temp.attendu_geste('aperçu siège refusé à form_n (qui n''est pas le fondateur) : il garde ses droits de formateur et rien de plus', 'form_n', '1', 'siege',
     $q$select concat_ws(' ', (public.geste_promo(1, 'planning.modifier'))::text, (public.geste_reseau('centres.creer'))::text)$q$, 'true false');
   perform pg_temp.attendu_geste('fond en aperçu direction : emargement.tenir faux, anonymiser vrai ; en aperçu stagiaire : tout faux', 'fond', '1', 'direction',
