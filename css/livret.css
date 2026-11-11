@@ -93,13 +93,11 @@
 .lv-doc { font-size: 11pt; }
 .lv-s6  { font-size: 6pt; }
 .lv-s8  { font-size: 8pt; }
-.lv-s9  { font-size: 9pt; }
 .lv-s10 { font-size: 10pt; }
 .lv-s11 { font-size: 11pt; }
 .lv-s12 { font-size: 12pt; }
 .lv-s14 { font-size: 14pt; }
 .lv-s16 { font-size: 16pt; }
-.lv-s20 { font-size: 20pt; }
 .lv-s22 { font-size: 22pt; }
 .lv-b { font-weight: 700; }
 .lv-i { font-style: italic; }
@@ -107,8 +105,6 @@
 .lv-right { text-align: right; }
 .lv-just { text-align: justify; }
 .lv-magenta { color: #D60093; }
-.lv-gray { color: #808080; }
-.lv-dark { color: #404040; }
 
 /* Bandeaux magenta du document officiel */
 .lv-banner {

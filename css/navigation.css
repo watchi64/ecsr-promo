@@ -959,14 +959,13 @@ body[data-nav="v2"] .nav-fenetre-haut { display: none; }
 }
 
 /* ----- Planning > Semaine : le bouton « Aujourd'hui » (ruling R29, js/views/planning.js) ----- */
-/* Le bouton de l'ancienne barre du haut, en tête de la vue de la semaine : 44 px à toute taille, ses
-   voisins de la rangée (Émargement) s'étirant à sa hauteur. */
+/* Le retour au jour, dans la barre de la semaine : 44 px à toute taille. */
 body[data-nav="v2"] .p-aujourdhui { min-height: 44px; }
 
 /* ----- Stagiaires > Élèves bénévoles (lot 2A, js/views/stagiaires.js et js/views/benevoles.js) ----- */
-/* Le panneau de la banque, posé dans la page au lieu d'une fenêtre : la largeur de la fenêtre d'avant, son titre
-   (.modal h3) et ses règles contre le débordement des champs (.bnv-modal .field) : le select du niveau, aux options
-   très longues, ferait sinon déborder la colonne de la grille du formulaire. */
+/* Le panneau de la banque, posé dans la page : la largeur de l'ancienne fenêtre, son titre (.modal h3) et des règles
+   contre le débordement des champs : le select du niveau, aux options très longues, ferait sinon déborder la colonne
+   de la grille du formulaire. */
 body[data-nav="v2"] .bnv-page { max-width: 680px; }
 /* Après « Modifier », le formulaire est ramené en haut du bloc (scrollIntoView, js/views/benevoles.js) : sous l'en-tête collant du téléphone, pas derrière lui. */
 body[data-nav="v2"] .bnv-page { scroll-margin-top: calc(var(--haut-entete) + 8px); }
@@ -1026,9 +1025,8 @@ body[data-nav="v2"] .qcm-close { width: 44px; height: 44px; }
 .impersonation-banner.imp-long .imp-text { white-space: normal; }
 .impersonation-banner.imp-long .imp-back { flex: none; min-height: 44px; }
 /* ----- Apparence : le choix de l'habillage (lot 3, js/habillage-choix.js) ----- */
-/* Hors de body[data-nav="v2"], à la différence du reste de cette feuille : la section Apparence s'affiche aussi dans les
-   Paramètres de l'ancienne barre, pour qui est en Couleurs ECF (décision H6). Ses classes ne servent nulle part ailleurs :
-   rien d'autre ne bouge. Deux pastilles côte à côte, 52 px de haut à toute taille (44 au moins sur téléphone) ; la pressée
+/* Hors de body[data-nav="v2"], à la différence du reste de cette feuille (la section ne vit que dans Mes préférences ; ses
+   classes ne servent nulle part ailleurs). Deux pastilles côte à côte, 52 px de haut à toute taille (44 au moins sur téléphone) ; la pressée
    est bordée de l'accent, avec un anneau. La pastille de couleur montre son habillage (jetons --apercu-*, famille fixe). */
 .habillage-pastilles {
   display: grid;
