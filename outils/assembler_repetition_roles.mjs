@@ -100,12 +100,12 @@ export const ETAPES = {
 export const ETAPES_TITRES = {
   1: { migration: "supabase/migrations/20261112_titres_1_tables.sql",
        retour: "supabase/migrations/20261112_titres_1_tables_retour.sql" },
-  2: { migration: "supabase/migrations/20261112_titres_2_fonctions.sql",
-       retour: "supabase/migrations/20261112_titres_2_fonctions_retour.sql" },
-  3: { migration: "supabase/migrations/20261112_titres_3_gestes.sql",
-       retour: "supabase/migrations/20261112_titres_3_gestes_retour.sql" },
-  4: { migration: "supabase/migrations/20261112_titres_4_regles.sql",
-       retour: "supabase/migrations/20261112_titres_4_regles_retour.sql" },
+  2: { migration: "supabase/migrations/20261112_titres_2_gestes.sql",
+       retour: "supabase/migrations/20261112_titres_2_gestes_retour.sql" },
+  3: { migration: "supabase/migrations/20261112_titres_3_regles.sql",
+       retour: "supabase/migrations/20261112_titres_3_regles_retour.sql" },
+  4: { migration: "supabase/migrations/20261112_titres_4_journal.sql",
+       retour: "supabase/migrations/20261112_titres_4_journal_retour.sql" },
 };
 const NB_ETAPES_TITRES = 4;
 const TOUS_TITRES = Object.values(ETAPES_TITRES).flatMap((e) => [e.migration, e.retour]);

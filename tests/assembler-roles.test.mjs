@@ -850,12 +850,12 @@ test("titres --etapes 1 à 1,2,3,4 : les étapes demandées injectées, les autr
     assert.equal(r.mode, mode);
   }
   assert.throws(() => assemblerMode("titres", RACINE, { etapes: [1, 2], lire: sansTitres([TITRES_1.migration, TITRES_1.retour]) }),
-    /Étape 2 demandée \(titres\) : supabase\/migrations\/20261112_titres_2_fonctions\.sql n'existe pas encore.*titres-contre-epreuve.*--etapes 1/s);
+    /Étape 2 demandée \(titres\) : supabase\/migrations\/20261112_titres_2_gestes\.sql n'existe pas encore.*titres-contre-epreuve.*--etapes 1/s);
   assert.throws(() => assemblerMode("titres", RACINE, { etapes: [1], lire: sansTitres([]) }),
     /Étape 1 demandée \(titres\) : supabase\/migrations\/20261112_titres_1_tables\.sql n'existe pas encore.*titres-contre-epreuve/s);
   // Seul le retour manque : l'étape demandée arrête aussi l'assemblage.
   assert.throws(() => assemblerMode("titres", RACINE, { etapes: [1, 2], lire: (c) => (c === ETAPES_TITRES[2].retour ? null : depotTitres(c)) }),
-    /Étape 2 demandée \(titres\) : supabase\/migrations\/20261112_titres_2_fonctions_retour\.sql n'existe pas encore/);
+    /Étape 2 demandée \(titres\) : supabase\/migrations\/20261112_titres_2_gestes_retour\.sql n'existe pas encore/);
 });
 
 test("titres : étapes refusées (hors 1 à 4, non consécutives), --etapes refusé ailleurs, mode repetition inchangé", () => {
@@ -925,4 +925,31 @@ test("la migration 1 des titres : fonctions internes sans droit d'exécution, ta
   const places = ordre.map((x) => r.indexOf(x));
   assert.ok(places.every((x) => x >= 0), "tous les retraits présents");
   assert.deepEqual([...places].sort((a, b) => a - b), places, "retraits dans l'ordre");
+});
+
+test("la migration 2 des titres (A) : dix fonctions stable security definer, exécution pour anon et authenticated sans PUBLIC, code inconnu 22023, retour qui les retire", () => {
+  const m = texteDuDepot(ETAPES_TITRES[2].migration);
+  const fonctions = ["case_promo(integer, text)", "case_centre(integer, text)", "case_reseau(text)", "formateur_fixe(integer)", "direction_fixe(integer)",
+    "siege_fixe()", "membre_stagiaire(integer)", "geste_promo(integer, text)", "geste_centre(integer, text)", "geste_reseau(text)"];
+  assert.equal((m.match(/^create function public\./gm) ?? []).length, fonctions.length);
+  assert.equal((m.match(/language (?:sql|plpgsql) stable security definer/g) ?? []).length, fonctions.length);
+  assert.equal((m.match(/set search_path to 'public', 'pg_temp'/g) ?? []).length, fonctions.length);
+  for (const f of fonctions) {
+    assert.ok(m.includes(`public.${f}`), `${f} citée dans les droits`);
+  }
+  const revoke = /revoke all on function ([^;]*) from public;/.exec(m);
+  const grant = /grant execute on function ([^;]*) to anon, authenticated;/.exec(m);
+  assert.ok(revoke && grant, "revoke from public puis grant to anon, authenticated");
+  for (const f of fonctions) {
+    assert.ok(revoke[1].includes(`public.${f}`) && grant[1].includes(`public.${f}`), `${f} : droits`);
+  }
+  assert.ok(!/\$\$/.test(m), "délimiteur $f$ seul");
+  assert.equal((m.match(/errcode = '22023'/g) ?? []).length, 3, "un code inconnu lève 22023 dans les trois fonctions de gestes");
+  assert.ok(!/create policy|alter policy/.test(m), "aucune règle touchée");
+  const r = texteDuDepot(ETAPES_TITRES[2].retour);
+  const places = fonctions.map((f) => r.indexOf(`drop function if exists public.${f};`));
+  assert.ok(places.every((x) => x >= 0), "tous les retraits présents");
+  const ordreRetrait = ["geste_reseau", "geste_centre", "geste_promo", "membre_stagiaire", "siege_fixe", "direction_fixe", "formateur_fixe", "case_reseau", "case_centre", "case_promo"]
+    .map((nom) => r.indexOf(`drop function if exists public.${nom}(`));
+  assert.deepEqual([...ordreRetrait].sort((a, b) => a - b), ordreRetrait, "retraits dans l'ordre inverse");
 });
