@@ -719,6 +719,7 @@ begin
     perform pg_temp.verifier('cases', p_libelle || ' : lignes d''essai présentes (jamais un contrôle à vide)', v_n ~ '^[0-9]+$' and v_n::integer > 0, 'lignes du propriétaire : ' || coalesce(v_n, 'nul'));
     perform pg_temp.attendre('cases', p_libelle, pg_temp.appeler(p_qui, p_entete, format('select count(*)::text from %s where %s', p_table, p_ou)), 'OK ' || v_n);
   else
+    perform pg_temp.verifier('cases', p_libelle || ' : lignes d''essai présentes (jamais un contrôle à vide)', v_n ~ '^[0-9]+$' and v_n::integer > 0, 'lignes du propriétaire : ' || coalesce(v_n, 'nul'));
     perform pg_temp.attendre('cases', p_libelle, pg_temp.appeler(p_qui, p_entete, format('select count(*)::text from %s where %s', p_table, p_ou)), 'OK 0');
   end if;
 end $tcl$;
@@ -740,6 +741,19 @@ declare
   v_q integer := (select min(id) from public.qcm_questions);
   v_tout constant text := 'promo_id = 1';
 begin
+  -- Plus aucune règle (public et storage) ne cite un ancien prédicat de droit : joué aussi en production, où une règle absente des
+  -- fichiers de migration resterait sinon ouverte à tout compte affecté, quel que soit son titre. Exceptions voulues, sans appel à ces
+  -- prédicats : affectations_lecture, lieux_lecture et la clause « personnel » de user_profiles_lecture citent encore est_siege,
+  -- est_formateur ou est_direction (plan § 1.3 : navigation, étiquettes, lecture du personnel).
+  perform pg_temp.attendre('cases', 'aucune règle ne cite plus formateur_courant, equipe_courante, direction_courante, redacteur_contenus, is_admin ni is_prof',
+    pg_temp.calcul($q$select coalesce(string_agg(schemaname || '.' || policyname, ',' order by schemaname || '.' || policyname collate "C"), 'aucune')
+      from pg_policies where schemaname in ('public', 'storage')
+       and coalesce(qual, '') || coalesce(with_check, '') ~ '(formateur_courant|equipe_courante|direction_courante|redacteur_contenus|is_admin|is_prof)\('$q$), 'aucune');
+  perform pg_temp.attendre('cases', 'les seules règles qui citent encore est_siege, est_formateur ou est_direction sont les trois voulues par le plan',
+    pg_temp.calcul($q$select coalesce(string_agg(schemaname || '.' || policyname, ',' order by schemaname || '.' || policyname collate "C"), 'aucune')
+      from pg_policies where schemaname in ('public', 'storage')
+       and coalesce(qual, '') || coalesce(with_check, '') ~ '(est_siege|est_formateur|est_direction)\('$q$),
+    'public.affectations_lecture,public.lieux_lecture,public.user_profiles_lecture');
   -- Donnée d'essai posée en propriétaire : le cours du thème 57 repasse en brouillon (un cours de thème non publié).
   update public.cours set published = false where numero = 57;
   -- t_rh (Promos Voir, Équipe Voir) : « Non » ferme la lecture des données de la page.
@@ -749,6 +763,7 @@ begin
   perform pg_temp.cas_lecture('t_rh ne lit aucune note', 't_rh', '1', 'public.evaluations', v_tout, false);
   perform pg_temp.cas_lecture('t_rh ne lit aucune ligne d''émargement', 't_rh', '1', 'public.emargement_lignes', v_tout, false);
   perform pg_temp.cas_lecture('t_rh ne lit pas le planning', 't_rh', '1', 'public.planning_entries', v_tout, false);
+  perform pg_temp.cas_lecture('t_rh ne lit aucun profil de stagiaire (adresses fermées)', 't_rh', '1', 'public.user_profiles', 'stagiaire_id is not null', false);
   -- t_secr (Stagiaires Modifier, Émargement Voir, ni Planning ni Notes).
   perform pg_temp.cas_lecture('t_secr lit les fiches de stagiaires', 't_secr', '1', 'public.stagiaires', v_tout, true);
   perform pg_temp.cas_lecture('t_secr lit les passages', 't_secr', '1', 'public.passages', v_tout, true);
@@ -770,6 +785,8 @@ begin
   perform pg_temp.cas_lecture('t_interv ne lit aucune note', 't_interv', '1', 'public.evaluations', v_tout, false);
   perform pg_temp.cas_refus('t_interv n''ajoute aucune note', 't_interv', '1',
     format('with i as (insert into public.evaluations (stagiaire_id, type, note, promo_id) values (%s, ''Thème'', 10, 1) returning 1) select count(*)::text from i', v_s1));
+  perform pg_temp.cas_refus('t_interv ne modifie aucune fiche de stagiaire (Voir ferme l''écriture)', 't_interv', '1',
+    'with u as (update public.stagiaires set ordre = ordre where promo_id = 1 returning 1) select count(*)::text from u');
   perform pg_temp.cas_refus('t_interv ne supprime aucune fiche (geste définitif)', 't_interv', '1',
     'with d as (delete from public.stagiaires where promo_id = 1 returning 1) select count(*)::text from d');
   perform pg_temp.cas_refus('t_interv ne supprime aucun bénévole (geste définitif)', 't_interv', '1',

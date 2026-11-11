@@ -1541,11 +1541,11 @@ begin
       v_obt := pg_temp.valeur(v_c.email, v_c.hdr, v_c.apercu, format(c_vue, v_m.tbl));
       v_att := v_attendus[1];
       -- (L'acteur anonyme n'a le droit de lire qu'un petit nombre de tables : sur les autres, le refus de droit, 42501,
-      -- vaut « aucune ligne ». Même chose pour une table dont le droit de lecture est retiré aux connectés eux-mêmes : titres,
+      -- vaut « aucune ligne ». Même chose, pour tout acteur, sur une table dont la ligne de matrice dit lecture « false » : titres,
       -- journal_droits, qui ne se lisent que par des fonctions.)
       perform pg_temp.verifier_m(v_c.groupe, v_c.qui, v_c.ctx, v_m.tbl, 'lecture',
         v_obt = v_att or (v_obt = 'ERREUR 42501' and split_part(v_att, ':', 1) = '0'
-                          and (v_c.qui = 'anon' or not has_table_privilege('authenticated', v_m.tbl, 'select'))),
+                          and (v_c.qui = 'anon' or v_m0.lecture = 'false')),
         format('vu %s, attendu %s', coalesce(split_part(v_obt, ':', 1), 'nul'), coalesce(split_part(v_att, ':', 1), v_txt))
         || case when split_part(v_obt, ':', 1) = split_part(v_att, ':', 1) and v_obt <> v_att then ' (autres lignes)' else '' end);
       -- Les contextes d'aperçu ne jouent que la lecture (leurs écritures sont des contrôles ciblés).
@@ -2277,9 +2277,9 @@ begin
                       from pg_attribute a join pg_class c on c.oid = a.attrelid
                      where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p') and a.attnum > 0 and not a.attisdropped
                        and a.attname in ('promo_id', 'lieu_id') and c.relname <> 'affectations' and c.relname not like 'questionnaire\_%'
-                       and c.relname not in ('titres', 'journal_droits')
                     union select 'public.stagiaires_prive') l) x
-     where v is distinct from '0';
+     where v is distinct from '0'
+       and not (v = 'ERREUR 42501' and exists (select 1 from matrice m where m.tbl = x.t and m.lecture = 'false'));
     v_obt := pg_temp.valeur('preuve.siege@exemple.invalid', c_contextes[n], null,
       'select count(*)::text from public.user_profiles where stagiaire_id is not null');
     perform pg_temp.verifier('siège',

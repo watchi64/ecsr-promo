@@ -498,6 +498,12 @@ chose (seuls des titres fixes existent) : aucune fenêtre de droit.
   cas « affectations » de `roles-preuve.sql` (l. 1899 à 1922, groupe h) deviennent des cas de fonction, aux mêmes attendus.
 - **Task F : verrou des titres non fixes** : `donner_titre` refuse un titre non fixe tant que la clé globale
   `titres_ouverts` (à admettre dans `settings_globaux_prevus`) n'est pas posée par le fondateur (§ 12).
+- **À resserrer avant tout titre non fixe (relecture de la tâche 5)** : `affectations_lecture` (laissée telle quelle à l'étape 1)
+  garde `est_siege()` / `est_direction()`, que remplit toute affectation : un titre dont la case Équipe ou Directions de centre est
+  « Non » lit encore les adresses du personnel ; la réécrire avec `geste_centre(l, 'equipe.lire')` ou `direction_fixe(l)` et
+  `geste_reseau('directions.lire')` ou `siege_fixe()`, et ajouter au groupe `cases` « t_contenus ne lit aucune affectation de
+  direction ». `notes_stagiaires_visibles()` rend encore les identifiants des fiches non masquées à un compte sans fiche ni case
+  Notes : la garder par `membre_stagiaire(P) or geste_promo(P, 'notes.lire')`, comme `notes_stats_groupe`.
 - Preuves : cas pour chaque règle du § 7, chaque titre fictif, retrait immédiat (demande suivante refusée), journal.
 
 ## 5. Étape 3 : écrans (grandes lignes)

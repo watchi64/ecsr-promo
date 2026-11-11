@@ -2,8 +2,10 @@
 -- geste_reseau, membre_stagiaire, posés par la migration 2). Chaque règle garde son nom, sa commande et ses rôles (alter policy, jamais
 -- drop + create) ; seul l'ancien prédicat (formateur_courant, equipe_courante, redacteur_contenus, direction_courante, est_siege...) est
 -- remplacé par le geste qui lui correspond, appelé en sous-requête (select ...) pour n'être calculé qu'une fois par requête.
--- Pour les titres fixes d'aujourd'hui (Formateur, Direction de centre, Siège) chaque règle donne exactement les mêmes lignes qu'avant
--- (preuve du lot 4 inchangée) ; un titre non fixe n'ouvre que ce que ses cases ouvrent.
+-- Pour les titres fixes d'aujourd'hui (Formateur, Direction de centre, Siège) chaque règle donne les mêmes lignes qu'avant (preuve du
+-- lot 4 inchangée), à une restriction près : le fondateur hors aperçu qui envoie l'en-tête d'une promo inexistante (aucune promo
+-- affichée) perd les écritures que lui rendait est_formateur(null) (qcm, themes, competences, ressources, contacts, profs, instruction
+-- des signalements, brouillons IA) ; il ne gagne rien. Un titre non fixe n'ouvre que ce que ses cases ouvrent.
 --   * Lectures « P » (toute personne qui a accès à la promo affichée) : membre stagiaire de la promo, ou geste de lecture de la page.
 --   * Clauses « M » (sa fiche, son adresse, son identifiant) et clauses du fondateur : inchangées.
 --   * Réglages : la clé « modules » suit le geste modules.modifier, les clés navigation_v2 et emargement_actif restent au fondateur.
