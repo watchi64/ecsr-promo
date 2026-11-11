@@ -8,7 +8,7 @@
  * pas migrée (ou si les promos n'ont pas pu être chargées), la colonne manque : l'app se replie alors sur
  * `is_admin` et `role` du profil, comme avant le lot 4.
  */
-import { phraseDeRefus, PHRASE_ECHEC } from "./espaces-rules.js?v=20261111a";
+import { phraseDeRefus, PHRASE_ECHEC } from "./espaces-rules.js?v=20261111c";
 
 // Les aperçus : un fondateur les a tous, un membre de l'équipe a celui du stagiaire. Un aperçu ne fait que
 // RETIRER des droits : une valeur hors de la liste permise est ignorée.
@@ -128,11 +128,12 @@ export function peutRetirerCompte({ cible, fondateur } = {}) {
 // manque : l'affichage d'avant, sans message). Un compte du personnel (« formateur » d'après la colonne) qui est direction ou siège
 // perd la pastille « formateur », qu'il ne garde que s'il a une fiche formateur (prof_id) : l'app ne voit pas ses promos de
 // formateur, cette fiche est le seul indice qu'il l'est aussi. Un stagiaire n'est jamais touché. Rend [{ libelle, classe }], la
-// classe étant le suffixe de `role-pill role-…` ; le premier libellé sert au tri.
-export function pastillesDuProfil({ profil, roles, v2 = true } = {}) {
+// classe étant le suffixe de `role-pill role-…` ; le premier libellé sert au tri. Un « admin » se lit « formateur ». L'option
+// `v2` est ignorée (transition : retirée en phase 2 quand les vues ne la passent plus).
+export function pastillesDuProfil({ profil, roles } = {}) {
   if (!profil) return [];
   const brut = String(profil.role ?? "");
-  const base = brut === "prof" || (v2 && brut === "admin") ? "formateur" : brut;
+  const base = brut === "prof" || brut === "admin" ? "formateur" : brut;
   const lignes = Array.isArray(roles) ? roles : [];
   const adresse = String(profil.email ?? "").toLowerCase();
   const a = (role) => lignes.some((l) => l && String(l.email ?? "").toLowerCase() === adresse && l.role === role);
@@ -147,10 +148,10 @@ export function pastillesDuProfil({ profil, roles, v2 = true } = {}) {
 }
 
 // La liste « Personnes avec accès », triée par premier rôle affiché puis par adresse : [{ profil, pastilles }]. Ne change pas qui y
-// figure.
-export function listeAcces({ profils, roles, v2 = true } = {}) {
+// figure. L'option `v2` est ignorée (transition, comme pour pastillesDuProfil).
+export function listeAcces({ profils, roles } = {}) {
   return (Array.isArray(profils) ? profils : [])
-    .map((profil) => ({ profil, pastilles: pastillesDuProfil({ profil, roles, v2 }) }))
+    .map((profil) => ({ profil, pastilles: pastillesDuProfil({ profil, roles }) }))
     .sort((x, y) => (x.pastilles[0]?.libelle ?? "").localeCompare(y.pastilles[0]?.libelle ?? "")
       || String(x.profil.email ?? "").localeCompare(String(y.profil.email ?? "")));
 }
@@ -177,13 +178,14 @@ export function phraseCompteTransforme(role) {
 
 // Phrase d'une invitation acceptée par la base, d'après ce que rend inviter_compte : `cree` (le profil vient d'être créé) et
 // `affecte` (nombre d'affectations ajoutées). « Rien n'a changé » seulement quand ni l'un ni l'autre : un compte qui existait
-// et vient de gagner une promo a bien changé (relecture finale, I1). `ton` : le type du toast.
-export function messageInvitationReussie({ resultat, email, v2 = true } = {}) {
+// et vient de gagner une promo a bien changé (relecture finale, I1). `ton` : le type du toast. L'option `v2` est ignorée
+// (transition : retirée en phase 2 quand les vues ne la passent plus).
+export function messageInvitationReussie({ resultat, email } = {}) {
   const r = resultat || {};
   // Suite du lot 5 : l'adresse d'un ancien stagiaire sans fiche a vu son compte transformé en compte du personnel.
   if (r.transforme === true) return { texte: phraseCompteTransforme(r.role), ton: "success" };
   if (r.cree !== false) {
-    return { texte: (v2 ? "Ajouté à la liste des invitations : " : "Ajouté à la whitelist : ") + email + ". Partage-lui l'URL.", ton: "success" };
+    return { texte: "Ajouté à la liste des invitations : " + email + ". Partagez-lui l'URL.", ton: "success" };
   }
   if (Number(r.affecte) > 0) {
     const quoi = r.role === "direction" ? "ajouté à la direction du centre"
@@ -216,7 +218,7 @@ export function etiquetteBadge({ profil, promo } = {}) {
   return { libelle: "", classe: "" };
 }
 
-// Le rôle que dit le pied de page (« connecté comme … ») : celui de l'aperçu « Voir en tant que » s'il y en a un ; sinon
+// Le rôle que dit le pied de page (« connecté en tant que … ») : celui de l'aperçu « Voir en tant que » s'il y en a un ; sinon
 // « fondateur » pour le fondateur (qui peut aussi être stagiaire d'une promo : hors aperçu, il est dans l'espace de l'équipe) ;
 // sinon le rôle réel sur la promo affichée, dans l'ordre du badge (formateur, direction, siège, stagiaire). Avant l'audit du
 // 09/11 (A8), Aujourd'hui écrivait « formateur » pour tout le monde.
@@ -233,8 +235,8 @@ export function libelleConnexion({ profil, promo, apercu } = {}) {
 
 // Phrase du refus à la porte, quand le compte n'a aucune promo. Depuis le lot 5, le siège et la direction entrent sans promo
 // (porteSansPromo, js/espaces-rules.js) : le refus ne concerne plus que les autres comptes, et une seule phrase leur suffit.
-// Les rôles que les appelants du lot 4 lui passent n'y changent plus rien.
-export const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à ta direction ou à un formateur de t'ajouter.";
+// Les rôles que les appelants du lot 4 lui passent n'y changent plus rien. Formule neutre, ni tu ni vous (décision du 10/11).
+export const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ce compte : la direction du centre ou un formateur peut l'ajouter à une promo.";
 export function messageSansPromo() {
   return MESSAGE_SANS_PROMO;
 }

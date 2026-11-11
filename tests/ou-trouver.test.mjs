@@ -16,7 +16,8 @@ const NOUVELLE = { navigationV2: true, espace: "stagiaire" };
 const NOUVELLE_EQUIPE = { navigationV2: true, espace: "equipe" };
 const dit = (ou, options) => ouSelonNavigation(ou, options).label;
 
-// 1. Ancienne navigation : `ou` est rendu tel quel, pour toute route et dans les deux espaces (interrupteur éteint = main).
+// 1. Une seule navigation depuis le 10/11 : le libellé est toujours réécrit, l'option `navigationV2` (que les vues passent encore)
+// est ignorée. Sans option, l'espace est celui du stagiaire.
 const ANCIENS = [
   { label: "Calendrier", route: "calendrier" },
   { label: "Ressources", route: "ressources" },
@@ -31,37 +32,41 @@ const ANCIENS = [
 ];
 for (const ou of ANCIENS) {
   for (const espace of ["stagiaire", "equipe"]) {
-    ok(ouSelonNavigation(ou, { navigationV2: false, espace }) === ou, `ancienne navigation, ${espace} : « ${ou.label} » rendu tel quel`);
+    eq(ouSelonNavigation(ou, { navigationV2: false, espace }), ouSelonNavigation(ou, { navigationV2: true, espace }),
+      `navigationV2 faux, ${espace} : « ${ou.label} » réécrit comme sous la nouvelle`);
   }
-  ok(ouSelonNavigation(ou) === ou, `sans option, la navigation est l'ancienne : « ${ou.label} » rendu tel quel`);
-  ok(ouSelonNavigation(ou, ANCIENNE) === ou, `navigationV2 faux : « ${ou.label} » rendu tel quel`);
+  eq(ouSelonNavigation(ou), ouSelonNavigation(ou, NOUVELLE), `sans option : « ${ou.label} » réécrit comme chez un stagiaire`);
+  eq(ouSelonNavigation(ou, ANCIENNE), ouSelonNavigation(ou, NOUVELLE), `navigationV2 faux, sans espace : « ${ou.label} » réécrit`);
 }
+ok(ouSelonNavigation(ANCIENS[0], ANCIENNE) !== ANCIENS[0], "l'option navigationV2 fausse n'empêche plus la réécriture");
 eq(ouSelonNavigation(null, NOUVELLE), null, "pas de lien, pas de libellé");
-eq(ouSelonNavigation(undefined, ANCIENNE), undefined, "pas de lien, ancienne navigation");
+eq(ouSelonNavigation(undefined, ANCIENNE), undefined, "pas de lien, option ignorée");
 
 // 2. Nouvelle navigation : le libellé suit la barre, route par route.
 eq(dit({ label: "Calendrier", route: "calendrier" }, NOUVELLE), "Planning, Dates clés", "calendrier : Planning, Dates clés");
 eq(dit({ label: "Calendrier", route: "calendrier" }, NOUVELLE_EQUIPE), "Planning, Dates clés", "calendrier, équipe");
 eq(dit({ label: "Ressources", route: "ressources" }, NOUVELLE), "Cours et QCM, Documents", "ressources : Cours et QCM, Documents");
 eq(dit({ label: "Ressources, Examens", route: "ressources" }, NOUVELLE), "Cours et QCM, Documents", "ressources avec un détail : Cours et QCM, Documents");
-eq(dit({ label: "Planning, bouton Priorités", route: "dashboard" }, NOUVELLE), "Planning, Priorités", "dashboard : Planning, Priorités");
+eq(dit({ label: "Planning, bouton Priorités", route: "dashboard" }, NOUVELLE), "Planning, Ordre de passage", "dashboard : Planning, Ordre de passage (lot D du 10/11)");
 eq(dit({ label: "Cours", route: "themes" }, NOUVELLE), "Cours et QCM", "themes : Cours et QCM");
 eq(dit({ label: "Cours, colonne QCM", route: "themes" }, NOUVELLE), "Cours et QCM, colonne QCM", "themes : le reste de l'ancien libellé suit (colonne QCM)");
 eq(dit({ label: "Cours, colonne Cours", route: "themes" }, NOUVELLE), "Cours et QCM, colonne Cours", "themes : colonne Cours");
 eq(dit({ label: "Cours, sous-onglet Compétences", route: "themes", sousOnglet: "competences" }, NOUVELLE_EQUIPE),
   "Cours et QCM, sous-onglet Compétences", "themes : sous-onglet Compétences");
 eq(dit({ label: "Cours et QCM", route: "themes" }, NOUVELLE), "Cours et QCM", "themes : un libellé déjà à jour reste tel quel");
-eq(dit({ label: "Mon espace personnel, partie Dossier pro", route: "mon-suivi", sousOnglet: "dp" }, NOUVELLE), "Mon suivi, partie Dossier pro",
+eq(dit({ label: "Mon espace personnel, partie Dossier pro", route: "mon-suivi", sousOnglet: "dp" }, NOUVELLE), "Mon suivi, partie Dossier professionnel",
+  "mon-suivi : partie Dossier professionnel (un nom par objet, lot D du 10/11)");
+eq(dit({ label: "Mon espace personnel, partie Passages", route: "mon-suivi", sousOnglet: "passages" }, NOUVELLE), "Mon suivi, partie Passages",
   "mon-suivi : Mon suivi, partie X à la place de Mon espace personnel, partie X");
 eq(dit({ label: "Mon espace personnel, partie Livret", route: "mon-suivi", sousOnglet: "livret" }, NOUVELLE), "Mon suivi, partie Livret EPCF",
   "mon-suivi : partie Livret EPCF (décision de Timy du 08/11)");
-eq(dit({ label: "Mon espace personnel, partie EPCF", route: "mon-suivi", sousOnglet: "epcf" }, NOUVELLE), "Mon suivi, partie EPCF", "mon-suivi : partie EPCF");
+eq(dit({ label: "Mon espace personnel, partie EPCF", route: "mon-suivi", sousOnglet: "epcf" }, NOUVELLE), "Mon suivi, partie Évaluations EPCF", "mon-suivi : partie Évaluations EPCF (lot D du 10/11)");
 eq(dit({ label: "Mon espace, partie Livret", route: "mon-suivi", sousOnglet: "livret" }, NOUVELLE), "Mon suivi, partie Livret EPCF", "mon-suivi : « Mon espace » seul aussi");
 eq(dit({ label: "Mon espace personnel", route: "mon-suivi" }, NOUVELLE), "Mon suivi", "mon-suivi sans partie : Mon suivi");
 eq(dit({ label: "Le logo en haut à gauche", route: "mon-suivi" }, NOUVELLE), "Mon suivi", "mon-suivi : un geste de l'ancienne barre devient le nom de la page");
 eq(dit({ label: "Mon suivi, partie Livret EPCF", route: "mon-suivi", sousOnglet: "livret" }, NOUVELLE), "Mon suivi, partie Livret EPCF", "mon-suivi : libellé déjà à jour");
-eq(dit({ label: "Mon espace personnel, partie Livret", route: "mon-suivi", sousOnglet: "livret" }, ANCIENNE), "Mon espace personnel, partie Livret",
-  "ancienne navigation : « Livret » reste tel quel");
+eq(dit({ label: "Mon espace personnel, partie Livret", route: "mon-suivi", sousOnglet: "livret" }, ANCIENNE), "Mon suivi, partie Livret EPCF",
+  "option navigationV2 fausse, ignorée : « Livret EPCF » aussi");
 // Lot 2B, tâche 7 : Évolution et La classe sont réunies dans la partie Résultats de Mon suivi.
 eq(dit({ label: "Notes", route: "notes" }, NOUVELLE), "Mon suivi, partie Résultats", "notes chez un stagiaire : Mon suivi, partie Résultats");
 eq(dit({ label: "Notes, Synthèse classe", route: "notes" }, NOUVELLE), "Mon suivi, partie Résultats", "notes chez un stagiaire, avec un détail");
@@ -72,10 +77,13 @@ eq(dit({ label: "Mon espace personnel, partie Évolution", route: "mon-suivi", s
 eq(dit({ label: "Mon suivi, La classe", route: "mon-suivi", sousOnglet: "classe" }, NOUVELLE), "Mon suivi, partie Résultats", "mon-suivi, La classe : partie Résultats");
 eq(ouSelonNavigation({ label: "Mon espace personnel, partie Évolution", route: "mon-suivi", sousOnglet: "evolution" }, NOUVELLE).sousOnglet, "evolution",
   "le lien garde son adresse (#/mon-suivi/evolution ouvre Résultats, Moi)");
-eq(dit({ label: "Mon espace personnel, partie Évolution", route: "mon-suivi", sousOnglet: "evolution" }, ANCIENNE), "Mon espace personnel, partie Évolution",
-  "ancienne navigation : partie Évolution, telle quelle");
+eq(dit({ label: "Mon espace personnel, partie Évolution", route: "mon-suivi", sousOnglet: "evolution" }, ANCIENNE), "Mon suivi, partie Résultats",
+  "option navigationV2 fausse, ignorée : partie Résultats aussi");
 eq(dit({ label: "Notes", route: "notes" }, NOUVELLE_EQUIPE), "Notes et examens", "notes chez l'équipe : Notes et examens");
 eq(dit({ label: "Notes, Synthèse classe", route: "notes" }, NOUVELLE_EQUIPE), "Notes et examens, Synthèse classe", "notes chez l'équipe : le détail suit");
+eq(dit({ label: "Notes, sous-onglet EPCF", route: "notes", sousOnglet: "epcf" }, NOUVELLE_EQUIPE), "Notes et examens, Évaluations EPCF",
+  "notes, sous-onglet EPCF chez l'équipe : Évaluations EPCF (lot D du 10/11)");
+eq(dit({ label: "Notes, sous-onglet EPCF", route: "notes", sousOnglet: "epcf" }, NOUVELLE), "Mon suivi, partie Résultats", "notes, sous-onglet EPCF chez un stagiaire : Résultats");
 eq(dit({ label: "Paramètres, Mes préférences", route: "config" }, NOUVELLE), "Mes préférences", "config chez un stagiaire : Mes préférences");
 eq(ouSelonNavigation({ label: "Paramètres, Mes préférences", route: "config" }, NOUVELLE).route, "preferences", "config, détail Mes préférences : la route devient preferences (R55)");
 eq(dit({ label: "Paramètres", route: "config" }, NOUVELLE), "Mes préférences", "config chez un stagiaire, sans détail : Mes préférences, jamais Réglages");
@@ -101,7 +109,7 @@ const BENEVOLES_D_AVANT = { label: "Planning, bouton Bénévoles", route: "plann
 const benevoles = ouSelonNavigation(BENEVOLES_D_AVANT, NOUVELLE_EQUIPE);
 eq(benevoles, { label: "Stagiaires, Élèves bénévoles", route: "stagiaires", sousOnglet: "benevoles" }, "bénévoles chez l'équipe : Stagiaires, Élèves bénévoles, sous-onglet benevoles");
 eq(BENEVOLES_D_AVANT, { label: "Planning, bouton Bénévoles", route: "planning" }, "le lien d'avant n'est pas modifié");
-ok(ouSelonNavigation(BENEVOLES_D_AVANT, ANCIENNE) === BENEVOLES_D_AVANT, "ancienne navigation : le bouton du Planning, tel quel");
+eq(ouSelonNavigation(BENEVOLES_D_AVANT, ANCIENNE).route, "stagiaires", "option navigationV2 fausse, ignorée : Stagiaires aussi");
 eq(dit({ label: "Planning, bouton Bénévoles, onglet Auto-écoles", route: "planning" }, NOUVELLE_EQUIPE), "Stagiaires, Élèves bénévoles", "bénévoles avec un détail de plus : même destination");
 eq(dit(BENEVOLES_D_AVANT, NOUVELLE), "Stagiaires, Élèves bénévoles", "le libellé ne dépend pas de l'espace (les deux Nouveautés qui en parlent sont pour les formateurs)");
 eq(dit({ label: "CCP2", route: "ccp2" }, NOUVELLE), "CCP2", "ccp2 inchangé");
@@ -127,8 +135,8 @@ for (const [ou, options] of [
   eq(Object.keys(r).sort(), Object.keys(ou).sort(), `aucun champ ajouté ni retiré à « ${ou.label} »`);
 }
 
-// 4. Les vrais liens (Nouveautés et annonces de modules), dans les deux espaces : sous la nouvelle navigation, aucun libellé ne nomme
-// une destination de l'ancienne barre ; avec l'ancienne, tous restent ceux de main.
+// 4. Les vrais liens (Nouveautés et annonces de modules), dans les deux espaces : aucun libellé ne nomme une destination de
+// l'ancienne barre.
 // Les seuls liens dont la destination (route, sous-onglet) change sous la nouvelle navigation, par Nouveauté : l'anonymat des notes (Mes
 // préférences, R55) et les deux Nouveautés des bénévoles (F8). Tous les autres gardent route et sous-onglet.
 const CHANGEES = {
@@ -143,7 +151,6 @@ const LIENS = [
 ok(LIENS.length > 30, "les liens réels sont bien lus");
 const DESTINATION_D_AVANT = /Mon espace|espace personnel|Paramètres|tuile|logo|Ressources|Calendrier|bouton Priorités|bouton Bénévoles|Tableau de bord|Pastille/;
 for (const { de, ou } of LIENS) {
-  ok(ouSelonNavigation(ou, ANCIENNE) === ou, `${de} : l'ancienne navigation garde le libellé de main`);
   for (const [nom, options] of [["stagiaire", NOUVELLE], ["équipe", NOUVELLE_EQUIPE]]) {
     const r = ouSelonNavigation(ou, options);
     ok(!DESTINATION_D_AVANT.test(r.label), `${de} (${nom}) : « ${r.label} » nomme une destination de l'ancienne barre`);

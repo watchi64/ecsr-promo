@@ -1,12 +1,12 @@
-import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261111a";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe } from "../utils.js?v=20261111a";
-import { confirmer } from "../confirmer.js?v=20261111a";
-import { icon } from "../icons.js?v=20261111a";
-import { recordUndo } from "../undo.js?v=20261111a";
-import { TYPES, RESULTATS } from "../config.js?v=20261111a";
-import { isAdmin, monStagiaireId } from "../auth-admin.js?v=20261111a";
-import { getCurrentWho } from "../identity.js?v=20261111a";
-import { navigationV2Active } from "../nav-etat.js?v=20261111a";
+import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261111c";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe, nomLisible } from "../utils.js?v=20261111c";
+import { confirmer } from "../confirmer.js?v=20261111c";
+import { icon } from "../icons.js?v=20261111c";
+import { recordUndo } from "../undo.js?v=20261111c";
+import { TYPES, RESULTATS } from "../config.js?v=20261111c";
+import { isAdmin, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111c";
+import { getCurrentWho } from "../identity.js?v=20261111c";
+import { navigationV2Active } from "../nav-etat.js?v=20261111c";
 
 let stagiaires = [];
 let passages = [];
@@ -131,7 +131,8 @@ function renderTable(container) {
     return el("div", { style: "padding:3rem 1rem;text-align:center;color:var(--text-muted)" },
       el("p", {}, "Aucun passage à afficher."),
       el("p", { class: "faint", style: "font-size:0.85rem" }, isAdmin() || monStagiaireId() != null
-        ? "Modifie les filtres ou ajoute un passage." : "Modifie les filtres.")
+        ? selonPublic("Modifie les filtres ou ajoute un passage.", "Modifiez les filtres ou ajoutez un passage.")
+        : selonPublic("Modifie les filtres.", "Modifiez les filtres."))
     );
   }
 
@@ -176,12 +177,12 @@ function renderTable(container) {
       onClick: () => openAddModal(() => reload(container), p),
     }, "✎") : null;
 
-    const whoLabel = p.created_by_who || (p.origine === "Planning" ? "Auto" : "-");
+    const whoLabel = nomLisible(p.created_by_who) || (p.origine === "Planning" ? "Auto" : "-");
     const isAdmin_ = whoLabel.includes("@");
 
     const tr = el("tr", {},
       el("td", { class: "date" }, formatDate(p.date)),
-      el("td", { class: "liste-titre" }, p.stagiaire ? displayStagiaire(p.stagiaire) : "?"),
+      el("td", { class: "liste-titre" }, p.stagiaire ? displayStagiaire(p.stagiaire) : "Stagiaire inconnu"),
       el("td", {}, el("span", { class: "tag " + (p.type === "Salle" ? "salle" : "voiture") }, p.type)),
       el("td", {}, resultTag(p.resultat)),
       el("td", { class: "muted" }, p.remplacant ? displayStagiaire(p.remplacant) : "-"),
@@ -228,7 +229,7 @@ async function openAuditModal() {
     }
     audit.forEach((a) => {
       const time = new Date(a.changed_at).toLocaleString("fr-FR");
-      const who = a.changed_by_who || "Anonyme";
+      const who = nomLisible(a.changed_by_who) || "Anonyme";
       const actLabel = a.action === "insert" ? "Création" : a.action === "update" ? "Modification" : "Suppression";
 
       let summary = "";
@@ -236,7 +237,7 @@ async function openAuditModal() {
       if (data) {
         const stagId = data.stagiaire_id;
         const stag = stagiaires.find((s) => s.id === stagId);
-        const stagName = stag ? displayStagiaire(stag) : `#${stagId}`;
+        const stagName = stag ? displayStagiaire(stag) : "Stagiaire inconnu";
         summary = `${stagName} · ${data.type} · ${data.resultat}`;
       }
 
@@ -300,11 +301,12 @@ function rerender(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, passages.length + " entrées au total"),
       el("h2", {}, "Historique des passages"),
-      // Nouvelle navigation : « formateurs », le mot de l'app (un stagiaire lit cette page dans Planning > Priorités).
+      // Nouvelle navigation : « formateurs », le mot de l'app (un stagiaire lit cette page dans Planning > Ordre de passage).
+      // « passages » se définit à sa première apparition visible de l'écran (lot D du 10/11).
       el("p", { class: "subtitle" }, peutAjouter
-        ? "Tous les passages. Ajout ouvert à tous, suppression réservée aux "
+        ? "Tous les passages (au tableau et en voiture). Ajout ouvert à tous, suppression réservée aux "
           + (navigationV2Active() ? "formateurs" : "admins") + ". Chaque action est tracée."
-        : "Tous les passages de la promo, en lecture. Chaque action est tracée."),
+        : "Tous les passages (au tableau et en voiture) de la promo, en lecture. Chaque action est tracée."),
     ),
     el("div", { style: "display:flex;gap:0.5rem;flex-wrap:wrap" }, histBtn, peutAjouter ? addBtn : null),
   ));

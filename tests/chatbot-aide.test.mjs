@@ -7,33 +7,30 @@ import { entreesNavigation, barreTelephone } from "../js/nav-rules.js";
 import { LIBELLES_ESPACE } from "../js/espaces-rules.js";
 
 const lire = (chemin) => readFileSync(new URL(chemin, import.meta.url), "utf8");
-const NOUVELLE = consignesApp("nouvelle");
+const NOUVELLE = consignesApp("stagiaire");
 // Les anciens noms n'ont leur place que dans la section qui dit où ils sont passés.
 const [avantAnciensNoms, anciensNoms] = NOUVELLE.split("ANCIENS NOMS");
 
-test("ancienne navigation : le texte de l'ancienne barre", () => {
-  assert.equal(consignesApp("ancienne"), AIDE_APP);
-});
-
-test("un champ absent ou inconnu garde l'ancienne barre : une app en cache sur un téléphone reste juste", () => {
-  for (const v of [undefined, null, "", "NOUVELLE", "nouvelle ", 1, true, {}, ["nouvelle"]]) {
+test("une seule navigation : stagiaires, formateurs, espace absent ou inattendu ont le même guide", () => {
+  assert.equal(NOUVELLE, AIDE_APP);
+  assert.equal(consignesApp("equipe"), AIDE_APP);
+  for (const v of [undefined, null, "", "nouvelle", "ancienne", 1, true, {}, ["stagiaire"]]) {
     assert.equal(consignesApp(v), AIDE_APP, JSON.stringify(v));
   }
   assert.equal(consignesApp(), AIDE_APP);
 });
 
-test("les deux textes sont distincts, substantiels et sans tiret cadratin", () => {
-  assert.notEqual(NOUVELLE, AIDE_APP);
+test("le guide est substantiel et sans tiret cadratin", () => {
   assert.ok(NOUVELLE.length > 1500);
   assert.ok(!NOUVELLE.includes("—"));
   assert.ok(!NOUVELLE.includes("Prof"));
 });
 
 test("nouvelle navigation : les noms de la barre, du compte et des sous-onglets", () => {
-  for (const nom of ["Accueil", "Planning", "Semaine", "Dates clés", "Priorités", "Cours et QCM", "Thèmes", "Compétences",
+  for (const nom of ["Accueil", "Planning", "Semaine", "Dates clés", "Ordre de passage", "Cours et QCM", "Thèmes", "Compétences",
     "Documents", "Mon suivi", "La classe", "CCP2", "Émargement", "Stagiaires", "Élèves bénévoles", "Notes et examens",
-    "Signalements", "Indicateurs", "Réglages", "Plus", "Assistant", "Nouveautés", "Contacts du centre", "Mes préférences",
-    "Actualiser", "Se déconnecter", "Signaler un problème"]) {
+    "Questions contestées", "Question corrigée", "Pas d'erreur", "Indicateurs", "Réglages", "Plus", "Assistant", "Nouveautés", "Contacts du centre", "Mes préférences",
+    "Recharger les données", "Se déconnecter", "Signaler un problème"]) {
     assert.ok(avantAnciensNoms.includes(nom), nom);
   }
 });
@@ -89,26 +86,23 @@ test("le quota et la limite sur les données personnelles restent dans les deux 
   }
 });
 
-test("la fonction choisit les consignes d'après le champ navigation de la requête", () => {
+test("la fonction prend toujours le guide de la nouvelle barre, choisi par l'espace ; elle ne lit plus le champ navigation", () => {
   const source = lire("../supabase/functions/chatbot/index.ts");
-  assert.ok(source.includes("aide: consignesApp(corps.navigation, corps.espace)"));
+  assert.ok(source.includes("aide: consignesApp(corps.espace), page, espace: corps.espace"));
+  assert.ok(!source.includes("corps.navigation"));
   assert.ok(!source.includes("aide: AIDE_APP"));
 });
 
-test("l'app envoie la barre affichée avec chaque question", () => {
+test("l'app envoie l'espace avec chaque question, plus la navigation", () => {
   const source = lire("../js/chatbot.js");
-  assert.match(source, /corpsRequete\(histo, location\.hash, navigationV2Active\(\), getEspace\(\)\)/);
-});
-
-test("l'ancien guide ne bouge pas d'un octet (empreinte du 08/11, lot 2B)", () => {
-  assert.equal(createHash("sha256").update(AIDE_APP).digest("hex"),
-    "3b0c64b96dd0496a2c3f6d88713469364743ba0279f4cf66c7906211da292bb1");
+  assert.match(source, /corpsRequete\(histo, location\.hash, getEspace\(\)\)/);
+  assert.ok(!source.includes("navigationV2Active"));
 });
 
 test("lot 2B : le nouveau guide décrit Aujourd'hui, l'Accueil, la grille, les sous-onglets et Mon suivi", () => {
   for (const nom of ["Aujourd'hui", "À traiter", "À suivre de près", "Propositions IA", "Résultats", "Grille", "Liste",
-    "le bouton « Ouvrir »", "Signer pour ce matin", "Signer pour cet après-midi", "À faire", "Prochain rendez-vous",
-    "L'épreuve en bref", "EPCF : 0 épreuve sur 2", "Livret EPCF (son livret officiel", "Dossier pro : 2 exemples sur 6", "Moi"]) {
+    "le bouton « Voir le QCM »", "Signer pour ce matin", "Signer pour cet après-midi", "À faire", "Prochain rendez-vous",
+    "L'épreuve en bref", "Évaluations EPCF : 0 épreuve sur 2", "Livret EPCF (son livret officiel", "Dossier professionnel : 2 exemples sur 6", "Moi"]) {
     assert.ok(avantAnciensNoms.includes(nom), nom);
   }
   assert.match(avantAnciensNoms, /bandeau en haut de l'app propose aussi « Signer » tant que la feuille du jour est ouverte/);
@@ -118,32 +112,23 @@ test("lot 2B : le nouveau guide décrit Aujourd'hui, l'Accueil, la grille, les s
 });
 
 // === Lot 5 : l'assistant connaît les espaces de la direction et du siège ===
-const DIRECTION = consignesApp("nouvelle", "direction");
-const SIEGE = consignesApp("nouvelle", "siege");
+const DIRECTION = consignesApp("direction");
+const SIEGE = consignesApp("siege");
 const OPTIONS = { routeVisible: () => true, emargementActif: true, emargementDansLeCentre: true, reglagesEspace: true };
 
 test("lot 5 : le guide est choisi par l'espace reçu ; un client sans espace garde les guides d'avant", () => {
   assert.notEqual(DIRECTION, NOUVELLE);
   assert.notEqual(SIEGE, NOUVELLE);
   assert.notEqual(DIRECTION, SIEGE);
-  // Direction et siège ont toujours la nouvelle navigation (D4) : la navigation reçue n'y change rien.
-  for (const nav of ["ancienne", undefined, null, "n'importe quoi"]) {
-    assert.equal(consignesApp(nav, "direction"), DIRECTION, String(nav));
-    assert.equal(consignesApp(nav, "siege"), SIEGE, String(nav));
-  }
+  // Une app en cache envoie encore un champ navigation : il est ignoré (le guide ne dépend que de l'espace).
   // Formateur et stagiaire : le guide de leur barre, comme avant.
-  assert.equal(consignesApp("nouvelle", "equipe"), NOUVELLE);
-  assert.equal(consignesApp("nouvelle", "stagiaire"), NOUVELLE);
-  assert.equal(consignesApp("ancienne", "equipe"), AIDE_APP);
-  assert.equal(consignesApp("ancienne", "stagiaire"), AIDE_APP);
+  assert.equal(consignesApp("equipe"), NOUVELLE);
+  assert.equal(consignesApp("stagiaire"), NOUVELLE);
   // Une app en cache n'envoie pas d'espace : le comportement d'aujourd'hui.
-  assert.equal(consignesApp("nouvelle"), NOUVELLE);
-  assert.equal(consignesApp("ancienne"), AIDE_APP);
   assert.equal(consignesApp(), AIDE_APP);
   // Une valeur inattendue ne choisit jamais un guide de pilotage.
   for (const v of ["Direction", "SIEGE", "direction ", "", 1, true, {}, ["direction"], "admin"]) {
-    assert.equal(consignesApp("nouvelle", v), NOUVELLE, JSON.stringify(v));
-    assert.equal(consignesApp("ancienne", v), AIDE_APP, JSON.stringify(v));
+    assert.equal(consignesApp(v), NOUVELLE, JSON.stringify(v));
   }
 });
 
@@ -176,7 +161,7 @@ test("lot 5 : chaque guide nomme chaque entrée de sa barre, dans l'ordre, puis 
 });
 
 test("lot 5 : les mots des écrans de la direction (plan, tâches 7 à 10 et 14)", () => {
-  for (const mot of ["Vue d'ensemble", "Centre de", "À suivre de près", "Thèmes à retravailler", "Exporter le tableau (CSV)",
+  for (const mot of ["Vue d'ensemble", "Centre de", "À suivre de près", "Thèmes les moins réussis", "Exporter le tableau (CSV)",
     "Ce centre n'a pas encore de promo", "Créer une promo", "Réessayer", "Modifier", "Modules", "Gérer cette promo",
     "Voir les feuilles", "Voir la matrice", "Inviter un formateur", "Retirer du centre",
     "Compte créé. La personne crée son mot de passe avec cette adresse, onglet Créer mon compte.",

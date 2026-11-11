@@ -7,9 +7,9 @@
  * Sources des espaces permis (D2) : siège et direction viennent des affectations du compte ; formateur et
  * stagiaire viennent des rôles du compte dans la promo affichée (`promo.roles`, mes_promos(), lot 4).
  */
-import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261111a";
-import { lireAdresse } from "./route-rules.js?v=20261111a";
-import { habillageValide } from "./habillage-regles.js?v=20261111a";
+import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261111c";
+import { lireAdresse } from "./route-rules.js?v=20261111c";
+import { habillageValide } from "./habillage-regles.js?v=20261111c";
 
 export const ESPACES = ["stagiaire", "equipe", "direction", "siege"];
 export const LIBELLES_ESPACE = { stagiaire: "Stagiaire", equipe: "Formateur", direction: "Direction", siege: "Siège" };
@@ -240,7 +240,7 @@ export function promosVisiblesEnApercu({ promos, promo, apercu } = {}) {
 
 // Le bandeau d'aperçu : « Aperçu : <libelle>. <suite> ». En direction et en siège, ce que le fondateur modifie est vraiment enregistré
 // (la base répond comme pour ce rôle, sans copie) : le bandeau le dit. Formateur et stagiaire : le libellé du lot 4, sans suite.
-const SUITE_APERCU_REEL = "Ce que tu modifies ici est vraiment enregistré.";
+const SUITE_APERCU_REEL = "Ce que vous modifiez ici est vraiment enregistré.";
 export function texteBandeauApercu(apercu, centre) {
   if (apercu === "direction") {
     return { libelle: centre && centre.nom ? "Direction du centre " + centre.nom : LIBELLES_ESPACE.direction, suite: SUITE_APERCU_REEL };
@@ -270,12 +270,12 @@ export function phraseHorsEspace(espace) {
 // Phrase d'un refus de la base : les messages de nos fonctions sont préfixés (« equipe: … ») et se lisent sans
 // leur préfixe. Fonction absente (avant la migration) et droit manquant sans phrase à nous ont leur phrase.
 export const PHRASE_INDISPONIBLE = "Cette action n'est pas encore disponible.";
-export const PHRASE_SANS_DROIT = "Tu n'as pas le droit de faire cela ici.";
+export const PHRASE_SANS_DROIT = "Vous n'avez pas le droit de faire cela ici.";
 export const PHRASE_ECHEC = "L'opération n'a pas abouti.";
 // Réseau coupé ou base injoignable (« TypeError: Failed to fetch » sous Chrome, « Load failed » sous Safari, « NetworkError »
 // sous Firefox) et session expirée : jamais le texte technique, la saisie reste en place pour réessayer.
-export const PHRASE_CONNEXION = "La connexion a échoué. Vérifie le réseau, puis réessaie.";
-export const PHRASE_SESSION = "Ta session a expiré. Reconnecte-toi, puis réessaie.";
+export const PHRASE_CONNEXION = "La connexion a échoué. Vérifier le réseau, puis réessayer.";
+export const PHRASE_SESSION = "Votre session a expiré. Reconnectez-vous, puis réessayez.";
 const ERREUR_RESEAU = /failed to fetch|load failed|networkerror|network request failed|fetch failed/i;
 const ERREUR_SESSION = /jwt|not authenticated/i;
 const PREFIXES_DE_REFUS = /^\s*(?:equipe|promo|centre|reseau|invitation|habillage):\s*/i;
@@ -316,8 +316,8 @@ export function adresseApresBascule(valeur) {
 }
 
 // Sous-onglets de la page Cours et QCM (js/views/themes.js), par clé (la clé de chaque onglet, pas son libellé), dans l'ordre d'affichage. Le siège rédige les contenus communs :
-// pas de signalements ni de propositions IA (D13). Le stagiaire a ses QCM en liste. Le formateur garde la liste d'aujourd'hui ;
-// la page ne montre Signalements et Propositions IA qu'à qui en a le droit (canManageExam, isAdmin). La direction n'a pas la page (D15).
+// pas de questions contestées ni de propositions IA (D13). Le stagiaire a ses QCM en liste. Le formateur garde la liste d'aujourd'hui ;
+// la page ne montre Questions contestées et Propositions IA qu'à qui en a le droit (canManageExam, isAdmin). La direction n'a pas la page (D15).
 export function sousOngletsCours(espace) {
   if (espace === "siege" || espace === "stagiaire") return ["themes", "competences", "qcm", "documents"];
   if (espace === "equipe") return ["themes", "competences", "signalements", "ia", "documents"];

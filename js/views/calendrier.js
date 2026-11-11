@@ -4,13 +4,13 @@
  */
 import {
   listAgendaEvents, addAgendaEvent, updateAgendaEvent, deleteAgendaEvent, getPromoCourante,
-} from "../db.js?v=20261111a";
-import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261111a";
-import { confirmer } from "../confirmer.js?v=20261111a";
-import { icon } from "../icons.js?v=20261111a";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261111a";
-import { recordUndo } from "../undo.js?v=20261111a";
-import { navigationV2Active } from "../nav-etat.js?v=20261111a";
+} from "../db.js?v=20261111c";
+import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261111c";
+import { confirmer } from "../confirmer.js?v=20261111c";
+import { icon } from "../icons.js?v=20261111c";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261111c";
+import { recordUndo } from "../undo.js?v=20261111c";
+import { navigationV2Active } from "../nav-etat.js?v=20261111c";
 
 let events = [];
 
@@ -304,7 +304,7 @@ function rerender(container) {
   if (filtered.length === 0) {
     container.appendChild(el("div", { class: "agenda-empty" },
       el("p", {}, showPast ? "Aucun événement enregistré." : "Aucun événement à venir."),
-      admin ? el("p", { class: "muted" }, "Clique « Ajouter un événement » pour commencer.") : null,
+      admin ? el("p", { class: "muted" }, "Cliquez sur « Ajouter un événement » pour commencer.") : null,
     ));
     return;
   }

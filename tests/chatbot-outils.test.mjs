@@ -1,6 +1,7 @@
+import { readFileSync } from "node:fs";
 ﻿import test from "node:test";
 import assert from "node:assert/strict";
-import { OUTILS, construirePromptSysteme, etiquetteCours } from "../supabase/functions/chatbot/outils.mjs";
+import { OUTILS, construirePromptSysteme, etiquetteCours, regleDeTon } from "../supabase/functions/chatbot/outils.mjs";
 import { AIDE_APP } from "../supabase/functions/chatbot/aide.mjs";
 
 test("OUTILS expose les deux outils au format OpenAI", () => {
@@ -66,4 +67,11 @@ test("etiquetteCours : une ligne de l'ancienne forme, sans cle code, donne le li
   const ancienne = { numero: 5, titre: "Alcool et stupefiants" };
   assert.ok(!("code" in ancienne));
   assert.equal(etiquetteCours(ancienne), "Theme 05 : Alcool et stupefiants");
+});
+
+test("ton de l'assistant : stagiaire tutoyé, équipe, direction et siège vouvoyés, app sans espace comme avant (10/11)", () => {
+  for (const e of ["equipe", "direction", "siege"]) assert.match(regleDeTon(e), /tu vouvoies/, e);
+  for (const e of ["stagiaire", undefined, "inconnu"]) assert.match(regleDeTon(e), /tu tutoies/, String(e));
+  assert.match(construirePromptSysteme({ aide: "X", page: "home", espace: "direction" }), /tu vouvoies/);
+  assert.match(construirePromptSysteme({ aide: "X", page: "home" }), /tu tutoies/);
 });

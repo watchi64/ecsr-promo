@@ -4,10 +4,10 @@ import {
 } from "../js/qcm-signalement-rules.js";
 
 // --- Libellés : le verdict s'écrit en toutes lettres, jamais en code brut ---
-assert.equal(libelleVerdict("fonde"), "Signalement fondé");
-assert.equal(libelleVerdict("confirme"), "Question confirmée");
-assert.equal(libelleVerdict("ambigu"), "Ambigu");
-assert.equal(libelleVerdict("non_concluant"), "Non concluant");
+assert.equal(libelleVerdict("fonde"), "Contestation fondée");
+assert.equal(libelleVerdict("confirme"), "Question correcte");
+assert.equal(libelleVerdict("ambigu"), "Ambiguë");
+assert.equal(libelleVerdict("non_concluant"), "Sans conclusion");
 assert.equal(libelleVerdict("n_importe_quoi"), "Verdict inconnu",
   "un verdict inconnu se voit, il ne s'affiche pas en code brut");
 assert.equal(libelleVerdict(null), "Verdict inconnu");
@@ -39,7 +39,7 @@ const instruit = etatInstruction({
 });
 assert.equal(instruit.instruit, true);
 assert.equal(instruit.verdict, "fonde");
-assert.equal(instruit.libelle, "Signalement fondé");
+assert.equal(instruit.libelle, "Contestation fondée");
 assert.equal(instruit.conclusion, "R414-2 vise la route étroite.");
 assert.equal(instruit.instruitAt, "2026-07-31T09:00:00Z");
 assert.match(instruit.analyse, /Le grief/, "l'analyse complète est conservée telle quelle");
@@ -51,7 +51,7 @@ const enTableau = etatInstruction({
   instruction: [{ verdict_auto: "ambigu", analyse_auto: "Conclusion : à trancher.", instruit_at: null }],
 });
 assert.equal(enTableau.instruit, true);
-assert.equal(enTableau.libelle, "Ambigu");
+assert.equal(enTableau.libelle, "Ambiguë");
 assert.deepEqual(etatInstruction({ id: 3, instruction: [] }), { instruit: false });
 
 // --- Corps de l'analyse : la conclusion ne se lit pas deux fois ---
@@ -108,8 +108,12 @@ const groupes = grouperParVerdict([
 assert.deepEqual(groupes.map((g) => g.cle),
   ["fonde", "ambigu", "non_concluant", "confirme", "non_instruit"]);
 assert.deepEqual(groupes[0].items.map((s) => s.id), [2, 6], "l'ordre d'entrée est conservé dans un groupe");
-assert.deepEqual(groupes[4].items.map((s) => s.id), [3], "sans instruction → Pas encore instruit");
+assert.deepEqual(groupes[4].items.map((s) => s.id), [3], "sans instruction → Pas encore analysées");
 assert.ok(groupes.every((g) => typeof g.titre === "string" && g.titre.length));
+// Lot D (10/11) : « questions contestées », plus de glyphe ⚑ dans un titre (l'icône est posée par la console).
+assert.equal(groupes[0].titre, "Contestation fondée, à corriger");
+assert.equal(groupes[4].titre, "Pas encore analysées");
+assert.ok(GROUPES.every((g) => !g.titre.includes("⚑") && !/signalement/i.test(g.titre)));
 
 // Groupes vides omis : une console qui affiche cinq titres pour deux signalements ment
 // sur la charge de travail.

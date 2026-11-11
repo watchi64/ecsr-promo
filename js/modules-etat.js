@@ -5,19 +5,18 @@
 // et écrivent la valeur de la promo courante. Si ce rangement change, c'est ce
 // fichier seul qu'on rebranche. Les règles vivent dans js/modules.js, le
 // catalogue dans js/modules-data.js.
-import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261111a";
-import { isAdmin, isProf, isEquipe, isFounder, getAdminEmail, getEspace } from "./auth-admin.js?v=20261111a";
-import { icon } from "./icons.js?v=20261111a";
+import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261111c";
+import { isAdmin, isProf, isEquipe, isFounder, getAdminEmail, getEspace } from "./auth-admin.js?v=20261111c";
+import { icon } from "./icons.js?v=20261111c";
 import {
   MODULES, MODULE_DE_ROUTE, MODULE_DE_SOUS_ONGLET, REGLAGE_OUVERT_AUX_FORMATEURS,
-} from "./modules-data.js?v=20261111a";
+} from "./modules-data.js?v=20261111c";
 import {
   ETAT_LIBRE, lireEtat, ecrireEtat, estReglee, estOuvert, basculer, ensembleDeDepart,
   avecAnnonces, nouveautesPour,
-} from "./modules.js?v=20261111a";
-import { NOUVEAUTES } from "./nouveautes-data.js?v=20261111a";
-import { triees, visibles, nonLues, vuesEffectives, marquerVues, amorcePour } from "./nouveautes.js?v=20261111a";
-import { navigationV2Active } from "./nav-etat.js?v=20261111a";
+} from "./modules.js?v=20261111c";
+import { NOUVEAUTES } from "./nouveautes-data.js?v=20261111c";
+import { triees, visibles, nonLues, vuesEffectives, marquerVues, amorcePour } from "./nouveautes.js?v=20261111c";
 
 const CLE_REGLAGE = "modules";
 const REF = { modules: MODULES, moduleDeRoute: MODULE_DE_ROUTE, moduleDeSousOnglet: MODULE_DE_SOUS_ONGLET };
@@ -183,8 +182,8 @@ function toutesLesNouveautes() {
 }
 // Nouveautés écrites et annonces de la promo : un stagiaire ne reçoit pas celles d'un
 // module fermé, un formateur les reçoit toutes. Cette liste ne tient PAS compte de
-// l'audience ni de la navigation (les entrées « pour: formateurs » et celles qui sont
-// propres à une navigation y figurent pour tout le monde) : seule
+// l'audience ni de la navigation (les entrées « pour: formateurs » et celles qui ne
+// décrivent que l'ancienne barre y figurent pour tout le monde) : seule
 // nouveautesAffichables() la filtre, par visibles(). Interne : les vues passent par
 // nouveautesAffichables() et marquerLues().
 function nouveautesDeLaPromo() {
@@ -194,11 +193,10 @@ function nouveautesDeLaPromo() {
 // Nouveautés à montrer à la personne connectée, de la plus récente à la plus
 // ancienne, et les ids encore non lus. La mémoire des nouveautés lues reçoit
 // toujours la liste complète : c'est elle qui décide de l'amorce et de la purge.
-// Une entrée propre à la nouvelle navigation ne se montre qu'allumée (aperçu du fondateur
-// compris, comme la barre), une entrée qui ne décrit que l'ancienne barre qu'éteinte : la
+// Une entrée qui ne décrit que l'ancienne barre (retirée le 10/11) ne se montre plus : la
 // page, la section d'Accueil et la pastille du compte comptent donc les mêmes entrées.
 export function nouveautesAffichables() {
-  const entrees = triees(visibles(nouveautesDeLaPromo(), formateurConnecte(), navigationV2Active(), getEspace()));
+  const entrees = triees(visibles(nouveautesDeLaPromo(), formateurConnecte(), null, getEspace()));
   // Amorce à la date de la promo affichée (spec multi-promo C.6).
   const vues = vuesEffectives(toutesLesNouveautes(), amorcePour(getPromoCourante()?.date_debut));
   const neuves = new Set(nonLues(entrees, vues).map((e) => e.id));

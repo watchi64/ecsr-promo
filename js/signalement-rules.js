@@ -1,11 +1,11 @@
 // Signaler un problème (spec 2026-10-28) : les règles seulement. Lecture de l'identifiant du navigateur,
-// classe d'appareil, contexte joint d'office et ses deux présentations (la ligne résumée de la fenêtre, le
+// classe d'appareil, contexte envoyé avec le message et ses deux présentations (la ligne résumée de la fenêtre, le
 // détail en mots simples), contrôle du message, libellés des statuts, pastilles, message du démarrage,
 // journal des erreurs, réduction de la capture, phrase d'un refus du serveur, adresse sûre pour un lien.
 // Module pur, sans DOM ni stockage : testé en node.
 
-import { libellePastille } from "./nouveautes.js?v=20261111a";
-import { LIBELLES_APERCU } from "./roles-rules.js?v=20261111a";
+import { libellePastille } from "./nouveautes.js?v=20261111c";
+import { LIBELLES_APERCU } from "./roles-rules.js?v=20261111c";
 
 // L'espace de la coquille, en mots simples (lot 5 : direction et siège en plus). Inconnu ou absent : le stagiaire, comme avant.
 const ESPACE_EN_MOTS = { stagiaire: "stagiaire", equipe: "équipe", direction: "direction", siege: "siège" };
@@ -130,7 +130,7 @@ function appareilLisible(c) {
 
 const deuxChiffres = (n) => String(n).padStart(2, "0");
 
-// La ligne « Joint d'office : ... » de la fenêtre : page, appareil, navigateur (sans sa version mineure),
+// La ligne « Envoyé avec ton message : ... » de la fenêtre : page, appareil, navigateur (sans sa version mineure),
 // heure (celle de `maintenant`, l'envoi étant immédiat).
 export function resumeContexte(contexte, maintenant) {
   const c = normaliserContexte(contexte);
@@ -168,12 +168,13 @@ export function detailContexte(contexte) {
 const enFrancais = (n) => n.toLocaleString("fr-FR").replace(/\s/g, " ");
 
 // Message prêt à partir, ou la phrase à afficher sous le champ. Compté en points de code, comme
-// char_length côté base (un émoji compte pour un caractère des deux côtés).
+// char_length côté base (un émoji compte pour un caractère des deux côtés). Fenêtre ouverte à tous : phrases
+// neutres, sans tu ni vous (vouvoiement de l'équipe du 10/11).
 export function verifierMessage(texte) {
   const message = String(texte ?? "").trim();
   const n = [...message].length;
-  if (n < MIN_MESSAGE) return { ok: false, erreur: "Écris quelques mots sur ce qui se passe." };
-  if (n > LIMITE_MESSAGE) return { ok: false, erreur: `${enFrancais(LIMITE_MESSAGE)} caractères au plus (tu en as ${enFrancais(n)}).` };
+  if (n < MIN_MESSAGE) return { ok: false, erreur: "Message trop court : quelques mots sur ce qui se passe suffisent." };
+  if (n > LIMITE_MESSAGE) return { ok: false, erreur: `${enFrancais(LIMITE_MESSAGE)} caractères au plus (le message en compte ${enFrancais(n)}).` };
   return { ok: true, message };
 }
 
@@ -184,6 +185,18 @@ const STATUTS = {
   non_retenu: { personne: "Pas retenu", fondateur: "Pas retenu" },
 };
 
+// Qui a signalé, au format des écrans : « Lucie M. » (décision du 10/11). La base pose le nom à l'envoi (signaler_probleme) :
+// pour un stagiaire, « M. Lucie » (initiale du nom, prénom), l'ancien format de l'app, que l'on remet dans l'ordre. Un nom
+// déjà au bon format, un prénom seul ou le nom d'un formateur (champ libre saisi par l'équipe) restent tels quels ; sans nom,
+// l'adresse, puis « Quelqu'un ».
+export function nomDuSignaleur(s) {
+  const nom = String(s?.nom ?? "").trim();
+  if (!nom) return String(s?.email ?? "").trim() || "Quelqu'un";
+  if (s?.role === "formateur") return nom;   // le fondateur stagiaire est posé « V. Timy » avec le rôle fondateur
+  const m = nom.match(/^(\p{Lu})\.\s+(.+)$/u);
+  return m ? `${m[2].trim()} ${m[1]}.` : nom;
+}
+
 // Libellé d'un statut, pour la personne qui a signalé ou pour le fondateur.
 export function libelleStatut(statut, pour) {
   const s = STATUTS[statut];
@@ -191,26 +204,28 @@ export function libelleStatut(statut, pour) {
 }
 
 // Pastille des entrées « Signaler un problème » et nom accessible du bouton : chez le fondateur hors
-// aperçu, les signalements nouveaux ; chez les autres, leurs signalements qui ont avancé sans être vus.
+// aperçu, les problèmes signalés nouveaux ; chez les autres, leurs problèmes signalés qui ont avancé sans être vus.
+// Jamais « signalement » seul (lot D du 10/11) : il se confondrait avec les questions contestées.
 export function pastilleSignalement({ fondateur, nouveaux = 0, suivis = 0 }) {
   const n = fondateur ? nouveaux : suivis;
   const texte = libellePastille(n);
   if (!texte) return { texte, nom: "Signaler un problème" };
   const quoi = fondateur
-    ? (n === 1 ? "nouveau signalement" : "nouveaux signalements")
-    : (n === 1 ? "signalement a avancé" : "signalements ont avancé");
+    ? (n === 1 ? "nouveau problème signalé" : "nouveaux problèmes signalés")
+    : (n === 1 ? "problème signalé a avancé" : "problèmes signalés ont avancé");
   return { texte, nom: `Signaler un problème, ${n} ${quoi}` };
 }
 
-// Message affiché une fois à l'ouverture de l'app, ou null.
+// Message affiché une fois à l'ouverture de l'app, ou null. Hors fondateur, la phrase est neutre (ni tu ni vous) :
+// elle s'adresse aussi bien à un stagiaire qu'à l'équipe, et son appelant (js/main.js) ne connaît pas le public.
 export function messageDemarrage({ fondateur, nouveaux = 0, suivis = 0 }) {
   if (fondateur) {
     if (nouveaux <= 0) return null;
     return nouveaux === 1 ? "1 nouveau problème signalé." : `${nouveaux} nouveaux problèmes signalés.`;
   }
   if (suivis <= 0) return null;
-  const sujet = suivis === 1 ? "Ton signalement a avancé" : "Tes signalements ont avancé";
-  return `${sujet} : ouvre « Signaler un problème » pour voir la suite.`;
+  const sujet = suivis === 1 ? "Du nouveau sur un problème signalé" : `Du nouveau sur ${suivis} problèmes signalés`;
+  return `${sujet} : la suite est dans « Signaler un problème ».`;
 }
 
 // Une erreur du journal (js/journal-erreurs.js) : heure de l'appareil, type (« erreur », « promesse »,
@@ -248,12 +263,21 @@ export function phraseErreur(message) {
 
 // Phrase d'une erreur d'envoi ou d'action : le refus de la base (« signalement: ... »), une session expirée
 // (le jeton n'est plus valable et l'appel part sans droits : « JWT expired », fonction refusée), sinon le réseau.
-export const PHRASE_SESSION = "Reconnecte-toi pour signaler un problème.";
-export const PHRASE_RESEAU = "L'envoi n'a pas abouti. Vérifie ta connexion et réessaie.";
+// Phrases neutres : elles sont fabriquées par js/db.js, qui ne connaît pas le public (stagiaire tutoyé, équipe vouvoyée).
+// Refus de la base écrits au tutoiement (supabase/migrations, signaler_probleme), redits en formule neutre : l'équipe les lit
+// aussi (décision du 10/11).
+const REFUS_NEUTRES = [
+  [/^Reconnecte-toi/, "Session expirée : se reconnecter pour signaler un problème."],
+  [/^Écris quelques mots/, "Quelques mots sur ce qui se passe sont nécessaires."],
+  [/^Tu as déjà envoyé 10 signalements/, "Limite de 10 problèmes signalés par jour atteinte : nouvel envoi possible demain."],
+  [/^Signalement introuvable/, "Problème signalé introuvable."],
+];
+export const PHRASE_SESSION = "Session expirée : se reconnecter pour signaler un problème.";
+export const PHRASE_RESEAU = "L'envoi n'a pas abouti : vérifier la connexion, puis réessayer.";
 export function messageErreurEnvoi(erreur) {
   const texte = String(erreur?.message ?? erreur ?? "");
   const phrase = phraseErreur(texte);
-  if (phrase) return phrase;
+  if (phrase) return REFUS_NEUTRES.find(([motif]) => motif.test(phrase))?.[1] ?? phrase;
   const code = String(erreur?.code ?? "");
   if (/jwt|permission denied for function|not authenticated/i.test(texte) || /^(PGRST30[0-3]|42501)$/.test(code)) {
     return PHRASE_SESSION;

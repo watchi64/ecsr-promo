@@ -3,8 +3,7 @@
 
 Le compte est choisi par le banc (`banc={"compte": ...}`, voir _harness_supabase.js) : `direction` (centre de Nîmes, et le centre de
 démonstration avec `centre=1`), `direction-vide` (un centre sans promo), `dirform` (direction et formateur), `dirailleurs` (direction du
-centre de Nîmes, formatrice à Montpellier). Les parcours jouent la nouvelle navigation : la direction n'existe que là ; P3 joue aussi
-l'ancienne, pour la promo dont l'interrupteur est éteint. La page de départ est Promos : l'accueil de la direction (« Vue d'ensemble »)
+centre de Nîmes, formatrice à Montpellier). Une seule navigation depuis le 10/11. La page de départ est Promos : l'accueil de la direction (« Vue d'ensemble »)
 est à 1 clic.
 
 Les attendus viennent de l'écran livré (js/views/direction-*.js, js/espaces-rules.js) : le parcours vérifie ce qui existe.
@@ -197,30 +196,25 @@ ESPACE_DE_LA_BARRE = {"direction": "Direction", "equipe": "Formateur", "siege": 
 
 
 def ouvrir_le_menu_du_compte(v, compter=False):
-    """Le bouton du compte : celui de l'ancienne barre (formateur et stagiaire sans la refonte), sinon celui de la nouvelle."""
-    ancienne = v.navigation == "ancienne" and v.espace in ("equipe", "stagiaire")
-    v.toucher("button.admin-badge" if ancienne else 'button[data-nav-action="compte"]', "le bouton du compte", compte=compter)
+    """Le bouton du compte de la barre."""
+    v.toucher('button[data-nav-action="compte"]', "le bouton du compte", compte=compter)
 
 
 def verifier_la_barre(v, espace):
-    """La barre affichée est celle de cet espace (direction, siège : la nouvelle ; formateur, stagiaire : celle de la navigation jouée)."""
+    """La barre affichée est celle de cet espace."""
     attendu = {"direction": 'a.nav-entree[href="#/promos"], a.nav-case[href="#/promos"]',
                "siege": 'a.nav-entree[href="#/directions"], a.nav-case[href="#/directions"]'}.get(espace)
     if attendu is None:
-        attendu = ('#tabs a.tab[href="#/planning"]' if v.navigation == "ancienne"
-                   else 'a.nav-entree[href="#/planning"], a.nav-case[href="#/planning"], a.nav-onglet[href="#/planning"]')
+        attendu = 'a.nav-entree[href="#/planning"], a.nav-case[href="#/planning"], a.nav-onglet[href="#/planning"]'
     v.attendre(attendu, "la barre de l'espace %s" % ESPACE_DE_LA_BARRE[espace])
-    # Nouvelle navigation : la barre du stagiaire porte « Mon suivi » et jamais « Stagiaires » ; celle de l'équipe l'inverse. (L'ancienne
-    # barre est la même pour les deux : rien à y distinguer.)
-    if v.navigation == "nouvelle" and espace in ("stagiaire", "equipe"):
+    # La barre du stagiaire porte « Mon suivi » et jamais « Stagiaires » ; celle de l'équipe l'inverse.
+    if espace in ("stagiaire", "equipe"):
         entrees = ":is(a.nav-onglet, a.nav-entree, a.nav-case)"
         propre = 'a[href="#/mon-suivi"]' if espace == "stagiaire" else 'a[href="#/stagiaires"]'
         etranger = 'a[href="#/stagiaires"]' if espace == "stagiaire" else 'a[href="#/mon-suivi"]'
         v.attendre(entrees + propre, "l'entrée propre à la barre de l'espace %s" % ESPACE_DE_LA_BARRE[espace])
         if v.voit(entrees + etranger):
             v.constat("D", BLOQUE, "la barre de l'espace %s porte encore l'entrée d'un autre espace" % ESPACE_DE_LA_BARRE[espace], capture=True)
-    if espace in ("direction", "siege") and v.voit("#tabs a.tab"):
-        v.constat("D", BLOQUE, "l'ancienne barre reste affichée dans l'espace %s" % ESPACE_DE_LA_BARRE[espace], capture=True)
     v.espace = espace
 
 
@@ -243,8 +237,7 @@ def recharger(v, quoi):
 @parcours("direction-et-formateur-changent-d-espace", "P3 · Une direction qui forme choisit son espace (menu du compte)", role="direction",
           budget=2, banc={"compte": "dirform"}, depart=DEPART)
 def direction_et_formateur(v):
-    """Menu du compte, Espace : Formateur puis Direction. La barre change à chaque choix, le choix est gardé au rechargement. La promo où
-    elle forme a l'interrupteur éteint (ancienne navigation) ou allumé (nouvelle) : la direction a sa barre dans les deux cas."""
+    """Menu du compte, Espace : Formateur puis Direction. La barre change à chaque choix, le choix est gardé au rechargement."""
     verifier_la_barre(v, "direction")
     choisir_un_espace(v, "equipe", compter=True)
     v.but("espace Formateur choisi")
@@ -332,18 +325,17 @@ def apercus_promo_1(v):
 
 
 @parcours("apercus-du-fondateur-promo-7", "P5 · Le fondateur voit en tant que Direction, Siège, Formateur, Stagiaire (promo 7, allumée)",
-          role="fondateur", budget=2, banc={"centre": "1", "demo": "1"}, depart="#/home",
-          semis=("FIXTURES.settings.push({ key: 'navigation_v2', value: String(PARAMS_BANC.get('nav2') === '1'), promo_id: 7 });",))
+          role="fondateur", budget=2, banc={"centre": "1", "demo": "1"}, depart="#/home")
 def apercus_promo_7(v):
-    """Promo 7 (centre de démonstration, interrupteur allumé) : mêmes aperçus ; l'aperçu Direction ne montre que la promo 7."""
+    """Promo 7 (centre de démonstration) : mêmes aperçus ; l'aperçu Direction ne montre que la promo 7."""
     jouer_les_apercus(v, [7], "Démonstration")
 
 
 # --- Une adresse tapée hors de son espace (P6, P7), la porte (P8), la fiche d'un autre centre (P9) -------------------------------
 
 ADRESSES_NEUVES = ["#/promos", "#/equipe", "#/reseau", "#/directions"]
-PHRASE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à ta direction ou à un formateur de t'ajouter."
-PHRASE_FICHE_AILLEURS = "Cette fiche n'est pas dans ton centre."
+PHRASE_SANS_PROMO = "Aucune promo n'est associée à ce compte : la direction du centre ou un formateur peut l'ajouter à une promo."
+PHRASE_FICHE_AILLEURS = "Cette fiche n'est pas dans votre centre."
 
 
 def saisir_une_adresse(v, adresse):
@@ -376,8 +368,6 @@ def jouer_les_adresses_hors_espace(v, libelle):
         v.constat("D", BLOQUE, "le menu du compte propose un choix d'espace à un compte qui n'en a qu'un", capture=True)
     v.page.keyboard.press("Escape")
     v._attendre_calme(calme=300, maximum=3000)
-    if v.voit(".modal-backdrop .modal"):         # le menu de l'ancienne barre se ferme par « Fermer »
-        v.toucher(texte("Fermer", ".modal button"), "« Fermer » (menu du compte)", compte=False)
     v.terminer()
 
 
@@ -411,7 +401,7 @@ def sans_role(v):
 @parcours("direction-fiche-d-un-autre-centre", "P9 · Une direction tape l'adresse d'une fiche d'un autre centre", role="direction", budget=1,
           banc={"compte": "direction", "lieux": "2", "emargement2": "1"}, navigations=NOUVELLE, depart=DEPART)
 def fiche_d_un_autre_centre(v):
-    """Direction de Nîmes, fiche d'un stagiaire de Montpellier : « Cette fiche n'est pas dans ton centre. », rien de Montpellier à l'écran."""
+    """Direction de Nîmes, fiche d'un stagiaire de Montpellier : « Cette fiche n'est pas dans votre centre. », rien de Montpellier à l'écran."""
     v.aller("Vue d'ensemble")
     attendre_page(v, "Vue d'ensemble")
     v.but("accueil du centre")
@@ -428,7 +418,7 @@ def fiche_d_un_autre_centre(v):
 # --- La base en panne (P10) --------------------------------------------------------------------------------------------------------
 
 
-PHRASE_CONNEXION = "La connexion a échoué. Vérifie le réseau, puis réessaie."
+PHRASE_CONNEXION = "La connexion a échoué. Vérifier le réseau, puis réessayer."
 
 
 def exiger_une_phrase_dans_la_fenetre(v, quoi):

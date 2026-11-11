@@ -4,7 +4,7 @@
 Un parcours est une fonction qui reçoit une `Visite` (voir visite.py) et joue une tâche réelle, du premier
 écran jusqu'au résultat visible, comme une personne le ferait : en cliquant sur ce qu'elle voit. Il se
 déclare par le décorateur `@parcours(...)` dans un module de ce dossier (stagiaire.py, equipe.py, ou un
-module neuf : il est chargé tout seul) ; le robot (outils/robot_parcours.py) le joue alors dans chaque moteur, chaque format et chaque navigation
+module neuf : il est chargé tout seul) ; le robot (outils/robot_parcours.py) le joue alors dans chaque moteur et chaque format
 qu'il accepte. Ajouter un parcours = écrire une fonction décorée, rien d'autre.
 """
 from dataclasses import dataclass, field
@@ -24,7 +24,7 @@ class Parcours:
     budget: int                  # clics (ou touchers) au plus jusqu'au but (référentiel, § 1)
     fonction: object
     banc: dict = field(default_factory=dict)          # paramètres d'adresse du banc en plus des réglages communs
-    navigations: tuple = ("ancienne", "nouvelle")     # la navigation des onglets (ancienne) et la refonte (nouvelle)
+    navigations: tuple = ("nouvelle",)                # une seule navigation depuis le 10/11 (l'ancienne barre est retirée)
     formats: tuple = ("ordinateur", "telephone")
     semis: tuple = ()            # lignes JavaScript ajoutées au faux Supabase pour ce parcours (données de départ)
     note: str = ""               # ce que le parcours prouve, en une phrase (repris dans le rapport)
@@ -32,7 +32,7 @@ class Parcours:
     ouverture: str = "app"       # « app » : le parcours commence dans l'app (barre de navigation) ; « porte » : sur la porte de connexion
 
 
-def parcours(id, titre, role, budget, banc=None, navigations=("ancienne", "nouvelle"),
+def parcours(id, titre, role, budget, banc=None, navigations=("nouvelle",),
              formats=("ordinateur", "telephone"), semis=(), note="", depart="", ouverture="app"):
     def enregistrer(fonction):
         if id in PARCOURS:

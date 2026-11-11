@@ -5,8 +5,8 @@
 // mesure_prevention, etat, clos_le, efface_le, signalement_id, issu_signalement }. Les dates de jour sont « AAAA-MM-JJ ».
 // Aucun nom de personne n'est jamais recopié : l'origine seulement (stagiaire, formateur, équipe...).
 
-import { cellule } from "./centre-csv.js?v=20261111a";
-import { jourParis } from "./questionnaires-gestion-rules.js?v=20261111a";
+import { cellule } from "./centre-csv.js?v=20261111c";
+import { jourParis } from "./questionnaires-gestion-rules.js?v=20261111c";
 
 export const TYPES = { reclamation: "Réclamation", difficulte: "Difficulté", alea: "Aléa", amelioration: "Amélioration", risque: "Risque" };
 export const ORIGINES = {
@@ -14,7 +14,8 @@ export const ORIGINES = {
 };
 export const ETATS = { ouvert: "Ouvert", en_cours: "En cours", clos: "Clos" };
 
-export const RAPPEL_VIOLENCES = "Violences, harcèlement, discriminations : ne les écris pas ici. Ils passent par le référent du centre et sa procédure, qui protègent la personne. Ne nomme personne : l'origine suffit.";
+// Textes de l'écran : le registre est réservé à l'équipe, ils vouvoient (règle du 10/11).
+export const RAPPEL_VIOLENCES = "Violences, harcèlement, discriminations : ne les écrivez pas ici. Ils passent par le référent du centre et sa procédure, qui protègent la personne. Ne nommez personne : l'origine suffit.";
 
 export const LIMITE_TEXTE = 2000;
 const TEXTE_MIN = 3;
@@ -49,14 +50,14 @@ function plusTroisAns(date) {
 export function validerEntree(champs, aujourdhui) {
   const c = champs || {};
   const erreurs = {};
-  if (!possede(TYPES, c.type)) erreurs.type = "Choisis le type de l'entrée.";
-  if (!possede(ORIGINES, c.origine)) erreurs.origine = "Choisis l'origine.";
+  if (!possede(TYPES, c.type)) erreurs.type = "Choisissez le type de l'entrée.";
+  if (!possede(ORIGINES, c.origine)) erreurs.origine = "Choisissez l'origine.";
   const date = jour(c.date_constat);
-  if (!estJour(date)) erreurs.date_constat = "Indique la date du constat.";
+  if (!estJour(date)) erreurs.date_constat = "Indiquez la date du constat.";
   else if (aujourdhui && date > aujourdhui) erreurs.date_constat = "La date du constat ne peut pas être dans le futur.";
 
   const description = texte(c.description).trim();
-  if (description.length < TEXTE_MIN) erreurs.description = `Décris l'entrée en ${TEXTE_MIN} caractères au moins.`;
+  if (description.length < TEXTE_MIN) erreurs.description = `Décrivez l'entrée en ${TEXTE_MIN} caractères au moins.`;
   else if (description.length > LIMITE_TEXTE) erreurs.description = `La description est limitée à ${LIMITE_TEXTE} caractères.`;
 
   const reponse = texte(c.reponse).trim();
@@ -92,8 +93,8 @@ export function filtrerRegistre(entrees, { etat = "tous", type = "tous" } = {}) 
 
 const ORIGINE_DU_ROLE = { stagiaire: "stagiaire", formateur: "formateur", fondateur: "equipe" };
 
-// Une entrée du registre prête à enregistrer, tirée d'un signalement « Signaler un problème » : sans nom, sans e-mail, sans
-// contexte. La date est le jour du signalement à Paris.
+// Une entrée du registre prête à enregistrer, tirée d'un problème signalé (« Signaler un problème ») : sans nom, sans e-mail,
+// sans contexte. La date est le jour où le problème a été signalé, à Paris.
 export function entreeDepuisSignalement(s) {
   return {
     type: "difficulte",
@@ -190,7 +191,7 @@ export function aClore(entrees, aujourdhui) {
 
 const ENTETE_CSV = [
   "N°", "Date", "Type", "Origine", "Promo", "Centre", "Description", "Réponse", "Date de réponse", "Délai (jours)",
-  "Action décidée", "Mesure de prévention", "État", "Clos le", "Issu d'un signalement",
+  "Action décidée", "Mesure de prévention", "État", "Clos le", "Issu d'un signalement",   // en-têtes de l'export : inchangés (décision du 10/11)
 ];
 
 // Nom lu dans un objet { id: nom } ou une Map.

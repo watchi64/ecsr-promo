@@ -2,7 +2,7 @@
 // tests/qcm-stagiaire-rules.test.mjs. Quels QCM, dans quel ordre, avec quelle phrase d'état. L'affichage
 // (js/views/qcm-stagiaire.js) ne fait que les poser.
 
-import { examenDemarrable } from "./qcm-exam-rules.js?v=20261111a";
+import { examenDemarrable } from "./qcm-exam-rules.js?v=20261111c";
 
 /** Un QCM transversal (sanctions, psychologie, pédagogie...) : une notion de la formation, sans numéro de thème. */
 export function estTransversal(theme) {
@@ -40,6 +40,7 @@ function dernieresTentatives(tentatives) {
 
 /**
  * Les lignes de la liste « Tes QCM » : { theme, qcm, titre, etiquette, etat, note, examenOuvert, action }.
+ * - `action` : « Voir le QCM » (le bouton ouvre la fiche du QCM, pas l'examen ; nom accessible « Voir le QCM : titre ») ;
  * - ne gardent que les QCM qui ont au moins une question ;
  * - `etat` : « Pas encore fait » ou « Dernière note 14/20 » (dernier entraînement) ;
  * - `examenOuvert` : la règle de la fenêtre d'examen (examenDemarrable), à l'heure `now` ;
@@ -60,7 +61,7 @@ export function lignesQcmStagiaire({ qcm = [], themes = [], tentatives = [], now
       etat: derniere ? `Dernière note ${noteEnFrancais(derniere.note)}/20` : "Pas encore fait",
       note: derniere ? derniere.note : null,
       examenOuvert: examenDemarrable(q, now),
-      action: "Ouvrir",
+      action: "Voir le QCM",
     };
   });
   const rang = (l) => (l.examenOuvert ? 0 : l.note == null ? 1 : 2);
@@ -97,11 +98,13 @@ export function lignesQcmRedaction({ qcm = [], themes = [] } = {}) {
     || a.qcm.id - b.qcm.id);
 }
 
-/** Phrase affichée quand la lecture des cours ou des QCM a échoué (jamais confondue avec « aucun QCM »). */
-export function messageLectureEnEchec({ cours = false, qcm = false } = {}) {
-  if (cours && qcm) return "Cours et QCM non chargés. Vérifie ta connexion.";
-  if (qcm) return "QCM non chargés. Vérifie ta connexion.";
-  if (cours) return "Cours non chargés. Vérifie ta connexion.";
+/** Phrase affichée quand la lecture des cours ou des QCM a échoué (jamais confondue avec « aucun QCM »).
+ *  Page partagée : `vous` vrai pour l'équipe (l'appelant le tire de selonPublic), faux pour un stagiaire. */
+export function messageLectureEnEchec({ cours = false, qcm = false, vous = false } = {}) {
+  const conseil = vous ? "Vérifiez votre connexion." : "Vérifie ta connexion.";
+  if (cours && qcm) return `Cours et QCM non chargés. ${conseil}`;
+  if (qcm) return `QCM non chargés. ${conseil}`;
+  if (cours) return `Cours non chargés. ${conseil}`;
   return null;
 }
 

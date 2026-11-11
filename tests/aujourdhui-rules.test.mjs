@@ -14,7 +14,7 @@ const MARDI = "2026-10-27";
 const noms = () => ({
   stagiaires: new Map([[1, "Timy"], [2, "Anissa"], [3, "Lorie"], [4, "Valentin"], [5, "Cassandre"], [6, "Céline"]]),
   formateurs: new Map([[1, "Romain"]]),
-  benevoles: new Map([[1, "C. Camille"], [2, "Y. Yanis"]]),
+  benevoles: new Map([[1, "Camille C."], [2, "Yanis Y."]]),
   autres: [],
 });
 
@@ -103,7 +103,7 @@ test("enVoitureDuJour : deux cartes voiture, un stagiaire une seule fois, les b�
   ]);
   assert.deepEqual(enVoitureDuJour(j), {
     stagiaires: [{ id: 1, nom: "Timy" }, { id: 2, nom: "Anissa" }, { id: 3, nom: "Lorie" }],
-    benevoles: ["Y. Yanis", "C. Camille"],
+    benevoles: ["Yanis Y.", "Camille C."],
     demis: ["aprem"],
   });
 });
@@ -114,7 +114,7 @@ test("enVoitureDuJour : le matin et l'après-midi, les cartes de salle ne compte
     carte({ id: 2, half_day: "aprem", activite: "Voiture (conduite)", benevoles_ids: [1] }),
     carte({ id: 3, slot: 1, pedagogue_id: 2, eleves_ids: [4], benevoles_ids: [2] }),
   ]);
-  assert.deepEqual(enVoitureDuJour(j), { stagiaires: [{ id: 1, nom: "Timy" }], benevoles: ["C. Camille"], demis: ["matin", "aprem"] });
+  assert.deepEqual(enVoitureDuJour(j), { stagiaires: [{ id: 1, nom: "Timy" }], benevoles: ["Camille C."], demis: ["matin", "aprem"] });
 });
 
 test("enVoitureDuJour : une voiture sans personne ne compte pas ; rien du tout", () => {
@@ -148,12 +148,12 @@ test("feuilleDuJour : la feuille ouverte, qui a signé, qui attend", () => {
   assert.equal(f.signes, 1);
   assert.equal(f.total, 4);
   // Dans l'ordre alphabétique des noms de famille, comme la feuille.
-  assert.deepEqual(f.enAttente, ["M. Lorie", "R. Valentin", "V. Timy"]);
+  assert.deepEqual(f.enAttente, ["Lorie M.", "Valentin R.", "Timy V."]);
 });
 
 test("feuilleDuJour : un absent noté ne figure pas parmi ceux qui attendent mais reste dans le total", () => {
   const f = feuilleDuJour({ seances: [seance("matin", "ouverte", [sig(2), { stagiaire_id: 3, absent: true, signe_le: null }])], stagiaires, entries: [] });
-  assert.deepEqual(f.enAttente, ["R. Valentin", "V. Timy"]);
+  assert.deepEqual(f.enAttente, ["Valentin R.", "Timy V."]);
   assert.equal(f.signes, 1);
   assert.equal(f.total, 4);
 });
@@ -161,7 +161,7 @@ test("feuilleDuJour : un absent noté ne figure pas parmi ceux qui attendent mai
 test("feuilleDuJour : un absent noté au planning n'attend pas non plus", () => {
   const entries = [carte({ pedagogue_id: 1, absences: [{ sid: 1, rid: null }] })];
   const f = feuilleDuJour({ seances: [seance("matin", "ouverte", [])], stagiaires, entries });
-  assert.deepEqual(f.enAttente, ["B. Anissa", "M. Lorie", "R. Valentin"]);
+  assert.deepEqual(f.enAttente, ["Anissa B.", "Lorie M.", "Valentin R."]);
   assert.equal(f.total, 4);
 });
 
@@ -169,7 +169,7 @@ test("feuilleDuJour : un abandon qui a signé reste compté, comme sur le bandea
   const f = feuilleDuJour({ seances: [seance("matin", "ouverte", [sig(9)])], stagiaires, entries: [] });
   assert.equal(f.signes, 1);
   assert.equal(f.total, 5);
-  assert.ok(!f.enAttente.includes("A. Zoé"));
+  assert.ok(!f.enAttente.includes("Zoé A."));
 });
 
 test("feuilleDuJour : une feuille close, figée sur ses lignes, personne n'attend", () => {
@@ -210,14 +210,14 @@ test("feuilleDuJour : aucune feuille", () => {
 
 test("lignesATraiter : les deux lignes, au pluriel", () => {
   assert.deepEqual(lignesATraiter({ signalements: 3, propositionsIA: 2 }), [
-    { cle: "signalements", titre: "3 signalements sur des QCM", nombre: 3, sousOnglet: "signalements" },
+    { cle: "signalements", titre: "3 questions contestées", nombre: 3, sousOnglet: "signalements" },
     { cle: "ia", titre: "2 questions proposées par l'IA", nombre: 2, sousOnglet: "ia" },
   ]);
 });
 
 test("lignesATraiter : au singulier", () => {
   assert.deepEqual(lignesATraiter({ signalements: 1, propositionsIA: 1 }).map((l) => l.titre),
-    ["1 signalement sur un QCM", "1 question proposée par l'IA"]);
+    ["1 question contestée", "1 question proposée par l'IA"]);
 });
 
 test("lignesATraiter : un compte nul, à zéro ou illisible n'a pas de ligne", () => {

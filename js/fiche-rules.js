@@ -3,7 +3,7 @@
 
 export const EPREUVES_EPCF = ["salle", "vehicule"];
 
-// Émis par le livret et le dossier pro après un enregistrement, avec
+// Émis par le livret EPCF et le dossier professionnel après un enregistrement, avec
 // { genre: "livret" | "dossier", stagiaireId, updatedAt } et, pour le dossier,
 // `exemples` (exemples remplis, de 0 à 6) : les états suivent sans relire la base.
 export const EVT_DOCUMENT = "document-enregistre";
@@ -46,21 +46,24 @@ export function passagesAVenir(items, aujourdhuiIso) {
   return (items || []).filter((it) => it.role === "passage" && it.iso >= aujourdhuiIso).length;
 }
 
+// État du dossier professionnel : « pas commencé », « modifié le 29/09 » (jamais la date seule, qui se lisait
+// comme une fraction ou une échéance), « commencé » si la date est illisible. Avec un préfixe, « Préfixe : état ».
 function texteDossier(dossier, prefixe) {
-  if (!dossier) return prefixe ? prefixe + " vierge" : "vierge";
-  const date = jourMois(dossier.updated_at);
-  if (prefixe) return date ? prefixe + " " + date : prefixe;
-  return date || "commencé";
+  const date = dossier ? jourMois(dossier.updated_at) : null;
+  const etat = !dossier ? "pas commencé" : date ? "modifié le " + date : "commencé";
+  return prefixe ? prefixe + " : " + etat : etat;
 }
+
+const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 
 // Ligne d'état de la page Stagiaires (vue formateur) : `afaire` pour ce qui
 // reste à faire, affiché en orange.
 export function ligneListe({ evals, livret, dossier }) {
   const n = epreuvesEvaluees(evals);
   return [
-    { texte: `EPCF ${n}/2`, afaire: n < 2 },
-    { texte: livret ? "Livret" : "Livret vierge", afaire: !livret },
-    { texte: texteDossier(dossier, "Dossier"), afaire: !dossier },
+    { texte: `EPCF : ${pluriel(n, "épreuve")} sur 2`, afaire: n < 2 },
+    { texte: "Livret EPCF : " + (livret ? "commencé" : "pas commencé"), afaire: !livret },
+    { texte: texteDossier(dossier, "Dossier professionnel"), afaire: !dossier },
   ];
 }
 
@@ -73,17 +76,15 @@ export function etatsSommaire({ aVenir, evals, livret, dossier, soi }) {
     epcf: { texte: `${n}/2`, afaire: !soi && n < 2 },
     evolution: null,
     livret: livret ? { texte: "commencé", afaire: false }
-      : soi ? { texte: "pas encore créé", afaire: false }
-      : { texte: "vierge", afaire: true },
+      : soi ? { texte: "pas encore commencé", afaire: false }
+      : { texte: "pas commencé", afaire: true },
     dp: { texte: texteDossier(dossier, null), afaire: !dossier },
   };
 }
 
-const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
-
-// États de Mon suivi, nouvelle navigation (lot 2B, tâche 7) : la ligne entière, nom de la
-// partie compris, pour qu'elle se lise seule (« EPCF : 0 épreuve sur 2 », jamais « 0/2 » ; « Dossier
-// pro : 2 exemples sur 6 », jamais « 02/10 », qui se lisait comme une date, ruling R65).
+// États de Mon suivi (lot 2B, tâche 7) : la ligne entière, nom de la
+// partie compris, pour qu'elle se lise seule (« Évaluations EPCF : 0 épreuve sur 2 », jamais « 0/2 » ; « Dossier
+// professionnel : 2 exemples sur 6 », jamais « 02/10 », qui se lisait comme une date, ruling R65).
 // `exemplesDossier` : exemples remplis (exemplesRemplis de js/dp-rules.js), null sans dossier.
 // Le texte de Résultats ne dépend d'aucune donnée : il dit ce que la partie contient. Comme
 // pour etatsSommaire de soi, seul le dossier, qui dépend du stagiaire, passe en orange ; il le
@@ -94,10 +95,10 @@ export function etatsClairs({ aVenir = 0, evals, livret, exemplesDossier = null 
   return {
     resultats: { texte: "Résultats : moi et la classe", afaire: false },
     passages: { texte: "Passages : " + (aVenir > 0 ? `${aVenir} à venir` : "aucun à venir"), afaire: false },
-    epcf: { texte: `EPCF : ${pluriel(n, "épreuve")} sur 2`, afaire: false },
+    epcf: { texte: `Évaluations EPCF : ${pluriel(n, "épreuve")} sur 2`, afaire: false },
     livret: { texte: "Livret EPCF : " + (livret ? "commencé" : "pas encore commencé"), afaire: false },
     dp: exemples === null
-      ? { texte: "Dossier pro : pas encore commencé", afaire: true }
-      : { texte: `Dossier pro : ${pluriel(exemples, "exemple")} sur 6`, afaire: exemples < 6 },
+      ? { texte: "Dossier professionnel : pas encore commencé", afaire: true }
+      : { texte: `Dossier professionnel : ${pluriel(exemples, "exemple")} sur 6`, afaire: exemples < 6 },
   };
 }

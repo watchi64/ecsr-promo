@@ -8,13 +8,13 @@ import {
   getMesPromos, getPromoCourante, ouvrirDansUnePromo, creerPromo, modifierDatesPromo, renommerPromo, chargerMesPromos, choisirPromo,
   rechargerApresEnregistrements,
   lireEffectifsPromos, lireFormateursPromos,
-} from "../db.js?v=20261111a";
-import { el, clear, isoDate, formatLongDate, toast } from "../utils.js?v=20261111a";
-import { getCentre, getAffectations, getAdminEmail } from "../auth-admin.js?v=20261111a";
-import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261111a";
-import { validerPromo, etatPromo, partEcoulee } from "../direction-rules.js?v=20261111a";
-import { peutRegler } from "../modules-etat.js?v=20261111a";
-import { renderModulesSection } from "./modules-reglage.js?v=20261111a";
+} from "../db.js?v=20261111c";
+import { el, clear, isoDate, formatLongDate, toast } from "../utils.js?v=20261111c";
+import { getCentre, getAffectations, getAdminEmail } from "../auth-admin.js?v=20261111c";
+import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261111c";
+import { validerPromo, etatPromo, partEcoulee } from "../direction-rules.js?v=20261111c";
+import { peutRegler } from "../modules-etat.js?v=20261111c";
+import { renderModulesSection } from "./modules-reglage.js?v=20261111c";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
@@ -205,7 +205,7 @@ export async function renderPromosCentre(container, reprise = null) {
   if (!promos.length) {
     racine.appendChild(el("div", { class: "centre-section centre-vide" },
       el("p", {}, PHRASE_SANS_PROMO + "."),
-      el("p", { class: "muted" }, "Crée la première promo du centre : elle s'affichera ensuite dans toute l'app.")));
+      el("p", { class: "muted" }, "Créez la première promo du centre : elle s'affichera ensuite dans toute l'app.")));
     return;
   }
 
@@ -234,7 +234,7 @@ export async function renderPromosCentre(container, reprise = null) {
     const section = renderModulesSection();
     fermerModules();
     if (!section) {
-      toast("Tu ne peux pas régler les modules de cette promo.", "error", 4000);
+      toast("Vous ne pouvez pas régler les modules de cette promo.", "error", 4000);
       return;
     }
     zoneModules = el("div", { class: "promo-modules" }, section);
@@ -321,7 +321,7 @@ async function creation(v, container) {
   let rechargees = null;
   try { rechargees = await chargerMesPromos(getAdminEmail()); } catch (e) { console.error("promos : rechargement après création", e); }
   if (rechargees === null) {
-    toast("Promo créée. " + PHRASE_NON_CHARGEES + " Recharge la page.", "error", 6000);
+    toast("Promo créée. " + PHRASE_NON_CHARGEES + " Rechargez la page.", "error", 6000);
     return;
   }
   toast("Promo créée", "success");
@@ -335,7 +335,7 @@ async function creation(v, container) {
   const { centre } = contexte();
   if (centre && centre.id !== v.lieuId) {
     const autre = centresDirigeables(centre).find((c) => c.id === v.lieuId);
-    toast(`Promo créée dans le centre ${autre ? autre.nom : "choisi"}. Choisis-la dans le menu des promos pour la voir.`, "success", 6000);
+    toast(`Promo créée dans le centre ${autre ? autre.nom : "choisi"}. Choisissez-la dans le menu des promos pour la voir.`, "success", 6000);
     return;
   }
   await renderPromosCentre(container);

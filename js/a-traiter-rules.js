@@ -1,5 +1,5 @@
-// Pastilles « à traiter » de l'équipe (refonte, lot 2A) : ce qui attend un formateur dans Cours et QCM, les signalements
-// de QCM non traités et, depuis le lot 2B, les propositions de l'IA à relire (voir COMPTER_LES_PROPOSITIONS_IA). Les
+// Pastilles « à traiter » de l'équipe (refonte, lot 2A) : ce qui attend un formateur dans Cours et QCM, les questions
+// contestées non traitées (« signalements » dans le code et la base) et, depuis le lot 2B, les propositions de l'IA à relire (voir COMPTER_LES_PROPOSITIONS_IA). Les
 // règles seulement : combien, comment le dire, où le montrer, et une lecture qui ne lève jamais. Module pur, sans DOM ni
 // base : testé en node. La coquille (js/nav-shell.js) pose les pastilles, js/a-traiter.js lit les comptes en base.
 
@@ -11,14 +11,14 @@ export const ENTREE_A_TRAITER = "themes";
 // décimal) est illisible.
 const valide = (n) => Number.isInteger(n) && n >= 0;
 
-// Ce qui attend l'équipe : `total`, la somme des comptes valides, et `texte`, le détail (« 3 signalements, 2 propositions
-// de l'IA »), au singulier quand il n'y en a qu'un ; une partie nulle ou illisible est omise, un total nul n'a pas de texte.
+// Ce qui attend l'équipe : `total`, la somme des comptes valides, et `texte`, le détail (« 3 questions contestées,
+// 2 propositions de l'IA »), au singulier quand il n'y en a qu'un ; une partie nulle ou illisible est omise, un total nul n'a pas de texte.
 export function resumeATraiter(comptes) {
   const { signalements, propositionsIA } = comptes || {};
   const s = valide(signalements) ? signalements : 0;
   const p = valide(propositionsIA) ? propositionsIA : 0;
   const parties = [];
-  if (s > 0) parties.push(`${s} ${s === 1 ? "signalement" : "signalements"}`);
+  if (s > 0) parties.push(`${s} ${s === 1 ? "question contestée" : "questions contestées"}`);
   if (p > 0) parties.push(`${p} ${p === 1 ? "proposition" : "propositions"} de l'IA`);
   return { total: s + p, texte: parties.join(", ") };
 }
@@ -28,7 +28,7 @@ export function nomAvecATraiter(nom, resume) {
   return resume && resume.total > 0 ? `${nom}, ${resume.total} à traiter` : nom;
 }
 
-// La phrase en tête du tiroir « Plus » (spec, ruling R20) : « 5 à traiter : 3 signalements, 2 propositions de l'IA » ;
+// La phrase en tête du tiroir « Plus » (spec, ruling R20) : « 5 à traiter : 3 questions contestées, 2 propositions de l'IA » ;
 // vide quand il n'y a rien à traiter.
 export function phraseATraiter(resume) {
   return resume && resume.total > 0 ? `${resume.total} à traiter : ${resume.texte}` : "";
@@ -45,9 +45,9 @@ export function pointSurPlus(idsDuTiroir, resume, pastilleDeSignaler = "") {
   return aTraiter || !!pastilleDeSignaler;
 }
 
-// Le nom de « Plus » : « Plus » seul, ou suivi de ce que son point signale (« Plus, 5 à traiter », « Plus, 2 nouveaux signalements »,
+// Le nom de « Plus » : « Plus » seul, ou suivi de ce que son point signale (« Plus, 5 à traiter », « Plus, 2 nouveaux problèmes signalés »,
 // les deux dans cet ordre). Il garde le libellé visible en tête (WCAG 2.5.3). `nomDeSignaler` : le nom accessible de « Signaler un
-// problème » (pastilleSignalement) ; ce qu'il dit après sa virgule (« 2 nouveaux signalements ») passe ici, rien quand il n'a pas de détail.
+// problème » (pastilleSignalement) ; ce qu'il dit après sa virgule (« 2 nouveaux problèmes signalés ») passe ici, rien quand il n'a pas de détail.
 const NOM_DE_SIGNALER = "Signaler un problème, ";
 export function nomDePlus(resume, nomDeSignaler = "") {
   const parties = ["Plus"];

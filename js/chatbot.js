@@ -1,23 +1,22 @@
 /*
- * Bulle assistant : disponible partout une fois connecte.
+ * Panneau de l'assistant : disponible partout une fois connecte.
  * Aucune cle ici : tout passe par l'Edge Function `chatbot` (JWT verifie).
  * Historique ephemere (sessionStorage), fenetre des 8 derniers messages envoyee.
- * Nouvelle navigation : plus de bulle (masquee par css/navigation.css), le panneau s'ouvre par les
- * boutons « Assistant » de la coquille (js/nav-shell.js), qui appellent basculerAssistant().
+ * Le panneau s'ouvre par les boutons « Assistant » de la coquille (js/nav-shell.js), qui appellent
+ * basculerAssistant().
  */
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111a";
-import { supabase } from "./db.js?v=20261111a";
-import { icon } from "./icons.js?v=20261111a";
-import { corpsRequete, extraireEvenements } from "./chatbot-rules.js?v=20261111a";
-import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261111a";
-import { navigationV2Active } from "./nav-etat.js?v=20261111a";
-import { getEspace } from "./auth-admin.js?v=20261111a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111c";
+import { supabase } from "./db.js?v=20261111c";
+import { corpsRequete, extraireEvenements } from "./chatbot-rules.js?v=20261111c";
+// Panneau ouvert à tous : le stagiaire est tutoyé, l'équipe vouvoyée (décision du 10/11). Les textes du panneau, posés une
+// fois à l'initialisation, sont neutres ; les messages de l'échange, écrits au moment où ils s'affichent, passent par selonPublic.
+import { moduleVisible } from "./modules-etat.js?v=20261111c";
+import { getEspace, selonPublic } from "./auth-admin.js?v=20261111c";
 
 const CLE_HISTO = "chatbot_histo";
 let histo = [];
 let enCours = false;
 // Panneau ouvert depuis la coquille : la fonction qu'elle a donnée pour rendre le focus à la fermeture.
-// null avec la bulle de l'ancienne navigation, qui ne déplace pas le focus.
 let retourDuFocus = null;
 // Abonnés à l'ouverture et à la fermeture du panneau (la coquille, pour l'aria-expanded de ses boutons).
 const abonnes = new Set();
@@ -52,8 +51,9 @@ function fermerPanneau() {
 }
 
 // Boutons « Assistant » de la coquille : ouvre le panneau, ou le ferme s'il est ouvert. `rendreFocus` :
-// ce que la coquille fera du focus à la fermeture. Comme la bulle, le champ prend le focus au pointeur
-// précis seulement (voir initChatbot).
+// ce que la coquille fera du focus à la fermeture. Auto-focus seulement au pointeur précis (souris,
+// pavé tactile) : sur écran tactile, focus() ouvrirait le clavier tout de suite (et déclenchait le zoom
+// iOS) alors que la personne veut d'abord voir le panneau. Évalué au clic : suit un changement d'appareil.
 export function basculerAssistant(rendreFocus = null) {
   const panneau = panneauAssistant();
   if (!panneau) return;
@@ -79,7 +79,7 @@ function sauverHisto() {
 
 async function rendreEnMarkdown(noeud, texte) {
   try {
-    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261111a");
+    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261111c");
     // blocs: false : une réponse qui recopie un bloc de cours (schéma, quiz, cartes) le laisse en texte brut,
     // elle ne monte ni schéma animé ni quiz dans la bulle.
     const { noeuds } = rendreMarkdown(texte, { blocs: false });
@@ -116,7 +116,11 @@ async function envoyerQuestion(question, msgs) {
   try {
     const { data } = await supabase.auth.getSession();
     const session = data?.session;
-    if (!session) { bulleBot.textContent = "Reconnecte-toi pour utiliser l'assistant."; messageFige = true; return; }
+    if (!session) {
+      bulleBot.textContent = selonPublic("Reconnecte-toi pour utiliser l'assistant.", "Reconnectez-vous pour utiliser l'assistant.");
+      messageFige = true;
+      return;
+    }
 
     const resp = await fetch(`${SUPABASE_URL}/functions/v1/chatbot`, {
       method: "POST",
@@ -125,17 +129,19 @@ async function envoyerQuestion(question, msgs) {
         apikey: SUPABASE_KEY,
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify(corpsRequete(histo, location.hash, navigationV2Active(), getEspace())),
+      body: JSON.stringify(corpsRequete(histo, location.hash, getEspace())),
     });
 
     if (resp.status === 429) {
       const j = await resp.json().catch(() => ({}));
-      bulleBot.textContent = j.message || "Quota du jour atteint, reviens demain.";
+      // Le serveur écrit son message au « tu » : l'équipe, vouvoyée, a la phrase de l'app.
+      bulleBot.textContent = selonPublic(j.message || "Quota du jour atteint, reviens demain.", "Quota du jour atteint, revenez demain.");
       messageFige = true;
       return;
     }
     if (!resp.ok) {
-      bulleBot.textContent = "L'assistant est indisponible pour le moment, réessaie un peu plus tard.";
+      bulleBot.textContent = selonPublic("L'assistant est indisponible pour le moment, réessaie un peu plus tard.",
+        "L'assistant est indisponible pour le moment, réessayez un peu plus tard.");
       messageFige = true;
       return;
     }
@@ -165,7 +171,7 @@ async function envoyerQuestion(question, msgs) {
     }
   } catch (e) {
     console.error("chatbot:", e);
-    if (!texte) { bulleBot.textContent = "Connexion interrompue, réessaie."; messageFige = true; }
+    if (!texte) { bulleBot.textContent = selonPublic("Connexion interrompue, réessaie.", "Connexion interrompue, réessayez."); messageFige = true; }
   } finally {
     enCours = false;
     if (texte) {
@@ -174,25 +180,16 @@ async function envoyerQuestion(question, msgs) {
       await rendreEnMarkdown(bulleBot, texte);
     } else if (!messageFige) {
       // Couvre aussi un flux coupe apres un statut outil ("Recherche...")
-      bulleBot.textContent = "Pas de réponse, réessaie.";
+      bulleBot.textContent = selonPublic("Pas de réponse, réessaie.", "Pas de réponse, réessayez.");
     }
     msgs.scrollTop = msgs.scrollHeight;
   }
 }
 
 export function initChatbot() {
-  if (document.getElementById("chatbot-fab")) return;
+  if (panneauAssistant()) return;
   chargerHisto();
   const app = document.getElementById("app");
-
-  const fab = document.createElement("button");
-  fab.id = "chatbot-fab";
-  fab.className = "chatbot-fab";
-  fab.type = "button";
-  fab.title = "Assistant";
-  fab.setAttribute("aria-label", "Ouvrir l'assistant");
-  fab.appendChild(icon.chat());
-  app.appendChild(fab);
 
   const panneau = document.createElement("div");
   panneau.id = "chatbot-panel";
@@ -202,12 +199,12 @@ export function initChatbot() {
       <p class="chatbot-titre">Assistant <span class="chatbot-beta">bêta</span></p>
       <button type="button" class="ghost-btn chatbot-close" aria-label="Fermer l'assistant">&times;</button>
     </div>
-    <p class="chatbot-disclaimer">Version bêta : l'assistant peut se tromper, vérifie les points importants dans les cours. La qualité des réponses va s'améliorer.</p>
+    <p class="chatbot-disclaimer">Version bêta : l'assistant peut se tromper, les points importants sont à vérifier dans les cours. La qualité des réponses va s'améliorer.</p>
     <p class="chatbot-signaler">Un souci avec l'app ? <button type="button" class="chatbot-signaler-btn" data-sg-entree="assistant" aria-haspopup="dialog">Signaler un problème</button></p>
     <div class="chatbot-msgs"></div>
     <form class="chatbot-form">
-      <textarea rows="1" placeholder="Pose ta question…" maxlength="2000"
-        aria-label="Ta question à l'assistant"></textarea>
+      <textarea rows="1" placeholder="Écrire une question…" maxlength="2000"
+        aria-label="Question à l'assistant"></textarea>
       <button type="submit" class="btn primary" aria-label="Envoyer">Envoyer</button>
     </form>`;
   app.appendChild(panneau);
@@ -223,24 +220,14 @@ export function initChatbot() {
     }
   } else {
     ajouterBulle(msgs, "assistant",
-      "Salut ! Je peux t'expliquer l'app, t'aider à réviser les 57 thèmes et vérifier la réglementation sur Légifrance. Qu'est-ce qu'il te faut ?");
+      "Bonjour ! Je suis là pour expliquer l'app, aider à réviser les 57 thèmes et vérifier la réglementation sur Légifrance. Une question ?");
   }
 
-  // Auto-focus seulement au pointeur precis (souris/trackpad) : sur ecran
-  // tactile, focus() ouvrirait le clavier immediatement (et declenchait le
-  // zoom iOS) alors que l'utilisateur veut d'abord voir le panneau.
-  // Evalue au clic, pas a l'init : suit un changement de peripherique.
-  fab.addEventListener("click", () => {
-    panneau.classList.toggle("hidden");
-    if (!panneau.classList.contains("hidden") && window.matchMedia("(pointer: fine)").matches) {
-      input.focus();
-    }
-  });
   panneau.querySelector(".chatbot-close").addEventListener("click", fermerPanneau);
   // Signaler un problème (spec 2026-10-28) : la fenêtre s'ouvre par-dessus le panneau, qui reste ouvert.
   const signaler = panneau.querySelector(".chatbot-signaler-btn");
   signaler.addEventListener("click", () => {
-    import("./signalement.js?v=20261111a").then((m) => m.ouvrirSignalement({ ancre: signaler }));
+    import("./signalement.js?v=20261111c").then((m) => m.ouvrirSignalement({ ancre: signaler }));
   });
   // Capture : Échap ferme le panneau sans atteindre une fenêtre restée dessous (un QCM, par exemple). Panneau fermé,
   // la touche passe aux autres fenêtres.
@@ -266,17 +253,9 @@ export function initChatbot() {
   });
 }
 
-// La bulle suit le module « assistant » (js/modules-data.js) : absente pour un
-// stagiaire quand il est fermé pour la promo, repérée chez un formateur. Appelée
-// par main.js au démarrage et à chaque changement de rôle ou d'état des modules.
-// Les boutons « Assistant » de la coquille suivent la même règle (js/nav-shell.js).
+// Le module « assistant » (js/modules-data.js) fermé pour la promo : un stagiaire n'a plus de bouton
+// « Assistant » dans la coquille (js/nav-shell.js), et un panneau resté ouvert se ferme. Appelée par
+// main.js au démarrage et à chaque changement de rôle ou d'état des modules.
 export function appliquerModuleAssistant() {
-  const fab = document.getElementById("chatbot-fab");
-  if (!fab) return;
-  const visible = moduleVisible("assistant");
-  // style.display plutôt que l'attribut hidden, que la règle .chatbot-fab
-  // (display: flex) écraserait.
-  fab.style.display = visible ? "" : "none";
-  if (!visible) fermerPanneau();
-  repereMasque(fab, visible && moduleMasque("assistant"));
+  if (!moduleVisible("assistant")) fermerPanneau();
 }

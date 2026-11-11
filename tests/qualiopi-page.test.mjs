@@ -59,13 +59,14 @@ ok(!/^\s*(import|export)\b[^;]*["']\.\/views\/qualiopi\.js/m.test(main), "ni par
 // --- Branchement : route, onglet allumé, porte du fondateur, nettoyage de l'impression ---
 ok(/import \{ teardownQualiopiPrint \} from "\.\/qualiopi-impression\.js\?v=\w+";/.test(main), "main.js importe le nettoyage de l'impression, dans le petit module chargé avec l'app");
 ok(/\n  qualiopi:\s+rendreQualiopi,/.test(main), "la route qualiopi mène au chargeur de la page");
-ok(/const ONGLET_POUR_ROUTE = \{[^}]*\bqualiopi: "home"[^}]*\};/.test(main), "l'ancienne barre allume Accueil sur #/qualiopi");
+ok(!/ONGLET_POUR_ROUTE/.test(main), "plus d'ancienne barre (retirée le 10/11) : l'entrée allumée sur #/qualiopi vient de nav-rules.js");
+ok(/\["qualiopi", "centre"\]/.test(lire("js/nav-rules.js")), "la coquille allume Indicateurs sur #/qualiopi (alias de nav-rules.js)");
 const debutGarde = main.indexOf('else if (route === "qualiopi" && !fondateurHorsApercu()) {');
 ok(debutGarde > 0, "une garde propre à la route qualiopi, hors aperçu comme « problemes »");
 const garde = main.slice(debutGarde, main.indexOf("memoriserRoute(route);", debutGarde));   // la branche, jusqu'à la suite de navigate()
 ok(/replaceState\(null, "", "#\/home"\)/.test(garde) && /route = "home";/.test(garde), "qui renvoie à #/home");
 ok(!/toast\(/.test(garde), "sans un mot : aucun message");
-ok(/fondateurHorsApercu \} from "\.\/auth-admin\.js/.test(main), "fondateurHorsApercu vient de auth-admin.js");
+ok(/\bfondateurHorsApercu\b[^}]*\} from "\.\/auth-admin\.js/.test(main), "fondateurHorsApercu vient de auth-admin.js");
 const navigate = main.slice(main.indexOf("async function navigate("), main.indexOf('window.addEventListener("hashchange"'));
 ok(navigate.indexOf("teardownCentrePrint();") > 0 && navigate.indexOf("teardownQualiopiPrint();") > navigate.indexOf("teardownCentrePrint();"),
   "navigate nettoie l'impression Qualiopi à côté de celle du tableau de bord, avant de rendre la page");
@@ -110,7 +111,7 @@ const textes = (noeud) => (typeof noeud === "string" ? [noeud] : (noeud.enfants 
   ok(t.vue_.enfants.length === 1 && boite.tag === "div" && /\bqualiopi-erreur\b/.test(boite.attrs.class) && boite.attrs.role === "alert", "une seule boîte, celle des erreurs de la page, annoncée aux lecteurs d'écran");
   const [message, bouton] = boite.enfants;
   ok(message.tag === "p" && /n'a pas pu se charger/.test(textes(message).join("")), "elle dit que la page n'a pas pu se charger");
-  ok(/recharge la page/.test(textes(message).join("")) && !/undefined|null|NaN|Failed to fetch/.test(textes(boite).join(" ")), "en tutoyant, sans détail technique ni valeur manquante");
+  ok(/rechargez la page/.test(textes(message).join("")) && !/undefined|null|NaN|Failed to fetch/.test(textes(boite).join(" ")), "en vouvoyant (page de l'équipe), sans détail technique ni valeur manquante");
   ok(bouton.tag === "button" && bouton.attrs.type === "button" && textes(bouton).join("") === "Recharger la page", "avec un bouton « Recharger la page », pas « Réessayer » (un import échoué le reste jusqu'au rechargement)");
   bouton.attrs.onClick();
   eq(t.journal, ["chargement", "vue remplacée", "rechargement"], "le bouton recharge la page (rechargement sûr de l'app)");
@@ -138,9 +139,8 @@ const textes = (noeud) => (typeof noeud === "string" ? [noeud] : (noeud.enfants 
   eq(t.journal, ["chargement"], "le chargeur n'ajoute ni boîte d'erreur ni message à une erreur de rendu : le routeur prend la main");
 }
 
-// --- Aucune entrée de barre, ni l'ancienne ni la nouvelle ; aucun module ---
-const tabs = main.slice(main.indexOf("const TABS = ["), main.indexOf("];", main.indexOf("const TABS = [")));
-ok(!/qualiopi/i.test(tabs), "l'ancienne barre (TABS) n'a pas d'entrée Qualiopi");
+// --- Aucune entrée de barre ; aucun module ---
+ok(!main.includes("const TABS = ["), "plus d'ancienne barre (TABS), retirée le 10/11");
 for (const fichier of ["js/nav-rules.js", "js/nav-shell.js", "js/menu-compte.js", "js/modules-data.js", "js/modules-etat.js"]) {
   // Seul l'alias de nav-rules (route « qualiopi » -> entrée « centre ») est permis : il n'ajoute aucune entrée à la barre.
   const texteFichier = lire(fichier).split(String.fromCharCode(10)).filter((l) => !/Qualiopi \(fondateur|\["qualiopi", "centre"\],/.test(l)).join(String.fromCharCode(10));
@@ -184,8 +184,10 @@ ok(appelsImpression.length === 3 && appelsDossiers.length === 2 && appelsFiche.l
   "les deux dossiers (formation, centre) et la fiche des résultats s'impriment en construisant le document avant de le monter : un défaut de mise en page ne laisse rien dans la page, et le montage est le même pour tous");
 ok(/const aujourdhui = isoDate\(new Date\(\)\);/.test(vue), "la date du jour est calculée une fois par rendu");
 ok(/chargementVivant|actionVivante/.test(vue) && /racine\.isConnected/.test(vue), "une réponse tardive n'écrit pas dans une page quittée (jeton de rendu et page toujours affichée)");
-ok(/"Dossier de la formation"/.test(vue) && /"Tableau \(CSV\)"/.test(vue) && /"Dossier du centre"/.test(vue) && /"Sans aucun nom"/.test(vue) && /"Cette formation"/.test(vue) && /"Le centre"/.test(vue),
+ok(/"Dossier Qualiopi de la formation"/.test(vue) && /"Tableau pour Excel \(CSV\)"/.test(vue) && /"Dossier Qualiopi du centre"/.test(vue) && /"Sans aucun nom"/.test(vue) && /"Cette formation"/.test(vue) && /"Le centre"/.test(vue),
   "les deux groupes d'actions (R7) et leurs libellés");
+ok(!/Recharge la page|Réessaie\b|vérifie-le|"Ouvre un|toi seul/.test(vue) && /Rechargez la page, puis réessayez\./.test(vue) && /Visibles par vous seul/.test(vue),
+  "page de l'équipe : vouvoiement (règle du 10/11)");
 
 // --- Fiche « résultats » à publier (spec § 6.6, R7) : « Fiche résultats » et « Copier le texte » dans chacun des deux groupes ---
 const codeVue = vue.replace(/\/\/.*$/gm, "");
@@ -225,7 +227,7 @@ ok(/const resultat = await copie;\s*if \(!actionVivante\(moi\)\) return;/.test(s
 ok(/const fiches = await lesFiches;\s*if \(!fiches\) return;/.test(sortir), "une lecture en échec ou caduque arrête la sortie sans écraser son message (ni refus de copie, ni document)");
 ok(/noteProvisoire\(fiches\)/.test(sortir) && /scrollIntoView/.test(sortir), "la copie dit les formations provisoires, et un message d'échec est ramené à l'écran");
 ok(/ecrireStatut\(resultat\.message, true\);\s*statut\?\.scrollIntoView/.test(sortir), "un refus ou une absence de presse-papiers est écrit comme une erreur (ligne d'état d'alerte), puis ramené à l'écran");
-ok(/lirePromosDuCentre\(moi, retenues, "le dossier du centre n'est pas préparé"/.test(codeVue) && /lirePromosDuCentre\(moi, promosEtPeriodeDuCentre\(\)\.retenues, "les résultats du centre ne sont pas préparés"/.test(codeVue),
+ok(/lirePromosDuCentre\(moi, retenues, "le dossier Qualiopi du centre n'est pas préparé"/.test(codeVue) && /lirePromosDuCentre\(moi, promosEtPeriodeDuCentre\(\)\.retenues, "les résultats du centre ne sont pas préparés"/.test(codeVue),
   "le dossier du centre et la fiche lisent les promos par la même fonction");
 ok((codeVue.match(/lire\(p\.id\)/g) || []).length === 1, "une seule boucle de lecture des promos du centre (celle de lirePromosDuCentre), par identifiant");
 ok(/function ficheImprimable\(fiche\)/.test(codeVue) && /tableauImprimable\(tableauFiche\(fiche\)\)/.test(codeVue), "la fiche se met en page avec le tableau des dossiers");

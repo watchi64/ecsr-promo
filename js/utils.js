@@ -1,4 +1,4 @@
-import { peutMontrer, aReprendre, perimee } from "./messages-rules.js?v=20261111a";
+import { peutMontrer, aReprendre, perimee } from "./messages-rules.js?v=20261111c";
 
 // === Date helpers ===
 
@@ -123,11 +123,32 @@ export function tableauEnListe(table) {
 
 // === Affichage stagiaire / prof ===
 
-/** Renvoie l'affichage court : "V. Timy" (initiale du nom + prénom). */
+/** Renvoie l'affichage court : "Timy V." (prénom, espace, initiale du nom, point).
+ *  Sans nom : le prénom seul. Format unique de tous les écrans (décision du 10/11) ;
+ *  les documents officiels imprimés gardent le nom complet. */
 export function displayStagiaire(s) {
+  if (!s) return "";
+  const prenom = (s.prenom || "").trim();
+  const nom = (s.nom || "").trim();
+  const initial = nom ? nom.charAt(0).toUpperCase() + "." : "";
+  return [prenom, initial].filter(Boolean).join(" ");
+}
+
+/** Signature d'un stagiaire dans les champs « qui a modifié » de la base (created_by_who, updated_by_who…) :
+ *  « M. Lucie », l'ancien format, gardé tel quel. L'effacement des données (_anonymiser_stagiaire) retrouve les
+ *  traces d'un stagiaire sous cette forme : la changer laisserait son nom en base après un effacement. L'écran
+ *  remet ces signatures dans l'ordre « Lucie M. » avec nomLisible. */
+export function signatureStagiaire(s) {
   if (!s) return "";
   const initial = s.nom ? s.nom.trim().charAt(0).toUpperCase() + "." : "";
   return initial ? `${initial} ${s.prenom}` : s.prenom;
+}
+
+/** Un nom lu en base au format « M. Pierre » (signature, bénévole) s'affiche « Pierre M. ». Le reste passe tel quel. */
+export function nomLisible(texte) {
+  const t = String(texte ?? "").trim();
+  const m = t.match(/^(\p{Lu})\.\s+(.+)$/u);
+  return m ? `${m[2]} ${m[1]}.` : t;
 }
 
 /** Compare deux stagiaires par nom de famille (alphabétique), fallback prénom. */

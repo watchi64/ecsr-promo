@@ -370,7 +370,7 @@ const f = formation();
 formeBien(f, "formation");
 eq(PHRASE_DE_GARDE, "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.",
   "la phrase de garde du § 6.4, mot pour mot");
-eq(f.titre, "Dossier de la formation", "titre");
+eq(f.titre, "Dossier Qualiopi de la formation", "titre");
 eq(f.sousTitre, "Montpellier, Promo de test", "sous-titre : le centre et la promo");
 {
   const sousTitreDe = (lieu, nom) => formation({ lieu, promo: { ...PROMO, nom } }).sousTitre;
@@ -549,7 +549,7 @@ eq(lignesDe(f, "evaluations"), [
 const ressources = section(f, "ressources");
 eq(ressources.paragraphes, [
   "Ressources : 2 cours publiés, 3 QCM ; QCM d'entraînement faits par 2 stagiaires sur 3 en formation (3 tentatives).",
-  "Mises à jour : 2 cours publiés modifiés du 05/10 au 20/10 (3 modifications) ; 1 signalement de QCM traité le 12/10.",
+  "Mises à jour : 2 cours publiés modifiés du 05/10 au 20/10 (3 modifications) ; 1 contestation de QCM traitée le 12/10.",
   "Innovations : 2 nouveautés datées du 02/10 au 20/10.",
   "Stagiaires en formation uniquement : 3 sur 4 inscrits.",
 ], "ressources : les pièces de l'inventaire");
@@ -558,30 +558,30 @@ eq(lignesDe(f, "ressources"), [
   ["Delmas Bastien", "1", "10", pc(60)], ["Lambert Kevin", "0", "0", "aucune donnée"], ["Marchand Anaïs", "2", "30", pc(73)],
 ], "ressources : l'activité QCM de chaque stagiaire en formation");
 
-// --- Difficultés et signalements traités
+// --- Difficultés et contestations de QCM traitées
 eq(section(f, "signalements").paragraphes, [
   "Suivi : stagiaires à suivre de près : 1 ; les 2 thèmes les plus faibles d'après les QCM (au moins 20 réponses par thème) ; "
     + "le thème le plus faible d'après les notes (au moins 3 notes par thème).",
-  "Signalements de QCM déposés par les stagiaires de la promo : 2 reçus, 1 traité, 1 en attente.",
+  "Contestations de QCM déposées par les stagiaires de la promo : 2 reçues, 1 traitée, 1 en attente.",
   "Délai moyen entre le dépôt et le traitement : 11 jours.",
   "Registre qualité : non lu (erreur de lecture).",
-], "signalements : le suivi en nombres, les signalements reçus, traités, et le délai de traitement, puis le registre (non lu sans lecture)");
+], "signalements : le suivi en nombres, les contestations de QCM reçues, traitées, et le délai de traitement, puis le registre (non lu sans lecture)");
 eq(section(f, "signalements").tableaux, [], "signalements : aucun tableau sans registre lu");
 const signalements = (liste) => section(formation({ donnees: { ...D, signalements: liste } }), "signalements").paragraphes.slice(1, -1);
-eq(signalements([]), ["Aucun signalement de QCM déposé par les stagiaires de la promo."], "aucun signalement");
+eq(signalements([]), ["Aucune contestation de QCM déposée par les stagiaires de la promo."], "aucune contestation");
 eq(signalements([{ id: 1, created_at: "2026-10-01T10:00:00+00:00", traite_at: null }]),
-  ["Signalements de QCM déposés par les stagiaires de la promo : 1 reçu, 0 traité, 1 en attente.",
-    "Aucun signalement traité pour le moment."], "un seul signalement, encore ouvert");
+  ["Contestations de QCM déposées par les stagiaires de la promo : 1 reçue, 0 traitée, 1 en attente.",
+    "Aucune contestation traitée pour le moment."], "une seule contestation, encore ouverte");
 eq(signalements([
   { id: 1, created_at: "2026-10-01T10:00:00+00:00", traite_at: "2026-10-02T10:00:00+00:00" },
   { id: 2, created_at: "2026-10-01T10:00:00+00:00", traite_at: "2026-10-02T11:00:00+00:00" },
   { id: 3, created_at: "2026-10-01T10:00:00+00:00", traite_at: "2026-10-04T10:00:00+00:00" },
-]), ["Signalements de QCM déposés par les stagiaires de la promo : 3 reçus, 3 traités, 0 en attente.",
+]), ["Contestations de QCM déposées par les stagiaires de la promo : 3 reçues, 3 traitées, 0 en attente.",
   "Délai moyen entre le dépôt et le traitement : 1,7 jour."], "délai moyen : (1 + 1 + 3) / 3 = 1,7 jour, au singulier sous 2");
 eq(signalements([{ id: 1, created_at: "2026-10-01T10:00:00+00:00", traite_at: "2026-10-02T10:00:00+00:00" }]).slice(1),
   ["Délai moyen entre le dépôt et le traitement : 1 jour."], "un jour");
 eq(signalements([{ id: 1, created_at: null, traite_at: "2026-10-02T10:00:00+00:00" }]),
-  ["Signalements de QCM déposés par les stagiaires de la promo : 1 reçu, 1 traité, 0 en attente."],
+  ["Contestations de QCM déposées par les stagiaires de la promo : 1 reçue, 1 traitée, 0 en attente."],
   "traité mais déposé à une date illisible : pas de délai");
 
 // --- Présentation à l'examen
@@ -630,7 +630,7 @@ const c = centre();
 const cSans = centre({ sansNoms: true });
 formeBien(c, "centre");
 formeBien(cSans, "centre sans noms");
-eq(c.titre, "Dossier du centre", "titre");
+eq(c.titre, "Dossier Qualiopi du centre", "titre");
 eq(c.sousTitre, "Montpellier, du 29/10/2025 au 28/10/2026", "sous-titre : le centre et la période");
 eq(c.garde, [
   "Centre : Montpellier",
@@ -689,7 +689,7 @@ eq(entetesDe(c, "ressources"), ["Promo", "Ressources", "Mises à jour"], "ressou
 eq(lignesDe(c, "ressources")[0], [
   "Promo de test",
   "2 cours publiés, 3 QCM ; QCM d'entraînement faits par 2 stagiaires sur 3 en formation (3 tentatives)",
-  "2 cours publiés modifiés du 05/10 au 20/10 (3 modifications) ; 1 signalement de QCM traité le 12/10",
+  "2 cours publiés modifiés du 05/10 au 20/10 (3 modifications) ; 1 contestation de QCM traitée le 12/10",
 ], "ressources : les pièces de l'inventaire de la promo");
 eq(lignesDe(c, "ressources").length, 2, "ressources : une ligne par promo");
 
@@ -709,8 +709,12 @@ ok(section(c, "innovations").paragraphes.slice(2).every((p) => /^\d{2}\/\d{2}\/\
 eq(section(centre({ nouveautes: [] }), "innovations"),
   { id: "innovations", titre: "Innovations", indicateurs: [25], paragraphes: ["Aucune annonce de l'application dans la période."], tableaux: [] },
   "aucune annonce");
+eq(section(centre({ nouveautes: [...NOUVEAUTES, { ...NOUVEAUTE("n", "2026-10-10", "Une barre d'onglets plus simple"), navigation: "ancienne" }] }), "innovations").paragraphes,
+  section(c, "innovations").paragraphes, "une annonce de l'ancienne barre (retirée le 10/11) n'est ni comptée ni citée");
 eq(section(centre({ nouveautes: [...NOUVEAUTES, { ...NOUVEAUTE("n", "2026-10-10", "Une navigation plus simple"), navigation: "nouvelle" }] }), "innovations").paragraphes,
-  section(c, "innovations").paragraphes, "une annonce de la nouvelle barre n'est ni comptée ni citée tant qu'elle est éteinte");
+  ["4 annonces de l'application du 15/09/2026 au 20/10/2026.", INTRO_ANNONCES,
+    "15/09/2026 : « Nouveauté publique a »", ENTREE_B, "10/10/2026 : « Une navigation plus simple »", ENTREE_C],
+  "une annonce de la nouvelle barre est comptée et citée (une seule navigation depuis le 10/11)");
 eq(section(centre({ periode: { du: "2026-10-01", au: "2026-10-20" } }), "innovations").paragraphes,
   ["2 annonces de l'application du 02/10/2026 au 20/10/2026.", INTRO_ANNONCES, ENTREE_B, ENTREE_C], "bornes de la période comprises");
 eq(section(centre({ periode: { du: "2026-10-20", au: "2026-10-28" } }), "innovations").paragraphes,
@@ -747,7 +751,7 @@ eq(entetesDe(c, "amelioration", 0), ["Promo", "Suivi"], "amélioration : suivi")
 eq(lignesDe(c, "amelioration", 0), [
   ["Promo de test", "stagiaires à suivre de près : 1 ; les 2 thèmes les plus faibles d'après les QCM (au moins 20 réponses par thème) ; "
     + "le thème le plus faible d'après les notes (au moins 3 notes par thème)"],
-  ["Promo en cours", "personne ne cumule deux signaux et aucun thème n'a encore assez de réponses ou de notes"],
+  ["Promo en cours", "aucun stagiaire n'est à suivre de près et aucun thème n'a encore assez de réponses ou de notes"],
 ], "amélioration : le suivi de chaque promo en nombres, jamais une liste de personnes");
 eq(entetesDe(c, "amelioration", 1), ["Promo", "Source", "Thème", "Résultat"], "amélioration : thèmes les plus faibles");
 eq(lignesDe(c, "amelioration", 1), [
@@ -1022,7 +1026,7 @@ formeBien(cassee.formationX, "formation (données mal formées)");
 formeBien(cassee.nominatif, "centre (données mal formées)");
 formeBien(cassee.sans, "centre sans noms (données mal formées)");
 eq(lignesDe(cassee.formationX, "effectif", 0).map((l) => l[0]), ["Stagiaire sans nom", "Sans"], "stagiaire sans nom ni prénom : un mot, trié sans erreur");
-ok(lignesDe(cassee.formationX, "deroule", 1).some((l) => l[3] === "formateur n° 77"), "formateur inconnu : son numéro, jamais undefined");
+ok(lignesDe(cassee.formationX, "deroule", 1).some((l) => l[3] === "formateur inconnu"), "formateur absent de la liste : « formateur inconnu », jamais un numéro ni undefined");
 eq(lignesDe(cassee.formationX, "deroule", 0), [["Stage", "02/11/2026", "non renseignée"]],
   "calendrier mal formé : seul l'événement daté d'un type connu est repris (ni sans début, ni de type « toString »)");
 
@@ -1110,7 +1114,7 @@ const reelNominatif = centre({ periode: periodeLarge, nouveautes: NOUVEAUTES_REE
 const reelSans = centre({ periode: periodeLarge, nouveautes: NOUVEAUTES_REELLES, sansNoms: true });
 formeBien(reelNominatif, "centre (vraies annonces)");
 formeBien(reelSans, "centre sans noms (vraies annonces)");
-const datees = NOUVEAUTES_REELLES.filter((x) => x.date && x.navigation !== "nouvelle");   // celles de la nouvelle barre ne sont pas citées tant qu'elle est éteinte
+const datees = NOUVEAUTES_REELLES.filter((x) => x.date && x.navigation !== "ancienne");   // celles de l'ancienne barre (retirée le 10/11) ne sont pas citées
 const jourFr = (jour) => `${jour.slice(8)}/${jour.slice(5, 7)}/${jour.slice(0, 4)}`;
 const joursReels = datees.map((x) => x.date).sort();
 const annoncesReelles = section(reelSans, "innovations").paragraphes;

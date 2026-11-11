@@ -7,8 +7,8 @@
 // rend que les questionnaires ouverts, auxquels la personne a droit et qu'elle n'a pas encore remplis. Liste vide
 // (rien d'ouvert, ou migration pas encore appliquée) : aucun bandeau, aucune erreur.
 
-import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261111a";
-import { lendemain } from "./avis-rules.js?v=20261111a";
+import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261111c";
+import { lendemain } from "./avis-rules.js?v=20261111c";
 
 const FORMAT_JOUR = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -74,10 +74,23 @@ export function questionnaireDuLien({ liste, cle, catalogue = QUESTIONNAIRES }) 
   return questionnairesAffichables(liste, catalogue).find((item) => item.cle === cle) || null;
 }
 
+// Le ton d'un texte propre à un questionnaire : celui de son public (règle du 10/11). Les questionnaires des stagiaires
+// tutoient, celui des formateurs vouvoie ; un questionnaire sans public connu tutoie (les stagiaires sont les plus nombreux).
+export function selonQuestionnaire(questionnaire, tu, vous) {
+  return questionnaire?.public === "formateur" ? vous : tu;
+}
+
 // Phrase sous le titre du bandeau.
 export function sousTitreBandeau(questionnaire) {
   const n = (questionnaire?.questions || []).length;
-  return `${n} questions courtes. Ta réponse est enregistrée sans ton nom.`;
+  return `${n} questions courtes. ${selonQuestionnaire(questionnaire,
+    "Ta réponse est enregistrée sans ton nom.", "Votre réponse est enregistrée sans votre nom.")}`;
+}
+
+// Merci affiché après l'envoi (écran de fin, ou message si la fenêtre a été fermée entre-temps).
+export function merciQuestionnaire(questionnaire) {
+  return selonQuestionnaire(questionnaire,
+    "Merci, ta réponse est enregistrée sans ton nom.", "Merci, votre réponse est enregistrée sans votre nom.");
 }
 
 // Barre de progression : « Question 3 sur 10 » et la part faite, en pour cent (0 sur l'écran d'accueil).

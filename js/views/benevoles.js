@@ -11,10 +11,10 @@ import {
   listBenevoles, addBenevole, updateBenevole, setBenevoleActif,
   listAutoEcoles, addAutoEcole, updateAutoEcole, setAutoEcoleActif, deleteAutoEcole,
   listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires, getPromoCourante,
-} from "../db.js?v=20261111a";
-import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261111a";
-import { confirmer } from "../confirmer.js?v=20261111a";
-import { JOURS } from "../config.js?v=20261111a";
+} from "../db.js?v=20261111c";
+import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261111c";
+import { confirmer } from "../confirmer.js?v=20261111c";
+import { JOURS } from "../config.js?v=20261111c";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [
@@ -251,7 +251,7 @@ function panneau(zone, { fermer = null } = {}) {
 
     if (!actifs.length) {
       zone.appendChild(el("p", { class: "muted bnv-empty" },
-        list.length ? "Personne ne correspond à ce filtre." : "Banque vide. Ajoute un premier bénévole."));
+        list.length ? "Personne ne correspond à ce filtre." : "Banque vide. Ajoutez un premier bénévole."));
     }
     actifs.forEach((b) => {
       const row = el("div", { class: "bnv-row" });
@@ -400,7 +400,7 @@ function panneau(zone, { fermer = null } = {}) {
         el("div", { class: "field" }, el("label", {}, "Référent (qui appeler)"), referentIn)),
       el("div", { class: "bnv-form-2col" },
         el("div", { class: "field" }, el("label", {}, "Téléphone"), telIn),
-        el("div", { class: "field" }, el("label", {}, "Email"), emailIn)),
+        el("div", { class: "field" }, el("label", {}, "E-mail"), emailIn)),
       el("div", { class: "field" }, el("label", {}, "Adresse"), adresseIn),
       el("div", { class: "field" }, el("label", {}, "Notes"), notesIn),
     ));
@@ -461,7 +461,7 @@ function panneau(zone, { fermer = null } = {}) {
     if (a && a.actif !== false) {
       actions.appendChild(el("button", { class: "btn ghost bnv-remove", onClick: async () => {
         if (!(await confirmer({ titre: `Retirer ${a.nom} des partenaires ?`,
-          phrase: "Tu pourras la réactiver ensuite.", oui: "Retirer" }))) return;
+          phrase: "Vous pourrez la réactiver ensuite.", oui: "Retirer" }))) return;
         try { await setAutoEcoleActif(a.id, false); dirty = true; await reload(); render(); }
         catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
       }}, "Retirer"));
@@ -696,7 +696,7 @@ function panneau(zone, { fermer = null } = {}) {
     if (b && b.actif !== false) {
       actions.appendChild(el("button", { class: "btn ghost bnv-remove", onClick: async () => {
         if (!(await confirmer({ titre: `Retirer ${displayStagiaire(b)} de la banque ?`,
-          phrase: "Tu pourras réactiver sa fiche ensuite.", oui: "Retirer de la banque" }))) return;
+          phrase: "Vous pourrez réactiver sa fiche ensuite.", oui: "Retirer de la banque" }))) return;
         try {
           await setBenevoleActif(b.id, false); dirty = true; await reload(); done();
         } catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }

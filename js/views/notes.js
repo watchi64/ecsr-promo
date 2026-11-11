@@ -2,27 +2,27 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listFichesNotesMasquees, getNotesStatsGroupe, getPromoCourante,
-} from "../db.js?v=20261111a";
+} from "../db.js?v=20261111c";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261111a";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261111a";
-import { icon } from "../icons.js?v=20261111a";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace } from "../auth-admin.js?v=20261111a";
-import { litToutesLesNotes } from "../espaces-rules.js?v=20261111a";
-import { recordUndo } from "../undo.js?v=20261111a";
-import { renderSubTabs } from "../subtabs.js?v=20261111a";
-import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261111a";
-import { navigationV2Active } from "../nav-etat.js?v=20261111a";
-import { renderEpcf } from "./epcf.js?v=20261111a";
-import { noteGradient } from "../echelle-notes.js?v=20261111a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111a";
-import { renderSaisie } from "./notes-saisie.js?v=20261111a";
+} from "../notes-stats.js?v=20261111c";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261111c";
+import { icon } from "../icons.js?v=20261111c";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace, selonPublic } from "../auth-admin.js?v=20261111c";
+import { litToutesLesNotes } from "../espaces-rules.js?v=20261111c";
+import { recordUndo } from "../undo.js?v=20261111c";
+import { renderSubTabs } from "../subtabs.js?v=20261111c";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261111c";
+import { navigationV2Active } from "../nav-etat.js?v=20261111c";
+import { renderEpcf } from "./epcf.js?v=20261111c";
+import { noteGradient } from "../echelle-notes.js?v=20261111c";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111c";
+import { renderSaisie } from "./notes-saisie.js?v=20261111c";
 import {
   parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes,
   contexteEtatVide, phraseNoteRefusee, confirmationEffacement,
-} from "../notes-saisie-rules.js?v=20261111a";
-import { confirmer } from "../confirmer.js?v=20261111a";
+} from "../notes-saisie-rules.js?v=20261111c";
+import { confirmer } from "../confirmer.js?v=20261111c";
 
 // Fiches de la promo dont les notes sont masquées (anonymat) : la base ne donne plus aux stagiaires les profils des
 // autres (adresse e-mail comprise), seulement ces numéros de fiche (js/notes-masquees.js).
@@ -360,7 +360,7 @@ function renderTable(container) {
   if (filtered.length === 0) {
     return el("div", { style: "padding:3rem 1rem;text-align:center;color:var(--text-muted)" },
       el("p", {}, "Aucune note enregistrée."),
-      isAdmin() ? el("p", { class: "faint", style: "font-size:0.85rem" }, "Clique sur « Ajouter une note » pour commencer.") : null,
+      isAdmin() ? el("p", { class: "faint", style: "font-size:0.85rem" }, "Cliquez sur « Ajouter une note » pour commencer.") : null,
     );
   }
 
@@ -379,6 +379,9 @@ function renderTable(container) {
   ));
   const tbody = el("tbody");
   filtered.forEach((e) => {
+    // Nom à l'écran : « Lucie M. » (décision du 10/11), lu dans la liste des stagiaires (la jointure ne donne que le prénom).
+    const fiche = stagiaires.find((x) => x.id === e.stagiaire_id);
+    const qui = fiche ? displayName(fiche) : (e.stagiaire?.prenom || null);   // stagiaire en abandon : hors de la liste, le prénom de la jointure
     const noteCell = el("td", {},
       e.note == null
         ? el("span", { class: "muted" }, "-")
@@ -406,7 +409,7 @@ function renderTable(container) {
         class: "btn small danger icon-only", style: "margin-left:0.3rem",
         "aria-label": "Supprimer",
         onClick: async () => {
-          if (!(await confirmer(confirmationEffacement({ qui: e.stagiaire?.prenom || null, note: e, cible: e })))) return;
+          if (!(await confirmer(confirmationEffacement({ qui, note: e, cible: e })))) return;
           await deleteEvaluation(e.id);
           toast("Supprimée", "success");
           await reload(container);
@@ -418,7 +421,7 @@ function renderTable(container) {
 
     tbody.appendChild(el("tr", {},
       el("td", { class: "date" }, formatDate(e.date_eval)),
-      el("td", {}, e.stagiaire?.prenom || "?"),
+      el("td", {}, qui || "Stagiaire inconnu"),
       el("td", {}, el("span", { class: "tag eval-type-" + (e.type === "Thème" ? "theme" : e.type === "Compétence" ? "competence" : "controle") }, e.type)),
       el("td", {}, describeEval(e)),
       noteCell,
@@ -810,7 +813,7 @@ function openStagiaireDetail(stagiaire, themeByNum, container) {
     el("div", { class: "sd-head" },
       el("h3", {}, displayName(stagiaire)),
       el("p", { class: "muted", style: "margin:0;font-size:0.85rem" },
-        admin ? "Clique sur une note pour la modifier." : "Lecture seule."),
+        admin ? "Cliquez sur une note pour la modifier." : "Lecture seule."),
     ),
     buildBody(),
     el("div", { class: "modal-actions" },
@@ -1081,8 +1084,9 @@ function rerender(container) {
   const tactile = v2 && window.matchMedia("(pointer: coarse)").matches;
   const compte = nbLignes + " note" + (nbLignes > 1 ? "s" : "") + " enregistrée" + (nbLignes > 1 ? "s" : "");
   const phrase = admin && tactile
-    ? "Saisis les notes thème par thème, ou touche une case de la matrice."
-    : "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note.";
+    ? "Saisissez les notes thème par thème, ou touchez une case de la matrice."
+    : selonPublic("Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note.",
+      "Tableau matrice : stagiaires × thèmes/compétences. Cliquez sur une cellule pour saisir la note.");
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
@@ -1130,7 +1134,7 @@ function rerender(container) {
       dateInput,
       todayBtn,
       tactile ? null : el("span", { class: "matrice-toolbar-hint muted" },
-        "→ clique une cellule, tape une note (0-20), Entrée valide, Esc annule."
+        "→ cliquez sur une cellule, tapez une note (0-20), Entrée valide, Esc annule."
       ),
     );
   } else {
@@ -1187,14 +1191,18 @@ function rerender(container) {
   const onglets = [
     admin && !laClasse && !dansCentre ? { key: "saisir", label: "Saisir", render: (p) => renderSaisie(p, ctxSaisie) } : null,
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
-    { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
+    // « Évaluations EPCF » : le nom de la partie EPCF sous la nouvelle navigation (lot D du 10/11) ; l'ancienne garde « EPCF ».
+    { key: "epcf", label: v2 ? "Évaluations EPCF" : "EPCF", module: "epcf", render: (p, ctx) => {
         renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive,
           contexte: contexteEtatVide({ classe: false, admin, personnel: formateurConnecte() || dansCentre }) })
           .catch((e) => {
             console.error(e);
             if (!ctx || ctx.isActive()) {
               clear(p);
-              p.appendChild(el("p", { class: "muted" }, "Erreur de chargement de l'espace EPCF. Reviens sur l'onglet pour réessayer."));
+              // L'onglet est aussi celui des stagiaires sous l'ancienne navigation.
+              p.appendChild(el("p", { class: "muted" }, selonPublic(
+                "Erreur de chargement des évaluations EPCF. Reviens sur l'onglet pour réessayer.",
+                "Erreur de chargement des évaluations EPCF. Revenez sur l'onglet pour réessayer.")));
             }
           });
       } },
@@ -1227,7 +1235,9 @@ function sectionMoyennesEpcf(contexte) {
     .catch((e) => {
       console.error(e);
       clear(section);
-      section.appendChild(el("p", { class: "muted" }, "Erreur de chargement des moyennes EPCF de la classe. Recharge la page pour réessayer."));
+      section.appendChild(el("p", { class: "muted" }, selonPublic(
+        "Erreur de chargement des moyennes EPCF de la classe. Recharge la page pour réessayer.",
+        "Erreur de chargement des moyennes EPCF de la classe. Rechargez la page pour réessayer.")));
     });
   return section;
 }
@@ -1305,7 +1315,7 @@ function renderSynthese() {
   wrap.appendChild(el("div", { class: "notes-rankings" },
     el("div", { class: "ranking-block" },
       el("h4", { class: "ranking-title weak" }, "3 thèmes les plus faibles"),
-      el("p", { class: "muted ranking-sub" }, "À retravailler en priorité"),
+      el("p", { class: "muted ranking-sub" }, "Les moyennes les plus basses"),
       ...weak.map(themeCard),
     ),
     el("div", { class: "ranking-block" },

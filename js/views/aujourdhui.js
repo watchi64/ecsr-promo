@@ -8,25 +8,25 @@
  */
 import {
   getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre,
-} from "../db.js?v=20261111a";
-import { el, clear, displayStagiaire } from "../utils.js?v=20261111a";
-import { icon } from "../icons.js?v=20261111a";
-import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261111a";
-import { libelleConnexion } from "../roles-rules.js?v=20261111a";
-import { emargementActif } from "../emargement-etat.js?v=20261111a";
-import { lignePromo } from "../accueil-rules.js?v=20261111a";
-import { journeeDuJour } from "../journee-rules.js?v=20261111a";
-import { indicateursPromo } from "../centre-stats.js?v=20261111a";
-import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261111a";
-import { signerSeance } from "../emargement-bandeau.js?v=20261111a";
-import { chargerATraiter } from "../a-traiter.js?v=20261111a";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111a";
+} from "../db.js?v=20261111c";
+import { el, clear, displayStagiaire } from "../utils.js?v=20261111c";
+import { icon } from "../icons.js?v=20261111c";
+import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261111c";
+import { libelleConnexion } from "../roles-rules.js?v=20261111c";
+import { emargementActif } from "../emargement-etat.js?v=20261111c";
+import { lignePromo } from "../accueil-rules.js?v=20261111c";
+import { journeeDuJour } from "../journee-rules.js?v=20261111c";
+import { indicateursPromo } from "../centre-stats.js?v=20261111c";
+import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261111c";
+import { signerSeance } from "../emargement-bandeau.js?v=20261111c";
+import { chargerATraiter } from "../a-traiter.js?v=20261111c";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111c";
 import {
   titreSelonDemis, auTableauDuJour, enVoitureDuJour, feuilleDuJour, lignesATraiter, ligneDeLEnTete,
-} from "../aujourdhui-rules.js?v=20261111a";
+} from "../aujourdhui-rules.js?v=20261111c";
 import {
   carte, plusLien, ligneLien, erreurAvecReessai, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
-} from "./pages-cartes.js?v=20261111a";
+} from "./pages-cartes.js?v=20261111c";
 
 const RELECTURE_SEANCES_MS = 60000;
 const NB_A_SUIVRE = 5;
@@ -134,14 +134,15 @@ async function chargerEmargement(carteEm, jour, indexJour, semaine, moi) {
 
 // === À traiter ===
 
-const ICONE_A_TRAITER = { signalements: "signaler", ia: "quiz" };
+// Le drapeau des questions contestées, pas l'icône de « Signaler un problème » (problèmes de l'app) : deux familles, deux icônes.
+const ICONE_A_TRAITER = { signalements: "drapeau", ia: "quiz" };
 
 async function chargerATraiterCarte(corps) {
   const comptes = await chargerATraiter();   // ne rejette jamais ; un compte illisible vaut null
   if (!corps.isConnected) return;
   const lignes = lignesATraiter(comptes);
   const illisibles = [
-    comptes.signalements == null ? "Le décompte des signalements n'a pas pu être lu." : null,
+    comptes.signalements == null ? "Le décompte des questions contestées n'a pas pu être lu." : null,
     comptes.propositionsIA == null ? "Le décompte des questions proposées par l'IA n'a pas pu être lu." : null,
   ].filter(Boolean);
   clear(corps);
@@ -149,7 +150,7 @@ async function chargerATraiterCarte(corps) {
     corps.appendChild(el("div", { class: "acc-lignes" },
       ...lignes.map((l) => ligneLien({ route: "themes", sousOnglet: l.sousOnglet, ico: ICONE_A_TRAITER[l.cle], titre: l.titre }))));
     // Un compte lu n'efface pas la panne de l'autre : sans cette ligne, « 2 questions proposées par l'IA » laisserait croire
-    // qu'aucun signalement n'attend, alors que sa lecture a échoué.
+    // qu'aucune question contestée n'attend, alors que sa lecture a échoué.
     illisibles.forEach((t) => corps.appendChild(el("p", { class: "acc-erreur", role: "alert" }, t)));
     return;
   }
@@ -232,11 +233,11 @@ async function chargerASuivre(corps, jour, promoId) {
     ind = indicateursPromo(donnees, referentiel, { aujourdhui: jour });
   } catch (e) {
     console.error("Aujourd'hui : indicateurs illisibles", e);
-    if (corps.isConnected) dire(corps, "Les indicateurs n'ont pas pu être lus. Recharge la page pour réessayer.", "acc-erreur");
+    if (corps.isConnected) dire(corps, "Les indicateurs n'ont pas pu être lus. Rechargez la page pour réessayer.", "acc-erreur");
     return;
   }
   if (!corps.isConnected) return;
-  if (!ind.aSuivre.length) { dire(corps, "Personne ne cumule deux signaux."); return; }
+  if (!ind.aSuivre.length) { dire(corps, "Aucun stagiaire à suivre de près pour l'instant."); return; }
   clear(corps);
   corps.appendChild(el("div", { class: "acc-lignes" },
     ...ind.aSuivre.slice(0, NB_A_SUIVRE).map((x) => ligneLien({
@@ -271,7 +272,7 @@ export function renderAujourdhui(container) {
   container.appendChild(bandeauQuestionnaire());
 
   // Émargement et À traiter : les formateurs de la promo seulement (isAdmin, « écrit comme un formateur »), les mêmes
-  // conditions que l'entrée Émargement de la barre et que les sous-onglets Signalements et Propositions IA. La direction
+  // conditions que l'entrée Émargement de la barre et que les sous-onglets Questions contestées et Propositions IA. La direction
   // et le siège lisent la page sans ces deux cartes : elles mèneraient à des pages qui ne sont pas pour eux.
   const avecFeuille = emargementActif() && isAdmin();
   const avecATraiter = isAdmin();
@@ -289,7 +290,7 @@ export function renderAujourdhui(container) {
   // Pied de page : celui de l'Accueil d'avant, pour l'équipe.
   const nomPromo = promo?.nom || "";
   container.appendChild(el("footer", { class: "home-footer-v2" },
-    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" }, "connecté comme " + (libelleConnexion({ profil: getProfile(), promo, apercu: getViewAs() }) || "formateur"))),
+    el("p", {}, "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : ""), el("span", { class: "footer-role" }, "connecté en tant que " + (libelleConnexion({ profil: getProfile(), promo, apercu: getViewAs() }) || "formateur"))),
     // Plus de lien « code source » : décision de Timy du 09/11, le code reste discret.
     el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
       el("a", { href: "#/config" }, "réglages")),

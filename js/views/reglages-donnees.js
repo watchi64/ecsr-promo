@@ -7,15 +7,15 @@
 
 import {
   getMesPromos, etatAnonymisationPromoDe, anonymiserPromoDe, listBenevolesAPurgerDuCentre, purgerBenevolesDuCentre,
-} from "../db.js?v=20261111a";
-import { el, clear, toast } from "../utils.js?v=20261111a";
-import { icon } from "../icons.js?v=20261111a";
-import { demander, confirmer } from "../confirmer.js?v=20261111a";
-import { promosDuCentre } from "../espaces-rules.js?v=20261111a";
+} from "../db.js?v=20261111c";
+import { el, clear, toast } from "../utils.js?v=20261111c";
+import { icon } from "../icons.js?v=20261111c";
+import { demander, confirmer } from "../confirmer.js?v=20261111c";
+import { promosDuCentre } from "../espaces-rules.js?v=20261111c";
 import {
   dateCourte, lignesDonneesCentre, questionAnonymiserPromo, questionPurgerBenevoles, phraseAnonymises, phrasePurges,
   phraseDePanne, phraseDEffacement, PHRASE_SANS_PROMO_CENTRE, PHRASE_SANS_BENEVOLE,
-} from "../effacement-rules.js?v=20261111a";
+} from "../effacement-rules.js?v=20261111c";
 
 function boiteErreur(phrase, reessayer) {
   return el("div", { class: "centre-erreur", role: "alert" },

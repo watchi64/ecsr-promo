@@ -1,7 +1,8 @@
 // Page Qualiopi (spec docs/superpowers/specs/2026-10-28-dossier-qualiopi-design.md, § 6.3). Réservée au fondateur (porte
 // dans main.js), sans entrée de barre : on y arrive par le bouton « Qualiopi » du tableau de bord du centre. Elle montre
-// l'inventaire d'une promo indicateur par indicateur, et lance les sorties : dossier de la formation, dossier du centre (avec
-// ou sans noms), tableau CSV, fiche des résultats à publier (imprimée ou copiée en texte). Les calculs vivent dans
+// l'inventaire d'une promo indicateur par indicateur, et lance les sorties : dossier Qualiopi de la formation, dossier Qualiopi
+// du centre (avec ou sans noms), tableau pour Excel (CSV), fiche des résultats à publier (imprimée ou copiée en texte). Page de
+// l'équipe : ses textes vouvoient (règle du 10/11) ; les documents imprimés restent impersonnels. Les calculs vivent dans
 // js/qualiopi-preuves.js (inventaire), js/qualiopi-documents.js (modèles des dossiers, CSV), js/qualiopi-resultats.js (fiche des
 // résultats) et js/qualiopi-page-rules.js (dates, choix des promos) : ici, seulement l'affichage, la lecture des données et
 // l'impression.
@@ -30,31 +31,31 @@
 import {
   lireDonneesQualiopi, lireReferentielCentre, getMesPromos, getPromoCourante,
   lireResultatsQuestionnaire, lireCommentairesQuestionnaire, lireOuverturesQuestionnaires, ouvrirQuestionnaire, lireRegistreQualite,
-} from "../db.js?v=20261111a";
-import { el, clear, isoDate, toast } from "../utils.js?v=20261111a";
-import { indicateursPromo } from "../centre-stats.js?v=20261111a";
-import { inventairePromo, nb, tableau, satisfactionDe } from "../qualiopi-preuves.js?v=20261111a";
+} from "../db.js?v=20261111c";
+import { el, clear, isoDate, toast } from "../utils.js?v=20261111c";
+import { indicateursPromo } from "../centre-stats.js?v=20261111c";
+import { inventairePromo, nb, tableau, satisfactionDe } from "../qualiopi-preuves.js?v=20261111c";
 import {
   modeleDossierFormation, modeleDossierCentre, inventaireCsv, nomFichierQualiopi, periodeEnMots, LIBELLES_NIVEAU, PHRASE_NIVEAU, PHRASE_DE_GARDE,
-} from "../qualiopi-documents.js?v=20261111a";
+} from "../qualiopi-documents.js?v=20261111c";
 import {
   REFERENTIEL_APPLIQUE, REFERENTIEL_DU, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, groupesParCritere,
   titreImpression,
-} from "../qualiopi-page-rules.js?v=20261111a";
+} from "../qualiopi-page-rules.js?v=20261111c";
 import {
   ficheResultats, fichesResultatsTexte, tableauFiche, copierTexte, noteProvisoire, promoTerminee, AUCUNE_FORMATION,
-} from "../qualiopi-resultats.js?v=20261111a";
-import { NOUVEAUTES } from "../nouveautes-data.js?v=20261111a";
-import { telecharger } from "./centre.js?v=20261111a";
-import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261111a";
+} from "../qualiopi-resultats.js?v=20261111c";
+import { NOUVEAUTES } from "../nouveautes-data.js?v=20261111c";
+import { telecharger } from "./centre.js?v=20261111c";
+import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261111c";
 import {
   QUESTIONNAIRES_GESTION, porteeGestion, anneesFormateur, libellePorteeFormateur, ouvertureDe, etatOuverture, actionsOuverture,
   messageOuverture, questionnairesAbsents, resumeReponses, satisfactionGlobale, lignesResultats, commentairesMontrables,
   messageLectureGestion, messageEchecOuverture, jourParis,
-} from "../questionnaires-gestion-rules.js?v=20261111a";
-import { renderSubTabs } from "../subtabs.js?v=20261111a";
-import { aEffacer, aClore } from "../registre-rules.js?v=20261111a";
-import { renderRegistreQualite } from "./registre-qualite.js?v=20261111a";
+} from "../questionnaires-gestion-rules.js?v=20261111c";
+import { renderSubTabs } from "../subtabs.js?v=20261111c";
+import { aEffacer, aClore } from "../registre-rules.js?v=20261111c";
+import { renderRegistreQualite } from "./registre-qualite.js?v=20261111c";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
@@ -453,7 +454,7 @@ export async function renderQualiopi(container) {
     // sans rien changer, et on le dit.
     if (jourParis(new Date()) !== qq.jour) {
       statutsQq.clear();
-      statutsQq.set(cle, { texte: "Le jour a changé depuis l'affichage : l'état vient d'être relu, vérifie-le avant d'agir.", erreur: true });
+      statutsQq.set(cle, { texte: "Le jour a changé depuis l'affichage : l'état vient d'être relu, vérifiez-le avant d'agir.", erreur: true });
       annoncer(statutsQq.get(cle).texte);
       await chargerQuestionnaires(promo, `button[data-cle="${cle}"]`);
       return;
@@ -562,7 +563,7 @@ export async function renderQualiopi(container) {
         corpsCarte.push(textes.length
           ? repliable(el("details", { class: "qq-details qualiopi-commentaires" },
             el("summary", {}, `Commentaires (${textes.length})`),
-            el("p", { class: "qq-aide" }, "Dans un ordre tiré au hasard. Visibles par toi seul, jamais dans les documents."),
+            el("p", { class: "qq-aide" }, "Dans un ordre tiré au hasard. Visibles par vous seul, jamais dans les documents."),
             el("ul", { class: "qq-commentaires" }, ...textes.map((t) => el("li", {}, t)))), "qq-commentaires-" + cle, ouverts)
           : el("p", { class: "qq-aide qualiopi-commentaires" }, "Aucun commentaire écrit."));
       }
@@ -599,7 +600,7 @@ export async function renderQualiopi(container) {
     zoneCriteres.append(...[
       el("h3", { class: "qualiopi-titre" }, "Les critères du référentiel"),
       el("p", { class: "qualiopi-intro" },
-        "Ouvre un critère pour voir ses indicateurs : le niveau de preuve que l'app apporte, les pièces qu'elle a (présentes ou "
+        "Ouvrez un critère pour voir ses indicateurs : le niveau de preuve que l'app apporte, les pièces qu'elle a (présentes ou "
         + "absentes pour cette promo) et celles que le centre fournit lui-même."),
       el("p", { class: "qualiopi-intro qualiopi-legende-niveau" }, PHRASE_NIVEAU),
       ...groupesParCritere(etat.inv).map((groupe) => blocCritere(groupe, ouverts)),
@@ -633,7 +634,7 @@ export async function renderQualiopi(container) {
       imprimerQualiopi(documentImprimable(modele), titreImpression("dossier-formation", promo.nom, aujourdhui));
     } catch (e) {
       console.error(e);
-      ecrireStatut("Le dossier de la formation n'a pas pu être préparé. Recharge la page, puis réessaie.", true);
+      ecrireStatut("Le dossier Qualiopi de la formation n'a pas pu être préparé. Rechargez la page, puis réessayez.", true);
     }
   }
 
@@ -645,7 +646,7 @@ export async function renderQualiopi(container) {
       toast("Tableau téléchargé", "success");
     } catch (e) {
       console.error(e);
-      ecrireStatut("Le tableau n'a pas pu être téléchargé. Recharge la page, puis réessaie.", true);
+      ecrireStatut("Le tableau n'a pas pu être téléchargé. Rechargez la page, puis réessayez.", true);
     }
   }
 
@@ -662,7 +663,7 @@ export async function renderQualiopi(container) {
         donnees = await lire(p.id);
       } catch (e) {
         console.error(e);
-        if (actionVivante(moi)) ecrireStatut(`La promo « ${nomPromo(p)} » n'a pas pu être lue : ${quoi}. Réessaie dans un instant.`, true);
+        if (actionVivante(moi)) ecrireStatut(`La promo « ${nomPromo(p)} » n'a pas pu être lue : ${quoi}. Réessayez dans un instant.`, true);
         return null;
       }
       if (!actionVivante(moi)) return null;
@@ -678,7 +679,7 @@ export async function renderQualiopi(container) {
     const { periode, retenues } = promosEtPeriodeDuCentre();
     bloquerBoutons(true);
     try {
-      const promosLues = await lirePromosDuCentre(moi, retenues, "le dossier du centre n'est pas préparé", (p, donnees) => ({
+      const promosLues = await lirePromosDuCentre(moi, retenues, "le dossier Qualiopi du centre n'est pas préparé", (p, donnees) => ({
         promo: p,
         donnees,
         inv: inventairePromo({ ...donnees, registre }, referentiel, { promo: p, aujourdhui, alternance, nouveautes: NOUVEAUTES }),
@@ -690,7 +691,7 @@ export async function renderQualiopi(container) {
       imprimerQualiopi(documentImprimable(modele), titreImpression(sansNoms ? "dossier-centre-sans-noms" : "dossier-centre", promo.lieu_nom, aujourdhui));
     } catch (e) {
       console.error(e);
-      if (actionVivante(moi)) ecrireStatut("Le dossier du centre n'a pas pu être préparé. Recharge la page, puis réessaie.", true);
+      if (actionVivante(moi)) ecrireStatut("Le dossier Qualiopi du centre n'a pas pu être préparé. Rechargez la page, puis réessayez.", true);
     } finally {
       if (actionVivante(moi)) bloquerBoutons(false);
     }
@@ -739,7 +740,7 @@ export async function renderQualiopi(container) {
       }
     } catch (e) {
       console.error(e);
-      if (actionVivante(moi)) ecrireStatut("La fiche des résultats n'a pas pu être préparée. Recharge la page, puis réessaie.", true);
+      if (actionVivante(moi)) ecrireStatut("La fiche des résultats n'a pas pu être préparée. Rechargez la page, puis réessayez.", true);
     } finally {
       if (actionVivante(moi)) bloquerBoutons(false);
     }
@@ -756,9 +757,9 @@ export async function renderQualiopi(container) {
     // Les commentaires des questionnaires suivent la case : masqués dès qu'elle est cochée.
     caseSansNom.addEventListener("change", () => { if (qq.lu?.cartes) afficherQuestionnaires(); });
     const bouton = (texte, onClick, classe = "btn") => el("button", { class: classe, type: "button", onClick }, texte);
-    const boutonFormation = bouton("Dossier de la formation", dossierFormation, "btn primary");
-    const boutonTableau = bouton("Tableau (CSV)", tableauCsv);
-    const boutonCentre = bouton("Dossier du centre", () => dossierCentre(etat.sansNoms), "btn primary");
+    const boutonFormation = bouton("Dossier Qualiopi de la formation", dossierFormation, "btn primary");
+    const boutonTableau = bouton("Tableau pour Excel (CSV)", tableauCsv);
+    const boutonCentre = bouton("Dossier Qualiopi du centre", () => dossierCentre(etat.sansNoms), "btn primary");
     const boutonFicheFormation = bouton("Fiche résultats", () => sortirFiches("formation", "imprimer"));
     const boutonCopieFormation = bouton("Copier le texte", () => sortirFiches("formation", "copier"));
     const boutonFicheCentre = bouton("Fiche résultats", () => sortirFiches("centre", "imprimer"));

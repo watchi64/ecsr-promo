@@ -5,13 +5,13 @@
 // d'ordre (centres par nom, démonstration en dernier) vivent dans js/siege-rules.js. Aucune donnée de stagiaire n'est lue ici.
 // Les fenêtres sont celles de la page Équipe de la direction (ouvrirFenetre).
 
-import { lireLieuxDuReseau, lireDirectionsDuReseau, retirerAffectation, creerCentre, inviteUser } from "../db.js?v=20261111a";
-import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261111a";
-import { icon } from "../icons.js?v=20261111a";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261111a";
-import { messageInvitationReussie } from "../roles-rules.js?v=20261111a";
-import { directionsParCentre } from "../siege-rules.js?v=20261111a";
-import { ouvrirFenetre } from "./direction-equipe.js?v=20261111a";
+import { lireLieuxDuReseau, lireDirectionsDuReseau, retirerAffectation, creerCentre, inviteUser } from "../db.js?v=20261111c";
+import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261111c";
+import { icon } from "../icons.js?v=20261111c";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261111c";
+import { messageInvitationReussie } from "../roles-rules.js?v=20261111c";
+import { directionsParCentre } from "../siege-rules.js?v=20261111c";
+import { ouvrirFenetre } from "./direction-equipe.js?v=20261111c";
 
 const entier = (x) => Number(x).toLocaleString("fr-FR");
 const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
@@ -84,7 +84,7 @@ export function ouvrirAjoutCentre({ ancre, apres }) {
   const champNom = el("input", { type: "text", id: "centre-nom", autocomplete: "off", maxlength: "120", placeholder: "Nom du centre" });
   ouvrirFenetre({
     titre: "Ajouter un centre",
-    intro: "Le centre est créé sans promo. Tu pourras ensuite inviter sa direction.",
+    intro: "Le centre est créé sans promo. Vous pourrez ensuite inviter sa direction.",
     corps: [el("div", { class: "field" }, el("label", { for: "centre-nom" }, "Nom du centre"), champNom)],
     ancre, libelleBouton: "Ajouter", premierChamp: () => champNom,
     apresFermeture: () => { if (ouvrirSuite) ouvrirSuite(); },
@@ -104,7 +104,7 @@ export function ouvrirAjoutCentre({ ancre, apres }) {
       await apres();
       ouvrirSuite = () => ouvrirInvitationDirection({
         lieux, lieuId: id, ancre,
-        intro: `${v.nom} est créé. Invite sa direction, ou ferme cette fenêtre pour le faire plus tard.`,
+        intro: `${v.nom} est créé. Invitez sa direction, ou fermez cette fenêtre pour le faire plus tard.`,
         apres,
       });
     },
@@ -193,7 +193,7 @@ export async function renderDirections(container) {
   if (!centres.length) {
     racine.appendChild(el("div", { class: "centre-section centre-vide" },
       el("p", {}, PHRASE_SANS_CENTRE),
-      el("p", { class: "muted" }, "Ajoute un centre, puis invite sa direction.")));
+      el("p", { class: "muted" }, "Ajoutez un centre, puis invitez sa direction.")));
     return;
   }
   for (const c of centres) racine.appendChild(sectionCentre(c, lieux, apres));

@@ -26,8 +26,7 @@ def emargement_du_jour(v):
 
 
 @parcours("indicateurs-du-centre", "Voir les indicateurs (tableau de bord du centre)", role="formateur", budget=UN_CLIC,
-          banc={"centre": "1", "demo": "1"},
-          semis=("FIXTURES.settings.push({ key: 'navigation_v2', value: String(PARAMS_BANC.get('nav2') === '1'), promo_id: 7 });",))
+          banc={"centre": "1", "demo": "1"})
 def indicateurs(v):
     """Ouvrir Indicateurs (tableau de bord du centre) sur la promo de démonstration : chiffres et sections."""
     v.aller("Indicateurs")
@@ -63,10 +62,10 @@ def signaler_formateur(v):
 @parcours("problemes-signales", "Lire les problèmes signalés (fondateur)", role="fondateur", budget={"ordinateur": 2, "telephone": 3},
           banc={"signalements": "1"})
 def problemes_signales(v):
-    """Le fondateur ouvre « Signaler un problème », puis « Ouvrir » : la liste des signalements reçus."""
+    """Le fondateur ouvre « Signaler un problème », puis « Voir les problèmes signalés » : la liste des problèmes signalés reçus."""
     v.aller("Signaler un problème")
     v.etape("ouvrir les problèmes signalés")
-    v.toucher("a.sg-fondateur-lien", "« Ouvrir » (problèmes signalés)")
+    v.toucher("a.sg-fondateur-lien", "« Voir les problèmes signalés »")
     v.attendre("#view button:has-text(\"À traiter\")", "la liste des problèmes signalés")
     v.but("problèmes signalés affichés")
     v.terminer()
@@ -98,20 +97,20 @@ def aujourdhui(v):
 @parcours("traiter-un-signalement", "Traiter un signalement de QCM (depuis Aujourd'hui)", role="formateur", budget=3,
           navigations=NOUVELLE, banc={"signalements": "1"})
 def traiter_un_signalement(v):
-    """« Aujourd'hui », la ligne des signalements de « À traiter », puis « Corrigé » : un message confirme le
-    classement."""
+    """« Aujourd'hui », la ligne des questions contestées de « À traiter », puis « Question corrigée » : un message
+    confirme le classement (noms du lot D, 10/11 : « Questions contestées », « Question corrigée », « Pas d'erreur »)."""
     v.aller("Aujourd'hui")
-    v.etape("toucher la ligne des signalements")
-    v.toucher("#view a.acc-ligne:has-text(\"signalement\")", "la ligne des signalements de « À traiter »")
-    v.attendre("#view .qcm-signal-item", "la liste des signalements")
-    v.etape("classer le premier : « Corrigé »")
+    v.etape("toucher la ligne des questions contestées")
+    v.toucher("#view a.acc-ligne:has-text(\"contestée\")", "la ligne des questions contestées de « À traiter »")
+    v.attendre("#view .qcm-signal-item", "la liste des questions contestées")
+    v.etape("classer la première : « Question corrigée »")
     v.ecouter_messages()
-    v.toucher("#view .qcm-signal-item button:has-text(\"Corrigé\")", "« Corrigé »", ecriture=True)
+    v.toucher("#view .qcm-signal-item button:text-is(\"Question corrigée\")", "« Question corrigée »", ecriture=True)
     # Le faux Supabase du banc ne garde pas le nouveau statut (la liste relue reste la même) : on juge la
     # confirmation, pas la liste. En ligne, le signalement classé quitte la liste des ouverts. Le banc (?signalements=1)
     # annonce aussi au démarrage qu'un signalement de l'app a avancé : ce message peut remplacer la confirmation.
-    v.exiger_confirmation("« Corrigé »", "classé comme corrigé")
-    v.but("signalement classé")
+    v.exiger_confirmation("« Question corrigée »", "Contestation classée : question corrigée")
+    v.but("contestation classée")
     v.terminer()
 
 
@@ -329,13 +328,13 @@ def saisir_puis_retour(v):
 @parcours("ouvrir-un-examen", "Ouvrir un examen depuis la liste des thèmes", role="formateur",
           budget={"ordinateur": 3, "telephone": 4}, navigations=NOUVELLE)
 def ouvrir_un_examen(v):
-    """Cours et QCM, « Ouvrir l'examen » sur la ligne du thème 23 (son QCM est fermé au banc), puis « 1 heure » : un
+    """Cours et QCM, « Ouvrir l'examen aux stagiaires » sur la ligne du thème 23 (son QCM est fermé au banc), puis « 1 heure » : un
     message confirme et la ligne dit « Ouvert jusqu'à … ». Puis « Fermer l'examen », confirmé dans la fenêtre de l'app :
     « Examen fermé »."""
     v.aller("Cours et QCM")
     ligne = '#view .theme-row[data-id="2"]'
     v.etape("ouvrir l'examen du thème 23")
-    v.toucher(ligne + " button.examen-ouvrir", "« Ouvrir l'examen » du thème 23")
+    v.toucher(ligne + " button.examen-ouvrir", "« Ouvrir l'examen aux stagiaires » du thème 23")
     v.ecouter_messages()
     v.toucher(texte("1 heure", ".modal button"), "« 1 heure »", ecriture=True)
     v.exiger_confirmation("l'ouverture de l'examen", "Examen ouvert")
@@ -358,8 +357,8 @@ def evaluer_depuis_l_epcf_vide(v):
     v.page.evaluate("() => { try { localStorage.setItem('stagiaires.subtab', 'benevoles'); } catch (e) { /* stockage bloqué */ } }")
     v.aller("Notes et examens")
     carte = "#view .epcf-vide"
-    v.etape("ouvrir le sous-onglet « EPCF »")
-    v.toucher(texte("EPCF", SOUS_ONGLET), "« EPCF »")
+    v.etape("ouvrir le sous-onglet « Évaluations EPCF »")
+    v.toucher(texte("Évaluations EPCF", SOUS_ONGLET), "« Évaluations EPCF »")
     v.attendre(carte, "la carte des moyennes EPCF vides")
     v.etape("évaluer un stagiaire")
     v.toucher(texte("Évaluer un stagiaire", carte + " a"), "« Évaluer un stagiaire »")
@@ -374,18 +373,17 @@ def evaluer_depuis_l_epcf_vide(v):
 # Le faux Supabase simule la table `registre_qualite` (`_harness_supabase.js`, `?registre=1` : six entrées dont une
 # issue du signalement 101 et deux closes depuis plus de 3 ans). Le tableau de bord du centre (`centre=1&demo=1`)
 # porte le lien « Qualiopi ». L'export est un téléchargement, que le robot ne gère pas : il vérifie seulement que
-# « Exporter (CSV) » est présent et actif (le contenu du fichier est prouvé par les tests de `registreCsv`).
+# « Exporter en tableau (CSV) » est présent et actif (le contenu du fichier est prouvé par les tests de `registreCsv`).
 FENETRE_REGISTRE = ".registre-fenetre"
 CARTES_REGISTRE = "#view .rg-cartes .rg-carte"
 BANC_REGISTRE = {"registre": "1", "centre": "1"}
-SEMIS_NAV2 = ("FIXTURES.settings.push({ key: 'navigation_v2', value: String(PARAMS_BANC.get('nav2') === '1'), promo_id: 7 });",)
 
 
 @parcours("registre-qualite", "Tenir le registre qualité : filtrer les entrées closes, ajouter une amélioration (fondateur)",
-          role="fondateur", budget={"ordinateur": 4, "telephone": 4}, banc=BANC_REGISTRE, semis=SEMIS_NAV2)
+          role="fondateur", budget={"ordinateur": 4, "telephone": 4}, banc=BANC_REGISTRE)
 def registre_qualite(v):
     """Indicateurs, « Qualiopi », sous-onglet « Registre qualité » : les entrées en cartes ; le filtre « Clos » ne garde que
-    les closes ; « Exporter (CSV) » est actif ; « Ajouter » ouvre la fenêtre de saisie (rappel violences compris), une
+    les closes ; « Exporter en tableau (CSV) » est actif ; « Ajouter » ouvre la fenêtre de saisie (rappel violences compris), une
     amélioration enregistrée apparaît dans la liste."""
     v.aller("Qualiopi")
     v.etape("ouvrir le sous-onglet « Registre qualité »")
@@ -397,9 +395,9 @@ def registre_qualite(v):
         v.echec("le registre du banc devrait montrer au moins 5 entrées, il en montre %d" % total)
     if "à effacer" not in v.texte(".qualiopi-rappel-registre"):
         v.constat("F", LISTE, "le rappel en tête de la page Qualiopi ne signale pas les entrées closes depuis plus de 3 ans", capture=True)
-    exporter = v.attendre('#view button[data-rg="exporter"]', "« Exporter (CSV) »")
+    exporter = v.attendre('#view button[data-rg="exporter"]', "« Exporter en tableau (CSV) »")
     if exporter.is_disabled():
-        v.constat("E", BLOQUE, "« Exporter (CSV) » est inactif alors que le registre a des entrées", capture=True)
+        v.constat("E", BLOQUE, "« Exporter en tableau (CSV) » est inactif alors que le registre a des entrées", capture=True)
     v.etape("filtrer sur « Clos »")
     v.toucher('#view button.rg-filtre[data-etat="clos"]', "le filtre « Clos »", compte=False)
     etats = v.page.locator("#view .rg-cartes .rg-carte-etat").all_inner_texts()
@@ -430,11 +428,11 @@ def registre_qualite(v):
 @parcours("ajouter-au-registre", "Verser un problème signalé au registre qualité (fondateur)", role="fondateur",
           budget={"ordinateur": 3, "telephone": 3}, banc={"signalements": "1", "registre": "1"})
 def ajouter_au_registre(v):
-    """« Signaler un problème », « Ouvrir » : sur un signalement pas encore au registre, « Ajouter au registre » ouvre la
+    """« Signaler un problème », « Voir les problèmes signalés » : sur un signalement pas encore au registre, « Ajouter au registre » ouvre la
     fenêtre préremplie ; « Enregistrer » la referme, un message confirme et le bouton devient « Au registre » (inactif)."""
     v.aller("Signaler un problème")
     v.etape("ouvrir les problèmes signalés")
-    v.toucher("a.sg-fondateur-lien", "« Ouvrir » (problèmes signalés)")
+    v.toucher("a.sg-fondateur-lien", "« Voir les problèmes signalés »")
     bouton = '#view button[data-sg="registre"]:not([aria-disabled="true"])'
     v.attendre(bouton, "« Ajouter au registre » sur un signalement")
     v.but("signalements affichés, avec « Ajouter au registre »")
@@ -452,7 +450,7 @@ def ajouter_au_registre(v):
 
 
 @parcours("qualiopi-absent-pour-le-formateur", "Qualiopi n'existe pas pour un formateur", role="formateur", budget={"ordinateur": 2, "telephone": 2},
-          banc={"centre": "1", "registre": "1", "signalements": "1"}, semis=SEMIS_NAV2)
+          banc={"centre": "1", "registre": "1", "signalements": "1"})
 def qualiopi_absent_formateur(v):
     """Indicateurs : le bouton « Qualiopi » n'y est pas ; l'adresse #/qualiopi tapée à la main ramène à l'accueil, sans
     registre."""
