@@ -65,6 +65,30 @@ export const NOUVEAUTES = [
           + "ajouter un à un autre centre, affichez d'abord une de ses promos.",
     ou: { label: "Cours et QCM, Documents", route: "ressources" },
   },
+  // Refonte de l'Ordre de passage et des Résultats (maquettes choisies par Timy le 11/11) : une carte par public. Placées après la conservation, qui reste la
+  // carte du jour de l'équipe.
+  {
+    id: "2026-11-11-ordre-passage-resultats-stagiaires",
+    date: "2026-11-11",
+    pour: "stagiaires",
+    titre: "Tes résultats et ta place dans l'ordre de passage, en un coup d'œil",
+    resume: "Dans Mon suivi, Résultats commence par ta moyenne, son évolution sur un mois et la moyenne du groupe, puis "
+          + "ta courbe, tes points forts et les sujets à retravailler. Dans le Planning, Ordre de passage te dit si tu es à "
+          + "jour en salle et en voiture, et quand tu passes la prochaine fois. Tu n'y vois plus le retard des autres.",
+    ou: { label: "Mon suivi, Résultats", route: "mon-suivi", sousOnglet: "resultats" },
+  },
+  {
+    id: "2026-11-11-ordre-passage-resultats-equipe",
+    date: "2026-11-11",
+    pour: "formateurs",
+    titre: "Un Ordre de passage plus simple à lire",
+    resume: "Ordre de passage montre trois chiffres (à placer cette semaine, déjà placés, à jour partout), puis deux files, "
+          + "salle et voiture, du plus grand retard au plus petit, avec le jour où chacun est déjà placé. Le compte suit "
+          + "maintenant la règle du placement : un remplacement au pied levé ne compte plus, une absence de dernière minute "
+          + "compte toujours. Chaque stagiaire n'y voit plus que sa propre situation. Dans la fiche d'un stagiaire, "
+          + "Résultats s'ouvre sur sa moyenne, sa tendance, ses points forts et ses sujets à retravailler.",
+    ou: { label: "Planning, Ordre de passage", route: "dashboard" },
+  },
   {
     // Navigation unique (11/11/2026) : l'ancienne barre est retirée, toutes les promos ont la nouvelle. Premier du fichier : la
     // plus récente, celle que montre la carte « Nouveauté » de l'Accueil.

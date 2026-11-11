@@ -10,16 +10,16 @@
 // Rien de la réponse n'est gardé sur l'appareil au-delà de la session : le brouillon vit en mémoire le temps de
 // répondre (fermer par erreur ne perd rien), puis disparaît à l'envoi. Seul « Plus tard » est écrit sur l'appareil.
 
-import { el, isoDate, toast } from "./utils.js?v=20261111h";
-import { getAdminEmail, onAdminChange } from "./auth-admin.js?v=20261111h";
-import { lireQuestionnairesARemplir, envoyerQuestionnaire } from "./db.js?v=20261111h";
-import { QUESTIONNAIRES, ECHELLE } from "./questionnaires-data.js?v=20261111h";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261111h";
+import { el, isoDate, toast } from "./utils.js?v=20261111i";
+import { getAdminEmail, onAdminChange } from "./auth-admin.js?v=20261111i";
+import { lireQuestionnairesARemplir, envoyerQuestionnaire } from "./db.js?v=20261111i";
+import { QUESTIONNAIRES, ECHELLE } from "./questionnaires-data.js?v=20261111i";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261111i";
 import {
   cleMemoire, lireMemoire, memoirePlusTard, idQuestionnaire, questionnaireDuBandeau, questionnaireDuLien,
   sousTitreBandeau, progression, aUneReponse, peutAvancer, premiereManquante, reponsesAEnvoyer,
   annonceEcran, ouvrirApresLecture, memoireDeSession, selonQuestionnaire, merciQuestionnaire,
-} from "./questionnaire-ecran-rules.js?v=20261111h";
+} from "./questionnaire-ecran-rules.js?v=20261111i";
 
 // Le ton suit le public du questionnaire ouvert (selonQuestionnaire : tu pour les stagiaires, vous pour les formateurs). Le
 // lien direct sans questionnaire à remplir n'a pas de public : formule neutre.

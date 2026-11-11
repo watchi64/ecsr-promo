@@ -4,11 +4,11 @@
  * d'abord. « Relire » ouvre l'éditeur du QCM ; l'acceptation et l'écart restent dans l'éditeur. Modèle de
  * js/views/signalements.js : garde `isActive`, compteur de génération, boîte d'erreur avec « Réessayer ».
  */
-import { el, clear, formatDate } from "../utils.js?v=20261111h";
-import { listBrouillonsIaARelire } from "../db.js?v=20261111h";
-import { groupesDeBrouillons } from "../qcm-ia-rules.js?v=20261111h";
-import { carte, ligneAction, erreurAvecReessai } from "./pages-cartes.js?v=20261111h";
-import { pluriel } from "../nombres.js?v=20261111h";
+import { el, clear, formatDate } from "../utils.js?v=20261111i";
+import { listBrouillonsIaARelire } from "../db.js?v=20261111i";
+import { groupesDeBrouillons } from "../qcm-ia-rules.js?v=20261111i";
+import { carte, ligneAction, erreurAvecReessai } from "./pages-cartes.js?v=20261111i";
+import { pluriel } from "../nombres.js?v=20261111i";
 
 // `onOuvrirEditeur(groupe, recharger)` : ouvre l'éditeur du QCM du groupe (js/views/themes.js, qui possède l'éditeur) et
 // appelle `recharger` à sa fermeture, pour que la liste dise ce qui reste à relire.
