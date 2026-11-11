@@ -76,7 +76,7 @@ aujourd'hui : un emploi futur (encart de bienvenue, page de présentation) se d�
 
 | Texte | Fond | Rapport | Usage permis |
 |---|---|---|---|
-| Encre `#1F2924` | Fond `#F1F4F0` | 13,4:1 | tout texte |
+| Encre `#1F2924` | Fond `#F1F4F0` | 13,5:1 | tout texte |
 | Discret `#5D695E` | Fond doux `#E7ECE3` | 4,8:1 | tout texte (vérifié lors de la mise au seuil AA du 27/10) |
 | Olive `#5B6C42` | Fond `#F1F4F0` | 5,2:1 | tout texte |
 | Encre | Beige `#EDE5D4` | 12,0:1 | tout texte |
