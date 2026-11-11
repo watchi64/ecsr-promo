@@ -32,6 +32,16 @@
 -- La preuve s'y adapte (fiches de suivi comptées 0, thème témoin non créé) ; le retour y recrée _anonymiser_stagiaire avec
 -- ces deux écritures conditionnées, dont le corps est alors mis à part dans l'empreinte (cas dédié).
 --
+-- Résultats du 11/11/2026, vague finale (fusion de main ce08b81, relecture finale : e-mails d'un compte déjà retiré,
+-- textes écrits après l'étape 1), Postgres local, port 55623, tous les fichiers SQL en LF comme leurs blobs :
+--   - base complète : VERT 237/0 (trois passages) ; variante sans fiches_suivi ni themes.updated_by_email : VERT 238/0
+--     (deux passages) ; bases où la migration est appliquée : VERT 226/0 ; questionnaires-preuve.sql et
+--     registre-qualite-preuve.sql sur la base appliquée : VERT 207/0 et VERT 128/0 ;
+--   - retour hors preuve (psql -1), base complète : empreinte du schéma 13f48aa7… avant, ec2aebec… appliquée et après les
+--     preuves, 13f48aa7… après le retour ; variante : seul le corps de _anonymiser_stagiaire diffère (cas dédié ci-dessous) ;
+--   - contre-épreuve, la preuve du jour sur la migration d'avant les corrections (b3168483) : ROUGE 230/7 ;
+--   - piège : une copie de travail encore en CRLF (extraction d'avant .gitattributes) met des retours chariot dans les
+--     corps recréés par le retour et fait échouer le cas de l'empreinte ; toujours jouer sur des fichiers en LF.
 -- Résultats du 10/11/2026, indépendance de l'ordre (fiches_suivi, themes.updated_by_email), Postgres 18.4 local, port
 -- 55523, deux bases (complète ; variante sans les deux objets) :
 --   - base complète : VERT 227/0 (trois passages) ; appliquée : VERT 216/0 ; retour hors preuve : empreinte 2109cee5…
