@@ -1,8 +1,8 @@
 // Émargement (spec 2026-10-23) : règles pures, sans DOM ni base. Lu par node
 // (tests/emargement-rules.test.mjs), par l'app et par le générateur de signatures
 // fictives de la démonstration (scripts/emargement-demo.mjs).
-import { jourDe, dayIndexDe, lundiDe, jourParis } from "./dates.js?v=20261111h";
-import { pluriel } from "./nombres.js?v=20261111h";
+import { jourDe, dayIndexDe, lundiDe, jourParis } from "./dates.js?v=20261111i";
+import { pluriel } from "./nombres.js?v=20261111i";
 
 // Interrupteur par promo (demande de Timy du 23/10 : éteint partout, allumé pour la seule
 // promo de démonstration tant qu'il n'en décide pas autrement). Réglage `settings`
