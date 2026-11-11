@@ -2,9 +2,9 @@
 // node, sans DOM ni base). Les pages Accueil, Aujourd'hui et la grille de la semaine ne
 // recalculent rien : elles reçoivent ces cartes toutes lues (rôles effectifs, absences,
 // horaires, repos). Ni heure ni lieu par carte : la base n'en a pas.
-import { effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe } from "./planning-roles.js?v=20261111f";
-import { rolesPourEntry } from "./creneaux-rules.js?v=20261111f";
-import { jourFerie } from "./emargement-rules.js?v=20261111f";
+import { effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe } from "./planning-roles.js?v=20261111g";
+import { rolesPourEntry } from "./creneaux-rules.js?v=20261111g";
+import { jourFerie } from "./emargement-rules.js?v=20261111g";
 
 // Défauts horaires quand aucune ligne de planning_half_meta n'existe (déplacés de planning.js).
 export const DEFAULT_HALF_META = {

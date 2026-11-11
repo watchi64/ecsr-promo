@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import {
   VERSION, PREFIXE_ANNONCE, ETAT_LIBRE, lireEtat, ecrireEtat, estReglee, estOuvert,
-  ensembleDeDepart, basculer, jourParis, annonces, avecAnnonces, moduleDeNouveaute,
+  ensembleDeDepart, basculer, annonces, avecAnnonces, moduleDeNouveaute,
   nouveautesPour, accorder,
 } from "../js/modules.js";
 import { purger, STORAGE_SOUS_ONGLET } from "../js/nouveautes.js";
@@ -89,12 +89,6 @@ const b3 = basculer(ETAT_LIBRE, "assistant", false, CAT, T1);
 eq(b3, regle({ planning: T1, notes: T1, themes: T1, qcm: T1 }, T1),
    "depuis l'état libre : tout est matérialisé à l'heure courante, puis la bascule");
 eq(basculer({ statut: "illisible" }, "assistant", false, CAT, T1), b3, "illisible se bascule comme libre");
-
-// 5. Jour en heure de Paris
-eq(jourParis("2026-10-11T22:30:00.000Z"), "2026-10-12", "00 h 30 à Paris, heure d'été");
-eq(jourParis("2026-12-31T23:30:00.000Z"), "2027-01-01", "00 h 30 à Paris, heure d'hiver");
-eq(jourParis("2026-10-12T13:30:00.000Z"), "2026-10-12", "journée");
-eq(jourParis("pas une date"), null, "date invalide");
 
 // 6. Annonces
 eq(annonces(ETAT_LIBRE, CAT), [], "libre : aucune annonce");

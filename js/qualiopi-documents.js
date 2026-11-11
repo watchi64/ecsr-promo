@@ -20,16 +20,18 @@
 // Les tableaux par stagiaire comptent les mêmes stagiaires que lui : ceux en formation, et le document le dit ; seule la
 // liste nominative de l'effectif montre aussi les abandons.
 
-import { SOURCE } from "./qualiopi-referentiel.js?v=20261111f";
-import { jourDe, rempli, tableau, nb, demandesDe, RAISON_EFFACEE, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261111f";
-import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261111f";
-import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261111f";
-import { estNotee, score20 } from "./notes-stats.js?v=20261111f";
-import { cellule, nombre, slug } from "./centre-csv.js?v=20261111f";
-import { compareByNom } from "./utils.js?v=20261111f";
-import { statutFiche } from "./effacement-rules.js?v=20261111f";
-import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261111f";
-import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261111f";
+import { SOURCE } from "./qualiopi-referentiel.js?v=20261111g";
+import { jourDe, rempli, tableau, demandesDe, RAISON_EFFACEE, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261111g";
+import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261111g";
+import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261111g";
+import { estNotee, score20 } from "./notes-stats.js?v=20261111g";
+import { cellule, nombre, slug } from "./centre-csv.js?v=20261111g";
+import { compareByNom } from "./utils.js?v=20261111g";
+import { statutFiche } from "./effacement-rules.js?v=20261111g";
+import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261111g";
+import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261111g";
+import { fr1, pluriel } from "./nombres.js?v=20261111g";
+import { dateFr } from "./dates.js?v=20261111g";
 
 export const PHRASE_DE_GARDE = "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
 
@@ -51,15 +53,14 @@ const BOM = String.fromCharCode(0xfeff);
 
 // --- Petits outils : dates, mots, nombres ---
 
-// Les petits outils de l'inventaire (jourDe, rempli, tableau, nb) et ses aides du planning sont importés de
-// js/qualiopi-preuves.js, jamais recopiés : les dossiers suivent ainsi toujours la règle de l'inventaire.
-const dateFr = (jour) => (jour ? `${jour.slice(8)}/${jour.slice(5, 7)}/${jour.slice(0, 4)}` : null);
+// Les petits outils de l'inventaire (jourDe, rempli, tableau) et ses aides du planning sont importés de
+// js/qualiopi-preuves.js, jamais recopiés : les dossiers suivent ainsi toujours la règle de l'inventaire. Les dates et les
+// nombres écrits viennent de js/dates.js et js/nombres.js, comme partout dans l'app.
 const texte = (valeur, defaut) => (rempli(valeur) ? valeur.trim() : defaut);
 const somme = (liste) => liste.reduce((a, b) => a + b, 0);
 const enFrancais = (a, b) => a.localeCompare(b, "fr");
 const majuscule = (mot) => mot.charAt(0).toUpperCase() + mot.slice(1);
 const pourcent = (x) => `${Math.round(x * 100)}${String.fromCharCode(0xa0)}%`;   // espace insécable avant « % », comme centre-stats.js
-const fr1 = (x) => x.toFixed(1).replace(".", ",");   // comme le tableau de comparaison : « 11,8/20 »
 
 // Un tableau, ou rien s'il n'a pas de ligne : à étaler dans la liste des tableaux d'une section.
 const table = (entetes, lignes) => (lignes.length ? [{ entetes, lignes }] : []);
@@ -176,14 +177,14 @@ const moyenne = (valeurs) => (valeurs.length ? somme(valeurs) / valeurs.length :
 
 function texteNotes(lignes) {
   const notes = lignes.filter(estNotee).map(score20).filter(Number.isFinite);
-  return notes.length ? `${nb(notes.length, "note")}, moyenne ${fr1(moyenne(notes))}/20` : "aucune";
+  return notes.length ? `${pluriel(notes.length, "note")}, moyenne ${fr1(moyenne(notes))}/20` : "aucune";
 }
 
 function texteExamens(lignes) {
   const examens = lignes.filter((t) => t.mode === "examen");
   if (!examens.length) return "aucun";
   const notes = examens.map((t) => t.note_20).filter((v) => v != null && Number.isFinite(Number(v))).map(Number);
-  return notes.length ? `${nb(examens.length, "examen")}, moyenne ${fr1(moyenne(notes))}/20` : nb(examens.length, "examen");
+  return notes.length ? `${pluriel(examens.length, "examen")}, moyenne ${fr1(moyenne(notes))}/20` : pluriel(examens.length, "examen");
 }
 
 function entrainements(lignes) {
@@ -284,8 +285,8 @@ const SERVICE_FORMATION = {
 // La population des tableaux par stagiaire, dite dans la section (rien s'il n'y a pas de tableau).
 const population = (enFormation, stagiaires, demandes = new Set()) => {
   const sur = stagiaires.filter((s) => demandes.has(s.id)).length;
-  const dont = sur ? ` (dont ${nb(sur, "fiche effacée", "fiches effacées")} à la demande de la personne)` : "";
-  return enFormation.length ? [`Stagiaires en formation uniquement : ${enFormation.length} sur ${nb(stagiaires.length, "inscrit")}${dont}.`] : [];
+  const dont = sur ? ` (dont ${pluriel(sur, "fiche effacée", "fiches effacées")} à la demande de la personne)` : "";
+  return enFormation.length ? [`Stagiaires en formation uniquement : ${enFormation.length} sur ${pluriel(stagiaires.length, "inscrit")}${dont}.`] : [];
 };
 
 function sectionEffectif({ inv, ind, stagiaires, terminee, demandes }) {
@@ -402,7 +403,7 @@ function phrasesSignalements(signalements) {
     phrasesDuDelai.push(`Délai moyen entre le dépôt et le traitement : ${nombre(delai)} ${delai >= 2 ? "jours" : "jour"}.`);
   }
   return [
-    `Contestations de QCM déposées par les stagiaires de la promo : ${nb(recus.length, "reçue")}, ${nb(traites.length, "traitée")}, ${recus.length - traites.length} en attente.`,
+    `Contestations de QCM déposées par les stagiaires de la promo : ${pluriel(recus.length, "reçue")}, ${pluriel(traites.length, "traitée")}, ${recus.length - traites.length} en attente.`,
     ...phrasesDuDelai,
   ];
 }
@@ -427,7 +428,7 @@ function sectionRegistre(registre, entrees, { periode, lignes = true }) {
   const triees = [...entrees].sort((a, b) => String(a.date_constat).localeCompare(String(b.date_constat)) || (a.id ?? 0) - (b.id ?? 0));
   return {
     paragraphes: [
-      `Registre qualité : ${nb(total, "entrée")} pendant ${periode}.`,
+      `Registre qualité : ${pluriel(total, "entrée")} pendant ${periode}.`,
       `Par type : ${liste(TYPES, parType)}.`,
       `Par état : ${liste(ETATS, parEtat)}.`,
       `Délai médian de réponse : ${delai}.`,
@@ -534,7 +535,7 @@ function sectionResultatsCentre({ promos, aujourdhui }) {
   const terminees = lignes.filter((x) => x.terminee).length;
   return {
     paragraphes: [
-      `Résultats donnés promo par promo, sans total : ${nb(promos.length, "promo")}, dont ${nb(terminees, "terminée")} et ${promos.length - terminees} en cours.`,
+      `Résultats donnés promo par promo, sans total : ${pluriel(promos.length, "promo")}, dont ${pluriel(terminees, "terminée")} et ${promos.length - terminees} en cours.`,
       "Une promo est terminée quand sa date de fin est renseignée et passée ; les chiffres d'une promo en cours sont provisoires.",
       `Satisfaction des stagiaires, méthode de calcul : ${METHODES_PUBLIQUES.satisfaction}`,
     ],
@@ -578,7 +579,7 @@ function sectionInnovationsCentre({ nouveautes, periode }) {
   const etendue = premiere === derniere ? `le ${dateFr(premiere)}` : `du ${dateFr(premiere)} au ${dateFr(derniere)}`;
   return {
     paragraphes: [
-      `${nb(retenues.length, "annonce")} de l'application ${etendue}.`,
+      `${pluriel(retenues.length, "annonce")} de l'application ${etendue}.`,
       "Annonces de l'application, citées telles qu'elles ont été publiées :",
       ...retenues.map((x) => `${dateFr(x.jour)} : « ${x.titre} »`),
     ],
@@ -630,8 +631,8 @@ function sectionAmeliorationCentre({ promos, registre, lieuId, periode, sansNoms
   // Sans promo dans la période, le registre reste : les entrées du lieu et de l'organisme, datées dans la période, comptent encore.
   if (!promos.length) return { paragraphes: [AUCUNE_PROMO, ...r.paragraphes], tableaux: r.tableaux };
   const themes = promos.flatMap(({ promo, ind }) => [
-    ...tableau(ind?.themes?.qcm).map((t) => [libellePromo(promo), "QCM", libelleTheme(t), `${pourcent(t.taux)} sur ${nb(t.n, "réponse")}`]),
-    ...tableau(ind?.themes?.notes).map((t) => [libellePromo(promo), "Notes", libelleTheme(t), `${fr1(t.moyenne)}/20 sur ${nb(t.n, "note")}`]),
+    ...tableau(ind?.themes?.qcm).map((t) => [libellePromo(promo), "QCM", libelleTheme(t), `${pourcent(t.taux)} sur ${pluriel(t.n, "réponse")}`]),
+    ...tableau(ind?.themes?.notes).map((t) => [libellePromo(promo), "Notes", libelleTheme(t), `${fr1(t.moyenne)}/20 sur ${pluriel(t.n, "note")}`]),
   ]);
   return {
     paragraphes: [
@@ -668,10 +669,10 @@ function fusionInventaires(promos) {
 
 function presenceEnMots({ vues, presentes, raisons }) {
   const parties = [];
-  if (presentes) parties.push(`présente pour ${nb(presentes, "promo")} sur ${vues}`);
+  if (presentes) parties.push(`présente pour ${pluriel(presentes, "promo")} sur ${vues}`);
   if (vues > presentes) {
-    const motifs = [...raisons].map(([raison, k]) => (raisons.size > 1 ? `${raison} (${nb(k, "promo")})` : raison)).join(" ; ");
-    parties.push(`absente pour ${nb(vues - presentes, "promo")} sur ${vues} : ${motifs}`);
+    const motifs = [...raisons].map(([raison, k]) => (raisons.size > 1 ? `${raison} (${pluriel(k, "promo")})` : raison)).join(" ; ");
+    parties.push(`absente pour ${pluriel(vues - presentes, "promo")} sur ${vues} : ${motifs}`);
   }
   return parties.join(" ; ");
 }
@@ -706,7 +707,7 @@ export function modeleDossierCentre({ promos, lieu, lieuId, periode, aujourdhui,
     garde: [
       `Centre : ${centre}`,
       `Période : ${enMots}`,
-      `Promos retenues : ${liste.length ? `${nb(liste.length, "promo")} (${liste.map(({ promo }) => libellePromo(promo)).join(", ")})` : "aucune"}`,
+      `Promos retenues : ${liste.length ? `${pluriel(liste.length, "promo")} (${liste.map(({ promo }) => libellePromo(promo)).join(", ")})` : "aucune"}`,
       `Version : ${contexte.sansNoms ? "sans aucun nom (nombres, taux, dates et inventaire)" : "avec les noms des formateurs (stagiaires, bénévoles et auto-écoles en nombres seulement)"}`,
       REFERENTIEL,
       edition(aujourdhui),

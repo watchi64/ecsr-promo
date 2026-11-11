@@ -2,8 +2,9 @@
 // qu'elle couvre, qui passe au tableau et qui conduit, où en est la feuille d'émargement du jour, ce qui attend le
 // formateur, la ligne sous le titre. Module pur, sans DOM ni stockage : testé en node. Les cartes lues arrivent de
 // journeeDuJour (js/journee-rules.js), qui a déjà appliqué les remplacements et retiré les absents sans remplaçant.
-import { absentsDuPlanning, dayIndexDe, etatLigne, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261111f";
-import { displayStagiaire, compareByNom } from "./utils.js?v=20261111f";
+import { absentsDuPlanning, etatLigne, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261111g";
+import { dayIndexDe } from "./dates.js?v=20261111g";
+import { displayStagiaire, compareByNom } from "./utils.js?v=20261111g";
 
 const ORDRE_DEMI = { matin: 0, aprem: 1 };
 

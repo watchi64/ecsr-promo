@@ -14,20 +14,21 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   setMyAnonymousNotes,
-} from "../db.js?v=20261111f";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111f";
-import { confirmer } from "../confirmer.js?v=20261111f";
-import { icon } from "../icons.js?v=20261111f";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261111f";
-import { moduleVisible } from "../modules-etat.js?v=20261111f";
-import { renderModulesSection } from "./modules-reglage.js?v=20261111f";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111f";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261111f";
-import { pointsARetenir } from "../accueil-rules.js?v=20261111f";
-import { dateCourte, questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261111f";
-import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111f";
-import { blocHabillage } from "../habillage-choix.js?v=20261111f";
-import { nomBenevole } from "../planning-lecture.js?v=20261111f";
+} from "../db.js?v=20261111g";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111g";
+import { confirmer } from "../confirmer.js?v=20261111g";
+import { icon } from "../icons.js?v=20261111g";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261111g";
+import { moduleVisible } from "../modules-etat.js?v=20261111g";
+import { renderModulesSection } from "./modules-reglage.js?v=20261111g";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111g";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261111g";
+import { pointsARetenir } from "../accueil-rules.js?v=20261111g";
+import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261111g";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111g";
+import { blocHabillage } from "../habillage-choix.js?v=20261111g";
+import { nomBenevole } from "../planning-lecture.js?v=20261111g";
+import { dateFr } from "../dates.js?v=20261111g";
 
 // ====== SECTION Accès & invitations ======
 
@@ -476,7 +477,7 @@ async function renderDonneesSection(rerender) {
     const liste = el("ul", { class: "config-list donnees-liste" });
     benevoles.forEach((b) => liste.appendChild(el("li", {},
       el("span", {}, nomBenevole(b.display)),
-      el("span", { class: "muted" }, b.derniere_venue ? "dernière venue le " + dateCourte(b.derniere_venue) : "jamais venu"),
+      el("span", { class: "muted" }, b.derniere_venue ? "dernière venue le " + dateFr(b.derniere_venue) : "jamais venu"),
     )));
     blocBnv.appendChild(liste);
     blocBnv.appendChild(el("button", { class: "btn danger", onClick: async (e) => {

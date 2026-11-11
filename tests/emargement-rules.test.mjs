@@ -3,9 +3,10 @@ import assert from "node:assert/strict";
 import {
   REPERE, TRACE_MAX, cheminDepuisTraits, cheminValide, traitsSuffisants,
   absentsDuPlanning, etatLigne, resumeSeance, libelleHeure, libelleCreneau, dureeMinutes,
-  heureLocale, jourDe, lundiDe, dayIndexDe, lireAdresseEmargement, nomsFormateursProposes,
+  heureLocale, lireAdresseEmargement, nomsFormateursProposes,
   minutesPresence, libelleDuree, jourFerie, estActif, CLE_ACTIVATION, deLaDemi, demiVoisine, notesProposees, roleAuPlanning,
 } from "../js/emargement-rules.js";
+import { jourDe, lundiDe, dayIndexDe } from "../js/dates.js";
 
 const pts = (...xy) => xy.map(([x, y]) => ({ x, y }));
 

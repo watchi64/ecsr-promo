@@ -1,4 +1,5 @@
-import { peutMontrer, aReprendre, perimee } from "./messages-rules.js?v=20261111f";
+import { peutMontrer, aReprendre, perimee } from "./messages-rules.js?v=20261111g";
+import { lundiDe } from "./dates.js?v=20261111g";
 
 // === Date helpers ===
 
@@ -21,15 +22,13 @@ export function parseDate(str) {
   return new Date(s.includes("T") ? s : s + "T00:00:00");
 }
 
-/** Renvoie le lundi de la semaine d'une date donnée (date locale) */
+/** Renvoie le lundi de la semaine d'une date donnée (date locale, à minuit) : le calcul est celui de lundiDe (js/dates.js). */
 export function getMonday(d) {
-  if (!(d instanceof Date)) d = new Date(d);
-  const day = d.getDay(); // 0=dim, 1=lun, ..., 6=sam
-  const diff = (day === 0 ? -6 : 1 - day); // recule au lundi
-  const monday = new Date(d);
-  monday.setDate(d.getDate() + diff);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
+  const date = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(date.getTime())) return new Date(NaN);
+  // L'année sur quatre chiffres : une année tapée à moitié (« 0002 », dans « Aller à la semaine d'une date ») reste lisible.
+  const jour = String(date.getFullYear()).padStart(4, "0") + isoDate(date).slice(-6);
+  return parseDate(lundiDe(jour));
 }
 
 export function addDays(d, n) {
@@ -225,6 +224,19 @@ export function suspendreAnnonce() {
   courant = null;
   enAttente.unshift({ ...annonce, depose: Date.now() });
   servirAnnonces();
+}
+
+// === Tirage au sort ===
+
+// Une copie de la liste dans un ordre au hasard (mélange de Fisher-Yates) : le placement du planning et l'ordre des
+// questions d'un QCM.
+export function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 // === Debounce ===

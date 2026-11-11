@@ -4,7 +4,9 @@
 
 import {
   phraseDeRefus, PHRASE_INDISPONIBLE, PHRASE_CONNEXION, PHRASE_SESSION, PHRASE_SANS_DROIT, PHRASE_ECHEC,
-} from "./espaces-rules.js?v=20261111f";
+} from "./espaces-rules.js?v=20261111g";
+import { dateLongue } from "./dates.js?v=20261111g";
+import { pluriel } from "./nombres.js?v=20261111g";
 
 // Confirmation par saisie du prénom (ou du mot EFFACER) : casse et espaces autour ignorés, accents exigés. Les deux côtés
 // sont mis sous la même forme Unicode (NFC) : un « é » tapé en deux signes (e + accent) vaut le « é » de la fiche. Rien
@@ -13,22 +15,6 @@ const formeComparable = (t) => String(t ?? "").normalize("NFC").trim().toLocaleL
 export function confirmationValide(saisie, prenom) {
   const b = formeComparable(prenom);
   return b.length > 0 && formeComparable(saisie) === b;
-}
-
-// « 2027-12-11 » → « 11/12/2027 ».
-export function dateCourte(iso) {
-  const m = String(iso ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
-}
-
-// « 2027-12-11 » → « 11 décembre 2027 » : une date dans une phrase s'écrit en toutes lettres, comme ailleurs dans l'app
-// (audit du 09/11, lot E). Le 1er du mois garde son ordinal.
-const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-export function dateLongue(iso) {
-  const m = String(iso ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return "";
-  const j = Number(m[3]);
-  return `${j === 1 ? "1er" : j} ${MOIS[Number(m[2]) - 1]} ${m[1]}`;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -41,7 +27,6 @@ function jourNum(iso) {
   const m = String(iso ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / MS_JOUR : null;
 }
-const pluriel = (n, un, plu) => `${n} ${n > 1 ? plu : un}`;
 const nombre = (v) => Number(v) || 0;
 
 function noteEquipe(n) {

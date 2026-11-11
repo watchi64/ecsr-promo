@@ -2,7 +2,9 @@
 // (à venir, en cours, passé), le texte qui le dit, et la ligne « Promo <nom> · semaine <n> » sous la
 // salutation. Module pur, sans DOM ni stockage : testé en node. Le prochain rendez-vous et l'à-faire de l'accueil
 // du stagiaire (lot 2B) les lisent.
-import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "./qcm-exam-rules.js?v=20261111f";
+import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "./qcm-exam-rules.js?v=20261111g";
+import { pluriel } from "./nombres.js?v=20261111g";
+import { lundiDe } from "./dates.js?v=20261111g";
 
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000;
 
@@ -59,8 +61,8 @@ export function libelleDecompte(decompte) {
   return "";
 }
 
-// Lundi de la semaine d'un jour (son numéro, voir numeroDeJour) : le 01/01/1970, jour 0, était un jeudi.
-const lundiDe = (numero) => numero - (((numero + 3) % 7) + 7) % 7;
+// Numéro du lundi de la semaine d'un jour donné par son numéro (voir numeroDeJour) ; le lundi vient de lundiDe (js/dates.js).
+const numeroDuLundi = (numero) => numeroDeJour(lundiDe(new Date(numero * MS_PAR_JOUR).toISOString().slice(0, 10)));
 
 // « Promo Nîmes, mars 2026 · semaine 31 de formation » : la semaine 1 est celle du premier jour de la promo (du lundi au
 // dimanche), la suivante commence le lundi. Pas de numéro quand il ne dirait rien de vrai : promo pas encore
@@ -74,7 +76,7 @@ export function lignePromo(promo, aujourdhui) {
   const fin = promo.date_fin ? numeroDeJour(promo.date_fin) : Infinity;
   const ce = numeroDeJour(aujourdhui);
   if (!(ce >= debut && ce <= fin)) return `Promo ${nom}`;
-  return `Promo ${nom} · semaine ${1 + (lundiDe(ce) - lundiDe(debut)) / 7} de formation`;
+  return `Promo ${nom} · semaine ${1 + (numeroDuLundi(ce) - numeroDuLundi(debut)) / 7} de formation`;
 }
 
 // === Accueil du stagiaire (lot 2B) ===
@@ -110,8 +112,6 @@ export function prochainRendezVous(evenements, aujourdhui) {
   if (!choisi) return null;
   return { titre: choisi.e.title, date: jourEnToutesLettres(choisi.e.date_start), libelle: libelleDecompte(choisi.decompte) };
 }
-
-const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 
 // Ce qu'il reste à faire au stagiaire, au plus 4 lignes, dans cet ordre :
 //   1. un examen ouvert qu'il n'a pas passé (une tentative en mode « examen » le clôt ; un entraînement non) ;

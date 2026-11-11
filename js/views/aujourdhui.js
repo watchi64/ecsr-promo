@@ -8,33 +8,32 @@
  */
 import {
   getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande,
-} from "../db.js?v=20261111f";
-import { el, clear, displayStagiaire } from "../utils.js?v=20261111f";
-import { icon } from "../icons.js?v=20261111f";
-import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261111f";
-import { libelleConnexion } from "../roles-rules.js?v=20261111f";
-import { emargementActif } from "../emargement-etat.js?v=20261111f";
-import { lignePromo } from "../accueil-rules.js?v=20261111f";
-import { journeeDuJour } from "../journee-rules.js?v=20261111f";
-import { indicateursPromo } from "../centre-stats.js?v=20261111f";
-import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261111f";
-import { signerSeance } from "../emargement-bandeau.js?v=20261111f";
-import { chargerATraiter } from "../a-traiter.js?v=20261111f";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111f";
+} from "../db.js?v=20261111g";
+import { el, clear, displayStagiaire } from "../utils.js?v=20261111g";
+import { icon } from "../icons.js?v=20261111g";
+import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261111g";
+import { libelleConnexion } from "../roles-rules.js?v=20261111g";
+import { emargementActif } from "../emargement-etat.js?v=20261111g";
+import { lignePromo } from "../accueil-rules.js?v=20261111g";
+import { journeeDuJour } from "../journee-rules.js?v=20261111g";
+import { indicateursPromo } from "../centre-stats.js?v=20261111g";
+import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261111g";
+import { signerSeance } from "../emargement-bandeau.js?v=20261111g";
+import { chargerATraiter } from "../a-traiter.js?v=20261111g";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261111g";
 import {
   titreSelonDemis, auTableauDuJour, enVoitureDuJour, feuilleDuJour, lignesATraiter, ligneDeLEnTete,
-} from "../aujourdhui-rules.js?v=20261111f";
+} from "../aujourdhui-rules.js?v=20261111g";
 import {
   carte, plusLien, ligneLien, erreurAvecReessai, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
-} from "./pages-cartes.js?v=20261111f";
+} from "./pages-cartes.js?v=20261111g";
+import { pluriel } from "../nombres.js?v=20261111g";
 
 const RELECTURE_SEANCES_MS = 60000;
 const NB_A_SUIVRE = 5;
 
-
 const DEMI_LONG = { matin: "Matin", aprem: "Après-midi" };
 const SIGNER = { matin: "Signer pour ce matin", aprem: "Signer pour cet après-midi" };
-const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 
 // Un message dans le corps d'une carte, au ton de la carte (« muted » pour une absence, erreur pour une panne).
 function dire(corps, texte, classe = "muted") {

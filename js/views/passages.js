@@ -1,11 +1,12 @@
-import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261111f";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe, nomLisible } from "../utils.js?v=20261111f";
-import { confirmer } from "../confirmer.js?v=20261111f";
-import { icon } from "../icons.js?v=20261111f";
-import { recordUndo } from "../undo.js?v=20261111f";
-import { TYPES, RESULTATS } from "../config.js?v=20261111f";
-import { isAdmin, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111f";
-import { getCurrentWho } from "../identity.js?v=20261111f";
+import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261111g";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe, nomLisible } from "../utils.js?v=20261111g";
+import { confirmer } from "../confirmer.js?v=20261111g";
+import { icon } from "../icons.js?v=20261111g";
+import { recordUndo } from "../undo.js?v=20261111g";
+import { TYPES, RESULTATS } from "../config.js?v=20261111g";
+import { isAdmin, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111g";
+import { getCurrentWho } from "../identity.js?v=20261111g";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111g";
 
 let stagiaires = [];
 let passages = [];
@@ -17,7 +18,7 @@ let filterResultat = "";
 function openAddModal(onSaved, existing = null) {
   const today = isoDate(new Date());
   const admin = isAdmin();
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
 
   const dateInput = el("input", {
     type: "date",
@@ -76,7 +77,7 @@ function openAddModal(onSaved, existing = null) {
         toast("Passage enregistré · Ctrl+Z pour annuler", "success", 2400);
         if (inserted?.id) recordUndo("passage ajouté", async () => { await deletePassage(inserted.id); });
       }
-      backdrop.remove();
+      modale.fermer();
       onSaved();
     } catch (e) {
       console.error(e);
@@ -84,7 +85,7 @@ function openAddModal(onSaved, existing = null) {
     }
   }
 
-  const cancelBtn = el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler");
+  const cancelBtn = el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Annuler");
   const saveBtn = el("button", { class: "btn primary", onClick: save },
     icon.check(), "Enregistrer"
   );
@@ -107,9 +108,7 @@ function openAddModal(onSaved, existing = null) {
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn)
   );
 
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
 }
 
 function resultTag(resultat) {
@@ -202,7 +201,7 @@ async function reload(container) {
 }
 
 async function openAuditModal() {
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
   const modal = el("div", { class: "modal", style: "max-width:680px" });
   modal.appendChild(el("h3", {}, "Historique des modifications"));
   modal.appendChild(el("p", { class: "muted", style: "margin:0 0 1rem;font-size:0.88rem" },
@@ -213,11 +212,9 @@ async function openAuditModal() {
   list.appendChild(el("div", { class: "loading" }, "Chargement"));
   modal.appendChild(list);
   modal.appendChild(el("div", { class: "modal-actions" },
-    el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer")
+    el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Fermer")
   ));
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
 
   try {
     const audit = await listRecentPassagesAudit(100);

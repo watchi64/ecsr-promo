@@ -10,18 +10,18 @@
 // sous 3 formateurs (5 stagiaires). Migration pas encore appliquée : lireEtatConservation() rend null, la section le dit.
 // Une liste de cartes, jamais un tableau, sur téléphone comme sur ordinateur.
 
-import { el, clear, toast } from "../utils.js?v=20261111f";
+import { el, clear, toast } from "../utils.js?v=20261111g";
 import {
   lireEtatConservation, effacerPromoEtape1, effacerPromoEtape2, effacerSurDemande,
   cloreAnneeFormateurs, effacerCommentairesFormateurs, figerQuestionnaireFormateurs, lireEffacementsSurDemande,
-} from "../db.js?v=20261111f";
+} from "../db.js?v=20261111g";
 import {
   echeancesConservation, confirmationEcheance, confirmationDemande, compteRenduConservation, rappelConservation, statutFiche,
-  dateLongue,
-} from "../effacement-rules.js?v=20261111f";
-import { confirmer } from "../confirmer.js?v=20261111f";
-import { tableau } from "../qualiopi-preuves.js?v=20261111f";
-import { nomPromo } from "../qualiopi-page-rules.js?v=20261111f";
+} from "../effacement-rules.js?v=20261111g";
+import { dateLongue } from "../dates.js?v=20261111g";
+import { confirmer } from "../confirmer.js?v=20261111g";
+import { tableau } from "../qualiopi-preuves.js?v=20261111g";
+import { nomPromo } from "../qualiopi-page-rules.js?v=20261111g";
 
 export const CONSERVATION_ABSENTE = "La conservation sera disponible après la mise à jour de la base.";
 

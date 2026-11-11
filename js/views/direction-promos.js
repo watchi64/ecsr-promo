@@ -8,16 +8,15 @@ import {
   getMesPromos, getPromoCourante, ouvrirDansUnePromo, creerPromo, modifierDatesPromo, renommerPromo, chargerMesPromos, choisirPromo,
   rechargerApresEnregistrements,
   lireEffectifsPromos, lireFormateursPromos,
-} from "../db.js?v=20261111f";
-import { el, clear, isoDate, formatLongDate, toast } from "../utils.js?v=20261111f";
-import { getCentre, getAffectations, getAdminEmail } from "../auth-admin.js?v=20261111f";
-import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261111f";
-import { validerPromo, etatPromo, partEcoulee } from "../direction-rules.js?v=20261111f";
-import { peutRegler } from "../modules-etat.js?v=20261111f";
-import { renderModulesSection } from "./modules-reglage.js?v=20261111f";
-
-const entier = (x) => Number(x).toLocaleString("fr-FR");
-const pluriel = (nb, mot, motPluriel = mot + "s") => `${entier(nb)} ${nb > 1 ? motPluriel : mot}`;
+} from "../db.js?v=20261111g";
+import { el, clear, isoDate, formatLongDate, toast } from "../utils.js?v=20261111g";
+import { getCentre, getAffectations, getAdminEmail } from "../auth-admin.js?v=20261111g";
+import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261111g";
+import { validerPromo, etatPromo, partEcoulee } from "../direction-rules.js?v=20261111g";
+import { peutRegler } from "../modules-etat.js?v=20261111g";
+import { renderModulesSection } from "./modules-reglage.js?v=20261111g";
+import { entier, pluriel } from "../nombres.js?v=20261111g";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111g";
 
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";
 const PHRASE_SANS_PROMO = "Ce centre n'a pas encore de promo";
@@ -75,7 +74,7 @@ function periode(p) {
 
 // Fenêtre de saisie d'une promo. `promo` nul : création (avec le choix du centre s'il y en a plusieurs). `enregistrer(valeurs)` rend une
 // promesse : si elle lève, la phrase de refus s'affiche dans la fenêtre et la saisie reste ; sinon la fenêtre se ferme.
-function ouvrirFenetre({ titre, promo, centres, ancre, libelleBouton, enregistrer }) {
+function ouvrirFormulairePromo({ titre, promo, centres, ancre, libelleBouton, enregistrer }) {
   const champNom = el("input", { type: "text", id: "promo-nom", value: promo ? promo.nom : "", autocomplete: "off", maxlength: "120" });
   const champDebut = el("input", { type: "date", id: "promo-debut", value: promo?.date_debut || "" });
   const champFin = el("input", { type: "date", id: "promo-fin", value: promo?.date_fin || "" });
@@ -84,17 +83,9 @@ function ouvrirFenetre({ titre, promo, centres, ancre, libelleBouton, enregistre
   const message = el("p", { class: "promo-refus", role: "alert" });
   const annuler = el("button", { class: "btn ghost", type: "button" }, "Annuler");
   const valider = el("button", { class: "btn primary", type: "submit" }, libelleBouton);
-  const fond = el("div", { class: "modal-backdrop" });
-
-  const fermer = () => {
-    document.removeEventListener("keydown", auClavier, true);
-    fond.remove();
-    if (ancre && ancre.isConnected) ancre.focus({ preventScroll: true });
-  };
-  function auClavier(e) {
-    if (e.key === "Escape") { e.stopPropagation(); if (!valider.disabled) fermer(); }
-  }
-  annuler.addEventListener("click", () => { if (!valider.disabled) fermer(); });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
+  const fermer = () => modale.fermer();
+  annuler.addEventListener("click", () => modale.demanderFermeture());
 
   const formulaire = el("form", { class: "modal-form", novalidate: "" },
     el("div", { class: "field" }, el("label", { for: "promo-nom" }, "Nom de la promo"), champNom),
@@ -126,11 +117,11 @@ function ouvrirFenetre({ titre, promo, centres, ancre, libelleBouton, enregistre
       annuler.disabled = false;
     }
   });
-  fond.appendChild(el("div", { class: "modal promo-fenetre", role: "dialog", "aria-modal": "true", "aria-labelledby": "promo-fenetre-titre" },
-    el("h3", { id: "promo-fenetre-titre" }, titre), formulaire));
-  document.addEventListener("keydown", auClavier, true);
-  document.body.appendChild(fond);
-  champNom.focus();
+  // Pendant l'envoi, ni Annuler ni Échap ne ferment ; le focus revient au bouton qui a ouvert la fenêtre.
+  modale = ouvrirModale(el("div", { class: "modal promo-fenetre", role: "dialog", "aria-modal": "true", "aria-labelledby": "promo-fenetre-titre" },
+    el("h3", { id: "promo-fenetre-titre" }, titre), formulaire), {
+    fermerAuVoile: false, retour: ancre, avantFermeture: () => !valider.disabled, focus: champNom,
+  });
 }
 
 // ============================================================== Page
@@ -187,7 +178,7 @@ export async function renderPromosCentre(container, reprise = null) {
   const aujourdhui = isoDate(new Date());
   const centres = centresDirigeables(centre);
 
-  const surCreer = (e) => ouvrirFenetre({
+  const surCreer = (e) => ouvrirFormulairePromo({
     titre: "Créer une promo", promo: null, centres, ancre: e.currentTarget, libelleBouton: "Créer la promo",
     enregistrer: (v) => creation(v, container),
   });
@@ -252,7 +243,7 @@ export async function renderPromosCentre(container, reprise = null) {
     const phrase = await ouvrirDansUnePromo(p.id, "#/promos");
     if (phrase) { poserCle(null); toast(phrase, "error", 4000); }
   };
-  const surModifier = (p, ancre) => ouvrirFenetre({
+  const surModifier = (p, ancre) => ouvrirFormulairePromo({
     titre: "Modifier la promo", promo: p, centres, ancre, libelleBouton: "Enregistrer",
     enregistrer: async (v) => {
       restauration = { promoId: p.id, modules: modulesDeLaPage() };

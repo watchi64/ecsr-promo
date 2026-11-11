@@ -3,8 +3,9 @@
 // d'émargement closes : une feuille close est figée et porte une ligne par stagiaire de sa
 // liste ; une demi-journée signée compte pour sa durée entière (décision de Timy du 24/10).
 
-import { dureeMinutes, lundiDe, jourDe, dayIndexDe, jourFerie } from "./emargement-rules.js?v=20261111f";
-import { compareByNom } from "./utils.js?v=20261111f";
+import { dureeMinutes, jourFerie } from "./emargement-rules.js?v=20261111g";
+import { lundiDe, jourDe, dayIndexDe } from "./dates.js?v=20261111g";
+import { compareByNom } from "./utils.js?v=20261111g";
 
 export const LIBELLE_ORIGINE = {
   non_signe: "non signé",
@@ -110,12 +111,6 @@ export function dureeEnToutesLettres(minutes) {
   const m = minutes % 60;
   const heures = `${h} heure${h > 1 ? "s" : ""}`;
   return m ? `${heures} ${m} minute${m > 1 ? "s" : ""}` : heures;
-}
-
-export function dateFr(iso) {
-  if (!iso) return "";
-  const [a, m, j] = String(iso).split("-");
-  return `${j}/${m}/${a}`;
 }
 
 // Date de période utilisable : bien formée et entre 2000 et 2099. Une saisie au clavier passe

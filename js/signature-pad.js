@@ -3,8 +3,9 @@
 // js/emargement-rules.js : la zone peut changer de taille (rotation du téléphone) sans
 // déformer le tracé, et le chemin envoyé est celui que le serveur vérifie.
 
-import { el } from "./utils.js?v=20261111f";
-import { REPERE, cheminDepuisTraits, traitsSuffisants, signatureEffacee, MENTION_SIGNATURE_EFFACEE } from "./emargement-rules.js?v=20261111f";
+import { el } from "./utils.js?v=20261111g";
+import { REPERE, cheminDepuisTraits, traitsSuffisants, signatureEffacee, MENTION_SIGNATURE_EFFACEE } from "./emargement-rules.js?v=20261111g";
+import { ouvrirModale } from "./nav-fenetre.js?v=20261111g";
 
 const SVG = "http://www.w3.org/2000/svg";
 const EPAISSEUR = 3.2;   // en unités du repère : environ 0,3 mm sur une case de feuille
@@ -58,7 +59,8 @@ export function ouvrirSignature({ titre, attestation = null, valider, libelleVal
       message,
       el("div", { class: "modal-actions sig-actions" }, effacer, annuler, ok),
     );
-    const fond = el("div", { class: "modal-backdrop sig-backdrop" }, fenetre);
+    let modale = null;      // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
+    let resultat = false;   // ce que rend la promesse à la fermeture
 
     const ctx = canvas.getContext("2d");
     let echelle = 1;   // pixels du canvas par unité du repère
@@ -138,17 +140,11 @@ export function ouvrirSignature({ titre, attestation = null, valider, libelleVal
       redessiner();
     });
 
-    function fermer(resultat) {
-      window.removeEventListener("resize", dimensionner);
-      document.removeEventListener("keydown", surTouche);
-      document.body.classList.remove("sig-ouverte");
-      fond.remove();
-      resolve(resultat);
+    function fermer(r) {
+      resultat = r;
+      modale.fermer();
     }
-    function surTouche(ev) {
-      if (ev.key === "Escape" && !envoi) fermer(false);
-    }
-    annuler.addEventListener("click", () => { if (!envoi) fermer(false); });
+    annuler.addEventListener("click", () => modale.demanderFermeture());
 
     ok.addEventListener("click", async () => {
       if (envoi) return;
@@ -175,11 +171,17 @@ export function ouvrirSignature({ titre, attestation = null, valider, libelleVal
       }
     });
 
-    document.body.appendChild(fond);
+    // Pendant l'enregistrement, ni Annuler ni Échap ne ferment ; un toucher à côté ne ferme jamais (un trait qui déborde).
+    modale = ouvrirModale(fenetre, {
+      classeFond: "sig-backdrop", fermerAuVoile: false, avantFermeture: () => !envoi,
+      apresFermeture: () => {
+        window.removeEventListener("resize", dimensionner);
+        document.body.classList.remove("sig-ouverte");
+        resolve(resultat);
+      },
+    });
     document.body.classList.add("sig-ouverte");
     window.addEventListener("resize", dimensionner);
-    document.addEventListener("keydown", surTouche);
     dimensionner();
-    fenetre.focus();
   });
 }

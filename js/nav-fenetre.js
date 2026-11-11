@@ -1,5 +1,9 @@
-// Fenêtres de la nouvelle navigation (refonte, lot 1) : le menu du compte (js/menu-compte.js) et
-// le tiroir « Plus » du téléphone (js/nav-shell.js). Une seule ouverte à la fois.
+// Les fenêtres de l'app, en un seul endroit. Deux sortes :
+// - ouvrirFenetre : les fenêtres de la navigation (refonte, lot 1), le menu du compte (js/menu-compte.js), le tiroir
+//   « Plus » du téléphone (js/nav-shell.js), puis Signaler, le registre et les questionnaires. Une seule ouverte à la fois ;
+// - ouvrirModale : les fenêtres des écrans (formulaire, choix, aperçu), qui peuvent s'empiler (ménage du 11/11/2026 :
+//   quinze fichiers bâtissaient chacun leur voile, avec ou sans Échap, avec ou sans focus gardé). Voir plus bas.
+// Les questions oui/non et les saisies courtes passent par js/confirmer.js.
 //
 // Chacune est un calque plein écran, racine de la coquille (data-nav-coquille vaut « compte » ou
 // « plus ») qui porte aussi la classe modal-backdrop des fenêtres de l'app : même voile, et le
@@ -12,7 +16,7 @@
 // page change. Un remontage de la coquille ferme la fenêtre ouverte, dont les lignes et le bouton sont
 // ceux de la coquille remplacée, et rend son focus dans la nouvelle.
 
-import { el, suspendreAnnonce } from "./utils.js?v=20261111f";
+import { el, suspendreAnnonce } from "./utils.js?v=20261111g";
 
 const FOCALISABLES = 'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), '
   + 'textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
@@ -132,6 +136,8 @@ function auClavier(e) {
     oublierFenetre();
     return;
   }
+  // Une fenêtre d'écran ouverte par-dessus (ouvrirModale) mène le clavier : celle-ci attend dessous.
+  if (voileDuDessus() !== ouverte.calque && pile.length) return;
   if (e.key === "Escape") {
     e.preventDefault();
     e.stopPropagation();
@@ -146,4 +152,135 @@ function auClavier(e) {
   const pas = e.shiftKey ? -1 : 1;
   const suivante = ici < 0 ? (e.shiftKey ? cibles.length - 1 : 0) : (ici + pas + cibles.length) % cibles.length;
   cibles[suivante].focus();
+}
+
+// =====================================================================================================================
+// Les fenêtres des écrans : ouvrirModale
+// =====================================================================================================================
+// L'écran bâtit sa fenêtre comme avant (un élément .modal et son contenu, son aspect ne change pas) ; ouvrirModale la pose
+// sur le voile des fenêtres de l'app (.modal-backdrop) et lui donne ce que chaque écran refaisait à sa façon :
+// - role="dialog", aria-modal et un nom (son titre h2 ou h3, sinon `etiquette`) ;
+// - le focus à l'ouverture : `focus` (un champ, un bouton), sinon la fenêtre elle-même, pour qu'un téléphone n'ouvre pas son
+//   clavier sur un champ que la personne n'a pas choisi ;
+// - Tab et Maj+Tab qui tournent dans la fenêtre sans en sortir ;
+// - Échap et un toucher sur le voile (si `fermerAuVoile`, vrai par défaut) qui demandent la fermeture, comme le bouton
+//   Annuler de l'écran (`demanderFermeture`) : `avantFermeture` peut la refuser (envoi en cours, saisie à garder). Un champ
+//   de la fenêtre qui se sert d'Échap (saisie en place, suggestions) le garde pour lui par preventDefault() ;
+// - le focus rendu à la fermeture : à `retour` (élément, ou fonction qui le rend au moment de fermer) s'il est donné, sinon à
+//   ce qui l'avait avant l'ouverture, s'il est encore affiché.
+// Les fenêtres s'empilent (un formulaire ouvert depuis un autre) : seule celle du dessus écoute le clavier, et Échap s'arrête
+// là (le planning ne quitte pas son mode Modifier derrière). Une confirmation (js/confirmer.js) passe au-dessus de tout et
+// garde le clavier pour elle. `auClavier` (facultatif) reçoit les autres touches (les flèches d'une liste de choix).
+// Rend { fond, fenetre, fermer, demanderFermeture } : fermer() ferme sans demander (après un enregistrement ; fermer({ focus:
+// false }) quand un écran plein prend la suite) ;
+// `apresFermeture` est appelée une fois, quel que soit le chemin. Une fenêtre retirée de la page par son écran (ancienne
+// manière, fond.remove()) est oubliée à la touche suivante. Testé par tests/nav-fenetre.test.mjs.
+
+// Les fenêtres d'écran ouvertes, de la plus ancienne à celle du dessus.
+const pile = [];
+let numeroModale = 0;
+
+// Le calque affiché le plus haut : le dernier posé dans la page. Fenêtres d'écran, de navigation, confirmations et calques plein
+// écran (lecture d'un cours ou des conditions, QCM) s'ajoutent au corps de la page, chacun au-dessus des précédents : une
+// fenêtre recouverte par l'un d'eux laisse le clavier à celui du dessus.
+const CALQUES = ".modal-backdrop, .cours-overlay, .qcm-overlay";
+function voileDuDessus() {
+  return [...document.querySelectorAll(CALQUES)].filter(affiche).pop() || null;
+}
+
+export function ouvrirModale(fenetre, {
+  etiquette = null, classeFond = "", focus = null, retour = null, fermerAuVoile = true,
+  avantFermeture = null, apresFermeture = null, auClavier: autresTouches = null,
+} = {}) {
+  const avant = document.activeElement;
+  fenetre.setAttribute("role", fenetre.getAttribute("role") || "dialog");
+  fenetre.setAttribute("aria-modal", "true");
+  if (!fenetre.hasAttribute("tabindex")) fenetre.setAttribute("tabindex", "-1");
+  if (!fenetre.hasAttribute("aria-label") && !fenetre.hasAttribute("aria-labelledby")) {
+    const titre = fenetre.querySelector("h2, h3");
+    if (titre) {
+      if (!titre.id) titre.id = `modale-titre-${++numeroModale}`;
+      fenetre.setAttribute("aria-labelledby", titre.id);
+    } else if (etiquette) {
+      fenetre.setAttribute("aria-label", etiquette);
+    }
+  }
+  const fond = el("div", { class: ("modal-backdrop " + classeFond).trim() }, fenetre);
+  const entree = { fond, fenetre, autresTouches };
+  let fini = false;
+
+  // `focus: false` : un écran plein (examen, éditeur, cours) s'ouvre à la place, le focus ne retourne pas sous lui.
+  const fermer = ({ focus: rendre = true } = {}) => {
+    if (fini) return;
+    fini = true;
+    retirer(entree);
+    fond.remove();
+    let cible = null;
+    try { cible = typeof retour === "function" ? retour() : retour; } catch (e) { cible = null; }
+    if (!retour) cible = avant;
+    if (rendre && cible && cible !== document.body && affiche(cible) && typeof cible.focus === "function") cible.focus({ preventScroll: true });
+    if (typeof apresFermeture === "function") {
+      try { apresFermeture(); } catch (e) { console.error(e); }
+    }
+  };
+  // Le geste de la personne (Annuler, Échap, voile) : `avantFermeture` peut garder la fenêtre ouverte. Une erreur de sa part
+  // ne l'enferme pas : la fenêtre se ferme.
+  const demanderFermeture = () => {
+    if (fini) return;
+    if (typeof avantFermeture === "function") {
+      let garder = false;
+      try { garder = avantFermeture() === false; } catch (e) { console.error(e); }
+      if (garder) return;
+    }
+    fermer();
+  };
+  entree.demanderFermeture = demanderFermeture;
+
+  fond.addEventListener("click", (e) => { if (e.target === fond && fermerAuVoile) demanderFermeture(); });
+  // Échap venu de la fenêtre, à la remontée : un champ qui s'en sert d'abord (annuler une saisie en place, fermer une liste
+  // de suggestions) l'arrête par preventDefault(), et la fenêtre reste ouverte.
+  fond.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || e.defaultPrevented || pile[pile.length - 1] !== entree) return;
+    e.preventDefault();
+    e.stopPropagation();
+    demanderFermeture();
+  });
+  document.body.appendChild(fond);
+  if (!pile.length) document.addEventListener("keydown", clavierModale, true);
+  pile.push(entree);
+  const premier = typeof focus === "function" ? focus() : focus;
+  (premier && typeof premier.focus === "function" ? premier : fenetre).focus({ preventScroll: true });
+  return { fond, fenetre, fermer, demanderFermeture };
+}
+
+function retirer(entree) {
+  const i = pile.indexOf(entree);
+  if (i >= 0) pile.splice(i, 1);
+  if (!pile.length) document.removeEventListener("keydown", clavierModale, true);
+}
+
+// Clavier des fenêtres d'écran, écouté sur le document en capture tant qu'il y en a une ouverte.
+function clavierModale(e) {
+  // Les fenêtres retirées de la page par leur écran sont oubliées.
+  for (const entree of [...pile]) if (!entree.fond.isConnected) retirer(entree);
+  const haut = pile[pile.length - 1];
+  if (!haut || voileDuDessus() !== haut.fond) return;   // une fenêtre de navigation ou une confirmation est au-dessus
+  // Échap tapé hors de la fenêtre (focus resté dessous) : elle se ferme ici. Venu de la fenêtre, il remonte jusqu'à son voile.
+  if (e.key === "Escape" && !haut.fond.contains(e.target)) {
+    e.preventDefault();
+    e.stopPropagation();
+    haut.demanderFermeture();
+    return;
+  }
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const cibles = [...haut.fenetre.querySelectorAll(FOCALISABLES)].filter(affiche);
+    if (!cibles.length) { haut.fenetre.focus({ preventScroll: true }); return; }
+    const ici = cibles.indexOf(document.activeElement);
+    const pas = e.shiftKey ? -1 : 1;
+    const suivante = ici < 0 ? (e.shiftKey ? cibles.length - 1 : 0) : (ici + pas + cibles.length) % cibles.length;
+    cibles[suivante].focus();
+    return;
+  }
+  if (typeof haut.autresTouches === "function") haut.autresTouches(e);
 }

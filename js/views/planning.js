@@ -8,27 +8,28 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, getSalleAggregats,
   avantChangementPromo,
-} from "../db.js?v=20261111f";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261111f";
-import { confirmer, demander } from "../confirmer.js?v=20261111f";
-import { icon, deco } from "../icons.js?v=20261111f";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20261111f";
-import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261111f";
-import { recordUndo } from "../undo.js?v=20261111f";
-import { getCurrentWho } from "../identity.js?v=20261111f";
-import { telLink } from "./benevoles.js?v=20261111f";
-import { meilleurResultat } from "../passage-rules.js?v=20261111f";
-import { formateurConnecte } from "../modules-etat.js?v=20261111f";
-import { libelleHeure, jourFerie } from "../emargement-rules.js?v=20261111f";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111f";
+} from "../db.js?v=20261111g";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom, shuffle } from "../utils.js?v=20261111g";
+import { confirmer, demander } from "../confirmer.js?v=20261111g";
+import { icon, deco } from "../icons.js?v=20261111g";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20261111g";
+import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261111g";
+import { recordUndo } from "../undo.js?v=20261111g";
+import { getCurrentWho } from "../identity.js?v=20261111g";
+import { telLink } from "./benevoles.js?v=20261111g";
+import { meilleurResultat } from "../passage-rules.js?v=20261111g";
+import { formateurConnecte } from "../modules-etat.js?v=20261111g";
+import { libelleHeure, jourFerie } from "../emargement-rules.js?v=20261111g";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111g";
 import {
   entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe, colonnesParalleles,
-} from "../planning-roles.js?v=20261111f";
+} from "../planning-roles.js?v=20261111g";
 import {
   DEFAULT_HALF_META, semaineEnGrille, jourParDefaut, lundiEnCours, vuePlanningInitiale,
-} from "../journee-rules.js?v=20261111f";
-import { nomsStagiaires, nomBenevole } from "../planning-lecture.js?v=20261111f";
-import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261111f";
+} from "../journee-rules.js?v=20261111g";
+import { nomsStagiaires, nomBenevole } from "../planning-lecture.js?v=20261111g";
+import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261111g";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111g";
 
 let stagiaires = [];
 let profs = [];
@@ -560,15 +561,6 @@ function cleanupDrag() {
 
 // === Tirage aléatoire (Pédagogue, élèves Pédagogie salle, élèves Voiture) ===
 // Règle commune : pas de doublon dans la semaine pour la même activité.
-
-function shuffle(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 /**
  * Compte, pour la semaine courante, le nb d'apparitions de chaque stagiaire dans un rôle
@@ -2209,7 +2201,7 @@ async function saveHalfMeta(d, half, patch) {
 
 function openHalfMetaEditor(d, half, anchorEl) {
   const meta = metaFor(d, half);
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
 
   const startInput = el("input", { type: "time", value: meta.start_time });
   const endInput = el("input", { type: "time", value: meta.end_time });
@@ -2225,7 +2217,7 @@ function openHalfMetaEditor(d, half, anchorEl) {
       pause_start: pauseInput.value || null,
       pause_minutes: Number(pauseMinInput.value) || 20,
     });
-    backdrop.remove();
+    modale.fermer();
   }
 
   const modal = el("div", { class: "modal" },
@@ -2243,13 +2235,11 @@ function openHalfMetaEditor(d, half, anchorEl) {
       ),
     ),
     el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler"),
+      el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Annuler"),
       el("button", { class: "btn primary", onClick: save }, icon.check(), "Enregistrer"),
     )
   );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
 }
 
 async function changeWeek(dateStr) {
@@ -2398,7 +2388,7 @@ function openValiderSemaineModal() {
 }
 
 function renderValiderModal(toCreate, already, existKey, themeCandidates) {
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
   const nameOf = (id) => {
     const s = stagiaires.find((x) => x.id === id);
     return s ? displayStagiaire(s) : "Stagiaire inconnu";
@@ -2486,7 +2476,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   const lockRow = el("label", { class: "valider-lock-row", for: "valider-lock-cb" },
     lockCb, " Verrouiller la semaine après enregistrement");
 
-  const cancelBtn = el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler");
+  const cancelBtn = el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Annuler");
   const saveBtn = el("button", { class: "btn primary" }, icon.check(), "Enregistrer");
 
   async function save() {
@@ -2567,7 +2557,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
           editMode = true;
         }
       });
-      backdrop.remove();
+      modale.fermer();
       if (wantLock) renderInto(currentContainer);   // bascule badge + read-only + compact
     } catch (e) {
       console.error(e);
@@ -2589,9 +2579,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn),
   );
 
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
 }
 
 // Mémo des règles de placement, en langage simple.

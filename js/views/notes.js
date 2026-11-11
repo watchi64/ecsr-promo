@@ -2,25 +2,26 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation,
   listFichesNotesMasquees, getNotesStatsGroupe, getPromoCourante,
-} from "../db.js?v=20261111f";
+} from "../db.js?v=20261111g";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261111f";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261111f";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace, selonPublic } from "../auth-admin.js?v=20261111f";
-import { litToutesLesNotes } from "../espaces-rules.js?v=20261111f";
-import { recordUndo } from "../undo.js?v=20261111f";
-import { renderSubTabs } from "../subtabs.js?v=20261111f";
-import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261111f";
-import { renderEpcf } from "./epcf.js?v=20261111f";
-import { noteGradient } from "../echelle-notes.js?v=20261111f";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111f";
-import { renderSaisie } from "./notes-saisie.js?v=20261111f";
+} from "../notes-stats.js?v=20261111g";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261111g";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace, selonPublic } from "../auth-admin.js?v=20261111g";
+import { litToutesLesNotes } from "../espaces-rules.js?v=20261111g";
+import { recordUndo } from "../undo.js?v=20261111g";
+import { renderSubTabs } from "../subtabs.js?v=20261111g";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261111g";
+import { renderEpcf } from "./epcf.js?v=20261111g";
+import { noteGradient } from "../echelle-notes.js?v=20261111g";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111g";
+import { renderSaisie } from "./notes-saisie.js?v=20261111g";
 import {
   parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes,
   contexteEtatVide, phraseNoteRefusee, confirmationEffacement,
-} from "../notes-saisie-rules.js?v=20261111f";
-import { confirmer } from "../confirmer.js?v=20261111f";
+} from "../notes-saisie-rules.js?v=20261111g";
+import { confirmer } from "../confirmer.js?v=20261111g";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261111g";
 
 // Fiches de la promo dont les notes sont masquées (anonymat) : la base ne donne plus aux stagiaires les profils des
 // autres (adresse e-mail comprise), seulement ces numéros de fiche (js/notes-masquees.js).
@@ -457,7 +458,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
 
 function openStagiaireDetail(stagiaire, themeByNum, container) {
   const admin = isAdmin();
-  const backdrop = el("div", { class: "modal-backdrop" });
+  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
 
   function buildBody() {
     const body = el("div", { class: "sd-body" });
@@ -495,7 +496,7 @@ function openStagiaireDetail(stagiaire, themeByNum, container) {
         valueWrap.classList.add("editable");
         valueWrap.title = "Cliquer pour modifier";
         valueWrap.addEventListener("click", () => {
-          startInlineEditInModal(valueWrap, stagiaire.id, fixedFields, container, backdrop);
+          startInlineEditInModal(valueWrap, stagiaire.id, fixedFields, container, modale);
         });
       }
       r.appendChild(valueWrap);
@@ -534,16 +535,14 @@ function openStagiaireDetail(stagiaire, themeByNum, container) {
     ),
     buildBody(),
     el("div", { class: "modal-actions" },
-      el("button", { class: "btn primary", onClick: () => backdrop.remove() }, "Fermer"),
+      el("button", { class: "btn primary", onClick: () => modale.fermer() }, "Fermer"),
     )
   );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
+  modale = ouvrirModale(modal);
 }
 
 // Édition inline dans la modale détail (similaire à la cellule matrice)
-function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, backdrop) {
+function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, modale) {
   let existing = null;
   if (fixedFields.type === "Thème" && fixedFields.theme_numero != null) {
     existing = noteForStagiaireTheme(stagiaireId, fixedFields.theme_numero);
@@ -584,13 +583,13 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
     }
     if (r.etat === "effacee") toast("Note effacée · Ctrl+Z pour annuler", "success", 2200);
     if (r.converti) toast(`${r.converti} → ${r.note}/20`, "success", 1800);
-    backdrop.remove();
+    modale.fermer();
     await reload(container);
   }
   input.addEventListener("blur", commit);
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); input.blur(); }
-    else if (e.key === "Escape") { done = true; valueWrap.innerHTML = originalHtml; }
+    else if (e.key === "Escape") { e.preventDefault(); done = true; valueWrap.innerHTML = originalHtml; }
   });
 }
 

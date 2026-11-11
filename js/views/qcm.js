@@ -4,13 +4,13 @@
  * Multi-réponses : une question peut avoir plusieurs bonnes réponses.
  * Juste = ensemble coché == ensemble des bonnes réponses (toutes les bonnes, aucune fausse).
  */
-import { el, clear, toast, formatDate } from "../utils.js?v=20261111f";
-import { confirmer } from "../confirmer.js?v=20261111f";
-import { icon, deco } from "../icons.js?v=20261111f";
-import { getQcmFull, insertQcmAttempt, getMyExamAttempt, listMyQcmAttemptsFor, createQcmSignalement } from "../db.js?v=20261111f";
-import { monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111f";
-import { fermerParEchap } from "../fenetre-echap.js?v=20261111f";
-import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261111f";
+import { el, clear, toast, formatDate, shuffle } from "../utils.js?v=20261111g";
+import { confirmer } from "../confirmer.js?v=20261111g";
+import { icon, deco } from "../icons.js?v=20261111g";
+import { getQcmFull, insertQcmAttempt, getMyExamAttempt, listMyQcmAttemptsFor, createQcmSignalement } from "../db.js?v=20261111g";
+import { monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111g";
+import { fermerParEchap } from "../fenetre-echap.js?v=20261111g";
+import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261111g";
 
 const MOTIFS = [
   ["reponse_fausse", "La réponse indiquée me semble fausse"],
@@ -81,16 +81,6 @@ function signalerBloc(question, options = []) {
 
   return wrap;
 }
-
-function shuffle(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 
 // Illustration d'une question. Un panneau (SVG) doit rester petit et centre :
 // affiche a 100 % de la largeur il ecrase l'enonce, alors qu'une photo de

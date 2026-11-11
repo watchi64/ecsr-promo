@@ -6,13 +6,14 @@
 // disent par leur phrase (phraseDeRefus), une lecture qui échoue par sa phrase et « Réessayer ». Textes destinés à l'équipe : au
 // vouvoiement.
 
-import { listBenevolesAPurgerDuCentre, purgerBenevolesDuCentre } from "../db.js?v=20261111f";
-import { el, clear, toast } from "../utils.js?v=20261111f";
-import { icon } from "../icons.js?v=20261111f";
-import { confirmer } from "../confirmer.js?v=20261111f";
+import { listBenevolesAPurgerDuCentre, purgerBenevolesDuCentre } from "../db.js?v=20261111g";
+import { el, clear, toast } from "../utils.js?v=20261111g";
+import { icon } from "../icons.js?v=20261111g";
+import { confirmer } from "../confirmer.js?v=20261111g";
 import {
-  dateCourte, questionPurgerBenevoles, phrasePurges, phraseDePanne, phraseDEffacement, PHRASE_CONSERVATION, PHRASE_SANS_BENEVOLE,
-} from "../effacement-rules.js?v=20261111f";
+  questionPurgerBenevoles, phrasePurges, phraseDePanne, phraseDEffacement, PHRASE_CONSERVATION, PHRASE_SANS_BENEVOLE,
+} from "../effacement-rules.js?v=20261111g";
+import { dateFr } from "../dates.js?v=20261111g";
 
 function boiteErreur(phrase, reessayer) {
   return el("div", { class: "centre-erreur", role: "alert" },
@@ -67,7 +68,7 @@ export function sectionDonneesCentre(centre) {
     const ul = el("ul", { class: "config-list donnees-liste" });
     liste.forEach((b) => ul.appendChild(el("li", {},
       el("span", {}, b.display),
-      el("span", { class: "muted" }, b.derniere_venue ? "dernière venue le " + dateCourte(b.derniere_venue) : "jamais venu"))));
+      el("span", { class: "muted" }, b.derniere_venue ? "dernière venue le " + dateFr(b.derniere_venue) : "jamais venu"))));
     bloc.appendChild(ul);
     bloc.appendChild(el("button", { class: "btn danger", type: "button", onClick: (e) => purger(liste, e.currentTarget) },
       liste.length > 1 ? `Supprimer ces ${liste.length} élèves` : "Supprimer cet élève"));

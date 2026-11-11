@@ -2,7 +2,7 @@
 // node tests/effacement-rules.test.mjs
 import assert from "node:assert/strict";
 import {
-  confirmationValide, dateCourte, dateLongue, echeancesConservation, resumeEffacement, statutFiche, CE_QUI_PART, CE_QUI_RESTE,
+  confirmationValide, echeancesConservation, resumeEffacement, statutFiche, CE_QUI_PART, CE_QUI_RESTE,
   confirmationEcheance, confirmationDemande, compteRenduConservation, rappelConservation, MOT_DE_CONFIRMATION,
   questionPurgerBenevoles, phrasePurges, phraseDePanne, phraseDEffacement, PHRASE_DONNEES_ECHEC, PHRASE_CONSERVATION,
 } from "../js/effacement-rules.js";
@@ -23,12 +23,6 @@ ok(!confirmationValide("", "   "), "prénom fait d'espaces : jamais valide");
 ok(confirmationValide("Hélène".normalize("NFD"), "Hélène"), "NFC des deux côtés : accents tapés en deux signes acceptés");
 ok(confirmationValide("hélène", "Hélène".normalize("NFD")), "NFC des deux côtés : prénom de la fiche en deux signes");
 ok(!confirmationValide("Helene".normalize("NFD"), "Hélène"), "NFC : sans accent, toujours refusé");
-
-eq(dateCourte("2027-12-11"), "11/12/2027", "date courte");
-eq(dateCourte(null), "", "date absente");
-eq(dateLongue("2027-12-11"), "11 décembre 2027", "date dans une phrase");
-eq(dateLongue("2027-03-01"), "1er mars 2027", "le 1er du mois");
-eq(dateLongue(null), "", "date longue absente");
 
 // L'ancien bloc « Fin de promo » des Paramètres est retiré (lot Q5, tâche 7) : la page Qualiopi le remplace.
 ok(!("etatFinDePromo" in regles), "etatFinDePromo n'existe plus");

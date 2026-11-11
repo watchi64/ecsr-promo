@@ -7,7 +7,8 @@ import { readFileSync } from "node:fs";
 import { presenceDePromo, presenceDeLaFiche } from "../js/qualiopi-presence.js";
 import { bilanStagiaire } from "../js/attestations-rules.js";
 import { inventairePromo } from "../js/qualiopi-preuves.js";
-import { indicateursPromo, METHODES_PUBLIQUES, pct } from "../js/centre-stats.js";
+import { indicateursPromo, METHODES_PUBLIQUES } from "../js/centre-stats.js";
+import { pct } from "../js/nombres.js";
 import { modeleDossierFormation, modeleDossierCentre } from "../js/qualiopi-documents.js";
 import { ficheResultats, ficheResultatsTexte } from "../js/qualiopi-resultats.js";
 

@@ -1,18 +1,18 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111f";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111f";
-import { compteDansEquite } from "./passage-rules.js?v=20261111f";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111f";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111f";
-import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261111f";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111f";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111f";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111g";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111g";
+import { compteDansEquite } from "./passage-rules.js?v=20261111g";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111g";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111g";
+import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261111g";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111g";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111g";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261111f";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111f";
-import { effectifDesFiches } from "./centre-stats.js?v=20261111f";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111f";
+} from "./promo-rules.js?v=20261111g";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111g";
+import { effectifDesFiches } from "./centre-stats.js?v=20261111g";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111g";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.

@@ -3523,6 +3523,15 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   justify-content: flex-end;
 }
 
+/* Sur téléphone, les boutons des fenêtres de l'app font au moins 44 px de haut : une cible qu'un doigt atteint sans viser
+   (ouvrirModale, js/nav-fenetre.js ; ménage du 11/11/2026). */
+@media (max-width: 699.98px) {
+  .modal .btn { min-height: 44px; }
+}
+/* La fenêtre reçoit le focus à l'ouverture (ouvrirModale) : pas de contour autour d'elle, seulement autour de ses boutons et
+   champs, comme les fenêtres de la navigation (.nav-fenetre:focus, css/navigation.css). */
+.modal:focus { outline: none; }
+
 /* ============================================================
    Panneau Élèves bénévoles (banque voiture, formateurs/admins)
    ============================================================ */
