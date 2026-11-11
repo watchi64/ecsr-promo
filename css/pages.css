@@ -539,7 +539,7 @@ body[data-nav="v2"] .em-signer-formateur input:focus-visible { outline: 2px soli
   }
   body[data-nav="v2"] #view .btn.icon-only:not(.p-editing *),
   body[data-nav="v2"] #view :is(.theme-statut.clickable, .theme-date.editable) { min-width: 44px; }
-  body[data-nav="v2"] #view :is(.em-demi, .home-link, .nv-ou, .fiche-retour, .em-retour, .ms-renvoi a) {
+  body[data-nav="v2"] #view :is(.em-demi, .nv-ou, .fiche-retour, .em-retour, .ms-renvoi a) {
     display: inline-flex; align-items: center; min-height: 44px;
   }
   body[data-nav="v2"] #view details > summary { padding-block: 0.75rem; }

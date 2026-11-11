@@ -28,12 +28,11 @@
 --   pg_ctl -D $D/pg stop ; rm -rf $D
 -- Ordre réel (11/11) : le schéma minimal rejoue la suite du lot 5 (20261111_espaces_4_donnees, fonctions de la direction),
 -- puis la navigation unique, phase 1 (20261110_navigation_unique_1_reglages et _2_menage : themes.updated_by_email retirée,
--- _anonymiser_stagiaire recréée sans elle et conditionnelle sur fiches_suivi). Variante « phase 2 » (le cas réel de la mise
--- en ligne : 20261111_navigation_unique_3_phase2 appliquée avant ce lot, fiches_suivi retirée) : même lancement, avec, entre
--- le schéma minimal et la preuve,
---   psql -p <port> -U postgres -d cs -1 -f supabase/migrations/20261111_navigation_unique_3_phase2.sql
--- La preuve s'y adapte (fiches de suivi comptées 0) ; thème témoin jamais créé depuis la phase 1 (colonne retirée). Le retour
--- recrée les six fonctions d'anonymisation mot pour mot (versions en base avant ce lot) : l'empreinte les compte toutes.
+-- _anonymiser_stagiaire recréée sans elle et conditionnelle sur fiches_suivi) et phase 2 (20261111_navigation_unique_3_phase2,
+-- appliquée en production le 11/11 à 14 h 55 : fiches_suivi retirée) : c'est le cas réel, joué par défaut. Variante
+-- « complète » (fiches_suivi encore là) : schéma minimal lancé avec -v phase1_seule=1. La preuve s'y adapte (fiches de suivi
+-- comptées 0 sans la table) ; thème témoin jamais créé depuis la phase 1 (colonne retirée). Le retour recrée les six fonctions
+-- d'anonymisation mot pour mot (versions en base avant ce lot) : l'empreinte les compte toutes.
 --
 -- Résultats du 11/11/2026, réconciliation avec la suite du lot 5 (fusion de main d5e60dc7 : lot 5 étape 4, navigation unique
 -- phase 1), Postgres 18.4 local, port 55587, schéma minimal dans l'ordre réel :

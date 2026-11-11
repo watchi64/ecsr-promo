@@ -20,16 +20,16 @@
 // Les tableaux par stagiaire comptent les mêmes stagiaires que lui : ceux en formation, et le document le dit ; seule la
 // liste nominative de l'effectif montre aussi les abandons.
 
-import { SOURCE } from "./qualiopi-referentiel.js?v=20261111d";
-import { jourDe, rempli, tableau, nb, demandesDe, RAISON_EFFACEE, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261111d";
-import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261111d";
-import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261111d";
-import { estNotee, score20 } from "./notes-stats.js?v=20261111d";
-import { cellule, nombre, slug } from "./centre-csv.js?v=20261111d";
-import { compareByNom } from "./utils.js?v=20261111d";
-import { statutFiche } from "./effacement-rules.js?v=20261111d";
-import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261111d";
-import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261111d";
+import { SOURCE } from "./qualiopi-referentiel.js?v=20261111e";
+import { jourDe, rempli, tableau, nb, demandesDe, RAISON_EFFACEE, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261111e";
+import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261111e";
+import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261111e";
+import { estNotee, score20 } from "./notes-stats.js?v=20261111e";
+import { cellule, nombre, slug } from "./centre-csv.js?v=20261111e";
+import { compareByNom } from "./utils.js?v=20261111e";
+import { statutFiche } from "./effacement-rules.js?v=20261111e";
+import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261111e";
+import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261111e";
 
 export const PHRASE_DE_GARDE = "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
 

@@ -54,16 +54,12 @@ eq(pagePersonnelle({ formateur: false, stagiaireId: null }), "mon-suivi", "compt
 eq(PARTIES, ["resultats", "passages", "epcf", "evolution", "livret", "dp", "classe"], "toutes les parties connues d'une adresse");
 
 // 5. Parties d'une fiche, dans l'ordre d'affichage (lot 2B, tâche 7). Mon suivi : Résultats d'abord, qui réunit Évolution
-// (« Moi ») et La classe. La fiche d'un stagiaire chez l'équipe garde la fiche de main. L'option navigationV2, que la vue
-// passe encore, est ignorée (une seule navigation depuis le 10/11).
+// (« Moi ») et La classe. La fiche d'un stagiaire chez l'équipe garde la fiche de main.
 eq(partiesDeLaFiche({ soi: true }), ["resultats", "passages", "epcf", "livret", "dp"], "Mon suivi");
-eq(partiesDeLaFiche({ soi: true, navigationV2: true }), ["resultats", "passages", "epcf", "livret", "dp"], "Mon suivi, option vraie ignorée");
-eq(partiesDeLaFiche({ soi: true, navigationV2: false }), ["resultats", "passages", "epcf", "livret", "dp"], "Mon suivi, option fausse ignorée");
-eq(partiesDeLaFiche({ soi: false, navigationV2: true }), ["passages", "epcf", "evolution", "livret", "dp"], "fiche d'un stagiaire chez l'équipe : inchangée");
-eq(partiesDeLaFiche({ soi: false }), ["passages", "epcf", "evolution", "livret", "dp"], "fiche d'un stagiaire chez l'équipe, sans option");
+eq(partiesDeLaFiche({ soi: false }), ["passages", "epcf", "evolution", "livret", "dp"], "fiche d'un stagiaire chez l'équipe");
 eq(partiesDeLaFiche(), ["passages", "epcf", "evolution", "livret", "dp"], "sans option : la fiche de main");
-eq(partiesDeLaFiche({ soi: true, navigationV2: true }) === partiesDeLaFiche({ soi: true, navigationV2: true }), false, "une copie à chaque appel");
-for (const opts of [{ soi: true, navigationV2: true }, { soi: false, navigationV2: false }]) {
+eq(partiesDeLaFiche({ soi: true }) === partiesDeLaFiche({ soi: true }), false, "une copie à chaque appel");
+for (const opts of [{ soi: true }, { soi: false }]) {
   for (const p of partiesDeLaFiche(opts)) eq(PARTIES.includes(p), true, "partie connue des adresses : " + p);
 }
 

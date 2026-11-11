@@ -32,11 +32,12 @@
 --      que son retour recrée ; benevoles_a_purger(p_lieu) et purger_benevoles(p_ids, p_lieu), qu'il ne touche pas). Ses
 --      sections 1 et 2 (ancien stagiaire invité au personnel) réécrivent inviter_compte et regler_affectations_formateur,
 --      absentes d'ici et sans lien avec la conservation : non jouées.
---  10. Navigation unique, phase 1 (appliquée le 11/11), rejouée telle quelle : 20261110_navigation_unique_1_reglages.sql
+--  10. Navigation unique, rejouée telle quelle : phase 1 (appliquée le 11/11), 20261110_navigation_unique_1_reglages.sql
 --      (règle d'écriture des réglages) puis 20261110_navigation_unique_2_menage.sql (colonnes de themes et de qcm retirées,
---      themes.updated_by_email comprise ; _anonymiser_stagiaire recréée dans sa version propre, fiches_suivi conditionnelle).
---      La table qcm n'existe ici que pour ses colonnes retirées. La phase 2 (20261111_navigation_unique_3_phase2.sql,
---      fiches_suivi retirée) se joue à part : variante de la preuve (voir l'en-tête de tests/sql/conservation-preuve.sql).
+--      themes.updated_by_email comprise ; _anonymiser_stagiaire recréée dans sa version propre, fiches_suivi conditionnelle) ;
+--      puis phase 2 (appliquée le 11/11 à 14 h 55), 20261111_navigation_unique_3_phase2.sql (fiches_suivi retirée,
+--      current_week_lundi vidé) : c'est l'état réel avant Q5. La table qcm n'existe ici que pour ses colonnes retirées.
+--      Variante « complète » (fiches_suivi encore là, état d'avant la phase 2) : ajouter -v phase1_seule=1 au lancement.
 -- Lancement (psql lit les fichiers rejoués par \ir, le serveur lit les extraits par pg_read_file : superutilisateur
 -- local) :
 --   psql -p <port> -U postgres -d cs -v ON_ERROR_STOP=1 \
@@ -308,6 +309,10 @@ do $$ begin
     '(create function public\.etat_anonymisation_promo\(p_promo integer\).*?grant execute on function public\.purger_benevoles\(integer\[\], integer\) to authenticated;)');
 end $$;
 
--- 10. Navigation unique, phase 1, telle quelle -------------------------------------------------------------------------
+-- 10. Navigation unique, phases 1 et 2, telles quelles (phase 2 sautée avec -v phase1_seule=1) ---------------------------------------------------------------
 \ir ../../supabase/migrations/20261110_navigation_unique_1_reglages.sql
 \ir ../../supabase/migrations/20261110_navigation_unique_2_menage.sql
+\if :{?phase1_seule}
+\else
+\ir ../../supabase/migrations/20261111_navigation_unique_3_phase2.sql
+\endif
