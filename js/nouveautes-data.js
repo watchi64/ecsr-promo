@@ -37,6 +37,16 @@ export const NOUVEAUTES = [
     // Sans « ou » : elle s'affiche sur l'Accueil même, un lien vers l'Accueil n'y mènerait nulle part.
     module: "planning",
   },
+  // Fenêtre de confirmation (12/11) : à 375 px, un libellé long poussait un bouton hors de l'écran. Pour tous : formule
+  // neutre. Placée après la carte « Aujourd'hui », qui reste la nouveauté du jour à l'Accueil des stagiaires.
+  {
+    id: "2026-11-12-confirmations-telephone",
+    date: "2026-11-12",
+    pour: "tous",
+    titre: "Des fenêtres de confirmation qui tiennent sur téléphone",
+    resume: "Quand l'app demande de confirmer un geste (supprimer, fermer un examen, quitter une saisie), ses deux boutons "
+          + "restent à l'écran, même avec un texte long : sur téléphone, ils passent l'un sous l'autre, sur toute la largeur.",
+  },
   // Conservation des données ouverte à la direction (20261111_conservation_direction, décision de Timy du 11/11). Pour la
   // direction, au vouvoiement ; premier du fichier : à date égale, c'est elle que montre la carte « Nouveauté » de son Accueil.
   {
