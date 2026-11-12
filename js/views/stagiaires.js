@@ -5,20 +5,20 @@
 // Nouvelle navigation (lot 2A) : sous l'en-tête, deux sous-onglets, « Stagiaires » (la page d'avant) et
 // « Élèves bénévoles » (la banque des volontaires, ouverte dans la page et non plus dans une fenêtre).
 
-import { listEpcfEtats, listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261111m";
-import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261111m";
-import { icon } from "../icons.js?v=20261111m";
-import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261111m";
-import { ligneListe } from "../fiche-rules.js?v=20261111m";
-import { surChangementAdresse, oublierMajSurPlace, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261111m";
-import { isAdmin } from "../auth-admin.js?v=20261111m";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261111m";
-import { renderSubTabs } from "../subtabs.js?v=20261111m";
-import { renderBenevoles } from "./benevoles.js?v=20261111m";
+import { listEpcfEtats, listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261112a";
+import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261112a";
+import { icon } from "../icons.js?v=20261112a";
+import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261112a";
+import { ligneListe } from "../fiche-rules.js?v=20261112a";
+import { surChangementAdresse, oublierMajSurPlace, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261112a";
+import { isAdmin } from "../auth-admin.js?v=20261112a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261112a";
+import { renderSubTabs } from "../subtabs.js?v=20261112a";
+import { renderBenevoles } from "./benevoles.js?v=20261112a";
 import {
   chargerContexteFiche, chargerFiche, renderFiche, dispositionFiche,
   noterDocument, ecouterDocuments, afficherErreur,
-} from "./mon-suivi.js?v=20261111m";
+} from "./mon-suivi.js?v=20261112a";
 
 const CLE_DERNIERE = "ecsr_stagiaires_derniere";
 const CLE_ONGLET = "ecsr_stagiaires_subtab";

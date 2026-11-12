@@ -232,8 +232,10 @@ for (const espace of [undefined, "equipe"]) {
 const themesCompacts = NOUVEAUTES.find((e) => e.id === THEMES_COMPACTS_ID);
 ok(!!themesCompacts && themesCompacts.pour === "tous" && /« … »/.test(themesCompacts.resume) && /« Plus »/.test(themesCompacts.resume),
   "thèmes compacts : pour tous, nomme « … » et « Plus »");
+// Jugé parmi les entrées de son jour et d'avant : une Nouveauté d'un jour suivant passe normalement devant.
+const JUSQU_AU_11 = NOUVEAUTES.filter((e) => e.date <= themesCompacts.date);
 for (const formateur of [false, true]) {
-  eq(ids(triees(visibles(NOUVEAUTES, formateur, formateur ? "equipe" : "stagiaire")))[0], THEMES_COMPACTS_ID,
+  eq(ids(triees(visibles(JUSQU_AU_11, formateur, formateur ? "equipe" : "stagiaire")))[0], THEMES_COMPACTS_ID,
     `thèmes compacts : la plus récente (${formateur ? "formateur" : "stagiaire"})`);
 }
 for (const espace of [undefined, "stagiaire"]) {

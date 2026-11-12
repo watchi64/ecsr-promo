@@ -25,7 +25,7 @@
 // boutons s'empilent sur toute la largeur, sans jamais sortir du cadre.
 // Testé par tests/confirmer.test.mjs.
 
-import { el } from "./utils.js?v=20261111m";
+import { el } from "./utils.js?v=20261112a";
 
 let compteur = 0;
 

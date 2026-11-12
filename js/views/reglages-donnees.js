@@ -8,16 +8,16 @@
 // La base décide de tout (droit, délais) ; ses refus se disent par leur phrase, une lecture qui échoue par sa phrase et
 // « Réessayer ». Textes destinés à l'équipe : au vouvoiement.
 
-import { listBenevolesAPurgerDuCentre, purgerBenevolesDuCentre, lireEtatConservationCentre } from "../db.js?v=20261111m";
-import { el, clear, toast } from "../utils.js?v=20261111m";
-import { icon } from "../icons.js?v=20261111m";
-import { confirmer } from "../confirmer.js?v=20261111m";
+import { listBenevolesAPurgerDuCentre, purgerBenevolesDuCentre, lireEtatConservationCentre } from "../db.js?v=20261112a";
+import { el, clear, toast } from "../utils.js?v=20261112a";
+import { icon } from "../icons.js?v=20261112a";
+import { confirmer } from "../confirmer.js?v=20261112a";
 import {
   questionPurgerBenevoles, phrasePurges, phraseDePanne, phraseDEffacement, PHRASE_CONSERVATION_CENTRE, PHRASE_SANS_BENEVOLE,
   PHRASE_SANS_ECHEANCE, echeancesConservation, confirmationEcheance, compteRenduConservation,
-} from "../effacement-rules.js?v=20261111m";
-import { carteEcheance, ACTIONS, CONSERVATION_ABSENTE } from "./conservation-cartes.js?v=20261111m";
-import { dateFr } from "../dates.js?v=20261111m";
+} from "../effacement-rules.js?v=20261112a";
+import { carteEcheance, ACTIONS, CONSERVATION_ABSENTE } from "./conservation-cartes.js?v=20261112a";
+import { dateFr } from "../dates.js?v=20261112a";
 
 function boiteErreur(phrase, reessayer) {
   return el("div", { class: "centre-erreur", role: "alert" },
