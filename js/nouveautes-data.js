@@ -37,6 +37,22 @@ export const NOUVEAUTES = [
     // Sans « ou » : elle s'affiche sur l'Accueil même, un lien vers l'Accueil n'y mènerait nulle part.
     module: "planning",
   },
+  // Progression du stagiaire sur la liste des thèmes (demande de Timy du 12/11, maquette B retenue) : la ligne prend la couleur
+  // de son état, le résultat le plus récent décide. Pour les stagiaires, au tutoiement. Placée après la carte
+  // « Aujourd'hui » : le même jour, celle-ci reste l'annonce de tête (tests/nouveautes.test.mjs).
+  {
+    id: "2026-11-12-progression-themes",
+    date: "2026-11-12",
+    pour: "stagiaires",
+    titre: "Où tu en es sur chaque thème, d'un coup d'œil",
+    resume: "Dans Cours et QCM, chaque thème prend une couleur et un mot selon tes résultats aux QCM : « Acquis » quand tu as réussi "
+          + "l'examen, « À revoir » quand ton dernier résultat est faible, « En cours » quand tu t'entraînes bien sans avoir encore "
+          + "réussi l'examen, « À commencer » quand tu n'as rien fait. C'est ton résultat le plus récent qui compte : un entraînement "
+          + "raté après un examen réussi repasse le thème en « À revoir ». En haut de la liste, tu lis combien de thèmes sont acquis "
+          + "et combien sont à revoir, et le menu « Tous les états » ne garde que ceux d'un état. Toi seul vois ta progression.",
+    ou: { route: "themes", label: "Cours et QCM" },
+    module: "qcm",
+  },
   // Fenêtre de confirmation (12/11) : à 375 px, un libellé long poussait un bouton hors de l'écran. Pour tous : formule
   // neutre. Placée après la carte « Aujourd'hui », qui reste la nouveauté du jour à l'Accueil des stagiaires.
   {

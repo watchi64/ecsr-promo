@@ -45,8 +45,8 @@ export function bilanProgression(etats) {
   };
 }
 
-// Phrase de l'en-tête de Cours, au tutoiement (vue stagiaire).
+// Phrase de l'en-tête de Cours, au tutoiement (vue stagiaire). Sans point final : l'en-tête l'ajoute.
 export function phraseBilan(acquis, total) {
-  if (!acquis) return "Aucun thème acquis pour l'instant.";
-  return `Tu as acquis ${acquis} thème${acquis > 1 ? "s officiels" : " officiel"} sur ${total}.`;
+  if (!acquis) return "Aucun thème acquis pour l'instant";
+  return `Tu as acquis ${acquis} thème${acquis > 1 ? "s officiels" : " officiel"} sur ${total}`;
 }

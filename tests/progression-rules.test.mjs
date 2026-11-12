@@ -84,7 +84,7 @@ test("bilanProgression ignore les thèmes sans état", () => {
 });
 
 test("phraseBilan", () => {
-  assert.equal(phraseBilan(0, 57), "Aucun thème acquis pour l'instant.");
-  assert.equal(phraseBilan(1, 57), "Tu as acquis 1 thème officiel sur 57.");
-  assert.equal(phraseBilan(12, 57), "Tu as acquis 12 thèmes officiels sur 57.");
+  assert.equal(phraseBilan(0, 57), "Aucun thème acquis pour l'instant");
+  assert.equal(phraseBilan(1, 57), "Tu as acquis 1 thème officiel sur 57");
+  assert.equal(phraseBilan(12, 57), "Tu as acquis 12 thèmes officiels sur 57");
 });

@@ -118,3 +118,22 @@
   #view .themes-list > .theme-row:not(:has(> .theme-meta)) > .theme-titre-link { grid-row: 1; }
   /* La colonne du numéro s'élargit au besoin (minmax ci-dessus) : la pastille d'un code (« C2.4 ») ne couvre pas le titre. */
 }
+
+/* Progression du stagiaire (12/11/2026) : la ligne prend la couleur de son état. Un liseré de 4 px à gauche (une ombre
+   intérieure, pas une bordure : la grille ne bouge pas), un voile très pâle, et le mot dans une pastille (la couleur seule
+   ne se lit pas pour un daltonien). « À commencer » : liseré gris, sans voile. Teintes de l'habillage courant. */
+#view .themes-list > .theme-row.prog-acquis { --prog: var(--c-go); }
+#view .themes-list > .theme-row.prog-revoir { --prog: var(--c-stop); }
+/* « En cours » en ambre (celui de « en cours d'acquisition » de l'EPCF) : l'ocre se confondait avec la terre cuite de « À revoir ». */
+#view .themes-list > .theme-row.prog-encours { --prog: var(--note-warn-point); --prog-texte: var(--note-warn-texte); }
+#view .themes-list > .theme-row:is(.prog-acquis, .prog-revoir, .prog-encours) {
+  box-shadow: inset 4px 0 0 var(--prog);
+  background: color-mix(in srgb, var(--prog) 7%, var(--bg-elev));
+}
+#view .themes-list > .theme-row.prog-commencer { box-shadow: inset 4px 0 0 var(--line); }
+.theme-meta .theme-prog {
+  display: inline-flex; align-items: center; padding: 0 0.45rem; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 700; line-height: 1.55; white-space: nowrap;
+  color: var(--prog-texte, var(--prog, var(--text-muted)));
+  background: color-mix(in srgb, var(--prog, var(--text-muted)) 12%, var(--bg-elev));
+}
