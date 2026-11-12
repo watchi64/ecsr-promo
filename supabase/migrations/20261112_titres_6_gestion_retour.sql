@@ -4,6 +4,21 @@
 -- migration 1 a créée) ; seul le retour 1 les efface.
 set local lock_timeout = '3s';
 
+-- C. Les fonctions de gestion disparaissent et la contrainte titres_centre_requis revient. Garde : aucun titre non fixe de promo ou de
+-- centre sans centre ne doit exister (la contrainte les refuserait) ; sinon le retour s'arrête sans rien changer (supprimer ces titres d'abord).
+do $garde_c$
+begin
+  if exists (select 1 from public.titres t where not t.fixe and t.niveau <> 'reseau' and t.lieu_id is null) then
+    raise exception 'titres_6_gestion_retour : des titres du réseau (niveau promo ou centre, sans centre) existent ; les supprimer d''abord ; rien n''est changé';
+  end if;
+end $garde_c$;
+
+drop function if exists public.supprimer_titre(bigint);
+drop function if exists public.ajuster_titre(bigint, integer, text, jsonb);
+drop function if exists public.creer_titre(bigint, text, integer);
+drop function if exists public._refus_gestion(text, integer, jsonb);
+alter table public.titres add constraint titres_centre_requis check (fixe or niveau = 'reseau' or lieu_id is not null);
+
 -- B. donner_titre disparaît et retirer_titre retrouve le texte de la migration 5 (bloc de outils/generer_fragments_titres_6.py retour, à jouer
 -- avant la partie A : le texte de la migration 5 appelle encore _refus_titre jusque-là). Le retour 5 refuse de se jouer tant que donner_titre existe.
 do $migration$

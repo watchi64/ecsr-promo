@@ -7,6 +7,8 @@
 --      en une seule aide, partagée par donner et retirer.
 --   B. donner_titre (tous les titres, fixes ou non, par _refus_titre) et retirer_titre étendu aux titres non fixes (un bloc de fragments,
 --      outils/generer_fragments_titres_6.py : ne pas le modifier à la main).
+--   C. creer_titre, ajuster_titre, supprimer_titre, l'aide _refus_gestion (les règles du § 7 pour gérer les titres) ; la contrainte
+--      titres_centre_requis disparaît (un titre de promo ou de centre sans centre est un titre du réseau, utilisable dans tous les centres).
 -- Les phrases de refus commencent par « titres: », au vouvoiement ; un droit manquant lève l'état 42501. Toute fonction nouvelle est
 -- security definer, search_path public puis pg_temp, adresse du jeton comparée en minuscules ; les aides internes (préfixe _) n'ont aucun
 -- droit d'exécution. Le retour (20261112_titres_6_gestion_retour.sql) remet la base dans l'état d'avant, partie par partie, dans l'ordre inverse.
@@ -458,3 +460,245 @@ begin
   end loop;
 end
 $migration$;
+
+-- C. Créer, ajuster, supprimer un titre -----------------------------------------------------------------------------------------------
+--   La contrainte titres_centre_requis disparaît : un titre de promo ou de centre sans centre est un titre du réseau, utilisable dans tous
+--   les centres (le catalogue de la spec, § 6.2) ; un titre de niveau réseau n'a jamais de centre (contrainte titres_reseau_sans_centre).
+--   _refus_gestion(niveau, centre, cases) : les règles du § 7 pour créer, ajuster et supprimer (mêmes phrases que _refus_titre). Rend la
+--   phrase du refus (toujours 42501), nulle si c'est permis. Titre de centre (centre donné, niveau promo ou centre) : Équipe sur Modifier
+--   (pour un titre de niveau centre, ou Directions de centre sur Modifier), et, pour un titre de niveau centre, des cases au plus égales
+--   à celles de l'appelant sauf direction fixe ou Directions de centre sur Modifier ; titre du réseau (sans centre) : Directions de centre
+--   sur Modifier, et, pour le niveau réseau, des cases au plus égales aux siennes sauf siège fixe. Le fondateur passe toujours.
+--   creer_titre(depuis, nom, centre) : un titre part toujours d'un titre existant, même niveau, mêmes cases.
+--   ajuster_titre(titre, centre, nom, cases) : cases et nom d'un titre non fixe, que l'appelant ne porte pas. Un titre du réseau (niveau promo
+--   ou centre) ajusté depuis un centre crée la version de ce centre et y fait passer les personnes de ce centre qui le portaient.
+--   supprimer_titre(titre) : un titre non fixe, que plus personne ne porte.
+do $garde_c$
+begin
+  if not exists (select 1 from pg_constraint c where c.conrelid = 'public.titres'::regclass and c.conname = 'titres_centre_requis') then
+    raise exception 'titres_6_gestion : la contrainte titres_centre_requis est absente ; rien n''est changé';
+  end if;
+end $garde_c$;
+
+alter table public.titres drop constraint titres_centre_requis;
+
+create function public._refus_gestion(p_niveau text, p_lieu_id integer, p_cases jsonb)
+returns text
+language plpgsql stable security definer
+set search_path to 'public', 'pg_temp'
+as $f$
+declare
+  v_page text;
+begin
+  if coalesce(est_fondateur(), false) then
+    return null;
+  end if;
+  if p_lieu_id is not null and p_niveau in ('promo', 'centre') then
+    if p_niveau = 'promo' then
+      if case_centre(p_lieu_id, 'equipe') <> 2 then
+        return 'titres: Réservé à l''équipe du centre.';
+      end if;
+    else
+      if case_centre(p_lieu_id, 'equipe') <> 2 and case_reseau('directions') <> 2 then
+        return 'titres: Réservé à l''équipe du centre.';
+      end if;
+      if not coalesce(direction_fixe(p_lieu_id), false) and case_reseau('directions') <> 2 then
+        v_page := _depasse(p_cases, _cases_appelant('centre', p_lieu_id));
+      end if;
+    end if;
+  else
+    if case_reseau('directions') <> 2 then
+      return 'titres: Réservé au réseau.';
+    end if;
+    if p_niveau = 'reseau' and not coalesce(siege_fixe(), false) then
+      v_page := _depasse(p_cases, _cases_appelant('reseau', null));
+    end if;
+  end if;
+  if v_page is not null then
+    return 'titres: Ce titre ouvre plus que le vôtre (' || v_page || ').';
+  end if;
+  return null;
+end;
+$f$;
+
+create function public.creer_titre(p_depuis bigint, p_nom text, p_lieu_id integer)
+returns bigint
+language plpgsql security definer
+set search_path to 'public', 'pg_temp'
+as $f$
+declare
+  v_moi text := lower(auth.jwt() ->> 'email');
+  v_nom text := trim(coalesce(p_nom, ''));
+  src record;
+  v_lieu integer;
+  v_cases jsonb;
+  v_phrase text;
+  v_id bigint;
+begin
+  if v_moi is null then
+    raise exception 'titres: Connexion requise.' using errcode = '42501';
+  end if;
+  select ti.niveau, ti.lieu_id as lieu_source into src from titres ti where ti.id = p_depuis;
+  if src.niveau is null then
+    raise exception 'titres: Titre introuvable.';
+  end if;
+  if v_nom = '' then
+    raise exception 'titres: Le nom est requis.';
+  end if;
+  -- Un titre du réseau (niveau réseau) n'a pas de centre ; un titre de promo ou de centre sans centre est un titre du réseau.
+  v_lieu := case when src.niveau = 'reseau' then null else p_lieu_id end;
+  if v_lieu is not null and not exists (select 1 from lieux l where l.id = v_lieu) then
+    raise exception 'titres: Le centre est introuvable.';
+  end if;
+  -- Le titre d'origine ne se lit que depuis son centre ou depuis le réseau.
+  if src.lieu_source is not null and src.lieu_source is distinct from v_lieu
+     and not (coalesce(geste_centre(src.lieu_source, 'equipe.lire'), false) or coalesce(geste_reseau('directions.lire'), false)) then
+    raise exception 'titres: Ce titre appartient à un autre centre.' using errcode = '42501';
+  end if;
+  v_cases := _cases_effectives(p_depuis);
+  v_phrase := _refus_gestion(src.niveau, v_lieu, v_cases);
+  if v_phrase is not null then
+    raise exception '%', v_phrase using errcode = '42501';
+  end if;
+  begin
+    insert into titres (nom, niveau, lieu_id, cases, cree_par) values (v_nom, src.niveau, v_lieu, v_cases, v_moi) returning id into v_id;
+  exception when unique_violation then
+    raise exception 'titres: Un titre de ce nom existe déjà ici.';
+  end;
+  return v_id;
+end;
+$f$;
+
+create function public.ajuster_titre(p_titre_id bigint, p_lieu_id integer, p_nom text, p_cases jsonb)
+returns jsonb
+language plpgsql security definer
+set search_path to 'public', 'pg_temp'
+as $f$
+declare
+  v_moi text := lower(auth.jwt() ->> 'email');
+  v_nom text := case when p_nom is null then null else trim(p_nom) end;
+  t record;
+  v_lieu integer;
+  v_phrase text;
+  v_version bigint;
+  v_cible bigint;
+  v_creee boolean := false;
+  v_emails text[];
+  v_promos integer[];
+  v_bascules integer := 0;
+  i integer;
+begin
+  if v_moi is null then
+    raise exception 'titres: Connexion requise.' using errcode = '42501';
+  end if;
+  select ti.niveau, ti.fixe, ti.nom, ti.lieu_id as lieu_du_titre, coalesce(ti.origine_id, ti.id) as racine into t from titres ti where ti.id = p_titre_id;
+  if t.niveau is null then
+    raise exception 'titres: Titre introuvable.';
+  end if;
+  if t.fixe then
+    raise exception 'titres: Un titre fixe ne se modifie pas.';
+  end if;
+  if v_nom = '' then
+    raise exception 'titres: Le nom est requis.';
+  end if;
+  if not coalesce(_cases_valides(t.niveau, p_cases), false) then
+    raise exception 'titres: Ces cases ne sont pas valides.';
+  end if;
+  -- Le centre en jeu : celui du titre ; un titre du réseau (niveau promo ou centre) ajusté depuis un centre y aura sa version.
+  if t.lieu_du_titre is not null and p_lieu_id is not null and p_lieu_id <> t.lieu_du_titre then
+    raise exception 'titres: Ce titre appartient à un autre centre.';
+  end if;
+  v_lieu := case when t.niveau = 'reseau' then null else coalesce(t.lieu_du_titre, p_lieu_id) end;
+  if v_lieu is not null and not exists (select 1 from lieux l where l.id = v_lieu) then
+    raise exception 'titres: Le centre est introuvable.';
+  end if;
+  -- Jamais sur soi : ni le titre qu'on porte, ni sa version, ni le titre du réseau dont il est la version (le fondateur excepté).
+  if not coalesce(est_fondateur(), false) and exists (
+       select 1 from affectations af join titres tt on tt.id = af.titre_id
+        where lower(af.email) = v_moi and (tt.id = t.racine or tt.origine_id = t.racine)) then
+    raise exception 'titres: Vous ne pouvez pas modifier un titre que vous portez.' using errcode = '42501';
+  end if;
+  v_phrase := _refus_gestion(t.niveau, v_lieu, p_cases);
+  if v_phrase is not null then
+    raise exception '%', v_phrase using errcode = '42501';
+  end if;
+  begin
+    if t.lieu_du_titre is null and t.niveau in ('promo', 'centre') and v_lieu is not null then
+      select ti.id into v_version from titres ti where ti.origine_id = p_titre_id and ti.lieu_id = v_lieu;
+      if v_version is null then
+        -- La version du centre, avec le même nom ; les personnes de ce centre qui portaient le titre du réseau y passent.
+        insert into titres (nom, niveau, lieu_id, origine_id, cases, cree_par)
+        values (coalesce(v_nom, t.nom), t.niveau, v_lieu, p_titre_id, p_cases, v_moi) returning id into v_version;
+        v_creee := true;
+        if t.niveau = 'promo' then
+          select array_agg(a.email order by a.promo_id), array_agg(a.promo_id order by a.promo_id) into v_emails, v_promos
+            from affectations a join promos p on p.id = a.promo_id
+           where a.role = 'formateur' and a.titre_id = p_titre_id and p.lieu_id = v_lieu;
+          select count(distinct lower(e)) into v_bascules from unnest(coalesce(v_emails, '{}')) e;
+          delete from affectations a using promos p
+           where p.id = a.promo_id and a.role = 'formateur' and a.titre_id = p_titre_id and p.lieu_id = v_lieu;
+          for i in 1..coalesce(cardinality(v_emails), 0) loop
+            insert into affectations (email, role, promo_id, titre_id) values (v_emails[i], 'formateur', v_promos[i], v_version);
+          end loop;
+        else
+          select array_agg(a.email) into v_emails from affectations a
+           where a.role = 'direction' and a.titre_id = p_titre_id and a.lieu_id = v_lieu;
+          v_bascules := coalesce(cardinality(v_emails), 0);
+          delete from affectations a where a.role = 'direction' and a.titre_id = p_titre_id and a.lieu_id = v_lieu;
+          for i in 1..coalesce(cardinality(v_emails), 0) loop
+            insert into affectations (email, role, lieu_id, titre_id) values (v_emails[i], 'direction', v_lieu, v_version);
+          end loop;
+        end if;
+      else
+        update titres set nom = coalesce(v_nom, nom), cases = p_cases, modifie_le = now(), modifie_par = v_moi where id = v_version;
+      end if;
+      v_cible := v_version;
+    else
+      update titres set nom = coalesce(v_nom, nom), cases = p_cases, modifie_le = now(), modifie_par = v_moi where id = p_titre_id;
+      v_cible := p_titre_id;
+    end if;
+  exception when unique_violation then
+    raise exception 'titres: Un titre de ce nom existe déjà ici.';
+  end;
+  return jsonb_build_object('titre_id', v_cible, 'version_creee', v_creee, 'porteurs_bascules', v_bascules);
+end;
+$f$;
+
+create function public.supprimer_titre(p_titre_id bigint)
+returns void
+language plpgsql security definer
+set search_path to 'public', 'pg_temp'
+as $f$
+declare
+  v_moi text := lower(auth.jwt() ->> 'email');
+  t record;
+  v_phrase text;
+begin
+  if v_moi is null then
+    raise exception 'titres: Connexion requise.' using errcode = '42501';
+  end if;
+  select ti.niveau, ti.fixe, ti.lieu_id as lieu_du_titre into t from titres ti where ti.id = p_titre_id;
+  if t.niveau is null then
+    raise exception 'titres: Titre introuvable.';
+  end if;
+  if t.fixe then
+    raise exception 'titres: Un titre fixe ne se supprime pas.';
+  end if;
+  v_phrase := _refus_gestion(t.niveau, t.lieu_du_titre, _cases_effectives(p_titre_id));
+  if v_phrase is not null then
+    raise exception '%', v_phrase using errcode = '42501';
+  end if;
+  if exists (select 1 from affectations a where a.titre_id = p_titre_id) then
+    raise exception 'titres: Ce titre est encore porté : retirez-le d''abord.';
+  end if;
+  delete from titres where id = p_titre_id;
+end;
+$f$;
+
+revoke all on function public._refus_gestion(text, integer, jsonb) from public, anon, authenticated, service_role;
+revoke all on function public.creer_titre(bigint, text, integer) from public, anon, service_role;
+grant execute on function public.creer_titre(bigint, text, integer) to authenticated;
+revoke all on function public.ajuster_titre(bigint, integer, text, jsonb) from public, anon, service_role;
+grant execute on function public.ajuster_titre(bigint, integer, text, jsonb) to authenticated;
+revoke all on function public.supprimer_titre(bigint) from public, anon, service_role;
+grant execute on function public.supprimer_titre(bigint) to authenticated;
