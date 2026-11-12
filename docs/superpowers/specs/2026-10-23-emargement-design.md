@@ -1,7 +1,7 @@
 # Émargement numérique signé : conception
 
 Date : 23/10/2026. Demande : session « Émargement » lancée par la session de préparation du
-rendez-vous ECF (Gaëlle et un responsable de projet, semaine du 26/10/2026). Timy a répondu
+rendez-vous ECF (une interlocutrice et un responsable de projet, semaine du 26/10/2026). Timy a répondu
 « pars sur tes choix » : les choix ci-dessous sont ceux de la proposition, complétés par le
 rédacteur (marqués « choix du rédacteur »).
 

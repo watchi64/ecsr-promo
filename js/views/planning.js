@@ -8,28 +8,28 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, getSalleAggregats,
   avantChangementPromo,
-} from "../db.js?v=20261112d";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom, shuffle } from "../utils.js?v=20261112d";
-import { confirmer, demander } from "../confirmer.js?v=20261112d";
-import { icon, deco } from "../icons.js?v=20261112d";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20261112d";
-import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261112d";
-import { recordUndo } from "../undo.js?v=20261112d";
-import { getCurrentWho } from "../identity.js?v=20261112d";
-import { telLink } from "./benevoles.js?v=20261112d";
-import { meilleurResultat } from "../passage-rules.js?v=20261112d";
-import { formateurConnecte } from "../modules-etat.js?v=20261112d";
-import { libelleHeure, jourFerie } from "../emargement-rules.js?v=20261112d";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261112d";
+} from "../db.js?v=20261112e";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom, shuffle } from "../utils.js?v=20261112e";
+import { confirmer, demander } from "../confirmer.js?v=20261112e";
+import { icon, deco } from "../icons.js?v=20261112e";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20261112e";
+import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261112e";
+import { recordUndo } from "../undo.js?v=20261112e";
+import { getCurrentWho } from "../identity.js?v=20261112e";
+import { telLink } from "./benevoles.js?v=20261112e";
+import { meilleurResultat } from "../passage-rules.js?v=20261112e";
+import { formateurConnecte } from "../modules-etat.js?v=20261112e";
+import { libelleHeure, jourFerie } from "../emargement-rules.js?v=20261112e";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261112e";
 import {
   entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe, colonnesParalleles,
-} from "../planning-roles.js?v=20261112d";
+} from "../planning-roles.js?v=20261112e";
 import {
   DEFAULT_HALF_META, semaineEnGrille, jourParDefaut, lundiEnCours, vuePlanningInitiale,
-} from "../journee-rules.js?v=20261112d";
-import { nomsStagiaires, nomBenevole } from "../planning-lecture.js?v=20261112d";
-import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261112d";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261112d";
+} from "../journee-rules.js?v=20261112e";
+import { nomsStagiaires, nomBenevole } from "../planning-lecture.js?v=20261112e";
+import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261112e";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261112e";
 
 let stagiaires = [];
 let profs = [];
@@ -1515,7 +1515,7 @@ function benevoleNomEtNumero(b) {
 // Lignes « ⊘ X absent(e) → remplacé(e) par … » d'une carte (spec §5). Sélecteur SOUPLE :
 // tous les stagiaires (moins l'absent), tri par priorité, badge « occupé » à titre
 // d'avertissement AU LIEU d'une exclusion dure : c'est le remplacement de dernière
-// minute, la personne est souvent déjà dans la salle (cas Céline, 17/07).
+// minute, la personne est souvent déjà dans la salle (cas vécu le 17/07).
 // group (salle uniquement) : ne rend que l'absence du tableau de CE groupe, pour que la
 // ligne vive dans le bloc de son groupe (retour utilisateur 20/07).
 function renderAbsenceRows(entry, lid, group = null) {

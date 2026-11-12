@@ -12,7 +12,7 @@ import { journeeDuJour } from "../js/journee-rules.js";
 const MARDI = "2026-10-27";
 
 const noms = () => ({
-  stagiaires: new Map([[1, "Timy"], [2, "Anissa"], [3, "Lorie"], [4, "Valentin"], [5, "Cassandre"], [6, "Céline"]]),
+  stagiaires: new Map([[1, "Timy"], [2, "Alice"], [3, "Louise"], [4, "Victor"], [5, "Chloé"], [6, "Clara"]]),
   formateurs: new Map([[1, "Romain"]]),
   benevoles: new Map([[1, "Camille C."], [2, "Yanis Y."]]),
   autres: [],
@@ -48,16 +48,16 @@ test("titreSelonDemis : sans demi-journée, ou en double, le titre dit aujourd'h
 test("auTableauDuJour : deux groupes sur une salle double, chacun avec le sujet de son groupe", () => {
   const j = journee([carte({ salle_double: true, pedagogue_id: 2, pedagogue_id_2: 3, sujet: "Feux", sujet_2: "Pneus" })]);
   assert.deepEqual(auTableauDuJour(j), [
-    { id: 2, nom: "Anissa", demi: "matin", sujet: "Feux" },
-    { id: 3, nom: "Lorie", demi: "matin", sujet: "Pneus" },
+    { id: 2, nom: "Alice", demi: "matin", sujet: "Feux" },
+    { id: 3, nom: "Louise", demi: "matin", sujet: "Pneus" },
   ]);
 });
 
 test("auTableauDuJour : salle double dont un seul groupe a un sujet écrit, l'autre reprend les sujets de la carte", () => {
   const j = journee([carte({ salle_double: true, pedagogue_id: 2, pedagogue_id_2: 3, sujet: "Feux", sujet_2: null })]);
   assert.deepEqual(auTableauDuJour(j), [
-    { id: 2, nom: "Anissa", demi: "matin", sujet: "Feux" },
-    { id: 3, nom: "Lorie", demi: "matin", sujet: "Feux" },
+    { id: 2, nom: "Alice", demi: "matin", sujet: "Feux" },
+    { id: 3, nom: "Louise", demi: "matin", sujet: "Feux" },
   ]);
 });
 
@@ -65,14 +65,14 @@ test("auTableauDuJour : le remplaçant d'un pédagogue de salle double garde le 
   const j = journee([carte({ salle_double: true, pedagogue_id: 2, pedagogue_id_2: 3, sujet: "Feux", sujet_2: "Pneus",
     absences: [{ sid: 3, rid: 5 }] })]);
   assert.deepEqual(auTableauDuJour(j), [
-    { id: 2, nom: "Anissa", demi: "matin", sujet: "Feux" },
-    { id: 5, nom: "Cassandre", demi: "matin", sujet: "Pneus" },
+    { id: 2, nom: "Alice", demi: "matin", sujet: "Feux" },
+    { id: 5, nom: "Chloé", demi: "matin", sujet: "Pneus" },
   ]);
 });
 
 test("auTableauDuJour : un absent est remplacé, un absent sans remplaçant n'y figure plus", () => {
   const remplace = journee([carte({ pedagogue_id: 2, sujet: "Feux", absences: [{ sid: 2, rid: 5 }] })]);
-  assert.deepEqual(auTableauDuJour(remplace), [{ id: 5, nom: "Cassandre", demi: "matin", sujet: "Feux" }]);
+  assert.deepEqual(auTableauDuJour(remplace), [{ id: 5, nom: "Chloé", demi: "matin", sujet: "Feux" }]);
   const sans = journee([carte({ pedagogue_id: 2, sujet: "Feux", absences: [{ sid: 2, rid: null }] })]);
   assert.deepEqual(auTableauDuJour(sans), []);
 });
@@ -83,8 +83,8 @@ test("auTableauDuJour : le matin puis l'après-midi, sans sujet quand la carte n
     carte({ id: 2, half_day: "aprem", pedagogue_id: 3, sujet: "Pneus" }),
   ]);
   assert.deepEqual(auTableauDuJour(j), [
-    { id: 2, nom: "Anissa", demi: "matin", sujet: "" },
-    { id: 3, nom: "Lorie", demi: "aprem", sujet: "Pneus" },
+    { id: 2, nom: "Alice", demi: "matin", sujet: "" },
+    { id: 3, nom: "Louise", demi: "aprem", sujet: "Pneus" },
   ]);
 });
 
@@ -102,7 +102,7 @@ test("enVoitureDuJour : deux cartes voiture, un stagiaire une seule fois, les b�
     carte({ id: 2, half_day: "aprem", slot: 1, activite: "Voiture (conduite)", eleves_ids: [2, 3], benevoles_ids: [2, 1] }),
   ]);
   assert.deepEqual(enVoitureDuJour(j), {
-    stagiaires: [{ id: 1, nom: "Timy" }, { id: 2, nom: "Anissa" }, { id: 3, nom: "Lorie" }],
+    stagiaires: [{ id: 1, nom: "Timy" }, { id: 2, nom: "Alice" }, { id: 3, nom: "Louise" }],
     benevoles: ["Yanis Y.", "Camille C."],
     demis: ["aprem"],
   });
@@ -125,16 +125,16 @@ test("enVoitureDuJour : une voiture sans personne ne compte pas ; rien du tout",
 
 test("enVoitureDuJour : un conducteur absent est remplacé", () => {
   const j = journee([carte({ activite: "Voiture (conduite)", eleves_ids: [1, 2], absences: [{ sid: 1, rid: 4 }] })]);
-  assert.deepEqual(enVoitureDuJour(j).stagiaires, [{ id: 4, nom: "Valentin" }, { id: 2, nom: "Anissa" }]);
+  assert.deepEqual(enVoitureDuJour(j).stagiaires, [{ id: 4, nom: "Victor" }, { id: 2, nom: "Alice" }]);
 });
 
 // === feuilleDuJour ===
 
 const stagiaires = [
   { id: 1, prenom: "Timy", nom: "Vigne", actif: true },
-  { id: 2, prenom: "Anissa", nom: "Boulet", actif: true },
-  { id: 3, prenom: "Lorie", nom: "Martin", actif: true },
-  { id: 4, prenom: "Valentin", nom: "Roux", actif: true },
+  { id: 2, prenom: "Alice", nom: "Boulet", actif: true },
+  { id: 3, prenom: "Louise", nom: "Martin", actif: true },
+  { id: 4, prenom: "Victor", nom: "Roux", actif: true },
   { id: 9, prenom: "Zoé", nom: "Abandon", actif: false },
 ];
 const sig = (id, extra = {}) => ({ stagiaire_id: id, absent: false, signe_le: "2026-10-27T07:52:00Z", ...extra });
@@ -148,12 +148,12 @@ test("feuilleDuJour : la feuille ouverte, qui a signé, qui attend", () => {
   assert.equal(f.signes, 1);
   assert.equal(f.total, 4);
   // Dans l'ordre alphabétique des noms de famille, comme la feuille.
-  assert.deepEqual(f.enAttente, ["Lorie M.", "Valentin R.", "Timy V."]);
+  assert.deepEqual(f.enAttente, ["Louise M.", "Victor R.", "Timy V."]);
 });
 
 test("feuilleDuJour : un absent noté ne figure pas parmi ceux qui attendent mais reste dans le total", () => {
   const f = feuilleDuJour({ seances: [seance("matin", "ouverte", [sig(2), { stagiaire_id: 3, absent: true, signe_le: null }])], stagiaires, entries: [] });
-  assert.deepEqual(f.enAttente, ["Valentin R.", "Timy V."]);
+  assert.deepEqual(f.enAttente, ["Victor R.", "Timy V."]);
   assert.equal(f.signes, 1);
   assert.equal(f.total, 4);
 });
@@ -161,7 +161,7 @@ test("feuilleDuJour : un absent noté ne figure pas parmi ceux qui attendent mai
 test("feuilleDuJour : un absent noté au planning n'attend pas non plus", () => {
   const entries = [carte({ pedagogue_id: 1, absences: [{ sid: 1, rid: null }] })];
   const f = feuilleDuJour({ seances: [seance("matin", "ouverte", [])], stagiaires, entries });
-  assert.deepEqual(f.enAttente, ["Anissa B.", "Lorie M.", "Valentin R."]);
+  assert.deepEqual(f.enAttente, ["Alice B.", "Louise M.", "Victor R."]);
   assert.equal(f.total, 4);
 });
 

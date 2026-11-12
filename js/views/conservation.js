@@ -10,17 +10,17 @@
 // sous 3 formateurs (5 stagiaires). Migration pas encore appliquée : lireEtatConservation() rend null, la section le dit.
 // Une liste de cartes, jamais un tableau, sur téléphone comme sur ordinateur.
 
-import { el, clear, toast } from "../utils.js?v=20261112d";
-import { lireEtatConservation, effacerSurDemande, lireEffacementsSurDemande } from "../db.js?v=20261112d";
+import { el, clear, toast } from "../utils.js?v=20261112e";
+import { lireEtatConservation, effacerSurDemande, lireEffacementsSurDemande } from "../db.js?v=20261112e";
 import {
   echeancesConservation, confirmationEcheance, confirmationDemande, compteRenduConservation, rappelConservation, statutFiche,
-} from "../effacement-rules.js?v=20261112d";
-import { confirmer } from "../confirmer.js?v=20261112d";
-import { tableau } from "../qualiopi-preuves.js?v=20261112d";
-import { nomPromo } from "../qualiopi-page-rules.js?v=20261112d";
+} from "../effacement-rules.js?v=20261112e";
+import { confirmer } from "../confirmer.js?v=20261112e";
+import { tableau } from "../qualiopi-preuves.js?v=20261112e";
+import { nomPromo } from "../qualiopi-page-rules.js?v=20261112e";
 // Les cartes des échéances et leurs gestes, partagés avec les Réglages du centre (direction) : module à part, qui part avec l'app
 // sans tirer la page Qualiopi.
-import { ACTIONS, CONSERVATION_ABSENTE, carteEcheance } from "./conservation-cartes.js?v=20261112d";
+import { ACTIONS, CONSERVATION_ABSENTE, carteEcheance } from "./conservation-cartes.js?v=20261112e";
 
 export { CONSERVATION_ABSENTE };
 

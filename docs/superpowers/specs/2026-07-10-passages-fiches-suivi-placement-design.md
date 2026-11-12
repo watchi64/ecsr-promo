@@ -62,21 +62,21 @@ Rejouable sans doublon.
 
 | Stagiaire | Romain | Raphaël | Hocine | Avec élève | Sans élève |
 |-----------|:------:|:-------:|:------:|:----------:|:----------:|
-| KESSAL Lorie | 4 | 0 | 1 | 2 | 3 |
+| Stagiaire A | 4 | 0 | 1 | 2 | 3 |
 | VALDIVIA Timy | 3 | 0 | 1 | 3 | 1 |
-| ANKPRA Gaëlle | 3 | 1 | 0 | 2 | 2 |
-| ALEXER Audrick-allan | 5 | 0 | 0 | 4 | 1 |
-| BLANC Julie | 4 | 1 | 0 | 3 | 2 |
-| CHOULET Émilie | 2 | 1 | 0 | 2 | 1 |
-| BRUN Gael | 3 | 0 | 0 | 2 | 1 |
-| MEDJANI Cassandre | 3 | 2 | 0 | 3 | 2 |
-| BLANQUINQUE Valentin | 3 | 0 | 0 | 2 | 1 |
-| BAILLY Mickaël | 2 | 1 | 0 | 2 | 1 |
-| OULD ABDELKADER Anissa | 3 | 1 | 0 | 1 | 3 |
-| RITA (correspondance table `stagiaires` à établir) | 2 | 1 | 0 | 1 | 2 |
-| AQUILA Céline | 3 | 1 | 0 | 2 | 2 |
+| Stagiaire B | 3 | 1 | 0 | 2 | 2 |
+| Stagiaire C | 5 | 0 | 0 | 4 | 1 |
+| Stagiaire D | 4 | 1 | 0 | 3 | 2 |
+| Stagiaire E | 2 | 1 | 0 | 2 | 1 |
+| Stagiaire F | 3 | 0 | 0 | 2 | 1 |
+| Stagiaire G | 3 | 2 | 0 | 3 | 2 |
+| Stagiaire H | 3 | 0 | 0 | 2 | 1 |
+| Stagiaire I | 2 | 1 | 0 | 2 | 1 |
+| Stagiaire J | 3 | 1 | 0 | 1 | 3 |
+| Stagiaire K (correspondance table `stagiaires` à établir) | 2 | 1 | 0 | 1 | 2 |
+| Stagiaire L | 3 | 1 | 0 | 2 | 2 |
 
-- LOPEZ Tatiana : **rien** (sortie d'effectif).
+- Une stagiaire sortie de l'effectif : **rien**.
 - Le mapping noms → `stagiaires.id` et Romain/Raphaël/Hocine → `profs.id` est résolu par
   requête au moment de l'écriture du script (pas d'id codé en dur sans vérification).
 - Contrôle post-import : requête de vérification qui recalcule les totaux par stagiaire
@@ -151,7 +151,7 @@ Nouvelle vue `js/views/suivi.js`, enregistrée dans les routes et la nav de `js/
 ### 3.3 Seed initial
 
 L'import (chantier 1) insère aussi les `besoins` initiaux depuis le formulaire, par ex. :
-- Gaëlle → « Conduite de droite avec des démos : n'a pas réussi à faire les démos »
+- Stagiaire B → « Conduite de droite avec des démos : n'a pas réussi à faire les démos »
 - Timy → « Évaluation spécifique statique + dynamique (parcours, jalonnage), organisation, gestion du temps »
 - (texte complet repris du document de suivi pour les 13 stagiaires)
 
@@ -199,12 +199,12 @@ manuelle du tirage). : détail UI ajustable à l'implémentation.
 ## Erreurs & cas limites
 
 - Import : stagiaire introuvable par nom → le script s'arrête AVANT toute écriture et liste
-  les noms non résolus (Rita attendue ici).
+  les noms non résolus (stagiaire K attendue ici).
 - Fiche : sauvegarde en conflit (deux éditions simultanées) → dernière écriture gagne,
   `updated_by_who` trace l'auteur (pattern existant de l'app).
 - Placement v2 : si `fiches_suivi` est vide ou la migration absente, l'algo doit
   fonctionner (critères 2 dégradé neutre) : chargements résilients comme `getJoursOff`.
-- Abandons (Tatiana) : déjà exclus par `activeIds` dans le planning et la validation.
+- Abandons : déjà exclus par `activeIds` dans le planning et la validation.
 
 ## Tests (manuels, sur le déploiement local `dev.ps1`)
 
