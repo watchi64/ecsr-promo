@@ -65,6 +65,28 @@ f("retirer_titre(text, bigint, integer)",
 """))
 
 
+# Retirer des promos par regler_affectations_formateur obéit aux mêmes règles que retirer_titre : on ne retire que ce qu'on pourrait donner
+# (avant, la fonction supprimait les lignes de la personne dans le centre quel que soit leur titre).
+f("regler_affectations_formateur(text, integer, integer[], integer)",
+  ("  v_retirees integer[];\nbegin\n",
+   "  v_retirees integer[];\n  v_titre record;\n  v_etat text;\n  v_phrase text;\nbegin\n"),
+  ("  with retire as (\n",
+   """  -- Retirer des promos obéit aux mêmes règles que retirer_titre (_refus_titre) : on ne retire que ce qu'on pourrait donner.
+  for v_titre in
+    select distinct a.titre_id as id from affectations a
+     where lower(a.email) = lower(v_cible) and a.role = 'formateur'
+       and a.promo_id in (select p.id from promos p where p.lieu_id = p_lieu_id)
+       and not (a.promo_id = any (v_liste))
+  loop
+    select r.etat, r.phrase into v_etat, v_phrase from _refus_titre(v_titre.id, p_lieu_id, v_cible, 'retirer') r;
+    if v_etat is not null then
+      raise exception '%', v_phrase using errcode = v_etat;
+    end if;
+  end loop;
+  with retire as (
+"""))
+
+
 def bloc(inverse, nom):
     fonctions = ",\n".join(f"    '{P}{s}'" for s, _ in T)
     de, anc, nou = [], [], []

@@ -14,6 +14,8 @@
 -- Les phrases de refus commencent par « titres: », au vouvoiement ; un droit manquant lève l'état 42501. Toute fonction nouvelle est
 -- security definer, search_path public puis pg_temp, adresse du jeton comparée en minuscules ; les aides internes (préfixe _) n'ont aucun
 -- droit d'exécution. Le retour (20261112_titres_6_gestion_retour.sql) remet la base dans l'état d'avant, partie par partie, dans l'ordre inverse.
+-- À appliquer en une seule transaction : psql -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261112_titres_6_gestion.sql (sans -1, le
+-- verrou court ci-dessous est sans effet et l'échec d'un bloc laisserait les parties déjà posées). Le retour s'applique de même.
 set local lock_timeout = '3s';
 
 -- A. Le verrou et les aides de décision ---------------------------------------------------------------------------------------------
@@ -370,9 +372,10 @@ grant execute on function public.donner_titre(text, bigint, integer, integer[], 
 do $migration$
 declare
   v_fonctions text[] := array[
-    'public.retirer_titre(text, bigint, integer)'];
+    'public.retirer_titre(text, bigint, integer)',
+    'public.regler_affectations_formateur(text, integer, integer[], integer)'];
   -- La fonction de chaque fragment (rang dans v_fonctions).
-  v_de integer[] := array[1, 1];
+  v_de integer[] := array[1, 1, 2, 2];
   v_anciens text[] := array[
 $ancien$  v_n integer;
 begin
@@ -407,6 +410,11 @@ $ancien$  -- Les titres non fixes se retireront à la migration 6 (cette ligne s
   if v_email = v_moi and (v_niveau <> 'promo' or not v_fixe) and not est_fondateur() then
     raise exception 'titres: Vous ne pouvez pas retirer votre propre titre.' using errcode = '42501';
   end if;
+$ancien$,
+$ancien$  v_retirees integer[];
+begin
+$ancien$,
+$ancien$  with retire as (
 $ancien$];
   v_nouveaux text[] := array[
 $nouveau$  v_n integer;
@@ -427,6 +435,26 @@ $nouveau$  -- Un titre du réseau ne porte sur aucun centre : le centre donné e
   if v_etat is not null then
     raise exception '%', v_phrase using errcode = v_etat;
   end if;
+$nouveau$,
+$nouveau$  v_retirees integer[];
+  v_titre record;
+  v_etat text;
+  v_phrase text;
+begin
+$nouveau$,
+$nouveau$  -- Retirer des promos obéit aux mêmes règles que retirer_titre (_refus_titre) : on ne retire que ce qu'on pourrait donner.
+  for v_titre in
+    select distinct a.titre_id as id from affectations a
+     where lower(a.email) = lower(v_cible) and a.role = 'formateur'
+       and a.promo_id in (select p.id from promos p where p.lieu_id = p_lieu_id)
+       and not (a.promo_id = any (v_liste))
+  loop
+    select r.etat, r.phrase into v_etat, v_phrase from _refus_titre(v_titre.id, p_lieu_id, v_cible, 'retirer') r;
+    if v_etat is not null then
+      raise exception '%', v_phrase using errcode = v_etat;
+    end if;
+  end loop;
+  with retire as (
 $nouveau$];
   f integer;
   i integer;
@@ -547,6 +575,9 @@ begin
   if v_nom = '' then
     raise exception 'titres: Le nom est requis.';
   end if;
+  if exists (select 1 from titres f where f.fixe and lower(f.nom) = lower(v_nom)) then
+    raise exception 'titres: Ce nom est réservé à un titre fixe.';
+  end if;
   -- Un titre du réseau (niveau réseau) n'a pas de centre ; un titre de promo ou de centre sans centre est un titre du réseau.
   v_lieu := case when src.niveau = 'reseau' then null else p_lieu_id end;
   if v_lieu is not null and not exists (select 1 from lieux l where l.id = v_lieu) then
@@ -603,6 +634,9 @@ begin
   if v_nom = '' then
     raise exception 'titres: Le nom est requis.';
   end if;
+  if v_nom is not null and exists (select 1 from titres f where f.fixe and lower(f.nom) = lower(v_nom)) then
+    raise exception 'titres: Ce nom est réservé à un titre fixe.';
+  end if;
   if not coalesce(_cases_valides(t.niveau, p_cases), false) then
     raise exception 'titres: Ces cases ne sont pas valides.';
   end if;
@@ -624,9 +658,18 @@ begin
   if v_phrase is not null then
     raise exception '%', v_phrase using errcode = '42501';
   end if;
+  -- On n'ajuste que ce qu'on pourrait donner : les cases ACTUELLES du titre (celles de la version du centre si elle existe, sinon celles du
+  -- titre du réseau que les personnes du centre portent) obéissent à la même règle que les nouvelles. Sans cela, abaisser un titre plus fort
+  -- que le sien permettrait ensuite de le retirer.
+  if t.lieu_du_titre is null and t.niveau in ('promo', 'centre') and v_lieu is not null then
+    select ti.id into v_version from titres ti where ti.origine_id = p_titre_id and ti.lieu_id = v_lieu;
+  end if;
+  v_phrase := _refus_gestion(t.niveau, v_lieu, _cases_effectives(coalesce(v_version, p_titre_id)));
+  if v_phrase is not null then
+    raise exception '%', v_phrase using errcode = '42501';
+  end if;
   begin
     if t.lieu_du_titre is null and t.niveau in ('promo', 'centre') and v_lieu is not null then
-      select ti.id into v_version from titres ti where ti.origine_id = p_titre_id and ti.lieu_id = v_lieu;
       if v_version is null then
         -- La version du centre, avec le même nom ; les personnes de ce centre qui portaient le titre du réseau y passent.
         insert into titres (nom, niveau, lieu_id, origine_id, cases, cree_par)

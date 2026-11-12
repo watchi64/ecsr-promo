@@ -30,9 +30,10 @@ alter table public.titres add constraint titres_centre_requis check (fixe or niv
 do $migration$
 declare
   v_fonctions text[] := array[
-    'public.retirer_titre(text, bigint, integer)'];
+    'public.retirer_titre(text, bigint, integer)',
+    'public.regler_affectations_formateur(text, integer, integer[], integer)'];
   -- La fonction de chaque fragment (rang dans v_fonctions).
-  v_de integer[] := array[1, 1];
+  v_de integer[] := array[1, 1, 2, 2];
   v_anciens text[] := array[
 $ancien$  v_n integer;
   v_etat text;
@@ -52,6 +53,26 @@ $ancien$  -- Un titre du réseau ne porte sur aucun centre : le centre donné es
   if v_etat is not null then
     raise exception '%', v_phrase using errcode = v_etat;
   end if;
+$ancien$,
+$ancien$  v_retirees integer[];
+  v_titre record;
+  v_etat text;
+  v_phrase text;
+begin
+$ancien$,
+$ancien$  -- Retirer des promos obéit aux mêmes règles que retirer_titre (_refus_titre) : on ne retire que ce qu'on pourrait donner.
+  for v_titre in
+    select distinct a.titre_id as id from affectations a
+     where lower(a.email) = lower(v_cible) and a.role = 'formateur'
+       and a.promo_id in (select p.id from promos p where p.lieu_id = p_lieu_id)
+       and not (a.promo_id = any (v_liste))
+  loop
+    select r.etat, r.phrase into v_etat, v_phrase from _refus_titre(v_titre.id, p_lieu_id, v_cible, 'retirer') r;
+    if v_etat is not null then
+      raise exception '%', v_phrase using errcode = v_etat;
+    end if;
+  end loop;
+  with retire as (
 $ancien$];
   v_nouveaux text[] := array[
 $nouveau$  v_n integer;
@@ -87,6 +108,11 @@ $nouveau$  -- Les titres non fixes se retireront à la migration 6 (cette ligne 
   if v_email = v_moi and (v_niveau <> 'promo' or not v_fixe) and not est_fondateur() then
     raise exception 'titres: Vous ne pouvez pas retirer votre propre titre.' using errcode = '42501';
   end if;
+$nouveau$,
+$nouveau$  v_retirees integer[];
+begin
+$nouveau$,
+$nouveau$  with retire as (
 $nouveau$];
   f integer;
   i integer;
