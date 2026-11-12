@@ -27,9 +27,9 @@ eq(Object.keys(NIVEAUX).map(Number), numeros(indicateursApplicables({ alternance
   "ce sont ceux du référentiel de la formation continue avec l'alternance");
 
 const parNiveau = (niveau) => Object.keys(NIVEAUX).map(Number).filter((k) => NIVEAUX[k].niveau === niveau);
-eq(parNiveau("prouve"), [10, 11, 16, 19], "prouvé : l'app fournit l'essentiel");
+eq(parNiveau("prouve"), [10, 11, 16], "prouvé : l'app fournit l'essentiel");
 eq(parNiveau("hors"), [1, 4, 8, 13, 21, 22, 24, 26, 27], "hors de l'app");
-eq(parNiveau("partiel"), [2, 3, 5, 6, 7, 9, 12, 17, 18, 23, 25, 28, 30, 31, 32], "en partie");
+eq(parNiveau("partiel"), [2, 3, 5, 6, 7, 9, 12, 17, 18, 19, 23, 25, 28, 30, 31, 32], "en partie");
 eq(Object.keys(NIVEAUX).map(Number).filter((k) => NIVEAUX[k].apporte === "rien"), parNiveau("hors"),
   "« rien » : exactement les indicateurs hors de l'app");
 
@@ -49,12 +49,19 @@ eq(NIVEAUX[12], {
   ajout: "date et motif d'abandon (plus tard)", aFournir: ["procédure et référent violences"],
 }, "12");
 eq(NIVEAUX[19].aFournir, ["référent pédagogique si le seuil l'exige"], "19 : une seule pièce, la virgule n'y est pas");
+// 19, « en partie » depuis le 12/11 : l'app prouve les ressources mises à disposition et les tentatives de QCM, pas le suivi
+// des modules à distance (aucune lecture de cours, aucun temps de travail n'est enregistré). La phrase le dit.
+eq(NIVEAUX[19].niveau, "partiel", "19 : en partie, pas prouvé");
+eq(NIVEAUX[19].apporte, "cours publiés, tentatives de QCM datées par stagiaire (ni la lecture des cours ni le temps de travail à distance ne sont enregistrés)",
+  "19 : ce qui est prouvé, et ce qui ne l'est pas");
+eq(NIVEAUX[19].ajout, "lecture des cours et temps de travail à distance (plus tard)", "19 : ce qui manque à l'app");
 eq(NIVEAUX[21].aFournir, ["CV", "titres", "autorisations d'enseigner"], "21 : trois pièces, découpées sur la virgule");
 // Empreinte de l'annexe A de la spec : lignes « n° | niveau | apporte | ajout | à fournir » séparées par des
 // tabulations, tirées du tableau de la spec par un script jetable. Toute retouche de NIVEAUX la change. Recalculée le
 // 10/11 : la colonne « apporte » des indicateurs 7, 10, 11, 12, 31 et 32 a pris les mots de l'app (livret EPCF, ordre de
 // passage, difficultés, contestations de QCM analysées, thèmes les moins réussis), le sens de la spec est inchangé.
-const ANNEXE_A = "6a028538d1e5c2e7dbc2bed5ccaf34ba39e91f100176a431ad29536346473899";
+// Recalculée le 12/11 : l'indicateur 19 passe de « prouvé » à « en partie » (spec corrigée dans le même commit).
+const ANNEXE_A = "ce7b9c32592b1df6b34c0ffee08c506f6e24da2bb3729e9b7afbe934e1452296";
 const canon = Object.entries(NIVEAUX)
   .map(([num, v]) => [num, v.niveau, v.apporte, v.ajout ?? "", v.aFournir.join(", ")].join("\t")).join("\n");
 eq(createHash("sha256").update(canon).digest("hex"), ANNEXE_A, "NIVEAUX reprend l'annexe A de la spec (mots du 10/11)");
