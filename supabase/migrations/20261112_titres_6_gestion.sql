@@ -9,6 +9,8 @@
 --      outils/generer_fragments_titres_6.py : ne pas le modifier à la main).
 --   C. creer_titre, ajuster_titre, supprimer_titre, l'aide _refus_gestion (les règles du § 7 pour gérer les titres) ; la contrainte
 --      titres_centre_requis disparaît (un titre de promo ou de centre sans centre est un titre du réseau, utilisable dans tous les centres).
+--   D. Les lectures de l'étape 3 : titres_visibles, mes_titres, personnes_et_titres, journal_des_droits (rend une liste vide quand la table du
+--      journal, migration 4, n'est pas appliquée).
 -- Les phrases de refus commencent par « titres: », au vouvoiement ; un droit manquant lève l'état 42501. Toute fonction nouvelle est
 -- security definer, search_path public puis pg_temp, adresse du jeton comparée en minuscules ; les aides internes (préfixe _) n'ont aucun
 -- droit d'exécution. Le retour (20261112_titres_6_gestion_retour.sql) remet la base dans l'état d'avant, partie par partie, dans l'ordre inverse.
@@ -702,3 +704,188 @@ revoke all on function public.ajuster_titre(bigint, integer, text, jsonb) from p
 grant execute on function public.ajuster_titre(bigint, integer, text, jsonb) to authenticated;
 revoke all on function public.supprimer_titre(bigint) from public, anon, service_role;
 grant execute on function public.supprimer_titre(bigint) to authenticated;
+
+-- D. Les lectures de l'étape 3 (écrans). Lecture seule, security definer, stable, authenticated seul ; un droit manquant lève 42501 avec la
+-- phrase des écritures (l'écran la montre telle quelle).
+--   titres_visibles(centre)            les titres d'un centre (Équipe au moins sur Voir) ou du réseau (centre nul, Directions de centre au moins
+--                                      sur Voir) : cases effectives, nombre de porteurs, et « donnable » (aucun refus de _refus_titre, verrou compris).
+--   mes_titres()                       les titres de l'appelant : une ligne par titre et par centre (promos du centre groupées pour un titre de promo).
+--   personnes_et_titres(centre, promo) qui porte quoi : pour une promo (Réglages de la promo ou Équipe du centre), pour un centre (Équipe),
+--                                      pour le réseau (Directions de centre) ; le réseau ne voit jamais de titre de promo.
+--   journal_des_droits(centre)         le journal de la migration 4 (trois ans au plus) ; la table absente, aucune ligne et aucune erreur.
+create function public.titres_visibles(p_lieu_id integer)
+returns table(id bigint, nom text, niveau text, lieu_id integer, fixe boolean, origine_id bigint, cases jsonb, porteurs integer, donnable boolean)
+language plpgsql stable security definer
+set search_path to 'public', 'pg_temp'
+as $f$
+#variable_conflict use_column
+begin
+  if auth.jwt() ->> 'email' is null then
+    raise exception 'titres: Connexion requise.' using errcode = '42501';
+  end if;
+  if p_lieu_id is not null then
+    if not coalesce(geste_centre(p_lieu_id, 'equipe.lire'), false) then
+      raise exception 'titres: Réservé à l''équipe du centre.' using errcode = '42501';
+    end if;
+    -- Les titres fixes de promo et de centre, ceux du centre, et ceux du réseau de niveau promo ou centre que le centre n'a pas remplacés
+    -- par sa version.
+    return query
+      select t.id, t.nom, t.niveau, t.lieu_id, t.fixe, t.origine_id, _cases_effectives(t.id),
+             (select count(distinct lower(a.email))::integer from affectations a
+               where a.titre_id = t.id
+                 and ((a.role = 'formateur' and a.promo_id in (select p.id from promos p where p.lieu_id = p_lieu_id))
+                      or (a.role = 'direction' and a.lieu_id = p_lieu_id))),
+             (select r.etat is null from _refus_titre(t.id, p_lieu_id, null, 'donner') r)
+        from titres t
+       where t.niveau in ('promo', 'centre')
+         and (t.fixe or t.lieu_id = p_lieu_id
+              or (t.lieu_id is null and not exists (select 1 from titres v where v.origine_id = t.id and v.lieu_id = p_lieu_id)))
+       order by case t.niveau when 'promo' then 0 else 1 end, t.fixe desc, t.nom collate "C", t.id;
+  else
+    if not coalesce(geste_reseau('directions.lire'), false) then
+      raise exception 'titres: Réservé au réseau.' using errcode = '42501';
+    end if;
+    return query
+      select t.id, t.nom, t.niveau, t.lieu_id, t.fixe, t.origine_id, _cases_effectives(t.id),
+             (select count(distinct lower(a.email))::integer from affectations a where a.titre_id = t.id),
+             (select r.etat is null from _refus_titre(t.id, null, null, 'donner') r)
+        from titres t
+       where t.lieu_id is null
+       order by case t.niveau when 'promo' then 0 when 'centre' then 1 else 2 end, t.fixe desc, t.nom collate "C", t.id;
+  end if;
+end;
+$f$;
+
+create function public.mes_titres()
+returns table(titre_id bigint, nom text, niveau text, lieu_id integer, lieu_nom text, promo_ids integer[], cases jsonb)
+language plpgsql stable security definer
+set search_path to 'public', 'pg_temp'
+as $f$
+#variable_conflict use_column
+declare
+  v_moi text := lower(auth.jwt() ->> 'email');
+begin
+  if v_moi is null then
+    raise exception 'titres: Connexion requise.' using errcode = '42501';
+  end if;
+  return query
+    select g.titre_id, t.nom, t.niveau, g.lieu, l.nom, g.promos, _cases_effectives(t.id)
+      from (select x.titre_id, x.lieu,
+                   case when x.role = 'formateur' then array_agg(x.promo_id order by x.promo_id) end as promos
+              from (select a.titre_id, a.role, a.promo_id,
+                           case a.role when 'formateur' then (select p.lieu_id from promos p where p.id = a.promo_id)
+                                       when 'direction' then a.lieu_id end as lieu
+                      from affectations a
+                     where lower(a.email) = v_moi) x
+             group by x.titre_id, x.role, x.lieu) g
+      join titres t on t.id = g.titre_id
+      left join lieux l on l.id = g.lieu
+     order by case t.niveau when 'promo' then 0 when 'centre' then 1 else 2 end, l.nom collate "C", t.nom collate "C", t.id;
+end;
+$f$;
+
+create function public.personnes_et_titres(p_lieu_id integer default null, p_promo_id integer default null)
+returns table(email text, titre_id bigint, titre_nom text, niveau text, lieu_id integer, promo_ids integer[])
+language plpgsql stable security definer
+set search_path to 'public', 'pg_temp'
+as $f$
+#variable_conflict use_column
+declare
+  v_l integer;
+begin
+  if auth.jwt() ->> 'email' is null then
+    raise exception 'titres: Connexion requise.' using errcode = '42501';
+  end if;
+  if p_promo_id is not null then
+    -- Une promo : ses titres de promo et les titres de centre de son centre.
+    v_l := lieu_de_promo(p_promo_id);
+    if v_l is null or not (coalesce(geste_promo(p_promo_id, 'reglages.modifier'), false) or coalesce(geste_centre(v_l, 'equipe.lire'), false)) then
+      raise exception 'titres: Réservé à l''équipe du centre.' using errcode = '42501';
+    end if;
+    return query
+      select q.email, q.titre_id, q.titre_nom, q.niveau, q.lieu_id, q.promo_ids
+        from (select lower(a.email) as email, t.id as titre_id, t.nom as titre_nom, t.niveau, v_l as lieu_id, array[a.promo_id] as promo_ids
+                from affectations a join titres t on t.id = a.titre_id
+               where a.role = 'formateur' and a.promo_id = p_promo_id
+              union all
+              select lower(a.email), t.id, t.nom, t.niveau, v_l, null::integer[]
+                from affectations a join titres t on t.id = a.titre_id
+               where a.role = 'direction' and a.lieu_id = v_l) q
+       order by q.email collate "C", q.niveau, q.titre_nom collate "C";
+  elsif p_lieu_id is not null then
+    -- Un centre : ses titres de promo (promos groupées) et de centre.
+    if not coalesce(geste_centre(p_lieu_id, 'equipe.lire'), false) then
+      raise exception 'titres: Réservé à l''équipe du centre.' using errcode = '42501';
+    end if;
+    return query
+      select q.email, q.titre_id, q.titre_nom, q.niveau, q.lieu_id, q.promo_ids
+        from (select lower(a.email) as email, t.id as titre_id, t.nom as titre_nom, t.niveau, p_lieu_id as lieu_id,
+                     array_agg(a.promo_id order by a.promo_id) as promo_ids
+                from affectations a join promos pr on pr.id = a.promo_id join titres t on t.id = a.titre_id
+               where a.role = 'formateur' and pr.lieu_id = p_lieu_id
+               group by lower(a.email), t.id, t.nom, t.niveau
+              union all
+              select lower(a.email), t.id, t.nom, t.niveau, p_lieu_id, null::integer[]
+                from affectations a join titres t on t.id = a.titre_id
+               where a.role = 'direction' and a.lieu_id = p_lieu_id) q
+       order by q.email collate "C", q.niveau, q.titre_nom collate "C";
+  else
+    -- Le réseau : les titres de centre (tous les centres) et du réseau, jamais ceux d'une promo.
+    if not coalesce(geste_reseau('directions.lire'), false) then
+      raise exception 'titres: Réservé au réseau.' using errcode = '42501';
+    end if;
+    return query
+      select q.email, q.titre_id, q.titre_nom, q.niveau, q.lieu_id, q.promo_ids
+        from (select lower(a.email) as email, t.id as titre_id, t.nom as titre_nom, t.niveau, a.lieu_id as lieu_id, null::integer[] as promo_ids
+                from affectations a join titres t on t.id = a.titre_id
+               where a.role = 'direction'
+              union all
+              select lower(a.email), t.id, t.nom, t.niveau, null::integer, null::integer[]
+                from affectations a join titres t on t.id = a.titre_id
+               where a.role = 'siege') q
+       order by q.email collate "C", q.niveau, q.titre_nom collate "C";
+  end if;
+end;
+$f$;
+
+create function public.journal_des_droits(p_lieu_id integer default null)
+returns table(quand timestamptz, par text, action text, pour text, titre_nom text, niveau text, lieu_id integer, promo_id integer, avant jsonb, apres jsonb)
+language plpgsql stable security definer
+set search_path to 'public', 'pg_temp'
+as $f$
+#variable_conflict use_column
+begin
+  if auth.jwt() ->> 'email' is null then
+    raise exception 'titres: Connexion requise.' using errcode = '42501';
+  end if;
+  if p_lieu_id is not null then
+    if not coalesce(geste_centre(p_lieu_id, 'equipe.lire'), false) then
+      raise exception 'titres: Réservé à l''équipe du centre.' using errcode = '42501';
+    end if;
+  elsif not coalesce(geste_reseau('directions.lire'), false) then
+    raise exception 'titres: Réservé au réseau.' using errcode = '42501';
+  end if;
+  -- La migration 4 (journal) peut ne pas être appliquée : aucune ligne, aucune erreur.
+  if to_regclass('public.journal_droits') is null then
+    return;
+  end if;
+  -- Un centre : les lignes de ce centre. Le réseau : les lignes de niveau centre et réseau, jamais celles d'une promo ; le fondateur lit tout.
+  return query execute
+    'select j.quand, j.par, j.action, j.pour, j.titre_nom, j.niveau, j.lieu_id, j.promo_id, j.avant, j.apres
+       from public.journal_droits j
+      where j.quand >= now() - interval ''3 years''
+        and (($1 is not null and j.lieu_id = $1)
+             or ($1 is null and ($2 or j.niveau in (''centre'', ''reseau''))))
+      order by j.quand desc, j.id desc'
+    using p_lieu_id, coalesce(est_fondateur(), false);
+end;
+$f$;
+
+revoke all on function public.titres_visibles(integer) from public, anon, service_role;
+grant execute on function public.titres_visibles(integer) to authenticated;
+revoke all on function public.mes_titres() from public, anon, service_role;
+grant execute on function public.mes_titres() to authenticated;
+revoke all on function public.personnes_et_titres(integer, integer) from public, anon, service_role;
+grant execute on function public.personnes_et_titres(integer, integer) to authenticated;
+revoke all on function public.journal_des_droits(integer) from public, anon, service_role;
+grant execute on function public.journal_des_droits(integer) to authenticated;

@@ -4,6 +4,12 @@
 -- migration 1 a créée) ; seul le retour 1 les efface.
 set local lock_timeout = '3s';
 
+-- D. Les quatre lectures disparaissent.
+drop function if exists public.journal_des_droits(integer);
+drop function if exists public.personnes_et_titres(integer, integer);
+drop function if exists public.mes_titres();
+drop function if exists public.titres_visibles(integer);
+
 -- C. Les fonctions de gestion disparaissent et la contrainte titres_centre_requis revient. Garde : aucun titre non fixe de promo ou de
 -- centre sans centre ne doit exister (la contrainte les refuserait) ; sinon le retour s'arrête sans rien changer (supprimer ces titres d'abord).
 do $garde_c$
