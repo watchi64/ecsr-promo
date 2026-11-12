@@ -2,9 +2,9 @@
 // node, sans DOM ni base). Les pages Accueil, Aujourd'hui et la grille de la semaine ne
 // recalculent rien : elles reçoivent ces cartes toutes lues (rôles effectifs, absences,
 // horaires, repos). Ni heure ni lieu par carte : la base n'en a pas.
-import { effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe } from "./planning-roles.js?v=20261111g";
-import { rolesPourEntry } from "./creneaux-rules.js?v=20261111g";
-import { jourFerie } from "./emargement-rules.js?v=20261111g";
+import { effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe } from "./planning-roles.js?v=20261112d";
+import { rolesPourEntry } from "./creneaux-rules.js?v=20261112d";
+import { jourFerie } from "./emargement-rules.js?v=20261112d";
 
 // Défauts horaires quand aucune ligne de planning_half_meta n'existe (déplacés de planning.js).
 export const DEFAULT_HALF_META = {
@@ -131,10 +131,12 @@ function profsDe(e, noms) {
   return out;
 }
 
+// Le libellé court du rôle, dans la grille de la semaine (chasse aux défauts du film, 11/11). La carte « Aujourd'hui » de
+// l'Accueil dit le rôle en phrase (« Tu passes au tableau », js/accueil-rules.js momentsDeLaDemi, piste C du 11/11).
 const TEXTE_MOI = {
-  tableau: "Tu passes au tableau",
-  voiture: "Tu conduis",
-  eleve: "En salle",
+  tableau: "Toi au tableau",
+  voiture: "Toi en voiture",
+  eleve: "Toi en salle",
 };
 
 // Le rôle de la personne sur la carte, tel que le lisent les rôles du suivi (rolesPourEntry) ;
@@ -169,12 +171,17 @@ function carteJour(e, noms, moi) {
   return {
     id: e.id ?? `${e.day_index}-${e.half_day}-${e.slot ?? 0}-${e.lane ?? 0}`,
     genre,
+    // L'activité du planning, même quand le genre dit « autonomie » (une salle ou une voiture sans formateur) : la carte
+    // « Aujourd'hui » de l'Accueil y lit le rôle de chacun.
+    activite: e.activite ?? null,
     titre: TITRES[genre],
     sujets: effSujets(e).flatMap((v) => sujetsDe(v, titres)),
     sujetsParGroupe: parGroupe,
     formateurs: profsDe(e, noms),
     tableau,
     eleves: voiture ? [] : ids.map(nomStagiaire),
+    // Les stagiaires de chaque groupe (ids, remplacements faits) : en salle double, chacun ne suit que la vague de son groupe.
+    elevesParGroupe: voiture ? { 1: [], 2: [] } : { 1: effElevesIds(present, 1), 2: effElevesIds(present, 2) },
     conducteurs: voiture ? ids.map(nomStagiaire) : [],
     benevoles: effBenevolesIds(e).map((id) => noms.benevoles?.get(id)).filter(Boolean),
     notes: e.notes && String(e.notes).trim() ? String(e.notes).trim() : "",
@@ -237,9 +244,7 @@ export function alerteDeCarte(c) {
 // Étiquette du rôle de la personne dans une case de la grille.
 export function etiquetteSemaine(moi) {
   if (!moi) return null;
-  if (moi.role === "tableau") return "Toi au tableau";
-  if (moi.role === "voiture") return "Toi en voiture";
-  return "Toi en salle";
+  return TEXTE_MOI[moi.role] || TEXTE_MOI.eleve;
 }
 
 // La forme du planning à l'ouverture, d'après ce que l'appareil a mémorisé (`planning.vue`) : la

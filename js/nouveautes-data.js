@@ -23,6 +23,90 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // Carte « Aujourd'hui » de l'Accueil refondue (piste C, choisie par Timy le 11/11 sur maquettes) : ton rôle dit en une phrase,
+  // seulement tes activités. Pour les stagiaires, au tutoiement.
+  {
+    id: "2026-11-12-accueil-aujourdhui-roles",
+    date: "2026-11-12",
+    pour: "stagiaires",
+    titre: "Ta journée dite en une phrase",
+    resume: "Sur l'Accueil, la carte « Aujourd'hui » ne montre plus que ce qui te concerne, une phrase par moment de la journée : "
+          + "« Tu passes au tableau », « Tu es en salle », « Tu enseignes en voiture » ou « Tu suis le cours ». En dessous, chacun "
+          + "est nommé par sa place : qui passe au tableau, l'élève bénévole à qui tu enseignes en voiture, le formateur. "
+          + "Les activités des autres stagiaires restent dans le Planning.",
+    // Sans « ou » : elle s'affiche sur l'Accueil même, un lien vers l'Accueil n'y mènerait nulle part.
+    module: "planning",
+  },
+  // Fenêtre de confirmation (12/11) : à 375 px, un libellé long poussait un bouton hors de l'écran. Pour tous : formule
+  // neutre. Placée après la carte « Aujourd'hui », qui reste la nouveauté du jour à l'Accueil des stagiaires.
+  {
+    id: "2026-11-12-confirmations-telephone",
+    date: "2026-11-12",
+    pour: "tous",
+    titre: "Des fenêtres de confirmation qui tiennent sur téléphone",
+    resume: "Quand l'app demande de confirmer un geste (supprimer, fermer un examen, quitter une saisie), ses deux boutons "
+          + "restent à l'écran, même avec un texte long : sur téléphone, ils passent l'un sous l'autre, sur toute la largeur.",
+  },
+  // Lecteur de cours qui ne défilait pas sur iPhone, ouvert en haut de Cours et QCM (signalé par Timy le 11/11). Pour tous : neutre.
+  {
+    id: "2026-11-12-cours-defilement-iphone",
+    date: "2026-11-12",
+    pour: "tous",
+    titre: "Un cours se lit dès la première ouverture sur iPhone",
+    resume: "Sur iPhone, un cours ouvert sans avoir fait défiler la page Cours et QCM pouvait rester bloqué : le doigt "
+          + "faisait bouger la page cachée derrière au lieu du cours. La page derrière est maintenant figée tant qu'un cours, "
+          + "un QCM, les Informations légales ou la signature d'émargement sont ouverts : le geste va toujours à ce qui est à l'écran.",
+    ou: { label: "Cours et QCM", route: "themes" },
+  },
+  // Conservation des données ouverte à la direction (20261111_conservation_direction, décision de Timy du 11/11). Pour la
+  // direction, au vouvoiement ; premier du fichier : à date égale, c'est elle que montre la carte « Nouveauté » de son Accueil.
+  {
+    id: "2026-11-11-conservation-direction",
+    date: "2026-11-11",
+    pour: "direction",
+    titre: "La conservation des fiches de votre centre",
+    resume: "Dans les Réglages du centre, la partie « Conservation des fiches » montre maintenant les échéances des promos de "
+          + "votre centre, avec leur bouton. 12 mois après la fin d'une formation, les comptes, les adresses e-mail et les "
+          + "textes libres partent ; les noms, le dossier professionnel, le livret et les signatures sont gardés jusqu'au "
+          + "31 décembre de la troisième année après la fin. Rien ne part tout seul : le bouton s'allume à la date prévue et "
+          + "attend votre clic. Une promo dont des activités sont datées après sa date de fin n'a pas de bouton : "
+          + "corrigez sa date de fin si elle est fausse, sinon demandez l'effacement au fondateur. L'effacement à la demande d'une personne reste au fondateur.",
+    ou: { label: "Réglages du centre", route: "config" },
+    guide: [
+      "Ouvrez Réglages du centre, puis la section « Données personnelles », partie « Conservation des fiches ».",
+      "Chaque promo du centre y a ses échéances : « À faire maintenant » quand la date est passée, « À venir » sinon. "
+        + "« Ce qui part, ce qui reste » détaille chaque étape.",
+      "Le bouton de l'étape ouvre une fenêtre qui dit exactement ce qui part ; tapez EFFACER pour confirmer. Le geste est "
+        + "irréversible.",
+      "Une personne vous demande d'effacer ses données ? Transmettez sa demande au fondateur, qui efface tout, tout de suite.",
+    ],
+  },
+  // L'état de l'examen toujours écrit sur la fiche QCM (bug relevé par Timy pendant la présentation du 12/11 : l'aperçu
+  // « Stagiaire » sans fiche dans la promo ne voyait rien de l'examen ouvert). Pour tous : neutre.
+  {
+    id: "2026-11-12-etat-examen-qcm",
+    date: "2026-11-12",
+    pour: "tous",
+    titre: "La fiche d'un QCM dit où en est l'examen",
+    resume: "Quand l'examen d'un thème n'est pas ouvert, la fiche du QCM le dit clairement : pas encore ouvert par le "
+          + "formateur, ou refermé à l'heure prévue, avec cette heure. Un compte qui n'a pas de fiche stagiaire dans la promo "
+          + "voit aussi l'état de l'examen et la raison pour laquelle il ne peut que s'entraîner. Côté équipe, un examen "
+          + "dont la durée est écoulée s'affiche « Examen fermé » avec son heure de fermeture, et se rouvre par "
+          + "« Ouvrir l'examen aux stagiaires ».",
+    ou: { label: "Cours et QCM", route: "themes" },
+  },
+  // Liste des thèmes compacte et « Plus » allégé (11/11/2026, essai de Timy sur iPhone). Pour tous : neutre.
+  {
+    id: "2026-11-11-themes-compacts",
+    date: "2026-11-11",
+    pour: "tous",
+    titre: "Une ligne par thème dans Cours et QCM",
+    resume: "Chaque thème tient maintenant sur une ligne courte : son numéro, son titre, son état, et une seule pastille "
+          + "pour lire le cours ou ouvrir le QCM. Sur téléphone, une dizaine de thèmes tiennent à l'écran au lieu de deux. "
+          + "Pour l'équipe, l'ouverture de l'examen aux stagiaires, le statut et la date du thème passent par le bouton « … » "
+          + "au bout de la ligne. Le menu « Plus » du téléphone ne répète plus l'Assistant ni le compte, déjà en haut de l'écran.",
+    ou: { label: "Cours et QCM", route: "themes" },
+  },
   // Conservation des données (Qualiopi Q5), datée du jour de la mise en ligne. Pour l'équipe seulement : les boutons
   // d'effacement quittent Réglages (ex-Paramètres) pour la page Qualiopi, que seul le fondateur ouvre.
   {
@@ -38,6 +122,55 @@ export const NOUVEAUTES = [
           + "plus à être mis en abandon : transmettez sa demande au fondateur, qui efface tout, tout de suite. « Réactiver » reste dans "
           + "Abandons, et la suppression des élèves bénévoles ne change pas.",
     ou: { label: "Paramètres", route: "config" },
+  },
+  // Retouches relevées pendant le tournage du film de présentation (11/11/2026). Pour tous : formule neutre.
+  {
+    id: "2026-11-11-retouches-du-film",
+    date: "2026-11-11",
+    pour: "tous",
+    titre: "Des chiffres et des étiquettes plus cohérents",
+    resume: "Les notes et les moyennes s'écrivent partout avec une virgule (14,5). Le compteur de notes se met à jour dès "
+          + "qu'une note est saisie. Le planning dit « Toi au tableau », « Toi en voiture » ou « Toi en salle », sur "
+          + "l'Accueil comme dans la semaine. Quelques pastilles reprennent les couleurs de l'app.",
+    ou: { label: "Accueil", route: "home" },
+  },
+  // Contacts du centre propres à chaque centre (11/11) : avant, toutes les promos voyaient les contacts de Nîmes. Placée après
+  // la conservation, qui reste la carte du jour de l'équipe. Pour l'équipe seulement : un stagiaire voit simplement les
+  // contacts de son centre, sans rien à apprendre.
+  {
+    id: "2026-11-11-contacts-par-centre",
+    date: "2026-11-11",
+    pour: "formateurs",
+    titre: "Chaque centre a ses propres contacts",
+    resume: "La carte « Contacts du centre » ne montre plus que les contacts du centre de la promo affichée. Nîmes et "
+          + "Montpellier gardent les mêmes contacts, mais chaque centre a maintenant sa propre liste : un numéro qui change "
+          + "se corrige dans chacun des deux. Un contact que vous ajoutez appartient au centre de la promo affichée ; pour en "
+          + "ajouter un à un autre centre, affichez d'abord une de ses promos.",
+    ou: { label: "Cours et QCM, Documents", route: "ressources" },
+  },
+  // Refonte de l'Ordre de passage et des Résultats (maquettes choisies par Timy le 11/11) : une carte par public. Placées après la conservation, qui reste la
+  // carte du jour de l'équipe.
+  {
+    id: "2026-11-11-ordre-passage-resultats-stagiaires",
+    date: "2026-11-11",
+    pour: "stagiaires",
+    titre: "Tes résultats et ta place dans l'ordre de passage, en un coup d'œil",
+    resume: "Dans Mon suivi, Résultats commence par ta moyenne, son évolution sur un mois et la moyenne du groupe, puis "
+          + "ta courbe, tes points forts et les sujets à retravailler. Dans le Planning, Ordre de passage te dit si tu es à "
+          + "jour en salle et en voiture, et quand tu passes la prochaine fois. Tu n'y vois plus le retard des autres.",
+    ou: { label: "Mon suivi, Résultats", route: "mon-suivi", sousOnglet: "resultats" },
+  },
+  {
+    id: "2026-11-11-ordre-passage-resultats-equipe",
+    date: "2026-11-11",
+    pour: "formateurs",
+    titre: "Un Ordre de passage plus simple à lire",
+    resume: "Ordre de passage montre trois chiffres (à placer cette semaine, déjà placés, à jour partout), puis deux files, "
+          + "salle et voiture, du plus grand retard au plus petit, avec le jour où chacun est déjà placé. Le compte suit "
+          + "maintenant la règle du placement : un remplacement au pied levé ne compte plus, une absence de dernière minute "
+          + "compte toujours. Chaque stagiaire n'y voit plus que sa propre situation. Dans la fiche d'un stagiaire, "
+          + "Résultats s'ouvre sur sa moyenne, sa tendance, ses points forts et ses sujets à retravailler.",
+    ou: { label: "Planning, Ordre de passage", route: "dashboard" },
   },
   {
     // Navigation unique (11/11/2026) : l'ancienne barre est retirée, toutes les promos ont la nouvelle. Premier du fichier : la

@@ -2,14 +2,14 @@
 // semaine (paysage). Construites hors écran puis clonées pour l'impression par le mécanisme
 // des documents officiels (js/doc-officiel.js) : seul #emargement-print s'imprime.
 
-import { el, compareByNom } from "./utils.js?v=20261111g";
-import { bindDocPrint } from "./doc-officiel.js?v=20261111g";
-import { signatureOuMention } from "./signature-pad.js?v=20261111g";
+import { el, compareByNom } from "./utils.js?v=20261112d";
+import { bindDocPrint } from "./doc-officiel.js?v=20261112d";
+import { signatureOuMention } from "./signature-pad.js?v=20261112d";
 import {
   etatLigne, libelleCreneau, heureLocale, jourLocal, dureeMinutes, libelleDuree, minutesPresence,
   jourFerie, DEMI_JOURNEES,
-} from "./emargement-rules.js?v=20261111g";
-import { jourDe } from "./dates.js?v=20261111g";
+} from "./emargement-rules.js?v=20261112d";
+import { jourDe } from "./dates.js?v=20261112d";
 
 // Nom complet sur un document officiel : NOM en capitales, puis le prénom.
 export function nomComplet(s) {

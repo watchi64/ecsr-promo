@@ -14,21 +14,21 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   setMyAnonymousNotes,
-} from "../db.js?v=20261111g";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261111g";
-import { confirmer } from "../confirmer.js?v=20261111g";
-import { icon } from "../icons.js?v=20261111g";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261111g";
-import { moduleVisible } from "../modules-etat.js?v=20261111g";
-import { renderModulesSection } from "./modules-reglage.js?v=20261111g";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261111g";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261111g";
-import { pointsARetenir } from "../accueil-rules.js?v=20261111g";
-import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261111g";
-import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261111g";
-import { blocHabillage } from "../habillage-choix.js?v=20261111g";
-import { nomBenevole } from "../planning-lecture.js?v=20261111g";
-import { dateFr } from "../dates.js?v=20261111g";
+} from "../db.js?v=20261112d";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261112d";
+import { confirmer } from "../confirmer.js?v=20261112d";
+import { icon } from "../icons.js?v=20261112d";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261112d";
+import { moduleVisible } from "../modules-etat.js?v=20261112d";
+import { renderModulesSection } from "./modules-reglage.js?v=20261112d";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261112d";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261112d";
+import { pointsARetenir } from "../accueil-rules.js?v=20261112d";
+import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261112d";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261112d";
+import { blocHabillage } from "../habillage-choix.js?v=20261112d";
+import { nomBenevole } from "../planning-lecture.js?v=20261112d";
+import { dateFr } from "../dates.js?v=20261112d";
 
 // ====== SECTION Accès & invitations ======
 
@@ -538,14 +538,14 @@ function renderInfoSection() {
     el("div", { class: "param-icon" }, icon.info()),
     el("div", {},
       el("h3", {}, "Informations"),
-      el("p", { class: "muted" }, "À propos de TP ECSR App."),
+      el("p", { class: "muted" }, "À propos d'ECSR Promo."),
     ),
   ));
 
   section.appendChild(el("div", { class: "param-block" },
     el("dl", { class: "info-list" },
       el("dt", {}, "Application"),
-      el("dd", {}, "TP ECSR App"),
+      el("dd", {}, "ECSR Promo"),
       el("dt", {}, "Auteur"),
       el("dd", {}, "watchi64 · misterwatchi@gmail.com"),
       el("dt", {}, "Licence"),

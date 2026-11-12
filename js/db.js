@@ -1,19 +1,19 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261111g";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261111g";
-import { compteDansEquite } from "./passage-rules.js?v=20261111g";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261111g";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261111g";
-import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261111g";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261111g";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261111g";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261112d";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261112d";
+import { compteDansEquite } from "./passage-rules.js?v=20261112d";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261112d";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261112d";
+import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261112d";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261112d";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261112d";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261111g";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261111g";
-import { stagiaireVitrine } from "./vitrine-rules.js?v=20261111g";
-import { effectifDesFiches } from "./centre-stats.js?v=20261111g";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261111g";
+} from "./promo-rules.js?v=20261112d";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261112d";
+import { stagiaireVitrine } from "./vitrine-rules.js?v=20261112d";
+import { effectifDesFiches } from "./centre-stats.js?v=20261112d";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261112d";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -316,12 +316,12 @@ export async function lireLieuxDuReseau() {
   return (data || []).map((l) => ({ id: l.id, nom: l.nom, demonstration: !!l.demonstration }));
 }
 
-// Les directions de tous les centres : [{ id, email, nom, lieu_id }] (`id` : la ligne d'affectation, pour la retirer ; `nom` : la
+// Les directions de tous les centres : [{ id, email, nom, lieu_id, titre_id }] (`titre_id` : le titre porté, pour le retirer ; `nom` : la
 // fiche formateur liée au compte, nul sans fiche ou si la base ne la montre pas au siège : la page affiche alors l'adresse). Une
 // affectation de direction sans centre est écartée. Lève si la lecture des affectations échoue.
 export async function lireDirectionsDuReseau() {
-  const lignes = await toutesLesLignes(() => supabase.from("affectations").select("id, email, lieu_id").eq("role", "direction").order("id"));
-  const directions = lignes.filter((a) => a.lieu_id != null).map((a) => ({ id: a.id, email: String(a.email).toLowerCase(), nom: null, lieu_id: a.lieu_id }));
+  const lignes = await toutesLesLignes(() => supabase.from("affectations").select("id, email, lieu_id, titre_id").eq("role", "direction").order("id"));
+  const directions = lignes.filter((a) => a.lieu_id != null).map((a) => ({ id: a.id, email: String(a.email).toLowerCase(), nom: null, lieu_id: a.lieu_id, titre_id: a.titre_id }));
   let noms = new Map();
   try {
     noms = await nomsFormateursParEmail([...new Set(directions.map((d) => d.email))]);
@@ -331,12 +331,13 @@ export async function lireDirectionsDuReseau() {
   return directions.map((d) => ({ ...d, nom: noms.get(d.email) || null }));
 }
 
-// Retire une direction (suppression de sa ligne d'affectation : la base le permet au siège seul). La ligne est relue : une règle de
-// la base qui refuse répond « 0 ligne, sans erreur », ce que la page doit dire.
-export async function retirerAffectation(id) {
-  const { data, error } = await supabase.from("affectations").delete().eq("id", id).select("id");
+// Retire un titre (retirer_titre : la base décide du droit, du centre, de « jamais sur soi » ; l'écriture directe sur les
+// affectations est fermée). Rend le jsonb de la base { email, titre_id, lieu_id, retirees }. Les refus partent tels quels
+// (préfixe « titres: », 42501 sans droit, PGRST202 fonction absente) : l'appelant les dit par phraseDeRefus.
+export async function retirerTitre({ email, titreId, lieuId }) {
+  const { data, error } = await supabase.rpc("retirer_titre", { p_email: email, p_titre_id: titreId, p_lieu_id: lieuId });
   if (error) throw erreurDeBase(error);
-  if (!data || data.length === 0) throw new Error("Ce retrait n'a pas été accepté.");
+  return data;
 }
 
 // Crée un centre (creer_centre : siège seul, nom non vide, pas de doublon) et rend son identifiant. Les refus partent tels quels
@@ -1530,11 +1531,21 @@ export async function deleteRessource(id) {
 }
 
 // === Contacts (administration, urgences, etc.) ===
+// Chaque contact appartient à un centre (lieu_id, migration 20261113_contacts_centre) : la base ne rend et n'accepte que ceux
+// du centre de la promo affichée (règle restrictive contacts_meme_centre). Le filtre ci-dessous dit la même chose côté app ;
+// l'ajout porte le centre de la promo affichée (la base le pose aussi d'office, et refuse tout autre centre).
+
+function lieuAffiche() {
+  return getPromoCourante()?.lieu_id ?? null;
+}
 
 export async function listContacts() {
+  const lieu = lieuAffiche();
+  if (lieu == null) return [];
   const { data, error } = await supabase
     .from("contacts")
     .select("*")
+    .eq("lieu_id", lieu)
     .order("sort_order", { ascending: true })
     .order("prenom", { ascending: true });
   if (error) throw error;
@@ -1542,8 +1553,9 @@ export async function listContacts() {
 }
 
 export async function addContact(payload) {
+  const lieu = lieuAffiche();
   const { data, error } = await supabase
-    .from("contacts").insert(payload).select().single();
+    .from("contacts").insert(lieu == null ? payload : { lieu_id: lieu, ...payload }).select().single();
   if (error) throw error;
   return data;
 }
@@ -2536,6 +2548,18 @@ function invaliderStagiaires() {
 // Des nombres et des dates seulement, jamais un nom. Fonction absente (migration pas encore appliquée) : null.
 export async function lireEtatConservation() {
   const { data, error } = await supabase.rpc("etat_conservation");
+  if (error) {
+    if (conservationAbsente(error)) return null;
+    throw erreurConservation(error);
+  }
+  return data;
+}
+
+// Les échéances des promos d'un centre, pour sa direction (Réglages du centre, section « Données personnelles ») : même forme
+// que lireEtatConservation(), restreinte aux promos du centre où les étapes sont permises ; portees_formateurs vide, registre
+// nul (ils restent au fondateur, page Qualiopi). Fonction absente (migration pas encore appliquée) : null.
+export async function lireEtatConservationCentre(lieuId) {
+  const { data, error } = await supabase.rpc("etat_conservation_centre", { p_lieu: lieuId });
   if (error) {
     if (conservationAbsente(error)) return null;
     throw erreurConservation(error);

@@ -41,14 +41,16 @@ qu'elle fait est annulé. Modes : voir l'en-tête de `outils/assembler_repetitio
 ## Rejouer la suite
 
 ```
-bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres]
+bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3]
 ```
 
 À lancer juste après `reconstruire.sh` : applique, avec `psql -1 -v ON_ERROR_STOP=1`, les quatorze migrations postérieures au
 lot 4 (`20261108_espaces_1_siege` à `20261111_espaces_4_donnees`, puis `20261110_navigation_unique_1_reglages`, `_2_menage`,
 `20261111_navigation_unique_3_phase2` (la table `fiches_suivi` disparaît) et `20261110_conservation` (Qualiopi Q5 : l'anonymisation est
-remplacée par des fonctions `effacer_*`)), dans l'ordre où la production les a reçues. Avec `--avec-titres`, elle joue ensuite `20261112_titres_1` à `_4`. Sortie : `OK : suite rejouée (14 migrations)`, ou le nom du
-fichier en échec (code 3). Elle n'est pas rejouable sur une base déjà rejouée : reconstruire d'abord.
+remplacée par des fonctions `effacer_*`)), dans l'ordre où la production les a reçues. Avec `--avec-titres`, elle joue ensuite `20261112_titres_1` à `_4` ; avec `--titres 1,2,3`, les migrations
+`20261112_titres_<n>_*` de la liste, dans l'ordre donné (1, 2, 3 est l'état de la production depuis le 11/11 : sortie
+`OK : suite rejouée (17 migrations)`) ; un fichier manquant arrête le script (code 3, son nom sur la sortie d'erreur). Sortie sans
+titres : `OK : suite rejouée (14 migrations)`, ou le nom du fichier en échec (code 3). Elle n'est pas rejouable sur une base déjà rejouée : reconstruire d'abord.
 
 Pour que les preuves donnent les mêmes verdicts qu'en production, le script ajoute ce que les clones ne portent pas :
 
@@ -70,3 +72,11 @@ rejoue aussi les droits de l'émargement du 23/10 (fonctions internes fermées �
 `outils/psql_prod.sh` ouvre `psql` sur la production sans jamais afficher l'adresse de connexion (lue dans le `.env` de la
 racine du projet, clé `SUPABASE_DB_URL`). Il n'est jamais lancé sans l'accord explicite de Timy, et jamais par un agent.
 Aucune adresse, aucun mot de passe n'est versionné.
+
+## Preuves de l'étape 2 du chantier « titres et droits à la carte »
+
+Sur une base `--titres 1,2,3` (l'état de la production), `node outils/assembler_repetition_roles.mjs gestion [--etapes 5|5,6|4,5,6]
+<sortie.sql>` assemble `tests/sql/titres-gestion-preuve.sql` (migrations demandées et leurs retours injectés ; défaut 5 et 6 ; la 6 demande
+la 5, la 4 demande les deux). `gestion-contre-epreuve` (rien d'injecté, ROUGE attendu sur les groupes des migrations 5 et 6) et
+`gestion-en-ligne` (rien d'injecté, après application réelle ; un groupe dont la fonction n'existe pas encore est sauté avec une ligne
+d'information) complètent les modes. Les aides communes à la preuve de l'étape 1 et à celle-ci sont dans `tests/sql/titres-aides.sql`.

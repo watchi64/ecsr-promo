@@ -479,3 +479,48 @@ def planning_de_demain(v):
     v.toucher(".vue-toggle button[data-vue=grille]", "« Grille »", compte=False)
     v.attendre(".wsem", "la grille de la semaine")
     v.terminer()
+
+
+# --- Bug du 12/11 : la fiche d'un QCM dit toujours où en est l'examen ---------------------------------------------------
+# Pendant la présentation, l'aperçu « Stagiaire » du fondateur sur la promo de démonstration (aucune fiche stagiaire dans
+# cette promo) ne voyait ni bouton ni phrase : l'examen ouvert semblait impossible à lancer.
+QCM_DU_THEME = '#view .theme-row:has-text("%s") button.theme-qcm-hint'
+ETAT_EXAMEN = ".theme-modal .qcm-examen-etat"
+PASSER = ".theme-modal button:text-is(\"Passer l'examen\")"
+# Un compte stagiaire sans fiche dans la promo (compte non lié, ou aperçu « Stagiaire » d'un fondateur ailleurs que chez lui).
+SANS_FICHE = ("FIXTURES.user_profiles[0].stagiaire_id = null;", "PROMOS_BANC.forEach((p) => { p.stagiaire_id = null; });")
+
+
+@parcours("examen-pas-encore-ouvert", "Lire pourquoi l'examen d'un QCM ne se passe pas encore", role="stagiaire", budget=2)
+def examen_pas_encore_ouvert(v):
+    """Cours et QCM, le QCM du thème 23 (son examen est fermé au banc) : la fiche dit « Examen pas encore ouvert par ton
+    formateur », sans bouton « Passer l'examen »."""
+    v.aller("Cours et QCM")
+    v.etape("ouvrir le QCM du thème 23")
+    v.toucher(QCM_DU_THEME % "Pneumatiques", "le bouton « QCM » du thème 23")
+    etat = v.attendre(ETAT_EXAMEN, "l'état de l'examen sur la fiche du QCM")
+    if "pas encore ouvert par ton formateur" not in etat.inner_text():
+        v.echec("la fiche dit « %s » au lieu de « pas encore ouvert par ton formateur »" % etat.inner_text().strip())
+    if v.voit(PASSER):
+        v.constat("E", BLOQUE, "« Passer l'examen » proposé alors que l'examen est fermé", capture=True)
+    v.but("état de l'examen lu")
+    fermer_la_fiche_du_qcm(v)
+    v.terminer()
+
+
+@parcours("examen-ouvert-sans-fiche", "Lire l'état de l'examen ouvert avec un compte sans fiche stagiaire",
+          role="stagiaire", budget=2, semis=SANS_FICHE)
+def examen_ouvert_sans_fiche(v):
+    """Un compte stagiaire sans fiche dans la promo, le QCM du thème 22 (examen ouvert au banc) : la fiche dit l'examen
+    ouvert et pourquoi ce compte ne peut que s'entraîner, sans bouton « Passer l'examen » (la base refuserait la copie)."""
+    v.aller("Cours et QCM")
+    v.etape("ouvrir le QCM du thème 22")
+    v.toucher(QCM_DU_THEME % "Feux du véhicule", "le bouton « QCM » du thème 22")
+    etat = v.attendre(ETAT_EXAMEN, "l'état de l'examen sur la fiche du QCM").inner_text()
+    if not etat.startswith("Examen ouvert") or "pas de fiche stagiaire" not in etat:
+        v.echec("la fiche dit « %s » au lieu de l'examen ouvert et de la raison" % etat.strip())
+    if v.voit(PASSER):
+        v.constat("E", BLOQUE, "« Passer l'examen » proposé à un compte sans fiche : la base refuserait la copie", capture=True)
+    v.but("état de l'examen et raison lus")
+    fermer_la_fiche_du_qcm(v)
+    v.terminer()

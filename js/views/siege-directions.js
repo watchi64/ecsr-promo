@@ -1,18 +1,18 @@
 // Page Directions de centre du siège (lot 5, Task 12) : pour chaque centre du réseau, ses directions (la fiche formateur liée au
 // compte, sinon l'adresse). « Inviter une direction » (adresse, centre) passe par inviter_compte, « Retirer » (après confirmation)
-// supprime l'affectation, « Ajouter un centre » crée le centre (creer_centre) puis propose d'inviter sa direction. La base décide de
+// retire le titre (retirer_titre), « Ajouter un centre » crée le centre (creer_centre) puis propose d'inviter sa direction. La base décide de
 // tout (siège seul, centre requis, nom en double) : ses refus se disent par leur phrase (phraseDeRefus), la saisie gardée. Les règles
 // d'ordre (centres par nom, démonstration en dernier) vivent dans js/siege-rules.js. Aucune donnée de stagiaire n'est lue ici.
 // Les fenêtres sont celles de la page Équipe de la direction (ouvrirFormulaire).
 
-import { lireLieuxDuReseau, lireDirectionsDuReseau, retirerAffectation, creerCentre, inviteUser } from "../db.js?v=20261111g";
-import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261111g";
-import { icon } from "../icons.js?v=20261111g";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261111g";
-import { messageInvitationReussie } from "../roles-rules.js?v=20261111g";
-import { directionsParCentre } from "../siege-rules.js?v=20261111g";
-import { ouvrirFormulaire } from "./direction-equipe.js?v=20261111g";
-import { entier, pluriel } from "../nombres.js?v=20261111g";
+import { lireLieuxDuReseau, lireDirectionsDuReseau, retirerTitre, creerCentre, inviteUser } from "../db.js?v=20261112d";
+import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261112d";
+import { icon } from "../icons.js?v=20261112d";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261112d";
+import { messageInvitationReussie } from "../roles-rules.js?v=20261112d";
+import { directionsParCentre } from "../siege-rules.js?v=20261112d";
+import { ouvrirFormulaire } from "./direction-equipe.js?v=20261112d";
+import { entier, pluriel } from "../nombres.js?v=20261112d";
 
 export const PHRASE_ECHEC_DIRECTIONS = "Les directions des centres n'ont pas pu être chargées.";
 export const PHRASE_ADRESSE = "Adresse e-mail invalide.";
@@ -117,7 +117,7 @@ function ouvrirRetrait({ centre, direction, ancre, apres }) {
     corps: [],
     ancre, libelleBouton: "Retirer",
     enregistrer: async () => {
-      await retirerAffectation(direction.id);
+      await retirerTitre({ email: direction.email, titreId: direction.titre_id, lieuId: centre.id });
       toast("Direction retirée.", "success", 5000);
       await apres();
     },

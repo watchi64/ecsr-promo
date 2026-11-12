@@ -199,7 +199,7 @@
   white-space: nowrap;
 }
 .qualiopi-niveau.prouve, .qualiopi-piece-etat.presente { background: var(--c-go-soft); color: var(--c-go); }
-.qualiopi-niveau.partiel { background: var(--c-wait-soft); color: var(--c-wait); }
+.qualiopi-niveau.partiel { background: var(--accent-soft); color: var(--accent-strong); }  /* olive, plus d'ambre (film, 11/11) */
 .qualiopi-niveau.hors, .qualiopi-piece-etat.absente { background: var(--bg-soft); color: var(--text-muted); }
 
 .qualiopi-apporte { margin: 0.5rem 0 0; font-size: 0.88rem; line-height: 1.45; color: var(--text-soft); }
@@ -502,7 +502,7 @@ button.rg-carte:hover { border-color: var(--accent); }
   background: var(--bg-soft);
   color: var(--text-muted);
 }
-.rg-carte-etat.ouvert { background: var(--c-wait-soft); color: var(--c-wait); }
+.rg-carte-etat.ouvert { background: var(--bg-soft); color: var(--text-muted); }  /* neutre, plus d'ambre (film, 11/11) */
 .rg-carte-etat.en_cours { background: var(--accent-soft); color: var(--accent-strong); }
 .rg-carte-etat.clos { background: var(--c-go-soft); color: var(--c-go); }
 .rg-carte-meta { font-size: 0.85rem; line-height: 1.45; color: var(--text-muted); }
@@ -723,13 +723,11 @@ body .modal-backdrop[data-nav-coquille="registre"] > .nav-fenetre.registre-fenet
   font-size: 16px;
 }
 .modal.confirmer-detaille .confirmer-champ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.modal.confirmer-detaille .modal-actions { flex-wrap: wrap; }
-.modal.confirmer-detaille .btn { min-height: 44px; white-space: normal; }
+/* Les boutons passent à la ligne et s'empilent sur téléphone comme dans toute confirmation (.modal.confirmer, css/style.css). */
 .modal.confirmer-detaille .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 @media (max-width: 640px) {
   .cons-fiche .btn { flex: 1 1 100%; }
-  .modal.confirmer-detaille .modal-actions .btn { flex: 1 1 100%; }
 }
 
 @media (max-width: 640px) {

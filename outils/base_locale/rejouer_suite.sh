@@ -2,19 +2,28 @@
 # Rejoue, sur la base locale reconstruite (reconstruire.sh), les migrations du dépôt postérieures au lot 4, dans l'ordre
 # où la production les a reçues, pour que les preuves SQL se jouent sur un état identique à la production.
 #
-# Usage : outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres]
+# Usage : outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3[,4][,5][,6]]
 #   --port         port de la base locale (défaut 55435)
-#   --avec-titres  ajoute ensuite les migrations 20261112_titres_1 à _4 (chantier titres et droits à la carte)
+#   --avec-titres  ajoute ensuite les migrations 20261112_titres_1 à _4 (chantier titres et droits à la carte) ; vaut --titres 1,2,3,4
+#   --titres       ajoute ensuite les migrations 20261112_titres_<n>_* dans l'ordre de la liste (la production a reçu 1, 2, 3) ;
+#                  un fichier manquant arrête le script (code 3, son nom sur la sortie d'erreur)
 # Code de sortie : 0 si tout passe ; sinon 3 (le nom du fichier en échec est écrit sur la sortie d'erreur).
 # Note : 20261028_signalements_app n'est pas dans la liste : ses tables sont dans clone_3_tables.sql ; seules ses fonctions sont jouées.
 set -u
 RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PORT=55435
 TITRES=0
+LISTE_TITRES=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --port) PORT="$2"; shift 2 ;;
-    --avec-titres) TITRES=1; shift ;;
+    --avec-titres) TITRES=1; LISTE_TITRES="1 2 3 4"; shift ;;
+    --titres)
+      [ $# -ge 2 ] || { echo "--titres demande une liste (1,2,3)" >&2; exit 2; }
+      case "$2" in
+        *[!0-9,]*|""|,*|*,|*,,*) echo "liste --titres refusée : « $2 » (attendu : 1,2,3)" >&2; exit 2 ;;
+      esac
+      TITRES=1; LISTE_TITRES="$(echo "$2" | tr ',' ' ')"; shift 2 ;;
     *) echo "argument inconnu : $1" >&2; exit 2 ;;
   esac
 done
@@ -30,12 +39,15 @@ LISTE="20261108_espaces_1_siege 20261108_espaces_2_equipe 20261108_espaces_3_hab
 # Ordre de la production : la navigation unique (phase 2 : fiches_suivi disparaît), puis la conservation des données (Qualiopi Q5 :
 # anonymiser_promo, etat_anonymisation_promo et _anonymiser_stagiaire disparaissent, les fonctions effacer_* arrivent), puis les titres.
 if [ "$TITRES" = 1 ]; then
-  for n in 1 2 3 4; do
+  for n in $LISTE_TITRES; do
     f="$(ls "$MIGRATIONS"/20261112_titres_${n}_*.sql 2>/dev/null | grep -v '_retour\.sql$' | head -n 1)"
     [ -n "$f" ] || { echo "migration introuvable : 20261112_titres_${n}_*" >&2; exit 3; }
     LISTE="$LISTE $(basename "$f" .sql)"
   done
 fi
+# Après les titres en production (11/11) : les contacts rattachés à un centre. Indépendante des titres (sa règle restrictive
+# ne cite que lieu_courant()), elle est jouée dans les deux cas.
+LISTE="$LISTE 20261113_contacts_centre 20261113_contacts_centre_2_montpellier"
 
 # Prérequis : les cinq fonctions de 20261028_signalements_app (signaler_probleme, que le registre qualité appelle, et ses
 # quatre voisines), absentes des clones. On joue la seule partie « fonctions » de la migration (de la section 4 à la fin) :

@@ -222,9 +222,36 @@ const CONSERVATION_ID = "2026-11-11-conservation-fondateur";
 const conservation = NOUVEAUTES.find((e) => e.id === CONSERVATION_ID);
 ok(!!conservation && conservation.pour === "formateurs" && conservation.navigation === undefined && conservation.id.startsWith(conservation.date + "-"),
   "conservation : pour les formateurs, sans champ navigation, id préfixé par sa date");
+// La liste des thèmes compacte (même jour, placée en tête du fichier) passe devant : la conservation se juge sans elle.
+const THEMES_COMPACTS_ID = "2026-11-11-themes-compacts";
+// Jugée parmi les entrées de son jour et d'avant : une Nouveauté d'un jour suivant pour tous (les confirmations sur téléphone,
+// 12/11) passe normalement devant.
+const SANS_THEMES_COMPACTS = NOUVEAUTES.filter((e) => e.id !== THEMES_COMPACTS_ID && e.date <= conservation.date);
 for (const espace of [undefined, "equipe"]) {
-  eq(ids(triees(visibles(NOUVEAUTES, true, espace)))[0], CONSERVATION_ID, `conservation : la plus récente chez un formateur (espace ${espace})`);
+  eq(ids(triees(visibles(SANS_THEMES_COMPACTS, true, espace)))[0], CONSERVATION_ID, `conservation : la plus récente chez un formateur (espace ${espace})`);
 }
+// Thèmes compacts (11/11) : pour tous, en tête chez le formateur comme chez le stagiaire ; dit le geste « … » et « Plus ».
+const themesCompacts = NOUVEAUTES.find((e) => e.id === THEMES_COMPACTS_ID);
+ok(!!themesCompacts && themesCompacts.pour === "tous" && /« … »/.test(themesCompacts.resume) && /« Plus »/.test(themesCompacts.resume),
+  "thèmes compacts : pour tous, nomme « … » et « Plus »");
+// Jugé parmi les entrées de son jour et d'avant : une Nouveauté d'un jour suivant passe normalement devant.
+const JUSQU_AU_11 = NOUVEAUTES.filter((e) => e.date <= themesCompacts.date);
+for (const formateur of [false, true]) {
+  eq(ids(triees(visibles(JUSQU_AU_11, formateur, formateur ? "equipe" : "stagiaire")))[0], THEMES_COMPACTS_ID,
+    `thèmes compacts : la plus récente (${formateur ? "formateur" : "stagiaire"})`);
+}
+// L'état de l'examen sur la fiche d'un QCM (bug du 12/11) : pour tous, la plus récente chez le stagiaire comme chez l'équipe.
+const ETAT_EXAMEN_ID = "2026-11-12-etat-examen-qcm";
+const etatExamen = NOUVEAUTES.find((e) => e.id === ETAT_EXAMEN_ID);
+ok(!!etatExamen && etatExamen.pour === "tous" && etatExamen.id.startsWith(etatExamen.date + "-") && etatExamen.ou?.route === "themes",
+  "état de l'examen : pour tous, id préfixé par sa date, mène à Cours et QCM");
+// Visible des deux côtés ; le même jour, la carte « Aujourd'hui » (placée avant dans le fichier) reste l'annonce de tête
+// chez le stagiaire.
+for (const [formateur, espace] of [[false, "stagiaire"], [true, "equipe"]]) {
+  ok(ids(visibles(NOUVEAUTES, formateur, espace)).includes(ETAT_EXAMEN_ID), `état de l'examen : visible (espace ${espace})`);
+}
+eq(ids(triees(visibles(NOUVEAUTES, false, "stagiaire")))[0], "2026-11-12-accueil-aujourdhui-roles",
+  "état de l'examen : la carte « Aujourd'hui » reste en tête chez le stagiaire");
 for (const espace of [undefined, "stagiaire"]) {
   ok(!ids(visibles(NOUVEAUTES, false, espace)).includes(CONSERVATION_ID), `conservation : jamais chez un stagiaire (espace ${espace})`);
   ok(ids(triees(visibles(NOUVEAUTES, false, espace)))[0] !== CONSERVATION_ID, `stagiaire : la plus récente n'est jamais la conservation (espace ${espace})`);
@@ -431,7 +458,26 @@ const siege = NOUVEAUTES.find((e) => e.pour === "siege");
 const menuEspace = NOUVEAUTES.find((e) => e.id.endsWith("-menu-espace"));
 const changerPromo = NOUVEAUTES.find((e) => e.id.endsWith("-changer-de-promo"));
 const DATE5 = direction.date;
-eq(NOUVEAUTES.filter((e) => e.pour === "direction").map((e) => e.id).sort(), ["2026-11-10-espace-direction", "2026-11-11-donnees-personnelles-centre"], "deux Nouveautés pour la direction : l'espace, puis les données personnelles");
+eq(NOUVEAUTES.filter((e) => e.pour === "direction").map((e) => e.id).sort(),
+  ["2026-11-10-espace-direction", "2026-11-11-conservation-direction", "2026-11-11-donnees-personnelles-centre"],
+  "trois Nouveautés pour la direction : l'espace, les données personnelles, puis la conservation des fiches de son centre");
+// Conservation des fiches ouverte à la direction (11/11) : pour la direction seule, en tête de sa liste, au vouvoiement.
+const consDir = NOUVEAUTES.find((e) => e.id === "2026-11-11-conservation-direction");
+ok(!!consDir && consDir.date === "2026-11-11" && consDir.pour === "direction" && consDir.ou?.route === "config"
+  && consDir.ou?.label === "Réglages du centre", "conservation de la direction : datée du 11/11, pour la direction, mène aux Réglages du centre");
+// Jugée parmi les entrées de son jour et d'avant (une Nouveauté pour tous d'un jour suivant passe devant).
+eq(ids(triees(visibles(NOUVEAUTES.filter((e) => e.date <= consDir.date), true, "direction")))[0], consDir.id,
+  "conservation de la direction : la plus récente dans l'espace direction");
+for (const espace of [undefined, "equipe", "stagiaire", "siege"]) {
+  ok(!ids(visibles(NOUVEAUTES, true, espace)).includes(consDir.id) && !ids(visibles(NOUVEAUTES, false, espace)).includes(consDir.id),
+    `conservation de la direction : jamais hors de l'espace direction (${espace})`);
+}
+ok(Array.isArray(consDir.guide) && consDir.guide.length >= 3 && /vous|ouvrez/i.test(tout(consDir)) && !TUTOIEMENT.test(horsCitations(tout(consDir)))
+  && !/\bprofs?\b/i.test(tout(consDir)) && !tout(consDir).includes(CADRATIN) && !/#[0-9a-f]{3,6}\b/i.test(tout(consDir)),
+  "conservation de la direction : trois étapes au moins, vouvoiement, « formateur », sans tiret cadratin ni couleur");
+for (const motif of [/Conservation des fiches/, /12 mois/, /31 décembre de la troisième année/, /votre clic/, /EFFACER/, /fondateur/]) {
+  ok(motif.test(tout(consDir)), `conservation de la direction : dit ${motif}`);
+}
 eq(NOUVEAUTES.filter((e) => e.pour === "siege").length, 1, "une seule Nouveauté pour le siège");
 ok(direction.titre === "Votre espace de direction" && siege.titre === "L'espace du siège", "titres : « Votre espace de direction », « L'espace du siège »");
 ok(!!menuEspace && menuEspace.pour === "formateurs", "menu Espace : pour les formateurs");

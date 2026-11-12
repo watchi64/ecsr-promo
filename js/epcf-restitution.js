@@ -1,9 +1,10 @@
 // Restitution EPCF : scoring des phases, radar SVG, section réutilisable
 // (affichée dans Mon suivi ; réutilisable ailleurs).
 
-import { el, clear, formatDate } from "./utils.js?v=20261111g";
-import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS, EPCF_PHASE_TEXTE } from "./epcf-trames.js?v=20261111g";
-import { moyennesMontrables, titreEpreuve, PHRASE_SANS_MOYENNE, scoresDuGroupe, phraseSansEvaluation } from "./epcf-classe-rules.js?v=20261111g";
+import { el, clear, formatDate } from "./utils.js?v=20261112d";
+import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS, EPCF_PHASE_TEXTE } from "./epcf-trames.js?v=20261112d";
+import { moyennesMontrables, titreEpreuve, PHRASE_SANS_MOYENNE, scoresDuGroupe, phraseSansEvaluation } from "./epcf-classe-rules.js?v=20261112d";
+import { fr2 } from "./nombres.js?v=20261112d";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 function svgEl(tag, attrs = {}) {
@@ -191,14 +192,14 @@ export function renderEpcfClasse(container, moyennesByTrame) {
       tbody.appendChild(el("tr", { class: "epcf-classe-phase" },
         phaseCell,
         el("td", {}, ps == null ? el("strong", {}, "-")
-          : el("span", { class: "epcf-chip " + tierOf(ps * 2) }, el("strong", {}, (ps * 2).toFixed(2)))),
+          : el("span", { class: "epcf-chip " + tierOf(ps * 2) }, el("strong", {}, fr2(ps * 2)))),
         el("td", {}, "")));
       sec.criteres.forEach((c) => {
         const m = byCode[c.code];
         const tier = m ? tierOf(m.moyenne) : "";
         tbody.appendChild(el("tr", {},
           el("td", { class: "epcf-classe-lib" }, c.libelle),
-          el("td", {}, el("span", { class: "epcf-chip " + (tier || "vide") }, m ? m.moyenne.toFixed(2) : "-")),
+          el("td", {}, el("span", { class: "epcf-chip " + (tier || "vide") }, m ? fr2(m.moyenne) : "-")),
           el("td", { class: "muted" }, m ? String(m.effectif) : "")));
       });
     });
