@@ -49,7 +49,8 @@ grant usage on sequence public.auto_ecoles_id_seq to authenticated;
 ```sql
 -- Affiliation par clé étrangère : le texte libre benevoles.auto_ecole est repris
 -- en fiches auto_ecoles puis supprimé. « Sophie » récupère le référent + téléphone
--- des notes de seed du 2026-07-02, notes vidées (le numéro vit sur la fiche).
+-- des notes de seed du 2026-07-02, notes vidées (le numéro vit sur la fiche ;
+-- il est masqué ici, le dépôt étant public).
 alter table public.benevoles
   add column auto_ecole_id integer references public.auto_ecoles(id);
 
@@ -61,11 +62,11 @@ update public.benevoles b set auto_ecole_id = a.id
 from public.auto_ecoles a
 where b.auto_ecole is not null and trim(b.auto_ecole) = a.nom;
 
-update public.auto_ecoles set referent = 'Sophie', telephone = '06 16 14 75 14'
+update public.auto_ecoles set referent = 'Sophie', telephone = '06 XX XX XX XX'
 where nom = 'Sophie' and referent is null;
 
 update public.benevoles set notes = null
-where notes = 'Contact via Sophie : 06 16 14 75 14';
+where notes = 'Contact via Sophie : 06 XX XX XX XX';
 
 alter table public.benevoles drop column auto_ecole;
 ```
@@ -100,9 +101,9 @@ grant usage on sequence public.benevole_suivi_id_seq to authenticated;
 - [ ] **Étape 1.4 : vérifier**
 
 `execute_sql` (lecture) :
-- `select nom, referent, telephone from auto_ecoles;` → 1 ligne « Sophie · Sophie · 06 16 14 75 14 ».
-- `select prenom, auto_ecole_id from benevoles order by id;` → les 7 « de Sophie » pointent l'id de la fiche, Assiya/Chahinez à null.
-- `select count(*) from benevoles where notes = 'Contact via Sophie : 06 16 14 75 14';` → 0.
+- `select nom, referent, telephone from auto_ecoles;` → 1 ligne « Sophie · Sophie · 06 XX XX XX XX ».
+- `select prenom, auto_ecole_id from benevoles order by id;` → les 7 « de Sophie » pointent l'id de la fiche, les deux bénévoles venus en direct à null.
+- `select count(*) from benevoles where notes = 'Contact via Sophie : 06 XX XX XX XX';` → 0.
 - Simulation RLS stagiaire (`set local role authenticated` + claims email non admin) : `select count(*) from auto_ecoles` → 0 ligne ; idem `benevole_suivi`.
 - `get_advisors` security : pas de nouveau finding autre que le pattern SECURITY DEFINER déjà documenté.
 

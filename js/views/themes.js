@@ -4,32 +4,32 @@ import {
   saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements,
   setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa,
   accepterBrouillonIa, rejeterBrouillonIa,
-} from "../db.js?v=20261112d";
-import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261112d";
-import { confirmer } from "../confirmer.js?v=20261112d";
-import { icon, deco } from "../icons.js?v=20261112d";
-import { dixieme } from "../nombres.js?v=20261112d";
+} from "../db.js?v=20261112e";
+import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261112e";
+import { confirmer } from "../confirmer.js?v=20261112e";
+import { icon, deco } from "../icons.js?v=20261112e";
+import { dixieme } from "../nombres.js?v=20261112e";
 import {
   examenDemarrable, tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture,
   resumeExamen, examenCoteStagiaire, etatExamenFormateur,
-} from "../qcm-exam-rules.js?v=20261112d";
-import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261112d";
-import { recordUndo } from "../undo.js?v=20261112d";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261112d";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261112d";
-import { renderSubTabs } from "../subtabs.js?v=20261112d";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261112d";
-import { cleCours } from "../cours-rules.js?v=20261112d";
-import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261112d";
-import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261112d";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261112d";
-import { renderRessources } from "./ressources.js?v=20261112d";
-import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261112d";
-import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261112d";
-import { renderPropositionsIa } from "./propositions-ia.js?v=20261112d";
-import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261112d";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261112d";
-import { ETATS_PROGRESSION, dateExamen, etatProgression, bilanProgression, phraseBilan } from "../progression-rules.js?v=20261112d";
+} from "../qcm-exam-rules.js?v=20261112e";
+import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261112e";
+import { recordUndo } from "../undo.js?v=20261112e";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261112e";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261112e";
+import { renderSubTabs } from "../subtabs.js?v=20261112e";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261112e";
+import { cleCours } from "../cours-rules.js?v=20261112e";
+import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261112e";
+import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261112e";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261112e";
+import { renderRessources } from "./ressources.js?v=20261112e";
+import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261112e";
+import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261112e";
+import { renderPropositionsIa } from "./propositions-ia.js?v=20261112e";
+import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261112e";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261112e";
+import { ETATS_PROGRESSION, dateExamen, etatProgression, bilanProgression, phraseBilan } from "../progression-rules.js?v=20261112e";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
