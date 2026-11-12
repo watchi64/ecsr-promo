@@ -252,11 +252,24 @@ function appliquerApercu(role) {
   if (change) invalidateCache();
 }
 
+// Sortie de la vitrine, d'où qu'elle vienne : plus aucune requête de données ne part, puis l'app se recharge sur l'accueil de
+// l'espace d'arrivée. L'aperçu en mémoire n'est pas touché : jusqu'à la disparition de la page, les gardes de la vitrine jouent.
+function sortirDeLaVitrine(espaceApres) {
+  bloquerRequetesJusquAuRechargement();
+  try { history.replaceState(null, "", "#/" + (ACCUEIL_ESPACE[espaceApres] || "home")); } catch (x) { /* hors navigateur */ }
+  location.reload();
+}
+
 // Charge l'aperçu mémorisé (ignoré s'il n'est pas ouvert à cette personne sur cette promo).
 function loadViewAs() {
   let role = null;
   try { role = normaliserApercu(localStorage.getItem(VIEW_AS_KEY)); } catch (e) { role = null; }
   const permis = !!role && apercusOuverts().includes(role);
+  // L'aperçu a changé ailleurs (un autre onglet) pendant la vitrine : même sortie que par le bandeau.
+  if (enVitrine() && (permis ? role : null) !== viewAs) {
+    sortirDeLaVitrine(espaceAvec(permis ? role : null));
+    return;
+  }
   appliquerApercu(permis ? role : null);
   // Un aperçu mémorisé mais non permis sur la promo affichée est effacé : il ne reviendrait pas en changeant de promo.
   if (!permis) { try { localStorage.removeItem(VIEW_AS_KEY); } catch (e) { /* ignore */ } }
@@ -286,9 +299,7 @@ export function setViewAs(role) {
       if (nouveau) localStorage.setItem(VIEW_AS_KEY, nouveau);
       else localStorage.removeItem(VIEW_AS_KEY);
     } catch (e) { /* ignore */ }
-    bloquerRequetesJusquAuRechargement();
-    try { history.replaceState(null, "", "#/" + (ACCUEIL_ESPACE[espaceApres] || "home")); } catch (x) { /* hors navigateur */ }
-    location.reload();
+    sortirDeLaVitrine(espaceApres);
     return;
   }
   appliquerApercu(nouveau);

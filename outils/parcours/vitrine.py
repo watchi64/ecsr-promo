@@ -67,6 +67,13 @@ def vitrine_apercu(v):
     if "Tu suis le cours" not in accueil:
         v.constat("D", BLOQUE, "la carte « Aujourd'hui » de la vitrine ne dit pas la journée de Camille", capture=True)
     v.but("Accueil de Camille")
+    # Renouvellement de la session : le profil du compte est relu (sans fiche dans cette promo), la vitrine reste celle de Camille.
+    v.etape("renouvellement de la session en vitrine")
+    v.page.evaluate("() => window.__HARNESS_AUTH_EMIT && window.__HARNESS_AUTH_EMIT('TOKEN_REFRESHED')")
+    v._attendre_calme(calme=300, maximum=4000)
+    apres = " ".join(v.attendre("#view", "l'Accueil après le renouvellement").inner_text().split())
+    if "Bonjour, Camille" not in apres or CAMILLE not in v.texte("#impersonation-banner"):
+        v.constat("D", BLOQUE, "après un renouvellement de session, la vitrine ne montre plus Camille", capture=True)
     v.controler_ecran("Accueil en vitrine")
     v.aller("Mon suivi")
     v.attendre("#view :is(h1, h2):visible", "Mon suivi")

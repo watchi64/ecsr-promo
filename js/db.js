@@ -923,7 +923,9 @@ export async function insertQcmAttempt(payload) {
   // Vitrine : aucune tentative au nom de la stagiaire fictive (refus ici, puis de nouveau au départ de la requête). Une fiche
   // de vitrine qui n'est pas celle du compte est refusée même hors vitrine : une passe commencée en vitrine et terminée
   // après l'avoir quittée porte encore la fiche empruntée.
-  if (stagiaireVitrineCourante() != null || ficheEmpruntee(payload?.stagiaire_id, getPromoCourante()?.stagiaire_id ?? null)) {
+  // Sans contexte de promo (état dégradé), la fiche du compte est inconnue : rien n'est jugé, la base tranche.
+  const promo = getPromoCourante();
+  if (stagiaireVitrineCourante() != null || (promo && ficheEmpruntee(payload?.stagiaire_id, promo.stagiaire_id ?? null))) {
     throw new Error(MESSAGE_VITRINE);
   }
   const { data, error } = await supabase

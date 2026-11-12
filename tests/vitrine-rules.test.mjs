@@ -133,11 +133,17 @@ test("sortie de la vitrine : les requêtes sont coupées et l'app se recharge av
   const sortie = changer.slice(changer.indexOf("if (enVitrine() && nouveau !== viewAs) {"));
   assert.ok(sortie.length > 0 && changer.indexOf("if (enVitrine() && nouveau !== viewAs) {") > 0, "la branche de sortie existe");
   const fin = sortie.indexOf("return;");
-  const corps = sortie.slice(0, fin);
+  assert.match(sortie.slice(0, fin), /sortirDeLaVitrine\(espaceApres\);/);
+  assert.doesNotMatch(sortie.slice(0, fin), /appliquerApercu\(/, "l'aperçu en mémoire reste celui de la vitrine jusqu'au rechargement");
+  const corps = auth.slice(auth.indexOf("function sortirDeLaVitrine(espaceApres) {"), auth.indexOf("function loadViewAs()"));
   assert.match(corps, /bloquerRequetesJusquAuRechargement\(\);/);
   assert.match(corps, /location\.reload\(\);/);
   assert.ok(corps.indexOf("bloquerRequetesJusquAuRechargement()") < corps.indexOf("location.reload()"), "couper d'abord, recharger ensuite");
-  assert.doesNotMatch(corps, /appliquerApercu\(/, "l'aperçu en mémoire reste celui de la vitrine jusqu'au rechargement");
+  assert.doesNotMatch(corps, /appliquerApercu\(/);
+  // L'aperçu changé dans un autre onglet (relu à un événement d'authentification) sort par la même porte.
+  const relu = auth.slice(auth.indexOf("function loadViewAs()"), auth.indexOf("function oublierApercu()"));
+  assert.match(relu, /if \(enVitrine\(\) && \(permis \? role : null\) !== viewAs\) \{\s*sortirDeLaVitrine\(/);
+  assert.ok(relu.indexOf("sortirDeLaVitrine(") < relu.indexOf("appliquerApercu("), "avant de changer d'aperçu");
   assert.ok(changer.indexOf("if (enVitrine() && nouveau !== viewAs) {") < changer.indexOf("appliquerApercu(nouveau);"),
     "la sortie est décidée avant de changer d'aperçu");
 });
@@ -180,7 +186,7 @@ test("câblage : toute requête de données passe par la règle, et les tentativ
   assert.match(lire("../js/auth-admin.js"), /poserApercu\(role, \{ fondateur: isFounder\(\) \}\);/);
   // Tentatives de QCM : refus dans la fonction d'écriture, lectures « mes lignes » limitées à la fiche montrée.
   const insertion = db.slice(db.indexOf("export async function insertQcmAttempt"), db.indexOf("async function ecrireExamen"));
-  assert.match(insertion, /if \(stagiaireVitrineCourante\(\) != null \|\| ficheEmpruntee\(payload\?\.stagiaire_id, getPromoCourante\(\)\?\.stagiaire_id \?\? null\)\) \{\s*throw new Error\(MESSAGE_VITRINE\);/);
+  assert.match(insertion, /if \(stagiaireVitrineCourante\(\) != null \|\| \(promo && ficheEmpruntee\(payload\?\.stagiaire_id, promo\.stagiaire_id \?\? null\)\)\) \{\s*throw new Error\(MESSAGE_VITRINE\);/);
   assert.ok(insertion.indexOf("throw new Error(MESSAGE_VITRINE)") < insertion.indexOf("supabase"), "le refus précède la requête");
   assert.equal((db.match(/await mesLignes\(supabase\s*\.from\("qcm_attempts"\)/g) || []).length, 2,
     "listMyQcmAttempts et getMyExamAttempt");
