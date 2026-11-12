@@ -5,6 +5,8 @@
 --      _cases_effectives (les cases d'un titre, un titre fixe au plafond de chaque page), _depasse (la première page où un jeu de cases
 --      ouvre plus qu'un autre), _cases_appelant (les cases de l'appelant à un niveau) et _refus_titre : les six règles du § 7 de la spec
 --      en une seule aide, partagée par donner et retirer.
+--   B. donner_titre (tous les titres, fixes ou non, par _refus_titre) et retirer_titre étendu aux titres non fixes (un bloc de fragments,
+--      outils/generer_fragments_titres_6.py : ne pas le modifier à la main).
 -- Les phrases de refus commencent par « titres: », au vouvoiement ; un droit manquant lève l'état 42501. Toute fonction nouvelle est
 -- security definer, search_path public puis pg_temp, adresse du jeton comparée en minuscules ; les aides internes (préfixe _) n'ont aucun
 -- droit d'exécution. Le retour (20261112_titres_6_gestion_retour.sql) remet la base dans l'état d'avant, partie par partie, dans l'ordre inverse.
@@ -231,3 +233,228 @@ revoke all on function public._cases_effectives(bigint) from public, anon, authe
 revoke all on function public._depasse(jsonb, jsonb) from public, anon, authenticated, service_role;
 revoke all on function public._cases_appelant(text, integer) from public, anon, authenticated, service_role;
 revoke all on function public._refus_titre(bigint, integer, text, text) from public, anon, authenticated, service_role;
+
+-- B. Donner et retirer ----------------------------------------------------------------------------------------------------------------
+--   donner_titre(adresse, titre, centre, promos, fiche formateur) : tous les titres, fixes ou non, par les règles de _refus_titre. Crée le
+--   profil s'il manque (formateur pour un titre de promo, compte du personnel sinon), transforme le compte d'un ancien stagiaire (sans
+--   fiche), pose exactement les promos choisies pour un titre de promo, remplace l'ancien titre de la personne au même niveau dans ce
+--   centre (ou au réseau) après avoir vérifié qu'on pourrait le retirer. Un titre du réseau de niveau promo ou centre qui a une version
+--   dans ce centre se donne sous sa version. Rend {email, titre_id, cree, transforme, remplace, ajoutees, retirees}.
+--   retirer_titre : un bloc de fragments remplace la ligne de refus des titres non fixes et les contrôles de la migration 5 par _refus_titre.
+create function public.donner_titre(p_email text, p_titre_id bigint, p_lieu_id integer, p_promo_ids integer[] default null, p_prof_id integer default null)
+returns jsonb
+language plpgsql security definer
+set search_path to 'public', 'pg_temp'
+as $f$
+declare
+  v_email text := lower(trim(coalesce(p_email, '')));
+  v_moi text := lower(auth.jwt() ->> 'email');
+  v_titre_id bigint := p_titre_id;
+  t record;
+  v_lieu integer;
+  v_etat text;
+  v_phrase text;
+  v_liste integer[] := '{}';
+  v_cible text;
+  v_cree boolean := false;
+  v_transforme boolean := false;
+  v_anciens bigint[];
+  v_ancien bigint;
+  v_remplace bigint;
+  v_ajoutees integer[] := '{}';
+  v_retirees integer[] := '{}';
+  v_n bigint;
+begin
+  if v_moi is null then
+    raise exception 'titres: Connexion requise.' using errcode = '42501';
+  end if;
+  if v_email !~ '^\S+@\S+\.\S+$' then
+    raise exception 'titres: Adresse e-mail invalide.';
+  end if;
+  -- Un titre du réseau (niveau promo ou centre, sans centre) qui a une version dans ce centre se donne sous sa version.
+  select v.id into v_ancien from titres r join titres v on v.origine_id = r.id and v.lieu_id = p_lieu_id
+   where r.id = p_titre_id and r.lieu_id is null and r.niveau in ('promo', 'centre') and not r.fixe;
+  if v_ancien is not null then
+    v_titre_id := v_ancien;
+  end if;
+  select r.etat, r.phrase into v_etat, v_phrase from _refus_titre(v_titre_id, p_lieu_id, v_email, 'donner') r;
+  if v_etat is not null then
+    raise exception '%', v_phrase using errcode = v_etat;
+  end if;
+  select ti.niveau, ti.fixe into t from titres ti where ti.id = v_titre_id;
+  v_lieu := case when t.niveau = 'reseau' then null else p_lieu_id end;
+  -- Les promos d'un titre de promo : au moins une, toutes du centre.
+  if t.niveau = 'promo' then
+    select coalesce(array_agg(distinct x order by x), '{}') into v_liste from unnest(coalesce(p_promo_ids, '{}')) x where x is not null;
+    if cardinality(v_liste) = 0 then
+      raise exception 'titres: Choisissez au moins une promo.';
+    end if;
+    if exists (select 1 from unnest(v_liste) x where not exists (select 1 from promos p where p.id = x and p.lieu_id = v_lieu)) then
+      raise exception 'titres: Une promo choisie n''est pas dans ce centre.';
+    end if;
+  end if;
+  -- Le compte d'un ancien stagiaire (sans fiche) devient un compte du personnel ; un profil manquant est créé.
+  v_transforme := _orphelin_en_personnel(v_email, t.niveau = 'promo', case when t.niveau = 'promo' then p_prof_id end, v_moi);
+  select u.email into v_cible from user_profiles u where lower(u.email) = v_email;
+  if v_cible is null then
+    if t.niveau = 'promo' then
+      v_cree := _profil_formateur(v_email, p_prof_id, v_moi);
+    else
+      insert into user_profiles (email, role, is_admin, invited_by_email) values (v_email, 'prof', false, v_moi)
+      on conflict (email) do nothing;
+      get diagnostics v_n = row_count;
+      v_cree := v_n > 0;
+    end if;
+    v_cible := v_email;
+  end if;
+  -- Un titre par niveau et par centre (ou au réseau) : l'ancien titre, s'il y en a un, est retiré, et il obéit aux règles du retrait.
+  if t.niveau = 'promo' then
+    select array_agg(distinct a.titre_id) into v_anciens from affectations a join promos p on p.id = a.promo_id
+     where lower(a.email) = lower(v_cible) and a.role = 'formateur' and p.lieu_id = v_lieu and a.titre_id <> v_titre_id;
+  elsif t.niveau = 'centre' then
+    select array_agg(distinct a.titre_id) into v_anciens from affectations a
+     where lower(a.email) = lower(v_cible) and a.role = 'direction' and a.lieu_id = v_lieu and a.titre_id <> v_titre_id;
+  else
+    select array_agg(distinct a.titre_id) into v_anciens from affectations a
+     where lower(a.email) = lower(v_cible) and a.role = 'siege' and a.titre_id <> v_titre_id;
+  end if;
+  foreach v_ancien in array coalesce(v_anciens, '{}') loop
+    select r.etat, r.phrase into v_etat, v_phrase from _refus_titre(v_ancien, v_lieu, v_cible, 'retirer') r;
+    if v_etat is not null then
+      raise exception '%', v_phrase using errcode = v_etat;
+    end if;
+    v_remplace := coalesce(v_remplace, v_ancien);
+  end loop;
+  -- Les lignes de l'ancien titre sont supprimées, puis les nouvelles posées (le déclencheur refuse un changement de titre en place).
+  if t.niveau = 'promo' then
+    delete from affectations a
+     where lower(a.email) = lower(v_cible) and a.role = 'formateur' and a.titre_id = any (coalesce(v_anciens, '{}'))
+       and a.promo_id in (select p.id from promos p where p.lieu_id = v_lieu);
+    with retire as (
+      delete from affectations a
+       where lower(a.email) = lower(v_cible) and a.role = 'formateur' and a.titre_id = v_titre_id
+         and a.promo_id in (select p.id from promos p where p.lieu_id = v_lieu)
+         and not (a.promo_id = any (v_liste))
+      returning a.promo_id)
+    select coalesce(array_agg(r.promo_id order by r.promo_id), '{}') into v_retirees from retire r;
+    with ajoute as (
+      insert into affectations (email, role, promo_id, titre_id)
+      select v_cible, 'formateur', x, v_titre_id from unnest(v_liste) x
+      on conflict do nothing
+      returning promo_id)
+    select coalesce(array_agg(a.promo_id order by a.promo_id), '{}') into v_ajoutees from ajoute a;
+  elsif t.niveau = 'centre' then
+    delete from affectations a
+     where lower(a.email) = lower(v_cible) and a.role = 'direction' and a.lieu_id = v_lieu and a.titre_id = any (coalesce(v_anciens, '{}'));
+    insert into affectations (email, role, lieu_id, titre_id) values (v_cible, 'direction', v_lieu, v_titre_id)
+    on conflict do nothing;
+  else
+    delete from affectations a
+     where lower(a.email) = lower(v_cible) and a.role = 'siege' and a.titre_id = any (coalesce(v_anciens, '{}'));
+    insert into affectations (email, role, titre_id) values (v_cible, 'siege', v_titre_id)
+    on conflict do nothing;
+  end if;
+  return jsonb_build_object('email', v_cible, 'titre_id', v_titre_id, 'cree', v_cree, 'transforme', v_transforme,
+                            'remplace', v_remplace, 'ajoutees', to_jsonb(v_ajoutees), 'retirees', to_jsonb(v_retirees));
+end;
+$f$;
+
+revoke all on function public.donner_titre(text, bigint, integer, integer[], integer) from public, anon, service_role;
+grant execute on function public.donner_titre(text, bigint, integer, integer[], integer) to authenticated;
+
+-- retirer_titre : les titres non fixes se retirent, par les mêmes règles que donner (bloc de outils/generer_fragments_titres_6.py aller).
+do $migration$
+declare
+  v_fonctions text[] := array[
+    'public.retirer_titre(text, bigint, integer)'];
+  -- La fonction de chaque fragment (rang dans v_fonctions).
+  v_de integer[] := array[1, 1];
+  v_anciens text[] := array[
+$ancien$  v_n integer;
+begin
+  if v_moi is null then
+$ancien$,
+$ancien$  -- Les titres non fixes se retireront à la migration 6 (cette ligne seule est alors remplacée).
+  if not v_fixe then
+    raise exception 'titres: Ce titre ne se retire pas encore ici.';
+  end if;
+  -- Un titre du réseau ne porte sur aucun centre : le centre donné est ignoré.
+  if v_niveau = 'reseau' then
+    v_lieu := null;
+  elsif v_lieu is null or not exists (select 1 from lieux l where l.id = v_lieu) then
+    raise exception 'titres: Le centre est requis.';
+  end if;
+  -- Le droit : Formateur, la direction du centre (ou le fondateur) ; Direction de centre, le siège (ou le fondateur) ; Siège, le fondateur.
+  if v_niveau = 'promo' then
+    if not geste_centre(v_lieu, 'formateurs.nommer') then
+      raise exception 'titres: Réservé à la direction du centre.' using errcode = '42501';
+    end if;
+  elsif v_niveau = 'centre' then
+    if not geste_reseau('directions.nommer') then
+      raise exception 'titres: Réservé au siège.' using errcode = '42501';
+    end if;
+  else
+    if not est_fondateur() then
+      raise exception 'titres: Réservé au fondateur.' using errcode = '42501';
+    end if;
+  end if;
+  -- Jamais sur soi : la seule exception est la directrice qui forme, qui retire son propre titre FIXE Formateur (et non un titre de promo
+  -- quelconque : un titre non fixe, retirable à la migration 6, reste soumis à la règle) ; le fondateur (hors aperçu) retire ce qu'il veut.
+  if v_email = v_moi and (v_niveau <> 'promo' or not v_fixe) and not est_fondateur() then
+    raise exception 'titres: Vous ne pouvez pas retirer votre propre titre.' using errcode = '42501';
+  end if;
+$ancien$];
+  v_nouveaux text[] := array[
+$nouveau$  v_n integer;
+  v_etat text;
+  v_phrase text;
+begin
+  if v_moi is null then
+$nouveau$,
+$nouveau$  -- Un titre du réseau ne porte sur aucun centre : le centre donné est ignoré.
+  if v_niveau = 'reseau' then
+    v_lieu := null;
+  elsif v_lieu is null or not exists (select 1 from lieux l where l.id = v_lieu) then
+    raise exception 'titres: Le centre est requis.';
+  end if;
+  -- Les règles du § 7 (titre d'un autre centre, droit, jamais plus que soi, jamais sur soi) sont celles de donner_titre : une seule aide.
+  -- Retirer obéit aux mêmes règles que donner : on ne retire que ce qu'on pourrait donner (le verrou des titres non fixes mis à part).
+  select r.etat, r.phrase into v_etat, v_phrase from _refus_titre(p_titre_id, v_lieu, v_email, 'retirer') r;
+  if v_etat is not null then
+    raise exception '%', v_phrase using errcode = v_etat;
+  end if;
+$nouveau$];
+  f integer;
+  i integer;
+  v_oid regprocedure;
+  v_def text;
+  v_ancien text;
+  v_nouveau text;
+  n integer;
+begin
+  -- Le bloc est atomique : une fonction absente, un fragment manquant ou en double annule tout, rien n'est changé.
+  for f in 1..cardinality(v_fonctions) loop
+    v_oid := to_regprocedure(v_fonctions[f]);
+    if v_oid is null then
+      raise exception 'titres_6_gestion : % n''existe pas ; rien n''est changé', v_fonctions[f];
+    end if;
+    v_def := pg_get_functiondef(v_oid);
+    for i in 1..cardinality(v_de) loop
+      if v_de[i] <> f then continue; end if;
+      v_ancien := v_anciens[i];
+      v_nouveau := v_nouveaux[i];
+      -- Une définition posée depuis un fichier à fins de ligne Windows garde ses retours chariot : les fragments suivent.
+      if position(E'\r' in v_def) > 0 then
+        v_ancien := replace(v_ancien, E'\n', E'\r\n');
+        v_nouveau := replace(v_nouveau, E'\n', E'\r\n');
+      end if;
+      n := (length(v_def) - length(replace(v_def, v_ancien, ''))) / length(v_ancien);
+      if n <> 1 then
+        raise exception 'titres_6_gestion : le fragment % attendu dans % est présent % fois (une seule attendue) ; rien n''est changé', i, v_fonctions[f], n;
+      end if;
+      v_def := replace(v_def, v_ancien, v_nouveau);
+    end loop;
+    execute v_def;
+  end loop;
+end
+$migration$;
