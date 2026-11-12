@@ -23,6 +23,20 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // Carte « Aujourd'hui » de l'Accueil refondue (piste C, choisie par Timy le 11/11 sur maquettes) : ton rôle dit en une phrase,
+  // seulement tes activités. Pour les stagiaires, au tutoiement.
+  {
+    id: "2026-11-12-accueil-aujourdhui-roles",
+    date: "2026-11-12",
+    pour: "stagiaires",
+    titre: "Ta journée dite en une phrase",
+    resume: "Sur l'Accueil, la carte « Aujourd'hui » ne montre plus que ce qui te concerne, une phrase par moment de la journée : "
+          + "« Tu passes au tableau », « Tu es en salle », « Tu enseignes en voiture » ou « Tu suis le cours ». En dessous, chacun "
+          + "est nommé par sa place : qui passe au tableau, l'élève bénévole à qui tu enseignes en voiture, le formateur. "
+          + "Les activités des autres stagiaires restent dans le Planning.",
+    // Sans « ou » : elle s'affiche sur l'Accueil même, un lien vers l'Accueil n'y mènerait nulle part.
+    module: "planning",
+  },
   // Lecteur de cours qui ne défilait pas sur iPhone, ouvert en haut de Cours et QCM (signalé par Timy le 11/11). Pour tous : neutre.
   {
     id: "2026-11-12-cours-defilement-iphone",
