@@ -234,7 +234,7 @@ Nouvelles fonctions : `listEpcf(filters)` (RLS filtre naturellement pour un stag
 
 - Critères non renseignés : exclus des moyennes (pas comptés comme 0).
 - Éval vide (0 critère renseigné) : refusée à la sauvegarde avec message.
-- Stagiaire hors effectif (abandon, ex. Tatiana) : masqué de la liste formateur comme
+- Stagiaire hors effectif (abandon) : masqué de la liste formateur comme
   partout dans l'app (`listStagiaires()` ne renvoie que les actifs : comportement
   délibéré app-wide) ; ses éventuelles évals restent en base. (Amendé le 13/07 en
   revue : la formulation initiale contredisait le comportement standard de l'app.)

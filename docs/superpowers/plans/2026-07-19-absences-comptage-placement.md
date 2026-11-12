@@ -554,7 +554,7 @@ Insérer après `chipsSelect` (~ligne 1356) :
 // Lignes « ⊘ X absent(e) → remplacé(e) par … » d'une carte (spec §5). Sélecteur SOUPLE :
 // tous les stagiaires (moins l'absent), tri par priorité, badge « occupé » à titre
 // d'avertissement AU LIEU d'une exclusion dure : c'est le remplacement de dernière
-// minute, la personne est souvent déjà dans la salle (cas Céline, 17/07).
+// minute, la personne est souvent déjà dans la salle (cas de la stagiaire B, 17/07).
 function renderAbsenceRows(entry, lid) {
   const wrap = el("div", { class: "abs-rows" });
   const roleIds = passageRoleIds(entry);
@@ -1002,7 +1002,7 @@ Puis sur main : run cache-bust SANS pipe (`node scripts/cache-bust.js` en sortie
 
 - [ ] **Step 5: Rattrapage semaine du 13/07 (avec l'utilisateur, sur le live)**
 
-Naviguer sur la semaine du 13/07 : marquer Rita absente (tableau G2 vendredi, sans remplaçant sauf indication contraire de l'utilisateur), traiter Emilie/Céline et les cas du jeudi 16 selon le préavis réel (l'utilisateur tranche : swap simple ou marquage ⊘), puis « Valider la semaine » et vérifier les rows en base (`execute_sql` sur `passages`, dates 2026-07-13 → 2026-07-17).
+Naviguer sur la semaine du 13/07 : marquer stagiaire A absente (tableau G2 vendredi, sans remplaçant sauf indication contraire de l'utilisateur), traiter stagiaires C et B, et les cas du jeudi 16 selon le préavis réel (l'utilisateur tranche : swap simple ou marquage ⊘), puis « Valider la semaine » et vérifier les rows en base (`execute_sql` sur `passages`, dates 2026-07-13 → 2026-07-17).
 
 - [ ] **Step 6: Ménage**
 

@@ -35,7 +35,7 @@ RLS : SELECT/INSERT/UPDATE/DELETE réservés `is_admin()` (mêmes policies que `
 ### Affiliation
 
 - `benevoles.auto_ecole_id INTEGER REFERENCES auto_ecoles(id)` (nullable : un bénévole peut ne pas avoir d'auto-école).
-- Migration de l'existant : chaque valeur texte distincte de `benevoles.auto_ecole` devient une fiche `auto_ecoles` et les bénévoles y sont rattachés. Cas concret : « Sophie » → fiche nom « Sophie », référent « Sophie », téléphone « 06 16 14 75 14 » (repris des notes seedées « Contact via Sophie : 06 16 14 75 14 »), et ces notes de seed, devenues redondantes, sont vidées (données produites par la migration du 2026-07-02, le numéro vit désormais sur la fiche partenaire).
+- Migration de l'existant : chaque valeur texte distincte de `benevoles.auto_ecole` devient une fiche `auto_ecoles` et les bénévoles y sont rattachés. Cas concret : « Sophie » → fiche nom « Sophie », référent « Sophie », téléphone de la référente (repris des notes seedées « Contact via Sophie : <numéro> », numéro retiré du dépôt), et ces notes de seed, devenues redondantes, sont vidées (données produites par la migration du 2026-07-02, le numéro vit désormais sur la fiche partenaire).
 - La colonne texte `benevoles.auto_ecole` est supprimée après reprise (le client est mis à jour dans le même déploiement).
 
 ### Table `benevole_suivi` (commentaires par venue)
@@ -70,7 +70,7 @@ Le panneau ouvert par le bouton « Bénévoles » gagne 2 onglets en tête (pill
 
 - Le champ « Auto-école d'origine » (texte) devient un **select** listant les auto-écoles actives + option « + Nouvelle auto-école » qui ouvre la fiche auto-école vierge puis revient au formulaire bénévole avec la nouvelle fiche sélectionnée.
 - Nouvelle section **« Suivi »** (visible en édition d'un bénévole existant) :
-  - Venues déduites du planning, triées de la plus récente à la plus ancienne, format : « Lun 6 juil. matin · avec V. Timy, G. Ankpra · C1.4 Démarrer et s'arrêter » (élèves moniteurs de la carte, sujet si renseigné). Les venues futures sont marquées « à venir ».
+  - Venues déduites du planning, triées de la plus récente à la plus ancienne, format : « Lun 6 juil. matin · avec V. Timy, R. Lina · C1.4 Démarrer et s'arrêter » (élèves moniteurs de la carte, sujet si renseigné). Les venues futures sont marquées « à venir ».
   - Sous chaque venue passée : champ commentaire (sauvegarde sur blur, upsert dans `benevole_suivi`).
   - Compteur : « N venues » aussi affiché dans la ligne de liste de l'onglet Bénévoles.
 

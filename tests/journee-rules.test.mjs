@@ -9,7 +9,7 @@ const LUNDI = "2026-10-26";
 const MARDI = "2026-10-27";
 
 const noms = () => ({
-  stagiaires: new Map([[1, "Timy"], [2, "Anissa"], [3, "Lorie"], [4, "Valentin"], [5, "Cassandre"], [6, "Céline"]]),
+  stagiaires: new Map([[1, "Timy"], [2, "Alice"], [3, "Louise"], [4, "Victor"], [5, "Chloé"], [6, "Clara"]]),
   formateurs: new Map([[1, "Romain"], [2, "Hocine"]]),
   benevoles: new Map([[1, "Camille C."], [2, "Yanis Y."]]),
   autres: [],
@@ -45,8 +45,8 @@ test("un mardi : salle double le matin, voiture l'après-midi", () => {
 
   const s = matin(j).cartes[0];
   assert.equal(s.genre, "salle");
-  assert.deepEqual(s.tableau, [{ id: 2, nom: "Anissa", groupe: 1 }, { id: 3, nom: "Lorie", groupe: 2 }]);
-  assert.deepEqual(s.eleves, [{ id: 4, nom: "Valentin" }, { id: 5, nom: "Cassandre" }, { id: 6, nom: "Céline" }]);
+  assert.deepEqual(s.tableau, [{ id: 2, nom: "Alice", groupe: 1 }, { id: 3, nom: "Louise", groupe: 2 }]);
+  assert.deepEqual(s.eleves, [{ id: 4, nom: "Victor" }, { id: 5, nom: "Chloé" }, { id: 6, nom: "Clara" }]);
   assert.deepEqual(s.sujets, ["Feux", "Pneus"]);
   assert.deepEqual(s.sujetsParGroupe, { 1: ["Feux"], 2: ["Pneus"] }, "salle double : le sujet de chaque groupe");
   assert.deepEqual(s.formateurs, ["Romain"]);
@@ -54,7 +54,7 @@ test("un mardi : salle double le matin, voiture l'après-midi", () => {
 
   const v = aprem(j).cartes[0];
   assert.equal(v.genre, "voiture");
-  assert.deepEqual(v.conducteurs, [{ id: 1, nom: "Timy" }, { id: 2, nom: "Anissa" }]);
+  assert.deepEqual(v.conducteurs, [{ id: 1, nom: "Timy" }, { id: 2, nom: "Alice" }]);
   assert.deepEqual(v.benevoles, ["Yanis Y.", "Camille C."]);
   assert.deepEqual(v.tableau, []);
   assert.deepEqual(v.eleves, []);
@@ -102,7 +102,7 @@ test("absent remplacé : le remplaçant prend la place et l'étiquette ; l'absen
   const c = carte({ pedagogue_id: 2, eleves_ids: [3], absences: [{ sid: 2, rid: 5 }] });
   const j = jour([c], { moi: 5 });
   const k = matin(j).cartes[0];
-  assert.deepEqual(k.tableau, [{ id: 5, nom: "Cassandre", groupe: 1 }]);
+  assert.deepEqual(k.tableau, [{ id: 5, nom: "Chloé", groupe: 1 }]);
   assert.equal(k.moi.role, "tableau");
   assert.equal(matin(jour([c], { moi: 2 })).cartes[0].moi, null);
 });
@@ -110,21 +110,21 @@ test("absent remplacé : le remplaçant prend la place et l'étiquette ; l'absen
 test("absent sans remplaçant : il disparaît des listes et n'a pas d'étiquette", () => {
   const c = carte({ activite: "Voiture (conduite)", eleves_ids: [1, 2], absences: [{ sid: 1, rid: null }] });
   const k = matin(jour([c], { moi: 1 })).cartes[0];
-  assert.deepEqual(k.conducteurs, [{ id: 2, nom: "Anissa" }]);
+  assert.deepEqual(k.conducteurs, [{ id: 2, nom: "Alice" }]);
   assert.equal(k.moi, null);
 });
 
 test("un remplaçant déjà présent sur la carte n'apparaît pas deux fois", () => {
   const c = carte({ activite: "Voiture (conduite)", eleves_ids: [1, 2], absences: [{ sid: 1, rid: 2 }] });
-  assert.deepEqual(matin(jour([c])).cartes[0].conducteurs, [{ id: 2, nom: "Anissa" }]);
+  assert.deepEqual(matin(jour([c])).cartes[0].conducteurs, [{ id: 2, nom: "Alice" }]);
 });
 
 test("salle_double faux : pedagogue_id_2 et eleves_ids_2 restés en base sont ignorés", () => {
   const c = carte({ salle_double: false, pedagogue_id: 2, pedagogue_id_2: 3, eleves_ids: [4], eleves_ids_2: [5],
                     sujet: "Feux", sujet_2: "Pneus" });
   const k = matin(jour([c], { moi: 3 })).cartes[0];
-  assert.deepEqual(k.tableau, [{ id: 2, nom: "Anissa", groupe: 1 }]);
-  assert.deepEqual(k.eleves, [{ id: 4, nom: "Valentin" }]);
+  assert.deepEqual(k.tableau, [{ id: 2, nom: "Alice", groupe: 1 }]);
+  assert.deepEqual(k.eleves, [{ id: 4, nom: "Victor" }]);
   assert.deepEqual(k.sujets, ["Feux"]);
   assert.equal(k.moi, null);
 });
