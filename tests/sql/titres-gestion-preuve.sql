@@ -628,9 +628,10 @@ begin
   perform pg_temp.verrou(false);
   perform pg_temp.attendre('verrou', 'une clé globale inconnue reste refusée (23514)',
     pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('cle_inconnue_preuve8', 'oui', null)$q$), 'ERREUR 23514');
+  -- Jugée sur le texte de la contrainte, pas par une insertion : la production a déjà sa ligne habillage_reseau (23505).
   perform pg_temp.attendre('verrou', 'une clé d''avant reste admise sans promo (habillage_reseau)',
-    pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('habillage_reseau', 'ecsr', null)$q$), 'OK');
-  perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'habillage_reseau'$q$);
+    pg_temp.calcul($q$select (count(*) = 1)::text from pg_constraint where conrelid = 'public.settings'::regclass
+      and conname = 'settings_globaux_prevus' and pg_get_constraintdef(oid) like '%habillage_reseau%'$q$), 'true');
   -- Les droits d'exécution : le verrou à authenticated seul, les aides à personne.
   perform pg_temp.attendre('verrou', 'droits : titres_ouverts et regler_titres_ouverts pour authenticated, pas pour anon',
     pg_temp.calcul($q$select concat_ws('/',
