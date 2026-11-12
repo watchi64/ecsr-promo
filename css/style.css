@@ -329,6 +329,15 @@ html, body {
   width: 100%;
 }
 
+/* Écran plein cadre ouvert (cours, Informations légales, éditeur, QCM, signature) : la page derrière ne défile plus.
+   Le verrou se pose aussi sur <html> : comme <html> a un overflow-x autre que `visible` (ci-dessus), c'est lui qui
+   donne son overflow à la fenêtre, et `body { overflow: hidden }` seul ne figeait que <body>. La page restait donc
+   défilante sous l'écran ouvert ; sur iPhone, le geste allait à elle et le cours ouvert en haut de la page Cours et QCM
+   ne défilait pas (11/11/2026). Garde : tests/verrou-defilement.test.mjs. */
+html:has(> body.cours-open),
+html:has(> body.qcm-open),
+html:has(> body.sig-ouverte) { overflow: hidden; }
+
 h1, h2, h3, .display {
   font-family: var(--font-display);
   font-weight: var(--poids-titre);

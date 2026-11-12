@@ -5,14 +5,14 @@
 // d'ordre (centres par nom, démonstration en dernier) vivent dans js/siege-rules.js. Aucune donnée de stagiaire n'est lue ici.
 // Les fenêtres sont celles de la page Équipe de la direction (ouvrirFormulaire).
 
-import { lireLieuxDuReseau, lireDirectionsDuReseau, retirerTitre, creerCentre, inviteUser } from "../db.js?v=20261112b";
-import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261112b";
-import { icon } from "../icons.js?v=20261112b";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261112b";
-import { messageInvitationReussie } from "../roles-rules.js?v=20261112b";
-import { directionsParCentre } from "../siege-rules.js?v=20261112b";
-import { ouvrirFormulaire } from "./direction-equipe.js?v=20261112b";
-import { entier, pluriel } from "../nombres.js?v=20261112b";
+import { lireLieuxDuReseau, lireDirectionsDuReseau, retirerTitre, creerCentre, inviteUser } from "../db.js?v=20261112c";
+import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261112c";
+import { icon } from "../icons.js?v=20261112c";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261112c";
+import { messageInvitationReussie } from "../roles-rules.js?v=20261112c";
+import { directionsParCentre } from "../siege-rules.js?v=20261112c";
+import { ouvrirFormulaire } from "./direction-equipe.js?v=20261112c";
+import { entier, pluriel } from "../nombres.js?v=20261112c";
 
 export const PHRASE_ECHEC_DIRECTIONS = "Les directions des centres n'ont pas pu être chargées.";
 export const PHRASE_ADRESSE = "Adresse e-mail invalide.";
