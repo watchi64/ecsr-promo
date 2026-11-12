@@ -8,7 +8,7 @@ import { el, clear, toast, formatDate, shuffle } from "../utils.js?v=20261112d";
 import { confirmer } from "../confirmer.js?v=20261112d";
 import { icon, deco } from "../icons.js?v=20261112d";
 import { getQcmFull, insertQcmAttempt, getMyExamAttempt, listMyQcmAttemptsFor, createQcmSignalement } from "../db.js?v=20261112d";
-import { monStagiaireId, selonPublic } from "../auth-admin.js?v=20261112d";
+import { monStagiaireId, selonPublic, enVitrine } from "../auth-admin.js?v=20261112d";
 import { fermerParEchap } from "../fenetre-echap.js?v=20261112d";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261112d";
 import { dixieme } from "../nombres.js?v=20261112d";
@@ -341,6 +341,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
         pct >= 100 ? "Sans faute, bravo."
           : pct >= 60 ? selonPublic("Bien, continue à réviser.", "Bien, continuez à réviser.")
           : "Il reste des points à revoir."),
+      enVitrine() ? el("p", { class: "qcm-results-sub qcm-vitrine", style: "font-size:0.82rem" }, VITRINE_ENTRAINEMENT) : null,
     ));
 
     player.appendChild(buildRecap(questions, answers));
@@ -360,7 +361,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
     // Non bloquant : l'entraînement reste utile même si l'écriture échoue.
     try {
       const maFiche = monStagiaireId();
-      if (maFiche) {
+      if (maFiche && !enVitrine()) {
         await insertQcmAttempt({
           qcm_id: full.id,
           stagiaire_id: maFiche,
@@ -382,6 +383,12 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
 }
 
 // === Examen (Lot 2) ===
+
+// Vitrine de la promo de démonstration (js/vitrine-rules.js) : le fondateur déroule l'entraînement et l'examen comme la
+// stagiaire fictive, sans qu'aucune tentative ni aucune note ne soit enregistrée. Les écrans le disent.
+const VITRINE_ENTRAINEMENT = "Démonstration : cet entraînement n'est pas enregistré.";
+const VITRINE_EXAMEN = "Démonstration : la note ne sera pas enregistrée.";
+const VITRINE_EXAMEN_FINI = "Démonstration : cette note n'est pas enregistrée.";
 
 function fmtTime(s) {
   s = Math.max(0, s);
@@ -500,6 +507,7 @@ function runExamPrescreen(theme, full, questions, profile) {
       // Celui qui a demarre a temps peut terminer sa passe.
       tempsRestantMs(full) == null ? null
         : el("li", {}, `La fenêtre se referme dans ${formatTempsRestant(tempsRestantMs(full))}, mais une passe commencée va à son terme`),
+      enVitrine() ? el("li", { class: "qcm-vitrine" }, VITRINE_EXAMEN) : null,
     ),
     el("p", { class: "qcm-results-sub", style: "font-size:0.82rem" },
       "Le minuteur démarre dès que tu cliques sur Commencer."),
@@ -636,7 +644,8 @@ function runExam(theme, full, questions, profile) {
   async function confirmFinish() {
     const reste = total - countAnswered();
     const ok = await demander({ titre: "Terminer l'examen ?",
-      phrase: reste > 0 ? `Il te reste ${reste} question${reste > 1 ? "s" : ""} sans réponse.` : "Ta note sera enregistrée.",
+      phrase: reste > 0 ? `Il te reste ${reste} question${reste > 1 ? "s" : ""} sans réponse.`
+        : enVitrine() ? VITRINE_EXAMEN : "Ta note sera enregistrée.",
       oui: "Terminer", danger: false });
     if (ok) finish(false);
   }
@@ -651,6 +660,9 @@ function runExam(theme, full, questions, profile) {
       if (isAnswerCorrect(answers[q.id], q)) score += 1;
     });
     const note20 = Math.round((score / total) * 20 * 10) / 10;
+
+    // Vitrine de la promo de démonstration : l'examen se joue en entier, mais ni tentative ni note ne partent.
+    if (enVitrine()) { renderResults(score, note20, timedOut, null, true); return; }
 
     // Insert de la tentative examen ; le trigger écrit le miroir evaluations.
     let saveError = null;
@@ -672,7 +684,7 @@ function runExam(theme, full, questions, profile) {
     renderResults(score, note20, timedOut, saveError);
   }
 
-  function renderResults(score, note20, timedOut, saveError) {
+  function renderResults(score, note20, timedOut, saveError, vitrine = false) {
     clear(player);
     player.appendChild(examHeader(theme, close));
     player.appendChild(el("div", { class: "qcm-results" },
@@ -684,6 +696,7 @@ function runExam(theme, full, questions, profile) {
       timedOut ? el("p", { class: "qcm-head-sub", style: "text-align:center" },
         "Temps écoulé : l'examen a été remis automatiquement.") : null,
       saveError ? el("p", { class: "qcm-explain ko" }, "Note non enregistrée : " + saveError) : null,
+      vitrine ? el("p", { class: "qcm-results-sub qcm-vitrine", style: "font-size:0.82rem" }, VITRINE_EXAMEN_FINI) : null,
     ));
 
     player.appendChild(buildRecap(questions, answers));

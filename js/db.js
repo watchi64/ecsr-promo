@@ -11,7 +11,7 @@ import {
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
 } from "./promo-rules.js?v=20261112d";
 import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261112d";
-import { stagiaireVitrine } from "./vitrine-rules.js?v=20261112d";
+import { stagiaireVitrine, requeteDeDonnees, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261112d";
 import { effectifDesFiches } from "./centre-stats.js?v=20261112d";
 import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261112d";
 
@@ -28,6 +28,18 @@ let requetesBloquees = false; // rechargement décidé : plus aucune requête de
 let apercuEnvoye = null;     // aperçu de rôle en cours (x-apercu-role) ; nul hors aperçu
 let apercuDuFondateur = false; // l'aperçu est celui du fondateur (vitrine de la promo de démonstration, js/vitrine-rules.js)
 const avantBascule = new Set();
+
+function cheminDe(url) {
+  try { return new URL(url).pathname; } catch (e) { return ""; }
+}
+
+// Réponse fabriquée pour une écriture refusée dans la vitrine : même forme qu'un refus de l'API de données (403, JSON
+// avec `message`), pour que l'écran la traite comme n'importe quel refus de la base.
+function reponseDeRefus(message) {
+  return new Response(JSON.stringify({ code: "VITRINE", message, details: null, hint: null }), {
+    status: 403, statusText: "Forbidden", headers: { "Content-Type": "application/json" },
+  });
+}
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -48,8 +60,9 @@ function fetchWithTimeout(input, init = {}) {
     const entetes = new Headers(init.headers || (estRequete ? input.headers : {}));
     const demandee = entetes.get(ENTETE_LECTURE_PROMO);
     entetes.delete(ENTETE_LECTURE_PROMO);
+    const methode = init.method || (estRequete ? input.method : "GET");
     const { promo, erreur } = promoDeLaRequete({
-      methode: init.method || (estRequete ? input.method : "GET"),
+      methode,
       demandee,
       // Toujours la promo mémorisée, pas la liste filtrée par l'aperçu : une écriture en attente pendant un changement d'aperçu part
       // avec la promo où elle a été faite (jamais sans en-tête, la base y mettrait la promo par défaut du compte).
@@ -60,9 +73,13 @@ function fetchWithTimeout(input, init = {}) {
     if (promo != null) entetes.set(ENTETE_PROMO, String(promo));
     // Aperçu de rôle : à côté de x-promo-id, vers l'API de données seulement (jamais le stockage ni les
     // fonctions Edge, qui gardent les droits réels). La base ne fait que retirer des droits.
-    // Vitrine de la promo de démonstration : pas d'aperçu envoyé, la base lit avec les droits du fondateur (js/vitrine-rules.js).
-    const apercuPose = apercuEnvoye && !stagiaireVitrine({ promoId: promo, apercu: apercuEnvoye, fondateur: apercuDuFondateur })
-      ? apercuEnvoye : null;
+    // Vitrine de la promo de démonstration (js/vitrine-rules.js), en lecture seule : une lecture part sans l'aperçu (la base
+    // répond au fondateur ce qu'il lit déjà), un appel de fonction part avec l'aperçu comme hors vitrine, et toute autre
+    // requête (écrire une ligne au nom de la stagiaire fictive) est refusée ici, avant le réseau.
+    const { apercu: apercuPose, refus } = requeteDeDonnees({
+      promoId: promo, apercu: apercuEnvoye, fondateur: apercuDuFondateur, methode, chemin: cheminDe(url),
+    });
+    if (refus) return Promise.resolve(reponseDeRefus(refus));
     if (apercuPose) entetes.set(ENTETE_APERCU, apercuPose); else entetes.delete(ENTETE_APERCU);
     if (promo != null || demandee != null || apercuEnvoye) options = { ...init, headers: entetes };
   }
@@ -167,7 +184,7 @@ export function getMesPromos() { return mesPromos; }
 // retire l'aperçu. Les données déjà en mémoire ont été lues sous l'ancien aperçu : on les oublie.
 export function poserApercu(role, { fondateur = false } = {}) {
   const nouveau = normaliserApercu(role);
-  apercuDuFondateur = !!fondateur;
+  apercuDuFondateur = fondateur === true;
   if (nouveau === apercuEnvoye) return;
   apercuEnvoye = nouveau;
   recalculerPromosVisibles();
@@ -900,6 +917,8 @@ export async function getQcmFull(qcmId) {
 
 // Enregistre une tentative (entraînement ou examen). Renvoie la ligne créée.
 export async function insertQcmAttempt(payload) {
+  // Vitrine : aucune tentative au nom de la stagiaire fictive (refus ici, puis de nouveau au départ de la requête).
+  if (stagiaireVitrineCourante() != null) throw new Error(MESSAGE_VITRINE);
   const { data, error } = await supabase
     .from("qcm_attempts")
     .insert(payload)
@@ -953,12 +972,19 @@ export async function updateExamConfig(qcmId, patch) {
   }
 }
 
+// « Mes lignes » : la base y limite un stagiaire. Dans la vitrine, elle répond au fondateur (toute la promo) : la requête
+// nomme alors la fiche montrée.
+function mesLignes(requete) {
+  const vitrine = stagiaireVitrineCourante();
+  return vitrine != null ? requete.eq("stagiaire_id", vitrine) : requete;
+}
+
 // Toutes mes tentatives (RLS : mes lignes only), triées récent -> ancien.
 // Sert à afficher ma note d'examen et mon dernier entraînement par thème.
 export async function listMyQcmAttempts() {
-  const { data, error } = await supabase
+  const { data, error } = await mesLignes(supabase
     .from("qcm_attempts")
-    .select("qcm_id, mode, note_20, finished_at")
+    .select("qcm_id, mode, note_20, finished_at"))
     .order("finished_at", { ascending: false });
   if (error) throw error;
   return data || [];
@@ -980,9 +1006,9 @@ export async function listMyQcmAttemptsFor(qcmId, stagiaireId) {
 
 // Ma tentative examen pour ce QCM (RLS : mes lignes uniquement). null si aucune.
 export async function getMyExamAttempt(qcmId) {
-  const { data, error } = await supabase
+  const { data, error } = await mesLignes(supabase
     .from("qcm_attempts")
-    .select("*")
+    .select("*"))
     .eq("qcm_id", qcmId)
     .eq("mode", "examen")
     .order("finished_at", { ascending: false })

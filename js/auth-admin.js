@@ -230,6 +230,20 @@ export function monStagiaireId() {
   return stagiaireVitrineCourante() ?? currentProfile?.stagiaire_id ?? null;
 }
 
+// Vitrine de la promo de démonstration (js/vitrine-rules.js) : l'aperçu Stagiaire du fondateur y emprunte une fiche fictive,
+// en lecture seule. Les écrans qui enregistrent d'ordinaire (entraînement, examen) le demandent pour le dire et ne rien envoyer.
+export function enVitrine() {
+  return stagiaireVitrineCourante() != null;
+}
+
+// Le nom de la fiche empruntée, pour le bandeau d'aperçu ; null hors vitrine.
+function nomDeLaVitrine() {
+  const fiche = stagiaireVitrineCourante();
+  if (fiche == null) return null;
+  const s = (stagiaires || []).find((x) => x.id === fiche);
+  return s ? displayStagiaire(s) : "la stagiaire de démonstration";
+}
+
 // Retient l'aperçu et l'envoie à la base. Les données lues sous l'ancien aperçu sont oubliées.
 function appliquerApercu(role) {
   const change = role !== viewAs;
@@ -553,7 +567,7 @@ function updateImpersonationBanner() {
   const v = getViewAs();
   let banner = document.getElementById("impersonation-banner");
   if (!v) { if (banner) banner.remove(); return; }
-  const { libelle, suite } = texteBandeauApercu(v, getCentre());
+  const { libelle, suite } = texteBandeauApercu(v, getCentre(), nomDeLaVitrine());
   if (!banner) {
     banner = el("div", { id: "impersonation-banner", class: "impersonation-banner" });
     document.body.appendChild(banner);
