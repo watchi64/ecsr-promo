@@ -90,3 +90,17 @@ Acquis / À revoir / En cours / À commencer ». Les thèmes sans QCM ne sortent
 - Banc : stagiaire à 375 px et sur ordinateur, deux habillages ; robot des parcours, deux moteurs.
 - Entrée Nouveautés dans le même commit.
 - Assistant : son guide des stagiaires décrit la liste des thèmes ; une phrase à ajouter, redéploiement à grouper.
+
+## Choix faits pendant la construction (12/11, à relire par Timy)
+
+- **« En cours » est en ambre**, pas en ocre : à l'écran, l'ocre se confondait avec la terre cuite de « À revoir ».
+  C'est l'ambre de « en cours d'acquisition » de l'EPCF (`--note-warn-point`, texte `--note-warn-texte`).
+- **« Aucun thème acquis pour l'instant »** s'affiche dès que le nombre d'acquis est nul, même avec des thèmes à revoir.
+- **Section sans aucun QCM** (Compétences, le plus souvent) : pas de compteurs côté stagiaire, il n'y a rien à compter.
+- **Module Notes masqué** : sur un thème numéroté dont l'examen a déjà été passé, la ligne ne porte aucun état (ni
+  couleur ni pastille). Sans la note d'examen, l'état serait faux (« À commencer » après un examen réussi). Sans examen
+  passé, l'entraînement décide, comme prévu.
+- **Lecture des QCM en échec** : pas de progression affichée ; la liste garde son affichage d'avant et le bandeau
+  « non chargés » propose de réessayer.
+- **Date d'examen absente** : l'examen est réputé le plus ancien des deux résultats.
+- **Nouveauté** : placée après celle de la carte « Aujourd'hui », qui reste l'annonce de tête du jour.

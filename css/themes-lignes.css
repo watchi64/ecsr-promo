@@ -130,6 +130,10 @@
   box-shadow: inset 4px 0 0 var(--prog);
   background: color-mix(in srgb, var(--prog) 7%, var(--bg-elev));
 }
+/* Le survol reste lisible sur une ligne colorée (le voile passait devant celui de style.css). */
+#view .themes-list > .theme-row:is(.prog-acquis, .prog-revoir, .prog-encours):hover {
+  background: color-mix(in srgb, var(--prog) 13%, var(--bg-elev));
+}
 #view .themes-list > .theme-row.prog-commencer { box-shadow: inset 4px 0 0 var(--line); }
 .theme-meta .theme-prog {
   display: inline-flex; align-items: center; padding: 0 0.45rem; border-radius: 999px;

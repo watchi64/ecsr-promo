@@ -172,12 +172,16 @@ function myTrainNote(qcm) {
 }
 // Progression du stagiaire (spec du 12/11/2026) : ses notes de QCM colorent la ligne de chaque thème, le résultat le plus
 // récent décide (js/progression-rules.js). L'équipe garde le statut de la promo (« Fait / À faire »).
-function vueProgression() { return !formateurConnecte() && !sansPromo() && canSeeQcm(); }
+// Lecture des QCM en échec : pas de progression à montrer (le bandeau « non chargés » le dit), la liste garde son statut.
+function vueProgression() { return !formateurConnecte() && !sansPromo() && canSeeQcm() && !echecQcm; }
 // État d'un thème pour la personne connectée, ou null s'il n'a pas de QCM. La note d'examen est celle qu'affiche la ligne
 // (myThemeNote) : module Notes masqué, elle n'est pas connue et seul l'entraînement compte.
 function etatTheme(theme) {
   const qcm = qcmByTheme.get(theme.id);
   if (!qcm) return null;
+  // Module Notes masqué et examen déjà passé sur un thème numéroté : le résultat le plus récent n'est peut-être pas
+  // montrable. Plutôt aucun état qu'un état faux (« À commencer » après un examen réussi) : relecture du 12/11.
+  if (theme.numero != null && !moduleVisible("notes") && myExamByQcm.has(qcm.id)) return null;
   const note = myThemeNote(theme, qcm);
   const evaluation = theme.numero != null && moduleVisible("notes") ? myNoteByThemeNum.get(theme.numero) : null;
   const train = myTrainByQcm.get(qcm.id);
