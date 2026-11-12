@@ -723,13 +723,11 @@ body .modal-backdrop[data-nav-coquille="registre"] > .nav-fenetre.registre-fenet
   font-size: 16px;
 }
 .modal.confirmer-detaille .confirmer-champ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.modal.confirmer-detaille .modal-actions { flex-wrap: wrap; }
-.modal.confirmer-detaille .btn { min-height: 44px; white-space: normal; }
+/* Les boutons passent à la ligne et s'empilent sur téléphone comme dans toute confirmation (.modal.confirmer, css/style.css). */
 .modal.confirmer-detaille .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 @media (max-width: 640px) {
   .cons-fiche .btn { flex: 1 1 100%; }
-  .modal.confirmer-detaille .modal-actions .btn { flex: 1 1 100%; }
 }
 
 @media (max-width: 640px) {

@@ -37,6 +37,16 @@ export const NOUVEAUTES = [
     // Sans « ou » : elle s'affiche sur l'Accueil même, un lien vers l'Accueil n'y mènerait nulle part.
     module: "planning",
   },
+  // Fenêtre de confirmation (12/11) : à 375 px, un libellé long poussait un bouton hors de l'écran. Pour tous : formule
+  // neutre. Placée après la carte « Aujourd'hui », qui reste la nouveauté du jour à l'Accueil des stagiaires.
+  {
+    id: "2026-11-12-confirmations-telephone",
+    date: "2026-11-12",
+    pour: "tous",
+    titre: "Des fenêtres de confirmation qui tiennent sur téléphone",
+    resume: "Quand l'app demande de confirmer un geste (supprimer, fermer un examen, quitter une saisie), ses deux boutons "
+          + "restent à l'écran, même avec un texte long : sur téléphone, ils passent l'un sous l'autre, sur toute la largeur.",
+  },
   // Lecteur de cours qui ne défilait pas sur iPhone, ouvert en haut de Cours et QCM (signalé par Timy le 11/11). Pour tous : neutre.
   {
     id: "2026-11-12-cours-defilement-iphone",

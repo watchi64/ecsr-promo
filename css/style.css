@@ -3493,6 +3493,15 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .confirmer-champ input { min-height: 44px; font: inherit; font-weight: 400; }
 .confirmer-erreur { margin: 0 0 0.6rem; color: var(--c-stop); }
 .confirmer-erreur:empty { display: none; }
+/* La fenêtre de confirmation ne sort jamais de l'écran, quel que soit le libellé de ses boutons (« Continuer l'examen »,
+   « Changer les questions » à 375 px de large) : les boutons passent à la ligne au lieu de pousser le premier hors du
+   cadre, et un mot trop long se coupe. Sur téléphone, ils s'empilent sur toute la largeur, cibles de 44 px. */
+.modal.confirmer { overflow-wrap: anywhere; }
+.modal.confirmer .modal-actions { flex-wrap: wrap; }
+.modal.confirmer .modal-actions .btn { min-height: 44px; min-width: 0; max-width: 100%; white-space: normal; text-align: center; }
+@media (max-width: 640px) {
+  .modal.confirmer .modal-actions .btn { flex: 1 1 100%; }
+}
 
 @keyframes backdrop-in {
   from { opacity: 0; }

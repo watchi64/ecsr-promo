@@ -21,9 +21,11 @@
 // `reste` (ce qui est effacé, ce qui reste, en listes) et `saisie` ({ consigne, verifier }) : un champ où taper le mot ou le
 // prénom demandé. Le bouton du geste reste inactif (et hors du tour de Tab) tant que `verifier(texte)` ne répond pas vrai ;
 // sans `verifier`, il ne s'active jamais. Entrée dans le champ vaut le bouton. La réponse reste oui ou non.
+// La fenêtre porte la classe `confirmer` (css/style.css) : un libellé long passe à la ligne, et sur téléphone les deux
+// boutons s'empilent sur toute la largeur, sans jamais sortir du cadre.
 // Testé par tests/confirmer.test.mjs.
 
-import { el } from "./utils.js?v=20261112a";
+import { el } from "./utils.js?v=20261112b";
 
 let compteur = 0;
 
@@ -109,7 +111,7 @@ function ouvrir({ titre, phrase = null, part = null, reste = null, saisie: aTape
     ? [el("p", { class: "confirmer-liste-titre" }, titreListe), el("ul", { class: "confirmer-liste" }, ...items.map((x) => el("li", {}, x)))]
     : []);
   const detaillee = !!(part?.length || reste?.length || aTaper);
-  bd.appendChild(el("div", { class: "modal" + (detaillee ? " confirmer-detaille" : ""), role: "dialog", "aria-modal": "true", "aria-labelledby": id },
+  bd.appendChild(el("div", { class: "modal confirmer" + (detaillee ? " confirmer-detaille" : ""), role: "dialog", "aria-modal": "true", "aria-labelledby": id },
     el("h3", { id }, titre),
     phrase ? el("p", { class: "muted", style: "margin:0 0 0.8rem" }, phrase) : null,
     ...listeTitree("Ce qui est effacé", part),
