@@ -1596,6 +1596,11 @@ declare
 begin
   perform set_config('lock_timeout', '3s', true);
   v_en_ligne := v_mode like 'gestion-en-ligne%';
+  -- Essai à blanc de la 6 seule : la migration 5 doit déjà être appliquée sur la base (ses objets sont présents), sinon refus clair.
+  if v_mode like 'gestion (etape 6 seule%' and (to_regprocedure('public.retirer_titre(text, bigint, integer)') is null
+       or to_regprocedure('public.geste_centre(integer, text)') is null) then
+    raise exception 'REFUS : essai de la migration 6 seule impossible, la migration 5 (20261112_titres_5_fermetures) n''est pas appliquée sur cette base ; rien n''est changé';
+  end if;
 
   -- 1. Avant les migrations : l'empreinte de la base, puis les prérequis de l'étape 1.
   select e.regles, e.fonctions, e.droits into v_av_regles, v_av_fonctions, v_av_droits from pg_temp.empreinte() e;
