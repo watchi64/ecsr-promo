@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { stagiaireVitrine, VITRINES, sortEnVitrine, requeteDeDonnees, MESSAGE_VITRINE } from "../js/vitrine-rules.js";
+import { stagiaireVitrine, VITRINES, sortEnVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "../js/vitrine-rules.js";
+import { profilEffectif } from "../js/promo-rules.js";
 import { texteBandeauApercu } from "../js/espaces-rules.js";
 
 const lire = (chemin) => readFileSync(new URL(chemin, import.meta.url), "utf8");
@@ -103,11 +104,59 @@ test("requête de données, hors vitrine : rien ne change (l'aperçu en cours pa
   }
 });
 
+// --- La fiche empruntée ne quitte pas la vitrine (relecture du 12/11) ---------------------------------------------------
+
+test("fiche empruntée : une fiche de vitrine qui n'est pas celle du compte n'est jamais écrite, vitrine active ou non", () => {
+  assert.equal(ficheEmpruntee(1634, null), true, "le fondateur n'a pas de fiche dans la promo de démonstration");
+  assert.equal(ficheEmpruntee(1634), true);
+  assert.equal(ficheEmpruntee(1634, 15), true, "ni avec sa vraie fiche d'une autre promo");
+  assert.equal(ficheEmpruntee(1634, 1634), false, "un compte réellement lié à cette fiche écrit pour lui");
+  assert.equal(ficheEmpruntee(15, 15), false, "une vraie fiche");
+  assert.equal(ficheEmpruntee(15, null), false);
+  assert.equal(ficheEmpruntee(1635, null), false, "une autre fiche de la promo de démonstration n'est pas une vitrine");
+  for (const fiche of [null, undefined, "1634", NaN, 1634.5]) assert.equal(ficheEmpruntee(fiche, null), false, String(fiche));
+});
+
+test("profil du compte : la promo courante ne porte jamais la fiche empruntée, le profil non plus", () => {
+  const db = lire("../js/db.js");
+  const promoCourante = db.slice(db.indexOf("export function getPromoCourante()"), db.indexOf("export function stagiaireVitrineCourante()"));
+  assert.doesNotMatch(promoCourante.replace(/\/\/.*$/gm, ""), /vitrine/i, "getPromoCourante rend la promo telle que la base la donne");
+  assert.match(db, /return profilEffectif\(data, getPromoCourante\(\)\);/, "le profil se calcule sur cette promo");
+  // Le fondateur dans la promo de démonstration : aucune fiche dans son profil, en vitrine ou non.
+  const fondateur = { email: "f@exemple.invalid", role: "stagiaire", is_founder: true, is_admin: true, stagiaire_id: 15 };
+  assert.equal(profilEffectif(fondateur, { id: 7, stagiaire_id: null }).stagiaire_id, null);
+});
+
+test("sortie de la vitrine : les requêtes sont coupées et l'app se recharge avant tout changement d'aperçu", () => {
+  const auth = lire("../js/auth-admin.js");
+  const changer = auth.slice(auth.indexOf("export function setViewAs(role)"), auth.indexOf("export function getProfileWho()"));
+  const sortie = changer.slice(changer.indexOf("if (enVitrine() && nouveau !== viewAs) {"));
+  assert.ok(sortie.length > 0 && changer.indexOf("if (enVitrine() && nouveau !== viewAs) {") > 0, "la branche de sortie existe");
+  const fin = sortie.indexOf("return;");
+  const corps = sortie.slice(0, fin);
+  assert.match(corps, /bloquerRequetesJusquAuRechargement\(\);/);
+  assert.match(corps, /location\.reload\(\);/);
+  assert.ok(corps.indexOf("bloquerRequetesJusquAuRechargement()") < corps.indexOf("location.reload()"), "couper d'abord, recharger ensuite");
+  assert.doesNotMatch(corps, /appliquerApercu\(/, "l'aperçu en mémoire reste celui de la vitrine jusqu'au rechargement");
+  assert.ok(changer.indexOf("if (enVitrine() && nouveau !== viewAs) {") < changer.indexOf("appliquerApercu(nouveau);"),
+    "la sortie est décidée avant de changer d'aperçu");
+});
+
+test("écrans de la vitrine : la démonstration est retenue au départ de la passe ; réglage d'anonymat et livret d'un autre écartés", () => {
+  const qcm = lire("../js/views/qcm.js");
+  assert.equal((qcm.match(/const demonstration = enVitrine\(\);/g) || []).length, 2, "entraînement et examen");
+  const examen = qcm.slice(qcm.indexOf("function runExam(theme, full, questions, profile)"));
+  assert.ok(examen.indexOf("const demonstration = enVitrine();") < examen.indexOf("setInterval("), "retenue avant le minuteur");
+  assert.match(lire("../js/views/config.js"), /if \(monStagiaireId\(\) == null \|\| enVitrine\(\)\) return null;/);
+  assert.match(lire("../js/views/notes.js"), /return !litTout\(\) && !enVitrine\(\) && !!getProfile\(\)\?\.anonymous_notes;/);
+  assert.match(lire("../js/views/epcf-livret.js"), /\|\| \(enVitrine\(\) \? undefined : rows\[0\]\);/);
+});
+
 // --- Ce que dit l'écran, et le câblage ---------------------------------------------------------------------------------
 
-test("bandeau d'aperçu : en vitrine, il nomme la fiche fictive et dit que rien n'est enregistré", () => {
+test("bandeau d'aperçu : en vitrine, il nomme la fiche fictive et dit que rien n'est enregistré à son nom", () => {
   assert.deepEqual(texteBandeauApercu("stagiaire", null, "Camille M."),
-    { libelle: "Stagiaire", suite: "Vous voyez l'app comme Camille M. (fiche fictive). Rien n'est enregistré." });
+    { libelle: "Stagiaire", suite: "Vous voyez l'app comme Camille M. (fiche fictive). Rien n'est enregistré à son nom." });
   assert.deepEqual(texteBandeauApercu("stagiaire", null), { libelle: "Stagiaire", suite: "" });
   assert.deepEqual(texteBandeauApercu("stagiaire", null, null), { libelle: "Stagiaire", suite: "" });
   // Le nom de vitrine ne change rien aux autres aperçus.
@@ -119,7 +168,8 @@ test("câblage : toute requête de données passe par la règle, et les tentativ
   const db = lire("../js/db.js");
   // Le point de passage unique des requêtes applique la décision : refus avant le réseau, en-tête selon la règle.
   const passage = db.slice(db.indexOf("function fetchWithTimeout"), db.indexOf("export const supabase"));
-  assert.match(passage, /requeteDeDonnees\(\{\s*promoId: promo, apercu: apercuEnvoye, fondateur: apercuDuFondateur, methode, chemin: cheminDe\(url\),?\s*\}\)/);
+  // La vitrine ne joue que pour la promo affichée (une lecture d'une autre promo garde l'aperçu).
+  assert.match(passage, /requeteDeDonnees\(\{\s*promoId: promo === promoCouranteId \? promo : null, apercu: apercuEnvoye, fondateur: apercuDuFondateur,\s*methode, chemin: cheminDe\(url\),?\s*\}\)/);
   assert.match(passage, /if \(refus\) return Promise\.resolve\(reponseDeRefus\(refus\)\);/);
   assert.ok(passage.indexOf("if (refus) return") < passage.indexOf("return fetch("), "le refus précède l'appel au réseau");
   assert.equal((passage.match(/entetes\.set\(ENTETE_APERCU/g) || []).length, 1, "un seul endroit pose l'en-tête d'aperçu");
@@ -130,15 +180,15 @@ test("câblage : toute requête de données passe par la règle, et les tentativ
   assert.match(lire("../js/auth-admin.js"), /poserApercu\(role, \{ fondateur: isFounder\(\) \}\);/);
   // Tentatives de QCM : refus dans la fonction d'écriture, lectures « mes lignes » limitées à la fiche montrée.
   const insertion = db.slice(db.indexOf("export async function insertQcmAttempt"), db.indexOf("async function ecrireExamen"));
-  assert.match(insertion, /if \(stagiaireVitrineCourante\(\) != null\) throw new Error\(MESSAGE_VITRINE\);/);
+  assert.match(insertion, /if \(stagiaireVitrineCourante\(\) != null \|\| ficheEmpruntee\(payload\?\.stagiaire_id, getPromoCourante\(\)\?\.stagiaire_id \?\? null\)\) \{\s*throw new Error\(MESSAGE_VITRINE\);/);
   assert.ok(insertion.indexOf("throw new Error(MESSAGE_VITRINE)") < insertion.indexOf("supabase"), "le refus précède la requête");
   assert.equal((db.match(/await mesLignes\(supabase\s*\.from\("qcm_attempts"\)/g) || []).length, 2,
     "listMyQcmAttempts et getMyExamAttempt");
   // Écrans : ni l'entraînement ni l'examen n'appellent l'écriture en vitrine.
   const qcm = lire("../js/views/qcm.js");
-  assert.match(qcm, /if \(maFiche && !enVitrine\(\)\) \{\s*await insertQcmAttempt\(/);
-  assert.match(qcm, /if \(enVitrine\(\)\) \{ renderResults\(score, note20, timedOut, null, true\); return; \}/);
+  assert.match(qcm, /if \(maFiche && !demonstration && !enVitrine\(\)\) \{\s*await insertQcmAttempt\(/);
+  assert.match(qcm, /if \(demonstration \|\| enVitrine\(\)\) \{ renderResults\(score, note20, timedOut, null, true\); return; \}/);
   assert.equal((qcm.match(/insertQcmAttempt\(\{/g) || []).length, 2, "deux écritures de tentative, toutes deux gardées");
   const fin = qcm.slice(qcm.indexOf("async function finish(timedOut)"));
-  assert.ok(fin.indexOf("if (enVitrine())") < fin.indexOf("insertQcmAttempt({"), "l'examen sort avant l'écriture");
+  assert.ok(fin.indexOf("if (demonstration || enVitrine())") < fin.indexOf("insertQcmAttempt({"), "l'examen sort avant l'écriture");
 });

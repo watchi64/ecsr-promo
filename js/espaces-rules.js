@@ -244,7 +244,7 @@ const SUITE_APERCU_REEL = "Ce que vous modifiez ici est vraiment enregistré.";
 export function texteBandeauApercu(apercu, centre, nomVitrine = null) {
   // Vitrine de la promo de démonstration (js/vitrine-rules.js) : l'aperçu Stagiaire emprunte une fiche fictive, en lecture seule.
   if (apercu === "stagiaire" && nomVitrine) {
-    return { libelle: LIBELLES_APERCU.stagiaire, suite: "Vous voyez l'app comme " + nomVitrine + " (fiche fictive). Rien n'est enregistré." };
+    return { libelle: LIBELLES_APERCU.stagiaire, suite: "Vous voyez l'app comme " + nomVitrine + " (fiche fictive). Rien n'est enregistré à son nom." };
   }
   if (apercu === "direction") {
     return { libelle: centre && centre.nom ? "Direction du centre " + centre.nom : LIBELLES_ESPACE.direction, suite: SUITE_APERCU_REEL };

@@ -11,6 +11,9 @@
 //   - toute autre requête (ajout, modification, suppression d'une ligne) ne quitte pas le navigateur.
 // Rien ne s'écrit donc au nom de Camille : ni tentative de QCM, ni note, ni signature. L'écran garde ses droits de
 // stagiaire (js/roles-rules.js). Aucune vraie promo n'est concernée : la table ne nomme que la promo de démonstration.
+// La fiche empruntée ne quitte pas la vitrine : elle n'entre ni dans la promo courante ni dans le profil du compte
+// (js/db.js, getPromoCourante), et sortir de la vitrine recharge l'app après avoir coupé les requêtes (js/auth-admin.js,
+// setViewAs), pour qu'un examen ou une saisie commencés en vitrine ne finissent pas avec les droits du fondateur.
 
 // Promo de démonstration → fiche du stagiaire fictif montré dans l'aperçu.
 export const VITRINES = { 7: 1634 };
@@ -20,6 +23,12 @@ export const VITRINES = { 7: 1634 };
 export function stagiaireVitrine({ promoId, apercu, fondateur } = {}) {
   if (fondateur !== true || apercu !== "stagiaire" || !Number.isInteger(promoId)) return null;
   return Object.prototype.hasOwnProperty.call(VITRINES, promoId) ? VITRINES[promoId] : null;
+}
+
+// Une fiche de vitrine qui n'est pas la vraie fiche du compte : jamais écrite, vitrine active ou non.
+export function ficheEmpruntee(ficheEcrite, ficheDuCompte = null) {
+  if (!Number.isInteger(ficheEcrite) || ficheEcrite === ficheDuCompte) return false;
+  return Object.keys(VITRINES).some((promo) => VITRINES[promo] === ficheEcrite);
 }
 
 // Ce que la base ou l'app répond à un geste d'écriture fait dans la vitrine.

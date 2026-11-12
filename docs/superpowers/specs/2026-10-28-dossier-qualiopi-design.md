@@ -336,7 +336,7 @@ du § 6.7.
 | 16 | Présentation à l'examen conforme | dossier professionnel et livret EPCF au modèle officiel, heures | Prouvé | | inscription à la session |
 | 17 | Moyens humains et techniques | formateurs par séance, ressources en ligne | En partie | | locaux, véhicules, matériel |
 | 18 | Coordonner les intervenants | planning multi-formateurs, bénévoles, auto-écoles | En partie | | organigramme, réunions |
-| 19 | Ressources pédagogiques et leur appropriation | cours publiés, tentatives de QCM datées par stagiaire (ni la lecture des cours ni le temps de travail à distance ne sont enregistrés) | En partie | lecture des cours et temps de travail à distance (plus tard) | référent pédagogique si le seuil l'exige |
+| 19 | Ressources pédagogiques et leur appropriation | cours publiés, tentatives de QCM datées par stagiaire (la lecture des cours et le temps passé à les travailler ne sont pas enregistrés) | En partie | lecture des cours et temps de travail à distance (plus tard) | référent pédagogique si le seuil l'exige |
 | 21 | Compétences des intervenants | rien | Hors app | | CV, titres, autorisations d'enseigner |
 | 22 | Développement des compétences des salariés | rien | Hors app | | plan de développement des compétences |
 | 23 | Veille légale et réglementaire, exploitée | cours mis à jour et datés après les réformes | En partie | journal de veille (conversation 04) | sources de veille |

@@ -43,7 +43,7 @@ def entrer_dans_la_vitrine(v, compter=True):
     choisir_un_apercu(v, "Stagiaire", "stagiaire", "Stagiaire", compter=compter)
     v.espace = "stagiaire"
     bandeau = v.texte("#impersonation-banner")
-    if CAMILLE not in bandeau or "Rien n'est enregistré" not in bandeau:
+    if CAMILLE not in bandeau or "Rien n'est enregistré à son nom" not in bandeau:
         v.constat("D", BLOQUE, "le bandeau d'aperçu ne dit pas la vitrine (« %s »)" % bandeau.strip()[:120], capture=True)
 
 
@@ -143,4 +143,35 @@ def vitrine_entrainement(v):
     v.controler_ecran("résultat de l'entraînement en vitrine")
     aucune_ecriture(v, vues, "entraînement déroulé")
     fermer_la_fiche_du_qcm(v)
+    v.terminer()
+
+
+COMPTE = 'button[data-nav-action="compte"]'
+
+
+@parcours("vitrine-quitter-pendant-l-examen", "Le fondateur quitte la vitrine en plein examen : rien ne part, rien ne reste",
+          role="fondateur", budget=8, banc=BANC, semis=SEMIS, depart="#/home")
+def vitrine_quitter(v):
+    """Promo 7, aperçu Stagiaire, examen commencé puis « Revenir fondateur » (le bandeau reste au-dessus de l'examen) : l'app se
+    recharge dans l'espace de l'équipe, l'examen et son minuteur ont disparu, aucune écriture n'est demandée, et le compte
+    affiché n'est plus Camille (la fiche empruntée ne reste pas dans le profil du fondateur)."""
+    vues = suivre_les_ecritures(v)
+    entrer_dans_la_vitrine(v)
+    v.aller("Cours et QCM")
+    v.etape("commencer l'examen du thème 1")
+    v.toucher(QCM_DU_THEME % THEME, "le bouton « QCM » du thème 1")
+    v.toucher(PASSER, "« Passer l'examen »")
+    v.toucher(texte("Commencer l'examen", "button"), "« Commencer l'examen »")
+    v.attendre("button.qcm-choice", "la première question de l'examen")
+    v.toucher("button.qcm-choice", "une réponse", compte=False)
+    v.but("examen de démonstration commencé")
+    revenir_fondateur(v)
+    v.espace = "equipe"
+    v.attendre(COMPTE, "le bouton du compte, après le rechargement")
+    if v.voit(".qcm-overlay"):
+        v.constat("E", BLOQUE, "l'examen commencé en vitrine est encore ouvert dans l'espace du fondateur", capture=True)
+    compte = v.page.locator(COMPTE).first.get_attribute("aria-label") or v.texte(COMPTE)
+    if "Camille" in compte:
+        v.constat("E", BLOQUE, "hors vitrine, le compte affiché est encore Camille (« %s »)" % compte.strip()[:80], capture=True)
+    aucune_ecriture(v, vues, "sortie de la vitrine en plein examen")
     v.terminer()

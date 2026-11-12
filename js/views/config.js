@@ -18,7 +18,7 @@ import {
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261112e";
 import { confirmer } from "../confirmer.js?v=20261112e";
 import { icon } from "../icons.js?v=20261112e";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261112e";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic, enVitrine } from "../auth-admin.js?v=20261112e";
 import { moduleVisible } from "../modules-etat.js?v=20261112e";
 import { renderModulesSection } from "./modules-reglage.js?v=20261112e";
 import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261112e";
@@ -202,7 +202,8 @@ function renderMyPreferencesSection(rerender) {
   if (!moduleVisible("notes")) return null;
   // L'anonymat ne concerne que qui a une fiche de stagiaire (un formateur n'a pas de notes dans la classe, et voit tout) ;
   // sans fiche (monStagiaireId() nul, « Voir en tant que » Formateur compris), le réglage est masqué.
-  if (monStagiaireId() == null) return null;
+  // Vitrine de la promo de démonstration : la fiche est empruntée, le réglage serait celui du compte du fondateur.
+  if (monStagiaireId() == null || enVitrine()) return null;
 
   const section = el("section", { class: "param-section" });
   // La page s'appelle déjà « Mes préférences » et « Réglages » est la page de l'équipe : la section dit ce qu'elle règle, une

@@ -52,7 +52,7 @@ eq(NIVEAUX[19].aFournir, ["référent pédagogique si le seuil l'exige"], "19 : 
 // 19, « en partie » depuis le 12/11 : l'app prouve les ressources mises à disposition et les tentatives de QCM, pas le suivi
 // des modules à distance (aucune lecture de cours, aucun temps de travail n'est enregistré). La phrase le dit.
 eq(NIVEAUX[19].niveau, "partiel", "19 : en partie, pas prouvé");
-eq(NIVEAUX[19].apporte, "cours publiés, tentatives de QCM datées par stagiaire (ni la lecture des cours ni le temps de travail à distance ne sont enregistrés)",
+eq(NIVEAUX[19].apporte, "cours publiés, tentatives de QCM datées par stagiaire (la lecture des cours et le temps passé à les travailler ne sont pas enregistrés)",
   "19 : ce qui est prouvé, et ce qui ne l'est pas");
 eq(NIVEAUX[19].ajout, "lecture des cours et temps de travail à distance (plus tard)", "19 : ce qui manque à l'app");
 eq(NIVEAUX[21].aFournir, ["CV", "titres", "autorisations d'enseigner"], "21 : trois pièces, découpées sur la virgule");
@@ -61,7 +61,7 @@ eq(NIVEAUX[21].aFournir, ["CV", "titres", "autorisations d'enseigner"], "21 : tr
 // 10/11 : la colonne « apporte » des indicateurs 7, 10, 11, 12, 31 et 32 a pris les mots de l'app (livret EPCF, ordre de
 // passage, difficultés, contestations de QCM analysées, thèmes les moins réussis), le sens de la spec est inchangé.
 // Recalculée le 12/11 : l'indicateur 19 passe de « prouvé » à « en partie » (spec corrigée dans le même commit).
-const ANNEXE_A = "ce7b9c32592b1df6b34c0ffee08c506f6e24da2bb3729e9b7afbe934e1452296";
+const ANNEXE_A = "332fe4ecddd29a1c7790c1185087e1756db25ec05553bba0424c4701b94c3ed4";
 const canon = Object.entries(NIVEAUX)
   .map(([num, v]) => [num, v.niveau, v.apporte, v.ajout ?? "", v.aFournir.join(", ")].join("\t")).join("\n");
 eq(createHash("sha256").update(canon).digest("hex"), ANNEXE_A, "NIVEAUX reprend l'annexe A de la spec (mots du 10/11)");

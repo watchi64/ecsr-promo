@@ -11,7 +11,7 @@ import {
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
 } from "./promo-rules.js?v=20261112e";
 import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261112e";
-import { stagiaireVitrine, requeteDeDonnees, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261112e";
+import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261112e";
 import { effectifDesFiches } from "./centre-stats.js?v=20261112e";
 import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261112e";
 
@@ -76,8 +76,10 @@ function fetchWithTimeout(input, init = {}) {
     // Vitrine de la promo de démonstration (js/vitrine-rules.js), en lecture seule : une lecture part sans l'aperçu (la base
     // répond au fondateur ce qu'il lit déjà), un appel de fonction part avec l'aperçu comme hors vitrine, et toute autre
     // requête (écrire une ligne au nom de la stagiaire fictive) est refusée ici, avant le réseau.
+    // La vitrine ne joue que pour la promo affichée : une lecture d'une autre promo (x-promo-lecture) garde l'aperçu.
     const { apercu: apercuPose, refus } = requeteDeDonnees({
-      promoId: promo, apercu: apercuEnvoye, fondateur: apercuDuFondateur, methode, chemin: cheminDe(url),
+      promoId: promo === promoCouranteId ? promo : null, apercu: apercuEnvoye, fondateur: apercuDuFondateur,
+      methode, chemin: cheminDe(url),
     });
     if (refus) return Promise.resolve(reponseDeRefus(refus));
     if (apercuPose) entetes.set(ENTETE_APERCU, apercuPose); else entetes.delete(ENTETE_APERCU);
@@ -191,10 +193,11 @@ export function poserApercu(role, { fondateur = false } = {}) {
   invalidateCache();
 }
 
+// Toujours la promo telle que la base la donne : la fiche empruntée par la vitrine n'y entre JAMAIS (elle passerait dans le
+// profil du compte par getMyProfile, et y resterait une fois la vitrine quittée). Qui veut la fiche montrée la demande à
+// stagiaireVitrineCourante() (monStagiaireId, getProfileNom).
 export function getPromoCourante() {
-  const promo = mesPromos.find((p) => p.id === promoCouranteId) || null;
-  const vitrine = promo && stagiaireVitrineCourante();
-  return vitrine ? { ...promo, stagiaire_id: vitrine } : promo;
+  return mesPromos.find((p) => p.id === promoCouranteId) || null;
 }
 
 // La fiche montrée par la vitrine de la promo affichée (js/vitrine-rules.js), ou null.
@@ -917,8 +920,12 @@ export async function getQcmFull(qcmId) {
 
 // Enregistre une tentative (entraînement ou examen). Renvoie la ligne créée.
 export async function insertQcmAttempt(payload) {
-  // Vitrine : aucune tentative au nom de la stagiaire fictive (refus ici, puis de nouveau au départ de la requête).
-  if (stagiaireVitrineCourante() != null) throw new Error(MESSAGE_VITRINE);
+  // Vitrine : aucune tentative au nom de la stagiaire fictive (refus ici, puis de nouveau au départ de la requête). Une fiche
+  // de vitrine qui n'est pas celle du compte est refusée même hors vitrine : une passe commencée en vitrine et terminée
+  // après l'avoir quittée porte encore la fiche empruntée.
+  if (stagiaireVitrineCourante() != null || ficheEmpruntee(payload?.stagiaire_id, getPromoCourante()?.stagiaire_id ?? null)) {
+    throw new Error(MESSAGE_VITRINE);
+  }
   const { data, error } = await supabase
     .from("qcm_attempts")
     .insert(payload)

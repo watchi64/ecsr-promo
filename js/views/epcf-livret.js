@@ -11,7 +11,7 @@
 
 import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261112e";
 import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261112e";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261112e";
+import { isAdmin, isProf, monStagiaireId, enVitrine } from "../auth-admin.js?v=20261112e";
 import { getCurrentWho } from "../identity.js?v=20261112e";
 import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261112e";
 import { collectData, fillData, wireDocEditing,
@@ -297,7 +297,8 @@ export async function renderEpcfLivret(container, opts = {}) {
     // sa fiche couvre le fondateur en aperçu « Stagiaire » (aucune fiche dans
     // les autres aperçus, relecture finale, M8).
     const myId = monStagiaireId();
-    const mine = (myId != null && rows.find((r) => r.stagiaire_id === myId)) || rows[0];
+    // Vitrine de la promo de démonstration : la base rend les livrets de toute la promo, jamais celui d'un autre à défaut du sien.
+    const mine = (myId != null && rows.find((r) => r.stagiaire_id === myId)) || (enVitrine() ? undefined : rows[0]);
     if (!mine) {
       container.appendChild(el("p", { class: "muted" },
         "Ton livret EPCF n'est pas encore commencé. C'est ton formateur évaluateur qui le remplit."));

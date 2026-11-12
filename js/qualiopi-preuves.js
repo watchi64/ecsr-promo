@@ -71,7 +71,7 @@ import { TYPES, entreesPourPromo, decompteRegistre, delaiMedianJours } from "./r
 // Les mots de la colonne « apporte » ont suivi ceux de l'app le 10/11 (indicateurs 7, 10, 11, 12, 31 et 32 : livret EPCF,
 // ordre de passage, difficultés, contestations de QCM, thèmes les moins réussis) ; le sens de l'annexe A est inchangé.
 // Indicateur 19, ramené de « prouvé » à « en partie » le 12/11 : il demande de vérifier que les modules à distance sont
-// suivis, or l'app n'enregistre ni la lecture d'un cours ni un temps de travail ; seules les tentatives de QCM sont datées.
+// suivis, or l'app n'enregistre ni la lecture d'un cours ni le temps passé à le travailler ; seules les tentatives de QCM sont datées.
 export const NIVEAUX = {
   1: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["site", "catalogue", "fiche formation"] },
   2: { niveau: "partiel", apporte: "indicateurs du tableau de bord, chacun avec sa méthode", ajout: "fiche résultats (Q2)", aFournir: ["publication sur le site"] },
@@ -89,7 +89,7 @@ export const NIVEAUX = {
   16: { niveau: "prouve", apporte: "dossier professionnel et livret EPCF au modèle officiel, heures", ajout: null, aFournir: ["inscription à la session"] },
   17: { niveau: "partiel", apporte: "formateurs par séance, ressources en ligne", ajout: null, aFournir: ["locaux", "véhicules", "matériel"] },
   18: { niveau: "partiel", apporte: "planning multi-formateurs, bénévoles, auto-écoles", ajout: null, aFournir: ["organigramme", "réunions"] },
-  19: { niveau: "partiel", apporte: "cours publiés, tentatives de QCM datées par stagiaire (ni la lecture des cours ni le temps de travail à distance ne sont enregistrés)", ajout: "lecture des cours et temps de travail à distance (plus tard)", aFournir: ["référent pédagogique si le seuil l'exige"] },
+  19: { niveau: "partiel", apporte: "cours publiés, tentatives de QCM datées par stagiaire (la lecture des cours et le temps passé à les travailler ne sont pas enregistrés)", ajout: "lecture des cours et temps de travail à distance (plus tard)", aFournir: ["référent pédagogique si le seuil l'exige"] },
   21: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["CV", "titres", "autorisations d'enseigner"] },
   22: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["plan de développement des compétences"] },
   23: { niveau: "partiel", apporte: "cours mis à jour et datés après les réformes", ajout: "journal de veille (conversation 04)", aFournir: ["sources de veille"] },

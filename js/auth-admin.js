@@ -278,6 +278,19 @@ export function setViewAs(role) {
   const espaceApres = espaceAvec(nouveau);
   const recharger = espaceApres !== espace && (espaceDePilotage(espaceApres) || espaceDePilotage(espace));
   if (recharger && !peutQuitter(() => setViewAs(role))) return;
+  // Sortir de la vitrine : ce qui a commencé avec la fiche empruntée (un examen et son minuteur, une saisie différée) ne doit pas
+  // finir avec les droits du fondateur. Le choix est mémorisé, plus aucune requête de données ne part, et l'app se recharge ;
+  // l'aperçu en mémoire reste celui de la vitrine jusqu'à la disparition de la page.
+  if (enVitrine() && nouveau !== viewAs) {
+    try {
+      if (nouveau) localStorage.setItem(VIEW_AS_KEY, nouveau);
+      else localStorage.removeItem(VIEW_AS_KEY);
+    } catch (e) { /* ignore */ }
+    bloquerRequetesJusquAuRechargement();
+    try { history.replaceState(null, "", "#/" + (ACCUEIL_ESPACE[espaceApres] || "home")); } catch (x) { /* hors navigateur */ }
+    location.reload();
+    return;
+  }
   appliquerApercu(nouveau);
   try {
     if (viewAs) localStorage.setItem(VIEW_AS_KEY, viewAs);

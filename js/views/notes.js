@@ -7,7 +7,7 @@ import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
 } from "../notes-stats.js?v=20261112e";
 import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261112e";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace, selonPublic } from "../auth-admin.js?v=20261112e";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace, selonPublic, enVitrine } from "../auth-admin.js?v=20261112e";
 import { litToutesLesNotes } from "../espaces-rules.js?v=20261112e";
 import { recordUndo } from "../undo.js?v=20261112e";
 import { renderSubTabs } from "../subtabs.js?v=20261112e";
@@ -104,7 +104,8 @@ function myStagiaireId() {
 }
 
 function iAmAnonymous() {
-  return !litTout() && !!getProfile()?.anonymous_notes;
+  // En vitrine, la fiche est empruntée : le réglage du compte du fondateur ne décide pas de ce que voit la stagiaire fictive.
+  return !litTout() && !enVitrine() && !!getProfile()?.anonymous_notes;
 }
 
 function visibleStagiaires() {

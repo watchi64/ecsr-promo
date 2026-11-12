@@ -208,6 +208,7 @@ export async function openQcmEntrainement(theme, qcmMeta, opts = {}) {
 }
 
 function runEntrainement(theme, full, questions, badge = "Entraînement") {
+  const demonstration = enVitrine();  // retenu au départ : la passe ne s'enregistre pas, même finie hors de la vitrine
   let startedAt = new Date().toISOString();
   const total = questions.length;
   let idx = 0;
@@ -341,7 +342,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
         pct >= 100 ? "Sans faute, bravo."
           : pct >= 60 ? selonPublic("Bien, continue à réviser.", "Bien, continuez à réviser.")
           : "Il reste des points à revoir."),
-      enVitrine() ? el("p", { class: "qcm-results-sub qcm-vitrine", style: "font-size:0.82rem" }, VITRINE_ENTRAINEMENT) : null,
+      demonstration ? el("p", { class: "qcm-results-sub qcm-vitrine", style: "font-size:0.82rem" }, VITRINE_ENTRAINEMENT) : null,
     ));
 
     player.appendChild(buildRecap(questions, answers));
@@ -361,7 +362,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
     // Non bloquant : l'entraînement reste utile même si l'écriture échoue.
     try {
       const maFiche = monStagiaireId();
-      if (maFiche && !enVitrine()) {
+      if (maFiche && !demonstration && !enVitrine()) {
         await insertQcmAttempt({
           qcm_id: full.id,
           stagiaire_id: maFiche,
@@ -523,6 +524,7 @@ function runExamPrescreen(theme, full, questions, profile) {
 
 // Moteur d'examen : navigation libre, chrono global, aucune correction, submit à la fin.
 function runExam(theme, full, questions, profile) {
+  const demonstration = enVitrine();  // retenu au départ : la copie ne s'enregistre pas, même remise hors de la vitrine
   const startedAt = new Date().toISOString();
   const total = questions.length;
   const secondsPer = full.exam_seconds_per_question || 30;
@@ -645,7 +647,7 @@ function runExam(theme, full, questions, profile) {
     const reste = total - countAnswered();
     const ok = await demander({ titre: "Terminer l'examen ?",
       phrase: reste > 0 ? `Il te reste ${reste} question${reste > 1 ? "s" : ""} sans réponse.`
-        : enVitrine() ? VITRINE_EXAMEN : "Ta note sera enregistrée.",
+        : demonstration ? VITRINE_EXAMEN : "Ta note sera enregistrée.",
       oui: "Terminer", danger: false });
     if (ok) finish(false);
   }
@@ -662,7 +664,7 @@ function runExam(theme, full, questions, profile) {
     const note20 = Math.round((score / total) * 20 * 10) / 10;
 
     // Vitrine de la promo de démonstration : l'examen se joue en entier, mais ni tentative ni note ne partent.
-    if (enVitrine()) { renderResults(score, note20, timedOut, null, true); return; }
+    if (demonstration || enVitrine()) { renderResults(score, note20, timedOut, null, true); return; }
 
     // Insert de la tentative examen ; le trigger écrit le miroir evaluations.
     let saveError = null;
