@@ -98,15 +98,73 @@ export function libelleOuverture(qcm, now = Date.now()) {
   if (!examenDemarrable(qcm, now)) return "Examen fermé";
   const fin = echeance(qcm);
   if (fin === null) return "Ouvert sans limite";
+  const m = momentEcheance(fin, now);
+  return m.jour ? `Ouvert jusqu'au ${m.jour}, ${m.heure}` : `Ouvert jusqu'à ${m.heure}`;
+}
+
+// L'échéance en heure locale : l'heure seule le jour même (jour = null), sinon aussi le jour (avec l'année si ce n'est
+// pas l'année en cours).
+function momentEcheance(fin, now) {
   const d = new Date(fin), auj = new Date(now);
   const heure = `${d.getHours()} h ${String(d.getMinutes()).padStart(2, "0")}`;
   const memeAnnee = d.getFullYear() === auj.getFullYear();
   const memeJour = memeAnnee && d.getMonth() === auj.getMonth() && d.getDate() === auj.getDate();
-  if (memeJour) return `Ouvert jusqu'à ${heure}`;
+  if (memeJour) return { heure, jour: null };
   const jour = d.toLocaleDateString("fr-FR", memeAnnee
     ? { day: "numeric", month: "short" }
     : { day: "numeric", month: "short", year: "numeric" });
-  return `Ouvert jusqu'au ${jour}, ${heure}`;
+  return { heure, jour };
+}
+
+// « à 10 h 18 » le jour même, « le 10 nov., 9 h 30 » sinon : quand une fenêtre passée s'est refermée.
+function quandFerme(fin, now) {
+  const m = momentEcheance(fin, now);
+  return m.jour ? `le ${m.jour}, ${m.heure}` : `à ${m.heure}`;
+}
+
+// Une fenêtre ouverte puis passée : published reste vrai en base, l'échéance est derrière nous.
+function fenetrePassee(qcm, now) {
+  const fin = echeance(qcm);
+  return !!qcm?.published && fin !== null && now >= fin;
+}
+
+// Ce que la fiche QCM dit de l'examen à qui la regarde en stagiaire (bug du 12/11 : sans fiche dans la promo, la fiche
+// n'en disait rien). `passer` : le bouton « Passer l'examen » est proposé ; `texte` : la phrase sous le bouton ou à sa place.
+// Sans fiche stagiaire dans la promo (aperçu « Stagiaire » d'un fondateur ou d'un formateur, compte non lié), jamais de
+// bouton : la base refuserait la copie (qcm_attempts_ajout exige my_stagiaire_id()).
+export function examenCoteStagiaire(qcm, { avecFiche }, now = Date.now()) {
+  const ouvert = examenDemarrable(qcm, now);
+  if (!avecFiche) {
+    const raison = "Ce compte n'y a pas de fiche stagiaire : il peut s'entraîner, pas passer l'examen.";
+    if (ouvert) {
+      const etat = libelleOuverture(qcm, now).replace(/^Ouvert/, "Examen ouvert");
+      return { passer: false, texte: `${etat} pour les stagiaires de la promo. ${raison}` };
+    }
+    return { passer: false,
+      texte: "Examen fermé. Il se passe depuis un compte stagiaire de la promo : ce compte n'y a pas de fiche, il peut s'entraîner." };
+  }
+  if (ouvert) {
+    const restant = tempsRestantMs(qcm, now);
+    return { passer: true, texte: "Une seule passe, chronométrée, notée sur 20."
+      + (restant == null ? "" : ` L'examen ferme dans ${formatTempsRestant(restant)}.`) };
+  }
+  if (fenetrePassee(qcm, now)) {
+    return { passer: false, texte: `L'examen a fermé ${quandFerme(echeance(qcm), now)} : ton formateur peut le rouvrir.`
+      + " L'entraînement, lui, reste illimité." };
+  }
+  return { passer: false, texte: "Examen pas encore ouvert par ton formateur. L'entraînement, lui, est illimité." };
+}
+
+// L'état de l'examen dans le panneau du formateur : une fenêtre passée s'écrit « Examen fermé à 10 h 18 » (et non
+// « échu ») pour que le formateur sache qu'il s'est refermé tout seul et qu'il peut le rouvrir.
+export function etatExamenFormateur(qcm, now = Date.now()) {
+  if (examenDemarrable(qcm, now)) {
+    const restant = tempsRestantMs(qcm, now);
+    return { ouvert: true, badge: "Examen ouvert",
+      detail: restant == null ? "sans limite" : `ferme dans ${formatTempsRestant(restant)}` };
+  }
+  if (fenetrePassee(qcm, now)) return { ouvert: false, badge: "Examen fermé", detail: quandFerme(echeance(qcm), now) };
+  return { ouvert: false, badge: "Examen non ouvert", detail: null };
 }
 
 // Ce qui part quand on ouvre l'examen : « 20 questions · 30 s par question · tirage au hasard ».

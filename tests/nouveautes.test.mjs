@@ -240,6 +240,18 @@ for (const formateur of [false, true]) {
   eq(ids(triees(visibles(JUSQU_AU_11, formateur, formateur ? "equipe" : "stagiaire")))[0], THEMES_COMPACTS_ID,
     `thèmes compacts : la plus récente (${formateur ? "formateur" : "stagiaire"})`);
 }
+// L'état de l'examen sur la fiche d'un QCM (bug du 12/11) : pour tous, la plus récente chez le stagiaire comme chez l'équipe.
+const ETAT_EXAMEN_ID = "2026-11-12-etat-examen-qcm";
+const etatExamen = NOUVEAUTES.find((e) => e.id === ETAT_EXAMEN_ID);
+ok(!!etatExamen && etatExamen.pour === "tous" && etatExamen.id.startsWith(etatExamen.date + "-") && etatExamen.ou?.route === "themes",
+  "état de l'examen : pour tous, id préfixé par sa date, mène à Cours et QCM");
+// Visible des deux côtés ; le même jour, la carte « Aujourd'hui » (placée avant dans le fichier) reste l'annonce de tête
+// chez le stagiaire.
+for (const [formateur, espace] of [[false, "stagiaire"], [true, "equipe"]]) {
+  ok(ids(visibles(NOUVEAUTES, formateur, espace)).includes(ETAT_EXAMEN_ID), `état de l'examen : visible (espace ${espace})`);
+}
+eq(ids(triees(visibles(NOUVEAUTES, false, "stagiaire")))[0], "2026-11-12-accueil-aujourdhui-roles",
+  "état de l'examen : la carte « Aujourd'hui » reste en tête chez le stagiaire");
 for (const espace of [undefined, "stagiaire"]) {
   ok(!ids(visibles(NOUVEAUTES, false, espace)).includes(CONSERVATION_ID), `conservation : jamais chez un stagiaire (espace ${espace})`);
   ok(ids(triees(visibles(NOUVEAUTES, false, espace)))[0] !== CONSERVATION_ID, `stagiaire : la plus récente n'est jamais la conservation (espace ${espace})`);

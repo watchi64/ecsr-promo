@@ -21,7 +21,7 @@ export function gardeActive() { return !!garde && !!garde.estSale(); }
 // retenu (aller à l'adresse voulue, changer d'onglet). Une seule question à la fois. `demander` : pour les tests.
 let questionOuverte = false;
 const questionDeLApp = async (question) => {
-  const { confirmer } = await import("./confirmer.js?v=20261112c");
+  const { confirmer } = await import("./confirmer.js?v=20261112d");
   return confirmer(question);
 };
 export function peutQuitter(reprendre = null, { demander = questionDeLApp } = {}) {

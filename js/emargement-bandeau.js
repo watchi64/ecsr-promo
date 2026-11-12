@@ -4,14 +4,14 @@
 // Relu au démarrage, à chaque changement de page, au retour au premier plan et toutes
 // les 60 secondes quand l'app est visible. Aucune erreur affichée : ce n'est qu'un rappel.
 
-import { getEmargementsOuverts, signerEmargement, listStagiaires } from "./db.js?v=20261112c";
-import { el, clear, isoDate, toast } from "./utils.js?v=20261112c";
-import { isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261112c";
-import { ouvrirSignature } from "./signature-pad.js?v=20261112c";
-import { libelleCreneau, heureLocale, adresseSeance, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261112c";
-import { jourLong, DEMI_LONG, nomComplet } from "./emargement-feuilles.js?v=20261112c";
-import { emargementActif } from "./emargement-etat.js?v=20261112c";
-import { lireAdresse } from "./route-rules.js?v=20261112c";
+import { getEmargementsOuverts, signerEmargement, listStagiaires } from "./db.js?v=20261112d";
+import { el, clear, isoDate, toast } from "./utils.js?v=20261112d";
+import { isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261112d";
+import { ouvrirSignature } from "./signature-pad.js?v=20261112d";
+import { libelleCreneau, heureLocale, adresseSeance, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261112d";
+import { jourLong, DEMI_LONG, nomComplet } from "./emargement-feuilles.js?v=20261112d";
+import { emargementActif } from "./emargement-etat.js?v=20261112d";
+import { lireAdresse } from "./route-rules.js?v=20261112d";
 
 const INTERVALLE_MS = 60000;
 let initialise = false;

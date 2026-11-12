@@ -51,18 +51,18 @@
 // phrases (`jourDe`, `rempli`, `tableau`, et `pluriel` de js/nombres.js) sont réutilisés par js/qualiopi-documents.js, pour que la synthèse par
 // semaine des dossiers suive toujours la règle de l'inventaire au lieu d'en recopier une version.
 
-import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261112c";
-import { indicateursPromo } from "./centre-stats.js?v=20261112c";
-import { pct, pluriel } from "./nombres.js?v=20261112c";
-import { estNotee } from "./notes-stats.js?v=20261112c";
-import { ACTIVITY_SHAPES } from "./config.js?v=20261112c";
-import { jourFerie } from "./emargement-rules.js?v=20261112c";
-import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261112c";
-import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261112c";
-import { parseDate, addDays, isoDate } from "./utils.js?v=20261112c";
-import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261112c";
-import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261112c";
-import { TYPES, entreesPourPromo, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261112c";
+import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261112d";
+import { indicateursPromo } from "./centre-stats.js?v=20261112d";
+import { pct, pluriel } from "./nombres.js?v=20261112d";
+import { estNotee } from "./notes-stats.js?v=20261112d";
+import { ACTIVITY_SHAPES } from "./config.js?v=20261112d";
+import { jourFerie } from "./emargement-rules.js?v=20261112d";
+import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261112d";
+import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261112d";
+import { parseDate, addDays, isoDate } from "./utils.js?v=20261112d";
+import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261112d";
+import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261112d";
+import { TYPES, entreesPourPromo, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261112d";
 
 // Annexe A de la spec, cellule par cellule, pour les 28 indicateurs d'un centre de formation continue (les 27 plus
 // le 13 de l'alternance). niveau : « prouve » (l'app fournit l'essentiel), « partiel » (en partie) ou « hors »

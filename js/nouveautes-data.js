@@ -81,6 +81,20 @@ export const NOUVEAUTES = [
       "Une personne vous demande d'effacer ses données ? Transmettez sa demande au fondateur, qui efface tout, tout de suite.",
     ],
   },
+  // L'état de l'examen toujours écrit sur la fiche QCM (bug relevé par Timy pendant la présentation du 12/11 : l'aperçu
+  // « Stagiaire » sans fiche dans la promo ne voyait rien de l'examen ouvert). Pour tous : neutre.
+  {
+    id: "2026-11-12-etat-examen-qcm",
+    date: "2026-11-12",
+    pour: "tous",
+    titre: "La fiche d'un QCM dit où en est l'examen",
+    resume: "Quand l'examen d'un thème n'est pas ouvert, la fiche du QCM le dit clairement : pas encore ouvert par le "
+          + "formateur, ou refermé à l'heure prévue, avec cette heure. Un compte qui n'a pas de fiche stagiaire dans la promo "
+          + "voit aussi l'état de l'examen et la raison pour laquelle il ne peut que s'entraîner. Côté équipe, un examen "
+          + "dont la durée est écoulée s'affiche « Examen fermé » avec son heure de fermeture, et se rouvre par "
+          + "« Ouvrir l'examen aux stagiaires ».",
+    ou: { label: "Cours et QCM", route: "themes" },
+  },
   // Liste des thèmes compacte et « Plus » allégé (11/11/2026, essai de Timy sur iPhone). Pour tous : neutre.
   {
     id: "2026-11-11-themes-compacts",

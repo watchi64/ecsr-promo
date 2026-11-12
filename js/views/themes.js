@@ -4,31 +4,31 @@ import {
   saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements,
   setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa,
   accepterBrouillonIa, rejeterBrouillonIa,
-} from "../db.js?v=20261112c";
-import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261112c";
-import { confirmer } from "../confirmer.js?v=20261112c";
-import { icon, deco } from "../icons.js?v=20261112c";
-import { dixieme } from "../nombres.js?v=20261112c";
+} from "../db.js?v=20261112d";
+import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261112d";
+import { confirmer } from "../confirmer.js?v=20261112d";
+import { icon, deco } from "../icons.js?v=20261112d";
+import { dixieme } from "../nombres.js?v=20261112d";
 import {
   examenDemarrable, tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture,
-  resumeExamen,
-} from "../qcm-exam-rules.js?v=20261112c";
-import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261112c";
-import { recordUndo } from "../undo.js?v=20261112c";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261112c";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261112c";
-import { renderSubTabs } from "../subtabs.js?v=20261112c";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261112c";
-import { cleCours } from "../cours-rules.js?v=20261112c";
-import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261112c";
-import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261112c";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261112c";
-import { renderRessources } from "./ressources.js?v=20261112c";
-import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261112c";
-import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261112c";
-import { renderPropositionsIa } from "./propositions-ia.js?v=20261112c";
-import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261112c";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261112c";
+  resumeExamen, examenCoteStagiaire, etatExamenFormateur,
+} from "../qcm-exam-rules.js?v=20261112d";
+import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261112d";
+import { recordUndo } from "../undo.js?v=20261112d";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261112d";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261112d";
+import { renderSubTabs } from "../subtabs.js?v=20261112d";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261112d";
+import { cleCours } from "../cours-rules.js?v=20261112d";
+import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261112d";
+import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261112d";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261112d";
+import { renderRessources } from "./ressources.js?v=20261112d";
+import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261112d";
+import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261112d";
+import { renderPropositionsIa } from "./propositions-ia.js?v=20261112d";
+import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261112d";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261112d";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -351,19 +351,18 @@ function openQcmSheet(theme, qcm) {
         icon.history(), "Revoir mes erreurs"));
     }
 
-    // Passer l'examen (stagiaire).
-    if (stagiaireAvecFiche) {
-      if (examenDemarrable(qcm)) {
-        const restant = tempsRestantMs(qcm);
+    // Passer l'examen (stagiaire). Bug du 12/11 : l'aperçu « Stagiaire » sans fiche dans la promo (fondateur sur la promo
+    // de démonstration) ne voyait rien de l'examen, ouvert ou non. Il en voit désormais l'état et la raison, sans bouton.
+    if (stagiaireAvecFiche || (isStagiaire() && !canManageExam())) {
+      const ex = examenCoteStagiaire(qcm, { avecFiche: stagiaireAvecFiche });
+      if (ex.passer) {
         body.appendChild(el("button", { class: "btn accent full", type: "button", style: "margin-top:0.9rem",
           onClick: () => { modale.fermer({ focus: false }); openQcmExamen(theme, qcm); } }, "Passer l'examen"));
-        body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
-          "Une seule passe, chronométrée, notée sur 20."
-          + (restant == null ? "" : ` L'examen ferme dans ${formatTempsRestant(restant)}.`)));
+        body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" }, ex.texte));
       } else {
         // Pas de bouton grisé : il inviterait à cliquer pour rien.
-        body.appendChild(el("p", { class: "muted", style: "text-align:center;margin:0.9rem 0 0;font-size:0.82rem" },
-          "L'examen s'ouvre quand un formateur le décide. L'entraînement, lui, est illimité."));
+        body.appendChild(el("p", { class: "muted qcm-examen-etat", style: "text-align:center;margin:0.9rem 0 0;font-size:0.82rem" },
+          ex.texte));
       }
     }
 
@@ -426,18 +425,12 @@ function themeExamPanel(theme, qcm, onPublishChange) {
 
   function refreshStatus() {
     clear(status);
-    const ouvert = examenDemarrable(qcm);
+    // Une échéance dépassée laisse published à true en base : « Examen fermé à 10 h 18 », pour que le formateur sache
+    // qu'il s'est refermé tout seul et qu'il peut le rouvrir.
+    const { ouvert, badge, detail } = etatExamenFormateur(qcm);
     const frozenN = Array.isArray(qcm.exam_question_ids) ? qcm.exam_question_ids.length : null;
-    const restant = tempsRestantMs(qcm);
-    // Une échéance dépassée laisse published à true en base : on l'affiche comme
-    // fermé, sans mentir sur l'état, pour que le formateur sache qu'il peut rouvrir.
-    const echu = !!qcm.published && !ouvert;
-    status.appendChild(el("span", { class: "exam-badge " + (ouvert ? "on" : "off") },
-      ouvert ? "Examen ouvert" : (echu ? "Examen échu" : "Examen non ouvert")));
-    if (ouvert) {
-      status.appendChild(el("span", { class: "exam-echeance" },
-        restant == null ? "sans limite" : `ferme dans ${formatTempsRestant(restant)}`));
-    }
+    status.appendChild(el("span", { class: "exam-badge " + (ouvert ? "on" : "off") }, badge));
+    if (detail) status.appendChild(el("span", { class: "exam-echeance" }, detail));
     status.appendChild(el("span", { class: "muted", style: "font-size:0.8rem" },
       ` ${frozenN ?? qcm.nb_questions} questions · ${qcm.exam_seconds_per_question || 30}s/question`
       + (qcm.exam_draw_mode === "manual" ? " · sélection manuelle" : " · tirage aléatoire")));

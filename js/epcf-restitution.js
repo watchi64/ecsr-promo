@@ -1,10 +1,10 @@
 // Restitution EPCF : scoring des phases, radar SVG, section réutilisable
 // (affichée dans Mon suivi ; réutilisable ailleurs).
 
-import { el, clear, formatDate } from "./utils.js?v=20261112c";
-import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS, EPCF_PHASE_TEXTE } from "./epcf-trames.js?v=20261112c";
-import { moyennesMontrables, titreEpreuve, PHRASE_SANS_MOYENNE, scoresDuGroupe, phraseSansEvaluation } from "./epcf-classe-rules.js?v=20261112c";
-import { fr2 } from "./nombres.js?v=20261112c";
+import { el, clear, formatDate } from "./utils.js?v=20261112d";
+import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS, EPCF_PHASE_TEXTE } from "./epcf-trames.js?v=20261112d";
+import { moyennesMontrables, titreEpreuve, PHRASE_SANS_MOYENNE, scoresDuGroupe, phraseSansEvaluation } from "./epcf-classe-rules.js?v=20261112d";
+import { fr2 } from "./nombres.js?v=20261112d";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 function svgEl(tag, attrs = {}) {

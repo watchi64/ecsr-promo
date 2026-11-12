@@ -20,18 +20,18 @@
 // Les tableaux par stagiaire comptent les mêmes stagiaires que lui : ceux en formation, et le document le dit ; seule la
 // liste nominative de l'effectif montre aussi les abandons.
 
-import { SOURCE } from "./qualiopi-referentiel.js?v=20261112c";
-import { jourDe, rempli, tableau, demandesDe, RAISON_EFFACEE, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261112c";
-import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261112c";
-import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261112c";
-import { estNotee, score20 } from "./notes-stats.js?v=20261112c";
-import { cellule, nombre, slug } from "./centre-csv.js?v=20261112c";
-import { compareByNom } from "./utils.js?v=20261112c";
-import { statutFiche } from "./effacement-rules.js?v=20261112c";
-import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261112c";
-import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261112c";
-import { fr1, pluriel } from "./nombres.js?v=20261112c";
-import { dateFr } from "./dates.js?v=20261112c";
+import { SOURCE } from "./qualiopi-referentiel.js?v=20261112d";
+import { jourDe, rempli, tableau, demandesDe, RAISON_EFFACEE, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261112d";
+import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261112d";
+import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261112d";
+import { estNotee, score20 } from "./notes-stats.js?v=20261112d";
+import { cellule, nombre, slug } from "./centre-csv.js?v=20261112d";
+import { compareByNom } from "./utils.js?v=20261112d";
+import { statutFiche } from "./effacement-rules.js?v=20261112d";
+import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261112d";
+import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261112d";
+import { fr1, pluriel } from "./nombres.js?v=20261112d";
+import { dateFr } from "./dates.js?v=20261112d";
 
 export const PHRASE_DE_GARDE = "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
 

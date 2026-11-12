@@ -4,13 +4,13 @@
 // (impression du navigateur) et CSV de la matrice des notes. Les calculs vivent dans
 // js/centre-stats.js et js/centre-csv.js (purs, testés) : ici, seulement l'affichage.
 
-import { lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande, getMesPromos, getPromoCourante } from "../db.js?v=20261112c";
-import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261112c";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261112c";
-import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261112c";
-import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261112c";
-import { entier, fr1, pct, pluriel } from "../nombres.js?v=20261112c";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261112c";
+import { lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande, getMesPromos, getPromoCourante } from "../db.js?v=20261112d";
+import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261112d";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261112d";
+import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261112d";
+import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261112d";
+import { entier, fr1, pct, pluriel } from "../nombres.js?v=20261112d";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261112d";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
