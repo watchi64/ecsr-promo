@@ -11,8 +11,8 @@ re-priorise la semaine suivante, il est de nouveau absent, et l'admin corrige to
 main (notes texte sur les cartes, remplacements impossibles à saisir car le sélecteur
 exclut en dur quiconque est déjà sur le créneau : `slotOccupants()`, `js/views/planning.js`).
 
-Cas déclencheur : semaine du 13/07 : Rita prévue au tableau vendredi 17 après-midi,
-partie au dernier moment sans prévenir ; Céline a repris le tableau d'Emilie mais ne
+Cas déclencheur : semaine du 13/07 : stagiaire A prévue au tableau vendredi 17 après-midi,
+partie au dernier moment sans prévenir ; stagiaire B a repris le tableau de la stagiaire C mais ne
 pouvait pas être saisie (élève sur la même carte → exclue du sélecteur).
 
 ## 2. Décisions validées (brainstorm 2026-07-19)
@@ -22,7 +22,7 @@ pouvait pas être saisie (élève sur la même carte → exclue du sélecteur).
 | Absence prévenue à l'avance | **Selon le préavis** : prévenu assez tôt → simple replanification (remplaçant = passage normal compté, l'absent ne consomme rien et garde sa priorité). Dernière minute / non prévenu → Absence comptée + remplaçant en Bonus non compté. |
 | Où saisir l'absence de dernière minute | **Sur la carte planning** : chip marquée absente + remplaçant désigné à côté ; « Valider la semaine » génère les passages tout seul. |
 | Arbitrage quand les places manquent | **Cascade** : 1) rien eu cette semaine → 2) type manquant cette semaine → 3) retard historique sur ce type → 4) critères existants. |
-| Rétroactivité du nouveau comptage | **Assumée.** 6 lignes Absence (Rita ×2, Audrick, Aurélie, Céline, Emilie) se mettent à compter ; 1 ligne Bonus (Mickael, Salle) cesse de compter. |
+| Rétroactivité du nouveau comptage | **Assumée.** 6 lignes Absence (stagiaire A ×2, stagiaire D, stagiaire E, stagiaire B, stagiaire C) se mettent à compter ; 1 ligne Bonus (stagiaire F, Salle) cesse de compter. |
 | Bugs placement semaine 13/07 | Aucun bug d'algorithme constaté : le problème était le sélecteur trop strict pour saisir les remplacements. |
 
 ## 3. Données
@@ -61,7 +61,7 @@ Rôles concernés (v1) : **générateurs de passage uniquement** : tableau G1/G2
   - propose **tous les stagiaires actifs** (moins l'absent lui-même), triés par priorité
     avec compteur, comme les sélecteurs existants ;
   - badge « occupé » (avertissement) pour ceux déjà pris sur le créneau, **au lieu de
-    l'exclusion dure** : fix du cas Céline ;
+    l'exclusion dure** : fix du cas de la stagiaire B ;
   - remplaçant **optionnel** (`rid: null` = personne n'a repris le créneau).
 - Le remplaçant compte comme occupant du créneau (`slotOccupants()` ajoute les `rid`)
   pour les placements suivants de la même demi-journée.
@@ -112,7 +112,7 @@ simple (nouvelles règles d'absence, cascade par type).
 ## 8. Rattrapage semaine du 13/07
 
 Après déploiement, avec l'admin : marquage des absences réelles sur les cartes
-(Rita vendredi → Absence ; Emilie/Céline et les cas du jeudi 16 selon le préavis réel),
+(stagiaire A vendredi → Absence ; stagiaires C et B, et les cas du jeudi 16 selon le préavis réel),
 puis « Valider la semaine ». Constat en base au 19/07 : **aucun passage enregistré**
 sur 2026-07-13 → 2026-07-17, la semaine peut être validée proprement avec les
 nouvelles règles. Les notes texte restent comme documentation.

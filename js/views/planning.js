@@ -1515,7 +1515,7 @@ function benevoleNomEtNumero(b) {
 // Lignes « ⊘ X absent(e) → remplacé(e) par … » d'une carte (spec §5). Sélecteur SOUPLE :
 // tous les stagiaires (moins l'absent), tri par priorité, badge « occupé » à titre
 // d'avertissement AU LIEU d'une exclusion dure : c'est le remplacement de dernière
-// minute, la personne est souvent déjà dans la salle (cas Céline, 17/07).
+// minute, la personne est souvent déjà dans la salle (cas vécu le 17/07).
 // group (salle uniquement) : ne rend que l'absence du tableau de CE groupe, pour que la
 // ligne vive dans le bloc de son groupe (retour utilisateur 20/07).
 function renderAbsenceRows(entry, lid, group = null) {

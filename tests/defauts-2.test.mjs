@@ -16,9 +16,9 @@ import { peutMontrer, aReprendre, perimee, ATTENTE_MAX_MS, REPRISE_MS } from "..
 const MARDI = "2026-10-27";
 const stagiaires = [
   { id: 1, prenom: "Timy", nom: "Vigne", actif: true },
-  { id: 2, prenom: "Anissa", nom: "Boulet", actif: true },
-  { id: 3, prenom: "Lorie", nom: "Martin", actif: true },
-  { id: 4, prenom: "Valentin", nom: "Roux", actif: true },
+  { id: 2, prenom: "Alice", nom: "Boulet", actif: true },
+  { id: 3, prenom: "Louise", nom: "Martin", actif: true },
+  { id: 4, prenom: "Victor", nom: "Roux", actif: true },
 ];
 const sig = (id) => ({ stagiaire_id: id, absent: false, signe_le: "2026-10-27T07:52:00Z", trace: "M0 0" });
 const seance = (statut, lignes) => ({ id: 10, jour: MARDI, demi_journee: "matin", debut: "09:00", fin: "12:30", statut, lignes });
@@ -48,7 +48,7 @@ test("A1 : « Aujourd'hui » nomme les absents (prévus au planning ou notés su
     stagiaires, entries: [carteAbsent(4)],
   });
   assert.deepEqual(f.enAttente, ["Timy V."]);
-  assert.deepEqual(f.absents, ["Lorie M.", "Valentin R."]);
+  assert.deepEqual(f.absents, ["Louise M.", "Victor R."]);
   assert.equal(f.signes + f.enAttente.length + f.absents.length, f.total);
 });
 
@@ -59,8 +59,8 @@ test("A1 : un absent prévu qui a signé est signé ; un absent prévu aussi not
     stagiaires: avecAbandon, entries: [carteAbsent(4), carteAbsent(3)],
   });
   assert.equal(f.signes, 1, "l'absent prévu qui a signé compte comme signé");
-  assert.deepEqual(f.absents, ["Zoé A.", "Lorie M."]);
-  assert.deepEqual(f.enAttente, ["Anissa B.", "Timy V."]);
+  assert.deepEqual(f.absents, ["Zoé A.", "Louise M."]);
+  assert.deepEqual(f.enAttente, ["Alice B.", "Timy V."]);
   assert.equal(f.signes + f.enAttente.length + f.absents.length, f.total);
 });
 
@@ -107,7 +107,7 @@ test("A3 : une demi-journée où aucune carte ne nomme le stagiaire le dit ; sin
 });
 
 test("A3 : un cours, un contrôle, une autonomie ou une autre activité concerne toute la promo : pas de phrase", () => {
-  const noms = { stagiaires: new Map([[1, "Timy"], [2, "Anissa"]]), formateurs: new Map([[1, "Hocine"]]), benevoles: new Map(), titres: [] };
+  const noms = { stagiaires: new Map([[1, "Timy"], [2, "Alice"]]), formateurs: new Map([[1, "Hocine"]]), benevoles: new Map(), titres: [] };
   const demiDe = (entries) => journeeDuJour({ entries, metas: [], joursOff: [], jour: "2026-10-28", moi: 1, noms }).demis.find((d) => d.demi === "matin");
   for (const carte of [{ activite: "Cours", sujet: "Vitesse" }, { activite: "Contrôle" }, { activite: "Autre" }, { activite: "Pédagogie salle", autonomie: true }]) {
     const d = demiDe([{ day_index: 2, half_day: "matin", prof_ids: [1], ...carte }]);

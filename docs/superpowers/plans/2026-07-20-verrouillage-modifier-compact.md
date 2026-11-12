@@ -65,10 +65,10 @@ Stub générique : intercepte tout fetch vers Supabase (`/auth/v1/` et `/rest/v1
   const db = {
     user_profiles: [{ id: "u1", email: "prof@test", role: "prof", is_admin: true, is_founder: false }],
     stagiaires: [
-      { id: 1, prenom: "Rita", nom: "A", actif: true },
-      { id: 2, prenom: "Mickael", nom: "B", actif: true },
-      { id: 3, prenom: "Valentin", nom: "C", actif: true },
-      { id: 4, prenom: "Emilie", nom: "D", actif: true },
+      { id: 1, prenom: "Rose", nom: "A", actif: true },
+      { id: 2, prenom: "Marc", nom: "B", actif: true },
+      { id: 3, prenom: "Victor", nom: "C", actif: true },
+      { id: 4, prenom: "Eva", nom: "D", actif: true },
     ],
     profs: [{ id: 10, nom: "Hocine", actif: true }],
     themes: [],
@@ -482,7 +482,7 @@ Dans `save()` (l.2346), après le `recordUndo(...)` existant : remplacer le bloc
 ```js
 // Semaine de test = 2026-07-13, vendredi 17 écoulé → case cochée d'office.
 // 1. Mode édition → clic "Valider la semaine" → la modale liste le passage salle
-//    (pedagogue Rita) ; la case 🔒 est cochée.
+//    (pedagogue Rose) ; la case 🔒 est cochée.
 // 2. Clic Enregistrer → db.settings contient semaines_verrouillees=["2026-07-13"],
 //    la vue re-render : badge + Déverrouiller, read-only.
 window.__HARNESS.db.settings.find(s => s.key === "semaines_verrouillees")

@@ -84,7 +84,7 @@ datent de mai et juin : Thèmes, Priorités et Notes y sont décrits comme avant
 
 Depuis 19 mai, table `stagiaires` a une colonne `nom` (nom de famille). Format d'affichage **partout dans l'app** : `<initiale du nom>. <prénom>` : ex : « V. Timy ». Helper `displayStagiaire(s)` dans `utils.js`. Tri alpha = par `nom` via `compareByNom(a, b)`.
 
-Liste : ALEXER Audrick, ANKPRA Gaëlle, AQUILA Céline, BAILLY Mickael, BLANC Julie, BLANQUINQUE Valentin, BRUN Gaël, CHOULET Emilie, ERRAJI CHAHID Rita, KESSAL Lorie, LOPEZ Tatiana, MEDJANI Cassandre, MURRIGUIAN Aurélie, OULD ABDELKADER Anissa, VALDIVIA Timy.
+La liste nominative de la promo vit dans la table `stagiaires` : elle n'est pas recopiée ici.
 
 ## Base de données - état actuel
 
@@ -100,8 +100,8 @@ Liste : ALEXER Audrick, ANKPRA Gaëlle, AQUILA Céline, BAILLY Mickael, BLANC Ju
 | `passages`, `passages_audit` | passages salle/voiture avec who tracking |
 | `evaluations`, `evaluations_audit` | notes (type Thème/Compétence/Contrôle) |
 | `planning_entries` | + nouvelle colonne **`prof_ids INTEGER[]`** (multi-formateurs). `prof_id` legacy conservé synchronisé au 1er. + **`benevoles_ids INTEGER[]`** (élèves bénévoles voiture, 02/07/2026). + **`absences JSONB`** `[{sid, rid}]` (absences de dernière minute, 19/07/2026 : cf. § Absences & comptage) |
-| `benevoles` | banque d'élèves bénévoles (voiture conduite) : prénom (seul champ obligatoire), nom optionnel, **téléphone**, `niveau` = code compétence/sous-compétence REMC (« C1 », « C1.4 »... libellés résolus par `nivLabel()` dans benevoles.js), boîte, heures faites, **`auto_ecole_id` FK → auto_ecoles** (05/07/2026, le texte libre a été migré puis supprimé), `dispos jsonb` (grille hebdo LUNDI..VENDREDI x matin/aprem), `actif` (retrait doux). **RLS entièrement `is_admin()`** : invisible pour les stagiaires, téléphone jamais transmis. Seed 02/07/2026 : 9 bénévoles de la semaine du 6 juillet (Assiya, Chahinez + 7 via contact « Sophie ») liés aux cartes Voiture |
-| `auto_ecoles` | partenaires (05/07/2026) : nom (obligatoire), référent, téléphone, email, adresse, notes, `actif`. RLS entièrement `is_admin()`. « Sophie » (06 16 14 75 14) = première fiche, migrée depuis le texte libre |
+| `benevoles` | banque d'élèves bénévoles (voiture conduite) : prénom (seul champ obligatoire), nom optionnel, **téléphone**, `niveau` = code compétence/sous-compétence REMC (« C1 », « C1.4 »... libellés résolus par `nivLabel()` dans benevoles.js), boîte, heures faites, **`auto_ecole_id` FK → auto_ecoles** (05/07/2026, le texte libre a été migré puis supprimé), `dispos jsonb` (grille hebdo LUNDI..VENDREDI x matin/aprem), `actif` (retrait doux). **RLS entièrement `is_admin()`** : invisible pour les stagiaires, téléphone jamais transmis. Seed 02/07/2026 : 9 bénévoles de la semaine du 6 juillet (2 venus en direct + 7 via le contact d'une auto-école) liés aux cartes Voiture |
+| `auto_ecoles` | partenaires (05/07/2026) : nom (obligatoire), référent, téléphone, email, adresse, notes, `actif`. RLS entièrement `is_admin()`. Première fiche : l'auto-école du contact des bénévoles (référente et téléphone en base seulement), migrée depuis le texte libre |
 | `benevole_suivi` | commentaires de suivi par venue (05/07/2026) : `(benevole_id, semaine_lundi, day_index, half_day)` UNIQUE + commentaire. RLS `is_admin()`. ⚠️ Les venues ne sont PAS stockées : déduites de `planning_entries.benevoles_ids` (une demi-journée = une venue), seuls les commentaires vivent ici |
 | `planning_half_meta` | horaires + pause par demi-journée par semaine |
 | `ressources` | liens curés |

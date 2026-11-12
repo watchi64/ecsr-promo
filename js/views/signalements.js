@@ -20,7 +20,7 @@ export const MOTIF_LABELS = {
 };
 
 // Le nom de l'auteur d'un signalement. L'adresse ne suffit pas : dix des onze signalements
-// de la base viennent de « arthur-gaelle@hotmail.fr », qui est celle de Gaëlle ANKPRA.
+// de la base viennent d'une même adresse personnelle, qui ne dit pas à elle seule qui l'utilise.
 // Les abandons sont inclus : un signalement déposé avant un abandon garde son auteur.
 let auteurs = null;
 
