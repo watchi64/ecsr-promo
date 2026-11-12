@@ -5,11 +5,11 @@
 // Ce module ne connaît PAS l'éditeur : il reçoit `onOuvrirEditeur` de la part de
 // themes.js. Importer themes.js ici créerait un import circulaire entre deux vues.
 
-import { el, clear, formatDate, toast, displayStagiaire } from "../utils.js?v=20261112d";
-import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20261112d";
-import { listTousSignalements, setQcmSignalementStatut, listStagiaires } from "../db.js?v=20261112d";
-import { getAdminEmail } from "../auth-admin.js?v=20261112d";
-import { icon, deco } from "../icons.js?v=20261112d";
+import { el, clear, formatDate, toast, displayStagiaire } from "../utils.js?v=20261112e";
+import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20261112e";
+import { listTousSignalements, setQcmSignalementStatut, listStagiaires } from "../db.js?v=20261112e";
+import { getAdminEmail } from "../auth-admin.js?v=20261112e";
+import { icon, deco } from "../icons.js?v=20261112e";
 
 export const MOTIF_LABELS = {
   reponse_fausse: "Réponse fausse",
@@ -20,7 +20,7 @@ export const MOTIF_LABELS = {
 };
 
 // Le nom de l'auteur d'un signalement. L'adresse ne suffit pas : dix des onze signalements
-// de la base viennent de « arthur-gaelle@hotmail.fr », qui est celle de Gaëlle ANKPRA.
+// de la base viennent d'une même adresse personnelle, qui ne dit pas à elle seule qui l'utilise.
 // Les abandons sont inclus : un signalement déposé avant un abandon garde son auteur.
 let auteurs = null;
 

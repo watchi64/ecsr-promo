@@ -139,7 +139,7 @@ DO $$
 DECLARE
   pn text; n int;
 BEGIN
-  FOREACH pn IN ARRAY ARRAY['lorie','timy','gaëlle','audrick-allan','julie','emilie','gael','cassandre','valentin','mickael','anissa','rita','celine'] LOOP
+  FOREACH pn IN ARRAY ARRAY['stagiaire_a','timy','stagiaire_b','stagiaire_c','stagiaire_d','stagiaire_e','stagiaire_f','stagiaire_g','stagiaire_h','stagiaire_i','stagiaire_j','stagiaire_k','stagiaire_l'] LOOP
     SELECT count(*) INTO n FROM stagiaires WHERE lower(unaccent(prenom)) = lower(unaccent(pn));
     IF n <> 1 THEN RAISE EXCEPTION 'Stagiaire « % » : % correspondance(s) au lieu de 1', pn, n; END IF;
   END LOOP;
@@ -149,7 +149,8 @@ BEGIN
   END LOOP;
 END $$;
 -- NOTE : si l'extension unaccent n'est pas active : CREATE EXTENSION IF NOT EXISTS unaccent;
--- NOTE : adapter les prénoms ci-dessus s'ils diffèrent dans la table stagiaires
+-- NOTE : les clés stagiaire_a à stagiaire_l tiennent la place des prénoms réels (retirés du dépôt) ;
+-- adapter les clés ci-dessus s'ils diffèrent dans la table stagiaires
 -- (contrôler avec SELECT id, prenom, nom FROM stagiaires ORDER BY prenom;)
 
 DELETE FROM passages WHERE origine = 'Import formulaire 07/2026';
@@ -163,19 +164,19 @@ WITH prof_ids AS (
 -- Une ligne par stagiaire : dates post-stage (étalées), profs alignés (R=Romain,
 -- A=Raphaël, H=Hocine), avec_eleve aligné. Longueurs identiques par ligne.
 donnees(prenom_key, dates, profs, avec) AS (VALUES
-  ('lorie',         ARRAY['2026-06-09','2026-06-15','2026-06-22','2026-06-29','2026-07-03'], ARRAY['R','R','R','R','H'], ARRAY[false,false,false,true,true]),
+  ('stagiaire_a',         ARRAY['2026-06-09','2026-06-15','2026-06-22','2026-06-29','2026-07-03'], ARRAY['R','R','R','R','H'], ARRAY[false,false,false,true,true]),
   ('timy',          ARRAY['2026-06-09','2026-06-17','2026-06-25','2026-07-03'],              ARRAY['R','R','R','H'],     ARRAY[false,true,true,true]),
-  ('gaëlle',        ARRAY['2026-06-09','2026-06-17','2026-06-25','2026-07-03'],              ARRAY['R','R','R','A'],     ARRAY[false,false,true,true]),
-  ('audrick-allan', ARRAY['2026-06-09','2026-06-15','2026-06-22','2026-06-29','2026-07-03'], ARRAY['R','R','R','R','R'], ARRAY[false,true,true,true,true]),
-  ('julie',         ARRAY['2026-06-09','2026-06-15','2026-06-22','2026-06-29','2026-07-03'], ARRAY['R','R','R','R','A'], ARRAY[false,false,true,true,true]),
-  ('emilie',        ARRAY['2026-06-09','2026-06-22','2026-07-03'],                           ARRAY['R','R','A'],         ARRAY[false,true,true]),
-  ('gael',          ARRAY['2026-06-09','2026-06-22','2026-07-03'],                           ARRAY['R','R','R'],         ARRAY[false,true,true]),
-  ('cassandre',     ARRAY['2026-06-09','2026-06-15','2026-06-22','2026-06-29','2026-07-03'], ARRAY['R','R','R','A','A'], ARRAY[false,false,true,true,true]),
-  ('valentin',      ARRAY['2026-06-09','2026-06-22','2026-07-03'],                           ARRAY['R','R','R'],         ARRAY[false,true,true]),
-  ('mickael',       ARRAY['2026-06-09','2026-06-22','2026-07-03'],                           ARRAY['R','R','A'],         ARRAY[false,true,true]),
-  ('anissa',        ARRAY['2026-06-09','2026-06-17','2026-06-25','2026-07-03'],              ARRAY['R','R','R','A'],     ARRAY[false,false,false,true]),
-  ('rita',          ARRAY['2026-06-09','2026-06-22','2026-07-03'],                           ARRAY['R','R','A'],         ARRAY[false,false,true]),
-  ('celine',        ARRAY['2026-06-09','2026-06-17','2026-06-25','2026-07-03'],              ARRAY['R','R','R','A'],     ARRAY[false,false,true,true])
+  ('stagiaire_b',        ARRAY['2026-06-09','2026-06-17','2026-06-25','2026-07-03'],              ARRAY['R','R','R','A'],     ARRAY[false,false,true,true]),
+  ('stagiaire_c', ARRAY['2026-06-09','2026-06-15','2026-06-22','2026-06-29','2026-07-03'], ARRAY['R','R','R','R','R'], ARRAY[false,true,true,true,true]),
+  ('stagiaire_d',         ARRAY['2026-06-09','2026-06-15','2026-06-22','2026-06-29','2026-07-03'], ARRAY['R','R','R','R','A'], ARRAY[false,false,true,true,true]),
+  ('stagiaire_e',        ARRAY['2026-06-09','2026-06-22','2026-07-03'],                           ARRAY['R','R','A'],         ARRAY[false,true,true]),
+  ('stagiaire_f',          ARRAY['2026-06-09','2026-06-22','2026-07-03'],                           ARRAY['R','R','R'],         ARRAY[false,true,true]),
+  ('stagiaire_g',     ARRAY['2026-06-09','2026-06-15','2026-06-22','2026-06-29','2026-07-03'], ARRAY['R','R','R','A','A'], ARRAY[false,false,true,true,true]),
+  ('stagiaire_h',      ARRAY['2026-06-09','2026-06-22','2026-07-03'],                           ARRAY['R','R','R'],         ARRAY[false,true,true]),
+  ('stagiaire_i',       ARRAY['2026-06-09','2026-06-22','2026-07-03'],                           ARRAY['R','R','A'],         ARRAY[false,true,true]),
+  ('stagiaire_j',        ARRAY['2026-06-09','2026-06-17','2026-06-25','2026-07-03'],              ARRAY['R','R','R','A'],     ARRAY[false,false,false,true]),
+  ('stagiaire_k',          ARRAY['2026-06-09','2026-06-22','2026-07-03'],                           ARRAY['R','R','A'],         ARRAY[false,false,true]),
+  ('stagiaire_l',        ARRAY['2026-06-09','2026-06-17','2026-06-25','2026-07-03'],              ARRAY['R','R','R','A'],     ARRAY[false,false,true,true])
 ),
 poststage AS (
   SELECT s.id AS stagiaire_id,
@@ -205,19 +206,19 @@ FROM (SELECT * FROM forfait UNION ALL SELECT * FROM poststage) x;
 INSERT INTO fiches_suivi (stagiaire_id, besoins, updated_by_who)
 SELECT s.id, b.besoins, 'Import doc suivi'
 FROM (VALUES
-  ('lorie',         'Auto-évaluation · démonstration · prendre plus d''assurance'),
+  ('stagiaire_a',         'Auto-évaluation · démonstration · prendre plus d''assurance'),
   ('timy',          'Évaluation spécifique statique + dynamique (choix parcours, jalonnage) · organisation · questions d''auto-éval moins vagues · gestion du temps'),
-  ('gaëlle',        'Conduite de droite avec des démonstrations : n''a pas réussi à faire les démos'),
-  ('audrick-allan', 'Approfondir l''auto-évaluation'),
-  ('julie',         'Cibler son cours pour l''adapter parfaitement au besoin précis de l''élève'),
-  ('emilie',        'Difficultés sur les auto-évaluations et pour animer les cours'),
-  ('gael',          'Faire et refaire (volume, répétition)'),
-  ('cassandre',     'Travailler l''auto-évaluation'),
-  ('valentin',      'Trouver un bon objectif de leçon sans trop en faire · connaissances des compétences et sous-compétences'),
-  ('mickael',       'Être plus à l''aise · savoir animer'),
-  ('anissa',        'Difficulté à jalonner'),
-  ('rita',          'Organiser et creuser les questions de l''évaluation spécifique selon le niveau réel de l''élève'),
-  ('celine',        'Organisation · formuler correctement l''objectif · bien noter ses cours')
+  ('stagiaire_b',        'Conduite de droite avec des démonstrations : n''a pas réussi à faire les démos'),
+  ('stagiaire_c', 'Approfondir l''auto-évaluation'),
+  ('stagiaire_d',         'Cibler son cours pour l''adapter parfaitement au besoin précis de l''élève'),
+  ('stagiaire_e',        'Difficultés sur les auto-évaluations et pour animer les cours'),
+  ('stagiaire_f',          'Faire et refaire (volume, répétition)'),
+  ('stagiaire_g',     'Travailler l''auto-évaluation'),
+  ('stagiaire_h',      'Trouver un bon objectif de leçon sans trop en faire · connaissances des compétences et sous-compétences'),
+  ('stagiaire_i',       'Être plus à l''aise · savoir animer'),
+  ('stagiaire_j',        'Difficulté à jalonner'),
+  ('stagiaire_k',          'Organiser et creuser les questions de l''évaluation spécifique selon le niveau réel de l''élève'),
+  ('stagiaire_l',        'Organisation · formuler correctement l''objectif · bien noter ses cours')
 ) AS b(prenom_key, besoins)
 JOIN stagiaires s ON lower(unaccent(s.prenom)) = lower(unaccent(b.prenom_key))
 ON CONFLICT (stagiaire_id) DO UPDATE SET besoins = EXCLUDED.besoins;
@@ -237,11 +238,11 @@ COMMIT;
 ```
 
 - [ ] **Step 2: Checkpoint utilisateur** : lui demander de :
-  1. Contrôler `SELECT id, prenom, nom FROM stagiaires ORDER BY prenom;` et ajuster les `prenom_key` si besoin (Rita et Audrick-allan sont les plus susceptibles de différer).
+  1. Contrôler `SELECT id, prenom, nom FROM stagiaires ORDER BY prenom;` et ajuster les `prenom_key` si besoin (les stagiaires K et C sont les plus susceptibles de différer).
   2. Exécuter le script, examiner le résultat du garde-fou et de la vérification finale.
   3. Confirmer les totaux (90 lignes, 29 avec élève) avant de continuer.
 
-- [ ] **Step 3: Vérifier dans l'app** : lancer le serveur (`preview_start` name depuis `.claude/launch.json`, ou `dev.ps1`), onglet Passages : les entrées « Import formulaire 07/2026 » apparaissent ; Dashboard : compteurs voiture cohérents (Lorie 8, Audrick 8, Anissa 7…).
+- [ ] **Step 3: Vérifier dans l'app** : lancer le serveur (`preview_start` name depuis `.claude/launch.json`, ou `dev.ps1`), onglet Passages : les entrées « Import formulaire 07/2026 » apparaissent ; Dashboard : compteurs voiture cohérents (stagiaire A 8, stagiaire C 8, stagiaire J 7…).
 
 - [ ] **Step 4: Commit**
 
@@ -301,7 +302,7 @@ export async function getVoitureAggregats() {
 
 - [ ] **Step 2: Vérifier** : recharger l'app (serveur lancé), console navigateur :
 `(await import("./js/db.js?v=" + Date.now())).getVoitureAggregats()` doit renvoyer un objet
-avec 13 clés et des `avecEleve` conformes au tableau (Lorie 2, Audrick 4, Anissa 1…).
+avec 13 clés et des `avecEleve` conformes au tableau (stagiaire A 2, stagiaire C 4, stagiaire J 1…).
 
 - [ ] **Step 3: Commit**
 
@@ -675,7 +676,7 @@ import { renderSuivi } from "./views/suivi.js?v=20260710a";   // avec les autres
 (Vérifier les noms de variables CSS réellement utilisés dans `style.css` (`grep -n "^:root" -A 30 css/style.css`) et ajuster.)
 
 - [ ] **Step 4: Vérifier au navigateur** :
-  - Compte admin : onglet « Mon suivi » → liste des 13 cartes, besoins seedés visibles (Gaëlle : démos) ; clic → édition, cocher C2 → Enregistrer → tag visible.
+  - Compte admin : onglet « Mon suivi » → liste des 13 cartes, besoins seedés visibles (stagiaire B : démos) ; clic → édition, cocher C2 → Enregistrer → tag visible.
   - « Voir en tant que » un compte stagiaire (ou compte réel) : sa fiche seule, historique correct, sauvegarde OK.
   - Console : aucune erreur RLS.
 
@@ -812,7 +813,7 @@ async function randomFillVoitureEleves(lid, count) {
 
 - [ ] **Step 5: Vérifier au navigateur** : semaine de test :
   1. Créneau Voiture avec bénévole niveau C2 + prof Romain → « Placer la semaine » →
-     les stagiaires tirés doivent être parmi les moins exposés (Anissa 1, Rita 1 attendus
+     les stagiaires tirés doivent être parmi les moins exposés (stagiaires J et K, à 1, attendus
      en tête après import) ; si une fiche coche C2, ce stagiaire passe devant à exposition égale.
   2. Créneau sans bénévole → placement fonctionne (critère match neutre).
   3. Simuler migration absente (renommer temporairement l'appel getVoitureAggregats →
