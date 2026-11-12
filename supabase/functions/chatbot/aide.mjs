@@ -2,7 +2,7 @@
 // A tenir a jour quand l'app change (fichier texte, pas de logique).
 
 // Ce qui vaut pour les stagiaires et les formateurs.
-const AIDE_COMMUNE = `QCM : en entraînement, les questions échouées reviennent en premier aux passages suivants. En examen, tirage de N questions et note sur 20 au seuil fixé par les formateurs. Chaque question a une explication sourcée. « Contester cette question », pendant un QCM, remonte une question douteuse aux formateurs.
+const AIDE_COMMUNE = `QCM : en entraînement, les questions échouées reviennent en premier aux passages suivants. En examen, tirage de N questions et note sur 20 au seuil fixé par les formateurs. L'examen ne se passe que lorsqu'un formateur l'a ouvert, pour une durée choisie (« … » au bout de la ligne du thème, ou fiche du QCM, « Ouvrir l'examen aux stagiaires ») ; la fiche du QCM dit s'il n'est pas encore ouvert ou à quelle heure il s'est refermé. Il se passe depuis un compte stagiaire de la promo : un aperçu « Stagiaire » ou un compte sans fiche stagiaire dans la promo peut seulement s'entraîner. Chaque question a une explication sourcée. « Contester cette question », pendant un QCM, remonte une question douteuse aux formateurs.
 
 LIVRET EPCF ET DOSSIER PROFESSIONNEL : documents officiels remplissables dans l'app puis imprimables au format officiel (impression via le bouton dédié, pas Ctrl+P depuis n'importe où).`;
 
