@@ -349,9 +349,12 @@ ok(!/export async function (anonymiserStagiaire|anonymiserPromo|etatAnonymisatio
 
 // --- Feuille de style de la conservation : cibles de 44 px, jetons de titre ---
 for (const [selecteur, nom] of [[".cons-details > summary", "« Ce qui part, ce qui reste »"], [".cons-fiche", "carte d'une fiche"], [".modal.confirmer-detaille .confirmer-champ input", "champ de saisie"],
-  [".modal.confirmer-detaille .btn", "boutons de la fenêtre"], [".cons-lien", "lien de Réglages"]]) {
+  [".cons-lien", "lien de Réglages"]]) {
   ok(new RegExp(selecteur.replace(/[.*+?^${}()|[\]\\>]/g, "\\$&") + " \\{[^}]*min-height: 44px").test(hors_commentaires), `cible de 44 px : ${nom}`);
 }
+// Les boutons de la fenêtre détaillée sont ceux de toute confirmation (.modal.confirmer, css/style.css, depuis le 11/11).
+ok(/\.modal\.confirmer \.modal-actions \.btn \{[^}]*min-height: 44px/.test(lire("css/style.css").replace(/\/\*[\s\S]*?\*\//g, "")),
+  "cible de 44 px : boutons de la fenêtre");
 ok(/\.cons-sous-titre \{[^}]*font-weight: var\(--poids-titre-moyen\)/.test(hors_commentaires) && /\.cons-carte-titre \{[^}]*font-weight: var\(--poids-titre-moyen\)/.test(hors_commentaires),
   "titres de la section : épaisseur par jeton");
 ok(/\.modal\.confirmer-detaille \{[^}]*overflow-x: hidden;[^}]*overflow-y: auto/.test(hors_commentaires), "la fenêtre détaillée défile de haut en bas, jamais de côté");

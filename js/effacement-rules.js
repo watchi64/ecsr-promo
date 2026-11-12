@@ -4,9 +4,9 @@
 
 import {
   phraseDeRefus, PHRASE_INDISPONIBLE, PHRASE_CONNEXION, PHRASE_SESSION, PHRASE_SANS_DROIT, PHRASE_ECHEC,
-} from "./espaces-rules.js?v=20261111m";
-import { dateLongue } from "./dates.js?v=20261111m";
-import { pluriel } from "./nombres.js?v=20261111m";
+} from "./espaces-rules.js?v=20261112d";
+import { dateLongue } from "./dates.js?v=20261112d";
+import { pluriel } from "./nombres.js?v=20261112d";
 
 // Confirmation par saisie du prénom (ou du mot EFFACER) : casse et espaces autour ignorés, accents exigés. Les deux côtés
 // sont mis sous la même forme Unicode (NFC) : un « é » tapé en deux signes (e + accent) vaut le « é » de la fiche. Rien

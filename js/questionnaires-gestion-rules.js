@@ -6,11 +6,11 @@
 // L'affichage part du catalogue (QUESTIONNAIRES[cle].questions), jamais des comptes rendus par la base : une question sans
 // aucune réponse s'affiche donc « moins de N réponses », comme une question sous le seuil.
 
-import { QUESTIONNAIRES, ECHELLE, seuilDe } from "./questionnaires-data.js?v=20261111m";
-import { fenetreQuestionnaire, resultatsAffichables, tauxSatisfaction, texteSousSeuil } from "./questionnaires-rules.js?v=20261111m";
-import { phraseDeLaBase, PHRASE_RESEAU } from "./questionnaires-erreurs.js?v=20261111m";
-import { pluriel } from "./nombres.js?v=20261111m";
-import { dateFr, jourParis } from "./dates.js?v=20261111m";
+import { QUESTIONNAIRES, ECHELLE, seuilDe } from "./questionnaires-data.js?v=20261112d";
+import { fenetreQuestionnaire, resultatsAffichables, tauxSatisfaction, texteSousSeuil } from "./questionnaires-rules.js?v=20261112d";
+import { phraseDeLaBase, PHRASE_RESEAU } from "./questionnaires-erreurs.js?v=20261112d";
+import { pluriel } from "./nombres.js?v=20261112d";
+import { dateFr, jourParis } from "./dates.js?v=20261112d";
 
 const ESPACE_INSECABLE = String.fromCharCode(0xa0);
 const FORMAT_JOUR = /^(\d{4})-(\d{2})-(\d{2})/;

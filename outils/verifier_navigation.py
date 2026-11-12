@@ -4797,8 +4797,8 @@ def jouer_signature_d_aujourdhui(page, res, sc):
 
 
 def verifier_accueil_voir_en_tant_que_stagiaire(page, res, sc, vue):
-    """Le fondateur voit l'app en stagiaire : l'accueil est celui du stagiaire (salutation par le prénom, ses cartes), jamais Aujourd'hui. Sans fiche de stagiaire, aucune
-    étiquette « Toi au tableau » ni signature."""
+    """Le fondateur voit l'app en stagiaire : l'accueil est celui du stagiaire (salutation par le prénom, ses cartes), jamais Aujourd'hui. Sans fiche de stagiaire, aucun
+    rôle (« Tu passes au tableau ») ni signature."""
     aller_a(page, "#/home")
     attendre(page)
     attendre_accueil(page)
@@ -4810,7 +4810,7 @@ def verifier_accueil_voir_en_tant_que_stagiaire(page, res, sc, vue):
         res.echec("accueil en aperçu stagiaire", vue, "l'accueil n'est pas celui du stagiaire : titre « %s », salutation « %s », cartes %s"
                   % (m["titre"], m["salut"], [c["zone"] for c in m["cartes"]]))
     if not res.profil_stagiaire:
-        dedans = page.evaluate("() => ({ puces: document.querySelectorAll('#view .acc-puce').length, signes: document.querySelectorAll('#view .acc-signe').length,"
+        dedans = page.evaluate("() => ({ roles: document.querySelectorAll('#view .acc-moment[data-moi]').length, signes: document.querySelectorAll('#view .acc-signe').length,"
                                " boutons: document.querySelectorAll('#view .acc-creneau button.btn').length })")
         if any(dedans.values()):
             res.echec("accueil en aperçu stagiaire", vue, "sans fiche de stagiaire, l'accueil montre des étiquettes ou des signatures : %s" % dedans)

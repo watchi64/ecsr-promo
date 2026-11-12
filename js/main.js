@@ -3,68 +3,68 @@
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
 // En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
-import "./journal-erreurs.js?v=20261111m";
+import "./journal-erreurs.js?v=20261112d";
 import {
   getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements, basculeLancee, getPromoCourante, getMesPromos,
   habillageParDefaut,
-} from "./db.js?v=20261111m";
-import { toast, annoncer, el } from "./utils.js?v=20261111m";
+} from "./db.js?v=20261112d";
+import { toast, annoncer, el } from "./utils.js?v=20261112d";
 import {
   initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail,
   getProfile, getProfileWho, fondateurHorsApercu, getProfileNom, selonPublic,
-} from "./auth-admin.js?v=20261111m";
-import { getEspace, getCentre, seDeconnecter } from "./auth-admin.js?v=20261111m";
+} from "./auth-admin.js?v=20261112d";
+import { getEspace, getCentre, seDeconnecter } from "./auth-admin.js?v=20261112d";
 import {
   ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage, promosDuCentre, defautsHabillage,
-} from "./espaces-rules.js?v=20261111m";
-import { chargerEtatSignalements } from "./signalement-etat.js?v=20261111m";
-import { messageDemarrage } from "./signalement-rules.js?v=20261111m";
-import { showGate, hideGate } from "./gate.js?v=20261111m";
-import { exigerAcceptation } from "./legal.js?v=20261111m";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261111m";
-import { habillageAuDemarrage } from "./habillage.js?v=20261111m";
-import { renderHome } from "./views/home.js?v=20261111m";
-import { renderDashboard } from "./views/dashboard.js?v=20261111m";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261111m";
-import { teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261111m";
-import { renderPlanningEspace } from "./views/planning-espace.js?v=20261111m";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261111m";
-import { renderNotes } from "./views/notes.js?v=20261111m";
-import { renderVueCentre, renderEmargementCentre, renderNotesCentre } from "./views/direction-centre.js?v=20261111m";
-import { renderPromosCentre } from "./views/direction-promos.js?v=20261111m";
-import { renderStagiairesCentre } from "./views/direction-stagiaires.js?v=20261111m";
-import { renderEquipeCentre } from "./views/direction-equipe.js?v=20261111m";
-import { renderReseau } from "./views/siege-reseau.js?v=20261111m";
-import { renderDirections } from "./views/siege-directions.js?v=20261111m";
-import { renderRessources } from "./views/ressources.js?v=20261111m";
-import { renderThemes } from "./views/themes.js?v=20261111m";
-import { renderConfig, renderPreferences } from "./views/config.js?v=20261111m";
-import { renderReglagesCentre, renderReglagesReseau } from "./views/reglages-habillage.js?v=20261111m";
-import { renderCalendrier } from "./views/calendrier.js?v=20261111m";
-import { initUndoKeyboard } from "./undo.js?v=20261111m";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261111m";
-import { libellePastille } from "./nouveautes.js?v=20261111m";
-import { renderCcp2 } from "./views/ccp2.js?v=20261111m";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261111m";
-import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261111m";
-import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261111m";
-import { renderEmargement } from "./views/emargement.js?v=20261111m";
-import { renderProblemes } from "./views/problemes.js?v=20261111m";
-import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261111m";
-import { chargerEmargementActif, emargementActif, chargerEmargementCentre, emargementDansLeCentre } from "./emargement-etat.js?v=20261111m";
-import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, routeApresRedirection } from "./nav-rules.js?v=20261111m";
-import { monterCoquille, majEntreeActive, coquilleMontee, majNouveautesCompte } from "./nav-shell.js?v=20261111m";
-import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261111m";
-import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261111m";
+} from "./espaces-rules.js?v=20261112d";
+import { chargerEtatSignalements } from "./signalement-etat.js?v=20261112d";
+import { messageDemarrage } from "./signalement-rules.js?v=20261112d";
+import { showGate, hideGate } from "./gate.js?v=20261112d";
+import { exigerAcceptation } from "./legal.js?v=20261112d";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261112d";
+import { habillageAuDemarrage } from "./habillage.js?v=20261112d";
+import { renderHome } from "./views/home.js?v=20261112d";
+import { renderDashboard } from "./views/dashboard.js?v=20261112d";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261112d";
+import { teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261112d";
+import { renderPlanningEspace } from "./views/planning-espace.js?v=20261112d";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261112d";
+import { renderNotes } from "./views/notes.js?v=20261112d";
+import { renderVueCentre, renderEmargementCentre, renderNotesCentre } from "./views/direction-centre.js?v=20261112d";
+import { renderPromosCentre } from "./views/direction-promos.js?v=20261112d";
+import { renderStagiairesCentre } from "./views/direction-stagiaires.js?v=20261112d";
+import { renderEquipeCentre } from "./views/direction-equipe.js?v=20261112d";
+import { renderReseau } from "./views/siege-reseau.js?v=20261112d";
+import { renderDirections } from "./views/siege-directions.js?v=20261112d";
+import { renderRessources } from "./views/ressources.js?v=20261112d";
+import { renderThemes } from "./views/themes.js?v=20261112d";
+import { renderConfig, renderPreferences } from "./views/config.js?v=20261112d";
+import { renderReglagesCentre, renderReglagesReseau } from "./views/reglages-habillage.js?v=20261112d";
+import { renderCalendrier } from "./views/calendrier.js?v=20261112d";
+import { initUndoKeyboard } from "./undo.js?v=20261112d";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261112d";
+import { libellePastille } from "./nouveautes.js?v=20261112d";
+import { renderCcp2 } from "./views/ccp2.js?v=20261112d";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261112d";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261112d";
+import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261112d";
+import { renderEmargement } from "./views/emargement.js?v=20261112d";
+import { renderProblemes } from "./views/problemes.js?v=20261112d";
+import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261112d";
+import { chargerEmargementActif, emargementActif, chargerEmargementCentre, emargementDansLeCentre } from "./emargement-etat.js?v=20261112d";
+import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, routeApresRedirection } from "./nav-rules.js?v=20261112d";
+import { monterCoquille, majEntreeActive, coquilleMontee, majNouveautesCompte } from "./nav-shell.js?v=20261112d";
+import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261112d";
+import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261112d";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261111m";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261111m";
+} from "./navigation.js?v=20261112d";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261112d";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, nouveautesAffichables, formateurConnecte,
-} from "./modules-etat.js?v=20261111m";
+} from "./modules-etat.js?v=20261112d";
 
 // Espace de la session : « stagiaire », « equipe » (formateur), « direction » ou « siege » (lot 5). Fixé à la porte
 // (js/auth-admin.js, getEspace) ; la coquille, la redirection des anciennes adresses, les routes permises et la mémoire de la
@@ -163,7 +163,7 @@ async function rendreQualiopi(view) {
   afficherChargement();
   let page;
   try {
-    page = await import("./views/qualiopi.js?v=20261111m");
+    page = await import("./views/qualiopi.js?v=20261112d");
   } catch (e) {
     console.error(e);
     if (lastRoute === "qualiopi") view.replaceChildren(boiteErreurQualiopi());

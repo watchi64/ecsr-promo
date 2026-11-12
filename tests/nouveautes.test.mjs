@@ -224,7 +224,9 @@ ok(!!conservation && conservation.pour === "formateurs" && conservation.navigati
   "conservation : pour les formateurs, sans champ navigation, id préfixé par sa date");
 // La liste des thèmes compacte (même jour, placée en tête du fichier) passe devant : la conservation se juge sans elle.
 const THEMES_COMPACTS_ID = "2026-11-11-themes-compacts";
-const SANS_THEMES_COMPACTS = NOUVEAUTES.filter((e) => e.id !== THEMES_COMPACTS_ID);
+// Jugée parmi les entrées de son jour et d'avant : une Nouveauté d'un jour suivant pour tous (les confirmations sur téléphone,
+// 12/11) passe normalement devant.
+const SANS_THEMES_COMPACTS = NOUVEAUTES.filter((e) => e.id !== THEMES_COMPACTS_ID && e.date <= conservation.date);
 for (const espace of [undefined, "equipe"]) {
   eq(ids(triees(visibles(SANS_THEMES_COMPACTS, true, espace)))[0], CONSERVATION_ID, `conservation : la plus récente chez un formateur (espace ${espace})`);
 }
@@ -232,10 +234,24 @@ for (const espace of [undefined, "equipe"]) {
 const themesCompacts = NOUVEAUTES.find((e) => e.id === THEMES_COMPACTS_ID);
 ok(!!themesCompacts && themesCompacts.pour === "tous" && /« … »/.test(themesCompacts.resume) && /« Plus »/.test(themesCompacts.resume),
   "thèmes compacts : pour tous, nomme « … » et « Plus »");
+// Jugé parmi les entrées de son jour et d'avant : une Nouveauté d'un jour suivant passe normalement devant.
+const JUSQU_AU_11 = NOUVEAUTES.filter((e) => e.date <= themesCompacts.date);
 for (const formateur of [false, true]) {
-  eq(ids(triees(visibles(NOUVEAUTES, formateur, formateur ? "equipe" : "stagiaire")))[0], THEMES_COMPACTS_ID,
+  eq(ids(triees(visibles(JUSQU_AU_11, formateur, formateur ? "equipe" : "stagiaire")))[0], THEMES_COMPACTS_ID,
     `thèmes compacts : la plus récente (${formateur ? "formateur" : "stagiaire"})`);
 }
+// L'état de l'examen sur la fiche d'un QCM (bug du 12/11) : pour tous, la plus récente chez le stagiaire comme chez l'équipe.
+const ETAT_EXAMEN_ID = "2026-11-12-etat-examen-qcm";
+const etatExamen = NOUVEAUTES.find((e) => e.id === ETAT_EXAMEN_ID);
+ok(!!etatExamen && etatExamen.pour === "tous" && etatExamen.id.startsWith(etatExamen.date + "-") && etatExamen.ou?.route === "themes",
+  "état de l'examen : pour tous, id préfixé par sa date, mène à Cours et QCM");
+// Visible des deux côtés ; le même jour, la carte « Aujourd'hui » (placée avant dans le fichier) reste l'annonce de tête
+// chez le stagiaire.
+for (const [formateur, espace] of [[false, "stagiaire"], [true, "equipe"]]) {
+  ok(ids(visibles(NOUVEAUTES, formateur, espace)).includes(ETAT_EXAMEN_ID), `état de l'examen : visible (espace ${espace})`);
+}
+eq(ids(triees(visibles(NOUVEAUTES, false, "stagiaire")))[0], "2026-11-12-accueil-aujourdhui-roles",
+  "état de l'examen : la carte « Aujourd'hui » reste en tête chez le stagiaire");
 for (const espace of [undefined, "stagiaire"]) {
   ok(!ids(visibles(NOUVEAUTES, false, espace)).includes(CONSERVATION_ID), `conservation : jamais chez un stagiaire (espace ${espace})`);
   ok(ids(triees(visibles(NOUVEAUTES, false, espace)))[0] !== CONSERVATION_ID, `stagiaire : la plus récente n'est jamais la conservation (espace ${espace})`);
@@ -449,7 +465,9 @@ eq(NOUVEAUTES.filter((e) => e.pour === "direction").map((e) => e.id).sort(),
 const consDir = NOUVEAUTES.find((e) => e.id === "2026-11-11-conservation-direction");
 ok(!!consDir && consDir.date === "2026-11-11" && consDir.pour === "direction" && consDir.ou?.route === "config"
   && consDir.ou?.label === "Réglages du centre", "conservation de la direction : datée du 11/11, pour la direction, mène aux Réglages du centre");
-eq(ids(triees(visibles(NOUVEAUTES, true, "direction")))[0], consDir.id, "conservation de la direction : la plus récente dans l'espace direction");
+// Jugée parmi les entrées de son jour et d'avant (une Nouveauté pour tous d'un jour suivant passe devant).
+eq(ids(triees(visibles(NOUVEAUTES.filter((e) => e.date <= consDir.date), true, "direction")))[0], consDir.id,
+  "conservation de la direction : la plus récente dans l'espace direction");
 for (const espace of [undefined, "equipe", "stagiaire", "siege"]) {
   ok(!ids(visibles(NOUVEAUTES, true, espace)).includes(consDir.id) && !ids(visibles(NOUVEAUTES, false, espace)).includes(consDir.id),
     `conservation de la direction : jamais hors de l'espace direction (${espace})`);

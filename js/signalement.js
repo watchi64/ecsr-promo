@@ -6,18 +6,18 @@
 // la fenêtre, Échap, voile, focus rendu, fermeture quand l'adresse change) ; styles à elle
 // (css/signalement.css).
 
-import { el, toast } from "./utils.js?v=20261111m";
-import { icon, deco } from "./icons.js?v=20261111m";
-import { getViewAs, fondateurHorsApercu, selonPublic } from "./auth-admin.js?v=20261111m";
-import { signalerProbleme, mesSignalementsApp, marquerSuivisVus } from "./db.js?v=20261111m";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261111m";
-import { dernieresErreurs } from "./journal-erreurs.js?v=20261111m";
-import { etatSignalements, poserEtatSignalements, chargerEtatSignalements } from "./signalement-etat.js?v=20261111m";
+import { el, toast } from "./utils.js?v=20261112d";
+import { icon, deco } from "./icons.js?v=20261112d";
+import { getViewAs, fondateurHorsApercu, selonPublic } from "./auth-admin.js?v=20261112d";
+import { signalerProbleme, mesSignalementsApp, marquerSuivisVus } from "./db.js?v=20261112d";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261112d";
+import { dernieresErreurs } from "./journal-erreurs.js?v=20261112d";
+import { etatSignalements, poserEtatSignalements, chargerEtatSignalements } from "./signalement-etat.js?v=20261112d";
 import {
   LIMITE_CAPTURE, COTE_MAX_CAPTURE, MAX_MES_SIGNALEMENTS, assemblerContexte, resumeContexte, detailContexte,
   verifierMessage, libelleStatut, dimensionsReduites,
-} from "./signalement-rules.js?v=20261111m";
-import { deuxChiffres } from "./dates.js?v=20261111m";
+} from "./signalement-rules.js?v=20261112d";
+import { deuxChiffres } from "./dates.js?v=20261112d";
 
 // Jeton de version des fichiers de l'app (« 20261028a ») : il dit quelle version la personne utilisait.
 const VERSION = new URL(import.meta.url).searchParams.get("v") || "";
