@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   nbQuestionsExamen, budgetPasseMs, examenDemarrable, remiseToleree,
   tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture, resumeExamen,
+  examenCoteStagiaire, etatExamenFormateur,
 } from "../js/qcm-exam-rules.js";
 
 const T0 = Date.parse("2026-08-01T10:00:00Z");
@@ -108,6 +109,60 @@ assert.ok(DUREES_OUVERTURE.every((d) => typeof d.label === "string" && d.label.l
     "plus tard dans l'année en cours : sans l'année");
   assert.equal(libelleOuverture(a(new Date(2028, 2, 1, 10, 0)), novembre), "Ouvert jusqu'au 1 mars 2028, 10 h 00",
     "deux ans plus tard : écrite aussi");
+}
+
+// --- Bug du 12/11 : la fiche QCM vue en stagiaire dit toujours où en est l'examen ---
+// Pendant la présentation, l'aperçu « Stagiaire » du fondateur sur la promo de démonstration (aucune fiche stagiaire
+// dans cette promo) ne montrait ni bouton ni phrase : l'examen ouvert semblait impossible à lancer.
+{
+  const now = new Date(2026, 10, 12, 11, 0).getTime();
+  const ouvertJusqua = { published: true, exam_ferme_a: new Date(2026, 10, 12, 11, 18).toISOString() };
+  const sansLimite = { published: true, exam_ferme_a: null };
+  const echu = { published: true, exam_ferme_a: new Date(2026, 10, 12, 10, 18).toISOString() };
+  const echuHier = { published: true, exam_ferme_a: new Date(2026, 10, 10, 9, 30).toISOString() };
+  const jamais = { published: false, exam_ferme_a: null };
+  const avec = { avecFiche: true }, sans = { avecFiche: false };
+
+  // Stagiaire de la promo : le bouton quand c'est ouvert, sinon une phrase qui dit pourquoi.
+  assert.deepEqual(examenCoteStagiaire(ouvertJusqua, avec, now),
+    { passer: true, texte: "Une seule passe, chronométrée, notée sur 20. L'examen ferme dans 18 min." });
+  assert.deepEqual(examenCoteStagiaire(sansLimite, avec, now),
+    { passer: true, texte: "Une seule passe, chronométrée, notée sur 20." });
+  assert.deepEqual(examenCoteStagiaire(jamais, avec, now),
+    { passer: false, texte: "Examen pas encore ouvert par ton formateur. L'entraînement, lui, est illimité." });
+  assert.deepEqual(examenCoteStagiaire(echu, avec, now),
+    { passer: false, texte: "L'examen a fermé à 10 h 18 : ton formateur peut le rouvrir. L'entraînement, lui, reste illimité." },
+    "fenêtre passée : on ne dit pas « pas encore ouvert » à qui l'a vu ouvert");
+  assert.equal(examenCoteStagiaire(echuHier, avec, now).texte,
+    "L'examen a fermé le 10 nov., 9 h 30 : ton formateur peut le rouvrir. L'entraînement, lui, reste illimité.");
+
+  // Sans fiche dans la promo (aperçu « Stagiaire » d'un fondateur ou d'un formateur, compte non lié) : jamais le bouton,
+  // la base refuserait la copie ; mais l'état de l'examen et la raison sont écrits.
+  assert.deepEqual(examenCoteStagiaire(ouvertJusqua, sans, now), {
+    passer: false,
+    texte: "Examen ouvert jusqu'à 11 h 18 pour les stagiaires de la promo. Ce compte n'y a pas de fiche stagiaire : il peut s'entraîner, pas passer l'examen.",
+  });
+  assert.equal(examenCoteStagiaire(sansLimite, sans, now).texte,
+    "Examen ouvert sans limite pour les stagiaires de la promo. Ce compte n'y a pas de fiche stagiaire : il peut s'entraîner, pas passer l'examen.");
+  assert.deepEqual(examenCoteStagiaire(jamais, sans, now), {
+    passer: false,
+    texte: "Examen fermé. Il se passe depuis un compte stagiaire de la promo : ce compte n'y a pas de fiche, il peut s'entraîner.",
+  });
+  assert.equal(examenCoteStagiaire(echu, sans, now).passer, false);
+  assert.equal(examenCoteStagiaire(null, avec, now).passer, false, "pas de QCM : pas de bouton");
+}
+
+// --- Côté formateur : l'état en clair, et l'heure de fermeture d'une fenêtre passée (au lieu de « échu ») ---
+{
+  const now = new Date(2026, 10, 12, 11, 0).getTime();
+  assert.deepEqual(etatExamenFormateur({ published: true, exam_ferme_a: new Date(2026, 10, 12, 11, 18).toISOString() }, now),
+    { ouvert: true, badge: "Examen ouvert", detail: "ferme dans 18 min" });
+  assert.deepEqual(etatExamenFormateur({ published: true, exam_ferme_a: null }, now),
+    { ouvert: true, badge: "Examen ouvert", detail: "sans limite" });
+  assert.deepEqual(etatExamenFormateur({ published: true, exam_ferme_a: new Date(2026, 10, 12, 10, 18).toISOString() }, now),
+    { ouvert: false, badge: "Examen fermé", detail: "à 10 h 18" });
+  assert.deepEqual(etatExamenFormateur({ published: false, exam_ferme_a: null }, now),
+    { ouvert: false, badge: "Examen non ouvert", detail: null });
 }
 
 console.log("qcm-exam-rules : tous les cas passent");

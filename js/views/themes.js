@@ -11,7 +11,7 @@ import { icon, deco } from "../icons.js?v=20261111m";
 import { dixieme } from "../nombres.js?v=20261111m";
 import {
   examenDemarrable, tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture,
-  resumeExamen,
+  resumeExamen, examenCoteStagiaire, etatExamenFormateur,
 } from "../qcm-exam-rules.js?v=20261111m";
 import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261111m";
 import { recordUndo } from "../undo.js?v=20261111m";
@@ -351,19 +351,18 @@ function openQcmSheet(theme, qcm) {
         icon.history(), "Revoir mes erreurs"));
     }
 
-    // Passer l'examen (stagiaire).
-    if (stagiaireAvecFiche) {
-      if (examenDemarrable(qcm)) {
-        const restant = tempsRestantMs(qcm);
+    // Passer l'examen (stagiaire). Bug du 12/11 : l'aperçu « Stagiaire » sans fiche dans la promo (fondateur sur la promo
+    // de démonstration) ne voyait rien de l'examen, ouvert ou non. Il en voit désormais l'état et la raison, sans bouton.
+    if (stagiaireAvecFiche || (isStagiaire() && !canManageExam())) {
+      const ex = examenCoteStagiaire(qcm, { avecFiche: stagiaireAvecFiche });
+      if (ex.passer) {
         body.appendChild(el("button", { class: "btn accent full", type: "button", style: "margin-top:0.9rem",
           onClick: () => { modale.fermer({ focus: false }); openQcmExamen(theme, qcm); } }, "Passer l'examen"));
-        body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
-          "Une seule passe, chronométrée, notée sur 20."
-          + (restant == null ? "" : ` L'examen ferme dans ${formatTempsRestant(restant)}.`)));
+        body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" }, ex.texte));
       } else {
         // Pas de bouton grisé : il inviterait à cliquer pour rien.
-        body.appendChild(el("p", { class: "muted", style: "text-align:center;margin:0.9rem 0 0;font-size:0.82rem" },
-          "L'examen s'ouvre quand un formateur le décide. L'entraînement, lui, est illimité."));
+        body.appendChild(el("p", { class: "muted qcm-examen-etat", style: "text-align:center;margin:0.9rem 0 0;font-size:0.82rem" },
+          ex.texte));
       }
     }
 
@@ -426,18 +425,12 @@ function themeExamPanel(theme, qcm, onPublishChange) {
 
   function refreshStatus() {
     clear(status);
-    const ouvert = examenDemarrable(qcm);
+    // Une échéance dépassée laisse published à true en base : « Examen fermé à 10 h 18 », pour que le formateur sache
+    // qu'il s'est refermé tout seul et qu'il peut le rouvrir.
+    const { ouvert, badge, detail } = etatExamenFormateur(qcm);
     const frozenN = Array.isArray(qcm.exam_question_ids) ? qcm.exam_question_ids.length : null;
-    const restant = tempsRestantMs(qcm);
-    // Une échéance dépassée laisse published à true en base : on l'affiche comme
-    // fermé, sans mentir sur l'état, pour que le formateur sache qu'il peut rouvrir.
-    const echu = !!qcm.published && !ouvert;
-    status.appendChild(el("span", { class: "exam-badge " + (ouvert ? "on" : "off") },
-      ouvert ? "Examen ouvert" : (echu ? "Examen échu" : "Examen non ouvert")));
-    if (ouvert) {
-      status.appendChild(el("span", { class: "exam-echeance" },
-        restant == null ? "sans limite" : `ferme dans ${formatTempsRestant(restant)}`));
-    }
+    status.appendChild(el("span", { class: "exam-badge " + (ouvert ? "on" : "off") }, badge));
+    if (detail) status.appendChild(el("span", { class: "exam-echeance" }, detail));
     status.appendChild(el("span", { class: "muted", style: "font-size:0.8rem" },
       ` ${frozenN ?? qcm.nb_questions} questions · ${qcm.exam_seconds_per_question || 30}s/question`
       + (qcm.exam_draw_mode === "manual" ? " · sélection manuelle" : " · tirage aléatoire")));

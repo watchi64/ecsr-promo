@@ -224,7 +224,9 @@ ok(!!conservation && conservation.pour === "formateurs" && conservation.navigati
   "conservation : pour les formateurs, sans champ navigation, id préfixé par sa date");
 // La liste des thèmes compacte (même jour, placée en tête du fichier) passe devant : la conservation se juge sans elle.
 const THEMES_COMPACTS_ID = "2026-11-11-themes-compacts";
-const SANS_THEMES_COMPACTS = NOUVEAUTES.filter((e) => e.id !== THEMES_COMPACTS_ID);
+// Les Nouveautés des jours suivants (l'état de l'examen, 12/11) passent devant : celles du 11/11 se jugent jusqu'au 11/11.
+const JUSQU_AU_11_11 = (l) => l.filter((e) => e.date <= "2026-11-11");
+const SANS_THEMES_COMPACTS = JUSQU_AU_11_11(NOUVEAUTES).filter((e) => e.id !== THEMES_COMPACTS_ID);
 for (const espace of [undefined, "equipe"]) {
   eq(ids(triees(visibles(SANS_THEMES_COMPACTS, true, espace)))[0], CONSERVATION_ID, `conservation : la plus récente chez un formateur (espace ${espace})`);
 }
@@ -233,8 +235,18 @@ const themesCompacts = NOUVEAUTES.find((e) => e.id === THEMES_COMPACTS_ID);
 ok(!!themesCompacts && themesCompacts.pour === "tous" && /« … »/.test(themesCompacts.resume) && /« Plus »/.test(themesCompacts.resume),
   "thèmes compacts : pour tous, nomme « … » et « Plus »");
 for (const formateur of [false, true]) {
-  eq(ids(triees(visibles(NOUVEAUTES, formateur, formateur ? "equipe" : "stagiaire")))[0], THEMES_COMPACTS_ID,
+  eq(ids(triees(visibles(JUSQU_AU_11_11(NOUVEAUTES), formateur, formateur ? "equipe" : "stagiaire")))[0], THEMES_COMPACTS_ID,
     `thèmes compacts : la plus récente (${formateur ? "formateur" : "stagiaire"})`);
+}
+// L'état de l'examen sur la fiche d'un QCM (bug du 12/11) : pour tous, la plus récente chez le stagiaire comme chez l'équipe.
+const ETAT_EXAMEN_ID = "2026-11-12-etat-examen-qcm";
+const etatExamen = NOUVEAUTES.find((e) => e.id === ETAT_EXAMEN_ID);
+ok(!!etatExamen && etatExamen.pour === "tous" && etatExamen.id.startsWith(etatExamen.date + "-") && etatExamen.ou?.route === "themes",
+  "état de l'examen : pour tous, id préfixé par sa date, mène à Cours et QCM");
+ok(!/(tu|ton|ta|tes|vous|votre|vos)/i.test(etatExamen.resume), "état de l'examen : pour tous, ni tu ni vous");
+for (const formateur of [false, true]) {
+  eq(ids(triees(visibles(NOUVEAUTES, formateur, formateur ? "equipe" : "stagiaire")))[0], ETAT_EXAMEN_ID,
+    `état de l'examen : la plus récente (${formateur ? "formateur" : "stagiaire"})`);
 }
 for (const espace of [undefined, "stagiaire"]) {
   ok(!ids(visibles(NOUVEAUTES, false, espace)).includes(CONSERVATION_ID), `conservation : jamais chez un stagiaire (espace ${espace})`);
