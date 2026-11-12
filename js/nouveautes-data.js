@@ -37,6 +37,27 @@ export const NOUVEAUTES = [
     // Sans « ou » : elle s'affiche sur l'Accueil même, un lien vers l'Accueil n'y mènerait nulle part.
     module: "planning",
   },
+  // Fenêtre de confirmation (12/11) : à 375 px, un libellé long poussait un bouton hors de l'écran. Pour tous : formule
+  // neutre. Placée après la carte « Aujourd'hui », qui reste la nouveauté du jour à l'Accueil des stagiaires.
+  {
+    id: "2026-11-12-confirmations-telephone",
+    date: "2026-11-12",
+    pour: "tous",
+    titre: "Des fenêtres de confirmation qui tiennent sur téléphone",
+    resume: "Quand l'app demande de confirmer un geste (supprimer, fermer un examen, quitter une saisie), ses deux boutons "
+          + "restent à l'écran, même avec un texte long : sur téléphone, ils passent l'un sous l'autre, sur toute la largeur.",
+  },
+  // Lecteur de cours qui ne défilait pas sur iPhone, ouvert en haut de Cours et QCM (signalé par Timy le 11/11). Pour tous : neutre.
+  {
+    id: "2026-11-12-cours-defilement-iphone",
+    date: "2026-11-12",
+    pour: "tous",
+    titre: "Un cours se lit dès la première ouverture sur iPhone",
+    resume: "Sur iPhone, un cours ouvert sans avoir fait défiler la page Cours et QCM pouvait rester bloqué : le doigt "
+          + "faisait bouger la page cachée derrière au lieu du cours. La page derrière est maintenant figée tant qu'un cours, "
+          + "un QCM, les Informations légales ou la signature d'émargement sont ouverts : le geste va toujours à ce qui est à l'écran.",
+    ou: { label: "Cours et QCM", route: "themes" },
+  },
   // Conservation des données ouverte à la direction (20261111_conservation_direction, décision de Timy du 11/11). Pour la
   // direction, au vouvoiement ; premier du fichier : à date égale, c'est elle que montre la carte « Nouveauté » de son Accueil.
   {

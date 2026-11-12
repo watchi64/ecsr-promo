@@ -1,30 +1,30 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante, getNotesStatsGroupe } from "../db.js?v=20261112a";
-import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261112a";
-import { dixieme, fr1, pluriel } from "../nombres.js?v=20261112a";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261112a";
-import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261112a";
-import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261112a";
-import { renderEpcfPersonne } from "./epcf.js?v=20261112a";
-import { renderSubTabs } from "../subtabs.js?v=20261112a";
-import { renderDp } from "./dp.js?v=20261112a";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261112a";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261112a";
-import { lundiEnCours } from "../journee-rules.js?v=20261112a";
-import { bandeauAvis } from "../avis.js?v=20261112a";
-import { statsPassages } from "../passages-stats.js?v=20261112a";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261112a";
-import { icon } from "../icons.js?v=20261112a";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261112a";
-import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261112a";
-import { exemplesRemplis } from "../dp-rules.js?v=20261112a";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261112a";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261112a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261112a";
-import { renderNotes } from "./notes.js?v=20261112a";
-import { notesSur20, moyenne, tendance, forcesEtFaiblesses, moyenneDuGroupe, formatNote } from "../resultats-rules.js?v=20261112a";
+         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante, getNotesStatsGroupe } from "../db.js?v=20261112c";
+import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261112c";
+import { dixieme, fr1, pluriel } from "../nombres.js?v=20261112c";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261112c";
+import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261112c";
+import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261112c";
+import { renderEpcfPersonne } from "./epcf.js?v=20261112c";
+import { renderSubTabs } from "../subtabs.js?v=20261112c";
+import { renderDp } from "./dp.js?v=20261112c";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261112c";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261112c";
+import { lundiEnCours } from "../journee-rules.js?v=20261112c";
+import { bandeauAvis } from "../avis.js?v=20261112c";
+import { statsPassages } from "../passages-stats.js?v=20261112c";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261112c";
+import { icon } from "../icons.js?v=20261112c";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261112c";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261112c";
+import { exemplesRemplis } from "../dp-rules.js?v=20261112c";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261112c";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261112c";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261112c";
+import { renderNotes } from "./notes.js?v=20261112c";
+import { notesSur20, moyenne, tendance, forcesEtFaiblesses, moyenneDuGroupe, formatNote } from "../resultats-rules.js?v=20261112c";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 

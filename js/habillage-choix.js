@@ -3,8 +3,8 @@
 // qui est en Couleurs ECF, pour pouvoir revenir (décision H6). Le choix lui-même (appliquer, garder sur l'appareil,
 // enregistrer sur le compte) est celui de js/habillage.js.
 
-import { el, toast } from "./utils.js?v=20261112a";
-import { choisirHabillage, habillageCourant } from "./habillage.js?v=20261112a";
+import { el, toast } from "./utils.js?v=20261112c";
+import { choisirHabillage, habillageCourant } from "./habillage.js?v=20261112c";
 
 // Dans l'ordre des pastilles. `legende` : la seconde ligne, plus discrète, qui dit d'où vient l'habillage (le libellé reste le nom). `message` : ce que le bas de l'écran confirme, que l'enregistrement sur le compte aboutisse
 // ou non (le choix est appliqué et gardé sur l'appareil ; il repartira au prochain démarrage).
