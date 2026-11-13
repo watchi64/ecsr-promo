@@ -2676,8 +2676,10 @@ def verifier_retour_arriere(page, res, sc):
 # Sections de Réglages (#/config), dans l'ordre : la promo seule. Émargement est l'interrupteur du fondateur
 # (js/emargement-etat.js). Mes préférences (#/preferences)
 # n'en montre aucune : seulement « Mes préférences » (si un réglage est à montrer) et « Informations ».
-SECTIONS_REGLAGES = ("Ce que voient les stagiaires", "Promo", "Accès et invitations", "Émargement", "Données personnelles")
-SECTIONS_DU_FONDATEUR = ("Émargement",)
+SECTIONS_REGLAGES = ("Ce que voient les stagiaires", "Promo", "Accès et invitations", "Émargement", "Travail en autonomie",
+                     "Données personnelles")
+# Travail en autonomie (lot 1 de l'e-learning, 13/11) : interrupteur du fondateur par promo, comme l'émargement (js/autonomie-etat.js).
+SECTIONS_DU_FONDATEUR = ("Émargement", "Travail en autonomie")
 # En dernier, « Apparence » : un renvoi vers Mes préférences, où se fait le choix des couleurs, pas une section de la promo (décision du 10/11).
 RENVOI_APPARENCE = "Apparence"
 SECTIONS_PREFERENCES = ("Apparence", "Dans les notes de la classe", "Informations")
