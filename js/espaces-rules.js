@@ -7,9 +7,9 @@
  * Sources des espaces permis (D2) : siège et direction viennent des affectations du compte ; formateur et
  * stagiaire viennent des rôles du compte dans la promo affichée (`promo.roles`, mes_promos(), lot 4).
  */
-import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261113a";
-import { lireAdresse } from "./route-rules.js?v=20261113a";
-import { habillageValide } from "./habillage-regles.js?v=20261113a";
+import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261113b";
+import { lireAdresse } from "./route-rules.js?v=20261113b";
+import { habillageValide } from "./habillage-regles.js?v=20261113b";
 
 export const ESPACES = ["stagiaire", "equipe", "direction", "siege"];
 export const LIBELLES_ESPACE = { stagiaire: "Stagiaire", equipe: "Formateur", direction: "Direction", siege: "Siège" };
@@ -241,7 +241,11 @@ export function promosVisiblesEnApercu({ promos, promo, apercu } = {}) {
 // Le bandeau d'aperçu : « Aperçu : <libelle>. <suite> ». En direction et en siège, ce que le fondateur modifie est vraiment enregistré
 // (la base répond comme pour ce rôle, sans copie) : le bandeau le dit. Formateur et stagiaire : le libellé du lot 4, sans suite.
 const SUITE_APERCU_REEL = "Ce que vous modifiez ici est vraiment enregistré.";
-export function texteBandeauApercu(apercu, centre) {
+export function texteBandeauApercu(apercu, centre, nomVitrine = null) {
+  // Vitrine de la promo de démonstration (js/vitrine-rules.js) : l'aperçu Stagiaire emprunte une fiche fictive, en lecture seule.
+  if (apercu === "stagiaire" && nomVitrine) {
+    return { libelle: LIBELLES_APERCU.stagiaire, suite: "Vous voyez l'app comme " + nomVitrine + " (fiche fictive). Rien n'est enregistré à son nom." };
+  }
   if (apercu === "direction") {
     return { libelle: centre && centre.nom ? "Direction du centre " + centre.nom : LIBELLES_ESPACE.direction, suite: SUITE_APERCU_REEL };
   }

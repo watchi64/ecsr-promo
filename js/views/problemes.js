@@ -5,19 +5,19 @@
 // statut en quatre boutons, réponse, suppression. Une action met la carte à jour sur place : elle ne change
 // pas de sous-onglet avant le prochain affichage de la page.
 
-import { el, clear, toast } from "../utils.js?v=20261113a";
-import { confirmer } from "../confirmer.js?v=20261113a";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261113a";
+import { el, clear, toast } from "../utils.js?v=20261113b";
+import { confirmer } from "../confirmer.js?v=20261113b";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261113b";
 import {
   listSignalementsApp, captureSignalementApp, traiterSignalementApp, supprimerSignalementApp, liensRegistre, getMesPromos,
-} from "../db.js?v=20261113a";
-import { entreeDepuisSignalement } from "../registre-rules.js?v=20261113a";
-import { chargerEtatSignalements } from "../signalement-etat.js?v=20261113a";
-import { renderSubTabs } from "../subtabs.js?v=20261113a";
+} from "../db.js?v=20261113b";
+import { entreeDepuisSignalement } from "../registre-rules.js?v=20261113b";
+import { chargerEtatSignalements } from "../signalement-etat.js?v=20261113b";
+import { renderSubTabs } from "../subtabs.js?v=20261113b";
 import {
   libelleStatut, resumeContexte, detailContexte, adresseSure, normaliserContexte, nomDuSignaleur,
-} from "../signalement-rules.js?v=20261113a";
-import { dateHeure } from "../dates.js?v=20261113a";
+} from "../signalement-rules.js?v=20261113b";
+import { dateHeure } from "../dates.js?v=20261113b";
 
 // Supprimer un problème signalé (carte complète ou carte en défaut) : la même question, dans une fenêtre de l'app.
 const QUESTION_SUPPRIMER = { titre: "Supprimer ce problème signalé ?",
@@ -122,7 +122,7 @@ function boutonRegistre(s) {
     ouvertureEnCours = true;
     b.setAttribute("aria-disabled", "true");
     try {
-      const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261113a");
+      const { ouvrirFenetreRegistre } = await import("../registre-fenetre.js?v=20261113b");
       ouvrirFenetreRegistre({
         prerempli: entreeDepuisSignalement(s), promos: getMesPromos(), ancre: b,
         surEnregistre: () => {

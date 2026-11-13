@@ -51,18 +51,18 @@
 // phrases (`jourDe`, `rempli`, `tableau`, et `pluriel` de js/nombres.js) sont réutilisés par js/qualiopi-documents.js, pour que la synthèse par
 // semaine des dossiers suive toujours la règle de l'inventaire au lieu d'en recopier une version.
 
-import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261113a";
-import { indicateursPromo } from "./centre-stats.js?v=20261113a";
-import { pct, pluriel } from "./nombres.js?v=20261113a";
-import { estNotee } from "./notes-stats.js?v=20261113a";
-import { ACTIVITY_SHAPES } from "./config.js?v=20261113a";
-import { jourFerie } from "./emargement-rules.js?v=20261113a";
-import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261113a";
-import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261113a";
-import { parseDate, addDays, isoDate } from "./utils.js?v=20261113a";
-import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261113a";
-import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261113a";
-import { TYPES, entreesPourPromo, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261113a";
+import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261113b";
+import { indicateursPromo } from "./centre-stats.js?v=20261113b";
+import { pct, pluriel } from "./nombres.js?v=20261113b";
+import { estNotee } from "./notes-stats.js?v=20261113b";
+import { ACTIVITY_SHAPES } from "./config.js?v=20261113b";
+import { jourFerie } from "./emargement-rules.js?v=20261113b";
+import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261113b";
+import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261113b";
+import { parseDate, addDays, isoDate } from "./utils.js?v=20261113b";
+import { QUESTIONNAIRES } from "./questionnaires-data.js?v=20261113b";
+import { tauxSatisfaction, texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261113b";
+import { TYPES, entreesPourPromo, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261113b";
 
 // Annexe A de la spec, cellule par cellule, pour les 28 indicateurs d'un centre de formation continue (les 27 plus
 // le 13 de l'alternance). niveau : « prouve » (l'app fournit l'essentiel), « partiel » (en partie) ou « hors »
@@ -70,6 +70,8 @@ import { TYPES, entreesPourPromo, decompteRegistre, delaiMedianJours } from "./r
 // aFournir : les pièces que le centre fournit lui-même (cellule découpée sur « , »), vide s'il n'y en a pas.
 // Les mots de la colonne « apporte » ont suivi ceux de l'app le 10/11 (indicateurs 7, 10, 11, 12, 31 et 32 : livret EPCF,
 // ordre de passage, difficultés, contestations de QCM, thèmes les moins réussis) ; le sens de l'annexe A est inchangé.
+// Indicateur 19, ramené de « prouvé » à « en partie » le 12/11 : il demande de vérifier que les modules à distance sont
+// suivis, or l'app n'enregistre ni la lecture d'un cours ni le temps passé à le travailler ; seules les tentatives de QCM sont datées.
 export const NIVEAUX = {
   1: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["site", "catalogue", "fiche formation"] },
   2: { niveau: "partiel", apporte: "indicateurs du tableau de bord, chacun avec sa méthode", ajout: "fiche résultats (Q2)", aFournir: ["publication sur le site"] },
@@ -87,7 +89,7 @@ export const NIVEAUX = {
   16: { niveau: "prouve", apporte: "dossier professionnel et livret EPCF au modèle officiel, heures", ajout: null, aFournir: ["inscription à la session"] },
   17: { niveau: "partiel", apporte: "formateurs par séance, ressources en ligne", ajout: null, aFournir: ["locaux", "véhicules", "matériel"] },
   18: { niveau: "partiel", apporte: "planning multi-formateurs, bénévoles, auto-écoles", ajout: null, aFournir: ["organigramme", "réunions"] },
-  19: { niveau: "prouve", apporte: "cours publiés, QCM, activité par stagiaire", ajout: null, aFournir: ["référent pédagogique si le seuil l'exige"] },
+  19: { niveau: "partiel", apporte: "cours publiés, tentatives de QCM datées par stagiaire (la lecture des cours et le temps passé à les travailler ne sont pas enregistrés)", ajout: "lecture des cours et temps de travail à distance (plus tard)", aFournir: ["référent pédagogique si le seuil l'exige"] },
   21: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["CV", "titres", "autorisations d'enseigner"] },
   22: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["plan de développement des compétences"] },
   23: { niveau: "partiel", apporte: "cours mis à jour et datés après les réformes", ajout: "journal de veille (conversation 04)", aFournir: ["sources de veille"] },
@@ -111,7 +113,7 @@ export const PIECES = [
   { cle: "passages", libelle: "Passages", indicateurs: [10, 12] },                        // passages en salle et en voiture
   { cle: "evaluations", libelle: "Évaluations", indicateurs: [11, 16] },                  // notes, QCM, EPCF, livrets, jury
   { cle: "dossierPro", libelle: "Dossier professionnel", indicateurs: [16] },             // un dossier par stagiaire
-  { cle: "ressources", libelle: "Ressources", indicateurs: [19] },                        // cours publiés, QCM, activité
+  { cle: "ressources", libelle: "Ressources", indicateurs: [19] },                        // cours publiés, QCM, tentatives de QCM
   { cle: "misesAJour", libelle: "Mises à jour", indicateurs: [19, 23, 31] },              // modifications des cours, contestations de QCM traitées
   { cle: "innovations", libelle: "Innovations", indicateurs: [25] },                      // Nouveautés datées
   { cle: "intervenants", libelle: "Intervenants et partenaires", indicateurs: [17, 18, 28] },
