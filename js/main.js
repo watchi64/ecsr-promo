@@ -52,6 +52,7 @@ import { renderEmargement } from "./views/emargement.js?v=20261112e";
 import { renderProblemes } from "./views/problemes.js?v=20261112e";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261112e";
 import { chargerEmargementActif, emargementActif, chargerEmargementCentre, emargementDansLeCentre } from "./emargement-etat.js?v=20261112e";
+import { chargerAutonomieActive } from "./autonomie-etat.js?v=20261112e";
 import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, routeApresRedirection } from "./nav-rules.js?v=20261112e";
 import { monterCoquille, majEntreeActive, coquilleMontee, majNouveautesCompte } from "./nav-shell.js?v=20261112e";
 import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261112e";
@@ -501,6 +502,7 @@ async function bootApp() {
   const centre = getEspace() === "direction" ? getCentre() : null;
   await Promise.all([
     unePromo ? chargerModulesAuDemarrage() : null, unePromo ? chargerEmargementActif() : null,
+    unePromo ? chargerAutonomieActive() : null,
     centre ? chargerEmargementCentre(promosDuCentre(getMesPromos(), centre.id)) : null,
   ]);
   } catch (e) {

@@ -23,6 +23,7 @@ import { moduleVisible } from "../modules-etat.js?v=20261112e";
 import { renderModulesSection } from "./modules-reglage.js?v=20261112e";
 import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261112e";
 import { renderEmargementReglage } from "../emargement-etat.js?v=20261112e";
+import { renderAutonomieReglage } from "../autonomie-etat.js?v=20261112e";
 import { pointsARetenir } from "../accueil-rules.js?v=20261112e";
 import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261112e";
 import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261112e";
@@ -592,6 +593,8 @@ async function rerender(container) {
     const modules = renderModulesSection();
     // Interrupteur de l'émargement, propre à la promo (fondateur seulement, sinon null).
     const emargement = renderEmargementReglage();
+    // Interrupteur du travail en autonomie, propre à la promo (fondateur seulement, sinon null).
+    const autonomie = renderAutonomieReglage();
 
     clear(container);
     // Surtitre : la promo affichée, celle que règle la page (absente si les promos ne sont pas chargées).
@@ -607,7 +610,7 @@ async function rerender(container) {
     const grid = el("div", { class: "param-grid" });
     // Ce que voient les stagiaires d'abord (le réglage qui sert le plus), puis la promo et les accès,
     // l'interrupteur du fondateur, les données personnelles, et le renvoi vers Apparence (Mes préférences).
-    [modules, promo, acces, emargement, donnees, renderApparenceRenvoi()].filter(Boolean).forEach((s) => grid.appendChild(s));
+    [modules, promo, acces, emargement, autonomie, donnees, renderApparenceRenvoi()].filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
     console.error(titre + " : erreur de chargement", e);

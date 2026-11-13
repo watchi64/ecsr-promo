@@ -96,3 +96,10 @@ export function resumeAutonomie({ lectures, temps, entrainements, coursPublies, 
     derniereActivite: derniere,
   };
 }
+
+/** La trace est permise pour un VRAI compte stagiaire seulement, interrupteur allume : pas d'apercu
+ *  (« Voir en tant que »), pas de fondateur ni de compte d'equipe (meme avec une fiche stagiaire : la base
+ *  les refuse aussi), et une fiche dans la promo affichee. Les conditions d'utilisation sont verifiees par la base. */
+export function peutTracerAvec({ actif, apercu, fondateur, equipe, stagiaireId } = {}) {
+  return actif === true && !apercu && !fondateur && !equipe && stagiaireId != null;
+}

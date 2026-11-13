@@ -2618,3 +2618,56 @@ export async function liensRegistre() {
     throw erreurRegistre(e);
   }
 }
+
+// === Travail en autonomie (lot 1 e-learning, spec 2026-11-12) ===
+// Écritures uniquement par les fonctions serveur autonomie_tracer_* : la base vérifie le compte (stagiaire réel), l'interrupteur
+// de la promo, les conditions acceptées et l'opposition. Ses refus SILENCIEUX (interrupteur éteint, conditions non acceptées,
+// opposition, fiche effacée) rendent `false` (cours) ou rien (QCM) sans erreur. Ses autres refus commencent par « autonomie: » ; la
+// phrase qui suit est montrée telle quelle. Toute erreur (refus ou réseau) LÈVE : l'appelant remet alors ses secondes dans le cumul.
+
+function erreurAutonomie(error) {
+  const m = String(error?.message || error || "");
+  const i = m.indexOf("autonomie:");
+  return new Error(i >= 0 ? m.slice(i + "autonomie:".length).trim() : (m || "Erreur inconnue."));
+}
+
+// Vrai quand le cours est « lu » après l'appel (fin atteinte et plancher de temps franchi).
+export async function tracerCours(coursId, { secondes = 0, fin = false, section = null } = {}) {
+  const { data, error } = await supabase.rpc("autonomie_tracer_cours",
+    { p_cours: coursId, p_secondes: secondes, p_fin: !!fin, p_section: section });
+  if (error) throw erreurAutonomie(error);
+  return data === true;
+}
+
+export async function tracerQcm(qcmId, secondes) {
+  const { error } = await supabase.rpc("autonomie_tracer_qcm", { p_qcm: qcmId, p_secondes: secondes });
+  if (error) throw erreurAutonomie(error);
+}
+
+// Les cours lus par le stagiaire connecté : [{ cours_id, ouvert_le, vu_le, lu_le, section }] (la base ne rend que ses lignes).
+export async function listerMesLectures() {
+  const moi = await myStagiaireId();
+  if (moi == null) return [];
+  const { data, error } = await supabase.from("cours_lectures")
+    .select("cours_id, ouvert_le, vu_le, lu_le, section").eq("stagiaire_id", moi);
+  if (error) throw error;
+  return data || [];
+}
+
+// Fiche d'un stagiaire (équipe, sous la sécurité de la base) : { lectures, temps }.
+export async function listerAutonomie(stagiaireId) {
+  const [lectures, temps] = await Promise.all([
+    supabase.from("cours_lectures").select("cours_id, ouvert_le, vu_le, lu_le, fin_atteinte, section").eq("stagiaire_id", stagiaireId),
+    supabase.from("autonomie_temps").select("jour, genre, ressource, secondes").eq("stagiaire_id", stagiaireId),
+  ]);
+  if (lectures.error) throw lectures.error;
+  if (temps.error) throw temps.error;
+  return { lectures: lectures.data || [], temps: temps.data || [] };
+}
+
+// Combien de stagiaires de la promo ont lu chaque cours : Map(cours_id -> lus). Visible des stagiaires comme de l'équipe.
+export async function lecturesDeLaPromo() {
+  const { data, error } = await supabase.rpc("autonomie_lectures_promo");
+  if (error) throw error;
+  return new Map((data || []).map((r) => [r.cours_id, Number(r.lus)]));
+}
