@@ -8,7 +8,7 @@ import json
 
 from . import parcours
 from .navigation import texte, SOUS_ONGLET, RETOUR
-from .visite import BLOQUE, LISTE
+from .visite import BLOQUE, LISTE, DelaiDepasse
 
 # Le cours du thème 22 tel que le banc le sert : le faux Supabase n'a que son titre. Un cours court au gabarit
 # des vrais (fiche synthèse, sous-parties, tableau des sanctions, planche de panneaux), pour que le lecteur ait
@@ -523,4 +523,56 @@ def examen_ouvert_sans_fiche(v):
         v.constat("E", BLOQUE, "« Passer l'examen » proposé à un compte sans fiche : la base refuserait la copie", capture=True)
     v.but("état de l'examen et raison lus")
     fermer_la_fiche_du_qcm(v)
+    v.terminer()
+
+
+# Progression du stagiaire sur la liste des thèmes (12/11/2026). Le banc sert deux thèmes à QCM ; le semis en ajoute deux
+# et pose les notes qui donnent les quatre états : 22, examen réussi le 01/07 puis entraînement à 10 le 24/07 (le plus
+# récent décide : « À revoir ») ; 23, entraînement à 20 sans examen (« En cours ») ; 24, examen à 16 (« Acquis ») ;
+# 25, rien (« À commencer »).
+def _qcm_du_semis(ident, theme, titre):
+    return ("FIXTURES.qcm.push({ id: %d, theme_id: %d, titre: %s, description: null, published: false, exam_nb_questions: null, "
+            "exam_pass_20: 15, exam_seconds_per_question: 30, exam_draw_mode: null, exam_question_ids: null, "
+            "published_by_email: null, published_at: null, qcm_questions: [{ count: 1 }], questions: [], "
+            "examen: [{ promo_id: 1, published: false, published_by_email: null, published_at: null, exam_nb_questions: null, "
+            "exam_question_ids: null, exam_draw_mode: null, exam_seconds_per_question: 30, exam_ferme_a: null }] });"
+            % (ident, theme, json.dumps(titre)))
+
+
+SEMIS_PROGRESSION = (
+    "FIXTURES.themes.push({ id: 3, type: 'theme', numero: 24, titre: 'Les angles morts', ordre: 24, statut: 'Fait', progression: [] });",
+    "FIXTURES.themes.push({ id: 4, type: 'theme', numero: 25, titre: 'Le freinage', ordre: 25, statut: 'Fait', progression: [] });",
+    _qcm_du_semis(52, 3, "Les angles morts (banc)"),
+    _qcm_du_semis(53, 4, "Le freinage (banc)"),
+    "FIXTURES.evaluations.push({ id: 9001, stagiaire_id: 1, type: 'Thème', theme_numero: 22, note: 18, note_max: 20, date_eval: '2026-07-01' });",
+    "FIXTURES.evaluations.push({ id: 9002, stagiaire_id: 1, type: 'Thème', theme_numero: 24, note: 16, note_max: 20, date_eval: '2026-09-01' });",
+)
+LIGNE_ETAT = '#view .theme-row.prog-%s:has-text("%s") .theme-prog:text-is("%s")'
+ETATS_ATTENDUS = (("revoir", "Feux du véhicule", "À revoir"), ("encours", "Pneumatiques", "En cours"),
+                  ("acquis", "Les angles morts", "Acquis"), ("commencer", "Le freinage", "À commencer"))
+
+
+@parcours("progression-des-themes", "Voir où j'en suis sur chaque thème (couleur d'état)", role="stagiaire", budget=2,
+          navigations=NOUVELLE, semis=SEMIS_PROGRESSION)
+def progression_des_themes(v):
+    """Cours et QCM, Thèmes : chaque ligne porte l'état du stagiaire (le résultat le plus récent décide), l'en-tête compte
+    ses thèmes acquis, et le filtre par état ne garde que les lignes demandées."""
+    v.aller("Cours et QCM")
+    for cle, titre, mot in ETATS_ATTENDUS:
+        v.attendre(LIGNE_ETAT % (cle, titre, mot), "« %s » sur le thème « %s »" % (mot, titre))
+    if v.voit("#view .themes-list .theme-statut"):
+        v.constat("D", BLOQUE, "le statut de la promo (« Fait ») reste affiché sur une ligne du stagiaire", capture=True)
+    v.attendre('#view .subtitle:has-text("Tu as acquis 1 thème officiel sur 4")', "le bilan dans l'en-tête")
+    v.attendre('#view .theme-section-stat-label:text-is("À revoir")', "le compteur « À revoir » de la section")
+    v.page.locator("#view .themes-list").first.scroll_into_view_if_needed()
+    v.capturer("etats")
+    v.controler_ecran("liste des thèmes, les quatre états")   # le contraste du texte sur chaque voile est mesuré ici
+    v.but("états lus")
+    v.etape("ne garder que les thèmes à revoir")
+    v.page.locator('#view select[aria-label="Filtrer par état"]').select_option("revoir")
+    v.attendre(LIGNE_ETAT % ETATS_ATTENDUS[0], "le thème à revoir, seul")
+    try:
+        v.page.locator('#view .theme-row:has-text("Pneumatiques")').wait_for(state="hidden", timeout=2000)
+    except DelaiDepasse:
+        v.constat("D", BLOQUE, "le filtre « À revoir » garde un thème « En cours »", capture=True)
     v.terminer()

@@ -8,17 +8,17 @@
 
 import {
   getMesPromos, getPromoCourante, lireStagiairesPromo, ouvrirDansUnePromo,
-} from "../db.js?v=20261112e";
-import { el, clear, isoDate, displayStagiaire, toast } from "../utils.js?v=20261112e";
-import { icon } from "../icons.js?v=20261112e";
-import { getCentre } from "../auth-admin.js?v=20261112e";
-import { promosDuCentre } from "../espaces-rules.js?v=20261112e";
-import { etatPromo, ouTrouverFiche, listeDuCentre } from "../direction-rules.js?v=20261112e";
-import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261112e";
-import { surChangementAdresse, remplacerAdresse } from "../navigation.js?v=20261112e";
-import { renderGestionStagiaires, renderInvitationStagiaire } from "./stagiaires-gestion.js?v=20261112e";
-import { chargerContexteFiche, chargerFiche, renderFiche, dispositionFiche, afficherErreur } from "./mon-suivi.js?v=20261112e";
-import { entier, pluriel } from "../nombres.js?v=20261112e";
+} from "../db.js?v=20261113a";
+import { el, clear, isoDate, displayStagiaire, toast } from "../utils.js?v=20261113a";
+import { icon } from "../icons.js?v=20261113a";
+import { getCentre } from "../auth-admin.js?v=20261113a";
+import { promosDuCentre } from "../espaces-rules.js?v=20261113a";
+import { etatPromo, ouTrouverFiche, listeDuCentre } from "../direction-rules.js?v=20261113a";
+import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261113a";
+import { surChangementAdresse, remplacerAdresse } from "../navigation.js?v=20261113a";
+import { renderGestionStagiaires, renderInvitationStagiaire } from "./stagiaires-gestion.js?v=20261113a";
+import { chargerContexteFiche, chargerFiche, renderFiche, dispositionFiche, afficherErreur } from "./mon-suivi.js?v=20261113a";
+import { entier, pluriel } from "../nombres.js?v=20261113a";
 
 export const PHRASE_FICHE_HORS_CENTRE = "Cette fiche n'est pas dans votre centre.";
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";
