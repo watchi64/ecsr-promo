@@ -438,13 +438,13 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
   select 'public.titres', 'false', 'false', 'false', 'false', $mx$nom = 'PreuveMaj'$mx$, null
    where to_regclass('public.titres') is not null;
--- Travail en autonomie (e-learning, lot 1, migration 20261114_autonomie_1_traces) : lectures de cours et temps actif, P et
--- (E ou M tant que l'interrupteur autonomie_active de P vaut 'true') ; écriture par fonctions serveur seulement. Oppositions :
--- aucune règle ni aucun droit. Les lignes n'entrent que si la table existe : la preuve reste verte avant et après la migration.
--- Leur preuve propre : tests/sql/autonomie-preuve.sql.
+-- Travail en autonomie (e-learning, lot 1, migration 20261114_autonomie_1_traces) : lectures de cours et temps actif, P,
+-- interrupteur autonomie_active de P à 'true' (éteint : personne ne lit, équipe comprise), et (E ou M) ; écriture par fonctions
+-- serveur seulement. Oppositions : aucune règle ni aucun droit. Les lignes n'entrent que si la table existe : la preuve reste
+-- verte avant et après la migration. Leur preuve propre : tests/sql/autonomie-preuve.sql.
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
-  select v.tbl, $mx$r.promo_id = {P} and ({E} or (r.stagiaire_id = {fiche_p} and exists (select 1 from public.settings st
-     where st.promo_id = {P} and st.key = 'autonomie_active' and st.value = 'true')))$mx$, 'false', 'false', 'false', v.maj, null
+  select v.tbl, $mx$r.promo_id = {P} and exists (select 1 from public.settings st
+     where st.promo_id = {P} and st.key = 'autonomie_active' and st.value = 'true') and ({E} or r.stagiaire_id = {fiche_p})$mx$, 'false', 'false', 'false', v.maj, null
     from (values ('public.cours_lectures', $mx$section = 'PreuveMaj'$mx$), ('public.autonomie_temps', $mx$secondes = 4242$mx$)) v(tbl, maj)
    where to_regclass(v.tbl) is not null;
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
@@ -2358,11 +2358,18 @@ begin
       perform pg_temp.verifier('autre promo', 'jumeau : le fondateur écrit vers la promo ' || v_pc || ' (jour férié et réglage ajoutés, planning de cette promo seule modifié)',
         v_nx > 0 and v_ecr = format('OK 1 1 | OK 1 1 | OK %s %s', v_nx, v_nx), 'obtenu ' || v_ecr || ' ; lignes de planning ' || v_nx);
     end loop;
-    -- Témoin : le fondateur, lui, voit les lignes de chaque promo (les zéros ci-dessus ne viennent pas de tables vides).
+    -- Témoin : le fondateur, lui, voit les lignes de chaque promo (les zéros ci-dessus ne viennent pas de tables vides). Seule
+    -- exception, voulue : les traces du travail en autonomie d'une promo dont l'interrupteur est éteint (personne ne les lit par
+    -- l'API, fondateur compris ; migration 20261114_autonomie_1_traces) sont retirées du compte attendu.
     foreach v_pc in array c_promos loop
-      perform pg_temp.verifier('autre promo', 'témoin : le fondateur envoie la promo ' || v_pc || ' et voit toutes ses lignes (au moins une)',
-        pg_temp.lignes_de_promo(c_fond, v_pc::text, v_pc)
-          = pg_temp.lignes_de_promo(null, null, v_pc, true)
+      perform pg_temp.verifier('autre promo', 'témoin : le fondateur envoie la promo ' || v_pc || ' et voit toutes ses lignes (au moins une ; traces de l''autonomie seulement interrupteur allumé)',
+        pg_temp.lignes_de_promo(c_fond, v_pc::text, v_pc)::bigint
+          = pg_temp.lignes_de_promo(null, null, v_pc, true)::bigint
+            - case when to_regclass('public.cours_lectures') is not null
+                        and not exists (select 1 from public.settings st where st.promo_id = v_pc and st.key = 'autonomie_active' and st.value = 'true')
+                   then pg_temp.calcul(format('select ((select count(*) from public.cours_lectures where promo_id = %s)'
+                                              || ' + (select count(*) from public.autonomie_temps where promo_id = %s))::text', v_pc, v_pc))::bigint
+                   else 0 end
         and pg_temp.lignes_de_promo(null, null, v_pc, true)::bigint > 0,
         'le fondateur ne voit pas toutes les lignes de la promo');
     end loop;

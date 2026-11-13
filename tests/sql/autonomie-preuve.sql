@@ -20,7 +20,10 @@
 --     -f tests/sql/autonomie-preuve.sql
 -- Contre-épreuve (avant la migration) : les mêmes variables vers un fichier vide : ROUGE attendu.
 -- Preuve en ligne : appliquer d'abord la migration (psql -1 -f ...), puis jouer la preuve avec les mêmes variables (elles sont
--- lues mais ni la migration ni le retour ne sont rejoués).
+-- lues mais ni la migration ni le retour ne sont rejoués). Elle est aussi VERTE après la seconde migration
+-- (20261114_autonomie_2_version, version datée) : la version en place doit être la sentinelle ou une version bien formée qui
+-- n'est pas après aujourd'hui ; les cas de la sentinelle la remettent dans la transaction annulée. La seconde migration a sa
+-- propre preuve : tests/sql/autonomie-version-preuve.sql.
 --
 -- Personnages (créés ici) : promo PA et promo PB d'un lieu de preuve.
 --   SA  stagiaire de PA, conditions acceptées (version exigée par la base) : il lit les cours.
@@ -66,6 +69,11 @@
 -- (calculé). accepter_conditions, absente des clones de la base locale, est posée par la preuve si elle manque (mot pour mot).
 -- Personnages de la suite : SX (PA, fiche marquée effacée en gardant son compte), SE et SE2 (promo PE finie depuis plus de
 -- 12 mois : traces, opposition).
+-- Vague de correction de la relecture d'ensemble (13/11/2026) : interrupteurs posés avant la migration supprimés par elle et
+-- par le retour ; interrupteur éteint, PERSONNE ne lit par l'API (équipe comprise, compteur de la promo compris), relu tel quel
+-- une fois rallumé ; version comparée entière (SV : acceptation sans la lettre exigée, acceptation mal formée) ; opposition
+-- par les fonctions internes du propriétaire (_autonomie_opposer, _autonomie_lever_opposition), fermées à tout rôle de l'API.
+-- Verdicts : voir le rapport .superpowers/sdd/2026-11-12-e-learning-lot-1-lecture-temps-actif/final-fix-report.md.
 
 select length(set_config('preuve.migration', pg_read_file(:'migration'), false)) as migration_lue,
        length(set_config('preuve.retour', pg_read_file(:'retour'), false)) as retour_lu;
@@ -175,6 +183,7 @@ declare
   md5_avant text; md5_apres text; sort_avant text; sort_apres text;
   L integer; PA integer; PB integer; PE integer; v_prof integer;
   SA integer; SB integer; SC integer; SD integer; SO integer; SI integer; SF integer; SQ integer; SX integer; SE integer; SE2 integer;
+  SV integer; v_promo_ex integer; v_avant text; v_apres text;
   K1 uuid; K2 uuid; K3 uuid; K4 uuid; K5 uuid; Q1 bigint; Q_INCONNU bigint;
   v_version text; v_jour date := (now() at time zone 'Europe/Paris')::date;
   v_mots constant text := btrim(repeat('mot ', 2000));
@@ -185,6 +194,10 @@ begin
   execute v_empreinte into md5_avant;
   execute v_sort into sort_avant;
   if not v_deja then
+    -- Un interrupteur posé avant la migration (par un compte qui avait reglages.modifier) : la migration le supprime.
+    select min(id) into v_promo_ex from promos;
+    insert into settings (key, value, promo_id) values ('autonomie_active', 'true', v_promo_ex)
+      on conflict (promo_id, key) do update set value = excluded.value;
     begin
       if btrim(coalesce(current_setting('preuve.migration', true), ''), E' \t\r\n') <> '' then
         execute current_setting('preuve.migration');
@@ -192,6 +205,9 @@ begin
     exception when others then
       perform pg_temp.verifier('migration jouée sans erreur', false, sqlstate || ' ' || sqlerrm);
     end;
+    perform pg_temp.verifier('migration : les interrupteurs posés avant elle sont supprimés (chaque promo repart éteinte)',
+      v_promo_ex is not null and not exists (select 1 from settings where key = 'autonomie_active'),
+      coalesce((select string_agg(promo_id || '=' || value, ',') from settings where key = 'autonomie_active'), 'aucun'));
   end if;
   perform pg_temp.verifier('structure : les trois tables existent',
     to_regclass('public.cours_lectures') is not null and to_regclass('public.autonomie_temps') is not null
@@ -242,9 +258,18 @@ begin
       from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like '%autonomie%' and p.prosecdef
        and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%');
     perform pg_temp.verifier('chaque fonction security definer de l''autonomie a un search_path fixé', t is null, t);
-    perform pg_temp.verifier('version des conditions : une seule fonction interne, immuable, qui rend la sentinelle 9999-12-31',
+    -- Migration 1 seule : la sentinelle ; migration 2 appliquée : une version bien formée, pas après aujourd'hui (Paris).
+    t := public._autonomie_version_conditions();
+    perform pg_temp.verifier('version des conditions : une seule fonction interne, immuable, qui rend la sentinelle 9999-12-31 ou une version bien formée qui n''est pas après aujourd''hui (migration 2)',
       (select provolatile = 'i' from pg_proc where oid = to_regprocedure('public._autonomie_version_conditions()'))
-      and public._autonomie_version_conditions() = '9999-12-31');
+      and (t = '9999-12-31'
+           or (t ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}[a-z]?$' and left(t, 10) collate "C" <= to_char(v_jour, 'YYYY-MM-DD') collate "C")), t);
+    select string_agg(x.fn || ':' || y.rl, ',' order by x.fn, y.rl) into t
+      from unnest(array['public._autonomie_opposer(integer)', 'public._autonomie_lever_opposition(integer)']) x(fn)
+      cross join unnest(array['anon', 'authenticated', 'service_role']) y(rl)
+     where case when to_regprocedure(x.fn) is null then true else has_function_privilege(y.rl, to_regprocedure(x.fn), 'EXECUTE') end;
+    perform pg_temp.verifier('opposition : _autonomie_opposer et _autonomie_lever_opposition présentes, aucun rôle de l''API (anon, authenticated, service_role) ne peut les appeler',
+      t is null, t);
     -- La fermeture dure ne se voit pas par le comportement tant que l'horloge est juste (la borne « pas dans l'avenir » refuse
     -- déjà une acceptation de 9999-12-31) : contrôle de texte.
     perform pg_temp.verifier('R11 : _autonomie_permis refuse tout tant que la version est la sentinelle (garde écrite en tête)',
@@ -274,15 +299,17 @@ begin
     insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve auto X', 'PREUVE', PA, true) returning id into SX;
     insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve auto E', 'PREUVE', PE, true) returning id into SE;
     insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve auto E2', 'PREUVE', PE, true) returning id into SE2;
+    insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve auto V', 'PREUVE', PA, true) returning id into SV;
     insert into preuve_comptes (nom, email)
     select k, 'preuve.auto.' || lower(k) || '@example.invalid'
-      from unnest(array['SA', 'SB', 'SC', 'SD', 'SO', 'SI', 'SX', 'EE', 'FOS', 'EQ', 'FA', 'FB', 'SG', 'FO']) k;
+      from unnest(array['SA', 'SB', 'SC', 'SD', 'SO', 'SI', 'SX', 'EE', 'FOS', 'EQ', 'FA', 'FB', 'SG', 'FO', 'SV']) k;
     insert into user_profiles (email, role, is_admin, is_founder, stagiaire_id, prof_id)
     select k.email,
            case when k.nom in ('FA', 'FB', 'SG', 'FO') then 'prof' else 'stagiaire' end,
            k.nom in ('FA', 'FB', 'FOS', 'FO'), k.nom in ('FOS', 'FO'),
            case k.nom when 'SA' then SA when 'SB' then SB when 'SC' then SC when 'SD' then SD when 'SO' then SO
-                      when 'SI' then SI when 'SX' then SX when 'EE' then SE when 'FOS' then SF when 'EQ' then SQ end,
+                      when 'SI' then SI when 'SX' then SX when 'EE' then SE when 'FOS' then SF when 'EQ' then SQ
+                      when 'SV' then SV end,
            case when k.nom = 'FA' then v_prof end
       from preuve_comptes k;
     insert into affectations (email, role, promo_id, lieu_id)
@@ -293,7 +320,7 @@ begin
     -- (2026-11-10, plus ancienne). Tant que la migration garde sa sentinelle, ces acceptations ne comptent pas.
     v_version := to_char(v_jour - 1, 'YYYY-MM-DD');
     insert into conditions_acceptations (email, version)
-    select email, v_version from preuve_comptes where nom in ('SA', 'SB', 'SD', 'SO', 'SI', 'SX', 'EE', 'FOS', 'EQ', 'FA');
+    select email, v_version from preuve_comptes where nom in ('SA', 'SB', 'SD', 'SO', 'SI', 'SX', 'EE', 'FOS', 'EQ', 'FA', 'SV');
     insert into conditions_acceptations (email, version)
     select email, '2026-11-10' from preuve_comptes where nom = 'SC';
     -- Cours : cinq cours publiés, 2 000 mots chacun ; le cinquième est dépublié.
@@ -380,7 +407,15 @@ begin
     perform pg_temp.verifier('interrupteur : le propriétaire de la table écrit la clé', n = 1, n::text);
     delete from settings where promo_id = PA and key in ('autonomie_active', 'preuve_auto_cle', 'preuve_auto_cle3');
 
-    -- 1.2 ter Sentinelle (migration telle que livrée) : fermeture dure ------------------------------------------------
+    -- 1.2 ter Sentinelle (migration 1 telle que livrée) : fermeture dure ----------------------------------------------
+    -- Si la migration 2 a daté la version, la sentinelle est remise ici, dans la transaction annulée seulement (même
+    -- définition que la migration 1 : la seconde migration ne change que le littéral).
+    if public._autonomie_version_conditions() <> '9999-12-31' then
+      t := quote_literal(public._autonomie_version_conditions()) || '::text';
+      execute replace(pg_get_functiondef('public._autonomie_version_conditions()'::regprocedure), t, '''9999-12-31''::text');
+    end if;
+    perform pg_temp.verifier('preuve : la sentinelle est en place pour les cas de la fermeture dure',
+      public._autonomie_version_conditions() = '9999-12-31', public._autonomie_version_conditions());
     -- SA a l'interrupteur allumé, une acceptation plausible (hier) et « accepte » la sentinelle par la vraie fonction.
     -- accepter_conditions (20261004_conditions_acceptations.sql) est en production mais absente des clones de la base
     -- locale : si elle manque, la preuve la pose ici, mot pour mot, dans sa transaction annulée (hors empreinte).
@@ -496,6 +531,33 @@ $ac$;
     perform pg_temp.verifier('règle 3 (R11) : la version exigée avec une lettre (« b ») compte : écrit',
       r like 'OK 2%' and r2 = 'OK false' and (select count(*) from cours_lectures where stagiaire_id = SC) = 1
       and (select secondes from autonomie_temps where stagiaire_id = SC) = 30, r || ' / ' || r2);
+    -- Version comparée ENTIÈRE. La version exigée devient « <hier>b » (dans la transaction) : SV, qui a accepté « <hier> » sans
+    -- la lettre, n'écrit plus ; SC (« <hier>b ») écrit toujours ; une acceptation mal formée (« <hier>b  », espace final) ne
+    -- compte pas ; « <hier>c », postérieure, compte.
+    execute replace(pg_get_functiondef('public._autonomie_version_conditions()'::regprocedure),
+                    quote_literal(v_version) || '::text', quote_literal(v_version || 'b') || '::text');
+    r := pg_temp.essai('SV', PA, format('select public.autonomie_tracer_cours(%L, 30, false, null)::text', K4));
+    r2 := pg_temp.essai('SV', PA, format('select public.autonomie_tracer_qcm(%s, 30)::text', Q1));
+    perform pg_temp.verifier('règle 3 (version entière) : version exigée « <hier>b », acceptation « <hier> » sans la lettre : refus silencieux, 0 ligne',
+      public._autonomie_version_conditions() = v_version || 'b' and r = 'OK false' and r2 = 'OK '
+      and (select count(*) from cours_lectures where stagiaire_id = SV) + (select count(*) from autonomie_temps where stagiaire_id = SV) = 0,
+      public._autonomie_version_conditions() || ' : ' || r || ' / ' || r2);
+    r := pg_temp.essai('SC', PA, format('select public.autonomie_tracer_qcm(%s, 10)::text', Q1));
+    perform pg_temp.verifier('règle 3 (version entière) : version exigée « <hier>b », acceptation « <hier>b » : écrit',
+      r = 'OK ' and (select secondes from autonomie_temps where stagiaire_id = SC and genre = 'qcm') = 10, r);
+    insert into conditions_acceptations (email, version)
+    select email, v_version || 'b ' from preuve_comptes where nom = 'SV';
+    r := pg_temp.essai('SV', PA, format('select public.autonomie_tracer_cours(%L, 30, false, null)::text', K4));
+    perform pg_temp.verifier('règle 3 : une acceptation mal formée (« <hier>b » suivi d''un espace, au-dessus de la version exigée en ordre de texte) ne compte pas',
+      r = 'OK false' and (select count(*) from cours_lectures where stagiaire_id = SV) + (select count(*) from autonomie_temps where stagiaire_id = SV) = 0, r);
+    r := pg_temp.essai('SV', PA, format('select public.accepter_conditions(%L)::text', v_version || 'c'));
+    r2 := pg_temp.essai('SV', PA, format('select public.autonomie_tracer_cours(%L, 30, false, null)::text', K4));
+    perform pg_temp.verifier('règle 3 (version entière) : acceptation « <hier>c », postérieure à « <hier>b » : écrit',
+      r like 'OK 2%' and r2 = 'OK false' and (select secondes from autonomie_temps where stagiaire_id = SV) = 30, r || ' / ' || r2);
+    execute replace(pg_get_functiondef('public._autonomie_version_conditions()'::regprocedure),
+                    quote_literal(v_version || 'b') || '::text', quote_literal(v_version) || '::text');
+    perform pg_temp.verifier('preuve : version exigée remise à hier', public._autonomie_version_conditions() = v_version,
+      public._autonomie_version_conditions());
 
     -- 1.6 Règle 4 : durée --------------------------------------------------------------------------------------------
     r := pg_temp.essai('SA', PA, format('select public.autonomie_tracer_cours(%L, 61, false, null)::text', K1));
@@ -644,12 +706,23 @@ $ac$;
     perform pg_temp.verifier('visiteur sans jeton : lecture refusée', n = -1, n::text);
     n := pg_temp.compter('FO', PA, format('select count(*) from public.cours_lectures where stagiaire_id = %s', SA));
     perform pg_temp.verifier('le fondateur (sans fiche) lit les lignes de la promo affichée', n = 3, n::text);
-    -- Interrupteur éteint : le stagiaire ne lit plus rien, l'équipe toujours, les lignes restent ; rallumé, il les relit.
+    -- Interrupteur éteint : PERSONNE ne lit plus rien par l'API (le stagiaire, l'équipe, le fondateur, le compteur de la
+    -- promo), les lignes restent en base ; rallumé, tous les relisent, inchangées.
+    v_avant := pg_temp.essai('FA', PA, format('select md5(coalesce((select string_agg(to_jsonb(c)::text, '','' order by c.cours_id) from public.cours_lectures c where c.stagiaire_id = %s), '''')'
+                                              || ' || coalesce((select string_agg(to_jsonb(a)::text, '','' order by a.jour, a.genre, a.ressource) from public.autonomie_temps a where a.stagiaire_id = %s), ''''))', SA, SA));
+    r := pg_temp.essai('FA', PA, 'select count(*)::text from public.autonomie_lectures_promo()');
+    perform pg_temp.verifier('données : interrupteur allumé, le compteur de la promo rend des cours lus (SA a lu K1 et K3)', r = 'OK 2', r);
     update settings set value = 'false' where promo_id = PA and key = 'autonomie_active';
     n := pg_temp.compter('SA', PA, 'select count(*) from public.cours_lectures') + pg_temp.compter('SA', PA, 'select count(*) from public.autonomie_temps');
     perform pg_temp.verifier('interrupteur éteint : le stagiaire ne lit aucune de ses lignes', n = 0, n::text);
-    n := pg_temp.compter('FA', PA, format('select count(*) from public.cours_lectures where stagiaire_id = %s', SA));
-    perform pg_temp.verifier('interrupteur éteint : l''équipe (notes.lire) les lit toujours', n = 3, n::text);
+    n := pg_temp.compter('FA', PA, 'select count(*) from public.cours_lectures') + pg_temp.compter('FA', PA, 'select count(*) from public.autonomie_temps');
+    perform pg_temp.verifier('interrupteur éteint : l''équipe (notes.lire) ne lit aucune ligne', n = 0, n::text);
+    n := pg_temp.compter('FO', PA, 'select count(*) from public.cours_lectures') + pg_temp.compter('FO', PA, 'select count(*) from public.autonomie_temps');
+    perform pg_temp.verifier('interrupteur éteint : le fondateur ne lit aucune ligne', n = 0, n::text);
+    r := pg_temp.essai('FA', PA, 'select count(*)::text from public.autonomie_lectures_promo()');
+    r2 := pg_temp.essai('FO', PA, 'select count(*)::text from public.autonomie_lectures_promo()');
+    perform pg_temp.verifier('interrupteur éteint : autonomie_lectures_promo ne rend rien (formateur, fondateur), sans erreur',
+      r = 'OK 0' and r2 = 'OK 0', r || ' / ' || r2);
     perform pg_temp.verifier('interrupteur éteint : les lignes restent en base',
       (select count(*) from cours_lectures where stagiaire_id = SA) = 3 and (select count(*) from autonomie_temps where stagiaire_id = SA) = 4);
     r := pg_temp.essai('SA', PA, format('select public.autonomie_tracer_cours(%L, 60, false, null)::text', K2));
@@ -657,11 +730,22 @@ $ac$;
       and (select secondes from autonomie_temps where stagiaire_id = SA and ressource = K2::text) = 185, r);
     delete from settings where promo_id = PA and key = 'autonomie_active';
     n := pg_temp.compter('SA', PA, 'select count(*) from public.cours_lectures');
-    perform pg_temp.verifier('interrupteur retiré (ligne absente) : le stagiaire ne lit rien', n = 0, n::text);
+    m := pg_temp.compter('FA', PA, 'select count(*) from public.cours_lectures') + pg_temp.compter('FA', PA, 'select count(*) from public.autonomie_temps');
+    r := pg_temp.essai('FA', PA, 'select count(*)::text from public.autonomie_lectures_promo()');
+    perform pg_temp.verifier('interrupteur retiré (ligne absente) : ni le stagiaire ni l''équipe ne lisent rien, compteur vide',
+      n = 0 and m = 0 and r = 'OK 0', n || '/' || m || ' / ' || r);
     insert into settings (key, value, promo_id) values ('autonomie_active', 'true', PA);
     n := pg_temp.compter('SA', PA, 'select count(*) from public.cours_lectures');
     m := pg_temp.compter('SA', PA, 'select count(*) from public.autonomie_temps');
     perform pg_temp.verifier('interrupteur rallumé : le stagiaire relit ses lignes', n = 3 and m = 4, n || '/' || m);
+    v_apres := pg_temp.essai('FA', PA, format('select md5(coalesce((select string_agg(to_jsonb(c)::text, '','' order by c.cours_id) from public.cours_lectures c where c.stagiaire_id = %s), '''')'
+                                              || ' || coalesce((select string_agg(to_jsonb(a)::text, '','' order by a.jour, a.genre, a.ressource) from public.autonomie_temps a where a.stagiaire_id = %s), ''''))', SA, SA));
+    r := pg_temp.essai('FA', PA, 'select count(*)::text from public.autonomie_lectures_promo()');
+    perform pg_temp.verifier('interrupteur rallumé : l''équipe relit les mêmes lignes, inchangées (empreinte identique), et le compteur revient',
+      v_avant like 'OK %' and v_avant <> 'OK ' || md5('') and v_apres = v_avant and r = 'OK 2'
+      and pg_temp.compter('FA', PA, format('select count(*) from public.cours_lectures where stagiaire_id = %s', SA)) = 3
+      and pg_temp.compter('FA', PA, format('select count(*) from public.autonomie_temps where stagiaire_id = %s', SA)) = 4,
+      v_avant || ' / ' || v_apres || ' / ' || r);
 
     -- 1.14 autonomie_lectures_promo -----------------------------------------------------------------------------------
     -- SI lit K1 jusqu'au bout puis passe en abandon : sa lecture ne compte plus.
@@ -719,6 +803,45 @@ $ac$;
     r := pg_temp.essai('FO', PA, format('select public.autonomie_opposer(%s)::text', SO));
     perform pg_temp.verifier('opposition : un second appel ne change rien (date d''opposition gardée)', r = 'OK '
       and (select count(*) from autonomie_oppositions where stagiaire_id = SO) = 1, r);
+    -- Fonctions internes du propriétaire (psql) : fermées à tout compte de l'API, fondateur compris.
+    r := pg_temp.essai('FO', PA, format('select public._autonomie_lever_opposition(%s)::text', SO));
+    r2 := pg_temp.essai('FO', PA, format('select public._autonomie_opposer(%s)::text', SB));
+    r3 := pg_temp.essai('SO', PA, format('select public._autonomie_lever_opposition(%s)::text', SO));
+    perform pg_temp.verifier('opposition : _autonomie_lever_opposition et _autonomie_opposer refusées par l''API (fondateur, stagiaire : 42501)',
+      r like 'REFUS 42501%' and r2 like 'REFUS 42501%' and r3 like 'REFUS 42501%'
+      and exists (select 1 from autonomie_oppositions where stagiaire_id = SO)
+      and not exists (select 1 from autonomie_oppositions where stagiaire_id = SB), r || ' / ' || r2 || ' / ' || r3);
+    -- Le propriétaire lève l'opposition : SO peut de nouveau être tracé, ses traces d'avant ne reviennent pas.
+    select depuis::text into t from autonomie_oppositions where stagiaire_id = SO;
+    r := public._autonomie_lever_opposition(SO)::text;
+    r2 := public._autonomie_lever_opposition(SO)::text;
+    perform pg_temp.verifier('opposition levée par le propriétaire (vrai), l''inscription part ; la lever une seconde fois rend faux, sans erreur',
+      r = 'true' and r2 = 'false' and t is not null and not exists (select 1 from autonomie_oppositions where stagiaire_id = SO),
+      coalesce(t, 'aucune') || ' : ' || r || ' / ' || r2);
+    r := pg_temp.essai('SO', PA, format('select public.autonomie_tracer_cours(%L, 40, false, null)::text', K1));
+    perform pg_temp.verifier('opposition levée : SO est de nouveau tracé (une ligne neuve, 40 s), rien d''avant n''est revenu',
+      r = 'OK false' and (select count(*) from cours_lectures where stagiaire_id = SO) = 1
+      and (select sum(secondes) from autonomie_temps where stagiaire_id = SO) = 40, r);
+    -- Le propriétaire oppose de nouveau, par la fonction interne : traces effacées, inscription posée.
+    perform public._autonomie_opposer(SO);
+    r := pg_temp.essai('SO', PA, format('select public.autonomie_tracer_cours(%L, 40, false, null)::text', K1));
+    perform pg_temp.verifier('opposition par _autonomie_opposer (propriétaire) : traces effacées, inscription posée, plus rien d''écrit',
+      r = 'OK false' and exists (select 1 from autonomie_oppositions where stagiaire_id = SO)
+      and (select count(*) from cours_lectures where stagiaire_id = SO) + (select count(*) from autonomie_temps where stagiaire_id = SO) = 0, r);
+    begin
+      perform public._autonomie_opposer(-1);
+      r := 'accepté';
+    exception when others then
+      r := sqlerrm;
+    end;
+    begin
+      perform public._autonomie_lever_opposition(null);
+      r2 := 'accepté';
+    exception when others then
+      r2 := sqlerrm;
+    end;
+    perform pg_temp.verifier('opposition interne : fiche inconnue ou nulle refusée', r = 'autonomie: Fiche introuvable.'
+      and r2 = 'autonomie: Fiche introuvable.', r || ' / ' || r2);
     perform pg_temp.verifier('opposition : les traces des autres stagiaires sont intactes',
       (select count(*) from cours_lectures where stagiaire_id = SA) = 3);
 
@@ -863,6 +986,10 @@ $ac$;
 
   -- 2. Retour ------------------------------------------------------------------------------------------------------
   if not v_deja then
+    -- Une promo restée allumée au moment du retour : le retour supprime l'interrupteur (sinon une nouvelle application de la
+    -- migration reprendrait la collecte d'elle-même).
+    insert into settings (key, value, promo_id) values ('autonomie_active', 'true', v_promo_ex)
+      on conflict (promo_id, key) do update set value = excluded.value;
     r := 'joué';
     begin
       if btrim(coalesce(current_setting('preuve.retour', true), ''), E' \t\r\n') <> '' then
@@ -878,6 +1005,9 @@ $ac$;
     select string_agg(p.oid::regprocedure::text, ',') into t from pg_proc p
      where p.pronamespace = 'public'::regnamespace and p.proname like '%autonomie%';
     perform pg_temp.verifier('retour : plus aucune fonction de l''autonomie', t is null, t);
+    perform pg_temp.verifier('retour : les interrupteurs autonomie_active sont supprimés (toutes promos)',
+      not exists (select 1 from settings where key = 'autonomie_active'),
+      coalesce((select string_agg(promo_id || '=' || value, ',') from settings where key = 'autonomie_active'), 'aucun'));
     perform pg_temp.verifier('retour : déclencheur de stagiaires et règles restrictives de settings retirés',
       not exists (select 1 from pg_trigger where tgrelid = 'public.stagiaires'::regclass and tgname = 'stagiaires_autonomie_effacer')
       and not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'settings' and policyname like 'settings\_autonomie%'));

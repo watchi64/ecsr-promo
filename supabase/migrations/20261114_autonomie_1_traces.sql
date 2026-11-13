@@ -1,14 +1,38 @@
 -- E-learning, lot 1 (lecture et temps actif), tâche 2 : les traces du travail en autonomie, côté base. NON APPLIQUÉE EN
--- PRODUCTION : attend l'accord de Timy, la validation des textes (conditions d'utilisation, registre des traitements) et la
--- date de leur version (voir _autonomie_version_conditions plus bas). Spec docs/superpowers/specs/2026-11-12-e-learning-design.md
--- (§ 6) ; plan docs/superpowers/plans/2026-11-12-e-learning-lot-1-lecture-temps-actif.md (Task 2).
+-- PRODUCTION : attend l'accord de Timy et la validation des textes (conditions d'utilisation, registre des traitements).
+-- Spec docs/superpowers/specs/2026-11-12-e-learning-design.md (§ 6) ; plan
+-- docs/superpowers/plans/2026-11-12-e-learning-lot-1-lecture-temps-actif.md (Task 2).
 -- Retour : 20261114_autonomie_1_traces_retour.sql. Preuve : tests/sql/autonomie-preuve.sql ; ordre des verrous entre deux
 -- sessions : tests/sql/autonomie-concurrence.sh (base locale jetable seulement).
 --
--- AVANT LA PRODUCTION : remplacer la sentinelle '9999-12-31' de _autonomie_version_conditions par la date de publication des
--- conditions qui décrivent cette collecte (AAAA-MM-JJ). Tant que la sentinelle est là, la base n'écrit AUCUNE trace, quelles
--- que soient les acceptations en base (fermeture dure, voir _autonomie_permis). Durcir accepter_conditions contre une version
--- inconnue (aujourd'hui elle accepte toute version bien formée) est une tâche à part, d'un autre chantier.
+-- APPLIQUÉE FERMÉE. Cette migration pose la sentinelle '9999-12-31' comme version exigée des conditions d'utilisation
+-- (_autonomie_version_conditions) : tant qu'elle est là, la base n'écrit AUCUNE trace, quelles que soient les acceptations en
+-- base et l'interrupteur (fermeture dure, voir _autonomie_permis). Elle ne se modifie pas à la main : la date de publication des
+-- conditions qui décrivent cette collecte est posée par la SECONDE migration, 20261114_autonomie_2_version.sql
+-- (psql -v ON_ERROR_STOP=1 -v version=AAAA-MM-JJ -1 -f ...), une fois les textes publiés ; son retour remet la sentinelle.
+-- Ordre des opérations en production :
+--   1. cette migration, AVANT la fusion du code client : la case « Travail en autonomie » de Réglages écrit l'interrupteur dès
+--      que le client est en ligne, et seules les règles posées ici le réservent au fondateur ;
+--   2. le code client ;
+--   3. la seconde migration, le jour où les conditions qui décrivent la collecte sont publiées.
+-- Durcir accepter_conditions contre une version inconnue (aujourd'hui elle accepte toute version bien formée) est une tâche à
+-- part, d'un autre chantier.
+--
+-- Interrupteurs posés avant la migration : avant les règles restrictives ci-dessous, un compte qui a le geste reglages.modifier
+-- pouvait déjà écrire la clé autonomie_active par l'API. La migration supprime toute ligne de settings de cette clé (avec un
+-- avis qui en donne le nombre) avant de créer les règles : chaque promo repart éteinte, le fondateur rallume celles qu'il veut.
+--
+-- Opposition (procédure, faute d'écran) : le fondateur n'a que psql, où est_fondateur() est faux (pas de jeton). Deux fonctions
+-- internes, réservées au propriétaire de la base (aucun rôle de l'API ne peut les appeler), se jouent donc depuis psql par
+-- celui qui tient la base (Timy), sur demande écrite du stagiaire :
+--   select public._autonomie_opposer(<id de la fiche>);
+--       inscrit la fiche dans autonomie_oppositions et supprime toutes ses traces (lectures et temps, toutes promos) ; plus rien
+--       ne s'écrit pour elle. Rejouable : un second appel garde la date de la première opposition.
+--   select public._autonomie_lever_opposition(<id de la fiche>);
+--       retire l'inscription (rend vrai si une opposition a été levée) : les traces peuvent de nouveau s'écrire ; celles
+--       supprimées à l'opposition ne reviennent pas.
+-- L'id de la fiche se lit dans stagiaires (select id, prenom, nom, promo_id from public.stagiaires where nom ilike '...').
+-- autonomie_opposer (appelable par l'API, fondateur hors aperçu seulement) fait la même chose que _autonomie_opposer.
 --
 -- La base refuse elle-même toute trace hors des conditions permises ; l'app n'est qu'un client.
 --   cours_lectures         une ligne par stagiaire, promo et cours : premier accès (ouvert_le), dernier (vu_le), fin du cours
@@ -17,7 +41,8 @@
 --   autonomie_temps        le temps actif, cumulé par stagiaire, promo, jour (de Paris), genre (cours ou qcm) et ressource
 --                          (identifiant du cours ou du QCM, en texte).
 --   autonomie_oppositions  droit d'opposition : un stagiaire inscrit ici n'a plus aucune trace écrite. Aucun droit pour les
---                          rôles de l'API ; remplie par autonomie_opposer, réservée au fondateur.
+--                          rôles de l'API ; remplie par _autonomie_opposer (propriétaire de la base, depuis psql) ou
+--                          autonomie_opposer (fondateur hors aperçu, par l'API), vidée par _autonomie_lever_opposition.
 -- Promo d'une trace : celle du stagiaire au moment de l'écriture, et elle fait partie de la clé des deux tables. Un stagiaire
 -- qui change de promo commence des lignes neuves dans la nouvelle ; celles de l'ancienne ne bougent plus (séparation stricte
 -- des promos). Le plancher de lecture compte le temps sur le cours DANS la promo ; le plafond de 8 h compte la journée du
@@ -28,8 +53,8 @@
 --      stagiaires. » ;
 --   puis le verrou du stagiaire (voir « Concurrence ») ;
 --   2. interrupteur de la promo du stagiaire éteint (réglage autonomie_active différent de 'true') : refus silencieux ;
---   3. conditions d'utilisation non acceptées dans une version publiée au moins égale à la version exigée : refus
---      silencieux. Sentinelle : refus de tout ;
+--   3. conditions d'utilisation non acceptées dans une version publiée au moins égale à la version exigée (comparaison de la
+--      version entière, lettre comprise, voir _autonomie_permis) : refus silencieux. Sentinelle : refus de tout ;
 --   3 bis. stagiaire inscrit dans autonomie_oppositions, ou fiche déjà passée par l'étape 1 de la conservation
 --      (stagiaires.efface_le posé) : refus silencieux ;
 --   4. secondes hors de 0 à 60 : « autonomie: Durée invalide. » ; au-delà de 8 h (28 800 s) cumulées dans le jour pour le
@@ -44,10 +69,11 @@
 -- (hashtext('autonomie_temps'), id de la fiche), avant tout contrôle. En READ COMMITTED, chaque instruction après l'attente lit
 -- un instantané neuf : une opposition ou un effacement validés pendant l'attente sont vus, et rien ne s'écrit. Une seule clé
 -- par fiche, toujours prise après la ligne de la fiche : pas d'interblocage entre ces fonctions.
--- Lecture : une règle « select » par table, sur le modèle de qcm_attempts_lecture (titres, migration 3) : promo affichée, et
--- geste notes.lire (équipe de la promo, direction du centre, fondateur), ou ses propres lignes pour le stagiaire TANT QUE
--- l'interrupteur de la promo est allumé (éteint : il ne voit plus rien, les lignes restent en base et l'équipe les lit
--- toujours). Aucun insert, update ni delete pour authenticated. Le siège ne lit rien (il n'affiche aucune promo).
+-- Lecture : une règle « select » par table, sur le modèle de qcm_attempts_lecture (titres, migration 3) : promo affichée,
+-- interrupteur de cette promo allumé, et geste notes.lire (équipe de la promo, direction du centre, fondateur) ou ses propres
+-- lignes pour le stagiaire. Interrupteur éteint (ou absent) : PERSONNE ne lit rien par l'API, ni le stagiaire ni l'équipe ; les
+-- lignes restent en base, et se relisent telles quelles quand l'interrupteur est rallumé. Même condition pour
+-- autonomie_lectures_promo. Aucun insert, update ni delete pour authenticated. Le siège ne lit rien (il n'affiche aucune promo).
 -- Sort des données. Fiche supprimée : clé étrangère « on delete cascade » (comme qcm_attempts). Changement de promo : voir
 -- plus haut. Conservation : le travail en autonomie est une donnée de la catégorie « formation + 12 mois, puis suppression »
 -- (textes de données personnelles du lot), celle que vide l'étape 1, pas celle des résultats (3 ans). Quand l'étape 1 marque
@@ -110,25 +136,39 @@ revoke all on public.cours_lectures, public.autonomie_temps, public.autonomie_op
 grant select on public.cours_lectures, public.autonomie_temps to authenticated;
 
 -- 2. Lecture ---------------------------------------------------------------------------------------------------------
+-- Interrupteur allumé pour la promo affichée : condition des deux branches (équipe et stagiaire).
 create policy cours_lectures_lecture on public.cours_lectures
   as permissive for select to authenticated
   using (promo_id = (select public.promo_courante())
+         and exists (select 1 from public.settings st
+                      where st.promo_id = (select public.promo_courante())
+                        and st.key = 'autonomie_active' and st.value = 'true')
          and ((select public.geste_promo((select public.promo_courante()), 'notes.lire'))
-              or (stagiaire_id = (select public.my_stagiaire_id())
-                  and exists (select 1 from public.settings st
-                               where st.promo_id = (select public.promo_courante())
-                                 and st.key = 'autonomie_active' and st.value = 'true'))));
+              or stagiaire_id = (select public.my_stagiaire_id())));
 
 create policy autonomie_temps_lecture on public.autonomie_temps
   as permissive for select to authenticated
   using (promo_id = (select public.promo_courante())
+         and exists (select 1 from public.settings st
+                      where st.promo_id = (select public.promo_courante())
+                        and st.key = 'autonomie_active' and st.value = 'true')
          and ((select public.geste_promo((select public.promo_courante()), 'notes.lire'))
-              or (stagiaire_id = (select public.my_stagiaire_id())
-                  and exists (select 1 from public.settings st
-                               where st.promo_id = (select public.promo_courante())
-                                 and st.key = 'autonomie_active' and st.value = 'true'))));
+              or stagiaire_id = (select public.my_stagiaire_id())));
 
 -- 2 bis. Interrupteur réservé au fondateur -----------------------------------------------------------------------------
+-- D'abord les interrupteurs posés avant ces règles (par un compte qui a reglages.modifier) : supprimés, toutes promos. La
+-- table est verrouillée contre toute écriture jusqu'à la fin de la transaction : rien ne se glisse entre la suppression et
+-- les règles.
+lock table public.settings in share row exclusive mode;
+do $menage$
+declare
+  n integer;
+begin
+  delete from public.settings where key = 'autonomie_active';
+  get diagnostics n = row_count;
+  raise notice 'autonomie_1 : % ligne(s) autonomie_active supprimée(s) de settings (chaque promo repart éteinte)', n;
+end $menage$;
+
 create policy settings_autonomie_ajout on public.settings
   as restrictive for insert to public
   with check (key <> 'autonomie_active' or (select public.est_fondateur()));
@@ -143,8 +183,8 @@ create policy settings_autonomie_suppression on public.settings
 -- 3. Fonctions internes ----------------------------------------------------------------------------------------------
 -- Version des conditions d'utilisation qui décrit cette collecte : un stagiaire n'a de traces que s'il a accepté une version
 -- publiée au moins égale à celle-ci. SENTINELLE '9999-12-31' : _autonomie_permis refuse tout tant qu'elle est là (fermeture
--- dure, même si un stagiaire a « accepté » la version 9999-12-31 par accepter_conditions). À REMPLACER par la date de
--- publication des conditions (AAAA-MM-JJ) avant d'appliquer cette migration en production.
+-- dure, même si un stagiaire a « accepté » la version 9999-12-31 par accepter_conditions). La date de publication des
+-- conditions est posée par la migration 20261114_autonomie_2_version, jamais en modifiant ce fichier.
 create function public._autonomie_version_conditions()
 returns text language sql immutable set search_path to 'public', 'pg_temp' as $f$
   select '9999-12-31'::text;
@@ -181,8 +221,11 @@ end $f$;
 -- Vrai si une trace peut s'écrire pour ce stagiaire dans cette promo : version des conditions datée (pas la sentinelle),
 -- interrupteur de la promo allumé, fiche non effacée, aucune opposition, et une acceptation (adresse du jeton) d'une
 -- version publiée au moins égale à la version exigée. Une version est une date de publication, avec une lettre éventuelle
--- (« 2026-11-20b ») : on compare ses dix premiers caractères ; une version datée après aujourd'hui (Paris) n'a pas pu être
--- publiée et ne compte pas (accepter_conditions accepte toute version bien formée).
+-- (« 2026-11-20b », une révision du même jour) : la comparaison porte sur la version ENTIÈRE, en ordre binaire (collation
+-- « C », la même en local et en production) ; « 2026-11-20 » < « 2026-11-20b » < « 2026-11-20c » < « 2026-11-21 ». Une
+-- acceptation du même jour sans la lettre exigée ne compte donc pas, et une version exigée avec une lettre reste atteignable.
+-- Une acceptation mal formée ne compte pas ; une version datée après aujourd'hui (Paris) n'a pas pu être publiée et ne compte
+-- pas non plus (accepter_conditions accepte toute version bien formée).
 create function public._autonomie_permis(p_stagiaire integer, p_promo integer)
 returns boolean language sql stable security definer set search_path to 'public', 'pg_temp' as $f$
   select _autonomie_version_conditions() <> '9999-12-31'
@@ -192,8 +235,9 @@ returns boolean language sql stable security definer set search_path to 'public'
      and not exists (select 1 from autonomie_oppositions o where o.stagiaire_id = p_stagiaire)
      and exists (select 1 from conditions_acceptations ca
                   where lower(ca.email) = lower((select auth.jwt() ->> 'email'))
-                    and left(ca.version, 10) >= _autonomie_version_conditions()
-                    and left(ca.version, 10) <= to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD'));
+                    and ca.version ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}[a-z]?$'
+                    and ca.version collate "C" >= _autonomie_version_conditions() collate "C"
+                    and left(ca.version, 10) collate "C" <= to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD') collate "C");
 $f$;
 
 -- Ajoute des secondes au temps du jour, dans la limite de 8 h par jour et par stagiaire (toutes promos et ressources) ;
@@ -317,8 +361,8 @@ end $f$;
 -- 5. Lectures de la promo (« N sur T l'ont lu ») ---------------------------------------------------------------------
 -- Par cours, le nombre de stagiaires qui l'ont lu DANS la promo affichée et qui sont AUJOURD'HUI des stagiaires actifs de
 -- cette promo : N ne dépasse jamais T (stagiaires actifs de la promo). Un stagiaire parti dans une autre promo garde sa ligne
--- dans l'ancienne (lisible par son équipe), mais n'y compte plus. Sans le geste notes.lire sur la promo affichée : aucune
--- ligne, sans erreur (comme notes_stagiaires_visibles).
+-- dans l'ancienne (lisible par son équipe), mais n'y compte plus. Sans le geste notes.lire sur la promo affichée, ou
+-- interrupteur de cette promo éteint : aucune ligne, sans erreur (comme notes_stagiaires_visibles).
 create function public.autonomie_lectures_promo()
 returns table (cours_id uuid, lus integer)
 language sql stable security definer set search_path to 'public', 'pg_temp' as $f$
@@ -326,6 +370,8 @@ language sql stable security definer set search_path to 'public', 'pg_temp' as $
     from cours_lectures cl
     join stagiaires s on s.id = cl.stagiaire_id
    where (select geste_promo(promo_courante(), 'notes.lire'))
+     and exists (select 1 from settings st
+                  where st.promo_id = (select promo_courante()) and st.key = 'autonomie_active' and st.value = 'true')
      and cl.promo_id = (select promo_courante())
      and s.promo_id = (select promo_courante())
      and s.actif
@@ -334,15 +380,13 @@ language sql stable security definer set search_path to 'public', 'pg_temp' as $
 $f$;
 
 -- 6. Opposition ------------------------------------------------------------------------------------------------------
--- Le fondateur (hors aperçu) inscrit le stagiaire et efface ses traces (toutes promos). Verrou de la fiche avant
--- l'inscription : une écriture en cours finit d'abord, et sa trace est effacée ici ; une écriture qui attend verra
--- l'opposition. Rejouable : un second appel garde la date.
-create function public.autonomie_opposer(p_stagiaire integer)
+-- _autonomie_opposer inscrit le stagiaire et efface ses traces (toutes promos). Verrou de la fiche avant l'inscription : une
+-- écriture en cours finit d'abord, et sa trace est effacée ici ; une écriture qui attend verra l'opposition. Rejouable : un
+-- second appel garde la date. Réservée au propriétaire de la base (psql, voir l'en-tête) ; autonomie_opposer est la même
+-- chose pour le fondateur hors aperçu, par l'API.
+create function public._autonomie_opposer(p_stagiaire integer)
 returns void language plpgsql security definer set search_path to 'public', 'pg_temp' as $f$
 begin
-  if not est_fondateur() then
-    raise exception 'autonomie: Réservé au fondateur.';
-  end if;
   if p_stagiaire is null or not exists (select 1 from stagiaires where id = p_stagiaire) then
     raise exception 'autonomie: Fiche introuvable.';
   end if;
@@ -352,6 +396,33 @@ begin
   delete from autonomie_temps where stagiaire_id = p_stagiaire;
 end $f$;
 
+-- Lève l'opposition (même verrou) : les traces peuvent de nouveau s'écrire ; celles effacées à l'opposition ne reviennent
+-- pas. Rend vrai si une opposition a été retirée. Réservée au propriétaire de la base (psql).
+create function public._autonomie_lever_opposition(p_stagiaire integer)
+returns boolean language plpgsql security definer set search_path to 'public', 'pg_temp' as $f$
+declare
+  n integer;
+begin
+  if p_stagiaire is null or not exists (select 1 from stagiaires where id = p_stagiaire) then
+    raise exception 'autonomie: Fiche introuvable.';
+  end if;
+  perform _autonomie_verrou(p_stagiaire);
+  delete from autonomie_oppositions where stagiaire_id = p_stagiaire;
+  get diagnostics n = row_count;
+  return n > 0;
+end $f$;
+
+create function public.autonomie_opposer(p_stagiaire integer)
+returns void language plpgsql security definer set search_path to 'public', 'pg_temp' as $f$
+begin
+  if not est_fondateur() then
+    raise exception 'autonomie: Réservé au fondateur.';
+  end if;
+  perform _autonomie_opposer(p_stagiaire);
+end $f$;
+
+revoke all on function public._autonomie_opposer(integer), public._autonomie_lever_opposition(integer)
+  from public, anon, authenticated, service_role;
 revoke all on function public.autonomie_tracer_cours(uuid, integer, boolean, text), public.autonomie_tracer_qcm(bigint, integer),
   public.autonomie_lectures_promo(), public.autonomie_opposer(integer) from public, anon, authenticated, service_role;
 grant execute on function public.autonomie_tracer_cours(uuid, integer, boolean, text), public.autonomie_tracer_qcm(bigint, integer),
