@@ -13,9 +13,9 @@ Refondre le moteur de placement du planning hebdomadaire de `TP_ECSR_App` pour q
 priorise **l'historique réel des passages** et applique des règles d'anti-surcharge,
 tout en restant modulaire pour des promos plus petites.
 
-**Bug fondateur (constaté sur données réelles, semaine du 2026-07-06)** : Emilie a
-2 passages Salle (minimum de la promo), Valentin en a 6 (maximum). « Placer la
-semaine » a mis Valentin au tableau et pas Emilie. Cause : les compteurs d'équité
+**Bug fondateur (constaté sur données réelles, semaine du 2026-07-06)** : stagiaire E a
+2 passages Salle (minimum de la promo), stagiaire H en a 6 (maximum). « Placer la
+semaine » a mis stagiaire H au tableau et pas stagiaire E. Cause : les compteurs d'équité
 d'`autoPlaceWeek` ne comptent que les placements de la semaine courante : l'historique
 validé (table `passages`) n'est jamais consulté, le départage est un tirage pur.
 
@@ -175,7 +175,7 @@ closure). Compteurs mis à jour en mémoire au fil de la boucle (`bumpContext`).
 
 | Poids | Groupe ≥ 8 (ex. 14) | Groupe < 8 (ex. 6) | Logique |
 |---|---|---|---|
-| `hist` | **10** | **10** | Unité de base. L'écart Emilie/Valentin (2 vs 6) vaut 40 pts : R1 domine toujours. |
+| `hist` | **10** | **10** | Unité de base. L'écart E/H (2 vs 6) vaut 40 pts : R1 domine toujours. |
 | `histGlobal` | 2 | 2 | Départage léger en faveur du moins sollicité globalement. |
 | `sameDay` | **25** | **8** | Seuil d'échange : à 14, repasser le même jour ne se justifie qu'avec ≥ 3 passages de retard ; à 6, la répétition intra-jour est inévitable → seuil ~1. |
 | `sameHalf` | 8 | 3 | Enchaîner 2 slots d'une même demi-journée < grave qu'un matin+aprem. |
@@ -226,7 +226,7 @@ await flushPendingInputs()
 
 Les 3 dés : mêmes primitives (`ctx` depuis le cache, `hardBlocked`, `pickBest`),
 deviennent async (fetch au premier clic puis cache). Sinon le dé unitaire recréerait
-le bug Emilie.
+le bug de la stagiaire E.
 
 ---
 
@@ -318,9 +318,9 @@ juste à préserver via `entryUpsertPayload` (déjà le cas).
 
 ## 10. Critères d'acceptation
 
-- **CA1 (le bug)** : Emilie (2 passages Salle, min) et Valentin (6, max) : sur semaine
-  vierge, « Placer la semaine » met Emilie (ou ex æquo à 2) au tableau en premier ;
-  Valentin seulement si tous les éligibles du créneau ont ≥ 6. Idem au dé 🎲 tableau.
+- **CA1 (le bug)** : stagiaire E (2 passages Salle, min) et stagiaire H (6, max) : sur semaine
+  vierge, « Placer la semaine » met stagiaire E (ou ex æquo à 2) au tableau en premier ;
+  stagiaire H seulement si tous les éligibles du créneau ont ≥ 6. Idem au dé 🎲 tableau.
 - **CA2** : respect du manuel : tableau choisi à la main conservé et compté dans
   l'équilibre ; liste 2/4 non complétée.
 - **CA3** : reroll : `confirm` ; bénévoles/profs/sujets/notes/`salle_double` identiques

@@ -985,10 +985,15 @@ begin
     pg_temp.essai(format('insert into public.titres (nom, niveau, lieu_id, cases) values (''Preuve7 cases deux'', ''promo'', %s, ''{"notes":"voir"}'')', v_lieu1)), 'ERREUR 23514');
   perform pg_temp.attendre('titres', 'des cases admissibles : permises',
     pg_temp.essai(format('insert into public.titres (nom, niveau, lieu_id, cases) values (''Preuve7 cases trois'', ''promo'', %s, ''{"notes":"voir","stagiaires":"voir"}'')', v_lieu1)), 'OK');
-  perform pg_temp.attendre('titres', 'un titre non fixe de promo sans centre : refusé (23514)',
-    pg_temp.essai($q$insert into public.titres (nom, niveau) values ('Preuve7 promo sans centre', 'promo')$q$), 'ERREUR 23514');
-  perform pg_temp.attendre('titres', 'un titre non fixe de centre sans centre : refusé (23514)',
-    pg_temp.essai($q$insert into public.titres (nom, niveau) values ('Preuve7 centre sans centre', 'centre')$q$), 'ERREUR 23514');
+  -- La migration 6 de l'étape 2 supprime la contrainte titres_centre_requis : un titre de promo ou de centre sans centre est alors un titre du
+  -- réseau (le catalogue de la spec, § 6.2) ; il est effacé aussitôt.
+  perform pg_temp.attendre('titres', 'un titre non fixe de promo sans centre : refusé (23514) tant que la migration 6 n''est pas appliquée, titre du réseau ensuite',
+    pg_temp.essai($q$insert into public.titres (nom, niveau) values ('Preuve7 promo sans centre', 'promo')$q$),
+    case when to_regprocedure('public.creer_titre(bigint, text, integer)') is null then 'ERREUR 23514' else 'OK' end);
+  perform pg_temp.attendre('titres', 'un titre non fixe de centre sans centre : refusé (23514) tant que la migration 6 n''est pas appliquée, titre du réseau ensuite',
+    pg_temp.essai($q$insert into public.titres (nom, niveau) values ('Preuve7 centre sans centre', 'centre')$q$),
+    case when to_regprocedure('public.creer_titre(bigint, text, integer)') is null then 'ERREUR 23514' else 'OK' end);
+  perform pg_temp.essai($q$delete from public.titres where nom in ('Preuve7 promo sans centre', 'Preuve7 centre sans centre')$q$);
   perform pg_temp.attendre('titres', 'des cases modifiées en cases inadmissibles : refusées (23514)',
     pg_temp.essai($q$update public.titres set cases = '{"ccp2":"modifier"}' where nom = 'Preuve7 cases trois'$q$), 'ERREUR 23514');
   perform pg_temp.attendre('titres', 'supprimer le titre d''origine laisse la version du centre sans origine',

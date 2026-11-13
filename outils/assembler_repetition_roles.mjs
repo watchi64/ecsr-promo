@@ -45,7 +45,7 @@
 //   titres-contre-epreuve      la même preuve sans aucune migration ni retour (neutralisés, non lus) : ROUGE attendu sur
 //                              chaque contrôle du groupe titres ;
 //   titres-en-ligne            la même sans rien d'injecté, après l'application réelle des migrations.
-//   gestion [--etapes 5|5,6|4,5,6]  preuve de l'étape 2 du chantier (tests/sql/titres-gestion-preuve.sql), jouée sur une base où
+//   gestion [--etapes 5|6|5,6|4,5,6]  preuve de l'étape 2 du chantier (tests/sql/titres-gestion-preuve.sql), jouée sur une base où
 //                              les migrations 1, 2 et 3 sont appliquées (l'état de la production) : les migrations demandées
 //                              (5 et 6 par défaut ; 4 seulement avec 5 et 6) puis, dans l'ordre inverse, leurs retours ; les
 //                              étapes non demandées sont neutralisées et non lues ; une étape demandée dont un fichier manque
@@ -130,7 +130,7 @@ export const ETAPES_GESTION = {
 };
 const NUMEROS_GESTION = [4, 5, 6];
 /** Les suites admises : la 6 s'appuie sur la 5, la 4 sur les deux autres (ordre d'application : 5, 6, puis 4 avec les conditions). */
-const SUITES_GESTION = [[5], [5, 6], [4, 5, 6]];
+const SUITES_GESTION = [[5], [6], [5, 6], [4, 5, 6]];
 const SUITE_PAR_DEFAUT_GESTION = [5, 6];
 const TOUS_GESTION = NUMEROS_GESTION.flatMap((n) => [ETAPES_GESTION[n].migration, ETAPES_GESTION[n].retour]);
 
@@ -242,7 +242,7 @@ export function decrireMode(mode, { etapes } = {}) {
   if (d.gestion) {
     const choisies = etapes ?? SUITE_PAR_DEFAUT_GESTION;
     if (!SUITES_GESTION.some((suite) => suite.join(",") === choisies.join(","))) {
-      throw new Error(`étapes refusées : « ${choisies.join(",")} » (attendu : 5, 5,6 ou 4,5,6 ; la 6 demande la 5, la 4 demande la 5 et la 6).`);
+      throw new Error(`étapes refusées : « ${choisies.join(",")} » (attendu : 5, 6, 5,6 ou 4,5,6 ; la 6 seule suppose la 5 déjà appliquée sur la base, la 4 demande la 5 et la 6).`);
     }
     return { gabarit: d.gabarit, gestion: true, etapesGestion: choisies, neutres: [], etapes: null, mode: null, requis: [] };
   }
@@ -437,7 +437,9 @@ export function assemblerMode(mode, racine = RACINE, { etapes, lire, compact = f
       }
     }
     neutres = NUMEROS_GESTION.filter((n) => !decrit.etapesGestion.includes(n)).flatMap((n) => [ETAPES_GESTION[n].migration, ETAPES_GESTION[n].retour]);
-    libelle = `gestion (${decrit.etapesGestion.length === 1 ? "etape" : "etapes"} ${decrit.etapesGestion.join(", ")} injectees)`;
+    libelle = decrit.etapesGestion.join(",") === "6"
+      ? "gestion (etape 6 seule, la 5 en place)" // essai à blanc : la 5 est DÉJÀ appliquée sur la base, la preuve le vérifie et refuse sinon
+      : `gestion (${decrit.etapesGestion.length === 1 ? "etape" : "etapes"} ${decrit.etapesGestion.join(", ")} injectees)`;
   }
   if (decrit.titres) {
     // Étapes injectées : celles qu'on a demandées (un fichier manquant arrête alors l'assemblage), sinon celles dont la

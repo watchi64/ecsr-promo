@@ -418,11 +418,11 @@ Dans `_harness_supabase.js`, objet `FIXTURES`, remplacer `passages: [],` par :
       origine: "Manuel", created_by_who: "Romain", stagiaire: { prenom: "Timy" }, remplacant: null },
     { id: 4, stagiaire_id: 2, type: "Salle",   resultat: "Effectué", date: "2026-07-14",
       prof_id: null, avec_eleve: null, remplacant_id: null, commentaire: null,
-      origine: "Planning", created_by_who: "Auto", stagiaire: { prenom: "Anissa" }, remplacant: null },
+      origine: "Planning", created_by_who: "Auto", stagiaire: { prenom: "Zoé" }, remplacant: null },
   ],
 ```
 
-Attendu avec ces fixtures pour le stagiaire 1 : compteurs salle 1 · voiture 1 · avec élève 1 (le Bonus est exclu des compteurs) ; historique 3 lignes (le Bonus listé avec son tag) ; le passage d'Anissa (id 4) invisible.
+Attendu avec ces fixtures pour le stagiaire 1 : compteurs salle 1 · voiture 1 · avec élève 1 (le Bonus est exclu des compteurs) ; historique 3 lignes (le Bonus listé avec son tag) ; le passage de Zoé (id 4) invisible.
 
 Note : le `select` du stub ignore les jointures PostgREST (`stagiaire:...`) : les champs `stagiaire`/`remplacant` sont fournis directement dans la fixture, et le tri date desc de `listPassages` est un `order()` no-op dans le stub, d'où des fixtures PRÉ-TRIÉES par date décroissante par stagiaire.
 
