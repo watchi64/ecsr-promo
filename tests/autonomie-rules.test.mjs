@@ -89,3 +89,47 @@ test("résumé vide", () => {
   const r = resumeAutonomie({ coursPublies: [], lectures: [], temps: [], entrainements: [], aujourdhui: "2026-11-12" });
   assert.deepEqual(r, { coursLus: 0, coursTotal: 0, secondesSemaine: 0, secondesTotal: 0, entrainements: 0, derniereActivite: null });
 });
+
+import {
+  MAX_SECONDES_ECRITURE, trancheAEnvoyer, sectionDeReprise, sectionEnHaut, repriseDepassee,
+} from "../js/autonomie-rules.js";
+
+test("une tranche d'envoi est un entier de 0 à 60", () => {
+  assert.equal(MAX_SECONDES_ECRITURE, 60);
+  assert.equal(trancheAEnvoyer(0), 0);
+  assert.equal(trancheAEnvoyer(-5), 0);
+  assert.equal(trancheAEnvoyer(NaN), 0);
+  assert.equal(trancheAEnvoyer(12), 12);
+  assert.equal(trancheAEnvoyer(12.9), 12);
+  assert.equal(trancheAEnvoyer(60), 60);
+  assert.equal(trancheAEnvoyer(61), 60);
+  assert.equal(trancheAEnvoyer(1000), 60);
+});
+
+test("reprise : lecture existante, non terminee, section encore presente", () => {
+  const ids = ["cours-sec-1", "cours-sec-2", "cours-sec-3"];
+  assert.equal(sectionDeReprise({ section: "cours-sec-2", lu_le: null }, ids), "cours-sec-2");
+  assert.equal(sectionDeReprise({ section: "cours-sec-2" }, ids), "cours-sec-2");
+  assert.equal(sectionDeReprise({ section: "cours-sec-2", lu_le: "2026-11-12T10:00:00Z" }, ids), null);
+  assert.equal(sectionDeReprise({ section: "cours-sec-9", lu_le: null }, ids), null);
+  assert.equal(sectionDeReprise({ section: null, lu_le: null }, ids), null);
+  assert.equal(sectionDeReprise(null, ids), null);
+  assert.equal(sectionDeReprise(undefined, ids), null);
+  assert.equal(sectionDeReprise({ section: "cours-sec-1", lu_le: null }, []), null);
+});
+
+test("section en haut : le dernier titre passe, a la marge pres", () => {
+  const p = [{ id: "a", haut: 100 }, { id: "b", haut: 600 }, { id: "c", haut: 1200 }];
+  assert.equal(sectionEnHaut(p, 0, 0), null);
+  assert.equal(sectionEnHaut(p, 0, 120), "a");
+  assert.equal(sectionEnHaut(p, 500, 100), "b");
+  assert.equal(sectionEnHaut(p, 5000, 0), "c");
+  assert.equal(sectionEnHaut([], 300), null);
+});
+
+test("le bandeau de reprise disparait au-dela d'un ecran de defilement", () => {
+  assert.equal(repriseDepassee(1000, 1500, 800), false);
+  assert.equal(repriseDepassee(1000, 1800, 800), false);
+  assert.equal(repriseDepassee(1000, 1801, 800), true);
+  assert.equal(repriseDepassee(1000, 100, 800), true);
+});

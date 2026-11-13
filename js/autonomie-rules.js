@@ -111,3 +111,37 @@ export function estCompteEquipe({ droits, profil, affectations } = {}) {
   return !!(droits?.equipe || droits?.admin || droits?.prof || profil?.is_admin || profil?.is_founder
     || (Array.isArray(affectations) && affectations.length > 0));
 }
+
+/** La base refuse tout appel de plus de 60 secondes (« Durée invalide ») : un envoi ne dépasse jamais cette part. */
+export const MAX_SECONDES_ECRITURE = 60;
+
+/** Part du cumul à envoyer en un appel : un entier de 0 à 60, jamais plus que le cumul. */
+export function trancheAEnvoyer(cumul) {
+  const n = Math.floor(Number(cumul));
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(n, MAX_SECONDES_ECRITURE);
+}
+
+/** Reprise de lecture : l'id de la section où reprendre, ou null. Il faut une lecture existante, non terminée (`lu_le` vide),
+ *  dont la section est encore l'un des titres de niveau 2 du cours (le cours a pu être réécrit depuis). */
+export function sectionDeReprise(lecture, idsSections) {
+  if (!lecture || lecture.lu_le) return null;
+  const id = lecture.section;
+  if (!id || !Array.isArray(idsSections) || !idsSections.includes(id)) return null;
+  return id;
+}
+
+/** Section « en haut » de la zone de défilement : le dernier titre dont le haut est passé la position, à `marge` près.
+ *  `positions` : [{ id, haut }] dans l'ordre du cours. Aucun titre atteint : null. */
+export function sectionEnHaut(positions, defilement, marge = 0) {
+  let trouvee = null;
+  for (const p of positions) {
+    if (p.haut <= defilement + marge) trouvee = p.id;
+  }
+  return trouvee;
+}
+
+/** Le bandeau de reprise disparaît quand le défilement manuel s'éloigne de plus d'un écran du point de départ. */
+export function repriseDepassee(depart, actuel, hauteurEcran) {
+  return Math.abs(actuel - depart) > hauteurEcran;
+}
