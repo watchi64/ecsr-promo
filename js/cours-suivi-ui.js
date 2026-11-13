@@ -68,11 +68,12 @@ export function brancherSuiviCours({ cours, defilement, overlay, sections, reper
     const id = sectionDeReprise(lecture, sections.map((s) => s.id));
     const titre = id ? document.getElementById(id) : null;
     if (!titre) return;
-    defilement.scrollTop = Math.max(0, titre.offsetTop - 8);
+    suivi.defilementAutomatique(() => { defilement.scrollTop = Math.max(0, titre.offsetTop - 8); });
     departReprise = defilement.scrollTop;
     const revenir = el("button", { class: "btn", type: "button" }, "Revenir au début");
     revenir.addEventListener("click", () => {
-      defilement.scrollTop = 0;
+      suivi.geste();                 // le clic est un vrai geste (il est hors de la zone) ; le défilement qui suit, non
+      suivi.defilementAutomatique(() => { defilement.scrollTop = 0; });
       retirerBandeau();
     });
     bandeau = el("div", { class: "cours-reprise", role: "status" },

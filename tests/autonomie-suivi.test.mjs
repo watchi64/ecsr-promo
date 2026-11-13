@@ -232,3 +232,64 @@ test("arreter() pendant une écriture lente : le dernier temps part quand même,
   assert.deepEqual(secondes(b), [30, 15]);
   assert.equal(b.maxEnVol, 1);
 });
+
+const somme = (b) => b.appels.reduce((t, a) => t + a.secondes, 0);
+
+test("arreter() clôt la fenêtre d'activité : le temps écoulé pendant une écriture lente n'est jamais envoyé", async () => {
+  let liberer;
+  const b = banc({ ecrire: (a, rang) => (rang === 1 ? new Promise((r) => { liberer = r; }) : undefined) });
+  const s = suivreEcran(b.options);
+  b.avancer(30000); await attendre();           // écriture de 30 s en vol
+  b.avancer(15000);                             // gestes jusqu'à 45 s
+  s.arreter();
+  b.avancer(20000, false);                      // l'horloge continue pendant l'attente de l'écriture
+  liberer(); await attendre(); await attendre();
+  assert.deepEqual(secondes(b), [30, 15]);
+});
+
+test("un défilement automatique n'est pas un geste", async () => {
+  const b = banc();
+  b.zone.scrollTop = 0;
+  const s = suivreEcran(b.options);
+  b.avancer(50000, false);
+  s.defilementAutomatique(() => { b.zone.scrollTop = 500; });
+  b.zone.emettre("scroll");                     // l'événement du défilement automatique
+  b.avancer(70000, false);
+  s.arreter(); await attendre();
+  assert.equal(somme(b), 60);                   // 60 s après l'ouverture, pas 110
+});
+
+test("un défilement automatique sans déplacement n'avale pas un vrai défilement", async () => {
+  const b = banc();
+  b.zone.scrollTop = 0;
+  const s = suivreEcran(b.options);
+  b.avancer(50000, false);
+  s.defilementAutomatique(() => { b.zone.scrollTop = 0; });
+  b.zone.emettre("scroll");                     // un vrai geste de l'élève
+  b.avancer(70000, false);
+  s.arreter(); await attendre();
+  assert.equal(somme(b), 110);
+});
+
+test("seul le premier défilement suivant un défilement automatique est ignoré", async () => {
+  const b = banc();
+  b.zone.scrollTop = 0;
+  const s = suivreEcran(b.options);
+  b.avancer(50000, false);
+  s.defilementAutomatique(() => { b.zone.scrollTop = 500; });
+  b.zone.emettre("scroll");
+  b.zone.emettre("scroll");                     // le second est un vrai geste
+  b.avancer(70000, false);
+  s.arreter(); await attendre();
+  assert.equal(somme(b), 110);
+});
+
+test("geste() compte comme une action, une fois", async () => {
+  const b = banc();
+  const s = suivreEcran(b.options);
+  b.avancer(50000, false);
+  s.geste();
+  b.avancer(70000, false);
+  s.arreter(); await attendre();
+  assert.equal(somme(b), 110);
+});

@@ -35,6 +35,7 @@ export function suivreEcran({
   let enCours = false;
   let redemande = false;         // un envoi urgent (arrière-plan, fermeture) est arrivé pendant une écriture
   let arrete = false;
+  let ignorerDefilement = false; // le prochain événement de défilement vient d'un défilement automatique
 
   const estVisible = () => doc.visibilityState !== "hidden";
 
@@ -85,7 +86,12 @@ export function suivreEcran({
     vider(true);
   };
 
-  const gestes = ["scroll", "click", "touchstart", "keydown"];
+  const defile = () => {
+    if (ignorerDefilement) { ignorerDefilement = false; return; }
+    action();
+  };
+  const gestes = ["click", "touchstart", "keydown"];
+  zone.addEventListener("scroll", defile, { passive: true });
   for (const type of gestes) zone.addEventListener(type, action, { passive: true });
   doc.addEventListener("keydown", action, { passive: true });
   doc.addEventListener("visibilitychange", visibilite);
@@ -96,10 +102,21 @@ export function suivreEcran({
   const minuterie = setIntervalFn(() => { vider(); }, PERIODE_ECRITURE_MS);
 
   return {
+    /** Un geste réel de l'utilisateur hors de la zone (un bouton du bandeau, par exemple). */
+    geste() { if (!arrete) action(); },
+    /** Exécute `appliquer` (qui déplace le défilement par code) : l'événement de défilement qui en résulte, s'il y a eu
+     *  déplacement, n'est pas un geste de l'utilisateur et ne prolonge pas le temps actif. */
+    defilementAutomatique(appliquer) {
+      const avant = zone.scrollTop;
+      appliquer();
+      if (!arrete && zone.scrollTop !== avant) ignorerDefilement = true;
+    },
     finAtteinte() { if (!arrete) fin = true; },
     section(id) { if (!arrete && id != null) section = String(id); },
     arreter() {
       if (arrete) return;
+      compteur.visible(horloge(), false);   // clôt la fenêtre d'activité : rien ne compte après la fermeture
+      zone.removeEventListener("scroll", defile, { passive: true });
       for (const type of gestes) zone.removeEventListener(type, action, { passive: true });
       doc.removeEventListener("keydown", action, { passive: true });
       doc.removeEventListener("visibilitychange", visibilite);
