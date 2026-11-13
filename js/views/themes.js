@@ -1480,6 +1480,20 @@ function chargerAutonomie() {
   }, () => { /* silencieux : la liste reste comme interrupteur éteint */ });
 }
 
+// Un cours vient d'être marqué lu par la base pendant que le lecteur est ouvert (js/cours-suivi-ui.js) : la ligne le montre
+// sans attendre un nouvel affichage. Un seul écouteur pour toute la vie de la page : aucun cumul d'un affichage à l'autre.
+document.addEventListener("autonomie-cours-lu", (ev) => {
+  if (!lecturesMoi || !autonomieActive() || !peutTracer()) return;
+  const id = ev.detail?.coursId;
+  if (id == null) return;
+  lecturesMoi.add(String(id));
+  if (!themesActif()) return;
+  lastContainer?.querySelectorAll(".theme-row[data-id]").forEach((row) => {
+    const theme = themes.find((t) => String(t.id) === row.dataset.id);
+    if (theme && String(coursDuTheme(theme)?.id) === String(id)) marquerLigneAutonomie(row, theme);
+  });
+});
+
 // Pose (ou remet à jour) ce que l'autonomie ajoute à une ligne : la marque « Lu » du stagiaire, la phrase des lecteurs de l'équipe.
 function marquerLigneAutonomie(row, theme) {
   const cours = (lecturesMoi || lecteursPromo) ? coursDuTheme(theme) : null;
@@ -1496,7 +1510,7 @@ function marquerLigneAutonomie(row, theme) {
   if (lecteursPromo) {
     row.querySelector(".theme-lecteurs")?.remove();
     const phrase = phraseLecteurs({
-      lus: lecteursPromo.parCours.get(cours.id), total: lecteursPromo.total, publie: !!cours.published,
+      parCours: lecteursPromo.parCours, coursId: cours.id, total: lecteursPromo.total, publie: !!cours.published,
     });
     if (phrase) {
       let meta = row.querySelector(".theme-meta");

@@ -148,15 +148,32 @@ test("coursLus : les cours dont la lecture est terminée, par identifiant", asyn
   assert.equal(coursLus(undefined).size, 0);
 });
 
-test("phraseLecteurs : N sur T selon le nombre, rien si T = 0 ou cours non publié", async () => {
+test("phraseLecteurs : Map vide = rien nulle part ; Map non vide = phrase, bornée à T", async () => {
   const { phraseLecteurs } = await import("../js/autonomie-rules.js");
-  assert.equal(phraseLecteurs({ lus: 5, total: 12, publie: true }), "5 sur 12 l'ont lu");
-  assert.equal(phraseLecteurs({ lus: 2, total: 2, publie: true }), "2 sur 2 l'ont lu");
-  assert.equal(phraseLecteurs({ lus: 1, total: 12, publie: true }), "1 sur 12 l'a lu");
-  assert.equal(phraseLecteurs({ lus: 0, total: 12, publie: true }), "Personne ne l'a encore lu");
-  assert.equal(phraseLecteurs({ lus: undefined, total: 12, publie: true }), "Personne ne l'a encore lu");
-  assert.equal(phraseLecteurs({ lus: 3, total: 0, publie: true }), null);
-  assert.equal(phraseLecteurs({ lus: 3, total: 12, publie: false }), null);
-  assert.equal(phraseLecteurs({ lus: 3, total: null, publie: true }), null);
-  assert.equal(phraseLecteurs({ lus: 3, total: NaN, publie: true }), null);
+  const m = new Map([["a", 5], ["b", 1]]);
+  const base = { parCours: m, total: 12, publie: true };
+  assert.equal(phraseLecteurs({ ...base, coursId: "a" }), "5 sur 12 l'ont lu");
+  assert.equal(phraseLecteurs({ ...base, coursId: "b" }), "1 sur 12 l'a lu");
+  assert.equal(phraseLecteurs({ ...base, coursId: "c" }), "Personne ne l'a encore lu");
+  assert.equal(phraseLecteurs({ parCours: new Map(), coursId: "c", total: 12, publie: true }), null);
+  assert.equal(phraseLecteurs({ parCours: null, coursId: "c", total: 12, publie: true }), null);
+  assert.equal(phraseLecteurs({ ...base, coursId: "a", total: 4 }), "4 sur 4 l'ont lu");
+  assert.equal(phraseLecteurs({ parCours: new Map([["a", 3]]), coursId: "a", total: 1, publie: true }), "1 sur 1 l'a lu");
+  assert.equal(phraseLecteurs({ ...base, coursId: "a", total: 0 }), null);
+  assert.equal(phraseLecteurs({ ...base, coursId: "a", total: NaN }), null);
+  assert.equal(phraseLecteurs({ ...base, coursId: "a", publie: false }), null);
+});
+
+test("creerSignalLu : une seule notification par cours, seulement quand l'écriture rend vrai", async () => {
+  const { creerSignalLu } = await import("../js/autonomie-rules.js");
+  const vus = [];
+  const signal = creerSignalLu((id) => vus.push(id));
+  signal("a", false);
+  signal("a", undefined);
+  assert.deepEqual(vus, []);
+  signal("a", true);
+  signal("a", true);
+  signal("b", true);
+  signal(null, true);
+  assert.deepEqual(vus, ["a", "b"]);
 });

@@ -157,13 +157,29 @@ export function coursLus(lectures) {
 }
 
 /** La ligne de l'équipe sous le titre d'un thème : combien de stagiaires de la promo ont lu le cours.
- *  `lus` : N (absent = 0) ; `total` : T, les stagiaires en formation de la promo ; `publie` : le cours est publié.
- *  Rien (null) quand T est nul ou inconnu, ou que le cours n'est pas publié. */
-export function phraseLecteurs({ lus, total, publie } = {}) {
-  if (!publie) return null;
+ *  `parCours` : Map(cours_id -> lus) rendue par la base ; `coursId` : le cours du thème ; `total` : T, les stagiaires en
+ *  formation de la promo ; `publie` : le cours est publié.
+ *  Une Map vide ne dit rien (le compte n'a pas le droit, ou personne n'a encore rien lu) : aucune phrase nulle part. Dès qu'elle
+ *  porte un cours, le compte a le droit, et « Personne ne l'a encore lu » est vrai des autres cours publiés. N est borné à T.
+ *  Rien (null) aussi quand T est nul ou inconnu, ou que le cours n'est pas publié. */
+export function phraseLecteurs({ parCours, coursId, total, publie } = {}) {
+  if (!publie || !(parCours instanceof Map) || parCours.size === 0) return null;
   const t = Number(total);
   if (!Number.isFinite(t) || t <= 0) return null;
-  const n = Number(lus);
-  if (!Number.isFinite(n) || n <= 0) return "Personne ne l'a encore lu";
+  const brut = Number(parCours.get(coursId));
+  const n = Number.isFinite(brut) && brut > 0 ? Math.min(brut, t) : 0;
+  if (n === 0) return "Personne ne l'a encore lu";
   return n === 1 ? `1 sur ${t} l'a lu` : `${n} sur ${t} l'ont lu`;
+}
+
+/** Signale « cours lu » une seule fois par cours : `notifier(coursId)` n'est appelé qu'à la première écriture qui rend vrai. */
+export function creerSignalLu(notifier) {
+  const dits = new Set();
+  return (coursId, lu) => {
+    if (lu !== true || coursId == null) return;
+    const cle = String(coursId);
+    if (dits.has(cle)) return;
+    dits.add(cle);
+    notifier(coursId);
+  };
 }

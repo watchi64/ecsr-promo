@@ -5,7 +5,10 @@
 import { el } from "./utils.js?v=20261113a";
 import { tracerCours, tracerQcm, listerMesLectures } from "./db.js?v=20261113a";
 import { suivreEcran } from "./autonomie-suivi.js?v=20261113a";
-import { sectionDeReprise, sectionEnHaut, repriseDepassee } from "./autonomie-rules.js?v=20261113a";
+import { sectionDeReprise, sectionEnHaut, repriseDepassee, creerSignalLu } from "./autonomie-rules.js?v=20261113a";
+
+// « Cours lu » : annoncé une fois par cours à la liste des thèmes, dès que la base rend vrai (aucun envoi hors compte stagiaire).
+const signalerLu = creerSignalLu((coursId) => document.dispatchEvent(new CustomEvent("autonomie-cours-lu", { detail: { coursId } })));
 
 /** Repère invisible, à poser après le dernier bloc du cours (avant les boutons de fin) : quand il entre dans la zone de
  *  lecture, la fin du cours est atteinte. */
@@ -37,7 +40,9 @@ export function brancherSuiviCours({ cours, defilement, overlay, sections, reper
   if (!cours || cours.id == null) return null;
   const suivi = suivreEcran({
     zone: defilement,
-    ecrire: ({ secondes, fin, section }) => tracerCours(cours.id, { secondes, fin, section }),
+    ecrire: async ({ secondes, fin, section }) => {
+      signalerLu(cours.id, await tracerCours(cours.id, { secondes, fin, section }));
+    },
   });
   let bandeau = null;
   let departReprise = 0;
