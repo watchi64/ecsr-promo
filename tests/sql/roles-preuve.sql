@@ -438,6 +438,18 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
   select 'public.titres', 'false', 'false', 'false', 'false', $mx$nom = 'PreuveMaj'$mx$, null
    where to_regclass('public.titres') is not null;
+-- Travail en autonomie (e-learning, lot 1, migration 20261114_autonomie_1_traces) : lectures de cours et temps actif, P et
+-- (E ou M tant que l'interrupteur autonomie_active de P vaut 'true') ; écriture par fonctions serveur seulement. Oppositions :
+-- aucune règle ni aucun droit. Les lignes n'entrent que si la table existe : la preuve reste verte avant et après la migration.
+-- Leur preuve propre : tests/sql/autonomie-preuve.sql.
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select v.tbl, $mx$r.promo_id = {P} and ({E} or (r.stagiaire_id = {fiche_p} and exists (select 1 from public.settings st
+     where st.promo_id = {P} and st.key = 'autonomie_active' and st.value = 'true')))$mx$, 'false', 'false', 'false', v.maj, null
+    from (values ('public.cours_lectures', $mx$section = 'PreuveMaj'$mx$), ('public.autonomie_temps', $mx$secondes = 4242$mx$)) v(tbl, maj)
+   where to_regclass(v.tbl) is not null;
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select 'public.autonomie_oppositions', 'false', 'false', 'false', 'false', $mx$depuis = '2031-01-06 00:00:00+00'$mx$, null
+   where to_regclass('public.autonomie_oppositions') is not null;
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
   select 'public.journal_droits', 'false', 'false', 'false', 'false', $mx$action = 'PreuveMaj'$mx$, null
    where to_regclass('public.journal_droits') is not null;
@@ -1366,8 +1378,22 @@ begin
       insert into public.passages (date, stagiaire_id, type, resultat, commentaire) values ('2030-01-07', v_r.id, 'Salle', 'Effectué', 'Preuve');
       insert into public.qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20) values (v_qcm_a, v_r.id, 'entrainement', 1, 2, 10);
       insert into public.emargement_lignes (seance_id, promo_id, stagiaire_id) values (v_seance, v_pr, v_r.id);
+      -- Travail en autonomie (si la migration est appliquée) : une lecture et une ligne de temps par fiche.
+      if to_regclass('public.cours_lectures') is not null then
+        execute format($aj$insert into public.cours_lectures (stagiaire_id, promo_id, cours_id, ouvert_le, vu_le)
+                           select %s, %s, c.id, now(), now() from public.cours c order by c.id limit 1$aj$, v_r.id, v_pr);
+        execute format($aj$insert into public.autonomie_temps (stagiaire_id, promo_id, jour, genre, ressource, secondes)
+                           values (%s, %s, '2030-01-07', 'qcm', 'preuve', 60)$aj$, v_r.id, v_pr);
+      end if;
     end loop;
   end loop;
+  -- Travail en autonomie : interrupteur allumé dans la promo 1 seulement (le stagiaire de la promo 2 ne lit pas ses lignes),
+  -- une opposition (fiche de stag_m).
+  if to_regclass('public.cours_lectures') is not null then
+    insert into public.settings (key, value, promo_id) values ('autonomie_active', 'true', 1)
+      on conflict (promo_id, key) do update set value = 'true';
+    execute $aj$insert into public.autonomie_oppositions (stagiaire_id) select p.fiche from personnages p where p.nom = 'stag_m'$aj$;
+  end if;
   foreach v_lieu in array v_lieux loop
     insert into public.auto_ecoles (nom, lieu_id) values ('Preuve auto-école', v_lieu);
     insert into public.benevoles (prenom, lieu_id) values ('Preuve bénévole', v_lieu) returning id into n;
