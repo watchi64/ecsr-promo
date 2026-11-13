@@ -4,31 +4,32 @@ import {
   saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements,
   setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa,
   accepterBrouillonIa, rejeterBrouillonIa,
-} from "../db.js?v=20261112e";
-import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261112e";
-import { confirmer } from "../confirmer.js?v=20261112e";
-import { icon, deco } from "../icons.js?v=20261112e";
-import { dixieme } from "../nombres.js?v=20261112e";
+} from "../db.js?v=20261113a";
+import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261113a";
+import { confirmer } from "../confirmer.js?v=20261113a";
+import { icon, deco } from "../icons.js?v=20261113a";
+import { dixieme } from "../nombres.js?v=20261113a";
 import {
   examenDemarrable, tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture,
   resumeExamen, examenCoteStagiaire, etatExamenFormateur,
-} from "../qcm-exam-rules.js?v=20261112e";
-import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261112e";
-import { recordUndo } from "../undo.js?v=20261112e";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261112e";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261112e";
-import { renderSubTabs } from "../subtabs.js?v=20261112e";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261112e";
-import { cleCours } from "../cours-rules.js?v=20261112e";
-import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261112e";
-import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261112e";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261112e";
-import { renderRessources } from "./ressources.js?v=20261112e";
-import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261112e";
-import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261112e";
-import { renderPropositionsIa } from "./propositions-ia.js?v=20261112e";
-import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261112e";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261112e";
+} from "../qcm-exam-rules.js?v=20261113a";
+import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261113a";
+import { recordUndo } from "../undo.js?v=20261113a";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261113a";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261113a";
+import { renderSubTabs } from "../subtabs.js?v=20261113a";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261113a";
+import { cleCours } from "../cours-rules.js?v=20261113a";
+import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261113a";
+import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261113a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261113a";
+import { renderRessources } from "./ressources.js?v=20261113a";
+import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261113a";
+import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261113a";
+import { renderPropositionsIa } from "./propositions-ia.js?v=20261113a";
+import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261113a";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261113a";
+import { ETATS_PROGRESSION, dateExamen, etatProgression, bilanProgression, phraseBilan } from "../progression-rules.js?v=20261113a";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -169,6 +170,33 @@ function myTrainNote(qcm) {
   const t = myTrainByQcm.get(qcm.id);
   return t ? Number(t.note_20) : null;
 }
+// Progression du stagiaire (spec du 12/11/2026) : ses notes de QCM colorent la ligne de chaque thème, le résultat le plus
+// récent décide (js/progression-rules.js). L'équipe garde le statut de la promo (« Fait / À faire »).
+// Lecture des QCM en échec : pas de progression à montrer (le bandeau « non chargés » le dit), la liste garde son statut.
+function vueProgression() { return !formateurConnecte() && !sansPromo() && canSeeQcm() && !echecQcm; }
+// État d'un thème pour la personne connectée, ou null s'il n'a pas de QCM. La note d'examen est celle qu'affiche la ligne
+// (myThemeNote) : module Notes masqué, elle n'est pas connue et seul l'entraînement compte.
+function etatTheme(theme) {
+  const qcm = qcmByTheme.get(theme.id);
+  if (!qcm) return null;
+  // Module Notes masqué et examen déjà passé sur un thème numéroté : le résultat le plus récent n'est peut-être pas
+  // montrable. Plutôt aucun état qu'un état faux (« À commencer » après un examen réussi) : relecture du 12/11.
+  if (theme.numero != null && !moduleVisible("notes") && myExamByQcm.has(qcm.id)) return null;
+  const note = myThemeNote(theme, qcm);
+  const evaluation = theme.numero != null && moduleVisible("notes") ? myNoteByThemeNum.get(theme.numero) : null;
+  const train = myTrainByQcm.get(qcm.id);
+  return etatProgression({
+    seuil: qcm.exam_pass_20 ?? null,
+    examen: note == null ? null : { note, date: dateExamen(myExamByQcm.get(qcm.id), evaluation) },
+    entrainement: train ? { note: Number(train.note_20), date: Date.parse(train.finished_at) } : null,
+  });
+}
+// Le filtre de la barre : l'état du stagiaire, ou le statut de la promo pour l'équipe.
+function passeFiltre(t) {
+  if (!filterStatut) return true;
+  return vueProgression() ? etatTheme(t) === filterStatut : normalizeStatut(t.statut) === filterStatut;
+}
+
 // Palier de couleur d'une note /20 (pêche -> vert).
 function noteClass(n) {
   if (n == null) return "none";
@@ -1431,6 +1459,8 @@ function renderThemeRow(theme, container, coursOn = false) {
   const statutNorm = normalizeStatut(theme.statut);
   const color = statutNorm === "Fait" ? "done" : "todo";
   const qcm = qcmByTheme.get(theme.id);
+  const prog = vueProgression();
+  const etat = prog ? etatTheme(theme) : null;
 
   // Cours : vif tant que le cours n'a pas été ouvert sur cet appareil, atténué ensuite. Le titre suit le même chemin.
   const coursBtn = coursVisible(theme)
@@ -1470,8 +1500,9 @@ function renderThemeRow(theme, container, coursOn = false) {
     : null;
 
   const meta = el("div", { class: "theme-meta" },
-    sans ? null : el("span", { class: "theme-statut " + color }, el("span", { class: "theme-statut-dot" }), statutNorm),
-    !sans && theme.date_fait ? el("span", { class: "theme-date", title: "Fait le" }, formatDate(theme.date_fait)) : null,
+    etat ? el("span", { class: "theme-prog" }, ETATS_PROGRESSION.find((e) => e.cle === etat).libelle) : null,
+    sans || prog ? null : el("span", { class: "theme-statut " + color }, el("span", { class: "theme-statut-dot" }), statutNorm),
+    !sans && !prog && theme.date_fait ? el("span", { class: "theme-date", title: "Fait le" }, formatDate(theme.date_fait)) : null,
     qcm && canSeeQcm() ? reperesQcm(qcm) : null,
     qcm && canSeeQcm() ? notesQcm(theme, qcm) : null,
   );
@@ -1479,7 +1510,7 @@ function renderThemeRow(theme, container, coursOn = false) {
   // « … » : les gestes du formateur (examen, statut, date ; supprimer une notion). Le siège n'a que la suppression d'une notion.
   const avecMenu = admin && (!sans || theme.type === "notion");
   const row = el("div", {
-    class: "theme-row " + color + (groupe ? " theme-row-groupe" : "") + (avecMenu ? " avec-menu" : ""),
+    class: "theme-row " + color + (etat ? " prog-" + etat : "") + (groupe ? " theme-row-groupe" : "") + (avecMenu ? " avec-menu" : ""),
     dataset: { id: theme.id },
   },
     el("span", { class: "theme-num" + (theme.code ? " code" : "") }, num),
@@ -1607,14 +1638,21 @@ let ligneProgression = null;
 
 function texteProgression() {
   if (sansPromo()) return "";
-  const tp = familleStats(themes.filter((t) => t.type === "theme"));
+  const officiels = themes.filter((t) => t.type === "theme");
+  if (vueProgression()) return phraseBilan(familleStats(officiels).fait, officiels.length);
+  const tp = familleStats(officiels);
   return tp.fait + " / " + tp.total + " thèmes officiels terminés";
 }
 function majProgression() {
   if (ligneProgression) ligneProgression.textContent = texteProgression();
 }
 
+// Vue stagiaire : « fait » compte ses thèmes acquis, « aFaire » ceux à revoir, sur les thèmes qui ont un QCM.
 function familleStats(items) {
+  if (vueProgression()) {
+    const b = bilanProgression(items.map(etatTheme));
+    return { total: b.total, fait: b.acquis, aFaire: b.revoir, pct: b.total ? Math.round(b.acquis / b.total * 100) : 0 };
+  }
   const total = items.length;
   const fait = items.filter((t) => normalizeStatut(t.statut) === "Fait").length;
   return { total, fait, aFaire: total - fait, pct: total ? Math.round(fait / total * 100) : 0 };
@@ -1623,7 +1661,7 @@ function familleStats(items) {
 // Items visibles d'une famille selon les filtres courants (même logique que rerender).
 function visibleFamilleItems(f) {
   return themes.filter(f.match).filter((t) => {
-    if (filterStatut && normalizeStatut(t.statut) !== filterStatut) return false;
+    if (!passeFiltre(t)) return false;
     if (search) {
       const q = search.toLowerCase();
       const inTitle = t.titre.toLowerCase().includes(q);
@@ -1716,11 +1754,16 @@ function rerender(container) {
   const searchInput = el("input", { type: "search", placeholder: "Rechercher…", value: search, "aria-label": "Rechercher un thème" });
   searchInput.addEventListener("input", debounce(() => { search = searchInput.value; renderResults(); }, 150));
 
-  const statutSel = el("select", { "aria-label": "Filtrer par statut" });
-  statutSel.appendChild(el("option", { value: "" }, "Tous les statuts"));
-  STATUTS.forEach((s) => {
-    const opt = el("option", { value: s.value }, s.value);
-    if (filterStatut === s.value) opt.selected = true;
+  // Stagiaire : ses états ; équipe : le statut de la promo. Un choix mémorisé de l'autre liste est oublié.
+  const prog = vueProgression();
+  const choix = prog ? ETATS_PROGRESSION.map((e) => ({ value: e.cle, label: e.libelle }))
+    : STATUTS.map((s) => ({ value: s.value, label: s.value }));
+  if (!choix.some((c) => c.value === filterStatut)) filterStatut = "";
+  const statutSel = el("select", { "aria-label": prog ? "Filtrer par état" : "Filtrer par statut" });
+  statutSel.appendChild(el("option", { value: "" }, prog ? "Tous les états" : "Tous les statuts"));
+  choix.forEach((c) => {
+    const opt = el("option", { value: c.value }, c.label);
+    if (filterStatut === c.value) opt.selected = true;
     statutSel.appendChild(opt);
   });
   statutSel.addEventListener("change", () => { filterStatut = statutSel.value; renderResults(); });
@@ -1749,7 +1792,7 @@ function rerender(container) {
     famillesToShow.forEach((f) => {
       // Filtre interne par search + statut
       const items = f.items.filter((t) => {
-        if (filterStatut && normalizeStatut(t.statut) !== filterStatut) return false;
+        if (!passeFiltre(t)) return false;
         if (search) {
           const q = search.toLowerCase();
           const inTitle = t.titre.toLowerCase().includes(q);
@@ -1773,14 +1816,15 @@ function rerender(container) {
           el("h3", { class: "theme-section-title" }, f.label),
           el("p", { class: "muted theme-section-subtitle" }, items.length + " entrée" + (items.length > 1 ? "s" : "")),
         ),
-        sans ? null : el("div", { class: "theme-section-stats" },
+        // Stagiaire : rien à compter dans une section sans QCM (Compétences, le plus souvent).
+        sans || (vueProgression() && stats.total === 0) ? null : el("div", { class: "theme-section-stats" },
           el("div", { class: "theme-section-stat" },
             el("span", { class: "theme-section-stat-value" }, String(stats.fait)),
-            el("span", { class: "theme-section-stat-label" }, "Faits"),
+            el("span", { class: "theme-section-stat-label" }, vueProgression() ? "Acquis" : "Faits"),
           ),
           el("div", { class: "theme-section-stat" },
             el("span", { class: "theme-section-stat-value" }, String(stats.aFaire)),
-            el("span", { class: "theme-section-stat-label" }, "À faire"),
+            el("span", { class: "theme-section-stat-label" }, vueProgression() ? "À revoir" : "À faire"),
           ),
         ),
       ));

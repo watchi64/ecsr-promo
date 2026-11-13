@@ -989,10 +989,10 @@ test("gestion --etapes 5, 5,6 ou 4,5,6 : les étapes demandées injectées dans 
 
 test("gestion : étapes refusées (la 6 demande la 5, la 4 demande les deux), un fichier manquant d'une étape demandée arrête l'assemblage", () => {
   assert.deepEqual(decrireMode("gestion").etapesGestion, [5, 6]);
-  for (const mauvaise of [[], [6], [4], [4, 5], [5, 4], [6, 5], [4, 6], [5, 6, 4], [7], [5, 5]]) {
+  for (const mauvaise of [[], [4], [4, 5], [5, 4], [6, 5], [4, 6], [5, 6, 4], [7], [5, 5]]) {
     assert.throws(() => decrireMode("gestion", { etapes: mauvaise }), /étapes refusées/, JSON.stringify(mauvaise));
   }
-  assert.throws(() => assemblerMode("gestion", RACINE, { etapes: [6], lire: depotGestion }), /étapes refusées/);
+  assert.throws(() => assemblerMode("gestion", RACINE, { etapes: [6, 6], lire: depotGestion }), /étapes refusées/);
   assert.throws(() => assemblerMode("gestion", RACINE, { lire: sansGestion([]) }),
     /Étape 5 demandée \(gestion\) : supabase\/migrations\/20261112_titres_5_fermetures\.sql n'existe pas encore.*gestion-contre-epreuve/s);
   assert.throws(() => assemblerMode("gestion", RACINE, { etapes: [5], lire: sansGestion([]) }), /Étape 5 demandée \(gestion\)/);
@@ -1007,6 +1007,20 @@ test("gestion : étapes refusées (la 6 demande la 5, la 4 demande les deux), un
   for (const mode of ["gestion-contre-epreuve", "gestion-en-ligne"]) {
     assert.throws(() => decrireMode(mode, { etapes: [5] }), /--etapes ne vaut que pour le mode repetition, titres ou gestion/, mode);
   }
+});
+
+test("gestion --etapes 6 : la 6 seule (essai à blanc, la 5 déjà appliquée), la 5 et la 4 neutralisées et non lues, libellé reconnu par la preuve", () => {
+  const lus = [];
+  const r = assemblerMode("gestion", RACINE, { etapes: [6], lire: (c) => { lus.push(c); return depotGestion(c); } });
+  assert.equal(r.mode, "gestion (etape 6 seule, la 5 en place)");
+  assert.ok(r.texte.includes("\n'gestion (etape 6 seule, la 5 en place)'\n"));
+  assert.ok(lus.includes(ETAPES_GESTION[6].migration) && lus.includes(ETAPES_GESTION[6].retour));
+  for (const n of [4, 5]) for (const c of [ETAPES_GESTION[n].migration, ETAPES_GESTION[n].retour]) assert.ok(!lus.includes(c), `${c} non lu`);
+  assert.deepEqual(decrireMode("gestion", { etapes: [6] }).etapesGestion, [6]);
+  assert.match(texteDuDepot(GABARIT_GESTION), /v_mode like 'gestion \(etape 6 seule%'/, "la preuve reconnaît le libellé et refuse une base sans la 5");
+  // Un fichier de la 6 manquant arrête l'assemblage, comme pour les autres suites.
+  assert.throws(() => assemblerMode("gestion", RACINE, { etapes: [6], lire: sansGestion([GESTION_6.migration]) }),
+    /Étape 6 demandée \(gestion\)/);
 });
 
 test("gestion-contre-epreuve et gestion-en-ligne : les six fichiers neutralisés et non lus, l'empreinte toujours là, libellés distincts", () => {
@@ -1045,7 +1059,7 @@ test("gestion : la ligne de commande écrit hors du dépôt et refuse une suite 
     assert.equal(code, 0, erreurs.join("\n"));
     assert.ok(readFileSync(sortie, "utf8").includes("-- mode : gestion-contre-epreuve (aucune migration injectee)"));
     const refus = [];
-    assert.equal(principal(["gestion", "--etapes", "6", join(dossier, "refus.sql")], { racine: RACINE, journal: () => {}, erreur: (m) => refus.push(m) }), 1);
+    assert.equal(principal(["gestion", "--etapes", "4", join(dossier, "refus.sql")], { racine: RACINE, journal: () => {}, erreur: (m) => refus.push(m) }), 1);
     assert.match(refus.join("\n"), /étapes refusées/);
   } finally {
     rmSync(dossier, { recursive: true, force: true });
