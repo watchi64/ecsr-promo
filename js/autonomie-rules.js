@@ -145,3 +145,25 @@ export function sectionEnHaut(positions, defilement, marge = 0) {
 export function repriseDepassee(depart, actuel, hauteurEcran) {
   return Math.abs(actuel - depart) > hauteurEcran;
 }
+
+/** Les cours que le stagiaire a lus jusqu'au bout : l'ensemble de leurs identifiants (en texte). `lectures` : lignes de
+ *  cours_lectures ({ cours_id, lu_le, ... }) ; une lecture ouverte sans être terminée (`lu_le` vide) n'y est pas. */
+export function coursLus(lectures) {
+  const lus = new Set();
+  for (const l of Array.isArray(lectures) ? lectures : []) {
+    if (l && l.lu_le && l.cours_id != null) lus.add(String(l.cours_id));
+  }
+  return lus;
+}
+
+/** La ligne de l'équipe sous le titre d'un thème : combien de stagiaires de la promo ont lu le cours.
+ *  `lus` : N (absent = 0) ; `total` : T, les stagiaires en formation de la promo ; `publie` : le cours est publié.
+ *  Rien (null) quand T est nul ou inconnu, ou que le cours n'est pas publié. */
+export function phraseLecteurs({ lus, total, publie } = {}) {
+  if (!publie) return null;
+  const t = Number(total);
+  if (!Number.isFinite(t) || t <= 0) return null;
+  const n = Number(lus);
+  if (!Number.isFinite(n) || n <= 0) return "Personne ne l'a encore lu";
+  return n === 1 ? `1 sur ${t} l'a lu` : `${n} sur ${t} l'ont lu`;
+}

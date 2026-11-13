@@ -48,6 +48,12 @@ export function hasCours(theme) {
   return !!theme && hasCoursCle(cleCours(theme));
 }
 
+/** L'entrée d'index du cours du thème ({ id, published, ... }), ou null : sert à rapprocher le thème de ses lectures. */
+export function coursDuTheme(theme) {
+  const cle = theme ? cleCours(theme) : null;
+  return cle !== null && coursIndex ? (coursIndex.get(cle) || null) : null;
+}
+
 // Mémoire locale des cours déjà ouverts (par navigateur, comme les nouveautés
 // vues) : la page Cours colore en vif les cours pas encore lus. Les clés sont
 // des numéros (thèmes) ou des codes (compétences), jamais confondus par JSON.

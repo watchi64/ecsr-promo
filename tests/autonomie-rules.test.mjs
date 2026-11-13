@@ -133,3 +133,30 @@ test("le bandeau de reprise disparait au-dela d'un ecran de defilement", () => {
   assert.equal(repriseDepassee(1000, 1801, 800), true);
   assert.equal(repriseDepassee(1000, 100, 800), true);
 });
+
+test("coursLus : les cours dont la lecture est terminée, par identifiant", async () => {
+  const { coursLus } = await import("../js/autonomie-rules.js");
+  const lus = coursLus([
+    { cours_id: "a", ouvert_le: "2026-11-13", lu_le: "2026-11-13T10:00:00Z" },
+    { cours_id: "b", ouvert_le: "2026-11-13", lu_le: null },
+    { cours_id: 7, lu_le: "2026-11-12T09:00:00Z" },
+  ]);
+  assert.equal(lus.has("a"), true);
+  assert.equal(lus.has("b"), false);
+  assert.equal(lus.has("7"), true);
+  assert.equal(coursLus(null).size, 0);
+  assert.equal(coursLus(undefined).size, 0);
+});
+
+test("phraseLecteurs : N sur T selon le nombre, rien si T = 0 ou cours non publié", async () => {
+  const { phraseLecteurs } = await import("../js/autonomie-rules.js");
+  assert.equal(phraseLecteurs({ lus: 5, total: 12, publie: true }), "5 sur 12 l'ont lu");
+  assert.equal(phraseLecteurs({ lus: 2, total: 2, publie: true }), "2 sur 2 l'ont lu");
+  assert.equal(phraseLecteurs({ lus: 1, total: 12, publie: true }), "1 sur 12 l'a lu");
+  assert.equal(phraseLecteurs({ lus: 0, total: 12, publie: true }), "Personne ne l'a encore lu");
+  assert.equal(phraseLecteurs({ lus: undefined, total: 12, publie: true }), "Personne ne l'a encore lu");
+  assert.equal(phraseLecteurs({ lus: 3, total: 0, publie: true }), null);
+  assert.equal(phraseLecteurs({ lus: 3, total: 12, publie: false }), null);
+  assert.equal(phraseLecteurs({ lus: 3, total: null, publie: true }), null);
+  assert.equal(phraseLecteurs({ lus: 3, total: NaN, publie: true }), null);
+});

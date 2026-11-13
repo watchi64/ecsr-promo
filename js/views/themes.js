@@ -3,7 +3,7 @@ import {
   updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, listEvaluations, getOrCreateQcm,
   saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements,
   setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa,
-  accepterBrouillonIa, rejeterBrouillonIa,
+  accepterBrouillonIa, rejeterBrouillonIa, listStagiaires, listerMesLectures, lecturesDeLaPromo,
 } from "../db.js?v=20261113a";
 import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261113a";
 import { confirmer } from "../confirmer.js?v=20261113a";
@@ -18,9 +18,11 @@ import { recordUndo } from "../undo.js?v=20261113a";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261113a";
 import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261113a";
 import { renderSubTabs } from "../subtabs.js?v=20261113a";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261113a";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert, coursDuTheme } from "./cours-reader.js?v=20261113a";
+import { autonomieActive, peutTracer } from "../autonomie-etat.js?v=20261113a";
+import { coursLus, phraseLecteurs } from "../autonomie-rules.js?v=20261113a";
 import { cleCours } from "../cours-rules.js?v=20261113a";
-import { sousOngletsCours, phraseDeRefus } from "../espaces-rules.js?v=20261113a";
+import { sousOngletsCours, phraseDeRefus, litToutesLesNotes } from "../espaces-rules.js?v=20261113a";
 import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261113a";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261113a";
 import { renderRessources } from "./ressources.js?v=20261113a";
@@ -1448,6 +1450,65 @@ function openThemeModal(theme) {
   modale = ouvrirModale(modal);
 }
 
+// Travail en autonomie (lot 1 e-learning) : interrupteur de la promo allumé seulement. Une lecture par affichage de la liste,
+// hors du premier rendu ; un échec la laisse telle qu'elle est interrupteur éteint (rien n'est posé tant que l'état est null).
+let lecturesMoi = null;      // stagiaire : Set des cours lus (identifiants en texte)
+let lecteursPromo = null;    // équipe : { parCours: Map(cours_id -> lus), total: stagiaires en formation }
+let jetonAutonomie = 0;      // un affichage plus récent rend caduque une lecture encore en vol
+
+function chargerAutonomie() {
+  const jeton = ++jetonAutonomie;
+  lecturesMoi = null;
+  lecteursPromo = null;
+  if (!autonomieActive() || sansPromo()) return;
+  let lecture = null;
+  if (peutTracer()) {
+    lecture = listerMesLectures().then((l) => { if (jeton === jetonAutonomie) lecturesMoi = coursLus(l); });
+  } else if (litToutesLesNotes({ admin: isAdmin(), espace: getEspace() })) {
+    // Le geste notes.lire est jugé par la base : sans lui, elle ne rend aucune ligne. T vient de la liste des stagiaires de la promo.
+    lecture = Promise.all([lecturesDeLaPromo(), listStagiaires()]).then(([parCours, stagiaires]) => {
+      if (jeton === jetonAutonomie) lecteursPromo = { parCours, total: stagiaires.length };
+    });
+  }
+  if (!lecture) return;
+  lecture.then(() => {
+    if (jeton !== jetonAutonomie || !themesActif()) return;
+    lastContainer?.querySelectorAll(".theme-row[data-id]").forEach((row) => {
+      const theme = themes.find((t) => String(t.id) === row.dataset.id);
+      if (theme) marquerLigneAutonomie(row, theme);
+    });
+  }, () => { /* silencieux : la liste reste comme interrupteur éteint */ });
+}
+
+// Pose (ou remet à jour) ce que l'autonomie ajoute à une ligne : la marque « Lu » du stagiaire, la phrase des lecteurs de l'équipe.
+function marquerLigneAutonomie(row, theme) {
+  const cours = (lecturesMoi || lecteursPromo) ? coursDuTheme(theme) : null;
+  if (!cours) return;
+  if (lecturesMoi && lecturesMoi.has(String(cours.id))) {
+    const bouton = row.querySelector(".theme-cours-btn");
+    if (bouton && !bouton.classList.contains("lu")) {
+      bouton.classList.add("lu");
+      bouton.setAttribute("aria-label", "Relire le cours (lu)");
+      bouton.title = "Relire le cours (lu)";
+      bouton.appendChild(el("span", { class: "theme-cours-lu" }, deco(icon.check()), "Lu"));
+    }
+  }
+  if (lecteursPromo) {
+    row.querySelector(".theme-lecteurs")?.remove();
+    const phrase = phraseLecteurs({
+      lus: lecteursPromo.parCours.get(cours.id), total: lecteursPromo.total, publie: !!cours.published,
+    });
+    if (phrase) {
+      let meta = row.querySelector(".theme-meta");
+      if (!meta) {
+        meta = el("div", { class: "theme-meta" });
+        row.querySelector(".theme-titre-link")?.after(meta);
+      }
+      meta.prepend(el("span", { class: "theme-lecteurs" }, phrase));
+    }
+  }
+}
+
 // Une ligne compacte par thème (11/11/2026, css/themes-lignes.css) : numéro, titre, ligne d'état (statut, date, repères du QCM,
 // notes), l'accès au cours et au QCM groupé dans une pastille, et « … » pour les gestes du formateur.
 function renderThemeRow(theme, container, coursOn = false) {
@@ -1535,6 +1596,7 @@ function renderThemeRow(theme, container, coursOn = false) {
     menu.addEventListener("click", () => ouvrirActionsTheme(theme, container, apres));
     row.appendChild(menu);
   }
+  marquerLigneAutonomie(row, theme);
   return row;
 }
 
@@ -1920,6 +1982,7 @@ export async function renderThemes(container) {
     await loadQcmIndex();
   }
   clear(container);
+  if (donnees) chargerAutonomie();
 
   // En-tête de Cours, au-dessus des sous-onglets. La ligne de progression est tenue à
   // jour par refreshStatsInPlace (statut basculé, date corrigée).
