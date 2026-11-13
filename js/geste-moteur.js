@@ -9,9 +9,9 @@
  * Toute image passe par imageA (js/geste-regles.js), la fonction que les contrôles emploient aussi : ce qu'ils vérifient
  * est exactement ce que le moteur montre.
  */
-import { monterLecteur } from "./lecteur-anime.js?v=20261113a";
-import { imageA } from "./geste-regles.js?v=20261113a";
-import { versDom, mettreAJour } from "./dessin-svg.js?v=20261113a";
+import { monterLecteur } from "./lecteur-anime.js?v=20261113b";
+import { imageA } from "./geste-regles.js?v=20261113b";
+import { versDom, mettreAJour } from "./dessin-svg.js?v=20261113b";
 
 export function monterGeste(def, { conteneur, etapes = [], reduit = false, onEtape = null } = {}) {
   let courant = imageA(def, 0, true);

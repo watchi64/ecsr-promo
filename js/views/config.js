@@ -14,22 +14,22 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   setMyAnonymousNotes,
-} from "../db.js?v=20261113a";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261113a";
-import { confirmer } from "../confirmer.js?v=20261113a";
-import { icon } from "../icons.js?v=20261113a";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic } from "../auth-admin.js?v=20261113a";
-import { moduleVisible } from "../modules-etat.js?v=20261113a";
-import { renderModulesSection } from "./modules-reglage.js?v=20261113a";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261113a";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261113a";
-import { renderAutonomieReglage } from "../autonomie-etat.js?v=20261113a";
-import { pointsARetenir } from "../accueil-rules.js?v=20261113a";
-import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261113a";
-import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261113a";
-import { blocHabillage } from "../habillage-choix.js?v=20261113a";
-import { nomBenevole } from "../planning-lecture.js?v=20261113a";
-import { dateFr } from "../dates.js?v=20261113a";
+} from "../db.js?v=20261113b";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261113b";
+import { confirmer } from "../confirmer.js?v=20261113b";
+import { icon } from "../icons.js?v=20261113b";
+import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic, enVitrine } from "../auth-admin.js?v=20261113b";
+import { moduleVisible } from "../modules-etat.js?v=20261113b";
+import { renderModulesSection } from "./modules-reglage.js?v=20261113b";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261113b";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261113b";
+import { renderAutonomieReglage } from "../autonomie-etat.js?v=20261113b";
+import { pointsARetenir } from "../accueil-rules.js?v=20261113b";
+import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261113b";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261113b";
+import { blocHabillage } from "../habillage-choix.js?v=20261113b";
+import { nomBenevole } from "../planning-lecture.js?v=20261113b";
+import { dateFr } from "../dates.js?v=20261113b";
 
 // ====== SECTION Accès & invitations ======
 
@@ -203,7 +203,8 @@ function renderMyPreferencesSection(rerender) {
   if (!moduleVisible("notes")) return null;
   // L'anonymat ne concerne que qui a une fiche de stagiaire (un formateur n'a pas de notes dans la classe, et voit tout) ;
   // sans fiche (monStagiaireId() nul, « Voir en tant que » Formateur compris), le réglage est masqué.
-  if (monStagiaireId() == null) return null;
+  // Vitrine de la promo de démonstration : la fiche est empruntée, le réglage serait celui du compte du fondateur.
+  if (monStagiaireId() == null || enVitrine()) return null;
 
   const section = el("section", { class: "param-section" });
   // La page s'appelle déjà « Mes préférences » et « Réglages » est la page de l'équipe : la section dit ce qu'elle règle, une

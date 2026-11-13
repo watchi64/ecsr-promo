@@ -18,19 +18,19 @@ import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, mesAffectations, oublierPromo, getPromoCourante, getMesPromos, rechargerApresEnregistrements,
-  bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo,
-} from "./db.js?v=20261113a";
+  bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo, stagiaireVitrineCourante,
+} from "./db.js?v=20261113b";
 import {
   LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo,
-} from "./roles-rules.js?v=20261113a";
+} from "./roles-rules.js?v=20261113b";
 import {
   ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, decisionPorteSansPromo,
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
-} from "./espaces-rules.js?v=20261113a";
-import { peutQuitter } from "./navigation.js?v=20261113a";
-import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261113a";
-import { icon } from "./icons.js?v=20261113a";
-import { lireAdresse } from "./route-rules.js?v=20261113a";
+} from "./espaces-rules.js?v=20261113b";
+import { peutQuitter } from "./navigation.js?v=20261113b";
+import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261113b";
+import { icon } from "./icons.js?v=20261113b";
+import { lireAdresse } from "./route-rules.js?v=20261113b";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -227,15 +227,37 @@ export function apercusOuverts() {
 // pas, comme un vrai formateur (chantier D).
 export function monStagiaireId() {
   if (viewAs && viewAs !== "stagiaire") return null;
-  return currentProfile?.stagiaire_id ?? null;
+  return stagiaireVitrineCourante() ?? currentProfile?.stagiaire_id ?? null;
+}
+
+// Vitrine de la promo de démonstration (js/vitrine-rules.js) : l'aperçu Stagiaire du fondateur y emprunte une fiche fictive,
+// en lecture seule. Les écrans qui enregistrent d'ordinaire (entraînement, examen) le demandent pour le dire et ne rien envoyer.
+export function enVitrine() {
+  return stagiaireVitrineCourante() != null;
+}
+
+// Le nom de la fiche empruntée, pour le bandeau d'aperçu ; null hors vitrine.
+function nomDeLaVitrine() {
+  const fiche = stagiaireVitrineCourante();
+  if (fiche == null) return null;
+  const s = (stagiaires || []).find((x) => x.id === fiche);
+  return s ? displayStagiaire(s) : "la stagiaire de démonstration";
 }
 
 // Retient l'aperçu et l'envoie à la base. Les données lues sous l'ancien aperçu sont oubliées.
 function appliquerApercu(role) {
   const change = role !== viewAs;
   viewAs = role;
-  poserApercu(role);
+  poserApercu(role, { fondateur: isFounder() });
   if (change) invalidateCache();
+}
+
+// Sortie de la vitrine, d'où qu'elle vienne : plus aucune requête de données ne part, puis l'app se recharge sur l'accueil de
+// l'espace d'arrivée. L'aperçu en mémoire n'est pas touché : jusqu'à la disparition de la page, les gardes de la vitrine jouent.
+function sortirDeLaVitrine(espaceApres) {
+  bloquerRequetesJusquAuRechargement();
+  try { history.replaceState(null, "", "#/" + (ACCUEIL_ESPACE[espaceApres] || "home")); } catch (x) { /* hors navigateur */ }
+  location.reload();
 }
 
 // Charge l'aperçu mémorisé (ignoré s'il n'est pas ouvert à cette personne sur cette promo).
@@ -243,6 +265,11 @@ function loadViewAs() {
   let role = null;
   try { role = normaliserApercu(localStorage.getItem(VIEW_AS_KEY)); } catch (e) { role = null; }
   const permis = !!role && apercusOuverts().includes(role);
+  // L'aperçu a changé ailleurs (un autre onglet) pendant la vitrine : même sortie que par le bandeau.
+  if (enVitrine() && (permis ? role : null) !== viewAs) {
+    sortirDeLaVitrine(espaceAvec(permis ? role : null));
+    return;
+  }
   appliquerApercu(permis ? role : null);
   // Un aperçu mémorisé mais non permis sur la promo affichée est effacé : il ne reviendrait pas en changeant de promo.
   if (!permis) { try { localStorage.removeItem(VIEW_AS_KEY); } catch (e) { /* ignore */ } }
@@ -264,6 +291,17 @@ export function setViewAs(role) {
   const espaceApres = espaceAvec(nouveau);
   const recharger = espaceApres !== espace && (espaceDePilotage(espaceApres) || espaceDePilotage(espace));
   if (recharger && !peutQuitter(() => setViewAs(role))) return;
+  // Sortir de la vitrine : ce qui a commencé avec la fiche empruntée (un examen et son minuteur, une saisie différée) ne doit pas
+  // finir avec les droits du fondateur. Le choix est mémorisé, plus aucune requête de données ne part, et l'app se recharge ;
+  // l'aperçu en mémoire reste celui de la vitrine jusqu'à la disparition de la page.
+  if (enVitrine() && nouveau !== viewAs) {
+    try {
+      if (nouveau) localStorage.setItem(VIEW_AS_KEY, nouveau);
+      else localStorage.removeItem(VIEW_AS_KEY);
+    } catch (e) { /* ignore */ }
+    sortirDeLaVitrine(espaceApres);
+    return;
+  }
   appliquerApercu(nouveau);
   try {
     if (viewAs) localStorage.setItem(VIEW_AS_KEY, viewAs);
@@ -297,8 +335,9 @@ export function getProfileWho() {
 /** Le nom de la personne connectée, tel que les écrans l'affichent : « Lucie M. » pour un stagiaire (displayStagiaire),
  *  sinon comme getProfileWho. */
 export function getProfileNom() {
-  if (currentProfile?.stagiaire_id && stagiaires) {
-    const s = stagiaires.find((x) => x.id === currentProfile.stagiaire_id);
+  const fiche = stagiaireVitrineCourante() ?? currentProfile?.stagiaire_id;
+  if (fiche && stagiaires) {
+    const s = stagiaires.find((x) => x.id === fiche);
     if (s) return displayStagiaire(s);
   }
   return getProfileWho();
@@ -552,7 +591,7 @@ function updateImpersonationBanner() {
   const v = getViewAs();
   let banner = document.getElementById("impersonation-banner");
   if (!v) { if (banner) banner.remove(); return; }
-  const { libelle, suite } = texteBandeauApercu(v, getCentre());
+  const { libelle, suite } = texteBandeauApercu(v, getCentre(), nomDeLaVitrine());
   if (!banner) {
     banner = el("div", { id: "impersonation-banner", class: "impersonation-banner" });
     document.body.appendChild(banner);
