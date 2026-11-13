@@ -1,15 +1,15 @@
 # E-learning : l'app devient la plateforme du titre ECSR (conception)
 
 Date : 12/11/2026. Statut : **direction validée par Timy le 12/11/2026** (« Oui, c'est déjà une bonne idée. Vas-y, go. ») ;
-document complet en attente de sa relecture. Cadrage mené le 12/11 dans la conversation « Brainstormer l'e-learning »,
+**document complet validé par Timy le 13/11/2026** (« Oui, je valide »), avec les trois recommandations de tête. Cadrage mené le 12/11 dans la conversation « Brainstormer l'e-learning »,
 après la présentation de l'app du matin. Relue le 12/11 par un agent indépendant dans la peau du bâtisseur : ses six
 questions sont réglées ici (choix de Claude, § 14) ou posées à Timy ci-dessous. Le dépôt est public : aucune personne
 extérieure n'est nommée ici.
 
-## À trancher par Timy (trois questions, avec la recommandation suivie en attendant)
+## Tranché par Timy le 13/11 (les trois recommandations sont retenues)
 
-Rien n'est construit tant que ces trois points ne sont pas confirmés ; la spec et le plan du lot 1 sont écrits sur les
-recommandations.
+Les trois points ci-dessous sont confirmés tels que recommandés. Restent à valider par Timy avant la mise en ligne du
+lot 1 : les deux textes de données personnelles et la durée de conservation de 12 mois (`2026-11-12-e-learning-textes-donnees.md`).
 
 1. **Lecture des cours tracée en base : oui ou non ?** Le 12/11, pour la liste des thèmes (spec
    `2026-11-12-progression-themes-design.md`), Timy a écarté le suivi de lecture en base : l'état d'un thème repose sur
@@ -327,4 +327,4 @@ Mesurées sur la première vraie promo qui l'utilise, et reprises dans le bilan 
 | Découpage en six lots, dans l'ordre du § 4 | Timy (validé avec la direction) | 12/11 |
 | Plancher de lecture à 30 % du temps estimé ; écriture du temps actif toutes les 30 s ; échéance par défaut le vendredi ; proposition automatique depuis le planning ; signaux à 7 jours ; 20 Mo par fichier ; emplacements du § 5 | Claude, à relire par Timy | 12/11 |
 | Après la relecture du bâtisseur : temps actif mesuré sur le lecteur de cours et le QCM en entraînement, par ressource ; exercices et scènes reportés au lot 1b avec un identifiant stable par bloc ; relance dans l'app d'abord, e-mail par la brique de l'espace contact ; relance toujours envoyée par une personne ; chiffres du siège au lot 4 | Claude, à relire par Timy | 12/11 |
-| Lecture tracée sans toucher aux états de la ligne de thème ; interrupteur éteint par défaut, promo de démonstration d'abord ; « À relancer » distinct de « À suivre » | recommandations de Claude, **à trancher par Timy** (tête de document) | 12/11 |
+| Lecture tracée sans toucher aux états de la ligne de thème ; interrupteur éteint par défaut, promo de démonstration d'abord ; « À relancer » distinct de « À suivre » | recommandations de Claude, **retenues par Timy** | 13/11 |
