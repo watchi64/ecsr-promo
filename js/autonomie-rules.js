@@ -103,3 +103,11 @@ export function resumeAutonomie({ lectures, temps, entrainements, coursPublies, 
 export function peutTracerAvec({ actif, apercu, fondateur, equipe, stagiaireId } = {}) {
   return actif === true && !apercu && !fondateur && !equipe && stagiaireId != null;
 }
+
+/** Compte d'equipe (formateur, administrateur, direction, siege, fondateur), AVEC OU SANS fiche stagiaire : la base refuse ses
+ *  traces. `droits` : les drapeaux affiches ({admin, prof, equipe}) ; `profil` : le profil du compte ; `affectations` : ses
+ *  affectations (formateur, direction ou siege, dans N'IMPORTE QUELLE promo : une seule suffit). */
+export function estCompteEquipe({ droits, profil, affectations } = {}) {
+  return !!(droits?.equipe || droits?.admin || droits?.prof || profil?.is_admin || profil?.is_founder
+    || (Array.isArray(affectations) && affectations.length > 0));
+}

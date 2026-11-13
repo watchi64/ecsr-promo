@@ -8,7 +8,7 @@ import { el, toast } from "./utils.js?v=20261112e";
 import { icon } from "./icons.js?v=20261112e";
 import { fondateurHorsApercu, isFounder, isEquipe, isAdmin, isProf, getViewAs, getProfile, getAffectations, monStagiaireId }
   from "./auth-admin.js?v=20261112e";
-import { CLE_ACTIVATION, estActif, peutTracerAvec } from "./autonomie-rules.js?v=20261112e";
+import { CLE_ACTIVATION, estActif, peutTracerAvec, estCompteEquipe } from "./autonomie-rules.js?v=20261112e";
 
 let actif = false;
 
@@ -25,7 +25,9 @@ export function autonomieActive() { return actif; }
 // Vrai pour un VRAI compte stagiaire seulement, interrupteur allumé : ni aperçu, ni compte d'équipe (même avec une fiche
 // stagiaire). Les conditions d'utilisation sont exigées par la porte de l'app (js/legal.js, exigerAcceptation) et par la base.
 export function peutTracer() {
-  const equipe = isEquipe() || isAdmin() || isProf() || !!getProfile()?.is_admin || getAffectations().length > 0;
+  const equipe = estCompteEquipe({
+    droits: { equipe: isEquipe(), admin: isAdmin(), prof: isProf() }, profil: getProfile(), affectations: getAffectations(),
+  });
   return peutTracerAvec({
     actif, apercu: getViewAs(), fondateur: isFounder(), equipe, stagiaireId: monStagiaireId(),
   });
