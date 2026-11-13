@@ -24,6 +24,7 @@ drop function public.autonomie_tracer_qcm(bigint, integer);
 drop function public.autonomie_tracer_cours(uuid, integer, boolean, text);
 drop function public._autonomie_ajouter_temps(integer, integer, text, text, integer);
 drop function public._autonomie_permis(integer, integer);
+drop function public._autonomie_verrou(integer);
 drop function public._autonomie_stagiaire();
 drop function public._autonomie_version_conditions();
 

@@ -52,6 +52,16 @@
 --   - preuve des rôles : 11538/0 avant, 11976/0 après (1,2,3) ; 11694/0 avant, 12132/0 après (état complet) ; suppression de
 --     l'interrupteur rouverte : ROUGE 11973/3 ;
 --   - preuve de la conservation (base où la conservation est appliquée) : VERT 227/0 avant et après la migration, deux états.
+-- Tour de correction 1 (verrou avant les contrôles, traces par promo, version des conditions fermée), mêmes états :
+--   - fichiers vides ROUGE 7/2 ; migration et retour VERT 134/0 (deux passages par état) ; appliquée VERT 128/0 ;
+--   - contre-épreuves : plancher compté toutes promos ROUGE 133/1 ; lectures de la promo par promo du stagiaire ROUGE 133/1 ;
+--     version d'avant le tour (dc8f22ad) ROUGE 113/21 ; sentinelle et borne « pas dans l'avenir » retirées ROUGE 120/14 ;
+--     sentinelle seule ROUGE 133/1 (contrôle de texte : la borne suffit tant que l'horloge est juste) ; borne seule ROUGE 132/2 ;
+--   - rôles 11538/0 puis 11976/0 (1,2,3), 11694/0 puis 12132/0 (complet) ; conservation 227/0 avant et après ;
+--   - ordre des verrous entre deux sessions : tests/sql/autonomie-concurrence.sh, VERT 8/0 (deux états) ; version d'avant le
+--     tour : ROUGE 6/2 (traces écrites après l'opposition et après l'effacement).
+-- La sentinelle livrée est contrôlée d'abord ; puis, dans la transaction seulement, la version exigée est datée d'hier
+-- (calculé). accepter_conditions, absente des clones de la base locale, est posée par la preuve si elle manque (mot pour mot).
 -- Personnages de la suite : SX (PA, fiche marquée effacée en gardant son compte), SE et SE2 (promo PE finie depuis plus de
 -- 12 mois : traces, opposition).
 
@@ -233,6 +243,10 @@ begin
     perform pg_temp.verifier('version des conditions : une seule fonction interne, immuable, qui rend la sentinelle 9999-12-31',
       (select provolatile = 'i' from pg_proc where oid = to_regprocedure('public._autonomie_version_conditions()'))
       and public._autonomie_version_conditions() = '9999-12-31');
+    -- La fermeture dure ne se voit pas par le comportement tant que l'horloge est juste (la borne « pas dans l'avenir » refuse
+    -- déjà une acceptation de 9999-12-31) : contrôle de texte.
+    perform pg_temp.verifier('R11 : _autonomie_permis refuse tout tant que la version est la sentinelle (garde écrite en tête)',
+      position('_autonomie_version_conditions() <> ''9999-12-31''' in pg_get_functiondef('public._autonomie_permis(integer,integer)'::regprocedure)) > 0);
     select string_agg(p.proname, ',' order by p.proname) into t
       from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'autonomie\_tracer%'
        and position('9999-12-31' in pg_get_functiondef(p.oid)) > 0;
@@ -273,8 +287,9 @@ begin
     select k.email, v.role, v.promo, null::integer
       from (values ('FA', 'formateur', PA), ('FB', 'formateur', PB), ('EQ', 'formateur', PB), ('SG', 'siege', null::integer)) v(nom, role, promo)
       join preuve_comptes k on k.nom = v.nom;
-    -- Conditions : la version exigée par la base pour tous, sauf SC (version d'aujourd'hui, plus ancienne).
-    v_version := public._autonomie_version_conditions();
+    -- Conditions : la version que la preuve datera plus bas (hier, calculé : la preuve reste rejouable) pour tous, sauf SC
+    -- (2026-11-10, plus ancienne). Tant que la migration garde sa sentinelle, ces acceptations ne comptent pas.
+    v_version := to_char(v_jour - 1, 'YYYY-MM-DD');
     insert into conditions_acceptations (email, version)
     select email, v_version from preuve_comptes where nom in ('SA', 'SB', 'SD', 'SO', 'SI', 'SX', 'EE', 'FOS', 'EQ', 'FA');
     insert into conditions_acceptations (email, version)
@@ -293,10 +308,10 @@ begin
       K5 is not null and Q1 is not null, coalesce(K5::text, 'K5 absent'));
 
     -- 1.2 bis Interrupteur réservé au fondateur (règles restrictives sur settings) ----------------------------------
-    perform pg_temp.verifier('interrupteur : trois règles restrictives sur settings (insert, update, delete), pour authenticated seul, aucune en lecture',
+    perform pg_temp.verifier('interrupteur : trois règles restrictives sur settings (insert, update, delete), pour public comme la règle permissive, aucune en lecture',
       (select string_agg(cmd || ':' || permissive || ':' || roles::text, ',' order by cmd) from pg_policies
         where schemaname = 'public' and tablename = 'settings' and policyname like 'settings\_autonomie%')
-      = 'DELETE:RESTRICTIVE:{authenticated},INSERT:RESTRICTIVE:{authenticated},UPDATE:RESTRICTIVE:{authenticated}',
+      = 'DELETE:RESTRICTIVE:{public},INSERT:RESTRICTIVE:{public},UPDATE:RESTRICTIVE:{public}',
       (select string_agg(policyname || ':' || cmd || ':' || permissive, ',') from pg_policies
         where schemaname = 'public' and tablename = 'settings' and policyname like 'settings\_autonomie%'));
     perform pg_temp.verifier('interrupteur : RLS de settings non forcée (le propriétaire n''est pas concerné)',
@@ -363,8 +378,53 @@ begin
     perform pg_temp.verifier('interrupteur : le propriétaire de la table écrit la clé', n = 1, n::text);
     delete from settings where promo_id = PA and key in ('autonomie_active', 'preuve_auto_cle', 'preuve_auto_cle3');
 
-    -- 1.3 Règle 1 : réservé aux stagiaires ---------------------------------------------------------------------------
+    -- 1.2 ter Sentinelle (migration telle que livrée) : fermeture dure ------------------------------------------------
+    -- SA a l'interrupteur allumé, une acceptation plausible (hier) et « accepte » la sentinelle par la vraie fonction.
+    -- accepter_conditions (20261004_conditions_acceptations.sql) est en production mais absente des clones de la base
+    -- locale : si elle manque, la preuve la pose ici, mot pour mot, dans sa transaction annulée (hors empreinte).
+    if to_regprocedure('public.accepter_conditions(text)') is null then
+      execute $ac$
+create or replace function public.accepter_conditions(p_version text)
+returns timestamptz language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
+declare
+  v_email text := lower(auth.jwt() ->> 'email');
+  v_quand timestamptz;
+begin
+  if v_email is null then
+    raise exception 'Non connecte';
+  end if;
+  if p_version is null or p_version !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}[a-z]?$' then
+    raise exception 'Version de conditions invalide';
+  end if;
+  insert into conditions_acceptations (email, version) values (v_email, p_version)
+  on conflict (email, version) do nothing;
+  select accepted_at into v_quand from conditions_acceptations
+   where email = v_email and version = p_version;
+  return v_quand;
+end;
+$function$;
+revoke all on function public.accepter_conditions(text) from anon, public;
+grant execute on function public.accepter_conditions(text) to authenticated;
+$ac$;
+    end if;
     insert into settings (key, value, promo_id) values ('autonomie_active', 'true', PA);
+    r := pg_temp.essai('SA', PA, 'select public.accepter_conditions(''9999-12-31'')::text');
+    r2 := pg_temp.essai('SA', PA, format('select public.autonomie_tracer_cours(%L, 30, true, null)::text', K1));
+    r3 := pg_temp.essai('SA', PA, format('select public.autonomie_tracer_qcm(%s, 30)::text', Q1));
+    perform pg_temp.verifier('R11 : sentinelle livrée, accepter_conditions(''9999-12-31'') puis tracer : refus silencieux, 0 ligne',
+      r like 'OK 2%' and r2 = 'OK false' and r3 = 'OK '
+      and exists (select 1 from conditions_acceptations ca join preuve_comptes k on lower(ca.email) = k.email
+                   where k.nom = 'SA' and ca.version = '9999-12-31')
+      and (select count(*) from cours_lectures where stagiaire_id = SA) + (select count(*) from autonomie_temps where stagiaire_id = SA) = 0,
+      r || ' / ' || r2 || ' / ' || r3);
+    -- Dans la transaction de la preuve seulement : la version exigée devient hier (calculé), comme le fera la vraie date.
+    -- Le retour supprime cette fonction comme celle livrée (même signature) : l'empreinte reste comparable.
+    execute format('create or replace function public._autonomie_version_conditions() returns text language sql immutable '
+                   'set search_path to ''public'', ''pg_temp'' as $v$ select %L::text $v$', v_version);
+    perform pg_temp.verifier('preuve : version exigée datée d''hier pour la suite du scénario',
+      public._autonomie_version_conditions() = v_version, public._autonomie_version_conditions());
+
+    -- 1.3 Règle 1 : réservé aux stagiaires ---------------------------------------------------------------------------
     r := pg_temp.essai('FA', PA, format('select public.autonomie_tracer_cours(%L, 30, false, null)::text', K1));
     perform pg_temp.verifier('règle 1 : formateur (tracer_cours) refusé', r = 'REFUS P0001 autonomie: Réservé aux stagiaires.', r);
     r := pg_temp.essai('FA', PA, format('select public.autonomie_tracer_qcm(%s, 30)::text', Q1));
@@ -404,6 +464,13 @@ begin
     r := pg_temp.essai('SA', PA, format('select public.autonomie_tracer_cours(%L, 30, true, %L)::text', K1, 'Intro'));
     perform pg_temp.verifier('règle 2 : interrupteur allumé sur une autre promo seulement, 0 ligne',
       r = 'OK false' and (select count(*) from cours_lectures where stagiaire_id = SA) = 0, r);
+    -- Le stagiaire envoie l'en-tête de la promo allumée, qui n'est pas la sienne : aucune fiche là, refus des non-stagiaires.
+    r := pg_temp.essai('SA', PB, format('select public.autonomie_tracer_cours(%L, 30, true, null)::text', K1));
+    r2 := pg_temp.essai('SA', PB, format('select public.autonomie_tracer_qcm(%s, 30)::text', Q1));
+    perform pg_temp.verifier('règle 2 : en-tête d''une autre promo (allumée) : « Réservé aux stagiaires. », 0 ligne',
+      r = 'REFUS P0001 autonomie: Réservé aux stagiaires.' and r2 = 'REFUS P0001 autonomie: Réservé aux stagiaires.'
+      and (select count(*) from cours_lectures where stagiaire_id = SA) + (select count(*) from autonomie_temps where stagiaire_id = SA) = 0,
+      r || ' / ' || r2);
     insert into settings (key, value, promo_id) values ('autonomie_active', 'true', PA);
 
     -- 1.5 Règle 3 : conditions acceptées dans la version exigée -----------------------------------------------------
@@ -417,6 +484,16 @@ begin
     perform pg_temp.verifier('règle 3 : aucune acceptation, refus silencieux et 0 ligne',
       r = 'OK false' and (select count(*) from cours_lectures where stagiaire_id = SC) = 0
       and (select count(*) from autonomie_temps where stagiaire_id = SC) = 0, r);
+    r := pg_temp.essai('SC', PA, 'select public.accepter_conditions(''2099-01-01'')::text');
+    r2 := pg_temp.essai('SC', PA, format('select public.autonomie_tracer_cours(%L, 30, true, null)::text', K1));
+    perform pg_temp.verifier('règle 3 (R11) : version datée dans l''avenir (2099-01-01, par accepter_conditions), refus silencieux et 0 ligne',
+      r like 'OK 2%' and r2 = 'OK false' and (select count(*) from cours_lectures where stagiaire_id = SC) = 0
+      and (select count(*) from autonomie_temps where stagiaire_id = SC) = 0, r || ' / ' || r2);
+    r := pg_temp.essai('SC', PA, format('select public.accepter_conditions(%L)::text', v_version || 'b'));
+    r2 := pg_temp.essai('SC', PA, format('select public.autonomie_tracer_cours(%L, 30, false, null)::text', K4));
+    perform pg_temp.verifier('règle 3 (R11) : la version exigée avec une lettre (« b ») compte : écrit',
+      r like 'OK 2%' and r2 = 'OK false' and (select count(*) from cours_lectures where stagiaire_id = SC) = 1
+      and (select secondes from autonomie_temps where stagiaire_id = SC) = 30, r || ' / ' || r2);
 
     -- 1.6 Règle 4 : durée --------------------------------------------------------------------------------------------
     r := pg_temp.essai('SA', PA, format('select public.autonomie_tracer_cours(%L, 61, false, null)::text', K1));
@@ -644,15 +721,48 @@ begin
       (select count(*) from cours_lectures where stagiaire_id = SA) = 3);
 
     -- 1.16 R2 : les traces suivent le sort des tentatives de QCM -------------------------------------------------------
-    -- Changement de promo (aucun mécanisme ne déplace les lignes d'un stagiaire : elles gardent la promo où elles ont été
-    -- écrites, comme qcm_attempts).
-    r := pg_temp.essai('SB', PA, format('select public.autonomie_tracer_cours(%L, 30, false, null)::text', K1));
+    -- Changement de promo (R10) : SB lit K2 jusqu'au bout dans PA, passe dans PB et retrace K2. Les lignes de PA ne bougent
+    -- plus ; des lignes neuves naissent dans PB ; le plancher compte le temps de la seule promo ; chaque équipe lit sa promo.
+    r := '';
+    for n in 1..3 loop
+      r := r || pg_temp.essai('SB', PA, format('select public.autonomie_tracer_cours(%L, 60, %L, null)::text', K2, n = 3)) || ';';
+    end loop;
     insert into qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20) values (Q1, SB, 'entrainement', 5, 10, 10);
+    select to_jsonb(c)::text into t from cours_lectures c where stagiaire_id = SB and promo_id = PA and cours_id = K2;
+    select to_jsonb(a)::text into t2 from autonomie_temps a where stagiaire_id = SB and promo_id = PA;
+    r2 := pg_temp.essai('FA', PA, 'select coalesce(jsonb_agg(to_jsonb(l) order by l.cours_id), ''[]'')::text from public.autonomie_lectures_promo() l');
+    perform pg_temp.verifier('R10, données : SB a lu K2 dans PA (2 000 mots, plancher 180 s) (3 appels, fin au dernier)', r = 'OK false;OK false;OK true;' and t is not null, r);
     update stagiaires set promo_id = PB where id = SB;
-    perform pg_temp.verifier('R2, changement de promo : les traces gardent leur promo, comme les tentatives de QCM',
-      (select promo_id from qcm_attempts where stagiaire_id = SB) = PA
-      and (select promo_id from cours_lectures where stagiaire_id = SB) = PA
-      and (select promo_id from autonomie_temps where stagiaire_id = SB) = PA, r);
+    insert into settings (key, value, promo_id) values ('autonomie_active', 'true', PB)
+      on conflict (promo_id, key) do update set value = 'true';
+    r := pg_temp.essai('SB', PB, format('select public.autonomie_tracer_cours(%L, 60, true, %L)::text', K2, 'Nouvelle promo'));
+    perform pg_temp.verifier('R10, changement de promo : la ligne de PA est identique octet pour octet (promo, ouvert_le, vu_le, lu_le, section) et son temps aussi',
+      (select to_jsonb(c)::text from cours_lectures c where stagiaire_id = SB and promo_id = PA and cours_id = K2) = t
+      and (select to_jsonb(a)::text from autonomie_temps a where stagiaire_id = SB and promo_id = PA) = t2, r);
+    perform pg_temp.verifier('R10 : une ligne neuve dans PB, non lue (60 s dans PB, le temps de PA ne compte pas pour le plancher)',
+      r = 'OK false' and exists (select 1 from cours_lectures where stagiaire_id = SB and promo_id = PB and cours_id = K2
+        and fin_atteinte and lu_le is null and section = 'Nouvelle promo')
+      and (select secondes from autonomie_temps where stagiaire_id = SB and promo_id = PB and ressource = K2::text) = 60, r);
+    perform pg_temp.verifier('R10 : les tentatives de QCM gardent aussi leur promo', (select promo_id from qcm_attempts where stagiaire_id = SB) = PA);
+    n := pg_temp.compter('FA', PA, format('select count(*) from public.cours_lectures where stagiaire_id = %s and promo_id = %s', SB, PA));
+    m := pg_temp.compter('FA', PA, format('select count(*) from public.cours_lectures where stagiaire_id = %s', SB));
+    perform pg_temp.verifier('R10 : l''équipe de PA lit la ligne de PA et pas celle de PB', n = 1 and m = 1, n || '/' || m);
+    n := pg_temp.compter('FB', PB, format('select count(*) from public.cours_lectures where stagiaire_id = %s and promo_id = %s', SB, PB));
+    m := pg_temp.compter('FB', PB, format('select count(*) from public.cours_lectures where stagiaire_id = %s', SB))
+       + pg_temp.compter('FB', PB, format('select count(*) from public.autonomie_temps where stagiaire_id = %s and promo_id <> %s', SB, PB));
+    perform pg_temp.verifier('R10 : l''équipe de PB lit la ligne de PB et pas celle de PA', n = 1 and m = 1, n || '/' || m);
+    r := pg_temp.essai('FA', PA, 'select coalesce(jsonb_agg(to_jsonb(l) order by l.cours_id), ''[]'')::text from public.autonomie_lectures_promo() l');
+    perform pg_temp.verifier('R10 : autonomie_lectures_promo de PA inchangé par le départ de SB (SB y compte pour K2, seul lecteur actif)',
+      r = r2 and (select (e ->> 'lus')::integer from jsonb_array_elements(substr(r, 4)::jsonb) e where e ->> 'cours_id' = K2::text) = 1,
+      r2 || ' -> ' || r);
+    n := pg_temp.compter('SB', PB, 'select count(*) from public.cours_lectures') + pg_temp.compter('SB', PB, 'select count(*) from public.autonomie_temps');
+    perform pg_temp.verifier('R10 : le stagiaire, dans sa nouvelle promo, ne lit que les lignes de PB', n = 2, n::text);
+    -- Plafond de 8 h : la journée du stagiaire toutes promos confondues.
+    update autonomie_temps set secondes = 28780 - 60 where stagiaire_id = SB and promo_id = PA and jour = v_jour;
+    r := pg_temp.essai('SB', PB, format('select public.autonomie_tracer_cours(%L, 60, false, null)::text', K2));
+    perform pg_temp.verifier('R10 : le plafond de 8 h compte la journée toutes promos (28 780 s, 20 s ajoutées dans PB)',
+      (select secondes from autonomie_temps where stagiaire_id = SB and promo_id = PB and ressource = K2::text) = 80
+      and (select sum(secondes) from autonomie_temps where stagiaire_id = SB and jour = v_jour) = 28800, r);
     -- Fiche supprimée : clé étrangère « on delete cascade », comme qcm_attempts.
     insert into qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20) values (Q1, SD, 'entrainement', 5, 10, 10);
     delete from user_profiles where stagiaire_id = SD;
@@ -714,10 +824,10 @@ begin
       r = 'OK false' and t = '1' and r2 = 'OK false' and r3 = 'OK '
       and (select count(*) from cours_lectures where stagiaire_id = SX) + (select count(*) from autonomie_temps where stagiaire_id = SX) = 0,
       r || ' / ' || t || ' / ' || r2 || ' / ' || r3);
-    -- Une autre modification d'une fiche ne déclenche rien (SB a une lecture, écrite dans PA avant son changement de promo).
+    -- Une autre modification d'une fiche ne déclenche rien (SB a une lecture dans PA et une dans PB).
     update stagiaires set actif = false where id = SB;
     perform pg_temp.verifier('R2b : une autre modification de la fiche ne supprime rien',
-      (select count(*) from cours_lectures where stagiaire_id = SB) = 1);
+      (select count(*) from cours_lectures where stagiaire_id = SB) = 2);
 
     select coalesce(jsonb_agg(to_jsonb(p) order by p.num), '[]'::jsonb) into v_sauve from preuve p;
     raise exception 'preuve: annulé';
