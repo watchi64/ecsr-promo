@@ -5,11 +5,11 @@
 // Mêmes cartes, mêmes boutons, même fenêtre de confirmation par saisie (confirmationEcheance, js/effacement-rules.js) : la base
 // décide du droit et des dates. Module à part, sans rien de la page Qualiopi : les Réglages du centre partent avec l'app.
 
-import { el } from "../utils.js?v=20261112e";
+import { el } from "../utils.js?v=20261113a";
 import {
   effacerPromoEtape1, effacerPromoEtape2, cloreAnneeFormateurs, effacerCommentairesFormateurs, figerQuestionnaireFormateurs,
-} from "../db.js?v=20261112e";
-import { dateLongue } from "../dates.js?v=20261112e";
+} from "../db.js?v=20261113a";
+import { dateLongue } from "../dates.js?v=20261113a";
 
 export const CONSERVATION_ABSENTE = "La conservation sera disponible après la mise à jour de la base.";
 

@@ -2,10 +2,10 @@
 //
 // Le choix (répondu, plus tard, ne plus afficher) est gardé sur l'appareil, propre au
 // compte et à l'enquête. Aucune réponse au questionnaire ne passe par l'app.
-import { el, isoDate } from "./utils.js?v=20261112e";
-import { getPromoCourante } from "./db.js?v=20261112e";
-import { isStagiaire, getAdminEmail } from "./auth-admin.js?v=20261112e";
-import { AVIS, lireEtat, etatPlusTard, bandeauVisible } from "./avis-rules.js?v=20261112e";
+import { el, isoDate } from "./utils.js?v=20261113a";
+import { getPromoCourante } from "./db.js?v=20261113a";
+import { isStagiaire, getAdminEmail } from "./auth-admin.js?v=20261113a";
+import { AVIS, lireEtat, etatPlusTard, bandeauVisible } from "./avis-rules.js?v=20261113a";
 
 function cle() {
   const compte = getAdminEmail();

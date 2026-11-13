@@ -2,10 +2,10 @@
 // reprise de lecture. Appelé par openCoursSheet seulement pour un vrai compte stagiaire (autonomie allumée) ; hors de
 // ce cas, ce module n'est jamais appelé et le lecteur ne change en rien.
 
-import { el } from "./utils.js?v=20261112e";
-import { tracerCours, listerMesLectures } from "./db.js?v=20261112e";
-import { suivreEcran } from "./autonomie-suivi.js?v=20261112e";
-import { sectionDeReprise, sectionEnHaut, repriseDepassee } from "./autonomie-rules.js?v=20261112e";
+import { el } from "./utils.js?v=20261113a";
+import { tracerCours, listerMesLectures } from "./db.js?v=20261113a";
+import { suivreEcran } from "./autonomie-suivi.js?v=20261113a";
+import { sectionDeReprise, sectionEnHaut, repriseDepassee } from "./autonomie-rules.js?v=20261113a";
 
 /** Repère invisible, à poser après le dernier bloc du cours (avant les boutons de fin) : quand il entre dans la zone de
  *  lecture, la fin du cours est atteinte. */
