@@ -51,7 +51,7 @@ eq(pagePersonnelle({ formateur: true, stagiaireId: 3 }), "mon-suivi", "stagiaire
 eq(pagePersonnelle({ formateur: false, stagiaireId: 3 }), "mon-suivi", "stagiaire");
 eq(pagePersonnelle({ formateur: false, stagiaireId: null }), "mon-suivi", "compte sans profil : Mon espace l'explique");
 
-eq(PARTIES, ["resultats", "passages", "epcf", "evolution", "livret", "dp", "classe"], "toutes les parties connues d'une adresse");
+eq(PARTIES, ["resultats", "passages", "epcf", "evolution", "livret", "dp", "classe", "autonomie"],"toutes les parties connues d'une adresse");
 
 // 5. Parties d'une fiche, dans l'ordre d'affichage (lot 2B, tâche 7). Mon suivi : Résultats d'abord, qui réunit Évolution
 // (« Moi ») et La classe. La fiche d'un stagiaire chez l'équipe garde la fiche de main.

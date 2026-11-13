@@ -2665,6 +2665,15 @@ export async function listerAutonomie(stagiaireId) {
   return { lectures: lectures.data || [], temps: temps.data || [] };
 }
 
+// Tentatives de QCM en entraînement d'un stagiaire, pour sa fiche « Travail en autonomie » : [{ mode, finished_at }]. Sous la
+// sécurité de la base : le stagiaire lit les siennes, l'équipe celles de la promo (droit de lire les notes). Jamais l'examen.
+export async function listerEntrainementsQcm(stagiaireId) {
+  const { data, error } = await supabase.from("qcm_attempts")
+    .select("mode, finished_at").eq("stagiaire_id", stagiaireId).eq("mode", "entrainement");
+  if (error) throw error;
+  return data || [];
+}
+
 // Combien de stagiaires de la promo ont lu chaque cours : Map(cours_id -> lus). Visible des stagiaires comme de l'équipe.
 export async function lecturesDeLaPromo() {
   const { data, error } = await supabase.rpc("autonomie_lectures_promo");

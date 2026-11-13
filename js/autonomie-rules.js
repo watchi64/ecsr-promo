@@ -3,7 +3,7 @@
  * l'horloge est passee en argument (millisecondes), tout se teste par node.
  */
 import { tempsLecture } from "./cours-rules.js";
-import { lundiDe, jourDe } from "./dates.js";
+import { lundiDe, jourDe, jourParis, dateLongue, dayIndexDe } from "./dates.js";
 
 /** Cle de reglage (promo) qui allume la fonction. */
 export const CLE_ACTIVATION = "autonomie_active";
@@ -181,5 +181,79 @@ export function creerSignalLu(notifier) {
     if (dits.has(cle)) return;
     dits.add(cle);
     notifier(coursId);
+  };
+}
+
+// === Partie « Travail en autonomie » de la fiche (lot 1 e-learning, tâche 7a) ===
+
+const JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+
+/** « 10 novembre » (l'année s'ajoute seulement si ce n'est pas celle de `aujourdhui`) : le jour est celui de Paris, comme
+ *  dans la base. Chaîne vide si l'instant manque ou est illisible. */
+export function jourSansAnnee(instant, aujourdhui) {
+  if (!instant) return "";
+  const jour = jourParis(instant);
+  if (!jour) return "";
+  const longue = dateLongue(jour);
+  return jour.slice(0, 4) === String(aujourdhui || "").slice(0, 4) ? longue.replace(/ \d{4}$/, "") : longue;
+}
+
+/** « mardi 10 novembre » : la date courte précédée du jour de la semaine. */
+export function jourAvecSemaine(instant, aujourdhui) {
+  const courte = jourSansAnnee(instant, aujourdhui);
+  return courte ? `${JOURS[dayIndexDe(jourParis(instant))]} ${courte}` : "";
+}
+
+/** La partie est montrée : interrupteur de la promo allumé, et soit le VRAI compte stagiaire (`peutTracer`, qui exclut
+ *  l'aperçu), soit un compte d'équipe qui lit toutes les notes (`litNotes`, la condition de la partie des résultats ;
+ *  la base applique le même droit). Jamais le siège. */
+export function autonomieVisible({ actif, soi, peutTracer, litNotes, espace } = {}) {
+  if (actif !== true) return false;
+  if (soi) return peutTracer === true;
+  return litNotes === true && espace !== "siege";
+}
+
+/** Ce que la partie affiche, le même pour le stagiaire et l'équipe (seuls la note et le texte vide changent de voix).
+ *  `cours` : l'index des cours ({ id, titre, published }) ; `entrainements` : tentatives de QCM ({ mode, finished_at }),
+ *  seul le mode « entrainement » compte. Rien d'autre que cinq repères et la liste : pas de détail par jour ni par QCM. */
+export function ficheAutonomie({ lectures = [], temps = [], entrainements = [], cours = [], aujourdhui, soi = false } = {}) {
+  const publies = cours.filter((c) => c && c.published);
+  const titres = new Map(publies.map((c) => [String(c.id), c.titre]));
+  const faites = entrainements.filter((e) => e && e.mode === "entrainement" && e.finished_at);
+  const r = resumeAutonomie({ lectures, temps, entrainements: faites, coursPublies: publies.map((c) => c.id), aujourdhui });
+
+  const parCours = new Map();
+  for (const l of lectures) {
+    const cle = String(l.cours_id);
+    if (!titres.has(cle)) continue;
+    const vu = parCours.get(cle);
+    const meilleur = !vu || (l.lu_le && !vu.lu_le) || (!!l.lu_le === !!vu.lu_le && Date.parse(l.ouvert_le) > Date.parse(vu.ouvert_le));
+    if (meilleur) parCours.set(cle, l);
+  }
+  const lignes = [...parCours.entries()].map(([cle, l]) => {
+    const depart = l.ouvert_le || l.vu_le;
+    const quand = l.lu_le ? l.lu_le : depart;
+    const date = jourSansAnnee(quand, aujourdhui);
+    const mot = l.lu_le ? "Lu" : "Commencé";
+    const instant = Date.parse(quand);
+    return { cours_id: l.cours_id, titre: titres.get(cle) || "Cours", texte: date ? `${mot} le ${date}` : mot, instant: Number.isNaN(instant) ? -Infinity : instant };
+  }).sort((a, b) => (b.instant - a.instant) || a.titre.localeCompare(b.titre, "fr"))
+    .map(({ instant, ...ligne }) => ligne);
+
+  const derniere = r.derniereActivite ? jourAvecSemaine(r.derniereActivite, aujourdhui) : "";
+  return {
+    reperes: [
+      `Cours lus : ${r.coursLus} sur ${r.coursTotal}`,
+      `Temps cette semaine : ${formatDuree(r.secondesSemaine)}`,
+      `Temps depuis le début : ${formatDuree(r.secondesTotal)}`,
+      `Entraînements QCM : ${r.entrainements}`,
+      `Dernière activité : ${derniere || "aucune"}`,
+    ],
+    lignes,
+    vide: lignes.length === 0 && r.secondesTotal === 0 && r.entrainements === 0 && r.derniereActivite === null,
+    note: soi ? "Ton formateur voit exactement cette page." : null,
+    texteVide: soi
+      ? "Rien pour l'instant. Les cours que tu lis et tes entraînements apparaîtront ici."
+      : "Rien pour l'instant. Les cours lus et les entraînements de ce stagiaire apparaîtront ici.",
   };
 }
