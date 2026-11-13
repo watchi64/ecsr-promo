@@ -2,6 +2,7 @@
 -- PRODUCTION : attend l'accord de Timy et la validation des textes (conditions d'utilisation, registre des traitements).
 -- Spec docs/superpowers/specs/2026-11-12-e-learning-design.md (§ 6) ; plan
 -- docs/superpowers/plans/2026-11-12-e-learning-lot-1-lecture-temps-actif.md (Task 2).
+-- Application : psql -v ON_ERROR_STOP=1 -1 -f 20261114_autonomie_1_traces.sql (en UNE transaction : son lock table l'exige).
 -- Retour : 20261114_autonomie_1_traces_retour.sql. Preuve : tests/sql/autonomie-preuve.sql ; ordre des verrous entre deux
 -- sessions : tests/sql/autonomie-concurrence.sh (base locale jetable seulement).
 --

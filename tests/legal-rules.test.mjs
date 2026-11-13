@@ -44,7 +44,11 @@ eq(reperesNonRemplis(MENTIONS_MD), [], "mentions légales : SIRET et adresse à 
 // (formateur de la promo ou direction de son lieu) ouvre stagiaires_prive, fiches_suivi, evaluations (notes masquées
 // comprises), epcf, dp, livret, émargement ; passages et planning sont lus par toute la promo accessible ; le siège ne lit que
 // comptes_reseau() (chiffres par centre, sans nom). Questionnaires : seul le fondateur (peut_gerer_qualite) lit les résultats regroupés, ni la direction ni le siège.
-eq(VERSION_CONDITIONS, "2026-11-10", "version du lot K");
+eq(VERSION_CONDITIONS, "2026-11-13", "version du lot 1 de l'e-learning (à remplacer par la date de mise en ligne)");
+ok(CONDITIONS_MD.includes("| Travail en autonomie | Quand votre centre a activé ce suivi pour votre promo"), "§ 3 : ligne Travail en autonomie");
+ok(CONDITIONS_MD.includes("**Travail en autonomie.** Ce suivi n'existe que si votre centre l'a activé pour votre promo."), "§ 4 : paragraphe Travail en autonomie");
+ok(CONDITIONS_MD.includes("| Travail en autonomie (cours lus, temps passé) | Oui, dans Mon suivi |"), "§ 4 : ligne du tableau");
+ok(CONDITIONS_MD.includes("fiches de suivi, travail en autonomie (cours lus, temps passé), textes libres"), "§ 10 : durée du travail en autonomie");
 const tableau = CONDITIONS_MD.split("## 4. Qui voit quoi")[1].split("\n\n")[1].trim().split("\n")
   .map((l) => l.split("|").slice(1, -1).map((c) => c.trim()));
 eq(tableau[0], ["Donnée", "Vous", "Autres stagiaires", "Formateurs", "Direction de votre centre", "Siège d'ECF"], "colonnes du tableau");
