@@ -1,4 +1,5 @@
--- Marche arrière de 20261114_autonomie_1_traces.sql : retire les fonctions, les règles et les trois tables de l'autonomie.
+-- Marche arrière de 20261114_autonomie_1_traces.sql : retire le déclencheur de stagiaires, les trois règles restrictives de
+-- settings, les fonctions, les règles et les trois tables de l'autonomie.
 -- Les traces (lectures, temps actif) et la liste des oppositions sont perdues avec les tables. Aucune fonction existante
 -- n'avait été modifiée par la migration : rien d'autre à rétablir. Garde : les trois tables doivent exister.
 set local lock_timeout = '3s';
@@ -10,6 +11,12 @@ begin
     raise exception 'autonomie_1 retour : une table de l''autonomie est absente, rien à défaire';
   end if;
 end $garde$;
+
+drop trigger stagiaires_autonomie_effacer on public.stagiaires;
+drop function public._autonomie_effacer_fiche();
+drop policy settings_autonomie_suppression on public.settings;
+drop policy settings_autonomie_modification on public.settings;
+drop policy settings_autonomie_ajout on public.settings;
 
 drop function public.autonomie_opposer(integer);
 drop function public.autonomie_lectures_promo();

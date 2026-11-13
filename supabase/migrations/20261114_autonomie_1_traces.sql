@@ -19,7 +19,8 @@
 --      stagiaires. » ;
 --   2. interrupteur de la promo du stagiaire éteint (réglage autonomie_active différent de 'true') : refus silencieux ;
 --   3. conditions d'utilisation non acceptées dans la version exigée (_autonomie_version_conditions) : refus silencieux ;
---   3 bis. stagiaire inscrit dans autonomie_oppositions : refus silencieux ;
+--   3 bis. stagiaire inscrit dans autonomie_oppositions, ou fiche déjà passée par l'étape 1 de la conservation
+--      (stagiaires.efface_le posé) : refus silencieux ;
 --   4. secondes hors de 0 à 60 : « autonomie: Durée invalide. » ; au-delà de 8 h (28 800 s) cumulées dans le jour pour le
 --      stagiaire, les secondes en trop sont ignorées ;
 --   5. cours non publié ou inconnu, QCM inconnu : « autonomie: Ressource introuvable. » ;
@@ -31,11 +32,18 @@
 -- geste notes.lire (équipe de la promo, direction du centre, fondateur), ou ses propres lignes pour le stagiaire TANT QUE
 -- l'interrupteur de la promo est allumé (éteint : il ne voit plus rien, les lignes restent en base et l'équipe les lit
 -- toujours). Aucun insert, update ni delete pour authenticated. Le siège ne lit rien (il n'affiche aucune promo).
--- Sort des données (R2) : celui des tentatives de QCM (qcm_attempts). Fiche supprimée : clé étrangère « on delete cascade »
--- (comme qcm_attempts). Changement de promo : les lignes gardent la promo où elles ont été écrites (aucun mécanisme ne
--- déplace celles de qcm_attempts). Effacement par la conservation (étapes 1 et 2, effacement sur demande) : les fonctions
--- effacer_* gardent les résultats, qcm_attempts compris, rattachés à la fiche sans nom ; les traces restent de même. Aucune
--- fonction existante n'est modifiée.
+-- Sort des données. Fiche supprimée : clé étrangère « on delete cascade » (comme qcm_attempts). Changement de promo : les
+-- lignes gardent la promo où elles ont été écrites (comme qcm_attempts). Conservation : le travail en autonomie est une
+-- donnée de la catégorie « formation + 12 mois, puis suppression » (textes de données personnelles du lot), celle que vide
+-- l'étape 1, pas celle des résultats (3 ans). Quand l'étape 1 marque une fiche (stagiaires.efface_le passe de nul à une date :
+-- effacer_sur_demande, effacer_promo_etape1, ou l'étape 2 qui joue l'étape 1 manquante), le déclencheur
+-- stagiaires_autonomie_effacer supprime ses lectures, son temps et son éventuelle opposition (plus rien ne peut s'écrire pour
+-- une fiche effacée : l'opposition ne sert plus et c'est une donnée de la personne). Les tentatives de QCM restent (3 ans).
+-- Aucune fonction de la conservation n'est modifiée.
+-- Interrupteur : la clé autonomie_active de settings ne s'écrit (création, modification, suppression, renommage vers elle ou
+-- depuis elle) que par le fondateur hors aperçu (est_fondateur()), par trois règles RESTRICTIVES pour authenticated, qui
+-- s'ajoutent en « et » à la règle settings_ecriture (générée par le chantier des titres, non modifiée ici). La lecture des
+-- réglages ne change pas : le stagiaire lit toujours l'interrupteur de sa promo.
 -- Refus en « autonomie: <phrase> », la phrase étant montrée telle quelle par l'app.
 set local lock_timeout = '3s';
 
@@ -105,6 +113,18 @@ create policy autonomie_temps_lecture on public.autonomie_temps
                                where st.promo_id = (select public.promo_courante())
                                  and st.key = 'autonomie_active' and st.value = 'true'))));
 
+-- 2 bis. Interrupteur réservé au fondateur -----------------------------------------------------------------------------
+create policy settings_autonomie_ajout on public.settings
+  as restrictive for insert to authenticated
+  with check (key <> 'autonomie_active' or (select public.est_fondateur()));
+create policy settings_autonomie_modification on public.settings
+  as restrictive for update to authenticated
+  using (key <> 'autonomie_active' or (select public.est_fondateur()))
+  with check (key <> 'autonomie_active' or (select public.est_fondateur()));
+create policy settings_autonomie_suppression on public.settings
+  as restrictive for delete to authenticated
+  using (key <> 'autonomie_active' or (select public.est_fondateur()));
+
 -- 3. Fonctions internes ----------------------------------------------------------------------------------------------
 -- Version des conditions d'utilisation qui décrit cette collecte : un stagiaire n'a de traces que s'il a accepté cette
 -- version ou une plus récente. SENTINELLE '9999-12-31' : aucune acceptation ne l'atteint, donc aucune trace n'est écrite
@@ -135,6 +155,7 @@ create function public._autonomie_permis(p_stagiaire integer, p_promo integer)
 returns boolean language sql stable security definer set search_path to 'public', 'pg_temp' as $f$
   select exists (select 1 from settings st
                   where st.promo_id = p_promo and st.key = 'autonomie_active' and st.value = 'true')
+     and exists (select 1 from stagiaires s where s.id = p_stagiaire and s.efface_le is null)
      and exists (select 1 from conditions_acceptations ca
                   where lower(ca.email) = lower((select auth.jwt() ->> 'email'))
                     and ca.version >= _autonomie_version_conditions())
@@ -163,8 +184,24 @@ begin
   return v_ajout;
 end $f$;
 
+-- Déclencheur de l'étape 1 de la conservation : la fiche vient d'être marquée effacée (efface_le de nul à une date), ses
+-- traces et son opposition partent. Ne fait rien d'autre et ne lit que la fiche marquée.
+create function public._autonomie_effacer_fiche()
+returns trigger language plpgsql security definer set search_path to 'public', 'pg_temp' as $f$
+begin
+  delete from cours_lectures where stagiaire_id = new.id;
+  delete from autonomie_temps where stagiaire_id = new.id;
+  delete from autonomie_oppositions where stagiaire_id = new.id;
+  return null;
+end $f$;
+create trigger stagiaires_autonomie_effacer
+  after update of efface_le on public.stagiaires
+  for each row when (old.efface_le is null and new.efface_le is not null)
+  execute function public._autonomie_effacer_fiche();
+
 revoke all on function public._autonomie_version_conditions(), public._autonomie_stagiaire(),
-  public._autonomie_permis(integer, integer), public._autonomie_ajouter_temps(integer, integer, text, text, integer)
+  public._autonomie_permis(integer, integer), public._autonomie_ajouter_temps(integer, integer, text, text, integer),
+  public._autonomie_effacer_fiche()
   from public, anon, authenticated, service_role;
 
 -- 4. Écriture --------------------------------------------------------------------------------------------------------

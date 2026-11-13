@@ -450,6 +450,14 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
   select 'public.autonomie_oppositions', 'false', 'false', 'false', 'false', $mx$depuis = '2031-01-06 00:00:00+00'$mx$, null
    where to_regclass('public.autonomie_oppositions') is not null;
+-- Avec la même migration, l'interrupteur autonomie_active ne s'écrit que par le fondateur hors aperçu ({Fo}), comme
+-- emargement_actif (règles restrictives settings_autonomie_*).
+update matrice
+   set ajout = replace(ajout, $mx$case when r.key = 'emargement_actif' then {Fo}$mx$, $mx$case when r.key in ('emargement_actif', 'autonomie_active') then {Fo}$mx$),
+       modif = replace(modif, $mx$case when r.key = 'emargement_actif' then {Fo}$mx$, $mx$case when r.key in ('emargement_actif', 'autonomie_active') then {Fo}$mx$),
+       suppr = replace(suppr, $mx$case when r.key = 'emargement_actif' then {Fo}$mx$, $mx$case when r.key in ('emargement_actif', 'autonomie_active') then {Fo}$mx$)
+ where tbl = 'public.settings'
+   and exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'settings' and policyname = 'settings_autonomie_modification');
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
   select 'public.journal_droits', 'false', 'false', 'false', 'false', $mx$action = 'PreuveMaj'$mx$, null
    where to_regclass('public.journal_droits') is not null;
@@ -752,7 +760,11 @@ declare
   v_autre integer := (select x from unnest(array[1, 2, 7]) x where x is distinct from p_p order by x limit 1);
   v_pf text := 'r.promo_id = ' || coalesce(p_p::text, 'null') || ' and ' || p_f::text;
   v_pe text := 'r.promo_id = ' || coalesce(p_p::text, 'null') || ' and ' || (p_f or p_d)::text;
-  v_pcle text := 'r.promo_id = ' || coalesce(p_p::text, 'null') || ' and case when r.key = ''emargement_actif'' then false'
+  -- Clés réservées au fondateur hors aperçu : emargement_actif, et autonomie_active quand la migration de l'autonomie est là.
+  v_pcle text := 'r.promo_id = ' || coalesce(p_p::text, 'null') || ' and case when r.key in (''emargement_actif'''
+                 || case when exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'settings'
+                                       and policyname = 'settings_autonomie_modification') then ', ''autonomie_active''' else '' end
+                 || ') then false'
                  || ' when r.key = ''modules'' then ' || (p_f or p_d)::text || ' else ' || p_f::text || ' end';
   v_t record; v_res text[]; v_a text; v_o text; v_x text; v_maj text; v_prep text; v_bad text;
 begin

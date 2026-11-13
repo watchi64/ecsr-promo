@@ -44,6 +44,16 @@
 --     ROUGE 99/2 ; opposition ROUGE 100/1 ; stagiaires en abandon comptés ROUGE 100/1 ; retour incomplet ROUGE 99/2 ;
 --   - preuve des rôles (mode en-ligne, matrice complétée des trois tables) : 11538/0 avant, 11976/0 après (titres 1,2,3) ;
 --     11694/0 avant, 12132/0 après (état complet) ; règle sans interrupteur : ROUGE 11974/2.
+-- Suite (A : interrupteur réservé au fondateur ; B : traces effacées à l'étape 1 de la conservation), même jour, mêmes états :
+--   - fichiers vides ROUGE 7/2 ; migration et retour VERT 120/0 (deux passages par état) ; appliquée VERT 114/0 ;
+--   - contre-épreuves : règle d'ajout ouverte ROUGE 118/2 ; règle de modification sans using ROUGE 115/5, sans with check
+--     ROUGE 119/1 ; règle de suppression ouverte ROUGE 116/4 ; déclencheur vide ROUGE 117/3 ; garde efface_le retirée
+--     ROUGE 119/1 ; retour sans le déclencheur ROUGE 117/3 ;
+--   - preuve des rôles : 11538/0 avant, 11976/0 après (1,2,3) ; 11694/0 avant, 12132/0 après (état complet) ; suppression de
+--     l'interrupteur rouverte : ROUGE 11973/3 ;
+--   - preuve de la conservation (base où la conservation est appliquée) : VERT 227/0 avant et après la migration, deux états.
+-- Personnages de la suite : SX (PA, fiche marquée effacée en gardant son compte), SE et SE2 (promo PE finie depuis plus de
+-- 12 mois : traces, opposition).
 
 select length(set_config('preuve.migration', pg_read_file(:'migration'), false)) as migration_lue,
        length(set_config('preuve.retour', pg_read_file(:'retour'), false)) as retour_lu;
@@ -151,12 +161,12 @@ declare
      where p.pronamespace = 'public'::regnamespace
        and (p.proname like 'effacer%' or p.proname like '\_effacer%' or p.proname like '%anonymiser%') $q$;
   md5_avant text; md5_apres text; sort_avant text; sort_apres text;
-  L integer; PA integer; PB integer; v_prof integer;
-  SA integer; SB integer; SC integer; SD integer; SO integer; SI integer; SF integer; SQ integer;
+  L integer; PA integer; PB integer; PE integer; v_prof integer;
+  SA integer; SB integer; SC integer; SD integer; SO integer; SI integer; SF integer; SQ integer; SX integer; SE integer; SE2 integer;
   K1 uuid; K2 uuid; K3 uuid; K4 uuid; K5 uuid; Q1 bigint; Q_INCONNU bigint;
   v_version text; v_jour date := (now() at time zone 'Europe/Paris')::date;
   v_mots constant text := btrim(repeat('mot ', 2000));
-  r text; r2 text; n bigint; m bigint; t text; t2 text;
+  r text; r2 text; r3 text; n bigint; m bigint; t text; t2 text;
   v_sauve jsonb; v_erreur text; v_ok integer; v_ko integer; v_liste text;
 begin
   -- 0. Empreintes et migration -----------------------------------------------------------------------------------------
@@ -234,6 +244,8 @@ begin
     insert into lieux (nom) values ('Preuve autonomie') returning id into L;
     insert into promos (lieu_id, nom, date_debut, date_fin) values (L, 'Preuve auto A', v_jour - 30, v_jour + 200) returning id into PA;
     insert into promos (lieu_id, nom, date_debut, date_fin) values (L, 'Preuve auto B', v_jour - 30, v_jour + 200) returning id into PB;
+    -- PE : finie depuis plus de 12 mois (étape 1 de la conservation possible).
+    insert into promos (lieu_id, nom, date_debut, date_fin) values (L, 'Preuve auto E', v_jour - 700, v_jour - 400) returning id into PE;
     insert into profs (nom) values ('Preuve auto formateur') returning id into v_prof;
     insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve auto A', 'PREUVE', PA, true) returning id into SA;
     insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve auto B', 'PREUVE', PA, true) returning id into SB;
@@ -243,15 +255,18 @@ begin
     insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve auto I', 'PREUVE', PA, true) returning id into SI;
     insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve auto F', 'PREUVE', PA, true) returning id into SF;
     insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve auto Q', 'PREUVE', PA, true) returning id into SQ;
+    insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve auto X', 'PREUVE', PA, true) returning id into SX;
+    insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve auto E', 'PREUVE', PE, true) returning id into SE;
+    insert into stagiaires (prenom, nom, promo_id, actif) values ('Preuve auto E2', 'PREUVE', PE, true) returning id into SE2;
     insert into preuve_comptes (nom, email)
     select k, 'preuve.auto.' || lower(k) || '@example.invalid'
-      from unnest(array['SA', 'SB', 'SC', 'SD', 'SO', 'SI', 'FOS', 'EQ', 'FA', 'FB', 'SG', 'FO']) k;
+      from unnest(array['SA', 'SB', 'SC', 'SD', 'SO', 'SI', 'SX', 'EE', 'FOS', 'EQ', 'FA', 'FB', 'SG', 'FO']) k;
     insert into user_profiles (email, role, is_admin, is_founder, stagiaire_id, prof_id)
     select k.email,
            case when k.nom in ('FA', 'FB', 'SG', 'FO') then 'prof' else 'stagiaire' end,
            k.nom in ('FA', 'FB', 'FOS', 'FO'), k.nom in ('FOS', 'FO'),
            case k.nom when 'SA' then SA when 'SB' then SB when 'SC' then SC when 'SD' then SD when 'SO' then SO
-                      when 'SI' then SI when 'FOS' then SF when 'EQ' then SQ end,
+                      when 'SI' then SI when 'SX' then SX when 'EE' then SE when 'FOS' then SF when 'EQ' then SQ end,
            case when k.nom = 'FA' then v_prof end
       from preuve_comptes k;
     insert into affectations (email, role, promo_id, lieu_id)
@@ -261,7 +276,7 @@ begin
     -- Conditions : la version exigée par la base pour tous, sauf SC (version d'aujourd'hui, plus ancienne).
     v_version := public._autonomie_version_conditions();
     insert into conditions_acceptations (email, version)
-    select email, v_version from preuve_comptes where nom in ('SA', 'SB', 'SD', 'SO', 'SI', 'FOS', 'EQ', 'FA');
+    select email, v_version from preuve_comptes where nom in ('SA', 'SB', 'SD', 'SO', 'SI', 'SX', 'EE', 'FOS', 'EQ', 'FA');
     insert into conditions_acceptations (email, version)
     select email, '2026-11-10' from preuve_comptes where nom = 'SC';
     -- Cours : cinq cours publiés, 2 000 mots chacun ; le cinquième est dépublié.
@@ -276,6 +291,77 @@ begin
     select coalesce(max(id), 0) + 1000 into Q_INCONNU from qcm;
     perform pg_temp.verifier('données : cinq cours publiés et un QCM trouvés',
       K5 is not null and Q1 is not null, coalesce(K5::text, 'K5 absent'));
+
+    -- 1.2 bis Interrupteur réservé au fondateur (règles restrictives sur settings) ----------------------------------
+    perform pg_temp.verifier('interrupteur : trois règles restrictives sur settings (insert, update, delete), pour authenticated seul, aucune en lecture',
+      (select string_agg(cmd || ':' || permissive || ':' || roles::text, ',' order by cmd) from pg_policies
+        where schemaname = 'public' and tablename = 'settings' and policyname like 'settings\_autonomie%')
+      = 'DELETE:RESTRICTIVE:{authenticated},INSERT:RESTRICTIVE:{authenticated},UPDATE:RESTRICTIVE:{authenticated}',
+      (select string_agg(policyname || ':' || cmd || ':' || permissive, ',') from pg_policies
+        where schemaname = 'public' and tablename = 'settings' and policyname like 'settings\_autonomie%'));
+    perform pg_temp.verifier('interrupteur : RLS de settings non forcée (le propriétaire n''est pas concerné)',
+      not (select relforcerowsecurity from pg_class where oid = 'public.settings'::regclass));
+    r := pg_temp.essai('FA', PA, format('insert into public.settings (key, value, promo_id) values (''autonomie_active'', ''true'', %s) returning value', PA));
+    perform pg_temp.verifier('interrupteur : le formateur ne crée pas la clé (42501)',
+      r like 'REFUS 42501%' and not exists (select 1 from settings where promo_id = PA and key = 'autonomie_active'), r);
+    insert into settings (key, value, promo_id) values ('autonomie_active', 'false', PA), ('preuve_auto_cle', 'avant', PA)
+      on conflict (promo_id, key) do update set value = excluded.value;
+    r := pg_temp.essai('FA', PA, format('update public.settings set value = ''true'' where promo_id = %s and key = ''autonomie_active'' returning value', PA));
+    perform pg_temp.verifier('interrupteur : le formateur ne l''allume pas (aucune ligne modifiée)',
+      r = 'OK ' and (select value from settings where promo_id = PA and key = 'autonomie_active') = 'false', r);
+    update settings set value = 'true' where promo_id = PA and key = 'autonomie_active';
+    r := pg_temp.essai('FA', PA, format('update public.settings set value = ''false'' where promo_id = %s and key = ''autonomie_active'' returning value', PA));
+    r2 := pg_temp.essai('FA', PA, format('delete from public.settings where promo_id = %s and key = ''autonomie_active'' returning value', PA));
+    perform pg_temp.verifier('interrupteur : le formateur ne l''éteint pas et ne le supprime pas',
+      r = 'OK ' and r2 = 'OK ' and (select value from settings where promo_id = PA and key = 'autonomie_active') = 'true', r || ' / ' || r2);
+    r := pg_temp.essai('FA', PA, format('update public.settings set key = ''preuve_auto_renommee'' where promo_id = %s and key = ''autonomie_active'' returning key', PA));
+    r2 := pg_temp.essai('FA', PA, format('update public.settings set key = ''autonomie_active'' where promo_id = %s and key = ''preuve_auto_cle'' returning key', PA));
+    perform pg_temp.verifier('interrupteur : le formateur ne renomme ni depuis la clé (aucune ligne) ni vers elle (42501)',
+      r = 'OK ' and r2 like 'REFUS 42501%' and exists (select 1 from settings where promo_id = PA and key = 'autonomie_active')
+      and exists (select 1 from settings where promo_id = PA and key = 'preuve_auto_cle'), r || ' / ' || r2);
+    r := pg_temp.essai('FA', PA, format('update public.settings set value = ''apres'' where promo_id = %s and key = ''preuve_auto_cle'' returning value', PA));
+    r2 := pg_temp.essai('FA', PA, format('insert into public.settings (key, value, promo_id) values (''preuve_auto_cle2'', ''x'', %s) returning value', PA));
+    t := pg_temp.essai('FA', PA, format('delete from public.settings where promo_id = %s and key = ''preuve_auto_cle2'' returning key', PA));
+    perform pg_temp.verifier('interrupteur : le formateur écrit toujours une autre clé (modifier, créer, supprimer)',
+      r = 'OK apres' and r2 = 'OK x' and t = 'OK preuve_auto_cle2', r || ' / ' || r2 || ' / ' || t);
+    r := pg_temp.essai('FO', PA, format('update public.settings set value = ''false'' where promo_id = %s and key = ''autonomie_active'' returning value', PA), 'formateur');
+    r2 := pg_temp.essai('FO', PA, format('delete from public.settings where promo_id = %s and key = ''autonomie_active'' returning value', PA), 'formateur');
+    perform pg_temp.verifier('interrupteur : le fondateur en aperçu formateur ne l''éteint ni ne le supprime',
+      r = 'OK ' and r2 = 'OK ' and (select value from settings where promo_id = PA and key = 'autonomie_active') = 'true', r || ' / ' || r2);
+    r := pg_temp.essai('FO', PA, format('update public.settings set value = ''false'' where promo_id = %s and key = ''autonomie_active'' returning value', PA));
+    r2 := pg_temp.essai('FO', PA, format('update public.settings set value = ''true'' where promo_id = %s and key = ''autonomie_active'' returning value', PA));
+    t := pg_temp.essai('FO', PA, format('delete from public.settings where promo_id = %s and key = ''autonomie_active'' returning value', PA));
+    t2 := pg_temp.essai('FO', PA, format('insert into public.settings (key, value, promo_id) values (''autonomie_active'', ''true'', %s) returning value', PA));
+    perform pg_temp.verifier('interrupteur : le fondateur hors aperçu l''éteint, l''allume, le supprime et le recrée',
+      r = 'OK false' and r2 = 'OK true' and t = 'OK true' and t2 = 'OK true', r || ' / ' || r2 || ' / ' || t || ' / ' || t2);
+    r := pg_temp.essai('FO', PA, format('insert into public.settings (key, value, promo_id) values (''preuve_auto_cle3'', ''x'', %s) on conflict (promo_id, key) do nothing returning value', PA), 'formateur');
+    delete from settings where promo_id = PA and key = 'autonomie_active';
+    r2 := pg_temp.essai('FO', PA, format('insert into public.settings (key, value, promo_id) values (''autonomie_active'', ''true'', %s) returning value', PA), 'formateur');
+    perform pg_temp.verifier('interrupteur : en aperçu formateur, le fondateur écrit une autre clé mais ne crée pas l''interrupteur',
+      r = 'OK x' and r2 like 'REFUS 42501%', r || ' / ' || r2);
+    insert into settings (key, value, promo_id) values ('autonomie_active', 'true', PA)
+      on conflict (promo_id, key) do update set value = excluded.value;
+    n := pg_temp.compter('SA', PA, format('select count(*) from public.settings where promo_id = %s and key = ''autonomie_active'' and value = ''true''', PA));
+    perform pg_temp.verifier('interrupteur : le stagiaire lit toujours le réglage de sa promo', n = 1, n::text);
+    -- service_role : les règles restrictives ne le visent pas ; même résultat pour l'interrupteur que pour une autre clé.
+    begin
+      set local role service_role;
+      update public.settings set value = 'false' where promo_id = PA and key = 'autonomie_active';
+      get diagnostics n = row_count;
+      update public.settings set value = 'sr' where promo_id = PA and key = 'preuve_auto_cle';
+      get diagnostics m = row_count;
+      reset role;
+      r := n || '/' || m;
+    exception when others then
+      reset role;
+      r := sqlstate || ' ' || sqlerrm;
+    end;
+    perform pg_temp.verifier('interrupteur : service_role écrit l''interrupteur comme une autre clé (règles restrictives sans effet sur lui)',
+      r = '1/1', r);
+    update settings set value = 'false' where promo_id = PA and key = 'autonomie_active';
+    get diagnostics n = row_count;
+    perform pg_temp.verifier('interrupteur : le propriétaire de la table écrit la clé', n = 1, n::text);
+    delete from settings where promo_id = PA and key in ('autonomie_active', 'preuve_auto_cle', 'preuve_auto_cle3');
 
     -- 1.3 Règle 1 : réservé aux stagiaires ---------------------------------------------------------------------------
     insert into settings (key, value, promo_id) values ('autonomie_active', 'true', PA);
@@ -581,21 +667,57 @@ begin
           and conrelid in ('public.cours_lectures'::regclass, 'public.autonomie_temps'::regclass,
                            'public.autonomie_oppositions'::regclass, 'public.qcm_attempts'::regclass))
       = 'autonomie_oppositions:c,autonomie_temps:c,cours_lectures:c,qcm_attempts:c');
-    -- Effacement sur demande (conservation) : les tentatives de QCM restent, rattachées à la fiche sans nom ; les traces
-    -- aussi, ni plus ni moins.
+    -- Étape 1 de la conservation (R2b) : le travail en autonomie est de la catégorie « formation + 12 mois », que l'étape 1
+    -- vide ; les tentatives de QCM (résultats, 3 ans) restent. Le déclencheur suit la marque efface_le.
+    perform pg_temp.verifier('R2b : déclencheur after update of efface_le sur stagiaires, borné au passage de nul à une date',
+      exists (select 1 from pg_trigger where tgrelid = 'public.stagiaires'::regclass and tgname = 'stagiaires_autonomie_effacer'
+                and not tgisinternal and tgenabled = 'O'
+                and pg_get_triggerdef(oid) like '%AFTER UPDATE OF efface_le ON public.stagiaires%'
+                and pg_get_triggerdef(oid) like '%old.efface_le IS NULL%new.efface_le IS NOT NULL%'));
+    -- Effacement sur demande.
     insert into qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20) values (Q1, SA, 'entrainement', 5, 10, 10);
     select count(*) into n from qcm_attempts where stagiaire_id = SA;
     t := (select count(*) from cours_lectures where stagiaire_id = SA) || '/' || (select count(*) from autonomie_temps where stagiaire_id = SA);
-    if to_regprocedure('public.effacer_sur_demande(integer)') is not null then
-      r := pg_temp.essai('FO', PA, format('select public.effacer_sur_demande(%s)::text', SA));
-      t2 := (select count(*) from cours_lectures where stagiaire_id = SA) || '/' || (select count(*) from autonomie_temps where stagiaire_id = SA);
-      perform pg_temp.verifier('R2, effacement sur demande : fiche effacée, tentatives de QCM et traces gardées à l''identique',
-        r like 'OK {%' and exists (select 1 from stagiaires where id = SA and anonymise_le is not null)
-        and (select count(*) from qcm_attempts where stagiaire_id = SA) = n and n > 0 and t2 = t and t = '3/4',
-        r || ' ; qcm ' || n || ' ; traces ' || t || ' -> ' || t2);
-    else
-      perform pg_temp.verifier('R2, effacement sur demande : effacer_sur_demande(integer) présente (conservation Q5)', false, 'absente');
-    end if;
+    r := pg_temp.essai('FO', PA, format('select public.effacer_sur_demande(%s)::text', SA));
+    t2 := (select count(*) from cours_lectures where stagiaire_id = SA) || '/' || (select count(*) from autonomie_temps where stagiaire_id = SA);
+    perform pg_temp.verifier('R2b, effacement sur demande : 0 trace pour la fiche, tentatives de QCM gardées',
+      r like 'OK {%' and exists (select 1 from stagiaires where id = SA and efface_le is not null)
+      and (select count(*) from qcm_attempts where stagiaire_id = SA) = n and n > 0 and t = '3/4' and t2 = '0/0',
+      r || ' ; qcm ' || n || ' ; traces ' || t || ' -> ' || t2);
+    perform pg_temp.verifier('R2b : les traces des autres stagiaires sont intactes après l''effacement d''une fiche',
+      (select count(*) from cours_lectures where stagiaire_id = SI) = 1);
+    -- Étape 1 d'une promo finie depuis plus de 12 mois : SE a des traces, SE2 une opposition.
+    insert into settings (key, value, promo_id) values ('autonomie_active', 'true', PE);
+    r := pg_temp.essai('EE', PE, format('select public.autonomie_tracer_cours(%L, 30, false, null)::text', K1));
+    r2 := pg_temp.essai('EE', PE, format('select public.autonomie_tracer_qcm(%s, 30)::text', Q1));
+    insert into autonomie_oppositions (stagiaire_id) values (SE2);
+    insert into qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20) values (Q1, SE, 'entrainement', 5, 10, 10);
+    t := (select count(*) from cours_lectures where stagiaire_id = SE) || '/' || (select count(*) from autonomie_temps where stagiaire_id = SE)
+         || '/' || (select count(*) from autonomie_oppositions where stagiaire_id = SE2);
+    r3 := pg_temp.essai('FO', PE, format('select public.effacer_promo_etape1(%s)::text', PE));
+    t2 := (select count(*) from cours_lectures where stagiaire_id = SE) || '/' || (select count(*) from autonomie_temps where stagiaire_id = SE)
+          || '/' || (select count(*) from autonomie_oppositions where stagiaire_id = SE2);
+    perform pg_temp.verifier('R2b, étape 1 de la promo (fin + 12 mois) : traces et opposition supprimées, tentatives de QCM gardées',
+      r = 'OK false' and r2 = 'OK ' and r3 like 'OK {%' and t = '1/2/1' and t2 = '0/0/0'
+      and (select count(*) from qcm_attempts where stagiaire_id = SE) = 1,
+      r || ' / ' || r2 || ' / ' || r3 || ' ; ' || t || ' -> ' || t2);
+    -- Fiche marquée effacée qui garde un compte (marque posée en propriétaire, sous le drapeau de la conservation) : ses
+    -- traces partent, et une écriture ensuite n'écrit rien.
+    r := pg_temp.essai('SX', PA, format('select public.autonomie_tracer_cours(%L, 30, false, null)::text', K1));
+    t := (select count(*) from cours_lectures where stagiaire_id = SX)::text;
+    perform set_config('conservation.effacement', 'on', true);
+    update stagiaires set efface_le = now() where id = SX;
+    perform set_config('conservation.effacement', '', true);
+    r2 := pg_temp.essai('SX', PA, format('select public.autonomie_tracer_cours(%L, 30, true, null)::text', K1));
+    r3 := pg_temp.essai('SX', PA, format('select public.autonomie_tracer_qcm(%s, 30)::text', Q1));
+    perform pg_temp.verifier('R2b : fiche marquée effacée, traces supprimées puis refus silencieux (0 ligne)',
+      r = 'OK false' and t = '1' and r2 = 'OK false' and r3 = 'OK '
+      and (select count(*) from cours_lectures where stagiaire_id = SX) + (select count(*) from autonomie_temps where stagiaire_id = SX) = 0,
+      r || ' / ' || t || ' / ' || r2 || ' / ' || r3);
+    -- Une autre modification d'une fiche ne déclenche rien (SB a une lecture, écrite dans PA avant son changement de promo).
+    update stagiaires set actif = false where id = SB;
+    perform pg_temp.verifier('R2b : une autre modification de la fiche ne supprime rien',
+      (select count(*) from cours_lectures where stagiaire_id = SB) = 1);
 
     select coalesce(jsonb_agg(to_jsonb(p) order by p.num), '[]'::jsonb) into v_sauve from preuve p;
     raise exception 'preuve: annulé';
@@ -630,6 +752,9 @@ begin
     select string_agg(p.oid::regprocedure::text, ',') into t from pg_proc p
      where p.pronamespace = 'public'::regnamespace and p.proname like '%autonomie%';
     perform pg_temp.verifier('retour : plus aucune fonction de l''autonomie', t is null, t);
+    perform pg_temp.verifier('retour : déclencheur de stagiaires et règles restrictives de settings retirés',
+      not exists (select 1 from pg_trigger where tgrelid = 'public.stagiaires'::regclass and tgname = 'stagiaires_autonomie_effacer')
+      and not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'settings' and policyname like 'settings\_autonomie%'));
     execute v_sort into sort_apres;
     perform pg_temp.verifier('retour : fonctions d''effacement et d''anonymisation identiques à avant (md5 de pg_get_functiondef)',
       sort_apres = sort_avant, sort_avant || ' / ' || sort_apres);
