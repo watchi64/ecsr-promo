@@ -13,7 +13,7 @@ import re
 
 from . import parcours
 from .navigation import texte, SOUS_ONGLET
-from .visite import BLOQUE
+from .visite import BLOQUE, DelaiDepasse
 
 NOUVELLE = ("nouvelle",)
 PARTIE = "Travail en autonomie"
@@ -25,10 +25,10 @@ REPERES = "#view .ms-autonomie li.res-sujet"
 NOTE_STAGIAIRE = "Ton formateur voit exactement cette page."
 
 # Une lecture déjà faite (cours 1, « Feux du véhicule ») : ouverte, vue et lue le mardi 27/10 ; le banc est gelé au 28/10.
-def _lecture(stagiaire, lu=True, section=None):
-    return ("window.__HARNESS_AUTONOMIE.lectures.push({ stagiaire_id: %d, promo_id: 1, cours_id: 1, "
+def _lecture(stagiaire, lu=True, section=None, cours=1):
+    return ("window.__HARNESS_AUTONOMIE.lectures.push({ stagiaire_id: %d, promo_id: 1, cours_id: %d, "
             "ouvert_le: '2026-10-27T08:00:00.000Z', vu_le: '2026-10-27T08:20:00.000Z', lu_le: %s, "
-            "fin_atteinte: %s, section: %s });" % (stagiaire, "'2026-10-27T08:20:00.000Z'" if lu else "null",
+            "fin_atteinte: %s, section: %s });" % (stagiaire, cours, "'2026-10-27T08:20:00.000Z'" if lu else "null",
                                                   "true" if lu else "false", "'%s'" % section if section else "null"))
 
 
@@ -43,9 +43,17 @@ SEMIS_LIRE = (_temps(1, 300),)
 # Céline A. (id 6, la première de la liste par nom, donc la fiche ouverte d'emblée sur ordinateur), Anissa O. (2) et Lorie K. (3)
 # ont lu le cours 1 ; Céline y a passé 25 minutes. La promo compte 6 stagiaires actifs : « 3 sur 6 l'ont lu ».
 SEMIS_EQUIPE = (_lecture(6), _lecture(2), _lecture(3), _temps(6, 1500))
-# Interrupteur ÉTEINT, mais des traces d'un temps où il était allumé : une lecture finie avec une section retenue (de quoi montrer
-# le bandeau de reprise) et 5 minutes. Éteint, rien ne doit s'afficher ni se modifier.
-SEMIS_ETEINTE = (_lecture(1, lu=True, section="2-contenu-du-cours"), _temps(1, 300))
+# Interrupteur ÉTEINT, avec des traces laissées par un temps où il était allumé, choisies pour que l'interrupteur allumé montrerait
+# quelque chose : « Feux du véhicule » (cours 1) commencée, non lue, avec la section « cours-sec-2 » (le deuxième titre du cours du
+# banc : bandeau de reprise) ; « Pneumatiques » (cours 2, ajouté ici) lue (marque « Lu »). Les preuves de ce parcours sont deux :
+# les absences à l'écran, et le journal des requêtes du faux client (`appels`), qui doit rester VIDE : le faux client rend [] et
+# n'écrit rien quand l'interrupteur est éteint, donc seul ce journal prouve que le client n'a rien demandé ni rien envoyé.
+SEMIS_ETEINTE = (
+    "FIXTURES.cours.push({ id: 2, numero: 23, titre: 'Pneumatiques', published: true, "
+    "corps_md: '# THÈME 23 - Pneumatiques\\n\\n## 1. Définition\\n\\nLe pneumatique assure le contact avec la route.\\n', "
+    "updated_by: 'banc', updated_at: '2026-08-09T10:00:00Z' });",
+    _lecture(1, lu=False, section="cours-sec-2"), _lecture(1, lu=True, cours=2), _temps(1, 300),
+)
 
 
 def ouvrir_le_cours(v):
@@ -83,6 +91,11 @@ def ouvrir_la_partie(v):
     v.attendre("#view .ms-autonomie li.res-sujet", "les repères de la partie")
 
 
+def appels(v):
+    """Le journal du faux client : le nom de chaque requête autonomie reçue (trois fonctions, lectures des deux tables de traces)."""
+    return v.page.evaluate("() => (window.__HARNESS_AUTONOMIE && window.__HARNESS_AUTONOMIE.appels) || []")
+
+
 def reperes(v):
     return [t.strip() for t in v.page.locator(REPERES).all_inner_texts()]
 
@@ -107,7 +120,13 @@ def lire_un_cours_suivi(v):
     aller_a_la_fin(v)
     fermer_le_cours(v)
     v.etape("la marque « Lu » sur le bouton du cours")
-    v.attendre(LIGNE_FEUX + " button.theme-cours-btn.lu .theme-cours-lu:text-is(\"Lu\")", "la marque « Lu » sur le bouton « Cours » du thème")
+    try:
+        v.page.locator(LIGNE_FEUX + " button.theme-cours-btn.lu .theme-cours-lu:text-is(\"Lu\")").first.wait_for(state="visible", timeout=5000)
+    except DelaiDepasse:
+        v.echec("la marque « Lu » n'apparaît pas sur le bouton « Cours » : la fin du cours n'a peut-être pas été enregistrée avant la "
+                "fermeture du lecteur (journal du banc : %s)" % (", ".join(appels(v)) or "aucune requête"))
+    if "autonomie_tracer_cours" not in appels(v):
+        v.echec("aucune requête autonomie_tracer_cours dans le journal du banc après la lecture (le journal ne voit rien)")
     v.aller("Mon suivi")
     ouvrir_la_partie(v)
     lus = reperes(v)
@@ -124,7 +143,7 @@ def lire_un_cours_suivi(v):
           semis=SEMIS_EQUIPE)
 def fiche_equipe(v):
     """Interrupteur allumé : le formateur lit « 3 sur 6 l'ont lu » sur la ligne du thème, ouvre la fiche d'une stagiaire et y trouve
-    la partie « Travail en autonomie » (cinq repères, cours lus), sans la phrase réservée au stagiaire ; un cours ouvert par lui n'a pas de bandeau de reprise."""
+    la partie « Travail en autonomie » (cinq repères, cours lus), sans la phrase réservée au stagiaire ; le lecteur qu'il ouvre ensuite n'est pas suivi (pas de repère de fin), puis il le referme."""
     v.aller("Cours et QCM")
     v.attendre(LIGNE_FEUX + ' .theme-lecteurs:text-is("3 sur 6 l\'ont lu")', "« 3 sur 6 l'ont lu » sur la ligne du thème 22")
     v.aller("Stagiaires")
@@ -147,8 +166,11 @@ def fiche_equipe(v):
     v.etape("un cours ouvert par le formateur n'a pas de bandeau de reprise")
     v.aller("Cours et QCM")
     ouvrir_le_cours(v)
-    if v.voit(".cours-reprise") or v.voit(".cours-fin-repere"):
-        v.constat("D", BLOQUE, "le formateur voit un bandeau de reprise ou le suivi d'un cours dans le lecteur", capture=True)
+    # Seul le repère de fin est sûr : il est posé au rendu du cours, pour un stagiaire seulement ; le bandeau de reprise arrive après
+    # une lecture asynchrone, son absence ne prouverait rien à cet instant.
+    if v.voit(".cours-fin-repere"):
+        v.constat("D", BLOQUE, "le suivi de lecture est branché dans le lecteur d'un formateur (repère de fin présent)", capture=True)
+    fermer_le_cours(v)
     v.terminer()
 
 
@@ -179,29 +201,27 @@ def interrupteur(v):
 @parcours("autonomie-eteinte", "Interrupteur éteint : lire un cours ne change rien à l'écran", role="stagiaire", budget=3,
           navigations=NOUVELLE, semis=SEMIS_ETEINTE)
 def eteinte(v):
-    """Interrupteur éteint (le défaut), avec une lecture ancienne en base : le stagiaire lit un cours jusqu'à la fin, le referme :
-    ni bandeau de reprise, ni marque « Lu », aucune trace écrite, et Mon suivi n'a pas de partie « Travail en autonomie »."""
+    """Interrupteur éteint (le défaut), avec en base une lecture qui montrerait un bandeau et une autre qui montrerait « Lu » si le suivi
+    était allumé : le stagiaire lit un cours jusqu'à la fin, le referme, revoit la liste des thèmes et Mon suivi. Preuves : le journal
+    des requêtes du banc reste vide (aucune lecture ni écriture de traces demandée), pas de repère de fin dans le lecteur, pas de
+    bandeau, pas de marque « Lu », pas de partie « Travail en autonomie » dans Mon suivi."""
     v.aller("Cours et QCM")
     v.attendre(BOUTON_COURS, "le bouton « Cours » du thème 22")
-    if v.voit(LIGNE_FEUX + " .theme-cours-lu") or v.voit(LIGNE_FEUX + " button.theme-cours-btn.lu"):
-        v.echec("une marque « Lu » s'affiche interrupteur éteint")
     ouvrir_le_cours(v)
-    if v.voit(".cours-reprise"):
-        v.echec("un bandeau de reprise s'affiche interrupteur éteint")
     if v.voit(".cours-fin-repere"):
         v.echec("le suivi de lecture est branché interrupteur éteint (repère de fin présent)")
     aller_a_la_fin(v)
     fermer_le_cours(v)
-    if v.voit(LIGNE_FEUX + " .theme-cours-lu") or v.voit(LIGNE_FEUX + " button.theme-cours-btn.lu"):
-        v.echec("la marque « Lu » apparaît après la lecture, interrupteur éteint")
+    v.etape("la liste des thèmes, sans marque ni bandeau")
+    marques = '#view .theme-cours-lu, #view button.theme-cours-btn.lu'
+    if v.voit(marques) or v.voit(".cours-reprise"):
+        v.echec("une marque « Lu » ou un bandeau de reprise s'affiche interrupteur éteint")
     v.aller("Mon suivi")
     v.attendre(texte("Résultats", SOUS_ONGLET), "les parties de Mon suivi")
     if v.voit(texte(PARTIE, SOUS_ONGLET)) or PARTIE in v.texte("#view") or "Cours lus :" in v.texte("#view"):
         v.echec("Mon suivi montre la partie « %s » interrupteur éteint" % PARTIE)
-    traces = v.page.evaluate(
-        "() => { const a = window.__HARNESS_AUTONOMIE; return { l: a.lectures.length, t: a.temps.length, "
-        "vu: a.lectures[0] && a.lectures[0].vu_le, s: a.temps[0] && a.temps[0].secondes }; }")
-    if traces != {"l": 1, "t": 1, "vu": "2026-10-27T08:20:00.000Z", "s": 300}:   # tel que le semis l'a posé : la moindre trace changerait vu_le ou les secondes
-        v.echec("des traces ont changé interrupteur éteint (état en mémoire : %s)" % traces)
-    v.but("rien de nouveau à l'écran ni en mémoire, interrupteur éteint")
+    journal = appels(v)
+    if journal:
+        v.echec("interrupteur éteint, le client a demandé des traces ou en a envoyé : %s" % ", ".join(journal))
+    v.but("rien de nouveau à l'écran et aucune requête de traces, interrupteur éteint")
     v.terminer()
