@@ -237,9 +237,13 @@ begin
     pg_temp.retirer('dir_n', '1', null, e_x, t_form, v_l1t), 'ERREUR P0001 titres: Cette personne n''a pas ce titre ici.');
   perform pg_temp.attendre('retrait', 'un Formateur d''un autre centre (form_m, centre 2) retiré par dir_n sur son propre centre : « Cette personne n''a pas ce titre ici. »',
     pg_temp.retirer('dir_n', '1', null, e_form_m, t_form, v_l1t), 'ERREUR P0001 titres: Cette personne n''a pas ce titre ici.');
-  perform pg_temp.attendre('retrait', 'un titre non fixe (t_interv) : « Ce titre ne se retire pas encore ici. », la ligne reste',
+  -- Un titre non fixe : la migration 5 le refuse (« ne se retire pas encore ici »), la migration 6 le retire (la ligne est alors remise).
+  perform pg_temp.attendre('retrait', 'un titre non fixe (t_interv) : refusé avant la migration 6 (la ligne reste), retiré après (la ligne part)',
     pg_temp.retirer('dir_n', '1', null, e_interv, t_interv, v_l1t) || ' / ' || pg_temp.lignes(e_interv, 'formateur'),
-    'ERREUR P0001 titres: Ce titre ne se retire pas encore ici. / 1');
+    case when to_regprocedure('public.donner_titre(text, bigint, integer, integer[], integer)') is null
+         then 'ERREUR P0001 titres: Ce titre ne se retire pas encore ici. / 1' else 'OK 1 / 0' end);
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L and role = ''formateur''', e_interv));
+  perform pg_temp.affecter(e_interv, 'formateur', 1, null, t_interv);
   perform pg_temp.attendre('retrait', 'un jeton sans adresse : « Connexion requise. » (42501)',
     pg_temp.retirer(null, '1', null, e_form_n, t_form, v_l1t), 'ERREUR 42501 titres: Connexion requise.');
   -- L'aperçu du fondateur : il vaut le rôle simulé, jamais plus.
@@ -533,6 +537,1052 @@ begin
   perform pg_temp.essai('delete from pg_temp.perso where nom = ''t_promos''');
 end $tgl$;
 
+-- Aides de l'étape 2b. L'adresse d'un personnage ; l'identifiant (en texte) du premier titre qu'il porte ; le verrou des titres non fixes
+-- ouvert ou fermé en propriétaire (le groupe verrou, lui, le règle par la fonction du fondateur).
+create or replace function pg_temp.e(p_nom text)
+returns text language plpgsql as $tg15a$
+begin
+  return (select email from pg_temp.perso where nom = p_nom);
+end $tg15a$;
+
+create or replace function pg_temp.titre_de(p_nom text)
+returns text language sql as $tg15b$
+  select pg_temp.calcul(format('select a.titre_id::text from public.affectations a join pg_temp.perso p on lower(a.email) = p.email where p.nom = %L order by a.id limit 1', p_nom));
+$tg15b$;
+
+create or replace function pg_temp.verrou(p_ouvert boolean)
+returns text language plpgsql as $tg15c$
+begin
+  perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+  if p_ouvert then
+    return pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('titres_ouverts', 'oui', null)$q$);
+  end if;
+  return 'OK';
+end $tg15c$;
+
+-- Groupe verrou (migration 6, partie A) : le verrou des titres non fixes (réglé par le fondateur seul) et les aides de décision
+-- (_cases_effectives, _depasse), jugées ici une à une ; leurs règles sont jugées par les groupes donner, retirer et gerer.
+create or replace function pg_temp.groupe_verrou()
+returns void language plpgsql as $tgvr$
+declare
+  t_form text := pg_temp.calcul($q$select public.titre_fixe('promo')::text$q$);
+  t_dir text := pg_temp.calcul($q$select public.titre_fixe('centre')::text$q$);
+  t_siege text := pg_temp.calcul($q$select public.titre_fixe('reseau')::text$q$);
+  t_interv text := pg_temp.titre_de('t_interv');
+  t_secr text := pg_temp.titre_de('t_secr');
+  t_rh text := pg_temp.titre_de('t_rh');
+  t_contenus text := pg_temp.titre_de('t_contenus');
+  t_chef text := pg_temp.titre_de('t_chef');
+  t_vide text := pg_temp.titre_de('t_vide');
+  t_qualite text := pg_temp.titre_de('t_qualite');
+  t_dirs text := pg_temp.titre_de('t_dirs');
+  c_form constant text := '{"planning":"modifier","emargement":"modifier","stagiaires":"modifier","notes":"modifier","cours":"modifier","ccp2":"voir","indicateurs":"voir","reglages":"modifier"}';
+  c_dir constant text := '{"promos":"modifier","stagiaires":"modifier","emargement":"voir","notes":"voir","equipe":"modifier","reglages":"modifier"}';
+  c_siege constant text := '{"cours":"modifier","directions":"modifier","reglages":"modifier"}';
+  c_interv constant text := '{"planning":"voir","emargement":"modifier","stagiaires":"voir","notes":"non","cours":"voir","ccp2":"non","indicateurs":"non","reglages":"non"}';
+  c_rh constant text := '{"promos":"voir","stagiaires":"non","emargement":"non","notes":"non","equipe":"voir","reglages":"non"}';
+  c_vide constant text := '{"promos":"non","stagiaires":"non","emargement":"non","notes":"non","equipe":"non","reglages":"non"}';
+begin
+  -- Le départ : aucune ligne, verrou fermé pour tous.
+  perform pg_temp.attendre('verrou', 'départ : aucune ligne titres_ouverts dans les réglages',
+    pg_temp.calcul($q$select count(*)::text from public.settings where promo_id is null and key = 'titres_ouverts'$q$), '0');
+  perform pg_temp.attendre('verrou', 'titres_ouverts() est faux au départ (propriétaire)', pg_temp.calcul('select public.titres_ouverts()::text'), 'false');
+  perform pg_temp.attendre('verrou', 'titres_ouverts() est faux au départ (dir_n)', pg_temp.appeler_a('dir_n', '1', null, 'select public.titres_ouverts()::text'), 'OK false');
+  -- Seul le fondateur le règle.
+  perform pg_temp.attendre('verrou', 'dir_n ne lève pas le verrou : refusé (42501)',
+    pg_temp.appeler_a('dir_n', '1', null, 'select public.regler_titres_ouverts(true)::text'), 'ERREUR 42501 titres: Réservé au fondateur.');
+  perform pg_temp.attendre('verrou', 'siege ne lève pas le verrou : refusé (42501)',
+    pg_temp.appeler_a('siege', null, null, 'select public.regler_titres_ouverts(true)::text'), 'ERREUR 42501 titres: Réservé au fondateur.');
+  perform pg_temp.attendre('verrou', 't_dirs (Directions : Modifier) ne lève pas le verrou : refusé (42501)',
+    pg_temp.appeler_a('t_dirs', null, null, 'select public.regler_titres_ouverts(true)::text'), 'ERREUR 42501 titres: Réservé au fondateur.');
+  perform pg_temp.attendre('verrou', 'un jeton sans adresse ne règle pas le verrou : refusé (42501)',
+    pg_temp.appeler_a(null, null, null, 'select public.regler_titres_ouverts(true)::text'), 'ERREUR 42501 titres: Réservé au fondateur.');
+  perform pg_temp.attendre('verrou', 'le fondateur en aperçu siège ne règle pas le verrou : refusé (42501)',
+    pg_temp.appeler_a('fond', null, 'siege', 'select public.regler_titres_ouverts(true)::text'), 'ERREUR 42501 titres: Réservé au fondateur.');
+  perform pg_temp.attendre('verrou', 'le fondateur en aperçu direction ne le règle pas non plus',
+    pg_temp.appeler_a('fond', '1', 'direction', 'select public.regler_titres_ouverts(true)::text'), 'ERREUR 42501 titres: Réservé au fondateur.');
+  perform pg_temp.attendre('verrou', 'les refus n''ont rien écrit : le verrou est toujours fermé',
+    pg_temp.calcul('select public.titres_ouverts()::text'), 'false');
+  -- Le fondateur lève puis ferme le verrou.
+  perform pg_temp.attendre('verrou', 'le fondateur lève le verrou : vrai',
+    pg_temp.appeler_a('fond', '1', null, 'select public.regler_titres_ouverts(true)::text'), 'OK true');
+  perform pg_temp.attendre('verrou', 'après sa levée, titres_ouverts() est vrai pour tous (dir_n)',
+    pg_temp.appeler_a('dir_n', '1', null, 'select public.titres_ouverts()::text'), 'OK true');
+  perform pg_temp.attendre('verrou', 'la levée est une seule ligne globale (sans promo)',
+    pg_temp.calcul($q$select count(*)::text || '/' || min(value) from public.settings where promo_id is null and key = 'titres_ouverts'$q$), '1/oui');
+  perform pg_temp.attendre('verrou', 'lever deux fois ne double pas la ligne',
+    pg_temp.appeler_a('fond', '1', null, 'select public.regler_titres_ouverts(true)::text') || ' / '
+      || pg_temp.calcul($q$select count(*)::text from public.settings where promo_id is null and key = 'titres_ouverts'$q$), 'OK true / 1');
+  perform pg_temp.attendre('verrou', 'le fondateur ferme le verrou : faux',
+    pg_temp.appeler_a('fond', '1', null, 'select public.regler_titres_ouverts(false)::text'), 'OK false');
+  perform pg_temp.attendre('verrou', 'après sa fermeture, la ligne a disparu et titres_ouverts() est faux',
+    pg_temp.calcul($q$select count(*)::text from public.settings where promo_id is null and key = 'titres_ouverts'$q$) || ' / '
+      || pg_temp.calcul('select public.titres_ouverts()::text'), '0 / false');
+  perform pg_temp.attendre('verrou', 'regler_titres_ouverts(nul) vaut fermer',
+    pg_temp.appeler_a('fond', '1', null, 'select public.regler_titres_ouverts(null)::text'), 'OK false');
+  -- La contrainte des réglages globaux : la clé du verrou est admise sans promo, une clé inconnue reste refusée.
+  perform pg_temp.attendre('verrou', 'une ligne titres_ouverts sans promo est admise par la contrainte des réglages globaux',
+    pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('titres_ouverts', 'oui', null)$q$), 'OK');
+  perform pg_temp.attendre('verrou', 'la ligne posée à la main ouvre le verrou : titres_ouverts() est vrai',
+    pg_temp.calcul('select public.titres_ouverts()::text'), 'true');
+  perform pg_temp.verrou(false);
+  perform pg_temp.attendre('verrou', 'une clé globale inconnue reste refusée (23514)',
+    pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('cle_inconnue_preuve8', 'oui', null)$q$), 'ERREUR 23514');
+  -- Jugée sur le texte de la contrainte, pas par une insertion : la production a déjà sa ligne habillage_reseau (23505).
+  perform pg_temp.attendre('verrou', 'une clé d''avant reste admise sans promo (habillage_reseau)',
+    pg_temp.calcul($q$select (count(*) = 1)::text from pg_constraint where conrelid = 'public.settings'::regclass
+      and conname = 'settings_globaux_prevus' and pg_get_constraintdef(oid) like '%habillage_reseau%'$q$), 'true');
+  -- Les droits d'exécution : le verrou à authenticated seul, les aides à personne.
+  perform pg_temp.attendre('verrou', 'droits : titres_ouverts et regler_titres_ouverts pour authenticated, pas pour anon',
+    pg_temp.calcul($q$select concat_ws('/',
+      has_function_privilege('authenticated', 'public.titres_ouverts()', 'execute')::text,
+      has_function_privilege('authenticated', 'public.regler_titres_ouverts(boolean)', 'execute')::text,
+      has_function_privilege('anon', 'public.titres_ouverts()', 'execute')::text,
+      has_function_privilege('anon', 'public.regler_titres_ouverts(boolean)', 'execute')::text)$q$), 'true/true/false/false');
+  perform pg_temp.attendre('verrou', 'droits : les aides internes existent et n''ont aucun droit d''exécution (authenticated, anon, service_role)',
+    pg_temp.calcul($q$select count(*)::text from (values ('public._cases_effectives(bigint)'), ('public._depasse(jsonb, jsonb)'),
+      ('public._refus_titre(bigint, integer, text, text)'), ('public._cases_appelant(text, integer)')) f(sig)
+      cross join (values ('authenticated'), ('anon'), ('service_role')) r(nom)
+      where to_regprocedure(f.sig) is null or has_function_privilege(r.nom, f.sig, 'execute')$q$), '0');
+
+  -- _cases_effectives : un titre fixe est au plafond de chaque page de son niveau, un titre non fixe donne ses cases (pages absentes à non).
+  perform pg_temp.attendre('verrou', '_cases_effectives(Formateur) : huit pages au plafond',
+    pg_temp.calcul(format($q$select (public._cases_effectives(%s) = %L::jsonb)::text$q$, t_form, c_form)), 'true');
+  perform pg_temp.attendre('verrou', '_cases_effectives(Direction de centre) : six pages au plafond',
+    pg_temp.calcul(format($q$select (public._cases_effectives(%s) = %L::jsonb)::text$q$, t_dir, c_dir)), 'true');
+  perform pg_temp.attendre('verrou', '_cases_effectives(Siège) : trois pages à Modifier',
+    pg_temp.calcul(format($q$select (public._cases_effectives(%s) = %L::jsonb)::text$q$, t_siege, c_siege)), 'true');
+  perform pg_temp.attendre('verrou', '_cases_effectives(Intervenant) : ses quatre cases, les quatre autres pages à non',
+    pg_temp.calcul(format($q$select (public._cases_effectives(%s) = %L::jsonb)::text$q$, t_interv, c_interv)), 'true');
+  perform pg_temp.attendre('verrou', '_cases_effectives(titre de t_rh) : six pages, Promos et Équipe à Voir, le reste à non',
+    pg_temp.calcul(format($q$select (public._cases_effectives(%s) = %L::jsonb)::text$q$, t_rh, c_rh)), 'true');
+  perform pg_temp.attendre('verrou', '_cases_effectives(titre vide de t_vide) : six pages, toutes à non',
+    pg_temp.calcul(format($q$select (public._cases_effectives(%s) = %L::jsonb)::text$q$, t_vide, c_vide)), 'true');
+  perform pg_temp.attendre('verrou', '_cases_effectives(titre inconnu) : nul', pg_temp.calcul('select public._cases_effectives(-1)::text'), null);
+  -- _depasse : la première page, dans l'ordre des pages du niveau, où les cases ouvrent plus que la limite.
+  perform pg_temp.attendre('verrou', '_depasse(Secrétariat, titre de t_chef) : stagiaires (Modifier contre Voir), avant émargement',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_secr, t_chef)), 'stagiaires');
+  perform pg_temp.attendre('verrou', '_depasse(titre de t_chef, Secrétariat) : equipe (Modifier contre Voir)',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_chef, t_secr)), 'equipe');
+  perform pg_temp.attendre('verrou', '_depasse(titre de t_rh, titre de t_chef) : nul (au plus égal)',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_rh, t_chef)), null);
+  perform pg_temp.attendre('verrou', '_depasse(un titre, lui-même) : nul',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_secr, t_secr)), null);
+  perform pg_temp.attendre('verrou', '_depasse(Contenus, titre de t_dirs) : cours (Modifier contre Voir), au réseau',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_contenus, t_dirs)), 'cours');
+  perform pg_temp.attendre('verrou', '_depasse(Qualité, titre de t_dirs) : nul',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_qualite, t_dirs)), null);
+  perform pg_temp.attendre('verrou', '_depasse(Intervenant, Formateur) : nul (un titre fixe est au plafond)',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_interv, t_form)), null);
+  perform pg_temp.attendre('verrou', '_depasse(Formateur, Intervenant) : planning (la première page de l''ordre du niveau)',
+    pg_temp.calcul(format('select public._depasse(public._cases_effectives(%s), public._cases_effectives(%s))', t_form, t_interv)), 'planning');
+  perform pg_temp.attendre('verrou', '_depasse : des cases partielles (pages absentes = non) se jugent comme les autres',
+    pg_temp.calcul(format($q$select public._depasse('{"promos":"voir","equipe":"modifier"}'::jsonb, public._cases_effectives(%s))$q$, t_rh)), 'equipe');
+  perform pg_temp.attendre('verrou', '_depasse : une page de plus que la limite ne dit rien d''une page absente des deux côtés',
+    pg_temp.calcul(format($q$select public._depasse('{"promos":"voir","notes":"non"}'::jsonb, public._cases_effectives(%s))$q$, t_rh)), null);
+end $tgvr$;
+
+-- donner_titre(adresse, titre, centre, promos) jouée par un personnage : « OK cree=…/transforme=…/remplace=…/ajoutees=…/retirees=… » ou l'erreur.
+-- p_titre, p_lieu et p_promos en texte SQL (un identifiant ou « null » ; « '{1,2}'::integer[] » ou « null »).
+create or replace function pg_temp.donner(p_qui text, p_entete text, p_apercu text, p_email text, p_titre text, p_lieu text, p_promos text)
+returns text language sql as $tg16a$
+  select pg_temp.appeler_a(p_qui, p_entete, p_apercu, format(
+    $q$select concat_ws('/', 'cree=' || (r->>'cree'), 'transforme=' || (r->>'transforme'), 'remplace=' || coalesce(r->>'remplace', 'nul'),
+         'ajoutees=' || (r->>'ajoutees'), 'retirees=' || (r->>'retirees'))
+       from (select public.donner_titre(%L, %s, %s, %s) as r) q$q$, p_email, p_titre, p_lieu, p_promos));
+$tg16a$;
+
+-- Le texte d'une réponse de donner_titre qui réussit.
+create or replace function pg_temp.reponse_donner(p_cree boolean, p_transforme boolean, p_remplace text, p_ajoutees text, p_retirees text)
+returns text language sql as $tg16b$
+  select format('OK cree=%s/transforme=%s/remplace=%s/ajoutees=%s/retirees=%s', p_cree::text, p_transforme::text, coalesce(p_remplace, 'nul'), p_ajoutees, p_retirees);
+$tg16b$;
+
+-- Le compte du personnel d'un personnage libre (x, y, z, u, v), posé en propriétaire.
+create or replace function pg_temp.personnel(p_nom text)
+returns text language sql as $tg16c$
+  select pg_temp.essai(format('insert into public.user_profiles (email, role, is_admin) values (%L, ''prof'', false) on conflict (email) do nothing', pg_temp.e(p_nom)));
+$tg16c$;
+
+-- Les cinq adresses libres redeviennent libres : le profil part, ses affectations avec lui (suppression en cascade).
+create or replace function pg_temp.liberer()
+returns void language plpgsql as $tg16d$
+begin
+  perform pg_temp.essai(format('delete from public.user_profiles where lower(email) in (%L, %L, %L, %L, %L)',
+    pg_temp.e('x'), pg_temp.e('y'), pg_temp.e('z'), pg_temp.e('u'), pg_temp.e('v')));
+end $tg16d$;
+
+-- Le profil d'un personnage, en texte : « role/is_admin/invité par (oui/non d'après une adresse donnée) ».
+create or replace function pg_temp.profil(p_nom text)
+returns text language sql as $tg16e$
+  select coalesce(pg_temp.calcul(format('select role || ''/'' || is_admin::text || ''/'' || coalesce(lower(invited_by_email), ''nul'') from public.user_profiles where lower(email) = lower(%L)', pg_temp.e(p_nom))), 'aucun');
+$tg16e$;
+
+-- Groupe donner (migration 6, partie B) : donner_titre, avec les règles du § 7 une par une. Verrou fermé au départ, ouvert en propriétaire
+-- après le premier cas ; il reste ouvert pour les groupes suivants.
+create or replace function pg_temp.groupe_donner()
+returns void language plpgsql as $tgdo$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_l2 integer := (select lieu_id from public.promos where id = 2);
+  v_l1t text; v_l2t text;
+  v_a constant text := '990801';
+  t_form text := pg_temp.calcul($q$select public.titre_fixe('promo')::text$q$);
+  t_dir text := pg_temp.calcul($q$select public.titre_fixe('centre')::text$q$);
+  t_siege text := pg_temp.calcul($q$select public.titre_fixe('reseau')::text$q$);
+  t_interv text := pg_temp.titre_de('t_interv');
+  t_secr text := pg_temp.titre_de('t_secr');
+  t_rh text := pg_temp.titre_de('t_rh');
+  t_contenus text := pg_temp.titre_de('t_contenus');
+  t_chef text := pg_temp.titre_de('t_chef');
+  t_vide text := pg_temp.titre_de('t_vide');
+  t_qualite text := pg_temp.titre_de('t_qualite');
+  e_x text := pg_temp.e('x'); e_y text := pg_temp.e('y'); e_z text := pg_temp.e('z');
+  e_form_n text := pg_temp.e('form_n'); e_dir_n text := pg_temp.e('dir_n'); e_siege text := pg_temp.e('siege');
+  e_stag_n text := pg_temp.e('stag_n'); e_orph text := pg_temp.e('orphelin'); e_chef text := pg_temp.e('t_chef'); e_secr text := pg_temp.e('t_secr');
+  v_promos_1 constant text := '''{1}''::integer[]';
+begin
+  v_l1t := v_l1::text; v_l2t := v_l2::text;
+  perform pg_temp.liberer();
+  perform pg_temp.verrou(false);
+  perform pg_temp.verifier('donner', 'départ : les titres de la preuve existent et les cinq adresses libres le sont',
+    t_form ~ '^[0-9]+$' and t_interv ~ '^[0-9]+$' and t_secr ~ '^[0-9]+$' and t_rh ~ '^[0-9]+$' and t_chef ~ '^[0-9]+$' and t_vide ~ '^[0-9]+$'
+    and t_qualite ~ '^[0-9]+$' and t_contenus ~ '^[0-9]+$' and pg_temp.profil('x') = 'aucun' and pg_temp.profil('y') = 'aucun'
+    and pg_temp.lignes(e_dir_n, 'formateur') = '0' and pg_temp.lignes(e_form_n, 'formateur') = '1' and v_l1 <> v_l2,
+    format('titres %s %s %s %s %s %s ; dir_n formateur %s ; form_n formateur %s', t_form, t_interv, t_secr, t_rh, t_chef, t_vide,
+      pg_temp.lignes(e_dir_n, 'formateur'), pg_temp.lignes(e_form_n, 'formateur')));
+
+  -- 1. Le verrou fermé : un titre non fixe ne se donne pas encore ; rien n'est écrit.
+  perform pg_temp.attendre('donner', 'verrou fermé : dir_n donne Intervenant à x (promo 1) : refusé, aucun profil créé',
+    pg_temp.donner('dir_n', '1', null, e_x, t_interv, v_l1t, v_promos_1) || ' / ' || pg_temp.profil('x'),
+    'ERREUR P0001 titres: Ce titre ne peut pas encore être donné. / aucun');
+  perform pg_temp.attendre('donner', 'verrou fermé : t_chef donne le titre de t_rh à x (centre) : refusé de même',
+    pg_temp.donner('t_chef', '1', null, e_x, t_rh, v_l1t, 'null') || ' / ' || pg_temp.profil('x'),
+    'ERREUR P0001 titres: Ce titre ne peut pas encore être donné. / aucun');
+  perform pg_temp.verrou(true);
+
+  -- 2. Les titres fixes se donnent comme aujourd'hui.
+  perform pg_temp.attendre('donner', 'dir_n se donne Formateur (promo 1) : permis, une ligne (la directrice qui forme)',
+    pg_temp.donner('dir_n', '1', null, e_dir_n, t_form, v_l1t, v_promos_1) || ' / ' || pg_temp.lignes(e_dir_n, 'formateur'),
+    pg_temp.reponse_donner(false, false, null, '[1]', '[]') || ' / 1');
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L and role = ''formateur''', e_dir_n));
+  perform pg_temp.attendre('donner', 'dir_n donne Direction de centre à x : refusé (42501), réservé au siège',
+    pg_temp.donner('dir_n', '1', null, e_x, t_dir, v_l1t, 'null') || ' / ' || pg_temp.profil('x'),
+    'ERREUR 42501 titres: Réservé au siège. / aucun');
+  perform pg_temp.attendre('donner', 'siege se donne Direction de centre (centre 1) : refusé (42501), jamais sur soi',
+    pg_temp.donner('siege', null, null, e_siege, t_dir, v_l1t, 'null') || ' / ' || pg_temp.lignes(e_siege, 'direction'),
+    'ERREUR 42501 titres: Vous ne pouvez pas changer vos propres titres. / 0');
+  perform pg_temp.attendre('donner', 'la casse ne contourne pas la règle : siege se donne Direction de centre avec son adresse en majuscules',
+    pg_temp.donner('siege', null, null, upper(e_siege), t_dir, v_l1t, 'null') || ' / ' || pg_temp.lignes(e_siege, 'direction'),
+    'ERREUR 42501 titres: Vous ne pouvez pas changer vos propres titres. / 0');
+  perform pg_temp.attendre('donner', 'siege donne Direction de centre à x (centre 1) : permis, profil créé (cree vrai)',
+    pg_temp.donner('siege', null, null, e_x, t_dir, v_l1t, 'null') || ' / ' || pg_temp.lignes(e_x, 'direction'),
+    pg_temp.reponse_donner(true, false, null, '[]', '[]') || ' / 1');
+  perform pg_temp.attendre('donner', 'le profil créé est un compte du personnel sans droit d''administrateur, invité par le siège',
+    pg_temp.profil('x'), 'prof/false/' || lower(e_siege));
+  perform pg_temp.attendre('donner', 'siege donne Siège à x : refusé (42501), réservé au fondateur',
+    pg_temp.donner('siege', null, null, e_x, t_siege, 'null', 'null') || ' / ' || pg_temp.lignes(e_x, 'siege'),
+    'ERREUR 42501 titres: Réservé au fondateur. / 0');
+  perform pg_temp.attendre('donner', 'fond (fondateur) se donne Direction de centre : aucun titre à un compte stagiaire (il a une fiche)',
+    pg_temp.donner('fond', '1', null, pg_temp.e('fond'), t_dir, v_l1t, 'null'),
+    'ERREUR P0001 titres: Cette adresse est celle d''un compte stagiaire.');
+  perform pg_temp.attendre('donner', 'le fondateur en aperçu siège se donne Direction de centre : refusé (42501)',
+    pg_temp.donner('fond', null, 'siege', pg_temp.e('fond'), t_dir, v_l1t, 'null'),
+    'ERREUR 42501 titres: Vous ne pouvez pas changer vos propres titres.');
+  perform pg_temp.attendre('donner', 'le fondateur en aperçu direction ne donne pas Direction de centre (réservé au siège)',
+    pg_temp.donner('fond', '1', 'direction', e_z, t_dir, v_l1t, 'null') || ' / ' || pg_temp.profil('z'),
+    'ERREUR 42501 titres: Réservé au siège. / aucun');
+  perform pg_temp.attendre('donner', 'le fondateur donne le titre Siège à z : permis (profil créé), la seule voie ouverte au siège fixe',
+    pg_temp.donner('fond', '1', null, e_z, t_siege, 'null', 'null') || ' / ' || pg_temp.lignes(e_z, 'siege'),
+    pg_temp.reponse_donner(true, false, null, '[]', '[]') || ' / 1');
+  perform pg_temp.liberer();
+
+  -- 3. Un titre de promo non fixe : l'équipe du centre (Équipe : Modifier) le donne sur les promos de son centre.
+  perform pg_temp.attendre('donner', 't_chef donne Intervenant à y (promos 1 et A) : permis, profil créé, deux lignes',
+    pg_temp.donner('t_chef', '1', null, e_y, t_interv, v_l1t, format('''{1,%s}''::integer[]', v_a)) || ' / ' || pg_temp.lignes(e_y, 'formateur'),
+    pg_temp.reponse_donner(true, false, null, '[1, ' || v_a || ']', '[]') || ' / 2');
+  perform pg_temp.attendre('donner', 'le profil d''un titre de promo est celui d''un formateur (administrateur), invité par t_chef',
+    pg_temp.profil('y'), 'prof/true/' || lower(e_chef));
+  perform pg_temp.attendre('donner', 't_chef redonne Intervenant à y (promo A seule) : la promo 1 est retirée',
+    pg_temp.donner('t_chef', '1', null, e_y, t_interv, v_l1t, format('''{%s}''::integer[]', v_a)) || ' / ' || pg_temp.lignes(e_y, 'formateur'),
+    pg_temp.reponse_donner(false, false, null, '[]', '[1]') || ' / 1');
+  perform pg_temp.attendre('donner', 'les lignes d''y portent le titre Intervenant',
+    pg_temp.calcul(format('select count(*)::text from public.affectations where lower(email) = lower(%L) and role = ''formateur'' and titre_id = %s', e_y, t_interv)), '1');
+  perform pg_temp.attendre('donner', 't_chef donne Intervenant à y sur la promo 2 (autre centre) : refusé, rien ne bouge',
+    pg_temp.donner('t_chef', '1', null, e_y, t_interv, v_l1t, '''{2}''::integer[]') || ' / ' || pg_temp.lignes(e_y, 'formateur'),
+    'ERREUR P0001 titres: Une promo choisie n''est pas dans ce centre. / 1');
+  perform pg_temp.attendre('donner', 't_chef donne Intervenant à y sans promo (liste vide) : refusé',
+    pg_temp.donner('t_chef', '1', null, e_y, t_interv, v_l1t, '''{}''::integer[]'), 'ERREUR P0001 titres: Choisissez au moins une promo.');
+  perform pg_temp.attendre('donner', 't_chef donne Intervenant à y sans promo (nul) : refusé',
+    pg_temp.donner('t_chef', '1', null, e_y, t_interv, v_l1t, 'null'), 'ERREUR P0001 titres: Choisissez au moins une promo.');
+  perform pg_temp.attendre('donner', 't_chef donne Formateur à y : refusé (42501), réservé à la direction du centre',
+    pg_temp.donner('t_chef', '1', null, e_y, t_form, v_l1t, v_promos_1), 'ERREUR 42501 titres: Réservé à la direction du centre.');
+  perform pg_temp.attendre('donner', 't_chef donne le titre de t_secr (Stagiaires : Modifier) à y : refusé (42501), plus que le sien',
+    pg_temp.donner('t_chef', '1', null, e_y, t_secr, v_l1t, 'null'), 'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (stagiaires).');
+  perform pg_temp.attendre('donner', 't_chef donne le titre de t_rh à y : permis (au plus égal au sien), une ligne de direction',
+    pg_temp.donner('t_chef', '1', null, e_y, t_rh, v_l1t, 'null') || ' / ' || pg_temp.lignes(e_y, 'direction') || ' / ' || pg_temp.lignes(e_y, 'formateur'),
+    pg_temp.reponse_donner(false, false, null, '[]', '[]') || ' / 1 / 1');
+  perform pg_temp.attendre('donner', 't_chef se donne le titre de t_rh : refusé (42501), jamais sur soi',
+    pg_temp.donner('t_chef', '1', null, e_chef, t_rh, v_l1t, 'null'), 'ERREUR 42501 titres: Vous ne pouvez pas changer vos propres titres.');
+  perform pg_temp.attendre('donner', 't_rh (Équipe : Voir) donne le titre de t_rh à z : refusé (42501), réservé à l''équipe du centre',
+    pg_temp.donner('t_rh', '1', null, e_z, t_rh, v_l1t, 'null') || ' / ' || pg_temp.profil('z'),
+    'ERREUR 42501 titres: Réservé à l''équipe du centre. / aucun');
+  perform pg_temp.attendre('donner', 't_vide (titre sans case) donne Intervenant à z : refusé (42501)',
+    pg_temp.donner('t_vide', '1', null, e_z, t_interv, v_l1t, v_promos_1), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('donner', 'un titre du centre 1 ne se donne pas dans le centre 2 (t_chef n''y a aucun droit : refusé sans rien écrire)',
+    pg_temp.donner('t_chef', '1', null, e_z, t_rh, v_l2t, 'null') || ' / ' || pg_temp.profil('z'),
+    'ERREUR P0001 titres: Ce titre appartient à un autre centre. / aucun');
+
+  -- 4. Un seul titre par niveau et par centre : donner un autre titre au même niveau remplace l'ancien, qui obéit aux règles du retrait.
+  perform pg_temp.attendre('donner', 't_chef donne Intervenant à form_n (Formateur, promo 1) : refusé (42501), remplacer c''est retirer Formateur',
+    pg_temp.donner('t_chef', '1', null, e_form_n, t_interv, v_l1t, v_promos_1) || ' / ' || pg_temp.lignes(e_form_n, 'formateur'),
+    'ERREUR 42501 titres: Réservé à la direction du centre. / 1');
+  perform pg_temp.attendre('donner', 'dir_n donne Intervenant à form_n (promo 1) : permis, Formateur remplacé',
+    pg_temp.donner('dir_n', '1', null, e_form_n, t_interv, v_l1t, v_promos_1) || ' / ' || pg_temp.lignes(e_form_n, 'formateur'),
+    pg_temp.reponse_donner(false, false, t_form, '[1]', '[]') || ' / 1');
+  perform pg_temp.attendre('donner', 'form_n porte maintenant Intervenant, plus Formateur',
+    pg_temp.calcul(format('select count(*)::text from public.affectations where lower(email) = lower(%L) and role = ''formateur'' and titre_id = %s', e_form_n, t_interv))
+      || '/' || pg_temp.calcul(format('select count(*)::text from public.affectations where lower(email) = lower(%L) and titre_id = %s', e_form_n, t_form)), '1/0');
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L and role = ''formateur''', e_form_n));
+  perform pg_temp.affecter(e_form_n, 'formateur', 1, null, null);
+  perform pg_temp.attendre('donner', 't_chef donne le titre vide de t_vide à y : l''ancien titre de centre (celui de t_rh) est remplacé',
+    pg_temp.donner('t_chef', '1', null, e_y, t_vide, v_l1t, 'null') || ' / ' || pg_temp.lignes(e_y, 'direction'),
+    pg_temp.reponse_donner(false, false, t_rh, '[]', '[]') || ' / 1');
+  perform pg_temp.attendre('donner', 't_chef donne le titre de t_rh à t_secr (qui porte Secrétariat) : refusé (42501), remplacer c''est retirer plus que le sien',
+    pg_temp.donner('t_chef', '1', null, e_secr, t_rh, v_l1t, 'null') || ' / ' || pg_temp.titre_de('t_secr'),
+    'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (stagiaires). / ' || t_secr);
+  perform pg_temp.attendre('donner', 'une adresse écrite en majuscules désigne la même personne : pas de second profil, ses promos sont recalculées',
+    pg_temp.donner('t_chef', '1', null, upper(e_y), t_interv, v_l1t, v_promos_1) || ' / '
+      || pg_temp.calcul(format('select count(*)::text from public.user_profiles where lower(email) = lower(%L)', e_y)),
+    pg_temp.reponse_donner(false, false, null, '[1]', '[' || v_a || ']') || ' / 1');
+
+  -- 5. Aucun titre à un compte stagiaire, quel que soit le niveau ; le compte d'un ancien stagiaire (sans fiche) devient un compte du personnel.
+  perform pg_temp.attendre('donner', 't_chef donne Intervenant à stag_n : refusé, cette adresse est celle d''un compte stagiaire',
+    pg_temp.donner('t_chef', '1', null, e_stag_n, t_interv, v_l1t, v_promos_1) || ' / ' || pg_temp.lignes(e_stag_n, 'formateur'),
+    'ERREUR P0001 titres: Cette adresse est celle d''un compte stagiaire. / 0');
+  perform pg_temp.attendre('donner', 't_chef donne le titre de t_rh à stag_n (niveau centre) : refusé de même, même en majuscules',
+    pg_temp.donner('t_chef', '1', null, upper(e_stag_n), t_rh, v_l1t, 'null') || ' / ' || pg_temp.lignes(e_stag_n, 'direction'),
+    'ERREUR P0001 titres: Cette adresse est celle d''un compte stagiaire. / 0');
+  perform pg_temp.attendre('donner', 'siege donne Direction de centre à stag_m : refusé de même',
+    pg_temp.donner('siege', null, null, pg_temp.e('stag_m'), t_dir, v_l2t, 'null') || ' / ' || pg_temp.lignes(pg_temp.e('stag_m'), 'direction'),
+    'ERREUR P0001 titres: Cette adresse est celle d''un compte stagiaire. / 0');
+  perform pg_temp.attendre('donner', 'le fondateur donne Siège à stag_m : refusé de même (le niveau du réseau aussi)',
+    pg_temp.donner('fond', '1', null, pg_temp.e('stag_m'), t_siege, 'null', 'null') || ' / ' || pg_temp.lignes(pg_temp.e('stag_m'), 'siege'),
+    'ERREUR P0001 titres: Cette adresse est celle d''un compte stagiaire. / 0');
+  perform pg_temp.attendre('donner', 't_chef donne Intervenant à un orphelin (compte stagiaire sans fiche) : transformé en compte du personnel',
+    pg_temp.donner('t_chef', '1', null, e_orph, t_interv, v_l1t, v_promos_1) || ' / ' || pg_temp.profil('orphelin'),
+    pg_temp.reponse_donner(false, true, null, '[1]', '[]') || ' / prof/true/' || lower(e_chef));
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L', e_orph));
+  perform pg_temp.essai(format('update public.user_profiles set role = ''stagiaire'', is_admin = false, invited_by_email = null where lower(email) = %L', e_orph));
+
+  -- 6. Le niveau du réseau : le siège (Directions : Modifier) donne les titres du réseau au plus égaux au sien.
+  perform pg_temp.attendre('donner', 't_dirs donne le titre de t_qualite (Cours : Voir, Directions : Voir) à z : permis',
+    pg_temp.donner('t_dirs', null, null, e_z, t_qualite, 'null', 'null') || ' / ' || pg_temp.lignes(e_z, 'siege'),
+    pg_temp.reponse_donner(true, false, null, '[]', '[]') || ' / 1');
+  perform pg_temp.attendre('donner', 't_dirs donne le titre de t_contenus (Cours : Modifier) à z : refusé (42501), plus que le sien',
+    pg_temp.donner('t_dirs', null, null, e_z, t_contenus, 'null', 'null'), 'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (cours).');
+  perform pg_temp.attendre('donner', 't_dirs donne le titre de t_secr dans le centre 2 : refusé, ce titre est celui d''un autre centre',
+    pg_temp.donner('t_dirs', null, null, e_z, t_secr, v_l2t, 'null'), 'ERREUR P0001 titres: Ce titre appartient à un autre centre.');
+  perform pg_temp.attendre('donner', 't_dirs donne Direction de centre à z : refusé (42501), réservé au siège',
+    pg_temp.donner('t_dirs', null, null, e_z, t_dir, v_l1t, 'null'), 'ERREUR 42501 titres: Réservé au siège.');
+  perform pg_temp.attendre('donner', 't_qualite (Directions : Voir) donne le titre de t_qualite à u : refusé (42501), réservé au réseau',
+    pg_temp.donner('t_qualite', null, null, pg_temp.e('u'), t_qualite, 'null', 'null') || ' / ' || pg_temp.profil('u'),
+    'ERREUR 42501 titres: Réservé au réseau. / aucun');
+  perform pg_temp.attendre('donner', 'siege (titre fixe) donne le titre de t_contenus à z : permis, il remplace celui de t_qualite',
+    pg_temp.donner('siege', null, null, e_z, t_contenus, 'null', 'null') || ' / ' || pg_temp.lignes(e_z, 'siege'),
+    pg_temp.reponse_donner(false, false, t_qualite, '[]', '[]') || ' / 1');
+  perform pg_temp.attendre('donner', 't_dirs se donne le titre de t_qualite : refusé (42501), jamais sur soi',
+    pg_temp.donner('t_dirs', null, null, pg_temp.e('t_dirs'), t_qualite, 'null', 'null'), 'ERREUR 42501 titres: Vous ne pouvez pas changer vos propres titres.');
+  perform pg_temp.attendre('donner', 't_dirs (Directions : Modifier) donne le titre de t_rh à u au centre 1 : permis, sans comparaison de cases',
+    pg_temp.donner('t_dirs', null, null, pg_temp.e('u'), t_rh, v_l1t, 'null') || ' / ' || pg_temp.lignes(pg_temp.e('u'), 'direction'),
+    pg_temp.reponse_donner(true, false, null, '[]', '[]') || ' / 1');
+
+  -- 7. Les entrées de la fonction.
+  perform pg_temp.attendre('donner', 'une adresse invalide est refusée', pg_temp.donner('t_chef', '1', null, 'pas-une-adresse', t_interv, v_l1t, v_promos_1),
+    'ERREUR P0001 titres: Adresse e-mail invalide.');
+  perform pg_temp.attendre('donner', 'un titre inconnu est refusé', pg_temp.donner('t_chef', '1', null, e_x, '-1', v_l1t, v_promos_1),
+    'ERREUR P0001 titres: Titre introuvable.');
+  perform pg_temp.attendre('donner', 'un titre de promo sans centre est refusé', pg_temp.donner('t_chef', '1', null, e_x, t_interv, 'null', v_promos_1),
+    'ERREUR P0001 titres: Le centre est requis.');
+  perform pg_temp.attendre('donner', 'un jeton sans adresse est refusé (42501)', pg_temp.donner(null, null, null, e_x, t_interv, v_l1t, v_promos_1),
+    'ERREUR 42501 titres: Connexion requise.');
+  perform pg_temp.attendre('donner', 'droits : donner_titre pour authenticated seul (ni anon ni service_role)',
+    pg_temp.calcul($q$select concat_ws('/',
+      has_function_privilege('authenticated', 'public.donner_titre(text, bigint, integer, integer[], integer)', 'execute')::text,
+      has_function_privilege('anon', 'public.donner_titre(text, bigint, integer, integer[], integer)', 'execute')::text,
+      has_function_privilege('service_role', 'public.donner_titre(text, bigint, integer, integer[], integer)', 'execute')::text)$q$), 'true/false/false');
+  perform pg_temp.liberer();
+end $tgdo$;
+
+-- Groupe retirer (migration 6, partie B) : retirer_titre pour les titres non fixes (les mêmes règles que donner), et les titres fixes inchangés
+-- (groupe retrait). Chaque retrait réussi est suivi de la remise de la ligne.
+create or replace function pg_temp.groupe_retirer()
+returns void language plpgsql as $tgre$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_l2 integer := (select lieu_id from public.promos where id = 2);
+  v_l1t text; v_l2t text;
+  t_interv text := pg_temp.titre_de('t_interv');
+  t_secr text := pg_temp.titre_de('t_secr');
+  t_rh text := pg_temp.titre_de('t_rh');
+  t_contenus text := pg_temp.titre_de('t_contenus');
+  t_chef text := pg_temp.titre_de('t_chef');
+  t_qualite text := pg_temp.titre_de('t_qualite');
+  t_dirs text := pg_temp.titre_de('t_dirs');
+  t_dir text := pg_temp.calcul($q$select public.titre_fixe('centre')::text$q$);
+  e_x text := pg_temp.e('x'); e_y text := pg_temp.e('y'); e_z text := pg_temp.e('z'); e_u text := pg_temp.e('u');
+  e_dir_n text := pg_temp.e('dir_n'); e_secr text := pg_temp.e('t_secr'); e_chef text := pg_temp.e('t_chef'); e_dirs text := pg_temp.e('t_dirs');
+begin
+  v_l1t := v_l1::text; v_l2t := v_l2::text;
+  perform pg_temp.liberer();
+  perform pg_temp.verrou(true);
+  -- Les personnages : y porte Intervenant (promo 1) et le titre de t_rh (centre 1), x la Direction de centre fixe, z Qualité, u Contenus.
+  perform pg_temp.personnel('x'); perform pg_temp.personnel('y'); perform pg_temp.personnel('z'); perform pg_temp.personnel('u');
+  perform pg_temp.affecter(e_y, 'formateur', 1, null, t_interv);
+  perform pg_temp.affecter(e_y, 'direction', null, v_l1, t_rh);
+  perform pg_temp.affecter(e_x, 'direction', null, v_l1, t_dir);
+  perform pg_temp.affecter(e_z, 'siege', null, null, t_qualite);
+  perform pg_temp.affecter(e_u, 'siege', null, null, t_contenus);
+  perform pg_temp.verifier('retirer', 'départ : y a 1 ligne formateur et 1 de direction, x 1 de direction, z et u 1 de siège',
+    pg_temp.lignes(e_y, 'formateur') = '1' and pg_temp.lignes(e_y, 'direction') = '1' and pg_temp.lignes(e_x, 'direction') = '1'
+    and pg_temp.lignes(e_z, 'siege') = '1' and pg_temp.lignes(e_u, 'siege') = '1',
+    format('%s %s %s %s %s', pg_temp.lignes(e_y, 'formateur'), pg_temp.lignes(e_y, 'direction'), pg_temp.lignes(e_x, 'direction'), pg_temp.lignes(e_z, 'siege'), pg_temp.lignes(e_u, 'siege')));
+
+  perform pg_temp.attendre('retirer', 't_chef retire Intervenant de y (centre 1) : permis, la ligne part',
+    pg_temp.retirer('t_chef', '1', null, e_y, t_interv, v_l1t) || ' / ' || pg_temp.lignes(e_y, 'formateur'), 'OK 1 / 0');
+  perform pg_temp.affecter(e_y, 'formateur', 1, null, t_interv);
+  perform pg_temp.attendre('retirer', 't_chef retire le titre de t_rh de y (centre 1) : permis',
+    pg_temp.retirer('t_chef', '1', null, e_y, t_rh, v_l1t) || ' / ' || pg_temp.lignes(e_y, 'direction'), 'OK 1 / 0');
+  perform pg_temp.affecter(e_y, 'direction', null, v_l1, t_rh);
+  perform pg_temp.attendre('retirer', 'retirer ne dépend pas du verrou : fermé, t_chef retire encore le titre de t_rh de y',
+    pg_temp.verrou(false) || ' ' || pg_temp.retirer('t_chef', '1', null, e_y, t_rh, v_l1t) || ' / ' || pg_temp.lignes(e_y, 'direction'), 'OK OK 1 / 0');
+  perform pg_temp.verrou(true);
+  perform pg_temp.affecter(e_y, 'direction', null, v_l1, t_rh);
+  perform pg_temp.attendre('retirer', 'dir_n (direction fixe) retire Intervenant de y : permis',
+    pg_temp.retirer('dir_n', '1', null, e_y, t_interv, v_l1t) || ' / ' || pg_temp.lignes(e_y, 'formateur'), 'OK 1 / 0');
+  perform pg_temp.affecter(e_y, 'formateur', 1, null, t_interv);
+  perform pg_temp.attendre('retirer', 'l''adresse écrite en majuscules désigne la même personne : t_chef retire Intervenant d''y',
+    pg_temp.retirer('t_chef', '1', null, upper(e_y), t_interv, v_l1t) || ' / ' || pg_temp.lignes(e_y, 'formateur'), 'OK 1 / 0');
+  perform pg_temp.affecter(e_y, 'formateur', 1, null, t_interv);
+
+  perform pg_temp.attendre('retirer', 't_chef retire la Direction de centre de dir_n : refusé (42501), réservé au siège',
+    pg_temp.retirer('t_chef', '1', null, e_dir_n, t_dir, v_l1t) || ' / ' || pg_temp.lignes(e_dir_n, 'direction'), 'ERREUR 42501 titres: Réservé au siège. / 1');
+  perform pg_temp.attendre('retirer', 't_chef retire le titre de t_secr à t_secr : refusé (42501), plus que le sien (on ne retire que ce qu''on pourrait donner)',
+    pg_temp.retirer('t_chef', '1', null, e_secr, t_secr, v_l1t) || ' / ' || pg_temp.lignes(e_secr, 'direction'),
+    'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (stagiaires). / 1');
+  perform pg_temp.attendre('retirer', 't_rh (Équipe : Voir) retire le titre de t_rh de y : refusé (42501)',
+    pg_temp.retirer('t_rh', '1', null, e_y, t_rh, v_l1t) || ' / ' || pg_temp.lignes(e_y, 'direction'), 'ERREUR 42501 titres: Réservé à l''équipe du centre. / 1');
+  perform pg_temp.attendre('retirer', 't_rh retire Intervenant d''y : refusé (42501) de même',
+    pg_temp.retirer('t_rh', '1', null, e_y, t_interv, v_l1t) || ' / ' || pg_temp.lignes(e_y, 'formateur'), 'ERREUR 42501 titres: Réservé à l''équipe du centre. / 1');
+  perform pg_temp.attendre('retirer', 't_chef se retire le sien : refusé (42501), jamais sur soi',
+    pg_temp.retirer('t_chef', '1', null, e_chef, t_chef, v_l1t) || ' / ' || pg_temp.lignes(e_chef, 'direction'),
+    'ERREUR 42501 titres: Vous ne pouvez pas retirer votre propre titre. / 1');
+  -- La seule exception à « jamais sur soi » est le titre fixe Formateur de la direction : un Intervenant que dir_n se retirerait lui-même reste refusé.
+  perform pg_temp.affecter(e_dir_n, 'formateur', 1, null, t_interv);
+  perform pg_temp.attendre('retirer', 'dir_n porte Intervenant (posé en propriétaire) et se le retire : refusé (42501), seule l''exception du titre fixe Formateur existe',
+    pg_temp.retirer('dir_n', '1', null, e_dir_n, t_interv, v_l1t) || ' / ' || pg_temp.lignes(e_dir_n, 'formateur'),
+    'ERREUR 42501 titres: Vous ne pouvez pas retirer votre propre titre. / 1');
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L and role = ''formateur''', e_dir_n));
+  perform pg_temp.attendre('retirer', 't_chef retire Intervenant d''y avec le centre 2 : refusé, ce titre est celui d''un autre centre',
+    pg_temp.retirer('t_chef', '1', null, e_y, t_interv, v_l2t) || ' / ' || pg_temp.lignes(e_y, 'formateur'),
+    'ERREUR P0001 titres: Ce titre appartient à un autre centre. / 1');
+  perform pg_temp.attendre('retirer', 't_chef retire Intervenant de x, qui ne l''a pas : refusé, aucune ligne',
+    pg_temp.retirer('t_chef', '1', null, e_x, t_interv, v_l1t), 'ERREUR P0001 titres: Cette personne n''a pas ce titre ici.');
+
+  -- regler_affectations_formateur ne retire que ce qu'on pourrait donner (la règle de retirer_titre) : dir_n ne se retire pas lui-même un titre non fixe.
+  perform pg_temp.affecter(e_dir_n, 'formateur', 1, null, t_interv);
+  perform pg_temp.attendre('retirer', 'dir_n, qui porte Intervenant (posé en propriétaire), règle ses promos à aucune : refusé (42501), jamais sur soi, la ligne reste',
+    pg_temp.appeler_a('dir_n', '1', null, format($q$select (public.regler_affectations_formateur(%L, %s, '{}'::integer[]))->>'retirees'$q$, e_dir_n, v_l1t))
+      || ' / ' || pg_temp.lignes(e_dir_n, 'formateur'), 'ERREUR 42501 titres: Vous ne pouvez pas retirer votre propre titre. / 1');
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L and role = ''formateur''', e_dir_n));
+  perform pg_temp.attendre('retirer', 'dir_n règle les promos d''y à aucune : permis, Intervenant retiré (retirees [1])',
+    pg_temp.appeler_a('dir_n', '1', null, format($q$select (public.regler_affectations_formateur(%L, %s, '{}'::integer[]))->>'retirees'$q$, e_y, v_l1t))
+      || ' / ' || pg_temp.lignes(e_y, 'formateur'), 'OK [1] / 0');
+  perform pg_temp.affecter(e_y, 'formateur', 1, null, t_interv);
+  perform pg_temp.attendre('retirer', 'dir_n règle à aucune promo une personne qui porte Intervenant sur deux promos : les deux lignes partent (retirees [1, A])',
+    pg_temp.essai(format('insert into public.affectations (email, role, promo_id, titre_id) values (%L, ''formateur'', 990801, %s)', e_y, t_interv)) || ' '
+      || pg_temp.appeler_a('dir_n', '1', null, format($q$select (public.regler_affectations_formateur(%L, %s, '{}'::integer[]))->>'retirees'$q$, e_y, v_l1t))
+      || ' / ' || pg_temp.lignes(e_y, 'formateur'), 'OK OK [1, 990801] / 0');
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L and role = ''formateur''', e_y));
+  perform pg_temp.affecter(e_y, 'formateur', 1, null, t_interv);
+
+  -- Le réseau.
+  perform pg_temp.attendre('retirer', 't_dirs retire le titre de t_qualite de z : permis (au plus égal au sien)',
+    pg_temp.retirer('t_dirs', null, null, e_z, t_qualite, 'null') || ' / ' || pg_temp.lignes(e_z, 'siege'), 'OK 1 / 0');
+  perform pg_temp.affecter(e_z, 'siege', null, null, t_qualite);
+  perform pg_temp.attendre('retirer', 't_dirs retire le titre de t_contenus de u : refusé (42501), plus que le sien',
+    pg_temp.retirer('t_dirs', null, null, e_u, t_contenus, 'null') || ' / ' || pg_temp.lignes(e_u, 'siege'),
+    'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (cours). / 1');
+  perform pg_temp.attendre('retirer', 't_qualite (Directions : Voir) retire le titre de t_qualite de z : refusé (42501), réservé au réseau',
+    pg_temp.retirer('t_qualite', null, null, e_z, t_qualite, 'null') || ' / ' || pg_temp.lignes(e_z, 'siege'), 'ERREUR 42501 titres: Réservé au réseau. / 1');
+  perform pg_temp.attendre('retirer', 't_dirs se retire le sien : refusé (42501), jamais sur soi',
+    pg_temp.retirer('t_dirs', null, null, e_dirs, t_dirs, 'null') || ' / ' || pg_temp.lignes(e_dirs, 'siege'),
+    'ERREUR 42501 titres: Vous ne pouvez pas retirer votre propre titre. / 1');
+  perform pg_temp.attendre('retirer', 'siege (titre fixe) retire le titre de t_contenus de u : permis',
+    pg_temp.retirer('siege', null, null, e_u, t_contenus, 'null') || ' / ' || pg_temp.lignes(e_u, 'siege'), 'OK 1 / 0');
+  perform pg_temp.attendre('retirer', 'un titre du réseau ignore le centre donné : siege retire le titre de t_qualite de z avec un centre quelconque',
+    pg_temp.retirer('siege', null, null, e_z, t_qualite, v_l2t) || ' / ' || pg_temp.lignes(e_z, 'siege'), 'OK 1 / 0');
+
+  -- Le retrait d'un retrait impossible ne change rien ailleurs : droits et phrases des titres fixes (groupe retrait) restent ceux d'avant.
+  perform pg_temp.attendre('retirer', 'droits : retirer_titre pour authenticated seul',
+    pg_temp.calcul($q$select concat_ws('/',
+      has_function_privilege('authenticated', 'public.retirer_titre(text, bigint, integer)', 'execute')::text,
+      has_function_privilege('anon', 'public.retirer_titre(text, bigint, integer)', 'execute')::text,
+      has_function_privilege('service_role', 'public.retirer_titre(text, bigint, integer)', 'execute')::text)$q$), 'true/false/false');
+  perform pg_temp.liberer();
+end $tgre$;
+
+-- Groupe immediat (migration 6, partie B) : retirer un titre prend effet à la demande suivante, sans reconnexion.
+create or replace function pg_temp.groupe_immediat()
+returns void language plpgsql as $tgim$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  t_interv text := pg_temp.titre_de('t_interv');
+  e_v text := pg_temp.e('v');
+  v_n text;
+  v_refus_form constant text := 'ERREUR P0001 emargement: Réservé aux formateurs.';
+begin
+  perform pg_temp.liberer();
+  perform pg_temp.verrou(true);
+  -- Les données d'essai, posées en propriétaire : une ligne de planning de la promo 1 et l'émargement allumé.
+  perform pg_temp.essai($q$delete from public.planning_entries where promo_id = 1 and slot = 9 and sujet = 'preuve8 immediat'$q$);
+  perform pg_temp.essai($q$insert into public.planning_entries (semaine_lundi, day_index, half_day, slot, promo_id, sujet) values ('2031-02-03', 0, 'matin', 9, 1, 'preuve8 immediat')$q$);
+  perform pg_temp.essai($q$delete from public.settings where promo_id = 1 and key = 'emargement_actif'$q$);
+  perform pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('emargement_actif', 'true', 1)$q$);
+  v_n := pg_temp.calcul('select count(*)::text from public.planning_entries where promo_id = 1');
+  perform pg_temp.verifier('immediat', 'départ : le planning de la promo 1 a des lignes et v n''a aucun titre',
+    v_n ~ '^[0-9]+$' and v_n::integer > 0 and pg_temp.profil('v') = 'aucun', 'lignes ' || coalesce(v_n, 'nul'));
+  perform pg_temp.attendre('immediat', 'v, sans titre, ne lit rien du planning de la promo 1',
+    pg_temp.personnel('v') || ' ' || pg_temp.appeler_a('v', '1', null, 'select count(*)::text from public.planning_entries where promo_id = 1'), 'OK OK 0');
+  perform pg_temp.attendre('immediat', 't_chef donne Intervenant à v (promo 1)',
+    pg_temp.donner('t_chef', '1', null, e_v, t_interv, v_l1::text, '''{1}''::integer[]'), pg_temp.reponse_donner(false, false, null, '[1]', '[]'));
+  perform pg_temp.attendre('immediat', 'dès que le titre est donné, v lit le planning de la promo 1',
+    pg_temp.appeler_a('v', '1', null, 'select count(*)::text from public.planning_entries where promo_id = 1'), 'OK ' || v_n);
+  perform pg_temp.attendre('immediat', 'v (Émargement : Modifier) ouvre une feuille',
+    pg_temp.appeler_a('v', '1', null, $q$select (public.emargement_ouvrir('matin', '08:30', '12:00') is not null)::text$q$), 'OK true');
+  perform pg_temp.attendre('immediat', 't_chef retire Intervenant à v',
+    pg_temp.retirer('t_chef', '1', null, e_v, t_interv, v_l1::text), 'OK 1');
+  perform pg_temp.attendre('immediat', 'la demande suivante de v, sans reconnexion : plus aucune ligne de planning',
+    pg_temp.appeler_a('v', '1', null, 'select count(*)::text from public.planning_entries where promo_id = 1'), 'OK 0');
+  perform pg_temp.attendre('immediat', 'la demande suivante de v : la feuille d''émargement est refusée',
+    pg_temp.appeler_a('v', '1', null, $q$select (public.emargement_ouvrir('aprem', '13:30', '17:00') is not null)::text$q$), v_refus_form);
+  perform pg_temp.liberer();
+end $tgim$;
+
+-- creer_titre, ajuster_titre et supprimer_titre jouées par un personnage (p_nom, p_cases et p_lieu en texte : « null » ou un littéral SQL).
+create or replace function pg_temp.creer(p_qui text, p_entete text, p_depuis text, p_nom text, p_lieu text)
+returns text language sql as $tg17a$
+  select pg_temp.appeler_a(p_qui, p_entete, null, format('select public.creer_titre(%s, %L, %s)::text', p_depuis, p_nom, p_lieu));
+$tg17a$;
+
+create or replace function pg_temp.ajuster(p_qui text, p_entete text, p_titre text, p_lieu text, p_nom text, p_cases text)
+returns text language sql as $tg17b$
+  select pg_temp.appeler_a(p_qui, p_entete, null, format(
+    $q$select concat_ws('/', r->>'titre_id', r->>'version_creee', r->>'porteurs_bascules') from (select public.ajuster_titre(%s, %s, %L, %L::jsonb) as r) q$q$,
+    p_titre, p_lieu, p_nom, p_cases));
+$tg17b$;
+
+create or replace function pg_temp.supprimer(p_qui text, p_entete text, p_titre text)
+returns text language sql as $tg17c$
+  select pg_temp.appeler_a(p_qui, p_entete, null, format('select ''supprime'' from (select public.supprimer_titre(%s)) q', p_titre));
+$tg17c$;
+
+-- « true » si l'ajustement a créé une version et fait passer un porteur (« OK <identifiant>/true/1 »).
+create or replace function pg_temp.ok_version(p_reponse text)
+returns text language sql as $tg17f$
+  select (coalesce(p_reponse, '') ~ '^OK [0-9]+/true/1$')::text;
+$tg17f$;
+
+-- « true » si la réponse est « OK <identifiant> » (un titre créé).
+create or replace function pg_temp.ok_id(p_reponse text)
+returns text language sql as $tg17e$
+  select (coalesce(p_reponse, '') ~ '^OK [0-9]+$')::text;
+$tg17e$;
+
+-- Les champs d'un titre, en texte : « niveau/centre/fixe/origine/créé par/cases égales à celles du titre p_modele ».
+create or replace function pg_temp.fiche_titre(p_id text, p_modele text)
+returns text language sql as $tg17d$
+  select coalesce(pg_temp.calcul(format(
+    $q$select niveau || '/' || coalesce(lieu_id::text, 'nul') || '/' || fixe::text || '/' || coalesce(origine_id::text, 'nul') || '/' || coalesce(cree_par, 'nul')
+         || '/' || (cases = public._cases_effectives(%s))::text from public.titres where id = %s$q$, p_modele, p_id)), 'absent');
+$tg17d$;
+
+-- Groupe gerer (migration 6, partie C) : créer, ajuster, supprimer un titre ; la version de centre d'un titre du réseau ; l'effet immédiat
+-- d'une case décochée.
+create or replace function pg_temp.groupe_gerer()
+returns void language plpgsql as $tggr$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_l2 integer := (select lieu_id from public.promos where id = 2);
+  v_l1t text; v_l2t text;
+  t_form text := pg_temp.calcul($q$select public.titre_fixe('promo')::text$q$);
+  t_dir text := pg_temp.calcul($q$select public.titre_fixe('centre')::text$q$);
+  t_interv text := pg_temp.titre_de('t_interv');
+  t_secr text := pg_temp.titre_de('t_secr');
+  t_rh text := pg_temp.titre_de('t_rh');
+  t_contenus text := pg_temp.titre_de('t_contenus');
+  t_chef text := pg_temp.titre_de('t_chef');
+  e_chef text := pg_temp.e('t_chef'); e_siege text := pg_temp.e('siege'); e_dirs text := pg_temp.e('t_dirs');
+  c_form constant text := '{"planning":"modifier","emargement":"modifier","stagiaires":"modifier","notes":"modifier","cours":"modifier","ccp2":"voir","indicateurs":"voir","reglages":"modifier"}';
+  v_acc text; v_cat text; v_form text; v_r text; v_v text; v_r2 text; v_v2 text; v_autre text; v_feuille text; v_x text; v_r1 text; v_fort text; v_r3 text;
+  v_refus_form constant text := 'ERREUR P0001 emargement: Réservé aux formateurs.';
+  v_ok text;
+begin
+  v_l1t := v_l1::text; v_l2t := v_l2::text;
+  perform pg_temp.liberer();
+  perform pg_temp.verrou(true);
+  perform pg_temp.verifier('gerer', 'départ : aucun titre de la preuve n''est déjà créé',
+    pg_temp.calcul($q$select count(*)::text from public.titres where nom like 'Preuve accueil%' or nom like 'Preuve catalogue%' or nom like 'Preuve formateur%'$q$) = '0', '');
+
+  -- 1. Créer part d'un titre existant : même niveau, mêmes cases.
+  perform pg_temp.attendre('gerer', 't_chef crée « Preuve accueil » depuis le titre de t_rh (centre 1)',
+    pg_temp.ok_id(pg_temp.creer('t_chef', '1', t_rh, 'Preuve accueil', v_l1t)), 'true');
+  v_acc := pg_temp.calcul($q$select id::text from public.titres where nom = 'Preuve accueil'$q$);
+  perform pg_temp.attendre('gerer', 'le titre créé : niveau centre, centre 1, non fixe, sans origine, créé par t_chef, mêmes cases que celui de t_rh',
+    pg_temp.fiche_titre(v_acc, t_rh), 'centre/' || v_l1t || '/false/nul/' || lower(e_chef) || '/true');
+  perform pg_temp.attendre('gerer', 't_chef crée « Preuve formateur » depuis Formateur : niveau promo, huit cases au plafond',
+    pg_temp.ok_id(pg_temp.creer('t_chef', '1', t_form, 'Preuve formateur', v_l1t)), 'true');
+  v_form := pg_temp.calcul($q$select id::text from public.titres where nom = 'Preuve formateur'$q$);
+  perform pg_temp.attendre('gerer', 'le titre créé depuis Formateur : niveau promo, centre 1, huit cases au plafond',
+    pg_temp.calcul(format($q$select niveau || '/' || lieu_id || '/' || fixe::text || '/' || (cases = %L::jsonb)::text from public.titres where id = %s$q$, c_form, v_form)),
+    'promo/' || v_l1t || '/false/true');
+  perform pg_temp.attendre('gerer', 't_chef crée depuis le titre de t_secr (Stagiaires : Modifier) : refusé (42501), plus que le sien',
+    pg_temp.creer('t_chef', '1', t_secr, 'Preuve secrétariat', v_l1t), 'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (stagiaires).');
+  perform pg_temp.attendre('gerer', 'le même nom en majuscules : refusé (casse ignorée)',
+    pg_temp.creer('t_chef', '1', t_rh, 'PREUVE ACCUEIL', v_l1t), 'ERREUR P0001 titres: Un titre de ce nom existe déjà ici.');
+  perform pg_temp.attendre('gerer', 'un nom vide : refusé', pg_temp.creer('t_chef', '1', t_rh, '', v_l1t), 'ERREUR P0001 titres: Le nom est requis.');
+  perform pg_temp.attendre('gerer', 'un nom d''espaces : refusé', pg_temp.creer('t_chef', '1', t_rh, '   ', v_l1t), 'ERREUR P0001 titres: Le nom est requis.');
+  perform pg_temp.attendre('gerer', 't_rh (Équipe : Voir) crée : refusé (42501)',
+    pg_temp.creer('t_rh', '1', t_rh, 'Preuve t_rh', v_l1t), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('gerer', 't_chef crée dans le centre 2 : refusé (42501), il n''y a aucun droit',
+    pg_temp.creer('t_chef', '1', t_rh, 'Preuve ailleurs', v_l2t), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  v_autre := pg_temp.nouveau_titre('Preuve8 titre du centre 2', 'centre', v_l2);
+  perform pg_temp.attendre('gerer', 't_chef crée depuis un titre du centre 2 : refusé (42501), ce titre est celui d''un autre centre',
+    pg_temp.creer('t_chef', '1', v_autre, 'Preuve depuis ailleurs', v_l1t), 'ERREUR 42501 titres: Ce titre appartient à un autre centre.');
+  perform pg_temp.attendre('gerer', 't_chef crée sans jeton d''adresse : refusé (42501)',
+    pg_temp.creer(null, null, t_rh, 'Preuve sans jeton', v_l1t), 'ERREUR 42501 titres: Connexion requise.');
+  perform pg_temp.attendre('gerer', 'un titre d''origine inconnu : refusé', pg_temp.creer('t_chef', '1', '-1', 'Preuve inconnu', v_l1t), 'ERREUR P0001 titres: Titre introuvable.');
+  -- Le réseau.
+  perform pg_temp.attendre('gerer', 't_dirs crée un titre du réseau depuis celui de t_contenus : refusé (42501), plus que le sien',
+    pg_temp.creer('t_dirs', null, t_contenus, 'Preuve réseau', 'null'), 'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (cours).');
+  perform pg_temp.attendre('gerer', 't_dirs crée un titre du réseau depuis celui de t_qualite (au plus égal) : permis',
+    pg_temp.ok_id(pg_temp.creer('t_dirs', null, pg_temp.titre_de('t_qualite'), 'Preuve réseau qualité', 'null')), 'true');
+  perform pg_temp.attendre('gerer', 't_qualite (Directions : Voir) crée un titre de centre du réseau : refusé (42501), réservé au réseau',
+    pg_temp.creer('t_qualite', null, t_rh, 'Preuve qualité', 'null'), 'ERREUR 42501 titres: Réservé au réseau.');
+  perform pg_temp.attendre('gerer', 'siege crée un titre de centre du réseau (sans centre) depuis celui de t_secr : permis, sans centre',
+    pg_temp.ok_id(pg_temp.creer('siege', null, t_secr, 'Preuve catalogue', 'null')), 'true');
+  v_cat := pg_temp.calcul($q$select id::text from public.titres where nom = 'Preuve catalogue'$q$);
+  perform pg_temp.attendre('gerer', 'le titre du catalogue : niveau centre, sans centre, mêmes cases que celui de t_secr',
+    pg_temp.fiche_titre(v_cat, t_secr), 'centre/nul/false/nul/' || lower(e_siege) || '/true');
+  perform pg_temp.attendre('gerer', 't_dirs (Directions : Modifier) crée un titre de centre au centre 1 : permis (sans comparaison de cases)',
+    pg_temp.ok_id(pg_temp.creer('t_dirs', null, t_rh, 'Preuve dirs au centre', v_l1t)), 'true');
+  perform pg_temp.attendre('gerer', 'droits : les quatre fonctions pour authenticated seul, _refus_gestion pour personne',
+    pg_temp.calcul($q$select concat_ws('/',
+      has_function_privilege('authenticated', 'public.creer_titre(bigint, text, integer)', 'execute')::text,
+      has_function_privilege('authenticated', 'public.ajuster_titre(bigint, integer, text, jsonb)', 'execute')::text,
+      has_function_privilege('authenticated', 'public.supprimer_titre(bigint)', 'execute')::text,
+      has_function_privilege('anon', 'public.creer_titre(bigint, text, integer)', 'execute')::text,
+      has_function_privilege('anon', 'public.ajuster_titre(bigint, integer, text, jsonb)', 'execute')::text,
+      has_function_privilege('anon', 'public.supprimer_titre(bigint)', 'execute')::text,
+      has_function_privilege('authenticated', 'public._refus_gestion(text, integer, jsonb)', 'execute')::text)$q$), 'true/true/true/false/false/false/false');
+
+  -- 2. Ajuster : les cases d'un titre non fixe, au plus égales à celles de l'appelant.
+  perform pg_temp.attendre('gerer', 't_chef ajuste « Preuve accueil » en Promos, Équipe et Stagiaires à Voir : permis, aucune version',
+    pg_temp.ajuster('t_chef', '1', v_acc, v_l1t, null, '{"promos":"voir","equipe":"voir","stagiaires":"voir"}'), 'OK ' || v_acc || '/false/0');
+  perform pg_temp.attendre('gerer', 'les cases enregistrées sont celles demandées, modifié par t_chef',
+    pg_temp.calcul(format($q$select (cases = '{"promos":"voir","equipe":"voir","stagiaires":"voir"}'::jsonb)::text || '/' || modifie_par from public.titres where id = %s$q$, v_acc)),
+    'true/' || lower(e_chef));
+  perform pg_temp.attendre('gerer', 't_chef ajuste avec Stagiaires à Modifier : refusé (42501), plus que le sien',
+    pg_temp.ajuster('t_chef', '1', v_acc, v_l1t, null, '{"promos":"voir","stagiaires":"modifier"}'), 'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (stagiaires).');
+  perform pg_temp.attendre('gerer', 't_chef ajuste avec Notes à Voir et Stagiaires à Non : refusé (cases non valides)',
+    pg_temp.ajuster('t_chef', '1', v_acc, v_l1t, null, '{"notes":"voir"}'), 'ERREUR P0001 titres: Ces cases ne sont pas valides.');
+  perform pg_temp.attendre('gerer', 't_chef ajuste une page qui n''existe pas : refusé (cases non valides)',
+    pg_temp.ajuster('t_chef', '1', v_acc, v_l1t, null, '{"inconnue":"voir"}'), 'ERREUR P0001 titres: Ces cases ne sont pas valides.');
+  perform pg_temp.attendre('gerer', 'ajuster Formateur : refusé, un titre fixe ne se modifie pas',
+    pg_temp.ajuster('t_chef', '1', t_form, v_l1t, null, '{"planning":"voir"}'), 'ERREUR P0001 titres: Un titre fixe ne se modifie pas.');
+  perform pg_temp.attendre('gerer', 'ajuster Direction de centre par le siège : refusé de même',
+    pg_temp.ajuster('siege', null, t_dir, v_l1t, null, '{"promos":"voir"}'), 'ERREUR P0001 titres: Un titre fixe ne se modifie pas.');
+  perform pg_temp.attendre('gerer', 't_chef ajuste son propre titre : refusé (42501), jamais sur soi',
+    pg_temp.ajuster('t_chef', '1', t_chef, v_l1t, null, '{"promos":"voir"}'), 'ERREUR 42501 titres: Vous ne pouvez pas modifier un titre que vous portez.');
+  perform pg_temp.attendre('gerer', 't_rh (Équipe : Voir) ajuste « Preuve accueil » : refusé (42501)',
+    pg_temp.ajuster('t_rh', '1', v_acc, v_l1t, null, '{"promos":"voir"}'), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('gerer', 't_chef ajuste un titre du centre 2 : refusé, ce titre est celui d''un autre centre',
+    pg_temp.ajuster('t_chef', '1', v_autre, v_l1t, null, '{"promos":"voir"}'), 'ERREUR P0001 titres: Ce titre appartient à un autre centre.');
+  perform pg_temp.attendre('gerer', 't_chef ajuste un titre du centre 2 sans dire de centre : refusé (42501), aucun droit sur ce centre',
+    pg_temp.ajuster('t_chef', '1', v_autre, 'null', null, '{"promos":"voir"}'), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('gerer', 'renommer en un nom déjà pris dans le centre : refusé',
+    pg_temp.ajuster('t_chef', '1', v_acc, v_l1t, 'preuve FORMATEUR', '{"promos":"voir"}'), 'ERREUR P0001 titres: Un titre de ce nom existe déjà ici.');
+  perform pg_temp.attendre('gerer', 'un nom vide : refusé', pg_temp.ajuster('t_chef', '1', v_acc, v_l1t, ' ', '{"promos":"voir"}'), 'ERREUR P0001 titres: Le nom est requis.');
+  perform pg_temp.attendre('gerer', 'renommer : permis, le nom change',
+    pg_temp.ajuster('t_chef', '1', v_acc, v_l1t, 'Preuve accueil 2', '{"promos":"voir"}') || ' / '
+      || pg_temp.calcul(format('select nom from public.titres where id = %s', v_acc)), 'OK ' || v_acc || '/false/0 / Preuve accueil 2');
+  perform pg_temp.attendre('gerer', 'un titre inconnu : refusé', pg_temp.ajuster('t_chef', '1', '-1', v_l1t, null, '{"promos":"voir"}'), 'ERREUR P0001 titres: Titre introuvable.');
+  perform pg_temp.attendre('gerer', 'un jeton sans adresse : refusé (42501)', pg_temp.appeler_a(null, null, null,
+    format($q$select public.ajuster_titre(%s, %s, null, '{"promos":"voir"}'::jsonb)::text$q$, v_acc, v_l1t)), 'ERREUR 42501 titres: Connexion requise.');
+
+  -- 3. Un titre du réseau ajusté depuis un centre : la version du centre. u le porte au centre 1, v au centre 2.
+  v_r := pg_temp.calcul($q$insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values ('Preuve8 réseau R', 'centre', null, '{"promos":"voir","equipe":"voir"}', 'preuve') returning id::text$q$);
+  perform pg_temp.personnel('u'); perform pg_temp.personnel('v');
+  perform pg_temp.affecter(pg_temp.e('u'), 'direction', null, v_l1, v_r);
+  perform pg_temp.affecter(pg_temp.e('v'), 'direction', null, v_l2, v_r);
+  perform pg_temp.verifier('gerer', 'départ : le titre R du réseau (niveau centre, sans centre) est porté par u au centre 1 et par v au centre 2',
+    v_r ~ '^[0-9]+$' and pg_temp.lignes(pg_temp.e('u'), 'direction') = '1' and pg_temp.lignes(pg_temp.e('v'), 'direction') = '1', 'R ' || coalesce(v_r, 'nul'));
+  v_ok := pg_temp.ajuster('t_chef', '1', v_r, v_l1t, null, '{"promos":"voir","equipe":"voir"}');
+  v_v := pg_temp.calcul(format('select id::text from public.titres where origine_id = %s and lieu_id = %s', v_r, v_l1t));
+  perform pg_temp.attendre('gerer', 't_chef ajuste R depuis le centre 1 : la version du centre est créée, un porteur bascule',
+    v_ok, 'OK ' || v_v || '/true/1');
+  perform pg_temp.attendre('gerer', 'la version porte le même nom, l''origine R, le centre 1',
+    pg_temp.calcul(format($q$select (v.nom = r.nom)::text || '/' || v.origine_id || '/' || v.lieu_id || '/' || v.niveau from public.titres v, public.titres r where v.id = %s and r.id = %s$q$, v_v, v_r)),
+    'true/' || v_r || '/' || v_l1t || '/centre');
+  perform pg_temp.attendre('gerer', 'u porte la version, v porte toujours R, R est inchangé',
+    pg_temp.calcul(format($q$select (select titre_id::text from public.affectations where lower(email) = lower(%L)) || '/' || (select titre_id::text from public.affectations where lower(email) = lower(%L))
+      || '/' || (select (cases = '{"promos":"voir","equipe":"voir"}'::jsonb)::text from public.titres where id = %s)$q$, pg_temp.e('u'), pg_temp.e('v'), v_r)),
+    v_v || '/' || v_r || '/true');
+  v_ok := pg_temp.ajuster('t_chef', '1', v_r, v_l1t, null, '{"promos":"voir"}');
+  perform pg_temp.attendre('gerer', 'un second ajustement de R depuis le centre 1 modifie la version au lieu d''en créer une autre',
+    v_ok || ' / ' || pg_temp.calcul(format('select count(*)::text from public.titres where origine_id = %s', v_r)) || ' / '
+      || pg_temp.calcul(format($q$select (cases = '{"promos":"voir"}'::jsonb)::text from public.titres where id = %s$q$, v_v)),
+    'OK ' || v_v || '/false/0 / 1 / true');
+  perform pg_temp.attendre('gerer', 'ajuster la version elle-même, nommée par son identifiant, modifie la même ligne',
+    pg_temp.ajuster('t_chef', '1', v_v, v_l1t, null, '{"promos":"voir","equipe":"voir"}'), 'OK ' || v_v || '/false/0');
+  -- Jamais sur soi par la version de centre : t_dirs (Directions de centre : Modifier) porte la version V au centre 1, puis R au centre 2.
+  perform pg_temp.affecter(pg_temp.e('t_dirs'), 'direction', null, v_l1, v_v);
+  perform pg_temp.attendre('gerer', 'le porteur de la version V (niveau centre) ajuste le titre du réseau R depuis son centre : refusé (42501), jamais sur soi',
+    pg_temp.ajuster('t_dirs', null, v_r, v_l1t, null, '{"promos":"voir"}'), 'ERREUR 42501 titres: Vous ne pouvez pas modifier un titre que vous portez.');
+  perform pg_temp.attendre('gerer', 'le porteur de la version V ajuste V elle-même : refusé (42501)',
+    pg_temp.ajuster('t_dirs', null, v_v, v_l1t, null, '{"promos":"voir"}'), 'ERREUR 42501 titres: Vous ne pouvez pas modifier un titre que vous portez.');
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L and role = ''direction''', pg_temp.e('t_dirs')));
+  perform pg_temp.affecter(pg_temp.e('t_dirs'), 'direction', null, v_l2, v_r);
+  perform pg_temp.attendre('gerer', 'le porteur de R dans le centre 2 ajuste R depuis le centre 1 : refusé (42501), jamais sur soi',
+    pg_temp.ajuster('t_dirs', null, v_r, v_l1t, null, '{"promos":"voir"}'), 'ERREUR 42501 titres: Vous ne pouvez pas modifier un titre que vous portez.');
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L and role = ''direction''', pg_temp.e('t_dirs')));
+  perform pg_temp.attendre('gerer', 'rien n''a été changé par ces refus : la version garde ses cases',
+    pg_temp.calcul(format($q$select (cases = '{"promos":"voir","equipe":"voir"}'::jsonb)::text from public.titres where id = %s$q$, v_v)), 'true');
+  perform pg_temp.attendre('gerer', 'donner R au centre 1 donne la version (R a une version dans ce centre)',
+    pg_temp.donner('t_chef', '1', null, pg_temp.e('z'), v_r, v_l1t, 'null') || ' / '
+      || pg_temp.calcul(format('select titre_id::text from public.affectations where lower(email) = lower(%L)', pg_temp.e('z'))),
+    pg_temp.reponse_donner(true, false, null, '[]', '[]') || ' / ' || v_v);
+  -- Un titre de promo du réseau : toutes les lignes d'une personne passent à la version (suppression puis repose ligne par ligne).
+  v_r2 := pg_temp.calcul($q$insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values ('Preuve8 réseau R promo', 'promo', null, '{"planning":"voir","stagiaires":"voir"}', 'preuve') returning id::text$q$);
+  perform pg_temp.personnel('x');
+  perform pg_temp.affecter(pg_temp.e('x'), 'formateur', 1, null, v_r2);
+  perform pg_temp.affecter(pg_temp.e('x'), 'formateur', 990801, null, v_r2);
+  perform pg_temp.affecter(pg_temp.e('v'), 'formateur', 2, null, v_r2);
+  v_ok := pg_temp.ajuster('t_chef', '1', v_r2, v_l1t, null, '{"planning":"voir","stagiaires":"voir","cours":"voir"}');
+  v_v2 := pg_temp.calcul(format('select id::text from public.titres where origine_id = %s and lieu_id = %s', v_r2, v_l1t));
+  perform pg_temp.attendre('gerer', 'R promo ajusté depuis le centre 1 : une personne bascule (ses deux lignes passent à la version), la ligne du centre 2 reste sur R',
+    v_ok || ' / ' || pg_temp.calcul(format($q$select count(*)::text from public.affectations where lower(email) = lower(%L) and titre_id = %s$q$, pg_temp.e('x'), v_v2))
+      || ' / ' || pg_temp.calcul(format($q$select count(*)::text from public.affectations where titre_id = %s$q$, v_r2))
+      || ' / ' || pg_temp.calcul(format($q$select count(*)::text from public.affectations where lower(email) = lower(%L) and titre_id = %s and promo_id = 2$q$, pg_temp.e('v'), v_r2)),
+    'OK ' || v_v2 || '/true/1 / 2 / 1 / 1');
+  perform pg_temp.attendre('gerer', 'ajuster un titre du réseau (niveau promo) sans centre, par t_chef : refusé (42501), réservé au réseau',
+    pg_temp.ajuster('t_chef', '1', v_r2, 'null', null, '{"planning":"voir","stagiaires":"voir"}'), 'ERREUR 42501 titres: Réservé au réseau.');
+  perform pg_temp.attendre('gerer', 'siege ajuste R promo sans centre : permis, le titre du réseau lui-même change, aucune version de plus',
+    pg_temp.ajuster('siege', null, v_r2, 'null', null, '{"planning":"voir","stagiaires":"voir"}') || ' / ' || pg_temp.calcul(format('select count(*)::text from public.titres where origine_id = %s', v_r2)),
+    'OK ' || v_r2 || '/false/0 / 1');
+
+  perform pg_temp.affecter(pg_temp.e('t_chef'), 'formateur', 1, null, v_v2);
+  perform pg_temp.attendre('gerer', 'le porteur de la version V2 (niveau promo) ajuste le titre du réseau R2 depuis son centre : refusé (42501), jamais sur soi',
+    pg_temp.ajuster('t_chef', '1', v_r2, v_l1t, null, '{"planning":"voir","stagiaires":"voir"}'), 'ERREUR 42501 titres: Vous ne pouvez pas modifier un titre que vous portez.');
+  perform pg_temp.attendre('gerer', 'le porteur de V2 ajuste V2 elle-même : refusé (42501)',
+    pg_temp.ajuster('t_chef', '1', v_v2, v_l1t, null, '{"planning":"voir","stagiaires":"voir"}'), 'ERREUR 42501 titres: Vous ne pouvez pas modifier un titre que vous portez.');
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L and role = ''formateur''', pg_temp.e('t_chef')));
+
+  -- 3 bis. On n'ajuste que ce qu'on pourrait donner : les cases ACTUELLES du titre comptent aussi (sinon abaisser un titre plus fort que le sien
+  -- permettrait ensuite de le retirer).
+  v_fort := pg_temp.calcul(format($q$insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values ('Preuve8 titre fort', 'centre', %s, '{"promos":"modifier","stagiaires":"modifier"}', 'preuve') returning id::text$q$, v_l1t));
+  perform pg_temp.personnel('z');
+  perform pg_temp.affecter(pg_temp.e('z'), 'direction', null, v_l1, v_fort);
+  perform pg_temp.attendre('gerer', 't_chef abaisse le titre de centre plus fort que le sien (porté par z) : refusé (42501), plus que le sien',
+    pg_temp.ajuster('t_chef', '1', v_fort, v_l1t, null, '{"promos":"voir"}'), 'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (promos).');
+  perform pg_temp.attendre('gerer', 'le titre fort est inchangé, z le porte toujours',
+    pg_temp.calcul(format($q$select (cases = '{"promos":"modifier","stagiaires":"modifier"}'::jsonb)::text from public.titres where id = %s$q$, v_fort)) || ' / ' || pg_temp.lignes(pg_temp.e('z'), 'direction'), 'true / 1');
+  perform pg_temp.attendre('gerer', 'dir_n (direction fixe) abaisse ce titre : permis',
+    pg_temp.ajuster('dir_n', '1', v_fort, v_l1t, null, '{"promos":"voir"}'), 'OK ' || v_fort || '/false/0');
+  perform pg_temp.essai(format($q$update public.titres set cases = '{"promos":"modifier","stagiaires":"modifier"}' where id = %s$q$, v_fort));
+  v_r3 := pg_temp.calcul($q$insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values ('Preuve8 réseau R fort', 'centre', null, '{"promos":"modifier","stagiaires":"modifier"}', 'preuve') returning id::text$q$);
+  perform pg_temp.personnel('u');
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L', pg_temp.e('u')));
+  perform pg_temp.affecter(pg_temp.e('u'), 'direction', null, v_l1, v_r3);
+  perform pg_temp.attendre('gerer', 't_chef crée la version de son centre d''un titre du réseau plus fort que le sien (ce qui rétrograderait u) : refusé (42501)',
+    pg_temp.ajuster('t_chef', '1', v_r3, v_l1t, null, '{"promos":"voir"}') || ' / ' || pg_temp.calcul(format('select count(*)::text from public.titres where origine_id = %s', v_r3))
+      || ' / ' || pg_temp.calcul(format('select titre_id::text from public.affectations where lower(email) = lower(%L)', pg_temp.e('u'))),
+    'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (promos). / 0 / ' || v_r3);
+  perform pg_temp.attendre('gerer', 'dir_n crée cette version : permis, u bascule',
+    pg_temp.ok_version(pg_temp.ajuster('dir_n', '1', v_r3, v_l1t, null, '{"promos":"voir"}')), 'true');
+  -- Au réseau : t_dirs (Directions : Modifier, Cours : Voir) ne peut pas abaisser le titre de t_contenus (Cours : Modifier) ; le siège le peut.
+  perform pg_temp.attendre('gerer', 't_dirs abaisse le titre de t_contenus (Cours : Modifier) : refusé (42501), plus que le sien',
+    pg_temp.ajuster('t_dirs', null, t_contenus, 'null', null, '{"cours":"voir"}'), 'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (cours).');
+  perform pg_temp.attendre('gerer', 'siege (titre fixe) ajuste ce titre : permis (cases inchangées)',
+    pg_temp.ajuster('siege', null, t_contenus, 'null', null, '{"cours":"modifier"}'), 'OK ' || t_contenus || '/false/0');
+
+  -- Les noms des titres fixes sont réservés (casse ignorée).
+  perform pg_temp.attendre('gerer', 'créer un titre nommé « FORMATEUR » : refusé', pg_temp.creer('t_chef', '1', t_rh, 'FORMATEUR', v_l1t), 'ERREUR P0001 titres: Ce nom est réservé à un titre fixe.');
+  perform pg_temp.attendre('gerer', 'créer un titre nommé « direction de CENTRE » : refusé', pg_temp.creer('t_chef', '1', t_rh, 'direction de CENTRE', v_l1t), 'ERREUR P0001 titres: Ce nom est réservé à un titre fixe.');
+  perform pg_temp.attendre('gerer', 'renommer un titre non fixe « Siège » : refusé', pg_temp.ajuster('t_chef', '1', v_fort, v_l1t, 'Siège', '{"promos":"voir"}'),
+    'ERREUR P0001 titres: Ce nom est réservé à un titre fixe.');
+
+  -- 4. Supprimer : un titre non fixe que personne ne porte.
+  perform pg_temp.attendre('gerer', 'supprimer la version portée par u : refusé, retirez-le d''abord',
+    pg_temp.supprimer('t_chef', '1', v_v), 'ERREUR P0001 titres: Ce titre est encore porté : retirez-le d''abord.');
+  perform pg_temp.attendre('gerer', 'supprimer « Preuve accueil 2 » (personne ne le porte) : permis, la ligne disparaît',
+    pg_temp.supprimer('t_chef', '1', v_acc) || ' / ' || pg_temp.calcul(format('select count(*)::text from public.titres where id = %s', v_acc)), 'OK supprime / 0');
+  perform pg_temp.attendre('gerer', 'supprimer Formateur : refusé, un titre fixe ne se supprime pas',
+    pg_temp.supprimer('siege', null, t_form), 'ERREUR P0001 titres: Un titre fixe ne se supprime pas.');
+  perform pg_temp.attendre('gerer', 'supprimer « Preuve formateur » par t_rh : refusé (42501)',
+    pg_temp.supprimer('t_rh', '1', v_form), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('gerer', 'supprimer le titre de t_secr par t_chef : refusé (42501), plus que le sien (avant même de dire qu''il est porté)',
+    pg_temp.supprimer('t_chef', '1', t_secr), 'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (stagiaires).');
+  perform pg_temp.attendre('gerer', 'supprimer un titre inconnu : refusé', pg_temp.supprimer('t_chef', '1', '-1'), 'ERREUR P0001 titres: Titre introuvable.');
+  perform pg_temp.essai(format('delete from public.affectations where titre_id = %s', v_v));
+  perform pg_temp.attendre('gerer', 'supprimer la version une fois retirée à u : permis, v porte toujours R',
+    pg_temp.supprimer('t_chef', '1', v_v) || ' / ' || pg_temp.calcul(format($q$select titre_id::text from public.affectations where lower(email) = lower(%L)$q$, pg_temp.e('v'))),
+    'OK supprime / ' || v_r);
+  perform pg_temp.attendre('gerer', 'supprimer un titre du réseau (sans centre) par t_dirs : permis une fois qu''il n''est plus porté',
+    pg_temp.supprimer('t_dirs', null, v_cat) || ' / ' || pg_temp.calcul(format('select count(*)::text from public.titres where id = %s', v_cat)), 'OK supprime / 0');
+
+  -- 5. L'effet est immédiat : un titre de promo (Émargement : Modifier) donné à y ; t_chef décoche Émargement.
+  perform pg_temp.essai($q$delete from public.settings where promo_id = 1 and key = 'emargement_actif'$q$);
+  perform pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('emargement_actif', 'true', 1)$q$);
+  perform pg_temp.attendre('gerer', 't_chef crée « Preuve feuille » depuis Intervenant puis règle Émargement : Modifier, Stagiaires : Voir',
+    pg_temp.ok_id(pg_temp.creer('t_chef', '1', t_interv, 'Preuve feuille', v_l1t)), 'true');
+  v_feuille := pg_temp.calcul($q$select id::text from public.titres where nom = 'Preuve feuille'$q$);
+  perform pg_temp.attendre('gerer', 'réglage des cases de « Preuve feuille »',
+    pg_temp.ajuster('t_chef', '1', v_feuille, v_l1t, null, '{"emargement":"modifier","stagiaires":"voir"}'), 'OK ' || v_feuille || '/false/0');
+  perform pg_temp.attendre('gerer', 't_chef donne « Preuve feuille » à y (promo 1)',
+    pg_temp.donner('t_chef', '1', null, pg_temp.e('y'), v_feuille, v_l1t, '''{1}''::integer[]'), pg_temp.reponse_donner(true, false, null, '[1]', '[]'));
+  perform pg_temp.attendre('gerer', 'y ouvre une feuille d''émargement',
+    pg_temp.appeler_a('y', '1', null, $q$select (public.emargement_ouvrir('matin', '08:30', '12:00') is not null)::text$q$), 'OK true');
+  perform pg_temp.attendre('gerer', 't_chef passe Émargement à Voir',
+    pg_temp.ajuster('t_chef', '1', v_feuille, v_l1t, null, '{"emargement":"voir","stagiaires":"voir"}'), 'OK ' || v_feuille || '/false/0');
+  perform pg_temp.attendre('gerer', 'la demande suivante de y : la feuille est refusée, sans reconnexion',
+    pg_temp.appeler_a('y', '1', null, $q$select (public.emargement_ouvrir('aprem', '13:30', '17:00') is not null)::text$q$), v_refus_form);
+  perform pg_temp.attendre('gerer', 'y garde ce que la case Voir lui laisse : l''émargement est lisible',
+    pg_temp.appeler_a('y', '1', null, 'select (count(*) >= 0)::text from public.emargement_seances where promo_id = 1'), 'OK true');
+  -- Le ménage : plus aucune ligne portée par les cinq adresses libres, puis les titres créés ici (le retour 6 refuse de se jouer tant qu'un titre
+  -- du réseau de niveau promo ou centre existe).
+  perform pg_temp.liberer();
+  perform pg_temp.essai($q$delete from public.titres where nom in ('Preuve accueil', 'Preuve accueil 2', 'Preuve formateur', 'Preuve réseau qualité', 'Preuve dirs au centre',
+    'Preuve feuille', 'Preuve catalogue', 'Preuve8 réseau R', 'Preuve8 réseau R promo', 'Preuve8 titre du centre 2', 'Preuve8 titre fort', 'Preuve8 réseau R fort')
+    or (not fixe and lieu_id is null and niveau <> 'reseau') or origine_id is not null$q$);
+  perform pg_temp.verifier('gerer', 'ménage : plus aucun titre du réseau de niveau promo ou centre ni aucune version',
+    pg_temp.calcul($q$select count(*)::text from public.titres where (not fixe and lieu_id is null and niveau <> 'reseau') or origine_id is not null$q$) = '0', '');
+end $tggr$;
+
+-- Groupe lire (migration 6, partie D) : les lectures de l'étape 3. Les attendus se calculent en propriétaire sur les données (jamais sur
+-- des données réelles : les lignes lues sont celles des personnages de la preuve et des titres fixes).
+create or replace function pg_temp.groupe_lire()
+returns void language plpgsql as $tglr$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_l2 integer := (select lieu_id from public.promos where id = 2);
+  v_l1t text; v_l2t text;
+  t_form text := pg_temp.calcul($q$select public.titre_fixe('promo')::text$q$);
+  t_dir text := pg_temp.calcul($q$select public.titre_fixe('centre')::text$q$);
+  t_siege text := pg_temp.calcul($q$select public.titre_fixe('reseau')::text$q$);
+  t_interv text := pg_temp.titre_de('t_interv');
+  t_secr text := pg_temp.titre_de('t_secr');
+  t_rh text := pg_temp.titre_de('t_rh');
+  t_chef text := pg_temp.titre_de('t_chef');
+  t_vide text := pg_temp.titre_de('t_vide');
+  t_qualite text := pg_temp.titre_de('t_qualite');
+  v_attendu text; v_attendu_n text; v_autre text; v_vrais text;
+begin
+  v_l1t := v_l1::text; v_l2t := v_l2::text;
+  perform pg_temp.liberer();
+  perform pg_temp.verrou(true);
+  v_autre := pg_temp.nouveau_titre('Preuve8 lire centre 2', 'centre', v_l2);
+  -- Les titres d'un centre : les titres fixes de promo et de centre et ceux du centre 1 (niveau promo ou centre), aucun du centre 2 ni du réseau.
+  v_attendu := pg_temp.calcul(format($q$select string_agg(id::text, ',' order by id) from public.titres
+    where niveau in ('promo', 'centre') and (fixe or lieu_id = %s or (lieu_id is null and not fixe))$q$, v_l1t));
+  perform pg_temp.verifier('lire', 'départ : le centre 1 a des titres à lire (jamais un contrôle à vide), le centre 2 un titre qui ne doit pas y figurer',
+    v_attendu like '%,%' and v_autre ~ '^[0-9]+$' and position(',' || v_autre || ',' in ',' || v_attendu || ',') = 0, coalesce(v_attendu, 'nul'));
+  perform pg_temp.attendre('lire', 'titres_visibles(centre 1) par t_rh : Formateur, Direction de centre et les titres du centre 1, aucun du centre 2 ; rien de donnable (Équipe : Voir)',
+    pg_temp.appeler_a('t_rh', '1', null, format($q$select string_agg(id::text, ',' order by id) || '/' || (count(*) filter (where donnable))::text from public.titres_visibles(%s)$q$, v_l1t)),
+    'OK ' || v_attendu || '/0');
+  -- t_chef (Équipe : Modifier, verrou levé) : l'Intervenant, son propre titre, le titre vide et celui de t_rh se donnent ; ni Formateur ni celui de t_secr.
+  v_vrais := (select string_agg(x, ',' order by x::bigint) from unnest(array[t_interv, t_rh, t_chef, t_vide]) x);
+  perform pg_temp.attendre('lire', 'titres_visibles(centre 1) par t_chef, verrou levé : donnables Intervenant, le titre de t_rh, le sien et le titre vide ; pas Formateur ni Secrétariat',
+    pg_temp.appeler_a('t_chef', '1', null, format($q$select string_agg(id::text, ',' order by id) filter (where donnable) from public.titres_visibles(%s)$q$, v_l1t)),
+    'OK ' || v_vrais);
+  perform pg_temp.attendre('lire', 'donnable par titre pour t_chef : Intervenant vrai, titre de t_rh vrai, Formateur faux, titre de t_secr faux',
+    pg_temp.appeler_a('t_chef', '1', null, format($q$select concat_ws('/',
+      (select donnable::text from public.titres_visibles(%s) where id = %s), (select donnable::text from public.titres_visibles(%s) where id = %s),
+      (select donnable::text from public.titres_visibles(%s) where id = %s), (select donnable::text from public.titres_visibles(%s) where id = %s))$q$,
+      v_l1t, t_interv, v_l1t, t_rh, v_l1t, t_form, v_l1t, t_secr)),
+    'OK true/true/false/false');
+  perform pg_temp.verrou(false);
+  perform pg_temp.attendre('lire', 'verrou fermé : rien de non fixe n''est donnable pour t_chef, et Formateur ne l''est pas (réservé à la direction)',
+    pg_temp.appeler_a('t_chef', '1', null, format($q$select (count(*) filter (where donnable))::text from public.titres_visibles(%s)$q$, v_l1t)), 'OK 0');
+  perform pg_temp.attendre('lire', 'verrou fermé : dir_n peut donner Formateur (titre fixe) et rien d''autre',
+    pg_temp.appeler_a('dir_n', '1', null, format($q$select string_agg(id::text, ',') filter (where donnable) from public.titres_visibles(%s)$q$, v_l1t)), 'OK ' || t_form);
+  perform pg_temp.verrou(true);
+  perform pg_temp.attendre('lire', 'verrou levé : dir_n donne Formateur et tous les titres non fixes du centre, jamais Direction de centre',
+    pg_temp.appeler_a('dir_n', '1', null, format($q$select (count(*) filter (where donnable and id = %s))::text || '/' || (count(*) filter (where donnable and id = %s))::text
+      || '/' || (count(*) filter (where donnable and not fixe))::text || '=' || (count(*) filter (where not fixe))::text from public.titres_visibles(%s)$q$, t_form, t_dir, v_l1t)),
+    'OK 1/0/' || pg_temp.calcul(format($q$select count(*)::text from public.titres where not fixe and niveau in ('promo', 'centre') and (lieu_id = %s or lieu_id is null)$q$, v_l1t))
+      || '=' || pg_temp.calcul(format($q$select count(*)::text from public.titres where not fixe and niveau in ('promo', 'centre') and (lieu_id = %s or lieu_id is null)$q$, v_l1t)));
+  perform pg_temp.attendre('lire', 'les porteurs se comptent par adresse distincte : Intervenant a un porteur (t_interv), Formateur du centre 1 autant que d''adresses',
+    pg_temp.appeler_a('dir_n', '1', null, format($q$select (select porteurs::text from public.titres_visibles(%s) where id = %s) || '/' || (select porteurs::text from public.titres_visibles(%s) where id = %s)$q$,
+      v_l1t, t_interv, v_l1t, t_form)),
+    'OK 1/' || pg_temp.calcul(format($q$select count(distinct lower(a.email))::text from public.affectations a join public.promos p on p.id = a.promo_id where a.role = 'formateur' and a.titre_id = %s and p.lieu_id = %s$q$, t_form, v_l1t)));
+  perform pg_temp.attendre('lire', 'les cases rendues sont les cases effectives (Intervenant : quatre cases, les autres pages à non ; Formateur : toutes au plafond)',
+    pg_temp.appeler_a('dir_n', '1', null, format($q$select (select (cases = '{"planning":"voir","emargement":"modifier","stagiaires":"voir","notes":"non","cours":"voir","ccp2":"non","indicateurs":"non","reglages":"non"}'::jsonb)::text
+        from public.titres_visibles(%s) where id = %s) || '/' || (select ((cases ->> 'reglages') || (cases ->> 'ccp2')) from public.titres_visibles(%s) where id = %s)$q$,
+      v_l1t, t_interv, v_l1t, t_form)), 'OK true/modifiervoir');
+  perform pg_temp.attendre('lire', 'titres_visibles(centre 1) par stag_n : refusé (42501)', pg_temp.appeler_a('stag_n', '1', null, format('select count(*)::text from public.titres_visibles(%s)', v_l1t)),
+    'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('lire', 'titres_visibles(centre 1) par t_interv : refusé (42501)', pg_temp.appeler_a('t_interv', '1', null, format('select count(*)::text from public.titres_visibles(%s)', v_l1t)),
+    'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('lire', 'titres_visibles(centre 2) par t_chef : refusé (42501), il n''a aucun titre dans ce centre',
+    pg_temp.appeler_a('t_chef', '1', null, format('select count(*)::text from public.titres_visibles(%s)', v_l2t)), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('lire', 'titres_visibles(centre 1) sans jeton : refusé (42501)', pg_temp.appeler_a(null, null, null, format('select count(*)::text from public.titres_visibles(%s)', v_l1t)),
+    'ERREUR 42501 titres: Connexion requise.');
+  perform pg_temp.attendre('lire', 'le fondateur lit le centre 1 comme le propriétaire',
+    pg_temp.appeler_a('fond', '1', null, format($q$select string_agg(id::text, ',' order by id) from public.titres_visibles(%s)$q$, v_l1t)), 'OK ' || v_attendu);
+  perform pg_temp.attendre('lire', 'le fondateur en aperçu stagiaire ne lit rien (refusé)',
+    pg_temp.appeler_a('fond', '1', 'stagiaire', format('select count(*)::text from public.titres_visibles(%s)', v_l1t)), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  -- Le réseau : les titres sans centre, aucun titre d'un centre.
+  v_attendu := pg_temp.calcul($q$select string_agg(id::text, ',' order by id) from public.titres where lieu_id is null$q$);
+  perform pg_temp.attendre('lire', 'titres_visibles(réseau) par siege : tous les titres sans centre (fixes, réseau, catalogue), aucun titre d''un centre',
+    pg_temp.appeler_a('siege', null, null, $q$select string_agg(id::text, ',' order by id) || '/' || (count(*) filter (where lieu_id is not null))::text from public.titres_visibles(null)$q$),
+    'OK ' || v_attendu || '/0');
+  perform pg_temp.attendre('lire', 'titres_visibles(réseau) par siege : seuls les titres du réseau (niveau réseau, non fixes) sont donnables (le titre Siège est réservé au fondateur)',
+    pg_temp.appeler_a('siege', null, null, $q$select string_agg(id::text, ',' order by id) filter (where donnable) from public.titres_visibles(null)$q$),
+    'OK ' || pg_temp.calcul($q$select string_agg(id::text, ',' order by id) from public.titres where lieu_id is null and niveau = 'reseau' and not fixe$q$));
+  perform pg_temp.attendre('lire', 'titres_visibles(réseau) par t_contenus (Directions de centre à Non) : refusé (42501)',
+    pg_temp.appeler_a('t_contenus', null, null, 'select count(*)::text from public.titres_visibles(null)'), 'ERREUR 42501 titres: Réservé au réseau.');
+  perform pg_temp.attendre('lire', 'titres_visibles(réseau) par t_qualite (Directions de centre : Voir) : permis, rien de donnable',
+    pg_temp.appeler_a('t_qualite', null, null, $q$select (count(*) filter (where donnable))::text from public.titres_visibles(null)$q$), 'OK 0');
+  perform pg_temp.attendre('lire', 'titres_visibles(réseau) par dir_n : refusé (42501)', pg_temp.appeler_a('dir_n', '1', null, 'select count(*)::text from public.titres_visibles(null)'),
+    'ERREUR 42501 titres: Réservé au réseau.');
+  perform pg_temp.attendre('lire', 'droits : les quatre lectures pour authenticated seul',
+    pg_temp.calcul($q$select count(*)::text from (values ('public.titres_visibles(integer)'), ('public.mes_titres()'), ('public.personnes_et_titres(integer, integer)'),
+      ('public.journal_des_droits(integer)')) f(sig)
+      where to_regprocedure(f.sig) is not null and has_function_privilege('authenticated', f.sig, 'execute') and not has_function_privilege('anon', f.sig, 'execute')
+        and not has_function_privilege('service_role', f.sig, 'execute')$q$), '4');
+
+  -- mes_titres : un titre par ligne, les promos du centre groupées.
+  perform pg_temp.attendre('lire', 'mes_titres() de t_interv : une ligne, promos {1}, les cases de son titre, le nom de son centre',
+    pg_temp.appeler_a('t_interv', '1', null, $q$select count(*)::text || '/' || min(promo_ids::text) || '/' || bool_and(cases = '{"planning":"voir","emargement":"modifier","stagiaires":"voir","notes":"non","cours":"voir","ccp2":"non","indicateurs":"non","reglages":"non"}'::jsonb)::text || '/' || (min(lieu_nom) is not null)::text from public.mes_titres()$q$),
+    'OK 1/{1}/true/true');
+  perform pg_temp.attendre('lire', 'mes_titres() de dir_form (direction du centre 1 et Formateur de la promo 2) : deux lignes aux cases plafond',
+    pg_temp.appeler_a('dir_form', '1', null, $q$select count(*)::text || '/' || string_agg(niveau, ',' order by niveau) || '/' || bool_and(cases ->> 'reglages' = 'modifier')::text from public.mes_titres()$q$),
+    'OK 2/centre,promo/true');
+  perform pg_temp.attendre('lire', 'mes_titres() de t_rh : une ligne de centre sans promos',
+    pg_temp.appeler_a('t_rh', '1', null, $q$select count(*)::text || '/' || min(niveau) || '/' || (min(promo_ids::text) is null)::text from public.mes_titres()$q$), 'OK 1/centre/true');
+  perform pg_temp.attendre('lire', 'mes_titres() de stag_n : aucune ligne', pg_temp.appeler_a('stag_n', '1', null, 'select count(*)::text from public.mes_titres()'), 'OK 0');
+  perform pg_temp.attendre('lire', 'mes_titres() de siege : une ligne de réseau, sans centre', pg_temp.appeler_a('siege', null, null,
+    $q$select count(*)::text || '/' || min(niveau) || '/' || (min(lieu_id) is null)::text from public.mes_titres()$q$), 'OK 1/reseau/true');
+  perform pg_temp.attendre('lire', 'mes_titres() sans jeton : refusé (42501)', pg_temp.appeler_a(null, null, null, 'select count(*)::text from public.mes_titres()'),
+    'ERREUR 42501 titres: Connexion requise.');
+
+  -- personnes_et_titres : qui porte quoi, selon le niveau de la demande.
+  v_attendu_n := pg_temp.calcul(format($q$select count(*)::text from (
+      select distinct lower(a.email), a.titre_id from public.affectations a join public.promos p on p.id = a.promo_id where a.role = 'formateur' and p.lieu_id = %s
+      union select distinct lower(a.email), a.titre_id from public.affectations a where a.role = 'direction' and a.lieu_id = %s) x$q$, v_l1t, v_l1t));
+  perform pg_temp.attendre('lire', 'personnes_et_titres(centre 1) par dir_n : une ligne par adresse et par titre de promo ou de centre du centre',
+    pg_temp.appeler_a('dir_n', '1', null, format('select count(*)::text from public.personnes_et_titres(%s)', v_l1t)), 'OK ' || v_attendu_n);
+  perform pg_temp.attendre('lire', 'personnes_et_titres(centre 1) par t_rh (Équipe : Voir) : les mêmes lignes que dir_n',
+    pg_temp.appeler_a('t_rh', '1', null, format($q$select string_agg(email || '|' || titre_id || '|' || coalesce(promo_ids::text, 'nul'), ';' order by email, titre_id) from public.personnes_et_titres(%s)$q$, v_l1t)),
+    pg_temp.appeler_a('dir_n', '1', null, format($q$select string_agg(email || '|' || titre_id || '|' || coalesce(promo_ids::text, 'nul'), ';' order by email, titre_id) from public.personnes_et_titres(%s)$q$, v_l1t)));
+  perform pg_temp.attendre('lire', 'personnes_et_titres(centre 1) : t_interv y figure avec la promo 1, t_rh avec son titre de centre',
+    pg_temp.appeler_a('dir_n', '1', null, format($q$select (count(*) filter (where email = %L and titre_id = %s and promo_ids = '{1}'))::text || '/'
+      || (count(*) filter (where email = %L and titre_id = %s and promo_ids is null))::text from public.personnes_et_titres(%s)$q$,
+      pg_temp.e('t_interv'), t_interv, pg_temp.e('t_rh'), t_rh, v_l1t)), 'OK 1/1');
+  perform pg_temp.attendre('lire', 'personnes_et_titres(centre 1) par t_interv : refusé (42501)', pg_temp.appeler_a('t_interv', '1', null, format('select count(*)::text from public.personnes_et_titres(%s)', v_l1t)),
+    'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('lire', 'personnes_et_titres(centre 2) par dir_n : refusé (42501)', pg_temp.appeler_a('dir_n', '1', null, format('select count(*)::text from public.personnes_et_titres(%s)', v_l2t)),
+    'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('lire', 'personnes_et_titres(nul, promo 1) par form_n : les titres de la promo 1 (promos {1}) et du centre 1',
+    pg_temp.appeler_a('form_n', '1', null, $q$select (count(*) filter (where niveau = 'promo' and promo_ids = '{1}'))::text || '/' || (count(*) filter (where niveau = 'centre' and lieu_id is not null))::text || '/'
+      || (count(*) filter (where niveau = 'promo' and promo_ids <> '{1}'))::text from public.personnes_et_titres(null, 1)$q$),
+    'OK ' || pg_temp.calcul($q$select count(distinct lower(email))::text from public.affectations where role = 'formateur' and promo_id = 1$q$) || '/'
+      || pg_temp.calcul(format($q$select count(*)::text from (select distinct lower(email), titre_id from public.affectations where role = 'direction' and lieu_id = %s) x$q$, v_l1t)) || '/0');
+  perform pg_temp.attendre('lire', 'personnes_et_titres(nul, promo 1) par stag_n : refusé (42501)', pg_temp.appeler_a('stag_n', '1', null, 'select count(*)::text from public.personnes_et_titres(null, 1)'),
+    'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('lire', 'personnes_et_titres() par siege : titres de centre et du réseau, aucun titre de promo',
+    pg_temp.appeler_a('siege', null, null, $q$select (count(*) filter (where niveau = 'promo'))::text || '/' || (count(*) filter (where niveau = 'centre'))::text || '/' || (count(*) filter (where niveau = 'reseau'))::text
+      from public.personnes_et_titres()$q$),
+    'OK 0/' || pg_temp.calcul($q$select count(*)::text from (select distinct lower(email), titre_id, lieu_id from public.affectations where role = 'direction') x$q$) || '/'
+      || pg_temp.calcul($q$select count(*)::text from (select distinct lower(email), titre_id from public.affectations where role = 'siege') x$q$));
+  perform pg_temp.attendre('lire', 'personnes_et_titres() par t_contenus : refusé (42501)', pg_temp.appeler_a('t_contenus', null, null, 'select count(*)::text from public.personnes_et_titres()'),
+    'ERREUR 42501 titres: Réservé au réseau.');
+  perform pg_temp.attendre('lire', 'personnes_et_titres() par dir_n : refusé (42501), réservé au réseau', pg_temp.appeler_a('dir_n', '1', null, 'select count(*)::text from public.personnes_et_titres()'),
+    'ERREUR 42501 titres: Réservé au réseau.');
+
+  -- journal_des_droits, migration 4 absente : aucune ligne et aucune erreur ; les refus restent.
+  if to_regclass('public.journal_droits') is null then
+    perform pg_temp.attendre('lire', 'journal_des_droits(centre 1) par dir_n, migration 4 absente : aucune ligne, aucune erreur',
+      pg_temp.appeler_a('dir_n', '1', null, format('select count(*)::text from public.journal_des_droits(%s)', v_l1t)), 'OK 0');
+    perform pg_temp.attendre('lire', 'journal_des_droits() par siege, migration 4 absente : aucune ligne, aucune erreur',
+      pg_temp.appeler_a('siege', null, null, 'select count(*)::text from public.journal_des_droits()'), 'OK 0');
+  else
+    perform pg_temp.informer('lire', 'journal_des_droits sans la table : cas non jouable, la migration 4 est appliquée (voir le groupe journal)');
+  end if;
+  perform pg_temp.attendre('lire', 'journal_des_droits(centre 1) par t_interv : refusé (42501)', pg_temp.appeler_a('t_interv', '1', null, format('select count(*)::text from public.journal_des_droits(%s)', v_l1t)),
+    'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('lire', 'journal_des_droits() par t_contenus : refusé (42501)', pg_temp.appeler_a('t_contenus', null, null, 'select count(*)::text from public.journal_des_droits()'),
+    'ERREUR 42501 titres: Réservé au réseau.');
+  perform pg_temp.attendre('lire', 'journal_des_droits(centre 2) par dir_n : refusé (42501)', pg_temp.appeler_a('dir_n', '1', null, format('select count(*)::text from public.journal_des_droits(%s)', v_l2t)),
+    'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.essai(format('delete from public.titres where id = %s', v_autre));
+end $tglr$;
+
+-- Groupe journal (migration 6, partie D, avec la migration 4 appliquée) : chaque geste laisse sa trace, lue par les fonctions de lecture.
+create or replace function pg_temp.groupe_journal()
+returns void language plpgsql as $tgjo$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_l2 integer := (select lieu_id from public.promos where id = 2);
+  v_l1t text; v_l2t text;
+  t_interv text := pg_temp.titre_de('t_interv');
+  t_rh text := pg_temp.titre_de('t_rh');
+  e_chef text := lower(pg_temp.e('t_chef')); e_y text := lower(pg_temp.e('y'));
+  v_id text; v_n_promo_avant text;
+begin
+  v_l1t := v_l1::text; v_l2t := v_l2::text;
+  perform pg_temp.liberer();
+  perform pg_temp.verrou(true);
+  perform pg_temp.donner('t_chef', '1', null, pg_temp.e('y'), t_interv, v_l1t, '''{1}''::integer[]');
+  perform pg_temp.attendre('journal', 'donner_titre par t_chef : une ligne « donne », par t_chef, pour y, avec le nom du titre et la promo',
+    pg_temp.calcul(format($q$select action || '/' || par || '/' || pour || '/' || niveau || '/' || promo_id from public.journal_droits where pour = %L and action = 'donne' order by id desc limit 1$q$, e_y)),
+    'donne/' || e_chef || '/' || e_y || '/promo/1');
+  perform pg_temp.retirer('t_chef', '1', null, pg_temp.e('y'), t_interv, v_l1t);
+  perform pg_temp.attendre('journal', 'retirer_titre par t_chef : une ligne « retire », par t_chef, pour y',
+    pg_temp.calcul(format($q$select action || '/' || par || '/' || pour from public.journal_droits where pour = %L and action = 'retire' order by id desc limit 1$q$, e_y)), 'retire/' || e_chef || '/' || e_y);
+  perform pg_temp.creer('t_chef', '1', t_rh, 'Preuve journal', v_l1t);
+  v_id := pg_temp.calcul($q$select id::text from public.titres where nom = 'Preuve journal'$q$);
+  perform pg_temp.attendre('journal', 'creer_titre : une ligne « cree », par t_chef, sans destinataire',
+    pg_temp.calcul(format($q$select action || '/' || par || '/' || coalesce(pour, 'nul') from public.journal_droits where titre_id = %s and action = 'cree'$q$, v_id)), 'cree/' || e_chef || '/nul');
+  perform pg_temp.ajuster('t_chef', '1', v_id, v_l1t, null, '{"promos":"voir"}');
+  perform pg_temp.attendre('journal', 'ajuster_titre : une ligne « ajuste », par t_chef',
+    pg_temp.calcul(format($q$select action || '/' || par from public.journal_droits where titre_id = %s and action = 'ajuste'$q$, v_id)), 'ajuste/' || e_chef);
+  perform pg_temp.supprimer('t_chef', '1', v_id);
+  perform pg_temp.attendre('journal', 'supprimer_titre : une ligne « supprime », par t_chef',
+    pg_temp.calcul(format($q$select action || '/' || par from public.journal_droits where titre_id = %s and action = 'supprime'$q$, v_id)), 'supprime/' || e_chef);
+  -- La lecture : t_rh lit le journal de son centre, t_interv non, le siège ne lit aucune ligne de niveau promo, le fondateur lit tout.
+  perform pg_temp.attendre('journal', 'journal_des_droits(centre 1) par t_rh : les cinq gestes de t_chef y figurent',
+    pg_temp.appeler_a('t_rh', '1', null, format($q$select string_agg(distinct action, ',' order by action) from public.journal_des_droits(%s) where par = %L and (titre_nom = 'Preuve journal' or pour = %L)$q$, v_l1t, e_chef, e_y)),
+    'OK ajuste,cree,donne,retire,supprime');
+  perform pg_temp.attendre('journal', 'journal_des_droits(centre 1) par t_interv : refusé (42501)', pg_temp.appeler_a('t_interv', '1', null, format('select count(*)::text from public.journal_des_droits(%s)', v_l1t)),
+    'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  v_n_promo_avant := pg_temp.calcul($q$select count(*)::text from public.journal_droits where niveau = 'promo'$q$);
+  perform pg_temp.verifier('journal', 'départ : le journal a des lignes de niveau promo (jamais un contrôle à vide)', v_n_promo_avant ~ '^[0-9]+$' and v_n_promo_avant::integer > 0, coalesce(v_n_promo_avant, 'nul'));
+  perform pg_temp.attendre('journal', 'journal_des_droits() par siege : aucune ligne de niveau promo, mais des lignes de niveau centre',
+    pg_temp.appeler_a('siege', null, null, $q$select (count(*) filter (where niveau = 'promo'))::text || '/' || ((count(*) filter (where niveau = 'centre')) > 0)::text from public.journal_des_droits()$q$), 'OK 0/true');
+  perform pg_temp.attendre('journal', 'journal_des_droits() par le fondateur : tout, les lignes de niveau promo comprises',
+    pg_temp.appeler_a('fond', '1', null, $q$select ((count(*) filter (where niveau = 'promo')) > 0)::text from public.journal_des_droits()$q$), 'OK true');
+  perform pg_temp.attendre('journal', 'journal_des_droits(centre 2) par le fondateur : seulement les lignes du centre 2',
+    pg_temp.appeler_a('fond', '1', null, format('select (count(*) filter (where lieu_id is distinct from %s))::text from public.journal_des_droits(%s)', v_l2t, v_l2t)), 'OK 0');
+  -- Trois ans au plus.
+  perform pg_temp.essai(format($q$insert into public.journal_droits (quand, par, action, titre_nom, niveau, lieu_id) values (now() - interval '4 years', 'preuve8', 'donne', 'Preuve ancienne', 'centre', %s)$q$, v_l1t));
+  perform pg_temp.attendre('journal', 'une ligne de quatre ans existe mais n''est pas rendue (trois ans au plus)',
+    pg_temp.calcul($q$select count(*)::text from public.journal_droits where titre_nom = 'Preuve ancienne'$q$) || ' / '
+      || pg_temp.appeler_a('dir_n', '1', null, format($q$select count(*)::text from public.journal_des_droits(%s) where titre_nom = 'Preuve ancienne'$q$, v_l1t)), '1 / OK 0');
+  perform pg_temp.liberer();
+end $tgjo$;
+
 do $tprg$
 declare
   v_mode constant text :=
@@ -547,6 +1597,11 @@ declare
 begin
   perform set_config('lock_timeout', '3s', true);
   v_en_ligne := v_mode like 'gestion-en-ligne%';
+  -- Essai à blanc de la 6 seule : la migration 5 doit déjà être appliquée sur la base (ses objets sont présents), sinon refus clair.
+  if v_mode like 'gestion (etape 6 seule%' and (to_regprocedure('public.retirer_titre(text, bigint, integer)') is null
+       or to_regprocedure('public.geste_centre(integer, text)') is null) then
+    raise exception 'REFUS : essai de la migration 6 seule impossible, la migration 5 (20261112_titres_5_fermetures) n''est pas appliquée sur cette base ; rien n''est changé';
+  end if;
 
   -- 1. Avant les migrations : l'empreinte de la base, puis les prérequis de l'étape 1.
   select e.regles, e.fonctions, e.droits into v_av_regles, v_av_fonctions, v_av_droits from pg_temp.empreinte() e;
@@ -600,6 +1655,30 @@ begin
   end if;
   if pg_temp.groupe_a_jouer('lectures', v_etat5, 'public.retirer_titre(text, bigint, integer)', v_mode) then
     perform pg_temp.groupe_lectures(v_etat5 = 'jouée');
+  end if;
+  if pg_temp.groupe_a_jouer('verrou', v_etat6, 'public.regler_titres_ouverts(boolean)', v_mode) then
+    perform pg_temp.groupe_verrou();
+  end if;
+  if pg_temp.groupe_a_jouer('donner', v_etat6, 'public.donner_titre(text, bigint, integer, integer[], integer)', v_mode) then
+    perform pg_temp.groupe_donner();
+  end if;
+  if pg_temp.groupe_a_jouer('retirer', v_etat6, 'public.donner_titre(text, bigint, integer, integer[], integer)', v_mode) then
+    perform pg_temp.groupe_retirer();
+  end if;
+  if pg_temp.groupe_a_jouer('immediat', v_etat6, 'public.donner_titre(text, bigint, integer, integer[], integer)', v_mode) then
+    perform pg_temp.groupe_immediat();
+  end if;
+  if pg_temp.groupe_a_jouer('gerer', v_etat6, 'public.creer_titre(bigint, text, integer)', v_mode) then
+    perform pg_temp.groupe_gerer();
+  end if;
+  if pg_temp.groupe_a_jouer('lire', v_etat6, 'public.titres_visibles(integer)', v_mode) then
+    perform pg_temp.groupe_lire();
+  end if;
+  -- Le journal (migration 4) : jugé seulement quand sa table existe (mode gestion --etapes 4,5,6, ou après son application réelle).
+  if to_regclass('public.journal_droits') is null then
+    perform pg_temp.informer('groupe journal', 'sauté : la migration 4 (journal) n''est pas appliquée dans ce mode (gestion --etapes 4,5,6)');
+  elsif pg_temp.groupe_a_jouer('journal', v_etat6, 'public.journal_des_droits(integer)', v_mode) then
+    perform pg_temp.groupe_journal();
   end if;
 
   -- 5. Les retours, dans l'ordre inverse (6, 5, 4).
