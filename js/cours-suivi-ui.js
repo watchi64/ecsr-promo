@@ -3,7 +3,7 @@
 // ce cas, ce module n'est jamais appelé et le lecteur ne change en rien.
 
 import { el } from "./utils.js?v=20261113a";
-import { tracerCours, listerMesLectures } from "./db.js?v=20261113a";
+import { tracerCours, tracerQcm, listerMesLectures } from "./db.js?v=20261113a";
 import { suivreEcran } from "./autonomie-suivi.js?v=20261113a";
 import { sectionDeReprise, sectionEnHaut, repriseDepassee } from "./autonomie-rules.js?v=20261113a";
 
@@ -11,6 +11,18 @@ import { sectionDeReprise, sectionEnHaut, repriseDepassee } from "./autonomie-ru
  *  lecture, la fin du cours est atteinte. */
 export function creerRepereFin() {
   return el("div", { class: "cours-fin-repere", "aria-hidden": "true", style: "height:1px" });
+}
+
+/**
+ * Démarre le suivi d'un entraînement QCM : seul le temps actif est mesuré (ni fin, ni section). `zone` : la fenêtre de
+ * l'entraînement. Aucun envoi pour 0 seconde. Renvoie { arreter() } ; à appeler seulement pour un vrai compte stagiaire.
+ */
+export function brancherSuiviQcm({ qcmId, zone }) {
+  if (qcmId == null || !zone) return null;
+  return suivreEcran({
+    zone,
+    ecrire: ({ secondes }) => (secondes > 0 ? tracerQcm(qcmId, secondes) : undefined),
+  });
 }
 
 /**

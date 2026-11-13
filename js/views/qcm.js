@@ -12,6 +12,8 @@ import { monStagiaireId, selonPublic } from "../auth-admin.js?v=20261113a";
 import { fermerParEchap } from "../fenetre-echap.js?v=20261113a";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261113a";
 import { dixieme } from "../nombres.js?v=20261113a";
+import { peutTracer } from "../autonomie-etat.js?v=20261113a";
+import { brancherSuiviQcm } from "../cours-suivi-ui.js?v=20261113a";
 
 const MOTIFS = [
   ["reponse_fausse", "La réponse indiquée me semble fausse"],
@@ -223,7 +225,17 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
   document.body.appendChild(overlay);
   document.body.classList.add("qcm-open");
 
+  // Autonomie : temps actif de l'entraînement, pour un vrai compte stagiaire seulement (sinon rien n'est branché).
+  // Un seul suivi vivant à la fois : démarrerSuivi() arrête d'abord le précédent.
+  let suivi = null;
+  function arreterSuivi() { if (suivi) { suivi.arreter(); suivi = null; } }
+  function demarrerSuivi() {
+    arreterSuivi();
+    if (peutTracer()) suivi = brancherSuiviQcm({ qcmId: full.id, zone: overlay });
+  }
+
   function close() {
+    arreterSuivi();
     overlay.remove();
     document.body.classList.remove("qcm-open");
   }
@@ -327,6 +339,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
   }
 
   async function renderResults() {
+    arreterSuivi();  // l'écran de résultat n'est plus de l'entraînement : dernier envoi, plus rien ne compte
     clear(player);
     const note20 = Math.round((score / total) * 20 * 10) / 10;
     const pct = Math.round((score / total) * 100);
@@ -352,6 +365,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
         startedAt = new Date().toISOString();  // nouvelle partie : nouvel horodatage de départ
         for (const k in answers) delete answers[k];
         optOrder = new Map(questions.map((q) => [q.id, shuffle(q.options || [])]));  // nouveau mélange par passe
+        demarrerSuivi();  // nouvelle passe : nouveau suivi (l'ancien est déjà arrêté)
         renderQuestion();
       } }, "Recommencer"),
     ));
@@ -378,6 +392,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
     }
   }
 
+  demarrerSuivi();
   renderQuestion();
 }
 
