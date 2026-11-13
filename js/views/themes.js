@@ -1502,7 +1502,7 @@ function marquerLigneAutonomie(row, theme) {
     const bouton = row.querySelector(".theme-cours-btn");
     if (bouton && !bouton.classList.contains("lu")) {
       bouton.classList.add("lu");
-      bouton.setAttribute("aria-label", "Relire le cours (lu)");
+      // Pas d'aria-label : le nom accessible reste le texte visible (« Cours », puis « Lu ») ; le titre dit le reste.
       bouton.title = "Relire le cours (lu)";
       bouton.appendChild(el("span", { class: "theme-cours-lu" }, deco(icon.check()), "Lu"));
     }

@@ -11,11 +11,18 @@ import { fondateurHorsApercu, isFounder, isEquipe, isAdmin, isProf, getViewAs, g
 import { CLE_ACTIVATION, estActif, peutTracerAvec, estCompteEquipe } from "./autonomie-rules.js?v=20261113b";
 
 let actif = false;
+let jetonLecture = 0;
 
 // Lu au démarrage (la promo courante est connue) ; une lecture qui échoue laisse éteint.
 // Bornée comme celle de l'émargement : au-delà de 3,5 s, l'app démarre éteinte pour l'autonomie.
+// L'état repart d'éteint à chaque lecture : une relecture qui échoue ou traîne ne laisse jamais un « allumé » d'avant (autre
+// promo, réglage changé). Seule la dernière lecture demandée compte : une plus ancienne qui répond en retard est ignorée.
 export async function chargerAutonomieActive() {
-  const lecture = getSetting(CLE_ACTIVATION).then((v) => { actif = estActif(v); }, () => { actif = false; });
+  actif = false;
+  const jeton = ++jetonLecture;
+  const lecture = getSetting(CLE_ACTIVATION).then(
+    (v) => { if (jeton === jetonLecture) actif = estActif(v); },
+    () => { if (jeton === jetonLecture) actif = false; });
   await Promise.race([lecture, new Promise((r) => setTimeout(r, 3500))]);
   return actif;
 }
@@ -48,8 +55,8 @@ export function renderAutonomieReglage() {
   const bloc = el("div", { class: "param-block" });
   bloc.appendChild(el("p", { class: "muted" },
     "Allumé, l'app enregistre pour chaque stagiaire de la promo les cours lus et le temps passé sur les cours et les "
-    + "QCM d'entraînement. Le stagiaire voit ce que son formateur voit. Éteint, plus rien n'est enregistré ; "
-    + "ce qui l'a été reste en base."));
+    + "QCM d'entraînement. Le stagiaire voit la même page que ses formateurs et la direction du centre. Éteint, plus rien "
+    + "n'est enregistré ni affiché, pour personne ; ce qui l'a été reste en base et réapparaît si on le rallume."));
   const caseActif = el("input", { type: "checkbox", id: "autonomie-actif" });
   caseActif.checked = actif;
   caseActif.addEventListener("change", async () => {
@@ -57,6 +64,7 @@ export function renderAutonomieReglage() {
     caseActif.disabled = true;
     try {
       await setSetting(CLE_ACTIVATION, voulu ? "true" : "false");
+      jetonLecture++;   // une lecture encore en vol ne défait pas ce réglage
       actif = voulu;
       toast(voulu ? `Travail en autonomie activé pour ${nomPromo}.` : `Travail en autonomie désactivé pour ${nomPromo}.`, "success");
       window.dispatchEvent(new CustomEvent("autonomie-active"));

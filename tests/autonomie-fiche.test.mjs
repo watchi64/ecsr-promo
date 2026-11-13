@@ -31,11 +31,19 @@ test("dernière activité avec le jour de la semaine", () => {
   assert.equal(jourAvecSemaine("2026-11-01T09:00:00Z", AUJ), "dimanche 1er novembre");
 });
 
+test("un jour seul (AAAA-MM-JJ) se lit tel quel, sans décalage d'heure", () => {
+  assert.equal(jourSansAnnee("2026-11-10", AUJ), "10 novembre");
+  assert.equal(jourAvecSemaine("2026-11-10", AUJ), "mardi 10 novembre");
+  assert.equal(jourAvecSemaine("2026-11-01", AUJ), "dimanche 1er novembre");
+  assert.equal(jourAvecSemaine("2025-12-31", AUJ), "mercredi 31 décembre 2025");
+  assert.equal(jourAvecSemaine("2026-02-30", AUJ), "");
+});
+
 test("aucune trace : état vide, tu pour le stagiaire", () => {
   const f = ficheAutonomie(base());
   assert.equal(f.vide, true);
   assert.equal(f.texteVide, "Rien pour l'instant. Les cours que tu lis et tes entraînements apparaîtront ici.");
-  assert.equal(f.note, "Ton formateur voit exactement cette page.");
+  assert.equal(f.note, "Tes formateurs et la direction de ton centre voient exactement cette page.");
   assert.deepEqual(f.lignes, []);
 });
 
@@ -85,11 +93,25 @@ test("une tentative sans fin n'est pas comptée", () => {
   assert.equal(f.reperes[3], "Entraînements QCM : 0");
 });
 
-test("du temps sans autre trace : repères affichés, dernière activité aucune", () => {
+test("du temps sans autre trace : repères affichés, dernière activité le jour de ce temps", () => {
   const f = ficheAutonomie(base({ temps: [{ jour: "2026-11-11", genre: "cours", ressource: "1", secondes: 60 }] }));
   assert.equal(f.vide, false);
   assert.equal(f.reperes[1], "Temps cette semaine : 1 min");
-  assert.equal(f.reperes[4], "Dernière activité : aucune");
+  assert.equal(f.reperes[4], "Dernière activité : mercredi 11 novembre");
+});
+
+test("20 minutes cette semaine et rien d'autre : jamais « Dernière activité : aucune »", () => {
+  const f = ficheAutonomie(base({ temps: [{ jour: "2026-11-10", genre: "qcm", ressource: "4", secondes: 1200 }] }));
+  assert.equal(f.reperes[1], "Temps cette semaine : 20 min");
+  assert.equal(f.reperes[4], "Dernière activité : mardi 10 novembre");
+});
+
+test("dernière activité : le cours dépublié ne la date pas", () => {
+  const f = ficheAutonomie(base({
+    lectures: [{ cours_id: 9, ouvert_le: "2026-11-11T10:00:00Z", vu_le: "2026-11-11T10:00:00Z", lu_le: null },
+               { cours_id: 1, ouvert_le: "2026-11-09T10:00:00Z", vu_le: "2026-11-09T10:00:00Z", lu_le: null }],
+  }));
+  assert.equal(f.reperes[4], "Dernière activité : lundi 9 novembre");
 });
 
 test("liste : lus et commencés, du plus récent au plus ancien", () => {

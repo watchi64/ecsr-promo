@@ -839,7 +839,7 @@ function erreurPartie(zone, isActive, texte) {
 }
 
 // Travail en autonomie : les repères et la liste des cours lus ou commencés, les mêmes pour le stagiaire et pour l'équipe (le
-// stagiaire voit exactement ce que voit son formateur). Une lecture par affichage de la partie ; un échec ne touche que cette
+// stagiaire voit exactement ce que voient ses formateurs et la direction de son centre). Une lecture par affichage de la partie ; un échec ne touche que cette
 // partie. Le modèle (js/autonomie-rules.js, ficheAutonomie) décide de tout, ici on ne fait que le poser dans la page.
 function renderAutonomie(panel, stagiaireId, soi, isActive) {
   const zone = el("div", { class: "ms-autonomie" });

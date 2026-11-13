@@ -68,8 +68,21 @@ export function formatDuree(secondes) {
   return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, "0")}`;
 }
 
+/** Le jour (Paris, « AAAA-MM-JJ ») d'une trace : un jour seul (`jour` du temps actif) se garde tel quel, un instant
+ *  (horodatage de la base) prend le jour de Paris. Null si la valeur manque ou est illisible (« 2026-02-30 » compris). */
+export function jourDeTrace(valeur) {
+  if (!valeur) return null;
+  if (typeof valeur === "string" && /^\d{4}-\d{2}-\d{2}$/.test(valeur)) {
+    const d = new Date(valeur + "T00:00:00Z");
+    return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === valeur ? valeur : null;
+  }
+  return jourParis(valeur);
+}
+
 /** Fiche d'un stagiaire : cours lus parmi les publies, temps de la semaine (lundi a dimanche de
- *  `aujourdhui`) et total, entrainements, derniere trace. */
+ *  `aujourdhui`) et total, entrainements, dernier jour d'activite. `derniereActivite` est un JOUR (Paris, « AAAA-MM-JJ ») :
+ *  le plus recent parmi les lectures des cours encore publies (ouverture vue, lecture finie), les entrainements finis et les
+ *  jours de temps actif (une ligne sans secondes ne compte pas). Null sans aucune trace. */
 export function resumeAutonomie({ lectures, temps, entrainements, coursPublies, aujourdhui }) {
   const publies = new Set(coursPublies.map(String));
   const lus = new Set(lectures.filter((l) => l.lu_le && publies.has(String(l.cours_id))).map((l) => String(l.cours_id)));
@@ -82,11 +95,16 @@ export function resumeAutonomie({ lectures, temps, entrainements, coursPublies, 
     if (t.jour >= lundi && t.jour <= dimanche) secondesSemaine += t.secondes;
   }
   let derniere = null;
-  const voir = (iso) => {
-    if (iso && (derniere === null || Date.parse(iso) > Date.parse(derniere))) derniere = iso;
+  const voir = (valeur) => {
+    const jour = jourDeTrace(valeur);
+    if (jour && (derniere === null || jour > derniere)) derniere = jour;
   };
-  for (const l of lectures) { voir(l.vu_le); voir(l.lu_le); }
+  for (const l of lectures) {
+    if (!publies.has(String(l.cours_id))) continue;
+    voir(l.vu_le); voir(l.lu_le);
+  }
   for (const e of entrainements) voir(e.finished_at);
+  for (const t of temps) if (Number(t.secondes) > 0) voir(t.jour);
   return {
     coursLus: lus.size,
     coursTotal: publies.size,
@@ -123,11 +141,13 @@ export function trancheAEnvoyer(cumul) {
 }
 
 /** Reprise de lecture : l'id de la section où reprendre, ou null. Il faut une lecture existante, non terminée (`lu_le` vide),
- *  dont la section est encore l'un des titres de niveau 2 du cours (le cours a pu être réécrit depuis). */
+ *  dont la section est encore l'un des titres de niveau 2 du cours (le cours a pu être réécrit depuis), et qui n'est pas la
+ *  première (y « reprendre » ramènerait au début : aucun saut). */
 export function sectionDeReprise(lecture, idsSections) {
   if (!lecture || lecture.lu_le) return null;
   const id = lecture.section;
   if (!id || !Array.isArray(idsSections) || !idsSections.includes(id)) return null;
+  if (idsSections[0] === id) return null;
   return id;
 }
 
@@ -189,19 +209,18 @@ export function creerSignalLu(notifier) {
 const JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
 
 /** « 10 novembre » (l'année s'ajoute seulement si ce n'est pas celle de `aujourdhui`) : le jour est celui de Paris, comme
- *  dans la base. Chaîne vide si l'instant manque ou est illisible. */
+ *  dans la base ; un jour seul (« 2026-11-10 ») se lit tel quel. Chaîne vide si la valeur manque ou est illisible. */
 export function jourSansAnnee(instant, aujourdhui) {
-  if (!instant) return "";
-  const jour = jourParis(instant);
+  const jour = jourDeTrace(instant);
   if (!jour) return "";
   const longue = dateLongue(jour);
   return jour.slice(0, 4) === String(aujourdhui || "").slice(0, 4) ? longue.replace(/ \d{4}$/, "") : longue;
 }
 
-/** « mardi 10 novembre » : la date courte précédée du jour de la semaine. */
+/** « mardi 10 novembre » : la date courte précédée du jour de la semaine (instant ou jour seul). */
 export function jourAvecSemaine(instant, aujourdhui) {
   const courte = jourSansAnnee(instant, aujourdhui);
-  return courte ? `${JOURS[dayIndexDe(jourParis(instant))]} ${courte}` : "";
+  return courte ? `${JOURS[dayIndexDe(jourDeTrace(instant))]} ${courte}` : "";
 }
 
 /** La partie est montrée : interrupteur de la promo allumé, et soit le VRAI compte stagiaire (`peutTracer`, qui exclut
@@ -251,7 +270,7 @@ export function ficheAutonomie({ lectures = [], temps = [], entrainements = [], 
     ],
     lignes,
     vide: lignes.length === 0 && r.secondesTotal === 0 && r.entrainements === 0 && r.derniereActivite === null,
-    note: soi ? "Ton formateur voit exactement cette page." : null,
+    note: soi ? "Tes formateurs et la direction de ton centre voient exactement cette page." : null,
     texteVide: soi
       ? "Rien pour l'instant. Les cours que tu lis et tes entraînements apparaîtront ici."
       : "Rien pour l'instant. Les cours lus et les entraînements de ce stagiaire apparaîtront ici.",

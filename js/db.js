@@ -2702,15 +2702,18 @@ export async function listerMesLectures() {
   return data || [];
 }
 
-// Fiche d'un stagiaire (équipe, sous la sécurité de la base) : { lectures, temps }.
+// Partie « Travail en autonomie » de la fiche d'un stagiaire (le stagiaire lui-même ou l'équipe, sous la sécurité de la base,
+// interrupteur de la promo allumé) : { lectures: [{ cours_id, ouvert_le, vu_le, lu_le }], temps: [{ jour, secondes }] }. Seules
+// les colonnes que la fiche lit. Une ligne de temps par jour et par ressource dépasse vite les 1 000 lignes d'une réponse de
+// PostgREST : les deux lectures vont par pages, triées sur leur clé (sans tri stable, deux pages pourraient se chevaucher).
 export async function listerAutonomie(stagiaireId) {
   const [lectures, temps] = await Promise.all([
-    supabase.from("cours_lectures").select("cours_id, ouvert_le, vu_le, lu_le, fin_atteinte, section").eq("stagiaire_id", stagiaireId),
-    supabase.from("autonomie_temps").select("jour, genre, ressource, secondes").eq("stagiaire_id", stagiaireId),
+    toutesLesLignes(() => supabase.from("cours_lectures").select("cours_id, ouvert_le, vu_le, lu_le")
+      .eq("stagiaire_id", stagiaireId).order("promo_id").order("cours_id")),
+    toutesLesLignes(() => supabase.from("autonomie_temps").select("jour, secondes")
+      .eq("stagiaire_id", stagiaireId).order("promo_id").order("jour").order("genre").order("ressource")),
   ]);
-  if (lectures.error) throw lectures.error;
-  if (temps.error) throw temps.error;
-  return { lectures: lectures.data || [], temps: temps.data || [] };
+  return { lectures, temps };
 }
 
 // Tentatives de QCM en entraînement d'un stagiaire, pour sa fiche « Travail en autonomie » : [{ mode, finished_at }]. Sous la
@@ -2722,7 +2725,8 @@ export async function listerEntrainementsQcm(stagiaireId) {
   return data || [];
 }
 
-// Combien de stagiaires de la promo ont lu chaque cours : Map(cours_id -> lus). Visible des stagiaires comme de l'équipe.
+// Combien de stagiaires de la promo ont lu chaque cours : Map(cours_id -> lus). Pour l'équipe seulement (droit notes.lire sur
+// la promo affichée) et interrupteur de la promo allumé : sinon la base rend une liste vide, sans erreur (Map vide).
 export async function lecturesDeLaPromo() {
   const { data, error } = await supabase.rpc("autonomie_lectures_promo");
   if (error) throw error;

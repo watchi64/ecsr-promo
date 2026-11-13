@@ -83,7 +83,44 @@ test("résumé : un cours dépublié sort du total, la semaine va du lundi au di
   assert.deepEqual([r.coursLus, r.coursTotal], [1, 3]);
   assert.deepEqual([r.secondesSemaine, r.secondesTotal], [420, 1020]);   // le dimanche 08/11 est hors semaine
   assert.equal(r.entrainements, 1);
-  assert.equal(r.derniereActivite, "2026-11-12T08:00:00Z");
+  assert.equal(r.derniereActivite, "2026-11-12");   // un jour (Paris), pas un instant
+});
+test("dernière activité : le temps actif compte, comparé en jours", () => {
+  const vide = { coursPublies: ["a"], lectures: [], entrainements: [], aujourdhui: "2026-11-12" };
+  // 20 minutes cette semaine et rien d'autre : la dernière activité est ce jour-là.
+  assert.equal(resumeAutonomie({ ...vide, temps: [{ jour: "2026-11-10", secondes: 1200 }] }).derniereActivite, "2026-11-10");
+  // Le temps d'un jour plus récent l'emporte sur une lecture plus ancienne, et inversement.
+  assert.equal(resumeAutonomie({
+    ...vide, temps: [{ jour: "2026-11-11", secondes: 60 }],
+    lectures: [{ cours_id: "a", vu_le: "2026-11-10T16:00:00Z", lu_le: null }],
+  }).derniereActivite, "2026-11-11");
+  assert.equal(resumeAutonomie({
+    ...vide, temps: [{ jour: "2026-11-09", secondes: 60 }],
+    entrainements: [{ finished_at: "2026-11-11T08:00:00Z" }],
+  }).derniereActivite, "2026-11-11");
+  // Une ligne de temps sans secondes ne dit rien.
+  assert.equal(resumeAutonomie({ ...vide, temps: [{ jour: "2026-11-11", secondes: 0 }] }).derniereActivite, null);
+});
+test("dernière activité : le jour d'un instant est celui de Paris", () => {
+  // 23 h 30 UTC le 11 = 0 h 30 à Paris le 12 : plus récent que le temps du 11.
+  assert.equal(resumeAutonomie({
+    coursPublies: ["a"], aujourdhui: "2026-11-12", entrainements: [],
+    temps: [{ jour: "2026-11-11", secondes: 60 }],
+    lectures: [{ cours_id: "a", vu_le: "2026-11-11T23:30:00Z", lu_le: null }],
+  }).derniereActivite, "2026-11-12");
+});
+test("dernière activité : la lecture d'un cours qui n'est plus publié ne compte pas", () => {
+  const r = resumeAutonomie({
+    coursPublies: ["a"], aujourdhui: "2026-11-12", temps: [], entrainements: [],
+    lectures: [{ cours_id: "a", vu_le: "2026-11-09T10:00:00Z", lu_le: "2026-11-09T10:00:00Z" },
+               { cours_id: "z", vu_le: "2026-11-12T10:00:00Z", lu_le: "2026-11-12T10:00:00Z" }],
+  });
+  assert.equal(r.derniereActivite, "2026-11-09");
+  const seul = resumeAutonomie({
+    coursPublies: ["a"], aujourdhui: "2026-11-12", temps: [], entrainements: [],
+    lectures: [{ cours_id: "z", vu_le: "2026-11-12T10:00:00Z", lu_le: null }],
+  });
+  assert.equal(seul.derniereActivite, null);
 });
 test("résumé vide", () => {
   const r = resumeAutonomie({ coursPublies: [], lectures: [], temps: [], entrainements: [], aujourdhui: "2026-11-12" });
@@ -116,6 +153,13 @@ test("reprise : lecture existante, non terminee, section encore presente", () =>
   assert.equal(sectionDeReprise(null, ids), null);
   assert.equal(sectionDeReprise(undefined, ids), null);
   assert.equal(sectionDeReprise({ section: "cours-sec-1", lu_le: null }, []), null);
+});
+
+test("reprise : jamais sur la première section (le saut serait nul)", () => {
+  const ids = ["cours-sec-1", "cours-sec-2", "cours-sec-3"];
+  assert.equal(sectionDeReprise({ section: "cours-sec-1", lu_le: null }, ids), null);
+  assert.equal(sectionDeReprise({ section: "cours-sec-3", lu_le: null }, ids), "cours-sec-3");
+  assert.equal(sectionDeReprise({ section: "cours-sec-1", lu_le: null }, ["cours-sec-1"]), null);
 });
 
 test("section en haut : le dernier titre passe, a la marge pres", () => {

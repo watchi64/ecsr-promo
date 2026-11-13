@@ -22,7 +22,7 @@ BOUTON_COURS = LIGNE_FEUX + " button.theme-cours-btn"
 LECTEUR = ".cours-overlay"
 LECTEUR_CHARGE = LECTEUR + ' .cours-head-meta:has-text("min de lecture")'
 REPERES = "#view .ms-autonomie li.res-sujet"
-NOTE_STAGIAIRE = "Ton formateur voit exactement cette page."
+NOTE_STAGIAIRE = "Tes formateurs et la direction de ton centre voient exactement cette page."
 
 # Une lecture déjà faite (cours 1, « Feux du véhicule ») : ouverte, vue et lue le mardi 27/10 ; le banc est gelé au 28/10.
 def _lecture(stagiaire, lu=True, section=None, cours=1):
@@ -109,7 +109,8 @@ def exiger_repere(v, lus, motif, quoi):
           budget=4, navigations=NOUVELLE, banc={"autonomie": "1"}, semis=SEMIS_LIRE)
 def lire_un_cours_suivi(v):
     """Interrupteur allumé : le stagiaire lit un cours jusqu'à la fin, le referme, trouve « Lu » sur le bouton du cours et, dans
-    Mon suivi, la partie « Travail en autonomie » avec « Cours lus : 1 sur … » et la phrase « Ton formateur voit exactement cette page. »."""
+    Mon suivi, la partie « Travail en autonomie » avec « Cours lus : 1 sur … » et la phrase « Tes formateurs et la direction de ton
+    centre voient exactement cette page. »."""
     v.aller("Cours et QCM")
     v.attendre(BOUTON_COURS, "le bouton « Cours » du thème 22")
     if v.voit(LIGNE_FEUX + " .theme-cours-lu"):
@@ -160,7 +161,7 @@ def fiche_equipe(v):
         exiger_repere(v, lus, motif, quoi)
     if not any("Feux du véhicule" in t and "Lu le " in t for t in lus):
         v.echec("la liste « Cours lus et commencés » ne montre pas « Feux du véhicule » avec « Lu le … »")
-    if v.voit("#view .ms-autonomie-note") or "Ton formateur voit" in v.texte("#view"):
+    if v.voit("#view .ms-autonomie-note") or "voient exactement cette page" in v.texte("#view"):
         v.constat("D", BLOQUE, "la phrase réservée au stagiaire (« %s ») s'affiche sur la fiche vue par l'équipe" % NOTE_STAGIAIRE, capture=True)
     v.but("fiche de Céline A. : partie « %s » et ses cinq repères" % PARTIE)
     v.etape("un cours ouvert par le formateur n'a pas de bandeau de reprise")
