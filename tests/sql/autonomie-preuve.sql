@@ -60,6 +60,8 @@
 --   - rôles 11538/0 puis 11976/0 (1,2,3), 11694/0 puis 12132/0 (complet) ; conservation 227/0 avant et après ;
 --   - ordre des verrous entre deux sessions : tests/sql/autonomie-concurrence.sh, VERT 8/0 (deux états) ; version d'avant le
 --     tour : ROUGE 6/2 (traces écrites après l'opposition et après l'effacement).
+-- Tour 1 bis (le compteur de lecteurs ne compte que les stagiaires actifs de la promo, aujourd'hui) : migration et retour VERT
+--   136/0 (deux passages par état), appliquée VERT 130/0, concurrence VERT 8/0 ; lecteurs partis comptés : ROUGE 134/2.
 -- La sentinelle livrée est contrôlée d'abord ; puis, dans la transaction seulement, la version exigée est datée d'hier
 -- (calculé). accepter_conditions, absente des clones de la base locale, est posée par la preuve si elle manque (mot pour mot).
 -- Personnages de la suite : SX (PA, fiche marquée effacée en gardant son compte), SE et SE2 (promo PE finie depuis plus de
@@ -752,9 +754,12 @@ $ac$;
        + pg_temp.compter('FB', PB, format('select count(*) from public.autonomie_temps where stagiaire_id = %s and promo_id <> %s', SB, PB));
     perform pg_temp.verifier('R10 : l''équipe de PB lit la ligne de PB et pas celle de PA', n = 1 and m = 1, n || '/' || m);
     r := pg_temp.essai('FA', PA, 'select coalesce(jsonb_agg(to_jsonb(l) order by l.cours_id), ''[]'')::text from public.autonomie_lectures_promo() l');
-    perform pg_temp.verifier('R10 : autonomie_lectures_promo de PA inchangé par le départ de SB (SB y compte pour K2, seul lecteur actif)',
-      r = r2 and (select (e ->> 'lus')::integer from jsonb_array_elements(substr(r, 4)::jsonb) e where e ->> 'cours_id' = K2::text) = 1,
-      r2 || ' -> ' || r);
+    perform pg_temp.verifier('R10 : autonomie_lectures_promo de PA perd SB pour K2 (1 avant son départ, plus rien après : N ne dépasse jamais T)',
+      (select (e ->> 'lus')::integer from jsonb_array_elements(substr(r2, 4)::jsonb) e where e ->> 'cours_id' = K2::text) = 1
+      and not exists (select 1 from jsonb_array_elements(substr(r, 4)::jsonb) e where e ->> 'cours_id' = K2::text)
+      and r like 'OK [%', r2 || ' -> ' || r);
+    r := pg_temp.essai('FB', PB, 'select coalesce(jsonb_agg(to_jsonb(l) order by l.cours_id), ''[]'')::text from public.autonomie_lectures_promo() l');
+    perform pg_temp.verifier('R10 : autonomie_lectures_promo de PB ne compte pas SB tant qu''il n''a pas lu K2 dans PB', r = 'OK []', r);
     n := pg_temp.compter('SB', PB, 'select count(*) from public.cours_lectures') + pg_temp.compter('SB', PB, 'select count(*) from public.autonomie_temps');
     perform pg_temp.verifier('R10 : le stagiaire, dans sa nouvelle promo, ne lit que les lignes de PB', n = 2, n::text);
     -- Plafond de 8 h : la journée du stagiaire toutes promos confondues.
@@ -763,6 +768,17 @@ $ac$;
     perform pg_temp.verifier('R10 : le plafond de 8 h compte la journée toutes promos (28 780 s, 20 s ajoutées dans PB)',
       (select secondes from autonomie_temps where stagiaire_id = SB and promo_id = PB and ressource = K2::text) = 80
       and (select sum(secondes) from autonomie_temps where stagiaire_id = SB and jour = v_jour) = 28800, r);
+    -- SB atteint le plancher dans PB (temps posé en propriétaire : la journée est pleine) : il compte alors dans PB, pas dans PA.
+    update autonomie_temps set secondes = 180 where stagiaire_id = SB and promo_id = PB and ressource = K2::text;
+    r := pg_temp.essai('SB', PB, format('select public.autonomie_tracer_cours(%L, 0, false, null)::text', K2));
+    r2 := pg_temp.essai('FB', PB, 'select coalesce(jsonb_agg(to_jsonb(l) order by l.cours_id), ''[]'')::text from public.autonomie_lectures_promo() l');
+    r3 := pg_temp.essai('FA', PA, 'select coalesce(jsonb_agg(to_jsonb(l) order by l.cours_id), ''[]'')::text from public.autonomie_lectures_promo() l');
+    perform pg_temp.verifier('R10 : lu dans PB, SB compte pour K2 dans PB (1) et toujours pas dans PA ; sa ligne de PA reste lisible par l''équipe de PA',
+      r = 'OK true' and r2 like 'OK [%'
+      and (select (e ->> 'lus')::integer from jsonb_array_elements(substr(r2, 4)::jsonb) e where e ->> 'cours_id' = K2::text) = 1
+      and not exists (select 1 from jsonb_array_elements(substr(r3, 4)::jsonb) e where e ->> 'cours_id' = K2::text)
+      and pg_temp.compter('FA', PA, format('select count(*) from public.cours_lectures where stagiaire_id = %s and lu_le is not null', SB)) = 1,
+      r || ' / ' || r2 || ' / ' || r3);
     -- Fiche supprimée : clé étrangère « on delete cascade », comme qcm_attempts.
     insert into qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20) values (Q1, SD, 'entrainement', 5, 10, 10);
     delete from user_profiles where stagiaire_id = SD;

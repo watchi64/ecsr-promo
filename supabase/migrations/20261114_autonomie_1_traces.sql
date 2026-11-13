@@ -315,9 +315,10 @@ begin
 end $f$;
 
 -- 5. Lectures de la promo (« N sur T l'ont lu ») ---------------------------------------------------------------------
--- Par cours, le nombre de stagiaires actifs qui l'ont lu DANS la promo affichée (lignes de cette promo, y compris celles d'un
--- stagiaire parti depuis dans une autre promo). Sans le geste notes.lire sur la promo affichée : aucune ligne, sans erreur
--- (comme notes_stagiaires_visibles).
+-- Par cours, le nombre de stagiaires qui l'ont lu DANS la promo affichée et qui sont AUJOURD'HUI des stagiaires actifs de
+-- cette promo : N ne dépasse jamais T (stagiaires actifs de la promo). Un stagiaire parti dans une autre promo garde sa ligne
+-- dans l'ancienne (lisible par son équipe), mais n'y compte plus. Sans le geste notes.lire sur la promo affichée : aucune
+-- ligne, sans erreur (comme notes_stagiaires_visibles).
 create function public.autonomie_lectures_promo()
 returns table (cours_id uuid, lus integer)
 language sql stable security definer set search_path to 'public', 'pg_temp' as $f$
@@ -326,6 +327,7 @@ language sql stable security definer set search_path to 'public', 'pg_temp' as $
     join stagiaires s on s.id = cl.stagiaire_id
    where (select geste_promo(promo_courante(), 'notes.lire'))
      and cl.promo_id = (select promo_courante())
+     and s.promo_id = (select promo_courante())
      and s.actif
      and cl.lu_le is not null
    group by cl.cours_id;
