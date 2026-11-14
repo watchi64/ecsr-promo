@@ -11,7 +11,7 @@ import {
 } from "../db.js?v=20261114f";
 import { el, clear, isoDate, displayStagiaire, toast } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
-import { getCentre } from "../auth-admin.js?v=20261114f";
+import { getCentre, ecritSelonLaCase } from "../auth-admin.js?v=20261114f";
 import { promosDuCentre } from "../espaces-rules.js?v=20261114f";
 import { etatPromo, ouTrouverFiche, listeDuCentre } from "../direction-rules.js?v=20261114f";
 import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261114f";
@@ -57,6 +57,10 @@ async function lireListes(promos) {
   });
   return { listes, illisibles };
 }
+
+// Gérer les stagiaires d'une promo (renommer, abandon, inviter, effacer) : la case Stagiaires en « Modifier », quand elle est lue ;
+// sinon tout reste ouvert, comme avant. Le lien vers la page d'une autre promo reste ouvert : c'est une navigation.
+const peutGerer = () => ecritSelonLaCase("stagiaires", true, ["direction"]);
 
 function boiteErreur(phrase, reessayer) {
   return el("div", { class: "centre-erreur", role: "alert" },
@@ -192,7 +196,7 @@ export async function renderStagiairesCentre(container) {
       etatP ? el("span", { class: "chip promo-etat promo-etat-" + (etatP === "en cours" ? "cours" : etatP === "à venir" ? "venir" : "fin") }, etatP) : null,
       estAffichee ? el("span", { class: "chip centre-promo" }, "Affichée") : null,
       el("span", { class: "muted stg-compte" }, pluriel(g.enFormation.length, "stagiaire") + " en formation"),
-      estAffichee ? el("button", { class: "btn small stg-gerer", type: "button", "aria-expanded": String(etat.gestion),
+      estAffichee && peutGerer() ? el("button", { class: "btn small stg-gerer", type: "button", "aria-expanded": String(etat.gestion),
         "aria-label": etat.gestion ? `Fermer la gestion de ${g.nom}` : `Gérer les stagiaires de ${g.nom}`,
         onClick: () => {
           etat.gestion = !etat.gestion;

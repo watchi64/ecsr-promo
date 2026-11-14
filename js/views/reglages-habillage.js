@@ -6,10 +6,11 @@
 // l'écran de la personne qui règle).
 
 import { habillageParDefaut, lireHabillageCentre, reglerHabillageCentre, reglerHabillageReseau } from "../db.js?v=20261114f";
-import { getCentre } from "../auth-admin.js?v=20261114f";
+import { getCentre, getMesTitres, fondateurHorsApercu } from "../auth-admin.js?v=20261114f";
 import { el, clear, toast } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
 import { blocHabillage } from "../habillage-choix.js?v=20261114f";
+import { donneesDuCentreVisibles } from "../titres-rules.js?v=20261114f";
 import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261114f";
 import { sectionDonneesCentre } from "./reglages-donnees.js?v=20261114f";
 
@@ -153,7 +154,8 @@ async function rendre(container, { surtitre, titre, lire, construire }) {
     racine.appendChild(entete(surtitre.chargement, titre, null));
     racine.appendChild(boiteErreur(phraseDEchec(e, PHRASE_ECHEC_LECTURE), relire));
     // La section des données personnelles se charge seule : un habillage illisible ne la cache pas.
-    if (construire.suite) racine.appendChild(construire.suite(null));
+    const suiteVide = construire.suite ? construire.suite(null) : null;
+    if (suiteVide) racine.appendChild(suiteVide);
     return;
   }
   if (jeton !== rendu) return;
@@ -161,7 +163,8 @@ async function rendre(container, { surtitre, titre, lire, construire }) {
   racine.appendChild(entete(surtitre.pret(donnees), titre, construire.sousTitre));
   racine.appendChild(construire.section(donnees));
   // Suite du lot 5 : une section de plus sous l'habillage (les données personnelles du centre), qui se charge pour son compte.
-  if (construire.suite) racine.appendChild(construire.suite(donnees));
+  const suite = construire.suite ? construire.suite(donnees) : null;
+  if (suite) racine.appendChild(suite);
 }
 
 // Réglages du centre (espace direction) : l'habillage du centre affiché.
@@ -178,13 +181,18 @@ export async function renderReglagesCentre(container) {
     return;
   }
   const nomCentre = centre.nom || "Centre";
+  // Les données personnelles (purge, conservation) : la direction fixe du centre ou le fondateur ; un titre de centre « Réglages :
+  // Modifier » non fixe ne les voit pas (la base le refuserait).
+  const avecDonnees = donneesDuCentreVisibles({ titres: getMesTitres(), lieuId: centre.id, fondateur: fondateurHorsApercu() });
   await rendre(container, {
     surtitre: { chargement: "Centre · " + nomCentre, pret: () => "Centre · " + nomCentre },
     titre: "Réglages du centre",
     lire: () => lireHabillageCentre(centre.id),
     construire: {
-      sousTitre: "L'apparence de l'app pour les comptes du centre, et les données personnelles",
-      suite: () => sectionDonneesCentre(centre),
+      sousTitre: avecDonnees
+        ? "L'apparence de l'app pour les comptes du centre, et les données personnelles"
+        : "L'apparence de l'app pour les comptes du centre",
+      suite: () => (avecDonnees ? sectionDonneesCentre(centre) : null),
       section: (ligne) => sectionReglage({
         titre: "Habillage par défaut du centre",
         intro: "L'apparence que reçoivent les comptes du centre tant qu'ils n'ont rien choisi. Sans réglage, c'est celle du réseau.",

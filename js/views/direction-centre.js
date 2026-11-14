@@ -10,7 +10,7 @@ import {
   ouvrirDansUnePromo, lireEffacementsSurDemande,
 } from "../db.js?v=20261114f";
 import { el, clear, isoDate, formatDate, formatLongDate, toast, tableauEnListe } from "../utils.js?v=20261114f";
-import { getCentre } from "../auth-admin.js?v=20261114f";
+import { getCentre, litSelonLaCase } from "../auth-admin.js?v=20261114f";
 import { promosDuCentre } from "../espaces-rules.js?v=20261114f";
 import {
   indicateursPromo, ligneComparaison, aSuivrePromo, fusionnerASuivre, indicateurTitre, fusionnerJury,
@@ -128,6 +128,8 @@ export async function renderVueCentre(container) {
     presence: indDe(p).presence.valeur, titre: indDe(p).titre.valeur }));   // taux de présence des feuilles d'émargement, vide quand il n'est pas mesuré
 
   clear(racine);
+  // Chaque bloc suit la case de sa page (Stagiaires, Notes et examens) ; cases non lues : tous les blocs, comme avant.
+  const voit = (page) => litSelonLaCase(page, true, ["direction"]);
   const exporter = el("button", { class: "btn small solo-ordinateur", type: "button", onClick: () => {
     telecharger(`tableau-centre_${slug(centre.nom) || "centre"}_${aujourdhui}.csv`, tableauCentreCsv(lignesParPromo));
     toast("Tableau du centre téléchargé", "success");
@@ -149,12 +151,16 @@ export async function renderVueCentre(container) {
     racine.appendChild(el("p", { class: "centre-legende" },
       etiquette("mesuré"), " compté dans l'app · ", etiquette("estimé"), " hypothèse ou signal · Chaque chiffre a sa méthode. ",
       "Les chiffres du centre additionnent ses promos en cours ; la réussite au titre, toutes ses promos qui ont des résultats de jury saisis."));
-    racine.appendChild(el("section", { class: "centre-section" },
-      el("h3", {}, "Assiduité et abandons"),
-      el("div", { class: "centre-grille" }, ...cartesCles(ind))));
-    racine.appendChild(el("section", { class: "centre-section" },
-      el("h3", {}, "Résultats"),
-      el("div", { class: "centre-grille" }, ...cartesResultats(ind, { indTitre: titreCentre, porteeJury }))));
+    if (voit("stagiaires")) {
+      racine.appendChild(el("section", { class: "centre-section" },
+        el("h3", {}, "Assiduité et abandons"),
+        el("div", { class: "centre-grille" }, ...cartesCles(ind))));
+    }
+    if (voit("notes")) {
+      racine.appendChild(el("section", { class: "centre-section" },
+        el("h3", {}, "Résultats"),
+        el("div", { class: "centre-grille" }, ...cartesResultats(ind, { indTitre: titreCentre, porteeJury }))));
+    }
   } else {
     racine.appendChild(el("section", { class: "centre-section" },
       el("h3", {}, "Aucune promo en cours"),
@@ -165,14 +171,14 @@ export async function renderVueCentre(container) {
       el("div", { class: "centre-grille" }, carteTitre(titreCentre, { portee: porteeJury }))));
   }
 
-  if (promos.length >= 2) {
+  if (promos.length >= 2 && voit("notes")) {
     const courante = affichee || promos[0];
     const comparaison = sectionComparaison(promos, courante, indDe(courante));
     racine.appendChild(comparaison.section);
     comparaison.autres.forEach((p) => comparaison.remplir(p.id, ligneComparaison(indDe(p))));
   }
 
-  if (enCours.length) {
+  if (enCours.length && voit("notes")) {
     const fusion = fusionnerASuivre(enCours.map((p) => ({
       promoId: p.id, promoNom: p.nom, liste: aSuivrePromo(parPromo.get(p.id), referentiel, { aujourdhui }) })));
     racine.appendChild(sectionASuivre(fusion, {
