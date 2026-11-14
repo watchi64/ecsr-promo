@@ -110,9 +110,9 @@
       "num titre titre"
       "num meta  acces";
   }
-  /* Cible de 44 px au téléphone, mais la ligne ne s'allonge que de 31 px : le bouton déborde de 6 px sur la marge du haut et sur
-     la ligne d'état, qui ne contient aucun bouton (des pastilles et du texte : rien n'y est masqué). */
-  #view .themes-list > .theme-row > .theme-titre-link { align-self: center; min-height: 44px; margin-block: -6px; }
+  /* Cible de 44 px au téléphone. Le bouton déborde de 6 px sur la marge du haut de la ligne seulement : vers le bas, il ne
+     doit rien recouvrir (la ligne d'état et, à droite, les boutons Cours et QCM). */
+  #view .themes-list > .theme-row > .theme-titre-link { align-self: center; min-height: 44px; margin-block: -6px 0; }
   #view .themes-list > .theme-row > .theme-meta { align-self: center; }
   #view .themes-list > .theme-row > .theme-menu { align-self: center; }
   #view .themes-list > .theme-row:not(.theme-header) > .theme-num { align-self: start; padding-top: 2px; }
