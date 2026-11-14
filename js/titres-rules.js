@@ -261,6 +261,70 @@ export function donneesDuCentreVisibles({ titres, lieuId, fondateur = false } = 
   return fixe === null ? true : fixe;
 }
 
+// ----- Page Équipe de la direction (Task 31) -----
+
+// Les gestes offerts sur UNE ligne de « Personnes avec accès » (une personne, un titre) : `{ changer, retirer }`. La base décide de
+// toute façon (donner_titre, retirer_titre) et son refus s'affiche tel quel : ces règles évitent seulement d'offrir un bouton
+// d'avance perdu. `cases` : cases du centre ({ page: 0|1|2 }) ou nul (plafond : le fondateur hors aperçu, lecture ratée) ;
+// `directionFixe` : la personne connectée a la direction fixe du centre (ou est fondateur) ; `personne` : { email, niveau, fixe,
+// nom } de la ligne ; `moi` : l'adresse de la personne connectée.
+// - jamais pour le titre fixe de direction (le siège seul) ;
+// - jamais sur soi, sauf la direction fixe sur son propre titre fixe Formateur ;
+// - un titre fixe Formateur : seulement par la direction fixe du centre ;
+// - un titre de promo ou de centre non fixe : si Équipe est sur « Modifier ».
+export function gestesSurPersonne({ cases = null, directionFixe = false, personne = null, moi = "" } = {}) {
+  const aucun = { changer: false, retirer: false };
+  if (!personne || (personne.niveau !== "promo" && personne.niveau !== "centre")) return aucun;
+  const fixe = personne.fixe === true;
+  if (fixe && personne.niveau === "centre") return aucun;
+  const surSoi = moi !== "" && String(personne.email || "").toLowerCase() === String(moi).toLowerCase();
+  if (surSoi) {
+    const ok = fixe && personne.niveau === "promo" && directionFixe === true;
+    return { changer: ok, retirer: ok };
+  }
+  const ok = fixe ? directionFixe === true : caseDe(cases, "equipe", "centre") === 2;
+  return { changer: ok, retirer: ok };
+}
+
+// Les gestes de la section « Titres du centre » sur UN titre vu depuis un centre : `ajustable` (l'identifiant est dans
+// titres_ajustables), `peutGerer` (Équipe sur « Modifier »). Un titre fixe ne s'ajuste ni ne se supprime ; « Supprimer » seulement pour
+// un titre de CE centre, ajustable et sans porteur : un titre du réseau ne se supprime pas depuis un centre (supprimer_titre le juge
+// sans centre).
+export function gestesSurTitre({ titre, lieuId, ajustable = false, peutGerer = false } = {}) {
+  const t = titre || {};
+  const fixe = t.fixe === true;
+  return {
+    ajuster: !fixe && ajustable === true,
+    creer: peutGerer === true,
+    supprimer: !fixe && ajustable === true && lieuId != null && t.lieu_id === lieuId && !(t.porteurs > 0),
+  };
+}
+
+export const LIBELLE_NIVEAU ={ promo: "Promo", centre: "Centre", reseau: "Réseau" };
+
+// Les pages que le titre ferme (case « Non »), dans l'ordre du niveau : « Masqué dans sa barre ».
+export function ceQuiEstMasque(titre) {
+  const niveau = titre && titre.niveau;
+  const brutes = (titre && titre.cases) || {};
+  return pagesDe(niveau).filter(({ page }) => valeurBornee(niveau, page, brutes[page]) === 0).map((p) => p.libelle);
+}
+
+// Les cases d'un titre, une valeur « non », « voir » ou « modifier » par page du niveau, bornée par le plafond de la page.
+export function casesEnChaines(niveau, cases) {
+  const noms = ["non", "voir", "modifier"];
+  const brutes = cases || {};
+  const sortie = {};
+  for (const { page } of pagesDe(niveau)) sortie[page] = noms[valeurBornee(niveau, page, brutes[page])];
+  return sortie;
+}
+
+// Les cases d'un titre en nombres (0, 1, 2), comme `casesDeLEspace` : pour « Sa barre » (entreesNavigation).
+export function casesEnNombres(niveau, cases) {
+  const espace = Object.keys(NIVEAU_DE_L_ESPACE).find((e) => NIVEAU_DE_L_ESPACE[e] === niveau);
+  if (!espace) return null;
+  return casesDeLEspace({ espace, titres: [{ niveau, lieu_id: 0, promo_ids: [0], cases }], promoId: 0, lieuId: 0 });
+}
+
 // Aperçu par titre (fondateur) : les titres que le choix « Titre » propose pour un aperçu (formateur, direction, siège), lus par
 // titres_visibles hors aperçu : `listes` = { centre: lignes de titres_visibles(<centre affiché>) ou null, reseau: lignes de
 // titres_visibles(null) ou null }. Titres du niveau de l'aperçu seulement, le titre fixe d'abord, puis l'ordre de la base. Un titre
