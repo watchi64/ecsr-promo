@@ -14,19 +14,19 @@
  *   - un tableau qui porte une colonne « Amende » devient un tableau de
  *     sanctions (montants et points en chiffres tabulaires).
  */
-import { el, clear } from "../utils.js?v=20261114d";
-import { icon } from "../icons.js?v=20261114d";
-import { carteSignal, signalConnu } from "../signaux.js?v=20261114d";
-import { carteMarquage, marquageConnu } from "../marquage.js?v=20261114d";
-import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261114d";
-import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261114d";
-import { listCoursIndex, getCours } from "../db.js?v=20261114d";
-import { isProf, isRedacteur, getViewAs, selonPublic } from "../auth-admin.js?v=20261114d";
-import { peutTracer } from "../autonomie-etat.js?v=20261114d";
-import { brancherSuiviCours, creerRepereFin } from "../cours-suivi-ui.js?v=20261114d";
+import { el, clear } from "../utils.js?v=20261114f";
+import { icon } from "../icons.js?v=20261114f";
+import { carteSignal, signalConnu } from "../signaux.js?v=20261114f";
+import { carteMarquage, marquageConnu } from "../marquage.js?v=20261114f";
+import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261114f";
+import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261114f";
+import { listCoursIndex, getCours } from "../db.js?v=20261114f";
+import { isProf, isRedacteur, getViewAs, selonPublic } from "../auth-admin.js?v=20261114f";
+import { peutTracer } from "../autonomie-etat.js?v=20261114f";
+import { brancherSuiviCours, creerRepereFin } from "../cours-suivi-ui.js?v=20261114f";
 import { coursAUnTexte, MESSAGE_COURS_VIDE, titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours,
   coursVisibleEnApercu, classeTableau, etiquetteDeColonne }
-  from "../cours-rules.js?v=20261114d";
+  from "../cours-rules.js?v=20261114f";
 
 // Index des cours visibles, chargé une fois par rendu de la page Thèmes.
 let coursIndex = null;  // Map clé (numéro ou code) -> { id, numero, code, titre, published, updated_by, updated_at }
@@ -500,7 +500,7 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
   // l'éditeur pour lui.
   const modifier = isRedacteur()
     ? el("button", { class: "btn cours-modifier", type: "button", onClick: async () => {
-        const { openCoursEditeur } = await import("./cours-editeur.js?v=20261114d");
+        const { openCoursEditeur } = await import("./cours-editeur.js?v=20261114f");
         close();
         openCoursEditeur(cle, {
           onFerme: (aChange) => { if (aChange) openCoursSheet(theme); },

@@ -6,14 +6,14 @@
 
 import {
   lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande, getMesPromos, getPromoCourante, enregistrerResultatsJury,
-} from "../db.js?v=20261114d";
-import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261114d";
-import { fondateurHorsApercu, isAdmin } from "../auth-admin.js?v=20261114d";
-import { indicateursPromo, ligneComparaison, textePresenceDetail, texteTitreDetail, METHODES } from "../centre-stats.js?v=20261114d";
-import { CHOIX_JURY, valeurDeLigne, changementsJury, dateProposee } from "../jury-rules.js?v=20261114d";
-import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261114d";
-import { entier, fr1, pct, pluriel } from "../nombres.js?v=20261114d";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261114d";
+} from "../db.js?v=20261114f";
+import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261114f";
+import { fondateurHorsApercu, isAdmin } from "../auth-admin.js?v=20261114f";
+import { indicateursPromo, ligneComparaison, textePresenceDetail, texteTitreDetail, METHODES } from "../centre-stats.js?v=20261114f";
+import { CHOIX_JURY, valeurDeLigne, changementsJury, dateProposee } from "../jury-rules.js?v=20261114f";
+import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261114f";
+import { entier, fr1, pct, pluriel } from "../nombres.js?v=20261114f";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 

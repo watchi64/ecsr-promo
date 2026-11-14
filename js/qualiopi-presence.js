@@ -2,7 +2,7 @@
 // avec le tableau de bord du centre) ; ici, ce que la fiche des résultats en attend. Réexporte le calcul pour les appelants
 // historiques (inventaire, documents, page Qualiopi).
 
-export { presenceDePromo, presenceDesFeuilles, fusionnerEmargements, RAISONS_ABSENCE, raisonAbsence } from "./presence-rules.js?v=20261114d";
+export { presenceDePromo, presenceDesFeuilles, fusionnerEmargements, RAISONS_ABSENCE, raisonAbsence } from "./presence-rules.js?v=20261114f";
 
 // Ce que la fiche des résultats attend : { taux, effectif } quand la présence est mesurée, { etat: "non_lue" } quand la lecture a
 // échoué, rien sinon.

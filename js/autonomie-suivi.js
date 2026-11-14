@@ -5,7 +5,7 @@
 // ni où, ni la position de défilement). La seule position envoyée est l'id de la dernière section vue, écrasé à chaque
 // fois (aucun historique). Écouteurs passifs, rien n'est retardé ni filtré qui changerait le compte.
 
-import { creerCompteur, PERIODE_ECRITURE_MS, trancheAEnvoyer } from "./autonomie-rules.js?v=20261114d";
+import { creerCompteur, PERIODE_ECRITURE_MS, trancheAEnvoyer } from "./autonomie-rules.js?v=20261114f";
 
 /**
  * Suit un écran. Renvoie { finAtteinte(), section(id), arreter() }.
