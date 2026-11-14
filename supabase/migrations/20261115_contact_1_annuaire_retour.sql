@@ -1,4 +1,8 @@
--- Marche arrière de 20261115_contact_1_annuaire.sql (espace contact, migration 1, partie A).
+-- Marche arrière de 20261115_contact_1_annuaire.sql (espace contact, migration 1, parties A et B).
+--   * Partie B, défaite d'abord : user_profiles_lecture reprend le texte de 20261112_titres_5_fermetures.sql ; fonctions de la fiche,
+--     des financements et des coordonnées retirées ; table contact_financements (et son déclencheur sur lieux), colonnes
+--     stagiaires_prive.telephone, .financement_id et stagiaires.delegue retirées (un avis donne le nombre de valeurs perdues, sans nom).
+--     Les lignes de stagiaires_prive créées pour un téléphone ou un financement restent (date de naissance vide).
 --   * Déclencheurs et fonctions de la migration retirés ; contacts_ecriture reprend le texte de 20261112_titres_3_regles.sql ; les
 --     droits de authenticated sur contacts redeviennent ceux d'avant (ajout et modification sur toute la table), et ceux d'écriture
 --     de anon (ajout, modification, suppression ; pas le vidage, TRUNCATE ayant été retiré à anon et authenticated par 20261114_restes_2_truncate.sql).
@@ -8,7 +12,8 @@
 --     rattachement à profs, date de départ, vérification) : un avis en donne le nombre de fiches touchées, sans aucun nom.
 -- Gardes d'ordre : refusée si la migration 1b est appliquée (la défaire d'abord : 20261115_contact_1b_fermeture_retour.sql), si la
 -- migration 2 est là (public.ecrire_au_centre existe) ou si la fiche fictive « Responsable pédagogique (fictif) » de
--- 20261115_contact_demo.sql existe. Garde d'entrée : la migration 1 est appliquée. Sinon rien ne change.
+-- 20261115_contact_demo.sql existe. Garde d'entrée : la migration 1 est appliquée, et user_profiles_lecture porte son texte
+-- (_contact_compte_equipe() une fois, plus de promo_par_defaut()). Sinon rien ne change.
 set local lock_timeout = '3s';
 
 do $garde$
@@ -28,7 +33,49 @@ begin
               where 'Responsable pédagogique (fictif)' in (c.prenom, c.nom, c.role)) then
     raise exception 'contact_1_retour : la fiche fictive de 20261115_contact_demo.sql existe, défaire d''abord cette migration ; rien n''est changé';
   end if;
+  -- La règle user_profiles_lecture doit porter le texte de la migration (une réécriture faite depuis ailleurs ne se défait pas sans bruit).
+  if (select count(*) from pg_policies p where p.schemaname = 'public' and p.tablename = 'user_profiles' and p.policyname = 'user_profiles_lecture'
+         and (length(p.qual) - length(replace(p.qual, '_contact_compte_equipe()', ''))) / length('_contact_compte_equipe()') = 1
+         and p.qual not like '%promo_par_defaut()%') <> 1 then
+    raise exception 'contact_1_retour : la règle user_profiles_lecture n''a plus le texte de la migration 1 ; rien n''est changé';
+  end if;
 end $garde$;
+
+-- Partie B, défaite d'abord (ordre inverse). Les données qu'elle seule portait se perdent : un avis en donne les nombres, sans aucun nom.
+do $donnees_b$
+begin
+  raise notice 'contact_1_retour : % téléphone(s) et % financement(s) de stagiaire, % délégué(s), % fiche(s) avec compte vérifiée(s) perdus',
+    (select count(*) from public.stagiaires_prive where telephone is not null),
+    (select count(*) from public.stagiaires_prive where financement_id is not null),
+    (select count(*) from public.stagiaires where delegue is not null),
+    (select count(*) from public.contacts where compte_email is not null and verifiee_le is not null);
+end $donnees_b$;
+
+-- La clause du personnel de user_profiles_lecture reprend le texte de 20261112_titres_5_fermetures.sql.
+alter policy user_profiles_lecture on public.user_profiles
+  using (lower(email) = lower((select auth.jwt() ->> 'email')) or (stagiaire_id is null and role <> 'stagiaire' and ((select public.promo_par_defaut()) is not null or (select public.geste_reseau('directions.lire')) or (select public.est_fondateur()))) or (stagiaire_id is null and role = 'stagiaire' and ((select public.est_fondateur()) or lower(invited_by_email) = lower((select auth.jwt() ->> 'email')))) or (stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = (select public.promo_courante())) and (select public.geste_promo((select public.promo_courante()), 'stagiaires.lire'))));
+drop function public._contact_compte_equipe();
+
+drop index public.stagiaires_delegue_unique;
+alter table public.stagiaires drop column delegue;
+
+drop function public.coordonnees_promo();
+drop function public.regler_coordonnees_stagiaire(integer, jsonb);
+alter table public.stagiaires_prive drop column telephone, drop column financement_id;
+
+drop trigger lieux_financements_defaut on public.lieux;
+drop function public.regler_financements(integer, jsonb);
+drop function public.financements_du_centre();
+drop function public._contact_financements_defaut();
+drop function public._contact_poser_financements(integer);
+drop table public.contact_financements;
+
+drop function public.ordonner_fiches(bigint[]);
+drop function public.regler_ma_fiche(jsonb);
+drop function public.ma_fiche_contact();
+drop function public._contact_relais_possibles(text);
+
+-- Partie A.
 
 drop trigger contacts_avant_ecriture on public.contacts;
 drop trigger affectations_fiche_contact on public.affectations;

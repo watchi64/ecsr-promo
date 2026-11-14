@@ -15,6 +15,10 @@
 --                relais d'un des centres de la fiche, rattachement à profs (jamais la ligne d'un compte de l'équipe, une ligne du
 --                planning d'un des centres de la fiche), aucune écriture pour anon.
 --   depart       date de départ d'une fiche sans compte : passée, la fiche n'est plus rendue qu'à qui l'écrit.
+--   ma_fiche     ma_fiche_contact(), regler_ma_fiche() (vérification au premier enregistrement, refus), ordonner_fiches().
+--   coordonnees  téléphone et financement d'un stagiaire (regler_coordonnees_stagiaire, coordonnees_promo, stagiaires_prive), délégué.
+--   financements liste livrée d'office (centres existants, centre créé), financements_du_centre(), regler_financements().
+--   profils      les profils du personnel fermés aux stagiaires et à l'aperçu stagiaire ; l'équipe et le siège en lisent autant qu'avant.
 --   fermeture    après la 1b : la lecture directe de contacts n'est plus ouverte qu'à qui écrit les fiches.
 --   retour       les retours défont tout, dans l'ordre inverse (1b, 1) : l'empreinte (règles, fonctions, droits) égale celle d'avant, et
 --                les fiches sans compte redeviennent exactement celles d'avant (copies refaites, dates comprises).
@@ -482,6 +486,359 @@ begin
     pg_temp.valeur((select email from pg_temp.perso where nom = 'fond'), '1', 'stagiaire', 'select count(*)::text from public.contacts'), '0');
 end $ca_gm$;
 
+-- ===== Partie B (tâche 3) =====
+
+-- Deux listes JSON mises bout à bout, en texte ; « incalculable (...) » si l'une ne se lit pas (contre-épreuve : la valeur, glissée dans
+-- une requête, la fait échouer et le contrôle est rouge, sans arrêter la preuve).
+create or replace function pg_temp.json_plus(p_a text, p_b text)
+returns text language sql as $ca_jp$
+  select pg_temp.calcul(format('select (%L::jsonb || %L::jsonb)::text', p_a, p_b));
+$ca_jp$;
+
+-- Groupe ma_fiche : « Ma fiche de contact » (lecture, enregistrement, refus) et l'ordre des fiches du centre. Les enregistrements
+-- acceptés restent faits (fiches avec compte : le retour les supprime) ; l'ordre se tente dans une sous-transaction annulée (il touche
+-- des fiches sans compte, que le groupe retour compare à celles d'avant).
+create or replace function pg_temp.groupe_ma_fiche()
+returns void language plpgsql as $ca_gmf$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_form_n text := pg_temp.id_fiche('form_n');
+  v_dir_n text := pg_temp.id_fiche('dir_n');
+  v_form_s text := pg_temp.id_fiche('form_s');
+  v_form_m text := pg_temp.id_fiche('form_m');
+  v_sec text := pg_temp.id_essai('sec_n');
+  e_form_n text := (select email from pg_temp.perso where nom = 'form_n');
+  e_stag_n text := (select email from pg_temp.perso where nom = 'stag_n');
+  c_regler constant text := 'select concat_ws(''/'', %s) from (select public.regler_ma_fiche(%L::jsonb) as r) x';
+  c_relais constant text := 'ERREUR P0001 contact: Le relais doit être une personne de l''équipe de votre centre.';
+  c_conge constant text := 'ERREUR P0001 contact: Les dates du congé ne se suivent pas.';
+  v_ids text;
+  v_res text[];
+begin
+  perform pg_temp.verifier('ma_fiche', 'les fiches de form_n, dir_n, form_s, form_m existent (jamais un contrôle à vide)',
+    concat_ws(',', v_form_n, v_dir_n, v_form_s, v_form_m) ~ '^[0-9]+,[0-9]+,[0-9]+,[0-9]+$', concat_ws(',', v_form_n, v_dir_n, v_form_s, v_form_m));
+  -- Lecture.
+  perform pg_temp.attendre('ma_fiche', 'form_n lit sa fiche : non vérifiée, adresse de son compte, un centre (Nîmes)',
+    pg_temp.appeler('form_n', '1', $ca_q$select concat_ws('/', coalesce(r->'fiche'->>'verifiee', 'nul'), coalesce(r->>'email_compte', 'nul'), jsonb_array_length(r->'centres'), coalesce(r->'centres'->0->>'id', 'nul')) from (select public.ma_fiche_contact() as r) x$ca_q$),
+    format('OK false/%s/1/%s', e_form_n, v_l1));
+  perform pg_temp.attendre('ma_fiche', 'relais possibles de form_n : dir_n et sec_n y sont, ni sa fiche ni celle de form_s (centre de démonstration) ni celle de form_m (Montpellier)',
+    pg_temp.appeler('form_n', '1', format($ca_q$select count(*) filter (where (x->>'id')::bigint in (%s, %s))::text || '/' || count(*) filter (where (x->>'id')::bigint in (%s, %s, %s))::text from jsonb_array_elements(public.ma_fiche_contact()->'relais_possibles') x$ca_q$,
+      v_dir_n, v_sec, v_form_n, v_form_s, v_form_m)),
+    'OK 2/0');
+  perform pg_temp.attendre('ma_fiche', 'stag_n et siege : aucune fiche, aucun centre, aucun relais ; l''adresse de leur compte',
+    pg_temp.appeler('stag_n', '1', $ca_q$select concat_ws('/', jsonb_typeof(r->'fiche'), r->>'email_compte', jsonb_array_length(r->'centres'), jsonb_array_length(r->'relais_possibles')) from (select public.ma_fiche_contact() as r) x$ca_q$) || ' / '
+      || pg_temp.appeler('siege', null, $ca_q$select concat_ws('/', jsonb_typeof(r->'fiche'), jsonb_array_length(r->'centres')) from (select public.ma_fiche_contact() as r) x$ca_q$),
+    format('OK null/%s/0/0 / OK null/0', e_stag_n));
+  perform pg_temp.attendre('ma_fiche', 'form_n en aperçu stagiaire : aucune fiche (un aperçu ne fait que retirer des droits)',
+    pg_temp.valeur(e_form_n, '1', 'stagiaire', $ca_q$select jsonb_typeof(public.ma_fiche_contact()->'fiche')$ca_q$), 'null');
+  -- Enregistrement : vérifiée, adresse en minuscules sans espaces de bord, une clé absente ne change rien (« quand »).
+  perform pg_temp.attendre('ma_fiche', 'form_n enregistre e-mail, téléphone, « pour quoi » : vérifiée, « quand » inchangé (clé absente)',
+    pg_temp.appeler('form_n', '1', format(c_regler, $ca_q$r->'fiche'->>'verifiee', r->'fiche'->>'email', r->'fiche'->>'telephone', r->'fiche'->>'pour_quoi', coalesce(r->'fiche'->>'quand', 'nul')$ca_q$,
+      '{"email": " Preuve7.Eq.Form.N.Pro2@exemple.invalid ", "telephone": "04 99 00 00 12", "pour_quoi": "Planning et absences"}')),
+    'OK true/preuve7.eq.form.n.pro2@exemple.invalid/04 99 00 00 12/Planning et absences/Le matin');
+  perform pg_temp.attendre('ma_fiche', 'stag_n voit alors l''e-mail, le téléphone et « pour quoi » de form_n dans l''annuaire',
+    pg_temp.appeler('stag_n', '1', format('select concat_ws(''/'', email, telephone, pour_quoi, verifiee::text) from public.annuaire_centre() where id = %s', v_form_n)),
+    'OK preuve7.eq.form.n.pro2@exemple.invalid/04 99 00 00 12/Planning et absences/true');
+  perform pg_temp.attendre('ma_fiche', 'une clé à null efface (« quand »), le reste ne bouge pas',
+    pg_temp.appeler('form_n', '1', format(c_regler, $ca_q$coalesce(r->'fiche'->>'quand', 'nul'), r->'fiche'->>'pour_quoi'$ca_q$, '{"quand": null}')),
+    'OK nul/Planning et absences');
+  perform pg_temp.attendre('ma_fiche', 'prénom et nom écrits sans ligne profs rattachée : form_n s''affiche « Preuve7 Nom »',
+    pg_temp.appeler('form_n', '1', format(c_regler, $ca_q$r->'fiche'->>'prenom'$ca_q$, '{"prenom": "Preuve7", "nom": "Nom"}')) || ' / '
+      || pg_temp.appeler('stag_n', '1', format('select nom_affiche from public.annuaire_centre() where id = %s', v_form_n)),
+    'OK Preuve7 / OK Preuve7 Nom');
+  perform pg_temp.attendre('ma_fiche', 'prénom et nom ignorés quand une ligne profs est rattachée (prof_a : son nom vient du planning)',
+    pg_temp.appeler('prof_a', '1', format(c_regler, $ca_q$coalesce(r->'fiche'->>'prenom', 'nul'), coalesce(r->'fiche'->>'nom', 'nul'), r->'fiche'->>'nom_planning', r->'fiche'->>'verifiee'$ca_q$,
+      '{"prenom": "Autre", "nom": "Nom"}')),
+    'OK nul/nul/Preuve7 formateur A/true');
+  perform pg_temp.attendre('ma_fiche', 'un enregistrement sans aucun champ vaut vérification (dir_n : faux, puis vrai)',
+    pg_temp.appeler('dir_n', '1', $ca_q$select public.ma_fiche_contact()->'fiche'->>'verifiee'$ca_q$) || ' / '
+      || pg_temp.appeler('dir_n', '1', $ca_q$select public.regler_ma_fiche('{}')->'fiche'->>'verifiee'$ca_q$),
+    'OK false / OK true');
+  -- Refus.
+  perform pg_temp.attendre('ma_fiche', '« pour quoi » de 81 caractères (80 passent)',
+    pg_temp.appeler('form_n', '1', format('select public.regler_ma_fiche(%L)->''fiche''->>''verifiee''', jsonb_build_object('pour_quoi', repeat('x', 81)))) || ' / '
+      || pg_temp.appeler('form_n', '1', format('select char_length(public.regler_ma_fiche(%L)->''fiche''->>''pour_quoi'')', jsonb_build_object('pour_quoi', repeat('x', 80)))),
+    'ERREUR P0001 contact: Ce texte est trop long (80 caractères au plus). / OK 80');
+  perform pg_temp.attendre('ma_fiche', 'adresse e-mail invalide ; téléphone invalide',
+    pg_temp.appeler('form_n', '1', $ca_q$select public.regler_ma_fiche('{"email": "preuve sans arobase"}')::text$ca_q$) || ' / '
+      || pg_temp.appeler('form_n', '1', $ca_q$select public.regler_ma_fiche('{"telephone": "appeler le matin"}')::text$ca_q$),
+    'ERREUR P0001 contact: Adresse e-mail invalide. / ERREUR P0001 contact: Numéro de téléphone invalide.');
+  perform pg_temp.attendre('ma_fiche', 'relais : form_s (centre de démonstration), form_m (Montpellier), sa propre fiche, une fiche inexistante : refusés',
+    concat_ws(' / ',
+      pg_temp.appeler('form_n', '1', format('select public.regler_ma_fiche(''{"relais_id": %s}'')::text', v_form_s)),
+      pg_temp.appeler('form_n', '1', format('select public.regler_ma_fiche(''{"relais_id": %s}'')::text', v_form_m)),
+      pg_temp.appeler('form_n', '1', format('select public.regler_ma_fiche(''{"relais_id": %s}'')::text', v_form_n)),
+      pg_temp.appeler('form_n', '1', $ca_q$select public.regler_ma_fiche('{"relais_id": -4}')::text$ca_q$)),
+    concat_ws(' / ', c_relais, c_relais, c_relais, c_relais));
+  perform pg_temp.attendre('ma_fiche', 'relais vers dir_n (Nîmes) : accepté',
+    pg_temp.appeler('form_n', '1', format(c_regler, $ca_q$r->'fiche'->>'relais_id'$ca_q$, format('{"relais_id": %s}', v_dir_n))),
+    'OK ' || v_dir_n);
+  perform pg_temp.attendre('ma_fiche', 'congé : « au » avant « du », une seule date, une date illisible : refusés ; deux dates qui se suivent : accepté',
+    concat_ws(' / ',
+      pg_temp.appeler('form_n', '1', $ca_q$select public.regler_ma_fiche('{"conge_du": "2031-01-10", "conge_au": "2031-01-06"}')::text$ca_q$),
+      pg_temp.appeler('form_n', '1', $ca_q$select public.regler_ma_fiche('{"conge_du": "2031-01-10"}')::text$ca_q$),
+      pg_temp.appeler('form_n', '1', $ca_q$select public.regler_ma_fiche('{"conge_du": "lundi", "conge_au": "2031-01-10"}')::text$ca_q$),
+      pg_temp.appeler('form_n', '1', format(c_regler, $ca_q$r->'fiche'->>'conge_du', r->'fiche'->>'conge_au'$ca_q$, '{"conge_du": "2031-01-06", "conge_au": "2031-01-10"}'))),
+    concat_ws(' / ', c_conge, c_conge, c_conge, 'OK 2031-01-06/2031-01-10'));
+  perform pg_temp.attendre('ma_fiche', 'champ inconnu : refusé, et nommé',
+    pg_temp.appeler('form_n', '1', $ca_q$select public.regler_ma_fiche('{"compte_email": "preuve7.eq.x@exemple.invalid"}')::text$ca_q$),
+    'ERREUR P0001 contact: Champ inconnu « compte_email ».');
+  perform pg_temp.attendre('ma_fiche', 'stag_n, siege, form_n en aperçu stagiaire : pas de fiche (42501) ; anon : aucun droit d''exécution',
+    concat_ws(' / ',
+      pg_temp.appeler('stag_n', '1', $ca_q$select public.regler_ma_fiche('{}')::text$ca_q$),
+      pg_temp.appeler('siege', null, $ca_q$select public.regler_ma_fiche('{}')::text$ca_q$),
+      pg_temp.valeur(e_form_n, '1', 'stagiaire', $ca_q$select public.regler_ma_fiche('{}')::text$ca_q$),
+      pg_temp.valeur(null, '1', null, $ca_q$select public.ma_fiche_contact()::text$ca_q$)),
+    'ERREUR 42501 contact: Vous n''avez pas de fiche de contact. / ERREUR 42501 contact: Vous n''avez pas de fiche de contact. / ERREUR 42501 / ERREUR 42501');
+  -- L'ordre des fiches du centre affiché.
+  v_ids := substr(pg_temp.appeler('form_n', '1', 'select string_agg(id::text, '','' order by ordre desc, id desc) from public.annuaire_centre()'), 4);
+  perform pg_temp.verifier('ma_fiche', 'fiches de Nîmes lues pour l''ordre (jamais un contrôle à vide)', v_ids ~ '^[0-9]+(,[0-9]+)+$', 'obtenu ' || coalesce(v_ids, 'nul'));
+  perform pg_temp.attendre('ma_fiche', 'form_n ordonne les fiches de Nîmes (ordre inversé) : OK n, rang k = 10 k',
+    pg_temp.voir_apres('select 1', 'form_n', '1', format('select public.ordonner_fiches(''{%s}'')::text', v_ids)) || ' / '
+      || (pg_temp.tenter(e_form_n, '1', null, null, null, format('select public.ordonner_fiches(''{%s}'')', v_ids),
+            format('select bool_and(c.sort_order = 10 * u.o)::text from unnest(''{%s}''::bigint[]) with ordinality u(id, o) join public.contacts c on c.id = u.id', v_ids)))[2],
+    format('OK %s / OK 1 true', array_length(string_to_array(v_ids, ','), 1)));
+  perform pg_temp.attendre('ma_fiche', 'form_n ordonne avec une fiche de Montpellier (form_m) : refusé ; stag_n et t_interv : refusés',
+    concat_ws(' / ',
+      pg_temp.appeler('form_n', '1', format('select public.ordonner_fiches(array[%s, %s])::text', v_form_n, v_form_m)),
+      pg_temp.appeler('stag_n', '1', format('select public.ordonner_fiches(array[%s])::text', v_form_n)),
+      pg_temp.appeler('t_interv', '1', format('select public.ordonner_fiches(array[%s])::text', v_form_n))),
+    'ERREUR 42501 contact: Une fiche n''est pas de ce centre. / ERREUR 42501 contact: Réservé à qui écrit les fiches de ce centre. / ERREUR 42501 contact: Réservé à qui écrit les fiches de ce centre.');
+end $ca_gmf$;
+
+-- Groupe coordonnees : téléphone et financement d'un stagiaire (stagiaires_prive), coordonnees_promo(), délégué.
+create or replace function pg_temp.groupe_coordonnees()
+returns void language plpgsql as $ca_gco$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_l2 integer := (select lieu_id from public.promos where id = 2);
+  v_stag_n text := pg_temp.calcul(format('select stagiaire_id::text from public.user_profiles where email = %L', (select email from pg_temp.perso where nom = 'stag_n')));
+  v_stag_m text := pg_temp.calcul(format('select stagiaire_id::text from public.user_profiles where email = %L', (select email from pg_temp.perso where nom = 'stag_m')));
+  v_cumul text := pg_temp.calcul(format('select stagiaire_id::text from public.user_profiles where email = %L', (select email from pg_temp.perso where nom = 'cumul')));
+  v_cpf_n text := pg_temp.calcul(format('select id::text from public.contact_financements where lieu_id = %s and libelle = ''CPF''', v_l1));
+  v_region_n text := pg_temp.calcul(format('select id::text from public.contact_financements where lieu_id = %s and libelle = ''Région''', v_l1));
+  v_cpf_m text := pg_temp.calcul(format('select id::text from public.contact_financements where lieu_id = %s and libelle = ''CPF''', v_l2));
+  v_n1 text := pg_temp.calcul('select count(*)::text from public.stagiaires where promo_id = 1');
+  e_form_n text := (select email from pg_temp.perso where nom = 'form_n');
+  c_tel constant text := 'select public.regler_coordonnees_stagiaire(%s, %L::jsonb)';
+  c_equipe constant text := 'ERREUR 42501 contact: Réservé à l''équipe.';
+  c_inconnu constant text := 'ERREUR P0001 contact: Financement inconnu dans ce centre.';
+  v_r text;
+  v_res text[];
+begin
+  perform pg_temp.verifier('coordonnees', 'fiches de stag_n, stag_m, cumul, financements CPF et Région de Nîmes, CPF de Montpellier ; plusieurs fiches en promo 1 (jamais un contrôle à vide)',
+    concat_ws(',', v_stag_n, v_stag_m, v_cumul, v_cpf_n, v_region_n, v_cpf_m) ~ '^[0-9]+(,[0-9]+){5}$' and v_n1 ~ '^[0-9]+$' and v_n1::integer > 2,
+    concat_ws(',', v_stag_n, v_stag_m, v_cumul, v_cpf_n, v_region_n, v_cpf_m, v_n1));
+  -- Téléphone.
+  perform pg_temp.attendre('coordonnees', 'stag_n règle son téléphone : OK, écrit dans stagiaires_prive',
+    pg_temp.appeler('stag_n', '1', format(c_tel, v_stag_n, '{"telephone": " 06 99 00 00 01 "}')) || ' '
+      || pg_temp.calcul(format('select telephone from public.stagiaires_prive where stagiaire_id = %s', v_stag_n)),
+    'OK 06 99 00 00 01');
+  perform pg_temp.attendre('coordonnees', 'stag_n règle son financement : refusé',
+    pg_temp.appeler('stag_n', '1', format(c_tel, v_stag_n, format('{"financement_id": %s}', v_cpf_n))), c_equipe);
+  perform pg_temp.attendre('coordonnees', 'stag_n règle le téléphone de stag_m (autre promo) : introuvable ; celui de cumul (sa promo) : réservé à l''équipe',
+    pg_temp.appeler('stag_n', '1', format(c_tel, v_stag_m, '{"telephone": "06 99 00 00 03"}')) || ' / '
+      || pg_temp.appeler('stag_n', '1', format(c_tel, v_cumul, '{"telephone": "06 99 00 00 03"}')),
+    'ERREUR P0001 contact: Stagiaire introuvable dans cette promo. / ' || c_equipe);
+  perform pg_temp.attendre('coordonnees', 'téléphone illisible, champ inconnu : refusés',
+    pg_temp.appeler('stag_n', '1', format(c_tel, v_stag_n, '{"telephone": "le matin"}')) || ' / '
+      || pg_temp.appeler('stag_n', '1', format(c_tel, v_stag_n, '{"email": "preuve7.eq.x@exemple.invalid"}')),
+    'ERREUR P0001 contact: Numéro de téléphone invalide. / ERREUR P0001 contact: Champ inconnu « email ».');
+  perform pg_temp.attendre('coordonnees', 'form_n règle le téléphone de cumul (promo 1) : OK',
+    pg_temp.appeler('form_n', '1', format(c_tel, v_cumul, '{"telephone": "06 99 00 00 02"}')), 'OK');
+  -- Lectures.
+  perform pg_temp.attendre('coordonnees', 'coordonnees_promo() : 1 ligne à stag_n (la sienne, avec son téléphone)',
+    pg_temp.appeler('stag_n', '1', 'select count(*)::text || ''/'' || coalesce(max(stagiaire_id)::text, ''nul'') || ''/'' || coalesce(max(telephone), ''nul'') from public.coordonnees_promo()'),
+    format('OK 1/%s/06 99 00 00 01', v_stag_n));
+  perform pg_temp.attendre('coordonnees', 'coordonnees_promo() : toutes les fiches de la promo à form_n, t_secr (Stagiaires : Modifier), t_interv (Stagiaires : Voir) ; 0 à t_rh (Stagiaires : Non) et au siège',
+    concat_ws(' / ',
+      pg_temp.appeler('form_n', '1', 'select count(*)::text from public.coordonnees_promo()'),
+      pg_temp.appeler('t_secr', '1', 'select count(*)::text from public.coordonnees_promo()'),
+      pg_temp.appeler('t_interv', '1', 'select count(*)::text from public.coordonnees_promo()'),
+      pg_temp.appeler('t_rh', '1', 'select count(*)::text from public.coordonnees_promo()'),
+      pg_temp.appeler('siege', null, 'select count(*)::text from public.coordonnees_promo()')),
+    format('OK %1$s / OK %1$s / OK %1$s / OK 0 / OK 0', v_n1));
+  perform pg_temp.attendre('coordonnees', 'form_n lit l''e-mail du compte de stag_n et le téléphone de cumul',
+    pg_temp.appeler('form_n', '1', format('select string_agg(coalesce(email, ''nul'') || '' '' || coalesce(telephone, ''nul''), '' / '' order by stagiaire_id) from public.coordonnees_promo() where stagiaire_id in (%s, %s)', v_stag_n, v_cumul)),
+    'OK ' || (select string_agg(x, ' / ' order by lpad(k, 30, '0')) from (values (v_stag_n, (select email from pg_temp.perso where nom = 'stag_n') || ' 06 99 00 00 01'),
+                                                                               (v_cumul, (select email from pg_temp.perso where nom = 'cumul') || ' 06 99 00 00 02')) v(k, x)));
+  perform pg_temp.verifier('coordonnees', 'stagiaires_prive : au moins deux lignes de la promo 1 (jamais un contrôle à vide)',
+    pg_temp.calcul('select (count(*) >= 2)::text from public.stagiaires_prive sp join public.stagiaires s on s.id = sp.stagiaire_id where s.promo_id = 1') = 'true');
+  perform pg_temp.attendre('coordonnees', 'select telephone from stagiaires_prive par stag_n : sa ligne seule',
+    pg_temp.appeler('stag_n', '1', 'select count(*)::text || ''/'' || coalesce(max(telephone), ''nul'') from public.stagiaires_prive'),
+    'OK 1/06 99 00 00 01');
+  -- Financement.
+  perform pg_temp.attendre('coordonnees', 't_secr (Stagiaires : Modifier) règle un financement de Nîmes : OK, stag_n le voit',
+    pg_temp.appeler('t_secr', '1', format(c_tel, v_stag_n, format('{"financement_id": %s}', v_cpf_n))) || ' / '
+      || pg_temp.appeler('stag_n', '1', 'select financement_id::text || '' '' || financement from public.coordonnees_promo()'),
+    format('OK / OK %s CPF', v_cpf_n));
+  perform pg_temp.attendre('coordonnees', 'un financement de Montpellier, un financement retiré, un identifiant illisible : refusés',
+    concat_ws(' / ',
+      pg_temp.appeler('t_secr', '1', format(c_tel, v_stag_n, format('{"financement_id": %s}', v_cpf_m))),
+      pg_temp.voir_apres(format('update public.contact_financements set retire = true where id = %s', v_region_n), 't_secr', '1',
+        format(c_tel, v_stag_n, format('{"financement_id": %s}', v_region_n))),
+      pg_temp.appeler('t_secr', '1', format(c_tel, v_stag_n, '{"financement_id": "CPF"}'))),
+    concat_ws(' / ', c_inconnu, c_inconnu, c_inconnu));
+  perform pg_temp.attendre('coordonnees', 'le financement déjà porté, retiré depuis, se garde ; null l''efface',
+    pg_temp.voir_apres(format('update public.contact_financements set retire = true where id = %s', v_cpf_n), 't_secr', '1',
+        format(c_tel, v_stag_n, format('{"financement_id": %s}', v_cpf_n))) || ' / '
+      || (pg_temp.tenter((select email from pg_temp.perso where nom = 't_secr'), '1', null, null, null, format(c_tel, v_stag_n, '{"financement_id": null}'),
+            format('select coalesce(financement_id::text, ''nul'') || ''/'' || coalesce(telephone, ''nul'') from public.stagiaires_prive where stagiaire_id = %s', v_stag_n)))[2],
+    'OK / OK 1 nul/06 99 00 00 01');
+  perform pg_temp.attendre('coordonnees', 't_interv (Stagiaires : Voir) et t_rh règlent un financement ou un téléphone : refusés',
+    concat_ws(' / ',
+      pg_temp.appeler('t_interv', '1', format(c_tel, v_stag_n, format('{"financement_id": %s}', v_cpf_n))),
+      pg_temp.appeler('t_interv', '1', format(c_tel, v_stag_n, '{"telephone": "06 99 00 00 04"}')),
+      pg_temp.appeler('t_rh', '1', format(c_tel, v_stag_n, '{"telephone": "06 99 00 00 04"}'))),
+    concat_ws(' / ', c_equipe, c_equipe, c_equipe));
+  -- Délégué.
+  v_r := pg_temp.appeler('form_n', '1', format('update public.stagiaires set delegue = ''titulaire'' where id in (%s, %s)', v_stag_n, v_cumul));
+  perform pg_temp.verifier('coordonnees', 'deux titulaires dans la promo 1 : ERREUR 23505', v_r like 'ERREUR 23505 %', 'obtenu ' || coalesce(v_r, 'nul'));
+  v_res := pg_temp.tenter(e_form_n, '1', null, null, null,
+    format('update public.stagiaires set delegue = case when id = %1$s then ''titulaire'' else ''suppleant'' end where id in (%1$s, %2$s)', v_stag_n, v_cumul),
+    'select string_agg(delegue, '','' order by delegue) from public.stagiaires where promo_id = 1 and delegue is not null');
+  perform pg_temp.attendre('coordonnees', 'form_n pose un titulaire et un suppléant dans la promo 1 : OK', v_res[2], 'OK 2 suppleant,titulaire');
+  perform pg_temp.attendre('coordonnees', 'une autre valeur que titulaire ou suppléant : refusée (contrainte)',
+    (pg_temp.tenter(e_form_n, '1', null, null, null, format('update public.stagiaires set delegue = ''chef'' where id = %s', v_stag_n), null))[2],
+    'REFUS 23514 stagiaires_delegue_valeur');
+  perform pg_temp.attendre('coordonnees', 'stag_n écrit delegue : OK 0 ; t_secr (Stagiaires : Modifier) : OK 1 ; t_rh : OK 0',
+    concat_ws(' / ',
+      (pg_temp.tenter((select email from pg_temp.perso where nom = 'stag_n'), '1', null, null, null, format('update public.stagiaires set delegue = ''titulaire'' where id = %s', v_stag_n), null))[2],
+      (pg_temp.tenter((select email from pg_temp.perso where nom = 't_secr'), '1', null, null, null, format('update public.stagiaires set delegue = ''titulaire'' where id = %s', v_stag_n), null))[2],
+      (pg_temp.tenter((select email from pg_temp.perso where nom = 't_rh'), '1', null, null, null, format('update public.stagiaires set delegue = ''titulaire'' where id = %s', v_stag_n), null))[2]),
+    'OK 0 / OK 1 / OK 0');
+  perform pg_temp.attendre('coordonnees', 'stag_n lit le délégué de sa promo (stagiaires_select_all)',
+    pg_temp.voir_apres(format('update public.stagiaires set delegue = ''titulaire'' where id = %s', v_cumul), 'stag_n', '1',
+      format('select string_agg(id::text || '' '' || delegue, '','') from public.stagiaires where delegue is not null')),
+    format('OK %s titulaire', v_cumul));
+end $ca_gco$;
+
+-- Groupe financements : la liste de chaque centre, livrée d'office (centres existants et centre créé), lue et réglée.
+create or replace function pg_temp.groupe_financements()
+returns void language plpgsql as $ca_gfi$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_l2 integer := (select lieu_id from public.promos where id = 2);
+  v_vide text := (select info from pg_temp.perso where nom = 'dir_vide');
+  v_stag_n text := pg_temp.calcul(format('select stagiaire_id::text from public.user_profiles where email = %L', (select email from pg_temp.perso where nom = 'stag_n')));
+  v_cpf_n text := pg_temp.calcul(format('select id::text from public.contact_financements where lieu_id = %s and libelle = ''CPF''', v_l1));
+  v_cpf_m text := pg_temp.calcul(format('select id::text from public.contact_financements where lieu_id = %s and libelle = ''CPF''', v_l2));
+  v_n1 text := pg_temp.calcul(format('select count(*)::text from public.contact_financements where lieu_id = %s', v_l1));
+  e_dir_n text := (select email from pg_temp.perso where nom = 'dir_n');
+  -- La liste de Nîmes telle qu'en base (jsonb), à retoucher par les essais : %s = une expression sur f (une ligne de la liste).
+  c_liste constant text := $ca_q$select coalesce(jsonb_agg(x order by o), '[]'::jsonb)::text from (select f.ordre as o, %s as x from public.contact_financements f where f.lieu_id = %s) s where x is not null$ca_q$;
+  c_regler constant text := 'select public.regler_financements(%s, %L::jsonb)::text';
+  c_porte constant text := 'insert into public.stagiaires_prive (stagiaire_id, financement_id) values (%1$s, %2$s) on conflict (stagiaire_id) do update set financement_id = %2$s';
+  v_liste text;
+  c_brut constant text := $ca_q$jsonb_build_object('id', f.id, 'libelle', f.libelle, 'ordre', f.ordre, 'retire', f.retire)$ca_q$;
+begin
+  perform pg_temp.attendre('financements', 'sept financements par centre, pour chaque centre existant',
+    pg_temp.calcul('select count(*) filter (where n <> 7)::text || ''/'' || count(*)::text from (select l.id, count(f.id) as n from public.lieux l left join public.contact_financements f on f.lieu_id = l.id group by l.id) x'),
+    '0/' || pg_temp.calcul('select count(*)::text from public.lieux'));
+  perform pg_temp.attendre('financements', 'la liste livrée d''office, dans l''ordre (centre sans promo de la preuve)',
+    pg_temp.calcul(format('select string_agg(libelle || '' '' || ordre || '' '' || retire, '', '' order by ordre) from public.contact_financements where lieu_id = %s', v_vide)),
+    'CPF 10 false, Région 20 false, France Travail 30 false, Contrat de professionnalisation 40 false, Entreprise 50 false, Personnel 60 false, Autre 70 false');
+  perform pg_temp.attendre('financements', 'creer_centre par le siège : le centre créé reçoit ses sept financements',
+    (pg_temp.tenter((select email from pg_temp.perso where nom = 'siege'), null, null, null, null, $ca_q$select public.creer_centre('Preuve centre')$ca_q$,
+      $ca_q$select count(*)::text from public.contact_financements f join public.lieux l on l.id = f.lieu_id where l.nom = 'Preuve centre'$ca_q$))[2],
+    'OK 1 7');
+  -- Lecture.
+  perform pg_temp.attendre('financements', 'financements_du_centre() : ceux de Nîmes à stag_n et à form_n, ceux de Montpellier à stag_m, aucun au siège sans promo ; anon : aucun droit',
+    concat_ws(' / ',
+      pg_temp.appeler('stag_n', '1', 'select count(*)::text || '' '' || (array_agg(libelle order by ordre))[1] from public.financements_du_centre()'),
+      pg_temp.appeler('form_n', '1', 'select count(*)::text from public.financements_du_centre()'),
+      pg_temp.appeler('stag_m', '2', format('select count(*) filter (where id = %s)::text from public.financements_du_centre()', v_cpf_m)),
+      pg_temp.appeler('siege', null, 'select count(*)::text from public.financements_du_centre()'),
+      pg_temp.valeur(null, '1', null, 'select count(*)::text from public.financements_du_centre()')),
+    format('OK %1$s CPF / OK %1$s / OK 1 / OK 0 / ERREUR 42501', v_n1));
+  perform pg_temp.attendre('financements', 'lecture directe de contact_financements : refusée (stag_n, dir_n)',
+    pg_temp.valeur((select email from pg_temp.perso where nom = 'stag_n'), '1', null, 'select count(*)::text from public.contact_financements') || ' / '
+      || pg_temp.valeur(e_dir_n, '1', null, 'select count(*)::text from public.contact_financements'),
+    'ERREUR 42501 / ERREUR 42501');
+  -- Réglage.
+  v_liste := pg_temp.calcul(format(c_liste, c_brut, v_l1));
+  perform pg_temp.attendre('financements', 'regler_financements par form_n, par stag_n, par dir_n sur Montpellier : refusé',
+    concat_ws(' / ',
+      pg_temp.appeler('form_n', '1', format(c_regler, v_l1, v_liste)),
+      pg_temp.appeler('stag_n', '1', format(c_regler, v_l1, v_liste)),
+      pg_temp.appeler('dir_n', '1', format(c_regler, v_l2, pg_temp.calcul(format(c_liste, c_brut, v_l2))))),
+    concat_ws(' / ', 'ERREUR 42501 contact: Réservé aux réglages du centre.', 'ERREUR 42501 contact: Réservé aux réglages du centre.',
+      'ERREUR 42501 contact: Réservé aux réglages du centre.'));
+  perform pg_temp.attendre('financements', 'dir_n ajoute un financement (la liste d''avant et un nouveau) : OK, nom et ordre gardés',
+    (pg_temp.tenter(e_dir_n, '1', null, null, null,
+      format(c_regler, v_l1, pg_temp.json_plus(v_liste, '[{"id": null, "libelle": "  Preuve   financement ", "ordre": 75}]')),
+      format('select count(*)::text || '' '' || max(libelle) filter (where ordre = 75) from public.contact_financements where lieu_id = %s', v_l1)))[2],
+    format('OK 1 %s Preuve financement', pg_temp.calcul(format('select (%s + 1)::text', v_n1))));
+  perform pg_temp.attendre('financements', 'supprimer un financement porté par un stagiaire : refusé ; le retirer : OK',
+    pg_temp.voir_apres(format(c_porte, v_stag_n, v_cpf_n), 'dir_n', '1',
+        format(c_regler, v_l1, pg_temp.calcul(format(c_liste, format('case when f.id <> %s then %s end', v_cpf_n, c_brut), v_l1)))) || ' / '
+      || (pg_temp.tenter(e_dir_n, '1', null, format(c_porte, v_stag_n, v_cpf_n), null,
+            format(c_regler, v_l1, pg_temp.calcul(format(c_liste, format('%s || jsonb_build_object(''retire'', f.id = %s)', c_brut, v_cpf_n), v_l1))),
+            format('select retire::text || ''/'' || (select count(*) from public.contact_financements where lieu_id = %s)::text from public.contact_financements where id = %s', v_l1, v_cpf_n)))[2],
+    format('ERREUR P0001 contact: Un financement choisi pour un stagiaire ne se supprime pas : retirez-le. / OK 1 true/%s', v_n1));
+  perform pg_temp.attendre('financements', 'supprimer un financement que personne ne porte : OK',
+    (pg_temp.tenter(e_dir_n, '1', null, format('update public.stagiaires_prive set financement_id = null where financement_id = %s', v_cpf_n), null,
+      format(c_regler, v_l1, pg_temp.calcul(format(c_liste, format('case when f.id <> %s then %s end', v_cpf_n, c_brut), v_l1))),
+      format('select count(*)::text || ''/'' || count(*) filter (where id = %s)::text from public.contact_financements where lieu_id = %s', v_cpf_n, v_l1)))[2],
+    format('OK 1 %s/0', pg_temp.calcul(format('select (%s - 1)::text', v_n1))));
+  perform pg_temp.attendre('financements', 'deux noms égaux (casse comprise), deux noms échangés, un identifiant de Montpellier, un nom de 41 caractères : refusés',
+    concat_ws(' / ',
+      pg_temp.appeler('dir_n', '1', format(c_regler, v_l1, pg_temp.json_plus(v_liste, '[{"libelle": "cpf"}]'))),
+      pg_temp.appeler('dir_n', '1', format(c_regler, v_l1, pg_temp.calcul(format(c_liste,
+        $ca_q$jsonb_build_object('id', f.id, 'libelle', case f.libelle when 'CPF' then 'Région' when 'Région' then 'CPF' else f.libelle end)$ca_q$, v_l1)))),
+      pg_temp.appeler('dir_n', '1', format(c_regler, v_l1, pg_temp.json_plus(v_liste, format('[{"id": %s, "libelle": "Preuve"}]', v_cpf_m)))),
+      pg_temp.appeler('dir_n', '1', format(c_regler, v_l1, pg_temp.json_plus(v_liste, format('[{"libelle": "%s"}]', repeat('x', 41)))))),
+    concat_ws(' / ', 'ERREUR P0001 contact: Deux financements portent le même nom.', 'ERREUR P0001 contact: Deux financements portent le même nom.',
+      'ERREUR P0001 contact: Financement inconnu dans ce centre.', 'ERREUR P0001 contact: Le nom d''un financement compte de 1 à 40 caractères.'));
+  perform pg_temp.attendre('financements', 'les financements suivent leur centre (suppression du centre sans promo de la preuve)',
+    pg_temp.ecrire_proprio(format('delete from public.affectations where lieu_id = %1$s; delete from public.titres where lieu_id = %1$s; delete from public.lieux where id = %1$s', v_vide),
+      format('select count(*)::text from public.contact_financements where lieu_id = %s', v_vide)),
+    'OK 1 0');
+end $ca_gfi$;
+
+-- Le nombre de profils du personnel (sans fiche, rôle autre que stagiaire) lus par chacun : « form_n=OK n dir_n=OK n siege=OK n ».
+create or replace function pg_temp.lus_personnel(p_qui text[])
+returns text language plpgsql as $ca_lp$
+declare q text; r text := '';
+begin
+  foreach q in array p_qui loop
+    r := r || q || '=' || pg_temp.appeler(q, null, 'select count(*)::text from public.user_profiles where stagiaire_id is null and role <> ''stagiaire''') || ' ';
+  end loop;
+  return rtrim(r);
+end $ca_lp$;
+
+-- Groupe profils : les profils du personnel (adresse comprise) ne se lisent plus par un stagiaire ni en aperçu stagiaire ; l'équipe
+-- et le siège en lisent autant qu'avant la migration (p_avant : relevé avant elle, dans ce bloc).
+create or replace function pg_temp.groupe_profils(p_avant text)
+returns void language plpgsql as $ca_gpr$
+declare
+  -- Les profils du personnel autres que le sien, puis le sien.
+  c_perso constant text := 'select count(*) filter (where stagiaire_id is null and role <> ''stagiaire'' and lower(email) <> lower(%1$L))::text || ''/'' || count(*) filter (where lower(email) = lower(%1$L))::text from public.user_profiles';
+  v_total text := pg_temp.calcul('select count(*)::text from public.user_profiles where stagiaire_id is null and role <> ''stagiaire''');
+begin
+  perform pg_temp.verifier('profils', 'des profils du personnel existent (jamais un contrôle à vide)', v_total ~ '^[0-9]+$' and v_total::integer > 0, 'obtenu ' || coalesce(v_total, 'nul'));
+  perform pg_temp.attendre('profils', 'stag_n et stag_m : 0 profil du personnel, et le leur (leur profil de stagiaire)',
+    pg_temp.appeler('stag_n', '1', format(c_perso, (select email from pg_temp.perso where nom = 'stag_n'))) || ' / '
+      || pg_temp.appeler('stag_m', '2', format(c_perso, (select email from pg_temp.perso where nom = 'stag_m'))),
+    'OK 0/1 / OK 0/1');
+  perform pg_temp.attendre('profils', 'le fondateur et form_n en aperçu stagiaire : 0 profil du personnel (hors le leur), et le leur',
+    pg_temp.valeur((select email from pg_temp.perso where nom = 'fond'), '1', 'stagiaire', format(c_perso, (select email from pg_temp.perso where nom = 'fond'))) || ' / '
+      || pg_temp.valeur((select email from pg_temp.perso where nom = 'form_n'), '1', 'stagiaire', format(c_perso, (select email from pg_temp.perso where nom = 'form_n'))),
+    '0/1 / 0/1');
+  perform pg_temp.attendre('profils', 'form_n, dir_n, siege : autant de profils du personnel qu''avant la migration',
+    pg_temp.lus_personnel(array['form_n', 'dir_n', 'siege']), p_avant);
+  perform pg_temp.attendre('profils', 'form_n, dir_n, siege, cumul (fiche de stagiaire et formateur), le fondateur hors aperçu : tous les profils du personnel',
+    pg_temp.lus_personnel(array['form_n', 'dir_n', 'siege', 'cumul', 'fond']),
+    format('form_n=OK %1$s dir_n=OK %1$s siege=OK %1$s cumul=OK %1$s fond=OK %1$s', v_total));
+  perform pg_temp.attendre('profils', 'dir_vide (direction d''un centre sans promo), t_contenus (siège, titre sans « Directions »), sans_role, ancien_form : toujours aucun profil du personnel autre que le leur',
+    concat_ws(' / ',
+      pg_temp.appeler('dir_vide', null, format(c_perso, (select email from pg_temp.perso where nom = 'dir_vide'))),
+      pg_temp.appeler('t_contenus', null, format(c_perso, (select email from pg_temp.perso where nom = 't_contenus'))),
+      pg_temp.appeler('sans_role', null, format(c_perso, (select email from pg_temp.perso where nom = 'sans_role'))),
+      pg_temp.appeler('ancien_form', null, format(c_perso, (select email from pg_temp.perso where nom = 'ancien_form')))),
+    'OK 0/1 / OK 0/1 / OK 0/1 / OK 0/1');
+end $ca_gpr$;
+
 -- Un groupe se joue-t-il dans ce mode ? Contre-épreuve : toujours (il doit être rouge). En ligne : seulement si p_condition (la
 -- migration qui le fonde est appliquée), sinon une ligne d'information. Migrations injectées : toujours.
 create or replace function pg_temp.groupe_a_jouer(p_groupe text, p_mode text, p_condition boolean, p_raison text)
@@ -505,6 +862,7 @@ declare
   v_av_regles text; v_av_fonctions text; v_av_droits text;
   v_ap_regles text; v_ap_fonctions text; v_ap_droits text;
   v_av_lignes text; v_av_fiches text; v_ap_fiches text;
+  v_av_profils text;
   v_jouees integer;
   c_fiches constant text := $ca_q$select md5(coalesce(string_agg(l, E'\n' order by l collate "C"), '')) from (select concat_ws('|', prenom, role, phone, email, note, category, sort_order, lieu_id, created_at, updated_at) as l from public.contacts) s$ca_q$;
 begin
@@ -541,6 +899,8 @@ begin
   -- (pour le retour : copies refaites, dates comprises).
   v_av_lignes := pg_temp.calcul($ca_q$select md5(coalesce(string_agg(l, E'\n' order by l collate "C"), '')) from (select concat_ws('|', prenom, role, phone, email, note, category, lieu_id) as l from public.contacts) s$ca_q$);
   v_av_fiches := pg_temp.calcul(c_fiches);
+  -- Les profils du personnel lus par l'équipe et le siège, avant la migration (groupe profils : autant après).
+  v_av_profils := pg_temp.lus_personnel(array['form_n', 'dir_n', 'siege']);
 
   -- 3. Les migrations, dans l'ordre d'application (neutralisées dans les modes sans elles) : la 1, l'intervalle, puis la 1b.
   v_etat1 := pg_temp.jouer('migration 1',
@@ -574,6 +934,19 @@ begin
   end if;
   if pg_temp.groupe_a_jouer('depart', v_mode, to_regprocedure('public.annuaire_centre()') is not null, 'la migration 1 n''est pas appliquée') then
     perform pg_temp.groupe_depart();
+  end if;
+  -- 4c. Partie B : ma fiche, coordonnées et délégué, financements, profils du personnel.
+  if pg_temp.groupe_a_jouer('ma_fiche', v_mode, to_regprocedure('public.ma_fiche_contact()') is not null, 'la migration 1 (partie B) n''est pas appliquée') then
+    perform pg_temp.groupe_ma_fiche();
+  end if;
+  if pg_temp.groupe_a_jouer('coordonnees', v_mode, to_regprocedure('public.coordonnees_promo()') is not null, 'la migration 1 (partie B) n''est pas appliquée') then
+    perform pg_temp.groupe_coordonnees();
+  end if;
+  if pg_temp.groupe_a_jouer('financements', v_mode, to_regclass('public.contact_financements') is not null, 'la migration 1 (partie B) n''est pas appliquée') then
+    perform pg_temp.groupe_financements();
+  end if;
+  if pg_temp.groupe_a_jouer('profils', v_mode, to_regprocedure('public._contact_compte_equipe()') is not null, 'la migration 1 (partie B) n''est pas appliquée') then
+    perform pg_temp.groupe_profils(v_av_profils);
   end if;
   if pg_temp.groupe_a_jouer('fermeture', v_mode,
        exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'contacts' and policyname = 'contacts_select_authenticated' and qual <> 'true'),

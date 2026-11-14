@@ -480,6 +480,19 @@ update matrice set lecture = $mx$r.lieu_id = {L} and {E}$mx$
  where tbl = 'public.contacts'
    and exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'contacts'
                   and policyname = 'contacts_select_authenticated' and qual <> 'true');
+-- Espace contact (migration 1, partie B) : la table des financements de chaque centre n'a aucune règle ni aucun droit pour anon et
+-- authenticated (lecture et écriture par fonctions) ; et les profils du personnel ne se lisent plus par « a une promo accessible »
+-- seul (stagiaires compris) mais par « compte de l'équipe » : une promo accessible ET une affectation de formateur ou de direction (ou
+-- le fondateur), hors aperçu stagiaire (l'aperçu vide form_de, dir_de, S et Fo) ; S et Fo restent. Les lignes ne changent que si la
+-- migration est là : la preuve reste verte avant et après. La preuve propre : tests/sql/contact-annuaire-preuve.sql (groupes
+-- financements et profils).
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select 'public.contact_financements', 'false', 'false', 'false', 'false', $mx$libelle = 'PreuveMaj'$mx$, null
+   where to_regclass('public.contact_financements') is not null;
+update matrice set lecture = replace(lecture, '(cardinality({acces}) > 0 or {S} or {Fo})',
+                                     '((cardinality({acces}) > 0 and (cardinality({form_de}) > 0 or cardinality({dir_de}) > 0)) or {S} or {Fo})')
+ where tbl = 'public.user_profiles'
+   and to_regprocedure('public._contact_compte_equipe()') is not null;
 
 -- Les ajouts tentés, table par table. sorte : promo (promo affichée, autre promo), lieu (lieu affiché, autre lieu),
 -- stagiaire (sa fiche, autre fiche de la promo affichée, fiche d'une autre promo), benevole (du lieu affiché, d'un
@@ -765,8 +778,8 @@ end $fx$;
 
 -- Sondes d'un compte dans un contexte (R36, cas limites) : ce que ce compte peut lire, écrire et appeler quand on lui
 -- donne EXACTEMENT les droits décrits par p_f (formateur de la promo affichée), p_d (direction de son lieu), p_fiche
--- (sa fiche, si elle est dans la promo affichée p_p) et p_a_promo (il a au moins une promo accessible, ce qui lui ouvre
--- les profils du personnel, M6). Les attendus sont des comptes en propriétaire sur les données, d'après ces seuls
+-- (sa fiche, si elle est dans la promo affichée p_p) et p_a_promo (il lit les profils du personnel : il a au moins une promo
+-- accessible, M6 ; depuis la migration 1 de l'espace contact, il faut aussi une affectation). Les attendus sont des comptes en propriétaire sur les données, d'après ces seuls
 -- paramètres écrits en dur par l'appelant : rien n'est tiré du vocabulaire testé. Une classe de sondes = un contrôle
 -- compté dans le groupe p_groupe.
 create or replace function pg_temp.sondes(p_groupe text, p_nom text, p_email text, p_hdr text, p_p integer,
@@ -2334,7 +2347,9 @@ begin
       > 0, 'aucun dossier ni livret pour cette fiche');
     foreach v_ctx in array c_contextes loop
       v_pc := case v_ctx when '2' then 2 when '1' then null when '7' then null else 2 end;
-      perform pg_temp.sondes('fiche déplacée', 'stag_n fiche en promo 2', c_stag_n, v_ctx, v_pc, false, false, case when v_pc = 2 then v_fi end, true);
+      -- Les profils du personnel : ouverts à stag_n par sa promo, jusqu'à la migration 1 de l'espace contact (compte de l'équipe seulement).
+      perform pg_temp.sondes('fiche déplacée', 'stag_n fiche en promo 2', c_stag_n, v_ctx, v_pc, false, false, case when v_pc = 2 then v_fi end,
+        to_regprocedure('public._contact_compte_equipe()') is null);
       v_somme := pg_temp.lignes_de_promo(c_stag_n, v_ctx, 1);
       perform pg_temp.verifier('fiche déplacée', 'stag_n, contexte ' || coalesce(v_ctx, 'sans') || ' : aucune ligne de la promo 1 dans aucune table de promo', v_somme = '0',
         'lignes de la promo 1 vues : ' || coalesce(v_somme, 'nul'));
