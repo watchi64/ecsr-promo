@@ -65,6 +65,8 @@ end;
 $f$;
 
 -- La case d'une page en aperçu : le plafond sans titre simulé ; sinon la case du titre simulé (Non 0, Voir 1, Modifier 2), bornée au plafond.
+-- La borne du plafond est une défense en profondeur : la contrainte titres_cases_valides empêche déjà une case de dépasser le plafond de sa
+-- page (la preuve ne peut donc pas l'éprouver) ; ne pas la retirer.
 create function public._case_apercu(p_page text, p_plafond integer)
 returns integer
 language sql stable security definer

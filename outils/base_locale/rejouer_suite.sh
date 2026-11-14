@@ -12,8 +12,8 @@
 #   --production   l'état de la production au 14/11, dans l'ordre où elle l'a reçu : titres 1, 2, 3 (11/11), contacts,
 #                  20261111_conservation_direction (11/11, après les contacts), titres 5 (11/11) et 6 (13/11), puis
 #                  --autonomie 1,2 (14/11), puis 20261114_restes_1_conditions et 20261114_restes_2_truncate (14/11, après
-#                  l'e-learning : restes_1 contrôle la version de l'autonomie), puis 20261114_jury_resultats (14/11)
-#                  (sortie : 27 migrations) ; ne se combine ni avec
+#                  l'e-learning : restes_1 contrôle la version de l'autonomie), puis 20261114_jury_resultats (14/11), puis
+#                  20261115_titres_7_correctifs (appliquée le 14/11) (sortie : 28 migrations) ; ne se combine ni avec
 #                  --titres ni avec --avec-titres
 # Sans --titres, --autonomie ni --production : la suite d'avant (14 migrations, plus les deux des contacts : 16).
 # Code de sortie : 0 si tout passe ; sinon 3 (le nom du fichier en échec est écrit sur la sortie d'erreur).
@@ -116,6 +116,11 @@ fi
 # imposer_promo_du_stagiaire et geste_promo, présents).
 if [ "$PRODUCTION" = 1 ]; then
   $P -1 -f "$MIGRATIONS/20261114_jury_resultats.sql" >/dev/null || { echo "échec : 20261114_jury_resultats" >&2; exit 3; }
+  N=$((N + 1))
+fi
+# Production seulement, après le jury : la migration 7 des titres (correctifs D1, D4, D5, M4, M5, M7), appliquée en production le 14/11.
+if [ "$PRODUCTION" = 1 ]; then
+  $P -1 -f "$MIGRATIONS/20261115_titres_7_correctifs.sql" >/dev/null || { echo "échec : 20261115_titres_7_correctifs" >&2; exit 3; }
   N=$((N + 1))
 fi
 # Droits propres à la production, que les clones ne portent pas (écarts de la base locale constatés le 10/11 et le 11/11) :

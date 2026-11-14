@@ -1304,6 +1304,9 @@ test("les fichiers de l'étape 3 (gabarit, aides, base locale) : aucun tiret cad
   assert.ok(restes.every((x) => x >= 0) && restes[0] < restes[1], "restes_1 puis restes_2, après l'e-learning");
   assert.match(script, /if \[ "\$PRODUCTION" = 1 \]; then\n  for f in 20261114_restes_1_conditions 20261114_restes_2_truncate; do/, "les restes avec --production seulement");
   assert.match(script, /done\nfi\n(?:#[^\n]*\n)+if \[ "\$PRODUCTION" = 1 \]; then\n  \$P -1 -f "\$MIGRATIONS\/20261114_jury_resultats\.sql"/, "puis le jury, avec --production seulement");
+  const jury = script.indexOf('$P -1 -f "$MIGRATIONS/20261114_jury_resultats.sql"'), sept = script.indexOf('$P -1 -f "$MIGRATIONS/20261115_titres_7_correctifs.sql"');
+  assert.ok(jury > 0 && sept > jury, "puis la migration 7 des titres, après le jury");
+  assert.ok(script.includes('if [ "$PRODUCTION" = 1 ]; then\n  $P -1 -f "$MIGRATIONS/20261115_titres_7_correctifs.sql"'), "avec --production seulement");
 });
 
 test("la preuve de la suite : l'aiguillage des groupes (sort_du_groupe) couvre chaque cas, contrôlé au groupe structure à chaque jeu", () => {
