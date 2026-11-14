@@ -88,6 +88,14 @@ export function caseDe(cases, page, niveau) {
   return v === 0 || v === 1 || v === 2 ? v : 0;
 }
 
+// Un droit d'écran selon la case : quand les cases sont lues (`cases` non nul), la case décide (`droit`, vrai pour Modifier ou
+// Voir selon l'appelant) ; sinon (fondateur hors aperçu, titre fixe sans lecture, panne, espace stagiaire, ancien modèle) l'ancien
+// prédicat (`ancien`, isAdmin() ou isEquipe()) reste seul juge. `peutVoir` et `peutModifier` valent vrai quand les cases sont
+// nulles (plafond) : sans ce garde, un compte qui n'était pas admin gagnerait l'accès.
+export function selonLaCase({ cases, droit, ancien } = {}) {
+  return cases ? !!droit : !!ancien;
+}
+
 // Les choix offerts par l'éditeur pour une page.
 export function choixDeLaPage(niveau, page) {
   if (page === "reglages") return ["non", "modifier"];
@@ -235,6 +243,22 @@ export function phraseJournal(ligne, nomDe = (e) => e) {
 export function formateurFixeSur(titres, promoId) {
   if (!Array.isArray(titres)) return null;
   return titres.some((t) => titreCouvre(t, "promo", promoId, null) && (typeof t.fixe === "boolean" ? t.fixe : t.nom === "Formateur"));
+}
+
+// La direction du centre a-t-elle le titre fixe sur ce centre ? Nul : lecture ratée. Même convention que formateurFixeSur : `fixe`
+// l'emporte quand la ligne le porte, sinon le titre fixe de centre s'appelle « Direction de centre ».
+export function directionFixeSur(titres, lieuId) {
+  if (!Array.isArray(titres)) return null;
+  return titres.some((t) => titreCouvre(t, "centre", null, lieuId) && (typeof t.fixe === "boolean" ? t.fixe : t.nom === "Direction de centre"));
+}
+
+// La section « Données personnelles » des Réglages du centre (purge des bénévoles, conservation) : au fondateur hors aperçu et à la
+// direction fixe du centre ; jamais à un titre de centre non fixe (la base le refuserait). Titres non lus (panne, ancien modèle) :
+// comme avant, la section reste offerte.
+export function donneesDuCentreVisibles({ titres, lieuId, fondateur = false } = {}) {
+  if (fondateur) return true;
+  const fixe = directionFixeSur(titres, lieuId);
+  return fixe === null ? true : fixe;
 }
 
 // Aperçu par titre (fondateur) : les titres que le choix « Titre » propose pour un aperçu (formateur, direction, siège), lus par

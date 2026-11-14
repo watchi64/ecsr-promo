@@ -28,7 +28,7 @@ import {
   ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, decisionPorteSansPromo,
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
 } from "./espaces-rules.js?v=20261114f";
-import { casesDeLEspace, caseDe, NIVEAU_DE_L_ESPACE, titresPourApercu,
+import { casesDeLEspace, caseDe, selonLaCase, formateurFixeSur, NIVEAU_DE_L_ESPACE, titresPourApercu,
   fusionnerListesApercu, listesPourLeCentre, listesApercuIncompletes } from "./titres-rules.js?v=20261114f";
 import { peutQuitter } from "./navigation.js?v=20261114f";
 import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261114f";
@@ -135,6 +135,25 @@ export function casesAffichees() {
 // (stagiaire), aucune page à case : faux.
 export function peutVoir(page) { return caseDe(casesAffichees(), page, NIVEAU_DE_L_ESPACE[getEspace()]) >= 1; }
 export function peutModifier(page) { return caseDe(casesAffichees(), page, NIVEAU_DE_L_ESPACE[getEspace()]) === 2; }
+// Écrire dans la page / la lire, selon la case quand elle est lue, sinon selon l'ancien prédicat (selonLaCase, js/titres-rules.js) :
+// aucun compte dont les cases ne sont pas lues ne gagne un accès. Les cases ne jouent que dans `espaces` (par défaut l'espace de
+// l'équipe ; les vues de la direction passent "direction") : ailleurs (stagiaire, siège), l'ancien prédicat seul décide.
+export function ecritSelonLaCase(page, ancien = isAdmin(), espaces = ["equipe"]) {
+  const cases = espaces.includes(getEspace()) ? casesAffichees() : null;
+  return selonLaCase({ cases, droit: peutModifier(page), ancien });
+}
+export function litSelonLaCase(page, ancien = isAdmin(), espaces = ["equipe"]) {
+  const cases = espaces.includes(getEspace()) ? casesAffichees() : null;
+  return selonLaCase({ cases, droit: peutVoir(page), ancien });
+}
+
+// Un geste définitif (anonymiser, supprimer une fiche, purger) : isAdmin() ET le titre fixe Formateur de la promo (M5) ; le titre
+// n'est pas lu (fondateur, panne, ancien modèle) : isAdmin() seul, comme avant.
+export function gesteDefinitif() {
+  if (!isAdmin()) return false;
+  const promo = getPromoCourante();
+  return formateurFixeSur(mesTitres, promo && promo.id != null ? promo.id : null) !== false || fondateurHorsApercu();
+}
 
 async function lireTitresDeLaSession() {
   const mienne = ++epoqueTitres;
