@@ -19,6 +19,7 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, mesAffectations, oublierPromo, getPromoCourante, getMesPromos, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo, stagiaireVitrineCourante,
+  lireMesTitres,
 } from "./db.js?v=20261114f";
 import {
   LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo,
@@ -27,6 +28,7 @@ import {
   ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, decisionPorteSansPromo,
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
 } from "./espaces-rules.js?v=20261114f";
+import { casesDeLEspace, caseDe, NIVEAU_DE_L_ESPACE } from "./titres-rules.js?v=20261114f";
 import { peutQuitter } from "./navigation.js?v=20261114f";
 import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261114f";
 import { icon } from "./icons.js?v=20261114f";
@@ -44,6 +46,17 @@ const listeners = new Set();
 // base comme pour le rôle simulé.
 const VIEW_AS_KEY = "ecsr_view_as";
 let viewAs = null;  // null = rôle réel ; sinon l'un de APERCUS
+// Titres (étape 3) : le titre simulé par l'aperçu du fondateur (formateur, direction, siège ; en-tête x-apercu-titre), mémorisé
+// sur l'appareil à côté de l'aperçu. Nul : le titre fixe du niveau, l'aperçu d'avant les titres.
+const VIEW_AS_TITRE_KEY = "ecsr_view_as_titre";
+const APERCUS_PAR_TITRE = ["formateur", "direction", "siege"];
+let titreApercu = null;
+
+// Titres (étape 3) : les lignes de mes_titres() de la session, lues avec les affectations et relues à chaque changement d'aperçu
+// (en aperçu, la base rend le titre simulé). Nul : lecture ratée ou fonction absente, sans message ; l'app reste alors celle
+// d'avant les titres (cases nulles, tout au plafond), la base refusant de toute façon ce qui dépasse.
+let mesTitres = null;
+let epoqueTitres = 0;  // une lecture partie avant un changement d'aperçu ou une déconnexion n'écrit rien
 
 // Lot 5 : les affectations du compte (`{ role, promo_id, lieu_id, lieu_nom }` : siège, direction d'un centre, formateur d'une
 // promo), relues à chaque ouverture de session. Le siège et la direction en tirent leur espace (D2).
@@ -69,7 +82,7 @@ export function getProfile()    { return currentProfile; }
 // l'aperçu en cours, puis bridés par l'espace (lot 5 : la direction n'écrit pas comme un formateur, le siège ne gère ni promo ni
 // stagiaire ; js/espaces-rules.js, brider).
 function droitsNonBrides(apercu = viewAs) {
-  return droitsAffiches({ profil: currentProfile, promo: getPromoCourante(), apercu });
+  return droitsAffiches({ profil: currentProfile, promo: getPromoCourante(), apercu, titres: mesTitres });
 }
 function droits() {
   return brider(droitsNonBrides(), getEspace());
@@ -99,6 +112,40 @@ export function espacesOuverts() {
   return espacesDuCompte({ profil: currentProfile, promo: getPromoCourante(), promos: getMesPromos(), affectations, apercu: viewAs });
 }
 export function getAffectations() { return affectations.map((a) => ({ ...a })); }
+
+// ----- Titres (étape 3) -----
+
+// Les titres de la session (lignes de mes_titres), ou null quand la lecture a raté.
+export function getMesTitres() { return Array.isArray(mesTitres) ? mesTitres.map((t) => ({ ...t })) : null; }
+// Le titre simulé par l'aperçu du fondateur (identifiant en chaîne), ou null.
+export function getTitreApercu() { return titreApercu; }
+
+// Les cases de l'espace affiché ({ page: 0|1|2 }), ou null : le fondateur hors aperçu, l'espace stagiaire, une lecture ratée de
+// mes_titres, ou aucune promo (espace de l'équipe) ni aucun centre (direction) affiché. Null se lit « plafond » (caseDe).
+export function casesAffichees() {
+  const e = getEspace();
+  const niveau = NIVEAU_DE_L_ESPACE[e];
+  if (!niveau) return null;
+  const promoId = getPromoCourante()?.id ?? null;
+  const lieuId = getCentre()?.id ?? null;
+  if ((niveau === "promo" && promoId == null) || (niveau === "centre" && lieuId == null)) return null;
+  return casesDeLEspace({ espace: e, titres: mesTitres, promoId, lieuId, fondateur: fondateurHorsApercu() });
+}
+// La page (clé de PAGES_DU_NIVEAU, js/titres-rules.js) est-elle au moins sur « Voir », sur « Modifier » ? Hors espace de l'équipe
+// (stagiaire), aucune page à case : faux.
+export function peutVoir(page) { return caseDe(casesAffichees(), page, NIVEAU_DE_L_ESPACE[getEspace()]) >= 1; }
+export function peutModifier(page) { return caseDe(casesAffichees(), page, NIVEAU_DE_L_ESPACE[getEspace()]) === 2; }
+
+async function lireTitresDeLaSession() {
+  const mienne = ++epoqueTitres;
+  let lus = null;
+  try { lus = await lireMesTitres(); } catch (e) { lus = null; }
+  if (mienne === epoqueTitres) mesTitres = lus;
+}
+function oublierTitres() {
+  epoqueTitres += 1;
+  mesTitres = null;
+}
 // Le centre affiché (D6) : le lieu de la promo affichée s'il est dirigé par le compte (ou en aperçu direction), sinon le premier
 // lieu dirigé ; null quand le compte ne dirige aucun centre.
 export function getCentre() { return centreAffiche({ promo: getPromoCourante(), affectations, apercu: viewAs }); }
@@ -244,12 +291,29 @@ function nomDeLaVitrine() {
   return s ? displayStagiaire(s) : "la stagiaire de démonstration";
 }
 
-// Retient l'aperçu et l'envoie à la base. Les données lues sous l'ancien aperçu sont oubliées.
-function appliquerApercu(role) {
-  const change = role !== viewAs;
+// Le titre simulé retenu : au fondateur seul, pour les aperçus formateur, direction et siège (la base l'ignore ailleurs).
+function titrePourApercu(role, titreId) {
+  if (!isFounder() || !APERCUS_PAR_TITRE.includes(role) || titreId == null) return null;
+  const texte = String(titreId);
+  return /^[0-9]{1,18}$/.test(texte) ? texte : null;
+}
+
+// Retient l'aperçu (et son titre simulé) et l'envoie à la base. Les données lues sous l'ancien aperçu sont oubliées. Rend vrai quand
+// l'aperçu ou le titre a changé (mes_titres est alors à relire).
+function appliquerApercu(role, titreId = null) {
+  const titre = titrePourApercu(role, titreId);
+  const change = role !== viewAs || titre !== titreApercu;
   viewAs = role;
-  poserApercu(role, { fondateur: isFounder() });
+  titreApercu = titre;
+  poserApercu(role, { fondateur: isFounder(), titreId: titre });
   if (change) invalidateCache();
+  return change;
+}
+function memoriserTitreApercu() {
+  try {
+    if (titreApercu) localStorage.setItem(VIEW_AS_TITRE_KEY, titreApercu);
+    else localStorage.removeItem(VIEW_AS_TITRE_KEY);
+  } catch (e) { /* ignore */ }
 }
 
 // Sortie de la vitrine, d'où qu'elle vienne : plus aucune requête de données ne part, puis l'app se recharge sur l'accueil de
@@ -260,37 +324,44 @@ function sortirDeLaVitrine(espaceApres) {
   location.reload();
 }
 
-// Charge l'aperçu mémorisé (ignoré s'il n'est pas ouvert à cette personne sur cette promo).
+// Charge l'aperçu mémorisé (ignoré s'il n'est pas ouvert à cette personne sur cette promo), et son titre simulé. Rend vrai quand
+// l'aperçu en place a changé.
 function loadViewAs() {
   let role = null;
+  let titre = null;
   try { role = normaliserApercu(localStorage.getItem(VIEW_AS_KEY)); } catch (e) { role = null; }
+  try { titre = localStorage.getItem(VIEW_AS_TITRE_KEY); } catch (e) { titre = null; }
   const permis = !!role && apercusOuverts().includes(role);
   // L'aperçu a changé ailleurs (un autre onglet) pendant la vitrine : même sortie que par le bandeau.
   if (enVitrine() && (permis ? role : null) !== viewAs) {
     sortirDeLaVitrine(espaceAvec(permis ? role : null));
-    return;
+    return false;
   }
-  appliquerApercu(permis ? role : null);
+  const change = appliquerApercu(permis ? role : null, permis ? titre : null);
   // Un aperçu mémorisé mais non permis sur la promo affichée est effacé : il ne reviendrait pas en changeant de promo.
   if (!permis) { try { localStorage.removeItem(VIEW_AS_KEY); } catch (e) { /* ignore */ } }
+  memoriserTitreApercu();
+  return change;
 }
 
 // Déconnexion ou refus de session : l'aperçu est retiré (mémoire, appareil et en-tête).
 function oublierApercu() {
   appliquerApercu(null);
   try { localStorage.removeItem(VIEW_AS_KEY); } catch (e) { /* ignore */ }
+  memoriserTitreApercu();
 }
 
 // Pose l'aperçu et re-render l'app. role : un aperçu ouvert à la personne ; « admin », null ou une valeur
 // inconnue = rôle réel. Lot 5 (D4) : un aperçu qui fait entrer dans la direction ou le siège, ou en sortir, recharge l'app
 // sur l'accueil du nouvel espace (après accord si une saisie est en cours) ; entre formateur et stagiaire, l'espace change sur
-// place, comme au lot 4.
-export function setViewAs(role) {
+// place, comme au lot 4. Titres (étape 3) : `titreId`, le titre simulé (fondateur, aperçus formateur, direction et siège) ; sur place,
+// mes_titres est relu avant le nouveau rendu.
+export async function setViewAs(role, { titreId = null } = {}) {
   const voulu = normaliserApercu(role);
   const nouveau = voulu && apercusOuverts().includes(voulu) ? voulu : null;
   const espaceApres = espaceAvec(nouveau);
   const recharger = espaceApres !== espace && (espaceDePilotage(espaceApres) || espaceDePilotage(espace));
-  if (recharger && !peutQuitter(() => setViewAs(role))) return;
+  if (recharger && !peutQuitter(() => setViewAs(role, { titreId }))) return;
   // Sortir de la vitrine : ce qui a commencé avec la fiche empruntée (un examen et son minuteur, une saisie différée) ne doit pas
   // finir avec les droits du fondateur. Le choix est mémorisé, plus aucune requête de données ne part, et l'app se recharge ;
   // l'aperçu en mémoire reste celui de la vitrine jusqu'à la disparition de la page.
@@ -298,20 +369,26 @@ export function setViewAs(role) {
     try {
       if (nouveau) localStorage.setItem(VIEW_AS_KEY, nouveau);
       else localStorage.removeItem(VIEW_AS_KEY);
+      const titre = titrePourApercu(nouveau, titreId);
+      if (titre) localStorage.setItem(VIEW_AS_TITRE_KEY, titre);
+      else localStorage.removeItem(VIEW_AS_TITRE_KEY);
     } catch (e) { /* ignore */ }
     sortirDeLaVitrine(espaceApres);
     return;
   }
-  appliquerApercu(nouveau);
+  const change = appliquerApercu(nouveau, titreId);
   try {
     if (viewAs) localStorage.setItem(VIEW_AS_KEY, viewAs);
     else localStorage.removeItem(VIEW_AS_KEY);
   } catch (e) { /* ignore */ }
+  memoriserTitreApercu();
   espace = espaceApres;
   if (recharger) {
     rechargerSurLAccueil(espaceApres);
     return;
   }
+  // En aperçu, mes_titres rend le titre simulé : relu avant le rendu, pour que barre, boutons et drapeaux suivent le nouvel aperçu.
+  if (change) await lireTitresDeLaSession();
   listeners.forEach((cb) => cb(currentUser, currentProfile));  // déclenche navigate()
   majBandeaux();
 }
@@ -362,7 +439,8 @@ async function refreshProfile() {
     console.error("refreshProfile failed", e);
     currentProfile = null;
   }
-  loadViewAs();
+  // L'aperçu mémorisé vient d'être posé (ou a changé) : mes_titres, lu sans lui, est à relire.
+  if (loadViewAs() && currentProfile) await lireTitresDeLaSession();
 }
 
 const MESSAGE_PROMOS_NON_CHARGEES = "Promos non chargées : la promo par défaut est affichée.";
@@ -412,6 +490,7 @@ async function refuserSession(message) {
   currentUser = null;
   currentProfile = null;
   affectations = [];
+  oublierTitres();
   espace = null;
   toast(message, "error", 5000);
 }
@@ -444,7 +523,7 @@ export async function initAuth() {
     } else {
       // Les annuaires ne sont lisibles qu'authentifié (RLS) → charger après l'auth. Les affectations (déjà lues par la
       // porte d'un compte sans promo) en même temps.
-      await Promise.all([loadDirectories(), contexte ? lireAffectations() : null]);
+      await Promise.all([loadDirectories(), contexte ? lireAffectations() : null, lireTitresDeLaSession()]);
       await refreshProfile();
       if (!currentProfile) {
         // Connecté mais pas dans user_profiles → kick out
@@ -489,7 +568,7 @@ export async function initAuth() {
         rechargerSansDelai();
         return;
       } else {
-        await Promise.all([loadDirectories(), contexte ? lireAffectations() : null]);
+        await Promise.all([loadDirectories(), contexte ? lireAffectations() : null, lireTitresDeLaSession()]);
         await refreshProfile();
         if (!currentProfile) {
           await refuserSession("Cette adresse e-mail n'a pas été invitée. Une invitation de l'équipe de formation est nécessaire.");
@@ -507,6 +586,7 @@ export async function initAuth() {
     } else {
       currentProfile = null;
       affectations = [];
+      oublierTitres();
       espace = null;
       oublierApercu();
       oublierPromo();

@@ -9,12 +9,15 @@
  * `is_admin` et `role` du profil, comme avant le lot 4.
  */
 import { phraseDeRefus, PHRASE_ECHEC } from "./espaces-rules.js?v=20261114f";
+import { formateurFixeSur } from "./titres-rules.js?v=20261114f";
 
 // Les aperçus : un fondateur les a tous, un membre de l'équipe a celui du stagiaire. Un aperçu ne fait que
 // RETIRER des droits : une valeur hors de la liste permise est ignorée.
 export const APERCUS = ["formateur", "direction", "siege", "stagiaire"];
 export const LIBELLES_APERCU = { formateur: "Formateur", direction: "Direction", siege: "Siège", stagiaire: "Stagiaire" };
 export const ENTETE_APERCU = "x-apercu-role";
+// Titres (étape 3, migration 8) : l'aperçu du fondateur par titre ; l'identifiant du titre simulé, envoyé avec x-apercu-role.
+export const ENTETE_APERCU_TITRE = "x-apercu-titre";
 
 // Valeur mémorisée ou saisie vers un aperçu connu. L'ancienne valeur « prof » se lit « formateur » ;
 // « admin » (le fondateur sans aperçu) et tout inconnu donnent null.
@@ -27,9 +30,17 @@ function rolesDe(promo) {
   return promo && Array.isArray(promo.roles) ? promo.roles : null;
 }
 
+// Le titre de promo de la personne sur la promo affichée est-il le titre fixe Formateur (M5) ? `titres` : lignes de mes_titres ;
+// nul (lecture ratée, fonction absente, pas encore lue) : oui, comme avant les titres ; la base refuse de toute façon ce qui dépasse.
+function formateurFixe(titres, promo) {
+  return formateurFixeSur(titres, promo && promo.id != null ? promo.id : null) !== false;
+}
+
 // Droits réels, hors aperçu. `equipe` : administrateur, formateur ou direction sur la promo affichée (ceux qui lisent
-// la promo entière et gèrent ses stagiaires, ses modules et son équipe).
-function droitsReels(profil, promo) {
+// la promo entière et gèrent ses stagiaires, ses modules et son équipe). Titres (M5) : `admin` (écrire comme un formateur) exige
+// le titre fixe Formateur sur la promo ; un autre titre de promo (Intervenant...) garde l'espace et la lecture de l'équipe, ses
+// écritures suivent ses cases (peutModifier, js/auth-admin.js).
+function droitsReels(profil, promo, titres = null) {
   if (!profil) return { admin: false, prof: false, stagiaire: false, equipe: false, direction: false };
   const roles = rolesDe(promo);
   if (roles) {
@@ -38,12 +49,13 @@ function droitsReels(profil, promo) {
     const siege = roles.includes("siege");
     // Le fondateur est administrateur (is_admin) ; un drapeau de fondateur sans is_admin n'ouvre pas l'espace de l'équipe,
     // comme avant le lot 4 (le banc a un tel compte, l'aperçu du fondateur lui reste ouvert).
-    const admin = (!!profil.is_founder && !!profil.is_admin) || formateur;
+    const fondateur = !!profil.is_founder && !!profil.is_admin;
+    const admin = fondateur || (formateur && formateurFixe(titres, promo));
     return {
       admin,
       prof: formateur || direction || siege,
       stagiaire: roles.includes("stagiaire"),
-      equipe: admin || direction,
+      equipe: fondateur || formateur || direction,
       direction,
     };
   }
@@ -93,10 +105,12 @@ const DROITS_APERCU = {
 };
 
 // Ce que l'app montre : les drapeaux isAdmin (écrire comme un formateur) / isProf / isStagiaire / isEquipe (gérer la
-// promo : formateur ou direction) et l'espace de la coquille.
-export function droitsAffiches({ profil, promo, apercu } = {}) {
+// promo : formateur ou direction) et l'espace de la coquille. `titres` : lignes de mes_titres (nul : comme avant les titres).
+// En aperçu Formateur, mes_titres rend le titre simulé (migration 8) : un titre non fixe retire `admin`, comme pour un vrai porteur.
+export function droitsAffiches({ profil, promo, apercu, titres = null } = {}) {
   const a = apercuRetenu({ profil, promo, apercu });
-  const d = a ? DROITS_APERCU[a] : droitsReels(profil, promo);
+  let d = a ? DROITS_APERCU[a] : droitsReels(profil, promo, titres);
+  if (a === "formateur" && promo && !formateurFixe(titres, promo)) d = { ...d, admin: false };
   return {
     admin: !!d.admin,
     prof: !!d.prof,

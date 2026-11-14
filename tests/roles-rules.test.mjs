@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import {
   APERCUS, LIBELLES_APERCU, ENTETE_APERCU, normaliserApercu, apercusPermis, droitsAffiches,
   peutInviterFormateur, peutRetirerCompte, messageInvitation, messageSansPromo, MESSAGE_SANS_PROMO,
-  messageInvitationReussie, phraseCompteTransforme, etiquetteBadge, pastillesDuProfil, listeAcces,
+  messageInvitationReussie, phraseCompteTransforme, etiquetteBadge, pastillesDuProfil, listeAcces, ENTETE_APERCU_TITRE,
 } from "../js/roles-rules.js";
 
 const formateur = { profil: { role: "prof", is_admin: true }, promo: { roles: ["formateur"] } };
@@ -259,4 +259,72 @@ test("listeAcces : triée par premier rôle affiché puis par adresse, sans chan
   assert.deepEqual(listeAcces({ profils: null, roles }), []);
   // Lecture en échec : l'ordre d'avant (formateurs, puis stagiaires, par adresse).
   assert.deepEqual(listeAcces({ profils, roles: null }).map((l) => l.profil.email), ["b@x.fr", "c@x.fr", "d@x.fr", "s@x.fr", "a@x.fr", "z@x.fr"]);
+});
+
+// Task 27 (titres, M5) : le drapeau admin (écrire comme un formateur) exige le titre fixe Formateur sur la promo affichée ;
+// `titres` (lignes de mes_titres) nul : la lecture a raté ou n'a pas eu lieu, les drapeaux d'aujourd'hui.
+const TITRE_FORMATEUR = { titre_id: 1, nom: "Formateur", niveau: "promo", lieu_id: 1, lieu_nom: "Centre A", promo_ids: [7], cases: {} };
+const TITRE_INTERVENANT = { titre_id: 9, nom: "Intervenant", niveau: "promo", lieu_id: 1, lieu_nom: "Centre A", promo_ids: [7],
+  cases: { planning: "voir", emargement: "modifier", stagiaires: "voir" } };
+const TITRE_DIRECTION = { titre_id: 2, nom: "Direction", niveau: "centre", lieu_id: 1, lieu_nom: "Centre A", promo_ids: null, cases: {} };
+
+test("droitsAffiches avec les titres : un titre fixe ne change rien (égalité stricte)", () => {
+  const promo = { id: 7, roles: ["formateur"] };
+  const aujourdhui = droitsAffiches({ profil: formateur.profil, promo });
+  assert.deepEqual(aujourdhui, { admin: true, prof: true, stagiaire: false, equipe: true, espace: "equipe" });
+  assert.deepEqual(droitsAffiches({ profil: formateur.profil, promo, titres: null }), aujourdhui, "titres nul : les drapeaux d'aujourd'hui");
+  assert.deepEqual(droitsAffiches({ profil: formateur.profil, promo, titres: [TITRE_FORMATEUR] }), aujourdhui, "Formateur fixe sur la promo");
+  assert.deepEqual(droitsAffiches({ profil: formateur.profil, promo, titres: [{ ...TITRE_FORMATEUR, promo_ids: [3, 7] }] }), aujourdhui, "sur plusieurs promos");
+  // dirform : direction du centre et Formateur fixe sur la promo.
+  const dirform = { profil: { role: "prof", is_admin: true }, promo: { id: 7, roles: ["formateur", "direction"] } };
+  const avant = droitsAffiches(dirform);
+  assert.deepEqual(avant, { admin: true, prof: true, stagiaire: false, equipe: true, espace: "equipe" });
+  assert.deepEqual(droitsAffiches({ ...dirform, titres: [TITRE_DIRECTION, TITRE_FORMATEUR] }), avant, "dirform inchangé");
+  // La direction seule, le stagiaire : inchangés (aucun titre de promo).
+  assert.deepEqual(droitsAffiches({ ...direction, titres: [TITRE_DIRECTION] }), droitsAffiches(direction));
+  assert.deepEqual(droitsAffiches({ ...stagiaire, titres: [] }), droitsAffiches(stagiaire));
+});
+
+test("droitsAffiches avec les titres : le fondateur hors aperçu, avec ou sans affectation, ne change pas", () => {
+  for (const promo of [{ id: 7, roles: ["stagiaire"] }, { id: 7, roles: [] }]) {
+    const avant = droitsAffiches({ profil: fondateur.profil, promo });
+    for (const titres of [null, [], [TITRE_INTERVENANT]]) {
+      assert.deepEqual(droitsAffiches({ profil: fondateur.profil, promo, titres }), avant, JSON.stringify({ promo, titres }));
+    }
+  }
+});
+
+test("droitsAffiches avec les titres : Intervenant sur la promo (M5) : admin faux, prof vrai, espace equipe", () => {
+  const promo = { id: 7, roles: ["formateur"] };
+  const d = droitsAffiches({ profil: { role: "prof", is_admin: false }, promo, titres: [TITRE_INTERVENANT] });
+  assert.equal(d.admin, false);
+  assert.equal(d.prof, true);
+  assert.equal(d.espace, "equipe");
+  assert.deepEqual(d, { admin: false, prof: true, stagiaire: false, equipe: true, espace: "equipe" });
+  // Le Formateur fixe sur une AUTRE promo ne donne rien sur celle-ci.
+  assert.equal(droitsAffiches({ profil: formateur.profil, promo, titres: [TITRE_INTERVENANT, { ...TITRE_FORMATEUR, promo_ids: [3] }] }).admin, false);
+  // Les deux titres sur la même promo (impossible en base : un seul titre de promo par promo) : le fixe suffit.
+  assert.equal(droitsAffiches({ profil: formateur.profil, promo, titres: [TITRE_INTERVENANT, TITRE_FORMATEUR] }).admin, true);
+});
+
+test("droitsAffiches en aperçu Formateur : un titre non fixe retire admin, le titre fixe ou titres nul le gardent", () => {
+  const promo = { id: 7, roles: [] };
+  const avant = droitsAffiches({ profil: fondateur.profil, promo, apercu: "formateur" });
+  assert.deepEqual(avant, { admin: true, prof: true, stagiaire: false, equipe: true, espace: "equipe" });
+  assert.deepEqual(droitsAffiches({ profil: fondateur.profil, promo, apercu: "formateur", titres: null }), avant);
+  assert.deepEqual(droitsAffiches({ profil: fondateur.profil, promo, apercu: "formateur", titres: [TITRE_FORMATEUR] }), avant);
+  assert.deepEqual(droitsAffiches({ profil: fondateur.profil, promo, apercu: "formateur", titres: [TITRE_INTERVENANT] }),
+    { admin: false, prof: true, stagiaire: false, equipe: true, espace: "equipe" });
+  // Sans promo affichée, l'aperçu ne peut être relié à aucun titre : celui d'aujourd'hui.
+  assert.deepEqual(droitsAffiches({ profil: fondateur.profil, promo: null, apercu: "formateur", titres: [TITRE_INTERVENANT] }),
+    droitsAffiches({ profil: fondateur.profil, promo: null, apercu: "formateur" }));
+  // Les autres aperçus ne lisent pas les titres.
+  for (const apercu of ["direction", "siege", "stagiaire"]) {
+    assert.deepEqual(droitsAffiches({ profil: fondateur.profil, promo, apercu, titres: [TITRE_INTERVENANT] }),
+      droitsAffiches({ profil: fondateur.profil, promo, apercu }), apercu);
+  }
+});
+
+test("ENTETE_APERCU_TITRE", () => {
+  assert.equal(ENTETE_APERCU_TITRE, "x-apercu-titre");
 });
