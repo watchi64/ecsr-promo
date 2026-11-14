@@ -9,7 +9,7 @@
 //
 // Les chiffres viennent du tableau de bord du centre (indicateursPromo, js/centre-stats.js) et les méthodes de METHODES_PUBLIQUES
 // (même fichier), écrites pour le public. Trois mesures peuvent manquer à l'application : la présence
-// (elle vient des feuilles d'émargement closes de la promo, { etat: "non_lue" } si leur lecture échoue), l'obtention du titre (les résultats de jury ne sont pas saisis) et la satisfaction
+// (elle vient des feuilles d'émargement closes de la promo, { etat: "non_lue" } si leur lecture échoue), l'obtention du titre (résultats du jury saisis dans la page Indicateurs, obtentionDeLaFiche ; rien tant qu'aucun stagiaire n'est présenté) et la satisfaction
 // (questionnaires du lot Q3). Elles se disent en toutes lettres (« non mesuré », « non saisi », « non mesurée ») ; le jour où
 // l'une arrive, l'appelant la passe sous la forme { taux, effectif } (taux de 0 à 1, effectif : le nombre de stagiaires sur
 // lequel il porte) et la fiche l'écrit. Une mesure inutilisable vaut une mesure absente.

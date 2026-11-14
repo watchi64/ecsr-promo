@@ -7472,6 +7472,7 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .centre-jury-liste li:last-child { border-bottom: 0; }
 .centre-jury-nom { font-weight: 600; }
 .centre-jury-liste select { width: 100%; min-height: 44px; }
+.centre-jury-repasse { font-weight: 400; font-size: 0.85rem; min-height: 44px; }
 .centre-erreur { padding: 1rem 0; }
 /* Pages de la direction qui regardent tout le centre (lot 5, Task 7) : Vue d'ensemble, Émargement, Notes et examens. */
 .centre-promo { margin-left: 0.5rem; background: var(--bg-soft); color: var(--text-soft); white-space: normal; }

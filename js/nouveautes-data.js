@@ -32,8 +32,8 @@ export const NOUVEAUTES = [
     titre: "Les résultats du jury et le taux d'obtention du titre",
     resume: "Après la session du jury, saisissez le résultat de chaque stagiaire : titre obtenu, validation partielle (avec le CCP "
           + "acquis), non obtenu ou absent. La carte « Réussite au titre » des Indicateurs calcule alors le taux d'obtention : les "
-          + "titres obtenus sur les stagiaires présentés, absents exclus. Le même chiffre alimente la fiche de résultats Qualiopi. "
-          + "Les stagiaires ne voient pas cette saisie.",
+          + "titres obtenus sur les stagiaires présentés, absents exclus. Un stagiaire qui repasse le jury garde une seule ligne, son "
+          + "dernier passage. Les stagiaires ne voient pas cette saisie.",
     ou: { route: "centre", label: "Indicateurs" },
     guide: [
       "Ouvrir Indicateurs.",

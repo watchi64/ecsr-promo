@@ -93,7 +93,7 @@ export function cartesCles(ind) {
 
 // Carte « Réussite au titre » : le taux d'obtention du titre d'après les résultats du jury ; `saisir` (page de la promo, compte
 // qui écrit les notes) ajoute le bouton qui ouvre la saisie. `portee` : une phrase de plus sous le détail (Vue d'ensemble).
-function carteTitre(ind, { saisir = null, portee = null } = {}) {
+export function carteTitre(ind, { saisir = null, portee = null } = {}) {
   const t = ind.titre;
   const lu = t.detail?.etat === "lue";
   const article = carte({ cle: "titre", titre: "Réussite au titre", nature: t.nature,
@@ -288,7 +288,8 @@ function ouvrirExportCsv(promo, donnees) {
 
 // --- Saisie des résultats du jury (compte qui écrit les notes) ---
 // Une liste par stagiaire de la promo (en formation, puis abandons ; fiches effacées exclues) ; la date de la session s'applique
-// aux résultats modifiés. Seules les lignes changées partent ; « Non saisi » retire un résultat. `apres` : relire la page.
+// aux résultats modifiés et aux lignes cochées « repassé à cette session ». « Non saisi » retire un résultat. `apres` : relire
+// la page. Ouverte seulement quand les résultats ont été lus (sinon chaque liste dirait « Non saisi » à tort).
 function ouvrirSaisieJury(promo, donnees, apres) {
   let modale = null;
   const aujourdhui = isoDate(new Date());
@@ -299,6 +300,7 @@ function ouvrirSaisieJury(promo, donnees, apres) {
   const champDate = el("input", { type: "date", id: "centre-jury-date", class: "input", value: dateProposee(lignes, aujourdhui),
     min: "2020-01-01", max: aujourdhui });
   const listes = new Map();
+  const repasses = new Map();
   const erreur = el("p", { class: "centre-avertissement", role: "alert", hidden: true });
   const enregistrer = el("button", { class: "btn primary", type: "button" }, "Enregistrer");
   const fermer = () => modale.fermer();
@@ -309,13 +311,17 @@ function ouvrirSaisieJury(promo, donnees, apres) {
       ...CHOIX_JURY.map(([v, libelle]) => el("option", { value: v }, libelle)));
     liste.value = valeurDeLigne(avant);
     listes.set(s.id, liste);
+    // Un stagiaire qui repasse le jury avec le même résultat : la case garde le résultat et prend la date de la nouvelle session.
+    const repasse = avant ? el("input", { type: "checkbox", id: id + "-repasse" }) : null;
+    if (repasse) repasses.set(s.id, repasse);
     return el("li", {},
       el("label", { for: id, class: "centre-jury-nom" }, displayStagiaire(s), s.actif ? null : el("span", { class: "chip centre-promo" }, "abandon")),
       liste,
-      avant ? el("span", { class: "centre-detail" }, "Session du " + formatDate(avant.session_le)) : null);
+      avant ? el("span", { class: "centre-detail" }, "Session du " + formatDate(avant.session_le)) : null,
+      repasse ? el("label", { class: "centre-case centre-jury-repasse", for: id + "-repasse" }, repasse, "Repassé à cette session") : null);
   });
   enregistrer.addEventListener("click", async () => {
-    const choix = new Map([...listes].map(([id, liste]) => [id, liste.value]));
+    const choix = new Map([...listes].map(([id, liste]) => [id, { valeur: liste.value, repasse: !!repasses.get(id)?.checked }]));
     const { ecrire, retirer, erreur: phrase } = changementsJury(anciennes, choix, champDate.value, aujourdhui);
     if (phrase) {
       erreur.textContent = phrase;
@@ -323,7 +329,11 @@ function ouvrirSaisieJury(promo, donnees, apres) {
       champDate.focus();
       return;
     }
-    if (!ecrire.length && !retirer.length) { fermer(); return; }
+    if (!ecrire.length && !retirer.length) {
+      erreur.textContent = "Aucun changement à enregistrer. Pour changer seulement la date d'un résultat, cochez « Repassé à cette session ».";
+      erreur.hidden = false;
+      return;
+    }
     enregistrer.disabled = true;
     try {
       await enregistrerResultatsJury({ ecrire, retirer });
@@ -333,10 +343,14 @@ function ouvrirSaisieJury(promo, donnees, apres) {
       apres();
     } catch (e) {
       console.error(e);
+      // L'écriture et le retrait sont deux requêtes : la première a pu passer. La fenêtre se ferme et la page est relue, pour que
+      // l'écran redise ce que la base contient vraiment ; le formateur reprend sa saisie sur des valeurs justes.
+      const refus = e?.code === "42501";
+      toast(refus ? "Votre compte ne peut pas saisir les résultats du jury de cette promo."
+        : "L'enregistrement n'a pas abouti entièrement. La page a été relue : vérifiez les résultats et reprenez la saisie.", "error", 6000);
       enregistrer.disabled = false;
-      // Renvoyer la même saisie est sans risque : l'écriture remplace la ligne de chaque stagiaire, le retrait est rejouable.
-      erreur.textContent = "L'enregistrement a échoué. Vérifiez la connexion et réessayez ; rien n'est perdu dans cette fenêtre.";
-      erreur.hidden = false;
+      fermer();
+      apres();
     }
   });
   modale = ouvrirModale(el("div", { class: "modal centre-modal centre-jury" },
@@ -344,7 +358,7 @@ function ouvrirSaisieJury(promo, donnees, apres) {
     el("p", {}, "Un résultat par stagiaire : son dernier passage devant le jury. Le taux d'obtention compte les titres obtenus sur les "
       + "stagiaires présentés, absents exclus. Les stagiaires ne voient pas cette saisie."),
     el("label", { for: "centre-jury-date", class: "centre-jury-date" }, "Date de la session", champDate),
-    el("p", { class: "centre-detail" }, "La date s'applique aux résultats que vous modifiez."),
+    el("p", { class: "centre-detail" }, "La date s'applique aux résultats que vous modifiez, et à ceux que vous cochez « Repassé à cette session »."),
     fiches.length
       ? el("ul", { class: "centre-jury-liste" }, ...lignesListe)
       : el("p", { class: "muted" }, "Aucun stagiaire dans cette promo."),
@@ -413,7 +427,9 @@ export async function renderCentre(container) {
     el("h3", {}, "Résultats"),
     el("div", { class: "centre-grille" }, ...cartesResultats(ind, {
       // Saisir le jury : qui écrit les notes (la base vérifie le même droit, geste notes.saisir), sur une promo affichée.
-      saisirJury: isAdmin() && promo ? () => ouvrirSaisieJury(promo, donnees, () => renderCentre(container)) : null,
+      // Résultats non lus : pas de saisie (chaque liste dirait « Non saisi » et la saisie écraserait des lignes réelles).
+      saisirJury: isAdmin() && promo && donnees.jury?.etat === "lue"
+        ? () => ouvrirSaisieJury(promo, donnees, () => renderCentre(container)) : null,
     }))));
   racine.appendChild(sectionThemes(ind.themes));
   racine.appendChild(sectionASuivre(ind.aSuivre));

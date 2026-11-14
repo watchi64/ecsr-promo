@@ -34,17 +34,20 @@ export function dateSessionValide(date, aujourdhui) {
   return typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= "2020-01-01" && date <= aujourdhui;
 }
 
-// Ce que la fenêtre envoie. anciennes : Map(stagiaire_id -> ligne de la base) ; choix : Map(stagiaire_id -> valeur de la liste).
-// Seules les lignes dont la valeur change partent : un résultat qui change prend la date de la session saisie ; « Non saisi » sur
-// une ligne existante la retire ; une valeur inconnue est ignorée.
-// Rend { ecrire, retirer, erreur } : erreur (une phrase) quand un résultat change sans date de session valide.
+// Ce que la fenêtre envoie. anciennes : Map(stagiaire_id -> ligne de la base) ; choix : Map(stagiaire_id -> valeur de la liste,
+// ou { valeur, repasse }). Partent : les lignes dont la valeur change, et celles cochées « repassé à cette session » (même
+// résultat, nouveau passage : la ligne prend la date de la session saisie, règle du dernier passage). Un résultat qui part prend
+// la date de la session saisie ; « Non saisi » sur une ligne existante la retire ; une valeur inconnue est ignorée.
+// Rend { ecrire, retirer, erreur } : erreur (une phrase) quand un résultat part sans date de session valide.
 export function changementsJury(anciennes, choix, sessionLe, aujourdhui) {
   const ecrire = [];
   const retirer = [];
-  for (const [id, valeur] of choix) {
+  for (const [id, choisi] of choix) {
+    const valeur = typeof choisi === "object" && choisi !== null ? choisi.valeur : choisi;
+    const repasse = typeof choisi === "object" && choisi !== null && !!choisi.repasse;
     if (!VALEURS.has(valeur)) continue;
     const avant = valeurDeLigne(anciennes.get(id));
-    if (valeur === avant) continue;
+    if (valeur === avant && !(repasse && valeur !== "")) continue;
     if (valeur === "") retirer.push(id);
     else ecrire.push(ligneDeValeur(id, valeur, sessionLe));
   }

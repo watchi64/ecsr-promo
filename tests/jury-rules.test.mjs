@@ -120,3 +120,21 @@ test("fiche résultats Qualiopi : l'obtention du titre vient de l'indicateur du 
   const views = readFileSync(new URL("../js/views/qualiopi.js", import.meta.url), "utf8");
   assert.equal((views.match(/obtention: obtentionDeLaFiche\(/g) || []).length, 2, "les deux fiches (promo, centre) reçoivent l'obtention");
 });
+
+test("relecture du 14/11 : repasser le jury, rien à enregistrer, lecture en échec, direction sans promo en cours", () => {
+  const anciennes = new Map(LIGNES.map((l) => [l.stagiaire_id, l]));
+  // Même résultat, nouveau passage coché : la ligne part avec la date de la nouvelle session.
+  const r = changementsJury(anciennes, new Map([[4, { valeur: "non_obtenu", repasse: true }], [1, { valeur: "obtenu", repasse: false }]]),
+    "2026-12-19", AUJ);
+  assert.deepEqual(r.ecrire.map((l) => [l.stagiaire_id, l.resultat, l.session_le]), [[4, "non_obtenu", "2026-12-19"]]);
+  // Coché sans résultat (« Non saisi » sur une ligne sans résultat) : rien ; coché et changé en « Non saisi » : retrait.
+  assert.deepEqual(changementsJury(anciennes, new Map([[9, { valeur: "", repasse: true }]]), "2026-12-19", AUJ), { ecrire: [], retirer: [], erreur: null });
+  assert.deepEqual(changementsJury(anciennes, new Map([[1, { valeur: "", repasse: true }]]), "", AUJ).retirer, [1]);
+  const centre = readFileSync(new URL("../js/views/centre.js", import.meta.url), "utf8");
+  assert.match(centre, /saisirJury: isAdmin\(\) && promo && donnees\.jury\?\.etat === "lue"/, "pas de saisie sur des résultats non lus");
+  assert.match(centre, /Aucun changement à enregistrer/, "rien à enregistrer : la fenêtre le dit au lieu de se fermer en silence");
+  assert.match(centre, /fermer\(\);\s*apres\(\);\s*\}\s*\}\);/, "après un échec, la fenêtre se ferme et la page est relue");
+  const direction = readFileSync(new URL("../js/views/direction-centre.js", import.meta.url), "utf8");
+  assert.match(direction, /el\("h3", \{\}, "Réussite au titre"\),\s*el\("div", \{ class: "centre-grille" \}, carteTitre\(titreCentre/,
+    "sans promo en cours, la direction voit quand même la carte du titre");
+});

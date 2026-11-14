@@ -21,7 +21,7 @@ import { resumeEmargement, lireAdresseEmargement, CLE_ACTIVATION, estActif } fro
 import { estAdresseAttestations } from "../attestations-rules.js?v=20261114b";
 import { jourLong, DEMI_LONG } from "../emargement-feuilles.js?v=20261114b";
 import {
-  cartesCles, cartesResultats, sectionThemes, sectionASuivre, sectionComparaison, sectionMethodes, etiquette,
+  cartesCles, cartesResultats, carteTitre, sectionThemes, sectionASuivre, sectionComparaison, sectionMethodes, etiquette,
   telecharger,
 } from "./centre.js?v=20261114b";
 import { surChangementAdresse } from "../navigation.js?v=20261114b";
@@ -136,29 +136,33 @@ export async function renderVueCentre(container) {
     `${pluriel(enCours.length, "promo")} en cours · édité le ${formatLongDate(aujourdhui, { sansJour: true })}`,
     el("div", { class: "centre-actions" }, exporter)));
 
+  // Réussite au titre : le jury tombe après la fin de la formation, donc le cumul porte sur TOUTES les promos du centre qui ont des
+  // résultats saisis, pas sur les seules promos en cours (décision de Timy du 14/11) ; la carte est montrée même sans promo en
+  // cours. La saisie reste dans la page de la promo.
+  const juryParPromo = promos.map((p) => parPromo.get(p.id).jury);
+  const titreCentre = { titre: indicateurTitre(fusionnerJury(juryParPromo)) };
+  const avecJury = juryParPromo.filter((j) => j?.etat === "lue" && j.lignes.length).length;
+  const porteeJury = titreCentre.titre.detail?.etat === "lue" && avecJury
+    ? `${pluriel(avecJury, "promo")} du centre avec des résultats saisis` : null;
   if (enCours.length) {
     const ind = indCentre;
     racine.appendChild(el("p", { class: "centre-legende" },
       etiquette("mesuré"), " compté dans l'app · ", etiquette("estimé"), " hypothèse ou signal · Chaque chiffre a sa méthode. ",
-      "Les chiffres du centre additionnent ses promos en cours."));
+      "Les chiffres du centre additionnent ses promos en cours ; la réussite au titre, toutes ses promos qui ont des résultats de jury saisis."));
     racine.appendChild(el("section", { class: "centre-section" },
       el("h3", {}, "Assiduité et abandons"),
       el("div", { class: "centre-grille" }, ...cartesCles(ind))));
-    // Réussite au titre : le jury tombe après la fin de la formation, donc le cumul porte sur TOUTES les promos du centre qui ont
-    // des résultats saisis, pas sur les seules promos en cours (décision de Timy du 14/11). La saisie reste dans la page de la promo.
-    const juryParPromo = promos.map((p) => parPromo.get(p.id).jury);
-    const avecJury = juryParPromo.filter((j) => j?.etat === "lue" && j.lignes.length).length;
     racine.appendChild(el("section", { class: "centre-section" },
       el("h3", {}, "Résultats"),
-      el("div", { class: "centre-grille" }, ...cartesResultats(ind, {
-        indTitre: { titre: indicateurTitre(fusionnerJury(juryParPromo)) },
-        porteeJury: avecJury ? `${pluriel(avecJury, "promo")} du centre avec des résultats saisis` : null,
-      }))));
+      el("div", { class: "centre-grille" }, ...cartesResultats(ind, { indTitre: titreCentre, porteeJury }))));
   } else {
     racine.appendChild(el("section", { class: "centre-section" },
       el("h3", {}, "Aucune promo en cours"),
       el("p", { class: "muted" }, "Les chiffres du centre portent sur ses promos en cours. Les promos terminées ou à venir sont dans la comparaison ci-dessous et dans la page Promos."),
       el("a", { class: "btn small", href: "#/promos" }, "Voir les promos")));
+    racine.appendChild(el("section", { class: "centre-section" },
+      el("h3", {}, "Réussite au titre"),
+      el("div", { class: "centre-grille" }, carteTitre(titreCentre, { portee: porteeJury }))));
   }
 
   if (promos.length >= 2) {
