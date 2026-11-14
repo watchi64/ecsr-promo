@@ -3,6 +3,8 @@
 // versComptes) : mêmes définitions des deux côtés, jouées par une fixture commune (tests/fixtures/comptes-promo.json).
 // Un compte s'additionne entre promos et entre centres ; un ratio ne se calcule que sur des comptes sommés.
 
+import { fusionnerEmargements } from "./presence-rules.js?v=20261114b";
+
 // Chaque champ reflète une colonne de comptes_reseau (enFormation = en_formation, notesSomme = notes_somme...).
 export const CHAMPS_COMPTES = ["inscrits", "enFormation", "abandons", "absences", "prevus", "qcmBonnes",
   "qcmQuestions", "examensPasses", "examensReussis", "notesN", "notesSomme", "notesSous10", "epcfAcquis", "epcfRenseignes"];
@@ -78,10 +80,14 @@ export function promosEnCours(promos, aujourdhui) {
   return (promos || []).filter((p) => p.date_debut <= aujourdhui && (p.date_fin == null || p.date_fin >= aujourdhui));
 }
 
-// Données brutes de plusieurs promos (forme de lireDonneesCentre) en un seul jeu.
+// Données brutes de plusieurs promos (forme de lireDonneesCentre) en un seul jeu. Les feuilles d'émargement s'additionnent
+// aussi ; une promo dont la lecture a échoué rend la présence du tout « non lue » (fusionnerEmargements).
 export function concatenerDonnees(liste) {
   const cles = ["stagiaires", "passages", "evaluations", "tentatives", "epcf"];
-  return Object.fromEntries(cles.map((k) => [k, (liste || []).flatMap((d) => d[k] || [])]));
+  return {
+    ...Object.fromEntries(cles.map((k) => [k, (liste || []).flatMap((d) => d[k] || [])])),
+    emargement: fusionnerEmargements((liste || []).map((d) => d.emargement)),
+  };
 }
 
 // lignes : les lignes de comptes_reseau. Centres triés par nom, hors démonstration (à part) ; le total n'additionne que les

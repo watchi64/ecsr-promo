@@ -90,7 +90,8 @@ ok(/5 avis notés/.test(METHODES.satisfaction) && /« sans avis » exclu/.test(M
 {
   const centre = lire("js/views/centre.js");
   const liste = centre.slice(centre.indexOf("const LIBELLES_METHODES = ["), centre.indexOf("];", centre.indexOf("const LIBELLES_METHODES = [")));
-  ok(!/"presence"|"satisfaction"/.test(liste), "le tableau de bord ne liste ni presence ni satisfaction : son affichage ne bouge pas");
+  // La présence y entre le 14/11 (tableau de bord branché sur l'émargement) ; la satisfaction reste hors du tableau de bord.
+  ok(!/"satisfaction"/.test(liste) && /"presence"/.test(liste), "le tableau de bord liste la présence, pas la satisfaction");
   ok(!/Object\.(keys|values|entries)\(METHODES\)/.test(centre), "et il n'énumère pas METHODES");
 }
 

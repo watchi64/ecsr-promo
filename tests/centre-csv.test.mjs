@@ -79,15 +79,15 @@ const cptes = (o) => ({ inscrits: 0, enFormation: 0, abandons: 0, absences: 0, p
 const tc = tableauCentreCsv([
   { nom: "Nîmes mars", debut: "2026-03-02", fin: "2026-12-18",
     comptes: cptes({ inscrits: 20, enFormation: 18, abandons: 2, absences: 3, prevus: 30, qcmBonnes: 75, qcmQuestions: 100,
-      examensPasses: 4, examensReussis: 3, notesN: 4, notesSomme: 50, epcfAcquis: 6, epcfRenseignes: 8 }) },
+      examensPasses: 4, examensReussis: 3, notesN: 4, notesSomme: 50, epcfAcquis: 6, epcfRenseignes: 8 }), presence: 0.925 },
   { nom: "=Récente; test", debut: "2026-11-02", fin: null, comptes: cptes({ inscrits: 10, enFormation: 10 }) },
 ]);
 eq(tc.charCodeAt(0), 0xFEFF, "BOM comme la matrice");
 const tcl = tc.slice(1).split("\r\n");
 eq(tcl.length, 4, "en-tête + 2 promos + fin de ligne");
-eq(tcl[0], "Promo;Début;Fin;Inscrits;En formation;Abandons (%);Absences (%);Réussite aux QCM (%);Examens QCM réussis (%);Moyenne des notes (/20);Critères EPCF acquis (%)", "en-têtes");
-eq(tcl[1], "Nîmes mars;2026-03-02;2026-12-18;20;18;10;10;75;75;12,5;75", "ligne chiffrée, virgule décimale");
-eq(tcl[2], "\"'=Récente; test\";2026-11-02;;10;10;0;;;;;", "nom neutralisé et cité ; fin absente ; ratios sans base vides, abandon 0");
+eq(tcl[0], "Promo;Début;Fin;Inscrits;En formation;Abandons (%);Absences (%);Réussite aux QCM (%);Examens QCM réussis (%);Moyenne des notes (/20);Critères EPCF acquis (%);Présence (%)", "en-têtes");
+eq(tcl[1], "Nîmes mars;2026-03-02;2026-12-18;20;18;10;10;75;75;12,5;75;92,5", "ligne chiffrée, virgule décimale");
+eq(tcl[2], "\"'=Récente; test\";2026-11-02;;10;10;0;;;;;;", "nom neutralisé et cité ; fin absente ; ratios sans base vides, abandon 0");
 eq(tcl[3], "", "fin de ligne finale");
 eq(tableauCentreCsv([]).slice(1).split("\r\n").length, 2, "aucune promo : en-tête seul");
 

@@ -7,7 +7,7 @@
 import { lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande, getMesPromos, getPromoCourante } from "../db.js?v=20261114b";
 import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261114b";
 import { fondateurHorsApercu } from "../auth-admin.js?v=20261114b";
-import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261114b";
+import { indicateursPromo, ligneComparaison, textePresenceDetail, METHODES } from "../centre-stats.js?v=20261114b";
 import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261114b";
 import { entier, fr1, pct, pluriel } from "../nombres.js?v=20261114b";
 import { ouvrirModale } from "../nav-fenetre.js?v=20261114b";
@@ -23,11 +23,12 @@ const LIBELLES_COMPARAISON = [
   ["examensQcm", "Examens QCM réussis"],
   ["notes", "Moyenne des notes"],
   ["epcf", "Critères EPCF acquis"],
+  ["presence", "Taux de présence"],
 ];
 
 const LIBELLES_METHODES = [
   ["effectif", "Effectif"], ["abandon", "Taux d'abandon"], ["valeurAbandons", "Valeur des parcours interrompus"],
-  ["absences", "Absences aux passages prévus"], ["passages", "Passages réalisés"],
+  ["presence", "Taux de présence"], ["absences", "Absences aux passages prévus"], ["passages", "Passages réalisés"],
   ["activiteQcm", "Activité QCM"], ["reussiteQcm", "Réussite aux QCM d'entraînement"],
   ["examensQcm", "Examens QCM"], ["notes", "Notes"], ["epcf", "Évaluations EPCF"], ["titre", "Réussite au titre"],
   ["themes", "Thèmes les moins réussis"], ["aSuivre", "À suivre de près"],
@@ -66,6 +67,9 @@ export function cartesCles(ind) {
       valeur: pluriel(ef.inscrits, "inscrit"),
       detail: `${pluriel(ef.enFormation, "en formation", "en formation")} · ${pluriel(ef.abandons, "abandon")}`
         + (ef.surDemande ? ` · ${pluriel(ef.surDemande, "effacée à la demande", "effacées à la demande")}` : "") }),
+    carte({ cle: "presence", titre: "Taux de présence", nature: ind.presence.nature,
+      valeur: ind.presence.valeur == null ? (ind.presence.detail?.etat === "non_lue" ? "Non lu" : "Non mesuré") : pct(ind.presence.valeur),
+      detail: textePresenceDetail(ind.presence) }),
     carte({ cle: "abandon", titre: "Taux d'abandon", nature: "mesuré",
       valeur: ab.valeur == null ? null : pct(ab.valeur),
       detail: ab.valeur == null ? null : `${pluriel(ab.detail.abandons, "abandon")} sur ${pluriel(ab.detail.inscrits, "inscrit")}` }),

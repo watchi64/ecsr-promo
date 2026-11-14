@@ -11,6 +11,8 @@ import { estNotee, score20, mediane } from "./notes-stats.js?v=20261114b";
 import { NOTE_VALUES } from "./epcf-trames.js?v=20261114b";
 import { compareByNom } from "./utils.js?v=20261114b";
 import { fr1, pct } from "./nombres.js?v=20261114b";
+import { presenceDesFeuilles, RAISONS_ABSENCE } from "./presence-rules.js?v=20261114b";
+import { libelleDuree } from "./emargement-rules.js?v=20261114b";
 
 // Hypothèse du réseau : un parcours de formation représente 3 500 à 5 000 €.
 export const COUT_ABANDON_ESTIME = [3500, 5000];
@@ -29,7 +31,7 @@ export const METHODES = {
   effectif: "Inscrits : toutes les fiches de la promo. En formation : les fiches actives. Abandons : les fiches passées en abandon par l'équipe. Les fiches effacées à la demande de la personne sont comptées parmi les inscrits, à part : ni en formation, ni en abandon.",
   abandon: "Abandons divisés par les inscrits. Seule la décision de l'équipe compte : un effacement de données, à la demande de la personne ou au terme de la durée de conservation, n'est pas un abandon. La date de l'abandon n'est pas enregistrée dans l'app : le taux porte sur toute la durée de la promo.",
   valeurAbandons: "Nombre d'abandons multiplié par 3 500 à 5 000 €, hypothèse du coût d'un parcours de formation. C'est un ordre de grandeur, pas un montant comptable.",
-  absences: "Absences de dernière minute divisées par les passages prévus (passages faits plus absences), stagiaires en formation. Ne couvre que les passages en salle et en voiture, pas la présence en formation : l'émargement la couvrira.",
+  absences: "Absences de dernière minute divisées par les passages prévus (passages faits plus absences), stagiaires en formation. Ne couvre que les passages en salle et en voiture ; la présence en formation est le taux de présence, tiré des feuilles d'émargement.",
   passages: "Passages faits plus remplacements (bonus), en salle et en voiture, rapportés aux stagiaires en formation ; plus bas et plus haut nombre d'une personne.",
   activiteQcm: "Stagiaires en formation qui ont fait au moins un QCM d'entraînement, divisés par les stagiaires en formation.",
   reussiteQcm: "Bonnes réponses divisées par les questions répondues, sur tous les QCM d'entraînement des stagiaires en formation.",
@@ -152,6 +154,10 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui, demandes } 
   const critA = epcfSalle.A + epcfVehicule.A;
   const critTous = critA + epcfSalle.R + epcfVehicule.R + epcfSalle.NA + epcfVehicule.NA;
 
+  // --- Présence d'après les feuilles d'émargement (même calcul que la fiche résultats Qualiopi et les attestations) ---
+  const pres = presenceDesFeuilles(donnees.emargement);
+  const presMesuree = pres.etat === "mesuree";
+
   const ind = {
     effectif: indicateur("effectif", stagiaires.length, { inscrits: stagiaires.length, enFormation: nbForm, abandons, surDemande }),
     abandon: indicateur("abandon", ratio(abandons, stagiaires.length), { abandons, inscrits: stagiaires.length },
@@ -173,6 +179,11 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui, demandes } 
     }, "mesuré", scores.length),
     epcf: indicateur("epcf", ratio(critA, critTous), { salle: epcfSalle, vehicule: epcfVehicule }, "mesuré", critTous),
     titre: indicateur("titre", null, null, "non mesuré"),
+    // Toutes les lignes des feuilles closes (stagiaires partis compris) : la population n'est pas celle « en formation ».
+    presence: indicateur("presence", presMesuree ? pres.taux : null, {
+      etat: pres.etat, motif: pres.motif ?? null, ouvertes: pres.ouvertes ?? 0, feuilles: pres.feuilles ?? 0,
+      effectif: pres.effectif ?? 0, prevuesMin: pres.prevuesMin ?? 0, realiseesMin: pres.realiseesMin ?? 0,
+    }, presMesuree ? "mesuré" : "non mesuré", presMesuree ? pres.effectif : null),
   };
 
   ind.themes = themesPromo(entrainements, notees, qcmParId, themeParId, themeParNum);
@@ -292,6 +303,32 @@ function stagiairesASuivre({ enFormation, parStag, entrainements, notees, aujour
 }
 
 // Textes courts du tableau de comparaison des promos.
+// La présence en quelques mots, pour une case de tableau : le taux, ou pourquoi il manque. Une présence absente des
+// indicateurs (appelant qui n'a pas lu les feuilles) se dit « non lue », jamais « aucune feuille ».
+export function textePresenceCourt(presence) {
+  const d = presence?.detail;
+  if (presence?.valeur != null) return pct(presence.valeur);
+  if (!d || d.etat === "non_lue") return "non lue";
+  if (d.motif === "ouvertes") return "feuilles encore ouvertes";
+  if (d.motif === "sans_ligne") return "aucune ligne signée";
+  return "émargement non utilisé";
+}
+
+// La ligne d'explication de la carte « Taux de présence » : les heures et l'effectif, ou la raison de l'absence de mesure
+// (mêmes phrases que le dossier Qualiopi, RAISONS_ABSENCE).
+export function textePresenceDetail(presence) {
+  const d = presence?.detail;
+  if (presence?.valeur != null && d) {
+    return `${libelleDuree(d.realiseesMin)} réalisées sur ${libelleDuree(d.prevuesMin)} prévues · `
+      + `${d.feuilles} feuille${d.feuilles > 1 ? "s" : ""} close${d.feuilles > 1 ? "s" : ""} · `
+      + `${d.effectif} stagiaire${d.effectif > 1 ? "s" : ""}`
+      + (d.ouvertes ? ` · ${d.ouvertes} encore ouverte${d.ouvertes > 1 ? "s" : ""}, non comptée${d.ouvertes > 1 ? "s" : ""}` : "");
+  }
+  if (!d || d.etat === "non_lue") return "Les feuilles d'émargement n'ont pas pu être lues.";
+  const raison = RAISONS_ABSENCE[d.motif] ?? RAISONS_ABSENCE.aucune;
+  return raison.charAt(0).toUpperCase() + raison.slice(1) + ".";
+}
+
 export function ligneComparaison(ind) {
   const rien = "aucune donnée";
   const e = ind.effectif.valeur;
@@ -306,5 +343,6 @@ export function ligneComparaison(ind) {
     examensQcm: ind.examensQcm.valeur == null ? rien : `${pct(ind.examensQcm.valeur)} (${ex.reussis}/${ex.passes})`,
     notes: ind.notes.valeur == null ? rien : `${fr1(ind.notes.valeur)}/20`,
     epcf: ind.epcf.valeur == null ? rien : `${pct(ind.epcf.valeur)} acquis`,
+    presence: textePresenceCourt(ind.presence),
   };
 }

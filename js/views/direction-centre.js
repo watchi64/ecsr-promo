@@ -124,7 +124,8 @@ export async function renderVueCentre(container) {
   const indCentre = enCours.length
     ? indicateursPromo(concatenerDonnees(enCours.map((p) => parPromo.get(p.id))), referentiel, { aujourdhui, demandes }) : null;
   const lignesParPromo = promos.map((p) => ({ nom: p.nom, debut: p.date_debut ? formatDate(p.date_debut) : "",
-    fin: p.date_fin ? formatDate(p.date_fin) : "", comptes: comptesDepuisIndicateurs(indDe(p)) }));
+    fin: p.date_fin ? formatDate(p.date_fin) : "", comptes: comptesDepuisIndicateurs(indDe(p)),
+    presence: indDe(p).presence.valeur }));   // taux de présence des feuilles d'émargement, vide quand il n'est pas mesuré
 
   clear(racine);
   const exporter = el("button", { class: "btn small solo-ordinateur", type: "button", onClick: () => {

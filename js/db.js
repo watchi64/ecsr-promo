@@ -2027,14 +2027,16 @@ export async function lireStagiairesPromo(promoId) {
 // promoId nul (liste des promos non chargée) : promo courante, sans en-tête de lecture.
 export async function lireDonneesCentre(promoId) {
   const lire = (table, colonnes, ordre) => lireTable(table, colonnes, ordre, promoId);
-  const [stagiaires, passages, evaluations, tentatives, epcf] = await Promise.all([
+  // Les feuilles d'émargement (taux de présence) : une lecture qui échoue rend { etat: "non_lue" } sans faire échouer le reste.
+  const [stagiaires, passages, evaluations, tentatives, epcf, emargement] = await Promise.all([
     lire("stagiaires", "id, prenom, nom, actif, ordre, anonymise_le, efface_le", "id"),
     lire("passages", "id, stagiaire_id, type, resultat, date", "id"),
     lire("evaluations", "id, stagiaire_id, type, theme_numero, competence_code, controle_libelle, note, note_max, date_eval", "id"),
     lire("qcm_attempts", "id, qcm_id, stagiaire_id, mode, score, total, note_20, finished_at", "id"),
     lire("epcf_evaluations", "id, stagiaire_id, trame, contexte, auto_eval, date_eval, scores", "id"),
+    lireEmargementDeLaPromo(promoId),
   ]);
-  return { stagiaires, passages, evaluations, tentatives, epcf };
+  return { stagiaires, passages, evaluations, tentatives, epcf, emargement };
 }
 
 // Référentiel commun à toutes les promos : QCM (thème, seuil d'examen) et thèmes.
@@ -2073,7 +2075,8 @@ export async function lireDonneesQualiopi(promoId) {
     if (error) throw error;
     return enteteEmargementDuReglage(data?.value ?? null);
   };
-  const [centre, planning, agenda, livrets, dossiers, signalementsLus, cours, autoEcoles, profs, entete, joursOff, versions, demandes, emargement] = await Promise.all([
+  // Les feuilles d'émargement viennent de lireDonneesCentre (`centre.emargement`), lues une seule fois.
+  const [centre, planning, agenda, livrets, dossiers, signalementsLus, cours, autoEcoles, profs, entete, joursOff, versions, demandes] = await Promise.all([
     lireDonneesCentre(promoId),
     parPromo("planning_entries", "id, semaine_lundi, day_index, half_day, activite, sujet, sujet_2, salle_double, prof_ids, prof_autre, autonomie, benevoles_ids, promo_id", "id"),
     parPromo("agenda_events", "id, type, date_start, date_end", "id"),
@@ -2087,11 +2090,10 @@ export async function lireDonneesQualiopi(promoId) {
     parPromo("planning_jours_off", "semaine_lundi, day_index", "id"),
     communes("cours_versions", "cours_id, saved_at", "id"),
     lireEffacementsSurDemande([promoId]),   // fiches effacées à la demande : un Set, vide si la migration n'est pas appliquée
-    lireEmargementDeLaPromo(promoId),
   ]);
   const stagiairesDeLaPromo = new Set(centre.stagiaires.map((s) => s.id));
   const signalements = signalementsLus.filter((s) => stagiairesDeLaPromo.has(s.stagiaire_id));
-  return { ...centre, planning, agenda, livrets, dossiers, signalements, cours, autoEcoles, profs, entete, joursOff, versions, demandes, emargement };
+  return { ...centre, planning, agenda, livrets, dossiers, signalements, cours, autoEcoles, profs, entete, joursOff, versions, demandes };
 }
 
 // Les feuilles d'émargement de la promo, légères (sans tracé ni signature de formateur : seuls les jours, les horaires, le statut et,
