@@ -1306,8 +1306,10 @@ begin
     pg_temp.supprimer('t_chef', '1', t_secr), 'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (stagiaires).');
   perform pg_temp.attendre('gerer', 'supprimer un titre inconnu : refusé', pg_temp.supprimer('t_chef', '1', '-1'), 'ERREUR P0001 titres: Titre introuvable.');
   perform pg_temp.essai(format('delete from public.affectations where titre_id = %s', v_v));
+  -- v porte aussi R promo (ligne de formateur, promo 2) : on lit sa seule ligne de direction (sans ce filtre, la ligne rendue dépendait
+  -- de l'ordre physique de la table, que la migration 7 change).
   perform pg_temp.attendre('gerer', 'supprimer la version une fois retirée à u : permis, v porte toujours R',
-    pg_temp.supprimer('t_chef', '1', v_v) || ' / ' || pg_temp.calcul(format($q$select titre_id::text from public.affectations where lower(email) = lower(%L)$q$, pg_temp.e('v'))),
+    pg_temp.supprimer('t_chef', '1', v_v) || ' / ' || pg_temp.calcul(format($q$select titre_id::text from public.affectations where lower(email) = lower(%L) and role = 'direction'$q$, pg_temp.e('v'))),
     'OK supprime / ' || v_r);
   -- Avant la migration 7 : t_dirs le supprime. Après (D1, niveau centre sans centre : le siège fixe seul) : t_dirs est refusé, puis le
   -- siège le supprime ; un seul contrôle dans les deux états.

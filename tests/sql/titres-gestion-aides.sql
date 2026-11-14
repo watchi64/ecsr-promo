@@ -76,8 +76,9 @@ returns text language sql as $tgef$
 $tgef$;
 
 -- Un retour joué en propriétaire dans une sous-transaction TOUJOURS annulée : « passe » (puis une levée défait tout ce qu'il a fait)
--- ou « ERREUR <état> <message> ». apres : l'état des fonctions juste après le retour, pris avant l'annulation (un retour qui passe le
--- change ; un retour refusé le laisse). p_retirer : les affectations des titres non fixes partent d'abord (dans la même sous-transaction,
+-- ou « ERREUR <état> <message> ». apres : l'état des fonctions juste après le retour, pris avant l'annulation quand il passe (il le
+-- change) ; quand il est refusé, pris après l'annulation de la sous-transaction, donc toujours l'état de départ, où que soit la garde
+-- dans le texte (sa place se contrôle à part, sur le texte, dans pg_temp.groupe_d5). p_retirer : les affectations des titres non fixes partent d'abord (dans la même sous-transaction,
 -- donc annulées elles aussi). Rien ne reste : les personnages gardent leurs titres pour les groupes suivants.
 create or replace function pg_temp.essayer_retour(p_texte text, p_fonctions text[], p_retirer boolean,
   out etat text, out apres text, out retirees integer)
@@ -111,8 +112,15 @@ declare
   v_n integer;
   v_avant text;
   r record;
+  v_premieres text[];
 begin
   perform pg_temp.proprio();
+  -- 0. La garde est la première instruction qui agit : hors lignes vides et commentaires, le texte commence par le lock_timeout (qui ne
+  --    change aucun état) puis par le bloc de la garde (délimiteur écrit en morceaux : il ne doit pas figurer tel quel dans ce fichier).
+  v_premieres := array(select s.l from (select btrim(x) as l, n from unnest(string_to_array(p_texte, E'\n')) with ordinality u(x, n)) s
+                        where s.l <> '' and s.l not like '--%' order by s.n limit 2);
+  perform pg_temp.attendre('d5', p_nom || ' : la garde D5 est la première instruction qui agit (seul le lock_timeout la précède)',
+    array_to_string(v_premieres, ' | '), 'set local lock_timeout = ''3s''; | do $' || 'garde_d5' || '$');
   select count(*) into v_n from public.affectations a join public.titres t on t.id = a.titre_id where not t.fixe;
   perform pg_temp.verifier('d5', 'départ : des affectations portent un titre non fixe (jamais un contrôle à vide)', v_n > 0, v_n::text);
   v_avant := pg_temp.etat_des_fonctions(p_fonctions);
@@ -122,7 +130,7 @@ begin
   perform pg_temp.attendre('d5', p_nom || ' joué tant qu''un titre non fixe est porté : refusé avec la phrase D5', r.etat,
     format('ERREUR P0001 %s : %s affectation(s) portent un titre non fixe ; les retirer d''abord (page Équipe ou Directions de centre) ; rien n''est changé',
       p_prefixe, v_n));
-  perform pg_temp.attendre('d5', p_nom || ' refusé : définitions des fonctions et index inchangés (md5)', r.apres, v_avant);
+  perform pg_temp.attendre('d5', p_nom || ' refusé : la sous-transaction annulée, définitions et index sont ceux de départ (md5)', r.apres, v_avant);
   -- 2. Les affectations des titres non fixes retirées (en propriétaire), le même retour passe et défait la migration.
   select * into r from pg_temp.essayer_retour(p_texte, p_fonctions, true);
   perform pg_temp.attendre('d5', 'retirer_titres_non_fixes() puis ' || p_nom || ' : passe, après le retrait de toutes les affectations',

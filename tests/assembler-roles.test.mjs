@@ -1303,6 +1303,7 @@ test("les fichiers de l'étape 3 (gabarit, aides, base locale) : aucun tiret cad
   const restes = ["20261114_autonomie_2_version.sql", "for f in 20261114_restes_1_conditions 20261114_restes_2_truncate; do"].map((x) => script.indexOf(x));
   assert.ok(restes.every((x) => x >= 0) && restes[0] < restes[1], "restes_1 puis restes_2, après l'e-learning");
   assert.match(script, /if \[ "\$PRODUCTION" = 1 \]; then\n  for f in 20261114_restes_1_conditions 20261114_restes_2_truncate; do/, "les restes avec --production seulement");
+  assert.match(script, /done\nfi\n(?:#[^\n]*\n)+if \[ "\$PRODUCTION" = 1 \]; then\n  \$P -1 -f "\$MIGRATIONS\/20261114_jury_resultats\.sql"/, "puis le jury, avec --production seulement");
 });
 
 test("la preuve de la suite : l'aiguillage des groupes (sort_du_groupe) couvre chaque cas, contrôlé au groupe structure à chaque jeu", () => {
@@ -1434,6 +1435,9 @@ test("garde D5 : les retours 6 et 7 commencent, juste après le lock_timeout, pa
     assert.ok(garde.includes(`raise exception '${prefixe} : % affectation(s) portent un titre non fixe ; les retirer d''abord (page Équipe ou Directions de centre) ; rien n''est changé', v_n;`),
       `${chemin} : phrase D5`);
     assert.equal(t.split("$garde_d5$").length - 1, 2, `${chemin} : une seule garde D5`);
+    const verrou = garde.indexOf("lock table public.affectations in share mode;");
+    assert.ok(verrou > 0 && verrou < garde.indexOf("select count(*) into v_n"), `${chemin} : affectations verrouillée avant le compte`);
+    assert.ok(t.includes(`-- À appliquer en une seule transaction : psql -1 -v ON_ERROR_STOP=1 -f ${chemin}.`), `${chemin} : en-tête psql -1`);
   }
   // Les deux preuves jouent le groupe d5 commun (aides de gestion) avant le retrait des titres non fixes.
   const aides = texteDuDepot(AIDES_GESTION);

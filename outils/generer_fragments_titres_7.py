@@ -15,6 +15,8 @@
 # titres_version_unique et sa garde sont écrits à la main dans la migration, hors du bloc généré.
 # Partie C (M4, M5, M7) : donner_titre (fiche formateur et is_admin au seul titre fixe Formateur), creer_titre et ajuster_titre (un nom ne
 # reprend pas celui d'un titre de l'autre portée), en fragments, dans le même bloc.
+# Garde D5 du retour (verrou partagé sur affectations, refus tant qu un titre non fixe est porté) : écrite à la main en tête du retour,
+# juste après le lock_timeout, hors du bloc généré.
 import pathlib
 import re
 import sys

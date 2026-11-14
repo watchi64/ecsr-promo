@@ -2,6 +2,7 @@
 -- l'état d'avant la migration (empreinte des règles, des fonctions et des droits identique). Les titres non fixes, leur verrou et les
 -- versions de centre créés entre-temps ne sont pas défaits : la ligne du verrou est effacée, les titres restent (une table que la
 -- migration 1 a créée) ; seul le retour 1 les efface.
+-- À appliquer en une seule transaction : psql -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261112_titres_6_gestion_retour.sql.
 set local lock_timeout = '3s';
 
 -- D5 (décision de Timy du 12/11, ajoutée à l'étape 3) : tant qu'une personne porte un titre non fixe, le retour s'arrête ici, avant tout
@@ -11,6 +12,8 @@ do $garde_d5$
 declare
   v_n integer;
 begin
+  -- Verrou partagé tenu jusqu'à la fin de la transaction : aucun don ni retrait ne passe entre le compte et la fin du retour.
+  lock table public.affectations in share mode;
   select count(*) into v_n from public.affectations a join public.titres t on t.id = a.titre_id where not t.fixe;
   if v_n > 0 then
     raise exception 'titres_6_gestion_retour : % affectation(s) portent un titre non fixe ; les retirer d''abord (page Équipe ou Directions de centre) ; rien n''est changé', v_n;

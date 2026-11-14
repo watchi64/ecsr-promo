@@ -1,6 +1,8 @@
 # Génère le bloc de fragments de 20261112_titres_6_gestion.sql (argument aller) et de son retour (argument retour) à partir d un seul
 # tableau (fonction, [(ancien, nouveau), ...]) ; le retour est l aller avec anciens et nouveaux échangés. Si l un change, régénérer
 # l autre : coller la sortie à la place du bloc do $migration$ de chaque fichier. Usage : python outils/generer_fragments_titres_6.py aller|retour
+# Hors du bloc, écrits à la main dans le retour : l en-tête (à jouer par psql -1 -v ON_ERROR_STOP=1) et, juste après le lock_timeout,
+# la garde D5 de l étape 3 (verrou partagé sur affectations, puis refus tant qu un titre non fixe est porté) ; la sortie ne les touche pas.
 # Une fonction absente arrête la migration (rien n est changé) : retirer_titre existe depuis la migration 5, que la 6 demande.
 # Partie B : retirer_titre cesse de ne retirer que les titres fixes. La ligne « Ce titre ne se retire pas encore ici » et les trois contrôles
 # de la migration 5 (droit, jamais sur soi) laissent la place à l aide _refus_titre, la même que pour donner (les phrases des titres fixes

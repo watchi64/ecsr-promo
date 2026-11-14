@@ -9,6 +9,8 @@ do $garde_d5$
 declare
   v_n integer;
 begin
+  -- Verrou partagé tenu jusqu'à la fin de la transaction : aucun don ni retrait ne passe entre le compte et la fin du retour.
+  lock table public.affectations in share mode;
   select count(*) into v_n from public.affectations a join public.titres t on t.id = a.titre_id where not t.fixe;
   if v_n > 0 then
     raise exception 'titres_7_correctifs_retour : % affectation(s) portent un titre non fixe ; les retirer d''abord (page Équipe ou Directions de centre) ; rien n''est changé', v_n;
