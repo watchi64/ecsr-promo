@@ -289,14 +289,15 @@ export function gestesSurPersonne({ cases = null, directionFixe = false, personn
 // Les gestes de la section « Titres du centre » sur UN titre vu depuis un centre : `ajustable` (l'identifiant est dans
 // titres_ajustables), `peutGerer` (Équipe sur « Modifier »). Un titre fixe ne s'ajuste ni ne se supprime ; « Supprimer » seulement pour
 // un titre de CE centre, ajustable et sans porteur : un titre du réseau ne se supprime pas depuis un centre (supprimer_titre le juge
-// sans centre).
+// sans centre) ; depuis le réseau (lieuId nul, page Directions de centre du siège), seulement un titre du réseau.
 export function gestesSurTitre({ titre, lieuId, ajustable = false, peutGerer = false } = {}) {
   const t = titre || {};
   const fixe = t.fixe === true;
   return {
     ajuster: !fixe && ajustable === true,
     creer: peutGerer === true,
-    supprimer: !fixe && ajustable === true && lieuId != null && t.lieu_id === lieuId && !(t.porteurs > 0),
+    // Vu du réseau (lieuId nul), seul un titre du réseau (sans centre) peut se supprimer ; vu d'un centre, seulement un titre de ce centre.
+    supprimer: !fixe && ajustable === true && (lieuId == null ? t.lieu_id == null : t.lieu_id === lieuId) && !(t.porteurs > 0),
   };
 }
 

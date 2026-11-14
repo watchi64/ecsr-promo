@@ -248,6 +248,59 @@ test("pastillesDuProfil : l'adresse se compare sans tenir compte de la casse, et
   assert.equal(lib(pastillesDuProfil({ profil: { email: "d@x.fr", role: "stagiaire", stagiaire_id: 3 }, roles })), "stagiaire");
 });
 
+// Titres et droits à la carte (Task 32) : les pastilles viennent des titres lus pour la promo affichée.
+const ligneTitre = (email, titre_nom, niveau, promo_ids = null) => ({ email, titre_id: 1, titre_nom, niveau, lieu_id: 1, promo_ids });
+
+test("pastillesDuProfil par titres : les titres fixes gardent leur libellé d'avant", () => {
+  const titres = [ligneTitre("f@x.fr", "Formateur", "promo", [1]), ligneTitre("d@x.fr", "Direction de centre", "centre")];
+  assert.equal(lib(pastillesDuProfil({ profil: formateurSimple, roles, titres })), "formateur");
+  assert.equal(lib(pastillesDuProfil({ profil: comptePersonnel, roles, titres })), "direction");
+  assert.equal(pastillesDuProfil({ profil: comptePersonnel, roles, titres })[0].classe, "prof");
+});
+
+test("pastillesDuProfil par titres : un autre titre se dit par son nom, deux titres font deux pastilles", () => {
+  const titres = [
+    ligneTitre("f@x.fr", "Intervenant", "promo", [1]),
+    ligneTitre("d@x.fr", "Secrétariat", "centre"), ligneTitre("d@x.fr", "Intervenant", "promo", [1, 2]),
+  ];
+  assert.equal(lib(pastillesDuProfil({ profil: formateurSimple, titres })), "Intervenant");
+  assert.equal(lib(pastillesDuProfil({ profil: comptePersonnel, titres })), "Secrétariat+Intervenant");
+  // Un même titre lu sur deux lignes ne fait qu'une pastille.
+  const deux = [ligneTitre("f@x.fr", "Formateur", "promo", [1]), ligneTitre("F@x.fr", "Formateur", "promo", [2])];
+  assert.equal(lib(pastillesDuProfil({ profil: formateurSimple, titres: deux })), "formateur");
+});
+
+test("pastillesDuProfil par titres : un compte du siège (aucune ligne de titre) garde « siège » par roles", () => {
+  const titres = [ligneTitre("f@x.fr", "Formateur", "promo", [1])];
+  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "s@x.fr" }, roles, titres })), "siège");
+  // Siège et titre de la promo : le siège ne perd pas sa pastille, le titre s'y ajoute.
+  const avecTitre = [...titres, ligneTitre("s@x.fr", "Intervenant", "promo", [1])];
+  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "s@x.fr" }, roles, titres: avecTitre })), "siège+Intervenant");
+});
+
+test("pastillesDuProfil par titres : un compte du personnel sans titre garde l'étiquette d'aujourd'hui, un stagiaire reste stagiaire", () => {
+  const titres = [ligneTitre("autre@x.fr", "Formateur", "promo", [1])];
+  assert.equal(lib(pastillesDuProfil({ profil: formateurSimple, roles, titres })), "formateur");
+  assert.equal(lib(pastillesDuProfil({ profil: comptePersonnel, roles, titres })), "direction");
+  const dessus = [ligneTitre("e@x.fr", "Intervenant", "promo", [1])];
+  assert.equal(lib(pastillesDuProfil({ profil: { email: "e@x.fr", role: "stagiaire", stagiaire_id: 3 }, roles, titres: dessus })), "stagiaire");
+});
+
+test("pastillesDuProfil par titres : titres non lus (nul ou absent), la sortie d'aujourd'hui", () => {
+  for (const titres of [null, undefined, "x"]) {
+    assert.equal(lib(pastillesDuProfil({ profil: comptePersonnel, roles, titres })), "direction");
+    assert.equal(lib(pastillesDuProfil({ profil: formateurSimple, roles, titres })), "formateur");
+  }
+});
+
+test("listeAcces par titres : la liste garde les mêmes personnes et se trie sur la première pastille", () => {
+  const profils = [{ email: "z@x.fr", role: "stagiaire" }, { email: "f@x.fr", role: "prof" }, { email: "d@x.fr", role: "prof" }];
+  const titres = [ligneTitre("f@x.fr", "Intervenant", "promo", [1]), ligneTitre("d@x.fr", "Direction de centre", "centre")];
+  const sortie = listeAcces({ profils, roles, titres });
+  assert.equal(sortie.length, 3);
+  assert.deepEqual(sortie.map((l) => lib(l.pastilles)), ["direction", "Intervenant", "stagiaire"]);
+});
+
 test("listeAcces : triée par premier rôle affiché puis par adresse, sans changer qui figure dans la liste", () => {
   const profils = [
     { email: "z@x.fr", role: "stagiaire" }, { email: "s@x.fr", role: "prof" }, { email: "b@x.fr", role: "prof" },

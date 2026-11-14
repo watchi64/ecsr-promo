@@ -73,6 +73,14 @@ test("gestesSurTitre : « Supprimer » absent d'un titre du catalogue vu depuis 
   assert.deepEqual(gestesSurTitre({ titre: duCentre, lieuId: 1, ajustable: true, peutGerer: false }), { ajuster: true, creer: false, supprimer: true });
 });
 
+test("gestesSurTitre vu du réseau (lieuId nul) : « Supprimer » pour un titre du réseau non porté, jamais pour un titre de centre", () => {
+  const duReseau = { id: 8, nom: "Qualité", niveau: "reseau", lieu_id: null, fixe: false, porteurs: 0 };
+  assert.deepEqual(gestesSurTitre({ titre: duReseau, lieuId: null, ajustable: true, peutGerer: true }), { ajuster: true, creer: true, supprimer: true });
+  assert.equal(gestesSurTitre({ titre: { ...duReseau, porteurs: 1 }, lieuId: null, ajustable: true, peutGerer: true }).supprimer, false, "porté");
+  assert.equal(gestesSurTitre({ titre: { ...duReseau, lieu_id: 1 }, lieuId: null, ajustable: true, peutGerer: true }).supprimer, false, "titre d'un centre");
+  assert.equal(gestesSurTitre({ titre: { ...duReseau, fixe: true }, lieuId: null, ajustable: true, peutGerer: true }).supprimer, false, "fixe");
+});
+
 test("la page n'offre « Supprimer » que par gestesSurTitre", () => {
   const page = lire("js/views/direction-equipe.js");
   assert.ok(/droits\.supprimer/.test(page));

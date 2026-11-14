@@ -13,6 +13,7 @@ import {
   getPromoCourante, renommerPromo,
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
+  lirePersonnesEtTitres, lireTitresVisibles, donnerTitre, lireTitresOuverts, reglerTitresOuverts,
   setMyAnonymousNotes,
 } from "../db.js?v=20261114f";
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261114f";
@@ -30,8 +31,95 @@ import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-ru
 import { blocHabillage } from "../habillage-choix.js?v=20261114f";
 import { nomBenevole } from "../planning-lecture.js?v=20261114f";
 import { dateFr } from "../dates.js?v=20261114f";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261114f";
 
 // ====== SECTION Accès & invitations ======
+
+const DELAI_TITRE_MS = 15000;
+
+// Donne un titre du réseau à une adresse (donner_titre, sans centre) : adresse valide, titre choisi, délai de 15 s, le refus de la base
+// dit par sa phrase, le bouton remis en état. `apres()` relit la page après un don accepté.
+async function donnerUnTitreDuReseau({ bouton, libelle, emailInput, titreId, apres }) {
+  const email = emailInput.value.trim().toLowerCase();
+  if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("E-mail invalide", "error"); return; }
+  if (!Number.isInteger(titreId)) { toast("Choisissez un titre.", "error"); return; }
+  const remettre = () => {
+    bouton.disabled = false;
+    bouton.textContent = "";
+    bouton.appendChild(icon.plus());
+    bouton.appendChild(document.createTextNode(libelle));
+  };
+  bouton.disabled = true;
+  bouton.textContent = "Envoi…";
+  let minuteur;
+  try {
+    const r = await Promise.race([
+      donnerTitre({ email, titreId, lieuId: null }),
+      new Promise((_, rejet) => {
+        minuteur = setTimeout(() => rejet(Object.assign(new Error("Délai dépassé (15 s). Réseau lent : réessayez dans un instant."), { phrase: true })), DELAI_TITRE_MS);
+      }),
+    ]);
+    toast(r && r.cree ? "Compte créé. La personne crée son mot de passe avec cette adresse, onglet Créer mon compte." : "Titre donné.", "success", 6000);
+    emailInput.value = "";
+    if (apres) apres();
+  } catch (e) {
+    toast(e && e.phrase === true ? e.message : phraseDeRefus(e?.message, e?.code), "error", 6000);
+  } finally {
+    clearTimeout(minuteur);
+    remettre();
+  }
+}
+
+// « Titres à la carte » : le verrou des titres non fixes (fondateur hors aperçu seul). L'état se lit (titres_ouverts) ; le bouton le
+// change après confirmation (regler_titres_ouverts). Lecture impossible : la phrase le dit, un bouton relit. Le verrou ne gouverne que
+// le don : un titre déjà donné garde ses droits, ouvert ou fermé.
+const PHRASE_OUVRIR_TITRES = "Les titres autres que Formateur, Direction de centre et Siège pourront être donnés. Les conditions d'utilisation qui les décrivent doivent être en ligne.";
+const PHRASE_FERMER_TITRES = "Les titres autres que Formateur, Direction de centre et Siège ne pourront plus être donnés. Ceux qui l'ont déjà été gardent leurs droits.";
+async function renderTitresCarteSection(rerender) {
+  if (!fondateurHorsApercu()) return null;
+  let ouvert = null;
+  try { ouvert = await lireTitresOuverts(); } catch (e) { console.warn("verrou des titres", e); }
+  const section = el("section", { class: "param-section", id: "param-titres-carte" });
+  section.appendChild(el("div", { class: "param-section-head" },
+    el("div", { class: "param-icon" }, icon.shield()),
+    el("div", {},
+      el("h3", {}, "Titres à la carte"),
+      el("p", { class: "muted" }, "Réglage réservé au fondateur, pour tout le réseau."))));
+  const bloc = el("div", { class: "param-block" });
+  if (ouvert == null) {
+    bloc.appendChild(el("p", { class: "muted", role: "alert" }, "L'état du verrou n'a pas pu être lu."));
+    bloc.appendChild(el("button", { class: "btn small", type: "button", onClick: () => rerender() }, "Réessayer"));
+    section.appendChild(bloc);
+    return section;
+  }
+  bloc.appendChild(el("p", { class: "muted" },
+    "Formateur, Direction de centre et Siège se donnent toujours. Les autres titres (Secrétariat, Intervenant, ceux que les centres créent) "
+    + "ne se donnent que lorsque le verrou est ouvert."));
+  bloc.appendChild(el("p", { id: "titres-carte-etat" }, el("strong", {}, ouvert ? "Titres à la carte ouverts" : "Titres à la carte fermés")));
+  const bouton = el("button", { class: ouvert ? "btn" : "btn accent", type: "button" }, ouvert ? "Fermer" : "Ouvrir les titres à la carte");
+  bouton.addEventListener("click", async () => {
+    if (bouton.disabled) return;
+    const oui = await confirmer({
+      titre: ouvert ? "Fermer les titres à la carte ?" : "Ouvrir les titres à la carte ?",
+      phrase: ouvert ? PHRASE_FERMER_TITRES : PHRASE_OUVRIR_TITRES,
+      oui: ouvert ? "Fermer" : "Ouvrir", danger: false,
+    });
+    if (!oui) return;
+    bouton.disabled = true;
+    try {
+      const etat = await reglerTitresOuverts(!ouvert);
+      toast(etat ? "Titres à la carte ouverts." : "Titres à la carte fermés.", "success", 5000);
+      rerender();
+    } catch (e) {
+      console.warn("verrou des titres refusé", e && e.message);
+      toast(phraseDeRefus(e?.message, e?.code), "error", 7000);
+      bouton.disabled = false;
+    }
+  });
+  bloc.appendChild(bouton);
+  section.appendChild(bloc);
+  return section;
+}
 
 async function renderAccessSection(rerender) {
   const admin = isAdmin();
@@ -51,10 +139,17 @@ async function renderAccessSection(rerender) {
   ));
 
   // Le vrai rôle des comptes direction et siège : une simple étiquette, sa lecture ratée laisse l'affichage d'avant, sans message.
-  let [profiles, stagiaires, profs, rolesPersonnel] = await Promise.all([
+  // Les titres de la promo affichée (personnes_et_titres) : le titre de chacun, nul quand la lecture a échoué (l'affichage d'avant).
+  // Ils ne disent pas les titres du réseau : un compte du siège garde sa pastille par les rôles. Les titres du réseau qu'on peut donner
+  // (titres_visibles du réseau) servent à l'invitation du fondateur ; nuls, l'invitation d'avant (« Siège ») reste.
+  const promoId = getPromoCourante()?.id ?? null;
+  let [profiles, stagiaires, profs, rolesPersonnel, titresPromo, titresReseau] = await Promise.all([
     listUserProfiles(), listStagiaires(), listProfs(),
     lireRolesDuPersonnel().catch((e) => { console.warn("rôles du personnel", e); return null; }),
+    promoId == null ? null : lirePersonnesEtTitres({ promoId }).catch((e) => { console.warn("titres de la promo", e); return null; }),
+    fondateurHorsApercu() ? lireTitresVisibles(null).catch((e) => { console.warn("titres du réseau", e); return null; }) : null,
   ]);
+  const donnablesReseau = Array.isArray(titresReseau) ? titresReseau.filter((t) => t.niveau === "reseau" && t.donnable) : null;
 
   // === Form d'invitation (admin ou direction) ===
   if (peutInviter) {
@@ -62,6 +157,7 @@ async function renderAccessSection(rerender) {
     inviteBlock.appendChild(el("h4", {}, "Autoriser une personne"));
     const phraseHabituelle = "Choisissez le rôle et la personne, entrez son adresse e-mail. Aucun e-mail n'est envoyé : vous lui partagez l'URL vous-même, puis elle crée son compte avec cette adresse et un mot de passe.";
     // Le siège n'a pas de personne à choisir : la phrase ne la mentionne plus.
+    const phraseReseau = "Choisissez le titre et entrez l'adresse e-mail de la personne qui rejoint le réseau. Aucun e-mail n'est envoyé : vous lui partagez l'URL vous-même, puis elle crée son compte avec cette adresse et un mot de passe.";
     const phraseSiege = "Entrez l'adresse e-mail de la personne qui rejoint le siège du réseau. Aucun e-mail n'est envoyé : vous lui partagez l'URL vous-même, puis elle crée son compte avec cette adresse et un mot de passe.";
     const aideInvitation = el("p", { class: "muted" }, phraseHabituelle);
     inviteBlock.appendChild(aideInvitation);
@@ -72,8 +168,10 @@ async function renderAccessSection(rerender) {
     [
       { v: "stagiaire", l: "Stagiaire" },
       ...(peutFormateur ? [{ v: "prof", l: "Formateur" }] : []),
-      // Le siège du réseau : le fondateur seul, hors aperçu (la base le vérifie aussi, inviter_compte). Aucune fiche à lier.
-      ...(fondateurHorsApercu() ? [{ v: "siege", l: "Siège" }] : []),
+      // Un titre du réseau (le Siège et ceux du catalogue au niveau réseau) : le fondateur seul, hors aperçu (la base le vérifie aussi,
+      // donner_titre). Aucune fiche à lier. Titres du réseau non lus : l'invitation d'avant, « Siège » par inviter_compte.
+      ...(fondateurHorsApercu() && donnablesReseau && donnablesReseau.length ? [{ v: "reseau", l: "Titre du réseau" }]
+        : fondateurHorsApercu() ? [{ v: "siege", l: "Siège" }] : []),
     ].forEach((o) => roleSel.appendChild(el("option", { value: o.v }, o.l)));
 
     const personSel = el("select", { class: "invite-person", "aria-label": "Personne invitée" });
@@ -83,7 +181,15 @@ async function renderAccessSection(rerender) {
       const role = roleSel.value;
       // Le siège n'est lié à aucune fiche : le choix de la personne disparaît, l'adresse suffit.
       libellePersonne.hidden = personSel.hidden = role === "siege";
-      aideInvitation.textContent = role === "siege" ? phraseSiege : phraseHabituelle;
+      aideInvitation.textContent = role === "siege" ? phraseSiege : role === "reseau" ? phraseReseau : phraseHabituelle;
+      libellePersonne.textContent = role === "reseau" ? "Titre" : "Personne";
+      personSel.setAttribute("aria-label", role === "reseau" ? "Titre du réseau" : "Personne invitée");
+      if (role === "reseau") {
+        // Les titres du réseau qu'on a le droit de donner : le Siège d'abord, puis le catalogue.
+        donnablesReseau.slice().sort((x, y) => Number(y.fixe === true) - Number(x.fixe === true) || x.nom.localeCompare(y.nom, "fr"))
+          .forEach((t) => personSel.appendChild(el("option", { value: String(t.id) }, t.nom)));
+        return;
+      }
       if (role === "siege") return;
       personSel.appendChild(el("option", { value: "" }, "Choisir…"));
       const list = role === "stagiaire" ? stagiaires : profs;
@@ -114,10 +220,16 @@ async function renderAccessSection(rerender) {
     const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email", "aria-label": "Adresse e-mail" });
 
     const sendBtn = el("button", { class: "btn accent" }, icon.plus(), libelleAjout);
-    sendBtn.addEventListener("click", () => envoyerInvitation({
-      bouton: sendBtn, libelle: libelleAjout, emailInput, personId: personSel.value ? Number(personSel.value) : null,
-      role: roleSel.value, apres: rerender,
-    }));
+    sendBtn.addEventListener("click", () => {
+      if (roleSel.value === "reseau") {
+        donnerUnTitreDuReseau({ bouton: sendBtn, libelle: libelleAjout, emailInput, titreId: Number(personSel.value), apres: rerender });
+        return;
+      }
+      envoyerInvitation({
+        bouton: sendBtn, libelle: libelleAjout, emailInput, personId: personSel.value ? Number(personSel.value) : null,
+        role: roleSel.value, apres: rerender,
+      });
+    });
 
     function restoreBtnInitial() {
       sendBtn.disabled = false;
@@ -149,7 +261,7 @@ async function renderAccessSection(rerender) {
     listBlock.appendChild(el("p", { class: "muted" }, "Personne pour l'instant. Invitez quelqu'un ci-dessus."));
   } else {
     const list = el("ul", { class: "admin-list" });
-    listeAcces({ profils: profiles, roles: rolesPersonnel })
+    listeAcces({ profils: profiles, roles: rolesPersonnel, titres: titresPromo })
       .forEach(({ profil: p, pastilles }) => {
         let who = "";
         if (p.stagiaire_id) {
@@ -159,8 +271,8 @@ async function renderAccessSection(rerender) {
           const pr = profs.find((x) => x.id === p.prof_id);
           if (pr) who = pr.nom;
         }
-        // Les pastilles disent le rôle (pastillesDuProfil). La colonne is_admin n'ouvre plus aucun droit en base (titres, M5) : la
-        // pastille « gestion » qu'elle allumait n'est plus montrée ; le titre de chacun viendra de personnes_et_titres.
+        // Les pastilles disent le titre (pastillesDuProfil). La colonne is_admin n'ouvre plus aucun droit en base (titres, M5) : la
+        // pastille « gestion » qu'elle allumait ne revient pas, les pastilles de titre la remplacent.
         const pills = el("div", { class: "role-pills" },
           ...pastilles.map((x) => el("span", { class: "role-pill role-" + x.classe }, x.libelle)),
         );
@@ -583,6 +695,8 @@ async function rerender(container) {
       renderPromoSection(() => rerender(container)),
       renderDonneesSection(() => rerender(container)),
     ]), 12000, titre);
+    // Le verrou des titres non fixes (fondateur seul) : sa lecture ne retient pas la page, son échec se dit dans sa section.
+    const titresCarte = await renderTitresCarteSection(() => rerender(container));
     // La section « Modules de la promo » est construite ICI, après l'attente, et non dans le
     // tableau ci-dessus : elle montre l'état des modules tel qu'il est au moment de son
     // insertion. Construite avant l'attente, elle serait périmée si une écriture se terminait
@@ -608,7 +722,7 @@ async function rerender(container) {
     const grid = el("div", { class: "param-grid" });
     // Ce que voient les stagiaires d'abord (le réglage qui sert le plus), puis la promo et les accès,
     // l'interrupteur du fondateur, les données personnelles, et le renvoi vers Apparence (Mes préférences).
-    [modules, promo, acces, emargement, autonomie, donnees, renderApparenceRenvoi()].filter(Boolean).forEach((s) => grid.appendChild(s));
+    [modules, promo, acces, emargement, autonomie, titresCarte, donnees, renderApparenceRenvoi()].filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
     console.error(titre + " : erreur de chargement", e);

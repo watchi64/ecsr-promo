@@ -149,9 +149,12 @@ export function peutRetirerCompte({ cible, fondateur } = {}) {
 // (`roles` : [{ email, role }] pour les affectations direction et siège, `null` quand la lecture a échoué ou que la fonction
 // manque : l'affichage d'avant, sans message). Un compte du personnel (« formateur » d'après la colonne) qui est direction ou siège
 // perd la pastille « formateur », qu'il ne garde que s'il a une fiche formateur (prof_id) : l'app ne voit pas ses promos de
-// formateur, cette fiche est le seul indice qu'il l'est aussi. Un stagiaire n'est jamais touché. Rend [{ libelle, classe }], la
+// formateur, cette fiche est le seul indice qu'il l'est aussi. Titres et droits à la carte : `titres` (lignes de personnes_et_titres de
+// la promo affichée) donne le titre de chacun ; il passe avant `roles` pour un compte qui en porte un (voir plus bas). Un stagiaire
+// n'est jamais touché. Rend [{ libelle, classe }], la
 // classe étant le suffixe de `role-pill role-…` ; le premier libellé sert au tri. Un « admin » se lit « formateur ».
-export function pastillesDuProfil({ profil, roles } = {}) {
+const LIBELLES_TITRES_FIXES = { Formateur: "formateur", "Direction de centre": "direction" };
+export function pastillesDuProfil({ profil, roles, titres } = {}) {
   if (!profil) return [];
   const brut = String(profil.role ?? "");
   const base = brut === "prof" || brut === "admin" ? "formateur" : brut;
@@ -160,6 +163,22 @@ export function pastillesDuProfil({ profil, roles } = {}) {
   const a = (role) => lignes.some((l) => l && String(l.email ?? "").toLowerCase() === adresse && l.role === role);
   const direction = base === "formateur" && a("direction");
   const siege = base === "formateur" && a("siege");
+  // Titres lus (lignes de personnes_et_titres pour la promo affichée) : un compte du personnel qui en porte un montre ses titres, un
+  // par pastille ; les titres fixes gardent leur libellé d'avant (« formateur », « direction »), un autre titre son nom. Les titres du
+  // réseau ne sont pas dans cette lecture : un compte du siège garde sa pastille « siège » par roles_du_personnel. Aucune ligne pour
+  // ce compte (ou titres non lus) : l'affichage d'avant.
+  const siennes = base === "formateur" && Array.isArray(titres)
+    ? titres.filter((l) => l && String(l.email ?? "").toLowerCase() === adresse && l.titre_nom) : [];
+  if (siennes.length) {
+    const dit = (l) => LIBELLES_TITRES_FIXES[l.titre_nom] || l.titre_nom;
+    const sans = (liste) => [...new Set(liste.map(dit))];
+    const libelles = [
+      ...sans(siennes.filter((l) => l.niveau !== "promo")),
+      ...(siege ? ["siège"] : []),
+      ...sans(siennes.filter((l) => l.niveau === "promo")),
+    ];
+    return [...new Set(libelles)].map((libelle) => ({ libelle, classe: "prof" }));
+  }
   if (!direction && !siege) return [{ libelle: base, classe: brut }];
   return [
     ...(direction ? [{ libelle: "direction", classe: "prof" }] : []),
@@ -170,9 +189,9 @@ export function pastillesDuProfil({ profil, roles } = {}) {
 
 // La liste « Personnes avec accès », triée par premier rôle affiché puis par adresse : [{ profil, pastilles }]. Ne change pas qui y
 // figure.
-export function listeAcces({ profils, roles } = {}) {
+export function listeAcces({ profils, roles, titres } = {}) {
   return (Array.isArray(profils) ? profils : [])
-    .map((profil) => ({ profil, pastilles: pastillesDuProfil({ profil, roles }) }))
+    .map((profil) => ({ profil, pastilles: pastillesDuProfil({ profil, roles, titres }) }))
     .sort((x, y) => (x.pastilles[0]?.libelle ?? "").localeCompare(y.pastilles[0]?.libelle ?? "")
       || String(x.profil.email ?? "").localeCompare(String(y.profil.email ?? "")));
 }

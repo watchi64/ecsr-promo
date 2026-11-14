@@ -423,14 +423,14 @@ function sectionTitres(d, apres) {
 }
 
 // (4) Journal des droits, replié. `journal` : lignes de journal_des_droits, ou nul quand la lecture a échoué.
-function sectionJournal(d) {
+export function sectionJournal(d, titre = "Journal des droits") {
   const nomDe = (email) => d.noms.get(String(email).toLowerCase()) || email;
   let contenu;
   if (d.journal == null) contenu = el("p", { class: "muted", role: "alert" }, PHRASE_JOURNAL_ECHEC);
   else if (!d.journal.length) contenu = el("p", { class: "muted" }, PHRASE_JOURNAL_VIDE);
   else contenu = el("ul", { class: "equipe-journal-liste" }, ...d.journal.map((l) => el("li", {}, phraseJournal(l, nomDe))));
-  return el("section", { class: "centre-section", "aria-label": "Journal des droits" },
-    el("details", { class: "equipe-journal" }, el("summary", {}, "Journal des droits"), contenu));
+  return el("section", { class: "centre-section", "aria-label": titre },
+    el("details", { class: "equipe-journal" }, el("summary", {}, titre), contenu));
 }
 
 // ============================================================== Page
