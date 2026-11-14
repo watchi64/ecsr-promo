@@ -2,11 +2,15 @@
 # Rejoue, sur la base locale reconstruite (reconstruire.sh), les migrations du dépôt postérieures au lot 4, dans l'ordre
 # où la production les a reçues, pour que les preuves SQL se jouent sur un état identique à la production.
 #
-# Usage : outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3[,4][,5][,6]]
+# Usage : outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3[,4][,5][,6]] [--autonomie] [--autonomie-version AAAA-MM-JJ]
 #   --port         port de la base locale (défaut 55435)
 #   --avec-titres  ajoute ensuite les migrations 20261112_titres_1 à _4 (chantier titres et droits à la carte) ; vaut --titres 1,2,3,4
 #   --titres       ajoute ensuite les migrations 20261112_titres_<n>_* dans l'ordre de la liste (la production a reçu 1, 2, 3) ;
 #                  un fichier manquant arrête le script (code 3, son nom sur la sortie d'erreur)
+#   --autonomie    joue ensuite 20261114_autonomie_1_traces (e-learning, lot 1 : en production depuis le 14/11), après les contacts du centre ;
+#                  sortie « OK : suite rejouée (22 migrations) » avec --titres 1,2,3,5,6
+#   --autonomie-version  joue aussi 20261114_autonomie_2_version avec -v version=<date> (date au plus égale à aujourd'hui, ex. 2026-11-14,
+#                  éventuellement suivie d'une lettre minuscule) ; suppose --autonomie, que l'option active
 # Code de sortie : 0 si tout passe ; sinon 3 (le nom du fichier en échec est écrit sur la sortie d'erreur).
 # Note : 20261028_signalements_app n'est pas dans la liste : ses tables sont dans clone_3_tables.sql ; seules ses fonctions sont jouées.
 set -u
@@ -14,6 +18,8 @@ RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PORT=55435
 TITRES=0
 LISTE_TITRES=""
+AUTONOMIE=0
+VERSION_AUTONOMIE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --port) PORT="$2"; shift 2 ;;
@@ -24,6 +30,14 @@ while [ $# -gt 0 ]; do
         *[!0-9,]*|""|,*|*,|*,,*) echo "liste --titres refusée : « $2 » (attendu : 1,2,3)" >&2; exit 2 ;;
       esac
       TITRES=1; LISTE_TITRES="$(echo "$2" | tr ',' ' ')"; shift 2 ;;
+    --autonomie) AUTONOMIE=1; shift ;;
+    --autonomie-version)
+      [ $# -ge 2 ] || { echo "--autonomie-version demande une date (AAAA-MM-JJ)" >&2; exit 2; }
+      case "$2" in
+        [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]|[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][a-z]) ;;
+        *) echo "date --autonomie-version refusée : « $2 » (attendu : AAAA-MM-JJ, éventuellement suivie d'une lettre minuscule)" >&2; exit 2 ;;
+      esac
+      AUTONOMIE=1; VERSION_AUTONOMIE="$2"; shift 2 ;;
     *) echo "argument inconnu : $1" >&2; exit 2 ;;
   esac
 done
@@ -48,6 +62,9 @@ fi
 # Après les titres en production (11/11) : les contacts rattachés à un centre. Indépendante des titres (sa règle restrictive
 # ne cite que lieu_courant()), elle est jouée dans les deux cas.
 LISTE="$LISTE 20261113_contacts_centre 20261113_contacts_centre_2_montpellier"
+# Après les contacts : l'e-learning, lot 1 (20261114_autonomie_1_traces, en production depuis le 14/11 ; fermée tant que la seconde n'est pas
+# jouée). Les tables et fonctions des conditions d'utilisation qu'elle cite sont dans les clones et les migrations déjà jouées.
+if [ "$AUTONOMIE" = 1 ]; then LISTE="$LISTE 20261114_autonomie_1_traces"; fi
 
 # Prérequis : les cinq fonctions de 20261028_signalements_app (signaler_probleme, que le registre qualité appelle, et ses
 # quatre voisines), absentes des clones. On joue la seule partie « fonctions » de la migration (de la section 4 à la fin) :
@@ -62,6 +79,11 @@ for f in $LISTE; do
   $P -1 -f "$MIGRATIONS/$f.sql" || { echo "échec : $f" >&2; exit 3; }
   N=$((N + 1))
 done
+# La version datée des conditions (20261114_autonomie_2_version) : la date se passe par -v version=..., la migration refuse une date future.
+if [ -n "$VERSION_AUTONOMIE" ]; then
+  $P -1 -v "version=$VERSION_AUTONOMIE" -f "$MIGRATIONS/20261114_autonomie_2_version.sql" || { echo "échec : 20261114_autonomie_2_version" >&2; exit 3; }
+  N=$((N + 1))
+fi
 # Droits propres à la production, que les clones ne portent pas (écarts de la base locale constatés le 10/11 et le 11/11) :
 # 1. registre_qualite : en production, service_role y écrit (la preuve du registre le contrôle) ; ici la table naît de la
 #    migration 20261109 sans ce droit, d'où un 42501. Pas de droit général sur les tables : la preuve des questionnaires

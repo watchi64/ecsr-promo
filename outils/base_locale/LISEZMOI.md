@@ -41,7 +41,7 @@ qu'elle fait est annulé. Modes : voir l'en-tête de `outils/assembler_repetitio
 ## Rejouer la suite
 
 ```
-bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3]
+bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3] [--autonomie] [--autonomie-version AAAA-MM-JJ]
 ```
 
 À lancer juste après `reconstruire.sh` : applique, avec `psql -1 -v ON_ERROR_STOP=1`, les quatorze migrations postérieures au
@@ -80,3 +80,18 @@ Sur une base `--titres 1,2,3` (l'état de la production), `node outils/assembler
 la 5, la 4 demande les deux). `gestion-contre-epreuve` (rien d'injecté, ROUGE attendu sur les groupes des migrations 5 et 6) et
 `gestion-en-ligne` (rien d'injecté, après application réelle ; un groupe dont la fonction n'existe pas encore est sauté avec une ligne
 d'information) complètent les modes. Les aides communes à la preuve de l'étape 1 et à celle-ci sont dans `tests/sql/titres-aides.sql`.
+
+## L'e-learning (lot 1) et le chantier « espace contact »
+
+- `--autonomie` joue `20261114_autonomie_1_traces` (en production depuis le 14/11) après les contacts du centre ; `--autonomie-version
+  AAAA-MM-JJ` joue en plus `20261114_autonomie_2_version` avec `-v version=...` (la date ne peut pas être après aujourd'hui) et vaut
+  `--autonomie`. L'état de la production du 14/11 est `--titres 1,2,3,5,6 --autonomie` : sortie `OK : suite rejouée (22 migrations)`
+  (la seconde migration, elle, n'est pas appliquée en production : la compter une de plus, 23, si on la demande).
+- Les preuves du chantier « espace contact » se jouent par `node outils/assembler_repetition_roles.mjs contact-<n> <sortie.sql>` (n = 1
+  annuaire, 2 demandes, 3 absences) : les migrations `20261115_contact_1_*` à `_n` injectées dans l'ordre, la preuve de la partie n
+  (`tests/sql/contact-annuaire-preuve.sql`, `contact-demandes-preuve.sql`, `contact-absences-preuve.sql`), puis les retours n à 1 (le
+  groupe `retour` compare l'empreinte d'après à celle d'avant). `contact-<n>-contre-epreuve` neutralise la n et son retour (ROUGE
+  attendu sur les seuls contrôles de la partie n), `contact-<n>-en-ligne` n'injecte rien. Une étape demandée dont un fichier manque
+  arrête l'assemblage (code 1, son nom). Les aides communes sont `roles-aides.sql`, `titres-aides.sql` puis `tests/sql/contact-aides.sql`
+  (`pg_temp.poser_contact()` : les personnages de `poser_perso()` et `poser_titres_gestes()` plus `sec_n`, fiche sans compte de Nîmes ;
+  `pg_temp.demi(jour, demi)` : le lundi et le `day_index` d'une demi-journée du planning).

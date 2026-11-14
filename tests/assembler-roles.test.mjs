@@ -1118,3 +1118,130 @@ test("la migration 5 : retirer_titre fermée à public, anon et service_role, ou
   // Le retour 3 refuse de se jouer tant que retirer_titre existe.
   assert.match(texteDuDepot(ETAPES_TITRES[3].retour), /to_regprocedure\('public\.retirer_titre\(text, bigint, integer\)'\) is not null/);
 });
+
+// --- Chantier « espace contact » : modes contact-1, contact-2, contact-3 (et leurs contre-épreuves, et en ligne) ------------------
+
+const CONTACT = {
+  1: { migration: "supabase/migrations/20261115_contact_1_annuaire.sql", retour: "supabase/migrations/20261115_contact_1_annuaire_retour.sql" },
+  2: { migration: "supabase/migrations/20261115_contact_2_demandes.sql", retour: "supabase/migrations/20261115_contact_2_demandes_retour.sql" },
+  3: { migration: "supabase/migrations/20261115_contact_3_absences.sql", retour: "supabase/migrations/20261115_contact_3_absences_retour.sql" },
+};
+const TOUS_CONTACT = [1, 2, 3].flatMap((n) => [CONTACT[n].migration, CONTACT[n].retour]);
+const GABARITS_CONTACT = { 1: "tests/sql/contact-annuaire-preuve.sql", 2: "tests/sql/contact-demandes-preuve.sql", 3: "tests/sql/contact-absences-preuve.sql" };
+const AIDES_CONTACT = "tests/sql/contact-aides.sql";
+// Les migrations de la partie n n'existent qu'avec leurs tâches : des textes factices en mémoire pour juger l'assembleur seul.
+const FACTICES_CONTACT = Object.fromEntries([1, 2, 3].flatMap((n) => [
+  [CONTACT[n].migration, `-- factice : contact migration ${n}\r\nselect ${n};\r\n`],
+  [CONTACT[n].retour, `-- factice : contact retour ${n}\r\nselect -${n};\r\n`]]));
+const depotContact = (chemin) => duDisque(chemin) ?? FACTICES_CONTACT[chemin] ?? null;
+const sansContact = (garde) => (chemin) => (TOUS_CONTACT.includes(chemin) && !garde.includes(chemin) ? null : depotContact(chemin));
+/** L'ordre du gabarit de la partie n : migrations 1 à n, puis retours n à 1. */
+const ordreContact = (n) => [...Array(n).keys()].map((k) => CONTACT[k + 1].migration)
+  .concat([...Array(n).keys()].map((k) => CONTACT[n - k].retour));
+
+test("contact-n : migrations 1 à n puis retours n à 1 injectés octet pour octet, dans l'ordre du gabarit, après l'empreinte", () => {
+  for (const n of [1, 2, 3]) {
+    const r = assemblerMode(`contact-${n}`, RACINE, { lire: depotContact });
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...ordreContact(n)], `contact-${n}`);
+    assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES, AIDES_TITRES, AIDES_CONTACT], `contact-${n} : aides dans l'ordre`);
+    assert.deepEqual(r.neutralises, [], `contact-${n}`);
+    verifierInjections(r, depotContact);
+    assert.equal(r.mode, `contact-${n} (migrations 1 a ${n} injectees)`);
+    assert.ok(r.texte.includes(`\n'contact-${n} (migrations 1 a ${n} injectees)'\n`));
+  }
+});
+
+test("contact-2 : les marqueurs des migrations 1 et 2 dans cet ordre, puis les retours 2 et 1", () => {
+  const r = assemblerMode("contact-2", RACINE, { lire: depotContact });
+  const places = ["contact migration 1", "contact migration 2", "contact retour 2", "contact retour 1"]
+    .map((marque) => r.texte.indexOf(`-- factice : ${marque}`));
+  assert.ok(places.every((p) => p >= 0), "les quatre textes y sont");
+  assert.deepEqual([...places].sort((a, b) => a - b), places, "ordre : migration 1, migration 2, retour 2, retour 1");
+  assert.ok(!r.texte.includes("contact migration 3"), "la 3 n'est pas injectée dans la partie 2");
+});
+
+test("contact-n-contre-epreuve : migrations 1 à n-1 injectées, la n et son retour neutralisés (select 1) et non lus", () => {
+  for (const n of [1, 2, 3]) {
+    const lus = [];
+    const r = assemblerMode(`contact-${n}-contre-epreuve`, RACINE, { lire: (c) => { lus.push(c); return depotContact(c); } });
+    const voulues = ordreContact(n).filter((c) => c !== CONTACT[n].migration && c !== CONTACT[n].retour);
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...voulues], `contact-${n}-contre-epreuve`);
+    assert.deepEqual([...r.neutralises].sort(), [CONTACT[n].migration, CONTACT[n].retour].sort());
+    for (const c of r.neutralises) assert.ok(!lus.includes(c), `${c} neutralisé donc non lu`);
+    assert.equal((r.texte.match(/^\s*'select 1'$/gm) ?? []).length, 2);
+    assert.ok(r.mode.startsWith(`contact-${n}-contre-epreuve`));
+    verifierInjections(r, depotContact);
+  }
+  const deux = assemblerMode("contact-2-contre-epreuve", RACINE, { lire: depotContact });
+  assert.ok(deux.texte.includes("-- factice : contact migration 1") && !deux.texte.includes("-- factice : contact migration 2"));
+});
+
+test("contact-n-en-ligne : rien d'injecté (sauf l'empreinte), tous les fichiers du gabarit neutralisés et non lus, libellé reconnu par préfixe", () => {
+  for (const n of [1, 2, 3]) {
+    const lus = [];
+    const r = assemblerMode(`contact-${n}-en-ligne`, RACINE, { lire: (c) => { lus.push(c); return depotContact(c); } });
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE], `contact-${n}-en-ligne`);
+    assert.deepEqual([...r.neutralises].sort(), [...ordreContact(n)].sort());
+    assert.ok(TOUS_CONTACT.every((c) => !lus.includes(c)), "fichiers du chantier non lus");
+    assert.ok(r.mode.startsWith(`contact-${n}-en-ligne`));
+    assert.ok(!r.mode.startsWith(`contact-${n}-contre`));
+  }
+  // Sans aucun fichier du chantier dans le dépôt, les modes qui n'en demandent aucun s'assemblent.
+  for (const mode of ["contact-3-en-ligne", "contact-1-contre-epreuve", "contact-1-en-ligne", "contact-2-en-ligne"]) {
+    assert.doesNotThrow(() => assemblerMode(mode, RACINE, { lire: sansContact([]) }), mode);
+  }
+});
+
+test("contact-n : un fichier manquant d'une étape demandée arrête l'assemblage en le nommant (migration comme retour)", () => {
+  assert.throws(() => assemblerMode("contact-3", RACINE, { lire: sansContact([CONTACT[1].migration, CONTACT[1].retour, CONTACT[2].migration, CONTACT[2].retour]) }),
+    /Étape 3 demandée \(contact-3\) : supabase\/migrations\/20261115_contact_3_absences\.sql n'existe pas encore/);
+  assert.throws(() => assemblerMode("contact-3", RACINE, { lire: (c) => (c === CONTACT[3].retour ? null : depotContact(c)) }),
+    /Étape 3 demandée \(contact-3\) : supabase\/migrations\/20261115_contact_3_absences_retour\.sql n'existe pas encore/);
+  assert.throws(() => assemblerMode("contact-2", RACINE, { lire: sansContact([CONTACT[2].migration, CONTACT[2].retour]) }),
+    /Étape 1 demandée \(contact-2\) : supabase\/migrations\/20261115_contact_1_annuaire\.sql n'existe pas encore/);
+  // La contre-épreuve de la partie n demande 1 à n-1 seulement.
+  assert.throws(() => assemblerMode("contact-3-contre-epreuve", RACINE, { lire: sansContact([CONTACT[1].migration, CONTACT[1].retour]) }),
+    /Étape 2 demandée \(contact-3-contre-epreuve\)/);
+  assert.doesNotThrow(() => assemblerMode("contact-3-contre-epreuve", RACINE, { lire: sansContact(TOUS_CONTACT.filter((c) => !c.includes("contact_3"))) }));
+});
+
+test("contact-n : --etapes refusé, la ligne de commande écrit hors du dépôt et nomme le fichier manquant", () => {
+  assert.throws(() => decrireMode("contact-1", { etapes: [1] }), /--etapes ne vaut que pour/);
+  const dossier = mkdtempSync(join(tmpdir(), "contact-"));
+  try {
+    const erreurs = [];
+    const sortie = join(dossier, "contact.sql");
+    assert.equal(principal(["contact-2-en-ligne", sortie], { racine: RACINE, journal: () => {}, erreur: (m) => erreurs.push(m) }), 0, erreurs.join("\n"));
+    assert.ok(readFileSync(sortie, "utf8").includes("-- mode : contact-2-en-ligne"));
+    // Tant que les migrations ne sont pas écrites : contact-3 s'arrête (code 1) et nomme le fichier.
+    if (!existsSync(join(RACINE, CONTACT[1].migration))) {
+      const refus = [];
+      assert.equal(principal(["contact-3", join(dossier, "refus.sql")], { racine: RACINE, journal: () => {}, erreur: (m) => refus.push(m) }), 1);
+      assert.match(refus.join("\n"), /20261115_contact_1_annuaire\.sql/);
+    }
+  } finally {
+    rmSync(dossier, { recursive: true, force: true });
+  }
+});
+
+test("les gabarits contact : aides sans marqueur, pas de $$, mode en ligne reconnu par préfixe, adresses fictives, aucun délimiteur partagé avec les migrations", () => {
+  assert.ok(!/@@(?:INJECTER|INCLURE|MODE)/.test(texteDuDepot(AIDES_CONTACT)), "contact-aides.sql ne porte aucun marqueur");
+  for (const n of [1, 2, 3]) {
+    const gabarit = texteDuDepot(GABARITS_CONTACT[n]);
+    assert.ok(!/\$\$/.test(gabarit), `partie ${n} : pas de $$`);
+    const m = /v_en_ligne := v_mode like '([^'%]*)%'/.exec(gabarit);
+    assert.ok(m && decrireMode(`contact-${n}-en-ligne`).mode.startsWith(m[1]), `partie ${n} : préfixe du mode en ligne`);
+    const adresses = gabarit.match(/[\w.+-]+@[\w.-]+\.[a-z]+/g) ?? [];
+    for (const adresse of adresses) assert.ok(adresse.endsWith("@exemple.invalid"), `adresse fictive : ${adresse}`);
+    const delimiteurs = new Set(gabarit.match(/\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/g));
+    for (const chemin of TOUS_CONTACT.filter((c) => existsSync(join(RACINE, c)))) {
+      for (const d of delimiteurs) assert.ok(!texteDuDepot(chemin).includes(d), `${chemin} : ${d} figure aussi dans le gabarit`);
+    }
+    assert.ok(!gabarit.includes(String.fromCharCode(0x2014)), "aucun tiret cadratin");
+    assert.ok(!gabarit.includes("\r"), "fins de ligne LF");
+  }
+  const aides = texteDuDepot(AIDES_CONTACT);
+  const adresses = aides.match(/[\w.+-]+@[\w.-]+\.[a-z]+/g) ?? [];
+  assert.ok(adresses.length > 0 && adresses.every((a) => a.endsWith("@exemple.invalid")));
+  assert.ok(!aides.includes(String.fromCharCode(0x2014)));
+});

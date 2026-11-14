@@ -54,6 +54,14 @@
 //                              groupe qui dépend de la migration 5 ou 6 ;
 //   gestion-en-ligne           la même sans rien d'injecté, après l'application réelle (un groupe dont la fonction manque est
 //                              sauté, avec une ligne d'information).
+//   contact-1, contact-2, contact-3   preuve de la partie n du chantier « espace contact » (tests/sql/contact-annuaire-preuve.sql,
+//                              contact-demandes-preuve.sql, contact-absences-preuve.sql ; aides communes : roles-aides.sql, titres-aides.sql
+//                              puis contact-aides.sql) : les migrations 20261115_contact_1 à _n injectées dans l'ordre, la preuve de la
+//                              partie n jouée, puis les retours n à 1 ; le groupe retour compare l'empreinte d'après les retours à celle
+//                              d'avant ; une étape demandée dont un fichier manque arrête l'assemblage (code 1, son nom) ;
+//   contact-n-contre-epreuve   la même preuve avec les migrations 1 à n-1 injectées, la n et son retour neutralisés (select 1, non lus) :
+//                              ROUGE attendu sur les seuls contrôles de la partie n ;
+//   contact-n-en-ligne         la même sans rien d'injecté, après l'application réelle des migrations 1 à n.
 //
 // Option --compact (tous les modes) : retire du gabarit et des aides les lignes vides et les lignes de commentaire, pour
 // une requête plus courte à transmettre (R27). Les textes injectés (migrations, retours, requête d'empreinte) restent
@@ -79,6 +87,22 @@ const GABARIT_ESPACES = "tests/sql/espaces-preuve.sql";
 const GABARIT_DONNEES = "tests/sql/espaces-donnees-preuve.sql";
 const GABARIT_TITRES = "tests/sql/titres-preuve.sql";
 const GABARIT_GESTION = "tests/sql/titres-gestion-preuve.sql";
+
+/** Chantier « espace contact » : trois migrations (annuaire, demandes, absences), chacune avec son retour, et la preuve de chaque partie. */
+export const ETAPES_CONTACT = {
+  1: { migration: "supabase/migrations/20261115_contact_1_annuaire.sql",
+       retour: "supabase/migrations/20261115_contact_1_annuaire_retour.sql",
+       gabarit: "tests/sql/contact-annuaire-preuve.sql" },
+  2: { migration: "supabase/migrations/20261115_contact_2_demandes.sql",
+       retour: "supabase/migrations/20261115_contact_2_demandes_retour.sql",
+       gabarit: "tests/sql/contact-demandes-preuve.sql" },
+  3: { migration: "supabase/migrations/20261115_contact_3_absences.sql",
+       retour: "supabase/migrations/20261115_contact_3_absences_retour.sql",
+       gabarit: "tests/sql/contact-absences-preuve.sql" },
+};
+const NUMEROS_CONTACT = [1, 2, 3];
+/** Les fichiers d'une liste d'étapes du chantier contact, étape par étape : la migration, puis son retour. */
+const fichiersContact = (etapes) => etapes.flatMap((n) => [ETAPES_CONTACT[n].migration, ETAPES_CONTACT[n].retour]);
 
 /** Lot 5, étape 1 : la migration du siège et son retour. */
 export const MIGRATION_ESPACES = { migration: "supabase/migrations/20261108_espaces_1_siege.sql",
@@ -168,6 +192,13 @@ export const MODES = {
   "gestion": { gabarit: GABARIT_GESTION, gestion: true, etapesAuChoix: true },
   "gestion-contre-epreuve": { gabarit: GABARIT_GESTION, neutres: TOUS_GESTION, libelle: "gestion-contre-epreuve (aucune migration injectee)" },
   "gestion-en-ligne": { gabarit: GABARIT_GESTION, neutres: TOUS_GESTION, libelle: "gestion-en-ligne (aucune migration injectee)" },
+  // Chantier « espace contact » : la preuve de la partie n injecte les migrations 1 à n (variante plein), 1 à n-1 (contre-épreuve : la n
+  // et son retour sont neutralisés) ou aucune (en ligne). Libellés sans apostrophe ni dollar : ils s'écrivent en littéral SQL.
+  ...Object.fromEntries(NUMEROS_CONTACT.flatMap((n) => [
+    [`contact-${n}`, { gabarit: ETAPES_CONTACT[n].gabarit, contact: n, variante: "plein" }],
+    [`contact-${n}-contre-epreuve`, { gabarit: ETAPES_CONTACT[n].gabarit, contact: n, variante: "contre" }],
+    [`contact-${n}-en-ligne`, { gabarit: ETAPES_CONTACT[n].gabarit, contact: n, variante: "en-ligne" }],
+  ])),
   "espaces-en-ligne": { gabarit: GABARIT_ESPACES,
                         neutres: [MIGRATION_ESPACES.migration, MIGRATION_ESPACES.retour, MIGRATION_ESPACES_2.migration, MIGRATION_ESPACES_2.retour,
                                   MIGRATION_ESPACES_3.migration, MIGRATION_ESPACES_3.retour],
@@ -238,6 +269,15 @@ export function decrireMode(mode, { etapes } = {}) {
   if (!d) throw new Error(`Mode inconnu « ${mode} » (modes : ${Object.keys(MODES).join(", ")}).`);
   if (etapes !== undefined && !d.etapesAuChoix) {
     throw new Error(`--etapes ne vaut que pour le mode repetition, titres ou gestion (mode demandé : ${mode}).`);
+  }
+  if (d.contact) {
+    const n = d.contact;
+    const injectees = d.variante === "plein" ? NUMEROS_CONTACT.slice(0, n) : d.variante === "contre" ? NUMEROS_CONTACT.slice(0, n - 1) : [];
+    const libelle = d.variante === "plein" ? `${mode} (migrations 1 a ${n} injectees)`
+      : d.variante === "contre" ? `${mode} (migration ${n} non injectee)`
+      : `${mode} (aucune migration injectee)`;
+    return { gabarit: d.gabarit, contact: n, injectees, neutres: fichiersContact(NUMEROS_CONTACT.slice(0, n).filter((k) => !injectees.includes(k))),
+             etapes: null, mode: libelle, requis: [] };
   }
   if (d.gestion) {
     const choisies = etapes ?? SUITE_PAR_DEFAUT_GESTION;
@@ -426,6 +466,16 @@ export function assemblerMode(mode, racine = RACINE, { etapes, lire, compact = f
     }
   }
   let { neutres, mode: libelle } = decrit;
+  if (decrit.contact) {
+    // Les étapes injectées se lisent : un fichier manquant (migration ou retour) arrête l'assemblage. Les autres sont neutralisées, non lues.
+    for (const n of decrit.injectees) {
+      for (const chemin of fichiersContact([n])) {
+        if (lireFichier(chemin) == null) {
+          throw new Error(`Étape ${n} demandée (${mode}) : ${chemin} n'existe pas encore. En attendant : mode contact-${decrit.contact}-en-ligne (rien d'injecté), ou la partie dont les fichiers existent.`);
+        }
+      }
+    }
+  }
   if (decrit.gestion) {
     // Les étapes demandées se lisent (un fichier manquant arrête l'assemblage) ; les autres sont neutralisées et ne sont jamais lues.
     for (const n of decrit.etapesGestion) {
