@@ -271,8 +271,8 @@ def sur_demande(v):
     ouvrir_conservation(v)
     ligne = "#view .cons-fiche"
     v.attendre(ligne, "les fiches de la promo")
-    cible = ligne + ':has(.cons-fiche-nom:text-is("Anissa O.")) button[data-cons="demande"]'
-    v.attendre(cible, "« Effacer à la demande » sur la fiche d'Anissa")
+    cible = ligne + ':has(.cons-fiche-nom:text-is("Agathe O.")) button[data-cons="demande"]'
+    v.attendre(cible, "« Effacer à la demande » sur la fiche d'Agathe")
     v.toucher(cible, "« Effacer à la demande »")
     v.attendre(FENETRE + " .confirmer-liste", "la fenêtre de confirmation")
     v.but("fenêtre de confirmation ouverte")
@@ -284,10 +284,10 @@ def sur_demande(v):
     oui = v.page.locator(OUI).first
     if oui.is_enabled():
         v.constat("E", BLOQUE, "le bouton du geste est actif avant toute saisie du prénom", capture=True)
-    v.remplir(CHAMP, "Lorie", "le prénom d'une autre personne")
+    v.remplir(CHAMP, "Lison", "le prénom d'une autre personne")
     if oui.is_enabled():
         v.constat("E", BLOQUE, "le bouton du geste est actif avec le prénom d'une autre personne", capture=True)
-    v.remplir(CHAMP, "Anissa", "le prénom de la personne")
+    v.remplir(CHAMP, "Agathe", "le prénom de la personne")
     if not oui.is_enabled():
         v.constat("E", BLOQUE, "le bouton du geste reste inactif après le bon prénom", capture=True)
     v.ecouter_messages()
@@ -301,10 +301,10 @@ def sur_demande(v):
     v.attendre(sans_nom, "la fiche devenue « Anonyme 2 »")
     if v.voit(sans_nom + " button[data-cons]"):
         v.constat("E", BLOQUE, "la fiche effacée garde son bouton d'effacement", capture=True)
-    if v.voit(ligne + ':has-text("Anissa")'):
+    if v.voit(ligne + ':has-text("Agathe")'):
         v.constat("E", BLOQUE, "le prénom reste affiché après l'effacement", capture=True)
     lignes = journal(v)
-    if len(lignes) != 1 or lignes[0]["type"] != "demande" or "Anissa" in str(lignes[0]):
+    if len(lignes) != 1 or lignes[0]["type"] != "demande" or "Agathe" in str(lignes[0]):
         v.constat("E", BLOQUE, "le journal devrait porter une ligne « demande » sans nom : %s" % lignes)
     if "effacer_sur_demande" not in appels(v):
         v.constat("E", BLOQUE, "effacer_sur_demande n'a pas été appelée")
