@@ -5058,6 +5058,12 @@ body.qcm-open { overflow: hidden; }
 }
 .qcm-grid-dot.done { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
 .qcm-grid-dot.current { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Téléphone : cibles de 44 px (référentiel, critère G) pour les boutons du QCM (avant l'examen, pendant, à la fin) et les
+   numéros des questions. */
+@media (max-width: 720px) {
+  .qcm-actions .btn, .qcm-exam-nav .btn, .qcm-next { min-height: 44px; }
+  .qcm-grid-dot { width: 44px; height: 44px; }
+}
 
 .theme-exam-panel { margin-top: 1rem; padding-top: 0.9rem; border-top: 1px dashed var(--line); }
 .theme-exam-panel-title {
@@ -5825,7 +5831,9 @@ body.qcm-open { overflow: hidden; }
 .nv-resume { margin: 0; color: var(--text-soft); font-size: 0.9rem; line-height: 1.55; }
 
 .nv-ou {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;   /* cible du référentiel sur ordinateur (44 px au téléphone : css/pages.css) */
   margin-top: 0.7rem;
   font-size: 0.84rem;
   color: var(--accent-strong);
@@ -6079,6 +6087,7 @@ body.cours-open { overflow: hidden; }
 }
 .cours-close:hover { background: var(--bg-soft); color: var(--text); }
 .cours-close svg { width: 1.05rem; height: 1.05rem; }
+@media (max-width: 720px) { .cours-close { width: 44px; height: 44px; } }   /* cible du téléphone */
 
 /* --- Zone défilante --- */
 .cours-scroll {
@@ -6240,7 +6249,9 @@ body.cours-open { overflow: hidden; }
   letter-spacing: 0.07em;
   text-transform: uppercase;
   cursor: pointer;
+  min-height: 24px;   /* cible du référentiel : 24 px sur ordinateur, 44 px au téléphone */
 }
+@media (max-width: 720px) { .cours-source-btn { min-height: 44px; padding-inline: 0.7rem; } }
 .cours-source-btn:hover { border-color: var(--accent); color: var(--accent-strong); }
 .cours-source-val {
   display: none;
@@ -7463,6 +7474,16 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .centre-modal p { line-height: 1.5; font-size: 0.92rem; }
 .centre-avertissement { background: var(--c-wait-soft); color: var(--text); border-radius: var(--r-sm); padding: 0.55rem 0.7rem; }
 .centre-case { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
+/* Saisie des résultats du jury (fenêtre de la page Indicateurs) : une ligne par stagiaire, la liste défile en hauteur seulement. */
+.centre-jury-saisir { margin-top: 0.6rem; align-self: flex-start; min-height: 44px; }
+.centre-jury-date { display: flex; flex-direction: column; gap: 0.3rem; font-weight: 500; margin-top: 0.5rem; }
+.centre-jury-liste { list-style: none; margin: 0.75rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem;
+  max-height: min(50vh, 26rem); overflow-y: auto; overflow-x: hidden; }
+.centre-jury-liste li { display: flex; flex-direction: column; gap: 0.3rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--line); }
+.centre-jury-liste li:last-child { border-bottom: 0; }
+.centre-jury-nom { font-weight: 600; }
+.centre-jury-liste select { width: 100%; min-height: 44px; }
+.centre-jury-repasse { font-weight: 400; font-size: 0.85rem; min-height: 44px; }
 .centre-erreur { padding: 1rem 0; }
 /* Pages de la direction qui regardent tout le centre (lot 5, Task 7) : Vue d'ensemble, Émargement, Notes et examens. */
 .centre-promo { margin-left: 0.5rem; background: var(--bg-soft); color: var(--text-soft); white-space: normal; }

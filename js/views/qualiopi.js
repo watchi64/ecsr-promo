@@ -36,35 +36,35 @@
 import {
   lireDonneesQualiopi, lireReferentielCentre, getMesPromos, getPromoCourante,
   lireResultatsQuestionnaire, lireCommentairesQuestionnaire, lireOuverturesQuestionnaires, ouvrirQuestionnaire, lireRegistreQualite,
-} from "../db.js?v=20261114b";
-import { el, clear, isoDate, toast } from "../utils.js?v=20261114b";
-import { indicateursPromo } from "../centre-stats.js?v=20261114b";
-import { presenceDePromo, presenceDeLaFiche } from "../qualiopi-presence.js?v=20261114b";
-import { inventairePromo, tableau, satisfactionDe } from "../qualiopi-preuves.js?v=20261114b";
+} from "../db.js?v=20261114f";
+import { el, clear, isoDate, toast } from "../utils.js?v=20261114f";
+import { indicateursPromo } from "../centre-stats.js?v=20261114f";
+import { presenceDePromo, presenceDeLaFiche } from "../qualiopi-presence.js?v=20261114f";
+import { inventairePromo, tableau, satisfactionDe } from "../qualiopi-preuves.js?v=20261114f";
 import {
   modeleDossierFormation, modeleDossierCentre, inventaireCsv, nomFichierQualiopi, periodeEnMots, LIBELLES_NIVEAU, PHRASE_NIVEAU, PHRASE_DE_GARDE,
-} from "../qualiopi-documents.js?v=20261114b";
+} from "../qualiopi-documents.js?v=20261114f";
 import {
   REFERENTIEL_APPLIQUE, referentielDu, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, groupesParCritere,
   titreImpression,
-} from "../qualiopi-page-rules.js?v=20261114b";
+} from "../qualiopi-page-rules.js?v=20261114f";
 import {
-  ficheResultats, fichesResultatsTexte, tableauFiche, copierTexte, noteProvisoire, promoTerminee, AUCUNE_FORMATION,
-} from "../qualiopi-resultats.js?v=20261114b";
-import { NOUVEAUTES } from "../nouveautes-data.js?v=20261114b";
-import { telecharger } from "./centre.js?v=20261114b";
-import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261114b";
+  ficheResultats, fichesResultatsTexte, tableauFiche, copierTexte, noteProvisoire, promoTerminee, AUCUNE_FORMATION, obtentionDeLaFiche,
+} from "../qualiopi-resultats.js?v=20261114f";
+import { NOUVEAUTES } from "../nouveautes-data.js?v=20261114f";
+import { telecharger } from "./centre.js?v=20261114f";
+import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261114f";
 import {
   QUESTIONNAIRES_GESTION, porteeGestion, anneesFormateur, libellePorteeFormateur, ouvertureDe, etatOuverture, actionsOuverture,
   messageOuverture, questionnairesAbsents, resumeReponses, satisfactionGlobale, lignesResultats, commentairesMontrables,
   messageLectureGestion, messageEchecOuverture,
-} from "../questionnaires-gestion-rules.js?v=20261114b";
-import { jourParis } from "../dates.js?v=20261114b";
-import { renderSubTabs } from "../subtabs.js?v=20261114b";
-import { aEffacer, aClore } from "../registre-rules.js?v=20261114b";
-import { renderRegistreQualite } from "./registre-qualite.js?v=20261114b";
-import { creerConservation } from "./conservation.js?v=20261114b";
-import { pluriel } from "../nombres.js?v=20261114b";
+} from "../questionnaires-gestion-rules.js?v=20261114f";
+import { jourParis } from "../dates.js?v=20261114f";
+import { renderSubTabs } from "../subtabs.js?v=20261114f";
+import { aEffacer, aClore } from "../registre-rules.js?v=20261114f";
+import { renderRegistreQualite } from "./registre-qualite.js?v=20261114f";
+import { creerConservation } from "./conservation.js?v=20261114f";
+import { pluriel } from "../nombres.js?v=20261114f";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
@@ -739,9 +739,12 @@ export async function renderQualiopi(container) {
       // Les fiches : celle de la promo choisie sur-le-champ, celles du centre après la lecture de ses promos (rien si une promo ne se
       // lit pas ou si l'action devient caduque : le message est alors déjà écrit).
       const lesFiches = portee === "formation"
-        ? Promise.resolve([ficheResultats({ promo, ind: etat.ind, aujourdhui, presence: presenceDeLaFiche(presenceDePromo(etat.donnees.emargement, promo.id)), satisfaction: etat.donnees.satisfaction })])
+        ? Promise.resolve([ficheResultats({ promo, ind: etat.ind, aujourdhui, presence: presenceDeLaFiche(presenceDePromo(etat.donnees.emargement, promo.id)), obtention: obtentionDeLaFiche(etat.ind.titre), satisfaction: etat.donnees.satisfaction })])
         : lirePromosDuCentre(moi, promosEtPeriodeDuCentre().retenues, "les résultats du centre ne sont pas préparés",
-          (p, donnees) => ficheResultats({ promo: p, ind: indicateursPromo(donnees, referentiel, { aujourdhui, demandes: donnees.demandes }), aujourdhui, presence: presenceDeLaFiche(presenceDePromo(donnees.emargement, p.id)), satisfaction: donnees.satisfaction }));
+          (p, donnees) => {
+            const ind = indicateursPromo(donnees, referentiel, { aujourdhui, demandes: donnees.demandes });
+            return ficheResultats({ promo: p, ind, aujourdhui, presence: presenceDeLaFiche(presenceDePromo(donnees.emargement, p.id)), obtention: obtentionDeLaFiche(ind.titre), satisfaction: donnees.satisfaction });
+          });
       const copie = sortie === "copier" ? copierTexte(lesFiches.then(texteDesFiches)) : null;   // sans await : dans le geste du clic
       const fiches = await lesFiches;
       if (!fiches) return;

@@ -7,15 +7,15 @@
 // d'invitation (envoyerInvitation, stagiaires-gestion.js) ne sert pas ici : il appelle inviter_compte pour UNE fiche et UNE promo
 // affichée, alors que cette page règle plusieurs promos d'un centre d'un coup ; seule la forme de l'adresse est reprise.
 
-import { getMesPromos, lireEquipeDuCentre, lireFichesFormateurLibres, reglerAffectationsFormateur } from "../db.js?v=20261114b";
-import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261114b";
-import { icon } from "../icons.js?v=20261114b";
-import { getCentre, getAdminEmail } from "../auth-admin.js?v=20261114b";
-import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261114b";
-import { equipeAffichee, unionPromos } from "../direction-rules.js?v=20261114b";
-import { phraseCompteTransforme } from "../roles-rules.js?v=20261114b";
-import { entier, pluriel } from "../nombres.js?v=20261114b";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261114b";
+import { getMesPromos, lireEquipeDuCentre, lireFichesFormateurLibres, reglerAffectationsFormateur } from "../db.js?v=20261114f";
+import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261114f";
+import { icon } from "../icons.js?v=20261114f";
+import { getCentre, getAdminEmail } from "../auth-admin.js?v=20261114f";
+import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261114f";
+import { equipeAffichee, unionPromos } from "../direction-rules.js?v=20261114f";
+import { phraseCompteTransforme } from "../roles-rules.js?v=20261114f";
+import { entier, pluriel } from "../nombres.js?v=20261114f";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
 
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";
 const PHRASE_LECTURE_ECHEC = "L'équipe du centre n'a pas pu être chargée.";

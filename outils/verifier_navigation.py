@@ -4209,7 +4209,7 @@ def jouer_ressources_fermees(page, res, sc, options):
 # jamais montrés), un de la grille véhicule sur 3. Posées dans tous les scénarios (nouveau_contexte).
 MOYENNES_EPCF_DU_BANC = {"salle": [("PREP1", 1.5, 3), ("PREP2", 1, 2), ("ANIM1", 0.5, 1)], "vehicule": [("COND1", 1.8, 3)]}
 # Les notes que le banc sert (lot 2A, tâche 5), pour que chaque teinte de l'échelle des notes soit dessinée : (stagiaire, thème, note, date).
-# Moyennes par stagiaire : Cassandre 4 (sous 8), Anissa 8 et Timy 10,2 (sous 12), Valentin 13 (sous 16), Lorie 19 (au-dessus), Céline sans note ;
+# Moyennes par stagiaire : Capucine 4 (sous 8), Agathe 8 et Timy 10,2 (sous 12), Victor 13 (sous 16), Lison 19 (au-dessus), Clémence sans note ;
 # par thème : le 22 à 7,3 (sous 8), le 23 à 12,8 ; les cinq tranches de la répartition ont au moins une note.
 # Timy, le stagiaire du banc, a vingt notes réparties sur sept mois (d'avril à octobre, trois par mois, deux en octobre) : à 375 px, le graphe de
 # Mon évolution y a des bandes de mois de 30 à 38 unités pour des libellés de 10 px qui en mesurent jusqu'à 37 (tour de correction 1) ; ses
@@ -5179,7 +5179,7 @@ PARTIES_FICHE_DE_MAIN = ["Passages", "Évaluations EPCF", "Évolution", "Livret 
 LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : 3 à venir", "Évaluations EPCF : 0 épreuve sur 2",
                             "Livret EPCF : pas encore commencé", "Dossier professionnel : 0 exemple sur 6"]
 CLE_VUE_RESULTATS = "ecsr_resultats_vue"
-# La fiche d'un stagiaire chez l'équipe : Valentin (id 4), EPCF 1 sur 2, livret et dossier.
+# La fiche d'un stagiaire chez l'équipe : Victor (id 4), EPCF 1 sur 2, livret et dossier.
 ID_DE_LA_FICHE_DE_L_EQUIPE = 4
 
 # Ce que Mon suivi montre : ses sous-onglets (le premier groupe de la page), les lignes de son sommaire (texte, place, hauteur, texte coupé ou non), le haut de

@@ -427,6 +427,11 @@ Spec et plans dans le dépôt ECSR : `docs/superpowers/specs/2026-10-03-cours-co
 
 ## Tableau de bord du centre (23/10/2026)
 
+> Suite du 14/11/2026 : taux de présence (`js/presence-rules.js`, même calcul que Qualiopi et les attestations) et
+> résultats du jury (table `jury_resultats`, saisie par la carte « Réussite au titre », règles `js/jury-rules.js`) ;
+> détail dans la section « Suite du 14/11/2026 » de la spec. Banc : `?jury=demo` (trois résultats fictifs, promo 7),
+> `?jury=panne` (lecture en échec), écritures gardées avec `?ecritures=1`.
+
 Spec : `docs/superpowers/specs/2026-10-23-tableau-de-bord-centre-design.md` · plan :
 `docs/superpowers/plans/2026-10-23-tableau-de-bord-centre.md`.
 

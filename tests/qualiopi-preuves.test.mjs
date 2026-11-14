@@ -265,6 +265,7 @@ const D = geler({
   cours: COURS, versions: VERSIONS, autoEcoles: AUTO_ECOLES,
   profs: [{ id: 1, nom: "Nadia Roche" }, { id: 2, nom: "Karim Lopez" }, { id: 3, nom: "Hugo Perrin" }],
   entete: { organisme: "Centre de test", intitule: "Titre de test" },
+  jury: { etat: "lue", lignes: [] },   // aucun résultat de jury saisi (lu, vide)
 });
 const OPTIONS = { promo: PROMO, aujourdhui: AUJOURDHUI, nouveautes: NOUVEAUTES };
 
@@ -372,7 +373,8 @@ eq(piece(fiches, "datesCles"),
 eq(piece(fiches, "assiduite"), manquante("assiduite", "feuilles d'émargement non lues (erreur de lecture)"), "fiches : assiduité");
 eq(piece(fiches, "passages"), manquante("passages", "aucun passage en salle ou en voiture enregistré"), "fiches : passages");
 eq(piece(fiches, "evaluations"),
-  manquante("evaluations", "aucune évaluation enregistrée ; aucun résultat de jury saisi"), "fiches : évaluations et jury");
+  // Jury non lu (rien de fourni) : dit comme la présence, jamais « aucun résultat saisi ».
+  manquante("evaluations", "aucune évaluation enregistrée ; résultats de jury non lus"), "fiches : évaluations et jury");
 eq(piece(fiches, "dossierPro"),
   manquante("dossierPro", "aucun dossier professionnel enregistré par les stagiaires en formation"), "fiches : dossier professionnel");
 eq(piece(fiches, "ressources"), manquante("ressources", "aucun cours publié"), "fiches : ressources");
@@ -425,7 +427,7 @@ eq(seuils(19, 3).detail, "stagiaires à suivre de près : 0 ; aucun thème n'a a
 const avec = (extra) => inventairePromo({ ...D, ...extra }, REF, OPTIONS);
 // Évaluations : chaque source seule ; la population (stagiaires en formation) et la mention du jury sont toujours là, une fois.
 const POP = "(stagiaires en formation uniquement)";
-const seule = (cle) => inventairePromo({ stagiaires: STAG, [cle]: D[cle] }, REF, OPTIONS);
+const seule = (cle) => inventairePromo({ stagiaires: STAG, jury: D.jury, [cle]: D[cle] }, REF, OPTIONS);
 eq(piece(seule("evaluations"), "evaluations").detail, `4 notes du 06/10 au 13/10 ${POP} ; aucun résultat de jury saisi`, "notes seules");
 eq(piece(seule("tentatives"), "evaluations").detail, `1 examen QCM ${POP} ; aucun résultat de jury saisi`,
   "examens seuls (les entraînements ne comptent pas)");
@@ -442,6 +444,16 @@ eq(avecEpcf([X(1, 1, "salle", "2026-10-06", { a: "A" }), X(2, 1, "vehicule", "20
   X(3, 2, "salle", "2026-10-08", { a: "A" }), X(4, 2, "salle", "2026-10-09", { a: "R" })]),
   `4 notes du 06/10 au 13/10, 1 examen QCM, 4 évaluations EPCF, 1 livret EPCF ${POP} ; aucun résultat de jury saisi`,
   "deux grilles, deux stagiaires, une évaluation répétée : 4");
+// Jury saisi (14/11) : le nombre de résultats remplace « aucun résultat de jury saisi », et la réussite au titre devient un
+// indicateur mesuré de la pièce « Résultats et méthodes » (2 obtenus sur 3 présentés, 1 absent).
+{
+  const J = (stagiaire_id, resultat) => ({ stagiaire_id, promo_id: 7, session_le: "2026-12-15", resultat, ccp1: false, ccp2: false });
+  const avecJury = avec({ jury: { etat: "lue", lignes: [J(1, "obtenu"), J(2, "obtenu"), J(3, "non_obtenu"), J(4, "absent")] } });
+  eq(piece(avecJury, "evaluations").detail,
+    `4 notes du 06/10 au 13/10, 1 examen QCM, 3 évaluations EPCF, 1 livret EPCF ${POP} ; 4 résultats de jury saisis`, "jury saisi");
+  ok(!/réussite au titre non mesurée/.test(piece(avecJury, "resultats").detail), "jury saisi : réussite au titre mesurée");
+  ok(/réussite au titre non mesurée/.test(piece(avec({}), "resultats").detail), "sans jury : réussite au titre non mesurée");
+}
 // Passages : sans absence, la phrase s'arrête aux passages ; une seule source suffit.
 eq(piece(avec({ passages: [P(1, "Salle", "Effectué", "2026-10-06"), P(1, "Voiture", "Effectué", "2026-10-07")] }), "passages").detail,
   "1 passage en salle et 1 en voiture (remplacements compris)", "passages sans absence");
@@ -708,7 +720,7 @@ eq(piece(cassee, "deroule").detail, "1 demi-journée de formation le 06/10",
   "mal formé : la seule ligne datée du planning (des jours désactivés incomplets n'écartent rien)");
 eq(piece(cassee, "datesCles").detail, "1 événement au calendrier (1 stage) le 02/11", "mal formé : l'événement daté");
 eq(piece(cassee, "dossierPro").detail, "enregistré pour 1 stagiaire sur 2 en formation", "mal formé : dossier sans date");
-eq(piece(cassee, "evaluations").detail, `1 livret EPCF ${POP} ; aucun résultat de jury saisi`, "mal formé : livret sans date");
+eq(piece(cassee, "evaluations").detail, `1 livret EPCF ${POP} ; résultats de jury non lus`, "mal formé : livret sans date, jury non fourni");
 eq(piece(cassee, "ressources").detail, "2 cours publiés, 3 QCM ; aucun QCM d'entraînement fait", "mal formé : cours sans date, comptés publiés");
 eq(piece(cassee, "misesAJour").presente, false, "mal formé : ni version ni signalement datés");
 eq(piece(cassee, "intervenants").presente, false, "mal formé : formateurs et bénévoles nuls");

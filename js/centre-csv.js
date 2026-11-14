@@ -4,9 +4,9 @@
 // ensemble) en une colonne, la moyenne de toutes les notes. Format pour Excel en français :
 // point-virgule, virgule décimale, UTF-8 avec BOM, fins de ligne CRLF.
 
-import { estNotee, score20 } from "./notes-stats.js?v=20261114b";
-import { compareByNom } from "./utils.js?v=20261114b";
-import { ratiosDeComptes } from "./comptes-reseau.js?v=20261114b";
+import { estNotee, score20 } from "./notes-stats.js?v=20261114f";
+import { compareByNom } from "./utils.js?v=20261114f";
+import { ratiosDeComptes } from "./comptes-reseau.js?v=20261114f";
 
 const COLONNES_COMPETENCES = [
   { code: "C1", label: "C1" }, { code: "C2", label: "C2" },
@@ -90,12 +90,12 @@ function fichier(entete, lignes) {
 // comptesDepuisIndicateurs (comptes additifs) ; un ratio sans base reste vide.
 export function tableauCentreCsv(lignesParPromo) {
   const entete = ["Promo", "Début", "Fin", "Inscrits", "En formation", "Abandons (%)", "Absences (%)", "Réussite aux QCM (%)",
-    "Examens QCM réussis (%)", "Moyenne des notes (/20)", "Critères EPCF acquis (%)"];
+    "Examens QCM réussis (%)", "Moyenne des notes (/20)", "Critères EPCF acquis (%)", "Présence (%)", "Réussite au titre (%)"];
   const lignes = (lignesParPromo || []).map((p) => {
     const c = p.comptes;
     const r = ratiosDeComptes(c);
     return [p.nom, p.debut || "", p.fin || "", c.inscrits, c.enFormation, pourcent(r.abandon), pourcent(r.absences),
-      pourcent(r.reussiteQcm), pourcent(r.examensQcm), sur20(r.notes), pourcent(r.epcf)];
+      pourcent(r.reussiteQcm), pourcent(r.examensQcm), sur20(r.notes), pourcent(r.epcf), pourcent(p.presence ?? null), pourcent(p.titre ?? null)];
   });
   return fichier(entete, lignes);
 }

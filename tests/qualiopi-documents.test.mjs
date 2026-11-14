@@ -270,6 +270,7 @@ const D = geler({
   planning: PLANNING, joursOff: JOURS_OFF, agenda: AGENDA, livrets: LIVRETS, dossiers: DOSSIERS, signalements: SIGNALEMENTS,
   cours: COURS, versions: VERSIONS, autoEcoles: AUTO_ECOLES, profs: PROFS, benevoles: BENEVOLES,
   entete: { organisme: "Centre de test", intitule: "Titre de test" },
+  jury: { etat: "lue", lignes: [] },   // aucun résultat de jury saisi (lu, vide)
 });
 
 // Promo 8, en cours (sans date de fin), du même lieu : Léa et Yanis en formation. Passages : Léa 1 salle ; Yanis 1 absence
@@ -291,6 +292,7 @@ const D8 = geler({
   joursOff: [], agenda: [], livrets: [], dossiers: [], signalements: [],
   cours: COURS, versions: VERSIONS, autoEcoles: AUTO_ECOLES, profs: PROFS, benevoles: BENEVOLES,
   entete: { organisme: "Centre de test", intitule: "Titre de test" },
+  jury: { etat: "lue", lignes: [] },   // aucun résultat de jury saisi (lu, vide)
 });
 
 const invDe = (donnees, promo, extra = {}) =>
