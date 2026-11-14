@@ -140,6 +140,22 @@ select pg_temp.refus('refus : version datée de demain', :'ERROR', :'LAST_ERROR_
 \i :migration2
 select pg_temp.refus('refus : la sentinelle elle-même (dans l''avenir)', :'ERROR', :'LAST_ERROR_MESSAGE', '%après aujourd''hui%', '9999-12-31');
 
+-- Version publiée des conditions (20261114_restes_1_conditions) : la version exigée ne la dépasse jamais. Dans la transaction
+-- annulée seulement, la version publiée devient avant-hier : hier est refusé ; puis aujourd'hui, pour la suite des cas. Sans
+-- restes_1 (fonction absente), le cas se note sans objet.
+select to_regprocedure('public.conditions_version_publiee()') is not null as avec_publiee \gset
+\if :avec_publiee
+create or replace function public.conditions_version_publiee() returns text language sql immutable
+  set search_path to 'public', 'pg_temp' as $f$ select to_char((now() at time zone 'Europe/Paris')::date - 2, 'YYYY-MM-DD') $f$;
+\set version :hier
+\i :migration2
+select pg_temp.refus('refus : version postérieure à la version publiée des conditions', :'ERROR', :'LAST_ERROR_MESSAGE', '%postérieure à la version publiée%', '9999-12-31');
+create or replace function public.conditions_version_publiee() returns text language sql immutable
+  set search_path to 'public', 'pg_temp' as $f$ select to_char((now() at time zone 'Europe/Paris')::date, 'YYYY-MM-DD') $f$;
+\else
+select pg_temp.verifier('version publiée des conditions absente (restes_1 non appliquée) : cas sans objet', true);
+\endif
+
 select pg_temp.verifier('après les refus : définition et droits identiques à ceux de la migration 1',
   md5(pg_get_functiondef('public._autonomie_version_conditions()'::regprocedure)) = :'def_m1'
   and coalesce((select proacl::text from pg_proc where oid = 'public._autonomie_version_conditions()'::regprocedure), '') = :'acl_m1');
@@ -198,9 +214,9 @@ select pg_temp.verifier('retour rejoué : sans erreur, la sentinelle reste', :'E
 
 -- Verdict ----------------------------------------------------------------------------------------------------------
 -- Un contrôle dont l'instruction échoue (ON_ERROR_ROLLBACK l'annule) ne laisse aucune ligne : le verdict exige donc le
--- nombre exact de contrôles écrits dans ce fichier (23), sinon il compte les manquants comme des échecs.
+-- nombre exact de contrôles écrits dans ce fichier (24 : un seul par branche du cas de la version publiée), sinon il compte les manquants comme des échecs.
 do $verdict$
-declare v_ok integer; v_ko integer; v_liste text; v_attendus constant integer := 23; v_n integer;
+declare v_ok integer; v_ko integer; v_liste text; v_attendus constant integer := 24; v_n integer;
 begin
   select count(*) filter (where etat = 'ok'), count(*) filter (where etat <> 'ok'),
          string_agg(case when etat <> 'ok' then num || '. ' || libelle || ' [' || detail || ']' end, ' | ' order by num), count(*)

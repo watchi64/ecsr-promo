@@ -2,8 +2,8 @@
 // tests/qcm-stagiaire-rules.test.mjs. Quels QCM, dans quel ordre, avec quelle phrase d'état. L'affichage
 // (js/views/qcm-stagiaire.js) ne fait que les poser.
 
-import { examenDemarrable } from "./qcm-exam-rules.js?v=20261114b";
-import { dixieme } from "./nombres.js?v=20261114b";
+import { examenDemarrable } from "./qcm-exam-rules.js?v=20261114d";
+import { dixieme } from "./nombres.js?v=20261114d";
 
 /** Un QCM transversal (sanctions, psychologie, pédagogie...) : une notion de la formation, sans numéro de thème. */
 export function estTransversal(theme) {

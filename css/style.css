@@ -5058,6 +5058,12 @@ body.qcm-open { overflow: hidden; }
 }
 .qcm-grid-dot.done { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
 .qcm-grid-dot.current { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Téléphone : cibles de 44 px (référentiel, critère G) pour les boutons du QCM (avant l'examen, pendant, à la fin) et les
+   numéros des questions. */
+@media (max-width: 720px) {
+  .qcm-actions .btn, .qcm-exam-nav .btn, .qcm-next { min-height: 44px; }
+  .qcm-grid-dot { width: 44px; height: 44px; }
+}
 
 .theme-exam-panel { margin-top: 1rem; padding-top: 0.9rem; border-top: 1px dashed var(--line); }
 .theme-exam-panel-title {
@@ -5825,7 +5831,9 @@ body.qcm-open { overflow: hidden; }
 .nv-resume { margin: 0; color: var(--text-soft); font-size: 0.9rem; line-height: 1.55; }
 
 .nv-ou {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;   /* cible du référentiel sur ordinateur (44 px au téléphone : css/pages.css) */
   margin-top: 0.7rem;
   font-size: 0.84rem;
   color: var(--accent-strong);
@@ -6079,6 +6087,7 @@ body.cours-open { overflow: hidden; }
 }
 .cours-close:hover { background: var(--bg-soft); color: var(--text); }
 .cours-close svg { width: 1.05rem; height: 1.05rem; }
+@media (max-width: 720px) { .cours-close { width: 44px; height: 44px; } }   /* cible du téléphone */
 
 /* --- Zone défilante --- */
 .cours-scroll {
@@ -6240,7 +6249,9 @@ body.cours-open { overflow: hidden; }
   letter-spacing: 0.07em;
   text-transform: uppercase;
   cursor: pointer;
+  min-height: 24px;   /* cible du référentiel : 24 px sur ordinateur, 44 px au téléphone */
 }
+@media (max-width: 720px) { .cours-source-btn { min-height: 44px; padding-inline: 0.7rem; } }
 .cours-source-btn:hover { border-color: var(--accent); color: var(--accent-strong); }
 .cours-source-val {
   display: none;

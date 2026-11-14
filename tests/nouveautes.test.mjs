@@ -250,8 +250,17 @@ ok(!!etatExamen && etatExamen.pour === "tous" && etatExamen.id.startsWith(etatEx
 for (const [formateur, espace] of [[false, "stagiaire"], [true, "equipe"]]) {
   ok(ids(visibles(NOUVEAUTES, formateur, espace)).includes(ETAT_EXAMEN_ID), `état de l'examen : visible (espace ${espace})`);
 }
-eq(ids(triees(visibles(NOUVEAUTES, false, "stagiaire")))[0], "2026-11-12-accueil-aujourdhui-roles",
-  "état de l'examen : la carte « Aujourd'hui » reste en tête chez le stagiaire");
+// Jugé parmi les entrées du 12/11 : une Nouveauté plus récente passe naturellement devant elles.
+eq(ids(triees(visibles(NOUVEAUTES, false, "stagiaire")).filter((e) => e.date === "2026-11-12"))[0], "2026-11-12-accueil-aujourdhui-roles",
+  "état de l'examen : la carte « Aujourd'hui » reste en tête des entrées du 12/11 chez le stagiaire");
+// Petits restes du 14/11 : pour tous, la plus récente des deux côtés, mène à Cours et QCM.
+const RESTES_ID = "2026-11-14-cours-qcm-plus-faciles-a-toucher";
+const restes = NOUVEAUTES.find((e) => e.id === RESTES_ID);
+ok(!!restes && restes.pour === "tous" && restes.id.startsWith(restes.date + "-") && restes.ou?.route === "themes",
+  "petits restes : pour tous, id préfixé par sa date, mène à Cours et QCM");
+for (const [formateur, espace] of [[false, "stagiaire"], [true, "equipe"]]) {
+  eq(ids(triees(visibles(NOUVEAUTES, formateur, espace)))[0], RESTES_ID, `petits restes : en tête (espace ${espace})`);
+}
 for (const espace of [undefined, "stagiaire"]) {
   ok(!ids(visibles(NOUVEAUTES, false, espace)).includes(CONSERVATION_ID), `conservation : jamais chez un stagiaire (espace ${espace})`);
   ok(ids(triees(visibles(NOUVEAUTES, false, espace)))[0] !== CONSERVATION_ID, `stagiaire : la plus récente n'est jamais la conservation (espace ${espace})`);
