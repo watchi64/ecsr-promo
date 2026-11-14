@@ -20,9 +20,13 @@ test("le numéro devient un lien d'appel sans espaces", () => {
 });
 test("congé : relais nommé, borne incluse", () => {
   const f = { conge_du: "2026-11-10", conge_au: "2026-11-15", relais_id: 9 };
-  assert.equal(ligneDeFiche(f, { jour: "2026-11-15", parId: new Map([[9, "Claire"]]) }).conge, "Absente jusqu'au 15, relais : Claire");
+  assert.equal(ligneDeFiche(f, { jour: "2026-11-15", parId: new Map([[9, "Claire"]]) }).conge, "En congé jusqu'au 15, relais : Claire");
   assert.equal(ligneDeFiche(f, { jour: "2026-11-16", parId: new Map() }).conge, null);
-  assert.equal(ligneDeFiche(f, { jour: "2026-11-15", parId: new Map() }).conge, "Absente jusqu'au 15");
+  assert.equal(ligneDeFiche(f, { jour: "2026-11-15", parId: new Map() }).conge, "En congé jusqu'au 15");
+  const autreMois = { conge_du: "2026-11-28", conge_au: "2026-12-03", relais_id: 9 };
+  assert.equal(ligneDeFiche(autreMois, { jour: "2026-11-30", parId: new Map([[9, "Claire"]]) }).conge,
+    "En congé jusqu'au 3 décembre, relais : Claire");
+  assert.equal(ligneDeFiche(autreMois, { jour: "2026-12-01", parId: new Map() }).conge, "En congé jusqu'au 3");
   assert.equal(enConge(f, "2026-11-10"), true);
   assert.equal(enConge(f, "2026-11-09"), false);
   assert.equal(enConge({}, "2026-11-10"), false);
@@ -40,6 +44,10 @@ test("ma fiche : e-mail, téléphone et congé suivent la base", () => {
   const phrase = "Les dates du congé ne se suivent pas.";
   assert.equal(validerMaFiche({ conge_du: "2026-11-15", conge_au: "2026-11-10" }).erreurs.conge_au, phrase);
   assert.equal(validerMaFiche({ conge_du: "2026-11-15", conge_au: null }).erreurs.conge_au, phrase);
+  // Une date absente des champs envoyés n'est pas jugée : la base la fusionne avec la valeur gardée.
+  assert.equal(validerMaFiche({ conge_du: "2026-11-15" }).ok, true);
+  assert.equal(validerMaFiche({ conge_au: "2026-11-15" }).ok, true);
+  assert.equal(validerMaFiche({ conge_du: "2026-02-30" }).erreurs.conge_du, phrase);
   assert.equal(validerMaFiche({ conge_du: "2026-02-30", conge_au: "2026-03-01" }).erreurs.conge_du, phrase);
   assert.equal(validerMaFiche({ conge_du: "2026-11-10", conge_au: "2026-11-10" }).ok, true);
   assert.equal(validerMaFiche({}).ok, true);

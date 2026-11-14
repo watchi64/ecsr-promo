@@ -297,7 +297,7 @@ export function renderAccueilStagiaire(container) {
   const signaler = el("button", { type: "button", class: "acc-lien-pied",
     onClick: (ev) => ouvrirSignalement({ ancre: ev.currentTarget }) }, icon.signaler(), "Signaler un problème");
   container.appendChild(el("nav", { class: "acc-liens", "aria-label": "Liens utiles" },
-    routeVisible("ressources") ? lienVers("ressources", null, "acc-lien-pied", icon.users(), "Contacts du centre") : null,
+    lienVers("contacts", null, "acc-lien-pied", icon.users(), "Contacts"),
     lienVers("preferences", null, "acc-lien-pied", icon.settings(), "Mes préférences"),
     signaler,
   ));

@@ -26,7 +26,8 @@ export const GROUPES = ["Démarrage", "Suivi de la formation", GROUPE_CCP1, "Dos
 // emargement : page des formateurs (spec 2026-10-23) ; un stagiaire ne voit rien tant
 // qu'aucune feuille n'est ouverte, il n'y a donc rien à masquer par un module.
 // preferences : Mes préférences, la page de la personne (menu du compte).
-export const ROUTES_SOCLE = ["home", "mon-suivi", "config", "nouveautes", "stagiaires", "emargement", "preferences"];
+// contacts : la page Contacts (annuaire du centre), ouverte par le menu du compte, jamais fermée par un module.
+export const ROUTES_SOCLE = ["home", "mon-suivi", "config", "nouveautes", "stagiaires", "emargement", "preferences", "contacts"];
 
 // Route d'un onglet vers le module qui la gouverne.
 export const MODULE_DE_ROUTE = {
@@ -79,10 +80,10 @@ export const MODULES = [
   {
     // Clé historique « ressources » (stockée en base, jamais renommée) : la partie s'affiche « Documents » depuis le 11/11.
     cle: "ressources", nom: "Documents", accord: "mp", groupe: "Démarrage", depart: true,
-    explication: "Contacts du centre et liens utiles.",
+    explication: "Liens utiles.",
     annonce: {
       titre: "Les documents sont ouverts",
-      resume: "Les contacts utiles du centre et une sélection de liens et de documents pour réviser.",
+      resume: "Une sélection de liens et de documents pour réviser.",
       ou: { label: "Cours et QCM, Documents", route: "ressources" },
     },
   },

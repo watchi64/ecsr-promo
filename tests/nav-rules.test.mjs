@@ -68,6 +68,7 @@ eq(entreeActive("calendrier", eqp), "planning", "alias calendrier");
 eq(entreeActive("dashboard", eqp), "planning", "alias dashboard");
 eq(entreeActive("ressources", eqp), "themes", "alias ressources");
 eq(entreeActive("nouveautes", eqp), "home", "alias nouveautes");
+eq(entreeActive("contacts", stag, "stagiaire"), "home", "alias contacts : la page s'ouvre depuis le menu du compte, l'accueil reste allumé");
 eq(entreeActive("qualiopi", eqp), "centre", "alias qualiopi : la page s'ouvre depuis le tableau de bord du centre");
 eq(entreeActive("notes", stag), "mon-suivi", "stagiaire : la classe vit sous Mon suivi");
 eq(entreeActive("notes", eqp), "notes", "équipe : Notes a son entrée");
@@ -146,6 +147,7 @@ eq(routeApresRedirection("config", "equipe"), "config", "mémoire config de l'é
 eq(routeApresRedirection("calendrier", "stagiaire"), "planning", "mémoire calendrier : Planning");
 eq(routeApresRedirection("dashboard", "equipe"), "planning", "mémoire dashboard : Planning");
 eq(routeApresRedirection("ressources", "stagiaire"), "themes", "mémoire ressources : Cours et QCM");
+eq(routeApresRedirection("contacts", "stagiaire"), "contacts", "mémoire contacts : la page Contacts, jamais redirigée");
 eq(routeApresRedirection("notes", "stagiaire"), "mon-suivi", "mémoire notes d'un stagiaire : Mon suivi");
 eq(routeApresRedirection("notes", "equipe"), "notes", "mémoire notes de l'équipe : Notes et examens");
 eq(routeApresRedirection("planning", "stagiaire"), "planning", "une route qui ne bouge pas reste elle-même");
@@ -319,6 +321,7 @@ eq(entreeActive("reseau", sieTout), "reseau", "siège : Accueil allumé sur rese
 eq(entreeActive("nouveautes", sieTout), null, "siège : nouveautés n'allume rien");
 eq(entreeActive("nouveautes", dirTout, "direction"), null, "direction : nouveautés n'allume rien");
 eq(entreeActive("problemes", dirTout, "direction"), null, "direction : problèmes n'allume pas Réglages");
+eq(entreeActive("contacts", dirTout, "direction"), null, "direction : contacts n'allume rien");
 eq(entreeActive("problemes", sieTout, "siege"), null, "siège : problèmes n'allume pas Réglages");
 eq(entreeActive("preferences", dirTout, "direction"), null, "direction : préférences n'allume rien");
 eq(entreeActive("stagiaires", dirTout, "direction"), "stagiaires", "direction : stagiaires allumé");

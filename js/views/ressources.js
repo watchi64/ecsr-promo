@@ -1,16 +1,14 @@
 import {
   listRessources, addRessource, updateRessource, deleteRessource,
-  listContacts, addContact, updateContact, deleteContact, getPromoCourante,
+  getPromoCourante,
 } from "../db.js?v=20261114f";
 import { el, clear, toast } from "../utils.js?v=20261114f";
 import { confirmer } from "../confirmer.js?v=20261114f";
-import { icon, deco } from "../icons.js?v=20261114f";
-import { isAdmin, selonPublic } from "../auth-admin.js?v=20261114f";
-import { recordUndo } from "../undo.js?v=20261114f";
+import { icon } from "../icons.js?v=20261114f";
+import { isAdmin } from "../auth-admin.js?v=20261114f";
 import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
 
 let ressources = [];
-let contacts = [];
 
 const CATEGORIES_ORDER = ["Officiel", "Référentiels", "Pédagogie", "Examens", "Autre"];
 const CATEGORY_ICONS = {
@@ -119,164 +117,22 @@ function renderRessourceCard(r, onChange) {
   return card;
 }
 
-// === Contacts (admin, urgences, etc.) ===
-
-function openContactModal(existing, onSaved) {
-  const isNew = !existing;
-  let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
-
-  const prenomInput = el("input", { type: "text", placeholder: "Prénom (ou nom)", value: existing?.prenom || "" });
-  const roleInput = el("input", { type: "text", placeholder: "Rôle / fonction (ex. Service entreprise, CP)", value: existing?.role || "" });
-  const phoneInput = el("input", { type: "tel", placeholder: "04 12 34 56 78", value: existing?.phone || "" });
-  const emailInput = el("input", { type: "email", placeholder: "adresse@ecf-sps.fr", value: existing?.email || "" });
-  const noteInput = el("input", { type: "text", placeholder: "Note (ex. si X et Y indisponibles)", value: existing?.note || "" });
-
-  async function save() {
-    if (!prenomInput.value.trim()) { toast("Prénom requis", "error"); return; }
-    const payload = {
-      prenom: prenomInput.value.trim(),
-      role: roleInput.value.trim() || null,
-      phone: phoneInput.value.trim() || null,
-      email: emailInput.value.trim() || null,
-      note: noteInput.value.trim() || null,
-      category: existing?.category || "admin",
-    };
-    try {
-      if (isNew) {
-        const inserted = await addContact(payload);
-        toast("Contact ajouté · Ctrl+Z pour annuler", "success", 2400);
-        if (inserted?.id) recordUndo("contact ajouté", async () => { await deleteContact(inserted.id); });
-      } else {
-        const prev = { ...existing };
-        await updateContact(existing.id, payload);
-        recordUndo("contact modifié", async () => {
-          await updateContact(existing.id, {
-            prenom: prev.prenom, role: prev.role, phone: prev.phone,
-            email: prev.email, note: prev.note, category: prev.category,
-          });
-        });
-        toast("Contact mis à jour", "success", 1800);
-      }
-      modale.fermer();
-      onSaved();
-    } catch (e) { toast(e.message, "error"); }
-  }
-
-  const modal = el("div", { class: "modal" },
-    el("h3", {}, isNew ? "Nouveau contact" : "Modifier le contact"),
-    el("div", { class: "modal-form" },
-      el("div", { class: "field" }, el("label", {}, "Prénom"), prenomInput),
-      el("div", { class: "field" }, el("label", {}, "Rôle"), roleInput),
-      el("div", { class: "field-pair" },
-        el("div", { class: "field" }, el("label", {}, "Téléphone"), phoneInput),
-        el("div", { class: "field" }, el("label", {}, "E-mail"), emailInput),
-      ),
-      el("div", { class: "field" }, el("label", {}, "Note"), noteInput),
-    ),
-    el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", onClick: () => modale.fermer() }, "Annuler"),
-      el("button", { class: "btn primary", onClick: save }, icon.check(), "Enregistrer"),
-    )
-  );
-  modale = ouvrirModale(modal);
-  setTimeout(() => prenomInput.focus(), 80);
-}
-
-function renderContactCard(c, onChanged) {
-  const admin = isAdmin();
-  const card = el("article", { class: "contact-card contact-cat-" + (c.category || "admin") });
-
-  const head = el("div", { class: "contact-head" },
-    el("h4", { class: "contact-name" }, c.prenom),
-    c.role ? el("p", { class: "contact-role muted" }, c.role) : null,
-  );
-  card.appendChild(head);
-
-  const links = el("div", { class: "contact-links" });
-  if (c.phone) {
-    const tel = c.phone.replace(/\s+/g, "");
-    links.appendChild(el("a", { class: "contact-link phone", href: "tel:" + tel },
-      el("span", { class: "contact-link-icon" }, deco(icon.phone())),
-      el("span", {}, c.phone),
-    ));
-  }
-  if (c.email) {
-    links.appendChild(el("a", { class: "contact-link email", href: "mailto:" + c.email },
-      el("span", { class: "contact-link-icon" }, deco(icon.mail())),
-      el("span", {}, c.email),
-    ));
-  }
-  if (links.childElementCount) card.appendChild(links);
-
-  if (c.note) card.appendChild(el("p", { class: "contact-note" }, c.note));
-
-  if (admin) {
-    const actions = el("div", { class: "contact-actions" });
-    const editBtn = el("button", {
-      class: "btn small ghost icon-only", "aria-label": "Modifier",
-      onClick: () => openContactModal(c, onChanged),
-    });
-    editBtn.appendChild(icon.settings());
-    const delBtn = el("button", {
-      class: "btn small danger icon-only", "aria-label": "Supprimer",
-      onClick: async () => {
-        if (!(await confirmer({ titre: `Supprimer le contact ${c.prenom} ?`, oui: "Supprimer" }))) return;
-        const snapshot = { ...c };
-        delete snapshot.id; delete snapshot.created_at; delete snapshot.updated_at;
-        await deleteContact(c.id);
-        toast("Supprimé · Ctrl+Z pour annuler", "success", 2400);
-        recordUndo("contact supprimé", async () => { await addContact(snapshot); });
-        onChanged();
-      }
-    });
-    delBtn.appendChild(icon.trash());
-    actions.appendChild(editBtn);
-    actions.appendChild(delBtn);
-    card.appendChild(actions);
-  }
-  return card;
-}
-
 function rerender(container) {
   clear(container);
 
   const admin = isAdmin();
 
-  // La page est Cours et QCM, Documents ; elle porte ce nom, avec la promo en surtitre. La section des contacts
-  // s'appelle « Contacts du centre », comme la ligne du menu du compte qui y mène. Le nombre de liens et de contacts
-  // termine le sous-titre.
+  // La page est Cours et QCM, Documents ; elle porte ce nom, avec la promo en surtitre. Le nombre de liens termine le sous-titre
+  // (les contacts du centre ont leur page, js/views/contacts.js).
   const surtitre = getPromoCourante()?.nom;
-  const compte = `${ressources.length} lien${ressources.length > 1 ? "s" : ""} · ${contacts.length} contact${contacts.length > 1 ? "s" : ""}`;
+  const compte = `${ressources.length} lien${ressources.length > 1 ? "s" : ""}`;
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
       el("h2", {}, "Documents"),
-      el("p", { class: "subtitle" }, "Contacts du centre"
-        + " (absences, justificatifs) + textes officiels & sites pédagogiques." + ` ${compte}.`),
+      el("p", { class: "subtitle" }, `Textes officiels et sites pédagogiques. ${compte}.`),
     ),
   ));
-
-  // === Section Contacts ===
-  const contactsSection = el("section", { class: "contacts-section" });
-  contactsSection.appendChild(el("div", { class: "contacts-section-head" },
-    el("h3", { class: "ressource-section-title" }, "Contacts du centre"),
-    admin ? el("button", {
-      class: "btn small accent",
-      onClick: () => openContactModal(null, () => reload(container)),
-    }, icon.plus(), "Ajouter un contact") : null,
-  ));
-  contactsSection.appendChild(el("p", { class: "muted contacts-section-sub" },
-    "Numéros à appeler en cas d'absence ou de question administrative. "
-      + selonPublic("Tape sur un numéro pour appeler directement.", "Tapez sur un numéro pour appeler directement.")));
-
-  if (contacts.length === 0) {
-    contactsSection.appendChild(el("p", { class: "muted", style: "padding:1rem;text-align:center" }, "Aucun contact enregistré pour ce centre."));
-  } else {
-    const grid = el("div", { class: "contacts-grid" });
-    contacts.forEach((c) => grid.appendChild(renderContactCard(c, () => reload(container))));
-    contactsSection.appendChild(grid);
-  }
-  container.appendChild(contactsSection);
 
   const grouped = {};
   ressources.forEach((r) => {
@@ -289,7 +145,7 @@ function rerender(container) {
   Object.keys(grouped).forEach((c) => { if (!cats.includes(c)) cats.push(c); });
 
   // En-tête de la zone ressources (avec bouton "Ajouter" à droite, admin only)
-  container.appendChild(el("div", { class: "contacts-section-head", style: "margin-top:1.5rem" },
+  container.appendChild(el("div", { class: "contacts-section-head" },
     el("h3", { class: "ressource-section-title", style: "margin:0" }, "Ressources externes"),
     admin ? el("button", {
       class: "btn small accent",
@@ -313,13 +169,13 @@ function rerender(container) {
 }
 
 async function reload(container) {
-  [ressources, contacts] = await Promise.all([listRessources(), listContacts()]);
+  ressources = await listRessources();
   rerender(container);
 }
 
 export async function renderRessources(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
-  [ressources, contacts] = await Promise.all([listRessources(), listContacts()]);
+  ressources = await listRessources();
   rerender(container);
 }

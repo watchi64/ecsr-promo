@@ -197,13 +197,13 @@ def page_en_panne(v):
     v.terminer()
 
 
-@parcours("documents-et-contacts", "Trouver un document ou les contacts du centre", role="stagiaire", budget=2)
+@parcours("documents-et-contacts", "Trouver un document", role="stagiaire", budget=2)
 def documents(v):
-    """Ouvrir les documents (Ressources, ou Cours et QCM, Documents) : des liens et les contacts du centre."""
+    """Ouvrir les documents (Cours et QCM, Documents) : des liens, et plus la section des contacts (ils ont leur page, Contacts)."""
     v.aller("Documents")
     v.attendre("#view a[href^=\"http\"], #view a[href$=\".pdf\"]", "un document ou un lien officiel")
-    if "contact" not in v.texte("#view").lower():
-        v.constat("F", LISTE, "la page des documents ne montre pas les contacts du centre")
+    if v.page.locator("#view .contacts-section-head h3:text-is('Contacts du centre')").count():
+        v.constat("F", LISTE, "la page des documents montre encore la section des contacts du centre")
     v.but("documents affichés")
     v.terminer()
 

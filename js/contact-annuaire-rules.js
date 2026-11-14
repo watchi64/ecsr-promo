@@ -19,8 +19,13 @@ export function enConge(fiche, jour) {
   return du <= jour && jour <= au;
 }
 
-function numeroDuJour(iso) {
-  return Number(String(iso).slice(8, 10));
+const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+
+// « 15 », ou « 3 décembre » quand le mois de la date n'est pas celui du jour affiché.
+function dateDeFin(iso, jour) {
+  const jourDuMois = Number(String(iso).slice(8, 10));
+  const mois = Number(String(iso).slice(5, 7));
+  return mois === Number(String(jour).slice(5, 7)) ? String(jourDuMois) : `${jourDuMois} ${MOIS[mois - 1]}`;
 }
 
 // Ce que l'écran affiche pour une fiche de l'annuaire. `parId` : Map(id de fiche -> nom) pour nommer le relais.
@@ -30,7 +35,7 @@ export function ligneDeFiche(fiche, { jour, parId } = {}) {
   let conge = null;
   if (enConge(f, jour)) {
     const relais = f.relais_id != null && parId ? parId.get(f.relais_id) : null;
-    conge = `Absente jusqu'au ${numeroDuJour(f.conge_au)}` + (relais ? `, relais : ${relais}` : "");
+    conge = `En congé jusqu'au ${dateDeFin(f.conge_au, jour)}` + (relais ? `, relais : ${relais}` : "");
   }
   return {
     nom: f.nom_affiche ?? "",
@@ -93,7 +98,8 @@ export function validerMaFiche(champs) {
   const au = c.conge_au === "" ? null : (c.conge_au ?? null);
   if (du != null && !dateValide(du)) erreurs.conge_du = PHRASE_CONGE;
   if (au != null && !dateValide(au)) erreurs.conge_au = PHRASE_CONGE;
-  if (!erreurs.conge_du && !erreurs.conge_au && ("conge_du" in c || "conge_au" in c)) {
+  // Une date absente des champs envoyés garde sa valeur en base : seule la paire envoyée ensemble est jugée entière.
+  if (!erreurs.conge_du && !erreurs.conge_au && "conge_du" in c && "conge_au" in c) {
     if ((du == null) !== (au == null) || (du != null && du > au)) erreurs.conge_au = PHRASE_CONGE;
   }
   return { ok: Object.keys(erreurs).length === 0, erreurs };

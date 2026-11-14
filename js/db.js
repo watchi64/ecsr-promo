@@ -2837,4 +2837,20 @@ export async function reglerDelegue(stagiaireId, valeur) {
   }
   exigerLignes(data, "Le délégué ne peut pas être changé d'ici.");
 }
+
+// Les lignes « profs » qu'une fiche sans compte peut représenter (« Formateur du planning ») : celles du planning de la promo
+// affichée, sans compte relié. [{ id, nom }]. Le planning des autres centres d'une fiche partagée n'est pas lisible d'ici : la base
+// juge le choix à l'enregistrement (refus « contact: ... » dit par l'écran).
+export async function lireFormateursPourFiche() {
+  const [entrees, libres] = await Promise.all([
+    lireTable("planning_entries", "id, prof_id, prof_ids", "id", null),
+    lireFichesFormateurLibres(),
+  ]);
+  const presents = new Set();
+  for (const e of entrees) {
+    if (e.prof_id != null) presents.add(e.prof_id);
+    for (const id of e.prof_ids || []) presents.add(id);
+  }
+  return libres.filter((f) => presents.has(f.id));
+}
 // === fin espace contact ===

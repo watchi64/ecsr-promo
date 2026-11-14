@@ -1,0 +1,100 @@
+/* ============================================================
+   Page Contacts (#/contacts, espace contact) : l'annuaire du centre, la promo.
+   Des listes et des cartes : rien ne défile de côté, les longs textes et
+   adresses passent à la ligne. Cibles de 44 px, couleurs par jetons.
+   ============================================================ */
+
+.contacts-page { max-width: 760px; overflow-wrap: anywhere; }
+.contacts-page .btn { min-height: 44px; white-space: normal; text-align: center; }
+
+.contact-section { margin: 0 0 1.75rem; }
+.contact-section-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+.contact-section-titre { margin: 0; font-size: 1.05rem; letter-spacing: -0.01em; }
+.contact-section > .contact-section-titre { margin-bottom: 0.75rem; }
+.contact-section-tete > .contact-section-titre { margin-bottom: 0; }
+
+.contact-liste, .contact-promo { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+
+.contact-carte, .contact-promo-ligne {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 0.9rem 1rem;
+  min-width: 0;
+}
+.contact-promo { gap: 0.5rem; }
+.contact-promo-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+}
+.contact-promo-ligne-equipe { display: block; }
+
+.contact-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem; }
+.contact-nom { margin: 0; font-size: 1rem; }
+.contact-promo-nom { font-weight: 600; }
+.contact-titre { margin: 0.15rem 0 0; color: var(--text-muted); font-size: 0.9rem; }
+.contact-conge { margin: 0.5rem 0 0; font-weight: 600; font-size: 0.92rem; color: var(--c-stop); }
+.contact-attente { margin: 0.5rem 0 0; color: var(--text-muted); font-size: 0.88rem; }
+
+.contact-pastille {
+  display: inline-block;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.contact-detail { margin: 0.6rem 0 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.contact-ligne { display: grid; grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr); gap: 0.1rem 0.75rem; }
+.contact-ligne dt {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.contact-ligne dd { margin: 0; font-size: 0.95rem; line-height: 1.4; }
+@media (max-width: 480px) {
+  .contact-ligne { grid-template-columns: minmax(0, 1fr); }
+}
+
+.contact-actions, .contact-gestes { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.7rem; }
+.contact-gestes { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--line-faint); }
+.contact-coord {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  color: var(--accent);
+  font-size: 0.92rem;
+}
+.contact-coord svg, .contact-actions .btn svg { flex: none; }
+
+.contact-erreur { padding: 1rem 0; }
+.contact-champ-erreur { margin: 0; color: var(--c-stop); font-size: 0.85rem; }
+.contact-champ-erreur:empty { display: none; }
+.contact-aide { margin: 0; color: var(--text-muted); font-size: 0.82rem; }
+
+/* La fenêtre d'une fiche : longue, elle défile sur place (jamais de côté). */
+.contact-modal { max-height: 92vh; overflow-y: auto; overflow-x: hidden; overflow-wrap: anywhere; }
+.contact-modal .field input,
+.contact-modal .field select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.contact-partage { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.5rem 0.75rem; margin: 0; min-width: 0; }
+.contact-partage legend { padding: 0 0.3rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.contact-case { display: flex; align-items: center; gap: 0.65rem; min-height: 44px; cursor: pointer; }
+.contact-case input { width: 1.2rem; height: 1.2rem; flex: none; }

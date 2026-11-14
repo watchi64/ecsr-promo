@@ -77,6 +77,7 @@ const ALIAS_ENTREE_ACTIVE = new Map([
   ["dashboard", "planning"],
   ["ressources", "themes"],
   ["nouveautes", "home"],
+  ["contacts", "home"],
   ["notes", "mon-suivi"],
   // Problèmes signalés (fondateur, spec 2026-10-28) : ouverte depuis « Signaler un problème ».
   ["problemes", "config"],
@@ -84,7 +85,7 @@ const ALIAS_ENTREE_ACTIVE = new Map([
   ["qualiopi", "centre"],
 ]);
 
-const PAGES_DU_MENU_DU_COMPTE = ["nouveautes", "preferences", "problemes"];
+const PAGES_DU_MENU_DU_COMPTE = ["nouveautes", "preferences", "problemes", "contacts"];
 
 // Anciennes adresses déplacées : la page visée et le sous-onglet à y ouvrir (les mêmes dans
 // les deux espaces). Une Map, comme pour les alias : la route vient de l'adresse tapée, et un

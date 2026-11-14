@@ -125,10 +125,10 @@ test("promosDuCentre", () => {
 });
 
 test("routeDansLEspace : tableau des routes par espace", () => {
-  const direction = ["centre", "promos", "stagiaires", "emargement", "notes", "equipe", "config", "home", "nouveautes", "preferences", "problemes"];
+  const direction = ["centre", "promos", "stagiaires", "emargement", "notes", "equipe", "contacts", "config", "home", "nouveautes", "preferences", "problemes"];
   const siege = ["reseau", "directions", "themes", "config", "home", "nouveautes", "preferences", "problemes"];
   const toutes = ["centre", "promos", "stagiaires", "emargement", "notes", "equipe", "reseau", "directions", "themes", "planning",
-    "config", "home", "nouveautes", "preferences", "problemes", "mon-suivi", "calendrier", "dashboard", "ccp2", "qualiopi", "ressources"];
+    "config", "home", "nouveautes", "preferences", "problemes", "mon-suivi", "calendrier", "dashboard", "ccp2", "qualiopi", "ressources", "contacts"];
   for (const r of toutes) {
     assert.equal(routeDansLEspace("direction", r), direction.includes(r), "direction " + r);
     assert.equal(routeDansLEspace("siege", r), siege.includes(r), "siège " + r);
