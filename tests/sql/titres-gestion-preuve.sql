@@ -13,8 +13,9 @@
 -- Les groupes des migrations 5 et 6 s'ajoutent avec leurs tâches (retrait, soi, ecritures, lectures ; puis verrou, donner, retirer,
 -- gerer, lire, immediat, journal). Un groupe dont la fonction n'existe pas est sauté, avec une ligne d'information, en mode
 -- gestion-en-ligne (la migration n'est pas encore appliquée) ; il compte comme un échec dans les modes injectés où sa migration est jouée.
--- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes (tests/sql/roles-aides.sql, puis
--- tests/sql/titres-aides.sql), le libellé du mode, la requête d'empreinte, puis les migrations 4, 5 et 6 et leurs retours :
+-- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes (tests/sql/roles-aides.sql,
+-- tests/sql/titres-aides.sql, puis tests/sql/titres-gestion-aides.sql, qui porte les personnages de l'étape 2), le libellé du mode, la
+-- requête d'empreinte, puis les migrations 4, 5 et 6 et leurs retours :
 --   node outils/assembler_repetition_roles.mjs gestion [--etapes 5|5,6|4,5,6] <sortie.sql>   étapes 5,6 par défaut : VERT attendu
 --   node outils/assembler_repetition_roles.mjs gestion-contre-epreuve <sortie.sql>           sans aucune migration : ROUGE attendu
 --                                                                                            sur les groupes des migrations 5 et 6
@@ -24,6 +25,7 @@
 
 -- @@INCLURE tests/sql/roles-aides.sql@@
 -- @@INCLURE tests/sql/titres-aides.sql@@
+-- @@INCLURE tests/sql/titres-gestion-aides.sql@@
 
 create or replace function pg_temp.empreinte(out regles text, out fonctions text, out droits text)
 language plpgsql as $temp$
@@ -32,53 +34,6 @@ begin
 -- @@INJECTER tests/sql/roles-empreinte.sql@@
   into regles, fonctions, droits;
 end $temp$;
-
--- Les personnages de l'étape 2, posés en propriétaire après ceux de titres-aides.sql (poser_perso, poser_titres_gestes) : une promo
--- « Preuve8 promo A » dans le centre de la promo 1 ; quatre titres non fixes (t_chef et t_vide au centre de la promo 1, t_qualite et
--- t_dirs au réseau), chacun porté par un compte ; cinq adresses libres (x, y, z, u, v : ni profil ni affectation) et un orphelin (profil
--- de stagiaire sans fiche). Le champ info de pg_temp.perso porte l'identifiant du titre pour les quatre premiers.
-create or replace function pg_temp.poser_titres_gestion()
-returns void language plpgsql as $tpgs$
-declare
-  v_l1 integer := (select lieu_id from public.promos where id = 1);
-  v_chef text; v_vide text; v_qualite text; v_dirs text;
-begin
-  insert into public.promos (id, lieu_id, nom, date_debut, date_fin) values (990801, v_l1, 'Preuve8 promo A', current_date - 20, null);
-  insert into perso (ordre, nom, email, role) values
-    (40, 't_chef', 'preuve8.t.chef@exemple.invalid', 'prof'),
-    (41, 't_vide', 'preuve8.t.vide@exemple.invalid', 'prof'),
-    (42, 't_qualite', 'preuve8.t.qualite@exemple.invalid', 'prof'),
-    (43, 't_dirs', 'preuve8.t.dirs@exemple.invalid', 'prof'),
-    (50, 'x', 'preuve8.x@exemple.invalid', 'prof'),
-    (51, 'y', 'preuve8.y@exemple.invalid', 'prof'),
-    (52, 'z', 'preuve8.z@exemple.invalid', 'prof'),
-    (53, 'u', 'preuve8.u@exemple.invalid', 'prof'),
-    (54, 'v', 'preuve8.v@exemple.invalid', 'prof'),
-    (55, 'orphelin', 'preuve8.orphelin@exemple.invalid', 'stagiaire');
-  insert into public.user_profiles (email, role, is_admin, stagiaire_id)
-    select email, role, false, null from perso where nom in ('t_chef', 't_vide', 't_qualite', 't_dirs', 'orphelin');
-  -- Un camarade de la promo 1 qui a masqué ses notes (anonymous_notes), posé en propriétaire.
-  declare v_fiche_anon integer;
-  begin
-    insert into public.stagiaires (prenom, nom, ordre, promo_id) values ('Preuve8 anonyme', 'PREUVE', 991, 1) returning id into v_fiche_anon;
-    insert into public.user_profiles (email, role, is_admin, stagiaire_id, anonymous_notes)
-      values ('preuve8.anonyme@exemple.invalid', 'stagiaire', false, v_fiche_anon, true);
-  end;
-  v_chef := pg_temp.calcul(format('insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values (''Preuve8 chef de centre'', ''centre'', %s, %L::jsonb, ''preuve'') returning id::text',
-    v_l1, '{"promos":"voir","stagiaires":"voir","equipe":"modifier"}'));
-  v_vide := pg_temp.calcul(format('insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values (''Preuve8 titre vide'', ''centre'', %s, %L::jsonb, ''preuve'') returning id::text',
-    v_l1, '{}'));
-  v_qualite := pg_temp.calcul(format('insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values (''Preuve8 qualité'', ''reseau'', null, %L::jsonb, ''preuve'') returning id::text',
-    '{"cours":"voir","directions":"voir"}'));
-  v_dirs := pg_temp.calcul(format('insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values (''Preuve8 directions'', ''reseau'', null, %L::jsonb, ''preuve'') returning id::text',
-    '{"cours":"voir","directions":"modifier"}'));
-  update perso set info = case nom when 't_chef' then v_chef when 't_vide' then v_vide when 't_qualite' then v_qualite else v_dirs end
-    where nom in ('t_chef', 't_vide', 't_qualite', 't_dirs');
-  perform pg_temp.affecter((select email from perso where nom = 't_chef'), 'direction', null, v_l1, v_chef);
-  perform pg_temp.affecter((select email from perso where nom = 't_vide'), 'direction', null, v_l1, v_vide);
-  perform pg_temp.affecter((select email from perso where nom = 't_qualite'), 'siege', null, null, v_qualite);
-  perform pg_temp.affecter((select email from perso where nom = 't_dirs'), 'siege', null, null, v_dirs);
-end $tpgs$;
 
 -- Un groupe se joue-t-il dans ce mode ? p_etat : le sort de la migration qui le fonde (« jouée », « neutralisée », ou une erreur) ;
 -- p_fonction : la fonction que cette migration crée (écrite comme to_regprocedure la lit), ou nul si le groupe ne dépend d'aucune fonction.
@@ -1681,7 +1636,10 @@ begin
     perform pg_temp.groupe_journal();
   end if;
 
-  -- 5. Les retours, dans l'ordre inverse (6, 5, 4).
+  -- 5. Les retours, dans l'ordre inverse (6, 5, 4). Avant eux, les affectations des titres non fixes partent (en propriétaire) : chaque retour
+  -- de 6, 7, 8 et 9 refuse de se jouer tant qu'une personne porte un titre non fixe (garde D5 de l'étape 3). Une information, jamais un contrôle.
+  perform pg_temp.informer('avant les retours', format('%s affectation(s) d''un titre non fixe retirée(s) (garde D5 des retours)',
+    pg_temp.retirer_titres_non_fixes()));
   v_retour6 := pg_temp.jouer('retour 6',
 -- @@INJECTER supabase/migrations/20261112_titres_6_gestion_retour.sql@@
   );

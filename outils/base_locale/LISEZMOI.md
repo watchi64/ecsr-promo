@@ -41,8 +41,15 @@ qu'elle fait est annulé. Modes : voir l'en-tête de `outils/assembler_repetitio
 ## Rejouer la suite
 
 ```
-bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3]
+bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3] [--autonomie 1|1,2] [--production]
 ```
+
+**L'état de la production (14/11) : `--production`**, qui vaut `--titres 1,2,3,5,6 --autonomie 1,2` (sortie
+`OK : suite rejouée (23 migrations)`). `--titres` cherche `2026111?_titres_<n>_*` (n de 1 à 9, date quelconque du 10 au 19/11 :
+les migrations 7, 8 et 9 de l'étape 3 sont datées du 15/11). `--autonomie 1` joue, après les contacts,
+`20261114_autonomie_1_traces` ; `--autonomie 1,2` y ajoute `20261114_autonomie_2_version` avec `-v version=2026-11-14` (la version
+des conditions en production). Sans `--titres`, `--autonomie` ni `--production`, la sortie reste celle d'avant (16 migrations : les
+quatorze ci-dessous et les deux des contacts), ce que supposent les en-têtes des preuves de l'e-learning.
 
 À lancer juste après `reconstruire.sh` : applique, avec `psql -1 -v ON_ERROR_STOP=1`, les quatorze migrations postérieures au
 lot 4 (`20261108_espaces_1_siege` à `20261111_espaces_4_donnees`, puis `20261110_navigation_unique_1_reglages`, `_2_menage`,
@@ -80,3 +87,19 @@ Sur une base `--titres 1,2,3` (l'état de la production), `node outils/assembler
 la 5, la 4 demande les deux). `gestion-contre-epreuve` (rien d'injecté, ROUGE attendu sur les groupes des migrations 5 et 6) et
 `gestion-en-ligne` (rien d'injecté, après application réelle ; un groupe dont la fonction n'existe pas encore est sauté avec une ligne
 d'information) complètent les modes. Les aides communes à la preuve de l'étape 1 et à celle-ci sont dans `tests/sql/titres-aides.sql`.
+
+## Preuves de l'étape 3 du chantier « titres et droits à la carte »
+
+Sur une base `--production`, `node outils/assembler_repetition_roles.mjs suite [--etapes 7|7,8|7,8,9|8|8,9|9|4,9] <sortie.sql>` assemble
+`tests/sql/titres-suite-preuve.sql` : les migrations demandées (7, 8 et 9 par défaut) puis leurs retours (9, 8, 7, 4) ; `4,9` est
+l'essai à blanc de l'étape 4 (le journal injecté juste avant le catalogue). Une suite qui commence après la 7 suppose les migrations
+précédentes déjà appliquées sur la base : la preuve le vérifie et refuse sinon. `suite-contre-epreuve` (rien d'injecté, chaque groupe
+joué) et `suite-en-ligne` (rien d'injecté, après application réelle ; un groupe dont la migration manque est sauté avec une information)
+complètent les modes. Les personnages de l'étape 2 (`poser_titres_gestion`) et le retrait des titres non fixes avant les retours
+(`retirer_titres_non_fixes`, garde D5) sont dans `tests/sql/titres-gestion-aides.sql`, inclus par les preuves de gestion et de la suite.
+
+Verdicts de départ de l'étape 3 (base `--production`, 14/11), dans `.base-locale/verdicts/avant-3/` : titres en ligne VERT 375/0,
+gestion en ligne VERT 335/0, rôles en ligne VERT 11986/0, espaces en ligne VERT 240/0, données en ligne VERT 59/0, EPCF VERT 17/0,
+profils VERT 32/0, contacts en ligne VERT 43/0, questionnaires VERT 207/0, registre qualité VERT 128/0, conservation VERT 227/0,
+habillage VERT 20/0, e-learning (`tests/sql/autonomie-preuve.sql`) VERT 146/0 ; `tests/sql/autonomie-version-preuve.sql`, qui exige la
+migration 2 de l'e-learning non appliquée, sur une base `--titres 1,2,3,5,6 --autonomie 1` : VERT 23/0.

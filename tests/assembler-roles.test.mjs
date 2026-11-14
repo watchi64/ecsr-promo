@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  ETAPES, ETAPES_GESTION, ETAPES_TITRES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, MIGRATION_ESPACES_4, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
+  ETAPES, ETAPES_GESTION, ETAPES_SUITE, ETAPES_TITRES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, MIGRATION_ESPACES_4, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
 } from "../outils/assembler_repetition_roles.mjs";
 
 // outils/assembler_repetition_roles.mjs fabrique le fichier SQL d'une répétition du lot 4 : le gabarit de la preuve,
@@ -858,7 +858,7 @@ test("titres : étapes refusées (hors 1 à 4, non consécutives), --etapes refu
     assert.throws(() => decrireMode("titres", { etapes: mauvaise }), /étapes refusées/, JSON.stringify(mauvaise));
   }
   for (const mode of ["titres-contre-epreuve", "titres-en-ligne"]) {
-    assert.throws(() => decrireMode(mode, { etapes: [1] }), /--etapes ne vaut que pour le mode repetition, titres ou gestion/, mode);
+    assert.throws(() => decrireMode(mode, { etapes: [1] }), /--etapes ne vaut que pour le mode repetition, titres, gestion ou suite/, mode);
   }
   assert.throws(() => decrireMode("repetition", { etapes: [1, 2, 3, 4] }), /étapes refusées/);
   assert.deepEqual(decrireMode("repetition", { etapes: [1, 2, 3] }).etapes, [1, 2, 3]);
@@ -966,7 +966,7 @@ test("gestion : étapes 5 et 6 par défaut, injectées octet pour octet dans l'o
   const lus = [];
   const r = assemblerMode("gestion", RACINE, { lire: (c) => { lus.push(c); return depotGestion(c); } });
   assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, GESTION_5.migration, GESTION_6.migration, GESTION_6.retour, GESTION_5.retour]);
-  assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES, AIDES_TITRES]);
+  assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES, AIDES_TITRES, "tests/sql/titres-gestion-aides.sql"]);
   assert.deepEqual([...r.neutralises].sort(), [GESTION_4.migration, GESTION_4.retour].sort());
   assert.ok(!lus.includes(GESTION_4.migration) && !lus.includes(GESTION_4.retour), "étape 4 non demandée, donc non lue");
   verifierInjections(r, depotGestion);
@@ -1005,7 +1005,7 @@ test("gestion : étapes refusées (la 6 demande la 5, la 4 demande les deux), un
   assert.doesNotThrow(() => assemblerMode("gestion", RACINE, {
     lire: (c) => (c === GESTION_4.migration || c === GESTION_4.retour ? null : depotGestion(c)) }));
   for (const mode of ["gestion-contre-epreuve", "gestion-en-ligne"]) {
-    assert.throws(() => decrireMode(mode, { etapes: [5] }), /--etapes ne vaut que pour le mode repetition, titres ou gestion/, mode);
+    assert.throws(() => decrireMode(mode, { etapes: [5] }), /--etapes ne vaut que pour le mode repetition, titres, gestion ou suite/, mode);
   }
 });
 
@@ -1117,4 +1117,174 @@ test("la migration 5 : retirer_titre fermée à public, anon et service_role, ou
   assert.match(r, /public\.est_direction\(public\.lieu_de_promo\(promo_id\)\)/, "le retour remet affectations_lecture du lot 4");
   // Le retour 3 refuse de se jouer tant que retirer_titre existe.
   assert.match(texteDuDepot(ETAPES_TITRES[3].retour), /to_regprocedure\('public\.retirer_titre\(text, bigint, integer\)'\) is not null/);
+});
+
+// --- Étape 3 du chantier : modes suite, suite-contre-epreuve, suite-en-ligne -------------------------------------------------------
+
+const GABARIT_SUITE = "tests/sql/titres-suite-preuve.sql";
+const AIDES_GESTION = "tests/sql/titres-gestion-aides.sql";
+const S = ETAPES_SUITE;
+const TOUS_FICHIERS_SUITE = [7, 8, 4, 9].flatMap((n) => [S[n].migration, S[n].retour]);
+// Les migrations 7, 8 et 9 naissent avec leurs tâches : des textes factices en mémoire (la 4 est dans le dépôt), pour juger l'assembleur seul.
+const FACTICES_SUITE = Object.fromEntries([7, 8, 9].flatMap((n) => [
+  [S[n].migration, `-- factice : suite migration ${n}\r\nselect ${n};\r\n`],
+  [S[n].retour, `-- factice : suite retour ${n}\r\nselect -${n};\r\n`]]));
+const depotSuite = (chemin) => duDisque(chemin) ?? FACTICES_SUITE[chemin] ?? null;
+// L'ordre du gabarit : migrations 7, 8, 4 (juste avant la 9), 9, puis retours 9, 8, 7, 4.
+const ORDRE_SUITE = [7, 8, 4, 9].map((n) => S[n].migration).concat([9, 8, 7, 4].map((n) => S[n].retour));
+const SUITES_ADMISES = [[7], [7, 8], [7, 8, 9], [8], [8, 9], [9], [4, 9]];
+
+test("suite : étapes 7, 8 et 9 par défaut, injectées octet pour octet dans l'ordre du gabarit (retours 9, 8, 7), la 4 neutralisée et non lue", () => {
+  const lus = [];
+  const r = assemblerMode("suite", RACINE, { lire: (c) => { lus.push(c); return depotSuite(c); } });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, S[7].migration, S[8].migration, S[9].migration, S[9].retour, S[8].retour, S[7].retour]);
+  assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES, AIDES_TITRES, AIDES_GESTION]);
+  assert.deepEqual([...r.neutralises].sort(), [S[4].migration, S[4].retour].sort());
+  assert.ok(!lus.includes(S[4].migration) && !lus.includes(S[4].retour), "étape 4 non demandée, donc non lue");
+  verifierInjections(r, depotSuite);
+  assert.equal(r.mode, "suite (etapes 7, 8, 9 injectees)");
+  assert.ok(r.texte.includes("\n'suite (etapes 7, 8, 9 injectees)'\n"));
+  assert.deepEqual(decrireMode("suite").etapesSuite, [7, 8, 9]);
+});
+
+test("suite : chaque mode a ses marqueurs (les huit fichiers une fois chacun, dans l'ordre 7, 8, 4, 9 puis 9, 8, 7, 4, et le marqueur de mode)", () => {
+  const gabarit = texteDuDepot(GABARIT_SUITE);
+  const places = ORDRE_SUITE.map((c) => gabarit.indexOf(`-- @@INJECTER ${c}@@`));
+  assert.ok(places.every((x) => x >= 0), "les huit fichiers sont injectés");
+  assert.deepEqual([...places].sort((a, b) => a - b), places, "dans l'ordre d'application, puis des retours");
+  for (const c of [...ORDRE_SUITE, EMPREINTE]) {
+    assert.equal(gabarit.split(`-- @@INJECTER ${c}@@`).length, 2, `${c} injecté une seule fois`);
+  }
+  assert.equal((gabarit.match(/^-- @@MODE@@$/gm) ?? []).length, 1);
+  for (const c of [AIDES, AIDES_TITRES, AIDES_GESTION]) assert.ok(gabarit.includes(`-- @@INCLURE ${c}@@`), `${c} inclus`);
+  for (const [mode, lire] of [["suite", depotSuite], ["suite-contre-epreuve", duDisque], ["suite-en-ligne", duDisque]]) {
+    const r = assemblerMode(mode, RACINE, { lire });
+    assert.equal(r.injections.length + r.neutralises.length, 9, `${mode} : l'empreinte et les huit fichiers, injectés ou neutralisés`);
+    assert.ok(r.mode.startsWith(mode === "suite" ? "suite (" : mode), mode);
+  }
+});
+
+test("suite --etapes : chaque suite admise injecte ses étapes dans l'ordre du gabarit et ne lit jamais un fichier d'une étape non demandée", () => {
+  for (const etapes of SUITES_ADMISES) {
+    const lus = [];
+    const r = assemblerMode("suite", RACINE, { etapes, lire: (c) => { lus.push(c); return depotSuite(c); } });
+    const attendus = ORDRE_SUITE.filter((c) => etapes.some((n) => c === S[n].migration || c === S[n].retour));
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...attendus], JSON.stringify(etapes));
+    assert.equal(r.neutralises.length, 8 - attendus.length, JSON.stringify(etapes));
+    for (const c of TOUS_FICHIERS_SUITE.filter((x) => !attendus.includes(x))) assert.ok(!lus.includes(c), `${JSON.stringify(etapes)} : ${c} non demandé, donc non lu`);
+    assert.equal(r.mode, `suite (${etapes.length === 1 ? "etape" : "etapes"} ${etapes.join(", ")} injectees)`);
+    verifierInjections(r, depotSuite);
+  }
+});
+
+test("suite --etapes 4,9 : la 4 injectée juste avant la 9, puis les retours 9 et 4 ; 7 et 8 neutralisées", () => {
+  const r = assemblerMode("suite", RACINE, { etapes: [4, 9], lire: depotSuite });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, S[4].migration, S[9].migration, S[9].retour, S[4].retour]);
+  assert.deepEqual([...r.neutralises].sort(), [S[7].migration, S[7].retour, S[8].migration, S[8].retour].sort());
+  const delimiteur = r.injections[0].delimiteur;
+  const ordre = [S[4].migration, S[9].migration, S[9].retour, S[4].retour].map((c) => r.texte.indexOf(delimiteur + depotSuite(c).replace(/\r/g, "") + delimiteur));
+  assert.ok(ordre.every((x) => x >= 0));
+  assert.deepEqual([...ordre].sort((a, b) => a - b), ordre, "4, 9, puis retours 9, 4 dans le texte produit");
+});
+
+test("suite : suites refusées (7,9 et les autres), fichier manquant d'une étape demandée arrêté avec un message clair, --etapes refusé aux autres modes suite", () => {
+  for (const mauvaise of [[7, 9], [], [4], [4, 7], [8, 7], [9, 8], [7, 8, 9, 4], [4, 7, 8, 9], [5], [6], [7, 7], [1, 2, 3]]) {
+    assert.throws(() => decrireMode("suite", { etapes: mauvaise }), /étapes refusées/, JSON.stringify(mauvaise));
+  }
+  assert.throws(() => assemblerMode("suite", RACINE, { etapes: [7, 9], lire: depotSuite }), /étapes refusées : « 7,9 »/);
+  const sans = (c) => (TOUS_FICHIERS_SUITE.includes(c) && c !== S[4].migration && c !== S[4].retour ? null : duDisque(c));
+  assert.throws(() => assemblerMode("suite", RACINE, { lire: sans }),
+    /Étape 7 demandée \(suite\) : supabase\/migrations\/20261115_titres_7_correctifs\.sql n'existe pas encore.*suite-contre-epreuve/s);
+  assert.throws(() => assemblerMode("suite", RACINE, { etapes: [7], lire: (c) => (c === S[7].retour ? null : depotSuite(c)) }),
+    /Étape 7 demandée \(suite\) : supabase\/migrations\/20261115_titres_7_correctifs_retour\.sql n'existe pas encore/);
+  assert.throws(() => assemblerMode("suite", RACINE, { etapes: [4, 9], lire: (c) => (c === S[9].migration ? null : depotSuite(c)) }), /Étape 9 demandée \(suite\)/);
+  // Tant que la migration 7 n'est pas sur le disque, suite --etapes 7 est refusé (Task 20, Step 5).
+  if (!existsSync(join(RACINE, S[7].migration))) {
+    assert.throws(() => assemblerMode("suite", RACINE, { etapes: [7] }), /Étape 7 demandée \(suite\)/);
+  }
+  for (const mode of ["suite-contre-epreuve", "suite-en-ligne"]) {
+    assert.throws(() => decrireMode(mode, { etapes: [7] }), /--etapes ne vaut que pour le mode repetition, titres, gestion ou suite/, mode);
+  }
+});
+
+test("suite-contre-epreuve et suite-en-ligne : les huit fichiers neutralisés et non lus, l'empreinte toujours là, libellés distincts", () => {
+  for (const mode of ["suite-contre-epreuve", "suite-en-ligne"]) {
+    const lus = [];
+    const r = assemblerMode(mode, RACINE, { lire: (chemin) => { lus.push(chemin); return duDisque(chemin); } });
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE], mode);
+    assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES, AIDES_TITRES, AIDES_GESTION], mode);
+    assert.deepEqual([...r.neutralises].sort(), [...TOUS_FICHIERS_SUITE].sort(), mode);
+    assert.ok(TOUS_FICHIERS_SUITE.every((c) => !lus.includes(c)), mode + " : fichiers non lus");
+  }
+  assert.ok(decrireMode("suite-en-ligne").mode.startsWith("suite-en-ligne"));
+  assert.ok(decrireMode("suite-contre-epreuve").mode.startsWith("suite-contre-epreuve"));
+});
+
+test("la preuve de la suite : modes reconnus par préfixe, marqueurs de présence, personnages Preuve9, pas de $$, adresses fictives, aucun délimiteur partagé", () => {
+  const gabarit = texteDuDepot(GABARIT_SUITE);
+  assert.ok(!/\$\$/.test(gabarit), "pas de $$");
+  const m = /v_en_ligne := v_mode like '([^'%]*)%'/.exec(gabarit);
+  assert.ok(m && decrireMode("suite-en-ligne").mode.startsWith(m[1]));
+  assert.ok(gabarit.includes("p_mode like 'suite-contre-epreuve%'") && decrireMode("suite-contre-epreuve").mode.startsWith("suite-contre-epreuve"));
+  assert.ok(gabarit.includes("p_mode like 'suite-en-ligne%'"));
+  for (const marqueur of ["to_regclass('public.titres_version_unique')", "to_regprocedure('public.apercu_titre()')",
+    "cree_par = 'migration 20261115_titres_9_catalogue') = 6", "to_regclass('public.journal_droits')"]) {
+    assert.ok(gabarit.includes(marqueur), `marqueur de présence : ${marqueur}`);
+  }
+  for (const prerequis of ["public.donner_titre(text, bigint, integer, integer[], integer)", "public._refus_gestion(text, integer, jsonb)", "public.titres_ouverts()"]) {
+    assert.ok(gabarit.includes(`to_regprocedure('${prerequis}')`), `prérequis ${prerequis}`);
+  }
+  assert.match(gabarit, /from pg_policies where schemaname = 'public'/, "md5 des règles du schéma public");
+  assert.match(gabarit, /order by tablename collate "C", policyname collate "C"/);
+  assert.ok(gabarit.includes("'Preuve9 réseau R'") && gabarit.includes("'Preuve9 réseau R promo'"));
+  for (const nom of gabarit.match(/'Preuve[0-9][^']*'/g) ?? []) assert.ok(nom.startsWith("'Preuve9"), `nom posé par la preuve de la suite : ${nom}`);
+  // Le retrait des titres non fixes précède le jeu du premier retour (les textes des retours sont lus dans le declare du bloc).
+  const retrait = gabarit.lastIndexOf("pg_temp.retirer_titres_non_fixes()");
+  assert.ok(retrait > gabarit.indexOf("do $tsprg$") && retrait < gabarit.indexOf("pg_temp.jouer('retour '"), "retrait, puis retours");
+  const adresses = [...(gabarit.match(/[\w.+-]+@[\w.-]+\.[a-z]+/g) ?? []), ...(texteDuDepot(AIDES_GESTION).match(/[\w.+-]+@[\w.-]+\.[a-z]+/g) ?? [])];
+  for (const adresse of adresses) assert.ok(adresse.endsWith("@exemple.invalid"), `adresse de la preuve fictive : ${adresse}`);
+  const delimiteurs = new Set(gabarit.match(/\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/g));
+  for (const chemin of TOUS_FICHIERS_SUITE.filter((c) => existsSync(join(RACINE, c)))) {
+    for (const d of delimiteurs) assert.ok(!texteDuDepot(chemin).includes(d), `${chemin} : ${d} figure aussi dans le gabarit`);
+  }
+});
+
+test("les aides de gestion : sorties de la preuve de gestion, sans marqueur, incluses après les deux autres ; le retour 6 suit le retrait des titres non fixes", () => {
+  const aides = texteDuDepot(AIDES_GESTION);
+  assert.ok(!/@@(?:INJECTER|INCLURE|MODE)/.test(aides), "aucun marqueur dans un fichier inclus");
+  assert.ok(aides.includes("create or replace function pg_temp.poser_titres_gestion()"));
+  assert.ok(aides.includes("create or replace function pg_temp.retirer_titres_non_fixes()"));
+  const gestion = texteDuDepot(GABARIT_GESTION);
+  assert.ok(!gestion.includes("function pg_temp.poser_titres_gestion()"), "poser_titres_gestion n'est plus dans la preuve de gestion");
+  assert.ok(gestion.indexOf(`-- @@INCLURE ${AIDES_TITRES}@@`) < gestion.indexOf(`-- @@INCLURE ${AIDES_GESTION}@@`));
+  const retrait = gestion.indexOf("pg_temp.retirer_titres_non_fixes()");
+  assert.ok(retrait > 0 && retrait < gestion.indexOf(`-- @@INJECTER ${ETAPES_GESTION[6].retour}@@`), "le retrait précède le retour 6");
+  assert.ok(retrait > gestion.lastIndexOf("perform pg_temp.groupe_"), "et suit le dernier groupe");
+});
+
+test("suite : la ligne de commande écrit hors du dépôt et refuse suite --etapes 7,9 avec un message clair", () => {
+  const dossier = mkdtempSync(join(tmpdir(), "suite-"));
+  try {
+    const erreurs = [];
+    assert.equal(principal(["suite-contre-epreuve", join(dossier, "suite.sql")], { racine: RACINE, journal: () => {}, erreur: (m) => erreurs.push(m) }), 0, erreurs.join("\n"));
+    assert.ok(readFileSync(join(dossier, "suite.sql"), "utf8").includes("-- mode : suite-contre-epreuve (aucune migration injectee)"));
+    const refus = [];
+    assert.equal(principal(["suite", "--etapes", "7,9", join(dossier, "refus.sql")], { racine: RACINE, journal: () => {}, erreur: (m) => refus.push(m) }), 1);
+    assert.match(refus.join("\n"), /étapes refusées : « 7,9 »/);
+  } finally {
+    rmSync(dossier, { recursive: true, force: true });
+  }
+});
+
+test("les fichiers de l'étape 3 (gabarit, aides, base locale) : aucun tiret cadratin, fins de ligne LF, aucune adresse de connexion", () => {
+  for (const chemin of [GABARIT_SUITE, AIDES_GESTION, GABARIT_GESTION, "outils/base_locale/rejouer_suite.sh", "outils/base_locale/LISEZMOI.md"]) {
+    const brut = readFileSync(join(RACINE, chemin), "utf8");
+    assert.ok(!brut.includes(String.fromCharCode(0x2014)), `${chemin} : aucun tiret cadratin`);
+    assert.ok(!brut.includes("\r"), `${chemin} : fins de ligne LF`);
+    assert.ok(!/postgres(ql)?:\/\/[^\s"')]*:[^\s"')]*@/.test(brut), `${chemin} : aucune adresse de connexion avec mot de passe`);
+  }
+  const script = texteDuDepot("outils/base_locale/rejouer_suite.sh");
+  assert.ok(script.includes("2026111?_titres_${n}_*.sql"), "--titres cherche toute date du 10 au 19/11");
+  assert.ok(script.includes(`--production) TITRES=1; LISTE_TITRES="1 2 3 5 6"; AUTONOMIE="1,2"`), "--production : titres 1, 2, 3, 5, 6 et e-learning 1, 2");
+  assert.ok(script.includes("-v version=2026-11-14 -1 -f \"$MIGRATIONS/20261114_autonomie_2_version.sql\""), "la migration 2 de l'e-learning avec la version de la production");
 });

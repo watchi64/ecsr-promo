@@ -2,11 +2,15 @@
 # Rejoue, sur la base locale reconstruite (reconstruire.sh), les migrations du dépôt postérieures au lot 4, dans l'ordre
 # où la production les a reçues, pour que les preuves SQL se jouent sur un état identique à la production.
 #
-# Usage : outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3[,4][,5][,6]]
+# Usage : outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3[,...]] [--autonomie 1|1,2] [--production]
 #   --port         port de la base locale (défaut 55435)
 #   --avec-titres  ajoute ensuite les migrations 20261112_titres_1 à _4 (chantier titres et droits à la carte) ; vaut --titres 1,2,3,4
-#   --titres       ajoute ensuite les migrations 20261112_titres_<n>_* dans l'ordre de la liste (la production a reçu 1, 2, 3) ;
-#                  un fichier manquant arrête le script (code 3, son nom sur la sortie d'erreur)
+#   --titres       ajoute ensuite les migrations 2026111?_titres_<n>_* (n de 1 à 9, date quelconque du 10 au 19/11) dans l'ordre de
+#                  la liste ; un fichier manquant arrête le script (code 3, son nom sur la sortie d'erreur)
+#   --autonomie    après les contacts, joue 20261114_autonomie_1_traces (1), puis 20261114_autonomie_2_version (2) avec
+#                  -v version=2026-11-14 (la version des conditions en production) ; 2 demande 1
+#   --production   l'état de la production au 14/11 : vaut --titres 1,2,3,5,6 --autonomie 1,2 (sortie : 23 migrations)
+# Sans --titres, --autonomie ni --production : la suite d'avant (14 migrations, plus les deux des contacts : 16).
 # Code de sortie : 0 si tout passe ; sinon 3 (le nom du fichier en échec est écrit sur la sortie d'erreur).
 # Note : 20261028_signalements_app n'est pas dans la liste : ses tables sont dans clone_3_tables.sql ; seules ses fonctions sont jouées.
 set -u
@@ -14,6 +18,7 @@ RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PORT=55435
 TITRES=0
 LISTE_TITRES=""
+AUTONOMIE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --port) PORT="$2"; shift 2 ;;
@@ -21,9 +26,17 @@ while [ $# -gt 0 ]; do
     --titres)
       [ $# -ge 2 ] || { echo "--titres demande une liste (1,2,3)" >&2; exit 2; }
       case "$2" in
-        *[!0-9,]*|""|,*|*,|*,,*) echo "liste --titres refusée : « $2 » (attendu : 1,2,3)" >&2; exit 2 ;;
+        *[!1-9,]*|""|,*|*,|*,,*|*[0-9][0-9]*) echo "liste --titres refusée : « $2 » (attendu : des numéros de 1 à 9, ainsi 1,2,3)" >&2; exit 2 ;;
       esac
       TITRES=1; LISTE_TITRES="$(echo "$2" | tr ',' ' ')"; shift 2 ;;
+    --autonomie)
+      [ $# -ge 2 ] || { echo "--autonomie demande 1 ou 1,2" >&2; exit 2; }
+      case "$2" in
+        1|1,2) AUTONOMIE="$2" ;;
+        *) echo "liste --autonomie refusée : « $2 » (attendu : 1 ou 1,2)" >&2; exit 2 ;;
+      esac
+      shift 2 ;;
+    --production) TITRES=1; LISTE_TITRES="1 2 3 5 6"; AUTONOMIE="1,2"; shift ;;
     *) echo "argument inconnu : $1" >&2; exit 2 ;;
   esac
 done
@@ -40,8 +53,8 @@ LISTE="20261108_espaces_1_siege 20261108_espaces_2_equipe 20261108_espaces_3_hab
 # anonymiser_promo, etat_anonymisation_promo et _anonymiser_stagiaire disparaissent, les fonctions effacer_* arrivent), puis les titres.
 if [ "$TITRES" = 1 ]; then
   for n in $LISTE_TITRES; do
-    f="$(ls "$MIGRATIONS"/20261112_titres_${n}_*.sql 2>/dev/null | grep -v '_retour\.sql$' | head -n 1)"
-    [ -n "$f" ] || { echo "migration introuvable : 20261112_titres_${n}_*" >&2; exit 3; }
+    f="$(ls "$MIGRATIONS"/2026111?_titres_${n}_*.sql 2>/dev/null | grep -v '_retour\.sql$' | head -n 1)"
+    [ -n "$f" ] || { echo "migration introuvable : 2026111?_titres_${n}_*" >&2; exit 3; }
     LISTE="$LISTE $(basename "$f" .sql)"
   done
 fi
@@ -62,6 +75,16 @@ for f in $LISTE; do
   $P -1 -f "$MIGRATIONS/$f.sql" || { echo "échec : $f" >&2; exit 3; }
   N=$((N + 1))
 done
+# Après les contacts (14/11) : l'e-learning, lot 1. La migration 2 lit la version des conditions dans la variable psql « version »
+# (celle de la production : 2026-11-14, VERSION_CONDITIONS de js/legal-data.js).
+if [ -n "$AUTONOMIE" ]; then
+  $P -1 -f "$MIGRATIONS/20261114_autonomie_1_traces.sql" || { echo "échec : 20261114_autonomie_1_traces" >&2; exit 3; }
+  N=$((N + 1))
+  if [ "$AUTONOMIE" = "1,2" ]; then
+    $P -v version=2026-11-14 -1 -f "$MIGRATIONS/20261114_autonomie_2_version.sql" >/dev/null || { echo "échec : 20261114_autonomie_2_version" >&2; exit 3; }
+    N=$((N + 1))
+  fi
+fi
 # Droits propres à la production, que les clones ne portent pas (écarts de la base locale constatés le 10/11 et le 11/11) :
 # 1. registre_qualite : en production, service_role y écrit (la preuve du registre le contrôle) ; ici la table naît de la
 #    migration 20261109 sans ce droit, d'où un 42501. Pas de droit général sur les tables : la preuve des questionnaires
