@@ -11,7 +11,7 @@ import {
 } from "../db.js?v=20261114f";
 import { el, clear, displayStagiaire } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
-import { monStagiaireId, isAdmin, getProfile, getViewAs } from "../auth-admin.js?v=20261114f";
+import { monStagiaireId, isAdmin, getProfile, getViewAs, ecritSelonLaCase, litSelonLaCase } from "../auth-admin.js?v=20261114f";
 import { libelleConnexion } from "../roles-rules.js?v=20261114f";
 import { emargementActif } from "../emargement-etat.js?v=20261114f";
 import { lignePromo } from "../accueil-rules.js?v=20261114f";
@@ -274,13 +274,15 @@ export function renderAujourdhui(container) {
   // Émargement et À traiter : les formateurs de la promo seulement (isAdmin, « écrit comme un formateur »), les mêmes
   // conditions que l'entrée Émargement de la barre et que les sous-onglets Questions contestées et Propositions IA. La direction
   // et le siège lisent la page sans ces deux cartes : elles mèneraient à des pages qui ne sont pas pour eux.
-  const avecFeuille = emargementActif() && isAdmin();
-  const avecATraiter = isAdmin();
+  const avecFeuille = emargementActif() && ecritSelonLaCase("emargement");
+  const avecATraiter = ecritSelonLaCase("cours");
   const emargement = avecFeuille ? carte({ titre: "Émargement", ico: "clipboard", zone: "emargement" }) : null;
   const atraiter = avecATraiter ? carte({ titre: "À traiter", ico: "inbox", zone: "a-traiter" }) : null;
-  const tableau = carte({ titre: "Au tableau aujourd'hui", ico: "presentation", zone: "tableau" });
-  const voiture = carte({ titre: "En voiture aujourd'hui", ico: "car", zone: "voiture" });
-  const asuivre = carte({ titre: "À suivre de près", ico: "info", zone: "a-suivre", plus: plusLien("centre", "Tout voir") });
+  // Au tableau, En voiture : la page Planning ; À suivre de près : la page Notes et examens (cases lues dans l'espace de l'équipe ;
+  // sinon, comme avant, toutes les cartes).
+  const tableau = litSelonLaCase("planning", true) ? carte({ titre: "Au tableau aujourd'hui", ico: "presentation", zone: "tableau" }) : null;
+  const voiture = litSelonLaCase("planning", true) ? carte({ titre: "En voiture aujourd'hui", ico: "car", zone: "voiture" }) : null;
+  const asuivre = litSelonLaCase("notes", true) ? carte({ titre: "À suivre de près", ico: "info", zone: "a-suivre", plus: plusLien("centre", "Tout voir") }) : null;
 
   // L'ordre du DOM est celui du téléphone (ce qui demande une action avant ce qui informe) ; la grille de
   // css/pages.css replace les cartes sur tablette et ordinateur.
@@ -308,8 +310,8 @@ export function renderAujourdhui(container) {
   return Promise.allSettled([
     emargement ? chargerEmargement(emargement, jour, indexJour, semaine, moi) : null,
     atraiter ? chargerATraiterCarte(atraiter.corps) : null,
-    chargerPlanning(tableau, voiture, indexJour, jour, semaine, moi),
-    chargerASuivre(asuivre.corps, jour, promo?.id ?? null),
+    tableau && voiture ? chargerPlanning(tableau, voiture, indexJour, jour, semaine, moi) : null,
+    asuivre ? chargerASuivre(asuivre.corps, jour, promo?.id ?? null) : null,
     enFormation,
   ]).then(() => undefined);
 }

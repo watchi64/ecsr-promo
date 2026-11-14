@@ -6,7 +6,7 @@
 // fichier seul qu'on rebranche. Les règles vivent dans js/modules.js, le
 // catalogue dans js/modules-data.js.
 import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261114f";
-import { isAdmin, isProf, isEquipe, isFounder, getAdminEmail, getEspace } from "./auth-admin.js?v=20261114f";
+import { isAdmin, isProf, isEquipe, isFounder, getAdminEmail, getEspace, ecritSelonLaCase } from "./auth-admin.js?v=20261114f";
 import { icon } from "./icons.js?v=20261114f";
 import {
   MODULES, MODULE_DE_ROUTE, MODULE_DE_SOUS_ONGLET, REGLAGE_OUVERT_AUX_FORMATEURS,
@@ -123,7 +123,7 @@ export function routeMasquee(route) { return moduleMasque(MODULE_DE_ROUTE[route]
 
 // Qui voit la section de réglage (voir REGLAGE_OUVERT_AUX_FORMATEURS).
 export function peutRegler() {
-  return isEquipe() && (REGLAGE_OUVERT_AUX_FORMATEURS || isFounder());
+  return ecritSelonLaCase("reglages", isEquipe(), ["equipe", "direction"]) && (REGLAGE_OUVERT_AUX_FORMATEURS || isFounder());
 }
 
 export function onModulesChange(cb) {

@@ -2,7 +2,7 @@ import { listStagiaires, listPassages, getPlanning, getJoursOff } from "../db.js
 import { el, clear, displayStagiaire, isoDate, addDays } from "../utils.js?v=20261114f";
 import { lundiEnCours } from "../journee-rules.js?v=20261114f";
 import { jourFerie } from "../emargement-rules.js?v=20261114f";
-import { isAdmin, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261114f";
+import { isStagiaire, monStagiaireId, ecritSelonLaCase } from "../auth-admin.js?v=20261114f";
 import { ordreDePassage, placesDeLaSemaine, maSituation, TYPES } from "../ordre-passage-rules.js?v=20261114f";
 import { rolesPourEntry } from "../creneaux-rules.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
@@ -127,7 +127,7 @@ function vueEquipe(container, o, lundi) {
       el("summary", {}, o.aJour.length === 1 ? "1 stagiaire à jour partout" : `${o.aJour.length} stagiaires à jour partout`),
       el("p", {}, o.aJour.map((s) => displayStagiaire(s)).join(", ") + ".")));
   }
-  if (isAdmin()) {
+  if (ecritSelonLaCase("planning")) {
     container.appendChild(el("div", { class: "op-actions" },
       // Le sous-onglet Semaine du Planning (wrap.activer, js/subtabs.js), où se trouve « Placer la semaine ».
       el("button", { type: "button", class: "btn primary", onClick: () => {

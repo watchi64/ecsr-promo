@@ -10,7 +10,7 @@
 
 import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20261114f";
 import { el, clear, displayStagiaire, compareByNom, formatDate, toast, nomLisible } from "../utils.js?v=20261114f";
-import { isAdmin, isProf, monStagiaireId as maFiche } from "../auth-admin.js?v=20261114f";
+import { isAdmin, isProf, ecritSelonLaCase } from "../auth-admin.js?v=20261114f";
 import { getCurrentWho } from "../identity.js?v=20261114f";
 import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261114f";
 import { collectData, fillData, applyEditable, wireDocEditing,
@@ -56,7 +56,7 @@ export async function renderDp(container, opts = {}) {
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   const formateur = isAdmin() || isProf();
   // Écrire dans le dossier d'un stagiaire : le formateur de la promo (la direction le lit, la base refuserait l'écriture).
-  const ecrit = isAdmin();
+  const ecrit = ecritSelonLaCase("notes");
   // Sa fiche, telle que l'app la traite : aucune en aperçu formateur, direction ou siège (relecture finale, M8).
   const monId = maFiche();
 
@@ -129,11 +129,11 @@ function showListe(container) {
         try { full = await getDpDossier(s.id); }
         catch (e) { console.error(e); toast(e?.message || String(e), "error"); return; }
         showDoc(container, s, full, {
-          readOnly: !(isAdmin() || cestMoi), stagiaireId: s.id, back: () => renderReload(container),
+          readOnly: !(ecrit || cestMoi), stagiaireId: s.id, back: () => renderReload(container),
         });
       },
     }, cestMoi ? (row ? "Remplir mon dossier" : "Commencer mon dossier")
-               : (row || !isAdmin() ? "Ouvrir ce dossier" : "Commencer ce dossier")));
+               : (row || !ecrit ? "Ouvrir ce dossier" : "Commencer ce dossier")));
     const nom = el("div", { class: "lv-name-cell" }, el("span", {}, displayStagiaire(s)));
     if (cestMoi) nom.appendChild(el("span", { class: "lv-statut" }, "moi"));
     tbody.appendChild(el("tr", {}, el("td", {}, nom), cell));

@@ -18,7 +18,7 @@ import {
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261114f";
 import { confirmer } from "../confirmer.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
-import { isAdmin, isEquipe, isFounder, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic, enVitrine } from "../auth-admin.js?v=20261114f";
+import { isAdmin, isEquipe, isFounder, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic, enVitrine, ecritSelonLaCase, gesteDefinitif } from "../auth-admin.js?v=20261114f";
 import { moduleVisible } from "../modules-etat.js?v=20261114f";
 import { renderModulesSection } from "./modules-reglage.js?v=20261114f";
 import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261114f";
@@ -301,7 +301,7 @@ function renderMyPreferencesSection(rerender) {
 
 async function renderPromoSection(rerender) {
   // Gérer la liste de la promo : formateur et direction (la base le permet à l'équipe de la promo).
-  const admin = isEquipe();
+  const admin = ecritSelonLaCase("stagiaires", isEquipe(), ["equipe", "direction"]);
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.users()),
@@ -436,9 +436,9 @@ async function renderPromoSection(rerender) {
 // vérifie tout (droits, délais) ; ici on montre l'état et on déclenche.
 
 async function renderDonneesSection(rerender) {
-  if (!isEquipe()) return null;
-  // La suppression des élèves bénévoles : le formateur seul (isAdmin).
-  const avecBenevoles = isAdmin();
+  if (!ecritSelonLaCase("reglages", isEquipe(), ["equipe", "direction"])) return null;
+  // La suppression des élèves bénévoles est un geste définitif : isAdmin() et le titre fixe (gesteDefinitif).
+  const avecBenevoles = gesteDefinitif();
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.trash()),
