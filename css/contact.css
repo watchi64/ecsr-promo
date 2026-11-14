@@ -98,3 +98,45 @@
 .contact-partage legend { padding: 0 0.3rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
 .contact-case { display: flex; align-items: center; gap: 0.65rem; min-height: 44px; cursor: pointer; }
 .contact-case input { width: 1.2rem; height: 1.2rem; flex: none; }
+
+/* Ma fiche de contact, coordonnées d'un stagiaire, financements et fiches à supprimer (tâche 6). */
+.contact-encadre {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: var(--bg-soft);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.aujourdhui-fiche { margin: 0 0 1.25rem; }
+.aujourdhui-fiche a { font-weight: 600; text-decoration: underline; }
+.ma-fiche, .reglage-financements, .reglage-fiches-a-supprimer { overflow-wrap: anywhere; }
+.ma-fiche .field input, .ma-fiche .field select,
+.reglage-financements .field input { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.contact-gestes-fiche { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.contact-gestes-fiche .btn, .reglage-financements .btn, .reglage-fiches-a-supprimer .btn, .fiche-coordonnees .btn { min-height: 44px; }
+
+.fiche-coordonnees { margin: 0 0 1.25rem; overflow-wrap: anywhere; }
+.fiche-coordonnees .contact-detail { margin-top: 0; }
+.fiche-coordonnees .contact-section-tete { margin-bottom: 0.5rem; }
+
+.financement-liste { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.financement-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-elev);
+  min-width: 0;
+}
+.financement-ligne > .field { flex: 1 1 14rem; min-width: 0; margin: 0; }
+.financement-ligne .contact-gestes { margin: 0; padding: 0; border: 0; }
+.financement-retire { opacity: 0.8; }
+.financement-ajout { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.5rem 0.75rem; margin-top: 1rem; }
+.financement-ajout > .field { flex: 1 1 14rem; min-width: 0; margin: 0; }

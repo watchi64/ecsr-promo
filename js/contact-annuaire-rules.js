@@ -105,3 +105,46 @@ export function validerMaFiche(champs) {
   }
   return { ok: Object.keys(erreurs).length === 0, erreurs };
 }
+
+// ---- Tâche 6 : départs et financements du centre
+
+// Une fiche sans compte dont la date de départ est passée (strictement, comme la base : le jour du départ, elle est encore là).
+export function aQuitte(fiche, jour) {
+  return !!fiche && !fiche.avec_compte && !!fiche.depart_le && !!jour && fiche.depart_le < jour;
+}
+
+// Les fiches à supprimer à la main : celles de ceux qui ont quitté le centre, les plus anciens départs d'abord.
+export function fichesASupprimer(fiches, jour) {
+  return (fiches || []).filter((f) => aQuitte(f, jour))
+    .sort((a, b) => (a.depart_le < b.depart_le ? -1 : a.depart_le > b.depart_le ? 1 : String(a.nom_affiche ?? "").localeCompare(String(b.nom_affiche ?? ""), "fr")));
+}
+
+const normaliserLibelle = (v) => String(v ?? "").replace(/\s+/g, " ").trim();
+const PHRASE_LIBELLE_LONGUEUR = "Le nom d'un financement compte de 1 à 40 caractères.";
+const PHRASE_LIBELLE_DOUBLON = "Deux financements portent le même nom.";
+
+// Le nom d'un financement : 1 à 40 caractères, différent (sans tenir compte des majuscules) de celui des autres. `sauf` : l'id de
+// la ligne qu'on renomme. Rend la phrase de refus, ou null. Mêmes limites que regler_financements.
+export function validerLibelleFinancement(libelle, lignes, sauf = null) {
+  const v = normaliserLibelle(libelle);
+  if (v.length < 1 || v.length > 40) return PHRASE_LIBELLE_LONGUEUR;
+  const bas = v.toLowerCase();
+  if ((lignes || []).some((l) => l.id !== sauf && normaliserLibelle(l.libelle).toLowerCase() === bas)) return PHRASE_LIBELLE_DOUBLON;
+  return null;
+}
+
+// La liste entière à envoyer à regler_financements après UN geste sur la liste enregistrée : renommer, ajouter, retirer (retire
+// vrai ou faux), déplacer (sens -1 ou 1). Un seul nom change à la fois : l'échange de deux noms n'est jamais nécessaire.
+export function listeFinancements(lignes, action) {
+  let liste = (lignes || []).map((l) => ({ id: l.id, libelle: l.libelle, ordre: l.ordre, retire: !!l.retire }));
+  const a = action || {};
+  const rang = liste.findIndex((l) => l.id === a.id);
+  if (a.geste === "renommer" && rang >= 0) liste[rang].libelle = normaliserLibelle(a.libelle);
+  else if (a.geste === "ajouter") liste.push({ id: null, libelle: normaliserLibelle(a.libelle), ordre: 0, retire: false });
+  else if (a.geste === "retirer" && rang >= 0) liste[rang].retire = !!a.retire;
+  else if (a.geste === "deplacer" && rang >= 0) {
+    const vers = rang + (a.sens < 0 ? -1 : 1);
+    if (vers >= 0 && vers < liste.length) [liste[rang], liste[vers]] = [liste[vers], liste[rang]];
+  }
+  return liste.map((l, i) => ({ ...l, ordre: 10 * (i + 1) }));
+}

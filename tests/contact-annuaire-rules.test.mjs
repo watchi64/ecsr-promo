@@ -80,3 +80,47 @@ test("tri : ordre, puis nom ; l'entrée n'est pas modifiée", () => {
   assert.deepEqual(trierFiches(e).map((f) => f.nom_affiche), ["Albert", "Émile", "Zoé", "Ada"]);
   assert.equal(e[0].nom_affiche, "Zoé");
 });
+
+// ---- Tâche 6 : fiches à supprimer, liste des financements
+import { fichesASupprimer, aQuitte, listeFinancements, validerLibelleFinancement } from "../js/contact-annuaire-rules.js";
+
+test("fiches à supprimer : sans compte, date de départ strictement passée", () => {
+  const f = [
+    { id: 1, avec_compte: false, depart_le: "2026-11-13", nom_affiche: "Bruno Exemple" },
+    { id: 2, avec_compte: false, depart_le: "2026-11-14", nom_affiche: "Aujourd'hui" },
+    { id: 3, avec_compte: false, depart_le: null, nom_affiche: "Sans date" },
+    { id: 4, avec_compte: true, depart_le: "2026-01-01", nom_affiche: "Avec compte" },
+    { id: 5, avec_compte: false, depart_le: "2026-02-01", nom_affiche: "Alice Exemple" },
+  ];
+  assert.deepEqual(fichesASupprimer(f, "2026-11-14").map((x) => x.id), [5, 1]);
+  assert.equal(aQuitte(f[0], "2026-11-14"), true);
+  assert.equal(aQuitte(f[1], "2026-11-14"), false);
+  assert.deepEqual(fichesASupprimer(null, "2026-11-14"), []);
+});
+
+const FIN = [
+  { id: 1, libelle: "CPF", ordre: 10, retire: false },
+  { id: 2, libelle: "Région", ordre: 20, retire: false },
+  { id: 3, libelle: "Autre", ordre: 30, retire: true },
+];
+test("financements : un geste, la liste entière renumérotée de 10 en 10", () => {
+  assert.deepEqual(listeFinancements(FIN, { geste: "renommer", id: 2, libelle: "  Conseil   régional " }),
+    [{ id: 1, libelle: "CPF", ordre: 10, retire: false }, { id: 2, libelle: "Conseil régional", ordre: 20, retire: false },
+      { id: 3, libelle: "Autre", ordre: 30, retire: true }]);
+  assert.deepEqual(listeFinancements(FIN, { geste: "ajouter", libelle: "Pôle emploi" }).at(-1),
+    { id: null, libelle: "Pôle emploi", ordre: 40, retire: false });
+  assert.equal(listeFinancements(FIN, { geste: "retirer", id: 1, retire: true })[0].retire, true);
+  assert.equal(listeFinancements(FIN, { geste: "retirer", id: 3, retire: false })[2].retire, false);
+  assert.deepEqual(listeFinancements(FIN, { geste: "deplacer", id: 2, sens: -1 }).map((x) => [x.id, x.ordre]), [[2, 10], [1, 20], [3, 30]]);
+  assert.deepEqual(listeFinancements(FIN, { geste: "deplacer", id: 1, sens: -1 }).map((x) => x.id), [1, 2, 3]);
+  assert.deepEqual(listeFinancements(FIN, { geste: "deplacer", id: 3, sens: 1 }).map((x) => x.id), [1, 2, 3]);
+  assert.equal(FIN[1].libelle, "Région", "la liste reçue n'est pas modifiée");
+});
+test("financements : nom de 1 à 40 caractères, jamais deux fois le même", () => {
+  assert.equal(validerLibelleFinancement("Pôle emploi", FIN), null);
+  assert.equal(validerLibelleFinancement("   ", FIN), "Le nom d'un financement compte de 1 à 40 caractères.");
+  assert.equal(validerLibelleFinancement("x".repeat(41), FIN), "Le nom d'un financement compte de 1 à 40 caractères.");
+  assert.equal(validerLibelleFinancement("cpf", FIN), "Deux financements portent le même nom.");
+  assert.equal(validerLibelleFinancement("CPF", FIN, 1), null, "garder son propre nom n'est pas un doublon");
+  assert.equal(validerLibelleFinancement("Région", FIN, 1), "Deux financements portent le même nom.");
+});

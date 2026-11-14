@@ -12,6 +12,7 @@ import { icon } from "../icons.js?v=20261114f";
 import { blocHabillage } from "../habillage-choix.js?v=20261114f";
 import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261114f";
 import { sectionDonneesCentre } from "./reglages-donnees.js?v=20261114f";
+import { sectionFinancements, sectionFichesASupprimer } from "./reglages-contact.js?v=20261114f";
 
 export const PHRASE_ECHEC_LECTURE = "Le réglage n'a pas pu être chargé.";
 export const PHRASE_ECHEC_ECRITURE = "Le réglage n'a pas été enregistré. Réessayez dans un instant.";
@@ -164,6 +165,13 @@ async function rendre(container, { surtitre, titre, lire, construire }) {
   if (construire.suite) racine.appendChild(construire.suite(donnees));
 }
 
+// Les sections qui suivent l'habillage : financements et fiches à supprimer (espace contact), puis les données personnelles.
+function suiteDuCentre(centre) {
+  const suite = document.createDocumentFragment();
+  suite.append(sectionFinancements(centre), sectionFichesASupprimer(), sectionDonneesCentre(centre));
+  return suite;
+}
+
 // Réglages du centre (espace direction) : l'habillage du centre affiché.
 export async function renderReglagesCentre(container) {
   const centre = getCentre();
@@ -183,8 +191,8 @@ export async function renderReglagesCentre(container) {
     titre: "Réglages du centre",
     lire: () => lireHabillageCentre(centre.id),
     construire: {
-      sousTitre: "L'apparence de l'app pour les comptes du centre, et les données personnelles",
-      suite: () => sectionDonneesCentre(centre),
+      sousTitre: "L'apparence de l'app pour les comptes du centre, les financements et les données personnelles",
+      suite: () => suiteDuCentre(centre),
       section: (ligne) => sectionReglage({
         titre: "Habillage par défaut du centre",
         intro: "L'apparence que reçoivent les comptes du centre tant qu'ils n'ont rien choisi. Sans réglage, c'est celle du réseau.",

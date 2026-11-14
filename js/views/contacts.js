@@ -16,7 +16,7 @@ import { phraseDeRefus } from "../espaces-rules.js?v=20261114f";
 import { confirmer } from "../confirmer.js?v=20261114f";
 import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
 import { jourParis } from "../dates.js?v=20261114f";
-import { trierFiches, ligneDeFiche, validerMaFiche } from "../contact-annuaire-rules.js?v=20261114f";
+import { trierFiches, ligneDeFiche, validerMaFiche, aQuitte } from "../contact-annuaire-rules.js?v=20261114f";
 
 const PHRASE_LECTURE_ECHEC = "Les contacts n'ont pas pu être chargés.";
 const PHRASE_AUCUN_CONTACT = "Aucun contact pour ce centre.";
@@ -57,7 +57,8 @@ function carteFiche(fiche, { jour, parId, peutRanger, rang, total, surDeplacer, 
   return el("li", { class: "contact-carte" + (fiche.moi ? " contact-moi" : ""), dataset: { fiche: String(fiche.id) } },
     el("div", { class: "contact-tete" },
       el("h4", { class: "contact-nom" }, l.nom || "Sans nom"),
-      fiche.moi ? el("span", { class: "contact-pastille" }, selonPublic("Ta fiche", "Votre fiche")) : null),
+      fiche.moi ? el("span", { class: "contact-pastille" }, selonPublic("Ta fiche", "Votre fiche")) : null,
+      aQuitte(fiche, jour) ? el("span", { class: "contact-pastille" }, "A quitté le centre") : null),
     sousNom ? el("p", { class: "contact-titre" }, sousNom) : null,
     l.conge ? el("p", { class: "contact-conge" }, l.conge) : null,
     detail.length ? el("dl", { class: "contact-detail" }, ...detail) : null,
@@ -142,6 +143,8 @@ async function ouvrirFiche({ fiche, annuaire, ancre, apres }) {
   const quand = champ("Quand", saisie("text", fiche?.quand, { maxlength: "80" }));
   const congeDu = champ("Congé : du", saisie("date", fiche?.conge_du));
   const congeAu = champ("Congé : au", saisie("date", fiche?.conge_au));
+  const depart = champ("Date de départ", saisie("date", fiche?.depart_le),
+    "À renseigner quand la personne quitte le centre : sa fiche n'est alors plus montrée qu'à l'équipe qui écrit les fiches, qui la supprime ensuite.");
 
   const relais = el("select", {}, el("option", { value: "" }, "Aucun relais"));
   for (const f of trierFiches(annuaire)) {
@@ -174,6 +177,7 @@ async function ouvrirFiche({ fiche, annuaire, ancre, apres }) {
       telephone: texte(telephone.saisie.value), pour_quoi: texte(pourQuoi.saisie.value), quand: texte(quand.saisie.value),
       conge_du: texte(congeDu.saisie.value), conge_au: texte(congeAu.saisie.value),
     };
+    const departLe = texte(depart.saisie.value);
     const roleTexte = texte(libelle.saisie.value);
     const verdict = validerMaFiche(envoi);
     if (roleTexte && roleTexte.length > 80) { libelle.erreur.textContent = "80 caractères au plus."; verdict.ok = false; }
@@ -192,7 +196,7 @@ async function ouvrirFiche({ fiche, annuaire, ancre, apres }) {
     const donnees = {
       prenom: envoi.prenom, nom: envoi.nom, role: roleTexte, phone: envoi.telephone, email: envoi.email,
       pour_quoi: envoi.pour_quoi, quand: envoi.quand, conge_du: envoi.conge_du, conge_au: envoi.conge_au,
-      relais_id: relais.value === "" ? null : Number(relais.value), prof_id: profId, lieux_partages: partages,
+      relais_id: relais.value === "" ? null : Number(relais.value), prof_id: profId, lieux_partages: partages, depart_le: departLe,
     };
     bouton.disabled = true;
     try {
@@ -220,7 +224,7 @@ async function ouvrirFiche({ fiche, annuaire, ancre, apres }) {
       libelle.noeud, liste,
       email.noeud, telephone.noeud, pourQuoi.noeud, quand.noeud,
       el("div", { class: "field-pair" }, congeDu.noeud, congeAu.noeud),
-      champRelais.noeud, champProf.noeud,
+      champRelais.noeud, champProf.noeud, depart.noeud,
       cases.length ? el("fieldset", { class: "contact-partage" },
         el("legend", {}, "Partager avec d'autres centres"), ...cases) : null,
       general),

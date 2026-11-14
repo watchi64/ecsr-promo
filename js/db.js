@@ -2836,6 +2836,8 @@ export async function reglerDelegue(stagiaireId, valeur) {
     throw erreurDeBase(error);
   }
   exigerLignes(data, "Le délégué ne peut pas être changé d'ici.");
+  invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
 }
 
 // Les lignes « profs » qu'une fiche sans compte peut représenter (« Formateur du planning ») : celles du planning de la promo

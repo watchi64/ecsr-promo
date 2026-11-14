@@ -7,7 +7,7 @@
  * Une lecture qui revient après le départ de la page écrit dans un nœud détaché (isConnected) : rien n'est repeint.
  */
 import {
-  getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande,
+  getPromoCourante, listStagiaires, lireMaFiche, listEmargementSeances, lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande,
 } from "../db.js?v=20261114f";
 import { el, clear, displayStagiaire } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
@@ -270,6 +270,13 @@ export function renderAujourdhui(container) {
   // Questionnaire anonyme des formateurs (Qualiopi), sous le titre et avant les cartes, comme sur l'Accueil des
   // stagiaires : vide (direction, siège, rien à remplir), rien ne s'affiche.
   container.appendChild(bandeauQuestionnaire());
+  // Fiche de contact pas encore vérifiée : un rappel, avec le lien vers Mes préférences. Une lecture qui échoue ne dit rien.
+  lireMaFiche().then((moi) => {
+    if (!moi?.fiche || moi.fiche.verifiee || !entete.isConnected) return;
+    entete.after(el("div", { class: "contact-encadre aujourdhui-fiche", role: "note" },
+      el("a", { href: "#/preferences" }, "Vérifiez votre fiche de contact"),
+      el("span", {}, " : les stagiaires ne voient que votre nom tant qu'elle n'est pas enregistrée.")));
+  }).catch((e) => console.error("Aujourd'hui : fiche de contact illisible", e));
 
   // Émargement et À traiter : les formateurs de la promo seulement (isAdmin, « écrit comme un formateur »), les mêmes
   // conditions que l'entrée Émargement de la barre et que les sous-onglets Questions contestées et Propositions IA. La direction

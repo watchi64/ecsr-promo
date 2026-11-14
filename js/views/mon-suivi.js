@@ -29,6 +29,7 @@ import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } 
 import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261114f";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261114f";
 import { renderNotes } from "./notes.js?v=20261114f";
+import { blocCoordonnees } from "./fiche-coordonnees.js?v=20261114f";
 import { notesSur20, moyenne, tendance, forcesEtFaiblesses, moyenneDuGroupe, formatNote } from "../resultats-rules.js?v=20261114f";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
@@ -691,6 +692,7 @@ export function renderFiche(container, d, opts) {
     // la partie directement, comme renderSubTabs qui cache sa barre pour un seul onglet.
     if (opts.retour) container.appendChild(lienRetour(opts.retour.label, opts.retour.href));
     if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
+    container.appendChild(blocCoordonnees(d, { soi: !!opts.soi }));
     const panel = el("div", { class: "fiche-partie" });
     container.appendChild(panel);
     rendrePartie(panel, parties[0], d, opts, { isActive: () => panel.isConnected });
@@ -698,6 +700,7 @@ export function renderFiche(container, d, opts) {
   }
   if (opts.disposition === "onglets") {
     if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
+    container.appendChild(blocCoordonnees(d, { soi: !!opts.soi }));
     container.appendChild(renderSubTabs(parties.map((p) => ({
       key: p, label: libellePartie(p), module: MODULE_DE_PARTIE[p] || undefined,
       render: (panel, ctx) => rendrePartie(panel, p, d, opts, ctx),
@@ -722,6 +725,7 @@ export function renderFiche(container, d, opts) {
   // iPhone : le sommaire.
   if (opts.retour) container.appendChild(lienRetour(opts.retour.label, opts.retour.href));
   if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
+  container.appendChild(blocCoordonnees(d, { soi: !!opts.soi }));
   container.appendChild(rendreSommaire(d, parties, opts));
   return "sommaire";
 }
