@@ -8,10 +8,10 @@
 --   psql ... -v ON_ERROR_STOP=1 -1 -f supabase/migrations/20261114_restes_1_conditions.sql
 --
 -- PUBLIER UNE NOUVELLE VERSION DES CONDITIONS, plus tard : une migration neuve, copiée sur celle-ci, qui remplace
--- conditions_version_publiee() par la nouvelle date, appliquée en même temps que la poussée de js/legal-data.js. Si l'app
--- part avant la base, la fenêtre d'acceptation refuse « Continuer » (la base attend l'ancienne version) et demande de
--- recharger ; si la base part avant l'app, même chose pour les onglets restés ouverts. Les acceptations déjà enregistrées ne
--- changent pas. La version exigée pour le travail en autonomie (_autonomie_version_conditions) reste à part : elle ne doit
+-- conditions_version_publiee() par la nouvelle date. ORDRE IMPOSÉ : la base d'abord, la poussée de js/legal-data.js juste
+-- après. Base d'abord : un onglet resté sur l'ancienne app voit « Continuer » refusé avec « Rechargez la page », et le
+-- rechargement apporte la nouvelle app, qui passe. App d'abord : la fenêtre bloque tous ceux qui n'ont pas encore accepté, et
+-- recharger n'y change rien tant que la base n'a pas suivi. Les acceptations déjà enregistrées ne changent pas. La version exigée pour le travail en autonomie (_autonomie_version_conditions) reste à part : elle ne doit
 -- jamais dépasser la version publiée (contrôle ci-dessous).
 set local lock_timeout = '3s';
 

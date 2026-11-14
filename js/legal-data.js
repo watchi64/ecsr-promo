@@ -41,7 +41,8 @@
 //
 // Depuis le 14/11 (20261114_restes_1_conditions.sql), la base n'enregistre que la version qu'elle publie,
 // conditions_version_publiee(). Changer VERSION_CONDITIONS demande donc une migration qui remplace cette fonction par la
-// même date, appliquée avec la poussée (tests/conditions-version.test.mjs vérifie que les deux disent la même chose).
+// même date, appliquée AVANT la poussée de l'app (l'ordre inverse bloque la fenêtre d'acceptation jusqu'à la migration ;
+// tests/conditions-version.test.mjs vérifie que les deux disent la même chose).
 //
 
 export const VERSION_CONDITIONS = "2026-11-14";

@@ -66,7 +66,8 @@
 -- Tour 1 bis (le compteur de lecteurs ne compte que les stagiaires actifs de la promo, aujourd'hui) : migration et retour VERT
 --   136/0 (deux passages par état), appliquée VERT 130/0, concurrence VERT 8/0 ; lecteurs partis comptés : ROUGE 134/2.
 -- La sentinelle livrée est contrôlée d'abord ; puis, dans la transaction seulement, la version exigée est datée d'hier
--- (calculé). accepter_conditions, absente des clones de la base locale, est posée par la preuve si elle manque (mot pour mot).
+-- (calculé). Les acceptations des personnages sont posées directement en table (pg_temp.accepter_en_base) : la preuve n'appelle
+-- pas accepter_conditions, qui n'enregistre plus que la version publiée (20261114_restes_1_conditions).
 -- Personnages de la suite : SX (PA, fiche marquée effacée en gardant son compte), SE et SE2 (promo PE finie depuis plus de
 -- 12 mois : traces, opposition).
 -- Vague de correction de la relecture d'ensemble (13/11/2026) : interrupteurs posés avant la migration supprimés par elle et
@@ -432,34 +433,8 @@ begin
     end if;
     perform pg_temp.verifier('preuve : la sentinelle est en place pour les cas de la fermeture dure',
       public._autonomie_version_conditions() = '9999-12-31', public._autonomie_version_conditions());
-    -- SA a l'interrupteur allumé, une acceptation plausible (hier) et « accepte » la sentinelle par la vraie fonction.
-    -- accepter_conditions (20261004_conditions_acceptations.sql) est en production mais absente des clones de la base
-    -- locale : si elle manque, la preuve la pose ici, mot pour mot, dans sa transaction annulée (hors empreinte).
-    if to_regprocedure('public.accepter_conditions(text)') is null then
-      execute $ac$
-create or replace function public.accepter_conditions(p_version text)
-returns timestamptz language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
-declare
-  v_email text := lower(auth.jwt() ->> 'email');
-  v_quand timestamptz;
-begin
-  if v_email is null then
-    raise exception 'Non connecte';
-  end if;
-  if p_version is null or p_version !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}[a-z]?$' then
-    raise exception 'Version de conditions invalide';
-  end if;
-  insert into conditions_acceptations (email, version) values (v_email, p_version)
-  on conflict (email, version) do nothing;
-  select accepted_at into v_quand from conditions_acceptations
-   where email = v_email and version = p_version;
-  return v_quand;
-end;
-$function$;
-revoke all on function public.accepter_conditions(text) from anon, public;
-grant execute on function public.accepter_conditions(text) to authenticated;
-$ac$;
-    end if;
+    -- SA a l'interrupteur allumé, une acceptation plausible (hier) et une acceptation de la sentinelle posée en base
+    -- (pg_temp.accepter_en_base : l'API ne l'enregistrerait plus depuis 20261114_restes_1_conditions).
     insert into settings (key, value, promo_id) values ('autonomie_active', 'true', PA);
     r := pg_temp.accepter_en_base('SA', '9999-12-31');
     r2 := pg_temp.essai('SA', PA, format('select public.autonomie_tracer_cours(%L, 30, true, null)::text', K1));
