@@ -132,9 +132,12 @@ export function phrasePorteurs(n) {
     : `${n} personnes ont ce titre : leurs droits changeront dès l'enregistrement.`;
 }
 
+// Personne ne porte le titre dans le centre (n nul ou absent) : la première phrase seule.
 export function phraseVersionCentre(n) {
+  const debut = "Ce titre vient du réseau : l'ajuster crée la version de votre centre.";
+  if (!(n >= 1)) return debut;
   const suite = n === 1 ? "1 personne passera" : `${n} personnes passeront`;
-  return `Ce titre vient du réseau : l'ajuster crée la version de votre centre. ${suite} à la version du centre.`;
+  return `${debut} ${suite} à la version du centre.`;
 }
 
 // Ce que le titre permet : les pages non à « Non », dans l'ordre du niveau.

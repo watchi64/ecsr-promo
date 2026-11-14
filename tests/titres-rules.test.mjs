@@ -113,6 +113,9 @@ test("phrasePorteurs et phraseVersionCentre", () => {
   assert.equal(phrasePorteurs(3), "3 personnes ont ce titre : leurs droits changeront dès l'enregistrement.");
   assert.equal(phraseVersionCentre(1), "Ce titre vient du réseau : l'ajuster crée la version de votre centre. 1 personne passera à la version du centre.");
   assert.equal(phraseVersionCentre(2), "Ce titre vient du réseau : l'ajuster crée la version de votre centre. 2 personnes passeront à la version du centre.");
+  // Personne dans le centre : la première phrase seule (jamais « 0 personnes passeront »).
+  assert.equal(phraseVersionCentre(0), "Ce titre vient du réseau : l'ajuster crée la version de votre centre.");
+  assert.equal(phraseVersionCentre(null), "Ce titre vient du réseau : l'ajuster crée la version de votre centre.");
 });
 
 test("ceQueJePeuxFaire", () => {
@@ -161,6 +164,8 @@ test("phraseJournal : chaque action et le système", () => {
   assert.equal(phraseJournal({ ...base, action: "ajuste", pour: null }, nomDe), "09/11, Camille R. a ajusté le titre Secrétariat");
   assert.equal(phraseJournal({ ...base, action: "supprime", pour: null }, nomDe), "09/11, Camille R. a supprimé le titre Secrétariat");
   assert.equal(phraseJournal({ ...base, action: "donne", par: "système" }, nomDe), "09/11, L'application a donné le titre Secrétariat à alex@exemple.invalid");
+  // Une action que l'app ne connaît pas encore : la phrase de repli.
+  assert.equal(phraseJournal({ ...base, action: "inconnue" }, nomDe), "09/11, Camille R. a modifié un titre");
 });
 
 test("formateurFixeSur", () => {
@@ -169,6 +174,11 @@ test("formateurFixeSur", () => {
   assert.equal(formateurFixeSur([intervenant], 1), false);
   assert.equal(formateurFixeSur([formateurFixe], 9), false);
   assert.equal(formateurFixeSur([{ ...intervenant, fixe: false, nom: "Formateur" }], 1), false);
+  // Le booléen `fixe` l'emporte sur le nom : un titre fixe qui ne s'appelle pas « Formateur » compte.
+  assert.equal(formateurFixeSur([{ ...intervenant, fixe: true }], 1), true);
+  // Un titre de CENTRE nommé « Formateur » ne compte pas : seul un titre de promo couvre la promo.
+  assert.equal(formateurFixeSur([{ titre_id: 7, nom: "Formateur", niveau: "centre", lieu_id: 1, promo_ids: null, cases: {} }], 1), false);
+  assert.equal(formateurFixeSur([{ titre_id: 7, nom: "Formateur", niveau: "centre", lieu_id: 1, promo_ids: [1], cases: {} }], 1), false);
 });
 
 test("aucun texte ne contient « prof » ni le tiret cadratin", () => {
