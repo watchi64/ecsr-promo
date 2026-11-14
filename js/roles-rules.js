@@ -18,6 +18,14 @@ export const LIBELLES_APERCU = { formateur: "Formateur", direction: "Direction",
 export const ENTETE_APERCU = "x-apercu-role";
 // Titres (étape 3, migration 8) : l'aperçu du fondateur par titre ; l'identifiant du titre simulé, envoyé avec x-apercu-role.
 export const ENTETE_APERCU_TITRE = "x-apercu-titre";
+// Les aperçus qui acceptent un titre simulé, et le filtre unique du titre (db.js l'envoie, auth-admin.js le retient) : au fondateur
+// seul, pour ces trois aperçus, un identifiant en chiffres seuls (1 à 18, comme apercu_titre en base). Rend la chaîne, ou null.
+export const APERCUS_PAR_TITRE = ["formateur", "direction", "siege"];
+export function titreSimule({ apercu, fondateur, titreId } = {}) {
+  if (fondateur !== true || !APERCUS_PAR_TITRE.includes(apercu) || titreId == null) return null;
+  const texte = String(titreId);
+  return /^[0-9]{1,18}$/.test(texte) ? texte : null;
+}
 
 // Valeur mémorisée ou saisie vers un aperçu connu. L'ancienne valeur « prof » se lit « formateur » ;
 // « admin » (le fondateur sans aperçu) et tout inconnu donnent null.

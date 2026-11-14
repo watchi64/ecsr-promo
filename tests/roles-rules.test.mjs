@@ -6,6 +6,7 @@ import {
   APERCUS, LIBELLES_APERCU, ENTETE_APERCU, normaliserApercu, apercusPermis, droitsAffiches,
   peutInviterFormateur, peutRetirerCompte, messageInvitation, messageSansPromo, MESSAGE_SANS_PROMO,
   messageInvitationReussie, phraseCompteTransforme, etiquetteBadge, pastillesDuProfil, listeAcces, ENTETE_APERCU_TITRE,
+  APERCUS_PAR_TITRE, titreSimule,
 } from "../js/roles-rules.js";
 
 const formateur = { profil: { role: "prof", is_admin: true }, promo: { roles: ["formateur"] } };
@@ -327,4 +328,18 @@ test("droitsAffiches en aperçu Formateur : un titre non fixe retire admin, le t
 
 test("ENTETE_APERCU_TITRE", () => {
   assert.equal(ENTETE_APERCU_TITRE, "x-apercu-titre");
+});
+
+test("titreSimule : le filtre unique du titre de l'aperçu (fondateur seul, trois aperçus, chiffres seuls)", () => {
+  assert.deepEqual(APERCUS_PAR_TITRE, ["formateur", "direction", "siege"]);
+  assert.equal(titreSimule({ apercu: "formateur", fondateur: true, titreId: 12 }), "12");
+  assert.equal(titreSimule({ apercu: "siege", fondateur: true, titreId: "7" }), "7");
+  assert.equal(titreSimule({ apercu: "stagiaire", fondateur: true, titreId: 12 }), null);
+  assert.equal(titreSimule({ apercu: null, fondateur: true, titreId: 12 }), null);
+  assert.equal(titreSimule({ apercu: "formateur", fondateur: false, titreId: 12 }), null);
+  assert.equal(titreSimule({ apercu: "formateur", fondateur: true, titreId: null }), null);
+  for (const mauvais of ["-1", "1.5", "12a", "", "1234567890123456789", " 3"]) {
+    assert.equal(titreSimule({ apercu: "direction", fondateur: true, titreId: mauvais }), null, mauvais);
+  }
+  assert.equal(titreSimule({ apercu: "direction", fondateur: true, titreId: "123456789012345678" }), "123456789012345678");
 });

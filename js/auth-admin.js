@@ -22,7 +22,7 @@ import {
   lireMesTitres,
 } from "./db.js?v=20261114f";
 import {
-  LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo,
+  LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo, titreSimule,
 } from "./roles-rules.js?v=20261114f";
 import {
   ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, decisionPorteSansPromo,
@@ -49,7 +49,6 @@ let viewAs = null;  // null = rôle réel ; sinon l'un de APERCUS
 // Titres (étape 3) : le titre simulé par l'aperçu du fondateur (formateur, direction, siège ; en-tête x-apercu-titre), mémorisé
 // sur l'appareil à côté de l'aperçu. Nul : le titre fixe du niveau, l'aperçu d'avant les titres.
 const VIEW_AS_TITRE_KEY = "ecsr_view_as_titre";
-const APERCUS_PAR_TITRE = ["formateur", "direction", "siege"];
 let titreApercu = null;
 
 // Titres (étape 3) : les lignes de mes_titres() de la session, lues avec les affectations et relues à chaque changement d'aperçu
@@ -291,11 +290,9 @@ function nomDeLaVitrine() {
   return s ? displayStagiaire(s) : "la stagiaire de démonstration";
 }
 
-// Le titre simulé retenu : au fondateur seul, pour les aperçus formateur, direction et siège (la base l'ignore ailleurs).
+// Le titre simulé retenu : au fondateur seul, pour les aperçus formateur, direction et siège (titreSimule, js/roles-rules.js).
 function titrePourApercu(role, titreId) {
-  if (!isFounder() || !APERCUS_PAR_TITRE.includes(role) || titreId == null) return null;
-  const texte = String(titreId);
-  return /^[0-9]{1,18}$/.test(texte) ? texte : null;
+  return titreSimule({ apercu: role, fondateur: isFounder(), titreId });
 }
 
 // Retient l'aperçu (et son titre simulé) et l'envoie à la base. Les données lues sous l'ancien aperçu sont oubliées. Rend vrai quand
@@ -388,7 +385,11 @@ export async function setViewAs(role, { titreId = null } = {}) {
     return;
   }
   // En aperçu, mes_titres rend le titre simulé : relu avant le rendu, pour que barre, boutons et drapeaux suivent le nouvel aperçu.
-  if (change) await lireTitresDeLaSession();
+  // Les titres de l'ancien aperçu sont oubliés d'abord : pendant l'aller-retour, aucun ne survit (nul : le plafond, la base décide).
+  if (change) {
+    oublierTitres();
+    await lireTitresDeLaSession();
+  }
   listeners.forEach((cb) => cb(currentUser, currentProfile));  // déclenche navigate()
   majBandeaux();
 }

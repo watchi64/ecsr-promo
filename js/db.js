@@ -10,7 +10,7 @@ import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
 } from "./promo-rules.js?v=20261114f";
-import { ENTETE_APERCU, ENTETE_APERCU_TITRE, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261114f";
+import { ENTETE_APERCU, ENTETE_APERCU_TITRE, titreSimule, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261114f";
 import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261114f";
 import { effectifDesFiches } from "./centre-stats.js?v=20261114f";
 import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261114f";
@@ -191,16 +191,10 @@ export function getMesPromos() { return mesPromos; }
 // retire l'aperçu. Les données déjà en mémoire ont été lues sous l'ancien aperçu : on les oublie.
 // Titres (étape 3) : `titreId`, le titre simulé (en-tête x-apercu-titre), au fondateur seul et pour les aperçus formateur, direction et
 // siège ; ailleurs il est ignoré. Changer de titre vide le cache comme un changement d'aperçu.
-const APERCUS_PAR_TITRE = ["formateur", "direction", "siege"];
-function titrePermis(apercu, fondateur, titreId) {
-  if (!fondateur || !APERCUS_PAR_TITRE.includes(apercu) || titreId == null) return null;
-  const texte = String(titreId);
-  return /^[0-9]{1,18}$/.test(texte) ? texte : null;
-}
 export function poserApercu(role, { fondateur = false, titreId = null } = {}) {
   const nouveau = normaliserApercu(role);
   apercuDuFondateur = fondateur === true;
-  const titre = titrePermis(nouveau, apercuDuFondateur, titreId);
+  const titre = titreSimule({ apercu: nouveau, fondateur: apercuDuFondateur, titreId });
   if (nouveau === apercuEnvoye && titre === titreEnvoye) return;
   apercuEnvoye = nouveau;
   titreEnvoye = titre;
