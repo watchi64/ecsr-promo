@@ -1,6 +1,7 @@
 -- Marche arrière de 20261115_contact_1_annuaire.sql (espace contact, migration 1, partie A).
 --   * Déclencheurs et fonctions de la migration retirés ; contacts_ecriture reprend le texte de 20261112_titres_3_regles.sql ; les
---     droits de authenticated sur contacts redeviennent ceux d'avant (ajout et modification sur toute la table).
+--     droits de authenticated sur contacts redeviennent ceux d'avant (ajout et modification sur toute la table), et ceux d'écriture
+--     de anon (ajout, modification, suppression, vidage).
 --   * Les fiches avec compte (fiches d'office) sont supprimées. Les copies fusionnées sont refaites : une ligne par centre de
 --     lieux_partages, avec le contenu et les dates de la fiche gardée.
 --   * Les colonnes ajoutées sont retirées, et ce qu'elles portaient avec elles (nom, « pour quoi », « quand », congé, relais,
@@ -45,6 +46,7 @@ alter policy contacts_ecriture on public.contacts
 -- Révoquer le droit de table retire aussi les droits de colonnes de la migration ; puis le droit de table d'avant.
 revoke insert, update on public.contacts from authenticated;
 grant insert, update on public.contacts to authenticated;
+grant insert, update, delete, truncate on public.contacts to anon;
 
 do $donnees$
 declare

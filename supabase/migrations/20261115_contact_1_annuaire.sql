@@ -17,19 +17,22 @@
 --   4. Lecture par fonction : annuaire_centre() rend les fiches du centre de la promo affichée, masque les coordonnées d'une fiche
 --      avec compte tant que la personne ne l'a pas vérifiée, et ne rend les champs d'édition qu'à qui peut l'écrire.
 --   5. Écriture directe : seulement les fiches sans compte (contacts_ecriture), seulement les colonnes permises (droits de colonnes :
---      ni compte_email, ni verifiee_le, ni lieu_id en modification), et un déclencheur qui juge le partage et le relais.
+--      ni compte_email, ni verifiee_le, ni lieu_id en modification ; anon n'écrit rien), et un déclencheur qui juge le partage, le
+--      relais et le rattachement à profs (jamais la ligne d'un compte de l'équipe ; une ligne du planning d'un des centres).
 --   La lecture directe de contacts (contacts_select_authenticated) n'est PAS touchée ici : sa fermeture est la migration 1b
 --   (20261115_contact_1b_fermeture.sql), appliquée après la fusion de l'app. Entre les deux, la lecture directe ne montre rien de
 --   nouveau : une fiche d'office a lieu_id nul (la règle restrictive contacts_meme_centre la cache), et les colonnes nouvelles des
 --   fiches sans compte sont vides (lieux_partages excepté, qui ne dit qu'un numéro de centre).
 -- Garde : contacts.lieu_id existe, contacts.compte_email n'existe pas, donner_titre existe, contacts_ecriture a exactement le texte
--- de 20261112_titres_3_regles.sql, contacts_select_authenticated existe une fois avec le texte « true » ; sinon rien ne change.
+-- de 20261112_titres_3_regles.sql, contacts_select_authenticated existe une fois avec le texte « true », contacts_meme_centre existe
+-- une fois, restrictive, avec le texte de 20261113_contacts_centre.sql ; sinon rien ne change.
 -- Marche arrière : 20261115_contact_1_annuaire_retour.sql (refusée tant que la 1b est appliquée).
 set local lock_timeout = '3s';
 
 do $garde$
 declare
   v_attendu constant text := '(SELECTgeste_promo((SELECTpromo_courante()ASpromo_courante),''fiches_internes.ecrire''::text)ASgeste_promo)';
+  v_centre constant text := '(lieu_id=(SELECTlieu_courant()ASlieu_courant))';
   v_qual text;
   v_check text;
 begin
@@ -56,6 +59,13 @@ begin
   if (select count(*) from pg_policies where schemaname = 'public' and tablename = 'contacts'
          and policyname = 'contacts_select_authenticated' and qual = 'true') <> 1 then
     raise exception 'contact_1 : la règle contacts_select_authenticated est absente ou n''est plus « true » ; rien n''est changé';
+  end if;
+  -- La sûreté de l'intervalle entre la 1 et la 1b repose sur la règle restrictive du centre (une fiche avec compte a lieu_id nul).
+  if (select count(*) from pg_policies p where p.schemaname = 'public' and p.tablename = 'contacts'
+         and p.policyname = 'contacts_meme_centre' and p.permissive = 'RESTRICTIVE' and p.cmd = 'ALL'
+         and regexp_replace(replace(p.qual, 'public.', ''), '\s', '', 'g') = v_centre
+         and regexp_replace(replace(p.with_check, 'public.', ''), '\s', '', 'g') = v_centre) <> 1 then
+    raise exception 'contact_1 : la règle restrictive contacts_meme_centre est absente ou n''a plus le texte de 20261113_contacts_centre.sql ; rien n''est changé';
   end if;
 end $garde$;
 
@@ -132,16 +142,26 @@ select x.email, null,
                       where lower(up.email) = x.email order by (up.prof_id is null), up.email limit 1) u on true
 on conflict do nothing;
 
+-- À la naissance de la fiche d'office, la ligne profs du compte lui revient, sauf si une autre fiche AVEC compte l'a déjà (deux comptes
+-- sur une même ligne : le premier la garde). Une fiche SANS compte qui l'avait (rattachée à la main avant que la personne ait une
+-- affectation) la rend : c'est la même personne, et sa fiche est désormais celle de son compte.
 create function public._contact_fiche_d_office()
 returns trigger language plpgsql security definer set search_path = public, pg_temp
 as $fn$
+declare
+  v_prof integer;
 begin
-  insert into contacts (compte_email, lieu_id, prof_id)
-  values (lower(new.email), null,
-          (select up.prof_id from user_profiles up
-            where lower(up.email) = lower(new.email) and up.prof_id is not null
-              and not exists (select 1 from contacts c where c.prof_id = up.prof_id)
-            order by up.email limit 1))
+  if exists (select 1 from contacts c where c.compte_email = lower(new.email)) then
+    return null;
+  end if;
+  select up.prof_id into v_prof from user_profiles up
+   where lower(up.email) = lower(new.email) and up.prof_id is not null
+     and not exists (select 1 from contacts c where c.prof_id = up.prof_id and c.compte_email is not null)
+   order by up.email limit 1;
+  if v_prof is not null then
+    update contacts set prof_id = null where prof_id = v_prof and compte_email is null;
+  end if;
+  insert into contacts (compte_email, lieu_id, prof_id) values (lower(new.email), null, v_prof)
   on conflict do nothing;
   return null;
 end $fn$;
@@ -251,6 +271,8 @@ alter policy contacts_ecriture on public.contacts
 -- Droits de colonnes : ni compte_email ni verifiee_le (écrits par la base), lieu_id seulement à l'ajout (contacts_meme_centre
 -- l'impose au centre affiché). Révoquer le droit de table retire aussi les droits de colonnes.
 revoke insert, update on public.contacts from authenticated;
+-- anon n'écrit rien (aucune règle ne le lui permettait déjà : la règle d'écriture demande un jeton) ; le droit lui est retiré aussi.
+revoke insert, update, delete, truncate on public.contacts from anon;
 grant insert (prenom, nom, role, phone, email, note, category, sort_order, pour_quoi, quand, relais_id, conge_du, conge_au, prof_id,
               lieux_partages, lieu_id, depart_le) on public.contacts to authenticated;
 grant update (prenom, nom, role, phone, email, note, category, sort_order, pour_quoi, quand, relais_id, conge_du, conge_au, prof_id,
@@ -278,6 +300,22 @@ begin
         raise exception 'contact: Vous ne pouvez partager une fiche qu''avec un centre où vous écrivez les fiches.' using errcode = '42501';
       end if;
     end loop;
+  end if;
+  -- Le rattachement d'une fiche sans compte à une ligne profs (formateurs du jour, partie C) : jamais la ligne d'un compte de l'équipe
+  -- (elle revient à sa fiche d'office), et une ligne qui figure au planning d'une promo d'un des centres de la fiche.
+  if new.prof_id is not null and new.compte_email is null and lower(auth.jwt() ->> 'email') is not null
+     and (tg_op = 'INSERT' or new.prof_id is distinct from old.prof_id) then
+    if exists (select 1 from user_profiles up
+                where up.prof_id = new.prof_id
+                  and exists (select 1 from affectations a
+                               where lower(a.email) = lower(up.email) and a.role in ('formateur', 'direction'))) then
+      raise exception 'contact: Ce formateur a un compte : sa fiche est celle de son compte.' using errcode = '42501';
+    end if;
+    if not exists (select 1 from planning_entries pe join promos p on p.id = pe.promo_id
+                    where (pe.prof_id = new.prof_id or new.prof_id = any(pe.prof_ids))
+                      and (p.lieu_id = new.lieu_id or p.lieu_id = any(new.lieux_partages))) then
+      raise exception 'contact: Ce formateur ne figure pas au planning de ce centre.' using errcode = '42501';
+    end if;
   end if;
   if new.relais_id is not null and (tg_op = 'INSERT' or new.relais_id is distinct from old.relais_id) then
     if not exists (
@@ -308,14 +346,18 @@ revoke all on function public._contact_fiche_d_office() from public, anon, authe
 revoke all on function public._contact_fiche_orpheline() from public, anon, authenticated, service_role;
 revoke all on function public._contact_avant_ecriture() from public, anon, authenticated, service_role;
 
--- Contrôle de fin : les droits de colonnes sont bien ceux voulus (un droit de table resté en place les rendrait vains).
+-- Contrôle de fin : les droits de colonnes sont bien ceux voulus (un droit de table resté en place les rendrait vains), et anon n'écrit rien.
 do $controle$
 begin
   if has_column_privilege('authenticated', 'public.contacts', 'compte_email', 'INSERT')
      or has_column_privilege('authenticated', 'public.contacts', 'compte_email', 'UPDATE')
      or has_column_privilege('authenticated', 'public.contacts', 'verifiee_le', 'UPDATE')
      or has_column_privilege('authenticated', 'public.contacts', 'lieu_id', 'UPDATE')
-     or not has_column_privilege('authenticated', 'public.contacts', 'prenom', 'UPDATE') then
+     or not has_column_privilege('authenticated', 'public.contacts', 'prenom', 'UPDATE')
+     or has_any_column_privilege('anon', 'public.contacts', 'INSERT')
+     or has_any_column_privilege('anon', 'public.contacts', 'UPDATE')
+     or has_table_privilege('anon', 'public.contacts', 'DELETE')
+     or has_table_privilege('anon', 'public.contacts', 'TRUNCATE') then
     raise exception 'contact_1 : les droits de colonnes de contacts ne sont pas ceux attendus ; tout est annulé';
   end if;
 end $controle$;

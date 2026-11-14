@@ -6,12 +6,14 @@
 --   entre        après la 1, avant la 1b (l'intervalle de la production entre les deux) : la lecture directe des anciens lecteurs marche
 --                encore, ne montre aucune fiche avec compte et aucun champ nouveau rempli.
 --   fiches       une fiche d'office par adresse de formateur ou de direction, aucune pour les autres ; elle naît avec la première
---                affectation, disparaît avec la dernière ; rattachement à profs ; copies identiques fusionnées, copie modifiée à part,
+--                affectation, disparaît avec la dernière ; rattachement à profs (reprise de la ligne d'une fiche sans compte) ; copies
+--                identiques fusionnées, copie modifiée à part,
 --                valeurs des fiches sans compte gardées (centres des copies compris).
 --   annuaire     annuaire_centre() : les fiches du centre de la promo affichée et les fiches partagées avec lui, masque d'une fiche non
 --                vérifiée, champs d'édition rendus à qui écrit, titres du centre, tri.
 --   ecritures    écritures directes : fiches sans compte de son centre seulement, colonnes permises, partage jugé centre par centre,
---                relais d'un des centres de la fiche.
+--                relais d'un des centres de la fiche, rattachement à profs (jamais la ligne d'un compte de l'équipe, une ligne du
+--                planning d'un des centres de la fiche), aucune écriture pour anon.
 --   depart       date de départ d'une fiche sans compte : passée, la fiche n'est plus rendue qu'à qui l'écrit.
 --   fermeture    après la 1b : la lecture directe de contacts n'est plus ouverte qu'à qui écrit les fiches.
 --   retour       les retours défont tout, dans l'ordre inverse (1b, 1) : l'empreinte (règles, fonctions, droits) égale celle d'avant, et
@@ -206,6 +208,15 @@ begin
     format('select public.retirer_titre(%L, %s, %s)', (select email from pg_temp.perso where nom = 'dir_deux'), v_titre_dir, v_l2),
     format('select count(*)::text from public.contacts where compte_email = lower(%L)', (select email from pg_temp.perso where nom = 'dir_deux')));
   perform pg_temp.attendre('fiches', 'retirer_titre de la direction de Montpellier de dir_deux par le siège : sa fiche reste (direction de Nîmes)', v_res[2], 'OK 1 1');
+  -- Une fiche d'office qui naît sur une ligne profs déjà prise par une fiche SANS compte la reprend (même personne) : la fiche sans compte
+  -- perd son rattachement. (Prise par une fiche AVEC compte : la première la garde, cas de prof_b plus haut.)
+  perform pg_temp.attendre('fiches', 'une fiche d''office qui naît sur la ligne profs d''une fiche sans compte la reprend ; la fiche sans compte la perd',
+    pg_temp.ecrire_proprio(format($ca_q$insert into public.profs (nom, ordre) values ('Preuve7 formateur D', 993);
+      update public.contacts set prof_id = (select id from public.profs where nom = 'Preuve7 formateur D') where id = %1$s;
+      insert into public.user_profiles (email, role, is_admin, prof_id) values ('preuve7.eq.prof.d@exemple.invalid', 'prof', false, (select id from public.profs where nom = 'Preuve7 formateur D'));
+      insert into public.affectations (email, role, promo_id) values ('preuve7.eq.prof.d@exemple.invalid', 'formateur', 2)$ca_q$, pg_temp.id_essai('sec_n')),
+      format($ca_q$select concat_ws('/', (select coalesce((prof_id = (select id from public.profs where nom = 'Preuve7 formateur D'))::text, 'nul') from public.contacts where compte_email = 'preuve7.eq.prof.d@exemple.invalid'), (select coalesce(prof_id::text, 'nul') from public.contacts where id = %1$s))$ca_q$, pg_temp.id_essai('sec_n'))),
+    'OK 1 true/nul');
   -- La fusion des copies et les valeurs gardées : seulement quand la migration se joue ici.
   if not p_injecte then
     perform pg_temp.informer('groupe fiches : fusion', 'sautée : la migration n''est pas jouée par cette preuve (mode en ligne)');
@@ -324,6 +335,10 @@ declare
   v_form_s text := pg_temp.id_fiche('form_s');
   v_dir_n text := pg_temp.id_fiche('dir_n');
   v_part text := coalesce(pg_temp.calcul(format('select min(id)::text from public.contacts where compte_email is null and lieu_id = %s and %s = any(lieux_partages)', v_l1, v_l2)), 'null');
+  v_prof text := pg_temp.id_essai('prof');
+  -- Une ligne profs nouvelle, au planning de la promo 1 (une entrée d'une semaine lointaine), posée en propriétaire dans les essais.
+  v_planning_n constant text := $ca_q$insert into public.profs (nom, ordre) values ('Preuve7 intervenant', 994); insert into public.planning_entries (semaine_lundi, day_index, half_day, slot, promo_id, prof_id) values ('2031-01-06', 0, 'matin', 0, 1, (select id from public.profs where nom = 'Preuve7 intervenant'))$ca_q$;
+  v_planning_liste constant text := $ca_q$insert into public.profs (nom, ordre) values ('Preuve7 intervenant', 994); insert into public.planning_entries (semaine_lundi, day_index, half_day, slot, promo_id, prof_ids) values ('2031-01-06', 0, 'matin', 0, 1, array[(select id from public.profs where nom = 'Preuve7 intervenant')])$ca_q$;
   v_phrase constant text := 'ERREUR 42501 contact: Vous ne pouvez partager une fiche qu''avec un centre où vous écrivez les fiches.';
   v_r text;
   v_res text[];
@@ -380,6 +395,32 @@ begin
   v_res := pg_temp.tenter(e_form_n, '1', null, null, null, format('update public.contacts set relais_id = %s where id = %s', v_form_n, v_sec),
     format('select relais_id::text from public.contacts where id = %s', v_sec));
   perform pg_temp.attendre('ecritures', 'form_n donne à sec_n un relais de Nîmes (sa propre fiche) : accepté', v_res[2], 'OK 1 ' || v_form_n);
+  -- Rattachement d'une fiche sans compte à une ligne profs : jamais celle d'un compte de l'équipe (prof_a, affecté) ; une ligne du planning
+  -- d'une promo d'un des centres de la fiche (prof_id ou prof_ids d'une entrée).
+  perform pg_temp.attendre('ecritures', 'form_n rattache sec_n, ou une fiche nouvelle, à la ligne profs d''un compte de l''équipe (prof_a) : refusé',
+    pg_temp.appeler('form_n', '1', format('update public.contacts set prof_id = %s where id = %s', v_prof, v_sec)) || ' / '
+      || pg_temp.appeler('form_n', '1', format('insert into public.contacts (prenom, prof_id) values (''Preuve rattachée'', %s)', v_prof)),
+    'ERREUR 42501 contact: Ce formateur a un compte : sa fiche est celle de son compte. / ERREUR 42501 contact: Ce formateur a un compte : sa fiche est celle de son compte.');
+  v_r := concat_ws(' / ',
+    (pg_temp.tenter(e_form_n, '1', null, v_planning_n, null,
+      format('update public.contacts set prof_id = (select id from public.profs where nom = ''Preuve7 intervenant'') where id = %s', v_sec),
+      format('select (prof_id = (select id from public.profs where nom = ''Preuve7 intervenant''))::text from public.contacts where id = %s', v_sec)))[2],
+    (pg_temp.tenter(e_form_n, '1', null, v_planning_liste, null,
+      format('update public.contacts set prof_id = (select id from public.profs where nom = ''Preuve7 intervenant'') where id = %s', v_sec), null))[2]);
+  perform pg_temp.attendre('ecritures', 'form_n rattache sec_n à une ligne du planning de Nîmes (formateur principal, puis dans la liste) : accepté',
+    v_r, 'OK 1 true / OK 1');
+  perform pg_temp.attendre('ecritures', 'form_n rattache sec_n à une ligne du seul planning de Montpellier : refusé ; sec_n partagée avec Montpellier : accepté',
+    pg_temp.voir_apres(replace(v_planning_n, ', 1, (select', ', 2, (select'), 'form_n', '1',
+      format('update public.contacts set prof_id = (select id from public.profs where nom = ''Preuve7 intervenant'') where id = %s', v_sec)) || ' / '
+      || pg_temp.voir_apres(replace(v_planning_n, ', 1, (select', ', 2, (select') || format('; update public.contacts set lieux_partages = array[%s] where id = %s', v_l2, v_sec),
+           'form_n', '1', format('update public.contacts set prof_id = (select id from public.profs where nom = ''Preuve7 intervenant'') where id = %s returning prof_id is not null', v_sec)),
+    'ERREUR 42501 contact: Ce formateur ne figure pas au planning de ce centre. / OK true');
+  -- anon : droits d'écriture retirés.
+  v_r := concat_ws(' / ',
+    (pg_temp.tenter(null, '1', null, null, null, $ca_q$insert into public.contacts (prenom) values ('Preuve anonyme')$ca_q$, null))[2],
+    (pg_temp.tenter(null, '1', null, null, null, $ca_q$update public.contacts set note = 'Preuve'$ca_q$, null))[2],
+    (pg_temp.tenter(null, '1', null, null, null, $ca_q$delete from public.contacts$ca_q$, null))[2]);
+  perform pg_temp.attendre('ecritures', 'anon : ajout, modification, suppression refusés (droits retirés)', v_r, 'REFUS 42501 / REFUS 42501 / REFUS 42501');
 end $ca_gc$;
 
 -- Groupe depart : la date de départ d'une fiche sans compte.
