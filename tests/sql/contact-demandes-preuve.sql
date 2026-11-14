@@ -13,7 +13,13 @@
 --                n'est écrit), délégué et stagiaires jamais destinataires principaux, aucun droit direct sur les tables, aides internes
 --                fermées, entrées illisibles refusées.
 --   retour       les retours défont tout, dans l'ordre inverse (2, 1b, 1) : l'empreinte (règles, fonctions, droits) égale celle d'avant.
--- Les groupes des parties B et C s'ajoutent avec leurs tâches, entre les migrations et les retours (repère « 4. GROUPES » plus bas).
+--   lire         (partie B) liste_demandes et demande_detail selon le rôle : auteur, destinataire, délégué (colonnes réduites), direction
+--                réelle du centre (toutes celles du centre) ; fondateur, aperçu, titre non fixe, siège, autre centre : rien de plus.
+--   etats        (partie B) marquer_lue, réponses libres et toutes faites (prise, lue remise à nul, envois aux autres participants),
+--                prendre_en_compte, annuler_demande, relancer_envoi, e-mail affichable d'une fiche vérifiée.
+--   reglages     (partie B) qui reçoit quoi (une fiche du centre seulement), réponses toutes faites, lecture des réglages, alertes coupées.
+--   conservation (partie B) purge à l'écriture, changement de promo, départ d'un auteur de l'équipe, effacement sur demande.
+-- Les groupes de la partie C s'ajoutent avec sa tâche, entre les migrations et les retours (repère « 4. GROUPES » plus bas).
 -- L'horloge : après la migration 2, la preuve remplace _contact_maintenant() par une version qui lit le réglage preuve.maintenant (C-21) ;
 -- tout est annulé à la fin. Les jours d'essai sont en 2031 : aucun planning réel n'y figure.
 -- Modes : dans la contre-épreuve, chaque groupe se joue et doit être ROUGE ; en ligne, un groupe dont la migration n'est pas appliquée
@@ -529,6 +535,412 @@ begin
   perform pg_temp.verifier('garde_fous', 'liste vide : le décompte des lignes se lit (tables présentes)', v_avant ~ '^[0-9]+/[0-9]+/[0-9]+/[0-9]+$', v_avant);
 end $cd_gg$;
 
+-- ===== Partie B (tâche 9) : lire, états, réglages, conservation. Le jour : mardi 11 mars 2031 à Paris (stag_n a atteint son quota le
+-- 4 mars, groupe garde_fous). Les demandes d'essai de la partie B sont rangées dans pg_temp.dem (nom, identifiant).
+create or replace function pg_temp.poser_dem(p_nom text, p_appel text)
+returns text language plpgsql as $cd_pd$
+begin
+  create temp table if not exists dem (nom text primary key, id bigint);
+  delete from pg_temp.dem where nom = p_nom;
+  if p_appel ~ '^OK [0-9]+$' then
+    insert into pg_temp.dem values (p_nom, substr(p_appel, 4)::bigint);
+  end if;
+  return p_appel;
+end $cd_pd$;
+
+-- L'identifiant d'une demande d'essai (texte), ou « null ».
+create or replace function pg_temp.dem(p_nom text)
+returns text language plpgsql as $cd_dm$
+begin
+  return coalesce((select id::text from pg_temp.dem where nom = p_nom), 'null');
+exception when others then
+  return 'null';
+end $cd_dm$;
+
+-- Ce que liste_demandes(p_lieu) rend à un personnage, restreint aux demandes d'essai d1 et d2 : « d1:auteur,d2:direction » (vide : aucune).
+create or replace function pg_temp.liste_d(p_qui text, p_entete text, p_lieu text)
+returns text language plpgsql as $cd_ls$
+begin
+  return pg_temp.appeler(p_qui, p_entete, format($cd_q$select coalesce(string_agg(case l.id when %1$s then 'd1' when %2$s then 'd2' end || ':' || l.mon_role, ',' order by l.id), '')
+    from public.liste_demandes(%3$s) l where l.id in (%1$s, %2$s)$cd_q$, pg_temp.dem('d1'), pg_temp.dem('d2'), p_lieu));
+end $cd_ls$;
+
+-- Les envois d'une demande nés après l'envoi p_apres : « vers:evenement:etat[:raison] », vers = la fiche, ou s suivi du stagiaire.
+create or replace function pg_temp.envois_apres(p_demande text, p_apres text)
+returns text language sql as $cd_ea$
+  select pg_temp.calcul(format($cd_q$select coalesce(string_agg(coalesce(e.vers_fiche_id::text, 's' || e.vers_stagiaire_id) || ':' || e.evenement || ':' || e.etat
+      || coalesce(':' || e.raison, ''), ',' order by e.id), '') from public.contact_envois e where e.demande_id = %s and e.id > %s$cd_q$, p_demande, p_apres));
+$cd_ea$;
+
+-- Le dernier envoi (identifiant en texte, 0 sans aucun).
+create or replace function pg_temp.dernier_envoi()
+returns text language sql as $cd_de$
+  select pg_temp.calcul('select coalesce(max(id), 0)::text from public.contact_envois');
+$cd_de$;
+
+-- Groupe lire : qui voit quelle demande (liste_demandes, demande_detail, _contact_lecteur).
+create or replace function pg_temp.groupe_lire()
+returns void language plpgsql as $cd_gl$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_l4 integer := (select lieu_id from public.promos where id = 7);
+  f_dir_n text := pg_temp.fiche('dir_n');
+  f_t_secr text := pg_temp.fiche('t_secr');
+  s_n text := pg_temp.stag('stag_n');
+  v_deleg integer;
+  v text;
+begin
+  perform set_config('preuve.maintenant', '2031-03-11 10:00:00 Europe/Paris', true);
+  perform pg_temp.essai(format('delete from public.contact_regles where lieu_id = %s', v_l1));
+  v := pg_temp.poser_dem('d1', pg_temp.appeler('stag_n', '1', format('select public.ecrire_a(%s, %L, %L, %L)::text', f_dir_n, 'autre', 'Preuve9 lire', 'Bonjour')));
+  perform pg_temp.verifier('lire', 'd1 : stag_n écrit à la fiche de dir_n', v ~ '^OK [0-9]+$', v);
+  v := pg_temp.poser_dem('d2', pg_temp.appeler('form_n', '1', format('select public.ecrire_a(%s, null, %L, %L)::text', f_t_secr, 'Preuve9 collègue', 'Bonjour')));
+  perform pg_temp.verifier('lire', 'd2 : form_n écrit à la fiche de t_secr (un collègue)', v ~ '^OK [0-9]+$', v);
+
+  perform pg_temp.attendre('lire', 'liste_demandes() : d1 à stag_n (auteur) et à dir_n (principal), pas à form_n (seulement d2, dont il est l''auteur)',
+    concat_ws(' / ', pg_temp.liste_d('stag_n', '1', 'null'), pg_temp.liste_d('dir_n', '1', 'null'), pg_temp.liste_d('form_n', '1', 'null')),
+    'OK d1:auteur / OK d1:principal / OK d2:auteur');
+  perform pg_temp.attendre('lire', 'liste_demandes(Nîmes) par dir_n (direction réelle) : d1 et la demande entre collègues',
+    pg_temp.liste_d('dir_n', '1', v_l1::text), 'OK d1:principal,d2:direction');
+  perform pg_temp.attendre('lire', 'fond (fondateur) : aucune demande où il n''a pas de rôle, avec ou sans centre, ni en aperçu direction',
+    concat_ws(' / ', pg_temp.appeler('fond', '1', 'select count(*)::text from public.liste_demandes()'),
+      pg_temp.appeler('fond', '1', format('select count(*)::text from public.liste_demandes(%s)', v_l1)),
+      pg_temp.appeler_apercu('fond', '1', 'direction', format('select count(*)::text from public.liste_demandes(%s)', v_l1))),
+    'OK 0 / OK 0 / OK 0');
+  perform pg_temp.attendre('lire', 't_secr (titre de centre non fixe), liste_demandes(Nîmes) : les siennes seulement (d2, destinataire)',
+    pg_temp.liste_d('t_secr', '1', v_l1::text) || ' | ' || pg_temp.appeler('t_secr', '1', format('select count(*)::text from public.liste_demandes(%s)', v_l1)),
+    'OK d2:principal | OK 1');
+  perform pg_temp.attendre('lire', 'siège : aucune ; dir_s (autre centre), sur Nîmes et sur le sien : aucune',
+    concat_ws(' / ', pg_temp.appeler('siege', null, format('select count(*)::text from public.liste_demandes(%s)', v_l1)),
+      pg_temp.liste_d('dir_s', '7', v_l1::text), pg_temp.liste_d('dir_s', '7', v_l4::text)),
+    'OK 0 / OK / OK');
+  perform pg_temp.attendre('lire', 'demande_detail(d1) par form_s et par form_n (aucun rôle) : refusé',
+    pg_temp.appeler('form_s', '7', format('select public.demande_detail(%s)::text', pg_temp.dem('d1'))) || ' / '
+      || pg_temp.appeler('form_n', '1', format('select public.demande_detail(%s)::text', pg_temp.dem('d1'))),
+    'ERREUR 42501 contact: Demande introuvable. / ERREUR 42501 contact: Demande introuvable.');
+  perform pg_temp.attendre('lire', 'demande_detail(d1) par stag_n : un destinataire, aucun envoi ni réponse toute faite, peut répondre et annuler, pas prendre',
+    pg_temp.appeler('stag_n', '1', format($cd_q$select concat_ws(' ', r -> 'demande' ->> 'sujet', jsonb_array_length(r -> 'destinataires'), jsonb_array_length(r -> 'envois'),
+      jsonb_array_length(r -> 'reponses_toutes_faites'), r -> 'peut' ->> 'repondre', r -> 'peut' ->> 'prendre', r -> 'peut' ->> 'annuler', r -> 'peut' ->> 'justificatif')
+      from (select public.demande_detail(%s) r) x$cd_q$, pg_temp.dem('d1'))),
+    'OK Preuve9 lire 1 0 0 true false true false');
+  perform pg_temp.attendre('lire', 'demande_detail(d1) par dir_n : un envoi « nouvelle », quatre réponses toutes faites, peut répondre et prendre, pas annuler',
+    pg_temp.appeler('dir_n', '1', format($cd_q$select concat_ws(' ', jsonb_array_length(r -> 'envois'), r -> 'envois' -> 0 ->> 'evenement', jsonb_array_length(r -> 'reponses_toutes_faites'),
+      r -> 'peut' ->> 'repondre', r -> 'peut' ->> 'prendre', r -> 'peut' ->> 'annuler') from (select public.demande_detail(%s) r) x$cd_q$, pg_temp.dem('d1'))),
+    'OK 1 nouvelle 4 true true false');
+  perform pg_temp.attendre('lire', '_contact_lecteur(d1) : stag_n auteur, dir_n principal, form_n nul',
+    concat_ws(' / ', pg_temp.valeur_proprio(pg_temp.email_de('stag_n'), '1', null, format('select public._contact_lecteur(%s)', pg_temp.dem('d1'))),
+      pg_temp.valeur_proprio(pg_temp.email_de('dir_n'), '1', null, format('select public._contact_lecteur(%s)', pg_temp.dem('d1'))),
+      coalesce(pg_temp.valeur_proprio(pg_temp.email_de('form_n'), '1', null, format('select public._contact_lecteur(%s)', pg_temp.dem('d1'))), 'nul')),
+    'auteur / principal / nul');
+
+  -- Le délégué : une ligne annexe posée en propriétaire (les avis d'absence viennent avec la partie C) pour deleg, stagiaire de la promo 1,
+  -- et pour stag_n, auteur de d1 (l'ordre décide : il reste auteur).
+  begin
+    insert into public.stagiaires (prenom, nom, ordre, promo_id) values ('Preuve9 deleg', 'PREUVE', 990, 1) returning id into v_deleg;
+    insert into pg_temp.perso (ordre, nom, email, role) values (42, 'deleg', 'preuve9.deleg@exemple.invalid', 'stagiaire');
+    insert into public.user_profiles (email, role, is_admin, stagiaire_id) values ('preuve9.deleg@exemple.invalid', 'stagiaire', false, v_deleg);
+    execute format($cd_q$insert into public.demande_destinataires (demande_id, stagiaire_id, nom, principal, annexe)
+      values (%1$s, %2$s, 'Preuve9 deleg', false, 'delegue'), (%1$s, %3$s, 'Preuve9 stag_n', false, 'delegue')$cd_q$, pg_temp.dem('d1'), v_deleg, s_n);
+  exception when others then
+    perform pg_temp.informer('délégué', 'pose impossible : ' || sqlstate || ' ' || sqlerrm);
+  end;
+  perform pg_temp.attendre('lire', 'délégué : liste_demandes rend type, auteur, dates seulement ; demande_detail refusé',
+    pg_temp.appeler('deleg', '1', $cd_q$select concat_ws('|', count(*), max(type), count(id), count(sujet), count(etat), count(non_lue), count(a_traiter), count(envoi_en_echec),
+      max(auteur_nom), count(cree_le), count(dernier_echange_le), max(mon_role)) from public.liste_demandes()$cd_q$) || ' / '
+      || pg_temp.appeler('deleg', '1', format('select public.demande_detail(%s)::text', pg_temp.dem('d1'))),
+    'OK 1|autre|0|0|0|0|0|0|Preuve7 stag_n PREUVE|1|1|delegue / ERREUR 42501 contact: Demande introuvable.');
+  perform pg_temp.attendre('lire', 'un délégué qui est aussi l''auteur reste auteur',
+    pg_temp.liste_d('stag_n', '1', 'null'), 'OK d1:auteur');
+end $cd_gl$;
+
+-- Groupe etats : lue, réponses (libres et toutes faites), prise en compte, annulation, relance d'un envoi, e-mail affichable.
+create or replace function pg_temp.groupe_etats()
+returns void language plpgsql as $cd_ge$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_l4 integer := (select lieu_id from public.promos where id = 7);
+  f_dir_n text := pg_temp.fiche('dir_n');
+  s_n text := pg_temp.stag('stag_n');
+  d1 text := pg_temp.dem('d1');
+  v_m text;
+  v text;
+  v_rep text;
+begin
+  perform set_config('preuve.maintenant', '2031-03-11 11:00:00 Europe/Paris', true);
+  -- Lue.
+  perform pg_temp.appeler('dir_n', '1', format('select public.marquer_lue(%s)::text', d1));
+  perform pg_temp.attendre('etats', 'marquer_lue par dir_n : lue_le et lue_par posés sur sa ligne',
+    pg_temp.calcul(format('select concat_ws(''|'', (lue_le = timestamptz ''2031-03-11 11:00 Europe/Paris'')::text, (lue_par = nom)::text) from public.demande_destinataires where demande_id = %s and fiche_id = %s', d1, f_dir_n)),
+    'true|true');
+  perform pg_temp.attendre('etats', 'liste_demandes() par dir_n : d1 n''est plus non lue, et reste à traiter',
+    pg_temp.appeler('dir_n', '1', format('select concat_ws(''|'', non_lue::text, a_traiter::text) from public.liste_demandes() where id = %s', d1)), 'OK false|true');
+  perform pg_temp.attendre('etats', 'marquer_lue par stag_n (auteur) : rien (aucune ligne lue de plus)',
+    pg_temp.appeler('stag_n', '1', format('select public.marquer_lue(%s)::text', d1)) || ' / '
+      || pg_temp.calcul(format('select count(*)::text from public.demande_destinataires where demande_id = %s and lue_le is not null', d1)),
+    'OK / 1');
+  -- Réponse toute faite « Absence enregistrée » (vaut prise) par dir_n.
+  v_rep := pg_temp.calcul(format($cd_q$select id::text from public.contact_reponses where lieu_id = %s and libelle = 'Absence enregistrée'$cd_q$, v_l1));
+  v_m := pg_temp.dernier_envoi();
+  v := pg_temp.appeler('dir_n', '1', format('select public.repondre_demande(%s, null, %s)::text', d1, v_rep));
+  perform pg_temp.verifier('etats', 'réponse « Absence enregistrée » par dir_n : OK', v ~ '^OK [0-9]+$', v);
+  perform pg_temp.attendre('etats', 'réponse « Absence enregistrée » : la demande passe à prise (par dir_n, à l''heure), une ligne d''envoi « prise » vers stag_n et rien d''autre (ni délégué, ni dir_n)',
+    pg_temp.calcul(format($cd_q$select concat_ws('|', etat, (prise_par = (select nom from public.demande_destinataires where demande_id = d.id and fiche_id = %s))::text,
+      (prise_le = timestamptz '2031-03-11 11:00 Europe/Paris')::text, (dernier_echange_le = prise_le)::text) from public.demandes d where id = %s$cd_q$, f_dir_n, d1))
+      || ' ' || pg_temp.envois_apres(d1, v_m),
+    format('prise|true|true|true s%s:prise:a_envoyer', s_n));
+  perform pg_temp.attendre('etats', 'le message : la réponse toute faite, sans texte, au nom de dir_n',
+    pg_temp.calcul(format('select concat_ws(''|'', reponse_id, coalesce(texte, ''aucun''), par_lien::text, (auteur_nom = (select nom from public.demande_destinataires where demande_id = m.demande_id and fiche_id = %s))::text) from public.demande_messages m where id = %s', f_dir_n, pg_temp.id_rendu(v))),
+    v_rep || '|aucun|false|true');
+  -- Réponse libre de stag_n.
+  v_m := pg_temp.dernier_envoi();
+  v := pg_temp.appeler('stag_n', '1', format('select public.repondre_demande(%s, %L)::text', d1, '  Merci  '));
+  perform pg_temp.attendre('etats', 'réponse libre de stag_n : lue_le de dir_n remis à nul, un envoi « réponse » vers la fiche de dir_n et rien d''autre',
+    pg_temp.calcul(format('select concat_ws(''|'', count(*) filter (where lue_le is not null), count(*) filter (where lue_par is not null)) from public.demande_destinataires where demande_id = %s', d1))
+      || ' ' || pg_temp.envois_apres(d1, v_m),
+    format('0|0 %s:reponse:a_envoyer', f_dir_n));
+  perform pg_temp.attendre('etats', 'la réponse de stag_n : texte rogné, auteur nommé, dernier échange à l''heure ; d1 de nouveau non lue pour dir_n',
+    pg_temp.calcul(format('select concat_ws(''|'', texte, auteur_nom, (select (dernier_echange_le = m.cree_le)::text from public.demandes where id = m.demande_id)) from public.demande_messages m where id = %s', pg_temp.id_rendu(v)))
+      || ' ' || pg_temp.appeler('dir_n', '1', format('select non_lue::text from public.liste_demandes() where id = %s', d1)),
+    'Merci|Preuve7 stag_n PREUVE|true OK true');
+  -- Refus.
+  perform pg_temp.attendre('etats', 'annuler_demande par dir_n (destinataire) : refusé ; par stag_n après la prise : refusé',
+    pg_temp.appeler('dir_n', '1', format('select public.annuler_demande(%s)::text', d1)) || ' / '
+      || pg_temp.appeler('stag_n', '1', format('select public.annuler_demande(%s)::text', d1)),
+    'ERREUR 42501 contact: Seule la personne qui a écrit la demande peut l''annuler. / ERREUR P0001 contact: Cette demande ne peut plus être annulée.');
+  perform pg_temp.attendre('etats', 'réponse toute faite d''un autre centre, texte de 1001 caractères, réponse vide, stag_n avec une réponse toute faite : refusés',
+    concat_ws(' / ',
+      pg_temp.appeler('dir_n', '1', format('select public.repondre_demande(%s, null, %s)::text', d1,
+        pg_temp.calcul(format($cd_q$select id::text from public.contact_reponses where lieu_id = %s and libelle = 'Bien reçu'$cd_q$, v_l4)))),
+      pg_temp.appeler('dir_n', '1', format('select public.repondre_demande(%s, %L)::text', d1, repeat('t', 1001))),
+      pg_temp.appeler('dir_n', '1', format('select public.repondre_demande(%s, %L)::text', d1, '   ')),
+      pg_temp.appeler('stag_n', '1', format('select public.repondre_demande(%s, null, %s)::text', d1, v_rep))),
+    concat_ws(' / ', 'ERREUR P0001 contact: Cette réponse toute faite n''existe pas dans ce centre.',
+      'ERREUR P0001 contact: Le message compte 1000 caractères au plus.',
+      'ERREUR P0001 contact: Écrivez votre réponse ou choisissez une réponse toute faite.',
+      'ERREUR 42501 contact: Les réponses toutes faites sont celles de l''équipe qui reçoit la demande.'));
+  perform pg_temp.attendre('etats', 'répondre : form_n (aucun rôle) et le délégué refusés, rien d''écrit',
+    pg_temp.appeler('form_n', '1', format('select public.repondre_demande(%s, %L)::text', d1, 'Preuve')) || ' / '
+      || pg_temp.appeler('deleg', '1', format('select public.repondre_demande(%s, %L)::text', d1, 'Preuve')) || ' / '
+      || pg_temp.calcul(format('select count(*)::text from public.demande_messages where demande_id = %s', d1)),
+    'ERREUR 42501 contact: Demande introuvable. / ERREUR 42501 contact: Demande introuvable. / 2');
+  -- L'e-mail affichable de la fiche de dir_n : posé en propriétaire sans vérification, il reste caché ; vérifiée par dir_n, il se lit.
+  perform pg_temp.essai(format($cd_q$update public.contacts set email = 'preuve9.dir.n.pro@exemple.invalid', verifiee_le = null where id = %s$cd_q$, f_dir_n));
+  v := pg_temp.appeler('stag_n', '1', format($cd_q$select coalesce(public.demande_detail(%s) -> 'destinataires' -> 0 ->> 'email', 'aucun')$cd_q$, d1));
+  perform pg_temp.appeler('dir_n', '1', $cd_q$select public.regler_ma_fiche('{}')::text$cd_q$);
+  perform pg_temp.attendre('etats', 'demande_detail par stag_n : l''e-mail de dir_n n''apparaît qu''après qu''elle a vérifié sa fiche',
+    v || ' / ' || pg_temp.appeler('stag_n', '1', format($cd_q$select coalesce(public.demande_detail(%s) -> 'destinataires' -> 0 ->> 'email', 'aucun')$cd_q$, d1)),
+    'OK aucun / OK preuve9.dir.n.pro@exemple.invalid');
+
+  -- Prendre en compte (d3), annuler (d4), relancer un envoi.
+  perform pg_temp.poser_dem('d3', pg_temp.appeler('stag_n', '1', format('select public.ecrire_a(%s, %L, %L, null)::text', f_dir_n, 'document', 'Preuve9 prendre')));
+  perform pg_temp.attendre('etats', 'prendre_en_compte : stag_n refusé ; dir_n OK (prise, envoi « prise » vers stag_n) ; une seconde fois refusé',
+    concat_ws(' / ', pg_temp.appeler('stag_n', '1', format('select public.prendre_en_compte(%s)::text', pg_temp.dem('d3'))),
+      pg_temp.appeler('dir_n', '1', format('select public.prendre_en_compte(%s)::text', pg_temp.dem('d3'))),
+      pg_temp.calcul(format('select etat from public.demandes where id = %s', pg_temp.dem('d3'))),
+      pg_temp.envois_apres(pg_temp.dem('d3'), '0'),
+      pg_temp.appeler('dir_n', '1', format('select public.prendre_en_compte(%s)::text', pg_temp.dem('d3')))),
+    concat_ws(' / ', 'ERREUR 42501 contact: Seule l''équipe qui reçoit la demande la prend en compte.', 'OK', 'prise',
+      format('%s:nouvelle:a_envoyer,s%s:prise:a_envoyer', f_dir_n, s_n), 'ERREUR P0001 contact: Cette demande est déjà prise en compte.'));
+  perform pg_temp.poser_dem('d4', pg_temp.appeler('stag_n', '1', format('select public.ecrire_a(%s, %L, %L, null)::text', f_dir_n, 'retard', 'Preuve9 annuler')));
+  v_m := pg_temp.dernier_envoi();
+  perform pg_temp.attendre('etats', 'annuler_demande par stag_n (auteur, envoyée) : annulée, envoi « annulation » vers dir_n ; répondre ensuite : refusé',
+    concat_ws(' / ', pg_temp.appeler('stag_n', '1', format('select public.annuler_demande(%s)::text', pg_temp.dem('d4'))),
+      pg_temp.calcul(format('select concat_ws(''|'', etat, annulee_par, (annulee_le is not null)::text) from public.demandes where id = %s', pg_temp.dem('d4'))),
+      pg_temp.envois_apres(pg_temp.dem('d4'), v_m),
+      pg_temp.appeler('dir_n', '1', format('select public.repondre_demande(%s, %L)::text', pg_temp.dem('d4'), 'Preuve'))),
+    concat_ws(' / ', 'OK', 'annulee|Preuve7 stag_n PREUVE|true', format('%s:annulation:a_envoyer', f_dir_n),
+      'ERREUR P0001 contact: Cette demande est annulée.'));
+  v_m := pg_temp.calcul(format('select min(id)::text from public.contact_envois where demande_id = %s', pg_temp.dem('d4')));
+  perform pg_temp.essai(format($cd_q$update public.contact_envois set etat = 'echec', raison = 'preuve', tentatives = 3 where id = %s$cd_q$, v_m));
+  perform pg_temp.attendre('etats', 'liste_demandes : envoi_en_echec pour dir_n ; nul pour stag_n (l''équipe seulement)',
+    pg_temp.appeler('dir_n', '1', format('select envoi_en_echec::text from public.liste_demandes() where id = %s', pg_temp.dem('d4'))) || ' / '
+      || pg_temp.appeler('stag_n', '1', format('select coalesce(envoi_en_echec::text, ''nul'') from public.liste_demandes() where id = %s', pg_temp.dem('d4'))),
+    'OK true / OK nul');
+  perform pg_temp.attendre('etats', 'relancer_envoi : stag_n et form_n refusés ; dir_n OK (à envoyer, compteurs remis) ; une seconde fois refusé',
+    concat_ws(' / ', pg_temp.appeler('stag_n', '1', format('select public.relancer_envoi(%s)::text', v_m)),
+      pg_temp.appeler('form_n', '1', format('select public.relancer_envoi(%s)::text', v_m)),
+      pg_temp.appeler('dir_n', '1', format('select public.relancer_envoi(%s)::text', v_m)),
+      pg_temp.calcul(format('select concat_ws(''|'', etat, coalesce(raison, ''aucune''), tentatives) from public.contact_envois where id = %s', v_m)),
+      pg_temp.appeler('dir_n', '1', format('select public.relancer_envoi(%s)::text', v_m))),
+    concat_ws(' / ', 'ERREUR 42501 contact: Envoi introuvable.', 'ERREUR 42501 contact: Envoi introuvable.', 'OK', 'a_envoyer|aucune|0',
+      'ERREUR P0001 contact: Cet envoi n''est pas en échec.'));
+end $cd_ge$;
+
+-- Groupe reglages : qui reçoit quoi, réponses toutes faites, alertes.
+create or replace function pg_temp.groupe_reglages()
+returns void language plpgsql as $cd_gr$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_l4 integer := (select lieu_id from public.promos where id = 7);
+  f_sec_n text := pg_temp.fiche('sec_n');
+  f_form_n text := pg_temp.fiche('form_n');
+  s_n text := pg_temp.stag('stag_n');
+  v_cpf text;
+  v_regle text;
+  c_apercu constant text := $cd_q$select (a ->> 'mode') || coalesce(' ' || (a -> 'principaux' -> 0 ->> 'fiche_id'), '')
+    from (select public.apercu_envoi('absence', '[{"jour": "2031-03-12", "demi": "matin"}]') a) x$cd_q$;
+  c_financer constant text := $cd_q$insert into public.stagiaires_prive (stagiaire_id, financement_id) values (%s, %s)
+    on conflict (stagiaire_id) do update set financement_id = excluded.financement_id$cd_q$;
+  v_av text;
+  v_ap text;
+  v_reg text;
+begin
+  perform set_config('preuve.maintenant', '2031-03-11 12:00:00 Europe/Paris', true);
+  v_cpf := pg_temp.calcul(format($cd_q$select id::text from public.contact_financements where lieu_id = %s and libelle = 'CPF'$cd_q$, v_l1));
+  v_regle := format('[{"type": "absence", "financement_id": %s, "cible": "fiche", "fiche_id": %s}]', v_cpf, f_sec_n);
+  perform pg_temp.attendre('reglages', 'dir_n règle « absence, CPF : fiche sec_n » : OK (une règle)',
+    pg_temp.appeler('dir_n', '1', format('select public.regler_qui_recoit_quoi(%s, %L)::text', v_l1, v_regle)) || ' / '
+      || pg_temp.calcul(format('select string_agg(concat_ws('':'', type, financement_id, cible, fiche_id), '','') from public.contact_regles where lieu_id = %s', v_l1)),
+    format('OK 1 / absence:%s:fiche:%s', v_cpf, f_sec_n));
+  perform pg_temp.attendre('reglages', 'une fiche de Montpellier (form_m), un financement d''un autre centre, deux règles du même type et financement : refusés, rien ne change',
+    concat_ws(' / ',
+      pg_temp.appeler('dir_n', '1', format('select public.regler_qui_recoit_quoi(%s, %L)::text', v_l1,
+        format('[{"type": "absence", "financement_id": null, "cible": "fiche", "fiche_id": %s}]', pg_temp.fiche('form_m')))),
+      pg_temp.appeler('dir_n', '1', format('select public.regler_qui_recoit_quoi(%s, %L)::text', v_l1,
+        format('[{"type": "absence", "financement_id": %s, "cible": "fiche", "fiche_id": %s}]',
+          pg_temp.calcul(format($cd_q$select id::text from public.contact_financements where lieu_id = %s and libelle = 'CPF'$cd_q$, v_l4)), f_sec_n))),
+      pg_temp.appeler('dir_n', '1', format('select public.regler_qui_recoit_quoi(%s, %L)::text', v_l1,
+        format('[{"type": "retard", "cible": "formateurs_du_jour"}, {"type": "retard", "financement_id": null, "cible": "fiche", "fiche_id": %s}]', f_sec_n))),
+      pg_temp.calcul(format('select count(*)::text from public.contact_regles where lieu_id = %s', v_l1))),
+    concat_ws(' / ', 'ERREUR P0001 contact: Une règle ne vise qu''une personne de ce centre.',
+      'ERREUR P0001 contact: Ce financement n''existe pas dans ce centre.',
+      'ERREUR P0001 contact: Une seule règle par type et par financement.', '1'));
+  perform pg_temp.attendre('reglages', 'form_n (sans les réglages du centre) : réglages refusés, lecture comprise',
+    concat_ws(' / ', pg_temp.appeler('form_n', '1', format('select public.regler_qui_recoit_quoi(%s, %L)::text', v_l1, v_regle)),
+      pg_temp.appeler('form_n', '1', format('select public.regler_reponses(%s, %L)::text', v_l1, '[]')),
+      pg_temp.appeler('form_n', '1', format('select public.reglages_contact(%s)::text', v_l1))),
+    concat_ws(' / ', 'ERREUR 42501 contact: Réservé aux réglages du centre.', 'ERREUR 42501 contact: Réservé aux réglages du centre.',
+      'ERREUR 42501 contact: Réservé aux réglages du centre.'));
+  perform pg_temp.attendre('reglages', 'reglages_contact(Nîmes) par dir_n : la règle, quatre réponses, sept financements, sec_n joignable parmi les fiches du centre, pas form_m',
+    pg_temp.appeler('dir_n', '1', format($cd_q$select concat_ws(' ', jsonb_array_length(r -> 'regles'), r -> 'regles' -> 0 ->> 'fiche_id', jsonb_array_length(r -> 'reponses'),
+      jsonb_array_length(r -> 'financements'),
+      (select concat_ws(':', f ->> 'du_centre', f ->> 'joignable') from jsonb_array_elements(r -> 'fiches') f where (f ->> 'fiche_id')::bigint = %s),
+      (select count(*) from jsonb_array_elements(r -> 'fiches') f where (f ->> 'fiche_id')::bigint = %s))
+      from (select public.reglages_contact(%s) r) x$cd_q$, f_sec_n, pg_temp.fiche('form_m'), v_l1)),
+    format('OK 1 %s 4 7 true:true 0', f_sec_n));
+  -- L'aperçu d'un stagiaire CPF, puis sans financement.
+  perform pg_temp.essai(format(c_financer, s_n, v_cpf));
+  v_av := pg_temp.appeler('stag_n', '1', c_apercu);
+  perform pg_temp.essai(format(c_financer, s_n, 'null'));
+  perform pg_temp.attendre('reglages', 'apercu_envoi(absence) : stag_n en CPF, mode règle vers sec_n ; sans financement, mode choix',
+    v_av || ' / ' || pg_temp.appeler('stag_n', '1', c_apercu), format('OK regle %s / OK choix', f_sec_n));
+  -- La fiche sec_n supprimée (dans une sous-transaction annulée : la partie C s'en sert) : sa règle part avec elle.
+  begin
+    perform pg_temp.essai(format(c_financer, s_n, v_cpf));
+    delete from public.contacts where id = f_sec_n::bigint;
+    v_reg := pg_temp.calcul(format('select count(*)::text from public.contact_regles where lieu_id = %s', v_l1));
+    v_ap := pg_temp.appeler('stag_n', '1', c_apercu);
+    raise exception using errcode = 'P0001', message = 'ANNULE';
+  exception when others then
+    perform pg_temp.proprio();
+    if sqlerrm <> 'ANNULE' then v_ap := 'pose impossible : ' || sqlstate || ' ' || sqlerrm; end if;
+  end;
+  perform pg_temp.attendre('reglages', 'la fiche sec_n supprimée : sa règle part avec elle, le stagiaire CPF repasse en choix',
+    coalesce(v_reg, 'nul') || ' / ' || coalesce(v_ap, 'nul'), '0 / OK choix');
+  -- Les réponses toutes faites.
+  v_av := pg_temp.calcul(format('select string_agg(id::text, '','' order by ordre) from public.contact_reponses where lieu_id = %s', v_l1));
+  perform pg_temp.attendre('reglages', 'regler_reponses par dir_n : la première renommée, une nouvelle, « Absence enregistrée » (utilisée) retirée, les deux autres supprimées',
+    pg_temp.appeler('dir_n', '1', format('select public.regler_reponses(%s, %L)::text', v_l1,
+      format('[{"id": %s, "libelle": "Bien reçu, merci", "vaut_prise": false}, {"libelle": "Vu", "demande_justificatif": true}]', split_part(v_av, ',', 1))))
+      || ' / ' || pg_temp.calcul(format('select string_agg(concat_ws('':'', libelle, vaut_prise::text, demande_justificatif::text, retire::text), '','' order by retire, ordre, id) from public.contact_reponses where lieu_id = %s', v_l1)),
+    'OK 2 / Bien reçu, merci:false:false:false,Vu:true:true:false,Absence enregistrée:true:false:true');
+  perform pg_temp.attendre('reglages', 'regler_reponses : une réponse d''un autre centre, un libellé vide : refusés',
+    pg_temp.appeler('dir_n', '1', format('select public.regler_reponses(%s, %L)::text', v_l1,
+      format('[{"id": %s, "libelle": "Vu"}]', pg_temp.calcul(format('select min(id)::text from public.contact_reponses where lieu_id = %s', v_l4))))) || ' / '
+      || pg_temp.appeler('dir_n', '1', format('select public.regler_reponses(%s, %L)::text', v_l1, '[{"libelle": "  "}]')),
+    'ERREUR P0001 contact: Réponse toute faite inconnue. / ERREUR P0001 contact: Une réponse toute faite compte de 1 à 80 caractères.');
+  -- Les alertes.
+  v_av := pg_temp.appeler('form_n', '1', 'select public.regler_mes_alertes(false)::text');
+  v_ap := pg_temp.appeler('stag_n', '1', format('select public.ecrire_a(%s, %L, %L, null)::text', f_form_n, 'autre', 'Preuve9 alertes'));
+  perform pg_temp.attendre('reglages', 'regler_mes_alertes(false) par form_n : l''envoi suivant vers lui naît « ignore », raison « alertes coupees »',
+    v_av || ' / ' || pg_temp.envois_apres(pg_temp.id_rendu(v_ap), '0'), format('OK false / %s:nouvelle:ignore:alertes coupees', f_form_n));
+  perform pg_temp.attendre('reglages', 'regler_mes_alertes(true) : rallumées ; anon refusé',
+    pg_temp.appeler('form_n', '1', 'select public.regler_mes_alertes(true)::text') || ' / '
+      || pg_temp.calcul(format('select bool_and(alertes_email)::text from public.user_profiles where email = %L', pg_temp.email_de('form_n'))) || ' / '
+      || coalesce(pg_temp.valeur(null, '1', null, 'select public.regler_mes_alertes(false)::text'), 'nul'),
+    'OK true / true / ERREUR 42501');
+end $cd_gr$;
+
+-- Groupe conservation : purge à l'écriture, changement de promo, départ d'un auteur de l'équipe, effacement sur demande.
+create or replace function pg_temp.groupe_conservation()
+returns void language plpgsql as $cd_gk$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  f_form_n text := pg_temp.fiche('form_n');
+  f_dir_n text := pg_temp.fiche('dir_n');
+  s_n text := pg_temp.stag('stag_n');
+  c_vieille constant text := $cd_q$with d as (insert into public.demandes (lieu_id, promo_id, auteur_fiche_id, auteur_nom, sujet, cree_le, dernier_echange_le)
+      values (%1$s, 1, %2$s, 'Preuve9 vieille', %4$L, timestamptz %5$L, timestamptz %5$L) returning id)
+    insert into public.demande_destinataires (demande_id, fiche_id, nom, principal) select id, %3$s, 'dir_n', true from d$cd_q$;
+  v_dx text;
+  v_titre text;
+  r1 text; r2 text; r3 text; r4 text;
+  v_absence bigint;
+  v_ids text;
+begin
+  perform set_config('preuve.maintenant', '2031-03-11 14:00:00 Europe/Paris', true);
+  -- Purge (C-17) : 13 mois sans échange, partie à la création suivante ; 11 mois, gardée.
+  perform pg_temp.essai(format(c_vieille, v_l1, f_form_n, f_dir_n, 'Preuve9 treize mois', '2030-02-10 10:00 Europe/Paris'));
+  perform pg_temp.essai(format(c_vieille, v_l1, f_form_n, f_dir_n, 'Preuve9 onze mois', '2030-04-11 10:00 Europe/Paris'));
+  perform pg_temp.appeler('form_n', '1', format('select public.ecrire_a(%s, null, %L, null)::text', f_dir_n, 'Preuve9 purge'));
+  perform pg_temp.attendre('conservation', 'une demande d''équipe de 13 mois disparaît à la création suivante, une de 11 mois reste',
+    pg_temp.calcul($cd_q$select concat_ws('/', (select count(*) from public.demandes where sujet = 'Preuve9 treize mois'),
+      (select count(*) from public.demandes where sujet = 'Preuve9 onze mois'))$cd_q$), '0/1');
+  -- stag_n passe dans la promo 2 : ses demandes restent celles de Nîmes, lues par dir_n et par lui.
+  perform pg_temp.essai(format('update public.stagiaires set promo_id = 2 where id = %s', s_n));
+  perform pg_temp.attendre('conservation', 'stag_n passé dans la promo 2 : d1 reste de Nîmes, lue par dir_n (principal) et par lui (auteur), ouverte par lui',
+    concat_ws(' / ', pg_temp.calcul(format('select lieu_id::text from public.demandes where id = %s', pg_temp.dem('d1'))),
+      pg_temp.appeler('dir_n', '1', format('select mon_role from public.liste_demandes() where id = %s', pg_temp.dem('d1'))),
+      pg_temp.appeler('stag_n', '2', format('select mon_role from public.liste_demandes() where id = %s', pg_temp.dem('d1'))),
+      pg_temp.appeler('stag_n', '2', format($cd_q$select public.demande_detail(%s) -> 'demande' ->> 'sujet'$cd_q$, pg_temp.dem('d1')))),
+    format('%s / OK principal / OK auteur / OK Preuve9 lire', v_l1));
+  perform pg_temp.essai(format('update public.stagiaires set promo_id = 1 where id = %s', s_n));
+  -- La dernière affectation de form_n retirée (sous-transaction annulée) : sa fiche part, ses demandes restent, au nom gardé (E05).
+  v_dx := pg_temp.id_rendu(pg_temp.appeler('form_n', '1', format('select public.ecrire_au_stagiaire(%s, %L, null)::text', s_n, 'Preuve9 avant départ')));
+  v_titre := pg_temp.calcul(format('select string_agg(titre_id::text, '','') from public.affectations where lower(email) = %L', pg_temp.email_de('form_n')));
+  begin
+    r1 := pg_temp.appeler('fond', '1', format('select public.retirer_titre(%L, %s, %s) ->> ''retirees''', pg_temp.email_de('form_n'), v_titre, v_l1));
+    r2 := pg_temp.calcul(format('select concat_ws(''|'', count(*), count(auteur_fiche_id), max(auteur_nom)) from public.demandes where id = %s', v_dx));
+    r3 := pg_temp.calcul(format('select count(*)::text from public.contacts where id = %s', f_form_n));
+    raise exception using errcode = 'P0001', message = 'ANNULE';
+  exception when others then
+    perform pg_temp.proprio();
+    if sqlerrm <> 'ANNULE' then r1 := 'pose impossible : ' || sqlstate || ' ' || sqlerrm; end if;
+  end;
+  perform pg_temp.attendre('conservation', 'retirer_titre de la dernière affectation de form_n (après une demande à stag_n) : OK, sa fiche part, la demande reste, auteur_fiche_id nul, auteur_nom gardé',
+    concat_ws(' / ', (v_titre ~ '^[0-9]+$')::text, r1, r2, r3),
+    format('true / OK 1 / 1|0|%s / 0', pg_temp.calcul(format('select auteur_nom from public.demandes where id = %s', v_dx))));
+  -- Effacement sur demande de stag_n (sous-transaction annulée) : une absence posée en propriétaire (la partie C les créera), avec un texte,
+  -- une réponse, un envoi et un jeton.
+  begin
+    insert into public.demandes (lieu_id, promo_id, auteur_stagiaire_id, auteur_nom, type, sujet, texte)
+      values (v_l1, 1, s_n::integer, 'Preuve7 stag_n PREUVE', 'absence', 'Absence', 'Preuve9 motif') returning id into v_absence;
+    insert into public.demande_destinataires (demande_id, fiche_id, nom, principal) values (v_absence, f_dir_n::bigint, 'dir_n', true);
+    insert into public.demande_messages (demande_id, auteur_nom, texte) values (v_absence, 'dir_n', 'Preuve9 réponse');
+    insert into public.contact_envois (demande_id, vers_fiche_id, evenement) values (v_absence, f_dir_n::bigint, 'avis_absence');
+    insert into public.contact_jetons (hash, envoi_id, demande_id, fiche_id, action, expire_le)
+      select '\x0909'::bytea, max(id), v_absence, f_dir_n::bigint, 'voir', timestamptz '2031-03-25 10:00 Europe/Paris' from public.contact_envois where demande_id = v_absence;
+    select string_agg(d.id::text, ',') into v_ids from public.demandes d
+     where d.type is distinct from 'absence'
+       and (d.auteur_stagiaire_id = s_n::integer or exists (select 1 from public.demande_destinataires x where x.demande_id = d.id and x.stagiaire_id = s_n::integer));
+    r1 := pg_temp.calcul(format('select concat_ws(''|'', (count(*) > 2)::text, (select (count(*) > 0)::text from public.contact_envois where demande_id in (%1$s))) from public.demandes where id in (%1$s)', v_ids));
+    r2 := pg_temp.appeler('fond', '1', format('select (public.effacer_sur_demande(%s) is not null)::text', s_n));
+    r3 := pg_temp.calcul(format('select concat_ws(''|'', count(*), (select count(*) from public.contact_envois where demande_id in (%1$s)), (select count(*) from public.demande_destinataires where stagiaire_id = %2$s)) from public.demandes where id in (%1$s)', v_ids, s_n));
+    r4 := pg_temp.calcul(format($cd_q$select concat_ws('|', count(*), max(coalesce(texte, 'aucun')), max(auteur_nom),
+      (select count(*) from public.demande_messages where demande_id = %1$s), (select count(*) from public.contact_envois where demande_id = %1$s),
+      (select count(*) from public.contact_jetons where demande_id = %1$s), (select count(*) from public.demande_destinataires where demande_id = %1$s))
+      from public.demandes where id = %1$s$cd_q$, v_absence));
+    raise exception using errcode = 'P0001', message = 'ANNULE';
+  exception when others then
+    perform pg_temp.proprio();
+    if sqlerrm <> 'ANNULE' then r1 := 'pose impossible : ' || sqlstate || ' ' || sqlerrm; end if;
+  end;
+  perform pg_temp.attendre('conservation', 'effacer_sur_demande(stag_n) par le fondateur : ses demandes non absence (auteur ou destinataire) et leurs envois disparaissent',
+    concat_ws(' / ', r1, r2, r3), 'true|true / OK true / 0|0|0');
+  perform pg_temp.attendre('conservation', 'son absence reste : sans texte, sans réponse, sans envoi ni jeton, sans son nom ; son destinataire gardé',
+    r4, '1|aucun|Stagiaire anonyme|0|0|0|1');
+end $cd_gk$;
+
 -- Un groupe se joue-t-il dans ce mode ? Contre-épreuve : toujours (il doit être rouge). En ligne : seulement si p_condition (la
 -- migration qui le fonde est appliquée), sinon une ligne d'information. Migrations injectées : toujours.
 create or replace function pg_temp.groupe_a_jouer(p_groupe text, p_mode text, p_condition boolean, p_raison text)
@@ -556,6 +968,7 @@ declare
   v_ap_regles text; v_ap_fonctions text; v_ap_droits text;
   v_jouees integer;
   v_partie_a boolean;
+  v_partie_b boolean;
 begin
   perform set_config('lock_timeout', '3s', true);
   v_en_ligne := v_mode like 'contact-2-en-ligne%';
@@ -615,8 +1028,21 @@ begin
   if pg_temp.groupe_a_jouer('garde_fous', v_mode, v_partie_a, 'la migration 2 n''est pas appliquée') then
     perform pg_temp.groupe_garde_fous();
   end if;
+  -- 4b. Partie B (tâche 9) : lire, états, réglages, conservation.
+  v_partie_b := to_regprocedure('public.liste_demandes(integer)') is not null;
+  if pg_temp.groupe_a_jouer('lire', v_mode, v_partie_b, 'la partie B de la migration 2 n''est pas appliquée') then
+    perform pg_temp.groupe_lire();
+  end if;
+  if pg_temp.groupe_a_jouer('etats', v_mode, v_partie_b, 'la partie B de la migration 2 n''est pas appliquée') then
+    perform pg_temp.groupe_etats();
+  end if;
+  if pg_temp.groupe_a_jouer('reglages', v_mode, v_partie_b, 'la partie B de la migration 2 n''est pas appliquée') then
+    perform pg_temp.groupe_reglages();
+  end if;
+  if pg_temp.groupe_a_jouer('conservation', v_mode, v_partie_b, 'la partie B de la migration 2 n''est pas appliquée') then
+    perform pg_temp.groupe_conservation();
+  end if;
   perform set_config('preuve.maintenant', '', true);
-  -- 4b. Partie B (tâche 9) : à ajouter ici.
   -- 4c. Partie C (tâche 10) : à ajouter ici.
 
   -- 5. Les retours, dans l'ordre inverse (2, 1b, 1).

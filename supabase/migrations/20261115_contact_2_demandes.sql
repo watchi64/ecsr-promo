@@ -1,4 +1,4 @@
--- Espace contact, migration 2 (parties A, B et C ; la partie A seule pour l'instant) : les demandes, leur routage, leur création.
+-- Espace contact, migration 2 (parties A, B et C ; A et B pour l'instant) : les demandes, leur routage, leur création, leur suivi.
 -- Spec : docs/superpowers/specs/2026-11-09-espace-contact-design.md ; plan : docs/superpowers/plans/2026-11-14-espace-contact.md
 -- (tâches 8 à 10, choix C-5, C-8, C-9, C-17, C-21 à C-23, décisions de Timy du 14/11 : Q4, Q8).
 --   Partie A (tâche 8) :
@@ -15,10 +15,22 @@
 --      la demande, ses destinataires et une ligne d'envoi « nouvelle » par destinataire dans la même transaction, et purge (C-17).
 --      Garde-fous : stagiaire de la promo affichée sans affectation ni droit d'administration ; dix demandes par jour de Paris ;
 --      liste vide en mode choix : refus, rien n'est écrit (Q4) ; un choisi hors liste : refus ; jamais de stagiaire vers stagiaire.
---   Parties B et C (tâches 9 et 10) : s'ajoutent après la section 4 (repère « Partie B » plus bas), leurs fonctions dans le même
---   contrôle de fin.
+--   Partie B (tâche 9) :
+--   5. Les alertes par e-mail : user_profiles.alertes_email, regler_mes_alertes() ; _contact_envoyer(), seule écriture d'un envoi (un
+--      compte qui a coupé ses alertes : envoi « ignore », raison « alertes coupees »).
+--   6. Qui lit une demande : _contact_direction_reelle(), _contact_ma_fiche(), _contact_role(), _contact_lecteur() (auteur, principal,
+--      annexe_formateur, delegue, direction ; l'ordre décide), _contact_peut() (seule source des gestes permis).
+--   7. Les lectures : liste_demandes() (les siennes ; avec un centre, toutes celles du centre pour sa direction réelle ; le délégué ne voit
+--      que le type, l'auteur, les dates et les jours), demande_detail(), marquer_lue() (C-15).
+--   8. Les gestes : repondre_demande(), prendre_en_compte(), annuler_demande(), relancer_envoi() ; une seule écriture de la réponse et de
+--      la prise (_contact_appliquer_reponse, _contact_appliquer_prise), que la partie C appelle aussi depuis un lien d'e-mail.
+--   9. Les réglages du centre : reglages_contact(), regler_qui_recoit_quoi() (une règle ne vise qu'une fiche de ce centre),
+--      regler_reponses().
+--   10. La conservation : déclencheur stagiaires_contact_effacer (fiche effacée : ses demandes hors absence supprimées, ses absences
+--      vidées de leur texte, de leurs réponses, envois et jetons) ; purges à l'écriture (C-17) par _contact_purger (section 4).
+--   Partie C (tâche 10) : s'ajoute après la section 10 (repère « Partie C » plus bas), ses fonctions dans le même contrôle de fin.
 -- Garde : la migration 1 est appliquée (ma_fiche_contact, contact_financements, _contact_fiche_dans) ; rien de la migration 2 n'existe
--- (ni ses tables, ni ecrire_au_centre) ; sinon rien ne change.
+-- (ni ses tables, ni ecrire_au_centre, ni liste_demandes, ni user_profiles.alertes_email) ; sinon rien ne change.
 -- Marche arrière : 20261115_contact_2_demandes_retour.sql (refusée tant que la migration 3 est appliquée).
 set local lock_timeout = '3s';
 
@@ -32,7 +44,9 @@ begin
      or to_regclass('public.demande_messages') is not null or to_regclass('public.contact_regles') is not null
      or to_regclass('public.contact_reponses') is not null or to_regclass('public.contact_envois') is not null
      or to_regclass('public.contact_jetons') is not null
-     or exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'ecrire_au_centre') then
+     or exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname in ('ecrire_au_centre', 'liste_demandes'))
+     or exists (select 1 from information_schema.columns
+                 where table_schema = 'public' and table_name = 'user_profiles' and column_name = 'alertes_email') then
     raise exception 'contact_2 : une table ou une fonction de la migration 2 existe déjà, migration déjà appliquée ? rien n''est changé';
   end if;
 end $garde$;
@@ -466,7 +480,7 @@ begin
 end $fn$;
 
 -- Une demande et ses destinataires principaux ([{fiche_id, stagiaire_id, nom, relais_de}]), avec une ligne d'envoi « nouvelle » par
--- destinataire, dans la même transaction. Rend l'identifiant de la demande.
+-- destinataire (_contact_envoyer, section 5), dans la même transaction. Rend l'identifiant de la demande.
 create function public._contact_creer(p_lieu integer, p_promo integer, p_stagiaire integer, p_fiche bigint, p_auteur text, p_type text,
                                       p_sujet text, p_texte text, p_destinataires jsonb)
 returns bigint language plpgsql security definer set search_path = public, pg_temp
@@ -488,8 +502,7 @@ begin
     insert into demande_destinataires (demande_id, fiche_id, stagiaire_id, nom, principal, relais_de)
       values (v_id, (e ->> 'fiche_id')::bigint, (e ->> 'stagiaire_id')::integer, coalesce(nullif(e ->> 'nom', ''), 'Sans nom'), true,
               e ->> 'relais_de');
-    insert into contact_envois (demande_id, vers_fiche_id, vers_stagiaire_id, evenement, cree_le)
-      values (v_id, (e ->> 'fiche_id')::bigint, (e ->> 'stagiaire_id')::integer, 'nouvelle', v_maintenant);
+    perform _contact_envoyer(v_id, (e ->> 'fiche_id')::bigint, (e ->> 'stagiaire_id')::integer, 'nouvelle');
   end loop;
   return v_id;
 end $fn$;
@@ -697,7 +710,591 @@ begin
                                                              'nom', coalesce(_contact_nom_stagiaire(p_stagiaire_id), 'Stagiaire'))));
 end $fn$;
 
--- ===== Partie B (tâche 9) : à ajouter ici =====
+-- ===== Partie B (tâche 9) : lire, répondre, prendre en compte, annuler, régler le centre, conservation =====
+
+-- 5. Les alertes par e-mail : chaque compte peut couper les siennes (une fiche sans compte les reçoit toujours). Aucun droit d'écriture
+--    nouveau : regler_mes_alertes() seule l'écrit.
+alter table public.user_profiles add column alertes_email boolean not null default true;
+
+-- Une ligne d'envoi vers une fiche ou un stagiaire : « à envoyer », ou « ignore » (raison « alertes coupees ») quand le compte de la
+-- personne a coupé ses alertes. Seule écriture d'un envoi (création, réponse, prise, annulation).
+create function public._contact_envoyer(p_demande bigint, p_fiche bigint, p_stagiaire integer, p_evenement text)
+returns void language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  v_coupe boolean;
+begin
+  v_coupe := (p_fiche is not null
+              and exists (select 1 from contacts c join user_profiles up on lower(up.email) = c.compte_email
+                           where c.id = p_fiche and not up.alertes_email))
+          or (p_stagiaire is not null
+              and exists (select 1 from user_profiles up where up.stagiaire_id = p_stagiaire and not up.alertes_email));
+  insert into contact_envois (demande_id, vers_fiche_id, vers_stagiaire_id, evenement, etat, raison, cree_le)
+    values (p_demande, p_fiche, p_stagiaire, p_evenement, case when v_coupe then 'ignore' else 'a_envoyer' end,
+            case when v_coupe then 'alertes coupees' end, _contact_maintenant());
+end $fn$;
+
+-- 6. Qui lit une demande.
+-- La direction réelle du centre l : une affectation de direction à titre fixe sur l pour l'adresse du jeton, hors aperçu, ni fondateur.
+create function public._contact_direction_reelle(l integer)
+returns boolean language sql stable security definer set search_path = public, pg_temp
+as $fn$
+  select apercu_role() is null and not fondateur_reel()
+     and coalesce(_contact_direction_reelle_de(lower(auth.jwt() ->> 'email'), l), false);
+$fn$;
+
+-- La fiche de l'équipe de l'appelant, où qu'elle soit (une fiche par personne, C-1), hors aperçu. Nulle sinon.
+create function public._contact_ma_fiche()
+returns bigint language sql stable security definer set search_path = public, pg_temp
+as $fn$
+  select c.id from contacts c where c.compte_email = lower(auth.jwt() ->> 'email') and apercu_role() is null;
+$fn$;
+
+-- Le rôle sur une demande d'un stagiaire s ou d'une fiche f, dans cet ordre : auteur, principal, annexe_formateur, delegue, direction
+-- (direction réelle du centre de la demande, celui de sa création) ; nul sinon.
+create function public._contact_role(p_demande bigint, s integer, f bigint)
+returns text language sql stable security definer set search_path = public, pg_temp
+as $fn$
+  select case
+           when (s is not null and d.auteur_stagiaire_id = s) or (f is not null and d.auteur_fiche_id = f) then 'auteur'
+           when exists (select 1 from demande_destinataires x
+                         where x.demande_id = d.id and x.principal
+                           and ((s is not null and x.stagiaire_id = s) or (f is not null and x.fiche_id = f))) then 'principal'
+           when f is not null and exists (select 1 from demande_destinataires x
+                                           where x.demande_id = d.id and x.annexe = 'formateur_du_jour' and x.fiche_id = f) then 'annexe_formateur'
+           when s is not null and exists (select 1 from demande_destinataires x
+                                           where x.demande_id = d.id and x.annexe = 'delegue' and x.stagiaire_id = s) then 'delegue'
+           when _contact_direction_reelle(d.lieu_id) then 'direction'
+         end
+    from demandes d
+   where d.id = p_demande;
+$fn$;
+
+-- Le rôle de l'appelant (stagiaire de la promo affichée, ou fiche de l'équipe).
+create function public._contact_lecteur(p_demande bigint)
+returns text language sql stable security definer set search_path = public, pg_temp
+as $fn$
+  select _contact_role(p_demande, _contact_stagiaire(), _contact_ma_fiche());
+$fn$;
+
+-- Ce que l'appelant peut faire d'une demande, selon son rôle (p_equipe : il n'est pas le stagiaire). Seule source des gestes : l'écran
+-- lit « peut », les fonctions le vérifient. toutes_faites : les réponses toutes faites lui sont proposées (pas rendu à l'écran tel quel).
+create function public._contact_peut(p_demande bigint, p_role text, p_equipe boolean)
+returns jsonb language sql stable security definer set search_path = public, pg_temp
+as $fn$
+  select jsonb_build_object(
+           'repondre', coalesce(p_role in ('auteur', 'principal', 'direction') and d.etat <> 'annulee', false),
+           'prendre', coalesce(p_equipe and p_role in ('principal', 'direction') and d.etat = 'envoyee' and d.auteur_stagiaire_id is not null,
+                               false),
+           -- L'absence s'annule par sa fonction (partie C).
+           'annuler', coalesce(p_role = 'auteur' and d.etat = 'envoyee' and d.type is distinct from 'absence', false),
+           -- « Envoyer mon justificatif » : partie C (C-18).
+           'justificatif', false,
+           'toutes_faites', coalesce(p_equipe and p_role in ('principal', 'direction') and d.etat <> 'annulee', false))
+    from demandes d
+   where d.id = p_demande;
+$fn$;
+
+-- 7. Les lectures.
+-- Les demandes où l'appelant a un rôle ; avec p_lieu_id, pour la direction réelle de ce centre, toutes celles du centre (rôle
+-- « direction » quand elle n'en a pas d'autre). Un délégué ne voit que le type, l'auteur, les dates et les jours. jours : nul tant que
+-- la migration 3 n'existe pas (C-22). a_traiter : une demande d'un stagiaire encore envoyée, pour un destinataire principal de l'équipe.
+-- envoi_en_echec : à l'équipe seulement.
+create function public.liste_demandes(p_lieu_id integer default null)
+returns table (id bigint, type text, sujet text, etat text, auteur_nom text, cree_le timestamptz, dernier_echange_le timestamptz,
+               non_lue boolean, mon_role text, a_traiter boolean, envoi_en_echec boolean, jours jsonb)
+language sql stable security definer set search_path = public, pg_temp
+as $fn$
+  with moi as (
+    select _contact_stagiaire() as s, _contact_ma_fiche() as f,
+           coalesce(p_lieu_id is not null and _contact_direction_reelle(p_lieu_id), false) as centre
+  ), cand as (
+    select d.id from demandes d, moi
+     where (moi.s is not null and d.auteur_stagiaire_id = moi.s) or (moi.f is not null and d.auteur_fiche_id = moi.f)
+    union
+    select x.demande_id from demande_destinataires x, moi
+     where (moi.s is not null and x.stagiaire_id = moi.s) or (moi.f is not null and x.fiche_id = moi.f)
+    union
+    select d.id from demandes d, moi where moi.centre and d.lieu_id = p_lieu_id
+  ), r as (
+    select d.*, _contact_role(d.id, moi.s, moi.f) as role, moi.s as moi_s, moi.f as moi_f
+      from cand join demandes d on d.id = cand.id cross join moi
+  ), l as (
+    select r.*,
+           exists (select 1 from demande_destinataires x
+                    where x.demande_id = r.id and x.lue_le is null and (x.principal or x.annexe = 'formateur_du_jour')
+                      and ((r.moi_s is not null and x.stagiaire_id = r.moi_s) or (r.moi_f is not null and x.fiche_id = r.moi_f))) as pas_lue
+      from r
+     where r.role is not null and (r.role <> 'direction' or r.lieu_id = p_lieu_id)
+  )
+  select case when l.role = 'delegue' then null else l.id end,
+         l.type,
+         case when l.role = 'delegue' then null else l.sujet end,
+         case when l.role = 'delegue' then null else l.etat end,
+         l.auteur_nom, l.cree_le, l.dernier_echange_le,
+         case when l.role = 'delegue' then null else l.role in ('principal', 'annexe_formateur') and l.pas_lue end,
+         l.role,
+         case when l.role = 'delegue' then null
+              else l.role = 'principal' and l.moi_f is not null and l.etat = 'envoyee' and l.auteur_stagiaire_id is not null end,
+         case when l.role = 'delegue' or l.moi_s is not null then null
+              else exists (select 1 from contact_envois e where e.demande_id = l.id and e.etat = 'echec') end,
+         null::jsonb
+    from l
+   order by 10 desc nulls last, l.dernier_echange_le desc, l.id desc;
+$fn$;
+
+-- Une demande en entier, pour qui y a un rôle (le délégué excepté : sa version passe par liste_demandes). email d'un destinataire :
+-- l'adresse affichable de sa fiche (vérifiée, ou fiche sans compte), nulle sinon (C-18). Les envois : à l'équipe seulement.
+create function public.demande_detail(p_id bigint)
+returns jsonb language plpgsql stable security definer set search_path = public, pg_temp
+as $fn$
+declare
+  s integer := _contact_stagiaire();
+  f bigint := _contact_ma_fiche();
+  v_role text := _contact_role(p_id, s, f);
+  v_peut jsonb;
+  d demandes%rowtype;
+begin
+  if v_role is null or v_role = 'delegue' then
+    raise exception 'contact: Demande introuvable.' using errcode = '42501';
+  end if;
+  select * into d from demandes x where x.id = p_id;
+  v_peut := _contact_peut(p_id, v_role, s is null);
+  return jsonb_build_object(
+    'demande', jsonb_build_object('id', d.id, 'type', d.type, 'sujet', d.sujet, 'texte', d.texte, 'etat', d.etat, 'auteur_nom', d.auteur_nom,
+                                  'cree_le', d.cree_le, 'prise_le', d.prise_le, 'prise_par', d.prise_par, 'annulee_le', d.annulee_le,
+                                  'annulee_par', d.annulee_par, 'dernier_echange_le', d.dernier_echange_le, 'jours', null, 'mon_role', v_role),
+    'destinataires', coalesce((
+      select jsonb_agg(jsonb_build_object('nom', x.nom, 'principal', x.principal, 'annexe', x.annexe, 'relais_de', x.relais_de,
+                                          'non_prevenu', x.non_prevenu, 'lue_le', x.lue_le,
+                                          'email', case when c.compte_email is null or c.verifiee_le is not null then c.email end)
+                       order by x.principal desc, x.id)
+        from demande_destinataires x left join contacts c on c.id = x.fiche_id
+       where x.demande_id = p_id), '[]'::jsonb),
+    'messages', coalesce((
+      select jsonb_agg(jsonb_build_object('auteur_nom', m.auteur_nom, 'texte', m.texte, 'reponse', r.libelle, 'par_lien', m.par_lien,
+                                          'cree_le', m.cree_le, 'moi', coalesce(m.auteur_email = lower(auth.jwt() ->> 'email'), false))
+                       order by m.cree_le, m.id)
+        from demande_messages m left join contact_reponses r on r.id = m.reponse_id
+       where m.demande_id = p_id), '[]'::jsonb),
+    'reponses_toutes_faites', case when (v_peut ->> 'toutes_faites')::boolean then coalesce((
+      select jsonb_agg(jsonb_build_object('id', r.id, 'libelle', r.libelle, 'vaut_prise', r.vaut_prise,
+                                          'demande_justificatif', r.demande_justificatif) order by r.ordre, r.id)
+        from contact_reponses r where r.lieu_id = d.lieu_id and not r.retire), '[]'::jsonb) else '[]'::jsonb end,
+    'envois', case when s is null then coalesce((
+      select jsonb_agg(jsonb_build_object('id', e.id, 'vers', coalesce(
+                         (select x.nom from demande_destinataires x
+                           where x.demande_id = p_id and (x.fiche_id = e.vers_fiche_id or x.stagiaire_id = e.vers_stagiaire_id)
+                           order by x.principal desc, x.id limit 1),
+                         case when e.vers_fiche_id = d.auteur_fiche_id or e.vers_stagiaire_id = d.auteur_stagiaire_id then d.auteur_nom end,
+                         'Sans nom'),
+                                          'evenement', e.evenement, 'etat', e.etat) order by e.id)
+        from contact_envois e where e.demande_id = p_id), '[]'::jsonb) else '[]'::jsonb end,
+    'peut', v_peut - 'toutes_faites');
+end $fn$;
+
+-- Lue (C-15) : la ligne de l'appelant, destinataire principal (fiche ou stagiaire) ou formateur du jour en annexe ; rien pour les autres.
+create function public.marquer_lue(p_id bigint)
+returns void language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  s integer := _contact_stagiaire();
+  f bigint := _contact_ma_fiche();
+begin
+  update demande_destinataires x
+     set lue_le = _contact_maintenant(), lue_par = x.nom
+   where x.demande_id = p_id
+     and ((f is not null and x.fiche_id = f and (x.principal or x.annexe = 'formateur_du_jour'))
+          or (s is not null and x.stagiaire_id = s and x.principal));
+end $fn$;
+
+-- 8. Les gestes. Une seule écriture de chacun (E11) : la réponse et la prise, communes à l'app (droit vérifié par le jeton de session) et
+--    au lien d'un e-mail (_contact_srv_agir, partie C, droit vérifié par le jeton du lien).
+-- Passer une demande à « prise » (si elle est encore envoyée) ; l'auteur en est prévenu. p_par_lien : la prise vient d'un lien d'e-mail
+-- (la trace en est le message de la réponse quand il y en a un ; la demande n'a pas de colonne pour elle).
+create function public._contact_appliquer_prise(p_demande bigint, p_nom text, p_par_lien boolean)
+returns void language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  v_maintenant timestamptz := _contact_maintenant();
+  v_stagiaire integer;
+  v_fiche bigint;
+begin
+  update demandes
+     set etat = 'prise', prise_le = v_maintenant, prise_par = coalesce(nullif(btrim(p_nom), ''), 'Sans nom'), dernier_echange_le = v_maintenant
+   where id = p_demande and etat = 'envoyee'
+  returning auteur_stagiaire_id, auteur_fiche_id into v_stagiaire, v_fiche;
+  if found and num_nonnulls(v_stagiaire, v_fiche) = 1 then
+    perform _contact_envoyer(p_demande, v_fiche, v_stagiaire, 'prise');
+  end if;
+end $fn$;
+
+-- Une réponse (texte, réponse toute faite, ou les deux) de la fiche p_fiche_id ou du stagiaire p_stagiaire_id : le message, le dernier
+-- échange, « non lue » pour les autres destinataires (C-15), la prise si la réponse toute faite la vaut, et un envoi « réponse » à
+-- chaque autre participant (l'auteur et les destinataires principaux ; jamais les annexes ; l'auteur prévenu de la prise ne reçoit pas
+-- la réponse en plus). L'effet de demande_justificatif vient avec les absences (partie C). Rend l'identifiant du message.
+create function public._contact_appliquer_reponse(p_demande bigint, p_fiche_id bigint, p_stagiaire_id integer, p_nom text, p_email text,
+                                                  p_texte text, p_reponse_id bigint, p_par_lien boolean)
+returns bigint language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  v_maintenant timestamptz := _contact_maintenant();
+  d demandes%rowtype;
+  v_id bigint;
+  v_prise boolean := false;
+  v_cible record;
+begin
+  select * into d from demandes where id = p_demande for update;
+  insert into demande_messages (demande_id, auteur_email, auteur_nom, texte, reponse_id, par_lien, cree_le)
+    values (p_demande, lower(p_email), coalesce(nullif(btrim(p_nom), ''), 'Sans nom'), p_texte, p_reponse_id, coalesce(p_par_lien, false),
+            v_maintenant)
+    returning id into v_id;
+  update demandes set dernier_echange_le = v_maintenant where id = p_demande;
+  update demande_destinataires x set lue_le = null, lue_par = null
+   where x.demande_id = p_demande and x.lue_le is not null
+     and not coalesce((p_fiche_id is not null and x.fiche_id = p_fiche_id) or (p_stagiaire_id is not null and x.stagiaire_id = p_stagiaire_id), false);
+  if d.etat = 'envoyee' and d.auteur_stagiaire_id is not null
+     and coalesce((select r.vaut_prise from contact_reponses r where r.id = p_reponse_id), false) then
+    perform _contact_appliquer_prise(p_demande, p_nom, p_par_lien);
+    v_prise := true;
+  end if;
+  for v_cible in
+    select distinct p.fiche_id, p.stagiaire_id
+      from (select d.auteur_fiche_id as fiche_id, d.auteur_stagiaire_id as stagiaire_id, true as auteur
+            union all
+            select y.fiche_id, y.stagiaire_id, false from demande_destinataires y where y.demande_id = p_demande and y.principal) p
+     where num_nonnulls(p.fiche_id, p.stagiaire_id) = 1
+       and not coalesce(p.fiche_id = p_fiche_id or p.stagiaire_id = p_stagiaire_id, false)
+       and not (v_prise and p.auteur)
+     order by p.fiche_id nulls last, p.stagiaire_id
+  loop
+    perform _contact_envoyer(p_demande, v_cible.fiche_id, v_cible.stagiaire_id, 'reponse');
+  end loop;
+  return v_id;
+end $fn$;
+
+-- Répondre : l'auteur, les destinataires principaux et la direction réelle ; un texte (1000 caractères au plus) ou une réponse toute
+-- faite du centre de la demande (l'équipe qui la reçoit seulement). Rend l'identifiant du message.
+create function public.repondre_demande(p_id bigint, p_texte text, p_reponse_id bigint default null)
+returns bigint language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  s integer := _contact_stagiaire();
+  f bigint := _contact_ma_fiche();
+  v_role text := _contact_role(p_id, s, f);
+  v_peut jsonb;
+  v_texte text;
+  v_lieu integer;
+  v_nom text;
+begin
+  if v_role is null or v_role = 'delegue' then
+    raise exception 'contact: Demande introuvable.' using errcode = '42501';
+  end if;
+  if v_role not in ('auteur', 'principal', 'direction') then
+    raise exception 'contact: Seuls l''auteur et les destinataires de la demande y répondent.' using errcode = '42501';
+  end if;
+  v_peut := _contact_peut(p_id, v_role, s is null);
+  if not (v_peut ->> 'repondre')::boolean then
+    raise exception 'contact: Cette demande est annulée.';
+  end if;
+  v_texte := _contact_texte(p_texte);
+  select d.lieu_id into v_lieu from demandes d where d.id = p_id;
+  if p_reponse_id is not null then
+    if not (v_peut ->> 'toutes_faites')::boolean then
+      raise exception 'contact: Les réponses toutes faites sont celles de l''équipe qui reçoit la demande.' using errcode = '42501';
+    end if;
+    if not exists (select 1 from contact_reponses r where r.id = p_reponse_id and r.lieu_id = v_lieu and not r.retire) then
+      raise exception 'contact: Cette réponse toute faite n''existe pas dans ce centre.';
+    end if;
+  end if;
+  if v_texte is null and p_reponse_id is null then
+    if s is not null then
+      raise exception 'contact: Écris ta réponse.';
+    end if;
+    raise exception 'contact: Écrivez votre réponse ou choisissez une réponse toute faite.';
+  end if;
+  v_nom := case when s is not null then _contact_nom_stagiaire(s) else (select _contact_nom_fiche(c, v_lieu) from contacts c where c.id = f) end;
+  return _contact_appliquer_reponse(p_id, case when s is null then f end, s, v_nom, lower(auth.jwt() ->> 'email'), v_texte, p_reponse_id, false);
+end $fn$;
+
+-- Prendre en compte la demande d'un stagiaire : un destinataire principal de l'équipe ou la direction réelle, tant qu'elle est envoyée.
+create function public.prendre_en_compte(p_id bigint)
+returns void language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  s integer := _contact_stagiaire();
+  f bigint := _contact_ma_fiche();
+  v_role text := _contact_role(p_id, s, f);
+  v_etat text;
+  v_lieu integer;
+begin
+  if v_role is null or v_role = 'delegue' then
+    raise exception 'contact: Demande introuvable.' using errcode = '42501';
+  end if;
+  if not (_contact_peut(p_id, v_role, s is null) ->> 'prendre')::boolean then
+    select d.etat into v_etat from demandes d where d.id = p_id;
+    if s is null and v_role in ('principal', 'direction') and v_etat = 'prise' then
+      raise exception 'contact: Cette demande est déjà prise en compte.';
+    end if;
+    if s is null and v_role in ('principal', 'direction') and v_etat = 'annulee' then
+      raise exception 'contact: Cette demande est annulée.';
+    end if;
+    raise exception 'contact: Seule l''équipe qui reçoit la demande la prend en compte.' using errcode = '42501';
+  end if;
+  select d.lieu_id into v_lieu from demandes d where d.id = p_id;
+  perform _contact_appliquer_prise(p_id, (select _contact_nom_fiche(c, v_lieu) from contacts c where c.id = f), false);
+end $fn$;
+
+-- Annuler sa demande : l'auteur, tant qu'elle est envoyée (l'absence : partie C) ; les destinataires principaux en sont prévenus.
+create function public.annuler_demande(p_id bigint)
+returns void language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  s integer := _contact_stagiaire();
+  f bigint := _contact_ma_fiche();
+  v_role text := _contact_role(p_id, s, f);
+  v_maintenant timestamptz := _contact_maintenant();
+  x record;
+begin
+  if v_role is null or v_role = 'delegue' then
+    raise exception 'contact: Demande introuvable.' using errcode = '42501';
+  end if;
+  if v_role <> 'auteur' then
+    raise exception 'contact: Seule la personne qui a écrit la demande peut l''annuler.' using errcode = '42501';
+  end if;
+  if not (_contact_peut(p_id, v_role, s is null) ->> 'annuler')::boolean then
+    raise exception 'contact: Cette demande ne peut plus être annulée.';
+  end if;
+  update demandes d
+     set etat = 'annulee', annulee_le = v_maintenant, dernier_echange_le = v_maintenant,
+         annulee_par = coalesce(case when s is not null then _contact_nom_stagiaire(s)
+                                     else (select _contact_nom_fiche(c, d.lieu_id) from contacts c where c.id = f) end, 'Sans nom')
+   where d.id = p_id and d.etat = 'envoyee';
+  for x in select y.fiche_id, y.stagiaire_id from demande_destinataires y
+            where y.demande_id = p_id and y.principal and num_nonnulls(y.fiche_id, y.stagiaire_id) = 1 order by y.id loop
+    perform _contact_envoyer(p_id, x.fiche_id, x.stagiaire_id, 'annulation');
+  end loop;
+end $fn$;
+
+-- Relancer un envoi en échec : l'équipe qui lit la demande ; il repasse « à envoyer », compteurs remis.
+create function public.relancer_envoi(p_envoi_id bigint)
+returns void language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  s integer := _contact_stagiaire();
+  f bigint := _contact_ma_fiche();
+  e contact_envois%rowtype;
+  v_role text;
+begin
+  select * into e from contact_envois x where x.id = p_envoi_id;
+  if e.id is not null then
+    v_role := _contact_role(e.demande_id, s, f);
+  end if;
+  if v_role is null or s is not null then
+    raise exception 'contact: Envoi introuvable.' using errcode = '42501';
+  end if;
+  if e.etat <> 'echec' then
+    raise exception 'contact: Cet envoi n''est pas en échec.';
+  end if;
+  update contact_envois set etat = 'a_envoyer', raison = null, tentatives = 0, prochain_essai_le = null where id = p_envoi_id;
+end $fn$;
+
+-- Couper ou rallumer ses alertes par e-mail (toutes les lignes de profil de l'adresse du jeton). Rend la valeur enregistrée.
+create function public.regler_mes_alertes(p_actives boolean)
+returns boolean language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  v_moi text := lower(auth.jwt() ->> 'email');
+begin
+  if v_moi is null then
+    raise exception 'contact: Connexion requise.' using errcode = '42501';
+  end if;
+  if p_actives is null then
+    raise exception 'contact: Choix des alertes illisible.';
+  end if;
+  update user_profiles set alertes_email = p_actives where lower(email) = v_moi;
+  if not found then
+    raise exception 'contact: Connexion requise.' using errcode = '42501';
+  end if;
+  return p_actives;
+end $fn$;
+
+-- 9. Les réglages du centre : qui reçoit quoi et les réponses toutes faites. Lecture : la case Réglages du centre (voir) ; écriture :
+--    geste_centre(l, 'reglages.modifier').
+-- {regles: [{type, financement_id, cible, fiche_id}], reponses: [{id, libelle, vaut_prise, demande_justificatif, ordre, retire}],
+--  financements: [{id, libelle, ordre, retire}], fiches: [{fiche_id, nom, du_centre, joignable, conge_du, conge_au, depart_le, relais_id}]}.
+-- fiches : celles du centre, de quoi faire tourner routerDemande (js/contact-rules.js) sur les seules règles.
+create function public.reglages_contact(p_lieu_id integer)
+returns jsonb language plpgsql stable security definer set search_path = public, pg_temp
+as $fn$
+begin
+  if p_lieu_id is null or not coalesce(case_centre(p_lieu_id, 'reglages') >= 1, false) then
+    raise exception 'contact: Réservé aux réglages du centre.' using errcode = '42501';
+  end if;
+  return jsonb_build_object(
+    'regles', coalesce((select jsonb_agg(jsonb_build_object('type', r.type, 'financement_id', r.financement_id, 'cible', r.cible,
+                                                            'fiche_id', r.fiche_id) order by r.type, r.financement_id nulls first)
+                          from contact_regles r where r.lieu_id = p_lieu_id), '[]'::jsonb),
+    'reponses', coalesce((select jsonb_agg(jsonb_build_object('id', r.id, 'libelle', r.libelle, 'vaut_prise', r.vaut_prise,
+                                                              'demande_justificatif', r.demande_justificatif, 'ordre', r.ordre,
+                                                              'retire', r.retire) order by r.retire, r.ordre, r.id)
+                            from contact_reponses r where r.lieu_id = p_lieu_id), '[]'::jsonb),
+    'financements', coalesce((select jsonb_agg(jsonb_build_object('id', x.id, 'libelle', x.libelle, 'ordre', x.ordre, 'retire', x.retire)
+                                               order by x.ordre, x.libelle collate "C", x.id)
+                                from contact_financements x where x.lieu_id = p_lieu_id), '[]'::jsonb),
+    'fiches', coalesce((select jsonb_agg(jsonb_build_object('fiche_id', c.id, 'nom', _contact_nom_fiche(c, p_lieu_id), 'du_centre', true,
+                                                            'joignable', c.compte_email is not null or c.email is not null,
+                                                            'conge_du', c.conge_du, 'conge_au', c.conge_au, 'depart_le', c.depart_le,
+                                                            'relais_id', c.relais_id) order by c.id)
+                          from contacts c where _contact_fiche_dans(c, p_lieu_id)), '[]'::jsonb));
+end $fn$;
+
+-- Remplacer toutes les règles du centre : [{type, financement_id|null, cible, fiche_id|null}]. Une règle ne vise qu'une fiche de ce
+-- centre, un financement de ce centre. Rend le nombre de règles.
+create function public.regler_qui_recoit_quoi(p_lieu_id integer, p_regles jsonb)
+returns integer language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  e jsonb;
+  v_type text;
+  v_cible text;
+  v_fin bigint;
+  v_fiche bigint;
+  v_cles text[] := '{}';
+  v_lues jsonb := '[]'::jsonb;
+  v_n integer := 0;
+begin
+  if p_lieu_id is null or not coalesce(geste_centre(p_lieu_id, 'reglages.modifier'), false) then
+    raise exception 'contact: Réservé aux réglages du centre.' using errcode = '42501';
+  end if;
+  if jsonb_typeof(p_regles) is distinct from 'array' then
+    raise exception 'contact: Les règles sont illisibles.';
+  end if;
+  for e in select x from jsonb_array_elements(p_regles) x loop
+    if jsonb_typeof(e) <> 'object' or exists (select 1 from jsonb_object_keys(e) k where k not in ('type', 'financement_id', 'cible', 'fiche_id'))
+       or coalesce(e ->> 'type', '') not in ('absence', 'retard', 'administratif', 'document', 'autre', 'defaut')
+       or coalesce(e ->> 'cible', '') not in ('fiche', 'formateurs_du_jour')
+       or coalesce(jsonb_typeof(e -> 'financement_id') not in ('null', 'number', 'string') or (e ->> 'financement_id') !~ '^[0-9]{1,18}$', false)
+       or coalesce(jsonb_typeof(e -> 'fiche_id') not in ('null', 'number', 'string') or (e ->> 'fiche_id') !~ '^[0-9]{1,18}$', false) then
+      raise exception 'contact: Les règles sont illisibles.';
+    end if;
+    v_type := e ->> 'type';
+    v_cible := e ->> 'cible';
+    v_fin := (e ->> 'financement_id')::bigint;
+    v_fiche := (e ->> 'fiche_id')::bigint;
+    if v_fin is not null and not exists (select 1 from contact_financements x where x.id = v_fin and x.lieu_id = p_lieu_id) then
+      raise exception 'contact: Ce financement n''existe pas dans ce centre.';
+    end if;
+    if v_type = 'defaut' and v_fin is not null then
+      raise exception 'contact: La personne par défaut ne dépend d''aucun financement.';
+    end if;
+    if v_cible = 'formateurs_du_jour' then
+      if v_type not in ('absence', 'retard') then
+        raise exception 'contact: « Formateurs du jour » ne vaut que pour une absence ou un retard.';
+      end if;
+      if v_fiche is not null then
+        raise exception 'contact: Les règles sont illisibles.';
+      end if;
+    elsif v_fiche is null or not exists (select 1 from contacts c where c.id = v_fiche and _contact_fiche_dans(c, p_lieu_id)) then
+      raise exception 'contact: Une règle ne vise qu''une personne de ce centre.';
+    end if;
+    if v_type || ':' || coalesce(v_fin::text, '') = any(v_cles) then
+      raise exception 'contact: Une seule règle par type et par financement.';
+    end if;
+    v_cles := v_cles || (v_type || ':' || coalesce(v_fin::text, ''));
+    v_lues := v_lues || jsonb_build_object('type', v_type, 'financement_id', v_fin, 'cible', v_cible, 'fiche_id', v_fiche);
+  end loop;
+  delete from contact_regles where lieu_id = p_lieu_id;
+  insert into contact_regles (lieu_id, type, financement_id, cible, fiche_id)
+    select p_lieu_id, r.type, r.financement_id, r.cible, r.fiche_id
+      from jsonb_to_recordset(v_lues) r(type text, financement_id bigint, cible text, fiche_id bigint);
+  get diagnostics v_n = row_count;
+  return v_n;
+end $fn$;
+
+-- Remplacer les réponses toutes faites du centre : la liste des réponses actives, dans l'ordre ([{id|null, libelle, vaut_prise,
+-- demande_justificatif}], 20 au plus). Une réponse absente de la liste est supprimée, ou retirée si elle a servi (message ou lien).
+-- Rend le nombre de réponses actives.
+create function public.regler_reponses(p_lieu_id integer, p_reponses jsonb)
+returns integer language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  e jsonb;
+  v_rang integer := 0;
+  v_id bigint;
+  v_libelle text;
+  v_gardes bigint[] := '{}';
+begin
+  if p_lieu_id is null or not coalesce(geste_centre(p_lieu_id, 'reglages.modifier'), false) then
+    raise exception 'contact: Réservé aux réglages du centre.' using errcode = '42501';
+  end if;
+  if jsonb_typeof(p_reponses) is distinct from 'array' then
+    raise exception 'contact: Les réponses toutes faites sont illisibles.';
+  end if;
+  if jsonb_array_length(p_reponses) > 20 then
+    raise exception 'contact: 20 réponses toutes faites au plus.';
+  end if;
+  for e in select x from jsonb_array_elements(p_reponses) x loop
+    if jsonb_typeof(e) <> 'object'
+       or exists (select 1 from jsonb_object_keys(e) k where k not in ('id', 'libelle', 'vaut_prise', 'demande_justificatif'))
+       or coalesce(jsonb_typeof(e -> 'id') not in ('null', 'number', 'string') or (e ->> 'id') !~ '^[0-9]{1,18}$', false)
+       or coalesce(jsonb_typeof(e -> 'vaut_prise') not in ('null', 'boolean'), false)
+       or coalesce(jsonb_typeof(e -> 'demande_justificatif') not in ('null', 'boolean'), false) then
+      raise exception 'contact: Les réponses toutes faites sont illisibles.';
+    end if;
+    v_rang := v_rang + 1;
+    v_id := (e ->> 'id')::bigint;
+    v_libelle := btrim(coalesce(e ->> 'libelle', ''));
+    if char_length(v_libelle) not between 1 and 80 then
+      raise exception 'contact: Une réponse toute faite compte de 1 à 80 caractères.';
+    end if;
+    if v_id is not null then
+      if v_id = any(v_gardes) or not exists (select 1 from contact_reponses r where r.id = v_id and r.lieu_id = p_lieu_id) then
+        raise exception 'contact: Réponse toute faite inconnue.';
+      end if;
+      update contact_reponses
+         set libelle = v_libelle, vaut_prise = coalesce((e ->> 'vaut_prise')::boolean, true),
+             demande_justificatif = coalesce((e ->> 'demande_justificatif')::boolean, false), ordre = v_rang * 10, retire = false
+       where id = v_id;
+    else
+      insert into contact_reponses (lieu_id, libelle, vaut_prise, demande_justificatif, ordre)
+        values (p_lieu_id, v_libelle, coalesce((e ->> 'vaut_prise')::boolean, true), coalesce((e ->> 'demande_justificatif')::boolean, false),
+                v_rang * 10)
+        returning id into v_id;
+    end if;
+    v_gardes := v_gardes || v_id;
+  end loop;
+  update contact_reponses r set retire = true
+   where r.lieu_id = p_lieu_id and not (r.id = any(v_gardes))
+     and (exists (select 1 from demande_messages m where m.reponse_id = r.id) or exists (select 1 from contact_jetons j where j.reponse_id = r.id));
+  delete from contact_reponses r where r.lieu_id = p_lieu_id and not (r.id = any(v_gardes)) and not r.retire;
+  return cardinality(v_gardes);
+end $fn$;
+
+-- 10. La conservation. Une fiche de stagiaire effacée (efface_le posé) : ses demandes qui ne sont pas des absences, dont il est l'auteur
+--     ou un destinataire, sont supprimées (destinataires, réponses, envois et jetons partent avec elles) ; ses absences restent (partie
+--     C) sans texte, sans réponse, sans envoi ni jeton, et sans son nom ; ailleurs (délégué prévenu d'une absence), sa ligne et les envois
+--     vers lui partent. Les purges à l'écriture (C-17) sont celles de _contact_purger, appelée par _contact_creer.
+create function public._contact_effacer_stagiaire()
+returns trigger language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+begin
+  delete from demandes d
+   where d.type is distinct from 'absence'
+     and (d.auteur_stagiaire_id = new.id
+          or exists (select 1 from demande_destinataires x where x.demande_id = d.id and x.stagiaire_id = new.id));
+  delete from demande_messages m using demandes d where m.demande_id = d.id and d.auteur_stagiaire_id = new.id;
+  delete from contact_jetons j using demandes d where j.demande_id = d.id and d.auteur_stagiaire_id = new.id;
+  delete from contact_envois e using demandes d where e.demande_id = d.id and d.auteur_stagiaire_id = new.id;
+  update demandes d set texte = null, auteur_nom = 'Stagiaire anonyme' where d.auteur_stagiaire_id = new.id;
+  delete from demande_destinataires x where x.stagiaire_id = new.id;
+  delete from contact_envois e where e.vers_stagiaire_id = new.id;
+  return null;
+end $fn$;
+
+create trigger stagiaires_contact_effacer after update of efface_le on public.stagiaires
+  for each row when (old.efface_le is null and new.efface_le is not null) execute function public._contact_effacer_stagiaire();
+
 
 -- ===== Partie C (tâche 10) : à ajouter ici =====
 
@@ -733,9 +1330,40 @@ revoke all on function public._contact_purger() from public, anon, authenticated
 revoke all on function public._contact_creer(integer, integer, integer, bigint, text, text, text, text, jsonb)
   from public, anon, authenticated, service_role;
 revoke all on function public._contact_nom_stagiaire(integer) from public, anon, authenticated, service_role;
+revoke all on function public.liste_demandes(integer) from public, anon, service_role;
+grant execute on function public.liste_demandes(integer) to authenticated;
+revoke all on function public.demande_detail(bigint) from public, anon, service_role;
+grant execute on function public.demande_detail(bigint) to authenticated;
+revoke all on function public.marquer_lue(bigint) from public, anon, service_role;
+grant execute on function public.marquer_lue(bigint) to authenticated;
+revoke all on function public.repondre_demande(bigint, text, bigint) from public, anon, service_role;
+grant execute on function public.repondre_demande(bigint, text, bigint) to authenticated;
+revoke all on function public.prendre_en_compte(bigint) from public, anon, service_role;
+grant execute on function public.prendre_en_compte(bigint) to authenticated;
+revoke all on function public.annuler_demande(bigint) from public, anon, service_role;
+grant execute on function public.annuler_demande(bigint) to authenticated;
+revoke all on function public.relancer_envoi(bigint) from public, anon, service_role;
+grant execute on function public.relancer_envoi(bigint) to authenticated;
+revoke all on function public.regler_mes_alertes(boolean) from public, anon, service_role;
+grant execute on function public.regler_mes_alertes(boolean) to authenticated;
+revoke all on function public.reglages_contact(integer) from public, anon, service_role;
+grant execute on function public.reglages_contact(integer) to authenticated;
+revoke all on function public.regler_qui_recoit_quoi(integer, jsonb) from public, anon, service_role;
+grant execute on function public.regler_qui_recoit_quoi(integer, jsonb) to authenticated;
+revoke all on function public.regler_reponses(integer, jsonb) from public, anon, service_role;
+grant execute on function public.regler_reponses(integer, jsonb) to authenticated;
+revoke all on function public._contact_envoyer(bigint, bigint, integer, text) from public, anon, authenticated, service_role;
+revoke all on function public._contact_direction_reelle(integer) from public, anon, authenticated, service_role;
+revoke all on function public._contact_ma_fiche() from public, anon, authenticated, service_role;
+revoke all on function public._contact_role(bigint, integer, bigint) from public, anon, authenticated, service_role;
+revoke all on function public._contact_lecteur(bigint) from public, anon, authenticated, service_role;
+revoke all on function public._contact_peut(bigint, text, boolean) from public, anon, authenticated, service_role;
+revoke all on function public._contact_appliquer_prise(bigint, text, boolean) from public, anon, authenticated, service_role;
+revoke all on function public._contact_appliquer_reponse(bigint, bigint, integer, text, text, text, bigint, boolean) from public, anon, authenticated, service_role;
+revoke all on function public._contact_effacer_stagiaire() from public, anon, authenticated, service_role;
 
--- Contrôle de fin : aucune table de la migration n'a de droit pour l'API (ni lecture, ni écriture, ni vidage), et aucune aide interne ne
--- s'exécute par anon ni authenticated.
+-- Contrôle de fin : aucune table de la migration n'a de droit pour l'API (ni lecture, ni écriture, ni vidage) ; aucune aide interne ne
+-- s'exécute par anon ni authenticated ; les fonctions de l'app s'exécutent par authenticated seul ; alertes_email ne s'écrit pas en direct.
 do $controle$
 declare
   t text;
@@ -756,4 +1384,18 @@ begin
       raise exception 'contact_2 : l''aide interne % s''exécute par anon ou authenticated ; tout est annulé', f.sig;
     end if;
   end loop;
+  for f in select p.oid::regprocedure as sig from pg_proc p
+            where p.pronamespace = 'public'::regnamespace
+              and p.proname in ('destinataires_possibles', 'apercu_envoi', 'ecrire_au_centre', 'ecrire_a', 'ecrire_au_stagiaire',
+                                'liste_demandes', 'demande_detail', 'marquer_lue', 'repondre_demande', 'prendre_en_compte',
+                                'annuler_demande', 'relancer_envoi', 'regler_mes_alertes', 'reglages_contact', 'regler_qui_recoit_quoi',
+                                'regler_reponses') loop
+    if has_function_privilege('anon', f.sig, 'EXECUTE') or not has_function_privilege('authenticated', f.sig, 'EXECUTE') then
+      raise exception 'contact_2 : la fonction % n''a pas ses droits (authenticated seul) ; tout est annulé', f.sig;
+    end if;
+  end loop;
+  if has_column_privilege('authenticated', 'public.user_profiles', 'alertes_email', 'INSERT, UPDATE')
+     or has_column_privilege('anon', 'public.user_profiles', 'alertes_email', 'INSERT, UPDATE') then
+    raise exception 'contact_2 : user_profiles.alertes_email s''écrit sans regler_mes_alertes ; tout est annulé';
+  end if;
 end $controle$;
