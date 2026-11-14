@@ -48,9 +48,10 @@ bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titre
 `20261111_conservation_direction`, titres 5 et 6, l'e-learning 1 et 2, puis les petits restes du 14/11, `20261114_restes_1_conditions`
 (`conditions_version_publiee()`, `accepter_conditions` durcie ; après l'e-learning, dont elle contrôle la version) et
 `20261114_restes_2_truncate` (TRUNCATE retiré à `anon` et `authenticated` : aucune preuve ne vide une table sous ces rôles), puis
-`20261114_jury_resultats` (résultats du jury, en production depuis c1883cc5), puis `20261115_titres_7_correctifs` (migration 7 des
-titres, appliquée en production le 14/11 : `suite --etapes 7` y est donc refusé, jouer `suite --etapes 8` ou `suite-en-ligne`) (sortie
-`OK : suite rejouée (28 migrations)` ; ne se combine pas avec `--titres`). `--titres` cherche `2026111?_titres_<n>_*` (n de 1 à 9, date quelconque du 10 au 19/11 :
+`20261114_jury_resultats` (résultats du jury, en production depuis c1883cc5), puis `20261115_titres_7_correctifs` et
+`20261115_titres_8_apercu` (migrations 7 et 8 des titres, appliquées en production le 14/11 : `suite --etapes 7` et `suite --etapes 8`
+y sont donc refusés, jouer `suite --etapes 9` quand la migration 9 existe, ou `suite-en-ligne`) (sortie
+`OK : suite rejouée (29 migrations)` ; ne se combine pas avec `--titres`). `--titres` cherche `2026111?_titres_<n>_*` (n de 1 à 9, date quelconque du 10 au 19/11 :
 les migrations 7, 8 et 9 de l'étape 3 sont datées du 15/11). `--autonomie 1` joue, après les contacts,
 `20261114_autonomie_1_traces` ; `--autonomie 1,2` y ajoute `20261114_autonomie_2_version` avec `-v version=2026-11-14` (la version
 des conditions en production). Sans `--titres`, `--autonomie` ni `--production`, la sortie reste celle d'avant (16 migrations : les

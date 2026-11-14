@@ -1307,6 +1307,12 @@ test("les fichiers de l'étape 3 (gabarit, aides, base locale) : aucun tiret cad
   const jury = script.indexOf('$P -1 -f "$MIGRATIONS/20261114_jury_resultats.sql"'), sept = script.indexOf('$P -1 -f "$MIGRATIONS/20261115_titres_7_correctifs.sql"');
   assert.ok(jury > 0 && sept > jury, "puis la migration 7 des titres, après le jury");
   assert.ok(script.includes('if [ "$PRODUCTION" = 1 ]; then\n  $P -1 -f "$MIGRATIONS/20261115_titres_7_correctifs.sql"'), "avec --production seulement");
+  // La migration 8 des titres (aperçu par titre), appliquée en production le 14/11 après la 7 : 29 migrations.
+  const huit = script.indexOf('$P -1 -f "$MIGRATIONS/20261115_titres_8_apercu.sql"');
+  assert.ok(huit > sept, "puis la migration 8 des titres, après la 7");
+  assert.match(script, /titres_7_correctifs\.sql"[^\n]*\n  N=\$\(\(N \+ 1\)\)\n  \$P -1 -f "\$MIGRATIONS\/20261115_titres_8_apercu\.sql"[^\n]*\n  N=\$\(\(N \+ 1\)\)\nfi\n/, "dans le même bloc --production, chacune comptée");
+  assert.ok(script.includes("(sortie : 29 migrations)"), "l'en-tête du script annonce 29 migrations");
+  assert.ok(texteDuDepot("outils/base_locale/LISEZMOI.md").includes("`OK : suite rejouée (29 migrations)`"), "le LISEZMOI aussi");
 });
 
 test("la preuve de la suite : l'aiguillage des groupes (sort_du_groupe) couvre chaque cas, contrôlé au groupe structure à chaque jeu", () => {
