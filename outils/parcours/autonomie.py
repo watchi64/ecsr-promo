@@ -40,8 +40,8 @@ def _temps(stagiaire, secondes):
 # Stagiaire 1 (le compte du banc) a déjà passé 5 minutes sur le cours 1 : le plancher (18 s pour ce cours court) est franchi, il ne
 # manque que la fin du cours.
 SEMIS_LIRE = (_temps(1, 300),)
-# Céline A. (id 6, la première de la liste par nom, donc la fiche ouverte d'emblée sur ordinateur), Anissa O. (2) et Lorie K. (3)
-# ont lu le cours 1 ; Céline y a passé 25 minutes. La promo compte 6 stagiaires actifs : « 3 sur 6 l'ont lu ».
+# Clémence A. (id 6, la première de la liste par nom, donc la fiche ouverte d'emblée sur ordinateur), Agathe O. (2) et Lison K. (3)
+# ont lu le cours 1 ; Clémence y a passé 25 minutes. La promo compte 6 stagiaires actifs : « 3 sur 6 l'ont lu ».
 SEMIS_EQUIPE = (_lecture(6), _lecture(2), _lecture(3), _temps(6, 1500))
 # Interrupteur ÉTEINT, avec des traces laissées par un temps où il était allumé, choisies pour que l'interrupteur allumé montrerait
 # quelque chose : « Feux du véhicule » (cours 1) commencée, non lue, avec la section « cours-sec-2 » (le deuxième titre du cours du
@@ -148,11 +148,11 @@ def fiche_equipe(v):
     v.aller("Cours et QCM")
     v.attendre(LIGNE_FEUX + ' .theme-lecteurs:text-is("3 sur 6 l\'ont lu")', "« 3 sur 6 l'ont lu » sur la ligne du thème 22")
     v.aller("Stagiaires")
-    ligne = '#view a.stg-ligne:has-text("Céline")'
-    v.attendre(ligne, "la ligne de Céline A. dans la liste")
+    ligne = '#view a.stg-ligne:has-text("Clémence")'
+    v.attendre(ligne, "la ligne de Clémence A. dans la liste")
     if not v.voit(ligne + ".active"):
-        v.toucher(ligne, "la ligne de Céline A.")
-    v.attendre("#view .stg-fiche", "la fiche de Céline A.")
+        v.toucher(ligne, "la ligne de Clémence A.")
+    v.attendre("#view .stg-fiche", "la fiche de Clémence A.")
     ouvrir_la_partie(v)
     lus = reperes(v)
     for motif, quoi in ((r"Cours lus : 1 sur \d+", "Cours lus"), (r"Temps cette semaine : 25 min", "Temps cette semaine : 25 min"),
@@ -163,7 +163,7 @@ def fiche_equipe(v):
         v.echec("la liste « Cours lus et commencés » ne montre pas « Feux du véhicule » avec « Lu le … »")
     if v.voit("#view .ms-autonomie-note") or "voient exactement cette page" in v.texte("#view"):
         v.constat("D", BLOQUE, "la phrase réservée au stagiaire (« %s ») s'affiche sur la fiche vue par l'équipe" % NOTE_STAGIAIRE, capture=True)
-    v.but("fiche de Céline A. : partie « %s » et ses cinq repères" % PARTIE)
+    v.but("fiche de Clémence A. : partie « %s » et ses cinq repères" % PARTIE)
     v.etape("un cours ouvert par le formateur n'a pas de bandeau de reprise")
     v.aller("Cours et QCM")
     ouvrir_le_cours(v)

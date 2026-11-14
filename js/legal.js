@@ -105,7 +105,11 @@ function fenetreAcceptation(miseAJour) {
         resolve();
       } catch (e) {
         console.error(e);
-        erreur.textContent = "L'enregistrement n'a pas abouti. Vérifiez votre connexion et réessayez.";
+        // La base n'enregistre que la version publiée (conditions_version_publiee) : un onglet resté ouvert pendant une mise
+        // à jour des conditions demande une version qu'elle ne connaît plus, ou pas encore. Recharger la page règle le cas.
+        erreur.textContent = /Version de conditions inconnue/.test(e?.message || "")
+          ? "Les conditions viennent d'être mises à jour. Rechargez la page pour lire la nouvelle version."
+          : "L'enregistrement n'a pas abouti. Vérifiez votre connexion et réessayez.";
         erreur.classList.remove("hidden");
         continuer.disabled = !coche.checked;
       }

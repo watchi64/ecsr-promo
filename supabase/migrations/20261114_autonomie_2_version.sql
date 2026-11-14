@@ -17,6 +17,7 @@
 --   - la variable version manque, ou n'est pas de cette forme, ou n'est pas une vraie date (2026-02-30) ;
 --   - la date est après aujourd'hui (heure de Paris) : des conditions pas encore publiées n'ont pu être acceptées (la sentinelle
 --     elle-même est refusée par cette règle) ;
+--   - la date est après la version publiée des conditions (conditions_version_publiee, depuis 20261114_restes_1_conditions) ;
 --   - la version en place n'est pas la sentinelle et la nouvelle lui est antérieure (on ne recule pas ; la même version se
 --     rejoue sans effet).
 -- Elle remplace la fonction en ne changeant QUE le littéral : la définition en place (pg_get_functiondef) est rejouée avec la
@@ -34,6 +35,7 @@ declare
   v_nouvelle text := coalesce(current_setting('autonomie.version', true), '');
   v_aujourdhui text := to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD');
   v_actuelle text;
+  v_publiee text;
   v_jour date;
   v_ancien text;
   v_neuf text;
@@ -59,6 +61,16 @@ begin
   end if;
   if left(v_nouvelle, 10) collate "C" > v_aujourdhui collate "C" then
     raise exception 'autonomie_2 : version « % » datée après aujourd''hui (%), des conditions pas encore publiées', v_nouvelle, v_aujourdhui;
+  end if;
+  -- Depuis 20261114_restes_1_conditions, la base ne laisse accepter que la version publiée : exiger une version postérieure
+  -- fermerait l'autonomie à tout le monde, en silence.
+  -- (Appel par EXECUTE : sans restes_1, la fonction n'existe pas, et PL/pgSQL analyserait l'appel même derrière le test.)
+  if to_regprocedure('public.conditions_version_publiee()') is not null then
+    execute 'select public.conditions_version_publiee()' into v_publiee;
+    if v_nouvelle collate "C" > v_publiee collate "C" then
+      raise exception 'autonomie_2 : version « % » postérieure à la version publiée des conditions (« % ») : personne ne pourrait l''accepter',
+        v_nouvelle, v_publiee;
+    end if;
   end if;
   v_actuelle := public._autonomie_version_conditions();
   if v_actuelle <> '9999-12-31' and v_nouvelle collate "C" < v_actuelle collate "C" then
