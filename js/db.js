@@ -2718,11 +2718,10 @@ export async function listerAutonomie(stagiaireId) {
 
 // Tentatives de QCM en entraînement d'un stagiaire, pour sa fiche « Travail en autonomie » : [{ mode, finished_at }]. Sous la
 // sécurité de la base : le stagiaire lit les siennes, l'équipe celles de la promo (droit de lire les notes). Jamais l'examen.
+// Lu par pages (toutesLesLignes) : la base rend au plus 1 000 lignes par réponse, un stagiaire assidu peut dépasser.
 export async function listerEntrainementsQcm(stagiaireId) {
-  const { data, error } = await supabase.from("qcm_attempts")
-    .select("mode, finished_at").eq("stagiaire_id", stagiaireId).eq("mode", "entrainement");
-  if (error) throw error;
-  return data || [];
+  return toutesLesLignes(() => supabase.from("qcm_attempts")
+    .select("mode, finished_at").eq("stagiaire_id", stagiaireId).eq("mode", "entrainement").order("id"));
 }
 
 // Combien de stagiaires de la promo ont lu chaque cours : Map(cours_id -> lus). Pour l'équipe seulement (droit notes.lire sur
