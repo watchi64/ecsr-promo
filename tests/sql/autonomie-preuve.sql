@@ -128,6 +128,22 @@ begin
   end;
 end $f$;
 
+-- Acceptation posée directement dans la table, par le propriétaire (« OK <date> », comme l'aurait rendu
+-- accepter_conditions). Depuis 20261114_restes_1_conditions, l'API n'enregistre plus que la version publiée : une acceptation
+-- d'une autre version ne peut venir que d'une écriture directe. La défense de l'autonomie (sentinelle, version comparée
+-- entière, pas dans l'avenir) se prouve donc sur des lignes posées ainsi, quelle que soit la version de accepter_conditions.
+create function pg_temp.accepter_en_base(p_nom text, p_version text)
+returns text language plpgsql as $f$
+declare v timestamptz;
+begin
+  insert into conditions_acceptations (email, version)
+  select email, p_version from preuve_comptes where nom = p_nom
+  on conflict (email, version) do nothing;
+  select ca.accepted_at into v from conditions_acceptations ca join preuve_comptes k on lower(ca.email) = k.email
+   where k.nom = p_nom and ca.version = p_version;
+  return 'OK ' || coalesce(v::text, '');
+end $f$;
+
 -- Nombre rendu par une requête de comptage jouée par un personnage (-1 si elle échoue).
 create function pg_temp.compter(p_nom text, p_promo integer, p_sql text)
 returns bigint language plpgsql as $f$
@@ -445,10 +461,10 @@ grant execute on function public.accepter_conditions(text) to authenticated;
 $ac$;
     end if;
     insert into settings (key, value, promo_id) values ('autonomie_active', 'true', PA);
-    r := pg_temp.essai('SA', PA, 'select public.accepter_conditions(''9999-12-31'')::text');
+    r := pg_temp.accepter_en_base('SA', '9999-12-31');
     r2 := pg_temp.essai('SA', PA, format('select public.autonomie_tracer_cours(%L, 30, true, null)::text', K1));
     r3 := pg_temp.essai('SA', PA, format('select public.autonomie_tracer_qcm(%s, 30)::text', Q1));
-    perform pg_temp.verifier('R11 : sentinelle livrée, accepter_conditions(''9999-12-31'') puis tracer : refus silencieux, 0 ligne',
+    perform pg_temp.verifier('R11 : sentinelle livrée, acceptation ''9999-12-31'' en base puis tracer : refus silencieux, 0 ligne',
       r like 'OK 2%' and r2 = 'OK false' and r3 = 'OK '
       and exists (select 1 from conditions_acceptations ca join preuve_comptes k on lower(ca.email) = k.email
                    where k.nom = 'SA' and ca.version = '9999-12-31')
@@ -521,12 +537,12 @@ $ac$;
     perform pg_temp.verifier('règle 3 : aucune acceptation, refus silencieux et 0 ligne',
       r = 'OK false' and (select count(*) from cours_lectures where stagiaire_id = SC) = 0
       and (select count(*) from autonomie_temps where stagiaire_id = SC) = 0, r);
-    r := pg_temp.essai('SC', PA, 'select public.accepter_conditions(''2099-01-01'')::text');
+    r := pg_temp.accepter_en_base('SC', '2099-01-01');
     r2 := pg_temp.essai('SC', PA, format('select public.autonomie_tracer_cours(%L, 30, true, null)::text', K1));
-    perform pg_temp.verifier('règle 3 (R11) : version datée dans l''avenir (2099-01-01, par accepter_conditions), refus silencieux et 0 ligne',
+    perform pg_temp.verifier('règle 3 (R11) : version datée dans l''avenir (2099-01-01, posée en base), refus silencieux et 0 ligne',
       r like 'OK 2%' and r2 = 'OK false' and (select count(*) from cours_lectures where stagiaire_id = SC) = 0
       and (select count(*) from autonomie_temps where stagiaire_id = SC) = 0, r || ' / ' || r2);
-    r := pg_temp.essai('SC', PA, format('select public.accepter_conditions(%L)::text', v_version || 'b'));
+    r := pg_temp.accepter_en_base('SC', v_version || 'b');
     r2 := pg_temp.essai('SC', PA, format('select public.autonomie_tracer_cours(%L, 30, false, null)::text', K4));
     perform pg_temp.verifier('règle 3 (R11) : la version exigée avec une lettre (« b ») compte : écrit',
       r like 'OK 2%' and r2 = 'OK false' and (select count(*) from cours_lectures where stagiaire_id = SC) = 1
@@ -550,7 +566,7 @@ $ac$;
     r := pg_temp.essai('SV', PA, format('select public.autonomie_tracer_cours(%L, 30, false, null)::text', K4));
     perform pg_temp.verifier('règle 3 : une acceptation mal formée (« <hier>b » suivi d''un espace, au-dessus de la version exigée en ordre de texte) ne compte pas',
       r = 'OK false' and (select count(*) from cours_lectures where stagiaire_id = SV) + (select count(*) from autonomie_temps where stagiaire_id = SV) = 0, r);
-    r := pg_temp.essai('SV', PA, format('select public.accepter_conditions(%L)::text', v_version || 'c'));
+    r := pg_temp.accepter_en_base('SV', v_version || 'c');
     r2 := pg_temp.essai('SV', PA, format('select public.autonomie_tracer_cours(%L, 30, false, null)::text', K4));
     perform pg_temp.verifier('règle 3 (version entière) : acceptation « <hier>c », postérieure à « <hier>b » : écrit',
       r like 'OK 2%' and r2 = 'OK false' and (select secondes from autonomie_temps where stagiaire_id = SV) = 30, r || ' / ' || r2);

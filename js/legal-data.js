@@ -39,6 +39,10 @@
 // autonomie » après « Absences », la ligne neuve du tableau du § 5, la première ligne du tableau du § 10. Le § 13 ne change pas.
 // Commit isolé exprès : il se retire seul (git revert) si Timy réécrit le texte.
 //
+// Depuis le 14/11 (20261114_restes_1_conditions.sql), la base n'enregistre que la version qu'elle publie,
+// conditions_version_publiee(). Changer VERSION_CONDITIONS demande donc une migration qui remplace cette fonction par la
+// même date, appliquée avec la poussée (tests/conditions-version.test.mjs vérifie que les deux disent la même chose).
+//
 
 export const VERSION_CONDITIONS = "2026-11-14";
 
