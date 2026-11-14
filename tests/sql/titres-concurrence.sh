@@ -7,8 +7,14 @@
 # Usage : bash tests/sql/titres-concurrence.sh --port 55450 [--cas 1,2,3,4]
 # Prérequis : base reconstruite, rejouer_suite.sh --production (migration 6 des titres en place), avec ou sans la migration 7
 # (psql -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261115_titres_7_correctifs.sql).
-# Contre-épreuve : sans la migration 7, ROUGE attendu (cas 3 : deux versions ; cas 2 et 4 : le porteur reste sur le titre du réseau ;
-# cas 1 : la seconde session échoue sur l'affectation du porteur).
+# Verdicts attendus :
+#   - avec la migration 7 : VERT 17/0 ;
+#   - sans la migration 7 (contre-épreuve) : ROUGE 10/7 (cas 3 : deux versions ; cas 2 et 4 : le porteur reste sur le titre du réseau ;
+#     cas 1 : la seconde session échoue sur l'affectation du porteur) ;
+#   - migration 7 sans ses verrous, index gardé (mutant (a)) : ROUGE voulu. L'index garde une seule version, mais la seconde session des
+#     cas 1 et 3 reçoit la phrase D4 au lieu de modifier la version : le script exige que le second ajustement passe, ce qui est le rôle
+#     du verrou (décision de la relecture de la Task 22) ;
+#   - INCOMPLET (code 2) : la première session n'a pas atteint son attente dans le délai (machine trop lente) ; rien n'est jugé.
 #
 # Garde de la base locale, AVANT toute écriture (refus, code 3, sinon) : connexion par 127.0.0.1 sur le port donné (inet_server_addr,
 # inet_server_port) ; auth.users non vide et tous ses comptes en @local.test (comptes fictifs de clone_4_donnees.sql) ; migration 6
@@ -17,7 +23,8 @@
 # Personnages (posés et validés par le script, retirés à la sortie) : « chef », titre de centre non fixe « Preuve9 conc chef » au centre
 # de la promo 1 (Promos et Stagiaires en Voir, Équipe en Modifier) ; quatre titres du réseau de niveau centre, R1 à R4 (Promos et
 # Équipe en Voir) ; u porte R1 au centre 1 ; w et w2 reçoivent R2 et R4 pendant les cas 2 et 4.
-# Cas (la première session garde sa transaction ouverte 3 s après son geste, la seconde arrive 1 s après) :
+# Cas (la première session garde sa transaction ouverte 3 s après son geste ; la seconde part dès que la première est dans cette attente,
+# constatée dans pg_stat_activity, nom d'application conc_premiere, 15 s au plus) :
 #   1. chef ajuste R1 depuis le centre 1 (nom « Preuve A ») ; chef ajuste R1 (nom « Preuve B »). Attendu : une version, créée par la
 #      première, modifiée par la seconde (version_creee faux), nommée « Preuve B », u porte la version.
 #   2. chef ajuste R2 depuis le centre 1 ; chef donne R2 à w au centre 1. Attendu : une version, w la porte.
@@ -73,7 +80,7 @@ fi
 
 verrou_avant=$("${P[@]}" -c "select coalesce((select value from public.settings where promo_id is null and key = 'titres_ouverts'), '<absent>')")
 
-ok=0; ko=0; fini=0
+ok=0; ko=0; fini=0; incomplet=0
 juger() { if [ "$2" = "$3" ]; then ok=$((ok + 1)); echo "ok    $1"; else ko=$((ko + 1)); echo "ÉCHEC $1 : obtenu « $2 », attendu « $3 »"; fi; }
 informer() { echo "info  $1"; }
 
@@ -113,6 +120,10 @@ SQL
   if [ "$reste" != "0" ]; then
     propre=0
     echo "ÉCHEC ménage : il reste des données du script ou le verrou n'est pas remis ($reste)" >&2
+  fi
+  if [ "$incomplet" = 1 ] && [ "$propre" = 1 ]; then
+    echo "INCOMPLET $ok/$ko : la première session n'a pas atteint son attente dans le délai ; rien n'est jugé, relancer"
+    exit 2
   fi
   if [ "$fini" = 1 ] && [ "$ko" -eq 0 ] && [ "$propre" = 1 ] && [ "$code" -eq 0 ]; then
     echo "VERT $ok/0"
@@ -158,7 +169,7 @@ R1=$(tid R1); R2=$(tid R2); R3=$(tid R3); R4=$(tid R4)
 # Une session de chef : joue une instruction, garde la transaction ouverte $2 s, valide. Sortie : la ligne « R:<valeur> », ou la
 # phrase de l'erreur (sans le préfixe ERROR/ERREUR de psql) si l'instruction est refusée (la transaction est alors annulée).
 session() {
-  "${P[@]}" 2>&1 <<SQL || true
+  PGAPPNAME="${3:-conc_seconde}" "${P[@]}" 2>&1 <<SQL || true
 begin;
 select set_config('request.jwt.claims', '{"email": "preuve9.conc.chef@exemple.invalid", "role": "authenticated"}', true);
 set local role authenticated;
@@ -175,12 +186,22 @@ version() { "${P[@]}" -c "select coalesce((select id::text from public.titres wh
 nom_version() { "${P[@]}" -c "select coalesce((select nom from public.titres where origine_id = $1 and lieu_id = $L1 order by id limit 1), 'aucune')"; }
 porte() { "${P[@]}" -c "select coalesce((select string_agg(titre_id::text, ',' order by titre_id) from public.affectations where email = '$1'), 'rien')"; }
 
-# Deux sessions : la première joue $1 et attend 3 s ; la seconde joue $2, 1 s après. Résultats dans r1 et r2.
+# Deux sessions : la première joue $1 et attend 3 s ; la seconde joue $2 dès que la première est dans son pg_sleep (son geste est fait,
+# ses verrous sont pris). Plafond de 15 s : au-delà, INCOMPLET. Résultats dans r1 et r2.
+premiere_en_attente() {
+  "${P[@]}" -c "select count(*) from pg_stat_activity where application_name = 'conc_premiere' and state = 'active' and query like 'select pg_sleep(%'"
+}
 deux_sessions() {
-  local f1
+  local f1 i=0 pid
   f1=$(mktemp)
-  session "$1" 3 > "$f1" &
-  sleep 1
+  session "$1" 3 conc_premiere > "$f1" &
+  pid=$!
+  # Une première session refusée n'atteint jamais son attente : elle a fini, la seconde part aussitôt (le résultat sera jugé).
+  until [ "$(premiere_en_attente)" = "1" ] || ! kill -0 "$pid" 2>/dev/null; do
+    i=$((i + 1))
+    if [ "$i" -gt 150 ]; then incomplet=1; rm -f "$f1"; exit 2; fi
+    sleep 0.1
+  done
   r2=$(session "$2" 0 | resultat)
   wait
   r1=$(resultat < "$f1")

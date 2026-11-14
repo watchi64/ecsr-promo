@@ -492,6 +492,11 @@ begin
     perform pg_temp.attendre('retour', 'après les retours : empreinte fonctions identique à celle d''avant', v_ap_fonctions, v_av_fonctions);
     perform pg_temp.attendre('retour', 'après les retours : empreinte droits identique à celle d''avant', v_ap_droits, v_av_droits);
     perform pg_temp.attendre('retour', 'après les retours : md5 de pg_policies identique à celui d''avant', pg_temp.regles_md5(), v_md5_depart);
+    -- L'empreinte ne couvre pas les index : celui de la migration 7 (D4) se contrôle à part, quand le retour 7 a été joué.
+    if v_r7 <> 'select 1' then
+      perform pg_temp.verifier('retour', 'après les retours : l''index titres_version_unique est retiré (retour 7)',
+        to_regclass('public.titres_version_unique') is null);
+    end if;
   end if;
   perform pg_temp.informer('durée du bloc', to_char(extract(epoch from clock_timestamp() - v_debut), 'FM990.0') || ' s');
   perform pg_temp.verdict_titres(v_mode, v_debut);

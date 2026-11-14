@@ -18,6 +18,19 @@
 -- l'accord explicite de Timy.
 set local lock_timeout = '3s';
 
+-- B. D4, garde d'abord, avant tout remplacement de fonction : aucun titre du réseau n'a déjà deux versions dans un même centre (sinon
+-- l'index ne pourrait pas se poser), sinon arrêt, rien n'est changé, même hors d'une transaction unique.
+do $garde_versions$
+declare
+  v_n integer;
+begin
+  select count(*) into v_n from (
+    select origine_id, lieu_id from public.titres where origine_id is not null group by origine_id, lieu_id having count(*) > 1) d;
+  if v_n > 0 then
+    raise exception 'titres_7_correctifs : % titre(s) du réseau ont plus d''une version dans un même centre ; rien n''est changé', v_n;
+  end if;
+end $garde_versions$;
+
 -- A. D1 : qui crée, ajuste et supprime les titres ; B. D4 : les verrous d'ajuster_titre et de donner_titre (bloc généré) ---------------
 -- debut du bloc genere (outils/generer_fragments_titres_7.py aller)
 -- public._refus_gestion(text, integer, jsonb) : garde de dérive (le corps en vigueur est celui qu'on remplace), puis le texte nouveau.
@@ -193,16 +206,5 @@ end
 $migration$;
 -- fin du bloc genere
 
--- B. D4 : l'index, garantie d'une seule version par centre ---------------------------------------------------------------------------
-do $garde_versions$
-declare
-  v_n integer;
-begin
-  select count(*) into v_n from (
-    select origine_id, lieu_id from public.titres where origine_id is not null group by origine_id, lieu_id having count(*) > 1) d;
-  if v_n > 0 then
-    raise exception 'titres_7_correctifs : % titre(s) du réseau ont plus d''une version dans un même centre ; rien n''est changé', v_n;
-  end if;
-end $garde_versions$;
-
+-- B. D4 : l'index, garantie d'une seule version par centre (sa garde est en tête) ----------------------------------------------------
 create unique index titres_version_unique on public.titres (origine_id, lieu_id) where origine_id is not null;

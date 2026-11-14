@@ -101,6 +101,12 @@ joué) et `suite-en-ligne` (rien d'injecté, après application réelle ; un gro
 complètent les modes. Les personnages de l'étape 2 (`poser_titres_gestion`) et le retrait des titres non fixes avant les retours
 (`retirer_titres_non_fixes`, garde D5) sont dans `tests/sql/titres-gestion-aides.sql`, inclus par les preuves de gestion et de la suite.
 
+D4 (une seule version de centre par titre du réseau) se prouve aussi à deux sessions, ce qu'un bloc unique ne peut pas montrer :
+`bash tests/sql/titres-concurrence.sh --port <port> [--cas 1,2,3,4]`, sur la base locale seulement (garde : 127.0.0.1, comptes
+`@local.test`, sinon code 3 ; données fictives validées puis retirées). Attendu : VERT 17/0 avec la migration 7 ; ROUGE 10/7 sans elle ;
+ROUGE avec la migration 7 privée de ses verrous (l'index garde une version, mais le second ajustement doit passer) ; INCOMPLET (code 2)
+si la première session n'atteint pas son attente dans le délai.
+
 Verdicts de départ de l'étape 3 (base `--production`, alors 24 migrations, sans les restes du 14/11), dans `.base-locale/verdicts/avant-3/` : titres en ligne VERT 375/0,
 gestion en ligne VERT 335/0, rôles en ligne VERT 11986/0, espaces en ligne VERT 240/0, données en ligne VERT 59/0, EPCF VERT 17/0,
 profils VERT 32/0, contacts en ligne VERT 43/0, questionnaires VERT 207/0, registre qualité VERT 128/0, conservation VERT 227/0,
