@@ -30,8 +30,17 @@
 // ligne « Date de naissance, souhaits de séances » se sépare) et les paragraphes sous lui, le § 5 (consultation par ECF),
 // le § 7 (bénévoles et auto-écoles : la direction du lieu les lit comme les formateurs).
 //
+// Version 2026-11-14 (lot 1 de l'e-learning : travail en autonomie) : nouvelle donnée (cours lus, temps passé sur les cours
+// et les QCM d'entraînement) et nouvel usage (suivi par les formateurs et la direction), donc nouvelle acceptation. Texte
+// proposé, à valider par Timy (docs/superpowers/specs/2026-11-12-e-learning-textes-donnees.md). À LA MISE EN LIGNE, remplacer
+// cette date par celle du jour de la mise en ligne, qui doit être EXACTEMENT la date passée à la migration de la base
+// supabase/migrations/20261114_autonomie_2_version.sql (psql -v version=...). Passages neufs : la ligne « Travail en
+// autonomie » du tableau du § 3 et la phrase sous ce tableau, la ligne du tableau du § 4 et le paragraphe « Travail en
+// autonomie » après « Absences », la ligne neuve du tableau du § 5, la première ligne du tableau du § 10. Le § 13 ne change pas.
+// Commit isolé exprès : il se retire seul (git revert) si Timy réécrit le texte.
+//
 
-export const VERSION_CONDITIONS = "2026-11-10";
+export const VERSION_CONDITIONS = "2026-11-14";
 
 export const CONDITIONS_MD = `# Conditions d'utilisation et données personnelles
 
@@ -66,6 +75,7 @@ L'usage de l'application suppose d'accepter les présentes conditions. L'accepta
 | Profil | Nom, prénom, adresse e-mail, rôle, promo, date de naissance (reportée sur le livret officiel) |
 | Résultats | Notes et évaluations, tentatives et scores aux QCM, examens blancs (EPCF) |
 | Suivi | Passages en voiture, absences, placements au planning, souhaits de séances |
+| Travail en autonomie | Quand votre centre a activé ce suivi pour votre promo : les cours que vous avez ouverts et lus, avec leur date, l'endroit où vous vous êtes arrêté, et le temps que vous passez à lire les cours et à vous entraîner aux QCM, compté par jour. Ce temps n'est compté que lorsque la page du cours ou du QCM est affichée et que vous êtes actif ; l'application ne mesure rien sur ses autres pages |
 | Documents | Livret d'évaluation, dossier professionnel |
 | Contributions | Signalements d'erreur sur les QCM ; signalements de problème sur l'application (message, capture facultative, page, appareil et navigateur utilisés) |
 | Questionnaires | Vos réponses, enregistrées sans votre nom ni la date ; l'application note seulement que vous avez participé |
@@ -73,7 +83,7 @@ L'usage de l'application suppose d'accepter les présentes conditions. L'accepta
 | Historique | Qui a créé ou modifié une note ou un passage, et quand |
 | Assistant | Nombre de messages envoyés par jour (le contenu des échanges n'est pas conservé, voir section 9) |
 
-L'application ne collecte ni géolocalisation, ni contacts du téléphone, ni données de navigation à des fins publicitaires.
+L'application ne collecte ni géolocalisation, ni contacts du téléphone, ni données de navigation à des fins publicitaires. Elle n'enregistre ni vos gestes un par un, ni ce que vous faites en dehors d'elle.
 
 ## 4. Qui voit quoi
 
@@ -85,6 +95,7 @@ L'application ne collecte ni géolocalisation, ni contacts du téléphone, ni do
 | Date de naissance | Oui | Non | Oui | Oui | Non |
 | Souhaits de séances | Oui | Non | Oui | Oui | Non |
 | Livret, dossier professionnel, EPCF | Oui | Non | Oui | Oui | Non, seulement le nombre de compétences EPCF acquises par centre |
+| Travail en autonomie (cours lus, temps passé) | Oui, dans Mon suivi | Non | Oui | Oui | Non |
 | Feuilles d'émargement | Oui, votre ligne | Non | Oui | Oui | Non |
 | Réponses aux questionnaires | Votre participation seulement | Non | Non | Non ; les résultats regroupés, à partir du seuil, vont aux personnes chargées de la qualité | Non |
 | Signalements de problème | Oui | Non | Non | Non | Non |
@@ -100,6 +111,8 @@ La présentation, par ECF à son certificateur Qualiopi et à ses financeurs, de
 Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre promo.
 
 **Absences.** L'application ne prévoit aucun champ pour le motif d'une absence : un passage est marqué « Absence », une feuille d'émargement « absent ». Les formateurs s'engagent à ne pas en écrire dans une observation libre (section 15). L'observation d'un passage est lue comme le passage lui-même (vos camarades de promo, vos formateurs, la direction de votre centre) ; celle d'une feuille d'émargement, par vous, vos formateurs et la direction de votre centre.
+
+**Travail en autonomie.** Ce suivi n'existe que si votre centre l'a activé pour votre promo. Vous voyez dans Mon suivi exactement ce que vos formateurs et la direction de votre centre voient de vous : rien de plus ne leur est montré. Les autres stagiaires n'y ont pas accès, et l'application n'établit aucun classement. Ce suivi ne déclenche aucune décision automatique : il sert à vous repérer dans votre travail et à permettre à vos formateurs de vous accompagner.
 
 **Questionnaires de satisfaction.** La réponse est enregistrée sans nom, sans compte, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Dans l'application et dans les documents qu'elle produit, personne ne peut voir qui a répondu quoi : les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre (dans ces conditions, « le centre » désigne ECF, l'organisme de formation), dans un ordre aléatoire, sous la même condition.
 
@@ -118,6 +131,7 @@ Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre
 | Permettre à ECF de présenter les documents de la formation à son certificateur Qualiopi et à ses financeurs | Obligation légale : la certification Qualiopi conditionne l'accès aux fonds publics et mutualisés de la formation professionnelle (code du travail, article L6316-1) |
 | Recueillir votre avis sur la formation par des questionnaires enregistrés sans nom, et en produire un taux de satisfaction | Intérêt légitime de l'éditeur et du centre à mesurer et améliorer la formation, preuve que le centre doit pouvoir apporter à son certificateur |
 | Répondre à vos questions par l'assistant | Intérêt légitime ; l'assistant n'est utilisé que si vous lui écrivez |
+| Suivre le travail en autonomie (cours lus, temps passé sur les cours et les QCM d'entraînement), pour vous aider à vous repérer et permettre à vos formateurs de vous accompagner | Intérêt légitime de l'organisme de formation à suivre la progression de ses stagiaires et à vérifier que les ressources mises à disposition sont utilisées (indicateur 19 du référentiel Qualiopi) ; vous pouvez vous y opposer (section 12) |
 
 **Documents du centre.** L'application produit des documents (dossier de la formation, dossier du centre, fiche de résultats) qu'ECF, qui forme les stagiaires, présente à son certificateur Qualiopi et à ses financeurs pour prouver ce qu'il fait. Ils reprennent des chiffres de l'application : heures, présences, résultats, taux de satisfaction. Le dossier de la formation est nominatif ; le dossier destiné au siège ne contient aucun nom. Aucun de ces documents ne contient une réponse individuelle à un questionnaire ni un commentaire libre. ECF les remet lui-même : l'éditeur ne les envoie à personne.
 
@@ -164,7 +178,7 @@ L'assistant est une **intelligence artificielle** : ses réponses sont généré
 
 | Données | Durée |
 |---------|-------|
-| Compte, adresse e-mail, date de naissance, fiches de suivi, textes libres (observations, commentaires) | Toute la formation, puis douze mois |
+| Compte, adresse e-mail, date de naissance, fiches de suivi, travail en autonomie (cours lus, temps passé), textes libres (observations, commentaires) | Toute la formation, puis douze mois |
 | Preuves de la formation : nom, résultats, heures, présences, feuilles d'émargement signées, dossier professionnel, livret | Toute la formation, puis trois ans (jusqu'au 31 décembre de la troisième année après la fin de la formation) : c'est la durée du cycle de certification Qualiopi. Ensuite les noms, les signatures, le dossier professionnel et le livret sont effacés ; les heures, présences et résultats restent sans nom |
 | Questionnaires de satisfaction | Les réponses, enregistrées sans nom, sont gardées trois ans comme les preuves de la formation (jusqu'au 31 décembre de la troisième année après la fin de la formation ; pour le questionnaire des formateurs, après l'année du questionnaire), puis supprimées : seuls restent les résultats regroupés (taux et répartitions, à partir du seuil). Les commentaires libres sont effacés douze mois après la fin de la formation (pour le questionnaire des formateurs, le 31 décembre de l'année suivante). La note de participation est supprimée douze mois après la fin de la formation (pour le questionnaire des formateurs, à la fin de l'année du questionnaire) |
 | Registre qualité du centre (réclamations, difficultés, aléas, améliorations, risques) | Trois ans après la clôture de l'entrée, puis ses textes (description, réponse, action décidée, mesure de prévention) sont vidés ; le type, l'origine, la promo, le lieu, les dates et l'état restent |

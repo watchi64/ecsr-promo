@@ -2666,3 +2666,69 @@ export async function liensRegistre() {
     throw erreurRegistre(e);
   }
 }
+
+// === Travail en autonomie (lot 1 e-learning, spec 2026-11-12) ===
+// Écritures uniquement par les fonctions serveur autonomie_tracer_* : la base vérifie le compte (stagiaire réel), l'interrupteur
+// de la promo, les conditions acceptées et l'opposition. Ses refus SILENCIEUX (interrupteur éteint, conditions non acceptées,
+// opposition, fiche effacée) rendent `false` (cours) ou rien (QCM) sans erreur. Ses autres refus commencent par « autonomie: » ; la
+// phrase qui suit est montrée telle quelle. Toute erreur (refus ou réseau) LÈVE : l'appelant remet alors ses secondes dans le cumul.
+
+function erreurAutonomie(error) {
+  const m = String(error?.message || error || "");
+  const i = m.indexOf("autonomie:");
+  return new Error(i >= 0 ? m.slice(i + "autonomie:".length).trim() : (m || "Erreur inconnue."));
+}
+
+// Vrai quand le cours est « lu » après l'appel (fin atteinte et plancher de temps franchi).
+export async function tracerCours(coursId, { secondes = 0, fin = false, section = null } = {}) {
+  const { data, error } = await supabase.rpc("autonomie_tracer_cours",
+    { p_cours: coursId, p_secondes: secondes, p_fin: !!fin, p_section: section });
+  if (error) throw erreurAutonomie(error);
+  return data === true;
+}
+
+export async function tracerQcm(qcmId, secondes) {
+  const { error } = await supabase.rpc("autonomie_tracer_qcm", { p_qcm: qcmId, p_secondes: secondes });
+  if (error) throw erreurAutonomie(error);
+}
+
+// Les cours lus par le stagiaire connecté : [{ cours_id, ouvert_le, vu_le, lu_le, section }] (la base ne rend que ses lignes).
+export async function listerMesLectures() {
+  const moi = await myStagiaireId();
+  if (moi == null) return [];
+  const { data, error } = await supabase.from("cours_lectures")
+    .select("cours_id, ouvert_le, vu_le, lu_le, section").eq("stagiaire_id", moi);
+  if (error) throw error;
+  return data || [];
+}
+
+// Partie « Travail en autonomie » de la fiche d'un stagiaire (le stagiaire lui-même ou l'équipe, sous la sécurité de la base,
+// interrupteur de la promo allumé) : { lectures: [{ cours_id, ouvert_le, vu_le, lu_le }], temps: [{ jour, secondes }] }. Seules
+// les colonnes que la fiche lit. Une ligne de temps par jour et par ressource dépasse vite les 1 000 lignes d'une réponse de
+// PostgREST : les deux lectures vont par pages, triées sur leur clé (sans tri stable, deux pages pourraient se chevaucher).
+export async function listerAutonomie(stagiaireId) {
+  const [lectures, temps] = await Promise.all([
+    toutesLesLignes(() => supabase.from("cours_lectures").select("cours_id, ouvert_le, vu_le, lu_le")
+      .eq("stagiaire_id", stagiaireId).order("promo_id").order("cours_id")),
+    toutesLesLignes(() => supabase.from("autonomie_temps").select("jour, secondes")
+      .eq("stagiaire_id", stagiaireId).order("promo_id").order("jour").order("genre").order("ressource")),
+  ]);
+  return { lectures, temps };
+}
+
+// Tentatives de QCM en entraînement d'un stagiaire, pour sa fiche « Travail en autonomie » : [{ mode, finished_at }]. Sous la
+// sécurité de la base : le stagiaire lit les siennes, l'équipe celles de la promo (droit de lire les notes). Jamais l'examen.
+export async function listerEntrainementsQcm(stagiaireId) {
+  const { data, error } = await supabase.from("qcm_attempts")
+    .select("mode, finished_at").eq("stagiaire_id", stagiaireId).eq("mode", "entrainement");
+  if (error) throw error;
+  return data || [];
+}
+
+// Combien de stagiaires de la promo ont lu chaque cours : Map(cours_id -> lus). Pour l'équipe seulement (droit notes.lire sur
+// la promo affichée) et interrupteur de la promo allumé : sinon la base rend une liste vide, sans erreur (Map vide).
+export async function lecturesDeLaPromo() {
+  const { data, error } = await supabase.rpc("autonomie_lectures_promo");
+  if (error) throw error;
+  return new Map((data || []).map((r) => [r.cours_id, Number(r.lus)]));
+}

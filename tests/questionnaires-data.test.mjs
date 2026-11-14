@@ -61,7 +61,7 @@ eq(seuilDe("formateur"), 3, "seuil formateurs");
 // Conditions d'utilisation
 ok(/^[0-9]{4}-[0-9]{2}-[0-9]{2}[a-z]?$/.test(VERSION_CONDITIONS), "format de version");
 ok(VERSION_CONDITIONS !== "2026-10-23", "nouvelle version des conditions");
-ok(VERSION_CONDITIONS === "2026-11-10", "version du jour (lot 5 : direction du centre et siège)");
+ok(VERSION_CONDITIONS === "2026-11-14", "version du jour (lot 1 de l'e-learning : travail en autonomie)");
 ok(/Qualiopi/.test(CONDITIONS_MD), "conditions : Qualiopi cité");
 ok(/financeurs/.test(CONDITIONS_MD), "conditions : financeurs cités");
 ok(/sans (votre )?nom/.test(CONDITIONS_MD), "conditions : réponses aux questionnaires enregistrées sans nom");

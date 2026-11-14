@@ -22,6 +22,8 @@ import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=202611
 import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261113b";
 import { listCoursIndex, getCours } from "../db.js?v=20261113b";
 import { isProf, isRedacteur, getViewAs, selonPublic } from "../auth-admin.js?v=20261113b";
+import { peutTracer } from "../autonomie-etat.js?v=20261113b";
+import { brancherSuiviCours, creerRepereFin } from "../cours-suivi-ui.js?v=20261113b";
 import { coursAUnTexte, MESSAGE_COURS_VIDE, titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours,
   coursVisibleEnApercu, classeTableau, etiquetteDeColonne }
   from "../cours-rules.js?v=20261113b";
@@ -44,6 +46,12 @@ export function hasCoursCle(cle) {
 /** Le thème (ou la compétence) a-t-il un cours visible ? */
 export function hasCours(theme) {
   return !!theme && hasCoursCle(cleCours(theme));
+}
+
+/** L'entrée d'index du cours du thème ({ id, published, ... }), ou null : sert à rapprocher le thème de ses lectures. */
+export function coursDuTheme(theme) {
+  const cle = theme ? cleCours(theme) : null;
+  return cle !== null && coursIndex ? (coursIndex.get(cle) || null) : null;
 }
 
 // Mémoire locale des cours déjà ouverts (par navigateur, comme les nouveautés
@@ -525,8 +533,10 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
 
   let ferme = false;          // fiche fermée (croix, Échap, lien, enchaînement)
   let contexteCours = null;   // le rendu du cours : ses schémas sont à arrêter à la fermeture
+  let suivi = null;           // compteur de page (autonomie), seulement pour un stagiaire dont la promo l'a allumé
   function close() {
     ferme = true;
+    if (suivi) { suivi.arreter(); suivi = null; }
     // Un schéma arrêté garde son observateur de visibilité, donc son SVG en vie, tant qu'on ne le détruit pas.
     if (contexteCours) detruireScenes(contexteCours);
     overlay.remove();
@@ -557,6 +567,10 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
 
     clear(corps);
     noeuds.forEach((n) => corps.appendChild(n));
+    // Autonomie : repère de fin de cours, juste après le dernier bloc (avant les boutons « suivante » et « QCM »).
+    const tracer = !vide && peutTracer();
+    const repereFin = tracer ? creerRepereFin() : null;
+    if (repereFin) corps.appendChild(repereFin);
 
     // Liens entre cours : délégation sur le corps (posés par inline()).
     corps.addEventListener("click", (ev) => {
@@ -622,6 +636,13 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
       });
       sommaire.appendChild(lien);
     });
+
+    // Autonomie : le compteur démarre une fois le cours à l'écran ; la reprise de lecture se règle ensuite, sans attente.
+    if (tracer) {
+      suivi = brancherSuiviCours({
+        cours, defilement, overlay, sections: contexte.sections, repere: repereFin, estFerme: () => ferme,
+      });
+    }
   } catch (e) {
     console.error("Cours introuvable:", e);
     clear(corps);

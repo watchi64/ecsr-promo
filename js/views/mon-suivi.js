@@ -1,12 +1,17 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante, getNotesStatsGroupe } from "../db.js?v=20261113b";
+         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante, getNotesStatsGroupe,
+         listCoursIndex, listerAutonomie, listerEntrainementsQcm } from "../db.js?v=20261113b";
 import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261113b";
 import { dixieme, fr1, pluriel } from "../nombres.js?v=20261113b";
 import { HALF_DAYS, RESULTATS } from "../config.js?v=20261113b";
 import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261113b";
-import { isAdmin, isProf, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261113b";
+import { isAdmin, isProf, monStagiaireId, selonPublic, getEspace } from "../auth-admin.js?v=20261113b";
+import { autonomieActive, peutTracer } from "../autonomie-etat.js?v=20261113b";
+import { ficheAutonomie, autonomieVisible } from "../autonomie-rules.js?v=20261113b";
+import { litToutesLesNotes } from "../espaces-rules.js?v=20261113b";
+import { jourParis } from "../dates.js?v=20261113b";
 import { renderEpcfPersonne } from "./epcf.js?v=20261113b";
 import { renderSubTabs } from "../subtabs.js?v=20261113b";
 import { renderDp } from "./dp.js?v=20261113b";
@@ -552,12 +557,12 @@ function renderEffectuesSection(rows, soi = true) {
 // Nom affiché d'une partie, le même dans Mon suivi et dans la fiche d'un stagiaire chez l'équipe (décisions du 08/11
 // et du 10/11 : un nom par objet, « Livret » ou « Dossier pro » seuls ne disaient pas lequel).
 const LIBELLE_PARTIE = { resultats: "Résultats", passages: "Passages", epcf: "Évaluations EPCF", evolution: "Évolution",
-  livret: "Livret EPCF", dp: "Dossier professionnel" };
+  livret: "Livret EPCF", dp: "Dossier professionnel", autonomie: "Travail en autonomie" };
 const libellePartie = (p) => LIBELLE_PARTIE[p];
 // Module de chaque partie (js/modules-data.js) : fermé pour la promo, la partie
 // disparaît chez un stagiaire et porte le repère chez un formateur. Résultats réunit
 // Évolution et l'ancienne page Notes (La classe) : elle suit le module des notes, comme elles.
-const MODULE_DE_PARTIE = { resultats: "notes", passages: null, epcf: "epcf", evolution: "notes", livret: "livret", dp: "dp" };
+const MODULE_DE_PARTIE = { resultats: "notes", passages: null, epcf: "epcf", evolution: "notes", livret: "livret", dp: "dp", autonomie: null };
 
 export function dispositionFiche() {
   return window.matchMedia("(max-width: 760px)").matches ? "sommaire" : "onglets";
@@ -632,8 +637,17 @@ export function afficherErreur(zone, e, reessayer) {
 
 // Résultats (Moi et La classe) n'appartient qu'à Mon suivi, la fiche de la personne connectée, qui
 // a donc un profil stagiaire : la page Stagiaires garde la fiche d'avant (partiesDeLaFiche).
+// « Travail en autonomie » : la même condition client que la partie des résultats pour l'équipe (celle qui lit toutes les notes,
+// que la base applique aussi aux traces), le vrai compte stagiaire pour soi (js/autonomie-rules.js, autonomieVisible).
+function autonomieOuverte(soi) {
+  return autonomieVisible({
+    actif: autonomieActive(), soi, peutTracer: peutTracer(),
+    litNotes: litToutesLesNotes({ admin: isAdmin(), espace: getEspace() }), espace: getEspace(),
+  });
+}
+
 function partiesVisibles(opts) {
-  return partiesDeLaFiche({ soi: !!opts.soi })
+  return partiesDeLaFiche({ soi: !!opts.soi, autonomie: autonomieOuverte(!!opts.soi) })
     .filter((p) => !MODULE_DE_PARTIE[p] || moduleVisible(MODULE_DE_PARTIE[p]));
 }
 
@@ -824,6 +838,42 @@ function erreurPartie(zone, isActive, texte) {
   };
 }
 
+// Travail en autonomie : les repères et la liste des cours lus ou commencés, les mêmes pour le stagiaire et pour l'équipe (le
+// stagiaire voit exactement ce que voient ses formateurs et la direction de son centre). Une lecture par affichage de la partie ; un échec ne touche que cette
+// partie. Le modèle (js/autonomie-rules.js, ficheAutonomie) décide de tout, ici on ne fait que le poser dans la page.
+function renderAutonomie(panel, stagiaireId, soi, isActive) {
+  const zone = el("div", { class: "ms-autonomie" });
+  panel.appendChild(zone);
+  const actif = () => !isActive || isActive();
+  const charger = () => {
+    clear(zone);
+    zone.appendChild(el("div", { class: "loading" }, "Chargement"));
+    Promise.all([listerAutonomie(stagiaireId), listerEntrainementsQcm(stagiaireId), listCoursIndex()])
+      .then(([traces, entrainements, cours]) => {
+        if (!actif()) return;
+        const f = ficheAutonomie({
+          lectures: traces.lectures, temps: traces.temps, entrainements, cours, aujourdhui: jourParis(new Date()), soi,
+        });
+        clear(zone);
+        if (f.note) zone.appendChild(el("p", { class: "muted ms-autonomie-note" }, f.note));
+        if (f.vide) { zone.appendChild(el("p", { class: "muted ms-empty" }, f.texteVide)); return; }
+        zone.appendChild(el("section", { class: "res-carte" },
+          el("ul", { class: "res-sujets", "aria-label": "Repères du travail en autonomie" },
+            ...f.reperes.map((texte) => el("li", { class: "res-sujet" }, el("span", { class: "res-sujet-lib" }, texte))))));
+        if (f.lignes.length) {
+          zone.appendChild(el("section", { class: "res-carte" },
+            el("h3", { class: "res-carte-titre" }, "Cours lus et commencés"),
+            el("ul", { class: "res-sujets" },
+              ...f.lignes.map((l) => el("li", { class: "res-sujet" },
+                el("span", { class: "res-sujet-lib" }, l.titre),
+                el("span", { class: "muted" }, l.texte))))));
+        }
+      })
+      .catch((e) => { if (actif()) afficherErreur(zone, e, charger); });
+  };
+  charger();
+}
+
 // Contenu d'une partie. ctx.isActive : faux si l'on est passé à autre chose
 // pendant un chargement (la partie ne doit plus écrire).
 function rendrePartie(panel, partie, d, opts, ctx) {
@@ -852,6 +902,8 @@ function rendrePartie(panel, partie, d, opts, ctx) {
     rendreResultats(panel, d, soi, isActive, opts);
   } else if (partie === "evolution") {
     panel.appendChild(renderChartSection(d.evaluations, soi));
+  } else if (partie === "autonomie") {
+    renderAutonomie(panel, d.id, soi, isActive);
   } else if (partie === "livret") {
     const naissance = champNaissance(d, soi);
     if (naissance) panel.appendChild(naissance);

@@ -6568,6 +6568,22 @@ body.cours-open { overflow: hidden; }
   color: var(--text);
 }
 
+/* ===== Reprise de lecture (autonomie) : bandeau sous l'en-tête de la fiche du cours =====
+   Mêmes variables que la fin de cours (.cours-qcm-cta) : suit les deux habillages. */
+.cours-reprise {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.8rem;
+  padding: 0.55rem 1rem;
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--line-faint);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.cours-reprise .btn { flex: 0 0 auto; }
+
 /* ===== Colonne Cours de la liste des thèmes =====
    Bouton vif tant que le cours n'a jamais été ouvert sur l'appareil,
    atténué ensuite (mémoire locale, comme les nouveautés vues). */

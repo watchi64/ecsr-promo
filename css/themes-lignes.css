@@ -147,3 +147,13 @@
   color: var(--prog-texte, var(--prog, var(--text-muted)));
   background: var(--prog-pastille, var(--bg-subtle));
 }
+
+/* Travail en autonomie (13/11/2026), interrupteur de la promo allumé seulement. Cours lu : la coche et le mot « Lu » s'ajoutent au
+   bouton (la couleur ne porte pas seule le sens) ; le vert est celui du texte de « acquis » (jeton fixe, AA sur le fond de la
+   pastille dans les deux habillages). Les états prog-* de la ligne ne sont pas touchés : seul le QCM les décide.
+   La phrase des lecteurs (équipe) vit dans la ligne d'état : mêmes taille et couleur que ses voisines, elle passe à la ligne.
+   Ni largeur fixe ni débordement : `white-space: nowrap` ne vaut que pour le bouton, comme avant. */
+#view .theme-acces > .theme-cours-btn.lu { color: var(--note-ok-texte); }
+#view .theme-acces > .theme-cours-btn .theme-cours-lu { display: inline-flex; align-items: center; gap: 2px; font-weight: 700; }
+#view .theme-acces > .theme-cours-btn .theme-cours-lu .icon { width: 13px; height: 13px; }
+.theme-meta .theme-lecteurs { overflow-wrap: anywhere; }

@@ -438,6 +438,26 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
   select 'public.titres', 'false', 'false', 'false', 'false', $mx$nom = 'PreuveMaj'$mx$, null
    where to_regclass('public.titres') is not null;
+-- Travail en autonomie (e-learning, lot 1, migration 20261114_autonomie_1_traces) : lectures de cours et temps actif, P,
+-- interrupteur autonomie_active de P à 'true' (éteint : personne ne lit, équipe comprise), et (E ou M) ; écriture par fonctions
+-- serveur seulement. Oppositions : aucune règle ni aucun droit. Les lignes n'entrent que si la table existe : la preuve reste
+-- verte avant et après la migration. Leur preuve propre : tests/sql/autonomie-preuve.sql.
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select v.tbl, $mx$r.promo_id = {P} and exists (select 1 from public.settings st
+     where st.promo_id = {P} and st.key = 'autonomie_active' and st.value = 'true') and ({E} or r.stagiaire_id = {fiche_p})$mx$, 'false', 'false', 'false', v.maj, null
+    from (values ('public.cours_lectures', $mx$section = 'PreuveMaj'$mx$), ('public.autonomie_temps', $mx$secondes = 4242$mx$)) v(tbl, maj)
+   where to_regclass(v.tbl) is not null;
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select 'public.autonomie_oppositions', 'false', 'false', 'false', 'false', $mx$depuis = '2031-01-06 00:00:00+00'$mx$, null
+   where to_regclass('public.autonomie_oppositions') is not null;
+-- Avec la même migration, l'interrupteur autonomie_active ne s'écrit que par le fondateur hors aperçu ({Fo}), comme
+-- emargement_actif (règles restrictives settings_autonomie_*).
+update matrice
+   set ajout = replace(ajout, $mx$case when r.key = 'emargement_actif' then {Fo}$mx$, $mx$case when r.key in ('emargement_actif', 'autonomie_active') then {Fo}$mx$),
+       modif = replace(modif, $mx$case when r.key = 'emargement_actif' then {Fo}$mx$, $mx$case when r.key in ('emargement_actif', 'autonomie_active') then {Fo}$mx$),
+       suppr = replace(suppr, $mx$case when r.key = 'emargement_actif' then {Fo}$mx$, $mx$case when r.key in ('emargement_actif', 'autonomie_active') then {Fo}$mx$)
+ where tbl = 'public.settings'
+   and exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'settings' and policyname = 'settings_autonomie_modification');
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
   select 'public.journal_droits', 'false', 'false', 'false', 'false', $mx$action = 'PreuveMaj'$mx$, null
    where to_regclass('public.journal_droits') is not null;
@@ -740,7 +760,11 @@ declare
   v_autre integer := (select x from unnest(array[1, 2, 7]) x where x is distinct from p_p order by x limit 1);
   v_pf text := 'r.promo_id = ' || coalesce(p_p::text, 'null') || ' and ' || p_f::text;
   v_pe text := 'r.promo_id = ' || coalesce(p_p::text, 'null') || ' and ' || (p_f or p_d)::text;
-  v_pcle text := 'r.promo_id = ' || coalesce(p_p::text, 'null') || ' and case when r.key = ''emargement_actif'' then false'
+  -- Clés réservées au fondateur hors aperçu : emargement_actif, et autonomie_active quand la migration de l'autonomie est là.
+  v_pcle text := 'r.promo_id = ' || coalesce(p_p::text, 'null') || ' and case when r.key in (''emargement_actif'''
+                 || case when exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'settings'
+                                       and policyname = 'settings_autonomie_modification') then ', ''autonomie_active''' else '' end
+                 || ') then false'
                  || ' when r.key = ''modules'' then ' || (p_f or p_d)::text || ' else ' || p_f::text || ' end';
   v_t record; v_res text[]; v_a text; v_o text; v_x text; v_maj text; v_prep text; v_bad text;
 begin
@@ -1366,8 +1390,22 @@ begin
       insert into public.passages (date, stagiaire_id, type, resultat, commentaire) values ('2030-01-07', v_r.id, 'Salle', 'Effectué', 'Preuve');
       insert into public.qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20) values (v_qcm_a, v_r.id, 'entrainement', 1, 2, 10);
       insert into public.emargement_lignes (seance_id, promo_id, stagiaire_id) values (v_seance, v_pr, v_r.id);
+      -- Travail en autonomie (si la migration est appliquée) : une lecture et une ligne de temps par fiche.
+      if to_regclass('public.cours_lectures') is not null then
+        execute format($aj$insert into public.cours_lectures (stagiaire_id, promo_id, cours_id, ouvert_le, vu_le)
+                           select %s, %s, c.id, now(), now() from public.cours c order by c.id limit 1$aj$, v_r.id, v_pr);
+        execute format($aj$insert into public.autonomie_temps (stagiaire_id, promo_id, jour, genre, ressource, secondes)
+                           values (%s, %s, '2030-01-07', 'qcm', 'preuve', 60)$aj$, v_r.id, v_pr);
+      end if;
     end loop;
   end loop;
+  -- Travail en autonomie : interrupteur allumé dans la promo 1 seulement (le stagiaire de la promo 2 ne lit pas ses lignes),
+  -- une opposition (fiche de stag_m).
+  if to_regclass('public.cours_lectures') is not null then
+    insert into public.settings (key, value, promo_id) values ('autonomie_active', 'true', 1)
+      on conflict (promo_id, key) do update set value = 'true';
+    execute $aj$insert into public.autonomie_oppositions (stagiaire_id) select p.fiche from personnages p where p.nom = 'stag_m'$aj$;
+  end if;
   foreach v_lieu in array v_lieux loop
     insert into public.auto_ecoles (nom, lieu_id) values ('Preuve auto-école', v_lieu);
     insert into public.benevoles (prenom, lieu_id) values ('Preuve bénévole', v_lieu) returning id into n;
@@ -2320,11 +2358,18 @@ begin
       perform pg_temp.verifier('autre promo', 'jumeau : le fondateur écrit vers la promo ' || v_pc || ' (jour férié et réglage ajoutés, planning de cette promo seule modifié)',
         v_nx > 0 and v_ecr = format('OK 1 1 | OK 1 1 | OK %s %s', v_nx, v_nx), 'obtenu ' || v_ecr || ' ; lignes de planning ' || v_nx);
     end loop;
-    -- Témoin : le fondateur, lui, voit les lignes de chaque promo (les zéros ci-dessus ne viennent pas de tables vides).
+    -- Témoin : le fondateur, lui, voit les lignes de chaque promo (les zéros ci-dessus ne viennent pas de tables vides). Seule
+    -- exception, voulue : les traces du travail en autonomie d'une promo dont l'interrupteur est éteint (personne ne les lit par
+    -- l'API, fondateur compris ; migration 20261114_autonomie_1_traces) sont retirées du compte attendu.
     foreach v_pc in array c_promos loop
-      perform pg_temp.verifier('autre promo', 'témoin : le fondateur envoie la promo ' || v_pc || ' et voit toutes ses lignes (au moins une)',
-        pg_temp.lignes_de_promo(c_fond, v_pc::text, v_pc)
-          = pg_temp.lignes_de_promo(null, null, v_pc, true)
+      perform pg_temp.verifier('autre promo', 'témoin : le fondateur envoie la promo ' || v_pc || ' et voit toutes ses lignes (au moins une ; traces de l''autonomie seulement interrupteur allumé)',
+        pg_temp.lignes_de_promo(c_fond, v_pc::text, v_pc)::bigint
+          = pg_temp.lignes_de_promo(null, null, v_pc, true)::bigint
+            - case when to_regclass('public.cours_lectures') is not null
+                        and not exists (select 1 from public.settings st where st.promo_id = v_pc and st.key = 'autonomie_active' and st.value = 'true')
+                   then pg_temp.calcul(format('select ((select count(*) from public.cours_lectures where promo_id = %s)'
+                                              || ' + (select count(*) from public.autonomie_temps where promo_id = %s))::text', v_pc, v_pc))::bigint
+                   else 0 end
         and pg_temp.lignes_de_promo(null, null, v_pc, true)::bigint > 0,
         'le fondateur ne voit pas toutes les lignes de la promo');
     end loop;

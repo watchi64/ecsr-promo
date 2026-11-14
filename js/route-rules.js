@@ -6,15 +6,21 @@
 // d'affichage d'une fiche est celui de partiesDeLaFiche. `evolution` et `classe` restent
 // lisibles, où elles ouvrent Résultats (ouvertureDeMonSuivi) :
 // favoris et liens d'avant gardent leur destination.
-export const PARTIES = ["resultats", "passages", "epcf", "evolution", "livret", "dp", "classe"];
+export const PARTIES = ["resultats", "passages", "epcf", "evolution", "livret", "dp", "classe", "autonomie"];
 
 // Parties d'une fiche, dans l'ordre d'affichage. Mon suivi (lot 2B, tâche 7) : Résultats d'abord,
 // qui réunit Évolution (« Moi ») et les notes de la classe (« La classe ») ; deux mots vagues de
 // moins sur le sommaire. La fiche d'un stagiaire vue par l'équipe garde la fiche de main.
-export function partiesDeLaFiche({ soi = false } = {}) {
-  return soi
+// `autonomie` (lot 1 e-learning) : vrai seulement quand l'interrupteur de la promo est allumé et que la personne a le droit de
+// la voir (js/autonomie-rules.js, autonomieVisible). « Travail en autonomie » vient après les parties de résultats et de
+// passages (résultats, passages, EPCF) et avant le livret et le dossier, qui sont des documents à remplir. Éteint, la liste
+// est celle d'avant.
+export function partiesDeLaFiche({ soi = false, autonomie = false } = {}) {
+  const parties = soi
     ? ["resultats", "passages", "epcf", "livret", "dp"]
     : ["passages", "epcf", "evolution", "livret", "dp"];
+  if (autonomie) parties.splice(parties.indexOf("livret"), 0, "autonomie");
+  return parties;
 }
 
 // Les deux vues de Résultats, et la clé de mémoire de la dernière ouverte (une redirection
