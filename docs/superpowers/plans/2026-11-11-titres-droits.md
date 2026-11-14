@@ -1071,7 +1071,9 @@ E-learning (lot 1) en ligne : `20261114_autonomie_1_traces` et `_2_version` appl
   update` avant la recherche de la version) n'en est pas une (un chemin qui l'oublie y échappe), mais il rend le second ajustement
   simultané juste au lieu de le refuser : il attend, voit la version et la modifie (« un second ajustement modifie la version », groupe
   `gerer` de 2b). Si l'index se déclenche quand même, la phrase est `titres: Ce titre vient d'être ajusté pour ce centre par une
-  autre personne : rouvrez-le, puis réessayez.` (nom de contrainte lu par `get stacked diagnostics`).
+  autre personne : rouvrez-le, puis réessayez.` (nom de contrainte lu par `get stacked diagnostics`). `donner_titre` prend un verrou
+  partagé (`for share`) sur le même titre avant de chercher la version : un don simultané à un ajustement ne laisse jamais un porteur
+  sur le titre du réseau quand la version existe.
 - **D5.** Chaque retour de 6, 7, 8 et 9 commence par une garde : s'il existe une affectation dont le titre n'est pas fixe, il
   s'arrête sans rien changer avec `<migration>_retour : % affectation(s) portent un titre non fixe ; les retirer d'abord (page Équipe
   ou Directions de centre) ; rien n'est changé`.
@@ -1139,6 +1141,19 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
 - **Repli** : `mes_titres()` absente ou en panne laisse l'app d'aujourd'hui (cases nulles, tout au plafond) ; la base refuse de toute
   façon ce qui dépasse.
 - Un fichier `js/` modifié prend le jeton de cache du crochet de main (ne pas le poser à la main).
+- **Aucune règle RLS réécrite** (coordination, 14/11) : aucune migration des étapes 3 et 4 ne fait `alter policy`, `create policy` ni
+  `drop policy` ; `user_profiles_lecture` garde le texte de `20261112_titres_5_fermetures.sql` (le chantier « espace contact » y pose
+  une garde). Contrôle au groupe `structure` de la preuve de la suite : `md5` de `pg_policies` (schéma public, trié `collate "C"`)
+  identique avant et après chaque migration 7, 8, 9 et 4. Une correction qui exigerait de toucher une règle s'arrête et le signale à
+  la coordination.
+- **Entrées hors cases** : le filtre par cases de `js/nav-rules.js` ne retire que les entrées dont la route est une page de
+  `PAGES_DU_NIVEAU` (Task 26) ; toute autre entrée passe, en particulier `messages` (espace équipe) et `contacts` (menu du compte),
+  que le chantier « espace contact » ajoute (test à la Task 29).
+- **Fichiers communs avec le chantier « espace contact »**, qui fusionne après nous : `js/views/config.js`,
+  `js/views/reglages-habillage.js`, `js/db.js`, `js/espaces-rules.js`, `tests/sql/roles-preuve.sql`,
+  `outils/assembler_repetition_roles.mjs`, `outils/base_locale/rejouer_suite.sh`, `js/nouveautes-data.js`,
+  `supabase/functions/chatbot/aide.mjs`, outils du robot, banc : petits commits, un sujet par commit, ajouts groupés à un seul
+  endroit du fichier, aucune réorganisation ni reformatage.
 
 ### Review Focus (étape 3)
 
@@ -1149,7 +1164,9 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
 3. **Un retour joué alors qu'un titre non fixe est porté** (Task 24, groupe `d5`) : rien ne change, la phrase le dit.
 4. **Un Secrétariat qui garde un bouton d'écriture** sur une page en « Voir » après un ajustement : la base refuse, l'écran dit la
    phrase (Task 30, test `peutModifier` ; Task 33, parcours « Voir n'écrit pas »).
-5. **La barre du téléphone d'un titre fixe** qui changerait d'une entrée (Task 29, tests d'égalité pour les quatre espaces).
+5. **Le fondateur hors aperçu**, qui n'a d'ordinaire aucune affectation sur la promo affichée : sa barre et ses boutons restent
+   entiers (cases nulles, donc plafond) ; la barre du téléphone d'un titre fixe ne change pas d'une entrée (Tasks 26, 27 et 29, tests
+   d'égalité pour les quatre espaces et pour le fondateur sans affectation).
 
 ---
 
@@ -1172,16 +1189,26 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
     `titres-gestion-preuve.sql`, qui l'inclut (`-- @@INCLURE tests/sql/titres-gestion-aides.sql@@`).
   - `pg_temp.retirer_titres_non_fixes()` (dans `titres-gestion-aides.sql`) : en propriétaire, supprime les affectations dont le titre
     n'est pas fixe ; `titres-gestion-preuve.sql` l'appelle juste avant d'injecter le retour 6.
-  - `tests/sql/titres-suite-preuve.sql` : même forme que `titres-gestion-preuve.sql` (empreinte avant, migrations 7, 8, 9 en
-    `-- @@INJECTER ...@@`, groupes, `retirer_titres_non_fixes()`, retours 9, 8, 7, groupe `retour`, verdict par `verdict_titres`).
-    Personnages propres, posés en propriétaire par `pg_temp.poser_titres_suite()` après `poser_titres_gestion()` : `R` (titre du
-    réseau de niveau centre, sans centre, `{"promos":"voir","equipe":"voir"}`, porté par `u` au centre 1 et `v` au centre 2) et
-    `R_promo` (titre du réseau de niveau promo, sans centre, `{"planning":"voir","stagiaires":"voir"}`, non porté).
+  - `tests/sql/titres-suite-preuve.sql` : même forme que `titres-gestion-preuve.sql` (empreinte avant, migrations 4, 7, 8, 9 en
+    `-- @@INJECTER ...@@`, la 4 injectée juste avant la 9, groupes, `retirer_titres_non_fixes()`, retours 9, 8, 7, 4, groupe `retour`,
+    verdict par `verdict_titres`).
+    Personnages propres, posés en propriétaire par `pg_temp.poser_titres_suite()` après `poser_titres_gestion()` : `R`, nommé
+    « Preuve9 réseau R » (titre du réseau de niveau centre, sans centre, `{"promos":"voir","equipe":"voir"}`, porté par `u` au centre 1
+    et `v` au centre 2) et `R_promo`, nommé « Preuve9 réseau R promo » (niveau promo, sans centre,
+    `{"planning":"voir","stagiaires":"voir"}`, non porté). Tout nom posé par cette preuve commence par « Preuve9 » : aucun ne heurte
+    le catalogue de la migration 9 (index `titres_portee_nom`).
+  - `pg_temp.appeler_t(p_qui text, p_entete text, p_apercu text, p_titre text, p_sql text) returns text` (dans la preuve de la suite ;
+    `roles-aides.sql` ne change pas) : comme `appeler_a`, avec en plus l'en-tête `x-apercu-titre` quand `p_titre` n'est pas nul
+    (`request.headers` reposé après `pg_temp.contexte`).
+  - Marqueurs de présence : 7 = l'index `titres_version_unique` existe ; 8 = `to_regprocedure('public.apercu_titre()')` ; 9 = six
+    titres `cree_par = 'migration 20261115_titres_9_catalogue'` ; 4 = `to_regclass('public.journal_droits')`. Mode `suite-en-ligne` :
+    un groupe dont la migration manque est sauté avec une information ; modes injectés et `suite-contre-epreuve` : chaque groupe est
+    joué (il rougit si sa migration manque).
     Groupe `structure` : `donner_titre`, `_refus_gestion`, `titres_ouverts` existent (migration 6 appliquée). Un groupe dont la
     migration n'est pas là est sauté avec une information en mode `suite-en-ligne`, compté en échec dans les modes injectés ; les
     groupes qui demandent le journal (`journal_suite`) sont sautés avec une information si `journal_droits` n'existe pas.
-  - Modes : `suite [--etapes 7|7,8|7,8,9|8|8,9|9]` (défaut `7,8,9` ; une étape absente du disque : arrêt avec message),
-    `suite-contre-epreuve`, `suite-en-ligne` (rien d'injecté).
+  - Modes : `suite [--etapes 7|7,8|7,8,9|8|8,9|9|4,9]` (défaut `7,8,9` ; `4,9` : le journal puis le catalogue, l'essai à blanc de
+    l'étape 4 ; une étape absente du disque : arrêt avec message), `suite-contre-epreuve`, `suite-en-ligne` (rien d'injecté).
 
 - [ ] **Step 1 : base de production.** `bash outils/base_locale/reconstruire.sh && bash outils/base_locale/rejouer_suite.sh
   --production`. Expected : `OK : suite rejouée (23 migrations)`.
@@ -1193,10 +1220,11 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
 - [ ] **Step 3 : aides partagées et garde du retour.** Déplacer `poser_titres_gestion` ; ajouter `retirer_titres_non_fixes()` avant
   l'injection du retour 6. Run : `gestion-en-ligne` sur la base du Step 1, et `gestion --etapes 6` sur une base `--titres 1,2,3,5`.
   Expected : mêmes comptes par groupe qu'avant le déplacement.
-- [ ] **Step 4 : assembleur.** Tests ajoutés : chaque mode `suite*` a ses marqueurs ; `suite --etapes 7,9` refusé ; `suite` ne lit
-  pas un fichier d'une étape non demandée. Run : `node --test tests/assembler-roles.test.mjs`. Expected : PASS.
-- [ ] **Step 5 : gabarit et contre-épreuve.** Le gabarit ne porte que `structure` et `retour`. Run : `suite-contre-epreuve` sur la
-  base du Step 1. Expected : `VERT` (prérequis présents) ; `suite --etapes 7` refusé tant que la migration 7 manque.
+- [ ] **Step 4 : assembleur.** Tests ajoutés : chaque mode `suite*` a ses marqueurs ; `suite --etapes 7,9` refusé ; `suite --etapes
+  4,9` injecte la 4 avant la 9 et les retours 9 puis 4 ; `suite` ne lit pas un fichier d'une étape non demandée. Run : `node --test tests/assembler-roles.test.mjs`. Expected : PASS.
+- [ ] **Step 5 : gabarit et contre-épreuve.** Le gabarit ne porte que `structure` (prérequis, `md5` de `pg_policies`) et `retour`.
+  Run : `suite-contre-epreuve` sur la base du Step 1. Expected : `VERT` (prérequis présents) ; `suite --etapes 7` refusé tant que la
+  migration 7 manque.
 - [ ] **Step 6 : commit** `Titres, étape 3 : outils (base locale de production, preuve de la suite)`.
 
 ### Task 21 : D1, qui crée et ajuste les titres de centre (migration 7, partie A)
@@ -1216,9 +1244,9 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
   t_dirs (réseau, Directions : Modifier) crée un titre de centre au centre 1 depuis t_secr   ERREUR 42501 Réservé à l'équipe du centre.
   t_dirs ajuste le titre de t_rh (centre 1)                                                   ERREUR 42501 Réservé à l'équipe du centre.
   t_dirs crée un titre du réseau de niveau centre depuis t_secr                              ERREUR 42501 Réservé au siège.
-  t_dirs ajuste un titre du réseau de niveau promo (R_promo, sans centre)                    ERREUR 42501 Réservé au siège.
-  t_dirs crée un titre du réseau de niveau promo depuis t_interv                             ERREUR 42501 Réservé au siège.
-  t_dirs supprime un titre du réseau de niveau centre non porté                              ERREUR 42501 Réservé au siège.
+  t_dirs ajuste R_promo, p_lieu_id nul                                                       ERREUR 42501 Réservé au siège.
+  t_dirs crée un titre du réseau de niveau promo depuis t_interv, p_lieu_id nul              ERREUR 42501 Réservé au siège.
+  t_dirs supprime un titre du réseau de niveau centre non porté (D1 couvre supprimer_titre) ERREUR 42501 Réservé au siège.
   t_dirs donne le titre de t_secr à z au centre 1 (inchangé, § 7)                            OK
   t_dirs retire ce titre à z (inchangé)                                                      OK
   t_dirs crée un titre de niveau réseau depuis t_qualite                                     OK
@@ -1252,17 +1280,23 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
     avant `  if t.lieu_du_titre is null and t.niveau in ('promo', 'centre') and v_lieu is not null then` suivi de
     `    select ti.id into v_version` ; le gestionnaire `exception when unique_violation` lit `constraint_name` et lève la phrase D4
     pour `titres_version_unique`, l'ancienne phrase sinon.
+  - `donner_titre`, un fragment (I9 de la relecture) : `perform 1 from titres where id = p_titre_id for share;` avant
+    `  select v.id into v_ancien from titres r join titres v on v.origine_id = r.id and v.lieu_id = p_lieu_id`. Un don et un
+    ajustement simultanés du même titre du réseau s'attendent : le porteur finit toujours sur la version du centre s'il y en a une
+    (l'ajustement qui attend le don fait basculer le nouveau porteur ; le don qui attend l'ajustement trouve la version).
   - `tests/sql/titres-concurrence.sh --port N` : même garde de base locale que `tests/sql/autonomie-concurrence.sh` (127.0.0.1, comptes
     `@local.test` seuls, sinon code 3) ; pose en le validant un titre du réseau R (niveau centre) porté au centre 1, ouvre deux
     sessions `t_chef`, la première ajuste R depuis le centre 1 avec le nom « Preuve A » et attend (`pg_sleep(2)` avant `commit`), la
     seconde ajuste R avec « Preuve B » ; puis compte les versions de R au centre 1, retire ses données ; sortie `VERT` ou `ROUGE`.
 
 - [ ] **Step 1 : preuve, groupe `d4`** (une session) : deux ajustements successifs de R depuis le centre 1 : `version_creee` vrai puis
-  faux, même identifiant ; une seconde version posée en propriétaire pour (R, centre 1) : `ERREUR 23505` ; l'index existe et porte
-  le prédicat `origine_id IS NOT NULL`.
+  faux, même identifiant ; une seconde version posée en propriétaire pour (R, centre 1), **d'un autre nom** (« Preuve9 autre
+  version ») : `ERREUR 23505 titres_version_unique` (l'aide lit `constraint_name` par `get stacked diagnostics` : le même nom
+  lèverait `titres_portee_nom`, ce que le cas ne doit pas confondre) ; l'index existe et porte le prédicat `origine_id IS NOT NULL`.
 - [ ] **Step 2 : concurrence.** Run : `bash tests/sql/titres-concurrence.sh --port 55435` sur la base `--production` sans la
   migration 7. Expected : `ROUGE` (deux versions). Avec la migration 7 : `VERT`, une version, la seconde session rend `version_creee`
-  faux et la version porte le nom « Preuve B ».
+  faux et la version porte le nom « Preuve B ». Second cas du script : une session ajuste R depuis le centre 1 (et attend), l'autre
+  donne R à `w` au centre 1 : `w` finit sur la version (avant la migration 7 : sur R, `ROUGE`).
 - [ ] **Step 3 : écrire la partie B et son retour ; vert.** `suite --etapes 7` : `d4` vert.
 - [ ] **Step 4 : mutants.** (a) migration 7 sans le verrou : le script rend `VERT` (une version) et la seconde session reçoit la phrase
   D4 ; (b) sans l'index ni le verrou : `ROUGE`. Reconstruire après chaque mutant.
@@ -1272,7 +1306,7 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
 
 **Files:**
 - Modify: `supabase/migrations/20261115_titres_7_correctifs.sql`, `_retour.sql`, `outils/generer_fragments_titres_7.py`,
-  `tests/sql/titres-suite-preuve.sql`
+  `tests/sql/titres-suite-preuve.sql`, `tests/sql/titres-gestion-preuve.sql` (trois cas de `gerer` dépendants de l'état)
 
 **Interfaces:**
 - Produces (fragments, mêmes signatures, mêmes droits) :
@@ -1281,26 +1315,35 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
     _profil_formateur(` passe à `if t.niveau = 'promo' and t.fixe then` (un titre de promo non fixe crée le profil de la branche
     `else` : `prof`, `is_admin` faux) ; après la levée de `_refus_titre`, refus `titres: Une fiche formateur ne se relie qu'au titre
     Formateur.` si `p_prof_id` est donné et que le titre n'est pas le Formateur fixe.
-  - `creer_titre`, avant `  v_cases := _cases_effectives(p_depuis);` : si `v_lieu` est donné, refus M7 réseau quand un titre non fixe
-    sans centre porte `lower(v_nom)` ; si `v_lieu` est nul, refus M7 centre quand un titre d'un centre non issu d'un autre
-    (`origine_id` nul) porte ce nom.
-  - `ajuster_titre`, quand `v_nom` est donné, après le refus des noms fixes : mêmes deux refus, en écartant le titre lui-même, sa racine
-    et ses versions (`coalesce(origine_id, id) <> t.racine`).
+  - `creer_titre`, **après** la levée de `_refus_gestion` (un appelant sans droit n'apprend pas qu'un nom existe), avant
+    `  begin` suivi de `    insert into titres (nom, niveau, lieu_id, cases, cree_par)` : si `v_lieu` est donné, refus M7 réseau quand
+    un titre non fixe sans centre porte `lower(v_nom)` ; si `v_lieu` est nul, refus M7 centre quand un titre d'un centre non issu
+    d'un autre (`origine_id` nul) porte ce nom.
+  - `ajuster_titre`, quand `v_nom` est donné, après le second contrôle `_refus_gestion` (cases actuelles) : mêmes deux refus, en
+    écartant le titre lui-même, sa racine et ses versions (`coalesce(origine_id, id) <> t.racine`).
+  - M5 ne relève jamais `is_admin` d'un profil existant (un Intervenant devenu Formateur garde `is_admin` faux) : sans effet, la
+    colonne n'ouvre plus aucun droit en base (`is_admin()` est un geste depuis T6) ni dans l'app après la Task 27 (`admin` vient du
+    titre). Le rapport le dit.
 
 - [ ] **Step 1 : preuve, groupe `m4m5`** : `t_chef` donne Intervenant (`t_interv`) à `x` avec `p_prof_id` : refus M4, aucun profil
   créé ; sans fiche : `OK`, profil `prof`, `is_admin` faux ; à l'orphelin : `transforme` vrai, `is_admin` faux ; `dir_n` donne
   Formateur à `y` avec une fiche libre : `OK`, `is_admin` vrai, `prof_id` relié (inchangé) ; `regler_affectations_formateur` de `dir_n`
   sur `form_m` : réponses de 2b à l'identique.
-- [ ] **Step 2 : preuve, groupe `m7`** : `t_chef` crée « Secrétariat » au centre 1 alors qu'un titre du réseau « secrétariat » non fixe
-  existe : refus M7 réseau ; `siege` crée au réseau un titre du nom d'un titre créé par le centre 1 : refus M7 centre ; `t_chef` ajuste
-  la version de centre de R (même nom que R) : `OK` ; renomme un titre de centre en « Qualité » (titre du réseau) : refus ; nom libre :
-  `OK`.
+- [ ] **Step 2 : preuve, groupe `m7`** (noms à préfixe « Preuve9 », jamais ceux du catalogue) : un titre du réseau « Preuve9
+  secrétariat » non fixe posé en propriétaire ; `t_chef` crée « PREUVE9 SECRÉTARIAT » au centre 1 : refus M7 réseau ; `siege` crée au
+  réseau un titre du nom d'un titre créé par le centre 1 (« Preuve9 accueil ») : refus M7 centre ; `t_chef` ajuste la version de
+  centre de R (même nom que R) : `OK` ; renomme un titre de centre en « Preuve9 secrétariat » : refus ; nom libre : `OK` ; `t_rh`
+  (sans droit) crée « Preuve9 secrétariat » au centre 1 : `ERREUR 42501 Réservé à l'équipe du centre.` (le droit avant le nom).
 - [ ] **Step 3 : contre-épreuve** (parties A et B seules) : ROUGE sur `m4m5` et `m7`.
-- [ ] **Step 4 : écrire la partie C et son retour ; vert.** `suite --etapes 7` : `VERT n/0` ; `gestion-en-ligne` sur la base
-  `--production` + migration 7 : comptes de `avant-3/`, sauf un cas de `gerer` dont D1 change la réponse : il devient dépendant de
-  l'état de la base (`pg_get_functiondef('public._refus_gestion(text, integer, jsonb)'::regprocedure) like '%siege_fixe()%'`, la
-  signature ne changeant pas) et le rapport le nomme.
-- [ ] **Step 5 : commit** `Titres, correctifs (M4, M5, M7) : fiche et is_admin au seul Formateur, noms sans doublon visible`.
+- [ ] **Step 4 : la preuve de gestion suit l'état.** D1 change trois cas du groupe `gerer` de `titres-gestion-preuve.sql` :
+  « `t_qualite` crée un titre de centre du réseau » (`Réservé au réseau.` devient `Réservé au siège.`), « `t_dirs` crée un titre de
+  centre au centre 1 » (permis devient `ERREUR 42501 titres: Réservé à l'équipe du centre.` ; le ménage par nom tolère son absence),
+  « `t_chef` ajuste R promo sans centre » (`Réservé au réseau.` devient `Réservé au siège.`). Chacun lit l'état une fois :
+  `v_d1 := exists (select 1 from pg_indexes where indexname = 'titres_version_unique')` (marqueur de la migration 7 ; le texte
+  `siege_fixe()` est déjà dans `_refus_gestion` de la migration 6, il ne distingue rien).
+- [ ] **Step 5 : écrire la partie C et son retour ; vert.** `suite --etapes 7` : `VERT n/0` ; `gestion-en-ligne` sur la base
+  `--production`, avec et sans la migration 7 : comptes de `avant-3/` (les trois cas jugés à l'état).
+- [ ] **Step 6 : commit** `Titres, correctifs (M4, M5, M7) : fiche et is_admin au seul Formateur, noms sans doublon visible`.
 
 ### Task 24 : D5, répétition et mise en ligne de la migration 7
 
@@ -1338,7 +1381,8 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
 **Interfaces:**
 - Consumes : `apercu_role`, `fondateur_reel`, `promo_courante`, `lieu_courant`, `titre_fixe`, `_cases_effectives`, `_refus_gestion`.
 - Produces :
-  - `public.apercu_titre() returns bigint` (stable, security definer, exécution anon et authenticated comme `apercu_role`) : l'en-tête
+  - `public.apercu_titre() returns bigint` (stable, security definer ; **aucun droit d'exécution** : `revoke all ... from public,
+    anon, authenticated, service_role`, comme `apercu_role`, appelée seulement par des fonctions security definer) : l'en-tête
     `x-apercu-titre` (chiffres seuls) quand `fondateur_reel()`, `apercu_role()` vaut `formateur`, `direction` ou `siege`, que le titre
     existe, que son niveau correspond (promo, centre, réseau) et que son `lieu_id` est nul ou égal à `lieu_courant()` ; nul sinon.
   - `public._case_apercu(p_page text, p_plafond integer) returns integer` (aucun droit) : `p_plafond` si `apercu_titre()` est nul,
@@ -1347,12 +1391,20 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
   - Fragments : dans `case_promo`, `case_centre`, `case_reseau`, la branche d'aperçu `then pg.plafond else 0 end` devient `then
     _case_apercu(p_page, pg.plafond) else 0 end` ; dans `formateur_fixe`, `direction_fixe`, `siege_fixe`, la branche d'aperçu gagne
     `and _apercu_fixe()` (texte exact relevé dans `20261112_titres_2_gestes.sql` par le générateur).
-  - `public.mes_titres()` remplacée en entier, même retour : en aperçu `stagiaire`, aucune ligne ; en aperçu `formateur`,
+  - `public.mes_titres()` remplacée en entier, même retour, garde `titres: Connexion requise.` (42501) gardée en tête : en aperçu
+    `stagiaire`, aucune ligne ; en aperçu `formateur`,
     `direction`, `siege`, une ligne : `coalesce(apercu_titre(), titre_fixe(<niveau>))`, `lieu_id` = `lieu_courant()` (nul au réseau),
     `promo_ids` = `{promo_courante()}` pour un titre de promo, cases `_cases_effectives` ; hors aperçu, le texte de la migration 6.
   - `public.titres_ajustables(p_lieu_id integer) returns table(id bigint)` : même garde de lecture que `titres_visibles` ; parmi les
     titres non fixes qu'elle rendrait, ceux pour lesquels `_refus_gestion(niveau, coalesce(lieu_id, p_lieu_id), _cases_effectives(
-    coalesce(<version du centre>, id)))` est nul et que l'appelant ne porte pas (ni sa racine, ni une version). Authenticated.
+    coalesce(<version du centre>, id)))` est nul et que l'appelant ne porte pas (ni sa racine, ni une version). Les titres du réseau
+    visibles dans le centre (R, catalogue) en font partie : les ajuster crée la version du centre. Authenticated.
+  - `public.journal_present() returns boolean` (stable, authenticated) : `to_regclass('public.journal_droits') is not null`. L'écran
+    n'affiche la section Journal que s'il est vrai (I13 de la relecture : la section arrive avec la migration 4, à l'étape 4).
+  - Limite notée, non corrigée : `_cases_appelant` (migration 6) lit les vraies affectations même en aperçu ; en aperçu Direction +
+    un titre « Équipe : Modifier », « jamais plus que soi » compare donc aux vraies cases du fondateur. Aucun droit gagné (l'aperçu
+    ne fait que retirer : le fondateur n'a pas d'affectation, ses cases valent « Non ») ; l'aperçu peut refuser un geste que la
+    personne simulée aurait. Dit dans le rapport.
   - Retour : fragments inverses, `mes_titres` de la migration 6 (relue dans le fichier), suppressions ; garde D5 en tête.
 
 - [ ] **Step 1 : preuve, groupe `apercu`** : le fondateur, aperçu `formateur` sur la promo 1, en-tête du titre de `t_interv` :
@@ -1360,17 +1412,22 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
   `geste_promo(1,'emargement.tenir')` vrai, `stagiaires.supprimer` faux ; sans en-tête de titre : réponses d'aujourd'hui (plafond,
   `formateur_fixe` vrai) ; en-tête d'un titre de centre en aperçu `formateur` : ignoré (plafond) ; en-tête d'un titre du centre 2 en
   aperçu direction sur le centre 1 : ignoré ; aperçu `direction` + titre de `t_secr` : `case_centre(l1,'notes')` 0,
-  `direction_fixe(l1)` faux ; `form_n` (non fondateur) avec `x-apercu-role: formateur` et `x-apercu-titre` : ses propres réponses,
+  `direction_fixe(l1)` faux (appels par `pg_temp.appeler_t`) ; `form_n` (non fondateur) avec `x-apercu-role: formateur` et
+  `x-apercu-titre` : ses propres réponses,
   inchangées ; `dir_n` avec l'en-tête : inchangé ; en-tête `12abc` : ignoré, aucune erreur.
 - [ ] **Step 2 : preuve, groupe `ajustables`** : `mes_titres()` du fondateur en aperçu formateur + `t_interv` : une ligne Intervenant,
   `promo_ids {1}` ; en aperçu stagiaire : 0 ligne ; hors aperçu : ses vrais titres ; `titres_ajustables(<centre 1>)` par `t_chef` :
   le titre de `t_rh`, R (non porté par lui), pas Formateur, pas le titre de `t_secr` (plus que le sien), pas le sien ; par `dir_n` :
-  tous les non fixes du centre 1 ; par `t_rh` : aucun ; par `t_interv` : `ERREUR 42501` ; `titres_ajustables(null)` par `siege` : les
-  titres du réseau ; par `t_dirs` : ceux de niveau réseau au plus égaux aux siens (D1).
+  tous les non fixes visibles au centre 1, titres du réseau compris (R, `R_promo`) ; par `t_rh` : aucun ; par `t_interv` : `ERREUR 42501` ; `titres_ajustables(null)` par `siege` : les
+  titres du réseau ; par `t_dirs` : ceux de niveau réseau au plus égaux aux siens (D1) ; `has_function_privilege('anon',
+  'public.apercu_titre()', 'execute')` et `('authenticated', ...)` faux ; `journal_present()` faux sans la migration 4, vrai avec.
 - [ ] **Step 3 : contre-épreuve** (`suite --etapes 7`) : ROUGE sur `apercu` et `ajustables`.
 - [ ] **Step 4 : écrire la migration 8 et son retour ; vert.** `suite --etapes 7,8` : `VERT n/0` ; `titres-en-ligne` et `en-ligne`
   (rôles) sur la base `--production` + 7 + 8 : comptes de `apres-7/` (l'aperçu sans en-tête de titre ne change rien).
-- [ ] **Step 5 : mutant.** Retirer à la main `fondateur_reel()` de `apercu_titre` : ROUGE sur la ligne `form_n`. Reconstruire.
+- [ ] **Step 5 : mutants** (chacun sur la base locale, puis reconstruire ; retirer `fondateur_reel()` serait un mutant équivalent,
+  `apercu_role()` rendant déjà nul pour un non-fondateur) : (a) sans le contrôle du niveau dans `apercu_titre` : ROUGE sur « titre de
+  centre en aperçu formateur : ignoré » ; (b) sans le contrôle du centre : ROUGE sur « titre du centre 2 en aperçu direction sur le
+  centre 1 » ; (c) `formateur_fixe` sans `and _apercu_fixe()` : ROUGE sur « `formateur_fixe(1)` faux » et `stagiaires.supprimer`.
 - [ ] **Step 6 : commit** `Titres, étape 3, migration 8 : aperçu du fondateur par titre, mes_titres en aperçu, titres ajustables`.
 
 ### Task 26 : Règles pures des titres (`js/titres-rules.js`)
@@ -1387,8 +1444,9 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
     2), `stagiaires` (2), `emargement` (1), `notes` (1), `equipe` (Équipe, `equipe`, 2), `reglages` (Réglages du centre, `config`, 2) ;
     réseau `cours` (`themes`, 2), `directions` (Directions de centre, `directions`, 2), `reglages` (Réglages du réseau, `config`, 2).
   - `NIVEAU_DE_L_ESPACE` : `{ equipe: "promo", direction: "centre", siege: "reseau" }`.
-  - `casesDeLEspace({ espace, titres, promoId, lieuId }) -> { [page]: 0|1|2 } | null` : `titres` nul (lecture ratée) : nul ; stagiaire :
-    nul ; sinon le titre du niveau de l'espace qui porte sur la promo (promo), le centre (centre) ou le réseau, valeurs bornées par le
+  - `casesDeLEspace({ espace, titres, promoId, lieuId, fondateur = false }) -> { [page]: 0|1|2 } | null` : `fondateur` (le fondateur
+    hors aperçu, `fondateurHorsApercu()`) : nul, donc le plafond partout, comme la base (`fondateur_reel()` dans `case_*`) ; `titres`
+    nul (lecture ratée) : nul ; stagiaire : nul ; sinon le titre du niveau de l'espace qui porte sur la promo (promo), le centre (centre) ou le réseau, valeurs bornées par le
     plafond ; aucun titre de ce niveau : toutes les pages à 0.
   - `caseDe(cases, page, niveau) -> 0|1|2` : `cases` nul : le plafond de la page.
   - `choixDeLaPage(niveau, page) -> string[]` : `["non","voir","modifier"]`, `["non","voir"]` (plafond 1), `["non","modifier"]` (réglages).
@@ -1415,9 +1473,12 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
     le titre X », `ajuste` « a ajusté le titre X », `supprime` « a supprimé le titre X » ; `par` vaut `système` : « L'application » ;
     `nomDe(email)` rend le nom connu ou l'adresse.
   - `formateurFixeSur(titres, promoId) -> boolean | null` : nul si `titres` est nul.
+  - `ROUTES_A_CASE` : l'ensemble des routes de `PAGES_DU_NIVEAU` ; une route hors de cet ensemble n'a pas de case et n'est jamais
+    filtrée (accueil, `messages`, `contacts`...).
 
 - [ ] **Step 1 : tests rouges** (`node --test tests/titres-rules.test.mjs`), dont : `casesDeLEspace` d'un Formateur fixe = plafond
   partout (égalité stricte avec `{planning:2, emargement:2, stagiaires:2, notes:2, cours:2, ccp2:1, indicateurs:1, reglages:2}`) ;
+  fondateur hors aperçu sans aucun titre : nul (et non toutes les pages à 0) ;
   Intervenant sur la promo 1 : `{planning:1, emargement:2, stagiaires:1, notes:0, cours:1, ccp2:0, indicateurs:0, reglages:0}`, et
   toutes à 0 sur la promo 2 ; `titres` nul : nul ; `releverStagiaires("promo", {notes:"voir"})` relève et `releve` vrai, sans
   relever si Stagiaires est déjà « Modifier » ; `choixDeLaPage("centre","emargement")` vaut `["non","voir"]` ; les trois bandeaux,
@@ -1444,7 +1505,7 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
     `direction`, `siege` ; changer de titre vide le cache comme un changement d'aperçu.
   - `js/auth-admin.js` : `mesTitres` lu au démarrage avec les affectations (panne ou fonction absente : nul, sans message), relu à
     chaque changement d'aperçu ; `getMesTitres()`, `casesAffichees() -> {..}|null` (`casesDeLEspace` sur l'espace, la promo et le
-    centre affichés), `peutVoir(page) -> boolean`, `peutModifier(page) -> boolean` (`caseDe(...) >= 1` et `=== 2`) ;
+    centre affichés, `fondateur: fondateurHorsApercu()`), `peutVoir(page) -> boolean`, `peutModifier(page) -> boolean` (`caseDe(...) >= 1` et `=== 2`) ;
     `setViewAs(role, { titreId })`.
   - `js/roles-rules.js` : `droitsAffiches({ profil, promo, apercu, titres })` ; dans `droitsReels`, `admin` = `(fondateur et
     is_admin) ou (formateur et formateurFixeSur(titres, promo.id) !== false)` (M5) ; en aperçu `formateur` avec un titre non fixe,
@@ -1476,7 +1537,8 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
 
 - [ ] **Step 1 : écrire les RPC et les comptes ; rebâtir.** Run : `node _harness_build.mjs`. Expected : sortie sans erreur.
 - [ ] **Step 2 : contrôle.** Dans le Browser pane, `_harness.html?compte=secretariat` puis `?compte=intervenant` : console sans erreur ;
-  `await (await import("./js/db.js")).lireMesTitres()` rend une ligne aux cases du catalogue.
+  le module déjà chargé par la page (même adresse, jeton `?v=` compris, relevée dans les scripts de la page : un import sans jeton
+  chargerait un second module sans session) : `lireMesTitres()` rend une ligne aux cases du catalogue.
 - [ ] **Step 3 : pas de commit** (fichier hors git) : le rapport de la tâche donne le chemin du banc modifié pour la coordination.
 
 ### Task 29 : Barre filtrée, barre du téléphone, menu du compte, aperçu par titre
@@ -1489,23 +1551,32 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
 - Consumes : `casesAffichees`, `getMesTitres`, `setViewAs(role, { titreId })` (Task 27) ; `PAGES_DU_NIVEAU`, `caseDe`,
   `ceQueJePeuxFaire`, `libelleTitre` (Task 26).
 - Produces :
-  - `entreesNavigation(espace, { ..., cases = null })` : une entrée dont la page a la case 0 disparaît ; l'accueil de chaque espace
-    reste ; `cases` nul : sortie d'aujourd'hui.
+  - `entreesNavigation(espace, { ..., cases = null })` : une entrée dont la route est dans `ROUTES_A_CASE` et dont la page a la case
+    0 disparaît ; toute autre entrée reste (accueil, `messages`, `contacts`) ; `cases` nul : sortie d'aujourd'hui.
+  - `js/main.js` l. 96 : `formateur: isAdmin()` devient `formateur: peutModifier("emargement")` (I3 de la relecture : avec M5,
+    `isAdmin()` est faux pour un Intervenant, qui a Émargement : Modifier ; pour un titre fixe, les deux valent pareil).
   - `barreTelephone(espace, entrees)` : la liste fixe de l'espace, moins les entrées absentes, complétée par les entrées suivantes dans
     l'ordre de la barre jusqu'au même nombre ; barre dans l'ordre des entrées ; le reste dans `plus`.
   - menu du compte, sous la tête : « Mon titre » (`libelleTitre`, une ligne par titre) et « Ce que je peux faire » (liste repliée,
     `ceQueJePeuxFaire`) ; rien pour un stagiaire ni hors lecture des titres.
   - aperçu : sous les aperçus Formateur, Direction, Siège, un choix « Titre » (titres du niveau, Formateur, Direction de centre ou Siège
-    en premier), fondateur seul, lu par `lireTitresVisibles`.
+    en premier), fondateur seul. La liste se lit **hors aperçu** (`lireTitresVisibles(<centre affiché>)` et `lireTitresVisibles(null)`)
+    à la première ouverture du menu, puis reste en mémoire pour la session : en aperçu, `titres_visibles` refuserait (42501, le
+    fondateur n'y est plus fondateur). Changer de titre simulé ne relit rien.
 
 - [ ] **Step 1 : tests rouges** (`tests/nav-rules.test.mjs`) : pour les quatre espaces, `cases` du titre fixe donne exactement la sortie
   de `cases = null` (entrées et barre du téléphone) ; Intervenant (émargement allumé) : entrées `home, planning, emargement,
   stagiaires, themes`, barre `home, planning, emargement, stagiaires`, plus `themes` ; Secrétariat (une promo du centre a
   l'émargement allumé) : entrées `centre, promos,
   stagiaires, emargement, equipe`, barre `centre, promos, stagiaires, equipe`, plus `emargement` ; titre du réseau Qualité : `reseau,
-  themes, directions`, barre identique, plus vide.
+  themes, directions`, barre identique, plus vide ; fondateur hors aperçu sans affectation (`cases` nul par `casesDeLEspace`) : sortie
+  de `cases = null` ; entrées fictives `{ id: "messages", route: "messages" }` (espace équipe) et `{ id: "contacts", route:
+  "contacts" }` ajoutées à la liste : présentes après le filtre, quelles que soient les cases (Intervenant, Secrétariat, toutes à 0) ;
+  Intervenant, émargement allumé, avec `formateur` calculé par `peutModifier("emargement")` sur les drapeaux réels de `droitsAffiches` :
+  l'entrée Émargement est là.
 - [ ] **Step 2 : écrire** ; Run : `node --test "tests/*.test.mjs"`. Expected : PASS.
-- [ ] **Step 3 : banc.** `?compte=intervenant`, `?compte=secretariat`, fondateur en aperçu Formateur + Intervenant, sur ordinateur et
+- [ ] **Step 3 : banc.** `?compte=intervenant`, `?compte=secretariat`, fondateur en aperçu Formateur + Intervenant (le choix « Titre »
+  se rouvre en aperçu et liste les titres), sur ordinateur et
   en `mobile` (375 x 812) : barres attendues, menu « Mon titre », aucun défilement de côté (`document.documentElement.scrollWidth <=
   innerWidth`), cibles du menu et du choix de titre d'au moins 44 px.
 - [ ] **Step 4 : commit** `Titres, étape 3 : barre selon les cases, Mon titre, aperçu par titre`.
@@ -1517,7 +1588,8 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
   `views/emargement.js`, `views/planning.js`, `views/calendrier.js`, `views/dashboard.js`, `views/passages.js`, `views/stagiaires.js`,
   `views/notes.js`, `views/epcf-livret.js`, `views/dp.js`, `views/attestations.js`, `views/themes.js`, `views/ressources.js`,
   `views/config.js`, `views/aujourdhui.js`) ; `views/direction-promos.js`, `views/direction-stagiaires.js`,
-  `views/direction-centre.js` ; un test par règle déplacée dans le fichier de test existant de la vue (ou `tests/lot-titres-vues.test.mjs`)
+  `views/direction-centre.js`, `views/reglages-donnees.js`, `views/stagiaires-gestion.js`, `modules-etat.js`, `autonomie-etat.js` ;
+  un test par règle déplacée dans le fichier de test existant de la vue (ou `tests/lot-titres-vues.test.mjs`)
 
 **Interfaces:**
 - Consumes : `peutVoir(page)`, `peutModifier(page)` (Task 27).
@@ -1527,6 +1599,15 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
     (`emargement`), Planning, Dates clés, Priorités, passages (`planning`), Stagiaires, élèves bénévoles (`stagiaires`), Notes, EPCF,
     livret, dossier pro, attestations (`notes`), Cours et QCM, Documents, À traiter (`cours`), Réglages (`reglages`). Les gestes
     définitifs (anonymiser, supprimer une fiche, purger) gardent `isAdmin()` **et** le titre fixe (`formateurFixeSur(...) !== false`).
+  - Les sept appels `isEquipe()` (`isEquipe` = `admin` ou direction ; avec M5, faux pour un titre de promo non fixe) : `emargement.js`
+    l. 52 (la page s'ouvre en lecture) devient `peutVoir("emargement")` ; `stagiaires-gestion.js` l. 34 et `config.js` l. 307 (inviter,
+    gérer les accès d'une promo) `peutModifier("stagiaires")` ; `config.js` l. 442 (section Réglages de la promo)
+    `peutModifier("reglages")` ; `modules-etat.js` l. 126 (régler les modules) `peutModifier("reglages")` ; `autonomie-etat.js` l. 36
+    (drapeaux du suivi) `equipe: peutVoir("stagiaires")`. Pour un titre fixe et pour la direction fixe, chaque remplacement vaut
+    l'ancien appel (test d'égalité).
+  - `views/reglages-donnees.js` (purge des bénévoles, anonymisation, Réglages du centre) : la section n'apparaît qu'à la direction
+    fixe du centre (titre de centre de `mesTitres` avec `fixe` vrai) ou au fondateur ; un titre de centre « Réglages : Modifier » non
+    fixe ne la voit pas (la base la refuserait, T1).
   - Aujourd'hui : Émargement `emargementActif() && peutModifier("emargement")` ; À traiter `peutModifier("cours")` ; Au tableau, En
     voiture `peutVoir("planning")` ; À suivre de près `peutVoir("notes")`. Vue d'ensemble de la direction : Assiduité et abandons
     `peutVoir("stagiaires")` ; Résultats, comparaison, À suivre, thèmes `peutVoir("notes")`. Vues de la direction : créer une promo,
@@ -1556,9 +1637,15 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
     (`ceQueJePeuxFaire`), « Masqué dans sa barre », bouton « Inviter » (`donnerTitre`) ; si la personne a déjà un autre titre au même
     niveau, `confirmer` : « Cette personne a déjà le titre X : il sera remplacé. » ; (3) **Titres du centre** : nom, niveau, origine
     (« Réseau » ou « Centre »), porteurs, cadenas et « Fixe » pour un titre fixe, « Ajuster » si l'identifiant est dans
-    `lireTitresAjustables`, « Créer un titre à partir de celui-ci » (`demander` le nom, puis `creerTitre`), « Supprimer » si ajustable
-    et sans porteur (`confirmer`) ; (4) **Journal**, replié (`<details>`), `phraseJournal`, « Aucune ligne pour le moment » si vide.
+    `lireTitresAjustables`, « Créer un titre à partir de celui-ci » (`demander` le nom, puis `creerTitre`), « Supprimer » seulement
+    pour un titre dont `lieu_id` est ce centre, ajustable et sans porteur (`confirmer`) : un titre du réseau ne se supprime pas
+    depuis un centre (`supprimer_titre` le juge sans centre, règle 4 de D1) ; (4) **Journal**, replié (`<details>`), `phraseJournal`,
+    « Aucune ligne pour le moment » si vide, affiché seulement si `journal_present()` est vrai (donc à partir de l'étape 4).
     Section 2 visible si au moins un titre est donnable ; section 3 si `peutVoir("equipe")`.
+  - Gestes sur une personne (règle pure `gestesSurPersonne({ cases, directionFixe, personne, moi })` de `js/titres-rules.js`, testée) :
+    « Changer de titre » et « Retirer » pour un titre de promo ou de centre non fixe si `peutModifier("equipe")` ; pour le titre fixe
+    Formateur si la personne connectée a la direction fixe du centre ; jamais pour Direction de centre (le siège seul) ; jamais sur
+    soi, sauf la direction fixe sur son propre titre Formateur. Le reste, la base le refuse avec sa phrase.
   - `ouvrirEditeurTitre({ titre, niveau, lieuId, porteurs, apres })` (`js/views/titres-editeur.js`) : nom ; rappel du niveau ; une
     ligne par page (`choixDeLaPage`, boutons radio de 44 px) ; Stagiaires relevé de lui-même avec `PHRASE_STAGIAIRES_RELEVE` ;
     bandeaux ; « Sa barre » en direct (`entreesNavigation` avec ces cases) pour un titre de centre et du réseau ; `phrasePorteurs` ou
@@ -1566,14 +1653,17 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
   - M3 : « Modifier les promos » d'une personne passe par `donnerTitre` avec son titre de promo et la nouvelle liste ; « Retirer du
     centre » par `retirerTitre` ; `reglerAffectationsFormateur` n'est plus importée.
 
-- [ ] **Step 1 : tests rouges** (`tests/titres-editeur.test.mjs`, aides DOM de `tests/aides-dom.mjs`) : relever Notes à « Voir »
+- [ ] **Step 1 : tests rouges** (`tests/titres-editeur.test.mjs`, aides DOM de `tests/aides-dom.mjs`) : `gestesSurPersonne` pour les
+  cas de la règle ci-dessus (Secrétariat : aucun geste ; Responsable pédagogique sur un Intervenant : changer et retirer ; sur une
+  Formatrice : aucun ; direction fixe sur elle-même Formateur : retirer) ; « Supprimer » absent d'un titre du catalogue vu depuis un
+  centre ; relever Notes à « Voir »
   coche Stagiaires « Voir » et montre la phrase ; Équipe « Modifier » montre `BANDEAU_EQUIPE` ; un titre du réseau ajusté depuis un
   centre demande la confirmation avec `phraseVersionCentre(1)` ; « Enregistrer » envoie exactement les cases affichées.
 - [ ] **Step 2 : écrire** ; Run : `node --test "tests/*.test.mjs"`. Expected : PASS.
 - [ ] **Step 3 : banc** (`?compte=direction&titres_ouverts=1`, `?compte=secretariat`, ordinateur et téléphone) : inviter un
   Intervenant sur deux promos, changer ses promos, le retirer ; ajuster un titre du réseau (version créée, confirmation) ; Secrétariat
   (Équipe : Voir) voit les sections 1, 3 et 4 sans aucun geste ; verrou fermé : la liste « Titre » n'offre que Formateur ; aucun
-  défilement de côté ; refus du banc montré par sa phrase.
+  défilement de côté ; refus du banc montré par sa phrase ; `?journal=absent` : pas de section Journal.
 - [ ] **Step 4 : commit** `Titres, étape 3 : page Équipe (personnes, inviter, titres du centre, ajuster, journal)`.
 
 ### Task 32 : Directions de centre, Réglages du fondateur, Personnes avec accès
@@ -1587,22 +1677,27 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
 - Produces :
   - `renderDirections` : par centre, ses personnes (`lirePersonnesEtTitres()`, niveau centre) avec pastilles et « Retirer » ;
     « Inviter » (adresse, centre, titre de centre donnable : Direction de centre, catalogue, titres du centre) par `donnerTitre` ;
-    section **Titres du réseau** (`lireTitresVisibles(null)`, « Ajuster » selon `lireTitresAjustables(null)`, créer, supprimer) ;
+    section **Titres du réseau** (`lireTitresVisibles(null)`, « Ajuster » selon `lireTitresAjustables(null)`, créer, supprimer, et
+    « Donner » sur chaque titre de niveau réseau dont `donnable` est vrai : adresse seule, `donnerTitre({ email, titreId, lieuId: null
+    })`) ;
     **Journal du réseau** replié ; « Ajouter un centre » inchangé.
   - Réglages du fondateur (`config.js`) : le choix « Siège » devient « Titre du réseau » (Siège et titres de niveau réseau) par
-    `donnerTitre(email, titre, null)` ; section « Titres à la carte » : état du verrou (`lireTitresOuverts`) et bouton « Ouvrir les
+    `donnerTitre({ email, titreId, lieuId: null })` ; section « Titres à la carte » : état du verrou (`lireTitresOuverts`) et bouton « Ouvrir les
     titres à la carte » / « Fermer », par `confirmer` (texte : « Les titres autres que Formateur, Direction de centre et Siège pourront
     être donnés. Les conditions d'utilisation qui les décrivent doivent être en ligne. »), `reglerTitresOuverts`. Le plan livre le
     bouton ; seul Timy l'appuie.
   - « Personnes avec accès » : `pastillesDuProfil({ profil, titres })` (`titres` : lignes de `lirePersonnesEtTitres({ promoId })`) ;
-    un stagiaire garde « stagiaire » ; `titres` nul (panne, fonction absente) : sortie d'aujourd'hui par `roles` ; `config.js` lit
-    `lirePersonnesEtTitres` à la place de `lireRolesDuPersonnel`.
+    un stagiaire garde « stagiaire » ; `titres` nul (panne, fonction absente) : sortie d'aujourd'hui par `roles`. `config.js` lit
+    `lirePersonnesEtTitres({ promoId })` **et** `lireRolesDuPersonnel` : `personnes_et_titres` ne rend pas les titres du réseau, donc
+    un compte du siège listé garde sa pastille « siège » par `roles` ; un compte du personnel sans titre sur la promo ni sur le centre
+    (ni siège) garde l'étiquette d'aujourd'hui.
 
 - [ ] **Step 1 : tests rouges** (`tests/roles-rules.test.mjs`) : titres fixes (Formateur sur la promo, Direction de centre) : pastilles
-  `formateur` et `direction` comme aujourd'hui ; Intervenant : `Intervenant` ; deux titres : deux pastilles ; `titres` nul : sortie
-  d'aujourd'hui.
+  `formateur` et `direction` comme aujourd'hui ; Intervenant : `Intervenant` ; deux titres : deux pastilles ; compte du siège (aucune
+  ligne de titre, `roles` le dit siège) : « siège » ; `titres` nul : sortie d'aujourd'hui.
 - [ ] **Step 2 : écrire** ; Run : `node --test "tests/*.test.mjs"`. Expected : PASS.
-- [ ] **Step 3 : banc** (`?compte=siege&titres_ouverts=1`, fondateur, téléphone) : inviter une Qualité au réseau, un Secrétariat au
+- [ ] **Step 3 : banc** (`?compte=siege&titres_ouverts=1`, fondateur, téléphone) : donner Qualité à une adresse (bouton « Donner » des
+  Titres du réseau), un Secrétariat au
   centre 1, ajuster le titre du réseau Contenus pédagogiques, journal du réseau sans ligne de niveau promo ; le bouton du verrou passe
   par la fenêtre de confirmation, jamais une boîte du navigateur.
 - [ ] **Step 4 : commit** `Titres, étape 3 : Directions de centre, titres du réseau, verrou du fondateur, Personnes avec accès par titre`.
@@ -1637,8 +1732,8 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
   { id: "<date>-titres-ecrans", date: "<date de mise en ligne>", pour: "direction",
     titre: "Chacun a son titre",
     resume: "Dans Équipe, chaque personne porte désormais son titre (Formateur, Direction de centre), dans des pastilles. "
-          + "La page réunit les personnes, l'invitation, les titres du centre et le journal des droits. Le menu de votre compte "
-          + "montre votre titre et ce qu'il vous permet.",
+          + "La page réunit les personnes, l'invitation et les titres du centre. Le menu de votre compte montre votre titre et "
+          + "ce qu'il vous permet.",
     ou: { route: "equipe", label: "Équipe" } }
   ```
   et la même pour `pour: "siege"` (« Dans Directions de centre... », `ou` vers `directions`).
@@ -1654,10 +1749,13 @@ migration ajoute la lecture `titres_ajustables(p_lieu_id)` (les titres que l'app
 - [ ] **Step 4 : commit** `Titres, étape 3 : Nouveautés de la direction et du siège`.
 - [ ] **Step 5 : préparer et signaler.** Rapport à la coordination : fichiers de l'app, migration 8, verdicts, chemin du banc modifié.
   Ordre de mise en ligne de l'étape 3 (par la coordination, accord explicite de Timy pour la base) : essai à blanc de la migration 8 ;
-  application ; preuves après (Step 2, en production) ; fusion de la branche dans main et poussée (le crochet pose le jeton) ;
-  contrôle de l'app en ligne avec le compte du fondateur (aperçu Formateur + Intervenant ; en-tête `x-apercu-titre` accepté par
-  l'API : aucune erreur CORS en console). Verrou fermé : seuls les titres fixes se donnent ; les écrans montrent les titres. Un ROUGE
-  après application : retour 8 aussitôt.
+  avant l'essai, contrôle sans risque de l'en-tête par la coordination : `curl -X OPTIONS` sur l'API de données avec `Origin` de
+  l'app et `Access-Control-Request-Headers: x-apercu-titre` (la réponse doit l'autoriser ; sinon, s'arrêter) ; application ; preuves
+  après (Step 2, en production) ; fusion de la branche dans main et poussée (le crochet pose le jeton) ; contrôle de l'app en ligne
+  par Timy, connecté avec son compte (geste de Timy : aperçu Formateur + Intervenant, aucune erreur en console). Verrou fermé : seuls
+  les titres fixes se donnent ; les écrans montrent les titres. Un ROUGE après application, avant la fusion : retour 8 aussitôt ;
+  après la fusion : d'abord `git revert` du commit de fusion et poussée (l'app appelle `titres_ajustables` et `journal_present`),
+  puis retour 8.
 
 Taille estimée de l'étape 3 : migration 7 environ 300 lignes et retour 250, migration 8 environ 250 et retour 200, preuve de la suite
 900, script de concurrence 120 ; app environ 1 400 lignes (règles 300, éditeur 250, Équipe 450, siège et réglages 250, vues 150) et
@@ -1669,16 +1767,21 @@ Taille estimée de l'étape 3 : migration 7 environ 300 lignes et retour 250, mi
 
 État de départ supposé : étape 3 en ligne (migrations 7 et 8 appliquées, écrans fusionnés), verrou fermé.
 
+**Version regroupée des conditions (coordination, 14/11).** Les textes des titres, de l'espace contact et du jury entrent dans les
+conditions d'utilisation en **une seule version**, posée par la coordination. Ce chantier n'écrit donc pas `js/legal-data.js` : il
+livre son texte (Task 36) ; `VERSION_CONDITIONS`, l'application de `_4_journal` et le rejeu de `autonomie_2_version` se font avec la
+date de cette version regroupée, notée `<V>` ci-dessous (AAAA-MM-JJ, postérieure à `2026-11-14`, jour de sa mise en ligne).
+
 ### 6.F Fichiers de l'étape 4
 
 | Fichier | Rôle |
 |---|---|
 | `supabase/migrations/20261115_titres_9_catalogue.sql` et `_retour.sql` | les six titres du réseau du § 6.2 |
-| `supabase/migrations/20261112_titres_4_journal.sql` | appliquée telle quelle (aucune retouche) |
-| `supabase/migrations/20261114_autonomie_2_version.sql` | rejouée telle quelle avec la nouvelle date (`-v version=<date>`) |
+| `supabase/migrations/20261112_titres_4_journal.sql` | appliquée telle quelle (aucune retouche), le jour de `<V>` |
+| `supabase/migrations/20261114_autonomie_2_version.sql` | rejouée telle quelle avec `-v version=<V>` |
 | `tests/sql/titres-suite-preuve.sql` | groupes `catalogue` et `journal_suite` |
-| `js/legal-data.js`, `tests/legal-rules.test.mjs` | texte et version des conditions |
-| `js/nouveautes-data.js` | deux entrées (direction, siège) |
+| `docs/superpowers/plans/2026-11-11-titres-droits-conditions.md` (créé) | texte des conditions des titres, remis à la coordination |
+| `js/nouveautes-data.js` | deux entrées (direction, siège), commit à part, datées de l'ouverture du verrou |
 | `supabase/functions/chatbot/aide.mjs`, `tests/chatbot-aide.test.mjs` | guide de l'assistant |
 
 ### Task 35 : Le catalogue (migration 9)
@@ -1699,36 +1802,38 @@ Taille estimée de l'étape 3 : migration 7 environ 300 lignes et retour 250, mi
   Contenus pédagogiques    reseau  cours modifier, directions non, reglages non
   Qualité                  reseau  cours voir, directions voir, reglages non
   ```
-  Gardes : la migration 6 est là (`to_regprocedure('public.donner_titre(...)')`), aucun titre sans centre ne porte déjà l'un de ces
-  noms (casse ignorée), chaque jeu de cases passe `_cases_valides` ; sinon arrêt. Retour : garde D5, garde « aucune version de centre
-  de ces titres » (sinon arrêt avec la liste), puis suppression des six par nom et `cree_par`.
+  Gardes : la migration 6 est là (`to_regprocedure('public.donner_titre(text, bigint, integer, integer[], integer)')`) ; **aucun titre,
+  avec ou sans centre, d'origine nulle** (`origine_id` nul) ne porte l'un des six noms (casse ignorée), sinon arrêt avec la liste
+  (titre, centre) : la création n'étant pas verrouillée (T16), une direction peut avoir créé « Secrétariat » dans son centre depuis
+  l'étape 3, et M7 interdirait ce doublon par les fonctions ; chaque jeu de cases passe `_cases_valides`. Aucune règle touchée.
+  Retour : garde D5, garde « aucune version de centre de ces titres » (sinon arrêt avec la liste), puis suppression des six par nom
+  et `cree_par`.
 
 - [ ] **Step 1 : preuve, groupe `catalogue`** : six titres, niveaux et cases égaux mot pour mot au tableau ; `titres_visibles(<centre
   1>)` par `dir_n` les montre (Intervenant, Responsable pédagogique, Ressources humaines, Secrétariat), `donnable` faux verrou fermé,
   vrai verrou ouvert (en propriétaire) ; `dir_n` donne Secrétariat à `x` au centre 1, verrou ouvert : `x` lit `stagiaires`, aucune
-  `evaluations`.
+  `evaluations` ; garde : la migration jouée dans une sous-transaction après la pose d'un titre « Secrétariat » au centre 1 s'arrête
+  avec la liste, rien de créé.
 - [ ] **Step 2 : contre-épreuve** (`suite --etapes 7,8`) : ROUGE sur `catalogue`.
 - [ ] **Step 3 : écrire la migration 9 et son retour ; vert.** `suite --etapes 7,8,9` : `VERT n/0`.
 - [ ] **Step 4 : commit** `Titres, étape 4, migration 9 : le catalogue de six titres du réseau`.
 
-### Task 36 : Les conditions d'utilisation
+### Task 36 : Le texte des conditions des titres, remis à la coordination
 
 **Files:**
-- Modify: `js/legal-data.js`, `tests/legal-rules.test.mjs` (un test qui retrouve les passages neufs)
+- Create: `docs/superpowers/plans/2026-11-11-titres-droits-conditions.md`
+- `js/legal-data.js` **n'est pas modifié** (la coordination regroupe les textes des titres, du contact et du jury en une version).
 
 **Interfaces:**
-- Produces : `VERSION_CONDITIONS = "<date de mise en ligne>"` (posée le jour même, AAAA-MM-JJ, postérieure à `2026-11-14`, et
-  EXACTEMENT la valeur passée à `autonomie_2_version`) ; commentaire d'en-tête « Version <date> (titres et droits à la carte) :
-  nouveaux lecteurs (le personnel des centres selon son titre), journal des droits gardé trois ans ; passages neufs : ... ». Texte
-  ajouté (au vouvoiement, comme tout le fichier), à faire lire par Timy avant la mise en ligne :
-  - **L'essentiel, ligne 4**, la phrase « La direction de votre centre voit, comme vos formateurs, votre suivi nominatif (...) »
-    devient : « La direction de votre centre, et les membres de son équipe à qui elle en donne le droit selon leur fonction, voient,
+- Produces : un fichier de notes, au vouvoiement comme tout `js/legal-data.js`, qui dit pour chaque passage l'endroit exact du
+  texte en vigueur (section, ligne ou tableau, phrase d'ancrage citée) et le texte à poser, mot pour mot :
+  - **L'essentiel, ligne 4** : la phrase « La direction de votre centre voit, comme vos formateurs, votre suivi nominatif (...) »
+    devient « La direction de votre centre, et les membres de son équipe à qui elle en donne le droit selon leur fonction, voient,
     comme vos formateurs, votre suivi nominatif (notes, planning, passages, absences, date de naissance) ; ».
-  - **§ 2**, « (formateurs, ECF) » devient « (formateurs, intervenants, personnel des centres et du siège d'ECF) ».
-  - **§ 3**, ligne ajoutée au tableau, après « Historique » : `| Droits du personnel | Pour les formateurs et le personnel d'ECF :
-    leur titre, les promos ou le centre où il s'exerce, et le journal des droits (qui a donné, retiré, créé ou modifié quel titre,
-    quand) |`
-  - **§ 4**, deux paragraphes ajoutés après celui qui définit « Direction de votre centre » et « Siège d'ECF » :
+  - **§ 2** : « (formateurs, ECF) » devient « (formateurs, intervenants, personnel des centres et du siège d'ECF) ».
+  - **§ 3**, ligne ajoutée au tableau après « Historique » : `| Droits du personnel | Pour les formateurs et le personnel d'ECF : leur
+    titre, les promos ou le centre où il s'exerce, et le journal des droits (qui a donné, retiré, créé ou modifié quel titre, quand) |`
+  - **§ 4**, deux paragraphes après celui qui définit « Direction de votre centre » et « Siège d'ECF » :
     « **L'équipe de votre centre.** La direction de votre centre peut confier une partie de ces accès à d'autres membres de son
     équipe, selon leur fonction : par exemple un secrétariat, qui gère les fiches des stagiaires (identité, coordonnées, date de
     naissance, passages) sans voir les notes, ou un intervenant, qui tient les feuilles d'émargement des promos où il intervient.
@@ -1740,17 +1845,21 @@ Taille estimée de l'étape 3 : migration 7 environ 300 lignes et retour 250, mi
     note : quand, par qui, pour qui, sur quelle promo ou quel centre, et ce que le titre permettait avant et après. Ce journal ne
     concerne que le personnel : aucune invitation de stagiaire n'y figure. Personne ne peut le modifier. Il est lu par les personnes
     qui gèrent l'équipe d'un centre, pour ce centre, par le siège d'ECF, sans les titres donnés sur une promo, et par l'éditeur. »
-  - **§ 10**, ligne ajoutée au tableau, avant « Statistiques anonymes » : `| Journal des droits du personnel | Trois ans, puis
+  - **§ 10**, ligne ajoutée au tableau avant « Statistiques anonymes » : `| Journal des droits du personnel | Trois ans, puis
     effacement automatique |`
-  - **§ 12**, phrase ajoutée à la fin du paragraphe « Effacement sur demande » : « Pour un membre du personnel, l'effacement remplace
-    son adresse par « compte effacé » dans le journal des droits : la trace du geste reste, sans son nom. »
+  - **§ 12**, à la fin du paragraphe « Effacement sur demande » : « Pour un membre du personnel, l'effacement remplace son adresse par
+    « compte effacé » dans le journal des droits : la trace du geste reste, sans son nom. »
+  - **Mise en œuvre de la promesse du § 12** (I18 de la relecture), écrite dans le même fichier : aucun écran ; à toute demande
+    d'effacement d'un membre du personnel, l'éditeur (le fondateur) appelle `select public.effacer_adresse_journal('<adresse>')` par
+    `outils/psql_prod.sh`, dans le délai d'un mois du § 12, et note la demande et le nombre de lignes rendu au registre qualité. Un
+    bouton dans Réglages du fondateur reste possible plus tard (à décider par Timy avant de valider le texte).
+  - Pour la coordination : les passages neufs à citer dans le commentaire d'en-tête de `js/legal-data.js` ; la règle de date (`<V>` =
+    `VERSION_CONDITIONS` = la valeur passée à `autonomie_2_version`).
 
-- [ ] **Step 1 : test rouge** (`tests/legal-rules.test.mjs`) : `CONDITIONS_MD` contient « Journal des droits du personnel » deux fois
-  au moins, « L'équipe de votre centre », « compte effacé » ; `VERSION_CONDITIONS > "2026-11-14"` ; aucun U+2014.
-- [ ] **Step 2 : écrire le texte**, version posée à une date de travail `2026-11-15`, à remplacer le jour de la mise en ligne. Run :
-  `node --test "tests/*.test.mjs"`. Expected : PASS.
-- [ ] **Step 3 : commit isolé** `Conditions d'utilisation : titres et journal des droits (texte à valider par Timy)` (il se retire seul
-  par `git revert` si Timy réécrit le texte).
+- [ ] **Step 1 : écrire le fichier** ; contrôle U+2014 en Python ; chaque phrase d'ancrage citée est retrouvée telle quelle dans
+  `js/legal-data.js` de main (`git grep -F` par phrase, une occurrence).
+- [ ] **Step 2 : commit isolé** `Titres, étape 4 : texte des conditions des titres, pour la version regroupée`.
+- [ ] **Step 3 : remettre** le chemin du fichier à la coordination (rapport) ; Timy le lit avec les textes du contact et du jury.
 
 ### Task 37 : Le journal sur la base complète
 
@@ -1758,17 +1867,21 @@ Taille estimée de l'étape 3 : migration 7 environ 300 lignes et retour 250, mi
 - Modify: `tests/sql/titres-suite-preuve.sql`
 
 **Interfaces:**
-- Consumes : `20261112_titres_4_journal.sql` (inchangée), migrations 5 à 9.
+- Consumes : `20261112_titres_4_journal.sql` (inchangée), migrations 5 à 9 ; mode `suite --etapes 4,9` (Task 20).
 
-- [ ] **Step 1 : preuve, groupe `journal_suite`** (joué seulement si `journal_droits` existe) : la migration 9 jouée après la 4
-  écrit six lignes `cree`, `par` `système` ; `t_chef` ajuste R depuis le centre 1 : `cree` (version), puis `retire` et `donne` par
-  porteur basculé (T17) ; `donner_titre` d'Intervenant : `donne`, `par` son adresse, aucune adresse de stagiaire dans le journal ;
-  `journal_des_droits(<centre 1>)` par `t_secr` (Équipe : Voir) : ces lignes ; par `t_interv` : `ERREUR 42501` ;
-  `journal_des_droits()` par `siege` : aucune ligne de niveau promo ; `effacer_adresse_journal` par le fondateur : `par` et `pour`
-  remplacés.
-- [ ] **Step 2 : répétition.** Base `--production` + 7 + 8, application de la 4 (`psql -1 -f`) : `titres-en-ligne` (groupe `journal`
-  joué), `gestion-en-ligne`, `suite --etapes 9` : `VERT n/0` ; retour 4 seul puis les mêmes : verts (journal sauté avec information).
-- [ ] **Step 3 : commit** `Titres, étape 4 : le journal prouvé sur la base complète (migrations 4 à 9)`.
+- [ ] **Step 1 : preuve, groupe `journal_suite`** (joué dans les modes injectés et en contre-épreuve ; sauté avec information en
+  `suite-en-ligne` si `journal_droits` manque) : la migration 9 jouée après la 4 écrit six lignes `cree`, `par` `système`, niveau
+  et `lieu_id` nul ; `t_chef` ajuste R depuis le centre 1 : `cree` (la version, `lieu_id` du centre 1), puis `retire` et `donne` par
+  porteur basculé (T17) ; `donner_titre` d'Intervenant au centre 1 : `donne`, `par` son adresse, aucune adresse de stagiaire dans le
+  journal ; `journal_des_droits(<centre 1>)` par `t_secr` (Équipe : Voir) : exactement les lignes de `lieu_id` centre 1 (la version de
+  R, les bascules, le don d'Intervenant), aucune des six lignes du catalogue (`lieu_id` nul) ; par `t_interv` : `ERREUR 42501` ;
+  `journal_des_droits()` par `siege` : les six lignes du catalogue, aucune ligne de niveau promo ; `effacer_adresse_journal` par le
+  fondateur : `par` et `pour` remplacés.
+- [ ] **Step 2 : contre-épreuve.** `suite --etapes 9` sur une base sans la 4 : ROUGE sur `journal_suite` (table absente en mode
+  injecté).
+- [ ] **Step 3 : vert.** Base `--production`, 7 et 8 appliquées à la main (`psql -1 -f`) : `suite --etapes 4,9` : `VERT n/0`, groupe
+  `retour` : empreinte d'après les retours 9 puis 4 égale à celle d'avant.
+- [ ] **Step 4 : commit** `Titres, étape 4 : le journal prouvé sur la base complète, essai à blanc de la 4 et de la 9`.
 
 ### Task 38 : Nouveautés et guide de l'assistant
 
@@ -1777,59 +1890,77 @@ Taille estimée de l'étape 3 : migration 7 environ 300 lignes et retour 250, mi
 
 **Interfaces:**
 - Produces :
-  - Nouveautés, au vouvoiement, `date` = jour de mise en ligne : `pour: "direction"`, titre « Des titres pour toute votre équipe »,
-    résumé « Secrétariat, responsable pédagogique, ressources humaines, intervenant : invitez chaque personne avec le titre qui
-    convient à sa fonction, depuis Équipe. Chaque titre dit page par page ce qu'elle peut voir ou modifier ; vous pouvez l'ajuster pour
-    votre centre ou en créer un à partir d'un autre. Chaque changement reste dans le journal. », `ou` vers `equipe` ; `pour: "siege"`,
-    titre « Des titres pour le réseau », résumé « Contenus pédagogiques et Qualité rejoignent le siège ; les titres de centre se donnent
-    depuis Directions de centre. Le siège crée et ajuste les titres de centre proposés à tout le réseau. », `ou` vers `directions`.
-  - `aide.mjs` : ligne `equipe` de `AIDE_APP_DIRECTION` réécrite (personnes et titres, inviter avec un titre, titres du centre,
-    ajuster, journal) ; ligne `directions` de `AIDE_APP_SIEGE` (titres du réseau, journal du réseau) ; `AIDE_APP` : « Mon titre » et
-    « Ce que je peux faire » dans le menu du compte, et une page masquée par le titre n'existe pas pour la personne.
+  - Nouveautés, au vouvoiement, **dans un commit à part, daté et poussé le jour où Timy ouvre le verrou** (I14 de la relecture :
+    avant, la liste « Titre » n'offre que Formateur) : `pour: "direction"`, titre « Des titres pour toute votre équipe », résumé
+    « Secrétariat, responsable pédagogique, ressources humaines, intervenant : invitez chaque personne avec le titre qui convient à sa
+    fonction, depuis Équipe. Chaque titre dit page par page ce qu'elle peut voir ou modifier ; vous pouvez l'ajuster pour votre centre
+    ou en créer un à partir d'un autre. Chaque changement reste dans le journal, en bas de la page. », `ou` vers `equipe` ;
+    `pour: "siege"`, titre « Des titres pour le réseau », résumé « Contenus pédagogiques et Qualité rejoignent le siège ; les titres
+    de centre se donnent depuis Directions de centre, où le journal du réseau garde chaque changement. Le siège crée et ajuste les
+    titres de centre proposés à tout le réseau. », `ou` vers `directions`. La date est posée le jour même.
+  - `aide.mjs` (part avec l'étape 4) : ligne `equipe` de `AIDE_APP_DIRECTION` réécrite (personnes et titres, inviter avec un titre,
+    titres du centre, ajuster, journal) ; ligne `directions` de `AIDE_APP_SIEGE` (titres du réseau, « Donner », journal du réseau) ;
+    `AIDE_APP` : « Mon titre » et « Ce que je peux faire » dans le menu du compte, et une page masquée par le titre n'existe pas pour
+    la personne. Le guide dit que les titres autres que les fixes se donnent « quand le fondateur les a ouverts ».
 
 - [ ] **Step 1 : tests rouges** (`tests/chatbot-aide.test.mjs`) : `AIDE_APP_DIRECTION` cite « Inviter une personne », « Titres du
-  centre » et « Journal » ; aucun guide ne contient « prof » ni U+2014 ; `tests/nouveautes.test.mjs` vert.
-- [ ] **Step 2 : écrire** ; Run : `node --test "tests/*.test.mjs"`. Expected : PASS.
-- [ ] **Step 3 : commit** `Titres, étape 4 : Nouveautés et guide de l'assistant`. Le déploiement de la fonction `chatbot` attend
-  l'accord explicite de Timy (version suivante de l'assistant, au rapport).
+  centre » et « Journal » ; aucun guide ne contient « prof » ni U+2014.
+- [ ] **Step 2 : écrire le guide** ; Run : `node --test "tests/*.test.mjs"`. Expected : PASS. **Commit**
+  `Titres, étape 4 : guide de l'assistant`. Le déploiement de la fonction `chatbot` attend l'accord explicite de Timy.
+- [ ] **Step 3 : écrire les deux Nouveautés** sur une branche ou un commit tenu à part (non fusionné avec l'étape 4) ; Run :
+  `node --test tests/nouveautes.test.mjs`. Expected : PASS. **Commit** `Titres : Nouveautés des titres à la carte (à pousser à
+  l'ouverture du verrou)`. Le rapport donne son identifiant à la coordination.
 
 ### Task 39 : Répétition de l'étape 4, préparer et signaler
 
-- [ ] **Step 1 : répétition locale complète.** `reconstruire.sh`, `rejouer_suite.sh --production --titres 1,2,3,5,6,7,8` ; application
-  de la 4 puis de la 9 ; `autonomie_2_version` rejouée avec `-v version=2026-11-15` (refusée avec une date après aujourd'hui : le
-  constater une fois avec la date de demain, puis la vraie) ; preuves de la Task 34, Step 2, plus `autonomie-version-preuve.sql`
-  (version en place postérieure à `2026-11-14`) : `VERT`. `suite --etapes 9 --compact` sur la base sans la 9 : VERT, md5 noté.
+- [ ] **Step 1 : répétition locale complète.** `reconstruire.sh`, `rejouer_suite.sh --production`, puis migrations 7 et 8 à la main
+  (`psql -1 -v ON_ERROR_STOP=1 -f`), comme aux Tasks 34 et 37. `suite --etapes 4,9 --compact` : VERT, md5 noté (le texte de l'essai à
+  blanc). Application réelle de la 4 puis de la 9. Rejeu d'`autonomie_2_version` avec `-v version=<date du jour de la répétition>`
+  (postérieure au 14/11 ; une date après aujourd'hui est refusée, le constater une fois avec la date du lendemain) ; contrôle :
+  `select public._autonomie_version_conditions()` rend cette date, puis `tests/sql/autonomie-preuve.sql` en ligne : VERT
+  (`autonomie-version-preuve.sql` exige la sentinelle : elle ne se joue pas ici). Marche arrière répétée une fois : retour
+  d'`autonomie_2_version` (la sentinelle revient), puis rejeu avec `-v version=2026-11-14` : `_autonomie_version_conditions()` rend
+  `2026-11-14`, `autonomie-preuve.sql` VERT. Puis les preuves de la Task 34, Step 2 : `VERT`.
 - [ ] **Step 2 : filets.** `node --test "tests/*.test.mjs"`, robot `--habillages ecsr,ecf` (verrou ouvert au banc : parcours
   `inviter_un_intervenant` avec Secrétariat du catalogue), `verifier_navigation.py`, contrôle U+2014.
-- [ ] **Step 3 : préparer et signaler** (la coordination fusionne et applique, avec l'accord explicite de Timy) : le texte des
-  conditions, à faire lire par Timy ; les migrations 4 et 9 et leurs verdicts ; l'ordre de mise en ligne du § 6.O.
+- [ ] **Step 3 : préparer et signaler** (la coordination fusionne, pose la version regroupée et applique, avec l'accord explicite de
+  Timy) : le chemin du texte des conditions (Task 36), les migrations 4 et 9, le texte `suite --etapes 4,9 --compact` et son md5,
+  l'identifiant du commit des Nouveautés (Task 38), l'ordre du § 6.O, le contrôle en lecture seule à faire avant l'essai à blanc de
+  la 9 (`select nom, lieu_id from titres where origine_id is null and lower(nom) in (<les six noms>)` : aucune ligne attendue).
 
 ### 6.O Ordre de mise en ligne (étapes 3 et 4)
 
-Chaque application en production : essai à blanc d'abord (texte `--compact` de l'assembleur, joué par Timy par
-`outils/psql_prod.sh` ou par la session principale avec son accord explicite, hors des heures de cours), puis application
-`psql -1 -v ON_ERROR_STOP=1 -f`, puis preuves après, en production. Un ROUGE après application : le retour de la migration aussitôt
-(accord donné avec l'application), puis diagnostic.
+Chaque application en production : essai à blanc d'abord (texte `--compact` de l'assembleur, joué par Timy par `outils/psql_prod.sh`
+ou par la session principale avec son accord explicite, hors des heures de cours), puis application `psql -1 -v ON_ERROR_STOP=1 -f`,
+puis preuves après, en production. Un ROUGE après application : le retour de la migration aussitôt (accord donné avec l'application),
+puis diagnostic ; pour `autonomie_2_version`, la marche arrière exacte est au point 3.5.
 
-1. **Correctifs de base** (Tasks 20 à 24) : migration 7. Rien ne change à l'écran. Aucune entrée Nouveautés (rien de visible).
-2. **Écrans** (Tasks 25 à 34) : migration 8, puis fusion de l'app et poussée (jeton par le crochet). Verrou fermé : seuls les titres
-   fixes se donnent, les écrans montrent les titres. Nouveautés de l'étape 3 dans le même commit que les écrans.
-3. **Étape 4** (Tasks 35 à 39), le même jour, dans cet ordre :
-   1. Timy a lu et accepté le texte des conditions (Task 36) ; la date du jour remplace `2026-11-15` dans `VERSION_CONDITIONS`.
-   2. Essai à blanc puis application de `20261112_titres_4_journal.sql`, puis de `20261115_titres_9_catalogue.sql` (le catalogue
-      entre ainsi dans le journal).
-   3. Fusion de l'app (conditions, Nouveautés, guide) et poussée : chaque compte accepte la nouvelle version à sa prochaine
-      ouverture (une seule acceptation pour tous).
-   4. Le même jour, après la poussée : `psql -1 -v ON_ERROR_STOP=1 -v version=<date du jour> -f
-      supabase/migrations/20261114_autonomie_2_version.sql` (sinon l'e-learning exigerait encore `2026-11-14` ; elle refuse une date
-      future et un recul), puis `tests/sql/autonomie-preuve.sql` en ligne.
-   5. Preuves après : celles de la Task 34, Step 2, en production.
-   6. Déploiement de la fonction `chatbot` (accord explicite de Timy).
-4. **Ouverture du verrou** : geste de Timy dans Réglages du fondateur (« Ouvrir les titres à la carte »), quand il le décide, après la
-   mise en ligne des conditions. Aucune migration.
+1. **Correctifs de base** (Tasks 20 à 24) : migration 7. Rien ne change à l'écran ; aucune entrée Nouveautés.
+2. **Écrans** (Tasks 25 à 34) : contrôle de l'en-tête `x-apercu-titre` (Task 34), migration 8, puis fusion de l'app et poussée (jeton
+   par le crochet). Verrou fermé : seuls les titres fixes se donnent ; les écrans montrent les titres, sans section Journal. Nouveautés
+   de l'étape 3 dans le même commit que les écrans. Retour 8 après la fusion : `git revert` de la fusion d'abord (Task 34).
+3. **Étape 4**, avec la version regroupée `<V>` (titres, contact, jury), le même jour, dans cet ordre :
+   1. Timy a lu et accepté les textes regroupés (celui des titres : Task 36) ; la coordination pose `VERSION_CONDITIONS = "<V>"`.
+   2. Contrôle en lecture seule des noms du catalogue (Task 39, Step 3) ; essai à blanc de `suite --etapes 4,9 --compact`.
+   3. Fusion de l'app (conditions regroupées, guide de l'assistant, et ce que la coordination y joint) et poussée : chaque compte
+      accepte la version `<V>` à sa prochaine ouverture, une seule acceptation pour tous. **Les conditions passent avant le journal**
+      (I12 de la relecture) : le journal ne démarre qu'une fois le texte qui le décrit en ligne.
+   4. Dans les minutes qui suivent : application de `20261112_titres_4_journal.sql`, puis de `20261115_titres_9_catalogue.sql` (le
+      catalogue entre ainsi dans le journal). Aucune nomination ne peut précéder la 4 de plus que ces minutes, et le texte dit un
+      journal qui démarre ce jour-là.
+   5. Le même jour, après la poussée : `psql -1 -v ON_ERROR_STOP=1 -v version=<V> -f supabase/migrations/20261114_autonomie_2_version.sql`
+      (sinon l'e-learning exigerait encore `2026-11-14`), puis `select public._autonomie_version_conditions()` (rend `<V>`) et
+      `tests/sql/autonomie-preuve.sql` en ligne. **Marche arrière, si ce rejeu tourne mal** : le retour
+      (`20261114_autonomie_2_version_retour.sql`) remet la sentinelle et ferme tout l'e-learning ; il est donc suivi aussitôt de
+      `-v version=2026-11-14` (la migration accepte de repartir de la sentinelle), puis du même contrôle. Accord de Timy donné avec
+      le rejeu, pour les deux gestes.
+   6. Preuves après, en production : celles de la Task 34, Step 2, plus `suite-en-ligne` (groupes `catalogue` et `journal_suite`).
+   7. Déploiement de la fonction `chatbot` (accord explicite de Timy).
+4. **Ouverture du verrou** : geste de Timy dans Réglages du fondateur (« Ouvrir les titres à la carte »), quand il le décide. Le même
+   jour, la coordination pousse le commit des Nouveautés de la Task 38, daté de ce jour. Aucune migration.
 
-Taille estimée de l'étape 4 : migration 9 environ 80 lignes et retour 40 ; preuve 250 ; conditions 30 lignes de texte ; Nouveautés et
-guide 60. Cinq tâches (35 à 39).
+Taille estimée de l'étape 4 : migration 9 environ 90 lignes et retour 40 ; preuve 280 ; texte des conditions 60 lignes de notes ;
+Nouveautés et guide 60. Cinq tâches (35 à 39).
 
 ---
 
@@ -1861,17 +1992,28 @@ Rappel des propositions T1 à T17 :
 - **T17** Passage des porteurs à la version du centre par retrait puis repose.
 
 **Propositions de l'étape 3 (§ 5.D), retenues sauf avis contraire de Timy** : M3 (l'app passe par `donner_titre`), M4, M5, M7, M10,
-aperçu par titre par l'en-tête `x-apercu-titre`, `titres_ajustables`.
+aperçu par titre par l'en-tête `x-apercu-titre`, `titres_ajustables`, `journal_present` (section Journal à l'étape 4 seulement).
+
+**Contraintes de la coordination (14/11, chantier « espace contact »)** : aucune règle RLS réécrite (`user_profiles_lecture` garde le
+texte de la migration 5) ; entrées hors cases (`messages`, `contacts`) jamais filtrées ; conditions en une version regroupée
+(titres, contact, jury) posée par la coordination, ce chantier livrant son texte (Task 36) ; petits commits sur les fichiers communs.
 
 **Ce qui reste à Timy**
-- Lire et accepter le texte des conditions (Task 36) avant la mise en ligne de l'étape 4 ; il est au vouvoiement comme tout
-  `js/legal-data.js` (le cahier des charges parlait de tutoiement pour les stagiaires : le fichier ne tutoie nulle part).
+- Lire et accepter le texte des conditions des titres (Task 36, `docs/superpowers/plans/2026-11-11-titres-droits-conditions.md`),
+  regroupé par la coordination avec ceux du contact et du jury ; il est au vouvoiement comme tout `js/legal-data.js` (le cahier des
+  charges parlait de tutoiement pour les stagiaires : le fichier ne tutoie nulle part).
+- Décider la mise en œuvre de l'effacement d'une adresse dans le journal (§ 12 des conditions) : procédure écrite par le fondateur
+  (proposée, Task 36) ou bouton dans Réglages du fondateur.
+- Savoir que les directions peuvent **créer** des titres dès l'étape 3 (T16 : le verrou ne bloque que le don) ; la garde de la
+  migration 9 s'arrête si l'un d'eux porte un nom du catalogue.
 - Confirmer l'extension de D1 à la **création** d'un titre du réseau de niveau promo (Task 21 ; une ligne de preuve à retirer s'il
   dit non).
-- Ouvrir le verrou (`regler_titres_ouverts(true)`) depuis Réglages du fondateur, quand il le décide.
+- Ouvrir le verrou (`regler_titres_ouverts(true)`) depuis Réglages du fondateur, quand il le décide ; les Nouveautés des titres à la
+  carte (Task 38) partent ce jour-là.
 - Donner son accord explicite à chaque essai à blanc et à chaque application (migrations 7, 8, 4, 9, `autonomie_2_version` rejouée)
   et au déploiement de l'assistant.
 
-**Écarts à la spec, à relire** : § 7 (tableau) restreint par D1 ; § 14 (T9, signatures gardées) ; § 9 (phrase du journal : le nom
+**Écarts à la spec, à relire** : § 7 (tableau) restreint par D1, y compris pour la suppression (`supprimer_titre` passe par
+`_refus_gestion`) ; § 14 (T9, signatures gardées) ; § 9 (phrase du journal : le nom
 quand la page le connaît, sinon l'adresse) ; § 12 (version des titres seule, Q4 et Q5 étant en ligne) ; § 15 (Nouveautés aussi à
 l'étape 3, règle du projet).
