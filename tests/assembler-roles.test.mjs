@@ -1424,8 +1424,9 @@ test("la migration 7 (partie C, M4, M5, M7) : fiche et is_admin au seul Formateu
   for (const p of [m4, reseau, centre]) assert.ok(!tableau(r, "nouveau").some((x) => x.includes(p)), `le retour ne pose pas ${p}`);
 });
 
-test("garde D5 : les retours 6 et 7 commencent, juste après le lock_timeout, par le compte des titres non fixes portés et la phrase D5", () => {
-  for (const [chemin, prefixe] of [[ETAPES_GESTION[6].retour, "titres_6_gestion_retour"], [S[7].retour, "titres_7_correctifs_retour"]]) {
+test("garde D5 : les retours 6, 7 et 8 commencent, juste après le lock_timeout, par le compte des titres non fixes portés et la phrase D5", () => {
+  for (const [chemin, prefixe] of [[ETAPES_GESTION[6].retour, "titres_6_gestion_retour"], [S[7].retour, "titres_7_correctifs_retour"],
+    [S[8].retour, "titres_8_apercu_retour"]]) {
     const t = texteDuDepot(chemin);
     const code = t.split("\n").filter((l) => l.trim() !== "" && !l.trimStart().startsWith("--"));
     assert.equal(code[0], "set local lock_timeout = '3s';", `${chemin} : lock_timeout d'abord`);
@@ -1445,7 +1446,71 @@ test("garde D5 : les retours 6 et 7 commencent, juste après le lock_timeout, pa
   const suite = texteDuDepot(GABARIT_SUITE);
   assert.ok(suite.indexOf("pg_temp.groupe_d5('retour 7', v_r7, 'titres_7_correctifs_retour'") > 0);
   assert.ok(suite.indexOf("pg_temp.groupe_d5('retour 7'") < suite.lastIndexOf("pg_temp.retirer_titres_non_fixes()"), "suite : d5 avant le retrait");
+  assert.ok(suite.indexOf("pg_temp.groupe_d5('retour 8', v_r8, 'titres_8_apercu_retour'") > 0);
+  assert.ok(suite.indexOf("pg_temp.groupe_d5('retour 8'") < suite.lastIndexOf("pg_temp.retirer_titres_non_fixes()"), "suite : d5 du retour 8 avant le retrait");
   const gestion = texteDuDepot(GABARIT_GESTION);
   assert.ok(gestion.indexOf("pg_temp.groupe_d5('retour 6', v_r6, 'titres_6_gestion_retour'") > 0);
   assert.ok(gestion.indexOf("pg_temp.groupe_d5('retour 6'") < gestion.indexOf("pg_temp.retirer_titres_non_fixes()"), "gestion : d5 avant le retrait");
+});
+
+test("la migration 8 (aperçu par titre) : fichiers propres, aides de l'aperçu sans droit et posées avant le bloc, six fonctions en fragments relus dans la migration 2, mes_titres remplacée en entier, retour inverse", () => {
+  for (const chemin of [S[8].migration, S[8].retour, "outils/generer_fragments_titres_8.py"]) {
+    const brut = readFileSync(join(RACINE, chemin), "utf8");
+    assert.ok(!brut.includes(String.fromCharCode(0x2014)), `${chemin} : aucun tiret cadratin`);
+    assert.ok(!brut.includes("\r") || chemin.endsWith(".py"), `${chemin} : fins de ligne LF`);
+    if (chemin.startsWith("supabase/")) {
+      assert.match(brut, /^set local lock_timeout = '3s';$/m, `${chemin} : lock_timeout`);
+      assert.ok(!/(alter|create|drop) policy/i.test(brut), `${chemin} : aucune règle réécrite`);
+    }
+  }
+  const m = texteDuDepot(S[8].migration);
+  const r = texteDuDepot(S[8].retour);
+  const deux = texteDuDepot("supabase/migrations/20261112_titres_2_gestes.sql");
+  const six = texteDuDepot("supabase/migrations/20261112_titres_6_gestion.sql");
+  // Les aides de l'aperçu : aucune exécution, posées avant le bloc généré (case_promo et les autres, en SQL, sont validées à leur création).
+  const debutBloc = m.indexOf("-- debut du bloc genere");
+  for (const [sig, cree] of [["apercu_titre()", "create function public.apercu_titre()"], ["_case_apercu(text, integer)", "create function public._case_apercu(p_page text, p_plafond integer)"],
+    ["_apercu_fixe()", "create function public._apercu_fixe()"]]) {
+    assert.ok(m.indexOf(cree) > 0 && m.indexOf(cree) < debutBloc, `${sig} posée avant le bloc`);
+    assert.ok(m.includes(`revoke all on function public.${sig} from public, anon, authenticated, service_role;`), `${sig} : aucun droit`);
+    assert.ok(!m.includes(`grant execute on function public.${sig}`), `${sig} : aucun grant`);
+    assert.ok(r.includes(`drop function public.${sig};`), `${sig} : retirée par le retour`);
+  }
+  for (const sig of ["titres_ajustables(integer)", "journal_present()"]) {
+    assert.ok(m.includes(`revoke all on function public.${sig} from public, anon, service_role;\ngrant execute on function public.${sig} to authenticated;`), `${sig} : authenticated seul`);
+    assert.ok(r.includes(`drop function public.${sig};`), `${sig} : retirée par le retour`);
+  }
+  // apercu_titre : le fondateur, l'aperçu, le niveau et le centre affiché ; chiffres seuls.
+  assert.ok(m.includes("entete !~ '^[0-9]{1,18}$'"));
+  assert.ok(m.includes("v_role not in ('formateur', 'direction', 'siege') or not coalesce(fondateur_reel(), false)"));
+  assert.ok(m.includes("and t.niveau = case v_role when 'formateur' then 'promo' when 'direction' then 'centre' else 'reseau' end"));
+  assert.ok(m.includes("and (t.lieu_id is null or t.lieu_id = lieu_courant());"));
+  // Les fragments : chaque ancien figure une fois dans la définition de sa fonction (migration 2) ; le retour les échange.
+  const tableau = (t, d) => [...t.matchAll(new RegExp(`\\$${d}\\$([\\s\\S]*?)\\$${d}\\$`, "g"))].map((x) => x[1]);
+  const anciens = tableau(m, "ancien"), nouveaux = tableau(m, "nouveau");
+  const noms = ["case_promo", "case_centre", "case_reseau", "formateur_fixe", "direction_fixe", "siege_fixe"];
+  assert.equal(anciens.length, 6);
+  assert.match(m, /v_de integer\[\] := array\[1, 2, 3, 4, 5, 6\];/);
+  const fonction2 = (nom) => new RegExp(`^create function public\\.${nom}\\([\\s\\S]*?^\\$f\\$;$`, "m").exec(deux)[0];
+  anciens.forEach((a, i) => assert.equal(fonction2(noms[i]).split(a).length - 1, 1, `${noms[i]} : fragment trouvé une fois dans la migration 2`));
+  for (const i of [0, 1, 2]) assert.equal(nouveaux[i], anciens[i].replace("then pg.plafond else 0 end", "then _case_apercu(p_page, pg.plafond) else 0 end"), noms[i]);
+  for (const i of [3, 4, 5]) assert.equal(nouveaux[i], anciens[i].replace(/\n$/, " and _apercu_fixe()\n"), noms[i]);
+  assert.deepEqual(tableau(r, "ancien"), nouveaux);
+  assert.deepEqual(tableau(r, "nouveau"), anciens);
+  // mes_titres : remplacée en entier après garde ; le retour remet le texte de la migration 6, octet pour octet.
+  const corps = (def) => def.slice(def.indexOf("\nas $f$") + "\nas $f$".length, def.lastIndexOf("$f$;"));
+  const corps6 = corps(/^create function public\.mes_titres\([\s\S]*?^\$f\$;$/m.exec(six)[0]);
+  const pose = (t) => corps(/^create or replace function public\.mes_titres\([\s\S]*?^\$f\$;$/m.exec(t)[0]);
+  const garde = (t) => /\$attendu\$([\s\S]*?)\$attendu\$/.exec(t)[1];
+  assert.equal(garde(m), corps6, "l'aller ne remplace que le texte de la migration 6");
+  assert.equal(pose(r), corps6, "le retour remet le texte de la migration 6");
+  assert.equal(garde(r), pose(m), "le retour ne défait que le texte posé par l'aller");
+  const m10 = pose(m);
+  assert.ok(m10.indexOf("raise exception 'titres: Connexion requise.' using errcode = '42501';") < m10.indexOf("v_apercu := apercu_role();"), "la garde de connexion en tête");
+  assert.ok(m10.includes("if v_apercu = 'stagiaire' then\n    return;"), "aperçu stagiaire : aucune ligne");
+  assert.ok(m10.includes("v_titre := coalesce(apercu_titre(), titre_fixe(v_niveau));"));
+  assert.ok(m10.endsWith(corps6.slice(corps6.indexOf("  return query"))), "hors aperçu : la requête de la migration 6");
+  // Le retour : garde D5, lectures retirées, bloc inverse, puis les aides.
+  assert.ok(r.indexOf("drop function public.titres_ajustables(integer);") < r.indexOf("-- debut du bloc genere"));
+  assert.ok(r.indexOf("-- fin du bloc genere") < r.indexOf("drop function public.apercu_titre();"));
 });

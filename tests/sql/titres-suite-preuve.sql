@@ -7,7 +7,13 @@
 --                chaque retour injectés se jouent sans erreur, personnages posés, aucune règle (policy) réécrite : md5 de pg_policies
 --                (schéma public, trié collate "C") identique avant et après chaque migration 7, 8, 4 et 9.
 --   d5           (aides de gestion, pg_temp.groupe_d5) le retour 7, injecté, s'arrête sans rien changer tant qu'une affectation porte un
---                titre non fixe, avec la phrase D5 ; les affectations retirées, il passe ; les deux essais sont annulés.
+--                titre non fixe, avec la phrase D5 ; les affectations retirées, il passe ; les deux essais sont annulés. Le retour 8
+--                de même, quand il est injecté.
+--   apercu       (migration 8) l'aperçu du fondateur par titre (en-tête x-apercu-titre) ne fait que retirer : cases du titre bornées au
+--                plafond, titres fixes faux pour un titre non fixe ; ignoré pour un autre niveau, un autre centre, un en-tête illisible,
+--                et pour tout compte qui n'est pas le fondateur.
+--   ajustables   (migration 8) mes_titres en aperçu (M10), titres_ajustables (centre et réseau, D1 de la migration 7), droits des
+--                fonctions nouvelles, journal_present.
 --   retour       les retours défont tout, dans l'ordre inverse (9, 8, 7, 4) : l'empreinte (règles, fonctions, droits) égale celle d'avant.
 -- Les groupes des migrations s'ajoutent avec leurs tâches (d1, d4, d5, m4m5, m7, apercu, ajustables, catalogue, journal_suite), chacun
 -- derrière pg_temp.groupe_suite_a_jouer, qui juge la présence de sa migration par un marqueur (7 : l'index titres_version_unique,
@@ -548,6 +554,247 @@ begin
     'OK');
 end $tsm7$;
 
+-- Un appel en aperçu sur la promo 1 (x-promo-id 1, donc le centre 1 affiché) : p_apercu l'en-tête x-apercu-role, p_titre l'en-tête
+-- x-apercu-titre (nul : absent).
+create or replace function pg_temp.ap(p_qui text, p_apercu text, p_titre text, p_sql text)
+returns text language sql as $tsap1$
+  select pg_temp.appeler_t(p_qui, '1', p_apercu, p_titre, p_sql);
+$tsap1$;
+
+-- Groupe apercu (migration 8) : l'aperçu du fondateur par titre ne fait que retirer, et seulement pour le fondateur. Le titre simulé doit
+-- être du niveau de l'aperçu (formateur : promo ; direction : centre ; siège : réseau) et du réseau ou du centre affiché. Personnages des
+-- étapes 1 et 2 (t_interv : Intervenant de la promo 1 ; t_secr : Secrétariat du centre 1 ; t_contenus : réseau, Cours sur Modifier ;
+-- form_n, dir_n : Formateur et Direction fixes) ; un titre de centre du centre 2 posé ici.
+create or replace function pg_temp.groupe_apercu()
+returns void language plpgsql as $tsap2$
+declare
+  v_l1t text := (select lieu_id from public.promos where id = 1)::text;
+  t_interv text := pg_temp.titre_du_perso('t_interv');
+  t_secr text := pg_temp.titre_du_perso('t_secr');
+  t_contenus text := pg_temp.titre_du_perso('t_contenus');
+  t_form text := pg_temp.calcul($q$select public.titre_fixe('promo')::text$q$);
+  v_r text := pg_temp.titre_suite('R');
+  v_rp text := pg_temp.titre_suite('R_promo');
+  v_c2 text;
+  c_pages constant text := $q$select string_agg(x.page || '=' || public.case_promo(1, x.page), ' ' order by x.n)
+    from unnest(array['planning', 'emargement', 'stagiaires', 'notes', 'cours', 'ccp2', 'indicateurs', 'reglages']) with ordinality x(page, n)$q$;
+  c_form constant text := $q$select public.case_promo(1, 'notes')::text || '/' || public.formateur_fixe(1)::text || '/' || public.geste_promo(1, 'stagiaires.supprimer')::text$q$;
+  v_dir text;
+begin
+  v_c2 := pg_temp.calcul(format($q$insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values ('Preuve9 aperçu centre 2', 'centre', %s, '{"promos":"voir"}', 'preuve') returning id::text$q$,
+    (select lieu_id from public.promos where id = 2)));
+  v_dir := format($q$select public.case_centre(%1$s, 'notes')::text || '/' || public.direction_fixe(%1$s)::text$q$, v_l1t);
+  perform pg_temp.verifier('apercu', 'départ : titres de t_interv, t_secr, t_contenus, Formateur, R, R_promo lus ; un titre de centre du centre 2 posé',
+    concat_ws('/', t_interv, t_secr, t_contenus, t_form, v_r, v_rp, v_c2) ~ '^[0-9]+(/[0-9]+){6}$', concat_ws('/', t_interv, t_secr, t_contenus, t_form, v_r, v_rp, v_c2));
+
+  -- Le fondateur en aperçu formateur sur la promo 1, avec le titre de t_interv (Planning, Stagiaires, Cours sur Voir ; Émargement sur Modifier).
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur + titre de t_interv : case_promo(1, emargement) vaut 2',
+    pg_temp.ap('fond', 'formateur', t_interv, $q$select public.case_promo(1, 'emargement')::text$q$), 'OK 2');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur + titre de t_interv : case_promo(1, notes) vaut 0',
+    pg_temp.ap('fond', 'formateur', t_interv, $q$select public.case_promo(1, 'notes')::text$q$), 'OK 0');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur + titre de t_interv : formateur_fixe(1) faux',
+    pg_temp.ap('fond', 'formateur', t_interv, $q$select public.formateur_fixe(1)::text$q$), 'OK false');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur + titre de t_interv : geste_promo(1, notes.lire) faux',
+    pg_temp.ap('fond', 'formateur', t_interv, $q$select public.geste_promo(1, 'notes.lire')::text$q$), 'OK false');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur + titre de t_interv : geste_promo(1, emargement.tenir) vrai',
+    pg_temp.ap('fond', 'formateur', t_interv, $q$select public.geste_promo(1, 'emargement.tenir')::text$q$), 'OK true');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur + titre de t_interv : geste_promo(1, stagiaires.supprimer) faux (titre fixe seul)',
+    pg_temp.ap('fond', 'formateur', t_interv, $q$select public.geste_promo(1, 'stagiaires.supprimer')::text$q$), 'OK false');
+  -- Page par page : les cases du titre, jamais au-dessus du plafond (l'aperçu sans titre, ligne suivante).
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur + titre de t_interv : les huit pages de la promo valent les cases du titre (Non 0, Voir 1, Modifier 2)',
+    pg_temp.ap('fond', 'formateur', t_interv, c_pages), 'OK planning=1 emargement=2 stagiaires=1 notes=0 cours=1 ccp2=0 indicateurs=0 reglages=0');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur sans en-tête de titre : les huit pages au plafond (réponses d''aujourd''hui)',
+    pg_temp.ap('fond', 'formateur', null, c_pages), 'OK planning=2 emargement=2 stagiaires=2 notes=2 cours=2 ccp2=1 indicateurs=1 reglages=2');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur sans en-tête de titre : case notes 2, formateur_fixe vrai, stagiaires.supprimer vrai',
+    pg_temp.ap('fond', 'formateur', null, c_form), 'OK 2/true/true');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur + le titre fixe Formateur désigné : comme sans en-tête',
+    pg_temp.ap('fond', 'formateur', t_form, c_form), 'OK 2/true/true');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur + R_promo (titre du réseau de niveau promo) : ses cases (Planning et Stagiaires sur Voir, Notes Non), formateur_fixe faux',
+    pg_temp.ap('fond', 'formateur', v_rp, $q$select public.case_promo(1, 'planning')::text || '/' || public.case_promo(1, 'stagiaires')::text || '/' || public.case_promo(1, 'notes')::text || '/' || public.formateur_fixe(1)::text$q$),
+    'OK 1/1/0/false');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur + titre de t_secr (titre de centre) : ignoré, plafond et formateur_fixe vrai',
+    pg_temp.ap('fond', 'formateur', t_secr, c_form), 'OK 2/true/true');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur + en-tête « 12abc » : ignoré, aucune erreur',
+    pg_temp.ap('fond', 'formateur', '12abc', c_form), 'OK 2/true/true');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur + en-tête de 20 chiffres : ignoré, aucune erreur',
+    pg_temp.ap('fond', 'formateur', '99999999999999999999', c_form), 'OK 2/true/true');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu formateur + identifiant inconnu : ignoré',
+    pg_temp.ap('fond', 'formateur', '999999999', c_form), 'OK 2/true/true');
+
+  -- Aperçu direction sur le centre 1.
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu direction + titre de t_secr : case_centre(l1, notes) 0, direction_fixe(l1) faux',
+    pg_temp.ap('fond', 'direction', t_secr, v_dir), 'OK 0/false');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu direction + titre de t_secr : case_centre(l1, stagiaires) 2 (Modifier)',
+    pg_temp.ap('fond', 'direction', t_secr, format($q$select public.case_centre(%s, 'stagiaires')::text$q$, v_l1t)), 'OK 2');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu direction sans en-tête de titre : case_centre(l1, notes) au plafond (1), direction_fixe(l1) vrai',
+    pg_temp.ap('fond', 'direction', null, v_dir), 'OK 1/true');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu direction sur le centre 1 + un titre du centre 2 : ignoré',
+    pg_temp.ap('fond', 'direction', v_c2, v_dir), 'OK 1/true');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu direction + R (titre du réseau de niveau centre) : ses cases (Promos et Équipe sur Voir, Notes Non), direction_fixe faux',
+    pg_temp.ap('fond', 'direction', v_r, format($q$select public.case_centre(%1$s, 'promos')::text || '/' || public.case_centre(%1$s, 'equipe')::text || '/' || public.case_centre(%1$s, 'notes')::text || '/' || public.direction_fixe(%1$s)::text$q$, v_l1t)),
+    'OK 1/1/0/false');
+
+  -- Aperçu siège.
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu siège + titre de t_contenus : case_reseau(cours) 2, case_reseau(directions) 0, siege_fixe faux',
+    pg_temp.ap('fond', 'siege', t_contenus, $q$select public.case_reseau('cours')::text || '/' || public.case_reseau('directions')::text || '/' || public.siege_fixe()::text$q$),
+    'OK 2/0/false');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu siège + titre de t_secr (titre de centre) : ignoré, plafond et siege_fixe vrai',
+    pg_temp.ap('fond', 'siege', t_secr, $q$select public.case_reseau('cours')::text || '/' || public.case_reseau('directions')::text || '/' || public.siege_fixe()::text$q$),
+    'OK 2/2/true');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu siège + R (titre du réseau, mais de niveau centre) : ignoré, plafond et siege_fixe vrai',
+    pg_temp.ap('fond', 'siege', v_r, $q$select public.case_reseau('cours')::text || '/' || public.case_reseau('directions')::text || '/' || public.siege_fixe()::text$q$),
+    'OK 2/2/true');
+  perform pg_temp.attendre('apercu', 'fondateur, aperçu direction + titre de t_interv (titre de promo du centre 1) : ignoré',
+    pg_temp.ap('fond', 'direction', t_interv, v_dir), 'OK 1/true');
+
+  -- Un compte qui n'est pas le fondateur : l'en-tête ne change rien.
+  perform pg_temp.attendre('apercu', 'form_n (non fondateur), x-apercu-role formateur + x-apercu-titre de t_interv : ses propres réponses (2/true/true)',
+    pg_temp.ap('form_n', 'formateur', t_interv, c_form), 'OK 2/true/true');
+  perform pg_temp.attendre('apercu', 'form_n : les huit pages avec les deux en-têtes égalent celles sans en-tête',
+    pg_temp.ap('form_n', 'formateur', t_interv, c_pages), pg_temp.ap('form_n', null, null, c_pages));
+  perform pg_temp.attendre('apercu', 'dir_n (non fondateur), x-apercu-role direction + x-apercu-titre de t_secr : ses propres réponses (1/true)',
+    pg_temp.ap('dir_n', 'direction', t_secr, v_dir), 'OK 1/true');
+  perform pg_temp.attendre('apercu', 't_interv, x-apercu-role formateur + le titre fixe Formateur désigné : ses propres réponses (notes 0, formateur_fixe faux)',
+    pg_temp.ap('t_interv', 'formateur', t_form, c_form), 'OK 0/false/false');
+end $tsap2$;
+
+-- titres_ajustables joué par un personnage : « OK <identifiants triés, séparés par des virgules> » (« OK » seul : aucun) ou l'erreur.
+create or replace function pg_temp.ajustables_t(p_qui text, p_apercu text, p_titre text, p_lieu text)
+returns text language sql as $tsaj1$
+  select pg_temp.appeler_t(p_qui, case when p_apercu is null then null else '1' end, p_apercu, p_titre,
+    format($q$select coalesce(string_agg(a.id::text, ',' order by a.id), '') from public.titres_ajustables(%s) a$q$, p_lieu));
+$tsaj1$;
+
+-- « oui » si l'identifiant figure dans une réponse « OK a,b,c », « non » sinon.
+create or replace function pg_temp.dans(p_reponse text, p_id text)
+returns text language sql as $tsaj2$
+  select case when ',' || coalesce(substring(p_reponse from '^OK (.*)$'), '') || ',' like '%,' || p_id || ',%' then 'oui' else 'non' end;
+$tsaj2$;
+
+-- Groupe ajustables (migration 8) : mes_titres en aperçu (M10), titres_ajustables, droits des fonctions nouvelles, journal_present.
+create or replace function pg_temp.groupe_ajustables()
+returns void language plpgsql as $tsaj3$
+declare
+  v_l1t text := (select lieu_id from public.promos where id = 1)::text;
+  t_interv text := pg_temp.titre_du_perso('t_interv');
+  t_secr text := pg_temp.titre_du_perso('t_secr');
+  t_rh text := pg_temp.titre_du_perso('t_rh');
+  t_chef text := pg_temp.titre_du_perso('t_chef');
+  t_dirs text := pg_temp.titre_du_perso('t_dirs');
+  t_qualite text := pg_temp.titre_du_perso('t_qualite');
+  t_contenus text := pg_temp.titre_du_perso('t_contenus');
+  t_form text := pg_temp.calcul($q$select public.titre_fixe('promo')::text$q$);
+  v_r text := pg_temp.titre_suite('R');
+  v_rp text := pg_temp.titre_suite('R_promo');
+  c_mes constant text := $q$select count(*)::text || coalesce(' ' || string_agg(concat_ws(' ', m.titre_id, m.nom, m.niveau, coalesce(m.lieu_id::text, 'nul'), coalesce(m.promo_ids::text, 'nul')), ' ; ' order by m.titre_id), '') from public.mes_titres() m$q$;
+  v_rep text; v_attendu text; v_chef text; v_journal text; v_essai text;
+begin
+  -- mes_titres en aperçu : le titre simulé (M10), jamais les vrais titres.
+  perform pg_temp.attendre('ajustables', 'mes_titres, fondateur en aperçu formateur + titre de t_interv : une ligne, Intervenant, promo {1}',
+    pg_temp.ap('fond', 'formateur', t_interv, c_mes), format('OK 1 %s Preuve7 intervenant promo %s {1}', t_interv, v_l1t));
+  perform pg_temp.attendre('ajustables', 'mes_titres, aperçu formateur + titre de t_interv : les cases rendues sont celles du titre',
+    pg_temp.ap('fond', 'formateur', t_interv, 'select cases::text from public.mes_titres()'),
+    'OK ' || pg_temp.calcul(format('select public._cases_effectives(%s)::text', t_interv)));
+  perform pg_temp.attendre('ajustables', 'mes_titres, aperçu formateur sans en-tête de titre : une ligne, le Formateur fixe, promo {1}',
+    pg_temp.ap('fond', 'formateur', null, c_mes), format('OK 1 %s Formateur promo %s {1}', t_form, v_l1t));
+  perform pg_temp.attendre('ajustables', 'mes_titres, aperçu direction sans en-tête de titre : une ligne, la Direction de centre fixe, centre 1, sans promos',
+    pg_temp.ap('fond', 'direction', null, c_mes), format('OK 1 %s Direction de centre centre %s nul', pg_temp.calcul($q$select public.titre_fixe('centre')::text$q$), v_l1t));
+  perform pg_temp.attendre('ajustables', 'mes_titres, aperçu siège + titre de t_contenus : une ligne, sans centre ni promos',
+    pg_temp.ap('fond', 'siege', t_contenus, c_mes), format('OK 1 %s Preuve7 contenus reseau nul nul', t_contenus));
+  perform pg_temp.attendre('ajustables', 'mes_titres, fondateur en aperçu stagiaire : aucune ligne',
+    pg_temp.ap('fond', 'stagiaire', null, c_mes), 'OK 0');
+  perform pg_temp.attendre('ajustables', 'mes_titres, fondateur hors aperçu : ses vrais titres (autant que ses affectations)',
+    pg_temp.appeler_t('fond', null, null, null, 'select count(*)::text from public.mes_titres()'),
+    'OK ' || pg_temp.calcul($q$select count(*)::text from public.affectations a join pg_temp.perso p on lower(a.email) = p.email where p.nom = 'fond'$q$));
+  perform pg_temp.attendre('ajustables', 'mes_titres, t_chef (non fondateur) avec x-apercu-role direction + titre de t_interv : ses vrais titres, inchangés',
+    pg_temp.ap('t_chef', 'direction', t_interv, c_mes), pg_temp.appeler_t('t_chef', null, null, null, c_mes));
+  perform pg_temp.attendre('ajustables', 'mes_titres, t_chef avec x-apercu-role stagiaire (l''aperçu stagiaire vaut pour tout compte) : aucune ligne',
+    pg_temp.ap('t_chef', 'stagiaire', null, c_mes), 'OK 0');
+  perform pg_temp.attendre('ajustables', 'mes_titres, t_chef hors aperçu : une ligne, son titre au centre 1',
+    pg_temp.appeler_t('t_chef', null, null, null, c_mes), format('OK 1 %s Preuve8 chef de centre centre %s nul', t_chef, v_l1t));
+  perform pg_temp.attendre('ajustables', 'mes_titres, sans adresse : refusé (42501)',
+    pg_temp.appeler_t(null, null, null, null, 'select count(*)::text from public.mes_titres()'), 'ERREUR 42501 titres: Connexion requise.');
+
+  -- titres_ajustables au centre 1.
+  v_chef := pg_temp.ajustables_t('t_chef', null, null, v_l1t);
+  perform pg_temp.attendre('ajustables', 'titres_ajustables(centre 1) par t_chef (Équipe : Modifier) : le titre de t_rh oui, R oui (non porté par lui), R_promo oui, Formateur non, le titre de t_secr non (plus que le sien), le sien non',
+    concat_ws(' / ', 't_rh ' || pg_temp.dans(v_chef, t_rh), 'R ' || pg_temp.dans(v_chef, v_r), 'R_promo ' || pg_temp.dans(v_chef, v_rp),
+      'Formateur ' || pg_temp.dans(v_chef, t_form), 't_secr ' || pg_temp.dans(v_chef, t_secr), 'sien ' || pg_temp.dans(v_chef, t_chef)),
+    't_rh oui / R oui / R_promo oui / Formateur non / t_secr non / sien non');
+  v_attendu := pg_temp.appeler_t('dir_n', null, null, null, format($q$select string_agg(v.id::text, ',' order by v.id) from public.titres_visibles(%s) v where not v.fixe$q$, v_l1t));
+  v_rep := pg_temp.ajustables_t('dir_n', null, null, v_l1t);
+  perform pg_temp.attendre('ajustables', 'titres_ajustables(centre 1) par dir_n (direction fixe) : tous les titres non fixes visibles au centre 1',
+    v_rep, v_attendu);
+  perform pg_temp.attendre('ajustables', 'titres_ajustables(centre 1) par dir_n : R et R_promo (titres du réseau) en font partie, Formateur non',
+    'R ' || pg_temp.dans(v_rep, v_r) || ' / R_promo ' || pg_temp.dans(v_rep, v_rp) || ' / Formateur ' || pg_temp.dans(v_rep, t_form), 'R oui / R_promo oui / Formateur non');
+  perform pg_temp.attendre('ajustables', 'titres_ajustables(centre 1) par le fondateur hors aperçu : tous les titres non fixes visibles au centre 1',
+    pg_temp.ajustables_t('fond', null, null, v_l1t), v_attendu);
+  perform pg_temp.attendre('ajustables', 'titres_ajustables(centre 1) par le fondateur en aperçu direction : comme dir_n',
+    pg_temp.ajustables_t('fond', 'direction', null, v_l1t), v_rep);
+  perform pg_temp.attendre('ajustables', 'titres_ajustables(centre 1) par le fondateur en aperçu direction + titre de t_rh (Équipe : Voir) : aucun',
+    pg_temp.ajustables_t('fond', 'direction', t_rh, v_l1t), 'OK');
+  -- Limite connue (_cases_appelant lit les vraies affectations, même en aperçu) : le fondateur n'en a aucune, « jamais plus que soi » le
+  -- compare donc à tout sur Non ; il garde les titres de promo (jamais comparés), perd les titres de centre que t_chef ajuste.
+  v_rep := pg_temp.ajustables_t('fond', 'direction', t_chef, v_l1t);
+  perform pg_temp.attendre('ajustables', 'limite connue : en aperçu direction + titre de t_chef, le fondateur garde R_promo (titre de promo) mais pas le titre de t_rh ni R (comparés à ses vraies cases, toutes sur Non)',
+    'R_promo ' || pg_temp.dans(v_rep, v_rp) || ' / t_rh ' || pg_temp.dans(v_rep, t_rh) || ' / R ' || pg_temp.dans(v_rep, v_r), 'R_promo oui / t_rh non / R non');
+  perform pg_temp.attendre('ajustables', 'titres_ajustables(centre 1) par t_rh (Équipe : Voir) : aucun',
+    pg_temp.ajustables_t('t_rh', null, null, v_l1t), 'OK');
+  perform pg_temp.attendre('ajustables', 'titres_ajustables(centre 1) par t_interv (titre de promo) : refusé (42501)',
+    pg_temp.ajustables_t('t_interv', null, null, v_l1t), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('ajustables', 'titres_ajustables(centre 1) sans adresse : refusé (42501)',
+    pg_temp.appeler_t(null, null, null, null, format('select count(*)::text from public.titres_ajustables(%s)', v_l1t)), 'ERREUR 42501 titres: Connexion requise.');
+
+  -- titres_ajustables au réseau.
+  perform pg_temp.attendre('ajustables', 'titres_ajustables(null) par siege (siège fixe) : tous les titres du réseau non fixes',
+    pg_temp.ajustables_t('siege', null, null, 'null'),
+    'OK ' || pg_temp.calcul($q$select string_agg(t.id::text, ',' order by t.id) from public.titres t where not t.fixe and t.lieu_id is null$q$));
+  -- D1 tel que posé par la migration 7 (_refus_gestion, règles 4 et 5) : un titre du réseau de niveau promo ou centre est au siège fixe
+  -- seul ; un titre de niveau réseau demande Directions de centre sur Modifier et des cases au plus égales à celles de l'appelant.
+  v_rep := pg_temp.ajustables_t('t_dirs', null, null, 'null');
+  perform pg_temp.attendre('ajustables', 'titres_ajustables(null) par t_dirs (Directions : Modifier) : les titres de niveau réseau au plus égaux aux siens, sauf le sien (D1)',
+    v_rep, 'OK ' || pg_temp.calcul(format($q$select string_agg(t.id::text, ',' order by t.id) from public.titres t
+      where not t.fixe and t.lieu_id is null and t.niveau = 'reseau' and t.id <> %1$s
+        and public._depasse(public._cases_effectives(t.id), public._cases_effectives(%1$s)) is null$q$, t_dirs)));
+  perform pg_temp.attendre('ajustables', 'titres_ajustables(null) par t_dirs : t_qualite oui (au plus égal), t_contenus non (Cours sur Modifier), le sien non, R et R_promo non (siège seul)',
+    concat_ws(' / ', 't_qualite ' || pg_temp.dans(v_rep, t_qualite), 't_contenus ' || pg_temp.dans(v_rep, t_contenus), 'sien ' || pg_temp.dans(v_rep, t_dirs),
+      'R ' || pg_temp.dans(v_rep, v_r), 'R_promo ' || pg_temp.dans(v_rep, v_rp)),
+    't_qualite oui / t_contenus non / sien non / R non / R_promo non');
+  perform pg_temp.attendre('ajustables', 'titres_ajustables(null) par t_chef (titre de centre) : refusé (42501)',
+    pg_temp.ajustables_t('t_chef', null, null, 'null'), 'ERREUR 42501 titres: Réservé au réseau.');
+
+  -- Les droits des fonctions nouvelles.
+  perform pg_temp.attendre('ajustables', 'droits : apercu_titre(), _case_apercu, _apercu_fixe sans exécution pour anon ni authenticated',
+    pg_temp.calcul($q$select concat_ws('/', has_function_privilege('anon', 'public.apercu_titre()', 'execute')::text, has_function_privilege('authenticated', 'public.apercu_titre()', 'execute')::text,
+      has_function_privilege('authenticated', 'public._case_apercu(text, integer)', 'execute')::text, has_function_privilege('authenticated', 'public._apercu_fixe()', 'execute')::text)$q$),
+    'false/false/false/false');
+  perform pg_temp.attendre('ajustables', 'droits : titres_ajustables et journal_present pour authenticated seul (pas anon)',
+    pg_temp.calcul($q$select concat_ws('/', has_function_privilege('authenticated', 'public.titres_ajustables(integer)', 'execute')::text, has_function_privilege('anon', 'public.titres_ajustables(integer)', 'execute')::text,
+      has_function_privilege('authenticated', 'public.journal_present()', 'execute')::text, has_function_privilege('anon', 'public.journal_present()', 'execute')::text)$q$),
+    'true/false/true/false');
+
+  -- journal_present : l'état réel, puis l'état inverse posé dans une sous-transaction annulée (table créée, ou renommée).
+  v_journal := pg_temp.calcul($q$select (to_regclass('public.journal_droits') is not null)::text$q$);
+  perform pg_temp.attendre('ajustables', 'journal_present() par t_chef : vrai si et seulement si la table journal_droits existe (' || v_journal || ' ici)',
+    pg_temp.appeler_t('t_chef', null, null, null, 'select public.journal_present()::text'), 'OK ' || v_journal);
+  begin
+    perform pg_temp.proprio();
+    if v_journal = 'true' then
+      execute 'alter table public.journal_droits rename to journal_droits_preuve9';
+    else
+      execute 'create table public.journal_droits (id integer)';
+    end if;
+    v_essai := pg_temp.appeler_t('t_chef', null, null, null, 'select public.journal_present()::text');
+    raise exception 'preuve ajustables : essai annulé';
+  exception when others then
+    perform pg_temp.proprio();
+  end;
+  perform pg_temp.attendre('ajustables', 'journal_present() par t_chef, la table journal_droits ' || case when v_journal = 'true' then 'renommée' else 'posée' end || ' le temps d''un essai annulé : l''inverse',
+    v_essai, 'OK ' || (not v_journal::boolean)::text);
+  perform pg_temp.attendre('ajustables', 'après l''essai annulé : la table journal_droits dans son état de départ',
+    pg_temp.calcul($q$select (to_regclass('public.journal_droits') is not null)::text$q$), v_journal);
+end $tsaj3$;
+
 do $tsprg$
 declare
   v_mode constant text :=
@@ -665,6 +912,12 @@ begin
   if pg_temp.groupe_suite_a_jouer('m7', 7, v_mode) then
     perform pg_temp.groupe_m7();
   end if;
+  if pg_temp.groupe_suite_a_jouer('apercu', 8, v_mode) then
+    perform pg_temp.groupe_apercu();
+  end if;
+  if pg_temp.groupe_suite_a_jouer('ajustables', 8, v_mode) then
+    perform pg_temp.groupe_ajustables();
+  end if;
   -- d5 : le retour 7, joué dans une sous-transaction toujours annulée, refuse tant qu'un titre non fixe est porté (u porte R). Il demande
   -- le texte du retour : jugé seulement quand le retour 7 est injecté (suite --etapes 7, 7,8, 7,8,9) ; sinon une information.
   if pg_temp.groupe_suite_a_jouer('d5', 7, v_mode) then
@@ -674,6 +927,17 @@ begin
       perform pg_temp.groupe_d5('retour 7', v_r7, 'titres_7_correctifs_retour',
         array['public._refus_gestion(text, integer, jsonb)', 'public.ajuster_titre(bigint, integer, text, jsonb)',
               'public.donner_titre(text, bigint, integer, integer[], integer)', 'public.creer_titre(bigint, text, integer)']);
+    end if;
+  end if;
+  -- Le même pour le retour 8 (garde D5 en tête), quand il est injecté.
+  if pg_temp.groupe_suite_a_jouer('d5', 8, v_mode) then
+    if v_r8 = 'select 1' then
+      perform pg_temp.informer('groupe d5', 'sauté : le retour 8 n''est pas injecté dans ce mode');
+    else
+      perform pg_temp.groupe_d5('retour 8', v_r8, 'titres_8_apercu_retour',
+        array['public.case_promo(integer, text)', 'public.case_centre(integer, text)', 'public.case_reseau(text)',
+              'public.formateur_fixe(integer)', 'public.direction_fixe(integer)', 'public.siege_fixe()', 'public.mes_titres()',
+              'public.apercu_titre()', 'public.titres_ajustables(integer)']);
     end if;
   end if;
 
@@ -711,6 +975,17 @@ begin
             and (p.prosrc like '%Réservé au siège.%' or p.prosrc like '%ne se relie qu''au titre Formateur%'
                  or p.prosrc like '%Un titre du réseau porte déjà ce nom%' or p.prosrc like '%Un centre a déjà un titre de ce nom%'
                  or p.prosrc like '%t.niveau = ''promo'' and t.fixe%')), '0');
+    end if;
+    if v_r8 <> 'select 1' then
+      perform pg_temp.attendre('retour', 'après les retours : apercu_titre, _case_apercu, _apercu_fixe, titres_ajustables, journal_present retirées (retour 8)',
+        concat_ws('/', to_regprocedure('public.apercu_titre()'), to_regprocedure('public._case_apercu(text, integer)'), to_regprocedure('public._apercu_fixe()'),
+          to_regprocedure('public.titres_ajustables(integer)'), to_regprocedure('public.journal_present()')), '');
+      perform pg_temp.attendre('retour', 'après les retours : aucune des six fonctions de l''aperçu ni mes_titres ne lit l''aperçu par titre (retour 8)',
+        (select count(*)::text from pg_proc p
+          where p.oid in (to_regprocedure('public.case_promo(integer, text)'), to_regprocedure('public.case_centre(integer, text)'),
+                          to_regprocedure('public.case_reseau(text)'), to_regprocedure('public.formateur_fixe(integer)'),
+                          to_regprocedure('public.direction_fixe(integer)'), to_regprocedure('public.siege_fixe()'), to_regprocedure('public.mes_titres()'))
+            and (p.prosrc like '%_case_apercu%' or p.prosrc like '%_apercu_fixe%' or p.prosrc like '%apercu_titre%')), '0');
     end if;
   end if;
   perform pg_temp.informer('durée du bloc', to_char(extract(epoch from clock_timestamp() - v_debut), 'FM990.0') || ' s');
