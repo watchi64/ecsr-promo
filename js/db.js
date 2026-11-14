@@ -13,6 +13,7 @@ import {
 import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261114f";
 import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261114f";
 import { effectifDesFiches } from "./centre-stats.js?v=20261114f";
+import { exigerLignes, phraseDelegue } from "./contact-annuaire-rules.js?v=20261114f";
 import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261114f";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
@@ -1596,13 +1597,15 @@ export async function addContact(payload) {
 }
 
 export async function updateContact(id, patch) {
-  const { error } = await supabase.from("contacts").update(patch).eq("id", id);
+  const { data, error } = await supabase.from("contacts").update(patch).eq("id", id).select("id");
   if (error) throw error;
+  exigerLignes(data, "Cette fiche ne peut pas être modifiée d'ici.");
 }
 
 export async function deleteContact(id) {
-  const { error } = await supabase.from("contacts").delete().eq("id", id);
+  const { data, error } = await supabase.from("contacts").delete().eq("id", id).select("id");
   if (error) throw error;
+  exigerLignes(data, "Cette fiche ne peut pas être supprimée d'ici.");
 }
 
 // === Élèves bénévoles (banque voiture conduite) ===
@@ -2761,3 +2764,77 @@ export async function lecturesDeLaPromo() {
   if (error) throw error;
   return new Map((data || []).map((r) => [r.cours_id, Number(r.lus)]));
 }
+
+// === Espace contact ===
+// Annuaire du centre affiché, « ma fiche », financements, coordonnées des stagiaires et délégué. Les fonctions de la base
+// (migration 20261115_contact_1_annuaire) jugent les droits ; leurs refus partent tels quels (préfixe « contact: », 42501 sans
+// droit, PGRST202 fonction absente) : l'appelant les dit par phraseDeRefus.
+
+// Les fiches du centre affiché (annuaire_centre) : voir js/contact-annuaire-rules.js pour les afficher et les trier.
+export async function lireAnnuaire() {
+  const { data, error } = await supabase.rpc("annuaire_centre");
+  if (error) throw erreurDeBase(error);
+  return data || [];
+}
+
+// Ma fiche : { fiche (nulle sans fiche), email_compte, centres, relais_possibles }.
+export async function lireMaFiche() {
+  const { data, error } = await supabase.rpc("ma_fiche_contact");
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
+// Enregistre les champs envoyés (clé absente : inchangé, null : effacé) et rend ma fiche relue.
+export async function reglerMaFiche(champs) {
+  const { data, error } = await supabase.rpc("regler_ma_fiche", { p_champs: champs || {} });
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
+// Ordre des fiches du centre : la liste des ids dans l'ordre voulu. Rend le nombre de fiches rangées.
+export async function ordonnerFiches(ids) {
+  const { data, error } = await supabase.rpc("ordonner_fiches", { p_ids: ids });
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
+// Financements du centre affiché : [{ id, libelle, ordre, retire }], retirés compris.
+export async function lireFinancements() {
+  const { data, error } = await supabase.rpc("financements_du_centre");
+  if (error) throw erreurDeBase(error);
+  return data || [];
+}
+
+// La liste entière d'un centre : [{ id (null : nouveau), libelle, ordre, retire }]. Rend le nombre de financements du centre.
+export async function reglerFinancements(lieuId, liste) {
+  const { data, error } = await supabase.rpc("regler_financements", { p_lieu_id: lieuId, p_liste: liste });
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
+// Coordonnées de la promo affichée : [{ stagiaire_id, telephone, email, financement_id, financement }] (l'équipe : toute la
+// promo ; un stagiaire : la sienne).
+export async function lireCoordonnees() {
+  const { data, error } = await supabase.rpc("coordonnees_promo");
+  if (error) throw erreurDeBase(error);
+  return data || [];
+}
+
+// Téléphone et financement d'un stagiaire : clés permises de la base ({ telephone, financement_id }).
+export async function reglerCoordonnees(stagiaireId, champs) {
+  const { error } = await supabase.rpc("regler_coordonnees_stagiaire", { p_stagiaire_id: stagiaireId, p_champs: champs || {} });
+  if (error) throw erreurDeBase(error);
+}
+
+// Rang de délégué d'un stagiaire (nul : plus délégué). Écriture directe de stagiaires : 0 ligne touchée = erreur ; un rang déjà
+// pris (23505) se dit par une phrase de l'app.
+export async function reglerDelegue(stagiaireId, valeur) {
+  const { data, error } = await supabase.from("stagiaires").update({ delegue: valeur ?? null }).eq("id", stagiaireId).select("id");
+  if (error) {
+    const phrase = phraseDelegue(error.code);
+    if (phrase) throw Object.assign(new Error(phrase), { code: error.code });
+    throw erreurDeBase(error);
+  }
+  exigerLignes(data, "Le délégué ne peut pas être changé d'ici.");
+}
+// === fin espace contact ===
