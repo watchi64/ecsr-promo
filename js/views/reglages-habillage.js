@@ -5,13 +5,13 @@
 // revient à ce que la base a gardé. Les pastilles sont celles du lot 3 (js/habillage-choix.js, mode réglage : rien n'est appliqué à
 // l'écran de la personne qui règle).
 
-import { habillageParDefaut, lireHabillageCentre, reglerHabillageCentre, reglerHabillageReseau } from "../db.js?v=20261113b";
-import { getCentre } from "../auth-admin.js?v=20261113b";
-import { el, clear, toast } from "../utils.js?v=20261113b";
-import { icon } from "../icons.js?v=20261113b";
-import { blocHabillage } from "../habillage-choix.js?v=20261113b";
-import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261113b";
-import { sectionDonneesCentre } from "./reglages-donnees.js?v=20261113b";
+import { habillageParDefaut, lireHabillageCentre, reglerHabillageCentre, reglerHabillageReseau } from "../db.js?v=20261114b";
+import { getCentre } from "../auth-admin.js?v=20261114b";
+import { el, clear, toast } from "../utils.js?v=20261114b";
+import { icon } from "../icons.js?v=20261114b";
+import { blocHabillage } from "../habillage-choix.js?v=20261114b";
+import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261114b";
+import { sectionDonneesCentre } from "./reglages-donnees.js?v=20261114b";
 
 export const PHRASE_ECHEC_LECTURE = "Le réglage n'a pas pu être chargé.";
 export const PHRASE_ECHEC_ECRITURE = "Le réglage n'a pas été enregistré. Réessayez dans un instant.";

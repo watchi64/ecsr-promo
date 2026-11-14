@@ -19,18 +19,18 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, mesAffectations, oublierPromo, getPromoCourante, getMesPromos, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo, stagiaireVitrineCourante,
-} from "./db.js?v=20261113b";
+} from "./db.js?v=20261114b";
 import {
   LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo,
-} from "./roles-rules.js?v=20261113b";
+} from "./roles-rules.js?v=20261114b";
 import {
   ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, decisionPorteSansPromo,
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
-} from "./espaces-rules.js?v=20261113b";
-import { peutQuitter } from "./navigation.js?v=20261113b";
-import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261113b";
-import { icon } from "./icons.js?v=20261113b";
-import { lireAdresse } from "./route-rules.js?v=20261113b";
+} from "./espaces-rules.js?v=20261114b";
+import { peutQuitter } from "./navigation.js?v=20261114b";
+import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261114b";
+import { icon } from "./icons.js?v=20261114b";
+import { lireAdresse } from "./route-rules.js?v=20261114b";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles

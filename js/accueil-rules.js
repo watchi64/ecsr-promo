@@ -2,9 +2,9 @@
 // (à venir, en cours, passé), le texte qui le dit, et la ligne « Promo <nom> · semaine <n> » sous la
 // salutation. Module pur, sans DOM ni stockage : testé en node. Le prochain rendez-vous et l'à-faire de l'accueil
 // du stagiaire (lot 2B) les lisent.
-import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "./qcm-exam-rules.js?v=20261113b";
-import { pluriel } from "./nombres.js?v=20261113b";
-import { lundiDe } from "./dates.js?v=20261113b";
+import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "./qcm-exam-rules.js?v=20261114b";
+import { pluriel } from "./nombres.js?v=20261114b";
+import { lundiDe } from "./dates.js?v=20261114b";
 
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000;
 

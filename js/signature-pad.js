@@ -3,9 +3,9 @@
 // js/emargement-rules.js : la zone peut changer de taille (rotation du téléphone) sans
 // déformer le tracé, et le chemin envoyé est celui que le serveur vérifie.
 
-import { el } from "./utils.js?v=20261113b";
-import { REPERE, cheminDepuisTraits, traitsSuffisants, signatureEffacee, MENTION_SIGNATURE_EFFACEE } from "./emargement-rules.js?v=20261113b";
-import { ouvrirModale } from "./nav-fenetre.js?v=20261113b";
+import { el } from "./utils.js?v=20261114b";
+import { REPERE, cheminDepuisTraits, traitsSuffisants, signatureEffacee, MENTION_SIGNATURE_EFFACEE } from "./emargement-rules.js?v=20261114b";
+import { ouvrirModale } from "./nav-fenetre.js?v=20261114b";
 
 const SVG = "http://www.w3.org/2000/svg";
 const EPAISSEUR = 3.2;   // en unités du repère : environ 0,3 mm sur une case de feuille
