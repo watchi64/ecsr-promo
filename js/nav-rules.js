@@ -161,6 +161,12 @@ export function entreesNavigation(espace, {
     .map(copie);
 }
 
+// L'entrée Émargement de l'équipe : le droit d'écrire dans la page quand les cases sont lues (`peutModifier`), sinon l'ancien
+// drapeau `admin` : aucun compte dont les cases n'ont pas été lues ne gagne l'entrée.
+export function formateurPourLEmargement({ cases, peutModifier, admin } = {}) {
+  return cases ? !!peutModifier : !!admin;
+}
+
 // Barre du bas du téléphone et tiroir « Plus ». Le stagiaire, 5 entrées au plus, les garde
 // toutes dans la barre ; l'équipe en garde 4 et range le reste dans `plus`. Titres (étape 3) : quand une entrée de la liste
 // fixe est absente (page à « Non »), les entrées suivantes, dans l'ordre de la barre, la remplacent jusqu'au même nombre ;

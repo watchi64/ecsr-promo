@@ -28,7 +28,8 @@ import {
   ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, decisionPorteSansPromo,
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
 } from "./espaces-rules.js?v=20261114f";
-import { casesDeLEspace, caseDe, NIVEAU_DE_L_ESPACE, titresPourApercu } from "./titres-rules.js?v=20261114f";
+import { casesDeLEspace, caseDe, NIVEAU_DE_L_ESPACE, titresPourApercu,
+  fusionnerListesApercu, listesPourLeCentre, listesApercuIncompletes } from "./titres-rules.js?v=20261114f";
 import { peutQuitter } from "./navigation.js?v=20261114f";
 import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261114f";
 import { icon } from "./icons.js?v=20261114f";
@@ -155,18 +156,21 @@ let titresDApercuEnCours = null;
 
 function lieuPourLesTitres() { return getCentre()?.id ?? getPromoCourante()?.lieu_id ?? null; }
 
-// Lit les titres du choix « Titre » si le fondateur est hors aperçu et qu'ils ne sont pas déjà en mémoire. Ne lève jamais.
+// Lit les titres du choix « Titre » si le fondateur est hors aperçu et qu'il manque une liste pour le centre affiché (une liste par
+// centre : changer de promo vers un autre centre en fait lire une nouvelle). Une lecture ratée n'est pas mémorisée. Ne lève jamais.
 export function chargerTitresDApercu() {
-  if (titresDApercu || !fondateurHorsApercu()) return Promise.resolve(titresDApercu);
-  if (titresDApercuEnCours) return titresDApercuEnCours;
+  if (!fondateurHorsApercu()) return Promise.resolve(titresDApercu);
   const lieuId = lieuPourLesTitres();
+  if (!listesApercuIncompletes(titresDApercu, lieuId)) return Promise.resolve(titresDApercu);
+  if (titresDApercuEnCours && titresDApercuEnCours.lieuId === lieuId) return titresDApercuEnCours.promesse;
   const lire = (id) => lireTitresVisibles(id).catch(() => null);
-  titresDApercuEnCours = Promise.all([lieuId != null ? lire(lieuId) : null, lire(null)]).then(([centre, reseau]) => {
-    titresDApercu = { centre, reseau };
-    try { sessionStorage.setItem(CLE_TITRES_APERCU, JSON.stringify(titresDApercu)); } catch (e) { /* ignore */ }
+  const promesse = Promise.all([lieuId != null ? lire(lieuId) : null, lire(null)]).then(([centre, reseau]) => {
+    titresDApercu = fusionnerListesApercu(titresDApercu, lieuId, centre, reseau);
+    try { if (titresDApercu) sessionStorage.setItem(CLE_TITRES_APERCU, JSON.stringify(titresDApercu)); } catch (e) { /* ignore */ }
     return titresDApercu;
-  }).catch(() => null).finally(() => { titresDApercuEnCours = null; });
-  return titresDApercuEnCours;
+  }).catch(() => titresDApercu).finally(() => { if (titresDApercuEnCours && titresDApercuEnCours.promesse === promesse) titresDApercuEnCours = null; });
+  titresDApercuEnCours = { lieuId, promesse };
+  return promesse;
 }
 function oublierTitresDApercu() {
   titresDApercu = null;
@@ -180,7 +184,7 @@ export function titresDeLApercu() {
   if (!titresDApercu) {
     try { titresDApercu = JSON.parse(sessionStorage.getItem(CLE_TITRES_APERCU) || "null"); } catch (e) { titresDApercu = null; }
   }
-  return titresPourApercu(titresDApercu, a);
+  return titresPourApercu(listesPourLeCentre(titresDApercu, lieuPourLesTitres()), a);
 }
 // Le centre affiché (D6) : le lieu de la promo affichée s'il est dirigé par le compte (ou en aperçu direction), sinon le premier
 // lieu dirigé ; null quand le compte ne dirige aucun centre.

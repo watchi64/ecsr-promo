@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import {
   espaceDe, entreesNavigation, barreTelephone, entreeActive, redirectionV2, routeVisibleV2, initialesDe,
-  prenomDe, entreeMasquee, libelleRole, nomDuBoutonCompte, pageASoiDuMenu, routeApresRedirection, CLES_SOUS_ONGLETS, selonLesCases,
+  prenomDe, entreeMasquee, libelleRole, nomDuBoutonCompte, pageASoiDuMenu, routeApresRedirection, CLES_SOUS_ONGLETS, selonLesCases, formateurPourLEmargement,
 } from "../js/nav-rules.js";
 import { readFileSync } from "node:fs";
 import { pagePersonnelle } from "../js/route-rules.js";
@@ -405,6 +405,14 @@ eq(libelleRole({ role: "prof", is_founder: true }, "direction"), "Fondateur", "l
     const apres = selonLesCases([...base, ...horsCases.map((e) => ({ ...e }))], espace, cases);
     eq(apres.slice(-2).map((e) => e.id), ["messages", "contacts"], `${espace} : messages et contacts passent le filtre`);
   }
+  // Cases non lues (nul) : l'ancien drapeau décide, un non-admin ne gagne pas l'entrée Émargement.
+  eq(formateurPourLEmargement({ cases: null, peutModifier: true, admin: false }), false, "cases nulles, non admin : pas d'Émargement");
+  eq(formateurPourLEmargement({ cases: null, peutModifier: true, admin: true }), true, "cases nulles, admin : Émargement");
+  eq(formateurPourLEmargement({ cases: casesInt, peutModifier: true, admin: false }), true, "cases lues : peutModifier décide");
+  eq(formateurPourLEmargement({ cases: casesInt, peutModifier: false, admin: true }), false, "cases lues, Voir : pas d'écriture");
+  eq(ids(entreesNavigation("equipe", { ...optionsDe.equipe, formateur: formateurPourLEmargement({ cases: null, peutModifier: true, admin: false }), cases: null })).includes("emargement"),
+    false, "cases nulles et non admin : l'entrée manque");
+
   // Le filtre lui-même : l'accueil de la direction (route « centre ») reste, la page Indicateurs de la promo (même route) suit sa case.
   eq(ids(entreesNavigation("direction", { ...optionsDe.direction, cases: toutesZero("centre") })), ["centre"],
     "direction, toutes cases à 0 : l'accueil reste (la route centre n'est pas Indicateurs ici)");

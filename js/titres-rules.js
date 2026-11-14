@@ -7,7 +7,7 @@
  * `titres_visibles`) ; `casesDeLEspace` les convertit en 0 (Non), 1 (Voir), 2 (Modifier).
  */
 
-// Les pages de chaque niveau, dans l'ordre de la fonction SQL `_pages_duNiveau` (migration 20261112_titres_1_tables.sql).
+// Les pages de chaque niveau, dans l'ordre de la fonction SQL `_pages_du_niveau` (migration 20261112_titres_1_tables.sql).
 // `plafond` : 2 (Voir et Modifier) ou 1 (Voir seul). `route` : la route de l'app qui porte la case.
 export const PAGES_DU_NIVEAU = {
   promo: [
@@ -250,4 +250,28 @@ export function titresPourApercu(listes, apercu) {
   const duNiveau = source.filter((t) => t && t.niveau === niveau && t.id != null);
   return [...duNiveau.filter((t) => t.fixe), ...duNiveau.filter((t) => !t.fixe)]
     .map((t) => ({ id: String(t.id), nom: t.nom, fixe: !!t.fixe }));
+}
+
+// Mémoire de la liste du choix « Titre » : `{ reseau, centres: { [lieuId]: lignes } }`, une liste par centre (la liste d'un autre
+// centre ne sert jamais). `fusionnerListesApercu` rend la nouvelle mémoire, ou l'ancienne quand les deux lectures ont raté (une
+// lecture ratée n'est pas mémorisée : la prochaine ouverture du menu relit) ; une lecture qui a réussi est gardée.
+export function fusionnerListesApercu(memoire, lieuId, centre, reseau) {
+  const base = memoire && typeof memoire === "object" ? memoire : { reseau: null, centres: {} };
+  const centres = { ...(base.centres || {}) };
+  const centreLu = lieuId != null && Array.isArray(centre);
+  const reseauLu = Array.isArray(reseau);
+  if (!centreLu && !reseauLu) return memoire || null;
+  if (centreLu) centres[String(lieuId)] = centre;
+  return { reseau: reseauLu ? reseau : base.reseau, centres };
+}
+// Ce que la mémoire sait pour le centre affiché : `{ centre, reseau }` (champs nuls quand non lus), à passer à titresPourApercu.
+export function listesPourLeCentre(memoire, lieuId) {
+  const m = memoire && typeof memoire === "object" ? memoire : {};
+  const centre = lieuId != null && m.centres ? m.centres[String(lieuId)] : null;
+  return { centre: Array.isArray(centre) ? centre : null, reseau: Array.isArray(m.reseau) ? m.reseau : null };
+}
+// Faut-il (re)lire ? Oui quand une des listes utiles au centre affiché manque.
+export function listesApercuIncompletes(memoire, lieuId) {
+  const l = listesPourLeCentre(memoire, lieuId);
+  return !l.reseau || (lieuId != null && !l.centre);
 }

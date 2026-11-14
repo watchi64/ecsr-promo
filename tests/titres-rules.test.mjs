@@ -7,6 +7,7 @@ import {
   PAGES_DU_NIVEAU, NIVEAU_DE_L_ESPACE, ROUTES_A_CASE, casesDeLEspace, caseDe, choixDeLaPage, releverStagiaires,
   PHRASE_STAGIAIRES_RELEVE, bandeaux, BANDEAU_EQUIPE, BANDEAU_COURS, BANDEAU_DIRECTIONS, phrasePorteurs, phraseVersionCentre,
   ceQueJePeuxFaire, libelleTitre, pastillesDePersonne, titresDonnablesGroupes, phraseJournal, formateurFixeSur, titresPourApercu,
+  fusionnerListesApercu, listesPourLeCentre, listesApercuIncompletes,
 } from "../js/titres-rules.js";
 
 const formateurFixe = { titre_id: 1, nom: "Formateur", niveau: "promo", lieu_id: 1, lieu_nom: "Centre de Nîmes", promo_ids: [1, 2], cases: {} };
@@ -196,6 +197,25 @@ test("titresPourApercu : titres du niveau de l'aperçu, le titre fixe d'abord, r
   assert.deepEqual(titresPourApercu({ centre: null, reseau }, "formateur"), []);
   assert.deepEqual(titresPourApercu({ centre: null, reseau }, "siege").length, 2);
   assert.deepEqual(titresPourApercu(null, "siege"), []);
+});
+
+test("liste du choix Titre : une liste par centre, une lecture ratée n'est pas mémorisée", () => {
+  const reseau = [{ id: 3, nom: "Siège", niveau: "reseau", fixe: true }];
+  const lieuA = [{ id: 1, nom: "Formateur", niveau: "promo", fixe: true }, { id: 10, nom: "Intervenant A", niveau: "promo", fixe: false }];
+  const lieuB = [{ id: 1, nom: "Formateur", niveau: "promo", fixe: true }, { id: 20, nom: "Intervenant B", niveau: "promo", fixe: false }];
+  let m = fusionnerListesApercu(null, 1, lieuA, reseau);
+  assert.deepEqual(titresPourApercu(listesPourLeCentre(m, 1), "formateur").map((t) => t.nom), ["Formateur", "Intervenant A"]);
+  assert.equal(listesApercuIncompletes(m, 1), false);
+  assert.equal(listesApercuIncompletes(m, 2), true, "autre centre : à lire");
+  assert.deepEqual(titresPourApercu(listesPourLeCentre(m, 2), "formateur"), [], "la liste du centre A ne sert pas au centre B");
+  m = fusionnerListesApercu(m, 2, lieuB, reseau);
+  assert.deepEqual(titresPourApercu(listesPourLeCentre(m, 2), "formateur").map((t) => t.nom), ["Formateur", "Intervenant B"]);
+  assert.deepEqual(titresPourApercu(listesPourLeCentre(m, 1), "formateur").map((t) => t.nom), ["Formateur", "Intervenant A"]);
+  assert.equal(fusionnerListesApercu(null, 1, null, null), null, "deux lectures ratées : rien de mémorisé");
+  assert.equal(listesApercuIncompletes(fusionnerListesApercu(null, 1, null, null), 1), true);
+  const partiel = fusionnerListesApercu(null, 1, null, reseau);
+  assert.equal(listesApercuIncompletes(partiel, 1), true, "centre raté : relu à la prochaine ouverture");
+  assert.equal(fusionnerListesApercu(m, 1, null, null), m, "une relecture ratée garde ce qui était lu");
 });
 
 test("aucun texte ne contient « prof » ni le tiret cadratin", () => {

@@ -10,7 +10,7 @@ import {
 } from "./db.js?v=20261114f";
 import { toast, annoncer, el } from "./utils.js?v=20261114f";
 import {
-  initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, monStagiaireId, getAdminEmail,
+  initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail,
   getProfile, getProfileWho, fondateurHorsApercu, getProfileNom, selonPublic,
 } from "./auth-admin.js?v=20261114f";
 import { getEspace, getCentre, seDeconnecter, casesAffichees, peutModifier } from "./auth-admin.js?v=20261114f";
@@ -53,7 +53,7 @@ import { renderProblemes } from "./views/problemes.js?v=20261114f";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261114f";
 import { chargerEmargementActif, emargementActif, chargerEmargementCentre, emargementDansLeCentre } from "./emargement-etat.js?v=20261114f";
 import { chargerAutonomieActive } from "./autonomie-etat.js?v=20261114f";
-import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, routeApresRedirection } from "./nav-rules.js?v=20261114f";
+import { routeVisibleV2, entreesNavigation, formateurPourLEmargement, initialesDe, redirectionV2, routeApresRedirection } from "./nav-rules.js?v=20261114f";
 import { monterCoquille, majEntreeActive, coquilleMontee, majNouveautesCompte } from "./nav-shell.js?v=20261114f";
 import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261114f";
 import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261114f";
@@ -93,7 +93,7 @@ function renderTabs() {
       // Lot 5 : Émargement du centre s'allume quand une promo du centre a l'interrupteur (emargementDansLeCentre, lu au
       // démarrage) ; Réglages du centre et Réglages du réseau ont leur page (js/views/reglages-habillage.js) : leur entrée est là.
       entrees: entreesNavigation(espace, {
-        routeVisible, emargementActif: emargementActif(), formateur: peutModifier("emargement"),
+        routeVisible, emargementActif: emargementActif(), formateur: formateurPourLEmargement({ cases: casesAffichees(), peutModifier: peutModifier("emargement"), admin: isAdmin() }),
         emargementDansLeCentre: emargementDansLeCentre(), reglagesEspace: espaceDePilotage(espace),
         // Titres (étape 3) : une page à « Non » n'a pas d'entrée ; cases nul (titre fixe, fondateur, lecture ratée), la barre d'avant.
         cases: casesAffichees(),
