@@ -529,6 +529,14 @@ begin
     pg_temp.appeler('stag_n', '1', $ca_q$select concat_ws('/', jsonb_typeof(r->'fiche'), r->>'email_compte', jsonb_array_length(r->'centres'), jsonb_array_length(r->'relais_possibles')) from (select public.ma_fiche_contact() as r) x$ca_q$) || ' / '
       || pg_temp.appeler('siege', null, $ca_q$select concat_ws('/', jsonb_typeof(r->'fiche'), jsonb_array_length(r->'centres')) from (select public.ma_fiche_contact() as r) x$ca_q$),
     format('OK null/%s/0/0 / OK null/0', e_stag_n));
+  perform pg_temp.attendre('ma_fiche', 'peut_ecrire (geste des fiches sans compte) : form_n (formateur fixe) et dir_n (direction) vrai ; stag_n, t_secr, t_interv (titres non fixes) faux',
+    concat_ws(' / ',
+      pg_temp.appeler('form_n', '1', $ca_q$select (public.ma_fiche_contact()->>'peut_ecrire')$ca_q$),
+      pg_temp.appeler('dir_n', '1', $ca_q$select (public.ma_fiche_contact()->>'peut_ecrire')$ca_q$),
+      pg_temp.appeler('stag_n', '1', $ca_q$select (public.ma_fiche_contact()->>'peut_ecrire')$ca_q$),
+      pg_temp.appeler('t_secr', '1', $ca_q$select (public.ma_fiche_contact()->>'peut_ecrire')$ca_q$),
+      pg_temp.appeler('t_interv', '1', $ca_q$select (public.ma_fiche_contact()->>'peut_ecrire')$ca_q$)),
+    'OK true / OK true / OK false / OK false / OK false');
   perform pg_temp.attendre('ma_fiche', 'form_n en aperçu stagiaire : aucune fiche (un aperçu ne fait que retirer des droits)',
     pg_temp.valeur(e_form_n, '1', 'stagiaire', $ca_q$select jsonb_typeof(public.ma_fiche_contact()->'fiche')$ca_q$), 'null');
   -- Enregistrement : vérifiée, adresse en minuscules sans espaces de bord, une clé absente ne change rien (« quand »).

@@ -27,6 +27,10 @@ test("congé : relais nommé, borne incluse", () => {
   assert.equal(ligneDeFiche(autreMois, { jour: "2026-11-30", parId: new Map([[9, "Claire"]]) }).conge,
     "En congé jusqu'au 3 décembre, relais : Claire");
   assert.equal(ligneDeFiche(autreMois, { jour: "2026-12-01", parId: new Map() }).conge, "En congé jusqu'au 3");
+  // Le premier du mois se dit « 1er ».
+  const premier = { conge_du: "2026-11-28", conge_au: "2026-12-01" };
+  assert.equal(ligneDeFiche(premier, { jour: "2026-11-30", parId: new Map() }).conge, "En congé jusqu'au 1er décembre");
+  assert.equal(ligneDeFiche({ conge_du: "2026-12-01", conge_au: "2026-12-01" }, { jour: "2026-12-01", parId: new Map() }).conge, "En congé jusqu'au 1er");
   assert.equal(enConge(f, "2026-11-10"), true);
   assert.equal(enConge(f, "2026-11-09"), false);
   assert.equal(enConge({}, "2026-11-10"), false);

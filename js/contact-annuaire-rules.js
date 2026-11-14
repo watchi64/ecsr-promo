@@ -23,9 +23,10 @@ const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", 
 
 // « 15 », ou « 3 décembre » quand le mois de la date n'est pas celui du jour affiché.
 function dateDeFin(iso, jour) {
-  const jourDuMois = Number(String(iso).slice(8, 10));
+  const numero = Number(String(iso).slice(8, 10));
+  const jourDuMois = numero === 1 ? "1er" : String(numero);
   const mois = Number(String(iso).slice(5, 7));
-  return mois === Number(String(jour).slice(5, 7)) ? String(jourDuMois) : `${jourDuMois} ${MOIS[mois - 1]}`;
+  return mois === Number(String(jour).slice(5, 7)) ? jourDuMois : `${jourDuMois} ${MOIS[mois - 1]}`;
 }
 
 // Ce que l'écran affiche pour une fiche de l'annuaire. `parId` : Map(id de fiche -> nom) pour nommer le relais.

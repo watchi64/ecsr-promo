@@ -1,17 +1,17 @@
 // Page Contacts (espace contact, tâche 5) : l'annuaire du centre de la promo affichée, pour le stagiaire (tutoiement), l'équipe et la
 // direction (vouvoiement). Une carte par fiche (nom, titre, « Pour quoi me joindre », « Quand », congé et relais, « Appeler »), puis
 // la promo : les prénoms et la mention délégué pour un stagiaire, les coordonnées (téléphone, e-mail, financement) pour l'équipe.
-// Qui écrit les fiches (fiches_internes.ecrire) ajoute, modifie, supprime et range les fiches sans compte ; la base reste juge, ses refus
+// Qui a le geste d'écrire les fiches (fiches_internes.ecrire, lu par ma_fiche_contact) ajoute, modifie, supprime et range les fiches sans compte ; la base reste juge, ses refus
 // se disent par leur phrase (phraseDeRefus). Les règles d'affichage vivent dans js/contact-annuaire-rules.js. Aucun défilement de côté :
 // des listes, jamais de tableau.
 
 import {
-  lireAnnuaire, ordonnerFiches, listStagiaires, lireCoordonnees, addContact, updateContact, deleteContact, lireFormateursPourFiche,
+  lireAnnuaire, lireMaFiche, ordonnerFiches, listStagiaires, lireCoordonnees, addContact, updateContact, deleteContact, lireFormateursPourFiche,
   getPromoCourante, getLieuxLus,
 } from "../db.js?v=20261114f";
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
-import { isAdmin, isStagiaire, selonPublic } from "../auth-admin.js?v=20261114f";
+import { isStagiaire, selonPublic } from "../auth-admin.js?v=20261114f";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261114f";
 import { confirmer } from "../confirmer.js?v=20261114f";
 import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
@@ -250,13 +250,17 @@ export async function renderContacts(container) {
   let annuaire;
   let stagiaires = [];
   let coordonnees = [];
+  let peutEcrire = false;
   try {
     // Les stagiaires et leurs coordonnées complètent la page : leur échec ne la vide pas.
-    const [fiches, promo, coord] = await Promise.all([
+    const [fiches, promo, coord, moi] = await Promise.all([
       lireAnnuaire(),
       listStagiaires().catch((e) => { console.error("promo", e); return []; }),
       stagiaire ? Promise.resolve([]) : lireCoordonnees().catch((e) => { console.error("coordonnées", e); return []; }),
+      // Le geste qui commande l'ajout et l'ordre des fiches (la base le juge aussi) ; illisible : pas de bouton.
+      stagiaire ? Promise.resolve(null) : lireMaFiche().catch((e) => { console.error("mon droit d'écrire", e); return null; }),
     ]);
+    peutEcrire = moi?.peut_ecrire === true;
     annuaire = fiches;
     stagiaires = promo;
     coordonnees = coord;
@@ -274,7 +278,6 @@ export async function renderContacts(container) {
   const jour = jourParis(new Date());
   const triees = trierFiches(annuaire);
   const parId = new Map(annuaire.map((f) => [f.id, f.nom_affiche]));
-  const peutEcrire = !stagiaire && (isAdmin() || annuaire.some((f) => f.ecrivable));
 
   // Après une écriture : la page se relit ; le focus revient sur la carte touchée, sinon sur le titre.
   async function apres(ficheId, geste = null) {

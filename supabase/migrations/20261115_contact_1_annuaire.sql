@@ -399,7 +399,8 @@ as $fn$
 $fn$;
 
 -- La fiche de l'appelant (nulle sans affectation de formateur ou de direction, et en aperçu : un aperçu ne fait que retirer des droits),
--- l'adresse de son compte (proposée comme e-mail professionnel au premier enregistrement), ses centres et ses relais possibles.
+-- l'adresse de son compte (proposée comme e-mail professionnel au premier enregistrement), ses centres et ses relais possibles, et
+-- peut_ecrire : le geste qui commande l'ajout, la suppression et l'ordre des fiches sans compte (vrai même quand l'annuaire est vide).
 create function public.ma_fiche_contact()
 returns jsonb language plpgsql stable security definer set search_path = public, pg_temp
 as $fn$
@@ -419,6 +420,7 @@ begin
   return jsonb_build_object(
     'fiche', v_fiche,
     'email_compte', v_moi,
+    'peut_ecrire', coalesce(geste_promo(promo_courante(), 'fiches_internes.ecrire'), false),
     'centres', case when v_fiche is null then '[]'::jsonb else coalesce((
       select jsonb_agg(jsonb_build_object('id', li.id, 'nom', li.nom) order by li.nom collate "C", li.id)
         from lieux li
