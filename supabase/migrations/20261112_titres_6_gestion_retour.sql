@@ -4,6 +4,19 @@
 -- migration 1 a créée) ; seul le retour 1 les efface.
 set local lock_timeout = '3s';
 
+-- D5 (décision de Timy du 12/11, ajoutée à l'étape 3) : tant qu'une personne porte un titre non fixe, le retour s'arrête ici, avant tout
+-- changement (sans donner_titre ni retirer_titre de la migration 6, plus rien ne saurait le lui retirer). Retirer d'abord ces titres
+-- depuis l'app.
+do $garde_d5$
+declare
+  v_n integer;
+begin
+  select count(*) into v_n from public.affectations a join public.titres t on t.id = a.titre_id where not t.fixe;
+  if v_n > 0 then
+    raise exception 'titres_6_gestion_retour : % affectation(s) portent un titre non fixe ; les retirer d''abord (page Équipe ou Directions de centre) ; rien n''est changé', v_n;
+  end if;
+end $garde_d5$;
+
 -- D. Les quatre lectures disparaissent.
 drop function if exists public.journal_des_droits(integer);
 drop function if exists public.personnes_et_titres(integer, integer);

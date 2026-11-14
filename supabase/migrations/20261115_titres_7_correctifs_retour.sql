@@ -3,6 +3,18 @@
 -- À appliquer en une seule transaction : psql -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261115_titres_7_correctifs_retour.sql.
 set local lock_timeout = '3s';
 
+-- D5 (décision de Timy du 12/11) : tant qu'une personne porte un titre non fixe, le retour s'arrête ici, avant tout changement (les
+-- fonctions d'avant la migration ne savent pas le retirer correctement). Retirer d'abord ces titres depuis l'app.
+do $garde_d5$
+declare
+  v_n integer;
+begin
+  select count(*) into v_n from public.affectations a join public.titres t on t.id = a.titre_id where not t.fixe;
+  if v_n > 0 then
+    raise exception 'titres_7_correctifs_retour : % affectation(s) portent un titre non fixe ; les retirer d''abord (page Équipe ou Directions de centre) ; rien n''est changé', v_n;
+  end if;
+end $garde_d5$;
+
 -- B. D4 : l'index part d'abord ; puis, dans le bloc généré, ajuster_titre et donner_titre perdent leurs verrous, et (C) donner_titre,
 -- creer_titre et ajuster_titre les refus M4 et M7 et la règle M5 (fragments inverses).
 drop index public.titres_version_unique;

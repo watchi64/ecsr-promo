@@ -1263,7 +1263,9 @@ test("les aides de gestion : sorties de la preuve de gestion, sans marqueur, inc
   assert.ok(!gestion.includes("function pg_temp.poser_titres_gestion()"), "poser_titres_gestion n'est plus dans la preuve de gestion");
   assert.ok(gestion.indexOf(`-- @@INCLURE ${AIDES_TITRES}@@`) < gestion.indexOf(`-- @@INCLURE ${AIDES_GESTION}@@`));
   const retrait = gestion.indexOf("pg_temp.retirer_titres_non_fixes()");
-  assert.ok(retrait > 0 && retrait < gestion.indexOf(`-- @@INJECTER ${ETAPES_GESTION[6].retour}@@`), "le retrait précède le retour 6");
+  // Le texte du retour 6 est lu juste avant le groupe d5 (qui l'essaie, annulé) ; le retrait précède son vrai jeu.
+  assert.ok(retrait > 0 && retrait < gestion.indexOf("pg_temp.jouer('retour 6', v_r6)"), "le retrait précède le jeu du retour 6");
+  assert.ok(gestion.indexOf(`-- @@INJECTER ${ETAPES_GESTION[6].retour}@@`) < gestion.indexOf("perform pg_temp.groupe_d5('retour 6'"), "le texte du retour 6 est lu avant d5");
   assert.ok(retrait > gestion.lastIndexOf("perform pg_temp.groupe_"), "et suit le dernier groupe");
 });
 
@@ -1419,4 +1421,27 @@ test("la migration 7 (partie C, M4, M5, M7) : fiche et is_admin au seul Formateu
   for (const p of [reseau, centre]) assert.ok(nouveaux[8].includes(p));
   // Le retour défait la partie C (fragments échangés) ; aucune phrase de C n'est posée par le retour.
   for (const p of [m4, reseau, centre]) assert.ok(!tableau(r, "nouveau").some((x) => x.includes(p)), `le retour ne pose pas ${p}`);
+});
+
+test("garde D5 : les retours 6 et 7 commencent, juste après le lock_timeout, par le compte des titres non fixes portés et la phrase D5", () => {
+  for (const [chemin, prefixe] of [[ETAPES_GESTION[6].retour, "titres_6_gestion_retour"], [S[7].retour, "titres_7_correctifs_retour"]]) {
+    const t = texteDuDepot(chemin);
+    const code = t.split("\n").filter((l) => l.trim() !== "" && !l.trimStart().startsWith("--"));
+    assert.equal(code[0], "set local lock_timeout = '3s';", `${chemin} : lock_timeout d'abord`);
+    assert.equal(code[1], "do $garde_d5$", `${chemin} : la garde D5 est la première instruction après le lock_timeout`);
+    const garde = t.slice(t.indexOf("do $garde_d5$"), t.indexOf("end $garde_d5$;"));
+    assert.ok(garde.includes("from public.affectations a join public.titres t on t.id = a.titre_id where not t.fixe"), `${chemin} : compte des titres non fixes portés`);
+    assert.ok(garde.includes(`raise exception '${prefixe} : % affectation(s) portent un titre non fixe ; les retirer d''abord (page Équipe ou Directions de centre) ; rien n''est changé', v_n;`),
+      `${chemin} : phrase D5`);
+    assert.equal(t.split("$garde_d5$").length - 1, 2, `${chemin} : une seule garde D5`);
+  }
+  // Les deux preuves jouent le groupe d5 commun (aides de gestion) avant le retrait des titres non fixes.
+  const aides = texteDuDepot(AIDES_GESTION);
+  assert.ok(aides.includes("create or replace function pg_temp.groupe_d5(p_nom text, p_texte text, p_prefixe text, p_fonctions text[])"));
+  const suite = texteDuDepot(GABARIT_SUITE);
+  assert.ok(suite.indexOf("pg_temp.groupe_d5('retour 7', v_r7, 'titres_7_correctifs_retour'") > 0);
+  assert.ok(suite.indexOf("pg_temp.groupe_d5('retour 7'") < suite.lastIndexOf("pg_temp.retirer_titres_non_fixes()"), "suite : d5 avant le retrait");
+  const gestion = texteDuDepot(GABARIT_GESTION);
+  assert.ok(gestion.indexOf("pg_temp.groupe_d5('retour 6', v_r6, 'titres_6_gestion_retour'") > 0);
+  assert.ok(gestion.indexOf("pg_temp.groupe_d5('retour 6'") < gestion.indexOf("pg_temp.retirer_titres_non_fixes()"), "gestion : d5 avant le retrait");
 });

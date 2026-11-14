@@ -9,6 +9,8 @@
 --                restent le seul chemin ; le scénario de la relecture finale (un siège ne se nomme pas direction) ne lit rien.
 --   lectures     (migration 5, C) les lectures qu'une case « Non » ferme (affectations, profils du personnel, roles_du_personnel, notes visibles),
 --                en nombre de lignes ; les titres fixes lisent les mêmes nombres qu'avant la migration (relevé avant, comparé après).
+--   d5           (étape 3, aides de gestion, pg_temp.groupe_d5) le retour 6, injecté après la migration 6 jouée ici, s'arrête sans rien
+--                changer tant qu'une affectation porte un titre non fixe, avec la phrase D5 ; les affectations retirées, il passe.
 --   retour       les retours défont tout, dans l'ordre inverse (6, 5, 4) : l'empreinte (règles, fonctions, droits) égale celle d'avant.
 -- Les groupes des migrations 5 et 6 s'ajoutent avec leurs tâches (retrait, soi, ecritures, lectures ; puis verrou, donner, retirer,
 -- gerer, lire, immediat, journal). Un groupe dont la fonction n'existe pas est sauté, avec une ligne d'information, en mode
@@ -1564,7 +1566,7 @@ declare
   ;
   v_debut constant timestamptz := clock_timestamp();
   v_en_ligne boolean;
-  v_etat4 text; v_etat5 text; v_etat6 text; v_retour text; v_retour4 text; v_retour5 text; v_retour6 text;
+  v_etat4 text; v_etat5 text; v_etat6 text; v_retour text; v_retour4 text; v_retour5 text; v_retour6 text; v_r6 text;
   v_av_regles text; v_av_fonctions text; v_av_droits text;
   v_ap_regles text; v_ap_fonctions text; v_ap_droits text;
   v_regle text; v_jouees integer;
@@ -1657,14 +1659,25 @@ begin
 
   -- 5. Les retours, dans l'ordre inverse (6, 5, 4). Avant eux, dans les seuls modes qui injectent des retours, les affectations des titres
   -- non fixes partent (en propriétaire) : chaque retour de 6, 7, 8 et 9 refuse de se jouer tant qu'une personne porte un titre non fixe
-  -- (garde D5 de l'étape 3). Jamais en ligne ni en contre-épreuve. Une information, jamais un contrôle.
+  -- (garde D5 de l'étape 3). Jamais en ligne ni en contre-épreuve. Une information, jamais un contrôle. Juste avant, le groupe d5 : le
+  -- retour 6, joué dans une sous-transaction toujours annulée, refuse tant qu'un titre non fixe est porté, puis passe une fois les
+  -- affectations retirées ; jugé seulement quand la migration 6 a été jouée ici et que son retour est injecté.
+  v_r6 :=
+-- @@INJECTER supabase/migrations/20261112_titres_6_gestion_retour.sql@@
+  ;
+  if v_mode like 'gestion (%' and v_etat6 = 'jouée' and v_r6 <> 'select 1' then
+    perform pg_temp.groupe_d5('retour 6', v_r6, 'titres_6_gestion_retour',
+      array['public.retirer_titre(text, bigint, integer)', 'public.regler_affectations_formateur(text, integer, integer[], integer)',
+            'public.donner_titre(text, bigint, integer, integer[], integer)', 'public._refus_gestion(text, integer, jsonb)',
+            'public.mes_titres()']);
+  else
+    perform pg_temp.informer('groupe d5', 'sauté : la migration 6 n''est pas jouée ici ou son retour n''est pas injecté dans ce mode');
+  end if;
   if v_mode like 'gestion (%' then
     perform pg_temp.informer('avant les retours', format('%s affectation(s) d''un titre non fixe retirée(s) (garde D5 des retours)',
       pg_temp.retirer_titres_non_fixes()));
   end if;
-  v_retour6 := pg_temp.jouer('retour 6',
--- @@INJECTER supabase/migrations/20261112_titres_6_gestion_retour.sql@@
-  );
+  v_retour6 := pg_temp.jouer('retour 6', v_r6);
   perform pg_temp.etape('retour 6', v_retour6, v_mode);
   v_retour5 := pg_temp.jouer('retour 5',
 -- @@INJECTER supabase/migrations/20261112_titres_5_fermetures_retour.sql@@

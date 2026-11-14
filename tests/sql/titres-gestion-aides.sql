@@ -1,6 +1,7 @@
 -- Aides des preuves de l'étape 2 et de l'étape 3 du chantier « titres et droits à la carte » (tests/sql/titres-gestion-preuve.sql,
 -- tests/sql/titres-suite-preuve.sql) : les personnages de l'étape 2 (pg_temp.poser_titres_gestion, sortie telle quelle de la preuve de
--- gestion) et le retrait des titres non fixes qui précède les retours (pg_temp.retirer_titres_non_fixes).
+-- gestion), le retrait des titres non fixes qui précède les retours (pg_temp.retirer_titres_non_fixes) et le groupe d5 commun aux deux
+-- preuves (pg_temp.groupe_d5 : la garde D5 des retours 6 et 7).
 -- INCLUSION : l'assembleur (outils/assembler_repetition_roles.mjs) colle ce fichier tel quel, après tests/sql/roles-aides.sql et
 -- tests/sql/titres-aides.sql (il appelle calcul, affecter et la table perso de ces deux fichiers) ; il ne porte donc aucun marqueur
 -- d'assemblage. Ne se joue pas seul.
@@ -64,3 +65,72 @@ begin
   get diagnostics v_n = row_count;
   return v_n;
 end $trnf$;
+
+-- Garde D5 (étape 3) : l'état que la preuve compare avant et après un retour, en texte : le md5 des définitions des fonctions données
+-- (« absente » pour une fonction qui n'existe pas), triées collate "C", puis la présence de l'index titres_version_unique (migration 7).
+create or replace function pg_temp.etat_des_fonctions(p_fonctions text[])
+returns text language sql as $tgef$
+  select md5(string_agg(coalesce(pg_get_functiondef(to_regprocedure(s)), 'absente ' || s), E'\n' order by s collate "C"))
+         || ' / ' || coalesce(to_regclass('public.titres_version_unique')::text, 'sans index')
+    from unnest(p_fonctions) s;
+$tgef$;
+
+-- Un retour joué en propriétaire dans une sous-transaction TOUJOURS annulée : « passe » (puis une levée défait tout ce qu'il a fait)
+-- ou « ERREUR <état> <message> ». apres : l'état des fonctions juste après le retour, pris avant l'annulation (un retour qui passe le
+-- change ; un retour refusé le laisse). p_retirer : les affectations des titres non fixes partent d'abord (dans la même sous-transaction,
+-- donc annulées elles aussi). Rien ne reste : les personnages gardent leurs titres pour les groupes suivants.
+create or replace function pg_temp.essayer_retour(p_texte text, p_fonctions text[], p_retirer boolean,
+  out etat text, out apres text, out retirees integer)
+language plpgsql as $tger$
+begin
+  retirees := 0;
+  perform pg_temp.proprio();
+  begin
+    if p_retirer then
+      retirees := pg_temp.retirer_titres_non_fixes();
+    end if;
+    execute p_texte;
+    etat := 'passe';
+    apres := pg_temp.etat_des_fonctions(p_fonctions);
+    raise exception 'preuve d5 : essai annulé';
+  exception when others then
+    if etat is null then
+      etat := 'ERREUR ' || sqlstate || ' ' || left(sqlerrm, 300);
+      apres := pg_temp.etat_des_fonctions(p_fonctions);
+    end if;
+  end;
+  perform pg_temp.proprio();
+end $tger$;
+
+-- Groupe d5 (preuve de gestion : retour 6 ; preuve de la suite : retour 7) : tant qu'une affectation porte un titre non fixe, le retour
+-- s'arrête dès sa première instruction avec la phrase D5 et rien n'est changé ; les affectations retirées, il passe. p_prefixe : le nom
+-- de la migration dans la phrase (titres_6_gestion_retour, titres_7_correctifs_retour) ; p_fonctions : les fonctions que le retour réécrit.
+create or replace function pg_temp.groupe_d5(p_nom text, p_texte text, p_prefixe text, p_fonctions text[])
+returns void language plpgsql as $tgd5$
+declare
+  v_n integer;
+  v_avant text;
+  r record;
+begin
+  perform pg_temp.proprio();
+  select count(*) into v_n from public.affectations a join public.titres t on t.id = a.titre_id where not t.fixe;
+  perform pg_temp.verifier('d5', 'départ : des affectations portent un titre non fixe (jamais un contrôle à vide)', v_n > 0, v_n::text);
+  v_avant := pg_temp.etat_des_fonctions(p_fonctions);
+  perform pg_temp.verifier('d5', 'départ : les fonctions réécrites par le ' || p_nom || ' existent', v_avant not like '%absente%', v_avant);
+  -- 1. Joué tant qu'ils sont portés : refusé avec la phrase D5, rien n'est changé.
+  select * into r from pg_temp.essayer_retour(p_texte, p_fonctions, false);
+  perform pg_temp.attendre('d5', p_nom || ' joué tant qu''un titre non fixe est porté : refusé avec la phrase D5', r.etat,
+    format('ERREUR P0001 %s : %s affectation(s) portent un titre non fixe ; les retirer d''abord (page Équipe ou Directions de centre) ; rien n''est changé',
+      p_prefixe, v_n));
+  perform pg_temp.attendre('d5', p_nom || ' refusé : définitions des fonctions et index inchangés (md5)', r.apres, v_avant);
+  -- 2. Les affectations des titres non fixes retirées (en propriétaire), le même retour passe et défait la migration.
+  select * into r from pg_temp.essayer_retour(p_texte, p_fonctions, true);
+  perform pg_temp.attendre('d5', 'retirer_titres_non_fixes() puis ' || p_nom || ' : passe, après le retrait de toutes les affectations',
+    r.etat || ' / ' || r.retirees, 'passe / ' || v_n);
+  perform pg_temp.verifier('d5', p_nom || ' passé : les définitions ont changé (la migration est défaite)', r.apres is distinct from v_avant,
+    'avant ' || v_avant || ' ; après ' || coalesce(r.apres, 'nul'));
+  -- 3. L'essai est annulé : affectations et fonctions comme au départ (les groupes suivants les retrouvent).
+  perform pg_temp.attendre('d5', 'essais annulés : affectations des titres non fixes et fonctions comme au départ',
+    (select count(*) from public.affectations a join public.titres t on t.id = a.titre_id where not t.fixe)::text || ' / '
+      || pg_temp.etat_des_fonctions(p_fonctions), v_n::text || ' / ' || v_avant);
+end $tgd5$;

@@ -6,6 +6,8 @@
 --   structure    prérequis de l'étape 2 présents (donner_titre, _refus_gestion, titres_ouverts : migration 6 appliquée), chaque migration et
 --                chaque retour injectés se jouent sans erreur, personnages posés, aucune règle (policy) réécrite : md5 de pg_policies
 --                (schéma public, trié collate "C") identique avant et après chaque migration 7, 8, 4 et 9.
+--   d5           (aides de gestion, pg_temp.groupe_d5) le retour 7, injecté, s'arrête sans rien changer tant qu'une affectation porte un
+--                titre non fixe, avec la phrase D5 ; les affectations retirées, il passe ; les deux essais sont annulés.
 --   retour       les retours défont tout, dans l'ordre inverse (9, 8, 7, 4) : l'empreinte (règles, fonctions, droits) égale celle d'avant.
 -- Les groupes des migrations s'ajoutent avec leurs tâches (d1, d4, d5, m4m5, m7, apercu, ajustables, catalogue, journal_suite), chacun
 -- derrière pg_temp.groupe_suite_a_jouer, qui juge la présence de sa migration par un marqueur (7 : l'index titres_version_unique,
@@ -662,6 +664,17 @@ begin
   end if;
   if pg_temp.groupe_suite_a_jouer('m7', 7, v_mode) then
     perform pg_temp.groupe_m7();
+  end if;
+  -- d5 : le retour 7, joué dans une sous-transaction toujours annulée, refuse tant qu'un titre non fixe est porté (u porte R). Il demande
+  -- le texte du retour : jugé seulement quand le retour 7 est injecté (suite --etapes 7, 7,8, 7,8,9) ; sinon une information.
+  if pg_temp.groupe_suite_a_jouer('d5', 7, v_mode) then
+    if v_r7 = 'select 1' then
+      perform pg_temp.informer('groupe d5', 'sauté : le retour 7 n''est pas injecté dans ce mode');
+    else
+      perform pg_temp.groupe_d5('retour 7', v_r7, 'titres_7_correctifs_retour',
+        array['public._refus_gestion(text, integer, jsonb)', 'public.ajuster_titre(bigint, integer, text, jsonb)',
+              'public.donner_titre(text, bigint, integer, integer[], integer)', 'public.creer_titre(bigint, text, integer)']);
+    end if;
   end if;
 
   -- 5. Les retours, dans l'ordre inverse (9, 8, 7, 4). Avant eux, dans les seuls modes qui injectent des retours, les affectations des
