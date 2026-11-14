@@ -87,8 +87,15 @@ body[data-nav="v2"] .nav-marque-promo {
   letter-spacing: 0.1em;
   line-height: 1.15;
   text-transform: uppercase;
-  white-space: nowrap;
   color: var(--text-muted);
+  /* Un nom long (« Démonstration (données fictives) ») passe sur deux lignes au lieu d'être coupé ; au-delà de deux lignes,
+     il s'arrête net (la largeur reste plafonnée : la capsule ne se décentre pas). */
+  white-space: normal;
+  text-wrap: balance;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 body[data-nav="v2"] .nav-onglets {
