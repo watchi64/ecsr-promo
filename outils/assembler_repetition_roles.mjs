@@ -56,7 +56,8 @@
 //                              sauté, avec une ligne d'information).
 //   contact-1, contact-2, contact-3   preuve de la partie n du chantier « espace contact » (tests/sql/contact-annuaire-preuve.sql,
 //                              contact-demandes-preuve.sql, contact-absences-preuve.sql ; aides communes : roles-aides.sql, titres-aides.sql
-//                              puis contact-aides.sql) : les migrations 20261115_contact_1 à _n injectées dans l'ordre, la preuve de la
+//                              puis contact-aides.sql) : les migrations 20261115_contact_1 à _n injectées dans l'ordre (l'étape 1 = la 1
+//                              puis la 1b, fermeture de la lecture directe ; retours 1b puis 1), la preuve de la
 //                              partie n jouée, puis les retours n à 1 ; le groupe retour compare l'empreinte d'après les retours à celle
 //                              d'avant ; une étape demandée dont un fichier manque arrête l'assemblage (code 1, son nom) ;
 //   contact-n-contre-epreuve   la même preuve avec les migrations 1 à n-1 injectées, la n et son retour neutralisés (select 1, non lus) :
@@ -90,8 +91,13 @@ const GABARIT_GESTION = "tests/sql/titres-gestion-preuve.sql";
 
 /** Chantier « espace contact » : trois migrations (annuaire, demandes, absences), chacune avec son retour, et la preuve de chaque partie. */
 export const ETAPES_CONTACT = {
+  // L'étape 1 porte deux migrations : la 1 (annuaire) puis la 1b (fermeture de la lecture directe de contacts, appliquée en production
+  // après la fusion de l'app) ; les gabarits injectent la 1 puis la 1b, et les retours 1b puis 1. Elles vont toujours ensemble dans les
+  // modes : injectées toutes deux, ou neutralisées toutes deux.
   1: { migration: "supabase/migrations/20261115_contact_1_annuaire.sql",
        retour: "supabase/migrations/20261115_contact_1_annuaire_retour.sql",
+       suite: { migration: "supabase/migrations/20261115_contact_1b_fermeture.sql",
+                retour: "supabase/migrations/20261115_contact_1b_fermeture_retour.sql" },
        gabarit: "tests/sql/contact-annuaire-preuve.sql" },
   2: { migration: "supabase/migrations/20261115_contact_2_demandes.sql",
        retour: "supabase/migrations/20261115_contact_2_demandes_retour.sql",
@@ -101,8 +107,11 @@ export const ETAPES_CONTACT = {
        gabarit: "tests/sql/contact-absences-preuve.sql" },
 };
 const NUMEROS_CONTACT = [1, 2, 3];
-/** Les fichiers d'une liste d'étapes du chantier contact, étape par étape : la migration, puis son retour. */
-const fichiersContact = (etapes) => etapes.flatMap((n) => [ETAPES_CONTACT[n].migration, ETAPES_CONTACT[n].retour]);
+/** Les fichiers d'une liste d'étapes du chantier contact, étape par étape : la migration, son retour, puis ceux de sa suite (1b). */
+const fichiersContact = (etapes) => etapes.flatMap((n) => {
+  const e = ETAPES_CONTACT[n];
+  return [e.migration, e.retour, ...(e.suite ? [e.suite.migration, e.suite.retour] : [])];
+});
 
 /** Lot 5, étape 1 : la migration du siège et son retour. */
 export const MIGRATION_ESPACES = { migration: "supabase/migrations/20261108_espaces_1_siege.sql",

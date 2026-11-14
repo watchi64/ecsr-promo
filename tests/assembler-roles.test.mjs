@@ -1122,22 +1122,29 @@ test("la migration 5 : retirer_titre fermée à public, anon et service_role, ou
 // --- Chantier « espace contact » : modes contact-1, contact-2, contact-3 (et leurs contre-épreuves, et en ligne) ------------------
 
 const CONTACT = {
-  1: { migration: "supabase/migrations/20261115_contact_1_annuaire.sql", retour: "supabase/migrations/20261115_contact_1_annuaire_retour.sql" },
+  1: { migration: "supabase/migrations/20261115_contact_1_annuaire.sql", retour: "supabase/migrations/20261115_contact_1_annuaire_retour.sql",
+       suite: { migration: "supabase/migrations/20261115_contact_1b_fermeture.sql", retour: "supabase/migrations/20261115_contact_1b_fermeture_retour.sql" } },
   2: { migration: "supabase/migrations/20261115_contact_2_demandes.sql", retour: "supabase/migrations/20261115_contact_2_demandes_retour.sql" },
   3: { migration: "supabase/migrations/20261115_contact_3_absences.sql", retour: "supabase/migrations/20261115_contact_3_absences_retour.sql" },
 };
-const TOUS_CONTACT = [1, 2, 3].flatMap((n) => [CONTACT[n].migration, CONTACT[n].retour]);
+/** Les fichiers d'une étape : sa migration et son retour, puis ceux de sa suite (la 1b pour l'étape 1). */
+const fichiersEtape = (n) => [CONTACT[n].migration, CONTACT[n].retour, ...(CONTACT[n].suite ? [CONTACT[n].suite.migration, CONTACT[n].suite.retour] : [])];
+const TOUS_CONTACT = [1, 2, 3].flatMap(fichiersEtape);
 const GABARITS_CONTACT = { 1: "tests/sql/contact-annuaire-preuve.sql", 2: "tests/sql/contact-demandes-preuve.sql", 3: "tests/sql/contact-absences-preuve.sql" };
 const AIDES_CONTACT = "tests/sql/contact-aides.sql";
 // Les migrations de la partie n n'existent qu'avec leurs tâches : des textes factices en mémoire pour juger l'assembleur seul.
 const FACTICES_CONTACT = Object.fromEntries([1, 2, 3].flatMap((n) => [
   [CONTACT[n].migration, `-- factice : contact migration ${n}\r\nselect ${n};\r\n`],
-  [CONTACT[n].retour, `-- factice : contact retour ${n}\r\nselect -${n};\r\n`]]));
+  [CONTACT[n].retour, `-- factice : contact retour ${n}\r\nselect -${n};\r\n`]]).concat([
+  [CONTACT[1].suite.migration, "-- factice : contact migration 1b\r\nselect 11;\r\n"],
+  [CONTACT[1].suite.retour, "-- factice : contact retour 1b\r\nselect -11;\r\n"]]));
 const depotContact = (chemin) => duDisque(chemin) ?? FACTICES_CONTACT[chemin] ?? null;
+// Les factices d'abord, même quand les vraies migrations existent : pour juger l'ordre des injections par leur texte.
+const facticesContact = (chemin) => FACTICES_CONTACT[chemin] ?? duDisque(chemin) ?? null;
 const sansContact = (garde) => (chemin) => (TOUS_CONTACT.includes(chemin) && !garde.includes(chemin) ? null : depotContact(chemin));
-/** L'ordre du gabarit de la partie n : migrations 1 à n, puis retours n à 1. */
-const ordreContact = (n) => [...Array(n).keys()].map((k) => CONTACT[k + 1].migration)
-  .concat([...Array(n).keys()].map((k) => CONTACT[n - k].retour));
+/** L'ordre du gabarit de la partie n : migrations 1, 1b, 2 ... n, puis retours n ... 2, 1b, 1. */
+const ordreContact = (n) => [...Array(n).keys()].flatMap((k) => [CONTACT[k + 1].migration, ...(CONTACT[k + 1].suite ? [CONTACT[k + 1].suite.migration] : [])])
+  .concat([...Array(n).keys()].flatMap((k) => [...(CONTACT[n - k].suite ? [CONTACT[n - k].suite.retour] : []), CONTACT[n - k].retour]));
 
 test("contact-n : migrations 1 à n puis retours n à 1 injectés octet pour octet, dans l'ordre du gabarit, après l'empreinte", () => {
   for (const n of [1, 2, 3]) {
@@ -1151,12 +1158,12 @@ test("contact-n : migrations 1 à n puis retours n à 1 injectés octet pour oct
   }
 });
 
-test("contact-2 : les marqueurs des migrations 1 et 2 dans cet ordre, puis les retours 2 et 1", () => {
-  const r = assemblerMode("contact-2", RACINE, { lire: depotContact });
-  const places = ["contact migration 1", "contact migration 2", "contact retour 2", "contact retour 1"]
-    .map((marque) => r.texte.indexOf(`-- factice : ${marque}`));
-  assert.ok(places.every((p) => p >= 0), "les quatre textes y sont");
-  assert.deepEqual([...places].sort((a, b) => a - b), places, "ordre : migration 1, migration 2, retour 2, retour 1");
+test("contact-2 : les marqueurs des migrations 1, 1b et 2 dans cet ordre, puis les retours 2, 1b et 1", () => {
+  const r = assemblerMode("contact-2", RACINE, { lire: facticesContact });
+  const places = ["contact migration 1", "contact migration 1b", "contact migration 2", "contact retour 2", "contact retour 1b", "contact retour 1"]
+    .map((marque) => r.texte.indexOf(`-- factice : ${marque}\n`));
+  assert.ok(places.every((p) => p >= 0), "les six textes y sont");
+  assert.deepEqual([...places].sort((a, b) => a - b), places, "ordre : migration 1, 1b, 2, retour 2, 1b, 1");
   assert.ok(!r.texte.includes("contact migration 3"), "la 3 n'est pas injectée dans la partie 2");
 });
 
@@ -1164,16 +1171,20 @@ test("contact-n-contre-epreuve : migrations 1 à n-1 injectées, la n et son ret
   for (const n of [1, 2, 3]) {
     const lus = [];
     const r = assemblerMode(`contact-${n}-contre-epreuve`, RACINE, { lire: (c) => { lus.push(c); return depotContact(c); } });
-    const voulues = ordreContact(n).filter((c) => c !== CONTACT[n].migration && c !== CONTACT[n].retour);
+    const voulues = ordreContact(n).filter((c) => !fichiersEtape(n).includes(c));
     assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...voulues], `contact-${n}-contre-epreuve`);
-    assert.deepEqual([...r.neutralises].sort(), [CONTACT[n].migration, CONTACT[n].retour].sort());
+    assert.deepEqual([...r.neutralises].sort(), [...fichiersEtape(n)].sort());
     for (const c of r.neutralises) assert.ok(!lus.includes(c), `${c} neutralisé donc non lu`);
-    assert.equal((r.texte.match(/^\s*'select 1'$/gm) ?? []).length, 2);
+    assert.equal((r.texte.match(/^\s*'select 1'$/gm) ?? []).length, fichiersEtape(n).length);
     assert.ok(r.mode.startsWith(`contact-${n}-contre-epreuve`));
     verifierInjections(r, depotContact);
   }
-  const deux = assemblerMode("contact-2-contre-epreuve", RACINE, { lire: depotContact });
-  assert.ok(deux.texte.includes("-- factice : contact migration 1") && !deux.texte.includes("-- factice : contact migration 2"));
+  const deux = assemblerMode("contact-2-contre-epreuve", RACINE, { lire: facticesContact });
+  assert.ok(deux.texte.includes("-- factice : contact migration 1\n") && deux.texte.includes("-- factice : contact migration 1b\n")
+    && !deux.texte.includes("-- factice : contact migration 2"));
+  // La 1b suit la 1 : la contre-épreuve de la partie 1 neutralise les deux.
+  const un = assemblerMode("contact-1-contre-epreuve", RACINE, { lire: facticesContact });
+  assert.ok(!un.texte.includes("-- factice : contact migration 1"));
 });
 
 test("contact-n-en-ligne : rien d'injecté (sauf l'empreinte), tous les fichiers du gabarit neutralisés et non lus, libellé reconnu par préfixe", () => {
@@ -1193,14 +1204,17 @@ test("contact-n-en-ligne : rien d'injecté (sauf l'empreinte), tous les fichiers
 });
 
 test("contact-n : un fichier manquant d'une étape demandée arrête l'assemblage en le nommant (migration comme retour)", () => {
-  assert.throws(() => assemblerMode("contact-3", RACINE, { lire: sansContact([CONTACT[1].migration, CONTACT[1].retour, CONTACT[2].migration, CONTACT[2].retour]) }),
+  assert.throws(() => assemblerMode("contact-3", RACINE, { lire: sansContact([...fichiersEtape(1), ...fichiersEtape(2)]) }),
     /Étape 3 demandée \(contact-3\) : supabase\/migrations\/20261115_contact_3_absences\.sql n'existe pas encore/);
   assert.throws(() => assemblerMode("contact-3", RACINE, { lire: (c) => (c === CONTACT[3].retour ? null : depotContact(c)) }),
     /Étape 3 demandée \(contact-3\) : supabase\/migrations\/20261115_contact_3_absences_retour\.sql n'existe pas encore/);
   assert.throws(() => assemblerMode("contact-2", RACINE, { lire: sansContact([CONTACT[2].migration, CONTACT[2].retour]) }),
     /Étape 1 demandée \(contact-2\) : supabase\/migrations\/20261115_contact_1_annuaire\.sql n'existe pas encore/);
   // La contre-épreuve de la partie n demande 1 à n-1 seulement.
-  assert.throws(() => assemblerMode("contact-3-contre-epreuve", RACINE, { lire: sansContact([CONTACT[1].migration, CONTACT[1].retour]) }),
+  // La 1b manquante arrête l'étape 1, comme la 1.
+  assert.throws(() => assemblerMode("contact-1", RACINE, { lire: (c) => (c === CONTACT[1].suite.retour ? null : depotContact(c)) }),
+    /Étape 1 demandée \(contact-1\) : supabase\/migrations\/20261115_contact_1b_fermeture_retour\.sql n'existe pas encore/);
+  assert.throws(() => assemblerMode("contact-3-contre-epreuve", RACINE, { lire: sansContact(fichiersEtape(1)) }),
     /Étape 2 demandée \(contact-3-contre-epreuve\)/);
   assert.doesNotThrow(() => assemblerMode("contact-3-contre-epreuve", RACINE, { lire: sansContact(TOUS_CONTACT.filter((c) => !c.includes("contact_3"))) }));
 });

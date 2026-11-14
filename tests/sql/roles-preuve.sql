@@ -465,6 +465,14 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
 -- inviter_compte, regler_affectations_formateur et retirer_titre sont le seul chemin (groupe h).
 update matrice set ajout = 'false', suppr = 'false'
  where tbl = 'public.affectations' and (select ferme from pg_temp.etat_titres);
+-- Espace contact (migration 1b, 20261115_contact_1b_fermeture) : la lecture directe des fiches du centre n'est plus ouverte qu'à qui écrit
+-- les fiches (fiches_internes.ecrire, soit E pour les titres fixes) ; sans la 1b (avant le chantier, ou avec la seule migration 1), lecture
+-- inchangée. Les fiches avec compte de la migration 1 ont lieu_id nul : aucune lecture ni écriture directe ne les atteint, ni avant ni
+-- après (r.lieu_id = {L} est nul pour elles). La preuve propre de l'annuaire : tests/sql/contact-annuaire-preuve.sql.
+update matrice set lecture = $mx$r.lieu_id = {L} and {E}$mx$
+ where tbl = 'public.contacts'
+   and exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'contacts'
+                  and policyname = 'contacts_select_authenticated' and qual <> 'true');
 
 -- Les ajouts tentés, table par table. sorte : promo (promo affichée, autre promo), lieu (lieu affiché, autre lieu),
 -- stagiaire (sa fiche, autre fiche de la promo affichée, fiche d'une autre promo), benevole (du lieu affiché, d'un
@@ -786,7 +794,12 @@ begin
     ('public.epcf_livrets', format('r.promo_id = %s and (%s or r.stagiaire_id = %s)', v_pp, v_e::text, v_fi)),
     ('public.emargement_formateurs', format('r.promo_id = %s and %s', v_pp, v_e::text)),
     ('public.benevoles', format('r.lieu_id = %s and %s', v_lieu, v_e::text)),
-    ('public.qcm_questions', 'true'), ('public.themes', 'true'), ('public.contacts', 'r.lieu_id = ' || v_lieu),
+    ('public.qcm_questions', 'true'), ('public.themes', 'true'),
+    -- Contacts : la migration 1b de l'espace contact ferme la lecture directe à qui n'écrit pas les fiches (E).
+    ('public.contacts', 'r.lieu_id = ' || v_lieu
+       || case when exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'contacts'
+                               and policyname = 'contacts_select_authenticated' and qual <> 'true')
+               then ' and ' || v_e::text else '' end),
     ('public.cours', format('r.published or (r.code is null and %s)', v_e::text)),
     ('public.user_profiles', format('lower(r.email) = %L or (r.stagiaire_id is null and r.role <> ''stagiaire'' and %s) or (r.stagiaire_id is null and r.role = ''stagiaire'' and lower(r.invited_by_email) = %L) or (%s and r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = %s))', lower(p_email), p_a_promo::text, lower(p_email), v_e::text, v_pp))
   ) t(tbl, pred) where to_regclass(t.tbl) is not null loop

@@ -3,7 +3,7 @@
 -- (outils/base_locale : reconstruire.sh, puis rejouer_suite.sh --titres 1,2,3,5,6 --autonomie).
 --   structure    prérequis de l'état de départ présents (geste_promo, retirer_titre, donner_titre, contacts.lieu_id), personnages posés
 --                (pg_temp.poser_contact), chaque migration et chaque retour injectés se jouent sans erreur.
---   retour       les retours défont tout, dans l'ordre inverse (3, 2, 1) : l'empreinte (règles, fonctions, droits) égale celle d'avant.
+--   retour       les retours défont tout, dans l'ordre inverse (3, 2, 1b, 1) : l'empreinte (règles, fonctions, droits) égale celle d'avant.
 -- Les groupes de contrôles de la partie 3 s'ajoutent avec leurs tâches, entre les migrations et les retours (repère « 4. GROUPES » plus bas).
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes (roles-aides.sql, titres-aides.sql,
 -- contact-aides.sql), le libellé du mode, la requête d'empreinte, puis les migrations 1 à 3 et leurs retours :
@@ -33,7 +33,7 @@ declare
   ;
   v_debut constant timestamptz := clock_timestamp();
   v_en_ligne boolean;
-  v_etat1 text; v_etat2 text; v_etat3 text; v_retour3 text; v_retour2 text; v_retour1 text;
+  v_etat1 text; v_etat1b text; v_etat2 text; v_etat3 text; v_retour3 text; v_retour2 text; v_retour1b text; v_retour1 text;
   v_av_regles text; v_av_fonctions text; v_av_droits text;
   v_ap_regles text; v_ap_fonctions text; v_ap_droits text;
   v_jouees integer;
@@ -68,6 +68,10 @@ begin
 -- @@INJECTER supabase/migrations/20261115_contact_1_annuaire.sql@@
   );
   perform pg_temp.etape('migration 1', v_etat1, v_mode);
+  v_etat1b := pg_temp.jouer('migration 1b',
+-- @@INJECTER supabase/migrations/20261115_contact_1b_fermeture.sql@@
+  );
+  perform pg_temp.etape('migration 1b', v_etat1b, v_mode);
   v_etat2 := pg_temp.jouer('migration 2',
 -- @@INJECTER supabase/migrations/20261115_contact_2_demandes.sql@@
   );
@@ -80,7 +84,7 @@ begin
   -- 4. GROUPES de contrôles de la partie 3 : ajoutés avec les tâches du plan, chacun sauté avec une ligne d'information quand la
   --    migration qui le fonde n'est pas injectée (contre-épreuve) ou pas encore appliquée (mode en ligne).
 
-  -- 5. Les retours, dans l'ordre inverse (3, 2, 1).
+  -- 5. Les retours, dans l'ordre inverse (3, 2, 1b, 1).
   v_retour3 := pg_temp.jouer('retour 3',
 -- @@INJECTER supabase/migrations/20261115_contact_3_absences_retour.sql@@
   );
@@ -89,6 +93,10 @@ begin
 -- @@INJECTER supabase/migrations/20261115_contact_2_demandes_retour.sql@@
   );
   perform pg_temp.etape('retour 2', v_retour2, v_mode);
+  v_retour1b := pg_temp.jouer('retour 1b',
+-- @@INJECTER supabase/migrations/20261115_contact_1b_fermeture_retour.sql@@
+  );
+  perform pg_temp.etape('retour 1b', v_retour1b, v_mode);
   v_retour1 := pg_temp.jouer('retour 1',
 -- @@INJECTER supabase/migrations/20261115_contact_1_annuaire_retour.sql@@
   );
