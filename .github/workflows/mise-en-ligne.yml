@@ -1,0 +1,115 @@
+# Mise en ligne de l'app sur Scaleway (Object Storage + Edge Services, Paris), à chaque poussée de main.
+#
+#   main poussée → GitHub Actions → copie des seuls fichiers servis (outils/deployer/preparer.mjs)
+#                → envoi dans le bucket → purge du cache d'Edge Services → vérification en ligne
+#
+# Réglages : deploiement/site.json (adresse, bucket, région, pipeline). Clés : secrets du dépôt
+# SCW_ACCESS_KEY et SCW_SECRET_KEY, posés par Timy (deploiement/LISEZ-MOI.md). Tant que l'un manque,
+# l'Action s'arrête en vert avec un avis : pousser main reste sans effet sur l'hébergement.
+name: Mise en ligne
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Une mise en ligne à la fois ; une poussée arrivée pendant ce temps attend et part ensuite
+# (GitHub ne garde que la plus récente en attente).
+concurrency:
+  group: mise-en-ligne
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deployer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lire les réglages
+        id: conf
+        run: |
+          node -e '
+            const s = require("./deploiement/site.json");
+            const out = require("fs").createWriteStream(process.env.GITHUB_OUTPUT, { flags: "a" });
+            for (const k of ["adresse", "bucket", "region", "pipeline_edge"]) out.write(`${k}=${s[k] || ""}\n`);
+            out.end();
+          '
+          manque=""
+          grep -q '^bucket=.\+' "$GITHUB_OUTPUT" || manque="$manque bucket"
+          grep -q '^adresse=.\+' "$GITHUB_OUTPUT" || manque="$manque adresse"
+          grep -q '^pipeline_edge=.\+' "$GITHUB_OUTPUT" || manque="$manque pipeline_edge"
+          [ -n "$SCW_ACCESS_KEY" ] || manque="$manque secret:SCW_ACCESS_KEY"
+          [ -n "$SCW_SECRET_KEY" ] || manque="$manque secret:SCW_SECRET_KEY"
+          if [ -n "$manque" ]; then
+            echo "::notice::Mise en ligne sautée : réglage absent ($manque). Voir deploiement/LISEZ-MOI.md."
+            echo "pret=non" >> "$GITHUB_OUTPUT"
+          else
+            echo "pret=oui" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Préparer les fichiers servis
+        if: steps.conf.outputs.pret == 'oui'
+        run: node outils/deployer/preparer.mjs --sortie _site
+
+      - name: Envoyer dans le bucket
+        if: steps.conf.outputs.pret == 'oui'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
+          AWS_DEFAULT_REGION: ${{ steps.conf.outputs.region }}
+          # Sommes de contrôle seulement quand l'API les exige : le réglage le plus compatible hors d'AWS.
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          BUCKET: ${{ steps.conf.outputs.bucket }}
+          REGION: ${{ steps.conf.outputs.region }}
+        run: |
+          set -eu
+          s3() { aws s3 --endpoint-url "https://s3.$REGION.scw.cloud" --only-show-errors "$@"; }
+          # 1. Tout sauf les pages et le manifeste : 10 minutes de cache navigateur, comme GitHub Pages.
+          #    Les modules et les feuilles de style changent d'adresse à chaque version (jeton ?v=).
+          s3 sync _site "s3://$BUCKET" --exclude "*.html" --exclude "manifest.webmanifest" \
+            --cache-control "public, max-age=600"
+          s3 cp _site/manifest.webmanifest "s3://$BUCKET/manifest.webmanifest" \
+            --content-type "application/manifest+json" --cache-control "no-cache"
+          # 2. Les pages, revalidées à chaque visite ; index.html en dernier, quand tout ce qu'il cite est en place.
+          s3 sync _site "s3://$BUCKET" --exclude "*" --include "*.html" --exclude "index.html" \
+            --content-type "text/html; charset=utf-8" --cache-control "no-cache"
+          s3 cp _site/index.html "s3://$BUCKET/index.html" \
+            --content-type "text/html; charset=utf-8" --cache-control "no-cache"
+          # 3. Retirer du bucket ce qui n'est plus servi (tout est déjà à jour : --size-only n'envoie rien).
+          s3 sync _site "s3://$BUCKET" --delete --size-only
+          echo "Bucket à jour : $(find _site -type f | wc -l) fichiers."
+
+      - name: Purger le cache d'Edge Services
+        if: steps.conf.outputs.pret == 'oui'
+        env:
+          PIPELINE: ${{ steps.conf.outputs.pipeline_edge }}
+        run: |
+          set -eu
+          # Purge complète plutôt que index.html seul : Edge Services ne documente pas si le ?v= compte
+          # dans sa clé de cache. Tout purger est sûr dans les deux cas, et gratuit (le remplissage du
+          # cache depuis le bucket n'est pas facturé).
+          api="https://api.scaleway.com/edge-services/v1beta1/purge-requests"
+          rep=$(curl -sS --fail-with-body -X POST "$api" -H "X-Auth-Token: $SCW_SECRET_KEY" \
+            -H "Content-Type: application/json" -d "{\"pipeline_id\":\"$PIPELINE\",\"all\":true}")
+          id=$(printf '%s' "$rep" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).id))')
+          for i in $(seq 1 24); do
+            statut=$(curl -sS --fail-with-body "$api/$id" -H "X-Auth-Token: $SCW_SECRET_KEY" \
+              | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).status))')
+            echo "Purge $id : $statut"
+            [ "$statut" = "done" ] && exit 0
+            [ "$statut" = "error" ] && { echo "::error::La purge du cache a échoué"; exit 1; }
+            sleep 5
+          done
+          echo "::warning::Purge encore en cours après 2 minutes : la vérification va attendre."
+
+      - name: Vérifier en ligne
+        if: steps.conf.outputs.pret == 'oui'
+        run: node outils/deployer/verifier_en_ligne.mjs "${{ steps.conf.outputs.adresse }}" --essais 8

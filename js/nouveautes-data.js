@@ -1043,7 +1043,7 @@ export const NOUVEAUTES = [
           + "première venue, envoyez-leur le lien des informations légales de l'application "
           + "(section 7 : ce qui est enregistré, qui le voit, combien de temps).",
     guide: [
-      "Envoyez par SMS : « Bonjour, pour organiser les séances, nous enregistrons vos nom, téléphone, niveau et disponibilités. Détails et droits : https://watchi64.github.io/ecsr-promo/#/informations-legales (section 7). »",
+      "Envoyez par SMS : « Bonjour, pour organiser les séances, nous enregistrons vos nom, téléphone, niveau et disponibilités. Détails et droits : {adresse}#/informations-legales (section 7). »",
       "Pour un élève mineur, enregistrez de préférence le numéro d'un parent, avec son accord.",
       "Dans les champs de commentaire (bénévoles, passages, notes), rien sur la santé ni la vie privée : une absence se note « absent ».",
     ],

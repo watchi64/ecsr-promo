@@ -1,4 +1,5 @@
 import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261121a";
+import { adresseApp } from "./adresse.js?v=20261121a";
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261121a";
 import { compteDansEquite } from "./passage-rules.js?v=20261121a";
 import { messageErreurEnvoi } from "./signalement-rules.js?v=20261121a";
@@ -1998,16 +1999,14 @@ export async function signUpWithPassword(email, password) {
   return data;
 }
 
-// URL de retour du mail de réinitialisation. Doit figurer dans les Redirect URLs
-// du tableau de bord Supabase, sinon le lien est refusé.
-const URL_RETOUR = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
-  ? location.origin + "/"
-  : "https://watchi64.github.io/ecsr-promo/";
+// URL de retour du mail de réinitialisation : l'adresse de la page ouverte (js/adresse.js),
+// jamais une adresse en dur. Elle doit figurer dans les Redirect URLs du tableau de bord
+// Supabase, sinon le lien est refusé.
 
 export async function requestPasswordReset(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(
     email.trim().toLowerCase(),
-    { redirectTo: URL_RETOUR },
+    { redirectTo: adresseApp() },
   );
   if (error) throw error;
 }

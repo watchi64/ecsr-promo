@@ -4,16 +4,19 @@
 puis committer le HTML et le PDF ensemble (le bouton de la page pointe sur le PDF).
 Usage : python scripts/guide-pdf.py
 """
-import pathlib, subprocess
+import json, pathlib, subprocess, urllib.parse
 
 CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 racine = pathlib.Path(__file__).resolve().parent.parent
 html = racine / "assets" / "guides" / "boite-a-outils-ccp2.html"
 pdf = html.with_suffix(".pdf")
+# Adresse imprimée en pied de page : celle de deploiement/site.json (seul endroit où elle est écrite).
+adresse = json.loads((racine / "deploiement" / "site.json").read_text(encoding="utf-8")).get("adresse", "")
+requete = "?pdf" + ("&adresse=" + urllib.parse.quote(adresse, safe="") if adresse else "")
 
 subprocess.run([
     CHROME, "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
     "--allow-file-access-from-files", "--virtual-time-budget=8000",
-    f"--print-to-pdf={pdf}", html.as_uri() + "?pdf",
+    f"--print-to-pdf={pdf}", html.as_uri() + requete,
 ], check=True, capture_output=True)
 print(pdf, pdf.stat().st_size // 1024, "Ko")

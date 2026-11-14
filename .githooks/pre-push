@@ -1,7 +1,8 @@
 #!/bin/sh
-# Garde-fou release : GitHub Pages sert main directement, sans build ni CI.
+# Garde-fou release : pousser main met en ligne (Action « Mise en ligne », vers Scaleway).
 # Si un push de main embarque des changements js/css SANS token ?v= rafraichi,
 # la prod servirait du cache perime. Ce hook bloque ce cas precis.
+# L'Action verifie ensuite que l'adresse en ligne sert bien le jeton du commit.
 #
 # Complement de la garde "main seulement" du pre-commit : un merge dans main ne
 # declenche PAS pre-commit (git utilise pre-merge-commit pour ca), donc apres un
@@ -24,7 +25,7 @@ while read local_ref local_sha remote_ref remote_sha; do
     new_token=$(git show "$local_sha:index.html" 2>/dev/null | grep -o '?v=[0-9a-z]*' | head -n 1)
     if [ -n "$old_token" ] && [ "$old_token" = "$new_token" ]; then
       echo "[pre-push] REFUSE : push de main avec js/css modifies mais token ?v= inchange ($new_token)." >&2
-      echo "[pre-push] La prod (GitHub Pages) servirait du cache perime." >&2
+      echo "[pre-push] La prod servirait du cache perime aux navigateurs." >&2
       echo "[pre-push] Lance :  node scripts/cache-bust.js  puis commit le re-versionnage, et re-pousse." >&2
       echo "[pre-push] (git push --no-verify pour forcer en connaissance de cause)" >&2
       exit 1

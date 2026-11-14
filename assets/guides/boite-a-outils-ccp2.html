@@ -378,7 +378,7 @@ figure.mock { margin-bottom: 0; }
     <h1>Des outils simples pour avancer sur ton CCP2</h1>
     <p class="lead">Les bases de chaque outil, expliquées sur un écran annoté, puis les bons réflexes pour te débrouiller même quand l'écran ne ressemble pas tout à fait à l'image.</p>
     <a class="pdf-btn" href="boite-a-outils-ccp2.pdf" download="Boite-a-outils-CCP2.pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Télécharger en PDF <small>à imprimer</small></a>
-    <p class="print-only print-url">Version en ligne, toujours à jour : watchi64.github.io/ecsr-promo/assets/guides/boite-a-outils-ccp2.html</p>
+    <p class="print-only print-url">Version en ligne, toujours à jour : <span id="adresse-guide">dans l'application, page Ressources</span></p>
   </header>
 </div>
 
@@ -1088,6 +1088,16 @@ figure.mock { margin-bottom: 0; }
 
 <footer class="wrap">Guide proposé par Timy à la promo. Une astuce à ajouter ? Dis-le-lui.</footer>
 
+<script>
+// Adresse imprimée en pied de page : celle de cette page en ligne, ou, pour le PDF fabriqué depuis le
+// disque par scripts/guide-pdf.py, celle passée en ?adresse= (lue dans deploiement/site.json).
+(() => {
+  const cible = document.getElementById("adresse-guide");
+  const donnee = new URLSearchParams(location.search).get("adresse");
+  if (donnee) cible.textContent = donnee.replace(/^https?:\/\//, "").replace(/\/?$/, "/") + "assets/guides/boite-a-outils-ccp2.html";
+  else if (location.protocol.startsWith("http")) cible.textContent = location.host + location.pathname;
+})();
+</script>
 <script>
 // Mode PDF (?pdf) : applique la mise en page imprimée à l'écran, puis réduit
 // chaque catégorie trop haute pour qu'elle tienne sur une seule page A4.

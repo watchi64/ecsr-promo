@@ -14,3 +14,6 @@ __pycache__/
 
 # Base locale jetable (outils/base_locale/reconstruire.sh)
 .base-locale/
+
+# Copie des fichiers servis, fabriquée par outils/deployer/preparer.mjs : jamais versionnée
+_site/
