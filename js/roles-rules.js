@@ -172,10 +172,16 @@ export function pastillesDuProfil({ profil, roles, titres } = {}) {
   if (siennes.length) {
     const dit = (l) => LIBELLES_TITRES_FIXES[l.titre_nom] || l.titre_nom;
     const sans = (liste) => [...new Set(liste.map(dit))];
+    // Les pastilles de titre s'AJOUTENT à ce que roles et prof_id donnaient : « direction » reste quand aucune ligne de titre de centre
+    // ne la remplace (la ligne est d'un autre centre ou de niveau promo), « formateur » (fiche liée) quand aucune ligne de promo ne la remplace.
+    const centre = siennes.filter((l) => l.niveau !== "promo");
+    const promoLignes = siennes.filter((l) => l.niveau === "promo");
     const libelles = [
-      ...sans(siennes.filter((l) => l.niveau !== "promo")),
+      ...sans(centre),
+      ...(direction && !centre.length ? ["direction"] : []),
       ...(siege ? ["siège"] : []),
-      ...sans(siennes.filter((l) => l.niveau === "promo")),
+      ...sans(promoLignes),
+      ...((direction || siege) && profil.prof_id != null && !promoLignes.length ? ["formateur"] : []),
     ];
     return [...new Set(libelles)].map((libelle) => ({ libelle, classe: "prof" }));
   }

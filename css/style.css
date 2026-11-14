@@ -7648,6 +7648,8 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .equipe-case input { width: 20px; height: 20px; flex: none; margin: 0; }
 /* Titres et droits à la carte (étape 3, Task 31) : personnes, invitation, titres du centre, éditeur de titre, journal. */
 .equipe-pastilles { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.equipe-centre .centre-defile { overflow-x: visible; }
+.equipe-sous-titre { margin: 1rem 0 0.25rem; font-size: 1rem; }
 .equipe-cadenas { display: inline-flex; color: var(--text-soft); }
 .equipe-cadenas svg { width: 16px; height: 16px; }
 .equipe-inviter { display: flex; flex-direction: column; gap: 0.9rem; max-width: 34rem; }

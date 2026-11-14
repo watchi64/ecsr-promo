@@ -293,6 +293,24 @@ test("pastillesDuProfil par titres : titres non lus (nul ou absent), la sortie d
   }
 });
 
+test("pastillesDuProfil par titres : une direction avec fiche formateur garde « formateur » comme aujourd'hui", () => {
+  const titres = [ligneTitre("d@x.fr", "Direction de centre", "centre")];
+  const profil = { ...comptePersonnel, prof_id: 9 };
+  assert.equal(lib(pastillesDuProfil({ profil, roles, titres })), "direction+formateur");
+  assert.equal(lib(pastillesDuProfil({ profil, roles, titres })), lib(pastillesDuProfil({ profil, roles, titres: null })));
+  // Une ligne de promo (Intervenant) remplace la pastille « formateur » liée à la fiche.
+  const avecPromo = [...titres, ligneTitre("d@x.fr", "Intervenant", "promo", [1])];
+  assert.equal(lib(pastillesDuProfil({ profil, roles, titres: avecPromo })), "direction+Intervenant");
+});
+
+test("pastillesDuProfil par titres : une direction dont la seule ligne est de niveau promo garde « direction »", () => {
+  const titres = [ligneTitre("d@x.fr", "Formateur", "promo", [1])];
+  assert.equal(lib(pastillesDuProfil({ profil: comptePersonnel, roles, titres })), "direction+formateur");
+  // Une ligne de titre de centre non fixe (Secrétariat) la remplace.
+  const secretariat = [ligneTitre("d@x.fr", "Secrétariat", "centre")];
+  assert.equal(lib(pastillesDuProfil({ profil: comptePersonnel, roles, titres: secretariat })), "Secrétariat");
+});
+
 test("listeAcces par titres : la liste garde les mêmes personnes et se trie sur la première pastille", () => {
   const profils = [{ email: "z@x.fr", role: "stagiaire" }, { email: "f@x.fr", role: "prof" }, { email: "d@x.fr", role: "prof" }];
   const titres = [ligneTitre("f@x.fr", "Intervenant", "promo", [1]), ligneTitre("d@x.fr", "Direction de centre", "centre")];

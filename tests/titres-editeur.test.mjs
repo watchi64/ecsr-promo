@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { ElementFactice, NoeudFactice, NoeudTexte, descendants, installerDocument } from "./aides-dom.mjs";
 import {
-  gestesSurPersonne, gestesSurTitre, ceQuiEstMasque, casesEnChaines, casesEnNombres,
+  gestesSurPersonne, gestesSurTitre, siegeFixePourLesGestes, ceQuiEstMasque, casesEnChaines, casesEnNombres,
   directionFixePourLesGestes, BANDEAU_EQUIPE, BANDEAU_COURS, PHRASE_STAGIAIRES_RELEVE, phraseVersionCentre, phrasePorteurs,
 } from "../js/titres-rules.js";
 import { construireEditeur, confirmerVersion } from "../js/views/titres-editeur.js";
@@ -271,4 +271,12 @@ test("confirmerVersion : refus ou acceptation ; l'écriture ne porte plus la con
 
 test("l'envoi d'invitation a un bouton de 44 px", () => {
   assert.ok(/\.equipe-formulaire-actions \.btn \{ min-height: 44px; \}/.test(lire("css/style.css")));
+});
+
+test("siegeFixePourLesGestes : fondateur ou titres non lus, oui ; un titre de niveau réseau non fixe seul, non", () => {
+  assert.equal(siegeFixePourLesGestes({ titres: null }), true);
+  assert.equal(siegeFixePourLesGestes({ titres: [], fondateur: true }), true);
+  assert.equal(siegeFixePourLesGestes({ titres: [{ niveau: "reseau", nom: "Siège" }] }), true);
+  assert.equal(siegeFixePourLesGestes({ titres: [{ niveau: "reseau", nom: "Qualité", fixe: false }] }), false);
+  assert.equal(siegeFixePourLesGestes({ titres: [{ niveau: "centre", nom: "Direction de centre", fixe: true }] }), false);
 });

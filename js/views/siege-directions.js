@@ -20,10 +20,10 @@ import { messageInvitationReussie } from "../roles-rules.js?v=20261114f";
 import { directionsParCentre } from "../siege-rules.js?v=20261114f";
 import { ouvrirFormulaire, sectionJournal, PHRASE_COMPTE_CREE } from "./direction-equipe.js?v=20261114f";
 import { ouvrirEditeurTitre } from "./titres-editeur.js?v=20261114f";
-import { gestesSurTitre, LIBELLE_NIVEAU } from "../titres-rules.js?v=20261114f";
-import { peutModifier } from "../auth-admin.js?v=20261114f";
+import { gestesSurTitre, siegeFixePourLesGestes, LIBELLE_NIVEAU } from "../titres-rules.js?v=20261114f";
+import { peutModifier, getMesTitres, fondateurHorsApercu } from "../auth-admin.js?v=20261114f";
 import { confirmer, demander } from "../confirmer.js?v=20261114f";
-import { entier, pluriel } from "../nombres.js?v=20261114f";
+import { pluriel } from "../nombres.js?v=20261114f";
 
 export const PHRASE_ECHEC_DIRECTIONS = "Les directions des centres n'ont pas pu être chargées.";
 export const PHRASE_ADRESSE = "Adresse e-mail invalide.";
@@ -256,7 +256,7 @@ function ouvrirDon({ titre, ancre, apres }) {
 function sectionCentre({ centre, directions }, lieux, apres, avecTitres) {
   const tete = el("div", { class: "centre-section-tete" },
     el("h3", {}, centre.demonstration ? LIBELLE_DEMO : centre.nom),
-    el("span", { class: "muted" }, pluriel(directions.length, avecTitres ? "personne" : "direction")));
+    el("span", { class: "muted" }, pluriel(new Set(directions.map((d) => d.email)).size, avecTitres ? "personne" : "direction")));
   if (!directions.length) {
     return el("section", { class: "centre-section", "data-centre": String(centre.id) }, tete,
       el("p", { class: "muted" }, avecTitres ? PHRASE_SANS_PERSONNE : PHRASE_SANS_DIRECTION));
@@ -279,6 +279,8 @@ function sectionCentre({ centre, directions }, lieux, apres, avecTitres) {
 // réseau, avec libelle), noms }.
 function sectionTitresReseau(d, apres) {
   const peutGerer = peutModifier("directions");
+  // Créer à partir d'un titre de niveau promo ou centre (catalogue) : le siège fixe seul ; à partir d'un titre du réseau : la case Directions.
+  const siegeFixe = siegeFixePourLesGestes({ titres: getMesTitres(), fondateur: fondateurHorsApercu() });
   const lignes = d.titres.map((t) => {
     const actions = [];
     const droits = gestesSurTitre({ titre: t, lieuId: null, ajustable: d.ajustables.has(Number(t.id)), peutGerer });
@@ -289,7 +291,7 @@ function sectionTitresReseau(d, apres) {
       actions.push(boutonPetit("Ajuster", icon.pencil, `Ajuster le titre ${t.nom}`,
         (e) => ouvrirEditeurTitre({ titre: t, niveau: t.niveau, lieuId: null, porteurs: t.porteurs || 0, apres, ancre: e.currentTarget })));
     }
-    if (droits.creer) {
+    if (droits.creer && (t.niveau === "reseau" || siegeFixe)) {
       actions.push(boutonPetit("Créer un titre à partir de celui-ci", icon.plus, `Créer un titre à partir de ${t.nom}`, async () => {
         const nom = await demander({
           titre: "Créer un titre", phrase: `Le nouveau titre reprend les cases de « ${t.nom} ». Donnez-lui un nom.`, libelle: "Nom du titre",

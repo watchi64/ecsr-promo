@@ -307,6 +307,13 @@ export function directionFixePourLesGestes({ titres, lieuId, fondateur = false }
   return fondateur === true || directionFixeSur(titres, lieuId) !== false;
 }
 
+// Le siège a-t-il le titre fixe (la création d'un titre de niveau promo ou centre à partir du catalogue lui reste réservée, D1) ? Le
+// fondateur hors aperçu, ou des titres non lus (nul), comme avant : oui, la base arbitre. Même convention que directionFixeSur.
+export function siegeFixePourLesGestes({ titres, fondateur = false } = {}) {
+  if (fondateur === true || !Array.isArray(titres)) return true;
+  return titres.some((t) => t && t.niveau === "reseau" && (typeof t.fixe === "boolean" ? t.fixe : t.nom === "Siège"));
+}
+
 export const LIBELLE_NIVEAU ={ promo: "Promo", centre: "Centre", reseau: "Réseau" };
 
 // Les pages que le titre ferme (case « Non »), dans l'ordre du niveau : « Masqué dans sa barre ».
