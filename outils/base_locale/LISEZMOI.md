@@ -41,7 +41,7 @@ qu'elle fait est annulé. Modes : voir l'en-tête de `outils/assembler_repetitio
 ## Rejouer la suite
 
 ```
-bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3] [--autonomie] [--autonomie-version AAAA-MM-JJ]
+bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3] [--autonomie] [--autonomie-version AAAA-MM-JJ] [--restes] [--jury]
 ```
 
 À lancer juste après `reconstruire.sh` : applique, avec `psql -1 -v ON_ERROR_STOP=1`, les quatorze migrations postérieures au
@@ -87,6 +87,11 @@ d'information) complètent les modes. Les aides communes à la preuve de l'étap
   AAAA-MM-JJ` joue en plus `20261114_autonomie_2_version` avec `-v version=...` (la date ne peut pas être après aujourd'hui) et vaut
   `--autonomie`. L'état de la production du 14/11 est `--titres 1,2,3,5,6 --autonomie` : sortie `OK : suite rejouée (22 migrations)`
   (la seconde migration, elle, n'est pas appliquée en production : la compter une de plus, 23, si on la demande).
+- `--restes` joue `20261114_restes_1_conditions` puis `20261114_restes_2_truncate` (petits restes, en production depuis le 14/11), après
+  autonomie_2 : restes_1 s'appuie sur la version publiée des conditions, donc `--autonomie-version 2026-11-14` ; aucune variable `-v`.
+- `--jury` joue `20261114_jury_resultats` après les restes (vaut `--restes`). L'état de la production du 14/11 est
+  `--titres 1,2,3,5,6 --autonomie --autonomie-version 2026-11-14 --restes --jury` : sortie `OK : suite rejouée (26 migrations)`. Preuves :
+  `tests/sql/truncate-preuve.sql` et `outils/assembler_preuve_jury.mjs en-ligne`.
 - Les preuves du chantier « espace contact » se jouent par `node outils/assembler_repetition_roles.mjs contact-<n> <sortie.sql>` (n = 1
   annuaire, 2 demandes, 3 absences) : les migrations `20261115_contact_1_*` à `_n` injectées dans l'ordre, la preuve de la partie n
   (`tests/sql/contact-annuaire-preuve.sql`, `contact-demandes-preuve.sql`, `contact-absences-preuve.sql`), puis les retours n à 1 (le

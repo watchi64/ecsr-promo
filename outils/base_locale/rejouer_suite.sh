@@ -2,7 +2,7 @@
 # Rejoue, sur la base locale reconstruite (reconstruire.sh), les migrations du dépôt postérieures au lot 4, dans l'ordre
 # où la production les a reçues, pour que les preuves SQL se jouent sur un état identique à la production.
 #
-# Usage : outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3[,4][,5][,6]] [--autonomie] [--autonomie-version AAAA-MM-JJ]
+# Usage : outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3[,4][,5][,6]] [--autonomie] [--autonomie-version AAAA-MM-JJ] [--restes] [--jury]
 #   --port         port de la base locale (défaut 55435)
 #   --avec-titres  ajoute ensuite les migrations 20261112_titres_1 à _4 (chantier titres et droits à la carte) ; vaut --titres 1,2,3,4
 #   --titres       ajoute ensuite les migrations 20261112_titres_<n>_* dans l'ordre de la liste (la production a reçu 1, 2, 3) ;
@@ -11,6 +11,11 @@
 #                  sortie « OK : suite rejouée (22 migrations) » avec --titres 1,2,3,5,6
 #   --autonomie-version  joue aussi 20261114_autonomie_2_version avec -v version=<date> (date au plus égale à aujourd'hui, ex. 2026-11-14,
 #                  éventuellement suivie d'une lettre minuscule) ; suppose --autonomie, que l'option active
+#   --restes       joue ensuite 20261114_restes_1_conditions puis 20261114_restes_2_truncate (petits restes : en production depuis le 14/11),
+#                  après autonomie_2 : restes_1 s'appuie sur la version publiée des conditions (2026-11-14), donc --autonomie-version 2026-11-14 ;
+#                  sans variable -v, une transaction chacune ; sortie « OK : suite rejouée (26 migrations) » avec --titres 1,2,3,5,6
+#                  --autonomie --autonomie-version 2026-11-14 --restes --jury
+#   --jury         joue ensuite 20261114_jury_resultats (résultats du jury, en production depuis le 14/11), après les restes ; suppose --restes
 # Code de sortie : 0 si tout passe ; sinon 3 (le nom du fichier en échec est écrit sur la sortie d'erreur).
 # Note : 20261028_signalements_app n'est pas dans la liste : ses tables sont dans clone_3_tables.sql ; seules ses fonctions sont jouées.
 set -u
@@ -20,6 +25,8 @@ TITRES=0
 LISTE_TITRES=""
 AUTONOMIE=0
 VERSION_AUTONOMIE=""
+RESTES=0
+JURY=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --port) PORT="$2"; shift 2 ;;
@@ -38,6 +45,8 @@ while [ $# -gt 0 ]; do
         *) echo "date --autonomie-version refusée : « $2 » (attendu : AAAA-MM-JJ, éventuellement suivie d'une lettre minuscule)" >&2; exit 2 ;;
       esac
       AUTONOMIE=1; VERSION_AUTONOMIE="$2"; shift 2 ;;
+    --restes) RESTES=1; shift ;;
+    --jury) RESTES=1; JURY=1; shift ;;
     *) echo "argument inconnu : $1" >&2; exit 2 ;;
   esac
 done
@@ -82,6 +91,18 @@ done
 # La version datée des conditions (20261114_autonomie_2_version) : la date se passe par -v version=..., la migration refuse une date future.
 if [ -n "$VERSION_AUTONOMIE" ]; then
   $P -1 -v "version=$VERSION_AUTONOMIE" -f "$MIGRATIONS/20261114_autonomie_2_version.sql" || { echo "échec : 20261114_autonomie_2_version" >&2; exit 3; }
+  N=$((N + 1))
+fi
+# Les petits restes puis le jury (14/11), dans l'ordre de la production, après autonomie_2 : restes_1 remplace accepter_conditions et pose
+# conditions_version_publiee() (2026-11-14), que la version d'autonomie ne doit pas dépasser. Aucune variable -v, une transaction chacune.
+if [ "$RESTES" = 1 ]; then
+  for f in 20261114_restes_1_conditions 20261114_restes_2_truncate; do
+    $P -1 -f "$MIGRATIONS/$f.sql" || { echo "échec : $f" >&2; exit 3; }
+    N=$((N + 1))
+  done
+fi
+if [ "$JURY" = 1 ]; then
+  $P -1 -f "$MIGRATIONS/20261114_jury_resultats.sql" || { echo "échec : 20261114_jury_resultats" >&2; exit 3; }
   N=$((N + 1))
 fi
 # Droits propres à la production, que les clones ne portent pas (écarts de la base locale constatés le 10/11 et le 11/11) :
