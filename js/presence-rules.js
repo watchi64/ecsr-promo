@@ -15,7 +15,7 @@
 // Les totaux portent sur TOUTES les lignes des feuilles closes : stagiaires partis, fiches sans nom et fiches effacées à la
 // demande comprises (preuve de présence anonyme). `bilans` : stagiaire_id vers bilanStagiaire, pour les tableaux nominatifs.
 
-import { bilanStagiaire, seancesDeLaPromo, feuillesOuvertes } from "./attestations-rules.js?v=20261114b";
+import { bilanStagiaire, seancesDeLaPromo, feuillesOuvertes } from "./attestations-rules.js?v=20261114d";
 
 export function presenceDePromo(emargement, promoId) {
   if (!lue(emargement)) return { etat: "non_lue" };

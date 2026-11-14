@@ -21,6 +21,7 @@
 #view .themes-list > .theme-row > .theme-titre-link {
   grid-area: titre; align-self: end; justify-self: start; max-width: 100%;
   text-align: left; line-height: 1.3; font-size: 0.92rem;
+  min-height: 24px;   /* cible du référentiel (24 px sur ordinateur, 44 px au téléphone : plus bas) */
 }
 #view .themes-list > .theme-row > .theme-meta { grid-area: meta; align-self: start; }
 #view .themes-list > .theme-row > .theme-acces { grid-area: acces; }
@@ -109,7 +110,9 @@
       "num titre titre"
       "num meta  acces";
   }
-  #view .themes-list > .theme-row > .theme-titre-link { align-self: center; }
+  /* Cible de 44 px au téléphone. Le bouton déborde de 6 px sur la marge du haut de la ligne seulement : vers le bas, il ne
+     doit rien recouvrir (la ligne d'état et, à droite, les boutons Cours et QCM). */
+  #view .themes-list > .theme-row > .theme-titre-link { align-self: center; min-height: 44px; margin-block: -6px 0; }
   #view .themes-list > .theme-row > .theme-meta { align-self: center; }
   #view .themes-list > .theme-row > .theme-menu { align-self: center; }
   #view .themes-list > .theme-row:not(.theme-header) > .theme-num { align-self: start; padding-top: 2px; }
@@ -138,8 +141,13 @@
   box-shadow: inset 4px 0 0 var(--prog);
   background: var(--prog-voile);
 }
-/* Le survol reste lisible sur une ligne colorée (le voile passait devant celui de style.css). */
-#view .themes-list > .theme-row:is(.prog-acquis, .prog-revoir, .prog-encours):hover { background: var(--prog-pastille); }
+/* Le survol d'une ligne colorée épaissit son liseré et garde son voile (le voile passait devant celui de style.css). Un fond
+   plus soutenu au survol faisait tomber sous 4,5:1 la note, la pastille et le numéro (pastilles semi-transparentes empilées),
+   y compris au téléphone, où le survol reste collé après un toucher. */
+#view .themes-list > .theme-row:is(.prog-acquis, .prog-revoir, .prog-encours):hover {
+  background: var(--prog-voile);
+  box-shadow: inset 6px 0 0 var(--prog);
+}
 #view .themes-list > .theme-row.prog-commencer { box-shadow: inset 4px 0 0 var(--line); }
 .theme-meta .theme-prog {
   display: inline-flex; align-items: center; padding: 0 0.45rem; border-radius: 999px;

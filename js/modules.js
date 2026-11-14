@@ -9,7 +9,7 @@
 //   { statut: "reglee", depuis, ouverts }  seuls les modules de `ouverts` sont
 //     ouverts ; `ouverts` associe une clé de module à son heure d'ouverture
 //     (ISO 8601, UTC) ; `depuis` est l'heure de la mise en place.
-import { jourParis } from "./dates.js?v=20261114b";
+import { jourParis } from "./dates.js?v=20261114d";
 
 export const VERSION = 1;
 

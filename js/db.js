@@ -1,19 +1,19 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261114b";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261114b";
-import { compteDansEquite } from "./passage-rules.js?v=20261114b";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261114b";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261114b";
-import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261114b";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261114b";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261114b";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261114d";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261114d";
+import { compteDansEquite } from "./passage-rules.js?v=20261114d";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261114d";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261114d";
+import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261114d";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261114d";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261114d";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261114b";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261114b";
-import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261114b";
-import { effectifDesFiches } from "./centre-stats.js?v=20261114b";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261114b";
+} from "./promo-rules.js?v=20261114d";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261114d";
+import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261114d";
+import { effectifDesFiches } from "./centre-stats.js?v=20261114d";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261114d";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -2748,11 +2748,10 @@ export async function listerAutonomie(stagiaireId) {
 
 // Tentatives de QCM en entraînement d'un stagiaire, pour sa fiche « Travail en autonomie » : [{ mode, finished_at }]. Sous la
 // sécurité de la base : le stagiaire lit les siennes, l'équipe celles de la promo (droit de lire les notes). Jamais l'examen.
+// Lu par pages (toutesLesLignes) : la base rend au plus 1 000 lignes par réponse, un stagiaire assidu peut dépasser.
 export async function listerEntrainementsQcm(stagiaireId) {
-  const { data, error } = await supabase.from("qcm_attempts")
-    .select("mode, finished_at").eq("stagiaire_id", stagiaireId).eq("mode", "entrainement");
-  if (error) throw error;
-  return data || [];
+  return toutesLesLignes(() => supabase.from("qcm_attempts")
+    .select("mode, finished_at").eq("stagiaire_id", stagiaireId).eq("mode", "entrainement").order("id"));
 }
 
 // Combien de stagiaires de la promo ont lu chaque cours : Map(cours_id -> lus). Pour l'équipe seulement (droit notes.lire sur

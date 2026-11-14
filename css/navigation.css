@@ -87,8 +87,15 @@ body[data-nav="v2"] .nav-marque-promo {
   letter-spacing: 0.1em;
   line-height: 1.15;
   text-transform: uppercase;
-  white-space: nowrap;
   color: var(--text-muted);
+  /* Un nom long (« Démonstration (données fictives) ») passe sur deux lignes au lieu d'être coupé ; au-delà de deux lignes,
+     des points de suspension (la largeur reste plafonnée : la capsule ne se décentre pas). */
+  white-space: normal;
+  text-wrap: balance;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 body[data-nav="v2"] .nav-onglets {
@@ -234,9 +241,10 @@ body[data-nav="v2"] [data-nav-coquille] :focus-visible {
   outline-offset: 2px;
 }
 
-/* Le nom de la promo et le prénom ne s'affichent que là où l'en-tête les tient sur une ligne sans
-   décentrer la capsule. Mesuré : la capsule fait 583 px, chaque côté dispose de (largeur - 655) / 2 ;
-   plafonnés (13 rem et 5,5 rem, points de suspension au-delà), les deux tiennent ensemble avec
+/* Le nom de la promo et le prénom ne s'affichent que là où l'en-tête les tient sans décentrer la
+   capsule. Mesuré : la capsule fait 583 px, chaque côté dispose de (largeur - 655) / 2 ;
+   plafonnés en largeur (13 rem, le nom de la promo sur deux lignes au plus, et 5,5 rem, points de
+   suspension au-delà), les deux tiennent ensemble avec
    24 px d'air dès 1 225 px. */
 @media (max-width: 1239.98px) {
   body[data-nav="v2"] .nav-marque-promo,
