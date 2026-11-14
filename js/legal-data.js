@@ -30,7 +30,7 @@
 // ligne « Date de naissance, souhaits de séances » se sépare) et les paragraphes sous lui, le § 5 (consultation par ECF),
 // le § 7 (bénévoles et auto-écoles : la direction du lieu les lit comme les formateurs).
 //
-// Version 2026-11-13 (lot 1 de l'e-learning : travail en autonomie) : nouvelle donnée (cours lus, temps passé sur les cours
+// Version 2026-11-14 (lot 1 de l'e-learning : travail en autonomie) : nouvelle donnée (cours lus, temps passé sur les cours
 // et les QCM d'entraînement) et nouvel usage (suivi par les formateurs et la direction), donc nouvelle acceptation. Texte
 // proposé, à valider par Timy (docs/superpowers/specs/2026-11-12-e-learning-textes-donnees.md). À LA MISE EN LIGNE, remplacer
 // cette date par celle du jour de la mise en ligne, qui doit être EXACTEMENT la date passée à la migration de la base
@@ -40,7 +40,7 @@
 // Commit isolé exprès : il se retire seul (git revert) si Timy réécrit le texte.
 //
 
-export const VERSION_CONDITIONS = "2026-11-13";
+export const VERSION_CONDITIONS = "2026-11-14";
 
 export const CONDITIONS_MD = `# Conditions d'utilisation et données personnelles
 
