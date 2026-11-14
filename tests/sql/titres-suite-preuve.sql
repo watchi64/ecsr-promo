@@ -233,7 +233,8 @@ $tsc6$;
 -- Groupe d1 (migration 7, partie A) : qui crée, ajuste et supprime les titres de centre et du réseau. Personnages des étapes 1 et 2
 -- (t_secr, t_rh, t_interv au centre 1 ; t_chef, Équipe : Modifier au centre 1 ; t_dirs, réseau, Directions : Modifier ; t_qualite ;
 -- dir_n, direction fixe du centre 1 ; siege, siège fixe ; fond, le fondateur) et R_promo de cette preuve. Le verrou des titres non fixes
--- est ouvert en propriétaire le temps du groupe (le don le demande), puis refermé. Les six premiers cas étaient permis avant D1.
+-- est ouvert en propriétaire le temps du groupe (le don le demande), puis remis dans son état de départ (valeur lue avant, ou clé
+-- absente). Les sept premiers cas étaient permis avant D1.
 create or replace function pg_temp.groupe_d1()
 returns void language plpgsql as $tsd1$
 declare
@@ -246,20 +247,24 @@ declare
   v_r text := pg_temp.titre_suite('R');
   e_z text := (select email from pg_temp.perso where nom = 'z');
   c_plafond constant text := '{"promos":"modifier","stagiaires":"modifier","emargement":"voir","notes":"voir","equipe":"modifier","reglages":"modifier"}';
-  v_libre text; v_cree text;
+  v_libre text; v_libre2 text; v_cree text;
+  v_verrou_avant text := pg_temp.calcul($q$select value from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
 begin
   perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
   perform pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('titres_ouverts', 'oui', null)$q$);
   v_libre := pg_temp.calcul($q$insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values ('Preuve9 d1 réseau libre', 'centre', null, '{"promos":"voir"}', 'preuve') returning id::text$q$);
-  perform pg_temp.verifier('d1', 'départ : titres de t_secr, t_rh, t_interv, t_qualite, R, R_promo lus ; un titre du réseau de niveau centre non porté posé',
-    concat_ws('/', t_secr, t_rh, t_interv, t_qualite, v_r, v_rp, v_libre) ~ '^[0-9]+(/[0-9]+){6}$',
-    concat_ws('/', t_secr, t_rh, t_interv, t_qualite, v_r, v_rp, v_libre));
+  v_libre2 := pg_temp.calcul($q$insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values ('Preuve9 d1 réseau libre 2', 'centre', null, '{"promos":"voir"}', 'preuve') returning id::text$q$);
+  perform pg_temp.verifier('d1', 'départ : titres de t_secr, t_rh, t_interv, t_qualite, R, R_promo lus ; deux titres du réseau de niveau centre non portés posés',
+    concat_ws('/', t_secr, t_rh, t_interv, t_qualite, v_r, v_rp, v_libre, v_libre2) ~ '^[0-9]+(/[0-9]+){7}$',
+    concat_ws('/', t_secr, t_rh, t_interv, t_qualite, v_r, v_rp, v_libre, v_libre2));
 
-  -- Les six refus de D1 (permis avant la migration 7).
+  -- Les sept refus de D1 (permis avant la migration 7).
   perform pg_temp.attendre('d1', 't_dirs (réseau, Directions : Modifier) crée un titre de centre au centre 1 depuis t_secr : refusé (42501)',
     pg_temp.creer_t('t_dirs', null, t_secr, 'Preuve9 d1 dirs centre', v_l1t), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
   perform pg_temp.attendre('d1', 't_dirs ajuste le titre de t_rh (centre 1) : refusé (42501)',
     pg_temp.ajuster_t('t_dirs', null, t_rh, v_l1t, '{"promos":"voir","equipe":"voir"}'), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('d1', 't_dirs ajuste R (titre du réseau de niveau centre) depuis le centre 1, ce qui créerait la version du centre : refusé (42501)',
+    pg_temp.ajuster_t('t_dirs', null, v_r, v_l1t, '{"promos":"voir","equipe":"voir"}'), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
   perform pg_temp.attendre('d1', 't_dirs crée un titre du réseau de niveau centre depuis t_secr : refusé (42501), réservé au siège',
     pg_temp.creer_t('t_dirs', null, t_secr, 'Preuve9 d1 dirs réseau centre', 'null'), 'ERREUR 42501 titres: Réservé au siège.');
   perform pg_temp.attendre('d1', 't_dirs ajuste R_promo sans centre : refusé (42501), réservé au siège',
@@ -284,17 +289,30 @@ begin
     pg_temp.ok_court(v_cree), 'OK');
   perform pg_temp.attendre('d1', 'siege ajuste ce titre du réseau de niveau promo, sans centre : permis, aucune version',
     pg_temp.ok_court(pg_temp.ajuster_t('siege', null, substr(v_cree, 4), 'null', '{"planning":"voir","stagiaires":"voir"}')), 'OK');
+  -- Miroir du refus de t_dirs sur R : le siège ajuste depuis le centre 1 un titre du réseau de niveau centre, la version du centre naît.
+  -- Joué sur un second titre libre (non porté, que la contre-épreuve ne supprime pas) plutôt que sur R, pour que u reste sur R pour
+  -- les groupes suivants : aucun porteur ne bascule.
+  perform pg_temp.attendre('d1', 'siege ajuste depuis le centre 1 un titre du réseau de niveau centre non porté : permis, version du centre créée, aucun porteur basculé',
+    regexp_replace(coalesce(pg_temp.ajuster_t('siege', null, v_libre2, v_l1t, '{"promos":"voir","equipe":"voir"}'), 'nul'), '^OK [0-9]+/', 'OK <version>/'), 'OK <version>/true/0');
   v_cree := pg_temp.creer_t('dir_n', null, t_secr, 'Preuve9 d1 direction centre', v_l1t);
   perform pg_temp.attendre('d1', 'dir_n (direction fixe du centre 1) crée un titre de centre au centre 1 depuis t_secr : permis',
     pg_temp.ok_court(v_cree), 'OK');
-  perform pg_temp.attendre('d1', 'dir_n l''ajuste au plafond du centre (sans comparaison de cases : direction fixe) : permis',
+  -- Les cases d'une direction fixe valent le plafond du centre : aucune ne peut les dépasser, l'exemption « direction fixe » de la règle
+  -- 3 n'a donc pas d'effet observable (un mutant qui la retire reste vert) ; le cas montre seulement que le plafond est permis.
+  perform pg_temp.attendre('d1', 'dir_n l''ajuste au plafond du centre : permis',
     pg_temp.ok_court(pg_temp.ajuster_t('dir_n', null, substr(v_cree, 4), v_l1t, c_plafond)), 'OK');
   perform pg_temp.attendre('d1', 't_chef (Équipe : Modifier) crée depuis t_rh au centre 1 : permis',
     pg_temp.ok_court(pg_temp.creer_t('t_chef', null, t_rh, 'Preuve9 d1 chef centre', v_l1t)), 'OK');
   perform pg_temp.attendre('d1', 'le fondateur en aperçu siège crée un titre du réseau de niveau centre depuis R : permis (aperçu siège = siège fixe)',
     pg_temp.ok_court(pg_temp.creer_t('fond', 'siege', v_r, 'Preuve9 d1 aperçu siège', 'null')), 'OK');
 
+  -- Le verrou retrouve son état de départ.
   perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+  if v_verrou_avant is not null then
+    perform pg_temp.essai(format('insert into public.settings (key, value, promo_id) values (''titres_ouverts'', %L, null)', v_verrou_avant));
+  end if;
+  perform pg_temp.attendre('d1', 'fin du groupe : le verrou titres_ouverts est dans son état de départ',
+    pg_temp.calcul($q$select value from public.settings where promo_id is null and key = 'titres_ouverts'$q$), v_verrou_avant);
 end $tsd1$;
 
 do $tsprg$
