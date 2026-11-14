@@ -11,7 +11,9 @@
 #                  -v version=2026-11-14 (la version des conditions en production) ; 2 demande 1
 #   --production   l'état de la production au 14/11, dans l'ordre où elle l'a reçu : titres 1, 2, 3 (11/11), contacts,
 #                  20261111_conservation_direction (11/11, après les contacts), titres 5 (11/11) et 6 (13/11), puis
-#                  --autonomie 1,2 (14/11) (sortie : 24 migrations) ; ne se combine ni avec --titres ni avec --avec-titres
+#                  --autonomie 1,2 (14/11), puis 20261114_restes_1_conditions et 20261114_restes_2_truncate (14/11, après
+#                  l'e-learning : restes_1 contrôle la version de l'autonomie) (sortie : 26 migrations) ; ne se combine ni avec
+#                  --titres ni avec --avec-titres
 # Sans --titres, --autonomie ni --production : la suite d'avant (14 migrations, plus les deux des contacts : 16).
 # Code de sortie : 0 si tout passe ; sinon 3 (le nom du fichier en échec est écrit sur la sortie d'erreur).
 # Note : 20261028_signalements_app n'est pas dans la liste : ses tables sont dans clone_3_tables.sql ; seules ses fonctions sont jouées.
@@ -100,6 +102,14 @@ if [ -n "$AUTONOMIE" ]; then
     $P -v version=2026-11-14 -1 -f "$MIGRATIONS/20261114_autonomie_2_version.sql" >/dev/null || { echo "échec : 20261114_autonomie_2_version" >&2; exit 3; }
     N=$((N + 1))
   fi
+fi
+# Production seulement, après l'e-learning (14/11, petits restes) : restes_1 (conditions_version_publiee, accepter_conditions durcie ; elle
+# contrôle que la version exigée par l'autonomie ne dépasse pas la publiée), puis restes_2 (TRUNCATE retiré à anon et authenticated).
+if [ "$PRODUCTION" = 1 ]; then
+  for f in 20261114_restes_1_conditions 20261114_restes_2_truncate; do
+    $P -1 -f "$MIGRATIONS/$f.sql" >/dev/null || { echo "échec : $f" >&2; exit 3; }
+    N=$((N + 1))
+  done
 fi
 # Droits propres à la production, que les clones ne portent pas (écarts de la base locale constatés le 10/11 et le 11/11) :
 # 1. registre_qualite : en production, service_role y écrit (la preuve du registre le contrôle) ; ici la table naît de la
