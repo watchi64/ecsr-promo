@@ -19,16 +19,16 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, mesAffectations, oublierPromo, getPromoCourante, getMesPromos, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo, stagiaireVitrineCourante,
-  lireMesTitres,
+  lireMesTitres, lireTitresVisibles,
 } from "./db.js?v=20261114f";
 import {
-  LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo, titreSimule,
+  LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo, titreSimule, APERCUS_PAR_TITRE,
 } from "./roles-rules.js?v=20261114f";
 import {
   ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, decisionPorteSansPromo,
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
 } from "./espaces-rules.js?v=20261114f";
-import { casesDeLEspace, caseDe, NIVEAU_DE_L_ESPACE } from "./titres-rules.js?v=20261114f";
+import { casesDeLEspace, caseDe, NIVEAU_DE_L_ESPACE, titresPourApercu } from "./titres-rules.js?v=20261114f";
 import { peutQuitter } from "./navigation.js?v=20261114f";
 import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261114f";
 import { icon } from "./icons.js?v=20261114f";
@@ -144,6 +144,43 @@ async function lireTitresDeLaSession() {
 function oublierTitres() {
   epoqueTitres += 1;
   mesTitres = null;
+}
+
+// Aperçu par titre : les titres que le choix « Titre » propose, lus UNE fois hors aperçu (en aperçu, titres_visibles refuserait :
+// le fondateur n'y est plus fondateur) puis gardés pour la session (aussi dans sessionStorage, pour un rechargement fait en aperçu).
+// `{ centre, reseau }` ; chaque liste est nulle quand sa lecture a raté (aucun titre n'est alors deviné, aucun message).
+const CLE_TITRES_APERCU = "ecsr_titres_apercu";
+let titresDApercu = null;
+let titresDApercuEnCours = null;
+
+function lieuPourLesTitres() { return getCentre()?.id ?? getPromoCourante()?.lieu_id ?? null; }
+
+// Lit les titres du choix « Titre » si le fondateur est hors aperçu et qu'ils ne sont pas déjà en mémoire. Ne lève jamais.
+export function chargerTitresDApercu() {
+  if (titresDApercu || !fondateurHorsApercu()) return Promise.resolve(titresDApercu);
+  if (titresDApercuEnCours) return titresDApercuEnCours;
+  const lieuId = lieuPourLesTitres();
+  const lire = (id) => lireTitresVisibles(id).catch(() => null);
+  titresDApercuEnCours = Promise.all([lieuId != null ? lire(lieuId) : null, lire(null)]).then(([centre, reseau]) => {
+    titresDApercu = { centre, reseau };
+    try { sessionStorage.setItem(CLE_TITRES_APERCU, JSON.stringify(titresDApercu)); } catch (e) { /* ignore */ }
+    return titresDApercu;
+  }).catch(() => null).finally(() => { titresDApercuEnCours = null; });
+  return titresDApercuEnCours;
+}
+function oublierTitresDApercu() {
+  titresDApercu = null;
+  try { sessionStorage.removeItem(CLE_TITRES_APERCU); } catch (e) { /* ignore */ }
+}
+// Les titres que le choix « Titre » propose pour l'aperçu en cours : [{ id, nom, fixe }], le titre fixe d'abord ; vide hors aperçu
+// formateur, direction ou siège, hors fondateur, ou quand les lectures manquent.
+export function titresDeLApercu() {
+  const a = getViewAs();
+  if (!isFounder() || !APERCUS_PAR_TITRE.includes(a)) return [];
+  if (!titresDApercu) {
+    try { titresDApercu = JSON.parse(sessionStorage.getItem(CLE_TITRES_APERCU) || "null"); } catch (e) { titresDApercu = null; }
+  }
+  return titresPourApercu(titresDApercu, a);
 }
 // Le centre affiché (D6) : le lieu de la promo affichée s'il est dirigé par le compte (ou en aperçu direction), sinon le premier
 // lieu dirigé ; null quand le compte ne dirige aucun centre.
@@ -373,6 +410,8 @@ export async function setViewAs(role, { titreId = null } = {}) {
     sortirDeLaVitrine(espaceApres);
     return;
   }
+  // Entrer en aperçu depuis le fondateur : la liste du choix « Titre » se lit d'abord (ensuite, titres_visibles refuserait).
+  if (nouveau && APERCUS_PAR_TITRE.includes(nouveau) && fondateurHorsApercu()) await chargerTitresDApercu();
   const change = appliquerApercu(nouveau, titreId);
   try {
     if (viewAs) localStorage.setItem(VIEW_AS_KEY, viewAs);
@@ -492,6 +531,7 @@ async function refuserSession(message) {
   currentProfile = null;
   affectations = [];
   oublierTitres();
+  oublierTitresDApercu();
   espace = null;
   toast(message, "error", 5000);
 }
@@ -588,6 +628,7 @@ export async function initAuth() {
       currentProfile = null;
       affectations = [];
       oublierTitres();
+      oublierTitresDApercu();
       espace = null;
       oublierApercu();
       oublierPromo();
@@ -686,6 +727,24 @@ function updateImpersonationBanner() {
     onClick: () => setViewAs(null) }, isFounder() ? "Revenir fondateur" : "Quitter l'aperçu"));
 }
 
+// Choix « Titre » sous les aperçus Formateur, Direction et Siège (fondateur seul) : le titre fixe du niveau (l'aperçu d'avant les titres),
+// puis les titres que la base montre (titres_visibles). Choisir relit mes_titres sous le nouveau titre simulé (setViewAs).
+function blocTitreApercu(onPick) {
+  const titres = titresDeLApercu();
+  if (titres.length < 2) return null;
+  const courant = getTitreApercu();
+  const choisir = (t) => { setViewAs(getViewAs(), { titreId: t.fixe ? null : t.id }); if (onPick) onPick(); };
+  return el("div", { class: "view-as-titre", role: "group", "aria-label": "Titre simulé" },
+    el("p", { class: "muted view-as-titre-label" }, "Titre"),
+    el("div", { class: "view-as-seg view-as-titre-liste" }, titres.map((t) => {
+      const actif = t.fixe ? courant == null : courant === t.id;
+      return el("button", {
+        class: "view-as-btn view-as-titre-btn" + (actif ? " active" : ""), type: "button", "data-titre-id": t.id,
+        "aria-pressed": actif ? "true" : "false", onClick: () => choisir(t),
+      }, t.nom);
+    })));
+}
+
 // Sélecteur « Voir en tant que », dans le menu du compte (js/menu-compte.js).
 // Fondateur : cinq boutons (Fondateur, Formateur, Direction, Siège, Stagiaire) qui passent à la ligne. Équipe d'une
 // promo (formateur, direction) : une ligne « Voir comme un stagiaire », ou « Quitter l'aperçu » une fois dedans.
@@ -706,6 +765,7 @@ export function buildViewAsBlock(onPick) {
     return el("div", { class: "view-as-block" },
       el("p", { class: "muted", style: "margin:0 0 0.4rem;font-size:0.82rem" }, "Voir en tant que (aperçu)"),
       seg,
+      blocTitreApercu(onPick),
     );
   }
   if (!apercusOuverts().includes("stagiaire")) return null;

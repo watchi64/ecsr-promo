@@ -7,7 +7,7 @@
  * `titres_visibles`) ; `casesDeLEspace` les convertit en 0 (Non), 1 (Voir), 2 (Modifier).
  */
 
-// Les pages de chaque niveau, dans l'ordre de la fonction SQL `_pages_du_niveau` (migration 20261112_titres_1_tables.sql).
+// Les pages de chaque niveau, dans l'ordre de la fonction SQL `_pages_duNiveau` (migration 20261112_titres_1_tables.sql).
 // `plafond` : 2 (Voir et Modifier) ou 1 (Voir seul). `route` : la route de l'app qui porte la case.
 export const PAGES_DU_NIVEAU = {
   promo: [
@@ -235,4 +235,19 @@ export function phraseJournal(ligne, nomDe = (e) => e) {
 export function formateurFixeSur(titres, promoId) {
   if (!Array.isArray(titres)) return null;
   return titres.some((t) => titreCouvre(t, "promo", promoId, null) && (typeof t.fixe === "boolean" ? t.fixe : t.nom === "Formateur"));
+}
+
+// Aperçu par titre (fondateur) : les titres que le choix « Titre » propose pour un aperçu (formateur, direction, siège), lus par
+// titres_visibles hors aperçu : `listes` = { centre: lignes de titres_visibles(<centre affiché>) ou null, reseau: lignes de
+// titres_visibles(null) ou null }. Titres du niveau de l'aperçu seulement, le titre fixe d'abord, puis l'ordre de la base. Un titre
+// absent des lectures n'est jamais deviné : liste vide quand la lecture manque.
+const NIVEAU_DE_L_APERCU = { formateur: "promo", direction: "centre", siege: "reseau" };
+export function titresPourApercu(listes, apercu) {
+  const niveau = NIVEAU_DE_L_APERCU[apercu];
+  if (!niveau || !listes) return [];
+  const source = niveau === "reseau" ? listes.reseau : listes.centre;
+  if (!Array.isArray(source)) return [];
+  const duNiveau = source.filter((t) => t && t.niveau === niveau && t.id != null);
+  return [...duNiveau.filter((t) => t.fixe), ...duNiveau.filter((t) => !t.fixe)]
+    .map((t) => ({ id: String(t.id), nom: t.nom, fixe: !!t.fixe }));
 }

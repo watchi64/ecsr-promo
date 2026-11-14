@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import {
   PAGES_DU_NIVEAU, NIVEAU_DE_L_ESPACE, ROUTES_A_CASE, casesDeLEspace, caseDe, choixDeLaPage, releverStagiaires,
   PHRASE_STAGIAIRES_RELEVE, bandeaux, BANDEAU_EQUIPE, BANDEAU_COURS, BANDEAU_DIRECTIONS, phrasePorteurs, phraseVersionCentre,
-  ceQueJePeuxFaire, libelleTitre, pastillesDePersonne, titresDonnablesGroupes, phraseJournal, formateurFixeSur,
+  ceQueJePeuxFaire, libelleTitre, pastillesDePersonne, titresDonnablesGroupes, phraseJournal, formateurFixeSur, titresPourApercu,
 } from "../js/titres-rules.js";
 
 const formateurFixe = { titre_id: 1, nom: "Formateur", niveau: "promo", lieu_id: 1, lieu_nom: "Centre de Nîmes", promo_ids: [1, 2], cases: {} };
@@ -179,6 +179,23 @@ test("formateurFixeSur", () => {
   // Un titre de CENTRE nommé « Formateur » ne compte pas : seul un titre de promo couvre la promo.
   assert.equal(formateurFixeSur([{ titre_id: 7, nom: "Formateur", niveau: "centre", lieu_id: 1, promo_ids: null, cases: {} }], 1), false);
   assert.equal(formateurFixeSur([{ titre_id: 7, nom: "Formateur", niveau: "centre", lieu_id: 1, promo_ids: [1], cases: {} }], 1), false);
+});
+
+test("titresPourApercu : titres du niveau de l'aperçu, le titre fixe d'abord, rien de deviné", () => {
+  const centre = [
+    { id: 7014, nom: "Intervenant", niveau: "promo", fixe: false }, { id: 7001, nom: "Formateur", niveau: "promo", fixe: true },
+    { id: 7002, nom: "Direction de centre", niveau: "centre", fixe: true }, { id: 7012, nom: "Secrétariat", niveau: "centre", fixe: false },
+  ];
+  const reseau = [{ id: 7003, nom: "Siège", niveau: "reseau", fixe: true }, { id: 7016, nom: "Qualité", niveau: "reseau", fixe: false }];
+  const listes = { centre, reseau };
+  assert.deepEqual(titresPourApercu(listes, "formateur").map((t) => t.nom), ["Formateur", "Intervenant"]);
+  assert.deepEqual(titresPourApercu(listes, "direction").map((t) => t.nom), ["Direction de centre", "Secrétariat"]);
+  assert.deepEqual(titresPourApercu(listes, "siege").map((t) => t.nom), ["Siège", "Qualité"]);
+  assert.deepEqual(titresPourApercu(listes, "siege")[0], { id: "7003", nom: "Siège", fixe: true });
+  assert.deepEqual(titresPourApercu(listes, "stagiaire"), []);
+  assert.deepEqual(titresPourApercu({ centre: null, reseau }, "formateur"), []);
+  assert.deepEqual(titresPourApercu({ centre: null, reseau }, "siege").length, 2);
+  assert.deepEqual(titresPourApercu(null, "siege"), []);
 });
 
 test("aucun texte ne contient « prof » ni le tiret cadratin", () => {

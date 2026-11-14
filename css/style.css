@@ -4985,6 +4985,10 @@ body.qcm-open { overflow: hidden; }
 }
 .view-as-ligne:hover { background: var(--bg-elev); }
 .promo-choix-apercu { margin-top: 0.6rem; min-height: 44px; }
+/* Choix « Titre » de l'aperçu (fondateur, étape 3) : les boutons passent à la ligne, 44 px à toute taille. */
+.view-as-titre { margin-top: 0.6rem; }
+.view-as-titre-label { margin: 0 0 0.3rem; font-size: 0.82rem; }
+.view-as-titre-btn { min-height: 44px; overflow-wrap: anywhere; }
 @media (max-width: 699.98px) {
   .view-as-btn { min-height: 44px; }
 }
