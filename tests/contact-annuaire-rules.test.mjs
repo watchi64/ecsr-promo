@@ -82,7 +82,7 @@ test("tri : ordre, puis nom ; l'entrée n'est pas modifiée", () => {
 });
 
 // ---- Tâche 6 : fiches à supprimer, liste des financements
-import { fichesASupprimer, aQuitte, listeFinancements, validerLibelleFinancement } from "../js/contact-annuaire-rules.js";
+import { peutModifierCoordonnees, fichesASupprimer, aQuitte, listeFinancements, validerLibelleFinancement } from "../js/contact-annuaire-rules.js";
 
 test("fiches à supprimer : sans compte, date de départ strictement passée", () => {
   const f = [
@@ -123,4 +123,12 @@ test("financements : nom de 1 à 40 caractères, jamais deux fois le même", () 
   assert.equal(validerLibelleFinancement("cpf", FIN), "Deux financements portent le même nom.");
   assert.equal(validerLibelleFinancement("CPF", FIN, 1), null, "garder son propre nom n'est pas un doublon");
   assert.equal(validerLibelleFinancement("Région", FIN, 1), "Deux financements portent le même nom.");
+});
+
+test("coordonnées d'un stagiaire : modifiables par le formateur et par la direction, jamais par soi", () => {
+  assert.equal(peutModifierCoordonnees({ soi: false, admin: true, direction: false }), true);
+  assert.equal(peutModifierCoordonnees({ soi: false, admin: false, direction: true }), true);
+  assert.equal(peutModifierCoordonnees({ soi: false, admin: false, direction: false }), false);
+  assert.equal(peutModifierCoordonnees({ soi: true, admin: true, direction: true }), false);
+  assert.equal(peutModifierCoordonnees(), false);
 });

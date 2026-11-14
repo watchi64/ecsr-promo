@@ -28,6 +28,7 @@ import {
   carte, plusLien, ligneLien, erreurAvecReessai, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
 } from "./pages-cartes.js?v=20261114f";
 import { pluriel } from "../nombres.js?v=20261114f";
+import { PHRASE_VERIFIER_FICHE } from "../contact-annuaire-rules.js?v=20261114f";
 
 const RELECTURE_SEANCES_MS = 60000;
 const NB_A_SUIVRE = 5;
@@ -274,8 +275,7 @@ export function renderAujourdhui(container) {
   lireMaFiche().then((moi) => {
     if (!moi?.fiche || moi.fiche.verifiee || !entete.isConnected) return;
     entete.after(el("div", { class: "contact-encadre aujourdhui-fiche", role: "note" },
-      el("a", { href: "#/preferences" }, "Vérifiez votre fiche de contact"),
-      el("span", {}, " : les stagiaires ne voient que votre nom tant qu'elle n'est pas enregistrée.")));
+      el("a", { href: "#/preferences" }, PHRASE_VERIFIER_FICHE)));
   }).catch((e) => console.error("Aujourd'hui : fiche de contact illisible", e));
 
   // Émargement et À traiter : les formateurs de la promo seulement (isAdmin, « écrit comme un formateur »), les mêmes

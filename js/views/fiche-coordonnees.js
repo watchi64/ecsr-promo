@@ -10,16 +10,17 @@ import { icon } from "../icons.js?v=20261114f";
 import { isAdmin } from "../auth-admin.js?v=20261114f";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261114f";
 import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
-import { validerMaFiche } from "../contact-annuaire-rules.js?v=20261114f";
+import { validerMaFiche, peutModifierCoordonnees } from "../contact-annuaire-rules.js?v=20261114f";
 
 const LIBELLE_DELEGUE = { titulaire: "Délégué", suppleant: "Suppléant" };
 
 const ligne = (nom, valeur) => el("div", { class: "contact-ligne" }, el("dt", {}, nom), el("dd", {}, valeur));
 
-// `d` : les données de la fiche (d.id : le stagiaire). `soi` : c'est la fiche de la personne connectée.
-export function blocCoordonnees(d, { soi = false } = {}) {
+// `d` : les données de la fiche (d.id : le stagiaire). `soi` : c'est la fiche de la personne connectée. `direction` : la fiche est
+// ouverte depuis la page des stagiaires de la direction.
+export function blocCoordonnees(d, { soi = false, direction = false } = {}) {
   const bloc = el("section", { class: "fiche-coordonnees", "aria-label": "Coordonnées" });
-  const modifiable = !soi && isAdmin();
+  const modifiable = peutModifierCoordonnees({ soi, admin: isAdmin(), direction });
 
   async function charger() {
     clear(bloc);

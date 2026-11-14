@@ -9,9 +9,8 @@ import { el, clear, toast } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
 import { isStagiaire, monStagiaireId, enVitrine } from "../auth-admin.js?v=20261114f";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261114f";
-import { validerMaFiche } from "../contact-annuaire-rules.js?v=20261114f";
+import { validerMaFiche, PHRASE_VERIFIER_FICHE } from "../contact-annuaire-rules.js?v=20261114f";
 
-export const PHRASE_VERIFIER_FICHE = "Vérifiez votre fiche de contact : les stagiaires ne voient que votre nom tant qu'elle n'est pas enregistrée.";
 const PHRASE_ECHEC_LECTURE = "Votre fiche n'a pas pu être chargée.";
 const PHRASE_ECHEC_LECTURE_TEL = "Ton téléphone n'a pas pu être chargé.";
 

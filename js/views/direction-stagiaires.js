@@ -310,7 +310,7 @@ export async function renderStagiairesCentre(container) {
     }
     if (courant !== generation || jeton !== rendu) return;
     renderFiche(zone, donnees, {
-      soi: false, partie: adr.partie, disposition,
+      soi: false, direction: true, partie: adr.partie, disposition,
       titre: entree ? displayStagiaire(entree) : "Stagiaire",
       retour: disposition === "sommaire" ? { label: "Stagiaires du centre", href: "#/stagiaires" } : null,
       adresse: (p) => adresseFiche("stagiaires", adr.id, p),

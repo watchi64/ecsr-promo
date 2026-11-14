@@ -148,3 +148,12 @@ export function listeFinancements(lignes, action) {
   }
   return liste.map((l, i) => ({ ...l, ordre: 10 * (i + 1) }));
 }
+
+// Qui voit « Modifier » sur les coordonnées d'un stagiaire : le formateur (isAdmin) ou la direction (sa page des stagiaires), jamais
+// sur sa propre fiche. La base reste juge (geste stagiaires.gerer) et son refus s'affiche.
+export function peutModifierCoordonnees({ soi = false, admin = false, direction = false } = {}) {
+  return !soi && (!!admin || !!direction);
+}
+
+// Rappel posé tant que la fiche de contact n'est pas enregistrée (Mes préférences et Aujourd'hui).
+export const PHRASE_VERIFIER_FICHE = "Vérifiez votre fiche de contact : les stagiaires ne voient que votre nom tant qu'elle n'est pas enregistrée.";
