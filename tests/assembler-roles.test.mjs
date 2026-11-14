@@ -1363,3 +1363,32 @@ test("la migration 7 (partie A, D1) : fichiers propres, aucune règle touchée, 
     assert.ok(!/grant execute on function public\._refus_gestion/.test(t), "aucun droit d'exécution");
   }
 });
+
+test("la migration 7 (partie B, D4) : index unique partiel après garde, verrous d'ajuster_titre et de donner_titre en fragments, retour inverse", () => {
+  const m = texteDuDepot(S[7].migration);
+  const r = texteDuDepot(S[7].retour);
+  const six = texteDuDepot("supabase/migrations/20261112_titres_6_gestion.sql");
+  const index = "create unique index titres_version_unique on public.titres (origine_id, lieu_id) where origine_id is not null;";
+  assert.equal(m.split(index).length - 1, 1, "l'index, une fois");
+  assert.ok(m.indexOf("do $garde_versions$") < m.indexOf(index), "la garde des doublons précède l'index");
+  assert.match(m, /having count\(\*\) > 1\) d;\n  if v_n > 0 then\n    raise exception 'titres_7_correctifs : % titre\(s\) du réseau ont plus d''une version dans un même centre ; rien n''est changé', v_n;/);
+  assert.match(r, /^drop index public\.titres_version_unique;$/m, "le retour retire l'index");
+  // Les anciens de l'aller sont des textes de la migration 6, chacun une seule fois dans sa fonction.
+  const fonction6 = (nom) => new RegExp(`^create function public\\.${nom}\\([\\s\\S]*?^\\$f\\$;$`, "m").exec(six)[0];
+  const tableau = (t, d) => [...t.matchAll(new RegExp(`\\$${d}\\$([\\s\\S]*?)\\$${d}\\$`, "g"))].map((x) => x[1]);
+  const anciens = tableau(m, "ancien"), nouveaux = tableau(m, "nouveau");
+  assert.equal(anciens.length, 4, "quatre fragments (trois pour ajuster_titre, un pour donner_titre)");
+  assert.match(m, /v_de integer\[\] := array\[1, 1, 1, 2\];/);
+  assert.match(m, /'public\.ajuster_titre\(bigint, integer, text, jsonb\)',\n    'public\.donner_titre\(text, bigint, integer, integer\[\], integer\)'\];/);
+  const sources = [fonction6("ajuster_titre"), fonction6("ajuster_titre"), fonction6("ajuster_titre"), fonction6("donner_titre")];
+  anciens.forEach((a, i) => assert.equal(sources[i].split(a).length - 1, 1, `fragment ${i + 1} : trouvé une fois dans la migration 6`));
+  assert.ok(nouveaux[0].includes("  v_contrainte text;"));
+  assert.ok(nouveaux[1].includes("  perform 1 from titres where id = p_titre_id for update;\n  if t.lieu_du_titre is null"), "verrou avant la recherche de la version");
+  assert.ok(nouveaux[2].includes("get stacked diagnostics v_contrainte = constraint_name;"));
+  assert.ok(nouveaux[2].includes("raise exception 'titres: Ce titre vient d''être ajusté pour ce centre par une autre personne : rouvrez-le, puis réessayez.';"));
+  assert.ok(nouveaux[2].includes("raise exception 'titres: Un titre de ce nom existe déjà ici.';"), "l'ancienne phrase reste pour un nom en double");
+  assert.ok(nouveaux[3].includes("  perform 1 from titres where id = p_titre_id for share;\n  select v.id into v_ancien"), "verrou partagé avant la recherche de la version");
+  // Le retour : les mêmes fragments, anciens et nouveaux échangés.
+  assert.deepEqual(tableau(r, "ancien"), nouveaux);
+  assert.deepEqual(tableau(r, "nouveau"), anciens);
+});

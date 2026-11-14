@@ -315,6 +315,49 @@ begin
     pg_temp.calcul($q$select value from public.settings where promo_id is null and key = 'titres_ouverts'$q$), v_verrou_avant);
 end $tsd1$;
 
+-- Une écriture en propriétaire qui doit heurter une contrainte : « OK » ou « ERREUR <état> <nom de la contrainte> », le nom lu par get
+-- stacked diagnostics (deux index uniques de titres donnent le même état 23505 : seul le nom les distingue).
+create or replace function pg_temp.essai_contrainte(p_sql text)
+returns text language plpgsql as $tsec$
+declare v_contrainte text;
+begin
+  perform pg_temp.proprio();
+  execute p_sql;
+  return 'OK';
+exception when others then
+  get stacked diagnostics v_contrainte = constraint_name;
+  return rtrim('ERREUR ' || sqlstate || ' ' || coalesce(v_contrainte, ''));
+end $tsec$;
+
+-- Groupe d4 (migration 7, partie B) : une seule version de centre par titre du réseau, en une session (la concurrence se prouve à deux
+-- sessions par tests/sql/titres-concurrence.sh). Joué sur un titre du réseau de niveau centre posé par le groupe, non porté, et non sur
+-- R : u reste porteur de R pour les groupes suivants. t_chef (Équipe : Modifier au centre 1) l'ajuste deux fois depuis le centre 1.
+create or replace function pg_temp.groupe_d4()
+returns void language plpgsql as $tsd4$
+declare
+  v_l1t text := (select lieu_id from public.promos where id = 1)::text;
+  v_r4 text; v_un text; v_deux text; v_version text;
+begin
+  v_r4 := pg_temp.calcul($q$insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values ('Preuve9 d4 réseau', 'centre', null, '{"promos":"voir","equipe":"voir"}', 'preuve') returning id::text$q$);
+  perform pg_temp.verifier('d4', 'départ : un titre du réseau de niveau centre, non porté, posé', coalesce(v_r4, '') ~ '^[0-9]+$', coalesce(v_r4, 'nul'));
+  v_un := pg_temp.ajuster_t('t_chef', null, v_r4, v_l1t, '{"promos":"voir","equipe":"voir"}');
+  v_version := substring(v_un from '^OK ([0-9]+)/');
+  perform pg_temp.attendre('d4', 't_chef ajuste le titre depuis le centre 1 : la version du centre est créée (version_creee vrai)',
+    regexp_replace(coalesce(v_un, 'nul'), '^OK [0-9]+/', 'OK <version>/'), 'OK <version>/true/0');
+  v_deux := pg_temp.ajuster_t('t_chef', null, v_r4, v_l1t, '{"promos":"voir"}');
+  perform pg_temp.attendre('d4', 't_chef l''ajuste une seconde fois : la même version est modifiée (version_creee faux, même identifiant)',
+    v_deux, 'OK ' || coalesce(v_version, '?') || '/false/0');
+  perform pg_temp.attendre('d4', 'une seule version du titre au centre 1, aux cases du second ajustement',
+    pg_temp.calcul(format('select count(*)::text || ''/'' || min(cases::text) from public.titres where origine_id = %s and lieu_id = %s', v_r4, v_l1t)),
+    '1/{"promos": "voir"}');
+  perform pg_temp.attendre('d4', 'une seconde version posée en propriétaire pour le même titre et le même centre, d''un autre nom : refusée par l''index titres_version_unique (23505)',
+    pg_temp.essai_contrainte(format($q$insert into public.titres (nom, niveau, lieu_id, origine_id, cases, cree_par) values ('Preuve9 autre version', 'centre', %s, %s, '{}', 'preuve')$q$, v_l1t, v_r4)),
+    'ERREUR 23505 titres_version_unique');
+  perform pg_temp.attendre('d4', 'l''index titres_version_unique est unique, sur (origine_id, lieu_id), avec le prédicat origine_id IS NOT NULL',
+    pg_temp.calcul($q$select pg_get_indexdef('public.titres_version_unique'::regclass)$q$),
+    'CREATE UNIQUE INDEX titres_version_unique ON public.titres USING btree (origine_id, lieu_id) WHERE (origine_id IS NOT NULL)');
+end $tsd4$;
+
 do $tsprg$
 declare
   v_mode constant text :=
@@ -422,6 +465,9 @@ begin
   -- 4. Les groupes des migrations 7, 8, 9 et 4, avec leurs tâches, chacun derrière pg_temp.groupe_suite_a_jouer.
   if pg_temp.groupe_suite_a_jouer('d1', 7, v_mode) then
     perform pg_temp.groupe_d1();
+  end if;
+  if pg_temp.groupe_suite_a_jouer('d4', 7, v_mode) then
+    perform pg_temp.groupe_d4();
   end if;
 
   -- 5. Les retours, dans l'ordre inverse (9, 8, 7, 4). Avant eux, dans les seuls modes qui injectent des retours, les affectations des

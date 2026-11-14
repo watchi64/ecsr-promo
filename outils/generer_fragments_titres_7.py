@@ -8,9 +8,11 @@
 #     Chaque bloc commence par une garde de dérive : le corps en vigueur doit être exactement celui qu on remplace (retours chariot
 #     ignorés), sinon la migration s arrête sans rien changer. Les droits d exécution ne changent pas (create or replace les garde ; le
 #     revoke qui suit les redit, sans effet sur une fonction déjà fermée) ;
-#   - les fragments (tableau T, vide pour la partie A ; les parties B et C l alimentent) : même mécanique que generer_fragments_titres_6.py,
-#     le retour est l aller avec anciens et nouveaux échangés.
+#   - les fragments (tableau T, alimenté par la partie B, puis C) : même mécanique que generer_fragments_titres_6.py, le retour est
+#     l aller avec anciens et nouveaux échangés.
 # Partie A (D1, décision de Timy du 12/11, étendue à la création le 14/11) : _refus_gestion, règles du § 5.D du plan.
+# Partie B (D4) : ajuster_titre (verrou de ligne, phrase de l index) et donner_titre (verrou partagé), en fragments ; l index
+# titres_version_unique et sa garde sont écrits à la main dans la migration, hors du bloc généré.
 import pathlib
 import re
 import sys
@@ -74,12 +76,47 @@ begin
 end;
 """)
 
-# Fragments : (signature, [(ancien, nouveau), ...]). Vide pour la partie A.
+# Fragments : (signature, [(ancien, nouveau), ...]). Chaque ancien est un texte de la migration 6, trouvé exactement une fois dans la
+# définition en vigueur (retours chariot suivis).
 T = []
 
 
 def f(sig, *pairs):
     T.append((sig, list(pairs)))
+
+
+# Partie B (D4, décision de Timy du 12/11) : une seule version de centre par titre du réseau. L'index titres_version_unique (posé hors
+# du bloc généré) est la garantie ; le verrou de ligne sur le titre du réseau rend le second ajustement simultané juste (il attend, voit la
+# version et la modifie) ; si l'index se déclenche quand même, une phrase dit pourquoi. donner_titre prend un verrou partagé sur le même
+# titre : un don et un ajustement simultanés s'attendent, le porteur finit sur la version du centre quand elle existe.
+f("ajuster_titre(bigint, integer, text, jsonb)",
+  ("""  v_bascules integer := 0;
+""", """  v_bascules integer := 0;
+  v_contrainte text;
+"""),
+  ("""  if t.lieu_du_titre is null and t.niveau in ('promo', 'centre') and v_lieu is not null then
+    select ti.id into v_version""", """  -- D4 : un seul ajustement à la fois par titre ; le second attend, puis voit la version que le premier a créée.
+  perform 1 from titres where id = p_titre_id for update;
+  if t.lieu_du_titre is null and t.niveau in ('promo', 'centre') and v_lieu is not null then
+    select ti.id into v_version"""),
+  ("""  exception when unique_violation then
+    raise exception 'titres: Un titre de ce nom existe déjà ici.';
+  end;
+  return jsonb_build_object(""", """  exception when unique_violation then
+    -- D4 : la version du centre posée entre-temps par un autre chemin (index titres_version_unique) n'est pas un nom en double.
+    get stacked diagnostics v_contrainte = constraint_name;
+    if v_contrainte = 'titres_version_unique' then
+      raise exception 'titres: Ce titre vient d''être ajusté pour ce centre par une autre personne : rouvrez-le, puis réessayez.';
+    end if;
+    raise exception 'titres: Un titre de ce nom existe déjà ici.';
+  end;
+  return jsonb_build_object("""))
+
+f("donner_titre(text, bigint, integer, integer[], integer)",
+  ("""  select v.id into v_ancien from titres r join titres v on v.origine_id = r.id and v.lieu_id = p_lieu_id""",
+   """  -- D4 : un don attend l'ajustement en cours du même titre (et inversement), puis voit sa version.
+  perform 1 from titres where id = p_titre_id for share;
+  select v.id into v_ancien from titres r join titres v on v.origine_id = r.id and v.lieu_id = p_lieu_id"""))
 
 
 def texte_migration_6(nom, types):
