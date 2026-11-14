@@ -36,6 +36,29 @@ export const NOUVEAUTES = [
     ou: { route: "themes", label: "Cours et QCM" },
     module: "qcm",
   },
+  // Espace contact (annuaire, 14/11) : les contacts du centre ont leur page, Contacts, dans le menu du compte. À remplacer par la date
+  // de la mise en ligne si elle diffère. Une carte par public : le stagiaire tutoie, l'équipe vouvoie.
+  {
+    id: "2026-11-14-contacts-du-centre-stagiaires",
+    date: "2026-11-14",
+    pour: "stagiaires",
+    titre: "Les contacts du centre, au même endroit",
+    resume: "Dans le menu de ton compte, Contacts réunit l'équipe de ton centre : qui est qui, pour quoi la joindre et quand, "
+          + "avec son numéro professionnel. Tu y retrouves aussi les noms de ta promo et ses délégués. Ton numéro de téléphone, "
+          + "si tu le donnes dans Mes préférences, n'est visible que de l'équipe.",
+    ou: { label: "Contacts", route: "contacts" },
+  },
+  {
+    id: "2026-11-14-fiche-de-contact-formateurs",
+    date: "2026-11-14",
+    pour: "formateurs",
+    titre: "Votre fiche de contact",
+    resume: "Contacts (menu du compte) remplace les contacts de Documents : chaque membre de l'équipe y a sa fiche, créée d'office. "
+          + "Vérifiez la vôtre dans Mes préférences (e-mail et téléphone professionnels, pour quoi et quand vous joindre, absence "
+          + "et relais) : tant qu'elle n'est pas enregistrée, les stagiaires ne voient que votre nom. Une fiche partagée entre deux "
+          + "centres se corrige une seule fois.",
+    ou: { label: "Mes préférences", route: "preferences" },
+  },
   // Résultats du jury du titre (14/11, décisions de Timy : saisie par stagiaire, par qui saisit les notes, taux = obtenus sur
   // présentés). Pour les formateurs, au vouvoiement ; la direction a sa propre entrée (lecture seule, cumul du centre).
   {
@@ -203,7 +226,7 @@ export const NOUVEAUTES = [
           + "Montpellier gardent les mêmes contacts, mais chaque centre a maintenant sa propre liste : un numéro qui change "
           + "se corrige dans chacun des deux. Un contact que vous ajoutez appartient au centre de la promo affichée ; pour en "
           + "ajouter un à un autre centre, affichez d'abord une de ses promos.",
-    ou: { label: "Cours et QCM, Documents", route: "ressources" },
+    ou: { label: "Contacts", route: "contacts" },
   },
   // Refonte de l'Ordre de passage et des Résultats (maquettes choisies par Timy le 11/11) : une carte par public. Placées après la conservation, qui reste la
   // carte du jour de l'équipe.
@@ -247,7 +270,7 @@ export const NOUVEAUTES = [
       "La fiche personnelle (notes, passages, livret EPCF, dossier professionnel) s'appelle Mon suivi ; les préférences sont "
         + "dans « Mes préférences », dans le menu du compte (les initiales : en haut à droite, ou en bas de la barre de gauche "
         + "pour l'équipe sur ordinateur).",
-      "Le menu du compte réunit aussi Nouveautés, Contacts du centre, Recharger les données et Se déconnecter.",
+      "Le menu du compte réunit aussi Nouveautés, Contacts, Recharger les données et Se déconnecter.",
       "Pour une question sur l'app ou sur un cours : le bouton « Assistant », en haut de l'écran (pour l'équipe sur "
         + "ordinateur, en bas de la barre de gauche).",
     ],

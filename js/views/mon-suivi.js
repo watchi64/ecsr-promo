@@ -725,8 +725,10 @@ export function renderFiche(container, d, opts) {
   // iPhone : le sommaire.
   if (opts.retour) container.appendChild(lienRetour(opts.retour.label, opts.retour.href));
   if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
-  container.appendChild(blocCoordonnees(d, { soi: !!opts.soi, direction: !!opts.direction }));
+  // Les parties d'abord : sur téléphone, le sommaire doit tenir au-dessus de la barre du bas (contrôle du vérificateur de navigation) ;
+  // les coordonnées viennent après.
   container.appendChild(rendreSommaire(d, parties, opts));
+  container.appendChild(blocCoordonnees(d, { soi: !!opts.soi, direction: !!opts.direction }));
   return "sommaire";
 }
 
