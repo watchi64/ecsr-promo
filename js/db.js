@@ -2027,16 +2027,44 @@ export async function lireStagiairesPromo(promoId) {
 // promoId nul (liste des promos non chargée) : promo courante, sans en-tête de lecture.
 export async function lireDonneesCentre(promoId) {
   const lire = (table, colonnes, ordre) => lireTable(table, colonnes, ordre, promoId);
-  // Les feuilles d'émargement (taux de présence) : une lecture qui échoue rend { etat: "non_lue" } sans faire échouer le reste.
-  const [stagiaires, passages, evaluations, tentatives, epcf, emargement] = await Promise.all([
+  // Les feuilles d'émargement (taux de présence) et les résultats du jury (taux d'obtention du titre) : une lecture qui échoue rend
+  // { etat: "non_lue" } sans faire échouer le reste.
+  const [stagiaires, passages, evaluations, tentatives, epcf, emargement, jury] = await Promise.all([
     lire("stagiaires", "id, prenom, nom, actif, ordre, anonymise_le, efface_le", "id"),
     lire("passages", "id, stagiaire_id, type, resultat, date", "id"),
     lire("evaluations", "id, stagiaire_id, type, theme_numero, competence_code, controle_libelle, note, note_max, date_eval", "id"),
     lire("qcm_attempts", "id, qcm_id, stagiaire_id, mode, score, total, note_20, finished_at", "id"),
     lire("epcf_evaluations", "id, stagiaire_id, trame, contexte, auto_eval, date_eval, scores", "id"),
     lireEmargementDeLaPromo(promoId),
+    lireJuryDeLaPromo(promoId),
   ]);
-  return { stagiaires, passages, evaluations, tentatives, epcf, emargement };
+  return { stagiaires, passages, evaluations, tentatives, epcf, emargement, jury };
+}
+
+// Résultats du jury du titre (migration 20261114_jury_resultats) : une ligne par stagiaire, lue par qui lit les notes (la base
+// ne rend rien à un stagiaire). { etat: "lue", lignes } ou { etat: "non_lue" } : jamais « aucun résultat » sur une erreur.
+async function lireJuryDeLaPromo(promoId) {
+  try {
+    const lignes = await lireTable("jury_resultats", "stagiaire_id, promo_id, session_le, resultat, ccp1, ccp2, saisi_le", "stagiaire_id", promoId);
+    return { etat: "lue", lignes };
+  } catch {
+    return { etat: "non_lue" };
+  }
+}
+
+// Écrit les résultats du jury de la promo affichée (la base pose la promo d'après la fiche et refuse qui ne saisit pas les notes).
+// ecrire : [{ stagiaire_id, session_le, resultat, ccp1, ccp2 }] (ajout ou remplacement) ; retirer : identifiants de fiches dont le
+// résultat s'efface. Lève à la première erreur ; ce qui a été écrit avant reste écrit (l'appelant relit).
+export async function enregistrerResultatsJury({ ecrire = [], retirer = [] } = {}) {
+  if (ecrire.length) {
+    const lignes = ecrire.map((l) => ({ ...l, saisi_le: new Date().toISOString() }));
+    const { error } = await supabase.from("jury_resultats").upsert(lignes, { onConflict: "stagiaire_id" });
+    if (error) throw error;
+  }
+  if (retirer.length) {
+    const { error } = await supabase.from("jury_resultats").delete().in("stagiaire_id", retirer);
+    if (error) throw error;
+  }
 }
 
 // Référentiel commun à toutes les promos : QCM (thème, seuil d'examen) et thèmes.

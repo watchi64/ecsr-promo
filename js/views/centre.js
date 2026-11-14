@@ -4,10 +4,13 @@
 // (impression du navigateur) et CSV de la matrice des notes. Les calculs vivent dans
 // js/centre-stats.js et js/centre-csv.js (purs, testés) : ici, seulement l'affichage.
 
-import { lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande, getMesPromos, getPromoCourante } from "../db.js?v=20261114b";
+import {
+  lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande, getMesPromos, getPromoCourante, enregistrerResultatsJury,
+} from "../db.js?v=20261114b";
 import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261114b";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261114b";
-import { indicateursPromo, ligneComparaison, textePresenceDetail, METHODES } from "../centre-stats.js?v=20261114b";
+import { fondateurHorsApercu, isAdmin } from "../auth-admin.js?v=20261114b";
+import { indicateursPromo, ligneComparaison, textePresenceDetail, texteTitreDetail, METHODES } from "../centre-stats.js?v=20261114b";
+import { CHOIX_JURY, valeurDeLigne, changementsJury, dateProposee } from "../jury-rules.js?v=20261114b";
 import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261114b";
 import { entier, fr1, pct, pluriel } from "../nombres.js?v=20261114b";
 import { ouvrirModale } from "../nav-fenetre.js?v=20261114b";
@@ -24,6 +27,7 @@ const LIBELLES_COMPARAISON = [
   ["notes", "Moyenne des notes"],
   ["epcf", "Critères EPCF acquis"],
   ["presence", "Taux de présence"],
+  ["titre", "Réussite au titre"],
 ];
 
 const LIBELLES_METHODES = [
@@ -87,7 +91,23 @@ export function cartesCles(ind) {
   ];
 }
 
-export function cartesResultats(ind) {
+// Carte « Réussite au titre » : le taux d'obtention du titre d'après les résultats du jury ; `saisir` (page de la promo, compte
+// qui écrit les notes) ajoute le bouton qui ouvre la saisie. `portee` : une phrase de plus sous le détail (Vue d'ensemble).
+function carteTitre(ind, { saisir = null, portee = null } = {}) {
+  const t = ind.titre;
+  const lu = t.detail?.etat === "lue";
+  const article = carte({ cle: "titre", titre: "Réussite au titre", nature: t.nature,
+    valeur: t.valeur != null ? pct(t.valeur) : lu ? "Non mesuré" : "Non lu",
+    detail: texteTitreDetail(t) + (portee ? " · " + portee : "") });
+  if (saisir) {
+    const methodeEl = article.querySelector(".centre-methode");
+    article.insertBefore(el("button", { class: "btn small centre-jury-saisir", type: "button", onClick: saisir },
+      t.detail?.saisis ? "Modifier les résultats du jury" : "Saisir les résultats du jury"), methodeEl);
+  }
+  return article;
+}
+
+export function cartesResultats(ind, { saisirJury = null, porteeJury = null, indTitre = null } = {}) {
   const aq = ind.activiteQcm.detail;
   const rq = ind.reussiteQcm.detail;
   const ex = ind.examensQcm.detail;
@@ -116,8 +136,7 @@ export function cartesResultats(ind) {
     carte({ cle: "epcf", titre: "Évaluations EPCF", nature: "mesuré",
       valeur: ind.epcf.valeur == null ? null : `${pct(ind.epcf.valeur)} acquis`,
       detail: ind.epcf.valeur == null ? null : `${grille("Salle", ep.salle)} · ${grille("Véhicule", ep.vehicule)}` }),
-    carte({ cle: "titre", titre: "Réussite au titre", nature: "non mesuré",
-      valeur: "Non mesuré", detail: "Résultats de jury non saisis dans l'app" }),
+    carteTitre(indTitre || ind, { saisir: saisirJury, portee: porteeJury }),
   ];
 }
 
@@ -267,6 +286,75 @@ function ouvrirExportCsv(promo, donnees) {
       el("button", { class: "btn primary", type: "button", onClick: valider }, "Télécharger"))));
 }
 
+// --- Saisie des résultats du jury (compte qui écrit les notes) ---
+// Une liste par stagiaire de la promo (en formation, puis abandons ; fiches effacées exclues) ; la date de la session s'applique
+// aux résultats modifiés. Seules les lignes changées partent ; « Non saisi » retire un résultat. `apres` : relire la page.
+function ouvrirSaisieJury(promo, donnees, apres) {
+  let modale = null;
+  const aujourdhui = isoDate(new Date());
+  const lignes = donnees.jury?.etat === "lue" ? donnees.jury.lignes : [];
+  const anciennes = new Map(lignes.map((l) => [l.stagiaire_id, l]));
+  const fiches = (donnees.stagiaires || []).filter((s) => !s.efface_le)
+    .slice().sort((a, b) => (b.actif - a.actif) || ((a.ordre ?? 0) - (b.ordre ?? 0)) || a.id - b.id);
+  const champDate = el("input", { type: "date", id: "centre-jury-date", class: "input", value: dateProposee(lignes, aujourdhui),
+    min: "2020-01-01", max: aujourdhui });
+  const listes = new Map();
+  const erreur = el("p", { class: "centre-avertissement", role: "alert", hidden: true });
+  const enregistrer = el("button", { class: "btn primary", type: "button" }, "Enregistrer");
+  const fermer = () => modale.fermer();
+  const lignesListe = fiches.map((s) => {
+    const avant = anciennes.get(s.id);
+    const id = "centre-jury-" + s.id;
+    const liste = el("select", { id, class: "input" },
+      ...CHOIX_JURY.map(([v, libelle]) => el("option", { value: v }, libelle)));
+    liste.value = valeurDeLigne(avant);
+    listes.set(s.id, liste);
+    return el("li", {},
+      el("label", { for: id, class: "centre-jury-nom" }, displayStagiaire(s), s.actif ? null : el("span", { class: "chip centre-promo" }, "abandon")),
+      liste,
+      avant ? el("span", { class: "centre-detail" }, "Session du " + formatDate(avant.session_le)) : null);
+  });
+  enregistrer.addEventListener("click", async () => {
+    const choix = new Map([...listes].map(([id, liste]) => [id, liste.value]));
+    const { ecrire, retirer, erreur: phrase } = changementsJury(anciennes, choix, champDate.value, aujourdhui);
+    if (phrase) {
+      erreur.textContent = phrase;
+      erreur.hidden = false;
+      champDate.focus();
+      return;
+    }
+    if (!ecrire.length && !retirer.length) { fermer(); return; }
+    enregistrer.disabled = true;
+    try {
+      await enregistrerResultatsJury({ ecrire, retirer });
+      toast("Résultats du jury enregistrés", "success");
+      enregistrer.disabled = false;
+      fermer();
+      apres();
+    } catch (e) {
+      console.error(e);
+      enregistrer.disabled = false;
+      // Renvoyer la même saisie est sans risque : l'écriture remplace la ligne de chaque stagiaire, le retrait est rejouable.
+      erreur.textContent = "L'enregistrement a échoué. Vérifiez la connexion et réessayez ; rien n'est perdu dans cette fenêtre.";
+      erreur.hidden = false;
+    }
+  });
+  modale = ouvrirModale(el("div", { class: "modal centre-modal centre-jury" },
+    el("h3", {}, "Résultats du jury du titre"),
+    el("p", {}, "Un résultat par stagiaire : son dernier passage devant le jury. Le taux d'obtention compte les titres obtenus sur les "
+      + "stagiaires présentés, absents exclus. Les stagiaires ne voient pas cette saisie."),
+    el("label", { for: "centre-jury-date", class: "centre-jury-date" }, "Date de la session", champDate),
+    el("p", { class: "centre-detail" }, "La date s'applique aux résultats que vous modifiez."),
+    fiches.length
+      ? el("ul", { class: "centre-jury-liste" }, ...lignesListe)
+      : el("p", { class: "muted" }, "Aucun stagiaire dans cette promo."),
+    erreur,
+    el("div", { class: "modal-actions" },
+      el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"),
+      enregistrer)),
+  { fermerAuVoile: false, focus: champDate, avantFermeture: () => !enregistrer.disabled });
+}
+
 // --- Page ---
 export async function renderCentre(container) {
   const jeton = ++rendu;
@@ -323,7 +411,10 @@ export async function renderCentre(container) {
     el("div", { class: "centre-grille" }, ...cartesCles(ind))));
   racine.appendChild(el("section", { class: "centre-section" },
     el("h3", {}, "Résultats"),
-    el("div", { class: "centre-grille" }, ...cartesResultats(ind))));
+    el("div", { class: "centre-grille" }, ...cartesResultats(ind, {
+      // Saisir le jury : qui écrit les notes (la base vérifie le même droit, geste notes.saisir), sur une promo affichée.
+      saisirJury: isAdmin() && promo ? () => ouvrirSaisieJury(promo, donnees, () => renderCentre(container)) : null,
+    }))));
   racine.appendChild(sectionThemes(ind.themes));
   racine.appendChild(sectionASuivre(ind.aSuivre));
 

@@ -157,3 +157,32 @@ Mise en forme des cartes (dans la charte mint existante), libellés exacts, ordr
   stagiaires en formation. **Tranché par Timy le 23/10/2026** : la page Notes ne compte plus que les
   stagiaires en formation (`statsLocales` et migration `20261023_notes_stats_en_formation`), règle
   écrite sous « Synthèse classe ». Les deux pages donnent les mêmes chiffres.
+
+## Suite du 14/11/2026 : présence et résultats du jury
+
+Les deux « non mesuré » de la première version (assiduité en formation, réussite au titre) sont levés.
+
+**Taux de présence.** Même calcul que la fiche résultats Qualiopi et les attestations : `js/presence-rules.js`
+(`presenceDesFeuilles`, sur `bilanStagiaire` des attestations) ; minutes signées / minutes prévues sur les feuilles
+d'émargement closes, toutes les lignes (stagiaires partis compris), une demi-journée signée comptant en entier. Les feuilles
+sont lues par `lireDonneesCentre` (`emargement`). Carte « Taux de présence » dans « Assiduité et abandons », ligne dans la
+comparaison, colonne de l'export CSV de la direction. Vue d'ensemble : somme des minutes des promos en cours (jamais une
+moyenne de taux) ; une lecture en échec rend le tout « non lu ». Émargement éteint : « Non mesuré », avec la raison du
+dossier Qualiopi. Pas d'entrée Nouveautés tant que l'émargement reste éteint hors promo de démonstration.
+
+**Résultats du jury** (décisions de Timy du 14/11, « Oui, les quatre ») :
+1. une ligne par stagiaire (table `jury_resultats`, migration `20261114_jury_resultats`) : date de la session et un résultat
+   parmi titre obtenu, validation partielle (avec le CCP acquis), non obtenu, absent ; le dernier passage remplace le précédent ;
+2. saisit qui saisit les notes (geste `notes.saisir` ; à l'écran, `isAdmin()`), lit qui lit les notes (`notes.lire`) ; le
+   stagiaire ne lit rien, pas même sa ligne ; le siège ne reçoit rien (`comptes_reseau` inchangé) ;
+3. taux d'obtention = titres obtenus / présentés (absents exclus), validations partielles dites à côté ; Vue d'ensemble :
+   cumul de toutes les promos du centre qui ont des résultats saisis (le jury tombe après la fin de la formation) ;
+4. conditions d'utilisation : « résultat au jury du titre professionnel » dans la ligne « Résultats » et une ligne « Résultat
+   au jury du titre » dans « Qui voit quoi », regroupées avec la version de l'étape 4 des titres, sans nouvelle acceptation
+   d'ici là.
+
+Saisie : bouton de la carte « Réussite au titre » (page Indicateurs), fenêtre d'une liste par stagiaire, date commune
+appliquée aux résultats modifiés, « Non saisi » retire un résultat (règles pures `js/jury-rules.js`). Le même chiffre
+alimente la fiche résultats Qualiopi (`obtentionDeLaFiche`), la colonne « Jury » du dossier de la formation et la pièce
+« Évaluations » de l'inventaire. Aucun texte libre ni auteur nominatif : la conservation (Q5) n'a rien à y effacer.
+Preuves : `tests/sql/jury-preuve.sql` (`outils/assembler_preuve_jury.mjs`), ligne de la matrice de `tests/sql/roles-preuve.sql`.

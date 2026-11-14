@@ -23,7 +23,7 @@
 import { SOURCE } from "./qualiopi-referentiel.js?v=20261114b";
 import { jourDe, rempli, tableau, demandesDe, RAISON_EFFACEE, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261114b";
 import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261114b";
-import { ligneComparaison, METHODES, METHODES_PUBLIQUES } from "./centre-stats.js?v=20261114b";
+import { ligneComparaison, METHODES, METHODES_PUBLIQUES, RESULTATS_JURY } from "./centre-stats.js?v=20261114b";
 import { estNotee, score20 } from "./notes-stats.js?v=20261114b";
 import { cellule, nombre, slug } from "./centre-csv.js?v=20261114b";
 import { compareByNom } from "./utils.js?v=20261114b";
@@ -227,14 +227,25 @@ function joursEntre(debut, fin) {
 const RESULTATS = [
   ["effectif", "Effectif"], ["abandon", "Abandons"], ["absences", "Absences de dernière minute"], ["passages", "Passages"],
   ["reussiteQcm", "Réussite aux QCM d'entraînement"], ["examensQcm", "Examens QCM"], ["notes", "Notes"], ["epcf", "EPCF"],
+  // Résultats du jury saisis dans la page Indicateurs (migration 20261114_jury_resultats) : « non saisi » tant qu'il n'y en a pas.
+  ["titre", "Réussite au titre"],
 ];
-const LIBELLE_TITRE = "Réussite au titre";   // les résultats de jury ne sont pas saisis : jamais de chiffre, mais sa méthode
 const LIBELLE_SATISFACTION = "Satisfaction des stagiaires";   // questionnaire de fin de formation : ses chiffres viennent de l'inventaire
-const LIGNES_METHODES = [...RESULTATS.map(([cle, libelle]) => [libelle, METHODES[cle]]), [LIBELLE_TITRE, METHODES.titre]];
+const LIGNES_METHODES = RESULTATS.map(([cle, libelle]) => [libelle, METHODES[cle]]);
 const lignesResultats = (ind) => {
   const comparaison = ligneComparaison(ind);
-  return [...RESULTATS.map(([cle, libelle]) => [libelle, comparaison[cle], METHODES[cle]]), [LIBELLE_TITRE, "non saisi", METHODES.titre]];
+  return RESULTATS.map(([cle, libelle]) => [libelle, comparaison[cle], METHODES[cle]]);
 };
+
+// Le résultat du jury d'un stagiaire, pour la colonne « Jury » : « non saisi » sans ligne, « non lu » si la lecture a échoué.
+const LIBELLES_JURY = new Map(RESULTATS_JURY);
+function texteJury(jury, stagiaireId) {
+  if (!jury || jury.etat !== "lue") return "non lu";
+  const l = (jury.lignes || []).find((x) => x.stagiaire_id === stagiaireId);
+  if (!l) return "non saisi";
+  const ccp = l.resultat === "partiel" ? (l.ccp1 ? " (CCP1)" : l.ccp2 ? " (CCP2)" : "") : "";
+  return `${LIBELLES_JURY.get(l.resultat) || l.resultat}${ccp}, session du ${dateFr(l.session_le) || l.session_le}`;
+}
 
 // --- Mise en forme commune aux deux dossiers ---
 
@@ -369,7 +380,7 @@ function sectionEvaluations({ inv, donnees, enFormation, stagiaires, demandes })
   const livrets = parStagiaire(donnees.livrets);
   const lignes = enFormation.map((s) => [
     nomComplet(s), texteNotes(notes.get(s.id) || []), texteExamens(tentatives.get(s.id) || []),
-    texteEpcf(epcf.get(s.id) || [], "salle"), texteEpcf(epcf.get(s.id) || [], "vehicule"), texteDepot(livrets.get(s.id) || [], s), "non saisi",
+    texteEpcf(epcf.get(s.id) || [], "salle"), texteEpcf(epcf.get(s.id) || [], "vehicule"), texteDepot(livrets.get(s.id) || [], s), texteJury(donnees.jury, s.id),
   ]);
   return {
     paragraphes: [...phrases(inv, "evaluations"), ...population(enFormation, stagiaires, demandes)],

@@ -90,12 +90,12 @@ function fichier(entete, lignes) {
 // comptesDepuisIndicateurs (comptes additifs) ; un ratio sans base reste vide.
 export function tableauCentreCsv(lignesParPromo) {
   const entete = ["Promo", "Début", "Fin", "Inscrits", "En formation", "Abandons (%)", "Absences (%)", "Réussite aux QCM (%)",
-    "Examens QCM réussis (%)", "Moyenne des notes (/20)", "Critères EPCF acquis (%)", "Présence (%)"];
+    "Examens QCM réussis (%)", "Moyenne des notes (/20)", "Critères EPCF acquis (%)", "Présence (%)", "Réussite au titre (%)"];
   const lignes = (lignesParPromo || []).map((p) => {
     const c = p.comptes;
     const r = ratiosDeComptes(c);
     return [p.nom, p.debut || "", p.fin || "", c.inscrits, c.enFormation, pourcent(r.abandon), pourcent(r.absences),
-      pourcent(r.reussiteQcm), pourcent(r.examensQcm), sur20(r.notes), pourcent(r.epcf), pourcent(p.presence ?? null)];
+      pourcent(r.reussiteQcm), pourcent(r.examensQcm), sur20(r.notes), pourcent(r.epcf), pourcent(p.presence ?? null), pourcent(p.titre ?? null)];
   });
   return fichier(entete, lignes);
 }

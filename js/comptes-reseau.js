@@ -4,6 +4,7 @@
 // Un compte s'additionne entre promos et entre centres ; un ratio ne se calcule que sur des comptes sommés.
 
 import { fusionnerEmargements } from "./presence-rules.js?v=20261114b";
+import { fusionnerJury } from "./centre-stats.js?v=20261114b";
 
 // Chaque champ reflète une colonne de comptes_reseau (enFormation = en_formation, notesSomme = notes_somme...).
 export const CHAMPS_COMPTES = ["inscrits", "enFormation", "abandons", "absences", "prevus", "qcmBonnes",
@@ -87,6 +88,7 @@ export function concatenerDonnees(liste) {
   return {
     ...Object.fromEntries(cles.map((k) => [k, (liste || []).flatMap((d) => d[k] || [])])),
     emargement: fusionnerEmargements((liste || []).map((d) => d.emargement)),
+    jury: fusionnerJury((liste || []).map((d) => d.jury)),
   };
 }
 

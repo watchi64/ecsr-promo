@@ -13,7 +13,7 @@ import { el, clear, isoDate, formatDate, formatLongDate, toast, tableauEnListe }
 import { getCentre } from "../auth-admin.js?v=20261114b";
 import { promosDuCentre } from "../espaces-rules.js?v=20261114b";
 import {
-  indicateursPromo, ligneComparaison, aSuivrePromo, fusionnerASuivre,
+  indicateursPromo, ligneComparaison, aSuivrePromo, fusionnerASuivre, indicateurTitre, fusionnerJury,
 } from "../centre-stats.js?v=20261114b";
 import { comptesDepuisIndicateurs, concatenerDonnees, promosEnCours } from "../comptes-reseau.js?v=20261114b";
 import { tableauCentreCsv, slug } from "../centre-csv.js?v=20261114b";
@@ -125,7 +125,7 @@ export async function renderVueCentre(container) {
     ? indicateursPromo(concatenerDonnees(enCours.map((p) => parPromo.get(p.id))), referentiel, { aujourdhui, demandes }) : null;
   const lignesParPromo = promos.map((p) => ({ nom: p.nom, debut: p.date_debut ? formatDate(p.date_debut) : "",
     fin: p.date_fin ? formatDate(p.date_fin) : "", comptes: comptesDepuisIndicateurs(indDe(p)),
-    presence: indDe(p).presence.valeur }));   // taux de présence des feuilles d'émargement, vide quand il n'est pas mesuré
+    presence: indDe(p).presence.valeur, titre: indDe(p).titre.valeur }));   // taux de présence des feuilles d'émargement, vide quand il n'est pas mesuré
 
   clear(racine);
   const exporter = el("button", { class: "btn small solo-ordinateur", type: "button", onClick: () => {
@@ -144,9 +144,16 @@ export async function renderVueCentre(container) {
     racine.appendChild(el("section", { class: "centre-section" },
       el("h3", {}, "Assiduité et abandons"),
       el("div", { class: "centre-grille" }, ...cartesCles(ind))));
+    // Réussite au titre : le jury tombe après la fin de la formation, donc le cumul porte sur TOUTES les promos du centre qui ont
+    // des résultats saisis, pas sur les seules promos en cours (décision de Timy du 14/11). La saisie reste dans la page de la promo.
+    const juryParPromo = promos.map((p) => parPromo.get(p.id).jury);
+    const avecJury = juryParPromo.filter((j) => j?.etat === "lue" && j.lignes.length).length;
     racine.appendChild(el("section", { class: "centre-section" },
       el("h3", {}, "Résultats"),
-      el("div", { class: "centre-grille" }, ...cartesResultats(ind))));
+      el("div", { class: "centre-grille" }, ...cartesResultats(ind, {
+        indTitre: { titre: indicateurTitre(fusionnerJury(juryParPromo)) },
+        porteeJury: avecJury ? `${pluriel(avecJury, "promo")} du centre avec des résultats saisis` : null,
+      }))));
   } else {
     racine.appendChild(el("section", { class: "centre-section" },
       el("h3", {}, "Aucune promo en cours"),

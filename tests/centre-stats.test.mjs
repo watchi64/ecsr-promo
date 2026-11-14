@@ -156,6 +156,7 @@ eq(ligneComparaison(ind), {
   notes: "10,9/20",
   epcf: "60 % acquis",
   presence: "non lue",   // le jeu ne porte pas de feuilles d'émargement : jamais « aucune feuille »
+  titre: "non lu",       // ni de résultats du jury : jamais « non saisi »
 }, "ligne de comparaison");
 
 // Promo vide (Montpellier) : aucune exception, aucune valeur inventée.

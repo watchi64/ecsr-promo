@@ -30,6 +30,14 @@ import { texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261114b";
 // (js/centre-stats.js, à côté de METHODES) ; ni l'une ni les autres ne sont réécrites ici, seulement réexportées.
 export { promoTerminee, METHODES_PUBLIQUES };
 
+// L'obtention du titre que la fiche attend, tirée de l'indicateur « titre » du tableau de bord (résultats du jury saisis) :
+// { taux, effectif } quand il est mesuré (effectif : les présentés), { etat: "non_lue" } quand la lecture a échoué, rien sinon.
+export function obtentionDeLaFiche(titre) {
+  if (titre?.valeur != null) return { taux: titre.valeur, effectif: titre.n };
+  if (titre?.detail?.etat !== "lue") return { etat: "non_lue" };
+  return null;
+}
+
 export const AVERTISSEMENT_PROVISOIRE = "Résultats provisoires : la formation n'est pas terminée. Ne pas publier.";
 export const AUCUNE_FORMATION = "Aucune formation de ce centre dans la période.";
 

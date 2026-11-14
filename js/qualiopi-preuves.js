@@ -360,8 +360,16 @@ const CONSTRUCTEURS = {
     if (examens) parties.push(pluriel(examens, "examen QCM", "examens QCM"));
     if (epcf) parties.push(pluriel(epcf, "évaluation EPCF", "évaluations EPCF"));
     if (livrets) parties.push(pluriel(livrets, "livret EPCF", "livrets EPCF"));
-    if (!parties.length) return absente(etape2 ? RAISON_EFFACEE : `aucune évaluation enregistrée ; ${SANS_JURY}`);
-    return presente(`${parties.join(", ")} ${POPULATION} ; ${SANS_JURY}`);
+    // Le jury : ses lignes saisies (toute la promo, une par stagiaire), ou la phrase qui dit qu'il n'y en a pas.
+    const jury = ind.titre?.detail;
+    const phraseJury = jury?.etat !== "lue" ? "résultats de jury non lus"
+      : jury.saisis ? pluriel(jury.saisis, "résultat de jury saisi", "résultats de jury saisis") : SANS_JURY;
+    if (!parties.length) {
+      if (etape2) return absente(RAISON_EFFACEE);
+      return jury?.etat === "lue" && jury.saisis ? presente(`aucune note ni évaluation ; ${phraseJury}`)
+        : absente(`aucune évaluation enregistrée ; ${phraseJury}`);
+    }
+    return presente(`${parties.join(", ")} ${POPULATION} ; ${phraseJury}`);
   },
 
   dossierPro: ({ ind, liste, dedans, etape2 }) => {
@@ -437,7 +445,9 @@ const CONSTRUCTEURS = {
   resultats: ({ ind }) => {
     if (!ind.effectif.detail.inscrits) return absente("aucun stagiaire inscrit : aucun indicateur à calculer");
     const mesures = Object.values(ind).filter((i) => i.nature === "mesuré" && i.valeur != null).length;
-    return presente(`${pluriel(mesures, "indicateur mesuré", "indicateurs mesurés")}, chacun avec sa méthode de calcul ; réussite au titre non mesurée`);
+    // La réussite au titre, une fois des résultats de jury saisis, est un indicateur mesuré comme les autres.
+    const titre = ind.titre?.valeur != null ? "" : " ; réussite au titre non mesurée";
+    return presente(`${pluriel(mesures, "indicateur mesuré", "indicateurs mesurés")}, chacun avec sa méthode de calcul${titre}`);
   },
 
   // Des comptes seulement, jamais un commentaire. Au-dessus du seuil : le taux des réponses favorables, les avis notés et les inscrits ;

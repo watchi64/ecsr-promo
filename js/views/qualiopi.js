@@ -49,7 +49,7 @@ import {
   titreImpression,
 } from "../qualiopi-page-rules.js?v=20261114b";
 import {
-  ficheResultats, fichesResultatsTexte, tableauFiche, copierTexte, noteProvisoire, promoTerminee, AUCUNE_FORMATION,
+  ficheResultats, fichesResultatsTexte, tableauFiche, copierTexte, noteProvisoire, promoTerminee, AUCUNE_FORMATION, obtentionDeLaFiche,
 } from "../qualiopi-resultats.js?v=20261114b";
 import { NOUVEAUTES } from "../nouveautes-data.js?v=20261114b";
 import { telecharger } from "./centre.js?v=20261114b";
@@ -739,9 +739,12 @@ export async function renderQualiopi(container) {
       // Les fiches : celle de la promo choisie sur-le-champ, celles du centre après la lecture de ses promos (rien si une promo ne se
       // lit pas ou si l'action devient caduque : le message est alors déjà écrit).
       const lesFiches = portee === "formation"
-        ? Promise.resolve([ficheResultats({ promo, ind: etat.ind, aujourdhui, presence: presenceDeLaFiche(presenceDePromo(etat.donnees.emargement, promo.id)), satisfaction: etat.donnees.satisfaction })])
+        ? Promise.resolve([ficheResultats({ promo, ind: etat.ind, aujourdhui, presence: presenceDeLaFiche(presenceDePromo(etat.donnees.emargement, promo.id)), obtention: obtentionDeLaFiche(etat.ind.titre), satisfaction: etat.donnees.satisfaction })])
         : lirePromosDuCentre(moi, promosEtPeriodeDuCentre().retenues, "les résultats du centre ne sont pas préparés",
-          (p, donnees) => ficheResultats({ promo: p, ind: indicateursPromo(donnees, referentiel, { aujourdhui, demandes: donnees.demandes }), aujourdhui, presence: presenceDeLaFiche(presenceDePromo(donnees.emargement, p.id)), satisfaction: donnees.satisfaction }));
+          (p, donnees) => {
+            const ind = indicateursPromo(donnees, referentiel, { aujourdhui, demandes: donnees.demandes });
+            return ficheResultats({ promo: p, ind, aujourdhui, presence: presenceDeLaFiche(presenceDePromo(donnees.emargement, p.id)), obtention: obtentionDeLaFiche(ind.titre), satisfaction: donnees.satisfaction });
+          });
       const copie = sortie === "copier" ? copierTexte(lesFiches.then(texteDesFiches)) : null;   // sans await : dans le geste du clic
       const fiches = await lesFiches;
       if (!fiches) return;

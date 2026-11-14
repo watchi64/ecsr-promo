@@ -80,7 +80,7 @@ test("le siège ne reçoit pas la présence : les comptes additifs restent ceux 
 test("la carte et la comparaison sont affichées par la page du formateur et par la Vue d'ensemble", () => {
   const centre = readFileSync(new URL("../js/views/centre.js", import.meta.url), "utf8");
   assert.match(centre, /cle: "presence", titre: "Taux de présence"/);
-  assert.match(centre, /\["presence", "Taux de présence"\],\r?\n\];/);
+  assert.match(centre, /\["presence", "Taux de présence"\],\r?\n  \["titre", "Réussite au titre"\],\r?\n\];/);
   const direction = readFileSync(new URL("../js/views/direction-centre.js", import.meta.url), "utf8");
   assert.match(direction, /cartesCles\(ind\)/);
   assert.match(direction, /concatenerDonnees\(/);
