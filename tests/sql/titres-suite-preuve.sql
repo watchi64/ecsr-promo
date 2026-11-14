@@ -1,6 +1,7 @@
 -- Preuve de l'étape 3 du chantier « titres et droits à la carte » : ce que les migrations 20261115_titres_7 (correctifs), _8 (aperçu par
 -- titre) et _9 (catalogue) doivent donner, écrite avec elles ; la migration 20261112_titres_4 (journal) s'y joue aussi, juste avant la 9,
--- pour l'essai à blanc de l'étape 4. Elle se joue sur la base de la production (titres 1, 2, 3, 5, 6 ; contacts ; e-learning) :
+-- pour l'essai à blanc de l'étape 4. Elle se joue sur la base de la production (titres 1, 2, 3, 5, 6 ; contacts ; conservation de la
+-- direction ; e-learning) :
 -- outils/base_locale/rejouer_suite.sh --production.
 --   structure    prérequis de l'étape 2 présents (donner_titre, _refus_gestion, titres_ouverts : migration 6 appliquée), chaque migration et
 --                chaque retour injectés se jouent sans erreur, personnages posés, aucune règle (policy) réécrite : md5 de pg_policies
@@ -9,10 +10,14 @@
 -- Les groupes des migrations s'ajoutent avec leurs tâches (d1, d4, d5, m4m5, m7, apercu, ajustables, catalogue, journal_suite), chacun
 -- derrière pg_temp.groupe_suite_a_jouer, qui juge la présence de sa migration par un marqueur (7 : l'index titres_version_unique ;
 -- 8 : la fonction apercu_titre() ; 9 : six titres créés par la migration du catalogue ; 4 : la table journal_droits) :
+--   - migration en place (déjà appliquée, ou injectée et jouée) : le groupe est joué, dans tous les modes ;
 --   - suite-en-ligne : un groupe dont la migration manque est sauté, avec une ligne d'information ;
 --   - suite-contre-epreuve : chaque groupe est joué (il sort rouge si sa migration manque) ;
---   - modes injectés : un groupe dont la migration manque (ni injectée ni déjà appliquée) compte un échec et n'est pas joué.
+--   - modes injectés : un groupe dont la migration n'est pas demandée (--etapes) est sauté, avec une information ; si elle est demandée
+--     (injectée) et que son marqueur reste faux, un échec est compté et le groupe n'est pas joué. suite --etapes 7, 7,8, 8, 8,9 peuvent
+--     donc sortir VERT.
 --   Un groupe qui demande le journal est sauté, avec une information, quand la table journal_droits n'existe pas.
+-- La décision est une fonction pure (pg_temp.sort_du_groupe), contrôlée cas par cas au groupe structure à chaque jeu de la preuve.
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes (tests/sql/roles-aides.sql,
 -- tests/sql/titres-aides.sql, tests/sql/titres-gestion-aides.sql), le libellé du mode, la requête d'empreinte, puis les migrations 7, 8, 4
 -- et 9 et leurs retours :
@@ -115,23 +120,69 @@ begin
   end;
 end $tsm$;
 
+-- Les étapes injectées dans ce mode (leur texte n'est pas le littéral neutre), posées par le bloc avant les migrations.
+drop table if exists pg_temp.etapes_injectees;
+create temp table etapes_injectees (etape integer primary key);
+
+-- Le sort d'un groupe, décision pure : « jouer », « sauter-journal », « sauter-en-ligne », « sauter-non-demandee » ou « echec ».
+-- p_journal_requis : le groupe demande la table du journal ; p_journal : elle existe ; p_presente : le marqueur de sa migration est vrai ;
+-- p_injectee : sa migration est injectée dans ce mode.
+create or replace function pg_temp.sort_du_groupe(p_mode text, p_presente boolean, p_injectee boolean, p_journal_requis boolean, p_journal boolean)
+returns text language sql immutable as $tsd$
+  select case
+    when p_journal_requis and not p_journal then 'sauter-journal'
+    when p_mode like 'suite-contre-epreuve%' then 'jouer'
+    when p_presente then 'jouer'
+    when p_mode like 'suite-en-ligne%' then 'sauter-en-ligne'
+    when not p_injectee then 'sauter-non-demandee'
+    else 'echec'
+  end;
+$tsd$;
+
 -- Un groupe se joue-t-il dans ce mode ? p_etape : la migration qui le fonde ; p_journal : le groupe demande la table du journal.
 create or replace function pg_temp.groupe_suite_a_jouer(p_groupe text, p_etape integer, p_mode text, p_journal boolean default false)
 returns boolean language plpgsql as $tsg$
+declare v_sort text;
 begin
-  if p_journal and to_regclass('public.journal_droits') is null then
+  v_sort := pg_temp.sort_du_groupe(p_mode, pg_temp.migration_presente(p_etape),
+    exists (select 1 from pg_temp.etapes_injectees where etape = p_etape), p_journal, to_regclass('public.journal_droits') is not null);
+  if v_sort = 'sauter-journal' then
     perform pg_temp.informer('groupe ' || p_groupe, 'sauté : la table journal_droits n''existe pas (migration 4 ni appliquée ni injectée)');
-    return false;
-  end if;
-  if p_mode like 'suite-contre-epreuve%' then return true; end if;
-  if pg_temp.migration_presente(p_etape) then return true; end if;
-  if p_mode like 'suite-en-ligne%' then
+  elsif v_sort = 'sauter-en-ligne' then
     perform pg_temp.informer('groupe ' || p_groupe, format('sauté : la migration %s n''est pas appliquée (mode en ligne)', p_etape));
-  else
-    perform pg_temp.verifier(p_groupe, format('la migration %s est en place (injectée ou déjà appliquée)', p_etape), false, 'mode ' || p_mode);
+  elsif v_sort = 'sauter-non-demandee' then
+    perform pg_temp.informer('groupe ' || p_groupe, format('sauté : la migration %s n''est ni demandée dans ce mode ni appliquée', p_etape));
+  elsif v_sort = 'echec' then
+    perform pg_temp.verifier(p_groupe, format('la migration %s, injectée, est en place', p_etape), false, 'mode ' || p_mode);
   end if;
-  return false;
+  return v_sort = 'jouer';
 end $tsg$;
+
+-- Les cas de pg_temp.sort_du_groupe, contrôlés au groupe structure : (mode, présente, injectée, journal requis, journal présent, attendu).
+create or replace function pg_temp.controler_sort_du_groupe()
+returns void language plpgsql as $tsc$
+declare r record;
+begin
+  for r in select * from (values
+      ('suite (etapes 7, 8 injectees)', true, true, false, false, 'jouer'),
+      ('suite (etapes 7, 8 injectees)', true, false, false, false, 'jouer'),
+      ('suite (etape 7 injectees)', false, false, false, false, 'sauter-non-demandee'),
+      ('suite (etapes 8, 9 injectees)', false, true, false, false, 'echec'),
+      ('suite (etapes 4, 9 injectees)', false, false, true, false, 'sauter-journal'),
+      ('suite (etapes 4, 9 injectees)', true, true, true, true, 'jouer'),
+      ('suite-en-ligne (aucune migration injectee)', false, false, false, false, 'sauter-en-ligne'),
+      ('suite-en-ligne (aucune migration injectee)', true, false, false, false, 'jouer'),
+      ('suite-en-ligne (aucune migration injectee)', true, false, true, false, 'sauter-journal'),
+      ('suite-contre-epreuve (aucune migration injectee)', false, false, false, false, 'jouer'),
+      ('suite-contre-epreuve (aucune migration injectee)', false, false, true, false, 'sauter-journal')
+    ) c(mode, presente, injectee, journal_requis, journal, attendu)
+  loop
+    perform pg_temp.attendre('structure', format('aiguillage des groupes : %s, migration %s, %s, journal %s : %s', r.mode,
+        case when r.presente then 'en place' else 'absente' end, case when r.injectee then 'injectée' else 'non injectée' end,
+        case when not r.journal_requis then 'non requis' when r.journal then 'requis et présent' else 'requis et absent' end, r.attendu),
+      pg_temp.sort_du_groupe(r.mode, r.presente, r.injectee, r.journal_requis, r.journal), r.attendu);
+  end loop;
+end $tsc$;
 
 do $tsprg$
 declare
@@ -178,6 +229,7 @@ begin
   perform set_config('lock_timeout', '3s', true);
   v_en_ligne := v_mode like 'suite-en-ligne%';
   v_textes := array[v_m7, v_m8, v_m4, v_m9];
+  insert into pg_temp.etapes_injectees (etape) select v_etapes[i] from generate_subscripts(v_etapes, 1) i where v_textes[i] <> 'select 1';
   -- Une migration injectée déjà appliquée, ou une suite qui commence après la 7 sans les précédentes en place : refus clair.
   for i in 1 .. 4 loop
     if v_textes[i] <> 'select 1' and pg_temp.migration_presente(v_etapes[i]) then
@@ -200,6 +252,7 @@ begin
     to_regprocedure('public._refus_gestion(text, integer, jsonb)') is not null);
   perform pg_temp.verifier('structure', 'prérequis : titres_ouverts existe (migration 6 de l''étape 2)',
     to_regprocedure('public.titres_ouverts()') is not null);
+  perform pg_temp.controler_sort_du_groupe();
 
   -- 2. Les personnages, posés AVANT les migrations (comme les comptes de la production) : étape 1, étape 2, puis ceux de cette preuve.
   perform pg_temp.poser_perso();
@@ -237,10 +290,13 @@ begin
 
   -- 4. Les groupes des migrations 7, 8, 9 et 4, avec leurs tâches, chacun derrière pg_temp.groupe_suite_a_jouer.
 
-  -- 5. Les retours, dans l'ordre inverse (9, 8, 7, 4). Avant eux, les affectations des titres non fixes partent (en propriétaire) : chaque
-  --    retour de 6, 7, 8 et 9 refuse de se jouer tant qu'une personne porte un titre non fixe (garde D5). Une information, jamais un contrôle.
-  perform pg_temp.informer('avant les retours', format('%s affectation(s) d''un titre non fixe retirée(s) (garde D5 des retours)',
-    pg_temp.retirer_titres_non_fixes()));
+  -- 5. Les retours, dans l'ordre inverse (9, 8, 7, 4). Avant eux, dans les seuls modes qui injectent des retours, les affectations des
+  --    titres non fixes partent (en propriétaire) : chaque retour de 6, 7, 8 et 9 refuse de se jouer tant qu'une personne porte un titre
+  --    non fixe (garde D5). Jamais en ligne ni en contre-épreuve. Une information, jamais un contrôle.
+  if v_mode like 'suite (%' then
+    perform pg_temp.informer('avant les retours', format('%s affectation(s) d''un titre non fixe retirée(s) (garde D5 des retours)',
+      pg_temp.retirer_titres_non_fixes()));
+  end if;
   v_retours := array[v_r9, v_r8, v_r7, v_r4];
   for i in 1 .. 4 loop
     v_n := (array[9, 8, 7, 4])[i];

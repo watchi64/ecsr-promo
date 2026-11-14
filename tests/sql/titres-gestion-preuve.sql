@@ -1636,10 +1636,13 @@ begin
     perform pg_temp.groupe_journal();
   end if;
 
-  -- 5. Les retours, dans l'ordre inverse (6, 5, 4). Avant eux, les affectations des titres non fixes partent (en propriétaire) : chaque retour
-  -- de 6, 7, 8 et 9 refuse de se jouer tant qu'une personne porte un titre non fixe (garde D5 de l'étape 3). Une information, jamais un contrôle.
-  perform pg_temp.informer('avant les retours', format('%s affectation(s) d''un titre non fixe retirée(s) (garde D5 des retours)',
-    pg_temp.retirer_titres_non_fixes()));
+  -- 5. Les retours, dans l'ordre inverse (6, 5, 4). Avant eux, dans les seuls modes qui injectent des retours, les affectations des titres
+  -- non fixes partent (en propriétaire) : chaque retour de 6, 7, 8 et 9 refuse de se jouer tant qu'une personne porte un titre non fixe
+  -- (garde D5 de l'étape 3). Jamais en ligne ni en contre-épreuve. Une information, jamais un contrôle.
+  if v_mode like 'gestion (%' then
+    perform pg_temp.informer('avant les retours', format('%s affectation(s) d''un titre non fixe retirée(s) (garde D5 des retours)',
+      pg_temp.retirer_titres_non_fixes()));
+  end if;
   v_retour6 := pg_temp.jouer('retour 6',
 -- @@INJECTER supabase/migrations/20261112_titres_6_gestion_retour.sql@@
   );

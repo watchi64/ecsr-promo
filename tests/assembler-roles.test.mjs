@@ -1198,9 +1198,14 @@ test("suite : suites refusées (7,9 et les autres), fichier manquant d'une étap
   assert.throws(() => assemblerMode("suite", RACINE, { etapes: [7], lire: (c) => (c === S[7].retour ? null : depotSuite(c)) }),
     /Étape 7 demandée \(suite\) : supabase\/migrations\/20261115_titres_7_correctifs_retour\.sql n'existe pas encore/);
   assert.throws(() => assemblerMode("suite", RACINE, { etapes: [4, 9], lire: (c) => (c === S[9].migration ? null : depotSuite(c)) }), /Étape 9 demandée \(suite\)/);
-  // Tant que la migration 7 n'est pas sur le disque, suite --etapes 7 est refusé (Task 20, Step 5).
-  if (!existsSync(join(RACINE, S[7].migration))) {
+  // Sur le vrai disque : tant que la migration 7 manque, suite --etapes 7 est refusé (Task 20, Step 5) ; dès qu'elle et son retour
+  // existent, ils sont injectés tels quels (l'assertion dit toujours quelque chose).
+  if (!existsSync(join(RACINE, S[7].migration)) || !existsSync(join(RACINE, S[7].retour))) {
     assert.throws(() => assemblerMode("suite", RACINE, { etapes: [7] }), /Étape 7 demandée \(suite\)/);
+  } else {
+    const r = assemblerMode("suite", RACINE, { etapes: [7] });
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, S[7].migration, S[7].retour]);
+    verifierInjections(r, duDisque);
   }
   for (const mode of ["suite-contre-epreuve", "suite-en-ligne"]) {
     assert.throws(() => decrireMode(mode, { etapes: [7] }), /--etapes ne vaut que pour le mode repetition, titres, gestion ou suite/, mode);
@@ -1284,7 +1289,42 @@ test("les fichiers de l'étape 3 (gabarit, aides, base locale) : aucun tiret cad
     assert.ok(!/postgres(ql)?:\/\/[^\s"')]*:[^\s"')]*@/.test(brut), `${chemin} : aucune adresse de connexion avec mot de passe`);
   }
   const script = texteDuDepot("outils/base_locale/rejouer_suite.sh");
-  assert.ok(script.includes("2026111?_titres_${n}_*.sql"), "--titres cherche toute date du 10 au 19/11");
-  assert.ok(script.includes(`--production) TITRES=1; LISTE_TITRES="1 2 3 5 6"; AUTONOMIE="1,2"`), "--production : titres 1, 2, 3, 5, 6 et e-learning 1, 2");
+  assert.ok(script.includes('"$MIGRATIONS"/2026111?_titres_"$1"_*.sql'), "--titres cherche toute date du 10 au 19/11");
+  assert.ok(script.includes(`--production) PRODUCTION=1; AUTONOMIE="1,2"`), "--production : e-learning 1, 2");
+  // --production suit l'ordre réel : titres 1 à 3, contacts, conservation de la direction, titres 5 et 6.
+  const prod = /if \[ "\$PRODUCTION" = 1 \]; then\n([\s\S]*?)\nelse/.exec(script)?.[1] ?? "";
+  const places = ["for n in 1 2 3;", "$CONTACTS 20261111_conservation_direction", "for n in 5 6;"].map((x) => prod.indexOf(x));
+  assert.ok(places.every((x) => x >= 0), "les trois morceaux de la liste de production");
+  assert.deepEqual([...places].sort((a, b) => a - b), places, "dans l'ordre de la production");
   assert.ok(script.includes("-v version=2026-11-14 -1 -f \"$MIGRATIONS/20261114_autonomie_2_version.sql\""), "la migration 2 de l'e-learning avec la version de la production");
+});
+
+test("la preuve de la suite : l'aiguillage des groupes (sort_du_groupe) couvre chaque cas, contrôlé au groupe structure à chaque jeu", () => {
+  const gabarit = texteDuDepot(GABARIT_SUITE);
+  const corps = /function pg_temp\.groupe_suite_a_jouer[\s\S]*?end \$tsg\$;/.exec(gabarit)?.[0] ?? "";
+  assert.ok(corps.includes("pg_temp.sort_du_groupe(p_mode, pg_temp.migration_presente(p_etape)"), "groupe_suite_a_jouer s'en remet à la décision pure");
+  assert.ok(corps.includes("pg_temp.etapes_injectees"), "et lui dit si la migration est injectée");
+  assert.match(gabarit, /insert into pg_temp\.etapes_injectees \(etape\) select v_etapes\[i\] from generate_subscripts\(v_etapes, 1\) i where v_textes\[i\] <> 'select 1';/);
+  assert.ok(gabarit.indexOf("insert into pg_temp.etapes_injectees") < gabarit.indexOf("pg_temp.jouer('migration '"), "posées avant les migrations");
+  // Les cas contrôlés : (mode, présente, injectée, journal requis, journal présent) -> sort.
+  const cas = [...gabarit.matchAll(/\('(suite[^']*)', (true|false), (true|false), (true|false), (true|false), '([a-z-]+)'\)/g)]
+    .map((m) => ({ mode: m[1], presente: m[2] === "true", injectee: m[3] === "true", requis: m[4] === "true", journal: m[5] === "true", sort: m[6] }));
+  const trouve = (f, sort) => cas.some((c) => f(c) && c.sort === sort);
+  const injecte = (c) => c.mode.startsWith("suite (");
+  assert.ok(trouve((c) => injecte(c) && !c.presente && !c.injectee && !c.requis, "sauter-non-demandee"), "mode injecté, migration non demandée : sautée (suite --etapes 7 peut sortir VERT)");
+  assert.ok(trouve((c) => injecte(c) && !c.presente && c.injectee && !c.requis, "echec"), "mode injecté, migration demandée mais absente : échec");
+  assert.ok(trouve((c) => injecte(c) && c.presente && !c.requis, "jouer"), "mode injecté, migration en place : joué");
+  assert.ok(trouve((c) => c.mode.startsWith("suite-contre-epreuve") && !c.presente && !c.requis, "jouer"), "contre-épreuve : joué même sans migration");
+  assert.ok(trouve((c) => c.mode.startsWith("suite-en-ligne") && !c.presente && !c.requis, "sauter-en-ligne"), "en ligne, migration absente : sauté");
+  assert.ok(trouve((c) => c.requis && !c.journal, "sauter-journal"), "journal requis et absent : sauté");
+  assert.match(gabarit, /perform pg_temp\.controler_sort_du_groupe\(\);/, "les cas se jouent au groupe structure");
+  // Le retrait des titres non fixes : seulement dans les modes qui injectent des retours.
+  assert.match(gabarit, /if v_mode like 'suite \(%' then\n    perform pg_temp\.informer\('avant les retours'/);
+  assert.match(texteDuDepot(GABARIT_GESTION), /if v_mode like 'gestion \(%' then\n    perform pg_temp\.informer\('avant les retours'/);
+  for (const [mode, prefixe] of [["suite", "suite ("], ["suite-en-ligne", "suite-en-ligne"], ["suite-contre-epreuve", "suite-contre-epreuve"]]) {
+    const libelle = mode === "suite" ? assemblerMode("suite", RACINE, { lire: depotSuite }).mode : decrireMode(mode).mode;
+    assert.equal(libelle.startsWith("suite ("), mode === "suite", `${mode} : seul le mode injecté commence par « suite ( »`);
+    assert.ok(libelle.startsWith(prefixe));
+  }
+  assert.ok(!decrireMode("gestion-en-ligne").mode.startsWith("gestion (") && !decrireMode("gestion-contre-epreuve").mode.startsWith("gestion ("));
 });

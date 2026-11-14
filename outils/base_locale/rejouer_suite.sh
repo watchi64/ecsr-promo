@@ -9,7 +9,9 @@
 #                  la liste ; un fichier manquant arrête le script (code 3, son nom sur la sortie d'erreur)
 #   --autonomie    après les contacts, joue 20261114_autonomie_1_traces (1), puis 20261114_autonomie_2_version (2) avec
 #                  -v version=2026-11-14 (la version des conditions en production) ; 2 demande 1
-#   --production   l'état de la production au 14/11 : vaut --titres 1,2,3,5,6 --autonomie 1,2 (sortie : 23 migrations)
+#   --production   l'état de la production au 14/11, dans l'ordre où elle l'a reçu : titres 1, 2, 3 (11/11), contacts,
+#                  20261111_conservation_direction (11/11, après les contacts), titres 5 (11/11) et 6 (13/11), puis
+#                  --autonomie 1,2 (14/11) (sortie : 24 migrations) ; ne se combine ni avec --titres ni avec --avec-titres
 # Sans --titres, --autonomie ni --production : la suite d'avant (14 migrations, plus les deux des contacts : 16).
 # Code de sortie : 0 si tout passe ; sinon 3 (le nom du fichier en échec est écrit sur la sortie d'erreur).
 # Note : 20261028_signalements_app n'est pas dans la liste : ses tables sont dans clone_3_tables.sql ; seules ses fonctions sont jouées.
@@ -19,6 +21,7 @@ PORT=55435
 TITRES=0
 LISTE_TITRES=""
 AUTONOMIE=""
+PRODUCTION=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --port) PORT="$2"; shift 2 ;;
@@ -36,10 +39,11 @@ while [ $# -gt 0 ]; do
         *) echo "liste --autonomie refusée : « $2 » (attendu : 1 ou 1,2)" >&2; exit 2 ;;
       esac
       shift 2 ;;
-    --production) TITRES=1; LISTE_TITRES="1 2 3 5 6"; AUTONOMIE="1,2"; shift ;;
+    --production) PRODUCTION=1; AUTONOMIE="1,2"; shift ;;
     *) echo "argument inconnu : $1" >&2; exit 2 ;;
   esac
 done
+[ "$PRODUCTION" = 1 ] && [ "$TITRES" = 1 ] && { echo "--production fixe déjà les titres : ne pas y ajouter --titres ni --avec-titres" >&2; exit 2; }
 MIGRATIONS="$RACINE/supabase/migrations"
 export PGOPTIONS="-c check_function_bodies=off" PGCLIENTENCODING=UTF8
 P="psql -h 127.0.0.1 -p $PORT -U postgres -d postgres -v ON_ERROR_STOP=1 -q"
@@ -51,16 +55,28 @@ LISTE="20261108_espaces_1_siege 20261108_espaces_2_equipe 20261108_espaces_3_hab
 20261110_conservation"
 # Ordre de la production : la navigation unique (phase 2 : fiches_suivi disparaît), puis la conservation des données (Qualiopi Q5 :
 # anonymiser_promo, etat_anonymisation_promo et _anonymiser_stagiaire disparaissent, les fonctions effacer_* arrivent), puis les titres.
-if [ "$TITRES" = 1 ]; then
-  for n in $LISTE_TITRES; do
-    f="$(ls "$MIGRATIONS"/2026111?_titres_${n}_*.sql 2>/dev/null | grep -v '_retour\.sql$' | head -n 1)"
-    [ -n "$f" ] || { echo "migration introuvable : 2026111?_titres_${n}_*" >&2; exit 3; }
-    LISTE="$LISTE $(basename "$f" .sql)"
-  done
+# Le nom d'une migration des titres (2026111?_titres_<n>_*, hors retour), ou l'arrêt (code 3) si elle manque.
+titre() {
+  local f
+  f="$(ls "$MIGRATIONS"/2026111?_titres_"$1"_*.sql 2>/dev/null | grep -v '_retour\.sql$' | head -n 1)"
+  [ -n "$f" ] || { echo "migration introuvable : 2026111?_titres_$1_*" >&2; exit 3; }
+  basename "$f" .sql
+}
+CONTACTS="20261113_contacts_centre 20261113_contacts_centre_2_montpellier"
+if [ "$PRODUCTION" = 1 ]; then
+  # L'ordre réel de la production (fusions dans main du 11/11 au 13/11) : titres 1 à 3 (18 h 29), contacts (19 h 35), conservation de
+  # la direction (21 h 07 : elle lit geste_centre de la migration 2 des titres), titres 5 (21 h 23), titres 6 (13/11).
+  for n in 1 2 3; do LISTE="$LISTE $(titre $n)" || exit 3; done
+  LISTE="$LISTE $CONTACTS 20261111_conservation_direction"
+  for n in 5 6; do LISTE="$LISTE $(titre $n)" || exit 3; done
+else
+  if [ "$TITRES" = 1 ]; then
+    for n in $LISTE_TITRES; do LISTE="$LISTE $(titre "$n")" || exit 3; done
+  fi
+  # Après les titres en production (11/11) : les contacts rattachés à un centre. Indépendante des titres (sa règle restrictive
+  # ne cite que lieu_courant()), elle est jouée dans les deux cas.
+  LISTE="$LISTE $CONTACTS"
 fi
-# Après les titres en production (11/11) : les contacts rattachés à un centre. Indépendante des titres (sa règle restrictive
-# ne cite que lieu_courant()), elle est jouée dans les deux cas.
-LISTE="$LISTE 20261113_contacts_centre 20261113_contacts_centre_2_montpellier"
 
 # Prérequis : les cinq fonctions de 20261028_signalements_app (signaler_probleme, que le registre qualité appelle, et ses
 # quatre voisines), absentes des clones. On joue la seule partie « fonctions » de la migration (de la section 4 à la fin) :
