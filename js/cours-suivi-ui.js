@@ -2,10 +2,10 @@
 // reprise de lecture. Appelé par openCoursSheet seulement pour un vrai compte stagiaire (autonomie allumée) ; hors de
 // ce cas, ce module n'est jamais appelé et le lecteur ne change en rien.
 
-import { el } from "./utils.js?v=20261114b";
-import { tracerCours, tracerQcm, listerMesLectures } from "./db.js?v=20261114b";
-import { suivreEcran } from "./autonomie-suivi.js?v=20261114b";
-import { sectionDeReprise, sectionEnHaut, repriseDepassee, creerSignalLu } from "./autonomie-rules.js?v=20261114b";
+import { el } from "./utils.js?v=20261114d";
+import { tracerCours, tracerQcm, listerMesLectures } from "./db.js?v=20261114d";
+import { suivreEcran } from "./autonomie-suivi.js?v=20261114d";
+import { sectionDeReprise, sectionEnHaut, repriseDepassee, creerSignalLu } from "./autonomie-rules.js?v=20261114d";
 
 // « Cours lu » : annoncé une fois par cours à la liste des thèmes, dès que la base rend vrai (aucun envoi hors compte stagiaire).
 const signalerLu = creerSignalLu((coursId) => document.dispatchEvent(new CustomEvent("autonomie-cours-lu", { detail: { coursId } })));

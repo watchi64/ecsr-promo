@@ -15,12 +15,12 @@
 // à l'autre, même si la page se redessine pendant la saisie. Ce que dit la ligne après un envoi (une phrase, « Réessayer »
 // si la connexion a lâché) vient d'etatDeLigne (js/notes-saisie-rules.js).
 
-import { el, clear, toast } from "../utils.js?v=20261114b";
-import { icon } from "../icons.js?v=20261114b";
+import { el, clear, toast } from "../utils.js?v=20261114d";
+import { icon } from "../icons.js?v=20261114d";
 import {
   ciblesDeSaisie, filtrerCibles, derniereNote, avancement, libelleAvancement, origineNote, etatDeLigne,
-} from "../notes-saisie-rules.js?v=20261114b";
-import { dateLongue } from "../dates.js?v=20261114b";
+} from "../notes-saisie-rules.js?v=20261114d";
+import { dateLongue } from "../dates.js?v=20261114d";
 
 // Ce qui reste d'un rendu du panneau à l'autre (changer de sous-onglet puis revenir) : la cible ouverte, la recherche.
 let cleOuverte = null;
