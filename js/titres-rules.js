@@ -279,8 +279,8 @@ export function gestesSurPersonne({ cases = null, directionFixe = false, personn
   if (fixe && personne.niveau === "centre") return aucun;
   const surSoi = moi !== "" && String(personne.email || "").toLowerCase() === String(moi).toLowerCase();
   if (surSoi) {
-    const ok = fixe && personne.niveau === "promo" && directionFixe === true;
-    return { changer: ok, retirer: ok };
+    // La base refuse de changer ses propres titres : seul « Retirer » reste, et seulement pour son titre fixe Formateur.
+    return { changer: false, retirer: fixe && personne.niveau === "promo" && directionFixe === true };
   }
   const ok = fixe ? directionFixe === true : caseDe(cases, "equipe", "centre") === 2;
   return { changer: ok, retirer: ok };
@@ -298,6 +298,12 @@ export function gestesSurTitre({ titre, lieuId, ajustable = false, peutGerer = f
     creer: peutGerer === true,
     supprimer: !fixe && ajustable === true && lieuId != null && t.lieu_id === lieuId && !(t.porteurs > 0),
   };
+}
+
+// Les titres de la session ne sont pas lus (directionFixeSur nul : panne, ancien modèle) : comme avant les titres, la direction garde ses
+// gestes sur ses formateurs et la base arbitre. Seul un faux explicite les retire.
+export function directionFixePourLesGestes({ titres, lieuId, fondateur = false } = {}) {
+  return fondateur === true || directionFixeSur(titres, lieuId) !== false;
 }
 
 export const LIBELLE_NIVEAU ={ promo: "Promo", centre: "Centre", reseau: "Réseau" };

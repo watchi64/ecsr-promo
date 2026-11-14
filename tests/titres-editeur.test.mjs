@@ -6,9 +6,9 @@ import { readFileSync } from "node:fs";
 import { ElementFactice, NoeudFactice, NoeudTexte, descendants, installerDocument } from "./aides-dom.mjs";
 import {
   gestesSurPersonne, gestesSurTitre, ceQuiEstMasque, casesEnChaines, casesEnNombres,
-  BANDEAU_EQUIPE, BANDEAU_COURS, PHRASE_STAGIAIRES_RELEVE, phraseVersionCentre, phrasePorteurs,
+  directionFixePourLesGestes, BANDEAU_EQUIPE, BANDEAU_COURS, PHRASE_STAGIAIRES_RELEVE, phraseVersionCentre, phrasePorteurs,
 } from "../js/titres-rules.js";
-import { construireEditeur } from "../js/views/titres-editeur.js";
+import { construireEditeur, confirmerVersion } from "../js/views/titres-editeur.js";
 
 const lire = (chemin) => readFileSync(new URL("../" + chemin, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
@@ -224,4 +224,43 @@ test("l'éditeur n'ouvre aucune boîte du navigateur et aucun tiret cadratin n'e
     assert.ok(!texte.includes(String.fromCharCode(0x2014)), chemin + " : tiret cadratin");
     assert.ok(!/(?<![.\w])(confirm|prompt|alert)\(/.test(texte.replace(/\/\/[^\n]*/g, "")), chemin + " : boîte native");
   }
+});
+
+// ----- Ronde 1 -----
+
+test("directionFixePourLesGestes : titres non lus, la direction garde ses gestes ; seul un faux explicite les retire", () => {
+  const fixe = [{ niveau: "centre", lieu_id: 1, nom: "Direction de centre", fixe: true }];
+  const autre = [{ niveau: "centre", lieu_id: 1, nom: "Secrétariat", fixe: false }];
+  assert.equal(directionFixePourLesGestes({ titres: null, lieuId: 1 }), true);
+  assert.equal(directionFixePourLesGestes({ titres: fixe, lieuId: 1 }), true);
+  assert.equal(directionFixePourLesGestes({ titres: autre, lieuId: 1 }), false);
+  assert.equal(directionFixePourLesGestes({ titres: autre, lieuId: 1, fondateur: true }), true);
+  const g = gestesSurPersonne({ cases: null, directionFixe: directionFixePourLesGestes({ titres: null, lieuId: 1 }), personne: formatrice, moi });
+  assert.deepEqual(g, { changer: true, retirer: true });
+});
+
+test("gestesSurPersonne : sur son propre titre Formateur, la direction fixe n'a que Retirer", () => {
+  assert.deepEqual(gestesSurPersonne({ cases: { equipe: 2 }, directionFixe: true, personne: { ...formatrice, email: moi }, moi }), { changer: false, retirer: true });
+});
+
+test("confirmerVersion : refus ou acceptation ; l'écriture ne porte plus la confirmation", async () => {
+  const { version, propre } = avecDom(() => ({
+    version: construireEditeur({ titre: titrePromo, niveau: "promo", lieuId: 1, porteurs: 1 }),
+    propre: construireEditeur({ titre: { ...titrePromo, lieu_id: 1 }, niveau: "promo", lieuId: 1, porteurs: 1 }),
+  }));
+  {
+    const appels = [];
+    assert.equal(await confirmerVersion(version, async (q) => { appels.push(q.phrase); return false; }), false);
+    assert.deepEqual(appels, [phraseVersionCentre(1)]);
+    assert.equal(await confirmerVersion(version, async () => true), true);
+    assert.equal(await confirmerVersion(propre, async () => { throw new Error("pas de question"); }), true);
+  }
+  const src = lire("js/views/titres-editeur.js");
+  const enreg = /enregistrer: async \(v\) => \{([\s\S]*?)\n    \},/.exec(src)[1];
+  assert.ok(!/confirmer/.test(enreg), "le délai de 15 s ne couvre que l'envoi");
+  assert.ok(/confirmerAvant/.test(lire("js/views/direction-equipe.js")));
+});
+
+test("l'envoi d'invitation a un bouton de 44 px", () => {
+  assert.ok(/\.equipe-formulaire-actions \.btn \{ min-height: 44px; \}/.test(lire("css/style.css")));
 });

@@ -107,6 +107,13 @@ export function construireEditeur({ titre, niveau, lieuId = null, porteurs = 0 }
   };
 }
 
+// La confirmation d'une version de centre, avant tout envoi : vrai quand il n'y a rien à confirmer ou que la personne accepte.
+export async function confirmerVersion(editeur, demander) {
+  const phrase = editeur.confirmation();
+  if (!phrase) return true;
+  return (await demander({ titre: "Créer la version de votre centre ?", phrase, oui: "Ajuster", danger: false })) === true;
+}
+
 // Ouvre la fenêtre. `apres(resultat)` : ce que la page fait une fois le titre enregistré (se relire). Un refus de la base reste dans la
 // fenêtre, par sa phrase ; la confirmation d'une version du centre refusée laisse la fenêtre ouverte, sans message.
 export async function ouvrirEditeurTitre({ titre, niveau, lieuId = null, porteurs = 0, apres = null, ancre = null }) {
@@ -120,12 +127,8 @@ export async function ouvrirEditeurTitre({ titre, niveau, lieuId = null, porteur
     corps: editeur.corps,
     ancre, libelleBouton: "Enregistrer", premierChamp: editeur.premierChamp,
     valider: () => editeur.valeurs(),
+    confirmerAvant: () => confirmerVersion(editeur, confirmer),
     enregistrer: async (v) => {
-      const phrase = editeur.confirmation();
-      if (phrase) {
-        const oui = await confirmer({ titre: "Créer la version de votre centre ?", phrase, oui: "Ajuster", danger: false });
-        if (!oui) throw Object.assign(new Error(""), { phrase: true, annule: true });
-      }
       const r = await ajusterTitre({ titreId: titre.id, lieuId, nom: v.nom === titre.nom ? null : v.nom, cases: v.cases });
       toast(r && r.version_creee ? "Version de votre centre créée : le titre est enregistré." : "Titre enregistré.", "success", 5000);
       if (apres) await apres(r);

@@ -7658,6 +7658,7 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .equipe-droits { margin: 0 0 0.4rem; padding-left: 1.1rem; font-size: 0.9rem; }
 .equipe-formulaire-actions { display: flex; }
 .equipe-formulaire-actions .btn { display: inline-flex; align-items: center; gap: 0.35rem; }
+.equipe-formulaire-actions .btn { min-height: 44px; }
 .equipe-formulaire-actions .btn svg { width: 16px; height: 16px; flex: none; }
 .equipe-pages { display: flex; flex-direction: column; gap: 0.4rem; }
 .equipe-page { margin: 0; padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: var(--r-sm); min-width: 0; }

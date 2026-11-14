@@ -25,7 +25,7 @@ import { pluriel } from "../nombres.js?v=20261114f";
 import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
 import { confirmer, demander } from "../confirmer.js?v=20261114f";
 import {
-  titresDonnablesGroupes, pastillesDePersonne, ceQueJePeuxFaire, ceQuiEstMasque, gestesSurPersonne, gestesSurTitre, directionFixeSur, phraseJournal,
+  titresDonnablesGroupes, pastillesDePersonne, ceQueJePeuxFaire, ceQuiEstMasque, gestesSurPersonne, gestesSurTitre, directionFixePourLesGestes, phraseJournal,
   LIBELLE_NIVEAU,
 } from "../titres-rules.js?v=20261114f";
 import { ouvrirEditeurTitre } from "./titres-editeur.js?v=20261114f";
@@ -69,7 +69,7 @@ const phraseDe = (err) => (err && err.phrase === true ? err.message : phraseDeRe
 
 // Fenêtre générique : `corps` (nœuds du formulaire), `valeurs()` rend les saisies ou une phrase de refus (texte), `enregistrer(valeurs)`
 // rend une promesse (si elle lève, la phrase s'affiche dans la fenêtre et la saisie reste ; sinon la fenêtre se ferme).
-export function ouvrirFormulaire({ titre, intro, corps, ancre, libelleBouton, valider, enregistrer, premierChamp, apresFermeture }) {
+export function ouvrirFormulaire({ titre, intro, corps, ancre, libelleBouton, valider, confirmerAvant, enregistrer, premierChamp, apresFermeture }) {
   const message = el("p", { class: "promo-refus", role: "alert" });
   const annuler = el("button", { class: "btn ghost", type: "button" }, "Annuler");
   const ok = el("button", { class: "btn primary", type: "submit" }, libelleBouton);
@@ -89,13 +89,19 @@ export function ouvrirFormulaire({ titre, intro, corps, ancre, libelleBouton, va
     ok.disabled = true;
     annuler.disabled = true;
     try {
+      // La confirmation (lue à son rythme) se pose avant le délai de 15 s, qui ne couvre que l'écriture.
+      if (confirmerAvant && !(await confirmerAvant(v))) {
+        ok.disabled = false;
+        annuler.disabled = false;
+        return;
+      }
       await avecDelai(enregistrer(v));
       fermer();
       // Facultatif : ce qui s'ouvre une fois la fenêtre fermée (une autre fenêtre, qui prend alors le focus).
       if (apresFermeture) apresFermeture();
     } catch (err) {
-      // Une confirmation refusée (err.annule) n'est pas une erreur : la fenêtre reste, sans message.
-      if (!(err && err.annule === true)) console.error(err);
+      // Un refus de la base est attendu : avertissement, pas erreur.
+      console.warn("écriture refusée", err && err.message);
       message.textContent = phraseDe(err);
       ok.disabled = false;
       annuler.disabled = false;
@@ -521,7 +527,7 @@ export async function renderEquipeCentre(container) {
     ajustables: rAjustables.status === "fulfilled" ? rAjustables.value : new Set(),
     cases: null,
     // La direction fixe du centre : titres lus et direction fixe, ou fondateur hors aperçu (la base le laisse faire).
-    directionFixe: fondateurHorsApercu() || directionFixeSur(mesTitres, centre.id) === true,
+    directionFixe: directionFixePourLesGestes({ titres: mesTitres, lieuId: centre.id, fondateur: fondateurHorsApercu() }),
     moi: String(getAdminEmail() || "").toLowerCase(),
   };
   // Les cases du centre : celles de la session (casesAffichees, nul = plafond).
