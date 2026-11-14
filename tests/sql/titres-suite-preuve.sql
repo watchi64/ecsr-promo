@@ -8,7 +8,8 @@
 --                (schéma public, trié collate "C") identique avant et après chaque migration 7, 8, 4 et 9.
 --   retour       les retours défont tout, dans l'ordre inverse (9, 8, 7, 4) : l'empreinte (règles, fonctions, droits) égale celle d'avant.
 -- Les groupes des migrations s'ajoutent avec leurs tâches (d1, d4, d5, m4m5, m7, apercu, ajustables, catalogue, journal_suite), chacun
--- derrière pg_temp.groupe_suite_a_jouer, qui juge la présence de sa migration par un marqueur (7 : l'index titres_version_unique ;
+-- derrière pg_temp.groupe_suite_a_jouer, qui juge la présence de sa migration par un marqueur (7 : l'index titres_version_unique, ou
+-- « Réservé au siège. » dans _refus_gestion ;
 -- 8 : la fonction apercu_titre() ; 9 : six titres créés par la migration du catalogue ; 4 : la table journal_droits) :
 --   - migration en place (déjà appliquée, ou injectée et jouée) : le groupe est joué, dans tous les modes ;
 --   - suite-en-ligne : un groupe dont la migration manque est sauté, avec une ligne d'information ;
@@ -107,13 +108,16 @@ begin
   return r;
 end $tsa$;
 
--- La migration d'une étape est-elle en place (injectée et jouée, ou déjà appliquée) ? Marqueurs : 7 l'index titres_version_unique ; 8 la
+-- La migration d'une étape est-elle en place (injectée et jouée, ou déjà appliquée) ? Marqueurs : 7 l'index titres_version_unique (partie
+-- B) ou la phrase « Réservé au siège. » dans _refus_gestion (partie A, D1 : la première écrite ; le retour 7 défait les deux) ; 8 la
 -- fonction apercu_titre() ; 9 six titres créés par la migration du catalogue ; 4 la table journal_droits.
 create or replace function pg_temp.migration_presente(p_etape integer)
 returns boolean language plpgsql as $tsm$
 begin
   return case p_etape
     when 7 then to_regclass('public.titres_version_unique') is not null
+      or coalesce(position('titres: Réservé au siège.' in (select p.prosrc from pg_proc p
+           where p.oid = to_regprocedure('public._refus_gestion(text, integer, jsonb)'))) > 0, false)
     when 8 then to_regprocedure('public.apercu_titre()') is not null
     when 9 then (select count(*) from public.titres where cree_par = 'migration 20261115_titres_9_catalogue') = 6
     when 4 then to_regclass('public.journal_droits') is not null
@@ -183,6 +187,115 @@ begin
       pg_temp.sort_du_groupe(r.mode, r.presente, r.injectee, r.journal_requis, r.journal), r.attendu);
   end loop;
 end $tsc$;
+
+-- Le titre que porte un personnage (sa première affectation), en texte.
+create or replace function pg_temp.titre_du_perso(p_nom text)
+returns text language sql as $tstp$
+  select pg_temp.calcul(format('select a.titre_id::text from public.affectations a join pg_temp.perso p on lower(a.email) = p.email where p.nom = %L order by a.id limit 1', p_nom));
+$tstp$;
+
+-- creer_titre, ajuster_titre, supprimer_titre, donner_titre et retirer_titre joués par un personnage (p_apercu : l'aperçu du fondateur ;
+-- p_lieu en texte : « null » ou un identifiant). Créer rend « OK <identifiant> », ajuster « OK <identifiant>/<version créée>/<porteurs> »,
+-- supprimer « OK supprime », donner « OK donne », retirer « OK <lignes retirées> » ; un refus « ERREUR <état> <message> ».
+create or replace function pg_temp.creer_t(p_qui text, p_apercu text, p_depuis text, p_nom text, p_lieu text)
+returns text language sql as $tsc1$
+  select pg_temp.appeler_t(p_qui, null, p_apercu, null, format('select public.creer_titre(%s, %L, %s)::text', p_depuis, p_nom, p_lieu));
+$tsc1$;
+
+create or replace function pg_temp.ajuster_t(p_qui text, p_apercu text, p_titre text, p_lieu text, p_cases text)
+returns text language sql as $tsc2$
+  select pg_temp.appeler_t(p_qui, null, p_apercu, null, format(
+    $q$select concat_ws('/', r->>'titre_id', r->>'version_creee', r->>'porteurs_bascules') from (select public.ajuster_titre(%s, %s, null, %L::jsonb) as r) q$q$,
+    p_titre, p_lieu, p_cases));
+$tsc2$;
+
+create or replace function pg_temp.supprimer_t(p_qui text, p_titre text)
+returns text language sql as $tsc3$
+  select pg_temp.appeler_t(p_qui, null, null, null, format('select ''supprime'' from (select public.supprimer_titre(%s)) q', p_titre));
+$tsc3$;
+
+create or replace function pg_temp.donner_t(p_qui text, p_email text, p_titre text, p_lieu text)
+returns text language sql as $tsc4$
+  select pg_temp.appeler_t(p_qui, null, null, null, format('select ''donne'' from (select public.donner_titre(%L, %s, %s, null, null)) q', p_email, p_titre, p_lieu));
+$tsc4$;
+
+create or replace function pg_temp.retirer_t(p_qui text, p_email text, p_titre text, p_lieu text)
+returns text language sql as $tsc5$
+  select pg_temp.appeler_t(p_qui, null, null, null, format($q$select (public.retirer_titre(%L, %s, %s))->>'retirees'$q$, p_email, p_titre, p_lieu));
+$tsc5$;
+
+-- « OK <identifiant> » devient « OK » (un titre créé), « OK <id>/false/0 » devient « OK » (un titre ajusté sans version) ; le reste tel quel.
+create or replace function pg_temp.ok_court(p_reponse text)
+returns text language sql as $tsc6$
+  select case when coalesce(p_reponse, '') ~ '^OK [0-9]+(/false/0)?$' then 'OK' else p_reponse end;
+$tsc6$;
+
+-- Groupe d1 (migration 7, partie A) : qui crée, ajuste et supprime les titres de centre et du réseau. Personnages des étapes 1 et 2
+-- (t_secr, t_rh, t_interv au centre 1 ; t_chef, Équipe : Modifier au centre 1 ; t_dirs, réseau, Directions : Modifier ; t_qualite ;
+-- dir_n, direction fixe du centre 1 ; siege, siège fixe ; fond, le fondateur) et R_promo de cette preuve. Le verrou des titres non fixes
+-- est ouvert en propriétaire le temps du groupe (le don le demande), puis refermé. Les six premiers cas étaient permis avant D1.
+create or replace function pg_temp.groupe_d1()
+returns void language plpgsql as $tsd1$
+declare
+  v_l1t text := (select lieu_id from public.promos where id = 1)::text;
+  t_secr text := pg_temp.titre_du_perso('t_secr');
+  t_rh text := pg_temp.titre_du_perso('t_rh');
+  t_interv text := pg_temp.titre_du_perso('t_interv');
+  t_qualite text := pg_temp.titre_du_perso('t_qualite');
+  v_rp text := pg_temp.titre_suite('R_promo');
+  v_r text := pg_temp.titre_suite('R');
+  e_z text := (select email from pg_temp.perso where nom = 'z');
+  c_plafond constant text := '{"promos":"modifier","stagiaires":"modifier","emargement":"voir","notes":"voir","equipe":"modifier","reglages":"modifier"}';
+  v_libre text; v_cree text;
+begin
+  perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+  perform pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('titres_ouverts', 'oui', null)$q$);
+  v_libre := pg_temp.calcul($q$insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values ('Preuve9 d1 réseau libre', 'centre', null, '{"promos":"voir"}', 'preuve') returning id::text$q$);
+  perform pg_temp.verifier('d1', 'départ : titres de t_secr, t_rh, t_interv, t_qualite, R, R_promo lus ; un titre du réseau de niveau centre non porté posé',
+    concat_ws('/', t_secr, t_rh, t_interv, t_qualite, v_r, v_rp, v_libre) ~ '^[0-9]+(/[0-9]+){6}$',
+    concat_ws('/', t_secr, t_rh, t_interv, t_qualite, v_r, v_rp, v_libre));
+
+  -- Les six refus de D1 (permis avant la migration 7).
+  perform pg_temp.attendre('d1', 't_dirs (réseau, Directions : Modifier) crée un titre de centre au centre 1 depuis t_secr : refusé (42501)',
+    pg_temp.creer_t('t_dirs', null, t_secr, 'Preuve9 d1 dirs centre', v_l1t), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('d1', 't_dirs ajuste le titre de t_rh (centre 1) : refusé (42501)',
+    pg_temp.ajuster_t('t_dirs', null, t_rh, v_l1t, '{"promos":"voir","equipe":"voir"}'), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  perform pg_temp.attendre('d1', 't_dirs crée un titre du réseau de niveau centre depuis t_secr : refusé (42501), réservé au siège',
+    pg_temp.creer_t('t_dirs', null, t_secr, 'Preuve9 d1 dirs réseau centre', 'null'), 'ERREUR 42501 titres: Réservé au siège.');
+  perform pg_temp.attendre('d1', 't_dirs ajuste R_promo sans centre : refusé (42501), réservé au siège',
+    pg_temp.ajuster_t('t_dirs', null, v_rp, 'null', '{"planning":"voir","stagiaires":"voir"}'), 'ERREUR 42501 titres: Réservé au siège.');
+  -- D1 étendu à la création d'un titre du réseau de niveau promo (décision de Timy du 14/11).
+  perform pg_temp.attendre('d1', 't_dirs crée un titre du réseau de niveau promo depuis t_interv, sans centre : refusé (42501), réservé au siège',
+    pg_temp.creer_t('t_dirs', null, t_interv, 'Preuve9 d1 dirs réseau promo', 'null'), 'ERREUR 42501 titres: Réservé au siège.');
+  perform pg_temp.attendre('d1', 't_dirs supprime un titre du réseau de niveau centre non porté : refusé (42501), réservé au siège (D1 couvre supprimer_titre)',
+    pg_temp.supprimer_t('t_dirs', v_libre), 'ERREUR 42501 titres: Réservé au siège.');
+
+  -- Ce que D1 ne change pas, et ce qu'il laisse permis.
+  perform pg_temp.attendre('d1', 't_dirs donne le titre de t_secr à z au centre 1 : permis (donner ne change pas)',
+    pg_temp.donner_t('t_dirs', e_z, t_secr, v_l1t), 'OK donne');
+  perform pg_temp.attendre('d1', 't_dirs retire ce titre à z : permis (retirer ne change pas), une ligne',
+    pg_temp.retirer_t('t_dirs', e_z, t_secr, v_l1t), 'OK 1');
+  perform pg_temp.attendre('d1', 't_dirs crée un titre de niveau réseau depuis t_qualite (au plus égal) : permis',
+    pg_temp.ok_court(pg_temp.creer_t('t_dirs', null, t_qualite, 'Preuve9 d1 dirs réseau', 'null')), 'OK');
+  perform pg_temp.attendre('d1', 'siege crée un titre de centre au centre 1 depuis t_secr : permis',
+    pg_temp.ok_court(pg_temp.creer_t('siege', null, t_secr, 'Preuve9 d1 siège centre', v_l1t)), 'OK');
+  v_cree := pg_temp.creer_t('siege', null, t_interv, 'Preuve9 d1 siège réseau promo', 'null');
+  perform pg_temp.attendre('d1', 'siege crée un titre du réseau de niveau promo depuis t_interv, sans centre : permis',
+    pg_temp.ok_court(v_cree), 'OK');
+  perform pg_temp.attendre('d1', 'siege ajuste ce titre du réseau de niveau promo, sans centre : permis, aucune version',
+    pg_temp.ok_court(pg_temp.ajuster_t('siege', null, substr(v_cree, 4), 'null', '{"planning":"voir","stagiaires":"voir"}')), 'OK');
+  v_cree := pg_temp.creer_t('dir_n', null, t_secr, 'Preuve9 d1 direction centre', v_l1t);
+  perform pg_temp.attendre('d1', 'dir_n (direction fixe du centre 1) crée un titre de centre au centre 1 depuis t_secr : permis',
+    pg_temp.ok_court(v_cree), 'OK');
+  perform pg_temp.attendre('d1', 'dir_n l''ajuste au plafond du centre (sans comparaison de cases : direction fixe) : permis',
+    pg_temp.ok_court(pg_temp.ajuster_t('dir_n', null, substr(v_cree, 4), v_l1t, c_plafond)), 'OK');
+  perform pg_temp.attendre('d1', 't_chef (Équipe : Modifier) crée depuis t_rh au centre 1 : permis',
+    pg_temp.ok_court(pg_temp.creer_t('t_chef', null, t_rh, 'Preuve9 d1 chef centre', v_l1t)), 'OK');
+  perform pg_temp.attendre('d1', 'le fondateur en aperçu siège crée un titre du réseau de niveau centre depuis R : permis (aperçu siège = siège fixe)',
+    pg_temp.ok_court(pg_temp.creer_t('fond', 'siege', v_r, 'Preuve9 d1 aperçu siège', 'null')), 'OK');
+
+  perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+end $tsd1$;
 
 do $tsprg$
 declare
@@ -289,6 +402,9 @@ begin
   end loop;
 
   -- 4. Les groupes des migrations 7, 8, 9 et 4, avec leurs tâches, chacun derrière pg_temp.groupe_suite_a_jouer.
+  if pg_temp.groupe_suite_a_jouer('d1', 7, v_mode) then
+    perform pg_temp.groupe_d1();
+  end if;
 
   -- 5. Les retours, dans l'ordre inverse (9, 8, 7, 4). Avant eux, dans les seuls modes qui injectent des retours, les affectations des
   --    titres non fixes partent (en propriétaire) : chaque retour de 6, 7, 8 et 9 refuse de se jouer tant qu'une personne porte un titre

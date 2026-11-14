@@ -1297,6 +1297,10 @@ test("les fichiers de l'étape 3 (gabarit, aides, base locale) : aucun tiret cad
   assert.ok(places.every((x) => x >= 0), "les trois morceaux de la liste de production");
   assert.deepEqual([...places].sort((a, b) => a - b), places, "dans l'ordre de la production");
   assert.ok(script.includes("-v version=2026-11-14 -1 -f \"$MIGRATIONS/20261114_autonomie_2_version.sql\""), "la migration 2 de l'e-learning avec la version de la production");
+  // Puis les petits restes du 14/11, avec --production seulement : restes_1 (elle contrôle la version de l'autonomie), puis restes_2.
+  const restes = ["20261114_autonomie_2_version.sql", "for f in 20261114_restes_1_conditions 20261114_restes_2_truncate; do"].map((x) => script.indexOf(x));
+  assert.ok(restes.every((x) => x >= 0) && restes[0] < restes[1], "restes_1 puis restes_2, après l'e-learning");
+  assert.match(script, /if \[ "\$PRODUCTION" = 1 \]; then\n  for f in 20261114_restes_1_conditions 20261114_restes_2_truncate; do/, "les restes avec --production seulement");
 });
 
 test("la preuve de la suite : l'aiguillage des groupes (sort_du_groupe) couvre chaque cas, contrôlé au groupe structure à chaque jeu", () => {
@@ -1327,4 +1331,35 @@ test("la preuve de la suite : l'aiguillage des groupes (sort_du_groupe) couvre c
     assert.ok(libelle.startsWith(prefixe));
   }
   assert.ok(!decrireMode("gestion-en-ligne").mode.startsWith("gestion (") && !decrireMode("gestion-contre-epreuve").mode.startsWith("gestion ("));
+});
+
+test("la migration 7 (partie A, D1) : fichiers propres, aucune règle touchée, _refus_gestion remplacée en entier après garde, retour au texte exact de la migration 6", () => {
+  for (const chemin of [S[7].migration, S[7].retour, "outils/generer_fragments_titres_7.py"]) {
+    const brut = readFileSync(join(RACINE, chemin), "utf8");
+    assert.ok(!brut.includes(String.fromCharCode(0x2014)), `${chemin} : aucun tiret cadratin`);
+    assert.ok(!brut.includes("\r") || chemin.endsWith(".py"), `${chemin} : fins de ligne LF`);
+    if (chemin.startsWith("supabase/")) {
+      assert.match(brut, /^set local lock_timeout = '3s';$/m, `${chemin} : lock_timeout`);
+      assert.ok(!/(alter|create|drop) policy/i.test(brut), `${chemin} : aucune règle réécrite`);
+    }
+  }
+  const m = texteDuDepot(S[7].migration);
+  const r = texteDuDepot(S[7].retour);
+  const six = texteDuDepot("supabase/migrations/20261112_titres_6_gestion.sql");
+  const corps = (def) => def.slice(def.indexOf("\nas $f$") + "\nas $f$".length, def.lastIndexOf("$f$;"));
+  const corps6 = corps(/^create function public\._refus_gestion\([\s\S]*?^\$f\$;$/m.exec(six)[0]);
+  const pose = (t) => corps(/^create or replace function public\._refus_gestion\([\s\S]*?^\$f\$;$/m.exec(t)[0]);
+  const garde = (t) => /\$attendu\$([\s\S]*?)\$attendu\$/.exec(t)[1];
+  assert.equal(garde(m), corps6, "l'aller ne remplace que le texte de la migration 6");
+  assert.equal(pose(r), corps6, "le retour remet le texte de la migration 6, octet pour octet");
+  assert.equal(garde(r), pose(m), "le retour ne défait que le texte posé par l'aller");
+  const d1 = pose(m);
+  assert.ok(d1.includes("return 'titres: Réservé au siège.';"), "règle 4 : le siège fixe seul");
+  assert.ok(d1.includes("if case_centre(p_lieu_id, 'equipe') <> 2 and not coalesce(siege_fixe(), false) then"), "règle 3 : équipe du centre ou siège fixe");
+  assert.ok(d1.includes("if not coalesce(direction_fixe(p_lieu_id), false) and not coalesce(siege_fixe(), false) then"), "règle 3 : jamais plus que soi, sauf direction fixe ou siège fixe");
+  assert.equal((d1.match(/case_reseau\('directions'\)/g) ?? []).length, 1, "case_reseau ne garde que la règle 5 (titre du réseau de niveau réseau)");
+  for (const t of [m, r]) {
+    assert.match(t, /revoke all on function public\._refus_gestion\(text, integer, jsonb\) from public, anon, authenticated, service_role;/);
+    assert.ok(!/grant execute on function public\._refus_gestion/.test(t), "aucun droit d'exécution");
+  }
 });
