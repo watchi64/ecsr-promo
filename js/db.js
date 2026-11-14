@@ -409,11 +409,16 @@ export async function lireJournalDesDroits(lieuId) {
   return Array.isArray(data) ? data : [];
 }
 
-// La table du journal existe-t-elle (journal_present) ? L'écran n'affiche la section Journal que si oui.
+// La table du journal existe-t-elle (journal_present) ? L'écran n'affiche la section Journal que si oui. Fonction absente (base non
+// migrée) ou erreur de lecture : faux, la section n'apparaît pas.
 export async function lireJournalPresent() {
-  const { data, error } = await supabase.rpc("journal_present");
-  if (error) throw erreurDeBase(error);
-  return data === true;
+  try {
+    const { data, error } = await supabase.rpc("journal_present");
+    if (error) return false;
+    return data === true;
+  } catch (e) {
+    return false;
+  }
 }
 
 // Donne un titre (donner_titre : invite au besoin, remplace l'ancien titre au même niveau). `promoIds` pour un titre de promo,
