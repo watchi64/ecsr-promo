@@ -13,6 +13,8 @@
 # Partie A (D1, décision de Timy du 12/11, étendue à la création le 14/11) : _refus_gestion, règles du § 5.D du plan.
 # Partie B (D4) : ajuster_titre (verrou de ligne, phrase de l index) et donner_titre (verrou partagé), en fragments ; l index
 # titres_version_unique et sa garde sont écrits à la main dans la migration, hors du bloc généré.
+# Partie C (M4, M5, M7) : donner_titre (fiche formateur et is_admin au seul titre fixe Formateur), creer_titre et ajuster_titre (un nom ne
+# reprend pas celui d'un titre de l'autre portée), en fragments, dans le même bloc.
 import pathlib
 import re
 import sys
@@ -110,13 +112,70 @@ f("ajuster_titre(bigint, integer, text, jsonb)",
     end if;
     raise exception 'titres: Un titre de ce nom existe déjà ici.';
   end;
-  return jsonb_build_object("""))
+  return jsonb_build_object("""),
+  # Partie C (M7) : un nom nouveau, après les deux contrôles du droit (un appelant sans droit n'apprend pas qu'un nom existe).
+  ("""  v_phrase := _refus_gestion(t.niveau, v_lieu, _cases_effectives(coalesce(v_version, p_titre_id)));
+  if v_phrase is not null then
+    raise exception '%', v_phrase using errcode = '42501';
+  end if;
+""", """  v_phrase := _refus_gestion(t.niveau, v_lieu, _cases_effectives(coalesce(v_version, p_titre_id)));
+  if v_phrase is not null then
+    raise exception '%', v_phrase using errcode = '42501';
+  end if;
+  -- M7 : un nom nouveau ne reprend pas celui d'un titre de l'autre portée. Le nom se pose dans un centre (titre de centre, ou version d'un
+  -- titre du réseau) : aucun titre du réseau non fixe ne le porte ; au réseau : aucun titre créé par un centre. Le titre lui-même, sa racine
+  -- et ses versions sont écartés (une version garde le nom de son titre du réseau).
+  if v_nom is not null then
+    if v_lieu is not null then
+      if exists (select 1 from titres r where r.lieu_id is null and not r.fixe and lower(r.nom) = lower(v_nom)
+                    and coalesce(r.origine_id, r.id) <> t.racine) then
+        raise exception 'titres: Un titre du réseau porte déjà ce nom : choisissez-en un autre.';
+      end if;
+    elsif exists (select 1 from titres c where c.lieu_id is not null and c.origine_id is null and lower(c.nom) = lower(v_nom)
+                     and coalesce(c.origine_id, c.id) <> t.racine) then
+      raise exception 'titres: Un centre a déjà un titre de ce nom : choisissez-en un autre.';
+    end if;
+  end if;
+"""))
 
 f("donner_titre(text, bigint, integer, integer[], integer)",
   ("""  select v.id into v_ancien from titres r join titres v on v.origine_id = r.id and v.lieu_id = p_lieu_id""",
    """  -- D4 : un don attend l'ajustement en cours du même titre (et inversement), puis voit sa version.
   perform 1 from titres where id = p_titre_id for share;
-  select v.id into v_ancien from titres r join titres v on v.origine_id = r.id and v.lieu_id = p_lieu_id"""))
+  select v.id into v_ancien from titres r join titres v on v.origine_id = r.id and v.lieu_id = p_lieu_id"""),
+  # Partie C (M4) : une fiche formateur ne se relie qu'au titre fixe Formateur, le seul titre fixe de niveau promo ; le refus vient après
+  # celui du droit (_refus_titre), avant toute écriture.
+  ("""  select ti.niveau, ti.fixe into t from titres ti where ti.id = v_titre_id;
+""", """  select ti.niveau, ti.fixe into t from titres ti where ti.id = v_titre_id;
+  -- M4 : une fiche formateur ne se relie qu'au titre fixe Formateur.
+  if p_prof_id is not null and not (t.niveau = 'promo' and t.fixe) then
+    raise exception 'titres: Une fiche formateur ne se relie qu''au titre Formateur.';
+  end if;
+"""),
+  # Partie C (M4, M5) : seul le titre fixe Formateur fait un compte de formateur (is_admin vrai, fiche reliée) ; un titre de promo non fixe
+  # transforme un orphelin ou crée un profil comme un titre de centre (rôle prof, is_admin faux). is_admin d'un profil existant n'est jamais
+  # relevé ni abaissé (la règle de _orphelin_en_personnel).
+  ("""  v_transforme := _orphelin_en_personnel(v_email, t.niveau = 'promo', case when t.niveau = 'promo' then p_prof_id end, v_moi);""",
+   """  -- M4, M5 : seul le titre fixe Formateur fait un compte de formateur (is_admin vrai, fiche reliée).
+  v_transforme := _orphelin_en_personnel(v_email, t.niveau = 'promo' and t.fixe, case when t.niveau = 'promo' and t.fixe then p_prof_id end, v_moi);"""),
+  ("""    if t.niveau = 'promo' then
+      v_cree := _profil_formateur(""", """    if t.niveau = 'promo' and t.fixe then
+      v_cree := _profil_formateur("""))
+
+# Partie C (M7) : creer_titre, même règle de nom qu'ajuster_titre, après le refus du droit, avant l'écriture.
+f("creer_titre(bigint, text, integer)",
+  ("""  begin
+    insert into titres (nom, niveau, lieu_id, cases, cree_par)""", """  -- M7 : un nom ne reprend pas celui d'un titre de l'autre portée (après le droit : un appelant sans droit n'apprend pas qu'un nom
+  -- existe). Un titre de centre : aucun titre du réseau non fixe ne porte ce nom ; un titre du réseau : aucun titre créé par un centre.
+  if v_lieu is not null then
+    if exists (select 1 from titres r where r.lieu_id is null and not r.fixe and lower(r.nom) = lower(v_nom)) then
+      raise exception 'titres: Un titre du réseau porte déjà ce nom : choisissez-en un autre.';
+    end if;
+  elsif exists (select 1 from titres c where c.lieu_id is not null and c.origine_id is null and lower(c.nom) = lower(v_nom)) then
+    raise exception 'titres: Un centre a déjà un titre de ce nom : choisissez-en un autre.';
+  end if;
+  begin
+    insert into titres (nom, niveau, lieu_id, cases, cree_par)"""))
 
 
 def texte_migration_6(nom, types):

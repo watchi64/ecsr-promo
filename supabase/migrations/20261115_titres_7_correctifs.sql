@@ -12,6 +12,16 @@
 --      quand même, la phrase le dit (« Ce titre vient d'être ajusté pour ce centre par une autre personne »). donner_titre prend un
 --      verrou partagé sur le même titre : un don et un ajustement simultanés s'attendent, le porteur finit sur la version du centre.
 --      Fonctions modifiées par fragments, dans le même bloc généré.
+--   C. M4, M5, M7 (restes du rapport de l'étape 2b), fragments du même bloc généré :
+--      M4 : donner_titre refuse une fiche formateur (p_prof_id) pour tout autre titre que le Formateur fixe (« Une fiche formateur ne se
+--      relie qu'au titre Formateur. »), après le refus du droit, avant toute écriture.
+--      M5 : seul le Formateur fixe fait un compte de formateur (is_admin vrai, fiche reliée) ; un titre de promo non fixe transforme un
+--      orphelin ou crée un profil comme un titre de centre (rôle prof, is_admin faux). is_admin d'un profil existant n'est jamais relevé
+--      (un Intervenant devenu Formateur le garde faux) : sans effet, la colonne n'ouvre plus aucun droit (is_admin() est un geste).
+--      M7 : creer_titre et ajuster_titre (un nom nouveau, après les contrôles du droit) refusent qu'un titre de centre reprenne le nom
+--      d'un titre du réseau non fixe (« Un titre du réseau porte déjà ce nom : choisissez-en un autre. ») et qu'un titre du réseau
+--      reprenne le nom d'un titre créé par un centre (« Un centre a déjà un titre de ce nom : choisissez-en un autre. ») ; une version
+--      de centre garde le nom de son titre du réseau. La table garde ses index (une écriture du propriétaire n'est pas concernée).
 -- Le retour (20261115_titres_7_correctifs_retour.sql) remet le texte de la migration 6, relu dans son fichier par le même générateur, et
 -- retire l'index.
 -- À appliquer en une seule transaction : psql -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261115_titres_7_correctifs.sql. Jamais sans
@@ -31,7 +41,7 @@ begin
   end if;
 end $garde_versions$;
 
--- A. D1 : qui crée, ajuste et supprime les titres ; B. D4 : les verrous d'ajuster_titre et de donner_titre (bloc généré) ---------------
+-- A. D1 : qui crée, ajuste et supprime les titres ; B. D4 : les verrous d'ajuster_titre et de donner_titre ; C. M4, M5, M7 (bloc généré)
 -- debut du bloc genere (outils/generer_fragments_titres_7.py aller)
 -- public._refus_gestion(text, integer, jsonb) : garde de dérive (le corps en vigueur est celui qu'on remplace), puis le texte nouveau.
 do $garde_refus_gestion$
@@ -137,9 +147,10 @@ do $migration$
 declare
   v_fonctions text[] := array[
     'public.ajuster_titre(bigint, integer, text, jsonb)',
-    'public.donner_titre(text, bigint, integer, integer[], integer)'];
+    'public.donner_titre(text, bigint, integer, integer[], integer)',
+    'public.creer_titre(bigint, text, integer)'];
   -- La fonction de chaque fragment (rang dans v_fonctions).
-  v_de integer[] := array[1, 1, 1, 2];
+  v_de integer[] := array[1, 1, 1, 1, 2, 2, 2, 2, 3];
   v_anciens text[] := array[
 $ancien$  v_bascules integer := 0;
 $ancien$,
@@ -149,7 +160,19 @@ $ancien$  exception when unique_violation then
     raise exception 'titres: Un titre de ce nom existe déjà ici.';
   end;
   return jsonb_build_object($ancien$,
-$ancien$  select v.id into v_ancien from titres r join titres v on v.origine_id = r.id and v.lieu_id = p_lieu_id$ancien$];
+$ancien$  v_phrase := _refus_gestion(t.niveau, v_lieu, _cases_effectives(coalesce(v_version, p_titre_id)));
+  if v_phrase is not null then
+    raise exception '%', v_phrase using errcode = '42501';
+  end if;
+$ancien$,
+$ancien$  select v.id into v_ancien from titres r join titres v on v.origine_id = r.id and v.lieu_id = p_lieu_id$ancien$,
+$ancien$  select ti.niveau, ti.fixe into t from titres ti where ti.id = v_titre_id;
+$ancien$,
+$ancien$  v_transforme := _orphelin_en_personnel(v_email, t.niveau = 'promo', case when t.niveau = 'promo' then p_prof_id end, v_moi);$ancien$,
+$ancien$    if t.niveau = 'promo' then
+      v_cree := _profil_formateur($ancien$,
+$ancien$  begin
+    insert into titres (nom, niveau, lieu_id, cases, cree_par)$ancien$];
   v_nouveaux text[] := array[
 $nouveau$  v_bascules integer := 0;
   v_contrainte text;
@@ -167,9 +190,49 @@ $nouveau$  exception when unique_violation then
     raise exception 'titres: Un titre de ce nom existe déjà ici.';
   end;
   return jsonb_build_object($nouveau$,
+$nouveau$  v_phrase := _refus_gestion(t.niveau, v_lieu, _cases_effectives(coalesce(v_version, p_titre_id)));
+  if v_phrase is not null then
+    raise exception '%', v_phrase using errcode = '42501';
+  end if;
+  -- M7 : un nom nouveau ne reprend pas celui d'un titre de l'autre portée. Le nom se pose dans un centre (titre de centre, ou version d'un
+  -- titre du réseau) : aucun titre du réseau non fixe ne le porte ; au réseau : aucun titre créé par un centre. Le titre lui-même, sa racine
+  -- et ses versions sont écartés (une version garde le nom de son titre du réseau).
+  if v_nom is not null then
+    if v_lieu is not null then
+      if exists (select 1 from titres r where r.lieu_id is null and not r.fixe and lower(r.nom) = lower(v_nom)
+                    and coalesce(r.origine_id, r.id) <> t.racine) then
+        raise exception 'titres: Un titre du réseau porte déjà ce nom : choisissez-en un autre.';
+      end if;
+    elsif exists (select 1 from titres c where c.lieu_id is not null and c.origine_id is null and lower(c.nom) = lower(v_nom)
+                     and coalesce(c.origine_id, c.id) <> t.racine) then
+      raise exception 'titres: Un centre a déjà un titre de ce nom : choisissez-en un autre.';
+    end if;
+  end if;
+$nouveau$,
 $nouveau$  -- D4 : un don attend l'ajustement en cours du même titre (et inversement), puis voit sa version.
   perform 1 from titres where id = p_titre_id for share;
-  select v.id into v_ancien from titres r join titres v on v.origine_id = r.id and v.lieu_id = p_lieu_id$nouveau$];
+  select v.id into v_ancien from titres r join titres v on v.origine_id = r.id and v.lieu_id = p_lieu_id$nouveau$,
+$nouveau$  select ti.niveau, ti.fixe into t from titres ti where ti.id = v_titre_id;
+  -- M4 : une fiche formateur ne se relie qu'au titre fixe Formateur.
+  if p_prof_id is not null and not (t.niveau = 'promo' and t.fixe) then
+    raise exception 'titres: Une fiche formateur ne se relie qu''au titre Formateur.';
+  end if;
+$nouveau$,
+$nouveau$  -- M4, M5 : seul le titre fixe Formateur fait un compte de formateur (is_admin vrai, fiche reliée).
+  v_transforme := _orphelin_en_personnel(v_email, t.niveau = 'promo' and t.fixe, case when t.niveau = 'promo' and t.fixe then p_prof_id end, v_moi);$nouveau$,
+$nouveau$    if t.niveau = 'promo' and t.fixe then
+      v_cree := _profil_formateur($nouveau$,
+$nouveau$  -- M7 : un nom ne reprend pas celui d'un titre de l'autre portée (après le droit : un appelant sans droit n'apprend pas qu'un nom
+  -- existe). Un titre de centre : aucun titre du réseau non fixe ne porte ce nom ; un titre du réseau : aucun titre créé par un centre.
+  if v_lieu is not null then
+    if exists (select 1 from titres r where r.lieu_id is null and not r.fixe and lower(r.nom) = lower(v_nom)) then
+      raise exception 'titres: Un titre du réseau porte déjà ce nom : choisissez-en un autre.';
+    end if;
+  elsif exists (select 1 from titres c where c.lieu_id is not null and c.origine_id is null and lower(c.nom) = lower(v_nom)) then
+    raise exception 'titres: Un centre a déjà un titre de ce nom : choisissez-en un autre.';
+  end if;
+  begin
+    insert into titres (nom, niveau, lieu_id, cases, cree_par)$nouveau$];
   f integer;
   i integer;
   v_oid regprocedure;

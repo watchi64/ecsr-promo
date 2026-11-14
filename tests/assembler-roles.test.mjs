@@ -1377,18 +1377,46 @@ test("la migration 7 (partie B, D4) : index unique partiel après garde, verrous
   const fonction6 = (nom) => new RegExp(`^create function public\\.${nom}\\([\\s\\S]*?^\\$f\\$;$`, "m").exec(six)[0];
   const tableau = (t, d) => [...t.matchAll(new RegExp(`\\$${d}\\$([\\s\\S]*?)\\$${d}\\$`, "g"))].map((x) => x[1]);
   const anciens = tableau(m, "ancien"), nouveaux = tableau(m, "nouveau");
-  assert.equal(anciens.length, 4, "quatre fragments (trois pour ajuster_titre, un pour donner_titre)");
-  assert.match(m, /v_de integer\[\] := array\[1, 1, 1, 2\];/);
-  assert.match(m, /'public\.ajuster_titre\(bigint, integer, text, jsonb\)',\n    'public\.donner_titre\(text, bigint, integer, integer\[\], integer\)'\];/);
-  const sources = [fonction6("ajuster_titre"), fonction6("ajuster_titre"), fonction6("ajuster_titre"), fonction6("donner_titre")];
+  // Partie B : les trois premiers fragments d'ajuster_titre (rangs 0 à 2) et le premier de donner_titre (rang 4) ; la partie C suit (test suivant).
+  assert.equal(anciens.length, 9, "neuf fragments (B : trois pour ajuster_titre, un pour donner_titre ; C : cinq)");
+  assert.match(m, /v_de integer\[\] := array\[1, 1, 1, 1, 2, 2, 2, 2, 3\];/);
+  assert.match(m, /'public\.ajuster_titre\(bigint, integer, text, jsonb\)',\n    'public\.donner_titre\(text, bigint, integer, integer\[\], integer\)',\n    'public\.creer_titre\(bigint, text, integer\)'\];/);
+  const sources = [fonction6("ajuster_titre"), fonction6("ajuster_titre"), fonction6("ajuster_titre"), fonction6("ajuster_titre"),
+    fonction6("donner_titre"), fonction6("donner_titre"), fonction6("donner_titre"), fonction6("donner_titre"), fonction6("creer_titre")];
   anciens.forEach((a, i) => assert.equal(sources[i].split(a).length - 1, 1, `fragment ${i + 1} : trouvé une fois dans la migration 6`));
   assert.ok(nouveaux[0].includes("  v_contrainte text;"));
   assert.ok(nouveaux[1].includes("  perform 1 from titres where id = p_titre_id for update;\n  if t.lieu_du_titre is null"), "verrou avant la recherche de la version");
   assert.ok(nouveaux[2].includes("get stacked diagnostics v_contrainte = constraint_name;"));
   assert.ok(nouveaux[2].includes("raise exception 'titres: Ce titre vient d''être ajusté pour ce centre par une autre personne : rouvrez-le, puis réessayez.';"));
   assert.ok(nouveaux[2].includes("raise exception 'titres: Un titre de ce nom existe déjà ici.';"), "l'ancienne phrase reste pour un nom en double");
-  assert.ok(nouveaux[3].includes("  perform 1 from titres where id = p_titre_id for share;\n  select v.id into v_ancien"), "verrou partagé avant la recherche de la version");
+  assert.ok(nouveaux[4].includes("  perform 1 from titres where id = p_titre_id for share;\n  select v.id into v_ancien"), "verrou partagé avant la recherche de la version");
   // Le retour : les mêmes fragments, anciens et nouveaux échangés.
   assert.deepEqual(tableau(r, "ancien"), nouveaux);
   assert.deepEqual(tableau(r, "nouveau"), anciens);
+});
+
+test("la migration 7 (partie C, M4, M5, M7) : fiche et is_admin au seul Formateur fixe, noms sans doublon d'une portée à l'autre, après le droit", () => {
+  const m = texteDuDepot(S[7].migration);
+  const r = texteDuDepot(S[7].retour);
+  const tableau = (t, d) => [...t.matchAll(new RegExp(`\\$${d}\\$([\\s\\S]*?)\\$${d}\\$`, "g"))].map((x) => x[1]);
+  const anciens = tableau(m, "ancien"), nouveaux = tableau(m, "nouveau");
+  const m4 = "raise exception 'titres: Une fiche formateur ne se relie qu''au titre Formateur.';";
+  const reseau = "raise exception 'titres: Un titre du réseau porte déjà ce nom : choisissez-en un autre.';";
+  const centre = "raise exception 'titres: Un centre a déjà un titre de ce nom : choisissez-en un autre.';";
+  // ajuster_titre (rang 3) : M7 après le second contrôle du droit (cases actuelles), le titre, sa racine et ses versions écartés.
+  assert.ok(anciens[3].startsWith("  v_phrase := _refus_gestion(t.niveau, v_lieu, _cases_effectives(coalesce(v_version, p_titre_id)));"));
+  assert.ok(nouveaux[3].startsWith(anciens[3]), "M7 vient après le contrôle du droit");
+  for (const p of [reseau, centre]) assert.ok(nouveaux[3].includes(p));
+  assert.equal(nouveaux[3].split("<> t.racine").length - 1, 2, "racine écartée dans les deux refus");
+  assert.ok(nouveaux[3].includes("if v_nom is not null then"), "le nom seulement");
+  // donner_titre (rangs 5 à 7) : le refus M4 après la lecture du titre (donc après _refus_titre), puis le seul Formateur fixe.
+  assert.ok(nouveaux[5].startsWith("  select ti.niveau, ti.fixe into t from titres ti where ti.id = v_titre_id;\n"));
+  assert.ok(nouveaux[5].includes("if p_prof_id is not null and not (t.niveau = 'promo' and t.fixe) then") && nouveaux[5].includes(m4));
+  assert.ok(nouveaux[6].includes("_orphelin_en_personnel(v_email, t.niveau = 'promo' and t.fixe, case when t.niveau = 'promo' and t.fixe then p_prof_id end, v_moi);"));
+  assert.equal(nouveaux[7], "    if t.niveau = 'promo' and t.fixe then\n      v_cree := _profil_formateur(");
+  // creer_titre (rang 8) : M7 juste avant l'insertion, donc après _refus_gestion.
+  assert.ok(nouveaux[8].endsWith(anciens[8]) && anciens[8] === "  begin\n    insert into titres (nom, niveau, lieu_id, cases, cree_par)");
+  for (const p of [reseau, centre]) assert.ok(nouveaux[8].includes(p));
+  // Le retour défait la partie C (fragments échangés) ; aucune phrase de C n'est posée par le retour.
+  for (const p of [m4, reseau, centre]) assert.ok(!tableau(r, "nouveau").some((x) => x.includes(p)), `le retour ne pose pas ${p}`);
 });

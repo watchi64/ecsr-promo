@@ -8,8 +8,8 @@
 --                (schéma public, trié collate "C") identique avant et après chaque migration 7, 8, 4 et 9.
 --   retour       les retours défont tout, dans l'ordre inverse (9, 8, 7, 4) : l'empreinte (règles, fonctions, droits) égale celle d'avant.
 -- Les groupes des migrations s'ajoutent avec leurs tâches (d1, d4, d5, m4m5, m7, apercu, ajustables, catalogue, journal_suite), chacun
--- derrière pg_temp.groupe_suite_a_jouer, qui juge la présence de sa migration par un marqueur (7 : l'index titres_version_unique, ou
--- « Réservé au siège. » dans _refus_gestion ;
+-- derrière pg_temp.groupe_suite_a_jouer, qui juge la présence de sa migration par un marqueur (7 : l'index titres_version_unique,
+-- « Réservé au siège. » dans _refus_gestion ou la phrase M4 dans donner_titre ;
 -- 8 : la fonction apercu_titre() ; 9 : six titres créés par la migration du catalogue ; 4 : la table journal_droits) :
 --   - migration en place (déjà appliquée, ou injectée et jouée) : le groupe est joué, dans tous les modes ;
 --   - suite-en-ligne : un groupe dont la migration manque est sauté, avec une ligne d'information ;
@@ -109,8 +109,9 @@ begin
 end $tsa$;
 
 -- La migration d'une étape est-elle en place (injectée et jouée, ou déjà appliquée) ? Marqueurs : 7 l'index titres_version_unique (partie
--- B) ou la phrase « Réservé au siège. » dans _refus_gestion (partie A, D1 : la première écrite ; le retour 7 défait les deux) ; 8 la
--- fonction apercu_titre() ; 9 six titres créés par la migration du catalogue ; 4 la table journal_droits.
+-- B), la phrase « Réservé au siège. » dans _refus_gestion (partie A, D1) ou la phrase M4 « Une fiche formateur ne se relie qu'au titre
+-- Formateur. » dans donner_titre (partie C) : une seule des trois suffit (les parties A, B et C forment un seul fichier ; le retour 7
+-- défait les trois) ; 8 la fonction apercu_titre() ; 9 six titres créés par la migration du catalogue ; 4 la table journal_droits.
 create or replace function pg_temp.migration_presente(p_etape integer)
 returns boolean language plpgsql as $tsm$
 begin
@@ -118,6 +119,8 @@ begin
     when 7 then to_regclass('public.titres_version_unique') is not null
       or coalesce(position('titres: Réservé au siège.' in (select p.prosrc from pg_proc p
            where p.oid = to_regprocedure('public._refus_gestion(text, integer, jsonb)'))) > 0, false)
+      or coalesce(position('titres: Une fiche formateur ne se relie qu''au titre Formateur.' in (select p.prosrc from pg_proc p
+           where p.oid = to_regprocedure('public.donner_titre(text, bigint, integer, integer[], integer)'))) > 0, false)
     when 8 then to_regprocedure('public.apercu_titre()') is not null
     when 9 then (select count(*) from public.titres where cree_par = 'migration 20261115_titres_9_catalogue') = 6
     when 4 then to_regclass('public.journal_droits') is not null
@@ -358,6 +361,191 @@ begin
     'CREATE UNIQUE INDEX titres_version_unique ON public.titres USING btree (origine_id, lieu_id) WHERE (origine_id IS NOT NULL)');
 end $tsd4$;
 
+-- donner_titre avec des promos et une fiche formateur, joué par un personnage : « OK cree=…/transforme=… » ou l'erreur. p_promos et p_prof
+-- en texte SQL (« '{1}'::integer[] », un identifiant ou « null »).
+create or replace function pg_temp.donner_m(p_qui text, p_email text, p_titre text, p_lieu text, p_promos text, p_prof text)
+returns text language sql as $tsm1$
+  select pg_temp.appeler_t(p_qui, null, null, null, format(
+    $q$select concat_ws('/', 'cree=' || (r->>'cree'), 'transforme=' || (r->>'transforme')) from (select public.donner_titre(%L, %s, %s, %s, %s) as r) q$q$,
+    p_email, p_titre, p_lieu, p_promos, p_prof));
+$tsm1$;
+
+-- Le profil d'un personnage, en propriétaire : « rôle/is_admin/fiche formateur » (« nul » sans fiche), « aucun » sans profil.
+create or replace function pg_temp.profil_m(p_nom text)
+returns text language sql as $tsm2$
+  select coalesce(pg_temp.calcul(format('select u.role || ''/'' || u.is_admin::text || ''/'' || coalesce(u.prof_id::text, ''nul'') from public.user_profiles u join pg_temp.perso p on lower(u.email) = lower(p.email) where p.nom = %L',
+    p_nom)), 'aucun');
+$tsm2$;
+
+-- Groupe m4m5 (migration 7, partie C) : la fiche formateur et is_admin ne vont qu'au titre fixe Formateur. x, y : adresses libres
+-- (ni profil ni affectation) ; orphelin : compte stagiaire sans fiche ; une fiche formateur libre posée en propriétaire. Le verrou des
+-- titres non fixes est ouvert le temps du groupe, puis remis dans son état de départ.
+create or replace function pg_temp.groupe_m4m5()
+returns void language plpgsql as $tsm4$
+declare
+  v_l1t text := (select lieu_id from public.promos where id = 1)::text;
+  t_interv text := pg_temp.titre_du_perso('t_interv');
+  t_rh text := pg_temp.titre_du_perso('t_rh');
+  t_form text := pg_temp.calcul($q$select public.titre_fixe('promo')::text$q$);
+  t_dir text := pg_temp.calcul($q$select public.titre_fixe('centre')::text$q$);
+  e_x text := (select email from pg_temp.perso where nom = 'x');
+  e_y text := (select email from pg_temp.perso where nom = 'y');
+  e_orph text := (select email from pg_temp.perso where nom = 'orphelin');
+  e_form_m text := (select email from pg_temp.perso where nom = 'form_m');
+  v_promos_1 constant text := '''{1}''::integer[]';
+  v_fiche text; v_fiche2 text;
+  v_verrou_avant text := pg_temp.calcul($q$select value from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+begin
+  perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+  perform pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('titres_ouverts', 'oui', null)$q$);
+  v_fiche := pg_temp.calcul($q$insert into public.profs (nom) values ('Preuve9 fiche libre') returning id::text$q$);
+  v_fiche2 := pg_temp.calcul($q$insert into public.profs (nom) values ('Preuve9 fiche libre deux') returning id::text$q$);
+  perform pg_temp.verifier('m4m5', 'départ : Intervenant, Formateur, Direction de centre lus ; x, y libres ; orphelin sans fiche ; deux fiches libres posées',
+    concat_ws('/', t_interv, t_form, t_dir, v_fiche, v_fiche2) ~ '^[0-9]+(/[0-9]+){4}$' and pg_temp.profil_m('x') = 'aucun'
+      and pg_temp.profil_m('y') = 'aucun' and pg_temp.profil_m('orphelin') = 'stagiaire/false/nul',
+    concat_ws(' ', t_interv, t_form, t_dir, v_fiche, v_fiche2, pg_temp.profil_m('x'), pg_temp.profil_m('y'), pg_temp.profil_m('orphelin')));
+
+  -- M4 : une fiche formateur ne se relie qu'au titre fixe Formateur ; refus après le droit, avant toute écriture.
+  perform pg_temp.attendre('m4m5', 't_chef donne Intervenant à x avec une fiche formateur : refusé, aucun profil créé',
+    pg_temp.donner_m('t_chef', e_x, t_interv, v_l1t, v_promos_1, v_fiche) || ' / ' || pg_temp.profil_m('x'),
+    'ERREUR P0001 titres: Une fiche formateur ne se relie qu''au titre Formateur. / aucun');
+  perform pg_temp.attendre('m4m5', 't_chef donne Intervenant à l''orphelin avec une fiche formateur : refusé, le compte reste stagiaire',
+    pg_temp.donner_m('t_chef', e_orph, t_interv, v_l1t, v_promos_1, v_fiche) || ' / ' || pg_temp.profil_m('orphelin'),
+    'ERREUR P0001 titres: Une fiche formateur ne se relie qu''au titre Formateur. / stagiaire/false/nul');
+  perform pg_temp.attendre('m4m5', 'siege donne Direction de centre (titre fixe, niveau centre) à x avec une fiche formateur : refusé, aucun profil créé',
+    pg_temp.donner_m('siege', e_x, t_dir, v_l1t, 'null', v_fiche) || ' / ' || pg_temp.profil_m('x'),
+    'ERREUR P0001 titres: Une fiche formateur ne se relie qu''au titre Formateur. / aucun');
+  perform pg_temp.attendre('m4m5', 't_chef donne le titre de t_rh (niveau centre) à x avec une fiche formateur : refusé, aucun profil créé',
+    pg_temp.donner_m('t_chef', e_x, t_rh, v_l1t, 'null', v_fiche) || ' / ' || pg_temp.profil_m('x'),
+    'ERREUR P0001 titres: Une fiche formateur ne se relie qu''au titre Formateur. / aucun');
+  perform pg_temp.attendre('m4m5', 't_rh (sans droit) donne Intervenant à x avec une fiche : le refus du droit d''abord (42501)',
+    pg_temp.donner_m('t_rh', e_x, t_interv, v_l1t, v_promos_1, v_fiche),
+    'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+
+  -- M5 : un titre de promo non fixe fait un profil du personnel sans is_admin.
+  perform pg_temp.attendre('m4m5', 't_chef donne Intervenant à x sans fiche : permis, profil créé',
+    pg_temp.donner_m('t_chef', e_x, t_interv, v_l1t, v_promos_1, 'null'), 'OK cree=true/transforme=false');
+  perform pg_temp.attendre('m4m5', 'le profil de x : rôle prof, is_admin faux, aucune fiche',
+    pg_temp.profil_m('x'), 'prof/false/nul');
+  perform pg_temp.attendre('m4m5', 't_chef donne Intervenant à l''orphelin : permis, le compte est transformé',
+    pg_temp.donner_m('t_chef', e_orph, t_interv, v_l1t, v_promos_1, 'null'), 'OK cree=false/transforme=true');
+  perform pg_temp.attendre('m4m5', 'le profil de l''orphelin : rôle prof, is_admin faux',
+    pg_temp.profil_m('orphelin'), 'prof/false/nul');
+
+  -- Le titre fixe Formateur, inchangé : is_admin vrai, la fiche libre reliée.
+  perform pg_temp.attendre('m4m5', 'dir_n donne Formateur à y avec une fiche libre : permis, profil créé',
+    pg_temp.donner_m('dir_n', e_y, t_form, v_l1t, v_promos_1, v_fiche), 'OK cree=true/transforme=false');
+  perform pg_temp.attendre('m4m5', 'le profil de y : rôle prof, is_admin vrai, la fiche reliée',
+    pg_temp.profil_m('y'), 'prof/true/' || v_fiche);
+  -- is_admin d'un profil existant n'est jamais relevé : x (Intervenant) devient Formateur et garde is_admin faux (sans effet : la colonne
+  -- n'ouvre plus aucun droit). La fiche ne se relie pas davantage : donner_titre ne la pose qu'à la création du profil ou à la
+  -- transformation d'un orphelin (comportement de l'étape 2b, inchangé).
+  perform pg_temp.attendre('m4m5', 'dir_n donne Formateur à x (Intervenant) avec la seconde fiche : permis, Intervenant remplacé',
+    pg_temp.donner_m('dir_n', e_x, t_form, v_l1t, v_promos_1, v_fiche2), 'OK cree=false/transforme=false');
+  perform pg_temp.attendre('m4m5', 'le profil de x : is_admin reste faux (jamais relevé), aucune fiche (un profil existant ne la reçoit pas)',
+    pg_temp.profil_m('x'), 'prof/false/nul');
+
+  -- regler_affectations_formateur ne change pas (réponses de l'étape 2b) : dir_n règle form_m (Formateur de la promo 2) sur le centre 1.
+  perform pg_temp.attendre('m4m5', 'dir_n règle form_m sur le centre 1, promo 1 : une ligne ajoutée',
+    pg_temp.appeler_t('dir_n', '1', null, null, format($q$select (public.regler_affectations_formateur(%L, %s, '{1}'::integer[]))->>'ajoutees'$q$, e_form_m, v_l1t)),
+    'OK [1]');
+  perform pg_temp.attendre('m4m5', 'dir_n retire form_m de la promo 1 (liste vide) : une ligne retirée ; le profil de form_m garde is_admin vrai',
+    pg_temp.appeler_t('dir_n', '1', null, null, format($q$select (public.regler_affectations_formateur(%L, %s, '{}'::integer[]))->>'retirees'$q$, e_form_m, v_l1t))
+      || ' / ' || pg_temp.profil_m('form_m'),
+    'OK [1] / prof/true/nul');
+  perform pg_temp.attendre('m4m5', 'dir_n règle form_m sur le centre 2 : refusé (42501), réservé à la direction du centre',
+    pg_temp.appeler_t('dir_n', '1', null, null, format($q$select (public.regler_affectations_formateur(%L, %s, '{2}'::integer[]))->>'ajoutees'$q$,
+      e_form_m, (select lieu_id from public.promos where id = 2))),
+    'ERREUR 42501 equipe: Réservé à la direction du centre.');
+
+  -- Le ménage : x, y et l'orphelin redeviennent ce qu'ils étaient (les autres groupes peuvent les attendre libres).
+  perform pg_temp.essai(format('delete from public.user_profiles where lower(email) in (%L, %L)', e_x, e_y));
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L', e_orph));
+  perform pg_temp.essai(format('update public.user_profiles set role = ''stagiaire'', is_admin = false, invited_by_email = null, prof_id = null where lower(email) = %L', e_orph));
+  perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+  if v_verrou_avant is not null then
+    perform pg_temp.essai(format('insert into public.settings (key, value, promo_id) values (''titres_ouverts'', %L, null)', v_verrou_avant));
+  end if;
+  perform pg_temp.attendre('m4m5', 'fin du groupe : x et y libres, l''orphelin stagiaire, le verrou titres_ouverts dans son état de départ',
+    pg_temp.profil_m('x') || ' / ' || pg_temp.profil_m('y') || ' / ' || pg_temp.profil_m('orphelin') || ' / '
+      || coalesce(pg_temp.calcul($q$select value from public.settings where promo_id is null and key = 'titres_ouverts'$q$), 'absent'),
+    'aucun / aucun / stagiaire/false/nul / ' || coalesce(v_verrou_avant, 'absent'));
+end $tsm4$;
+
+-- ajuster_titre avec un nom, joué par un personnage : « OK <identifiant>/<version créée>/<porteurs> » ou l'erreur.
+create or replace function pg_temp.ajuster_nom_t(p_qui text, p_titre text, p_lieu text, p_nom text, p_cases text)
+returns text language sql as $tsm5$
+  select pg_temp.appeler_t(p_qui, null, null, null, format(
+    $q$select concat_ws('/', r->>'titre_id', r->>'version_creee', r->>'porteurs_bascules') from (select public.ajuster_titre(%s, %s, %L, %L::jsonb) as r) q$q$,
+    p_titre, p_lieu, p_nom, p_cases));
+$tsm5$;
+
+-- Groupe m7 (migration 7, partie C) : un nom ne reprend pas celui d'un titre de l'autre portée. Noms à préfixe « Preuve9 ». La casse est
+-- celle de la base : la variante en majuscules se calcule par upper() (la base locale, en ctype C, ne plie pas les lettres accentuées ;
+-- l'index titres_portee_nom, lower(nom), non plus : la règle M7 suit le même lower()).
+create or replace function pg_temp.groupe_m7()
+returns void language plpgsql as $tsm7$
+declare
+  v_l1t text := (select lieu_id from public.promos where id = 1)::text;
+  t_rh text := pg_temp.titre_du_perso('t_rh');
+  t_secr text := pg_temp.titre_du_perso('t_secr');
+  t_qualite text := pg_temp.titre_du_perso('t_qualite');
+  c_rh constant text := '{"promos":"voir","equipe":"voir"}';
+  v_secr text; v_r7 text; v_acc text; v_un text; v_version text; v_maj text;
+  m_reseau constant text := 'ERREUR P0001 titres: Un titre du réseau porte déjà ce nom : choisissez-en un autre.';
+  m_centre constant text := 'ERREUR P0001 titres: Un centre a déjà un titre de ce nom : choisissez-en un autre.';
+begin
+  v_secr := pg_temp.calcul($q$insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values ('Preuve9 secrétariat', 'centre', null, '{"promos":"voir","equipe":"voir"}', 'preuve') returning id::text$q$);
+  v_r7 := pg_temp.calcul($q$insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values ('Preuve9 m7 réseau', 'centre', null, '{"promos":"voir","equipe":"voir"}', 'preuve') returning id::text$q$);
+  v_maj := pg_temp.calcul($q$select upper('Preuve9 secrétariat')$q$);
+  perform pg_temp.verifier('m7', 'départ : deux titres du réseau non fixes (niveau centre, non portés) posés en propriétaire ; titres de t_rh, t_secr, t_qualite lus',
+    concat_ws('/', v_secr, v_r7, t_rh, t_secr, t_qualite) ~ '^[0-9]+(/[0-9]+){4}$', concat_ws('/', v_secr, v_r7, t_rh, t_secr, t_qualite));
+
+  -- Un titre de centre ne prend pas le nom d'un titre du réseau non fixe.
+  perform pg_temp.attendre('m7', 't_chef crée au centre 1, depuis t_rh, un titre nommé comme « Preuve9 secrétariat » en majuscules : refusé',
+    pg_temp.creer_t('t_chef', null, t_rh, v_maj, v_l1t), m_reseau);
+  perform pg_temp.attendre('m7', 't_rh (sans droit) crée « Preuve9 secrétariat » au centre 1 : le refus du droit d''abord (42501)',
+    pg_temp.creer_t('t_rh', null, t_rh, 'Preuve9 secrétariat', v_l1t), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+  v_acc := pg_temp.creer_t('t_chef', null, t_rh, 'Preuve9 accueil', v_l1t);
+  perform pg_temp.attendre('m7', 't_chef crée « Preuve9 accueil » au centre 1 (nom libre) : permis', pg_temp.ok_court(v_acc), 'OK');
+  v_acc := substr(v_acc, 4);
+
+  -- Un titre du réseau ne prend pas le nom d'un titre créé par un centre.
+  perform pg_temp.attendre('m7', 'siege crée au réseau (niveau centre, sans centre), depuis t_secr, « Preuve9 accueil » : refusé',
+    pg_temp.creer_t('siege', null, t_secr, 'Preuve9 accueil', 'null'), m_centre);
+  perform pg_temp.attendre('m7', 'siege crée un titre de niveau réseau, depuis t_qualite, « PREUVE9 ACCUEIL » : refusé',
+    pg_temp.creer_t('siege', null, t_qualite, 'PREUVE9 ACCUEIL', 'null'), m_centre);
+
+  -- La version de centre d'un titre du réseau garde son nom ; le titre lui-même, sa racine et ses versions sont écartés.
+  v_un := pg_temp.ajuster_nom_t('t_chef', v_r7, v_l1t, 'Preuve9 m7 réseau', c_rh);
+  v_version := substring(v_un from '^OK ([0-9]+)/');
+  perform pg_temp.attendre('m7', 't_chef ajuste « Preuve9 m7 réseau » depuis le centre 1 sous son propre nom : permis, la version du centre est créée',
+    regexp_replace(coalesce(v_un, 'nul'), '^OK [0-9]+/', 'OK <version>/'), 'OK <version>/true/0');
+  perform pg_temp.attendre('m7', 't_chef ajuste la version elle-même, même nom : permis, la même version',
+    pg_temp.ajuster_nom_t('t_chef', coalesce(v_version, '-1'), v_l1t, 'Preuve9 m7 réseau', c_rh), 'OK ' || coalesce(v_version, '?') || '/false/0');
+  perform pg_temp.attendre('m7', 't_chef renomme la version du centre « Preuve9 secrétariat » : refusé',
+    pg_temp.ajuster_nom_t('t_chef', coalesce(v_version, '-1'), v_l1t, 'Preuve9 secrétariat', c_rh), m_reseau);
+  perform pg_temp.attendre('m7', 'siege ajuste « Preuve9 secrétariat » (réseau) sous son propre nom, sans centre : permis',
+    pg_temp.ajuster_nom_t('siege', v_secr, 'null', 'Preuve9 secrétariat', c_rh), 'OK ' || v_secr || '/false/0');
+
+  -- Renommer.
+  perform pg_temp.attendre('m7', 't_chef renomme « Preuve9 accueil » en « Preuve9 secrétariat » en majuscules : refusé, le nom reste',
+    pg_temp.ajuster_nom_t('t_chef', v_acc, v_l1t, v_maj, c_rh) || ' / ' || pg_temp.calcul(format('select nom from public.titres where id = %s', v_acc)),
+    m_reseau || ' / Preuve9 accueil');
+  perform pg_temp.attendre('m7', 't_chef renomme « Preuve9 accueil » en « Preuve9 accueil libre » : permis',
+    pg_temp.ajuster_nom_t('t_chef', v_acc, v_l1t, 'Preuve9 accueil libre', c_rh) || ' / ' || pg_temp.calcul(format('select nom from public.titres where id = %s', v_acc)),
+    'OK ' || v_acc || '/false/0 / Preuve9 accueil libre');
+  perform pg_temp.attendre('m7', 'siege renomme « Preuve9 m7 réseau » (réseau) en « Preuve9 accueil libre » : refusé',
+    pg_temp.ajuster_nom_t('siege', v_r7, 'null', 'Preuve9 accueil libre', c_rh), m_centre);
+  perform pg_temp.attendre('m7', 'siege renomme « Preuve9 m7 réseau » (réseau) en « Preuve9 m7 réseau neuf » : permis',
+    pg_temp.ajuster_nom_t('siege', v_r7, 'null', 'Preuve9 m7 réseau neuf', c_rh), 'OK ' || v_r7 || '/false/0');
+  -- Une écriture du propriétaire n'est pas concernée : la table garde ses seuls index (un titre de centre du nom d'un titre du réseau).
+  perform pg_temp.attendre('m7', 'le propriétaire pose au centre 2 un titre nommé « Preuve9 secrétariat » : permis (les index ne changent pas)',
+    pg_temp.essai_contrainte(format($q$insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values ('Preuve9 secrétariat', 'centre', %s, '{}', 'preuve')$q$,
+      (select lieu_id from public.promos where id = 2))),
+    'OK');
+end $tsm7$;
+
 do $tsprg$
 declare
   v_mode constant text :=
@@ -469,6 +657,12 @@ begin
   if pg_temp.groupe_suite_a_jouer('d4', 7, v_mode) then
     perform pg_temp.groupe_d4();
   end if;
+  if pg_temp.groupe_suite_a_jouer('m4m5', 7, v_mode) then
+    perform pg_temp.groupe_m4m5();
+  end if;
+  if pg_temp.groupe_suite_a_jouer('m7', 7, v_mode) then
+    perform pg_temp.groupe_m7();
+  end if;
 
   -- 5. Les retours, dans l'ordre inverse (9, 8, 7, 4). Avant eux, dans les seuls modes qui injectent des retours, les affectations des
   --    titres non fixes partent (en propriétaire) : chaque retour de 6, 7, 8 et 9 refuse de se jouer tant qu'une personne porte un titre
@@ -492,10 +686,18 @@ begin
     perform pg_temp.attendre('retour', 'après les retours : empreinte fonctions identique à celle d''avant', v_ap_fonctions, v_av_fonctions);
     perform pg_temp.attendre('retour', 'après les retours : empreinte droits identique à celle d''avant', v_ap_droits, v_av_droits);
     perform pg_temp.attendre('retour', 'après les retours : md5 de pg_policies identique à celui d''avant', pg_temp.regles_md5(), v_md5_depart);
-    -- L'empreinte ne couvre pas les index : celui de la migration 7 (D4) se contrôle à part, quand le retour 7 a été joué.
+    -- L'empreinte ne couvre pas les index : celui de la migration 7 (D4) se contrôle à part, quand le retour 7 a été joué. Les corps des
+    -- fonctions, eux, sont dans l'empreinte ; les trois marqueurs de la migration 7 (un par partie) sont redits pour un échec lisible.
     if v_r7 <> 'select 1' then
       perform pg_temp.verifier('retour', 'après les retours : l''index titres_version_unique est retiré (retour 7)',
         to_regclass('public.titres_version_unique') is null);
+      perform pg_temp.attendre('retour', 'après les retours : aucune phrase des parties A et C dans _refus_gestion, donner_titre, creer_titre, ajuster_titre (retour 7)',
+        (select count(*)::text from pg_proc p
+          where p.oid in (to_regprocedure('public._refus_gestion(text, integer, jsonb)'), to_regprocedure('public.donner_titre(text, bigint, integer, integer[], integer)'),
+                          to_regprocedure('public.creer_titre(bigint, text, integer)'), to_regprocedure('public.ajuster_titre(bigint, integer, text, jsonb)'))
+            and (p.prosrc like '%Réservé au siège.%' or p.prosrc like '%ne se relie qu''au titre Formateur%'
+                 or p.prosrc like '%Un titre du réseau porte déjà ce nom%' or p.prosrc like '%Un centre a déjà un titre de ce nom%'
+                 or p.prosrc like '%t.niveau = ''promo'' and t.fixe%')), '0');
     end if;
   end if;
   perform pg_temp.informer('durée du bloc', to_char(extract(epoch from clock_timestamp() - v_debut), 'FM990.0') || ' s');
