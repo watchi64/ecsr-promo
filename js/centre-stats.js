@@ -11,6 +11,8 @@ import { estNotee, score20, mediane } from "./notes-stats.js?v=20261114d";
 import { NOTE_VALUES } from "./epcf-trames.js?v=20261114d";
 import { compareByNom } from "./utils.js?v=20261114d";
 import { fr1, pct } from "./nombres.js?v=20261114d";
+import { presenceDesFeuilles, RAISONS_ABSENCE } from "./presence-rules.js?v=20261114d";
+import { libelleDuree } from "./emargement-rules.js?v=20261114d";
 
 // Hypothèse du réseau : un parcours de formation représente 3 500 à 5 000 €.
 export const COUT_ABANDON_ESTIME = [3500, 5000];
@@ -29,14 +31,14 @@ export const METHODES = {
   effectif: "Inscrits : toutes les fiches de la promo. En formation : les fiches actives. Abandons : les fiches passées en abandon par l'équipe. Les fiches effacées à la demande de la personne sont comptées parmi les inscrits, à part : ni en formation, ni en abandon.",
   abandon: "Abandons divisés par les inscrits. Seule la décision de l'équipe compte : un effacement de données, à la demande de la personne ou au terme de la durée de conservation, n'est pas un abandon. La date de l'abandon n'est pas enregistrée dans l'app : le taux porte sur toute la durée de la promo.",
   valeurAbandons: "Nombre d'abandons multiplié par 3 500 à 5 000 €, hypothèse du coût d'un parcours de formation. C'est un ordre de grandeur, pas un montant comptable.",
-  absences: "Absences de dernière minute divisées par les passages prévus (passages faits plus absences), stagiaires en formation. Ne couvre que les passages en salle et en voiture, pas la présence en formation : l'émargement la couvrira.",
+  absences: "Absences de dernière minute divisées par les passages prévus (passages faits plus absences), stagiaires en formation. Ne couvre que les passages en salle et en voiture ; la présence en formation est le taux de présence, tiré des feuilles d'émargement.",
   passages: "Passages faits plus remplacements (bonus), en salle et en voiture, rapportés aux stagiaires en formation ; plus bas et plus haut nombre d'une personne.",
   activiteQcm: "Stagiaires en formation qui ont fait au moins un QCM d'entraînement, divisés par les stagiaires en formation.",
   reussiteQcm: "Bonnes réponses divisées par les questions répondues, sur tous les QCM d'entraînement des stagiaires en formation.",
   examensQcm: "Examens QCM passés par les stagiaires en formation ; réussi quand la note atteint le seuil du QCM (15/20 par défaut). Moyenne des notes d'examen sur 20.",
   notes: "Toutes les notes des stagiaires en formation ramenées sur 20 (une note sans barème est ignorée) : moyenne, médiane, nombre de notes sous 10. Même règle que la synthèse de la page Notes.",
   epcf: "Par grille (salle, véhicule) : la dernière évaluation EPCF de chaque stagiaire en formation, hors auto-évaluation. Critères acquis divisés par les critères renseignés ; score : acquis 2, à renforcer 1, non acquis 0, ramené à 100 %.",
-  titre: "Les résultats de jury du titre professionnel ne sont pas saisis dans l'app.",
+  titre: "Titres obtenus divisés par les stagiaires présentés au jury (absents exclus), d'après les résultats saisis par l'équipe : une ligne par stagiaire, son dernier passage devant le jury. Les validations partielles (un CCP acquis) sont dites à côté, sans compter comme obtention. Les stagiaires sans résultat saisi ne comptent pas.",
   presence: "Heures réalisées divisées par heures prévues, sur les feuilles d'émargement closes de la promo, toutes lignes comprises : un stagiaire parti figure sur les feuilles jusqu'à son départ.",
   satisfaction: "Réponses favorables (plutôt oui, tout à fait) à la question globale du questionnaire de fin de formation, divisées par les avis notés (« sans avis » exclu) ; réponses enregistrées sans nom ; résultat affiché à partir de 5 avis notés.",
   themes: "D'après les QCM : bonnes réponses divisées par les questions répondues, thèmes d'au moins 20 réponses. D'après les notes : moyenne sur 20, thèmes d'au moins 3 notes. Stagiaires en formation.",
@@ -152,6 +154,10 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui, demandes } 
   const critA = epcfSalle.A + epcfVehicule.A;
   const critTous = critA + epcfSalle.R + epcfVehicule.R + epcfSalle.NA + epcfVehicule.NA;
 
+  // --- Présence d'après les feuilles d'émargement (même calcul que la fiche résultats Qualiopi et les attestations) ---
+  const pres = presenceDesFeuilles(donnees.emargement);
+  const presMesuree = pres.etat === "mesuree";
+
   const ind = {
     effectif: indicateur("effectif", stagiaires.length, { inscrits: stagiaires.length, enFormation: nbForm, abandons, surDemande }),
     abandon: indicateur("abandon", ratio(abandons, stagiaires.length), { abandons, inscrits: stagiaires.length },
@@ -172,7 +178,12 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui, demandes } 
       n: scores.length, somme: somme(scores), mediane: mediane(scores), sous10: scores.filter((s) => s < 10).length,
     }, "mesuré", scores.length),
     epcf: indicateur("epcf", ratio(critA, critTous), { salle: epcfSalle, vehicule: epcfVehicule }, "mesuré", critTous),
-    titre: indicateur("titre", null, null, "non mesuré"),
+    titre: indicateurTitre(donnees.jury),
+    // Toutes les lignes des feuilles closes (stagiaires partis compris) : la population n'est pas celle « en formation ».
+    presence: indicateur("presence", presMesuree ? pres.taux : null, {
+      etat: pres.etat, motif: pres.motif ?? null, ouvertes: pres.ouvertes ?? 0, feuilles: pres.feuilles ?? 0,
+      effectif: pres.effectif ?? 0, prevuesMin: pres.prevuesMin ?? 0, realiseesMin: pres.realiseesMin ?? 0,
+    }, presMesuree ? "mesuré" : "non mesuré", presMesuree ? pres.effectif : null),
   };
 
   ind.themes = themesPromo(entrainements, notees, qcmParId, themeParId, themeParNum);
@@ -292,6 +303,93 @@ function stagiairesASuivre({ enFormation, parStag, entrainements, notees, aujour
 }
 
 // Textes courts du tableau de comparaison des promos.
+// --- Résultats du jury du titre professionnel (migration 20261114_jury_resultats) ---
+// Libellés des quatre résultats, dans l'ordre de la saisie.
+export const RESULTATS_JURY = [
+  ["obtenu", "Titre obtenu"],
+  ["partiel", "Validation partielle"],
+  ["non_obtenu", "Non obtenu"],
+  ["absent", "Absent au jury"],
+];
+
+// Les comptes du jury d'après ses lignes ({ etat: "lue", lignes } ou { etat: "non_lue" }, posé par lireDonneesCentre).
+// Présentés : toute ligne sauf « absent ». Une lecture en échec (ou absente) rend { etat: "non_lue" }, jamais des zéros.
+export function bilanJury(jury) {
+  if (!jury || jury.etat !== "lue" || !Array.isArray(jury.lignes)) return { etat: "non_lue" };
+  const l = jury.lignes;
+  const compte = (r) => l.filter((x) => x.resultat === r).length;
+  const sessions = l.map((x) => x.session_le).filter(Boolean).sort();
+  const obtenus = compte("obtenu");
+  const partiels = compte("partiel");
+  const nonObtenus = compte("non_obtenu");
+  const absents = compte("absent");
+  return {
+    etat: "lue", saisis: l.length, presentes: obtenus + partiels + nonObtenus, obtenus, partiels, nonObtenus, absents,
+    premiere: sessions[0] ?? null, derniere: sessions[sessions.length - 1] ?? null,
+  };
+}
+
+// Indicateur « Réussite au titre » : obtenus / présentés ; « non mesuré » sans présenté (rien de saisi, ou des absents seulement)
+// ou quand la lecture a échoué (detail.etat le dit).
+export function indicateurTitre(jury) {
+  const b = bilanJury(jury);
+  const mesure = b.etat === "lue" && b.presentes > 0;
+  return indicateur("titre", mesure ? b.obtenus / b.presentes : null, b, mesure ? "mesuré" : "non mesuré", mesure ? b.presentes : null);
+}
+
+// Les lignes du jury de plusieurs promos en une seule entrée (Vue d'ensemble de la direction) : une lecture en échec rend le tout
+// « non lu ».
+export function fusionnerJury(liste) {
+  const l = liste || [];
+  if (l.some((j) => !j || j.etat !== "lue" || !Array.isArray(j.lignes))) return { etat: "non_lue" };
+  return { etat: "lue", lignes: l.flatMap((j) => j.lignes) };
+}
+
+// La ligne d'explication de la carte « Réussite au titre ».
+export function texteTitreDetail(titre) {
+  const d = titre?.detail;
+  if (!d || d.etat !== "lue") return "Les résultats du jury n'ont pas pu être lus.";
+  if (!d.saisis) return "Aucun résultat de jury saisi.";
+  const morceaux = [`${d.obtenus} obtenu${d.obtenus > 1 ? "s" : ""} sur ${d.presentes} présenté${d.presentes > 1 ? "s" : ""}`];
+  if (d.partiels) morceaux.push(`${d.partiels} validation${d.partiels > 1 ? "s" : ""} partielle${d.partiels > 1 ? "s" : ""}`);
+  if (d.absents) morceaux.push(`${d.absents} absent${d.absents > 1 ? "s" : ""}`);
+  return morceaux.join(" · ");
+}
+
+// Le titre en quelques mots, pour une case de tableau.
+export function texteTitreCourt(titre) {
+  const d = titre?.detail;
+  if (titre?.valeur != null) return `${pct(titre.valeur)} (${d.obtenus}/${d.presentes})`;
+  if (!d || d.etat !== "lue") return "non lu";
+  return d.saisis ? "aucun présenté" : "non saisi";
+}
+
+// La présence en quelques mots, pour une case de tableau : le taux, ou pourquoi il manque. Une présence absente des
+// indicateurs (appelant qui n'a pas lu les feuilles) se dit « non lue », jamais « aucune feuille ».
+export function textePresenceCourt(presence) {
+  const d = presence?.detail;
+  if (presence?.valeur != null) return pct(presence.valeur);
+  if (!d || d.etat === "non_lue") return "non lue";
+  if (d.motif === "ouvertes") return "feuilles encore ouvertes";
+  if (d.motif === "sans_ligne") return "aucune ligne signée";
+  return "émargement non utilisé";
+}
+
+// La ligne d'explication de la carte « Taux de présence » : les heures et l'effectif, ou la raison de l'absence de mesure
+// (mêmes phrases que le dossier Qualiopi, RAISONS_ABSENCE).
+export function textePresenceDetail(presence) {
+  const d = presence?.detail;
+  if (presence?.valeur != null && d) {
+    return `${libelleDuree(d.realiseesMin)} réalisées sur ${libelleDuree(d.prevuesMin)} prévues · `
+      + `${d.feuilles} feuille${d.feuilles > 1 ? "s" : ""} close${d.feuilles > 1 ? "s" : ""} · `
+      + `${d.effectif} stagiaire${d.effectif > 1 ? "s" : ""}`
+      + (d.ouvertes ? ` · ${d.ouvertes} encore ouverte${d.ouvertes > 1 ? "s" : ""}, non comptée${d.ouvertes > 1 ? "s" : ""}` : "");
+  }
+  if (!d || d.etat === "non_lue") return "Les feuilles d'émargement n'ont pas pu être lues.";
+  const raison = RAISONS_ABSENCE[d.motif] ?? RAISONS_ABSENCE.aucune;
+  return raison.charAt(0).toUpperCase() + raison.slice(1) + ".";
+}
+
 export function ligneComparaison(ind) {
   const rien = "aucune donnée";
   const e = ind.effectif.valeur;
@@ -306,5 +404,7 @@ export function ligneComparaison(ind) {
     examensQcm: ind.examensQcm.valeur == null ? rien : `${pct(ind.examensQcm.valeur)} (${ex.reussis}/${ex.passes})`,
     notes: ind.notes.valeur == null ? rien : `${fr1(ind.notes.valeur)}/20`,
     epcf: ind.epcf.valeur == null ? rien : `${pct(ind.epcf.valeur)} acquis`,
+    presence: textePresenceCourt(ind.presence),
+    titre: texteTitreCourt(ind.titre),
   };
 }

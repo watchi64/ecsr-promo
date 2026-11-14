@@ -4,10 +4,13 @@
 // (impression du navigateur) et CSV de la matrice des notes. Les calculs vivent dans
 // js/centre-stats.js et js/centre-csv.js (purs, testés) : ici, seulement l'affichage.
 
-import { lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande, getMesPromos, getPromoCourante } from "../db.js?v=20261114d";
+import {
+  lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande, getMesPromos, getPromoCourante, enregistrerResultatsJury,
+} from "../db.js?v=20261114d";
 import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261114d";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261114d";
-import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261114d";
+import { fondateurHorsApercu, isAdmin } from "../auth-admin.js?v=20261114d";
+import { indicateursPromo, ligneComparaison, textePresenceDetail, texteTitreDetail, METHODES } from "../centre-stats.js?v=20261114d";
+import { CHOIX_JURY, valeurDeLigne, changementsJury, dateProposee } from "../jury-rules.js?v=20261114d";
 import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261114d";
 import { entier, fr1, pct, pluriel } from "../nombres.js?v=20261114d";
 import { ouvrirModale } from "../nav-fenetre.js?v=20261114d";
@@ -23,11 +26,13 @@ const LIBELLES_COMPARAISON = [
   ["examensQcm", "Examens QCM réussis"],
   ["notes", "Moyenne des notes"],
   ["epcf", "Critères EPCF acquis"],
+  ["presence", "Taux de présence"],
+  ["titre", "Réussite au titre"],
 ];
 
 const LIBELLES_METHODES = [
   ["effectif", "Effectif"], ["abandon", "Taux d'abandon"], ["valeurAbandons", "Valeur des parcours interrompus"],
-  ["absences", "Absences aux passages prévus"], ["passages", "Passages réalisés"],
+  ["presence", "Taux de présence"], ["absences", "Absences aux passages prévus"], ["passages", "Passages réalisés"],
   ["activiteQcm", "Activité QCM"], ["reussiteQcm", "Réussite aux QCM d'entraînement"],
   ["examensQcm", "Examens QCM"], ["notes", "Notes"], ["epcf", "Évaluations EPCF"], ["titre", "Réussite au titre"],
   ["themes", "Thèmes les moins réussis"], ["aSuivre", "À suivre de près"],
@@ -66,6 +71,9 @@ export function cartesCles(ind) {
       valeur: pluriel(ef.inscrits, "inscrit"),
       detail: `${pluriel(ef.enFormation, "en formation", "en formation")} · ${pluriel(ef.abandons, "abandon")}`
         + (ef.surDemande ? ` · ${pluriel(ef.surDemande, "effacée à la demande", "effacées à la demande")}` : "") }),
+    carte({ cle: "presence", titre: "Taux de présence", nature: ind.presence.nature,
+      valeur: ind.presence.valeur == null ? (ind.presence.detail?.etat === "non_lue" ? "Non lu" : "Non mesuré") : pct(ind.presence.valeur),
+      detail: textePresenceDetail(ind.presence) }),
     carte({ cle: "abandon", titre: "Taux d'abandon", nature: "mesuré",
       valeur: ab.valeur == null ? null : pct(ab.valeur),
       detail: ab.valeur == null ? null : `${pluriel(ab.detail.abandons, "abandon")} sur ${pluriel(ab.detail.inscrits, "inscrit")}` }),
@@ -83,7 +91,23 @@ export function cartesCles(ind) {
   ];
 }
 
-export function cartesResultats(ind) {
+// Carte « Réussite au titre » : le taux d'obtention du titre d'après les résultats du jury ; `saisir` (page de la promo, compte
+// qui écrit les notes) ajoute le bouton qui ouvre la saisie. `portee` : une phrase de plus sous le détail (Vue d'ensemble).
+export function carteTitre(ind, { saisir = null, portee = null } = {}) {
+  const t = ind.titre;
+  const lu = t.detail?.etat === "lue";
+  const article = carte({ cle: "titre", titre: "Réussite au titre", nature: t.nature,
+    valeur: t.valeur != null ? pct(t.valeur) : lu ? "Non mesuré" : "Non lu",
+    detail: texteTitreDetail(t) + (portee ? " · " + portee : "") });
+  if (saisir) {
+    const methodeEl = article.querySelector(".centre-methode");
+    article.insertBefore(el("button", { class: "btn small centre-jury-saisir", type: "button", onClick: saisir },
+      t.detail?.saisis ? "Modifier les résultats du jury" : "Saisir les résultats du jury"), methodeEl);
+  }
+  return article;
+}
+
+export function cartesResultats(ind, { saisirJury = null, porteeJury = null, indTitre = null } = {}) {
   const aq = ind.activiteQcm.detail;
   const rq = ind.reussiteQcm.detail;
   const ex = ind.examensQcm.detail;
@@ -112,8 +136,7 @@ export function cartesResultats(ind) {
     carte({ cle: "epcf", titre: "Évaluations EPCF", nature: "mesuré",
       valeur: ind.epcf.valeur == null ? null : `${pct(ind.epcf.valeur)} acquis`,
       detail: ind.epcf.valeur == null ? null : `${grille("Salle", ep.salle)} · ${grille("Véhicule", ep.vehicule)}` }),
-    carte({ cle: "titre", titre: "Réussite au titre", nature: "non mesuré",
-      valeur: "Non mesuré", detail: "Résultats de jury non saisis dans l'app" }),
+    carteTitre(indTitre || ind, { saisir: saisirJury, portee: porteeJury }),
   ];
 }
 
@@ -263,6 +286,89 @@ function ouvrirExportCsv(promo, donnees) {
       el("button", { class: "btn primary", type: "button", onClick: valider }, "Télécharger"))));
 }
 
+// --- Saisie des résultats du jury (compte qui écrit les notes) ---
+// Une liste par stagiaire de la promo (en formation, puis abandons ; fiches effacées exclues) ; la date de la session s'applique
+// aux résultats modifiés et aux lignes cochées « repassé à cette session ». « Non saisi » retire un résultat. `apres` : relire
+// la page. Ouverte seulement quand les résultats ont été lus (sinon chaque liste dirait « Non saisi » à tort).
+function ouvrirSaisieJury(promo, donnees, apres) {
+  let modale = null;
+  const aujourdhui = isoDate(new Date());
+  const lignes = donnees.jury?.etat === "lue" ? donnees.jury.lignes : [];
+  const anciennes = new Map(lignes.map((l) => [l.stagiaire_id, l]));
+  const fiches = (donnees.stagiaires || []).filter((s) => !s.efface_le)
+    .slice().sort((a, b) => (b.actif - a.actif) || ((a.ordre ?? 0) - (b.ordre ?? 0)) || a.id - b.id);
+  const champDate = el("input", { type: "date", id: "centre-jury-date", class: "input", value: dateProposee(lignes, aujourdhui),
+    min: "2020-01-01", max: aujourdhui });
+  const listes = new Map();
+  const repasses = new Map();
+  const erreur = el("p", { class: "centre-avertissement", role: "alert", hidden: true });
+  const enregistrer = el("button", { class: "btn primary", type: "button" }, "Enregistrer");
+  const fermer = () => modale.fermer();
+  const lignesListe = fiches.map((s) => {
+    const avant = anciennes.get(s.id);
+    const id = "centre-jury-" + s.id;
+    const liste = el("select", { id, class: "input" },
+      ...CHOIX_JURY.map(([v, libelle]) => el("option", { value: v }, libelle)));
+    liste.value = valeurDeLigne(avant);
+    listes.set(s.id, liste);
+    // Un stagiaire qui repasse le jury avec le même résultat : la case garde le résultat et prend la date de la nouvelle session.
+    const repasse = avant ? el("input", { type: "checkbox", id: id + "-repasse" }) : null;
+    if (repasse) repasses.set(s.id, repasse);
+    return el("li", {},
+      el("label", { for: id, class: "centre-jury-nom" }, displayStagiaire(s), s.actif ? null : el("span", { class: "chip centre-promo" }, "abandon")),
+      liste,
+      avant ? el("span", { class: "centre-detail" }, "Session du " + formatDate(avant.session_le)) : null,
+      repasse ? el("label", { class: "centre-case centre-jury-repasse", for: id + "-repasse" }, repasse, "Repassé à cette session") : null);
+  });
+  enregistrer.addEventListener("click", async () => {
+    const choix = new Map([...listes].map(([id, liste]) => [id, { valeur: liste.value, repasse: !!repasses.get(id)?.checked }]));
+    const { ecrire, retirer, erreur: phrase } = changementsJury(anciennes, choix, champDate.value, aujourdhui);
+    if (phrase) {
+      erreur.textContent = phrase;
+      erreur.hidden = false;
+      champDate.focus();
+      return;
+    }
+    if (!ecrire.length && !retirer.length) {
+      erreur.textContent = "Aucun changement à enregistrer. Pour changer seulement la date d'un résultat, cochez « Repassé à cette session ».";
+      erreur.hidden = false;
+      return;
+    }
+    enregistrer.disabled = true;
+    try {
+      await enregistrerResultatsJury({ ecrire, retirer });
+      toast("Résultats du jury enregistrés", "success");
+      enregistrer.disabled = false;
+      fermer();
+      apres();
+    } catch (e) {
+      console.error(e);
+      // L'écriture et le retrait sont deux requêtes : la première a pu passer. La fenêtre se ferme et la page est relue, pour que
+      // l'écran redise ce que la base contient vraiment ; le formateur reprend sa saisie sur des valeurs justes.
+      const refus = e?.code === "42501";
+      toast(refus ? "Votre compte ne peut pas saisir les résultats du jury de cette promo."
+        : "L'enregistrement n'a pas abouti entièrement. La page a été relue : vérifiez les résultats et reprenez la saisie.", "error", 6000);
+      enregistrer.disabled = false;
+      fermer();
+      apres();
+    }
+  });
+  modale = ouvrirModale(el("div", { class: "modal centre-modal centre-jury" },
+    el("h3", {}, "Résultats du jury du titre"),
+    el("p", {}, "Un résultat par stagiaire : son dernier passage devant le jury. Le taux d'obtention compte les titres obtenus sur les "
+      + "stagiaires présentés, absents exclus. Les stagiaires ne voient pas cette saisie."),
+    el("label", { for: "centre-jury-date", class: "centre-jury-date" }, "Date de la session", champDate),
+    el("p", { class: "centre-detail" }, "La date s'applique aux résultats que vous modifiez, et à ceux que vous cochez « Repassé à cette session »."),
+    fiches.length
+      ? el("ul", { class: "centre-jury-liste" }, ...lignesListe)
+      : el("p", { class: "muted" }, "Aucun stagiaire dans cette promo."),
+    erreur,
+    el("div", { class: "modal-actions" },
+      el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"),
+      enregistrer)),
+  { fermerAuVoile: false, focus: champDate, avantFermeture: () => !enregistrer.disabled });
+}
+
 // --- Page ---
 export async function renderCentre(container) {
   const jeton = ++rendu;
@@ -319,7 +425,12 @@ export async function renderCentre(container) {
     el("div", { class: "centre-grille" }, ...cartesCles(ind))));
   racine.appendChild(el("section", { class: "centre-section" },
     el("h3", {}, "Résultats"),
-    el("div", { class: "centre-grille" }, ...cartesResultats(ind))));
+    el("div", { class: "centre-grille" }, ...cartesResultats(ind, {
+      // Saisir le jury : qui écrit les notes (la base vérifie le même droit, geste notes.saisir), sur une promo affichée.
+      // Résultats non lus : pas de saisie (chaque liste dirait « Non saisi » et la saisie écraserait des lignes réelles).
+      saisirJury: isAdmin() && promo && donnees.jury?.etat === "lue"
+        ? () => ouvrirSaisieJury(promo, donnees, () => renderCentre(container)) : null,
+    }))));
   racine.appendChild(sectionThemes(ind.themes));
   racine.appendChild(sectionASuivre(ind.aSuivre));
 

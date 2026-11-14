@@ -9,7 +9,7 @@
 //
 // Les chiffres viennent du tableau de bord du centre (indicateursPromo, js/centre-stats.js) et les méthodes de METHODES_PUBLIQUES
 // (même fichier), écrites pour le public. Trois mesures peuvent manquer à l'application : la présence
-// (elle vient des feuilles d'émargement closes de la promo, { etat: "non_lue" } si leur lecture échoue), l'obtention du titre (les résultats de jury ne sont pas saisis) et la satisfaction
+// (elle vient des feuilles d'émargement closes de la promo, { etat: "non_lue" } si leur lecture échoue), l'obtention du titre (résultats du jury saisis dans la page Indicateurs, obtentionDeLaFiche ; rien tant qu'aucun stagiaire n'est présenté) et la satisfaction
 // (questionnaires du lot Q3). Elles se disent en toutes lettres (« non mesuré », « non saisi », « non mesurée ») ; le jour où
 // l'une arrive, l'appelant la passe sous la forme { taux, effectif } (taux de 0 à 1, effectif : le nombre de stagiaires sur
 // lequel il porte) et la fiche l'écrit. Une mesure inutilisable vaut une mesure absente.
@@ -29,6 +29,14 @@ import { texteSousSeuilAvis } from "./questionnaires-rules.js?v=20261114d";
 // L'interface du plan : la règle « terminée » est celle des dossiers et les méthodes publiques celles du tableau de bord
 // (js/centre-stats.js, à côté de METHODES) ; ni l'une ni les autres ne sont réécrites ici, seulement réexportées.
 export { promoTerminee, METHODES_PUBLIQUES };
+
+// L'obtention du titre que la fiche attend, tirée de l'indicateur « titre » du tableau de bord (résultats du jury saisis) :
+// { taux, effectif } quand il est mesuré (effectif : les présentés), { etat: "non_lue" } quand la lecture a échoué, rien sinon.
+export function obtentionDeLaFiche(titre) {
+  if (titre?.valeur != null) return { taux: titre.valeur, effectif: titre.n };
+  if (titre?.detail?.etat !== "lue") return { etat: "non_lue" };
+  return null;
+}
 
 export const AVERTISSEMENT_PROVISOIRE = "Résultats provisoires : la formation n'est pas terminée. Ne pas publier.";
 export const AUCUNE_FORMATION = "Aucune formation de ce centre dans la période.";

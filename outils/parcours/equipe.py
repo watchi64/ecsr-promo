@@ -35,6 +35,34 @@ def indicateurs(v):
     v.terminer()
 
 
+FENETRE_JURY = ".confirmer-fond, .modal-backdrop"
+
+
+@parcours("saisir-resultats-jury", "Saisir les résultats du jury du titre (Indicateurs)", role="formateur",
+          budget={"ordinateur": 3, "telephone": 4}, banc={"centre": "1", "demo": "1", "ecritures": "1"})
+def saisir_resultats_jury(v):
+    """Ouvrir Indicateurs, saisir « Titre obtenu » pour le premier stagiaire et enregistrer : la carte « Réussite au titre »
+    donne alors 100 %, 1 obtenu sur 1 présenté."""
+    v.aller("Indicateurs")
+    carte = '#view .centre-carte:has(h4:text-is("Réussite au titre"))'
+    v.attendre(carte, "la carte « Réussite au titre »")
+    v.toucher(carte + ' button:text-is("Saisir les résultats du jury")', "« Saisir les résultats du jury »")
+    fenetre = ".modal.centre-jury"
+    v.attendre(fenetre + ' h3:text-is("Résultats du jury du titre")', "la fenêtre de saisie, dans une fenêtre de l'app")
+    v.etape("choisir le résultat du premier stagiaire")
+    v.page.locator(fenetre + " .centre-jury-liste select").first.select_option("obtenu")
+    v.ecouter_messages()
+    v.toucher(fenetre + ' button:text-is("Enregistrer")', "« Enregistrer »", ecriture=True)
+    v.exiger_confirmation("l'enregistrement des résultats du jury", "Résultats du jury enregistrés")
+    try:
+        v.page.locator(fenetre).wait_for(state="hidden", timeout=3000)
+    except DelaiDepasse:
+        v.constat("D", BLOQUE, "la fenêtre de saisie reste ouverte après l'enregistrement", capture=True)
+    v.attendre(carte + ' :text("1 obtenu sur 1 présenté")', "le taux recalculé sur la carte")
+    v.but("résultat du jury enregistré, taux affiché")
+    v.terminer()
+
+
 @parcours("reglages-de-la-promo", "Ouvrir les réglages de la promo (modules)", role="formateur", budget=UN_CLIC)
 def reglages(v):
     """Ouvrir Réglages : la section des modules ouverts aux stagiaires est là, sans mot d'informaticien."""
