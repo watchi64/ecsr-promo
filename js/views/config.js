@@ -18,7 +18,7 @@ import {
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261114f";
 import { confirmer } from "../confirmer.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
-import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic, enVitrine } from "../auth-admin.js?v=20261114f";
+import { isAdmin, isEquipe, isFounder, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic, enVitrine } from "../auth-admin.js?v=20261114f";
 import { moduleVisible } from "../modules-etat.js?v=20261114f";
 import { renderModulesSection } from "./modules-reglage.js?v=20261114f";
 import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261114f";
@@ -159,13 +159,10 @@ async function renderAccessSection(rerender) {
           const pr = profs.find((x) => x.id === p.prof_id);
           if (pr) who = pr.nom;
         }
-        // Un compte « admin » est un formateur, et le droit d'inviter et de modifier se dit
-        // « gestion » (court : la colonne de la pastille fait 80 px), avec le détail en infobulle.
+        // Les pastilles disent le rôle (pastillesDuProfil). La colonne is_admin n'ouvre plus aucun droit en base (titres, M5) : la
+        // pastille « gestion » qu'elle allumait n'est plus montrée ; le titre de chacun viendra de personnes_et_titres.
         const pills = el("div", { class: "role-pills" },
           ...pastilles.map((x) => el("span", { class: "role-pill role-" + x.classe }, x.libelle)),
-          (p.is_admin && p.role !== "admin")
-            ? el("span", { class: "role-pill role-admin", title: "Peut inviter et modifier" }, "gestion")
-            : null,
         );
         const item = el("li", { class: "admin-item" },
           pills,
@@ -224,9 +221,9 @@ function renderMyPreferencesSection(rerender) {
     + "(elles restent comptées dans les moyennes du groupe). En échange, tu ne vois plus leurs notes : "
     + "seulement ta ligne, la moyenne du groupe, la moyenne haute et la moyenne basse. "
     + "Les formateurs et la direction du centre continuent de tout voir (besoin d'évaluation)."));
-  // Les profils admin / fondateur n'ont pas de verrou (besoin de tester et de
-  // démontrer) : la RPC les laisse passer, l'UI n'affiche donc pas la règle.
-  const noLock = !!(profile.is_admin || profile.is_founder);
+  // Le fondateur et qui écrit comme un formateur sur la promo affichée (droits calculés, plus la colonne is_admin : titres, M5)
+  // n'ont pas de verrou (besoin de tester et de démontrer) : l'UI n'affiche donc pas la règle.
+  const noLock = isFounder() || isAdmin();
   block.appendChild(el("p", { class: "muted" },
     noLock
       ? "Réglage modifiable librement, sans verrou."
