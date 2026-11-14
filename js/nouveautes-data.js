@@ -23,6 +23,19 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // Petits restes du 14/11 (relevés du robot) : cibles de 44 px au téléphone dans Cours et QCM, lignes de thème lisibles au
+  // toucher, nom de promo long sur deux lignes. Pour tous : neutre.
+  {
+    id: "2026-11-14-cours-qcm-plus-faciles-a-toucher",
+    date: "2026-11-14",
+    pour: "tous",
+    titre: "Cours et QCM plus faciles à toucher sur téléphone",
+    resume: "Sur téléphone, le titre de chaque thème, les boutons d'un QCM (Valider, Précédent, Suivant, Terminer) et les numéros "
+          + "des questions sont plus grands : le doigt tombe juste du premier coup. Une ligne de thème colorée reste lisible quand "
+          + "on la touche. Sur ordinateur, un nom de promo long s'écrit en entier en haut de l'écran, sur deux lignes.",
+    ou: { route: "themes", label: "Cours et QCM" },
+    module: "qcm",
+  },
   // Résultats du jury du titre (14/11, décisions de Timy : saisie par stagiaire, par qui saisit les notes, taux = obtenus sur
   // présentés). Pour les formateurs, au vouvoiement ; la direction a sa propre entrée (lecture seule, cumul du centre).
   {
@@ -50,19 +63,6 @@ export const NOUVEAUTES = [
           + "obtenus sur les stagiaires présentés au jury, absents exclus, pour toutes les promos dont les formateurs ont saisi les "
           + "résultats. La comparaison des promos le donne promo par promo, et l'export du tableau du centre l'ajoute en colonne.",
     ou: { route: "centre", label: "Vue d'ensemble" },
-  },
-  // Petits restes du 14/11 (relevés du robot) : cibles de 44 px au téléphone dans Cours et QCM, lignes de thème lisibles au
-  // toucher, nom de promo long sur deux lignes. Pour tous : neutre.
-  {
-    id: "2026-11-14-cours-qcm-plus-faciles-a-toucher",
-    date: "2026-11-14",
-    pour: "tous",
-    titre: "Cours et QCM plus faciles à toucher sur téléphone",
-    resume: "Sur téléphone, le titre de chaque thème, les boutons d'un QCM (Valider, Précédent, Suivant, Terminer) et les numéros "
-          + "des questions sont plus grands : le doigt tombe juste du premier coup. Une ligne de thème colorée reste lisible quand "
-          + "on la touche. Sur ordinateur, un nom de promo long s'écrit en entier en haut de l'écran, sur deux lignes.",
-    ou: { route: "themes", label: "Cours et QCM" },
-    module: "qcm",
   },
   // Carte « Aujourd'hui » de l'Accueil refondue (piste C, choisie par Timy le 11/11 sur maquettes) : ton rôle dit en une phrase,
   // seulement tes activités. Pour les stagiaires, au tutoiement.
