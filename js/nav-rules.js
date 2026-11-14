@@ -4,6 +4,7 @@
 // anciennes adresses, les initiales, le prénom et le nom du bouton du compte, la ligne « page à soi »
 // du menu du compte. Module pur, sans DOM ni stockage : testé en node.
 import { LIBELLES_ESPACE } from "./espaces-rules.js?v=20261114f";
+import { PAGES_DU_NIVEAU, NIVEAU_DE_L_ESPACE, caseDe } from "./titres-rules.js?v=20261114f";
 
 // Clé de mémoire du sous-onglet ouvert, par page à sous-onglets (le `storageKey` de
 // renderSubTabs). Une redirection l'écrit pour ouvrir le bon sous-onglet ; le bouton « Élèves bénévoles »
@@ -123,25 +124,37 @@ export function entreeMasquee(route, routeMasquee) {
   return !routeVisibleV2(route, (r) => !routeMasquee(r));
 }
 
+// Titres (étape 3) : retire d'une liste d'entrées celles dont la page est à « Non » chez la personne. `cases` : { page: 0|1|2 }
+// de l'espace (casesAffichees), ou nul : rien ne bouge (titre fixe, fondateur hors aperçu, lecture ratée). Seule une entrée dont la
+// route est une page à case DU NIVEAU de l'espace est jugée : l'accueil, `messages` et `contacts` passent toujours (dans la direction,
+// la route « centre » est l'accueil, pas la page Indicateurs de la promo).
+export function selonLesCases(entrees, espace, cases) {
+  const niveau = NIVEAU_DE_L_ESPACE[espace];
+  if (!cases || !niveau) return entrees;
+  const pageDeLaRoute = new Map(PAGES_DU_NIVEAU[niveau].map((p) => [p.route, p.page]));
+  return entrees.filter((e) => !pageDeLaRoute.has(e.route) || caseDe(cases, pageDeLaRoute.get(e.route), niveau) >= 1);
+}
+
 // Entrées de l'espace, dans l'ordre d'affichage, en copies que l'appelant peut modifier.
 // Stagiaire : une page à module s'affiche dès qu'elle est ouverte au sens de `routeVisibleV2`
 // (l'un de ses sous-onglets suffit), Accueil et Mon suivi restent toujours. Équipe : aucun
 // module fermé n'en retire une (la coquille la repère), et seul Émargement attend
 // `emargementActif` et `formateur` (qui tient l'émargement : la direction n'y a pas encore
-// d'accès, lot 5 ; vrai par défaut).
+// d'accès, lot 5 ; vrai par défaut). `cases` (titres, étape 3) : voir selonLesCases ; nul, la sortie d'avant les titres.
 export function entreesNavigation(espace, {
-  routeVisible, emargementActif, formateur = true, emargementDansLeCentre = false, reglagesEspace = false,
+  routeVisible, emargementActif, formateur = true, emargementDansLeCentre = false, reglagesEspace = false, cases = null,
 } = {}) {
   if (espace === "direction") {
-    return ENTREES_DIRECTION
-      .filter((e) => (e.id !== "emargement" || emargementDansLeCentre) && (e.id !== "config" || reglagesEspace))
+    return selonLesCases(ENTREES_DIRECTION
+      .filter((e) => (e.id !== "emargement" || emargementDansLeCentre) && (e.id !== "config" || reglagesEspace)), espace, cases)
       .map(copie);
   }
   if (espace === "siege") {
-    return ENTREES_SIEGE.filter((e) => e.id !== "config" || reglagesEspace).map(copie);
+    return selonLesCases(ENTREES_SIEGE.filter((e) => e.id !== "config" || reglagesEspace), espace, cases).map(copie);
   }
   if (espace === "equipe") {
-    return ENTREES_EQUIPE.filter((e) => e.id !== "emargement" || (emargementActif && formateur)).map(copie);
+    return selonLesCases(ENTREES_EQUIPE.filter((e) => e.id !== "emargement" || (emargementActif && formateur)), espace, cases)
+      .map(copie);
   }
   return ENTREES_STAGIAIRE
     .filter((e) => TOUJOURS_VISIBLES.includes(e.id) || routeVisibleV2(e.route, routeVisible))
@@ -149,16 +162,24 @@ export function entreesNavigation(espace, {
 }
 
 // Barre du bas du téléphone et tiroir « Plus ». Le stagiaire, 5 entrées au plus, les garde
-// toutes dans la barre ; l'équipe en garde 4 et range le reste dans `plus`.
+// toutes dans la barre ; l'équipe en garde 4 et range le reste dans `plus`. Titres (étape 3) : quand une entrée de la liste
+// fixe est absente (page à « Non »), les entrées suivantes, dans l'ordre de la barre, la remplacent jusqu'au même nombre ;
+// la barre garde l'ordre des entrées. Aucune entrée absente : la liste fixe, comme avant.
 export function barreTelephone(espace, entrees) {
   const gardees = espace === "equipe" ? BARRE_TELEPHONE_EQUIPE
     : espace === "direction" ? BARRE_TELEPHONE_DIRECTION
     : espace === "siege" ? BARRE_TELEPHONE_SIEGE
     : null;
   if (!gardees) return { barre: [...entrees], plus: [] };
+  const presentes = new Set(entrees.map((e) => e.id));
+  const choisies = new Set(gardees.filter((id) => presentes.has(id)));
+  for (const e of entrees) {
+    if (choisies.size >= gardees.length) break;
+    choisies.add(e.id);
+  }
   return {
-    barre: entrees.filter((e) => gardees.includes(e.id)),
-    plus: entrees.filter((e) => !gardees.includes(e.id)),
+    barre: entrees.filter((e) => choisies.has(e.id)),
+    plus: entrees.filter((e) => !choisies.has(e.id)),
   };
 }
 

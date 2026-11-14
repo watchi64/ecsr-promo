@@ -10,10 +10,10 @@ import {
 } from "./db.js?v=20261114f";
 import { toast, annoncer, el } from "./utils.js?v=20261114f";
 import {
-  initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail,
+  initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, monStagiaireId, getAdminEmail,
   getProfile, getProfileWho, fondateurHorsApercu, getProfileNom, selonPublic,
 } from "./auth-admin.js?v=20261114f";
-import { getEspace, getCentre, seDeconnecter } from "./auth-admin.js?v=20261114f";
+import { getEspace, getCentre, seDeconnecter, casesAffichees, peutModifier } from "./auth-admin.js?v=20261114f";
 import {
   ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage, promosDuCentre, defautsHabillage,
 } from "./espaces-rules.js?v=20261114f";
@@ -93,8 +93,10 @@ function renderTabs() {
       // Lot 5 : Émargement du centre s'allume quand une promo du centre a l'interrupteur (emargementDansLeCentre, lu au
       // démarrage) ; Réglages du centre et Réglages du réseau ont leur page (js/views/reglages-habillage.js) : leur entrée est là.
       entrees: entreesNavigation(espace, {
-        routeVisible, emargementActif: emargementActif(), formateur: isAdmin(), emargementDansLeCentre: emargementDansLeCentre(),
-        reglagesEspace: espaceDePilotage(espace),
+        routeVisible, emargementActif: emargementActif(), formateur: peutModifier("emargement"),
+        emargementDansLeCentre: emargementDansLeCentre(), reglagesEspace: espaceDePilotage(espace),
+        // Titres (étape 3) : une page à « Non » n'a pas d'entrée ; cases nul (titre fixe, fondateur, lecture ratée), la barre d'avant.
+        cases: casesAffichees(),
       }),
       nom,
       initiales: initialesDe(nom),
