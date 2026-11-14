@@ -751,22 +751,29 @@ as $fn$
 $fn$;
 
 -- Le rôle sur une demande d'un stagiaire s ou d'une fiche f, dans cet ordre : auteur, principal, annexe_formateur, delegue, direction
--- (direction réelle du centre de la demande, celui de sa création) ; nul sinon.
+-- (direction réelle du centre de la demande, celui de sa création) ; nul sinon. Les rôles de l'équipe se rejugent à chaque appel (R-T8a) :
+-- la fiche doit être encore dans le centre de la demande ; l'auteur d'une conversation ouverte avec un stagiaire doit encore lire les
+-- stagiaires de la promo de création (geste_promo, stagiaires.lire). Un destinataire principal répond aux demandes reçues tant qu'il est
+-- dans le centre.
 create function public._contact_role(p_demande bigint, s integer, f bigint)
 returns text language sql stable security definer set search_path = public, pg_temp
 as $fn$
   select case
-           when (s is not null and d.auteur_stagiaire_id = s) or (f is not null and d.auteur_fiche_id = f) then 'auteur'
+           when (s is not null and d.auteur_stagiaire_id = s)
+             or (k.f_ici and d.auteur_fiche_id = f
+                 and (not exists (select 1 from demande_destinataires x where x.demande_id = d.id and x.stagiaire_id is not null)
+                      or coalesce(geste_promo(d.promo_id, 'stagiaires.lire'), false))) then 'auteur'
            when exists (select 1 from demande_destinataires x
                          where x.demande_id = d.id and x.principal
-                           and ((s is not null and x.stagiaire_id = s) or (f is not null and x.fiche_id = f))) then 'principal'
-           when f is not null and exists (select 1 from demande_destinataires x
-                                           where x.demande_id = d.id and x.annexe = 'formateur_du_jour' and x.fiche_id = f) then 'annexe_formateur'
+                           and ((s is not null and x.stagiaire_id = s) or (k.f_ici and x.fiche_id = f))) then 'principal'
+           when k.f_ici and exists (select 1 from demande_destinataires x
+                                     where x.demande_id = d.id and x.annexe = 'formateur_du_jour' and x.fiche_id = f) then 'annexe_formateur'
            when s is not null and exists (select 1 from demande_destinataires x
                                            where x.demande_id = d.id and x.annexe = 'delegue' and x.stagiaire_id = s) then 'delegue'
            when _contact_direction_reelle(d.lieu_id) then 'direction'
          end
     from demandes d
+   cross join lateral (select f is not null and exists (select 1 from contacts c where c.id = f and _contact_fiche_dans(c, d.lieu_id)) as f_ici) k
    where d.id = p_demande;
 $fn$;
 
@@ -945,6 +952,12 @@ declare
   v_cible record;
 begin
   select * into d from demandes where id = p_demande for update;
+  if d.id is null then
+    raise exception 'contact: Demande introuvable.' using errcode = '42501';
+  end if;
+  if d.etat = 'annulee' then
+    raise exception 'contact: Cette demande est annulée.';
+  end if;
   insert into demande_messages (demande_id, auteur_email, auteur_nom, texte, reponse_id, par_lien, cree_le)
     values (p_demande, lower(p_email), coalesce(nullif(btrim(p_nom), ''), 'Sans nom'), p_texte, p_reponse_id, coalesce(p_par_lien, false),
             v_maintenant)
@@ -981,12 +994,14 @@ as $fn$
 declare
   s integer := _contact_stagiaire();
   f bigint := _contact_ma_fiche();
-  v_role text := _contact_role(p_id, s, f);
+  v_role text;
   v_peut jsonb;
   v_texte text;
   v_lieu integer;
   v_nom text;
 begin
+  perform 1 from demandes d where d.id = p_id for update;
+  v_role := _contact_role(p_id, s, f);
   if v_role is null or v_role = 'delegue' then
     raise exception 'contact: Demande introuvable.' using errcode = '42501';
   end if;
@@ -1024,10 +1039,12 @@ as $fn$
 declare
   s integer := _contact_stagiaire();
   f bigint := _contact_ma_fiche();
-  v_role text := _contact_role(p_id, s, f);
+  v_role text;
   v_etat text;
   v_lieu integer;
 begin
+  perform 1 from demandes d where d.id = p_id for update;
+  v_role := _contact_role(p_id, s, f);
   if v_role is null or v_role = 'delegue' then
     raise exception 'contact: Demande introuvable.' using errcode = '42501';
   end if;
@@ -1052,10 +1069,12 @@ as $fn$
 declare
   s integer := _contact_stagiaire();
   f bigint := _contact_ma_fiche();
-  v_role text := _contact_role(p_id, s, f);
+  v_role text;
   v_maintenant timestamptz := _contact_maintenant();
   x record;
 begin
+  perform 1 from demandes d where d.id = p_id for update;
+  v_role := _contact_role(p_id, s, f);
   if v_role is null or v_role = 'delegue' then
     raise exception 'contact: Demande introuvable.' using errcode = '42501';
   end if;
@@ -1070,6 +1089,9 @@ begin
          annulee_par = coalesce(case when s is not null then _contact_nom_stagiaire(s)
                                      else (select _contact_nom_fiche(c, d.lieu_id) from contacts c where c.id = f) end, 'Sans nom')
    where d.id = p_id and d.etat = 'envoyee';
+  if not found then
+    raise exception 'contact: Cette demande ne peut plus être annulée.';
+  end if;
   for x in select y.fiche_id, y.stagiaire_id from demande_destinataires y
             where y.demande_id = p_id and y.principal and num_nonnulls(y.fiche_id, y.stagiaire_id) = 1 order by y.id loop
     perform _contact_envoyer(p_id, x.fiche_id, x.stagiaire_id, 'annulation');
@@ -1086,7 +1108,7 @@ declare
   e contact_envois%rowtype;
   v_role text;
 begin
-  select * into e from contact_envois x where x.id = p_envoi_id;
+  select * into e from contact_envois x where x.id = p_envoi_id for update;
   if e.id is not null then
     v_role := _contact_role(e.demande_id, s, f);
   end if;
@@ -1096,7 +1118,11 @@ begin
   if e.etat <> 'echec' then
     raise exception 'contact: Cet envoi n''est pas en échec.';
   end if;
-  update contact_envois set etat = 'a_envoyer', raison = null, tentatives = 0, prochain_essai_le = null where id = p_envoi_id;
+  update contact_envois set etat = 'a_envoyer', raison = null, tentatives = 0, prochain_essai_le = null
+   where id = p_envoi_id and etat = 'echec';
+  if not found then
+    raise exception 'contact: Cet envoi n''est pas en échec.';
+  end if;
 end $fn$;
 
 -- Couper ou rallumer ses alertes par e-mail (toutes les lignes de profil de l'adresse du jeton). Rend la valeur enregistrée.

@@ -764,7 +764,104 @@ begin
       pg_temp.appeler('dir_n', '1', format('select public.relancer_envoi(%s)::text', v_m))),
     concat_ws(' / ', 'ERREUR 42501 contact: Envoi introuvable.', 'ERREUR 42501 contact: Envoi introuvable.', 'OK', 'a_envoyer|aucune|0',
       'ERREUR P0001 contact: Cet envoi n''est pas en échec.'));
+  -- R-T9a : un geste refusé ne laisse aucune ligne d'envoi (annuler une demande prise, relancer un envoi qui n'est pas en échec).
+  v_m := pg_temp.dernier_envoi();
+  perform pg_temp.attendre('etats', 'R-T9a : annuler d1 (prise) puis relancer un envoi à envoyer : refusés, aucun envoi créé, l''envoi inchangé',
+    concat_ws(' / ', pg_temp.appeler('stag_n', '1', format('select public.annuler_demande(%s)::text', d1)),
+      pg_temp.appeler('dir_n', '1', format('select public.relancer_envoi(%s)::text', pg_temp.calcul(format('select min(id)::text from public.contact_envois where demande_id = %s', pg_temp.dem('d4'))))),
+      pg_temp.calcul(format('select count(*)::text from public.contact_envois where id > %s', v_m)),
+      pg_temp.calcul(format('select concat_ws(''|'', etat, tentatives) from public.contact_envois where id = (select min(id) from public.contact_envois where demande_id = %s)', pg_temp.dem('d4')))),
+    'ERREUR P0001 contact: Cette demande ne peut plus être annulée. / ERREUR P0001 contact: Cet envoi n''est pas en échec. / 0 / a_envoyer|0');
+
+  -- R-T8a (relecture de la tâche 9, I1) : les rôles de l'équipe se rejugent. d5 : stag_n écrit à form_n ; d6 : form_n écrit à stag_n.
+  perform pg_temp.groupe_etats_deplace();
 end $cd_ge$;
+
+-- Suite du groupe etats : form_n muté à Montpellier, puis form_n sans la case Stagiaires de la promo 1 (chacun dans une sous-transaction
+-- annulée) ; avant, il liste, lit, répond, prend en compte et relance (sous-transaction annulée aussi).
+create or replace function pg_temp.groupe_etats_deplace()
+returns void language plpgsql as $cd_gd$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  f_form_n text := pg_temp.fiche('form_n');
+  s_n text := pg_temp.stag('stag_n');
+  e_form_n text := pg_temp.email_de('form_n');
+  d5 text;
+  d6 text;
+  v_envoi text;
+  v_titre text;
+  c_liste constant text := $cd_q$select coalesce(string_agg(case l.id when %1$s then 'd5' when %2$s then 'd6' end || ':' || l.mon_role, ',' order by l.id), '')
+    from public.liste_demandes() l where l.id in (%1$s, %2$s)$cd_q$;
+  r_avant text;
+  r_mute text;
+  r_case text;
+  r_case2 text;
+  v_avant text;
+begin
+  d5 := pg_temp.id_rendu(pg_temp.appeler('stag_n', '1', format('select public.ecrire_a(%s, %L, %L, %L)::text', f_form_n, 'autre', 'Preuve9 déplacé', 'Motif')));
+  d6 := pg_temp.id_rendu(pg_temp.appeler('form_n', '1', format('select public.ecrire_au_stagiaire(%s, %L, null)::text', s_n, 'Preuve9 ouverte')));
+  v_envoi := pg_temp.calcul(format('select min(id)::text from public.contact_envois where demande_id = %s', d5));
+  perform pg_temp.essai(format($cd_q$update public.contact_envois set etat = 'echec' where id = %s$cd_q$, v_envoi));
+  v_avant := pg_temp.calcul($cd_q$select concat_ws('/', (select count(*) from public.demande_messages), (select count(*) from public.contact_envois),
+    (select count(*) from public.demandes where etat = 'prise'))$cd_q$);
+  -- Avant : tout lui est permis.
+  begin
+    r_avant := concat_ws(' / ', pg_temp.appeler('form_n', '1', format(c_liste, d5, d6)),
+      regexp_replace(pg_temp.appeler('form_n', '1', format($cd_q$select public.demande_detail(%s) -> 'demande' ->> 'texte'$cd_q$, d5)), '[0-9]+', 'n'),
+      regexp_replace(pg_temp.appeler('form_n', '1', format('select public.repondre_demande(%s, %L)::text', d5, 'Preuve')), '[0-9]+', 'n'),
+      pg_temp.appeler('form_n', '1', format('select public.prendre_en_compte(%s)::text', d5)),
+      pg_temp.appeler('form_n', '1', format('select public.relancer_envoi(%s)::text', v_envoi)),
+      regexp_replace(pg_temp.appeler('form_n', '1', format('select public.repondre_demande(%s, %L)::text', d6, 'Preuve')), '[0-9]+', 'n'));
+    raise exception using errcode = 'P0001', message = 'ANNULE';
+  exception when others then
+    perform pg_temp.proprio();
+    if sqlerrm <> 'ANNULE' then r_avant := 'pose impossible : ' || sqlstate || ' ' || sqlerrm; end if;
+  end;
+  perform pg_temp.attendre('etats', 'R-T8a : avant tout déplacement, form_n liste d5 et d6, lit le motif, répond, prend en compte, relance',
+    r_avant, 'OK d5:principal,d6:auteur / OK Motif / OK n / OK / OK / OK n');
+  -- Muté : une affectation de formateur à Montpellier (promo 2), puis celle de la promo 1 retirée (sa fiche reste, hors de Nîmes).
+  begin
+    insert into public.affectations (email, role, promo_id) values (e_form_n, 'formateur', 2);
+    delete from public.affectations where lower(email) = lower(e_form_n) and promo_id = 1;
+    r_mute := concat_ws(' / ', pg_temp.calcul(format('select count(*)::text from public.contacts c where c.id = %s and not public._contact_fiche_dans(c, %s)', f_form_n, v_l1)),
+      pg_temp.appeler('form_n', '2', format(c_liste, d5, d6)),
+      pg_temp.appeler('form_n', '2', format('select public.demande_detail(%s)::text', d5)),
+      pg_temp.appeler('form_n', '2', format('select public.repondre_demande(%s, %L)::text', d5, 'Preuve')),
+      pg_temp.appeler('form_n', '2', format('select public.prendre_en_compte(%s)::text', d5)),
+      pg_temp.appeler('form_n', '2', format('select public.relancer_envoi(%s)::text', v_envoi)),
+      pg_temp.appeler('form_n', '2', format('select public.demande_detail(%s)::text', d6)),
+      pg_temp.appeler('form_n', '2', format('select public.repondre_demande(%s, %L)::text', d6, 'Preuve')));
+    raise exception using errcode = 'P0001', message = 'ANNULE';
+  exception when others then
+    perform pg_temp.proprio();
+    if sqlerrm <> 'ANNULE' then r_mute := 'pose impossible : ' || sqlstate || ' ' || sqlerrm; end if;
+  end;
+  perform pg_temp.attendre('etats', 'R-T8a : form_n muté à Montpellier : plus rien sur d5 ni d6 (liste vide ; détail, réponse, prise, relance refusés)',
+    r_mute, concat_ws(' / ', '1', 'OK', 'ERREUR 42501 contact: Demande introuvable.', 'ERREUR 42501 contact: Demande introuvable.',
+      'ERREUR 42501 contact: Demande introuvable.', 'ERREUR 42501 contact: Envoi introuvable.', 'ERREUR 42501 contact: Demande introuvable.',
+      'ERREUR 42501 contact: Demande introuvable.'));
+  -- Sans la case Stagiaires : son affectation de la promo 1 passe à un titre de promo qui ne l'ouvre pas ; il reste dans le centre.
+  begin
+    v_titre := pg_temp.nouveau_titre('Preuve9 sans stagiaires', 'promo', v_l1);
+    update public.titres set cases = '{"cours":"voir"}'::jsonb where id = v_titre::bigint;
+    update public.affectations set titre_id = v_titre::bigint where lower(email) = lower(e_form_n) and promo_id = 1;
+    r_case := concat_ws(' / ', pg_temp.valeur_proprio(e_form_n, '1', null, $cd_q$select public.geste_promo(1, 'stagiaires.lire')::text$cd_q$),
+      pg_temp.appeler('form_n', '1', format(c_liste, d5, d6)),
+      pg_temp.appeler('form_n', '1', format('select public.demande_detail(%s)::text', d6)),
+      pg_temp.appeler('form_n', '1', format('select public.repondre_demande(%s, %L)::text', d6, 'Preuve')));
+    r_case2 := pg_temp.appeler('form_n', '1', format($cd_q$select public.demande_detail(%s) -> 'demande' ->> 'texte'$cd_q$, d5));
+    raise exception using errcode = 'P0001', message = 'ANNULE';
+  exception when others then
+    perform pg_temp.proprio();
+    if sqlerrm <> 'ANNULE' then r_case := 'pose impossible : ' || sqlstate || ' ' || sqlerrm; end if;
+  end;
+  perform pg_temp.attendre('etats', 'R-T8a : form_n sans la case Stagiaires de la promo 1 : la conversation qu''il a ouverte (d6) lui est fermée ; la demande reçue (d5) reste lisible',
+    r_case || ' / ' || coalesce(r_case2, 'nul'),
+    'false / OK d5:principal / ERREUR 42501 contact: Demande introuvable. / ERREUR 42501 contact: Demande introuvable. / OK Motif');
+  perform pg_temp.attendre('etats', 'R-T8a : les essais annulés n''ont rien laissé (messages, envois, demandes prises)',
+    pg_temp.calcul($cd_q$select concat_ws('/', (select count(*) from public.demande_messages), (select count(*) from public.contact_envois),
+      (select count(*) from public.demandes where etat = 'prise'))$cd_q$), v_avant);
+end $cd_gd$;
 
 -- Groupe reglages : qui reçoit quoi, réponses toutes faites, alertes.
 create or replace function pg_temp.groupe_reglages()
