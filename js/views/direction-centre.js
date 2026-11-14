@@ -136,7 +136,8 @@ export async function renderVueCentre(container) {
   } }, "Exporter le tableau (CSV)");
   racine.appendChild(entete(centre, "Vue d'ensemble",
     `${pluriel(enCours.length, "promo")} en cours · édité le ${formatLongDate(aujourdhui, { sansJour: true })}`,
-    el("div", { class: "centre-actions" }, exporter)));
+    // Le CSV porte l'assiduité (Stagiaires) et la réussite (Notes) : le bouton n'est offert qu'avec les deux cases.
+    el("div", { class: "centre-actions" }, voit("stagiaires") && voit("notes") ? exporter : null)));
 
   // Réussite au titre : le jury tombe après la fin de la formation, donc le cumul porte sur TOUTES les promos du centre qui ont des
   // résultats saisis, pas sur les seules promos en cours (décision de Timy du 14/11) ; la carte est montrée même sans promo en
@@ -166,9 +167,11 @@ export async function renderVueCentre(container) {
       el("h3", {}, "Aucune promo en cours"),
       el("p", { class: "muted" }, "Les chiffres du centre portent sur ses promos en cours. Les promos terminées ou à venir sont dans la comparaison ci-dessous et dans la page Promos."),
       el("a", { class: "btn small", href: "#/promos" }, "Voir les promos")));
-    racine.appendChild(el("section", { class: "centre-section" },
-      el("h3", {}, "Réussite au titre"),
-      el("div", { class: "centre-grille" }, carteTitre(titreCentre, { portee: porteeJury }))));
+    if (voit("notes")) {
+      racine.appendChild(el("section", { class: "centre-section" },
+        el("h3", {}, "Réussite au titre"),
+        el("div", { class: "centre-grille" }, carteTitre(titreCentre, { portee: porteeJury }))));
+    }
   }
 
   if (promos.length >= 2 && voit("notes")) {

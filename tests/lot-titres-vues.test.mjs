@@ -2,8 +2,9 @@
 // Lancer : node --test tests/lot-titres-vues.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { readFileSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { execSync, execFileSync } from "node:child_process";
 import { selonLaCase, casesDeLEspace, caseDe, directionFixeSur, donneesDuCentreVisibles } from "../js/titres-rules.js";
 
 const maxPromo = { planning: 2, emargement: 2, stagiaires: 2, notes: 2, cours: 2, ccp2: 1, indicateurs: 1, reglages: 2 };
@@ -145,4 +146,68 @@ test("aucun tiret cadratin ni « prof » ajouté dans les fichiers de la tâche"
     const s = readFileSync(new URL("../" + f, import.meta.url), "utf8");
     assert.ok(!s.includes(String.fromCharCode(0x2014)), f);
   }
+});
+
+// ---- Câblage des vues (ronde 1) : les deux ReferenceError de dp.js n'étaient vues par aucun test ----
+import { readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+
+function fichiersJs(dossier, sortie = []) {
+  for (const nom of readdirSync(dossier)) {
+    const chemin = join(dossier, nom);
+    if (statSync(chemin).isDirectory()) fichiersJs(chemin, sortie); else if (nom.endsWith(".js")) sortie.push(chemin);
+  }
+  return sortie;
+}
+const sansCommentaires = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`\\])\/\/.*$/gm, "$1");
+const cheminJs = new URL("../js", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+
+test("câblage : chaque fonction de auth-admin.js appelée dans js/ est importée (ou déclarée) dans son fichier", () => {
+  const exportees = [...readFileSync(join(cheminJs, "auth-admin.js"), "utf8").matchAll(/^export (?:async )?function (\w+)/gm)].map((m) => m[1]);
+  assert.ok(exportees.includes("ecritSelonLaCase") && exportees.includes("gesteDefinitif"));
+  const manquants = [];
+  for (const f of fichiersJs(cheminJs)) {
+    if (f.endsWith("auth-admin.js")) continue;
+    const src = sansCommentaires(readFileSync(f, "utf8"));
+    const importes = new Set();
+    for (const m of src.matchAll(/import\s*\{([^}]*)\}\s*from\s*"[^"]*auth-admin\.js[^"]*"/g)) {
+      for (const part of m[1].split(",")) { const [, alias] = part.trim().split(/\s+as\s+/); if (part.trim()) importes.add((alias || part.trim().split(/\s+as\s+/)[0]).trim()); }
+    }
+    for (const nom of exportees) {
+      if (!new RegExp(String.raw`(^|[^\w.$])` + nom + String.raw`\(`).test(src)) continue;
+      if (importes.has(nom) || new RegExp(String.raw`function\s+` + nom + String.raw`\b`).test(src)) continue;
+      manquants.push(f.slice(cheminJs.length + 1) + " : " + nom);
+    }
+  }
+  assert.deepEqual(manquants, []);
+});
+
+test("câblage : un nom utilisé dans une fonction de module est déclaré dans cette fonction ou au niveau du module (dp.js)", () => {
+  const src = sansCommentaires(readFileSync(join(cheminJs, "views/dp.js"), "utf8"));
+  const corps = src.slice(src.indexOf("function showListe("), src.indexOf("async function renderReload("));
+  assert.ok(/const ecrit = ecritSelonLaCase\("notes"\)/.test(corps), "showListe calcule `ecrit` lui-même");
+  assert.ok(/monStagiaireId as maFiche/.test(src) && /maFiche\(\)/.test(src), "l'alias maFiche reste importé tant qu'il est appelé");
+});
+
+test("les vraies fonctions (ecritSelonLaCase, litSelonLaCase, gesteDefinitif) sans session : l'ancien prédicat seul, jamais un gain", () => {
+  const script = `
+    globalThis.window = globalThis;
+    globalThis.document = { addEventListener() {}, querySelector() { return null; }, querySelectorAll() { return []; }, getElementById() { return null; },
+      createElement() { return { style: {}, classList: { add() {}, remove() {}, toggle() {} }, setAttribute() {}, appendChild() {}, addEventListener() {} }; }, documentElement: { style: {}, classList: { add() {}, remove() {} } }, body: {} };
+    globalThis.localStorage = { getItem() { return null; }, setItem() {}, removeItem() {} };
+    globalThis.sessionStorage = globalThis.localStorage;
+    globalThis.location = { hash: "", search: "" };
+    const m = await import(${JSON.stringify(new URL("../js/auth-admin.js", import.meta.url).href)});
+    console.log(JSON.stringify({
+      ecrit: m.ecritSelonLaCase("planning"), ecritAncienVrai: m.ecritSelonLaCase("planning", true), ecritDirection: m.ecritSelonLaCase("promos", true, ["direction"]),
+      lit: m.litSelonLaCase("notes", false), litAncienVrai: m.litSelonLaCase("notes", true), definitif: m.gesteDefinitif(), cases: m.casesAffichees(),
+    }));
+    process.exit(0);
+  `;
+  const fichier = join(tmpdir(), "titres-vues-" + process.pid + ".mjs");
+  writeFileSync(fichier, script);
+  let sortie;
+  try { sortie = execFileSync(process.execPath, [fichier], { encoding: "utf8", timeout: 60000 }); } finally { rmSync(fichier, { force: true }); }
+  assert.deepEqual(JSON.parse(sortie.trim().split("\n").pop()),
+    { ecrit: false, ecritAncienVrai: true, ecritDirection: true, lit: false, litAncienVrai: true, definitif: false, cases: null });
 });

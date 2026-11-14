@@ -13,7 +13,7 @@ import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, deb
 import { confirmer, demander } from "../confirmer.js?v=20261114f";
 import { icon, deco } from "../icons.js?v=20261114f";
 import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20261114f";
-import { isAdmin, getAdminEmail, monStagiaireId, ecritSelonLaCase } from "../auth-admin.js?v=20261114f";
+import { getAdminEmail, monStagiaireId, ecritSelonLaCase } from "../auth-admin.js?v=20261114f";
 import { recordUndo } from "../undo.js?v=20261114f";
 import { getCurrentWho } from "../identity.js?v=20261114f";
 import { telLink } from "./benevoles.js?v=20261114f";

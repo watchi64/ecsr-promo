@@ -162,7 +162,7 @@ function carte(p, { aujourdhui, affichee, effectif, formateurs, formateursLus, m
 
   const actions = el("div", { class: "promo-actions" },
     peutPromos() ? el("button", { class: "btn small", type: "button", onClick: (e) => surModifier(p, e.currentTarget) }, "Modifier") : null,
-    peutPromos() && peutRegler() ? el("button", { class: "btn small", type: "button", "aria-expanded": memeP ? String(modulesOuverts) : "false",
+    peutRegler() ? el("button", { class: "btn small", type: "button", "aria-expanded": memeP ? String(modulesOuverts) : "false",
       onClick: (e) => surModules(p, e.currentTarget) }, "Modules") : null);
   lignes.push(actions);
   return el("article", { class: "centre-carte promo-carte", "data-promo": String(p.id) }, ...lignes);

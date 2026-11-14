@@ -11,7 +11,7 @@ import {
 } from "../db.js?v=20261114f";
 import { el, clear, displayStagiaire } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
-import { monStagiaireId, isAdmin, getProfile, getViewAs, ecritSelonLaCase, litSelonLaCase } from "../auth-admin.js?v=20261114f";
+import { monStagiaireId, getProfile, getViewAs, ecritSelonLaCase, litSelonLaCase } from "../auth-admin.js?v=20261114f";
 import { libelleConnexion } from "../roles-rules.js?v=20261114f";
 import { emargementActif } from "../emargement-etat.js?v=20261114f";
 import { lignePromo } from "../accueil-rules.js?v=20261114f";

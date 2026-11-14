@@ -10,7 +10,7 @@
 
 import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20261114f";
 import { el, clear, displayStagiaire, compareByNom, formatDate, toast, nomLisible } from "../utils.js?v=20261114f";
-import { isAdmin, isProf, ecritSelonLaCase } from "../auth-admin.js?v=20261114f";
+import { isAdmin, isProf, monStagiaireId as maFiche, ecritSelonLaCase } from "../auth-admin.js?v=20261114f";
 import { getCurrentWho } from "../identity.js?v=20261114f";
 import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261114f";
 import { collectData, fillData, applyEditable, wireDocEditing,
@@ -102,6 +102,7 @@ export async function renderDp(container, opts = {}) {
 }
 
 function showListe(container) {
+  const ecrit = ecritSelonLaCase("notes");
   clear(container);
   teardownDocPrint();
   container.appendChild(el("p", { class: "lv-hint" },

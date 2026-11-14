@@ -123,7 +123,11 @@ export function routeMasquee(route) { return moduleMasque(MODULE_DE_ROUTE[route]
 
 // Qui voit la section de réglage (voir REGLAGE_OUVERT_AUX_FORMATEURS).
 export function peutRegler() {
-  return ecritSelonLaCase("reglages", isEquipe(), ["equipe", "direction"]) && (REGLAGE_OUVERT_AUX_FORMATEURS || isFounder());
+  // Espace de la direction : la case Promos (la base : modules.modifier = Réglages de la promo OU Promos du centre) ; équipe : Réglages.
+  const droit = getEspace() === "direction"
+    ? ecritSelonLaCase("promos", isEquipe(), ["direction"])
+    : ecritSelonLaCase("reglages", isEquipe(), ["equipe"]);
+  return droit && (REGLAGE_OUVERT_AUX_FORMATEURS || isFounder());
 }
 
 export function onModulesChange(cb) {
