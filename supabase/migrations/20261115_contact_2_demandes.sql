@@ -240,13 +240,14 @@ begin
     return '[]'::jsonb;
   end if;
   if jsonb_typeof(p_jours) <> 'array' or jsonb_array_length(p_jours) > 62 then
-    raise exception 'contact: Les jours de la demande sont illisibles.';
+    raise exception 'contact: Les jours de ta demande sont illisibles : choisis chaque jour et sa demi-journée.';
   end if;
   for e in select x from jsonb_array_elements(p_jours) x loop
-    if jsonb_typeof(e) <> 'object' or jsonb_typeof(e -> 'jour') <> 'string' or not pg_input_is_valid(e ->> 'jour', 'date')
-       or (e ->> 'demi') is null or (e ->> 'demi') not in ('matin', 'aprem')
-       or (select count(*) from jsonb_object_keys(e)) <> 2 then
-      raise exception 'contact: Les jours de la demande sont illisibles.';
+    -- Chaque entrée : un objet de deux clés exactement, jour (une date lisible) et demi (matin ou aprem). Toute valeur absente ou nulle
+    -- rend la condition vraie (coalesce) : jamais d'entrée acceptée par défaut.
+    if coalesce(jsonb_typeof(e) <> 'object' or jsonb_typeof(e -> 'jour') <> 'string' or not pg_input_is_valid(e ->> 'jour', 'date')
+                or (e ->> 'demi') not in ('matin', 'aprem') or (select count(*) from jsonb_object_keys(e)) <> 2, true) then
+      raise exception 'contact: Les jours de ta demande sont illisibles : choisis chaque jour et sa demi-journée.';
     end if;
   end loop;
   return (select coalesce(jsonb_agg(jsonb_build_object('jour', d.jour::text, 'demi', d.demi) order by d.jour, d.demi desc), '[]'::jsonb)
@@ -669,7 +670,9 @@ begin
                         jsonb_build_array(jsonb_build_object('fiche_id', c.id, 'nom', _contact_nom_fiche(c, v_l))));
 end $fn$;
 
--- Écrire à un stagiaire (équipe) : sa fiche est dans le centre de la promo du stagiaire.
+-- Écrire à un stagiaire (équipe) : sa fiche est dans le centre de la promo du stagiaire, et il lit les stagiaires de cette promo
+-- (stagiaires.lire, ruling R-T8a). Stagiaire introuvable, effacé, d'un autre centre ou d'une promo qu'on ne lit pas : même refus
+-- (rien ne dit qu'une fiche existe).
 create function public.ecrire_au_stagiaire(p_stagiaire_id integer, p_sujet text, p_texte text)
 returns bigint language plpgsql security definer set search_path = public, pg_temp
 as $fn$
@@ -683,8 +686,8 @@ begin
   select st.promo_id into v_p from stagiaires st where st.id = p_stagiaire_id and st.efface_le is null;
   v_l := lieu_de_promo(v_p);
   v_moi := _contact_fiche_equipe(v_l);
-  if v_p is null or v_moi is null then
-    raise exception 'contact: Vous ne pouvez écrire qu''aux stagiaires de votre centre.' using errcode = '42501';
+  if v_p is null or v_moi is null or not coalesce(geste_promo(v_p, 'stagiaires.lire'), false) then
+    raise exception 'contact: Vous ne pouvez écrire qu''aux stagiaires des promos que vous suivez.' using errcode = '42501';
   end if;
   v_sujet := _contact_sujet(p_sujet);
   v_texte := _contact_texte(p_texte);

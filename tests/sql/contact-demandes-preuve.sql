@@ -350,7 +350,21 @@ begin
     format('true|%s|true|1', f_form_n));
   perform pg_temp.attendre('creer', 'form_n écrit à stag_m (Montpellier, où il n''a pas de fiche) : refusé',
     pg_temp.appeler('form_n', '1', format('select public.ecrire_au_stagiaire(%s, %L, null)::text', s_m, 'Preuve')),
-    'ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires de votre centre.');
+    'ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires des promos que vous suivez.');
+  -- R-T8a : l'équipe du même centre qui ne lit pas les stagiaires de la promo est refusée : t_rh (direction de Nîmes à titre non fixe,
+  -- sans la case Stagiaires) et form_x (formateur d'une autre promo de Nîmes, posé ici).
+  perform pg_temp.essai($cd_q$insert into public.user_profiles (email, role, is_admin) values ('preuve8.form.x@exemple.invalid', 'prof', true)$cd_q$);
+  perform pg_temp.essai(format($cd_q$with p as (insert into public.promos (nom, lieu_id, date_debut) values ('Preuve8 autre promo', %s, date '2031-01-06') returning id)
+    insert into public.affectations (email, role, promo_id) select 'preuve8.form.x@exemple.invalid', 'formateur', id from p$cd_q$, v_l1));
+  perform pg_temp.essai($cd_q$insert into pg_temp.perso (ordre, nom, email, role) values (41, 'form_x', 'preuve8.form.x@exemple.invalid', 'prof')$cd_q$);
+  perform pg_temp.attendre('creer', 'R-T8a : form_x a une fiche dans le centre de stag_n (le refus qui suit tient bien à la lecture des stagiaires)',
+    pg_temp.calcul(format($cd_q$select public._contact_fiche_dans(c, %s)::text from public.contacts c where c.compte_email = 'preuve8.form.x@exemple.invalid'$cd_q$, v_l1)), 'true');
+  perform pg_temp.attendre('creer', 'R-T8a : form_x (formateur d''une autre promo de Nîmes) et t_rh (titre non fixe sans Stagiaires) écrivent à stag_n : refusés, rien d''écrit',
+    concat_ws(' / ',
+      pg_temp.appeler('form_x', null, format('select public.ecrire_au_stagiaire(%s, %L, null)::text', s_n, 'Preuve')),
+      pg_temp.appeler('t_rh', '1', format('select public.ecrire_au_stagiaire(%s, %L, null)::text', s_n, 'Preuve')),
+      pg_temp.calcul($cd_q$select count(*)::text from public.demandes where sujet = 'Preuve' and auteur_fiche_id is not null and type is null$cd_q$)),
+    'ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires des promos que vous suivez. / ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires des promos que vous suivez. / 0');
   v := pg_temp.appeler('form_n', '1', format('select public.ecrire_a(%s, null, %L, null)::text', f_dir_n, 'Preuve équipe'));
   perform pg_temp.attendre('creer', 'form_n écrit à la fiche de dir_n (équipe vers équipe) : OK, auteur sa fiche',
     pg_temp.calcul(format('select concat_ws(''|'', auteur_fiche_id, (select count(*) from public.contact_envois e where e.demande_id = d.id)) from public.demandes d where id = %s', pg_temp.id_rendu(v))),
@@ -410,7 +424,7 @@ begin
       pg_temp.appeler('siege', null, format('select public.ecrire_a(%s, null, %L, null)::text', f_dir_n, 'Preuve')),
       pg_temp.appeler('siege', null, format('select public.ecrire_au_stagiaire(%s, %L, null)::text', s_n, 'Preuve'))),
     concat_ws(' / ', c_refus, c_refus, 'ERREUR 42501 contact: Réservé aux stagiaires et à l''équipe du centre.',
-              'ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires de votre centre.'));
+              'ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires des promos que vous suivez.'));
   perform pg_temp.attendre('garde_fous', 'anon : aucune fonction de l''espace contact ne s''exécute',
     concat_ws(' / ', pg_temp.valeur(null, '1', null, c_apercu),
       pg_temp.valeur(null, '1', null, format('select public.ecrire_a(%s, %L, %L, null)::text', f_dir_n, 'autre', 'Preuve')),
@@ -420,7 +434,7 @@ begin
   perform pg_temp.attendre('garde_fous', 'stag_n vers un stagiaire (ecrire_au_stagiaire, stag_m et lui-même) : refusé',
     pg_temp.appeler('stag_n', '1', format('select public.ecrire_au_stagiaire(%s, %L, null)::text', pg_temp.stag('stag_m'), 'Preuve')) || ' / '
       || pg_temp.appeler('stag_n', '1', format('select public.ecrire_au_stagiaire(%s, %L, null)::text', s_n, 'Preuve')),
-    'ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires de votre centre. / ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires de votre centre.');
+    'ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires des promos que vous suivez. / ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires des promos que vous suivez.');
   perform pg_temp.attendre('garde_fous', 'aucun compte de stagiaire sans affectation n''a de fiche de contact (le délégué compris)',
     pg_temp.calcul($cd_q$select count(*)::text from public.contacts c join public.user_profiles up on lower(up.email) = c.compte_email
       where up.stagiaire_id is not null and not exists (select 1 from public.affectations a where lower(a.email) = c.compte_email)$cd_q$), '0');
@@ -435,17 +449,22 @@ begin
     pg_temp.appeler('stag_n', '1', format('select public.ecrire_au_centre(%L, %L, null, %s)::text', 'autre', 'Preuve', format('array[%s, null]::bigint[]', f_form_n))),
     'ERREUR 42501 contact: Cette personne ne peut pas recevoir ta demande.');
   -- Entrées illisibles.
-  perform pg_temp.attendre('garde_fous', 'type absence ou inconnu par ecrire_au_centre, sujet vide ou de 81 caractères, texte de 1001, jours illisibles : refusés',
+  perform pg_temp.attendre('garde_fous', 'type absence ou inconnu par ecrire_au_centre, sujet vide ou de 81 caractères, texte de 1001, jours illisibles (date illisible, sans jour, demi nulle, sans demi) : refusés',
     concat_ws(' / ',
       pg_temp.appeler('stag_n', '1', format('select public.ecrire_au_centre(%L, %L, null, %s)::text', 'absence', 'Preuve', format('array[%s]::bigint[]', f_form_n))),
       pg_temp.appeler('stag_n', '1', format('select public.ecrire_au_centre(%L, %L, null, %s)::text', 'urgent', 'Preuve', format('array[%s]::bigint[]', f_form_n))),
       pg_temp.appeler('stag_n', '1', format('select public.ecrire_au_centre(%L, %L, null, %s)::text', 'autre', '   ', format('array[%s]::bigint[]', f_form_n))),
       pg_temp.appeler('stag_n', '1', format('select public.ecrire_au_centre(%L, %L, null, %s)::text', 'autre', repeat('s', 81), format('array[%s]::bigint[]', f_form_n))),
       pg_temp.appeler('stag_n', '1', format('select public.ecrire_au_centre(%L, %L, %L, %s)::text', 'autre', 'Preuve', repeat('t', 1001), format('array[%s]::bigint[]', f_form_n))),
-      pg_temp.appeler('stag_n', '1', $cd_q$select count(*)::text from public.destinataires_possibles('absence', '[{"jour": "demain", "demi": "matin"}]')$cd_q$)),
+      pg_temp.appeler('stag_n', '1', $cd_q$select count(*)::text from public.destinataires_possibles('absence', '[{"jour": "demain", "demi": "matin"}]')$cd_q$),
+      pg_temp.appeler('stag_n', '1', $cd_q$select count(*)::text from public.destinataires_possibles('absence', '[{"x": 1, "demi": "matin"}]')$cd_q$),
+      pg_temp.appeler('stag_n', '1', $cd_q$select count(*)::text from public.destinataires_possibles('absence', '[{"jour": "2031-03-05", "demi": null}]')$cd_q$),
+      pg_temp.appeler('stag_n', '1', $cd_q$select count(*)::text from public.destinataires_possibles('absence', '[{"jour": "2031-03-05"}]')$cd_q$)),
     concat_ws(' / ', 'ERREUR P0001 contact: Type de demande inconnu.', 'ERREUR P0001 contact: Type de demande inconnu.',
       'ERREUR P0001 contact: Le sujet compte de 1 à 80 caractères.', 'ERREUR P0001 contact: Le sujet compte de 1 à 80 caractères.',
-      'ERREUR P0001 contact: Le message compte 1000 caractères au plus.', 'ERREUR P0001 contact: Les jours de la demande sont illisibles.'));
+      'ERREUR P0001 contact: Le message compte 1000 caractères au plus.', 'ERREUR P0001 contact: Les jours de ta demande sont illisibles : choisis chaque jour et sa demi-journée.',
+      'ERREUR P0001 contact: Les jours de ta demande sont illisibles : choisis chaque jour et sa demi-journée.', 'ERREUR P0001 contact: Les jours de ta demande sont illisibles : choisis chaque jour et sa demi-journée.',
+      'ERREUR P0001 contact: Les jours de ta demande sont illisibles : choisis chaque jour et sa demi-journée.'));
   -- Aucun droit direct ; aides internes fermées ; fonctions de l'app à authenticated seulement.
   foreach t in array array['demandes', 'demande_destinataires', 'demande_messages', 'contact_regles', 'contact_reponses', 'contact_envois', 'contact_jetons'] loop
     perform pg_temp.attendre('garde_fous', format('%s : aucun droit pour anon ni authenticated (TRUNCATE compris), RLS active', t),
