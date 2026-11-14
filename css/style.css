@@ -5831,7 +5831,9 @@ body.qcm-open { overflow: hidden; }
 .nv-resume { margin: 0; color: var(--text-soft); font-size: 0.9rem; line-height: 1.55; }
 
 .nv-ou {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;   /* cible du référentiel sur ordinateur (44 px au téléphone : css/pages.css) */
   margin-top: 0.7rem;
   font-size: 0.84rem;
   color: var(--accent-strong);
