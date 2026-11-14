@@ -47,8 +47,9 @@ bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titre
 **L'état de la production (14/11) : `--production`**, dans l'ordre où elle l'a reçu : titres 1, 2, 3, contacts,
 `20261111_conservation_direction`, titres 5 et 6, l'e-learning 1 et 2, puis les petits restes du 14/11, `20261114_restes_1_conditions`
 (`conditions_version_publiee()`, `accepter_conditions` durcie ; après l'e-learning, dont elle contrôle la version) et
-`20261114_restes_2_truncate` (TRUNCATE retiré à `anon` et `authenticated` : aucune preuve ne vide une table sous ces rôles) (sortie
-`OK : suite rejouée (26 migrations)` ; ne se combine pas avec `--titres`). `--titres` cherche `2026111?_titres_<n>_*` (n de 1 à 9, date quelconque du 10 au 19/11 :
+`20261114_restes_2_truncate` (TRUNCATE retiré à `anon` et `authenticated` : aucune preuve ne vide une table sous ces rôles), puis
+`20261114_jury_resultats` (résultats du jury, en production depuis c1883cc5) (sortie
+`OK : suite rejouée (27 migrations)` ; ne se combine pas avec `--titres`). `--titres` cherche `2026111?_titres_<n>_*` (n de 1 à 9, date quelconque du 10 au 19/11 :
 les migrations 7, 8 et 9 de l'étape 3 sont datées du 15/11). `--autonomie 1` joue, après les contacts,
 `20261114_autonomie_1_traces` ; `--autonomie 1,2` y ajoute `20261114_autonomie_2_version` avec `-v version=2026-11-14` (la version
 des conditions en production). Sans `--titres`, `--autonomie` ni `--production`, la sortie reste celle d'avant (16 migrations : les
@@ -116,3 +117,6 @@ migration 2 de l'e-learning non appliquée, sur une base `--titres 1,2,3,5,6 --a
 Avec les restes du 14/11 (base `--production`, 26 migrations), dans `.base-locale/verdicts/avant-3-restes/` : les quatorze mêmes
 preuves aux mêmes comptes, plus `tests/sql/truncate-preuve.sql` VERT 7/0 et `tests/sql/conditions-acceptations-preuve.sql` VERT 12/0
 (jouées seules, migrations déjà appliquées).
+Avec les résultats du jury (base `--production`, 27 migrations), dans `.base-locale/verdicts/avant-7-jury/` : les quatorze mêmes
+preuves, aux mêmes comptes sauf rôles en ligne VERT 12214/0 (la table `jury_resultats` entre dans la matrice), plus
+`tests/sql/jury-preuve.sql` (`node outils/assembler_preuve_jury.mjs en-ligne`) VERT 53/0.
