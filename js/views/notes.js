@@ -2,27 +2,27 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation,
   listFichesNotesMasquees, getNotesStatsGroupe, getPromoCourante,
-} from "../db.js?v=20261114d";
+} from "../db.js?v=20261114f";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261114d";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261114d";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace, selonPublic, enVitrine } from "../auth-admin.js?v=20261114d";
-import { litToutesLesNotes } from "../espaces-rules.js?v=20261114d";
-import { recordUndo } from "../undo.js?v=20261114d";
-import { renderSubTabs } from "../subtabs.js?v=20261114d";
-import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261114d";
-import { renderEpcf } from "./epcf.js?v=20261114d";
-import { noteGradient } from "../echelle-notes.js?v=20261114d";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261114d";
-import { renderSaisie } from "./notes-saisie.js?v=20261114d";
-import { pluriel, dixieme } from "../nombres.js?v=20261114d";
+} from "../notes-stats.js?v=20261114f";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261114f";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace, selonPublic, enVitrine } from "../auth-admin.js?v=20261114f";
+import { litToutesLesNotes } from "../espaces-rules.js?v=20261114f";
+import { recordUndo } from "../undo.js?v=20261114f";
+import { renderSubTabs } from "../subtabs.js?v=20261114f";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261114f";
+import { renderEpcf } from "./epcf.js?v=20261114f";
+import { noteGradient } from "../echelle-notes.js?v=20261114f";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261114f";
+import { renderSaisie } from "./notes-saisie.js?v=20261114f";
+import { pluriel, dixieme } from "../nombres.js?v=20261114f";
 import {
   parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes,
   contexteEtatVide, phraseNoteRefusee, confirmationEffacement,
-} from "../notes-saisie-rules.js?v=20261114d";
-import { confirmer } from "../confirmer.js?v=20261114d";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261114d";
+} from "../notes-saisie-rules.js?v=20261114f";
+import { confirmer } from "../confirmer.js?v=20261114f";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
 
 // Fiches de la promo dont les notes sont masquées (anonymat) : la base ne donne plus aux stagiaires les profils des
 // autres (adresse e-mail comprise), seulement ces numéros de fiche (js/notes-masquees.js).

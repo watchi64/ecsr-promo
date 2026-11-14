@@ -7,23 +7,23 @@
  */
 import {
   listAgendaEvents, getPromoCourante, listQcmIndex, listMyQcmAttempts, listThemes, getDpDossier,
-} from "../db.js?v=20261114d";
-import { el, clear } from "../utils.js?v=20261114d";
-import { icon } from "../icons.js?v=20261114d";
-import { getProfileWho, monStagiaireId, getProfile, getViewAs, getProfileNom } from "../auth-admin.js?v=20261114d";
-import { libelleConnexion } from "../roles-rules.js?v=20261114d";
-import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261114d";
-import { carteNouveaute } from "./nouveautes.js?v=20261114d";
-import { prenomDe } from "../nav-rules.js?v=20261114d";
-import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi, momentsDeLaDemi } from "../accueil-rules.js?v=20261114d";
-import { journeeDuJour } from "../journee-rules.js?v=20261114d";
-import { effSujets, sujetsDe } from "../planning-roles.js?v=20261114d";
-import { exemplesRemplis } from "../dp-rules.js?v=20261114d";
-import { heureLocale } from "../emargement-rules.js?v=20261114d";
-import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261114d";
-import { ouvrirSignalement } from "../signalement.js?v=20261114d";
-import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261114d";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261114d";
+} from "../db.js?v=20261114f";
+import { el, clear } from "../utils.js?v=20261114f";
+import { icon } from "../icons.js?v=20261114f";
+import { getProfileWho, monStagiaireId, getProfile, getViewAs, getProfileNom } from "../auth-admin.js?v=20261114f";
+import { libelleConnexion } from "../roles-rules.js?v=20261114f";
+import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261114f";
+import { carteNouveaute } from "./nouveautes.js?v=20261114f";
+import { prenomDe } from "../nav-rules.js?v=20261114f";
+import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi, momentsDeLaDemi } from "../accueil-rules.js?v=20261114f";
+import { journeeDuJour } from "../journee-rules.js?v=20261114f";
+import { effSujets, sujetsDe } from "../planning-roles.js?v=20261114f";
+import { exemplesRemplis } from "../dp-rules.js?v=20261114f";
+import { heureLocale } from "../emargement-rules.js?v=20261114f";
+import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261114f";
+import { ouvrirSignalement } from "../signalement.js?v=20261114f";
+import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261114f";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261114f";
 
 const RELECTURE_SEANCES_MS = 60000;
 

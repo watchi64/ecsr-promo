@@ -468,8 +468,9 @@ const menuEspace = NOUVEAUTES.find((e) => e.id.endsWith("-menu-espace"));
 const changerPromo = NOUVEAUTES.find((e) => e.id.endsWith("-changer-de-promo"));
 const DATE5 = direction.date;
 eq(NOUVEAUTES.filter((e) => e.pour === "direction").map((e) => e.id).sort(),
-  ["2026-11-10-espace-direction", "2026-11-11-conservation-direction", "2026-11-11-donnees-personnelles-centre"],
-  "trois Nouveautés pour la direction : l'espace, les données personnelles, puis la conservation des fiches de son centre");
+  ["2026-11-10-espace-direction", "2026-11-11-conservation-direction", "2026-11-11-donnees-personnelles-centre",
+    "2026-11-14-resultats-jury-direction"],
+  "quatre Nouveautés pour la direction : l'espace, les données personnelles, la conservation des fiches de son centre, puis le taux d'obtention du titre");
 // Conservation des fiches ouverte à la direction (11/11) : pour la direction seule, en tête de sa liste, au vouvoiement.
 const consDir = NOUVEAUTES.find((e) => e.id === "2026-11-11-conservation-direction");
 ok(!!consDir && consDir.date === "2026-11-11" && consDir.pour === "direction" && consDir.ou?.route === "config"

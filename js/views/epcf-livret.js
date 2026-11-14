@@ -9,13 +9,13 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261114d";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261114d";
-import { isAdmin, isProf, monStagiaireId, enVitrine } from "../auth-admin.js?v=20261114d";
-import { getCurrentWho } from "../identity.js?v=20261114d";
-import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261114d";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261114f";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261114f";
+import { isAdmin, isProf, monStagiaireId, enVitrine } from "../auth-admin.js?v=20261114f";
+import { getCurrentWho } from "../identity.js?v=20261114f";
+import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261114f";
 import { collectData, fillData, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261114d";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261114f";
 
 // La mécanique vit dans doc-officiel.js, partagée avec le Dossier Professionnel.
 const teardownLivretPrint = teardownDocPrint;

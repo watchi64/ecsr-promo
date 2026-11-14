@@ -461,6 +461,13 @@ update matrice
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
   select 'public.journal_droits', 'false', 'false', 'false', 'false', $mx$action = 'PreuveMaj'$mx$, null
    where to_regclass('public.journal_droits') is not null;
+-- Résultats du jury (migration 20261114_jury_resultats) : P et E (geste notes.lire ; le stagiaire ne lit pas sa ligne) ;
+-- écriture P et F (geste notes.saisir). La ligne n'entre que si la table existe : la preuve reste verte avant et après la
+-- migration. Sa preuve propre : tests/sql/jury-preuve.sql.
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select 'public.jury_resultats', $mx$r.promo_id = {P} and {E}$mx$, $mx$r.promo_id = {P} and {F}$mx$,
+    $mx$r.promo_id = {P} and {F}$mx$, $mx$r.promo_id = {P} and {F}$mx$, $mx$session_le = '2031-01-06'$mx$, null
+   where to_regclass('public.jury_resultats') is not null;
 -- Affectations, état fermé (migration 5 du chantier titres) : ni ajout ni retrait en écriture directe, quel que soit l'acteur ; les fonctions
 -- inviter_compte, regler_affectations_formateur et retirer_titre sont le seul chemin (groupe h).
 update matrice set ajout = 'false', suppr = 'false'
@@ -656,6 +663,13 @@ insert into ajouts (tbl, sorte, libelle, modele, marque, prep)
     $aj$insert into public.registre_qualite (type, date_constat, origine, description) values ('amelioration', '2031-01-06', 'equipe', 'PreuveAjout')$aj$,
     $aj$r.description = 'PreuveAjout'$aj$, null
    where to_regclass('public.registre_qualite') is not null;
+-- Résultats du jury (20261114_jury_resultats) : une ligne par fiche (la donnée d'essai est retirée avant l'ajout). Seulement si
+-- la table existe.
+insert into ajouts (tbl, sorte, libelle, modele, marque, prep)
+  select 'public.jury_resultats', 'stagiaire', null,
+    $aj$insert into public.jury_resultats (stagiaire_id, session_le, resultat) values ({c_stag}, '2031-01-07', 'non_obtenu')$aj$,
+    $aj$r.stagiaire_id = {c_stag} and r.session_le = '2031-01-07'$aj$, $aj$delete from public.jury_resultats where stagiaire_id = {c_stag}$aj$
+   where to_regclass('public.jury_resultats') is not null;
 
 -- Les cibles d'un ajout dans un contexte : (libellé, jetons). p_jetons porte P, L et fiche du contexte, et les données
 -- d'essai (cibles et bénévoles par promo et par lieu, tables cibles et benevoles_essai).
@@ -1390,6 +1404,10 @@ begin
       insert into public.passages (date, stagiaire_id, type, resultat, commentaire) values ('2030-01-07', v_r.id, 'Salle', 'Effectué', 'Preuve');
       insert into public.qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20) values (v_qcm_a, v_r.id, 'entrainement', 1, 2, 10);
       insert into public.emargement_lignes (seance_id, promo_id, stagiaire_id) values (v_seance, v_pr, v_r.id);
+      -- Résultats du jury (si la migration est appliquée) : une ligne par fiche.
+      if to_regclass('public.jury_resultats') is not null then
+        execute format($aj$insert into public.jury_resultats (stagiaire_id, session_le, resultat) values (%s, '2030-01-08', 'obtenu')$aj$, v_r.id);
+      end if;
       -- Travail en autonomie (si la migration est appliquée) : une lecture et une ligne de temps par fiche.
       if to_regclass('public.cours_lectures') is not null then
         execute format($aj$insert into public.cours_lectures (stagiaire_id, promo_id, cours_id, ouvert_le, vu_le)
