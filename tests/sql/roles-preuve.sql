@@ -489,6 +489,16 @@ update matrice set lecture = $mx$r.lieu_id = {L} and {E}$mx$
 insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
   select 'public.contact_financements', 'false', 'false', 'false', 'false', $mx$libelle = 'PreuveMaj'$mx$, null
    where to_regclass('public.contact_financements') is not null;
+-- Espace contact (migration 2, partie A) : les tables des demandes n'ont aucune règle ni aucun droit pour anon et authenticated (C-9) :
+-- lectures et écritures par fonctions. Une ligne tout false par table, seulement si elle existe. La preuve propre :
+-- tests/sql/contact-demandes-preuve.sql (groupes creer et garde_fous).
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select x.tbl, 'false', 'false', 'false', 'false', x.maj, null
+    from (values ('public.demandes', $mx$sujet = 'PreuveMaj'$mx$), ('public.demande_destinataires', $mx$nom = 'PreuveMaj'$mx$),
+                 ('public.demande_messages', $mx$auteur_nom = 'PreuveMaj'$mx$), ('public.contact_regles', $mx$type = 'autre'$mx$),
+                 ('public.contact_reponses', $mx$libelle = 'PreuveMaj'$mx$), ('public.contact_envois', $mx$raison = 'PreuveMaj'$mx$),
+                 ('public.contact_jetons', $mx$action = 'voir'$mx$)) x(tbl, maj)
+   where to_regclass(x.tbl) is not null;
 update matrice set lecture = replace(lecture, '(cardinality({acces}) > 0 or {S} or {Fo})',
                                      '((cardinality({acces}) > 0 and (cardinality({form_de}) > 0 or cardinality({dir_de}) > 0)) or {S} or {Fo})')
  where tbl = 'public.user_profiles'
@@ -946,7 +956,10 @@ begin
     from information_schema.columns c
     join information_schema.tables t on t.table_schema = c.table_schema and t.table_name = c.table_name and t.table_type = 'BASE TABLE'
    where c.table_schema = 'public' and c.column_name = 'promo_id' and c.table_name not like 'questionnaire\_%'
-     and c.table_name <> 'journal_droits';
+     and c.table_name <> 'journal_droits'
+     -- Une table sans aucun droit de lecture pour authenticated (demandes de l'espace contact, C-9) ne se lit que par fonctions : hors du
+     -- décompte, des deux côtés.
+     and has_table_privilege('authenticated', format('%I.%I', c.table_schema, c.table_name), 'SELECT');
   return case when p_proprio then pg_temp.calcul(v_sql) else pg_temp.valeur(p_email, p_hdr, null, v_sql) end;
 end $fx$;
 

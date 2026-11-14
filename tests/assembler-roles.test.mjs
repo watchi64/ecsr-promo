@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  ETAPES, ETAPES_GESTION, ETAPES_TITRES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, MIGRATION_ESPACES_4, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
+  CAS_ROUTAGE, ETAPES, ETAPES_GESTION, ETAPES_TITRES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, MIGRATION_ESPACES_4, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
 } from "../outils/assembler_repetition_roles.mjs";
 
 // outils/assembler_repetition_roles.mjs fabrique le fichier SQL d'une répétition du lot 4 : le gabarit de la preuve,
@@ -50,7 +50,11 @@ function litteraux(sortie, delimiteur) {
 function verifierInjections(r, lire) {
   const delimiteurs = new Set(r.injections.map((x) => x.delimiteur));
   assert.equal(delimiteurs.size, 1, "un seul délimiteur pour toute la sortie");
-  const contenus = litteraux(r.texte, [...delimiteurs][0]);
+  // La table de cas du routage (espace contact, partie 2) est un littéral de plus, sous le même délimiteur : mise à part.
+  const cas = r.cas ? JSON.stringify(JSON.parse(lire(r.cas.chemin))) : null;
+  const tous = litteraux(r.texte, [...delimiteurs][0]);
+  const contenus = tous.filter((t) => t !== cas);
+  assert.equal(tous.length - contenus.length, cas ? 1 : 0, "la table de cas, une fois, si le gabarit la demande");
   assert.equal(contenus.length, r.injections.length);
   r.injections.forEach((x, i) => {
     const attendu = lire(x.chemin).replace(/\r/g, "");
@@ -1258,4 +1262,37 @@ test("les gabarits contact : aides sans marqueur, pas de $$, mode en ligne recon
   const adresses = aides.match(/[\w.+-]+@[\w.-]+\.[a-z]+/g) ?? [];
   assert.ok(adresses.length > 0 && adresses.every((a) => a.endsWith("@exemple.invalid")));
   assert.ok(!aides.includes(String.fromCharCode(0x2014)));
+});
+
+// --- Table de cas du routage (espace contact, partie 2) : le marqueur -- @@CAS_ROUTAGE@@ ----------------------------------------------
+
+test("contact-2 : le marqueur de la table de cas devient un littéral jsonb qui contient chaque nom de cas", () => {
+  const table = JSON.parse(texteDuDepot(CAS_ROUTAGE));
+  for (const mode of ["contact-2", "contact-2-contre-epreuve", "contact-2-en-ligne"]) {
+    const r = assemblerMode(mode, RACINE, { lire: depotContact });
+    assert.ok(!/@@CAS_ROUTAGE@@/.test(r.texte), `${mode} : marqueur remplacé`);
+    const ligne = r.texte.split("\n").find((l) => l.includes('"cas":['));
+    assert.ok(ligne && /^\s*(\$[A-Za-z_0-9]*\$)\{.*\}\1::jsonb$/.test(ligne), `${mode} : un littéral jsonb sur une ligne`);
+    for (const c of table.cas) assert.ok(ligne.includes(`"nom":"${c.nom}"`), `${mode} : cas ${c.nom}`);
+    assert.deepEqual(r.cas, { chemin: CAS_ROUTAGE, md5: md5(texteDuDepot(CAS_ROUTAGE)) });
+    assert.ok(r.texte.includes(`-- cas de routage : ${CAS_ROUTAGE} (md5 `));
+  }
+  // Les parties 1 et 3 ne portent pas le marqueur : la table n'y est ni lue ni collée.
+  const lus = [];
+  const un = assemblerMode("contact-1", RACINE, { lire: (c) => { lus.push(c); return depotContact(c); } });
+  assert.equal(un.cas, null);
+  assert.ok(!lus.includes(CAS_ROUTAGE));
+});
+
+test("marqueur de la table de cas : fichier absent, JSON illisible, marqueur en double ou mal placé : refus clair", () => {
+  const gabarit = "do $g$ begin perform\n-- @@CAS_ROUTAGE@@\n; end $g$;\n";
+  const avec = (texte) => (c) => (c === CAS_ROUTAGE ? texte : null);
+  assert.match(assembler(gabarit, avec('{"cas":[{"nom":"un"}]}')).texte, /\n\$injection\$\{"cas":\[\{"nom":"un"\}\]\}\$injection\$::jsonb\n/);
+  assert.throws(() => assembler(gabarit, avec(null)), /Fichier introuvable : tests\/fixtures\/contact-routage\.json/);
+  assert.throws(() => assembler(gabarit, avec("{pas du json")), /JSON illisible/);
+  assert.throws(() => assembler(gabarit, avec('{"cas":"$g$"}')), /Collision de délimiteur : \$g\$/);
+  assert.throws(() => assembler(gabarit + "-- @@CAS_ROUTAGE@@\n", avec("{}")), /marqueur de la table de cas en double/);
+  assert.throws(() => assembler("select 1; -- @@CAS_ROUTAGE@@\n", avec("{}")), /marqueur mal placé/);
+  // Le délimiteur choisi ne figure pas dans la table.
+  assert.match(assembler(gabarit, avec('{"x":"$injection$"}')).texte, /\$injection_1\$\{"x":"\$injection\$"\}\$injection_1\$::jsonb/);
 });

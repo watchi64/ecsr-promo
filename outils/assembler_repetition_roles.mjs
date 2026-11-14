@@ -8,6 +8,8 @@
 //                             avant le marqueur « execute » ou une affectation, et « ; » ou « into ...; » après ;
 //   -- @@INCLURE <chemin>@@   remplacé par le texte du fichier, collé tel quel au niveau du script (aides communes) ;
 //   -- @@MODE@@               remplacé par le libellé du mode en littéral simple (la preuve le dit dans son verdict).
+//   -- @@CAS_ROUTAGE@@        remplacé par la table de cas du routage (tests/fixtures/contact-routage.json, sur une ligne) en
+//                             littéral jsonb : la même table que joue le test node de js/contact-rules.js (parité, espace contact).
 // Les chemins partent de la racine du dépôt. Un mode peut neutraliser des injections : le marqueur devient le littéral
 // 'select 1' et le fichier n'est pas lu (preuve jouée sans la migration : ROUGE attendu).
 // Tout écart arrête l'assemblage sur un message clair (code de sortie 1) : fichier absent, marqueur inconnu ou mal
@@ -222,8 +224,12 @@ export const NEUTRE = "'select 1'";
 const LIGNE_MARQUEUR = /^(\s*)--\s*@@(.*)$/; // une ligne de commentaire qui commence par @@ : un marqueur
 const FORME = /^(INJECTER|INCLURE) (\S+)@@\s*$/; // la forme admise d'une injection ou d'une inclusion
 const FORME_MODE = /^MODE@@\s*$/; // la forme admise du marqueur de mode
-const MOTS = ["INJECTER", "INCLURE", "MODE"];
-const MOT_CLE = /@@(?:INJECTER|INCLURE|MODE)\b/; // un mot-clé de marqueur ailleurs dans une ligne : marqueur mal placé
+const FORME_CAS = /^CAS_ROUTAGE@@\s*$/; // la forme admise du marqueur de la table de cas du routage (espace contact)
+const MOTS = ["INJECTER", "INCLURE", "MODE", "CAS_ROUTAGE"];
+const MOT_CLE = /@@(?:INJECTER|INCLURE|MODE|CAS_ROUTAGE)\b/; // un mot-clé de marqueur ailleurs dans une ligne : marqueur mal placé
+/** La table de cas du routage des demandes (espace contact), commune au test node et à la preuve SQL : le marqueur
+ *  -- @@CAS_ROUTAGE@@ devient son texte JSON (sur une ligne) en littéral jsonb. */
+export const CAS_ROUTAGE = "tests/fixtures/contact-routage.json";
 const DELIMITEUR = /\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/g; // délimiteurs dollar ($$, $tag$)
 const LIBELLE = /^[\p{L}\p{N} ,()'.:_-]+$/u; // un libellé de mode : une ligne de texte simple, sans dollar
 const VIDE_OU_COMMENTAIRE = /^\s*(?:--.*)?$/; // une ligne vide, ou qui ne porte qu'un commentaire (--)
@@ -319,7 +325,8 @@ export function decrireMode(mode, { etapes } = {}) {
  * place du marqueur de mode (obligatoire si le gabarit en porte un, interdit sinon) ; `compact` retire du gabarit et des
  * fichiers inclus les lignes vides et les lignes de commentaire (les marqueurs, eux, sont traités d'abord ; les textes
  * injectés restent intacts, l'en-tête aussi, avec une ligne de plus qui dit le compactage).
- * Rend { texte, injections: [{ chemin, delimiteur, md5 }], inclusions: [{ chemin, md5 }], neutralises: [chemin], mode,
+ * Le marqueur -- @@CAS_ROUTAGE@@ (au plus un) devient le texte de CAS_ROUTAGE, sur une ligne, en littéral jsonb.
+ * Rend { texte, injections: [{ chemin, delimiteur, md5 }], inclusions: [{ chemin, md5 }], neutralises: [chemin], mode, cas,
  * compact, longueur (caractères), octets (UTF-8), md5 (du texte produit) }, dans l'ordre du gabarit ; lève une Error au
  * message clair sur tout écart.
  */
@@ -330,6 +337,7 @@ export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode =
   // 1. Les marqueurs : seuls sur leur ligne, d'une forme connue, vers un chemin du dépôt.
   const marqueurs = new Map();
   let ligneMode = null;
+  let ligneCas = null;
   lignes.forEach((ligne, i) => {
     const m = LIGNE_MARQUEUR.exec(ligne);
     if (!m) {
@@ -346,13 +354,21 @@ export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode =
       marqueurs.set(i, { retrait: m[1], sorte: "MODE" });
       return;
     }
+    if (FORME_CAS.test(m[2])) {
+      if (ligneCas !== null) {
+        throw new Error(`${nom}, ligne ${i + 1} : marqueur de la table de cas en double (déjà ligne ${ligneCas + 1}).`);
+      }
+      ligneCas = i;
+      marqueurs.set(i, { retrait: m[1], sorte: "CAS" });
+      return;
+    }
     const forme = FORME.exec(m[2]);
     if (!forme) {
       const mot = /^\w*/.exec(m[2])[0];
       if (!MOTS.includes(mot)) {
-        throw new Error(`${nom}, ligne ${i + 1} : marqueur inconnu « @@${mot} » (connus : -- @@INJECTER <chemin>@@, -- @@INCLURE <chemin>@@ et -- @@MODE@@).`);
+        throw new Error(`${nom}, ligne ${i + 1} : marqueur inconnu « @@${mot} » (connus : -- @@INJECTER <chemin>@@, -- @@INCLURE <chemin>@@, -- @@MODE@@ et -- @@CAS_ROUTAGE@@).`);
       }
-      const attendu = mot === "MODE" ? "-- @@MODE@@" : `-- @@${mot} <chemin>@@`;
+      const attendu = mot === "MODE" || mot === "CAS_ROUTAGE" ? `-- @@${mot}@@` : `-- @@${mot} <chemin>@@`;
       throw new Error(`${nom}, ligne ${i + 1} : marqueur mal formé « ${ligne.trim()} » (attendu : ${attendu}, seul sur sa ligne).`);
     }
     const [, sorte, chemin] = forme;
@@ -370,7 +386,7 @@ export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode =
   if (mode != null && !LIBELLE.test(mode)) {
     throw new Error(`libellé de mode refusé « ${mode} » : une ligne de lettres, chiffres, espaces et ponctuation simple, sans dollar.`);
   }
-  const liste = [...marqueurs.values()].filter((m) => m.sorte !== "MODE");
+  const liste = [...marqueurs.values()].filter((m) => m.sorte !== "MODE" && m.sorte !== "CAS");
   for (const chemin of neutres) {
     if (!liste.some((m) => m.sorte === "INJECTER" && m.chemin === chemin)) {
       throw new Error(`Mode mal décrit : ${chemin} est à neutraliser, mais ${nom} ne l'injecte nulle part.`);
@@ -405,7 +421,25 @@ export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode =
       }
     }
   }
-  const delimiteur = choisirDelimiteur([modele, ...textes.values()], injectes.map((m) => textes.get(m.chemin)));
+  // 4 bis. La table de cas du routage : lue, jugée (du JSON), récrite sur une ligne ; elle ne doit fermer aucun bloc du gabarit.
+  let cas = null;
+  if (ligneCas !== null) {
+    const brut = lire(CAS_ROUTAGE);
+    if (brut == null) throw new Error(`Fichier introuvable : ${CAS_ROUTAGE} (marqueur @@CAS_ROUTAGE de ${nom}).`);
+    let lu;
+    try {
+      lu = JSON.parse(brut);
+    } catch (e) {
+      throw new Error(`${CAS_ROUTAGE} : JSON illisible (${e.message}).`);
+    }
+    const ligne = JSON.stringify(lu);
+    for (const d of delimiteursGabarit) {
+      if (ligne.includes(d)) throw new Error(`Collision de délimiteur : ${d} figure dans ${CAS_ROUTAGE} et dans ${nom}.`);
+    }
+    cas = { chemin: CAS_ROUTAGE, ligne, md5: md5(sansRetourChariot(brut)) };
+  }
+  const delimiteur = choisirDelimiteur([modele, ...textes.values(), ...(cas ? [cas.ligne] : [])],
+    [...injectes.map((m) => textes.get(m.chemin)), ...(cas ? [cas.ligne] : [])]);
 
   // 5. L'assemblage, précédé d'un en-tête qui dit d'où il vient (md5 des textes, pour rapprocher un verdict d'un état
   //    du dépôt).
@@ -421,6 +455,8 @@ export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode =
     }
     if (m.sorte === "MODE") {
       corps.push(`${m.retrait}'${mode.replace(/'/g, "''")}'`);
+    } else if (m.sorte === "CAS") {
+      corps.push(`${m.retrait}${delimiteur}${cas.ligne}${delimiteur}::jsonb`);
     } else if (m.sorte === "INCLURE") {
       inclusions.push({ chemin: m.chemin, md5: md5(textes.get(m.chemin)) });
       if (!compact) {
@@ -445,10 +481,11 @@ export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode =
     ...inclusions.map((x) => `-- inclus : ${x.chemin} (md5 ${x.md5})`),
     ...injections.map((x) => `-- injecté : ${x.chemin} (md5 ${x.md5})`),
     ...neutralises.map((chemin) => `-- neutralisé : ${chemin} (remplacé par un select 1 sans effet)`),
+    ...(cas ? [`-- cas de routage : ${cas.chemin} (md5 ${cas.md5})`] : []),
   ];
   const texte = [...entete, ...corps].join("\n");
   return {
-    texte, injections, inclusions, neutralises, mode, compact,
+    texte, injections, inclusions, neutralises, mode, compact, cas: cas ? { chemin: cas.chemin, md5: cas.md5 } : null,
     longueur: Array.from(texte).length, // en caractères (points de code), comme length() en SQL
     octets: Buffer.byteLength(texte, "utf8"), md5: md5(texte),
   };
@@ -577,6 +614,7 @@ export function principal(argv, { racine = RACINE, journal = console.log, erreur
     for (const x of r.inclusions) journal(`  inclus      ${x.chemin}  md5 ${x.md5}`);
     for (const x of r.injections) journal(`  injecté     ${x.chemin}  md5 ${x.md5}`);
     for (const chemin of r.neutralises) journal(`  neutralisé  ${chemin}`);
+    if (r.cas) journal(`  cas         ${r.cas.chemin}  md5 ${r.cas.md5}`);
     // La taille et l'empreinte du texte produit : celles que la preuve doit rendre pour la requête qu'elle a reçue (la
     // passerelle MCP y ajoute un suffixe, que la preuve retire avant de hacher).
     if (compact) {
