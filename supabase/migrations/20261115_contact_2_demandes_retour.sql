@@ -1,5 +1,6 @@
--- Marche arrière de 20261115_contact_2_demandes.sql (espace contact, migration 2 ; parties A et B pour l'instant).
---   * Partie C (tâche 10) : défaite ici d'abord, quand elle existera (repère plus bas).
+-- Marche arrière de 20261115_contact_2_demandes.sql (espace contact, migration 2 ; parties A, B et C).
+--   * Partie C : les sept fonctions de la fonction serveur contact-envois retirées (les envois et jetons partent avec leurs tables, partie
+--     A ; un avis en donne le nombre de jetons, sans aucune valeur).
 --   * Partie B : déclencheur stagiaires_contact_effacer, fonctions de l'app et aides internes retirés ; colonne user_profiles.alertes_email
 --     supprimée (un avis donne le nombre de comptes qui avaient coupé leurs alertes, sans adresse).
 --   * Partie A : fonctions de l'app et aides internes retirées ; déclencheur lieux_reponses_defaut retiré ; tables contact_jetons,
@@ -21,7 +22,20 @@ begin
   end if;
 end $garde$;
 
--- ===== Partie C (tâche 10) : à défaire ici =====
+-- ===== Partie C =====
+do $avis_c$
+begin
+  raise notice 'contact_2_retour : % jeton(s) de lien d''e-mail (dont % non expiré(s)) perdus ; les liens déjà envoyés ne marcheront plus',
+    (select count(*) from public.contact_jetons), (select count(*) from public.contact_jetons where expire_le > now());
+end $avis_c$;
+
+drop function public._contact_srv_agir(text);
+drop function public._contact_srv_lien(text);
+drop function public._contact_srv_deja(public.contact_jetons);
+drop function public._contact_srv_jeton(text);
+drop function public._contact_srv_resultat(bigint, text, text);
+drop function public._contact_srv_jetons(bigint, jsonb);
+drop function public._contact_srv_prendre(integer);
 
 -- ===== Partie B =====
 do $avis_b$
@@ -97,7 +111,7 @@ drop table public.demandes;
 drop table public.contact_regles;
 drop table public.contact_reponses;
 
--- Contrôle de fin : plus rien des parties A et B (chaque fonction, table, déclencheur et colonne qu'elles créent).
+-- Contrôle de fin : plus rien des parties A, B et C (chaque fonction, table, déclencheur et colonne qu'elles créent).
 do $controle$
 begin
   if exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace
@@ -112,7 +126,10 @@ begin
                  'liste_demandes', 'demande_detail', 'marquer_lue', 'repondre_demande', 'prendre_en_compte', 'annuler_demande',
                  'relancer_envoi', 'regler_mes_alertes', 'reglages_contact', 'regler_qui_recoit_quoi', 'regler_reponses',
                  '_contact_envoyer', '_contact_direction_reelle', '_contact_ma_fiche', '_contact_role', '_contact_lecteur', '_contact_peut',
-                 '_contact_appliquer_prise', '_contact_appliquer_reponse', '_contact_effacer_stagiaire'))
+                 '_contact_appliquer_prise', '_contact_appliquer_reponse', '_contact_effacer_stagiaire',
+                 -- partie C
+                 '_contact_srv_prendre', '_contact_srv_jetons', '_contact_srv_resultat', '_contact_srv_jeton', '_contact_srv_deja',
+                 '_contact_srv_lien', '_contact_srv_agir'))
      or to_regclass('public.demandes') is not null or to_regclass('public.demande_destinataires') is not null
      or to_regclass('public.demande_messages') is not null or to_regclass('public.contact_regles') is not null
      or to_regclass('public.contact_reponses') is not null or to_regclass('public.contact_envois') is not null

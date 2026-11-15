@@ -19,7 +19,11 @@
 --                prendre_en_compte, annuler_demande, relancer_envoi, e-mail affichable d'une fiche vérifiée.
 --   reglages     (partie B) qui reçoit quoi (une fiche du centre seulement), réponses toutes faites, lecture des réglages, alertes coupées.
 --   conservation (partie B) purge à l'écriture, changement de promo, départ d'un auteur de l'équipe, effacement sur demande.
--- Les groupes de la partie C s'ajoutent avec sa tâche, entre les migrations et les retours (repère « 4. GROUPES » plus bas).
+--   envois      (partie C) la file de la fonction serveur, en service_role : prendre (en cours, sans sujet ni texte), échec puis à
+--                retenter puis échec, vu par l'équipe, relance, reprise d'un envoi en cours depuis plus de 10 minutes, envoyé, ignoré
+--                (raison tronquée, sans adresse) ; aucune fonction _contact_srv_* pour l'API, aucune aide pour service_role.
+--   jetons      (partie C) jetons hachés d'un envoi, lien en lecture seule, prise et réponse toute faite par lien une seule fois (message
+--                par_lien, « non lue » remise, envois), voir, justificatif, jeton expiré, jeton d'une autre demande, stagiaire sans jeton.
 -- L'horloge : après la migration 2, la preuve remplace _contact_maintenant() par une version qui lit le réglage preuve.maintenant (C-21) ;
 -- tout est annulé à la fin. Les jours d'essai sont en 2031 : aucun planning réel n'y figure.
 -- Modes : dans la contre-épreuve, chaque groupe se joue et doit être ROUGE ; en ligne, un groupe dont la migration n'est pas appliquée
@@ -1038,6 +1042,354 @@ begin
     r4, '1|aucun|Stagiaire anonyme|0|0|0|1');
 end $cd_gk$;
 
+-- ===== Partie C (tâche 10) : la file des envois et les jetons des liens d'e-mail, appelés comme la fonction serveur contact-envois
+-- (service_role, aucun jeton de session). Les jours : jeudi 12 et vendredi 13 mars 2031 à Paris. Hachés d'essai : 64 caractères
+-- hexadécimaux fixes (la base ne voit jamais un jeton nu).
+
+-- Un appel en service_role : la valeur jsonb rendue, ou {"erreur": "<état> <message>"}. Rend la main au propriétaire.
+create or replace function pg_temp.srv(p_sql text)
+returns jsonb language plpgsql as $cd_sv$
+declare
+  v jsonb;
+begin
+  perform pg_temp.proprio();
+  set local role service_role;
+  begin
+    execute p_sql into v;
+  exception when others then
+    v := jsonb_build_object('erreur', sqlstate || ' ' || sqlerrm);
+  end;
+  perform pg_temp.proprio();
+  return coalesce(v, 'null'::jsonb);
+end $cd_sv$;
+
+-- Un appel en service_role d'une fonction sans valeur : « OK », ou « ERREUR <état> <message> ».
+create or replace function pg_temp.srv_faire(p_sql text)
+returns text language plpgsql as $cd_sf$
+declare
+  r text := 'OK';
+begin
+  perform pg_temp.proprio();
+  set local role service_role;
+  begin
+    execute p_sql;
+  exception when others then
+    r := 'ERREUR ' || sqlstate || ' ' || sqlerrm;
+  end;
+  perform pg_temp.proprio();
+  return r;
+end $cd_sf$;
+
+-- Les envois rendus par _contact_srv_prendre, triés (« 12,13 » ; vide : aucun ; autre chose qu'une liste : « pas une liste »).
+create or replace function pg_temp.srv_ids(p jsonb)
+returns text language sql as $cd_si$
+  select case when jsonb_typeof(p) = 'array'
+              then coalesce((select string_agg(x ->> 'envoi_id', ',' order by (x ->> 'envoi_id')::bigint) from jsonb_array_elements(p) x), '')
+              else 'pas une liste ' || coalesce(p::text, 'nul') end;
+$cd_si$;
+
+-- L'élément de l'envoi p_envoi dans ce que rend _contact_srv_prendre (nul s'il n'y est pas).
+create or replace function pg_temp.srv_item(p jsonb, p_envoi text)
+returns jsonb language sql as $cd_it$
+  select x from jsonb_array_elements(case when jsonb_typeof(p) = 'array' then p else '[]'::jsonb end) x where x ->> 'envoi_id' = p_envoi;
+$cd_it$;
+
+-- Les clés d'un objet jsonb, triées (« a,b,c »), ou « pas un objet ».
+create or replace function pg_temp.cles_de(p jsonb)
+returns text language sql as $cd_cl$
+  select case when jsonb_typeof(p) = 'object' then (select string_agg(k, ',' order by k) from jsonb_object_keys(p) k) else 'pas un objet' end;
+$cd_cl$;
+
+-- Les libellés d'une liste de réponses toutes faites ([{id, libelle}]), dans l'ordre, ou « pas une liste ».
+create or replace function pg_temp.libelles_de(p jsonb)
+returns text language sql as $cd_lb$
+  select case when jsonb_typeof(p) = 'array' then coalesce((select string_agg(x ->> 'libelle', ',' order by o) from jsonb_array_elements(p) with ordinality t(x, o)), '')
+              else 'pas une liste' end;
+$cd_lb$;
+
+-- L'état d'un envoi : « etat|tentatives|raison|prochain essai (heure de Paris) ».
+create or replace function pg_temp.etat_envoi(p_envoi text)
+returns text language sql as $cd_ee$
+  select pg_temp.calcul(format($cd_q$select concat_ws('|', etat, tentatives, coalesce(raison, 'aucune'),
+      coalesce(to_char(prochain_essai_le at time zone 'Europe/Paris', 'HH24:MI'), 'aucun')) from public.contact_envois where id = %s$cd_q$, p_envoi));
+$cd_ee$;
+
+-- Groupe envois : la file (prendre, résultat, reprise), l'échec vu par l'équipe, la relance, l'adresse absente, les droits.
+create or replace function pg_temp.groupe_envois()
+returns void language plpgsql as $cd_gv$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  f_dir_n text := pg_temp.fiche('dir_n');
+  c_vider constant text := $cd_q$update public.contact_envois set etat = 'envoye' where etat in ('a_envoyer', 'a_retenter', 'en_cours')$cd_q$;
+  c_prendre constant text := 'select public._contact_srv_prendre(20)';
+  v text;
+  d text;
+  e text;
+  v_m text;
+  r jsonb;
+  it jsonb;
+begin
+  perform set_config('preuve.maintenant', '2031-03-12 10:00:00 Europe/Paris', true);
+  perform pg_temp.essai(c_vider);
+  v_m := pg_temp.dernier_envoi();
+  v := pg_temp.poser_dem('v1', pg_temp.appeler('stag_n', '1', format('select public.ecrire_a(%s, %L, %L, %L)::text', f_dir_n, 'retard',
+         'Preuve10 sujet secret', 'Preuve10 texte secret')));
+  perform pg_temp.verifier('envois', 'v1 : stag_n écrit (retard) à la fiche de dir_n', v ~ '^OK [0-9]+$', v);
+  d := pg_temp.dem('v1');
+  perform pg_temp.attendre('envois', 'la demande crée sa ligne d''envoi « à envoyer » vers dir_n', pg_temp.envois_apres(d, v_m),
+    format('%s:nouvelle:a_envoyer', f_dir_n));
+  e := pg_temp.calcul(format('select max(id)::text from public.contact_envois where demande_id = %s', d));
+
+  r := pg_temp.srv(c_prendre);
+  it := pg_temp.srv_item(r, e);
+  perform pg_temp.attendre('envois', '_contact_srv_prendre : cet envoi seul, passé « en cours » (une tentative, repris à 10 h 10 s''il n''aboutit pas)',
+    pg_temp.srv_ids(r) || ' ' || pg_temp.etat_envoi(e), e || ' en_cours|1|aucune|10:10');
+  perform pg_temp.attendre('envois', 'l''élément : la demande sans sujet ni texte (id, type, auteur, jours, création), l''adresse du compte de dir_n, prise possible ; rien de « secret » dans tout le rendu',
+    concat_ws('|', pg_temp.cles_de(it -> 'demande'), it ->> 'evenement', it -> 'demande' ->> 'type', it -> 'demande' ->> 'auteur_nom',
+              coalesce(it -> 'demande' ->> 'jours', 'nul'), it -> 'destinataire' ->> 'email', it -> 'destinataire' ->> 'avec_compte',
+              it -> 'destinataire' ->> 'stagiaire', it -> 'destinataire' ->> 'peut_prendre', (position('secret' in coalesce(r::text, 'secret')) = 0)::text),
+    concat_ws('|', 'auteur_nom,cree_le,id,jours,type', 'nouvelle', 'retard',
+              pg_temp.calcul(format('select auteur_nom from public.demandes where id = %s', d)), 'nul', lower(pg_temp.email_de('dir_n')),
+              'true', 'false', 'true', 'true'));
+  perform pg_temp.attendre('envois', 'l''élément : les réponses toutes faites actives du centre, dans l''ordre',
+    pg_temp.libelles_de(it -> 'reponses'),
+    pg_temp.calcul(format('select string_agg(libelle, '','' order by ordre, id) from public.contact_reponses where lieu_id = %s and not retire', v_l1)));
+  perform pg_temp.attendre('envois', 'reprendre aussitôt : rien (l''envoi en cours n''est pas échu)', pg_temp.srv_ids(pg_temp.srv(c_prendre)), '');
+
+  -- Premier échec : à retenter dans 5 minutes ; les jetons posés pour cet envoi partent.
+  v := pg_temp.srv_faire(format($cd_q$select public._contact_srv_jetons(%s, '[{"hash":"%s","action":"voir"}]')$cd_q$, e, repeat('1f', 32)));
+  v := v || ' ' || pg_temp.calcul(format('select count(*)::text from public.contact_jetons where envoi_id = %s', e));
+  v := v || ' ' || pg_temp.srv_faire(format($cd_q$select public._contact_srv_resultat(%s, 'echec', 'Resend 500')$cd_q$, e));
+  perform pg_temp.attendre('envois', 'un jeton posé, puis un premier échec : « à retenter » à 10 h 05, raison gardée, le jeton retiré',
+    v || ' ' || pg_temp.etat_envoi(e) || ' ' || pg_temp.calcul(format('select count(*)::text from public.contact_jetons where envoi_id = %s', e)),
+    'OK 1 OK a_retenter|1|Resend 500|10:05 0');
+  perform set_config('preuve.maintenant', '2031-03-12 10:04:00 Europe/Paris', true);
+  perform pg_temp.attendre('envois', 'à 10 h 04 : pas encore repris', pg_temp.srv_ids(pg_temp.srv(c_prendre)), '');
+  perform set_config('preuve.maintenant', '2031-03-12 10:06:00 Europe/Paris', true);
+  perform pg_temp.attendre('envois', 'à 10 h 06 : repris (deuxième tentative)', pg_temp.srv_ids(pg_temp.srv(c_prendre)) || ' ' || pg_temp.etat_envoi(e),
+    e || ' en_cours|2|aucune|10:16');
+  v := pg_temp.srv_faire(format($cd_q$select public._contact_srv_resultat(%s, 'echec', 'Resend 500')$cd_q$, e));
+  perform pg_temp.attendre('envois', 'second échec : « échec », plus de nouvel essai', v || ' ' || pg_temp.etat_envoi(e), 'OK echec|2|Resend 500|aucun');
+  perform pg_temp.attendre('envois', 'liste_demandes : envoi_en_echec vrai pour dir_n (équipe), nul pour stag_n',
+    pg_temp.appeler('dir_n', '1', format('select envoi_en_echec::text from public.liste_demandes() where id = %s', d)) || ' / '
+      || pg_temp.appeler('stag_n', '1', format('select envoi_en_echec::text from public.liste_demandes() where id = %s', d)),
+    'OK true / OK nul');
+  perform pg_temp.attendre('envois', 'relancer_envoi par dir_n : « à envoyer », compteurs remis',
+    pg_temp.appeler('dir_n', '1', format('select public.relancer_envoi(%s)::text', e)) || ' ' || pg_temp.etat_envoi(e), 'OK a_envoyer|0|aucune|aucun');
+
+  -- Un envoi resté « en cours » plus de 10 minutes est repris, sa tentative comptée ; interrompu une deuxième fois, il passe en échec.
+  perform set_config('preuve.maintenant', '2031-03-12 10:10:00 Europe/Paris', true);
+  perform pg_temp.attendre('envois', 'à 10 h 10 : pris (en cours jusqu''à 10 h 20)', pg_temp.srv_ids(pg_temp.srv(c_prendre)) || ' ' || pg_temp.etat_envoi(e),
+    e || ' en_cours|1|aucune|10:20');
+  perform set_config('preuve.maintenant', '2031-03-12 10:21:00 Europe/Paris', true);
+  perform pg_temp.attendre('envois', 'à 10 h 21 (11 minutes) : l''envoi en cours est repris, deuxième tentative',
+    pg_temp.srv_ids(pg_temp.srv(c_prendre)) || ' ' || pg_temp.etat_envoi(e), e || ' en_cours|2|aucune|10:31');
+  perform set_config('preuve.maintenant', '2031-03-12 10:32:00 Europe/Paris', true);
+  perform pg_temp.attendre('envois', 'à 10 h 32 : interrompu une deuxième fois, il passe en échec sans être rendu',
+    pg_temp.srv_ids(pg_temp.srv(c_prendre)) || ' ' || pg_temp.etat_envoi(e), ' echec|2|interrompu|aucun');
+
+  -- Envoyé ; un résultat sur un envoi qui n'est plus en cours ne change rien.
+  perform set_config('preuve.maintenant', '2031-03-12 10:40:00 Europe/Paris', true);
+  v := pg_temp.poser_dem('v2', pg_temp.appeler('stag_n', '1', format('select public.ecrire_a(%s, %L, %L, null)::text', f_dir_n, 'autre', 'Preuve10 envoyée')));
+  e := pg_temp.calcul(format('select max(id)::text from public.contact_envois where demande_id = %s', pg_temp.dem('v2')));
+  v := pg_temp.srv_ids(pg_temp.srv(c_prendre));
+  v := v || ' ' || pg_temp.srv_faire(format($cd_q$select public._contact_srv_resultat(%s, 'envoye', null)$cd_q$, e));
+  v := v || ' ' || pg_temp.srv_faire(format($cd_q$select public._contact_srv_resultat(%s, 'echec', 'trop tard')$cd_q$, e));
+  perform pg_temp.attendre('envois', 'envoyé : « envoye » à l''heure, sans raison ; un échec rapporté ensuite ne change rien',
+    v || ' ' || pg_temp.etat_envoi(e) || ' '
+      || pg_temp.calcul(format($cd_q$select (envoye_le = timestamptz '2031-03-12 10:40 Europe/Paris')::text from public.contact_envois where id = %s$cd_q$, e)),
+    e || ' OK OK envoye|1|aucune|aucun true');
+
+  -- Ignoré (adresse fictive) avec une raison trop longue : 200 caractères gardés ; une issue inconnue est refusée.
+  v := pg_temp.poser_dem('v3', pg_temp.appeler('stag_n', '1', format('select public.ecrire_a(%s, %L, %L, null)::text', f_dir_n, 'autre', 'Preuve10 ignorée')));
+  e := pg_temp.calcul(format('select max(id)::text from public.contact_envois where demande_id = %s', pg_temp.dem('v3')));
+  v := pg_temp.srv_ids(pg_temp.srv(c_prendre));
+  v := v || ' ' || substr(pg_temp.srv_faire(format($cd_q$select public._contact_srv_resultat(%s, 'perdu', null)$cd_q$, e)), 1, 60);
+  v := v || ' ' || pg_temp.srv_faire(format($cd_q$select public._contact_srv_resultat(%s, 'ignore', repeat('x', 300))$cd_q$, e));
+  perform pg_temp.attendre('envois', 'issue inconnue refusée ; « ignore » avec une raison de 300 caractères : 200 gardés',
+    v || ' ' || pg_temp.calcul(format($cd_q$select concat_ws('|', etat, char_length(raison)) from public.contact_envois where id = %s$cd_q$, e)),
+    e || ' ERREUR P0001 contact: Issue d''envoi illisible. OK ignore|200');
+
+  -- Sans adresse : ignoré, jamais rendu.
+  perform pg_temp.essai(format($cd_q$insert into public.contact_envois (demande_id, evenement, cree_le) values (%s, 'reponse', timestamptz '2031-03-12 10:45 Europe/Paris')$cd_q$, d));
+  e := pg_temp.calcul(format('select max(id)::text from public.contact_envois where demande_id = %s', d));
+  perform pg_temp.attendre('envois', 'un envoi vers personne (fiche supprimée) : « ignore », raison « sans adresse », non rendu',
+    pg_temp.srv_ids(pg_temp.srv(c_prendre)) || ' ' || pg_temp.etat_envoi(e), ' ignore|0|sans adresse|aucun');
+
+  -- Droits : service_role seul exécute les cinq fonctions de la fonction serveur ; ni l'API (authenticated, anon) ni service_role les aides.
+  perform pg_temp.attendre('envois', 'authenticated (form_n) et anon : aucune des cinq fonctions _contact_srv_* ne s''exécute',
+    concat_ws(' / ',
+      pg_temp.valeur(pg_temp.email_de('form_n'), '1', null, 'select public._contact_srv_prendre(1)::text'),
+      pg_temp.valeur(pg_temp.email_de('form_n'), '1', null, format('select public._contact_srv_jetons(%s, ''[]'')::text', e)),
+      pg_temp.valeur(pg_temp.email_de('form_n'), '1', null, format('select public._contact_srv_resultat(%s, ''envoye'', null)::text', e)),
+      pg_temp.valeur(pg_temp.email_de('form_n'), '1', null, format('select public._contact_srv_lien(%L)::text', repeat('0', 64))),
+      pg_temp.valeur(pg_temp.email_de('form_n'), '1', null, format('select public._contact_srv_agir(%L)::text', repeat('0', 64))),
+      pg_temp.valeur(null, '1', null, 'select public._contact_srv_prendre(1)::text'),
+      pg_temp.valeur(null, '1', null, format('select public._contact_srv_jetons(%s, ''[]'')::text', e)),
+      pg_temp.valeur(null, '1', null, format('select public._contact_srv_resultat(%s, ''envoye'', null)::text', e)),
+      pg_temp.valeur(null, '1', null, format('select public._contact_srv_lien(%L)::text', repeat('0', 64))),
+      pg_temp.valeur(null, '1', null, format('select public._contact_srv_agir(%L)::text', repeat('0', 64)))),
+    'ERREUR 42501 / ERREUR 42501 / ERREUR 42501 / ERREUR 42501 / ERREUR 42501 / ERREUR 42501 / ERREUR 42501 / ERREUR 42501 / ERREUR 42501 / ERREUR 42501');
+  perform pg_temp.attendre('envois', 'service_role : les aides (_contact_srv_jeton, _contact_appliquer_prise, _contact_appliquer_reponse) refusées',
+    concat_ws(' / ',
+      substr(pg_temp.srv_faire(format('select public._contact_srv_jeton(%L)', repeat('0', 64))), 1, 12),
+      substr(pg_temp.srv_faire(format('select public._contact_appliquer_prise(%s, %L, true)', d, 'Preuve')), 1, 12),
+      substr(pg_temp.srv_faire(format('select public._contact_appliquer_reponse(%s, %s, null, %L, null, %L, null, true)', d, f_dir_n, 'Preuve', 'Preuve')), 1, 12)),
+    'ERREUR 42501 / ERREUR 42501 / ERREUR 42501');
+end $cd_gv$;
+
+-- Groupe jetons : les jetons d'un envoi, le lien (lecture seule), le geste (prise, réponse toute faite) une seule fois, au nom de la fiche
+-- du jeton ; voir, justificatif, jeton expiré, jeton d'une autre demande.
+create or replace function pg_temp.groupe_jetons()
+returns void language plpgsql as $cd_gt$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  f_dir_n text := pg_temp.fiche('dir_n');
+  f_form_n text := pg_temp.fiche('form_n');
+  s_n text := pg_temp.stag('stag_n');
+  c_vider constant text := $cd_q$update public.contact_envois set etat = 'envoye' where etat in ('a_envoyer', 'a_retenter', 'en_cours')$cd_q$;
+  c_prendre constant text := 'select public._contact_srv_prendre(20)';
+  h_voir constant text := repeat('a1', 32);
+  h_prise constant text := repeat('b2', 32);
+  h_rep constant text := repeat('c3', 32);
+  h_autre constant text := repeat('d4', 32);
+  h_vieux constant text := repeat('e5', 32);
+  h_justif constant text := repeat('f6', 32);
+  v_rep text;
+  v_nom_dir text;
+  da text;
+  db text;
+  dc text;
+  e_dir text;
+  e_s text;
+  v text;
+  v_m text;
+  r jsonb;
+  it jsonb;
+begin
+  perform set_config('preuve.maintenant', '2031-03-13 10:00:00 Europe/Paris', true);
+  perform pg_temp.essai(format('delete from public.contact_regles where lieu_id = %s', v_l1));
+  perform pg_temp.essai(c_vider);
+  v_rep := pg_temp.calcul(format('select id::text from public.contact_reponses where lieu_id = %s and not retire order by ordre, id limit 1', v_l1));
+  v := pg_temp.poser_dem('ja', pg_temp.appeler('stag_n', '1', format('select public.ecrire_au_centre(%L, %L, %L, array[%s, %s]::bigint[])::text',
+         'retard', 'Preuve10 sujet du lien', 'Preuve10 texte du lien', f_form_n, f_dir_n)));
+  perform pg_temp.verifier('jetons', 'ja : stag_n écrit (retard) à form_n et dir_n, qu''il choisit', v ~ '^OK [0-9]+$', v);
+  da := pg_temp.dem('ja');
+  v := pg_temp.poser_dem('jb', pg_temp.appeler('stag_n', '1', format('select public.ecrire_a(%s, %L, %L, null)::text', f_dir_n, 'autre', 'Preuve10 autre demande')));
+  db := pg_temp.dem('jb');
+  v := pg_temp.poser_dem('jc', pg_temp.appeler('stag_n', '1', format('select public.ecrire_a(%s, %L, %L, null)::text', f_dir_n, 'document', 'Preuve10 vieillie')));
+  dc := pg_temp.dem('jc');
+  v_nom_dir := pg_temp.calcul(format('select nom from public.demande_destinataires where demande_id = %s and fiche_id = %s', da, f_dir_n));
+  r := pg_temp.srv(c_prendre);
+  perform pg_temp.attendre('jetons', 'les quatre envois « nouvelle » (ja vers form_n et dir_n, jb, jc) pris ensemble', pg_temp.srv_ids(r),
+    pg_temp.calcul(format('select string_agg(id::text, '','' order by id) from public.contact_envois where demande_id in (%s, %s, %s)', da, db, dc)));
+  e_dir := pg_temp.calcul(format('select id::text from public.contact_envois where demande_id = %s and vers_fiche_id = %s', da, f_dir_n));
+
+  -- Les jetons.
+  v := pg_temp.srv_faire(format($cd_q$select public._contact_srv_jetons(%s, '[{"hash":"%s","action":"voir"},{"hash":"%s","action":"prise"},{"hash":"%s","action":"reponse","reponse_id":%s}]')$cd_q$,
+         e_dir, h_voir, h_prise, h_rep, v_rep));
+  perform pg_temp.attendre('jetons', 'trois jetons sur l''envoi de dir_n : hachés (32 octets), sa fiche, sa demande, valables jusqu''au 27 mars, inutilisés',
+    v || ' ' || pg_temp.calcul(format($cd_q$select concat_ws('|', count(*), string_agg(action, ',' order by action),
+        bool_and(fiche_id = %s and demande_id = %s and expire_le = timestamptz '2031-03-27 10:00 Europe/Paris' and utilise_le is null)::text,
+        bool_and(octet_length(hash) = 32)::text) from public.contact_jetons where envoi_id = %s$cd_q$, f_dir_n, da, e_dir)),
+    'OK 3|prise,reponse,voir|true|true');
+  perform pg_temp.srv_faire(format($cd_q$select public._contact_srv_jetons(%s, '[{"hash":"%s","action":"prise"}]')$cd_q$,
+    pg_temp.calcul(format('select id::text from public.contact_envois where demande_id = %s', db)), h_autre));
+  perform pg_temp.srv_faire(format($cd_q$select public._contact_srv_jetons(%s, '[{"hash":"%s","action":"prise"},{"hash":"%s","action":"justificatif"}]')$cd_q$,
+    pg_temp.calcul(format('select id::text from public.contact_envois where demande_id = %s', dc)), h_vieux, h_justif));
+  perform pg_temp.attendre('jetons', 'jetons illisibles refusés (haché court, réponse sans réponse toute faite, action inconnue) ; rien de plus en base',
+    concat_ws(' / ',
+      substr(pg_temp.srv_faire(format($cd_q$select public._contact_srv_jetons(%s, '[{"hash":"abc","action":"voir"}]')$cd_q$, e_dir)), 1, 12),
+      substr(pg_temp.srv_faire(format($cd_q$select public._contact_srv_jetons(%s, '[{"hash":"%s","action":"reponse"}]')$cd_q$, e_dir, repeat('9', 64))), 1, 12),
+      substr(pg_temp.srv_faire(format($cd_q$select public._contact_srv_jetons(%s, '[{"hash":"%s","action":"tout"}]')$cd_q$, e_dir, repeat('9', 64))), 1, 12),
+      pg_temp.calcul(format('select count(*)::text from public.contact_jetons where demande_id in (%s, %s, %s)', da, db, dc))),
+    'ERREUR P0001 / ERREUR P0001 / ERREUR P0001 / 6');
+
+  -- Le lien : il montre la demande (sujet et texte) et n'écrit rien.
+  r := pg_temp.srv(format('select public._contact_srv_lien(%L)', h_prise));
+  perform pg_temp.attendre('jetons', '_contact_srv_lien (prise) : sujet et texte de ja, envoyée, action prise, pas encore faite ; aucun message, aucun envoi écrit',
+    concat_ws('|', r -> 'demande' ->> 'sujet', r -> 'demande' ->> 'texte', r -> 'demande' ->> 'etat', r ->> 'action', r ->> 'deja',
+              pg_temp.calcul(format('select count(*)::text from public.demande_messages where demande_id = %s', da)),
+              pg_temp.calcul(format('select count(*)::text from public.contact_envois where demande_id = %s and evenement <> ''nouvelle''', da))),
+    'Preuve10 sujet du lien|Preuve10 texte du lien|envoyee|prise|false|0|0');
+  r := pg_temp.srv(format('select public._contact_srv_lien(%L)', h_rep));
+  perform pg_temp.attendre('jetons', '_contact_srv_lien (réponse) : action reponse, libellé de la réponse toute faite',
+    concat_ws('|', r ->> 'action', r ->> 'libelle_reponse', r ->> 'deja'),
+    concat_ws('|', 'reponse', pg_temp.calcul(format('select libelle from public.contact_reponses where id = %s', v_rep)), 'false'));
+  perform pg_temp.attendre('jetons', '_contact_srv_lien : un haché illisible ou inconnu est invalide',
+    pg_temp.srv(format('select public._contact_srv_lien(%L)', 'zz'))::text || ' ' || pg_temp.srv(format('select public._contact_srv_lien(%L)', repeat('0', 64)))::text,
+    '{"invalide": true} {"invalide": true}');
+
+  -- Un jeton d'une autre demande ne touche pas celle-ci.
+  r := pg_temp.srv(format('select public._contact_srv_agir(%L)', h_autre));
+  perform pg_temp.attendre('jetons', 'le jeton de jb : fait sur jb seule ; ja reste envoyée, sans message',
+    concat_ws('|', r::text, pg_temp.calcul(format('select etat from public.demandes where id = %s', db)),
+              pg_temp.calcul(format('select etat from public.demandes where id = %s', da)),
+              pg_temp.calcul(format('select count(*)::text from public.demande_messages where demande_id = %s', da))),
+    '{"fait": true}|prise|envoyee|0');
+
+  -- La prise par lien, une seule fois.
+  v_m := pg_temp.dernier_envoi();
+  r := pg_temp.srv(format('select public._contact_srv_agir(%L)', h_prise));
+  perform pg_temp.attendre('jetons', '_contact_srv_agir (prise) : fait ; ja prise à l''heure au nom de dir_n ; un message « Prise en compte. » par lien à son nom ; un envoi « prise » vers stag_n',
+    concat_ws(' ', r::text,
+      pg_temp.calcul(format($cd_q$select concat_ws('|', etat, (prise_par = %L)::text, (prise_le = timestamptz '2031-03-13 10:00 Europe/Paris')::text)
+        from public.demandes where id = %s$cd_q$, v_nom_dir, da)),
+      pg_temp.calcul(format($cd_q$select concat_ws('|', count(*), string_agg(texte, ','), bool_and(par_lien)::text, bool_and(reponse_id is null)::text, bool_and(auteur_nom = %L)::text)
+        from public.demande_messages where demande_id = %s$cd_q$, v_nom_dir, da)),
+      pg_temp.envois_apres(da, v_m),
+      pg_temp.calcul(format('select (utilise_le is not null)::text from public.contact_jetons where hash = decode(%L, ''hex'')', h_prise))),
+    format('{"fait": true} prise|true|true 1|Prise en compte.|true|true|true s%s:prise:a_envoyer true', s_n));
+  v_m := pg_temp.dernier_envoi();
+  r := pg_temp.srv(format('select public._contact_srv_agir(%L)', h_prise));
+  perform pg_temp.attendre('jetons', 'le même lien touché une seconde fois : déjà fait, aucune ligne de plus',
+    concat_ws('|', r::text, pg_temp.calcul(format('select count(*)::text from public.demande_messages where demande_id = %s', da)),
+              pg_temp.envois_apres(da, v_m)),
+    '{"deja": true}|1|');
+  perform pg_temp.attendre('jetons', 'son lien le dit déjà fait', pg_temp.srv(format('select public._contact_srv_lien(%L)', h_prise)) ->> 'deja', 'true');
+
+  -- L'avis de prise à stag_n : un stagiaire n'a ni réponse toute faite, ni prise, ni jeton (C-12).
+  r := pg_temp.srv(c_prendre);
+  e_s := pg_temp.calcul(format('select id::text from public.contact_envois where demande_id = %s and vers_stagiaire_id = %s and evenement = ''prise''', da, s_n));
+  it := pg_temp.srv_item(r, e_s);
+  perform pg_temp.attendre('jetons', 'l''avis de prise vers stag_n : l''adresse de son profil, stagiaire, aucune réponse toute faite, pas de prise ; aucun jeton possible',
+    concat_ws('|', it ->> 'evenement', it -> 'destinataire' ->> 'email', it -> 'destinataire' ->> 'stagiaire', it -> 'destinataire' ->> 'peut_prendre',
+              coalesce((it -> 'reponses')::text, 'nul'),
+              pg_temp.srv_faire(format($cd_q$select public._contact_srv_jetons(%s, '[{"hash":"%s","action":"voir"}]')$cd_q$, e_s, repeat('7', 64)))),
+    concat_ws('|', 'prise', lower(pg_temp.email_de('stag_n')), 'true', 'false', '[]', 'ERREUR P0001 contact: Cet envoi ne reçoit pas de jeton.'));
+
+  -- La réponse toute faite par lien : le message, « non lue » pour form_n, les envois aux autres participants.
+  perform pg_temp.appeler('form_n', '1', format('select public.marquer_lue(%s)::text', da));
+  perform pg_temp.attendre('jetons', 'form_n a lu ja', pg_temp.calcul(format('select count(*)::text from public.demande_destinataires where demande_id = %s and lue_le is not null', da)), '1');
+  v_m := pg_temp.dernier_envoi();
+  r := pg_temp.srv(format('select public._contact_srv_agir(%L)', h_rep));
+  perform pg_temp.attendre('jetons', '_contact_srv_agir (réponse) : fait ; le message porte la réponse toute faite, par lien, au nom de dir_n ; lue_le de form_n remis à nul ; une « réponse » à form_n et à stag_n',
+    concat_ws(' ', r::text,
+      pg_temp.calcul(format($cd_q$select concat_ws('|', reponse_id, coalesce(texte, 'aucun'), par_lien::text, (auteur_nom = %L)::text)
+        from public.demande_messages where demande_id = %s order by id desc limit 1$cd_q$, v_nom_dir, da)),
+      pg_temp.calcul(format('select count(*)::text from public.demande_destinataires where demande_id = %s and lue_le is not null', da)),
+      pg_temp.envois_apres(da, v_m)),
+    format('{"fait": true} %s|aucun|true|true 0 %s:reponse:a_envoyer,s%s:reponse:a_envoyer', v_rep, f_form_n, s_n));
+  r := pg_temp.srv(format('select public._contact_srv_agir(%L)', h_rep));
+  perform pg_temp.attendre('jetons', 'la même réponse touchée une seconde fois : déjà faite, aucun message de plus',
+    r::text || ' ' || pg_temp.calcul(format('select count(*)::text from public.demande_messages where demande_id = %s', da)), '{"deja": true} 2');
+
+  -- voir et justificatif n'agissent pas ; un jeton expiré n'ouvre ni n'agit.
+  r := pg_temp.srv(format('select public._contact_srv_lien(%L)', h_voir));
+  perform pg_temp.attendre('jetons', 'jeton voir : le lien s''ouvre (action voir), agir est invalide ; jeton justificatif (avant la migration 3) : invalide, jc reste envoyée',
+    concat_ws('|', r ->> 'action', r ->> 'deja', pg_temp.srv(format('select public._contact_srv_agir(%L)', h_voir))::text,
+              pg_temp.srv(format('select public._contact_srv_agir(%L)', h_justif))::text,
+              pg_temp.calcul(format('select etat from public.demandes where id = %s', dc))),
+    'voir|false|{"invalide": true}|{"invalide": true}|envoyee');
+  perform set_config('preuve.maintenant', '2031-03-28 10:00:00 Europe/Paris', true);
+  perform pg_temp.attendre('jetons', 'quinze jours plus tard : le jeton de prise de jc est invalide au lien comme au geste ; jc reste envoyée ; le lien voir de ja aussi',
+    concat_ws('|', pg_temp.srv(format('select public._contact_srv_lien(%L)', h_vieux))::text,
+              pg_temp.srv(format('select public._contact_srv_agir(%L)', h_vieux))::text,
+              pg_temp.calcul(format('select etat from public.demandes where id = %s', dc)),
+              pg_temp.srv(format('select public._contact_srv_lien(%L)', h_voir))::text),
+    '{"invalide": true}|{"invalide": true}|envoyee|{"invalide": true}');
+end $cd_gt$;
+
 -- Un groupe se joue-t-il dans ce mode ? Contre-épreuve : toujours (il doit être rouge). En ligne : seulement si p_condition (la
 -- migration qui le fonde est appliquée), sinon une ligne d'information. Migrations injectées : toujours.
 create or replace function pg_temp.groupe_a_jouer(p_groupe text, p_mode text, p_condition boolean, p_raison text)
@@ -1066,6 +1418,7 @@ declare
   v_jouees integer;
   v_partie_a boolean;
   v_partie_b boolean;
+  v_partie_c boolean;
 begin
   perform set_config('lock_timeout', '3s', true);
   v_en_ligne := v_mode like 'contact-2-en-ligne%';
@@ -1139,8 +1492,15 @@ begin
   if pg_temp.groupe_a_jouer('conservation', v_mode, v_partie_b, 'la partie B de la migration 2 n''est pas appliquée') then
     perform pg_temp.groupe_conservation();
   end if;
+  -- 4c. Partie C (tâche 10) : la file des envois et les jetons, appelés en service_role.
+  v_partie_c := to_regprocedure('public._contact_srv_prendre(integer)') is not null;
+  if pg_temp.groupe_a_jouer('envois', v_mode, v_partie_c, 'la partie C de la migration 2 n''est pas appliquée') then
+    perform pg_temp.groupe_envois();
+  end if;
+  if pg_temp.groupe_a_jouer('jetons', v_mode, v_partie_c, 'la partie C de la migration 2 n''est pas appliquée') then
+    perform pg_temp.groupe_jetons();
+  end if;
   perform set_config('preuve.maintenant', '', true);
-  -- 4c. Partie C (tâche 10) : à ajouter ici.
 
   -- 5. Les retours, dans l'ordre inverse (2, 1b, 1).
   v_retour2 := pg_temp.jouer('retour 2',

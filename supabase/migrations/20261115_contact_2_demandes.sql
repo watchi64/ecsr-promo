@@ -1,4 +1,4 @@
--- Espace contact, migration 2 (parties A, B et C ; A et B pour l'instant) : les demandes, leur routage, leur création, leur suivi.
+-- Espace contact, migration 2 (parties A, B et C) : les demandes, leur routage, leur création, leur suivi.
 -- Spec : docs/superpowers/specs/2026-11-09-espace-contact-design.md ; plan : docs/superpowers/plans/2026-11-14-espace-contact.md
 -- (tâches 8 à 10, choix C-5, C-8, C-9, C-17, C-21 à C-23, décisions de Timy du 14/11 : Q4, Q8).
 --   Partie A (tâche 8) :
@@ -28,7 +28,11 @@
 --      regler_reponses().
 --   10. La conservation : déclencheur stagiaires_contact_effacer (fiche effacée : ses demandes hors absence supprimées, ses absences
 --      vidées de leur texte, de leurs réponses, envois et jetons) ; purges à l'écriture (C-17) par _contact_purger (section 4).
---   Partie C (tâche 10) : s'ajoute après la section 10 (repère « Partie C » plus bas), ses fonctions dans le même contrôle de fin.
+--   Partie C (tâche 10) :
+--   11. La file des envois et les liens d'e-mail, pour la fonction serveur contact-envois (service_role seul) : _contact_srv_prendre()
+--       (envois à faire passés « en cours », sans sujet, texte ni motif), _contact_srv_jetons() (hachés sha256, 14 jours),
+--       _contact_srv_resultat() (envoyé, ignoré, à retenter puis échec), _contact_srv_lien() (lecture, n'écrit rien), _contact_srv_agir()
+--       (prise ou réponse toute faite au nom de la fiche du jeton, une seule fois) ; aides _contact_srv_jeton(), _contact_srv_deja().
 -- Garde : la migration 1 est appliquée (ma_fiche_contact, contact_financements, _contact_fiche_dans) ; rien de la migration 2 n'existe
 -- (ni ses tables, ni ecrire_au_centre, ni liste_demandes, ni user_profiles.alertes_email) ; sinon rien ne change.
 -- Marche arrière : 20261115_contact_2_demandes_retour.sql (refusée tant que la migration 3 est appliquée).
@@ -917,8 +921,9 @@ end $fn$;
 
 -- 8. Les gestes. Une seule écriture de chacun (E11) : la réponse et la prise, communes à l'app (droit vérifié par le jeton de session) et
 --    au lien d'un e-mail (_contact_srv_agir, partie C, droit vérifié par le jeton du lien).
--- Passer une demande à « prise » (si elle est encore envoyée) ; l'auteur en est prévenu. p_par_lien : la prise vient d'un lien d'e-mail
--- (la trace en est le message de la réponse quand il y en a un ; la demande n'a pas de colonne pour elle).
+-- Passer une demande à « prise » (si elle est encore envoyée) ; l'auteur en est prévenu. p_par_lien : la prise vient du bouton de prise
+-- d'un e-mail (_contact_srv_agir) ; sa trace est un message « Prise en compte. » marqué par_lien, au nom de qui prend. Une prise née d'une
+-- réponse toute faite passe ici sans p_par_lien : sa trace est déjà le message de la réponse (par_lien).
 create function public._contact_appliquer_prise(p_demande bigint, p_nom text, p_par_lien boolean)
 returns void language plpgsql security definer set search_path = public, pg_temp
 as $fn$
@@ -931,7 +936,14 @@ begin
      set etat = 'prise', prise_le = v_maintenant, prise_par = coalesce(nullif(btrim(p_nom), ''), 'Sans nom'), dernier_echange_le = v_maintenant
    where id = p_demande and etat = 'envoyee'
   returning auteur_stagiaire_id, auteur_fiche_id into v_stagiaire, v_fiche;
-  if found and num_nonnulls(v_stagiaire, v_fiche) = 1 then
+  if not found then
+    return;
+  end if;
+  if coalesce(p_par_lien, false) then
+    insert into demande_messages (demande_id, auteur_nom, texte, par_lien, cree_le)
+      values (p_demande, coalesce(nullif(btrim(p_nom), ''), 'Sans nom'), 'Prise en compte.', true, v_maintenant);
+  end if;
+  if num_nonnulls(v_stagiaire, v_fiche) = 1 then
     perform _contact_envoyer(p_demande, v_fiche, v_stagiaire, 'prise');
   end if;
 end $fn$;
@@ -968,7 +980,8 @@ begin
      and not coalesce((p_fiche_id is not null and x.fiche_id = p_fiche_id) or (p_stagiaire_id is not null and x.stagiaire_id = p_stagiaire_id), false);
   if d.etat = 'envoyee' and d.auteur_stagiaire_id is not null
      and coalesce((select r.vaut_prise from contact_reponses r where r.id = p_reponse_id), false) then
-    perform _contact_appliquer_prise(p_demande, p_nom, p_par_lien);
+    -- La trace d'un lien est le message ci-dessus (par_lien) : la prise n'en écrit pas une seconde.
+    perform _contact_appliquer_prise(p_demande, p_nom, false);
     v_prise := true;
   end if;
   for v_cible in
@@ -1322,7 +1335,253 @@ create trigger stagiaires_contact_effacer after update of efface_le on public.st
   for each row when (old.efface_le is null and new.efface_le is not null) execute function public._contact_effacer_stagiaire();
 
 
--- ===== Partie C (tâche 10) : à ajouter ici =====
+-- ===== Partie C (tâche 10) : la file des envois, les jetons hachés, les liens d'e-mail =====
+-- 11. Les fonctions de la fonction serveur contact-envois (Resend) : exécution par service_role seul (C-9, C-10, C-11). Les hachés
+--     circulent en hexadécimal (sha256, 64 caractères) ; la base ne voit jamais un jeton nu. Aucun e-mail ne porte de motif, de sujet ni
+--     de texte : _contact_srv_prendre ne les rend pas ; seul le lien ouvert (_contact_srv_lien) montre la demande, à qui tient le jeton.
+--     Un envoi pris passe « en cours » pour 10 minutes (prochain_essai_le = la fin du délai) : au-delà, il est repris et sa tentative
+--     compte ; une deuxième tentative interrompue le passe en échec.
+
+-- La file : les envois « à envoyer », les « à retenter » échus et les « en cours » dont le délai est passé, verrouillés (skip locked :
+-- deux traitements simultanés ne prennent pas le même), passés « en cours ». Rend, pour chacun, de quoi bâtir l'e-mail : jamais le sujet,
+-- le texte ni le motif. Adresse : compte_email d'une fiche avec compte, email d'une sans compte, l'adresse du profil d'un stagiaire ;
+-- sans adresse, l'envoi est « ignore » (raison « sans adresse ») et n'est pas rendu. reponses : les réponses toutes faites que la fiche
+-- peut choisir par lien (_contact_peut, toutes_faites) ; peut_prendre : le bouton de prise a un sens (_contact_peut, prendre).
+create function public._contact_srv_prendre(p_limite integer default 20)
+returns jsonb language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  v_maintenant timestamptz := _contact_maintenant();
+  e contact_envois%rowtype;
+  d demandes%rowtype;
+  c contacts%rowtype;
+  v_sortie jsonb := '[]'::jsonb;
+  v_email text;
+  v_nom text;
+  v_role text;
+  v_peut jsonb;
+begin
+  for e in
+    select x.* from contact_envois x
+     where x.etat = 'a_envoyer' or (x.etat in ('a_retenter', 'en_cours') and x.prochain_essai_le <= v_maintenant)
+     order by x.id
+     limit greatest(1, least(coalesce(p_limite, 20), 100))
+     for update skip locked
+  loop
+    if e.etat = 'en_cours' and e.tentatives >= 2 then
+      update contact_envois set etat = 'echec', raison = 'interrompu', prochain_essai_le = null where id = e.id;
+      continue;
+    end if;
+    select * into d from demandes x where x.id = e.demande_id;
+    c := null;
+    v_email := null;
+    v_nom := null;
+    v_peut := null;
+    if e.vers_fiche_id is not null then
+      select * into c from contacts x where x.id = e.vers_fiche_id;
+      v_email := case when c.compte_email is not null then c.compte_email else c.email end;
+      v_nom := coalesce((select x.nom from demande_destinataires x where x.demande_id = d.id and x.fiche_id = c.id
+                          order by x.principal desc, x.id limit 1),
+                        _contact_nom_fiche(c, d.lieu_id));
+      -- Le rôle de la fiche, sans jeton de session : la branche « direction » de _contact_role n'est jamais prise ici.
+      v_role := _contact_role(d.id, null, c.id);
+      if v_role is not null then
+        v_peut := _contact_peut(d.id, v_role, true);
+      end if;
+    elsif e.vers_stagiaire_id is not null then
+      v_email := (select lower(up.email) from user_profiles up where up.stagiaire_id = e.vers_stagiaire_id and up.email is not null
+                   order by up.email limit 1);
+      v_nom := _contact_nom_stagiaire(e.vers_stagiaire_id);
+    end if;
+    v_email := nullif(btrim(v_email), '');
+    if v_email is null then
+      update contact_envois set etat = 'ignore', raison = 'sans adresse', prochain_essai_le = null where id = e.id;
+      continue;
+    end if;
+    update contact_envois set etat = 'en_cours', tentatives = tentatives + 1, raison = null,
+                              prochain_essai_le = v_maintenant + interval '10 minutes'
+     where id = e.id;
+    v_sortie := v_sortie || jsonb_build_array(jsonb_build_object(
+      'envoi_id', e.id,
+      'evenement', e.evenement,
+      'demande', jsonb_build_object('id', d.id, 'type', d.type, 'auteur_nom', d.auteur_nom, 'jours', null, 'cree_le', d.cree_le),
+      'destinataire', jsonb_build_object('email', v_email, 'nom', coalesce(v_nom, 'Sans nom'),
+                                         'avec_compte', e.vers_stagiaire_id is not null or c.compte_email is not null,
+                                         'stagiaire', e.vers_stagiaire_id is not null,
+                                         'peut_prendre', coalesce((v_peut ->> 'prendre')::boolean, false)),
+      'reponses', case when e.evenement in ('nouvelle', 'reponse') and coalesce((v_peut ->> 'toutes_faites')::boolean, false) then coalesce((
+                    select jsonb_agg(jsonb_build_object('id', r.id, 'libelle', r.libelle) order by r.ordre, r.id)
+                      from contact_reponses r where r.lieu_id = d.lieu_id and not r.retire), '[]'::jsonb)
+                  else '[]'::jsonb end));
+  end loop;
+  return v_sortie;
+end $fn$;
+
+-- Les jetons d'un envoi en cours ([{hash, action, reponse_id}], hachés en hexadécimal), valables 14 jours (C-11). Un jeton par envoi et
+-- par action : ceux d'une tentative précédente du même envoi sont remplacés. Seule une fiche en reçoit, jamais un stagiaire (C-12).
+create function public._contact_srv_jetons(p_envoi_id bigint, p_jetons jsonb)
+returns void language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  e contact_envois%rowtype;
+  v_lieu integer;
+  j jsonb;
+  v_action text;
+  v_reponse bigint;
+begin
+  select * into e from contact_envois x where x.id = p_envoi_id for update;
+  if e.id is null or e.etat <> 'en_cours' or e.vers_fiche_id is null then
+    raise exception 'contact: Cet envoi ne reçoit pas de jeton.';
+  end if;
+  if jsonb_typeof(p_jetons) is distinct from 'array' then
+    raise exception 'contact: Jetons illisibles.';
+  end if;
+  select d.lieu_id into v_lieu from demandes d where d.id = e.demande_id;
+  delete from contact_jetons x where x.envoi_id = e.id;
+  for j in select x from jsonb_array_elements(p_jetons) x loop
+    v_action := j ->> 'action';
+    if coalesce(j ->> 'hash', '') !~ '^[0-9a-f]{64}$' or coalesce(j ->> 'reponse_id', '0') !~ '^[0-9]+$'
+       or v_action is null or v_action not in ('voir', 'prise', 'reponse', 'justificatif') then
+      raise exception 'contact: Jetons illisibles.';
+    end if;
+    v_reponse := (j ->> 'reponse_id')::bigint;
+    if (v_action = 'reponse') <> (v_reponse is not null) then
+      raise exception 'contact: Jetons illisibles.';
+    end if;
+    if v_action = 'reponse' and not exists (select 1 from contact_reponses r where r.id = v_reponse and r.lieu_id = v_lieu and not r.retire) then
+      raise exception 'contact: Réponse toute faite inconnue.';
+    end if;
+    insert into contact_jetons (hash, envoi_id, demande_id, fiche_id, action, reponse_id, expire_le)
+      values (decode(j ->> 'hash', 'hex'), e.id, e.demande_id, e.vers_fiche_id, v_action, v_reponse, _contact_maintenant() + interval '14 days');
+  end loop;
+end $fn$;
+
+-- L'issue d'un envoi en cours : « envoye » ; « ignore » (adresse fictive) ; « echec » : à retenter dans 5 minutes à la première
+-- tentative, en échec ensuite (l'équipe le relance par relancer_envoi). Un envoi qui n'est pas parti perd ses jetons. p_raison : 200
+-- caractères au plus (la fonction serveur n'y met jamais la clé). Un envoi qui n'est plus « en cours » n'est pas touché.
+create function public._contact_srv_resultat(p_envoi_id bigint, p_issue text, p_raison text)
+returns void language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  v_maintenant timestamptz := _contact_maintenant();
+begin
+  if p_issue is null or p_issue not in ('envoye', 'echec', 'ignore') then
+    raise exception 'contact: Issue d''envoi illisible.';
+  end if;
+  update contact_envois
+     set etat = case when p_issue <> 'echec' then p_issue when tentatives <= 1 then 'a_retenter' else 'echec' end,
+         envoye_le = case when p_issue = 'envoye' then v_maintenant end,
+         prochain_essai_le = case when p_issue = 'echec' and tentatives <= 1 then v_maintenant + interval '5 minutes' end,
+         raison = left(nullif(btrim(p_raison), ''), 200)
+   where id = p_envoi_id and etat = 'en_cours';
+  if found and p_issue <> 'envoye' then
+    delete from contact_jetons x where x.envoi_id = p_envoi_id;
+  end if;
+end $fn$;
+
+-- Un jeton lisible : haché en hexadécimal, connu, non expiré, et sa fiche encore dans le centre de la demande. Nul sinon.
+create function public._contact_srv_jeton(p_hash text)
+returns public.contact_jetons language plpgsql stable security definer set search_path = public, pg_temp
+as $fn$
+declare
+  j contact_jetons%rowtype;
+begin
+  if coalesce(p_hash, '') !~ '^[0-9a-f]{64}$' then
+    return null;
+  end if;
+  select * into j from contact_jetons x where x.hash = decode(p_hash, 'hex');
+  if j.hash is null or j.expire_le <= _contact_maintenant()
+     or not exists (select 1 from demandes d join contacts c on c.id = j.fiche_id
+                     where d.id = j.demande_id and _contact_fiche_dans(c, d.lieu_id)) then
+    return null;
+  end if;
+  return j;
+end $fn$;
+
+-- L'action d'un jeton est-elle déjà faite ? Prise : le jeton a servi, ou la demande est déjà prise ; réponse : le jeton a servi.
+create function public._contact_srv_deja(j public.contact_jetons)
+returns boolean language sql stable security definer set search_path = public, pg_temp
+as $fn$
+  select case j.action
+           when 'prise' then j.utilise_le is not null or exists (select 1 from demandes d where d.id = j.demande_id and d.etat = 'prise')
+           when 'reponse' then j.utilise_le is not null
+           else false
+         end;
+$fn$;
+
+-- Ce que montre un lien d'e-mail (demande.html#j=...) : la demande (sujet et texte compris, pour qui tient le jeton), ses réponses (jamais
+-- une adresse), l'action du jeton, le libellé de sa réponse toute faite, et si elle est déjà faite. Ouvrir le lien n'écrit rien (un
+-- filtre de messagerie qui l'ouvre ne fait rien). Jeton inconnu, expiré, ou fiche partie du centre : {invalide: true}.
+create function public._contact_srv_lien(p_hash text)
+returns jsonb language plpgsql stable security definer set search_path = public, pg_temp
+as $fn$
+declare
+  j contact_jetons%rowtype := _contact_srv_jeton(p_hash);
+  d demandes%rowtype;
+begin
+  if j.hash is null then
+    return jsonb_build_object('invalide', true);
+  end if;
+  select * into d from demandes x where x.id = j.demande_id;
+  return jsonb_build_object(
+    'demande', jsonb_build_object('id', d.id, 'type', d.type, 'sujet', d.sujet, 'texte', d.texte, 'etat', d.etat, 'auteur_nom', d.auteur_nom,
+                                  'cree_le', d.cree_le,
+                                  'messages', coalesce((
+                                    select jsonb_agg(jsonb_build_object('auteur_nom', m.auteur_nom, 'texte', m.texte, 'reponse', r.libelle,
+                                                                        'par_lien', m.par_lien, 'cree_le', m.cree_le) order by m.cree_le, m.id)
+                                      from demande_messages m left join contact_reponses r on r.id = m.reponse_id
+                                     where m.demande_id = d.id), '[]'::jsonb)),
+    'action', j.action,
+    'libelle_reponse', (select r.libelle from contact_reponses r where r.id = j.reponse_id),
+    'deja', _contact_srv_deja(j));
+end $fn$;
+
+-- Le geste d'un lien d'e-mail, au nom de la fiche du jeton (aucun compte connecté : la fiche est celle à qui l'e-mail est parti).
+-- _contact_role lit le jeton de session pour reconnaître la direction réelle : il n'y en a pas ici, la direction n'est donc jamais
+-- reconnue par un lien, et seul un destinataire principal de l'équipe agit (_contact_peut, comme dans l'app). prise :
+-- _contact_appliquer_prise ; reponse : _contact_appliquer_reponse, p_par_lien vrai (E11 : aucune logique de réponse ni de prise ici).
+-- {fait: true} ; {deja: true} quand l'action est déjà faite (rien d'écrit) ; {invalide: true} sinon (voir ; justificatif jusqu'à la
+-- migration 3 ; jeton inconnu ou expiré ; geste qui n'est plus permis).
+create function public._contact_srv_agir(p_hash text)
+returns jsonb language plpgsql security definer set search_path = public, pg_temp
+as $fn$
+declare
+  j contact_jetons%rowtype := _contact_srv_jeton(p_hash);
+  d demandes%rowtype;
+  c contacts%rowtype;
+  v_role text;
+  v_peut jsonb;
+begin
+  if j.hash is null or j.action not in ('prise', 'reponse') then
+    return jsonb_build_object('invalide', true);
+  end if;
+  select * into d from demandes x where x.id = j.demande_id for update;
+  select * into j from contact_jetons x where x.hash = j.hash for update;
+  if _contact_srv_deja(j) then
+    return jsonb_build_object('deja', true);
+  end if;
+  select * into c from contacts x where x.id = j.fiche_id;
+  v_role := _contact_role(d.id, null, c.id);
+  if v_role is null then
+    return jsonb_build_object('invalide', true);
+  end if;
+  v_peut := _contact_peut(d.id, v_role, true);
+  if j.action = 'prise' then
+    if not (v_peut ->> 'prendre')::boolean then
+      return jsonb_build_object('invalide', true);
+    end if;
+    perform _contact_appliquer_prise(d.id, _contact_nom_fiche(c, d.lieu_id), true);
+  else
+    if not (v_peut ->> 'toutes_faites')::boolean
+       or not exists (select 1 from contact_reponses r where r.id = j.reponse_id and r.lieu_id = d.lieu_id and not r.retire) then
+      return jsonb_build_object('invalide', true);
+    end if;
+    perform _contact_appliquer_reponse(d.id, c.id, null, _contact_nom_fiche(c, d.lieu_id),
+                                       case when c.compte_email is not null then c.compte_email else c.email end, null, j.reponse_id, true);
+  end if;
+  update contact_jetons x set utilise_le = _contact_maintenant() where x.hash = j.hash;
+  return jsonb_build_object('fait', true);
+end $fn$;
 
 -- Droits des fonctions : celles de l'app à tout compte connecté ; les aides internes à personne.
 revoke all on function public.destinataires_possibles(text, jsonb) from public, anon, service_role;
@@ -1387,9 +1646,23 @@ revoke all on function public._contact_peut(bigint, text, boolean) from public, 
 revoke all on function public._contact_appliquer_prise(bigint, text, boolean) from public, anon, authenticated, service_role;
 revoke all on function public._contact_appliquer_reponse(bigint, bigint, integer, text, text, text, bigint, boolean) from public, anon, authenticated, service_role;
 revoke all on function public._contact_effacer_stagiaire() from public, anon, authenticated, service_role;
+-- Partie C : les fonctions de la fonction serveur contact-envois, à service_role seul ; leurs aides à personne.
+revoke all on function public._contact_srv_prendre(integer) from public, anon, authenticated;
+grant execute on function public._contact_srv_prendre(integer) to service_role;
+revoke all on function public._contact_srv_jetons(bigint, jsonb) from public, anon, authenticated;
+grant execute on function public._contact_srv_jetons(bigint, jsonb) to service_role;
+revoke all on function public._contact_srv_resultat(bigint, text, text) from public, anon, authenticated;
+grant execute on function public._contact_srv_resultat(bigint, text, text) to service_role;
+revoke all on function public._contact_srv_lien(text) from public, anon, authenticated;
+grant execute on function public._contact_srv_lien(text) to service_role;
+revoke all on function public._contact_srv_agir(text) from public, anon, authenticated;
+grant execute on function public._contact_srv_agir(text) to service_role;
+revoke all on function public._contact_srv_jeton(text) from public, anon, authenticated, service_role;
+revoke all on function public._contact_srv_deja(public.contact_jetons) from public, anon, authenticated, service_role;
 
 -- Contrôle de fin : aucune table de la migration n'a de droit pour l'API (ni lecture, ni écriture, ni vidage) ; aucune aide interne ne
--- s'exécute par anon ni authenticated ; les fonctions de l'app s'exécutent par authenticated seul ; alertes_email ne s'écrit pas en direct.
+-- s'exécute par anon ni authenticated ; les fonctions de l'app s'exécutent par authenticated seul ; alertes_email ne s'écrit pas en direct ;
+-- les fonctions de la fonction serveur (partie C) s'exécutent par service_role (et, comme toute aide _contact_*, jamais par l'API).
 do $controle$
 declare
   t text;
@@ -1423,5 +1696,15 @@ begin
   if has_column_privilege('authenticated', 'public.user_profiles', 'alertes_email', 'INSERT, UPDATE')
      or has_column_privilege('anon', 'public.user_profiles', 'alertes_email', 'INSERT, UPDATE') then
     raise exception 'contact_2 : user_profiles.alertes_email s''écrit sans regler_mes_alertes ; tout est annulé';
+  end if;
+  for f in select p.oid::regprocedure as sig from pg_proc p
+            where p.pronamespace = 'public'::regnamespace
+              and p.proname in ('_contact_srv_prendre', '_contact_srv_jetons', '_contact_srv_resultat', '_contact_srv_lien', '_contact_srv_agir') loop
+    if not has_function_privilege('service_role', f.sig, 'EXECUTE') then
+      raise exception 'contact_2 : la fonction % ne s''exécute pas par service_role ; tout est annulé', f.sig;
+    end if;
+  end loop;
+  if (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like '\_contact\_srv\_%') <> 7 then
+    raise exception 'contact_2 : les sept fonctions _contact_srv_* ne sont pas toutes là ; tout est annulé';
   end if;
 end $controle$;
