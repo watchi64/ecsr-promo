@@ -5,12 +5,13 @@
 // changement (js/contact-annuaire-rules.js, listeFinancements) : un seul nom change à la fois, l'échange de deux noms que la base
 // refuserait n'est jamais demandé. La base décide de tout (droit, doublons) ; ses refus se disent par leur phrase.
 
-import { lireFinancements, reglerFinancements, lireAnnuaire } from "../db.js?v=20261114f";
+import { lireFinancements, reglerFinancements, lireAnnuaire, reglagesContact, reglerQuiRecoitQuoi, reglerReponses } from "../db.js?v=20261114f";
 import { el, clear, toast } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261114f";
 import { jourParis, dateLongue } from "../dates.js?v=20261114f";
 import { listeFinancements, validerLibelleFinancement, fichesASupprimer } from "../contact-annuaire-rules.js?v=20261114f";
+import { TYPES_DEMANDE, phraseReglesCentre, phraseContact } from "../contact-rules.js?v=20261114f";
 
 export const PHRASE_SANS_FICHE_A_SUPPRIMER = "Aucune fiche à supprimer.";
 export const PHRASE_FICHES_A_SUPPRIMER = "Ces personnes ont quitté le centre : supprimez leur fiche depuis la page Contacts.";
@@ -165,4 +166,214 @@ export function sectionFichesASupprimer() {
 
   charger();
   return section;
+}
+
+// ============================================================== Qui reçoit quoi, réponses toutes faites
+
+export const PHRASE_RIEN_REGLE = "Rien n'est réglé : pour chaque demande, le stagiaire choisit qui prévenir parmi les formateurs de sa promo et la direction du centre.";
+const TYPES_REGLES = ["absence", "retard", "administratif", "document", "autre"];
+const VALEUR_JOUR = "jour";
+
+// Un champ à liste : étiquette et choix, dans le style des champs de la page.
+function champListe(id, libelle, select) {
+  select.id = id;
+  return el("div", { class: "field" }, el("label", { for: id }, libelle), select);
+}
+
+// Les deux sections partagent une même lecture (reglages_contact) et se redessinent ensemble après un enregistrement. La base juge les
+// droits (lecture : case Réglages du centre ; écriture : geste reglages.modifier) : ses refus se disent par leur phrase.
+export function sectionsContactDuCentre(centre) {
+  const sectionRegles = el("section", { class: "param-section reglage-regles", "aria-labelledby": "regles-titre" });
+  sectionRegles.appendChild(enTete("regles-titre", "Qui reçoit quoi",
+    "Pour chaque type de demande, la personne que le stagiaire prévient, éventuellement selon son financement."));
+  const corpsRegles = el("div", { class: "param-block" });
+  sectionRegles.appendChild(corpsRegles);
+  const sectionReponses = el("section", { class: "param-section reglage-reponses", "aria-labelledby": "reponses-titre" });
+  sectionReponses.appendChild(enTete("reponses-titre", "Réponses toutes faites",
+    "Des réponses en un geste, proposées dans le suivi d'une demande (20 au plus)."));
+  const corpsReponses = el("div", { class: "param-block" });
+  sectionReponses.appendChild(corpsReponses);
+
+  let reglages = null;
+  let brouillon = {};     // « type|financement » -> "" (aucune), "jour" ou l'identifiant d'une fiche
+  let reponses = [];      // [{ id, libelle, vaut_prise, demande_justificatif }]
+
+  const cle = (type, fin) => `${type}|${fin ?? ""}`;
+  const aLaCarte = () => !!corpsRegles.isConnected;
+
+  async function charger() {
+    for (const c of [corpsRegles, corpsReponses]) { clear(c); c.appendChild(el("div", { class: "loading", role: "status" }, "Chargement")); }
+    try {
+      reglages = await reglagesContact(centre.id);
+    } catch (e) {
+      console.error("réglages du contact", e);
+      if (!aLaCarte()) return;
+      for (const c of [corpsRegles, corpsReponses]) {
+        clear(c);
+        c.appendChild(boiteErreur(phraseContact(e, "Les réglages n'ont pas pu être chargés."), charger));
+      }
+      return;
+    }
+    if (!aLaCarte()) return;
+    brouillon = {};
+    for (const r of reglages.regles ?? []) brouillon[cle(r.type, r.financement_id)] = r.cible === "formateurs_du_jour" ? VALEUR_JOUR : String(r.fiche_id);
+    reponses = (reglages.reponses ?? []).filter((x) => !x.retire).map((x) => ({
+      id: x.id, libelle: x.libelle, vaut_prise: x.vaut_prise !== false, demande_justificatif: x.demande_justificatif === true,
+    }));
+    dessinerRegles();
+    dessinerReponses();
+  }
+
+  // Le brouillon en liste de règles pour la base.
+  function reglesDuBrouillon() {
+    const liste = [];
+    for (const [k, v] of Object.entries(brouillon)) {
+      if (v === "") continue;
+      const [type, fin] = k.split("|");
+      liste.push({ type, financement_id: fin === "" ? null : Number(fin), cible: v === VALEUR_JOUR ? "formateurs_du_jour" : "fiche",
+        fiche_id: v === VALEUR_JOUR ? null : Number(v) });
+    }
+    return liste;
+  }
+
+  const fiches = () => reglages?.fiches ?? [];
+  function listeChoix(type, { aucune }) {
+    const select = el("select", {});
+    select.appendChild(el("option", { value: "" }, aucune));
+    if (type === "absence" || type === "retard") select.appendChild(el("option", { value: VALEUR_JOUR }, "Les formateurs du jour"));
+    for (const f of fiches()) {
+      select.appendChild(el("option", { value: String(f.fiche_id) }, (f.nom || "Sans nom") + (f.joignable ? "" : " (sans adresse e-mail)")));
+    }
+    return select;
+  }
+
+  function dessinerRegles() {
+    clear(corpsRegles);
+    const financements = (reglages.financements ?? []).filter((f) => !f.retire || Object.keys(brouillon).some((k) => k.endsWith("|" + f.id) && brouillon[k] !== ""));
+    if ((reglages.regles ?? []).length === 0) corpsRegles.appendChild(el("p", { class: "contact-encadre", role: "note" }, PHRASE_RIEN_REGLE));
+    const apercu = el("ul", { class: "regle-apercu", "aria-live": "polite" });
+    const erreur = el("p", { class: "contact-champ-erreur contact-erreur-general", role: "alert" });
+
+    const majApercu = () => {
+      clear(apercu);
+      const draft = { ...reglages, regles: reglesDuBrouillon() };
+      for (const type of TYPES_REGLES) {
+        apercu.appendChild(el("li", {}, phraseReglesCentre(draft, type, null)));
+        for (const f of financements) {
+          if ((brouillon[cle(type, f.id)] ?? "") !== "") apercu.appendChild(el("li", {}, phraseReglesCentre(draft, type, f.id)));
+        }
+      }
+    };
+    const lier = (select, k) => {
+      select.value = brouillon[k] ?? "";
+      select.addEventListener("change", () => { brouillon[k] = select.value; majApercu(); });
+    };
+
+    // La personne par défaut.
+    const defaut = listeChoix("defaut", { aucune: "Personne" });
+    lier(defaut, cle("defaut", null));
+    corpsRegles.appendChild(el("div", { class: "regle-type" },
+      champListe("regle-defaut", "Personne par défaut", defaut),
+      el("p", { class: "contact-aide" }, "Elle reçoit les demandes qu'aucune règle ne couvre.")));
+
+    const liste = el("ul", { class: "regle-liste" });
+    for (const type of TYPES_REGLES) {
+      const general = listeChoix(type, { aucune: "Aucune règle" });
+      lier(general, cle(type, null));
+      const bloc = el("li", { class: "regle-type" },
+        el("h4", { class: "contact-nom" }, TYPES_DEMANDE[type]),
+        champListe("regle-" + type, "Pour tous les financements", general));
+      if (financements.length) {
+        const details = el("details", { class: "regle-financements" }, el("summary", {}, "Selon le financement"));
+        for (const f of financements) {
+          const s = listeChoix(type, { aucune: "Comme pour tous les financements" });
+          lier(s, cle(type, f.id));
+          details.appendChild(champListe(`regle-${type}-${f.id}`, f.libelle + (f.retire ? " (retiré)" : ""), s));
+        }
+        if (financements.some((f) => (brouillon[cle(type, f.id)] ?? "") !== "")) details.open = true;
+        bloc.appendChild(details);
+      }
+      liste.appendChild(bloc);
+    }
+    corpsRegles.appendChild(liste);
+
+    corpsRegles.appendChild(el("h4", { class: "contact-section-titre" }, "Ce que verra le stagiaire"));
+    corpsRegles.appendChild(apercu);
+    majApercu();
+
+    const bouton = el("button", { class: "btn primary", type: "button", onClick: async () => {
+      erreur.textContent = "";
+      bouton.disabled = true;
+      try {
+        await reglerQuiRecoitQuoi(centre.id, reglesDuBrouillon());
+        toast("Règles enregistrées.", "success", 1800);
+        await charger();
+      } catch (e) {
+        console.error("qui reçoit quoi", e);
+        erreur.textContent = phraseContact(e, "Les règles n'ont pas été enregistrées. Réessayez dans un instant.");
+        bouton.disabled = false;
+      }
+    } }, icon.check(), "Enregistrer");
+    corpsRegles.appendChild(erreur);
+    corpsRegles.appendChild(el("div", { class: "contact-gestes-fiche" }, bouton));
+  }
+
+  function dessinerReponses() {
+    clear(corpsReponses);
+    const erreur = el("p", { class: "contact-champ-erreur contact-erreur-general", role: "alert" });
+    const zone = el("ul", { class: "reponse-liste" });
+    const ajout = el("button", { class: "btn small", type: "button", onClick: () => {
+      reponses.push({ id: null, libelle: "", vaut_prise: true, demande_justificatif: false });
+      lignes(reponses.length - 1);
+    } }, icon.plus(), "Ajouter une réponse");
+
+    function lignes(focusIndex = null) {
+      clear(zone);
+      if (!reponses.length) zone.appendChild(el("li", { class: "muted" }, "Aucune réponse toute faite."));
+      reponses.forEach((x, i) => {
+        const saisie = el("input", { type: "text", id: "reponse-" + i, value: x.libelle, maxlength: "80", autocomplete: "off" });
+        saisie.addEventListener("input", () => { x.libelle = saisie.value; });
+        const prise = el("input", { type: "checkbox", id: "reponse-prise-" + i, checked: x.vaut_prise });
+        prise.addEventListener("change", () => { x.vaut_prise = prise.checked; });
+        const justif = el("input", { type: "checkbox", id: "reponse-justif-" + i, checked: x.demande_justificatif });
+        justif.addEventListener("change", () => { x.demande_justificatif = justif.checked; });
+        zone.appendChild(el("li", { class: "financement-ligne reponse-ligne" },
+          el("div", { class: "field" }, el("label", { for: "reponse-" + i }, "Réponse"), saisie),
+          el("label", { class: "contact-case", for: "reponse-prise-" + i }, prise, el("span", {}, "Vaut prise en compte")),
+          el("label", { class: "contact-case", for: "reponse-justif-" + i }, justif, el("span", {}, "Demande le justificatif")),
+          el("div", { class: "contact-gestes" },
+            el("button", { class: "btn small danger", type: "button", "aria-label": "Retirer la réponse " + (x.libelle || i + 1), onClick: () => {
+              reponses.splice(i, 1);
+              lignes(Math.min(i, reponses.length - 1));
+            } }, "Retirer"))));
+      });
+      ajout.disabled = reponses.length >= 20;
+      if (focusIndex != null && focusIndex >= 0) zone.querySelector("#reponse-" + focusIndex)?.focus({ preventScroll: true });
+    }
+    lignes();
+
+    const bouton = el("button", { class: "btn primary", type: "button", onClick: async () => {
+      erreur.textContent = "";
+      const liste = reponses.map((x) => ({ ...x, libelle: String(x.libelle ?? "").replace(/\s+/g, " ").trim() }));
+      const vide = liste.findIndex((x) => x.libelle === "");
+      if (vide >= 0) { erreur.textContent = "Chaque réponse a besoin d'un texte, ou retirez-la."; zone.querySelector("#reponse-" + vide)?.focus(); return; }
+      bouton.disabled = true;
+      try {
+        await reglerReponses(centre.id, liste.map((x) => ({ id: x.id, libelle: x.libelle, vaut_prise: x.vaut_prise, demande_justificatif: x.demande_justificatif })));
+        toast("Réponses enregistrées.", "success", 1800);
+        await charger();
+      } catch (e) {
+        console.error("réponses toutes faites", e);
+        erreur.textContent = phraseContact(e, "Les réponses n'ont pas été enregistrées. Réessayez dans un instant.");
+        bouton.disabled = false;
+      }
+    } }, icon.check(), "Enregistrer");
+    corpsReponses.appendChild(zone);
+    corpsReponses.appendChild(el("div", { class: "contact-gestes-fiche" }, ajout));
+    corpsReponses.appendChild(erreur);
+    corpsReponses.appendChild(el("div", { class: "contact-gestes-fiche" }, bouton));
+  }
+
+  charger();
+  return [sectionRegles, sectionReponses];
 }

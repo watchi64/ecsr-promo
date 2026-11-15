@@ -2953,6 +2953,15 @@ export async function relancerEnvoi(envoiId) {
   await appelerContact("relancer_envoi", { p_envoi_id: envoiId }, { declencher: true });
 }
 
+// Mes alertes par e-mail telles que la base les garde (vrai tant que rien n'a été coupé).
+export async function lireMesAlertes() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return true;
+  const { data, error } = await supabase.from("user_profiles").select("alertes_email").eq("email", user.email.toLowerCase()).limit(1);
+  if (error) throw erreurDeBase(error);
+  return data?.[0]?.alertes_email !== false;
+}
+
 // Mes alertes par e-mail : vrai = allumées. Rend le choix enregistré.
 export async function reglerMesAlertes(actives) {
   return appelerContact("regler_mes_alertes", { p_actives: !!actives });

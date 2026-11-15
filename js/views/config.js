@@ -28,7 +28,7 @@ import { pointsARetenir } from "../accueil-rules.js?v=20261114f";
 import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261114f";
 import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261114f";
 import { blocHabillage } from "../habillage-choix.js?v=20261114f";
-import { sectionMaFiche } from "./ma-fiche-contact.js?v=20261114f";
+import { sectionMaFiche, sectionAlertes } from "./ma-fiche-contact.js?v=20261114f";
 import { nomBenevole } from "../planning-lecture.js?v=20261114f";
 import { dateFr } from "../dates.js?v=20261114f";
 
@@ -653,6 +653,6 @@ export function renderPreferences(container) {
     ),
   ));
   const grid = el("div", { class: "param-grid" });
-  [sectionMaFiche(), renderApparenceSection(), preferences, renderInfoSection()].filter(Boolean).forEach((s) => grid.appendChild(s));
+  [sectionMaFiche(), sectionAlertes(), renderApparenceSection(), preferences, renderInfoSection()].filter(Boolean).forEach((s) => grid.appendChild(s));
   container.appendChild(grid);
 }

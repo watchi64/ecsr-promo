@@ -154,3 +154,64 @@
 .lien-demande-message { border-top: 1px solid var(--line); padding-top: 0.6rem; margin-top: 0.6rem; }
 .lien-demande-message p { margin: 0 0 0.25rem; }
 .lien-demande-bouton { width: 100%; min-height: 44px; white-space: normal; text-align: center; }
+
+/* ============================================================
+   Demandes (tâche 12) : Messages, Mes demandes, suivi d'une demande, écrire, Qui reçoit quoi.
+   Des listes qui passent à la ligne, aucune largeur fixe : rien ne défile de côté.
+   ============================================================ */
+
+.messages-ecrire, .contacts-ecrire { margin: 0 0 1rem; }
+.demande-retour { margin: 0 0 0.75rem; min-height: 44px; }
+.demande-page, .messages-page { overflow-wrap: anywhere; }
+
+.demande-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.demande-ligne { border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); min-width: 0; }
+.demande-neuve { border-left: 4px solid var(--accent); }
+.demande-lien {
+  display: flex; flex-direction: column; gap: 0.2rem; min-height: 44px; padding: 0.7rem 0.9rem;
+  color: inherit; text-decoration: none; min-width: 0;
+}
+.demande-lien:hover, .demande-lien:focus-visible { background: var(--bg-soft); }
+.demande-haut { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem; }
+.demande-type { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.demande-sujet { font-weight: 600; line-height: 1.35; }
+.demande-sous { font-size: 0.85rem; color: var(--text-muted); }
+.demande-repliee { margin-top: 0.75rem; }
+.demande-repliee > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.demande-repliee > .demande-liste { margin-top: 0.5rem; }
+
+.demande-etapes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.demande-etape { display: flex; flex-direction: column; gap: 0.1rem; padding-left: 0.75rem; border-left: 3px solid var(--accent); }
+.demande-etape-nom { font-weight: 600; }
+.demande-etape-quand { font-size: 0.88rem; color: var(--text-muted); }
+.demande-destinataires { margin: 0; padding-left: 1.2rem; }
+.demande-messages, .demande-envois { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.demande-message { padding: 0.65rem 0.85rem; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); min-width: 0; }
+.demande-moi { border-left: 4px solid var(--accent); }
+.demande-message-tete { margin: 0 0 0.25rem; }
+.demande-message-texte { margin: 0; white-space: pre-wrap; line-height: 1.45; }
+.demande-gestes textarea { width: 100%; box-sizing: border-box; min-width: 0; }
+.demande-toutes-faites { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+.demande-toutes-faites .btn, .demande-gestes .btn, .demande-envoi .btn, .messages-ecrire .btn, .contacts-ecrire .btn { min-height: 44px; }
+.demande-envoi { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; padding: 0.65rem 0.85rem;
+  border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); }
+.demande-envoi p { margin: 0; flex: 1 1 12rem; min-width: 0; }
+
+/* La fenêtre « Écrire » : l'encadré « Sera envoyé à » et ses cases de 44 px. */
+.ecrire-encadre { margin: 0; }
+.ecrire-encadre:empty { display: none; }
+.ecrire-encadre p { margin: 0 0 0.25rem; }
+.ecrire-cases { display: flex; flex-direction: column; }
+.contact-modal textarea { width: 100%; box-sizing: border-box; min-width: 0; }
+
+/* « Qui reçoit quoi » et « Réponses toutes faites » (réglages du centre). */
+.reglage-regles, .reglage-reponses { overflow-wrap: anywhere; }
+.reglage-regles .field select, .reglage-reponses .field input { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.reglage-regles .btn, .reglage-reponses .btn { min-height: 44px; }
+.regle-liste, .reponse-liste, .regle-apercu { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.regle-apercu { gap: 0.25rem; font-size: 0.92rem; }
+.regle-type { padding: 0.75rem; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); min-width: 0; }
+.regle-type .field { margin: 0.5rem 0 0; }
+.regle-financements { margin-top: 0.5rem; }
+.regle-financements > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.reponse-ligne { flex-direction: column; align-items: stretch; }

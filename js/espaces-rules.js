@@ -256,7 +256,7 @@ export function texteBandeauApercu(apercu, centre, nomVitrine = null) {
 // Routes de la direction et du siège (section 1 du lot 5). Les pages du menu du compte (nouveautes, preferences,
 // problemes) sont permises partout ; `home` mène à l'accueil de l'espace.
 const ROUTES_COMMUNES = ["home", "config", "nouveautes", "preferences", "problemes"];
-const ROUTES_DIRECTION = ["centre", "promos", "stagiaires", "emargement", "notes", "equipe", "contacts"];
+const ROUTES_DIRECTION = ["centre", "promos", "stagiaires", "emargement", "notes", "equipe", "contacts", "messages"];
 const ROUTES_SIEGE = ["reseau", "directions", "themes"];
 // Pages nouvelles de la direction et du siège : hors de l'espace du formateur et du stagiaire.
 const ROUTES_NEUVES = ["promos", "equipe", "reseau", "directions"];

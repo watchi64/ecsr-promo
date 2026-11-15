@@ -12,7 +12,7 @@ import { icon } from "../icons.js?v=20261114f";
 import { blocHabillage } from "../habillage-choix.js?v=20261114f";
 import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261114f";
 import { sectionDonneesCentre } from "./reglages-donnees.js?v=20261114f";
-import { sectionFinancements, sectionFichesASupprimer } from "./reglages-contact.js?v=20261114f";
+import { sectionFinancements, sectionsContactDuCentre, sectionFichesASupprimer } from "./reglages-contact.js?v=20261114f";
 
 export const PHRASE_ECHEC_LECTURE = "Le réglage n'a pas pu être chargé.";
 export const PHRASE_ECHEC_ECRITURE = "Le réglage n'a pas été enregistré. Réessayez dans un instant.";
@@ -168,7 +168,7 @@ async function rendre(container, { surtitre, titre, lire, construire }) {
 // Les sections qui suivent l'habillage : financements et fiches à supprimer (espace contact), puis les données personnelles.
 function suiteDuCentre(centre) {
   const suite = document.createDocumentFragment();
-  suite.append(sectionFinancements(centre), sectionFichesASupprimer(), sectionDonneesCentre(centre));
+  suite.append(sectionFinancements(centre), ...sectionsContactDuCentre(centre), sectionFichesASupprimer(), sectionDonneesCentre(centre));
   return suite;
 }
 

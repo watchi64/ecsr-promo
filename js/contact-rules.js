@@ -5,6 +5,7 @@
 // Lancer : node tests/contact-rules.test.mjs
 
 import { enConge } from "./contact-annuaire-rules.js";
+import { phraseDeRefus } from "./espaces-rules.js";
 
 // Ordre des fiches : identifiants numériques par valeur, sinon par points de code (l'ordre « C » de la base pour la table de cas).
 function comparer(a, b) {
@@ -130,6 +131,21 @@ export function rangerDemandes(lignes, maintenant = new Date()) {
     (l.etat === "annulee" || inactive ? rang.terminees : rang.ouvertes).push(l);
   }
   return rang;
+}
+
+/**
+ * La phrase d'un échec d'écran : un refus de la base (préfixe « contact: », droit manquant, fonction absente) se dit par sa phrase,
+ * tout autre échec par la phrase générique de l'écran (jamais un texte technique).
+ */
+export function phraseContact(e, generique) {
+  const message = String(e?.message ?? "");
+  if (/^\s*contact:/i.test(message) || e?.code === "42501" || e?.code === "PGRST202") return phraseDeRefus(message, e?.code);
+  return generique;
+}
+
+/** Le compteur de l'entrée Messages : combien de demandes de la liste (liste_demandes) n'ont pas été lues par la personne. */
+export function compterNonLues(lignes) {
+  return (lignes ?? []).filter((l) => l && l.non_lue === true).length;
 }
 
 /** « Claire, relais de Sophie », « Karim n'a pas pu être prévenu », sinon le nom. */

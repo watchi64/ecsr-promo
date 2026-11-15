@@ -4,12 +4,13 @@
 // (compte sans affectation, aperçu, vitrine), la section ne s'affiche pas. Les contrôles reprennent ceux de la base
 // (js/contact-annuaire-rules.js) ; ses refus se disent par leur phrase. Équipe au vouvoiement, stagiaire au tutoiement.
 
-import { lireMaFiche, reglerMaFiche, lireCoordonnees, reglerCoordonnees } from "../db.js?v=20261114f";
+import { lireMaFiche, reglerMaFiche, lireCoordonnees, reglerCoordonnees, lireMesAlertes, reglerMesAlertes } from "../db.js?v=20261114f";
 import { el, clear, toast } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
 import { isStagiaire, monStagiaireId, enVitrine } from "../auth-admin.js?v=20261114f";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261114f";
 import { validerMaFiche, PHRASE_VERIFIER_FICHE } from "../contact-annuaire-rules.js?v=20261114f";
+import { phraseContact } from "../contact-rules.js?v=20261114f";
 
 const PHRASE_ECHEC_LECTURE = "Votre fiche n'a pas pu être chargée.";
 const PHRASE_ECHEC_LECTURE_TEL = "Ton téléphone n'a pas pu être chargé.";
@@ -50,6 +51,60 @@ export function sectionMaFiche() {
       clear(corps);
       corps.appendChild(boiteErreur(stagiaire ? PHRASE_ECHEC_LECTURE_TEL : PHRASE_ECHEC_LECTURE, charger));
     }
+  };
+  charger();
+  return section;
+}
+
+// ---- Alertes par e-mail (tout compte)
+
+// « Alertes par e-mail » : une case, allumée par défaut. L'e-mail dit seulement qu'un message attend dans l'app (jamais son texte ni son
+// motif). Les personnes sans compte (fiche seule) reçoivent toujours le leur. Absente en vitrine. La base garde le choix.
+export function sectionAlertes() {
+  if (enVitrine()) return null;
+  const stagiaire = isStagiaire();
+  const section = el("section", { class: "param-section ma-fiche alertes-email", "aria-labelledby": "alertes-titre" });
+  section.appendChild(el("div", { class: "param-section-head" },
+    el("div", { class: "param-icon" }, icon.mail()),
+    el("div", {},
+      el("h3", { id: "alertes-titre" }, "Alertes par e-mail"),
+      el("p", { class: "muted" }, stagiaire
+        ? "Un e-mail te prévient quand le centre te répond ou t'écrit. Il ne contient pas le message : tu le lis dans l'app."
+        : "Un e-mail vous prévient quand une demande ou un message vous attend. Il ne contient pas le message : vous le lisez dans l'app."))));
+  const corps = el("div", { class: "param-block" }, el("div", { class: "loading" }, "Chargement"));
+  section.appendChild(corps);
+  const charger = async () => {
+    clear(corps);
+    corps.appendChild(el("div", { class: "loading" }, "Chargement"));
+    let actives;
+    try {
+      actives = await lireMesAlertes();
+    } catch (e) {
+      console.error("alertes par e-mail", e);
+      clear(corps);
+      corps.appendChild(boiteErreur(phraseContact(e, stagiaire ? "Ton réglage n'a pas pu être chargé." : "Votre réglage n'a pas pu être chargé."), charger));
+      return;
+    }
+    clear(corps);
+    const erreur = el("p", { class: "contact-champ-erreur", role: "alert" });
+    const saisie = el("input", { type: "checkbox", id: "alertes-email-case", checked: actives });
+    saisie.addEventListener("change", async () => {
+      erreur.textContent = "";
+      const voulu = saisie.checked;
+      saisie.disabled = true;
+      try {
+        const gardee = await reglerMesAlertes(voulu);
+        saisie.checked = gardee === true;
+        toast(saisie.checked ? "Alertes par e-mail allumées." : "Alertes par e-mail coupées.", "success", 1800);
+      } catch (e) {
+        console.error("alertes par e-mail", e);
+        saisie.checked = !voulu;
+        erreur.textContent = phraseContact(e, "Le réglage n'a pas été enregistré.");
+      }
+      saisie.disabled = false;
+    });
+    corps.appendChild(el("label", { class: "contact-case", for: "alertes-email-case" }, saisie, el("span", {}, "Recevoir les alertes par e-mail")));
+    corps.appendChild(erreur);
   };
   charger();
   return section;

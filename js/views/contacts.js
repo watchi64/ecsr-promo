@@ -1,4 +1,4 @@
-// Page Contacts (espace contact, tâche 5) : l'annuaire du centre de la promo affichée, pour le stagiaire (tutoiement), l'équipe et la
+// Page Contacts (espace contact, tâches 5 et 12 : « Écrire au centre », « Mes demandes », « Écrire » sur une fiche ; #/contacts/<id> ouvre le suivi d'une demande) : l'annuaire du centre de la promo affichée, pour le stagiaire (tutoiement), l'équipe et la
 // direction (vouvoiement). Une carte par fiche (nom, titre, « Pour quoi me joindre », « Quand », congé et relais, « Appeler »), puis
 // la promo : les prénoms et la mention délégué pour un stagiaire, les coordonnées (téléphone, e-mail, financement) pour l'équipe.
 // Qui a le geste d'écrire les fiches (fiches_internes.ecrire, lu par ma_fiche_contact) ajoute, modifie, supprime et range les fiches sans compte ; la base reste juge, ses refus
@@ -7,7 +7,7 @@
 
 import {
   lireAnnuaire, lireMaFiche, ordonnerFiches, listStagiaires, lireCoordonnees, addContact, updateContact, deleteContact, lireFormateursPourFiche,
-  getPromoCourante, getLieuxLus,
+  getPromoCourante, getLieuxLus, listeDemandes,
 } from "../db.js?v=20261114f";
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
@@ -17,6 +17,10 @@ import { confirmer } from "../confirmer.js?v=20261114f";
 import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
 import { jourParis } from "../dates.js?v=20261114f";
 import { trierFiches, ligneDeFiche, validerMaFiche, aQuitte } from "../contact-annuaire-rules.js?v=20261114f";
+import { rangerDemandes } from "../contact-rules.js?v=20261114f";
+import { lireAdresse } from "../route-rules.js?v=20261114f";
+import { ligneDemande, renderDemande } from "./demande.js?v=20261114f";
+import { ouvrirEcrire } from "./contact-ecrire.js?v=20261114f";
 
 const PHRASE_LECTURE_ECHEC = "Les contacts n'ont pas pu être chargés.";
 const PHRASE_AUCUN_CONTACT = "Aucun contact pour ce centre.";
@@ -29,7 +33,7 @@ const boiteErreur = (phrase, reessayer) => el("div", { class: "contact-erreur", 
 
 // ============================================================== Les cartes
 
-function carteFiche(fiche, { jour, parId, peutRanger, rang, total, surDeplacer, surModifier, surSupprimer }) {
+function carteFiche(fiche, { jour, parId, peutRanger, rang, total, surDeplacer, surModifier, surSupprimer, surEcrire }) {
   const l = ligneDeFiche(fiche, { jour, parId });
   const equipe = !isStagiaire();
   const detail = [];
@@ -41,6 +45,11 @@ function carteFiche(fiche, { jour, parId, peutRanger, rang, total, surDeplacer, 
   }
   if (fiche.email) {
     actions.push(el("a", { class: "btn small ghost contact-mail", href: "mailto:" + fiche.email }, icon.mail(), fiche.email));
+  }
+  // Écrire dans l'app : à toute fiche joignable sauf la sienne ; la base juge le reste.
+  if (fiche.joignable && !fiche.moi) {
+    actions.push(el("button", { class: "btn small contact-ecrire", type: "button",
+      "aria-label": "Écrire à " + (fiche.nom_affiche || "cette personne"), onClick: (e) => surEcrire(fiche, e.currentTarget) }, icon.mail(), "Écrire"));
   }
   const sousNom = [l.titre, fiche.libelle].filter(Boolean).join(" · ");
   const gestes = [];
@@ -236,7 +245,21 @@ async function ouvrirFiche({ fiche, annuaire, ancre, apres }) {
 
 // ============================================================== La page
 
+// « Mes demandes » (stagiaire) : les ouvertes, puis les terminées repliées.
+function sectionMesDemandes(lignes) {
+  const rang = rangerDemandes(lignes);
+  const ouvertes = [...rang.aTraiter, ...rang.ouvertes];
+  const liste = (l) => el("ul", { class: "demande-liste" }, ...l.map((x) => ligneDemande(x, "contacts")));
+  return el("section", { class: "contact-section", "aria-labelledby": "contact-demandes-titre" },
+    el("h3", { id: "contact-demandes-titre", class: "contact-section-titre" }, "Mes demandes"),
+    ouvertes.length ? liste(ouvertes) : el("p", { class: "muted" }, lignes.length ? "Aucune demande ouverte." : "Tu n'as encore rien envoyé au centre."),
+    rang.terminees.length
+      ? el("details", { class: "demande-repliee" }, el("summary", {}, `Terminées (${rang.terminees.length})`), liste(rang.terminees)) : null);
+}
+
 export async function renderContacts(container) {
+  const adresse = lireAdresse(location.hash);
+  if (adresse.id) return renderDemande(container, adresse.id);
   const jeton = ++rendu;
   clear(container);
   const stagiaire = isStagiaire();
@@ -255,15 +278,19 @@ export async function renderContacts(container) {
   let stagiaires = [];
   let coordonnees = [];
   let peutEcrire = false;
+  let demandes = [];
   try {
     // Les stagiaires et leurs coordonnées complètent la page : leur échec ne la vide pas.
-    const [fiches, promo, coord, moi] = await Promise.all([
+    const [fiches, promo, coord, moi, mesDemandes] = await Promise.all([
       lireAnnuaire(),
       listStagiaires().catch((e) => { console.error("promo", e); return []; }),
       stagiaire ? Promise.resolve([]) : lireCoordonnees().catch((e) => { console.error("coordonnées", e); return []; }),
       // Le geste qui commande l'ajout et l'ordre des fiches (la base le juge aussi) ; illisible : pas de bouton.
       stagiaire ? Promise.resolve(null) : lireMaFiche().catch((e) => { console.error("mon droit d'écrire", e); return null; }),
+      // Mes demandes complètent la page : leur échec ne la vide pas.
+      stagiaire ? listeDemandes().catch((e) => { console.error("mes demandes", e); return []; }) : Promise.resolve([]),
     ]);
+    demandes = mesDemandes;
     peutEcrire = moi?.peut_ecrire === true;
     annuaire = fiches;
     stagiaires = promo;
@@ -321,11 +348,19 @@ export async function renderContacts(container) {
     }
   }
 
+  const surEcrire = (fiche, ancre) => ouvrirEcrire({ cible: "fiche", ficheId: fiche.id, nomDestinataire: fiche.nom_affiche, ancre });
   const surModifier = (fiche) => ouvrirFiche({ fiche, annuaire, ancre: document.querySelector(`[data-fiche="${fiche.id}"] button`), apres });
 
   racine.appendChild(entete(stagiaire
     ? "Qui joindre au centre, pour quoi et quand. Tape sur Appeler pour téléphoner."
     : "Qui joindre au centre, pour quoi et quand."));
+
+  if (stagiaire) {
+    racine.appendChild(el("div", { class: "contact-gestes-fiche contacts-ecrire" },
+      el("button", { class: "btn accent", type: "button", onClick: (e) => ouvrirEcrire({ cible: "centre", ancre: e.currentTarget }) },
+        icon.mail(), "Écrire au centre")));
+    racine.appendChild(sectionMesDemandes(demandes));
+  }
 
   const titreEquipe = el("h3", { id: "contact-equipe-titre", class: "contact-section-titre" }, "L'équipe du centre");
   const boutonAjout = peutEcrire
@@ -337,7 +372,7 @@ export async function renderContacts(container) {
     triees.length
       ? el("ul", { class: "contact-liste" }, ...triees.map((f, i) => carteFiche(f, {
         jour, parId, peutRanger: peutEcrire && triees.length > 1, rang: i, total: triees.length,
-        surDeplacer: deplacer, surModifier, surSupprimer: supprimer,
+        surDeplacer: deplacer, surModifier, surSupprimer: supprimer, surEcrire,
       })))
       : el("p", { class: "muted" }, PHRASE_AUCUN_CONTACT)));
 

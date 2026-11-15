@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { routerDemande, etapesDemande, rangerDemandes, libelleDestinataire, lignesEncadre, phraseReglesCentre } from "../js/contact-rules.js";
+import { routerDemande, etapesDemande, rangerDemandes, libelleDestinataire, lignesEncadre, phraseReglesCentre, compterNonLues, phraseContact } from "../js/contact-rules.js";
 
 const table = JSON.parse(readFileSync(new URL("./fixtures/contact-routage.json", import.meta.url), "utf8"));
 
@@ -122,4 +122,16 @@ test("phraseReglesCentre : mode règle nomme la personne, sans règle le stagiai
   assert.equal(phraseReglesCentre(reglages, "retard", null, "2031-03-04"), "Retard : les formateurs du jour");
   assert.equal(phraseReglesCentre(reglages, "document", null, "2031-03-04"),
     "Document : le stagiaire choisit parmi les formateurs de sa promo et la direction");
+});
+
+test("compterNonLues : seules les demandes non lues comptent, une liste absente vaut zéro", () => {
+  assert.equal(compterNonLues([{ non_lue: true }, { non_lue: false }, { non_lue: null }, {}, { non_lue: true }]), 2);
+  assert.equal(compterNonLues([]), 0);
+  assert.equal(compterNonLues(null), 0);
+});
+
+test("phraseContact : un refus de la base se dit tel quel, tout autre échec par la phrase de l'écran", () => {
+  assert.equal(phraseContact(new Error("contact: Demande introuvable."), "Échec."), "Demande introuvable.");
+  assert.equal(phraseContact(Object.assign(new Error("permission denied"), { code: "42501" }), "Échec."), "Vous n'avez pas le droit de faire cela ici.");
+  assert.equal(phraseContact(new Error("TypeError: x is undefined"), "Échec."), "Échec.");
 });

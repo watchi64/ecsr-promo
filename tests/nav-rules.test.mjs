@@ -34,10 +34,10 @@ eq(ids(entreesNavigation("stagiaire", { routeVisible: () => false, emargementAct
 eq(stag.map((e) => [e.libelle, e.icone]),
   [["Accueil", "home"], ["Planning", "calendar"], ["Cours et QCM", "book"], ["Mon suivi", "trend"], ["CCP2", "target"]],
   "libellés et icônes du stagiaire");
-eq(ids(eqp), ["home", "planning", "emargement", "stagiaires", "notes", "themes", "ccp2", "centre", "config"],
+eq(ids(eqp), ["home", "messages", "planning", "emargement", "stagiaires", "notes", "themes", "ccp2", "centre", "config"],
   "équipe : rien retiré par les modules");
 eq(eqp.map((e) => [e.libelle, e.icone]),
-  [["Aujourd'hui", "home"], ["Planning", "calendar"], ["Émargement", "clipboard"], ["Stagiaires", "users"],
+  [["Aujourd'hui", "home"], ["Messages", "inbox"], ["Planning", "calendar"], ["Émargement", "clipboard"], ["Stagiaires", "users"],
     ["Notes et examens", "edu"], ["Cours et QCM", "book"], ["CCP2", "target"], ["Indicateurs", "chart"],
     ["Réglages", "settings"]],
   "libellés et icônes de l'équipe");
@@ -56,7 +56,7 @@ eq(barreTelephone("equipe", eqp).barre.map((e) => e.court), ["Aujourd'hui", "Pla
 
 // 3. Barre du téléphone
 eq(ids(barreTelephone("equipe", eqp).barre), ["home", "planning", "stagiaires", "notes"], "barre équipe");
-eq(ids(barreTelephone("equipe", eqp).plus), ["emargement", "themes", "ccp2", "centre", "config"], "Plus");
+eq(ids(barreTelephone("equipe", eqp).plus), ["messages", "emargement", "themes", "ccp2", "centre", "config"], "Plus");
 eq(barreTelephone("stagiaire", stag).plus, [], "stagiaire sans Plus");
 eq(barreTelephone("stagiaire", stag).barre.map((e) => e.court),
   ["Accueil", "Planning", "Cours et QCM", "Mon suivi", "CCP2"], "barre stagiaire : cinq cases nommées");
@@ -297,10 +297,10 @@ eq(entreeActive("problemes", entreesNavigation("equipe", { routeVisible: tout, e
 
 // Lot 5 : espaces direction et siège (barre latérale comme l'équipe).
 const dirBase = entreesNavigation("direction", { routeVisible: tout, emargementActif: true });
-eq(ids(dirBase), ["centre", "promos", "stagiaires", "notes", "equipe"], "direction : sans émargement ni réglages par défaut");
+eq(ids(dirBase), ["centre", "messages", "promos", "stagiaires", "notes", "equipe"], "direction : sans émargement ni réglages par défaut");
 const dirTout = entreesNavigation("direction", { routeVisible: tout, emargementActif: true, emargementDansLeCentre: true, reglagesEspace: true });
-eq(ids(dirTout), ["centre", "promos", "stagiaires", "emargement", "notes", "equipe", "config"], "direction : ordre de la section 1");
-eq(dirTout.map((e) => e.libelle), ["Accueil", "Promos", "Stagiaires", "Émargement", "Notes et examens", "Équipe", "Réglages du centre"],
+eq(ids(dirTout), ["centre", "messages", "promos", "stagiaires", "emargement", "notes", "equipe", "config"], "direction : ordre de la section 1");
+eq(dirTout.map((e) => e.libelle), ["Accueil", "Messages", "Promos", "Stagiaires", "Émargement", "Notes et examens", "Équipe", "Réglages du centre"],
   "direction : libellés");
 eq(dirTout.filter((e) => e.groupe).map((e) => [e.id, e.groupe]), [["config", "Centre"]], "direction : groupe Centre");
 eq(ids(entreesNavigation("direction", { routeVisible: tout, emargementActif: false, emargementDansLeCentre: true })).includes("emargement"),
@@ -312,7 +312,11 @@ eq(sieTout.map((e) => [e.id, e.libelle, e.groupe]),
   [["reseau", "Accueil", null], ["themes", "Cours et QCM", null], ["directions", "Directions de centre", "Gestion"],
     ["config", "Réglages du réseau", "Gestion"]], "siège : entrées et groupe Gestion");
 eq(ids(barreTelephone("direction", dirTout).barre), ["centre", "promos", "stagiaires", "equipe"], "barre téléphone direction");
-eq(ids(barreTelephone("direction", dirTout).plus), ["emargement", "notes", "config"], "plus direction");
+eq(ids(barreTelephone("direction", dirTout).plus), ["messages", "emargement", "notes", "config"], "plus direction : Messages passe dans Plus");
+eq(ids(eqp).indexOf("messages"), 1, "équipe : Messages en deuxième, juste après l'accueil");
+eq(ids(dirTout).indexOf("messages"), 1, "direction : Messages juste après l'accueil");
+eq(entreeActive("messages", eqp, "equipe"), "messages", "entrée active : Messages");
+eq(entreeActive("messages", dirTout, "direction"), "messages", "direction : Messages allumée");
 eq(ids(barreTelephone("siege", sieTout).barre), ["reseau", "themes", "directions"], "barre téléphone siège");
 eq(ids(barreTelephone("siege", sieTout).plus), ["config"], "plus siège");
 for (const e of [...dirTout, ...sieTout]) eq(typeof icon[e.icone], "function", "icône connue : " + e.icone);

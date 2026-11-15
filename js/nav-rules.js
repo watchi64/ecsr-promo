@@ -34,6 +34,7 @@ const TOUJOURS_VISIBLES = ["home", "mon-suivi"];
 // mémoire restent celles de l'Accueil.
 const ENTREES_EQUIPE = [
   entree("home", "Aujourd'hui", "home"),
+  entree("messages", "Messages", "inbox"),
   entree("planning", "Planning", "calendar"),
   entree("emargement", "Émargement", "clipboard"),
   entree("stagiaires", "Stagiaires", "users"),
@@ -48,6 +49,7 @@ const ENTREES_EQUIPE = [
 // Émargement attend `emargementDansLeCentre` (une promo du centre l'a allumé), Réglages du centre `reglagesEspace`.
 const ENTREES_DIRECTION = [
   entree("centre", "Accueil", "home"),
+  entree("messages", "Messages", "inbox"),
   entree("promos", "Promos", "layers"),
   entree("stagiaires", "Stagiaires", "users"),
   entree("emargement", "Émargement", "clipboard"),

@@ -38,6 +38,7 @@ import { renderReseau } from "./views/siege-reseau.js?v=20261114f";
 import { renderDirections } from "./views/siege-directions.js?v=20261114f";
 import { renderRessources } from "./views/ressources.js?v=20261114f";
 import { renderContacts } from "./views/contacts.js?v=20261114f";
+import { renderMessages } from "./views/messages.js?v=20261114f";
 import { renderThemes } from "./views/themes.js?v=20261114f";
 import { renderConfig, renderPreferences } from "./views/config.js?v=20261114f";
 import { renderReglagesCentre, renderReglagesReseau } from "./views/reglages-habillage.js?v=20261114f";
@@ -192,6 +193,7 @@ const routes = {
   emargement: (view) => (espaceCourant() === "direction" ? renderEmargementCentre(view) : renderEmargement(view)),
   ressources: renderRessources,
   contacts:   renderContacts,
+  messages:   renderMessages,   // Messages de l'équipe et de la direction ; #/messages/<id> ouvre le suivi d'une demande
   // Lot 5 : « Réglages » est la page de l'équipe ; la direction y trouve les Réglages du centre, le siège ceux du réseau.
   config:     (view) => (espaceCourant() === "direction" ? renderReglagesCentre(view)
     : espaceCourant() === "siege" ? renderReglagesReseau(view) : renderConfig(view)),
