@@ -251,7 +251,7 @@ def page_a_non_secretariat(v):
     v.exiger_confirmation("l'adresse #/notes", PHRASE_PAGE_FERMEE)
     if v._hash() != "#/centre":
         v.constat("D", BLOQUE, "l'adresse #/notes mène à %s et non à l'accueil du centre" % (v._hash() or "(rien)"), capture=True)
-    if v.voit("#view .notes-page, #view .nt-tableau, #view .notes-centre"):
+    if v.voit("#view .notes-compte, #view .notes-vide"):
         v.constat("E", BLOQUE, "la page Notes et examens s'affiche malgré la case « Non »", capture=True)
     v.but("page fermée, accueil du centre")
     v.terminer()
