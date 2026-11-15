@@ -756,7 +756,9 @@ function blocTitreApercu(onPick) {
   const titres = titresDeLApercu();
   if (titres.length < 2) return null;
   const courant = getTitreApercu();
-  const choisir = (t) => { setViewAs(getViewAs(), { titreId: t.fixe ? null : t.id }); if (onPick) onPick(); };
+  // `onPick` (qui ferme le menu et rend le focus) passe après setViewAs : il relit mes_titres avant de remonter la coquille, et le focus
+  // doit aller au bouton de la coquille neuve, non à l'ancien, qui disparaît.
+  const choisir = async (t) => { await setViewAs(getViewAs(), { titreId: t.fixe ? null : t.id }); if (onPick) onPick(); };
   return el("div", { class: "view-as-titre", role: "group", "aria-label": "Titre simulé" },
     el("p", { class: "muted view-as-titre-label" }, "Titre"),
     el("div", { class: "view-as-seg view-as-titre-liste" }, titres.map((t) => {
@@ -773,7 +775,7 @@ function blocTitreApercu(onPick) {
 // promo (formateur, direction) : une ligne « Voir comme un stagiaire », ou « Quitter l'aperçu » une fois dedans.
 // Autres : rien.
 export function buildViewAsBlock(onPick) {
-  const choisir = (val) => { setViewAs(val); if (onPick) onPick(); };
+  const choisir = async (val) => { await setViewAs(val); if (onPick) onPick(); };   // le menu se ferme une fois la coquille remontée (focus)
   if (isFounder()) {
     const current = getViewAs() || "admin";
     const seg = el("div", { class: "view-as-seg" });
