@@ -149,3 +149,36 @@ test("traiterEnvois : une base qui refuse la file rend une erreur, sans rien env
   }), /file des envois illisible/);
   assert.equal(envoye, false);
 });
+
+const unItem = (id, email) => ({ envoi_id: id, evenement: "prise", demande: { id: 7, type: "retard", auteur_nom: "Lina B.", jours: null },
+  destinataire: { email, nom: "X", stagiaire: true }, reponses: [] });
+
+test("traiterEnvois : l'attente est appelée entre deux envois (cadence), pas avant le premier", async () => {
+  const base = fausseBase([unItem(1, "a@ecf-centre.fr"), unItem(2, "b@ecf-centre.fr")]);
+  const journal = [];
+  await traiterEnvois({
+    rpc: base.rpc, appUrl: "https://app.test/", subtle: globalThis.crypto.subtle, aleatoire: (k) => new Uint8Array(k),
+    attente: async (ms) => { journal.push(`attente ${ms}`); },
+    envoyer: async (c) => { journal.push(`envoi ${c.to}`); return { ok: true }; },
+  });
+  assert.deepEqual(journal, ["envoi a@ecf-centre.fr", "attente 600", "envoi b@ecf-centre.fr"]);
+});
+
+test("traiterEnvois : un 429 est ressayé sur place et ne consomme pas la tentative (aucun résultat echec)", async () => {
+  const base = fausseBase([unItem(1, "a@ecf-centre.fr")]);
+  let n = 0;
+  const bilan = await traiterEnvois({
+    rpc: base.rpc, appUrl: "https://app.test/", subtle: globalThis.crypto.subtle, aleatoire: (k) => new Uint8Array(k),
+    attente: async () => {},
+    envoyer: async () => (++n < 3 ? { ok: false, limite: true, raison: "Resend 429" } : { ok: true }),
+  });
+  assert.equal(n, 3);
+  assert.deepEqual(bilan, { traites: 1, envoyes: 1, echecs: 0, ignores: 0 });
+  const issues = base.appels.filter(([nom]) => nom === "_contact_srv_resultat").map(([, a]) => a.p_issue);
+  assert.deepEqual(issues, ["envoye"]);
+});
+
+test("envoyerParResend : un 429 est signalé comme limite", async () => {
+  const r = await envoyerParResend(async () => ({ ok: false, status: 429, text: async () => "rate" }), "cle", "a@x.test", { to: "b@x.test", subject: "s", html: "h", text: "t" });
+  assert.equal(r.ok, false); assert.equal(r.limite, true);
+});

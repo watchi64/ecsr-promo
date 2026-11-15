@@ -142,7 +142,7 @@ export async function envoyerParResend(fetchFn, cle, expediteur, courriel) {
     });
     if (reponse.ok) return { ok: true };
     const detail = await reponse.text().catch(() => "");
-    return { ok: false, raison: masquer(`Resend ${reponse.status} ${detail.slice(0, 150)}`) };
+    return { ok: false, limite: reponse.status === 429, raison: masquer(`Resend ${reponse.status} ${detail.slice(0, 150)}`) };
   } catch (e) {
     return { ok: false, raison: masquer(`Resend injoignable : ${e?.message ?? e}`) };
   }
@@ -151,7 +151,10 @@ export async function envoyerParResend(fetchFn, cle, expediteur, courriel) {
 // La file : _contact_srv_prendre, puis pour chaque envoi : adresse fictive -> « ignore » (rien d'autre) ; sinon les jetons (leurs
 // hachés en base), l'e-mail, l'envoi, le résultat. rpc(nom, args) -> { data, error } (client Supabase en service_role).
 // envoyer(courriel) -> { ok, raison }. Rend { traites, envoyes, echecs, ignores }.
-export async function traiterEnvois({ rpc, envoyer, appUrl, aleatoire, subtle, limite = 20 }) {
+// Cadence : environ 600 ms entre deux appels Resend (limite par défaut : 2 requêtes par seconde). Un refus 429 est ressayé sur place
+// (jusqu'à 3 fois, attente croissante) sans rien enregistrer : la tentative déjà comptée par _contact_srv_prendre sert alors à l'envoi
+// qui aboutit, au lieu d'être perdue par un résultat « echec ». attente(ms) est injectable pour les tests.
+export async function traiterEnvois({ rpc, envoyer, appUrl, aleatoire, subtle, limite = 20, attente = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
   const { data, error } = await rpc("_contact_srv_prendre", { p_limite: limite });
   if (error || !Array.isArray(data)) throw new Error("file des envois illisible");
   const bilan = { traites: 0, envoyes: 0, echecs: 0, ignores: 0 };
@@ -159,6 +162,7 @@ export async function traiterEnvois({ rpc, envoyer, appUrl, aleatoire, subtle, l
     const { error: e } = await rpc("_contact_srv_resultat", { p_envoi_id: id, p_issue: issue, p_raison: raison });
     if (e) throw new Error("résultat d'envoi non enregistré");
   };
+  let aEnvoye = false;
   for (const item of data) {
     bilan.traites += 1;
     if (adresseFictive(item?.destinataire?.email)) {
@@ -179,7 +183,13 @@ export async function traiterEnvois({ rpc, envoyer, appUrl, aleatoire, subtle, l
       bilan.echecs += 1;
       continue;
     }
-    const envoi = await envoyer(courriel);
+    if (aEnvoye) await attente(600);
+    aEnvoye = true;
+    let envoi = await envoyer(courriel);
+    for (let essai = 1; !envoi?.ok && envoi?.limite && essai <= 3; essai += 1) {
+      await attente(1000 * essai);
+      envoi = await envoyer(courriel);
+    }
     if (envoi?.ok) {
       await resultat(item.envoi_id, "envoye", null);
       bilan.envoyes += 1;
