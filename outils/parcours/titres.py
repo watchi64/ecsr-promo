@@ -11,8 +11,8 @@ Un identifiant par profil : un parcours n'a qu'un compte (`inviter` et `ajuster`
 chaque profil, `apercu-par-titre` pour le fondateur).
 """
 from . import parcours
-from .direction import (NOUVELLE, attendre_page, choisir_un_apercu, ouvrir_le_menu_du_compte, revenir_fondateur, verifier_la_barre)
-from .navigation import texte
+from .direction import (NOUVELLE, attendre_page, choisir_un_apercu, fermer_la_fenetre, ouvrir_le_menu_du_compte, revenir_fondateur, verifier_la_barre)
+from .navigation import SOUS_ONGLET, texte
 from .visite import BLOQUE
 
 TITRES_OUVERTS = {"titres_ouverts": "1"}
@@ -81,22 +81,65 @@ def ajuster_un_titre(v):
     v.attendre('#view tr[data-titre]:has(strong:text-is("Secrétariat")):has-text("version d\'un titre du réseau")',
                "Secrétariat lu comme version du centre")
     v.but("titre ajusté")
+    v.etape("rouvrir le titre : Stagiaires est resté relevé à Voir")
+    v.toucher('button[aria-label="Ajuster le titre Secrétariat"]', "« Ajuster » sur la version du centre", compte=False)
+    v.attendre(MODALE + ' fieldset[data-page="stagiaires"]', "la fenêtre « Ajuster un titre » rouverte")
+    if not v.page.locator(MODALE + ' fieldset[data-page="stagiaires"] input[value="voir"]').is_checked():
+        v.constat("E", BLOQUE, "rouvert, le titre ajusté a perdu le relèvement de Stagiaires à Voir", capture=True)
+    fermer_la_fenetre(v, "la fenêtre « Ajuster un titre »")
     v.terminer()
 
 
 # --- Voir n'écrit pas ------------------------------------------------------------------------------------------------------------------
+# Chaque absence se prouve avec un TÉMOIN : le même contrôle, joué par un compte qui a la case à « Modifier », voit les boutons. Sans témoin, un écran cassé
+# ou un sélecteur périmé ferait passer le parcours. Les boutons choisis sont ceux que la case de la page garde (ecritSelonLaCase), non le titre fixe.
+
+PROMOS_ECRITURE = (("#view " + 'button:text-is("Modules")', "« Modules »"),
+                   (texte("Créer une promo", "#view button"), "« Créer une promo »"))
+AJOUTER_UN_EVENEMENT = '#view button:text-is("Ajouter un événement")'
+ONGLET_BENEVOLES = '#view :is(button.subtab, [role=tab]):text-is("Élèves bénévoles")'
+
+
+def controle_promos(v, avec):
+    """Promos : « Créer une promo » et « Modules » (case Promos en Modifier) sont là, ou ne sont pas là ; les cartes des promos, elles, y sont toujours."""
+    v.aller("Promos")
+    attendre_page(v, "Promos")
+    v.attendre("#view .promo-carte", "les cartes des promos")
+    for selecteur, nom in PROMOS_ECRITURE:
+        if avec:
+            v.attendre(selecteur, "%s (la case Promos est en Modifier)" % nom)
+        else:
+            aucun(v, selecteur, "Promos en « Voir » : %s" % nom)
+
+
+def controle_equipe(v, avec):
+    """Planning, Dates clés : « Ajouter un événement » (case Planning) ; Stagiaires : le sous-onglet « Élèves bénévoles » (case Stagiaires). La page
+    se lit dans les deux cas (le filtre « À venir », la liste des stagiaires)."""
+    v.aller("Planning")
+    attendre_page(v, "Planning")
+    v.toucher(texte("Dates clés", SOUS_ONGLET), "« Dates clés »", compte=False)
+    v.attendre('#view .agenda-filters button:text-is("À venir")', "la page Dates clés, qui se lit")
+    if avec:
+        v.attendre(AJOUTER_UN_EVENEMENT, "« Ajouter un événement » (la case Planning est en Modifier)")
+    else:
+        aucun(v, AJOUTER_UN_EVENEMENT, "Planning en « Voir » : « Ajouter un événement »")
+    v.but("Planning relu")
+    v.etape("Stagiaires")
+    v.aller("Stagiaires")
+    attendre_page(v, "Stagiaires")
+    v.attendre("#view a.stg-ligne", "la liste des stagiaires, qui se lit")
+    if avec:
+        v.attendre(ONGLET_BENEVOLES, "« Élèves bénévoles » (la case Stagiaires est en Modifier)")
+    else:
+        aucun(v, ONGLET_BENEVOLES, "Stagiaires en « Voir » : « Élèves bénévoles »")
+    v.terminer()
+
 
 @parcours("titres-voir-n-ecrit-pas-secretariat", "Titres · Un Secrétariat sur Promos (case « Voir ») ne voit aucun bouton d'écriture", role="direction",
           budget=1, banc=banc_de("secretariat"), navigations=NOUVELLE, depart="#/centre")
 def voir_n_ecrit_pas_secretariat(v):
-    """Promos en lecture : les cartes des promos sont là, sans « Créer une promo » ni « Modifier » ni « Modules » ; Stagiaires (Modifier) garde
-    son geste « Gérer »."""
-    v.aller("Promos")
-    attendre_page(v, "Promos")
-    v.attendre("#view .promo-carte", "les cartes des promos")
-    aucun(v, texte("Créer une promo", "#view button"), "Promos en « Voir » : « Créer une promo »")
-    aucun(v, '#view button:text-is("Modifier")', "Promos en « Voir » : « Modifier »")
-    aucun(v, '#view button:text-is("Modules")', "Promos en « Voir » : « Modules »")
+    """Promos en lecture : les cartes sont là, sans « Créer une promo » ni « Modules » ; Stagiaires (Modifier) garde son geste « Gérer »."""
+    controle_promos(v, avec=False)
     v.but("Promos en lecture")
     v.etape("Stagiaires en Modifier garde ses gestes")
     v.aller("Stagiaires")
@@ -105,20 +148,28 @@ def voir_n_ecrit_pas_secretariat(v):
     v.terminer()
 
 
-@parcours("titres-voir-n-ecrit-pas-intervenant", "Titres · Un Intervenant sur Planning (case « Voir ») ne voit aucun bouton d'écriture", role="formateur",
+@parcours("titres-voir-n-ecrit-pas-temoin-direction", "Titres · Témoin : la direction fixe voit les boutons que le Secrétariat n'a pas sur Promos", role="direction",
+          budget=1, banc=banc_de("direction"), navigations=NOUVELLE, depart="#/centre")
+def temoin_direction(v):
+    """Le même contrôle que le Secrétariat, joué par un compte dont la case Promos est à Modifier : « Créer une promo » et « Modules » sont là."""
+    controle_promos(v, avec=True)
+    v.but("Promos en écriture")
+    v.terminer()
+
+
+@parcours("titres-voir-n-ecrit-pas-intervenant", "Titres · Un Intervenant (Planning et Stagiaires en « Voir ») ne voit aucun bouton d'écriture", role="formateur",
           budget=1, banc=banc_de("intervenant"), navigations=NOUVELLE, depart="#/home")
 def voir_n_ecrit_pas_intervenant(v):
-    """Planning en lecture : la semaine se lit, sans « Modifier » ; Stagiaires en lecture, sans « Gérer »."""
-    v.aller("Planning")
-    attendre_page(v, "Planning")
-    v.attendre('#view button:text-is("Semaine")', "la semaine du planning")
-    aucun(v, '#view button:text-is("Modifier")', "Planning en « Voir » : « Modifier »")
-    v.but("Planning en lecture")
-    v.etape("Stagiaires en lecture")
-    v.aller("Stagiaires")
-    attendre_page(v, "Stagiaires")
-    aucun(v, '#view button:text-is("Gérer")', "Stagiaires en « Voir » : « Gérer »")
-    v.terminer()
+    """Planning, Dates clés : sans « Ajouter un événement » ; Stagiaires : sans « Élèves bénévoles » ; les deux pages se lisent."""
+    controle_equipe(v, avec=False)
+
+
+@parcours("titres-voir-n-ecrit-pas-temoin-formateur", "Titres · Témoin : le Formateur fixe voit les boutons que l'Intervenant n'a pas", role="formateur",
+          budget=1, banc=banc_de("formateur"), navigations=NOUVELLE, depart="#/home")
+def temoin_formateur(v):
+    """Le même contrôle que l'Intervenant, joué par un compte dont les cases Planning et Stagiaires sont à Modifier : « Ajouter un événement » et
+    « Élèves bénévoles » sont là."""
+    controle_equipe(v, avec=True)
 
 
 # --- Mon titre (le menu du compte) -----------------------------------------------------------------------------------------------------
