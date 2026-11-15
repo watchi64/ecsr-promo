@@ -140,3 +140,17 @@
 .financement-retire { opacity: 0.8; }
 .financement-ajout { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.5rem 0.75rem; margin-top: 1rem; }
 .financement-ajout > .field { flex: 1 1 14rem; min-width: 0; margin: 0; }
+
+/* ============================================================
+   Page des liens d'e-mail (demande.html) : une colonne, un seul bouton de 44 px,
+   rien ne défile de côté (les textes longs passent à la ligne).
+   ============================================================ */
+
+.lien-demande { max-width: 560px; margin: 0 auto; padding: 1.25rem 16px 2rem; overflow-wrap: anywhere; }
+.lien-demande-carte { margin-bottom: 1rem; }
+.lien-demande-type { margin: 0 0 0.25rem; font-size: 0.88rem; }
+.lien-demande-sujet { margin: 0 0 0.5rem; font-size: 1.25rem; letter-spacing: -0.01em; }
+.lien-demande-texte { margin: 0 0 0.75rem; white-space: pre-wrap; }
+.lien-demande-message { border-top: 1px solid var(--line); padding-top: 0.6rem; margin-top: 0.6rem; }
+.lien-demande-message p { margin: 0 0 0.25rem; }
+.lien-demande-bouton { width: 100%; min-height: 44px; white-space: normal; text-align: center; }

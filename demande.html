@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1A1612" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self';
+    connect-src 'self' https://*.supabase.co;
+    img-src 'self' data: https://*.supabase.co;
+    style-src 'self' 'unsafe-inline';
+    font-src 'self' data:;
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+  ">
+  <title>Demande - ECSR Promo</title>
+  <link rel="stylesheet" href="css/fonts.css" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/contact.css" />
+  <link rel="icon" href="assets/logo/tpecsr-logo.svg" type="image/svg+xml" />
+</head>
+<body>
+  <main class="lien-demande" id="lien-demande" aria-live="polite">
+    <p class="muted" id="lien-chargement">Ouverture de la demande...</p>
+  </main>
+  <script type="module" src="js/lien-demande.js"></script>
+</body>
+</html>

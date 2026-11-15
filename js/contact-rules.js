@@ -89,3 +89,97 @@ export function routerDemande({ type, financement_id = null, aujourdhui, regles 
   const choix = [...new Set(possibles ?? [])].sort(comparer).map((id) => ({ fiche_id: id, pre_coche: fdj.includes(id) }));
   return { mode: "choix", principaux: [], source: null, possibles: choix };
 }
+
+// === Les demandes à l'écran (tâche 11) ===
+
+const JOUR_MS = 86400000;
+export const TYPES_DEMANDE = { absence: "Absence", retard: "Retard", administratif: "Administratif", document: "Document", autre: "Autre" };
+const PHRASE_CHOIX_STAGIAIRE = "Ton centre n'a pas choisi qui reçoit ce type de demande : coche au moins une personne.";
+const PHRASE_PERSONNE = "Personne ne peut recevoir ta demande dans ce centre : préviens ton formateur directement.";
+
+const enMs = (v) => (v == null ? NaN : new Date(v).getTime());
+
+/**
+ * Les étapes d'une demande, dans l'ordre : envoyée, lue, prise en compte, annulée. `detail` est la réponse de demande_detail.
+ * « Lue » n'existe que si un destinataire principal a ouvert la demande dans l'app (lue_le) : une personne sans compte ne la lit
+ * jamais dans l'app. Sortie : [{ cle, quand, par }].
+ */
+export function etapesDemande(detail) {
+  const d = detail?.demande;
+  if (!d) return [];
+  const etapes = [{ cle: "envoyee", quand: d.cree_le ?? null, par: d.auteur_nom ?? null }];
+  const lues = (detail.destinataires ?? []).filter((x) => x.principal && x.lue_le && !Number.isNaN(enMs(x.lue_le)))
+    .sort((a, b) => enMs(a.lue_le) - enMs(b.lue_le));
+  if (lues.length > 0) etapes.push({ cle: "lue", quand: lues[0].lue_le, par: lues[0].nom ?? null });
+  if (d.prise_le) etapes.push({ cle: "prise", quand: d.prise_le, par: d.prise_par ?? null });
+  if (d.annulee_le) etapes.push({ cle: "annulee", quand: d.annulee_le, par: d.annulee_par ?? null });
+  return etapes;
+}
+
+/**
+ * Range la liste des demandes (liste_demandes) en trois : à traiter (a_traiter, lu tel quel : la base décide), terminées (annulée,
+ * ou prise sans échange depuis 7 jours), ouvertes (le reste). L'ordre reçu est gardé dans chaque groupe.
+ */
+export function rangerDemandes(lignes, maintenant = new Date()) {
+  const rang = { aTraiter: [], ouvertes: [], terminees: [] };
+  const now = enMs(maintenant);
+  for (const l of lignes ?? []) {
+    if (l.a_traiter) { rang.aTraiter.push(l); continue; }
+    const dernier = enMs(l.dernier_echange_le ?? l.cree_le);
+    const inactive = l.etat === "prise" && !Number.isNaN(dernier) && now - dernier >= 7 * JOUR_MS;
+    (l.etat === "annulee" || inactive ? rang.terminees : rang.ouvertes).push(l);
+  }
+  return rang;
+}
+
+/** « Claire, relais de Sophie », « Karim n'a pas pu être prévenu », sinon le nom. */
+export function libelleDestinataire(d) {
+  const nom = d?.nom ?? "";
+  if (d?.non_prevenu) return `${nom} n'a pas pu être prévenu`;
+  if (d?.relais_de) return `${nom}, relais de ${d.relais_de}`;
+  return nom;
+}
+
+/**
+ * Ce que l'encadré « Qui reçoit ta demande » montre, d'après apercu_envoi. `coches` : l'ensemble des identifiants cochés en ce moment
+ * (tableau ou Set) ; absent (null), les cases pré-cochées par la base le sont. Un ensemble vide veut dire que le stagiaire a tout décoché.
+ * Mode règle : les principaux (leurs noms), aucune case. Mode choix : une case par possible ; l'envoi exige une case cochée au moins ;
+ * aucun possible : rien ne peut partir.
+ */
+export function lignesEncadre(apercu, coches = null) {
+  if (apercu?.mode !== "choix") {
+    return { mode: "regle", principaux: (apercu?.principaux ?? []).map((p) => p.nom), cases: [], phrase: null, envoyable: true };
+  }
+  const touchees = coches == null ? null : new Set(coches);
+  const cases = (apercu.possibles ?? []).map((p) => ({
+    fiche_id: p.fiche_id, nom: p.nom, titre: p.titre ?? null, coche: touchees ? touchees.has(p.fiche_id) : p.pre_coche === true,
+  }));
+  if (cases.length === 0) return { mode: "choix", principaux: [], cases, phrase: PHRASE_PERSONNE, envoyable: false };
+  return { mode: "choix", principaux: [], cases, phrase: PHRASE_CHOIX_STAGIAIRE, envoyable: cases.some((c) => c.coche) };
+}
+
+function aujourdhuiLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * La ligne de l'aperçu de « Qui reçoit quoi » (réglages du centre) pour un type et un financement : « Absence, CPF : Sophie » quand
+ * une règle ou la personne par défaut s'applique, « Absence, CPF : les formateurs du jour » pour cette règle, sinon « ... : le
+ * stagiaire choisit parmi les formateurs de sa promo et la direction ». `reglages` : { regles, fiches, financements } de
+ * reglages_contact. Le jugement est celui de routerDemande (congé, relais, départ jugés au jour donné, aujourd'hui par défaut).
+ */
+export function phraseReglesCentre(reglages, type, financementId = null, aujourdhui = aujourdhuiLocal()) {
+  const regles = reglages?.regles ?? [];
+  const fin = financementId == null ? null : (reglages?.financements ?? []).find((f) => f.id === financementId);
+  const tete = [TYPES_DEMANDE[type] ?? type, fin?.libelle].filter(Boolean).join(", ");
+  const regle = (t, f) => regles.find((r) => r.type === t && (r.financement_id ?? null) === f);
+  const appliquee = (financementId != null && regle(type, financementId)) || regle(type, null) || regle("defaut", null);
+  if (appliquee?.cible === "formateurs_du_jour") return `${tete} : les formateurs du jour`;
+  const noms = new Map((reglages?.fiches ?? []).map((f) => [f.fiche_id, f.nom]));
+  const r = routerDemande({ type, financement_id: financementId, aujourdhui, regles, fiches: reglages?.fiches ?? [] });
+  if (r.mode === "regle") {
+    return `${tete} : ${r.principaux.map((p) => libelleDestinataire({ nom: noms.get(p.fiche_id) ?? "", relais_de: p.relais_de })).join(", ")}`;
+  }
+  return `${tete} : le stagiaire choisit parmi les formateurs de sa promo et la direction`;
+}
