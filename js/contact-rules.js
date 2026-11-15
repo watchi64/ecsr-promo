@@ -143,6 +143,16 @@ export function phraseContact(e, generique) {
   return generique;
 }
 
+/**
+ * Bascule une case de l'encadré : `coches` est l'ensemble COURANT des identifiants cochés (celui que montre l'écran), le résultat est un
+ * nouvel ensemble, l'entrée n'est pas modifiée.
+ */
+export function basculerCoche(coches, ficheId, coche) {
+  const suite = new Set(coches ?? []);
+  if (coche) suite.add(ficheId); else suite.delete(ficheId);
+  return suite;
+}
+
 /** Le compteur de l'entrée Messages : combien de demandes de la liste (liste_demandes) n'ont pas été lues par la personne. */
 export function compterNonLues(lignes) {
   return (lignes ?? []).filter((l) => l && l.non_lue === true).length;

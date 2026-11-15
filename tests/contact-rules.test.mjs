@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { routerDemande, etapesDemande, rangerDemandes, libelleDestinataire, lignesEncadre, phraseReglesCentre, compterNonLues, phraseContact } from "../js/contact-rules.js";
+import { routerDemande, etapesDemande, rangerDemandes, libelleDestinataire, lignesEncadre, phraseReglesCentre, compterNonLues, phraseContact, basculerCoche } from "../js/contact-rules.js";
 
 const table = JSON.parse(readFileSync(new URL("./fixtures/contact-routage.json", import.meta.url), "utf8"));
 
@@ -134,4 +134,20 @@ test("phraseContact : un refus de la base se dit tel quel, tout autre échec par
   assert.equal(phraseContact(new Error("contact: Demande introuvable."), "Échec."), "Demande introuvable.");
   assert.equal(phraseContact(Object.assign(new Error("permission denied"), { code: "42501" }), "Échec."), "Vous n'avez pas le droit de faire cela ici.");
   assert.equal(phraseContact(new Error("TypeError: x is undefined"), "Échec."), "Échec.");
+});
+
+test("basculerCoche : les bascules successives se cumulent, lignesEncadre suit l'ensemble", () => {
+  const apercu = { mode: "choix", principaux: [], possibles: [
+    { fiche_id: 1, nom: "A", pre_coche: false }, { fiche_id: 2, nom: "B", pre_coche: false }, { fiche_id: 3, nom: "C", pre_coche: false }] };
+  const courant = (c) => lignesEncadre(apercu, c).cases.filter((x) => x.coche).map((x) => x.fiche_id);
+  let coches = basculerCoche(courant(null), 1, true);
+  coches = basculerCoche(courant(coches), 2, true);
+  assert.deepEqual(courant(coches), [1, 2]);
+  const pre = { ...apercu, possibles: apercu.possibles.map((p) => ({ ...p, pre_coche: p.fiche_id !== 3 })) };
+  const cur = (c) => lignesEncadre(pre, c).cases.filter((x) => x.coche).map((x) => x.fiche_id);
+  let c2 = basculerCoche(cur(null), 1, false);
+  c2 = basculerCoche(cur(c2), 3, true);
+  assert.deepEqual(cur(c2), [2, 3]);
+  assert.equal(lignesEncadre(pre, basculerCoche(cur(c2), 2, false)).envoyable, true);
+  assert.equal(lignesEncadre(pre, new Set()).envoyable, false);
 });

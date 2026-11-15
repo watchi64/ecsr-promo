@@ -10,7 +10,7 @@ import { el, clear, displayStagiaire } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
 import { isStagiaire, selonPublic } from "../auth-admin.js?v=20261114f";
 import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
-import { lignesEncadre, libelleDestinataire, phraseContact } from "../contact-rules.js?v=20261114f";
+import { lignesEncadre, libelleDestinataire, phraseContact, basculerCoche } from "../contact-rules.js?v=20261114f";
 
 // Les types qu'un stagiaire peut écrire (l'absence a son propre geste).
 export const TYPES_ECRITS = [
@@ -95,9 +95,9 @@ export async function ouvrirEcrire({ cible, ficheId = null, nomDestinataire = nu
       const id = "ecrire-dest-" + c.fiche_id;
       const saisie = el("input", { type: "checkbox", id, value: String(c.fiche_id), checked: c.coche });
       saisie.addEventListener("change", () => {
-        const courants = new Set(l.cases.filter((x) => x.coche).map((x) => x.fiche_id));
-        if (saisie.checked) courants.add(c.fiche_id); else courants.delete(c.fiche_id);
-        coches = courants;
+        // L'ensemble courant (celui de l'écran à cet instant), jamais celui du dessin : les clics successifs se cumulent.
+        const courants = lignesEncadre(apercu, coches).cases.filter((x) => x.coche).map((x) => x.fiche_id);
+        coches = basculerCoche(courants, c.fiche_id, saisie.checked);
         majBouton();
       });
       liste.appendChild(el("label", { class: "contact-case", for: id }, saisie,

@@ -2957,7 +2957,7 @@ export async function relancerEnvoi(envoiId) {
 export async function lireMesAlertes() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return true;
-  const { data, error } = await supabase.from("user_profiles").select("alertes_email").eq("email", user.email.toLowerCase()).limit(1);
+  const { data, error } = await supabase.from("user_profiles").select("alertes_email").ilike("email", user.email.replace(/[\\%_]/g, "\\$&")).limit(1);
   if (error) throw erreurDeBase(error);
   return data?.[0]?.alertes_email !== false;
 }
