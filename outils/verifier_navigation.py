@@ -583,11 +583,17 @@ function modulesDeLApp(noms) {
 }
 async function regles() {
   try {
-    const [rules, mods, em, auth] = await modulesDeLApp(
-      ["nav-rules", "modules-etat", "emargement-etat", "auth-admin"]);
+    const [rules, mods, em, auth, esp] = await modulesDeLApp(
+      ["nav-rules", "modules-etat", "emargement-etat", "auth-admin", "espaces-rules"]);
     // Lot 5 : l'espace de la session (direction et siège compris), fixé à la porte ; le lot 1 le déduisait des droits.
     const espace = auth.getEspace ? auth.getEspace() : rules.espaceDe({ formateur: auth.isAdmin() || auth.isProf() });
-    const entrees = rules.entreesNavigation(espace, { routeVisible: mods.routeVisible, emargementActif: em.emargementActif() });
+    // Les mêmes options que js/main.js (renderTabs) : Émargement du centre, Réglages du pilotage et, depuis les titres (étape 3), les cases de la session
+    // (nulles pour un titre fixe ou le fondateur : la barre d'avant).
+    const entrees = rules.entreesNavigation(espace, {
+      routeVisible: mods.routeVisible, emargementActif: em.emargementActif(),
+      formateur: rules.formateurPourLEmargement({ cases: auth.casesAffichees(), peutModifier: auth.peutModifier("emargement"), admin: auth.isAdmin() }),
+      emargementDansLeCentre: em.emargementDansLeCentre(), reglagesEspace: esp.espaceDePilotage(espace), cases: auth.casesAffichees(),
+    });
     const tel = rules.barreTelephone(espace, entrees);
     return {
       espace, entrees, barre: tel.barre.map((e) => e.id), plus: tel.plus.map((e) => e.id),
@@ -1981,6 +1987,11 @@ def construire_scenarios(moteurs, roles, largeurs, habillages=HABILLAGES):
             # l'espace de l'équipe en lecture seule ; aucune entrée ne mène à une page qui la refuse.
             for l in etroit:
                 scenarios.append(Scenario(moteur, "prof", l, "direction", compte="direction"))
+            # Titres et droits à la carte (étape 3, Task 33) : un titre de centre (Secrétariat : barre de la direction filtrée par ses cases) et un titre
+            # de promo (Intervenant : barre de l'équipe filtrée), ordinateur et téléphone.
+            for l in etroit:
+                scenarios.append(Scenario(moteur, "prof", l, "direction", compte="secretariat"))
+                scenarios.append(Scenario(moteur, "prof", l, "equipe", compte="intervenant"))
         for habillage in habillages:
             resultat += [replace(sc, habillage=habillage) for sc in scenarios]
         if "ecf" in habillages and "stagiaire" in roles:
@@ -2677,9 +2688,10 @@ def verifier_retour_arriere(page, res, sc):
 # (js/emargement-etat.js). Mes préférences (#/preferences)
 # n'en montre aucune : seulement « Mes préférences » (si un réglage est à montrer) et « Informations ».
 SECTIONS_REGLAGES = ("Ce que voient les stagiaires", "Promo", "Accès et invitations", "Émargement", "Travail en autonomie",
-                     "Données personnelles")
+                     "Titres à la carte", "Données personnelles")
 # Travail en autonomie (lot 1 de l'e-learning, 13/11) : interrupteur du fondateur par promo, comme l'émargement (js/autonomie-etat.js).
-SECTIONS_DU_FONDATEUR = ("Émargement", "Travail en autonomie")
+# Titres à la carte (étape 3 des titres, Task 32) : le verrou des titres non fixes, au fondateur seul.
+SECTIONS_DU_FONDATEUR = ("Émargement", "Travail en autonomie", "Titres à la carte")
 # En dernier, « Apparence » : un renvoi vers Mes préférences, où se fait le choix des couleurs, pas une section de la promo (décision du 10/11).
 RENVOI_APPARENCE = "Apparence"
 SECTIONS_PREFERENCES = ("Apparence", "Dans les notes de la classe", "Informations")
@@ -4693,6 +4705,79 @@ def jouer_direction(page, res, sc):
     vider_console(res, vue)
 
 
+# Les titres du banc (étape 3, Task 33) : le compte du banc, la barre que ses cases laissent (routes) et le titre que le menu du compte nomme.
+TITRES_DU_BANC = {
+    "secretariat": {"routes": ("#/centre", "#/promos", "#/stagiaires", "#/emargement", "#/equipe"), "nom": "Secrétariat",
+                    "absentes": ("#/notes", "#/config")},
+    "intervenant": {"routes": ("#/home", "#/planning", "#/emargement", "#/stagiaires", "#/themes"), "nom": "Intervenant",
+                    "absentes": ("#/notes", "#/ccp2", "#/centre", "#/config")},
+}
+
+
+def jouer_titre_non_fixe(page, res, sc, options):
+    """Un compte à titre non fixe (Secrétariat, Intervenant : `?compte=` du banc), nouvelle navigation. La barre est celle que ses cases laissent, ni plus ni
+    moins ; sur téléphone, chaque entrée se touche, dans la barre du bas ou dans « Plus » ; le menu du compte nomme le titre. Puis la visite ordinaire de l'espace
+    (chaque entrée s'ouvre, sans refus ni débordement)."""
+    attendu = TITRES_DU_BANC[sc.compte]
+    vue = "%s/titre-%s" % (sc.nom, sc.compte)
+    regles = regles_de_la_page(page, res, sc)
+    preparer_coquille(page, res, sc, regles)
+    if not res.coquille:
+        return
+    res.vues += 1
+    routes = page.evaluate("() => [...new Set([...document.querySelectorAll('[data-nav-coquille] a[href^=\"#/\"]')].map((a) => a.getAttribute('href')))]")
+    if sorted(routes) != sorted(attendu["routes"]):
+        res.echec("barre d'un titre", vue, "la barre de %s porte %s au lieu de %s" % (attendu["nom"], ", ".join(sorted(routes)), ", ".join(sorted(attendu["routes"]))))
+    for route in attendu["absentes"]:
+        if route in routes:
+            res.echec("barre d'un titre", vue, "la barre de %s garde l'entrée %s, que ses cases ne montrent pas" % (attendu["nom"], route))
+    if sc.largeur <= 500:
+        # Téléphone : la barre du bas garde ses entrées, le reste passe par « Plus » ; aucune entrée ne reste hors d'atteinte.
+        for route in attendu["routes"]:
+            lien = '[data-nav-coquille] a[href="%s"]:visible' % route
+            if page.locator(lien).count():
+                continue
+            if not page.locator('[data-nav-coquille] button.nav-plus:visible').count():
+                res.echec("barre du téléphone d'un titre", vue, "%s n'est ni dans la barre du bas ni derrière « Plus » (pas de bouton « Plus »)" % route)
+                continue
+            if cliquer(page, res, vue, '[data-nav-coquille] button.nav-plus:visible', "« Plus »"):
+                page.wait_for_timeout(250)
+                if not page.locator(lien).count():
+                    res.echec("barre du téléphone d'un titre", vue, "%s n'est ni dans la barre du bas ni dans le tiroir « Plus » de %s" % (route, attendu["nom"]))
+                page.keyboard.press("Escape")
+                page.wait_for_timeout(250)
+    if cliquer(page, res, vue, '[data-nav-coquille] button[data-nav-action="compte"]:visible', "bouton du compte"):
+        page.wait_for_timeout(300)
+        nom = page.evaluate("() => { const n = document.querySelector('[data-nav-coquille=\"compte\"] .nav-mon-titre-nom'); return n ? n.textContent : ''; }")
+        if attendu["nom"] not in nom:
+            res.echec("menu du compte d'un titre", vue, "« Mon titre » dit « %s » au lieu de %s" % (nom, attendu["nom"]))
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(250)
+    vider_console(res, vue)
+    toast = "() => { const t = document.getElementById('toast'); return t && !t.classList.contains('hidden') ? t.innerText : ''; }"
+    # Chaque entrée s'ouvre sur elle-même, sans refus ni débordement ; la visite complète du formateur (écriture, sous-onglets) ne s'applique pas à un titre limité.
+    for route in attendu["routes"]:
+        aller_a(page, route)
+        attendre(page, calme=200)
+        verifier_refus(page, res, vue, "entrée %s de la barre" % route)
+        if route_courante(page) != route[2:].split("/")[0]:
+            res.echec("barre d'un titre", vue, "l'entrée %s ouvre #/%s" % (route, route_courante(page)))
+        elif "pas dans l'espace" in page.evaluate(toast):
+            res.echec("barre d'un titre", vue, "l'entrée %s dit « %s »" % (route, page.evaluate(toast)))
+        verifier_vue(page, res, sc, "titre/%s" % route[2:], options)
+    # Une page que les cases ne donnent pas n'a pas d'entrée ; ouverte par son adresse, elle s'ouvre encore (la base refuse ses données : l'app ne ferme
+    # pas la route). Constat tenu en avertissement, non en échec : la décision d'une garde de route n'est pas prise (rapport de la Task 33).
+    for route in attendu["absentes"]:
+        aller_a(page, "#/home" if sc.compte == "intervenant" else "#/centre")
+        attendre(page, calme=150)
+        aller_a(page, route)
+        attendre(page, calme=200)
+        res.vues += 1
+        if route_courante(page) == route[2:]:
+            res.avertir("page hors cases ouverte par son adresse", "%s pour %s" % (route, attendu["nom"]), vue, "%s s'ouvre pour %s, que ses cases ne donnent pas" % (route, attendu["nom"]))
+    vider_console(res, vue)
+
+
 def verifier_refus(page, res, vue, quoi):
     texte = page.evaluate("() => (document.getElementById('view') || document.body).innerText")
     trouve = [r for r in REFUS_DE_PAGE if r in texte.lower()]
@@ -6190,6 +6275,8 @@ def jouer_scenario(navigateur, url, sc, options):
             jouer_ressources_fermees(page, res, sc, options)
         elif sc.compte == "direction":
             jouer_direction(page, res, sc)
+        elif sc.compte in TITRES_DU_BANC:
+            jouer_titre_non_fixe(page, res, sc, options)
         else:
             jouer_allume(page, res, sc, options)
     except (DelaiDepasse, ErreurPlaywright) as e:

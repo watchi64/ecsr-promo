@@ -15,6 +15,17 @@ PHRASE_CHIFFRES = "Les chiffres du réseau n'ont pas pu être chargés."
 BANC_SIEGE = {"compte": "siege"}
 
 
+def remplir_l_invitation(v):
+    """« Inviter une personne » (depuis l'étape 3 des titres) : une adresse, le centre d'Alès, puis le titre Direction de centre, que la fenêtre
+    propose une fois le centre choisi."""
+    v.toucher('#view button:text-is("Inviter une personne")', "« Inviter une personne »", compte=False)
+    v.remplir("#direction-email", "nouvelle.direction@exemple.invalid", "l'adresse de la direction")
+    v._premier_visible(v.page.locator("#direction-centre"), "le choix du centre").select_option(label="Alès")
+    v.page.wait_for_function("() => [...document.querySelectorAll('#direction-titre option')].some((o) => o.textContent === 'Direction de centre')",
+                             timeout=5000)
+    v.page.locator("#direction-titre").select_option(label="Direction de centre")
+
+
 @parcours("siege-tour-du-reseau", "P4 · Le siège fait le tour du réseau (chiffres, centres, directions, cours)", role="siege", budget=1,
           banc=BANC_SIEGE, navigations=NOUVELLE, depart=DEPART)
 def tour_du_reseau(v):
@@ -62,19 +73,17 @@ def tour_du_reseau(v):
     v.aller("Directions de centre")
     attendre_page(v, "Directions de centre")
     aucun_nom_de_stagiaire(v, "les directions")
-    v.toucher(texte("Inviter une direction", "#view button.btn.primary, #view .view-header button"), "« Inviter une direction »", compte=False)
-    v.remplir("#direction-email", "nouvelle.direction@exemple.invalid", "l'adresse de la direction")
-    v._premier_visible(v.page.locator("#direction-centre"), "le choix du centre").select_option(label="Alès")
+    remplir_l_invitation(v)
     v.ecouter_messages()
     v.toucher(texte("Inviter", ".modal button[type=submit]"), "« Inviter »", compte=False, ecriture=True)
-    v.exiger_confirmation("l'invitation de la direction", "liste des invitations")
+    v.exiger_confirmation("l'invitation de la direction", "Compte créé")
     v.attendre('#view :has-text("nouvelle.direction@exemple.invalid")', "la nouvelle direction dans la liste")
 
     v.etape("Directions de centre : retirer une direction")
     v.toucher('#view button[aria-label^="Retirer nouvelle.direction@exemple.invalid"]', "« Retirer » (la direction invitée)", compte=False)
     v.ecouter_messages()
     v.toucher(texte("Retirer", ".modal button[type=submit]"), "« Retirer »", compte=False, ecriture=True)
-    v.exiger_confirmation("le retrait de la direction", "Direction retirée")
+    v.exiger_confirmation("le retrait de la direction", "Titre retiré")
 
     v.etape("Ajouter un centre")
     v.aller("Vue d'ensemble")
@@ -85,7 +94,7 @@ def tour_du_reseau(v):
     v.toucher(texte("Ajouter", ".modal button[type=submit]"), "« Ajouter »", compte=False, ecriture=True)
     v.exiger_confirmation("la création du centre", "Centre créé")
     # Le centre créé propose d'inviter sa direction (fenêtre) : on la ferme, le centre est dans la liste.
-    v.attendre(".modal:has-text(\"Inviter une direction\")", "la proposition d'inviter la direction du nouveau centre")
+    v.attendre(".modal:has-text(\"Invitez sa direction\")", "la proposition d'inviter la direction du nouveau centre")
     v.fermer_par_echap(".modal", "la fenêtre d'invitation")
     if v.voit(".modal"):
         v.toucher(texte("Annuler", ".modal button"), "« Annuler »", compte=False)
@@ -133,15 +142,13 @@ def panne_chiffres(v):
 
 
 @parcours("panne-siege-inviter-une-direction", "P10 · Base en panne : inviter une direction", role="siege", budget=1,
-          banc={"compte": "siege", "panne": "inviter_compte"}, navigations=NOUVELLE, depart=DEPART)
+          banc={"compte": "siege", "panne": "donner_titre"}, navigations=NOUVELLE, depart=DEPART)
 def panne_inviter_direction(v):
-    """inviter_compte en panne : la fenêtre reste ouverte avec sa saisie et dit que l'invitation n'a pas abouti."""
-    v.console_attendue("La connexion a échoué")        # inviteUser écrit sa phrase française dans la console
+    """donner_titre en panne : la fenêtre reste ouverte avec sa saisie et dit que l'invitation n'a pas abouti."""
+    v.console_attendue("TypeError: Failed to fetch")        # la panne de réseau du banc, écrite dans la console par l'app
     attendre_page(v, "Directions de centre")        # la page de départ
     v.but("page Directions de centre")
-    v.toucher(texte("Inviter une direction", "#view button.btn.primary, #view .view-header button"), "« Inviter une direction »", compte=False)
-    v.remplir("#direction-email", "nouvelle.direction@exemple.invalid", "l'adresse de la direction")
-    v._premier_visible(v.page.locator("#direction-centre"), "le choix du centre").select_option(label="Alès")
+    remplir_l_invitation(v)
     v.toucher(texte("Inviter", ".modal button[type=submit]"), "« Inviter »", compte=False, ecriture=True)
     phrase = exiger_une_phrase_dans_la_fenetre(v, "l'invitation de direction en panne")
     v.etape("la saisie est gardée")

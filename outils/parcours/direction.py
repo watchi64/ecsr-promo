@@ -22,6 +22,18 @@ PAGES_DIRECTION = [("Promos", "Promos"), ("Stagiaires", "Stagiaires"), ("Émarge
                    ("Notes et examens", "Notes et examens"), ("Équipe", "Équipe"), ("Réglages du centre", "Réglages du centre")]
 
 
+# Depuis l'étape 3 des titres, « Inviter une personne » est un formulaire dans la page Équipe (adresse, titre, promos), et non plus une fenêtre.
+FORMULAIRE_INVITER = "#view form.equipe-inviter"
+
+
+def remplir_l_invitation(v):
+    """Le formulaire « Inviter une personne » de la page Équipe : une adresse, le titre Formateur, la promo de mars."""
+    v.attendre("#equipe-titre", "le formulaire « Inviter une personne »")
+    v.remplir("#equipe-email", "nouveau.formateur@exemple.invalid", "l'adresse du formateur")
+    v.page.locator("#equipe-titre").select_option(label="Formateur")
+    v.toucher("#equipe-promo-1", "la case de la promo de mars", compte=False, attendu_effet=False)
+
+
 def titre(nom):
     """Le titre d'une page de l'espace : un titre visible de la page affichée."""
     return '#view :is(h1, h2):visible:has-text("%s")' % nom
@@ -157,11 +169,9 @@ def tour_du_centre(v):
     v.etape("inviter un formateur")
     v.aller("Équipe")
     attendre_page(v, "Équipe")
-    v.toucher(texte("Inviter un formateur", "#view button"), "« Inviter un formateur »", compte=False)
-    v.remplir("#equipe-email", "nouveau.formateur@exemple.invalid", "l'adresse du formateur")
-    v.toucher("#equipe-promo-1", "la case de la promo de mars", compte=False, attendu_effet=False)
+    remplir_l_invitation(v)
     v.ecouter_messages()
-    v.toucher(texte("Inviter", ".modal button[type=submit]"), "« Inviter »", compte=False, ecriture=True)
+    v.toucher(FORMULAIRE_INVITER + " button[type=submit]", "« Inviter »", compte=False, ecriture=True)
     v.exiger_confirmation("l'invitation du formateur", "Compte créé")
     v.attendre('#view :is(tr, li, .liste-ligne):has-text("nouveau.formateur@exemple.invalid")', "la nouvelle personne dans la liste")
     v.terminer()
@@ -424,14 +434,14 @@ PHRASE_CONNEXION = "La connexion a échoué. Vérifier le réseau, puis réessay
 PHRASE_INTERIM = "La conservation des fiches est gérée par le fondateur"
 
 
-def exiger_une_phrase_dans_la_fenetre(v, quoi):
-    """Dans la fenêtre restée ouverte, une phrase de refus est écrite en moins de 2 s (critère E). Rend la phrase."""
+def exiger_une_phrase_dans_la_fenetre(v, quoi, phrase_css=".promo-refus", cadre=".modal"):
+    """Dans la fenêtre restée ouverte (ou, avec `cadre`, le formulaire de la page), une phrase de refus est écrite en moins de 2 s (critère E). Rend la phrase."""
     try:
-        v.page.locator(".modal .promo-refus:not(:empty)").first.wait_for(state="visible", timeout=2000)
+        v.page.locator("%s %s:not(:empty)" % (cadre, phrase_css)).first.wait_for(state="visible", timeout=2000)
     except Exception:
         v.constat("E", BLOQUE, "%s : aucune phrase d'échec dans la fenêtre en 2 s" % quoi, capture=True)
         return ""
-    phrase = v.page.locator(".modal .promo-refus").first.inner_text().strip()
+    phrase = v.page.locator("%s %s" % (cadre, phrase_css)).first.inner_text().strip()
     # Une coupure de réseau se dit en français : jamais le texte technique de la requête.
     if phrase != PHRASE_CONNEXION:
         v.constat("E", BLOQUE, "%s : la phrase d'échec est « %s » au lieu de « %s »" % (quoi, phrase[:70], PHRASE_CONNEXION), capture=True)
@@ -445,23 +455,20 @@ def fermer_la_fenetre(v, quoi):
 
 
 @parcours("panne-direction-inviter-un-formateur", "P10 · Base en panne : inviter un formateur", role="direction", budget=1,
-          banc={"compte": "direction", "panne": "regler_affectations_formateur"}, navigations=NOUVELLE, depart=DEPART)
+          banc={"compte": "direction", "panne": "donner_titre"}, navigations=NOUVELLE, depart=DEPART)
 def panne_inviter(v):
-    """regler_affectations_formateur en panne : la fenêtre reste ouverte avec sa saisie et dit que l'invitation n'a pas abouti."""
+    """donner_titre en panne : le formulaire reste rempli avec sa saisie et dit que l'invitation n'a pas abouti."""
     v.console_attendue("TypeError: Failed to fetch")
     v.aller("Équipe")
     attendre_page(v, "Équipe")
     v.but("page Équipe")
-    v.toucher(texte("Inviter un formateur", "#view button"), "« Inviter un formateur »", compte=False)
-    v.remplir("#equipe-email", "nouveau.formateur@exemple.invalid", "l'adresse du formateur")
-    v.toucher("#equipe-promo-1", "la case de la promo de mars", compte=False, attendu_effet=False)
-    v.toucher(texte("Inviter", ".modal button[type=submit]"), "« Inviter »", compte=False, ecriture=True)
-    phrase = exiger_une_phrase_dans_la_fenetre(v, "l'invitation en panne")
+    remplir_l_invitation(v)
+    v.toucher(FORMULAIRE_INVITER + " button[type=submit]", "« Inviter »", compte=False, ecriture=True)
+    phrase = exiger_une_phrase_dans_la_fenetre(v, "l'invitation en panne", ".promo-refus", FORMULAIRE_INVITER)
     v.etape("la saisie est gardée")
     if v.page.locator("#equipe-email").input_value() != "nouveau.formateur@exemple.invalid":
         v.constat("E", BLOQUE, "l'adresse saisie est perdue après l'échec de l'invitation", capture=True)
     v.etape("phrase : " + phrase[:60])
-    fermer_la_fenetre(v, "la fenêtre d'invitation")
     v.terminer()
 
 
