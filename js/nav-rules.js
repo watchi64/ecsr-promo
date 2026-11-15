@@ -135,6 +135,17 @@ export function selonLesCases(entrees, espace, cases) {
   return entrees.filter((e) => !pageDeLaRoute.has(e.route) || caseDe(cases, pageDeLaRoute.get(e.route), niveau) >= 1);
 }
 
+// Titres (étape 3) : la page de cette route est-elle fermée (case « Non ») chez la personne ? Vrai seulement quand les cases sont lues
+// (`cases` non nul) et que la route est une page à case DU NIVEAU de l'espace avec la case à 0. Cases nulles (titre fixe, fondateur hors
+// aperçu, lecture ratée, stagiaire), route sans case (accueil, messages, contacts) : faux, la sortie d'avant les titres. Même jugement
+// que selonLesCases : une entrée absente de la barre est aussi une adresse fermée.
+export function routeFermeeParTitre(route, espace, cases) {
+  const niveau = NIVEAU_DE_L_ESPACE[espace];
+  if (!cases || !niveau) return false;
+  const page = PAGES_DU_NIVEAU[niveau].find((p) => p.route === route);
+  return !!page && caseDe(cases, page.page, niveau) === 0;
+}
+
 // Entrées de l'espace, dans l'ordre d'affichage, en copies que l'appelant peut modifier.
 // Stagiaire : une page à module s'affiche dès qu'elle est ouverte au sens de `routeVisibleV2`
 // (l'un de ses sous-onglets suffit), Accueil et Mon suivi restent toujours. Équipe : aucun

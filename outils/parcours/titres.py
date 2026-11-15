@@ -11,7 +11,8 @@ Un identifiant par profil : un parcours n'a qu'un compte (`inviter` et `ajuster`
 chaque profil, `apercu-par-titre` pour le fondateur).
 """
 from . import parcours
-from .direction import (NOUVELLE, attendre_page, choisir_un_apercu, fermer_la_fenetre, ouvrir_le_menu_du_compte, revenir_fondateur, verifier_la_barre)
+from .direction import (NOUVELLE, attendre_page, choisir_un_apercu, fermer_la_fenetre, ouvrir_le_menu_du_compte, revenir_fondateur, saisir_une_adresse,
+                        verifier_la_barre)
 from .navigation import SOUS_ONGLET, texte
 from .visite import BLOQUE
 
@@ -233,4 +234,39 @@ def apercu_par_titre(v):
     v.toucher('.view-as-titre-btn:text-is("Formateur")', "« Formateur » (choix du titre)", compte=False, attendu_effet=False)
     v.page.wait_for_selector(notes, state="visible", timeout=10000)
     revenir_fondateur(v)
+    v.terminer()
+
+
+# --- Une page à « Non » se ferme à l'adresse tapée -------------------------------------------------------------------------------------
+PHRASE_PAGE_FERMEE = "Vous n'avez pas accès à cette page avec votre titre."
+
+
+@parcours("titres-page-a-non-adresse-secretariat", "Titres · Un Secrétariat tape l'adresse de Notes et examens (case « Non ») : la page se ferme", role="direction",
+          budget=1, banc=banc_de("secretariat"), navigations=NOUVELLE, depart="#/centre")
+def page_a_non_secretariat(v):
+    """#/notes, page que le titre Secrétariat n'ouvre pas : la phrase « pas d'accès », l'accueil du centre, et aucune page de notes à l'écran."""
+    v.attendre("#view :is(h1, h2, h3):visible", "l'accueil du centre")
+    v.ecouter_messages()
+    saisir_une_adresse(v, "#/notes")
+    v.exiger_confirmation("l'adresse #/notes", PHRASE_PAGE_FERMEE)
+    if v._hash() != "#/centre":
+        v.constat("D", BLOQUE, "l'adresse #/notes mène à %s et non à l'accueil du centre" % (v._hash() or "(rien)"), capture=True)
+    if v.voit("#view .notes-page, #view .nt-tableau, #view .notes-centre"):
+        v.constat("E", BLOQUE, "la page Notes et examens s'affiche malgré la case « Non »", capture=True)
+    v.but("page fermée, accueil du centre")
+    v.terminer()
+
+
+@parcours("titres-page-a-non-adresse-temoin-formateur", "Titres · Témoin : le Formateur fixe ouvre #/notes normalement", role="formateur",
+          budget=1, banc=banc_de("formateur"), navigations=NOUVELLE, depart="#/home")
+def page_a_non_temoin(v):
+    """Même geste, joué par un compte dont la case Notes et examens est à « Modifier » : l'adresse reste et la page s'ouvre, sans la phrase."""
+    v.ecouter_messages()
+    saisir_une_adresse(v, "#/notes")
+    v.attendre("#view :is(h1, h2, h3):visible", "la page Notes et examens")
+    if v._hash() != "#/notes":
+        v.constat("D", BLOQUE, "l'adresse #/notes mène à %s pour un compte qui a la page" % (v._hash() or "(rien)"), capture=True)
+    if any(PHRASE_PAGE_FERMEE.lower() in m["texte"].lower() for m in v._journal()):
+        v.constat("E", BLOQUE, "la phrase « pas d'accès » apparaît pour un compte qui a la page", capture=True)
+    v.but("page ouverte")
     v.terminer()

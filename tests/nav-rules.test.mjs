@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import {
   espaceDe, entreesNavigation, barreTelephone, entreeActive, redirectionV2, routeVisibleV2, initialesDe,
-  prenomDe, entreeMasquee, libelleRole, nomDuBoutonCompte, pageASoiDuMenu, routeApresRedirection, CLES_SOUS_ONGLETS, selonLesCases, formateurPourLEmargement,
+  prenomDe, entreeMasquee, libelleRole, nomDuBoutonCompte, pageASoiDuMenu, routeApresRedirection, CLES_SOUS_ONGLETS, selonLesCases, formateurPourLEmargement, routeFermeeParTitre,
 } from "../js/nav-rules.js";
 import { readFileSync } from "node:fs";
 import { pagePersonnelle } from "../js/route-rules.js";
@@ -420,6 +420,25 @@ eq(libelleRole({ role: "prof", is_founder: true }, "direction"), "Fondateur", "l
     "équipe, toutes cases à 0 : l'accueil seul");
   eq(ids(entreesNavigation("siege", { ...optionsDe.siege, cases: toutesZero("reseau") })), ["reseau"],
     "siège, toutes cases à 0 : l'accueil seul");
+
+  // Adresse d'une page à « Non » (routeFermeeParTitre) : fermée seulement quand les cases sont lues et la case à 0.
+  eq(routeFermeeParTitre("notes", "equipe", casesInt), true, "intervenant : Notes et examens fermée");
+  eq(routeFermeeParTitre("planning", "equipe", casesInt), false, "intervenant : Planning (Voir) ouverte");
+  eq(routeFermeeParTitre("emargement", "equipe", casesInt), false, "intervenant : Émargement (Modifier) ouverte");
+  eq(routeFermeeParTitre("notes", "equipe", null), false, "cases nulles : rien n'est fermé");
+  eq(routeFermeeParTitre("notes", "stagiaire", casesInt), false, "stagiaire : jamais jugé");
+  eq(routeFermeeParTitre("notes", "direction", casesDe("direction", secretariat)), true, "secrétariat : Notes fermée au centre");
+  eq(routeFermeeParTitre("promos", "direction", casesDe("direction", secretariat)), false, "secrétariat : Promos (Voir) ouverte");
+  eq(routeFermeeParTitre("planning", "direction", toutesZero("centre")), false, "direction : planning n'est pas une page du centre");
+  for (const [espace, cases, accueil] of [["equipe", toutesZero("promo"), "home"], ["direction", toutesZero("centre"), "centre"],
+    ["siege", toutesZero("reseau"), "reseau"]]) {
+    for (const route of ["home", "messages", "contacts", accueil]) {
+      if (espace === "equipe" && route === "centre") continue;
+      eq(routeFermeeParTitre(route, espace, cases), false, `${espace}, tout à Non : ${route} reste ouverte`);
+    }
+  }
+  eq(routeFermeeParTitre("centre", "equipe", toutesZero("promo")), true, "équipe : Indicateurs (route centre) suit sa case");
+  eq(routeFermeeParTitre("centre", "direction", toutesZero("centre")), false, "direction : la route centre est l'accueil");
 }
 
 console.log(`nav-rules : ${n} assertions OK`);

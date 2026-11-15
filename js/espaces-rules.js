@@ -271,6 +271,9 @@ export function phraseHorsEspace(espace) {
   return `Cette page n'est pas dans l'espace ${LIBELLES_ESPACE[espace] || ""}.`.replace(" .", ".");
 }
 
+// Page fermée par le titre de la personne (case « Non », étape 3 des titres) : dite à l'ouverture de l'adresse, sans appel à la base.
+export const PHRASE_PAGE_FERMEE = "Vous n'avez pas accès à cette page avec votre titre.";
+
 // Phrase d'un refus de la base : les messages de nos fonctions sont préfixés (« equipe: … ») et se lisent sans
 // leur préfixe. Fonction absente (avant la migration) et droit manquant sans phrase à nous ont leur phrase.
 export const PHRASE_INDISPONIBLE = "Cette action n'est pas encore disponible.";
