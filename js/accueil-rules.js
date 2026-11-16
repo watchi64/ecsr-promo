@@ -5,6 +5,7 @@
 import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "./qcm-exam-rules.js?v=20261114f";
 import { pluriel } from "./nombres.js?v=20261114f";
 import { lundiDe } from "./dates.js?v=20261114f";
+import { phraseAbsence } from "./contact-absences-rules.js?v=20261114f";
 
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000;
 
@@ -114,6 +115,7 @@ export function prochainRendezVous(evenements, aujourdhui) {
 }
 
 // Ce qu'il reste à faire au stagiaire, au plus 4 lignes, dans cet ordre :
+//   0. un justificatif d'absence à remettre (`justificatifs` : mes_justificatifs_a_remettre ; la ligne porte son `adresse`) ;
 //   1. un examen ouvert qu'il n'a pas passé (une tentative en mode « examen » le clôt ; un entraînement non) ;
 //   2. le QCM d'un thème vu cette semaine au planning, jamais tenté (tout mode) ; le thème se retrouve par son titre
 //      exact (`sujetsDeLaSemaine` : les titres déjà découpés, l'ordre du planning) ; un QCM qui a déjà sa ligne
@@ -121,14 +123,22 @@ export function prochainRendezVous(evenements, aujourdhui) {
 //   3. le dossier professionnel tant que les 6 exemples ne sont pas remplis.
 // `modules` : { qcm, dp } ; un module fermé (false) retire ses lignes. Une donnée qui n'a pas pu être lue
 // (`exemplesDossier` nul) ne produit aucune ligne : mieux vaut se taire qu'inventer un travail.
-// Chaque ligne : { cle, titre, detail, route, sousOnglet } ; la page en fait un lien.
-export function aFaireStagiaire({ qcm, themes, tentatives, sujetsDeLaSemaine, exemplesDossier, modules, now } = {}) {
+// Chaque ligne : { cle, titre, detail, route, sousOnglet } (ou `adresse` pour un justificatif) ; la page en fait un lien.
+export function aFaireStagiaire({ qcm, themes, tentatives, sujetsDeLaSemaine, exemplesDossier, modules, now, justificatifs } = {}) {
   const ouvert = (cle) => !modules || modules[cle] !== false;
   const lignes = [];
   const maintenant = now ?? Date.now();
   const liste = (v) => (Array.isArray(v) ? v : []);
   const passes = liste(tentatives);
 
+  // Un justificatif à remettre (espace contact) : une ligne par absence, avant le reste, qui mène au suivi de l'absence.
+  for (const j of liste(justificatifs)) {
+    if (!j || !Number.isInteger(j.demande_id)) continue;
+    lignes.push({
+      cle: `justificatif-${j.demande_id}`, titre: `Remets ton justificatif (${phraseAbsence(j)})`, detail: "Ouvre le suivi de ton absence",
+      route: "contacts", adresse: `#/contacts/${j.demande_id}`,
+    });
+  }
   if (ouvert("qcm")) {
     const avecQuestions = liste(qcm).filter((q) => q && q.nb_questions > 0);
     const titreDuTheme = (q) => liste(themes).find((t) => t.id === q.theme_id)?.titre ?? q.titre;

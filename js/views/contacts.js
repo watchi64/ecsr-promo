@@ -18,6 +18,7 @@ import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
 import { jourParis } from "../dates.js?v=20261114f";
 import { trierFiches, ligneDeFiche, validerMaFiche, aQuitte } from "../contact-annuaire-rules.js?v=20261114f";
 import { rangerDemandes } from "../contact-rules.js?v=20261114f";
+import { libelleDesJours } from "../contact-absences-rules.js?v=20261114f";
 import { lireAdresse } from "../route-rules.js?v=20261114f";
 import { ligneDemande, renderDemande } from "./demande.js?v=20261114f";
 import { ouvrirEcrire } from "./contact-ecrire.js?v=20261114f";
@@ -246,7 +247,19 @@ async function ouvrirFiche({ fiche, annuaire, ancre, apres }) {
 // ============================================================== La page
 
 // « Mes demandes » (stagiaire) : les ouvertes, puis les terminées repliées.
-function sectionMesDemandes(lignes) {
+// Le délégué lit les absences annoncées à sa promo (le nom et les jours, rien d'autre) : aucune demande à ouvrir, donc pas de lien.
+function sectionAbsencesPromo(lignes) {
+  const absences = lignes.filter((l) => l.mon_role === "delegue");
+  if (!absences.length) return null;
+  return el("section", { class: "contact-section", "aria-labelledby": "contact-absences-promo-titre" },
+    el("h3", { id: "contact-absences-promo-titre", class: "contact-section-titre" }, "Absences annoncées dans ta promo"),
+    el("ul", { class: "contact-promo" }, ...absences.map((l) => el("li", { class: "contact-promo-ligne" },
+      el("span", { class: "contact-promo-nom" }, l.auteur_nom || "Un stagiaire"),
+      el("span", { class: "muted" }, " : " + (libelleDesJours(l.jours) || "absence"))))));
+}
+
+function sectionMesDemandes(toutes) {
+  const lignes = toutes.filter((l) => l.mon_role !== "delegue");
   const rang = rangerDemandes(lignes);
   const ouvertes = [...rang.aTraiter, ...rang.ouvertes];
   const liste = (l) => el("ul", { class: "demande-liste" }, ...l.map((x) => ligneDemande(x, "contacts")));
@@ -357,9 +370,12 @@ export async function renderContacts(container) {
 
   if (stagiaire) {
     racine.appendChild(el("div", { class: "contact-gestes-fiche contacts-ecrire" },
+      el("a", { class: "btn primary contacts-absence", href: "#/absence" }, icon.calendar(), "Prévenir d'une absence"),
       el("button", { class: "btn accent", type: "button", onClick: (e) => ouvrirEcrire({ cible: "centre", ancre: e.currentTarget }) },
         icon.mail(), "Écrire au centre")));
     racine.appendChild(sectionMesDemandes(demandes));
+    const absencesPromo = sectionAbsencesPromo(demandes);
+    if (absencesPromo) racine.appendChild(absencesPromo);
   }
 
   const titreEquipe = el("h3", { id: "contact-equipe-titre", class: "contact-section-titre" }, "L'équipe du centre");

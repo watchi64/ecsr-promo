@@ -27,7 +27,8 @@ export const GROUPES = ["Démarrage", "Suivi de la formation", GROUPE_CCP1, "Dos
 // qu'aucune feuille n'est ouverte, il n'y a donc rien à masquer par un module.
 // preferences : Mes préférences, la page de la personne (menu du compte).
 // contacts : la page Contacts (annuaire du centre), ouverte par le menu du compte, jamais fermée par un module.
-export const ROUTES_SOCLE = ["home", "mon-suivi", "config", "nouveautes", "stagiaires", "emargement", "preferences", "contacts", "messages"];
+// absence : « Prévenir d'une absence » (stagiaire), ouverte depuis l'Accueil et Contacts, jamais fermée par un module.
+export const ROUTES_SOCLE = ["home", "mon-suivi", "config", "nouveautes", "stagiaires", "emargement", "preferences", "contacts", "messages", "absence"];
 
 // Route d'un onglet vers le module qui la gouverne.
 export const MODULE_DE_ROUTE = {

@@ -80,6 +80,7 @@ const ALIAS_ENTREE_ACTIVE = new Map([
   ["ressources", "themes"],
   ["nouveautes", "home"],
   ["contacts", "home"],
+  ["absence", "home"],
   ["notes", "mon-suivi"],
   // Problèmes signalés (fondateur, spec 2026-10-28) : ouverte depuis « Signaler un problème ».
   ["problemes", "config"],

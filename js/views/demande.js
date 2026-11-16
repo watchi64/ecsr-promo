@@ -3,17 +3,21 @@
 // annuler ; les réponses toutes faites et les envois en échec pour l'équipe). Ouvrir la demande la marque lue. La base reste juge : ses
 // refus se disent par leur phrase. Équipe vouvoyée, stagiaire tutoyé. Aucun défilement de côté.
 
-import { detailDemande, marquerLue, repondre, prendreEnCompte, annulerDemande, relancerEnvoi } from "../db.js?v=20261114f";
+import { detailDemande, marquerLue, repondre, prendreEnCompte, annulerDemande, relancerEnvoi, reglerJustificatif } from "../db.js?v=20261114f";
 import { el, clear, toast } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
 import { vueStagiaire, selonPublic } from "../auth-admin.js?v=20261114f";
 import { confirmer } from "../confirmer.js?v=20261114f";
 import { dateHeure } from "../dates.js?v=20261114f";
 import { TYPES_DEMANDE, etapesDemande, libelleDestinataire, phraseContact } from "../contact-rules.js?v=20261114f";
+import { libelleAbsence, libelleDesJours, mailtoJustificatif, adresseJustificatif } from "../contact-absences-rules.js?v=20261114f";
 
 const PHRASE_ECHEC_LECTURE = "Cette demande n'a pas pu être chargée.";
 const LIBELLES_ETAPE = { envoyee: "Envoyée", lue: "Lue", prise: "Prise en compte", annulee: "Annulée" };
 const LIBELLES_ANNEXE = { formateur_du_jour: "formateur du jour", delegue: "délégué" };
+const LIBELLES_MOTIF = { sante: "Santé", transport: "Transport", demarche: "Démarche", famille: "Famille", autre: "Autre" };
+const LIBELLES_JUSTIFICATIF = { a_remettre: "Justificatif à remettre", recu: "Justificatif reçu" };
+const PHRASE_SANS_ADRESSE = "Remets ton justificatif au centre.";
 
 let rendu = 0;
 
@@ -28,17 +32,48 @@ export function ligneDemande(l, route) {
   if (l.etat === "annulee") marques.push(el("span", { class: "contact-pastille" }, "Annulée"));
   else if (l.etat === "prise") marques.push(el("span", { class: "contact-pastille" }, "Prise en compte"));
   const quand = dateHeure(l.dernier_echange_le ?? l.cree_le);
+  // Une absence n'a pas de sujet : ses jours en tiennent lieu.
+  const sujet = l.sujet || (l.type === "absence" && libelleDesJours(l.jours)) || "Sans sujet";
   return el("li", { class: "demande-ligne" + (l.non_lue ? " demande-neuve" : ""), dataset: { demande: String(l.id) } },
     el("a", { class: "demande-lien", href: `#/${route}/${l.id}` },
       el("span", { class: "demande-haut" },
         el("span", { class: "demande-type" }, TYPES_DEMANDE[l.type] ?? l.type),
         ...marques),
-      el("span", { class: "demande-sujet" }, l.sujet || "Sans sujet"),
+      el("span", { class: "demande-sujet" }, sujet),
       el("span", { class: "demande-sous" }, [l.auteur_nom, quand].filter(Boolean).join(" · "))));
 }
 
 const boiteErreur = (phrase, reessayer) => el("div", { class: "contact-erreur", role: "alert" },
   el("p", {}, phrase), el("button", { class: "btn small", type: "button", onClick: reessayer }, "Réessayer"));
+
+// La section « Absence » du suivi : le jour et le moment, le motif, l'état du justificatif. Le stagiaire qui doit le remettre a
+// « Envoyer mon justificatif » (un courriel au premier destinataire joignable, sinon la phrase de remise au centre) ; l'équipe règle
+// son état (« Justificatif à remettre », « Justificatif reçu »). Les gestes viennent de `peut.justificatif` (la base).
+function sectionAbsence(absence, detail, peut, d, id, relire, echouer) {
+  const lignes = [["Quand", libelleAbsence({ ...absence })], ["Motif", LIBELLES_MOTIF[absence.motif] ?? absence.motif],
+    absence.justificatif ? ["Justificatif", LIBELLES_JUSTIFICATIF[absence.justificatif] ?? absence.justificatif] : null].filter(Boolean);
+  const gestes = [];
+  let phrase = null;
+  if (peut.justificatif && d.mon_role === "auteur") {
+    const lien = mailtoJustificatif({ email: adresseJustificatif(detail.destinataires), ...absence });
+    if (lien) gestes.push(el("a", { class: "btn", href: lien }, icon.mail(), "Envoyer mon justificatif"));
+    else phrase = PHRASE_SANS_ADRESSE;
+  } else if (peut.justificatif) {
+    for (const [etat, libelle] of [["a_remettre", "Justificatif à remettre"], ["recu", "Justificatif reçu"]]) {
+      if (absence.justificatif === etat) continue;
+      gestes.push(el("button", { class: "btn", type: "button", onClick: async (ev) => {
+        const b = ev.currentTarget;
+        b.disabled = true;
+        try { await reglerJustificatif(id, etat); toast(libelle + ".", "success", 1800); await relire(); } catch (e) { echouer(e); b.disabled = false; }
+      } }, libelle));
+    }
+  }
+  return el("section", { class: "contact-section demande-absence", "aria-labelledby": "demande-absence-titre" },
+    el("h3", { id: "demande-absence-titre", class: "contact-section-titre" }, "Absence"),
+    el("dl", { class: "contact-detail" }, ...lignes.map(([t, v]) => el("div", { class: "contact-ligne" }, el("dt", {}, t), el("dd", {}, v)))),
+    phrase ? el("p", { class: "contact-aide demande-sans-adresse" }, phrase) : null,
+    gestes.length ? el("div", { class: "contact-gestes-fiche" }, ...gestes) : null);
+}
 
 export async function renderDemande(container, id) {
   const jeton = ++rendu;
@@ -74,7 +109,8 @@ export async function renderDemande(container, id) {
   const peut = detail.peut ?? {};
   clear(racine);
   racine.appendChild(retour);
-  racine.appendChild(entete(TYPES_DEMANDE[d.type] ?? d.type, d.sujet, d.auteur_nom ? "De " + d.auteur_nom : null));
+  const absence = d.type === "absence" ? detail.absence : null;
+  racine.appendChild(entete(TYPES_DEMANDE[d.type] ?? d.type, d.sujet || (absence ? libelleAbsence({ ...absence }) : null), d.auteur_nom ? "De " + d.auteur_nom : null));
 
   // Ouvrir la demande la marque lue, sans attendre ni bloquer la page.
   marquerLue(id).then(direALaBarre).catch((e) => console.warn("marquer lue :", e?.message || e));
@@ -86,6 +122,9 @@ export async function renderDemande(container, id) {
     direALaBarre();
   };
   const echouer = (e) => { console.error("demande", e); toast(phraseContact(e, "L'opération n'a pas abouti."), "error"); };
+
+  // L'absence : quand, motif, état du justificatif, et ce que chacun peut en faire (la base le dit par `peut.justificatif`).
+  if (absence) racine.appendChild(sectionAbsence(absence, detail, peut, d, id, relire, echouer));
 
   // Les étapes.
   const etapes = etapesDemande(detail);
@@ -158,13 +197,17 @@ export async function renderDemande(container, id) {
   }
   if (peut.annuler) {
     autres.push(el("button", { class: "btn danger", type: "button", onClick: async () => {
-      const ok = await confirmer({
+      const ok = await confirmer(absence ? {
+        titre: "Annuler cette absence ?",
+        phrase: selonPublic("Le centre et les personnes prévenues seront prévenus que tu annules ton absence.", "Le stagiaire et les personnes prévenues seront prévenus de l'annulation."),
+        oui: "Annuler l'absence", non: "Garder l'absence",
+      } : {
         titre: "Annuler cette demande ?",
         phrase: selonPublic("Le centre sera prévenu que tu l'annules.", "Le stagiaire et l'équipe seront prévenus de l'annulation."),
         oui: "Annuler la demande", non: "Garder la demande",
       });
       if (!ok) return;
-      try { await annulerDemande(id); toast("Demande annulée.", "success", 1800); await relire(); } catch (e) { echouer(e); }
+      try { await annulerDemande(id); toast(absence ? "Absence annulée." : "Demande annulée.", "success", 1800); await relire(); } catch (e) { echouer(e); }
     } }, "Annuler"));
   }
   if (autres.length) { aDesGestes = true; gestes.appendChild(el("div", { class: "contact-gestes-fiche" }, ...autres)); }

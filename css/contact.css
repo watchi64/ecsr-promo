@@ -215,3 +215,33 @@
 .regle-financements { margin-top: 0.5rem; }
 .regle-financements > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 .reponse-ligne { flex-direction: column; align-items: stretch; }
+
+/* Prévenir d'une absence (tâche 15) : choix par boutons de 44 px, rien ne dépasse à 375 px. */
+.absence-page { overflow-wrap: anywhere; }
+.absence-page [hidden] { display: none !important; }
+.abs-formulaire { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.abs-groupe { border: 0; margin: 0; padding: 0; min-width: 0; }
+.abs-groupe legend { padding: 0; margin-bottom: 0.4rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.abs-choix-liste { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.abs-choix { position: relative; display: inline-flex; min-width: 0; }
+.abs-choix input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.abs-choix span { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0.4rem 1rem; border: 1px solid var(--line);
+  border-radius: var(--r-sm); background: var(--bg-elev); font-weight: 600; font-size: 0.95rem; }
+.abs-choix input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--accent-texte); }
+.abs-choix input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.absence-page .field { margin: 0; }
+.absence-page .field input, .absence-page .field textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+.absence-page .field input { min-height: 44px; }
+.abs-heures { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.abs-heures .field { flex: 1 1 8rem; min-width: 0; }
+.abs-encadre { margin: 0; }
+.abs-encadre p { margin: 0 0 0.25rem; }
+.abs-annexes { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--line-faint); }
+.abs-aide { margin: 0; min-height: 1.2em; }
+.abs-envoi .btn { min-height: 44px; }
+.acc-absence { margin: 0 0 1rem; }
+.acc-absence-bouton { width: 100%; min-height: 44px; justify-content: center; box-sizing: border-box; }
+@media (min-width: 720px) { .acc-absence-bouton { width: auto; } }
+.demande-absence .contact-detail { margin-top: 0; }
+.demande-absence .btn { min-height: 44px; }
+.demande-sans-adresse { margin: 0.6rem 0 0; font-size: 0.92rem; }

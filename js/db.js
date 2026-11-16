@@ -14,6 +14,7 @@ import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rule
 import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261114f";
 import { effectifDesFiches } from "./centre-stats.js?v=20261114f";
 import { exigerLignes, phraseDelegue } from "./contact-annuaire-rules.js?v=20261114f";
+import { demiJourneesDe } from "./contact-absences-rules.js?v=20261114f";
 import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261114f";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
@@ -2980,5 +2981,41 @@ export async function reglerQuiRecoitQuoi(lieuId, regles) {
 // Réponses toutes faites : la liste entière [{ id (null : nouvelle), libelle, vaut_prise, demande_justificatif }]. Rend leur nombre.
 export async function reglerReponses(lieuId, liste) {
   return appelerContact("regler_reponses", { p_lieu_id: lieuId, p_reponses: liste });
+}
+// --- Absences annoncées (migration 20261115_contact_3_absences) ---
+// `champs` / `absence` : { du, au, quand: "journee"|"matin"|"aprem"|"heures", debut, fin } (dates « AAAA-MM-JJ », heures « HH:MM »).
+// Règles d'affichage : js/contact-absences-rules.js.
+
+// Qui recevrait l'absence, en plus des envois annexes : l'aperçu d'une demande (mode, principaux, possibles) et `annexes`
+// { formateurs: [{ fiche_id, nom }], non_prevenus: [{ nom }], delegues: [{ nom }] }.
+export async function apercuAbsence(champs) {
+  const jours = demiJourneesDe(champs).map(({ jour, demi }) => ({ jour, demi }));
+  return apercuEnvoi("absence", jours);
+}
+
+// Prévenir d'une absence. `sans` : les envois annexes décochés ("formateurs", "delegue") ; `choisis` : en mode choix, les fiches
+// cochées (aucune en mode règle). Rend l'identifiant de la demande.
+export async function prevenirAbsence({ du, au = null, quand, debut = null, fin = null, motif, mot = "", sans = [], choisis = null }) {
+  const heures = quand === "heures";
+  const id = await appelerContact("prevenir_absence", {
+    p_du: du, p_au: heures ? du : (au || du), p_quand: quand, p_debut: heures ? debut : null, p_fin: heures ? fin : null,
+    p_motif: motif, p_mot: mot ?? "", p_sans: sans ?? [], p_choisis: choisis && choisis.length ? choisis : null,
+  }, { declencher: true });
+  return Number(id);
+}
+
+// L'équipe règle le justificatif d'une absence : "a_remettre", "recu", ou null pour l'effacer.
+export async function reglerJustificatif(id, etat) {
+  await appelerContact("regler_justificatif", { p_id: id, p_etat: etat ?? null }, { declencher: true });
+}
+
+// Les justificatifs que je dois remettre : [{ demande_id, du, au, quand, debut, fin }].
+export async function mesJustificatifsARemettre() {
+  return (await appelerContact("mes_justificatifs_a_remettre", {})) || [];
+}
+
+// Les absences annoncées de la semaine du lundi donné : une ligne par demi-journée { stagiaire_id, day_index, half_day, entiere, debut, fin }.
+export async function absencesAnnonceesSemaine(lundi) {
+  return (await appelerContact("absences_annoncees_semaine", { p_lundi: lundi })) || [];
 }
 // === fin espace contact ===
