@@ -7,7 +7,7 @@ import {
   ESPACES, LIBELLES_ESPACE, ACCUEIL_ESPACE, barreLaterale, espacesPermis, espaceChoisi, brider, peutRedigerContenus,
   porteSansPromo, decisionPorteSansPromo, centreAffiche, promoPourLaDirection, promosDuCentre, routeDansLEspace, phraseHorsEspace,
   phraseDeRefus, adresseApresBascule, normaliserAffectations, affectationsDeSecours, espacesDuCompte, promoPourLEspace,
-  cleDerniereRoute, espaceDePilotage, promosVisiblesEnApercu, texteBandeauApercu, litToutesLesNotes, defautsHabillage
+  cleDerniereRoute, espaceDePilotage, promosVisiblesEnApercu, texteBandeauApercu, litToutesLesNotes, defautsHabillage, estVueStagiaire
 } from "../js/espaces-rules.js";
 import { messageInvitation } from "../js/roles-rules.js";
 
@@ -358,4 +358,12 @@ test("decisionPorteSansPromo : lu et vide, raté à l'ouverture, raté en cours 
   assert.equal(decisionPorteSansPromo({ lecture: "ratee", affectations: [], sessionOuverte: true }), "entrer");
   // Sans argument : rien d'affirmé, donc refus d'un compte sans porte (pas d'exception).
   assert.equal(decisionPorteSansPromo(), "refuser");
+});
+
+test("estVueStagiaire : l'espace décide, jamais le cumul de rôles", () => {
+  assert.equal(estVueStagiaire("stagiaire"), true);
+  assert.equal(estVueStagiaire("equipe"), false);
+  assert.equal(estVueStagiaire("direction"), false);
+  assert.equal(estVueStagiaire("siege"), false);
+  assert.equal(estVueStagiaire(undefined), false);
 });

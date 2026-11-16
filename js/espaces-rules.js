@@ -343,3 +343,11 @@ export function phraseStatut(habillage, { enregistre = false, repli = "" } = {})
     : "Habillage fixé : " + (NOMS_HABILLAGE[habillage] || habillage) + ".";
   return enregistre ? "Enregistré. " + base : base;
 }
+
+/**
+ * La vue d'un écran qui s'adresse à la personne (tutoiement, « Écrire au centre », sa propre fiche) : celle de l'espace « stagiaire », et
+ * seulement elle. Un compte cumulé (le fondateur, stagiaire et administrateur) dans l'espace de l'équipe a la vue de l'équipe.
+ */
+export function estVueStagiaire(espace) {
+  return espace === "stagiaire";
+}

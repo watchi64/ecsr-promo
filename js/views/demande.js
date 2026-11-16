@@ -6,7 +6,7 @@
 import { detailDemande, marquerLue, repondre, prendreEnCompte, annulerDemande, relancerEnvoi } from "../db.js?v=20261114f";
 import { el, clear, toast } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
-import { getEspace, selonPublic } from "../auth-admin.js?v=20261114f";
+import { vueStagiaire, selonPublic } from "../auth-admin.js?v=20261114f";
 import { confirmer } from "../confirmer.js?v=20261114f";
 import { dateHeure } from "../dates.js?v=20261114f";
 import { TYPES_DEMANDE, etapesDemande, libelleDestinataire, phraseContact } from "../contact-rules.js?v=20261114f";
@@ -43,8 +43,8 @@ const boiteErreur = (phrase, reessayer) => el("div", { class: "contact-erreur", 
 export async function renderDemande(container, id) {
   const jeton = ++rendu;
   // Où se lit le suivi : Contacts dans l'espace du stagiaire, Messages dans celui de l'équipe (un compte cumulé y suit l'espace).
-  const route = getEspace() === "stagiaire" ? "contacts" : "messages";
-  const retourLibelle = getEspace() === "stagiaire" ? "Contacts" : "Messages";
+  const route = vueStagiaire() ? "contacts" : "messages";
+  const retourLibelle = vueStagiaire() ? "Contacts" : "Messages";
   clear(container);
   const racine = el("div", { class: "contacts-page demande-page" });
   container.appendChild(racine);

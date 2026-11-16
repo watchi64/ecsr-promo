@@ -393,3 +393,36 @@ def rien_regle(v):
     v.attendre('#view .reglage-regles .regle-apercu li:has-text("le stagiaire choisit")', "l'aperçu « le stagiaire choisit »")
     v.attendre('#view .reglage-reponses h3:text-is("Réponses toutes faites")', "la section « Réponses toutes faites »")
     v.terminer()
+
+
+@parcours("cumul-equipe-contacts", "Le fondateur (stagiaire et administrateur) a la vue de l'équipe sur Contacts et Écrire", role="fondateur",
+          budget=BUDGET_CONTACTS, navigations=NOUVELLE, banc={"ecritures": "1"})
+def cumul_equipe_contacts(v):
+    """Compte cumulé en espace équipe : Contacts est vouvoyé, sans « Écrire au centre » ni « Mes demandes » ; « Écrire » sur une fiche n'a ni type ni case ; la base refuse l'envoi, Messages est vide."""
+    v.aller("Contacts")
+    v.attendre(PAGE + ' h3:text-is("L\'équipe du centre")', "« L'équipe du centre »")
+    v.attendre(carte("Denis Exemple") + ' button:has-text("Écrire")', "« Écrire » sur une fiche")
+    v.but("page Contacts ouverte par le compte cumulé")
+    if v.voit(PAGE + ' button:text-is("Écrire au centre")') or v.voit(PAGE + ' h3:text-is("Mes demandes")'):
+        v.constat("F", BLOQUE, "le compte cumulé en espace équipe voit « Écrire au centre » ou « Mes demandes » (vue du stagiaire)")
+    if "Qui joindre au centre, pour quoi et quand." not in v.texte(PAGE) or "Tape sur Appeler" in v.texte(PAGE):
+        v.constat("F", BLOQUE, "le sous-titre de Contacts est celui du stagiaire (tutoiement)")
+    v.toucher(carte("Denis Exemple") + ' button:has-text("Écrire")', "« Écrire » sur la fiche de Denis", compte=False)
+    v.attendre(FENETRE + ' h3:text-is("Écrire à Denis Exemple")', "la fenêtre d'écriture à une fiche")
+    if v.voit(FENETRE + " " + champ("Type", "select")) or v.voit(FENETRE + " input[type=checkbox]"):
+        v.constat("E", BLOQUE, "la fenêtre d'écriture montre un type ou des cases (vue du stagiaire)")
+    remplir_message(v, "Dossier de la promo", "Pouvez-vous me rappeler ?")
+    # La base ne reconnaît au fondateur ni stagiaire ni fiche de l'équipe (preuve contact-2) : elle refuse, l'écran dit sa phrase et reste ouvert.
+    v.console_attendue("écrire")
+    v.toucher(FENETRE + ' button:text-is("Envoyer")', "« Envoyer »", compte=False, ecriture=True)
+    v.attendre(FENETRE + ' .contact-erreur-general:has-text("Réservé aux stagiaires")', "la phrase de refus de la base")
+    if v.texte(FENETRE + " .contact-erreur-general").strip() != "Réservé aux stagiaires et à l'équipe du centre.":
+        v.constat("F", BLOQUE, "la phrase de refus n'est pas celle de la base")
+    if not v.voit(FENETRE) or v.page.evaluate("() => location.hash") != "#/contacts":
+        v.constat("E", BLOQUE, "après le refus, la fenêtre se ferme ou la page change")
+    v.toucher(FENETRE + ' button:text-is("Annuler")', "« Annuler »", compte=False)
+    v.etape("Messages : l'entrée de l'équipe ouvre la page (vide), pas Contacts")
+    v.aller("Messages")
+    v.attendre('#view h2:text-is("Messages")', "le titre « Messages »")
+    v.attendre('#view p:text-is("Rien à traiter.")', "« Rien à traiter. » : le compte cumulé n'a aucune demande")
+    v.terminer()

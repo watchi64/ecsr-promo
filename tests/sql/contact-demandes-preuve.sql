@@ -655,6 +655,20 @@ begin
     'OK 1|autre|0|0|0|0|0|0|Preuve7 stag_n PREUVE|1|1|delegue / ERREUR 42501 contact: Demande introuvable.');
   perform pg_temp.attendre('lire', 'un délégué qui est aussi l''auteur reste auteur',
     pg_temp.liste_d('stag_n', '1', 'null'), 'OK d1:auteur');
+
+  -- Le compte cumulé : fond est le fondateur, administrateur et stagiaire de la promo 1. Pour la base il n'est ni stagiaire (_contact_stagiaire
+  -- exclut administrateur et fondateur) ni une fiche de l'équipe (aucune fiche) : il n'écrit rien, ne lit aucune demande (ni liste, ni suivi) et
+  -- n'a aucun rôle, quel que soit l'espace de l'écran. En espace équipe, l'app lui montre donc Messages vide et dit la phrase de refus s'il écrit.
+  perform pg_temp.attendre('lire', 'fond (cumul) : écrire à une fiche, au centre, à un stagiaire : refusé avec la phrase du centre ; demande_detail(d1) : introuvable',
+    concat_ws(' / ',
+      pg_temp.appeler('fond', '1', format('select public.ecrire_a(%s, %L, %L, %L)::text', f_dir_n, 'autre', 'Preuve13 cumul', 'Bonjour')),
+      pg_temp.appeler('fond', '1', format('select public.ecrire_au_stagiaire(%s, %L, %L)::text', s_n, 'Preuve13 cumul', 'Bonjour')),
+      pg_temp.appeler('fond', '1', format('select public.demande_detail(%s)::text', pg_temp.dem('d1')))),
+    'ERREUR 42501 contact: Réservé aux stagiaires et à l''équipe du centre. / ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires des promos que vous suivez. / ERREUR 42501 contact: Demande introuvable.');
+  perform pg_temp.attendre('lire', 'fond (cumul) : liste_demandes() vide, sans centre et avec le centre de Nîmes ; _contact_lecteur(d1) nul',
+    concat_ws(' / ', pg_temp.liste_d('fond', '1', 'null'), pg_temp.liste_d('fond', '1', v_l1::text),
+      coalesce(pg_temp.valeur_proprio(pg_temp.email_de('fond'), '1', null, format('select public._contact_lecteur(%s)', pg_temp.dem('d1'))), 'nul')),
+    'OK / OK / nul');
 end $cd_gl$;
 
 -- Groupe etats : lue, réponses (libres et toutes faites), prise en compte, annulation, relance d'un envoi, e-mail affichable.

@@ -7,7 +7,7 @@
 import { lireMaFiche, reglerMaFiche, lireCoordonnees, reglerCoordonnees, lireMesAlertes, reglerMesAlertes } from "../db.js?v=20261114f";
 import { el, clear, toast } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
-import { isStagiaire, monStagiaireId, enVitrine } from "../auth-admin.js?v=20261114f";
+import { vueStagiaire, monStagiaireId, enVitrine } from "../auth-admin.js?v=20261114f";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261114f";
 import { validerMaFiche, PHRASE_VERIFIER_FICHE } from "../contact-annuaire-rules.js?v=20261114f";
 import { phraseContact } from "../contact-rules.js?v=20261114f";
@@ -32,7 +32,7 @@ const boiteErreur = (phrase, reessayer) => el("div", { class: "contact-erreur", 
 // La section de Mes préférences : ma fiche (équipe) ou mon téléphone (stagiaire), ou rien. Se charge seule ; sans fiche, elle se retire.
 export function sectionMaFiche() {
   if (enVitrine()) return null;
-  const stagiaire = isStagiaire();
+  const stagiaire = vueStagiaire();
   if (stagiaire && monStagiaireId() == null) return null;
   const section = el("section", { class: "param-section ma-fiche", "aria-labelledby": "ma-fiche-titre" });
   section.appendChild(el("div", { class: "param-section-head" },
@@ -62,7 +62,7 @@ export function sectionMaFiche() {
 // motif). Les personnes sans compte (fiche seule) reçoivent toujours le leur. Absente en vitrine. La base garde le choix.
 export function sectionAlertes() {
   if (enVitrine()) return null;
-  const stagiaire = isStagiaire();
+  const stagiaire = vueStagiaire();
   const section = el("section", { class: "param-section ma-fiche alertes-email", "aria-labelledby": "alertes-titre" });
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.mail()),

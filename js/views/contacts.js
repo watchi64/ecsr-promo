@@ -11,7 +11,7 @@ import {
 } from "../db.js?v=20261114f";
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
-import { isStagiaire, selonPublic } from "../auth-admin.js?v=20261114f";
+import { vueStagiaire, selonPublic } from "../auth-admin.js?v=20261114f";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261114f";
 import { confirmer } from "../confirmer.js?v=20261114f";
 import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
@@ -35,7 +35,7 @@ const boiteErreur = (phrase, reessayer) => el("div", { class: "contact-erreur", 
 
 function carteFiche(fiche, { jour, parId, peutRanger, rang, total, surDeplacer, surModifier, surSupprimer, surEcrire }) {
   const l = ligneDeFiche(fiche, { jour, parId });
-  const equipe = !isStagiaire();
+  const equipe = !vueStagiaire();
   const detail = [];
   if (l.pourQuoi) detail.push(el("div", { class: "contact-ligne" }, el("dt", {}, "Pour quoi me joindre"), el("dd", {}, l.pourQuoi)));
   if (l.quand) detail.push(el("div", { class: "contact-ligne" }, el("dt", {}, "Quand"), el("dd", {}, l.quand)));
@@ -262,7 +262,7 @@ export async function renderContacts(container) {
   if (adresse.id) return renderDemande(container, adresse.id);
   const jeton = ++rendu;
   clear(container);
-  const stagiaire = isStagiaire();
+  const stagiaire = vueStagiaire();
   const centre = getPromoCourante()?.lieu_nom || "";
   const entete = (sousTitre) => el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
