@@ -1,4 +1,6 @@
 -- Espace contact, marche arrière de la migration 4 (20261116_contact_4_correctifs.sql).
+-- AVANT CE RETOUR : redéployer la fonction serveur contact-envois dans sa version d'avant la migration 4 (commit 5e8acc38,
+-- supabase/functions/contact-envois) ; la version de la migration 4 envoie l'issue « limite », que la base refuse sans elle.
 -- ORDRE : ce retour se joue AVANT le retour 3 (20261115_contact_3_absences_retour.sql), puis 3, 2, 1b, 1. Le retour 3 est gelé (appliqué
 -- en production avec sa migration) et ne vérifie pas la migration 4 : la garde est ici. Si le retour 3 a été joué alors que la 4 était
 -- là, ce retour refuse (absences_annoncees manque) : rejouer alors la migration 3 (sa garde l'accepte, ses objets ayant disparu), puis ce
@@ -13,10 +15,11 @@
 --      (feuilles closes comprises : l'absence était déjà sur la feuille, seule son origine change) ;
 --   3. vérifier qu'il n'en reste aucune, puis jouer le retour 3 dans la même transaction.
 --   Cette étape se décide avec Timy (l'origine « annoncee » disparaît de l'historique des feuilles).
--- Ce retour : garde (la migration 4 est appliquée, la 3 aussi) ; les quatorze fonctions remises au texte de leur dernier fichier de
+-- Ce retour : garde (la migration 4 est appliquée, la 3 aussi) ; les quinze fonctions remises au texte de leur dernier fichier de
 -- définition (blocs copiés tels quels de la migration 1, 2 ou 3, seul « create function » devient « create or replace function ») ;
--- l'aide _contact_quota_equipe retirée ; contrôle de fin. Les données écrites entre-temps restent (envois remis « à retenter », délégué
--- vidé à l'effacement) : elles sont valides pour les textes d'avant.
+-- l'aide _contact_quota_equipe et l'index demandes_auteur_fiche_cree retirés ; contrôle de fin. Les données écrites entre-temps restent
+-- (envois remis « à retenter », marques de délégué vidées à l'effacement et par le rattrapage de la migration 4, qui ne sont pas
+-- rétablies) : elles sont valides pour les textes d'avant.
 set local lock_timeout = '3s';
 
 do $garde$
@@ -341,6 +344,43 @@ begin
   return null;
 end $fn$;
 
+-- _contact_annexes : texte de 20261115_contact_3_absences.sql.
+create or replace function public._contact_annexes(l integer, p integer, p_jours jsonb, p_auteur integer)
+returns table (fiche_id bigint, stagiaire_id integer, nom text, annexe text, non_prevenu text)
+language sql stable security definer set search_path = public, pg_temp
+as $fn$
+  with demis as (
+    select (e ->> 'jour')::date as d, e ->> 'demi' as demi from jsonb_array_elements(coalesce(p_jours, '[]'::jsonb)) e
+  ), pe as (
+    select x.prof_id, x.prof_ids, x.prof_autre
+      from demis
+      join planning_entries x on x.promo_id = p and x.half_day = demis.demi
+                             and x.semaine_lundi = demis.d - (extract(isodow from demis.d)::integer - 1)
+                             and x.day_index = extract(isodow from demis.d)::integer - 1
+  ), profs_du_jour as (
+    select distinct u.id from pe cross join lateral unnest(array[pe.prof_id] || pe.prof_ids) u(id) where u.id is not null
+  ), fiches as (
+    select f as id from _contact_formateurs_du_jour(l, p, p_jours) f
+  ), tout as (
+    select c.id as fiche_id, null::integer as stagiaire_id, _contact_nom_fiche(c, l) as nom, 'formateur_du_jour' as annexe, null::text as non_prevenu
+      from contacts c where c.id in (select id from fiches)
+    union all
+    select null::bigint, null::integer, n.nom, 'formateur_du_jour', n.nom
+      from (select btrim(pe.prof_autre) as nom from pe where nullif(btrim(pe.prof_autre), '') is not null
+            union
+            select coalesce(nullif(btrim(pf.nom), ''), 'Formateur') from profs pf
+             where pf.id in (select id from profs_du_jour)
+               and not exists (select 1 from contacts c where c.prof_id = pf.id and _contact_fiche_dans(c, l))) n
+    union all
+    select null::bigint, st.id, coalesce(_contact_nom_stagiaire(st.id), 'Délégué'), 'delegue', null::text
+      from stagiaires st
+     where st.promo_id = p and st.delegue is not null and st.id is distinct from p_auteur
+       and st.actif and st.efface_le is null and st.anonymise_le is null
+       and exists (select 1 from user_profiles up where up.stagiaire_id = st.id)
+  )
+  select * from tout order by annexe desc, nom, fiche_id, stagiaire_id;
+$fn$;
+
 -- prevenir_absence : texte de 20261115_contact_3_absences.sql.
 create or replace function public.prevenir_absence(p_du date, p_au date, p_quand text, p_debut text, p_fin text, p_motif text, p_mot text,
                                         p_sans text[] default '{}', p_choisis bigint[] default null)
@@ -588,12 +628,13 @@ begin
 end $fn$;
 
 drop function public._contact_quota_equipe(bigint);
+drop index public.demandes_auteur_fiche_cree;
 
 -- Contrôle de fin : plus d'aide de la migration 4, et aucune fonction ne porte encore un de ses correctifs.
 do $controle$
 begin
-  if to_regprocedure('public._contact_quota_equipe(bigint)') is not null then
-    raise exception 'contact_4_retour : _contact_quota_equipe existe encore ; tout est annulé';
+  if to_regprocedure('public._contact_quota_equipe(bigint)') is not null or to_regclass('public.demandes_auteur_fiche_cree') is not null then
+    raise exception 'contact_4_retour : _contact_quota_equipe ou son index existe encore ; tout est annulé';
   end if;
   if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prokind = 'f'
               and (pg_get_functiondef(p.oid) like '%_contact_quota_equipe%'

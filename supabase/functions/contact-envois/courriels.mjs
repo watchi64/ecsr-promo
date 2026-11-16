@@ -211,10 +211,11 @@ export async function traiterEnvois({ rpc, envoyer, appUrl, aleatoire, subtle, l
     if (aEnvoye) await attente(600);
     aEnvoye = true;
     let envoi = await envoyer(courriel);
+    let coupe = false; // l'échéance a coupé les ressais
     for (let essai = 1; !envoi?.ok && envoi?.limite && essai <= 3; essai += 1) {
-      if (horsDelai()) break;
+      if (horsDelai()) { coupe = true; break; }
       await attente(1000 * essai);
-      if (horsDelai()) break;
+      if (horsDelai()) { coupe = true; break; }
       envoi = await envoyer(courriel);
     }
     if (envoi?.ok) {
@@ -222,9 +223,10 @@ export async function traiterEnvois({ rpc, envoyer, appUrl, aleatoire, subtle, l
       bilan.envoyes += 1;
     } else if (envoi?.limite) {
       // 429 persistant (ou échéance atteinte pendant les ressais) : cet envoi et les suivants restent en file, sans tentative perdue.
-      await resultat(item.envoi_id, "limite", envoi?.raison ?? "Resend 429");
+      // La raison dit ce qui a arrêté : l'échéance si elle a coupé les ressais, sinon le 429.
+      await resultat(item.envoi_id, "limite", coupe ? "échéance du traitement" : (envoi?.raison ?? "Resend 429"));
       bilan.limites += 1;
-      await remettre(i + 1, "Resend 429 : traitement arrêté");
+      await remettre(i + 1, coupe ? "échéance du traitement" : "Resend 429 : traitement arrêté");
       break;
     } else {
       await resultat(item.envoi_id, "echec", envoi?.raison ?? "échec");

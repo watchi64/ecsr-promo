@@ -3,22 +3,27 @@
 --   1. Le 429 durable de Resend : _contact_srv_resultat accepte l'issue « limite » (à retenter, la tentative n'est pas consommée) ; la
 --      fonction serveur (supabase/functions/contact-envois/courriels.mjs) la rend quand un 429 persiste, puis arrête sa boucle.
 --   2. reglages_contact() rend peut_modifier (l'écran masque « Enregistrer » et « Ajouter » quand c'est faux).
---   3. Fiches indisponibles : _contact_formateurs_du_jour et _contact_possibles écartent les fiches parties ou en congé (_contact_disponible),
---      donc aussi les formateurs du jour en annexe d'une absence (_contact_annexes les lit par _contact_formateurs_du_jour).
+--   3. Fiches indisponibles : _contact_formateurs_du_jour et _contact_possibles écartent les fiches parties ou en congé (_contact_disponible) ;
+--      en annexe d'une absence, un formateur du jour indisponible n'est pas prévenu et son nom figure en « non prévenu » (_contact_annexes).
 --   4. Quota de l'équipe : 30 nouvelles conversations par jour et par fiche (ecrire_a, ecrire_au_stagiaire), nouvelle aide
---      _contact_quota_equipe(bigint), marqueur de la migration.
+--      _contact_quota_equipe(bigint), marqueur de la migration, et index demandes_auteur_fiche_cree (auteur_fiche_id, cree_le).
 --   5. Absences : on conflict à l'insertion du pré-marquage ; regler_justificatif juge le droit avant le type ; prevenir_absence borne
 --      le début à 120 jours ; le chemin du justificatif verrouille la feuille.
---   6. Annuaire : coordonnees_promo ignore les fiches effacées ; l'effacement vide stagiaires.delegue ; ordonner_fiches refuse une fiche
---      sans compte d'un autre centre ; regler_financements verrouille avant de contrôler et de supprimer.
+--   6. Annuaire : coordonnees_promo ignore les fiches effacées ; l'effacement vide stagiaires.delegue (et un rattrapage unique vide la marque
+--      des stagiaires déjà effacés) ; ordonner_fiches ignore une fiche sans compte d'un autre centre (elle garde son ordre) ;
+--      regler_financements verrouille avant de contrôler et de supprimer.
 --   7. Demandes : ecrire_au_stagiaire tutoie un stagiaire ; l'effacement ne retire une demande que là où le stagiaire est principal.
 --      (_contact_jours refuse déjà proprement une entrée scalaire ou tableau depuis la migration 2 : rien à changer.)
--- Quatorze fonctions redéfinies par create or replace, signatures et colonnes de sortie inchangées, droits gardés ; chacune part du texte
+-- Quinze fonctions redéfinies par create or replace, signatures et colonnes de sortie inchangées, droits gardés ; chacune part du texte
 -- de son dernier fichier de définition (migration 1, 2 ou 3), seules les lignes du correctif changent.
 -- Toutes les dates passent par _contact_maintenant() et _contact_jour() (C-21).
--- Garde : les migrations 1, 2 et 3 sont appliquées, la 4 ne l'est pas (_contact_quota_equipe absente), les quatorze fonctions existent
--- avec leur signature ; sinon rien ne change.
--- Marche arrière : 20261116_contact_4_correctifs_retour.sql, à jouer AVANT le retour 3 (voir son en-tête).
+-- Garde : les migrations 1, 2 et 3 sont appliquées, la 4 ne l'est pas (_contact_quota_equipe et son index absents), les quinze fonctions
+-- existent avec leur signature ; sinon rien ne change.
+-- MISE EN LIGNE : appliquer cette migration AVANT de déployer la fonction serveur contact-envois de ce chantier (supabase/functions/
+-- contact-envois : courriels.mjs envoie l'issue « limite ») ; sans la migration, la base refuse « limite », l'envoi reste en cours, il
+-- est repris avec une tentative de plus et finit « interrompu » (perdu).
+-- Marche arrière : 20261116_contact_4_correctifs_retour.sql, à jouer AVANT le retour 3 (voir son en-tête), et seulement après avoir
+-- redéployé contact-envois dans sa version d'avant la migration 4 (commit 5e8acc38).
 set local lock_timeout = '3s';
 
 do $garde$
@@ -35,6 +40,9 @@ begin
   if to_regprocedure('public._contact_quota_equipe(bigint)') is not null then
     raise exception 'contact_4 : _contact_quota_equipe existe déjà, migration déjà appliquée ? rien n''est changé';
   end if;
+  if to_regclass('public.demandes_auteur_fiche_cree') is not null then
+    raise exception 'contact_4 : l''index demandes_auteur_fiche_cree existe déjà ; rien n''est changé';
+  end if;
   foreach v_sig in array array[
       'public.coordonnees_promo()',
       'public.ordonner_fiches(bigint[])',
@@ -46,6 +54,7 @@ begin
       'public.reglages_contact(integer)',
       'public._contact_srv_resultat(bigint, text, text)',
       'public._contact_effacer_stagiaire()',
+      'public._contact_annexes(integer, integer, jsonb, integer)',
       'public.prevenir_absence(date, date, text, text, text, text, text, text[], bigint[])',
       'public.regler_justificatif(bigint, text)',
       'public._contact_premarquer(bigint, integer)',
@@ -70,6 +79,12 @@ begin
   end if;
 end $fn$;
 revoke all on function public._contact_quota_equipe(bigint) from public, anon, authenticated, service_role;
+create index demandes_auteur_fiche_cree on public.demandes (auteur_fiche_id, cree_le) where auteur_fiche_id is not null;
+
+-- 6b. Rattrapage unique : la marque de délégué des stagiaires déjà effacés avant cette migration est vidée (le déclencheur ne vide que
+--     les effacements à venir ; l'index stagiaires_delegue_unique empêcherait sinon de nommer un remplaçant). Le retour 4 ne la rétablit
+--     pas (données valides pour les deux textes).
+update public.stagiaires set delegue = null where efface_le is not null and delegue is not null;
 
 -- 6a. Annuaire : coordonnees_promo() ignore les fiches effacées (efface_le posé) : plus de ligne vide pour elles.
 create or replace function public.coordonnees_promo()
@@ -91,8 +106,9 @@ as $fn$
 $fn$;
 
 -- 6c. Annuaire : ordonner_fiches() ne range que les fiches du centre affiché : une fiche avec compte qui y est affectée, ou une fiche
---     sans compte qui y est née (lieu_id) ; une fiche sans compte d'un autre centre, partagée avec celui-ci, est refusée (comme
---     l'écriture directe, contacts_meme_centre).
+--     sans compte qui y est née (lieu_id). Une fiche sans compte d'un autre centre, partagée avec celui-ci, est ignorée sans refus (R-4Ca) :
+--     elle garde son ordre, et la liste entière de l'annuaire (que l'écran envoie, fiches partagées comprises) reste acceptée. Une fiche
+--     inconnue ou hors du centre reste refusée, comme avant.
 create or replace function public.ordonner_fiches(p_ids bigint[])
 returns integer language plpgsql security definer set search_path = public, pg_temp
 as $fn$
@@ -104,16 +120,14 @@ begin
     raise exception 'contact: Réservé à qui écrit les fiches de ce centre.' using errcode = '42501';
   end if;
   if exists (select 1 from unnest(coalesce(p_ids, '{}'::bigint[])) x(id)
-              where x.id is null
-                 or not exists (select 1 from contacts c
-                                 where c.id = x.id and _contact_fiche_dans(c, v_l) and (c.compte_email is not null or c.lieu_id = v_l))) then
+              where x.id is null or not exists (select 1 from contacts c where c.id = x.id and _contact_fiche_dans(c, v_l))) then
     raise exception 'contact: Une fiche n''est pas de ce centre.' using errcode = '42501';
   end if;
   update contacts c
      set sort_order = 10 * o.rang
     from (select u.id, row_number() over (order by min(u.o)) as rang
             from unnest(coalesce(p_ids, '{}'::bigint[])) with ordinality u(id, o) group by u.id) o
-   where c.id = o.id;
+   where c.id = o.id and (c.compte_email is not null or c.lieu_id = v_l);
   get diagnostics n = row_count;
   return n;
 end $fn$;
@@ -409,6 +423,44 @@ begin
   return null;
 end $fn$;
 
+-- 3. Envois annexes d'une absence : un formateur du jour dont la fiche est indisponible (partie, en congé, sans adresse) n'est pas prévenu
+--    mais son nom figure en « non prévenu », comme un formateur sans fiche (R-4Cb) ; les fiches disponibles restent prévenues.
+create or replace function public._contact_annexes(l integer, p integer, p_jours jsonb, p_auteur integer)
+returns table (fiche_id bigint, stagiaire_id integer, nom text, annexe text, non_prevenu text)
+language sql stable security definer set search_path = public, pg_temp
+as $fn$
+  with demis as (
+    select (e ->> 'jour')::date as d, e ->> 'demi' as demi from jsonb_array_elements(coalesce(p_jours, '[]'::jsonb)) e
+  ), pe as (
+    select x.prof_id, x.prof_ids, x.prof_autre
+      from demis
+      join planning_entries x on x.promo_id = p and x.half_day = demis.demi
+                             and x.semaine_lundi = demis.d - (extract(isodow from demis.d)::integer - 1)
+                             and x.day_index = extract(isodow from demis.d)::integer - 1
+  ), profs_du_jour as (
+    select distinct u.id from pe cross join lateral unnest(array[pe.prof_id] || pe.prof_ids) u(id) where u.id is not null
+  ), fiches as (
+    select f as id from _contact_formateurs_du_jour(l, p, p_jours) f
+  ), tout as (
+    select c.id as fiche_id, null::integer as stagiaire_id, _contact_nom_fiche(c, l) as nom, 'formateur_du_jour' as annexe, null::text as non_prevenu
+      from contacts c where c.id in (select id from fiches)
+    union all
+    select null::bigint, null::integer, n.nom, 'formateur_du_jour', n.nom
+      from (select btrim(pe.prof_autre) as nom from pe where nullif(btrim(pe.prof_autre), '') is not null
+            union
+            select coalesce(nullif(btrim(pf.nom), ''), 'Formateur') from profs pf
+             where pf.id in (select id from profs_du_jour)
+               and not exists (select 1 from contacts c where c.prof_id = pf.id and _contact_disponible(c, l, _contact_jour()))) n
+    union all
+    select null::bigint, st.id, coalesce(_contact_nom_stagiaire(st.id), 'Délégué'), 'delegue', null::text
+      from stagiaires st
+     where st.promo_id = p and st.delegue is not null and st.id is distinct from p_auteur
+       and st.actif and st.efface_le is null and st.anonymise_le is null
+       and exists (select 1 from user_profiles up where up.stagiaire_id = st.id)
+  )
+  select * from tout order by annexe desc, nom, fiche_id, stagiaire_id;
+$fn$;
+
 -- 5. Absences. prevenir_absence() refuse une absence qui commence plus de 120 jours après aujourd'hui (_contact_jour()).
 create or replace function public.prevenir_absence(p_du date, p_au date, p_quand text, p_debut text, p_fin text, p_motif text, p_mot text,
                                         p_sans text[] default '{}', p_choisis bigint[] default null)
@@ -667,7 +719,7 @@ begin
   return null;
 end $fn$;
 
--- Contrôle de fin : la marque de la migration est là, sans aucun droit ; aucune aide _contact_* ne s'exécute par anon ni authenticated
+-- Contrôle de fin : la marque de la migration et son index sont là, sans aucun droit ; aucun stagiaire effacé n'est délégué ; aucune aide _contact_* ne s'exécute par anon ni authenticated
 -- (sauf _contact_compte_equipe, migration 1) ; les fonctions de l'app redéfinies gardent leurs droits (authenticated, jamais anon) ;
 -- _contact_srv_resultat reste à service_role seul ; les fonctions retouchées portent leur correctif.
 do $controle$
@@ -676,6 +728,10 @@ declare
 begin
   if to_regprocedure('public._contact_quota_equipe(bigint)') is null then
     raise exception 'contact_4 : _contact_quota_equipe manque ; tout est annulé';
+  end if;
+  if to_regclass('public.demandes_auteur_fiche_cree') is null
+     or exists (select 1 from public.stagiaires where efface_le is not null and delegue is not null) then
+    raise exception 'contact_4 : index du quota absent ou délégué effacé restant ; tout est annulé';
   end if;
   for f in select p.oid::regprocedure as sig from pg_proc p
             where p.pronamespace = 'public'::regnamespace and p.proname like '\_contact\_%' and p.proname <> '_contact_compte_equipe' loop
@@ -700,7 +756,9 @@ begin
             or (p.proname = 'reglages_contact' and pg_get_functiondef(p.oid) like '%peut_modifier%')
             or (p.proname in ('ecrire_a', 'ecrire_au_stagiaire') and pg_get_functiondef(p.oid) like '%_contact_quota_equipe(v_moi)%')
             or (p.proname = '_contact_premarquer' and pg_get_functiondef(p.oid) like '%on conflict (seance_id, stagiaire_id) do nothing%')
-            or (p.proname = 'prevenir_absence' and pg_get_functiondef(p.oid) like '%_contact_jour() + 120%'))) <> 6 then
+            or (p.proname = 'prevenir_absence' and pg_get_functiondef(p.oid) like '%_contact_jour() + 120%')
+            or (p.proname = 'ordonner_fiches' and pg_get_functiondef(p.oid) like '%c.lieu_id = v_l);%')
+            or (p.proname = '_contact_annexes' and pg_get_functiondef(p.oid) like '%_contact_disponible(c, l, _contact_jour())%'))) <> 8 then
     raise exception 'contact_4 : une fonction redéfinie ne porte pas son correctif ; tout est annulé';
   end if;
 end $controle$;

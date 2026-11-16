@@ -230,8 +230,8 @@ test("traiterEnvois : au-delà de l'échéance (120 s par défaut), la boucle s'
   assert.deepEqual(resultats, ["1:envoye:", "2:limite:échéance du traitement", "3:limite:échéance du traitement"]);
 });
 
-test("traiterEnvois : l'échéance est injectable et coupe aussi les ressais d'un 429", async () => {
-  const base = fausseBase([unItem(1, "a@ecf-centre.fr")]);
+test("traiterEnvois : l'échéance est injectable et coupe aussi les ressais d'un 429 ; la raison dit l'échéance, pas le 429", async () => {
+  const base = fausseBase([unItem(1, "a@ecf-centre.fr"), unItem(2, "b@ecf-centre.fr")]);
   let horloge = 0;
   let n = 0;
   const bilan = await traiterEnvois({
@@ -242,6 +242,7 @@ test("traiterEnvois : l'échéance est injectable et coupe aussi les ressais d'u
   });
   // 1 s d'envoi, 1 s d'attente, 1 s d'envoi, 2 s d'attente : 5 s, l'échéance arrête les ressais.
   assert.equal(n, 2);
-  assert.deepEqual(bilan, { traites: 1, envoyes: 0, echecs: 0, ignores: 0, limites: 1 });
-  assert.deepEqual(base.appels.filter(([nom]) => nom === "_contact_srv_resultat").map(([, a]) => a.p_issue), ["limite"]);
+  assert.deepEqual(bilan, { traites: 1, envoyes: 0, echecs: 0, ignores: 0, limites: 2 });
+  assert.deepEqual(base.appels.filter(([nom]) => nom === "_contact_srv_resultat").map(([, a]) => `${a.p_envoi_id}:${a.p_issue}:${a.p_raison}`),
+    ["1:limite:échéance du traitement", "2:limite:échéance du traitement"]);
 });

@@ -5,17 +5,21 @@
 --   envois          (1) _contact_srv_resultat, issue « limite » : l'envoi repasse « à retenter » dans 5 minutes, sa tentative rendue,
 --                   ses jetons retirés ; un envoi qui n'est plus « en cours » n'est pas touché ; « echec » inchangé.
 --   reglages        (2) reglages_contact() rend peut_modifier : vrai pour qui modifie les réglages du centre, faux en lecture seule.
---   indisponibles   (3) une fiche en congé ou partie n'est ni proposée ni pré-cochée (mode choix) ni prévenue en annexe d'une absence.
+--   indisponibles   (3) une fiche en congé ou partie n'est ni proposée ni pré-cochée (mode choix) ni prévenue en annexe d'une absence :
+--                   son nom y figure en « non prévenu ».
 --   quota           (4) 30 nouvelles conversations par jour pour une fiche de l'équipe (ecrire_a, ecrire_au_stagiaire) ; la 31e est
---                   refusée ; une réponse dans une conversation existante passe ; un autre membre garde son quota.
+--                   refusée ; une réponse dans une conversation existante passe ; un autre membre garde son quota ; l'index du quota.
 --   absences        (5) prevenir_absence borne le début à 120 jours ; regler_justificatif juge le droit avant le type ; le pré-marquage
 --                   cède à une signature écrite au même instant (on conflict) ; le chemin du justificatif verrouille la feuille.
---   annuaire        (6) coordonnees_promo ignore une fiche effacée ; l'effacement vide la marque de délégué ; ordonner_fiches refuse
---                   une fiche sans compte d'un autre centre partagée ; regler_financements verrouille avant de contrôler.
+--   annuaire        (6) coordonnees_promo ignore une fiche effacée ; l'effacement vide la marque de délégué, et le rattrapage de la
+--                   migration celle d'un stagiaire effacé avant elle ; ordonner_fiches accepte la liste entière de l'annuaire et ignore
+--                   une fiche sans compte d'un autre centre partagée (elle garde son ordre) ; regler_financements verrouille avant de
+--                   contrôler.
 --   demandes        (7) ecrire_au_stagiaire tutoie un stagiaire ; l'effacement d'un stagiaire qui n'est qu'en annexe d'une demande
 --                   d'un autre la laisse en place ; _contact_jours refuse proprement une entrée illisible (déjà vrai depuis la 2).
 --   retour          migration 4 rejouée : refusée ; retour 4 refusé si le retour 3 est passé avant lui ; après le retour 4, empreinte et
---                   md5(pg_get_functiondef) des quatorze fonctions égaux à ceux d'avant la 4 ; les retours défont tout (4, 3, 2, 1b, 1).
+--                   md5(pg_get_functiondef) des quinze fonctions égaux à ceux d'avant la 4, index retiré ; les retours défont tout (4, 3,
+--                   2, 1b, 1).
 -- Deux verrous (5 et 6) ne se prouvent pas dans une seule session : leur contrôle lit le texte de la fonction (pg_get_functiondef).
 -- L'horloge : après la migration 2, _contact_maintenant() lit le réglage preuve.maintenant (C-21) ; le jour de l'émargement aussi, le temps
 -- du groupe absences. Jours d'essai : mercredi 18 et jeudi 19 novembre 2026.
@@ -29,6 +33,8 @@
 --   node outils/assembler_repetition_roles.mjs contact-4-en-ligne <sortie.sql>        rien d'injecté, après application réelle
 -- À jouer sur la base locale : PGCLIENTENCODING=UTF8 psql -h 127.0.0.1 -p <port> -U postgres -d postgres -X -q -f <sortie.sql>
 -- Le bloc do finit TOUJOURS par une levée (verdict) : migrations, personnages et lignes d'essai sont annulés, rien ne reste.
+-- Mode en ligne sur une base qui sert : le bloc remplace _cases_valides et emargement_jour_paris et pose un déclencheur sur
+-- emargement_lignes (verrou gardé jusqu'à l'annulation : une signature attend la fin du bloc) ; le jouer hors des heures de feuille.
 
 -- @@INCLURE tests/sql/roles-aides.sql@@
 -- @@INCLURE tests/sql/titres-aides.sql@@
@@ -139,15 +145,15 @@ returns text language sql as $cc_li$
       from public.emargement_lignes where seance_id = %s and stagiaire_id = %s$cc_q$, p_seance, pg_temp.stag(p_qui))), 'aucune ligne');
 $cc_li$;
 
--- md5(pg_get_functiondef) des quatorze fonctions que la migration 4 redéfinit : « signature=md5;... ».
-create or replace function pg_temp.md5_quatorze()
+-- md5(pg_get_functiondef) des quinze fonctions que la migration 4 redéfinit : « signature=md5;... ».
+create or replace function pg_temp.md5_quinze()
 returns text language sql as $cc_m5$
   select coalesce(string_agg(p.oid::regprocedure::text || '=' || md5(pg_get_functiondef(p.oid)), ';' order by p.oid::regprocedure::text), 'aucune')
     from pg_proc p
    where p.pronamespace = 'public'::regnamespace
      and p.proname in ('coordonnees_promo', 'ordonner_fiches', 'regler_financements', '_contact_formateurs_du_jour', '_contact_possibles',
                        'ecrire_a', 'ecrire_au_stagiaire', 'reglages_contact', '_contact_srv_resultat', '_contact_effacer_stagiaire',
-                       'prevenir_absence', 'regler_justificatif', '_contact_premarquer', '_contact_emargement_absence');
+                       '_contact_annexes', 'prevenir_absence', 'regler_justificatif', '_contact_premarquer', '_contact_emargement_absence');
 $cc_m5$;
 
 -- Le texte d'une fonction (pg_get_functiondef), ou « absente ».
@@ -281,26 +287,29 @@ declare
   v text;
   c_apercu constant text := $cc_q$select concat_ws('|', a ->> 'mode',
       coalesce((select x ->> 'pre_coche' from jsonb_array_elements(a -> 'possibles') x where x ->> 'fiche_id' = %1$L), 'absent'),
-      (select count(*) from jsonb_array_elements(a -> 'annexes' -> 'formateurs') x where x ->> 'fiche_id' = %1$L))
+      (select count(*) from jsonb_array_elements(a -> 'annexes' -> 'formateurs') x where x ->> 'fiche_id' = %1$L),
+      coalesce((select string_agg(x ->> 'nom', ',') from jsonb_array_elements(a -> 'annexes' -> 'non_prevenus') x where x ->> 'nom' like 'Preuve16%%'), 'aucun'))
     from (select public.apercu_envoi('absence', '[{"jour":"2026-11-19","demi":"matin"}]'::jsonb) a) s$cc_q$;
 begin
   perform pg_temp.horloge('2026-11-18 18:00');
   perform pg_temp.attendre('indisponibles', 'témoin : form_n disponible, au planning du jeudi 19 matin, est proposé et pré-coché à stag_a',
-    pg_temp.appeler('stag_a', '1', format(c_apercu, f_form_n)), 'OK choix|true|0');
+    pg_temp.appeler('stag_a', '1', format(c_apercu, f_form_n)), 'OK choix|true|0|aucun');
   perform pg_temp.essai(format($cc_q$update public.contacts set conge_du = '2026-11-18', conge_au = '2026-11-30' where id = %s$cc_q$, f_form_n));
-  perform pg_temp.attendre('indisponibles', 'form_n en congé : ni proposé ni pré-coché, ni listé en annexe de l''aperçu',
-    pg_temp.appeler('stag_a', '1', format(c_apercu, f_form_n)), 'OK choix|absent|0');
+  perform pg_temp.attendre('indisponibles', 'form_n en congé : ni proposé ni pré-coché, ni prévenu en annexe ; son nom est dans les non prévenus de l''aperçu',
+    pg_temp.appeler('stag_a', '1', format(c_apercu, f_form_n)), 'OK choix|absent|0|Preuve16 form_n');
   v := pg_temp.id_rendu(pg_temp.prevenir('stag_a', '2026-11-19', 'matin', 'sante', format('array[%s]::bigint[]', f_dir_n)));
-  perform pg_temp.attendre('indisponibles', 'stag_a prévient (jeudi 19 matin, dir_n choisi) : form_n, en congé, n''est pas prévenu en annexe',
+  perform pg_temp.attendre('indisponibles', 'stag_a prévient (jeudi 19 matin, dir_n choisi) : form_n, en congé, n''est pas prévenu en annexe ; son nom y est, « non prévenu », sans envoi',
     pg_temp.calcul(format('select count(*)::text from public.demande_destinataires where demande_id = %s and fiche_id = %s', v, f_form_n))
-      || ' / ' || pg_temp.calcul(format('select count(*)::text from public.contact_envois where demande_id = %s and vers_fiche_id = %s', v, f_form_n)),
-    '0 / 0');
+      || ' / ' || pg_temp.calcul(format('select count(*)::text from public.contact_envois where demande_id = %s and vers_fiche_id = %s', v, f_form_n))
+      || ' / ' || pg_temp.calcul(format($cc_q$select string_agg(annexe || ':' || non_prevenu, ',') from public.demande_destinataires
+           where demande_id = %s and non_prevenu like 'Preuve16%%'$cc_q$, v)),
+    '0 / 0 / formateur_du_jour:Preuve16 form_n');
   perform pg_temp.attendre('indisponibles', 'form_n choisi en congé : refusé (il n''est plus dans la liste)',
     pg_temp.prevenir('stag_a', '2026-11-20', 'matin', 'sante', format('array[%s]::bigint[]', f_form_n)),
     'ERREUR 42501 contact: Cette personne ne peut pas recevoir ta demande.');
   perform pg_temp.essai(format($cc_q$update public.contacts set conge_du = null, conge_au = null, depart_le = '2026-11-17' where id = %s$cc_q$, f_form_n));
-  perform pg_temp.attendre('indisponibles', 'form_n parti (départ le 17) : ni proposé ni pré-coché',
-    pg_temp.appeler('stag_a', '1', format(c_apercu, f_form_n)), 'OK choix|absent|0');
+  perform pg_temp.attendre('indisponibles', 'form_n parti (départ le 17) : ni proposé ni pré-coché ; son nom dans les non prévenus',
+    pg_temp.appeler('stag_a', '1', format(c_apercu, f_form_n)), 'OK choix|absent|0|Preuve16 form_n');
   perform pg_temp.essai(format('update public.contacts set depart_le = null where id = %s', f_form_n));
   perform pg_temp.essai('delete from public.demandes where auteur_stagiaire_id = ' || pg_temp.stag('stag_a'));
 end $cc_gi$;
@@ -325,6 +334,9 @@ begin
     end if;
   end loop;
   perform pg_temp.attendre('quota', 'form_n crée 30 conversations le même jour : toutes acceptées', v_ok::text, '30');
+  perform pg_temp.attendre('quota', 'l''index du quota (demandes_auteur_fiche_cree : auteur_fiche_id, cree_le) existe',
+    pg_temp.calcul($cc_q$select coalesce((select pg_get_indexdef(to_regclass('public.demandes_auteur_fiche_cree'))), 'absent')$cc_q$),
+    'CREATE INDEX demandes_auteur_fiche_cree ON public.demandes USING btree (auteur_fiche_id, cree_le) WHERE (auteur_fiche_id IS NOT NULL)');
   perform pg_temp.attendre('quota', 'la 31e (ecrire_a), puis ecrire_au_stagiaire : refusées, phrase vouvoyée',
     pg_temp.appeler('form_n', '1', format('select public.ecrire_a(%s, null, %L, null)::text', f_dir_n, 'Preuve16 quota 31')) || ' / '
       || pg_temp.appeler('form_n', '1', format('select public.ecrire_au_stagiaire(%s, %L, null)::text', pg_temp.stag('stag_a'), 'Preuve16 quota 32')),
@@ -433,10 +445,24 @@ begin
   -- Une fiche sans compte née à Montpellier (promo 2), partagée avec Nîmes.
   v_partagee := pg_temp.calcul(format($cc_q$insert into public.contacts (prenom, role, email, category, sort_order, lieu_id, lieux_partages)
       values ('Preuve16 partagée', 'Secrétariat', 'preuve16.partagee@exemple.invalid', 'admin', 991, %s, array[%s]) returning id::text$cc_q$, v_l2, v_l1));
-  perform pg_temp.attendre('annuaire', 'ordonner_fiches (form_n, Nîmes) : la fiche sans compte de Montpellier partagée avec Nîmes refusée ; sec_n, née à Nîmes, acceptée',
+  -- La liste entière de l'annuaire, comme l'écran l'envoie (« Monter / Descendre ») : form_n, la fiche partagée, sec_n.
+  perform pg_temp.attendre('annuaire', 'ordonner_fiches (form_n, Nîmes) : la liste entière avec la fiche de Montpellier partagée est acceptée ; form_n et sec_n rangés (10, 30), la fiche partagée garde son ordre (991)',
+    pg_temp.appeler('form_n', '1', format('select public.ordonner_fiches(array[%s, %s, %s])::text', pg_temp.fiche('form_n'), v_partagee, pg_temp.fiche('sec_n')))
+      || ' / ' || pg_temp.calcul(format('select string_agg(sort_order::text, ''|'' order by array_position(array[%s, %s, %s]::bigint[], id)) from public.contacts where id in (%s, %s, %s)',
+           pg_temp.fiche('form_n'), v_partagee, pg_temp.fiche('sec_n'), pg_temp.fiche('form_n'), v_partagee, pg_temp.fiche('sec_n'))),
+    'OK 2 / 10|991|30');
+  perform pg_temp.attendre('annuaire', 'ordonner_fiches : la fiche partagée seule ne change rien (OK 0) ; une fiche d''un autre centre non partagée (form_m) reste refusée',
     pg_temp.appeler('form_n', '1', format('select public.ordonner_fiches(array[%s])::text', v_partagee)) || ' / '
-      || pg_temp.appeler('form_n', '1', format('select public.ordonner_fiches(array[%s])::text', pg_temp.fiche('sec_n'))),
-    'ERREUR 42501 contact: Une fiche n''est pas de ce centre. / OK 1');
+      || pg_temp.appeler('form_n', '1', format('select public.ordonner_fiches(array[%s])::text', pg_temp.fiche('form_m'))),
+    'OK 0 / ERREUR 42501 contact: Une fiche n''est pas de ce centre.');
+  -- Le rattrapage de la migration 4 : un stagiaire effacé AVANT elle (posé avant la migration 4, hors du mode en ligne) n'est plus délégué.
+  if coalesce(current_setting('preuve.ancien_delegue', true), '') = '' then
+    perform pg_temp.informer('annuaire', 'rattrapage des délégués déjà effacés : non jugeable (mode en ligne, migration déjà appliquée)');
+  else
+    perform pg_temp.attendre('annuaire', 'rattrapage : un stagiaire effacé avant la migration 4, délégué titulaire, n''est plus délégué',
+      pg_temp.calcul(format('select coalesce(delegue, ''aucune'') from public.stagiaires where id = %s', current_setting('preuve.ancien_delegue', true))),
+      'aucune');
+  end if;
   -- Le verrou de regler_financements : il ne se montre pas dans une seule session ; le texte de la fonction le porte, avant le contrôle.
   perform pg_temp.verifier('annuaire', 'regler_financements verrouille les financements du centre (for update) avant le contrôle « choisi pour un stagiaire » et la suppression',
     pg_temp.texte_de('public.regler_financements(integer, jsonb)')
@@ -546,13 +572,23 @@ begin
       set search_path = public, pg_temp as 'select coalesce(nullif(current_setting(''preuve.maintenant'', true), '''')::timestamptz, now())'$cc_q$;
   end if;
   select e.regles, e.fonctions, e.droits into v_a4_regles, v_a4_fonctions, v_a4_droits from pg_temp.empreinte() e;
-  v_md5_avant4 := pg_temp.md5_quatorze();
+  v_md5_avant4 := pg_temp.md5_quinze();
+  -- Un stagiaire effacé avant la migration 4, encore délégué titulaire (le rattrapage de la 4 doit vider sa marque) : promo d'essai du centre
+  -- de la promo 1. Hors du mode en ligne (la migration y est déjà appliquée).
+  perform set_config('preuve.ancien_delegue', '', true);
+  if not v_en_ligne and to_regclass('public.absences_annoncees') is not null then
+    perform set_config('preuve.ancien_delegue', pg_temp.calcul($cc_q$with p as (insert into public.promos (nom, lieu_id, date_debut)
+        values ('Preuve16 promo ancienne', (select lieu_id from public.promos where id = 1), date '2026-01-05') returning id)
+      insert into public.stagiaires (prenom, nom, ordre, promo_id, delegue) select 'Preuve16 ancien', 'PREUVE', 990, p.id, 'titulaire' from p
+      returning id::text$cc_q$), true);
+    perform pg_temp.calcul(format('select (public._effacer_etape1(%s) is not null)::text', current_setting('preuve.ancien_delegue', true)));
+  end if;
   v_m4 :=
 -- @@INJECTER supabase/migrations/20261116_contact_4_correctifs.sql@@
   ;
   v_etat4 := pg_temp.jouer('migration 4', v_m4);
   perform pg_temp.etape('migration 4', v_etat4, v_mode);
-  v_md5_apres4 := pg_temp.md5_quatorze();
+  v_md5_apres4 := pg_temp.md5_quinze();
 
   -- 4. GROUPES de contrôles de la migration 4, chacun sauté avec une ligne d'information quand elle n'est pas encore appliquée (mode en
   --    ligne) ; dans la contre-épreuve, ils se jouent et doivent être rouges.
@@ -606,17 +642,18 @@ begin
   v_retour4 := pg_temp.jouer('retour 4', v_r4);
   perform pg_temp.etape('retour 4', v_retour4, v_mode);
   select e.regles, e.fonctions, e.droits into v_r4_regles, v_r4_fonctions, v_r4_droits from pg_temp.empreinte() e;
-  v_md5_retour4 := pg_temp.md5_quatorze();
+  v_md5_retour4 := pg_temp.md5_quinze();
   if v_en_ligne then
-    perform pg_temp.informer('retour 4', format('non jugeable (migrations déjà appliquées) ; md5 des quatorze fonctions : %s', v_md5_apres4));
+    perform pg_temp.informer('retour 4', format('non jugeable (migrations déjà appliquées) ; md5 des quinze fonctions : %s', v_md5_apres4));
   else
-    perform pg_temp.verifier('retour', 'la migration 4 redéfinit les quatorze fonctions (md5 de pg_get_functiondef changé pour chacune)',
+    perform pg_temp.verifier('retour', 'la migration 4 redéfinit les quinze fonctions (md5 de pg_get_functiondef changé pour chacune)',
       v_md5_apres4 <> v_md5_avant4
         and (select bool_and(a.v <> b.v) from unnest(string_to_array(v_md5_avant4, ';')) with ordinality a(v, n)
                join unnest(string_to_array(v_md5_apres4, ';')) with ordinality b(v, n) on a.n = b.n)
-        and array_length(string_to_array(v_md5_avant4, ';'), 1) = 14,
+        and array_length(string_to_array(v_md5_avant4, ';'), 1) = 15,
       'avant ' || v_md5_avant4 || ' ; après ' || v_md5_apres4);
-    perform pg_temp.attendre('retour', 'après le retour 4 : md5(pg_get_functiondef) des quatorze fonctions égal à celui d''avant la migration 4', v_md5_retour4, v_md5_avant4);
+    perform pg_temp.attendre('retour', 'après le retour 4 : md5(pg_get_functiondef) des quinze fonctions égal à celui d''avant la migration 4', v_md5_retour4, v_md5_avant4);
+    perform pg_temp.attendre('retour', 'après le retour 4 : l''index du quota est retiré', coalesce(to_regclass('public.demandes_auteur_fiche_cree')::text, 'absent'), 'absent');
     perform pg_temp.attendre('retour', 'après le retour 4 : empreinte regles égale à celle d''avant la migration 4', v_r4_regles, v_a4_regles);
     perform pg_temp.attendre('retour', 'après le retour 4 : empreinte fonctions égale à celle d''avant la migration 4', v_r4_fonctions, v_a4_fonctions);
     perform pg_temp.attendre('retour', 'après le retour 4 : empreinte droits égale à celle d''avant la migration 4', v_r4_droits, v_a4_droits);
