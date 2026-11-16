@@ -468,8 +468,8 @@ EXCEPTION_ADMISE = ".matrice-wrap"
 # Entrées de repli si les règles de navigation de l'app ne se lisent pas dans la page.
 ENTREES_REPLI = {
     "stagiaire": ("home", "planning", "themes", "mon-suivi", "ccp2"),
-    "equipe": ("home", "planning", "emargement", "stagiaires", "notes", "themes", "ccp2", "centre", "config"),
-    "direction": ("centre", "promos", "stagiaires", "notes", "equipe"),
+    "equipe": ("home", "messages", "planning", "emargement", "stagiaires", "notes", "themes", "ccp2", "centre", "config"),
+    "direction": ("centre", "messages", "promos", "stagiaires", "notes", "equipe"),
 }
 
 # --------------------------------------------------------------------------------------
@@ -2107,6 +2107,10 @@ def nouveau_contexte(navigateur, sc, options):
     # Les données du faux Supabase, jointes à la fenêtre : la vérification du panneau des bénévoles y sème des bénévoles le temps d'un contrôle (le banc
     # n'en sert aucun, et `?benevoles=1` changerait aussi le Planning de toutes les vues).
     lignes.append("window.__FIXTURES_DU_BANC = FIXTURES;")
+    # Espace contact : les demandes du banc sont toutes lues au départ, pour que la pastille et le point de Messages ne se mêlent pas aux
+    # comptes « à traiter » de Cours et QCM ; verifier_messages remet une demande non lue le temps de juger le compteur de Messages.
+    lignes.append("DEM.demandes.forEach((d) => d.dest.forEach((x) => { x.lue_le = '2026-10-28T08:00:00Z'; }));")
+    lignes.append("window.__DEM_DU_BANC = DEM;")
     if sc.a_traiter in BROUILLONS_IA_DU_BANC:
         # Des brouillons de l'IA à relire, qui ne comptent pas avant le lot 2B (ruling R56), et des lignes déjà traitées (un brouillon accepté ou rejeté, un
         # signalement traité ou rejeté) qui ne comptent pas non plus ; des signalements ouverts de plus quand le scénario en veut.
@@ -2684,7 +2688,9 @@ SECTIONS_DU_FONDATEUR = ("Émargement", "Travail en autonomie")
 RENVOI_APPARENCE = "Apparence"
 # En tête, quand la personne a une fiche de contact (espace contact) : « Ma fiche de contact » (équipe, direction) ou « Mon téléphone » (stagiaire).
 SECTIONS_CONTACT_PREFERENCES = ("Ma fiche de contact", "Mon téléphone")
-SECTIONS_PREFERENCES = SECTIONS_CONTACT_PREFERENCES + ("Apparence", "Dans les notes de la classe", "Informations")
+# Juste après, pour tous : « Alertes par e-mail » (espace contact : recevoir ou couper les e-mails d'alerte).
+SECTION_ALERTES = "Alertes par e-mail"
+SECTIONS_PREFERENCES = SECTIONS_CONTACT_PREFERENCES + (SECTION_ALERTES, "Apparence", "Dans les notes de la classe", "Informations")
 # Le sous-titre de Mes préférences : la page a toujours un réglage à soi depuis le lot 3 (Apparence, pour tous les rôles), l'anonymat en plus pour qui a une
 # fiche de stagiaire ; il ne dit donc plus « Les informations sur l'application. » seules.
 SOUS_TITRE_PREFERENCES = "Les réglages personnels et les informations sur l'application."
@@ -3181,7 +3187,11 @@ def verifier_preferences(page, res, sc):
     contact = [s for s in p["sections"] if s in SECTIONS_CONTACT_PREFERENCES]
     if len(contact) > 1 or (contact and p["sections"][:1] != contact):
         res.echec("page Mes préférences", vue, "la fiche de contact (%s) n'est pas la première section (sections : %s)" % (", ".join(contact), ", ".join(p["sections"])))
-    apres_contact = [s for s in p["sections"] if s not in SECTIONS_CONTACT_PREFERENCES]
+    if SECTION_ALERTES not in p["sections"]:
+        res.echec("page Mes préférences", vue, "la section « %s » manque (sections : %s)" % (SECTION_ALERTES, ", ".join(p["sections"]) or "aucune"))
+    elif p["sections"][:len(contact) + 1] != contact + [SECTION_ALERTES]:
+        res.echec("page Mes préférences", vue, "« %s » n'est pas juste après la fiche de contact (sections : %s)" % (SECTION_ALERTES, ", ".join(p["sections"])))
+    apres_contact = [s for s in p["sections"] if s not in SECTIONS_CONTACT_PREFERENCES and s != SECTION_ALERTES]
     if verifier_apparence(page, res, sc, vue, "page") is not None and apres_contact[:1] != ["Apparence"]:
         res.echec("page Mes préférences", vue, "la page commence par « %s », attendu « Apparence » (après la fiche de contact)" % ((apres_contact or ["rien"])[0]))
     if avec_reglage and p["anonymat"] is None:
@@ -3932,6 +3942,109 @@ def verifier_contacts_du_centre(page, res, sc):
     vider_console(res, vue)
 
 
+ENTREES_ALLUMEES_JS = """() => [...document.querySelectorAll('[data-nav-coquille] [aria-current="page"]')]
+  .filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
+  .map((e) => (e.tagName === 'A' ? (e.getAttribute('href') || '').replace('#/', '') : (e.getAttribute('data-nav-action') || e.textContent.trim().toLowerCase())))"""
+
+
+def verifier_compteur_messages(page, res, sc, vue):
+    """Le compteur de l'entrée Messages (équipe) : la demande 101 du banc, remise non lue le temps du contrôle, donne la pastille « 1 » et le nom
+    « Messages, 1 non lu » dans la barre latérale ; sur téléphone, où l'entrée est rangée dans « Plus », le nom du bouton « Plus » dit « 1 message non lu ».
+    Une fois la demande lue, la pastille et le point partent."""
+    marquer = """(lue) => { const d = window.__DEM_DU_BANC; if (!d) return false;
+        d.demandes.forEach((x) => x.dest.forEach((y) => { y.lue_le = lue ? '2026-10-28T08:00:00Z' : null; }));
+        window.dispatchEvent(new CustomEvent('messages-change')); return true; }"""
+    telephone = sc.largeur < SEUIL_TELEPHONE
+    presente = """() => [...document.querySelectorAll('[data-nav-coquille] button, [data-nav-coquille] a[data-entree="messages"]')]
+        .some((b) => /1 (message )?non lu/.test(b.getAttribute('aria-label') || ''))"""
+    if not page.evaluate(marquer, False):
+        res.echec("compteur de Messages", vue, "le faux Supabase du banc n'est pas joint à la fenêtre (window.__DEM_DU_BANC) : le compteur ne peut pas être éprouvé")
+        return
+    try:
+        page.evaluate(marquer, False)
+        page.wait_for_function(presente, timeout=4000)
+    except DelaiDepasse:
+        res.echec("compteur de Messages", vue, "une demande non lue : ni pastille « 1 » ni nom « 1 non lu » sur %s" % ("« Plus »" if telephone else "l'entrée Messages"))
+    else:
+        if not telephone:
+            pastille = page.evaluate("""() => { const p = document.querySelector('[data-nav-coquille] a[data-entree="messages"] .nav-messages-compte');
+                return p ? { texte: p.textContent.trim(), nom: p.closest('a').getAttribute('aria-label') } : null; }""")
+            if not pastille or pastille["texte"] != "1" or pastille["nom"] != "Messages, 1 non lu":
+                res.echec("compteur de Messages", vue, "la pastille de Messages dit %s, attendu « 1 » et le nom « Messages, 1 non lu »" % (pastille,))
+    page.evaluate(marquer, True)
+    try:
+        page.wait_for_function("() => !document.querySelector('[data-nav-coquille] .nav-messages-compte') && ![...document.querySelectorAll('[data-nav-coquille] button')]"
+                               ".some((b) => /messages? non lus?/.test(b.getAttribute('aria-label') || ''))", timeout=4000)
+    except DelaiDepasse:
+        res.echec("compteur de Messages", vue, "toutes les demandes sont lues : la pastille ou le nom « non lu » reste")
+    vider_console(res, vue)
+
+
+def verifier_messages(page, res, sc, entrees, options):
+    """Messages (espace contact), équipe et direction, nouvelle navigation : l'entrée est la deuxième de la barre (rangée dans « Plus » sur téléphone) ;
+    sa page s'ouvre sous le titre « Messages » et ne défile pas de côté (375 px compris) ; l'adresse #/messages/<id> ouvre le suivi d'une demande et
+    garde Messages allumé (« Plus » sur téléphone, où l'entrée est rangée)."""
+    vue = "%s/messages" % sc.nom
+    routes = [e["route"] for e in entrees]
+    if "messages" not in routes:
+        res.echec("Messages", vue, "l'entrée « Messages » manque (entrées : %s)" % ", ".join(routes))
+        return
+    if routes.index("messages") != 1:
+        res.echec("Messages", vue, "« Messages » est en place %d, attendu en deuxième (entrées : %s)" % (routes.index("messages") + 1, ", ".join(routes)))
+    telephone = sc.largeur < SEUIL_TELEPHONE
+    entree = {"route": "messages", "libelle": "Messages"}
+    aller_a(page, "#/" + routes[0])
+    attendre(page, calme=150)
+    infos = chercher_lien(page, entree)
+    if telephone and infos["visibles"]:
+        res.echec("Messages", vue, "« Messages » est dans la barre du bas du téléphone, attendu rangée dans « Plus »")
+    if not telephone and not infos["visibles"]:
+        res.echec("Messages", vue, "« Messages » n'est pas visible dans la barre latérale")
+    # Les demandes du banc sont adressées au formateur du banc (rôle « prof ») et à la direction du centre : le fondateur, qui n'est ni l'un ni l'autre,
+    # n'y a aucun rôle (le compteur et le suivi d'une demande ne sont éprouvés que pour les deux autres).
+    avec_demandes = sc.role == "prof"
+    if sc.espace == "equipe" and avec_demandes:
+        verifier_compteur_messages(page, res, sc, vue)
+    ouvrir_entree(page, res, sc, entree)
+    attendre(page, calme=150)
+    res.vues += 1
+    p = page.evaluate("() => window.__verifNav.enTeteDePage()")
+    tete = p["entetes"][-1] if p["entetes"] else None
+    if p["route"] != "messages":
+        res.echec("Messages", vue, "l'entrée mène à #/%s, attendu #/messages" % p["route"])
+    elif tete is None or tete["titre"] != "Messages":
+        res.echec("Messages", vue, "la page ouverte par l'entrée a pour titre « %s », attendu « Messages »" % (tete and tete["titre"]))
+    debord = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    if debord > 0:
+        res.echec("défilement de côté", vue, "la page Messages déborde de %d px à %d px de large" % (debord, sc.largeur))
+    attendu = ["plus"] if telephone else ["messages"]
+    allumees = page.evaluate(ENTREES_ALLUMEES_JS)
+    if sorted(set(allumees)) != attendu:
+        res.echec("Messages", vue, "l'entrée allumée sur la page Messages est %s, attendu %s" % (sorted(set(allumees)) or "aucune", attendu))
+    vider_console(res, vue)
+    if not avec_demandes:
+        return
+    # Le suivi d'une demande : par son adresse, Messages reste allumé.
+    vue_suivi = vue + "/demande"
+    aller_a(page, "#/messages/101")
+    attendre(page, calme=200)
+    res.vues += 1
+    if not page.evaluate("() => !!document.querySelector('#view .demande-page .demande-etapes')"):
+        res.echec("Messages", vue_suivi, "#/messages/101 n'ouvre pas le suivi d'une demande (étapes absentes)")
+    else:
+        p = page.evaluate("() => window.__verifNav.enTeteDePage()")
+        if p["route"] != "messages":
+            res.echec("Messages", vue_suivi, "le suivi est à #/%s, attendu #/messages" % p["route"])
+        allumees = page.evaluate(ENTREES_ALLUMEES_JS)
+        if sorted(set(allumees)) != attendu:
+            res.echec("Messages", vue_suivi, "l'entrée allumée sur le suivi d'une demande est %s, attendu %s" % (sorted(set(allumees)) or "aucune", attendu))
+        debord = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
+        if debord > 0:
+            res.echec("défilement de côté", vue_suivi, "le suivi d'une demande déborde de %d px à %d px de large" % (debord, sc.largeur))
+        verifier_vue(page, res, sc, "messages/101", options)
+    vider_console(res, vue_suivi)
+
+
 def verifier_ccp2(page, res, sc):
     """Parcours CCP2, les deux navigations : le lien vers le dossier professionnel (étape 8) ne nomme plus ni Mon espace ni un sous-onglet, il dit « Ton
     dossier professionnel, à remplir dans l'app » et mène à la partie Dossier professionnel (#/mon-suivi/dp). Rien si CCP2 est fermé pour ce stagiaire. Et l'ordre de la
@@ -4666,7 +4779,8 @@ def jouer_direction(page, res, sc):
     accueil #/centre) et non plus l'espace de l'équipe en lecture seule : l'accueil, chaque entrée de la barre (et du tiroir « Plus ») sans refus ni
     phrase « pas dans l'espace », puis Planning, Cours et QCM (D15) et Mon suivi, hors de l'espace : l'accueil, et la phrase qui le dit."""
     vue = "%s/direction" % sc.nom
-    preparer_coquille(page, res, sc, regles_de_la_page(page, res, sc))
+    regles = regles_de_la_page(page, res, sc)
+    preparer_coquille(page, res, sc, regles)
     toast = "() => { const t = document.getElementById('toast'); return t && !t.classList.contains('hidden') ? t.innerText : ''; }"
     # 1. L'accueil de l'espace : #/home y mène.
     aller_a(page, "#/home")
@@ -4696,6 +4810,9 @@ def jouer_direction(page, res, sc):
             res.echec("direction, page hors de l'espace", vue, "#/%s ouvre #/%s, attendu l'accueil #/centre" % (route, route_courante(page)))
         if "Cette page n'est pas dans l'espace Direction." not in dit:
             res.echec("direction, page hors de l'espace", vue, "#/%s ramène à l'accueil sans la phrase (message : « %s »)" % (route, dit))
+    # 4. Messages (espace contact) : sa place, sa page, le suivi d'une demande.
+    if res.coquille:
+        verifier_messages(page, res, sc, regles["entrees"], {})
     vider_console(res, vue)
 
 
@@ -5910,6 +6027,8 @@ def jouer_allume(page, res, sc, options):
         verifier_contacts_du_centre(page, res, sc)
     entrees = regles["entrees"]
     parcourir_entrees(page, res, sc, entrees, options)
+    if res.coquille and sc.espace == "equipe":
+        verifier_messages(page, res, sc, entrees, options)
     if res.coquille and sc.espace == "equipe" and sc.largeur == LARGEUR_DE_LA_FICHE:
         verifier_graphe_de_la_fiche(page, res, sc, options)
     # Les pages que le menu du compte ouvre sans avoir d'entrée à elles : Mon espace (qui a un profil

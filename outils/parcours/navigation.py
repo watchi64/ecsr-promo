@@ -72,7 +72,7 @@ BARRE_DU_BAS_EQUIPE = ("home", "planning", "stagiaires", "notes")
 # d'ensemble » le titre de la page qu'elle ouvre (D16) : les deux noms mènent à la même entrée.
 ENTREES_DIRECTION = {"Accueil": "centre", "Vue d'ensemble": "centre", "Promos": "promos", "Stagiaires": "stagiaires",
                      "Émargement": "emargement", "Notes et examens": "notes", "Équipe": "equipe",
-                     "Réglages du centre": "config", "Réglages": "config"}
+                     "Messages": "messages", "Réglages du centre": "config", "Réglages": "config"}
 BARRE_DU_BAS_DIRECTION = ("centre", "promos", "stagiaires", "equipe")
 ENTREES_SIEGE = {"Accueil": "reseau", "Vue d'ensemble": "reseau", "Cours et QCM": "themes", "Directions de centre": "directions",
                  "Directions": "directions", "Réglages du réseau": "config", "Réglages": "config"}
@@ -126,7 +126,8 @@ def chemin(destination, espace, telephone):
 
     # « Aujourd'hui » : l'entrée de l'équipe pour la route de l'Accueil (lot 2B).
     routes = {"Accueil": "home", "Aujourd'hui": "home", "Planning": "planning", "Émargement": "emargement", "Stagiaires": "stagiaires",
-              "Notes et examens": "notes", "Cours et QCM": "themes", "CCP2": "ccp2", "Indicateurs": "centre", "Réglages": "config"}
+              "Notes et examens": "notes", "Cours et QCM": "themes", "CCP2": "ccp2", "Indicateurs": "centre", "Réglages": "config",
+              "Messages": "messages"}
     if destination in routes:
         return _plus_si_telephone(routes[destination], "« %s »" % destination, telephone, BARRE_DU_BAS_EQUIPE)
     if destination in ("Questions contestées", "Propositions IA"):

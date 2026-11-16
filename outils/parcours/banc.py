@@ -59,8 +59,8 @@ def preparer_fichiers():
             shutil.copy2(source, cible)
             messages.append("recopié du dépôt principal : %s" % nom)
     page = RACINE / "_harness.html"
-    sources = [RACINE / "index.html", RACINE / "_harness_build.mjs"]
-    if not page.exists() or page.stat().st_mtime < max(s.stat().st_mtime for s in sources):
+    sources = [RACINE / "index.html", RACINE / "demande.html", RACINE / "_harness_build.mjs"]
+    if not page.exists() or not (RACINE / "_harness_demande.html").exists() or page.stat().st_mtime < max(s.stat().st_mtime for s in sources):
         r = subprocess.run(["node", "_harness_build.mjs"], cwd=RACINE, capture_output=True, text=True, encoding="utf-8")
         if r.returncode != 0:
             raise SystemExit("node _harness_build.mjs a échoué :\n" + r.stdout + r.stderr)

@@ -253,7 +253,7 @@ function relireMessages({ force = false } = {}) {
   lectureMessages = true;
   const lieu = montee.espace === "direction" ? (getCentre()?.id ?? null) : null;
   listeDemandes(lieu)
-    .then((lignes) => { nonLuesMessages = compterNonLues(lignes); poserMessages(); })
+    .then((lignes) => { nonLuesMessages = compterNonLues(lignes); majATraiter(); })
     .catch((e) => console.warn("messages non lus :", e?.message || e))
     .finally(() => { lectureMessages = false; derniereLectureMessages = performance.now(); });
 }

@@ -20,6 +20,7 @@
 --   financements liste livrée d'office (centres existants, centre créé), financements_du_centre(), regler_financements().
 --   profils      les profils du personnel fermés aux stagiaires et à l'aperçu stagiaire ; l'équipe et le siège en lisent autant qu'avant.
 --   fermeture    après la 1b : la lecture directe de contacts n'est plus ouverte qu'à qui écrit les fiches.
+--   demo         les trois fiches fictives du centre de démonstration (20261115_contact_demo.sql), jouées seulement si elles existent.
 --   retour       les retours défont tout, dans l'ordre inverse (1b, 1) : l'empreinte (règles, fonctions, droits) égale celle d'avant, et
 --                les fiches sans compte redeviennent exactement celles d'avant (copies refaites, dates comprises).
 -- Modes : dans la contre-épreuve, chaque groupe se joue et doit être ROUGE ; en ligne, un groupe dont la migration n'est pas appliquée
@@ -847,6 +848,36 @@ begin
     'OK 0/1 / OK 0/1 / OK 0/1 / OK 0/1');
 end $ca_gpr$;
 
+-- Groupe demo : les trois fiches fictives du centre de démonstration (20261115_contact_demo.sql). Joué seulement quand la fiche
+-- « Responsable pédagogique (fictif) » existe (la migration de démonstration n'est jamais injectée par cette preuve : elle se joue en mode
+-- en ligne, après son application réelle). Toutes les valeurs sont fictives (adresses en demo.test, numéros en 01 99 00) ; aucun
+-- stagiaire de Nîmes n'en voit une.
+create or replace function pg_temp.groupe_demo()
+returns void language plpgsql as $ca_gdm$
+declare
+  v_l4 integer := (select lieu_id from public.promos where id = 7);
+  v_ids text := coalesce(pg_temp.calcul(format('select string_agg(id::text, '','' order by id) from public.contacts where compte_email is null and lieu_id = %s', v_l4)), '0');
+  v_resp text := coalesce(pg_temp.calcul(format('select id::text from public.contacts where compte_email is null and lieu_id = %s and prenom = ''Responsable pédagogique (fictif)''', v_l4)), '0');
+begin
+  perform pg_temp.attendre('demo', 'le centre de démonstration a exactement trois fiches sans compte',
+    pg_temp.calcul(format('select count(*)::text from public.contacts where compte_email is null and lieu_id = %s', v_l4)), '3');
+  perform pg_temp.attendre('demo', 'les trois sont fictives : adresse en demo.test, numéro en 01 99 00, jamais autre chose',
+    pg_temp.calcul(format($ca_q$select concat_ws('/', count(*)::text,
+        count(*) filter (where email ~ '@demo\.test$' and phone like '01 99 00 %%')::text,
+        count(*) filter (where pour_quoi is not null and quand is not null)::text)
+      from public.contacts where compte_email is null and lieu_id = %s$ca_q$, v_l4)), '3/3/3');
+  perform pg_temp.attendre('demo', 'la responsable est le relais d''« Accueil du centre » (et lui seul)',
+    pg_temp.calcul(format($ca_q$select concat_ws('/', (select count(*) from public.contacts where relais_id = %1$s)::text,
+        (select count(*) from public.contacts where relais_id = %1$s and prenom = 'Accueil du centre' and lieu_id = %2$s)::text)$ca_q$, v_resp, v_l4)), '1/1');
+  perform pg_temp.attendre('demo', 'stag_s (promo 7) lit les trois fiches, avec « pour quoi » et « quand », joignables, et le relais d''Accueil',
+    pg_temp.appeler('stag_s', '7', format($ca_q$select concat_ws('/', count(*) filter (where id in (%s))::text,
+        count(*) filter (where id in (%s) and pour_quoi is not null and quand is not null and joignable)::text,
+        coalesce(max(relais_id) filter (where nom_affiche = 'Accueil du centre'), 0)::text) from public.annuaire_centre()$ca_q$, v_ids, v_ids)),
+    'OK 3/3/' || v_resp);
+  perform pg_temp.attendre('demo', 'aucun stagiaire de Nîmes (stag_n, promo 1) ne voit une des trois fiches',
+    pg_temp.appeler('stag_n', '1', format('select count(*) filter (where id in (%s))::text from public.annuaire_centre()', v_ids)), 'OK 0');
+end $ca_gdm$;
+
 -- Un groupe se joue-t-il dans ce mode ? Contre-épreuve : toujours (il doit être rouge). En ligne : seulement si p_condition (la
 -- migration qui le fonde est appliquée), sinon une ligne d'information. Migrations injectées : toujours.
 create or replace function pg_temp.groupe_a_jouer(p_groupe text, p_mode text, p_condition boolean, p_raison text)
@@ -960,6 +991,11 @@ begin
        exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'contacts' and policyname = 'contacts_select_authenticated' and qual <> 'true'),
        'la migration 1b n''est pas appliquée') then
     perform pg_temp.groupe_fermeture();
+  end if;
+  if exists (select 1 from public.contacts where prenom = 'Responsable pédagogique (fictif)') then
+    perform pg_temp.groupe_demo();
+  else
+    perform pg_temp.informer('groupe demo', 'sauté : la fiche « Responsable pédagogique (fictif) » n''existe pas (migration de démonstration non appliquée)');
   end if;
 
   -- 5. Les retours, dans l'ordre inverse (1b, 1).

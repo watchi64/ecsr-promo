@@ -211,3 +211,185 @@ def annuaire_autre_centre(v):
         if nom in page:
             v.constat("F", BLOQUE, "la fiche d'un autre centre apparaît (%s)" % nom.split()[0])
     v.terminer()
+
+
+# === Les demandes (tâches 11 à 13) : écrire au centre, suivi, Messages, page du lien d'e-mail, réglages « Qui reçoit quoi ». ===
+# Le banc joue les fonctions de la base en mémoire (bloc « Espace contact » de _harness_supabase.js) : un parcours prouve l'écran et le reflet de
+# l'écriture, pas la base (preuves SQL : tests/sql/contact-demandes-preuve.sql). Leviers : `ecritures=1`, `contact_regle=1`.
+BUDGET_MESSAGES = {"ordinateur": 1, "telephone": 2}
+PAGE_DEMANDE = "#view .demande-page"
+PHRASE_RIEN_REGLE = "Rien n'est réglé : pour chaque demande, le stagiaire choisit qui prévenir parmi les formateurs de sa promo et la direction du centre."
+PHRASE_LIEN_INVALIDE = "Ce lien n'est plus valable. Ouvrez la demande dans l'app ou demandez un nouvel envoi."
+JETON_VALIDE, JETON_DEJA, JETON_EXPIRE = "V" * 43, "D" * 43, "E" * 43
+PAGE_LIEN = "_harness_demande.html#j="
+
+
+def ouvrir_ecrire_au_centre(v):
+    """Contacts, « Écrire au centre » : la fenêtre s'ouvre ; rend le sélecteur du bouton d'envoi."""
+    v.aller("Contacts")
+    v.attendre(PAGE + ' button:text-is("Écrire au centre")', "« Écrire au centre »")
+    v.attendre(PAGE + ' h3:text-is("Mes demandes")', "« Mes demandes »")
+    v.but("page Contacts du stagiaire ouverte")
+    v.toucher(PAGE + ' button:text-is("Écrire au centre")', "« Écrire au centre »", compte=False)
+    v.attendre(FENETRE + ' h3:text-is("Écrire au centre")', "la fenêtre « Écrire au centre »")
+    v.attendre(FENETRE + ' .contact-encadre :text("Sera envoyé à")', "l'encadré « Sera envoyé à »")
+    return FENETRE + ' button:text-is("Envoyer")'
+
+
+def remplir_message(v, sujet, texte):
+    v.remplir(FENETRE + " " + champ("Sujet"), sujet, "le sujet")
+    v.remplir(FENETRE + " " + champ("Message", "textarea"), texte, "le message")
+
+
+@parcours("ecrire-au-centre-choix", "Un stagiaire écrit au centre quand rien n'est réglé : il coche qui prévenir", role="stagiaire",
+          budget=BUDGET_CONTACTS, navigations=NOUVELLE, banc={"ecritures": "1"})
+def ecrire_au_centre_choix(v):
+    """Le centre n'a rien réglé : des cases, « Envoyer » inactif tant qu'aucune n'est cochée ; une case cochée, l'envoi mène au suivi « Envoyée »."""
+    envoyer = ouvrir_ecrire_au_centre(v)
+    v.attendre(FENETRE + ' .contact-encadre input[type=checkbox]', "les cases des personnes à prévenir")
+    v.attendre(FENETRE + ' .contact-encadre :text("coche au moins une personne")', "la phrase qui demande de cocher")
+    v.etape("un retard : le formateur du jour est déjà coché")
+    if not v.page.locator(FENETRE + ' label.contact-case:has-text("Denis Exemple") input').is_checked():
+        v.constat("F", BLOQUE, "pour un retard, le formateur du jour n'est pas coché d'office")
+    v.etape("une question administrative : rien n'est coché, « Envoyer » est inactif")
+    v.page.locator(FENETRE + " " + champ("Type", "select")).select_option(label="Question administrative")
+    v.page.wait_for_function("() => document.querySelectorAll('.contact-modal .ecrire-cases input:checked').length === 0", timeout=5000)
+    if not v.page.locator(envoyer).is_disabled():
+        v.constat("E", BLOQUE, "« Envoyer » est actif alors qu'aucune personne n'est cochée", capture=True)
+    remplir_message(v, "Question sur mon dossier", "Peux-tu me dire où en est mon dossier ?")
+    if not v.page.locator(envoyer).is_disabled():
+        v.constat("E", BLOQUE, "« Envoyer » devient actif sans personne cochée (le sujet suffit)")
+    v.toucher(FENETRE + ' label.contact-case:has-text("Edith Exemple")', "la case « Edith Exemple »", compte=False)
+    v.page.wait_for_function("() => !document.querySelector('.contact-modal .btn.primary').disabled", timeout=5000)
+    v.ecouter_messages()
+    v.toucher(envoyer, "« Envoyer »", compte=False, ecriture=True)
+    v.attendre(PAGE_DEMANDE + ' .demande-etape-nom:text-is("Envoyée")', "le suivi de la demande, étape « Envoyée »")
+    v.attendre(PAGE_DEMANDE + ' h2:text-is("Question sur mon dossier")', "le sujet de la demande")
+    v.attendre(PAGE_DEMANDE + ' .demande-destinataires li:text-is("Edith Exemple")', "la personne cochée, dans « Destinataires »")
+    if v.voit(FENETRE):
+        v.constat("D", BLOQUE, "la fenêtre reste ouverte après l'envoi", capture=True)
+    if v.voit(PAGE_DEMANDE + ' .demande-destinataires li:has-text("Denis Exemple")'):
+        v.constat("E", BLOQUE, "une personne non cochée reçoit la demande")
+    v.terminer()
+
+
+@parcours("ecrire-au-centre-regle", "Un stagiaire écrit au centre quand le centre a réglé qui reçoit : les noms, aucune case", role="stagiaire",
+          budget=BUDGET_CONTACTS, navigations=NOUVELLE, banc={"ecritures": "1", "contact_regle": "1"})
+def ecrire_au_centre_regle(v):
+    """La règle du centre désigne une personne en congé : son relais est nommé dans « Sera envoyé à », aucune case, l'envoi est possible."""
+    envoyer = ouvrir_ecrire_au_centre(v)
+    nom = "Alice Exemple, relais de Bruno Exemple"
+    v.attendre(FENETRE + ' .contact-encadre :text("%s")' % nom, "le relais nommé dans l'encadré")
+    if v.voit(FENETRE + ' input[type=checkbox]'):
+        v.constat("E", BLOQUE, "des cases apparaissent alors que le centre a réglé qui reçoit")
+    remplir_message(v, "Retard demain", "Je serai là à 9 h 30.")
+    if v.page.locator(envoyer).is_disabled():
+        v.constat("E", BLOQUE, "« Envoyer » est inactif alors que le destinataire est réglé", capture=True)
+    v.ecouter_messages()
+    v.toucher(envoyer, "« Envoyer »", compte=False, ecriture=True)
+    v.attendre(PAGE_DEMANDE + ' .demande-destinataires li:text-is("%s")' % nom, "le relais, dans « Destinataires »")
+    v.attendre(PAGE_DEMANDE + ' .demande-etape-nom:text-is("Envoyée")', "l'étape « Envoyée »")
+    v.terminer()
+
+
+@parcours("destinataire-avec-compte", "Un formateur ouvre une absence reçue et répond en un geste", role="formateur", budget=BUDGET_MESSAGES,
+          navigations=NOUVELLE, banc={"ecritures": "1"})
+def destinataire_avec_compte(v):
+    """Messages : l'absence est « À traiter » ; la réponse toute faite « Absence enregistrée » la fait passer à « Prise en compte »."""
+    v.aller("Messages")
+    v.attendre('#view h3:text-is("À traiter (1)")', "« À traiter (1) »")
+    ligne = '#view li.demande-ligne:has-text("Absence jeudi matin")'
+    v.attendre(ligne + ".demande-neuve", "l'absence, marquée nouvelle")
+    v.but("Messages ouverts, l'absence à traiter est là")
+    if v.voit('#view li.demande-ligne:has-text("Attestation de présence")'):
+        v.constat("E", BLOQUE, "le formateur voit une demande qui ne lui est pas adressée")
+    v.toucher(ligne + " a.demande-lien", "l'absence", compte=False)
+    v.attendre(PAGE_DEMANDE + ' .demande-etape-nom:text-is("Envoyée")', "le suivi, étape « Envoyée »")
+    v.attendre(PAGE_DEMANDE + ' .demande-destinataires li:text-is("Denis Exemple")', "le destinataire")
+    bouton = PAGE_DEMANDE + ' .demande-toutes-faites button:text-is("Absence enregistrée")'
+    v.attendre(bouton, "la réponse toute faite « Absence enregistrée »")
+    if not v.voit(PAGE_DEMANDE + ' button:text-is("Pris en compte")'):
+        v.constat("F", BLOQUE, "le bouton « Pris en compte » manque pour un destinataire")
+    v.ecouter_messages()
+    v.toucher(bouton, "« Absence enregistrée »", compte=False, ecriture=True)
+    v.exiger_confirmation("la réponse", "Réponse envoyée")
+    v.attendre(PAGE_DEMANDE + ' .demande-etape-nom:text-is("Prise en compte")', "l'étape « Prise en compte »")
+    v.attendre(PAGE_DEMANDE + ' .demande-message-texte:text-is("Absence enregistrée")', "la réponse dans « Échanges »")
+    if v.voit(PAGE_DEMANDE + ' button:text-is("Pris en compte")'):
+        v.constat("E", BLOQUE, "« Pris en compte » reste proposé une fois la demande prise")
+    v.terminer()
+
+
+@parcours("page-du-lien", "Un lien d'e-mail ouvre la demande, un seul bouton fait le geste", role="stagiaire", budget=1, navigations=NOUVELLE,
+          depart=PAGE_LIEN + JETON_VALIDE, ouverture="page")
+def page_du_lien(v):
+    """Jeton valide : la demande et un seul bouton, « C'est fait » après le toucher ; jeton déjà fait : « Déjà fait » ; jeton expiré : la phrase."""
+    racine = "#lien-demande"
+    v.attendre(racine + ' h1.lien-demande-sujet:text-is("Absence jeudi matin")', "la demande")
+    bouton = racine + ' button.lien-demande-bouton'
+    v.attendre(bouton + ':text-is("Confirmer : Absence enregistrée")', "le bouton unique du geste")
+    v.but("la page du lien est ouverte")
+    if v.page.locator(racine + " button").count() != 1:
+        v.constat("F", BLOQUE, "la page n'a pas exactement un bouton")
+    if v.voit(racine + " input, " + racine + " textarea"):
+        v.constat("F", BLOQUE, "la page du lien porte un champ de saisie")
+    v.toucher(bouton, "« Confirmer : Absence enregistrée »", compte=False, ecriture=True)
+    v.attendre(racine + ' h1:text-is("C\'est fait")', "« C'est fait »")
+    for jeton, titre, quoi in ((JETON_DEJA, "Déjà fait", "un lien déjà utilisé"), (JETON_EXPIRE, "Lien invalide", "un lien expiré")):
+        v.etape(quoi)
+        v.page.goto("about:blank")      # un changement de fragment seul ne recharge pas la page : on repart d'une page vide
+        v.page.goto(v.base_url + PAGE_LIEN + jeton, wait_until="load")
+        v.attendre(racine + ' h1:text-is("%s")' % titre, "« %s »" % titre)
+        v.controler_ecran(quoi)
+    if PHRASE_LIEN_INVALIDE not in v.texte(racine):
+        v.constat("F", BLOQUE, "la phrase du lien expiré n'est pas celle attendue")
+    v.terminer()
+
+
+@parcours("messages-direction", "La direction lit toutes les demandes de son centre", role="direction", budget=BUDGET_MESSAGES,
+          navigations=NOUVELLE, banc={"compte": "direction"}, depart="#/promos")
+def messages_direction(v):
+    """Messages : les demandes du centre (même celles adressées à d'autres), rangées en « Ouvertes » ; la direction peut prendre en compte."""
+    v.aller("Messages")
+    v.attendre('#view h2:text-is("Messages")', "le titre « Messages »")
+    v.attendre('#view li.demande-ligne:has-text("Attestation de présence")', "une demande adressée au secrétariat")
+    v.attendre('#view li.demande-ligne:has-text("Absence jeudi matin")', "une demande adressée à un formateur")
+    v.but("Messages de la direction ouverts")
+    v.attendre('#view button:text-is("Écrire à un stagiaire")', "« Écrire à un stagiaire »")
+    v.attendre('#view button:text-is("Écrire à un collègue")', "« Écrire à un collègue »")
+    v.attendre('#view h3:text-is("Ouvertes (2)")', "« Ouvertes (2) »")
+    v.toucher('#view li.demande-ligne:has-text("Attestation de présence") a.demande-lien', "la demande", compte=False)
+    v.attendre(PAGE_DEMANDE + ' h2:text-is("Attestation de présence")', "le suivi de la demande")
+    v.attendre(PAGE_DEMANDE + ' button:text-is("Pris en compte")', "« Pris en compte » (la direction y a droit)")
+    v.attendre(PAGE_DEMANDE + ' .demande-toutes-faites button:text-is("Bien reçu")', "les réponses toutes faites")
+    v.terminer()
+
+
+@parcours("autre-centre", "Un formateur d'un autre centre ne voit aucune demande de Nîmes", role="formateur", budget=BUDGET_MESSAGES,
+          navigations=NOUVELLE, banc={"centre": "1", "demo": "1"})
+def autre_centre(v):
+    """Promo de démonstration : Messages est vide, aucune demande de Nîmes n'y apparaît."""
+    v.aller("Messages")
+    v.attendre('#view h2:text-is("Messages")', "le titre « Messages »")
+    v.attendre('#view p:text-is("Rien à traiter.")', "« Rien à traiter. »")
+    v.but("Messages du centre de démonstration ouverts")
+    page = v.texte("#view")
+    for morceau in ("Absence jeudi matin", "Attestation de présence", "Agathe O.", "Lison K."):
+        if morceau in page:
+            v.constat("F", BLOQUE, "une demande d'un autre centre apparaît (%s)" % morceau)
+    v.terminer()
+
+
+@parcours("rien-regle", "La direction voit que rien n'est réglé : le stagiaire choisit", role="direction", budget=BUDGET_CONTACTS,
+          navigations=NOUVELLE, banc={"compte": "direction"}, depart="#/promos")
+def rien_regle(v):
+    """Réglages du centre, « Qui reçoit quoi » : la phrase « Rien n'est réglé » en tête, et l'aperçu dit « le stagiaire choisit »."""
+    v.aller("Réglages du centre")
+    v.attendre('#view .reglage-regles h3:text-is("Qui reçoit quoi")', "la section « Qui reçoit quoi »")
+    v.attendre('#view .reglage-regles .contact-encadre', "l'encadré de tête")
+    v.but("réglages du centre ouverts")
+    if v.texte('#view .reglage-regles .contact-encadre').strip() != PHRASE_RIEN_REGLE:
+        v.constat("F", BLOQUE, "l'encadré de tête ne dit pas « Rien n'est réglé »")
+    v.attendre('#view .reglage-regles .regle-apercu li:has-text("le stagiaire choisit")', "l'aperçu « le stagiaire choisit »")
+    v.attendre('#view .reglage-reponses h3:text-is("Réponses toutes faites")', "la section « Réponses toutes faites »")
+    v.terminer()

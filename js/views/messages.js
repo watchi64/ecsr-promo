@@ -6,7 +6,7 @@
 import { listeDemandes, declencherEnvois } from "../db.js?v=20261114f";
 import { el, clear } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
-import { isStagiaire, getCentre, getEspace } from "../auth-admin.js?v=20261114f";
+import { getCentre, getEspace } from "../auth-admin.js?v=20261114f";
 import { lireAdresse } from "../route-rules.js?v=20261114f";
 import { rangerDemandes, phraseContact } from "../contact-rules.js?v=20261114f";
 import { ligneDemande, renderDemande } from "./demande.js?v=20261114f";
@@ -33,7 +33,8 @@ function section(id, titre, lignes, vide, { repliee = false } = {}) {
 
 export async function renderMessages(container) {
   const adresse = lireAdresse(location.hash);
-  if (isStagiaire()) { location.replace("#/contacts" + (adresse.id ? "/" + adresse.id : "")); return; }
+  // Le stagiaire est renvoyé vers Contacts ; un compte cumulé (fondateur et stagiaire) dans l'espace de l'équipe garde Messages.
+  if (getEspace() === "stagiaire") { location.replace("#/contacts" + (adresse.id ? "/" + adresse.id : "")); return; }
   if (adresse.id) return renderDemande(container, adresse.id);
 
   const jeton = ++rendu;

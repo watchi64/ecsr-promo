@@ -8,7 +8,7 @@ import {
 } from "../db.js?v=20261114f";
 import { el, clear, displayStagiaire } from "../utils.js?v=20261114f";
 import { icon } from "../icons.js?v=20261114f";
-import { isStagiaire, selonPublic } from "../auth-admin.js?v=20261114f";
+import { isStagiaire, getEspace, selonPublic } from "../auth-admin.js?v=20261114f";
 import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
 import { lignesEncadre, libelleDestinataire, phraseContact, basculerCoche } from "../contact-rules.js?v=20261114f";
 
@@ -20,7 +20,7 @@ export const TYPES_ECRITS = [
 export const PHRASE_ENCADRE_ECHEC = "Les destinataires n'ont pas pu être chargés.";
 
 // Où mène le suivi d'une demande : la page Contacts pour le stagiaire, Messages pour l'équipe et la direction.
-export const routeDesDemandes = () => (isStagiaire() ? "contacts" : "messages");
+export const routeDesDemandes = () => (getEspace() === "stagiaire" ? "contacts" : "messages");
 
 /**
  * Ouvre la fenêtre. `cible` : « centre » (stagiaire), « fiche » (avec `ficheId`, `nomDestinataire`), « stagiaire » (équipe vers un
