@@ -20,14 +20,21 @@
 --   siege_lit    (migration 9, partie B) le siège fixe lit titres_visibles(centre), donnable jugé pour lui ; direction d'un autre centre,
 --                stagiaire, titres non fixes du réseau refusés avec la phrase d'avant ; aucune autre fonction changée (md5 pris avant la
 --                migration 9 quand elle est injectée). Le retour 9 remet titres_visibles d'avant (md5) et le nombre de titres.
---   retour       les retours défont tout, dans l'ordre inverse (9, 8, 7, 4) : l'empreinte (règles, fonctions, droits) égale celle d'avant.
+--   journal_suite (migration 4 avec la 9, essai à blanc de l'étape 4) la 9 jouée après la 4 écrit six lignes « cree » (par système, sans centre) ;
+--                t_chef ajuste R depuis le centre 1 : « cree » (la version), puis « retire » et « donne » par porteur basculé ; dir_n donne
+--                Intervenant à y : « donne », par son adresse ; aucune adresse dans avant ni apres, aucune adresse de stagiaire ; la lecture
+--                par un centre (Équipe : Voir) rend exactement les lignes du centre, jamais celles du catalogue ; un titre sans la case
+--                Équipe est refusé ; le siège ne lit aucune ligne de niveau promo ; effacer_adresse_journal réservé au fondateur hors aperçu.
+--                Joué dans les modes injectés (avec la 4) et en contre-épreuve (rouge sans la table), sauté avec information sans la table.
+--   retour       les retours défont tout, dans l'ordre inverse (9, 8, 7, 4) : l'empreinte (règles, fonctions, droits) égale celle d'avant ;
+--                avec le retour 4 : la table, les déclencheurs et les trois fonctions du journal sont retirés.
 -- Les groupes des migrations s'ajoutent avec leurs tâches (d1, d4, d5, m4m5, m7, apercu, ajustables, catalogue, siege_lit, journal_suite), chacun
 -- derrière pg_temp.groupe_suite_a_jouer, qui juge la présence de sa migration par un marqueur (7 : l'index titres_version_unique,
 -- « Réservé au siège. » dans _refus_gestion ou la phrase M4 dans donner_titre ;
 -- 8 : la fonction apercu_titre() ; 9 : six titres créés par la migration du catalogue ; 4 : la table journal_droits) :
 --   - migration en place (déjà appliquée, ou injectée et jouée) : le groupe est joué, dans tous les modes ;
 --   - suite-en-ligne : un groupe dont la migration manque est sauté, avec une ligne d'information ;
---   - suite-contre-epreuve : chaque groupe est joué (il sort rouge si sa migration manque) ;
+--   - suite-contre-epreuve : chaque groupe est joué (il sort rouge si sa migration manque), le groupe du journal compris, même sans la table ;
 --   - modes injectés : un groupe dont la migration n'est pas demandée (--etapes) est sauté, avec une information ; si elle est demandée
 --     (injectée) et que son marqueur reste faux, un échec est compté et le groupe n'est pas joué. suite --etapes 7, 7,8, 8, 8,9 peuvent
 --     donc sortir VERT.
@@ -151,8 +158,8 @@ create temp table etapes_injectees (etape integer primary key);
 create or replace function pg_temp.sort_du_groupe(p_mode text, p_presente boolean, p_injectee boolean, p_journal_requis boolean, p_journal boolean)
 returns text language sql immutable as $tsd$
   select case
-    when p_journal_requis and not p_journal then 'sauter-journal'
     when p_mode like 'suite-contre-epreuve%' then 'jouer'
+    when p_journal_requis and not p_journal then 'sauter-journal'
     when p_presente then 'jouer'
     when p_mode like 'suite-en-ligne%' then 'sauter-en-ligne'
     when not p_injectee then 'sauter-non-demandee'
@@ -195,7 +202,7 @@ begin
       ('suite-en-ligne (aucune migration injectee)', true, false, false, false, 'jouer'),
       ('suite-en-ligne (aucune migration injectee)', true, false, true, false, 'sauter-journal'),
       ('suite-contre-epreuve (aucune migration injectee)', false, false, false, false, 'jouer'),
-      ('suite-contre-epreuve (aucune migration injectee)', false, false, true, false, 'sauter-journal')
+      ('suite-contre-epreuve (aucune migration injectee)', false, false, true, false, 'jouer')
     ) c(mode, presente, injectee, journal_requis, journal, attendu)
   loop
     perform pg_temp.attendre('structure', format('aiguillage des groupes : %s, migration %s, %s, journal %s : %s', r.mode,
@@ -1056,6 +1063,162 @@ begin
   end if;
 end $tssl$;
 
+-- Groupe journal_suite (migration 4, journal, avec la migration 9 : essai à blanc de l'étape 4) : ce que le journal écrit pour les gestes de
+-- l'étape 3, et qui le lit. Demande la table journal_droits : sauté, avec une information, quand elle manque (suite-en-ligne, suite --etapes
+-- sans la 4) ; joué par la contre-épreuve, où il sort rouge quand la table manque. Les six lignes du catalogue ne se jugent que si la 4 puis la 9
+-- sont injectées (appliquées dans cet ordre : la 4 ne journalise pas les lignes qui existent déjà). Les gestes sont joués dans une
+-- sous-transaction toujours annulée (le verrou titres_ouverts ouvert le temps de l'essai, les porteurs de R basculés) : les groupes suivants
+-- retrouvent leurs personnages ; les observations sont prises dans des variables avant l'annulation.
+create or replace function pg_temp.groupe_journal_suite()
+returns void language plpgsql as $tsjs$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_r text := pg_temp.titre_suite('R');
+  v_interv text := pg_temp.catalogue_id('Intervenant');
+  e_chef text := (select email from pg_temp.perso where nom = 't_chef');
+  e_u text := (select email from pg_temp.perso where nom = 'u');
+  e_v text := (select email from pg_temp.perso where nom = 'v');
+  e_y text := (select email from pg_temp.perso where nom = 'y');
+  e_dir text := (select email from pg_temp.perso where nom = 'dir_n');
+  v_injecte boolean := exists (select 1 from pg_temp.etapes_injectees where etape = 4) and exists (select 1 from pg_temp.etapes_injectees where etape = 9);
+  v_six constant text := $q$'Responsable pédagogique', 'Secrétariat', 'Ressources humaines', 'Intervenant', 'Contenus pédagogiques', 'Qualité'$q$;
+  v_signature constant text := $q$select md5(string_agg(s, E'\n' order by s collate "C")) from (select concat_ws('|', par, action, coalesce(pour, 'nul'),
+    titre_nom, niveau, coalesce(lieu_id::text, 'nul'), coalesce(promo_id::text, 'nul'), coalesce(avant::text, 'nul'), coalesce(apres::text, 'nul')) as s from %s) q$q$;
+  v_refus constant text := 'ERREUR 42501 titres: Réservé à l''équipe du centre.';
+  v_max text;
+  v_panne text := '';
+  o_ajuste text; o_donne text; o_lignes text; o_version text; o_adresses text; o_stagiaires text;
+  o_secr_sig text; o_secr_ref text; o_secr_qui text; o_secr_ailleurs text; o_secr_catalogue text; o_interv text;
+  o_siege text; o_siege_promo text; o_siege_catalogue text; o_siege_interv text; o_fond text; o_fond_ref text;
+  o_eff_siege text; o_eff_apercu text; o_eff_chef text; o_eff_reste text; o_eff_marque text; o_eff_u text; o_eff_u_reste text;
+  v_attendu_chef text; v_attendu_u text;
+begin
+  perform pg_temp.proprio();
+  perform pg_temp.verifier('journal_suite', 'la table journal_droits existe (migration 4 appliquée ou injectée)', to_regclass('public.journal_droits') is not null);
+  if to_regclass('public.journal_droits') is null then
+    return;
+  end if;
+
+  -- 1. La migration 9 jouée après la 4 : six lignes « cree », par système, sans centre, au niveau de chaque titre.
+  if v_injecte then
+    perform pg_temp.attendre('journal_suite', 'la migration 9 jouée après la 4 écrit six lignes « cree », par système, sans centre ni promo, au niveau de chaque titre du catalogue',
+      pg_temp.calcul($q$select string_agg(concat_ws(' ', titre_nom, niveau, coalesce(lieu_id::text, 'nul'), coalesce(promo_id::text, 'nul'), par, coalesce(pour, 'nul')), ' | ' order by titre_nom collate "C")
+        from public.journal_droits where action = 'cree' and titre_id in (select id from public.titres where cree_par = 'migration 20261115_titres_9_catalogue')$q$),
+      (select string_agg(concat_ws(' ', c.nom, c.niveau, 'nul', 'nul', 'système', 'nul'), ' | ' order by c.nom collate "C") from (values
+        ('Responsable pédagogique', 'centre'), ('Secrétariat', 'centre'), ('Ressources humaines', 'centre'), ('Intervenant', 'promo'),
+        ('Contenus pédagogiques', 'reseau'), ('Qualité', 'reseau')) c(nom, niveau)));
+  else
+    perform pg_temp.informer('groupe journal_suite', 'les six lignes du catalogue non jugeables : la migration 4 puis la 9 ne sont pas toutes deux injectées dans ce mode');
+  end if;
+
+  -- 2. Les gestes : t_chef ajuste R depuis le centre 1 (la version naît, u bascule), dir_n donne Intervenant à y au centre 1 (promo 1).
+  v_max := pg_temp.calcul('select coalesce(max(id), 0)::text from public.journal_droits');
+  perform pg_temp.verifier('journal_suite', 'départ : R, Intervenant, t_chef, u, v, y, dir_n lus ; u porte R au centre 1 ; des profils de stagiaire existent (jamais un contrôle à vide)',
+    v_r ~ '^[0-9]+$' and v_interv ~ '^[0-9]+$' and v_max ~ '^[0-9]+$' and e_chef is not null and e_u is not null and e_v is not null and e_y is not null and e_dir is not null
+      and pg_temp.calcul(format('select count(*)::text from public.affectations where lower(email) = %L and titre_id = %s and lieu_id = %s', e_u, v_r, v_l1)) = '1'
+      and pg_temp.calcul($q$select (count(*) > 0)::text from public.user_profiles u0 where u0.role = 'stagiaire' and u0.stagiaire_id is not null and not u0.is_admin
+        and not exists (select 1 from public.affectations a where lower(a.email) = lower(u0.email))$q$) = 'true',
+    concat_ws(' / ', v_r, v_interv, v_max));
+  begin
+    perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+    perform pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('titres_ouverts', 'oui', null)$q$);
+    o_ajuste := regexp_replace(coalesce(pg_temp.ajuster_t('t_chef', null, v_r, v_l1::text, '{"promos":"voir","equipe":"voir","stagiaires":"voir"}'), 'nul'), '^OK [0-9]+/', 'OK <version>/');
+    o_donne := pg_temp.appeler_t('dir_n', null, null, null,
+      format($q$select (public.donner_titre(%L, %s, %s, array[1], null))->>'titre_id'$q$, e_y, v_interv, v_l1));
+    o_lignes := pg_temp.calcul(format($q$select string_agg(concat_ws('/', action, par, coalesce(pour, 'nul'), titre_nom, niveau, coalesce(lieu_id::text, 'nul'), coalesce(promo_id::text, 'nul')), ' ; ' order by id)
+      from public.journal_droits where id > %s$q$, v_max));
+    o_version := pg_temp.calcul(format($q$select count(*)::text from public.journal_droits c join public.journal_droits d on d.titre_id = c.titre_id and d.action = 'donne'
+        join public.journal_droits r on r.action = 'retire' and r.titre_id = %1$s
+      where c.id > %2$s and d.id > %2$s and r.id > %2$s and c.action = 'cree' and c.titre_id <> %1$s$q$, v_r, v_max));
+    o_adresses := pg_temp.calcul($q$select count(*)::text from public.journal_droits where coalesce(avant::text, '') like '%@%' or coalesce(apres::text, '') like '%@%'$q$);
+    o_stagiaires := pg_temp.calcul($q$select count(*)::text from public.journal_droits j where exists (select 1 from public.user_profiles up
+      where up.role = 'stagiaire' and up.stagiaire_id is not null and not up.is_admin
+        and not exists (select 1 from public.affectations a where lower(a.email) = lower(up.email)) and (lower(j.par) = lower(up.email) or lower(coalesce(j.pour, '')) = lower(up.email)
+        or position(lower(up.email) in lower(coalesce(j.avant::text, '') || coalesce(j.apres::text, ''))) > 0))$q$);
+
+    -- La lecture par centre : t_secr (Équipe : Voir), t_interv, et le siège.
+    o_secr_sig := pg_temp.appeler_t('t_secr', '1', null, null, format(v_signature, format('public.journal_des_droits(%s)', v_l1)));
+    o_secr_ref := pg_temp.calcul(format(v_signature, format($q$(select * from public.journal_droits where lieu_id = %s and quand >= now() - interval '3 years') x$q$, v_l1)));
+    o_secr_qui := pg_temp.appeler_t('t_secr', '1', null, null, format($q$select count(*) filter (where (par = %L and titre_nom = 'Preuve9 réseau R' and action in ('cree', 'retire', 'donne'))
+        or (par = %L and action = 'donne' and pour = %L and titre_nom = 'Intervenant'))::text from public.journal_des_droits(%s)$q$, e_chef, e_dir, e_y, v_l1));
+    o_secr_ailleurs := pg_temp.appeler_t('t_secr', '1', null, null, format('select count(*) filter (where lieu_id is distinct from %s)::text from public.journal_des_droits(%s)', v_l1, v_l1));
+    o_secr_catalogue := pg_temp.appeler_t('t_secr', '1', null, null, format($q$select count(*) filter (where action = 'cree' and par = 'système' and titre_nom in (%s))::text
+      from public.journal_des_droits(%s)$q$, v_six, v_l1));
+    o_interv := pg_temp.appeler_t('t_interv', '1', null, null, format('select count(*)::text from public.journal_des_droits(%s)', v_l1));
+    o_siege := pg_temp.appeler_t('siege', null, null, null, $q$select count(*)::text from public.journal_des_droits()$q$);
+    o_siege_promo := pg_temp.appeler_t('siege', null, null, null, $q$select (count(*) filter (where niveau = 'promo'))::text || '/' || ((count(*) filter (where niveau in ('centre', 'reseau'))) > 0)::text from public.journal_des_droits()$q$);
+    o_siege_catalogue := pg_temp.appeler_t('siege', null, null, null, format($q$select string_agg(titre_nom, ',' order by titre_nom collate "C") from public.journal_des_droits()
+      where action = 'cree' and par = 'système' and lieu_id is null and titre_nom in (%s)$q$, v_six));
+    o_siege_interv := pg_temp.appeler_t('siege', null, null, null, $q$select count(*) filter (where titre_nom = 'Intervenant')::text from public.journal_des_droits()$q$);
+    o_fond := pg_temp.appeler_t('fond', null, null, null, format($q$select count(*) filter (where titre_nom = 'Intervenant' and niveau = 'promo')::text || '/'
+      || count(*) filter (where action = 'cree' and par = 'système' and lieu_id is null and titre_nom in (%s)) from public.journal_des_droits()$q$, v_six));
+    o_fond_ref := pg_temp.calcul(format($q$select 'OK ' || count(*) filter (where titre_nom = 'Intervenant' and niveau = 'promo')::text || '/'
+      || count(*) filter (where action = 'cree' and par = 'système' and lieu_id is null and titre_nom in (%s)) from public.journal_droits$q$, v_six));
+
+    -- L'effacement d'une adresse : refusé au siège et au fondateur en aperçu ; le fondateur remplace par et pour.
+    v_attendu_chef := pg_temp.calcul(format('select count(*)::text from public.journal_droits where lower(par) = %L or lower(coalesce(pour, '''')) = %L', e_chef, e_chef));
+    v_attendu_u := pg_temp.calcul(format('select count(*)::text from public.journal_droits where lower(par) = %L or lower(coalesce(pour, '''')) = %L', e_u, e_u));
+    o_eff_siege := pg_temp.appeler_t('siege', null, null, null, format('select public.effacer_adresse_journal(%L)::text', e_chef));
+    o_eff_apercu := pg_temp.appeler_t('fond', null, 'siege', null, format('select public.effacer_adresse_journal(%L)::text', e_chef));
+    o_eff_chef := pg_temp.appeler_t('fond', null, null, null, format('select public.effacer_adresse_journal(%L)::text', e_chef));
+    o_eff_reste := pg_temp.calcul(format('select count(*)::text from public.journal_droits where lower(par) = %L or lower(coalesce(pour, '''')) = %L', e_chef, e_chef));
+    o_eff_marque := pg_temp.calcul(format($q$select count(*)::text from public.journal_droits where id > %s and par = 'compte effacé' and action in ('cree', 'retire', 'donne')
+      and titre_nom = 'Preuve9 réseau R'$q$, v_max));
+    o_eff_u := pg_temp.appeler_t('fond', null, null, null, format('select public.effacer_adresse_journal(%L)::text', e_u));
+    o_eff_u_reste := pg_temp.calcul(format($q$select (count(*) filter (where lower(par) = %1$L or lower(coalesce(pour, '')) = %1$L))::text || '/'
+      || (count(*) filter (where pour = 'compte effacé' and action in ('retire', 'donne') and titre_nom = 'Preuve9 réseau R' and id > %2$s))::text from public.journal_droits$q$, e_u, v_max));
+    raise exception 'preuve journal_suite : essai annulé';
+  exception when others then
+    if sqlerrm <> 'preuve journal_suite : essai annulé' then
+      v_panne := sqlstate || ' ' || sqlerrm;
+    end if;
+  end;
+  perform pg_temp.proprio();
+  perform pg_temp.verifier('journal_suite', 'les gestes de l''essai se sont joués sans panne', v_panne = '', v_panne);
+
+  perform pg_temp.attendre('journal_suite', 't_chef ajuste R depuis le centre 1 : la version naît (créée), un porteur basculé (u)', o_ajuste, 'OK <version>/true/1');
+  perform pg_temp.attendre('journal_suite', 'dir_n donne Intervenant à y au centre 1 (promo 1) : permis', o_donne, 'OK ' || v_interv);
+  perform pg_temp.attendre('journal_suite', 'le journal de l''essai, dans l''ordre : cree (la version, centre 1, par t_chef), retire puis donne (u, titre R puis sa version, par t_chef), donne (y, Intervenant, promo 1, par dir_n)',
+    o_lignes, format('cree/%1$s/nul/Preuve9 réseau R/centre/%2$s/nul ; retire/%1$s/%3$s/Preuve9 réseau R/centre/%2$s/nul ; donne/%1$s/%3$s/Preuve9 réseau R/centre/%2$s/nul ; donne/%4$s/%5$s/Intervenant/promo/%2$s/1',
+      e_chef, v_l1, e_u, e_dir, e_y));
+  perform pg_temp.attendre('journal_suite', 'la ligne « cree » et la ligne « donne » portent le titre de la version, la ligne « retire » celui de R', o_version, '1');
+  perform pg_temp.attendre('journal_suite', 'le porteur du centre 2 (v), qui n''a pas basculé, n''a aucune ligne dans l''essai',
+    pg_temp.calcul(format('select count(*)::text from public.journal_droits where id > %s and %L in (lower(par), lower(coalesce(pour, '''')))', v_max, e_v)), '0');
+  perform pg_temp.attendre('journal_suite', 'aucune adresse dans avant ni apres, dans tout le journal', o_adresses, '0');
+  perform pg_temp.attendre('journal_suite', 'aucune adresse de stagiaire (profil de stagiaire avec fiche, sans titre, hors fondateur : un cumul ou un ancien stagiaire devenu du personnel n''en est plus un) dans le journal, ni en par, ni en pour, ni dans avant ou apres', o_stagiaires, '0');
+
+  perform pg_temp.attendre('journal_suite', 'journal_des_droits(centre 1) par t_secr (Équipe : Voir) : exactement les lignes de lieu_id du centre 1 (signature md5 égale à celle de la table)', o_secr_sig, 'OK ' || o_secr_ref);
+  perform pg_temp.attendre('journal_suite', 'parmi elles : les quatre lignes de l''essai (la version de R, la bascule de u, le don d''Intervenant)', o_secr_qui, 'OK 4');
+  perform pg_temp.attendre('journal_suite', 'aucune ligne d''un autre centre ni sans centre dans cette lecture', o_secr_ailleurs, 'OK 0');
+  perform pg_temp.attendre('journal_suite', 'aucune des six lignes du catalogue (lieu_id nul) dans la lecture d''un centre', o_secr_catalogue, 'OK 0');
+  perform pg_temp.attendre('journal_suite', 'journal_des_droits(centre 1) par t_interv : refusé (42501)', o_interv, v_refus);
+
+  perform pg_temp.verifier('journal_suite', 'journal_des_droits() par siege : des lignes de niveau centre ou réseau, aucune ligne de niveau promo', o_siege_promo = 'OK 0/true', o_siege_promo);
+  perform pg_temp.verifier('journal_suite', 'journal_des_droits() par siege : rend des lignes', o_siege ~ '^OK [1-9]', o_siege);
+  perform pg_temp.attendre('journal_suite', 'journal_des_droits() par siege : la ligne d''Intervenant (niveau promo) n''est jamais rendue, ni sa création ni son don', o_siege_interv, 'OK 0');
+  perform pg_temp.attendre('journal_suite', 'journal_des_droits() par le fondateur : tout le journal, les lignes de niveau promo comprises (le don d''Intervenant, et la création d''Intervenant et des cinq autres titres quand elles existent)',
+    o_fond, o_fond_ref);
+  if v_injecte then
+    perform pg_temp.attendre('journal_suite', 'journal_des_droits() par le fondateur, la 4 puis la 9 injectées : la création et le don d''Intervenant (2), les six créations du catalogue (6)', o_fond, 'OK 2/6');
+  end if;
+  if v_injecte then
+    perform pg_temp.attendre('journal_suite', 'journal_des_droits() par siege : les cinq lignes du catalogue de niveau centre ou réseau (la sixième, Intervenant, est de niveau promo)',
+      o_siege_catalogue, 'OK Contenus pédagogiques,Qualité,Responsable pédagogique,Ressources humaines,Secrétariat');
+  end if;
+
+  perform pg_temp.attendre('journal_suite', 'effacer_adresse_journal par le siège : refusé (42501, réservé au fondateur)', o_eff_siege, 'ERREUR 42501 journal: Réservé au fondateur.');
+  perform pg_temp.attendre('journal_suite', 'effacer_adresse_journal par le fondateur en aperçu siège : refusé (hors aperçu seulement)', o_eff_apercu, 'ERREUR 42501 journal: Réservé au fondateur.');
+  perform pg_temp.attendre('journal_suite', 'effacer_adresse_journal par le fondateur pour t_chef : le nombre de lignes où il figure (par ou pour)', o_eff_chef, 'OK ' || v_attendu_chef);
+  perform pg_temp.attendre('journal_suite', 'après l''effacement : plus aucune ligne au nom de t_chef ; ses lignes de l''essai (trois, par) portent « compte effacé » et gardent action et titre', o_eff_reste || ' / ' || o_eff_marque, '0 / 3');
+  perform pg_temp.attendre('journal_suite', 'effacer_adresse_journal pour u : le nombre de lignes où il figure ; plus aucune à son nom ; ses deux lignes de l''essai (pour) portent « compte effacé »',
+    o_eff_u || ' / ' || o_eff_u_reste, 'OK ' || v_attendu_u || ' / 0/2');
+
+  -- Les gestes sont annulés : le journal et les affectations comme avant l'essai.
+  perform pg_temp.attendre('journal_suite', 'l''essai est annulé : aucune ligne de journal ajoutée, u porte toujours R au centre 1',
+    pg_temp.calcul(format('select count(*)::text from public.journal_droits where id > %s', v_max)) || ' / '
+      || pg_temp.calcul(format('select count(*)::text from public.affectations where lower(email) = %L and titre_id = %s and lieu_id = %s', e_u, v_r, v_l1)), '0 / 1');
+end $tsjs$;
+
 do $tsprg$
 declare
   v_mode constant text :=
@@ -1189,6 +1352,9 @@ begin
   if pg_temp.groupe_suite_a_jouer('siege_lit', 9, v_mode) then
     perform pg_temp.groupe_siege_lit();
   end if;
+  if pg_temp.groupe_suite_a_jouer('journal_suite', 9, v_mode, true) then
+    perform pg_temp.groupe_journal_suite();
+  end if;
   -- d5 : le retour 7, joué dans une sous-transaction toujours annulée, refuse tant qu'un titre non fixe est porté (u porte R). Il demande
   -- le texte du retour : jugé seulement quand le retour 7 est injecté (suite --etapes 7, 7,8, 7,8,9) ; sinon une information.
   if pg_temp.groupe_suite_a_jouer('d5', 7, v_mode) then
@@ -1277,6 +1443,15 @@ begin
                           to_regprocedure('public.direction_fixe(integer)'), to_regprocedure('public.siege_fixe()'), to_regprocedure('public.mes_titres()'))
             and (p.prosrc like '%_case_apercu%' or p.prosrc like '%_apercu_fixe%' or p.prosrc like '%apercu_titre%')), '0');
     end if;
+  end if;
+  -- Le retour 4 (journal), quand il est injecté : la table, ses quatre déclencheurs et les trois fonctions sont retirés (l'empreinte ne couvre
+  -- ni les tables ni les déclencheurs).
+  if v_r4 <> 'select 1' and not v_en_ligne and v_jouees > 0 then
+    perform pg_temp.attendre('retour', 'après les retours : la table journal_droits, ses quatre déclencheurs et les trois fonctions du journal sont retirés (retour 4)',
+      concat_ws('/', to_regclass('public.journal_droits'), to_regprocedure('public._journal_affectations()'), to_regprocedure('public._journal_titres()'),
+        to_regprocedure('public.effacer_adresse_journal(text)'),
+        (select count(*) from pg_trigger t where t.tgname in ('journal_affectations_ecriture', 'journal_affectations_titre', 'journal_titres_ecriture', 'journal_titres_ajuste'))::text),
+      '0');
   end if;
   perform pg_temp.informer('durée du bloc', to_char(extract(epoch from clock_timestamp() - v_debut), 'FM990.0') || ' s');
   perform pg_temp.verdict_titres(v_mode, v_debut);

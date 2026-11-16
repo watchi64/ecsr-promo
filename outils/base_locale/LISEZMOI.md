@@ -104,6 +104,8 @@ joué) et `suite-en-ligne` (rien d'injecté, après application réelle ; un gro
 complètent les modes. Les personnages de l'étape 2 (`poser_titres_gestion`) et le retrait des titres non fixes avant les retours
 (`retirer_titres_non_fixes`, garde D5) sont dans `tests/sql/titres-gestion-aides.sql`, inclus par les preuves de gestion et de la suite.
 
+Le groupe `journal_suite` (le journal des droits, migration `20261112_titres_4_journal`, jouée juste avant la 9) demande la table `journal_droits` : `suite --etapes 4,9` le joue (l'essai à blanc de l'étape 4, VERT 211/0) ; `suite --etapes 9` et `suite-en-ligne` sur la base `--production` (sans la 4) le sautent avec une information ; `suite-contre-epreuve` le joue même sans la table et sort ROUGE sur lui. Il ne se joue pas sur une base où la 4 est déjà appliquée sans la 9 injectée pour les six lignes du catalogue (non jugeables, information).
+
 D4 (une seule version de centre par titre du réseau) se prouve aussi à deux sessions, ce qu'un bloc unique ne peut pas montrer :
 `bash tests/sql/titres-concurrence.sh --port <port> [--cas 1,2,3,4]`, sur la base locale seulement (garde : 127.0.0.1, comptes
 `@local.test`, sinon code 3 ; données fictives validées puis retirées). Attendu : VERT 17/0 avec la migration 7 ; ROUGE 10/7 sans elle ;

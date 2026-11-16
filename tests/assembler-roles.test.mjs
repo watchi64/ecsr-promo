@@ -1345,6 +1345,19 @@ test("la preuve de la suite : l'aiguillage des groupes (sort_du_groupe) couvre c
   assert.ok(!decrireMode("gestion-en-ligne").mode.startsWith("gestion (") && !decrireMode("gestion-contre-epreuve").mode.startsWith("gestion ("));
 });
 
+test("la preuve de la suite : le groupe journal_suite (étape 4) demande la table, se joue en contre-épreuve et laisse l'état comme avant", () => {
+  const gabarit = texteDuDepot(GABARIT_SUITE);
+  assert.match(gabarit, /if pg_temp\.groupe_suite_a_jouer\('journal_suite', 9, v_mode, true\) then\n    perform pg_temp\.groupe_journal_suite\(\);/, "appelé derrière l'aiguillage, journal requis");
+  const decision = /returns text language sql immutable as \$tsd\$[\s\S]*?\$tsd\$;/.exec(gabarit)?.[0] ?? "";
+  assert.ok(decision.indexOf("suite-contre-epreuve") < decision.indexOf("sauter-journal"), "la contre-épreuve joue le groupe avant l'aiguillage du journal absent (rouge sans la table)");
+  const corps = /function pg_temp\.groupe_journal_suite[\s\S]*?end \$tsjs\$;/.exec(gabarit)?.[0] ?? "";
+  assert.ok(corps.includes("la table journal_droits existe") && corps.includes("to_regclass('public.journal_droits') is null"), "le groupe vérifie la table avant tout");
+  assert.ok(corps.includes("raise exception 'preuve journal_suite : essai annulé'"), "les gestes sont joués dans une sous-transaction toujours annulée");
+  for (const mot of ["effacer_adresse_journal", "journal_des_droits", "'cree'", "'retire'", "'donne'"]) assert.ok(corps.includes(mot), mot);
+  assert.ok(!corps.includes(String.fromCharCode(0x2014)), "aucun tiret cadratin");
+  assert.match(gabarit, /v_r4 <> 'select 1' and not v_en_ligne and v_jouees > 0/, "le retour 4 : table, déclencheurs et fonctions retirés");
+});
+
 test("la migration 7 (partie A, D1) : fichiers propres, aucune règle touchée, _refus_gestion remplacée en entier après garde, retour au texte exact de la migration 6", () => {
   for (const chemin of [S[7].migration, S[7].retour, "outils/generer_fragments_titres_7.py"]) {
     const brut = readFileSync(join(RACINE, chemin), "utf8");
