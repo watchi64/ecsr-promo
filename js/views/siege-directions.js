@@ -23,8 +23,8 @@ import { messageInvitationReussie } from "../roles-rules.js?v=20261114f";
 import { directionsParCentre } from "../siege-rules.js?v=20261114f";
 import { ouvrirFormulaire, sectionJournal, cellulesDeTitre, PHRASE_COMPTE_CREE } from "./direction-equipe.js?v=20261114f";
 import { ouvrirEditeurTitre } from "./titres-editeur.js?v=20261114f";
-import { gestesSurTitre, siegeFixePourLesGestes, titresDuCentreEnLecture, LIBELLE_NIVEAU } from "../titres-rules.js?v=20261114f";
-import { peutModifier, getMesTitres, fondateurHorsApercu } from "../auth-admin.js?v=20261114f";
+import { gestesSurTitre, siegeFixePourLesGestes, titresDuCentreEnLecture, retraitDuSiegeOffert, LIBELLE_NIVEAU } from "../titres-rules.js?v=20261114f";
+import { ecritSelonLaCase, getMesTitres, getAdminEmail, fondateurHorsApercu } from "../auth-admin.js?v=20261114f";
 import { confirmer, demander } from "../confirmer.js?v=20261114f";
 import { pluriel } from "../nombres.js?v=20261114f";
 
@@ -45,6 +45,10 @@ const PHRASE_SANS_TITRE = "Choisissez un titre.";
 const DELAI_MS = 15000;
 
 let rendu = 0;
+
+// La case Directions de centre est-elle sur « Modifier » ? Les titres non lus (panne, fondateur) : comme avant, oui, la base arbitre.
+const peutGererLaPage = () => ecritSelonLaCase("directions", true, ["siege"]);
+const monAdresse = () => String(getAdminEmail() || "").toLowerCase();
 
 // Un refus qui a sa phrase (droit manquant, fonction absente avant la migration) la dit ; toute autre panne, la phrase commune.
 function phraseDEchec(e) {
@@ -257,6 +261,8 @@ function ouvrirDon({ titre, ancre, apres }) {
 // ============================================================== Sections
 
 function sectionCentre({ centre, directions }, lieux, apres, avecTitres) {
+  const peutGerer = peutGererLaPage();
+  const moi = monAdresse();
   const tete = el("div", { class: "centre-section-tete" },
     el("h3", {}, centre.demonstration ? LIBELLE_DEMO : centre.nom),
     el("span", { class: "muted" }, pluriel(new Set(directions.map((d) => d.email)).size, avecTitres ? "personne" : "direction")));
@@ -269,8 +275,10 @@ function sectionCentre({ centre, directions }, lieux, apres, avecTitres) {
       d.libelle !== d.email ? el("span", { class: "muted equipe-adresse" }, d.email) : null)),
     avecTitres ? el("td", {}, el("div", { class: "equipe-pastilles" }, el("span", { class: "chip equipe-role equipe-role-direction" }, d.titre_nom))) : null,
     el("td", { class: "liste-actions" }, el("div", { class: "equipe-actions" },
-      boutonPetit("Retirer", icon.trash, `Retirer ${d.libelle} du centre ${centre.nom}`,
-        (e) => ouvrirRetrait({ centre, ligne: d, ancre: e.currentTarget, apres }))))));
+      retraitDuSiegeOffert({ peutGerer, fondateur: fondateurHorsApercu(), personne: { email: d.email, niveau: "centre" }, moi })
+        ? boutonPetit("Retirer", icon.trash, `Retirer ${d.libelle} du centre ${centre.nom}`,
+          (e) => ouvrirRetrait({ centre, ligne: d, ancre: e.currentTarget, apres }))
+        : null))));
   const colonnes = avecTitres ? ["Personne", "Titre", ""] : ["Direction", ""];
   const table = tableauEnListe(el("table", { class: "centre-table equipe-table" },
     el("thead", {}, el("tr", {}, ...colonnes.map((t) => el("th", { scope: "col", "aria-label": t || "Actions" }, t)))),
@@ -312,16 +320,21 @@ async function ajouterTitresDesCentres(racine, centres, jeton) {
 // Les titres du réseau : chaque titre vu du réseau, et les personnes du siège. `d` : { titres, ajustables, siege (lignes de niveau
 // réseau, avec libelle), noms }.
 function sectionTitresReseau(d, apres) {
-  const peutGerer = peutModifier("directions");
+  const peutGerer = peutGererLaPage();
+  const moi = monAdresse();
   // Créer à partir d'un titre de niveau promo ou centre (catalogue) : le siège fixe seul ; à partir d'un titre du réseau : la case Directions.
   const siegeFixe = siegeFixePourLesGestes({ titres: getMesTitres(), fondateur: fondateurHorsApercu() });
+  const fixeDe = (l) => {
+    const t = d.titres.find((x) => Number(x.id) === Number(l.titre_id));
+    return t ? t.fixe === true : l.titre_nom === "Siège";
+  };
   const lignes = d.titres.map((t) => {
     const actions = [];
     const droits = gestesSurTitre({ titre: t, lieuId: null, ajustable: d.ajustables.has(Number(t.id)), peutGerer });
-    if (t.niveau === "reseau" && t.donnable) {
+    if (peutGerer && t.niveau === "reseau" && t.donnable) {
       actions.push(boutonPetit("Donner", icon.plus, `Donner le titre ${t.nom}`, (e) => ouvrirDon({ titre: t, ancre: e.currentTarget, apres })));
     }
-    if (droits.ajuster) {
+    if (peutGerer && droits.ajuster) {
       actions.push(boutonPetit("Ajuster", icon.pencil, `Ajuster le titre ${t.nom}`,
         (e) => ouvrirEditeurTitre({ titre: t, niveau: t.niveau, lieuId: null, porteurs: t.porteurs || 0, apres, ancre: e.currentTarget })));
     }
@@ -342,7 +355,7 @@ function sectionTitresReseau(d, apres) {
         }
       }));
     }
-    if (droits.supprimer) {
+    if (peutGerer && droits.supprimer) {
       actions.push(boutonPetit("Supprimer", icon.trash, `Supprimer le titre ${t.nom}`, async () => {
         const oui = await confirmer({ titre: "Supprimer ce titre ?", phrase: `Le titre ${t.nom} disparaît du réseau. Personne ne le porte.`, oui: "Supprimer" });
         if (!oui) return;
@@ -375,8 +388,10 @@ function sectionTitresReseau(d, apres) {
         l.libelle !== l.email ? el("span", { class: "muted equipe-adresse" }, l.email) : null)),
       el("td", {}, el("div", { class: "equipe-pastilles" }, el("span", { class: "chip equipe-role" }, l.titre_nom))),
       el("td", { class: "liste-actions" }, el("div", { class: "equipe-actions" },
-        boutonPetit("Retirer", icon.trash, `Retirer ${l.libelle} du titre ${l.titre_nom}`,
-          (e) => ouvrirRetrait({ centre: null, ligne: l, ancre: e.currentTarget, apres }))))));
+        retraitDuSiegeOffert({ peutGerer, fondateur: fondateurHorsApercu(), personne: { email: l.email, niveau: "reseau", fixe: fixeDe(l) }, moi })
+          ? boutonPetit("Retirer", icon.trash, `Retirer ${l.libelle} du titre ${l.titre_nom}`,
+            (e) => ouvrirRetrait({ centre: null, ligne: l, ancre: e.currentTarget, apres }))
+          : null))));
     contenu.push(el("h4", { class: "equipe-sous-titre" }, "Personnes avec un titre du réseau"),
       el("div", { class: "centre-defile" }, tableauEnListe(el("table", { class: "centre-table equipe-table" },
         el("thead", {}, el("tr", {}, ...["Personne", "Titre", ""].map((t) => el("th", { scope: "col", "aria-label": t || "Actions" }, t)))),
@@ -440,13 +455,16 @@ export async function renderDirections(container) {
       .map((l) => ({ ...l, email: String(l.email).toLowerCase(), nom: noms.get(String(l.email).toLowerCase()) || null }))
     : directions;
   const centres = directionsParCentre(lieux, dessus);
+  const peutGerer = peutGererLaPage();
   const actions = el("div", { class: "centre-actions" },
-    centres.length
+    centres.length && peutGerer
       ? el("button", { class: "btn primary", type: "button", onClick: (e) => ouvrirInvitationDirection({ lieux, ancre: e.currentTarget, apres, personnes, titresReseau: titresLus ? rTitres.value : null }) },
         icon.plus(), titresLus ? "Inviter une personne" : "Inviter une direction")
       : null,
-    el("button", { class: centres.length ? "btn" : "btn primary", type: "button", onClick: (e) => ouvrirAjoutCentre({ ancre: e.currentTarget, apres, titresReseau: titresLus ? rTitres.value : null }) },
-      icon.plus(), "Ajouter un centre"));
+    peutGerer
+      ? el("button", { class: centres.length ? "btn" : "btn primary", type: "button", onClick: (e) => ouvrirAjoutCentre({ ancre: e.currentTarget, apres, titresReseau: titresLus ? rTitres.value : null }) },
+        icon.plus(), "Ajouter un centre")
+      : null);
   racine.appendChild(entete("Réseau · " + pluriel(centres.length, "centre"), "Les directions de chaque centre", actions));
   if (!titresLus) {
     racine.appendChild(boiteErreur(`${PHRASE_TITRES_ECHEC} ${phraseDeRefus(raisonTitres && raisonTitres.message, raisonTitres && raisonTitres.code)}`,
