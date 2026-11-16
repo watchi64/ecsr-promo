@@ -652,7 +652,11 @@ begin
     pg_temp.appeler('deleg', '1', $cd_q$select concat_ws('|', count(*), max(type), count(id), count(sujet), count(etat), count(non_lue), count(a_traiter), count(envoi_en_echec),
       max(auteur_nom), count(cree_le), count(dernier_echange_le), max(mon_role)) from public.liste_demandes()$cd_q$) || ' / '
       || pg_temp.appeler('deleg', '1', format('select public.demande_detail(%s)::text', pg_temp.dem('d1'))),
-    'OK 1|autre|0|0|0|0|0|0|Preuve7 stag_n PREUVE|1|1|delegue / ERREUR 42501 contact: Demande introuvable.');
+    -- Avec la migration 3 appliquée (mode en ligne après elle), le délégué ne lit plus que les absences non annulées, sans aucune date
+    -- (tests/sql/contact-absences-preuve.sql, groupe delegue) : d1 (type autre) ne lui est plus rendue.
+    case when to_regclass('public.absences_annoncees') is null
+         then 'OK 1|autre|0|0|0|0|0|0|Preuve7 stag_n PREUVE|1|1|delegue / ERREUR 42501 contact: Demande introuvable.'
+         else 'OK 0|0|0|0|0|0|0|0|0 / ERREUR 42501 contact: Demande introuvable.' end);
   perform pg_temp.attendre('lire', 'un délégué qui est aussi l''auteur reste auteur',
     pg_temp.liste_d('stag_n', '1', 'null'), 'OK d1:auteur');
 

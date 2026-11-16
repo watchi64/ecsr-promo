@@ -499,6 +499,12 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
                  ('public.contact_reponses', $mx$libelle = 'PreuveMaj'$mx$), ('public.contact_envois', $mx$raison = 'PreuveMaj'$mx$),
                  ('public.contact_jetons', $mx$action = 'voir'$mx$)) x(tbl, maj)
    where to_regclass(x.tbl) is not null;
+-- Espace contact (migration 3) : la table des absences annoncées n'a, elle non plus, aucune règle ni aucun droit pour anon et
+-- authenticated (lectures et écritures par fonctions : prevenir_absence, absences_annoncees_semaine...). Une ligne tout false, seulement
+-- si elle existe. La preuve propre : tests/sql/contact-absences-preuve.sql.
+insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr)
+  select 'public.absences_annoncees', 'false', 'false', 'false', 'false', $mx$motif = 'autre'$mx$, null
+   where to_regclass('public.absences_annoncees') is not null;
 update matrice set lecture = replace(lecture, '(cardinality({acces}) > 0 or {S} or {Fo})',
                                      '((cardinality({acces}) > 0 and (cardinality({form_de}) > 0 or cardinality({dir_de}) > 0)) or {S} or {Fo})')
  where tbl = 'public.user_profiles'
