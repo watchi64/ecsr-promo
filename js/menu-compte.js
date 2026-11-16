@@ -17,6 +17,7 @@ import { el } from "./utils.js?v=20261114f";
 import { icon, deco } from "./icons.js?v=20261114f";
 import {
   getProfile, getProfileWho, monStagiaireId, buildViewAsBlock, seDeconnecter, espacesOuverts, setEspace, getCentre, getProfileNom,
+  getMesTitres, chargerTitresDApercu,
 } from "./auth-admin.js?v=20261114f";
 import { LIBELLES_ESPACE, routeDansLEspace, espaceDePilotage } from "./espaces-rules.js?v=20261114f";
 import { getPromoCourante, getMesPromos } from "./db.js?v=20261114f";
@@ -31,6 +32,7 @@ import { ouvrirSignalement } from "./signalement.js?v=20261114f";
 import { etatSignalements } from "./signalement-etat.js?v=20261114f";
 import { pastilleSignalement } from "./signalement-rules.js?v=20261114f";
 import { blocHabillage } from "./habillage-choix.js?v=20261114f";
+import { libelleTitre, ceQueJePeuxFaire, NIVEAU_DE_L_ESPACE } from "./titres-rules.js?v=20261114f";
 
 // Une ligne du menu : un lien (page) ou un bouton (geste), icône et libellé, `fin` à droite.
 const ligne = (tag, attrs, icone, texte, fin = null) => el(tag, { class: "nav-fenetre-lien", ...attrs },
@@ -80,6 +82,28 @@ function ouDansLEspace(espace) {
   return getPromoCourante()?.nom || null;
 }
 
+// Titres (étape 3) : « Mon titre » (une ligne par titre de la personne) et « Ce que je peux faire » (liste repliée : les pages du
+// titre de l'espace affiché, avec Voir ou Modifier). Rien dans l'espace stagiaire ni quand mes_titres n'a rien rendu (lecture ratée,
+// aucun titre) : l'app reste celle d'avant les titres.
+function blocMonTitre(espace) {
+  const titres = NIVEAU_DE_L_ESPACE[espace] ? getMesTitres() : null;
+  if (!titres || !titres.length) return null;
+  const promoNoms = new Map(getMesPromos().map((p) => [p.id, p.nom]));
+  const lieuNom = getCentre()?.nom ?? null;
+  const libelle = (t) => libelleTitre(t, { promoNoms, lieuNom: t.lieu_nom ?? (t.lieu_id != null && t.lieu_id === getCentre()?.id ? lieuNom : null) });
+  const pagesDe = (t) => ceQueJePeuxFaire(t);
+  return el("div", { class: "nav-groupe nav-mon-titre", role: "group", "aria-labelledby": "nav-titre-titre" },
+    el("p", { class: "nav-fenetre-section", id: "nav-titre-titre" }, titres.length > 1 ? "Mes titres" : "Mon titre"),
+    titres.map((t) => el("p", { class: "nav-mon-titre-nom" }, libelle(t))),
+    el("details", { class: "nav-mon-titre-droits" },
+      el("summary", { class: "nav-fenetre-lien" }, deco(icon.eye()), el("span", { class: "nav-fenetre-texte" }, "Ce que je peux faire")),
+      titres.map((t) => el("div", { class: "nav-mon-titre-liste" },
+        titres.length > 1 ? el("p", { class: "nav-mon-titre-sous" }, libelle(t)) : null,
+        pagesDe(t).length
+          ? el("ul", {}, pagesDe(t).map((x) => el("li", {}, el("span", {}, x.libelle), el("b", {}, x.valeur))))
+          : el("p", { class: "nav-mon-titre-vide" }, "Ce titre n'ouvre aucune page.")))));
+}
+
 // `actualiser` : le geste « Recharger les données » de l'app (main.js) ; sans lui, pas de ligne. `entrees` : les
 // entrées de la barre affichée, qui décident de la ligne de la page à soi. `espace` : celui de la coquille
 // (« stagiaire », « equipe », « direction » ou « siege »), qui décide de la ligne « Signaler un problème ».
@@ -91,6 +115,8 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
   const pageASoi = routeDansLEspace(espace, page) ? pageASoiDuMenu(page, entrees) : null;
   const nonLues = libellePastille(nouveautesAffichables().neuves.size);
   const pilotage = espaceDePilotage(espace);
+  // Le fondateur hors aperçu : la liste du choix « Titre » de l'aperçu se lit maintenant (en aperçu, titres_visibles refuserait).
+  if (fondateurHorsApercu()) chargerTitresDApercu();
 
   const tete = el("div", { class: "nav-fenetre-tete" },
     el("span", { class: "nav-avatar", "aria-hidden": "true" }, initialesDe(nom) || deco(icon.user())),
@@ -101,6 +127,7 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
     contenu: [
       tete,
       blocHabillage(),
+      blocMonTitre(espace),
       filet(),
       lignePageASoi(pageASoi),
       ligne("a", { href: "#/nouveautes" }, icon.bell(), "Nouveautés", nonLues

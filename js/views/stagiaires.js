@@ -11,7 +11,7 @@ import { icon } from "../icons.js?v=20261114f";
 import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261114f";
 import { ligneListe } from "../fiche-rules.js?v=20261114f";
 import { surChangementAdresse, oublierMajSurPlace, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261114f";
-import { isAdmin } from "../auth-admin.js?v=20261114f";
+import { ecritSelonLaCase } from "../auth-admin.js?v=20261114f";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261114f";
 import { renderSubTabs } from "../subtabs.js?v=20261114f";
 import { renderBenevoles } from "./benevoles.js?v=20261114f";
@@ -211,7 +211,7 @@ export async function renderStagiaires(container) {
       ficheSeule: (oui) => page.classList.toggle("stg-fiche-seule", oui),
     })),
   }];
-  if (isAdmin()) {
+  if (ecritSelonLaCase("stagiaires")) {
     onglets.push({
       key: "benevoles", label: "Élèves bénévoles",
       render: dansUneZone((zone) => {

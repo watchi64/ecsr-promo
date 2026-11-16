@@ -10,7 +10,7 @@ import {
   lireEffectifsPromos, lireFormateursPromos,
 } from "../db.js?v=20261114f";
 import { el, clear, isoDate, formatLongDate, toast } from "../utils.js?v=20261114f";
-import { getCentre, getAffectations, getAdminEmail } from "../auth-admin.js?v=20261114f";
+import { getCentre, getAffectations, getAdminEmail, ecritSelonLaCase } from "../auth-admin.js?v=20261114f";
 import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261114f";
 import { validerPromo, etatPromo, partEcoulee } from "../direction-rules.js?v=20261114f";
 import { peutRegler } from "../modules-etat.js?v=20261114f";
@@ -23,6 +23,10 @@ const PHRASE_SANS_PROMO = "Ce centre n'a pas encore de promo";
 const PHRASE_NON_CHARGEES = "Les promos du centre n'ont pas pu être chargées.";
 // Le geste « Modules » d'une autre promo : l'app se recharge sur cette promo, la page rouvre alors ses modules.
 const CLE_MODULES_A_OUVRIR = "ecsr_promos_modules";
+
+// Créer une promo, changer ses nom et dates, régler ses modules : la case Promos du titre, quand elle est lue ; sinon (cases non
+// lues) tout reste ouvert, comme avant (les droits de la base restent les seuls juges).
+const peutPromos = () => ecritSelonLaCase("promos", true, ["direction"]);
 
 let rendu = 0;
 // Après « Modifier » enregistré : la carte dont le bouton reprend le focus, et si le panneau Modules était ouvert.
@@ -157,7 +161,7 @@ function carte(p, { aujourdhui, affichee, effectif, formateurs, formateursLus, m
   }
 
   const actions = el("div", { class: "promo-actions" },
-    el("button", { class: "btn small", type: "button", onClick: (e) => surModifier(p, e.currentTarget) }, "Modifier"),
+    peutPromos() ? el("button", { class: "btn small", type: "button", onClick: (e) => surModifier(p, e.currentTarget) }, "Modifier") : null,
     peutRegler() ? el("button", { class: "btn small", type: "button", "aria-expanded": memeP ? String(modulesOuverts) : "false",
       onClick: (e) => surModules(p, e.currentTarget) }, "Modules") : null);
   lignes.push(actions);
@@ -190,13 +194,13 @@ export async function renderPromosCentre(container, reprise = null) {
       el("p", { class: "subtitle" }, liste.length
         ? `${pluriel(liste.length, "promo")} · ${liste.filter((p) => etatPromo(p, aujourdhui) === "en cours").length} en cours`
         : "Aucune promo pour le moment")),
-    el("div", { class: "centre-actions" }, boutonCreer));
+    el("div", { class: "centre-actions" }, peutPromos() ? boutonCreer : null));
   racine.appendChild(entete(promos));
 
   if (!promos.length) {
     racine.appendChild(el("div", { class: "centre-section centre-vide" },
       el("p", {}, PHRASE_SANS_PROMO + "."),
-      el("p", { class: "muted" }, "Créez la première promo du centre : elle s'affichera ensuite dans toute l'app.")));
+      peutPromos() ? el("p", { class: "muted" }, "Créez la première promo du centre : elle s'affichera ensuite dans toute l'app.") : null));
     return;
   }
 

@@ -13,9 +13,9 @@ import {
   initAuth, ouvertureInterrompueParLaConnexion, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail,
   getProfile, getProfileWho, fondateurHorsApercu, getProfileNom, selonPublic,
 } from "./auth-admin.js?v=20261114f";
-import { getEspace, getCentre, seDeconnecter } from "./auth-admin.js?v=20261114f";
+import { getEspace, getCentre, seDeconnecter, casesAffichees, peutModifier } from "./auth-admin.js?v=20261114f";
 import {
-  ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage, promosDuCentre, defautsHabillage,
+  ACCUEIL_ESPACE, routeDansLEspace, phraseHorsEspace, cleDerniereRoute, espaceDePilotage, promosDuCentre, defautsHabillage, PHRASE_PAGE_FERMEE,
 } from "./espaces-rules.js?v=20261114f";
 import { chargerEtatSignalements } from "./signalement-etat.js?v=20261114f";
 import { messageDemarrage } from "./signalement-rules.js?v=20261114f";
@@ -53,7 +53,7 @@ import { renderProblemes } from "./views/problemes.js?v=20261114f";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261114f";
 import { chargerEmargementActif, emargementActif, chargerEmargementCentre, emargementDansLeCentre } from "./emargement-etat.js?v=20261114f";
 import { chargerAutonomieActive } from "./autonomie-etat.js?v=20261114f";
-import { routeVisibleV2, entreesNavigation, initialesDe, redirectionV2, routeApresRedirection } from "./nav-rules.js?v=20261114f";
+import { routeVisibleV2, entreesNavigation, formateurPourLEmargement, initialesDe, redirectionV2, routeApresRedirection, routeFermeeParTitre } from "./nav-rules.js?v=20261114f";
 import { monterCoquille, majEntreeActive, coquilleMontee, majNouveautesCompte } from "./nav-shell.js?v=20261114f";
 import { lireAdresse, pagePersonnelle, cleQuestionnaire } from "./route-rules.js?v=20261114f";
 import { ouvrirQuestionnaireDuLien } from "./questionnaire.js?v=20261114f";
@@ -93,8 +93,10 @@ function renderTabs() {
       // Lot 5 : Émargement du centre s'allume quand une promo du centre a l'interrupteur (emargementDansLeCentre, lu au
       // démarrage) ; Réglages du centre et Réglages du réseau ont leur page (js/views/reglages-habillage.js) : leur entrée est là.
       entrees: entreesNavigation(espace, {
-        routeVisible, emargementActif: emargementActif(), formateur: isAdmin(), emargementDansLeCentre: emargementDansLeCentre(),
-        reglagesEspace: espaceDePilotage(espace),
+        routeVisible, emargementActif: emargementActif(), formateur: formateurPourLEmargement({ cases: casesAffichees(), peutModifier: peutModifier("emargement"), admin: isAdmin() }),
+        emargementDansLeCentre: emargementDansLeCentre(), reglagesEspace: espaceDePilotage(espace),
+        // Titres (étape 3) : une page à « Non » n'a pas d'entrée ; cases nul (titre fixe, fondateur, lecture ratée), la barre d'avant.
+        cases: casesAffichees(),
       }),
       nom,
       initiales: initialesDe(nom),
@@ -234,7 +236,7 @@ function derniereRoute() {
     const cible = routeApresRedirection(r, espace);
     // Une page dont le module est fermé pour la promo n'est pas une destination :
     // repli silencieux, la dernière page n'est qu'une commodité. Une page hors de l'espace non plus (D16 : l'accueil, sans phrase).
-    return routes[cible] && routeOuverte(cible) && routeDansLEspace(espace, cible) ? r : null;
+    return routes[cible] && routeOuverte(cible) && routeDansLEspace(espace, cible) && !routeFermeeParTitre(cible, espace, casesAffichees()) ? r : null;
   } catch (e) {
     return null;
   }
@@ -312,6 +314,12 @@ async function navigate({ force = false } = {}) {
   if (!routeOuverte(route)) {
     toast("Cette partie n'est pas encore ouverte pour ta promo.", "info", 3500);
     route = allerA(repli);
+  }
+  // Titres (étape 3) : une page dont la case du titre est à « Non » se ferme ici, sans appel à la base : la phrase, puis l'accueil.
+  // Cases nulles (titre fixe, fondateur, lecture ratée) : rien ne se ferme, comme avant.
+  if (routeFermeeParTitre(route, espace, casesAffichees())) {
+    toast(PHRASE_PAGE_FERMEE, "info", 3500);
+    route = allerA(accueil);
   }
   // Problèmes signalés (spec 2026-10-28) : le fondateur seulement, hors aperçu « Voir en tant que ».
   // Les autres retombent sur leur page habituelle (la garde de la page à soi suit).

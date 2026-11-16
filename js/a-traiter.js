@@ -7,7 +7,7 @@
 // sont dans js/a-traiter-rules.js ; la coquille (js/nav-shell.js) pose les pastilles.
 
 import { countQcmSignalementsOuverts, countBrouillonsIaARelire } from "./db.js?v=20261114f";
-import { isAdmin } from "./auth-admin.js?v=20261114f";
+import { isAdmin, ecritSelonLaCase } from "./auth-admin.js?v=20261114f";
 import { lireLesComptes, lecteursDeLaPastille } from "./a-traiter-rules.js?v=20261114f";
 
 // Nombre total de signalements ouverts : countQcmSignalementsOuverts les rend par QCM (les compteurs de l'index des thèmes).
@@ -18,7 +18,7 @@ const somme = (parQcm) => Object.values(parQcm || {}).reduce((total, n) => total
 // signalement ou relire une proposition. Pour les autres (direction, siège, stagiaire, « Voir en tant que » compris), rien
 // n'est lu, les deux valent null. Ne rejette jamais.
 export async function chargerATraiter() {
-  if (!isAdmin()) return { signalements: null, propositionsIA: null };
+  if (!ecritSelonLaCase("cours")) return { signalements: null, propositionsIA: null };
   return lireLesComptes(lecteursDeLaPastille({
     signalements: async () => somme(await countQcmSignalementsOuverts()),
     propositionsIA: countBrouillonsIaARelire,

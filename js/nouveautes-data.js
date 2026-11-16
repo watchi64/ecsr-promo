@@ -23,6 +23,27 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // Titres et droits à la carte, étape 3 (date provisoire, fixée à la mise en ligne). Direction et siège, au vouvoiement.
+  {
+    id: "2026-11-15-titres-ecrans-direction",
+    date: "2026-11-15",
+    pour: "direction",
+    titre: "Chacun a son titre",
+    resume: "Dans Équipe, chaque personne porte désormais son titre (Formateur, Direction de centre), dans des pastilles. "
+          + "La page réunit les personnes, l'invitation et les titres du centre. Le menu de votre compte montre votre titre et "
+          + "ce qu'il vous permet.",
+    ou: { route: "equipe", label: "Équipe" },
+  },
+  {
+    id: "2026-11-15-titres-ecrans-siege",
+    date: "2026-11-15",
+    pour: "siege",
+    titre: "Chacun a son titre",
+    resume: "Dans Directions de centre, chaque personne porte désormais son titre (Formateur, Direction de centre), dans des pastilles. "
+          + "La page réunit les personnes, l'invitation et les titres du centre. Le menu de votre compte montre votre titre et "
+          + "ce qu'il vous permet.",
+    ou: { route: "directions", label: "Directions de centre" },
+  },
   // Petits restes du 14/11 (relevés du robot) : cibles de 44 px au téléphone dans Cours et QCM, lignes de thème lisibles au
   // toucher, nom de promo long sur deux lignes. Pour tous : neutre.
   {

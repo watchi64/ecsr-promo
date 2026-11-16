@@ -4985,6 +4985,10 @@ body.qcm-open { overflow: hidden; }
 }
 .view-as-ligne:hover { background: var(--bg-elev); }
 .promo-choix-apercu { margin-top: 0.6rem; min-height: 44px; }
+/* Choix « Titre » de l'aperçu (fondateur, étape 3) : les boutons passent à la ligne, 44 px à toute taille. */
+.view-as-titre { margin-top: 0.6rem; }
+.view-as-titre-label { margin: 0 0 0.3rem; font-size: 0.82rem; }
+.view-as-titre-btn { min-height: 44px; overflow-wrap: anywhere; }
 @media (max-width: 699.98px) {
   .view-as-btn { min-height: 44px; }
 }
@@ -7642,6 +7646,40 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .equipe-case { display: flex; align-items: center; gap: 0.6rem; min-height: 44px; padding: 0 0.5rem; border-radius: var(--r-sm); cursor: pointer; overflow-wrap: anywhere; }
 .equipe-case:hover { background: var(--bg-subtle); }
 .equipe-case input { width: 20px; height: 20px; flex: none; margin: 0; }
+/* Titres et droits à la carte (étape 3, Task 31) : personnes, invitation, titres du centre, éditeur de titre, journal. */
+.equipe-pastilles { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.equipe-centre .centre-defile { overflow-x: visible; }
+.equipe-sous-titre { margin: 1rem 0 0.25rem; font-size: 1rem; }
+.equipe-cadenas { display: inline-flex; color: var(--text-soft); }
+.equipe-cadenas svg { width: 16px; height: 16px; }
+.equipe-inviter { display: flex; flex-direction: column; gap: 0.9rem; max-width: 34rem; }
+.equipe-inviter .field { margin: 0; min-width: 0; }
+.equipe-inviter input[type="email"], .equipe-inviter select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.equipe-inviter [hidden] { display: none; }
+.equipe-apercu h4, .equipe-barre h4 { margin: 0 0 0.35rem; font-size: 0.9rem; }
+.equipe-droits { margin: 0 0 0.4rem; padding-left: 1.1rem; font-size: 0.9rem; }
+.equipe-formulaire-actions { display: flex; }
+.equipe-formulaire-actions .btn { display: inline-flex; align-items: center; gap: 0.35rem; }
+.equipe-formulaire-actions .btn { min-height: 44px; }
+.equipe-formulaire-actions .btn svg { width: 16px; height: 16px; flex: none; }
+.equipe-pages { display: flex; flex-direction: column; gap: 0.4rem; }
+.equipe-page { margin: 0; padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: var(--r-sm); min-width: 0; }
+.equipe-page legend { padding: 0 0.3rem; font-size: 0.9rem; font-weight: 600; color: var(--text); }
+.equipe-choix-groupe { display: flex; flex-wrap: wrap; gap: 0.25rem 0.5rem; }
+.equipe-choix { display: inline-flex; align-items: center; gap: 0.45rem; min-height: 44px; min-width: 44px; padding: 0 0.6rem; border-radius: var(--r-sm); cursor: pointer; }
+.equipe-choix:hover { background: var(--bg-subtle); }
+.equipe-choix input { width: 20px; height: 20px; flex: none; margin: 0; }
+.equipe-releve:empty { display: none; }
+.equipe-releve, .equipe-bandeau, .equipe-porteurs { margin: 0; padding: 0.55rem 0.75rem; border-radius: var(--r-sm); font-size: 0.88rem; overflow-wrap: anywhere; }
+.equipe-releve { background: var(--accent-soft); color: var(--accent-strong); }
+.equipe-bandeaux { display: flex; flex-direction: column; gap: 0.4rem; }
+.equipe-bandeau { background: var(--c-wait-soft); color: var(--text); }
+.equipe-porteurs { background: var(--bg-soft); color: var(--text); }
+.equipe-barre-liste { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.equipe-barre-liste li { padding: 0.2rem 0.6rem; border-radius: 8px; background: var(--bg-soft); color: var(--text-soft); font-size: 0.85rem; }
+.equipe-journal summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.equipe-journal-liste { margin: 0.4rem 0 0; padding-left: 1.1rem; font-size: 0.9rem; overflow-wrap: anywhere; }
+.equipe-journal-liste li { margin: 0.25rem 0; }
 @media screen and (max-width: 1079.98px) {
   .equipe-table .liste-actions { order: 5; flex-basis: 100%; margin-left: 0; }
   .equipe-actions { justify-content: flex-start; }

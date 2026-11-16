@@ -10,7 +10,7 @@ import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
 } from "./promo-rules.js?v=20261114f";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261114f";
+import { ENTETE_APERCU, ENTETE_APERCU_TITRE, titreSimule, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261114f";
 import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261114f";
 import { effectifDesFiches } from "./centre-stats.js?v=20261114f";
 import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261114f";
@@ -27,6 +27,7 @@ let basculeEnCours = false;  // une seule bascule à la fois (double appui, deux
 let requetesBloquees = false; // rechargement décidé : plus aucune requête de données ne part
 let apercuEnvoye = null;     // aperçu de rôle en cours (x-apercu-role) ; nul hors aperçu
 let apercuDuFondateur = false; // l'aperçu est celui du fondateur (vitrine de la promo de démonstration, js/vitrine-rules.js)
+let titreEnvoye = null;      // titre simulé de l'aperçu du fondateur (x-apercu-titre, titres étape 3) ; nul sans titre choisi
 const avantBascule = new Set();
 
 function cheminDe(url) {
@@ -83,6 +84,10 @@ function fetchWithTimeout(input, init = {}) {
     });
     if (refus) return Promise.resolve(reponseDeRefus(refus));
     if (apercuPose) entetes.set(ENTETE_APERCU, apercuPose); else entetes.delete(ENTETE_APERCU);
+    // Le titre simulé voyage avec l'aperçu qu'il précise, jamais seul (la base l'ignore hors aperçu formateur, direction ou siège du
+    // fondateur : migration 8, apercu_titre).
+    if (apercuPose && titreEnvoye != null && apercuPose === apercuEnvoye) entetes.set(ENTETE_APERCU_TITRE, titreEnvoye);
+    else entetes.delete(ENTETE_APERCU_TITRE);
     if (promo != null || demandee != null || apercuEnvoye) options = { ...init, headers: entetes };
   }
   const controller = new AbortController();
@@ -184,11 +189,15 @@ export function getMesPromos() { return mesPromos; }
 
 // Pose (ou retire, avec null) l'aperçu de rôle envoyé dans l'en-tête x-apercu-role. Une valeur inconnue
 // retire l'aperçu. Les données déjà en mémoire ont été lues sous l'ancien aperçu : on les oublie.
-export function poserApercu(role, { fondateur = false } = {}) {
+// Titres (étape 3) : `titreId`, le titre simulé (en-tête x-apercu-titre), au fondateur seul et pour les aperçus formateur, direction et
+// siège ; ailleurs il est ignoré. Changer de titre vide le cache comme un changement d'aperçu.
+export function poserApercu(role, { fondateur = false, titreId = null } = {}) {
   const nouveau = normaliserApercu(role);
   apercuDuFondateur = fondateur === true;
-  if (nouveau === apercuEnvoye) return;
+  const titre = titreSimule({ apercu: nouveau, fondateur: apercuDuFondateur, titreId });
+  if (nouveau === apercuEnvoye && titre === titreEnvoye) return;
   apercuEnvoye = nouveau;
+  titreEnvoye = titre;
   recalculerPromosVisibles();
   invalidateCache();
 }
@@ -360,6 +369,106 @@ export async function retirerTitre({ email, titreId, lieuId }) {
   return data;
 }
 
+// ----- Titres et droits à la carte (étape 3) : lectures et gestes. La base décide (migrations 6 à 8) ; chaque refus part par
+// erreurDeBase (préfixe « titres: », 42501 sans droit, PGRST202 fonction absente) : l'appelant le dit par phraseDeRefus.
+
+// Les titres de la personne connectée (mes_titres) : [{ titre_id, nom, niveau, lieu_id, lieu_nom, promo_ids, cases }], cases en
+// chaînes « non », « voir », « modifier ». En aperçu, le titre simulé seul (aucun en aperçu stagiaire).
+export async function lireMesTitres() {
+  const { data, error } = await supabase.rpc("mes_titres");
+  if (error) throw erreurDeBase(error);
+  return Array.isArray(data) ? data : [];
+}
+
+// Les titres d'un centre (lieuId) ou du réseau (lieuId nul) : [{ id, nom, niveau, lieu_id, fixe, origine_id, cases, porteurs, donnable }].
+export async function lireTitresVisibles(lieuId) {
+  const { data, error } = await supabase.rpc("titres_visibles", { p_lieu_id: lieuId ?? null });
+  if (error) throw erreurDeBase(error);
+  return Array.isArray(data) ? data : [];
+}
+
+// Les titres que la personne peut ajuster et supprimer, dans un centre ou au réseau (lieuId nul) : leurs identifiants.
+export async function lireTitresAjustables(lieuId) {
+  const { data, error } = await supabase.rpc("titres_ajustables", { p_lieu_id: lieuId ?? null });
+  if (error) throw erreurDeBase(error);
+  return new Set((Array.isArray(data) ? data : []).map((l) => Number(l.id)));
+}
+
+// Qui porte quoi : pour une promo (promoId), un centre (lieuId) ou le réseau (les deux nuls) :
+// [{ email, titre_id, titre_nom, niveau, lieu_id, promo_ids }].
+export async function lirePersonnesEtTitres({ lieuId = null, promoId = null } = {}) {
+  const { data, error } = await supabase.rpc("personnes_et_titres", { p_lieu_id: lieuId ?? null, p_promo_id: promoId ?? null });
+  if (error) throw erreurDeBase(error);
+  return Array.isArray(data) ? data : [];
+}
+
+// Le journal des droits d'un centre (lieuId) ou du réseau (nul) ; vide tant que la migration du journal n'est pas appliquée.
+export async function lireJournalDesDroits(lieuId) {
+  const { data, error } = await supabase.rpc("journal_des_droits", { p_lieu_id: lieuId ?? null });
+  if (error) throw erreurDeBase(error);
+  return Array.isArray(data) ? data : [];
+}
+
+// La table du journal existe-t-elle (journal_present) ? L'écran n'affiche la section Journal que si oui. Fonction absente (base non
+// migrée) ou erreur de lecture : faux, la section n'apparaît pas.
+export async function lireJournalPresent() {
+  try {
+    const { data, error } = await supabase.rpc("journal_present");
+    if (error) return false;
+    return data === true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Donne un titre (donner_titre : invite au besoin, remplace l'ancien titre au même niveau). `promoIds` pour un titre de promo,
+// `profId` (fiche formateur) pour le seul titre Formateur. Rend { email, titre_id, cree, transforme, remplace, ajoutees, retirees }.
+export async function donnerTitre({ email, titreId, lieuId, promoIds = null, profId = null }) {
+  const { data, error } = await supabase.rpc("donner_titre", {
+    p_email: email, p_titre_id: titreId, p_lieu_id: lieuId ?? null, p_promo_ids: promoIds ?? null, p_prof_id: profId ?? null,
+  });
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
+// Crée un titre à partir d'un autre (ses cases), dans un centre (lieuId) ou au réseau (nul). Rend l'identifiant du nouveau titre.
+export async function creerTitre({ depuis, nom, lieuId }) {
+  const { data, error } = await supabase.rpc("creer_titre", { p_depuis: depuis, p_nom: nom, p_lieu_id: lieuId ?? null });
+  if (error) throw erreurDeBase(error);
+  if (!Number.isInteger(Number(data))) throw new Error("titres: Le titre n'a pas été créé.");
+  return Number(data);
+}
+
+// Ajuste un titre (nom nul : inchangé ; cases en chaînes « non », « voir », « modifier »). Un titre du réseau ajusté depuis un centre y
+// crée sa version. Rend { titre_id, version_creee, porteurs_bascules }.
+export async function ajusterTitre({ titreId, lieuId, nom, cases }) {
+  const { data, error } = await supabase.rpc("ajuster_titre", {
+    p_titre_id: titreId, p_lieu_id: lieuId ?? null, p_nom: nom ?? null, p_cases: cases,
+  });
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
+// Supprime un titre que personne ne porte.
+export async function supprimerTitre(titreId) {
+  const { error } = await supabase.rpc("supprimer_titre", { p_titre_id: titreId });
+  if (error) throw erreurDeBase(error);
+}
+
+// Le verrou des titres non fixes (titres_ouverts) : vrai quand le fondateur l'a levé.
+export async function lireTitresOuverts() {
+  const { data, error } = await supabase.rpc("titres_ouverts");
+  if (error) throw erreurDeBase(error);
+  return data === true;
+}
+
+// Lève (vrai) ou ferme (faux) le verrou ; fondateur seul, hors aperçu. Rend l'état.
+export async function reglerTitresOuverts(ouvert) {
+  const { data, error } = await supabase.rpc("regler_titres_ouverts", { p_ouvert: !!ouvert });
+  if (error) throw erreurDeBase(error);
+  return data === true;
+}
+
 // Crée un centre (creer_centre : siège seul, nom non vide, pas de doublon) et rend son identifiant. Les refus partent tels quels
 // (préfixe « centre: », 42501 sans droit, PGRST202 fonction absente) : l'appelant les dit par phraseDeRefus.
 export async function creerCentre(nom) {
@@ -477,18 +586,6 @@ export async function lireFichesFormateurLibres() {
   ]);
   const prises = new Set(comptes.map((u) => u.prof_id).filter((x) => x != null));
   return profs.filter((f) => !prises.has(f.id)).map((f) => ({ id: f.id, nom: f.nom }));
-}
-
-// La direction règle les promos d'un formateur de son centre (regler_affectations_formateur : liste vide = retiré du centre ; compte
-// absent = profil créé). Rend { email, cree, ajoutees, retirees }. Les refus de la base partent tels quels (préfixe « equipe: »,
-// 42501 sans droit, PGRST202 fonction absente) : l'appelant les dit par phraseDeRefus.
-export async function reglerAffectationsFormateur({ email, lieuId, promoIds, profId }) {
-  const { data, error } = await supabase.rpc("regler_affectations_formateur", {
-    p_email: email, p_lieu_id: lieuId, p_promo_ids: promoIds, p_prof_id: profId ?? null,
-  });
-  if (error) throw erreurDeBase(error);
-  if (!data || typeof data !== "object") throw new Error("equipe: La base n'a rien répondu.");
-  return data;
 }
 
 // Habillage par défaut (lot 5) : { centre, libre, reseau } pour le compte connecté (habillage_par_defaut() : le centre de la promo

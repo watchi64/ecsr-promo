@@ -54,6 +54,16 @@
 //                              groupe qui dépend de la migration 5 ou 6 ;
 //   gestion-en-ligne           la même sans rien d'injecté, après l'application réelle (un groupe dont la fonction manque est
 //                              sauté, avec une ligne d'information).
+//   suite [--etapes 7|7,8|7,8,9|8|8,9|9|4,9|4]  preuve de l'étape 3 du chantier (tests/sql/titres-suite-preuve.sql), jouée sur la base de
+//                              la production (outils/base_locale/rejouer_suite.sh --production : titres 1, 2, 3, 5, 6) : les migrations
+//                              demandées (7, 8 et 9 par défaut ; 4,9 : le journal puis le catalogue, l'essai à blanc de l'étape 4)
+//                              puis leurs retours (9, 8, 7, 4) ; la 4 s'injecte juste avant la 9. Les étapes non demandées sont
+//                              neutralisées et non lues ; une étape demandée dont un fichier manque arrête l'assemblage ; une suite qui
+//                              commence après la 7 suppose les précédentes déjà appliquées (la preuve le vérifie et refuse sinon) ;
+//   suite-contre-epreuve       la même preuve sans aucune migration ni retour (neutralisés, non lus) : chaque groupe est joué, ROUGE
+//                              attendu sur ceux dont la migration manque ;
+//   suite-en-ligne             la même sans rien d'injecté, après l'application réelle (un groupe dont la migration manque est
+//                              sauté, avec une ligne d'information).
 //
 // Option --compact (tous les modes) : retire du gabarit et des aides les lignes vides et les lignes de commentaire, pour
 // une requête plus courte à transmettre (R27). Les textes injectés (migrations, retours, requête d'empreinte) restent
@@ -79,6 +89,7 @@ const GABARIT_ESPACES = "tests/sql/espaces-preuve.sql";
 const GABARIT_DONNEES = "tests/sql/espaces-donnees-preuve.sql";
 const GABARIT_TITRES = "tests/sql/titres-preuve.sql";
 const GABARIT_GESTION = "tests/sql/titres-gestion-preuve.sql";
+const GABARIT_SUITE = "tests/sql/titres-suite-preuve.sql";
 
 /** Lot 5, étape 1 : la migration du siège et son retour. */
 export const MIGRATION_ESPACES = { migration: "supabase/migrations/20261108_espaces_1_siege.sql",
@@ -134,6 +145,24 @@ const SUITES_GESTION = [[5], [6], [5, 6], [4, 5, 6]];
 const SUITE_PAR_DEFAUT_GESTION = [5, 6];
 const TOUS_GESTION = NUMEROS_GESTION.flatMap((n) => [ETAPES_GESTION[n].migration, ETAPES_GESTION[n].retour]);
 
+/** Étape 3 du chantier : la preuve de la suite injecte les migrations 7 (correctifs), 8 (aperçu par titre), 9 (catalogue) et,
+ *  pour l'essai à blanc de l'étape 4, la 4 (journal), juste avant la 9. */
+export const ETAPES_SUITE = {
+  4: ETAPES_TITRES[4],
+  7: { migration: "supabase/migrations/20261115_titres_7_correctifs.sql",
+       retour: "supabase/migrations/20261115_titres_7_correctifs_retour.sql" },
+  8: { migration: "supabase/migrations/20261115_titres_8_apercu.sql",
+       retour: "supabase/migrations/20261115_titres_8_apercu_retour.sql" },
+  9: { migration: "supabase/migrations/20261115_titres_9_catalogue.sql",
+       retour: "supabase/migrations/20261115_titres_9_catalogue_retour.sql" },
+};
+const NUMEROS_SUITE = [7, 8, 4, 9]; // l'ordre d'application : la 4 juste avant la 9
+/** Les suites admises : 7, 8, 9 s'appliquent dans cet ordre (une suite qui commence après la 7 suppose les précédentes en place) ;
+ *  4,9 est l'essai à blanc de l'étape 4 (journal, puis catalogue), sur une base où 7 et 8 sont appliquées. */
+const SUITES_SUITE = [[7], [7, 8], [7, 8, 9], [8], [8, 9], [9], [4, 9], [4]];
+const SUITE_PAR_DEFAUT = [7, 8, 9];
+const TOUS_SUITE = NUMEROS_SUITE.flatMap((n) => [ETAPES_SUITE[n].migration, ETAPES_SUITE[n].retour]);
+
 /** Les modes : le gabarit et, soit les injections à neutraliser (preuve de l'étape 1), soit les étapes à injecter
  *  (preuve rôle par rôle, les autres étapes étant neutralisées). */
 export const MODES = {
@@ -168,6 +197,10 @@ export const MODES = {
   "gestion": { gabarit: GABARIT_GESTION, gestion: true, etapesAuChoix: true },
   "gestion-contre-epreuve": { gabarit: GABARIT_GESTION, neutres: TOUS_GESTION, libelle: "gestion-contre-epreuve (aucune migration injectee)" },
   "gestion-en-ligne": { gabarit: GABARIT_GESTION, neutres: TOUS_GESTION, libelle: "gestion-en-ligne (aucune migration injectee)" },
+  // Étape 3 du chantier : preuve à part (tests/sql/titres-suite-preuve.sql), jouée sur la base de la production (rejouer_suite.sh --production).
+  "suite": { gabarit: GABARIT_SUITE, suite: true, etapesAuChoix: true },
+  "suite-contre-epreuve": { gabarit: GABARIT_SUITE, neutres: TOUS_SUITE, libelle: "suite-contre-epreuve (aucune migration injectee)" },
+  "suite-en-ligne": { gabarit: GABARIT_SUITE, neutres: TOUS_SUITE, libelle: "suite-en-ligne (aucune migration injectee)" },
   "espaces-en-ligne": { gabarit: GABARIT_ESPACES,
                         neutres: [MIGRATION_ESPACES.migration, MIGRATION_ESPACES.retour, MIGRATION_ESPACES_2.migration, MIGRATION_ESPACES_2.retour,
                                   MIGRATION_ESPACES_3.migration, MIGRATION_ESPACES_3.retour],
@@ -237,7 +270,7 @@ export function decrireMode(mode, { etapes } = {}) {
   const d = MODES[mode];
   if (!d) throw new Error(`Mode inconnu « ${mode} » (modes : ${Object.keys(MODES).join(", ")}).`);
   if (etapes !== undefined && !d.etapesAuChoix) {
-    throw new Error(`--etapes ne vaut que pour le mode repetition, titres ou gestion (mode demandé : ${mode}).`);
+    throw new Error(`--etapes ne vaut que pour le mode repetition, titres, gestion ou suite (mode demandé : ${mode}).`);
   }
   if (d.gestion) {
     const choisies = etapes ?? SUITE_PAR_DEFAUT_GESTION;
@@ -245,6 +278,13 @@ export function decrireMode(mode, { etapes } = {}) {
       throw new Error(`étapes refusées : « ${choisies.join(",")} » (attendu : 5, 6, 5,6 ou 4,5,6 ; la 6 seule suppose la 5 déjà appliquée sur la base, la 4 demande la 5 et la 6).`);
     }
     return { gabarit: d.gabarit, gestion: true, etapesGestion: choisies, neutres: [], etapes: null, mode: null, requis: [] };
+  }
+  if (d.suite) {
+    const choisies = etapes ?? SUITE_PAR_DEFAUT;
+    if (!SUITES_SUITE.some((suite) => suite.join(",") === choisies.join(","))) {
+      throw new Error(`étapes refusées : « ${choisies.join(",")} » (attendu : 7, 7,8, 7,8,9, 8, 8,9, 9, 4,9 ou 4 ; 7, 8 et 9 s'appliquent dans cet ordre, une suite qui commence après la 7 suppose les précédentes déjà appliquées sur la base ; 4,9 : le journal puis le catalogue ; 4 seule : le journal sur une base où la 9 est déjà appliquée).`);
+    }
+    return { gabarit: d.gabarit, suite: true, etapesSuite: choisies, neutres: [], etapes: null, mode: null, requis: [] };
   }
   if (d.titres) {
     if (etapes !== undefined && !etapesValides(etapes, NB_ETAPES_TITRES)) {
@@ -440,6 +480,18 @@ export function assemblerMode(mode, racine = RACINE, { etapes, lire, compact = f
     libelle = decrit.etapesGestion.join(",") === "6"
       ? "gestion (etape 6 seule, la 5 en place)" // essai à blanc : la 5 est DÉJÀ appliquée sur la base, la preuve le vérifie et refuse sinon
       : `gestion (${decrit.etapesGestion.length === 1 ? "etape" : "etapes"} ${decrit.etapesGestion.join(", ")} injectees)`;
+  }
+  if (decrit.suite) {
+    // Comme gestion : les étapes demandées se lisent (un fichier manquant arrête l'assemblage), les autres sont neutralisées sans être lues.
+    for (const n of decrit.etapesSuite) {
+      for (const chemin of [ETAPES_SUITE[n].migration, ETAPES_SUITE[n].retour]) {
+        if (lireFichier(chemin) == null) {
+          throw new Error(`Étape ${n} demandée (${mode}) : ${chemin} n'existe pas encore. En attendant : mode suite-contre-epreuve, ou suite-en-ligne sur une base où elle est appliquée.`);
+        }
+      }
+    }
+    neutres = NUMEROS_SUITE.filter((n) => !decrit.etapesSuite.includes(n)).flatMap((n) => [ETAPES_SUITE[n].migration, ETAPES_SUITE[n].retour]);
+    libelle = `suite (${decrit.etapesSuite.length === 1 ? "etape" : "etapes"} ${decrit.etapesSuite.join(", ")} injectees)`;
   }
   if (decrit.titres) {
     // Étapes injectées : celles qu'on a demandées (un fichier manquant arrête alors l'assemblage), sinon celles dont la

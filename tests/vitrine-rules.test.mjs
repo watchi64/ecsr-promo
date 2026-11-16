@@ -129,7 +129,7 @@ test("profil du compte : la promo courante ne porte jamais la fiche empruntée, 
 
 test("sortie de la vitrine : les requêtes sont coupées et l'app se recharge avant tout changement d'aperçu", () => {
   const auth = lire("../js/auth-admin.js");
-  const changer = auth.slice(auth.indexOf("export function setViewAs(role)"), auth.indexOf("export function getProfileWho()"));
+  const changer = auth.slice(auth.indexOf("export async function setViewAs(role"), auth.indexOf("export function getProfileWho()"));
   const sortie = changer.slice(changer.indexOf("if (enVitrine() && nouveau !== viewAs) {"));
   assert.ok(sortie.length > 0 && changer.indexOf("if (enVitrine() && nouveau !== viewAs) {") > 0, "la branche de sortie existe");
   const fin = sortie.indexOf("return;");
@@ -144,7 +144,7 @@ test("sortie de la vitrine : les requêtes sont coupées et l'app se recharge av
   const relu = auth.slice(auth.indexOf("function loadViewAs()"), auth.indexOf("function oublierApercu()"));
   assert.match(relu, /if \(enVitrine\(\) && \(permis \? role : null\) !== viewAs\) \{\s*sortirDeLaVitrine\(/);
   assert.ok(relu.indexOf("sortirDeLaVitrine(") < relu.indexOf("appliquerApercu("), "avant de changer d'aperçu");
-  assert.ok(changer.indexOf("if (enVitrine() && nouveau !== viewAs) {") < changer.indexOf("appliquerApercu(nouveau);"),
+  assert.ok(changer.indexOf("if (enVitrine() && nouveau !== viewAs) {") < changer.indexOf("appliquerApercu(nouveau, titreId);"),
     "la sortie est décidée avant de changer d'aperçu");
 });
 
@@ -178,12 +178,15 @@ test("câblage : toute requête de données passe par la règle, et les tentativ
   assert.match(passage, /requeteDeDonnees\(\{\s*promoId: promo === promoCouranteId \? promo : null, apercu: apercuEnvoye, fondateur: apercuDuFondateur,\s*methode, chemin: cheminDe\(url\),?\s*\}\)/);
   assert.match(passage, /if \(refus\) return Promise\.resolve\(reponseDeRefus\(refus\)\);/);
   assert.ok(passage.indexOf("if (refus) return") < passage.indexOf("return fetch("), "le refus précède l'appel au réseau");
-  assert.equal((passage.match(/entetes\.set\(ENTETE_APERCU/g) || []).length, 1, "un seul endroit pose l'en-tête d'aperçu");
+  assert.equal((passage.match(/entetes\.set\(ENTETE_APERCU,/g) || []).length, 1, "un seul endroit pose l'en-tête d'aperçu");
+  // Le titre simulé (titres, étape 3) : posé au même endroit, seulement avec l'aperçu qu'il précise.
+  assert.equal((passage.match(/entetes\.set\(ENTETE_APERCU_TITRE,/g) || []).length, 1, "un seul endroit pose l'en-tête du titre simulé");
+  assert.match(passage, /if \(apercuPose && titreEnvoye != null && apercuPose === apercuEnvoye\) entetes\.set\(ENTETE_APERCU_TITRE, titreEnvoye\);\s*else entetes\.delete\(ENTETE_APERCU_TITRE\);/);
   assert.match(passage, /if \(apercuPose\) entetes\.set\(ENTETE_APERCU, apercuPose\); else entetes\.delete\(ENTETE_APERCU\);/);
   // Le drapeau « fondateur » ne vient que de poserApercu, appelé par auth-admin.js avec le profil réel.
   assert.equal((db.match(/apercuDuFondateur = /g) || []).length, 2, "une déclaration et une seule affectation");
   assert.match(db, /apercuDuFondateur = fondateur === true;/);
-  assert.match(lire("../js/auth-admin.js"), /poserApercu\(role, \{ fondateur: isFounder\(\) \}\);/);
+  assert.match(lire("../js/auth-admin.js"), /poserApercu\(role, \{ fondateur: isFounder\(\), titreId: titre \}\);/);
   // Tentatives de QCM : refus dans la fonction d'écriture, lectures « mes lignes » limitées à la fiche montrée.
   const insertion = db.slice(db.indexOf("export async function insertQcmAttempt"), db.indexOf("async function ecrireExamen"));
   assert.match(insertion, /if \(stagiaireVitrineCourante\(\) != null \|\| \(promo && ficheEmpruntee\(payload\?\.stagiaire_id, promo\.stagiaire_id \?\? null\)\)\) \{\s*throw new Error\(MESSAGE_VITRINE\);/);

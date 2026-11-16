@@ -41,8 +41,21 @@ qu'elle fait est annulé. Modes : voir l'en-tête de `outils/assembler_repetitio
 ## Rejouer la suite
 
 ```
-bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3]
+bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3] [--autonomie 1|1,2] [--production]
 ```
+
+**L'état de la production (14/11) : `--production`**, dans l'ordre où elle l'a reçu : titres 1, 2, 3, contacts,
+`20261111_conservation_direction`, titres 5 et 6, l'e-learning 1 et 2, puis les petits restes du 14/11, `20261114_restes_1_conditions`
+(`conditions_version_publiee()`, `accepter_conditions` durcie ; après l'e-learning, dont elle contrôle la version) et
+`20261114_restes_2_truncate` (TRUNCATE retiré à `anon` et `authenticated` : aucune preuve ne vide une table sous ces rôles), puis
+`20261114_jury_resultats` (résultats du jury, en production depuis c1883cc5), puis `20261115_titres_7_correctifs` et
+`20261115_titres_8_apercu` (migrations 7 et 8 des titres, appliquées en production le 14/11 : `suite --etapes 7` et `suite --etapes 8`
+y sont donc refusés, jouer `suite --etapes 9` quand la migration 9 existe, ou `suite-en-ligne`) (sortie
+`OK : suite rejouée (29 migrations)` ; ne se combine pas avec `--titres`). `--titres` cherche `2026111?_titres_<n>_*` (n de 1 à 9, date quelconque du 10 au 19/11 :
+les migrations 7, 8 et 9 de l'étape 3 sont datées du 15/11). `--autonomie 1` joue, après les contacts,
+`20261114_autonomie_1_traces` ; `--autonomie 1,2` y ajoute `20261114_autonomie_2_version` avec `-v version=2026-11-14` (la version
+des conditions en production). Sans `--titres`, `--autonomie` ni `--production`, la sortie reste celle d'avant (16 migrations : les
+quatorze ci-dessous et les deux des contacts), ce que supposent les en-têtes des preuves de l'e-learning.
 
 À lancer juste après `reconstruire.sh` : applique, avec `psql -1 -v ON_ERROR_STOP=1`, les quatorze migrations postérieures au
 lot 4 (`20261108_espaces_1_siege` à `20261111_espaces_4_donnees`, puis `20261110_navigation_unique_1_reglages`, `_2_menage`,
@@ -80,3 +93,36 @@ Sur une base `--titres 1,2,3` (l'état de la production), `node outils/assembler
 la 5, la 4 demande les deux). `gestion-contre-epreuve` (rien d'injecté, ROUGE attendu sur les groupes des migrations 5 et 6) et
 `gestion-en-ligne` (rien d'injecté, après application réelle ; un groupe dont la fonction n'existe pas encore est sauté avec une ligne
 d'information) complètent les modes. Les aides communes à la preuve de l'étape 1 et à celle-ci sont dans `tests/sql/titres-aides.sql`.
+
+## Preuves de l'étape 3 du chantier « titres et droits à la carte »
+
+Sur une base `--production`, `node outils/assembler_repetition_roles.mjs suite [--etapes 7|7,8|7,8,9|8|8,9|9|4,9] <sortie.sql>` assemble
+`tests/sql/titres-suite-preuve.sql` : les migrations demandées (7, 8 et 9 par défaut) puis leurs retours (9, 8, 7, 4) ; `4,9` est
+l'essai à blanc de l'étape 4 (le journal injecté juste avant le catalogue). Une suite qui commence après la 7 suppose les migrations
+précédentes déjà appliquées sur la base : la preuve le vérifie et refuse sinon. `suite-contre-epreuve` (rien d'injecté, chaque groupe
+joué) et `suite-en-ligne` (rien d'injecté, après application réelle ; un groupe dont la migration manque est sauté avec une information)
+complètent les modes. Les personnages de l'étape 2 (`poser_titres_gestion`) et le retrait des titres non fixes avant les retours
+(`retirer_titres_non_fixes`, garde D5) sont dans `tests/sql/titres-gestion-aides.sql`, inclus par les preuves de gestion et de la suite.
+
+Le groupe `journal_suite` (le journal des droits, migration `20261112_titres_4_journal`, jouée juste avant la 9) demande la table `journal_droits` : `suite --etapes 4,9` le joue (l'essai à blanc de l'étape 4, VERT 211/0) ; `suite --etapes 9` et `suite-en-ligne` sur la base `--production` (sans la 4) le sautent avec une information ; `suite-contre-epreuve` le joue même sans la table et sort ROUGE sur lui. Il ne se joue pas sur une base où la 4 est déjà appliquée sans la 9 injectée pour les six lignes du catalogue (non jugeables, information).
+
+D4 (une seule version de centre par titre du réseau) se prouve aussi à deux sessions, ce qu'un bloc unique ne peut pas montrer :
+`bash tests/sql/titres-concurrence.sh --port <port> [--cas 1,2,3,4]`, sur la base locale seulement (garde : 127.0.0.1, comptes
+`@local.test`, sinon code 3 ; données fictives validées puis retirées). Attendu : VERT 17/0 avec la migration 7 ; ROUGE 10/7 sans elle ;
+ROUGE avec la migration 7 privée de ses verrous (l'index garde une version, mais le second ajustement doit passer) ; INCOMPLET (code 2)
+si la première session n'atteint pas son attente dans le délai.
+
+Verdicts de départ de l'étape 3 (base `--production`, alors 24 migrations, sans les restes du 14/11), dans `.base-locale/verdicts/avant-3/` : titres en ligne VERT 375/0,
+gestion en ligne VERT 335/0, rôles en ligne VERT 11986/0, espaces en ligne VERT 240/0, données en ligne VERT 59/0, EPCF VERT 17/0,
+profils VERT 32/0, contacts en ligne VERT 43/0, questionnaires VERT 207/0, registre qualité VERT 128/0, conservation VERT 227/0,
+habillage VERT 20/0, conservation de la direction (`tests/sql/conservation-direction-preuve.sql`, migration déjà appliquée) VERT
+93/0, e-learning (`tests/sql/autonomie-preuve.sql`) VERT 146/0 ; `tests/sql/autonomie-version-preuve.sql`, qui exige la
+migration 2 de l'e-learning non appliquée, sur une base `--titres 1,2,3,5,6 --autonomie 1` : VERT 23/0.
+Avec les restes du 14/11 (base `--production`, 26 migrations), dans `.base-locale/verdicts/avant-3-restes/` : les quatorze mêmes
+preuves aux mêmes comptes, plus `tests/sql/truncate-preuve.sql` VERT 7/0 et `tests/sql/conditions-acceptations-preuve.sql` VERT 12/0
+(jouées seules, migrations déjà appliquées).
+Avec les résultats du jury (base `--production`, 27 migrations), dans `.base-locale/verdicts/avant-7-jury/` : les quatorze mêmes
+preuves, aux mêmes comptes sauf rôles en ligne VERT 12214/0 (la table `jury_resultats` entre dans la matrice), plus
+`tests/sql/jury-preuve.sql` (`node outils/assembler_preuve_jury.mjs en-ligne`) VERT 53/0.
+Avec la migration 7 (base `--production`, 28 migrations), dans `.base-locale/verdicts/apres-7-jury/` : les mêmes comptes, plus
+`suite-en-ligne` VERT 74/0.

@@ -9,12 +9,23 @@
  * `is_admin` et `role` du profil, comme avant le lot 4.
  */
 import { phraseDeRefus, PHRASE_ECHEC } from "./espaces-rules.js?v=20261114f";
+import { formateurFixeSur } from "./titres-rules.js?v=20261114f";
 
 // Les aperçus : un fondateur les a tous, un membre de l'équipe a celui du stagiaire. Un aperçu ne fait que
 // RETIRER des droits : une valeur hors de la liste permise est ignorée.
 export const APERCUS = ["formateur", "direction", "siege", "stagiaire"];
 export const LIBELLES_APERCU = { formateur: "Formateur", direction: "Direction", siege: "Siège", stagiaire: "Stagiaire" };
 export const ENTETE_APERCU = "x-apercu-role";
+// Titres (étape 3, migration 8) : l'aperçu du fondateur par titre ; l'identifiant du titre simulé, envoyé avec x-apercu-role.
+export const ENTETE_APERCU_TITRE = "x-apercu-titre";
+// Les aperçus qui acceptent un titre simulé, et le filtre unique du titre (db.js l'envoie, auth-admin.js le retient) : au fondateur
+// seul, pour ces trois aperçus, un identifiant en chiffres seuls (1 à 18, comme apercu_titre en base). Rend la chaîne, ou null.
+export const APERCUS_PAR_TITRE = ["formateur", "direction", "siege"];
+export function titreSimule({ apercu, fondateur, titreId } = {}) {
+  if (fondateur !== true || !APERCUS_PAR_TITRE.includes(apercu) || titreId == null) return null;
+  const texte = String(titreId);
+  return /^[0-9]{1,18}$/.test(texte) ? texte : null;
+}
 
 // Valeur mémorisée ou saisie vers un aperçu connu. L'ancienne valeur « prof » se lit « formateur » ;
 // « admin » (le fondateur sans aperçu) et tout inconnu donnent null.
@@ -27,9 +38,17 @@ function rolesDe(promo) {
   return promo && Array.isArray(promo.roles) ? promo.roles : null;
 }
 
+// Le titre de promo de la personne sur la promo affichée est-il le titre fixe Formateur (M5) ? `titres` : lignes de mes_titres ;
+// nul (lecture ratée, fonction absente, pas encore lue) : oui, comme avant les titres ; la base refuse de toute façon ce qui dépasse.
+function formateurFixe(titres, promo) {
+  return formateurFixeSur(titres, promo && promo.id != null ? promo.id : null) !== false;
+}
+
 // Droits réels, hors aperçu. `equipe` : administrateur, formateur ou direction sur la promo affichée (ceux qui lisent
-// la promo entière et gèrent ses stagiaires, ses modules et son équipe).
-function droitsReels(profil, promo) {
+// la promo entière et gèrent ses stagiaires, ses modules et son équipe). Titres (M5) : `admin` (écrire comme un formateur) exige
+// le titre fixe Formateur sur la promo ; un autre titre de promo (Intervenant...) garde l'espace et la lecture de l'équipe, ses
+// écritures suivent ses cases (peutModifier, js/auth-admin.js).
+function droitsReels(profil, promo, titres = null) {
   if (!profil) return { admin: false, prof: false, stagiaire: false, equipe: false, direction: false };
   const roles = rolesDe(promo);
   if (roles) {
@@ -38,12 +57,13 @@ function droitsReels(profil, promo) {
     const siege = roles.includes("siege");
     // Le fondateur est administrateur (is_admin) ; un drapeau de fondateur sans is_admin n'ouvre pas l'espace de l'équipe,
     // comme avant le lot 4 (le banc a un tel compte, l'aperçu du fondateur lui reste ouvert).
-    const admin = (!!profil.is_founder && !!profil.is_admin) || formateur;
+    const fondateur = !!profil.is_founder && !!profil.is_admin;
+    const admin = fondateur || (formateur && formateurFixe(titres, promo));
     return {
       admin,
       prof: formateur || direction || siege,
       stagiaire: roles.includes("stagiaire"),
-      equipe: admin || direction,
+      equipe: fondateur || formateur || direction,
       direction,
     };
   }
@@ -93,10 +113,12 @@ const DROITS_APERCU = {
 };
 
 // Ce que l'app montre : les drapeaux isAdmin (écrire comme un formateur) / isProf / isStagiaire / isEquipe (gérer la
-// promo : formateur ou direction) et l'espace de la coquille.
-export function droitsAffiches({ profil, promo, apercu } = {}) {
+// promo : formateur ou direction) et l'espace de la coquille. `titres` : lignes de mes_titres (nul : comme avant les titres).
+// En aperçu Formateur, mes_titres rend le titre simulé (migration 8) : un titre non fixe retire `admin`, comme pour un vrai porteur.
+export function droitsAffiches({ profil, promo, apercu, titres = null } = {}) {
   const a = apercuRetenu({ profil, promo, apercu });
-  const d = a ? DROITS_APERCU[a] : droitsReels(profil, promo);
+  let d = a ? DROITS_APERCU[a] : droitsReels(profil, promo, titres);
+  if (a === "formateur" && promo && !formateurFixe(titres, promo)) d = { ...d, admin: false };
   return {
     admin: !!d.admin,
     prof: !!d.prof,
@@ -127,9 +149,12 @@ export function peutRetirerCompte({ cible, fondateur } = {}) {
 // (`roles` : [{ email, role }] pour les affectations direction et siège, `null` quand la lecture a échoué ou que la fonction
 // manque : l'affichage d'avant, sans message). Un compte du personnel (« formateur » d'après la colonne) qui est direction ou siège
 // perd la pastille « formateur », qu'il ne garde que s'il a une fiche formateur (prof_id) : l'app ne voit pas ses promos de
-// formateur, cette fiche est le seul indice qu'il l'est aussi. Un stagiaire n'est jamais touché. Rend [{ libelle, classe }], la
+// formateur, cette fiche est le seul indice qu'il l'est aussi. Titres et droits à la carte : `titres` (lignes de personnes_et_titres de
+// la promo affichée) donne le titre de chacun ; il passe avant `roles` pour un compte qui en porte un (voir plus bas). Un stagiaire
+// n'est jamais touché. Rend [{ libelle, classe }], la
 // classe étant le suffixe de `role-pill role-…` ; le premier libellé sert au tri. Un « admin » se lit « formateur ».
-export function pastillesDuProfil({ profil, roles } = {}) {
+const LIBELLES_TITRES_FIXES = { Formateur: "formateur", "Direction de centre": "direction" };
+export function pastillesDuProfil({ profil, roles, titres } = {}) {
   if (!profil) return [];
   const brut = String(profil.role ?? "");
   const base = brut === "prof" || brut === "admin" ? "formateur" : brut;
@@ -138,6 +163,28 @@ export function pastillesDuProfil({ profil, roles } = {}) {
   const a = (role) => lignes.some((l) => l && String(l.email ?? "").toLowerCase() === adresse && l.role === role);
   const direction = base === "formateur" && a("direction");
   const siege = base === "formateur" && a("siege");
+  // Titres lus (lignes de personnes_et_titres pour la promo affichée) : un compte du personnel qui en porte un montre ses titres, un
+  // par pastille ; les titres fixes gardent leur libellé d'avant (« formateur », « direction »), un autre titre son nom. Les titres du
+  // réseau ne sont pas dans cette lecture : un compte du siège garde sa pastille « siège » par roles_du_personnel. Aucune ligne pour
+  // ce compte (ou titres non lus) : l'affichage d'avant.
+  const siennes = base === "formateur" && Array.isArray(titres)
+    ? titres.filter((l) => l && String(l.email ?? "").toLowerCase() === adresse && l.titre_nom) : [];
+  if (siennes.length) {
+    const dit = (l) => LIBELLES_TITRES_FIXES[l.titre_nom] || l.titre_nom;
+    const sans = (liste) => [...new Set(liste.map(dit))];
+    // Les pastilles de titre s'AJOUTENT à ce que roles et prof_id donnaient : « direction » reste quand aucune ligne de titre de centre
+    // ne la remplace (la ligne est d'un autre centre ou de niveau promo), « formateur » (fiche liée) quand aucune ligne de promo ne la remplace.
+    const centre = siennes.filter((l) => l.niveau !== "promo");
+    const promoLignes = siennes.filter((l) => l.niveau === "promo");
+    const libelles = [
+      ...sans(centre),
+      ...(direction && !centre.length ? ["direction"] : []),
+      ...(siege ? ["siège"] : []),
+      ...sans(promoLignes),
+      ...((direction || siege) && profil.prof_id != null && !promoLignes.length ? ["formateur"] : []),
+    ];
+    return [...new Set(libelles)].map((libelle) => ({ libelle, classe: "prof" }));
+  }
   if (!direction && !siege) return [{ libelle: base, classe: brut }];
   return [
     ...(direction ? [{ libelle: "direction", classe: "prof" }] : []),
@@ -148,9 +195,9 @@ export function pastillesDuProfil({ profil, roles } = {}) {
 
 // La liste « Personnes avec accès », triée par premier rôle affiché puis par adresse : [{ profil, pastilles }]. Ne change pas qui y
 // figure.
-export function listeAcces({ profils, roles } = {}) {
+export function listeAcces({ profils, roles, titres } = {}) {
   return (Array.isArray(profils) ? profils : [])
-    .map((profil) => ({ profil, pastilles: pastillesDuProfil({ profil, roles }) }))
+    .map((profil) => ({ profil, pastilles: pastillesDuProfil({ profil, roles, titres }) }))
     .sort((x, y) => (x.pastilles[0]?.libelle ?? "").localeCompare(y.pastilles[0]?.libelle ?? "")
       || String(x.profil.email ?? "").localeCompare(String(y.profil.email ?? "")));
 }

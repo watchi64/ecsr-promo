@@ -6,7 +6,7 @@
 
 import { getEmargementsOuverts, signerEmargement, listStagiaires } from "./db.js?v=20261114f";
 import { el, clear, isoDate, toast } from "./utils.js?v=20261114f";
-import { isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261114f";
+import { isAuth, isProf, monStagiaireId, ecritSelonLaCase } from "./auth-admin.js?v=20261114f";
 import { ouvrirSignature } from "./signature-pad.js?v=20261114f";
 import { libelleCreneau, heureLocale, adresseSeance, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261114f";
 import { jourLong, DEMI_LONG, nomComplet } from "./emargement-feuilles.js?v=20261114f";
@@ -53,7 +53,7 @@ export function rafraichirBandeauEmargement() {
     try {
       const jour = isoDate(new Date());
       const seances = await getEmargementsOuverts(jour);
-      const actifs = (isAdmin() || isProf()) ? await listStagiaires() : [];
+      const actifs = (ecritSelonLaCase("emargement") || isProf()) ? await listStagiaires() : [];
       dessiner(b, seances, actifs);
     } catch (e) {
       // Réseau ou table absente : pas de bandeau, rien d'autre ne change.
@@ -109,7 +109,7 @@ function dessiner(b, seances, actifs) {
       return;
     }
     const absent = tries.find((s) => s.lignes.some((x) => x.stagiaire_id === moi && x.absent));
-    if (absent && !(isAdmin() || isProf())) {
+    if (absent && !(ecritSelonLaCase("emargement") || isProf())) {
       b.classList.add("em-bandeau-info");
       b.appendChild(el("p", {}, `Tu es marqué absent sur la feuille ${deLaDemi(absent.demi_journee)}. `
         + "Si tu es là, vois-le avec ton formateur."));
@@ -119,7 +119,7 @@ function dessiner(b, seances, actifs) {
   }
 
   // Formateur : rappel, sauf sur la page Émargement elle-même et sur l'accueil qui porte la carte.
-  if (isAdmin() && tries.length && !accueilPorteLaFeuille()) {
+  if (ecritSelonLaCase("emargement") && tries.length && !accueilPorteLaFeuille()) {
     const s = tries[0];
     const adresse = adresseSeance(s.jour, s.demi_journee);
     if (location.hash.startsWith("#/emargement")) { b.hidden = true; return; }

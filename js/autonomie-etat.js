@@ -6,8 +6,7 @@
 import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261114f";
 import { el, toast } from "./utils.js?v=20261114f";
 import { icon } from "./icons.js?v=20261114f";
-import { fondateurHorsApercu, isFounder, isEquipe, isAdmin, isProf, getViewAs, getProfile, getAffectations, monStagiaireId }
-  from "./auth-admin.js?v=20261114f";
+import { fondateurHorsApercu, isFounder, isEquipe, isAdmin, isProf, getViewAs, getProfile, getAffectations, monStagiaireId } from "./auth-admin.js?v=20261114f";
 import { CLE_ACTIVATION, estActif, peutTracerAvec, estCompteEquipe } from "./autonomie-rules.js?v=20261114f";
 
 let actif = false;
