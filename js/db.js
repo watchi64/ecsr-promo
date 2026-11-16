@@ -588,18 +588,6 @@ export async function lireFichesFormateurLibres() {
   return profs.filter((f) => !prises.has(f.id)).map((f) => ({ id: f.id, nom: f.nom }));
 }
 
-// La direction règle les promos d'un formateur de son centre (regler_affectations_formateur : liste vide = retiré du centre ; compte
-// absent = profil créé). Rend { email, cree, ajoutees, retirees }. Les refus de la base partent tels quels (préfixe « equipe: »,
-// 42501 sans droit, PGRST202 fonction absente) : l'appelant les dit par phraseDeRefus.
-export async function reglerAffectationsFormateur({ email, lieuId, promoIds, profId }) {
-  const { data, error } = await supabase.rpc("regler_affectations_formateur", {
-    p_email: email, p_lieu_id: lieuId, p_promo_ids: promoIds, p_prof_id: profId ?? null,
-  });
-  if (error) throw erreurDeBase(error);
-  if (!data || typeof data !== "object") throw new Error("equipe: La base n'a rien répondu.");
-  return data;
-}
-
 // Habillage par défaut (lot 5) : { centre, libre, reseau } pour le compte connecté (habillage_par_defaut() : le centre de la promo
 // affichée, à défaut le premier centre de ses affectations ; le réseau). Lisible de tout compte. Une fonction absente (avant la
 // migration) ou toute panne lève : au démarrage l'appelant s'en passe (défauts nuls), sans message.

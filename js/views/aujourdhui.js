@@ -282,7 +282,7 @@ export function renderAujourdhui(container) {
   // sinon, comme avant, toutes les cartes).
   const tableau = litSelonLaCase("planning", true) ? carte({ titre: "Au tableau aujourd'hui", ico: "presentation", zone: "tableau" }) : null;
   const voiture = litSelonLaCase("planning", true) ? carte({ titre: "En voiture aujourd'hui", ico: "car", zone: "voiture" }) : null;
-  const asuivre = litSelonLaCase("notes", true) ? carte({ titre: "À suivre de près", ico: "info", zone: "a-suivre", plus: plusLien("centre", "Tout voir") }) : null;
+  const asuivre = litSelonLaCase("notes", true) ? carte({ titre: "À suivre de près", ico: "info", zone: "a-suivre", plus: litSelonLaCase("indicateurs", true) ? plusLien("centre", "Tout voir") : null }) : null;
 
   // L'ordre du DOM est celui du téléphone (ce qui demande une action avant ce qui informe) ; la grille de
   // css/pages.css replace les cartes sur tablette et ordinateur.

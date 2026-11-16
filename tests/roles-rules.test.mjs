@@ -213,27 +213,27 @@ test("etiquetteBadge : le rôle réel sur la promo affichée, pas l'ancien role 
 
 // Lot G : les pastilles de « Personnes avec accès ».
 const lib = (p) => p.map((x) => x.libelle).join("+");
-const formateurSimple = { email: "f@x.fr", role: "prof", is_admin: true, prof_id: 4 };
-const comptePersonnel = { email: "d@x.fr", role: "prof", is_admin: false, prof_id: null };
-const roles = [{ email: "d@x.fr", role: "direction" }, { email: "s@x.fr", role: "siege" }, { email: "ds@x.fr", role: "direction" }, { email: "ds@x.fr", role: "siege" }];
+const formateurSimple = { email: "f@exemple.invalid", role: "prof", is_admin: true, prof_id: 4 };
+const comptePersonnel = { email: "d@exemple.invalid", role: "prof", is_admin: false, prof_id: null };
+const roles = [{ email: "d@exemple.invalid", role: "direction" }, { email: "s@exemple.invalid", role: "siege" }, { email: "ds@exemple.invalid", role: "direction" }, { email: "ds@exemple.invalid", role: "siege" }];
 
 test("pastillesDuProfil : un compte direction ou siège n'est plus « formateur »", () => {
   assert.equal(lib(pastillesDuProfil({ profil: comptePersonnel, roles })), "direction");
-  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "s@x.fr" }, roles })), "siège");
-  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "ds@x.fr" }, roles })), "direction+siège");
+  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "s@exemple.invalid" }, roles })), "siège");
+  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "ds@exemple.invalid" }, roles })), "direction+siège");
   assert.equal(pastillesDuProfil({ profil: comptePersonnel, roles })[0].classe, "prof");
 });
 
 test("pastillesDuProfil : direction et formateur gardent les deux pastilles quand une fiche formateur le dit", () => {
   assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, prof_id: 9 }, roles })), "direction+formateur");
-  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "ds@x.fr", prof_id: 9 }, roles })), "direction+siège+formateur");
+  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "ds@exemple.invalid", prof_id: 9 }, roles })), "direction+siège+formateur");
 });
 
 test("pastillesDuProfil : un formateur sans rôle de direction ou de siège reste « formateur », comme avant", () => {
   assert.equal(lib(pastillesDuProfil({ profil: formateurSimple, roles })), "formateur");
   assert.equal(pastillesDuProfil({ profil: formateurSimple, roles })[0].classe, "prof");
-  assert.equal(lib(pastillesDuProfil({ profil: { email: "a@x.fr", role: "admin" }, roles: [] })), "formateur");
-  assert.equal(lib(pastillesDuProfil({ profil: { email: "e@x.fr", role: "stagiaire" }, roles })), "stagiaire");
+  assert.equal(lib(pastillesDuProfil({ profil: { email: "a@exemple.invalid", role: "admin" }, roles: [] })), "formateur");
+  assert.equal(lib(pastillesDuProfil({ profil: { email: "e@exemple.invalid", role: "stagiaire" }, roles })), "stagiaire");
 });
 
 test("pastillesDuProfil : lecture des rôles absente ou en échec, l'affichage d'avant", () => {
@@ -244,15 +244,15 @@ test("pastillesDuProfil : lecture des rôles absente ou en échec, l'affichage d
 });
 
 test("pastillesDuProfil : l'adresse se compare sans tenir compte de la casse, et un stagiaire n'est jamais touché", () => {
-  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "D@X.fr" }, roles })), "direction");
-  assert.equal(lib(pastillesDuProfil({ profil: { email: "d@x.fr", role: "stagiaire", stagiaire_id: 3 }, roles })), "stagiaire");
+  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "D@EXEMPLE.invalid" }, roles })), "direction");
+  assert.equal(lib(pastillesDuProfil({ profil: { email: "d@exemple.invalid", role: "stagiaire", stagiaire_id: 3 }, roles })), "stagiaire");
 });
 
 // Titres et droits à la carte (Task 32) : les pastilles viennent des titres lus pour la promo affichée.
 const ligneTitre = (email, titre_nom, niveau, promo_ids = null) => ({ email, titre_id: 1, titre_nom, niveau, lieu_id: 1, promo_ids });
 
 test("pastillesDuProfil par titres : les titres fixes gardent leur libellé d'avant", () => {
-  const titres = [ligneTitre("f@x.fr", "Formateur", "promo", [1]), ligneTitre("d@x.fr", "Direction de centre", "centre")];
+  const titres = [ligneTitre("f@exemple.invalid", "Formateur", "promo", [1]), ligneTitre("d@exemple.invalid", "Direction de centre", "centre")];
   assert.equal(lib(pastillesDuProfil({ profil: formateurSimple, roles, titres })), "formateur");
   assert.equal(lib(pastillesDuProfil({ profil: comptePersonnel, roles, titres })), "direction");
   assert.equal(pastillesDuProfil({ profil: comptePersonnel, roles, titres })[0].classe, "prof");
@@ -260,30 +260,30 @@ test("pastillesDuProfil par titres : les titres fixes gardent leur libellé d'av
 
 test("pastillesDuProfil par titres : un autre titre se dit par son nom, deux titres font deux pastilles", () => {
   const titres = [
-    ligneTitre("f@x.fr", "Intervenant", "promo", [1]),
-    ligneTitre("d@x.fr", "Secrétariat", "centre"), ligneTitre("d@x.fr", "Intervenant", "promo", [1, 2]),
+    ligneTitre("f@exemple.invalid", "Intervenant", "promo", [1]),
+    ligneTitre("d@exemple.invalid", "Secrétariat", "centre"), ligneTitre("d@exemple.invalid", "Intervenant", "promo", [1, 2]),
   ];
   assert.equal(lib(pastillesDuProfil({ profil: formateurSimple, titres })), "Intervenant");
   assert.equal(lib(pastillesDuProfil({ profil: comptePersonnel, titres })), "Secrétariat+Intervenant");
   // Un même titre lu sur deux lignes ne fait qu'une pastille.
-  const deux = [ligneTitre("f@x.fr", "Formateur", "promo", [1]), ligneTitre("F@x.fr", "Formateur", "promo", [2])];
+  const deux = [ligneTitre("f@exemple.invalid", "Formateur", "promo", [1]), ligneTitre("F@exemple.invalid", "Formateur", "promo", [2])];
   assert.equal(lib(pastillesDuProfil({ profil: formateurSimple, titres: deux })), "formateur");
 });
 
 test("pastillesDuProfil par titres : un compte du siège (aucune ligne de titre) garde « siège » par roles", () => {
-  const titres = [ligneTitre("f@x.fr", "Formateur", "promo", [1])];
-  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "s@x.fr" }, roles, titres })), "siège");
+  const titres = [ligneTitre("f@exemple.invalid", "Formateur", "promo", [1])];
+  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "s@exemple.invalid" }, roles, titres })), "siège");
   // Siège et titre de la promo : le siège ne perd pas sa pastille, le titre s'y ajoute.
-  const avecTitre = [...titres, ligneTitre("s@x.fr", "Intervenant", "promo", [1])];
-  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "s@x.fr" }, roles, titres: avecTitre })), "siège+Intervenant");
+  const avecTitre = [...titres, ligneTitre("s@exemple.invalid", "Intervenant", "promo", [1])];
+  assert.equal(lib(pastillesDuProfil({ profil: { ...comptePersonnel, email: "s@exemple.invalid" }, roles, titres: avecTitre })), "siège+Intervenant");
 });
 
 test("pastillesDuProfil par titres : un compte du personnel sans titre garde l'étiquette d'aujourd'hui, un stagiaire reste stagiaire", () => {
-  const titres = [ligneTitre("autre@x.fr", "Formateur", "promo", [1])];
+  const titres = [ligneTitre("autre@exemple.invalid", "Formateur", "promo", [1])];
   assert.equal(lib(pastillesDuProfil({ profil: formateurSimple, roles, titres })), "formateur");
   assert.equal(lib(pastillesDuProfil({ profil: comptePersonnel, roles, titres })), "direction");
-  const dessus = [ligneTitre("e@x.fr", "Intervenant", "promo", [1])];
-  assert.equal(lib(pastillesDuProfil({ profil: { email: "e@x.fr", role: "stagiaire", stagiaire_id: 3 }, roles, titres: dessus })), "stagiaire");
+  const dessus = [ligneTitre("e@exemple.invalid", "Intervenant", "promo", [1])];
+  assert.equal(lib(pastillesDuProfil({ profil: { email: "e@exemple.invalid", role: "stagiaire", stagiaire_id: 3 }, roles, titres: dessus })), "stagiaire");
 });
 
 test("pastillesDuProfil par titres : titres non lus (nul ou absent), la sortie d'aujourd'hui", () => {
@@ -294,26 +294,26 @@ test("pastillesDuProfil par titres : titres non lus (nul ou absent), la sortie d
 });
 
 test("pastillesDuProfil par titres : une direction avec fiche formateur garde « formateur » comme aujourd'hui", () => {
-  const titres = [ligneTitre("d@x.fr", "Direction de centre", "centre")];
+  const titres = [ligneTitre("d@exemple.invalid", "Direction de centre", "centre")];
   const profil = { ...comptePersonnel, prof_id: 9 };
   assert.equal(lib(pastillesDuProfil({ profil, roles, titres })), "direction+formateur");
   assert.equal(lib(pastillesDuProfil({ profil, roles, titres })), lib(pastillesDuProfil({ profil, roles, titres: null })));
   // Une ligne de promo (Intervenant) remplace la pastille « formateur » liée à la fiche.
-  const avecPromo = [...titres, ligneTitre("d@x.fr", "Intervenant", "promo", [1])];
+  const avecPromo = [...titres, ligneTitre("d@exemple.invalid", "Intervenant", "promo", [1])];
   assert.equal(lib(pastillesDuProfil({ profil, roles, titres: avecPromo })), "direction+Intervenant");
 });
 
 test("pastillesDuProfil par titres : une direction dont la seule ligne est de niveau promo garde « direction »", () => {
-  const titres = [ligneTitre("d@x.fr", "Formateur", "promo", [1])];
+  const titres = [ligneTitre("d@exemple.invalid", "Formateur", "promo", [1])];
   assert.equal(lib(pastillesDuProfil({ profil: comptePersonnel, roles, titres })), "direction+formateur");
   // Une ligne de titre de centre non fixe (Secrétariat) la remplace.
-  const secretariat = [ligneTitre("d@x.fr", "Secrétariat", "centre")];
+  const secretariat = [ligneTitre("d@exemple.invalid", "Secrétariat", "centre")];
   assert.equal(lib(pastillesDuProfil({ profil: comptePersonnel, roles, titres: secretariat })), "Secrétariat");
 });
 
 test("listeAcces par titres : la liste garde les mêmes personnes et se trie sur la première pastille", () => {
-  const profils = [{ email: "z@x.fr", role: "stagiaire" }, { email: "f@x.fr", role: "prof" }, { email: "d@x.fr", role: "prof" }];
-  const titres = [ligneTitre("f@x.fr", "Intervenant", "promo", [1]), ligneTitre("d@x.fr", "Direction de centre", "centre")];
+  const profils = [{ email: "z@exemple.invalid", role: "stagiaire" }, { email: "f@exemple.invalid", role: "prof" }, { email: "d@exemple.invalid", role: "prof" }];
+  const titres = [ligneTitre("f@exemple.invalid", "Intervenant", "promo", [1]), ligneTitre("d@exemple.invalid", "Direction de centre", "centre")];
   const sortie = listeAcces({ profils, roles, titres });
   assert.equal(sortie.length, 3);
   assert.deepEqual(sortie.map((l) => lib(l.pastilles)), ["direction", "Intervenant", "stagiaire"]);
@@ -321,16 +321,16 @@ test("listeAcces par titres : la liste garde les mêmes personnes et se trie sur
 
 test("listeAcces : triée par premier rôle affiché puis par adresse, sans changer qui figure dans la liste", () => {
   const profils = [
-    { email: "z@x.fr", role: "stagiaire" }, { email: "s@x.fr", role: "prof" }, { email: "b@x.fr", role: "prof" },
-    { email: "d@x.fr", role: "prof" }, { email: "a@x.fr", role: "stagiaire" }, { email: "c@x.fr", role: "prof", prof_id: 1 },
+    { email: "z@exemple.invalid", role: "stagiaire" }, { email: "s@exemple.invalid", role: "prof" }, { email: "b@exemple.invalid", role: "prof" },
+    { email: "d@exemple.invalid", role: "prof" }, { email: "a@exemple.invalid", role: "stagiaire" }, { email: "c@exemple.invalid", role: "prof", prof_id: 1 },
   ];
   const sortie = listeAcces({ profils, roles });
-  assert.deepEqual(sortie.map((l) => l.profil.email), ["d@x.fr", "b@x.fr", "c@x.fr", "s@x.fr", "a@x.fr", "z@x.fr"]);
+  assert.deepEqual(sortie.map((l) => l.profil.email), ["d@exemple.invalid", "b@exemple.invalid", "c@exemple.invalid", "s@exemple.invalid", "a@exemple.invalid", "z@exemple.invalid"]);
   assert.deepEqual(sortie.map((l) => lib(l.pastilles)), ["direction", "formateur", "formateur", "siège", "stagiaire", "stagiaire"]);
   assert.equal(listeAcces({ profils, roles }).length, profils.length);
   assert.deepEqual(listeAcces({ profils: null, roles }), []);
   // Lecture en échec : l'ordre d'avant (formateurs, puis stagiaires, par adresse).
-  assert.deepEqual(listeAcces({ profils, roles: null }).map((l) => l.profil.email), ["b@x.fr", "c@x.fr", "d@x.fr", "s@x.fr", "a@x.fr", "z@x.fr"]);
+  assert.deepEqual(listeAcces({ profils, roles: null }).map((l) => l.profil.email), ["b@exemple.invalid", "c@exemple.invalid", "d@exemple.invalid", "s@exemple.invalid", "a@exemple.invalid", "z@exemple.invalid"]);
 });
 
 // Task 27 (titres, M5) : le drapeau admin (écrire comme un formateur) exige le titre fixe Formateur sur la promo affichée ;

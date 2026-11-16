@@ -6,7 +6,7 @@
 import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261114f";
 import { el, toast } from "./utils.js?v=20261114f";
 import { icon } from "./icons.js?v=20261114f";
-import { fondateurHorsApercu, isFounder, isEquipe, isAdmin, isProf, getViewAs, getProfile, getAffectations, monStagiaireId, litSelonLaCase } from "./auth-admin.js?v=20261114f";
+import { fondateurHorsApercu, isFounder, isEquipe, isAdmin, isProf, getViewAs, getProfile, getAffectations, monStagiaireId } from "./auth-admin.js?v=20261114f";
 import { CLE_ACTIVATION, estActif, peutTracerAvec, estCompteEquipe } from "./autonomie-rules.js?v=20261114f";
 
 let actif = false;
@@ -32,7 +32,7 @@ export function autonomieActive() { return actif; }
 // stagiaire). Les conditions d'utilisation sont exigées par la porte de l'app (js/legal.js, exigerAcceptation) et par la base.
 export function peutTracer() {
   const equipe = estCompteEquipe({
-    droits: { equipe: litSelonLaCase("stagiaires", isEquipe()), admin: isAdmin(), prof: isProf() }, profil: getProfile(), affectations: getAffectations(),
+    droits: { equipe: isEquipe(), admin: isAdmin(), prof: isProf() }, profil: getProfile(), affectations: getAffectations(),
   });
   return peutTracerAvec({
     actif, apercu: getViewAs(), fondateur: isFounder(), equipe, stagiaireId: monStagiaireId(),

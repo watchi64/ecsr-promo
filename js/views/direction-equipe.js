@@ -547,7 +547,8 @@ export async function renderEquipeCentre(container) {
     racine.appendChild(el("div", { class: "centre-section centre-vide" },
       el("p", {}, "Ce centre n'a pas encore de promo."),
       el("p", { class: "muted" }, "Une promo est nécessaire pour donner un titre de promo."),
-      el("a", { class: "btn primary", href: "#/promos" }, "Créer une promo")));
+      // La page Promos peut être fermée par le titre (case « Non ») : le lien ne s'offre qu'avec la case sur « Modifier ».
+      peutModifier("promos") ? el("a", { class: "btn primary", href: "#/promos" }, "Créer une promo") : null));
   }
   if (peutVoir("equipe")) racine.appendChild(sectionPersonnes(donnees, apres));
   const inviter = sectionInviter(donnees, apres);
