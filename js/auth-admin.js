@@ -100,7 +100,13 @@ export function selonPublic(tu, vous) { return isStagiaire() ? tu : vous; }
 
 // Rédiger les contenus communs (cours de thème, questions de QCM) : le siège, un formateur administrateur ; jamais la direction
 // (D13, ruling R1). Lu sur les droits avant la bride, que peutRedigerContenus applique elle-même.
-export function isRedacteur() { return peutRedigerContenus({ droits: droitsNonBrides(), espace: getEspace() }); }
+// La case « Cours et QCM » décide quand elle est lue (équipe : la case de la promo ; siège : celle du réseau, comme case_promo(...) = 2 ou
+// case_reseau(...) = 2 en base) : un titre non fixe sur « Modifier » rédige, un titre sur « Voir » non. Un titre fixe est au plafond (le
+// formateur fixe, le siège fixe : comme avant). Cases non lues (fondateur, panne, direction) : l'ancien prédicat seul.
+export function isRedacteur() {
+  const ancien = peutRedigerContenus({ droits: droitsNonBrides(), espace: getEspace() });
+  return ecritSelonLaCase("cours", ancien, ["equipe", "siege"]);
+}
 
 // ----- Espaces (lot 5) -----
 
