@@ -14,7 +14,8 @@
 --   justificatif réponse toute faite qui le demande (« à remettre »), mes_justificatifs_a_remettre, regler_justificatif (qui peut), file des
 --                envois (jours, jamais le motif), lien d'e-mail (motif, mot, jours, moment ; « Justificatif reçu » une seule fois).
 --   emargement   pré-marquage à l'ouverture, refus de signer, « Absence justifiée », plage (observation seule, le stagiaire signe), absence
---                annoncée après l'ouverture, annulation (ligne rendue, signature intacte), clore puis rouvrir, observation du formateur.
+--                annoncée après l'ouverture, annulation (ligne rendue, signature intacte), clore puis rouvrir, observation du formateur ;
+--                feuille close jamais touchée (justificatif, annulation par l'équipe, absence annoncée après la clôture), réouverture.
 --   planning     absences_annoncees_semaine : la promo affichée seulement, jamais le motif, absences annulées exclues, rien sans le planning.
 --   conservation changement de promo, effacement (étape 1 : la ligne reste, motif compris ; mot et réponses partent), anonymisation (étape 2
 --                par effacer_sur_demande : motif effacé, la ligne reste).
@@ -582,6 +583,35 @@ begin
     concat_ws(' / ', pg_temp.appeler('form_n', '1', format('select public.emargement_rouvrir(%s)::text', v_seance)), pg_temp.ligne(v_seance, 'stag_n'),
       pg_temp.ligne(v_seance, 'stag_o'), pg_temp.ligne(v_seance, 'stag_h')),
     'OK / true|annoncee|Absence justifiée|false / true|annoncee|Preuve14 observation du formateur|false / false|-|Absent de 10 h à 11 h, prévenu|true');
+  -- R-T14a : une feuille close ne bouge plus, ni pour poser ni pour retirer (état, origine, observation). 12:30 : la feuille est close de
+  -- nouveau ; justificatif changé, absence annulée par l'équipe après son début, absence annoncée après la clôture : rien ne change.
+  perform pg_temp.horloge('2026-11-19 12:30');
+  v := pg_temp.appeler('form_n', '1', format('select public.emargement_clore(%s)::text', v_seance));
+  perform pg_temp.attendre('emargement', 'feuille close de nouveau à 12:30 : stag_k (non signé, son absence annulée) noté non_signe, stag_n toujours annoncee',
+    concat_ws(' / ', (v ~ '^OK [0-9]+$')::text, pg_temp.ligne(v_seance, 'stag_k'), pg_temp.ligne(v_seance, 'stag_n')),
+    'true / true|non_signe|-|false / true|annoncee|Absence justifiée|false');
+  perform pg_temp.attendre('emargement', 'feuille close : le justificatif de e1 repasse « à remettre » : la ligne de stag_n ne change pas (« Absence justifiée » reste)',
+    pg_temp.appeler('form_n', '1', format(c_regler, pg_temp.ab('e1'), 'a_remettre')) || ' / ' || pg_temp.ligne(v_seance, 'stag_n'),
+    'OK / true|annoncee|Absence justifiée|false');
+  perform pg_temp.attendre('emargement', 'feuille close : form_n annule e1 après son début : la ligne de stag_n reste telle quelle (absente, annoncee, observation)',
+    pg_temp.appeler('form_n', '1', format(c_annuler, pg_temp.ab('e1'))) || ' / ' || pg_temp.ligne(v_seance, 'stag_n'),
+    'OK / true|annoncee|Absence justifiée|false');
+  perform pg_temp.poser_ab('e5', pg_temp.prevenir('stag_k', '2026-11-19', null, 'matin', null, null, 'famille', null, '{}', v_choix));
+  perform pg_temp.attendre('emargement', 'feuille close : stag_k annonce son absence du matin après la clôture : prévenue (OK), sa ligne reste non_signe, sans observation',
+    concat_ws(' / ', (pg_temp.ab('e5') <> 'null')::text, pg_temp.ligne(v_seance, 'stag_k')), 'true / true|non_signe|-|false');
+  perform pg_temp.attendre('emargement', 'feuille close : justificatif de e5 reçu : la ligne de stag_k ne change pas',
+    pg_temp.appeler('form_n', '1', format(c_regler, pg_temp.ab('e5'), 'recu')) || ' / ' || pg_temp.ligne(v_seance, 'stag_k'),
+    'OK / true|non_signe|-|false');
+  -- La réouverture (emargement_rouvrir, inchangée) ne rejoue pas les absences : stag_n garde sa ligne annoncee (son absence annulée pendant
+  -- la clôture : au formateur de la corriger), la ligne non_signe de stag_k est rendue puis reposée non_signe à la clôture suivante.
+  perform pg_temp.attendre('emargement', 'réouverture : stag_n reste annoncee (absence annulée pendant la clôture, à corriger par le formateur), la ligne non_signe de stag_k disparaît',
+    concat_ws(' / ', pg_temp.appeler('form_n', '1', format('select public.emargement_rouvrir(%s)::text', v_seance)), pg_temp.ligne(v_seance, 'stag_n'),
+      pg_temp.ligne(v_seance, 'stag_k')),
+    'OK / true|annoncee|Absence justifiée|false / aucune ligne');
+  v := pg_temp.appeler('form_n', '1', format('select public.emargement_clore(%s)::text', v_seance));
+  perform pg_temp.attendre('emargement', 'nouvelle clôture : stag_k de nouveau non_signe, stag_n annoncee inchangée',
+    concat_ws(' / ', (v ~ '^OK [0-9]+$')::text, pg_temp.ligne(v_seance, 'stag_k'), pg_temp.ligne(v_seance, 'stag_n')),
+    'true / true|non_signe|-|false / true|annoncee|Absence justifiée|false');
   -- Ménage : la feuille (et ses lignes) supprimée, le jour de l'émargement rendu.
   perform pg_temp.essai(format('delete from public.emargement_seances where id = %s', v_seance));
   perform pg_temp.essai(v_jour_def);

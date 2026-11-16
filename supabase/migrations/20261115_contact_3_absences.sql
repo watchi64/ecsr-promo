@@ -18,7 +18,7 @@
 --      justificatif), _contact_srv_prendre (jours, jamais le motif), _contact_srv_lien (motif, mot, jours, moment), _contact_srv_agir
 --      (justificatif : reçu). La fonction serveur contact-envois n'est pas retouchée (actionsDe produit déjà le jeton justificatif).
 --   6. L'émargement : origine « annoncee » ; _contact_premarquer() et ses déclencheurs (feuille créée, absence créée, absence annulée) ;
---      le justificatif ne change que l'observation. Une ligne signée n'est jamais touchée ; une observation d'un formateur n'est jamais
+--      le justificatif ne change que l'observation ; une feuille close ne bouge jamais (R-T14a). Une ligne signée n'est jamais touchée ; une observation d'un formateur n'est jamais
 --      remplacée. emargement_ouvrir, _clore, _rouvrir et _annoter ne changent pas.
 --   7. La conservation : stagiaires_contact_anonymiser (fiche rendue anonyme : le motif de ses absences est effacé, la ligne reste) ;
 --      stagiaires_contact_effacer (migration 2) garde déjà la ligne d'absence.
@@ -917,6 +917,9 @@ $fn$;
 --     dont un formateur a retiré l'absence annoncée (non absente, notre observation) garde sa correction ;
 --   sinon, une absence de quelques heures en cours : seulement l'observation « Absent de 10 h à 11 h, prévenu » (aucune absence posée) ;
 --   sinon (absences annulées) : une ligne « annoncee » redevient présente, notre observation est retirée, une ligne vide disparaît.
+-- Une feuille close n'est jamais touchée (ni pour poser ni pour retirer : ni l'état, ni l'origine, ni l'observation) : la corriger reste
+-- un geste du formateur, qui la rouvre (ruling R-T14a). La feuille est verrouillée en partage le temps du pré-marquage (emargement_clore la
+-- verrouille pour la clore).
 -- Une ligne signée (ou dont la signature a été effacée) n'est jamais touchée ; une observation d'un formateur n'est jamais remplacée.
 -- Une ligne n'est créée que pour un stagiaire encore actif dans la promo de la feuille. maj_par reste nul (écriture de l'espace contact :
 -- l'adresse de qui a déclenché, un stagiaire parfois, n'y est jamais écrite).
@@ -932,8 +935,8 @@ declare
   v_origine text;
   v_observation text;
 begin
-  select * into s from emargement_seances y where y.id = p_seance;
-  if s.id is null then
+  select * into s from emargement_seances y where y.id = p_seance for share;
+  if s.id is null or s.statut <> 'ouverte' then
     return;
   end if;
   for x in
@@ -1002,9 +1005,9 @@ begin
   return null;
 end $fn$;
 
--- Une absence créée : les feuilles déjà ouvertes (ou closes) de ses demi-journées sont pré-marquées à l'instant pour son stagiaire. Son
--- justificatif changé : seule l'observation des lignes encore absentes suit (« Absence prévenue » ou « Absence justifiée ») ; aucune
--- absence n'est reposée sur une ligne qu'un formateur a corrigée entre-temps.
+-- Une absence créée : les feuilles déjà ouvertes de ses demi-journées sont pré-marquées à l'instant pour son stagiaire (une feuille close
+-- ne bouge pas, _contact_premarquer). Son justificatif changé : seule l'observation des lignes encore absentes d'une feuille ouverte suit
+-- (« Absence prévenue » ou « Absence justifiée ») ; aucune absence n'est reposée sur une ligne qu'un formateur a corrigée entre-temps.
 create function public._contact_emargement_absence()
 returns trigger language plpgsql security definer set search_path = public, pg_temp
 as $fn$
@@ -1020,7 +1023,7 @@ begin
     v_obs := case when new.justificatif = 'recu' then 'Absence justifiée' else 'Absence prévenue' end;
     update emargement_lignes l set observation = v_obs, maj_le = now(), maj_par = null
       from emargement_seances s
-     where s.id = l.seance_id and s.promo_id = new.promo_id and l.stagiaire_id = new.stagiaire_id
+     where s.id = l.seance_id and s.promo_id = new.promo_id and s.statut = 'ouverte' and l.stagiaire_id = new.stagiaire_id
        and l.absent and l.trace is null and l.signe_le is null
        and l.observation in ('Absence prévenue', 'Absence justifiée') and l.observation <> v_obs
        and s.jour between new.du and new.au
@@ -1034,7 +1037,8 @@ begin
   return null;
 end $fn$;
 
--- Une absence annulée : ses feuilles sont reprises pour son stagiaire (lignes « annoncee » rendues, observations retirées).
+-- Une absence annulée : ses feuilles ouvertes sont reprises pour son stagiaire (lignes « annoncee » rendues, observations retirées) ; une
+-- feuille close garde sa ligne telle quelle (_contact_premarquer).
 create function public._contact_emargement_annulation()
 returns trigger language plpgsql security definer set search_path = public, pg_temp
 as $fn$
