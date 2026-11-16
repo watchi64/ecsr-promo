@@ -469,7 +469,7 @@ const changerPromo = NOUVEAUTES.find((e) => e.id.endsWith("-changer-de-promo"));
 const DATE5 = direction.date;
 eq(NOUVEAUTES.filter((e) => e.pour === "direction").map((e) => e.id).sort(),
   ["2026-11-10-espace-direction", "2026-11-11-conservation-direction", "2026-11-11-donnees-personnelles-centre",
-    "2026-11-14-resultats-jury-direction", "2026-11-15-titres-ecrans-direction"],
+    "2026-11-14-resultats-jury-direction", "2026-11-16-titres-ecrans-direction"],
   "cinq Nouveautés pour la direction : l'espace, les données personnelles, la conservation des fiches de son centre, le taux d'obtention du titre, puis les titres");
 // Conservation des fiches ouverte à la direction (11/11) : pour la direction seule, en tête de sa liste, au vouvoiement.
 const consDir = NOUVEAUTES.find((e) => e.id === "2026-11-11-conservation-direction");
@@ -488,10 +488,10 @@ ok(Array.isArray(consDir.guide) && consDir.guide.length >= 3 && /vous|ouvrez/i.t
 for (const motif of [/Conservation des fiches/, /12 mois/, /31 décembre de la troisième année/, /votre clic/, /EFFACER/, /fondateur/]) {
   ok(motif.test(tout(consDir)), `conservation de la direction : dit ${motif}`);
 }
-eq(NOUVEAUTES.filter((e) => e.pour === "siege").map((e) => e.id).sort(), ["2026-11-10-espace-siege", "2026-11-15-titres-ecrans-siege"],
+eq(NOUVEAUTES.filter((e) => e.pour === "siege").map((e) => e.id).sort(), ["2026-11-10-espace-siege", "2026-11-16-titres-ecrans-siege"],
   "deux Nouveautés pour le siège : l'espace, puis les titres");
 for (const [pour, route] of [["direction", "equipe"], ["siege", "directions"]]) {
-  const t = NOUVEAUTES.find((e) => e.id === `2026-11-15-titres-ecrans-${pour}`);
+  const t = NOUVEAUTES.find((e) => e.id === `2026-11-16-titres-ecrans-${pour}`);
   ok(!!t && t.pour === pour && t.ou?.route === route && t.titre === "Chacun a son titre" && !TUTOIEMENT.test(horsCitations(tout(t)))
     && !tout(t).includes(CADRATIN) && !/profs?/i.test(tout(t)), `titres : Nouveauté du ${pour}, vouvoiement, lien vers ${route}`);
 }

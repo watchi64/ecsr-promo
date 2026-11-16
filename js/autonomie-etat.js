@@ -3,11 +3,11 @@
 // (Paramètres), et la base refuse de toute façon toute trace quand il est éteint (migration 20261114_autonomie_1_traces).
 // Éteint, ce module ne fait qu'une lecture au démarrage (le réglage) : rien d'autre ne part, rien ne s'affiche.
 
-import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261114f";
-import { el, toast } from "./utils.js?v=20261114f";
-import { icon } from "./icons.js?v=20261114f";
-import { fondateurHorsApercu, isFounder, isEquipe, isAdmin, isProf, getViewAs, getProfile, getAffectations, monStagiaireId } from "./auth-admin.js?v=20261114f";
-import { CLE_ACTIVATION, estActif, peutTracerAvec, estCompteEquipe } from "./autonomie-rules.js?v=20261114f";
+import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261116a";
+import { el, toast } from "./utils.js?v=20261116a";
+import { icon } from "./icons.js?v=20261116a";
+import { fondateurHorsApercu, isFounder, isEquipe, isAdmin, isProf, getViewAs, getProfile, getAffectations, monStagiaireId } from "./auth-admin.js?v=20261116a";
+import { CLE_ACTIVATION, estActif, peutTracerAvec, estCompteEquipe } from "./autonomie-rules.js?v=20261116a";
 
 let actif = false;
 let jetonLecture = 0;

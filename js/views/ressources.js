@@ -1,13 +1,13 @@
 import {
   listRessources, addRessource, updateRessource, deleteRessource,
   listContacts, addContact, updateContact, deleteContact, getPromoCourante,
-} from "../db.js?v=20261114f";
-import { el, clear, toast } from "../utils.js?v=20261114f";
-import { confirmer } from "../confirmer.js?v=20261114f";
-import { icon, deco } from "../icons.js?v=20261114f";
-import { selonPublic, ecritSelonLaCase } from "../auth-admin.js?v=20261114f";
-import { recordUndo } from "../undo.js?v=20261114f";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
+} from "../db.js?v=20261116a";
+import { el, clear, toast } from "../utils.js?v=20261116a";
+import { confirmer } from "../confirmer.js?v=20261116a";
+import { icon, deco } from "../icons.js?v=20261116a";
+import { selonPublic, ecritSelonLaCase } from "../auth-admin.js?v=20261116a";
+import { recordUndo } from "../undo.js?v=20261116a";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261116a";
 
 let ressources = [];
 let contacts = [];

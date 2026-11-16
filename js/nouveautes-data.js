@@ -23,10 +23,10 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
-  // Titres et droits à la carte, étape 3 (date provisoire, fixée à la mise en ligne). Direction et siège, au vouvoiement.
+  // Titres et droits à la carte, étape 3. Direction et siège, au vouvoiement.
   {
-    id: "2026-11-15-titres-ecrans-direction",
-    date: "2026-11-15",
+    id: "2026-11-16-titres-ecrans-direction",
+    date: "2026-11-16",
     pour: "direction",
     titre: "Chacun a son titre",
     resume: "Dans Équipe, chaque personne porte désormais son titre (Formateur, Direction de centre), dans des pastilles. "
@@ -35,8 +35,8 @@ export const NOUVEAUTES = [
     ou: { route: "equipe", label: "Équipe" },
   },
   {
-    id: "2026-11-15-titres-ecrans-siege",
-    date: "2026-11-15",
+    id: "2026-11-16-titres-ecrans-siege",
+    date: "2026-11-16",
     pour: "siege",
     titre: "Chacun a son titre",
     resume: "Dans Directions de centre, chaque personne porte désormais son titre (Formateur, Direction de centre), dans des pastilles. "

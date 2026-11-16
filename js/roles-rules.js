@@ -8,8 +8,8 @@
  * pas migrée (ou si les promos n'ont pas pu être chargées), la colonne manque : l'app se replie alors sur
  * `is_admin` et `role` du profil, comme avant le lot 4.
  */
-import { phraseDeRefus, PHRASE_ECHEC } from "./espaces-rules.js?v=20261114f";
-import { formateurFixeSur } from "./titres-rules.js?v=20261114f";
+import { phraseDeRefus, PHRASE_ECHEC } from "./espaces-rules.js?v=20261116a";
+import { formateurFixeSur } from "./titres-rules.js?v=20261116a";
 
 // Les aperçus : un fondateur les a tous, un membre de l'équipe a celui du stagiaire. Un aperçu ne fait que
 // RETIRER des droits : une valeur hors de la liste permise est ignorée.

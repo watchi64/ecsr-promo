@@ -14,21 +14,21 @@
 import {
   getMesPromos, lireEquipeDuCentre, lireFichesFormateurLibres, lireTitresVisibles, lireTitresAjustables, lirePersonnesEtTitres,
   lireJournalPresent, lireJournalDesDroits, donnerTitre, retirerTitre, creerTitre, supprimerTitre,
-} from "../db.js?v=20261114f";
-import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261114f";
-import { icon } from "../icons.js?v=20261114f";
-import { getCentre, getAdminEmail, getMesTitres, casesAffichees, peutModifier, peutVoir, fondateurHorsApercu } from "../auth-admin.js?v=20261114f";
-import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261114f";
-import { equipeAffichee, unionPromos } from "../direction-rules.js?v=20261114f";
-import { phraseCompteTransforme } from "../roles-rules.js?v=20261114f";
-import { pluriel } from "../nombres.js?v=20261114f";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
-import { confirmer, demander } from "../confirmer.js?v=20261114f";
+} from "../db.js?v=20261116a";
+import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261116a";
+import { icon } from "../icons.js?v=20261116a";
+import { getCentre, getAdminEmail, getMesTitres, casesAffichees, peutModifier, peutVoir, fondateurHorsApercu } from "../auth-admin.js?v=20261116a";
+import { promosDuCentre, phraseDeRefus } from "../espaces-rules.js?v=20261116a";
+import { equipeAffichee, unionPromos } from "../direction-rules.js?v=20261116a";
+import { phraseCompteTransforme } from "../roles-rules.js?v=20261116a";
+import { pluriel } from "../nombres.js?v=20261116a";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261116a";
+import { confirmer, demander } from "../confirmer.js?v=20261116a";
 import {
   titresDonnablesGroupes, pastillesDePersonne, ceQueJePeuxFaire, ceQuiEstMasque, gestesSurPersonne, gestesSurTitre, directionFixePourLesGestes, phraseJournal,
   ligneDeTitreEnLecture,
-} from "../titres-rules.js?v=20261114f";
-import { ouvrirEditeurTitre } from "./titres-editeur.js?v=20261114f";
+} from "../titres-rules.js?v=20261116a";
+import { ouvrirEditeurTitre } from "./titres-editeur.js?v=20261116a";
 
 const PHRASE_SANS_CENTRE = "Ce compte ne dirige aucun centre.";
 const PHRASE_LECTURE_ECHEC = "L'équipe du centre n'a pas pu être chargée.";
