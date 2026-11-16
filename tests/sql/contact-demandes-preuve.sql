@@ -248,7 +248,9 @@ begin
                             'type_sans_regle_defaut', 'titulaire_en_conge_relais', 'relais_en_conge_defaut',
                             'relais_et_defaut_en_conge_choix', 'relais_autre_centre', 'liste_vide')), '13');
   for c in select x from jsonb_array_elements(p_cas -> 'cas') x loop
-    perform pg_temp.attendre('parite', 'cas ' || (c ->> 'nom'), pg_temp.jouer_cas(c)::text, (c -> 'attendu')::text);
+    -- Un cas que la migration 4 change (fiche partie ou en congé écartée des possibles) porte aussi ce que rend la base sans elle.
+    perform pg_temp.attendre('parite', 'cas ' || (c ->> 'nom'), pg_temp.jouer_cas(c)::text,
+      coalesce(case when not pg_temp.migration_4() then c -> 'attendu_sans_migration_4' end, c -> 'attendu')::text);
   end loop;
 end $cd_gp$;
 
@@ -441,10 +443,13 @@ begin
       pg_temp.valeur(null, '1', null, format('select public.ecrire_au_stagiaire(%s, %L, null)::text', s_n, 'Preuve'))),
     'ERREUR 42501 / ERREUR 42501 / ERREUR 42501');
   -- Un stagiaire n'écrit jamais à un stagiaire : aucune fonction ne le permet, et aucun stagiaire n'a de fiche.
+  -- La migration 4 tutoie ce refus (mode en ligne, joué après elle) ; sans elle, la phrase de l'équipe.
   perform pg_temp.attendre('garde_fous', 'stag_n vers un stagiaire (ecrire_au_stagiaire, stag_m et lui-même) : refusé',
     pg_temp.appeler('stag_n', '1', format('select public.ecrire_au_stagiaire(%s, %L, null)::text', pg_temp.stag('stag_m'), 'Preuve')) || ' / '
       || pg_temp.appeler('stag_n', '1', format('select public.ecrire_au_stagiaire(%s, %L, null)::text', s_n, 'Preuve')),
-    'ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires des promos que vous suivez. / ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires des promos que vous suivez.');
+    case when pg_temp.migration_4()
+         then 'ERREUR 42501 contact: Tu ne peux écrire qu''à l''équipe de ton centre. / ERREUR 42501 contact: Tu ne peux écrire qu''à l''équipe de ton centre.'
+         else 'ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires des promos que vous suivez. / ERREUR 42501 contact: Vous ne pouvez écrire qu''aux stagiaires des promos que vous suivez.' end);
   perform pg_temp.attendre('garde_fous', 'aucun compte de stagiaire sans affectation n''a de fiche de contact (le délégué compris)',
     pg_temp.calcul($cd_q$select count(*)::text from public.contacts c join public.user_profiles up on lower(up.email) = c.compte_email
       where up.stagiaire_id is not null and not exists (select 1 from public.affectations a where lower(a.email) = c.compte_email)$cd_q$), '0');

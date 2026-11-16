@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { routerDemande, etapesDemande, rangerDemandes, libelleDestinataire, lignesEncadre, phraseReglesCentre, compterNonLues, phraseContact, basculerCoche } from "../js/contact-rules.js";
+import { routerDemande, etapesDemande, rangerDemandes, libelleDestinataire, lignesEncadre, phraseReglesCentre, compterNonLues, phraseContact, basculerCoche, reglagesModifiables } from "../js/contact-rules.js";
 
 const table = JSON.parse(readFileSync(new URL("./fixtures/contact-routage.json", import.meta.url), "utf8"));
 
@@ -17,7 +17,28 @@ test("la table de parité porte les cas demandés, chacun avec ses entrées et s
   for (const c of table.cas) {
     assert.ok(c.entree && c.attendu, c.nom);
     assert.deepEqual(Object.keys(c.attendu).sort(), ["mode", "possibles", "principaux", "source"], c.nom);
+    if (c.attendu_sans_migration_4) {
+      assert.deepEqual(Object.keys(c.attendu_sans_migration_4).sort(), ["mode", "possibles", "principaux", "source"], c.nom);
+    }
   }
+});
+
+test("migration 4 : en mode choix, une fiche partie ou en congé n'est pas proposée ; une fiche non décrite l'est", () => {
+  const sortie = routerDemande({ type: "autre", aujourdhui: "2031-03-04", regles: [],
+    fiches: [{ fiche_id: 1, nom: "En congé", conge_du: "2031-03-01", conge_au: "2031-03-10" }, { fiche_id: 2, nom: "Partie", depart_le: "2031-03-03" },
+      { fiche_id: 3, nom: "Là" }],
+    formateurs_du_jour: [1, 3], possibles: [1, 2, 3, 4] });
+  assert.deepEqual(sortie.possibles, [{ fiche_id: 3, pre_coche: true }, { fiche_id: 4, pre_coche: false }]);
+  const cas = table.cas.find((c) => c.nom === "relais_et_defaut_en_conge_choix");
+  assert.deepEqual(cas.attendu_sans_migration_4.possibles.map((p) => p.fiche_id), ["dir_deux", "dir_form", "dir_n", "form_n", "siege_form"],
+    "la base d'avant la migration 4 les proposait encore (preuve SQL, contact-2 injectée)");
+});
+
+test("reglagesModifiables : faux seulement quand la base le dit (peut_modifier faux) ; clé absente : modifiable, comme avant", () => {
+  assert.equal(reglagesModifiables({ peut_modifier: false, regles: [] }), false);
+  assert.equal(reglagesModifiables({ peut_modifier: true }), true);
+  assert.equal(reglagesModifiables({ regles: [] }), true);
+  assert.equal(reglagesModifiables(null), true);
 });
 
 for (const c of table.cas) {

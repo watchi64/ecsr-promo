@@ -1123,21 +1123,23 @@ test("la migration 5 : retirer_titre fermée à public, anon et service_role, ou
   assert.match(texteDuDepot(ETAPES_TITRES[3].retour), /to_regprocedure\('public\.retirer_titre\(text, bigint, integer\)'\) is not null/);
 });
 
-// --- Chantier « espace contact » : modes contact-1, contact-2, contact-3 (et leurs contre-épreuves, et en ligne) ------------------
+// --- Chantier « espace contact » : modes contact-1 à contact-4 (et leurs contre-épreuves, et en ligne) ---------------------------
 
 const CONTACT = {
   1: { migration: "supabase/migrations/20261115_contact_1_annuaire.sql", retour: "supabase/migrations/20261115_contact_1_annuaire_retour.sql",
        suite: { migration: "supabase/migrations/20261115_contact_1b_fermeture.sql", retour: "supabase/migrations/20261115_contact_1b_fermeture_retour.sql" } },
   2: { migration: "supabase/migrations/20261115_contact_2_demandes.sql", retour: "supabase/migrations/20261115_contact_2_demandes_retour.sql" },
   3: { migration: "supabase/migrations/20261115_contact_3_absences.sql", retour: "supabase/migrations/20261115_contact_3_absences_retour.sql" },
+  4: { migration: "supabase/migrations/20261116_contact_4_correctifs.sql", retour: "supabase/migrations/20261116_contact_4_correctifs_retour.sql" },
 };
 /** Les fichiers d'une étape : sa migration et son retour, puis ceux de sa suite (la 1b pour l'étape 1). */
 const fichiersEtape = (n) => [CONTACT[n].migration, CONTACT[n].retour, ...(CONTACT[n].suite ? [CONTACT[n].suite.migration, CONTACT[n].suite.retour] : [])];
-const TOUS_CONTACT = [1, 2, 3].flatMap(fichiersEtape);
-const GABARITS_CONTACT = { 1: "tests/sql/contact-annuaire-preuve.sql", 2: "tests/sql/contact-demandes-preuve.sql", 3: "tests/sql/contact-absences-preuve.sql" };
+const TOUS_CONTACT = [1, 2, 3, 4].flatMap(fichiersEtape);
+const GABARITS_CONTACT = { 1: "tests/sql/contact-annuaire-preuve.sql", 2: "tests/sql/contact-demandes-preuve.sql", 3: "tests/sql/contact-absences-preuve.sql",
+  4: "tests/sql/contact-correctifs-preuve.sql" };
 const AIDES_CONTACT = "tests/sql/contact-aides.sql";
 // Les migrations de la partie n n'existent qu'avec leurs tâches : des textes factices en mémoire pour juger l'assembleur seul.
-const FACTICES_CONTACT = Object.fromEntries([1, 2, 3].flatMap((n) => [
+const FACTICES_CONTACT = Object.fromEntries([1, 2, 3, 4].flatMap((n) => [
   [CONTACT[n].migration, `-- factice : contact migration ${n}\r\nselect ${n};\r\n`],
   [CONTACT[n].retour, `-- factice : contact retour ${n}\r\nselect -${n};\r\n`]]).concat([
   [CONTACT[1].suite.migration, "-- factice : contact migration 1b\r\nselect 11;\r\n"],
@@ -1151,7 +1153,7 @@ const ordreContact = (n) => [...Array(n).keys()].flatMap((k) => [CONTACT[k + 1].
   .concat([...Array(n).keys()].flatMap((k) => [...(CONTACT[n - k].suite ? [CONTACT[n - k].suite.retour] : []), CONTACT[n - k].retour]));
 
 test("contact-n : migrations 1 à n puis retours n à 1 injectés octet pour octet, dans l'ordre du gabarit, après l'empreinte", () => {
-  for (const n of [1, 2, 3]) {
+  for (const n of [1, 2, 3, 4]) {
     const r = assemblerMode(`contact-${n}`, RACINE, { lire: depotContact });
     assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...ordreContact(n)], `contact-${n}`);
     assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES, AIDES_TITRES, AIDES_CONTACT], `contact-${n} : aides dans l'ordre`);
@@ -1171,8 +1173,18 @@ test("contact-2 : les marqueurs des migrations 1, 1b et 2 dans cet ordre, puis l
   assert.ok(!r.texte.includes("contact migration 3"), "la 3 n'est pas injectée dans la partie 2");
 });
 
+test("contact-4 : la migration 4 après la 3, son retour AVANT le retour 3 (le retour 3, gelé, ne la vérifie pas)", () => {
+  const r = assemblerMode("contact-4", RACINE, { lire: facticesContact });
+  const places = ["contact migration 3", "contact migration 4", "contact retour 4", "contact retour 3", "contact retour 2"]
+    .map((marque) => r.texte.indexOf(`-- factice : ${marque}
+`));
+  assert.ok(places.every((p) => p >= 0), "les cinq textes y sont");
+  assert.deepEqual([...places].sort((a, b) => a - b), places, "ordre : migration 3, 4, retour 4, 3, 2");
+  assert.ok(!assemblerMode("contact-3", RACINE, { lire: facticesContact }).texte.includes("contact migration 4"), "la 4 n'est pas injectée dans la partie 3");
+});
+
 test("contact-n-contre-epreuve : migrations 1 à n-1 injectées, la n et son retour neutralisés (select 1) et non lus", () => {
-  for (const n of [1, 2, 3]) {
+  for (const n of [1, 2, 3, 4]) {
     const lus = [];
     const r = assemblerMode(`contact-${n}-contre-epreuve`, RACINE, { lire: (c) => { lus.push(c); return depotContact(c); } });
     const voulues = ordreContact(n).filter((c) => !fichiersEtape(n).includes(c));
@@ -1192,7 +1204,7 @@ test("contact-n-contre-epreuve : migrations 1 à n-1 injectées, la n et son ret
 });
 
 test("contact-n-en-ligne : rien d'injecté (sauf l'empreinte), tous les fichiers du gabarit neutralisés et non lus, libellé reconnu par préfixe", () => {
-  for (const n of [1, 2, 3]) {
+  for (const n of [1, 2, 3, 4]) {
     const lus = [];
     const r = assemblerMode(`contact-${n}-en-ligne`, RACINE, { lire: (c) => { lus.push(c); return depotContact(c); } });
     assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE], `contact-${n}-en-ligne`);
@@ -1202,7 +1214,7 @@ test("contact-n-en-ligne : rien d'injecté (sauf l'empreinte), tous les fichiers
     assert.ok(!r.mode.startsWith(`contact-${n}-contre`));
   }
   // Sans aucun fichier du chantier dans le dépôt, les modes qui n'en demandent aucun s'assemblent.
-  for (const mode of ["contact-3-en-ligne", "contact-1-contre-epreuve", "contact-1-en-ligne", "contact-2-en-ligne"]) {
+  for (const mode of ["contact-4-en-ligne", "contact-3-en-ligne", "contact-1-contre-epreuve", "contact-1-en-ligne", "contact-2-en-ligne"]) {
     assert.doesNotThrow(() => assemblerMode(mode, RACINE, { lire: sansContact([]) }), mode);
   }
 });
@@ -1244,7 +1256,7 @@ test("contact-n : --etapes refusé, la ligne de commande écrit hors du dépôt 
 
 test("les gabarits contact : aides sans marqueur, pas de $$, mode en ligne reconnu par préfixe, adresses fictives, aucun délimiteur partagé avec les migrations", () => {
   assert.ok(!/@@(?:INJECTER|INCLURE|MODE)/.test(texteDuDepot(AIDES_CONTACT)), "contact-aides.sql ne porte aucun marqueur");
-  for (const n of [1, 2, 3]) {
+  for (const n of [1, 2, 3, 4]) {
     const gabarit = texteDuDepot(GABARITS_CONTACT[n]);
     assert.ok(!/\$\$/.test(gabarit), `partie ${n} : pas de $$`);
     const m = /v_en_ligne := v_mode like '([^'%]*)%'/.exec(gabarit);

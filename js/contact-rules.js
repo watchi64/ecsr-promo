@@ -40,8 +40,9 @@ function disponible(fiche, jour) {
  * Sortie : { mode: "regle"|"choix", principaux: [{ fiche_id, relais_de }], source, possibles: [{ fiche_id, pre_coche }] }.
  * Règle (type et financement), sinon règle (type), sinon personne par défaut. Une fiche indisponible passe à son relais s'il est
  * disponible (relais_de : le nom de la titulaire), sinon à la personne par défaut si elle est disponible ; la règle « formateurs du
- * jour » sans formateur disponible passe à la personne par défaut. Personne : mode choix (source nulle), et les possibles, pré-cochés
- * pour les formateurs du jour. En mode règle, aucun possible : le stagiaire ne choisit pas.
+ * jour » sans formateur disponible passe à la personne par défaut. Personne : mode choix (source nulle), et les possibles disponibles
+ * (une fiche de `fiches` partie ou en congé est écartée), pré-cochés pour les formateurs du jour. En mode règle, aucun possible : le
+ * stagiaire ne choisit pas.
  */
 export function routerDemande({ type, financement_id = null, aujourdhui, regles = [], fiches = [], formateurs_du_jour = [],
   possibles = [] } = {}) {
@@ -87,7 +88,11 @@ export function routerDemande({ type, financement_id = null, aujourdhui, regles 
   principaux.sort((a, b) => comparer(a.fiche_id, b.fiche_id));
 
   if (principaux.length > 0) return { mode: "regle", principaux, source, possibles: [] };
-  const choix = [...new Set(possibles ?? [])].sort(comparer).map((id) => ({ fiche_id: id, pre_coche: fdj.includes(id) }));
+  // Une fiche connue (fiches) partie ou en congé n'est ni choisie ni pré-cochée (migration 4, _contact_possibles et
+  // _contact_formateurs_du_jour) ; une fiche que la liste ne décrit pas est disponible.
+  const choisissable = (id) => !parId.has(id) || dispo(id);
+  const choix = [...new Set(possibles ?? [])].filter(choisissable).sort(comparer)
+    .map((id) => ({ fiche_id: id, pre_coche: fdj.includes(id) }));
   return { mode: "choix", principaux: [], source: null, possibles: choix };
 }
 
@@ -187,6 +192,16 @@ export function lignesEncadre(apercu, coches = null) {
 function aujourdhuiLocal() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Les réglages du centre (« Qui reçoit quoi », « Réponses toutes faites ») se modifient-ils ? reglages_contact rend peut_modifier
+ * (migration 4 : le droit reglages.modifier des fonctions d'écriture). Faux : l'écran se montre en lecture seule (ni « Enregistrer »,
+ * ni « Ajouter », ni « Retirer », champs désactivés). Clé absente (base d'avant la migration 4) : modifiable, comme avant ; la base
+ * refuse alors l'écriture par sa phrase.
+ */
+export function reglagesModifiables(reglages) {
+  return reglages?.peut_modifier !== false;
 }
 
 /**

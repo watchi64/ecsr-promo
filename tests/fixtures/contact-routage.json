@@ -1,5 +1,5 @@
 {
-  "description": "Table de parité du routage des demandes (espace contact). Jouée par tests/contact-rules.test.mjs (routerDemande, js/contact-rules.js) et par la preuve SQL tests/sql/contact-demandes-preuve.sql (groupe parite : _contact_destinataires et _contact_possibles). Les fiches sont nommées par les personnages de la preuve (nom = identifiant) ; centre « vide » : un centre et une promo sans équipe, posés par la preuve ; sinon le centre de la promo 1. Financements : libellés du centre.",
+  "description": "Table de parité du routage des demandes (espace contact). Jouée par tests/contact-rules.test.mjs (routerDemande, js/contact-rules.js) et par la preuve SQL tests/sql/contact-demandes-preuve.sql (groupe parite : _contact_destinataires et _contact_possibles). Les fiches sont nommées par les personnages de la preuve (nom = identifiant) ; centre « vide » : un centre et une promo sans équipe, posés par la preuve ; sinon le centre de la promo 1. Financements : libellés du centre. Un cas peut porter attendu_sans_migration_4 : ce que rend la base tant que la migration 20261116_contact_4_correctifs n'est pas appliquée (elle écarte des possibles une fiche partie ou en congé) ; la preuve SQL le prend alors, le JS suit toujours attendu.",
   "cas": [
     {
       "nom": "mode_choix",
@@ -746,6 +746,25 @@
         ]
       },
       "attendu": {
+        "mode": "choix",
+        "principaux": [],
+        "source": null,
+        "possibles": [
+          {
+            "fiche_id": "dir_deux",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "dir_form",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "siege_form",
+            "pre_coche": false
+          }
+        ]
+      },
+      "attendu_sans_migration_4": {
         "mode": "choix",
         "principaux": [],
         "source": null,

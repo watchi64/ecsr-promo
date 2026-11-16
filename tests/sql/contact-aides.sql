@@ -39,3 +39,10 @@ begin
   end if;
   return query select p_jour - v_rang, v_rang;
 end $tdm$;
+
+-- La migration 4 (20261116_contact_4_correctifs) est-elle appliquée ? Sa marque : l'aide _contact_quota_equipe(bigint). Les preuves des
+-- parties 1 à 3 s'en servent pour les seuls attendus que la migration 4 change (modes en ligne, joués après elle).
+create or replace function pg_temp.migration_4()
+returns boolean language sql as $tm4$
+  select to_regprocedure('public._contact_quota_equipe(bigint)') is not null;
+$tm4$;

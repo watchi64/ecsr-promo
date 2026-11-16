@@ -135,7 +135,7 @@ test("traiterEnvois : adresse fictive ignorée sans jeton ni envoi ; jetons hach
     aleatoire: (k) => new Uint8Array(k).fill(++n),
     envoyer: async (c) => { envoyes.push(c); return c.to.startsWith("lina") ? { ok: false, raison: "Resend 500" } : { ok: true }; },
   });
-  assert.deepEqual(bilan, { traites: 3, envoyes: 1, echecs: 1, ignores: 1 });
+  assert.deepEqual(bilan, { traites: 3, envoyes: 1, echecs: 1, ignores: 1, limites: 0 });
   assert.deepEqual(envoyes.map((c) => c.to), ["sophie@ecf-centre.fr", "lina@ecf-centre.fr"]);
   const noms = base.appels.map(([nom, a]) => `${nom}:${a.p_envoi_id ?? ""}:${a.p_issue ?? ""}`);
   assert.deepEqual(noms, [
@@ -188,7 +188,7 @@ test("traiterEnvois : un 429 est ressayé sur place et ne consomme pas la tentat
     envoyer: async () => (++n < 3 ? { ok: false, limite: true, raison: "Resend 429" } : { ok: true }),
   });
   assert.equal(n, 3);
-  assert.deepEqual(bilan, { traites: 1, envoyes: 1, echecs: 0, ignores: 0 });
+  assert.deepEqual(bilan, { traites: 1, envoyes: 1, echecs: 0, ignores: 0, limites: 0 });
   const issues = base.appels.filter(([nom]) => nom === "_contact_srv_resultat").map(([, a]) => a.p_issue);
   assert.deepEqual(issues, ["envoye"]);
 });
@@ -196,4 +196,52 @@ test("traiterEnvois : un 429 est ressayé sur place et ne consomme pas la tentat
 test("envoyerParResend : un 429 est signalé comme limite", async () => {
   const r = await envoyerParResend(async () => ({ ok: false, status: 429, text: async () => "rate" }), "cle", "a@x.test", { to: "b@x.test", subject: "s", html: "h", text: "t" });
   assert.equal(r.ok, false); assert.equal(r.limite, true);
+});
+
+test("traiterEnvois : un 429 qui persiste après 3 ressais rend « limite » et arrête la boucle ; les envois suivants restent en file, intacts", async () => {
+  const base = fausseBase([unItem(1, "a@ecf-centre.fr"), unItem(2, "b@ecf-centre.fr"), unItem(3, "c@ecf-centre.fr")]);
+  const tentes = [];
+  const bilan = await traiterEnvois({
+    rpc: base.rpc, appUrl: "https://app.test/", subtle: globalThis.crypto.subtle, aleatoire: (k) => new Uint8Array(k),
+    attente: async () => {},
+    envoyer: async (c) => { tentes.push(c.to); return { ok: false, limite: true, raison: "Resend 429 quota" }; },
+  });
+  // Le premier envoi : 1 appel et 3 ressais ; les deux suivants ne sont jamais tentés.
+  assert.deepEqual(tentes, ["a@ecf-centre.fr", "a@ecf-centre.fr", "a@ecf-centre.fr", "a@ecf-centre.fr"]);
+  assert.deepEqual(bilan, { traites: 1, envoyes: 0, echecs: 0, ignores: 0, limites: 3 });
+  const resultats = base.appels.filter(([nom]) => nom === "_contact_srv_resultat").map(([, a]) => `${a.p_envoi_id}:${a.p_issue}`);
+  assert.deepEqual(resultats, ["1:limite", "2:limite", "3:limite"], "aucun echec : aucune tentative consommée");
+  assert.equal(base.appels.find(([nom, a]) => nom === "_contact_srv_resultat" && a.p_envoi_id === 1)[1].p_raison, "Resend 429 quota");
+});
+
+test("traiterEnvois : au-delà de l'échéance (120 s par défaut), la boucle s'arrête avant le prochain envoi et remet le reste en file", async () => {
+  const base = fausseBase([unItem(1, "a@ecf-centre.fr"), unItem(2, "b@ecf-centre.fr"), unItem(3, "c@ecf-centre.fr")]);
+  let horloge = 1_000_000;
+  const tentes = [];
+  const bilan = await traiterEnvois({
+    rpc: base.rpc, appUrl: "https://app.test/", subtle: globalThis.crypto.subtle, aleatoire: (k) => new Uint8Array(k),
+    attente: async () => {}, maintenant: () => horloge,
+    // Le premier envoi prend 120 s : l'échéance est atteinte, rien d'autre ne part.
+    envoyer: async (c) => { tentes.push(c.to); horloge += 120_000; return { ok: true }; },
+  });
+  assert.deepEqual(tentes, ["a@ecf-centre.fr"]);
+  assert.deepEqual(bilan, { traites: 1, envoyes: 1, echecs: 0, ignores: 0, limites: 2 });
+  const resultats = base.appels.filter(([nom]) => nom === "_contact_srv_resultat").map(([, a]) => `${a.p_envoi_id}:${a.p_issue}:${a.p_raison ?? ""}`);
+  assert.deepEqual(resultats, ["1:envoye:", "2:limite:échéance du traitement", "3:limite:échéance du traitement"]);
+});
+
+test("traiterEnvois : l'échéance est injectable et coupe aussi les ressais d'un 429", async () => {
+  const base = fausseBase([unItem(1, "a@ecf-centre.fr")]);
+  let horloge = 0;
+  let n = 0;
+  const bilan = await traiterEnvois({
+    rpc: base.rpc, appUrl: "https://app.test/", subtle: globalThis.crypto.subtle, aleatoire: (k) => new Uint8Array(k),
+    echeance: 5_000, maintenant: () => horloge,
+    attente: async (ms) => { horloge += ms; },
+    envoyer: async () => { n += 1; horloge += 1_000; return { ok: false, limite: true, raison: "Resend 429" }; },
+  });
+  // 1 s d'envoi, 1 s d'attente, 1 s d'envoi, 2 s d'attente : 5 s, l'échéance arrête les ressais.
+  assert.equal(n, 2);
+  assert.deepEqual(bilan, { traites: 1, envoyes: 0, echecs: 0, ignores: 0, limites: 1 });
+  assert.deepEqual(base.appels.filter(([nom]) => nom === "_contact_srv_resultat").map(([, a]) => a.p_issue), ["limite"]);
 });

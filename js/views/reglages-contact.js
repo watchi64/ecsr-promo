@@ -11,7 +11,7 @@ import { icon } from "../icons.js?v=20261114f";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261114f";
 import { jourParis, dateLongue } from "../dates.js?v=20261114f";
 import { listeFinancements, validerLibelleFinancement, fichesASupprimer } from "../contact-annuaire-rules.js?v=20261114f";
-import { TYPES_DEMANDE, phraseReglesCentre, phraseContact } from "../contact-rules.js?v=20261114f";
+import { TYPES_DEMANDE, phraseReglesCentre, phraseContact, reglagesModifiables } from "../contact-rules.js?v=20261114f";
 
 export const PHRASE_SANS_FICHE_A_SUPPRIMER = "Aucune fiche à supprimer.";
 export const PHRASE_FICHES_A_SUPPRIMER = "Ces personnes ont quitté le centre : supprimez leur fiche depuis la page Contacts.";
@@ -181,7 +181,9 @@ function champListe(id, libelle, select) {
 }
 
 // Les deux sections partagent une même lecture (reglages_contact) et se redessinent ensemble après un enregistrement. La base juge les
-// droits (lecture : case Réglages du centre ; écriture : geste reglages.modifier) : ses refus se disent par leur phrase.
+// droits (lecture : case Réglages du centre ; écriture : geste reglages.modifier) : ses refus se disent par leur phrase. Quand elle dit
+// qu'on ne peut pas modifier (peut_modifier faux, reglagesModifiables), les deux sections se montrent en lecture seule : champs
+// désactivés, ni « Enregistrer », ni « Ajouter une réponse », ni « Retirer ».
 export function sectionsContactDuCentre(centre) {
   const sectionRegles = el("section", { class: "param-section reglage-regles", "aria-labelledby": "regles-titre" });
   sectionRegles.appendChild(enTete("regles-titre", "Qui reçoit quoi",
@@ -197,6 +199,7 @@ export function sectionsContactDuCentre(centre) {
   let reglages = null;
   let brouillon = {};     // « type|financement » -> "" (aucune), "jour" ou l'identifiant d'une fiche
   let reponses = [];      // [{ id, libelle, vaut_prise, demande_justificatif }]
+  let modifiable = true;  // reglagesModifiables(reglages), relu à chaque chargement
 
   const cle = (type, fin) => `${type}|${fin ?? ""}`;
   const aLaCarte = () => !!corpsRegles.isConnected;
@@ -215,6 +218,7 @@ export function sectionsContactDuCentre(centre) {
       return;
     }
     if (!aLaCarte()) return;
+    modifiable = reglagesModifiables(reglages);
     brouillon = {};
     for (const r of reglages.regles ?? []) brouillon[cle(r.type, r.financement_id)] = r.cible === "formateurs_du_jour" ? VALEUR_JOUR : String(r.fiche_id);
     reponses = (reglages.reponses ?? []).filter((x) => !x.retire).map((x) => ({
@@ -239,6 +243,7 @@ export function sectionsContactDuCentre(centre) {
   const fiches = () => reglages?.fiches ?? [];
   function listeChoix(type, { aucune }) {
     const select = el("select", {});
+    select.disabled = !modifiable;
     select.appendChild(el("option", { value: "" }, aucune));
     if (type === "absence" || type === "retard") select.appendChild(el("option", { value: VALEUR_JOUR }, "Les formateurs du jour"));
     for (const f of fiches()) {
@@ -314,6 +319,10 @@ export function sectionsContactDuCentre(centre) {
         bouton.disabled = false;
       }
     } }, icon.check(), "Enregistrer");
+    if (!modifiable) {
+      corpsRegles.appendChild(el("p", { class: "muted", role: "note" }, "Vous consultez ces règles : les modifier demande le droit de modifier les réglages du centre."));
+      return;
+    }
     corpsRegles.appendChild(erreur);
     corpsRegles.appendChild(el("div", { class: "contact-gestes-fiche" }, bouton));
   }
@@ -332,20 +341,23 @@ export function sectionsContactDuCentre(centre) {
       if (!reponses.length) zone.appendChild(el("li", { class: "muted" }, "Aucune réponse toute faite."));
       reponses.forEach((x, i) => {
         const saisie = el("input", { type: "text", id: "reponse-" + i, value: x.libelle, maxlength: "80", autocomplete: "off" });
+        saisie.disabled = !modifiable;
         saisie.addEventListener("input", () => { x.libelle = saisie.value; });
         const prise = el("input", { type: "checkbox", id: "reponse-prise-" + i, checked: x.vaut_prise });
+        prise.disabled = !modifiable;
         prise.addEventListener("change", () => { x.vaut_prise = prise.checked; });
         const justif = el("input", { type: "checkbox", id: "reponse-justif-" + i, checked: x.demande_justificatif });
+        justif.disabled = !modifiable;
         justif.addEventListener("change", () => { x.demande_justificatif = justif.checked; });
         zone.appendChild(el("li", { class: "financement-ligne reponse-ligne" },
           el("div", { class: "field" }, el("label", { for: "reponse-" + i }, "Réponse"), saisie),
           el("label", { class: "contact-case", for: "reponse-prise-" + i }, prise, el("span", {}, "Vaut prise en compte")),
           el("label", { class: "contact-case", for: "reponse-justif-" + i }, justif, el("span", {}, "Demande le justificatif")),
-          el("div", { class: "contact-gestes" },
+          modifiable ? el("div", { class: "contact-gestes" },
             el("button", { class: "btn small danger", type: "button", "aria-label": "Retirer la réponse " + (x.libelle || i + 1), onClick: () => {
               reponses.splice(i, 1);
               lignes(Math.min(i, reponses.length - 1));
-            } }, "Retirer"))));
+            } }, "Retirer")) : null));
       });
       ajout.disabled = reponses.length >= 20;
       if (focusIndex != null && focusIndex >= 0) zone.querySelector("#reponse-" + focusIndex)?.focus({ preventScroll: true });
@@ -369,6 +381,10 @@ export function sectionsContactDuCentre(centre) {
       }
     } }, icon.check(), "Enregistrer");
     corpsReponses.appendChild(zone);
+    if (!modifiable) {
+      corpsReponses.appendChild(el("p", { class: "muted", role: "note" }, "Vous consultez ces réponses : les modifier demande le droit de modifier les réglages du centre."));
+      return;
+    }
     corpsReponses.appendChild(el("div", { class: "contact-gestes-fiche" }, ajout));
     corpsReponses.appendChild(erreur);
     corpsReponses.appendChild(el("div", { class: "contact-gestes-fiche" }, bouton));

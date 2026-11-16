@@ -1,7 +1,7 @@
 // Edge Function contact-envois : envoie les e-mails de l'espace contact (Resend) et sert les liens de ces e-mails.
 // POST JSON, une opération par appel :
 //   { op: "traiter" }        compte connecté : la file (_contact_srv_prendre), puis pour chaque envoi : adresse fictive -> ignoré ;
-//                            sinon jetons hachés en base, e-mail, Resend, résultat. Rend { traites, envoyes, echecs, ignores }.
+//                            sinon jetons hachés en base, e-mail, Resend, résultat. Rend { traites, envoyes, echecs, ignores, limites }.
 //   { op: "lien", jeton }    sans compte (clé publique) : ce que montre le lien (_contact_srv_lien), tel quel ; n'écrit rien.
 //   { op: "agir", jeton }    sans compte (clé publique) : le geste du lien (_contact_srv_agir), tel quel ; puis les envois qu'il a
 //                            fait naître sont traités.

@@ -56,8 +56,9 @@
 //                              groupe qui dépend de la migration 5 ou 6 ;
 //   gestion-en-ligne           la même sans rien d'injecté, après l'application réelle (un groupe dont la fonction manque est
 //                              sauté, avec une ligne d'information).
-//   contact-1, contact-2, contact-3   preuve de la partie n du chantier « espace contact » (tests/sql/contact-annuaire-preuve.sql,
-//                              contact-demandes-preuve.sql, contact-absences-preuve.sql ; aides communes : roles-aides.sql, titres-aides.sql
+//   contact-1, contact-2, contact-3, contact-4   preuve de la partie n du chantier « espace contact » (tests/sql/contact-annuaire-preuve.sql,
+//                              contact-demandes-preuve.sql, contact-absences-preuve.sql, contact-correctifs-preuve.sql : la migration 4 de
+//                              correctifs, 20261116_contact_4_correctifs ; aides communes : roles-aides.sql, titres-aides.sql
 //                              puis contact-aides.sql) : les migrations 20261115_contact_1 à _n injectées dans l'ordre (l'étape 1 = la 1
 //                              puis la 1b, fermeture de la lecture directe ; retours 1b puis 1), la preuve de la
 //                              partie n jouée, puis les retours n à 1 ; le groupe retour compare l'empreinte d'après les retours à celle
@@ -91,7 +92,7 @@ const GABARIT_DONNEES = "tests/sql/espaces-donnees-preuve.sql";
 const GABARIT_TITRES = "tests/sql/titres-preuve.sql";
 const GABARIT_GESTION = "tests/sql/titres-gestion-preuve.sql";
 
-/** Chantier « espace contact » : trois migrations (annuaire, demandes, absences), chacune avec son retour, et la preuve de chaque partie. */
+/** Chantier « espace contact » : quatre migrations (annuaire, demandes, absences, correctifs), chacune avec son retour, et la preuve de chaque partie. */
 export const ETAPES_CONTACT = {
   // L'étape 1 porte deux migrations : la 1 (annuaire) puis la 1b (fermeture de la lecture directe de contacts, appliquée en production
   // après la fusion de l'app) ; les gabarits injectent la 1 puis la 1b, et les retours 1b puis 1. Elles vont toujours ensemble dans les
@@ -107,8 +108,11 @@ export const ETAPES_CONTACT = {
   3: { migration: "supabase/migrations/20261115_contact_3_absences.sql",
        retour: "supabase/migrations/20261115_contact_3_absences_retour.sql",
        gabarit: "tests/sql/contact-absences-preuve.sql" },
+  4: { migration: "supabase/migrations/20261116_contact_4_correctifs.sql",
+       retour: "supabase/migrations/20261116_contact_4_correctifs_retour.sql",
+       gabarit: "tests/sql/contact-correctifs-preuve.sql" },
 };
-const NUMEROS_CONTACT = [1, 2, 3];
+const NUMEROS_CONTACT = [1, 2, 3, 4];
 /** Les fichiers d'une liste d'étapes du chantier contact, étape par étape : la migration, son retour, puis ceux de sa suite (1b). */
 const fichiersContact = (etapes) => etapes.flatMap((n) => {
   const e = ETAPES_CONTACT[n];

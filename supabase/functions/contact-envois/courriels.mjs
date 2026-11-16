@@ -155,20 +155,40 @@ export async function envoyerParResend(fetchFn, cle, expediteur, courriel) {
 
 // La file : _contact_srv_prendre, puis pour chaque envoi : adresse fictive -> « ignore » (rien d'autre) ; sinon les jetons (leurs
 // hachés en base), l'e-mail, l'envoi, le résultat. rpc(nom, args) -> { data, error } (client Supabase en service_role).
-// envoyer(courriel) -> { ok, raison }. Rend { traites, envoyes, echecs, ignores }.
+// envoyer(courriel) -> { ok, raison }. Rend { traites, envoyes, echecs, ignores, limites }.
 // Cadence : environ 600 ms entre deux appels Resend (limite par défaut : 2 requêtes par seconde). Un refus 429 est ressayé sur place
 // (jusqu'à 3 fois, attente croissante) sans rien enregistrer : la tentative déjà comptée par _contact_srv_prendre sert alors à l'envoi
 // qui aboutit, au lieu d'être perdue par un résultat « echec ». attente(ms) est injectable pour les tests.
-export async function traiterEnvois({ rpc, envoyer, appUrl, aleatoire, subtle, limite = 20, attente = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
+// 429 durable (migration 4) : un 429 qui persiste après les 3 ressais rend l'issue « limite » (à retenter, la tentative n'est pas
+// consommée) et arrête la boucle ; les envois suivants, pris mais pas tentés, sont remis en file de la même façon (« limite »), intacts.
+// Échéance : au-delà de `echeance` ms (120 s par défaut, sous les 150 s d'une Edge Function), la boucle s'arrête proprement avant le
+// prochain envoi ou ressai, et remet le reste en file (« limite »). maintenant() est injectable pour les tests.
+export const ECHEANCE_ENVOIS_MS = 120_000;
+export async function traiterEnvois({ rpc, envoyer, appUrl, aleatoire, subtle, limite = 20, attente = (ms) => new Promise((r) => setTimeout(r, ms)),
+  echeance = ECHEANCE_ENVOIS_MS, maintenant = () => Date.now() }) {
+  const debut = maintenant();
+  const horsDelai = () => maintenant() - debut >= echeance;
   const { data, error } = await rpc("_contact_srv_prendre", { p_limite: limite });
   if (error || !Array.isArray(data)) throw new Error("file des envois illisible");
-  const bilan = { traites: 0, envoyes: 0, echecs: 0, ignores: 0 };
+  const bilan = { traites: 0, envoyes: 0, echecs: 0, ignores: 0, limites: 0 };
   const resultat = async (id, issue, raison) => {
     const { error: e } = await rpc("_contact_srv_resultat", { p_envoi_id: id, p_issue: issue, p_raison: raison });
     if (e) throw new Error("résultat d'envoi non enregistré");
   };
+  // Les envois pris et pas encore tentés, à partir du rang i, remis en file sans consommer leur tentative.
+  const remettre = async (i, raison) => {
+    for (const reste of data.slice(i)) {
+      await resultat(reste.envoi_id, "limite", raison);
+      bilan.limites += 1;
+    }
+  };
   let aEnvoye = false;
-  for (const item of data) {
+  for (let i = 0; i < data.length; i += 1) {
+    const item = data[i];
+    if (horsDelai()) {
+      await remettre(i, "échéance du traitement");
+      break;
+    }
     bilan.traites += 1;
     if (adresseFictive(item?.destinataire?.email)) {
       await resultat(item.envoi_id, "ignore", "adresse fictive");
@@ -192,12 +212,20 @@ export async function traiterEnvois({ rpc, envoyer, appUrl, aleatoire, subtle, l
     aEnvoye = true;
     let envoi = await envoyer(courriel);
     for (let essai = 1; !envoi?.ok && envoi?.limite && essai <= 3; essai += 1) {
+      if (horsDelai()) break;
       await attente(1000 * essai);
+      if (horsDelai()) break;
       envoi = await envoyer(courriel);
     }
     if (envoi?.ok) {
       await resultat(item.envoi_id, "envoye", null);
       bilan.envoyes += 1;
+    } else if (envoi?.limite) {
+      // 429 persistant (ou échéance atteinte pendant les ressais) : cet envoi et les suivants restent en file, sans tentative perdue.
+      await resultat(item.envoi_id, "limite", envoi?.raison ?? "Resend 429");
+      bilan.limites += 1;
+      await remettre(i + 1, "Resend 429 : traitement arrêté");
+      break;
     } else {
       await resultat(item.envoi_id, "echec", envoi?.raison ?? "échec");
       bilan.echecs += 1;
