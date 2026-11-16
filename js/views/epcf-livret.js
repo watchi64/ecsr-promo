@@ -9,13 +9,13 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261114f";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261114f";
-import { isAdmin, isProf, monStagiaireId, enVitrine } from "../auth-admin.js?v=20261114f";
-import { getCurrentWho } from "../identity.js?v=20261114f";
-import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261114f";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261116a";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261116a";
+import { isAdmin, isProf, monStagiaireId, enVitrine, ecritSelonLaCase } from "../auth-admin.js?v=20261116a";
+import { getCurrentWho } from "../identity.js?v=20261116a";
+import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261116a";
 import { collectData, fillData, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261114f";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261116a";
 
 // La mécanique vit dans doc-officiel.js, partagée avec le Dossier Professionnel.
 const teardownLivretPrint = teardownDocPrint;
@@ -334,7 +334,7 @@ export async function renderEpcfLivret(container, opts = {}) {
     clear(container);
     if (!trouve) { container.appendChild(el("p", { class: "muted" }, "Stagiaire introuvable.")); return; }
     // La date de naissance n'est plus dans la liste des stagiaires (table privée).
-    showDoc(container, { ...trouve, date_naissance: naissance }, full, { readOnly: !isAdmin(), embedded: opts.embedded });
+    showDoc(container, { ...trouve, date_naissance: naissance }, full, { readOnly: !ecritSelonLaCase("notes"), embedded: opts.embedded });
     return;
   }
 
@@ -371,7 +371,7 @@ function showListe(container) {
       cell.appendChild(el("span", { class: "lv-statut" }, "pas commencé"));
     }
     cell.appendChild(el("button", {
-      class: "btn small " + (row || !isAdmin() ? "ghost" : "primary"),
+      class: "btn small " + (row || !ecritSelonLaCase("notes") ? "ghost" : "primary"),
       style: "margin-left:10px",
       onClick: async () => {
         let full = null;
@@ -379,9 +379,9 @@ function showListe(container) {
           try { full = await getEpcfLivret(s.id); } catch (e) { console.error(e); toast(e?.message || String(e), "error"); return; }
         }
         const naissance = await getDateNaissance(s.id).catch((e) => { console.error(e); return null; });
-        showDoc(container, { ...s, date_naissance: naissance }, full, { readOnly: !isAdmin(), back: () => renderReload(container) });
+        showDoc(container, { ...s, date_naissance: naissance }, full, { readOnly: !ecritSelonLaCase("notes"), back: () => renderReload(container) });
       },
-    }, row || !isAdmin() ? "Ouvrir ce livret" : "Commencer ce livret"));
+    }, row || !ecritSelonLaCase("notes") ? "Ouvrir ce livret" : "Commencer ce livret"));
     tbody.appendChild(el("tr", {},
       el("td", {}, el("div", { class: "lv-name-cell" }, el("span", {}, displayStagiaire(s)))),
       cell));

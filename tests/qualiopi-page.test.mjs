@@ -307,8 +307,8 @@ ok(lire("js/effacement-rules.js").includes('export const PHRASE_CONSERVATION = "
 ok(/if \(fondateurHorsApercu\(\)\) \{\s*blocConservation\.appendChild\(el\("a", \{ class: "btn cons-lien", href: "#\/qualiopi"/.test(donnees),
   "le lien vers la page Qualiopi : fondateur hors aperçu seulement (ni formateur, ni direction, ni aperçu)");
 ok((config.match(/#\/qualiopi/g) || []).length === 1, "un seul lien vers la page dans Réglages");
-ok(/el\("h3", \{\}, "Données personnelles"\)/.test(donnees) && /if \(!isEquipe\(\)\) return null;/.test(donnees), "la section « Données personnelles » reste, pour l'équipe (outils/verifier_navigation.py)");
-ok(/const avecBenevoles = isAdmin\(\);/.test(donnees) && /if \(avecBenevoles\) section\.appendChild\(blocBnv\);/.test(donnees), "la purge des élèves bénévoles reste, pour qui y a droit");
+ok(/el\("h3", \{\}, "Données personnelles"\)/.test(donnees) && /if \(!ecritSelonLaCase\("reglages", isEquipe\(\), \["equipe", "direction"\]\)\) return null;/.test(donnees), "la section « Données personnelles » reste, pour l'équipe (outils/verifier_navigation.py)");
+ok(/const avecBenevoles = gesteDefinitif\(\);/.test(donnees) && /if \(avecBenevoles\) section\.appendChild\(blocBnv\);/.test(donnees), "la purge des élèves bénévoles reste, pour qui y a droit");
 ok(!/(^|[^\w.])(confirm|prompt)\s*\(/.test(donnees.replace(/\/\/.*$/gm, "")) && /await confirmer\((\{|questionPurgerBenevoles\()/.test(donnees), "la purge confirme dans la fenêtre de l'app");
 ok(!/anonymiser|etatAnonymisationPromo|etatFinDePromo|Anonymiser la promo|"Effacer les données"|prompt\(/i.test(config.replace(/\/\/.*$/gm, "")), "plus d'anonymisation ni d'effacement dans Réglages");
 // La gestion des stagiaires est sortie de Réglages par le lot 5 (js/views/stagiaires-gestion.js, montée aussi chez la direction).

@@ -8,29 +8,29 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, getSalleAggregats,
   avantChangementPromo, absencesAnnonceesSemaine,
-} from "../db.js?v=20261114f";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom, shuffle } from "../utils.js?v=20261114f";
-import { confirmer, demander } from "../confirmer.js?v=20261114f";
-import { icon, deco } from "../icons.js?v=20261114f";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20261114f";
-import { isAdmin, getAdminEmail, monStagiaireId, getEspace } from "../auth-admin.js?v=20261114f";
-import { marqueAbsence } from "../contact-absences-rules.js?v=20261114f";
-import { recordUndo } from "../undo.js?v=20261114f";
-import { getCurrentWho } from "../identity.js?v=20261114f";
-import { telLink } from "./benevoles.js?v=20261114f";
-import { meilleurResultat } from "../passage-rules.js?v=20261114f";
-import { formateurConnecte } from "../modules-etat.js?v=20261114f";
-import { libelleHeure, jourFerie } from "../emargement-rules.js?v=20261114f";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261114f";
+} from "../db.js?v=20261116a";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom, shuffle } from "../utils.js?v=20261116a";
+import { confirmer, demander } from "../confirmer.js?v=20261116a";
+import { icon, deco } from "../icons.js?v=20261116a";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20261116a";
+import { getAdminEmail, monStagiaireId, ecritSelonLaCase, getEspace } from "../auth-admin.js?v=20261116a";
+import { marqueAbsence } from "../contact-absences-rules.js?v=20261116a";
+import { recordUndo } from "../undo.js?v=20261116a";
+import { getCurrentWho } from "../identity.js?v=20261116a";
+import { telLink } from "./benevoles.js?v=20261116a";
+import { meilleurResultat } from "../passage-rules.js?v=20261116a";
+import { formateurConnecte } from "../modules-etat.js?v=20261116a";
+import { libelleHeure, jourFerie } from "../emargement-rules.js?v=20261116a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261116a";
 import {
   entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe, colonnesParalleles,
-} from "../planning-roles.js?v=20261114f";
+} from "../planning-roles.js?v=20261116a";
 import {
   DEFAULT_HALF_META, semaineEnGrille, jourParDefaut, lundiEnCours, vuePlanningInitiale,
-} from "../journee-rules.js?v=20261114f";
-import { nomsStagiaires, nomBenevole } from "../planning-lecture.js?v=20261114f";
-import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261114f";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
+} from "../journee-rules.js?v=20261116a";
+import { nomsStagiaires, nomBenevole } from "../planning-lecture.js?v=20261116a";
+import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261116a";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261116a";
 
 let stagiaires = [];
 let profs = [];
@@ -54,7 +54,7 @@ function isLocked(lundi) { return lockedWeeks.has(lundi); }
 
 // Prédicat central d'édition : admin + mode édition actif + semaine non verrouillée.
 // Remplace les gardes isAdmin() partout où il s'agit d'ÉDITER la semaine affichée.
-function canEditWeek() { return isAdmin() && editMode && !isLocked(semaineLundi); }
+function canEditWeek() { return ecritSelonLaCase("planning") && editMode && !isLocked(semaineLundi); }
 
 // === La semaine en grille (lot 2B) ===
 // Hors mode Modifier, la semaine se lit en grille (jours en colonnes) ou en liste (les cartes du planning d'avant).
@@ -1510,7 +1510,7 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
 // de style.css) et, marqué [data-hors-edition], il n'ouvre ni le menu de la puce ni le toast
 // « lecture seule » de la zone des cartes. L'impression a son propre DOM : jamais de numéro.
 function benevoleNomEtNumero(b) {
-  if (!isAdmin() || !("telephone" in b)) return b.display;
+  if (!ecritSelonLaCase("stagiaires") || !("telephone" in b)) return b.display;
   const nom = b.display;
   // Un numéro sans aucun chiffre (« - », « ? ») ne s'appelle pas : il compte comme absent.
   const lien = String(b.telephone ?? "").replace(/[^+\d]/g, "") ? telLink(b.telephone) : null;
@@ -2168,7 +2168,7 @@ function renderDayCard(d, monday) {
 // Admin : table complète (dispos, actif...). Stagiaire : RPC noms seulement
 // (la table est RLS admin-only, téléphone jamais transmis).
 async function loadBenevoles() {
-  if (isAdmin()) {
+  if (ecritSelonLaCase("stagiaires")) {
     const list = await listBenevoles();
     return list.map((b) => ({ ...b, display: displayStagiaire(b) }));
   }
@@ -2808,7 +2808,7 @@ function renderInto(container) {
   currentContainer = container;
   clear(container);
 
-  const admin = isAdmin();
+  const admin = ecritSelonLaCase("planning");
   const editing = canEditWeek();
   // Côté stagiaire : le planning se lit seulement, sans phrase qui parle d'administration.
   const eleve = !formateurConnecte();

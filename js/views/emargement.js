@@ -7,26 +7,26 @@ import {
   listStagiaires, listProfs, getPlanning, getHalfMetaForWeek, getJoursOff, getPromoCourante,
   listEmargementSeances, ouvrirEmargement, signerEmargement, signerEmargementFormateur,
   annoterEmargement, cloreEmargement, rouvrirEmargement, getEnteteEmargement, setEnteteEmargement,
-} from "../db.js?v=20261114f";
-import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261114f";
-import { confirmer } from "../confirmer.js?v=20261114f";
-import { icon } from "../icons.js?v=20261114f";
-import { isAdmin, isEquipe, getProfile } from "../auth-admin.js?v=20261114f";
+} from "../db.js?v=20261116a";
+import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261116a";
+import { confirmer } from "../confirmer.js?v=20261116a";
+import { icon } from "../icons.js?v=20261116a";
+import { isAdmin, isEquipe, getProfile, ecritSelonLaCase, litSelonLaCase } from "../auth-admin.js?v=20261116a";
 import {
   etatLigne, resumeSeance, resumeEnClair, etatSansFeuille, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
   demiVoisine, notesProposees, roleAuPlanning,
-} from "../emargement-rules.js?v=20261114f";
-import { lundiDe, jourDe, dayIndexDe } from "../dates.js?v=20261114f";
-import { ouvrirSignature, signatureOuMention } from "../signature-pad.js?v=20261114f";
+} from "../emargement-rules.js?v=20261116a";
+import { lundiDe, jourDe, dayIndexDe } from "../dates.js?v=20261116a";
+import { ouvrirSignature, signatureOuMention } from "../signature-pad.js?v=20261116a";
 import {
   feuilleSeance, feuilleSemaine, imprimer, nomComplet, jourLong, DEMI_LONG, stagiairesDeFeuille,
-} from "../emargement-feuilles.js?v=20261114f";
-import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261114f";
-import { emargementActif } from "../emargement-etat.js?v=20261114f";
-import { estAdresseAttestations } from "../attestations-rules.js?v=20261114f";
-import { renderAttestations } from "./attestations.js?v=20261114f";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
+} from "../emargement-feuilles.js?v=20261116a";
+import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261116a";
+import { emargementActif } from "../emargement-etat.js?v=20261116a";
+import { estAdresseAttestations } from "../attestations-rules.js?v=20261116a";
+import { renderAttestations } from "./attestations.js?v=20261116a";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261116a";
 
 // Horaires par défaut, comme DEFAULT_HALF_META du planning.
 const HORAIRES_DEFAUT = { matin: { debut: "09:00", fin: "12:30" }, aprem: { debut: "13:30", fin: "17:00" } };
@@ -48,8 +48,8 @@ export async function renderEmargement(container, { dansLeCentre = false } = {})
   clear(container);
   // Ouvrir une séance et lire la feuille : le formateur de la promo. La direction (isEquipe sans isAdmin, lot 5) lit les feuilles,
   // imprime les feuilles closes et les attestations, mais n'écrit jamais : la base refuserait, les gestes d'écriture sont masqués.
-  const lecture = !isAdmin();
-  if (lecture && !isEquipe()) {
+  const lecture = !ecritSelonLaCase("emargement");
+  if (lecture && !litSelonLaCase("emargement", isEquipe(), ["equipe", "direction"])) {
     container.appendChild(el("p", { class: "muted" }, "L'émargement se gère par les formateurs de la promo."));
     return;
   }
@@ -166,7 +166,7 @@ function dessinerSemaine(ctx) {
   // La base n'accepte l'écriture des réglages que d'un administrateur : le bouton « En-tête » suit.
   page.appendChild(el("div", { class: "em-barre" },
     el("div", { class: "em-barre-nav" }, el("span", { class: "em-barre-titre" }, titre), prev, choixDate, next, cette),
-    el("div", { class: "em-barre-actions" }, imprimerSemaine, attestations, isAdmin() ? reglerEntete : null),
+    el("div", { class: "em-barre-actions" }, imprimerSemaine, attestations, !ctx.lecture ? reglerEntete : null),
   ));
 
   const actifs = stagiaireIdsActifs(ctx);

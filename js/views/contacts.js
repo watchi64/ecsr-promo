@@ -8,20 +8,20 @@
 import {
   lireAnnuaire, lireMaFiche, ordonnerFiches, listStagiaires, lireCoordonnees, addContact, updateContact, deleteContact, lireFormateursPourFiche,
   getPromoCourante, getLieuxLus, listeDemandes,
-} from "../db.js?v=20261114f";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261114f";
-import { icon } from "../icons.js?v=20261114f";
-import { vueStagiaire, selonPublic } from "../auth-admin.js?v=20261114f";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261114f";
-import { confirmer } from "../confirmer.js?v=20261114f";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
-import { jourParis } from "../dates.js?v=20261114f";
-import { trierFiches, ligneDeFiche, validerMaFiche, aQuitte } from "../contact-annuaire-rules.js?v=20261114f";
-import { rangerDemandes } from "../contact-rules.js?v=20261114f";
-import { libelleDesJours } from "../contact-absences-rules.js?v=20261114f";
-import { lireAdresse } from "../route-rules.js?v=20261114f";
-import { ligneDemande, renderDemande } from "./demande.js?v=20261114f";
-import { ouvrirEcrire } from "./contact-ecrire.js?v=20261114f";
+} from "../db.js?v=20261116a";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261116a";
+import { icon } from "../icons.js?v=20261116a";
+import { vueStagiaire, selonPublic } from "../auth-admin.js?v=20261116a";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261116a";
+import { confirmer } from "../confirmer.js?v=20261116a";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261116a";
+import { jourParis } from "../dates.js?v=20261116a";
+import { trierFiches, ligneDeFiche, validerMaFiche, aQuitte } from "../contact-annuaire-rules.js?v=20261116a";
+import { rangerDemandes } from "../contact-rules.js?v=20261116a";
+import { libelleDesJours } from "../contact-absences-rules.js?v=20261116a";
+import { lireAdresse } from "../route-rules.js?v=20261116a";
+import { ligneDemande, renderDemande } from "./demande.js?v=20261116a";
+import { ouvrirEcrire } from "./contact-ecrire.js?v=20261116a";
 
 const PHRASE_LECTURE_ECHEC = "Les contacts n'ont pas pu être chargés.";
 const PHRASE_AUCUN_CONTACT = "Aucun contact pour ce centre.";

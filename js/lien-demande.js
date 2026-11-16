@@ -1,9 +1,9 @@
 // Page des liens d'e-mail (demande.html) : la personne de l'équipe ouvre le lien reçu, lit la demande entière et touche un seul
 // bouton « Confirmer : <geste> ». Ouvrir la page ne fait rien (un filtre de messagerie peut la charger) ; le geste n'est fait qu'au
 // toucher. Aucun champ de texte, aucune connexion : le jeton du fragment de l'adresse fait foi, la fonction contact-envois le juge.
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js";
-import { jetonDeLAdresse, etatDeLaPage, libelleAction } from "./lien-demande-rules.js";
-import { TYPES_DEMANDE } from "./contact-rules.js";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261116a";
+import { jetonDeLAdresse, etatDeLaPage, libelleAction } from "./lien-demande-rules.js?v=20261116a";
+import { TYPES_DEMANDE } from "./contact-rules.js?v=20261116a";
 
 const racine = document.getElementById("lien-demande");
 const PHRASE_INVALIDE = "Ce lien n'est plus valable. Ouvrez la demande dans l'app ou demandez un nouvel envoi.";

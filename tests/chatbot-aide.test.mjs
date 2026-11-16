@@ -163,7 +163,7 @@ test("lot 5 : chaque guide nomme chaque entrée de sa barre, dans l'ordre, puis 
 test("lot 5 : les mots des écrans de la direction (plan, tâches 7 à 10 et 14)", () => {
   for (const mot of ["Vue d'ensemble", "Centre de", "À suivre de près", "Thèmes les moins réussis", "Exporter le tableau (CSV)",
     "Ce centre n'a pas encore de promo", "Créer une promo", "Réessayer", "Modifier", "Modules", "Gérer cette promo",
-    "Voir les feuilles", "Voir la matrice", "Inviter un formateur", "Retirer du centre",
+    "Voir les feuilles", "Voir la matrice", "Inviter une personne", "Retirer",
     "Compte créé. La personne crée son mot de passe avec cette adresse, onglet Créer mon compte.",
     "Habillage par défaut du centre", "Laisser chacun choisir le sien", "Promos mises à jour."]) {
     assert.ok(DIRECTION.includes(mot), mot);
@@ -239,5 +239,64 @@ test("espace contact : absences, Messages, lien d'e-mail, justificatif hors de l
   const direction = consignesApp("direction");
   for (const morceau of ["- messages (Messages", "Qui reçoit quoi", "Réponses toutes faites", "Absent (prévenu)", "Envoyer mon justificatif"]) {
     assert.ok(direction.includes(morceau), "direction : " + morceau);
+  }
+});
+
+// === Titres et droits à la carte (étape 4) : les libellés du guide sont ceux de l'écran ===
+const lireSource = (chemin) => readFileSync(new URL(chemin, import.meta.url), "utf8");
+const sourceEquipe = lireSource("../js/views/direction-equipe.js");
+const sourceSiege = lireSource("../js/views/siege-directions.js");
+const sourceMenu = lireSource("../js/menu-compte.js");
+const sourceConfig = lireSource("../js/views/config.js");
+const sourceEspaces = lireSource("../js/espaces-rules.js");
+const ligneDe = (guide, debut) => guide.split("\n").find((l) => l.startsWith(debut));
+
+test("titres : la page Équipe du guide de la direction cite les sections et les gestes de l'écran", () => {
+  const equipe = ligneDe(DIRECTION, "- equipe (");
+  assert.ok(equipe, "ligne equipe");
+  for (const mot of ["Personnes avec accès", "Inviter une personne", "Titres du centre", "Journal des droits", "Changer de titre",
+    "Modifier les promos", "Retirer", "Ajuster", "Créer un titre à partir de celui-ci", "Supprimer", "Ce qu'elle pourra faire", "Fixe"]) {
+    assert.ok(equipe.includes(mot), mot);
+    // Chaque libellé du guide existe dans le code de l'écran.
+    assert.ok(sourceEquipe.includes(mot), `absent de l'écran : ${mot}`);
+  }
+  assert.ok(equipe.includes("quand le fondateur les a ouverts"));
+  assert.ok(!equipe.includes("Inviter un formateur") && !equipe.includes("Retirer du centre"), "ces boutons n'existent plus");
+});
+
+test("titres : la page Directions de centre du guide du siège cite les sections et les gestes de l'écran", () => {
+  const directions = ligneDe(SIEGE, "- directions (");
+  assert.ok(directions, "ligne directions");
+  for (const mot of ["Inviter une personne", "Titres du réseau", "Titres du centre", "Journal du réseau", "Donner", "Ajuster",
+    "Créer un titre à partir de celui-ci", "Supprimer", "Retirer", "Ajouter un centre"]) {
+    assert.ok(directions.includes(mot), mot);
+    assert.ok(sourceSiege.includes(`"${mot}"`) || sourceSiege.includes(mot), `absent de l'écran : ${mot}`);
+  }
+  assert.ok(directions.includes("quand le fondateur les a ouverts"));
+});
+
+test("titres : le menu du compte et la page fermée sont décrits dans les trois guides, avec les mots de l'écran", () => {
+  for (const [nom, guide] of [["formateurs", NOUVELLE], ["direction", DIRECTION], ["siège", SIEGE]]) {
+    const compte = ligneDe(guide, "COMPTE (");
+    assert.ok(compte.includes("Mon titre") && compte.includes("Ce que je peux faire"), nom);
+    assert.ok(guide.includes("Vous n'avez pas accès à cette page avec votre titre."), nom);
+  }
+  assert.ok(sourceMenu.includes("Mon titre") && sourceMenu.includes("Ce que je peux faire"));
+  assert.ok(sourceEspaces.includes("Vous n'avez pas accès à cette page avec votre titre."));
+});
+
+test("titres : le verrou du fondateur est décrit avec les mots de l'écran de Réglages", () => {
+  for (const mot of ["Titres à la carte", "Ouvrir les titres à la carte", "Titres à la carte ouverts", "Titres à la carte fermés"]) {
+    assert.ok(sourceConfig.includes(mot), `absent de l'écran : ${mot}`);
+  }
+  const reglages = NOUVELLE.split("\n").filter((l) => l.includes("Titres à la carte"));
+  assert.ok(reglages.length >= 1, "le guide des formateurs décrit le verrou");
+  assert.ok(reglages.some((l) => l.includes("Ouvrir les titres à la carte") && l.includes("fondateur")));
+});
+
+test("titres : aucun guide ne contient « prof » ni de tiret cadratin, l'équipe est vouvoyée", () => {
+  for (const [nom, guide] of [["formateurs", NOUVELLE], ["direction", DIRECTION], ["siège", SIEGE]]) {
+    assert.ok(!/prof/i.test(guide), `${nom} : prof`);
+    assert.ok(!guide.includes(String.fromCharCode(0x2014)), `${nom} : tiret cadratin`);
   }
 });

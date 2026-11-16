@@ -9,12 +9,15 @@
 --                restent le seul chemin ; le scénario de la relecture finale (un siège ne se nomme pas direction) ne lit rien.
 --   lectures     (migration 5, C) les lectures qu'une case « Non » ferme (affectations, profils du personnel, roles_du_personnel, notes visibles),
 --                en nombre de lignes ; les titres fixes lisent les mêmes nombres qu'avant la migration (relevé avant, comparé après).
+--   d5           (étape 3, aides de gestion, pg_temp.groupe_d5) le retour 6, injecté après la migration 6 jouée ici, s'arrête sans rien
+--                changer tant qu'une affectation porte un titre non fixe, avec la phrase D5 ; les affectations retirées, il passe.
 --   retour       les retours défont tout, dans l'ordre inverse (6, 5, 4) : l'empreinte (règles, fonctions, droits) égale celle d'avant.
 -- Les groupes des migrations 5 et 6 s'ajoutent avec leurs tâches (retrait, soi, ecritures, lectures ; puis verrou, donner, retirer,
 -- gerer, lire, immediat, journal). Un groupe dont la fonction n'existe pas est sauté, avec une ligne d'information, en mode
 -- gestion-en-ligne (la migration n'est pas encore appliquée) ; il compte comme un échec dans les modes injectés où sa migration est jouée.
--- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes (tests/sql/roles-aides.sql, puis
--- tests/sql/titres-aides.sql), le libellé du mode, la requête d'empreinte, puis les migrations 4, 5 et 6 et leurs retours :
+-- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes (tests/sql/roles-aides.sql,
+-- tests/sql/titres-aides.sql, puis tests/sql/titres-gestion-aides.sql, qui porte les personnages de l'étape 2), le libellé du mode, la
+-- requête d'empreinte, puis les migrations 4, 5 et 6 et leurs retours :
 --   node outils/assembler_repetition_roles.mjs gestion [--etapes 5|5,6|4,5,6] <sortie.sql>   étapes 5,6 par défaut : VERT attendu
 --   node outils/assembler_repetition_roles.mjs gestion-contre-epreuve <sortie.sql>           sans aucune migration : ROUGE attendu
 --                                                                                            sur les groupes des migrations 5 et 6
@@ -24,6 +27,7 @@
 
 -- @@INCLURE tests/sql/roles-aides.sql@@
 -- @@INCLURE tests/sql/titres-aides.sql@@
+-- @@INCLURE tests/sql/titres-gestion-aides.sql@@
 
 create or replace function pg_temp.empreinte(out regles text, out fonctions text, out droits text)
 language plpgsql as $temp$
@@ -32,53 +36,6 @@ begin
 -- @@INJECTER tests/sql/roles-empreinte.sql@@
   into regles, fonctions, droits;
 end $temp$;
-
--- Les personnages de l'étape 2, posés en propriétaire après ceux de titres-aides.sql (poser_perso, poser_titres_gestes) : une promo
--- « Preuve8 promo A » dans le centre de la promo 1 ; quatre titres non fixes (t_chef et t_vide au centre de la promo 1, t_qualite et
--- t_dirs au réseau), chacun porté par un compte ; cinq adresses libres (x, y, z, u, v : ni profil ni affectation) et un orphelin (profil
--- de stagiaire sans fiche). Le champ info de pg_temp.perso porte l'identifiant du titre pour les quatre premiers.
-create or replace function pg_temp.poser_titres_gestion()
-returns void language plpgsql as $tpgs$
-declare
-  v_l1 integer := (select lieu_id from public.promos where id = 1);
-  v_chef text; v_vide text; v_qualite text; v_dirs text;
-begin
-  insert into public.promos (id, lieu_id, nom, date_debut, date_fin) values (990801, v_l1, 'Preuve8 promo A', current_date - 20, null);
-  insert into perso (ordre, nom, email, role) values
-    (40, 't_chef', 'preuve8.t.chef@exemple.invalid', 'prof'),
-    (41, 't_vide', 'preuve8.t.vide@exemple.invalid', 'prof'),
-    (42, 't_qualite', 'preuve8.t.qualite@exemple.invalid', 'prof'),
-    (43, 't_dirs', 'preuve8.t.dirs@exemple.invalid', 'prof'),
-    (50, 'x', 'preuve8.x@exemple.invalid', 'prof'),
-    (51, 'y', 'preuve8.y@exemple.invalid', 'prof'),
-    (52, 'z', 'preuve8.z@exemple.invalid', 'prof'),
-    (53, 'u', 'preuve8.u@exemple.invalid', 'prof'),
-    (54, 'v', 'preuve8.v@exemple.invalid', 'prof'),
-    (55, 'orphelin', 'preuve8.orphelin@exemple.invalid', 'stagiaire');
-  insert into public.user_profiles (email, role, is_admin, stagiaire_id)
-    select email, role, false, null from perso where nom in ('t_chef', 't_vide', 't_qualite', 't_dirs', 'orphelin');
-  -- Un camarade de la promo 1 qui a masqué ses notes (anonymous_notes), posé en propriétaire.
-  declare v_fiche_anon integer;
-  begin
-    insert into public.stagiaires (prenom, nom, ordre, promo_id) values ('Preuve8 anonyme', 'PREUVE', 991, 1) returning id into v_fiche_anon;
-    insert into public.user_profiles (email, role, is_admin, stagiaire_id, anonymous_notes)
-      values ('preuve8.anonyme@exemple.invalid', 'stagiaire', false, v_fiche_anon, true);
-  end;
-  v_chef := pg_temp.calcul(format('insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values (''Preuve8 chef de centre'', ''centre'', %s, %L::jsonb, ''preuve'') returning id::text',
-    v_l1, '{"promos":"voir","stagiaires":"voir","equipe":"modifier"}'));
-  v_vide := pg_temp.calcul(format('insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values (''Preuve8 titre vide'', ''centre'', %s, %L::jsonb, ''preuve'') returning id::text',
-    v_l1, '{}'));
-  v_qualite := pg_temp.calcul(format('insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values (''Preuve8 qualité'', ''reseau'', null, %L::jsonb, ''preuve'') returning id::text',
-    '{"cours":"voir","directions":"voir"}'));
-  v_dirs := pg_temp.calcul(format('insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values (''Preuve8 directions'', ''reseau'', null, %L::jsonb, ''preuve'') returning id::text',
-    '{"cours":"voir","directions":"modifier"}'));
-  update perso set info = case nom when 't_chef' then v_chef when 't_vide' then v_vide when 't_qualite' then v_qualite else v_dirs end
-    where nom in ('t_chef', 't_vide', 't_qualite', 't_dirs');
-  perform pg_temp.affecter((select email from perso where nom = 't_chef'), 'direction', null, v_l1, v_chef);
-  perform pg_temp.affecter((select email from perso where nom = 't_vide'), 'direction', null, v_l1, v_vide);
-  perform pg_temp.affecter((select email from perso where nom = 't_qualite'), 'siege', null, null, v_qualite);
-  perform pg_temp.affecter((select email from perso where nom = 't_dirs'), 'siege', null, null, v_dirs);
-end $tpgs$;
 
 -- Un groupe se joue-t-il dans ce mode ? p_etat : le sort de la migration qui le fonde (« jouée », « neutralisée », ou une erreur) ;
 -- p_fonction : la fonction que cette migration crée (écrite comme to_regprocedure la lit), ou nul si le groupe ne dépend d'aucune fonction.
@@ -741,7 +698,12 @@ declare
   e_form_n text := pg_temp.e('form_n'); e_dir_n text := pg_temp.e('dir_n'); e_siege text := pg_temp.e('siege');
   e_stag_n text := pg_temp.e('stag_n'); e_orph text := pg_temp.e('orphelin'); e_chef text := pg_temp.e('t_chef'); e_secr text := pg_temp.e('t_secr');
   v_promos_1 constant text := '''{1}''::integer[]';
+  -- La migration 7 (étape 3) est-elle en place ? Son index titres_version_unique en est le marqueur. M5 : un titre de promo non fixe ne
+  -- fait plus un compte d'administrateur (is_admin faux) ; deux cas ci-dessous en dépendent, jugés à l'état.
+  v_d1 constant boolean := exists (select 1 from pg_indexes where indexname = 'titres_version_unique');
+  v_admin_promo text;
 begin
+  v_admin_promo := case when v_d1 then 'false' else 'true' end;
   v_l1t := v_l1::text; v_l2t := v_l2::text;
   perform pg_temp.liberer();
   perform pg_temp.verrou(false);
@@ -801,8 +763,8 @@ begin
   perform pg_temp.attendre('donner', 't_chef donne Intervenant à y (promos 1 et A) : permis, profil créé, deux lignes',
     pg_temp.donner('t_chef', '1', null, e_y, t_interv, v_l1t, format('''{1,%s}''::integer[]', v_a)) || ' / ' || pg_temp.lignes(e_y, 'formateur'),
     pg_temp.reponse_donner(true, false, null, '[1, ' || v_a || ']', '[]') || ' / 2');
-  perform pg_temp.attendre('donner', 'le profil d''un titre de promo est celui d''un formateur (administrateur), invité par t_chef',
-    pg_temp.profil('y'), 'prof/true/' || lower(e_chef));
+  perform pg_temp.attendre('donner', 'le profil d''un titre de promo non fixe : compte du personnel invité par t_chef (administrateur avant la migration 7, plus après : M5)',
+    pg_temp.profil('y'), 'prof/' || v_admin_promo || '/' || lower(e_chef));
   perform pg_temp.attendre('donner', 't_chef redonne Intervenant à y (promo A seule) : la promo 1 est retirée',
     pg_temp.donner('t_chef', '1', null, e_y, t_interv, v_l1t, format('''{%s}''::integer[]', v_a)) || ' / ' || pg_temp.lignes(e_y, 'formateur'),
     pg_temp.reponse_donner(false, false, null, '[]', '[1]') || ' / 1');
@@ -871,7 +833,7 @@ begin
     'ERREUR P0001 titres: Cette adresse est celle d''un compte stagiaire. / 0');
   perform pg_temp.attendre('donner', 't_chef donne Intervenant à un orphelin (compte stagiaire sans fiche) : transformé en compte du personnel',
     pg_temp.donner('t_chef', '1', null, e_orph, t_interv, v_l1t, v_promos_1) || ' / ' || pg_temp.profil('orphelin'),
-    pg_temp.reponse_donner(false, true, null, '[1]', '[]') || ' / prof/true/' || lower(e_chef));
+    pg_temp.reponse_donner(false, true, null, '[1]', '[]') || ' / prof/' || v_admin_promo || '/' || lower(e_chef));
   perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L', e_orph));
   perform pg_temp.essai(format('update public.user_profiles set role = ''stagiaire'', is_admin = false, invited_by_email = null where lower(email) = %L', e_orph));
 
@@ -1127,6 +1089,10 @@ declare
   v_acc text; v_cat text; v_form text; v_r text; v_v text; v_r2 text; v_v2 text; v_autre text; v_feuille text; v_x text; v_r1 text; v_fort text; v_r3 text;
   v_refus_form constant text := 'ERREUR P0001 emargement: Réservé aux formateurs.';
   v_ok text;
+  -- La migration 7 (étape 3) est-elle en place ? Son index titres_version_unique en est le marqueur (le texte siege_fixe() est déjà dans
+  -- _refus_gestion de la migration 6 : il ne distingue rien). D1 : seuls le siège fixe et le fondateur créent, ajustent et suppriment les
+  -- titres du réseau de niveau promo ou centre ; un titre non fixe du réseau ne crée plus de titre de centre. Quatre cas en dépendent.
+  v_d1 constant boolean := exists (select 1 from pg_indexes where indexname = 'titres_version_unique');
 begin
   v_l1t := v_l1::text; v_l2t := v_l2::text;
   perform pg_temp.liberer();
@@ -1167,15 +1133,19 @@ begin
     pg_temp.creer('t_dirs', null, t_contenus, 'Preuve réseau', 'null'), 'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (cours).');
   perform pg_temp.attendre('gerer', 't_dirs crée un titre du réseau depuis celui de t_qualite (au plus égal) : permis',
     pg_temp.ok_id(pg_temp.creer('t_dirs', null, pg_temp.titre_de('t_qualite'), 'Preuve réseau qualité', 'null')), 'true');
-  perform pg_temp.attendre('gerer', 't_qualite (Directions : Voir) crée un titre de centre du réseau : refusé (42501), réservé au réseau',
-    pg_temp.creer('t_qualite', null, t_rh, 'Preuve qualité', 'null'), 'ERREUR 42501 titres: Réservé au réseau.');
+  perform pg_temp.attendre('gerer', 't_qualite (Directions : Voir) crée un titre de centre du réseau : refusé (42501), réservé au réseau (au siège après la migration 7, D1)',
+    pg_temp.creer('t_qualite', null, t_rh, 'Preuve qualité', 'null'),
+    case when v_d1 then 'ERREUR 42501 titres: Réservé au siège.' else 'ERREUR 42501 titres: Réservé au réseau.' end);
   perform pg_temp.attendre('gerer', 'siege crée un titre de centre du réseau (sans centre) depuis celui de t_secr : permis, sans centre',
     pg_temp.ok_id(pg_temp.creer('siege', null, t_secr, 'Preuve catalogue', 'null')), 'true');
   v_cat := pg_temp.calcul($q$select id::text from public.titres where nom = 'Preuve catalogue'$q$);
   perform pg_temp.attendre('gerer', 'le titre du catalogue : niveau centre, sans centre, mêmes cases que celui de t_secr',
     pg_temp.fiche_titre(v_cat, t_secr), 'centre/nul/false/nul/' || lower(e_siege) || '/true');
-  perform pg_temp.attendre('gerer', 't_dirs (Directions : Modifier) crée un titre de centre au centre 1 : permis (sans comparaison de cases)',
-    pg_temp.ok_id(pg_temp.creer('t_dirs', null, t_rh, 'Preuve dirs au centre', v_l1t)), 'true');
+  -- Avant la migration 7 : permis (« true ») ; après (D1) : refusé, le titre n'existe pas (le ménage par nom tolère son absence).
+  v_ok := pg_temp.creer('t_dirs', null, t_rh, 'Preuve dirs au centre', v_l1t);
+  perform pg_temp.attendre('gerer', 't_dirs (Directions : Modifier) crée un titre de centre au centre 1 : permis sans comparaison de cases (refusé après la migration 7, D1)',
+    case when v_d1 then v_ok else pg_temp.ok_id(v_ok) end,
+    case when v_d1 then 'ERREUR 42501 titres: Réservé à l''équipe du centre.' else 'true' end);
   perform pg_temp.attendre('gerer', 'droits : les quatre fonctions pour authenticated seul, _refus_gestion pour personne',
     pg_temp.calcul($q$select concat_ws('/',
       has_function_privilege('authenticated', 'public.creer_titre(bigint, text, integer)', 'execute')::text,
@@ -1275,8 +1245,9 @@ begin
       || ' / ' || pg_temp.calcul(format($q$select count(*)::text from public.affectations where titre_id = %s$q$, v_r2))
       || ' / ' || pg_temp.calcul(format($q$select count(*)::text from public.affectations where lower(email) = lower(%L) and titre_id = %s and promo_id = 2$q$, pg_temp.e('v'), v_r2)),
     'OK ' || v_v2 || '/true/1 / 2 / 1 / 1');
-  perform pg_temp.attendre('gerer', 'ajuster un titre du réseau (niveau promo) sans centre, par t_chef : refusé (42501), réservé au réseau',
-    pg_temp.ajuster('t_chef', '1', v_r2, 'null', null, '{"planning":"voir","stagiaires":"voir"}'), 'ERREUR 42501 titres: Réservé au réseau.');
+  perform pg_temp.attendre('gerer', 'ajuster un titre du réseau (niveau promo) sans centre, par t_chef : refusé (42501), réservé au réseau (au siège après la migration 7, D1)',
+    pg_temp.ajuster('t_chef', '1', v_r2, 'null', null, '{"planning":"voir","stagiaires":"voir"}'),
+    case when v_d1 then 'ERREUR 42501 titres: Réservé au siège.' else 'ERREUR 42501 titres: Réservé au réseau.' end);
   perform pg_temp.attendre('gerer', 'siege ajuste R promo sans centre : permis, le titre du réseau lui-même change, aucune version de plus',
     pg_temp.ajuster('siege', null, v_r2, 'null', null, '{"planning":"voir","stagiaires":"voir"}') || ' / ' || pg_temp.calcul(format('select count(*)::text from public.titres where origine_id = %s', v_r2)),
     'OK ' || v_r2 || '/false/0 / 1');
@@ -1335,11 +1306,18 @@ begin
     pg_temp.supprimer('t_chef', '1', t_secr), 'ERREUR 42501 titres: Ce titre ouvre plus que le vôtre (stagiaires).');
   perform pg_temp.attendre('gerer', 'supprimer un titre inconnu : refusé', pg_temp.supprimer('t_chef', '1', '-1'), 'ERREUR P0001 titres: Titre introuvable.');
   perform pg_temp.essai(format('delete from public.affectations where titre_id = %s', v_v));
+  -- v porte aussi R promo (ligne de formateur, promo 2) : on lit sa seule ligne de direction (sans ce filtre, la ligne rendue dépendait
+  -- de l'ordre physique de la table, que la migration 7 change).
   perform pg_temp.attendre('gerer', 'supprimer la version une fois retirée à u : permis, v porte toujours R',
-    pg_temp.supprimer('t_chef', '1', v_v) || ' / ' || pg_temp.calcul(format($q$select titre_id::text from public.affectations where lower(email) = lower(%L)$q$, pg_temp.e('v'))),
+    pg_temp.supprimer('t_chef', '1', v_v) || ' / ' || pg_temp.calcul(format($q$select titre_id::text from public.affectations where lower(email) = lower(%L) and role = 'direction'$q$, pg_temp.e('v'))),
     'OK supprime / ' || v_r);
-  perform pg_temp.attendre('gerer', 'supprimer un titre du réseau (sans centre) par t_dirs : permis une fois qu''il n''est plus porté',
-    pg_temp.supprimer('t_dirs', null, v_cat) || ' / ' || pg_temp.calcul(format('select count(*)::text from public.titres where id = %s', v_cat)), 'OK supprime / 0');
+  -- Avant la migration 7 : t_dirs le supprime. Après (D1, niveau centre sans centre : le siège fixe seul) : t_dirs est refusé, puis le
+  -- siège le supprime ; un seul contrôle dans les deux états.
+  perform pg_temp.attendre('gerer', 'supprimer un titre du réseau (sans centre) une fois qu''il n''est plus porté : permis à t_dirs (après la migration 7, D1 : refusé à t_dirs, permis au siège)',
+    pg_temp.supprimer('t_dirs', null, v_cat)
+      || case when v_d1 then ' / ' || pg_temp.supprimer('siege', null, v_cat) else '' end
+      || ' / ' || pg_temp.calcul(format('select count(*)::text from public.titres where id = %s', v_cat)),
+    case when v_d1 then 'ERREUR 42501 titres: Réservé au siège. / OK supprime / 0' else 'OK supprime / 0' end);
 
   -- 5. L'effet est immédiat : un titre de promo (Émargement : Modifier) donné à y ; t_chef décoche Émargement.
   perform pg_temp.essai($q$delete from public.settings where promo_id = 1 and key = 'emargement_actif'$q$);
@@ -1590,7 +1568,7 @@ declare
   ;
   v_debut constant timestamptz := clock_timestamp();
   v_en_ligne boolean;
-  v_etat4 text; v_etat5 text; v_etat6 text; v_retour text; v_retour4 text; v_retour5 text; v_retour6 text;
+  v_etat4 text; v_etat5 text; v_etat6 text; v_retour text; v_retour4 text; v_retour5 text; v_retour6 text; v_r6 text;
   v_av_regles text; v_av_fonctions text; v_av_droits text;
   v_ap_regles text; v_ap_fonctions text; v_ap_droits text;
   v_regle text; v_jouees integer;
@@ -1681,10 +1659,27 @@ begin
     perform pg_temp.groupe_journal();
   end if;
 
-  -- 5. Les retours, dans l'ordre inverse (6, 5, 4).
-  v_retour6 := pg_temp.jouer('retour 6',
+  -- 5. Les retours, dans l'ordre inverse (6, 5, 4). Avant eux, dans les seuls modes qui injectent des retours, les affectations des titres
+  -- non fixes partent (en propriétaire) : chaque retour de 6, 7, 8 et 9 refuse de se jouer tant qu'une personne porte un titre non fixe
+  -- (garde D5 de l'étape 3). Jamais en ligne ni en contre-épreuve. Une information, jamais un contrôle. Juste avant, le groupe d5 : le
+  -- retour 6, joué dans une sous-transaction toujours annulée, refuse tant qu'un titre non fixe est porté, puis passe une fois les
+  -- affectations retirées ; jugé seulement quand la migration 6 a été jouée ici et que son retour est injecté.
+  v_r6 :=
 -- @@INJECTER supabase/migrations/20261112_titres_6_gestion_retour.sql@@
-  );
+  ;
+  if v_mode like 'gestion (%' and v_etat6 = 'jouée' and v_r6 <> 'select 1' then
+    perform pg_temp.groupe_d5('retour 6', v_r6, 'titres_6_gestion_retour',
+      array['public.retirer_titre(text, bigint, integer)', 'public.regler_affectations_formateur(text, integer, integer[], integer)',
+            'public.donner_titre(text, bigint, integer, integer[], integer)', 'public._refus_gestion(text, integer, jsonb)',
+            'public.mes_titres()']);
+  else
+    perform pg_temp.informer('groupe d5', 'sauté : la migration 6 n''est pas jouée ici ou son retour n''est pas injecté dans ce mode');
+  end if;
+  if v_mode like 'gestion (%' then
+    perform pg_temp.informer('avant les retours', format('%s affectation(s) d''un titre non fixe retirée(s) (garde D5 des retours)',
+      pg_temp.retirer_titres_non_fixes()));
+  end if;
+  v_retour6 := pg_temp.jouer('retour 6', v_r6);
   perform pg_temp.etape('retour 6', v_retour6, v_mode);
   v_retour5 := pg_temp.jouer('retour 5',
 -- @@INJECTER supabase/migrations/20261112_titres_5_fermetures_retour.sql@@

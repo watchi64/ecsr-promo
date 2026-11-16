@@ -4,13 +4,13 @@
  */
 import {
   listAgendaEvents, addAgendaEvent, updateAgendaEvent, deleteAgendaEvent, getPromoCourante,
-} from "../db.js?v=20261114f";
-import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261114f";
-import { confirmer } from "../confirmer.js?v=20261114f";
-import { icon } from "../icons.js?v=20261114f";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261114f";
-import { recordUndo } from "../undo.js?v=20261114f";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
+} from "../db.js?v=20261116a";
+import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261116a";
+import { confirmer } from "../confirmer.js?v=20261116a";
+import { icon } from "../icons.js?v=20261116a";
+import { getAdminEmail, ecritSelonLaCase } from "../auth-admin.js?v=20261116a";
+import { recordUndo } from "../undo.js?v=20261116a";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261116a";
 
 let events = [];
 
@@ -262,7 +262,7 @@ let showPast = false;
 
 function rerender(container) {
   clear(container);
-  const admin = isAdmin();
+  const admin = ecritSelonLaCase("planning");
 
   // La page est Planning, Dates clés ; elle porte ce nom, avec la promo en surtitre ; le nombre de dates clés,
   // passées comprises, termine le sous-titre.

@@ -7,9 +7,9 @@
  * Sources des espaces permis (D2) : siège et direction viennent des affectations du compte ; formateur et
  * stagiaire viennent des rôles du compte dans la promo affichée (`promo.roles`, mes_promos(), lot 4).
  */
-import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261114f";
-import { lireAdresse } from "./route-rules.js?v=20261114f";
-import { habillageValide } from "./habillage-regles.js?v=20261114f";
+import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261116a";
+import { lireAdresse } from "./route-rules.js?v=20261116a";
+import { habillageValide } from "./habillage-regles.js?v=20261116a";
 
 export const ESPACES = ["stagiaire", "equipe", "direction", "siege"];
 export const LIBELLES_ESPACE = { stagiaire: "Stagiaire", equipe: "Formateur", direction: "Direction", siege: "Siège" };
@@ -270,6 +270,9 @@ export function routeDansLEspace(espace, route) {
 export function phraseHorsEspace(espace) {
   return `Cette page n'est pas dans l'espace ${LIBELLES_ESPACE[espace] || ""}.`.replace(" .", ".");
 }
+
+// Page fermée par le titre de la personne (case « Non », étape 3 des titres) : dite à l'ouverture de l'adresse, sans appel à la base.
+export const PHRASE_PAGE_FERMEE = "Vous n'avez pas accès à cette page avec votre titre.";
 
 // Phrase d'un refus de la base : les messages de nos fonctions sont préfixés (« equipe: … ») et se lisent sans
 // leur préfixe. Fonction absente (avant la migration) et droit manquant sans phrase à nous ont leur phrase.

@@ -5,13 +5,15 @@
 import assert from "node:assert/strict";
 import {
   espaceDe, entreesNavigation, barreTelephone, entreeActive, redirectionV2, routeVisibleV2, initialesDe,
-  prenomDe, entreeMasquee, libelleRole, nomDuBoutonCompte, pageASoiDuMenu, routeApresRedirection, CLES_SOUS_ONGLETS,
+  prenomDe, entreeMasquee, libelleRole, nomDuBoutonCompte, pageASoiDuMenu, routeApresRedirection, CLES_SOUS_ONGLETS, selonLesCases, formateurPourLEmargement, routeFermeeParTitre,
 } from "../js/nav-rules.js";
 import { readFileSync } from "node:fs";
 import { pagePersonnelle } from "../js/route-rules.js";
 import { MODULE_DE_ROUTE, ROUTES_SOCLE } from "../js/modules-data.js";
 import { lireAdresse, ouvertureDeMonSuivi } from "../js/route-rules.js";
 import { icon } from "../js/icons.js";
+import { casesDeLEspace, PAGES_DU_NIVEAU } from "../js/titres-rules.js";
+import { droitsAffiches } from "../js/roles-rules.js";
 
 let n = 0;
 const eq = (a, b, msg) => { assert.deepEqual(a, b, msg); n++; };
@@ -340,5 +342,110 @@ eq(libelleRole({ role: "prof", is_founder: false }, "siege"), "Siège", "libell�
 eq(libelleRole({ role: "prof", is_founder: false }, "equipe"), "Formateur", "libellé formateur");
 eq(libelleRole({ role: "stagiaire", is_founder: false }, "stagiaire"), "Stagiaire", "libellé stagiaire");
 eq(libelleRole({ role: "prof", is_founder: true }, "direction"), "Fondateur", "le fondateur reste Fondateur");
+
+// 12. Titres (étape 3) : la barre suit les cases ; un titre fixe ne change rien.
+{
+  const titreAuPlafond = (niveau, extra = {}) => ({
+    niveau, nom: "Fixe", fixe: true, promo_ids: [1], lieu_id: 1,
+    cases: Object.fromEntries(PAGES_DU_NIVEAU[niveau].map((p) => [p.page, p.plafond === 2 ? "modifier" : "voir"])), ...extra,
+  });
+  const casesDe = (espace, titre) => casesDeLEspace({ espace, titres: [titre], promoId: 1, lieuId: 1 });
+  const optionsDe = {
+    equipe: { routeVisible: tout, emargementActif: true, formateur: true },
+    direction: { routeVisible: tout, emargementDansLeCentre: true, reglagesEspace: true },
+    siege: { routeVisible: tout, reglagesEspace: true },
+  };
+  const niveauDe = { equipe: "promo", direction: "centre", siege: "reseau" };
+  for (const espace of ["equipe", "direction", "siege"]) {
+    const sans = entreesNavigation(espace, optionsDe[espace]);
+    const avec = entreesNavigation(espace, { ...optionsDe[espace], cases: casesDe(espace, titreAuPlafond(niveauDe[espace])) });
+    eq(avec, sans, `${espace} : titre fixe, mêmes entrées que cases nul`);
+    eq(barreTelephone(espace, avec), barreTelephone(espace, sans), `${espace} : titre fixe, même barre du téléphone`);
+  }
+  // Le fondateur hors aperçu et sans affectation : cases nul (casesDeLEspace), sortie d'aujourd'hui.
+  const casesFondateur = casesDeLEspace({ espace: "equipe", titres: [], promoId: 1, fondateur: true });
+  eq(casesFondateur, null, "fondateur hors aperçu : cases nul");
+  eq(entreesNavigation("equipe", { ...optionsDe.equipe, cases: casesFondateur }), entreesNavigation("equipe", optionsDe.equipe),
+    "fondateur : barre entière");
+  // Le stagiaire n'est jamais filtré par les cases.
+  eq(ids(entreesNavigation("stagiaire", { routeVisible: tout, cases: { planning: 0 } })), ["home", "planning", "themes", "mon-suivi", "ccp2"],
+    "stagiaire : les cases ne le touchent pas");
+
+  // Intervenant (titre de promo, émargement allumé).
+  const intervenant = { niveau: "promo", nom: "Intervenant", fixe: false, promo_ids: [1],
+    cases: { planning: "voir", emargement: "modifier", stagiaires: "voir", notes: "non", cours: "voir", ccp2: "non", indicateurs: "non", reglages: "non" } };
+  const casesInt = casesDe("equipe", intervenant);
+  const droitsInt = droitsAffiches({ profil: { role: "prof", is_admin: false, is_founder: false }, promo: { id: 1, roles: ["formateur"] }, apercu: null, titres: [intervenant] });
+  const peutEmarger = (casesInt.emargement === 2);
+  eq(droitsInt.admin, false, "Intervenant : isAdmin faux (M5)");
+  const entInt = entreesNavigation("equipe", { routeVisible: tout, emargementActif: true, formateur: peutEmarger, cases: casesInt });
+  eq(ids(entInt), ["home", "planning", "emargement", "stagiaires", "themes"], "Intervenant : entrées");
+  eq(ids(barreTelephone("equipe", entInt).barre), ["home", "planning", "emargement", "stagiaires"], "Intervenant : barre complétée");
+  eq(ids(barreTelephone("equipe", entInt).plus), ["themes"], "Intervenant : Plus");
+  eq(ids(entreesNavigation("equipe", { routeVisible: tout, emargementActif: true, formateur: droitsInt.admin, cases: casesInt })).includes("emargement"),
+    false, "Intervenant : avec isAdmin() l'entrée Émargement manquerait (d'où peutModifier)");
+
+  // Secrétariat (titre de centre).
+  const secretariat = { niveau: "centre", nom: "Secrétariat", fixe: false, lieu_id: 1,
+    cases: { promos: "voir", stagiaires: "modifier", emargement: "voir", notes: "non", equipe: "voir", reglages: "non" } };
+  const entSec = entreesNavigation("direction", { routeVisible: tout, emargementDansLeCentre: true, reglagesEspace: true, cases: casesDe("direction", secretariat) });
+  eq(ids(entSec), ["centre", "promos", "stagiaires", "emargement", "equipe"], "Secrétariat : entrées");
+  eq(ids(barreTelephone("direction", entSec).barre), ["centre", "promos", "stagiaires", "equipe"], "Secrétariat : barre");
+  eq(ids(barreTelephone("direction", entSec).plus), ["emargement"], "Secrétariat : Plus");
+  // Émargement éteint dans le centre : l'entrée n'y est pas, quelle que soit la case.
+  eq(ids(entreesNavigation("direction", { routeVisible: tout, emargementDansLeCentre: false, reglagesEspace: true, cases: casesDe("direction", secretariat) })),
+    ["centre", "promos", "stagiaires", "equipe"], "Secrétariat, émargement éteint : pas d'entrée");
+
+  // Titre du réseau Qualité.
+  const qualite = { niveau: "reseau", nom: "Qualité", fixe: false, cases: { cours: "voir", directions: "voir", reglages: "non" } };
+  const entQual = entreesNavigation("siege", { routeVisible: tout, reglagesEspace: true, cases: casesDe("siege", qualite) });
+  eq(ids(entQual), ["reseau", "themes", "directions"], "Qualité : entrées");
+  eq(ids(barreTelephone("siege", entQual).barre), ["reseau", "themes", "directions"], "Qualité : barre");
+  eq(barreTelephone("siege", entQual).plus, [], "Qualité : Plus vide");
+
+  // Entrées hors cases : `messages` et `contacts` passent toujours, même toutes cases à 0.
+  const toutesZero = (niveau) => Object.fromEntries(PAGES_DU_NIVEAU[niveau].map((p) => [p.page, 0]));
+  const horsCases = [{ id: "messages", route: "messages" }, { id: "contacts", route: "contacts" }];
+  for (const [espace, cases] of [["equipe", casesInt], ["direction", casesDe("direction", secretariat)], ["equipe", toutesZero("promo")],
+    ["direction", toutesZero("centre")], ["siege", toutesZero("reseau")]]) {
+    const base = entreesNavigation(espace, optionsDe[espace]);
+    const apres = selonLesCases([...base, ...horsCases.map((e) => ({ ...e }))], espace, cases);
+    eq(apres.slice(-2).map((e) => e.id), ["messages", "contacts"], `${espace} : messages et contacts passent le filtre`);
+  }
+  // Cases non lues (nul) : l'ancien drapeau décide, un non-admin ne gagne pas l'entrée Émargement.
+  eq(formateurPourLEmargement({ cases: null, peutModifier: true, admin: false }), false, "cases nulles, non admin : pas d'Émargement");
+  eq(formateurPourLEmargement({ cases: null, peutModifier: true, admin: true }), true, "cases nulles, admin : Émargement");
+  eq(formateurPourLEmargement({ cases: casesInt, peutModifier: true, admin: false }), true, "cases lues : peutModifier décide");
+  eq(formateurPourLEmargement({ cases: casesInt, peutModifier: false, admin: true }), false, "cases lues, Voir : pas d'écriture");
+  eq(ids(entreesNavigation("equipe", { ...optionsDe.equipe, formateur: formateurPourLEmargement({ cases: null, peutModifier: true, admin: false }), cases: null })).includes("emargement"),
+    false, "cases nulles et non admin : l'entrée manque");
+
+  // Le filtre lui-même : l'accueil de la direction (route « centre ») reste, la page Indicateurs de la promo (même route) suit sa case.
+  eq(ids(entreesNavigation("direction", { ...optionsDe.direction, cases: toutesZero("centre") })), ["centre"],
+    "direction, toutes cases à 0 : l'accueil reste (la route centre n'est pas Indicateurs ici)");
+  eq(ids(entreesNavigation("equipe", { ...optionsDe.equipe, cases: toutesZero("promo") })), ["home"],
+    "équipe, toutes cases à 0 : l'accueil seul");
+  eq(ids(entreesNavigation("siege", { ...optionsDe.siege, cases: toutesZero("reseau") })), ["reseau"],
+    "siège, toutes cases à 0 : l'accueil seul");
+
+  // Adresse d'une page à « Non » (routeFermeeParTitre) : fermée seulement quand les cases sont lues et la case à 0.
+  eq(routeFermeeParTitre("notes", "equipe", casesInt), true, "intervenant : Notes et examens fermée");
+  eq(routeFermeeParTitre("planning", "equipe", casesInt), false, "intervenant : Planning (Voir) ouverte");
+  eq(routeFermeeParTitre("emargement", "equipe", casesInt), false, "intervenant : Émargement (Modifier) ouverte");
+  eq(routeFermeeParTitre("notes", "equipe", null), false, "cases nulles : rien n'est fermé");
+  eq(routeFermeeParTitre("notes", "stagiaire", casesInt), false, "stagiaire : jamais jugé");
+  eq(routeFermeeParTitre("notes", "direction", casesDe("direction", secretariat)), true, "secrétariat : Notes fermée au centre");
+  eq(routeFermeeParTitre("promos", "direction", casesDe("direction", secretariat)), false, "secrétariat : Promos (Voir) ouverte");
+  eq(routeFermeeParTitre("planning", "direction", toutesZero("centre")), false, "direction : planning n'est pas une page du centre");
+  for (const [espace, cases, accueil] of [["equipe", toutesZero("promo"), "home"], ["direction", toutesZero("centre"), "centre"],
+    ["siege", toutesZero("reseau"), "reseau"]]) {
+    for (const route of ["home", "messages", "contacts", accueil]) {
+      if (espace === "equipe" && route === "centre") continue;
+      eq(routeFermeeParTitre(route, espace, cases), false, `${espace}, tout à Non : ${route} reste ouverte`);
+    }
+  }
+  eq(routeFermeeParTitre("centre", "equipe", toutesZero("promo")), true, "équipe : Indicateurs (route centre) suit sa case");
+  eq(routeFermeeParTitre("centre", "direction", toutesZero("centre")), false, "direction : la route centre est l'accueil");
+}
 
 console.log(`nav-rules : ${n} assertions OK`);

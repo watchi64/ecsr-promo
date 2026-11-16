@@ -2,20 +2,22 @@
 # Rejoue, sur la base locale reconstruite (reconstruire.sh), les migrations du dépôt postérieures au lot 4, dans l'ordre
 # où la production les a reçues, pour que les preuves SQL se jouent sur un état identique à la production.
 #
-# Usage : outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3[,4][,5][,6]] [--autonomie] [--autonomie-version AAAA-MM-JJ] [--restes] [--jury]
+# Usage : outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3[,...]] [--autonomie 1|1,2] [--production]
 #   --port         port de la base locale (défaut 55435)
 #   --avec-titres  ajoute ensuite les migrations 20261112_titres_1 à _4 (chantier titres et droits à la carte) ; vaut --titres 1,2,3,4
-#   --titres       ajoute ensuite les migrations 20261112_titres_<n>_* dans l'ordre de la liste (la production a reçu 1, 2, 3) ;
-#                  un fichier manquant arrête le script (code 3, son nom sur la sortie d'erreur)
-#   --autonomie    joue ensuite 20261114_autonomie_1_traces (e-learning, lot 1 : en production depuis le 14/11), après les contacts du centre ;
-#                  sortie « OK : suite rejouée (22 migrations) » avec --titres 1,2,3,5,6
-#   --autonomie-version  joue aussi 20261114_autonomie_2_version avec -v version=<date> (date au plus égale à aujourd'hui, ex. 2026-11-14,
-#                  éventuellement suivie d'une lettre minuscule) ; suppose --autonomie, que l'option active
-#   --restes       joue ensuite 20261114_restes_1_conditions puis 20261114_restes_2_truncate (petits restes : en production depuis le 14/11),
-#                  après autonomie_2 : restes_1 s'appuie sur la version publiée des conditions (2026-11-14), donc --autonomie-version 2026-11-14 ;
-#                  sans variable -v, une transaction chacune ; sortie « OK : suite rejouée (26 migrations) » avec --titres 1,2,3,5,6
-#                  --autonomie --autonomie-version 2026-11-14 --restes --jury
-#   --jury         joue ensuite 20261114_jury_resultats (résultats du jury, en production depuis le 14/11), après les restes ; suppose --restes
+#   --titres       ajoute ensuite les migrations 2026111?_titres_<n>_* (n de 1 à 9, date quelconque du 10 au 19/11) dans l'ordre de
+#                  la liste ; un fichier manquant arrête le script (code 3, son nom sur la sortie d'erreur)
+#   --autonomie    après les contacts, joue 20261114_autonomie_1_traces (1), puis 20261114_autonomie_2_version (2) avec
+#                  -v version=2026-11-14 (la version des conditions en production) ; 2 demande 1
+#   --production   l'état de la production au 16/11, dans l'ordre où elle l'a reçu : titres 1, 2, 3 (11/11), contacts,
+#                  20261111_conservation_direction (11/11, après les contacts), titres 5 (11/11) et 6 (13/11), puis
+#                  --autonomie 1,2 (14/11), puis 20261114_restes_1_conditions et 20261114_restes_2_truncate (14/11, après
+#                  l'e-learning : restes_1 contrôle la version de l'autonomie), puis 20261114_jury_resultats (14/11), puis
+#                  20261115_titres_7_correctifs puis 20261115_titres_8_apercu (appliquées le 14/11), puis
+#                  20261115_titres_9_catalogue (appliquée le 16/11) (sortie : 30 migrations) ;
+#                  ne se combine ni avec
+#                  --titres ni avec --avec-titres
+# Sans --titres, --autonomie ni --production : la suite d'avant (14 migrations, plus les deux des contacts : 16).
 # Code de sortie : 0 si tout passe ; sinon 3 (le nom du fichier en échec est écrit sur la sortie d'erreur).
 # Note : 20261028_signalements_app n'est pas dans la liste : ses tables sont dans clone_3_tables.sql ; seules ses fonctions sont jouées.
 set -u
@@ -23,10 +25,8 @@ RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PORT=55435
 TITRES=0
 LISTE_TITRES=""
-AUTONOMIE=0
-VERSION_AUTONOMIE=""
-RESTES=0
-JURY=0
+AUTONOMIE=""
+PRODUCTION=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --port) PORT="$2"; shift 2 ;;
@@ -34,22 +34,21 @@ while [ $# -gt 0 ]; do
     --titres)
       [ $# -ge 2 ] || { echo "--titres demande une liste (1,2,3)" >&2; exit 2; }
       case "$2" in
-        *[!0-9,]*|""|,*|*,|*,,*) echo "liste --titres refusée : « $2 » (attendu : 1,2,3)" >&2; exit 2 ;;
+        *[!1-9,]*|""|,*|*,|*,,*|*[0-9][0-9]*) echo "liste --titres refusée : « $2 » (attendu : des numéros de 1 à 9, ainsi 1,2,3)" >&2; exit 2 ;;
       esac
       TITRES=1; LISTE_TITRES="$(echo "$2" | tr ',' ' ')"; shift 2 ;;
-    --autonomie) AUTONOMIE=1; shift ;;
-    --autonomie-version)
-      [ $# -ge 2 ] || { echo "--autonomie-version demande une date (AAAA-MM-JJ)" >&2; exit 2; }
+    --autonomie)
+      [ $# -ge 2 ] || { echo "--autonomie demande 1 ou 1,2" >&2; exit 2; }
       case "$2" in
-        [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]|[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][a-z]) ;;
-        *) echo "date --autonomie-version refusée : « $2 » (attendu : AAAA-MM-JJ, éventuellement suivie d'une lettre minuscule)" >&2; exit 2 ;;
+        1|1,2) AUTONOMIE="$2" ;;
+        *) echo "liste --autonomie refusée : « $2 » (attendu : 1 ou 1,2)" >&2; exit 2 ;;
       esac
-      AUTONOMIE=1; VERSION_AUTONOMIE="$2"; shift 2 ;;
-    --restes) RESTES=1; shift ;;
-    --jury) RESTES=1; JURY=1; shift ;;
+      shift 2 ;;
+    --production) PRODUCTION=1; AUTONOMIE="1,2"; shift ;;
     *) echo "argument inconnu : $1" >&2; exit 2 ;;
   esac
 done
+[ "$PRODUCTION" = 1 ] && [ "$TITRES" = 1 ] && { echo "--production fixe déjà les titres : ne pas y ajouter --titres ni --avec-titres" >&2; exit 2; }
 MIGRATIONS="$RACINE/supabase/migrations"
 export PGOPTIONS="-c check_function_bodies=off" PGCLIENTENCODING=UTF8
 P="psql -h 127.0.0.1 -p $PORT -U postgres -d postgres -v ON_ERROR_STOP=1 -q"
@@ -61,19 +60,28 @@ LISTE="20261108_espaces_1_siege 20261108_espaces_2_equipe 20261108_espaces_3_hab
 20261110_conservation"
 # Ordre de la production : la navigation unique (phase 2 : fiches_suivi disparaît), puis la conservation des données (Qualiopi Q5 :
 # anonymiser_promo, etat_anonymisation_promo et _anonymiser_stagiaire disparaissent, les fonctions effacer_* arrivent), puis les titres.
-if [ "$TITRES" = 1 ]; then
-  for n in $LISTE_TITRES; do
-    f="$(ls "$MIGRATIONS"/20261112_titres_${n}_*.sql 2>/dev/null | grep -v '_retour\.sql$' | head -n 1)"
-    [ -n "$f" ] || { echo "migration introuvable : 20261112_titres_${n}_*" >&2; exit 3; }
-    LISTE="$LISTE $(basename "$f" .sql)"
-  done
+# Le nom d'une migration des titres (2026111?_titres_<n>_*, hors retour), ou l'arrêt (code 3) si elle manque.
+titre() {
+  local f
+  f="$(ls "$MIGRATIONS"/2026111?_titres_"$1"_*.sql 2>/dev/null | grep -v '_retour\.sql$' | head -n 1)"
+  [ -n "$f" ] || { echo "migration introuvable : 2026111?_titres_$1_*" >&2; exit 3; }
+  basename "$f" .sql
+}
+CONTACTS="20261113_contacts_centre 20261113_contacts_centre_2_montpellier"
+if [ "$PRODUCTION" = 1 ]; then
+  # L'ordre réel de la production (fusions dans main du 11/11 au 13/11) : titres 1 à 3 (18 h 29), contacts (19 h 35), conservation de
+  # la direction (21 h 07 : elle lit geste_centre de la migration 2 des titres), titres 5 (21 h 23), titres 6 (13/11).
+  for n in 1 2 3; do LISTE="$LISTE $(titre $n)" || exit 3; done
+  LISTE="$LISTE $CONTACTS 20261111_conservation_direction"
+  for n in 5 6; do LISTE="$LISTE $(titre $n)" || exit 3; done
+else
+  if [ "$TITRES" = 1 ]; then
+    for n in $LISTE_TITRES; do LISTE="$LISTE $(titre "$n")" || exit 3; done
+  fi
+  # Après les titres en production (11/11) : les contacts rattachés à un centre. Indépendante des titres (sa règle restrictive
+  # ne cite que lieu_courant()), elle est jouée dans les deux cas.
+  LISTE="$LISTE $CONTACTS"
 fi
-# Après les titres en production (11/11) : les contacts rattachés à un centre. Indépendante des titres (sa règle restrictive
-# ne cite que lieu_courant()), elle est jouée dans les deux cas.
-LISTE="$LISTE 20261113_contacts_centre 20261113_contacts_centre_2_montpellier"
-# Après les contacts : l'e-learning, lot 1 (20261114_autonomie_1_traces, en production depuis le 14/11 ; fermée tant que la seconde n'est pas
-# jouée). Les tables et fonctions des conditions d'utilisation qu'elle cite sont dans les clones et les migrations déjà jouées.
-if [ "$AUTONOMIE" = 1 ]; then LISTE="$LISTE 20261114_autonomie_1_traces"; fi
 
 # Prérequis : les cinq fonctions de 20261028_signalements_app (signaler_probleme, que le registre qualité appelle, et ses
 # quatre voisines), absentes des clones. On joue la seule partie « fonctions » de la migration (de la section 4 à la fin) :
@@ -88,21 +96,42 @@ for f in $LISTE; do
   $P -1 -f "$MIGRATIONS/$f.sql" || { echo "échec : $f" >&2; exit 3; }
   N=$((N + 1))
 done
-# La version datée des conditions (20261114_autonomie_2_version) : la date se passe par -v version=..., la migration refuse une date future.
-if [ -n "$VERSION_AUTONOMIE" ]; then
-  $P -1 -v "version=$VERSION_AUTONOMIE" -f "$MIGRATIONS/20261114_autonomie_2_version.sql" || { echo "échec : 20261114_autonomie_2_version" >&2; exit 3; }
+# Après les contacts (14/11) : l'e-learning, lot 1. La migration 2 lit la version des conditions dans la variable psql « version »
+# (celle de la production : 2026-11-14, VERSION_CONDITIONS de js/legal-data.js).
+if [ -n "$AUTONOMIE" ]; then
+  $P -1 -f "$MIGRATIONS/20261114_autonomie_1_traces.sql" || { echo "échec : 20261114_autonomie_1_traces" >&2; exit 3; }
   N=$((N + 1))
+  if [ "$AUTONOMIE" = "1,2" ]; then
+    $P -v version=2026-11-14 -1 -f "$MIGRATIONS/20261114_autonomie_2_version.sql" >/dev/null || { echo "échec : 20261114_autonomie_2_version" >&2; exit 3; }
+    N=$((N + 1))
+  fi
 fi
-# Les petits restes puis le jury (14/11), dans l'ordre de la production, après autonomie_2 : restes_1 remplace accepter_conditions et pose
-# conditions_version_publiee() (2026-11-14), que la version d'autonomie ne doit pas dépasser. Aucune variable -v, une transaction chacune.
-if [ "$RESTES" = 1 ]; then
+# Production seulement, après l'e-learning (14/11, petits restes) : restes_1 (conditions_version_publiee, accepter_conditions durcie ; elle
+# contrôle que la version exigée par l'autonomie ne dépasse pas la publiée), puis restes_2 (TRUNCATE retiré à anon et authenticated).
+if [ "$PRODUCTION" = 1 ]; then
   for f in 20261114_restes_1_conditions 20261114_restes_2_truncate; do
-    $P -1 -f "$MIGRATIONS/$f.sql" || { echo "échec : $f" >&2; exit 3; }
+    $P -1 -f "$MIGRATIONS/$f.sql" >/dev/null || { echo "échec : $f" >&2; exit 3; }
     N=$((N + 1))
   done
 fi
-if [ "$JURY" = 1 ]; then
-  $P -1 -f "$MIGRATIONS/20261114_jury_resultats.sql" || { echo "échec : 20261114_jury_resultats" >&2; exit 3; }
+# Production seulement, après les restes (14/11, c1883cc5) : les résultats du jury (une table, deux règles, un déclencheur ; elle demande
+# imposer_promo_du_stagiaire et geste_promo, présents).
+if [ "$PRODUCTION" = 1 ]; then
+  $P -1 -f "$MIGRATIONS/20261114_jury_resultats.sql" >/dev/null || { echo "échec : 20261114_jury_resultats" >&2; exit 3; }
+  N=$((N + 1))
+fi
+# Production seulement, après le jury : les migrations 7 (correctifs D1, D4, D5, M4, M5, M7) et 8 (aperçu par titre, mes_titres en aperçu,
+# titres_ajustables, journal_present) des titres, appliquées en production le 14/11, dans cet ordre.
+if [ "$PRODUCTION" = 1 ]; then
+  $P -1 -f "$MIGRATIONS/20261115_titres_7_correctifs.sql" >/dev/null || { echo "échec : 20261115_titres_7_correctifs" >&2; exit 3; }
+  N=$((N + 1))
+  $P -1 -f "$MIGRATIONS/20261115_titres_8_apercu.sql" >/dev/null || { echo "échec : 20261115_titres_8_apercu" >&2; exit 3; }
+  N=$((N + 1))
+fi
+# Production seulement, après la 8 : la migration 9 des titres (catalogue de six titres du réseau, lecture des titres d'un centre par le
+# siège), appliquée en production le 16/11.
+if [ "$PRODUCTION" = 1 ]; then
+  $P -1 -f "$MIGRATIONS/20261115_titres_9_catalogue.sql" >/dev/null || { echo "échec : 20261115_titres_9_catalogue" >&2; exit 3; }
   N=$((N + 1))
 fi
 # Droits propres à la production, que les clones ne portent pas (écarts de la base locale constatés le 10/11 et le 11/11) :

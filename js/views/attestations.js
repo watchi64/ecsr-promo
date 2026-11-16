@@ -3,17 +3,17 @@
 // pour une période, les heures de chaque stagiaire d'après les feuilles closes, puis son
 // certificat de réalisation et son attestation d'assiduité, ou ceux de toute la promo.
 
-import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261114f";
-import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261114f";
-import { isAdmin } from "../auth-admin.js?v=20261114f";
-import { libelleDuree } from "../emargement-rules.js?v=20261114f";
-import { jourDe, dateFr } from "../dates.js?v=20261114f";
-import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261114f";
+import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261116a";
+import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261116a";
+import { ecritSelonLaCase } from "../auth-admin.js?v=20261116a";
+import { libelleDuree } from "../emargement-rules.js?v=20261116a";
+import { jourDe, dateFr } from "../dates.js?v=20261116a";
+import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261116a";
 import {
   bilanStagiaire, stagiairesDeLaPeriode, feuillesOuvertes, demiJourneesSansFeuille, periodeParDefaut,
   moisDeLaPeriode, seancesDeLaPromo, datePeriodeValide, estAdresseAttestations,
-} from "../attestations-rules.js?v=20261114f";
-import { certificatRealisation, attestationAssiduite, liasse } from "../attestations-documents.js?v=20261114f";
+} from "../attestations-rules.js?v=20261116a";
+import { certificatRealisation, attestationAssiduite, liasse } from "../attestations-documents.js?v=20261116a";
 
 // Période choisie, gardée par promo le temps de la visite (retour depuis la semaine).
 const periodes = new Map();
@@ -107,7 +107,7 @@ function dessiner(ctx) {
     el("div", { class: "em-barre-nav" },
       el("a", { class: "btn small", href: "#/emargement" }, "Feuilles de la semaine")),
     // La base n'accepte l'écriture des réglages que d'un administrateur : le bouton suit.
-    isAdmin() ? el("div", { class: "em-barre-actions" },
+    ecritSelonLaCase("notes") ? el("div", { class: "em-barre-actions" },
       el("button", { class: "btn small", type: "button",
         onClick: () => ctx.ouvrirEntete?.({ entete: ctx.entete, promo }, { apres: (e) => { ctx.entete = e; } }) },
       "En-tête et signataire")) : null,
@@ -149,7 +149,7 @@ function dessinerCorps(ctx) {
   const avecHeures = lignes.filter((l) => l.bilan.demiSignees > 0);
 
   // Lecture (direction) : l'impression des pièces est offerte sur ordinateur.
-  const surOrdinateur = isAdmin() ? "" : " solo-ordinateur";
+  const surOrdinateur = ecritSelonLaCase("notes") ? "" : " solo-ordinateur";
   page.appendChild(el("div", { class: "at-tout" + surOrdinateur },
     el("button", { class: "btn small primary", type: "button", disabled: avecHeures.length === 0,
       onClick: () => imprimerPieces(ctx, avecHeures, certificat) }, `Tous les certificats (${avecHeures.length})`),

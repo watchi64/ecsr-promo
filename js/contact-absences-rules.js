@@ -3,7 +3,7 @@
 // de prevenir_absence : la base reste juge), le courriel du justificatif. Dates en « AAAA-MM-JJ », heures en « HH:MM ».
 // Lancer : node tests/contact-absences-rules.test.mjs
 
-import { estVueStagiaire } from "./espaces-rules.js";
+import { estVueStagiaire } from "./espaces-rules.js?v=20261116a";
 
 const JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];

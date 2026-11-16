@@ -1,12 +1,12 @@
-import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261114f";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe, nomLisible } from "../utils.js?v=20261114f";
-import { confirmer } from "../confirmer.js?v=20261114f";
-import { icon } from "../icons.js?v=20261114f";
-import { recordUndo } from "../undo.js?v=20261114f";
-import { TYPES, RESULTATS } from "../config.js?v=20261114f";
-import { isAdmin, monStagiaireId, selonPublic } from "../auth-admin.js?v=20261114f";
-import { getCurrentWho } from "../identity.js?v=20261114f";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
+import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261116a";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe, nomLisible } from "../utils.js?v=20261116a";
+import { confirmer } from "../confirmer.js?v=20261116a";
+import { icon } from "../icons.js?v=20261116a";
+import { recordUndo } from "../undo.js?v=20261116a";
+import { TYPES, RESULTATS } from "../config.js?v=20261116a";
+import { monStagiaireId, selonPublic, ecritSelonLaCase } from "../auth-admin.js?v=20261116a";
+import { getCurrentWho } from "../identity.js?v=20261116a";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261116a";
 
 let stagiaires = [];
 let passages = [];
@@ -17,7 +17,7 @@ let filterResultat = "";
 // existing = null => ajout ; existing = passage => modification.
 function openAddModal(onSaved, existing = null) {
   const today = isoDate(new Date());
-  const admin = isAdmin();
+  const admin = ecritSelonLaCase("planning");
   let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
 
   const dateInput = el("input", {
@@ -117,7 +117,7 @@ function resultTag(resultat) {
 }
 
 function renderTable(container) {
-  const admin = isAdmin();
+  const admin = ecritSelonLaCase("planning");
   const myStagiaireId = monStagiaireId();
   const showActions = admin || myStagiaireId != null;
   let filtered = passages;
@@ -128,7 +128,7 @@ function renderTable(container) {
   if (filtered.length === 0) {
     return el("div", { style: "padding:3rem 1rem;text-align:center;color:var(--text-muted)" },
       el("p", {}, "Aucun passage à afficher."),
-      el("p", { class: "faint", style: "font-size:0.85rem" }, isAdmin() || monStagiaireId() != null
+      el("p", { class: "faint", style: "font-size:0.85rem" }, ecritSelonLaCase("planning") || monStagiaireId() != null
         ? selonPublic("Modifie les filtres ou ajoute un passage.", "Modifiez les filtres ou ajoutez un passage.")
         : selonPublic("Modifie les filtres.", "Modifiez les filtres."))
     );
@@ -288,7 +288,7 @@ function rerender(container) {
 
   // Ajout : un formateur de la promo, ou un stagiaire pour lui-même. Un compte sans l'un ni l'autre (la direction, le siège) lit
   // l'historique sans pouvoir y écrire : la base refuserait.
-  const peutAjouter = isAdmin() || monStagiaireId() != null;
+  const peutAjouter = ecritSelonLaCase("planning") || monStagiaireId() != null;
   const histBtn = el("button", { class: "btn ghost", onClick: () => openAuditModal() },
     icon.clock(), "Historique"
   );

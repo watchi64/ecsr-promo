@@ -463,14 +463,14 @@ ok(ids(visibles(ESP, true, "stagiaire")).join() === "t", "un formateur dans l'es
 
 // Les Nouveautés réelles du lot 5.
 const direction = NOUVEAUTES.find((e) => e.id === "2026-11-10-espace-direction");
-const siege = NOUVEAUTES.find((e) => e.pour === "siege");
+const siege = NOUVEAUTES.find((e) => e.id === "2026-11-10-espace-siege");
 const menuEspace = NOUVEAUTES.find((e) => e.id.endsWith("-menu-espace"));
 const changerPromo = NOUVEAUTES.find((e) => e.id.endsWith("-changer-de-promo"));
 const DATE5 = direction.date;
 eq(NOUVEAUTES.filter((e) => e.pour === "direction").map((e) => e.id).sort(),
   ["2026-11-10-espace-direction", "2026-11-11-conservation-direction", "2026-11-11-donnees-personnelles-centre",
-    "2026-11-14-messages-direction", "2026-11-14-resultats-jury-direction"],
-  "cinq Nouveautés pour la direction : l'espace, les données personnelles, la conservation des fiches de son centre, Messages, puis le taux d'obtention du titre");
+    "2026-11-14-messages-direction", "2026-11-14-resultats-jury-direction", "2026-11-16-titres-ecrans-direction"],
+  "six Nouveautés pour la direction : l'espace, les données personnelles, la conservation des fiches de son centre, Messages, le taux d'obtention du titre, puis les titres");
 // Conservation des fiches ouverte à la direction (11/11) : pour la direction seule, en tête de sa liste, au vouvoiement.
 const consDir = NOUVEAUTES.find((e) => e.id === "2026-11-11-conservation-direction");
 ok(!!consDir && consDir.date === "2026-11-11" && consDir.pour === "direction" && consDir.ou?.route === "config"
@@ -488,7 +488,13 @@ ok(Array.isArray(consDir.guide) && consDir.guide.length >= 3 && /vous|ouvrez/i.t
 for (const motif of [/Conservation des fiches/, /12 mois/, /31 décembre de la troisième année/, /votre clic/, /EFFACER/, /fondateur/]) {
   ok(motif.test(tout(consDir)), `conservation de la direction : dit ${motif}`);
 }
-eq(NOUVEAUTES.filter((e) => e.pour === "siege").length, 1, "une seule Nouveauté pour le siège");
+eq(NOUVEAUTES.filter((e) => e.pour === "siege").map((e) => e.id).sort(), ["2026-11-10-espace-siege", "2026-11-16-titres-ecrans-siege"],
+  "deux Nouveautés pour le siège : l'espace, puis les titres");
+for (const [pour, route] of [["direction", "equipe"], ["siege", "directions"]]) {
+  const t = NOUVEAUTES.find((e) => e.id === `2026-11-16-titres-ecrans-${pour}`);
+  ok(!!t && t.pour === pour && t.ou?.route === route && t.titre === "Chacun a son titre" && !TUTOIEMENT.test(horsCitations(tout(t)))
+    && !tout(t).includes(CADRATIN) && !/profs?/i.test(tout(t)), `titres : Nouveauté du ${pour}, vouvoiement, lien vers ${route}`);
+}
 ok(direction.titre === "Votre espace de direction" && siege.titre === "L'espace du siège", "titres : « Votre espace de direction », « L'espace du siège »");
 ok(!!menuEspace && menuEspace.pour === "formateurs", "menu Espace : pour les formateurs");
 ok(!!changerPromo && changerPromo.pour === "stagiaires" && changerPromo.titre === "Changer de promo",

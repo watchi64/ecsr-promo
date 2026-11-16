@@ -2,27 +2,27 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation,
   listFichesNotesMasquees, getNotesStatsGroupe, getPromoCourante,
-} from "../db.js?v=20261114f";
+} from "../db.js?v=20261116a";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261114f";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261114f";
-import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace, selonPublic, enVitrine } from "../auth-admin.js?v=20261114f";
-import { litToutesLesNotes } from "../espaces-rules.js?v=20261114f";
-import { recordUndo } from "../undo.js?v=20261114f";
-import { renderSubTabs } from "../subtabs.js?v=20261114f";
-import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261114f";
-import { renderEpcf } from "./epcf.js?v=20261114f";
-import { noteGradient } from "../echelle-notes.js?v=20261114f";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261114f";
-import { renderSaisie } from "./notes-saisie.js?v=20261114f";
-import { pluriel, dixieme } from "../nombres.js?v=20261114f";
+} from "../notes-stats.js?v=20261116a";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261116a";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId, getEspace, selonPublic, enVitrine, ecritSelonLaCase } from "../auth-admin.js?v=20261116a";
+import { litToutesLesNotes } from "../espaces-rules.js?v=20261116a";
+import { recordUndo } from "../undo.js?v=20261116a";
+import { renderSubTabs } from "../subtabs.js?v=20261116a";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261116a";
+import { renderEpcf } from "./epcf.js?v=20261116a";
+import { noteGradient } from "../echelle-notes.js?v=20261116a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261116a";
+import { renderSaisie } from "./notes-saisie.js?v=20261116a";
+import { pluriel, dixieme } from "../nombres.js?v=20261116a";
 import {
   parseNoteInput, MATRIX_SPECIAL_COLS, THEME_GROUPS, derniereNote, champsDeCible, raisonEchecNote, etatVideNotes,
   contexteEtatVide, phraseNoteRefusee, confirmationEffacement,
-} from "../notes-saisie-rules.js?v=20261114f";
-import { confirmer } from "../confirmer.js?v=20261114f";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
+} from "../notes-saisie-rules.js?v=20261116a";
+import { confirmer } from "../confirmer.js?v=20261116a";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261116a";
 
 // Fiches de la promo dont les notes sont masquées (anonymat) : la base ne donne plus aux stagiaires les profils des
 // autres (adresse e-mail comprise), seulement ces numéros de fiche (js/notes-masquees.js).
@@ -423,7 +423,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
     if (r.etat === "effacee") {
       // Met à jour la cellule en place (pas de rerender complet)
       td.textContent = "";
-      td.className = "m-td-cell empty" + (isAdmin() ? " editable" : "");
+      td.className = "m-td-cell empty" + (ecritSelonLaCase("notes") ? " editable" : "");
       clearNoteCellStyle(td);
       td.style.position = originalPosition;
       td.style.zIndex = originalZIndex;
@@ -442,7 +442,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
     if (r.converti) toast(`${r.converti} → ${dixieme(r.note)}/20`, "success", 1800);
     // Met à jour la cellule en place (sans détruire les autres inputs)
     td.textContent = dixieme(r.note);
-    td.className = "m-td-cell" + (isAdmin() ? " editable" : "");
+    td.className = "m-td-cell" + (ecritSelonLaCase("notes") ? " editable" : "");
     applyNoteCellStyle(td, r.note);
     td.style.position = originalPosition;
     td.style.zIndex = originalZIndex;
@@ -470,7 +470,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
 // === Vue détaillée d'un stagiaire (modale, idéale mobile) ===
 
 function openStagiaireDetail(stagiaire, themeByNum, container) {
-  const admin = isAdmin();
+  const admin = ecritSelonLaCase("notes");
   let modale = null;   // la fenêtre, une fois ouverte (ouvrirModale, js/nav-fenetre.js)
 
   function buildBody() {
@@ -643,7 +643,7 @@ function renderMatrice(container) {
 
   // Body rows
   const tbody = el("tbody");
-  const admin = isAdmin();
+  const admin = ecritSelonLaCase("notes");
 
   // Construction d'un Map themes par numero pour la modale détail
   const themeByNumLocal = themesByNum;
@@ -791,7 +791,7 @@ function legendeMatrice() {
 function rerender(container) {
   clear(container);
 
-  const admin = isAdmin();
+  const admin = ecritSelonLaCase("notes");
   const nbLignes = statsGroupe().n_lignes;
 
   // Initialise la date courante si pas encore définie
