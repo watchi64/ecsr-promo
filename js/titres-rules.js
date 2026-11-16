@@ -319,7 +319,8 @@ export function siegeFixePourLesGestes({ titres, fondateur = false } = {}) {
 // (la base répond « Réservé au fondateur »). `personne` : { email, niveau, fixe } ; `moi` : l'adresse de la personne connectée.
 export function retraitDuSiegeOffert({ peutGerer = false, fondateur = false, personne = null, moi = "" } = {}) {
   if (peutGerer !== true || !personne) return false;
-  if (moi !== "" && String(personne.email || "").toLowerCase() === String(moi).toLowerCase()) return false;
+  // Le fondateur hors aperçu garde « Retirer » sur sa propre ligne (la base l'en exempte) ; toute autre personne : jamais sur soi.
+  if (fondateur !== true && moi !== "" && String(personne.email || "").toLowerCase() === String(moi).toLowerCase()) return false;
   if (personne.niveau === "reseau" && personne.fixe === true) return fondateur === true;
   return true;
 }

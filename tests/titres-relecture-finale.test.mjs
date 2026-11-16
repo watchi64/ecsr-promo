@@ -30,7 +30,8 @@ const siegeFixe = { email: "s@exemple.invalid", niveau: "reseau", fixe: true };
 test("I2 : Retirer sur un titre fixe Siège : au fondateur seul, jamais sur soi", () => {
   assert.equal(retraitDuSiegeOffert({ peutGerer: true, fondateur: false, personne: siegeFixe, moi: "autre@exemple.invalid" }), false);
   assert.equal(retraitDuSiegeOffert({ peutGerer: true, fondateur: true, personne: siegeFixe, moi: "f@exemple.invalid" }), true);
-  assert.equal(retraitDuSiegeOffert({ peutGerer: true, fondateur: true, personne: siegeFixe, moi: "S@exemple.invalid" }), false, "sur soi, sans tenir compte de la casse");
+  assert.equal(retraitDuSiegeOffert({ peutGerer: true, fondateur: false, personne: { ...siegeFixe, fixe: false }, moi: "S@exemple.invalid" }), false, "sur soi, sans tenir compte de la casse");
+  assert.equal(retraitDuSiegeOffert({ peutGerer: true, fondateur: true, personne: siegeFixe, moi: "S@exemple.invalid" }), true, "R2 : le fondateur hors aperçu se retire lui-même (la base l'en exempte)");
 });
 test("I2 : Retirer exige la case Directions sur Modifier ; un titre du réseau non fixe se retire", () => {
   const centre = { email: "d@exemple.invalid", niveau: "centre", fixe: true };
@@ -114,4 +115,25 @@ test("aucun tiret cadratin dans les fichiers touchés", () => {
     "js/views/aujourdhui.js", "js/autonomie-etat.js", "js/db.js", "supabase/functions/chatbot/aide.mjs", "tests/titres-relecture-finale.test.mjs"]) {
     assert.ok(!lire(f).includes(String.fromCharCode(0x2014)), f);
   }
+});
+
+// ---- Derniers restes (re-relecture) ----
+test("R1 : le sous-onglet QCM du siège ne mène à l'éditeur que si isRedacteur()", () => {
+  const src = lire("js/views/themes.js");
+  assert.ok(/renderQcmStagiaire\(p, sans && isRedacteur\(\)\s*\?\s*\{ themes, onOuvrir: \(theme, qcm, relire\) => openQcmEditor/.test(src));
+});
+test("R3 : titres fixes (Formateur fixe, Siège fixe) aux cases du plafond : isRedacteur et gestes valent l'ancien appel", () => {
+  const formateurFixe = { niveau: "promo", promo_ids: [1], fixe: true, cases: { planning: 2, emargement: 2, stagiaires: 2, notes: 2, cours: 2, ccp2: 1, indicateurs: 1, reglages: 2 } };
+  const siegeFixeTitre = { niveau: "reseau", fixe: true, cases: { cours: 2, directions: 2, reglages: 2 } };
+  const ecrit = (espace, niveau, titre, page, ancien) => {
+    const cases = casesDeLEspace({ espace, titres: [titre], promoId: 1 });
+    return selonLaCase({ cases, droit: caseDe(cases, page, niveau) === 2, ancien });
+  };
+  // Formateur fixe : l'ancien isRedacteur (admin) vrai donne vrai ; la case ne retire rien.
+  assert.equal(ecrit("equipe", "promo", formateurFixe, "cours", true), true);
+  // Siège fixe : l'ancien appel (toujours vrai) et la case (Modifier au plafond) s'accordent, pour la rédaction et les gestes.
+  assert.equal(ecrit("siege", "reseau", siegeFixeTitre, "cours", true), true);
+  assert.equal(ecrit("siege", "reseau", siegeFixeTitre, "directions", true), true);
+  const cases = casesDeLEspace({ espace: "siege", titres: [siegeFixeTitre] });
+  for (const page of ["cours", "directions", "reglages"]) assert.equal(caseDe(cases, page, "reseau"), 2, page);
 });

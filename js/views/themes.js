@@ -2041,7 +2041,8 @@ export async function renderThemes(container) {
     // Le siège rédige les questions : sa liste mène à l'éditeur, sans note ni examen (js/qcm-rules.js, lignesQcmRedaction).
     onglets.push({ key: "qcm", label: "QCM", module: "qcm",
       render: (p, ctx) => {
-        renderQcmStagiaire(p, sans
+        // Le siège ne rédige que si la case Cours et QCM le permet (isRedacteur) : sinon la ligne s'ouvre en lecture.
+        renderQcmStagiaire(p, sans && isRedacteur()
           ? { themes, onOuvrir: (theme, qcm, relire) => openQcmEditor(theme, qcm.id, null, relire), isActive: ctx?.isActive, redaction: true }
           : { themes, onOuvrir: openQcmSheet, isActive: ctx?.isActive });
       } });
