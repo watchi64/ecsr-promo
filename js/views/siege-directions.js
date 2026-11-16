@@ -8,6 +8,9 @@
 // nom, démonstration en dernier) vivent dans js/siege-rules.js. Aucune donnée de stagiaire n'est lue ici.
 // Lecture des titres impossible (panne, base non migrée) : la page garde la liste d'aujourd'hui (une direction par ligne, « Retirer »,
 // invitation d'une direction par inviter_compte), avec un message clair. Les fenêtres sont celles de la page Équipe (ouvrirFormulaire).
+// Titres du centre (étape 4, migration 9 : le siège fixe lit titres_visibles(centre)) : sous chaque centre, ses titres en lecture (nom,
+// niveau, origine, porteurs, cadenas d'un titre fixe ; cellules de la page Équipe). Lecture refusée ou en panne (base pas encore à jour) :
+// le centre reste tel qu'avant, sans message.
 
 import {
   lireLieuxDuReseau, lireDirectionsDuReseau, retirerTitre, creerCentre, inviteUser,
@@ -18,9 +21,9 @@ import { icon } from "../icons.js?v=20261114f";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261114f";
 import { messageInvitationReussie } from "../roles-rules.js?v=20261114f";
 import { directionsParCentre } from "../siege-rules.js?v=20261114f";
-import { ouvrirFormulaire, sectionJournal, PHRASE_COMPTE_CREE } from "./direction-equipe.js?v=20261114f";
+import { ouvrirFormulaire, sectionJournal, cellulesDeTitre, PHRASE_COMPTE_CREE } from "./direction-equipe.js?v=20261114f";
 import { ouvrirEditeurTitre } from "./titres-editeur.js?v=20261114f";
-import { gestesSurTitre, siegeFixePourLesGestes, LIBELLE_NIVEAU } from "../titres-rules.js?v=20261114f";
+import { gestesSurTitre, siegeFixePourLesGestes, titresDuCentreEnLecture, LIBELLE_NIVEAU } from "../titres-rules.js?v=20261114f";
 import { peutModifier, getMesTitres, fondateurHorsApercu } from "../auth-admin.js?v=20261114f";
 import { confirmer, demander } from "../confirmer.js?v=20261114f";
 import { pluriel } from "../nombres.js?v=20261114f";
@@ -275,6 +278,37 @@ function sectionCentre({ centre, directions }, lieux, apres, avecTitres) {
   return el("section", { class: "centre-section", "data-centre": String(centre.id) }, tete, el("div", { class: "centre-defile" }, table));
 }
 
+// Les titres d'un centre, en lecture (aucun geste) : `titres`, les lignes de titres_visibles(centre). Nul quand la lecture n'a rien donné.
+export function blocTitresDuCentre(centre, titres) {
+  const lignes = titresDuCentreEnLecture(titres);
+  if (lignes == null) return null;
+  const parId = new Map(titres.map((t) => [Number(t && t.id), t]));
+  const nomDuCentre = centre.demonstration ? LIBELLE_DEMO : centre.nom;
+  const contenu = lignes.length
+    ? el("div", { class: "centre-defile" }, tableauEnListe(el("table", { class: "centre-table equipe-table" },
+      el("thead", {}, el("tr", {}, ...["Titre", "Niveau", "Origine", "Porteurs"].map((t) => el("th", { scope: "col" }, t)))),
+      el("tbody", {}, ...lignes.map((l) => el("tr", { "data-titre": String(l.id) }, ...cellulesDeTitre(parId.get(l.id))))))))
+    : el("p", { class: "muted" }, "Aucun titre.");
+  return el("div", { class: "centre-titres", role: "group", "aria-label": `Titres du centre ${nomDuCentre}` },
+    el("h4", { class: "equipe-sous-titre" }, "Titres du centre"), contenu);
+}
+
+// Sous chaque centre affiché, ses titres : lus en parallèle après l'affichage de la page ; un refus ou une panne laisse le centre tel qu'avant.
+async function ajouterTitresDesCentres(racine, centres, jeton) {
+  const lectures = await Promise.allSettled(centres.map(({ centre }) => lireTitresVisibles(centre.id)));
+  if (jeton !== rendu) return;
+  centres.forEach(({ centre }, i) => {
+    const r = lectures[i];
+    if (r.status !== "fulfilled") {
+      console.warn("titres du centre", centre.id, r.reason && r.reason.message);
+      return;
+    }
+    const bloc = blocTitresDuCentre(centre, r.value);
+    const section = racine.querySelector(`.centre-section[data-centre="${centre.id}"]`);
+    if (bloc && section) section.appendChild(bloc);
+  });
+}
+
 // Les titres du réseau : chaque titre vu du réseau, et les personnes du siège. `d` : { titres, ajustables, siege (lignes de niveau
 // réseau, avec libelle), noms }.
 function sectionTitresReseau(d, apres) {
@@ -426,6 +460,7 @@ export async function renderDirections(container) {
   }
   for (const c of centres) racine.appendChild(sectionCentre(c, lieux, apres, titresLus));
   if (!titresLus) return;
+  const titresDesCentres = ajouterTitresDesCentres(racine, centres, jeton);
 
   const siege = personnes.filter((l) => l.niveau === "reseau")
     .map((l) => {
@@ -445,4 +480,5 @@ export async function renderDirections(container) {
     if (jeton !== rendu) return;
     racine.appendChild(sectionJournal({ journal, noms }, "Journal du réseau"));
   }
+  await titresDesCentres;
 }

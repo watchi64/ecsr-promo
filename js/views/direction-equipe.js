@@ -26,7 +26,7 @@ import { ouvrirModale } from "../nav-fenetre.js?v=20261114f";
 import { confirmer, demander } from "../confirmer.js?v=20261114f";
 import {
   titresDonnablesGroupes, pastillesDePersonne, ceQueJePeuxFaire, ceQuiEstMasque, gestesSurPersonne, gestesSurTitre, directionFixePourLesGestes, phraseJournal,
-  LIBELLE_NIVEAU,
+  ligneDeTitreEnLecture,
 } from "../titres-rules.js?v=20261114f";
 import { ouvrirEditeurTitre } from "./titres-editeur.js?v=20261114f";
 
@@ -361,6 +361,21 @@ function sectionInviter(d, apres) {
     formulaire);
 }
 
+// Les quatre cellules d'un titre en lecture : nom (cadenas et « Fixe » pour un titre fixe), niveau, origine, porteurs. Servent ici et à la
+// page Directions de centre du siège (titres de chaque centre).
+export function cellulesDeTitre(t) {
+  const l = ligneDeTitreEnLecture(t);
+  return [
+    el("td", { class: "liste-titre" }, el("div", { class: "equipe-nom" },
+      l.fixe ? el("span", { class: "equipe-cadenas", title: "Titre fixe" }, icon.lock()) : null,
+      el("strong", {}, l.nom),
+      l.fixe ? el("span", { class: "chip equipe-role" }, "Fixe") : null)),
+    el("td", {}, l.niveau),
+    el("td", {}, l.origine, l.version ? el("span", { class: "muted equipe-adresse" }, " (version d'un titre du réseau)") : null),
+    el("td", {}, pluriel(l.porteurs, "personne")),
+  ];
+}
+
 // (3) Titres du centre : le titre, son niveau, son origine, ceux qui le portent ; les gestes selon ce que la base ouvre.
 function sectionTitres(d, apres) {
   const { centre } = d;
@@ -404,14 +419,7 @@ function sectionTitres(d, apres) {
         }
       }));
     }
-    return el("tr", { "data-titre": String(t.id) },
-      el("td", { class: "liste-titre" }, el("div", { class: "equipe-nom" },
-        t.fixe ? el("span", { class: "equipe-cadenas", title: "Titre fixe" }, icon.lock()) : null,
-        el("strong", {}, t.nom),
-        t.fixe ? el("span", { class: "chip equipe-role" }, "Fixe") : null)),
-      el("td", {}, LIBELLE_NIVEAU[t.niveau] || t.niveau),
-      el("td", {}, t.lieu_id == null ? "Réseau" : "Centre", t.origine_id != null ? el("span", { class: "muted equipe-adresse" }, " (version d'un titre du réseau)") : null),
-      el("td", {}, pluriel(t.porteurs || 0, "personne")),
+    return el("tr", { "data-titre": String(t.id) }, ...cellulesDeTitre(t),
       el("td", { class: "liste-actions" }, el("div", { class: "equipe-actions" }, ...actions)));
   });
   const table = tableauEnListe(el("table", { class: "centre-table equipe-table" },

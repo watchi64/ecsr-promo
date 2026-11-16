@@ -377,3 +377,19 @@ export function listesApercuIncompletes(memoire, lieuId) {
   const l = listesPourLeCentre(memoire, lieuId);
   return !l.reseau || (lieuId != null && !l.centre);
 }
+// Un titre en lecture (page Équipe de la direction, titres d'un centre sur la page Directions de centre du siège) : nom, cadenas d'un titre
+// fixe, niveau en clair, origine (« Réseau » pour un titre sans centre, « Centre » pour un titre propre au centre, version d'un titre du
+// réseau signalée), nombre de porteurs.
+export function ligneDeTitreEnLecture(t) {
+  return {
+    id: Number(t.id), nom: String(t.nom), fixe: t.fixe === true, niveau: LIBELLE_NIVEAU[t.niveau] || t.niveau,
+    origine: t.lieu_id == null ? "Réseau" : "Centre", version: t.origine_id != null, porteurs: Number(t.porteurs) || 0,
+  };
+}
+// Les titres d'un centre lus pour le siège (titres_visibles(centre)) : les lignes en lecture, dans l'ordre de la base ; nul quand la lecture
+// n'a rien rendu d'utilisable (refus d'une base pas encore à jour, panne, réponse inattendue) : la page garde alors son affichage d'avant,
+// sans message.
+export function titresDuCentreEnLecture(reponse) {
+  if (!Array.isArray(reponse)) return null;
+  return reponse.filter((t) => t && t.id != null && typeof t.nom === "string" && t.nom).map(ligneDeTitreEnLecture);
+}
