@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { ligneDeTitreEnLecture, titresDuCentreEnLecture } from "../js/titres-rules.js";
 
-const lire = (chemin) => readFileSync(new URL(`../${chemin}`, import.meta.url), "utf8");
+const lire = (chemin) => readFileSync(new URL(`../${chemin}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const corps = (texte, debut) => {
   const i = texte.indexOf(debut);
   assert.ok(i >= 0, `introuvable : ${debut}`);
