@@ -11,6 +11,7 @@ export const LIBELLE_ORIGINE = {
   non_signe: "non signé",
   planning: "noté au planning",
   formateur: "marqué par le formateur",
+  annoncee: "absence prévenue",
 };
 
 const ORDRE_DEMI = { matin: 0, aprem: 1 };

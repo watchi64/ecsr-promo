@@ -16,9 +16,16 @@ export const CLE_VUE_PLANNING = "planning.vue";
 // voiture) et avec quel formateur. Équipe : le ou les formateurs, puis les prénoms de qui passe au tableau, de qui conduit
 // et des élèves bénévoles (audit du 09/11, lot B, B4 : « 2 en voiture · 2 élèves » obligeait à chercher ailleurs qui monte
 // en voiture).
-function lignesDeCarte(c, equipe) {
+// `marque(stagiaireId)` : la marque d'absence annoncée d'un stagiaire sur cette demi-journée (« absent, prévenu »), nulle sans absence ;
+// elle se lit entre parenthèses derrière son nom.
+function lignesDeCarte(c, equipe, marque) {
+  const avecMarque = (x) => {
+    if (typeof x === "string") return x;
+    const m = x.nom && x.id != null ? marque(x.id) : null;
+    return m ? `${x.nom} (${m})` : x.nom;
+  };
   if (equipe) {
-    const noms = (liste) => liste.map((x) => (typeof x === "string" ? x : x.nom)).filter(Boolean).join(", ");
+    const noms = (liste) => liste.map(avecMarque).filter(Boolean).join(", ");
     const lignes = [];
     if (c.formateurs.length) lignes.push(c.formateurs.join(", "));
     if (noms(c.tableau)) lignes.push("Au tableau : " + noms(c.tableau));
@@ -27,27 +34,27 @@ function lignesDeCarte(c, equipe) {
     return lignes;
   }
   const lignes = [];
-  const qui = (c.tableau.length ? c.tableau : c.conducteurs).map((x) => x.nom).filter(Boolean);
+  const qui = (c.tableau.length ? c.tableau : c.conducteurs).map(avecMarque).filter(Boolean);
   if (qui.length) lignes.push(qui.join(", "));
   if (c.formateurs.length) lignes.push("Avec " + c.formateurs.join(", "));
   return lignes;
 }
 
-function carteDeGrille(c, equipe) {
+function carteDeGrille(c, equipe, marque) {
   const etiquette = equipe ? null : etiquetteSemaine(c.moi);
   const alerte = alerteDeCarte(c);
   return el("div", { class: "wg-carte" },
     el("span", { class: "wg-tag wg-genre-" + c.genre }, c.titre),
     c.sujets.length ? el("b", {}, c.sujets.join(" · ")) : null,
     alerte ? el("span", { class: "wg-sub wg-alerte" }, alerte) : null,
-    ...lignesDeCarte(c, equipe).map((l) => el("span", { class: "wg-sub" }, l)),
+    ...lignesDeCarte(c, equipe, marque).map((l) => el("span", { class: "wg-sub" }, l)),
     etiquette ? el("span", { class: "wg-moi", "data-moi": c.moi.role }, etiquette) : null,
   );
 }
 
-function contenuDeDemi(demi, equipe) {
+function contenuDeDemi(demi, equipe, marque) {
   return demi.cartes.length
-    ? demi.cartes.map((c) => carteDeGrille(c, equipe))
+    ? demi.cartes.map((c) => carteDeGrille(c, equipe, marque))
     : [el("span", { class: "wg-vide" }, "Rien de prévu")];
 }
 
@@ -55,7 +62,7 @@ function moisDe(jour) {
   return jour.long.split(" ").slice(2).join(" ");
 }
 
-function formeOrdinateur(jours, equipe) {
+function formeOrdinateur(jours, equipe, marque) {
   const grille = el("div", { class: "wgrid" }, el("div", { class: "wg-coin" }));
   jours.forEach((j, k) => {
     const entete = el("div", { class: "wg-day" + (j.aujourdhui ? " auj" : ""), "aria-current": j.aujourdhui ? "date" : null },
@@ -80,7 +87,7 @@ function formeOrdinateur(jours, equipe) {
       return;
     }
     j.demis.forEach((demi, h) => {
-      const cellule = el("div", { class: "wg-cell" + (j.aujourdhui ? " auj" : "") }, ...contenuDeDemi(demi, equipe));
+      const cellule = el("div", { class: "wg-cell" + (j.aujourdhui ? " auj" : "") }, ...contenuDeDemi(demi, equipe, (sid) => marque(j.index, demi.demi, sid)));
       cellule.style.gridColumn = String(k + 2);
       cellule.style.gridRow = String(h + 2);
       grille.appendChild(cellule);
@@ -92,7 +99,7 @@ function formeOrdinateur(jours, equipe) {
 let compteur = 0;
 
 // La bande de cinq jours puis le jour choisi. `choisir` est appelée à chaque jour touché.
-function formeTelephone(jours, equipe, jourChoisi, onChoisirJour) {
+function formeTelephone(jours, equipe, jourChoisi, onChoisirJour, marque) {
   const id = "wg-tel-" + (++compteur);
   const panneau = el("div", { class: "wg-jour", role: "tabpanel", id: id + "-p" });
   const bouton = [];
@@ -109,7 +116,7 @@ function formeTelephone(jours, equipe, jourChoisi, onChoisirJour) {
         ? [el("p", { class: "wg-repos-tel" }, j.repos)]
         : j.demis.map((demi) => el("section", { class: "wg-demi" },
             el("h4", {}, demi.titre, demi.horaire ? el("span", {}, demi.horaire) : null),
-            ...contenuDeDemi(demi, equipe)))),
+            ...contenuDeDemi(demi, equipe, (sid) => marque(j.index, demi.demi, sid))))),
     );
     bouton.forEach((b, k) => {
       b.setAttribute("aria-selected", k === courant ? "true" : "false");
@@ -146,10 +153,11 @@ function formeTelephone(jours, equipe, jourChoisi, onChoisirJour) {
 
 // `jours` : semaineEnGrille. `equipe` : la vue du formateur (effectifs) plutôt que celle du stagiaire (noms et « Toi »).
 // `jourChoisi` : l'index du jour montré sur téléphone. `onChoisirJour(index)` : prévenu quand un jour est touché.
-export function grilleSemaine({ jours, equipe = false, jourChoisi = 0, onChoisirJour = () => {} }) {
+// `marque(index du jour, demi, stagiaireId)` : la marque d'absence annoncée à écrire derrière le nom (nulle par défaut : rien ne change).
+export function grilleSemaine({ jours, equipe = false, jourChoisi = 0, onChoisirJour = () => {}, marque = () => null }) {
   return el("div", { class: "wsem" },
-    formeOrdinateur(jours, equipe),
-    formeTelephone(jours, equipe, jourChoisi, onChoisirJour));
+    formeOrdinateur(jours, equipe, marque),
+    formeTelephone(jours, equipe, jourChoisi, onChoisirJour, marque));
 }
 
 // Le groupe « Grille » ou « Liste ». Sur téléphone, le premier bouton s'appelle « Jour » (la grille y est une bande de

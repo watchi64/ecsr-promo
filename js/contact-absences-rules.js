@@ -3,6 +3,8 @@
 // de prevenir_absence : la base reste juge), le courriel du justificatif. Dates en « AAAA-MM-JJ », heures en « HH:MM ».
 // Lancer : node tests/contact-absences-rules.test.mjs
 
+import { estVueStagiaire } from "./espaces-rules.js";
+
 const JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
 const DEBUT_APRES_MIDI = "13:30";
@@ -45,6 +47,22 @@ export function demiJourneesDe({ du, au = null, quand, debut = null, fin = null,
     }
   }
   return sortie;
+}
+
+/**
+ * La marque d'absence annoncée d'un stagiaire sur une demi-journée du planning, d'après les lignes de absences_annoncees_semaine
+ * ([{ stagiaire_id, day_index, half_day, entiere, debut, fin }]). `creneau` : { day_index, half_day } (une entrée du planning).
+ * Équipe : « absent, prévenu » ou « absent de 10 h à 11 h » ; stagiaire (`estVueStagiaire(espace)`) : « absent » ; nul sans absence.
+ * Jamais le motif : la base ne le rend pas.
+ */
+export function marqueAbsence(absences, creneau, sid, espace) {
+  if (sid == null || !creneau || !Array.isArray(absences)) return null;
+  const dujour = absences.filter((x) => x && x.stagiaire_id === sid && x.day_index === creneau.day_index && x.half_day === creneau.half_day);
+  // Deux absences sur la même demi-journée : la plus large l'emporte (une absence entière avant une plage).
+  const a = dujour.find((x) => x.entiere !== false) ?? dujour[0];
+  if (!a) return null;
+  if (estVueStagiaire(espace)) return "absent";
+  return a.entiere === false && a.debut && a.fin ? `absent de ${heureDite(a.debut)} à ${heureDite(a.fin)}` : "absent, prévenu";
 }
 
 /** Ce que l'absence pose sur la feuille d'émargement : « absent » (journée, matin, après-midi) ou une « observation » (des heures). */

@@ -82,6 +82,8 @@ test("état d'une ligne", () => {
   const absent = etatLigne({ ligne: { absent: true, absence_origine: "formateur" }, absentPlanning: false, close: false });
   assert.deepEqual(absent, { code: "absent", libelle: "Absent", origine: "formateur" });
   assert.equal(etatLigne({ ligne: { absent: true, absence_origine: "planning" }, close: true }).libelle, "Absent (noté au planning)");
+  assert.equal(etatLigne({ ligne: { absent: true, absence_origine: "annoncee" } }).libelle, "Absent (prévenu)");
+  assert.equal(etatLigne({ ligne: { absent: true, absence_origine: "annoncee" }, close: true }).origine, "annoncee");
   assert.equal(etatLigne({ ligne: { absent: true, absence_origine: "non_signe" }, close: true }).libelle, "Absent (non signé)");
 
   assert.deepEqual(etatLigne({ ligne: null, absentPlanning: true, close: false }), { code: "attente", libelle: "Absent au planning", origine: "planning" });

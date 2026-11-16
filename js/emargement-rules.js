@@ -94,6 +94,7 @@ export function roleAuPlanning(entries, dayIndex, demi, sid) {
 const LIBELLE_ABSENCE = {
   planning: "Absent (noté au planning)",
   non_signe: "Absent (non signé)",
+  annoncee: "Absent (prévenu)",   // le stagiaire a prévenu par l'espace contact (migration 3 de l'espace contact)
 };
 
 // Une ligne (d'un stagiaire ou d'un formateur) est signée quand son dessin est là, quand l'heure de signature est posée

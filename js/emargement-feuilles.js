@@ -86,7 +86,8 @@ export function feuilleSeance({ entete, promo, seance, stagiairesTous, absentsPl
         + (ligne.sur_appareil_formateur ? ", sur l'appareil du formateur" : ""));
     } else if (etat.code === "absent") obs.push(etat.libelle);
     else obs.push(etat.origine === "planning" ? "Noté absent au planning" : "Pas encore signé");
-    if (ligne?.observation) obs.push(ligne.observation);
+    // « Absent (prévenu) » dit déjà ce que la mention posée par l'espace contact dirait : pas deux fois la même chose.
+    if (ligne?.observation && !(etat.origine === "annoncee" && ligne.observation === "Absence prévenue")) obs.push(ligne.observation);
     return el("tr", { class: "emf-ligne emf-" + etat.code },
       el("td", { class: "emf-num" }, String(i + 1)),
       el("td", { class: "emf-nom" }, nomComplet(s)),

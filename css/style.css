@@ -5260,6 +5260,9 @@ body.qcm-open { overflow: hidden; }
   .epcf-radar-label { font-size: 14px; }  /* unités du viewBox : compense l'échelle ~0.8 à 375px → ~11px affichés */
 }
 
+/* === Absence annoncée par le stagiaire (espace contact, tâche 16) : une marque à côté du nom === */
+.marque-absence { font-size: 0.78rem; font-weight: 600; color: var(--c-wait); white-space: normal; }
+
 /* === Absences de derniere minute (spec 2026-07-19) === */
 .chip.chip-absent { text-decoration: line-through; background: var(--c-stop-soft); color: var(--c-stop); }
 .chip.chip-clickable { cursor: pointer; }

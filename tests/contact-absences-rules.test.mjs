@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  demiJourneesDe, premarquage, phraseCasesDecochees, mailtoJustificatif, libelleAbsence, phraseAbsence, adresseJustificatif, verifierAbsence, libelleDesJours,
+  demiJourneesDe, premarquage, phraseCasesDecochees, mailtoJustificatif, libelleAbsence, phraseAbsence, adresseJustificatif, verifierAbsence, libelleDesJours, marqueAbsence,
 } from "../js/contact-absences-rules.js";
 
 test("demiJourneesDe : une journée du jeudi 19 au lundi 23 novembre 2026 compte 6 demi-journées (week-end exclu)", () => {
@@ -109,4 +109,27 @@ test("libelleDesJours : l'absence dite d'après les jours d'une ligne de liste",
   assert.equal(libelleDesJours(demiJourneesDe({ du: "2026-11-19", au: "2026-11-23", quand: "matin" })), "du 19 au 23 novembre, matins");
   assert.equal(libelleDesJours(null), "");
   assert.equal(libelleDesJours([]), "");
+});
+
+test("marqueAbsence : l'équipe lit « absent, prévenu » ou la plage, le stagiaire « absent », jamais le motif", () => {
+  const abs = [
+    { stagiaire_id: 7, day_index: 3, half_day: "matin", entiere: true, debut: null, fin: null },
+    { stagiaire_id: 8, day_index: 3, half_day: "matin", entiere: false, debut: "10:00", fin: "11:00" },
+    { stagiaire_id: 9, day_index: 3, half_day: "matin", entiere: false, debut: "10:30", fin: "11:00" },
+  ];
+  const jeudi = { day_index: 3, half_day: "matin" };
+  assert.equal(marqueAbsence(abs, jeudi, 7, "formateur"), "absent, prévenu");
+  assert.equal(marqueAbsence(abs, jeudi, 8, "formateur"), "absent de 10 h à 11 h");
+  assert.equal(marqueAbsence(abs, jeudi, 9, "direction"), "absent de 10 h 30 à 11 h");
+  assert.equal(marqueAbsence(abs, jeudi, 7, "stagiaire"), "absent");
+  assert.equal(marqueAbsence(abs, jeudi, 8, "stagiaire"), "absent");
+  assert.equal(marqueAbsence(abs, { day_index: 3, half_day: "aprem" }, 7, "formateur"), null);
+  assert.equal(marqueAbsence(abs, { day_index: 2, half_day: "matin" }, 7, "formateur"), null);
+  const deux = [{ stagiaire_id: 5, day_index: 3, half_day: "matin", entiere: false, debut: "10:00", fin: "11:00" },
+    { stagiaire_id: 5, day_index: 3, half_day: "matin", entiere: true, debut: null, fin: null }];
+  assert.equal(marqueAbsence(deux, jeudi, 5, "formateur"), "absent, prévenu");
+  assert.equal(marqueAbsence(abs, jeudi, 99, "formateur"), null);
+  assert.equal(marqueAbsence(abs, jeudi, null, "formateur"), null);
+  assert.equal(marqueAbsence(null, jeudi, 7, "formateur"), null);
+  assert.equal(marqueAbsence([], jeudi, 7, "formateur"), null);
 });
