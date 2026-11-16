@@ -33,6 +33,21 @@ test("un stagiaire n'a que « Ouvrir dans l'app »", () => {
   assert.match(c.html, /https:\/\/app\.test\/#\/contacts\/7/);
 });
 
+test("le délégué a sa phrase pour l'avis et l'annulation d'une absence : tutoiement, jours seuls, ni motif ni texte, lien vers Contacts", () => {
+  const delegue = { email: "dele@exemple.invalid", nom: "Noé", stagiaire: true };
+  for (const [evenement, objet, corps] of [
+    ["avis_absence", /absence annoncée dans ta promo/, /Une absence a été annoncée dans ta promo\./],
+    ["annulation_absence", /absence annulée dans ta promo/, /Une absence annoncée dans ta promo a été annulée\./]]) {
+    const c = construireCourriel({ evenement, appUrl: "https://app.test/", demande, destinataire: delegue, jetons: {} });
+    assert.match(c.subject, objet);
+    assert.match(c.text, corps);
+    assert.match(c.text, /jeudi 19 novembre, matin/);
+    assert.doesNotMatch(c.subject + c.html + c.text, /nouveau message|sante|Santé|rdv|Lina|\bvous\b|\bvotre\b/i);
+    assert.match(c.html, /https:\/\/app\.test\/#\/contacts"/);
+    assert.doesNotMatch(c.html + c.text, /contacts\/7|demande\.html#j=/);
+  }
+});
+
 test("le sujet de la demande ne part jamais, même s'il est donné", () => {
   const c = construireCourriel({ evenement: "reponse", appUrl: "https://app.test/",
     demande: { id: 9, type: "autre", auteur_nom: "Noé K.", sujet: "Sujet confidentiel", texte: "Texte confidentiel" },

@@ -55,6 +55,9 @@ function phrases(evenement, type, auteur, stagiaire) {
       case "reponse": return { objet: "nouvelle réponse", corps: `Tu as une nouvelle réponse à ta demande (${genre}).` };
       case "annulation": return { objet: "demande annulée", corps: `Une demande (${genre}) qui te concerne a été annulée.` };
       case "justificatif_recu": return { objet: "justificatif reçu", corps: "Ton justificatif a bien été reçu par le centre." };
+      // Le délégué reçoit l'avis d'une absence de sa promo : les jours seuls (ni motif ni mot), et rien à ouvrir dans l'app.
+      case "avis_absence": return { objet: "absence annoncée dans ta promo", corps: "Une absence a été annoncée dans ta promo." };
+      case "annulation_absence": return { objet: "absence annulée dans ta promo", corps: "Une absence annoncée dans ta promo a été annulée." };
       default: return { objet: "nouveau message", corps: `Tu as un nouveau message du centre (${genre}).` };
     }
   }
@@ -88,7 +91,9 @@ export function construireCourriel({ evenement, demande, destinataire, jetons, a
   const { objet, corps } = phrases(evenement, type, auteur, stagiaire);
   const base = String(appUrl ?? "");
   const lien = (jeton) => `${base}${pageLien}#j=${encodeURIComponent(jeton)}`;
-  const ouvrir = `${base}#/${stagiaire ? "contacts" : "messages"}/${encodeURIComponent(String(demande?.id ?? ""))}`;
+  // Le délégué n'a aucune demande à ouvrir (la base la lui refuse) : l'avis le mène à Contacts, où sa promo est listée.
+  const avisDelegue = stagiaire && (evenement === "avis_absence" || evenement === "annulation_absence");
+  const ouvrir = avisDelegue ? `${base}#/contacts` : `${base}#/${stagiaire ? "contacts" : "messages"}/${encodeURIComponent(String(demande?.id ?? ""))}`;
 
   const actions = [];
   if (!stagiaire) {

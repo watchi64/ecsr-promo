@@ -347,7 +347,9 @@ function dessinerSeance(ctx) {
         el("span", { class: "em-ligne-nom" }, displayStagiaire(st)),
         el("span", { class: "em-ligne-etat" }, etat.libelle,
           etat.code === "signe" && ligne.sur_appareil_formateur ? " · sur l'appareil du formateur" : ""),
-        ligne?.observation ? el("span", { class: "em-ligne-obs" }, ligne.observation) : null,
+        // « Absent (prévenu) » dit déjà ce que la mention posée par l'espace contact dirait (comme sur la feuille imprimée).
+        ligne?.observation && !(etat.origine === "annoncee" && ligne.observation === "Absence prévenue")
+          ? el("span", { class: "em-ligne-obs" }, ligne.observation) : null,
       ),
       actions,
     ));

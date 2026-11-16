@@ -3947,6 +3947,42 @@ ENTREES_ALLUMEES_JS = """() => [...document.querySelectorAll('[data-nav-coquille
   .map((e) => (e.tagName === 'A' ? (e.getAttribute('href') || '').replace('#/', '') : (e.getAttribute('data-nav-action') || e.textContent.trim().toLowerCase())))"""
 
 
+def verifier_bouton_absence(page, res, sc):
+    """Accueil du stagiaire (espace contact) : le bouton « Prévenir d'une absence » est là, a 44 px de haut au moins, se voit sans défiler (375 px compris) et
+    mène à #/absence, sous le titre « Prévenir d'une absence », sans défilement de côté."""
+    vue = "%s/accueil/prevenir-absence" % sc.nom
+    aller_a(page, "#/home")
+    attendre(page, calme=200)
+    res.vues += 1
+    bouton = page.evaluate("""() => { const b = document.querySelector('#view .acc-absence-bouton');
+        if (!b) return null; const r = b.getBoundingClientRect();
+        return { texte: b.textContent.trim(), haut: Math.round(r.height), larg: Math.round(r.width), bas: Math.round(r.bottom), top: Math.round(r.top),
+                 fenetre: window.innerHeight, lien: b.getAttribute('href') }; }""")
+    if bouton is None:
+        res.echec("bouton d'absence", vue, "l'Accueil du stagiaire n'a pas le bouton « Prévenir d'une absence »")
+        return
+    if bouton["texte"] != "Prévenir d'une absence":
+        res.echec("bouton d'absence", vue, "le bouton dit « %s », attendu « Prévenir d'une absence »" % bouton["texte"])
+    if bouton["haut"] < 44 or bouton["larg"] < 44:
+        res.echec("bouton d'absence", vue, "le bouton fait %d x %d px, attendu 44 px au moins" % (bouton["larg"], bouton["haut"]))
+    if bouton["top"] < 0 or bouton["bas"] > bouton["fenetre"]:
+        res.echec("bouton d'absence", vue, "le bouton n'est pas visible sans défiler (de %d à %d px, fenêtre de %d px)" % (bouton["top"], bouton["bas"], bouton["fenetre"]))
+    if not cliquer(page, res, vue, "#view .acc-absence-bouton", "bouton « Prévenir d'une absence »"):
+        return
+    attendre(page, calme=200)
+    res.vues += 1
+    p = page.evaluate("() => window.__verifNav.enTeteDePage()")
+    tete = p["entetes"][-1] if p["entetes"] else None
+    if p["route"] != "absence":
+        res.echec("bouton d'absence", vue, "le bouton mène à #/%s, attendu #/absence" % p["route"])
+    elif tete is None or tete["titre"] != "Prévenir d'une absence":
+        res.echec("bouton d'absence", vue, "la page ouverte a pour titre « %s », attendu « Prévenir d'une absence »" % (tete and tete["titre"]))
+    debord = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    if debord > 0:
+        res.echec("défilement de côté", vue, "la page d'absence déborde de %d px à %d px de large" % (debord, sc.largeur))
+    vider_console(res, vue)
+
+
 def verifier_compteur_messages(page, res, sc, vue):
     """Le compteur de l'entrée Messages (équipe) : la demande 101 du banc, remise non lue le temps du contrôle, donne la pastille « 1 » et le nom
     « Messages, 1 non lu » dans la barre latérale ; sur téléphone, où l'entrée est rangée dans « Plus », le nom du bouton « Plus » dit « 1 message non lu ».
@@ -6025,6 +6061,8 @@ def jouer_allume(page, res, sc, options):
         verifier_menu_du_compte_a_l_ouverture(page, res, sc)
         verifier_a_traiter(page, res, sc)
         verifier_contacts_du_centre(page, res, sc)
+        if sc.espace == "stagiaire" and res.profil_stagiaire:
+            verifier_bouton_absence(page, res, sc)
     entrees = regles["entrees"]
     parcourir_entrees(page, res, sc, entrees, options)
     if res.coquille and sc.espace == "equipe":

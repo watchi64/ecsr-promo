@@ -59,6 +59,46 @@ export const NOUVEAUTES = [
           + "centres se corrige une seule fois.",
     ou: { label: "Mes préférences", route: "preferences" },
   },
+  // Espace contact (absences et Messages, 14/11, même date provisoire que les entrées d'annuaire : la coordination la fixe à la mise en
+  // ligne). Une entrée par public : le stagiaire tutoie, l'équipe et la direction vouvoient.
+  {
+    id: "2026-11-14-prevenir-absence-stagiaires",
+    date: "2026-11-14",
+    pour: "stagiaires",
+    titre: "Préviens d'une absence en une minute",
+    resume: "Sur l'Accueil, “Prévenir d'une absence” : choisis le jour, le moment et le motif. Si ton centre a choisi qui s'en "
+          + "occupe, l'app l'envoie à cette personne et te dit à qui ; sinon, tu coches qui prévenir parmi tes formateurs et la "
+          + "direction (tes formateurs du jour sont déjà cochés). Tu vois quand c'est lu, puis pris en compte. Tes formateurs du jour "
+          + "et ton délégué sont prévenus, sauf si tu décoches ; l'absence apparaît d'elle-même au planning et sur la feuille "
+          + "d'émargement. Ton justificatif ne passe pas par l'app : le bouton “Envoyer mon justificatif” prépare l'e-mail. Pour "
+          + "une autre question, “Écrire au centre” dans Contacts.",
+    ou: { label: "Contacts", route: "contacts" },
+  },
+  {
+    id: "2026-11-14-messages-formateurs",
+    date: "2026-11-14",
+    pour: "formateurs",
+    titre: "Messages : les demandes des stagiaires, avec un état",
+    resume: "La nouvelle entrée Messages réunit les demandes qui vous sont adressées (absences, retards, questions), “À traiter” "
+          + "d'abord. Vous répondez en un geste avec les réponses toutes faites, depuis l'app ou depuis l'e-mail reçu. Une absence "
+          + "annoncée est marquée “absent, prévenu” au planning et pré-remplie sur la feuille d'émargement ; vous décidez comme avant "
+          + "du passage et de la feuille. Tant que “Qui reçoit quoi” n'est pas réglé, le stagiaire choisit lui-même qui prévenir "
+          + "parmi les formateurs de sa promo et la direction du centre.",
+    ou: { label: "Messages", route: "messages" },
+  },
+  {
+    id: "2026-11-14-messages-direction",
+    date: "2026-11-14",
+    pour: "direction",
+    titre: "Messages : les demandes des stagiaires, avec un état",
+    resume: "La nouvelle entrée Messages réunit les demandes qui vous sont adressées (absences, retards, questions), “À traiter” "
+          + "d'abord. Vous répondez en un geste avec les réponses toutes faites, depuis l'app ou depuis l'e-mail reçu. Une absence "
+          + "annoncée est marquée “absent, prévenu” au planning et pré-remplie sur la feuille d'émargement ; vous décidez comme avant "
+          + "du passage et de la feuille. Tant que “Qui reçoit quoi” n'est pas réglé, le stagiaire choisit lui-même qui prévenir "
+          + "parmi les formateurs de sa promo et la direction du centre. Vous lisez toutes les demandes de votre centre, et vous "
+          + "réglez “Qui reçoit quoi” et les réponses toutes faites dans Réglages du centre.",
+    ou: { label: "Réglages du centre", route: "config" },
+  },
   // Résultats du jury du titre (14/11, décisions de Timy : saisie par stagiaire, par qui saisit les notes, taux = obtenus sur
   // présentés). Pour les formateurs, au vouvoiement ; la direction a sa propre entrée (lecture seule, cumul du centre).
   {

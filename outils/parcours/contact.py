@@ -426,3 +426,234 @@ def cumul_equipe_contacts(v):
     v.attendre('#view h2:text-is("Messages")', "le titre « Messages »")
     v.attendre('#view p:text-is("Rien à traiter.")', "« Rien à traiter. » : le compte cumulé n'a aucune demande")
     v.terminer()
+
+
+# === Les absences annoncées (tâches 15 à 17) : prévenir, suivre, justificatif, avis du formateur du jour et du délégué, planning, émargement. ===
+# Le banc joue prevenir_absence et ses phrases en mémoire (bloc « Espace contact » de _harness_supabase.js) : un parcours prouve l'écran et le
+# reflet de l'écriture, pas la base (preuves SQL : tests/sql/contact-absences-preuve.sql). Leviers : `ecritures=1`, `contact_regle=1`,
+# `justificatif=1`, `formateur_du_jour=1`, `delegue=1`, `absence_planning=1`, `absence=annoncee`. Le geste « l'équipe règle le justificatif »
+# n'est pas un geste de l'écran : le parcours le joue par `window.__bancContact.justificatif(état)`.
+BUDGET_ABSENCE = {"ordinateur": 6, "telephone": 6}
+ABSENCE = ".absence-page"
+ENVOYER_ABSENCE = ABSENCE + ' .abs-envoi button:text-is("Envoyer")'
+ENVOI_ACTIF = "() => !document.querySelector('.abs-envoi .btn.primary').disabled"
+ENVOI_INACTIF = "() => document.querySelector('.abs-envoi .btn.primary').disabled"
+PHRASE_DECOCHEES = "Ils ne seront pas prévenus, mais l'absence apparaîtra au planning."
+
+
+def choix_absence(nom):
+    """Le bouton rond d'un choix (jour, moment, motif) de « Prévenir d'une absence » : l'étiquette entière se touche."""
+    return ABSENCE + ' label.abs-choix:has(span:text-is("%s"))' % nom
+
+
+def ouvrir_prevenir(v):
+    """Accueil du stagiaire, puis « Prévenir d'une absence » : l'écran s'ouvre."""
+    v.aller("Accueil")
+    v.attendre('#view .acc-absence-bouton', "le bouton « Prévenir d'une absence » de l'Accueil")
+    v.toucher('#view .acc-absence-bouton', "« Prévenir d'une absence »")
+    v.attendre(ABSENCE + ' h2:text-is("Prévenir d\'une absence")', "l'écran « Prévenir d'une absence »")
+
+
+def remplir_absence(v, jour="Demain", moment="Matin", motif="Santé"):
+    for nom in (jour, moment, motif):
+        v.toucher(choix_absence(nom), "« %s »" % nom)
+
+
+def coche(v, libelle):
+    return v.page.locator(ABSENCE + ' label.contact-case:has-text("%s") input' % libelle)
+
+
+@parcours("absence-complete", "Un stagiaire prévient d'une absence, la suit, et le justificatif est reçu", role="stagiaire", budget=BUDGET_ABSENCE,
+          navigations=NOUVELLE, banc={"ecritures": "1"})
+def absence_complete(v):
+    """Rien n'est réglé : demain matin, Santé, le formateur du jour déjà coché ; l'envoi mène au suivi ; l'équipe note le justificatif à remettre
+    (rappel sur l'Accueil), puis reçu (le rappel part, le suivi dit « Justificatif reçu »)."""
+    ouvrir_prevenir(v)
+    remplir_absence(v)
+    v.attendre(ABSENCE + ' .abs-encadre :text("Sera envoyé à")', "l'encadré « Sera envoyé à »")
+    v.attendre(ABSENCE + ' label.contact-case:has-text("Denis Exemple")', "la case du formateur du jour")
+    v.etape("le formateur du jour est déjà coché, rien d'autre")
+    if not coche(v, "Denis Exemple").is_checked():
+        v.constat("F", BLOQUE, "le formateur du jour n'est pas coché d'office")
+    if coche(v, "Edith Exemple").is_checked():
+        v.constat("F", BLOQUE, "la direction est cochée d'office")
+    v.page.wait_for_function(ENVOI_ACTIF, timeout=5000)
+    v.ecouter_messages()
+    v.toucher(ENVOYER_ABSENCE, "« Envoyer »", ecriture=True)
+    v.attendre(PAGE_DEMANDE + ' .demande-etape-nom:text-is("Envoyée")', "le suivi, étape « Envoyée »")
+    v.attendre(PAGE_DEMANDE + ' .demande-absence dd:text-is("Santé")', "le motif, dans la section « Absence »")
+    v.attendre(PAGE_DEMANDE + ' .demande-absence dd:has-text("29 octobre, matin")', "le jour et le moment")
+    v.attendre(PAGE_DEMANDE + ' .demande-destinataires li:has-text("Denis Exemple")', "le formateur prévenu")
+    v.attendre(PAGE_DEMANDE + ' .demande-absence a:text-is("Envoyer mon justificatif")', "« Envoyer mon justificatif »")
+    if v.voit(ABSENCE):
+        v.constat("D", BLOQUE, "l'écran d'absence reste affiché après l'envoi", capture=True)
+    v.but("absence envoyée et suivie")
+    v.etape("l'équipe demande le justificatif : le rappel est sur l'Accueil")
+    v.page.evaluate("() => window.__bancContact.justificatif('a_remettre')")
+    v.aller("Accueil")
+    v.attendre('#view :text("Remets ton justificatif")', "le rappel du justificatif sur l'Accueil")
+    v.etape("l'équipe note le justificatif reçu : le rappel part, le suivi le dit")
+    v.page.evaluate("() => window.__bancContact.justificatif('recu')")
+    v.aller("Contacts")
+    v.attendre(PAGE + ' h3:text-is("Mes demandes")', "« Mes demandes »")
+    v.toucher(PAGE + " li.demande-ligne a.demande-lien", "l'absence, dans « Mes demandes »", compte=False)
+    v.attendre(PAGE_DEMANDE + ' .demande-absence dd:text-is("Justificatif reçu")', "« Justificatif reçu » dans le suivi")
+    if v.voit(PAGE_DEMANDE + ' .demande-absence a:text-is("Envoyer mon justificatif")'):
+        v.constat("E", BLOQUE, "« Envoyer mon justificatif » reste proposé alors que le justificatif est reçu")
+    v.aller("Accueil")
+    v.attendre('#view .acc-absence-bouton', "l'Accueil rechargé")
+    if "Remets ton justificatif" in v.texte("#view"):
+        v.constat("E", BLOQUE, "le rappel du justificatif reste sur l'Accueil alors qu'il est reçu", capture=True)
+    v.terminer()
+
+
+@parcours("absence-sans-choix", "« Envoyer » reste inactif quand plus personne n'est cochée", role="stagiaire", budget=BUDGET_ABSENCE,
+          navigations=NOUVELLE, banc={"ecritures": "1"})
+def absence_sans_choix(v):
+    """Rien n'est réglé : la case du formateur du jour décochée, « Envoyer » est inactif, la phrase demande de cocher quelqu'un et le formateur du
+    jour reste dit « en copie » ; recochée, « Envoyer » redevient actif."""
+    ouvrir_prevenir(v)
+    remplir_absence(v)
+    v.attendre(ABSENCE + ' label.contact-case:has-text("Denis Exemple")', "la case du formateur du jour")
+    v.page.wait_for_function(ENVOI_ACTIF, timeout=5000)
+    v.toucher(ABSENCE + ' label.contact-case:has-text("Denis Exemple")', "la case « Denis Exemple »")
+    v.but("case du formateur du jour décochée")
+    v.page.wait_for_function(ENVOI_INACTIF, timeout=5000)
+    v.attendre(ABSENCE + ' .abs-aide:has-text("coche au moins une personne")', "la phrase qui demande de cocher quelqu'un")
+    v.attendre(ABSENCE + ' .abs-annexes :text("Formateurs du jour en copie : Denis Exemple")', "le formateur du jour, en copie")
+    v.toucher(ABSENCE + ' label.contact-case:has-text("Denis Exemple")', "la case « Denis Exemple »", compte=False)
+    v.page.wait_for_function(ENVOI_ACTIF, timeout=5000)
+    v.terminer()
+
+
+@parcours("absence-cases-decochees", "Les copies décochées : la phrase dit que l'absence apparaît quand même au planning", role="stagiaire",
+          budget=BUDGET_ABSENCE, navigations=NOUVELLE, banc={"ecritures": "1", "contact_regle": "1"})
+def absence_cases_decochees(v):
+    """Le centre a réglé qui reçoit : aucune case de destinataire, deux copies cochées (formateurs du jour, délégué) ; décochées, la phrase s'affiche ;
+    « Envoyer » reste actif."""
+    ouvrir_prevenir(v)
+    remplir_absence(v)
+    v.attendre(ABSENCE + ' .abs-encadre :text("Alice Exemple, relais de Bruno Exemple")', "le relais nommé dans l'encadré")
+    v.attendre(ABSENCE + ' .abs-annexes label.contact-case:has-text("Ton délégué en copie")', "la copie du délégué")
+    v.attendre(ABSENCE + ' .abs-annexes label.contact-case:has-text("Formateurs du jour en copie")', "la copie des formateurs du jour")
+    if v.voit(ABSENCE + ' :text("Ils ne seront pas prévenus")'):
+        v.constat("F", BLOQUE, "la phrase des copies décochées s'affiche alors que tout est coché")
+    v.page.wait_for_function(ENVOI_ACTIF, timeout=5000)
+    v.but("copies cochées")
+    v.toucher(ABSENCE + ' .abs-annexes label.contact-case:has-text("Formateurs du jour en copie")', "la case « Formateurs du jour en copie »", compte=False)
+    v.toucher(ABSENCE + ' .abs-annexes label.contact-case:has-text("Ton délégué en copie")', "la case « Ton délégué en copie »", compte=False)
+    v.attendre(ABSENCE + ' .abs-encadre :text("%s")' % PHRASE_DECOCHEES, "la phrase des copies décochées")
+    if v.page.locator(ENVOYER_ABSENCE).is_disabled():
+        v.constat("E", BLOQUE, "« Envoyer » est inactif alors que la règle du centre désigne le destinataire", capture=True)
+    v.terminer()
+
+
+@parcours("formateur-du-jour", "Un formateur du jour reçoit l'avis d'une absence, avec le motif", role="formateur", budget=BUDGET_MESSAGES,
+          navigations=NOUVELLE, banc={"formateur_du_jour": "1"})
+def formateur_du_jour(v):
+    """Messages : l'absence arrive en copie (rien « À traiter ») ; le suivi montre le jour et le motif, sans geste de prise en compte."""
+    v.aller("Messages")
+    ligne = '#view li.demande-ligne:has-text("Absence jeudi matin")'
+    v.attendre(ligne, "l'avis de l'absence")
+    v.but("Messages ouverts, l'avis est là")
+    v.attendre('#view p:text-is("Rien à traiter.")', "« Rien à traiter. » : une copie n'est pas une demande à traiter")
+    v.attendre('#view h3:text-is("Ouvertes (1)")', "« Ouvertes (1) »")
+    v.toucher(ligne + " a.demande-lien", "l'absence", compte=False)
+    v.attendre(PAGE_DEMANDE + ' .demande-absence dd:text-is("Santé")', "le motif, visible du formateur du jour")
+    v.attendre(PAGE_DEMANDE + ' .demande-absence dd:has-text("29 octobre, matin")', "le jour et le moment")
+    v.attendre(PAGE_DEMANDE + ' .demande-destinataires li:has-text("Denis Exemple")', "le formateur du jour parmi les destinataires")
+    if v.voit(PAGE_DEMANDE + ' button:text-is("Pris en compte")') or v.voit(PAGE_DEMANDE + " .demande-toutes-faites"):
+        v.constat("E", BLOQUE, "le formateur du jour a le geste du destinataire principal (prise en compte ou réponse toute faite)")
+    v.terminer()
+
+
+@parcours("delegue", "Un délégué voit l'absence d'un camarade : le nom et les jours, jamais le motif", role="stagiaire", budget=BUDGET_CONTACTS,
+          navigations=NOUVELLE, banc={"delegue": "1"})
+def delegue(v):
+    """Contacts : « Absences annoncées dans ta promo » dit le nom et le jour, sans lien, sans motif ni mot ; « Mes demandes » reste vide."""
+    v.aller("Contacts")
+    section = PAGE + " .contact-promo"
+    v.attendre(PAGE + ' h3:text-is("Absences annoncées dans ta promo")', "« Absences annoncées dans ta promo »")
+    v.attendre(section + ' .contact-promo-ligne:has-text("Agathe O.")', "le nom du camarade")
+    v.but("page Contacts du délégué ouverte")
+    ligne = v.texte(section + " .contact-promo-ligne")
+    if "29 octobre" not in ligne:
+        v.constat("F", BLOQUE, "le jour de l'absence manque dans la ligne du délégué")
+    page = v.texte("#view")
+    for interdit in ("Santé", "médical", "Rendez-vous", "Absence jeudi matin"):
+        if interdit in page:
+            v.constat("F", BLOQUE, "le délégué voit un détail de l'absence (%s)" % interdit, capture=True)
+    if v.page.locator(section + " a").count() or v.page.locator('#view a[href*="contacts/null"]').count():
+        v.constat("F", BLOQUE, "la ligne du délégué est un lien (il n'y a rien à ouvrir)")
+    v.attendre(PAGE + ' p:text-is("Tu n\'as encore rien envoyé au centre.")', "« Mes demandes » vide")
+    v.terminer()
+
+
+def jour_du_planning(v, abrege):
+    """Sur téléphone, le planning montre un jour à la fois : on touche le jour voulu (LUN, JEU) ; sur ordinateur, toute la semaine est là."""
+    if v.telephone:
+        v.toucher('.daystrip button[role="tab"]:has-text("%s")' % abrege, "le jour « %s »" % abrege)
+
+
+@parcours("absence-planning", "Le planning marque « absent, prévenu » une absence annoncée (vue de l'équipe)", role="formateur",
+          budget={"ordinateur": 1, "telephone": 3}, navigations=NOUVELLE, banc={"absence_planning": "1"}, depart="#/home")
+def absence_planning_equipe(v):
+    """Planning de la semaine : « absent, prévenu » derrière le nom d'une absence de la journée, « absent de 10 h à 11 h » pour des heures."""
+    v.aller("Planning")
+    jour_du_planning(v, "jeu")
+    v.attendre('#view :text("absent, prévenu")', "« absent, prévenu » sur une carte")
+    jour_du_planning(v, "lun")
+    v.attendre('#view :text("absent de 10 h à 11 h")', "« absent de 10 h à 11 h » sur une carte")
+    v.but("planning ouvert")
+    v.terminer()
+
+
+@parcours("absence-planning-stagiaire", "Le planning marque « absent » une absence annoncée, sans « prévenu » (vue du stagiaire)", role="stagiaire",
+          budget={"ordinateur": 1, "telephone": 3}, navigations=NOUVELLE, banc={"absence_planning": "1"}, depart="#/home")
+def absence_planning_stagiaire(v):
+    """Planning : « absent » derrière le nom, jamais « prévenu » ni un motif."""
+    v.aller("Planning")
+    jour_du_planning(v, "jeu")
+    v.attendre('#view :text("(absent)")', "« (absent) » derrière un nom")
+    pages = [v.texte("#view")]
+    jour_du_planning(v, "lun")
+    v.attendre('#view :text("Agathe O. (absent)")', "« Agathe O. (absent) » le lundi matin (des heures, dites seulement « absent »)")
+    v.but("planning ouvert")
+    pages.append(v.texte("#view"))
+    for interdit in ("prévenu", "absent de 10"):
+        if any(interdit in page for page in pages):
+            v.constat("F", BLOQUE, "le planning du stagiaire en dit trop (%s)" % interdit, capture=True)
+    v.terminer()
+
+
+@parcours("absence-emargement", "La feuille du jour pré-marque « Absent (prévenu) » une absence annoncée", role="formateur",
+          budget={"ordinateur": 2, "telephone": 3}, navigations=NOUVELLE, banc={"absence": "annoncee"})
+def absence_emargement(v):
+    """Émargement du matin : la ligne de la stagiaire qui a prévenu dit « Absent (prévenu) » ; la mention « Absence prévenue » n'est pas répétée."""
+    v.aller("Émargement")
+    v.toucher('#view a[href="#/emargement/2026-10-28/matin"]', "la feuille de ce matin")
+    v.attendre('#view :text("Absent (prévenu)")', "« Absent (prévenu) » sur la ligne de la stagiaire")
+    v.but("feuille du matin affichée")
+    if "Absence prévenue" in v.texte("#view"):
+        v.constat("F", BLOQUE, "« Absence prévenue » est répété à côté de « Absent (prévenu) »")
+    v.terminer()
+
+
+@parcours("absence-annulee", "Un stagiaire annule son absence", role="stagiaire", budget={"ordinateur": 4, "telephone": 5},
+          navigations=NOUVELLE, banc={"ecritures": "1", "justificatif": "1"})
+def absence_annulee(v):
+    """« Mes demandes » : l'absence du jeudi, « Annuler », la fenêtre de l'app, « Annuler l'absence » : l'étape « Annulée » remplace le geste."""
+    v.aller("Contacts")
+    v.attendre(PAGE + ' h3:text-is("Mes demandes")', "« Mes demandes »")
+    v.toucher(PAGE + " li.demande-ligne a.demande-lien", "l'absence, dans « Mes demandes »")
+    v.attendre(PAGE_DEMANDE + " .demande-absence", "la section « Absence »")
+    v.toucher(PAGE_DEMANDE + ' button:text-is("Annuler")', "« Annuler »")
+    v.attendre('.confirmer-fond :text("Annuler cette absence ?")', "la question, dans une fenêtre de l'app")
+    v.but("la question d'annulation est posée")
+    v.ecouter_messages()
+    v.toucher('.confirmer-fond button:text-is("Annuler l\'absence")', "« Annuler l'absence »", compte=False, ecriture=True)
+    v.exiger_confirmation("l'annulation", "Absence annulée")
+    v.attendre(PAGE_DEMANDE + ' .demande-etape-nom:text-is("Annulée")', "l'étape « Annulée »")
+    if v.voit(PAGE_DEMANDE + ' button:text-is("Annuler")'):
+        v.constat("E", BLOQUE, "« Annuler » reste proposé après l'annulation")
+    v.terminer()

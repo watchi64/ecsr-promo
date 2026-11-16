@@ -229,3 +229,15 @@ test("espace contact : la page Contacts et la fiche de contact sont dans le guid
   assert.ok(!/Documents : les contacts/.test(avantAnciensNoms), "Documents ne porte plus les contacts");
   assert.ok(consignesApp("direction").includes("- contacts (Contacts, menu du compte)"), "la direction a la page Contacts");
 });
+
+test("espace contact : absences, Messages, lien d'e-mail, justificatif hors de l'app et réglages du centre sont dans les guides", () => {
+  for (const morceau of ["- absence (Prévenir d'une absence", "- messages (Messages, formateurs et direction", "Mes demandes", "Écrire au centre",
+    "demande.html", "C'est fait", "- justificatif d'absence : il ne passe jamais par l'app", "Envoyer mon justificatif", "Alertes par e-mail",
+    "Absences annoncées dans ta promo"]) {
+    assert.ok(avantAnciensNoms.includes(morceau), "stagiaires et formateurs : " + morceau);
+  }
+  const direction = consignesApp("direction");
+  for (const morceau of ["- messages (Messages", "Qui reçoit quoi", "Réponses toutes faites", "Absent (prévenu)", "Envoyer mon justificatif"]) {
+    assert.ok(direction.includes(morceau), "direction : " + morceau);
+  }
+});
