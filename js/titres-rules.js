@@ -314,6 +314,23 @@ export function siegeFixePourLesGestes({ titres, fondateur = false } = {}) {
   return titres.some((t) => t && t.niveau === "reseau" && (typeof t.fixe === "boolean" ? t.fixe : t.nom === "Siège"));
 }
 
+// « Retirer » sur une ligne de la page Directions de centre du siège : la case Directions sur « Modifier » (`peutGerer`) ; jamais sur
+// soi (la base refuse de changer ses propres titres) ; un titre fixe de niveau réseau (Siège) ne se retire qu'au fondateur hors aperçu
+// (la base répond « Réservé au fondateur »). `personne` : { email, niveau, fixe } ; `moi` : l'adresse de la personne connectée.
+export function retraitDuSiegeOffert({ peutGerer = false, fondateur = false, personne = null, moi = "" } = {}) {
+  if (peutGerer !== true || !personne) return false;
+  if (moi !== "" && String(personne.email || "").toLowerCase() === String(moi).toLowerCase()) return false;
+  if (personne.niveau === "reseau" && personne.fixe === true) return fondateur === true;
+  return true;
+}
+
+// La section « Ouvrir les titres à la carte » des Réglages du fondateur : « Ouvrir » seulement quand le journal des droits est en place
+// (les nominations sans journal ne se retrouvent pas) ; « Fermer » toujours quand le verrou est ouvert.
+export const PHRASE_JOURNAL_ABSENT = "Le journal des droits n'est pas encore en place : les titres à la carte s'ouvriront ensuite.";
+export function boutonVerrouOffert({ ouvert = false, journalPresent = false } = {}) {
+  return ouvert === true || journalPresent === true;
+}
+
 export const LIBELLE_NIVEAU ={ promo: "Promo", centre: "Centre", reseau: "Réseau" };
 
 // Les pages que le titre ferme (case « Non »), dans l'ordre du niveau : « Masqué dans sa barre ».

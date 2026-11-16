@@ -13,7 +13,7 @@ import {
   getPromoCourante, renommerPromo,
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
-  lirePersonnesEtTitres, lireTitresVisibles, donnerTitre, lireTitresOuverts, reglerTitresOuverts,
+  lirePersonnesEtTitres, lireTitresVisibles, donnerTitre, lireTitresOuverts, reglerTitresOuverts, lireJournalPresent,
   setMyAnonymousNotes,
 } from "../db.js?v=20261114f";
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261114f";
@@ -32,6 +32,7 @@ import { blocHabillage } from "../habillage-choix.js?v=20261114f";
 import { nomBenevole } from "../planning-lecture.js?v=20261114f";
 import { dateFr } from "../dates.js?v=20261114f";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261114f";
+import { boutonVerrouOffert, PHRASE_JOURNAL_ABSENT } from "../titres-rules.js?v=20261114f";
 
 // ====== SECTION Accès & invitations ======
 
@@ -79,6 +80,7 @@ async function renderTitresCarteSection(rerender) {
   if (!fondateurHorsApercu()) return null;
   let ouvert = null;
   try { ouvert = await lireTitresOuverts(); } catch (e) { console.warn("verrou des titres", e); }
+  const journalPresent = ouvert === false ? await lireJournalPresent() : true;
   const section = el("section", { class: "param-section", id: "param-titres-carte" });
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.shield()),
@@ -96,6 +98,12 @@ async function renderTitresCarteSection(rerender) {
     "Formateur, Direction de centre et Siège se donnent toujours. Les autres titres (Secrétariat, Intervenant, ceux que les centres créent) "
     + "ne se donnent que lorsque le verrou est ouvert."));
   bloc.appendChild(el("p", { id: "titres-carte-etat" }, el("strong", {}, ouvert ? "Titres à la carte ouverts" : "Titres à la carte fermés")));
+  // « Ouvrir » n'est offert qu'avec le journal des droits en place ; sinon une phrase dit pourquoi. « Fermer » reste toujours offert.
+  if (!boutonVerrouOffert({ ouvert, journalPresent })) {
+    bloc.appendChild(el("p", { class: "muted", id: "titres-carte-journal" }, PHRASE_JOURNAL_ABSENT));
+    section.appendChild(bloc);
+    return section;
+  }
   const bouton = el("button", { class: ouvert ? "btn" : "btn accent", type: "button" }, ouvert ? "Fermer" : "Ouvrir les titres à la carte");
   bouton.addEventListener("click", async () => {
     if (bouton.disabled) return;
