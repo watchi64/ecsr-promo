@@ -1188,10 +1188,12 @@ test("suite --etapes 4,9 : la 4 injectée juste avant la 9, puis les retours 9 e
 });
 
 test("suite : suites refusées (7,9 et les autres), fichier manquant d'une étape demandée arrêté avec un message clair, --etapes refusé aux autres modes suite", () => {
-  for (const mauvaise of [[7, 9], [], [4], [4, 7], [8, 7], [9, 8], [7, 8, 9, 4], [4, 7, 8, 9], [5], [6], [7, 7], [1, 2, 3]]) {
+  for (const mauvaise of [[7, 9], [], [4, 7], [8, 7], [9, 8], [7, 8, 9, 4], [4, 7, 8, 9], [5], [6], [7, 7], [1, 2, 3]]) {
     assert.throws(() => decrireMode("suite", { etapes: mauvaise }), /étapes refusées/, JSON.stringify(mauvaise));
   }
   assert.throws(() => assemblerMode("suite", RACINE, { etapes: [7, 9], lire: depotSuite }), /étapes refusées : « 7,9 »/);
+  // 4 seule : le journal sur une base où la 9 est déjà appliquée (l'essai à blanc de la 4 depuis que la 9 est en ligne).
+  assert.doesNotThrow(() => decrireMode("suite", { etapes: [4] }));
   const sans = (c) => (TOUS_FICHIERS_SUITE.includes(c) && c !== S[4].migration && c !== S[4].retour ? null : duDisque(c));
   assert.throws(() => assemblerMode("suite", RACINE, { lire: sans }),
     /Étape 7 demandée \(suite\) : supabase\/migrations\/20261115_titres_7_correctifs\.sql n'existe pas encore.*suite-contre-epreuve/s);

@@ -54,7 +54,7 @@
 //                              groupe qui dépend de la migration 5 ou 6 ;
 //   gestion-en-ligne           la même sans rien d'injecté, après l'application réelle (un groupe dont la fonction manque est
 //                              sauté, avec une ligne d'information).
-//   suite [--etapes 7|7,8|7,8,9|8|8,9|9|4,9]  preuve de l'étape 3 du chantier (tests/sql/titres-suite-preuve.sql), jouée sur la base de
+//   suite [--etapes 7|7,8|7,8,9|8|8,9|9|4,9|4]  preuve de l'étape 3 du chantier (tests/sql/titres-suite-preuve.sql), jouée sur la base de
 //                              la production (outils/base_locale/rejouer_suite.sh --production : titres 1, 2, 3, 5, 6) : les migrations
 //                              demandées (7, 8 et 9 par défaut ; 4,9 : le journal puis le catalogue, l'essai à blanc de l'étape 4)
 //                              puis leurs retours (9, 8, 7, 4) ; la 4 s'injecte juste avant la 9. Les étapes non demandées sont
@@ -159,7 +159,7 @@ export const ETAPES_SUITE = {
 const NUMEROS_SUITE = [7, 8, 4, 9]; // l'ordre d'application : la 4 juste avant la 9
 /** Les suites admises : 7, 8, 9 s'appliquent dans cet ordre (une suite qui commence après la 7 suppose les précédentes en place) ;
  *  4,9 est l'essai à blanc de l'étape 4 (journal, puis catalogue), sur une base où 7 et 8 sont appliquées. */
-const SUITES_SUITE = [[7], [7, 8], [7, 8, 9], [8], [8, 9], [9], [4, 9]];
+const SUITES_SUITE = [[7], [7, 8], [7, 8, 9], [8], [8, 9], [9], [4, 9], [4]];
 const SUITE_PAR_DEFAUT = [7, 8, 9];
 const TOUS_SUITE = NUMEROS_SUITE.flatMap((n) => [ETAPES_SUITE[n].migration, ETAPES_SUITE[n].retour]);
 
@@ -282,7 +282,7 @@ export function decrireMode(mode, { etapes } = {}) {
   if (d.suite) {
     const choisies = etapes ?? SUITE_PAR_DEFAUT;
     if (!SUITES_SUITE.some((suite) => suite.join(",") === choisies.join(","))) {
-      throw new Error(`étapes refusées : « ${choisies.join(",")} » (attendu : 7, 7,8, 7,8,9, 8, 8,9, 9 ou 4,9 ; 7, 8 et 9 s'appliquent dans cet ordre, une suite qui commence après la 7 suppose les précédentes déjà appliquées sur la base ; 4,9 : le journal puis le catalogue).`);
+      throw new Error(`étapes refusées : « ${choisies.join(",")} » (attendu : 7, 7,8, 7,8,9, 8, 8,9, 9, 4,9 ou 4 ; 7, 8 et 9 s'appliquent dans cet ordre, une suite qui commence après la 7 suppose les précédentes déjà appliquées sur la base ; 4,9 : le journal puis le catalogue ; 4 seule : le journal sur une base où la 9 est déjà appliquée).`);
     }
     return { gabarit: d.gabarit, suite: true, etapesSuite: choisies, neutres: [], etapes: null, mode: null, requis: [] };
   }
