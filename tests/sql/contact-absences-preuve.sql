@@ -1,6 +1,6 @@
 -- Preuve de la partie 3 du chantier « espace contact » : les absences annoncées. Écrite avec les migrations 20261115_contact_1_annuaire,
 -- 20261115_contact_2_demandes, 20261115_contact_3_absences, jouée sur une base où l'état de la production est rejoué
--- (outils/base_locale : reconstruire.sh, puis rejouer_suite.sh --titres 1,2,3,5,6 --autonomie --autonomie-version 2026-11-14).
+-- (outils/base_locale : reconstruire.sh, puis rejouer_suite.sh --production).
 --   structure    prérequis de l'état de départ présents (geste_promo, retirer_titre, donner_titre, contacts.lieu_id), personnages posés
 --                (pg_temp.poser_contact, puis pg_temp.poser_absences), chaque migration et chaque retour injectés se jouent sans erreur.
 --   prevenir     sans règle, le stagiaire choisit (formateur du jour pré-coché) ; principal, formateurs du jour en annexe (sauf déjà

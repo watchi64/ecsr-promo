@@ -1,13 +1,13 @@
 // Les coordonnées d'un stagiaire, sous l'en-tête de sa fiche (espace contact, tâche 6) : téléphone, e-mail du compte, financement
 // et rang de délégué. Le stagiaire voit les siennes en lecture (son téléphone se change dans Mes préférences) ; l'équipe qui gère les
-// stagiaires (isAdmin côté app, la base reste juge et son refus s'affiche) les modifie : téléphone, financement dans la liste du
+// stagiaires (la case Stagiaires à « Modifier », sinon isAdmin côté app ; la base reste juge et son refus s'affiche) les modifie : téléphone, financement dans la liste du
 // centre, « délégué », « suppléant » ou « aucun ». Le bloc se charge seul : une lecture qui échoue laisse sa phrase et « Réessayer »,
 // jamais la fiche vide. Équipe au vouvoiement, stagiaire au tutoiement.
 
 import { lireCoordonnees, lireFinancements, getStagiaire, reglerCoordonnees, reglerDelegue } from "../db.js?v=20261116a";
 import { el, clear, toast } from "../utils.js?v=20261116a";
 import { icon } from "../icons.js?v=20261116a";
-import { isAdmin } from "../auth-admin.js?v=20261116a";
+import { ecritSelonLaCase } from "../auth-admin.js?v=20261116a";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261116a";
 import { ouvrirModale } from "../nav-fenetre.js?v=20261116a";
 import { validerMaFiche, peutModifierCoordonnees } from "../contact-annuaire-rules.js?v=20261116a";
@@ -20,7 +20,7 @@ const ligne = (nom, valeur) => el("div", { class: "contact-ligne" }, el("dt", {}
 // ouverte depuis la page des stagiaires de la direction.
 export function blocCoordonnees(d, { soi = false, direction = false } = {}) {
   const bloc = el("section", { class: "fiche-coordonnees", "aria-label": "Coordonnées" });
-  const modifiable = peutModifierCoordonnees({ soi, admin: isAdmin(), direction });
+  const modifiable = peutModifierCoordonnees({ soi, admin: ecritSelonLaCase("stagiaires"), direction });
 
   async function charger() {
     clear(bloc);

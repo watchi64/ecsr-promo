@@ -4865,10 +4865,11 @@ def jouer_direction(page, res, sc):
 
 
 # Les titres du banc (étape 3, Task 33) : le compte du banc, la barre que ses cases laissent (routes) et le titre que le menu du compte nomme.
+# Messages (espace contact) n'a pas de case : il est dans la barre de tout titre de l'équipe et de la direction.
 TITRES_DU_BANC = {
-    "secretariat": {"routes": ("#/centre", "#/promos", "#/stagiaires", "#/emargement", "#/equipe"), "nom": "Secrétariat",
+    "secretariat": {"routes": ("#/centre", "#/messages", "#/promos", "#/stagiaires", "#/emargement", "#/equipe"), "nom": "Secrétariat",
                     "absentes": ("#/notes", "#/config")},
-    "intervenant": {"routes": ("#/home", "#/planning", "#/emargement", "#/stagiaires", "#/themes"), "nom": "Intervenant",
+    "intervenant": {"routes": ("#/home", "#/messages", "#/planning", "#/emargement", "#/stagiaires", "#/themes"), "nom": "Intervenant",
                     "absentes": ("#/notes", "#/ccp2", "#/centre", "#/config")},
 }
 

@@ -1,6 +1,6 @@
 -- Preuve de la partie 1 du chantier « espace contact » : l'annuaire : fiches de contact rattachées à un compte, coordonnées, délégué. Écrite avec les migrations
 -- 20261115_contact_1_annuaire et 20261115_contact_1b_fermeture, jouée sur une base où l'état de la production est rejoué
--- (outils/base_locale : reconstruire.sh, puis rejouer_suite.sh --titres 1,2,3,5,6 --autonomie --autonomie-version 2026-11-14).
+-- (outils/base_locale : reconstruire.sh, puis rejouer_suite.sh --production).
 --   structure    prérequis de l'état de départ présents (geste_promo, retirer_titre, donner_titre, contacts.lieu_id), personnages posés
 --                (pg_temp.poser_contact, pg_temp.poser_annuaire), chaque migration et chaque retour injectés se jouent sans erreur.
 --   entre        après la 1, avant la 1b (l'intervalle de la production entre les deux) : la lecture directe des anciens lecteurs marche

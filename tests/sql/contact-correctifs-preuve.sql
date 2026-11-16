@@ -1,6 +1,6 @@
 -- Preuve de la migration 4 du chantier « espace contact » : les correctifs relevés en relecture (20261116_contact_4_correctifs). Jouée sur
--- une base où l'état de la production d'avant contact est rejoué (outils/base_locale : reconstruire.sh, puis rejouer_suite.sh --titres
--- 1,2,3,5,6 --autonomie) ; les migrations 1, 1b, 2, 3 et 4 injectées dans l'ordre, puis leurs retours (4, 3, 2, 1b, 1).
+-- une base où l'état de la production d'avant contact est rejoué (outils/base_locale : reconstruire.sh, puis rejouer_suite.sh
+-- --production) ; les migrations 1, 1b, 2, 3 et 4 injectées dans l'ordre, puis leurs retours (4, 3, 2, 1b, 1).
 --   structure       prérequis de l'état de départ, personnages, chaque migration et chaque retour injectés se jouent sans erreur.
 --   envois          (1) _contact_srv_resultat, issue « limite » : l'envoi repasse « à retenter » dans 5 minutes, sa tentative rendue,
 --                   ses jetons retirés ; un envoi qui n'est plus « en cours » n'est pas touché ; « echec » inchangé.

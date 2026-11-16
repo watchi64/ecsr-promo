@@ -185,7 +185,9 @@ export function formateurPourLEmargement({ cases, peutModifier, admin } = {}) {
 // Barre du bas du téléphone et tiroir « Plus ». Le stagiaire, 5 entrées au plus, les garde
 // toutes dans la barre ; l'équipe en garde 4 et range le reste dans `plus`. Titres (étape 3) : quand une entrée de la liste
 // fixe est absente (page à « Non »), les entrées suivantes, dans l'ordre de la barre, la remplacent jusqu'au même nombre ;
-// la barre garde l'ordre des entrées. Aucune entrée absente : la liste fixe, comme avant.
+// la barre garde l'ordre des entrées. Aucune entrée absente : la liste fixe, comme avant. Messages (espace contact) reste dans
+// « Plus » sur téléphone, même quand une entrée manque : il ne remplace jamais une page absente.
+const TOUJOURS_DANS_PLUS = new Set(["messages"]);
 export function barreTelephone(espace, entrees) {
   const gardees = espace === "equipe" ? BARRE_TELEPHONE_EQUIPE
     : espace === "direction" ? BARRE_TELEPHONE_DIRECTION
@@ -196,7 +198,7 @@ export function barreTelephone(espace, entrees) {
   const choisies = new Set(gardees.filter((id) => presentes.has(id)));
   for (const e of entrees) {
     if (choisies.size >= gardees.length) break;
-    choisies.add(e.id);
+    if (!TOUJOURS_DANS_PLUS.has(e.id)) choisies.add(e.id);
   }
   return {
     barre: entrees.filter((e) => choisies.has(e.id)),

@@ -379,9 +379,9 @@ eq(libelleRole({ role: "prof", is_founder: true }, "direction"), "Fondateur", "l
   const peutEmarger = (casesInt.emargement === 2);
   eq(droitsInt.admin, false, "Intervenant : isAdmin faux (M5)");
   const entInt = entreesNavigation("equipe", { routeVisible: tout, emargementActif: true, formateur: peutEmarger, cases: casesInt });
-  eq(ids(entInt), ["home", "planning", "emargement", "stagiaires", "themes"], "Intervenant : entrées");
+  eq(ids(entInt), ["home", "messages", "planning", "emargement", "stagiaires", "themes"], "Intervenant : entrées (Messages n'a pas de case : il passe toujours)");
   eq(ids(barreTelephone("equipe", entInt).barre), ["home", "planning", "emargement", "stagiaires"], "Intervenant : barre complétée");
-  eq(ids(barreTelephone("equipe", entInt).plus), ["themes"], "Intervenant : Plus");
+  eq(ids(barreTelephone("equipe", entInt).plus), ["messages", "themes"], "Intervenant : Plus (Messages y reste, il ne complète pas la barre)");
   eq(ids(entreesNavigation("equipe", { routeVisible: tout, emargementActif: true, formateur: droitsInt.admin, cases: casesInt })).includes("emargement"),
     false, "Intervenant : avec isAdmin() l'entrée Émargement manquerait (d'où peutModifier)");
 
@@ -389,12 +389,12 @@ eq(libelleRole({ role: "prof", is_founder: true }, "direction"), "Fondateur", "l
   const secretariat = { niveau: "centre", nom: "Secrétariat", fixe: false, lieu_id: 1,
     cases: { promos: "voir", stagiaires: "modifier", emargement: "voir", notes: "non", equipe: "voir", reglages: "non" } };
   const entSec = entreesNavigation("direction", { routeVisible: tout, emargementDansLeCentre: true, reglagesEspace: true, cases: casesDe("direction", secretariat) });
-  eq(ids(entSec), ["centre", "promos", "stagiaires", "emargement", "equipe"], "Secrétariat : entrées");
+  eq(ids(entSec), ["centre", "messages", "promos", "stagiaires", "emargement", "equipe"], "Secrétariat : entrées (Messages n'a pas de case)");
   eq(ids(barreTelephone("direction", entSec).barre), ["centre", "promos", "stagiaires", "equipe"], "Secrétariat : barre");
-  eq(ids(barreTelephone("direction", entSec).plus), ["emargement"], "Secrétariat : Plus");
+  eq(ids(barreTelephone("direction", entSec).plus), ["messages", "emargement"], "Secrétariat : Plus");
   // Émargement éteint dans le centre : l'entrée n'y est pas, quelle que soit la case.
   eq(ids(entreesNavigation("direction", { routeVisible: tout, emargementDansLeCentre: false, reglagesEspace: true, cases: casesDe("direction", secretariat) })),
-    ["centre", "promos", "stagiaires", "equipe"], "Secrétariat, émargement éteint : pas d'entrée");
+    ["centre", "messages", "promos", "stagiaires", "equipe"], "Secrétariat, émargement éteint : pas d'entrée");
 
   // Titre du réseau Qualité.
   const qualite = { niveau: "reseau", nom: "Qualité", fixe: false, cases: { cours: "voir", directions: "voir", reglages: "non" } };
@@ -421,10 +421,10 @@ eq(libelleRole({ role: "prof", is_founder: true }, "direction"), "Fondateur", "l
     false, "cases nulles et non admin : l'entrée manque");
 
   // Le filtre lui-même : l'accueil de la direction (route « centre ») reste, la page Indicateurs de la promo (même route) suit sa case.
-  eq(ids(entreesNavigation("direction", { ...optionsDe.direction, cases: toutesZero("centre") })), ["centre"],
-    "direction, toutes cases à 0 : l'accueil reste (la route centre n'est pas Indicateurs ici)");
-  eq(ids(entreesNavigation("equipe", { ...optionsDe.equipe, cases: toutesZero("promo") })), ["home"],
-    "équipe, toutes cases à 0 : l'accueil seul");
+  eq(ids(entreesNavigation("direction", { ...optionsDe.direction, cases: toutesZero("centre") })), ["centre", "messages"],
+    "direction, toutes cases à 0 : l'accueil reste (la route centre n'est pas Indicateurs ici), Messages aussi (sans case)");
+  eq(ids(entreesNavigation("equipe", { ...optionsDe.equipe, cases: toutesZero("promo") })), ["home", "messages"],
+    "équipe, toutes cases à 0 : l'accueil et Messages (sans case)");
   eq(ids(entreesNavigation("siege", { ...optionsDe.siege, cases: toutesZero("reseau") })), ["reseau"],
     "siège, toutes cases à 0 : l'accueil seul");
 
