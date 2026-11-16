@@ -20,7 +20,9 @@ dans son terminal ou dans les secrets de la fonction) ; équipe vouvoyée ; un s
   branche), `20261115_contact_1b_fermeture` (après la recette et la fusion de l'app).
 - **Branche** : HEAD au commit de ce dossier (le commit qui le précède est `6f837e7d`). La fusion de main (titres étapes 3 et
   4, origin/main `738e5968`) est le commit `42999029` ; ajustements `6f837e7d` [task-19a-report]. Répétition complète verte
-  (section C).
+  (section C). La vague de correction de la relecture finale (commit « Espace contact : corrections de la relecture finale »)
+  change la migration 4 et son retour (429 durable, lien d'une fiche partie), la page du lien, une Nouveauté de direction et
+  ce dossier ; ses comptes remplacent ceux de 19a pour la migration 4 [final-fix-report].
 - **Fonction `contact-envois`** : jamais déployée. **Assistant (`chatbot`)** : à redéployer avec la fusion (le guide
   `supabase/functions/chatbot/aide.mjs` a changé : tâches 12 et 19a).
 - `VERSION_CONDITIONS` vaut encore `2026-11-14` dans `js/legal-data.js` sur main et sur la branche (non touché) [task-19a-report § 4].
@@ -39,16 +41,18 @@ dans son terminal ou dans les secrets de la fonction) ; équipe vouvoyée ; un s
 | `20261115_contact_3_absences_retour.sql` | `b5e4ef68d77c2b1bab451dff017ba889` |
 | `20261115_contact_demo.sql` | `58bcb2eb5a6f3bcef96e858264f452fe` |
 | `20261115_contact_demo_retour.sql` | `e16237b51ea2bbcd61d5e1a614761164` |
-| `20261116_contact_4_correctifs.sql` | `c85b8f926ea73ac5d25d1db20b744f2e` |
-| `20261116_contact_4_correctifs_retour.sql` | `4d7188179fea276cc1cb7e13c9d53bcf` |
+| `20261116_contact_4_correctifs.sql` | `2ace4b9feef2dad486b8c9e3873c09f3` |
+| `20261116_contact_4_correctifs_retour.sql` | `30c4a99cc4b93493af3a399186d1a04d` |
 
-Les valeurs sont celles de `task-19a-report` (« inchangés ») et relues par `md5sum` au commit du dossier : elles
-concordent. **Avant chaque application, relancer `md5sum` sur le fichier réellement joué et comparer** (les fichiers 1, 2, 3
+Les valeurs des migrations 1, 1b, 2, 3 et `_demo` sont celles de `task-19a-report` (« inchangés ») ; celles de la migration 4
+et de son retour sont celles de la vague de correction de la relecture finale [final-fix-report] (les anciennes : section G.1).
+Toutes relues par `md5sum` au commit qui les écrit. **Avant chaque application, relancer `md5sum` sur le fichier réellement joué et comparer** (les fichiers 1, 2, 3
 appliqués sont gelés : ne jamais les modifier).
 
 ## C. Chiffres attendus en production (répétition du 16/11, base locale au niveau de la production)
 
-Source : `task-19a-report` § 3, base locale reconstruite par `rejouer_suite.sh --production` (30 migrations, titres 7, 8, 9
+Source : `task-19a-report` § 3, et `final-fix-report` pour la migration 4 (seize fonctions, comptes rejoués sur la même base), base
+locale reconstruite par `rejouer_suite.sh --production` (30 migrations, titres 7, 8, 9
 compris), migrations 1, 2, 3, `_demo`, 4 appliquées pour de bon par `psql -1 -v ON_ERROR_STOP=1 -f` (code 0 chacune). Les
 comptes sont mesurés sur l'**état combiné** (1, 2, 3, demo, 4) : la répétition n'a pas relevé chaque preuve après la seule
 `_demo`, ni après la seule 4. Une preuve en ligne d'une étape intermédiaire doit donc être VERT sans le moindre ROUGE ; le
@@ -61,9 +65,9 @@ compte exact se compare à l'état combiné à la fin de l'étape 4 (et à celui
 | `contact-1` | VERT 139/0 |
 | `contact-2` | VERT 174/0 |
 | `contact-3` | VERT 107/0 |
-| `contact-4` | VERT 59/0 |
+| `contact-4` | VERT 65/0 [final-fix-report] |
 | `contact-3-contre-epreuve` | ROUGE 28/76 |
-| `contact-4-contre-epreuve` | ROUGE 32/24 |
+| `contact-4-contre-epreuve` | ROUGE 33/29 [final-fix-report] |
 
 Ces modes injectent leurs migrations : ils ne se rejouent plus sur la production (la garde d'entrée de la migration 1
 arrêterait). Ils servent à la répétition locale seulement ; en production on joue les modes `-en-ligne`.
@@ -87,7 +91,7 @@ arrêterait). Ils servent à la répétition locale seulement ; en production on
 | `contact-1-en-ligne` | | 128/0 (dont `entre` 5/5, apporté par la demo) | 127/0 (`entre` 5/5 remplacé par `fermeture` 4/4) |
 | `contact-2-en-ligne` | | 165/0 | 165/0 |
 | `contact-3-en-ligne` | | 89/0 | 89/0 |
-| `contact-4-en-ligne` | | 37/0 | 37/0 |
+| `contact-4-en-ligne` | | 43/0 [final-fix-report] | 43/0 (la 1b ne touche pas la 4) |
 
 - Comptes de la production au 16/11, avant la demo et la 4 : `contact-1-en-ligne` 123/0 (sans demo, sans 1b), `contact-2-en-ligne`
   165/0, `contact-3-en-ligne` 89/0, rôles 13528/0, **émargement 73/0** [progress, 16/11]. L'écart 71 (local) / 73 (production)
@@ -101,15 +105,17 @@ arrêterait). Ils servent à la répétition locale seulement ; en production on
   [task-19a-report, « Retours réels »].
 - Empreintes (règles | fonctions | droits, `tests/sql/roles-empreinte.sql`) : avant contact (titres 9)
   `2dd2f9aacb38b950fd2e5adc4e13badc | 4dc1292b494ec6589e856dffee6d21fe | c79e70a2173d4247f768a16c1c48f1aa`, 162 fonctions
-  publiques ; avec 1, 2, 3, demo, 4 : `0e0c3e82… | 22b903b3… | 60ae98f2…`, 252 fonctions ; avec la 1b, règles `e4b0f6e6…`
-  [task-19a-report § 3]. Les empreintes de production se comparent à ces valeurs seulement si les données de règles sont les
+  publiques ; avec 1, 2, 3, demo, 4 : `0e0c3e82… | 394f38d3… | 60ae98f2…`, 252 fonctions [final-fix-report ; `22b903b3…`
+  avant la vague de correction, task-19a-report] ; avec la 1b, règles `e4b0f6e6…` [task-19a-report § 3]. Les empreintes de production se comparent à ces valeurs seulement si les données de règles sont les
   mêmes ; un écart d'empreinte seul, sans ROUGE, se signale sans bloquer.
 
 ### Contrôles app de la branche (répétition locale, déjà faits) [task-19a-report § 4]
 
-`for f in tests/*.test.mjs; do node "$f"; done` : 147 fichiers, 0 échec (2129 tests). Robot (`--habillages ecsr,ecf`) : 928
-passages, 927 aboutis, 1 rouge (`absence-planning`, WebKit téléphone, Couleurs ECF, « impossible de toucher le jour lun »),
-rejoué seul 8/8 VERT. Vérificateur : 6608 vues, 0 échec, code 0 (second passage ; le premier avait 16 échecs, tous réglés).
+`for f in tests/*.test.mjs; do node "$f"; done` : 147 fichiers, 0 échec (2132 tests après la vague de correction ; 2129 en 19a).
+Robot (`--habillages ecsr,ecf`) : 928 passages, 927 aboutis, 1 rouge (`absence-planning`, WebKit téléphone, Couleurs ECF,
+« impossible de toucher le jour lun »), rejoué seul 8/8 VERT [task-19a-report] ; après la vague de correction, les 25 parcours
+contact rejoués : voir final-fix-report. Vérificateur : 6608 vues, 0 échec, code 0 (second passage ; le premier avait 16 échecs,
+tous réglés).
 
 ## D. Étapes
 
@@ -176,12 +182,12 @@ Pour chacune de `_demo` puis `4_correctifs`, dans cet ordre, sans rien laisser a
      puis `bash outils/psql_prod.sh -1 -f supabase/migrations/20261116_contact_4_correctifs.sql -f <chemin>/c4.sql`.
 - Accord : Timy.
 - Attendu : la migration passe sans erreur de garde ; le verdict de la preuve est VERT sans ROUGE ; comptes : `contact-1-en-ligne`
-  128/0 après la demo (dont `entre` 5/5), `contact-4-en-ligne` 37/0 après la 4 (section C) ; base inchangée après l'essai
+  128/0 après la demo (dont `entre` 5/5), `contact-4-en-ligne` 43/0 après la 4 (section C) ; base inchangée après l'essai
   (relancer l'étape 0).
 - Écart : une garde de la migration refuse (« rien n'est changé ») : lire le message, c'est le contrôle prévu. Garde de la
   demo : exactement un lieu de démonstration, ses deux fiches fictives telles que posées par `20261113_contacts_centre`, la
   fiche « Responsable pédagogique (fictif) » absente. Garde de la 4 : migrations 1, 2, 3 appliquées, 4 absente (marqueur
-  `_contact_quota_equipe(bigint)`), quinze fonctions présentes avec leur signature, index `demandes_auteur_fiche_cree` absent.
+  `_contact_quota_equipe(bigint)`), seize fonctions présentes avec leur signature, index `demandes_auteur_fiche_cree` absent.
   Un ROUGE ou un compte différent : ne rien appliquer, diagnostiquer avec le rapport de la tâche concernée.
 
 ### Étape 4. Application en production : `_demo`, puis `4_correctifs`
@@ -203,7 +209,7 @@ Pour chaque migration, dans l'ordre :
    après la 4.
 - Accord : Timy.
 - Attendu : code 0 ; après la demo, `contact-1-en-ligne` VERT 128/0 ; après la 4, section C (états combinés) : `contact-4-en-ligne`
-  37/0, `contact-3-en-ligne` 89/0, `contact-2-en-ligne` 165/0, `contact-1-en-ligne` 128/0, rôles 13528/0.
+  43/0, `contact-3-en-ligne` 89/0, `contact-2-en-ligne` 165/0, `contact-1-en-ligne` 128/0, rôles 13528/0.
 - Écart : une garde ou une erreur : `-1` annule tout, rien n'est changé ; ne pas contourner. Un ROUGE après application :
   retour aussitôt (section K, dans l'ordre), puis diagnostic.
 - Effet à connaître : l'app en ligne est encore l'ancienne ; aucun écran ne crée de demande. La 1b n'est pas appliquée :
@@ -213,18 +219,26 @@ Pour chaque migration, dans l'ordre :
 
 - Après l'étape 4 (jamais avant). Fonction : `supabase/functions/contact-envois/` (`index.ts`, `courriels.mjs`, `jetons.mjs`),
   version du commit de ce dossier.
-- Commande : déploiement par la voie habituelle des fonctions du projet. Deux voies sont écrites dans le dépôt : l'outil MCP
-  `deploy_edge_function` (`PROJECT_NOTES.md`, ligne 22) ou `supabase functions deploy contact-envois` (task-19-brief). Choisir
-  la voie en usage. Variables : `CONTACT_APP_URL` (adresse de l'hébergement du jour : Pages, ou Scaleway après la bascule ;
+- Commande : déploiement par la voie habituelle des fonctions du projet, **toujours sans vérification JWT à la passerelle**.
+  Deux voies sont écrites dans le dépôt : l'outil MCP `deploy_edge_function` (`PROJECT_NOTES.md`, ligne 22) avec
+  `verify_jwt: false`, ou `supabase functions deploy contact-envois --no-verify-jwt` (task-19-brief). Choisir la voie en usage ;
+  le réglage est obligatoire dans les deux. Variables : `CONTACT_APP_URL` (adresse de l'hébergement du jour : Pages, ou Scaleway après la bascule ;
   défaut dans le code : l'adresse Pages historique) et `CONTACT_EXPEDITEUR` (facultative, défaut
   `Promo ECSR <no-reply@timy-studio.fr>`). `RESEND_API_KEY` : posée par Timy dans les secrets de la fonction, jamais écrite ni
   affichée.
-- **Réserve JWT** : `lien` et `agir` sont appelés sans compte, avec la clé publique ; si cette clé n'est pas un JWT anon,
-  la vérification JWT du déploiement les refuserait. À contrôler au déploiement [progress, relecture de la tâche 10].
+- **Sans vérification JWT, obligatoire** : la page des liens (`js/lien-demande.js`) appelle `lien` et `agir` sans compte, avec la
+  clé publique du projet (`SUPABASE_KEY` de `js/config.js`, une clé `sb_publishable_`), en `apikey` et en `Authorization`. Cette clé
+  n'est pas un JWT : une fonction déployée avec la vérification JWT (le défaut) refuse ces appels à la passerelle, avant le code
+  (401), et chaque bouton de chaque e-mail dirait « La connexion a échoué ». Le dépôt n'a aucun `supabase/config.toml` qui règle
+  `verify_jwt` : le réglage se donne au déploiement. La fonction juge elle-même chaque opération (en-tête de `index.ts`) : `lien`
+  et `agir` par le jeton haché (la base le juge : connu, non expiré, fiche dans le centre et non partie) ; `traiter` par
+  `auth.getUser` (401 sans jeton de session valide, clé publique comprise) ; `etat` par `auth.getUser` puis `est_fondateur` avec
+  le jeton et les en-têtes de l'appelant (403 sinon) [relecture finale, I2].
 - Contrôle : `{op:"etat"}` appelé par le fondateur hors aperçu (jugé par la base avec le jeton de l'appelant).
 - Accord : Timy (déploiement et secret).
 - Attendu : `cle_presente: true`, `expediteur` et `app_url` justes ; la valeur de la clé n'apparaît jamais.
-- Écart : `cle_presente: false` : la clé n'est pas posée sur cette fonction ; erreur de vérification JWT : voir la réserve.
+- Écart : `cle_presente: false` : la clé n'est pas posée sur cette fonction ; **401 sur `lien` ou `agir` (étape 6) : vérification
+  JWT restée active**, redéployer sans elle.
   Ne pas déployer avant la 4 ; sinon retour immédiat de la fonction à la version `5e8acc38`.
 
 ### Étape 6. Recette de la fonction contre la production, avant la fusion de l'app
@@ -238,7 +252,14 @@ fonction a besoin de l'API Supabase, que la base locale n'a pas) [task-19-brief,
 3. E-mail reçu à l'adresse de recette. Timy contrôle : expéditeur, boutons, **aucun motif et aucun texte libre**, et que le lien
    demande une confirmation (un seul bouton).
 4. Le jeton lu dans le lien reçu : `{op:"lien", jeton}` (rien n'est écrit), puis `{op:"agir", jeton}` appelés à la main (la page
-   `demande.html` n'est pas encore en ligne) : `{fait: true}`, puis un second `agir` : `{deja: true}`.
+   `demande.html` n'est pas encore en ligne) : `{fait: true}`, puis un second `agir` : `{deja: true}`. **Avec exactement les
+   en-têtes de la page** (`js/lien-demande.js`) : `POST <SUPABASE_URL>/functions/v1/contact-envois`, `Content-Type:
+   application/json`, `apikey: <clé publique>`, `Authorization: Bearer <clé publique>` (la clé `sb_publishable_` de
+   `js/config.js`), corps `{"op":"lien","jeton":"<43 caractères>"}`. Jamais avec un jeton de session ni la clé de service : ils
+   passeraient la passerelle et cacheraient une vérification JWT restée active. Un 401 ici : voir l'écart de l'étape 5.
+   Avec ces mêmes en-têtes, `{op:"traiter"}` doit répondre **401** (la fonction juge l'appelant elle-même).
+   Pour voir la page du lien d'une absence (motif, jour et moment, relecture finale I1), faire au besoin la recette sur une
+   absence : la réponse de `lien` porte alors `motif`, `jours` et `moment`, que la page montre à l'étape 7.
 5. Nettoyage : la demande, ses envois, ses jetons et la fiche de test supprimés ; `select count(*)` de chacun à **0**.
 - Accord : Timy.
 - Attendu : comme ci-dessus ; les quatre comptes finaux à 0 ; aucun envoi `echec` (`select etat, count(*) from contact_envois group by 1`).
@@ -256,9 +277,10 @@ fonction a besoin de l'API Supabase, que la base locale n'a pas) [task-19-brief,
 2. **Jeton de cache** : celui de main à la fusion (`20261116a` au 16/11) ; le hook limité à main et au pre-push le pose ;
    sinon `node scripts/cache-bust.js <jeton>` (sans `--staged`). Un seul jeton à la fin (le banc et le robot le contrôlent).
    `demande.html` est tamponné par ce même script.
-3. **Nouveautés** : cinq entrées de direction portent la date provisoire `2026-11-14` dans `js/nouveautes-data.js`
-   (`2026-11-14-contacts-du-centre-stagiaires`, `-fiche-de-contact-formateurs`, `-prevenir-absence-stagiaires`,
-   `-messages-formateurs`, `-messages-direction`) : les dater du **jour de mise en ligne**, dans le même commit que la fusion ;
+3. **Nouveautés** : six entrées de l'espace contact portent la date provisoire `2026-11-14` dans `js/nouveautes-data.js`
+   (`2026-11-14-contacts-du-centre-stagiaires`, `-fiche-de-contact-formateurs`, `-fiche-de-contact-direction`,
+   `-prevenir-absence-stagiaires`, `-messages-formateurs`, `-messages-direction`) : les dater du **jour de mise en ligne**, dans le
+   même commit que la fusion ;
    `node tests/nouveautes.test.mjs` doit passer.
 4. **Conditions** : la version regroupée `<V>` (étape 1) dans la même fusion.
 5. **Report du banc dans `TP_ECSR_App`** (hors git ; une session à la fois dans ce dossier partagé) : les blocs
@@ -322,7 +344,9 @@ joue `psql -X -q`. `contacts-centre-preuve.sql` n'est plus rejouée (section C).
 2. `ROADMAP.md` et `POINT-DE-REPRISE.md` : par la coordination (en-tête : maj, etat, next, bloque).
 3. **Premier jour** : surveiller les envois en `echec` (Messages, ou `select etat, count(*) from contact_envois group by 1`
    par Timy) ; un 429 Resend persistant fait repasser l'envoi toutes les 5 minutes sans consommer de tentative [task-4C-report,
-   réserve 4] ; aucune tâche planifiée ne relance la file (Q-C1). Une action de n'importe quel utilisateur la relance.
+   réserve 4], et un envoi créé depuis plus de 24 heures qui reçoit encore un 429 passe en `echec` (raison « Resend 429 durable :
+   non parti après 24 h ») : il se voit (« E-mail non parti », « Relancer l'envoi ») [relecture finale, I3]. Aucune tâche planifiée
+   ne relance la file (Q-C1). Une action de n'importe quel utilisateur la relance.
 
 ## E. Leviers du banc à reporter dans `TP_ECSR_App` (fichiers hors git)
 
@@ -330,7 +354,9 @@ Les blocs sont marqués `// === Espace contact ===` ... `// === fin espace conta
 Leviers par rapport [task-13, 15, 16, 17, 4C, 19a] :
 - Tâche 13 : `?contact_regle=1` (règle par défaut vers une fiche en congé, donc son relais) ; `?ecritures=1` (écritures gardées) ;
   demandes `DEM` (absence 101 d'Agathe O., demande administrative 102 de Lison K.) ; faux `/functions/v1/contact-envois`
-  (`traiter` ; `lien` et `agir` : jeton `V` x43 valide puis « déjà fait », `D` x43 déjà fait, `E` x43 et tout autre : invalide) ;
+  (`traiter` ; `lien` et `agir` : jeton `V` x43 valide puis « déjà fait », `D` x43 déjà fait, `E` x43 et tout autre : invalide ;
+  depuis la relecture finale, `R` x43 valide dont la première lecture échoue (503) une fois par chargement, et une réponse `lien` à
+  la forme réelle d'une absence : sujet nul, `motif`, `mot`, `jours`, `moment`) ;
   `_harness_demande.html` généré par `_harness_build.mjs` (CSP retirée, un seul script module).
 - Tâche 15 : `?justificatif=1`, `?absence_np=1` (nom sans fiche), `?absence_sans_adresse=1` (phrase C-18) ; `DEM_RPC` étendu
   (`prevenir_absence`, `regler_justificatif`, `mes_justificatifs_a_remettre`, `absences_annoncees_semaine`).
@@ -363,7 +389,9 @@ Leviers par rapport [task-13, 15, 16, 17, 4C, 19a] :
 
 1. **md5 de la migration 4** : `06a7c5a73a0588a222ee4c53eb4a843b` / retour `339f19b02906e23723ca4686c9d9b333` (premier jet,
    commit `12e9d18c`, task-4C-report) contre `c85b8f926ea73ac5d25d1db20b744f2e` / `4d7188179fea276cc1cb7e13c9d53bcf`
-   (tour de correction 1, commit `400b8805`, aussi dans task-19a-report). **Retenu : les seconds**, relus par `md5sum`.
+   (tour de correction 1, commit `400b8805`, aussi dans task-19a-report) contre `2ace4b9feef2dad486b8c9e3873c09f3` /
+   `30c4a99cc4b93493af3a399186d1a04d` (vague de correction de la relecture finale, final-fix-report). **Retenu : les derniers**,
+   relus par `md5sum`.
 2. **Émargement en ligne** : 73/0 en production au 16/11 [progress] contre 71/0 sur la base locale [task-4C, task-19a].
    Non expliqué par les sources (les comptes réels de production ne sont lus qu'en nombre). Retenu : comparer la production à
    elle-même (73 avant) ; un écart de compte sans ROUGE se signale.
@@ -375,9 +403,10 @@ Leviers par rapport [task-13, 15, 16, 17, 4C, 19a] :
 5. **`contact-1-en-ligne`** : 123/0 (production, sans demo ni 1b) ; 128/0 avec la demo ; 127/0 avec la 1b [task-19a-report] ;
    127/0 déjà cité à la tâche 13 [progress]. Cohérent par état ; chaque étape a son compte (section C).
 6. **Rôles `en-ligne`** : 13382/0 (15/11, 1 et 2) contre 13528/0 (avec la 3, production du 16/11). Retenu : 13528/0.
-7. **`contact-4-en-ligne`** : 35/0 (premier jet 4C) contre 37/0 (final) ; 4/0 en mode injecté « groupes sautés ». Retenu : 37/0.
-8. **Nombre de fonctions refaites par la migration 4** : quatorze (task-4C-report, premier jet) contre quinze (en-tête du retour 4
-   et tour de correction : `_contact_annexes` ajoutée). Retenu : quinze.
+7. **`contact-4-en-ligne`** : 35/0 (premier jet 4C) contre 37/0 (tour 1 de 4C, 19a) contre 43/0 (relecture finale : trois
+   contrôles du 429 durable, trois des liens d'une fiche partie) ; 4/0 en mode injecté « groupes sautés ». Retenu : 43/0.
+8. **Nombre de fonctions refaites par la migration 4** : quatorze (task-4C-report, premier jet) contre quinze (tour de correction :
+   `_contact_annexes` ajoutée) contre seize (relecture finale : `_contact_srv_jeton` ajoutée). Retenu : seize.
 9. **Ordre des retours** : le brief de 19a écrivait « 1b en dernier appliquée, puis son retour » ; la garde du retour 1b refuse
    tant que la 2 est là, et celle du retour 1 refuse tant que la 1b est là [task-19a-report § 3, réserve 4]. Retenu : 4, demo, 3, 2,
    1b, 1 (avec la 1b appliquée) ; 4, demo, 3, 2, 1 (sans elle).
@@ -427,7 +456,7 @@ garde refuse sans rien changer si l'ordre n'est pas respecté (messages explicit
    (`supabase/functions/contact-envois`), parce que la version de la branche envoie l'issue `limite` que la base refuserait
    [en-tête du retour 4].
 2. **Retour 4** : refuse si la 4 n'est pas appliquée ou si la 3 n'est plus là (alors : rejouer la 3, puis le retour 4, puis
-   le retour 3). Il remet les quinze fonctions au texte de leur dernier fichier, retire `_contact_quota_equipe` et l'index
+   le retour 3). Il remet les seize fonctions au texte de leur dernier fichier, retire `_contact_quota_equipe` et l'index
    `demandes_auteur_fiche_cree` ; les marques de délégué vidées à l'effacement et par le rattrapage ne sont pas rétablies.
 3. **Retour `_demo`**, puis **retour 3**. Le retour 3 refuse tant qu'une ligne d'émargement porte `absence_origine = 'annoncee'`.
    Procédure (décision avec Timy ; jamais de suppression de ces lignes, ce sont des absences réelles) en une transaction :
@@ -451,5 +480,5 @@ garde refuse sans rien changer si l'ordre n'est pas respecté (messages explicit
 - Les versions de registre de `_demo`, `4_correctifs` et `1b_fermeture` ne sont pas fixées par les sources.
 - Le SQL de l'étape 6 (fiche de test, demande d'équipe, nettoyage) n'est pas écrit dans les sources.
 - Comptes d'émargement : voir G.2.
-- Nombre de fichiers et de tests (147 fichiers, 2129 tests) : état du commit `6f837e7d`, avant ce dossier ; ce dossier n'ajoute
-  aucun test.
+- Nombre de fichiers et de tests : 147 fichiers, 2129 tests au commit `6f837e7d` ; 147 fichiers, 2132 tests après la vague de
+  correction de la relecture finale [final-fix-report].

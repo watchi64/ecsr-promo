@@ -2,7 +2,7 @@
 // bouton « Confirmer : <geste> ». Ouvrir la page ne fait rien (un filtre de messagerie peut la charger) ; le geste n'est fait qu'au
 // toucher. Aucun champ de texte, aucune connexion : le jeton du fragment de l'adresse fait foi, la fonction contact-envois le juge.
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261116a";
-import { jetonDeLAdresse, etatDeLaPage, libelleAction } from "./lien-demande-rules.js?v=20261116a";
+import { jetonDeLAdresse, etatDeLaPage, libelleAction, titreDeLaDemande, lignesAbsence, LECTURE_EN_ECHEC } from "./lien-demande-rules.js?v=20261116a";
 import { TYPES_DEMANDE } from "./contact-rules.js?v=20261116a";
 
 const racine = document.getElementById("lien-demande");
@@ -35,7 +35,18 @@ function montrerDemande(d) {
   const carte = el("section", "contact-carte lien-demande-carte");
   const type = TYPES_DEMANDE[d.type] ?? "Message";
   carte.append(el("p", "lien-demande-type muted", `${type}, de ${d.auteur_nom ?? "?"}, ${quand(d.cree_le)}`));
-  carte.append(el("h1", "lien-demande-sujet", d.sujet || type));
+  carte.append(el("h1", "lien-demande-sujet", titreDeLaDemande(d, TYPES_DEMANDE)));
+  // Une absence : le jour, le moment et le motif (la personne sans compte n'a que cette page pour les lire) ; le mot suit.
+  const lignes = lignesAbsence(d);
+  if (lignes.length) {
+    const liste = el("dl", "contact-detail lien-demande-absence");
+    for (const [t, v] of lignes) {
+      const ligne = el("div", "contact-ligne");
+      ligne.append(el("dt", null, t), el("dd", null, v));
+      liste.append(ligne);
+    }
+    carte.append(liste);
+  }
   if (d.texte) carte.append(el("p", "lien-demande-texte", d.texte));
   for (const m of d.messages ?? []) {
     const bloc = el("div", "lien-demande-message");
@@ -54,6 +65,17 @@ function dire(titre, phrase) {
   vue(el("h1", "lien-demande-sujet", titre), ...(phrase ? [el("p", "lien-demande-texte", phrase)] : []));
 }
 
+// La première lecture a échoué : la phrase et un vrai bouton « Réessayer », qui relance la lecture (ouvrir ne fait toujours rien).
+function direEchecDeLecture() {
+  const bouton = el("button", "btn primary lien-demande-bouton", LECTURE_EN_ECHEC.bouton);
+  bouton.type = "button";
+  bouton.addEventListener("click", () => {
+    bouton.disabled = true;
+    demarrer();
+  });
+  vue(el("h1", "lien-demande-sujet", LECTURE_EN_ECHEC.titre), el("p", "lien-demande-texte", LECTURE_EN_ECHEC.phrase), bouton);
+}
+
 async function demarrer() {
   const jeton = jetonDeLAdresse(location.hash);
   if (!jeton) return dire("Lien invalide", PHRASE_INVALIDE);
@@ -61,7 +83,7 @@ async function demarrer() {
   try {
     reponse = await appeler("lien", jeton);
   } catch {
-    return dire("Demande indisponible", PHRASE_RESEAU);
+    return direEchecDeLecture();
   }
   const etat = etatDeLaPage(reponse);
   if (etat === "invalide") return dire("Lien invalide", PHRASE_INVALIDE);

@@ -1,7 +1,9 @@
 -- Espace contact, migration 4 (tâche 4C, ruling R-ORD2) : correctifs relevés en relecture, après les migrations 1, 2 et 3 (appliquées
 -- en production, gelées). Spec : docs/superpowers/specs/2026-11-09-espace-contact-design.md ; plan : docs/superpowers/plans/2026-11-14-espace-contact.md.
 --   1. Le 429 durable de Resend : _contact_srv_resultat accepte l'issue « limite » (à retenter, la tentative n'est pas consommée) ; la
---      fonction serveur (supabase/functions/contact-envois/courriels.mjs) la rend quand un 429 persiste, puis arrête sa boucle.
+--      fonction serveur (supabase/functions/contact-envois/courriels.mjs) la rend quand un 429 persiste, puis arrête sa boucle. Un envoi
+--      créé depuis plus de 24 heures qui reçoit encore « limite » passe en échec (raison « Resend 429 durable ») : il se voit (pastille
+--      « E-mail non parti », « Relancer l'envoi ») au lieu d'être remis en file sans fin (relecture finale, I3).
 --   2. reglages_contact() rend peut_modifier (l'écran masque « Enregistrer » et « Ajouter » quand c'est faux).
 --   3. Fiches indisponibles : _contact_formateurs_du_jour et _contact_possibles écartent les fiches parties ou en congé (_contact_disponible) ;
 --      en annexe d'une absence, un formateur du jour indisponible n'est pas prévenu et son nom figure en « non prévenu » (_contact_annexes).
@@ -14,10 +16,12 @@
 --      regler_financements verrouille avant de contrôler et de supprimer.
 --   7. Demandes : ecrire_au_stagiaire tutoie un stagiaire ; l'effacement ne retire une demande que là où le stagiaire est principal.
 --      (_contact_jours refuse déjà proprement une entrée scalaire ou tableau depuis la migration 2 : rien à changer.)
--- Quinze fonctions redéfinies par create or replace, signatures et colonnes de sortie inchangées, droits gardés ; chacune part du texte
+--   8. Liens d'e-mail : _contact_srv_jeton refuse le jeton d'une fiche partie (date de départ passée) : la personne sans compte qui a
+--      quitté le centre ne lit plus la demande et ne fait plus le geste par un lien reçu avant son départ (relecture finale, M1).
+-- Seize fonctions redéfinies par create or replace, signatures et colonnes de sortie inchangées, droits gardés ; chacune part du texte
 -- de son dernier fichier de définition (migration 1, 2 ou 3), seules les lignes du correctif changent.
 -- Toutes les dates passent par _contact_maintenant() et _contact_jour() (C-21).
--- Garde : les migrations 1, 2 et 3 sont appliquées, la 4 ne l'est pas (_contact_quota_equipe et son index absents), les quinze fonctions
+-- Garde : les migrations 1, 2 et 3 sont appliquées, la 4 ne l'est pas (_contact_quota_equipe et son index absents), les seize fonctions
 -- existent avec leur signature ; sinon rien ne change.
 -- MISE EN LIGNE : appliquer cette migration AVANT de déployer la fonction serveur contact-envois de ce chantier (supabase/functions/
 -- contact-envois : courriels.mjs envoie l'issue « limite ») ; sans la migration, la base refuse « limite », l'envoi reste en cours, il
@@ -53,6 +57,7 @@ begin
       'public.ecrire_au_stagiaire(integer, text, text)',
       'public.reglages_contact(integer)',
       'public._contact_srv_resultat(bigint, text, text)',
+      'public._contact_srv_jeton(text)',
       'public._contact_effacer_stagiaire()',
       'public._contact_annexes(integer, integer, jsonb, integer)',
       'public.prevenir_absence(date, date, text, text, text, text, text, text[], bigint[])',
@@ -378,8 +383,10 @@ end $fn$;
 
 -- 1. Le 429 durable de Resend : l'issue « limite » remet l'envoi « à retenter » dans 5 minutes SANS consommer de tentative
 --    (tentatives revient à sa valeur d'avant la prise : _contact_srv_prendre l'avait augmentée de 1) et retire ses jetons (rien n'est
---    parti). Les autres issues ne changent pas : « envoye » ; « ignore » ; « echec » (à retenter dans 5 minutes à la première
---    tentative, en échec ensuite). Un envoi qui n'est plus « en cours » n'est pas touché.
+--    parti). Sauf pour un envoi créé depuis plus de 24 heures : « limite » le passe en échec, raison « Resend 429 durable : non parti
+--    après 24 h » (tentative gardée), pour qu'il se voie ; « Relancer l'envoi » le remet en file. Les autres issues ne changent pas :
+--    « envoye » ; « ignore » ; « echec » (à retenter dans 5 minutes à la première tentative, en échec ensuite). Un envoi qui n'est plus
+--    « en cours » n'est pas touché.
 create or replace function public._contact_srv_resultat(p_envoi_id bigint, p_issue text, p_raison text)
 returns void language plpgsql security definer set search_path = public, pg_temp
 as $fn$
@@ -390,16 +397,43 @@ begin
     raise exception 'contact: Issue d''envoi illisible.';
   end if;
   update contact_envois
-     set etat = case when p_issue = 'limite' then 'a_retenter' when p_issue <> 'echec' then p_issue
+     set etat = case when p_issue = 'limite' and cree_le <= v_maintenant - interval '24 hours' then 'echec'
+                     when p_issue = 'limite' then 'a_retenter' when p_issue <> 'echec' then p_issue
                      when tentatives <= 1 then 'a_retenter' else 'echec' end,
-         tentatives = case when p_issue = 'limite' then greatest(tentatives - 1, 0) else tentatives end,
+         tentatives = case when p_issue = 'limite' and cree_le > v_maintenant - interval '24 hours' then greatest(tentatives - 1, 0)
+                           else tentatives end,
          envoye_le = case when p_issue = 'envoye' then v_maintenant end,
-         prochain_essai_le = case when p_issue = 'limite' or (p_issue = 'echec' and tentatives <= 1) then v_maintenant + interval '5 minutes' end,
-         raison = left(nullif(btrim(p_raison), ''), 200)
+         prochain_essai_le = case when (p_issue = 'limite' and cree_le > v_maintenant - interval '24 hours')
+                                       or (p_issue = 'echec' and tentatives <= 1) then v_maintenant + interval '5 minutes' end,
+         raison = case when p_issue = 'limite' and cree_le <= v_maintenant - interval '24 hours'
+                       then 'Resend 429 durable : non parti après 24 h'
+                       else left(nullif(btrim(p_raison), ''), 200) end
    where id = p_envoi_id and etat = 'en_cours';
   if found and p_issue <> 'envoye' then
     delete from contact_jetons x where x.envoi_id = p_envoi_id;
   end if;
+end $fn$;
+
+-- 8. _contact_srv_jeton : un jeton lisible est haché en hexadécimal, connu, non expiré, sa fiche encore dans le centre de la demande, ET
+--    cette fiche n'est pas partie (date de départ passée ; le jour du départ compte encore, comme pour _contact_disponible). Nul sinon :
+--    _contact_srv_lien et _contact_srv_agir rendent alors {invalide: true}.
+create or replace function public._contact_srv_jeton(p_hash text)
+returns public.contact_jetons language plpgsql stable security definer set search_path = public, pg_temp
+as $fn$
+declare
+  j contact_jetons%rowtype;
+begin
+  if coalesce(p_hash, '') !~ '^[0-9a-f]{64}$' then
+    return null;
+  end if;
+  select * into j from contact_jetons x where x.hash = decode(p_hash, 'hex');
+  if j.hash is null or j.expire_le <= _contact_maintenant()
+     or not exists (select 1 from demandes d join contacts c on c.id = j.fiche_id
+                     where d.id = j.demande_id and _contact_fiche_dans(c, d.lieu_id)
+                       and (c.depart_le is null or c.depart_le >= _contact_jour())) then
+    return null;
+  end if;
+  return j;
 end $fn$;
 
 -- 6b et 7c. Effacement d'un stagiaire (efface_le posé) : ses demandes qui ne sont pas des absences disparaissent quand il en est
@@ -721,7 +755,7 @@ end $fn$;
 
 -- Contrôle de fin : la marque de la migration et son index sont là, sans aucun droit ; aucun stagiaire effacé n'est délégué ; aucune aide _contact_* ne s'exécute par anon ni authenticated
 -- (sauf _contact_compte_equipe, migration 1) ; les fonctions de l'app redéfinies gardent leurs droits (authenticated, jamais anon) ;
--- _contact_srv_resultat reste à service_role seul ; les fonctions retouchées portent leur correctif.
+-- _contact_srv_resultat reste à service_role seul, _contact_srv_jeton sans aucun droit ; les fonctions retouchées portent leur correctif.
 do $controle$
 declare
   f record;
@@ -751,14 +785,19 @@ begin
      or has_function_privilege('authenticated', 'public._contact_srv_resultat(bigint, text, text)', 'EXECUTE') then
     raise exception 'contact_4 : _contact_srv_resultat n''a pas ses droits (service_role seul) ; tout est annulé';
   end if;
+  if has_function_privilege('service_role', 'public._contact_srv_jeton(text)', 'EXECUTE') then
+    raise exception 'contact_4 : _contact_srv_jeton s''exécute par service_role (aucun droit attendu) ; tout est annulé';
+  end if;
   if (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace
-       and ((p.proname = '_contact_srv_resultat' and pg_get_functiondef(p.oid) like '%''limite''%')
+       and ((p.proname = '_contact_srv_resultat' and pg_get_functiondef(p.oid) like '%''limite''%'
+             and pg_get_functiondef(p.oid) like '%Resend 429 durable%')
+            or (p.proname = '_contact_srv_jeton' and pg_get_functiondef(p.oid) like '%c.depart_le >= _contact_jour()%')
             or (p.proname = 'reglages_contact' and pg_get_functiondef(p.oid) like '%peut_modifier%')
             or (p.proname in ('ecrire_a', 'ecrire_au_stagiaire') and pg_get_functiondef(p.oid) like '%_contact_quota_equipe(v_moi)%')
             or (p.proname = '_contact_premarquer' and pg_get_functiondef(p.oid) like '%on conflict (seance_id, stagiaire_id) do nothing%')
             or (p.proname = 'prevenir_absence' and pg_get_functiondef(p.oid) like '%_contact_jour() + 120%')
             or (p.proname = 'ordonner_fiches' and pg_get_functiondef(p.oid) like '%c.lieu_id = v_l);%')
-            or (p.proname = '_contact_annexes' and pg_get_functiondef(p.oid) like '%_contact_disponible(c, l, _contact_jour())%'))) <> 8 then
+            or (p.proname = '_contact_annexes' and pg_get_functiondef(p.oid) like '%_contact_disponible(c, l, _contact_jour())%'))) <> 9 then
     raise exception 'contact_4 : une fonction redéfinie ne porte pas son correctif ; tout est annulé';
   end if;
 end $controle$;

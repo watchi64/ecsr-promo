@@ -35,7 +35,7 @@ test("envoi réel vers une adresse fictive : refusé (code 2) avant tout réseau
 });
 
 test("envoi réel sans clé : refusé (code 3), rien ne part", () => {
-  const r = lancer(["--a", "quelquun@ecf-centre.fr"]);
+  const r = lancer(["--a", "quelquun@centre-ecsr.internal"]);
   assert.equal(r.status, 3);
   assert.match(r.stderr, /RESEND_API_KEY/);
 });

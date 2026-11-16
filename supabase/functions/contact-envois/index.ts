@@ -7,6 +7,10 @@
 //                            fait naître sont traités.
 //   { op: "etat" }           fondateur hors aperçu (est_fondateur, jugé par la base avec le jeton et les en-têtes de l'appelant) :
 //                            { cle_presente, expediteur, app_url } ; jamais la valeur de la clé.
+// Déploiement SANS vérification JWT à la passerelle (supabase functions deploy contact-envois --no-verify-jwt, ou verify_jwt: false) :
+// la page des liens (demande.html) appelle avec la clé publique sb_publishable_, qui n'est pas un JWT, et la passerelle la refuserait.
+// Chaque opération juge donc elle-même son appelant : lien et agir par le jeton haché (la base le juge), traiter par auth.getUser
+// (401 sans jeton de session valide), etat par auth.getUser puis est_fondateur avec le jeton et les en-têtes de l'appelant (403).
 // Secrets et variables : RESEND_API_KEY (secret) ; CONTACT_APP_URL et CONTACT_EXPEDITEUR (facultatives).
 // Toute la logique testable vit dans courriels.mjs et jetons.mjs (tests node sans réseau) ; ce fichier lit les variables, ouvre les
 // clients Supabase et branche fetch. Un jeton nu ne quitte jamais cette fonction vers la base : seul son haché sha256 y va.
@@ -88,8 +92,10 @@ Deno.serve(async (req) => {
     return reponseJson(data);
   }
 
-  // Les autres opérations : un compte connecté.
+  // Les autres opérations : un compte connecté, jugé ici (la passerelle ne vérifie aucun JWT, voir l'en-tête). Sans jeton, ou avec la
+  // clé publique, getUser ne rend aucun utilisateur : 401 avant toute lecture de la file.
   const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!jwt) return erreur("Non authentifié", 401);
   const { data: userData } = await sr.auth.getUser(jwt);
   if (!userData?.user) return erreur("Non authentifié", 401);
 

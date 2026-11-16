@@ -10,12 +10,11 @@ import { vueStagiaire, selonPublic } from "../auth-admin.js?v=20261116a";
 import { confirmer } from "../confirmer.js?v=20261116a";
 import { dateHeure } from "../dates.js?v=20261116a";
 import { TYPES_DEMANDE, etapesDemande, libelleDestinataire, phraseContact } from "../contact-rules.js?v=20261116a";
-import { libelleAbsence, libelleDesJours, mailtoJustificatif, adresseJustificatif } from "../contact-absences-rules.js?v=20261116a";
+import { libelleAbsence, libelleDesJours, mailtoJustificatif, adresseJustificatif, LIBELLES_MOTIF } from "../contact-absences-rules.js?v=20261116a";
 
 const PHRASE_ECHEC_LECTURE = "Cette demande n'a pas pu être chargée.";
 const LIBELLES_ETAPE = { envoyee: "Envoyée", lue: "Lue", prise: "Prise en compte", annulee: "Annulée" };
 const LIBELLES_ANNEXE = { formateur_du_jour: "formateur du jour", delegue: "délégué" };
-const LIBELLES_MOTIF = { sante: "Santé", transport: "Transport", demarche: "Démarche", famille: "Famille", autre: "Autre" };
 const LIBELLES_JUSTIFICATIF = { a_remettre: "Justificatif à remettre", recu: "Justificatif reçu" };
 const PHRASE_SANS_ADRESSE = "Remets ton justificatif au centre.";
 

@@ -151,6 +151,7 @@
 .lien-demande-type { margin: 0 0 0.25rem; font-size: 0.88rem; }
 .lien-demande-sujet { margin: 0 0 0.5rem; font-size: 1.25rem; letter-spacing: -0.01em; }
 .lien-demande-texte { margin: 0 0 0.75rem; white-space: pre-wrap; }
+.lien-demande-absence { margin: 0 0 0.75rem; }
 .lien-demande-message { border-top: 1px solid var(--line); padding-top: 0.6rem; margin-top: 0.6rem; }
 .lien-demande-message p { margin: 0 0 0.25rem; }
 .lien-demande-bouton { width: 100%; min-height: 44px; white-space: normal; text-align: center; }

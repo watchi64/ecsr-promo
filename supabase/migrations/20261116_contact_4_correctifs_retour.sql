@@ -15,10 +15,10 @@
 --      (feuilles closes comprises : l'absence était déjà sur la feuille, seule son origine change) ;
 --   3. vérifier qu'il n'en reste aucune, puis jouer le retour 3 dans la même transaction.
 --   Cette étape se décide avec Timy (l'origine « annoncee » disparaît de l'historique des feuilles).
--- Ce retour : garde (la migration 4 est appliquée, la 3 aussi) ; les quinze fonctions remises au texte de leur dernier fichier de
+-- Ce retour : garde (la migration 4 est appliquée, la 3 aussi) ; les seize fonctions remises au texte de leur dernier fichier de
 -- définition (blocs copiés tels quels de la migration 1, 2 ou 3, seul « create function » devient « create or replace function ») ;
 -- l'aide _contact_quota_equipe et l'index demandes_auteur_fiche_cree retirés ; contrôle de fin. Les données écrites entre-temps restent
--- (envois remis « à retenter », marques de délégué vidées à l'effacement et par le rattrapage de la migration 4, qui ne sont pas
+-- (envois remis « à retenter » ou passés en échec par un 429 durable, marques de délégué vidées à l'effacement et par le rattrapage de la migration 4, qui ne sont pas
 -- rétablies) : elles sont valides pour les textes d'avant.
 set local lock_timeout = '3s';
 
@@ -324,6 +324,26 @@ begin
   if found and p_issue <> 'envoye' then
     delete from contact_jetons x where x.envoi_id = p_envoi_id;
   end if;
+end $fn$;
+
+-- _contact_srv_jeton : texte de 20261115_contact_2_demandes.sql.
+-- Un jeton lisible : haché en hexadécimal, connu, non expiré, et sa fiche encore dans le centre de la demande. Nul sinon.
+create or replace function public._contact_srv_jeton(p_hash text)
+returns public.contact_jetons language plpgsql stable security definer set search_path = public, pg_temp
+as $fn$
+declare
+  j contact_jetons%rowtype;
+begin
+  if coalesce(p_hash, '') !~ '^[0-9a-f]{64}$' then
+    return null;
+  end if;
+  select * into j from contact_jetons x where x.hash = decode(p_hash, 'hex');
+  if j.hash is null or j.expire_le <= _contact_maintenant()
+     or not exists (select 1 from demandes d join contacts c on c.id = j.fiche_id
+                     where d.id = j.demande_id and _contact_fiche_dans(c, d.lieu_id)) then
+    return null;
+  end if;
+  return j;
 end $fn$;
 
 -- _contact_effacer_stagiaire : texte de 20261115_contact_2_demandes.sql.
@@ -639,6 +659,7 @@ begin
   if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prokind = 'f'
               and (pg_get_functiondef(p.oid) like '%_contact_quota_equipe%'
                    or (p.proname = '_contact_srv_resultat' and pg_get_functiondef(p.oid) like '%''limite''%')
+                   or (p.proname = '_contact_srv_jeton' and pg_get_functiondef(p.oid) like '%depart_le%')
                    or (p.proname = 'reglages_contact' and pg_get_functiondef(p.oid) like '%peut_modifier%')
                    or (p.proname = 'prevenir_absence' and pg_get_functiondef(p.oid) like '%_contact_jour() + 120%'))) then
     raise exception 'contact_4_retour : une fonction porte encore un correctif de la migration 4 ; tout est annulé';

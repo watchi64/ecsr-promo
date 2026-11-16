@@ -896,12 +896,12 @@ Modèle conseillé : opus (fonction d'envoi).
   test("aucune adresse fictive n'est tentée", () => {
     for (const a of ["a@demo.test", "b@exemple.invalid", "c@x.example", "d@example.com", "e@example.org", "f@example.net", "g@localhost"])
       assert.equal(adresseFictive(a), true, a);
-    assert.equal(adresseFictive("secretariat@ecf-centre.fr"), false);
+    assert.equal(adresseFictive("secretariat@centre-ecsr.internal"), false);
   });
   const demande = { id: 7, type: "absence", auteur_nom: "Lina B.", jours: [{ jour: "2026-11-19", demi: "matin" }], motif: "sante", texte: "rdv" };
   test("ni motif ni texte libre dans l'e-mail ; les URL sont bâties ici", () => {
     const c = construireCourriel({ evenement: "nouvelle", appUrl: "https://app.test/", demande,
-      destinataire: { email: "x@ecf.fr", nom: "Sophie", avec_compte: false },
+      destinataire: { email: "x@centre-ecsr.test", nom: "Sophie", avec_compte: false },
       jetons: { voir: "J1", prise: "J2", reponses: [{ libelle: "Absence enregistrée", jeton: "J3" }] } });
     assert.match(c.subject, /Absence/); assert.match(c.text, /Lina B\./); assert.match(c.text, /jeudi 19 novembre, matin/);
     assert.doesNotMatch(c.html + c.text, /sante|Santé|rdv/);
@@ -910,7 +910,7 @@ Modèle conseillé : opus (fonction d'envoi).
   });
   test("un stagiaire n'a que « Ouvrir dans l'app »", () => {
     const c = construireCourriel({ evenement: "prise", appUrl: "https://app.test/", demande,
-      destinataire: { email: "s@ecf.fr", nom: "Lina", stagiaire: true }, jetons: {} });
+      destinataire: { email: "s@centre-ecsr.test", nom: "Lina", stagiaire: true }, jetons: {} });
     assert.doesNotMatch(c.html + c.text, /demande\.html#j=/);
     assert.match(c.html, /https:\/\/app\.test\/#\/contacts\/7/);
   });

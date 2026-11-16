@@ -80,6 +80,16 @@ export const NOUVEAUTES = [
           + "centres se corrige une seule fois.",
     ou: { label: "Mes préférences", route: "preferences" },
   },
+  {
+    id: "2026-11-14-fiche-de-contact-direction",
+    date: "2026-11-14",
+    pour: "direction",
+    titre: "Votre fiche de contact",
+    resume: "Contacts (menu du compte) réunit l'équipe de votre centre, et votre fiche y est créée d'office. Vérifiez-la dans Mes "
+          + "préférences, « Ma fiche de contact » (e-mail et téléphone professionnels, pour quoi et quand vous joindre, absence et "
+          + "relais) : tant qu'elle n'est pas enregistrée, les stagiaires ne voient que votre nom.",
+    ou: { label: "Mes préférences", route: "preferences" },
+  },
   // Espace contact (absences et Messages, 14/11, même date provisoire que les entrées d'annuaire : la coordination la fixe à la mise en
   // ligne). Une entrée par public : le stagiaire tutoie, l'équipe et la direction vouvoient.
   {

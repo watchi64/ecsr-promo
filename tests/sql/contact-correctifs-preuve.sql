@@ -3,7 +3,8 @@
 -- --production) ; les migrations 1, 1b, 2, 3 et 4 injectées dans l'ordre, puis leurs retours (4, 3, 2, 1b, 1).
 --   structure       prérequis de l'état de départ, personnages, chaque migration et chaque retour injectés se jouent sans erreur.
 --   envois          (1) _contact_srv_resultat, issue « limite » : l'envoi repasse « à retenter » dans 5 minutes, sa tentative rendue,
---                   ses jetons retirés ; un envoi qui n'est plus « en cours » n'est pas touché ; « echec » inchangé.
+--                   ses jetons retirés ; un envoi qui n'est plus « en cours » n'est pas touché ; « echec » inchangé ; un envoi créé
+--                   depuis plus de 24 heures passe en échec (« Resend 429 durable »), un envoi de 23 heures reste à retenter.
 --   reglages        (2) reglages_contact() rend peut_modifier : vrai pour qui modifie les réglages du centre, faux en lecture seule.
 --   indisponibles   (3) une fiche en congé ou partie n'est ni proposée ni pré-cochée (mode choix) ni prévenue en annexe d'une absence :
 --                   son nom y figure en « non prévenu ».
@@ -15,10 +16,12 @@
 --                   migration celle d'un stagiaire effacé avant elle ; ordonner_fiches accepte la liste entière de l'annuaire et ignore
 --                   une fiche sans compte d'un autre centre partagée (elle garde son ordre) ; regler_financements verrouille avant de
 --                   contrôler.
+--   liens           (8) _contact_srv_jeton : le lien d'une fiche sans compte partie (départ passé) est invalide, en lecture comme pour
+--                   le geste ; le jour du départ, il vaut encore.
 --   demandes        (7) ecrire_au_stagiaire tutoie un stagiaire ; l'effacement d'un stagiaire qui n'est qu'en annexe d'une demande
 --                   d'un autre la laisse en place ; _contact_jours refuse proprement une entrée illisible (déjà vrai depuis la 2).
 --   retour          migration 4 rejouée : refusée ; retour 4 refusé si le retour 3 est passé avant lui ; après le retour 4, empreinte et
---                   md5(pg_get_functiondef) des quinze fonctions égaux à ceux d'avant la 4, index retiré ; les retours défont tout (4, 3,
+--                   md5(pg_get_functiondef) des seize fonctions égaux à ceux d'avant la 4, index retiré ; les retours défont tout (4, 3,
 --                   2, 1b, 1).
 -- Deux verrous (5 et 6) ne se prouvent pas dans une seule session : leur contrôle lit le texte de la fonction (pg_get_functiondef).
 -- L'horloge : après la migration 2, _contact_maintenant() lit le réglage preuve.maintenant (C-21) ; le jour de l'émargement aussi, le temps
@@ -145,14 +148,15 @@ returns text language sql as $cc_li$
       from public.emargement_lignes where seance_id = %s and stagiaire_id = %s$cc_q$, p_seance, pg_temp.stag(p_qui))), 'aucune ligne');
 $cc_li$;
 
--- md5(pg_get_functiondef) des quinze fonctions que la migration 4 redéfinit : « signature=md5;... ».
-create or replace function pg_temp.md5_quinze()
+-- md5(pg_get_functiondef) des seize fonctions que la migration 4 redéfinit : « signature=md5;... ».
+create or replace function pg_temp.md5_seize()
 returns text language sql as $cc_m5$
   select coalesce(string_agg(p.oid::regprocedure::text || '=' || md5(pg_get_functiondef(p.oid)), ';' order by p.oid::regprocedure::text), 'aucune')
     from pg_proc p
    where p.pronamespace = 'public'::regnamespace
      and p.proname in ('coordonnees_promo', 'ordonner_fiches', 'regler_financements', '_contact_formateurs_du_jour', '_contact_possibles',
-                       'ecrire_a', 'ecrire_au_stagiaire', 'reglages_contact', '_contact_srv_resultat', '_contact_effacer_stagiaire',
+                       'ecrire_a', 'ecrire_au_stagiaire', 'reglages_contact', '_contact_srv_resultat', '_contact_srv_jeton',
+                       '_contact_effacer_stagiaire',
                        '_contact_annexes', 'prevenir_absence', 'regler_justificatif', '_contact_premarquer', '_contact_emargement_absence');
 $cc_m5$;
 
@@ -249,7 +253,61 @@ begin
     pg_temp.srv_geste(format($cc_q$select public._contact_srv_resultat(%s, 'echec', 'Resend 500')$cc_q$, v_e))
       || ' / ' || pg_temp.calcul(format(c_etat, v_e)),
     'fait / a_retenter|1|00:05|Resend 500|0');
+  -- Le 429 durable (relecture finale, I3) : l'âge de l'envoi se juge sur son cree_le (posé par _contact_maintenant() à la création).
+  -- Témoin : créé il y a 23 heures, « limite » le remet encore à retenter, tentative rendue.
+  perform pg_temp.essai(format($cc_q$update public.contact_envois set cree_le = public._contact_maintenant() - interval '23 hours' where id = %s$cc_q$, v_e));
+  perform pg_temp.essai(format(c_prise, v_e));
+  perform pg_temp.attendre('envois', 'témoin : un envoi créé il y a 23 heures reste à retenter sous « limite », tentative rendue (1)',
+    pg_temp.srv_geste(format($cc_q$select public._contact_srv_resultat(%s, 'limite', 'Resend 429 quota')$cc_q$, v_e))
+      || ' / ' || pg_temp.calcul(format(c_etat, v_e)),
+    'fait / a_retenter|1|00:05|Resend 429 quota|0');
+  perform pg_temp.essai(format($cc_q$update public.contact_envois set cree_le = public._contact_maintenant() - interval '25 hours' where id = %s$cc_q$, v_e));
+  perform pg_temp.essai(format(c_prise, v_e));
+  perform pg_temp.srv_geste(format($cc_q$select public._contact_srv_jetons(%s, '[{"hash": "%s", "action": "voir"}]'::jsonb)$cc_q$, v_e, repeat('ab', 32)));
+  perform pg_temp.attendre('envois', 'un envoi créé il y a plus de 24 heures : « limite » le passe en échec (raison claire, tentative gardée, jeton retiré, plus de prochain essai) : il se voit',
+    pg_temp.srv_geste(format($cc_q$select public._contact_srv_resultat(%s, 'limite', 'Resend 429 quota')$cc_q$, v_e))
+      || ' / ' || pg_temp.calcul(format(c_etat, v_e)),
+    'fait / echec|2|-|Resend 429 durable : non parti après 24 h|0');
+  perform pg_temp.attendre('envois', 'l''envoi en échec par le 429 durable se voit : « E-mail non parti » pour form_n, destinataire (envoi_en_echec de liste_demandes)',
+    pg_temp.appeler('form_n', '1', format($cc_q$select coalesce((select envoi_en_echec::text from public.liste_demandes() where id = %s), 'absente')$cc_q$, v_id)),
+    'OK true');
 end $cc_ge$;
+
+-- Groupe liens (8). Mercredi 18 novembre : une demande de stag_a à sec_n (fiche sans compte de Nîmes) ; deux jetons de sec_n posés en
+-- propriétaire (comme _contact_srv_jetons, sans envoi) : lecture (voir) et geste (prise). La fonction serveur les juge en service_role.
+create or replace function pg_temp.groupe_liens()
+returns void language plpgsql as $cc_gl$
+declare
+  f_sec text := pg_temp.fiche('sec_n');
+  v_id text;
+  h_voir constant text := repeat('5a', 32);
+  h_prise constant text := repeat('5b', 32);
+  c_lien constant text := $cc_q$select case when r ? 'invalide' then 'invalide' when r ? 'demande' then 'demande' else r::text end
+    from (select public._contact_srv_lien(%L) r) x$cc_q$;
+  c_agir constant text := $cc_q$select case when r ? 'invalide' then 'invalide' when r ? 'fait' then 'fait' when r ? 'deja' then 'deja' else r::text end
+    from (select public._contact_srv_agir(%L) r) x$cc_q$;
+begin
+  perform pg_temp.horloge('2026-11-18 10:00');
+  v_id := pg_temp.id_rendu(pg_temp.appeler('stag_a', '1', format('select public.ecrire_a(%s, %L, %L, null)::text', f_sec, 'autre', 'Preuve16 lien')));
+  perform pg_temp.essai(format($cc_q$insert into public.contact_jetons (hash, demande_id, fiche_id, action, expire_le)
+      values (decode(%L, 'hex'), %s, %s, 'voir', public._contact_maintenant() + interval '14 days'),
+             (decode(%L, 'hex'), %s, %s, 'prise', public._contact_maintenant() + interval '14 days')$cc_q$, h_voir, v_id, f_sec, h_prise, v_id, f_sec));
+  perform pg_temp.attendre('liens', 'témoin : sec_n, présente, lit la demande par son lien',
+    pg_temp.srv(format('select to_jsonb((%s))', format(c_lien, h_voir))) #>> '{}', 'demande');
+  perform pg_temp.essai(format($cc_q$update public.contacts set depart_le = '2026-11-17' where id = %s$cc_q$, f_sec));
+  perform pg_temp.attendre('liens', 'sec_n partie (départ le 17, nous sommes le 18) : son lien de lecture et son lien de geste sont invalides, la demande n''est pas prise',
+    (pg_temp.srv(format('select to_jsonb((%s))', format(c_lien, h_voir))) #>> '{}') || ' / '
+      || (pg_temp.srv(format('select to_jsonb((%s))', format(c_agir, h_prise))) #>> '{}') || ' / '
+      || pg_temp.calcul(format('select etat from public.demandes where id = %s', v_id)),
+    'invalide / invalide / envoyee');
+  perform pg_temp.essai(format($cc_q$update public.contacts set depart_le = '2026-11-18' where id = %s$cc_q$, f_sec));
+  perform pg_temp.attendre('liens', 'le jour de son départ (le 18), sec_n lit encore la demande et fait le geste par son lien',
+    (pg_temp.srv(format('select to_jsonb((%s))', format(c_lien, h_voir))) #>> '{}') || ' / '
+      || (pg_temp.srv(format('select to_jsonb((%s))', format(c_agir, h_prise))) #>> '{}'),
+    'demande / fait');
+  perform pg_temp.essai(format('update public.contacts set depart_le = null where id = %s', f_sec));
+  perform pg_temp.essai('delete from public.demandes where auteur_stagiaire_id = ' || pg_temp.stag('stag_a'));
+end $cc_gl$;
 
 -- Groupe reglages (2). Aujourd'hui un titre ne peut pas porter « Réglages : Voir » (_cases_valides le refuse : non ou modifier) ; la
 -- lecture sans écriture que reglages_contact admet (case_centre >= 1) se pose donc ici en contournant _cases_valides le temps d'une mise
@@ -572,7 +630,7 @@ begin
       set search_path = public, pg_temp as 'select coalesce(nullif(current_setting(''preuve.maintenant'', true), '''')::timestamptz, now())'$cc_q$;
   end if;
   select e.regles, e.fonctions, e.droits into v_a4_regles, v_a4_fonctions, v_a4_droits from pg_temp.empreinte() e;
-  v_md5_avant4 := pg_temp.md5_quinze();
+  v_md5_avant4 := pg_temp.md5_seize();
   -- Un stagiaire effacé avant la migration 4, encore délégué titulaire (le rattrapage de la 4 doit vider sa marque) : promo d'essai du centre
   -- de la promo 1. Hors du mode en ligne (la migration y est déjà appliquée).
   perform set_config('preuve.ancien_delegue', '', true);
@@ -588,7 +646,7 @@ begin
   ;
   v_etat4 := pg_temp.jouer('migration 4', v_m4);
   perform pg_temp.etape('migration 4', v_etat4, v_mode);
-  v_md5_apres4 := pg_temp.md5_quinze();
+  v_md5_apres4 := pg_temp.md5_seize();
 
   -- 4. GROUPES de contrôles de la migration 4, chacun sauté avec une ligne d'information quand elle n'est pas encore appliquée (mode en
   --    ligne) ; dans la contre-épreuve, ils se jouent et doivent être rouges.
@@ -597,6 +655,9 @@ begin
   v_partie4 := to_regprocedure('public._contact_quota_equipe(bigint)') is not null;
   if pg_temp.groupe_a_jouer('envois', v_mode, v_partie4, 'la migration 4 n''est pas appliquée') then
     perform pg_temp.groupe_envois();
+  end if;
+  if pg_temp.groupe_a_jouer('liens', v_mode, v_partie4, 'la migration 4 n''est pas appliquée') then
+    perform pg_temp.groupe_liens();
   end if;
   if pg_temp.groupe_a_jouer('reglages', v_mode, v_partie4, 'la migration 4 n''est pas appliquée') then
     perform pg_temp.groupe_reglages();
@@ -642,17 +703,17 @@ begin
   v_retour4 := pg_temp.jouer('retour 4', v_r4);
   perform pg_temp.etape('retour 4', v_retour4, v_mode);
   select e.regles, e.fonctions, e.droits into v_r4_regles, v_r4_fonctions, v_r4_droits from pg_temp.empreinte() e;
-  v_md5_retour4 := pg_temp.md5_quinze();
+  v_md5_retour4 := pg_temp.md5_seize();
   if v_en_ligne then
-    perform pg_temp.informer('retour 4', format('non jugeable (migrations déjà appliquées) ; md5 des quinze fonctions : %s', v_md5_apres4));
+    perform pg_temp.informer('retour 4', format('non jugeable (migrations déjà appliquées) ; md5 des seize fonctions : %s', v_md5_apres4));
   else
-    perform pg_temp.verifier('retour', 'la migration 4 redéfinit les quinze fonctions (md5 de pg_get_functiondef changé pour chacune)',
+    perform pg_temp.verifier('retour', 'la migration 4 redéfinit les seize fonctions (md5 de pg_get_functiondef changé pour chacune)',
       v_md5_apres4 <> v_md5_avant4
         and (select bool_and(a.v <> b.v) from unnest(string_to_array(v_md5_avant4, ';')) with ordinality a(v, n)
                join unnest(string_to_array(v_md5_apres4, ';')) with ordinality b(v, n) on a.n = b.n)
-        and array_length(string_to_array(v_md5_avant4, ';'), 1) = 15,
+        and array_length(string_to_array(v_md5_avant4, ';'), 1) = 16,
       'avant ' || v_md5_avant4 || ' ; après ' || v_md5_apres4);
-    perform pg_temp.attendre('retour', 'après le retour 4 : md5(pg_get_functiondef) des quinze fonctions égal à celui d''avant la migration 4', v_md5_retour4, v_md5_avant4);
+    perform pg_temp.attendre('retour', 'après le retour 4 : md5(pg_get_functiondef) des seize fonctions égal à celui d''avant la migration 4', v_md5_retour4, v_md5_avant4);
     perform pg_temp.attendre('retour', 'après le retour 4 : l''index du quota est retiré', coalesce(to_regclass('public.demandes_auteur_fiche_cree')::text, 'absent'), 'absent');
     perform pg_temp.attendre('retour', 'après le retour 4 : empreinte regles égale à celle d''avant la migration 4', v_r4_regles, v_a4_regles);
     perform pg_temp.attendre('retour', 'après le retour 4 : empreinte fonctions égale à celle d''avant la migration 4', v_r4_fonctions, v_a4_fonctions);

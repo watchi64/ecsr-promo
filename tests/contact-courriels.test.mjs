@@ -4,10 +4,12 @@ import {
   adresseFictive, construireCourriel, formaterJours, envoyerParResend, traiterEnvois,
 } from "../supabase/functions/contact-envois/courriels.mjs";
 
+// Adresses des tests : « .test » quand le filtre n'est pas en jeu ; « .internal » (nom réservé par l'ICANN à l'usage privé, jamais
+// délégué : aucune boîte réelle) quand le test exige une adresse que le filtre ne tient PAS pour fictive (elle part).
 test("aucune adresse fictive n'est tentée", () => {
   for (const a of ["a@demo.test", "b@exemple.invalid", "c@x.example", "d@example.com", "e@example.org", "f@example.net", "g@localhost"])
     assert.equal(adresseFictive(a), true, a);
-  assert.equal(adresseFictive("secretariat@ecf-centre.fr"), false);
+  assert.equal(adresseFictive("secretariat@centre-ecsr.internal"), false);
 });
 
 test("une adresse illisible compte comme fictive (jamais tentée)", () => {
@@ -18,7 +20,7 @@ const demande = { id: 7, type: "absence", auteur_nom: "Lina B.", jours: [{ jour:
 
 test("ni motif ni texte libre dans l'e-mail ; les URL sont bâties ici", () => {
   const c = construireCourriel({ evenement: "nouvelle", appUrl: "https://app.test/", demande,
-    destinataire: { email: "x@ecf.fr", nom: "Sophie", avec_compte: false },
+    destinataire: { email: "x@centre-ecsr.test", nom: "Sophie", avec_compte: false },
     jetons: { voir: "J1", prise: "J2", reponses: [{ libelle: "Absence enregistrée", jeton: "J3" }] } });
   assert.match(c.subject, /Absence/); assert.match(c.text, /Lina B\./); assert.match(c.text, /jeudi 19 novembre, matin/);
   assert.doesNotMatch(c.html + c.text, /sante|Santé|rdv/);
@@ -28,7 +30,7 @@ test("ni motif ni texte libre dans l'e-mail ; les URL sont bâties ici", () => {
 
 test("un stagiaire n'a que « Ouvrir dans l'app »", () => {
   const c = construireCourriel({ evenement: "prise", appUrl: "https://app.test/", demande,
-    destinataire: { email: "s@ecf.fr", nom: "Lina", stagiaire: true }, jetons: {} });
+    destinataire: { email: "s@centre-ecsr.test", nom: "Lina", stagiaire: true }, jetons: {} });
   assert.doesNotMatch(c.html + c.text, /demande\.html#j=/);
   assert.match(c.html, /https:\/\/app\.test\/#\/contacts\/7/);
 });
@@ -122,10 +124,10 @@ test("traiterEnvois : adresse fictive ignorée sans jeton ni envoi ; jetons hach
     { envoi_id: 1, evenement: "nouvelle", demande: { id: 7, type: "retard", auteur_nom: "Lina B.", jours: null },
       destinataire: { email: "a@demo.test", nom: "Démo", stagiaire: false }, reponses: [] },
     { envoi_id: 2, evenement: "nouvelle", demande: { id: 7, type: "retard", auteur_nom: "Lina B.", jours: null },
-      destinataire: { email: "sophie@ecf-centre.fr", nom: "Sophie", stagiaire: false, peut_prendre: true },
+      destinataire: { email: "sophie@centre-ecsr.internal", nom: "Sophie", stagiaire: false, peut_prendre: true },
       reponses: [{ id: 11, libelle: "Bien reçu" }] },
     { envoi_id: 3, evenement: "prise", demande: { id: 7, type: "retard", auteur_nom: "Lina B.", jours: null },
-      destinataire: { email: "lina@ecf-centre.fr", nom: "Lina", stagiaire: true }, reponses: [] },
+      destinataire: { email: "lina@centre-ecsr.internal", nom: "Lina", stagiaire: true }, reponses: [] },
   ];
   const base = fausseBase(items);
   const envoyes = [];
@@ -136,7 +138,7 @@ test("traiterEnvois : adresse fictive ignorée sans jeton ni envoi ; jetons hach
     envoyer: async (c) => { envoyes.push(c); return c.to.startsWith("lina") ? { ok: false, raison: "Resend 500" } : { ok: true }; },
   });
   assert.deepEqual(bilan, { traites: 3, envoyes: 1, echecs: 1, ignores: 1, limites: 0 });
-  assert.deepEqual(envoyes.map((c) => c.to), ["sophie@ecf-centre.fr", "lina@ecf-centre.fr"]);
+  assert.deepEqual(envoyes.map((c) => c.to), ["sophie@centre-ecsr.internal", "lina@centre-ecsr.internal"]);
   const noms = base.appels.map(([nom, a]) => `${nom}:${a.p_envoi_id ?? ""}:${a.p_issue ?? ""}`);
   assert.deepEqual(noms, [
     "_contact_srv_prendre::",
@@ -169,18 +171,18 @@ const unItem = (id, email) => ({ envoi_id: id, evenement: "prise", demande: { id
   destinataire: { email, nom: "X", stagiaire: true }, reponses: [] });
 
 test("traiterEnvois : l'attente est appelée entre deux envois (cadence), pas avant le premier", async () => {
-  const base = fausseBase([unItem(1, "a@ecf-centre.fr"), unItem(2, "b@ecf-centre.fr")]);
+  const base = fausseBase([unItem(1, "a@centre-ecsr.internal"), unItem(2, "b@centre-ecsr.internal")]);
   const journal = [];
   await traiterEnvois({
     rpc: base.rpc, appUrl: "https://app.test/", subtle: globalThis.crypto.subtle, aleatoire: (k) => new Uint8Array(k),
     attente: async (ms) => { journal.push(`attente ${ms}`); },
     envoyer: async (c) => { journal.push(`envoi ${c.to}`); return { ok: true }; },
   });
-  assert.deepEqual(journal, ["envoi a@ecf-centre.fr", "attente 600", "envoi b@ecf-centre.fr"]);
+  assert.deepEqual(journal, ["envoi a@centre-ecsr.internal", "attente 600", "envoi b@centre-ecsr.internal"]);
 });
 
 test("traiterEnvois : un 429 est ressayé sur place et ne consomme pas la tentative (aucun résultat echec)", async () => {
-  const base = fausseBase([unItem(1, "a@ecf-centre.fr")]);
+  const base = fausseBase([unItem(1, "a@centre-ecsr.internal")]);
   let n = 0;
   const bilan = await traiterEnvois({
     rpc: base.rpc, appUrl: "https://app.test/", subtle: globalThis.crypto.subtle, aleatoire: (k) => new Uint8Array(k),
@@ -199,7 +201,7 @@ test("envoyerParResend : un 429 est signalé comme limite", async () => {
 });
 
 test("traiterEnvois : un 429 qui persiste après 3 ressais rend « limite » et arrête la boucle ; les envois suivants restent en file, intacts", async () => {
-  const base = fausseBase([unItem(1, "a@ecf-centre.fr"), unItem(2, "b@ecf-centre.fr"), unItem(3, "c@ecf-centre.fr")]);
+  const base = fausseBase([unItem(1, "a@centre-ecsr.internal"), unItem(2, "b@centre-ecsr.internal"), unItem(3, "c@centre-ecsr.internal")]);
   const tentes = [];
   const bilan = await traiterEnvois({
     rpc: base.rpc, appUrl: "https://app.test/", subtle: globalThis.crypto.subtle, aleatoire: (k) => new Uint8Array(k),
@@ -207,7 +209,7 @@ test("traiterEnvois : un 429 qui persiste après 3 ressais rend « limite » et 
     envoyer: async (c) => { tentes.push(c.to); return { ok: false, limite: true, raison: "Resend 429 quota" }; },
   });
   // Le premier envoi : 1 appel et 3 ressais ; les deux suivants ne sont jamais tentés.
-  assert.deepEqual(tentes, ["a@ecf-centre.fr", "a@ecf-centre.fr", "a@ecf-centre.fr", "a@ecf-centre.fr"]);
+  assert.deepEqual(tentes, ["a@centre-ecsr.internal", "a@centre-ecsr.internal", "a@centre-ecsr.internal", "a@centre-ecsr.internal"]);
   assert.deepEqual(bilan, { traites: 1, envoyes: 0, echecs: 0, ignores: 0, limites: 3 });
   const resultats = base.appels.filter(([nom]) => nom === "_contact_srv_resultat").map(([, a]) => `${a.p_envoi_id}:${a.p_issue}`);
   assert.deepEqual(resultats, ["1:limite", "2:limite", "3:limite"], "aucun echec : aucune tentative consommée");
@@ -215,7 +217,7 @@ test("traiterEnvois : un 429 qui persiste après 3 ressais rend « limite » et 
 });
 
 test("traiterEnvois : au-delà de l'échéance (120 s par défaut), la boucle s'arrête avant le prochain envoi et remet le reste en file", async () => {
-  const base = fausseBase([unItem(1, "a@ecf-centre.fr"), unItem(2, "b@ecf-centre.fr"), unItem(3, "c@ecf-centre.fr")]);
+  const base = fausseBase([unItem(1, "a@centre-ecsr.internal"), unItem(2, "b@centre-ecsr.internal"), unItem(3, "c@centre-ecsr.internal")]);
   let horloge = 1_000_000;
   const tentes = [];
   const bilan = await traiterEnvois({
@@ -224,14 +226,14 @@ test("traiterEnvois : au-delà de l'échéance (120 s par défaut), la boucle s'
     // Le premier envoi prend 120 s : l'échéance est atteinte, rien d'autre ne part.
     envoyer: async (c) => { tentes.push(c.to); horloge += 120_000; return { ok: true }; },
   });
-  assert.deepEqual(tentes, ["a@ecf-centre.fr"]);
+  assert.deepEqual(tentes, ["a@centre-ecsr.internal"]);
   assert.deepEqual(bilan, { traites: 1, envoyes: 1, echecs: 0, ignores: 0, limites: 2 });
   const resultats = base.appels.filter(([nom]) => nom === "_contact_srv_resultat").map(([, a]) => `${a.p_envoi_id}:${a.p_issue}:${a.p_raison ?? ""}`);
   assert.deepEqual(resultats, ["1:envoye:", "2:limite:échéance du traitement", "3:limite:échéance du traitement"]);
 });
 
 test("traiterEnvois : l'échéance est injectable et coupe aussi les ressais d'un 429 ; la raison dit l'échéance, pas le 429", async () => {
-  const base = fausseBase([unItem(1, "a@ecf-centre.fr"), unItem(2, "b@ecf-centre.fr")]);
+  const base = fausseBase([unItem(1, "a@centre-ecsr.internal"), unItem(2, "b@centre-ecsr.internal")]);
   let horloge = 0;
   let n = 0;
   const bilan = await traiterEnvois({

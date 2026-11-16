@@ -220,7 +220,7 @@ BUDGET_MESSAGES = {"ordinateur": 1, "telephone": 2}
 PAGE_DEMANDE = "#view .demande-page"
 PHRASE_RIEN_REGLE = "Rien n'est réglé : pour chaque demande, le stagiaire choisit qui prévenir parmi les formateurs de sa promo et la direction du centre."
 PHRASE_LIEN_INVALIDE = "Ce lien n'est plus valable. Ouvrez la demande dans l'app ou demandez un nouvel envoi."
-JETON_VALIDE, JETON_DEJA, JETON_EXPIRE = "V" * 43, "D" * 43, "E" * 43
+JETON_VALIDE, JETON_DEJA, JETON_EXPIRE, JETON_RATE = "V" * 43, "D" * 43, "E" * 43, "R" * 43
 PAGE_LIEN = "_harness_demande.html#j="
 
 
@@ -323,9 +323,14 @@ def destinataire_avec_compte(v):
 @parcours("page-du-lien", "Un lien d'e-mail ouvre la demande, un seul bouton fait le geste", role="stagiaire", budget=1, navigations=NOUVELLE,
           depart=PAGE_LIEN + JETON_VALIDE, ouverture="page")
 def page_du_lien(v):
-    """Jeton valide : la demande et un seul bouton, « C'est fait » après le toucher ; jeton déjà fait : « Déjà fait » ; jeton expiré : la phrase."""
+    """Jeton valide : l'absence (jour, moment, motif, mot) et un seul bouton, « C'est fait » après le toucher ; jeton déjà fait : « Déjà fait » ;
+    jeton expiré : la phrase ; première lecture ratée : « Réessayer », qui montre la demande."""
     racine = "#lien-demande"
-    v.attendre(racine + ' h1.lien-demande-sujet:text-is("Absence jeudi matin")', "la demande")
+    v.attendre(racine + ' h1.lien-demande-sujet:text-is("jeudi 29 octobre, matin")', "l'absence, titrée par son jour et son moment")
+    absence = racine + " dl.lien-demande-absence"
+    v.attendre(absence + ' .contact-ligne:has(dt:text-is("Quand")) dd:text-is("jeudi 29 octobre, matin")', "la ligne « Quand »")
+    v.attendre(absence + ' .contact-ligne:has(dt:text-is("Motif")) dd:text-is("Santé")', "le motif, lisible sans compte")
+    v.attendre(racine + ' p.lien-demande-texte:text-is("Rendez-vous médical jeudi matin.")', "le mot du stagiaire")
     bouton = racine + ' button.lien-demande-bouton'
     v.attendre(bouton + ':text-is("Confirmer : Absence enregistrée")', "le bouton unique du geste")
     v.but("la page du lien est ouverte")
@@ -343,6 +348,18 @@ def page_du_lien(v):
         v.controler_ecran(quoi)
     if PHRASE_LIEN_INVALIDE not in v.texte(racine):
         v.constat("F", BLOQUE, "la phrase du lien expiré n'est pas celle attendue")
+    v.etape("une première lecture ratée (réseau)")
+    v.page.goto("about:blank")
+    v.page.goto(v.base_url + PAGE_LIEN + JETON_RATE, wait_until="load")
+    v.attendre(racine + ' h1:text-is("Demande indisponible")', "« Demande indisponible »")
+    reessayer = racine + ' button:text-is("Réessayer")'
+    v.attendre(reessayer, "le bouton « Réessayer »")
+    if v.page.locator(racine + " button").count() != 1:
+        v.constat("F", BLOQUE, "la page en échec de lecture n'a pas exactement un bouton")
+    v.controler_ecran("une première lecture ratée")
+    v.toucher(reessayer, "« Réessayer »", compte=False)
+    v.attendre(absence + ' .contact-ligne:has(dt:text-is("Motif")) dd:text-is("Santé")', "la demande, relue après « Réessayer »")
+    v.attendre(bouton + ':text-is("Confirmer : Absence enregistrée")', "le bouton unique du geste, après « Réessayer »")
     v.terminer()
 
 

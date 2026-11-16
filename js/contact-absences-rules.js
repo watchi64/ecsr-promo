@@ -5,6 +5,9 @@
 
 import { estVueStagiaire } from "./espaces-rules.js?v=20261116a";
 
+/** Les libellés des motifs d'une absence (suivi dans l'app, page du lien d'e-mail). */
+export const LIBELLES_MOTIF = Object.freeze({ sante: "Santé", transport: "Transport", demarche: "Démarche", famille: "Famille", autre: "Autre" });
+
 const JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
 const DEBUT_APRES_MIDI = "13:30";

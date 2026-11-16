@@ -1,6 +1,8 @@
 // Règles de la page des liens d'e-mail (demande.html) : lire le jeton de l'adresse, dire où en est la page, nommer le geste.
 // Lancer : node tests/lien-demande-rules.test.mjs
 
+import { libelleAbsence, LIBELLES_MOTIF } from "./contact-absences-rules.js?v=20261116a";
+
 const ADRESSE_JETON = /^#j=([A-Za-z0-9_-]{43})$/;
 
 /** Le jeton de l'adresse (#j=, 43 caractères base64url), sinon null. Il reste dans le fragment : il ne part pas dans une requête de page. */
@@ -32,3 +34,29 @@ export function libelleAction(action, libelle_reponse) {
   if (action === "reponse" && libelle_reponse) return libelle_reponse;
   return "Réponse envoyée";
 }
+
+/**
+ * Le titre de la demande montrée par le lien : son sujet ; pour une absence, qui n'a pas de sujet, le jour et le moment
+ * (`moment` rendu par _contact_srv_lien : { du, au, quand, debut, fin }) ; sinon le nom du type (`types` : TYPES_DEMANDE).
+ */
+export function titreDeLaDemande(d, types = {}) {
+  if (d?.sujet) return d.sujet;
+  const quand = d?.moment ? libelleAbsence(d.moment) : "";
+  return quand || types[d?.type] || "Message";
+}
+
+/**
+ * Les lignes d'une absence sur la page du lien ([libellé, valeur]) : « Quand » et « Motif » (mêmes libellés que le suivi dans
+ * l'app). Vide pour une autre demande (sans `moment`). Le mot du stagiaire est le texte de la demande, montré à part.
+ */
+export function lignesAbsence(d) {
+  if (!d?.moment) return [];
+  return [["Quand", libelleAbsence(d.moment)], ["Motif", d.motif ? (LIBELLES_MOTIF[d.motif] ?? d.motif) : ""]].filter(([, v]) => v);
+}
+
+/** La première lecture du lien a échoué (réseau, fonction injoignable) : le titre, la phrase et le bouton qui relance la lecture. */
+export const LECTURE_EN_ECHEC = Object.freeze({
+  titre: "Demande indisponible",
+  phrase: "La connexion a échoué. Vérifiez le réseau, puis touchez « Réessayer ».",
+  bouton: "Réessayer",
+});

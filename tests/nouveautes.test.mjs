@@ -469,8 +469,15 @@ const changerPromo = NOUVEAUTES.find((e) => e.id.endsWith("-changer-de-promo"));
 const DATE5 = direction.date;
 eq(NOUVEAUTES.filter((e) => e.pour === "direction").map((e) => e.id).sort(),
   ["2026-11-10-espace-direction", "2026-11-11-conservation-direction", "2026-11-11-donnees-personnelles-centre",
-    "2026-11-14-messages-direction", "2026-11-14-resultats-jury-direction", "2026-11-16-titres-ecrans-direction"],
-  "six Nouveautés pour la direction : l'espace, les données personnelles, la conservation des fiches de son centre, Messages, le taux d'obtention du titre, puis les titres");
+    "2026-11-14-fiche-de-contact-direction", "2026-11-14-messages-direction", "2026-11-14-resultats-jury-direction",
+    "2026-11-16-titres-ecrans-direction"],
+  "sept Nouveautés pour la direction : l'espace, les données personnelles, la conservation des fiches de son centre, sa fiche de contact, Messages, le taux d'obtention du titre, puis les titres");
+// Espace contact : la direction a sa fiche de contact créée d'office ; sa Nouveauté l'invite à la vérifier, au vouvoiement, même date
+// provisoire que les autres entrées de l'espace contact.
+const ficheDir = NOUVEAUTES.find((e) => e.id === "2026-11-14-fiche-de-contact-direction");
+ok(!!ficheDir && ficheDir.date === NOUVEAUTES.find((e) => e.id === "2026-11-14-messages-direction").date && ficheDir.ou?.route === "preferences"
+  && routeDansLEspace("direction", ficheDir.ou.route) && /Vérifiez/.test(ficheDir.resume) && !/(tu|ton|ta|tes)/i.test(ficheDir.resume),
+  "fiche de contact de la direction : même date que Messages, mène à Mes préférences (permise dans l'espace direction), au vouvoiement");
 // Conservation des fiches ouverte à la direction (11/11) : pour la direction seule, en tête de sa liste, au vouvoiement.
 const consDir = NOUVEAUTES.find((e) => e.id === "2026-11-11-conservation-direction");
 ok(!!consDir && consDir.date === "2026-11-11" && consDir.pour === "direction" && consDir.ou?.route === "config"
