@@ -14,8 +14,14 @@
 --                et pour tout compte qui n'est pas le fondateur.
 --   ajustables   (migration 8) mes_titres en aperçu (M10), titres_ajustables (centre et réseau, D1 de la migration 7), droits des
 --                fonctions nouvelles, journal_present.
+--   catalogue    (migration 9, partie A) les six titres du réseau mot pour mot (spec § 6.2), ce qu'en voit une direction fixe selon le
+--                verrou, un don de Secrétariat et ce qu'il ouvre (stagiaires, aucune évaluation), la garde des noms (rejouée seulement
+--                quand la migration 9 est injectée).
+--   siege_lit    (migration 9, partie B) le siège fixe lit titres_visibles(centre), donnable jugé pour lui ; direction d'un autre centre,
+--                stagiaire, titres non fixes du réseau refusés avec la phrase d'avant ; aucune autre fonction changée (md5 pris avant la
+--                migration 9 quand elle est injectée). Le retour 9 remet titres_visibles d'avant (md5) et le nombre de titres.
 --   retour       les retours défont tout, dans l'ordre inverse (9, 8, 7, 4) : l'empreinte (règles, fonctions, droits) égale celle d'avant.
--- Les groupes des migrations s'ajoutent avec leurs tâches (d1, d4, d5, m4m5, m7, apercu, ajustables, catalogue, journal_suite), chacun
+-- Les groupes des migrations s'ajoutent avec leurs tâches (d1, d4, d5, m4m5, m7, apercu, ajustables, catalogue, siege_lit, journal_suite), chacun
 -- derrière pg_temp.groupe_suite_a_jouer, qui juge la présence de sa migration par un marqueur (7 : l'index titres_version_unique,
 -- « Réservé au siège. » dans _refus_gestion ou la phrase M4 dans donner_titre ;
 -- 8 : la fonction apercu_titre() ; 9 : six titres créés par la migration du catalogue ; 4 : la table journal_droits) :
@@ -795,6 +801,261 @@ begin
     pg_temp.calcul($q$select (to_regclass('public.journal_droits') is not null)::text$q$), v_journal);
 end $tsaj3$;
 
+-- Les six titres du catalogue (migration 9) : l'identifiant d'un titre par son nom, en texte (« null » s'il manque : l'appel échoue
+-- alors, le contrôle sort rouge).
+create or replace function pg_temp.catalogue_id(p_nom text)
+returns text language sql as $tscn$
+  select coalesce(pg_temp.calcul(format($q$select id::text from public.titres where cree_par = 'migration 20261115_titres_9_catalogue'
+    and lieu_id is null and origine_id is null and not fixe and nom = %L$q$, p_nom)), 'null');
+$tscn$;
+
+-- Groupe catalogue (migration 9, partie A) : les six titres du réseau, mot pour mot (spec § 6.2) ; ce qu'en voit une direction fixe ;
+-- un don et ce qu'il ouvre ; la garde des noms ; la garde des versions du retour. L'attendu est écrit ici, indépendamment du fichier de
+-- la migration. p_m9, p_r9 : les textes de la migration 9 et de son retour (le littéral neutre quand ils ne sont pas injectés : la garde
+-- correspondante n'est alors pas rejouée, une information le dit).
+create or replace function pg_temp.groupe_catalogue(p_m9 text, p_r9 text)
+returns void language plpgsql as $tscg$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_l2 integer := (select lieu_id from public.promos where id = 2);
+  e_x text := (select email from pg_temp.perso where nom = 'x');
+  v_secr text := pg_temp.catalogue_id('Secrétariat');
+  v_verrou_avant text := pg_temp.calcul($q$select value from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+  v_quatre constant text := $q$select string_agg(nom || ':' || donnable::text, ',' order by nom collate "C") from public.titres_visibles(%s)
+    where lieu_id is null and not fixe and nom in ('Responsable pédagogique', 'Secrétariat', 'Ressources humaines', 'Intervenant',
+      'Contenus pédagogiques', 'Qualité')$q$;
+  v_nb_stag text; v_nb_eval text;
+  v_etat text; v_apres text; v_nom_l1 text; v_nom_l2 text;
+begin
+  -- 1. Les six titres, mot pour mot : nom, niveau, cases (jsonb comparé en texte normalisé), sans centre, non fixes, origine nulle.
+  perform pg_temp.attendre('catalogue', 'six titres du réseau créés par la migration 9 : noms, niveaux et cases égaux au tableau de la spec § 6.2',
+    pg_temp.calcul($q$select string_agg(concat_ws(' ', nom, niveau, cases::text), ' | ' order by nom collate "C") from public.titres
+      where cree_par = 'migration 20261115_titres_9_catalogue' and lieu_id is null and origine_id is null and not fixe$q$),
+    (select string_agg(concat_ws(' ', c.nom, c.niveau, c.cases::jsonb::text), ' | ' order by c.nom collate "C") from (values
+      ('Responsable pédagogique', 'centre', '{"promos":"modifier","stagiaires":"modifier","emargement":"voir","notes":"voir","equipe":"voir","reglages":"non"}'),
+      ('Secrétariat', 'centre', '{"promos":"voir","stagiaires":"modifier","emargement":"voir","notes":"non","equipe":"voir","reglages":"non"}'),
+      ('Ressources humaines', 'centre', '{"promos":"voir","stagiaires":"non","emargement":"non","notes":"non","equipe":"voir","reglages":"non"}'),
+      ('Intervenant', 'promo', '{"planning":"voir","emargement":"modifier","stagiaires":"voir","notes":"non","cours":"voir","ccp2":"non","indicateurs":"non","reglages":"non"}'),
+      ('Contenus pédagogiques', 'reseau', '{"cours":"modifier","directions":"non","reglages":"non"}'),
+      ('Qualité', 'reseau', '{"cours":"voir","directions":"voir","reglages":"non"}')) c(nom, niveau, cases)));
+  perform pg_temp.attendre('catalogue', 'chaque titre du catalogue a une case pour chaque page de son niveau, aucune autre',
+    pg_temp.calcul($q$select count(*)::text from public.titres t where t.cree_par = 'migration 20261115_titres_9_catalogue'
+      and (select array_agg(p.page order by p.page collate "C") from public._pages_du_niveau(t.niveau) p)
+          = (select array_agg(k order by k collate "C") from jsonb_object_keys(t.cases) k)$q$), '6');
+
+  -- 2. dir_n (direction fixe du centre 1) voit les quatre titres de promo et de centre, pas ceux du réseau ; donnables selon le verrou.
+  perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+  perform pg_temp.attendre('catalogue', 'titres_visibles(centre 1) par dir_n, verrou fermé : Intervenant, Responsable pédagogique, Ressources humaines, Secrétariat, aucun donnable',
+    pg_temp.appeler_t('dir_n', '1', null, null, format(v_quatre, v_l1)),
+    'OK Intervenant:false,Responsable pédagogique:false,Ressources humaines:false,Secrétariat:false');
+  perform pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('titres_ouverts', 'oui', null)$q$);
+  perform pg_temp.attendre('catalogue', 'les mêmes, verrou ouvert (en propriétaire) : les quatre donnables',
+    pg_temp.appeler_t('dir_n', '1', null, null, format(v_quatre, v_l1)),
+    'OK Intervenant:true,Responsable pédagogique:true,Ressources humaines:true,Secrétariat:true');
+
+  -- 3. dir_n donne Secrétariat à x au centre 1 (verrou ouvert) : x lit les stagiaires de la promo 1, aucune évaluation.
+  v_nb_stag := pg_temp.calcul('select count(*)::text from public.stagiaires where promo_id = 1');
+  v_nb_eval := pg_temp.calcul('select count(*)::text from public.evaluations where promo_id = 1');
+  perform pg_temp.verifier('catalogue', 'départ : x libre ; la promo 1 a des stagiaires et des évaluations (jamais un contrôle à vide)',
+    pg_temp.profil_m('x') = 'aucun' and v_nb_stag::integer > 0 and v_nb_eval::integer > 0,
+    concat_ws(' / ', pg_temp.profil_m('x'), v_nb_stag, v_nb_eval));
+  perform pg_temp.attendre('catalogue', 'dir_n donne Secrétariat (titre du réseau) à x au centre 1 : permis',
+    pg_temp.donner_t('dir_n', e_x, v_secr, v_l1::text), 'OK donne');
+  perform pg_temp.attendre('catalogue', 'x (Secrétariat) lit les stagiaires de la promo 1 : toutes les fiches',
+    pg_temp.appeler_t('x', '1', null, null, 'select count(*)::text from public.stagiaires where promo_id = 1'), 'OK ' || v_nb_stag);
+  perform pg_temp.attendre('catalogue', 'x (Secrétariat : Notes et examens Non) ne lit aucune évaluation de la promo 1',
+    pg_temp.appeler_t('x', '1', null, null, 'select count(*)::text from public.evaluations where promo_id = 1'), 'OK 0');
+  perform pg_temp.essai(format('delete from public.affectations where lower(email) = %L', e_x));
+  perform pg_temp.essai(format('delete from public.user_profiles where lower(email) = %L', e_x));
+  perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+  if v_verrou_avant is not null then
+    perform pg_temp.essai(format('insert into public.settings (key, value, promo_id) values (''titres_ouverts'', %L, null)', v_verrou_avant));
+  end if;
+  perform pg_temp.attendre('catalogue', 'ménage : x libre, le verrou titres_ouverts dans son état de départ',
+    pg_temp.profil_m('x') || ' / ' || coalesce(pg_temp.calcul($q$select value from public.settings where promo_id is null and key = 'titres_ouverts'$q$), 'absent'),
+    'aucun / ' || coalesce(v_verrou_avant, 'absent'));
+
+  -- 4. La garde des noms : dans une sous-transaction toujours annulée, le catalogue retiré (comme avant la migration), un titre
+  --    « Secrétariat » au centre 1 et un « secrétariat » au centre 2 posés en propriétaire : la migration 9 s'arrête avec la liste et ne
+  --    crée rien.
+  if p_m9 = 'select 1' then
+    perform pg_temp.informer('groupe catalogue', 'garde des noms non rejouée : la migration 9 n''est pas injectée dans ce mode');
+  else
+    v_nom_l1 := pg_temp.calcul(format('select nom from public.lieux where id = %s', v_l1));
+    v_nom_l2 := pg_temp.calcul(format('select nom from public.lieux where id = %s', v_l2));
+    perform pg_temp.proprio();
+    begin
+      delete from public.titres where cree_par = 'migration 20261115_titres_9_catalogue';
+      insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values ('Secrétariat', 'centre', v_l1, '{}', 'preuve'),
+        ('secrétariat', 'centre', v_l2, '{}', 'preuve');
+      begin
+        execute p_m9;
+        v_etat := 'passe';
+      exception when others then
+        v_etat := 'ERREUR ' || sqlstate || ' ' || sqlerrm;
+      end;
+      v_apres := (select count(*)::text from public.titres where cree_par = 'migration 20261115_titres_9_catalogue');
+      raise exception 'preuve catalogue : essai annulé';
+    exception when others then
+      if v_etat is null then v_etat := 'ERREUR ' || sqlstate || ' ' || sqlerrm; end if;
+    end;
+    perform pg_temp.attendre('catalogue', 'garde : un « Secrétariat » au centre 1 et un « secrétariat » au centre 2 : la migration 9 s''arrête avec la liste (titre, centre)',
+      v_etat, format('ERREUR P0001 titres_9_catalogue : des titres portent déjà un nom du catalogue : « Secrétariat » (%s), « secrétariat » (%s) ; les renommer ou les supprimer d''abord ; rien n''est changé',
+        v_nom_l1, v_nom_l2));
+    perform pg_temp.attendre('catalogue', 'garde : rien de créé par la migration arrêtée', v_apres, '0');
+    perform pg_temp.attendre('catalogue', 'essai annulé : les six titres du catalogue sont là, aucun « Secrétariat » de centre',
+      pg_temp.calcul($q$select (select count(*) from public.titres where cree_par = 'migration 20261115_titres_9_catalogue')::text || '/'
+        || (select count(*) from public.titres where lower(nom) = 'secrétariat' and lieu_id is not null)::text$q$), '6/0');
+  end if;
+
+  -- 5. La garde des versions du retour : dans une sous-transaction toujours annulée, les affectations des titres non fixes retirées (garde
+  --    D5) et une version de Secrétariat posée au centre 1, le retour 9 s'arrête avec la liste ; titres_visibles et le catalogue restent.
+  if p_r9 = 'select 1' then
+    perform pg_temp.informer('groupe catalogue', 'garde des versions du retour non rejouée : le retour 9 n''est pas injecté dans ce mode');
+  else
+    v_etat := null;
+    perform pg_temp.proprio();
+    begin
+      perform pg_temp.retirer_titres_non_fixes();
+      insert into public.titres (nom, niveau, lieu_id, origine_id, cases, cree_par)
+        select t.nom, t.niveau, v_l1, t.id, t.cases, 'preuve' from public.titres t where t.id = v_secr::bigint;
+      begin
+        execute p_r9;
+        v_etat := 'passe';
+      exception when others then
+        v_etat := 'ERREUR ' || sqlstate || ' ' || sqlerrm;
+      end;
+      v_apres := (select count(*)::text from public.titres where cree_par = 'migration 20261115_titres_9_catalogue') || '/'
+        || (select count(*)::text from pg_proc p where p.oid = to_regprocedure('public.titres_visibles(integer)') and p.prosrc like '%siege_fixe()%');
+      raise exception 'preuve catalogue : essai annulé';
+    exception when others then
+      if v_etat is null then v_etat := 'ERREUR ' || sqlstate || ' ' || sqlerrm; end if;
+    end;
+    perform pg_temp.attendre('catalogue', 'retour 9 avec une version de Secrétariat au centre 1 : arrêté avec la liste (titre, centre)',
+      v_etat, format('ERREUR P0001 titres_9_catalogue_retour : des centres ont leur version d''un titre du catalogue : « Secrétariat » (%s) ; les supprimer d''abord ; rien n''est changé',
+        pg_temp.calcul(format('select nom from public.lieux where id = %s', v_l1))));
+    perform pg_temp.attendre('catalogue', 'retour 9 arrêté : catalogue et contrôle d''accès du siège intacts', v_apres, '6/1');
+  end if;
+end $tscg$;
+
+-- La définition (et les droits) de chaque fonction du schéma public, prise juste avant la migration 9 quand elle est injectée, avec le
+-- nombre de titres qui ne sont pas des personnages de preuve (nom « Preuve... ») : groupe siege_lit et contrôle du retour 9.
+drop table if exists pg_temp.avant_9;
+create temp table avant_9 (cle text primary key, valeur text);
+
+create or replace function pg_temp.definitions_public()
+returns table(cle text, valeur text) language sql as $tsdp$
+  select p.oid::regprocedure::text, md5(pg_get_functiondef(p.oid) || ' | ' || coalesce(p.proacl::text, ''))
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prokind in ('f', 'p');
+$tsdp$;
+
+create or replace function pg_temp.titres_hors_preuve()
+returns text language sql as $tsth$
+  select count(*)::text from public.titres where nom not like 'Preuve%';
+$tsth$;
+
+create or replace function pg_temp.prendre_avant_9()
+returns void language plpgsql as $tspa$
+begin
+  perform pg_temp.proprio();
+  delete from pg_temp.avant_9;
+  insert into pg_temp.avant_9 (cle, valeur) select d.cle, d.valeur from pg_temp.definitions_public() d;
+  insert into pg_temp.avant_9 (cle, valeur) values ('#titres', pg_temp.titres_hors_preuve());
+end $tspa$;
+
+-- Groupe siege_lit (migration 9, partie B) : le siège fixe lit les titres d'un centre (titres_visibles), en lecture seule, avec
+-- « donnable » tel que la base le juge pour lui ; tout autre compte garde la réponse d'avant ; aucune autre fonction ne change.
+create or replace function pg_temp.groupe_siege_lit()
+returns void language plpgsql as $tssl$
+declare
+  v_l1 integer := (select lieu_id from public.promos where id = 1);
+  v_l2 integer := (select lieu_id from public.promos where id = 2);
+  t_secr text := pg_temp.titre_du_perso('t_secr');
+  v_c2 text;
+  v_ids constant text := 'select string_agg(id::text, '','' order by id) from public.titres_visibles(%s)';
+  v_dir text; v_siege text; v_fond text; v_don text; v_juge text;
+  v_refus constant text := 'ERREUR 42501 titres: Réservé à l''équipe du centre.';
+  v_verrou_avant text := pg_temp.calcul($q$select value from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+  v_corps text;
+  v_fragment constant text := 'if not coalesce(geste_centre(p_lieu_id, ''equipe.lire''), false) and not coalesce(siege_fixe(), false) then';
+begin
+  -- Départ : un titre propre au centre 2, une direction fixe du centre 2 seulement (posés en propriétaire), le verrou fermé.
+  v_c2 := pg_temp.calcul(format($q$insert into public.titres (nom, niveau, lieu_id, cases, cree_par) values ('Preuve9 siège c2', 'centre', %s, '{"promos":"voir"}', 'preuve') returning id::text$q$, v_l2));
+  insert into pg_temp.perso (ordre, nom, email, role) values (60, 'dir_c2', 'preuve9.dir.c2@exemple.invalid', 'prof') on conflict do nothing;
+  perform pg_temp.essai($q$insert into public.user_profiles (email, role, is_admin, stagiaire_id) values ('preuve9.dir.c2@exemple.invalid', 'prof', false, null)$q$);
+  perform pg_temp.affecter('preuve9.dir.c2@exemple.invalid', 'direction', null, v_l2, null);
+  perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+  perform pg_temp.verifier('siege_lit', 'départ : titre de t_secr (propre au centre 1), titre propre au centre 2, direction fixe du centre 2 posés ; centres 1 et 2 distincts',
+    t_secr ~ '^[0-9]+$' and v_c2 ~ '^[0-9]+$' and v_l1 <> v_l2
+      and pg_temp.calcul(format($q$select count(*)::text from public.affectations a join public.titres t on t.id = a.titre_id
+            where lower(a.email) = 'preuve9.dir.c2@exemple.invalid' and a.role = 'direction' and a.lieu_id = %s and t.fixe$q$, v_l2)) = '1',
+    concat_ws(' / ', t_secr, v_c2, v_l1, v_l2));
+
+  -- Le siège fixe lit les titres du centre 1 : les mêmes lignes que la direction du centre et que le fondateur.
+  v_siege := pg_temp.appeler_t('siege', null, null, null, format(v_ids, v_l1));
+  v_dir := pg_temp.appeler_t('dir_n', '1', null, null, format(v_ids, v_l1));
+  v_fond := pg_temp.appeler_t('fond', null, null, null, format(v_ids, v_l1));
+  perform pg_temp.verifier('siege_lit', 'siege (siège fixe) lit titres_visibles(centre 1) : permis, les mêmes titres que dir_n (direction du centre) et que le fondateur',
+    v_siege ~ '^OK [0-9]' and v_siege = v_dir and v_siege = v_fond, concat_ws(' ; ', v_siege, v_dir, v_fond));
+  perform pg_temp.attendre('siege_lit', 'parmi eux : le titre propre au centre 1 (t_secr), les quatre titres de centre et de promo du catalogue, ni le titre du centre 2 ni ceux du réseau',
+    pg_temp.appeler_t('siege', null, null, null, format($q$select concat_ws('/', count(*) filter (where id = %s and lieu_id = %s),
+        count(*) filter (where nom in ('Responsable pédagogique', 'Secrétariat', 'Ressources humaines', 'Intervenant') and lieu_id is null),
+        count(*) filter (where id = %s), count(*) filter (where niveau = 'reseau')) from public.titres_visibles(%s)$q$, t_secr, v_l1, v_c2, v_l1)),
+    'OK 1/4/0/0');
+  -- « donnable » : ce que _refus_titre dit pour le siège (jugé en propriétaire dans son contexte), titre par titre ; verrou fermé, aucun
+  -- titre non fixe n'est donnable.
+  v_don := pg_temp.appeler_t('siege', null, null, null, format($q$select string_agg(id || ':' || donnable::text, ',' order by id) from public.titres_visibles(%s)$q$, v_l1));
+  v_juge := pg_temp.valeur_proprio((select email from pg_temp.perso where nom = 'siege'), null, null,
+    format($q$select string_agg(t.id || ':' || (select (r.etat is null)::text from public._refus_titre(t.id, %s, null, 'donner') r), ',' order by t.id)
+      from public.titres t where t.id = any (string_to_array(%L, ',')::bigint[])$q$, v_l1, substr(v_siege, 4)));
+  perform pg_temp.attendre('siege_lit', 'donnable pour le siège = ce que la base juge pour lui (_refus_titre, donner), titre par titre', v_don, 'OK ' || v_juge);
+  perform pg_temp.attendre('siege_lit', 'verrou fermé : aucun titre non fixe donnable pour le siège ; la Direction de centre (titre fixe) donnable',
+    pg_temp.appeler_t('siege', null, null, null, format($q$select (count(*) filter (where donnable and not fixe))::text || '/'
+      || coalesce((select donnable::text from public.titres_visibles(%1$s) where fixe and niveau = 'centre'), 'nul') from public.titres_visibles(%1$s)$q$, v_l1)),
+    'OK 0/true');
+  perform pg_temp.attendre('siege_lit', 'le siège ne gagne aucun geste : titres_ajustables(centre 1) lui reste refusée (inchangée)',
+    pg_temp.appeler_t('siege', null, null, null, format('select count(*)::text from public.titres_ajustables(%s)', v_l1)), v_refus);
+
+  -- Les autres comptes : la réponse d'avant.
+  perform pg_temp.attendre('siege_lit', 'une direction fixe du centre 2 lit les titres du centre 1 : refusé, phrase actuelle',
+    pg_temp.appeler_t('dir_c2', null, null, null, format(v_ids, v_l1)), v_refus);
+  perform pg_temp.attendre('siege_lit', 'la même lit ceux de son centre (centre 2) : permis, dont le titre propre au centre 2',
+    pg_temp.appeler_t('dir_c2', null, null, null, format('select count(*) filter (where id = %s)::text from public.titres_visibles(%s)', v_c2, v_l2)), 'OK 1');
+  perform pg_temp.attendre('siege_lit', 'un stagiaire (stag_n) lit les titres du centre 1 : refusé, phrase actuelle',
+    pg_temp.appeler_t('stag_n', '1', null, null, format(v_ids, v_l1)), v_refus);
+  perform pg_temp.attendre('siege_lit', 'un titre non fixe du réseau sans case Directions (t_contenus) lit les titres du centre 1 : refusé, phrase actuelle',
+    pg_temp.appeler_t('t_contenus', null, null, null, format(v_ids, v_l1)), v_refus);
+  perform pg_temp.attendre('siege_lit', 'un titre non fixe du réseau avec Directions : Modifier (t_dirs) : refusé aussi (seul le siège fixe lit un centre)',
+    pg_temp.appeler_t('t_dirs', null, null, null, format(v_ids, v_l1)), v_refus);
+  perform pg_temp.attendre('siege_lit', 'un jeton sans adresse : refusé, connexion requise (inchangé)',
+    pg_temp.appeler_t(null, null, null, null, format(v_ids, v_l1)), 'ERREUR 42501 titres: Connexion requise.');
+
+  -- Le texte : le nouveau contrôle d'accès, une fois ; aucune autre fonction changée par la migration 9 (quand elle est injectée).
+  v_corps := pg_temp.calcul($q$select replace(prosrc, E'\r', '') from pg_proc where oid = to_regprocedure('public.titres_visibles(integer)')$q$);
+  perform pg_temp.attendre('siege_lit', 'titres_visibles : le contrôle d''accès du centre admet le siège fixe, une seule fois',
+    ((length(v_corps) - length(replace(v_corps, v_fragment, ''))) / length(v_fragment))::text, '1');
+  if exists (select 1 from pg_temp.avant_9) then
+    perform pg_temp.attendre('siege_lit', 'aucune autre fonction du schéma public ne change (md5 des définitions et des droits pris avant la migration 9)',
+      (select count(*)::text from pg_temp.avant_9 a full join pg_temp.definitions_public() d on d.cle = a.cle
+        where coalesce(a.cle, d.cle) not in ('#titres', 'titres_visibles(integer)') and a.valeur is distinct from d.valeur), '0');
+    perform pg_temp.verifier('siege_lit', 'titres_visibles a changé (md5 de la définition)',
+      (select a.valeur from pg_temp.avant_9 a where a.cle = 'titres_visibles(integer)')
+        is distinct from (select d.valeur from pg_temp.definitions_public() d where d.cle = 'titres_visibles(integer)'));
+  else
+    perform pg_temp.informer('groupe siege_lit', 'fonctions inchangées non jugeables : la migration 9 n''est pas injectée dans ce mode');
+  end if;
+
+  -- Ménage : la direction du centre 2 et son titre partent ; le verrou retrouve son état de départ.
+  perform pg_temp.essai($q$delete from public.affectations where lower(email) = 'preuve9.dir.c2@exemple.invalid'$q$);
+  perform pg_temp.essai($q$delete from public.user_profiles where lower(email) = 'preuve9.dir.c2@exemple.invalid'$q$);
+  perform pg_temp.essai(format('delete from public.titres where id = %s', v_c2));
+  perform pg_temp.essai($q$delete from public.settings where promo_id is null and key = 'titres_ouverts'$q$);
+  if v_verrou_avant is not null then
+    perform pg_temp.essai(format('insert into public.settings (key, value, promo_id) values (''titres_ouverts'', %L, null)', v_verrou_avant));
+  end if;
+end $tssl$;
+
 do $tsprg$
 declare
   v_mode constant text :=
@@ -887,8 +1148,12 @@ begin
     '4/1/1/2/0/2');
 
   -- 3. Les migrations, dans l'ordre d'application (neutralisées dans les modes sans elles) : 7, 8, puis 4 juste avant 9. Après chacune,
-  --    aucune règle réécrite : le md5 de pg_policies est celui d'avant elle.
+  --    aucune règle réécrite : le md5 de pg_policies est celui d'avant elle. Juste avant la 9 injectée : les définitions des fonctions et
+  --    le nombre de titres (groupe siege_lit, contrôle du retour 9).
   for i in 1 .. 4 loop
+    if v_etapes[i] = 9 and v_textes[i] <> 'select 1' then
+      perform pg_temp.prendre_avant_9();
+    end if;
     v_md5 := pg_temp.regles_md5();
     v_etat := pg_temp.jouer('migration ' || v_etapes[i], v_textes[i]);
     perform pg_temp.etape('migration ' || v_etapes[i], v_etat, v_mode);
@@ -918,6 +1183,12 @@ begin
   if pg_temp.groupe_suite_a_jouer('ajustables', 8, v_mode) then
     perform pg_temp.groupe_ajustables();
   end if;
+  if pg_temp.groupe_suite_a_jouer('catalogue', 9, v_mode) then
+    perform pg_temp.groupe_catalogue(v_m9, v_r9);
+  end if;
+  if pg_temp.groupe_suite_a_jouer('siege_lit', 9, v_mode) then
+    perform pg_temp.groupe_siege_lit();
+  end if;
   -- d5 : le retour 7, joué dans une sous-transaction toujours annulée, refuse tant qu'un titre non fixe est porté (u porte R). Il demande
   -- le texte du retour : jugé seulement quand le retour 7 est injecté (suite --etapes 7, 7,8, 7,8,9) ; sinon une information.
   if pg_temp.groupe_suite_a_jouer('d5', 7, v_mode) then
@@ -940,6 +1211,14 @@ begin
               'public.apercu_titre()', 'public.titres_ajustables(integer)']);
     end if;
   end if;
+  -- Le même pour le retour 9 (garde D5 en tête), quand il est injecté.
+  if pg_temp.groupe_suite_a_jouer('d5', 9, v_mode) then
+    if v_r9 = 'select 1' then
+      perform pg_temp.informer('groupe d5', 'sauté : le retour 9 n''est pas injecté dans ce mode');
+    else
+      perform pg_temp.groupe_d5('retour 9', v_r9, 'titres_9_catalogue_retour', array['public.titres_visibles(integer)']);
+    end if;
+  end if;
 
   -- 5. Les retours, dans l'ordre inverse (9, 8, 7, 4). Avant eux, dans les seuls modes qui injectent des retours, les affectations des
   --    titres non fixes partent (en propriétaire) : chaque retour de 6, 7, 8 et 9 refuse de se jouer tant qu'une personne porte un titre
@@ -951,7 +1230,18 @@ begin
   v_retours := array[v_r9, v_r8, v_r7, v_r4];
   for i in 1 .. 4 loop
     v_n := (array[9, 8, 7, 4])[i];
-    perform pg_temp.etape('retour ' || v_n, pg_temp.jouer('retour ' || v_n, v_retours[i]), v_mode);
+    v_etat := pg_temp.jouer('retour ' || v_n, v_retours[i]);
+    perform pg_temp.etape('retour ' || v_n, v_etat, v_mode);
+    -- Juste après le retour 9 : titres_visibles a la définition d'avant la migration 9 (md5), aucun titre du catalogue ne reste, et le
+    -- nombre de titres (hors personnages « Preuve... ») est celui d'avant.
+    if v_n = 9 and v_etat = 'jouée' and exists (select 1 from pg_temp.avant_9) then
+      perform pg_temp.attendre('retour', 'après le retour 9 : titres_visibles a la définition d''avant la migration 9 (md5, droits compris)',
+        (select d.valeur from pg_temp.definitions_public() d where d.cle = 'titres_visibles(integer)'),
+        (select a.valeur from pg_temp.avant_9 a where a.cle = 'titres_visibles(integer)'));
+      perform pg_temp.attendre('retour', 'après le retour 9 : aucun titre du catalogue ; nombre de titres (hors personnages) égal à celui d''avant la migration 9',
+        pg_temp.calcul($q$select count(*)::text from public.titres where cree_par = 'migration 20261115_titres_9_catalogue'$q$) || ' / ' || pg_temp.titres_hors_preuve(),
+        '0 / ' || (select a.valeur from pg_temp.avant_9 a where a.cle = '#titres'));
+    end if;
   end loop;
   select e.regles, e.fonctions, e.droits into v_ap_regles, v_ap_fonctions, v_ap_droits from pg_temp.empreinte() e;
   select count(*) into v_jouees from unnest(v_etats) x where x = 'jouée';

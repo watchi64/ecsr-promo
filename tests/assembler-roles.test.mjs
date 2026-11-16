@@ -1433,9 +1433,9 @@ test("la migration 7 (partie C, M4, M5, M7) : fiche et is_admin au seul Formateu
   for (const p of [m4, reseau, centre]) assert.ok(!tableau(r, "nouveau").some((x) => x.includes(p)), `le retour ne pose pas ${p}`);
 });
 
-test("garde D5 : les retours 6, 7 et 8 commencent, juste après le lock_timeout, par le compte des titres non fixes portés et la phrase D5", () => {
+test("garde D5 : les retours 6, 7, 8 et 9 commencent, juste après le lock_timeout, par le compte des titres non fixes portés et la phrase D5", () => {
   for (const [chemin, prefixe] of [[ETAPES_GESTION[6].retour, "titres_6_gestion_retour"], [S[7].retour, "titres_7_correctifs_retour"],
-    [S[8].retour, "titres_8_apercu_retour"]]) {
+    [S[8].retour, "titres_8_apercu_retour"], [S[9].retour, "titres_9_catalogue_retour"]]) {
     const t = texteDuDepot(chemin);
     const code = t.split("\n").filter((l) => l.trim() !== "" && !l.trimStart().startsWith("--"));
     assert.equal(code[0], "set local lock_timeout = '3s';", `${chemin} : lock_timeout d'abord`);
@@ -1457,6 +1457,8 @@ test("garde D5 : les retours 6, 7 et 8 commencent, juste après le lock_timeout,
   assert.ok(suite.indexOf("pg_temp.groupe_d5('retour 7'") < suite.lastIndexOf("pg_temp.retirer_titres_non_fixes()"), "suite : d5 avant le retrait");
   assert.ok(suite.indexOf("pg_temp.groupe_d5('retour 8', v_r8, 'titres_8_apercu_retour'") > 0);
   assert.ok(suite.indexOf("pg_temp.groupe_d5('retour 8'") < suite.lastIndexOf("pg_temp.retirer_titres_non_fixes()"), "suite : d5 du retour 8 avant le retrait");
+  assert.ok(suite.indexOf("pg_temp.groupe_d5('retour 9', v_r9, 'titres_9_catalogue_retour'") > 0);
+  assert.ok(suite.indexOf("pg_temp.groupe_d5('retour 9'") < suite.lastIndexOf("pg_temp.retirer_titres_non_fixes()"), "suite : d5 du retour 9 avant le retrait");
   const gestion = texteDuDepot(GABARIT_GESTION);
   assert.ok(gestion.indexOf("pg_temp.groupe_d5('retour 6', v_r6, 'titres_6_gestion_retour'") > 0);
   assert.ok(gestion.indexOf("pg_temp.groupe_d5('retour 6'") < gestion.indexOf("pg_temp.retirer_titres_non_fixes()"), "gestion : d5 avant le retrait");
