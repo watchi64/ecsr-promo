@@ -2,9 +2,9 @@
 -- du 18/11). Jouée sur une base où l'état de la production d'avant contact est rejoué (outils/base_locale : reconstruire.sh, puis
 -- rejouer_suite.sh --production) ; les migrations 1, 1b, 2, 3, _demo, 4 et 5 injectées dans l'ordre, puis leurs retours (5, 4, _demo, 3,
 -- 2, 1b, 1).
---   structure    prérequis de l'état de départ, personnages, chaque migration et chaque retour injectés se jouent sans erreur ; la garde
---                de la migration 5 refuse tant qu'une absence porte le motif « sante » (rien n'est changé).
---   motifs       (1) la contrainte absences_annoncees_motif porte transport, demarche, famille, personnel, autre ; prevenir_absence refuse
+--   structure    prérequis de l'état de départ, personnages, chaque migration et chaque retour injectés se jouent sans erreur.
+--   motifs       (1) une absence « sante » annoncée avant la migration 5 (contrainte de la 3) est passée à « personnel » par elle
+--                (ruling R-5Cc) ; la contrainte absences_annoncees_motif porte transport, demarche, famille, personnel, autre ; prevenir_absence refuse
 --                « sante » (et tout code inconnu) avec la nouvelle phrase, accepte « personnel », que l'équipe lit ; « sante » écrit
 --                directement est refusé par la contrainte.
 --   lien         (2) _contact_srv_lien, pour une absence (lien « Voir la demande » et lien « Justificatif reçu ») : ni motif, ni mot, ni
@@ -184,6 +184,17 @@ declare
   v_id text;
 begin
   perform pg_temp.horloge('2026-11-18 18:00');
+  -- La conversion (R-5Cc) : l'absence « sante » de stag_a, annoncée avant la migration 5 (posée hors du mode en ligne), est passée à
+  -- « personnel ». Elle est retirée aussitôt (les contrôles suivants partent d'une promo sans absence).
+  if coalesce(current_setting('preuve.absence_sante', true), '') = '' then
+    perform pg_temp.informer('motifs', 'conversion des absences « sante » : non jugeable (mode en ligne, migration déjà appliquée)');
+  else
+    perform pg_temp.attendre('motifs', 'une absence « sante » annoncée avant la migration 5 (contrainte de la 3) est passée à « personnel » par elle',
+      pg_temp.calcul(format('select coalesce((select motif from public.absences_annoncees where demande_id = %s), ''aucune absence'')',
+        current_setting('preuve.absence_sante', true))),
+      'personnel');
+    perform pg_temp.essai('delete from public.demandes where id = ' || current_setting('preuve.absence_sante', true));
+  end if;
   perform pg_temp.attendre('motifs', 'la contrainte absences_annoncees_motif : transport, demarche, famille, personnel, autre (dans cet ordre), sans sante',
     pg_temp.contrainte_motif(),
     'CHECK ((motif = ANY (ARRAY[''transport''::text, ''demarche''::text, ''famille''::text, ''personnel''::text, ''autre''::text])))');
@@ -373,16 +384,14 @@ begin
   v_m5 :=
 -- @@INJECTER supabase/migrations/20261118_contact_5_donnees_sensibles.sql@@
   ;
-  -- La garde de la migration 5 : une absence « sante » (encore acceptée avant elle) l'arrête sans rien changer.
-  if v_m5 <> 'select 1' and not v_en_ligne then
+  -- Une absence « sante » annoncée avant la migration 5 (la contrainte de la 3 l'accepte) : la 5 doit la passer à « personnel »
+  -- (ruling R-5Cc ; contrôle au groupe motifs). Hors du mode en ligne (la migration y est déjà appliquée).
+  perform set_config('preuve.absence_sante', '', true);
+  if not v_en_ligne then
     perform pg_temp.horloge('2026-11-18 18:00');
     v_id := pg_temp.id_rendu(pg_temp.prevenir('stag_a', '2026-11-19', 'sante', null, format('array[%s]::bigint[]', pg_temp.fiche('dir_n'))));
-    v_refus := pg_temp.essayer_et_annuler(v_m5);
-    perform pg_temp.verifier('structure', 'migration 5 tant qu''une absence porte « sante » : refusée par sa garde, qui dit quoi faire ; rien n''est changé',
-      v_id <> 'null' and v_refus like 'refusée P0001 contact\_5 : 1 absence(s) portent encore le motif « sante » : décider avec Timy%'
-        and pg_temp.contrainte_motif() = v_contrainte_avant5 and pg_temp.md5_trois() = v_md5_avant5,
-      concat_ws(' / ', v_id, v_refus));
-    perform pg_temp.essai('delete from public.demandes where auteur_stagiaire_id = ' || pg_temp.stag('stag_a'));
+    perform pg_temp.verifier('structure', 'mise en place : une absence « sante » de stag_a, annoncée avant la migration 5', v_id <> 'null', v_id);
+    perform set_config('preuve.absence_sante', case when v_id = 'null' then '' else v_id end, true);
     perform set_config('preuve.maintenant', '', true);
   end if;
   v_etat5 := pg_temp.jouer('migration 5', v_m5);

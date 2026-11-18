@@ -31,14 +31,15 @@ Les trois points ouverts le 16/11 sont tranchés (« Oui, toutes », relais de l
    Qualiopi : la présence et le justificatif suffisent.
 2. **Article 9 du RGPD : la question ne se pose plus.** « Santé » est retiré de la liste des motifs, remplacé par « Raison
    personnelle » : transport, démarche, famille, raison personnelle, autre (contrainte `absences_annoncees_motif` et
-   `prevenir_absence`, migration 5). Le stagiaire n'a plus à dire qu'il est malade ; le formulaire lui demande, sous « Un
+   `prevenir_absence`, migration 5) ; les absences déjà annoncées au motif « santé » passent à « Raison personnelle » par la
+   migration elle-même (ruling R-5Cc). Le stagiaire n'a plus à dire qu'il est malade ; le formulaire lui demande, sous « Un
    mot », de n'y mettre aucune information sur sa santé. **Le lien « Voir la demande »** de l'e-mail à l'équipe ne montre plus,
    pour une absence, ni le motif, ni le mot, ni les échanges : la page sans connexion n'en donne que le jour et le moment, et
    renvoie à l'application (`_contact_srv_lien`, migration 5). Conséquence acceptée par Timy : une fiche de l'équipe sans compte
    ne lit jamais le motif. Les trois choix ensemble suppriment la donnée sensible au lieu de la justifier : aucune base de
    l'article 9 n'est à citer, et l'AIPD déjà prévue le note.
-3. **Lecture directe des tables par l'éditeur** : l'engagement de non-lecture est écrit (une phrase au § 4, tenue dans la
-   version regroupée par la coordination).
+3. **Lecture directe des tables par l'éditeur** : l'engagement de non-lecture est écrit dans la version regroupée (§ 4),
+   tenue par la coordination.
 
 **À signaler à la coordination (ruling R-5Ca).** La décision vise l'absence : pour une demande d'un autre type (question
 administrative, document, retard...), la page sans connexion garde son texte et ses échanges, pour qu'une personne de l'équipe

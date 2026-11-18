@@ -1,6 +1,6 @@
-// « Prévenir d'une absence » (espace contact, tâche 15) : #/absence. Le stagiaire dit quel jour, quand et pourquoi (un motif d'une liste
-// sans « santé », aucune précision médicale ; le mot ne doit en porter aucune), voit qui sera prévenu (encadré « Sera envoyé à » : le centre a réglé qui reçoit, ou le stagiaire coche au moins une
-// personne), puis suit sa demande. Règles pures : js/contact-absences-rules.js et js/contact-rules.js ; la base juge tout et ses refus se
+// « Prévenir d'une absence » (espace contact, tâche 15) : #/absence. Le stagiaire dit quel jour, quand et pourquoi (un motif
+// d'une liste sans « santé », aucune précision médicale ; le mot ne doit en porter aucune), voit qui sera prévenu (encadré
+// « Sera envoyé à » : le centre a réglé qui reçoit, ou le stagiaire coche au moins une personne), puis suit sa demande. Règles pures : js/contact-absences-rules.js et js/contact-rules.js ; la base juge tout et ses refus se
 // disent par leur phrase. Réservé aux stagiaires (espace du compte, vueStagiaire), tutoiement. Aucun défilement de côté.
 
 import { apercuAbsence, prevenirAbsence } from "../db.js?v=20261116a";

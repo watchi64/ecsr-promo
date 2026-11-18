@@ -2,8 +2,10 @@
 -- _demo et 4 (appliquées en production, gelées). Spec : docs/superpowers/specs/2026-11-09-espace-contact-design.md (§ 9, amendement du
 -- 18/11) ; textes : docs/superpowers/plans/2026-11-14-espace-contact-textes-donnees.md.
 --   1. « Santé » quitte la liste des motifs d'une absence, remplacé par « Raison personnelle » : transport, demarche, famille, personnel,
---      autre (dans cet ordre). La contrainte absences_annoncees_motif est refaite avec ces cinq codes ; prevenir_absence() (texte de la
---      migration 4) les accepte et dit « Choisis un motif : transport, démarche, famille, raison personnelle ou autre. »
+--      autre (dans cet ordre). La contrainte absences_annoncees_motif est refaite avec ces cinq codes ; entre l'ancienne et la nouvelle,
+--      les absences déjà annoncées au motif « sante » passent à « personnel » (ruling R-5Cc ; leur nombre est annoncé par un avis
+--      « contact_5 : N absence(s) ... ») ; prevenir_absence() (texte de la migration 4) accepte les cinq codes et dit « Choisis un
+--      motif : transport, démarche, famille, raison personnelle ou autre. »
 --   2. La page du lien d'e-mail (sans connexion) : _contact_srv_lien() (texte de la migration 3) ne rend plus, pour une demande de type
 --      absence, ni le motif, ni le mot, ni le texte, ni les messages ; les jours, le moment, l'état, l'auteur et ce qu'il faut pour agir
 --      (action, réponse toute faite, déjà fait) restent. Le détail se lit dans l'app, après connexion : une fiche de l'équipe sans compte
@@ -14,18 +16,19 @@
 -- Trois fonctions redéfinies par create or replace, signatures et colonnes de sortie inchangées, droits gardés ; chacune part du texte de son
 -- dernier fichier de définition (migration 3 ou 4), seules les lignes du changement diffèrent. Aucune fonction, table ni règle nouvelle.
 -- Garde : les migrations 1, 2, 3, _demo et 4 sont appliquées, la 5 ne l'est pas (contrainte des motifs au texte de la migration 3), les
--- trois fonctions existent avec leur signature, aucune absence ne porte le motif « sante » ; sinon rien ne change. La table des absences est
--- verrouillée en écriture dès la garde : aucune absence « sante » ne peut arriver entre le contrôle et la nouvelle contrainte.
+-- trois fonctions existent avec leur signature ; sinon rien ne change. La table des absences est verrouillée en écriture dès la garde :
+-- aucune absence « sante » ne peut arriver entre la conversion et la nouvelle contrainte.
 -- MISE EN LIGNE : appliquer cette migration AVANT de déployer la fonction serveur contact-envois (sans elle, le lien « Voir la demande »
 -- d'une absence ouvrirait le motif et le mot sans connexion) et AVANT la recette de l'espace contact.
 -- Marche arrière : 20261118_contact_5_donnees_sensibles_retour.sql. Ordre des retours : 5, 4, _demo, 3, 2, 1b, 1. Le retour 4 est gelé et
 -- ne vérifie pas la 5 : jouer le retour 5 d'abord (sinon prevenir_absence reprendrait la liste avec « sante », que la contrainte refuse).
+-- La conversion « sante » vers « personnel » n'est pas réversible automatiquement (une absence « personnel » ne dit pas si elle était
+-- « sante ») : le retour 5 refuse tant qu'une absence porte « personnel » (voir son en-tête).
 set local lock_timeout = '3s';
 
 do $garde$
 declare
   v_sig text;
-  n integer;
 begin
   if to_regclass('public.absences_annoncees') is null
      or to_regprocedure('public.prevenir_absence(date, date, text, text, text, text, text, text[], bigint[])') is null then
@@ -58,14 +61,19 @@ begin
     end if;
   end loop;
   lock table public.absences_annoncees in exclusive mode;
-  select count(*) into n from public.absences_annoncees where motif = 'sante';
-  if n > 0 then
-    raise exception 'contact_5 : % absence(s) portent encore le motif « sante » : décider avec Timy de leur nouveau motif (par exemple update public.absences_annoncees set motif = ''personnel'' where motif = ''sante'', dans la même transaction, avant cette migration), puis la rejouer ; rien n''est changé', n;
-  end if;
 end $garde$;
 
--- 1. Les motifs : « santé » retiré, « raison personnelle » (personnel) ajouté, avant « autre ».
+-- 1. Les motifs : « santé » retiré, « raison personnelle » (personnel) ajouté, avant « autre ». L'ancienne contrainte part d'abord ; les
+--    absences déjà annoncées au motif « sante » passent à « personnel » (ruling R-5Cc), leur nombre annoncé ; puis la nouvelle contrainte.
 alter table public.absences_annoncees drop constraint absences_annoncees_motif;
+do $conversion$
+declare
+  n integer;
+begin
+  update public.absences_annoncees set motif = 'personnel' where motif = 'sante';
+  get diagnostics n = row_count;
+  raise notice 'contact_5 : % absence(s) au motif « sante » passée(s) à « personnel »', n;
+end $conversion$;
 alter table public.absences_annoncees add constraint absences_annoncees_motif
   check (motif in ('transport', 'demarche', 'famille', 'personnel', 'autre'));
 

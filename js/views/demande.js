@@ -45,11 +45,11 @@ export function ligneDemande(l, route) {
 const boiteErreur = (phrase, reessayer) => el("div", { class: "contact-erreur", role: "alert" },
   el("p", {}, phrase), el("button", { class: "btn small", type: "button", onClick: reessayer }, "Réessayer"));
 
-// La section « Absence » du suivi : le jour et le moment, le motif, l'état du justificatif. Le stagiaire qui doit le remettre a
+// La section « Absence » du suivi : le jour et le moment, le motif (s'il n'a pas été effacé), l'état du justificatif. Le stagiaire qui doit le remettre a
 // « Envoyer mon justificatif » (un courriel au premier destinataire joignable, sinon la phrase de remise au centre) ; l'équipe règle
 // son état (« Justificatif à remettre », « Justificatif reçu »). Les gestes viennent de `peut.justificatif` (la base).
 function sectionAbsence(absence, detail, peut, d, id, relire, echouer) {
-  const lignes = [["Quand", libelleAbsence({ ...absence })], ["Motif", LIBELLES_MOTIF[absence.motif] ?? absence.motif],
+  const lignes = [["Quand", libelleAbsence({ ...absence })], absence.motif ? ["Motif", LIBELLES_MOTIF[absence.motif] ?? absence.motif] : null,
     absence.justificatif ? ["Justificatif", LIBELLES_JUSTIFICATIF[absence.justificatif] ?? absence.justificatif] : null].filter(Boolean);
   const gestes = [];
   let phrase = null;

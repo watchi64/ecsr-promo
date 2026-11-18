@@ -2,9 +2,11 @@
 -- ORDRE : ce retour se joue le PREMIER, puis 4, _demo, 3, 2, 1b, 1. Le retour 4 est gelé et ne vérifie pas la 5 : la garde est ici. Si le
 -- retour 4 a été joué alors que la 5 était là, ce retour refuse (_contact_quota_equipe manque) : rejouer alors la migration 4 (sa garde
 -- l'accepte), puis ce retour, puis le retour 4.
--- Les données gardées : un motif effacé à l'étape 1 entre-temps n'est pas rétabli (le nul est valable pour les deux textes). Une absence
--- annoncée avec le motif « personnel » bloque ce retour (la contrainte d'origine la refuserait) : son nouveau motif se décide avec Timy
--- (par exemple update public.absences_annoncees set motif = 'autre' where motif = 'personnel', dans la même transaction, avant ce retour).
+-- Les données gardées : un motif effacé à l'étape 1 entre-temps n'est pas rétabli (le nul est valable pour les deux textes). La conversion
+-- « sante » vers « personnel » faite par la migration 5 N'EST PAS RÉVERSIBLE AUTOMATIQUEMENT : une absence « personnel » ne dit pas si elle
+-- était « sante » avant la 5 ou si elle a été annoncée ainsi après. Une absence au motif « personnel » bloque donc ce retour (la
+-- contrainte d'origine la refuserait) : son motif se décide avec Timy (par exemple update public.absences_annoncees set motif = 'autre'
+-- where motif = 'personnel', dans la même transaction, avant ce retour).
 -- Ce retour : garde (la migration 5 est appliquée, la 4 aussi, aucune absence « personnel ») ; la contrainte des motifs remise au texte de
 -- la migration 3 ; les trois fonctions remises au texte de leur dernier fichier de définition (blocs copiés tels quels de la migration 4
 -- ou 3) ; contrôle de fin.

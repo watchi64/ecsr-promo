@@ -29,7 +29,8 @@ dans son terminal ou dans les secrets de la fonction) ; équipe vouvoyée ; un s
 - **Mise à jour du 18/11** [progress, 16/11 et 18/11 ; task-5C-report] : `_demo` (registre `20261115090003`) et la 4
   (`20261116090000`) ont été appliquées en production le 16/11. Timy a décidé le 18/11 (« Oui, toutes ») trois retouches de
   protection des données : **migration 5** `20261118_contact_5_donnees_sensibles` (« santé » retiré des motifs, remplacé par
-  « raison personnelle » ; page du lien sans motif, ni mot, ni messages pour une absence ; motif effacé à l'étape 1 avec le mot).
+  « raison personnelle », les absences `sante` déjà annoncées converties en `personnel` par la migration elle-même, R-5Cc ; page
+  du lien sans motif, ni mot, ni messages pour une absence ; motif effacé à l'étape 1 avec le mot).
   Elle reste à appliquer, **avant le déploiement de `contact-envois` et avant la recette** (étape 4bis). La 1b reste pour
   l'étape 8. Le guide de l'assistant (`aide.mjs`) a encore changé (motifs, page du lien) : à redéployer avec la fusion.
 
@@ -49,8 +50,8 @@ dans son terminal ou dans les secrets de la fonction) ; équipe vouvoyée ; un s
 | `20261115_contact_demo_retour.sql` | `e16237b51ea2bbcd61d5e1a614761164` |
 | `20261116_contact_4_correctifs.sql` | `2ace4b9feef2dad486b8c9e3873c09f3` |
 | `20261116_contact_4_correctifs_retour.sql` | `30c4a99cc4b93493af3a399186d1a04d` |
-| `20261118_contact_5_donnees_sensibles.sql` | `0add748206cc114d54eea8a0823404e7` [task-5C-report] |
-| `20261118_contact_5_donnees_sensibles_retour.sql` | `3f17fa83d0059f86786473d7741bdbd6` [task-5C-report] |
+| `20261118_contact_5_donnees_sensibles.sql` | `8c79021b8d601d85d2e1c9bdfa0c238e` [task-5C-report, tour de correction 1 ; avant : `0add7482…`] |
+| `20261118_contact_5_donnees_sensibles_retour.sql` | `9dcc3acffba1e59dfdb8cbc3e448a445` [task-5C-report, tour de correction 1 ; avant : `3f17fa83…`] |
 
 Les valeurs des migrations 1, 1b, 2, 3 et `_demo` sont celles de `task-19a-report` (« inchangés ») ; celles de la migration 4
 et de son retour sont celles de la vague de correction de la relecture finale [final-fix-report] (les anciennes : section G.1).
@@ -130,8 +131,12 @@ arrêterait). Ils servent à la répétition locale seulement ; en production on
 | titres, gestion, suite, espaces, données, profils | 375, 335, 155, 240, 59, 32 /0 | idem | idem |
 | émargement, conservation, autonomie, truncate, jury | 71, 227, 146, 7, 53 /0 | idem | idem |
 
-- Injectées (base d'avant contact) : `contact-5` VERT 44/0, `contact-5-contre-epreuve` ROUGE 29/10 (chaque groupe de la 5
-  rouge), mutation (les trois changements de fonction retirés) ROUGE 35/9 ; `contact-1` à `-4` inchangés (139, 174, 107, 65).
+- Injectées (base d'avant contact) : `contact-5` VERT 45/0, `contact-5-contre-epreuve` ROUGE 30/11 (chaque groupe de la 5
+  rouge), mutations : conversion retirée ROUGE 30/15 (la nouvelle contrainte refuse l'absence `sante` : la 5 ne passe pas),
+  trois changements de fonction retirés ROUGE 36/9 ; `contact-1` à `-4` inchangés (139, 174, 107, 65).
+- Conversion en ligne (tour de correction 1) : une absence `sante` posée avant la 5 sur la base 1, 2, 3, demo, 4 ; la 5 l'annonce
+  (`contact_5 : 1 absence(s) au motif « sante » passée(s) à « personnel »`) et la passe à `personnel` ; retirée ensuite (le
+  retour 5 l'aurait refusée).
 - Empreintes : avec 1, 2, 3, demo, 4 et 5 : `0e0c3e82… | 221cbb4c… | 60ae98f2…`, 252 fonctions (règles et droits inchangés :
   la 5 ne touche ni règle ni droit) ; après le retour 5 : celle d'avant la 5 (`394f38d3…`) ; après tous les retours : celle
   d'avant contact.
@@ -254,12 +259,12 @@ Pour chaque migration, dans l'ordre :
 « Voir la demande » d'une absence ouvrirait, sans connexion, le motif, le mot et les échanges [en-tête de la migration 5 ;
 décision de Timy du 18/11].
 
-1. `md5sum supabase/migrations/20261118_contact_5_donnees_sensibles.sql`, comparé à la section B (`0add7482…`).
+1. `md5sum supabase/migrations/20261118_contact_5_donnees_sensibles.sql`, comparé à la section B (`8c79021b…`).
 2. Essai à blanc (transaction annulée, comme l'étape 3) : `contact-5-en-ligne` avant application doit sortir VERT 4/0 (groupes
-   sautés) ; contrôle de la garde : `select count(*) from public.absences_annoncees where motif = 'sante'` doit valoir **0**.
-   S'il vaut plus : la garde refusera (« décider avec Timy de leur nouveau motif ») ; Timy choisit, et la coordination joue
-   dans la MÊME transaction, avant la migration, par exemple
-   `update public.absences_annoncees set motif = 'personnel' where motif = 'sante';`.
+   sautés). Relever `select count(*) from public.absences_annoncees where motif = 'sante'` : **la migration convertit elle-même**
+   ces absences en `personnel` (ruling R-5Cc), entre le retrait de l'ancienne contrainte et la pose de la nouvelle, et l'annonce
+   par un avis `contact_5 : N absence(s) au motif « sante » passée(s) à « personnel »` ; le nombre de l'avis doit égaler ce
+   relevé. Cette conversion n'est pas réversible automatiquement (section K, retour 5).
 3. Application : `bash outils/psql_prod.sh -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261118_contact_5_donnees_sensibles.sql`,
    avec sa ligne de registre dans la même transaction (comme l'étape 4 ; version au choix de la coordination, après
    `20261116090000`). `set local lock_timeout = '3s'` est en tête ; la table des absences est verrouillée en écriture le temps de
@@ -267,11 +272,13 @@ décision de Timy du 18/11].
 4. Preuves en ligne : `contact-5-en-ligne`, puis `contact-3-en-ligne`, `contact-4-en-ligne`, `contact-2-en-ligne`,
    `contact-1-en-ligne` et rôles `en-ligne` (les gabarits du commit de la 5 : section C).
 - Accord : Timy.
-- Attendu : code 0 ; `contact-5-en-ligne` **VERT 17/0** (motifs 4/4, lien 6/6, effacement 3/3) ; les autres comme avant la 5
-  (section C, « Migration 5 »).
+- Attendu : code 0 ; l'avis de conversion (souvent `0 absence(s)` : l'app en ligne ne prévient d'aucune absence) ;
+  `contact-5-en-ligne` **VERT 17/0** (motifs 4/4, lien 6/6, effacement 3/3 ; la conversion n'y est pas jugeable : la migration est
+  déjà passée, ligne d'information) ; les autres comme avant la 5 (section C, « Migration 5 »).
 - Écart : une garde refuse (« rien n'est changé ») : lire le message. Garde : 1, 2, 3, `_demo` (fiche « Responsable pédagogique
   (fictif) ») et 4 (`_contact_quota_equipe`) appliquées ; contrainte `absences_annoncees_motif` au texte de la migration 3 ; les
-  trois fonctions présentes ; aucune absence `sante`. Un ROUGE après application : retour 5 aussitôt (section K), diagnostic.
+  trois fonctions présentes. Un ROUGE après application : retour 5 aussitôt (section K), diagnostic ; si des absences ont été
+  converties, le retour 5 les refuse (section K).
 - Effet : la base refuse désormais le motif `sante` (l'app en ligne est l'ancienne et ne prévient d'aucune absence) ; la page du
   lien d'une absence n'en montre que le jour et le moment.
 
@@ -520,7 +527,9 @@ garde refuse sans rien changer si l'ordre n'est pas respecté (messages explicit
 
 0. **Retour 5** (le premier) : refuse si la 5 n'est pas appliquée, si la 4 n'est plus là (alors : rejouer la 4, puis le retour
    5, puis le retour 4 ; le retour 4, gelé, ne vérifie pas la 5) ou si une absence porte le motif `personnel` (la contrainte
-   d'origine le refuserait : son nouveau motif se décide avec Timy, par exemple `autre`, dans la même transaction). Il remet la
+   d'origine le refuserait : son nouveau motif se décide avec Timy, par exemple `autre`, dans la même transaction). **La
+   conversion `sante` vers `personnel` de la migration 5 n'est pas réversible automatiquement** : une absence `personnel` ne dit
+   pas si elle était `sante` (relever au besoin les identifiants convertis avant d'appliquer la 5). Il remet la
    contrainte et les trois fonctions au texte des migrations 3 et 4 (md5 de `pg_get_functiondef` égaux à ceux d'avant la 5) ;
    un motif effacé entre-temps à l'étape 1 n'est pas rétabli. La fonction `contact-envois` n'a pas à changer pour ce retour.
 1. **Avant le retour 4** : redéployer `contact-envois` à sa version d'avant la migration 4, **commit `5e8acc38`**

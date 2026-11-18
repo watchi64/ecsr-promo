@@ -334,20 +334,6 @@ l'équipe la corrige (choix de Claude).
   liens pour les analyser, et une action déclenchée à l'ouverture se ferait dans le dos de la personne. Cette page
   montre la demande entière (motif et mot compris) à la personne sans compte, sans connexion, avec les seuls boutons
   d'action : aucune zone de texte libre (§ 7.2).
-
-**Amendement du 18/11 (décision de Timy, « Oui, toutes », migration 5 `20261118_contact_5_donnees_sensibles`).** Trois
-retouches de protection des données, prises ensemble pour qu'aucune donnée de santé ne soit collectée (l'article 9 du RGPD
-n'a plus d'objet) :
-1. **« Santé » quitte la liste des motifs**, remplacé par « Raison personnelle » (code `personnel`) : transport, démarche,
-   famille, raison personnelle, autre. La base refuse tout autre code (contrainte `absences_annoncees_motif`,
-   `prevenir_absence`) ; sous « Un mot », le formulaire demande de n'y mettre aucune information de santé.
-2. **La page ouverte par un lien de l'e-mail ne montre plus, pour une absence, ni le motif, ni le mot, ni les échanges** :
-   seulement le jour et le moment, l'état et le bouton du geste ; une phrase vouvoyée renvoie à l'application, après
-   connexion. Ce qui précède (« Le motif et le mot se lisent dans l'app, ou sur la page ouverte par le lien » ; « montre la
-   demande entière (motif et mot compris) ») ne vaut plus pour une absence. **Conséquence acceptée par Timy : une fiche de
-   l'équipe sans compte ne lit jamais le motif** (elle n'a que cette page). Les autres types de demande gardent leur texte
-   et leurs échanges sur cette page (ruling R-5Ca), pour qu'une personne sans compte puisse y répondre.
-3. **Le motif est effacé à l'étape 1 de la conservation, avec le mot** (douze mois après la fin de la formation) : voir § 13.
 - **Envoi par une fonction serveur** (nouvelle) qui appelle Resend, avec une **clé Resend à part**, en accès « envoi
   seul » restreint à `timy-studio.fr` : Timy la crée et la colle lui-même (la clé du SMTP n'est pas réutilisée).
 - **Un envoi raté se voit** : chaque envoi est journalisé ; en cas d'échec, une nouvelle tentative, puis la demande
@@ -356,6 +342,21 @@ n'a plus d'objet) :
   partir 2 à 5 e-mails. C'est large pour une promo ; à partir de plusieurs centres, l'offre payante (environ 20 $ par
   mois) devient nécessaire, et le plan le signale.
 - **Garde-fou** : un stagiaire ne crée pas plus de 10 demandes par jour (choix de Claude).
+
+**Amendement du 18/11 (décision de Timy, « Oui, toutes », migration 5 `20261118_contact_5_donnees_sensibles`).** Trois
+retouches de protection des données, prises ensemble pour qu'aucune donnée de santé ne soit collectée (l'article 9 du RGPD
+n'a plus d'objet) :
+1. **« Santé » quitte la liste des motifs**, remplacé par « Raison personnelle » (code `personnel`) : transport, démarche,
+   famille, raison personnelle, autre. La base refuse tout autre code (contrainte `absences_annoncees_motif`,
+   `prevenir_absence`) ; sous « Un mot », le formulaire demande de n'y mettre aucune information de santé. Les absences
+   déjà annoncées au motif « santé » passent à « Raison personnelle » par la migration elle-même (ruling R-5Cc).
+2. **La page ouverte par un lien de l'e-mail ne montre plus, pour une absence, ni le motif, ni le mot, ni les échanges** :
+   seulement le jour et le moment, l'état et le bouton du geste ; une phrase vouvoyée renvoie à l'application, après
+   connexion. Ce qui précède (« Le motif et le mot se lisent dans l'app, ou sur la page ouverte par le lien » ; « montre la
+   demande entière (motif et mot compris) ») ne vaut plus pour une absence. **Conséquence acceptée par Timy : une fiche de
+   l'équipe sans compte ne lit jamais le motif** (elle n'a que cette page). Les autres types de demande gardent leur texte
+   et leurs échanges sur cette page (ruling R-5Ca), pour qu'une personne sans compte puisse y répondre.
+3. **Le motif est effacé à l'étape 1 de la conservation, avec le mot** (douze mois après la fin de la formation) : voir § 13.
 
 ## 10. Les écrans (maquettes du 09/11)
 
