@@ -165,6 +165,7 @@ declare
   v_s integer;
   v_email text;
 begin
+  perform pg_temp.ecarter_donnees_reelles(1);
   for r in select * from (values (70, 'stag_a'), (71, 'stag_e')) x(ordre, nom) loop
     v_email := 'preuve18.' || replace(r.nom, '_', '.') || '@exemple.invalid';
     insert into public.stagiaires (prenom, nom, ordre, promo_id) values ('Preuve18 ' || r.nom, 'PREUVE', 990, 1) returning id into v_s;

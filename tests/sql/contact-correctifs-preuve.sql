@@ -196,6 +196,7 @@ declare
   v_email text;
   v_titre text;
 begin
+  perform pg_temp.ecarter_donnees_reelles(1);
   insert into public.promos (nom, lieu_id, date_debut) values ('Preuve16 promo', v_l1, date '2026-09-07') returning id into v_p;
   for r in select * from (values (60, 'stag_a', 1, null::text, true), (61, 'stag_b', 1, null, true), (62, 'stag_y', 1, null, false),
                                  (63, 'stag_x', null, 'titulaire', false), (64, 'stag_z', null, null, false)) x(ordre, nom, promo, delegue, compte) loop

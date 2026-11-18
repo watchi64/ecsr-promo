@@ -227,6 +227,7 @@ declare
   v_prof integer;
   v_email text;
 begin
+  perform pg_temp.ecarter_donnees_reelles(1);
   for r in select * from (values (50, 'deleg', 'titulaire', true), (51, 'supp', 'suppleant', false), (52, 'stag_h', null, true),
                                  (53, 'stag_k', null, true), (54, 'stag_o', null, true)) x(ordre, nom, delegue, compte) loop
     v_email := 'preuve14.' || replace(r.nom, '_', '.') || '@exemple.invalid';
@@ -453,7 +454,7 @@ begin
   perform pg_temp.attendre('justificatif', '_contact_srv_prendre : l''envoi à form_n et l''avis au délégué portent le type et les jours (jeudi 19 matin) ; ni motif ni mot dans tout le rendu',
     concat_ws(' | ',
       (select string_agg(concat_ws(':', case when (x -> 'destinataire' ->> 'stagiaire')::boolean then 'stagiaire' else 'fiche' end, x ->> 'evenement',
-                                   x -> 'demande' ->> 'type', x -> 'demande' -> 'jours'), ',' order by x ->> 'envoi_id')
+                                   x -> 'demande' ->> 'type', x -> 'demande' -> 'jours'), ',' order by (x ->> 'envoi_id')::bigint)
          from jsonb_array_elements(case when jsonb_typeof(r) = 'array' then r else '[]'::jsonb end) x),
       (r::text like '%famille%' or r::text like '%Preuve14 mot du lien%')::text),
     'fiche:nouvelle:absence:[{"demi": "matin", "jour": "2026-11-19"}],stagiaire:avis_absence:absence:[{"demi": "matin", "jour": "2026-11-19"}] | false');

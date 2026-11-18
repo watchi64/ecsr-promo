@@ -144,6 +144,23 @@ arrêterait). Ils servent à la répétition locale seulement ; en production on
   (`famille`, `transport`) : les versions antérieures (motif `sante`) sortent ROUGE après la 5 (`contact-3-en-ligne` : 44/45).
   Toujours rejouer les preuves du commit de la 5 ou plus récent.
 
+### Preuves indépendantes du vrai planning (correctif du 18/11) [task-preuve-planning-report]
+
+Le 18/11, `contact-3-en-ligne` est sorti ROUGE 88/1 en production (cas « [prevenir] a4 : dir_n choisi ; form_n, Karim (fictif) et le
+délégué en annexe ») : une vraie fiche (`formateur_du_jour` et son `avis_absence`) était au vrai planning de la promo 1 le jeudi 19.
+**Défaut de la preuve, pas de la base** : `_contact_formateurs_du_jour` et `_contact_annexes` lisent `planning_entries` de la promo
+affichée, ce qu'elles doivent faire. Les preuves 3, 4 et 5 posent leurs personnages dans la promo 1 et comptent des annexes aux jours
+d'essai : elles lisaient donc le vrai planning. Les preuves écartent désormais, dans leur transaction annulée, le planning
+(`planning_entries`, `planning_half_meta`) et les délégués réels de la promo 1 avant de poser les leurs
+(`pg_temp.ecarter_donnees_reelles`, dans `contact-aides.sql`). Rien ne change dans les migrations 1 à 5, ni dans les comptes ci-dessus
+(`contact-3-en-ligne` 89/0, `contact-4-en-ligne` 43/0, `contact-5-en-ligne` 17/0, `contact-2-en-ligne` 165/0, `contact-1-en-ligne` 128/0).
+Même jeu de comptes en injecté (139, 174, 107, 65, 45) et en contre-épreuve (28/76, 33/29, 30/11).
+Deux restes connus : `contact-1-en-ligne`, groupe `entre` (avant la 1b seulement), lit en direct les fiches sans compte et réclame que
+`prof_id` y soit vide : une vraie fiche SANS compte déjà rattachée à un formateur le rendrait ROUGE 127/1 (cas non rencontré en
+production ; à signaler, pas à corriger sur place). Et un second défaut de preuve, trouvé en chemin et corrigé : le tri des envois de
+`_contact_srv_prendre` se faisait sur l'identifiant en texte (« 100 » avant « 99 ») : ROUGE 88/1 quand deux envois consécutifs
+franchissent une puissance de dix (jamais avant le 9 999e envoi en production).
+
 ### Contrôles app de la branche (répétition locale, déjà faits) [task-19a-report § 4]
 
 `for f in tests/*.test.mjs; do node "$f"; done` : 147 fichiers, 0 échec (2132 tests après la vague de correction ; 2129 en 19a).

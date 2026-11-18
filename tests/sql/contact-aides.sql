@@ -56,3 +56,20 @@ returns boolean language sql as $tm5$
   select coalesce((select pg_get_constraintdef(c.oid) like '%''personnel''%' from pg_constraint c
                     where c.conrelid = to_regclass('public.absences_annoncees') and c.conname = 'absences_annoncees_motif'), false);
 $tm5$;
+
+-- Écarte, pour la durée de la preuve (tout est annulé à la levée finale), ce que la promo p porte de RÉEL et que les preuves lisent sans
+-- l'avoir posé : son planning (planning_entries, planning_half_meta : une vraie fiche de formateur au planning d'un jour d'essai devient
+-- formateur du jour, donc annexe et destinataire d'un avis, et fausse les comptes) et ses délégués (stagiaires.delegue : un délégué réel
+-- serait une annexe de plus, et l'index unique par promo refuserait les délégués d'essai). À appeler AVANT de poser les personnages et le
+-- planning d'essai : la preuve ne compare alors que des lignes qu'elle a créées, en production comme sur la base locale. Les règles du
+-- centre, que les preuves effacent déjà, ne sont pas concernées. La colonne delegue vient de la migration 1 : sa remise à nul n'est tentée
+-- que si elle existe (contre-épreuve, avant la migration 1).
+create or replace function pg_temp.ecarter_donnees_reelles(p_promo integer)
+returns void language plpgsql as $tev$
+begin
+  delete from public.planning_entries where promo_id = p_promo;
+  delete from public.planning_half_meta where promo_id = p_promo;
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'stagiaires' and column_name = 'delegue') then
+    execute format('update public.stagiaires set delegue = null where promo_id = %s and delegue is not null', p_promo);
+  end if;
+end $tev$;
