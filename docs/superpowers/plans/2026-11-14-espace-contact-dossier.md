@@ -26,6 +26,12 @@ dans son terminal ou dans les secrets de la fonction) ; équipe vouvoyée ; un s
 - **Fonction `contact-envois`** : jamais déployée. **Assistant (`chatbot`)** : à redéployer avec la fusion (le guide
   `supabase/functions/chatbot/aide.mjs` a changé : tâches 12 et 19a).
 - `VERSION_CONDITIONS` vaut encore `2026-11-14` dans `js/legal-data.js` sur main et sur la branche (non touché) [task-19a-report § 4].
+- **Mise à jour du 18/11** [progress, 16/11 et 18/11 ; task-5C-report] : `_demo` (registre `20261115090003`) et la 4
+  (`20261116090000`) ont été appliquées en production le 16/11. Timy a décidé le 18/11 (« Oui, toutes ») trois retouches de
+  protection des données : **migration 5** `20261118_contact_5_donnees_sensibles` (« santé » retiré des motifs, remplacé par
+  « raison personnelle » ; page du lien sans motif, ni mot, ni messages pour une absence ; motif effacé à l'étape 1 avec le mot).
+  Elle reste à appliquer, **avant le déploiement de `contact-envois` et avant la recette** (étape 4bis). La 1b reste pour
+  l'étape 8. Le guide de l'assistant (`aide.mjs`) a encore changé (motifs, page du lien) : à redéployer avec la fusion.
 
 ## B. md5 des migrations (relevés par `md5sum` au commit de ce dossier)
 
@@ -43,6 +49,8 @@ dans son terminal ou dans les secrets de la fonction) ; équipe vouvoyée ; un s
 | `20261115_contact_demo_retour.sql` | `e16237b51ea2bbcd61d5e1a614761164` |
 | `20261116_contact_4_correctifs.sql` | `2ace4b9feef2dad486b8c9e3873c09f3` |
 | `20261116_contact_4_correctifs_retour.sql` | `30c4a99cc4b93493af3a399186d1a04d` |
+| `20261118_contact_5_donnees_sensibles.sql` | `0add748206cc114d54eea8a0823404e7` [task-5C-report] |
+| `20261118_contact_5_donnees_sensibles_retour.sql` | `3f17fa83d0059f86786473d7741bdbd6` [task-5C-report] |
 
 Les valeurs des migrations 1, 1b, 2, 3 et `_demo` sont celles de `task-19a-report` (« inchangés ») ; celles de la migration 4
 et de son retour sont celles de la vague de correction de la relecture finale [final-fix-report] (les anciennes : section G.1).
@@ -109,6 +117,28 @@ arrêterait). Ils servent à la répétition locale seulement ; en production on
   avant la vague de correction, task-19a-report] ; avec la 1b, règles `e4b0f6e6…` [task-19a-report § 3]. Les empreintes de production se comparent à ces valeurs seulement si les données de règles sont les
   mêmes ; un écart d'empreinte seul, sans ROUGE, se signale sans bloquer.
 
+### Migration 5 (répétition du 18/11, même base locale) [task-5C-report]
+
+| Preuve | Avant la 5 (1, 2, 3, demo, 4 appliquées) | Après la 5 | Après les retours 5, 4, demo, 3, 2, 1 |
+|---|---|---|---|
+| `contact-5-en-ligne` | 4/0 (groupes sautés : la 5 n'est pas là) | **17/0** | |
+| `contact-1-en-ligne` | 128/0 | 128/0 | |
+| `contact-2-en-ligne` | 165/0 | 165/0 | |
+| `contact-3-en-ligne` | 89/0 | 89/0 (attendus conditionnés à la 5 : phrase du motif, lien, étape 1) | |
+| `contact-4-en-ligne` | 43/0 | 43/0 | |
+| rôles `en-ligne` | 13528/0 | 13528/0 | 12214/0 |
+| titres, gestion, suite, espaces, données, profils | 375, 335, 155, 240, 59, 32 /0 | idem | idem |
+| émargement, conservation, autonomie, truncate, jury | 71, 227, 146, 7, 53 /0 | idem | idem |
+
+- Injectées (base d'avant contact) : `contact-5` VERT 44/0, `contact-5-contre-epreuve` ROUGE 29/10 (chaque groupe de la 5
+  rouge), mutation (les trois changements de fonction retirés) ROUGE 35/9 ; `contact-1` à `-4` inchangés (139, 174, 107, 65).
+- Empreintes : avec 1, 2, 3, demo, 4 et 5 : `0e0c3e82… | 221cbb4c… | 60ae98f2…`, 252 fonctions (règles et droits inchangés :
+  la 5 ne touche ni règle ni droit) ; après le retour 5 : celle d'avant la 5 (`394f38d3…`) ; après tous les retours : celle
+  d'avant contact.
+- **Les preuves `contact-3-en-ligne` et `contact-4-en-ligne` de cette branche** prennent des motifs valables avant et après la 5
+  (`famille`, `transport`) : les versions antérieures (motif `sante`) sortent ROUGE après la 5 (`contact-3-en-ligne` : 44/45).
+  Toujours rejouer les preuves du commit de la 5 ou plus récent.
+
 ### Contrôles app de la branche (répétition locale, déjà faits) [task-19a-report § 4]
 
 `for f in tests/*.test.mjs; do node "$f"; done` : 147 fichiers, 0 échec (2132 tests après la vague de correction ; 2129 en 19a).
@@ -126,10 +156,13 @@ l'accord de Timy [en-tête de `outils/psql_prod.sh`]. Hors des heures de cours e
 ### Étape 0. Contrôle de l'état de départ (lecture seule)
 
 - Commande : dans le worktree, `git rev-parse HEAD` et `git status` (arbre propre sauf `_harness_demande.html`, généré) ;
-  `md5sum supabase/migrations/20261115_contact_*.sql supabase/migrations/20261116_contact_4*.sql` à comparer à la section B ;
+  `md5sum supabase/migrations/20261115_contact_*.sql supabase/migrations/20261116_contact_4*.sql supabase/migrations/20261118_contact_5*.sql`
+  à comparer à la section B ;
   en production (accord de Timy) : `bash outils/psql_prod.sh -c "select version, name from supabase_migrations.schema_migrations where name like 'contact%' order by 1"`.
 - Accord : coordination (la lecture en production : Timy).
 - Attendu : trois lignes (`20261115090000` `contact_1_annuaire`, `…01` `contact_2_demandes`, `…02` `contact_3_absences`) ; md5 égaux.
+  **Au 18/11** : cinq lignes (en plus `20261115090003` `contact_demo` et `20261116090000` `contact_4_correctifs`) ; aucune
+  ligne de la 5.
 - Écart : une ligne en plus ou en moins, ou un md5 différent : arrêter, ne rien appliquer, diagnostiquer.
 
 ### Étape 1. Préalables (rien en production)
@@ -215,9 +248,36 @@ Pour chaque migration, dans l'ordre :
 - Effet à connaître : l'app en ligne est encore l'ancienne ; aucun écran ne crée de demande. La 1b n'est pas appliquée :
   la lecture directe de `contacts` reste ouverte jusqu'à l'étape 8.
 
+### Étape 4bis. Application en production de la migration 5 (`20261118_contact_5_donnees_sensibles`)
+
+**Ordre imposé : la 5 AVANT le déploiement de `contact-envois` (étape 5) et AVANT la recette (étape 6)** : sans elle, le lien
+« Voir la demande » d'une absence ouvrirait, sans connexion, le motif, le mot et les échanges [en-tête de la migration 5 ;
+décision de Timy du 18/11].
+
+1. `md5sum supabase/migrations/20261118_contact_5_donnees_sensibles.sql`, comparé à la section B (`0add7482…`).
+2. Essai à blanc (transaction annulée, comme l'étape 3) : `contact-5-en-ligne` avant application doit sortir VERT 4/0 (groupes
+   sautés) ; contrôle de la garde : `select count(*) from public.absences_annoncees where motif = 'sante'` doit valoir **0**.
+   S'il vaut plus : la garde refusera (« décider avec Timy de leur nouveau motif ») ; Timy choisit, et la coordination joue
+   dans la MÊME transaction, avant la migration, par exemple
+   `update public.absences_annoncees set motif = 'personnel' where motif = 'sante';`.
+3. Application : `bash outils/psql_prod.sh -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261118_contact_5_donnees_sensibles.sql`,
+   avec sa ligne de registre dans la même transaction (comme l'étape 4 ; version au choix de la coordination, après
+   `20261116090000`). `set local lock_timeout = '3s'` est en tête ; la table des absences est verrouillée en écriture le temps de
+   la transaction.
+4. Preuves en ligne : `contact-5-en-ligne`, puis `contact-3-en-ligne`, `contact-4-en-ligne`, `contact-2-en-ligne`,
+   `contact-1-en-ligne` et rôles `en-ligne` (les gabarits du commit de la 5 : section C).
+- Accord : Timy.
+- Attendu : code 0 ; `contact-5-en-ligne` **VERT 17/0** (motifs 4/4, lien 6/6, effacement 3/3) ; les autres comme avant la 5
+  (section C, « Migration 5 »).
+- Écart : une garde refuse (« rien n'est changé ») : lire le message. Garde : 1, 2, 3, `_demo` (fiche « Responsable pédagogique
+  (fictif) ») et 4 (`_contact_quota_equipe`) appliquées ; contrainte `absences_annoncees_motif` au texte de la migration 3 ; les
+  trois fonctions présentes ; aucune absence `sante`. Un ROUGE après application : retour 5 aussitôt (section K), diagnostic.
+- Effet : la base refuse désormais le motif `sante` (l'app en ligne est l'ancienne et ne prévient d'aucune absence) ; la page du
+  lien d'une absence n'en montre que le jour et le moment.
+
 ### Étape 5. Déploiement de la fonction `contact-envois`
 
-- Après l'étape 4 (jamais avant). Fonction : `supabase/functions/contact-envois/` (`index.ts`, `courriels.mjs`, `jetons.mjs`),
+- Après les étapes 4 et 4bis (jamais avant). Fonction : `supabase/functions/contact-envois/` (`index.ts`, `courriels.mjs`, `jetons.mjs`),
   version du commit de ce dossier.
 - Commande : déploiement par la voie habituelle des fonctions du projet, **toujours sans vérification JWT à la passerelle**.
   Deux voies sont écrites dans le dépôt : l'outil MCP `deploy_edge_function` (`PROJECT_NOTES.md`, ligne 22) avec
@@ -239,7 +299,8 @@ Pour chaque migration, dans l'ordre :
 - Attendu : `cle_presente: true`, `expediteur` et `app_url` justes ; la valeur de la clé n'apparaît jamais.
 - Écart : `cle_presente: false` : la clé n'est pas posée sur cette fonction ; **401 sur `lien` ou `agir` (étape 6) : vérification
   JWT restée active**, redéployer sans elle.
-  Ne pas déployer avant la 4 ; sinon retour immédiat de la fonction à la version `5e8acc38`.
+  Ne pas déployer avant la 4 ni avant la 5 ; sinon retour immédiat de la fonction à la version `5e8acc38` (avant la 4), ou
+  application immédiate de la 5 (après la 4).
 
 ### Étape 6. Recette de la fonction contre la production, avant la fusion de l'app
 
@@ -258,8 +319,9 @@ fonction a besoin de l'API Supabase, que la base locale n'a pas) [task-19-brief,
    `js/config.js`), corps `{"op":"lien","jeton":"<43 caractères>"}`. Jamais avec un jeton de session ni la clé de service : ils
    passeraient la passerelle et cacheraient une vérification JWT restée active. Un 401 ici : voir l'écart de l'étape 5.
    Avec ces mêmes en-têtes, `{op:"traiter"}` doit répondre **401** (la fonction juge l'appelant elle-même).
-   Pour voir la page du lien d'une absence (motif, jour et moment, relecture finale I1), faire au besoin la recette sur une
-   absence : la réponse de `lien` porte alors `motif`, `jours` et `moment`, que la page montre à l'étape 7.
+   Pour voir la page du lien d'une absence, faire au besoin la recette sur une absence : depuis la migration 5, la réponse de
+   `lien` porte `jours` et `moment`, **jamais `motif`, `mot`, `texte` ni `messages`** ; la page montre le jour et le moment et
+   la phrase « Pour lire le détail de cette absence (motif, mot, échanges), connectez-vous à l'application. » (étape 7).
 5. Nettoyage : la demande, ses envois, ses jetons et la fiche de test supprimés ; `select count(*)` de chacun à **0**.
 - Accord : Timy.
 - Attendu : comme ci-dessus ; les quatre comptes finaux à 0 ; aucun envoi `echec` (`select etat, count(*) from contact_envois group by 1`).
@@ -366,6 +428,10 @@ Leviers par rapport [task-13, 15, 16, 17, 4C, 19a] :
 - Tâche 4C : `peut_modifier` dans `reglages_contact`, levier `?reglages=lecture` (champs désactivés, notes « Vous consultez... »).
 - Tâche 19a : le `_harness_supabase.js` de `TP_ECSR_App` (main, recopié par la session des titres le 16/11) a été fusionné à trois
   voies avec le nôtre ; le résultat moins nos blocs égale le banc de main plus la ligne non marquée de l'aiguillage.
+- Tâche 5C (migration 5) : demande 101 au motif `personnel` (au lieu de `sante`) ; `prevenir_absence` du banc : les cinq codes
+  `transport`, `demarche`, `famille`, `personnel`, `autre` et la nouvelle phrase ; réponse `lien` d'une absence à la forme de la 5
+  (ni `motif`, ni `mot`, ni `texte`, ni `messages`) ; jeton `A` x43 : lien de lecture dont la réponse a la forme d'avant la 5
+  (motif, mot, texte, un message), pour prouver que la page ne les montre pas non plus.
   Faute de ces reports les parcours contact rougissent [task-17-report, réserve 1].
 
 ## F. Choix de fusion à confirmer par la coordination (task-19a-report, « Conflits et choix » et « Réserves »)
@@ -447,11 +513,16 @@ Leviers par rapport [task-13, 15, 16, 17, 4C, 19a] :
 
 ## K. Marche arrière
 
-**Ordre imposé par les gardes** : avec la 1b appliquée : retours `4`, `_demo`, `3`, `2`, `1b`, `1`. Sans la 1b : `4`, `_demo`,
-`3`, `2`, `1` [task-19a-report § 3, « Retours réels » ; en-têtes des retours]. Chaque retour : `bash outils/psql_prod.sh -1 -v
+**Ordre imposé par les gardes** : avec la 1b appliquée : retours `5`, `4`, `_demo`, `3`, `2`, `1b`, `1`. Sans la 1b : `5`, `4`,
+`_demo`, `3`, `2`, `1` [task-19a-report § 3, « Retours réels » ; task-5C-report ; en-têtes des retours]. Chaque retour : `bash outils/psql_prod.sh -1 -v
 ON_ERROR_STOP=1 -f supabase/migrations/<fichier>_retour.sql`, et sa ligne retirée du registre dans la même transaction. Chaque
 garde refuse sans rien changer si l'ordre n'est pas respecté (messages explicites).
 
+0. **Retour 5** (le premier) : refuse si la 5 n'est pas appliquée, si la 4 n'est plus là (alors : rejouer la 4, puis le retour
+   5, puis le retour 4 ; le retour 4, gelé, ne vérifie pas la 5) ou si une absence porte le motif `personnel` (la contrainte
+   d'origine le refuserait : son nouveau motif se décide avec Timy, par exemple `autre`, dans la même transaction). Il remet la
+   contrainte et les trois fonctions au texte des migrations 3 et 4 (md5 de `pg_get_functiondef` égaux à ceux d'avant la 5) ;
+   un motif effacé entre-temps à l'étape 1 n'est pas rétabli. La fonction `contact-envois` n'a pas à changer pour ce retour.
 1. **Avant le retour 4** : redéployer `contact-envois` à sa version d'avant la migration 4, **commit `5e8acc38`**
    (`supabase/functions/contact-envois`), parce que la version de la branche envoie l'issue `limite` que la base refuserait
    [en-tête du retour 4].
@@ -481,4 +552,4 @@ garde refuse sans rien changer si l'ordre n'est pas respecté (messages explicit
 - Le SQL de l'étape 6 (fiche de test, demande d'équipe, nettoyage) n'est pas écrit dans les sources.
 - Comptes d'émargement : voir G.2.
 - Nombre de fichiers et de tests : 147 fichiers, 2129 tests au commit `6f837e7d` ; 147 fichiers, 2132 tests après la vague de
-  correction de la relecture finale [final-fix-report].
+  correction de la relecture finale [final-fix-report] ; 147 fichiers, 2137 tests avec la migration 5 [task-5C-report].

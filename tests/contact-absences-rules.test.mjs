@@ -82,7 +82,7 @@ test("phraseCasesDecochees", () => {
 });
 
 test("verifierAbsence : les mêmes phrases que la base, dans le même ordre", () => {
-  const ok = { du: "2026-11-19", au: "2026-11-19", quand: "matin", motif: "sante", mot: "", aujourdhui: "2026-11-18" };
+  const ok = { du: "2026-11-19", au: "2026-11-19", quand: "matin", motif: "personnel", mot: "", aujourdhui: "2026-11-18" };
   const HEURES = "Indique l'heure de début et l'heure de fin (par exemple 10:00 et 11:00), le début avant la fin.";
   assert.equal(verifierAbsence(ok), null);
   assert.equal(verifierAbsence({ ...ok, du: null }), "Choisis le jour de ton absence.");
@@ -94,7 +94,11 @@ test("verifierAbsence : les mêmes phrases que la base, dans le même ordre", ()
   assert.equal(verifierAbsence({ ...ok, quand: "heures", debut: "11:00", fin: "10:00" }), HEURES);
   assert.equal(verifierAbsence({ ...ok, quand: "heures", debut: "", fin: "10:00" }), HEURES);
   assert.equal(verifierAbsence({ ...ok, quand: "heures", debut: "10:00", fin: "11:00" }), null);
-  assert.equal(verifierAbsence({ ...ok, motif: null }), "Choisis un motif : santé, transport, démarche, famille ou autre.");
+  const MOTIF = "Choisis un motif : transport, démarche, famille, raison personnelle ou autre.";
+  assert.equal(verifierAbsence({ ...ok, motif: null }), MOTIF);
+  assert.equal(verifierAbsence({ ...ok, motif: "sante" }), MOTIF, "« santé » n'est plus un motif (migration 5)");
+  assert.equal(verifierAbsence({ ...ok, motif: "toString" }), MOTIF, "une clé héritée n'est pas un motif");
+  for (const m of ["transport", "demarche", "famille", "personnel", "autre"]) assert.equal(verifierAbsence({ ...ok, motif: m }), null, m);
   assert.equal(verifierAbsence({ ...ok, mot: "x".repeat(201) }), "Ton mot compte 200 caractères au plus.");
   assert.equal(verifierAbsence({ ...ok, mot: "x".repeat(200) }), null);
   assert.equal(verifierAbsence({ ...ok, du: "2026-11-21", au: "2026-11-22", aujourdhui: "2026-11-18" }),

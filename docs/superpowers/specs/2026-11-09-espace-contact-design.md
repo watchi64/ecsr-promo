@@ -261,8 +261,10 @@ Ouvert par le bouton **« Prévenir d'une absence »** de l'accueil du stagiaire
   règle avec l'équipe, choix de Claude). Plusieurs jours de suite possibles (du ... au ...).
 - **Quand** : Journée, Matin, Après-midi, ou de telle heure à telle heure.
 - **Motif** : Santé, Transport, Démarche, Famille, Autre. Aucune précision médicale demandée ; aucun champ pour décrire
-  une maladie.
-- **Un mot** facultatif (court).
+  une maladie. *Amendement du 18/11 (décision de Timy, migration 5) : « Santé » est retiré, remplacé par « Raison
+  personnelle » ; la liste devient Transport, Démarche, Famille, Raison personnelle, Autre (voir § 9).*
+- **Un mot** facultatif (court). *Amendement du 18/11 : une aide, sous le champ, demande au stagiaire de n'y mettre
+  aucune information sur sa santé.*
 - **Encadré « Sera envoyé à »** : le destinataire principal (sans case), les formateurs du jour et le délégué (avec
   case, cochés d'office), la phrase du § 6.2 quand une case est décochée.
 - **Envoyer**, puis l'écran de suivi.
@@ -332,6 +334,20 @@ l'équipe la corrige (choix de Claude).
   liens pour les analyser, et une action déclenchée à l'ouverture se ferait dans le dos de la personne. Cette page
   montre la demande entière (motif et mot compris) à la personne sans compte, sans connexion, avec les seuls boutons
   d'action : aucune zone de texte libre (§ 7.2).
+
+**Amendement du 18/11 (décision de Timy, « Oui, toutes », migration 5 `20261118_contact_5_donnees_sensibles`).** Trois
+retouches de protection des données, prises ensemble pour qu'aucune donnée de santé ne soit collectée (l'article 9 du RGPD
+n'a plus d'objet) :
+1. **« Santé » quitte la liste des motifs**, remplacé par « Raison personnelle » (code `personnel`) : transport, démarche,
+   famille, raison personnelle, autre. La base refuse tout autre code (contrainte `absences_annoncees_motif`,
+   `prevenir_absence`) ; sous « Un mot », le formulaire demande de n'y mettre aucune information de santé.
+2. **La page ouverte par un lien de l'e-mail ne montre plus, pour une absence, ni le motif, ni le mot, ni les échanges** :
+   seulement le jour et le moment, l'état et le bouton du geste ; une phrase vouvoyée renvoie à l'application, après
+   connexion. Ce qui précède (« Le motif et le mot se lisent dans l'app, ou sur la page ouverte par le lien » ; « montre la
+   demande entière (motif et mot compris) ») ne vaut plus pour une absence. **Conséquence acceptée par Timy : une fiche de
+   l'équipe sans compte ne lit jamais le motif** (elle n'a que cette page). Les autres types de demande gardent leur texte
+   et leurs échanges sur cette page (ruling R-5Ca), pour qu'une personne sans compte puisse y répondre.
+3. **Le motif est effacé à l'étape 1 de la conservation, avec le mot** (douze mois après la fin de la formation) : voir § 13.
 - **Envoi par une fonction serveur** (nouvelle) qui appelle Resend, avec une **clé Resend à part**, en accès « envoi
   seul » restreint à `timy-studio.fr` : Timy la crée et la colle lui-même (la clé du SMTP n'est pas réutilisée).
 - **Un envoi raté se voit** : chaque envoi est journalisé ; en cas d'échec, une nouvelle tentative, puis la demande
@@ -406,7 +422,10 @@ qu'une fois ; sinon, le plan le signale à Timy avant.
   autres textes libres (effacement existant). Les demandes entre membres de l'équipe : douze mois après la dernière
   réponse (choix de Claude).
 - **L'absence elle-même** (jour, demi-journée, motif, état du justificatif) est une preuve de présence, comme
-  l'émargement : trois ans, puis rendue anonyme.
+  l'émargement : trois ans, puis rendue anonyme. *Amendement du 18/11 (décision de Timy, migration 5) : le motif n'est pas
+  une preuve (la présence et le justificatif suffisent) ; il est effacé à l'étape 1, douze mois après la fin de la
+  formation, avec le mot ; tout de suite en cas d'effacement sur demande. Jour, demi-journée et justificatif restent trois
+  ans, puis sans nom.*
 - **Liens signés et journal des envois** : effacés à leur expiration, puis après trois mois.
 - **Fiches de l'équipe sans compte** : supprimées douze mois après le départ de la personne, ou sur demande.
 - **Téléphone et financement d'un stagiaire** : suivent son compte.
@@ -452,7 +471,7 @@ qu'une fois ; sinon, le plan le signale à Timy avant.
 7. Chacun peut couper ses alertes par e-mail, sauf une personne sans compte.
 8. Les demandes ouvertes ne changent pas de main quand le congé commence.
 9. Annuaire et messages sans case de titre ; règles et réponses toutes faites dans Réglages du centre.
-10. Conservation : demandes douze mois après la formation, absences trois ans (preuve de présence).
+10. Conservation : demandes douze mois après la formation, absences trois ans (preuve de présence). *Amendement du 18/11 : le motif part à douze mois, avec le mot (§ 13).*
 11. Version des conditions regroupée avec les titres et Qualiopi Q4 et Q5 si possible.
 12. Au plus 10 demandes par jour pour un stagiaire.
 13. Une fiche d'office pour chaque compte de l'équipe ; son e-mail n'est montré aux stagiaires qu'après vérification par la personne.

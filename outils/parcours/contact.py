@@ -221,6 +221,7 @@ PAGE_DEMANDE = "#view .demande-page"
 PHRASE_RIEN_REGLE = "Rien n'est réglé : pour chaque demande, le stagiaire choisit qui prévenir parmi les formateurs de sa promo et la direction du centre."
 PHRASE_LIEN_INVALIDE = "Ce lien n'est plus valable. Ouvrez la demande dans l'app ou demandez un nouvel envoi."
 JETON_VALIDE, JETON_DEJA, JETON_EXPIRE, JETON_RATE = "V" * 43, "D" * 43, "E" * 43, "R" * 43
+JETON_AVANT_5 = "A" * 43   # lien « voir » dont la réponse a la forme d'avant la migration 5 (motif, mot, texte, un message)
 PAGE_LIEN = "_harness_demande.html#j="
 
 
@@ -320,17 +321,33 @@ def destinataire_avec_compte(v):
     v.terminer()
 
 
+# Décision de Timy du 18/11 (migration 5) : la page du lien d'une absence, ouverte sans connexion, ne montre ni le motif, ni le mot, ni les
+# échanges ; une phrase vouvoyée (js/lien-demande-rules.js) renvoie à l'app.
+PHRASE_DETAIL_ABSENCE = "Pour lire le détail de cette absence (motif, mot, échanges), connectez-vous à l'application."
+
+
+def detail_absent(v, racine, quand):
+    """Ni ligne « Motif », ni mot du stagiaire, ni message sur la page du lien d'une absence."""
+    texte = v.texte(racine)
+    for interdit in ("Motif", "Raison personnelle", "Rendez-vous médical", "Bien noté"):
+        if interdit in texte:
+            v.constat("E", BLOQUE, "la page du lien d'une absence montre « %s » sans connexion (%s)" % (interdit, quand))
+    if v.voit(racine + " .lien-demande-message"):
+        v.constat("E", BLOQUE, "la page du lien d'une absence montre un échange sans connexion (%s)" % quand)
+
+
 @parcours("page-du-lien", "Un lien d'e-mail ouvre la demande, un seul bouton fait le geste", role="stagiaire", budget=1, navigations=NOUVELLE,
           depart=PAGE_LIEN + JETON_VALIDE, ouverture="page")
 def page_du_lien(v):
-    """Jeton valide : l'absence (jour, moment, motif, mot) et un seul bouton, « C'est fait » après le toucher ; jeton déjà fait : « Déjà fait » ;
-    jeton expiré : la phrase ; première lecture ratée : « Réessayer », qui montre la demande."""
+    """Jeton valide : l'absence (jour et moment ; ni motif, ni mot, ni échanges sans connexion, une phrase renvoie à l'app) et un seul
+    bouton, « C'est fait » après le toucher ; jeton déjà fait : « Déjà fait » ; jeton expiré : la phrase ; première lecture ratée :
+    « Réessayer », qui montre la demande."""
     racine = "#lien-demande"
     v.attendre(racine + ' h1.lien-demande-sujet:text-is("jeudi 29 octobre, matin")', "l'absence, titrée par son jour et son moment")
     absence = racine + " dl.lien-demande-absence"
     v.attendre(absence + ' .contact-ligne:has(dt:text-is("Quand")) dd:text-is("jeudi 29 octobre, matin")', "la ligne « Quand »")
-    v.attendre(absence + ' .contact-ligne:has(dt:text-is("Motif")) dd:text-is("Santé")', "le motif, lisible sans compte")
-    v.attendre(racine + ' p.lien-demande-texte:text-is("Rendez-vous médical jeudi matin.")', "le mot du stagiaire")
+    v.attendre(racine + ' p.lien-demande-renvoi:text-is("%s")' % PHRASE_DETAIL_ABSENCE, "la phrase qui renvoie à l'app pour le détail")
+    detail_absent(v, racine, "à l'ouverture")
     bouton = racine + ' button.lien-demande-bouton'
     v.attendre(bouton + ':text-is("Confirmer : Absence enregistrée")', "le bouton unique du geste")
     v.but("la page du lien est ouverte")
@@ -358,8 +375,16 @@ def page_du_lien(v):
         v.constat("F", BLOQUE, "la page en échec de lecture n'a pas exactement un bouton")
     v.controler_ecran("une première lecture ratée")
     v.toucher(reessayer, "« Réessayer »", compte=False)
-    v.attendre(absence + ' .contact-ligne:has(dt:text-is("Motif")) dd:text-is("Santé")', "la demande, relue après « Réessayer »")
+    v.attendre(absence + ' .contact-ligne:has(dt:text-is("Quand")) dd:text-is("jeudi 29 octobre, matin")', "la demande, relue après « Réessayer »")
+    detail_absent(v, racine, "après « Réessayer »")
     v.attendre(bouton + ':text-is("Confirmer : Absence enregistrée")', "le bouton unique du geste, après « Réessayer »")
+    v.etape("une réponse à l'ancienne forme (motif, mot, échanges)")
+    v.page.goto("about:blank")
+    v.page.goto(v.base_url + PAGE_LIEN + JETON_AVANT_5, wait_until="load")
+    v.attendre(racine + ' h1.lien-demande-sujet:text-is("jeudi 29 octobre, matin")', "l'absence, lien de lecture")
+    v.attendre(racine + ' p.lien-demande-renvoi:text-is("%s")' % PHRASE_DETAIL_ABSENCE, "la phrase qui renvoie à l'app")
+    detail_absent(v, racine, "même si la réponse les porte")
+    v.controler_ecran("une réponse à l'ancienne forme")
     v.terminer()
 
 
@@ -471,7 +496,7 @@ def ouvrir_prevenir(v):
     v.attendre(ABSENCE + ' h2:text-is("Prévenir d\'une absence")', "l'écran « Prévenir d'une absence »")
 
 
-def remplir_absence(v, jour="Demain", moment="Matin", motif="Santé"):
+def remplir_absence(v, jour="Demain", moment="Matin", motif="Raison personnelle"):
     for nom in (jour, moment, motif):
         v.toucher(choix_absence(nom), "« %s »" % nom)
 
@@ -483,9 +508,12 @@ def coche(v, libelle):
 @parcours("absence-complete", "Un stagiaire prévient d'une absence, la suit, et le justificatif est reçu", role="stagiaire", budget=BUDGET_ABSENCE,
           navigations=NOUVELLE, banc={"ecritures": "1"})
 def absence_complete(v):
-    """Rien n'est réglé : demain matin, Santé, le formateur du jour déjà coché ; l'envoi mène au suivi ; l'équipe note le justificatif à remettre
+    """Rien n'est réglé : demain matin, Raison personnelle, le formateur du jour déjà coché ; l'envoi mène au suivi ; l'équipe note le justificatif à remettre
     (rappel sur l'Accueil), puis reçu (le rappel part, le suivi dit « Justificatif reçu »)."""
     ouvrir_prevenir(v)
+    if v.voit(choix_absence("Santé")):
+        v.constat("E", BLOQUE, "« Santé » est encore proposé parmi les motifs (retiré le 18/11)")
+    v.attendre(ABSENCE + ' p#abs-mot-aide:text-is("N\'y mets aucune information sur ta santé.")', "l'aide sous « Un mot »")
     remplir_absence(v)
     v.attendre(ABSENCE + ' .abs-encadre :text("Sera envoyé à")', "l'encadré « Sera envoyé à »")
     v.attendre(ABSENCE + ' label.contact-case:has-text("Denis Exemple")', "la case du formateur du jour")
@@ -498,7 +526,7 @@ def absence_complete(v):
     v.ecouter_messages()
     v.toucher(ENVOYER_ABSENCE, "« Envoyer »", ecriture=True)
     v.attendre(PAGE_DEMANDE + ' .demande-etape-nom:text-is("Envoyée")', "le suivi, étape « Envoyée »")
-    v.attendre(PAGE_DEMANDE + ' .demande-absence dd:text-is("Santé")', "le motif, dans la section « Absence »")
+    v.attendre(PAGE_DEMANDE + ' .demande-absence dd:text-is("Raison personnelle")', "le motif, dans la section « Absence »")
     v.attendre(PAGE_DEMANDE + ' .demande-absence dd:has-text("29 octobre, matin")', "le jour et le moment")
     v.attendre(PAGE_DEMANDE + ' .demande-destinataires li:has-text("Denis Exemple")', "le formateur prévenu")
     v.attendre(PAGE_DEMANDE + ' .demande-absence a:text-is("Envoyer mon justificatif")', "« Envoyer mon justificatif »")
@@ -576,7 +604,7 @@ def formateur_du_jour(v):
     v.attendre('#view p:text-is("Rien à traiter.")', "« Rien à traiter. » : une copie n'est pas une demande à traiter")
     v.attendre('#view h3:text-is("Ouvertes (1)")', "« Ouvertes (1) »")
     v.toucher(ligne + " a.demande-lien", "l'absence", compte=False)
-    v.attendre(PAGE_DEMANDE + ' .demande-absence dd:text-is("Santé")', "le motif, visible du formateur du jour")
+    v.attendre(PAGE_DEMANDE + ' .demande-absence dd:text-is("Raison personnelle")', "le motif, visible du formateur du jour")
     v.attendre(PAGE_DEMANDE + ' .demande-absence dd:has-text("29 octobre, matin")', "le jour et le moment")
     v.attendre(PAGE_DEMANDE + ' .demande-destinataires li:has-text("Denis Exemple")', "le formateur du jour parmi les destinataires")
     if v.voit(PAGE_DEMANDE + ' button:text-is("Pris en compte")') or v.voit(PAGE_DEMANDE + " .demande-toutes-faites"):
@@ -597,7 +625,7 @@ def delegue(v):
     if "29 octobre" not in ligne:
         v.constat("F", BLOQUE, "le jour de l'absence manque dans la ligne du délégué")
     page = v.texte("#view")
-    for interdit in ("Santé", "médical", "Rendez-vous", "Absence jeudi matin"):
+    for interdit in ("Raison personnelle", "Santé", "médical", "Rendez-vous", "Absence jeudi matin"):
         if interdit in page:
             v.constat("F", BLOQUE, "le délégué voit un détail de l'absence (%s)" % interdit, capture=True)
     if v.page.locator(section + " a").count() or v.page.locator('#view a[href*="contacts/null"]').count():

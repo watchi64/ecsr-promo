@@ -355,7 +355,7 @@ begin
   perform pg_temp.essai(format($cc_q$update public.contacts set conge_du = '2026-11-18', conge_au = '2026-11-30' where id = %s$cc_q$, f_form_n));
   perform pg_temp.attendre('indisponibles', 'form_n en congé : ni proposé ni pré-coché, ni prévenu en annexe ; son nom est dans les non prévenus de l''aperçu',
     pg_temp.appeler('stag_a', '1', format(c_apercu, f_form_n)), 'OK choix|absent|0|Preuve16 form_n');
-  v := pg_temp.id_rendu(pg_temp.prevenir('stag_a', '2026-11-19', 'matin', 'sante', format('array[%s]::bigint[]', f_dir_n)));
+  v := pg_temp.id_rendu(pg_temp.prevenir('stag_a', '2026-11-19', 'matin', 'famille', format('array[%s]::bigint[]', f_dir_n)));
   perform pg_temp.attendre('indisponibles', 'stag_a prévient (jeudi 19 matin, dir_n choisi) : form_n, en congé, n''est pas prévenu en annexe ; son nom y est, « non prévenu », sans envoi',
     pg_temp.calcul(format('select count(*)::text from public.demande_destinataires where demande_id = %s and fiche_id = %s', v, f_form_n))
       || ' / ' || pg_temp.calcul(format('select count(*)::text from public.contact_envois where demande_id = %s and vers_fiche_id = %s', v, f_form_n))
@@ -363,7 +363,7 @@ begin
            where demande_id = %s and non_prevenu like 'Preuve16%%'$cc_q$, v)),
     '0 / 0 / formateur_du_jour:Preuve16 form_n');
   perform pg_temp.attendre('indisponibles', 'form_n choisi en congé : refusé (il n''est plus dans la liste)',
-    pg_temp.prevenir('stag_a', '2026-11-20', 'matin', 'sante', format('array[%s]::bigint[]', f_form_n)),
+    pg_temp.prevenir('stag_a', '2026-11-20', 'matin', 'famille', format('array[%s]::bigint[]', f_form_n)),
     'ERREUR 42501 contact: Cette personne ne peut pas recevoir ta demande.');
   perform pg_temp.essai(format($cc_q$update public.contacts set conge_du = null, conge_au = null, depart_le = '2026-11-17' where id = %s$cc_q$, f_form_n));
   perform pg_temp.attendre('indisponibles', 'form_n parti (départ le 17) : ni proposé ni pré-coché ; son nom dans les non prévenus',

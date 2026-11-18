@@ -16,14 +16,14 @@ test("une adresse illisible compte comme fictive (jamais tentée)", () => {
   for (const a of ["", null, undefined, "sans-arobase", "x@", "A@SOUS.EXAMPLE.COM", "z@ecole.TEST"]) assert.equal(adresseFictive(a), true, String(a));
 });
 
-const demande = { id: 7, type: "absence", auteur_nom: "Lina B.", jours: [{ jour: "2026-11-19", demi: "matin" }], motif: "sante", texte: "rdv" };
+const demande = { id: 7, type: "absence", auteur_nom: "Lina B.", jours: [{ jour: "2026-11-19", demi: "matin" }], motif: "personnel", texte: "rdv" };
 
 test("ni motif ni texte libre dans l'e-mail ; les URL sont bâties ici", () => {
   const c = construireCourriel({ evenement: "nouvelle", appUrl: "https://app.test/", demande,
     destinataire: { email: "x@centre-ecsr.test", nom: "Sophie", avec_compte: false },
     jetons: { voir: "J1", prise: "J2", reponses: [{ libelle: "Absence enregistrée", jeton: "J3" }] } });
   assert.match(c.subject, /Absence/); assert.match(c.text, /Lina B\./); assert.match(c.text, /jeudi 19 novembre, matin/);
-  assert.doesNotMatch(c.html + c.text, /sante|Santé|rdv/);
+  assert.doesNotMatch(c.html + c.text, /personnel|rdv/i);
   assert.match(c.html, /https:\/\/app\.test\/demande\.html#j=J2/);
   assert.match(c.html, /Absence enregistrée/); assert.match(c.html, /demande\.html#j=J3/);
 });
@@ -44,7 +44,7 @@ test("le délégué a sa phrase pour l'avis et l'annulation d'une absence : tuto
     assert.match(c.subject, objet);
     assert.match(c.text, corps);
     assert.match(c.text, /jeudi 19 novembre, matin/);
-    assert.doesNotMatch(c.subject + c.html + c.text, /nouveau message|sante|Santé|rdv|Lina|\bvous\b|\bvotre\b/i);
+    assert.doesNotMatch(c.subject + c.html + c.text, /nouveau message|personnel|rdv|Lina|\bvous\b|\bvotre\b/i);
     assert.match(c.html, /https:\/\/app\.test\/#\/contacts"/);
     assert.doesNotMatch(c.html + c.text, /contacts\/7|demande\.html#j=/);
   }

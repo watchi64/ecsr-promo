@@ -56,14 +56,17 @@
 //                              groupe qui dépend de la migration 5 ou 6 ;
 //   gestion-en-ligne           la même sans rien d'injecté, après l'application réelle (un groupe dont la fonction manque est
 //                              sauté, avec une ligne d'information).
-//   contact-1, contact-2, contact-3, contact-4   preuve de la partie n du chantier « espace contact » (tests/sql/contact-annuaire-preuve.sql,
+//   contact-1, contact-2, contact-3, contact-4, contact-5   preuve de la partie n du chantier « espace contact » (tests/sql/contact-annuaire-preuve.sql,
 //                              contact-demandes-preuve.sql, contact-absences-preuve.sql, contact-correctifs-preuve.sql : la migration 4 de
-//                              correctifs, 20261116_contact_4_correctifs ; aides communes : roles-aides.sql, titres-aides.sql
+//                              correctifs, 20261116_contact_4_correctifs ; contact-donnees-preuve.sql : la migration 5 des données sensibles,
+//                              20261118_contact_5_donnees_sensibles, qui demande aussi la migration _demo (20261115_contact_demo, son
+//                              préalable : injectée avant la 4 comme en production, son retour après le retour 4) ; aides communes : roles-aides.sql, titres-aides.sql
 //                              puis contact-aides.sql) : les migrations 20261115_contact_1 à _n injectées dans l'ordre (l'étape 1 = la 1
 //                              puis la 1b, fermeture de la lecture directe ; retours 1b puis 1), la preuve de la
 //                              partie n jouée, puis les retours n à 1 ; le groupe retour compare l'empreinte d'après les retours à celle
 //                              d'avant ; une étape demandée dont un fichier manque arrête l'assemblage (code 1, son nom) ;
-//   contact-n-contre-epreuve   la même preuve avec les migrations 1 à n-1 injectées, la n et son retour neutralisés (select 1, non lus) :
+//   contact-n-contre-epreuve   la même preuve avec les migrations 1 à n-1 injectées (et le préalable de la n : la _demo pour la 5), la n et
+//                              son retour neutralisés (select 1, non lus) :
 //                              ROUGE attendu sur les seuls contrôles de la partie n ;
 //   contact-n-en-ligne         la même sans rien d'injecté, après l'application réelle des migrations 1 à n.
 //   suite [--etapes 7|7,8|7,8,9|8|8,9|9|4,9|4]  preuve de l'étape 3 du chantier (tests/sql/titres-suite-preuve.sql), jouée sur la base de
@@ -103,7 +106,7 @@ const GABARIT_TITRES = "tests/sql/titres-preuve.sql";
 const GABARIT_GESTION = "tests/sql/titres-gestion-preuve.sql";
 const GABARIT_SUITE = "tests/sql/titres-suite-preuve.sql";
 
-/** Chantier « espace contact » : quatre migrations (annuaire, demandes, absences, correctifs), chacune avec son retour, et la preuve de chaque partie. */
+/** Chantier « espace contact » : cinq migrations (annuaire, demandes, absences, correctifs, données sensibles), chacune avec son retour, et la preuve de chaque partie. */
 export const ETAPES_CONTACT = {
   // L'étape 1 porte deux migrations : la 1 (annuaire) puis la 1b (fermeture de la lecture directe de contacts, appliquée en production
   // après la fusion de l'app) ; les gabarits injectent la 1 puis la 1b, et les retours 1b puis 1. Elles vont toujours ensemble dans les
@@ -122,12 +125,23 @@ export const ETAPES_CONTACT = {
   4: { migration: "supabase/migrations/20261116_contact_4_correctifs.sql",
        retour: "supabase/migrations/20261116_contact_4_correctifs_retour.sql",
        gabarit: "tests/sql/contact-correctifs-preuve.sql" },
+  // La 5 demande la migration _demo (appliquée en production entre la 3 et la 4, données fictives seulement) : son préalable, injecté
+  // par le gabarit de la 5 avant la 4 (retour après le retour 4). La contre-épreuve de la 5 l'injecte aussi (état de la production) ;
+  // le mode en ligne le neutralise avec le reste.
+  5: { migration: "supabase/migrations/20261118_contact_5_donnees_sensibles.sql",
+       retour: "supabase/migrations/20261118_contact_5_donnees_sensibles_retour.sql",
+       prealable: { migration: "supabase/migrations/20261115_contact_demo.sql",
+                    retour: "supabase/migrations/20261115_contact_demo_retour.sql" },
+       gabarit: "tests/sql/contact-donnees-preuve.sql" },
 };
-const NUMEROS_CONTACT = [1, 2, 3, 4];
-/** Les fichiers d'une liste d'étapes du chantier contact, étape par étape : la migration, son retour, puis ceux de sa suite (1b). */
+const NUMEROS_CONTACT = [1, 2, 3, 4, 5];
+/** Le préalable d'une étape du chantier contact (la _demo pour la 5) : sa migration et son retour, ou rien. */
+const prealableContact = (n) => (ETAPES_CONTACT[n].prealable ? [ETAPES_CONTACT[n].prealable.migration, ETAPES_CONTACT[n].prealable.retour] : []);
+/** Les fichiers d'une liste d'étapes du chantier contact, étape par étape : la migration, son retour, ceux de sa suite (1b), puis ceux
+ *  de son préalable (_demo). */
 const fichiersContact = (etapes) => etapes.flatMap((n) => {
   const e = ETAPES_CONTACT[n];
-  return [e.migration, e.retour, ...(e.suite ? [e.suite.migration, e.suite.retour] : [])];
+  return [e.migration, e.retour, ...(e.suite ? [e.suite.migration, e.suite.retour] : []), ...prealableContact(n)];
 });
 
 /** Lot 5, étape 1 : la migration du siège et son retour. */
@@ -328,7 +342,10 @@ export function decrireMode(mode, { etapes } = {}) {
     const libelle = d.variante === "plein" ? `${mode} (migrations 1 a ${n} injectees)`
       : d.variante === "contre" ? `${mode} (migration ${n} non injectee)`
       : `${mode} (aucune migration injectee)`;
-    return { gabarit: d.gabarit, contact: n, injectees, neutres: fichiersContact(NUMEROS_CONTACT.slice(0, n).filter((k) => !injectees.includes(k))),
+    // La contre-épreuve garde le préalable de la n injecté (l'état de la production d'avant la n) ; le mode en ligne neutralise tout.
+    const garde = d.variante === "contre" ? prealableContact(n) : [];
+    return { gabarit: d.gabarit, contact: n, injectees,
+             neutres: fichiersContact(NUMEROS_CONTACT.slice(0, n).filter((k) => !injectees.includes(k))).filter((f) => !garde.includes(f)),
              etapes: null, mode: libelle, requis: [] };
   }
   if (d.gestion) {

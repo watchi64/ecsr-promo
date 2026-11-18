@@ -12,20 +12,23 @@
 --   annuler      l'auteur jusqu'au début de la demi-journée (C-13 : 09:00 par défaut, l'heure de début d'une plage), l'équipe ensuite ;
 --                peut.annuler de demande_detail suit la même règle ; envois annulation et annulation_absence.
 --   justificatif réponse toute faite qui le demande (« à remettre »), mes_justificatifs_a_remettre, regler_justificatif (qui peut), file des
---                envois (jours, jamais le motif), lien d'e-mail (motif, mot, jours, moment ; « Justificatif reçu » une seule fois).
+--                envois (jours, jamais le motif), lien d'e-mail (jours, moment ; motif et mot jusqu'à la migration 5, plus après elle ;
+--                « Justificatif reçu » une seule fois).
 --   emargement   pré-marquage à l'ouverture, refus de signer, « Absence justifiée », plage (observation seule, le stagiaire signe), absence
 --                annoncée après l'ouverture, annulation (ligne rendue, signature intacte), clore puis rouvrir, observation du formateur ;
 --                feuille close jamais touchée (justificatif, annulation par l'équipe, absence annoncée après la clôture), réouverture.
 --   planning     absences_annoncees_semaine : la promo affichée seulement, jamais le motif, absences annulées exclues, rien sans le planning.
---   conservation changement de promo, effacement (étape 1 : la ligne reste, motif compris ; mot et réponses partent), anonymisation (étape 2
---                par effacer_sur_demande : motif effacé, la ligne reste).
+--   conservation changement de promo, effacement (étape 1 : la ligne reste ; mot et réponses partent ; le motif aussi depuis la migration 5,
+--                20261118_contact_5_donnees_sensibles, sinon il reste), anonymisation (étape 2 par effacer_sur_demande : motif effacé,
+--                la ligne reste).
 --   retour       migration 3 rejouée : refusée ; retour 3 refusé tant qu'une ligne d'émargement est « annoncee » ; après le retour 3,
 --                l'empreinte et md5(pg_get_functiondef) des huit fonctions redéfinies égalent ceux d'avant la migration 3 ; les retours
 --                défont tout, dans l'ordre inverse (3, 2, 1b, 1) : l'empreinte égale celle d'avant.
 -- L'horloge : après la migration 2, _contact_maintenant() lit le réglage preuve.maintenant (C-21) ; le jour de l'émargement aussi, le temps
 -- du groupe emargement. Les jours d'essai : mercredi 18 et jeudi 19 novembre 2026 (C-21 : jour ouvré posé par la preuve).
 -- Modes : dans la contre-épreuve, chaque groupe de la partie 3 se joue et doit être ROUGE ; en ligne, un groupe dont la migration n'est pas
--- appliquée est sauté (ligne d'information).
+-- appliquée est sauté (ligne d'information). Les motifs d'essai (famille, transport, demarche, autre) valent avant comme après la
+-- migration 5 ; les attendus qu'elle change (phrase du motif, lien d'une absence, motif à l'étape 1) suivent pg_temp.migration_5().
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes (roles-aides.sql, titres-aides.sql,
 -- contact-aides.sql), le libellé du mode, la requête d'empreinte, puis les migrations 1 à 3 et leurs retours :
 --   node outils/assembler_repetition_roles.mjs contact-3 <sortie.sql>                 migrations injectées : VERT attendu
@@ -268,10 +271,10 @@ begin
     pg_temp.appeler('stag_n', '1', format(c_apercu, f_form_n, '[{"jour":"2026-11-19","demi":"matin"}]')),
     'OK choix|true|0|aucun|Preuve14 deleg PREUVE');
   perform pg_temp.attendre('prevenir', 'prevenir_absence sans choix (mode choix) : refusé',
-    pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'sante', 'Preuve14 mot', '{}', null),
+    pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'famille', 'Preuve14 mot', '{}', null),
     'ERREUR P0001 contact: Choisis au moins une personne à prévenir.');
-  v := pg_temp.poser_ab('a1', pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'sante', 'Preuve14 mot', '{}', format(c_choix, f_form_n)));
-  perform pg_temp.verifier('prevenir', 'a1 : stag_n prévient (jeudi 19 matin, santé) en choisissant la fiche de form_n : OK', v ~ '^OK [0-9]+$', v);
+  v := pg_temp.poser_ab('a1', pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'famille', 'Preuve14 mot', '{}', format(c_choix, f_form_n)));
+  perform pg_temp.verifier('prevenir', 'a1 : stag_n prévient (jeudi 19 matin, famille) en choisissant la fiche de form_n : OK', v ~ '^OK [0-9]+$', v);
   v_id := pg_temp.ab('a1');
   perform pg_temp.attendre('prevenir', 'a1 : form_n seul principal ; aucun formateur du jour en annexe (form_n, au planning, est déjà principal) ; le délégué titulaire en annexe, jamais principal',
     pg_temp.dest_de(v_id), format('%s:P,s%s:delegue', f_form_n, s_deleg));
@@ -281,7 +284,7 @@ begin
     pg_temp.calcul(format($ab_q$select concat_ws('|', a.du, a.au, a.quand, coalesce(a.heure_debut, '-'), a.motif, a.annexes_decochees::text, a.stagiaire_id,
         a.promo_id, coalesce(a.justificatif, '-'), d.type, d.texte, coalesce(d.sujet, '-'), d.etat)
       from public.absences_annoncees a join public.demandes d on d.id = a.demande_id where a.demande_id = %s$ab_q$, v_id)),
-    format('2026-11-19|2026-11-19|matin|-|sante|{}|%s|1|-|absence|Preuve14 mot|-|envoyee', s_n));
+    format('2026-11-19|2026-11-19|matin|-|famille|{}|%s|1|-|absence|Preuve14 mot|-|envoyee', s_n));
   perform pg_temp.attendre('prevenir', 'le délégué n''a pas de fiche : le choisir est impossible (aucune fiche à son adresse, absent de la liste de choix)',
     concat_ws('|', pg_temp.calcul(format('select count(*)::text from public.contacts where compte_email = %L', pg_temp.email_de('deleg'))),
       pg_temp.appeler('stag_n', '1', $ab_q$select count(*)::text from jsonb_array_elements(public.apercu_envoi('absence', '[{"jour":"2026-11-19","demi":"matin"}]'::jsonb) -> 'possibles') x
@@ -294,13 +297,15 @@ begin
     format('%1$s:P / %1$s:nouvelle / {delegue}', f_form_n));
   perform pg_temp.attendre('prevenir', 'refus : le mardi 17 (passé), un samedi seul, plus de 31 jours, une plage sur deux jours, un motif inconnu, une case annexe inconnue',
     concat_ws(' / ',
-      pg_temp.prevenir('stag_n', '2026-11-17', null, 'matin', null, null, 'sante', null, '{}', format(c_choix, f_form_n)),
-      pg_temp.prevenir('stag_n', '2026-11-21', null, 'matin', null, null, 'sante', null, '{}', format(c_choix, f_form_n)),
-      pg_temp.prevenir('stag_n', '2026-11-19', '2026-12-20', 'journee', null, null, 'sante', null, '{}', format(c_choix, f_form_n)),
-      pg_temp.prevenir('stag_n', '2026-11-19', '2026-11-20', 'heures', '10:00', '11:00', 'sante', null, '{}', format(c_choix, f_form_n)),
+      pg_temp.prevenir('stag_n', '2026-11-17', null, 'matin', null, null, 'transport', null, '{}', format(c_choix, f_form_n)),
+      pg_temp.prevenir('stag_n', '2026-11-21', null, 'matin', null, null, 'transport', null, '{}', format(c_choix, f_form_n)),
+      pg_temp.prevenir('stag_n', '2026-11-19', '2026-12-20', 'journee', null, null, 'transport', null, '{}', format(c_choix, f_form_n)),
+      pg_temp.prevenir('stag_n', '2026-11-19', '2026-11-20', 'heures', '10:00', '11:00', 'transport', null, '{}', format(c_choix, f_form_n)),
       pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'maladie', null, '{}', format(c_choix, f_form_n)),
-      pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'sante', null, '{direction}', format(c_choix, f_form_n))),
-    'ERREUR P0001 contact: Une absence passée se règle avec l''équipe. / ERREUR P0001 contact: Ces jours ne comptent aucune demi-journée de formation (ni le samedi ni le dimanche). / ERREUR P0001 contact: Une absence annoncée couvre 31 jours au plus : au-delà, vois avec l''équipe. / ERREUR P0001 contact: Une absence de quelques heures tient dans une seule journée. / ERREUR P0001 contact: Choisis un motif : santé, transport, démarche, famille ou autre. / ERREUR P0001 contact: Les envois à décocher sont illisibles.');
+      pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'transport', null, '{direction}', format(c_choix, f_form_n))),
+    'ERREUR P0001 contact: Une absence passée se règle avec l''équipe. / ERREUR P0001 contact: Ces jours ne comptent aucune demi-journée de formation (ni le samedi ni le dimanche). / ERREUR P0001 contact: Une absence annoncée couvre 31 jours au plus : au-delà, vois avec l''équipe. / ERREUR P0001 contact: Une absence de quelques heures tient dans une seule journée. / ERREUR P0001 '
+      || case when pg_temp.migration_5() then 'contact: Choisis un motif : transport, démarche, famille, raison personnelle ou autre.' else 'contact: Choisis un motif : santé, transport, démarche, famille ou autre.' end
+      || ' / ERREUR P0001 contact: Les envois à décocher sont illisibles.');
   perform pg_temp.attendre('prevenir', 'apercu_envoi(absence, jeudi 19 après-midi) : « Karim (fictif) », saisi à la main au planning, parmi les non prévenus',
     pg_temp.appeler('stag_n', '1', format(c_apercu, f_form_n, '[{"jour":"2026-11-19","demi":"aprem"}]')),
     'OK choix|false|0|Karim (fictif)|Preuve14 deleg PREUVE');
@@ -349,12 +354,12 @@ begin
     'OK 1:2026-11-19 matin,1:2026-11-19 matin,6:2026-11-19 matin');
   perform pg_temp.attendre('delegue', 'demande_detail(a1) par le délégué : refusé',
     pg_temp.appeler('deleg', '1', format('select public.demande_detail(%s)::text', pg_temp.ab('a1'))), 'ERREUR 42501 contact: Demande introuvable.');
-  perform pg_temp.attendre('delegue', 'balayage du jsonb de chaque ligne du délégué : ni « sante », ni « demarche », ni le mot de stag_n',
-    pg_temp.appeler('deleg', '1', $ab_q$select count(*) || '|' || count(*) filter (where to_jsonb(l)::text like '%sante%' or to_jsonb(l)::text like '%demarche%'
+  perform pg_temp.attendre('delegue', 'balayage du jsonb de chaque ligne du délégué : ni « famille », ni « demarche », ni le mot de stag_n',
+    pg_temp.appeler('deleg', '1', $ab_q$select count(*) || '|' || count(*) filter (where to_jsonb(l)::text like '%famille%' or to_jsonb(l)::text like '%demarche%'
         or to_jsonb(l)::text like '%Preuve14 mot%') from public.liste_demandes() l$ab_q$),
     'OK 3|0');
-  perform pg_temp.attendre('delegue', 'contrôle du balayage : demande_detail(a1) par stag_n, lui, porte bien « sante »',
-    pg_temp.appeler('stag_n', '1', format($ab_q$select (public.demande_detail(%s)::text like '%%sante%%')::text$ab_q$, pg_temp.ab('a1'))), 'OK true');
+  perform pg_temp.attendre('delegue', 'contrôle du balayage : demande_detail(a1) par stag_n, lui, porte bien « famille »',
+    pg_temp.appeler('stag_n', '1', format($ab_q$select (public.demande_detail(%s)::text like '%%famille%%')::text$ab_q$, pg_temp.ab('a1'))), 'OK true');
 end $ab_gd$;
 
 -- Groupe annuler (C-13) : b1 et b2 (jeudi 19 matin, début 09:00 par défaut), b3 (de 10:00 à 11:00), prévenues la veille.
@@ -372,7 +377,7 @@ declare
 begin
   perform pg_temp.horloge('2026-11-18 18:00');
   perform pg_temp.vider_absences();
-  perform pg_temp.poser_ab('b1', pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'sante', null, '{}', v_choix));
+  perform pg_temp.poser_ab('b1', pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'famille', null, '{}', v_choix));
   perform pg_temp.poser_ab('b2', pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'transport', null, '{}', v_choix));
   perform pg_temp.poser_ab('b3', pg_temp.prevenir('stag_n', '2026-11-19', null, 'heures', '10:00', '11:00', 'demarche', null, '{}', v_choix));
   perform pg_temp.verifier('annuler', 'b1, b2, b3 : prévenues', pg_temp.ab('b1') <> 'null' and pg_temp.ab('b2') <> 'null' and pg_temp.ab('b3') <> 'null',
@@ -418,7 +423,7 @@ begin
     'OK true / OK');
 end $ab_gn$;
 
--- Groupe justificatif : j1 (jeudi 19 matin, santé, un mot), prévenue la veille, form_n choisi.
+-- Groupe justificatif : j1 (jeudi 19 matin, famille, un mot), prévenue la veille, form_n choisi.
 create or replace function pg_temp.groupe_justificatif()
 returns void language plpgsql as $ab_gj$
 declare
@@ -440,7 +445,7 @@ begin
   perform pg_temp.horloge('2026-11-18 18:00');
   perform pg_temp.vider_absences();
   perform pg_temp.essai($ab_q$update public.contact_envois set etat = 'envoye' where etat in ('a_envoyer', 'a_retenter', 'en_cours')$ab_q$);
-  perform pg_temp.poser_ab('j1', pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'sante', 'Preuve14 mot du lien', '{}',
+  perform pg_temp.poser_ab('j1', pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'famille', 'Preuve14 mot du lien', '{}',
                                                   format('array[%s]::bigint[]', f_form_n)));
   j1 := pg_temp.ab('j1');
   -- La file des envois (service_role) : les jours de l'absence, jamais le motif ni le mot.
@@ -450,7 +455,7 @@ begin
       (select string_agg(concat_ws(':', case when (x -> 'destinataire' ->> 'stagiaire')::boolean then 'stagiaire' else 'fiche' end, x ->> 'evenement',
                                    x -> 'demande' ->> 'type', x -> 'demande' -> 'jours'), ',' order by x ->> 'envoi_id')
          from jsonb_array_elements(case when jsonb_typeof(r) = 'array' then r else '[]'::jsonb end) x),
-      (r::text like '%sante%' or r::text like '%Preuve14 mot du lien%')::text),
+      (r::text like '%famille%' or r::text like '%Preuve14 mot du lien%')::text),
     'fiche:nouvelle:absence:[{"demi": "matin", "jour": "2026-11-19"}],stagiaire:avis_absence:absence:[{"demi": "matin", "jour": "2026-11-19"}] | false');
   perform pg_temp.attendre('justificatif', 'mes_justificatifs_a_remettre par stag_n avant toute réponse : rien',
     pg_temp.appeler('stag_n', '1', 'select count(*)::text from public.mes_justificatifs_a_remettre()'), 'OK 0');
@@ -467,7 +472,7 @@ begin
     pg_temp.appeler('stag_n', '1', format($ab_q$select public.demande_detail(%s) -> 'peut' ->> 'justificatif'$ab_q$, j1)) || ' / '
       || pg_temp.appeler('form_n', '1', format($ab_q$select concat_ws('|', r -> 'peut' ->> 'justificatif', r -> 'absence' ->> 'quand', r -> 'absence' ->> 'motif', r -> 'absence' ->> 'mot',
            r -> 'absence' ->> 'justificatif') from (select public.demande_detail(%s) r) x$ab_q$, j1)),
-    'OK true / OK true|matin|sante|Preuve14 mot du lien|a_remettre');
+    'OK true / OK true|matin|famille|Preuve14 mot du lien|a_remettre');
   perform pg_temp.attendre('justificatif', 'regler_justificatif par stag_n (l''auteur), par le délégué, par t_rh (sans rôle) : refusés ; un état inconnu (form_n) : refusé',
     concat_ws(' / ', pg_temp.appeler('stag_n', '1', format(c_regler, j1, 'recu')), pg_temp.appeler('deleg', '1', format(c_regler, j1, 'recu')),
       pg_temp.appeler('t_rh', '1', format(c_regler, j1, 'recu')), pg_temp.appeler('form_n', '1', format(c_regler, j1, 'perdu'))),
@@ -480,10 +485,12 @@ begin
       (decode(%L, 'hex'), %s, %s, 'justificatif', timestamptz '2026-12-31 12:00 Europe/Paris'),
       (decode(%L, 'hex'), %s, %s, 'justificatif', timestamptz '2026-12-31 12:00 Europe/Paris')$ab_q$, h_justif, j1, f_form_n, h_dir, j1, f_dir_n));
   r := pg_temp.srv(format('select public._contact_srv_lien(%L)', h_justif));
-  perform pg_temp.attendre('justificatif', '_contact_srv_lien (justificatif) : le motif, le mot, les jours et le moment de l''absence ; pas encore fait',
-    concat_ws('|', r ->> 'action', r -> 'demande' ->> 'motif', r -> 'demande' ->> 'mot', r -> 'demande' -> 'jours', r -> 'demande' -> 'moment' ->> 'quand',
-      r -> 'demande' -> 'moment' ->> 'du', r ->> 'deja'),
-    'justificatif|sante|Preuve14 mot du lien|[{"demi": "matin", "jour": "2026-11-19"}]|matin|2026-11-19|false');
+  -- Depuis la migration 5, la page du lien d'une absence ne montre plus ni le motif ni le mot (« - ») : ils se lisent dans l'app.
+  perform pg_temp.attendre('justificatif', '_contact_srv_lien (justificatif) : les jours et le moment de l''absence (le motif et le mot jusqu''à la migration 5) ; pas encore fait',
+    concat_ws('|', r ->> 'action', coalesce(r -> 'demande' ->> 'motif', '-'), coalesce(r -> 'demande' ->> 'mot', '-'), r -> 'demande' -> 'jours',
+      r -> 'demande' -> 'moment' ->> 'quand', r -> 'demande' -> 'moment' ->> 'du', r ->> 'deja'),
+    case when pg_temp.migration_5() then 'justificatif|-|-|[{"demi": "matin", "jour": "2026-11-19"}]|matin|2026-11-19|false'
+         else 'justificatif|famille|Preuve14 mot du lien|[{"demi": "matin", "jour": "2026-11-19"}]|matin|2026-11-19|false' end);
   v_e0 := pg_temp.dernier_envoi();
   perform pg_temp.attendre('justificatif', '_contact_srv_agir (justificatif, form_n) : fait ; justificatif reçu ; envoi « justificatif_recu » à stag_n',
     concat_ws(' / ', pg_temp.srv(format('select public._contact_srv_agir(%L)', h_justif))::text, pg_temp.calcul(format(c_etat, j1)), pg_temp.envois_apres(j1, v_e0)),
@@ -527,7 +534,7 @@ begin
   perform pg_temp.essai($ab_q$insert into public.settings (key, value, promo_id) values ('emargement_actif', 'true', 1)$ab_q$);
   perform pg_temp.essai($ab_q$create or replace function public.emargement_jour_paris() returns date language sql stable set search_path = public, pg_temp
     as 'select (coalesce(nullif(current_setting(''preuve.maintenant'', true), '''')::timestamptz, now()) at time zone ''Europe/Paris'')::date'$ab_q$);
-  perform pg_temp.poser_ab('e1', pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'sante', null, '{}', v_choix));
+  perform pg_temp.poser_ab('e1', pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'famille', null, '{}', v_choix));
   perform pg_temp.poser_ab('e2', pg_temp.prevenir('stag_h', '2026-11-19', null, 'heures', '10:00', '11:00', 'transport', null, '{}', v_choix));
   perform pg_temp.verifier('emargement', 'e1 (stag_n, jeudi 19 matin) et e2 (stag_h, de 10:00 à 11:00) : prévenues la veille',
     pg_temp.ab('e1') <> 'null' and pg_temp.ab('e2') <> 'null', pg_temp.ab('e1') || ' ' || pg_temp.ab('e2'));
@@ -635,8 +642,8 @@ declare
 begin
   perform pg_temp.horloge('2026-11-18 18:00');
   perform pg_temp.vider_absences();
-  perform pg_temp.poser_ab('p1', pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'sante', null, '{}', v_choix));
-  perform pg_temp.poser_ab('p2', pg_temp.prevenir('stag_n', '2026-11-20', null, 'matin', null, null, 'sante', null, '{}', v_choix));
+  perform pg_temp.poser_ab('p1', pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'famille', null, '{}', v_choix));
+  perform pg_temp.poser_ab('p2', pg_temp.prevenir('stag_n', '2026-11-20', null, 'matin', null, null, 'famille', null, '{}', v_choix));
   perform pg_temp.poser_ab('p3', pg_temp.prevenir('stag_h', '2026-11-19', null, 'heures', '10:00', '11:00', 'transport', null, '{}', v_choix));
   perform pg_temp.attendre('planning', 'p1, p2, p3 prévenues ; p2 annulée par stag_n avant son début',
     concat_ws(' ', (pg_temp.ab('p1') <> 'null' and pg_temp.ab('p2') <> 'null' and pg_temp.ab('p3') <> 'null')::text,
@@ -648,7 +655,7 @@ begin
   perform pg_temp.attendre('planning', 'deleg (stagiaire de la promo 1) : le jeudi matin de stag_n (entière) et la plage de stag_h ; l''absence annulée (vendredi) n''y est pas',
     pg_temp.appeler('deleg', '1', format(c_sem, '2026-11-16', s_n, s_h)), v_attendu);
   perform pg_temp.attendre('planning', 'aucune colonne ne porte le motif (balayage du jsonb de chaque ligne)',
-    pg_temp.appeler('deleg', '1', $ab_q$select count(*) || '|' || count(*) filter (where to_jsonb(x)::text like '%sante%' or to_jsonb(x)::text like '%transport%')
+    pg_temp.appeler('deleg', '1', $ab_q$select count(*) || '|' || count(*) filter (where to_jsonb(x)::text like '%famille%' or to_jsonb(x)::text like '%transport%')
       from public.absences_annoncees_semaine(date '2026-11-16') x$ab_q$),
     'OK 2|0');
   perform pg_temp.attendre('planning', 't_rh (direction de Nîmes à titre non fixe, sans le planning) : aucune ligne',
@@ -657,7 +664,7 @@ begin
     pg_temp.appeler('form_n', '1', format(c_sem, '2026-11-18', s_n, s_h)), v_attendu);
 end $ab_gl$;
 
--- Groupe conservation : c1 (stag_n, jeudi 19 matin, santé, un mot), une réponse de form_n, justificatif à remettre.
+-- Groupe conservation : c1 (stag_n, jeudi 19 matin, famille, un mot), une réponse de form_n, justificatif à remettre.
 create or replace function pg_temp.groupe_conservation()
 returns void language plpgsql as $ab_gc$
 declare
@@ -670,7 +677,7 @@ declare
 begin
   perform pg_temp.horloge('2026-11-18 18:00');
   perform pg_temp.vider_absences();
-  perform pg_temp.poser_ab('c1', pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'sante', 'Preuve14 mot à effacer', '{}',
+  perform pg_temp.poser_ab('c1', pg_temp.prevenir('stag_n', '2026-11-19', null, 'matin', null, null, 'famille', 'Preuve14 mot à effacer', '{}',
                                                   format('array[%s]::bigint[]', pg_temp.fiche('form_n'))));
   c1 := pg_temp.ab('c1');
   perform pg_temp.attendre('conservation', 'c1 prévenue ; form_n répond et demande le justificatif',
@@ -678,7 +685,7 @@ begin
       pg_temp.appeler('form_n', '1', format('select (public.repondre_demande(%s, %L) is not null)::text', c1, 'Preuve14 réponse du formateur')),
       pg_temp.appeler('form_n', '1', format('select public.regler_justificatif(%s, %L)::text', c1, 'a_remettre')),
       pg_temp.calcul(format(c_ligne, c1))),
-    'true / OK true / OK / 2026-11-19|matin|sante|a_remettre|1|Preuve14 mot à effacer|1');
+    'true / OK true / OK / 2026-11-19|matin|famille|a_remettre|1|Preuve14 mot à effacer|1');
   perform pg_temp.essai(format('update public.stagiaires set promo_id = 2 where id = %s', s_n));
   perform pg_temp.attendre('conservation', 'stag_n passé dans la promo 2 : son absence garde promo_id 1 et reste au planning de la promo 1 (lu par deleg)',
     pg_temp.calcul(format('select promo_id::text from public.absences_annoncees where demande_id = %s', c1)) || ' / '
@@ -687,8 +694,10 @@ begin
   perform pg_temp.essai(format('update public.stagiaires set promo_id = 1 where id = %s', s_n));
   -- Étape 1 de l'effacement (_effacer_etape1, que effacer_sur_demande joue d'abord) : la fiche est effacée, pas encore rendue anonyme.
   v := pg_temp.calcul(format('select (public._effacer_etape1(%s) is not null)::text', s_n));
-  perform pg_temp.attendre('conservation', 'effacement, étape 1 : la ligne d''absence reste (jour, moment, motif, justificatif) ; le mot et les réponses de sa demande disparaissent',
-    v || ' / ' || pg_temp.calcul(format(c_ligne, c1)), 'true / 2026-11-19|matin|sante|a_remettre|1|-|0');
+  -- Depuis la migration 5 (décision de Timy du 18/11), le motif part dès l'étape 1, avec le mot ; avant elle, il restait jusqu'à l'étape 2.
+  perform pg_temp.attendre('conservation', 'effacement, étape 1 : la ligne d''absence reste (jour, moment, justificatif ; le motif jusqu''à la migration 5) ; le mot et les réponses de sa demande disparaissent',
+    v || ' / ' || pg_temp.calcul(format(c_ligne, c1)),
+    case when pg_temp.migration_5() then 'true / 2026-11-19|matin|-|a_remettre|1|-|0' else 'true / 2026-11-19|matin|famille|a_remettre|1|-|0' end);
   v := pg_temp.appeler('fond', '1', format('select public.effacer_sur_demande(%s)::text', s_n));
   perform pg_temp.verifier('conservation', 'effacer_sur_demande(stag_n) par le fondateur (étape 2 : la fiche rendue anonyme) : OK', v like 'OK %', left(v, 200));
   perform pg_temp.attendre('conservation', 'après l''anonymisation : motif nul ; la ligne reste (jour, moment, justificatif, promo)',

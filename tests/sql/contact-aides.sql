@@ -1,5 +1,6 @@
--- Aides communes des preuves du chantier « espace contact » (annuaire, demandes et e-mails, absences) :
--- tests/sql/contact-annuaire-preuve.sql, contact-demandes-preuve.sql et contact-absences-preuve.sql.
+-- Aides communes des preuves du chantier « espace contact » (annuaire, demandes et e-mails, absences, correctifs, données sensibles) :
+-- tests/sql/contact-annuaire-preuve.sql, contact-demandes-preuve.sql, contact-absences-preuve.sql, contact-correctifs-preuve.sql et
+-- contact-donnees-preuve.sql.
 -- INCLUSION : l'assembleur (outils/assembler_repetition_roles.mjs) colle ce fichier tel quel, APRES tests/sql/roles-aides.sql et
 -- tests/sql/titres-aides.sql (les gabarits portent les trois marqueurs d'inclusion, dans cet ordre) ; il ne porte donc aucun marqueur
 -- d'assemblage. Ne se joue pas seul.
@@ -46,3 +47,12 @@ create or replace function pg_temp.migration_4()
 returns boolean language sql as $tm4$
   select to_regprocedure('public._contact_quota_equipe(bigint)') is not null;
 $tm4$;
+
+-- La migration 5 (20261118_contact_5_donnees_sensibles) est-elle appliquée ? Sa marque : la contrainte absences_annoncees_motif admet
+-- « personnel » (aucune fonction nouvelle). Les preuves des parties 3 et 4 s'en servent pour les seuls attendus que la migration 5 change
+-- (phrase du motif, page du lien d'une absence, motif à l'étape 1 de l'effacement) ; la preuve de la 5, pour sauter ses groupes en ligne.
+create or replace function pg_temp.migration_5()
+returns boolean language sql as $tm5$
+  select coalesce((select pg_get_constraintdef(c.oid) like '%''personnel''%' from pg_constraint c
+                    where c.conrelid = to_regclass('public.absences_annoncees') and c.conname = 'absences_annoncees_motif'), false);
+$tm5$;

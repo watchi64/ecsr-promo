@@ -1,7 +1,7 @@
 // Recette de l'e-mail de l'espace contact par un vrai e-mail, sans base ni fonction déployée.
 //   node outils/recette_courriel.mjs --a <adresse> [--a-blanc]
 // Construit, avec construireCourriel et des jetons de banc, l'e-mail d'une demande fictive (« Lina B. », absence, jeudi 19 novembre,
-// matin ; motif « santé » et texte donnés en entrée, pour vérifier qu'ils n'en sortent pas) dont les liens pointent vers le banc
+// matin ; motif « personnel » et texte donnés en entrée, pour vérifier qu'ils n'en sortent pas) dont les liens pointent vers le banc
 // (http://localhost:8000/_harness_demande.html#j=...). Trois liens d'action : voir, prise, une réponse toute faite.
 //   --a-blanc : l'e-mail s'écrit sur la sortie, rien ne part.
 //   sinon : envoi par Resend, avec la clé lue dans la variable d'environnement RESEND_API_KEY (posée dans le terminal au moment de
@@ -33,7 +33,7 @@ if (!args || !args.a || !args.a.includes("@")) {
 const aleatoire = (n) => globalThis.crypto.getRandomValues(new Uint8Array(n));
 const demande = {
   id: 0, type: "absence", auteur_nom: "Lina B.", jours: [{ jour: "2026-11-19", demi: "matin" }],
-  motif: "santé", texte: "rdv médical", sujet: "Absence jeudi",
+  motif: "personnel", texte: "rdv médical", sujet: "Absence jeudi",
 };
 const courriel = construireCourriel({
   evenement: "nouvelle", demande, appUrl: BANC, pageLien: "_harness_demande.html",

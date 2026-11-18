@@ -2,7 +2,7 @@
 // bouton « Confirmer : <geste> ». Ouvrir la page ne fait rien (un filtre de messagerie peut la charger) ; le geste n'est fait qu'au
 // toucher. Aucun champ de texte, aucune connexion : le jeton du fragment de l'adresse fait foi, la fonction contact-envois le juge.
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261116a";
-import { jetonDeLAdresse, etatDeLaPage, libelleAction, titreDeLaDemande, lignesAbsence, LECTURE_EN_ECHEC } from "./lien-demande-rules.js?v=20261116a";
+import { jetonDeLAdresse, etatDeLaPage, libelleAction, titreDeLaDemande, lignesAbsence, estAbsence, PHRASE_DETAIL_ABSENCE, LECTURE_EN_ECHEC } from "./lien-demande-rules.js?v=20261116a";
 import { TYPES_DEMANDE } from "./contact-rules.js?v=20261116a";
 
 const racine = document.getElementById("lien-demande");
@@ -36,7 +36,8 @@ function montrerDemande(d) {
   const type = TYPES_DEMANDE[d.type] ?? "Message";
   carte.append(el("p", "lien-demande-type muted", `${type}, de ${d.auteur_nom ?? "?"}, ${quand(d.cree_le)}`));
   carte.append(el("h1", "lien-demande-sujet", titreDeLaDemande(d, TYPES_DEMANDE)));
-  // Une absence : le jour, le moment et le motif (la personne sans compte n'a que cette page pour les lire) ; le mot suit.
+  // Une absence : le jour et le moment seulement ; ni motif, ni mot, ni messages sans connexion (décision de Timy du 18/11), une phrase
+  // renvoie à l'app. Une autre demande : son texte et ses messages, comme avant.
   const lignes = lignesAbsence(d);
   if (lignes.length) {
     const liste = el("dl", "contact-detail lien-demande-absence");
@@ -46,6 +47,10 @@ function montrerDemande(d) {
       liste.append(ligne);
     }
     carte.append(liste);
+  }
+  if (estAbsence(d)) {
+    carte.append(el("p", "lien-demande-texte lien-demande-renvoi", PHRASE_DETAIL_ABSENCE));
+    return carte;
   }
   if (d.texte) carte.append(el("p", "lien-demande-texte", d.texte));
   for (const m of d.messages ?? []) {

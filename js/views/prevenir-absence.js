@@ -1,5 +1,5 @@
-// « Prévenir d'une absence » (espace contact, tâche 15) : #/absence. Le stagiaire dit quel jour, quand et pourquoi (aucune précision
-// médicale), voit qui sera prévenu (encadré « Sera envoyé à » : le centre a réglé qui reçoit, ou le stagiaire coche au moins une
+// « Prévenir d'une absence » (espace contact, tâche 15) : #/absence. Le stagiaire dit quel jour, quand et pourquoi (un motif d'une liste
+// sans « santé », aucune précision médicale ; le mot ne doit en porter aucune), voit qui sera prévenu (encadré « Sera envoyé à » : le centre a réglé qui reçoit, ou le stagiaire coche au moins une
 // personne), puis suit sa demande. Règles pures : js/contact-absences-rules.js et js/contact-rules.js ; la base juge tout et ses refus se
 // disent par leur phrase. Réservé aux stagiaires (espace du compte, vueStagiaire), tutoiement. Aucun défilement de côté.
 
@@ -9,12 +9,12 @@ import { icon } from "../icons.js?v=20261116a";
 import { vueStagiaire } from "../auth-admin.js?v=20261116a";
 import { jourParis, jourDe } from "../dates.js?v=20261116a";
 import { lignesEncadre, libelleDestinataire, phraseContact, basculerCoche } from "../contact-rules.js?v=20261116a";
-import { demiJourneesDe, verifierAbsence, phraseCasesDecochees } from "../contact-absences-rules.js?v=20261116a";
+import { demiJourneesDe, verifierAbsence, phraseCasesDecochees, LIBELLES_MOTIF } from "../contact-absences-rules.js?v=20261116a";
 import { routeDesDemandes } from "./contact-ecrire.js?v=20261116a";
 
 const JOURS = [["aujourdhui", "Aujourd'hui"], ["demain", "Demain"], ["autre", "Choisir"]];
 const MOMENTS = [["journee", "Journée"], ["matin", "Matin"], ["aprem", "Après-midi"], ["heures", "De ... à ..."]];
-const MOTIFS = [["sante", "Santé"], ["transport", "Transport"], ["demarche", "Démarche"], ["famille", "Famille"], ["autre", "Autre"]];
+const MOTIFS = Object.entries(LIBELLES_MOTIF);
 const PHRASE_ECHEC_ENCADRE = "Les personnes à prévenir n'ont pas pu être chargées.";
 const PHRASE_ECHEC_ENVOI = "Ton absence n'a pas été enregistrée. Réessaie dans un instant.";
 const PHRASE_CHOIX = "Choisis le jour et le moment : on te dit alors qui sera prévenu.";
@@ -188,7 +188,7 @@ export async function renderPrevenirAbsence(container) {
   debut.addEventListener("input", () => { etat.debut = debut.value; surChangement(); });
   const fin = el("input", { type: "time", id: "abs-fin" });
   fin.addEventListener("input", () => { etat.fin = fin.value; surChangement(); });
-  const mot = el("textarea", { id: "abs-mot", rows: "3", maxlength: "200" });
+  const mot = el("textarea", { id: "abs-mot", rows: "3", maxlength: "200", "aria-describedby": "abs-mot-aide" });
   mot.addEventListener("input", () => { etat.mot = mot.value; majBouton(); });
 
   const champDate = el("div", { class: "field" }, el("label", { for: "abs-date" }, "Le jour"), date);
@@ -212,6 +212,7 @@ export async function renderPrevenirAbsence(container) {
     groupeChoix("motif", "Motif", MOTIFS, (v) => { etat.motif = v; majBouton(); }),
     el("p", { class: "contact-aide" }, "Aucune précision médicale n'est demandée."),
     el("div", { class: "field" }, el("label", { for: "abs-mot" }, "Un mot (facultatif, 200 caractères au plus)"), mot),
+    el("p", { class: "contact-aide", id: "abs-mot-aide" }, "N'y mets aucune information sur ta santé."),
     encadre, aide, general);
   formulaire.addEventListener("submit", (e) => e.preventDefault());
 

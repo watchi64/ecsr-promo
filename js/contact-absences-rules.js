@@ -5,8 +5,11 @@
 
 import { estVueStagiaire } from "./espaces-rules.js?v=20261116a";
 
-/** Les libellés des motifs d'une absence (suivi dans l'app, page du lien d'e-mail). */
-export const LIBELLES_MOTIF = Object.freeze({ sante: "Santé", transport: "Transport", demarche: "Démarche", famille: "Famille", autre: "Autre" });
+/**
+ * Les motifs d'une absence, dans l'ordre du formulaire, et leurs libellés (suivi dans l'app). « Santé » n'en fait plus partie depuis
+ * la migration 5 (décision de Timy du 18/11) : la contrainte absences_annoncees_motif et prevenir_absence n'admettent que ces cinq codes.
+ */
+export const LIBELLES_MOTIF = Object.freeze({ transport: "Transport", demarche: "Démarche", famille: "Famille", personnel: "Raison personnelle", autre: "Autre" });
 
 const JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
@@ -159,7 +162,7 @@ export function verifierAbsence({ du, au = null, quand, debut = null, fin = null
       return "Indique l'heure de début et l'heure de fin (par exemple 10:00 et 11:00), le début avant la fin.";
     }
   }
-  if (!["sante", "transport", "demarche", "famille", "autre"].includes(motif)) return "Choisis un motif : santé, transport, démarche, famille ou autre.";
+  if (!Object.keys(LIBELLES_MOTIF).includes(motif)) return "Choisis un motif : transport, démarche, famille, raison personnelle ou autre.";
   if (String(mot ?? "").trim().length > 200) return "Ton mot compte 200 caractères au plus.";
   if (demiJourneesDe({ du, au, quand, debut, fin }).length === 0) return "Ces jours ne comptent aucune demi-journée de formation (ni le samedi ni le dimanche).";
   return null;

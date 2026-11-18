@@ -1,7 +1,7 @@
 // Règles de la page des liens d'e-mail (demande.html) : lire le jeton de l'adresse, dire où en est la page, nommer le geste.
 // Lancer : node tests/lien-demande-rules.test.mjs
 
-import { libelleAbsence, LIBELLES_MOTIF } from "./contact-absences-rules.js?v=20261116a";
+import { libelleAbsence } from "./contact-absences-rules.js?v=20261116a";
 
 const ADRESSE_JETON = /^#j=([A-Za-z0-9_-]{43})$/;
 
@@ -46,13 +46,22 @@ export function titreDeLaDemande(d, types = {}) {
 }
 
 /**
- * Les lignes d'une absence sur la page du lien ([libellé, valeur]) : « Quand » et « Motif » (mêmes libellés que le suivi dans
- * l'app). Vide pour une autre demande (sans `moment`). Le mot du stagiaire est le texte de la demande, montré à part.
+ * Les lignes d'une absence sur la page du lien ([libellé, valeur]) : « Quand » seulement (même libellé que le suivi dans l'app). Vide
+ * pour une autre demande (sans `moment`). Depuis la migration 5 (décision de Timy du 18/11), la page sans connexion ne montre ni le
+ * motif, ni le mot, ni les messages d'une absence : la base ne les envoie plus, et la page ne les montrerait pas s'ils arrivaient.
  */
 export function lignesAbsence(d) {
   if (!d?.moment) return [];
-  return [["Quand", libelleAbsence(d.moment)], ["Motif", d.motif ? (LIBELLES_MOTIF[d.motif] ?? d.motif) : ""]].filter(([, v]) => v);
+  return [["Quand", libelleAbsence(d.moment)]].filter(([, v]) => v);
 }
+
+/** Une absence : la page du lien n'en montre que le jour et le moment, et renvoie à l'app pour le reste. */
+export function estAbsence(d) {
+  return d?.type === "absence";
+}
+
+/** La phrase qui remplace le détail d'une absence sur la page du lien (vouvoyée : la page s'adresse à l'équipe). */
+export const PHRASE_DETAIL_ABSENCE = "Pour lire le détail de cette absence (motif, mot, échanges), connectez-vous à l'application.";
 
 /** La première lecture du lien a échoué (réseau, fonction injoignable) : le titre, la phrase et le bouton qui relance la lecture. */
 export const LECTURE_EN_ECHEC = Object.freeze({

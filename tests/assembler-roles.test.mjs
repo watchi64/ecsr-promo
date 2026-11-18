@@ -1123,7 +1123,7 @@ test("la migration 5 : retirer_titre fermée à public, anon et service_role, ou
   assert.match(texteDuDepot(ETAPES_TITRES[3].retour), /to_regprocedure\('public\.retirer_titre\(text, bigint, integer\)'\) is not null/);
 });
 
-// --- Chantier « espace contact » : modes contact-1 à contact-4 (et leurs contre-épreuves, et en ligne) ---------------------------
+// --- Chantier « espace contact » : modes contact-1 à contact-5 (et leurs contre-épreuves, et en ligne) ---------------------------
 
 const CONTACT = {
   1: { migration: "supabase/migrations/20261115_contact_1_annuaire.sql", retour: "supabase/migrations/20261115_contact_1_annuaire_retour.sql",
@@ -1233,6 +1233,43 @@ test("contact-n : un fichier manquant d'une étape demandée arrête l'assemblag
   assert.throws(() => assemblerMode("contact-3-contre-epreuve", RACINE, { lire: sansContact(fichiersEtape(1)) }),
     /Étape 2 demandée \(contact-3-contre-epreuve\)/);
   assert.doesNotThrow(() => assemblerMode("contact-3-contre-epreuve", RACINE, { lire: sansContact(TOUS_CONTACT.filter((c) => !c.includes("contact_3"))) }));
+});
+
+// La partie 5 (données sensibles) demande la migration _demo, son préalable : injectée entre la 3 et la 4 comme en production, son retour
+// entre le retour 4 et le retour 3 ; la contre-épreuve la garde (état de la production d'avant la 5), le mode en ligne la neutralise.
+const CINQ = { migration: "supabase/migrations/20261118_contact_5_donnees_sensibles.sql", retour: "supabase/migrations/20261118_contact_5_donnees_sensibles_retour.sql" };
+const DEMO = { migration: "supabase/migrations/20261115_contact_demo.sql", retour: "supabase/migrations/20261115_contact_demo_retour.sql" };
+const ORDRE_CINQ = [CONTACT[1].migration, CONTACT[1].suite.migration, CONTACT[2].migration, CONTACT[3].migration, DEMO.migration, CONTACT[4].migration,
+  CINQ.migration, CINQ.retour, CONTACT[4].retour, DEMO.retour, CONTACT[3].retour, CONTACT[2].retour, CONTACT[1].suite.retour, CONTACT[1].retour];
+
+test("contact-5 : migrations 1, 1b, 2, 3, _demo, 4, 5 puis retours 5, 4, _demo, 3, 2, 1b, 1, injectés octet pour octet", () => {
+  const r = assemblerMode("contact-5", RACINE, { lire: duDisque });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...ORDRE_CINQ]);
+  assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES, AIDES_TITRES, AIDES_CONTACT]);
+  assert.deepEqual(r.neutralises, []);
+  verifierInjections(r, duDisque);
+  assert.equal(r.mode, "contact-5 (migrations 1 a 5 injectees)");
+});
+
+test("contact-5-contre-epreuve : la 5 et son retour neutralisés et non lus ; la _demo reste injectée", () => {
+  const lus = [];
+  const r = assemblerMode("contact-5-contre-epreuve", RACINE, { lire: (c) => { lus.push(c); return duDisque(c); } });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...ORDRE_CINQ.filter((c) => c !== CINQ.migration && c !== CINQ.retour)]);
+  assert.deepEqual([...r.neutralises].sort(), [CINQ.migration, CINQ.retour].sort());
+  assert.ok(!lus.includes(CINQ.migration) && !lus.includes(CINQ.retour), "la 5 n'est pas lue");
+  assert.ok(r.mode.startsWith("contact-5-contre-epreuve"));
+});
+
+test("contact-5-en-ligne : rien d'injecté (sauf l'empreinte), la _demo neutralisée avec le reste", () => {
+  const r = assemblerMode("contact-5-en-ligne", RACINE, { lire: duDisque });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE]);
+  assert.deepEqual([...r.neutralises].sort(), [...ORDRE_CINQ].sort());
+  assert.ok(r.mode.startsWith("contact-5-en-ligne"));
+});
+
+test("contact-5 : la _demo manquante arrête l'assemblage en la nommant", () => {
+  assert.throws(() => assemblerMode("contact-5", RACINE, { lire: (c) => (c === DEMO.retour ? null : duDisque(c)) }),
+    /Étape 5 demandée \(contact-5\) : supabase\/migrations\/20261115_contact_demo_retour\.sql n'existe pas encore/);
 });
 
 test("contact-n : --etapes refusé, la ligne de commande écrit hors du dépôt et nomme le fichier manquant", () => {
