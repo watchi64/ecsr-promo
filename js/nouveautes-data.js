@@ -61,7 +61,7 @@ export const NOUVEAUTES = [
   // de la mise en ligne si elle diffère. Une carte par public : le stagiaire tutoie, l'équipe vouvoie.
   {
     id: "2026-11-14-contacts-du-centre-stagiaires",
-    date: "2026-11-14",
+    date: "2026-11-21",
     pour: "stagiaires",
     titre: "Les contacts du centre, au même endroit",
     resume: "Dans le menu de ton compte, Contacts réunit l'équipe de ton centre : qui est qui, pour quoi la joindre et quand, "
@@ -71,7 +71,7 @@ export const NOUVEAUTES = [
   },
   {
     id: "2026-11-14-fiche-de-contact-formateurs",
-    date: "2026-11-14",
+    date: "2026-11-21",
     pour: "formateurs",
     titre: "Votre fiche de contact",
     resume: "Contacts (menu du compte) remplace les contacts de Documents : chaque membre de l'équipe y a sa fiche, créée d'office. "
@@ -82,7 +82,7 @@ export const NOUVEAUTES = [
   },
   {
     id: "2026-11-14-fiche-de-contact-direction",
-    date: "2026-11-14",
+    date: "2026-11-21",
     pour: "direction",
     titre: "Votre fiche de contact",
     resume: "Contacts (menu du compte) réunit l'équipe de votre centre, et votre fiche y est créée d'office. Vérifiez-la dans Mes "
@@ -94,7 +94,7 @@ export const NOUVEAUTES = [
   // ligne). Une entrée par public : le stagiaire tutoie, l'équipe et la direction vouvoient.
   {
     id: "2026-11-14-prevenir-absence-stagiaires",
-    date: "2026-11-14",
+    date: "2026-11-21",
     pour: "stagiaires",
     titre: "Préviens d'une absence en une minute",
     resume: "Sur l'Accueil, “Prévenir d'une absence” : choisis le jour, le moment et le motif. Si ton centre a choisi qui s'en "
@@ -107,7 +107,7 @@ export const NOUVEAUTES = [
   },
   {
     id: "2026-11-14-messages-formateurs",
-    date: "2026-11-14",
+    date: "2026-11-21",
     pour: "formateurs",
     titre: "Messages : les demandes des stagiaires, avec un état",
     resume: "La nouvelle entrée Messages réunit les demandes qui vous sont adressées (absences, retards, questions), “À traiter” "
@@ -119,7 +119,7 @@ export const NOUVEAUTES = [
   },
   {
     id: "2026-11-14-messages-direction",
-    date: "2026-11-14",
+    date: "2026-11-21",
     pour: "direction",
     titre: "Messages : les demandes des stagiaires, avec un état",
     resume: "La nouvelle entrée Messages réunit les demandes qui vous sont adressées (absences, retards, questions), “À traiter” "
