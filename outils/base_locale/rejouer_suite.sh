@@ -9,11 +9,12 @@
 #                  la liste ; un fichier manquant arrête le script (code 3, son nom sur la sortie d'erreur)
 #   --autonomie    après les contacts, joue 20261114_autonomie_1_traces (1), puis 20261114_autonomie_2_version (2) avec
 #                  -v version=2026-11-14 (la version des conditions en production) ; 2 demande 1
-#   --production   l'état de la production au 14/11, dans l'ordre où elle l'a reçu : titres 1, 2, 3 (11/11), contacts,
+#   --production   l'état de la production au 16/11, dans l'ordre où elle l'a reçu : titres 1, 2, 3 (11/11), contacts,
 #                  20261111_conservation_direction (11/11, après les contacts), titres 5 (11/11) et 6 (13/11), puis
 #                  --autonomie 1,2 (14/11), puis 20261114_restes_1_conditions et 20261114_restes_2_truncate (14/11, après
 #                  l'e-learning : restes_1 contrôle la version de l'autonomie), puis 20261114_jury_resultats (14/11), puis
-#                  20261115_titres_7_correctifs puis 20261115_titres_8_apercu (appliquées le 14/11) (sortie : 29 migrations) ;
+#                  20261115_titres_7_correctifs puis 20261115_titres_8_apercu (appliquées le 14/11), puis
+#                  20261115_titres_9_catalogue (appliquée le 16/11) (sortie : 30 migrations) ;
 #                  ne se combine ni avec
 #                  --titres ni avec --avec-titres
 # Sans --titres, --autonomie ni --production : la suite d'avant (14 migrations, plus les deux des contacts : 16).
@@ -125,6 +126,12 @@ if [ "$PRODUCTION" = 1 ]; then
   $P -1 -f "$MIGRATIONS/20261115_titres_7_correctifs.sql" >/dev/null || { echo "échec : 20261115_titres_7_correctifs" >&2; exit 3; }
   N=$((N + 1))
   $P -1 -f "$MIGRATIONS/20261115_titres_8_apercu.sql" >/dev/null || { echo "échec : 20261115_titres_8_apercu" >&2; exit 3; }
+  N=$((N + 1))
+fi
+# Production seulement, après la 8 : la migration 9 des titres (catalogue de six titres du réseau, lecture des titres d'un centre par le
+# siège), appliquée en production le 16/11.
+if [ "$PRODUCTION" = 1 ]; then
+  $P -1 -f "$MIGRATIONS/20261115_titres_9_catalogue.sql" >/dev/null || { echo "échec : 20261115_titres_9_catalogue" >&2; exit 3; }
   N=$((N + 1))
 fi
 # Droits propres à la production, que les clones ne portent pas (écarts de la base locale constatés le 10/11 et le 11/11) :

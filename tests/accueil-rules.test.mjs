@@ -246,3 +246,16 @@ eq(cles(aFaireStagiaire(base({ ...complet, modules: fermer("livret") }))), ["exa
 // Plafond de 4
 eq(cles(aFaireStagiaire(base({ qcm: QCM.map((q) => ({ ...q, published: true })), exemplesDossier: 0, livretCommence: false }))),
   ["examen-11", "examen-12", "examen-13", "dossier"], "au plus 4 lignes : les premières de l'ordre");
+
+// Justificatifs à remettre (espace contact, tâche 15) : une ligne par absence, en tête, qui mène au suivi de l'absence
+const JUSTIF = [{ demande_id: 41, du: "2026-11-19", au: "2026-11-19", quand: "matin", debut: null, fin: null }];
+eq(aFaireStagiaire(base({ justificatifs: JUSTIF })), [
+  { cle: "justificatif-41", titre: "Remets ton justificatif (absence du jeudi 19 novembre, matin)", detail: "Ouvre le suivi de ton absence",
+    route: "contacts", adresse: "#/contacts/41" },
+], "un justificatif à remettre : une ligne qui mène au suivi");
+eq(cles(aFaireStagiaire(base({ qcm: OUVERT(13), justificatifs: JUSTIF }))), ["justificatif-41", "examen-13"], "le justificatif passe avant le reste");
+eq(aFaireStagiaire(base({ justificatifs: [{ demande_id: 42, du: "2026-11-19", au: "2026-11-23", quand: "journee" }] }))[0].titre,
+  "Remets ton justificatif (absence du 19 au 23 novembre)", "plusieurs jours : « absence du 19 au 23 novembre »");
+eq(aFaireStagiaire(base({ justificatifs: null })), [], "justificatifs illisibles : aucune ligne");
+eq(aFaireStagiaire(base({ justificatifs: [{ demande_id: null, du: "2026-11-19", quand: "matin" }, null] })), [], "ligne sans identifiant ignorée");
+eq(aFaireStagiaire(base({ justificatifs: [1, 2, 3, 4, 5].map((i) => ({ demande_id: i, du: "2026-11-19", quand: "matin" })) })).length, 4, "plafond de 4 lignes");

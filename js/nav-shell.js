@@ -37,27 +37,28 @@
 // ne les attend jamais : ils sont lus après le montage, relus à chaque page affichée (au plus toutes les 30 secondes),
 // et un compte illisible ne montre ni pastille ni erreur.
 
-import { el } from "./utils.js?v=20261116a";
-import { icon, deco } from "./icons.js?v=20261116a";
-import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261116a";
-import { getPromoCourante, getLieuxLus } from "./db.js?v=20261116a";
-import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261116a";
-import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261116a";
-import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261116a";
-import { libellePastille } from "./nouveautes.js?v=20261116a";
+import { el } from "./utils.js?v=20261121a";
+import { icon, deco } from "./icons.js?v=20261121a";
+import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261121a";
+import { getPromoCourante, getLieuxLus, listeDemandes } from "./db.js?v=20261121a";
+import { compterNonLues } from "./contact-rules.js?v=20261121a";
+import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261121a";
+import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261121a";
+import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261121a";
+import { libellePastille } from "./nouveautes.js?v=20261121a";
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole, nomDuBoutonCompte,
-} from "./nav-rules.js?v=20261116a";
-import { chargerATraiter } from "./a-traiter.js?v=20261116a";
+} from "./nav-rules.js?v=20261121a";
+import { chargerATraiter } from "./a-traiter.js?v=20261121a";
 import {
   ENTREE_A_TRAITER, resumeATraiter, nomAvecATraiter, phraseATraiter, pointSurPlus, nomDePlus,
-} from "./a-traiter-rules.js?v=20261116a";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261116a";
-import { ouvrirMenuCompte } from "./menu-compte.js?v=20261116a";
-import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261116a";
-import { ouvrirSignalement } from "./signalement.js?v=20261116a";
-import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261116a";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261116a";
+} from "./a-traiter-rules.js?v=20261121a";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261121a";
+import { ouvrirMenuCompte } from "./menu-compte.js?v=20261121a";
+import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261121a";
+import { ouvrirSignalement } from "./signalement.js?v=20261121a";
+import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261121a";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261121a";
 
 // Barre latérale repliée en colonne d'icônes : choix mémorisé sur l'appareil.
 const CLE_REPLIEE = "ecsr_nav_repliee";
@@ -238,6 +239,52 @@ function relireATraiter({ force = false } = {}) {
 // événement : la pastille se relit tout de suite, sans attendre le délai ni un changement de page.
 window.addEventListener("a-traiter-change", () => relireATraiter({ force: true }));
 
+// ----- Messages : les demandes non lues (espace contact) -----
+
+// Le compte des demandes non lues de la personne (équipe et direction), lu en base (liste_demandes) au plus toutes les 30 secondes,
+// et à chaque événement « messages-change » (une demande ouverte, une réponse envoyée). Une lecture qui échoue ne montre rien.
+let nonLuesMessages = 0;
+let lectureMessages = false;
+let derniereLectureMessages = -Infinity;
+
+function relireMessages({ force = false } = {}) {
+  if (!montee || (montee.espace !== "equipe" && montee.espace !== "direction") || lectureMessages) return;
+  if (!force && performance.now() - derniereLectureMessages < DELAI_RELECTURE_A_TRAITER_MS) return;
+  lectureMessages = true;
+  const lieu = montee.espace === "direction" ? (getCentre()?.id ?? null) : null;
+  listeDemandes(lieu)
+    .then((lignes) => { nonLuesMessages = compterNonLues(lignes); majATraiter(); })
+    .catch((e) => console.warn("messages non lus :", e?.message || e))
+    .finally(() => { lectureMessages = false; derniereLectureMessages = performance.now(); });
+}
+window.addEventListener("messages-change", () => relireMessages({ force: true }));
+
+// La pastille chiffrée de l'entrée Messages (barre latérale et tiroir) et son nom (« Messages, 3 non lus ») ; rien à zéro.
+function poserMessages() {
+  try {
+    const texte = libellePastille(nonLuesMessages);
+    const nom = nonLuesMessages === 1 ? "1 non lu" : `${nonLuesMessages} non lus`;
+    document.querySelectorAll('[data-nav-coquille] a[data-entree="messages"]').forEach((lien) => {
+      const lateral = lien.classList.contains("nav-entree");
+      const base = lien.dataset.nomBaseMessages
+        || (lien.dataset.nomBaseMessages = lien.getAttribute("aria-label") || lien.textContent.trim());
+      let pastille = lien.querySelector(":scope > .nav-messages-compte");
+      if (!texte) {
+        pastille?.remove();
+        if (lateral) { lien.setAttribute("aria-label", base); lien.setAttribute("title", base); } else lien.removeAttribute("aria-label");
+        return;
+      }
+      if (!pastille) {
+        pastille = el("span", { class: "nav-pastille nav-a-traiter nav-messages-compte", "aria-hidden": "true" });
+        lien.querySelector(":scope > .nav-entree-texte, :scope > .nav-fenetre-texte").after(pastille);
+      }
+      if (pastille.textContent !== texte) pastille.textContent = texte;
+      lien.setAttribute("aria-label", `${base}, ${nom}`);
+      if (lateral) lien.setAttribute("title", `${base}, ${nom}`);
+    });
+  } catch (e) { /* silencieux : la barre se passe de sa pastille */ }
+}
+
 // Une entrée qui peut porter la pastille (Cours et QCM chez l'équipe) garde son nom d'origine (data-nom-base) : la
 // pastille et le nom complet se posent et se retirent sans le perdre. Sa ligne du tiroir n'a pas d'aria-label : son nom
 // vient de son contenu, repère « masqué aux stagiaires » compris.
@@ -315,11 +362,15 @@ function poserATraiter() {
   // « Signaler un problème » est dans le tiroir : sa pastille (les nouveaux signalements chez le fondateur hors aperçu, ceux qui ont
   // avancé chez les autres) allume aussi le point de « Plus », et son détail passe dans le nom du bouton.
   const signaler = pastilleSignalement({ fondateur: fondateurHorsApercu(), ...etatSignalements() });
-  const point = !!montee && pointSurPlus(montee.plus, resume, signaler.texte);
-  const nomDuBouton = nomDePlus(resume, signaler.nom);
+  // Les messages non lus rangés dans « Plus » (téléphone) allument aussi son point et son nom.
+  const messagesDansPlus = nonLuesMessages > 0 && !!montee && montee.plus.includes("messages");
+  const point = (!!montee && pointSurPlus(montee.plus, resume, signaler.texte)) || messagesDansPlus;
+  const nomDuBouton = nomDePlus(resume, signaler.nom)
+    + (messagesDansPlus ? `, ${nonLuesMessages} ${nonLuesMessages === 1 ? "message non lu" : "messages non lus"}` : "");
   document.querySelectorAll('[data-nav-coquille] button[data-nav-action="plus"]').forEach((b) => poserPointSurPlus(b, point, nomDuBouton));
   const tiroir = document.querySelector('[data-nav-coquille="plus"] .nav-fenetre');
   if (tiroir) poserPhraseDuTiroir(tiroir, phraseATraiter(resume));
+  poserMessages();
 }
 
 // poserATraiter sans jamais laisser une levée en sortir : un repère qui manque n'est pas une erreur à montrer. Appelée à la fin de
@@ -590,6 +641,7 @@ export function monterCoquille({ espace, entrees, nom, initiales, actualiser }) 
   if (rendreFocusDeLaFenetre) rendreFocusDeLaFenetre();
   else if (focus) document.querySelector(focus)?.focus();
   relireATraiter({ force: true });
+  relireMessages({ force: true });
 }
 
 // Allume l'entrée de la page affichée (entreeActive : alias compris), et « Plus » quand le
@@ -606,6 +658,7 @@ export function majEntreeActive(route) {
   });
   // Une page affichée relit les comptes « à traiter » (au plus toutes les 30 secondes).
   relireATraiter();
+  relireMessages();
 }
 
 export function coquilleMontee() {

@@ -3,8 +3,8 @@
 // une page, quelle entrée de l'équipe porte le repère « masqué aux stagiaires », où mènent les
 // anciennes adresses, les initiales, le prénom et le nom du bouton du compte, la ligne « page à soi »
 // du menu du compte. Module pur, sans DOM ni stockage : testé en node.
-import { LIBELLES_ESPACE } from "./espaces-rules.js?v=20261116a";
-import { PAGES_DU_NIVEAU, NIVEAU_DE_L_ESPACE, caseDe } from "./titres-rules.js?v=20261116a";
+import { LIBELLES_ESPACE } from "./espaces-rules.js?v=20261121a";
+import { PAGES_DU_NIVEAU, NIVEAU_DE_L_ESPACE, caseDe } from "./titres-rules.js?v=20261121a";
 
 // Clé de mémoire du sous-onglet ouvert, par page à sous-onglets (le `storageKey` de
 // renderSubTabs). Une redirection l'écrit pour ouvrir le bon sous-onglet ; le bouton « Élèves bénévoles »
@@ -35,6 +35,7 @@ const TOUJOURS_VISIBLES = ["home", "mon-suivi"];
 // mémoire restent celles de l'Accueil.
 const ENTREES_EQUIPE = [
   entree("home", "Aujourd'hui", "home"),
+  entree("messages", "Messages", "inbox"),
   entree("planning", "Planning", "calendar"),
   entree("emargement", "Émargement", "clipboard"),
   entree("stagiaires", "Stagiaires", "users"),
@@ -49,6 +50,7 @@ const ENTREES_EQUIPE = [
 // Émargement attend `emargementDansLeCentre` (une promo du centre l'a allumé), Réglages du centre `reglagesEspace`.
 const ENTREES_DIRECTION = [
   entree("centre", "Accueil", "home"),
+  entree("messages", "Messages", "inbox"),
   entree("promos", "Promos", "layers"),
   entree("stagiaires", "Stagiaires", "users"),
   entree("emargement", "Émargement", "clipboard"),
@@ -78,6 +80,8 @@ const ALIAS_ENTREE_ACTIVE = new Map([
   ["dashboard", "planning"],
   ["ressources", "themes"],
   ["nouveautes", "home"],
+  ["contacts", "home"],
+  ["absence", "home"],
   ["notes", "mon-suivi"],
   // Problèmes signalés (fondateur, spec 2026-10-28) : ouverte depuis « Signaler un problème ».
   ["problemes", "config"],
@@ -85,7 +89,7 @@ const ALIAS_ENTREE_ACTIVE = new Map([
   ["qualiopi", "centre"],
 ]);
 
-const PAGES_DU_MENU_DU_COMPTE = ["nouveautes", "preferences", "problemes"];
+const PAGES_DU_MENU_DU_COMPTE = ["nouveautes", "preferences", "problemes", "contacts"];
 
 // Anciennes adresses déplacées : la page visée et le sous-onglet à y ouvrir (les mêmes dans
 // les deux espaces). Une Map, comme pour les alias : la route vient de l'adresse tapée, et un
@@ -181,7 +185,9 @@ export function formateurPourLEmargement({ cases, peutModifier, admin } = {}) {
 // Barre du bas du téléphone et tiroir « Plus ». Le stagiaire, 5 entrées au plus, les garde
 // toutes dans la barre ; l'équipe en garde 4 et range le reste dans `plus`. Titres (étape 3) : quand une entrée de la liste
 // fixe est absente (page à « Non »), les entrées suivantes, dans l'ordre de la barre, la remplacent jusqu'au même nombre ;
-// la barre garde l'ordre des entrées. Aucune entrée absente : la liste fixe, comme avant.
+// la barre garde l'ordre des entrées. Aucune entrée absente : la liste fixe, comme avant. Messages (espace contact) reste dans
+// « Plus » sur téléphone, même quand une entrée manque : il ne remplace jamais une page absente.
+const TOUJOURS_DANS_PLUS = new Set(["messages"]);
 export function barreTelephone(espace, entrees) {
   const gardees = espace === "equipe" ? BARRE_TELEPHONE_EQUIPE
     : espace === "direction" ? BARRE_TELEPHONE_DIRECTION
@@ -192,7 +198,7 @@ export function barreTelephone(espace, entrees) {
   const choisies = new Set(gardees.filter((id) => presentes.has(id)));
   for (const e of entrees) {
     if (choisies.size >= gardees.length) break;
-    choisies.add(e.id);
+    if (!TOUJOURS_DANS_PLUS.has(e.id)) choisies.add(e.id);
   }
   return {
     barre: entrees.filter((e) => choisies.has(e.id)),

@@ -20,20 +20,20 @@ import {
   chargerMesPromos, mesAffectations, oublierPromo, getPromoCourante, getMesPromos, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo, stagiaireVitrineCourante,
   lireMesTitres, lireTitresVisibles,
-} from "./db.js?v=20261116a";
+} from "./db.js?v=20261121a";
 import {
   LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo, titreSimule, APERCUS_PAR_TITRE,
-} from "./roles-rules.js?v=20261116a";
+} from "./roles-rules.js?v=20261121a";
 import {
   ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, decisionPorteSansPromo,
-  centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu,
-} from "./espaces-rules.js?v=20261116a";
+  centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu, estVueStagiaire,
+} from "./espaces-rules.js?v=20261121a";
 import { casesDeLEspace, caseDe, selonLaCase, formateurFixeSur, NIVEAU_DE_L_ESPACE, titresPourApercu,
-  fusionnerListesApercu, listesPourLeCentre, listesApercuIncompletes } from "./titres-rules.js?v=20261116a";
-import { peutQuitter } from "./navigation.js?v=20261116a";
-import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261116a";
-import { icon } from "./icons.js?v=20261116a";
-import { lireAdresse } from "./route-rules.js?v=20261116a";
+  fusionnerListesApercu, listesPourLeCentre, listesApercuIncompletes } from "./titres-rules.js?v=20261121a";
+import { peutQuitter } from "./navigation.js?v=20261121a";
+import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261121a";
+import { icon } from "./icons.js?v=20261121a";
+import { lireAdresse } from "./route-rules.js?v=20261121a";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -96,7 +96,10 @@ export function isEquipe()    { return droits().equipe; }
 // Décision du 10/11 : l'app tutoie les stagiaires et vouvoie l'équipe (formateurs, direction, siège, fondateur), car c'est
 // leur outil de travail et ses écrans s'adressent aussi à des centres clients. Pour un texte d'un écran partagé :
 // `selonPublic("Touche ta ligne", "Touchez votre ligne")`. L'aperçu « Stagiaire » du fondateur tutoie, comme le stagiaire.
-export function selonPublic(tu, vous) { return isStagiaire() ? tu : vous; }
+// La vue qui s'adresse à la personne se décide par l'espace, jamais par le cumul de rôles : le fondateur (stagiaire et administrateur)
+// dans l'espace de l'équipe est vouvoyé et a la vue de l'équipe.
+export function vueStagiaire() { return estVueStagiaire(getEspace()); }
+export function selonPublic(tu, vous) { return vueStagiaire() ? tu : vous; }
 
 // Rédiger les contenus communs (cours de thème, questions de QCM) : le siège, un formateur administrateur ; jamais la direction
 // (D13, ruling R1). Lu sur les droits avant la bride, que peutRedigerContenus applique elle-même.

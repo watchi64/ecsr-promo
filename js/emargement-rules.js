@@ -1,8 +1,8 @@
 // Émargement (spec 2026-10-23) : règles pures, sans DOM ni base. Lu par node
 // (tests/emargement-rules.test.mjs), par l'app et par le générateur de signatures
 // fictives de la démonstration (scripts/emargement-demo.mjs).
-import { jourDe, dayIndexDe, lundiDe, jourParis } from "./dates.js?v=20261116a";
-import { pluriel } from "./nombres.js?v=20261116a";
+import { jourDe, dayIndexDe, lundiDe, jourParis } from "./dates.js?v=20261121a";
+import { pluriel } from "./nombres.js?v=20261121a";
 
 // Interrupteur par promo (demande de Timy du 23/10 : éteint partout, allumé pour la seule
 // promo de démonstration tant qu'il n'en décide pas autrement). Réglage `settings`
@@ -94,6 +94,7 @@ export function roleAuPlanning(entries, dayIndex, demi, sid) {
 const LIBELLE_ABSENCE = {
   planning: "Absent (noté au planning)",
   non_signe: "Absent (non signé)",
+  annoncee: "Absent (prévenu)",   // le stagiaire a prévenu par l'espace contact (migration 3 de l'espace contact)
 };
 
 // Une ligne (d'un stagiaire ou d'un formateur) est signée quand son dessin est là, quand l'heure de signature est posée

@@ -6,24 +6,24 @@
  * Une lecture qui revient après le départ de la page écrit dans un nœud détaché (isConnected) : rien n'est repeint.
  */
 import {
-  listAgendaEvents, getPromoCourante, listQcmIndex, listMyQcmAttempts, listThemes, getDpDossier,
-} from "../db.js?v=20261116a";
-import { el, clear } from "../utils.js?v=20261116a";
-import { icon } from "../icons.js?v=20261116a";
-import { getProfileWho, monStagiaireId, getProfile, getViewAs, getProfileNom } from "../auth-admin.js?v=20261116a";
-import { libelleConnexion } from "../roles-rules.js?v=20261116a";
-import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261116a";
-import { carteNouveaute } from "./nouveautes.js?v=20261116a";
-import { prenomDe } from "../nav-rules.js?v=20261116a";
-import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi, momentsDeLaDemi } from "../accueil-rules.js?v=20261116a";
-import { journeeDuJour } from "../journee-rules.js?v=20261116a";
-import { effSujets, sujetsDe } from "../planning-roles.js?v=20261116a";
-import { exemplesRemplis } from "../dp-rules.js?v=20261116a";
-import { heureLocale } from "../emargement-rules.js?v=20261116a";
-import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261116a";
-import { ouvrirSignalement } from "../signalement.js?v=20261116a";
-import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261116a";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261116a";
+  listAgendaEvents, getPromoCourante, listQcmIndex, listMyQcmAttempts, listThemes, getDpDossier, mesJustificatifsARemettre,
+} from "../db.js?v=20261121a";
+import { el, clear } from "../utils.js?v=20261121a";
+import { icon } from "../icons.js?v=20261121a";
+import { getProfileWho, monStagiaireId, getProfile, getViewAs, getProfileNom } from "../auth-admin.js?v=20261121a";
+import { libelleConnexion } from "../roles-rules.js?v=20261121a";
+import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261121a";
+import { carteNouveaute } from "./nouveautes.js?v=20261121a";
+import { prenomDe } from "../nav-rules.js?v=20261121a";
+import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe, sansPlaceDansLaDemi, momentsDeLaDemi } from "../accueil-rules.js?v=20261121a";
+import { journeeDuJour } from "../journee-rules.js?v=20261121a";
+import { effSujets, sujetsDe } from "../planning-roles.js?v=20261121a";
+import { exemplesRemplis } from "../dp-rules.js?v=20261121a";
+import { heureLocale } from "../emargement-rules.js?v=20261121a";
+import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261121a";
+import { ouvrirSignalement } from "../signalement.js?v=20261121a";
+import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261121a";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261121a";
 
 const RELECTURE_SEANCES_MS = 60000;
 
@@ -169,8 +169,8 @@ async function chargerJournee(corps, jour, indexJour, semaine, moi) {
 // === À faire ===
 
 function ligneAFaire(l) {
-  const ico = l.cle === "dossier" ? "clipboard" : "quiz";
-  return ligneLien({ route: l.route, sousOnglet: l.sousOnglet, ico, titre: l.titre, detail: l.detail });
+  const ico = l.cle === "dossier" ? "clipboard" : l.cle.startsWith("justificatif-") ? "mail" : "quiz";
+  return ligneLien({ route: l.route, sousOnglet: l.sousOnglet, adresse: l.adresse, ico, titre: l.titre, detail: l.detail });
 }
 
 async function chargerAFaire(corps, indexJour, semaine, moi) {
@@ -181,13 +181,15 @@ async function chargerAFaire(corps, indexJour, semaine, moi) {
   }
   const modules = { qcm: moduleVisible("qcm"), dp: moduleVisible("dp") };
   const lire = (ouvert, lecture) => (ouvert ? lecture() : Promise.resolve(null));
-  const [qcm, themes, tentatives, dossier, lecturePlanning] = await Promise.allSettled([
+  const [qcm, themes, tentatives, dossier, lecturePlanning, justificatifs] = await Promise.allSettled([
     lire(modules.qcm, listQcmIndex),
     lire(modules.qcm, listThemes),
     lire(modules.qcm, listMyQcmAttempts),
     lire(modules.dp, () => getDpDossier(moi)),
     // Les thèmes de la semaine ne servent qu'aux QCM : pas de lecture du planning si le module est fermé.
     lire(modules.qcm && routeVisible("planning"), () => semaine()),
+    // Les justificatifs d'absence que le centre attend (espace contact) : une ligne par absence, avant le reste.
+    mesJustificatifsARemettre(),
   ]);
   if (!corps.isConnected) return;
   const valeur = (r) => (r.status === "fulfilled" ? r.value : null);
@@ -203,6 +205,7 @@ async function chargerAFaire(corps, indexJour, semaine, moi) {
     qcm: valeur(qcm) || [], themes: valeur(themes) || [], tentatives: valeur(tentatives) || [],
     sujetsDeLaSemaine,
     exemplesDossier: dossier.status === "fulfilled" && modules.dp ? exemplesRemplis(dossier.value?.data) : null,
+    justificatifs: valeur(justificatifs) || [],
     modules, now: Date.now(),
   });
 
@@ -212,9 +215,9 @@ async function chargerAFaire(corps, indexJour, semaine, moi) {
     return;
   }
   // Rien à montrer : « tout est fait » seulement si rien n'a échoué.
-  const echec = [qcm, themes, tentatives, dossier].some((r) => r.status === "rejected");
+  const echec = [qcm, themes, tentatives, dossier, justificatifs].some((r) => r.status === "rejected");
   if (echec) {
-    console.error("Accueil : lecture de l'à-faire incomplète", [qcm, themes, tentatives, dossier].filter((r) => r.status === "rejected").map((r) => r.reason));
+    console.error("Accueil : lecture de l'à-faire incomplète", [qcm, themes, tentatives, dossier, justificatifs].filter((r) => r.status === "rejected").map((r) => r.reason));
   }
   corps.appendChild(el("p", { class: echec ? "acc-erreur" : "muted", role: echec ? "alert" : null },
     echec ? "Ton à-faire n'a pas pu être lu en entier. Recharge la page pour réessayer." : "Rien à faire pour le moment."));
@@ -288,8 +291,15 @@ export function renderAccueilStagiaire(container) {
   if (rdv) cartes.push(rdv);
   const nouveaute = carteDeLaNouveaute();
 
+  // Prévenir d'une absence (espace contact) : le geste principal de l'Accueil, au-dessus des cartes. Sans fiche de stagiaire
+  // (aperçu « Voir en tant que »), la base refuserait : le bouton ne s'affiche pas.
+  const absence = moi != null
+    ? el("div", { class: "acc-absence" }, lienVers("absence", null, "btn primary acc-absence-bouton", icon.calendar(), "Prévenir d'une absence"))
+    : null;
+
   // L'ordre du DOM est celui du téléphone (la journée, puis ce qu'il y a à faire) ; la grille de css/pages.css
   // replace les cartes sur tablette et ordinateur.
+  if (absence) container.appendChild(absence);
   container.appendChild(el("div", { class: "acc-grille" },
     ...cartes.map((c) => c.noeud), nouveaute));
 
@@ -297,7 +307,7 @@ export function renderAccueilStagiaire(container) {
   const signaler = el("button", { type: "button", class: "acc-lien-pied",
     onClick: (ev) => ouvrirSignalement({ ancre: ev.currentTarget }) }, icon.signaler(), "Signaler un problème");
   container.appendChild(el("nav", { class: "acc-liens", "aria-label": "Liens utiles" },
-    routeVisible("ressources") ? lienVers("ressources", null, "acc-lien-pied", icon.users(), "Contacts du centre") : null,
+    lienVers("contacts", null, "acc-lien-pied", icon.users(), "Contacts"),
     lienVers("preferences", null, "acc-lien-pied", icon.settings(), "Mes préférences"),
     signaler,
   ));

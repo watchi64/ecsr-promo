@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  ETAPES, ETAPES_GESTION, ETAPES_SUITE, ETAPES_TITRES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, MIGRATION_ESPACES_4, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
+  CAS_ROUTAGE, ETAPES, ETAPES_GESTION, ETAPES_SUITE, ETAPES_TITRES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, MIGRATION_ESPACES_4, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
 } from "../outils/assembler_repetition_roles.mjs";
 
 // outils/assembler_repetition_roles.mjs fabrique le fichier SQL d'une répétition du lot 4 : le gabarit de la preuve,
@@ -50,7 +50,11 @@ function litteraux(sortie, delimiteur) {
 function verifierInjections(r, lire) {
   const delimiteurs = new Set(r.injections.map((x) => x.delimiteur));
   assert.equal(delimiteurs.size, 1, "un seul délimiteur pour toute la sortie");
-  const contenus = litteraux(r.texte, [...delimiteurs][0]);
+  // La table de cas du routage (espace contact, partie 2) est un littéral de plus, sous le même délimiteur : mise à part.
+  const cas = r.cas ? JSON.stringify(JSON.parse(lire(r.cas.chemin))) : null;
+  const tous = litteraux(r.texte, [...delimiteurs][0]);
+  const contenus = tous.filter((t) => t !== cas);
+  assert.equal(tous.length - contenus.length, cas ? 1 : 0, "la table de cas, une fois, si le gabarit la demande");
   assert.equal(contenus.length, r.injections.length);
   r.injections.forEach((x, i) => {
     const attendu = lire(x.chemin).replace(/\r/g, "");
@@ -1119,6 +1123,174 @@ test("la migration 5 : retirer_titre fermée à public, anon et service_role, ou
   assert.match(texteDuDepot(ETAPES_TITRES[3].retour), /to_regprocedure\('public\.retirer_titre\(text, bigint, integer\)'\) is not null/);
 });
 
+// --- Chantier « espace contact » : modes contact-1 à contact-5 (et leurs contre-épreuves, et en ligne) ---------------------------
+
+const CONTACT = {
+  1: { migration: "supabase/migrations/20261115_contact_1_annuaire.sql", retour: "supabase/migrations/20261115_contact_1_annuaire_retour.sql",
+       suite: { migration: "supabase/migrations/20261115_contact_1b_fermeture.sql", retour: "supabase/migrations/20261115_contact_1b_fermeture_retour.sql" } },
+  2: { migration: "supabase/migrations/20261115_contact_2_demandes.sql", retour: "supabase/migrations/20261115_contact_2_demandes_retour.sql" },
+  3: { migration: "supabase/migrations/20261115_contact_3_absences.sql", retour: "supabase/migrations/20261115_contact_3_absences_retour.sql" },
+  4: { migration: "supabase/migrations/20261116_contact_4_correctifs.sql", retour: "supabase/migrations/20261116_contact_4_correctifs_retour.sql" },
+};
+/** Les fichiers d'une étape : sa migration et son retour, puis ceux de sa suite (la 1b pour l'étape 1). */
+const fichiersEtape = (n) => [CONTACT[n].migration, CONTACT[n].retour, ...(CONTACT[n].suite ? [CONTACT[n].suite.migration, CONTACT[n].suite.retour] : [])];
+const TOUS_CONTACT = [1, 2, 3, 4].flatMap(fichiersEtape);
+const GABARITS_CONTACT = { 1: "tests/sql/contact-annuaire-preuve.sql", 2: "tests/sql/contact-demandes-preuve.sql", 3: "tests/sql/contact-absences-preuve.sql",
+  4: "tests/sql/contact-correctifs-preuve.sql" };
+const AIDES_CONTACT = "tests/sql/contact-aides.sql";
+// Les migrations de la partie n n'existent qu'avec leurs tâches : des textes factices en mémoire pour juger l'assembleur seul.
+const FACTICES_CONTACT = Object.fromEntries([1, 2, 3, 4].flatMap((n) => [
+  [CONTACT[n].migration, `-- factice : contact migration ${n}\r\nselect ${n};\r\n`],
+  [CONTACT[n].retour, `-- factice : contact retour ${n}\r\nselect -${n};\r\n`]]).concat([
+  [CONTACT[1].suite.migration, "-- factice : contact migration 1b\r\nselect 11;\r\n"],
+  [CONTACT[1].suite.retour, "-- factice : contact retour 1b\r\nselect -11;\r\n"]]));
+const depotContact = (chemin) => duDisque(chemin) ?? FACTICES_CONTACT[chemin] ?? null;
+// Les factices d'abord, même quand les vraies migrations existent : pour juger l'ordre des injections par leur texte.
+const facticesContact = (chemin) => FACTICES_CONTACT[chemin] ?? duDisque(chemin) ?? null;
+const sansContact = (garde) => (chemin) => (TOUS_CONTACT.includes(chemin) && !garde.includes(chemin) ? null : depotContact(chemin));
+/** L'ordre du gabarit de la partie n : migrations 1, 1b, 2 ... n, puis retours n ... 2, 1b, 1. */
+const ordreContact = (n) => [...Array(n).keys()].flatMap((k) => [CONTACT[k + 1].migration, ...(CONTACT[k + 1].suite ? [CONTACT[k + 1].suite.migration] : [])])
+  .concat([...Array(n).keys()].flatMap((k) => [...(CONTACT[n - k].suite ? [CONTACT[n - k].suite.retour] : []), CONTACT[n - k].retour]));
+
+test("contact-n : migrations 1 à n puis retours n à 1 injectés octet pour octet, dans l'ordre du gabarit, après l'empreinte", () => {
+  for (const n of [1, 2, 3, 4]) {
+    const r = assemblerMode(`contact-${n}`, RACINE, { lire: depotContact });
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...ordreContact(n)], `contact-${n}`);
+    assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES, AIDES_TITRES, AIDES_CONTACT], `contact-${n} : aides dans l'ordre`);
+    assert.deepEqual(r.neutralises, [], `contact-${n}`);
+    verifierInjections(r, depotContact);
+    assert.equal(r.mode, `contact-${n} (migrations 1 a ${n} injectees)`);
+    assert.ok(r.texte.includes(`\n'contact-${n} (migrations 1 a ${n} injectees)'\n`));
+  }
+});
+
+test("contact-2 : les marqueurs des migrations 1, 1b et 2 dans cet ordre, puis les retours 2, 1b et 1", () => {
+  const r = assemblerMode("contact-2", RACINE, { lire: facticesContact });
+  const places = ["contact migration 1", "contact migration 1b", "contact migration 2", "contact retour 2", "contact retour 1b", "contact retour 1"]
+    .map((marque) => r.texte.indexOf(`-- factice : ${marque}\n`));
+  assert.ok(places.every((p) => p >= 0), "les six textes y sont");
+  assert.deepEqual([...places].sort((a, b) => a - b), places, "ordre : migration 1, 1b, 2, retour 2, 1b, 1");
+  assert.ok(!r.texte.includes("contact migration 3"), "la 3 n'est pas injectée dans la partie 2");
+});
+
+test("contact-4 : la migration 4 après la 3, son retour AVANT le retour 3 (le retour 3, gelé, ne la vérifie pas)", () => {
+  const r = assemblerMode("contact-4", RACINE, { lire: facticesContact });
+  const places = ["contact migration 3", "contact migration 4", "contact retour 4", "contact retour 3", "contact retour 2"]
+    .map((marque) => r.texte.indexOf(`-- factice : ${marque}
+`));
+  assert.ok(places.every((p) => p >= 0), "les cinq textes y sont");
+  assert.deepEqual([...places].sort((a, b) => a - b), places, "ordre : migration 3, 4, retour 4, 3, 2");
+  assert.ok(!assemblerMode("contact-3", RACINE, { lire: facticesContact }).texte.includes("contact migration 4"), "la 4 n'est pas injectée dans la partie 3");
+});
+
+test("contact-n-contre-epreuve : migrations 1 à n-1 injectées, la n et son retour neutralisés (select 1) et non lus", () => {
+  for (const n of [1, 2, 3, 4]) {
+    const lus = [];
+    const r = assemblerMode(`contact-${n}-contre-epreuve`, RACINE, { lire: (c) => { lus.push(c); return depotContact(c); } });
+    const voulues = ordreContact(n).filter((c) => !fichiersEtape(n).includes(c));
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...voulues], `contact-${n}-contre-epreuve`);
+    assert.deepEqual([...r.neutralises].sort(), [...fichiersEtape(n)].sort());
+    for (const c of r.neutralises) assert.ok(!lus.includes(c), `${c} neutralisé donc non lu`);
+    assert.equal((r.texte.match(/^\s*'select 1'$/gm) ?? []).length, fichiersEtape(n).length);
+    assert.ok(r.mode.startsWith(`contact-${n}-contre-epreuve`));
+    verifierInjections(r, depotContact);
+  }
+  const deux = assemblerMode("contact-2-contre-epreuve", RACINE, { lire: facticesContact });
+  assert.ok(deux.texte.includes("-- factice : contact migration 1\n") && deux.texte.includes("-- factice : contact migration 1b\n")
+    && !deux.texte.includes("-- factice : contact migration 2"));
+  // La 1b suit la 1 : la contre-épreuve de la partie 1 neutralise les deux.
+  const un = assemblerMode("contact-1-contre-epreuve", RACINE, { lire: facticesContact });
+  assert.ok(!un.texte.includes("-- factice : contact migration 1"));
+});
+
+test("contact-n-en-ligne : rien d'injecté (sauf l'empreinte), tous les fichiers du gabarit neutralisés et non lus, libellé reconnu par préfixe", () => {
+  for (const n of [1, 2, 3, 4]) {
+    const lus = [];
+    const r = assemblerMode(`contact-${n}-en-ligne`, RACINE, { lire: (c) => { lus.push(c); return depotContact(c); } });
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE], `contact-${n}-en-ligne`);
+    assert.deepEqual([...r.neutralises].sort(), [...ordreContact(n)].sort());
+    assert.ok(TOUS_CONTACT.every((c) => !lus.includes(c)), "fichiers du chantier non lus");
+    assert.ok(r.mode.startsWith(`contact-${n}-en-ligne`));
+    assert.ok(!r.mode.startsWith(`contact-${n}-contre`));
+  }
+  // Sans aucun fichier du chantier dans le dépôt, les modes qui n'en demandent aucun s'assemblent.
+  for (const mode of ["contact-4-en-ligne", "contact-3-en-ligne", "contact-1-contre-epreuve", "contact-1-en-ligne", "contact-2-en-ligne"]) {
+    assert.doesNotThrow(() => assemblerMode(mode, RACINE, { lire: sansContact([]) }), mode);
+  }
+});
+
+test("contact-n : un fichier manquant d'une étape demandée arrête l'assemblage en le nommant (migration comme retour)", () => {
+  assert.throws(() => assemblerMode("contact-3", RACINE, { lire: sansContact([...fichiersEtape(1), ...fichiersEtape(2)]) }),
+    /Étape 3 demandée \(contact-3\) : supabase\/migrations\/20261115_contact_3_absences\.sql n'existe pas encore/);
+  assert.throws(() => assemblerMode("contact-3", RACINE, { lire: (c) => (c === CONTACT[3].retour ? null : depotContact(c)) }),
+    /Étape 3 demandée \(contact-3\) : supabase\/migrations\/20261115_contact_3_absences_retour\.sql n'existe pas encore/);
+  assert.throws(() => assemblerMode("contact-2", RACINE, { lire: sansContact([CONTACT[2].migration, CONTACT[2].retour]) }),
+    /Étape 1 demandée \(contact-2\) : supabase\/migrations\/20261115_contact_1_annuaire\.sql n'existe pas encore/);
+  // La contre-épreuve de la partie n demande 1 à n-1 seulement.
+  // La 1b manquante arrête l'étape 1, comme la 1.
+  assert.throws(() => assemblerMode("contact-1", RACINE, { lire: (c) => (c === CONTACT[1].suite.retour ? null : depotContact(c)) }),
+    /Étape 1 demandée \(contact-1\) : supabase\/migrations\/20261115_contact_1b_fermeture_retour\.sql n'existe pas encore/);
+  assert.throws(() => assemblerMode("contact-3-contre-epreuve", RACINE, { lire: sansContact(fichiersEtape(1)) }),
+    /Étape 2 demandée \(contact-3-contre-epreuve\)/);
+  assert.doesNotThrow(() => assemblerMode("contact-3-contre-epreuve", RACINE, { lire: sansContact(TOUS_CONTACT.filter((c) => !c.includes("contact_3"))) }));
+});
+
+// La partie 5 (données sensibles) demande la migration _demo, son préalable : injectée entre la 3 et la 4 comme en production, son retour
+// entre le retour 4 et le retour 3 ; la contre-épreuve la garde (état de la production d'avant la 5), le mode en ligne la neutralise.
+const CINQ = { migration: "supabase/migrations/20261118_contact_5_donnees_sensibles.sql", retour: "supabase/migrations/20261118_contact_5_donnees_sensibles_retour.sql" };
+const DEMO = { migration: "supabase/migrations/20261115_contact_demo.sql", retour: "supabase/migrations/20261115_contact_demo_retour.sql" };
+const ORDRE_CINQ = [CONTACT[1].migration, CONTACT[1].suite.migration, CONTACT[2].migration, CONTACT[3].migration, DEMO.migration, CONTACT[4].migration,
+  CINQ.migration, CINQ.retour, CONTACT[4].retour, DEMO.retour, CONTACT[3].retour, CONTACT[2].retour, CONTACT[1].suite.retour, CONTACT[1].retour];
+
+test("contact-5 : migrations 1, 1b, 2, 3, _demo, 4, 5 puis retours 5, 4, _demo, 3, 2, 1b, 1, injectés octet pour octet", () => {
+  const r = assemblerMode("contact-5", RACINE, { lire: duDisque });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...ORDRE_CINQ]);
+  assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES, AIDES_TITRES, AIDES_CONTACT]);
+  assert.deepEqual(r.neutralises, []);
+  verifierInjections(r, duDisque);
+  assert.equal(r.mode, "contact-5 (migrations 1 a 5 injectees)");
+});
+
+test("contact-5-contre-epreuve : la 5 et son retour neutralisés et non lus ; la _demo reste injectée", () => {
+  const lus = [];
+  const r = assemblerMode("contact-5-contre-epreuve", RACINE, { lire: (c) => { lus.push(c); return duDisque(c); } });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...ORDRE_CINQ.filter((c) => c !== CINQ.migration && c !== CINQ.retour)]);
+  assert.deepEqual([...r.neutralises].sort(), [CINQ.migration, CINQ.retour].sort());
+  assert.ok(!lus.includes(CINQ.migration) && !lus.includes(CINQ.retour), "la 5 n'est pas lue");
+  assert.ok(r.mode.startsWith("contact-5-contre-epreuve"));
+});
+
+test("contact-5-en-ligne : rien d'injecté (sauf l'empreinte), la _demo neutralisée avec le reste", () => {
+  const r = assemblerMode("contact-5-en-ligne", RACINE, { lire: duDisque });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE]);
+  assert.deepEqual([...r.neutralises].sort(), [...ORDRE_CINQ].sort());
+  assert.ok(r.mode.startsWith("contact-5-en-ligne"));
+});
+
+test("contact-5 : la _demo manquante arrête l'assemblage en la nommant", () => {
+  assert.throws(() => assemblerMode("contact-5", RACINE, { lire: (c) => (c === DEMO.retour ? null : duDisque(c)) }),
+    /Étape 5 demandée \(contact-5\) : supabase\/migrations\/20261115_contact_demo_retour\.sql n'existe pas encore/);
+});
+
+test("contact-n : --etapes refusé, la ligne de commande écrit hors du dépôt et nomme le fichier manquant", () => {
+  assert.throws(() => decrireMode("contact-1", { etapes: [1] }), /--etapes ne vaut que pour/);
+  const dossier = mkdtempSync(join(tmpdir(), "contact-"));
+  try {
+    const erreurs = [];
+    const sortie = join(dossier, "contact.sql");
+    assert.equal(principal(["contact-2-en-ligne", sortie], { racine: RACINE, journal: () => {}, erreur: (m) => erreurs.push(m) }), 0, erreurs.join("\n"));
+    assert.ok(readFileSync(sortie, "utf8").includes("-- mode : contact-2-en-ligne"));
+    // Tant que les migrations ne sont pas écrites : contact-3 s'arrête (code 1) et nomme le fichier.
+    if (!existsSync(join(RACINE, CONTACT[1].migration))) {
+      const refus = [];
+      assert.equal(principal(["contact-3", join(dossier, "refus.sql")], { racine: RACINE, journal: () => {}, erreur: (m) => refus.push(m) }), 1);
+      assert.match(refus.join("\n"), /20261115_contact_1_annuaire\.sql/);
+    }
+  } finally {
+    rmSync(dossier, { recursive: true, force: true });
+  }
+});
+
 // --- Étape 3 du chantier : modes suite, suite-contre-epreuve, suite-en-ligne -------------------------------------------------------
 
 const GABARIT_SUITE = "tests/sql/titres-suite-preuve.sql";
@@ -1285,6 +1457,61 @@ test("suite : la ligne de commande écrit hors du dépôt et refuse suite --etap
   }
 });
 
+test("les gabarits contact : aides sans marqueur, pas de $$, mode en ligne reconnu par préfixe, adresses fictives, aucun délimiteur partagé avec les migrations", () => {
+  assert.ok(!/@@(?:INJECTER|INCLURE|MODE)/.test(texteDuDepot(AIDES_CONTACT)), "contact-aides.sql ne porte aucun marqueur");
+  for (const n of [1, 2, 3, 4]) {
+    const gabarit = texteDuDepot(GABARITS_CONTACT[n]);
+    assert.ok(!/\$\$/.test(gabarit), `partie ${n} : pas de $$`);
+    const m = /v_en_ligne := v_mode like '([^'%]*)%'/.exec(gabarit);
+    assert.ok(m && decrireMode(`contact-${n}-en-ligne`).mode.startsWith(m[1]), `partie ${n} : préfixe du mode en ligne`);
+    const adresses = gabarit.match(/[\w.+-]+@[\w.-]+\.[a-z]+/g) ?? [];
+    for (const adresse of adresses) assert.ok(adresse.endsWith("@exemple.invalid"), `adresse fictive : ${adresse}`);
+    const delimiteurs = new Set(gabarit.match(/\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/g));
+    for (const chemin of TOUS_CONTACT.filter((c) => existsSync(join(RACINE, c)))) {
+      for (const d of delimiteurs) assert.ok(!texteDuDepot(chemin).includes(d), `${chemin} : ${d} figure aussi dans le gabarit`);
+    }
+    assert.ok(!gabarit.includes(String.fromCharCode(0x2014)), "aucun tiret cadratin");
+    assert.ok(!gabarit.includes("\r"), "fins de ligne LF");
+  }
+  const aides = texteDuDepot(AIDES_CONTACT);
+  const adresses = aides.match(/[\w.+-]+@[\w.-]+\.[a-z]+/g) ?? [];
+  assert.ok(adresses.length > 0 && adresses.every((a) => a.endsWith("@exemple.invalid")));
+  assert.ok(!aides.includes(String.fromCharCode(0x2014)));
+});
+
+// --- Table de cas du routage (espace contact, partie 2) : le marqueur -- @@CAS_ROUTAGE@@ ----------------------------------------------
+
+test("contact-2 : le marqueur de la table de cas devient un littéral jsonb qui contient chaque nom de cas", () => {
+  const table = JSON.parse(texteDuDepot(CAS_ROUTAGE));
+  for (const mode of ["contact-2", "contact-2-contre-epreuve", "contact-2-en-ligne"]) {
+    const r = assemblerMode(mode, RACINE, { lire: depotContact });
+    assert.ok(!/@@CAS_ROUTAGE@@/.test(r.texte), `${mode} : marqueur remplacé`);
+    const ligne = r.texte.split("\n").find((l) => l.includes('"cas":['));
+    assert.ok(ligne && /^\s*(\$[A-Za-z_0-9]*\$)\{.*\}\1::jsonb$/.test(ligne), `${mode} : un littéral jsonb sur une ligne`);
+    for (const c of table.cas) assert.ok(ligne.includes(`"nom":"${c.nom}"`), `${mode} : cas ${c.nom}`);
+    assert.deepEqual(r.cas, { chemin: CAS_ROUTAGE, md5: md5(texteDuDepot(CAS_ROUTAGE)) });
+    assert.ok(r.texte.includes(`-- cas de routage : ${CAS_ROUTAGE} (md5 `));
+  }
+  // Les parties 1 et 3 ne portent pas le marqueur : la table n'y est ni lue ni collée.
+  const lus = [];
+  const un = assemblerMode("contact-1", RACINE, { lire: (c) => { lus.push(c); return depotContact(c); } });
+  assert.equal(un.cas, null);
+  assert.ok(!lus.includes(CAS_ROUTAGE));
+});
+
+test("marqueur de la table de cas : fichier absent, JSON illisible, marqueur en double ou mal placé : refus clair", () => {
+  const gabarit = "do $g$ begin perform\n-- @@CAS_ROUTAGE@@\n; end $g$;\n";
+  const avec = (texte) => (c) => (c === CAS_ROUTAGE ? texte : null);
+  assert.match(assembler(gabarit, avec('{"cas":[{"nom":"un"}]}')).texte, /\n\$injection\$\{"cas":\[\{"nom":"un"\}\]\}\$injection\$::jsonb\n/);
+  assert.throws(() => assembler(gabarit, avec(null)), /Fichier introuvable : tests\/fixtures\/contact-routage\.json/);
+  assert.throws(() => assembler(gabarit, avec("{pas du json")), /JSON illisible/);
+  assert.throws(() => assembler(gabarit, avec('{"cas":"$g$"}')), /Collision de délimiteur : \$g\$/);
+  assert.throws(() => assembler(gabarit + "-- @@CAS_ROUTAGE@@\n", avec("{}")), /marqueur de la table de cas en double/);
+  assert.throws(() => assembler("select 1; -- @@CAS_ROUTAGE@@\n", avec("{}")), /marqueur mal placé/);
+  // Le délimiteur choisi ne figure pas dans la table.
+  assert.match(assembler(gabarit, avec('{"x":"$injection$"}')).texte, /\$injection_1\$\{"x":"\$injection\$"\}\$injection_1\$::jsonb/);
+});
+
 test("les fichiers de l'étape 3 (gabarit, aides, base locale) : aucun tiret cadratin, fins de ligne LF, aucune adresse de connexion", () => {
   for (const chemin of [GABARIT_SUITE, AIDES_GESTION, GABARIT_GESTION, "outils/base_locale/rejouer_suite.sh", "outils/base_locale/LISEZMOI.md"]) {
     const brut = readFileSync(join(RACINE, chemin), "utf8");
@@ -1313,8 +1540,12 @@ test("les fichiers de l'étape 3 (gabarit, aides, base locale) : aucun tiret cad
   const huit = script.indexOf('$P -1 -f "$MIGRATIONS/20261115_titres_8_apercu.sql"');
   assert.ok(huit > sept, "puis la migration 8 des titres, après la 7");
   assert.match(script, /titres_7_correctifs\.sql"[^\n]*\n  N=\$\(\(N \+ 1\)\)\n  \$P -1 -f "\$MIGRATIONS\/20261115_titres_8_apercu\.sql"[^\n]*\n  N=\$\(\(N \+ 1\)\)\nfi\n/, "dans le même bloc --production, chacune comptée");
-  assert.ok(script.includes("(sortie : 29 migrations)"), "l'en-tête du script annonce 29 migrations");
-  assert.ok(texteDuDepot("outils/base_locale/LISEZMOI.md").includes("`OK : suite rejouée (29 migrations)`"), "le LISEZMOI aussi");
+  // La migration 9 des titres (catalogue du réseau), appliquée en production le 16/11 après la 8, dans un bloc --production à elle : 30 migrations.
+  const neuf = script.indexOf('$P -1 -f "$MIGRATIONS/20261115_titres_9_catalogue.sql"');
+  assert.ok(neuf > huit, "puis la migration 9 des titres, après la 8");
+  assert.match(script, /fi\n(?:#[^\n]*\n)+if \[ "\$PRODUCTION" = 1 \]; then\n  \$P -1 -f "\$MIGRATIONS\/20261115_titres_9_catalogue\.sql"[^\n]*\n  N=\$\(\(N \+ 1\)\)\nfi\n/, "avec --production seulement, comptée");
+  assert.ok(script.includes("(sortie : 30 migrations)"), "l'en-tête du script annonce 30 migrations");
+  assert.ok(texteDuDepot("outils/base_locale/LISEZMOI.md").includes("`OK : suite rejouée (30 migrations)`"), "le LISEZMOI aussi");
 });
 
 test("la preuve de la suite : l'aiguillage des groupes (sort_du_groupe) couvre chaque cas, contrôlé au groupe structure à chaque jeu", () => {

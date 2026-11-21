@@ -57,6 +57,79 @@ export const NOUVEAUTES = [
     ou: { route: "themes", label: "Cours et QCM" },
     module: "qcm",
   },
+  // Espace contact (annuaire, 14/11) : les contacts du centre ont leur page, Contacts, dans le menu du compte. À remplacer par la date
+  // de la mise en ligne si elle diffère. Une carte par public : le stagiaire tutoie, l'équipe vouvoie.
+  {
+    id: "2026-11-14-contacts-du-centre-stagiaires",
+    date: "2026-11-21",
+    pour: "stagiaires",
+    titre: "Les contacts du centre, au même endroit",
+    resume: "Dans le menu de ton compte, Contacts réunit l'équipe de ton centre : qui est qui, pour quoi la joindre et quand, "
+          + "avec son numéro professionnel. Tu y retrouves aussi les noms de ta promo et ses délégués. Ton numéro de téléphone, "
+          + "si tu le donnes dans Mes préférences, n'est visible que de l'équipe.",
+    ou: { label: "Contacts", route: "contacts" },
+  },
+  {
+    id: "2026-11-14-fiche-de-contact-formateurs",
+    date: "2026-11-21",
+    pour: "formateurs",
+    titre: "Votre fiche de contact",
+    resume: "Contacts (menu du compte) remplace les contacts de Documents : chaque membre de l'équipe y a sa fiche, créée d'office. "
+          + "Vérifiez la vôtre dans Mes préférences (e-mail et téléphone professionnels, pour quoi et quand vous joindre, absence "
+          + "et relais) : tant qu'elle n'est pas enregistrée, les stagiaires ne voient que votre nom. Une fiche partagée entre deux "
+          + "centres se corrige une seule fois.",
+    ou: { label: "Mes préférences", route: "preferences" },
+  },
+  {
+    id: "2026-11-14-fiche-de-contact-direction",
+    date: "2026-11-21",
+    pour: "direction",
+    titre: "Votre fiche de contact",
+    resume: "Contacts (menu du compte) réunit l'équipe de votre centre, et votre fiche y est créée d'office. Vérifiez-la dans Mes "
+          + "préférences, « Ma fiche de contact » (e-mail et téléphone professionnels, pour quoi et quand vous joindre, absence et "
+          + "relais) : tant qu'elle n'est pas enregistrée, les stagiaires ne voient que votre nom.",
+    ou: { label: "Mes préférences", route: "preferences" },
+  },
+  // Espace contact (absences et Messages, 14/11, même date provisoire que les entrées d'annuaire : la coordination la fixe à la mise en
+  // ligne). Une entrée par public : le stagiaire tutoie, l'équipe et la direction vouvoient.
+  {
+    id: "2026-11-14-prevenir-absence-stagiaires",
+    date: "2026-11-21",
+    pour: "stagiaires",
+    titre: "Préviens d'une absence en une minute",
+    resume: "Sur l'Accueil, “Prévenir d'une absence” : choisis le jour, le moment et le motif. Si ton centre a choisi qui s'en "
+          + "occupe, l'app l'envoie à cette personne et te dit à qui ; sinon, tu coches qui prévenir parmi tes formateurs et la "
+          + "direction (tes formateurs du jour sont déjà cochés). Tu vois quand c'est lu, puis pris en compte. Tes formateurs du jour "
+          + "et ton délégué sont prévenus, sauf si tu décoches ; l'absence apparaît d'elle-même au planning et sur la feuille "
+          + "d'émargement. Ton justificatif ne passe pas par l'app : le bouton “Envoyer mon justificatif” prépare l'e-mail. Pour "
+          + "une autre question, “Écrire au centre” dans Contacts.",
+    ou: { label: "Contacts", route: "contacts" },
+  },
+  {
+    id: "2026-11-14-messages-formateurs",
+    date: "2026-11-21",
+    pour: "formateurs",
+    titre: "Messages : les demandes des stagiaires, avec un état",
+    resume: "La nouvelle entrée Messages réunit les demandes qui vous sont adressées (absences, retards, questions), “À traiter” "
+          + "d'abord. Vous répondez en un geste avec les réponses toutes faites, depuis l'app ou depuis l'e-mail reçu. Une absence "
+          + "annoncée est marquée “absent, prévenu” au planning et pré-remplie sur la feuille d'émargement ; vous décidez comme avant "
+          + "du passage et de la feuille. Tant que “Qui reçoit quoi” n'est pas réglé, le stagiaire choisit lui-même qui prévenir "
+          + "parmi les formateurs de sa promo et la direction du centre.",
+    ou: { label: "Messages", route: "messages" },
+  },
+  {
+    id: "2026-11-14-messages-direction",
+    date: "2026-11-21",
+    pour: "direction",
+    titre: "Messages : les demandes des stagiaires, avec un état",
+    resume: "La nouvelle entrée Messages réunit les demandes qui vous sont adressées (absences, retards, questions), “À traiter” "
+          + "d'abord. Vous répondez en un geste avec les réponses toutes faites, depuis l'app ou depuis l'e-mail reçu. Une absence "
+          + "annoncée est marquée “absent, prévenu” au planning et pré-remplie sur la feuille d'émargement ; vous décidez comme avant "
+          + "du passage et de la feuille. Tant que “Qui reçoit quoi” n'est pas réglé, le stagiaire choisit lui-même qui prévenir "
+          + "parmi les formateurs de sa promo et la direction du centre. Vous lisez toutes les demandes de votre centre, et vous "
+          + "réglez “Qui reçoit quoi” et les réponses toutes faites dans Réglages du centre.",
+    ou: { label: "Réglages du centre", route: "config" },
+  },
   // Résultats du jury du titre (14/11, décisions de Timy : saisie par stagiaire, par qui saisit les notes, taux = obtenus sur
   // présentés). Pour les formateurs, au vouvoiement ; la direction a sa propre entrée (lecture seule, cumul du centre).
   {
@@ -224,7 +297,7 @@ export const NOUVEAUTES = [
           + "Montpellier gardent les mêmes contacts, mais chaque centre a maintenant sa propre liste : un numéro qui change "
           + "se corrige dans chacun des deux. Un contact que vous ajoutez appartient au centre de la promo affichée ; pour en "
           + "ajouter un à un autre centre, affichez d'abord une de ses promos.",
-    ou: { label: "Cours et QCM, Documents", route: "ressources" },
+    ou: { label: "Contacts", route: "contacts" },
   },
   // Refonte de l'Ordre de passage et des Résultats (maquettes choisies par Timy le 11/11) : une carte par public. Placées après la conservation, qui reste la
   // carte du jour de l'équipe.
@@ -268,7 +341,7 @@ export const NOUVEAUTES = [
       "La fiche personnelle (notes, passages, livret EPCF, dossier professionnel) s'appelle Mon suivi ; les préférences sont "
         + "dans « Mes préférences », dans le menu du compte (les initiales : en haut à droite, ou en bas de la barre de gauche "
         + "pour l'équipe sur ordinateur).",
-      "Le menu du compte réunit aussi Nouveautés, Contacts du centre, Recharger les données et Se déconnecter.",
+      "Le menu du compte réunit aussi Nouveautés, Contacts, Recharger les données et Se déconnecter.",
       "Pour une question sur l'app ou sur un cours : le bouton « Assistant », en haut de l'écran (pour l'équipe sur "
         + "ordinateur, en bas de la barre de gauche).",
     ],

@@ -7,26 +7,26 @@ import {
   listStagiaires, listProfs, getPlanning, getHalfMetaForWeek, getJoursOff, getPromoCourante,
   listEmargementSeances, ouvrirEmargement, signerEmargement, signerEmargementFormateur,
   annoterEmargement, cloreEmargement, rouvrirEmargement, getEnteteEmargement, setEnteteEmargement,
-} from "../db.js?v=20261116a";
-import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261116a";
-import { confirmer } from "../confirmer.js?v=20261116a";
-import { icon } from "../icons.js?v=20261116a";
-import { isAdmin, isEquipe, getProfile, ecritSelonLaCase, litSelonLaCase } from "../auth-admin.js?v=20261116a";
+} from "../db.js?v=20261121a";
+import { el, clear, toast, isoDate, displayStagiaire } from "../utils.js?v=20261121a";
+import { confirmer } from "../confirmer.js?v=20261121a";
+import { icon } from "../icons.js?v=20261121a";
+import { isAdmin, isEquipe, getProfile, ecritSelonLaCase, litSelonLaCase } from "../auth-admin.js?v=20261121a";
 import {
   etatLigne, resumeSeance, resumeEnClair, etatSansFeuille, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
   demiVoisine, notesProposees, roleAuPlanning,
-} from "../emargement-rules.js?v=20261116a";
-import { lundiDe, jourDe, dayIndexDe } from "../dates.js?v=20261116a";
-import { ouvrirSignature, signatureOuMention } from "../signature-pad.js?v=20261116a";
+} from "../emargement-rules.js?v=20261121a";
+import { lundiDe, jourDe, dayIndexDe } from "../dates.js?v=20261121a";
+import { ouvrirSignature, signatureOuMention } from "../signature-pad.js?v=20261121a";
 import {
   feuilleSeance, feuilleSemaine, imprimer, nomComplet, jourLong, DEMI_LONG, stagiairesDeFeuille,
-} from "../emargement-feuilles.js?v=20261116a";
-import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261116a";
-import { emargementActif } from "../emargement-etat.js?v=20261116a";
-import { estAdresseAttestations } from "../attestations-rules.js?v=20261116a";
-import { renderAttestations } from "./attestations.js?v=20261116a";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261116a";
+} from "../emargement-feuilles.js?v=20261121a";
+import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261121a";
+import { emargementActif } from "../emargement-etat.js?v=20261121a";
+import { estAdresseAttestations } from "../attestations-rules.js?v=20261121a";
+import { renderAttestations } from "./attestations.js?v=20261121a";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261121a";
 
 // Horaires par défaut, comme DEFAULT_HALF_META du planning.
 const HORAIRES_DEFAUT = { matin: { debut: "09:00", fin: "12:30" }, aprem: { debut: "13:30", fin: "17:00" } };
@@ -347,7 +347,9 @@ function dessinerSeance(ctx) {
         el("span", { class: "em-ligne-nom" }, displayStagiaire(st)),
         el("span", { class: "em-ligne-etat" }, etat.libelle,
           etat.code === "signe" && ligne.sur_appareil_formateur ? " · sur l'appareil du formateur" : ""),
-        ligne?.observation ? el("span", { class: "em-ligne-obs" }, ligne.observation) : null,
+        // « Absent (prévenu) » dit déjà ce que la mention posée par l'espace contact dirait (comme sur la feuille imprimée).
+        ligne?.observation && !(etat.origine === "annoncee" && ligne.observation === "Absence prévenue")
+          ? el("span", { class: "em-ligne-obs" }, ligne.observation) : null,
       ),
       actions,
     ));

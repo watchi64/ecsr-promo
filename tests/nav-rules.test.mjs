@@ -36,10 +36,10 @@ eq(ids(entreesNavigation("stagiaire", { routeVisible: () => false, emargementAct
 eq(stag.map((e) => [e.libelle, e.icone]),
   [["Accueil", "home"], ["Planning", "calendar"], ["Cours et QCM", "book"], ["Mon suivi", "trend"], ["CCP2", "target"]],
   "libellés et icônes du stagiaire");
-eq(ids(eqp), ["home", "planning", "emargement", "stagiaires", "notes", "themes", "ccp2", "centre", "config"],
+eq(ids(eqp), ["home", "messages", "planning", "emargement", "stagiaires", "notes", "themes", "ccp2", "centre", "config"],
   "équipe : rien retiré par les modules");
 eq(eqp.map((e) => [e.libelle, e.icone]),
-  [["Aujourd'hui", "home"], ["Planning", "calendar"], ["Émargement", "clipboard"], ["Stagiaires", "users"],
+  [["Aujourd'hui", "home"], ["Messages", "inbox"], ["Planning", "calendar"], ["Émargement", "clipboard"], ["Stagiaires", "users"],
     ["Notes et examens", "edu"], ["Cours et QCM", "book"], ["CCP2", "target"], ["Indicateurs", "chart"],
     ["Réglages", "settings"]],
   "libellés et icônes de l'équipe");
@@ -58,7 +58,7 @@ eq(barreTelephone("equipe", eqp).barre.map((e) => e.court), ["Aujourd'hui", "Pla
 
 // 3. Barre du téléphone
 eq(ids(barreTelephone("equipe", eqp).barre), ["home", "planning", "stagiaires", "notes"], "barre équipe");
-eq(ids(barreTelephone("equipe", eqp).plus), ["emargement", "themes", "ccp2", "centre", "config"], "Plus");
+eq(ids(barreTelephone("equipe", eqp).plus), ["messages", "emargement", "themes", "ccp2", "centre", "config"], "Plus");
 eq(barreTelephone("stagiaire", stag).plus, [], "stagiaire sans Plus");
 eq(barreTelephone("stagiaire", stag).barre.map((e) => e.court),
   ["Accueil", "Planning", "Cours et QCM", "Mon suivi", "CCP2"], "barre stagiaire : cinq cases nommées");
@@ -70,6 +70,7 @@ eq(entreeActive("calendrier", eqp), "planning", "alias calendrier");
 eq(entreeActive("dashboard", eqp), "planning", "alias dashboard");
 eq(entreeActive("ressources", eqp), "themes", "alias ressources");
 eq(entreeActive("nouveautes", eqp), "home", "alias nouveautes");
+eq(entreeActive("contacts", stag, "stagiaire"), "home", "alias contacts : la page s'ouvre depuis le menu du compte, l'accueil reste allumé");
 eq(entreeActive("qualiopi", eqp), "centre", "alias qualiopi : la page s'ouvre depuis le tableau de bord du centre");
 eq(entreeActive("notes", stag), "mon-suivi", "stagiaire : la classe vit sous Mon suivi");
 eq(entreeActive("notes", eqp), "notes", "équipe : Notes a son entrée");
@@ -148,6 +149,7 @@ eq(routeApresRedirection("config", "equipe"), "config", "mémoire config de l'é
 eq(routeApresRedirection("calendrier", "stagiaire"), "planning", "mémoire calendrier : Planning");
 eq(routeApresRedirection("dashboard", "equipe"), "planning", "mémoire dashboard : Planning");
 eq(routeApresRedirection("ressources", "stagiaire"), "themes", "mémoire ressources : Cours et QCM");
+eq(routeApresRedirection("contacts", "stagiaire"), "contacts", "mémoire contacts : la page Contacts, jamais redirigée");
 eq(routeApresRedirection("notes", "stagiaire"), "mon-suivi", "mémoire notes d'un stagiaire : Mon suivi");
 eq(routeApresRedirection("notes", "equipe"), "notes", "mémoire notes de l'équipe : Notes et examens");
 eq(routeApresRedirection("planning", "stagiaire"), "planning", "une route qui ne bouge pas reste elle-même");
@@ -297,10 +299,10 @@ eq(entreeActive("problemes", entreesNavigation("equipe", { routeVisible: tout, e
 
 // Lot 5 : espaces direction et siège (barre latérale comme l'équipe).
 const dirBase = entreesNavigation("direction", { routeVisible: tout, emargementActif: true });
-eq(ids(dirBase), ["centre", "promos", "stagiaires", "notes", "equipe"], "direction : sans émargement ni réglages par défaut");
+eq(ids(dirBase), ["centre", "messages", "promos", "stagiaires", "notes", "equipe"], "direction : sans émargement ni réglages par défaut");
 const dirTout = entreesNavigation("direction", { routeVisible: tout, emargementActif: true, emargementDansLeCentre: true, reglagesEspace: true });
-eq(ids(dirTout), ["centre", "promos", "stagiaires", "emargement", "notes", "equipe", "config"], "direction : ordre de la section 1");
-eq(dirTout.map((e) => e.libelle), ["Accueil", "Promos", "Stagiaires", "Émargement", "Notes et examens", "Équipe", "Réglages du centre"],
+eq(ids(dirTout), ["centre", "messages", "promos", "stagiaires", "emargement", "notes", "equipe", "config"], "direction : ordre de la section 1");
+eq(dirTout.map((e) => e.libelle), ["Accueil", "Messages", "Promos", "Stagiaires", "Émargement", "Notes et examens", "Équipe", "Réglages du centre"],
   "direction : libellés");
 eq(dirTout.filter((e) => e.groupe).map((e) => [e.id, e.groupe]), [["config", "Centre"]], "direction : groupe Centre");
 eq(ids(entreesNavigation("direction", { routeVisible: tout, emargementActif: false, emargementDansLeCentre: true })).includes("emargement"),
@@ -312,7 +314,11 @@ eq(sieTout.map((e) => [e.id, e.libelle, e.groupe]),
   [["reseau", "Accueil", null], ["themes", "Cours et QCM", null], ["directions", "Directions de centre", "Gestion"],
     ["config", "Réglages du réseau", "Gestion"]], "siège : entrées et groupe Gestion");
 eq(ids(barreTelephone("direction", dirTout).barre), ["centre", "promos", "stagiaires", "equipe"], "barre téléphone direction");
-eq(ids(barreTelephone("direction", dirTout).plus), ["emargement", "notes", "config"], "plus direction");
+eq(ids(barreTelephone("direction", dirTout).plus), ["messages", "emargement", "notes", "config"], "plus direction : Messages passe dans Plus");
+eq(ids(eqp).indexOf("messages"), 1, "équipe : Messages en deuxième, juste après l'accueil");
+eq(ids(dirTout).indexOf("messages"), 1, "direction : Messages juste après l'accueil");
+eq(entreeActive("messages", eqp, "equipe"), "messages", "entrée active : Messages");
+eq(entreeActive("messages", dirTout, "direction"), "messages", "direction : Messages allumée");
 eq(ids(barreTelephone("siege", sieTout).barre), ["reseau", "themes", "directions"], "barre téléphone siège");
 eq(ids(barreTelephone("siege", sieTout).plus), ["config"], "plus siège");
 for (const e of [...dirTout, ...sieTout]) eq(typeof icon[e.icone], "function", "icône connue : " + e.icone);
@@ -321,6 +327,7 @@ eq(entreeActive("reseau", sieTout), "reseau", "siège : Accueil allumé sur rese
 eq(entreeActive("nouveautes", sieTout), null, "siège : nouveautés n'allume rien");
 eq(entreeActive("nouveautes", dirTout, "direction"), null, "direction : nouveautés n'allume rien");
 eq(entreeActive("problemes", dirTout, "direction"), null, "direction : problèmes n'allume pas Réglages");
+eq(entreeActive("contacts", dirTout, "direction"), null, "direction : contacts n'allume rien");
 eq(entreeActive("problemes", sieTout, "siege"), null, "siège : problèmes n'allume pas Réglages");
 eq(entreeActive("preferences", dirTout, "direction"), null, "direction : préférences n'allume rien");
 eq(entreeActive("stagiaires", dirTout, "direction"), "stagiaires", "direction : stagiaires allumé");
@@ -372,9 +379,9 @@ eq(libelleRole({ role: "prof", is_founder: true }, "direction"), "Fondateur", "l
   const peutEmarger = (casesInt.emargement === 2);
   eq(droitsInt.admin, false, "Intervenant : isAdmin faux (M5)");
   const entInt = entreesNavigation("equipe", { routeVisible: tout, emargementActif: true, formateur: peutEmarger, cases: casesInt });
-  eq(ids(entInt), ["home", "planning", "emargement", "stagiaires", "themes"], "Intervenant : entrées");
+  eq(ids(entInt), ["home", "messages", "planning", "emargement", "stagiaires", "themes"], "Intervenant : entrées (Messages n'a pas de case : il passe toujours)");
   eq(ids(barreTelephone("equipe", entInt).barre), ["home", "planning", "emargement", "stagiaires"], "Intervenant : barre complétée");
-  eq(ids(barreTelephone("equipe", entInt).plus), ["themes"], "Intervenant : Plus");
+  eq(ids(barreTelephone("equipe", entInt).plus), ["messages", "themes"], "Intervenant : Plus (Messages y reste, il ne complète pas la barre)");
   eq(ids(entreesNavigation("equipe", { routeVisible: tout, emargementActif: true, formateur: droitsInt.admin, cases: casesInt })).includes("emargement"),
     false, "Intervenant : avec isAdmin() l'entrée Émargement manquerait (d'où peutModifier)");
 
@@ -382,12 +389,12 @@ eq(libelleRole({ role: "prof", is_founder: true }, "direction"), "Fondateur", "l
   const secretariat = { niveau: "centre", nom: "Secrétariat", fixe: false, lieu_id: 1,
     cases: { promos: "voir", stagiaires: "modifier", emargement: "voir", notes: "non", equipe: "voir", reglages: "non" } };
   const entSec = entreesNavigation("direction", { routeVisible: tout, emargementDansLeCentre: true, reglagesEspace: true, cases: casesDe("direction", secretariat) });
-  eq(ids(entSec), ["centre", "promos", "stagiaires", "emargement", "equipe"], "Secrétariat : entrées");
+  eq(ids(entSec), ["centre", "messages", "promos", "stagiaires", "emargement", "equipe"], "Secrétariat : entrées (Messages n'a pas de case)");
   eq(ids(barreTelephone("direction", entSec).barre), ["centre", "promos", "stagiaires", "equipe"], "Secrétariat : barre");
-  eq(ids(barreTelephone("direction", entSec).plus), ["emargement"], "Secrétariat : Plus");
+  eq(ids(barreTelephone("direction", entSec).plus), ["messages", "emargement"], "Secrétariat : Plus");
   // Émargement éteint dans le centre : l'entrée n'y est pas, quelle que soit la case.
   eq(ids(entreesNavigation("direction", { routeVisible: tout, emargementDansLeCentre: false, reglagesEspace: true, cases: casesDe("direction", secretariat) })),
-    ["centre", "promos", "stagiaires", "equipe"], "Secrétariat, émargement éteint : pas d'entrée");
+    ["centre", "messages", "promos", "stagiaires", "equipe"], "Secrétariat, émargement éteint : pas d'entrée");
 
   // Titre du réseau Qualité.
   const qualite = { niveau: "reseau", nom: "Qualité", fixe: false, cases: { cours: "voir", directions: "voir", reglages: "non" } };
@@ -414,10 +421,10 @@ eq(libelleRole({ role: "prof", is_founder: true }, "direction"), "Fondateur", "l
     false, "cases nulles et non admin : l'entrée manque");
 
   // Le filtre lui-même : l'accueil de la direction (route « centre ») reste, la page Indicateurs de la promo (même route) suit sa case.
-  eq(ids(entreesNavigation("direction", { ...optionsDe.direction, cases: toutesZero("centre") })), ["centre"],
-    "direction, toutes cases à 0 : l'accueil reste (la route centre n'est pas Indicateurs ici)");
-  eq(ids(entreesNavigation("equipe", { ...optionsDe.equipe, cases: toutesZero("promo") })), ["home"],
-    "équipe, toutes cases à 0 : l'accueil seul");
+  eq(ids(entreesNavigation("direction", { ...optionsDe.direction, cases: toutesZero("centre") })), ["centre", "messages"],
+    "direction, toutes cases à 0 : l'accueil reste (la route centre n'est pas Indicateurs ici), Messages aussi (sans case)");
+  eq(ids(entreesNavigation("equipe", { ...optionsDe.equipe, cases: toutesZero("promo") })), ["home", "messages"],
+    "équipe, toutes cases à 0 : l'accueil et Messages (sans case)");
   eq(ids(entreesNavigation("siege", { ...optionsDe.siege, cases: toutesZero("reseau") })), ["reseau"],
     "siège, toutes cases à 0 : l'accueil seul");
 

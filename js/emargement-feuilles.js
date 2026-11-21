@@ -2,14 +2,14 @@
 // semaine (paysage). Construites hors écran puis clonées pour l'impression par le mécanisme
 // des documents officiels (js/doc-officiel.js) : seul #emargement-print s'imprime.
 
-import { el, compareByNom } from "./utils.js?v=20261116a";
-import { bindDocPrint } from "./doc-officiel.js?v=20261116a";
-import { signatureOuMention } from "./signature-pad.js?v=20261116a";
+import { el, compareByNom } from "./utils.js?v=20261121a";
+import { bindDocPrint } from "./doc-officiel.js?v=20261121a";
+import { signatureOuMention } from "./signature-pad.js?v=20261121a";
 import {
   etatLigne, libelleCreneau, heureLocale, jourLocal, dureeMinutes, libelleDuree, minutesPresence,
   jourFerie, DEMI_JOURNEES,
-} from "./emargement-rules.js?v=20261116a";
-import { jourDe } from "./dates.js?v=20261116a";
+} from "./emargement-rules.js?v=20261121a";
+import { jourDe } from "./dates.js?v=20261121a";
 
 // Nom complet sur un document officiel : NOM en capitales, puis le prénom.
 export function nomComplet(s) {
@@ -86,7 +86,8 @@ export function feuilleSeance({ entete, promo, seance, stagiairesTous, absentsPl
         + (ligne.sur_appareil_formateur ? ", sur l'appareil du formateur" : ""));
     } else if (etat.code === "absent") obs.push(etat.libelle);
     else obs.push(etat.origine === "planning" ? "Noté absent au planning" : "Pas encore signé");
-    if (ligne?.observation) obs.push(ligne.observation);
+    // « Absent (prévenu) » dit déjà ce que la mention posée par l'espace contact dirait : pas deux fois la même chose.
+    if (ligne?.observation && !(etat.origine === "annoncee" && ligne.observation === "Absence prévenue")) obs.push(ligne.observation);
     return el("tr", { class: "emf-ligne emf-" + etat.code },
       el("td", { class: "emf-num" }, String(i + 1)),
       el("td", { class: "emf-nom" }, nomComplet(s)),

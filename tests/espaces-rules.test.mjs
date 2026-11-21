@@ -7,7 +7,7 @@ import {
   ESPACES, LIBELLES_ESPACE, ACCUEIL_ESPACE, barreLaterale, espacesPermis, espaceChoisi, brider, peutRedigerContenus,
   porteSansPromo, decisionPorteSansPromo, centreAffiche, promoPourLaDirection, promosDuCentre, routeDansLEspace, phraseHorsEspace,
   phraseDeRefus, adresseApresBascule, normaliserAffectations, affectationsDeSecours, espacesDuCompte, promoPourLEspace,
-  cleDerniereRoute, espaceDePilotage, promosVisiblesEnApercu, texteBandeauApercu, litToutesLesNotes, defautsHabillage
+  cleDerniereRoute, espaceDePilotage, promosVisiblesEnApercu, texteBandeauApercu, litToutesLesNotes, defautsHabillage, estVueStagiaire
 } from "../js/espaces-rules.js";
 import { messageInvitation } from "../js/roles-rules.js";
 
@@ -125,10 +125,10 @@ test("promosDuCentre", () => {
 });
 
 test("routeDansLEspace : tableau des routes par espace", () => {
-  const direction = ["centre", "promos", "stagiaires", "emargement", "notes", "equipe", "config", "home", "nouveautes", "preferences", "problemes"];
+  const direction = ["centre", "promos", "stagiaires", "emargement", "notes", "equipe", "contacts", "messages", "config", "home", "nouveautes", "preferences", "problemes"];
   const siege = ["reseau", "directions", "themes", "config", "home", "nouveautes", "preferences", "problemes"];
   const toutes = ["centre", "promos", "stagiaires", "emargement", "notes", "equipe", "reseau", "directions", "themes", "planning",
-    "config", "home", "nouveautes", "preferences", "problemes", "mon-suivi", "calendrier", "dashboard", "ccp2", "qualiopi", "ressources"];
+    "config", "home", "nouveautes", "preferences", "problemes", "mon-suivi", "calendrier", "dashboard", "ccp2", "qualiopi", "ressources", "contacts", "messages"];
   for (const r of toutes) {
     assert.equal(routeDansLEspace("direction", r), direction.includes(r), "direction " + r);
     assert.equal(routeDansLEspace("siege", r), siege.includes(r), "siège " + r);
@@ -142,7 +142,7 @@ test("routeDansLEspace : tableau des routes par espace", () => {
 
 test("phraseDeRefus", () => {
   for (const [pre, texte] of [["equipe", "Réservé à la direction du centre."], ["promo", "Cette promo n'est pas dans ton centre."],
-    ["centre", "Le nom est requis."], ["reseau", "Réservé au siège."], ["invitation", "Ce compte est déjà lié."], ["habillage", "Choix inconnu."], ["titres", "Réservé au siège."]]) {
+    ["centre", "Le nom est requis."], ["reseau", "Réservé au siège."], ["invitation", "Ce compte est déjà lié."], ["habillage", "Choix inconnu."], ["titres", "Réservé au siège."], ["contact", "Réservé à l'équipe."]]) {
     assert.equal(phraseDeRefus(`${pre}: ${texte}`, "42501"), texte);
   }
   const indispo = "Cette action n'est pas encore disponible.";
@@ -358,4 +358,12 @@ test("decisionPorteSansPromo : lu et vide, raté à l'ouverture, raté en cours 
   assert.equal(decisionPorteSansPromo({ lecture: "ratee", affectations: [], sessionOuverte: true }), "entrer");
   // Sans argument : rien d'affirmé, donc refus d'un compte sans porte (pas d'exception).
   assert.equal(decisionPorteSansPromo(), "refuser");
+});
+
+test("estVueStagiaire : l'espace décide, jamais le cumul de rôles", () => {
+  assert.equal(estVueStagiaire("stagiaire"), true);
+  assert.equal(estVueStagiaire("equipe"), false);
+  assert.equal(estVueStagiaire("direction"), false);
+  assert.equal(estVueStagiaire("siege"), false);
+  assert.equal(estVueStagiaire(undefined), false);
 });

@@ -2,34 +2,35 @@ import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJo
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
          listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante, getNotesStatsGroupe,
-         listCoursIndex, listerAutonomie, listerEntrainementsQcm } from "../db.js?v=20261116a";
-import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261116a";
-import { dixieme, fr1, pluriel } from "../nombres.js?v=20261116a";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261116a";
-import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261116a";
-import { isAdmin, isProf, monStagiaireId, selonPublic, getEspace } from "../auth-admin.js?v=20261116a";
-import { autonomieActive, peutTracer } from "../autonomie-etat.js?v=20261116a";
-import { ficheAutonomie, autonomieVisible } from "../autonomie-rules.js?v=20261116a";
-import { litToutesLesNotes } from "../espaces-rules.js?v=20261116a";
-import { jourParis } from "../dates.js?v=20261116a";
-import { renderEpcfPersonne } from "./epcf.js?v=20261116a";
-import { renderSubTabs } from "../subtabs.js?v=20261116a";
-import { renderDp } from "./dp.js?v=20261116a";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261116a";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261116a";
-import { lundiEnCours } from "../journee-rules.js?v=20261116a";
-import { bandeauAvis } from "../avis.js?v=20261116a";
-import { statsPassages } from "../passages-stats.js?v=20261116a";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261116a";
-import { icon } from "../icons.js?v=20261116a";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261116a";
-import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261116a";
-import { exemplesRemplis } from "../dp-rules.js?v=20261116a";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261116a";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261116a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261116a";
-import { renderNotes } from "./notes.js?v=20261116a";
-import { notesSur20, moyenne, tendance, forcesEtFaiblesses, moyenneDuGroupe, formatNote } from "../resultats-rules.js?v=20261116a";
+         listCoursIndex, listerAutonomie, listerEntrainementsQcm } from "../db.js?v=20261121a";
+import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261121a";
+import { dixieme, fr1, pluriel } from "../nombres.js?v=20261121a";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261121a";
+import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261121a";
+import { isAdmin, isProf, monStagiaireId, selonPublic, getEspace } from "../auth-admin.js?v=20261121a";
+import { autonomieActive, peutTracer } from "../autonomie-etat.js?v=20261121a";
+import { ficheAutonomie, autonomieVisible } from "../autonomie-rules.js?v=20261121a";
+import { litToutesLesNotes } from "../espaces-rules.js?v=20261121a";
+import { jourParis } from "../dates.js?v=20261121a";
+import { renderEpcfPersonne } from "./epcf.js?v=20261121a";
+import { renderSubTabs } from "../subtabs.js?v=20261121a";
+import { renderDp } from "./dp.js?v=20261121a";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261121a";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261121a";
+import { lundiEnCours } from "../journee-rules.js?v=20261121a";
+import { bandeauAvis } from "../avis.js?v=20261121a";
+import { statsPassages } from "../passages-stats.js?v=20261121a";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261121a";
+import { icon } from "../icons.js?v=20261121a";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261121a";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261121a";
+import { exemplesRemplis } from "../dp-rules.js?v=20261121a";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261121a";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261121a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261121a";
+import { renderNotes } from "./notes.js?v=20261121a";
+import { blocCoordonnees } from "./fiche-coordonnees.js?v=20261121a";
+import { notesSur20, moyenne, tendance, forcesEtFaiblesses, moyenneDuGroupe, formatNote } from "../resultats-rules.js?v=20261121a";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -691,6 +692,7 @@ export function renderFiche(container, d, opts) {
     // la partie directement, comme renderSubTabs qui cache sa barre pour un seul onglet.
     if (opts.retour) container.appendChild(lienRetour(opts.retour.label, opts.retour.href));
     if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
+    container.appendChild(blocCoordonnees(d, { soi: !!opts.soi, direction: !!opts.direction }));
     const panel = el("div", { class: "fiche-partie" });
     container.appendChild(panel);
     rendrePartie(panel, parties[0], d, opts, { isActive: () => panel.isConnected });
@@ -698,6 +700,7 @@ export function renderFiche(container, d, opts) {
   }
   if (opts.disposition === "onglets") {
     if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
+    container.appendChild(blocCoordonnees(d, { soi: !!opts.soi, direction: !!opts.direction }));
     container.appendChild(renderSubTabs(parties.map((p) => ({
       key: p, label: libellePartie(p), module: MODULE_DE_PARTIE[p] || undefined,
       render: (panel, ctx) => rendrePartie(panel, p, d, opts, ctx),
@@ -722,7 +725,10 @@ export function renderFiche(container, d, opts) {
   // iPhone : le sommaire.
   if (opts.retour) container.appendChild(lienRetour(opts.retour.label, opts.retour.href));
   if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
+  // Les parties d'abord : sur téléphone, le sommaire doit tenir au-dessus de la barre du bas (contrôle du vérificateur de navigation) ;
+  // les coordonnées viennent après.
   container.appendChild(rendreSommaire(d, parties, opts));
+  container.appendChild(blocCoordonnees(d, { soi: !!opts.soi, direction: !!opts.direction }));
   return "sommaire";
 }
 

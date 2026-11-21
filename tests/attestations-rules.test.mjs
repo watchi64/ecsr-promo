@@ -56,6 +56,16 @@ test("absences et notes : chaque absence, et la note d'une demi-journée signée
     { jour: "2026-10-19", demi: "aprem", debut: "13:30", fin: "17:00", minutes: 210, absent: false, origine: null, observation: "Arrivée à 13h50" },
   ]);
   assert.equal(LIBELLE_ORIGINE.planning, "noté au planning");
+  assert.equal(LIBELLE_ORIGINE.annoncee, "absence prévenue");
+});
+
+test("une demi-journée d'origine annoncée compte absente, étiquetée « absence prévenue »", () => {
+  const s = { ...S1, lignes: [absent(1, "annoncee", "Absence prévenue")] };
+  const ev = bilanStagiaire([s], 1).evenements;
+  assert.equal(ev.length, 1);
+  assert.equal(ev[0].absent, true);
+  assert.equal(ev[0].origine, "annoncee");
+  assert.equal(LIBELLE_ORIGINE[ev[0].origine], "absence prévenue");
 });
 
 test("matin avant après-midi le même jour, quel que soit l'ordre reçu", () => {

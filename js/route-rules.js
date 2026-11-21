@@ -64,6 +64,8 @@ export function lireAdresse(hash) {
   if (route === "mon-suivi") return { route, id: null, partie: partieValide(segments[1]) };
   // Fiche d'un centre au siège : #/reseau/<id>, sans partie.
   if (route === "reseau") return { route, id: idValide(segments[1]), partie: null };
+  // Suivi d'une demande de l'espace contact : #/messages/<id> (équipe, direction), #/contacts/<id> (stagiaire et menu du compte).
+  if (route === "messages" || route === "contacts") return { route, id: idValide(segments[1]), partie: null };
   return { route, id: null, partie: null };
 }
 

@@ -44,14 +44,14 @@ qu'elle fait est annulé. Modes : voir l'en-tête de `outils/assembler_repetitio
 bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3] [--autonomie 1|1,2] [--production]
 ```
 
-**L'état de la production (14/11) : `--production`**, dans l'ordre où elle l'a reçu : titres 1, 2, 3, contacts,
+**L'état de la production (16/11) : `--production`**, dans l'ordre où elle l'a reçu : titres 1, 2, 3, contacts,
 `20261111_conservation_direction`, titres 5 et 6, l'e-learning 1 et 2, puis les petits restes du 14/11, `20261114_restes_1_conditions`
 (`conditions_version_publiee()`, `accepter_conditions` durcie ; après l'e-learning, dont elle contrôle la version) et
 `20261114_restes_2_truncate` (TRUNCATE retiré à `anon` et `authenticated` : aucune preuve ne vide une table sous ces rôles), puis
 `20261114_jury_resultats` (résultats du jury, en production depuis c1883cc5), puis `20261115_titres_7_correctifs` et
-`20261115_titres_8_apercu` (migrations 7 et 8 des titres, appliquées en production le 14/11 : `suite --etapes 7` et `suite --etapes 8`
-y sont donc refusés, jouer `suite --etapes 9` quand la migration 9 existe, ou `suite-en-ligne`) (sortie
-`OK : suite rejouée (29 migrations)` ; ne se combine pas avec `--titres`). `--titres` cherche `2026111?_titres_<n>_*` (n de 1 à 9, date quelconque du 10 au 19/11 :
+`20261115_titres_8_apercu` (migrations 7 et 8 des titres, appliquées en production le 14/11), puis `20261115_titres_9_catalogue`
+(migration 9, appliquée le 16/11) : `suite --etapes 7`, `8` et `9` y sont donc refusés, jouer `suite --etapes 4` ou `suite-en-ligne` (sortie
+`OK : suite rejouée (30 migrations)` ; ne se combine pas avec `--titres`). `--titres` cherche `2026111?_titres_<n>_*` (n de 1 à 9, date quelconque du 10 au 19/11 :
 les migrations 7, 8 et 9 de l'étape 3 sont datées du 15/11). `--autonomie 1` joue, après les contacts,
 `20261114_autonomie_1_traces` ; `--autonomie 1,2` y ajoute `20261114_autonomie_2_version` avec `-v version=2026-11-14` (la version
 des conditions en production). Sans `--titres`, `--autonomie` ni `--production`, la sortie reste celle d'avant (16 migrations : les
@@ -126,3 +126,18 @@ preuves, aux mêmes comptes sauf rôles en ligne VERT 12214/0 (la table `jury_re
 `tests/sql/jury-preuve.sql` (`node outils/assembler_preuve_jury.mjs en-ligne`) VERT 53/0.
 Avec la migration 7 (base `--production`, 28 migrations), dans `.base-locale/verdicts/apres-7-jury/` : les mêmes comptes, plus
 `suite-en-ligne` VERT 74/0.
+
+## Le chantier « espace contact »
+
+- Base de départ : `--production` (l'état de la production d'avant contact, migrations 7, 8 et 9 des titres comprises). Les migrations
+  `20261115_contact_1_annuaire`, `_2_demandes` et `_3_absences` sont en production depuis le 15 et le 16/11 : sur une copie de la
+  production, les appliquer pour de bon (`psql -1 -v ON_ERROR_STOP=1 -f`) avant les modes `-en-ligne`.
+- Les preuves du chantier se jouent par `node outils/assembler_repetition_roles.mjs contact-<n> <sortie.sql>` (n = 1 annuaire, 2 demandes,
+  3 absences, 4 correctifs) : les migrations `20261115_contact_1_*` à `_n` injectées dans l'ordre (l'étape 1 = la 1 puis la 1b ; la 4 est
+  `20261116_contact_4_correctifs`), la preuve de la partie n (`tests/sql/contact-annuaire-preuve.sql`, `contact-demandes-preuve.sql`,
+  `contact-absences-preuve.sql`, `contact-correctifs-preuve.sql`), puis les retours n à 1 (le groupe `retour` compare l'empreinte d'après
+  à celle d'avant). `contact-<n>-contre-epreuve` neutralise la n et son retour (ROUGE attendu sur les seuls contrôles de la partie n),
+  `contact-<n>-en-ligne` n'injecte rien. Une étape demandée dont un fichier manque arrête l'assemblage (code 1, son nom). Les aides
+  communes sont `roles-aides.sql`, `titres-aides.sql` puis `tests/sql/contact-aides.sql` (`pg_temp.poser_contact()` : les personnages de
+  `poser_perso()` et `poser_titres_gestes()` plus `sec_n`, fiche sans compte de Nîmes ; `pg_temp.demi(jour, demi)` : le lundi et le
+  `day_index` d'une demi-journée du planning).

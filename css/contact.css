@@ -1,0 +1,248 @@
+/* ============================================================
+   Page Contacts (#/contacts, espace contact) : l'annuaire du centre, la promo.
+   Des listes et des cartes : rien ne défile de côté, les longs textes et
+   adresses passent à la ligne. Cibles de 44 px, couleurs par jetons.
+   ============================================================ */
+
+.contacts-page { max-width: 760px; overflow-wrap: anywhere; }
+.contacts-page .btn { min-height: 44px; white-space: normal; text-align: center; }
+
+.contact-section { margin: 0 0 1.75rem; }
+.contact-section-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+.contact-section-titre { margin: 0; font-size: 1.05rem; letter-spacing: -0.01em; }
+.contact-section > .contact-section-titre { margin-bottom: 0.75rem; }
+.contact-section-tete > .contact-section-titre { margin-bottom: 0; }
+
+.contact-liste, .contact-promo { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+
+.contact-carte, .contact-promo-ligne {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 0.9rem 1rem;
+  min-width: 0;
+}
+.contact-promo { gap: 0.5rem; }
+.contact-promo-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+}
+.contact-promo-ligne-equipe { display: block; }
+
+.contact-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem; }
+.contact-nom { margin: 0; font-size: 1rem; }
+.contact-promo-nom { font-weight: 600; }
+.contact-titre { margin: 0.15rem 0 0; color: var(--text-muted); font-size: 0.9rem; }
+.contact-conge { margin: 0.5rem 0 0; font-weight: 600; font-size: 0.92rem; color: var(--c-stop); }
+.contact-attente { margin: 0.5rem 0 0; color: var(--text-muted); font-size: 0.88rem; }
+
+.contact-pastille {
+  display: inline-block;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.contact-detail { margin: 0.6rem 0 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.contact-ligne { display: grid; grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr); gap: 0.1rem 0.75rem; }
+.contact-ligne dt {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.contact-ligne dd { margin: 0; font-size: 0.95rem; line-height: 1.4; }
+@media (max-width: 480px) {
+  .contact-ligne { grid-template-columns: minmax(0, 1fr); }
+}
+
+.contact-actions, .contact-gestes { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.7rem; }
+.contact-gestes { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--line-faint); }
+.contact-coord {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  color: var(--accent);
+  font-size: 0.92rem;
+}
+.contact-coord svg, .contact-actions .btn svg { flex: none; }
+
+.contact-erreur { padding: 1rem 0; }
+.contact-champ-erreur { margin: 0; color: var(--c-stop); font-size: 0.85rem; }
+.contact-champ-erreur:empty { display: none; }
+.contact-aide { margin: 0; color: var(--text-muted); font-size: 0.82rem; }
+
+/* La fenêtre d'une fiche : longue, elle défile sur place (jamais de côté). */
+.contact-modal { max-height: 92vh; overflow-y: auto; overflow-x: hidden; overflow-wrap: anywhere; }
+.contact-modal .field input,
+.contact-modal .field select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.contact-partage { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.5rem 0.75rem; margin: 0; min-width: 0; }
+.contact-partage legend { padding: 0 0.3rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.contact-case { display: flex; align-items: center; gap: 0.65rem; min-height: 44px; cursor: pointer; }
+.contact-case input { width: 1.2rem; height: 1.2rem; flex: none; }
+
+/* Ma fiche de contact, coordonnées d'un stagiaire, financements et fiches à supprimer (tâche 6). */
+.contact-encadre {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: var(--bg-soft);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.aujourdhui-fiche { margin: 0 0 1.25rem; }
+.aujourdhui-fiche a { font-weight: 600; text-decoration: underline; }
+.ma-fiche, .reglage-financements, .reglage-fiches-a-supprimer { overflow-wrap: anywhere; }
+.ma-fiche .field input, .ma-fiche .field select,
+.reglage-financements .field input { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.contact-gestes-fiche { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.contact-gestes-fiche .btn, .reglage-financements .btn, .reglage-fiches-a-supprimer .btn, .fiche-coordonnees .btn { min-height: 44px; }
+
+.fiche-coordonnees { margin: 0 0 1.25rem; overflow-wrap: anywhere; }
+.fiche-coordonnees .contact-detail { margin-top: 0; }
+.fiche-coordonnees .contact-section-tete { margin-bottom: 0.5rem; }
+
+.financement-liste { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.financement-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-elev);
+  min-width: 0;
+}
+.financement-ligne > .field { flex: 1 1 14rem; min-width: 0; margin: 0; }
+.financement-ligne .contact-gestes { margin: 0; padding: 0; border: 0; }
+.financement-retire { opacity: 0.8; }
+.financement-ajout { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.5rem 0.75rem; margin-top: 1rem; }
+.financement-ajout > .field { flex: 1 1 14rem; min-width: 0; margin: 0; }
+
+/* ============================================================
+   Page des liens d'e-mail (demande.html) : une colonne, un seul bouton de 44 px,
+   rien ne défile de côté (les textes longs passent à la ligne).
+   ============================================================ */
+
+.lien-demande { max-width: 560px; margin: 0 auto; padding: 1.25rem 16px 2rem; overflow-wrap: anywhere; }
+.lien-demande-carte { margin-bottom: 1rem; }
+.lien-demande-type { margin: 0 0 0.25rem; font-size: 0.88rem; }
+.lien-demande-sujet { margin: 0 0 0.5rem; font-size: 1.25rem; letter-spacing: -0.01em; }
+.lien-demande-texte { margin: 0 0 0.75rem; white-space: pre-wrap; }
+.lien-demande-absence { margin: 0 0 0.75rem; }
+.lien-demande-message { border-top: 1px solid var(--line); padding-top: 0.6rem; margin-top: 0.6rem; }
+.lien-demande-message p { margin: 0 0 0.25rem; }
+.lien-demande-bouton { width: 100%; min-height: 44px; white-space: normal; text-align: center; }
+
+/* ============================================================
+   Demandes (tâche 12) : Messages, Mes demandes, suivi d'une demande, écrire, Qui reçoit quoi.
+   Des listes qui passent à la ligne, aucune largeur fixe : rien ne défile de côté.
+   ============================================================ */
+
+.messages-ecrire, .contacts-ecrire { margin: 0 0 1rem; }
+.demande-retour { margin: 0 0 0.75rem; min-height: 44px; }
+.demande-page, .messages-page { overflow-wrap: anywhere; }
+
+.demande-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.demande-ligne { border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); min-width: 0; }
+.demande-neuve { border-left: 4px solid var(--accent); }
+.demande-lien {
+  display: flex; flex-direction: column; gap: 0.2rem; min-height: 44px; padding: 0.7rem 0.9rem;
+  color: inherit; text-decoration: none; min-width: 0;
+}
+.demande-lien:hover, .demande-lien:focus-visible { background: var(--bg-soft); }
+.demande-haut { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem; }
+.demande-type { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.demande-sujet { font-weight: 600; line-height: 1.35; }
+.demande-sous { font-size: 0.85rem; color: var(--text-muted); }
+.demande-repliee { margin-top: 0.75rem; }
+.demande-repliee > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.demande-repliee > .demande-liste { margin-top: 0.5rem; }
+
+.demande-etapes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.demande-etape { display: flex; flex-direction: column; gap: 0.1rem; padding-left: 0.75rem; border-left: 3px solid var(--accent); }
+.demande-etape-nom { font-weight: 600; }
+.demande-etape-quand { font-size: 0.88rem; color: var(--text-muted); }
+.demande-destinataires { margin: 0; padding-left: 1.2rem; }
+.demande-messages, .demande-envois { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.demande-message { padding: 0.65rem 0.85rem; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); min-width: 0; }
+.demande-moi { border-left: 4px solid var(--accent); }
+.demande-message-tete { margin: 0 0 0.25rem; }
+.demande-message-texte { margin: 0; white-space: pre-wrap; line-height: 1.45; }
+.demande-gestes textarea { width: 100%; box-sizing: border-box; min-width: 0; }
+.demande-toutes-faites { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+.demande-toutes-faites .btn, .demande-gestes .btn, .demande-envoi .btn, .messages-ecrire .btn, .contacts-ecrire .btn { min-height: 44px; }
+.demande-envoi { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; padding: 0.65rem 0.85rem;
+  border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); }
+.demande-envoi p { margin: 0; flex: 1 1 12rem; min-width: 0; }
+
+/* La fenêtre « Écrire » : l'encadré « Sera envoyé à » et ses cases de 44 px. */
+.ecrire-encadre { margin: 0; }
+.ecrire-encadre:empty { display: none; }
+.ecrire-encadre p { margin: 0 0 0.25rem; }
+.ecrire-cases { display: flex; flex-direction: column; }
+.contact-modal textarea { width: 100%; box-sizing: border-box; min-width: 0; }
+
+/* « Qui reçoit quoi » et « Réponses toutes faites » (réglages du centre). */
+.reglage-regles, .reglage-reponses { overflow-wrap: anywhere; }
+.reglage-regles .field select, .reglage-reponses .field input { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; }
+.reglage-regles .btn, .reglage-reponses .btn { min-height: 44px; }
+.regle-liste, .reponse-liste, .regle-apercu { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.regle-apercu { gap: 0.25rem; font-size: 0.92rem; }
+.regle-type { padding: 0.75rem; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); min-width: 0; }
+.regle-type .field { margin: 0.5rem 0 0; }
+.regle-financements { margin-top: 0.5rem; }
+.regle-financements > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.reponse-ligne { flex-direction: column; align-items: stretch; }
+
+/* Prévenir d'une absence (tâche 15) : choix par boutons de 44 px, rien ne dépasse à 375 px. */
+.absence-page { overflow-wrap: anywhere; }
+.absence-page [hidden] { display: none !important; }
+.abs-formulaire { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.abs-groupe { border: 0; margin: 0; padding: 0; min-width: 0; }
+.abs-groupe legend { padding: 0; margin-bottom: 0.4rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.abs-choix-liste { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.abs-choix { position: relative; display: inline-flex; min-width: 0; }
+.abs-choix input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.abs-choix span { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0.4rem 1rem; border: 1px solid var(--line);
+  border-radius: var(--r-sm); background: var(--bg-elev); font-weight: 600; font-size: 0.95rem; }
+.abs-choix input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--accent-texte); }
+.abs-choix input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.absence-page .field { margin: 0; }
+.absence-page .field input, .absence-page .field textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+.absence-page .field input { min-height: 44px; }
+.abs-heures { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.abs-heures .field { flex: 1 1 8rem; min-width: 0; }
+.abs-encadre { margin: 0; }
+.abs-encadre p { margin: 0 0 0.25rem; }
+.abs-annexes { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--line-faint); }
+.abs-aide { margin: 0; min-height: 1.2em; }
+.abs-envoi .btn { min-height: 44px; }
+.acc-absence { margin: 0 0 1rem; }
+.acc-absence-bouton { width: 100%; min-height: 44px; justify-content: center; box-sizing: border-box; }
+@media (min-width: 720px) { .acc-absence-bouton { width: auto; } }
+.demande-absence .contact-detail { margin-top: 0; }
+.demande-absence .btn { min-height: 44px; }
+.demande-sans-adresse { margin: 0.6rem 0 0; font-size: 0.92rem; }

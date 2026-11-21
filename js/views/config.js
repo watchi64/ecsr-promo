@@ -15,24 +15,25 @@ import {
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   lirePersonnesEtTitres, lireTitresVisibles, donnerTitre, lireTitresOuverts, reglerTitresOuverts, lireJournalPresent,
   setMyAnonymousNotes,
-} from "../db.js?v=20261116a";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261116a";
-import { confirmer } from "../confirmer.js?v=20261116a";
-import { icon } from "../icons.js?v=20261116a";
-import { isAdmin, isEquipe, isFounder, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic, enVitrine, ecritSelonLaCase, gesteDefinitif } from "../auth-admin.js?v=20261116a";
-import { moduleVisible } from "../modules-etat.js?v=20261116a";
-import { renderModulesSection } from "./modules-reglage.js?v=20261116a";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261116a";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261116a";
-import { renderAutonomieReglage } from "../autonomie-etat.js?v=20261116a";
-import { pointsARetenir } from "../accueil-rules.js?v=20261116a";
-import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261116a";
-import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261116a";
-import { blocHabillage } from "../habillage-choix.js?v=20261116a";
-import { nomBenevole } from "../planning-lecture.js?v=20261116a";
-import { dateFr } from "../dates.js?v=20261116a";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261116a";
-import { boutonVerrouOffert, PHRASE_JOURNAL_ABSENT } from "../titres-rules.js?v=20261116a";
+} from "../db.js?v=20261121a";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261121a";
+import { confirmer } from "../confirmer.js?v=20261121a";
+import { icon } from "../icons.js?v=20261121a";
+import { isAdmin, isEquipe, isFounder, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic, enVitrine, ecritSelonLaCase, gesteDefinitif } from "../auth-admin.js?v=20261121a";
+import { moduleVisible } from "../modules-etat.js?v=20261121a";
+import { renderModulesSection } from "./modules-reglage.js?v=20261121a";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261121a";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261121a";
+import { renderAutonomieReglage } from "../autonomie-etat.js?v=20261121a";
+import { pointsARetenir } from "../accueil-rules.js?v=20261121a";
+import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261121a";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261121a";
+import { blocHabillage } from "../habillage-choix.js?v=20261121a";
+import { sectionMaFiche, sectionAlertes } from "./ma-fiche-contact.js?v=20261121a";
+import { nomBenevole } from "../planning-lecture.js?v=20261121a";
+import { dateFr } from "../dates.js?v=20261121a";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261121a";
+import { boutonVerrouOffert, PHRASE_JOURNAL_ABSENT } from "../titres-rules.js?v=20261121a";
 
 // ====== SECTION Accès & invitations ======
 
@@ -771,6 +772,6 @@ export function renderPreferences(container) {
     ),
   ));
   const grid = el("div", { class: "param-grid" });
-  [renderApparenceSection(), preferences, renderInfoSection()].filter(Boolean).forEach((s) => grid.appendChild(s));
+  [sectionMaFiche(), sectionAlertes(), renderApparenceSection(), preferences, renderInfoSection()].filter(Boolean).forEach((s) => grid.appendChild(s));
   container.appendChild(grid);
 }

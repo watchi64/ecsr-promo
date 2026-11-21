@@ -3,16 +3,16 @@
 // et masque les centres de moins de 5 stagiaires en formation (aucun chiffre, hors des totaux). Les calculs vivent dans
 // js/comptes-reseau.js et js/centre-csv.js (purs, testés) : ici, seulement l'affichage. Lecture seule.
 
-import { comptesReseau } from "../db.js?v=20261116a";
-import { el, clear, isoDate, toast, tableauEnListe } from "../utils.js?v=20261116a";
-import { icon } from "../icons.js?v=20261116a";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261116a";
-import { lireAdresse } from "../route-rules.js?v=20261116a";
-import { vueDuReseau, ratiosDeComptes, mentionMasques, SEUIL_SECRET } from "../comptes-reseau.js?v=20261116a";
-import { tableauReseauCsv } from "../centre-csv.js?v=20261116a";
-import { carte, telecharger } from "./centre.js?v=20261116a";
-import { ouvrirAjoutCentre } from "./siege-directions.js?v=20261116a";
-import { entier, fr1, pct, pluriel } from "../nombres.js?v=20261116a";
+import { comptesReseau } from "../db.js?v=20261121a";
+import { el, clear, isoDate, toast, tableauEnListe } from "../utils.js?v=20261121a";
+import { icon } from "../icons.js?v=20261121a";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261121a";
+import { lireAdresse } from "../route-rules.js?v=20261121a";
+import { vueDuReseau, ratiosDeComptes, mentionMasques, SEUIL_SECRET } from "../comptes-reseau.js?v=20261121a";
+import { tableauReseauCsv } from "../centre-csv.js?v=20261121a";
+import { carte, telecharger } from "./centre.js?v=20261121a";
+import { ouvrirAjoutCentre } from "./siege-directions.js?v=20261121a";
+import { entier, fr1, pct, pluriel } from "../nombres.js?v=20261121a";
 
 export const PHRASE_ECHEC_RESEAU = "Les chiffres du réseau n'ont pas pu être chargés.";
 export const PHRASE_MASQUE = `Moins de ${SEUIL_SECRET} stagiaires en formation : chiffres non affichés.`;

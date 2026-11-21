@@ -8,6 +8,8 @@
 //                             avant le marqueur « execute » ou une affectation, et « ; » ou « into ...; » après ;
 //   -- @@INCLURE <chemin>@@   remplacé par le texte du fichier, collé tel quel au niveau du script (aides communes) ;
 //   -- @@MODE@@               remplacé par le libellé du mode en littéral simple (la preuve le dit dans son verdict).
+//   -- @@CAS_ROUTAGE@@        remplacé par la table de cas du routage (tests/fixtures/contact-routage.json, sur une ligne) en
+//                             littéral jsonb : la même table que joue le test node de js/contact-rules.js (parité, espace contact).
 // Les chemins partent de la racine du dépôt. Un mode peut neutraliser des injections : le marqueur devient le littéral
 // 'select 1' et le fichier n'est pas lu (preuve jouée sans la migration : ROUGE attendu).
 // Tout écart arrête l'assemblage sur un message clair (code de sortie 1) : fichier absent, marqueur inconnu ou mal
@@ -54,6 +56,19 @@
 //                              groupe qui dépend de la migration 5 ou 6 ;
 //   gestion-en-ligne           la même sans rien d'injecté, après l'application réelle (un groupe dont la fonction manque est
 //                              sauté, avec une ligne d'information).
+//   contact-1, contact-2, contact-3, contact-4, contact-5   preuve de la partie n du chantier « espace contact » (tests/sql/contact-annuaire-preuve.sql,
+//                              contact-demandes-preuve.sql, contact-absences-preuve.sql, contact-correctifs-preuve.sql : la migration 4 de
+//                              correctifs, 20261116_contact_4_correctifs ; contact-donnees-preuve.sql : la migration 5 des données sensibles,
+//                              20261118_contact_5_donnees_sensibles, qui demande aussi la migration _demo (20261115_contact_demo, son
+//                              préalable : injectée avant la 4 comme en production, son retour après le retour 4) ; aides communes : roles-aides.sql, titres-aides.sql
+//                              puis contact-aides.sql) : les migrations 20261115_contact_1 à _n injectées dans l'ordre (l'étape 1 = la 1
+//                              puis la 1b, fermeture de la lecture directe ; retours 1b puis 1), la preuve de la
+//                              partie n jouée, puis les retours n à 1 ; le groupe retour compare l'empreinte d'après les retours à celle
+//                              d'avant ; une étape demandée dont un fichier manque arrête l'assemblage (code 1, son nom) ;
+//   contact-n-contre-epreuve   la même preuve avec les migrations 1 à n-1 injectées (et le préalable de la n : la _demo pour la 5), la n et
+//                              son retour neutralisés (select 1, non lus) :
+//                              ROUGE attendu sur les seuls contrôles de la partie n ;
+//   contact-n-en-ligne         la même sans rien d'injecté, après l'application réelle des migrations 1 à n.
 //   suite [--etapes 7|7,8|7,8,9|8|8,9|9|4,9|4]  preuve de l'étape 3 du chantier (tests/sql/titres-suite-preuve.sql), jouée sur la base de
 //                              la production (outils/base_locale/rejouer_suite.sh --production : titres 1, 2, 3, 5, 6) : les migrations
 //                              demandées (7, 8 et 9 par défaut ; 4,9 : le journal puis le catalogue, l'essai à blanc de l'étape 4)
@@ -90,6 +105,44 @@ const GABARIT_DONNEES = "tests/sql/espaces-donnees-preuve.sql";
 const GABARIT_TITRES = "tests/sql/titres-preuve.sql";
 const GABARIT_GESTION = "tests/sql/titres-gestion-preuve.sql";
 const GABARIT_SUITE = "tests/sql/titres-suite-preuve.sql";
+
+/** Chantier « espace contact » : cinq migrations (annuaire, demandes, absences, correctifs, données sensibles), chacune avec son retour, et la preuve de chaque partie. */
+export const ETAPES_CONTACT = {
+  // L'étape 1 porte deux migrations : la 1 (annuaire) puis la 1b (fermeture de la lecture directe de contacts, appliquée en production
+  // après la fusion de l'app) ; les gabarits injectent la 1 puis la 1b, et les retours 1b puis 1. Elles vont toujours ensemble dans les
+  // modes : injectées toutes deux, ou neutralisées toutes deux.
+  1: { migration: "supabase/migrations/20261115_contact_1_annuaire.sql",
+       retour: "supabase/migrations/20261115_contact_1_annuaire_retour.sql",
+       suite: { migration: "supabase/migrations/20261115_contact_1b_fermeture.sql",
+                retour: "supabase/migrations/20261115_contact_1b_fermeture_retour.sql" },
+       gabarit: "tests/sql/contact-annuaire-preuve.sql" },
+  2: { migration: "supabase/migrations/20261115_contact_2_demandes.sql",
+       retour: "supabase/migrations/20261115_contact_2_demandes_retour.sql",
+       gabarit: "tests/sql/contact-demandes-preuve.sql" },
+  3: { migration: "supabase/migrations/20261115_contact_3_absences.sql",
+       retour: "supabase/migrations/20261115_contact_3_absences_retour.sql",
+       gabarit: "tests/sql/contact-absences-preuve.sql" },
+  4: { migration: "supabase/migrations/20261116_contact_4_correctifs.sql",
+       retour: "supabase/migrations/20261116_contact_4_correctifs_retour.sql",
+       gabarit: "tests/sql/contact-correctifs-preuve.sql" },
+  // La 5 demande la migration _demo (appliquée en production entre la 3 et la 4, données fictives seulement) : son préalable, injecté
+  // par le gabarit de la 5 avant la 4 (retour après le retour 4). La contre-épreuve de la 5 l'injecte aussi (état de la production) ;
+  // le mode en ligne le neutralise avec le reste.
+  5: { migration: "supabase/migrations/20261118_contact_5_donnees_sensibles.sql",
+       retour: "supabase/migrations/20261118_contact_5_donnees_sensibles_retour.sql",
+       prealable: { migration: "supabase/migrations/20261115_contact_demo.sql",
+                    retour: "supabase/migrations/20261115_contact_demo_retour.sql" },
+       gabarit: "tests/sql/contact-donnees-preuve.sql" },
+};
+const NUMEROS_CONTACT = [1, 2, 3, 4, 5];
+/** Le préalable d'une étape du chantier contact (la _demo pour la 5) : sa migration et son retour, ou rien. */
+const prealableContact = (n) => (ETAPES_CONTACT[n].prealable ? [ETAPES_CONTACT[n].prealable.migration, ETAPES_CONTACT[n].prealable.retour] : []);
+/** Les fichiers d'une liste d'étapes du chantier contact, étape par étape : la migration, son retour, ceux de sa suite (1b), puis ceux
+ *  de son préalable (_demo). */
+const fichiersContact = (etapes) => etapes.flatMap((n) => {
+  const e = ETAPES_CONTACT[n];
+  return [e.migration, e.retour, ...(e.suite ? [e.suite.migration, e.suite.retour] : []), ...prealableContact(n)];
+});
 
 /** Lot 5, étape 1 : la migration du siège et son retour. */
 export const MIGRATION_ESPACES = { migration: "supabase/migrations/20261108_espaces_1_siege.sql",
@@ -197,6 +250,13 @@ export const MODES = {
   "gestion": { gabarit: GABARIT_GESTION, gestion: true, etapesAuChoix: true },
   "gestion-contre-epreuve": { gabarit: GABARIT_GESTION, neutres: TOUS_GESTION, libelle: "gestion-contre-epreuve (aucune migration injectee)" },
   "gestion-en-ligne": { gabarit: GABARIT_GESTION, neutres: TOUS_GESTION, libelle: "gestion-en-ligne (aucune migration injectee)" },
+  // Chantier « espace contact » : la preuve de la partie n injecte les migrations 1 à n (variante plein), 1 à n-1 (contre-épreuve : la n
+  // et son retour sont neutralisés) ou aucune (en ligne). Libellés sans apostrophe ni dollar : ils s'écrivent en littéral SQL.
+  ...Object.fromEntries(NUMEROS_CONTACT.flatMap((n) => [
+    [`contact-${n}`, { gabarit: ETAPES_CONTACT[n].gabarit, contact: n, variante: "plein" }],
+    [`contact-${n}-contre-epreuve`, { gabarit: ETAPES_CONTACT[n].gabarit, contact: n, variante: "contre" }],
+    [`contact-${n}-en-ligne`, { gabarit: ETAPES_CONTACT[n].gabarit, contact: n, variante: "en-ligne" }],
+  ])),
   // Étape 3 du chantier : preuve à part (tests/sql/titres-suite-preuve.sql), jouée sur la base de la production (rejouer_suite.sh --production).
   "suite": { gabarit: GABARIT_SUITE, suite: true, etapesAuChoix: true },
   "suite-contre-epreuve": { gabarit: GABARIT_SUITE, neutres: TOUS_SUITE, libelle: "suite-contre-epreuve (aucune migration injectee)" },
@@ -215,8 +275,12 @@ export const NEUTRE = "'select 1'";
 const LIGNE_MARQUEUR = /^(\s*)--\s*@@(.*)$/; // une ligne de commentaire qui commence par @@ : un marqueur
 const FORME = /^(INJECTER|INCLURE) (\S+)@@\s*$/; // la forme admise d'une injection ou d'une inclusion
 const FORME_MODE = /^MODE@@\s*$/; // la forme admise du marqueur de mode
-const MOTS = ["INJECTER", "INCLURE", "MODE"];
-const MOT_CLE = /@@(?:INJECTER|INCLURE|MODE)\b/; // un mot-clé de marqueur ailleurs dans une ligne : marqueur mal placé
+const FORME_CAS = /^CAS_ROUTAGE@@\s*$/; // la forme admise du marqueur de la table de cas du routage (espace contact)
+const MOTS = ["INJECTER", "INCLURE", "MODE", "CAS_ROUTAGE"];
+const MOT_CLE = /@@(?:INJECTER|INCLURE|MODE|CAS_ROUTAGE)\b/; // un mot-clé de marqueur ailleurs dans une ligne : marqueur mal placé
+/** La table de cas du routage des demandes (espace contact), commune au test node et à la preuve SQL : le marqueur
+ *  -- @@CAS_ROUTAGE@@ devient son texte JSON (sur une ligne) en littéral jsonb. */
+export const CAS_ROUTAGE = "tests/fixtures/contact-routage.json";
 const DELIMITEUR = /\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/g; // délimiteurs dollar ($$, $tag$)
 const LIBELLE = /^[\p{L}\p{N} ,()'.:_-]+$/u; // un libellé de mode : une ligne de texte simple, sans dollar
 const VIDE_OU_COMMENTAIRE = /^\s*(?:--.*)?$/; // une ligne vide, ou qui ne porte qu'un commentaire (--)
@@ -272,6 +336,18 @@ export function decrireMode(mode, { etapes } = {}) {
   if (etapes !== undefined && !d.etapesAuChoix) {
     throw new Error(`--etapes ne vaut que pour le mode repetition, titres, gestion ou suite (mode demandé : ${mode}).`);
   }
+  if (d.contact) {
+    const n = d.contact;
+    const injectees = d.variante === "plein" ? NUMEROS_CONTACT.slice(0, n) : d.variante === "contre" ? NUMEROS_CONTACT.slice(0, n - 1) : [];
+    const libelle = d.variante === "plein" ? `${mode} (migrations 1 a ${n} injectees)`
+      : d.variante === "contre" ? `${mode} (migration ${n} non injectee)`
+      : `${mode} (aucune migration injectee)`;
+    // La contre-épreuve garde le préalable de la n injecté (l'état de la production d'avant la n) ; le mode en ligne neutralise tout.
+    const garde = d.variante === "contre" ? prealableContact(n) : [];
+    return { gabarit: d.gabarit, contact: n, injectees,
+             neutres: fichiersContact(NUMEROS_CONTACT.slice(0, n).filter((k) => !injectees.includes(k))).filter((f) => !garde.includes(f)),
+             etapes: null, mode: libelle, requis: [] };
+  }
   if (d.gestion) {
     const choisies = etapes ?? SUITE_PAR_DEFAUT_GESTION;
     if (!SUITES_GESTION.some((suite) => suite.join(",") === choisies.join(","))) {
@@ -310,7 +386,8 @@ export function decrireMode(mode, { etapes } = {}) {
  * place du marqueur de mode (obligatoire si le gabarit en porte un, interdit sinon) ; `compact` retire du gabarit et des
  * fichiers inclus les lignes vides et les lignes de commentaire (les marqueurs, eux, sont traités d'abord ; les textes
  * injectés restent intacts, l'en-tête aussi, avec une ligne de plus qui dit le compactage).
- * Rend { texte, injections: [{ chemin, delimiteur, md5 }], inclusions: [{ chemin, md5 }], neutralises: [chemin], mode,
+ * Le marqueur -- @@CAS_ROUTAGE@@ (au plus un) devient le texte de CAS_ROUTAGE, sur une ligne, en littéral jsonb.
+ * Rend { texte, injections: [{ chemin, delimiteur, md5 }], inclusions: [{ chemin, md5 }], neutralises: [chemin], mode, cas,
  * compact, longueur (caractères), octets (UTF-8), md5 (du texte produit) }, dans l'ordre du gabarit ; lève une Error au
  * message clair sur tout écart.
  */
@@ -321,6 +398,7 @@ export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode =
   // 1. Les marqueurs : seuls sur leur ligne, d'une forme connue, vers un chemin du dépôt.
   const marqueurs = new Map();
   let ligneMode = null;
+  let ligneCas = null;
   lignes.forEach((ligne, i) => {
     const m = LIGNE_MARQUEUR.exec(ligne);
     if (!m) {
@@ -337,13 +415,21 @@ export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode =
       marqueurs.set(i, { retrait: m[1], sorte: "MODE" });
       return;
     }
+    if (FORME_CAS.test(m[2])) {
+      if (ligneCas !== null) {
+        throw new Error(`${nom}, ligne ${i + 1} : marqueur de la table de cas en double (déjà ligne ${ligneCas + 1}).`);
+      }
+      ligneCas = i;
+      marqueurs.set(i, { retrait: m[1], sorte: "CAS" });
+      return;
+    }
     const forme = FORME.exec(m[2]);
     if (!forme) {
       const mot = /^\w*/.exec(m[2])[0];
       if (!MOTS.includes(mot)) {
-        throw new Error(`${nom}, ligne ${i + 1} : marqueur inconnu « @@${mot} » (connus : -- @@INJECTER <chemin>@@, -- @@INCLURE <chemin>@@ et -- @@MODE@@).`);
+        throw new Error(`${nom}, ligne ${i + 1} : marqueur inconnu « @@${mot} » (connus : -- @@INJECTER <chemin>@@, -- @@INCLURE <chemin>@@, -- @@MODE@@ et -- @@CAS_ROUTAGE@@).`);
       }
-      const attendu = mot === "MODE" ? "-- @@MODE@@" : `-- @@${mot} <chemin>@@`;
+      const attendu = mot === "MODE" || mot === "CAS_ROUTAGE" ? `-- @@${mot}@@` : `-- @@${mot} <chemin>@@`;
       throw new Error(`${nom}, ligne ${i + 1} : marqueur mal formé « ${ligne.trim()} » (attendu : ${attendu}, seul sur sa ligne).`);
     }
     const [, sorte, chemin] = forme;
@@ -361,7 +447,7 @@ export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode =
   if (mode != null && !LIBELLE.test(mode)) {
     throw new Error(`libellé de mode refusé « ${mode} » : une ligne de lettres, chiffres, espaces et ponctuation simple, sans dollar.`);
   }
-  const liste = [...marqueurs.values()].filter((m) => m.sorte !== "MODE");
+  const liste = [...marqueurs.values()].filter((m) => m.sorte !== "MODE" && m.sorte !== "CAS");
   for (const chemin of neutres) {
     if (!liste.some((m) => m.sorte === "INJECTER" && m.chemin === chemin)) {
       throw new Error(`Mode mal décrit : ${chemin} est à neutraliser, mais ${nom} ne l'injecte nulle part.`);
@@ -396,7 +482,25 @@ export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode =
       }
     }
   }
-  const delimiteur = choisirDelimiteur([modele, ...textes.values()], injectes.map((m) => textes.get(m.chemin)));
+  // 4 bis. La table de cas du routage : lue, jugée (du JSON), récrite sur une ligne ; elle ne doit fermer aucun bloc du gabarit.
+  let cas = null;
+  if (ligneCas !== null) {
+    const brut = lire(CAS_ROUTAGE);
+    if (brut == null) throw new Error(`Fichier introuvable : ${CAS_ROUTAGE} (marqueur @@CAS_ROUTAGE de ${nom}).`);
+    let lu;
+    try {
+      lu = JSON.parse(brut);
+    } catch (e) {
+      throw new Error(`${CAS_ROUTAGE} : JSON illisible (${e.message}).`);
+    }
+    const ligne = JSON.stringify(lu);
+    for (const d of delimiteursGabarit) {
+      if (ligne.includes(d)) throw new Error(`Collision de délimiteur : ${d} figure dans ${CAS_ROUTAGE} et dans ${nom}.`);
+    }
+    cas = { chemin: CAS_ROUTAGE, ligne, md5: md5(sansRetourChariot(brut)) };
+  }
+  const delimiteur = choisirDelimiteur([modele, ...textes.values(), ...(cas ? [cas.ligne] : [])],
+    [...injectes.map((m) => textes.get(m.chemin)), ...(cas ? [cas.ligne] : [])]);
 
   // 5. L'assemblage, précédé d'un en-tête qui dit d'où il vient (md5 des textes, pour rapprocher un verdict d'un état
   //    du dépôt).
@@ -412,6 +516,8 @@ export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode =
     }
     if (m.sorte === "MODE") {
       corps.push(`${m.retrait}'${mode.replace(/'/g, "''")}'`);
+    } else if (m.sorte === "CAS") {
+      corps.push(`${m.retrait}${delimiteur}${cas.ligne}${delimiteur}::jsonb`);
     } else if (m.sorte === "INCLURE") {
       inclusions.push({ chemin: m.chemin, md5: md5(textes.get(m.chemin)) });
       if (!compact) {
@@ -436,10 +542,11 @@ export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode =
     ...inclusions.map((x) => `-- inclus : ${x.chemin} (md5 ${x.md5})`),
     ...injections.map((x) => `-- injecté : ${x.chemin} (md5 ${x.md5})`),
     ...neutralises.map((chemin) => `-- neutralisé : ${chemin} (remplacé par un select 1 sans effet)`),
+    ...(cas ? [`-- cas de routage : ${cas.chemin} (md5 ${cas.md5})`] : []),
   ];
   const texte = [...entete, ...corps].join("\n");
   return {
-    texte, injections, inclusions, neutralises, mode, compact,
+    texte, injections, inclusions, neutralises, mode, compact, cas: cas ? { chemin: cas.chemin, md5: cas.md5 } : null,
     longueur: Array.from(texte).length, // en caractères (points de code), comme length() en SQL
     octets: Buffer.byteLength(texte, "utf8"), md5: md5(texte),
   };
@@ -466,6 +573,16 @@ export function assemblerMode(mode, racine = RACINE, { etapes, lire, compact = f
     }
   }
   let { neutres, mode: libelle } = decrit;
+  if (decrit.contact) {
+    // Les étapes injectées se lisent : un fichier manquant (migration ou retour) arrête l'assemblage. Les autres sont neutralisées, non lues.
+    for (const n of decrit.injectees) {
+      for (const chemin of fichiersContact([n])) {
+        if (lireFichier(chemin) == null) {
+          throw new Error(`Étape ${n} demandée (${mode}) : ${chemin} n'existe pas encore. En attendant : mode contact-${decrit.contact}-en-ligne (rien d'injecté), ou la partie dont les fichiers existent.`);
+        }
+      }
+    }
+  }
   if (decrit.gestion) {
     // Les étapes demandées se lisent (un fichier manquant arrête l'assemblage) ; les autres sont neutralisées et ne sont jamais lues.
     for (const n of decrit.etapesGestion) {
@@ -570,6 +687,7 @@ export function principal(argv, { racine = RACINE, journal = console.log, erreur
     for (const x of r.inclusions) journal(`  inclus      ${x.chemin}  md5 ${x.md5}`);
     for (const x of r.injections) journal(`  injecté     ${x.chemin}  md5 ${x.md5}`);
     for (const chemin of r.neutralises) journal(`  neutralisé  ${chemin}`);
+    if (r.cas) journal(`  cas         ${r.cas.chemin}  md5 ${r.cas.md5}`);
     // La taille et l'empreinte du texte produit : celles que la preuve doit rendre pour la requête qu'elle a reçue (la
     // passerelle MCP y ajoute un suffixe, que la preuve retire avant de hacher).
     if (compact) {

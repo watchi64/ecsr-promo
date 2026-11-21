@@ -7,35 +7,37 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, getSalleAggregats,
-  avantChangementPromo,
-} from "../db.js?v=20261116a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom, shuffle } from "../utils.js?v=20261116a";
-import { confirmer, demander } from "../confirmer.js?v=20261116a";
-import { icon, deco } from "../icons.js?v=20261116a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20261116a";
-import { getAdminEmail, monStagiaireId, ecritSelonLaCase } from "../auth-admin.js?v=20261116a";
-import { recordUndo } from "../undo.js?v=20261116a";
-import { getCurrentWho } from "../identity.js?v=20261116a";
-import { telLink } from "./benevoles.js?v=20261116a";
-import { meilleurResultat } from "../passage-rules.js?v=20261116a";
-import { formateurConnecte } from "../modules-etat.js?v=20261116a";
-import { libelleHeure, jourFerie } from "../emargement-rules.js?v=20261116a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261116a";
+  avantChangementPromo, absencesAnnonceesSemaine,
+} from "../db.js?v=20261121a";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom, shuffle } from "../utils.js?v=20261121a";
+import { confirmer, demander } from "../confirmer.js?v=20261121a";
+import { icon, deco } from "../icons.js?v=20261121a";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20261121a";
+import { getAdminEmail, monStagiaireId, ecritSelonLaCase, getEspace } from "../auth-admin.js?v=20261121a";
+import { marqueAbsence } from "../contact-absences-rules.js?v=20261121a";
+import { recordUndo } from "../undo.js?v=20261121a";
+import { getCurrentWho } from "../identity.js?v=20261121a";
+import { telLink } from "./benevoles.js?v=20261121a";
+import { meilleurResultat } from "../passage-rules.js?v=20261121a";
+import { formateurConnecte } from "../modules-etat.js?v=20261121a";
+import { libelleHeure, jourFerie } from "../emargement-rules.js?v=20261121a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261121a";
 import {
   entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe, colonnesParalleles,
-} from "../planning-roles.js?v=20261116a";
+} from "../planning-roles.js?v=20261121a";
 import {
   DEFAULT_HALF_META, semaineEnGrille, jourParDefaut, lundiEnCours, vuePlanningInitiale,
-} from "../journee-rules.js?v=20261116a";
-import { nomsStagiaires, nomBenevole } from "../planning-lecture.js?v=20261116a";
-import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261116a";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261116a";
+} from "../journee-rules.js?v=20261121a";
+import { nomsStagiaires, nomBenevole } from "../planning-lecture.js?v=20261121a";
+import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261121a";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261121a";
 
 let stagiaires = [];
 let profs = [];
 let themes = [];
 let benevoles = [];  // admin : lignes complètes + display ; sinon : {id, display} via RPC
 let entries = [];
+let absencesSemaine = [];  // absences annoncées de la semaine affichée (espace contact) : une marque d'affichage, jamais un passage
 let halfMetas = [];  // [{semaine_lundi, day_index, half_day, start_time, end_time, pause_start, pause_minutes}]
 let joursOff = [];   // [{day_index, label}] jours désactivés manuellement de la semaine affichée
 let autresProfsMem = [];  // noms de formateurs « Autre » déjà saisis (mémorisés, réutilisables)
@@ -107,6 +109,7 @@ function grilleDeLaSemaine() {
     jours, equipe,
     jourChoisi: jourTelephone ?? jourParDefaut(jours, isoDate(new Date())),
     onChoisirJour: (k) => { jourTelephone = k; },
+    marque: (jour, demi, sid) => marqueDe({ day_index: jour, half_day: demi }, sid),
   });
 }
 
@@ -1337,6 +1340,15 @@ function prioLegend() {
   return el("div", { class: "prio-legend" }, "Déjà placé(e) cette semaine au planning · 0 = à prioriser");
 }
 
+// La marque « absent, prévenu » d'un stagiaire sur la demi-journée d'une carte (nulle sans absence annoncée). Affichage seul : aucun
+// passage ni placement n'en dépend, et une lecture ratée de la semaine laisse la liste vide.
+function marqueDe(entry, sid) {
+  return marqueAbsence(absencesSemaine, entry, sid, getEspace());
+}
+function marqueNode(texte) {
+  return texte ? el("span", { class: "marque-absence" }, " " + texte) : null;
+}
+
 // Sélecteur d'UNE personne (tableau) : même habillage que les chips élèves / profs, trié par
 // priorité (moins passés en tête) avec compteur. counts (optionnel) = map id -> nb de passages.
 // opts (optionnel) : { itemBadge }, badge additionnel par item (ex. « occupé » pour le
@@ -1358,6 +1370,8 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
     display.appendChild(s
       ? el("span", { class: "person-value" }, displayStagiaire(s))
       : el("span", { class: "person-placeholder" }, placeholder));
+    const marqueValeur = s ? marqueNode(opts.marqueFn ? opts.marqueFn(s.id) : null) : null;
+    if (marqueValeur) display.appendChild(marqueValeur);
 
     clear(dropdown);
     if (counts) dropdown.appendChild(prioLegend());
@@ -1371,6 +1385,8 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
         el("span", { class: "person-item-name" }, displayStagiaire(s)));
       if (counts) item.appendChild(prioBadge(counts[s.id] || 0));
       if (opts.itemBadge) { const badge = opts.itemBadge(s); if (badge) item.appendChild(badge); }
+      const marque = marqueNode(opts.marqueFn ? opts.marqueFn(s.id) : null);
+      if (marque) item.appendChild(marque);
       item.addEventListener("click", (ev) => { ev.stopPropagation(); value = s.id; onChange(s.id); render(); close(); });
       dropdown.appendChild(item);
     });
@@ -1402,7 +1418,7 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
 function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
   const { labelFn = displayStagiaire, placeholder = "Stagiaires…", itemBadge = null,
           chipTitleFn = null, chipClassFn = null, onChipClick = null, optionsFn = null,
-          chipLabelFn = null } = opts;
+          chipLabelFn = null, marqueFn = null } = opts;
   const wrap = el("div", { class: "chips-select" });
   const display = el("div", { class: "chips-display", tabindex: "0" });
   const dropdown = el("div", { class: "chips-dropdown hidden" });
@@ -1421,6 +1437,7 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
         if (!s) return;
         const chip = el("span", { class: "chip" + (chipClassFn ? (chipClassFn(id) || "") : "") },
           chipLabelFn ? chipLabelFn(s) : labelFn(s),
+          marqueNode(marqueFn ? marqueFn(id) : null),
           el("span", { class: "x", onClick: (ev) => {
             ev.stopPropagation();
             selected = selected.filter((x) => x !== id);
@@ -1459,6 +1476,8 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
       }, labelFn(s));
       if (counts) item.appendChild(prioBadge(counts[s.id] || 0));
       if (itemBadge) { const badge = itemBadge(s); if (badge) item.appendChild(badge); }
+      const marque = marqueNode(marqueFn ? marqueFn(s.id) : null);
+      if (marque) item.appendChild(marque);
       dropdown.appendChild(item);
     });
   }
@@ -1543,6 +1562,7 @@ function renderAbsenceRows(entry, lid, group = null) {
     wrap.appendChild(el("div", { class: "abs-row" },
       el("span", { class: "abs-row-name" }, "⊘ " + (s ? displayStagiaire(s) : "Stagiaire inconnu") + " absent(e) → remplacé(e) par"),
       personSelect(options, a.rid, (id) => setAbsence(lid, a.sid, "replace", id), counts, "personne", {
+        marqueFn: (id) => marqueDe(entry, id),
         itemBadge: (x) => occupied.has(x.id)
           ? el("span", { class: "prio-badge abs-occupied", title: "Déjà pris sur ce créneau : à vous de juger" }, "occupé")
           : null,
@@ -1709,7 +1729,7 @@ function buildTableauRole(entry, lid, group) {
   const options = stagiaires.filter((s) => !blocked.has(s.id) || s.id === currentVal);
   pedaRole.appendChild(personSelect(
     options, currentVal, (id) => saveEntry(lid, { [field]: id }), counts, "-",
-    { optionsFn: (val) => {
+    { marqueFn: (id) => marqueDe(entry, id), optionsFn: (val) => {
         const b = slotOccupants(entry, exceptField);   // recalculé à l'ouverture (état courant)
         return stagiaires.filter((s) => !b.has(s.id) || s.id === val);
       } }
@@ -1746,6 +1766,7 @@ function buildElevesRoleSalle(entry, lid, group) {
   const counts = roleCounts("Pédagogie salle", "eleve", lid);
   const options = stagiaires.filter((s) => !blocked.has(s.id) || current.includes(s.id));
   eleveCol.appendChild(chipsSelect(options, current, (ids) => saveEntry(lid, { [field]: ids }), counts, {
+    marqueFn: (id) => marqueDe(entry, id),
     optionsFn: (sel) => {
       const b = slotOccupants(entry, exceptField);   // recalculé à l'ouverture (état courant)
       return stagiaires.filter((s) => !b.has(s.id) || sel.includes(s.id));
@@ -1884,6 +1905,7 @@ function renderLaneCell(entry) {
     eleveCol.appendChild(chipsSelect(eleveOptions, entry.eleves_ids || [], (ids) => {
       saveEntry(lid, { eleves_ids: ids });
     }, voitCounts, {
+      marqueFn: (id) => marqueDe(entry, id),
       chipTitleFn: (id) => `${voitureStats[id]?.avecEleve || 0} séance(s) avec élève bénévole au compteur`
         + (absenceOf(entry, id) ? " · ABSENT(E) : cliquer pour annuler" : " · Cliquer : marquer absent(e)"),
       chipClassFn: (id) => (absenceOf(entry, id) ? " chip-absent" : ""),
@@ -2154,12 +2176,15 @@ async function loadBenevoles() {
 }
 
 async function loadPlanning() {
-  const [data, metas, offs, lockedRaw] = await Promise.all([
+  const [data, metas, offs, lockedRaw, annoncees] = await Promise.all([
     getPlanning(semaineLundi),
     getHalfMetaForWeek(semaineLundi),
     getJoursOff(semaineLundi),
     getSetting("semaines_verrouillees").catch(() => null),  // clé absente → null
+    // Absences annoncées par les stagiaires : une marque d'affichage, une lecture ratée laisse le planning comme avant.
+    absencesAnnonceesSemaine(semaineLundi).catch(() => []),
   ]);
+  absencesSemaine = Array.isArray(annoncees) ? annoncees : [];
   try { lockedWeeks = new Set(JSON.parse(lockedRaw || "[]")); }
   catch { lockedWeeks = new Set(); }
   let counter = 0;

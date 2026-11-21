@@ -1,19 +1,21 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261116a";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261116a";
-import { compteDansEquite } from "./passage-rules.js?v=20261116a";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261116a";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261116a";
-import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261116a";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261116a";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261116a";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261121a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261121a";
+import { compteDansEquite } from "./passage-rules.js?v=20261121a";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261121a";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261121a";
+import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261121a";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261121a";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261121a";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261116a";
-import { ENTETE_APERCU, ENTETE_APERCU_TITRE, titreSimule, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261116a";
-import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261116a";
-import { effectifDesFiches } from "./centre-stats.js?v=20261116a";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261116a";
+} from "./promo-rules.js?v=20261121a";
+import { ENTETE_APERCU, ENTETE_APERCU_TITRE, titreSimule, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261121a";
+import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261121a";
+import { effectifDesFiches } from "./centre-stats.js?v=20261121a";
+import { exigerLignes, phraseDelegue } from "./contact-annuaire-rules.js?v=20261121a";
+import { demiJourneesDe } from "./contact-absences-rules.js?v=20261121a";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261121a";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -1693,13 +1695,15 @@ export async function addContact(payload) {
 }
 
 export async function updateContact(id, patch) {
-  const { error } = await supabase.from("contacts").update(patch).eq("id", id);
+  const { data, error } = await supabase.from("contacts").update(patch).eq("id", id).select("id");
   if (error) throw error;
+  exigerLignes(data, "Cette fiche ne peut pas être modifiée d'ici.");
 }
 
 export async function deleteContact(id) {
-  const { error } = await supabase.from("contacts").delete().eq("id", id);
+  const { data, error } = await supabase.from("contacts").delete().eq("id", id).select("id");
   if (error) throw error;
+  exigerLignes(data, "Cette fiche ne peut pas être supprimée d'ici.");
 }
 
 // === Élèves bénévoles (banque voiture conduite) ===
@@ -2858,3 +2862,257 @@ export async function lecturesDeLaPromo() {
   if (error) throw error;
   return new Map((data || []).map((r) => [r.cours_id, Number(r.lus)]));
 }
+
+// === Espace contact ===
+// Annuaire du centre affiché, « ma fiche », financements, coordonnées des stagiaires et délégué. Les fonctions de la base
+// (migration 20261115_contact_1_annuaire) jugent les droits ; leurs refus partent tels quels (préfixe « contact: », 42501 sans
+// droit, PGRST202 fonction absente) : l'appelant les dit par phraseDeRefus.
+
+// Les fiches du centre affiché (annuaire_centre) : voir js/contact-annuaire-rules.js pour les afficher et les trier.
+export async function lireAnnuaire() {
+  const { data, error } = await supabase.rpc("annuaire_centre");
+  if (error) throw erreurDeBase(error);
+  return data || [];
+}
+
+// Ma fiche : { fiche (nulle sans fiche), email_compte, centres, relais_possibles }.
+export async function lireMaFiche() {
+  const { data, error } = await supabase.rpc("ma_fiche_contact");
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
+// Enregistre les champs envoyés (clé absente : inchangé, null : effacé) et rend ma fiche relue.
+export async function reglerMaFiche(champs) {
+  const { data, error } = await supabase.rpc("regler_ma_fiche", { p_champs: champs || {} });
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
+// Ordre des fiches du centre : la liste des ids dans l'ordre voulu. Rend le nombre de fiches rangées.
+export async function ordonnerFiches(ids) {
+  const { data, error } = await supabase.rpc("ordonner_fiches", { p_ids: ids });
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
+// Financements du centre affiché : [{ id, libelle, ordre, retire }], retirés compris.
+export async function lireFinancements() {
+  const { data, error } = await supabase.rpc("financements_du_centre");
+  if (error) throw erreurDeBase(error);
+  return data || [];
+}
+
+// La liste entière d'un centre : [{ id (null : nouveau), libelle, ordre, retire }]. Rend le nombre de financements du centre.
+export async function reglerFinancements(lieuId, liste) {
+  const { data, error } = await supabase.rpc("regler_financements", { p_lieu_id: lieuId, p_liste: liste });
+  if (error) throw erreurDeBase(error);
+  return data;
+}
+
+// Coordonnées de la promo affichée : [{ stagiaire_id, telephone, email, financement_id, financement }] (l'équipe : toute la
+// promo ; un stagiaire : la sienne).
+export async function lireCoordonnees() {
+  const { data, error } = await supabase.rpc("coordonnees_promo");
+  if (error) throw erreurDeBase(error);
+  return data || [];
+}
+
+// Téléphone et financement d'un stagiaire : clés permises de la base ({ telephone, financement_id }).
+export async function reglerCoordonnees(stagiaireId, champs) {
+  const { error } = await supabase.rpc("regler_coordonnees_stagiaire", { p_stagiaire_id: stagiaireId, p_champs: champs || {} });
+  if (error) throw erreurDeBase(error);
+}
+
+// Rang de délégué d'un stagiaire (nul : plus délégué). Écriture directe de stagiaires : 0 ligne touchée = erreur ; un rang déjà
+// pris (23505) se dit par une phrase de l'app.
+export async function reglerDelegue(stagiaireId, valeur) {
+  const { data, error } = await supabase.from("stagiaires").update({ delegue: valeur ?? null }).eq("id", stagiaireId).select("id");
+  if (error) {
+    const phrase = phraseDelegue(error.code);
+    if (phrase) throw Object.assign(new Error(phrase), { code: error.code });
+    throw erreurDeBase(error);
+  }
+  exigerLignes(data, "Le délégué ne peut pas être changé d'ici.");
+  invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
+}
+
+// Les lignes « profs » qu'une fiche sans compte peut représenter (« Formateur du planning ») : celles du planning de la promo
+// affichée, sans compte relié. [{ id, nom }]. Le planning des autres centres d'une fiche partagée n'est pas lisible d'ici : la base
+// juge le choix à l'enregistrement (refus « contact: ... » dit par l'écran).
+export async function lireFormateursPourFiche() {
+  const [entrees, libres] = await Promise.all([
+    lireTable("planning_entries", "id, prof_id, prof_ids", "id", null),
+    lireFichesFormateurLibres(),
+  ]);
+  const presents = new Set();
+  for (const e of entrees) {
+    if (e.prof_id != null) presents.add(e.prof_id);
+    for (const id of e.prof_ids || []) presents.add(id);
+  }
+  return libres.filter((f) => presents.has(f.id));
+}
+
+// --- Demandes (migration 20261115_contact_2_demandes) ---
+// Écrire, lire, répondre. Chaque écriture déclenche le départ des e-mails (declencherEnvois), sans l'attendre. Les refus de la base
+// (« contact: ... ») partent tels quels : l'appelant les dit par phraseDeRefus. Règles d'affichage : js/contact-rules.js.
+
+// Lance la file des e-mails (fonction contact-envois, op « traiter », jeton de la session). Sans attendre, sans rien lever : une
+// erreur est seulement journalisée (les envois en attente sont repris au prochain passage, et relancer_envoi les rejoue).
+export function declencherEnvois() {
+  (async () => {
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data?.session) return;
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/contact-envois`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY, Authorization: `Bearer ${data.session.access_token}` },
+        body: JSON.stringify({ op: "traiter" }),
+      });
+      if (!resp.ok) console.warn("contact-envois : réponse", resp.status);
+    } catch (e) {
+      console.warn("contact-envois :", e?.message || e);
+    }
+  })();
+}
+
+async function appelerContact(fonction, params, { declencher = false } = {}) {
+  const { data, error } = await supabase.rpc(fonction, params);
+  if (error) throw erreurDeBase(error);
+  if (declencher) declencherEnvois();
+  return data;
+}
+
+// Qui recevrait la demande : { mode: "regle"|"choix", principaux: [{ fiche_id, nom, relais_de }], possibles: [{ fiche_id, nom,
+// titre, pre_coche }] }. `jours` : [{ jour, demi }] pour une absence.
+export async function apercuEnvoi(type, jours = null) {
+  return appelerContact("apercu_envoi", { p_type: type, p_jours: jours ?? null });
+}
+
+// La liste des personnes que le stagiaire peut cocher : [{ fiche_id, nom, titre, pre_coche }].
+export async function destinatairesPossibles(type, jours = null) {
+  return (await appelerContact("destinataires_possibles", { p_type: type, p_jours: jours ?? null })) || [];
+}
+
+// Le stagiaire écrit au centre (mode choix : `choisis` = au moins une fiche ; mode règle : aucun choix). Rend l'identifiant.
+export async function ecrireAuCentre({ type, sujet, texte, choisis = null }) {
+  const id = await appelerContact("ecrire_au_centre",
+    { p_type: type, p_sujet: sujet, p_texte: texte ?? "", p_choisis: choisis && choisis.length ? choisis : null }, { declencher: true });
+  return Number(id);
+}
+
+// Écrire à une personne de l'équipe depuis sa fiche (le type : retard, administratif, document, autre pour un stagiaire ; aucun
+// pour l'équipe).
+export async function ecrireA({ ficheId, type = null, sujet, texte }) {
+  const id = await appelerContact("ecrire_a",
+    { p_fiche_id: ficheId, p_type: type, p_sujet: sujet, p_texte: texte ?? "" }, { declencher: true });
+  return Number(id);
+}
+
+// L'équipe écrit à un stagiaire de son centre.
+export async function ecrireAuStagiaire({ stagiaireId, sujet, texte }) {
+  const id = await appelerContact("ecrire_au_stagiaire",
+    { p_stagiaire_id: stagiaireId, p_sujet: sujet, p_texte: texte ?? "" }, { declencher: true });
+  return Number(id);
+}
+
+// Mes demandes (et celles que je traite) : [{ id, type, sujet, etat, auteur_nom, cree_le, dernier_echange_le, non_lue, mon_role,
+// a_traiter, envoi_en_echec, jours }]. `lieuId` : la direction réelle lit aussi toutes celles de son centre.
+export async function listeDemandes(lieuId = null) {
+  return (await appelerContact("liste_demandes", { p_lieu_id: lieuId ?? null })) || [];
+}
+
+// Une demande entière : { demande, destinataires, messages, reponses_toutes_faites, envois, peut }.
+export async function detailDemande(id) {
+  return appelerContact("demande_detail", { p_id: id });
+}
+
+export async function marquerLue(id) {
+  await appelerContact("marquer_lue", { p_id: id });
+}
+
+// Répondre : un texte libre, ou une réponse toute faite (reponseId). Rend l'identifiant du message.
+export async function repondre(id, texte, reponseId = null) {
+  const m = await appelerContact("repondre_demande", { p_id: id, p_texte: texte ?? "", p_reponse_id: reponseId ?? null }, { declencher: true });
+  return m == null ? null : Number(m);
+}
+
+export async function prendreEnCompte(id) {
+  await appelerContact("prendre_en_compte", { p_id: id }, { declencher: true });
+}
+
+export async function annulerDemande(id) {
+  await appelerContact("annuler_demande", { p_id: id }, { declencher: true });
+}
+
+// Rejouer un envoi en échec (la base le remet « à envoyer »).
+export async function relancerEnvoi(envoiId) {
+  await appelerContact("relancer_envoi", { p_envoi_id: envoiId }, { declencher: true });
+}
+
+// Mes alertes par e-mail telles que la base les garde (vrai tant que rien n'a été coupé).
+export async function lireMesAlertes() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return true;
+  const { data, error } = await supabase.from("user_profiles").select("alertes_email").ilike("email", user.email.replace(/[\\%_]/g, "\\$&")).limit(1);
+  if (error) throw erreurDeBase(error);
+  return data?.[0]?.alertes_email !== false;
+}
+
+// Mes alertes par e-mail : vrai = allumées. Rend le choix enregistré.
+export async function reglerMesAlertes(actives) {
+  return appelerContact("regler_mes_alertes", { p_actives: !!actives });
+}
+
+// Réglages du centre : { regles, reponses, financements, fiches }.
+export async function reglagesContact(lieuId) {
+  return appelerContact("reglages_contact", { p_lieu_id: lieuId });
+}
+
+// Qui reçoit quoi : la liste entière [{ type, financement_id, cible, fiche_id }]. Rend le nombre de règles.
+export async function reglerQuiRecoitQuoi(lieuId, regles) {
+  return appelerContact("regler_qui_recoit_quoi", { p_lieu_id: lieuId, p_regles: regles });
+}
+
+// Réponses toutes faites : la liste entière [{ id (null : nouvelle), libelle, vaut_prise, demande_justificatif }]. Rend leur nombre.
+export async function reglerReponses(lieuId, liste) {
+  return appelerContact("regler_reponses", { p_lieu_id: lieuId, p_reponses: liste });
+}
+// --- Absences annoncées (migration 20261115_contact_3_absences) ---
+// `champs` / `absence` : { du, au, quand: "journee"|"matin"|"aprem"|"heures", debut, fin } (dates « AAAA-MM-JJ », heures « HH:MM »).
+// Règles d'affichage : js/contact-absences-rules.js.
+
+// Qui recevrait l'absence, en plus des envois annexes : l'aperçu d'une demande (mode, principaux, possibles) et `annexes`
+// { formateurs: [{ fiche_id, nom }], non_prevenus: [{ nom }], delegues: [{ nom }] }.
+export async function apercuAbsence(champs) {
+  const jours = demiJourneesDe(champs).map(({ jour, demi }) => ({ jour, demi }));
+  return apercuEnvoi("absence", jours);
+}
+
+// Prévenir d'une absence. `sans` : les envois annexes décochés ("formateurs", "delegue") ; `choisis` : en mode choix, les fiches
+// cochées (aucune en mode règle). Rend l'identifiant de la demande.
+export async function prevenirAbsence({ du, au = null, quand, debut = null, fin = null, motif, mot = "", sans = [], choisis = null }) {
+  const heures = quand === "heures";
+  const id = await appelerContact("prevenir_absence", {
+    p_du: du, p_au: heures ? du : (au || du), p_quand: quand, p_debut: heures ? debut : null, p_fin: heures ? fin : null,
+    p_motif: motif, p_mot: mot ?? "", p_sans: sans ?? [], p_choisis: choisis && choisis.length ? choisis : null,
+  }, { declencher: true });
+  return Number(id);
+}
+
+// L'équipe règle le justificatif d'une absence : "a_remettre", "recu", ou null pour l'effacer.
+export async function reglerJustificatif(id, etat) {
+  await appelerContact("regler_justificatif", { p_id: id, p_etat: etat ?? null }, { declencher: true });
+}
+
+// Les justificatifs que je dois remettre : [{ demande_id, du, au, quand, debut, fin }].
+export async function mesJustificatifsARemettre() {
+  return (await appelerContact("mes_justificatifs_a_remettre", {})) || [];
+}
+
+// Les absences annoncées de la semaine du lundi donné : une ligne par demi-journée { stagiaire_id, day_index, half_day, entiere, debut, fin }.
+export async function absencesAnnonceesSemaine(lundi) {
+  return (await appelerContact("absences_annoncees_semaine", { p_lundi: lundi })) || [];
+}
+// === fin espace contact ===

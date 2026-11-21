@@ -323,6 +323,11 @@ class Visite:
         params.update(self.parcours.banc)
         params["cb"] = "%d" % (time.time() * 1000)
         adresse = self.base_url + "_harness.html?" + "&".join("%s=%s" % kv for kv in params.items())
+        page_statique = getattr(self.parcours, "ouverture", None) == "page"
+        if page_statique:
+            # Le parcours commence sur une page statique du banc (la page des liens d'e-mail), sans passer par l'app : `depart` est son
+            # adresse, relative à la racine.
+            adresse = self.base_url + self.parcours.depart
         t0 = time.perf_counter()
         for essai in (1, 2):
             try:
@@ -331,6 +336,14 @@ class Visite:
             except (DelaiDepasse, ErreurPlaywright):
                 if essai == 2:
                     self.echec("le banc ne s'ouvre pas")
+        if page_statique:
+            self.page.locator("#lien-demande").wait_for(state="visible", timeout=10000)
+            self._poser_espion()
+            self._attendre_calme(calme=250, maximum=5000)
+            self.temps["ouverture"] = round((time.perf_counter() - t0) * 1000)
+            self.etape("page ouverte : " + self.parcours.depart.split("#")[0])
+            self.controler_ecran("page")
+            return
         if getattr(self.parcours, "ouverture", None) == "porte":
             # Le parcours commence sur la porte de connexion (personne n'est encore entré) : pas de barre, pas de page de départ.
             try:
@@ -694,5 +707,5 @@ class Visite:
                 gardees.append(e)
         self.erreurs_console[:] = gardees
         self.capture_finale = self.capturer("fin")
-        if getattr(self.parcours, "ouverture", None) != "porte":      # la porte de connexion n'a pas de barre de navigation
+        if getattr(self.parcours, "ouverture", None) not in ("porte", "page"):      # la porte de connexion et les pages statiques n'ont pas de barre
             self.verifier_sortie()

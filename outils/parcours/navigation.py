@@ -45,6 +45,8 @@ def texte(nom, balises="a, button, [role=tab], [role=menuitem]"):
 SOUS_ONGLET = "button.subtab, [role=tab], a.fiche-ligne"
 PLUS = ("button.nav-plus", "« Plus »")
 COMPTE_V2_STAGIAIRE = ("button.nav-compte", "le bouton du compte")
+# Équipe et direction : le compte est en pied de la barre latérale (`nav-cote-compte`), sur téléphone aussi si la barre reste affichée.
+COMPTE_EQUIPE = (":is(button.nav-cote-compte, button.nav-compte):visible", "le bouton du compte")
 
 
 def dans_le_menu_du_compte(nom):
@@ -70,7 +72,7 @@ BARRE_DU_BAS_EQUIPE = ("home", "planning", "stagiaires", "notes")
 # d'ensemble » le titre de la page qu'elle ouvre (D16) : les deux noms mènent à la même entrée.
 ENTREES_DIRECTION = {"Accueil": "centre", "Vue d'ensemble": "centre", "Promos": "promos", "Stagiaires": "stagiaires",
                      "Émargement": "emargement", "Notes et examens": "notes", "Équipe": "equipe",
-                     "Réglages du centre": "config", "Réglages": "config"}
+                     "Messages": "messages", "Réglages du centre": "config", "Réglages": "config"}
 BARRE_DU_BAS_DIRECTION = ("centre", "promos", "stagiaires", "equipe")
 ENTREES_SIEGE = {"Accueil": "reseau", "Vue d'ensemble": "reseau", "Cours et QCM": "themes", "Directions de centre": "directions",
                  "Directions": "directions", "Réglages du réseau": "config", "Réglages": "config"}
@@ -94,6 +96,8 @@ def chemin(destination, espace, telephone):
             if telephone:
                 return [PLUS, (texte("Signaler un problème", "button.nav-fenetre-lien"), "« Signaler un problème »")]
             return [("button.nav-cote-signaler", "« Signaler un problème »")]
+        if destination in ("Contacts", "Mes préférences") and espace == "direction":
+            return [COMPTE_EQUIPE, (dans_le_menu_du_compte(destination), "« %s »" % destination)]
         raise KeyError("destination inconnue pour la %s : %s" % (espace, destination))
 
     if destination == "Qualiopi":
@@ -116,13 +120,14 @@ def chemin(destination, espace, telephone):
         if destination == "Livret EPCF":
             # Ordinateur : un sous-onglet ; téléphone : une ligne du sommaire de Mon suivi.
             return [(lien("mon-suivi"), "« Mon suivi »"), (texte("Livret EPCF", SOUS_ONGLET), "« Livret EPCF »")]
-        if destination in ("Mes préférences", "Signaler un problème"):
+        if destination in ("Contacts", "Mes préférences", "Signaler un problème"):
             return [COMPTE_V2_STAGIAIRE, (dans_le_menu_du_compte(destination), "« %s »" % destination)]
         raise KeyError("destination inconnue pour le stagiaire : %s" % destination)
 
     # « Aujourd'hui » : l'entrée de l'équipe pour la route de l'Accueil (lot 2B).
     routes = {"Accueil": "home", "Aujourd'hui": "home", "Planning": "planning", "Émargement": "emargement", "Stagiaires": "stagiaires",
-              "Notes et examens": "notes", "Cours et QCM": "themes", "CCP2": "ccp2", "Indicateurs": "centre", "Réglages": "config"}
+              "Notes et examens": "notes", "Cours et QCM": "themes", "CCP2": "ccp2", "Indicateurs": "centre", "Réglages": "config",
+              "Messages": "messages"}
     if destination in routes:
         return _plus_si_telephone(routes[destination], "« %s »" % destination, telephone, BARRE_DU_BAS_EQUIPE)
     if destination in ("Questions contestées", "Propositions IA"):
@@ -132,4 +137,6 @@ def chemin(destination, espace, telephone):
         if telephone:
             return [PLUS, (texte("Signaler un problème", "button.nav-fenetre-lien"), "« Signaler un problème »")]
         return [("button.nav-cote-signaler", "« Signaler un problème »")]
+    if destination in ("Contacts", "Mes préférences"):
+        return [COMPTE_EQUIPE, (dans_le_menu_du_compte(destination), "« %s »" % destination)]
     raise KeyError("destination inconnue pour l'équipe : %s" % destination)

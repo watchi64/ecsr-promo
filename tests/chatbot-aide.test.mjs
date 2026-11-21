@@ -29,7 +29,7 @@ test("le guide est substantiel et sans tiret cadratin", () => {
 test("nouvelle navigation : les noms de la barre, du compte et des sous-onglets", () => {
   for (const nom of ["Accueil", "Planning", "Semaine", "Dates clés", "Ordre de passage", "Cours et QCM", "Thèmes", "Compétences",
     "Documents", "Mon suivi", "La classe", "CCP2", "Émargement", "Stagiaires", "Élèves bénévoles", "Notes et examens",
-    "Questions contestées", "Question corrigée", "Pas d'erreur", "Indicateurs", "Réglages", "Plus", "Assistant", "Nouveautés", "Contacts du centre", "Mes préférences",
+    "Questions contestées", "Question corrigée", "Pas d'erreur", "Indicateurs", "Réglages", "Plus", "Assistant", "Nouveautés", "Contacts", "Mes préférences",
     "Recharger les données", "Se déconnecter", "Signaler un problème"]) {
     assert.ok(avantAnciensNoms.includes(nom), nom);
   }
@@ -219,6 +219,26 @@ test("lot 5 : le menu du compte propose Espace, et les guides gardent les règle
   }
   for (const espace of ["direction", "siege", "equipe"]) {
     assert.ok(NOUVELLE.includes(LIBELLES_ESPACE[espace]), `le guide des formateurs nomme l'espace ${LIBELLES_ESPACE[espace]}`);
+  }
+});
+
+test("espace contact : la page Contacts et la fiche de contact sont dans le guide, plus de « Contacts du centre »", () => {
+  assert.ok(avantAnciensNoms.includes("- contacts (Contacts, menu du compte)"), "la page Contacts");
+  assert.ok(avantAnciensNoms.includes("Ma fiche de contact"), "la fiche de contact, dans Mes préférences");
+  assert.ok(!avantAnciensNoms.includes("Contacts du centre"), "plus de ligne « Contacts du centre » dans le menu du compte");
+  assert.ok(!/Documents : les contacts/.test(avantAnciensNoms), "Documents ne porte plus les contacts");
+  assert.ok(consignesApp("direction").includes("- contacts (Contacts, menu du compte)"), "la direction a la page Contacts");
+});
+
+test("espace contact : absences, Messages, lien d'e-mail, justificatif hors de l'app et réglages du centre sont dans les guides", () => {
+  for (const morceau of ["- absence (Prévenir d'une absence", "- messages (Messages, formateurs et direction", "Mes demandes", "Écrire au centre",
+    "demande.html", "C'est fait", "- justificatif d'absence : il ne passe jamais par l'app", "Envoyer mon justificatif", "Alertes par e-mail",
+    "Absences annoncées dans ta promo"]) {
+    assert.ok(avantAnciensNoms.includes(morceau), "stagiaires et formateurs : " + morceau);
+  }
+  const direction = consignesApp("direction");
+  for (const morceau of ["- messages (Messages", "Qui reçoit quoi", "Réponses toutes faites", "Absent (prévenu)", "Envoyer mon justificatif"]) {
+    assert.ok(direction.includes(morceau), "direction : " + morceau);
   }
 });
 

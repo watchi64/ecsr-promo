@@ -7,9 +7,9 @@
  * Sources des espaces permis (D2) : siège et direction viennent des affectations du compte ; formateur et
  * stagiaire viennent des rôles du compte dans la promo affichée (`promo.roles`, mes_promos(), lot 4).
  */
-import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261116a";
-import { lireAdresse } from "./route-rules.js?v=20261116a";
-import { habillageValide } from "./habillage-regles.js?v=20261116a";
+import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261121a";
+import { lireAdresse } from "./route-rules.js?v=20261121a";
+import { habillageValide } from "./habillage-regles.js?v=20261121a";
 
 export const ESPACES = ["stagiaire", "equipe", "direction", "siege"];
 export const LIBELLES_ESPACE = { stagiaire: "Stagiaire", equipe: "Formateur", direction: "Direction", siege: "Siège" };
@@ -256,7 +256,7 @@ export function texteBandeauApercu(apercu, centre, nomVitrine = null) {
 // Routes de la direction et du siège (section 1 du lot 5). Les pages du menu du compte (nouveautes, preferences,
 // problemes) sont permises partout ; `home` mène à l'accueil de l'espace.
 const ROUTES_COMMUNES = ["home", "config", "nouveautes", "preferences", "problemes"];
-const ROUTES_DIRECTION = ["centre", "promos", "stagiaires", "emargement", "notes", "equipe"];
+const ROUTES_DIRECTION = ["centre", "promos", "stagiaires", "emargement", "notes", "equipe", "contacts", "messages"];
 const ROUTES_SIEGE = ["reseau", "directions", "themes"];
 // Pages nouvelles de la direction et du siège : hors de l'espace du formateur et du stagiaire.
 const ROUTES_NEUVES = ["promos", "equipe", "reseau", "directions"];
@@ -285,7 +285,7 @@ export const PHRASE_CONNEXION = "La connexion a échoué. Vérifier le réseau, 
 export const PHRASE_SESSION = "Votre session a expiré. Reconnectez-vous, puis réessayez.";
 const ERREUR_RESEAU = /failed to fetch|load failed|networkerror|network request failed|fetch failed/i;
 const ERREUR_SESSION = /jwt|not authenticated/i;
-const PREFIXES_DE_REFUS = /^\s*(?:equipe|promo|centre|reseau|invitation|habillage|titres):\s*/i;
+const PREFIXES_DE_REFUS = /^\s*(?:equipe|promo|centre|reseau|invitation|habillage|titres|contact):\s*/i;
 export function phraseDeRefus(message, code) {
   const brut = String(message ?? "");
   if (code === "PGRST202" || /could not find the function/i.test(brut)) return PHRASE_INDISPONIBLE;
@@ -345,4 +345,12 @@ export function phraseStatut(habillage, { enregistre = false, repli = "" } = {})
     ? "Aucun habillage fixé." + (repli ? " " + repli : "")
     : "Habillage fixé : " + (NOMS_HABILLAGE[habillage] || habillage) + ".";
   return enregistre ? "Enregistré. " + base : base;
+}
+
+/**
+ * La vue d'un écran qui s'adresse à la personne (tutoiement, « Écrire au centre », sa propre fiche) : celle de l'espace « stagiaire », et
+ * seulement elle. Un compte cumulé (le fondateur, stagiaire et administrateur) dans l'espace de l'équipe a la vue de l'équipe.
+ */
+export function estVueStagiaire(espace) {
+  return espace === "stagiaire";
 }

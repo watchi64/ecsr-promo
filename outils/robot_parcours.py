@@ -136,7 +136,8 @@ def _jouer_une_fois(navigateur, p, sc, base_url, dossier):
         # Le levier est posé avant le chargement, l'app écrit data-skin elle-même : on vérifie qu'elle l'a fait.
         lu = page.evaluate("() => document.documentElement.dataset.skin || ''")
         attendu = sc.get("habillage", "ecsr")
-        if lu != attendu:
+        # Une page statique du banc (la page des liens d'e-mail) n'est pas l'app : elle ne pose aucun habillage.
+        if lu != attendu and getattr(p, "ouverture", None) != "page":
             raise Echec("habillage non appliqué : attendu %s, lu %s" % (attendu, lu or "(aucun)"))
         p.fonction(v)
         if not v.but_atteint:

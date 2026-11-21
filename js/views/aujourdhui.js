@@ -7,27 +7,28 @@
  * Une lecture qui revient après le départ de la page écrit dans un nœud détaché (isConnected) : rien n'est repeint.
  */
 import {
-  getPromoCourante, listStagiaires, listEmargementSeances, lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande,
-} from "../db.js?v=20261116a";
-import { el, clear, displayStagiaire } from "../utils.js?v=20261116a";
-import { icon } from "../icons.js?v=20261116a";
-import { monStagiaireId, getProfile, getViewAs, ecritSelonLaCase, litSelonLaCase } from "../auth-admin.js?v=20261116a";
-import { libelleConnexion } from "../roles-rules.js?v=20261116a";
-import { emargementActif } from "../emargement-etat.js?v=20261116a";
-import { lignePromo } from "../accueil-rules.js?v=20261116a";
-import { journeeDuJour } from "../journee-rules.js?v=20261116a";
-import { indicateursPromo } from "../centre-stats.js?v=20261116a";
-import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261116a";
-import { signerSeance } from "../emargement-bandeau.js?v=20261116a";
-import { chargerATraiter } from "../a-traiter.js?v=20261116a";
-import { bandeauQuestionnaire } from "../questionnaire.js?v=20261116a";
+  getPromoCourante, listStagiaires, lireMaFiche, listEmargementSeances, lireDonneesCentre, lireReferentielCentre, lireEffacementsSurDemande,
+} from "../db.js?v=20261121a";
+import { el, clear, displayStagiaire } from "../utils.js?v=20261121a";
+import { icon } from "../icons.js?v=20261121a";
+import { monStagiaireId, getProfile, getViewAs, ecritSelonLaCase, litSelonLaCase } from "../auth-admin.js?v=20261121a";
+import { libelleConnexion } from "../roles-rules.js?v=20261121a";
+import { emargementActif } from "../emargement-etat.js?v=20261121a";
+import { lignePromo } from "../accueil-rules.js?v=20261121a";
+import { journeeDuJour } from "../journee-rules.js?v=20261121a";
+import { indicateursPromo } from "../centre-stats.js?v=20261121a";
+import { adresseSeance, heureLocale } from "../emargement-rules.js?v=20261121a";
+import { signerSeance } from "../emargement-bandeau.js?v=20261121a";
+import { chargerATraiter } from "../a-traiter.js?v=20261121a";
+import { bandeauQuestionnaire } from "../questionnaire.js?v=20261121a";
 import {
   titreSelonDemis, auTableauDuJour, enVoitureDuJour, feuilleDuJour, lignesATraiter, ligneDeLEnTete,
-} from "../aujourdhui-rules.js?v=20261116a";
+} from "../aujourdhui-rules.js?v=20261121a";
 import {
   carte, plusLien, ligneLien, erreurAvecReessai, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
-} from "./pages-cartes.js?v=20261116a";
-import { pluriel } from "../nombres.js?v=20261116a";
+} from "./pages-cartes.js?v=20261121a";
+import { pluriel } from "../nombres.js?v=20261121a";
+import { PHRASE_VERIFIER_FICHE } from "../contact-annuaire-rules.js?v=20261121a";
 
 const RELECTURE_SEANCES_MS = 60000;
 const NB_A_SUIVRE = 5;
@@ -270,6 +271,12 @@ export function renderAujourdhui(container) {
   // Questionnaire anonyme des formateurs (Qualiopi), sous le titre et avant les cartes, comme sur l'Accueil des
   // stagiaires : vide (direction, siège, rien à remplir), rien ne s'affiche.
   container.appendChild(bandeauQuestionnaire());
+  // Fiche de contact pas encore vérifiée : un rappel, avec le lien vers Mes préférences. Une lecture qui échoue ne dit rien.
+  lireMaFiche().then((moi) => {
+    if (!moi?.fiche || moi.fiche.verifiee || !entete.isConnected) return;
+    entete.after(el("div", { class: "contact-encadre aujourdhui-fiche", role: "note" },
+      el("a", { href: "#/preferences" }, PHRASE_VERIFIER_FICHE)));
+  }).catch((e) => console.error("Aujourd'hui : fiche de contact illisible", e));
 
   // Émargement et À traiter : les formateurs de la promo seulement (isAdmin, « écrit comme un formateur »), les mêmes
   // conditions que l'entrée Émargement de la barre et que les sous-onglets Questions contestées et Propositions IA. La direction

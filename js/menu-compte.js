@@ -2,8 +2,8 @@
 // de chaque espace (et, sur téléphone, depuis le tiroir « Plus » de l'équipe) : la page à soi (Mon suivi,
 // ou Stagiaires pour un formateur sans profil stagiaire) quand la barre n'y mène pas déjà (ruling R30), le
 // « Voir en tant que » du fondateur, les informations légales et la déconnexion, les Nouveautés (avec le
-// nombre des non-lues, que le bouton du compte ne montre que par un point), les Contacts du centre (Cours
-// et QCM, Documents), Mes préférences (celles de la personne, pour tous les rôles : les Réglages de la
+// nombre des non-lues, que le bouton du compte ne montre que par un point), les Contacts (la page de l'annuaire
+// du centre), Mes préférences (celles de la personne, pour tous les rôles : les Réglages de la
 // promo sont une entrée de la barre de l'équipe) et « Recharger les données » (seul moyen de relire les données dans
 // l'app installée sur iPhone).
 // Juste sous la tête du menu (lot 3) : Apparence, le choix de l'habillage (js/habillage-choix.js) ; une pastille
@@ -11,28 +11,28 @@
 // Popover sur ordinateur et tablette, tiroir en bas de l'écran sur téléphone (css/navigation.css),
 // mécanique de fenêtre de js/nav-fenetre.js.
 // Lot 5 : une section « Espace » (une ligne par espace ouvert au compte, l'actuel coché) quand il y en a deux ou plus ; dans la
-// direction et au siège, ni les contacts du centre ni une page à soi hors de l'espace.
+// direction et au siège, pas de page à soi hors de l'espace ; les Contacts sont dans la direction, pas au siège.
 
-import { el } from "./utils.js?v=20261116a";
-import { icon, deco } from "./icons.js?v=20261116a";
+import { el } from "./utils.js?v=20261121a";
+import { icon, deco } from "./icons.js?v=20261121a";
 import {
   getProfile, getProfileWho, monStagiaireId, buildViewAsBlock, seDeconnecter, espacesOuverts, setEspace, getCentre, getProfileNom,
   getMesTitres, chargerTitresDApercu,
-} from "./auth-admin.js?v=20261116a";
-import { LIBELLES_ESPACE, routeDansLEspace, espaceDePilotage } from "./espaces-rules.js?v=20261116a";
-import { getPromoCourante, getMesPromos } from "./db.js?v=20261116a";
-import { ouvrirChoixPromo } from "./promo-pastille.js?v=20261116a";
-import { pagePersonnelle } from "./route-rules.js?v=20261116a";
-import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261116a";
-import { libellePastille } from "./nouveautes.js?v=20261116a";
-import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261116a";
-import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261116a";
-import { fondateurHorsApercu } from "./auth-admin.js?v=20261116a";
-import { ouvrirSignalement } from "./signalement.js?v=20261116a";
-import { etatSignalements } from "./signalement-etat.js?v=20261116a";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261116a";
-import { blocHabillage } from "./habillage-choix.js?v=20261116a";
-import { libelleTitre, ceQueJePeuxFaire, NIVEAU_DE_L_ESPACE } from "./titres-rules.js?v=20261116a";
+} from "./auth-admin.js?v=20261121a";
+import { LIBELLES_ESPACE, routeDansLEspace } from "./espaces-rules.js?v=20261121a";
+import { getPromoCourante, getMesPromos } from "./db.js?v=20261121a";
+import { ouvrirChoixPromo } from "./promo-pastille.js?v=20261121a";
+import { pagePersonnelle } from "./route-rules.js?v=20261121a";
+import { nouveautesAffichables, formateurConnecte } from "./modules-etat.js?v=20261121a";
+import { libellePastille } from "./nouveautes.js?v=20261121a";
+import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261121a";
+import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261121a";
+import { fondateurHorsApercu } from "./auth-admin.js?v=20261121a";
+import { ouvrirSignalement } from "./signalement.js?v=20261121a";
+import { etatSignalements } from "./signalement-etat.js?v=20261121a";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261121a";
+import { blocHabillage } from "./habillage-choix.js?v=20261121a";
+import { libelleTitre, ceQueJePeuxFaire, NIVEAU_DE_L_ESPACE } from "./titres-rules.js?v=20261121a";
 
 // Une ligne du menu : un lien (page) ou un bouton (geste), icône et libellé, `fin` à droite.
 const ligne = (tag, attrs, icone, texte, fin = null) => el(tag, { class: "nav-fenetre-lien", ...attrs },
@@ -114,7 +114,6 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
   const page = pagePersonnelle({ formateur: formateurConnecte(), stagiaireId: monStagiaireId() });
   const pageASoi = routeDansLEspace(espace, page) ? pageASoiDuMenu(page, entrees) : null;
   const nonLues = libellePastille(nouveautesAffichables().neuves.size);
-  const pilotage = espaceDePilotage(espace);
   // Le fondateur hors aperçu : la liste du choix « Titre » de l'aperçu se lit maintenant (en aperçu, titres_visibles refuserait).
   if (fondateurHorsApercu()) chargerTitresDApercu();
 
@@ -133,11 +132,9 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
       ligne("a", { href: "#/nouveautes" }, icon.bell(), "Nouveautés", nonLues
         ? el("span", { class: "nav-pastille" }, nonLues, el("span", { class: "nav-invisible" }, " non lues"))
         : null),
-      // Les contacts du centre (les numéros pour prévenir d'une absence) ne sont plus un onglet : ils sont dans Cours et QCM,
-      // sous-onglet Documents, où #/ressources mène (redirection du lot 1). Pas de ligne quand le module Ressources est fermé
-      // pour la promo : un stagiaire n'y trouverait rien (un formateur voit toujours tout). La direction et le siège n'ont pas
-      // Cours et QCM pour Documents (lot 5) : pas de ligne.
-      !pilotage && routeVisible("ressources") ? ligne("a", { href: "#/ressources" }, icon.phone(), "Contacts du centre") : null,
+      // Les contacts du centre ont leur page (#/contacts, espace contact) : stagiaire, équipe et direction, sans dépendre du module
+      // Documents. Le siège n'a pas d'annuaire de centre : pas de ligne.
+      espace !== "siege" ? ligne("a", { href: "#/contacts" }, icon.phone(), "Contacts") : null,
       // Pour tous les rôles : les réglages de la promo ont leur entrée chez l'équipe (Réglages, #/config), ce
       // menu ouvre ceux de la personne.
       ligne("a", { href: "#/preferences" }, icon.settings(), "Mes préférences"),
@@ -158,7 +155,7 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
       filet(),
       ligne("button", { type: "button", onClick: () => {
         fermerFenetre({ focus: false });
-        import("./legal.js?v=20261116a").then((m) => m.ouvrirInformationsLegales());
+        import("./legal.js?v=20261121a").then((m) => m.ouvrirInformationsLegales());
       } }, icon.shield(), "Informations légales"),
       ligne("button", { type: "button", onClick: () => seDeconnecter(() => fermerFenetre({ focus: false })) },
         icon.logout(), "Se déconnecter"),

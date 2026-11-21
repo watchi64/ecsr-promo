@@ -4,6 +4,7 @@
  *
  * Pose un même token ?v=AAAAMMJJx :
  *   - sur index.html        (lien CSS + script d'entrée main.js)
+ *   - sur demande.html      (page des liens d'e-mail : CSS + js/lien-demande.js), comme index.html
  *   - sur tous les imports relatifs des fichiers js/ ** / *.js
  *
  * Le token est UNIFORME sur tout le projet, posé en un seul passage. C'est
@@ -27,6 +28,7 @@ const { execSync } = require("child_process");
 
 const ROOT = path.join(__dirname, "..");
 const INDEX = path.join(ROOT, "index.html");
+const DEMANDE = path.join(ROOT, "demande.html");
 const JS_DIR = path.join(ROOT, "js");
 
 const args = process.argv.slice(2);
@@ -110,6 +112,17 @@ if (html.content !== indexBefore) {
   fs.writeFileSync(INDEX, html.content);
   changed.push(INDEX);
   console.log("  index.html  (" + html.count + " refs)");
+}
+
+// demande.html : même motif, même token (absente d'une copie réduite : rien à faire).
+if (fs.existsSync(DEMANDE)) {
+  const avant = fs.readFileSync(DEMANDE, "utf8");
+  const page = stamp(avant, [HTML_PATTERN], token);
+  if (page.content !== avant) {
+    fs.writeFileSync(DEMANDE, page.content);
+    changed.push(DEMANDE);
+    console.log("  demande.html  (" + page.count + " refs)");
+  }
 }
 
 for (const file of collectJsFiles(JS_DIR)) {

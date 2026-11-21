@@ -5,14 +5,15 @@
 // revient à ce que la base a gardé. Les pastilles sont celles du lot 3 (js/habillage-choix.js, mode réglage : rien n'est appliqué à
 // l'écran de la personne qui règle).
 
-import { habillageParDefaut, lireHabillageCentre, reglerHabillageCentre, reglerHabillageReseau } from "../db.js?v=20261116a";
-import { getCentre, getMesTitres, fondateurHorsApercu } from "../auth-admin.js?v=20261116a";
-import { el, clear, toast } from "../utils.js?v=20261116a";
-import { icon } from "../icons.js?v=20261116a";
-import { blocHabillage } from "../habillage-choix.js?v=20261116a";
-import { donneesDuCentreVisibles } from "../titres-rules.js?v=20261116a";
-import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261116a";
-import { sectionDonneesCentre } from "./reglages-donnees.js?v=20261116a";
+import { habillageParDefaut, lireHabillageCentre, reglerHabillageCentre, reglerHabillageReseau } from "../db.js?v=20261121a";
+import { getCentre, getMesTitres, fondateurHorsApercu } from "../auth-admin.js?v=20261121a";
+import { el, clear, toast } from "../utils.js?v=20261121a";
+import { icon } from "../icons.js?v=20261121a";
+import { blocHabillage } from "../habillage-choix.js?v=20261121a";
+import { donneesDuCentreVisibles } from "../titres-rules.js?v=20261121a";
+import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261121a";
+import { sectionDonneesCentre } from "./reglages-donnees.js?v=20261121a";
+import { sectionFinancements, sectionsContactDuCentre, sectionFichesASupprimer } from "./reglages-contact.js?v=20261121a";
 
 export const PHRASE_ECHEC_LECTURE = "Le réglage n'a pas pu être chargé.";
 export const PHRASE_ECHEC_ECRITURE = "Le réglage n'a pas été enregistré. Réessayez dans un instant.";
@@ -167,6 +168,15 @@ async function rendre(container, { surtitre, titre, lire, construire }) {
   if (suite) racine.appendChild(suite);
 }
 
+// Les sections qui suivent l'habillage : financements et fiches à supprimer (espace contact), puis les données personnelles, pour
+// qui les voit (`avecDonnees` : donneesDuCentreVisibles, la direction fixe du centre ou le fondateur).
+function suiteDuCentre(centre, avecDonnees) {
+  const suite = document.createDocumentFragment();
+  suite.append(sectionFinancements(centre), ...sectionsContactDuCentre(centre), sectionFichesASupprimer());
+  if (avecDonnees) suite.append(sectionDonneesCentre(centre));
+  return suite;
+}
+
 // Réglages du centre (espace direction) : l'habillage du centre affiché.
 export async function renderReglagesCentre(container) {
   const centre = getCentre();
@@ -190,9 +200,9 @@ export async function renderReglagesCentre(container) {
     lire: () => lireHabillageCentre(centre.id),
     construire: {
       sousTitre: avecDonnees
-        ? "L'apparence de l'app pour les comptes du centre, et les données personnelles"
-        : "L'apparence de l'app pour les comptes du centre",
-      suite: () => (avecDonnees ? sectionDonneesCentre(centre) : null),
+        ? "L'apparence de l'app pour les comptes du centre, les financements et les données personnelles"
+        : "L'apparence de l'app pour les comptes du centre et les financements",
+      suite: () => suiteDuCentre(centre, avecDonnees),
       section: (ligne) => sectionReglage({
         titre: "Habillage par défaut du centre",
         intro: "L'apparence que reçoivent les comptes du centre tant qu'ils n'ont rien choisi. Sans réglage, c'est celle du réseau.",

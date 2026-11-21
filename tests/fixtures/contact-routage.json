@@ -1,0 +1,1031 @@
+{
+  "description": "Table de parité du routage des demandes (espace contact). Jouée par tests/contact-rules.test.mjs (routerDemande, js/contact-rules.js) et par la preuve SQL tests/sql/contact-demandes-preuve.sql (groupe parite : _contact_destinataires et _contact_possibles). Les fiches sont nommées par les personnages de la preuve (nom = identifiant) ; centre « vide » : un centre et une promo sans équipe, posés par la preuve ; sinon le centre de la promo 1. Financements : libellés du centre. Un cas peut porter attendu_sans_migration_4 : ce que rend la base tant que la migration 20261116_contact_4_correctifs n'est pas appliquée (elle écarte des possibles une fiche partie ou en congé) ; la preuve SQL le prend alors, le JS suit toujours attendu.",
+  "cas": [
+    {
+      "nom": "mode_choix",
+      "entree": {
+        "type": "administratif",
+        "financement_id": null,
+        "jours": [],
+        "aujourdhui": "2031-03-04",
+        "regles": [],
+        "fiches": [],
+        "formateurs_du_jour": [],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "choix",
+        "principaux": [],
+        "source": null,
+        "possibles": [
+          {
+            "fiche_id": "dir_deux",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "dir_form",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "dir_n",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "form_n",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "siege_form",
+            "pre_coche": false
+          }
+        ]
+      }
+    },
+    {
+      "nom": "absence_cpf",
+      "entree": {
+        "type": "absence",
+        "financement_id": "CPF",
+        "jours": [
+          {
+            "jour": "2031-03-05",
+            "demi": "matin"
+          }
+        ],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "absence",
+            "financement_id": "CPF",
+            "cible": "fiche",
+            "fiche_id": "sec_n"
+          },
+          {
+            "type": "absence",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "dir_n"
+          },
+          {
+            "type": "defaut",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "form_n"
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "sec_n",
+            "nom": "sec_n"
+          },
+          {
+            "fiche_id": "dir_n",
+            "nom": "dir_n"
+          },
+          {
+            "fiche_id": "form_n",
+            "nom": "form_n"
+          }
+        ],
+        "formateurs_du_jour": [],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "regle",
+        "principaux": [
+          {
+            "fiche_id": "sec_n",
+            "relais_de": null
+          }
+        ],
+        "source": "regle_type_financement",
+        "possibles": []
+      }
+    },
+    {
+      "nom": "absence_financement_regle_type",
+      "entree": {
+        "type": "absence",
+        "financement_id": "CPF",
+        "jours": [
+          {
+            "jour": "2031-03-05",
+            "demi": "matin"
+          }
+        ],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "absence",
+            "financement_id": "Région",
+            "cible": "fiche",
+            "fiche_id": "sec_n"
+          },
+          {
+            "type": "absence",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "dir_n"
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "sec_n",
+            "nom": "sec_n"
+          },
+          {
+            "fiche_id": "dir_n",
+            "nom": "dir_n"
+          }
+        ],
+        "formateurs_du_jour": [],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "regle",
+        "principaux": [
+          {
+            "fiche_id": "dir_n",
+            "relais_de": null
+          }
+        ],
+        "source": "regle_type",
+        "possibles": []
+      }
+    },
+    {
+      "nom": "absence_sans_financement_defaut",
+      "entree": {
+        "type": "absence",
+        "financement_id": null,
+        "jours": [
+          {
+            "jour": "2031-03-05",
+            "demi": "matin"
+          }
+        ],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "absence",
+            "financement_id": "CPF",
+            "cible": "fiche",
+            "fiche_id": "sec_n"
+          },
+          {
+            "type": "defaut",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "dir_n"
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "sec_n",
+            "nom": "sec_n"
+          },
+          {
+            "fiche_id": "dir_n",
+            "nom": "dir_n"
+          }
+        ],
+        "formateurs_du_jour": [],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "regle",
+        "principaux": [
+          {
+            "fiche_id": "dir_n",
+            "relais_de": null
+          }
+        ],
+        "source": "defaut",
+        "possibles": []
+      }
+    },
+    {
+      "nom": "absence_choix_precoche",
+      "entree": {
+        "type": "absence",
+        "financement_id": null,
+        "jours": [
+          {
+            "jour": "2031-03-05",
+            "demi": "matin"
+          },
+          {
+            "jour": "2031-03-05",
+            "demi": "aprem"
+          }
+        ],
+        "aujourdhui": "2031-03-04",
+        "regles": [],
+        "fiches": [
+          {
+            "fiche_id": "form_n",
+            "nom": "form_n"
+          }
+        ],
+        "formateurs_du_jour": [
+          "form_n"
+        ],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "choix",
+        "principaux": [],
+        "source": null,
+        "possibles": [
+          {
+            "fiche_id": "dir_deux",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "dir_form",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "dir_n",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "form_n",
+            "pre_coche": true
+          },
+          {
+            "fiche_id": "siege_form",
+            "pre_coche": false
+          }
+        ]
+      }
+    },
+    {
+      "nom": "retard_regle_formateurs_du_jour",
+      "entree": {
+        "type": "retard",
+        "financement_id": null,
+        "jours": [
+          {
+            "jour": "2031-03-04",
+            "demi": "matin"
+          }
+        ],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "retard",
+            "financement_id": null,
+            "cible": "formateurs_du_jour",
+            "fiche_id": null
+          },
+          {
+            "type": "defaut",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "sec_n"
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "form_n",
+            "nom": "form_n"
+          },
+          {
+            "fiche_id": "t_interv",
+            "nom": "t_interv"
+          },
+          {
+            "fiche_id": "sec_n",
+            "nom": "sec_n"
+          }
+        ],
+        "formateurs_du_jour": [
+          "form_n",
+          "t_interv"
+        ],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "regle",
+        "principaux": [
+          {
+            "fiche_id": "form_n",
+            "relais_de": null
+          },
+          {
+            "fiche_id": "t_interv",
+            "relais_de": null
+          }
+        ],
+        "source": "regle_type",
+        "possibles": []
+      }
+    },
+    {
+      "nom": "retard_formateur_du_jour_en_conge",
+      "entree": {
+        "type": "retard",
+        "financement_id": null,
+        "jours": [
+          {
+            "jour": "2031-03-04",
+            "demi": "matin"
+          }
+        ],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "retard",
+            "financement_id": null,
+            "cible": "formateurs_du_jour",
+            "fiche_id": null
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "form_n",
+            "nom": "form_n"
+          },
+          {
+            "fiche_id": "siege_form",
+            "nom": "siege_form",
+            "conge_du": "2031-03-01",
+            "conge_au": "2031-03-10"
+          }
+        ],
+        "formateurs_du_jour": [
+          "form_n",
+          "siege_form"
+        ],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "regle",
+        "principaux": [
+          {
+            "fiche_id": "form_n",
+            "relais_de": null
+          }
+        ],
+        "source": "regle_type",
+        "possibles": []
+      }
+    },
+    {
+      "nom": "retard_sans_regle_choix",
+      "entree": {
+        "type": "retard",
+        "financement_id": null,
+        "jours": [
+          {
+            "jour": "2031-03-04",
+            "demi": "matin"
+          }
+        ],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "absence",
+            "financement_id": null,
+            "cible": "formateurs_du_jour",
+            "fiche_id": null
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "siege_form",
+            "nom": "siege_form"
+          }
+        ],
+        "formateurs_du_jour": [
+          "siege_form"
+        ],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "choix",
+        "principaux": [],
+        "source": null,
+        "possibles": [
+          {
+            "fiche_id": "dir_deux",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "dir_form",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "dir_n",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "form_n",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "siege_form",
+            "pre_coche": true
+          }
+        ]
+      }
+    },
+    {
+      "nom": "retard_regle_planning_vide_defaut",
+      "entree": {
+        "type": "retard",
+        "financement_id": null,
+        "jours": [
+          {
+            "jour": "2031-03-04",
+            "demi": "matin"
+          }
+        ],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "retard",
+            "financement_id": null,
+            "cible": "formateurs_du_jour",
+            "fiche_id": null
+          },
+          {
+            "type": "defaut",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "sec_n"
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "sec_n",
+            "nom": "sec_n"
+          }
+        ],
+        "formateurs_du_jour": [],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "regle",
+        "principaux": [
+          {
+            "fiche_id": "sec_n",
+            "relais_de": null
+          }
+        ],
+        "source": "defaut",
+        "possibles": []
+      }
+    },
+    {
+      "nom": "type_sans_regle_defaut",
+      "entree": {
+        "type": "document",
+        "financement_id": null,
+        "jours": [],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "absence",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "dir_n"
+          },
+          {
+            "type": "defaut",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "sec_n"
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "dir_n",
+            "nom": "dir_n"
+          },
+          {
+            "fiche_id": "sec_n",
+            "nom": "sec_n"
+          }
+        ],
+        "formateurs_du_jour": [],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "regle",
+        "principaux": [
+          {
+            "fiche_id": "sec_n",
+            "relais_de": null
+          }
+        ],
+        "source": "defaut",
+        "possibles": []
+      }
+    },
+    {
+      "nom": "titulaire_en_conge_relais",
+      "entree": {
+        "type": "administratif",
+        "financement_id": null,
+        "jours": [],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "administratif",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "sec_n"
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "sec_n",
+            "nom": "sec_n",
+            "conge_du": "2031-03-01",
+            "conge_au": "2031-03-10",
+            "relais_id": "dir_n"
+          },
+          {
+            "fiche_id": "dir_n",
+            "nom": "dir_n"
+          }
+        ],
+        "formateurs_du_jour": [],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "regle",
+        "principaux": [
+          {
+            "fiche_id": "dir_n",
+            "relais_de": "sec_n"
+          }
+        ],
+        "source": "regle_type",
+        "possibles": []
+      }
+    },
+    {
+      "nom": "relais_en_conge_defaut",
+      "entree": {
+        "type": "administratif",
+        "financement_id": null,
+        "jours": [],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "administratif",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "sec_n"
+          },
+          {
+            "type": "defaut",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "form_n"
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "sec_n",
+            "nom": "sec_n",
+            "conge_du": "2031-03-01",
+            "conge_au": "2031-03-10",
+            "relais_id": "dir_n"
+          },
+          {
+            "fiche_id": "dir_n",
+            "nom": "dir_n",
+            "conge_du": "2031-03-01",
+            "conge_au": "2031-03-10"
+          },
+          {
+            "fiche_id": "form_n",
+            "nom": "form_n"
+          }
+        ],
+        "formateurs_du_jour": [],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "regle",
+        "principaux": [
+          {
+            "fiche_id": "form_n",
+            "relais_de": null
+          }
+        ],
+        "source": "defaut",
+        "possibles": []
+      }
+    },
+    {
+      "nom": "relais_et_defaut_en_conge_choix",
+      "entree": {
+        "type": "administratif",
+        "financement_id": null,
+        "jours": [],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "administratif",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "sec_n"
+          },
+          {
+            "type": "defaut",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "form_n"
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "sec_n",
+            "nom": "sec_n",
+            "conge_du": "2031-03-01",
+            "conge_au": "2031-03-10",
+            "relais_id": "dir_n"
+          },
+          {
+            "fiche_id": "dir_n",
+            "nom": "dir_n",
+            "conge_du": "2031-03-01",
+            "conge_au": "2031-03-10"
+          },
+          {
+            "fiche_id": "form_n",
+            "nom": "form_n",
+            "conge_du": "2031-03-01",
+            "conge_au": "2031-03-10"
+          }
+        ],
+        "formateurs_du_jour": [],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "choix",
+        "principaux": [],
+        "source": null,
+        "possibles": [
+          {
+            "fiche_id": "dir_deux",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "dir_form",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "siege_form",
+            "pre_coche": false
+          }
+        ]
+      },
+      "attendu_sans_migration_4": {
+        "mode": "choix",
+        "principaux": [],
+        "source": null,
+        "possibles": [
+          {
+            "fiche_id": "dir_deux",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "dir_form",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "dir_n",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "form_n",
+            "pre_coche": false
+          },
+          {
+            "fiche_id": "siege_form",
+            "pre_coche": false
+          }
+        ]
+      }
+    },
+    {
+      "nom": "relais_autre_centre",
+      "entree": {
+        "type": "administratif",
+        "financement_id": null,
+        "jours": [],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "administratif",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "dir_form"
+          },
+          {
+            "type": "defaut",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "sec_n"
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "dir_form",
+            "nom": "dir_form",
+            "conge_du": "2031-03-01",
+            "conge_au": "2031-03-10",
+            "relais_id": "form_m"
+          },
+          {
+            "fiche_id": "form_m",
+            "nom": "form_m",
+            "du_centre": false
+          },
+          {
+            "fiche_id": "sec_n",
+            "nom": "sec_n"
+          }
+        ],
+        "formateurs_du_jour": [],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "regle",
+        "principaux": [
+          {
+            "fiche_id": "sec_n",
+            "relais_de": null
+          }
+        ],
+        "source": "defaut",
+        "possibles": []
+      }
+    },
+    {
+      "nom": "defaut_en_conge_relais",
+      "entree": {
+        "type": "administratif",
+        "financement_id": null,
+        "jours": [],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "defaut",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "sec_n"
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "sec_n",
+            "nom": "sec_n",
+            "conge_du": "2031-03-01",
+            "conge_au": "2031-03-10",
+            "relais_id": "dir_n"
+          },
+          {
+            "fiche_id": "dir_n",
+            "nom": "dir_n"
+          }
+        ],
+        "formateurs_du_jour": [],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "regle",
+        "principaux": [
+          {
+            "fiche_id": "dir_n",
+            "relais_de": "sec_n"
+          }
+        ],
+        "source": "defaut",
+        "possibles": []
+      }
+    },
+    {
+      "nom": "titulaire_partie_defaut",
+      "entree": {
+        "type": "administratif",
+        "financement_id": null,
+        "jours": [],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "administratif",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "sec_n"
+          },
+          {
+            "type": "defaut",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "dir_n"
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "sec_n",
+            "nom": "sec_n",
+            "depart_le": "2031-03-03"
+          },
+          {
+            "fiche_id": "dir_n",
+            "nom": "dir_n"
+          }
+        ],
+        "formateurs_du_jour": [],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "regle",
+        "principaux": [
+          {
+            "fiche_id": "dir_n",
+            "relais_de": null
+          }
+        ],
+        "source": "defaut",
+        "possibles": []
+      }
+    },
+    {
+      "nom": "titulaire_injoignable_defaut",
+      "entree": {
+        "type": "administratif",
+        "financement_id": null,
+        "jours": [],
+        "aujourdhui": "2031-03-04",
+        "regles": [
+          {
+            "type": "administratif",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "sec_n"
+          },
+          {
+            "type": "defaut",
+            "financement_id": null,
+            "cible": "fiche",
+            "fiche_id": "dir_n"
+          }
+        ],
+        "fiches": [
+          {
+            "fiche_id": "sec_n",
+            "nom": "sec_n",
+            "joignable": false
+          },
+          {
+            "fiche_id": "dir_n",
+            "nom": "dir_n"
+          }
+        ],
+        "formateurs_du_jour": [],
+        "possibles": [
+          "dir_deux",
+          "dir_form",
+          "dir_n",
+          "form_n",
+          "siege_form"
+        ]
+      },
+      "attendu": {
+        "mode": "regle",
+        "principaux": [
+          {
+            "fiche_id": "dir_n",
+            "relais_de": null
+          }
+        ],
+        "source": "defaut",
+        "possibles": []
+      }
+    },
+    {
+      "nom": "liste_vide",
+      "centre": "vide",
+      "entree": {
+        "type": "administratif",
+        "financement_id": null,
+        "jours": [],
+        "aujourdhui": "2031-03-04",
+        "regles": [],
+        "fiches": [],
+        "formateurs_du_jour": [],
+        "possibles": []
+      },
+      "attendu": {
+        "mode": "choix",
+        "principaux": [],
+        "source": null,
+        "possibles": []
+      }
+    }
+  ]
+}

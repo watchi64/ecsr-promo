@@ -39,7 +39,7 @@ manque) :
     tiroir se ferme et le focus ne tombe jamais sur body ; à chaque rôle vu, le bandeau d'aperçu est en bas de l'écran et
     l'assistant, ouvert depuis la coquille, garde son champ et « Envoyer » à portée : rien ne couvre leur centre). Et, le module
     Ressources fermé pour la promo (lot 2A, tâche 1), un stagiaire sans drapeau de fondateur puis un formateur : la ligne
-    « Contacts du centre » du menu du compte. Un stagiaire qui ouvre `#/config` arrive sur Mes préférences, sans aucune section de
+    « Contacts » du menu du compte. Un stagiaire qui ouvre `#/config` arrive sur Mes préférences, sans aucune section de
     la promo ni la liste « Personnes avec accès » (10/11).
 Habillages (lot 3, tâche 10 ; option `--habillages`, défaut `ecsr,ecf`) : tous les scénarios sont joués dans
 chaque habillage demandé : « ecsr » (ECSR Promo, le défaut) sur un appareil vierge, « ecf » (Couleurs ECF) par le levier de
@@ -163,7 +163,7 @@ Contrôles par vue
     examens, Cours et QCM, Indicateurs, Réglages, CCP2 ; stagiaire : Cours et QCM, Mon suivi, CCP2) et, sauf pour CCP2, son surtitre est le nom de la
     promo affichée. L'Accueil du stagiaire et Planning n'en font pas partie (TITRES_DES_PAGES) : l'accueil du stagiaire salue par son prénom, le Planning garde
     le titre de sa semaine ; la page de l'équipe s'appelle Aujourd'hui (lot 2B, tâche 4, titre de la page, h1) ; Émargement, lui, s'appelle « Émargement » (ruling R50). Les sous-pages reprennent le nom de leur sous-onglet : Planning > Dates clés (ex-Calendrier), Cours et
-    QCM > Documents (ex-Ressources & contacts, dont la section des contacts s'appelle « Contacts du centre »), chacune avec la promo en surtitre ;
+    QCM > Documents (ex-Ressources & contacts ; les contacts du centre ont leur page, « Contacts »), chacune avec la promo en surtitre ;
     Cours et QCM d'un stagiaire au départ, réduit à ses Documents, porte ce titre. Éteint, les titres de main restent : Notes & évaluations, Cours,
     Calendrier, Ressources & contacts, Mon espace, les surtitres « Formateurs », « Tableau de bord du centre » et « Espace personnel » ;
   * Stagiaires et ses bénévoles (lot 2A, équipe) : la page a deux sous-onglets, « Stagiaires » puis « Élèves bénévoles ». Le second montre le panneau
@@ -181,7 +181,7 @@ Contrôles par vue
     « Saisissez les notes thème par thème, ou touchez une case de la matrice. » et la phrase sur Entrée et Échap n'est pas montrée ; avec une
     souris, le sous-titre d'avant et la phrase de la barre d'outils ;
   * comptes en fin de sous-titre (lot 2A, tâche 4, ruling R49) : Notes et examens finit par « N notes enregistrées. », Planning > Dates clés par
-    « N dates clés. » (le nombre d'événements que l'app lit, passés compris), Cours et QCM > Documents par « N liens · M contacts. » ; éteint, ils
+    « N dates clés. » (le nombre d'événements que l'app lit, passés compris), Cours et QCM > Documents par « N liens. » (les contacts ont leur page) ; éteint, ils
     restent en surtitre (« N événements au calendrier », « N liens curés · M contacts », « N notes enregistrées ») ;
   * texte d'administration (lot 2A, tâche 4) : aucune page d'un stagiaire, quelle que soit la vue mesurée (entrées, sous-onglets, parties de Mon suivi),
     ni son bandeau d'émargement, ne dit « admin ». L'abréviation seule, comme dans Réglages et Mes préférences : « administrateur » et « administration »
@@ -237,9 +237,9 @@ Contrôles par vue
     Stagiaires, sous-onglet « Élèves bénévoles » (F8) ; la Nouveauté « Des pages mieux tenues sur le téléphone » est pour tous, dans les deux navigations, sans nommer les « Indicateurs »
     ni le « tableau de bord » (F3). Éteint, aucune des deux (même chez l'équipe, même chez un stagiaire sans drapeau de fondateur dont l'appareil
     porte l'aperçu d'un fondateur : l'aperçu n'est pas pour lui), les trois de l'ancienne barre sont là, et chaque lien et chaque première étape est celui de main ;
-  * ligne « Contacts du centre » du menu du compte (lot 2A, tâche 1) : entre « Nouveautés » et « Mes préférences », vers #/ressources ; cliquée, elle ouvre Cours et QCM, Documents, avec sa
-    section « Contacts du centre ». Quand le module Ressources est fermé pour la promo (scénario « ressources fermées »), la ligne disparaît chez un stagiaire (elle ne mènerait nulle
-    part) et reste chez l'équipe, qui voit tout ;
+  * ligne « Contacts » du menu du compte (espace contact) : entre « Nouveautés » et « Mes préférences », vers #/contacts ; cliquée, elle ouvre la page Contacts (titre « Contacts »), allumée sur Accueil chez le stagiaire, sur aucune entrée en direction. Ancien texte (lot 2A), cliquée, elle ouvrait Cours et QCM, Documents, avec sa
+    section « Contacts du centre ». Quand le module Ressources est fermé pour la promo (scénario « ressources fermées »), la ligne reste, chez le stagiaire comme chez l'équipe
+    (la page Contacts ne dépend d'aucun module) ;
   * mots de l'ancienne barre (lot 2A, tâche 1) : allumé, aucune vue (page, coquille, menus et tiroirs ouverts) ne dit « Mon espace » ni « Paramètres » ; éteint, aucune page ni l'ancienne barre
     ne dit « Mon suivi ». Seuls le titre et le récit des cartes de Nouveautés n'en font pas partie : un récit daté d'un changement passé n'est jamais réécrit (le « Où le trouver » et
     le « Comment faire » de ces mêmes cartes comptent). Éteint, la règle du Planning sur la « fiche « Mon suivi » » du stagiaire est un texte de main, admis ;
@@ -342,9 +342,9 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     la promo (2 des 6 combinaisons échouent : aperçu allumé sans mémoire, cochée à tort ; aperçu éteint avec mémoire, décochée à tort), pastille de « Signaler un problème » à son vert
     d'origine sur la barre sombre (2,93:1), levée dans la pose des comptes sans le try/catch (coquille absente, erreur de console « la nouvelle barre n'a pas pu se monter »)
     et avec lui (barre posée, sans erreur, seulement les repères manquants) ;
-  * Nouveautés, Contacts du centre et textes des deux navigations (lot 2A, tâche 1, injectés dans les sources puis retirés) : Nouveautés de lancement absentes allumé ou montrées éteint
+  * Nouveautés, Contacts et textes des deux navigations (lot 2A, tâche 1, injectés dans les sources puis retirés) : Nouveautés de lancement absentes allumé ou montrées éteint
     (le filtre par navigation de `visibles` ignoré, ou toujours allumé), « Où le trouver » non réécrit allumé ou réécrit éteint, l'équipe lue comme un stagiaire (Mes préférences, Mon suivi,
-    La classe) et le stagiaire comme l'équipe (Réglages), `guideNouvelle` ignoré, ligne « Contacts du centre » retirée, qui mène ailleurs, placée après « Mes préférences » ou montrée à un
+    La classe) et le stagiaire comme l'équipe (Réglages), `guideNouvelle` ignoré, ligne « Contacts » retirée, qui mène ailleurs, placée après « Mes préférences » ou montrée à un
     stagiaire quand le module Ressources est fermé, pied de l'Accueil en « paramètres » allumé ou en « réglages » chez le stagiaire, ligne Ctrl + Z de main allumé ou neuve éteint, phrase des
     modules toujours ouverts de main allumé, texte de l'anonymat sur « la page Notes », lien du parcours CCP2 dans sa forme d'avant, une Nouveauté de l'ancienne barre visible allumé, un mot de
     l'ancienne barre dans une page (« Paramètres ») ou de la nouvelle dans l'ancienne (« Mon suivi »), l'aperçu d'un fondateur appliqué à qui ne l'est pas, lien des bénévoles qui n'écrit pas la
@@ -468,8 +468,8 @@ EXCEPTION_ADMISE = ".matrice-wrap"
 # Entrées de repli si les règles de navigation de l'app ne se lisent pas dans la page.
 ENTREES_REPLI = {
     "stagiaire": ("home", "planning", "themes", "mon-suivi", "ccp2"),
-    "equipe": ("home", "planning", "emargement", "stagiaires", "notes", "themes", "ccp2", "centre", "config"),
-    "direction": ("centre", "promos", "stagiaires", "notes", "equipe"),
+    "equipe": ("home", "messages", "planning", "emargement", "stagiaires", "notes", "themes", "ccp2", "centre", "config"),
+    "direction": ("centre", "messages", "promos", "stagiaires", "notes", "equipe"),
 }
 
 # --------------------------------------------------------------------------------------
@@ -1787,11 +1787,11 @@ async function aujourdhuiEquipe() {
       jauge: (() => { const j = c.querySelector(".acc-jauge"); return j ? { now: Number(j.getAttribute("aria-valuenow")), max: Number(j.getAttribute("aria-valuemax")) } : null; })() })),
     bandeau: (() => { const b = document.getElementById("emargement-bandeau"); return b && !b.hidden && visible(b) ? net(b.textContent) : null; })() };
 }
-// Ce que l'app lit : le nombre d'événements, de liens et de contacts, que les sous-titres de Dates clés et de Documents comptent.
+// Ce que l'app lit : le nombre d'événements et de liens, que les sous-titres de Dates clés et de Documents comptent.
 async function comptesDesPages() {
   const [db] = await modulesDeLApp(["db"]);
-  const [evenements, liens, contacts] = await Promise.all([db.listAgendaEvents(), db.listRessources(), db.listContacts()]);
-  return { evenements: evenements.length, liens: liens.length, contacts: contacts.length };
+  const [evenements, liens] = await Promise.all([db.listAgendaEvents(), db.listRessources()]);
+  return { evenements: evenements.length, liens: liens.length };
 }
 // Planning > Semaine : la phrase de lecture seule, et les boutons « Cette semaine » et « Aujourd'hui » de la page.
 function planningSemaine() {
@@ -1896,7 +1896,7 @@ class Scenario:
     promos_en_panne: bool = False   # ?mes_promos=erreur : le bandeau des promos non chargées s'ajoute à l'aperçu
     agenda_vide: bool = False   # la date du banc recule après le dernier événement : l'accueil n'a rien à venir (lot 2A, tour de correction 1)
     a_traiter: str = ""         # scénario « à traiter » (A_TRAITER_DU_BANC) : "ia", "beaucoup", "panne" ou "lent" ; vide pour tous les autres (lot 2A, tâche 6)
-    ressources_fermees: bool = False  # le module Ressources est fermé pour la promo : la ligne « Contacts du centre » du menu du compte (lot 2A, tâche 1)
+    ressources_fermees: bool = False  # le module Ressources est fermé pour la promo : la ligne « Contacts » du menu du compte reste
     compte: str = ""            # ?compte= du banc : un compte réel du lot 4 ("direction" : son espace depuis le lot 5), joué par jouer_direction (relecture finale du lot 2B)
     habillage: str = "ecsr"     # habillage attendu de la page (lot 3, tâche 10) : "ecsr" (défaut, appareil vierge) ou "ecf" (levier de l'appareil posé avant le chargement)
     appareil_d_autrui: bool = False   # l'appareil porte l'habillage ECF d'une autre personne (Review Focus 1) : attendu « ecsr » une fois le démarrage fini
@@ -1967,8 +1967,8 @@ def construire_scenarios(moteurs, roles, largeurs, habillages=HABILLAGES):
         if "fondateur" in roles:
             for l in voir:
                 scenarios.append(Scenario(moteur, "fondateur", l, "equipe", voir_en_tant_que=True))
-        # Le module Ressources fermé (lot 2A, tâche 1) : la ligne « Contacts du centre » du menu du compte, absente chez un stagiaire (elle ne mènerait nulle
-        # part), gardée par l'équipe qui voit tout.
+        # Le module Ressources fermé (lot 2A, tâche 1) : la ligne « Contacts » du menu du compte reste, chez le stagiaire comme chez l'équipe (la page
+        # Contacts ne dépend plus d'aucun module).
         if "stagiaire" in roles:
             scenarios.append(Scenario(moteur, "stagiaire", largeurs[0], "stagiaire", sans_droits=True, ressources_fermees=True))
         if "prof" in roles:
@@ -2118,6 +2118,10 @@ def nouveau_contexte(navigateur, sc, options):
     # Les données du faux Supabase, jointes à la fenêtre : la vérification du panneau des bénévoles y sème des bénévoles le temps d'un contrôle (le banc
     # n'en sert aucun, et `?benevoles=1` changerait aussi le Planning de toutes les vues).
     lignes.append("window.__FIXTURES_DU_BANC = FIXTURES;")
+    # Espace contact : les demandes du banc sont toutes lues au départ, pour que la pastille et le point de Messages ne se mêlent pas aux
+    # comptes « à traiter » de Cours et QCM ; verifier_messages remet une demande non lue le temps de juger le compteur de Messages.
+    lignes.append("DEM.demandes.forEach((d) => d.dest.forEach((x) => { x.lue_le = '2026-10-28T08:00:00Z'; }));")
+    lignes.append("window.__DEM_DU_BANC = DEM;")
     if sc.a_traiter in BROUILLONS_IA_DU_BANC:
         # Des brouillons de l'IA à relire, qui ne comptent pas avant le lot 2B (ruling R56), et des lignes déjà traitées (un brouillon accepté ou rejeté, un
         # signalement traité ou rejeté) qui ne comptent pas non plus ; des signalements ouverts de plus quand le scénario en veut.
@@ -2148,7 +2152,7 @@ def nouveau_contexte(navigateur, sc, options):
         # et Cours et QCM n'est repéré que quand ses Documents le sont aussi).
         lignes.append("FIXTURES.settings.push({ key: 'modules', value: JSON.stringify({ v: 1, depuis: '2026-10-05T08:00:00.000Z', ouverts: {} }) });")
     if sc.ressources_fermees:
-        # L'ensemble de départ (Planning, Calendrier, Ressources) sans Ressources : les contacts du centre ne sont plus pour les stagiaires (lot 2A, tâche 1).
+        # L'ensemble de départ (Planning, Calendrier, Ressources) sans Ressources : la ligne « Contacts » du menu du compte doit rester.
         lignes.append("FIXTURES.settings.push({ key: 'modules', value: JSON.stringify({ v: 1, depuis: '2026-10-05T08:00:00.000Z', "
                       "ouverts: { planning: '2026-10-05T08:00:00.000Z', calendrier: '2026-10-05T08:00:00.000Z' } }) });")
     contexte.route("**/*", lambda route: servir_depuis_le_cache(route, lignes))
@@ -2694,7 +2698,11 @@ SECTIONS_REGLAGES = ("Ce que voient les stagiaires", "Promo", "Accès et invitat
 SECTIONS_DU_FONDATEUR = ("Émargement", "Travail en autonomie", "Titres à la carte")
 # En dernier, « Apparence » : un renvoi vers Mes préférences, où se fait le choix des couleurs, pas une section de la promo (décision du 10/11).
 RENVOI_APPARENCE = "Apparence"
-SECTIONS_PREFERENCES = ("Apparence", "Dans les notes de la classe", "Informations")
+# En tête, quand la personne a une fiche de contact (espace contact) : « Ma fiche de contact » (équipe, direction) ou « Mon téléphone » (stagiaire).
+SECTIONS_CONTACT_PREFERENCES = ("Ma fiche de contact", "Mon téléphone")
+# Juste après, pour tous : « Alertes par e-mail » (espace contact : recevoir ou couper les e-mails d'alerte).
+SECTION_ALERTES = "Alertes par e-mail"
+SECTIONS_PREFERENCES = SECTIONS_CONTACT_PREFERENCES + (SECTION_ALERTES, "Apparence", "Dans les notes de la classe", "Informations")
 # Le sous-titre de Mes préférences : la page a toujours un réglage à soi depuis le lot 3 (Apparence, pour tous les rôles), l'anonymat en plus pour qui a une
 # fiche de stagiaire ; il ne dit donc plus « Les informations sur l'application. » seules.
 SOUS_TITRE_PREFERENCES = "Les réglages personnels et les informations sur l'application."
@@ -2758,18 +2766,20 @@ def verifier_menu_du_compte(page, res, sc, moment=None):
         res.echec("menu du compte", vue, "« Mes préférences » mène à %s, attendu #/preferences" % lignes["Mes préférences"]["href"])
     if "Réglages" in lignes:
         res.echec("menu du compte", vue, "le menu garde une ligne « Réglages » : elle n'est plus qu'une entrée de la barre de l'équipe")
-    # Les contacts du centre (lot 2A, tâche 1) : une ligne qui mène à #/ressources (la redirection du lot 1 l'envoie à Cours et QCM > Documents), entre
-    # « Nouveautés » et « Mes préférences ». Le banc ouvre le module Ressources dans tous les scénarios de ce menu (jouer_ressources_fermees joue l'autre cas).
+    # Les contacts du centre (espace contact) : une ligne qui mène à #/contacts, entre « Nouveautés » et « Mes préférences », pour le stagiaire, l'équipe et la
+    # direction (jamais le siège), même module Ressources fermé.
     ordre = list(lignes)
-    if "Contacts du centre" not in lignes:
-        res.echec("menu du compte", vue, "la ligne « Contacts du centre » manque (lignes : %s)" % ", ".join(ordre))
+    if "Contacts" not in lignes:
+        res.echec("menu du compte", vue, "la ligne « Contacts » manque (lignes : %s)" % ", ".join(ordre))
     else:
-        if lignes["Contacts du centre"]["href"] != "#/ressources":
-            res.echec("menu du compte", vue, "« Contacts du centre » mène à %s, attendu #/ressources" % lignes["Contacts du centre"]["href"])
-        voisines = [x for x in ordre if x in ("Nouveautés", "Contacts du centre", "Mes préférences")]
-        if voisines != ["Nouveautés", "Contacts du centre", "Mes préférences"] or ordre.index("Contacts du centre") != ordre.index("Nouveautés") + 1 \
-                or ordre.index("Mes préférences") != ordre.index("Contacts du centre") + 1:
-            res.echec("menu du compte", vue, "« Contacts du centre » n'est pas entre « Nouveautés » et « Mes préférences » (lignes : %s)" % ", ".join(ordre))
+        if lignes["Contacts"]["href"] != "#/contacts":
+            res.echec("menu du compte", vue, "« Contacts » mène à %s, attendu #/contacts" % lignes["Contacts"]["href"])
+        voisines = [x for x in ordre if x in ("Nouveautés", "Contacts", "Mes préférences")]
+        if voisines != ["Nouveautés", "Contacts", "Mes préférences"] or ordre.index("Contacts") != ordre.index("Nouveautés") + 1 \
+                or ordre.index("Mes préférences") != ordre.index("Contacts") + 1:
+            res.echec("menu du compte", vue, "« Contacts » n'est pas entre « Nouveautés » et « Mes préférences » (lignes : %s)" % ", ".join(ordre))
+    if "Contacts du centre" in lignes:
+        res.echec("menu du compte", vue, "l'ancienne ligne « Contacts du centre » est encore là (lignes : %s)" % ", ".join(ordre))
     attendu = m["pastille"] or None
     if "Nouveautés" not in lignes:
         res.echec("menu du compte", vue, "la ligne « Nouveautés » manque (lignes : %s)" % ", ".join(lignes))
@@ -3185,8 +3195,17 @@ def verifier_preferences(page, res, sc):
     if p["sousTitre"] != SOUS_TITRE_PREFERENCES:
         res.echec("page Mes préférences", vue, "le sous-titre est « %s », attendu « %s »" % (p["sousTitre"], SOUS_TITRE_PREFERENCES))
     # Lot 3, tâche 11 : la section Apparence, toujours là (formateur sans fiche, module Notes fermé compris), la première de la page.
-    if verifier_apparence(page, res, sc, vue, "page") is not None and p["sections"][:1] != ["Apparence"]:
-        res.echec("page Mes préférences", vue, "la page commence par « %s », attendu « Apparence »" % ((p["sections"] or ["rien"])[0]))
+    # La fiche de contact (espace contact), quand la personne en a une, est la toute première section ; « Apparence » vient juste après.
+    contact = [s for s in p["sections"] if s in SECTIONS_CONTACT_PREFERENCES]
+    if len(contact) > 1 or (contact and p["sections"][:1] != contact):
+        res.echec("page Mes préférences", vue, "la fiche de contact (%s) n'est pas la première section (sections : %s)" % (", ".join(contact), ", ".join(p["sections"])))
+    if SECTION_ALERTES not in p["sections"]:
+        res.echec("page Mes préférences", vue, "la section « %s » manque (sections : %s)" % (SECTION_ALERTES, ", ".join(p["sections"]) or "aucune"))
+    elif p["sections"][:len(contact) + 1] != contact + [SECTION_ALERTES]:
+        res.echec("page Mes préférences", vue, "« %s » n'est pas juste après la fiche de contact (sections : %s)" % (SECTION_ALERTES, ", ".join(p["sections"])))
+    apres_contact = [s for s in p["sections"] if s not in SECTIONS_CONTACT_PREFERENCES and s != SECTION_ALERTES]
+    if verifier_apparence(page, res, sc, vue, "page") is not None and apres_contact[:1] != ["Apparence"]:
+        res.echec("page Mes préférences", vue, "la page commence par « %s », attendu « Apparence » (après la fiche de contact)" % ((apres_contact or ["rien"])[0]))
     if avec_reglage and p["anonymat"] is None:
         res.echec("page Mes préférences", vue, "la personne a une fiche de stagiaire : le réglage de l'anonymat dans les notes manque")
     if not res.profil_stagiaire and p["anonymat"] is not None:
@@ -3261,7 +3280,7 @@ def verifier_titre_de_page(page, res, sc, route, libelle):
 
 def verifier_sous_page(page, res, sc, route, libelle, options):
     """Chaque sous-onglet des pages touchées, une fois ouvert : Dates clés et Documents portent le nom de leur sous-onglet, la promo en
-    surtitre, et Documents appelle sa section des contacts « Contacts du centre » ; Élèves bénévoles montre le panneau de la banque."""
+    surtitre, et Documents n'a plus de section de contacts (leur page est « Contacts ») ; Élèves bénévoles montre le panneau de la banque."""
     if (route, libelle) in SOUS_PAGES:
         vue = "%s/titre/%s/%s" % (sc.nom, route, libelle)
         res.vues += 1
@@ -3275,15 +3294,15 @@ def verifier_sous_page(page, res, sc, route, libelle, options):
                 res.echec("titre de sous-page", vue, "le titre du sous-onglet « %s » est « %s »" % (libelle, tete["titre"]))
             if tete["surtitre"] != p["promo"]:
                 res.echec("surtitre de sous-page", vue, "le surtitre du sous-onglet « %s » est « %s », attendu le nom de la promo affichée (« %s »)" % (libelle, tete["surtitre"], p["promo"]))
-        if libelle == "Documents" and not any("Contacts du centre" in s for s in p["sections"]):
-            res.echec("titre de sous-page", vue, "Documents n'a pas de section « Contacts du centre » (sections : %s)" % (", ".join(p["sections"]) or "aucune"))
+        if libelle == "Documents" and any("Contacts du centre" in s for s in p["sections"]):
+            res.echec("titre de sous-page", vue, "Documents garde une section « Contacts du centre » : les contacts ont leur page, Contacts (sections : %s)" % ", ".join(p["sections"]))
         if tete is not None:
-            # Ruling R49 : les comptes des anciens surtitres terminent le sous-titre (« 7 dates clés. », « 12 liens · 4 contacts. »).
+            # Ruling R49 : les comptes des anciens surtitres terminent le sous-titre (« 7 dates clés. », « 12 liens. »).
             c = page.evaluate("() => window.__verifNav.comptesDesPages()")
             if libelle == "Dates clés":
                 attendu = "%d date%s clé%s." % (c["evenements"], pluriel(c["evenements"]), pluriel(c["evenements"]))
             else:
-                attendu = "%d lien%s · %d contact%s." % (c["liens"], pluriel(c["liens"]), c["contacts"], pluriel(c["contacts"]))
+                attendu = "%d lien%s." % (c["liens"], pluriel(c["liens"]))
             if not (tete["sousTitre"] or "").endswith(" " + attendu):
                 res.echec("comptes en fin de sous-titre", vue, "le sous-titre de « %s » est « %s », il doit se terminer par « %s »" % (libelle, tete["sousTitre"], attendu))
         vider_console(res, vue)
@@ -3908,31 +3927,170 @@ def verifier_pied_de_l_accueil(res, vue, m, nouvelle):
 
 
 def verifier_contacts_du_centre(page, res, sc):
-    """Menu du compte, nouvelle navigation (lot 2A, tâche 1) : la ligne « Contacts du centre » mène à #/ressources, que la redirection du lot 1 envoie à
-    Cours et QCM, sous-onglet Documents, où sont les contacts : la page s'ouvre sur « Documents », avec sa section « Contacts du centre »."""
-    vue = "%s/menus/contacts-du-centre" % sc.nom
+    """Menu du compte, nouvelle navigation : la ligne « Contacts » mène à #/contacts, la page s'ouvre sous le titre « Contacts » ; l'entrée de la barre
+    allumée est l'Accueil chez le stagiaire (Aujourd'hui chez l'équipe : la page n'a pas d'entrée à elle), aucune en direction."""
+    vue = "%s/menus/contacts" % sc.nom
     if not cliquer(page, res, vue, '[data-nav-coquille] button[data-nav-action="compte"]:visible', "bouton du compte"):
         return
     page.wait_for_timeout(300)
-    if not cliquer(page, res, vue, '[data-nav-coquille="compte"] [role="dialog"] a.nav-fenetre-lien:has-text("Contacts du centre")', "ligne « Contacts du centre »"):
+    if not cliquer(page, res, vue, '[data-nav-coquille="compte"] [role="dialog"] a.nav-fenetre-lien:has-text("Contacts")', "ligne « Contacts »"):
         page.keyboard.press("Escape")
         return
     attendre(page, calme=150)
     res.vues += 1
     p = page.evaluate("() => window.__verifNav.enTeteDePage()")
     tete = p["entetes"][-1] if p["entetes"] else None
-    actif = page.evaluate("() => { const b = document.querySelector('#view .subtabs-bar > .subtab.active'); return b ? b.textContent.trim() : null; }")
-    if p["route"] != "themes":
-        res.echec("Contacts du centre", vue, "la ligne mène à #/%s, attendu Cours et QCM (#/themes)" % p["route"])
-    elif tete is None or tete["titre"] != "Documents":
-        res.echec("Contacts du centre", vue, "la page ouverte par la ligne a pour titre « %s », attendu « Documents »" % (tete and tete["titre"]))
-    elif actif not in (None, "Documents"):
-        res.echec("Contacts du centre", vue, "le sous-onglet allumé est « %s », attendu « Documents »" % actif)
-    if p["route"] == "themes" and not any("Contacts du centre" in s for s in p["sections"]):
-        res.echec("Contacts du centre", vue, "la page ouverte par la ligne n'a pas de section « Contacts du centre » (sections : %s)" % (", ".join(p["sections"]) or "aucune"))
-    # La mémoire du sous-onglet de Cours (écrite par la redirection) est rendue comme on l'a trouvée.
-    page.evaluate("(cle) => { try { localStorage.removeItem(cle); } catch (e) { /* stockage bloqué */ } }", CLE_SOUS_ONGLET_COURS)
+    if p["route"] != "contacts":
+        res.echec("Contacts", vue, "la ligne mène à #/%s, attendu #/contacts" % p["route"])
+    elif tete is None or tete["titre"] != "Contacts":
+        res.echec("Contacts", vue, "la page ouverte par la ligne a pour titre « %s », attendu « Contacts »" % (tete and tete["titre"]))
+    else:
+        allumees = page.evaluate("""() => [...document.querySelectorAll('[data-nav-coquille] a[aria-current="page"]')]
+          .filter((a) => { const r = a.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).map((a) => a.getAttribute("data-entree"))""")
+        # La page n'a pas d'entrée à elle : l'Accueil (Aujourd'hui chez l'équipe) reste allumé, comme pour les autres pages du menu du compte ; la direction n'en allume aucune.
+        attendu = [] if sc.espace == "direction" else ["home"]
+        if sorted(set(allumees)) != attendu:
+            res.echec("Contacts", vue, "l'entrée allumée sur la page Contacts est %s, attendu %s" % (sorted(set(allumees)) or "aucune", attendu or "aucune"))
     vider_console(res, vue)
+
+
+ENTREES_ALLUMEES_JS = """() => [...document.querySelectorAll('[data-nav-coquille] [aria-current="page"]')]
+  .filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
+  .map((e) => (e.tagName === 'A' ? (e.getAttribute('href') || '').replace('#/', '') : (e.getAttribute('data-nav-action') || e.textContent.trim().toLowerCase())))"""
+
+
+def verifier_bouton_absence(page, res, sc):
+    """Accueil du stagiaire (espace contact) : le bouton « Prévenir d'une absence » est là, a 44 px de haut au moins, se voit sans défiler (375 px compris) et
+    mène à #/absence, sous le titre « Prévenir d'une absence », sans défilement de côté."""
+    vue = "%s/accueil/prevenir-absence" % sc.nom
+    aller_a(page, "#/home")
+    attendre(page, calme=200)
+    res.vues += 1
+    bouton = page.evaluate("""() => { const b = document.querySelector('#view .acc-absence-bouton');
+        if (!b) return null; const r = b.getBoundingClientRect();
+        return { texte: b.textContent.trim(), haut: Math.round(r.height), larg: Math.round(r.width), bas: Math.round(r.bottom), top: Math.round(r.top),
+                 fenetre: window.innerHeight, lien: b.getAttribute('href') }; }""")
+    if bouton is None:
+        res.echec("bouton d'absence", vue, "l'Accueil du stagiaire n'a pas le bouton « Prévenir d'une absence »")
+        return
+    if bouton["texte"] != "Prévenir d'une absence":
+        res.echec("bouton d'absence", vue, "le bouton dit « %s », attendu « Prévenir d'une absence »" % bouton["texte"])
+    if bouton["haut"] < 44 or bouton["larg"] < 44:
+        res.echec("bouton d'absence", vue, "le bouton fait %d x %d px, attendu 44 px au moins" % (bouton["larg"], bouton["haut"]))
+    if bouton["top"] < 0 or bouton["bas"] > bouton["fenetre"]:
+        res.echec("bouton d'absence", vue, "le bouton n'est pas visible sans défiler (de %d à %d px, fenêtre de %d px)" % (bouton["top"], bouton["bas"], bouton["fenetre"]))
+    if not cliquer(page, res, vue, "#view .acc-absence-bouton", "bouton « Prévenir d'une absence »"):
+        return
+    attendre(page, calme=200)
+    res.vues += 1
+    p = page.evaluate("() => window.__verifNav.enTeteDePage()")
+    tete = p["entetes"][-1] if p["entetes"] else None
+    if p["route"] != "absence":
+        res.echec("bouton d'absence", vue, "le bouton mène à #/%s, attendu #/absence" % p["route"])
+    elif tete is None or tete["titre"] != "Prévenir d'une absence":
+        res.echec("bouton d'absence", vue, "la page ouverte a pour titre « %s », attendu « Prévenir d'une absence »" % (tete and tete["titre"]))
+    debord = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    if debord > 0:
+        res.echec("défilement de côté", vue, "la page d'absence déborde de %d px à %d px de large" % (debord, sc.largeur))
+    vider_console(res, vue)
+
+
+def verifier_compteur_messages(page, res, sc, vue):
+    """Le compteur de l'entrée Messages (équipe) : la demande 101 du banc, remise non lue le temps du contrôle, donne la pastille « 1 » et le nom
+    « Messages, 1 non lu » dans la barre latérale ; sur téléphone, où l'entrée est rangée dans « Plus », le nom du bouton « Plus » dit « 1 message non lu ».
+    Une fois la demande lue, la pastille et le point partent."""
+    marquer = """(lue) => { const d = window.__DEM_DU_BANC; if (!d) return false;
+        d.demandes.forEach((x) => x.dest.forEach((y) => { y.lue_le = lue ? '2026-10-28T08:00:00Z' : null; }));
+        window.dispatchEvent(new CustomEvent('messages-change')); return true; }"""
+    telephone = sc.largeur < SEUIL_TELEPHONE
+    presente = """() => [...document.querySelectorAll('[data-nav-coquille] button, [data-nav-coquille] a[data-entree="messages"]')]
+        .some((b) => /1 (message )?non lu/.test(b.getAttribute('aria-label') || ''))"""
+    if not page.evaluate(marquer, False):
+        res.echec("compteur de Messages", vue, "le faux Supabase du banc n'est pas joint à la fenêtre (window.__DEM_DU_BANC) : le compteur ne peut pas être éprouvé")
+        return
+    try:
+        page.evaluate(marquer, False)
+        page.wait_for_function(presente, timeout=4000)
+    except DelaiDepasse:
+        res.echec("compteur de Messages", vue, "une demande non lue : ni pastille « 1 » ni nom « 1 non lu » sur %s" % ("« Plus »" if telephone else "l'entrée Messages"))
+    else:
+        if not telephone:
+            pastille = page.evaluate("""() => { const p = document.querySelector('[data-nav-coquille] a[data-entree="messages"] .nav-messages-compte');
+                return p ? { texte: p.textContent.trim(), nom: p.closest('a').getAttribute('aria-label') } : null; }""")
+            if not pastille or pastille["texte"] != "1" or pastille["nom"] != "Messages, 1 non lu":
+                res.echec("compteur de Messages", vue, "la pastille de Messages dit %s, attendu « 1 » et le nom « Messages, 1 non lu »" % (pastille,))
+    page.evaluate(marquer, True)
+    try:
+        page.wait_for_function("() => !document.querySelector('[data-nav-coquille] .nav-messages-compte') && ![...document.querySelectorAll('[data-nav-coquille] button')]"
+                               ".some((b) => /messages? non lus?/.test(b.getAttribute('aria-label') || ''))", timeout=4000)
+    except DelaiDepasse:
+        res.echec("compteur de Messages", vue, "toutes les demandes sont lues : la pastille ou le nom « non lu » reste")
+    vider_console(res, vue)
+
+
+def verifier_messages(page, res, sc, entrees, options):
+    """Messages (espace contact), équipe et direction, nouvelle navigation : l'entrée est la deuxième de la barre (rangée dans « Plus » sur téléphone) ;
+    sa page s'ouvre sous le titre « Messages » et ne défile pas de côté (375 px compris) ; l'adresse #/messages/<id> ouvre le suivi d'une demande et
+    garde Messages allumé (« Plus » sur téléphone, où l'entrée est rangée)."""
+    vue = "%s/messages" % sc.nom
+    routes = [e["route"] for e in entrees]
+    if "messages" not in routes:
+        res.echec("Messages", vue, "l'entrée « Messages » manque (entrées : %s)" % ", ".join(routes))
+        return
+    if routes.index("messages") != 1:
+        res.echec("Messages", vue, "« Messages » est en place %d, attendu en deuxième (entrées : %s)" % (routes.index("messages") + 1, ", ".join(routes)))
+    telephone = sc.largeur < SEUIL_TELEPHONE
+    entree = {"route": "messages", "libelle": "Messages"}
+    aller_a(page, "#/" + routes[0])
+    attendre(page, calme=150)
+    infos = chercher_lien(page, entree)
+    if telephone and infos["visibles"]:
+        res.echec("Messages", vue, "« Messages » est dans la barre du bas du téléphone, attendu rangée dans « Plus »")
+    if not telephone and not infos["visibles"]:
+        res.echec("Messages", vue, "« Messages » n'est pas visible dans la barre latérale")
+    # Les demandes du banc sont adressées au formateur du banc (rôle « prof ») et à la direction du centre : le fondateur, qui n'est ni l'un ni l'autre,
+    # n'y a aucun rôle (le compteur et le suivi d'une demande ne sont éprouvés que pour les deux autres).
+    avec_demandes = sc.role == "prof"
+    if sc.espace == "equipe" and avec_demandes:
+        verifier_compteur_messages(page, res, sc, vue)
+    ouvrir_entree(page, res, sc, entree)
+    attendre(page, calme=150)
+    res.vues += 1
+    p = page.evaluate("() => window.__verifNav.enTeteDePage()")
+    tete = p["entetes"][-1] if p["entetes"] else None
+    if p["route"] != "messages":
+        res.echec("Messages", vue, "l'entrée mène à #/%s, attendu #/messages" % p["route"])
+    elif tete is None or tete["titre"] != "Messages":
+        res.echec("Messages", vue, "la page ouverte par l'entrée a pour titre « %s », attendu « Messages »" % (tete and tete["titre"]))
+    debord = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    if debord > 0:
+        res.echec("défilement de côté", vue, "la page Messages déborde de %d px à %d px de large" % (debord, sc.largeur))
+    attendu = ["plus"] if telephone else ["messages"]
+    allumees = page.evaluate(ENTREES_ALLUMEES_JS)
+    if sorted(set(allumees)) != attendu:
+        res.echec("Messages", vue, "l'entrée allumée sur la page Messages est %s, attendu %s" % (sorted(set(allumees)) or "aucune", attendu))
+    vider_console(res, vue)
+    if not avec_demandes:
+        return
+    # Le suivi d'une demande : par son adresse, Messages reste allumé.
+    vue_suivi = vue + "/demande"
+    aller_a(page, "#/messages/101")
+    attendre(page, calme=200)
+    res.vues += 1
+    if not page.evaluate("() => !!document.querySelector('#view .demande-page .demande-etapes')"):
+        res.echec("Messages", vue_suivi, "#/messages/101 n'ouvre pas le suivi d'une demande (étapes absentes)")
+    else:
+        p = page.evaluate("() => window.__verifNav.enTeteDePage()")
+        if p["route"] != "messages":
+            res.echec("Messages", vue_suivi, "le suivi est à #/%s, attendu #/messages" % p["route"])
+        allumees = page.evaluate(ENTREES_ALLUMEES_JS)
+        if sorted(set(allumees)) != attendu:
+            res.echec("Messages", vue_suivi, "l'entrée allumée sur le suivi d'une demande est %s, attendu %s" % (sorted(set(allumees)) or "aucune", attendu))
+        debord = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
+        if debord > 0:
+            res.echec("défilement de côté", vue_suivi, "le suivi d'une demande déborde de %d px à %d px de large" % (debord, sc.largeur))
+        verifier_vue(page, res, sc, "messages/101", options)
+    vider_console(res, vue_suivi)
 
 
 def verifier_ccp2(page, res, sc):
@@ -4188,13 +4346,13 @@ def verifier_lecteur(page, res, sc, options):
 
 
 def jouer_ressources_fermees(page, res, sc, options):
-    """Le module Ressources est fermé pour la promo (lot 2A, tâche 1) : les contacts du centre, qui sont dans Cours et QCM > Documents, ne sont plus pour les
-    stagiaires, et la ligne « Contacts du centre » de leur menu du compte disparaît avec eux (elle ne mènerait nulle part). L'équipe, qui voit tout, la garde."""
+    """Le module Ressources est fermé pour la promo : la page Contacts ne dépend d'aucun module, la ligne « Contacts » du menu du compte reste chez le
+    stagiaire comme chez l'équipe."""
     regles = regles_de_la_page(page, res, sc)
     preparer_coquille(page, res, sc, regles)
     if not res.coquille:
         return
-    vue = "%s/menus/contacts-du-centre" % sc.nom
+    vue = "%s/menus/contacts" % sc.nom
     res.vues += 1
     if not cliquer(page, res, vue, '[data-nav-coquille] button[data-nav-action="compte"]:visible', "bouton du compte"):
         return
@@ -4203,10 +4361,8 @@ def jouer_ressources_fermees(page, res, sc, options):
     libelles = [l["libelle"] for l in (m or {"lignes": []})["lignes"]]
     if "Mes préférences" not in libelles:
         res.echec("menu du compte", vue, "le menu du compte ne s'ouvre pas (lignes : %s)" % ", ".join(libelles))
-    elif sc.espace == "equipe" and "Contacts du centre" not in libelles:
-        res.echec("Contacts du centre", vue, "l'équipe voit tous les modules : la ligne « Contacts du centre » manque (lignes : %s)" % ", ".join(libelles))
-    elif sc.espace != "equipe" and "Contacts du centre" in libelles:
-        res.echec("Contacts du centre", vue, "Ressources est fermé pour la promo : la ligne « Contacts du centre » ne mène nulle part chez un stagiaire")
+    elif "Contacts" not in libelles:
+        res.echec("Contacts", vue, "Ressources est fermé pour la promo : la ligne « Contacts » manque, elle ne dépend d'aucun module (lignes : %s)" % ", ".join(libelles))
     page.keyboard.press("Escape")
     page.wait_for_timeout(250)
     vider_console(res, vue)
@@ -4417,10 +4573,9 @@ def verifier_accueil_stagiaire(page, res, sc, vue, jour=None):
             res.echec("accueil du stagiaire", vue, "le bandeau d'émargement dit encore « Signer » sur l'Accueil : « %s »" % bandeau["texte"])
     # Le pied de liens
     liens = {l["texte"]: l for l in m["liens"]}
-    contacts = "Contacts du centre" in liens
-    if contacts == sc.ressources_fermees or (contacts and liens["Contacts du centre"]["href"] != "#/ressources"):
-        res.echec("accueil du stagiaire", vue, "« Contacts du centre » %s (module Ressources %s)"
-                  % ("est là" if contacts else "manque", "fermé" if sc.ressources_fermees else "ouvert"))
+    if "Contacts" not in liens or liens["Contacts"]["href"] != "#/contacts":
+        res.echec("accueil du stagiaire", vue, "le lien « Contacts » du pied de liens %s (module Ressources %s)"
+                  % ("manque" if "Contacts" not in liens else "mène à %s, attendu #/contacts" % liens["Contacts"]["href"], "fermé" if sc.ressources_fermees else "ouvert"))
     if liens.get("Mes préférences", {}).get("href") != "#/preferences":
         res.echec("accueil du stagiaire", vue, "le lien « Mes préférences » mène à %s, attendu #/preferences" % liens.get("Mes préférences", {}).get("href"))
     if "Signaler un problème" not in liens or liens["Signaler un problème"]["balise"] != "BUTTON":
@@ -4672,7 +4827,8 @@ def jouer_direction(page, res, sc):
     accueil #/centre) et non plus l'espace de l'équipe en lecture seule : l'accueil, chaque entrée de la barre (et du tiroir « Plus ») sans refus ni
     phrase « pas dans l'espace », puis Planning, Cours et QCM (D15) et Mon suivi, hors de l'espace : l'accueil, et la phrase qui le dit."""
     vue = "%s/direction" % sc.nom
-    preparer_coquille(page, res, sc, regles_de_la_page(page, res, sc))
+    regles = regles_de_la_page(page, res, sc)
+    preparer_coquille(page, res, sc, regles)
     toast = "() => { const t = document.getElementById('toast'); return t && !t.classList.contains('hidden') ? t.innerText : ''; }"
     # 1. L'accueil de l'espace : #/home y mène.
     aller_a(page, "#/home")
@@ -4702,14 +4858,18 @@ def jouer_direction(page, res, sc):
             res.echec("direction, page hors de l'espace", vue, "#/%s ouvre #/%s, attendu l'accueil #/centre" % (route, route_courante(page)))
         if "Cette page n'est pas dans l'espace Direction." not in dit:
             res.echec("direction, page hors de l'espace", vue, "#/%s ramène à l'accueil sans la phrase (message : « %s »)" % (route, dit))
+    # 4. Messages (espace contact) : sa place, sa page, le suivi d'une demande.
+    if res.coquille:
+        verifier_messages(page, res, sc, regles["entrees"], {})
     vider_console(res, vue)
 
 
 # Les titres du banc (étape 3, Task 33) : le compte du banc, la barre que ses cases laissent (routes) et le titre que le menu du compte nomme.
+# Messages (espace contact) n'a pas de case : il est dans la barre de tout titre de l'équipe et de la direction.
 TITRES_DU_BANC = {
-    "secretariat": {"routes": ("#/centre", "#/promos", "#/stagiaires", "#/emargement", "#/equipe"), "nom": "Secrétariat",
+    "secretariat": {"routes": ("#/centre", "#/messages", "#/promos", "#/stagiaires", "#/emargement", "#/equipe"), "nom": "Secrétariat",
                     "absentes": ("#/notes", "#/config")},
-    "intervenant": {"routes": ("#/home", "#/planning", "#/emargement", "#/stagiaires", "#/themes"), "nom": "Intervenant",
+    "intervenant": {"routes": ("#/home", "#/messages", "#/planning", "#/emargement", "#/stagiaires", "#/themes"), "nom": "Intervenant",
                     "absentes": ("#/notes", "#/ccp2", "#/centre", "#/config")},
 }
 
@@ -5987,8 +6147,12 @@ def jouer_allume(page, res, sc, options):
         verifier_menu_du_compte_a_l_ouverture(page, res, sc)
         verifier_a_traiter(page, res, sc)
         verifier_contacts_du_centre(page, res, sc)
+        if sc.espace == "stagiaire" and res.profil_stagiaire:
+            verifier_bouton_absence(page, res, sc)
     entrees = regles["entrees"]
     parcourir_entrees(page, res, sc, entrees, options)
+    if res.coquille and sc.espace == "equipe":
+        verifier_messages(page, res, sc, entrees, options)
     if res.coquille and sc.espace == "equipe" and sc.largeur == LARGEUR_DE_LA_FICHE:
         verifier_graphe_de_la_fiche(page, res, sc, options)
     # Les pages que le menu du compte ouvre sans avoir d'entrée à elles : Mon espace (qui a un profil
