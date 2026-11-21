@@ -39,24 +39,43 @@
 // autonomie » après « Absences », la ligne neuve du tableau du § 5, la première ligne du tableau du § 10. Le § 13 ne change pas.
 // Commit isolé exprès : il se retire seul (git revert) si Timy réécrit le texte.
 //
+// Version 2026-11-21 (version groupée : espace contact, étape 4 des titres et droits, résultats de jury, ménage du 11/11) :
+// nouvelles données (téléphone et financement d'un stagiaire, demandes au centre, absences annoncées avec un motif, résultat au
+// jury du titre, titres du personnel et leur journal) et nouveaux destinataires (membres de l'équipe d'un centre selon leur
+// fonction, alertes par e-mail envoyées par Resend), donc nouvelle acceptation, une seule pour les trois chantiers. Texte validé
+// par Timy le 18/11 (« Oui, toutes ») : docs/legal/conditions_version_groupee.md du dépôt ECSR, formes [selon 1] à [selon 4]
+// retenues, cellule Siège du résultat au jury à « Non ». Paragraphes repris des plans
+// docs/superpowers/plans/2026-11-14-espace-contact-textes-donnees.md et docs/superpowers/plans/2026-11-11-titres-droits-conditions.md,
+// ajustés aux décisions du 18/11 (motifs sans « santé » : transport, démarche, famille, raison personnelle, autre ; la page du
+// lien sans connexion ne montre ni le motif ni le mot d'une absence ; motif effacé à douze mois avec le mot). Ménage :
+// « souhaits de séances » et « fiches de suivi » n'existent plus depuis le 11/11. Passages neufs ou retouchés : l'essentiel (lignes 2, 4 et 7) ; le § 2 ; le tableau du § 3 (Profil, Résultats, Suivi,
+// lignes « Demandes et messages » et « Droits du personnel ») ; le tableau du § 4 (ligne des souhaits retirée, cinq lignes
+// neuves) et ses paragraphes « L'équipe de votre centre », « Journal des droits du personnel », « Absences » (réécrit) et
+// « Demandes et absences annoncées » (avec l'engagement de l'éditeur de ne pas lire ces tables directement) ; le § 5 (ligne des
+// e-mails, deux lignes neuves) ; le titre du § 7 et son paragraphe « Personnes de l'équipe sans compte » ; les lignes Supabase
+// et Resend du § 8 ; le tableau du § 10 (fiches de suivi retirées, sept lignes neuves) ; la phrase « compte effacé » du § 12 ;
+// la puce des formateurs du § 15. La migration supabase/migrations/20261121_conditions_version.sql, déjà écrite, publie cette
+// date en base : elle s'applique AVANT la poussée de l'app, puis, le même jour, 20261114_autonomie_2_version.sql
+// (-v version=2026-11-21).
+//
 // Depuis le 14/11 (20261114_restes_1_conditions.sql), la base n'enregistre que la version qu'elle publie,
 // conditions_version_publiee(). Changer VERSION_CONDITIONS demande donc une migration qui remplace cette fonction par la
 // même date, appliquée AVANT la poussée de l'app (l'ordre inverse bloque la fenêtre d'acceptation jusqu'à la migration ;
 // tests/conditions-version.test.mjs vérifie que les deux disent la même chose).
 //
 
-export const VERSION_CONDITIONS = "2026-11-14";
+export const VERSION_CONDITIONS = "2026-11-21";
 
 export const CONDITIONS_MD = `# Conditions d'utilisation et données personnelles
 
 > **L'essentiel en 8 lignes**
 > L'application accompagne la formation au Titre professionnel ECSR. Elle est éditée par Timy Studio, la micro-entreprise de Timy Valdivia.
-> Elle enregistre ce qui sert à la formation : profil, notes, QCM, passages, absences, livret, dossier professionnel, et vos réponses aux questionnaires de satisfaction, enregistrées sans votre nom.
+> Elle enregistre ce qui sert à la formation : profil (dont téléphone facultatif et financement), notes, QCM, passages, absences, résultat au jury du titre, demandes au centre et absences annoncées, livret, dossier professionnel, et vos réponses aux questionnaires de satisfaction, enregistrées sans votre nom.
 > Vos notes sont visibles des autres stagiaires de votre promo, sauf si vous choisissez de les masquer.
-> Personne d'extérieur à la formation n'y accède, à une exception près : ECF (École de Conduite Française), l'organisme qui assure la formation. La direction de votre centre voit, comme vos formateurs, votre suivi nominatif (notes, planning, passages, absences, date de naissance) ; le siège d'ECF ne voit que des chiffres par centre, sans aucun nom. ECF peut aussi présenter des documents de la formation à son certificateur Qualiopi et à ses financeurs.
+> Personne d'extérieur à la formation n'y accède, à une exception près : ECF (École de Conduite Française), l'organisme qui assure la formation. La direction de votre centre, et les membres de son équipe à qui elle en donne le droit selon leur fonction, voient, comme vos formateurs, votre suivi nominatif (notes, planning, passages, absences, date de naissance) ; le siège d'ECF ne voit que des chiffres par centre, sans aucun nom. ECF peut aussi présenter des documents de la formation à son certificateur Qualiopi et à ses financeurs.
 > La base de données est hébergée en France ; l'assistant passe par Scaleway, hébergeur français, qui ne conserve pas les messages.
 > Rien n'est vendu, rien ne sert à la publicité, aucun traceur publicitaire ni mesure d'audience.
-> Douze mois après la formation, les comptes et les textes libres des stagiaires disparaissent ; les preuves de la formation (résultats, heures, présences) sont gardées trois ans, puis rendues anonymes.
+> Douze mois après la formation, les comptes et les textes libres des stagiaires (observations, commentaires, demandes et leurs messages) disparaissent ; les preuves de la formation (résultats, heures, présences) sont gardées trois ans, puis rendues anonymes.
 > Chacun peut consulter, corriger ou faire supprimer ses données, et saisir la CNIL.
 
 ## 1. Qui édite l'application
@@ -69,7 +88,7 @@ L'application n'est pas éditée par ECF. C'est un outil d'accompagnement, pas u
 
 ## 2. Le compte et l'accès
 
-L'accès est réservé aux stagiaires des promos ECSR et aux personnes associées à leur formation (formateurs, ECF). Chaque compte est personnel : on ne partage pas ses identifiants et on n'utilise pas le compte d'un autre.
+L'accès est réservé aux stagiaires des promos ECSR et aux personnes associées à leur formation (formateurs, intervenants, personnel des centres et du siège d'ECF). Chaque compte est personnel : on ne partage pas ses identifiants et on n'utilise pas le compte d'un autre.
 
 L'usage de l'application suppose d'accepter les présentes conditions. L'acceptation est enregistrée avec sa date et la version du texte.
 
@@ -77,15 +96,17 @@ L'usage de l'application suppose d'accepter les présentes conditions. L'accepta
 
 | Catégorie | Contenu |
 |-----------|---------|
-| Profil | Nom, prénom, adresse e-mail, rôle, promo, date de naissance (reportée sur le livret officiel) |
-| Résultats | Notes et évaluations, tentatives et scores aux QCM, examens blancs (EPCF) |
-| Suivi | Passages en voiture, absences, placements au planning, souhaits de séances |
+| Profil | Nom, prénom, adresse e-mail, rôle, promo, date de naissance (reportée sur le livret officiel), téléphone (facultatif), financement de la formation (renseigné par le centre), délégué ou suppléant de la promo |
+| Résultats | Notes et évaluations, tentatives et scores aux QCM, examens blancs (EPCF), résultat au jury du titre professionnel (date de la session ; titre obtenu, validation partielle avec le CCP acquis, non obtenu, absent) |
+| Suivi | Passages en voiture, absences, placements au planning |
+| Demandes et messages | Les demandes que vous adressez au centre ou qu'il vous adresse (type, sujet, messages, état : envoyée, prise en compte, annulée ; chaque destinataire est noté « lue » quand il ouvre la demande dans l'application), et pour une absence annoncée : les jours, le moment, le motif choisi dans une liste (transport, démarche, famille, raison personnelle, autre), un mot facultatif de 200 caractères au plus et l'état du justificatif (à remettre, reçu). Aucun document ni certificat ne passe par l'application |
 | Travail en autonomie | Quand votre centre a activé ce suivi pour votre promo : les cours que vous avez ouverts et lus, avec leur date, l'endroit où vous vous êtes arrêté, et le temps que vous passez à lire les cours et à vous entraîner aux QCM, compté par jour. Ce temps n'est compté que lorsque la page du cours ou du QCM est affichée et que vous êtes actif ; l'application ne mesure rien sur ses autres pages |
 | Documents | Livret d'évaluation, dossier professionnel |
 | Contributions | Signalements d'erreur sur les QCM ; signalements de problème sur l'application (message, capture facultative, page, appareil et navigateur utilisés) |
 | Questionnaires | Vos réponses, enregistrées sans votre nom ni la date ; l'application note seulement que vous avez participé |
 | Émargement | Feuilles de présence de chaque demi-journée : votre signature dessinée, son heure, le compte qui l'a posée, présence ou absence, observation éventuelle du formateur ; signature et nom des formateurs |
 | Historique | Qui a créé ou modifié une note ou un passage, et quand |
+| Droits du personnel | Pour les formateurs et le personnel d'ECF : leur titre, les promos ou le centre où il s'exerce, et le journal des droits (qui a donné, retiré, créé ou modifié quel titre, quand) |
 | Assistant | Nombre de messages envoyés par jour (le contenu des échanges n'est pas conservé, voir section 9) |
 
 L'application ne collecte ni géolocalisation, ni contacts du téléphone, ni données de navigation à des fins publicitaires. Elle n'enregistre ni vos gestes un par un, ni ce que vous faites en dehors d'elle.
@@ -96,11 +117,15 @@ L'application ne collecte ni géolocalisation, ni contacts du téléphone, ni do
 |--------|------|-------------------|------------|---------------------------|--------------|
 | Notes et évaluations | Oui | Oui, sauf si masquées | Oui | Oui, y compris les notes masquées | Non, seulement une moyenne par centre |
 | Moyennes du groupe | Oui | Oui, sans nom | Oui | Oui | Seulement par centre, sans nom |
+| Résultat au jury du titre | Non dans l'application (le jury vous le notifie) | Non | Oui | Oui | Non |
 | Planning, passages, absences | Oui | Oui | Oui | Oui | Non, seulement le nombre d'absences par centre |
 | Date de naissance | Oui | Non | Oui | Oui | Non |
-| Souhaits de séances | Oui | Non | Oui | Oui | Non |
+| Téléphone, e-mail et financement d'un stagiaire | Oui | Non | Oui | Oui | Non |
 | Livret, dossier professionnel, EPCF | Oui | Non | Oui | Oui | Non, seulement le nombre de compétences EPCF acquises par centre |
 | Travail en autonomie (cours lus, temps passé) | Oui, dans Mon suivi | Non | Oui | Oui | Non |
+| Demandes et messages | Oui, les vôtres | Non | Oui, celles qui leur sont adressées | Oui, toutes celles du centre | Non |
+| Absence annoncée : jours et moment | Oui | Oui, « absent » au planning ; le délégué voit en plus votre nom et les jours, sauf si vous avez décoché son envoi | Oui | Oui | Non |
+| Absence annoncée : motif et mot facultatif | Oui | Non, délégué compris | Oui, pour les formateurs destinataires ou prévenus | Oui | Non |
 | Feuilles d'émargement | Oui, votre ligne | Non | Oui | Oui | Non |
 | Réponses aux questionnaires | Votre participation seulement | Non | Non | Non ; les résultats regroupés, à partir du seuil, vont aux personnes chargées de la qualité | Non |
 | Signalements de problème | Oui | Non | Non | Non | Non |
@@ -109,15 +134,21 @@ L'application ne collecte ni géolocalisation, ni contacts du téléphone, ni do
 
 La présentation, par ECF à son certificateur Qualiopi et à ses financeurs, des documents décrits en section 5 n'est pas une lecture dans l'application : elle s'ajoute à ces deux colonnes.
 
+**L'équipe de votre centre.** La direction de votre centre peut confier une partie de ces accès à d'autres membres de son équipe, selon leur fonction : par exemple un secrétariat, qui gère les fiches des stagiaires (identité, coordonnées, date de naissance, passages) sans voir les notes, ou un intervenant, qui tient les feuilles d'émargement des promos où il intervient. Chaque fonction porte un titre, affiché dans l'application, qui dit page par page ce que la personne peut voir ou modifier. Personne ne reçoit plus que ce que voient vos formateurs et la direction de votre centre, et la base de données vérifie ces droits à chaque demande. Au siège d'ECF, une personne chargée des contenus ou de la qualité ne lit, elle non plus, aucun nom de stagiaire.
+
+**Journal des droits du personnel.** Chaque fois qu'un titre est donné, retiré, créé, modifié ou supprimé, l'application le note : quand, par qui, pour qui, sur quelle promo ou quel centre, et ce que le titre permettait avant et après. Ce journal ne concerne que le personnel : aucune invitation de stagiaire n'y figure. Personne ne peut le modifier. Il est lu par les personnes qui gèrent l'équipe d'un centre, pour ce centre, par le siège d'ECF, sans les titres donnés sur une promo, et par l'éditeur.
+
 « Autres stagiaires » : ceux de votre promo seulement. Le planning leur est visible parce qu'il organise la formation de tous. Les signalements de problème ne sont lus que par l'éditeur, pour corriger l'application et vous répondre.
 
 **Masquer ses notes.** Depuis vos préférences, vous pouvez masquer vos notes : les autres stagiaires ne voient plus ni votre prénom ni vos notes, qui restent comptées dans les moyennes du groupe. Vos formateurs et la direction de votre centre continuent de les voir, avec votre nom. En contrepartie, vous ne voyez plus que votre ligne et les moyennes du groupe. Ce masquage est garanti par la base de données elle-même, pas seulement par l'affichage. Pour éviter les allers-retours, après un changement (annulable dans les deux minutes), le réglage reste fixe pendant 24 heures.
 
 Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre promo.
 
-**Absences.** L'application ne prévoit aucun champ pour le motif d'une absence : un passage est marqué « Absence », une feuille d'émargement « absent ». Les formateurs s'engagent à ne pas en écrire dans une observation libre (section 15). L'observation d'un passage est lue comme le passage lui-même (vos camarades de promo, vos formateurs, la direction de votre centre) ; celle d'une feuille d'émargement, par vous, vos formateurs et la direction de votre centre.
+**Absences.** Pour un passage et pour l'émargement, l'application ne prévoit aucun champ pour le motif d'une absence : un passage est marqué « Absence », une feuille d'émargement « absent ». Le seul endroit où un motif existe est l'absence que vous annoncez vous-même (paragraphe « Demandes et absences annoncées »), où vous le choisissez dans une liste, sans détail. Une absence annoncée pré-remplit la feuille d'émargement par « absent » et l'observation « Absence prévenue » ou « Absence justifiée », jamais par le motif. Les formateurs s'engagent à ne pas écrire de motif dans une observation libre (section 15). L'observation d'un passage est lue comme le passage lui-même (vos camarades de promo, vos formateurs, la direction de votre centre) ; celle d'une feuille d'émargement, par vous, vos formateurs et la direction de votre centre.
 
 **Travail en autonomie.** Ce suivi n'existe que si votre centre l'a activé pour votre promo. Vous voyez dans Mon suivi exactement ce que vos formateurs et la direction de votre centre voient de vous : rien de plus ne leur est montré. Les autres stagiaires n'y ont pas accès, et l'application n'établit aucun classement. Ce suivi ne déclenche aucune décision automatique : il sert à vous repérer dans votre travail et à permettre à vos formateurs de vous accompagner.
+
+**Demandes et absences annoncées.** Une demande part vers les personnes que votre centre a désignées pour ce type de demande, selon votre financement quand le centre l'a prévu. Quand le centre n'a rien réglé pour ce type de demande, vous choisissez vous-même qui la reçoit, parmi vos formateurs et la direction de votre centre ; pour une absence ou un retard, vos formateurs du jour sont déjà cochés. Une demande est lue par ses destinataires, et la direction de votre centre peut lire toutes les demandes du centre. Une absence que vous annoncez prévient aussi vos formateurs du jour et le délégué de la promo ; vous pouvez décocher ces envois, l'absence apparaît alors quand même au planning, et le délégué ne la voit pas autrement. Quand il est prévenu, le délégué ne voit que les jours et le moment : ni le motif, ni votre mot, et il ne peut pas ouvrir la demande. Le mot facultatif est un texte libre : n'y écrivez aucune information de santé. La mention « lue » ne se pose que lorsqu'un destinataire ouvre la demande dans l'application : les e-mails ne contiennent ni image ni lien de suivi, et ouvrir un e-mail ne marque rien. Chaque compte peut couper ses alertes par e-mail dans ses préférences ; les fiches sans compte les reçoivent toujours. Le corps d'un e-mail ne contient jamais le motif ni un message. Les e-mails adressés à l'équipe portent des boutons (prise en compte, réponse toute faite, justificatif reçu, « Voir la demande ») qui fonctionnent sans connexion pendant quatorze jours ; sans connexion, une absence s'affiche sans le motif, ni le mot facultatif, ni les échanges, qui se lisent dans l'application après connexion. Ces e-mails ne doivent pas être transférés. L'éditeur administre la base de données et peut techniquement en lire les tables ; il s'engage à ne consulter les demandes et les absences annoncées que par les écrans de l'application.
 
 **Questionnaires de satisfaction.** La réponse est enregistrée sans nom, sans compte, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Dans l'application et dans les documents qu'elle produit, personne ne peut voir qui a répondu quoi : les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre (dans ces conditions, « le centre » désigne ECF, l'organisme de formation), dans un ordre aléatoire, sous la même condition.
 
@@ -132,11 +163,13 @@ Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre
 | Permettre à la direction du centre d'ECF où vous êtes formé de consulter votre suivi nominatif (résultats, planning, passages, absences, état civil) | Intérêt légitime de l'organisme de formation à suivre ses stagiaires : assiduité, dossiers des financeurs, Qualiopi |
 | Donner au siège d'ECF une vue d'ensemble par centre, sans aucun nom de stagiaire | Intérêt légitime de l'organisme de formation à piloter son réseau de centres |
 | Produire des statistiques anonymes pour améliorer l'application et les contenus | Intérêt légitime de l'éditeur |
-| Envoyer les e-mails du compte (invitation, mot de passe oublié) | Nécessaire au fonctionnement du compte |
+| Envoyer les e-mails du compte (invitation, mot de passe oublié) et les alertes des demandes | Nécessaire au fonctionnement du compte pour l'invitation et le mot de passe oublié ; intérêt légitime de l'organisme de formation pour les alertes des demandes, que vous pouvez couper |
 | Permettre à ECF de présenter les documents de la formation à son certificateur Qualiopi et à ses financeurs | Obligation légale : la certification Qualiopi conditionne l'accès aux fonds publics et mutualisés de la formation professionnelle (code du travail, article L6316-1) |
 | Recueillir votre avis sur la formation par des questionnaires enregistrés sans nom, et en produire un taux de satisfaction | Intérêt légitime de l'éditeur et du centre à mesurer et améliorer la formation, preuve que le centre doit pouvoir apporter à son certificateur |
 | Répondre à vos questions par l'assistant | Intérêt légitime ; l'assistant n'est utilisé que si vous lui écrivez |
 | Suivre le travail en autonomie (cours lus, temps passé sur les cours et les QCM d'entraînement), pour vous aider à vous repérer et permettre à vos formateurs de vous accompagner | Intérêt légitime de l'organisme de formation à suivre la progression de ses stagiaires et à vérifier que les ressources mises à disposition sont utilisées (indicateur 19 du référentiel Qualiopi) ; vous pouvez vous y opposer (section 12) |
+| Organiser la formation et joindre les personnes : annuaire de l'équipe, demandes, absences annoncées, alertes par e-mail | Intérêt légitime de l'organisme de formation à organiser la formation et à joindre les personnes |
+| Calculer le taux d'obtention du titre du centre, à partir des résultats au jury | Intérêt légitime de l'organisme de formation à mesurer ses résultats, preuve attendue par son certificateur Qualiopi (indicateur 2 du référentiel) |
 
 **Documents du centre.** L'application produit des documents (dossier de la formation, dossier du centre, fiche de résultats) qu'ECF, qui forme les stagiaires, présente à son certificateur Qualiopi et à ses financeurs pour prouver ce qu'il fait. Ils reprennent des chiffres de l'application : heures, présences, résultats, taux de satisfaction. Le dossier de la formation est nominatif ; le dossier destiné au siège ne contient aucun nom. Aucun de ces documents ne contient une réponse individuelle à un questionnaire ni un commentaire libre. ECF les remet lui-même : l'éditeur ne les envoie à personne.
 
@@ -150,7 +183,7 @@ Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre
 - Transmettre des données nominatives à d'autres que ECF. La présentation de documents par ECF à son certificateur et à ses financeurs (section 5) n'est pas une transmission par l'éditeur.
 - Croiser les données avec des services extérieurs à la formation.
 
-## 7. Les personnes sans compte : élèves bénévoles et auto-écoles partenaires
+## 7. Les personnes sans compte : élèves bénévoles, auto-écoles partenaires, personnes de l'équipe sans compte
 
 Pour organiser les séances de conduite, les formateurs enregistrent les **élèves bénévoles** (prénom, nom, téléphone, niveau, type de boîte, disponibilités, venues) et les **référents des auto-écoles partenaires** (nom, téléphone, e-mail, adresse de l'auto-école).
 
@@ -160,14 +193,16 @@ Pour organiser les séances de conduite, les formateurs enregistrent les **élè
 - Pour un élève mineur, on enregistre de préférence le numéro d'un parent, avec son accord.
 - La personne est informée de cet enregistrement lors de sa première venue, et peut exercer les mêmes droits que les stagiaires (section 12).
 
+**Personnes de l'équipe sans compte.** L'annuaire du centre peut contenir des fiches de personnes de l'équipe qui n'ont pas de compte (secrétariat, accueil) : nom, titre, e-mail et téléphone professionnels, pour quoi et quand les joindre. Ces fiches sont visibles des stagiaires et de l'équipe du centre, et des centres avec lesquels elles sont partagées. Une fiche est masquée de l'annuaire à la date de départ de la personne, puis supprimée par l'équipe ; elle l'est aussi sur simple demande. Les personnes de l'équipe qui ont un compte ont également une fiche dans l'annuaire ; leurs coordonnées n'y sont montrées qu'une fois qu'elles ont enregistré leur fiche.
+
 ## 8. Où vivent les données : les prestataires
 
 | Prestataire | Rôle | Ce qu'il voit | Où |
 |-------------|------|---------------|----|
-| Supabase | Base de données et comptes | L'ensemble des données de l'application | Union européenne (région de Paris) |
+| Supabase | Base de données, comptes et fonction d'envoi des alertes | L'ensemble des données de l'application | Union européenne (région de Paris) |
 | GitHub (GitHub Pages) | Hébergement des pages de l'application | L'adresse IP de connexion, conservée pour la sécurité | États-Unis |
 | Scaleway | Moteur de l'assistant (modèles d'IA de Mistral AI, hébergés par Scaleway) | Les messages envoyés à l'assistant, le temps de générer la réponse | France (Paris), Union européenne |
-| Resend | Envoi des e-mails du compte | L'adresse e-mail du destinataire et le contenu de l'e-mail | États-Unis |
+| Resend | Envoi des e-mails du compte et des alertes des demandes | L'adresse e-mail et le nom du destinataire, et le contenu de l'e-mail : type de demande, nom de la personne qui écrit, jours et moment d'une absence, boutons d'action ; jamais le motif ni un message | États-Unis |
 
 Les transferts vers les États-Unis (GitHub, Resend) sont encadrés par le cadre de protection des données UE-États-Unis (Data Privacy Framework) et par les clauses contractuelles types de la Commission européenne.
 
@@ -183,13 +218,20 @@ L'assistant est une **intelligence artificielle** : ses réponses sont généré
 
 | Données | Durée |
 |---------|-------|
-| Compte, adresse e-mail, date de naissance, fiches de suivi, travail en autonomie (cours lus, temps passé), textes libres (observations, commentaires) | Toute la formation, puis douze mois |
+| Compte, adresse e-mail, date de naissance, travail en autonomie (cours lus, temps passé), textes libres (observations, commentaires) | Toute la formation, puis douze mois |
 | Preuves de la formation : nom, résultats, heures, présences, feuilles d'émargement signées, dossier professionnel, livret | Toute la formation, puis trois ans (jusqu'au 31 décembre de la troisième année après la fin de la formation) : c'est la durée du cycle de certification Qualiopi. Ensuite les noms, les signatures, le dossier professionnel et le livret sont effacés ; les heures, présences et résultats restent sans nom |
 | Questionnaires de satisfaction | Les réponses, enregistrées sans nom, sont gardées trois ans comme les preuves de la formation (jusqu'au 31 décembre de la troisième année après la fin de la formation ; pour le questionnaire des formateurs, après l'année du questionnaire), puis supprimées : seuls restent les résultats regroupés (taux et répartitions, à partir du seuil). Les commentaires libres sont effacés douze mois après la fin de la formation (pour le questionnaire des formateurs, le 31 décembre de l'année suivante). La note de participation est supprimée douze mois après la fin de la formation (pour le questionnaire des formateurs, à la fin de l'année du questionnaire) |
 | Registre qualité du centre (réclamations, difficultés, aléas, améliorations, risques) | Trois ans après la clôture de l'entrée, puis ses textes (description, réponse, action décidée, mesure de prévention) sont vidés ; le type, l'origine, la promo, le lieu, les dates et l'état restent |
 | Historique des modifications | Même durée que la donnée concernée |
 | Signalements de problème | Douze mois au plus, et jamais au-delà de la fermeture du compte |
+| Demandes et messages | Toute la formation, puis douze mois ; entre membres de l'équipe : douze mois après le dernier échange |
+| Absence annoncée (jours, moment, justificatif) | Comme les preuves de la formation : trois ans, puis sans nom. Le mot facultatif, les réponses et les envois sont effacés douze mois après la fin de la formation |
+| Motif d'une absence annoncée | Douze mois après la fin de la formation, avec le mot ; tout de suite en cas d'effacement sur demande (section 12) |
+| Liens des e-mails et journal des envois | Un lien cesse de fonctionner au bout de quatorze jours et sa trace est supprimée trois mois plus tard ; le journal des envois (qui a été prévenu, de quoi, sans texte ni motif) est supprimé trois mois après l'envoi |
+| Fiches de l'équipe sans compte | Masquées de l'annuaire à la date de départ de la personne, puis supprimées par l'équipe ; supprimées aussi sur demande |
+| Téléphone et financement d'un stagiaire | Comme le compte |
 | Élèves bénévoles, référents d'auto-école | Douze mois au plus après la dernière venue ou le dernier contact |
+| Journal des droits du personnel | Trois ans, puis effacement automatique |
 | Statistiques anonymes | Sans limite (elles n'identifient personne) |
 
 Au terme de ces durées, les comptes sont fermés et les données nominatives sont supprimées ou anonymisées : les résultats restent dans les statistiques, les noms disparaissent. Aucune donnée nominative n'est gardée au-delà du 31 décembre de la troisième année après la fin de la formation. Chaque effacement est fait dans le mois qui suit la date indiquée. Un stagiaire qui quitte la formation en cours de route est traité de la même façon, à compter de la fin de sa promo.
@@ -212,7 +254,7 @@ Conformément au RGPD, chacun peut :
 
 Pour exercer ces droits : contact@timy-studio.fr, ou directement auprès de l'éditeur. La réponse intervient dans un délai d'un mois au plus. La suppression des données nominatives n'affecte pas les statistiques anonymes déjà produites.
 
-**Effacement sur demande.** Une demande d'effacement est exécutée sans attendre la fin des durées de la section 10, dans le délai d'un mois indiqué ci-dessus, même si cela retire des preuves de votre parcours : le dossier de la formation indique alors « fiche effacée à la demande de la personne ». Vos réponses aux questionnaires, enregistrées sans votre nom ni votre compte, ne peuvent pas être retrouvées pour être retirées une à une ; c'est la contrepartie de cet enregistrement sans nom.
+**Effacement sur demande.** Une demande d'effacement est exécutée sans attendre la fin des durées de la section 10, dans le délai d'un mois indiqué ci-dessus, même si cela retire des preuves de votre parcours : le dossier de la formation indique alors « fiche effacée à la demande de la personne ». Vos réponses aux questionnaires, enregistrées sans votre nom ni votre compte, ne peuvent pas être retrouvées pour être retirées une à une ; c'est la contrepartie de cet enregistrement sans nom. Pour un membre du personnel, l'effacement remplace son adresse par « compte effacé » dans le journal des droits : la trace du geste reste, sans son nom.
 
 Si vous estimez que vos droits ne sont pas respectés, vous pouvez adresser une réclamation à la **CNIL** (www.cnil.fr).
 
@@ -232,7 +274,7 @@ L'application repose sur la confiance au sein de la promo. Chacun s'engage à :
 
 - ne pas tenter d'accéder aux données d'autrui hors des écrans prévus ;
 - ne pas diffuser à l'extérieur des données personnelles vues dans l'application ;
-- pour les formateurs : n'écrire dans les champs de commentaire aucune information de santé ni de vie privée (une absence se note « absent », sans motif médical) ;
+- pour les formateurs : n'écrire dans les champs de commentaire ni dans les réponses aux demandes aucune information de santé ni de vie privée (une absence se note « absent », sans motif médical) ;
 - signaler à l'éditeur tout dysfonctionnement touchant aux données.
 
 L'éditeur maintient l'application sans garantie de disponibilité.

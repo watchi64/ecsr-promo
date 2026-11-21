@@ -44,11 +44,12 @@ eq(reperesNonRemplis(MENTIONS_MD), [], "mentions légales : SIRET et adresse à 
 // (formateur de la promo ou direction de son lieu) ouvre stagiaires_prive, fiches_suivi, evaluations (notes masquées
 // comprises), epcf, dp, livret, émargement ; passages et planning sont lus par toute la promo accessible ; le siège ne lit que
 // comptes_reseau() (chiffres par centre, sans nom). Questionnaires : seul le fondateur (peut_gerer_qualite) lit les résultats regroupés, ni la direction ni le siège.
-eq(VERSION_CONDITIONS, "2026-11-14", "version du lot 1 de l'e-learning (date de mise en ligne)");
+eq(VERSION_CONDITIONS, "2026-11-21", "version groupée : espace contact, titres, jury (date de mise en ligne)");
 ok(CONDITIONS_MD.includes("| Travail en autonomie | Quand votre centre a activé ce suivi pour votre promo"), "§ 3 : ligne Travail en autonomie");
 ok(CONDITIONS_MD.includes("**Travail en autonomie.** Ce suivi n'existe que si votre centre l'a activé pour votre promo."), "§ 4 : paragraphe Travail en autonomie");
 ok(CONDITIONS_MD.includes("| Travail en autonomie (cours lus, temps passé) | Oui, dans Mon suivi |"), "§ 4 : ligne du tableau");
-ok(CONDITIONS_MD.includes("fiches de suivi, travail en autonomie (cours lus, temps passé), textes libres"), "§ 10 : durée du travail en autonomie");
+ok(CONDITIONS_MD.includes("date de naissance, travail en autonomie (cours lus, temps passé), textes libres"), "§ 10 : durée du travail en autonomie");
+ok(!/souhaits de séances|fiches de suivi/i.test(CONDITIONS_MD), "ménage du 11/11 : souhaits de séances et fiches de suivi retirés");
 const tableau = CONDITIONS_MD.split("## 4. Qui voit quoi")[1].split("\n\n")[1].trim().split("\n")
   .map((l) => l.split("|").slice(1, -1).map((c) => c.trim()));
 eq(tableau[0], ["Donnée", "Vous", "Autres stagiaires", "Formateurs", "Direction de votre centre", "Siège d'ECF"], "colonnes du tableau");
@@ -58,7 +59,6 @@ const DIRECTION = {
   "Moyennes du groupe": "Oui",
   "Planning, passages, absences": "Oui",
   "Date de naissance": "Oui",
-  "Souhaits de séances": "Oui",
   "Livret, dossier professionnel, EPCF": "Oui",
   "Feuilles d'émargement": "Oui",
   "Réponses aux questionnaires": "Non ; les résultats regroupés, à partir du seuil, vont aux personnes chargées de la qualité",
@@ -66,7 +66,14 @@ const DIRECTION = {
 };
 for (const [nom, v] of Object.entries(DIRECTION)) eq(ligne(nom)[4], v, `direction : ${nom}`);
 // Le siège ne lit aucune donnée nominative : seulement des totaux par centre.
-for (const nom of ["Date de naissance", "Souhaits de séances", "Feuilles d'émargement", "Signalements de problème"]) eq(ligne(nom)[5], "Non", `siège : ${nom}`);
+for (const nom of ["Date de naissance", "Feuilles d'émargement", "Signalements de problème", "Résultat au jury du titre",
+  "Téléphone, e-mail et financement d'un stagiaire", "Demandes et messages", "Absence annoncée : jours et moment",
+  "Absence annoncée : motif et mot facultatif"]) eq(ligne(nom)[5], "Non", `siège : ${nom}`);
+// Jury : le stagiaire ne lit pas sa ligne dans l'app (20261114_jury_resultats.sql) ; motif : jamais les autres stagiaires.
+ok(/^Non/.test(ligne("Résultat au jury du titre")[1]), "jury : le stagiaire ne le lit pas dans l'application");
+ok(/^Non/.test(ligne("Absence annoncée : motif et mot facultatif")[2]), "motif : ni les autres stagiaires ni le délégué");
+ok(!/santé, transport/i.test(CONDITIONS_MD) &&/transport, démarche, famille, raison personnelle, autre/.test(CONDITIONS_MD),
+  "motifs d'absence sans « santé » (20261118_contact_5_donnees_sensibles.sql)");
 for (const nom of ["Notes et évaluations", "Planning, passages, absences", "Livret, dossier professionnel, EPCF"])
   ok(/^Non, seulement/.test(ligne(nom)[5]), `siège : ${nom}, des totaux par centre seulement`);
 ok(/sans aucun nom de stagiaire/.test(CONDITIONS_MD) && /moins de cinq stagiaires/.test(CONDITIONS_MD), "siège : chiffres par centre, masqués sous cinq");

@@ -61,7 +61,7 @@ eq(seuilDe("formateur"), 3, "seuil formateurs");
 // Conditions d'utilisation
 ok(/^[0-9]{4}-[0-9]{2}-[0-9]{2}[a-z]?$/.test(VERSION_CONDITIONS), "format de version");
 ok(VERSION_CONDITIONS !== "2026-10-23", "nouvelle version des conditions");
-ok(VERSION_CONDITIONS === "2026-11-14", "version du jour (lot 1 de l'e-learning : travail en autonomie)");
+ok(VERSION_CONDITIONS === "2026-11-21", "version du jour (version groupée : espace contact, titres, jury)");
 ok(/Qualiopi/.test(CONDITIONS_MD), "conditions : Qualiopi cité");
 ok(/financeurs/.test(CONDITIONS_MD), "conditions : financeurs cités");
 ok(/sans (votre )?nom/.test(CONDITIONS_MD), "conditions : réponses aux questionnaires enregistrées sans nom");
@@ -89,7 +89,7 @@ ok(section(4).split("\n").some((l) => l.startsWith("| Feuilles d'émargement |")
 ok(!/plus de trois ans après la fin/.test(CONDITIONS_MD)
   && /au-delà du 31 décembre de la troisième année après la fin de la formation/.test(CONDITIONS_MD),
   "conditions : la limite des données nominatives suit la règle du 31 décembre");
-ok(/les comptes et les textes libres des stagiaires disparaissent/.test(CONDITIONS_MD),
+ok(/les comptes et les textes libres des stagiaires (\([^)]*\) )?disparaissent/.test(CONDITIONS_MD),
   "conditions : l'essentiel limite les douze mois aux textes des stagiaires");
 ok(!/à compter de son départ/.test(CONDITIONS_MD) && /à compter de la fin de sa promo/.test(CONDITIONS_MD),
   "conditions : un départ en cours de route compte depuis la fin de la promo");
