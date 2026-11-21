@@ -259,7 +259,9 @@ const restes = NOUVEAUTES.find((e) => e.id === RESTES_ID);
 ok(!!restes && restes.pour === "tous" && restes.id.startsWith(restes.date + "-") && restes.ou?.route === "themes",
   "petits restes : pour tous, id préfixé par sa date, mène à Cours et QCM");
 for (const [formateur, espace] of [[false, "stagiaire"], [true, "equipe"]]) {
-  eq(ids(triees(visibles(NOUVEAUTES, formateur, espace)))[0], RESTES_ID, `petits restes : en tête (espace ${espace})`);
+  // Jugé parmi les entrées du 14/11 : l'espace contact, mis en ligne le 21/11, passe devant.
+  eq(ids(triees(visibles(NOUVEAUTES, formateur, espace)).filter((e) => e.date === "2026-11-14"))[0], RESTES_ID,
+    `petits restes : en tête des entrées du 14/11 (espace ${espace})`);
 }
 for (const espace of [undefined, "stagiaire"]) {
   ok(!ids(visibles(NOUVEAUTES, false, espace)).includes(CONSERVATION_ID), `conservation : jamais chez un stagiaire (espace ${espace})`);
