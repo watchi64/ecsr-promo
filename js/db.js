@@ -1,21 +1,22 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261121a";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261121a";
-import { compteDansEquite } from "./passage-rules.js?v=20261121a";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261121a";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261121a";
-import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261121a";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261121a";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261121a";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261122a";
+import { adresseApp } from "./adresse.js?v=20261122a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261122a";
+import { compteDansEquite } from "./passage-rules.js?v=20261122a";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261122a";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261122a";
+import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261122a";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261122a";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261122a";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261121a";
-import { ENTETE_APERCU, ENTETE_APERCU_TITRE, titreSimule, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261121a";
-import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261121a";
-import { effectifDesFiches } from "./centre-stats.js?v=20261121a";
-import { exigerLignes, phraseDelegue } from "./contact-annuaire-rules.js?v=20261121a";
-import { demiJourneesDe } from "./contact-absences-rules.js?v=20261121a";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261121a";
+} from "./promo-rules.js?v=20261122a";
+import { ENTETE_APERCU, ENTETE_APERCU_TITRE, titreSimule, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261122a";
+import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261122a";
+import { effectifDesFiches } from "./centre-stats.js?v=20261122a";
+import { exigerLignes, phraseDelegue } from "./contact-annuaire-rules.js?v=20261122a";
+import { demiJourneesDe } from "./contact-absences-rules.js?v=20261122a";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261122a";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -1998,16 +1999,14 @@ export async function signUpWithPassword(email, password) {
   return data;
 }
 
-// URL de retour du mail de réinitialisation. Doit figurer dans les Redirect URLs
-// du tableau de bord Supabase, sinon le lien est refusé.
-const URL_RETOUR = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
-  ? location.origin + "/"
-  : "https://watchi64.github.io/ecsr-promo/";
+// URL de retour du mail de réinitialisation : l'adresse de la page ouverte (js/adresse.js),
+// jamais une adresse en dur. Elle doit figurer dans les Redirect URLs du tableau de bord
+// Supabase, sinon le lien est refusé.
 
 export async function requestPasswordReset(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(
     email.trim().toLowerCase(),
-    { redirectTo: URL_RETOUR },
+    { redirectTo: adresseApp() },
   );
   if (error) throw error;
 }

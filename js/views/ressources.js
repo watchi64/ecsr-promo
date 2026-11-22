@@ -1,12 +1,12 @@
 import {
   listRessources, addRessource, updateRessource, deleteRessource,
   getPromoCourante,
-} from "../db.js?v=20261121a";
-import { el, clear, toast } from "../utils.js?v=20261121a";
-import { confirmer } from "../confirmer.js?v=20261121a";
-import { icon } from "../icons.js?v=20261121a";
-import { ecritSelonLaCase } from "../auth-admin.js?v=20261121a";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261121a";
+} from "../db.js?v=20261122a";
+import { el, clear, toast } from "../utils.js?v=20261122a";
+import { confirmer } from "../confirmer.js?v=20261122a";
+import { icon } from "../icons.js?v=20261122a";
+import { ecritSelonLaCase } from "../auth-admin.js?v=20261122a";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261122a";
 
 let ressources = [];
 

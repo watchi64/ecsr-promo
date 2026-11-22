@@ -4,10 +4,10 @@
 
 ## TL;DR
 
-Web app de suivi des promotions **TP ECSR** : depuis octobre 2026, plusieurs promos dans la même base (« Nîmes, mars 2026 » et « Montpellier, septembre 2026 », cf. § Multi-promo), mêmes formateurs (Hocine, Raphaël, Romain) + 1 admin watchi64. Stack : HTML/CSS/JS vanilla + Supabase + GitHub Pages.
+Web app de suivi des promotions **TP ECSR** : depuis octobre 2026, plusieurs promos dans la même base (« Nîmes, mars 2026 » et « Montpellier, septembre 2026 », cf. § Multi-promo), mêmes formateurs (Hocine, Raphaël, Romain) + 1 admin watchi64. Stack : HTML/CSS/JS vanilla + Supabase + Scaleway (Object Storage et Edge Services, Paris).
 
-- URL : **https://watchi64.github.io/ecsr-promo/**
-- Repo : `github.com/watchi64/ecsr-promo` (public)
+- URL : champ `adresse` de `deploiement/site.json` (seul endroit où elle est écrite). L'ancienne adresse `watchi64.github.io/ecsr-promo/` redirige vers elle depuis la bascule.
+- Repo : `github.com/watchi64/ecsr-promo` (privé depuis la bascule vers Scaleway)
 - Local : `C:\Users\watch\Dev\ECSR\TP_ECSR_App`
 - Dossier formation (cours/QCM) : `C:\Users\watch\Dev\ECSR\` (séparé du repo app)
 
@@ -20,7 +20,7 @@ Web app de suivi des promotions **TP ECSR** : depuis octobre 2026, plusieurs pro
 | Frontend | HTML/CSS/JS vanilla, modules ES, **pas de framework** (refus assumé) |
 | Backend | Supabase Postgres, project `crpduennbqaemhfaywrz` (eu-west-3 Paris, org Timy Studio : migré le 17/06/2026 depuis dacqponglpeuscbgwfqn) |
 | Edge Functions | `chatbot`, `qcm-ia` (deploy via MCP `mcp__800314df__deploy_edge_function`) ; les invitations passent par la fonction SQL `inviter_compte` |
-| Hébergement | GitHub Pages, branche `main` |
+| Hébergement | Scaleway Object Storage + Edge Services (Paris), mis en ligne à chaque poussée de `main` par `.github/workflows/mise-en-ligne.yml` ; seuls les fichiers servis partent (`outils/deployer/preparer.mjs`) |
 | Typo | Canela (display, self-hosted .otf) + Outfit (Google Fonts body) + Geist Mono (numéros) |
 | Logo | `assets/logo/tpecsr-logo.svg` (capsule TP) : SVG seul, le PNG a été supprimé |
 | Palette | Mint éditorial unique (`:root`), accent vert `#6B7F4E`. Plus de switcher thème/accent |

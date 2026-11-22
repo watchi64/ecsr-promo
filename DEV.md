@@ -3,7 +3,8 @@
 But : développer en local, valider, puis déployer **seulement quand c'est sûr**.
 
 > **Règle d'or :** un commit reste sur ton PC. Seul `git push origin main`
-> met en ligne (GitHub Pages déploie la branche `main`).
+> met en ligne : l'Action GitHub « Mise en ligne » envoie les seuls fichiers servis sur
+> Scaleway, purge le cache et vérifie le jeton servi (`deploiement/LISEZ-MOI.md`).
 
 ## 1. Lancer la preview locale
 
@@ -43,7 +44,9 @@ Le hook `.githooks/pre-commit` re-versionne le cache-bust automatiquement.
 ```powershell
 git push origin main
 ```
-GitHub Pages déploie en 1 à 2 min sur https://watchi64.github.io/ecsr-promo/
+L'Action « Mise en ligne » (onglet Actions du dépôt) part toute seule, environ 2 minutes, et finit
+VERTE seulement si l'adresse de `deploiement/site.json` sert le jeton `?v=` du commit. Elle peut
+se relancer à la main (bouton « Run workflow ») après un réglage changé chez Scaleway.
 
 ---
 

@@ -10,13 +10,13 @@
 // `ouvrirEditeurTitre` l'ouvre dans la fenêtre commune de la page Équipe (ouvrirFormulaire) et appelle ajuster_titre. Ces deux
 // modules ne se chargent l'un l'autre qu'à l'ouverture (import dynamique) : la page Équipe importe celui-ci, sans cycle au démarrage.
 
-import { el, toast } from "../utils.js?v=20261121a";
+import { el, toast } from "../utils.js?v=20261122a";
 import {
   choixDeLaPage, releverStagiaires, PHRASE_STAGIAIRES_RELEVE, bandeaux, phrasePorteurs, phraseVersionCentre,
   casesEnChaines, casesEnNombres, LIBELLE_NIVEAU, PAGES_DU_NIVEAU,
-} from "../titres-rules.js?v=20261121a";
-import { entreesNavigation } from "../nav-rules.js?v=20261121a";
-import { confirmer } from "../confirmer.js?v=20261121a";
+} from "../titres-rules.js?v=20261122a";
+import { entreesNavigation } from "../nav-rules.js?v=20261122a";
+import { confirmer } from "../confirmer.js?v=20261122a";
 
 export const PHRASE_NOM_REQUIS = "Donnez un nom au titre.";
 const LIBELLE_CHOIX = { non: "Non", voir: "Voir", modifier: "Modifier" };
@@ -118,8 +118,8 @@ export async function confirmerVersion(editeur, demander) {
 // fenêtre, par sa phrase ; la confirmation d'une version du centre refusée laisse la fenêtre ouverte, sans message.
 export async function ouvrirEditeurTitre({ titre, niveau, lieuId = null, porteurs = 0, apres = null, ancre = null }) {
   const [{ ouvrirFormulaire }, { ajusterTitre }] = await Promise.all([
-    import("./direction-equipe.js?v=20261121a"),
-    import("../db.js?v=20261121a"),
+    import("./direction-equipe.js?v=20261122a"),
+    import("../db.js?v=20261122a"),
   ]);
   const editeur = construireEditeur({ titre, niveau, lieuId, porteurs });
   ouvrirFormulaire({

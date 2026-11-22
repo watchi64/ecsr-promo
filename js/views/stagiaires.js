@@ -5,20 +5,20 @@
 // Nouvelle navigation (lot 2A) : sous l'en-tête, deux sous-onglets, « Stagiaires » (la page d'avant) et
 // « Élèves bénévoles » (la banque des volontaires, ouverte dans la page et non plus dans une fenêtre).
 
-import { listEpcfEtats, listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261121a";
-import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261121a";
-import { icon } from "../icons.js?v=20261121a";
-import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261121a";
-import { ligneListe } from "../fiche-rules.js?v=20261121a";
-import { surChangementAdresse, oublierMajSurPlace, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261121a";
-import { ecritSelonLaCase } from "../auth-admin.js?v=20261121a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261121a";
-import { renderSubTabs } from "../subtabs.js?v=20261121a";
-import { renderBenevoles } from "./benevoles.js?v=20261121a";
+import { listEpcfEtats, listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261122a";
+import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261122a";
+import { icon } from "../icons.js?v=20261122a";
+import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261122a";
+import { ligneListe } from "../fiche-rules.js?v=20261122a";
+import { surChangementAdresse, oublierMajSurPlace, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261122a";
+import { ecritSelonLaCase } from "../auth-admin.js?v=20261122a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261122a";
+import { renderSubTabs } from "../subtabs.js?v=20261122a";
+import { renderBenevoles } from "./benevoles.js?v=20261122a";
 import {
   chargerContexteFiche, chargerFiche, renderFiche, dispositionFiche,
   noterDocument, ecouterDocuments, afficherErreur,
-} from "./mon-suivi.js?v=20261121a";
+} from "./mon-suivi.js?v=20261122a";
 
 const CLE_DERNIERE = "ecsr_stagiaires_derniere";
 const CLE_ONGLET = "ecsr_stagiaires_subtab";

@@ -4,12 +4,13 @@
 // La page n'est PAS dans la barre d'onglets : on y arrive par le lien
 // « Tout voir » d'Accueil, comme #/mon-suivi n'a pas d'onglet non plus.
 
-import { el, clear, formatLongDate } from "../utils.js?v=20261121a";
-import { nouveautesAffichables, marquerLues } from "../modules-etat.js?v=20261121a";
-import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261121a";
-import { hrefLien } from "../route-rules.js?v=20261121a";
-import { getEspace } from "../auth-admin.js?v=20261121a";
-import { ouSelonNavigation } from "../ou-trouver.js?v=20261121a";
+import { el, clear, formatLongDate } from "../utils.js?v=20261122a";
+import { nouveautesAffichables, marquerLues } from "../modules-etat.js?v=20261122a";
+import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261122a";
+import { hrefLien } from "../route-rules.js?v=20261122a";
+import { getEspace } from "../auth-admin.js?v=20261122a";
+import { ouSelonNavigation } from "../ou-trouver.js?v=20261122a";
+import { avecAdresse } from "../adresse.js?v=20261122a";
 
 // Lien « Où le trouver ». Une partie de Mon espace se vise par l'adresse
 // (#/mon-suivi/dp) ; un sous-onglet de Notes, de Cours ou de Stagiaires, par la clé que
@@ -36,11 +37,12 @@ function lienOu(ou) {
 
 // Guide facultatif, replié par défaut dans Accueil et déplié sur la page.
 // <details> natif : pas de JavaScript d'ouverture, et le clavier fonctionne.
+// Le repère {adresse} d'une étape (modèle de SMS) devient l'adresse de l'app.
 function blocGuide(guide, deplie) {
   if (!Array.isArray(guide) || guide.length === 0) return null;
   return el("details", { class: "nv-guide", open: deplie ? "" : null },
     el("summary", {}, "Comment faire"),
-    el("ol", {}, ...guide.map((etape) => el("li", {}, etape))),
+    el("ol", {}, ...guide.map((etape) => el("li", {}, avecAdresse(etape)))),
   );
 }
 

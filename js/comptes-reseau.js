@@ -3,8 +3,8 @@
 // versComptes) : mêmes définitions des deux côtés, jouées par une fixture commune (tests/fixtures/comptes-promo.json).
 // Un compte s'additionne entre promos et entre centres ; un ratio ne se calcule que sur des comptes sommés.
 
-import { fusionnerEmargements } from "./presence-rules.js?v=20261121a";
-import { fusionnerJury } from "./centre-stats.js?v=20261121a";
+import { fusionnerEmargements } from "./presence-rules.js?v=20261122a";
+import { fusionnerJury } from "./centre-stats.js?v=20261122a";
 
 // Chaque champ reflète une colonne de comptes_reseau (enFormation = en_formation, notesSomme = notes_somme...).
 export const CHAMPS_COMPTES = ["inscrits", "enFormation", "abandons", "absences", "prevus", "qcmBonnes",
