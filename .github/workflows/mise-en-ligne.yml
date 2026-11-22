@@ -110,6 +110,20 @@ jobs:
           done
           echo "::warning::Purge encore en cours après 2 minutes : la vérification va attendre."
 
-      - name: Vérifier en ligne
+      # Le point d'accès d'Edge Services répond toujours, nom de domaine branché ou non.
+      - name: Vérifier le point d'accès Scaleway
         if: steps.conf.outputs.pret == 'oui'
-        run: node outils/deployer/verifier_en_ligne.mjs "${{ steps.conf.outputs.adresse }}" --essais 8
+        run: node outils/deployer/verifier_en_ligne.mjs "https://${{ steps.conf.outputs.pipeline_edge }}.svc.edge.scw.cloud/" --essais 8
+
+      # L'adresse publique, seulement quand le DNS la connaît (CNAME posé par Timy chez Infomaniak).
+      - name: Vérifier l'adresse publique
+        if: steps.conf.outputs.pret == 'oui'
+        env:
+          ADRESSE: ${{ steps.conf.outputs.adresse }}
+        run: |
+          hote="${ADRESSE#*://}"; hote="${hote%%/*}"
+          if getent hosts "$hote" > /dev/null; then
+            node outils/deployer/verifier_en_ligne.mjs "$ADRESSE" --essais 8
+          else
+            echo "::notice::$hote ne résout pas encore (CNAME absent) : seule l'adresse Scaleway est vérifiée."
+          fi

@@ -8,7 +8,9 @@ git push origin main
       1. outils/deployer/preparer.mjs : copie les seuls fichiers servis dans _site/ (environ 650)
       2. envoi dans le bucket Scaleway (Object Storage, Paris)
       3. purge complète du cache d'Edge Services
-      4. outils/deployer/verifier_en_ligne.mjs : le jeton ?v= servi égale celui du commit
+      4. outils/deployer/verifier_en_ligne.mjs : le jeton ?v= servi égale celui du commit, sur le
+         point d'accès Scaleway (<pipeline>.svc.edge.scw.cloud), puis sur app.jalonya.fr dès que
+         le DNS la connaît
   → navigateur ← Edge Services (domaine, certificat, cache) ← bucket en mode « site web »
 ```
 
@@ -16,7 +18,8 @@ git push origin main
   Rien d'autre : `docs/`, `supabase/`, `tests/`, `outils/`, `scripts/`, `sources/`, les notes et le banc
   (`_*`) ne quittent pas le dépôt. Le script s'arrête si un module servi importe un fichier non servi,
   si index.html ou le manifeste citent un fichier absent, ou si un motif de secret apparaît.
-- **Réglages** : `deploiement/site.json`. C'est le **seul endroit** où l'adresse de l'app est écrite.
+- **Réglages** : `deploiement/site.json`. C'est le **seul endroit** où l'adresse de l'app est écrite
+  (`https://app.jalonya.fr/` depuis le 22/11/2026).
   L'app elle-même calcule son adresse depuis la page ouverte (`js/adresse.js`).
 - **Clés** : secrets du dépôt GitHub `SCW_ACCESS_KEY` et `SCW_SECRET_KEY` (application IAM
   « mise-en-ligne-github », droits limités au projet). Jamais dans le dépôt ni dans un `.env`.
@@ -40,15 +43,15 @@ git push origin main
 | Ajouter un dossier servi | `DOSSIERS_SERVIS` dans `outils/deployer/preparer.mjs`, et son test |
 | Changer d'adresse | `deploiement/site.json`, puis la liste de contrôle ci-dessous |
 
-## Quand l'adresse change (nom de domaine choisi, ou plus tard)
+## Brancher une adresse (app.jalonya.fr, ou une autre plus tard)
 
 1. Infomaniak : enregistrement CNAME du sous-domaine vers `<pipeline>.svc.edge.scw.cloud.` (un sous-domaine
-   obligatoirement, par exemple `app.nom.fr` : Edge Services refuse un domaine nu).
+   obligatoirement : Edge Services refuse un domaine nu).
 2. Scaleway, Edge Services, pipeline, « Configure domain » : le sous-domaine, « Verify CNAME », certificat
    Let's Encrypt géré.
-3. `deploiement/site.json` : `adresse` = `https://app.nom.fr/` (avec la barre finale). Commit, fusion.
-4. Supabase, Authentication, URL Configuration : Site URL = la nouvelle adresse (barre finale) ; Redirect
-   URLs : ajouter `https://app.nom.fr/**`, garder l'ancienne trois semaines.
+3. `deploiement/site.json` : `adresse` avec la barre finale. Commit, fusion.
+4. Supabase, Authentication, URL Configuration : Redirect URLs : ajouter `https://<adresse>/**` ; le jour
+   de la coupure, Site URL = la nouvelle adresse (barre finale) ; garder l'ancienne trois semaines.
 5. `python scripts/guide-pdf.py` : régénère le PDF du guide CCP2 avec la nouvelle adresse en pied de page.
 6. Dépôt public de redirection `watchi64/ecsr-promo` : `node outils/deployer/redirection.mjs --sortie <dossier>`
    puis pousser ses deux pages.
