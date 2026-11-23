@@ -5334,20 +5334,20 @@ def jouer_planning_etroit(page, res, sc):
 
 def verifier_epcf_de_l_equipe(page, res, sc):
     """Notes et examens > EPCF, page de l'équipe : le sous-onglet garde son rendu des moyennes de la classe sous son titre « Moyennes de la classe » (celui
-    de La classe de Mon suivi est « Moyennes EPCF de la classe »), pour les deux épreuves."""
+    de La classe de Mon suivi est « Moyennes EPCF de la classe »), pour les trois épreuves (salle, véhicule, CCP2)."""
     vue = "%s/notes/epcf" % sc.nom
     res.vues += 1
     attendre(page)
     m = page.evaluate("() => window.__verifNav.epcfDeLEquipe()")
     if m["titre"] != "Moyennes de la classe":
         res.echec("notes de l'équipe, EPCF", vue, "le titre du sous-onglet EPCF est « %s », attendu « Moyennes de la classe »" % m["titre"])
-    if m["epreuves"] != 2:
-        res.echec("notes de l'équipe, EPCF", vue, "le sous-onglet EPCF montre %d épreuve(s), 2 attendues (salle et véhicule)" % m["epreuves"])
+    if m["epreuves"] != 3:
+        res.echec("notes de l'équipe, EPCF", vue, "le sous-onglet EPCF montre %d épreuve(s), 3 attendues (salle, véhicule, CCP2)" % m["epreuves"])
     vider_console(res, vue)
 
 
 def verifier_moyennes_epcf(res, vue, e):
-    """La section « Moyennes EPCF de la classe » de La classe (m["epcf"] de laClasse()) : titrée, sous la matrice, deux épreuves, le rendu des moyennes
+    """La section « Moyennes EPCF de la classe » de La classe (m["epcf"] de laClasse()) : titrée, sous la matrice, trois épreuves (salle, véhicule, CCP2 ; le banc ne sert de moyennes qu'aux deux premières), le rendu des moyennes
     de la classe avec son k-anonymat (une moyenne n'est montrée qu'à partir de 3 stagiaires évalués). Le banc sert des moyennes sur 3, 2 et 1
     stagiaires : celles sur 2 et 1 ne doivent jamais être montrées."""
     if e is None:
@@ -5358,8 +5358,8 @@ def verifier_moyennes_epcf(res, vue, e):
     if not e["sousLaMatrice"]:
         res.echec("la classe, moyennes EPCF", vue, "la section n'est pas placée sous la vue de la classe (matrice, synthèse, graphiques)")
     evalues = max(n for rangees in MOYENNES_EPCF_DU_BANC.values() for (_, _, n) in rangees)
-    if len(e["epreuves"]) != 2:
-        res.echec("la classe, moyennes EPCF", vue, "la section montre %d épreuve(s), 2 attendues (salle et véhicule)" % len(e["epreuves"]))
+    if len(e["epreuves"]) != 3:
+        res.echec("la classe, moyennes EPCF", vue, "la section montre %d épreuve(s), 3 attendues (salle, véhicule, CCP2)" % len(e["epreuves"]))
     for epreuve, rangees in zip(e["epreuves"], (MOYENNES_EPCF_DU_BANC["salle"], MOYENNES_EPCF_DU_BANC["vehicule"])):
         # Le pluriel s'accorde (stagiairesEvalues de js/epcf-classe-rules.js), jamais « stagiaire(s) évalué(s) ».
         accorde = "aucun stagiaire évalué" if not evalues else "1 stagiaire évalué" if evalues == 1 else "%d stagiaires évalués" % evalues
