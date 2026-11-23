@@ -3,14 +3,14 @@
 // « Sera envoyé à » : le centre a réglé qui reçoit, ou le stagiaire coche au moins une personne), puis suit sa demande. Règles pures : js/contact-absences-rules.js et js/contact-rules.js ; la base juge tout et ses refus se
 // disent par leur phrase. Réservé aux stagiaires (espace du compte, vueStagiaire), tutoiement. Aucun défilement de côté.
 
-import { apercuAbsence, prevenirAbsence } from "../db.js?v=20261122a";
-import { el, clear, toast } from "../utils.js?v=20261122a";
-import { icon } from "../icons.js?v=20261122a";
-import { vueStagiaire } from "../auth-admin.js?v=20261122a";
-import { jourParis, jourDe } from "../dates.js?v=20261122a";
-import { lignesEncadre, libelleDestinataire, phraseContact, basculerCoche } from "../contact-rules.js?v=20261122a";
-import { demiJourneesDe, verifierAbsence, phraseCasesDecochees, LIBELLES_MOTIF } from "../contact-absences-rules.js?v=20261122a";
-import { routeDesDemandes } from "./contact-ecrire.js?v=20261122a";
+import { apercuAbsence, prevenirAbsence } from "../db.js?v=20261123a";
+import { el, clear, toast } from "../utils.js?v=20261123a";
+import { icon } from "../icons.js?v=20261123a";
+import { vueStagiaire } from "../auth-admin.js?v=20261123a";
+import { jourParis, jourDe } from "../dates.js?v=20261123a";
+import { lignesEncadre, libelleDestinataire, phraseContact, basculerCoche } from "../contact-rules.js?v=20261123a";
+import { demiJourneesDe, verifierAbsence, phraseCasesDecochees, LIBELLES_MOTIF } from "../contact-absences-rules.js?v=20261123a";
+import { routeDesDemandes } from "./contact-ecrire.js?v=20261123a";
 
 const JOURS = [["aujourdhui", "Aujourd'hui"], ["demain", "Demain"], ["autre", "Choisir"]];
 const MOMENTS = [["journee", "Journée"], ["matin", "Matin"], ["aprem", "Après-midi"], ["heures", "De ... à ..."]];

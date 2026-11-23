@@ -1,22 +1,22 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261122a";
-import { adresseApp } from "./adresse.js?v=20261122a";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261122a";
-import { compteDansEquite } from "./passage-rules.js?v=20261122a";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261122a";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261122a";
-import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261122a";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261122a";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261122a";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261123a";
+import { adresseApp } from "./adresse.js?v=20261123a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261123a";
+import { compteDansEquite } from "./passage-rules.js?v=20261123a";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261123a";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261123a";
+import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261123a";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261123a";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261123a";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261122a";
-import { ENTETE_APERCU, ENTETE_APERCU_TITRE, titreSimule, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261122a";
-import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261122a";
-import { effectifDesFiches } from "./centre-stats.js?v=20261122a";
-import { exigerLignes, phraseDelegue } from "./contact-annuaire-rules.js?v=20261122a";
-import { demiJourneesDe } from "./contact-absences-rules.js?v=20261122a";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261122a";
+} from "./promo-rules.js?v=20261123a";
+import { ENTETE_APERCU, ENTETE_APERCU_TITRE, titreSimule, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261123a";
+import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261123a";
+import { effectifDesFiches } from "./centre-stats.js?v=20261123a";
+import { exigerLignes, phraseDelegue } from "./contact-annuaire-rules.js?v=20261123a";
+import { demiJourneesDe } from "./contact-absences-rules.js?v=20261123a";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261123a";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.

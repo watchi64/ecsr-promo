@@ -6,9 +6,9 @@
 // la barre ne l'attend jamais. Les règles (lecture qui ne lève jamais, lecteurs de la pastille, résumé, texte des pastilles)
 // sont dans js/a-traiter-rules.js ; la coquille (js/nav-shell.js) pose les pastilles.
 
-import { countQcmSignalementsOuverts, countBrouillonsIaARelire } from "./db.js?v=20261122a";
-import { isAdmin, ecritSelonLaCase } from "./auth-admin.js?v=20261122a";
-import { lireLesComptes, lecteursDeLaPastille } from "./a-traiter-rules.js?v=20261122a";
+import { countQcmSignalementsOuverts, countBrouillonsIaARelire } from "./db.js?v=20261123a";
+import { isAdmin, ecritSelonLaCase } from "./auth-admin.js?v=20261123a";
+import { lireLesComptes, lecteursDeLaPastille } from "./a-traiter-rules.js?v=20261123a";
 
 // Nombre total de signalements ouverts : countQcmSignalementsOuverts les rend par QCM (les compteurs de l'index des thèmes).
 const somme = (parQcm) => Object.values(parQcm || {}).reduce((total, n) => total + (Number(n) || 0), 0);

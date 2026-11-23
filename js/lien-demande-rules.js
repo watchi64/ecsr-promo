@@ -1,7 +1,7 @@
 // Règles de la page des liens d'e-mail (demande.html) : lire le jeton de l'adresse, dire où en est la page, nommer le geste.
 // Lancer : node tests/lien-demande-rules.test.mjs
 
-import { libelleAbsence } from "./contact-absences-rules.js?v=20261122a";
+import { libelleAbsence } from "./contact-absences-rules.js?v=20261123a";
 
 const ADRESSE_JETON = /^#j=([A-Za-z0-9_-]{43})$/;
 

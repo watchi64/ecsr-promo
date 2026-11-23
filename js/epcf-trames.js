@@ -1,4 +1,5 @@
-// Trames EPCF (grilles d'évaluation officielles d'Hocine, CCP1, 09/07/2026).
+// Trames EPCF (grilles d'évaluation officielles d'Hocine, CCP1, 09/07/2026 ; CCP2 du 23/11/2026, critères de
+// performance des compétences 8 à 11 du REAC TP-01303, assets/referentiels/REAC_TP_ECSR_2021.pdf, pages 33 à 39).
 //
 // VERSIONNAGE, règle stricte : une version publiée ne se modifie JAMAIS en place
 // (des évals en base portent trame_version et doivent réafficher leur définition).
@@ -25,6 +26,10 @@ export const EPCF_PHASE_COLORS = {
   BILEV: "#6C88C4",  // bleu clair (partagé, bilan & objectif)
   BILAN: "#9C7B5A",  // taupe      (partagé, bilan final)
   PERC:  "#3F9C8E",  // teal       (véhicule, perception C7)
+  DEM:   "#B07AA1",  // rose mauve (CCP2, analyse de la demande C8)
+  CONS:  "#5B7FA3",  // bleu acier (CCP2, construction de l'action C9)
+  SENS:  "#4E9A9A",  // canard     (CCP2, animation de la sensibilisation C10)
+  PRAT:  "#8E7CC3",  // lavande    (CCP2, analyse de pratique C11)
 };
 
 // Les mêmes teintes assombries pour un texte (titre d'une rubrique, libellé du radar, rubrique du tableau de la classe) : 4,6:1 au
@@ -38,7 +43,14 @@ export const EPCF_PHASE_TEXTE = {
   BILEV: "#4667AD",
   BILAN: "#7D6348",
   PERC:  "#2E7268",
+  DEM:   "#8A5580",
+  CONS:  "#46658A",
+  SENS:  "#356F6F",
+  PRAT:  "#6A56A8",
 };
+
+// Les épreuves, dans l'ordre de l'écran : CCP1 en salle et en véhicule, puis CCP2.
+export const EPCF_TRAME_KEYS = ["salle", "vehicule", "ccp2"];
 
 export const EPCF_TRAMES = {
   salle: {
@@ -183,6 +195,74 @@ export const EPCF_TRAMES = {
           { code: "PERC4", libelle: "Les prévisions sont pertinentes (risques)." },
           { code: "PERC5", libelle: "Les indices sont pris en compte pour anticiper le comportement de l'apprenant." },
           { code: "PERC6", libelle: "Les indices sont partagés et analysés avec l'apprenant." },
+        ],
+      },
+    ],
+  },
+
+  // CCP2 « Sensibiliser l'ensemble des usagers de la route à l'adoption de comportements sûrs et respectueux de
+  // l'environnement ». À l'examen : présentation d'une action menée en entreprise (30 min), entretien technique
+  // (30 min), questionnement sur le dossier d'analyse de la demande (30 min). Les critères sont ceux du REAC, mot
+  // pour mot.
+  ccp2: {
+    version: 1,
+    label: "CCP2",
+    competences: ["C8", "C9", "C10", "C11"],
+    metaFields: [
+      { key: "action", label: "Action et commanditaire" },
+      { key: "public", label: "Public" },
+      { key: "duree", label: "Durée" },
+    ],
+    sections: [
+      {
+        code: "DEM", court: "Analyse de la demande",
+        titre: "Analyse de la demande",
+        competenceTP: "8. Analyser une demande relative à une prestation de sensibilisation",
+        criteres: [
+          { code: "DEM1", libelle: "Les attentes spécifiques du commanditaire sont identifiées." },
+          { code: "DEM2", libelle: "Le conseil est pertinent au regard de la demande." },
+          { code: "DEM3", libelle: "La prestation envisagée correspond au besoin du commanditaire." },
+          { code: "DEM4", libelle: "Les impératifs économiques, logistiques et organisationnels de l'établissement sont pris en compte." },
+          { code: "DEM5", libelle: "Les prestations et l'expertise de l'établissement sont valorisées auprès du client." },
+        ],
+      },
+      {
+        code: "CONS", court: "Construction",
+        titre: "Construction et préparation de l'action",
+        competenceTP: "9. Construire et préparer une action de sensibilisation",
+        criteres: [
+          { code: "CONS1", libelle: "Le scénario de l'action intègre les exigences du cahier des charges." },
+          { code: "CONS2", libelle: "Le rôle du co-animateur et les modalités de son intervention sont définis." },
+          { code: "CONS3", libelle: "Le contenu et les ressources sont adaptés à l'objectif et au public." },
+          { code: "CONS4", libelle: "Les activités d'apprentissage et les espaces de formation prévus sont en cohérence avec l'objectif." },
+          { code: "CONS5", libelle: "Le scénario tient compte de la durée et des moyens matériels." },
+        ],
+      },
+      {
+        code: "SENS", court: "Animation",
+        titre: "Animation de la séance de sensibilisation",
+        competenceTP: "10. Animer une séance de sensibilisation à la sécurité routière, au respect des usagers et de l'environnement",
+        criteres: [
+          { code: "SENS1", libelle: "Les clauses du cahier des charges sont respectées." },
+          { code: "SENS2", libelle: "Les techniques et supports pédagogiques sont adaptés." },
+          { code: "SENS3", libelle: "Le langage et la communication sont adaptés au public." },
+          { code: "SENS4", libelle: "Les contenus sont pertinents." },
+          { code: "SENS5", libelle: "La durée de la séance est respectée." },
+          { code: "SENS6", libelle: "La méthode favorise la participation du public." },
+        ],
+      },
+      {
+        code: "PRAT", court: "Ses pratiques",   // court : tient à gauche du radar (86 px)
+        titre: "Analyse de sa pratique professionnelle",
+        competenceTP: "11. Analyser ses pratiques professionnelles afin de les faire évoluer",
+        criteres: [
+          { code: "PRAT1", libelle: "La situation de formation est décrite et analysée de façon pertinente." },
+          { code: "PRAT2", libelle: "Les propositions d'ajustement des pratiques sont pertinentes." },
+          { code: "PRAT3", libelle: "Les facteurs d'efficacité et d'inefficacité des pratiques sont identifiés." },
+          { code: "PRAT4", libelle: "Les pratiques professionnelles sont décrites et analysées de façon pertinente." },
+          { code: "PRAT5", libelle: "Les sources d'information relatives à la sécurité routière sont connues et exploitées à bon escient." },
+          { code: "PRAT6", libelle: "Le bilan des interventions est pertinent." },
+          { code: "PRAT7", libelle: "Les axes d'amélioration sont réalistes." },
         ],
       },
     ],

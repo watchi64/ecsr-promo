@@ -198,7 +198,7 @@ Contrôles par vue
     « Revenir à aujourd'hui » ou « Émargement », pour le stagiaire comme pour l'équipe (audit du 09/11, lots E et B) ; hors édition, pas de
     raccourci vers la banque des bénévoles, qui revient en mode Modifier ;
   * Mon suivi aux libellés clairs (lot 2B, tâche 7), pour toute personne qui a une fiche, à 1 280 et 375 px : les parties dans l'ordre (Résultats, Passages, Évaluations EPCF,
-    Livret EPCF, Dossier professionnel), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« Évaluations EPCF : 0 épreuve sur 2 », « Dossier professionnel :
+    Livret EPCF, Dossier professionnel), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« Évaluations EPCF : 0 épreuve sur 3 », « Dossier professionnel :
     0 exemple sur 6 »), sans date « 02/10 », jamais coupée, la dernière au-dessus de la barre du bas (à l'ouverture, et page défilée au bout) ; Résultats et son
     groupe « Moi / La classe » (boutons de 44 px, « Moi » par défaut, le choix gardé sur l'appareil, même après un rechargement) ; #/mon-suivi/classe,
     #/mon-suivi/evolution et #/notes (stagiaire) ouvrent Résultats sur la bonne vue, l'adresse devenue #/mon-suivi/resultats, sans étape d'historique ; sur
@@ -5334,20 +5334,20 @@ def jouer_planning_etroit(page, res, sc):
 
 def verifier_epcf_de_l_equipe(page, res, sc):
     """Notes et examens > EPCF, page de l'équipe : le sous-onglet garde son rendu des moyennes de la classe sous son titre « Moyennes de la classe » (celui
-    de La classe de Mon suivi est « Moyennes EPCF de la classe »), pour les deux épreuves."""
+    de La classe de Mon suivi est « Moyennes EPCF de la classe »), pour les trois épreuves (salle, véhicule, CCP2)."""
     vue = "%s/notes/epcf" % sc.nom
     res.vues += 1
     attendre(page)
     m = page.evaluate("() => window.__verifNav.epcfDeLEquipe()")
     if m["titre"] != "Moyennes de la classe":
         res.echec("notes de l'équipe, EPCF", vue, "le titre du sous-onglet EPCF est « %s », attendu « Moyennes de la classe »" % m["titre"])
-    if m["epreuves"] != 2:
-        res.echec("notes de l'équipe, EPCF", vue, "le sous-onglet EPCF montre %d épreuve(s), 2 attendues (salle et véhicule)" % m["epreuves"])
+    if m["epreuves"] != 3:
+        res.echec("notes de l'équipe, EPCF", vue, "le sous-onglet EPCF montre %d épreuve(s), 3 attendues (salle, véhicule, CCP2)" % m["epreuves"])
     vider_console(res, vue)
 
 
 def verifier_moyennes_epcf(res, vue, e):
-    """La section « Moyennes EPCF de la classe » de La classe (m["epcf"] de laClasse()) : titrée, sous la matrice, deux épreuves, le rendu des moyennes
+    """La section « Moyennes EPCF de la classe » de La classe (m["epcf"] de laClasse()) : titrée, sous la matrice, trois épreuves (salle, véhicule, CCP2 ; le banc ne sert de moyennes qu'aux deux premières), le rendu des moyennes
     de la classe avec son k-anonymat (une moyenne n'est montrée qu'à partir de 3 stagiaires évalués). Le banc sert des moyennes sur 3, 2 et 1
     stagiaires : celles sur 2 et 1 ne doivent jamais être montrées."""
     if e is None:
@@ -5358,8 +5358,8 @@ def verifier_moyennes_epcf(res, vue, e):
     if not e["sousLaMatrice"]:
         res.echec("la classe, moyennes EPCF", vue, "la section n'est pas placée sous la vue de la classe (matrice, synthèse, graphiques)")
     evalues = max(n for rangees in MOYENNES_EPCF_DU_BANC.values() for (_, _, n) in rangees)
-    if len(e["epreuves"]) != 2:
-        res.echec("la classe, moyennes EPCF", vue, "la section montre %d épreuve(s), 2 attendues (salle et véhicule)" % len(e["epreuves"]))
+    if len(e["epreuves"]) != 3:
+        res.echec("la classe, moyennes EPCF", vue, "la section montre %d épreuve(s), 3 attendues (salle, véhicule, CCP2)" % len(e["epreuves"]))
     for epreuve, rangees in zip(e["epreuves"], (MOYENNES_EPCF_DU_BANC["salle"], MOYENNES_EPCF_DU_BANC["vehicule"])):
         # Le pluriel s'accorde (stagiairesEvalues de js/epcf-classe-rules.js), jamais « stagiaire(s) évalué(s) ».
         accorde = "aucun stagiaire évalué" if not evalues else "1 stagiaire évalué" if evalues == 1 else "%d stagiaires évalués" % evalues
@@ -5421,10 +5421,10 @@ PARTIES_FICHE_DE_MAIN = ["Passages", "Évaluations EPCF", "Évolution", "Livret 
 # Les lignes du sommaire du stagiaire du banc (Timy, id 1, le 27/10/2026) : trois passages à venir, aucune épreuve EPCF, pas de livret, un dossier ouvert le
 # 02/10 sans exemple rempli (que main écrivait « Dossier pro 02/10 », avant le lot D). Les passages : depuis le 11/11 (navigation unique, phase 2), Mon suivi
 # lit la semaine en cours, celle du planning du banc ; il lisait avant la semaine épinglée du banc (deux semaines plus tôt, vide), d'où « aucun à venir ».
-LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : 3 à venir", "Évaluations EPCF : 0 épreuve sur 2",
+LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : 3 à venir", "Évaluations EPCF : 0 épreuve sur 3",
                             "Livret EPCF : pas encore commencé", "Dossier professionnel : 0 exemple sur 6"]
 CLE_VUE_RESULTATS = "ecsr_resultats_vue"
-# La fiche d'un stagiaire chez l'équipe : Victor (id 4), EPCF 1 sur 2, livret et dossier.
+# La fiche d'un stagiaire chez l'équipe : Victor (id 4), EPCF 1 sur 3, livret et dossier.
 ID_DE_LA_FICHE_DE_L_EQUIPE = 4
 
 # Ce que Mon suivi montre : ses sous-onglets (le premier groupe de la page), les lignes de son sommaire (texte, place, hauteur, texte coupé ou non), le haut de

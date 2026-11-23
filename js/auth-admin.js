@@ -20,20 +20,20 @@ import {
   chargerMesPromos, mesAffectations, oublierPromo, getPromoCourante, getMesPromos, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo, stagiaireVitrineCourante,
   lireMesTitres, lireTitresVisibles,
-} from "./db.js?v=20261122a";
+} from "./db.js?v=20261123a";
 import {
   LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo, titreSimule, APERCUS_PAR_TITRE,
-} from "./roles-rules.js?v=20261122a";
+} from "./roles-rules.js?v=20261123a";
 import {
   ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, decisionPorteSansPromo,
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu, estVueStagiaire,
-} from "./espaces-rules.js?v=20261122a";
+} from "./espaces-rules.js?v=20261123a";
 import { casesDeLEspace, caseDe, selonLaCase, formateurFixeSur, NIVEAU_DE_L_ESPACE, titresPourApercu,
-  fusionnerListesApercu, listesPourLeCentre, listesApercuIncompletes } from "./titres-rules.js?v=20261122a";
-import { peutQuitter } from "./navigation.js?v=20261122a";
-import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261122a";
-import { icon } from "./icons.js?v=20261122a";
-import { lireAdresse } from "./route-rules.js?v=20261122a";
+  fusionnerListesApercu, listesPourLeCentre, listesApercuIncompletes } from "./titres-rules.js?v=20261123a";
+import { peutQuitter } from "./navigation.js?v=20261123a";
+import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261123a";
+import { icon } from "./icons.js?v=20261123a";
+import { lireAdresse } from "./route-rules.js?v=20261123a";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles

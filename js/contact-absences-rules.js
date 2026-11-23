@@ -3,7 +3,7 @@
 // de prevenir_absence : la base reste juge), le courriel du justificatif. Dates en « AAAA-MM-JJ », heures en « HH:MM ».
 // Lancer : node tests/contact-absences-rules.test.mjs
 
-import { estVueStagiaire } from "./espaces-rules.js?v=20261122a";
+import { estVueStagiaire } from "./espaces-rules.js?v=20261123a";
 
 /**
  * Les motifs d'une absence, dans l'ordre du formulaire, et leurs libellés (suivi dans l'app). « Santé » n'en fait plus partie depuis

@@ -10,7 +10,7 @@
 export const SEUIL_MOYENNE_EPCF = 3;
 
 // Les épreuves, dans l'ordre de l'écran, et la façon de les nommer dans une phrase.
-const LIEUX = [["salle", "en salle"], ["vehicule", "en véhicule"]];
+const LIEUX = [["salle", "en salle"], ["vehicule", "en véhicule"], ["ccp2", "au CCP2"]];
 
 // Nombre de stagiaires évalués à une épreuve : le plus grand effectif d'un critère (la RPC epcf_moyennes rend
 // [{ critere, moyenne, effectif }], l'effectif parfois en chaîne).
@@ -73,7 +73,7 @@ export function etatVideEpcf({ moyennesParEpreuve, contexte }) {
   const connu = Object.prototype.hasOwnProperty.call(ACTIONS, contexte);
   return {
     titre: "Pas encore de moyennes EPCF",
-    phrase: "Les moyennes de la classe apparaîtront dès que trois stagiaires auront passé la même épreuve, en salle ou en véhicule.",
+    phrase: "Les moyennes de la classe apparaîtront dès que trois stagiaires auront passé la même épreuve : en salle, en véhicule ou au CCP2.",
     avancement: connu && contexte !== "classe-stagiaire" ? avancement(moyennesParEpreuve) : null,
     actions: connu ? ACTIONS[contexte].slice() : [],
   };
@@ -101,7 +101,7 @@ export const ACTIONS_FICHE_EPCF = {
   livret: { libelle: "Voir mon livret EPCF", href: "#/mon-suivi/livret" },
 };
 
-// La partie EPCF d'une fiche quand aucune épreuve n'est évaluée (`nbEvaluations` : { salle, vehicule }), ou null dès
+// La partie EPCF d'une fiche quand aucune épreuve n'est évaluée (`nbEvaluations` : { salle, vehicule, ccp2 }), ou null dès
 // qu'une l'est. Le formateur qui évalue (`outils`) a déjà ses lignes « à évaluer » et ses boutons : rien de plus
 // ({ carte: false }). La personne elle-même (`soi`) lit une carte au tutoiement, avec son livret si le module est
 // ouvert ; quelqu'un qui lit sans évaluer (la direction), la même carte à la troisième personne, sans bouton.
@@ -112,7 +112,7 @@ export function etatVideEpcfFiche({ nbEvaluations, soi = false, outils = false, 
     carte: true,
     titre: "Pas encore d'évaluation EPCF",
     phrase: (soi ? "Tes résultats apparaîtront ici après ta première épreuve"
-      : "Ses résultats apparaîtront ici après sa première épreuve") + ", en salle ou en véhicule.",
+      : "Ses résultats apparaîtront ici après sa première épreuve") + " : en salle, en véhicule ou au CCP2.",
     actions: soi && livretOuvert ? ["livret"] : [],
   };
 }
