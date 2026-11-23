@@ -23,6 +23,7 @@ import { statsPassages } from "../passages-stats.js?v=20261122a";
 import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261122a";
 import { icon } from "../icons.js?v=20261122a";
 import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261122a";
+import { EPCF_TRAME_KEYS } from "../epcf-trames.js?v=20261122a";
 import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261122a";
 import { exemplesRemplis } from "../dp-rules.js?v=20261122a";
 import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261122a";
@@ -36,8 +37,8 @@ const HALF_ORDER = { matin: 0, aprem: 1 };
 
 // Profs/moyennes EPCF : chargés une fois par rendu (indépendants de l'élève sélectionné).
 let profs = [];
-let moySalle = [];
-let moyVehicule = [];
+// Moyennes EPCF de la classe, par épreuve ({ salle, vehicule, ccp2 }).
+let moyennesEpcf = {};
 // id stagiaire -> "Timy V." : sert à nommer le stagiaire au tableau sur les
 // créneaux où l'utilisateur est élève.
 let stagiaireNoms = {};
@@ -572,10 +573,11 @@ export function dispositionFiche() {
 // Contexte commun à toutes les fiches (formateurs, moyennes EPCF de la classe,
 // thèmes, noms) : une lecture par ouverture de page. Renvoie les stagiaires actifs.
 export async function chargerContexteFiche() {
-  const [profsData, moySalleData, moyVehiculeData, themesData, stagiairesData] = await Promise.all([
-    listProfs(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"), listThemes(), listStagiaires(),
+  const [profsData, moyennesData, themesData, stagiairesData] = await Promise.all([
+    listProfs(), Promise.all(EPCF_TRAME_KEYS.map((k) => getEpcfMoyennes(k))), listThemes(), listStagiaires(),
   ]);
-  profs = profsData; moySalle = moySalleData; moyVehicule = moyVehiculeData;
+  profs = profsData;
+  moyennesEpcf = Object.fromEntries(EPCF_TRAME_KEYS.map((k, i) => [k, moyennesData[i]]));
   themeNumByTitre = {};
   (themesData || []).forEach((t) => {
     if (t.type === "theme" && t.numero != null && t.titre) themeNumByTitre[normTitre(t.titre)] = t.numero;
@@ -892,7 +894,7 @@ function rendrePartie(panel, partie, d, opts, ctx) {
     renderEpcfPersonne(panel, {
       stagiaire: d.stagiaireRow || { id: d.id },
       evals: d.epcfEvals,
-      moyennes: { salle: moySalle, vehicule: moyVehicule },
+      moyennes: moyennesEpcf,
       // Les outils du formateur sur la fiche d'un autre ; jamais sur sa propre fiche.
       outils: !soi && isAdmin(),
       // La carte vide (aucune épreuve évaluée) : au tutoiement sur sa propre fiche, avec le livret s'il est ouvert.

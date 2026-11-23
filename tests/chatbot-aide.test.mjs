@@ -102,7 +102,7 @@ test("l'app envoie l'espace avec chaque question, plus la navigation", () => {
 test("lot 2B : le nouveau guide décrit Aujourd'hui, l'Accueil, la grille, les sous-onglets et Mon suivi", () => {
   for (const nom of ["Aujourd'hui", "À traiter", "À suivre de près", "Propositions IA", "Résultats", "Grille", "Liste",
     "le bouton « Voir le QCM »", "Signer pour ce matin", "Signer pour cet après-midi", "À faire", "Prochain rendez-vous",
-    "L'épreuve en bref", "Évaluations EPCF : 0 épreuve sur 2", "Livret EPCF (son livret officiel", "Dossier professionnel : 2 exemples sur 6", "Moi"]) {
+    "L'épreuve en bref", "Évaluations EPCF : 0 épreuve sur 3", "Livret EPCF (son livret officiel", "Dossier professionnel : 2 exemples sur 6", "Moi"]) {
     assert.ok(avantAnciensNoms.includes(nom), nom);
   }
   assert.match(avantAnciensNoms, /bandeau en haut de l'app propose aussi « Signer » tant que la feuille du jour est ouverte/);

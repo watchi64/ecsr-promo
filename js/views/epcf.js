@@ -11,7 +11,7 @@ import { el, clear, isoDate, formatDate, displayStagiaire, toast } from "../util
 import { confirmer } from "../confirmer.js?v=20261122a";
 import { getProfile } from "../auth-admin.js?v=20261122a";
 import { getCurrentWho } from "../identity.js?v=20261122a";
-import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20261122a";
+import { EPCF_TRAMES, EPCF_TRAME_KEYS, NOTE_LABELS } from "../epcf-trames.js?v=20261122a";
 import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20261122a";
 import { poserGardeSortie, leverGardeSortie } from "../navigation.js?v=20261122a";
 import { etatVideEpcf, ACTIONS_CARTE_EPCF, etatVideEpcfFiche, ACTIONS_FICHE_EPCF } from "../epcf-classe-rules.js?v=20261122a";
@@ -21,7 +21,13 @@ import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261122a";
 export const QUESTION_ABANDON = { titre: "Abandonner la saisie en cours ?",
   phrase: "Les changements de cette grille ne sont pas enregistrés.", oui: "Abandonner", non: "Continuer la saisie" };
 
-const TRAME_KEYS = ["salle", "vehicule"];
+const TRAME_KEYS = EPCF_TRAME_KEYS;
+
+// Les moyennes de la classe de chaque épreuve (RPC epcf_moyennes), en { salle, vehicule, ccp2 }.
+async function moyennesDesEpreuves() {
+  const listes = await Promise.all(TRAME_KEYS.map((k) => getEpcfMoyennes(k)));
+  return Object.fromEntries(TRAME_KEYS.map((k, i) => [k, listes[i]]));
+}
 
 // opts.embedded : rendu dans le sous-onglet EPCF de Notes, ou en section de La classe (le parent a son
 // en-tête). opts.titre : le titre de la section, « Moyennes de la classe » par défaut. opts.contexte : qui
@@ -29,17 +35,16 @@ const TRAME_KEYS = ["salle", "vehicule"];
 export async function renderEpcf(container, opts = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
-  const [mSalle, mVehicule] = await Promise.all([getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule")]);
+  const moyennesParEpreuve = await moyennesDesEpreuves();
   if (opts.isActive && !opts.isActive()) return;
   clear(container);
   if (!opts.embedded) {
     container.appendChild(el("div", { class: "view-header" },
       el("div", { class: "view-header-text" }, el("h2", {}, "Évaluations EPCF"),
-        el("p", { class: "subtitle" }, "EPCF (évaluations passées en cours de formation), en salle et en véhicule."))));
+        el("p", { class: "subtitle" }, "EPCF (évaluations passées en cours de formation) : CCP1 en salle et en véhicule, CCP2."))));
   }
   const body = el("div", { class: "epcf-body" });
   container.appendChild(body);
-  const moyennesParEpreuve = { salle: mSalle, vehicule: mVehicule };
   // Aucune moyenne montrable (k-anonymat) : une carte, une phrase et une action, à la place du titre et des deux
   // épreuves vides (même règle que les notes, lot C).
   const vide = etatVideEpcf({ moyennesParEpreuve, contexte: opts.contexte });
@@ -72,7 +77,7 @@ function carteVideEpcf(etat, destinations = ACTIONS_CARTE_EPCF, classe = "epcf-v
   );
 }
 
-// Partie EPCF de la fiche d'une personne. opts.outils : boutons de saisie (formateur). opts.soi : sa propre fiche
+// Partie EPCF de la fiche d'une personne (salle, véhicule, CCP2). opts.outils : boutons de saisie (formateur). opts.soi : sa propre fiche
 // (Mon suivi) ; opts.livretOuvert : le module du livret est ouvert pour la promo (bouton de la carte vide).
 export function renderEpcfPersonne(container, opts) {
   const etat = { evals: opts.evals || [], moyennes: opts.moyennes };
@@ -118,11 +123,9 @@ export function renderEpcfPersonne(container, opts) {
       retour: dessiner,
       apresEnregistrement: async () => {
         try {
-          const [ev, mS, mV] = await Promise.all([
-            listEpcf({ stagiaire_id: opts.stagiaire.id }), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"),
-          ]);
+          const [ev, moyennes] = await Promise.all([listEpcf({ stagiaire_id: opts.stagiaire.id }), moyennesDesEpreuves()]);
           etat.evals = ev;
-          etat.moyennes = { salle: mS, vehicule: mV };
+          etat.moyennes = moyennes;
         } catch (e) { console.error(e); }   // données peut-être périmées : la prochaine ouverture relira
         if (opts.onEnregistre) opts.onEnregistre(etat.evals);
         if (!opts.isActive || opts.isActive()) dessiner();

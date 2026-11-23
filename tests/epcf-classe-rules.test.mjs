@@ -43,7 +43,7 @@ const vide = { salle: [], vehicule: [] };
 const unEnSalle = { salle: [m("PREP1", 2, 1)], vehicule: [] };
 const unEnVehicule = { salle: [], vehicule: [m("COND1", 2, 1)] };
 const unPartout = { salle: [m("PREP1", 2, 1)], vehicule: [m("COND1", 1, 1)] };
-const phrase = "Les moyennes de la classe apparaîtront dès que trois stagiaires auront passé la même épreuve, en salle ou en véhicule.";
+const phrase = "Les moyennes de la classe apparaîtront dès que trois stagiaires auront passé la même épreuve : en salle, en véhicule ou au CCP2.";
 
 // Une épreuve montrable suffit : pas de carte (la page montre le tableau, et l'autre épreuve dit ce qui lui manque).
 assert.equal(etatVideEpcf({ moyennesParEpreuve: { salle: [m("PREP1", 1.5, 3)], vehicule: [] }, contexte: "classe-stagiaire" }), null);
@@ -51,7 +51,7 @@ assert.equal(etatVideEpcf({ moyennesParEpreuve: { salle: [m("PREP1", 1.5, 3)], v
 assert.equal(etatVideEpcf({ moyennesParEpreuve: { salle: [m("PREP1", 1.5, 2)], vehicule: [] }, contexte: "classe-stagiaire" }).phrase,
   phrase);
 assert.equal(etatVideEpcf({ moyennesParEpreuve: { salle: [m("PREP1", 1.5, 2)], vehicule: [] }, contexte: "equipe-matrice" }).avancement,
-  "Pour l'instant : 2 stagiaires évalués en salle, aucun en véhicule.");
+  "Pour l'instant : 2 stagiaires évalués en salle, aucun en véhicule, aucun au CCP2.");
 assert.equal(etatVideEpcf({ moyennesParEpreuve: { salle: [], vehicule: [m("COND1", 1.8, "3")] }, contexte: "equipe-matrice" }), null);
 
 // Stagiaire : ses propres résultats EPCF, sans avancement de la classe.
@@ -64,16 +64,16 @@ assert.deepEqual(etatVideEpcf({ moyennesParEpreuve: vide, contexte: "equipe-matr
   { titre: "Pas encore de moyennes EPCF", phrase, avancement: null, actions: ["evaluer"] });
 assert.deepEqual(etatVideEpcf({ moyennesParEpreuve: vide, contexte: "classe-formateur" }).actions, ["evaluer"]);
 assert.equal(etatVideEpcf({ moyennesParEpreuve: unEnSalle, contexte: "classe-formateur" }).avancement,
-  "Pour l'instant : 1 stagiaire évalué en salle, aucun en véhicule.");
+  "Pour l'instant : 1 stagiaire évalué en salle, aucun en véhicule, aucun au CCP2.");
 assert.equal(etatVideEpcf({ moyennesParEpreuve: unEnVehicule, contexte: "equipe-matrice" }).avancement,
-  "Pour l'instant : 1 stagiaire évalué en véhicule, aucun en salle.");
+  "Pour l'instant : 1 stagiaire évalué en véhicule, aucun en salle, aucun au CCP2.");
 assert.equal(etatVideEpcf({ moyennesParEpreuve: unPartout, contexte: "equipe-matrice" }).avancement,
-  "Pour l'instant : 1 stagiaire évalué en salle, 1 en véhicule.");
+  "Pour l'instant : 1 stagiaire évalué en salle, 1 en véhicule, aucun au CCP2.");
 
 // Direction : elle lit sans écrire, donc pas de bouton ; l'avancement, oui.
 assert.deepEqual(etatVideEpcf({ moyennesParEpreuve: unEnSalle, contexte: "direction" }), {
   titre: "Pas encore de moyennes EPCF", phrase,
-  avancement: "Pour l'instant : 1 stagiaire évalué en salle, aucun en véhicule.", actions: [],
+  avancement: "Pour l'instant : 1 stagiaire évalué en salle, aucun en véhicule, aucun au CCP2.", actions: [],
 });
 
 // Contexte inconnu ou absent : la carte, sans bouton ni avancement.
@@ -128,13 +128,13 @@ assert.deepEqual(etatVideEpcfFiche({ nbEvaluations: aucune, outils: true, soi: f
 // Le stagiaire, sur sa propre fiche : la carte, au tutoiement, et son livret quand le module est ouvert.
 assert.deepEqual(etatVideEpcfFiche({ nbEvaluations: aucune, soi: true, livretOuvert: true }), {
   carte: true, titre: "Pas encore d'évaluation EPCF",
-  phrase: "Tes résultats apparaîtront ici après ta première épreuve, en salle ou en véhicule.", actions: ["livret"],
+  phrase: "Tes résultats apparaîtront ici après ta première épreuve : en salle, en véhicule ou au CCP2.", actions: ["livret"],
 });
 assert.deepEqual(etatVideEpcfFiche({ nbEvaluations: aucune, soi: true, livretOuvert: false }).actions, []);
 // Quelqu'un d'autre qui lit sans évaluer (la direction) : la carte à la troisième personne, sans bouton.
 assert.deepEqual(etatVideEpcfFiche({ nbEvaluations: aucune, soi: false, outils: false, livretOuvert: true }), {
   carte: true, titre: "Pas encore d'évaluation EPCF",
-  phrase: "Ses résultats apparaîtront ici après sa première épreuve, en salle ou en véhicule.", actions: [],
+  phrase: "Ses résultats apparaîtront ici après sa première épreuve : en salle, en véhicule ou au CCP2.", actions: [],
 });
 assert.deepEqual(etatVideEpcfFiche({ nbEvaluations: null, soi: true, livretOuvert: true }).actions, ["livret"]);
 assert.deepEqual(ACTIONS_FICHE_EPCF.livret, { libelle: "Voir mon livret EPCF", href: "#/mon-suivi/livret" });
@@ -150,3 +150,10 @@ assert.equal(phraseSansEvaluation("vehicule"), "Pas encore d'évaluation en véh
 });
 
 console.log("epcf-classe-rules (fiche et radar) : OK");
+
+// CCP2 (23/11/2026) : troisième épreuve, mêmes règles.
+assert.equal(etatVideEpcf({ moyennesParEpreuve: { salle: [], vehicule: [], ccp2: [m("DEM1", 1.5, 3)] }, contexte: "classe-stagiaire" }), null);
+assert.equal(etatVideEpcf({ moyennesParEpreuve: { salle: [], vehicule: [], ccp2: [m("DEM1", 1.5, 2)] }, contexte: "equipe-matrice" }).avancement,
+  "Pour l'instant : 2 stagiaires évalués au CCP2, aucun en salle, aucun en véhicule.");
+assert.equal(etatVideEpcfFiche({ nbEvaluations: { salle: 0, vehicule: 0, ccp2: 1 }, soi: true }), null);
+assert.equal(phraseSansEvaluation("ccp2"), "Pas encore d'évaluation au CCP2.");

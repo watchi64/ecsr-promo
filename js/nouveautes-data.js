@@ -23,6 +23,29 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // EPCF du CCP2 (23/11) : troisième grille, critères de performance des compétences 8 à 11 du REAC.
+  {
+    id: "2026-11-23-epcf-ccp2-formateurs",
+    date: "2026-11-23",
+    pour: "formateurs",
+    titre: "EPCF du CCP2",
+    resume: "Une troisième grille EPCF, pour le CCP2 (sensibilisation des usagers de la route), s'ajoute à la salle et au "
+          + "véhicule. Ses 23 critères sont ceux du référentiel officiel, pour les compétences 8 à 11 : analyse de la demande, "
+          + "construction de l'action, animation, analyse de pratique. Ouvrez la fiche d'un stagiaire, partie Évaluations EPCF, "
+          + "puis « Évaluer » sur la ligne CCP2.",
+    ou: { label: "Stagiaires", route: "stagiaires" },
+    module: "epcf",
+  },
+  {
+    id: "2026-11-23-epcf-ccp2-stagiaires",
+    date: "2026-11-23",
+    pour: "stagiaires",
+    titre: "Tes évaluations EPCF du CCP2",
+    resume: "Tes épreuves blanches du CCP2 sont évaluées dans l'app, comme celles du CCP1 : un radar à quatre branches "
+          + "(analyse de la demande, construction, animation, ses pratiques) et le détail des 23 critères du référentiel.",
+    ou: { label: "Mon espace personnel, partie Évaluations EPCF", route: "mon-suivi", sousOnglet: "epcf" },
+    module: "epcf",
+  },
   // Titres et droits à la carte, étape 3. Direction et siège, au vouvoiement.
   {
     id: "2026-11-16-titres-ecrans-direction",

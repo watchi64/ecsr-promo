@@ -10,7 +10,7 @@ let n = 0;
 const eq = (a, b, msg) => { assert.deepEqual(a, b, msg); n++; };
 
 // 1. Épreuves EPCF
-eq(EPREUVES_EPCF, ["salle", "vehicule"], "deux épreuves");
+eq(EPREUVES_EPCF, ["salle", "vehicule", "ccp2"], "trois épreuves : CCP1 salle et véhicule, CCP2");
 eq(epreuvesEvaluees([]), 0, "aucune évaluation");
 eq(epreuvesEvaluees(undefined), 0, "liste absente");
 eq(epreuvesEvaluees([{ trame: "salle" }, { trame: "salle" }]), 1, "deux évaluations salle : une épreuve");
@@ -36,28 +36,28 @@ eq(passagesAVenir(undefined, "2026-10-03"), 0, "rien de planifié");
 // 4. Ligne de la liste (vue formateur)
 eq(ligneListe({ evals: [{ trame: "salle" }], livret: { updated_at: "2026-09-20T08:00:00" },
   dossier: { updated_at: "2026-09-29T08:00:00" } }),
-  [{ texte: "EPCF : 1 épreuve sur 2", afaire: true }, { texte: "Livret EPCF : commencé", afaire: false },
+  [{ texte: "EPCF : 1 épreuve sur 3", afaire: true }, { texte: "Livret EPCF : commencé", afaire: false },
     { texte: "Dossier professionnel : modifié le 29/09", afaire: false }],
   "en cours");
 eq(ligneListe({ evals: [], livret: null, dossier: null }),
-  [{ texte: "EPCF : 0 épreuve sur 2", afaire: true }, { texte: "Livret EPCF : pas commencé", afaire: true },
+  [{ texte: "EPCF : 0 épreuve sur 3", afaire: true }, { texte: "Livret EPCF : pas commencé", afaire: true },
     { texte: "Dossier professionnel : pas commencé", afaire: true }],
   "rien de commencé");
 eq(ligneListe({ evals: [{ trame: "salle" }, { trame: "vehicule" }], livret: {}, dossier: { updated_at: "bidon" } }),
-  [{ texte: "EPCF : 2 épreuves sur 2", afaire: false }, { texte: "Livret EPCF : commencé", afaire: false },
+  [{ texte: "EPCF : 2 épreuves sur 3", afaire: true }, { texte: "Livret EPCF : commencé", afaire: false },
     { texte: "Dossier professionnel : commencé", afaire: false }],
-  "tout fait, date illisible");
+  "CCP1 fait, CCP2 à faire, date illisible");
 
 // 5. Sommaire : orange pour le formateur, seulement le dossier pour soi
 const vu = { aVenir: 2, evals: [{ trame: "salle" }], livret: null, dossier: null };
 const f = etatsSommaire({ ...vu, soi: false });
 eq(f.passages, { texte: "2 à venir", afaire: false }, "passages");
-eq(f.epcf, { texte: "1/2", afaire: true }, "EPCF en orange chez le formateur");
+eq(f.epcf, { texte: "1/3", afaire: true }, "EPCF en orange chez le formateur");
 eq(f.evolution, null, "évolution sans état");
 eq(f.livret, { texte: "pas commencé", afaire: true }, "livret pas commencé, en orange chez le formateur");
 eq(f.dp, { texte: "pas commencé", afaire: true }, "dossier pas commencé");
 const s = etatsSommaire({ ...vu, soi: true });
-eq(s.epcf, { texte: "1/2", afaire: false }, "EPCF en gris chez le stagiaire");
+eq(s.epcf, { texte: "1/3", afaire: false }, "EPCF en gris chez le stagiaire");
 eq(s.livret, { texte: "pas encore commencé", afaire: false }, "livret pas encore commencé, en gris");
 eq(s.dp, { texte: "pas commencé", afaire: true }, "son dossier pas commencé reste en orange");
 const fait = etatsSommaire({ aVenir: 0, evals: [], livret: { updated_at: "x" }, dossier: { updated_at: "2026-10-01" }, soi: true });
@@ -73,17 +73,17 @@ const c = etatsClairs({ aVenir: 2, evals: [], livret: null, exemplesDossier: nul
 eq(Object.keys(c), ["resultats", "passages", "epcf", "livret", "dp"], "cinq parties, dans l'ordre de Mon suivi");
 eq(c.resultats, { texte: "Résultats : moi et la classe", afaire: false }, "résultats");
 eq(c.passages, { texte: "Passages : 2 à venir", afaire: false }, "passages au pluriel");
-eq(c.epcf, { texte: "Évaluations EPCF : 0 épreuve sur 2", afaire: false }, "EPCF : aucune épreuve, au singulier, en gris (elle ne dépend pas du stagiaire)");
+eq(c.epcf, { texte: "Évaluations EPCF : 0 épreuve sur 3", afaire: false }, "EPCF : aucune épreuve, au singulier, en gris (elle ne dépend pas du stagiaire)");
 eq(c.livret, { texte: "Livret EPCF : pas encore commencé", afaire: false }, "livret EPCF pas commencé, en gris");
 eq(c.dp, { texte: "Dossier professionnel : pas encore commencé", afaire: true }, "pas de dossier : pas encore commencé, en orange");
 const un = etatsClairs({ aVenir: 1, evals: [{ trame: "salle" }], livret: { updated_at: "x" }, exemplesDossier: 1 });
 eq(un.passages.texte, "Passages : 1 à venir", "passages au singulier");
-eq(un.epcf.texte, "Évaluations EPCF : 1 épreuve sur 2", "une épreuve évaluée, au singulier");
+eq(un.epcf.texte, "Évaluations EPCF : 1 épreuve sur 3", "une épreuve évaluée, au singulier");
 eq(un.livret, { texte: "Livret EPCF : commencé", afaire: false }, "livret EPCF commencé");
 eq(un.dp, { texte: "Dossier professionnel : 1 exemple sur 6", afaire: true }, "un exemple, au singulier");
 const zero = etatsClairs({ aVenir: 0, evals: [{ trame: "salle" }, { trame: "vehicule" }], livret: null, exemplesDossier: 0 });
 eq(zero.passages.texte, "Passages : aucun à venir", "aucun passage à venir");
-eq(zero.epcf.texte, "Évaluations EPCF : 2 épreuves sur 2", "les deux épreuves, au pluriel");
+eq(zero.epcf.texte, "Évaluations EPCF : 2 épreuves sur 3", "deux épreuves, au pluriel");
 eq(zero.dp, { texte: "Dossier professionnel : 0 exemple sur 6", afaire: true }, "dossier ouvert sans exemple rempli : le compte, comme sur l'Accueil");
 eq(etatsClairs({ aVenir: 0, evals: [], livret: null, exemplesDossier: 2 }).dp.texte, "Dossier professionnel : 2 exemples sur 6", "deux exemples");
 eq(etatsClairs({ aVenir: 0, evals: [], livret: null, exemplesDossier: 6 }).dp, { texte: "Dossier professionnel : 6 exemples sur 6", afaire: false }, "dossier complet : plus rien à faire");
@@ -121,3 +121,9 @@ eq(noterDocument(fiche, { genre: "autre", stagiaireId: 1 }), false, "genre incon
 eq(noterDocument(null, { genre: "dossier", stagiaireId: 1 }), false, "pas de fiche chargée");
 
 console.log(`fiche-rules : ${n} assertions OK`);
+
+// CCP2 (23/11/2026) : la troisième épreuve compte comme les deux autres.
+eq(epreuvesEvaluees([{ trame: "salle" }, { trame: "vehicule" }, { trame: "ccp2" }, { trame: "ccp2" }]), 3, "les trois épreuves, CCP2 compté une fois");
+eq(ligneListe({ evals: [{ trame: "salle" }, { trame: "vehicule" }, { trame: "ccp2" }], livret: {}, dossier: { updated_at: "bidon" } })[0],
+  { texte: "EPCF : 3 épreuves sur 3", afaire: false }, "tout fait");
+eq(etatsSommaire({ aVenir: 0, evals: [{ trame: "ccp2" }], livret: null, dossier: null, soi: false }).epcf, { texte: "1/3", afaire: true }, "CCP2 seul");

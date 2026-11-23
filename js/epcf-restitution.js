@@ -2,7 +2,7 @@
 // (affichée dans Mon suivi ; réutilisable ailleurs).
 
 import { el, clear, formatDate } from "./utils.js?v=20261122a";
-import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS, EPCF_PHASE_TEXTE } from "./epcf-trames.js?v=20261122a";
+import { EPCF_TRAMES, EPCF_TRAME_KEYS, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS, EPCF_PHASE_TEXTE } from "./epcf-trames.js?v=20261122a";
 import { moyennesMontrables, titreEpreuve, PHRASE_SANS_MOYENNE, scoresDuGroupe, phraseSansEvaluation } from "./epcf-classe-rules.js?v=20261122a";
 import { fr2 } from "./nombres.js?v=20261122a";
 
@@ -162,9 +162,9 @@ export function tierOf(moyenne) {
 // Vue classe : moyennes par phase et par critère, pour chaque trame, à partir des
 // agrégats de la RPC getEpcfMoyennes. Ne montre QUE des moyennes (aucune donnée
 // individuelle) → affichable par n'importe quel compte connecté.
-// moyennesByTrame = { salle: [{critere,moyenne,effectif}], vehicule: [...] }.
+// moyennesByTrame = { salle: [{critere,moyenne,effectif}], vehicule: [...], ccp2: [...] }.
 export function renderEpcfClasse(container, moyennesByTrame) {
-  ["salle", "vehicule"].forEach((trameKey) => {
+  EPCF_TRAME_KEYS.forEach((trameKey) => {
     const trame = EPCF_TRAMES[trameKey];
     const all = (moyennesByTrame && moyennesByTrame[trameKey]) || [];
     const box = el("div", { class: "epcf-classe-trame" }, el("h4", {}, titreEpreuve(trame.label, all)));

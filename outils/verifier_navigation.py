@@ -198,7 +198,7 @@ Contrôles par vue
     « Revenir à aujourd'hui » ou « Émargement », pour le stagiaire comme pour l'équipe (audit du 09/11, lots E et B) ; hors édition, pas de
     raccourci vers la banque des bénévoles, qui revient en mode Modifier ;
   * Mon suivi aux libellés clairs (lot 2B, tâche 7), pour toute personne qui a une fiche, à 1 280 et 375 px : les parties dans l'ordre (Résultats, Passages, Évaluations EPCF,
-    Livret EPCF, Dossier professionnel), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« Évaluations EPCF : 0 épreuve sur 2 », « Dossier professionnel :
+    Livret EPCF, Dossier professionnel), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« Évaluations EPCF : 0 épreuve sur 3 », « Dossier professionnel :
     0 exemple sur 6 »), sans date « 02/10 », jamais coupée, la dernière au-dessus de la barre du bas (à l'ouverture, et page défilée au bout) ; Résultats et son
     groupe « Moi / La classe » (boutons de 44 px, « Moi » par défaut, le choix gardé sur l'appareil, même après un rechargement) ; #/mon-suivi/classe,
     #/mon-suivi/evolution et #/notes (stagiaire) ouvrent Résultats sur la bonne vue, l'adresse devenue #/mon-suivi/resultats, sans étape d'historique ; sur
@@ -5421,10 +5421,10 @@ PARTIES_FICHE_DE_MAIN = ["Passages", "Évaluations EPCF", "Évolution", "Livret 
 # Les lignes du sommaire du stagiaire du banc (Timy, id 1, le 27/10/2026) : trois passages à venir, aucune épreuve EPCF, pas de livret, un dossier ouvert le
 # 02/10 sans exemple rempli (que main écrivait « Dossier pro 02/10 », avant le lot D). Les passages : depuis le 11/11 (navigation unique, phase 2), Mon suivi
 # lit la semaine en cours, celle du planning du banc ; il lisait avant la semaine épinglée du banc (deux semaines plus tôt, vide), d'où « aucun à venir ».
-LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : 3 à venir", "Évaluations EPCF : 0 épreuve sur 2",
+LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : 3 à venir", "Évaluations EPCF : 0 épreuve sur 3",
                             "Livret EPCF : pas encore commencé", "Dossier professionnel : 0 exemple sur 6"]
 CLE_VUE_RESULTATS = "ecsr_resultats_vue"
-# La fiche d'un stagiaire chez l'équipe : Victor (id 4), EPCF 1 sur 2, livret et dossier.
+# La fiche d'un stagiaire chez l'équipe : Victor (id 4), EPCF 1 sur 3, livret et dossier.
 ID_DE_LA_FICHE_DE_L_EQUIPE = 4
 
 # Ce que Mon suivi montre : ses sous-onglets (le premier groupe de la page), les lignes de son sommaire (texte, place, hauteur, texte coupé ou non), le haut de

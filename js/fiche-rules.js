@@ -2,7 +2,9 @@
 // liste de la page Stagiaires (chantier D, lot 2). Module pur : testé en node.
 import { pluriel } from "./nombres.js?v=20261122a";
 
-export const EPREUVES_EPCF = ["salle", "vehicule"];
+// Les épreuves EPCF : CCP1 en salle et en véhicule, CCP2 (même liste que EPCF_TRAME_KEYS de js/epcf-trames.js).
+export const EPREUVES_EPCF = ["salle", "vehicule", "ccp2"];
+const NB_EPREUVES = EPREUVES_EPCF.length;
 
 // Émis par le livret EPCF et le dossier professionnel après un enregistrement, avec
 // { genre: "livret" | "dossier", stagiaireId, updatedAt } et, pour le dossier,
@@ -60,7 +62,7 @@ function texteDossier(dossier, prefixe) {
 export function ligneListe({ evals, livret, dossier }) {
   const n = epreuvesEvaluees(evals);
   return [
-    { texte: `EPCF : ${pluriel(n, "épreuve")} sur 2`, afaire: n < 2 },
+    { texte: `EPCF : ${pluriel(n, "épreuve")} sur ${NB_EPREUVES}`, afaire: n < NB_EPREUVES },
     { texte: "Livret EPCF : " + (livret ? "commencé" : "pas commencé"), afaire: !livret },
     { texte: texteDossier(dossier, "Dossier professionnel"), afaire: !dossier },
   ];
@@ -72,7 +74,7 @@ export function etatsSommaire({ aVenir, evals, livret, dossier, soi }) {
   const n = epreuvesEvaluees(evals);
   return {
     passages: { texte: aVenir > 0 ? `${aVenir} à venir` : "aucun à venir", afaire: false },
-    epcf: { texte: `${n}/2`, afaire: !soi && n < 2 },
+    epcf: { texte: `${n}/${NB_EPREUVES}`, afaire: !soi && n < NB_EPREUVES },
     evolution: null,
     livret: livret ? { texte: "commencé", afaire: false }
       : soi ? { texte: "pas encore commencé", afaire: false }
@@ -82,7 +84,7 @@ export function etatsSommaire({ aVenir, evals, livret, dossier, soi }) {
 }
 
 // États de Mon suivi (lot 2B, tâche 7) : la ligne entière, nom de la
-// partie compris, pour qu'elle se lise seule (« Évaluations EPCF : 0 épreuve sur 2 », jamais « 0/2 » ; « Dossier
+// partie compris, pour qu'elle se lise seule (« Évaluations EPCF : 0 épreuve sur 3 », jamais « 0/3 » ; « Dossier
 // professionnel : 2 exemples sur 6 », jamais « 02/10 », qui se lisait comme une date, ruling R65).
 // `exemplesDossier` : exemples remplis (exemplesRemplis de js/dp-rules.js), null sans dossier.
 // Le texte de Résultats ne dépend d'aucune donnée : il dit ce que la partie contient. Comme
@@ -94,7 +96,7 @@ export function etatsClairs({ aVenir = 0, evals, livret, exemplesDossier = null 
   return {
     resultats: { texte: "Résultats : moi et la classe", afaire: false },
     passages: { texte: "Passages : " + (aVenir > 0 ? `${aVenir} à venir` : "aucun à venir"), afaire: false },
-    epcf: { texte: `Évaluations EPCF : ${pluriel(n, "épreuve")} sur 2`, afaire: false },
+    epcf: { texte: `Évaluations EPCF : ${pluriel(n, "épreuve")} sur ${NB_EPREUVES}`, afaire: false },
     livret: { texte: "Livret EPCF : " + (livret ? "commencé" : "pas encore commencé"), afaire: false },
     dp: exemples === null
       ? { texte: "Dossier professionnel : pas encore commencé", afaire: true }
