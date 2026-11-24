@@ -355,7 +355,7 @@ function showListe(container) {
   teardownLivretPrint();
   container.appendChild(el("p", { class: "lv-hint" },
     "Livret EPCF (évaluations passées en cours de formation), modèle officiel du ministère du Travail, TP-01303. ",
-    "Un livret par stagiaire, imprimable à l'identique du document officiel."));
+    "Un livret par stagiaire, le même pour le CCP1 et le CCP2 (activités-types 1 et 2), imprimable à l'identique du document officiel."));
   const table = el("table", { class: "lv-liste-table" });
   table.appendChild(el("thead", {}, el("tr", {},
     el("th", {}, "Stagiaire"), el("th", {}, "Livret EPCF"))));

@@ -148,22 +148,22 @@ export const MODULES = [
     // Premier module du groupe CCP1 : son explication définit le sigle EPCF (première
     // apparition dans le réglage), et son annonce aussi.
     cle: "epcf", nom: "Évaluations EPCF", accord: "fp", groupe: GROUPE_CCP1,
-    explication: "EPCF : évaluations passées en cours de formation. Celles du stagiaire dans son suivi, "
-               + "les moyennes de la classe avec les notes, la saisie des formateurs dans la page Stagiaires.",
+    explication: "EPCF : évaluations passées en cours de formation. Trois épreuves : CCP1 en salle et en véhicule, CCP2. "
+               + "Celles du stagiaire dans son suivi, les moyennes de la classe avec les notes, la saisie des formateurs dans la page Stagiaires.",
     annonce: {
       titre: "Les évaluations EPCF sont ouvertes",
-      resume: "Les résultats des EPCF (évaluations passées en cours de formation) du CCP1, en salle "
-            + "et en véhicule, s'affichent dans l'app, avec les moyennes de la classe.",
+      resume: "Les résultats des EPCF (évaluations passées en cours de formation) s'affichent dans l'app, épreuve par "
+            + "épreuve (CCP1 en salle et en véhicule, CCP2), avec les moyennes de la classe.",
       ou: { label: "Mon suivi, partie Évaluations EPCF", route: "mon-suivi", sousOnglet: "epcf" },
     },
   },
   {
     // Plus de parent : le livret vit dans la fiche (Mon suivi, page Stagiaires).
     cle: "livret", nom: "Livret EPCF", accord: "ms", groupe: GROUPE_CCP1,
-    explication: "Livret EPCF officiel : le stagiaire le consulte dans son suivi, le formateur évaluateur le remplit dans la page Stagiaires.",
+    explication: "Livret EPCF officiel, un seul pour le CCP1 et le CCP2 : le stagiaire le consulte dans son suivi, le formateur évaluateur le remplit dans la page Stagiaires.",
     annonce: {
       titre: "Le livret EPCF est ouvert",
-      resume: "Le livret EPCF officiel de chaque stagiaire se consulte dans l'app : c'est le formateur "
+      resume: "Le livret EPCF officiel de chaque stagiaire (un seul pour le CCP1 et le CCP2) se consulte dans l'app : c'est le formateur "
             + "évaluateur qui le remplit. La date de naissance, à indiquer dans l'app, y est reportée "
             + "automatiquement.",
       ou: { label: "Mon suivi, partie Livret EPCF", route: "mon-suivi", sousOnglet: "livret" },

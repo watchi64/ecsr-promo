@@ -374,11 +374,11 @@ eq(mod("notes").annonce.resume, "Les notes de thèmes s'affichent avec la synth�
   + "chaque stagiaire. Chaque stagiaire peut masquer son prénom et ses notes aux autres dans Mes préférences.",
   "Notes : annonce, Mes préférences (page de la personne, jamais Réglages)");
 ok(mod("epcf").explication.includes("Celles du stagiaire dans son suivi") && mod("epcf").explication.includes("les moyennes de la classe avec les notes"), "EPCF : explication");
-eq(mod("epcf").annonce.resume, "Les résultats des EPCF (évaluations passées en cours de formation) du CCP1, en salle et en véhicule, "
-  + "s'affichent dans l'app, avec les moyennes de la classe.", "EPCF : annonce, le sigle défini");
+eq(mod("epcf").annonce.resume, "Les résultats des EPCF (évaluations passées en cours de formation) s'affichent dans l'app, épreuve par "
+  + "épreuve (CCP1 en salle et en véhicule, CCP2), avec les moyennes de la classe.", "EPCF : annonce, le sigle défini");
 ok(mod("livret").explication.includes("le stagiaire le consulte dans son suivi") && mod("livret").explication.includes("le formateur évaluateur le remplit"),
   "Livret EPCF : explication (le stagiaire consulte, le formateur évaluateur remplit)");
-ok(mod("livret").annonce.resume.startsWith("Le livret EPCF officiel de chaque stagiaire se consulte dans l'app"), "Livret EPCF : annonce");
+ok(mod("livret").annonce.resume.startsWith("Le livret EPCF officiel de chaque stagiaire (un seul pour le CCP1 et le CCP2) se consulte dans l'app"), "Livret EPCF : annonce");
 ok(mod("dp").explication.includes("celui du stagiaire dans son suivi"), "Dossier professionnel : explication");
 eq(mod("assistant").explication, "Assistant qui répond sur les cours et le Code de la route.", "Assistant : explication");
 ok(mod("assistant").annonce.resume.startsWith("L'assistant répond aux questions sur les cours et le Code de la route."), "Assistant : annonce");
