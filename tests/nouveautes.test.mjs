@@ -472,8 +472,8 @@ const DATE5 = direction.date;
 eq(NOUVEAUTES.filter((e) => e.pour === "direction").map((e) => e.id).sort(),
   ["2026-11-10-espace-direction", "2026-11-11-conservation-direction", "2026-11-11-donnees-personnelles-centre",
     "2026-11-14-fiche-de-contact-direction", "2026-11-14-messages-direction", "2026-11-14-resultats-jury-direction",
-    "2026-11-16-titres-ecrans-direction"],
-  "sept Nouveautés pour la direction : l'espace, les données personnelles, la conservation des fiches de son centre, sa fiche de contact, Messages, le taux d'obtention du titre, puis les titres");
+    "2026-11-16-titres-ecrans-direction", "2026-11-24-epcf-ccp2-indicateurs-direction"],
+  "huit Nouveautés pour la direction : l'espace, les données personnelles, la conservation des fiches de son centre, sa fiche de contact, Messages, le taux d'obtention du titre, les titres, puis l'EPCF du CCP2");
 // Espace contact : la direction a sa fiche de contact créée d'office ; sa Nouveauté l'invite à la vérifier, au vouvoiement, même date
 // provisoire que les autres entrées de l'espace contact.
 const ficheDir = NOUVEAUTES.find((e) => e.id === "2026-11-14-fiche-de-contact-direction");

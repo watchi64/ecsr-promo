@@ -23,6 +23,27 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // EPCF du CCP2, suites (24/11) : indicateurs du centre et du réseau.
+  {
+    id: "2026-11-24-epcf-ccp2-indicateurs-formateurs",
+    date: "2026-11-24",
+    pour: "formateurs",
+    titre: "L'EPCF du CCP2 dans les indicateurs",
+    resume: "La carte « Évaluations EPCF » et la comparaison des promos comptent aussi le CCP2. Il n'apparaît que lorsqu'il a "
+          + "commencé, et seuls les stagiaires déjà évalués y comptent : ceux qui ne l'ont pas encore abordé ne baissent pas le taux.",
+    ou: { label: "Indicateurs", route: "centre" },
+    module: "epcf",
+  },
+  {
+    id: "2026-11-24-epcf-ccp2-indicateurs-direction",
+    date: "2026-11-24",
+    pour: "direction",
+    titre: "L'EPCF du CCP2 dans les indicateurs",
+    resume: "Les critères EPCF acquis de la Vue d'ensemble, des Notes et examens et des exports comptent aussi le CCP2. Il n'apparaît "
+          + "que lorsqu'il a commencé, et seuls les stagiaires déjà évalués y comptent : ceux qui ne l'ont pas encore abordé ne "
+          + "baissent pas le taux.",
+    ou: { route: "centre", label: "Vue d'ensemble" },
+  },
   // EPCF du CCP2 (23/11) : troisième grille, critères de performance des compétences 8 à 11 du REAC.
   {
     id: "2026-11-23-epcf-ccp2-formateurs",

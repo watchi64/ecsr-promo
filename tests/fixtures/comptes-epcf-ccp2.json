@@ -1,0 +1,40 @@
+{
+ "_note": "Fixture commune des EPCF du CCP2 dans les comptes du réseau, jouée par tests/comptes-reseau.test.mjs et par la preuve SQL (tests/sql/comptes-epcf-ccp2-preuve.sql). Un centre fictif, une promo en cours, six fiches actives et un abandon (la 7). Le CCP2 n'entre dans les chiffres envoyés au siège qu'à partir de 3 stagiaires du centre qui y ont au moins un critère renseigné. Les identifiants de stagiaires (1 à 7) sont ceux du jeu : la preuve SQL les remplace par ceux de ses fiches. Chaque cas donne ses évaluations du CCP2 et les comptes attendus, calculés à la main.",
+ "actifs": [1, 2, 3, 4, 5, 6],
+ "abandons": [7],
+ "ccp1": [
+  { "s": 1, "trame": "salle", "date": "2026-10-01", "scores": { "a": "A", "b": "A", "c": "R", "d": "NA" } },
+  { "s": 2, "trame": "vehicule", "date": "2026-10-02", "scores": { "a": "A", "b": "NA" } }
+ ],
+ "cas": [
+  { "nom": "aucune évaluation du CCP2 : les chiffres du CCP1, inchangés", "ccp2": [], "acquis": 3, "renseignes": 6 },
+  { "nom": "deux stagiaires évalués au CCP2 : sous le seuil, rien ne s'ajoute",
+    "ccp2": [
+     { "s": 1, "date": "2026-11-02", "scores": { "a": "A", "b": "A" } },
+     { "s": 2, "date": "2026-11-02", "scores": { "a": "NA" } }
+    ], "acquis": 3, "renseignes": 6 },
+  { "nom": "deux stagiaires et des lignes qui ne comptent pas (auto-évaluation, entraînement, sans date, sans critère renseigné, abandon)",
+    "ccp2": [
+     { "s": 1, "date": "2026-11-02", "scores": { "a": "A", "b": "A" } },
+     { "s": 2, "date": "2026-11-02", "scores": { "a": "NA" } },
+     { "s": 3, "date": "2026-11-02", "scores": { "a": "A" }, "auto": true },
+     { "s": 4, "date": "2026-11-02", "scores": { "a": "A" }, "contexte": "Entraînement" },
+     { "s": 5, "date": null, "scores": { "a": "A" } },
+     { "s": 6, "date": "2026-11-02", "scores": {} },
+     { "s": 7, "date": "2026-11-02", "scores": { "a": "A" } }
+    ], "acquis": 3, "renseignes": 6 },
+  { "nom": "trois stagiaires évalués au CCP2 : leur dernière évaluation s'ajoute",
+    "ccp2": [
+     { "s": 1, "date": "2026-10-28", "scores": { "a": "NA", "b": "NA", "c": "NA" } },
+     { "s": 1, "date": "2026-11-02", "scores": { "a": "A", "b": "A", "c": "R" } },
+     { "s": 2, "date": "2026-11-02", "scores": { "a": "NA", "b": "A" } },
+     { "s": 3, "date": "2026-11-03", "scores": { "a": "R" } }
+    ], "acquis": 6, "renseignes": 12 },
+  { "nom": "trois stagiaires évalués au CCP2 qui n'ont aucune évaluation du CCP1",
+    "ccp2": [
+     { "s": 4, "date": "2026-11-02", "scores": { "a": "A" } },
+     { "s": 5, "date": "2026-11-02", "scores": { "a": "A", "b": "R" } },
+     { "s": 6, "date": "2026-11-02", "scores": { "a": "NA" } }
+    ], "acquis": 5, "renseignes": 10 }
+ ]
+}

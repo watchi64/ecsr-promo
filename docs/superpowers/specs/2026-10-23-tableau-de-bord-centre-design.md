@@ -92,7 +92,7 @@ fiches actives. Les résultats (QCM, notes, EPCF) portent sur les stagiaires en 
 | Réussite aux QCM d'entraînement | bonnes réponses / questions répondues | mesuré |
 | Examens QCM | examens passés ; réussis = note ≥ seuil du QCM (15/20 par défaut) ; moyenne /20 | mesuré |
 | Notes | moyenne de toutes les notes ramenées sur 20, médiane, part sous 10 (règles de `js/notes-stats.js`) | mesuré |
-| EPCF | par grille (salle, véhicule) : dernière évaluation EPCF non auto-évaluée de chaque stagiaire (règle de la fonction `epcf_moyennes`) ; évalués / en formation ; part des critères acquis, à renforcer, non acquis ; score moyen (A = 2, R = 1, NA = 0, ramené à 100 %) | mesuré |
+| EPCF | par grille (salle, véhicule, et CCP2 depuis le 24/11/2026 : un stagiaire pas encore évalué à une grille n'y compte pas ; chiffres du réseau : le CCP2 à partir de 3 stagiaires évalués dans le centre) : dernière évaluation EPCF non auto-évaluée de chaque stagiaire (règle de la fonction `epcf_moyennes`) ; évalués / en formation ; part des critères acquis, à renforcer, non acquis ; score moyen (A = 2, R = 1, NA = 0, ramené à 100 %) | mesuré |
 | Réussite au titre | non saisie dans l'app | non mesuré |
 | Stagiaires à suivre | au moins deux signaux parmi quatre (ci-dessous) | estimé |
 

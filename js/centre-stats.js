@@ -8,7 +8,7 @@
 // fiches actives. Tout sauf l'effectif et les abandons porte sur les stagiaires en formation.
 
 import { estNotee, score20, mediane } from "./notes-stats.js?v=20261123a";
-import { NOTE_VALUES } from "./epcf-trames.js?v=20261123a";
+import { NOTE_VALUES, EPCF_TRAME_KEYS } from "./epcf-trames.js?v=20261123a";
 import { compareByNom } from "./utils.js?v=20261123a";
 import { fr1, pct } from "./nombres.js?v=20261123a";
 import { presenceDesFeuilles, RAISONS_ABSENCE } from "./presence-rules.js?v=20261123a";
@@ -27,6 +27,13 @@ const SIGNAL_MIN_NOTES = 3;
 const SIGNAL_RETARD = 2;
 const SIGNAUX_A_SUIVRE = 2;
 
+// Les EPCF du CCP2 dans les chiffres du réseau : rien avant 3 stagiaires évalués dans le centre. Le même seuil que les moyennes de la
+// classe (SEUIL_MOYENNE_EPCF, js/epcf-classe-rules.js) ; la base l'applique elle-même (comptes_reseau(), migration
+// 20261124_epcf_ccp2_reseau), le siège ne reçoit jamais le détail.
+export const SEUIL_EPCF_RESEAU = 3;
+
+const METHODE_EPCF = "Par grille (salle, véhicule, CCP2) : la dernière évaluation EPCF de chaque stagiaire en formation, hors auto-évaluation. Critères acquis divisés par les critères renseignés ; score : acquis 2, à renforcer 1, non acquis 0, ramené à 100 %. Le CCP1 (salle, véhicule) et le CCP2 ne se passent pas au même moment de la formation : seuls les stagiaires déjà évalués à une grille y comptent, un stagiaire qui n'a pas encore abordé le CCP2 ne baisse pas le taux.";
+
 export const METHODES = {
   effectif: "Inscrits : toutes les fiches de la promo. En formation : les fiches actives. Abandons : les fiches passées en abandon par l'équipe. Les fiches effacées à la demande de la personne sont comptées parmi les inscrits, à part : ni en formation, ni en abandon.",
   abandon: "Abandons divisés par les inscrits. Seule la décision de l'équipe compte : un effacement de données, à la demande de la personne ou au terme de la durée de conservation, n'est pas un abandon. La date de l'abandon n'est pas enregistrée dans l'app : le taux porte sur toute la durée de la promo.",
@@ -37,7 +44,8 @@ export const METHODES = {
   reussiteQcm: "Bonnes réponses divisées par les questions répondues, sur tous les QCM d'entraînement des stagiaires en formation.",
   examensQcm: "Examens QCM passés par les stagiaires en formation ; réussi quand la note atteint le seuil du QCM (15/20 par défaut). Moyenne des notes d'examen sur 20.",
   notes: "Toutes les notes des stagiaires en formation ramenées sur 20 (une note sans barème est ignorée) : moyenne, médiane, nombre de notes sous 10. Même règle que la synthèse de la page Notes.",
-  epcf: "Par grille (salle, véhicule) : la dernière évaluation EPCF de chaque stagiaire en formation, hors auto-évaluation. Critères acquis divisés par les critères renseignés ; score : acquis 2, à renforcer 1, non acquis 0, ramené à 100 %.",
+  epcf: METHODE_EPCF,
+  epcfReseau: METHODE_EPCF + ` Dans les chiffres du réseau, le CCP2 entre à partir de ${SEUIL_EPCF_RESEAU} stagiaires évalués dans le centre.`,
   titre: "Titres obtenus divisés par les stagiaires présentés au jury (absents exclus), d'après les résultats saisis par l'équipe : une ligne par stagiaire, son dernier passage devant le jury. Les validations partielles (un CCP acquis) sont dites à côté, sans compter comme obtention. Les stagiaires sans résultat saisi ne comptent pas.",
   presence: "Heures réalisées divisées par heures prévues, sur les feuilles d'émargement closes de la promo, toutes lignes comprises : un stagiaire parti figure sur les feuilles jusqu'à son départ.",
   satisfaction: "Réponses favorables (plutôt oui, tout à fait) à la question globale du questionnaire de fin de formation, divisées par les avis notés (« sans avis » exclu) ; réponses enregistrées sans nom ; résultat affiché à partir de 5 avis notés.",
@@ -73,6 +81,11 @@ export function effectifDesFiches(fiches) {
   const lignes = fiches || [];
   const enFormation = lignes.filter((s) => s.actif).length;
   return { inscrits: lignes.length, enFormation, abandons: lignes.length - enFormation };
+}
+
+// Critères acquis et renseignés de plusieurs grilles EPCF (celles du détail de l'indicateur « epcf »).
+export function criteresEpcf(grilles) {
+  return { acquis: somme(grilles.map((g) => g.A)), renseignes: somme(grilles.map((g) => g.A + g.R + g.NA)) };
 }
 
 function indicateur(cle, valeur, detail, nature = "mesuré", n = null) {
@@ -133,7 +146,8 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui, demandes } 
   const notees = evaluations.filter(estNotee);
   const scores = notees.map(score20);
 
-  // --- EPCF : dernière évaluation EPCF (hors auto-évaluation) de chaque stagiaire ---
+  // --- EPCF : dernière évaluation EPCF (hors auto-évaluation) de chaque stagiaire, par grille ---
+  // `avecCriteres` : les évalués dont la dernière évaluation porte au moins un critère renseigné (le seuil du réseau les compte).
   const epcfTrame = (trame) => {
     const dernieres = new Map();
     // Une évaluation sans date n'est pas retenue (sinon l'ordre de lecture déciderait) ; ordre : date_eval desc, id desc.
@@ -144,15 +158,18 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui, demandes } 
         if (!d || e.date_eval > d.date_eval || (e.date_eval === d.date_eval && e.id > d.id)) dernieres.set(e.stagiaire_id, e);
       });
     const c = { A: 0, R: 0, NA: 0 };
-    dernieres.forEach((e) => Object.values(e.scores || {}).forEach((v) => { if (v in c) c[v]++; }));
+    let avecCriteres = 0;
+    dernieres.forEach((e) => {
+      const notes = Object.values(e.scores || {}).filter((v) => v in c);
+      if (notes.length) avecCriteres++;
+      notes.forEach((v) => { c[v]++; });
+    });
     const nb = c.A + c.R + c.NA;
     const points = c.A * NOTE_VALUES.A + c.R * NOTE_VALUES.R + c.NA * NOTE_VALUES.NA;
-    return { evalues: dernieres.size, enFormation: nbForm, ...c, score: nb ? points / (nb * 2) : null };
+    return { evalues: dernieres.size, avecCriteres, enFormation: nbForm, ...c, score: nb ? points / (nb * 2) : null };
   };
-  const epcfSalle = epcfTrame("salle");
-  const epcfVehicule = epcfTrame("vehicule");
-  const critA = epcfSalle.A + epcfVehicule.A;
-  const critTous = critA + epcfSalle.R + epcfVehicule.R + epcfSalle.NA + epcfVehicule.NA;
+  const epcfGrilles = Object.fromEntries(EPCF_TRAME_KEYS.map((trame) => [trame, epcfTrame(trame)]));
+  const { acquis: critA, renseignes: critTous } = criteresEpcf(Object.values(epcfGrilles));
 
   // --- Présence d'après les feuilles d'émargement (même calcul que la fiche résultats Qualiopi et les attestations) ---
   const pres = presenceDesFeuilles(donnees.emargement);
@@ -177,7 +194,7 @@ export function indicateursPromo(donnees, referentiel, { aujourdhui, demandes } 
     notes: indicateur("notes", scores.length ? somme(scores) / scores.length : null, {
       n: scores.length, somme: somme(scores), mediane: mediane(scores), sous10: scores.filter((s) => s < 10).length,
     }, "mesuré", scores.length),
-    epcf: indicateur("epcf", ratio(critA, critTous), { salle: epcfSalle, vehicule: epcfVehicule }, "mesuré", critTous),
+    epcf: indicateur("epcf", ratio(critA, critTous), epcfGrilles, "mesuré", critTous),
     titre: indicateurTitre(donnees.jury),
     // Toutes les lignes des feuilles closes (stagiaires partis compris) : la population n'est pas celle « en formation ».
     presence: indicateur("presence", presMesuree ? pres.taux : null, {
@@ -354,6 +371,18 @@ export function texteTitreDetail(titre) {
   if (d.partiels) morceaux.push(`${d.partiels} validation${d.partiels > 1 ? "s" : ""} partielle${d.partiels > 1 ? "s" : ""}`);
   if (d.absents) morceaux.push(`${d.absents} absent${d.absents > 1 ? "s" : ""}`);
   return morceaux.join(" · ");
+}
+
+// Le détail de la carte « Évaluations EPCF », grille par grille. Le CCP1 se lit sur l'effectif en formation. Le CCP2 se passe plus
+// tard : il n'est nommé que lorsqu'il a commencé, sans effectif attendu, pour que personne ne paraisse en retard.
+export function texteEpcfDetail(epcf) {
+  const { salle, vehicule, ccp2 } = epcf.detail;
+  const score = (g) => (g.score == null ? "aucun critère renseigné" : `score ${pct(g.score)}`);
+  const ccp1 = (nom, g) => (g.evalues ? `${nom} : ${g.evalues}/${g.enFormation} évalués, ${score(g)}` : `${nom} : aucune évaluation`);
+  return [
+    ccp1("Salle", salle), ccp1("Véhicule", vehicule),
+    ...(ccp2.evalues ? [`CCP2 : ${ccp2.evalues} évalué${ccp2.evalues > 1 ? "s" : ""}, ${score(ccp2)}`] : []),
+  ].join(" · ");
 }
 
 // Le titre en quelques mots, pour une case de tableau.

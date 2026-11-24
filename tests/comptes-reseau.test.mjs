@@ -4,8 +4,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { indicateursPromo } from "../js/centre-stats.js";
+import { SEUIL_MOYENNE_EPCF } from "../js/epcf-classe-rules.js";
 import {
-  CHAMPS_COMPTES, SEUIL_SECRET, comptesDepuisIndicateurs, versComptes, sommeComptes, ratiosDeComptes,
+  CHAMPS_COMPTES, SEUIL_SECRET, SEUIL_EPCF_RESEAU, comptesDepuisIndicateurs, comptesPourLeSiege, versComptes, sommeComptes, ratiosDeComptes,
   promosEnCours, concatenerDonnees, vueDuReseau,
 } from "../js/comptes-reseau.js";
 
@@ -124,4 +125,39 @@ test("mentionMasques : rien sans centre masqué, accord au singulier et au pluri
   assert.equal(mentionMasques(undefined), "");
   assert.equal(mentionMasques(1), " (1 centre)");
   assert.equal(mentionMasques(3), " (3 centres)");
+});
+
+// --- Les EPCF du CCP2 dans les comptes (fixture commune tests/fixtures/comptes-epcf-ccp2.json, jouée aussi par la preuve SQL) ---
+const G = JSON.parse(readFileSync(new URL("./fixtures/comptes-epcf-ccp2.json", import.meta.url), "utf8"));
+const donneesCcp2 = (cas) => ({
+  stagiaires: [...G.actifs.map((id) => ({ id, actif: true })), ...G.abandons.map((id) => ({ id, actif: false }))],
+  passages: [], evaluations: [], tentatives: [],
+  epcf: [...G.ccp1, ...cas.ccp2.map((e) => ({ trame: "ccp2", ...e }))].map((e, i) => ({
+    id: i + 1, stagiaire_id: e.s, trame: e.trame, contexte: e.contexte ?? "EPCF", auto_eval: !!e.auto, date_eval: e.date, scores: e.scores })),
+});
+const indCcp2 = (cas) => indicateursPromo(donneesCcp2(cas), { qcm: [], themes: [] }, { aujourdhui: "2026-11-08" });
+
+test("le seuil des EPCF du réseau : 3 stagiaires, le même que les moyennes EPCF de la classe", () => {
+  assert.equal(SEUIL_EPCF_RESEAU, 3);
+  assert.equal(SEUIL_EPCF_RESEAU, SEUIL_MOYENNE_EPCF);
+});
+
+for (const cas of G.cas) {
+  test("comptes pour le siège : " + cas.nom, () => {
+    const c = comptesPourLeSiege(indCcp2(cas));
+    assert.deepEqual([c.epcfAcquis, c.epcfRenseignes], [cas.acquis, cas.renseignes]);
+    assert.deepEqual(Object.keys(c), CHAMPS_COMPTES);
+  });
+}
+
+test("comptes de la direction : tout le CCP2, sans seuil (ses pages sont nominatives), égaux à l'indicateur affiché", () => {
+  const ind = indCcp2(G.cas[1]);
+  const c = comptesDepuisIndicateurs(ind);
+  assert.deepEqual([c.epcfAcquis, c.epcfRenseignes], [5, 9]);
+  proche(ratiosDeComptes(c).epcf, ind.epcf.valeur, "ratio");
+});
+
+test("sans évaluation du CCP2, les comptes pour le siège sont ceux de la direction", () => {
+  const ind = indicateursPromo(F.donnees, F.referentiel, OPT);
+  assert.deepEqual(comptesPourLeSiege(ind), comptesDepuisIndicateurs(ind));
 });

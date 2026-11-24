@@ -63,7 +63,7 @@ function cartes(c) {
     carte({ cle: "notes", titre: "Moyenne des notes", nature: "mesuré",
       valeur: r.notes == null ? null : `${fr1(r.notes)}/20`,
       detail: r.notes == null ? null : `${pluriel(c.notesN, "note")} · ${entier(c.notesSous10)} sous 10` }),
-    carte({ cle: "epcf", titre: "Critères EPCF acquis", nature: "mesuré",
+    carte({ cle: "epcfReseau", titre: "Critères EPCF acquis", nature: "mesuré",
       valeur: r.epcf == null ? null : pct(r.epcf),
       detail: r.epcf == null ? null : `${pluriel(c.epcfAcquis, "critère acquis", "critères acquis")} sur ${entier(c.epcfRenseignes)}` }),
   ];

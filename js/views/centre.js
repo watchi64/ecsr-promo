@@ -9,7 +9,7 @@ import {
 } from "../db.js?v=20261123a";
 import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261123a";
 import { fondateurHorsApercu, isAdmin } from "../auth-admin.js?v=20261123a";
-import { indicateursPromo, ligneComparaison, textePresenceDetail, texteTitreDetail, METHODES } from "../centre-stats.js?v=20261123a";
+import { indicateursPromo, ligneComparaison, textePresenceDetail, texteTitreDetail, texteEpcfDetail, METHODES } from "../centre-stats.js?v=20261123a";
 import { CHOIX_JURY, valeurDeLigne, changementsJury, dateProposee } from "../jury-rules.js?v=20261123a";
 import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261123a";
 import { entier, fr1, pct, pluriel } from "../nombres.js?v=20261123a";
@@ -112,10 +112,6 @@ export function cartesResultats(ind, { saisirJury = null, porteeJury = null, ind
   const rq = ind.reussiteQcm.detail;
   const ex = ind.examensQcm.detail;
   const no = ind.notes.detail;
-  const ep = ind.epcf.detail;
-  const grille = (nom, g) => (g.evalues
-    ? `${nom} : ${g.evalues}/${g.enFormation} évalués, score ${pct(g.score)}`
-    : `${nom} : aucune évaluation`);
   return [
     carte({ cle: "activiteQcm", titre: "Activité QCM", nature: "mesuré",
       valeur: ind.activiteQcm.valeur == null ? null : pct(ind.activiteQcm.valeur),
@@ -135,7 +131,7 @@ export function cartesResultats(ind, { saisirJury = null, porteeJury = null, ind
         : `${pluriel(no.n, "note")} · médiane ${fr1(no.mediane)} · ${entier(no.sous10)} sous 10` }),
     carte({ cle: "epcf", titre: "Évaluations EPCF", nature: "mesuré",
       valeur: ind.epcf.valeur == null ? null : `${pct(ind.epcf.valeur)} acquis`,
-      detail: ind.epcf.valeur == null ? null : `${grille("Salle", ep.salle)} · ${grille("Véhicule", ep.vehicule)}` }),
+      detail: ind.epcf.valeur == null ? null : texteEpcfDetail(ind.epcf) }),
     carteTitre(indTitre || ind, { saisir: saisirJury, portee: porteeJury }),
   ];
 }
