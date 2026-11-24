@@ -205,6 +205,13 @@ eq(accorder("ouvert", module_("epcf").accord), "ouvertes", "« Évaluations EPCF
 ok(module_("epcf").explication.startsWith("EPCF : évaluations passées en cours de formation."),
   "EPCF : le sigle défini dans l'explication du premier module qui en parle");
 ok(module_("epcf").annonce.resume.includes("EPCF (évaluations passées en cours de formation)"), "EPCF : le sigle défini dans l'annonce");
+// Trois épreuves EPCF depuis le 23/11 (CCP1 en salle, CCP1 en véhicule, CCP2) ; un seul livret officiel pour les deux CCP.
+for (const texte of [module_("epcf").explication, module_("epcf").annonce.resume]) {
+  ok(/CCP1 en salle et en véhicule, CCP2/.test(texte), "EPCF : les trois épreuves nommées");
+}
+for (const texte of [module_("livret").explication, module_("livret").annonce.resume]) {
+  ok(/un seul (livret )?pour le CCP1 et le CCP2/.test(texte), "Livret EPCF : le même pour les deux CCP");
+}
 ok(module_("ccp2").annonce.resume.includes("CCP2 (certificat de compétences professionnelles n° 2)"), "CCP2 : le sigle défini dans l'annonce");
 eq(module_("ccp2").annonce.titre, "La page CCP2 est ouverte", "CCP2 : une page, plus un onglet");
 eq(module_("livret").annonce.ou.label, "Mon suivi, partie Livret EPCF", "Livret EPCF dans le lien");

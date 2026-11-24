@@ -1,5 +1,5 @@
 // Recoupement des chiffres du réseau (lot 5, Task 16) : les comptes que la base envoie au siège (comptes_reseau(), une ligne par centre)
-// sont recalculés avec le code de l'app (celui de la direction : indicateursPromo, comptesDepuisIndicateurs) à partir des données brutes
+// sont recalculés avec le code de l'app (celui de la direction : indicateursPromo, avec le seuil du réseau : comptesPourLeSiege) à partir des données brutes
 // des promos en cours de chaque centre, puis comparés.
 //
 //   node outils/recouper_comptes.mjs <brut.json> <comptes.json>
@@ -16,7 +16,7 @@
 // en cours. Entre minuit et 1 h ou 2 h à Paris, une promo qui commence ou finit ce jour-là est comptée d'un côté et pas de l'autre :
 // pour un recoupement juste, extraire « aujourdhui » avec `select current_date` sur la base, jamais avec l'horloge de la machine.
 //
-// Pour chaque centre : comptesDepuisIndicateurs(indicateursPromo(concatenerDonnees(promos en cours du centre))) est comparé à la ligne de même
+// Pour chaque centre : comptesPourLeSiege(indicateursPromo(concatenerDonnees(promos en cours du centre))) est comparé à la ligne de même
 // lieu_id (champ par champ, notes à 1e-9 près). Un centre masqué n'envoie aucun chiffre : on vérifie seulement que le calcul de l'app donne
 // moins de SEUIL_SECRET stagiaires en formation. Sortie : « identiques », ou un écart par ligne ; code 0 sans écart, 1 au moindre écart,
 // 2 si les fichiers sont illisibles. Ne lit jamais la base : il ne voit que les deux fichiers qu'on lui donne.
@@ -24,7 +24,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { indicateursPromo } from "../js/centre-stats.js";
-import { CHAMPS_COMPTES, SEUIL_SECRET, comptesDepuisIndicateurs, concatenerDonnees, promosEnCours, versComptes } from "../js/comptes-reseau.js";
+import { CHAMPS_COMPTES, SEUIL_SECRET, comptesPourLeSiege, concatenerDonnees, promosEnCours, versComptes } from "../js/comptes-reseau.js";
 
 const TOLERANCE = 1e-9;
 const COLONNE = (champ) => champ.replace(/[A-Z]/g, (m) => "_" + m.toLowerCase());
@@ -55,7 +55,7 @@ export function recouper(brut, comptes) {
       }
       continue;
     }
-    const calcule = comptesDepuisIndicateurs(indicateursPromo(concatenerDonnees(enCours.map((p) => p.donnees)), referentiel, { aujourdhui }));
+    const calcule = comptesPourLeSiege(indicateursPromo(concatenerDonnees(enCours.map((p) => p.donnees)), referentiel, { aujourdhui }));
     if (l.masque) {
       masques += 1;
       if (!(calcule.enFormation < SEUIL_SECRET)) {

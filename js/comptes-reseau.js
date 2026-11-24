@@ -3,8 +3,10 @@
 // versComptes) : mêmes définitions des deux côtés, jouées par une fixture commune (tests/fixtures/comptes-promo.json).
 // Un compte s'additionne entre promos et entre centres ; un ratio ne se calcule que sur des comptes sommés.
 
-import { fusionnerEmargements } from "./presence-rules.js?v=20261123a";
-import { fusionnerJury } from "./centre-stats.js?v=20261123a";
+import { fusionnerEmargements } from "./presence-rules.js?v=20261124a";
+import { fusionnerJury, criteresEpcf, SEUIL_EPCF_RESEAU } from "./centre-stats.js?v=20261124a";
+
+export { SEUIL_EPCF_RESEAU };
 
 // Chaque champ reflète une colonne de comptes_reseau (enFormation = en_formation, notesSomme = notes_somme...).
 export const CHAMPS_COMPTES = ["inscrits", "enFormation", "abandons", "absences", "prevus", "qcmBonnes",
@@ -29,16 +31,25 @@ export function comptesDepuisIndicateurs(ind) {
   const q = ind.reussiteQcm.detail;
   const ex = ind.examensQcm.detail;
   const no = ind.notes.detail;
-  const { salle, vehicule } = ind.epcf.detail;
+  const epcf = criteresEpcf(Object.values(ind.epcf.detail));
   return {
     inscrits: ef.inscrits, enFormation: ef.enFormation, abandons: ef.abandons,
     absences: ab.absences, prevus: ab.prevus,
     qcmBonnes: q.bonnes, qcmQuestions: q.questions,
     examensPasses: ex.passes, examensReussis: ex.reussis,
     notesN: no.n, notesSomme: no.somme, notesSous10: no.sous10,
-    epcfAcquis: salle.A + vehicule.A,
-    epcfRenseignes: salle.A + salle.R + salle.NA + vehicule.A + vehicule.R + vehicule.NA,
+    epcfAcquis: epcf.acquis, epcfRenseignes: epcf.renseignes,
   };
+}
+
+// Les mêmes comptes tels que la base les envoie au siège (comptes_reseau()) : le CCP2 n'y entre qu'à partir de SEUIL_EPCF_RESEAU
+// stagiaires du centre qui y ont au moins un critère renseigné. `ind` : les indicateurs de toutes les promos en cours du centre
+// (concatenerDonnees), le seuil se juge sur le centre entier. Ne sert qu'à recouper la base (outils/recouper_comptes.mjs) : l'écran
+// du siège lit ce qu'elle envoie.
+export function comptesPourLeSiege(ind) {
+  const { ccp2, ...ccp1 } = ind.epcf.detail;
+  const epcf = criteresEpcf(Object.values(ccp2.avecCriteres >= SEUIL_EPCF_RESEAU ? { ...ccp1, ccp2 } : ccp1));
+  return { ...comptesDepuisIndicateurs(ind), epcfAcquis: epcf.acquis, epcfRenseignes: epcf.renseignes };
 }
 
 // Une ligne de comptes_reseau (un centre) -> comptes (zéros pour une ligne masquée, dont les colonnes sont nulles).

@@ -540,13 +540,33 @@ const evaluations = section(f, "evaluations");
 eq(evaluations.paragraphes, [
   "Évaluations : 5 notes du 06/10 au 14/10, 2 examens QCM, 4 évaluations EPCF, 1 livret EPCF (stagiaires en formation uniquement) ; aucun résultat de jury saisi.",
   "Stagiaires en formation uniquement : 3 sur 4 inscrits.",
-], "évaluations : la pièce de l'inventaire et la population");
-eq(entetesDe(f, "evaluations"), ["Stagiaire", "Notes", "Examens QCM", "EPCF en salle", "EPCF véhicule", "Livret EPCF", "Jury"], "évaluations : en-têtes");
+  "EPCF : dernière évaluation de chaque épreuve, hors auto-évaluation. « aucune » : épreuve non évaluée à ce jour (le CCP1 et le CCP2 ne se passent pas au même moment de la formation).",
+], "évaluations : la pièce de l'inventaire, la population et la règle des EPCF");
+eq(evaluations.tableaux.length, 2, "évaluations : deux tableaux, les EPCF à part pour rester lisibles sur une feuille A4");
+eq(entetesDe(f, "evaluations"), ["Stagiaire", "Notes", "Examens QCM", "Livret EPCF", "Jury"], "évaluations : en-têtes");
 eq(lignesDe(f, "evaluations"), [
-  ["Delmas Bastien", "2 notes, moyenne 9,0/20", "1 examen, moyenne 12,0/20", "aucune", "aucune", "aucun", "non saisi"],
-  ["Lambert Kevin", "1 note, moyenne 15,0/20", "aucun", "aucune", "16/10/2026, 2 acquis sur 3", "aucun", "non saisi"],
-  ["Marchand Anaïs", "2 notes, moyenne 13,0/20", "1 examen, moyenne 16,0/20", "14/10/2026, 1 acquis sur 2", "aucune", "oui, mis à jour le 15/10/2026", "non saisi"],
-], "évaluations : notes, examens QCM, dernière EPCF de chaque grille, livret, jury non saisi");
+  ["Delmas Bastien", "2 notes, moyenne 9,0/20", "1 examen, moyenne 12,0/20", "aucun", "non saisi"],
+  ["Lambert Kevin", "1 note, moyenne 15,0/20", "aucun", "aucun", "non saisi"],
+  ["Marchand Anaïs", "2 notes, moyenne 13,0/20", "1 examen, moyenne 16,0/20", "oui, mis à jour le 15/10/2026", "non saisi"],
+], "évaluations : notes, examens QCM, livret, jury non saisi");
+eq(entetesDe(f, "evaluations", 1), ["Stagiaire", "EPCF en salle (CCP1)", "EPCF en véhicule (CCP1)", "EPCF du CCP2"], "EPCF : les trois épreuves");
+eq(lignesDe(f, "evaluations", 1), [
+  ["Delmas Bastien", "aucune", "aucune", "aucune"],
+  ["Lambert Kevin", "aucune", "16/10/2026, 2 acquis sur 3", "aucune"],
+  ["Marchand Anaïs", "14/10/2026, 1 acquis sur 2", "aucune", "aucune"],
+], "EPCF : dernière évaluation de chaque épreuve");
+// Le CCP2 : la dernière évaluation, hors auto-évaluation, de chacun ; les autres épreuves ne bougent pas.
+const avecCcp2 = formation({ donnees: geler({ ...D, epcf: [...EPCF,
+  X(8, 1, "ccp2", "2026-10-19", { DEM1: "NA", DEM2: "R" }),
+  X(9, 1, "ccp2", "2026-10-21", { DEM1: "A", DEM2: "A", SENS1: "R" }),
+  X(10, 2, "ccp2", "2026-10-21", { DEM1: "A" }, { auto_eval: true }),
+] }) });
+eq(lignesDe(avecCcp2, "evaluations", 1), [
+  ["Delmas Bastien", "aucune", "aucune", "aucune"],
+  ["Lambert Kevin", "aucune", "16/10/2026, 2 acquis sur 3", "aucune"],
+  ["Marchand Anaïs", "14/10/2026, 1 acquis sur 2", "aucune", "21/10/2026, 2 acquis sur 3"],
+], "EPCF du CCP2 : la dernière évaluation, l'auto-évaluation écartée");
+eq(lignesDe(avecCcp2, "evaluations"), lignesDe(f, "evaluations"), "EPCF du CCP2 : le premier tableau ne change pas");
 
 // --- Ressources et appropriation
 const ressources = section(f, "ressources");
@@ -1143,7 +1163,7 @@ ok(!source.includes(TIRET_CADRATIN), "aucun tiret cadratin dans le module");
 const code = source.replace(/\/\/.*$/gm, "");
 ok(!/\bdocument\.|\bwindow\.|\bfetch\(|\bsupabase\b|\blocalStorage\b/.test(code), "le module est pur : ni DOM, ni réseau, ni base");
 eq(code.match(/^import .* from "(.*)";$/gm).map((l) => l.match(/from "(.*)"/)[1].replace(/\?v=\w+$/, "")),
-  ["./qualiopi-referentiel.js", "./qualiopi-preuves.js", "./registre-rules.js", "./centre-stats.js", "./notes-stats.js", "./centre-csv.js", "./utils.js", "./effacement-rules.js", "./attestations-rules.js", "./qualiopi-presence.js", "./nombres.js", "./dates.js"],
+  ["./qualiopi-referentiel.js", "./qualiopi-preuves.js", "./registre-rules.js", "./centre-stats.js", "./notes-stats.js", "./epcf-trames.js", "./centre-csv.js", "./utils.js", "./effacement-rules.js", "./attestations-rules.js", "./qualiopi-presence.js", "./nombres.js", "./dates.js"],
   "il n'importe que des modules purs de l'app, avec le jeton de version des autres imports");
 // Les aides de l'inventaire sont importées, jamais recopiées : la synthèse par semaine suit la règle de l'inventaire.
 const AIDES = ["jourDe", "rempli", "tableau", "demandesDe", "RAISON_EFFACEE", "promoTerminee", "nouveautesCitables", "lignesDuPlanning", "demiJournees", "intervenantsDistincts"];

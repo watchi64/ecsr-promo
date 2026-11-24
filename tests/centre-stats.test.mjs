@@ -3,8 +3,9 @@
 // Lancer depuis la racine du dépôt : node tests/centre-stats.test.mjs
 import assert from "node:assert/strict";
 import {
-  indicateursPromo, effectifDesFiches, ligneComparaison, METHODES, COUT_ABANDON_ESTIME, aSuivrePromo, fusionnerASuivre,
+  indicateursPromo, effectifDesFiches, ligneComparaison, METHODES, texteEpcfDetail, COUT_ABANDON_ESTIME, aSuivrePromo, fusionnerASuivre,
 } from "../js/centre-stats.js";
+import { pct } from "../js/nombres.js";
 
 let n = 0;
 const eq = (a, b, msg) => { assert.deepEqual(a, b, msg); n++; };
@@ -111,9 +112,37 @@ eq(ind.notes.detail.mediane, 11, "médiane");
 eq(ind.notes.detail.sous10, 3, "3 notes sous 10");
 
 // EPCF : salle = dernière EPCF de Ana (A A R) ; véhicule = Bob (A NA).
-eq(ind.epcf.detail.salle, { evalues: 1, enFormation: 4, A: 2, R: 1, NA: 0, score: 5 / 6 }, "EPCF salle");
-eq(ind.epcf.detail.vehicule, { evalues: 1, enFormation: 4, A: 1, R: 0, NA: 1, score: 0.5 }, "EPCF véhicule");
+eq(ind.epcf.detail.salle, { evalues: 1, avecCriteres: 1, enFormation: 4, A: 2, R: 1, NA: 0, score: 5 / 6 }, "EPCF salle");
+eq(ind.epcf.detail.vehicule, { evalues: 1, avecCriteres: 1, enFormation: 4, A: 1, R: 0, NA: 1, score: 0.5 }, "EPCF véhicule");
 proche(ind.epcf.valeur, 3 / 5, "3 critères acquis sur 5");
+// Le CCP2 pas encore abordé : ni dans le taux, ni dans le texte de la carte (personne ne paraît en retard).
+eq(ind.epcf.detail.ccp2, { evalues: 0, avecCriteres: 0, enFormation: 4, A: 0, R: 0, NA: 0, score: null }, "EPCF CCP2 pas abordé");
+eq(texteEpcfDetail(ind.epcf), `Salle : 1/4 évalués, score ${pct(5 / 6)} · Véhicule : 1/4 évalués, score ${pct(0.5)}`,
+  "carte EPCF : le CCP2 pas abordé n'est pas nommé");
+{
+  // Le CCP2 d'Ana : la dernière évaluation (A, A, R) ; celle de Bob est une auto-évaluation, celle de l'abandon ne compte pas.
+  const epcf = [...EPCF,
+    X(20, 1, "ccp2", "2026-10-12", { DEM1: "NA" }), X(21, 1, "ccp2", "2026-10-20", { DEM1: "A", DEM2: "A", SENS1: "R" }),
+    X(22, 2, "ccp2", "2026-10-20", { DEM1: "NA" }, { auto_eval: true }), X(23, 5, "ccp2", "2026-10-20", { DEM1: "NA" })];
+  const i = indicateursPromo({ ...D, epcf }, REF, { aujourdhui: "2026-10-23" }).epcf;
+  eq(i.detail.ccp2, { evalues: 1, avecCriteres: 1, enFormation: 4, A: 2, R: 1, NA: 0, score: 5 / 6 }, "EPCF CCP2");
+  eq([i.detail.salle, i.detail.vehicule], [ind.epcf.detail.salle, ind.epcf.detail.vehicule], "le CCP2 ne change pas les grilles du CCP1");
+  proche(i.valeur, 5 / 8, "5 critères acquis sur 8 : les trois stagiaires sans CCP2 ne comptent pas au dénominateur");
+  eq(i.n, 8, "8 critères renseignés");
+  eq(texteEpcfDetail(i), `Salle : 1/4 évalués, score ${pct(5 / 6)} · Véhicule : 1/4 évalués, score ${pct(0.5)} · CCP2 : 1 évalué, score ${pct(5 / 6)}`,
+    "carte EPCF : le CCP2 sans effectif attendu (jamais « 1/4 »)");
+  // Une évaluation enregistrée sans aucun critère : évaluée, sans critère renseigné, sans score inventé.
+  const jouer = (liste) => indicateursPromo({ ...D, epcf: liste }, REF, { aujourdhui: "2026-10-23" }).epcf;
+  const sansCritere = jouer([X(30, 1, "ccp2", "2026-10-20", {}), X(31, 2, "ccp2", "2026-10-20", { DEM1: "A" })]);
+  eq([sansCritere.detail.ccp2.evalues, sansCritere.detail.ccp2.avecCriteres], [2, 1], "évalués, et évalués avec un critère renseigné");
+  eq(texteEpcfDetail(sansCritere), `Salle : aucune évaluation · Véhicule : aucune évaluation · CCP2 : 2 évalués, score ${pct(1)}`, "carte EPCF : le CCP2 seul");
+  eq(texteEpcfDetail(jouer([X(30, 1, "salle", "2026-10-20", {})])),
+    "Salle : 1/4 évalués, aucun critère renseigné · Véhicule : aucune évaluation", "carte EPCF : pas de score sans critère");
+}
+assert.match(METHODES.epcf, /salle, véhicule, CCP2/); n++;
+assert.match(METHODES.epcf, /n'a pas encore abordé le CCP2 ne baisse pas le taux/); n++;
+assert.ok(METHODES.epcfReseau.startsWith(METHODES.epcf), "la méthode du réseau est celle de la promo, plus le seuil"); n++;
+assert.match(METHODES.epcfReseau, /à partir de 3 stagiaires évalués dans le centre/); n++;
 
 eq(ind.titre.valeur, null, "titre non mesuré");
 eq(ind.titre.nature, "non mesuré", "titre : nature");

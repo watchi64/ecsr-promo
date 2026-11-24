@@ -106,6 +106,17 @@ function decalee(delta) {
   const m = (l) => l.map((x) => ({ ...x, id: x.id + delta, ...(x.stagiaire_id != null ? { stagiaire_id: x.stagiaire_id + delta } : {}) }));
   return { stagiaires: m(d.stagiaires), passages: m(d.passages), evaluations: m(d.evaluations), tentatives: m(d.tentatives), epcf: m(d.epcf) };
 }
+test("EPCF du CCP2 : le recoupement suit la règle de la base (à partir de 3 stagiaires évalués dans le centre)", () => {
+  const ccp2 = (nb) => F.donnees.stagiaires.filter((s) => s.actif).slice(0, nb).map((s, i) => ({ id: 995001 + i, stagiaire_id: s.id,
+    trame: "ccp2", contexte: "EPCF", auto_eval: false, date_eval: "2026-11-02", scores: { DEM1: "A", DEM2: "R" }, promo_id: F.promo_id }));
+  const avec = (nb) => brut([promo({ donnees: { ...F.donnees, epcf: [...F.donnees.epcf, ...ccp2(nb)] } })]);
+  assert.deepEqual(recouper(avec(2), [ligne()]).ecarts, []);
+  const trois = { epcf_acquis: F.attendu.epcfAcquis + 3, epcf_renseignes: F.attendu.epcfRenseignes + 6 };
+  assert.deepEqual(recouper(avec(3), [ligne(trois)]).ecarts, []);
+  // Une base qui enverrait les deux premiers stagiaires évalués est un écart.
+  assert.equal(recouper(avec(2), [ligne({ epcf_acquis: F.attendu.epcfAcquis + 2, epcf_renseignes: F.attendu.epcfRenseignes + 4 })]).ecarts.length, 2);
+});
+
 test("deux promos en cours du même centre : les données sont concaténées avant le calcul, les comptes s'additionnent", () => {
   const b = brut([promo(), promo({ promo_id: 3, donnees: decalee(1000) })]);
   const doubles = Object.fromEntries(Object.entries(F.attendu).map(([k, v]) => [colonne(k), v * 2]));

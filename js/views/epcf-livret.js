@@ -9,13 +9,13 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261123a";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261123a";
-import { isAdmin, isProf, monStagiaireId, enVitrine, ecritSelonLaCase } from "../auth-admin.js?v=20261123a";
-import { getCurrentWho } from "../identity.js?v=20261123a";
-import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261123a";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261124a";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261124a";
+import { isAdmin, isProf, monStagiaireId, enVitrine, ecritSelonLaCase } from "../auth-admin.js?v=20261124a";
+import { getCurrentWho } from "../identity.js?v=20261124a";
+import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261124a";
 import { collectData, fillData, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261123a";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261124a";
 
 // La mécanique vit dans doc-officiel.js, partagée avec le Dossier Professionnel.
 const teardownLivretPrint = teardownDocPrint;
@@ -355,7 +355,7 @@ function showListe(container) {
   teardownLivretPrint();
   container.appendChild(el("p", { class: "lv-hint" },
     "Livret EPCF (évaluations passées en cours de formation), modèle officiel du ministère du Travail, TP-01303. ",
-    "Un livret par stagiaire, imprimable à l'identique du document officiel."));
+    "Un livret par stagiaire, le même pour le CCP1 et le CCP2 (activités-types 1 et 2), imprimable à l'identique du document officiel."));
   const table = el("table", { class: "lv-liste-table" });
   table.appendChild(el("thead", {}, el("tr", {},
     el("th", {}, "Stagiaire"), el("th", {}, "Livret EPCF"))));
