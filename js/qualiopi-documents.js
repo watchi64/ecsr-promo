@@ -25,6 +25,7 @@ import { jourDe, rempli, tableau, demandesDe, RAISON_EFFACEE, promoTerminee, nou
 import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261123a";
 import { ligneComparaison, METHODES, METHODES_PUBLIQUES, RESULTATS_JURY } from "./centre-stats.js?v=20261123a";
 import { estNotee, score20 } from "./notes-stats.js?v=20261123a";
+import { EPCF_TRAME_KEYS } from "./epcf-trames.js?v=20261123a";
 import { cellule, nombre, slug } from "./centre-csv.js?v=20261123a";
 import { compareByNom } from "./utils.js?v=20261123a";
 import { statutFiche } from "./effacement-rules.js?v=20261123a";
@@ -373,6 +374,11 @@ function sectionPassages({ inv, donnees, enFormation, stagiaires, demandes }) {
   };
 }
 
+// Les épreuves EPCF, une colonne par grille (EPCF_TRAME_KEYS donne l'ordre), et la règle que le tableau suit.
+const COLONNES_EPCF = { salle: "EPCF en salle (CCP1)", vehicule: "EPCF en véhicule (CCP1)", ccp2: "EPCF du CCP2" };
+const REGLE_EPCF = "EPCF : dernière évaluation de chaque épreuve, hors auto-évaluation. « aucune » : épreuve non évaluée à ce jour "
+  + "(le CCP1 et le CCP2 ne se passent pas au même moment de la formation).";
+
 function sectionEvaluations({ inv, donnees, enFormation, stagiaires, demandes }) {
   const notes = parStagiaire(donnees.evaluations);
   const tentatives = parStagiaire(donnees.tentatives);
@@ -380,11 +386,16 @@ function sectionEvaluations({ inv, donnees, enFormation, stagiaires, demandes })
   const livrets = parStagiaire(donnees.livrets);
   const lignes = enFormation.map((s) => [
     nomComplet(s), texteNotes(notes.get(s.id) || []), texteExamens(tentatives.get(s.id) || []),
-    texteEpcf(epcf.get(s.id) || [], "salle"), texteEpcf(epcf.get(s.id) || [], "vehicule"), texteDepot(livrets.get(s.id) || [], s), texteJury(donnees.jury, s.id),
+    texteDepot(livrets.get(s.id) || [], s), texteJury(donnees.jury, s.id),
   ]);
+  const lignesEpcf = enFormation.map((s) => [nomComplet(s), ...EPCF_TRAME_KEYS.map((trame) => texteEpcf(epcf.get(s.id) || [], trame))]);
   return {
-    paragraphes: [...phrases(inv, "evaluations"), ...population(enFormation, stagiaires, demandes)],
-    tableaux: table(["Stagiaire", "Notes", "Examens QCM", "EPCF en salle", "EPCF véhicule", "Livret EPCF", "Jury"], lignes),
+    paragraphes: [...phrases(inv, "evaluations"), ...population(enFormation, stagiaires, demandes), ...(lignesEpcf.length ? [REGLE_EPCF] : [])],
+    // Les EPCF dans un tableau à part : avec les trois épreuves, un tableau unique n'est plus lisible sur une feuille A4.
+    tableaux: [
+      ...table(["Stagiaire", "Notes", "Examens QCM", "Livret EPCF", "Jury"], lignes),
+      ...table(["Stagiaire", ...EPCF_TRAME_KEYS.map((trame) => COLONNES_EPCF[trame])], lignesEpcf),
+    ],
   };
 }
 
