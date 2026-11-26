@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Sources des dessins de la famille « poste » (js/dessins-poste.js) : hors des modules livrés, lues seulement par les tests et
  * les fiches de vérification. Pour chaque dessin : la phrase du cours qu'il illustre, ses sources (fiches ECF de Timy, cours

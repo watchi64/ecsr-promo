@@ -100,7 +100,7 @@ test("l'autre pastille : choisie, envoyée, confirmée, focus gardé, les deux p
     assert.deepEqual(lireAppareil(t.stockage.get(CLE_APPAREIL)), { nom: "ecf", email: "A@x.fr", aEnvoyer: false, choisi: true });
     de(autre, "ecsr").click();
     await tick();
-    assert.deepEqual(t.messages, ["Couleurs ECF appliquées", "Habillage ECSR Promo appliqué"]);
+    assert.deepEqual(t.messages, ["Couleurs ECF appliquées", "Habillage Jalonya appliqué"]);
     assert.deepEqual([pressees(bloc), pressees(autre)], [["ecsr"], ["ecsr"]]);
   });
 });
@@ -119,7 +119,7 @@ test("le groupe est nommé par son titre : le sien, ou celui de la section qui l
     assert.ok(!descendants(nomme).includes(h3), "le titre de la section n'est pas recopié dans le groupe");
     const ligne = (b, classe) => descendants(b).find((x) => x instanceof ElementFactice && x.classes.has(classe))?.textContent;
     assert.deepEqual(pastilles(nomme).map((b) => [b.getAttribute("type"), ligne(b, "habillage-libelle"), ligne(b, "habillage-legende")]),
-      [["button", "ECSR Promo", "d'origine"], ["button", "Couleurs ECF", "du réseau ECF"]]);
+      [["button", "Jalonya", "d'origine"], ["button", "Couleurs ECF", "du réseau ECF"]]);
   });
 });
 

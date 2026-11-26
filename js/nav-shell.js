@@ -37,28 +37,28 @@
 // ne les attend jamais : ils sont lus après le montage, relus à chaque page affichée (au plus toutes les 30 secondes),
 // et un compte illisible ne montre ni pastille ni erreur.
 
-import { el } from "./utils.js?v=20261124a";
-import { icon, deco } from "./icons.js?v=20261124a";
-import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261124a";
-import { getPromoCourante, getLieuxLus, listeDemandes } from "./db.js?v=20261124a";
-import { compterNonLues } from "./contact-rules.js?v=20261124a";
-import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261124a";
-import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261124a";
-import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261124a";
-import { libellePastille } from "./nouveautes.js?v=20261124a";
+import { el } from "./utils.js?v=20261126a";
+import { icon, deco } from "./icons.js?v=20261126a";
+import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261126a";
+import { getPromoCourante, getLieuxLus, listeDemandes } from "./db.js?v=20261126a";
+import { compterNonLues } from "./contact-rules.js?v=20261126a";
+import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261126a";
+import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261126a";
+import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261126a";
+import { libellePastille } from "./nouveautes.js?v=20261126a";
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole, nomDuBoutonCompte,
-} from "./nav-rules.js?v=20261124a";
-import { chargerATraiter } from "./a-traiter.js?v=20261124a";
+} from "./nav-rules.js?v=20261126a";
+import { chargerATraiter } from "./a-traiter.js?v=20261126a";
 import {
   ENTREE_A_TRAITER, resumeATraiter, nomAvecATraiter, phraseATraiter, pointSurPlus, nomDePlus,
-} from "./a-traiter-rules.js?v=20261124a";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261124a";
-import { ouvrirMenuCompte } from "./menu-compte.js?v=20261124a";
-import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261124a";
-import { ouvrirSignalement } from "./signalement.js?v=20261124a";
-import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261124a";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261124a";
+} from "./a-traiter-rules.js?v=20261126a";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261126a";
+import { ouvrirMenuCompte } from "./menu-compte.js?v=20261126a";
+import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261126a";
+import { ouvrirSignalement } from "./signalement.js?v=20261126a";
+import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261126a";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261126a";
 
 // Barre latérale repliée en colonne d'icônes : choix mémorisé sur l'appareil.
 const CLE_REPLIEE = "ecsr_nav_repliee";
@@ -407,8 +407,8 @@ function groupes(entrees, ou, faire) {
 function enTeteStagiaire(entrees, nom, initiales) {
   const promo = getPromoCourante()?.nom;
   const gauche = el("div", { class: "nav-gauche" },
-    el("a", { href: "#/home", class: "nav-marque", title: "Accueil", "aria-label": "TP ECSR, accueil" },
-      el("img", { class: "nav-logo", src: "assets/logo/tpecsr-logo.svg", alt: "TP ECSR" })),
+    el("a", { href: "#/home", class: "nav-marque", title: "Accueil", "aria-label": "Jalonya, accueil" },
+      el("img", { class: "nav-logo", src: "assets/logo/jalonya-logo-couleur.svg", alt: "Jalonya" })),
     promo ? el("span", { class: "nav-marque-promo" }, promo) : null);
   const onglets = el("nav", { class: "nav-onglets", "aria-label": "Navigation principale" },
     entrees.map((e) => el("a", { href: "#/" + e.route, class: "nav-onglet", "data-entree": e.id },
@@ -475,7 +475,7 @@ function contexteDePromo() {
     return pastille;
   }
   return el("div", { class: "nav-contexte", title: nomPromo || null },
-    marque, nomPromo ? type : null, el("span", { class: "nav-contexte-nom" }, nomPromo || "TP ECSR"));
+    marque, nomPromo ? type : null, el("span", { class: "nav-contexte-nom" }, nomPromo || "Jalonya"));
 }
 
 function boutonReplier() {

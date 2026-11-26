@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Prépare la mise en ligne : choisit, parmi les fichiers suivis par git, ceux que le navigateur
  * charge vraiment, et rien d'autre. docs/, supabase/, tests/, outils/, scripts/, les notes et le

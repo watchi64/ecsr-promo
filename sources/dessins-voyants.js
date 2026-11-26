@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Sources des dessins de la famille « voyants » (js/dessins-voyants.js) : la phrase du cours illustrée, les sources, les
  * références des pictogrammes et les choix de dessin. Lues par les tests et les relecteurs, jamais servies aux stagiaires.

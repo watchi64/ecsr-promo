@@ -11,7 +11,7 @@
 import { adresseFictive, construireCourriel, envoyerParResend } from "../supabase/functions/contact-envois/courriels.mjs";
 import { nouveauJeton } from "../supabase/functions/contact-envois/jetons.mjs";
 
-const EXPEDITEUR_DEFAUT = "Promo ECSR <no-reply@timy-studio.fr>";
+const EXPEDITEUR_DEFAUT = "Jalonya <no-reply@timy-studio.fr>";
 const BANC = "http://localhost:8000/";
 
 function lireArguments(argv) {

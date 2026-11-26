@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Le cycliste vu du dessus, une seule pièce pour la scène de route qui le montre (js/scene-moteur.js, « sortie-portiere ») et
  * pour le dessin des angles morts (js/dessins-visibilite.js) : son gabarit, ses teintes et son dessin. Module léger, sans moteur
@@ -19,7 +19,7 @@
  * sans visage) : trois teintes en tout. Le cycliste, d'une seule teinte, celle de la veste : le dos et la tête, ronde, bordés
  * du contour foncé, et les bras ; le vélo, d'une seule teinte foncée : pneus, cadre et guidon.
  */
-import { n, ecrireValeur } from "./dessin-svg.js?v=20261124a";
+import { n, ecrireValeur } from "./dessin-svg.js?v=20261126a";
 
 /** Gabarit du cycliste sur son vélo, vu du dessus (m). */
 export const GABARIT_VELO = Object.freeze({ longueur: 1.8, largeur: 0.6 });

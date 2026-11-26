@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Géométrie des scènes animées des cours de compétences. Module pur (ni DOM ni
  * réseau) : le moteur de rendu et les tests le partagent, et les tests vérifient
@@ -31,8 +31,8 @@
  * `de` et `a`, étapes `s`, rebroussements) comme la courbure sont les siennes.
  */
 
-import { GABARIT_VELO } from "./piece-cycliste.js?v=20261124a";
-import { adoucir, cles as valeurDesCles } from "./animation-courbes.js?v=20261124a";
+import { GABARIT_VELO } from "./piece-cycliste.js?v=20261126a";
+import { adoucir, cles as valeurDesCles } from "./animation-courbes.js?v=20261126a";
 
 export const DEG = Math.PI / 180;
 export const KMH = 1 / 3.6;

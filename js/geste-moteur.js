@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Moteur des gestes animés (volant et mains, autotest des voyants, installation au poste) : il dessine la définition
  * d'un geste (registres GESTES des modules js/dessins-*.js) et l'anime avec le lecteur commun (js/lecteur-anime.js).
@@ -9,9 +9,9 @@
  * Toute image passe par imageA (js/geste-regles.js), la fonction que les contrôles emploient aussi : ce qu'ils vérifient
  * est exactement ce que le moteur montre.
  */
-import { monterLecteur } from "./lecteur-anime.js?v=20261124a";
-import { imageA } from "./geste-regles.js?v=20261124a";
-import { versDom, mettreAJour } from "./dessin-svg.js?v=20261124a";
+import { monterLecteur } from "./lecteur-anime.js?v=20261126a";
+import { imageA } from "./geste-regles.js?v=20261126a";
+import { versDom, mettreAJour } from "./dessin-svg.js?v=20261126a";
 
 export function monterGeste(def, { conteneur, etapes = [], reduit = false, onEtape = null } = {}) {
   let courant = imageA(def, 0, true);

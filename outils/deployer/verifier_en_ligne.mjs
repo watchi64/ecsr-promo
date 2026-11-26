@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Vérifie ce que sert vraiment une adresse en ligne, après une mise en ligne :
  *   - la racine et index.html répondent 200, en text/html ;

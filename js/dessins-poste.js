@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Dessins de la famille « poste » : tenir le volant (C1.3), les commandes du poste de conduite (C1.1), les pédales et les
  * pieds (C1.2). Les pièces volant, repereMain et pointHeure servent aussi aux gestes du volant (registre GESTES).
@@ -17,11 +17,11 @@
  * et commandes en formes simples (poste-commandes), pédales en aplats et pieds en pictogrammes (pedales). Le repère d'une main est
  * la pièce du kit (disqueMain), commune à la famille « conducteur ».
  */
-import { n } from "./dessin-svg.js?v=20261124a";
+import { n } from "./dessin-svg.js?v=20261126a";
 import { CHARTE, COULEURS_VOYANTS, METRIQUES_POLICE, cadre, texte, etiquette, fleche, arc, voitureDessus, coord, point as pt, trace,
-  disqueMain, gelule, formePictogramme } from "./dessins-kit.js?v=20261124a";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261124a";
-import { cles } from "./animation-courbes.js?v=20261124a";
+  disqueMain, gelule, formePictogramme } from "./dessins-kit.js?v=20261126a";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261126a";
+import { cles } from "./animation-courbes.js?v=20261126a";
 
 // ===== Teintes de l'habitacle (choix de dessin) =====
 // Tons neutres (spec § 3) : plastique sombre des commandes en trois tons (base, reflet, ombre), planche claire, symboles clairs
@@ -926,4 +926,4 @@ export const GESTES = {
   chevauchement: { construire: () => geste("chevauchement", CHEVAUCHEMENT, etatChevauchement, FLECHES_CHEVAUCHEMENT, DESCRIPTIONS.chevauchement, LIBELLES.chevauchement) },
   "retour-volant": { construire: () => geste("retour-volant", RETOUR_VOLANT, etatRetourVolant, FLECHES_RETOUR_VOLANT, DESCRIPTIONS["retour-volant"], LIBELLES["retour-volant"]) },
 };
-export { versDom } from "./dessin-svg.js?v=20261124a";
+export { versDom } from "./dessin-svg.js?v=20261126a";

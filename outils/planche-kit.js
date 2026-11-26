@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Pièces du kit montrées par la planche de revue (outils/planche-dessins.html), section « Kit » : de quoi juger la charte et
  * les pièces communes (js/dessins-kit.js) à 343 px avant que la moindre famille de dessins existe. Une pièce est un exemple

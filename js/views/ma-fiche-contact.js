@@ -4,13 +4,13 @@
 // (compte sans affectation, aperçu, vitrine), la section ne s'affiche pas. Les contrôles reprennent ceux de la base
 // (js/contact-annuaire-rules.js) ; ses refus se disent par leur phrase. Équipe au vouvoiement, stagiaire au tutoiement.
 
-import { lireMaFiche, reglerMaFiche, lireCoordonnees, reglerCoordonnees, lireMesAlertes, reglerMesAlertes } from "../db.js?v=20261124a";
-import { el, clear, toast } from "../utils.js?v=20261124a";
-import { icon } from "../icons.js?v=20261124a";
-import { vueStagiaire, monStagiaireId, enVitrine } from "../auth-admin.js?v=20261124a";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261124a";
-import { validerMaFiche, PHRASE_VERIFIER_FICHE } from "../contact-annuaire-rules.js?v=20261124a";
-import { phraseContact } from "../contact-rules.js?v=20261124a";
+import { lireMaFiche, reglerMaFiche, lireCoordonnees, reglerCoordonnees, lireMesAlertes, reglerMesAlertes } from "../db.js?v=20261126a";
+import { el, clear, toast } from "../utils.js?v=20261126a";
+import { icon } from "../icons.js?v=20261126a";
+import { vueStagiaire, monStagiaireId, enVitrine } from "../auth-admin.js?v=20261126a";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261126a";
+import { validerMaFiche, PHRASE_VERIFIER_FICHE } from "../contact-annuaire-rules.js?v=20261126a";
+import { phraseContact } from "../contact-rules.js?v=20261126a";
 
 const PHRASE_ECHEC_LECTURE = "Votre fiche n'a pas pu être chargée.";
 const PHRASE_ECHEC_LECTURE_TEL = "Ton téléphone n'a pas pu être chargé.";

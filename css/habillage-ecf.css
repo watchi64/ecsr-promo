@@ -104,4 +104,6 @@
   /* Liseré tricolore sous l'en-tête sombre de l'équipe sur téléphone, et couleur de la barre d'état du navigateur. */
   --lisere-habillage: linear-gradient(90deg, #124483 0 33.333%, #FFFFFF 33.333% 66.667%, #DB1418 66.667% 100%);
   --barre-etat: #0D2546;
+  /* Le logo Jalonya à l'encre seule : l'olive de Jalonya n'est pas une couleur du réseau. */
+  --filtre-logo: brightness(0) saturate(100%);
 }

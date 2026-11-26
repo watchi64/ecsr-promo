@@ -2,8 +2,8 @@
  * Regles pures de l'autonomie (lecture et temps actif) : aucune dependance DOM ni reseau,
  * l'horloge est passee en argument (millisecondes), tout se teste par node.
  */
-import { tempsLecture } from "./cours-rules.js?v=20261124a";
-import { lundiDe, jourDe, jourParis, dateLongue, dayIndexDe } from "./dates.js?v=20261124a";
+import { tempsLecture } from "./cours-rules.js?v=20261126a";
+import { lundiDe, jourDe, jourParis, dateLongue, dayIndexDe } from "./dates.js?v=20261126a";
 
 /** Cle de reglage (promo) qui allume la fonction. */
 export const CLE_ACTIVATION = "autonomie_active";

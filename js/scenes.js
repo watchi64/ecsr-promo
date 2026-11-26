@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Registre des scènes animées des cours de compétences. Une scène est une
  * DONNÉE : un décor, des acteurs (trajet et profil de vitesse en km/h), des
@@ -18,13 +18,13 @@
  * module livré, seuls les tests et les fiches les lisent.
  */
 import { KMH, DEG, GABARITS, PORTIERE, trajet, chronologie, tempsAtteint, premiereAbscisse, pointA, emprise, etatActeur,
-  polygonesSeChevauchent, rectangle, pointDansPolygone } from "./scene-geometrie.js?v=20261124a";
+  polygonesSeChevauchent, rectangle, pointDansPolygone } from "./scene-geometrie.js?v=20261126a";
 import { DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire, routeVirages, rue }
-  from "./scene-decors.js?v=20261124a";
+  from "./scene-decors.js?v=20261126a";
 import { REGARD_PORTEE, REGARD_DUREE_TOUR_MIN, REGARD_MAX_SUIVI, oeil, regardContient, coneRegard }
-  from "./scene-regard.js?v=20261124a";
-import { SEUILS } from "./scene-controles.js?v=20261124a";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261124a";
+  from "./scene-regard.js?v=20261126a";
+import { SEUILS } from "./scene-controles.js?v=20261126a";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261126a";
 
 // Le code d'une scène et son titre : celui du catalogue des blocs (js/catalogue-blocs.js), la seule source des titres.
 const identite = (code) => ({ code, titre: CATALOGUE[code].titre });

@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : application propriétaire.
- * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  */
 // Logique pure de la carte d'authentification : validation, traduction des
 // erreurs Supabase, lecture du jeton de récupération, description des modes.

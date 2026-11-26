@@ -7,9 +7,9 @@
  * Sources des espaces permis (D2) : siège et direction viennent des affectations du compte ; formateur et
  * stagiaire viennent des rôles du compte dans la promo affichée (`promo.roles`, mes_promos(), lot 4).
  */
-import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261124a";
-import { lireAdresse } from "./route-rules.js?v=20261124a";
-import { habillageValide } from "./habillage-regles.js?v=20261124a";
+import { apercusPermis, normaliserApercu, droitsAffiches, LIBELLES_APERCU } from "./roles-rules.js?v=20261126a";
+import { lireAdresse } from "./route-rules.js?v=20261126a";
+import { habillageValide } from "./habillage-regles.js?v=20261126a";
 
 export const ESPACES = ["stagiaire", "equipe", "direction", "siege"];
 export const LIBELLES_ESPACE = { stagiaire: "Stagiaire", equipe: "Formateur", direction: "Direction", siege: "Siège" };
@@ -339,7 +339,7 @@ export function litToutesLesNotes({ admin = false, espace = null } = {}) {
 }
 
 // Réglages d'habillage (centre, réseau) : la ligne d'état sous les pastilles. `repli` : ce que les comptes reçoivent quand rien n'est fixé.
-const NOMS_HABILLAGE = { ecsr: "ECSR Promo", ecf: "Couleurs ECF" };
+const NOMS_HABILLAGE = { ecsr: "Jalonya", ecf: "Couleurs ECF" };
 export function phraseStatut(habillage, { enregistre = false, repli = "" } = {}) {
   const base = habillage == null
     ? "Aucun habillage fixé." + (repli ? " " + repli : "")

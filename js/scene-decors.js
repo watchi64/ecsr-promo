@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Décors des scènes animées, construits en mètres à partir de règles écrites :
  * un carrefour en croix, un carrefour à sens giratoire, une rue droite et une
@@ -11,7 +11,7 @@
  * et consignés dans la fiche de vérification de chaque cours qui les utilise.
  */
 import { DEG, trajet, pointA, tournerChemin, tournerPoint, rectangle, pointsArc, disque, secteurAnneau, pointDansPolygone }
-  from "./scene-geometrie.js?v=20261124a";
+  from "./scene-geometrie.js?v=20261126a";
 
 export const IISR = {
   u: 0.05,                                     // art. 113-1 C : largeur unité, routes ordinaires

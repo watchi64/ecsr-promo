@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Index des blocs illustrés des cours de compétences (scènes animées et dessins) : pour chaque code, le genre de bloc,
  * le module qui le dessine, son titre, son modèle (étapes ou légende) et le cadre d'un dessin. Chargé avec le lecteur :

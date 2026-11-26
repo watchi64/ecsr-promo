@@ -3,8 +3,8 @@
 // versComptes) : mêmes définitions des deux côtés, jouées par une fixture commune (tests/fixtures/comptes-promo.json).
 // Un compte s'additionne entre promos et entre centres ; un ratio ne se calcule que sur des comptes sommés.
 
-import { fusionnerEmargements } from "./presence-rules.js?v=20261124a";
-import { fusionnerJury, criteresEpcf, SEUIL_EPCF_RESEAU } from "./centre-stats.js?v=20261124a";
+import { fusionnerEmargements } from "./presence-rules.js?v=20261126a";
+import { fusionnerJury, criteresEpcf, SEUIL_EPCF_RESEAU } from "./centre-stats.js?v=20261126a";
 
 export { SEUIL_EPCF_RESEAU };
 

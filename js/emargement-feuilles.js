@@ -2,14 +2,14 @@
 // semaine (paysage). Construites hors écran puis clonées pour l'impression par le mécanisme
 // des documents officiels (js/doc-officiel.js) : seul #emargement-print s'imprime.
 
-import { el, compareByNom } from "./utils.js?v=20261124a";
-import { bindDocPrint } from "./doc-officiel.js?v=20261124a";
-import { signatureOuMention } from "./signature-pad.js?v=20261124a";
+import { el, compareByNom } from "./utils.js?v=20261126a";
+import { bindDocPrint } from "./doc-officiel.js?v=20261126a";
+import { signatureOuMention } from "./signature-pad.js?v=20261126a";
 import {
   etatLigne, libelleCreneau, heureLocale, jourLocal, dureeMinutes, libelleDuree, minutesPresence,
   jourFerie, DEMI_JOURNEES,
-} from "./emargement-rules.js?v=20261124a";
-import { jourDe } from "./dates.js?v=20261124a";
+} from "./emargement-rules.js?v=20261126a";
+import { jourDe } from "./dates.js?v=20261126a";
 
 // Nom complet sur un document officiel : NOM en capitales, puis le prénom.
 export function nomComplet(s) {
@@ -47,7 +47,7 @@ export function stagiairesDeFeuille(seance, stagiairesTous) {
 // Bandeau de tête : logo, titre et ce dont parle la feuille, aux couleurs de l'app.
 function bandeau(titre, sousTitre) {
   return el("div", { class: "emf-bandeau" },
-    el("img", { class: "emf-logo", src: "assets/logo/tpecsr-logo.svg", alt: "" }),
+    el("img", { class: "emf-logo", src: "assets/logo/jalonya-logo-couleur.svg", alt: "" }),
     el("div", { class: "emf-bandeau-texte" },
       el("p", { class: "emf-titre" }, titre),
       el("p", { class: "emf-sous-titre" }, sousTitre)));
@@ -59,7 +59,7 @@ function infos(lignes) {
 }
 
 function mentionSignatures() {
-  return "Signatures manuscrites recueillies sur écran dans l'application TP ECSR, horodatées par "
+  return "Signatures manuscrites recueillies sur écran dans l'application Jalonya, horodatées par "
     + "le serveur (heure de Paris) et non modifiables après coup.";
 }
 

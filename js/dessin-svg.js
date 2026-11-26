@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Description pure d'un dessin SVG : un nœud est { balise, attributs, enfants }, un texte est une chaîne. Les dessins
  * du catalogue (js/dessins-*.js) et chaque image d'un geste animé se décrivent ainsi : les tests les lisent sous Node,

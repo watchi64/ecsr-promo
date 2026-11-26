@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Captures de l'app dans ses deux habillages (« ECSR Promo » par défaut, « Couleurs ECF »), et comparaison au pixel.
+"""Captures de l'app dans ses deux habillages (« Jalonya » par défaut, « Couleurs ECF »), et comparaison au pixel.
 
 Pourquoi : le lot 3 remplace chaque couleur écrite en dur par une variable CSS. La preuve que l'habillage par défaut
 ne bouge pas d'un seul pixel, c'est ce script : on photographie les mêmes vues avant et après chaque étape, puis on
@@ -55,7 +55,7 @@ from playwright.sync_api import sync_playwright   # noqa: E402
 
 BANC_PAR_DEFAUT = "http://127.0.0.1:8060/_harness.html"
 HABILLAGES = ("ecsr", "ecf")
-NOMS_HABILLAGES = {"ecsr": "ECSR Promo", "ecf": "Couleurs ECF"}
+NOMS_HABILLAGES = {"ecsr": "Jalonya", "ecf": "Couleurs ECF"}
 MOTEURS = ("chromium", "webkit")
 ROLES = ("stagiaire", "prof", "fondateur")
 LARGEURS = (1280, 375)

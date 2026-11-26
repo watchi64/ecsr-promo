@@ -1,14 +1,14 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Famille « voyants » des dessins des cours de compétences (C1.1) : les douze pictogrammes normalisés des voyants du cours,
  * la planche des voyants groupés par couleur avec leur conduite à tenir (voyants), et l'autotest du combiné d'instruments à
  * la mise du contact (autotest, animé). Sources, références et choix de dessin : sources/dessins-voyants.js.
  */
-import { n } from "./dessin-svg.js?v=20261124a";
-import { CHARTE, COULEURS_VOYANTS, SYMBOLE_FREIN, SYMBOLE_TEMPERATURE, vagueSymbole, METRIQUES_POLICE, cadre, texte, fleche, coord as ecrit, point as pt, trace, entre } from "./dessins-kit.js?v=20261124a";
-import { adoucir, sortieDouce, avancement } from "./animation-courbes.js?v=20261124a";
+import { n } from "./dessin-svg.js?v=20261126a";
+import { CHARTE, COULEURS_VOYANTS, SYMBOLE_FREIN, SYMBOLE_TEMPERATURE, vagueSymbole, METRIQUES_POLICE, cadre, texte, fleche, coord as ecrit, point as pt, trace, entre } from "./dessins-kit.js?v=20261126a";
+import { adoucir, sortieDouce, avancement } from "./animation-courbes.js?v=20261126a";
 
 // ------------------------------------------------------------------------------------------------ Couleurs et tons
 
@@ -647,4 +647,4 @@ function autotest() {
 
 export const DESSINS = { voyants: planche };
 export const GESTES = { autotest: { construire: autotest } };
-export { versDom } from "./dessin-svg.js?v=20261124a";
+export { versDom } from "./dessin-svg.js?v=20261126a";

@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Règles du rendu des scènes animées. Module pur (ni DOM ni réseau) : ce que montre
  * l'image, en lecture comme sur une image figée (pas à pas, pause, fin de lecture,
@@ -14,12 +14,12 @@
  *
  * Toutes les valeurs ci-dessous sont des choix de dessin, sans portée réglementaire.
  */
-import { DEG, GABARITS, etatActeur, emprise, rectangle, polygonesSeChevauchent } from "./scene-geometrie.js?v=20261124a";
-import { REGARD_PORTEE, REGARD_OUVERTURE, DIRECTIONS_TOUR_FIGE, oeil, conesTour } from "./scene-regard.js?v=20261124a";
-import { TEINTES_VELO } from "./piece-cycliste.js?v=20261124a";
+import { DEG, GABARITS, etatActeur, emprise, rectangle, polygonesSeChevauchent } from "./scene-geometrie.js?v=20261126a";
+import { REGARD_PORTEE, REGARD_OUVERTURE, DIRECTIONS_TOUR_FIGE, oeil, conesTour } from "./scene-regard.js?v=20261126a";
+import { TEINTES_VELO } from "./piece-cycliste.js?v=20261126a";
 
 // Règles du lecteur commun des animations, réexportées ici pour les modules et les tests qui les lisaient dans ce fichier.
-export { facteurLecture, SEUIL_DEMARRAGE, SEUILS_VISIBILITE, actionVisibilite } from "./lecteur-anime-regles.js?v=20261124a";
+export { facteurLecture, SEUIL_DEMARRAGE, SEUILS_VISIBILITE, actionVisibilite } from "./lecteur-anime-regles.js?v=20261126a";
 
 // Teintes de la route réelle (donnée pédagogique), pas la palette de l'app ; la voiture de l'élève prend l'accent de l'app
 // pour être repérée d'un coup d'œil.

@@ -1,15 +1,15 @@
-// Habillage (refonte, lot 3) : le choix, deux pastilles « ECSR Promo » et « Couleurs ECF ». Posé dans le menu du compte
+// Habillage (refonte, lot 3) : le choix, deux pastilles « Jalonya » et « Couleurs ECF ». Posé dans le menu du compte
 // (js/menu-compte.js) et dans Mes préférences (js/views/config.js) ; dans les Paramètres de l'ancienne barre, seulement pour
 // qui est en Couleurs ECF, pour pouvoir revenir (décision H6). Le choix lui-même (appliquer, garder sur l'appareil,
 // enregistrer sur le compte) est celui de js/habillage.js.
 
-import { el, toast } from "./utils.js?v=20261124a";
-import { choisirHabillage, habillageCourant } from "./habillage.js?v=20261124a";
+import { el, toast } from "./utils.js?v=20261126a";
+import { choisirHabillage, habillageCourant } from "./habillage.js?v=20261126a";
 
 // Dans l'ordre des pastilles. `legende` : la seconde ligne, plus discrète, qui dit d'où vient l'habillage (le libellé reste le nom). `message` : ce que le bas de l'écran confirme, que l'enregistrement sur le compte aboutisse
 // ou non (le choix est appliqué et gardé sur l'appareil ; il repartira au prochain démarrage).
 const PASTILLES = [
-  { nom: "ecsr", libelle: "ECSR Promo", legende: "d'origine", message: "Habillage ECSR Promo appliqué" },
+  { nom: "ecsr", libelle: "Jalonya", legende: "d'origine", message: "Habillage Jalonya appliqué" },
   { nom: "ecf", libelle: "Couleurs ECF", legende: "du réseau ECF", message: "Couleurs ECF appliquées" },
 ];
 

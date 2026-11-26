@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Famille « conducteur » des dessins des cours de compétences (C1.2, « S'installer ») : le conducteur de profil (siège,
  * appuie-tête, volant, ceinture, rétroviseur intérieur) et de face (ceinture) ; dessins du siège, de l'appuie-tête et de la
@@ -22,11 +22,11 @@
  * au plus près de la tête (« quelques centimètres au plus », thème 44, D). Tout le reste est choix de dessin (proportions
  * d'un adulte de taille moyenne, voiture courante), avec sa raison dans sources/dessins-conducteur.js.
  */
-import { n } from "./dessin-svg.js?v=20261124a";
+import { n } from "./dessin-svg.js?v=20261126a";
 import { CHARTE, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, vignette, fleche, arrondir, couper, miroirInterieur, coord,
   point as ecrirePoint, trace, entre, gelule, membrePictogramme, tetePictogramme, formePictogramme, disqueMain }
-  from "./dessins-kit.js?v=20261124a";
-import { adoucir, sortieDouce, avancement, interpoler, cles } from "./animation-courbes.js?v=20261124a";
+  from "./dessins-kit.js?v=20261126a";
+import { adoucir, sortieDouce, avancement, interpoler, cles } from "./animation-courbes.js?v=20261126a";
 
 // ===================================================================================================================
 // Échelle, valeurs du cours, choix de dessin
@@ -1211,4 +1211,4 @@ export const GESTES = {
   installation: { construire: construireInstallation },
 };
 
-export { versDom } from "./dessin-svg.js?v=20261124a";
+export { versDom } from "./dessin-svg.js?v=20261126a";

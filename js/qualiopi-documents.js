@@ -20,21 +20,21 @@
 // Les tableaux par stagiaire comptent les mêmes stagiaires que lui : ceux en formation, et le document le dit ; seule la
 // liste nominative de l'effectif montre aussi les abandons.
 
-import { SOURCE } from "./qualiopi-referentiel.js?v=20261124a";
-import { jourDe, rempli, tableau, demandesDe, RAISON_EFFACEE, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261124a";
-import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261124a";
-import { ligneComparaison, METHODES, METHODES_PUBLIQUES, RESULTATS_JURY } from "./centre-stats.js?v=20261124a";
-import { estNotee, score20 } from "./notes-stats.js?v=20261124a";
-import { EPCF_TRAME_KEYS } from "./epcf-trames.js?v=20261124a";
-import { cellule, nombre, slug } from "./centre-csv.js?v=20261124a";
-import { compareByNom } from "./utils.js?v=20261124a";
-import { statutFiche } from "./effacement-rules.js?v=20261124a";
-import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261124a";
-import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261124a";
-import { fr1, pluriel } from "./nombres.js?v=20261124a";
-import { dateFr } from "./dates.js?v=20261124a";
+import { SOURCE } from "./qualiopi-referentiel.js?v=20261126a";
+import { jourDe, rempli, tableau, demandesDe, RAISON_EFFACEE, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261126a";
+import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261126a";
+import { ligneComparaison, METHODES, METHODES_PUBLIQUES, RESULTATS_JURY } from "./centre-stats.js?v=20261126a";
+import { estNotee, score20 } from "./notes-stats.js?v=20261126a";
+import { EPCF_TRAME_KEYS } from "./epcf-trames.js?v=20261126a";
+import { cellule, nombre, slug } from "./centre-csv.js?v=20261126a";
+import { compareByNom } from "./utils.js?v=20261126a";
+import { statutFiche } from "./effacement-rules.js?v=20261126a";
+import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261126a";
+import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261126a";
+import { fr1, pluriel } from "./nombres.js?v=20261126a";
+import { dateFr } from "./dates.js?v=20261126a";
 
-export const PHRASE_DE_GARDE = "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
+export const PHRASE_DE_GARDE = "Pièces issues de l'application Jalonya, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
 
 // Niveaux de l'inventaire, en mots (ceux de la page).
 export const LIBELLES_NIVEAU = { prouve: "Prouvé", partiel: "En partie", hors: "Hors de l'app" };

@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Règles du lecteur commun des animations (js/lecteur-anime.js), partagées par les scènes de route et par les gestes.
  * Module pur (ni DOM ni réseau) : étape en cours à un instant, facteur de lecture affiché sous le schéma, visibilité du

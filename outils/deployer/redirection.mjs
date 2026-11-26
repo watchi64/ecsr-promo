@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Fabrique les deux pages du petit dépôt public de redirection (index.html et 404.html, même
  * contenu), servi par GitHub Pages à l'ANCIENNE adresse watchi64.github.io/ecsr-promo/ une fois

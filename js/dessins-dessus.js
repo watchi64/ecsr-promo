@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Dessins de la famille « dessus » : la voiture et la route vues du dessus, comme dans les scènes de route. Le tour du
  * véhicule (C1.1), les roues braquées en pente, vers le trottoir en descente et vers la chaussée en montée (C1.2), le
@@ -14,10 +14,10 @@
  * unités du cadre par l'échelle du dessin ; les valeurs sans portée réglementaire sont des choix de dessin, recopiés avec leur
  * raison dans sources/dessins-dessus.js. Titres et cadres viennent du catalogue des blocs (js/catalogue-blocs.js).
  */
-import { n, trouverRole } from "./dessin-svg.js?v=20261124a";
+import { n, trouverRole } from "./dessin-svg.js?v=20261126a";
 import { CHARTE, TEINTES_ROUTE, REGARD_SCENES, VOITURE, VOITURE_PROFIL, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, fleche,
-  voitureDessus, reperesDessus, voitureProfil, arc, couper, coord, trace, entre } from "./dessins-kit.js?v=20261124a";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261124a";
+  voitureDessus, reperesDessus, voitureProfil, arc, couper, coord, trace, entre } from "./dessins-kit.js?v=20261126a";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261126a";
 
 /** Valeurs de la rue des scènes reprises ici, recopiées : largeur d'une voie et axiale T'1 d'agglomération (js/scene-decors.js,
  *  DESSIN.voie et IISR : 1,50 m de trait, 5 m de vide, 2u = 0,10 m de large) ; jeu entre le flanc d'une voiture garée et la
@@ -771,4 +771,4 @@ export const DESSINS = {
   "sous-survirage": sousSurvirage,
 };
 export const GESTES = { "regard-loin": { construire: regardLoin } };
-export { versDom } from "./dessin-svg.js?v=20261124a";
+export { versDom } from "./dessin-svg.js?v=20261126a";

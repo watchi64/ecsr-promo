@@ -3,11 +3,11 @@
 // emargement-feuilles.js). Le certificat reprend mot pour mot le modèle du ministère du Travail
 // (version applicable au 1er juin 2020) ; il s'établit sur l'en-tête de l'organisme, sans logo.
 
-import { el } from "./utils.js?v=20261124a";
-import { libelleCreneau, libelleDuree } from "./emargement-rules.js?v=20261124a";
-import { nomComplet, jourLong } from "./emargement-feuilles.js?v=20261124a";
-import { dureeEnToutesLettres, LIBELLE_ORIGINE } from "./attestations-rules.js?v=20261124a";
-import { dateFr } from "./dates.js?v=20261124a";
+import { el } from "./utils.js?v=20261126a";
+import { libelleCreneau, libelleDuree } from "./emargement-rules.js?v=20261126a";
+import { nomComplet, jourLong } from "./emargement-feuilles.js?v=20261126a";
+import { dureeEnToutesLettres, LIBELLE_ORIGINE } from "./attestations-rules.js?v=20261126a";
+import { dateFr } from "./dates.js?v=20261126a";
 
 // Champ du modèle : la valeur, ou la consigne du modèle et des pointillés à compléter à la main.
 function champ(valeur, consigne = "", { consigneApres = false } = {}) {
@@ -118,7 +118,7 @@ export function attestationAssiduite({ entete, lieuDefaut, promo, stagiaire, bil
       (bilan.demiPrevues > 1
         ? `Établie à partir des ${bilan.demiPrevues} feuilles d'émargement closes de la période où figure le stagiaire, `
         : "Établie à partir de la feuille d'émargement close de la période où figure le stagiaire, ")
-      + "signées dans l'application TP ECSR et horodatées par le serveur. Une demi-journée signée compte pour sa durée entière. "
+      + "signées dans l'application Jalonya et horodatées par le serveur. Une demi-journée signée compte pour sa durée entière. "
       + "Les heures sans feuille d'émargement (stage en entreprise) ne sont pas comptées."),
     blocSignature({ entete, lieuDefaut, faitLe, responsable: "du responsable de l'organisme de formation" }),
   ));

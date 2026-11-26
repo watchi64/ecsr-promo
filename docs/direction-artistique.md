@@ -1,4 +1,4 @@
-# Direction artistique ECSR Promo : « Lin »
+# Direction artistique Jalonya : « Lin »
 
 Décision de Timy du 11/11/2026, parmi trois pistes rendues sur les mêmes supports (planches :
 https://claude.ai/artifact/1KvA9ZLZJxyWrXNDk1w2GH, piste 1), précisée le même jour : « Il faut rester proche de l'app

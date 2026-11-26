@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Registre des panneaux illustrant les cours.
  *
@@ -23,7 +23,7 @@
  * au catalogue se dessine quand même (photo Wikimedia, sans détail
  * pédagogique), le registre vérifié gardant la priorité en cas de doublon.
  */
-import { CATALOGUE } from "./signaux-catalogue.js?v=20261124a";
+import { CATALOGUE } from "./signaux-catalogue.js?v=20261126a";
 
 const NS = "http://www.w3.org/2000/svg";
 const ROUGE = "#C8102E";

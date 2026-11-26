@@ -22,7 +22,7 @@ Web app de suivi des promotions **TP ECSR** : depuis octobre 2026, plusieurs pro
 | Edge Functions | `chatbot`, `qcm-ia` (deploy via MCP `mcp__800314df__deploy_edge_function`) ; les invitations passent par la fonction SQL `inviter_compte` |
 | Hébergement | Scaleway Object Storage + Edge Services (Paris), mis en ligne à chaque poussée de `main` par `.github/workflows/mise-en-ligne.yml` ; seuls les fichiers servis partent (`outils/deployer/preparer.mjs`) |
 | Typo | Canela (display, self-hosted .otf) + Outfit (Google Fonts body) + Geist Mono (numéros) |
-| Logo | `assets/logo/tpecsr-logo.svg` (capsule TP) : SVG seul, le PNG a été supprimé |
+| Logo | `assets/logo/jalonya-logo-couleur.svg` (« La balise J », 27/11/2026), favicon `favicon.svg`, icônes PNG : sources et variantes dans `docs/branding_jalonya/` du dépôt ECSR |
 | Palette | Mint éditorial unique (`:root`), accent vert `#6B7F4E`. Plus de switcher thème/accent |
 | Cache-bust | **Automatique** : hook `pre-commit` → `scripts/cache-bust.js` pose un token `?v=AAAAMMJJx` uniforme sur `index.html` + tous les imports JS |
 | Bootstrap admin | `misterwatchi@gmail.com` (compte admin + lié au stagiaire Timy id=15) |

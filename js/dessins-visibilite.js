@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Dessins de la famille « visibilité » (C1.2) : ce qu'on ne voit pas depuis le siège (zones-invisibles), le réglage des
  * rétroviseurs (retroviseurs) et les angles morts (angles-morts). Les voitures sont celles du kit (js/dessins-kit.js) ; un seul
@@ -8,11 +8,11 @@
  * sont des choix de dessin, recopiés avec leur raison dans sources/dessins-visibilite.js. Titres et cadres viennent du
  * catalogue des blocs (js/catalogue-blocs.js).
  */
-import { n, trouverRole } from "./dessin-svg.js?v=20261124a";
+import { n, trouverRole } from "./dessin-svg.js?v=20261126a";
 import { CHARTE, METRIQUES_POLICE, MISE_EN_PAGE, REGARD_SCENES, cadre, texte, etiquette, voitureProfil, reperesProfil,
-  voitureDessus, reperesDessus, VOITURE, TEINTES_ROUTE, MIROIR_INTERIEUR, miroirInterieur, arrondir, couper, coord, trace, entre } from "./dessins-kit.js?v=20261124a";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261124a";
-import { cycliste, GABARIT_VELO } from "./piece-cycliste.js?v=20261124a";
+  voitureDessus, reperesDessus, VOITURE, TEINTES_ROUTE, MIROIR_INTERIEUR, miroirInterieur, arrondir, couper, coord, trace, entre } from "./dessins-kit.js?v=20261126a";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261126a";
+import { cycliste, GABARIT_VELO } from "./piece-cycliste.js?v=20261126a";
 
 // ===== Géométrie plane =====
 const DEG = Math.PI / 180;
@@ -568,4 +568,4 @@ function anglesMorts() {
 
 export const DESSINS = { "zones-invisibles": zonesInvisibles, retroviseurs, "angles-morts": anglesMorts };
 export const GESTES = {};
-export { versDom } from "./dessin-svg.js?v=20261124a";
+export { versDom } from "./dessin-svg.js?v=20261126a";

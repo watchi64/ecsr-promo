@@ -305,7 +305,7 @@ ok(couleurs.pour === "tous" && couleurs.titre === "L'app aux couleurs d'ECF",
 eq(couleurs.ou, { label: "Mes préférences", route: "preferences" }, "lot 3 : Où le trouver, Mes préférences");
 ok(couleurs.module === undefined, "lot 3 : aucun module ne la cache");
 ok(Array.isArray(couleurs.guide) && couleurs.guide.length >= 3, "lot 3 : un « Comment faire » d'au moins trois étapes");
-for (const motif of [/menu du compte/, /initiales/, /Apparence/, /« Couleurs ECF »/, /« ECSR Promo »/, /revenir/, /Mes préférences/]) {
+for (const motif of [/menu du compte/, /initiales/, /Apparence/, /« Couleurs ECF »/, /« Jalonya »/, /revenir/, /Mes préférences/]) {
   ok(motif.test(tout(couleurs)), `lot 3 : dit ${motif}`);
 }
 ok(!TUTOIEMENT.test(horsCitations(tout(couleurs))) && !VOUVOIEMENT.test(horsCitations(tout(couleurs))) && !/\bprofs?\b/i.test(tout(couleurs)),

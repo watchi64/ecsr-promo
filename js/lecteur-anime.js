@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Lecteur commun des animations des cours (scènes de route, gestes) : boutons Lecture, Pause, Revoir et Rejouer,
  * facteur de lecture, boucle d'animation, étapes marquées et cliquables, départ quand 60 % du schéma sont visibles
@@ -15,7 +15,7 @@
  * l'instant de la dernière étape ; `vitesseLecture` est un nombre fini strictement positif. Hors de ce contrat, une
  * lecture peut ne jamais finir ou une étape ne pas s'afficher.
  */
-import { facteurLecture, SEUILS_VISIBILITE, actionVisibilite, etapeA } from "./lecteur-anime-regles.js?v=20261124a";
+import { facteurLecture, SEUILS_VISIBILITE, actionVisibilite, etapeA } from "./lecteur-anime-regles.js?v=20261126a";
 
 // Étape courante : classe « on » sur l'élément de l'étape, aria-current sur son bouton (c'est lui qui reçoit le focus)
 // ou, sans bouton, sur l'élément lui-même.

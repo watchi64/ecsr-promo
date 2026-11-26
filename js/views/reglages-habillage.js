@@ -5,15 +5,15 @@
 // revient à ce que la base a gardé. Les pastilles sont celles du lot 3 (js/habillage-choix.js, mode réglage : rien n'est appliqué à
 // l'écran de la personne qui règle).
 
-import { habillageParDefaut, lireHabillageCentre, reglerHabillageCentre, reglerHabillageReseau } from "../db.js?v=20261124a";
-import { getCentre, getMesTitres, fondateurHorsApercu } from "../auth-admin.js?v=20261124a";
-import { el, clear, toast } from "../utils.js?v=20261124a";
-import { icon } from "../icons.js?v=20261124a";
-import { blocHabillage } from "../habillage-choix.js?v=20261124a";
-import { donneesDuCentreVisibles } from "../titres-rules.js?v=20261124a";
-import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261124a";
-import { sectionDonneesCentre } from "./reglages-donnees.js?v=20261124a";
-import { sectionFinancements, sectionsContactDuCentre, sectionFichesASupprimer } from "./reglages-contact.js?v=20261124a";
+import { habillageParDefaut, lireHabillageCentre, reglerHabillageCentre, reglerHabillageReseau } from "../db.js?v=20261126a";
+import { getCentre, getMesTitres, fondateurHorsApercu } from "../auth-admin.js?v=20261126a";
+import { el, clear, toast } from "../utils.js?v=20261126a";
+import { icon } from "../icons.js?v=20261126a";
+import { blocHabillage } from "../habillage-choix.js?v=20261126a";
+import { donneesDuCentreVisibles } from "../titres-rules.js?v=20261126a";
+import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261126a";
+import { sectionDonneesCentre } from "./reglages-donnees.js?v=20261126a";
+import { sectionFinancements, sectionsContactDuCentre, sectionFichesASupprimer } from "./reglages-contact.js?v=20261126a";
 
 export const PHRASE_ECHEC_LECTURE = "Le réglage n'a pas pu être chargé.";
 export const PHRASE_ECHEC_ECRITURE = "Le réglage n'a pas été enregistré. Réessayez dans un instant.";
@@ -229,7 +229,7 @@ export async function renderReglagesReseau(container) {
       sousTitre: "L'apparence de l'app pour tout le réseau",
       section: (ligne) => sectionReglage({
         titre: "Habillage par défaut du réseau",
-        intro: "L'apparence que reçoivent les comptes qui n'ont rien choisi et dont le centre n'a rien fixé. Sans réglage, c'est ECSR Promo.",
+        intro: "L'apparence que reçoivent les comptes qui n'ont rien choisi et dont le centre n'a rien fixé. Sans réglage, c'est l'apparence Jalonya.",
         valeur: defautsHabillage(ligne).reseau,
         libre: true,
         avecLibre: false,
@@ -237,7 +237,7 @@ export async function renderReglagesReseau(container) {
         enregistrer: ({ habillage }) => reglerHabillageReseau(habillage),
         messageOk: "Réglage du réseau enregistré",
         aideLibre: () => "",
-        repli: "Les comptes reçoivent ECSR Promo.",
+        repli: "Les comptes reçoivent l'apparence Jalonya.",
       }),
     },
   });

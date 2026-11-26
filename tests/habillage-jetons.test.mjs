@@ -580,7 +580,7 @@ export function contrastesDe(jetons) {
 
 const JETONS_ECF_COMPLETS = new Map([...JETONS_DEFAUT, ...JETONS_ECF]);
 
-for (const [nom, jetons] of [["ECSR Promo", JETONS_DEFAUT], ["Couleurs ECF", JETONS_ECF_COMPLETS]]) {
+for (const [nom, jetons] of [["Jalonya", JETONS_DEFAUT], ["Couleurs ECF", JETONS_ECF_COMPLETS]]) {
   test(`contrastes (${nom}) : chaque paire texte / fond atteint son seuil`, (t) => {
     const lignes = contrastesDe(jetons);
     t.diagnostic(lignes.map((l) => `${l.texte} sur ${l.fond} : ${l.rapport.toFixed(2)} (seuil ${l.seuil})`).join("\n"));

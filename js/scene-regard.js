@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Regard du conducteur dans les scènes animées. Module pur (ni DOM ni réseau) :
  * le moteur de rendu dessine le cône du regard avec ces fonctions, et les tests
@@ -35,7 +35,7 @@
  * image figée, le secteur que parcourt un balayage (secteurBalayage), ou quatre cônes pour un tour du regard (conesTour :
  * devant, à gauche, derrière, à droite).
  */
-import { DEG } from "./scene-geometrie.js?v=20261124a";
+import { DEG } from "./scene-geometrie.js?v=20261126a";
 
 /** Écart maximal, en degrés, entre le cap et la direction d'une cible suivie des yeux : au-delà, elle est passée derrière
  *  le conducteur, qui regarde de nouveau devant lui. */
