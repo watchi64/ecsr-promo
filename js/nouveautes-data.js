@@ -23,10 +23,10 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
-  // Nouveau nom de l'app (27/11) : onglet, icône installée, nom sous l'icône.
+  // Nouveau nom de l'app (26/11) : onglet, icône installée, nom sous l'icône.
   {
-    id: "2026-11-27-nom-jalonya",
-    date: "2026-11-27",
+    id: "2026-11-26-nom-jalonya",
+    date: "2026-11-26",
     pour: "tous",
     titre: "L'app s'appelle maintenant Jalonya",
     resume: "Nouveau nom et nouvelle icône. Rien ne change dans l'usage : mêmes comptes, mêmes données, mêmes pages. Sur "
