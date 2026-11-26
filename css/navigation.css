@@ -69,12 +69,13 @@ body[data-nav="v2"] .nav-marque {
   padding: 0 0.25rem;
   border-radius: var(--r-sm);
 }
-/* Le logo en noir sur la barre claire, comme sur la page de connexion (.gate-logo). */
+/* Le logo Jalonya en couleur (encre et olive) sur la barre claire, comme sur la page de connexion (.gate-logo).
+   Hauteur 28 px : le mot entier (rapport 3,9 : 1) tient à côté du nom de la promo ; 24 px au moins (charte de marque). */
 body[data-nav="v2"] .nav-logo {
   display: block;
-  height: 38px;
+  height: 28px;
   width: auto;
-  filter: brightness(0) saturate(100%);
+  filter: var(--filtre-logo);   /* à l'encre seule en Couleurs ECF */
 }
 /* Le nom de la promo à côté du logo, sur ordinateur, là où la largeur le permet. */
 body[data-nav="v2"] .nav-marque-promo {
@@ -566,7 +567,7 @@ body[data-nav="v2"] .nav-bas { display: none; }
     padding: 0 max(0.85rem, env(safe-area-inset-right, 0px)) 0 max(0.85rem, env(safe-area-inset-left, 0px));
   }
   body[data-nav="v2"] .nav-onglets { display: none; }
-  body[data-nav="v2"] .nav-logo { height: 32px; }
+  body[data-nav="v2"] .nav-logo { height: 24px; }
   body[data-nav="v2"] .nav-assistant { height: 44px; }
 
   /* Équipe : la barre latérale devient l'en-tête (la promo, l'Assistant, le compte) ; ses entrées

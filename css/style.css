@@ -296,6 +296,8 @@
      (celle de <meta name="theme-color">). */
   --lisere-habillage: none;
   --barre-etat: #1A1612;
+  /* Le logo Jalonya (connexion, barre du stagiaire) : en couleur par défaut ; un habillage peut le passer à l'encre. */
+  --filtre-logo: none;
 
   /* --- Barre collante du haut --- */
   /* Sa hauteur : la barre de jours du Planning se colle juste dessous. La coquille de navigation pose
@@ -433,10 +435,10 @@ a { color: inherit; text-decoration: none; }
 
 .gate-logo {
   display: block;
-  width: 130px;
+  width: 150px;
   height: auto;
   margin: 0 0 1.5rem;
-  filter: brightness(0) saturate(100%);  /* assure noir pur sur crème */
+  filter: var(--filtre-logo);
 }
 
 .gate-card h1 {

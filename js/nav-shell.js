@@ -408,7 +408,7 @@ function enTeteStagiaire(entrees, nom, initiales) {
   const promo = getPromoCourante()?.nom;
   const gauche = el("div", { class: "nav-gauche" },
     el("a", { href: "#/home", class: "nav-marque", title: "Accueil", "aria-label": "Jalonya, accueil" },
-      el("img", { class: "nav-logo", src: "assets/logo/tpecsr-logo.svg", alt: "Jalonya" })),
+      el("img", { class: "nav-logo", src: "assets/logo/jalonya-logo-couleur.svg", alt: "Jalonya" })),
     promo ? el("span", { class: "nav-marque-promo" }, promo) : null);
   const onglets = el("nav", { class: "nav-onglets", "aria-label": "Navigation principale" },
     entrees.map((e) => el("a", { href: "#/" + e.route, class: "nav-onglet", "data-entree": e.id },

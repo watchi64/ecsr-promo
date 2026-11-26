@@ -47,7 +47,7 @@ export function stagiairesDeFeuille(seance, stagiairesTous) {
 // Bandeau de tête : logo, titre et ce dont parle la feuille, aux couleurs de l'app.
 function bandeau(titre, sousTitre) {
   return el("div", { class: "emf-bandeau" },
-    el("img", { class: "emf-logo", src: "assets/logo/tpecsr-logo.svg", alt: "" }),
+    el("img", { class: "emf-logo", src: "assets/logo/jalonya-logo-couleur.svg", alt: "" }),
     el("div", { class: "emf-bandeau-texte" },
       el("p", { class: "emf-titre" }, titre),
       el("p", { class: "emf-sous-titre" }, sousTitre)));

@@ -13,7 +13,7 @@
 export const PREFIXES_HABILLAGE = Object.freeze([
   "--bg", "--line", "--text", "--accent", "--sur-sombre", "--sombre", "--repere", "--sur-repere",
   "--pastille", "--sur-pastille", "--halo", "--lueur", "--shadow", "--ombre", "--graphe",
-  "--lisere-habillage", "--barre-etat",
+  "--lisere-habillage", "--barre-etat", "--filtre-logo",
 ]);
 
 // --famille : couleur d'une famille de thèmes (formateur, conduite, notions pédagogiques), garde son sens dans les deux habillages.
