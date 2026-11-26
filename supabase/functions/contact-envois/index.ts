@@ -24,7 +24,7 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const APP_URL_DEFAUT = "https://watchi64.github.io/ecsr-promo/";
-const EXPEDITEUR_DEFAUT = "Promo ECSR <no-reply@timy-studio.fr>";
+const EXPEDITEUR_DEFAUT = "Jalonya <no-reply@timy-studio.fr>";
 const FORME_JETON = /^[A-Za-z0-9_-]{43}$/;
 
 function reponseJson(corps: unknown, statut = 200): Response {

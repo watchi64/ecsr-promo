@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Registre des scènes animées des cours de compétences. Une scène est une
  * DONNÉE : un décor, des acteurs (trajet et profil de vitesse en km/h), des

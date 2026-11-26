@@ -9,6 +9,6 @@ test("phraseStatut : rien de fixé, avec ce que les comptes reçoivent", () => {
 });
 test("phraseStatut : un habillage fixé, puis enregistré", () => {
   assert.equal(phraseStatut("ecf"), "Habillage fixé : Couleurs ECF.");
-  assert.equal(phraseStatut("ecsr", { enregistre: true }), "Enregistré. Habillage fixé : ECSR Promo.");
+  assert.equal(phraseStatut("ecsr", { enregistre: true }), "Enregistré. Habillage fixé : Jalonya.");
   assert.equal(phraseStatut(null, { enregistre: true, repli: "X." }), "Enregistré. Aucun habillage fixé. X.");
 });

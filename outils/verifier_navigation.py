@@ -42,13 +42,13 @@ manque) :
     « Contacts » du menu du compte. Un stagiaire qui ouvre `#/config` arrive sur Mes préférences, sans aucune section de
     la promo ni la liste « Personnes avec accès » (10/11).
 Habillages (lot 3, tâche 10 ; option `--habillages`, défaut `ecsr,ecf`) : tous les scénarios sont joués dans
-chaque habillage demandé : « ecsr » (ECSR Promo, le défaut) sur un appareil vierge, « ecf » (Couleurs ECF) par le levier de
+chaque habillage demandé : « ecsr » (Jalonya, le défaut) sur un appareil vierge, « ecf » (Couleurs ECF) par le levier de
 tout robot, `localStorage.ecsr_habillage = {"nom": "ecf"}` posé avant le premier chargement (l'app pose `data-skin` elle-même).
 Avec « ecf » s'y ajoute, une fois par moteur, l'appareil d'une autre personne (Review Focus 1) : l'appareil
 retient `{"nom": "ecf", "email": "autre@example.test"}` ; la page porte « ecf » avant la lecture du profil (avant-peinture),
 puis « ecsr » une fois le démarrage fini, sans rechargement, n'y revient jamais, n'envoie pas ce choix au compte (aucun
 `set_my_habillage("ecf")`), l'appareil le retient comme habillage appliqué non choisi, sans l'e-mail de l'autre ; rechargée, la
-page s'ouvre directement dans le défaut. La pastille « ECSR Promo » pressée du menu du compte, qui n'existe pas encore, est
+page s'ouvre directement dans le défaut. La pastille « Jalonya » pressée du menu du compte, qui n'existe pas encore, est
 vérifiée par la Task 11.
 Sur téléphone, le contexte de l'équipe joue en plus l'en-tête à 320 px (LARGEUR_ETROITE) : la fenêtre se resserre le temps de la vérification de l'Assistant.
 À 1 100 px, le contexte de l'équipe joue en plus la fiche d'un stagiaire (partie Évolution) à 768 px (LARGEUR_TABLETTE, vague finale, F1) : la fenêtre se resserre sur place.
@@ -119,7 +119,7 @@ Contrôles par vue
     une teinte de l'échelle continue des notes (js/echelle-notes.js) ou d'une rubrique EPCF (js/epcf-trames.js), ou
     ce qui est hors de l'app habillée : le bandeau du banc, les dessins des cours, le livret EPCF (`.lv-*`), le dossier
     professionnel (`.dp-doc`), les canevas ;
-  * poids des titres (lot 3, tâche 10, changement en direct, Review Focus 3), en « ECSR Promo » : chaque texte visible en Canela est
+  * poids des titres (lot 3, tâche 10, changement en direct, Review Focus 3), en « Jalonya » : chaque texte visible en Canela est
     relevé avec son poids, `data-skin` passe à « ecf » dans la même page (transitions gelées) : le même élément porte le poids ECF
     correspondant (700 et 500 deviennent 600, 600 le reste, 400 devient 500, 300 devient 400) et n'est plus en Canela ; puis
     retour à « ecsr ». Les documents imprimés (feuille d'émargement, dossier Qualiopi, attestations, livret, dossier
@@ -360,7 +360,7 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     en « Couleurs ECF » (« teinte restée », 68 vues ; le vert #6B7F4E, valeur d'un jeton --doc-*, n'est plus couvert hors d'un document),
     habillage de l'appareil repassé au défaut (« habillage de la page », et 4 268 teintes restées : le défaut entier), graduations des
     graphes de notes en gris pâle (1,87:1, vu sur le remplissage du texte SVG), trait de l'entrée allumée presque de la couleur de la barre
-    (1,56:1, mesuré au point du trait, hors de son entrée), titres de page à une graisse écrite en dur (700 en ECSR Promo comme en Couleurs
+    (1,56:1, mesuré au point du trait, hors de son entrée), titres de page à une graisse écrite en dur (700 en Jalonya comme en Couleurs
     ECF, « poids de titre »), appareil d'une autre personne pris pour celui de la personne connectée (habillage-regles.js : la page reste en
     ECF, le choix part sur son compte, l'appareil le lui attribue).
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
@@ -402,7 +402,7 @@ LARGEUR_TABLETTE = 768         # une tablette : jamais un scénario non plus, se
 HAUTEUR[LARGEUR_TABLETTE] = 1024
 SEUIL_TELEPHONE = 700          # largeur de fenêtre sous laquelle la coquille passe en mode téléphone
 DATE_DU_BANC = "2026-10-27"    # « aujourd'hui » figé (même date que les autres vérifications du lot)
-# Habillages (lot 3) : « ecsr » (ECSR Promo, le défaut) et « ecf » (Couleurs ECF). Levier, le même que pour tout robot
+# Habillages (lot 3) : « ecsr » (Jalonya, le défaut) et « ecf » (Couleurs ECF). Levier, le même que pour tout robot
 # (outils/captures_habillages.py) : avant le chargement, l'appareil retient `{ nom }` sous CLE_HABILLAGE ; l'app pose data-skin
 # elle-même (avant-peinture, puis accord avec le compte au démarrage). Le défaut est joué sur un appareil vierge.
 HABILLAGES = ("ecsr", "ecf")
@@ -978,7 +978,7 @@ function teintesRestees(fixes) {
   return [...trouves.values()];
 }
 
-// Poids des titres (lot 3, tâche 10 ; changement en direct, Review Focus 3) : en « ECSR Promo », chaque texte visible en Canela est
+// Poids des titres (lot 3, tâche 10 ; changement en direct, Review Focus 3) : en « Jalonya », chaque texte visible en Canela est
 // relevé avec son poids ; `data-skin` passe à « ecf » dans la même page, et le même élément doit porter le poids ECF correspondant (700 et
 // 500 deviennent 600, 600 le reste, ruling 10 ; 400 devient 500, 300 devient 400) et ne plus être en Canela ; puis retour à « ecsr ».
 // Les transitions sont gelées le temps de l'aller-retour : sinon la bascule lancerait des transitions de couleur que la mesure suivante
@@ -1011,7 +1011,7 @@ function poidsDesTitres(echecs) {
     if (deja.has(qui)) return;
     deja.add(qui);
     if (attendu === undefined) echecs.push(["poids de titre", `graisse ${t.avant} en Canela, sans correspondance en Couleurs ECF (300 à 700) : ${qui}`]);
-    else if (t.apres !== attendu) echecs.push(["poids de titre", `graisse ${t.avant} en ECSR Promo, ${t.apres} en Couleurs ECF (attendu ${attendu}) : ${qui}`]);
+    else if (t.apres !== attendu) echecs.push(["poids de titre", `graisse ${t.avant} en Jalonya, ${t.apres} en Couleurs ECF (attendu ${attendu}) : ${qui}`]);
     if (t.canela) echecs.push(["police de titre", `reste en Canela en Couleurs ECF (attendu la police du texte) : ${qui}`]);
   });
 }
@@ -1386,7 +1386,7 @@ async function mesurer(o) {
   window.scrollTo(0, 0);
 
   // Lot 3, tâche 10 : contraste de toute la page (la coquille, l'ancienne barre, #view, les fenêtres et panneaux posés sur body), repères
-  // non textuels de la coquille, dans les deux habillages ; en « Couleurs ECF », aucune teinte restée ; en « ECSR Promo », les poids des
+  // non textuels de la coquille, dans les deux habillages ; en « Couleurs ECF », aucune teinte restée ; en « Jalonya », les poids des
   // titres basculés en direct (en dernier : la bascule ne doit rien laisser derrière elle).
   mesurerContrastes([document.body], echecs, avert);
   reperesNonTextuels(echecs, avert);
@@ -2810,9 +2810,9 @@ def verifier_menu_du_compte_a_l_ouverture(page, res, sc):
 # Apparence : choisir l'habillage (lot 3, tâche 11)
 # --------------------------------------------------------------------------------------
 
-LIBELLES_HABILLAGES = {"ecsr": "ECSR Promo", "ecf": "Couleurs ECF"}
+LIBELLES_HABILLAGES = {"ecsr": "Jalonya", "ecf": "Couleurs ECF"}
 LEGENDES_HABILLAGES = {"ecsr": "d'origine", "ecf": "du réseau ECF"}   # seconde ligne de chaque pastille (lot 3, tâche 13b)
-MESSAGES_HABILLAGES = {"ecsr": "Habillage ECSR Promo appliqué", "ecf": "Couleurs ECF appliquées"}
+MESSAGES_HABILLAGES = {"ecsr": "Habillage Jalonya appliqué", "ecf": "Couleurs ECF appliquées"}
 SEL_PASTILLE = {"menu": '[data-nav-coquille="compte"] .habillage-pastille[data-habillage="%s"]', "page": '#view .habillage-pastille[data-habillage="%s"]'}
 QUOI_APPARENCE = {"menu": "menu du compte", "page": "page"}
 
@@ -2823,7 +2823,7 @@ def lire_apparence(page, lieu):
 
 def verifier_apparence(page, res, sc, vue, lieu, a=None):
     """Le choix de l'habillage dans `lieu` (« menu » : le menu du compte ouvert ; « page » : Mes préférences, Paramètres) : un seul groupe (role=group) nommé
-    « Apparence » par son titre, deux pastilles, des boutons « ECSR Promo » puis « Couleurs ECF » (button[type=button].habillage-pastille[data-habillage]),
+    « Apparence » par son titre, deux pastilles, des boutons « Jalonya » puis « Couleurs ECF » (button[type=button].habillage-pastille[data-habillage]),
     chacune avec aria-pressed, une seule pressée : celle de html[data-skin]. 44 px de haut au moins sur téléphone. Rend le groupe, ou None s'il manque."""
     a = a or lire_apparence(page, lieu)
     quoi = QUOI_APPARENCE[lieu]
@@ -2835,7 +2835,7 @@ def verifier_apparence(page, res, sc, vue, lieu, a=None):
     g = a["groupes"][0]
     vus = [(p["habillage"], p["libelle"]) for p in g["pastilles"]]
     if vus != [(n, LIBELLES_HABILLAGES[n]) for n in ("ecsr", "ecf")]:
-        res.echec("apparence", vue, "%s : pastilles %s, attendu « ECSR Promo » (ecsr) puis « Couleurs ECF » (ecf)" % (quoi, vus))
+        res.echec("apparence", vue, "%s : pastilles %s, attendu « Jalonya » (ecsr) puis « Couleurs ECF » (ecf)" % (quoi, vus))
     for p in g["pastilles"]:
         if p["legende"] != LEGENDES_HABILLAGES.get(p["habillage"]):
             res.echec("apparence", vue, "%s : la légende de « %s » est « %s », attendu « %s »" % (quoi, p["libelle"], p["legende"], LEGENDES_HABILLAGES.get(p["habillage"])))
@@ -2903,7 +2903,7 @@ def attendre_habillage(page, nom, a_envoyer=None):
 
 def jouer_choix_d_habillage(page, res, sc, panne=False):
     """Choisir l'habillage, nouvelle navigation (lot 3, tâche 11). Dans le menu du compte, la pastille de l'autre habillage (« Couleurs ECF » depuis le
-    défaut, « ECSR Promo » depuis ECF) : l'habillage change sans recharger, le menu reste ouvert et le focus sur la pastille ; rechargée, la page le garde,
+    défaut, « Jalonya » depuis ECF) : l'habillage change sans recharger, le menu reste ouvert et le focus sur la pastille ; rechargée, la page le garde,
     l'appareil le retient comme un choix (« à envoyer » tant que le compte ne l'a pas) ; Mes préférences le montre pressé ; une pastille de Mes préférences
     ramène l'habillage de départ, qui tient lui aussi au rechargement. `panne` : l'enregistrement sur le compte échoue (`?habillage_panne=1`) : même
     résultat, aucune erreur visible. Le banc est rechargé : joué en dernier."""
@@ -3839,7 +3839,7 @@ def verifier_nouveautes_du_lot_2b(page, res, sc, vue, cartes, nouvelle):
 
 def verifier_nouveaute_couleurs_ecf(res, vue, cartes, nouvelle):
     """La Nouveauté du choix de l'habillage (lot 3, tâche 11) : pour tous (sans puce « Formateurs »), nouvelle navigation seulement (le choix ne se fait que
-    là, décision H6), avec un « Où le trouver » vers Mes préférences et un « Comment faire » d'au moins trois étapes, qui dit « Couleurs ECF » et « ECSR Promo »
+    là, décision H6), avec un « Où le trouver » vers Mes préférences et un « Comment faire » d'au moins trois étapes, qui dit « Couleurs ECF » et « Jalonya »
     (le libellé et la première étape sont contrôlés par verifier_liens_et_guides)."""
     carte = cartes.get(TITRE_COULEURS_ECF)
     if not nouvelle:
@@ -3852,8 +3852,8 @@ def verifier_nouveaute_couleurs_ecf(res, vue, cartes, nouvelle):
     if carte["formateurs"]:
         res.echec("Nouveauté des couleurs d'ECF", vue, "« %s » porte la puce « Formateurs » : elle est pour tous" % TITRE_COULEURS_ECF)
     guide = " ".join(carte["guide"])
-    if len(carte["guide"]) < 3 or "« Couleurs ECF »" not in guide or "« ECSR Promo »" not in guide or "Apparence" not in guide:
-        res.echec("Nouveauté des couleurs d'ECF", vue, "« Comment faire » de « %s » : %d étape(s), attendu au moins 3 qui disent Apparence, « Couleurs ECF » et « ECSR Promo »"
+    if len(carte["guide"]) < 3 or "« Couleurs ECF »" not in guide or "« Jalonya »" not in guide or "Apparence" not in guide:
+        res.echec("Nouveauté des couleurs d'ECF", vue, "« Comment faire » de « %s » : %d étape(s), attendu au moins 3 qui disent Apparence, « Couleurs ECF » et « Jalonya »"
                   % (TITRE_COULEURS_ECF, len(carte["guide"])))
 
 
@@ -6366,7 +6366,7 @@ def jouer_appareil_d_autrui(page, res, sc, options):
     """Appareil partagé (Review Focus 1) : l'appareil retient le choix ECF d'une autre personne (son e-mail). Le script d'avant-peinture,
     qui ne sait pas encore qui se connecte, le montre ; une fois le profil lu, la page prend le choix de la personne connectée (ici aucun :
     le défaut), sans rechargement, n'y revient jamais, ne l'envoie pas au compte, et l'appareil ne l'attribue plus à personne : rechargée,
-    la page s'ouvre directement dans le défaut. Le menu du compte montre « ECSR Promo » pressée (lot 3, tâche 11), pas le choix de l'autre."""
+    la page s'ouvre directement dans le défaut. Le menu du compte montre « Jalonya » pressée (lot 3, tâche 11), pas le choix de l'autre."""
     regles = regles_de_la_page(page, res, sc)
     res.profil_stagiaire = bool(regles.get("profilStagiaire"))
     preparer_coquille(page, res, sc, regles)
@@ -6391,18 +6391,18 @@ def jouer_appareil_d_autrui(page, res, sc, options):
         res.echec("appareil d'une autre personne", vue, "l'appareil retient %s : attendu l'habillage appliqué (ecsr), sans l'e-mail de l'autre personne, et non choisi" % json.dumps(a))
     vider_console(res, vue)
     verifier_vue(page, res, sc, "ouverture/" + route_courante(page), options)
-    # Lot 3, tâche 11 : le menu du compte montre le choix de la personne connectée (le défaut), « ECSR Promo » pressée, jamais celui de l'autre.
+    # Lot 3, tâche 11 : le menu du compte montre le choix de la personne connectée (le défaut), « Jalonya » pressée, jamais celui de l'autre.
     vue = "%s/apparence" % sc.nom
     res.vues += 1
     if not res.coquille:
         # Le scénario attend la nouvelle barre : sans elle, le contrôle ne se joue pas, et c'est un échec, pas une vue réussie.
-        res.echec("appareil d'une autre personne", vue, "la coquille est absente : le menu du compte et sa pastille « ECSR Promo » pressée ne se contrôlent pas")
+        res.echec("appareil d'une autre personne", vue, "la coquille est absente : le menu du compte et sa pastille « Jalonya » pressée ne se contrôlent pas")
     elif cliquer(page, res, vue, '[data-nav-coquille] button[data-nav-action="compte"]:visible', "bouton du compte"):
         page.wait_for_timeout(300)
         g = verifier_apparence(page, res, sc, vue, "menu")
         pressees = [p["habillage"] for p in (g or {"pastilles": []})["pastilles"] if p["presse"] == "true"]
         if g is not None and pressees != ["ecsr"]:
-            res.echec("appareil d'une autre personne", vue, "le menu du compte presse %s : attendu « ECSR Promo », le choix de la personne connectée (aucun)" % (pressees or "aucune pastille"))
+            res.echec("appareil d'une autre personne", vue, "le menu du compte presse %s : attendu « Jalonya », le choix de la personne connectée (aucun)" % (pressees or "aucune pastille"))
         page.keyboard.press("Escape")
         page.wait_for_timeout(250)
     vider_console(res, vue)

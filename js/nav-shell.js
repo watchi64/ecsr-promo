@@ -407,8 +407,8 @@ function groupes(entrees, ou, faire) {
 function enTeteStagiaire(entrees, nom, initiales) {
   const promo = getPromoCourante()?.nom;
   const gauche = el("div", { class: "nav-gauche" },
-    el("a", { href: "#/home", class: "nav-marque", title: "Accueil", "aria-label": "TP ECSR, accueil" },
-      el("img", { class: "nav-logo", src: "assets/logo/tpecsr-logo.svg", alt: "TP ECSR" })),
+    el("a", { href: "#/home", class: "nav-marque", title: "Accueil", "aria-label": "Jalonya, accueil" },
+      el("img", { class: "nav-logo", src: "assets/logo/tpecsr-logo.svg", alt: "Jalonya" })),
     promo ? el("span", { class: "nav-marque-promo" }, promo) : null);
   const onglets = el("nav", { class: "nav-onglets", "aria-label": "Navigation principale" },
     entrees.map((e) => el("a", { href: "#/" + e.route, class: "nav-onglet", "data-entree": e.id },
@@ -475,7 +475,7 @@ function contexteDePromo() {
     return pastille;
   }
   return el("div", { class: "nav-contexte", title: nomPromo || null },
-    marque, nomPromo ? type : null, el("span", { class: "nav-contexte-nom" }, nomPromo || "TP ECSR"));
+    marque, nomPromo ? type : null, el("span", { class: "nav-contexte-nom" }, nomPromo || "Jalonya"));
 }
 
 function boutonReplier() {

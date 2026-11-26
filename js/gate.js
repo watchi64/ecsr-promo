@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : application propriétaire.
- * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  */
 // La carte d'authentification et ses modes. Sortie de main.js, qui redevient le
 // fichier du démarrage et des routes. Textes en formule neutre (ni « tu » ni « vous ») :

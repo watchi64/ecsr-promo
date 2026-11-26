@@ -3201,7 +3201,7 @@ function buildPrintHtml(monday) {
   // Footer (+ emplacement de la ligne diagnostic, remplie par fitPrintToPage APRÈS mesure
   // pour ne pas fausser le calcul d'échelle).
   root.appendChild(el("div", { class: "pp-footer" },
-    "Promo ECSR · généré le " + new Date().toLocaleDateString("fr-FR"),
+    "Jalonya · généré le " + new Date().toLocaleDateString("fr-FR"),
     el("span", { class: "pp-diag" }),
   ));
 

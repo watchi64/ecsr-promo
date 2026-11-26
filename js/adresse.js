@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * L'adresse de l'application, calculée depuis la page ouverte : aucune adresse écrite en dur.
  * L'app marche aussi bien à la racine d'un domaine (https://app.exemple.fr/) que sous un

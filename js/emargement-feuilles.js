@@ -59,7 +59,7 @@ function infos(lignes) {
 }
 
 function mentionSignatures() {
-  return "Signatures manuscrites recueillies sur écran dans l'application TP ECSR, horodatées par "
+  return "Signatures manuscrites recueillies sur écran dans l'application Jalonya, horodatées par "
     + "le serveur (heure de Paris) et non modifiables après coup.";
 }
 

@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Regard du conducteur dans les scènes animées. Module pur (ni DOM ni réseau) :
  * le moteur de rendu dessine le cône du regard avec ces fonctions, et les tests

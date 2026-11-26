@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Charte des dessins des cours de compétences et pièces communes. Illustration à plat, deux ou trois tons par
  * matière, sans dégradé ni ombre floue ; police de l'app ; « Juste » et « Faux » toujours écrits. Un dessin fait

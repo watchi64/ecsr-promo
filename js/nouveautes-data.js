@@ -23,6 +23,16 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // Nouveau nom de l'app (27/11) : onglet, icône installée, nom sous l'icône.
+  {
+    id: "2026-11-27-nom-jalonya",
+    date: "2026-11-27",
+    pour: "tous",
+    titre: "L'app s'appelle maintenant Jalonya",
+    resume: "Nouveau nom et nouvelle icône. Rien ne change dans l'usage : mêmes comptes, mêmes données, mêmes pages. Sur "
+          + "téléphone, l'icône déjà posée sur l'écran d'accueil garde son ancien aspect : la façon de la remplacer sera "
+          + "expliquée prochainement.",
+  },
   // EPCF du CCP2, suites (24/11) : indicateurs du centre et du réseau.
   {
     id: "2026-11-24-epcf-ccp2-indicateurs-formateurs",
@@ -754,13 +764,13 @@ export const NOUVEAUTES = [
     titre: "L'app aux couleurs d'ECF",
     resume: "Chacun peut habiller l'app aux couleurs d'ECF : son bleu, son bleu nuit et une touche de rouge. Les "
           + "couleurs et la police des titres changent : chaque page reste à sa place, et les notes gardent leurs couleurs. L'app retient ce "
-          + "choix, et le retour à ECSR Promo, la couleur d'origine, reste possible à tout moment.",
+          + "choix, et le retour à Jalonya, la couleur d'origine, reste possible à tout moment.",
     ou: { label: "Mes préférences", route: "preferences" },
     guide: [
       "Ouvrir le menu du compte : le rond aux initiales, en haut à droite de l'écran (chez les formateurs, sur "
         + "ordinateur, en bas de la barre de gauche).",
       "Sous Apparence, toucher « Couleurs ECF » : l'app change de couleurs tout de suite.",
-      "Pour revenir, toucher « ECSR Promo » au même endroit. Le même choix est aussi dans Mes préférences.",
+      "Pour revenir, toucher « Jalonya » au même endroit. Le même choix est aussi dans Mes préférences.",
     ],
   },
   // Finitions de l'audit du 09/11 (lot E). À date égale, après le lot 3 : la carte « Nouveauté » de l'Accueil n'en change pas.

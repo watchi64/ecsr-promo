@@ -466,8 +466,8 @@ def echapper_js(texte):
 def generer_js(catalogue, date_generation):
     lignes = []
     lignes.append("/*")
-    lignes.append(" * Promo ECSR : Application propriétaire.")
-    lignes.append(" * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.")
+    lignes.append(" * Jalonya : application propriétaire.")
+    lignes.append(" * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.")
     lignes.append(" *")
     lignes.append(" * Catalogue complet des panneaux routiers français, pour la galerie de")
     lignes.append(" * l'éditeur de cours (sélection visuelle par famille).")

@@ -370,7 +370,7 @@ function formeBien(m, nom) {
 // =====================================================================================================
 const f = formation();
 formeBien(f, "formation");
-eq(PHRASE_DE_GARDE, "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.",
+eq(PHRASE_DE_GARDE, "Pièces issues de l'application Jalonya, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.",
   "la phrase de garde du § 6.4, mot pour mot");
 eq(f.titre, "Dossier Qualiopi de la formation", "titre");
 eq(f.sousTitre, "Montpellier, Promo de test", "sous-titre : le centre et la promo");

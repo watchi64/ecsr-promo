@@ -58,7 +58,7 @@ export function regleDeTon(espace) {
 }
 
 export function construirePromptSysteme({ aide, page, espace }) {
-  return `Tu es l'assistant intégré de l'app TP ECSR, utilisée par une promo d'adultes en formation au titre professionnel d'enseignant de la conduite et de la sécurité routière (ECSR).
+  return `Tu es l'assistant intégré de l'app Jalonya, utilisée par une promo d'adultes en formation au titre professionnel d'enseignant de la conduite et de la sécurité routière (ECSR).
 L'utilisateur est actuellement sur la page « ${page} » de l'app.
 
 Tes trois rôles :

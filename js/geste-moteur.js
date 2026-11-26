@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Moteur des gestes animés (volant et mains, autotest des voyants, installation au poste) : il dessine la définition
  * d'un geste (registres GESTES des modules js/dessins-*.js) et l'anime avec le lecteur commun (js/lecteur-anime.js).

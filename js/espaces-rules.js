@@ -339,7 +339,7 @@ export function litToutesLesNotes({ admin = false, espace = null } = {}) {
 }
 
 // Réglages d'habillage (centre, réseau) : la ligne d'état sous les pastilles. `repli` : ce que les comptes reçoivent quand rien n'est fixé.
-const NOMS_HABILLAGE = { ecsr: "ECSR Promo", ecf: "Couleurs ECF" };
+const NOMS_HABILLAGE = { ecsr: "Jalonya", ecf: "Couleurs ECF" };
 export function phraseStatut(habillage, { enregistre = false, repli = "" } = {}) {
   const base = habillage == null
     ? "Aucun habillage fixé." + (repli ? " " + repli : "")

@@ -229,7 +229,7 @@ export async function renderReglagesReseau(container) {
       sousTitre: "L'apparence de l'app pour tout le réseau",
       section: (ligne) => sectionReglage({
         titre: "Habillage par défaut du réseau",
-        intro: "L'apparence que reçoivent les comptes qui n'ont rien choisi et dont le centre n'a rien fixé. Sans réglage, c'est ECSR Promo.",
+        intro: "L'apparence que reçoivent les comptes qui n'ont rien choisi et dont le centre n'a rien fixé. Sans réglage, c'est l'apparence Jalonya.",
         valeur: defautsHabillage(ligne).reseau,
         libre: true,
         avecLibre: false,
@@ -237,7 +237,7 @@ export async function renderReglagesReseau(container) {
         enregistrer: ({ habillage }) => reglerHabillageReseau(habillage),
         messageOk: "Réglage du réseau enregistré",
         aideLibre: () => "",
-        repli: "Les comptes reçoivent ECSR Promo.",
+        repli: "Les comptes reçoivent l'apparence Jalonya.",
       }),
     },
   });

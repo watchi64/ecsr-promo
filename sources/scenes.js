@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Sources des scènes de route : hors des modules livrés, lues seulement par les tests et les fiches de vérification.
  * Pour chaque scène : ce que montre la scène et d'où cela vient (textes, fiches ECF, méthode de Timy), puis ses choix de

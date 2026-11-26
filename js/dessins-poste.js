@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Dessins de la famille « poste » : tenir le volant (C1.3), les commandes du poste de conduite (C1.1), les pédales et les
  * pieds (C1.2). Les pièces volant, repereMain et pointHeure servent aussi aux gestes du volant (registre GESTES).

@@ -118,7 +118,7 @@ export function attestationAssiduite({ entete, lieuDefaut, promo, stagiaire, bil
       (bilan.demiPrevues > 1
         ? `Établie à partir des ${bilan.demiPrevues} feuilles d'émargement closes de la période où figure le stagiaire, `
         : "Établie à partir de la feuille d'émargement close de la période où figure le stagiaire, ")
-      + "signées dans l'application TP ECSR et horodatées par le serveur. Une demi-journée signée compte pour sa durée entière. "
+      + "signées dans l'application Jalonya et horodatées par le serveur. Une demi-journée signée compte pour sa durée entière. "
       + "Les heures sans feuille d'émargement (stage en entreprise) ne sont pas comptées."),
     blocSignature({ entete, lieuDefaut, faitLe, responsable: "du responsable de l'organisme de formation" }),
   ));

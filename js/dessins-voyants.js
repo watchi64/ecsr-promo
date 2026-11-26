@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Famille « voyants » des dessins des cours de compétences (C1.1) : les douze pictogrammes normalisés des voyants du cours,
  * la planche des voyants groupés par couleur avec leur conduite à tenir (voyants), et l'autotest du combiné d'instruments à

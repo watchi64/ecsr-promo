@@ -1,5 +1,5 @@
 /* ============================================================
-   TP ECSR, Design system v3
+   Jalonya, Design system v3
    Crème ivoire + espresso + accent racing.
    Inspiration : darb + Good Luck Racing + Auto Trade.
    ============================================================ */
@@ -206,7 +206,7 @@
   --apercu-planche: #c6cbd1;
   --apercu-scene: #5D635B;                           /* fond du cadre d'une scène animée d'un cours, derrière le dessin */
   /* Pastilles du choix de l'habillage (Apparence, js/habillage-choix.js) : chacune montre les couleurs de son habillage,
-     quel que soit celui qui est appliqué (famille fixe). ECSR Promo : vert, barre sombre, fond ; Couleurs ECF : bleu, rouge, blanc. */
+     quel que soit celui qui est appliqué (famille fixe). Jalonya : vert, barre sombre, fond ; Couleurs ECF : bleu, rouge, blanc. */
   --apercu-ecsr-1: #6B7F4E;
   --apercu-ecsr-2: #16231E;
   --apercu-ecsr-3: #F1F4F0;

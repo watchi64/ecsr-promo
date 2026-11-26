@@ -307,7 +307,7 @@ test("deux touchers qui réussissent : le compte les reçoit dans l'ordre, l'app
 
 test("envoi du démarrage en cours, puis deux touchers dont le dernier échoue : le dernier reste choisi et à envoyer", async (t) => {
   const e = env({ [CLE_APPAREIL]: '{"nom":"ecf","email":"A@x.fr","aEnvoyer":true,"choisi":true}' });
-  // Dans l'ordre : le démarrage aboutit, puis « ECSR Promo », puis « Couleurs ECF » échoue.
+  // Dans l'ordre : le démarrage aboutit, puis « Jalonya », puis « Couleurs ECF » échoue.
   const p = { enCours: [] };
   e.deps.enregistrer = (nom) => new Promise((ok, ko) => { e.appels.push(nom); p.enCours.push({ ok: () => ok(nom), ko: () => ko(new Error("réseau")) }); });
   t.after(() => p.enCours.forEach((x) => x.ok()));   // rien ne reste pendu si une assertion casse

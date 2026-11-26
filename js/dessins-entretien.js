@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Dessins de la famille « entretien » (C1.1, le tour du véhicule et les pneus) : sous le capot, lire un niveau, contrôler un
  * pneu, la pression des pneus.

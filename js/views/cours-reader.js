@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Lecteur de cours. Le contenu vit en base (table cours, colonne corps_md,
  * cf. js/db.js) et se rend ici en DOM, sans innerHTML, comme le reste de

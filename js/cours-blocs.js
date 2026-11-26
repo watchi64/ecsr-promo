@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Rendu des blocs interactifs des cours de compétences : schéma animé
  * (:::scene), dessin fixe du catalogue (:::dessin), quiz (:::quiz ordre | vrai-faux | choix)

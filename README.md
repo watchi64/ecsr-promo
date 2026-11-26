@@ -1,8 +1,8 @@
-# Promo ECSR - Suivi des passages
+# Jalonya
 
 Application web propriétaire dédiée à la gestion pédagogique d'une promotion en formation TP ECSR (Enseignant de la Conduite et de la Sécurité Routière).
 
-**© 2026 watchi64. Tous droits réservés.** Voir [LICENSE](./LICENSE) pour les conditions d'utilisation.
+**© 2026 Timy Studio. Tous droits réservés.** Voir [LICENSE](./LICENSE) pour les conditions d'utilisation.
 
 ---
 

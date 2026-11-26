@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Éditeur de cours (formateurs et admin). Markdown brut à gauche, aperçu à
  * droite, rendu par le même moteur que le lecteur : l'aperçu est exactement ce

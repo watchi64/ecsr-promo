@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Sources des dessins de la famille « conducteur » (js/dessins-conducteur.js) : hors des modules livrés, lues seulement par
  * les tests et recopiées dans la fiche de vérification du cours C1.2. Pour chaque dessin : la phrase du cours qu'il illustre,

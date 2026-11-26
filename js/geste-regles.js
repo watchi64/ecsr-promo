@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Règles pures des gestes animés (js/geste-moteur.js) : l'image d'un geste à un instant (imageA, la même pour le moteur et
  * pour les contrôles), image figée d'une étape, problèmes (étapes, durées, images que l'exécution accepterait et de même

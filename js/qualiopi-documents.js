@@ -34,7 +34,7 @@ import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=2026112
 import { fr1, pluriel } from "./nombres.js?v=20261124a";
 import { dateFr } from "./dates.js?v=20261124a";
 
-export const PHRASE_DE_GARDE = "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
+export const PHRASE_DE_GARDE = "Pièces issues de l'application Jalonya, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
 
 // Niveaux de l'inventaire, en mots (ceux de la page).
 export const LIBELLES_NIVEAU = { prouve: "Prouvé", partiel: "En partie", hors: "Hors de l'app" };

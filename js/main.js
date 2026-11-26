@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : application propriétaire.
- * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  */
 // En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
 import "./journal-erreurs.js?v=20261124a";

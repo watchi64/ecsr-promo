@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Moteur des schémas animés : dessine une scène du registre (js/scenes.js) en
  * SVG, à l'échelle réelle (une unité = un mètre), et l'anime en temps réel.

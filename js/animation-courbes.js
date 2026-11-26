@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Courbes d'accélération des gestes animés : un mouvement part et arrive en douceur, jamais à vitesse constante
  * d'un bout à l'autre ni par saut. Fonctions pures, testées sous Node.

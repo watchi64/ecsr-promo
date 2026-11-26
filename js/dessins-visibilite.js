@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Dessins de la famille « visibilité » (C1.2) : ce qu'on ne voit pas depuis le siège (zones-invisibles), le réglage des
  * rétroviseurs (retroviseurs) et les angles morts (angles-morts). Les voitures sont celles du kit (js/dessins-kit.js) ; un seul

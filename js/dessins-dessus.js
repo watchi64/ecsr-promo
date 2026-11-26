@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Dessins de la famille « dessus » : la voiture et la route vues du dessus, comme dans les scènes de route. Le tour du
  * véhicule (C1.1), les roues braquées en pente, vers le trottoir en descente et vers la chaussée en montée (C1.2), le

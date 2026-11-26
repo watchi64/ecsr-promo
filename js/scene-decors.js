@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Décors des scènes animées, construits en mètres à partir de règles écrites :
  * un carrefour en croix, un carrefour à sens giratoire, une rue droite et une

@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Contrôles automatiques des scènes animées (spec du 03/10/2026, section 6).
  * Module pur : chaque scène du registre est échantillonnée tous les dixièmes de

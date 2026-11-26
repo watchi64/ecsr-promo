@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Le cycliste vu du dessus, une seule pièce pour la scène de route qui le montre (js/scene-moteur.js, « sortie-portiere ») et
  * pour le dessin des angles morts (js/dessins-visibilite.js) : son gabarit, ses teintes et son dessin. Module léger, sans moteur

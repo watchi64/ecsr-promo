@@ -1,6 +1,6 @@
 /*
- * Promo ECSR : Application propriétaire.
- * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ * Jalonya : application propriétaire.
+ * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  *
  * Géométrie des scènes animées des cours de compétences. Module pur (ni DOM ni
  * réseau) : le moteur de rendu et les tests le partagent, et les tests vérifient
