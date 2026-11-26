@@ -1,7 +1,7 @@
 {
   "_note": "Seul endroit où vivent l'adresse de l'app et l'hébergement Scaleway. Rien de secret ici : les clés d'API sont dans les secrets du dépôt GitHub (SCW_ACCESS_KEY, SCW_SECRET_KEY). Mode d'emploi : deploiement/LISEZ-MOI.md.",
   "adresse": "https://app.jalonya.fr/",
-  "bucket": "",
+  "bucket": "jalonya-app",
   "region": "fr-par",
-  "pipeline_edge": ""
+  "pipeline_edge": "286c946c-603f-4626-a6e0-39b07a46871b"
 }
