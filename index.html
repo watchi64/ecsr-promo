@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#1A1612" />
+  <meta name="theme-color" content="#11161A" />
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
@@ -56,28 +56,47 @@
 
   <!-- Password gate -->
   <div id="gate" class="gate hidden">
-    <div class="gate-bg" aria-hidden="true"></div>
-    <div class="gate-card">
-      <img class="gate-logo" src="assets/logo/jalonya-logo-couleur.svg" alt="Jalonya" />
-      <p class="eyebrow">Promo · 2026</p>
-      <h1>Bienvenue</h1>
-      <div class="gate-tabs" role="tablist">
-        <button class="gate-tab active" id="gate-tab-signin" role="tab" type="button">Connexion</button>
-        <button class="gate-tab" id="gate-tab-signup" role="tab" type="button">Créer un compte</button>
+    <div class="gate-col">
+      <img class="gate-logo" src="assets/logo/jalonya-logo-negatif.svg" alt="Jalonya" />
+      <div class="gate-card">
+        <h1 id="gate-titre">Bienvenue</h1>
+        <p class="gate-sous-titre" id="gate-subtitle">Connectez-vous avec l'adresse e-mail de votre compte.</p>
+        <div class="gate-tabs" role="tablist">
+          <button class="gate-tab active" id="gate-tab-signin" role="tab" type="button">Connexion</button>
+          <button class="gate-tab" id="gate-tab-signup" role="tab" type="button">Créer un compte</button>
+        </div>
+        <!-- Un vrai formulaire : la touche Entrée l'envoie, et le trousseau du téléphone ou du navigateur propose
+             d'enregistrer le mot de passe. js/gate.js en arrête l'envoi (rien ne part vers une adresse). -->
+        <form class="gate-form" id="gate-formulaire" novalidate>
+          <div class="gate-champ" id="gate-champ-email">
+            <label for="gate-email">Adresse e-mail</label>
+            <input type="email" id="gate-email" name="email" placeholder="prenom.nom@exemple.fr" autocomplete="email" />
+          </div>
+          <div class="gate-champ" id="gate-champ-password">
+            <label for="gate-password" id="gate-password-libelle">Mot de passe</label>
+            <div class="gate-mdp">
+              <input type="password" id="gate-password" name="password" autocomplete="current-password" />
+              <button type="button" class="gate-afficher" id="gate-afficher" aria-pressed="false" aria-controls="gate-password">Afficher</button>
+            </div>
+          </div>
+          <div class="gate-champ hidden" id="gate-champ-confirmation">
+            <label for="gate-confirmation">Confirmer le mot de passe</label>
+            <input type="password" id="gate-confirmation" name="confirmation" autocomplete="new-password" />
+          </div>
+          <div class="gate-ligne-oubli" id="gate-ligne-oubli">
+            <button type="button" class="gate-link" id="gate-oubli">Mot de passe oublié ?</button>
+          </div>
+          <button type="submit" id="gate-submit" class="btn primary">Se connecter</button>
+        </form>
+        <p class="error hidden" id="gate-error"></p>
+        <p class="gate-info hidden" id="gate-info"></p>
+        <button type="button" class="gate-link hidden" id="gate-retour">Retour à la connexion</button>
+        <p class="gate-hint" id="gate-hint">Pas encore de compte ? Il se crée sur invitation de votre centre de formation.</p>
       </div>
-      <p class="muted" id="gate-subtitle">Saisir l'adresse e-mail et le mot de passe du compte.</p>
-      <div class="gate-form">
-        <input type="email" id="gate-email" placeholder="adresse@exemple.fr" autocomplete="email" />
-        <input type="password" id="gate-password" placeholder="Mot de passe (min. 8 caractères)" autocomplete="current-password" />
-        <input type="password" id="gate-confirmation" class="hidden" placeholder="Confirmer le mot de passe" autocomplete="new-password" />
-        <button id="gate-submit" class="btn primary">Se connecter</button>
+      <div class="gate-pied">
+        <a href="https://jalonya.fr/" target="_blank" rel="noopener">jalonya.fr</a>
+        <button type="button" class="gate-link" id="gate-legal">Informations légales</button>
       </div>
-      <p class="error hidden" id="gate-error"></p>
-      <p class="gate-info hidden" id="gate-info"></p>
-      <button type="button" class="gate-link" id="gate-oubli">Mot de passe oublié ?</button>
-      <button type="button" class="gate-link hidden" id="gate-retour">Retour à la connexion</button>
-      <p class="muted gate-hint" id="gate-hint">Pas encore de compte ? Passer par l'onglet « Créer un compte » (l'adresse e-mail doit avoir reçu une invitation).</p>
-      <button type="button" class="gate-link gate-legal" id="gate-legal">Informations légales</button>
     </div>
   </div>
 
