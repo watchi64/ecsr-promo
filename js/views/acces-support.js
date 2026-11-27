@@ -16,11 +16,18 @@ import { fondateurHorsApercu } from "../auth-admin.js?v=20261127b";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261127b";
 import { fonctionAbsente } from "../questionnaires-erreurs.js?v=20261127b";
 import {
-  motifSupportValide, MOTIF_SUPPORT_MIN, organismesProposes, supportEnCours, texteBandeauSupport,
+  motifSupportValide, MOTIF_SUPPORT_MIN, organismesProposes, supportEnCours, texteBandeauSupport, separerHeureBandeau,
 } from "../organisme-rules.js?v=20261127b";
 
 export const PHRASE_MOTIF_COURT = `Le motif doit compter au moins ${MOTIF_SUPPORT_MIN} caractères.`;
 const PHRASE_SANS_PROMO = "Cet organisme n'a encore aucune promo : l'app ne peut pas s'y ouvrir. L'accès support a été refermé.";
+
+// Le texte du bandeau en gras, l'heure finale dans un élément qui ne passe pas à la ligne (classe `support-heure`, css/navigation.css) :
+// sur téléphone, « 12 » et « h 00 » ne se séparent plus. Partagé avec le bandeau de js/nav-shell.js.
+export function texteSupportEnGras(texte) {
+  const [debut, heure] = separerHeureBandeau(texte);
+  return el("strong", {}, debut, heure ? el("span", { class: "support-heure" }, heure) : null);
+}
 
 // Ferme l'accès support après confirmation, puis recharge l'app sur l'organisme de rattachement (après les enregistrements en
 // cours). `bouton` est désactivé pendant l'appel et rendu en cas de refus. Rend vrai quand le rechargement est lancé.
@@ -110,7 +117,7 @@ export async function renderAccesSupportSection(rerender) {
   if (supportEnCours(organisme)) {
     const fermer = el("button", { class: "btn", type: "button" }, "Fermer l'accès support");
     fermer.addEventListener("click", () => fermerAccesSupportPuisRecharger(fermer));
-    bloc.appendChild(el("p", { id: "acces-support-etat" }, el("strong", {}, texteBandeauSupport(organisme.nom, organisme.supportJusqua))));
+    bloc.appendChild(el("p", { id: "acces-support-etat" }, texteSupportEnGras(texteBandeauSupport(organisme.nom, organisme.supportJusqua))));
     bloc.appendChild(fermer);
   } else {
     bloc.appendChild(el("p", { class: "muted", id: "acces-support-etat" },

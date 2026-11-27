@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   texteBandeauSupport, motifSupportValide, MOTIF_SUPPORT_MIN, normaliserMonOrganisme, supportEnCours, etatBandeauSupport,
-  organismesProposes, organismeParDefaut, redacteurConnu, contenusEcrivables, gestesDeLaBanqueQcm,
+  organismesProposes, organismeParDefaut, redacteurConnu, contenusEcrivables, gestesDeLaBanqueQcm, separerHeureBandeau,
 } from "../js/organisme-rules.js";
 import { phraseDeRefus } from "../js/espaces-rules.js";
 import { casesDeLEspace, selonLaCase } from "../js/titres-rules.js";
@@ -162,4 +162,16 @@ test("gestesDeLaBanqueQcm : l'éditeur suit l'organisme rédacteur, l'examen et 
   const aucun = { gererExamen: false, editerQuestions: false, creerQcm: false, editeurDepuisContestation: false };
   for (const r of [true, false, null]) assert.deepEqual(gestes(r, false, false), aucun, String(r));
   assert.deepEqual(gestesDeLaBanqueQcm(), aucun, "sans argument : rien");
+});
+
+test("separerHeureBandeau : l'heure finale à part (elle ne se coupe pas d'une ligne à l'autre), le texte inchangé une fois recollé", () => {
+  const t = texteBandeauSupport("Organisme B", new Date("2026-11-28T15:05:00+01:00"));
+  assert.deepEqual(separerHeureBandeau(t), ["Accès support : Organisme B, jusqu'à ", "15 h 05"]);
+  assert.equal(separerHeureBandeau(t).join(""), t);
+  assert.deepEqual(separerHeureBandeau("Accès support, jusqu'à 9 h 04"), ["Accès support, jusqu'à ", "9 h 04"]);
+  // Sans heure (échéance illisible, texte « terminé ») : tout le texte, aucune heure.
+  assert.deepEqual(separerHeureBandeau("Accès support : Organisme B"), ["Accès support : Organisme B", ""]);
+  assert.deepEqual(separerHeureBandeau("Accès support à Organisme B terminé. Rechargez l'app pour revenir à votre organisme."),
+    ["Accès support à Organisme B terminé. Rechargez l'app pour revenir à votre organisme.", ""]);
+  assert.deepEqual(separerHeureBandeau(null), ["", ""]);
 });

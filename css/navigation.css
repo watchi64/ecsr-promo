@@ -1165,5 +1165,7 @@ body[data-nav="v2"] .nav-fenetre .habillage-pastilles { padding: 0 6px 6px; }
 .support-bandeau { border-color: var(--c-wait); background: var(--c-wait-soft); flex-wrap: wrap; }
 .support-bandeau p { flex: 1 1 14rem; min-width: 0; overflow-wrap: anywhere; }
 .support-form { display: grid; gap: 0.4rem; max-width: 32rem; margin-top: 0.75rem; }
-.support-form select, .support-form textarea { width: 100%; box-sizing: border-box; }
+/* Zone à toucher : 44 px de haut au moins, comme les autres champs (.centre-jury-liste select) ; l'heure du bandeau ne se coupe pas. */
+.support-form select, .support-form textarea { width: 100%; box-sizing: border-box; min-height: 44px; }
+.support-heure { white-space: nowrap; }
 .support-form .btn { justify-self: start; margin-top: 0.35rem; }

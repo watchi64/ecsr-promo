@@ -46,7 +46,7 @@ import { icon, deco } from "./icons.js?v=20261127b";
 import { getProfile, fondateurHorsApercu, getCentre, isFounder } from "./auth-admin.js?v=20261127b";
 import { getPromoCourante, getLieuxLus, listeDemandes, lireMonOrganisme, rechargerApresEnregistrements } from "./db.js?v=20261127b";
 import { etatBandeauSupport } from "./organisme-rules.js?v=20261127b";
-import { fermerAccesSupportPuisRecharger } from "./views/acces-support.js?v=20261127b";
+import { fermerAccesSupportPuisRecharger, texteSupportEnGras } from "./views/acces-support.js?v=20261127b";
 import { compterNonLues } from "./contact-rules.js?v=20261127b";
 import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261127b";
 import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261127b";
@@ -683,7 +683,7 @@ function dessinerBandeauSupport(organisme) {
     if (etat.echu) { bouton.disabled = true; rechargerApresEnregistrements(); return; }
     fermerAccesSupportPuisRecharger(bouton);
   });
-  bandeau.replaceChildren(el("p", {}, el("strong", {}, etat.texte)), bouton);
+  bandeau.replaceChildren(el("p", {}, texteSupportEnGras(etat.texte)), bouton);
   bandeau.classList.toggle("support-bandeau-echu", etat.echu);
   if (!etat.echu) {
     // Redessiné à l'échéance (une demi-seconde après), pour passer à « terminé ». Au plus 2 heures : sous la borne de setTimeout.

@@ -42,6 +42,15 @@ export function texteBandeauSupport(nom, jusqua) {
   return heure ? `${debut}, jusqu'à ${heure}` : debut;
 }
 
+// Le texte du bandeau en deux morceaux : [début, heure finale] (« 15 h 05 », ou "" sans heure). L'écran pose l'heure dans un
+// élément qui ne passe pas à la ligne : sur téléphone, « 12 » restait sinon en fin de ligne et « h 00 » partait à la suivante.
+// Recollés, les deux morceaux rendent le texte tel quel.
+export function separerHeureBandeau(texte) {
+  const t = typeof texte === "string" ? texte : "";
+  const m = /\d{1,2} h \d{2}$/.exec(t);
+  return m ? [t.slice(0, m.index), m[0]] : [t, ""];
+}
+
 // La ligne rendue par mon_organisme() (une table d'une ligne au plus), telle que l'app l'emploie :
 // { id, nom, redacteur, habillage, supportJusqua }. `habillage` nul veut dire « aucun réglage » ; `supportJusqua` est l'échéance de
 // l'accès support du fondateur quand c'est l'organisme affiché, nulle sinon.
