@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   texteBandeauSupport, motifSupportValide, MOTIF_SUPPORT_MIN, normaliserMonOrganisme, supportEnCours, etatBandeauSupport,
-  organismesProposes, organismeParDefaut, redacteurConnu, contenusEcrivables,
+  organismesProposes, organismeParDefaut, redacteurConnu, contenusEcrivables, gestesDeLaBanqueQcm,
 } from "../js/organisme-rules.js";
 import { phraseDeRefus } from "../js/espaces-rules.js";
 import { casesDeLEspace, selonLaCase } from "../js/titres-rules.js";
@@ -144,4 +144,22 @@ test("contenusEcrivables : seul un organisme connu comme non rédacteur ferme le
   assert.equal(contenusEcrivables(), true, "sans argument : inconnu");
   // Une valeur abîmée n'est pas un « non » : seul false ferme.
   assert.equal(contenusEcrivables({ redacteur: 0, fondateur: false }), true);
+});
+
+// Correctif 2 : les trois chemins vers l'éditeur de QCM tenus par la gestion des examens (« Éditer les questions » dans « Modifier
+// l'examen », « + QCM », « Ouvrir dans l'éditeur » depuis « Questions contestées ») suivent la même porte que isRedacteur ; la gestion
+// des examens et la liste des questions contestées restent à canManageExam.
+test("gestesDeLaBanqueQcm : l'éditeur suit l'organisme rédacteur, l'examen et les contestations restent au formateur", () => {
+  const gestes = (redacteur, fondateur, gererExamen = true) =>
+    gestesDeLaBanqueQcm({ gererExamen, ecritContenus: contenusEcrivables({ redacteur, fondateur }) });
+  const tout = { gererExamen: true, editerQuestions: true, creerQcm: true, editeurDepuisContestation: true };
+  const sansEditeur = { gererExamen: true, editerQuestions: false, creerQcm: false, editeurDepuisContestation: false };
+  assert.deepEqual(gestes(true, false), tout, "organisme rédacteur (ECF)");
+  assert.deepEqual(gestes(null, false), tout, "inconnu : comme aujourd'hui");
+  assert.deepEqual(gestes(false, false), sansEditeur, "organisme non rédacteur : examens et contestations, sans éditeur");
+  assert.deepEqual(gestes(false, true), tout, "fondateur hors aperçu en accès support sur un organisme non rédacteur");
+  // Sans gestion des examens (direction, siège, stagiaire) : aucun de ces gestes, quel que soit l'organisme.
+  const aucun = { gererExamen: false, editerQuestions: false, creerQcm: false, editeurDepuisContestation: false };
+  for (const r of [true, false, null]) assert.deepEqual(gestes(r, false, false), aucun, String(r));
+  assert.deepEqual(gestesDeLaBanqueQcm(), aucun, "sans argument : rien");
 });

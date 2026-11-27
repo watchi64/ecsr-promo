@@ -29,6 +29,7 @@ import { renderRessources } from "./ressources.js?v=20261127b";
 import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261127b";
 import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261127b";
 import { renderPropositionsIa } from "./propositions-ia.js?v=20261127b";
+import { gestesDeLaBanqueQcm } from "../organisme-rules.js?v=20261127b";
 import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261127b";
 import { ouvrirModale } from "../nav-fenetre.js?v=20261127b";
 import { ETATS_PROGRESSION, dateExamen, etatProgression, bilanProgression, phraseBilan } from "../progression-rules.js?v=20261127b";
@@ -334,6 +335,9 @@ function sampleN(arr, n) {
 // Gérer l'examen, éditer la banque, lire les signalements : le formateur de la promo (la direction ne le fait pas : la base
 // refuserait).
 function canManageExam() { return ecritSelonLaCase("cours"); }
+// Cloisonnement (correctif 2) : les chemins vers l'éditeur de QCM que tient la gestion des examens exigent en plus d'écrire les
+// contenus communs (js/organisme-rules.js, gestesDeLaBanqueQcm) ; examens et contestations restent à canManageExam.
+function gestesBanque() { return gestesDeLaBanqueQcm({ gererExamen: canManageExam(), ecritContenus: ecritLesContenus() }); }
 
 // Le siège rédige les contenus communs sans promo (lot 5, D13) : ni progression, ni statut, ni examen, ni promo nommée.
 function sansPromo() { return getEspace() === "siege"; }
@@ -400,7 +404,11 @@ function openQcmSheet(theme, qcm) {
     // Sans ça il fallait passer par « Modifier » puis « Éditer les questions » pour les
     // découvrir, donc savoir à l'avance qu'il y en avait.
     const nbSignal = signalByQcm[qcm.id] || 0;
-    if (canManageExam() && nbSignal) {
+    if (canManageExam() && nbSignal && !gestesBanque().editeurDepuisContestation) {
+      // Organisme qui ne rédige pas les contenus : pas d'éditeur, les contestations se traitent dans leur sous-onglet.
+      body.appendChild(el("p", { class: "muted", style: "font-size:0.85rem;text-align:center;margin:0.9rem 0 0" },
+        `${nbSignal} question${nbSignal > 1 ? "s" : ""} contestée${nbSignal > 1 ? "s" : ""} à traiter dans « Questions contestées ».`));
+    } else if (canManageExam() && nbSignal) {
       const voir = el("button", { class: "btn full", type: "button", style: "margin-top:0.9rem" },
         deco(icon.drapeau()), `${nbSignal} question${nbSignal > 1 ? "s" : ""} contestée${nbSignal > 1 ? "s" : ""} à traiter`);
       voir.addEventListener("click", () => { modale.fermer({ focus: false }); openQcmEditor(theme, qcm.id); });
@@ -615,10 +623,10 @@ function themeExamPanel(theme, qcm, onPublishChange) {
     const modal = el("div", { class: "modal" },
       el("h3", {}, "Modifier l'examen"),
       summary,
-      el("div", { class: "config-section" },
+      gestesBanque().editerQuestions ? el("div", { class: "config-section" },
         el("p", { class: "config-label" }, "Banque de questions"),
         el("button", { class: "btn ghost full", type: "button", onClick: editQuestions }, icon.quiz(), "Éditer les questions"),
-      ),
+      ) : null,
       el("div", { class: "config-section" },
         el("p", { class: "config-label" }, "Questions de l'examen"),
         el("div", { class: "theme-exam-draw-line" }, el("span", {}, "Tirer"), nbInput, el("span", {}, `au hasard (sur ${qcm.nb_questions})`)),
@@ -1567,7 +1575,7 @@ function renderThemeRow(theme, container, coursOn = false) {
         class: "theme-qcm-hint", type: "button", title: "Voir le QCM",
         onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmSheet(theme, qcm); },
       }, icon.quiz(), "QCM")
-      : (canManageExam() ? boutonCreerQcm(theme) : null);
+      : (gestesBanque().creerQcm ? boutonCreerQcm(theme) : null);
 
   const etiquette = theme.numero != null || theme.code ? `thème ${num}`
     : `${theme.type === "notion" ? "la notion" : "thème"} « ${theme.titre} »`;
@@ -2050,7 +2058,9 @@ export async function renderThemes(container) {
   }
   if (canManageExam()) {
     onglets.push({ key: "signalements", label: "Questions contestées",
-      render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } });
+      // « Ouvrir dans l'éditeur » : seulement là où l'éditeur peut enregistrer (gestesBanque) ; « Question corrigée » et « Pas
+      // d'erreur » restent.
+      render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: gestesBanque().editeurDepuisContestation ? ouvrirDepuisConsole : null, isActive: ctx?.isActive }); } });
   }
   // Formateurs de la promo (isAdmin, formateur_courant en base) : les questions que l'IA a proposées
   // et que personne n'a relues. La table des brouillons n'est lisible que par eux (RLS) : la direction et le siège n'ont

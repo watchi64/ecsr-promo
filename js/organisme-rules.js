@@ -116,3 +116,14 @@ export function redacteurConnu(organisme) {
 export function contenusEcrivables({ redacteur = null, fondateur = false } = {}) {
   return fondateur === true || redacteur !== false;
 }
+
+// Les gestes du formateur sur la banque d'un QCM (js/views/themes.js). `gererExamen` : canManageExam() (case « Cours et QCM »)
+// ; `ecritContenus` : contenusEcrivables (ecritLesContenus() d'auth-admin). La gestion des examens et la liste des questions
+// contestées (lire, classer « Question corrigée » / « Pas d'erreur ») restent à `gererExamen` : l'équipe d'un organisme non
+// rédacteur traite ses propres contestations. Les trois chemins vers l'éditeur de QCM (« Éditer les questions » dans « Modifier
+// l'examen », « + QCM », « Ouvrir dans l'éditeur » d'une contestation) exigent en plus d'écrire les contenus communs : sinon la base
+// refuserait l'enregistrement et le travail serait perdu.
+export function gestesDeLaBanqueQcm({ gererExamen = false, ecritContenus = true } = {}) {
+  const editeur = gererExamen === true && ecritContenus === true;
+  return { gererExamen: gererExamen === true, editerQuestions: editeur, creerQcm: editeur, editeurDepuisContestation: editeur };
+}
