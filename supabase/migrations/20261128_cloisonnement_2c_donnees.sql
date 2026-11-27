@@ -20,9 +20,13 @@
 --     organisme comme absente du planning, et ne laisse passer le fondateur que sur l'organisme de la fiche ; _contact_fiche_dans,
 --     _contact_relais_possibles et ma_fiche_contact : centres de l'organisme seulement.
 --   * Planning : profs lue et écrite dans l'organisme ; profs.nom unique par organisme (profs_nom_key retirée, index
---     profs_organisme_nom).
+--     profs_organisme_nom) ; une ligne de planning_entries (prof_id, prof_ids), passages, emargement_formateurs ou epcf_evaluations
+--     (evaluateur_prof_id) ne cite qu'une fiche profs de l'organisme de sa promo (déclencheur verif_profs_organisme, « Fiche formateur
+--     introuvable. », 23514) ; _contact_annexes, _contact_nom_fiche, annuaire_centre, _contact_relais_possibles et ma_fiche_contact
+--     ne lisent le nom que d'une fiche profs de l'organisme du centre.
 --   * Contenus communs : geste_promo(contenus.lire_internes, contenus.rediger, contenus.traiter, referentiel.modifier) et
---     case_reseau('cours') exigent un organisme rédacteur ; la lecture des contenus publiés ne change pas. ressources : organisme_id nul
+--     case_reseau('cours') exigent un organisme rédacteur, sauf pour le fondateur hors aperçu, qui écrit les contenus communs quel
+--     que soit son organisme actif (spec § 5.2) ; la lecture des contenus publiés ne change pas. ressources : organisme_id nul
 --     = carte commune (lue par tous, écrite par le rédacteur), sinon lue et écrite par l'organisme ; le déclencheur organisme_par_defaut
 --     des ressources ne joue plus qu'à l'insertion (une carte peut devenir commune).
 --   * Signalements de QCM : lus et traités par l'équipe de l'organisme de la ligne (et le fondateur sur son organisme actif) ;
@@ -36,7 +40,8 @@
 --   * Restent globaux (spec § 5.2) : signalements_app, le verrou titres_ouverts, l'écriture des contenus communs par le fondateur
 --     (cours, versions), effacer_adresse_journal, le journal du fondateur (acces_fondateur, lu par lui).
 -- Fonctions nouvelles (security definer, chemin fixé, droits retirés) : _organisme_unique, _organisme_ecriture, _organisme_du_personnel,
--- organisme_de_compte, _personnel_ailleurs, _organisme_redacteur, _organisme_de_cible, et les déclencheurs _personnel_un_organisme,
+-- organisme_de_compte, _personnel_ailleurs, _organisme_redacteur, _organisme_de_cible, et les déclencheurs _profs_de_l_organisme,
+-- _personnel_un_organisme,
 -- _effacements_journal_organisme, _organisme_ligne ; ouvertes à authenticated (les règles les appellent avec les droits de l'appelant,
 -- chacune ne rend qu'un booléen) : compte_dans_mon_organisme, organisme_lisible, ressource_ecrivable, qcm_signalement_traitable,
 -- ligne_lisible, effacement_lisible.
@@ -86,6 +91,9 @@ begin
       ('public.fiches_effacees_sur_demande(integer[])', '02ef19faa63152b5b265f49c45a4a5d3'),
       ('public.autonomie_opposer(integer)', 'e6f98da007ba0ff9b0246417281bb797'),
       ('public._registre_qualite_avant()', 'f712593bd6b10530b02db1c3ef02fdc5'),
+      ('public._contact_annexes(integer, integer, jsonb, integer)', 'bf20f6b3086fe23ad16fd949819af1ab'),
+      ('public._contact_nom_fiche(contacts, integer)', 'e212753ca5157e239699d0aa05a0edb1'),
+      ('public.annuaire_centre()', '9c715c63764095643164ba01c67aff7a'),
       -- Gardées telles quelles : leur sens est celui des étapes 1, 2a et 2b.
       ('public.est_fondateur()', '87f35299949ab3db2d8c686e4665f263'),
       ('public.fondateur_reel()', 'c275a072a60fafffbab944893dd500cf'),
@@ -100,7 +108,6 @@ begin
       ('public.peut_acceder_promo(integer)', 'e39a7d18dbaf5f8ef650893e70c84e7e'),
       ('public._contact_compte_equipe()', 'ccc518f8ace92a25097a3474f6bbe805'),
       ('public.a_une_affectation(text)', '99b01188993c66efaa99615580acfef9'),
-      ('public.annuaire_centre()', '9c715c63764095643164ba01c67aff7a'),
       ('public._peut_conserver_promo(integer)', 'f8a60593723efd16d8e8785bd3f8caa8'),
       ('public.clore_annee_formateurs(integer, integer)', '02191250df20a8063a756ac4e51ad158'),
       ('public.effacer_commentaires_formateurs(integer, integer)', 'e8f5ef16dfa63768a397d206b7f8104f'),
@@ -156,7 +163,8 @@ begin
                and p.proname in ('_organisme_unique', '_organisme_ecriture', '_organisme_du_personnel', 'organisme_de_compte',
                                  '_personnel_ailleurs', '_organisme_redacteur', '_organisme_de_cible', 'compte_dans_mon_organisme',
                                  'organisme_lisible', 'ressource_ecrivable', 'qcm_signalement_traitable', '_personnel_un_organisme',
-                                 '_effacements_journal_organisme', '_organisme_ligne', 'ligne_lisible', 'effacement_lisible'))
+                                 '_effacements_journal_organisme', '_organisme_ligne', 'ligne_lisible', 'effacement_lisible',
+                                 '_profs_de_l_organisme'))
      or exists (select 1 from pg_attribute a where a.attrelid in ('public.registre_qualite'::regclass, 'public.effacements_journal'::regclass)
                   and a.attname = 'organisme_id' and not a.attisdropped)
      or to_regclass('public.profs_organisme_nom') is not null then
@@ -408,12 +416,45 @@ begin
 end;
 $function$;
 
+-- Une ligne de planning, de passage, de signature de formateur ou d'évaluation EPCF ne cite qu'une fiche profs de l'organisme de sa
+-- promo (prof_id, prof_ids, evaluateur_prof_id) : une fiche d'un autre organisme est traitée comme absente (« Fiche formateur
+-- introuvable. », 23514). Jugé à l'insertion, et à la modification quand les fiches citées ou la promo changent.
+create function public._profs_de_l_organisme()
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to 'public', 'pg_temp'
+as $function$
+declare
+  v_n jsonb := to_jsonb(new);
+  v_a jsonb := case when tg_op = 'UPDATE' then to_jsonb(old) end;
+  v_ids integer[];
+begin
+  if tg_op = 'UPDATE' and v_n -> 'promo_id' = v_a -> 'promo_id'
+     and (v_n -> 'prof_id') is not distinct from (v_a -> 'prof_id') and (v_n -> 'prof_ids') is not distinct from (v_a -> 'prof_ids')
+     and (v_n -> 'evaluateur_prof_id') is not distinct from (v_a -> 'evaluateur_prof_id') then
+    return new;
+  end if;
+  v_ids := array(select (x.v)::integer from (
+                   select v_n ->> 'prof_id' as v
+                   union all select v_n ->> 'evaluateur_prof_id'
+                   union all select jsonb_array_elements_text(case when jsonb_typeof(v_n -> 'prof_ids') = 'array' then v_n -> 'prof_ids' else '[]'::jsonb end)) x
+                 where x.v is not null);
+  -- Un identifiant sans fiche (fiche supprimée) reste accepté, comme avant : seule une fiche d'un autre organisme est refusée.
+  if exists (select 1 from profs pf
+              where pf.id = any (v_ids) and pf.organisme_id is distinct from organisme_de_promo((v_n ->> 'promo_id')::integer)) then
+    raise exception 'Fiche formateur introuvable.' using errcode = '23514';
+  end if;
+  return new;
+end;
+$function$;
+
 revoke all on function public._organisme_unique(), public._organisme_ecriture(), public._organisme_du_personnel(text),
   public.organisme_de_compte(text), public._personnel_ailleurs(text, integer), public._organisme_redacteur(integer),
   public._organisme_de_cible(text), public.compte_dans_mon_organisme(text), public.organisme_lisible(integer),
   public.ressource_ecrivable(integer), public.qcm_signalement_traitable(integer, bigint), public._personnel_un_organisme(),
   public._effacements_journal_organisme(), public._organisme_ligne(integer, integer, integer),
-  public.ligne_lisible(integer, integer, integer), public.effacement_lisible(integer, text)
+  public.ligne_lisible(integer, integer, integer), public.effacement_lisible(integer, text), public._profs_de_l_organisme()
   from public, anon, authenticated, service_role;
 grant execute on function public.compte_dans_mon_organisme(text), public.organisme_lisible(integer),
   public.ressource_ecrivable(integer), public.qcm_signalement_traitable(integer, bigint),
@@ -440,6 +481,17 @@ alter table public.effacements_journal add column organisme_id integer;
 update public.effacements_journal j set organisme_id = public._organisme_unique() where public._organisme_de_cible(j.cible) is null;
 create trigger effacements_journal_organisme before insert on public.effacements_journal
   for each row execute function public._effacements_journal_organisme();
+
+-- Planning : une fiche profs citée par une ligne est de l'organisme de sa promo (après les déclencheurs qui imposent la promo du
+-- stagiaire, d'où le nom).
+create trigger verif_profs_organisme before insert or update on public.planning_entries
+  for each row execute function public._profs_de_l_organisme();
+create trigger verif_profs_organisme before insert or update on public.passages
+  for each row execute function public._profs_de_l_organisme();
+create trigger verif_profs_organisme before insert or update on public.emargement_formateurs
+  for each row execute function public._profs_de_l_organisme();
+create trigger verif_profs_organisme before insert or update on public.epcf_evaluations
+  for each row execute function public._profs_de_l_organisme();
 
 -- Planning : le nom d'une fiche profs est unique dans un organisme, plus dans toute la base.
 alter table public.profs drop constraint profs_nom_key;
@@ -592,17 +644,19 @@ begin
       return coalesce(case_promo(p, 'notes') = 2, false);
     -- Contenus communs (cours, QCM, référentiel) : seulement depuis une promo d'un organisme rédacteur (la promo donnée, sinon
     -- l'organisme courant) ou par la case cours du siège (case_reseau, elle-même nulle hors d'un organisme rédacteur).
+    -- Le fondateur (hors aperçu) écrit les contenus communs quel que soit son organisme actif : ils n'appartiennent à aucun client
+    -- (spec § 5.2, comme cours_modification par est_fondateur()) ; sur une promo donnée seulement (promo nulle : comme avant).
     when 'contenus.lire_internes' then
-      return coalesce(((case_promo(p, 'cours') >= 1 or direction_fixe(l))
+      return coalesce((est_fondateur() and p is not null) or ((case_promo(p, 'cours') >= 1 or direction_fixe(l))
                        and _organisme_redacteur(coalesce(organisme_de_promo(p), organisme_courant())))
                       or case_reseau('cours') >= 1, false);
     when 'contenus.rediger' then
-      return coalesce((case_promo(p, 'cours') = 2 and _organisme_redacteur(coalesce(organisme_de_promo(p), organisme_courant())))
+      return coalesce((est_fondateur() and p is not null) or (case_promo(p, 'cours') = 2 and _organisme_redacteur(coalesce(organisme_de_promo(p), organisme_courant())))
                       or case_reseau('cours') = 2, false);
     when 'referentiel.modifier' then
-      return coalesce(case_promo(p, 'cours') = 2 and _organisme_redacteur(coalesce(organisme_de_promo(p), organisme_courant())), false);
+      return coalesce((est_fondateur() and p is not null) or case_promo(p, 'cours') = 2 and _organisme_redacteur(coalesce(organisme_de_promo(p), organisme_courant())), false);
     when 'contenus.traiter' then
-      return coalesce(case_promo(p, 'cours') = 2 and _organisme_redacteur(coalesce(organisme_de_promo(p), organisme_courant())), false);
+      return coalesce((est_fondateur() and p is not null) or case_promo(p, 'cours') = 2 and _organisme_redacteur(coalesce(organisme_de_promo(p), organisme_courant())), false);
     when 'reglages.modifier' then
       return coalesce(case_promo(p, 'reglages') = 2, false);
     when 'modules.modifier' then
@@ -1138,7 +1192,7 @@ AS $function$
          x.l
     from centres x
     join contacts c on _contact_fiche_dans(c, x.l)
-    left join profs pf on pf.id = c.prof_id
+    left join profs pf on pf.id = c.prof_id and pf.organisme_id = organisme_de_lieu(x.l)
    where c.compte_email is distinct from lower(p_email)
      and (c.depart_le is null or c.depart_le >= (now() at time zone 'Europe/Paris')::date)
    order by c.id, x.l;
@@ -1162,6 +1216,7 @@ begin
                               'verifiee', c.verifiee_le is not null, 'verifiee_le', c.verifiee_le)
       into v_fiche
       from contacts c left join profs pf on pf.id = c.prof_id
+                                 and pf.organisme_id is not distinct from coalesce(_organisme_du_personnel(v_moi), pf.organisme_id)
      where c.compte_email = v_moi;
   end if;
   return jsonb_build_object(
@@ -1590,6 +1645,121 @@ begin
   end if;
   return new;
 end;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public._contact_annexes(l integer, p integer, p_jours jsonb, p_auteur integer)
+ RETURNS TABLE(fiche_id bigint, stagiaire_id integer, nom text, annexe text, non_prevenu text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  with demis as (
+    select (e ->> 'jour')::date as d, e ->> 'demi' as demi from jsonb_array_elements(coalesce(p_jours, '[]'::jsonb)) e
+  ), pe as (
+    select x.prof_id, x.prof_ids, x.prof_autre
+      from demis
+      join planning_entries x on x.promo_id = p and x.half_day = demis.demi
+                             and x.semaine_lundi = demis.d - (extract(isodow from demis.d)::integer - 1)
+                             and x.day_index = extract(isodow from demis.d)::integer - 1
+  ), profs_du_jour as (
+    select distinct u.id from pe cross join lateral unnest(array[pe.prof_id] || pe.prof_ids) u(id) where u.id is not null
+  ), fiches as (
+    select f as id from _contact_formateurs_du_jour(l, p, p_jours) f
+  ), tout as (
+    select c.id as fiche_id, null::integer as stagiaire_id, _contact_nom_fiche(c, l) as nom, 'formateur_du_jour' as annexe, null::text as non_prevenu
+      from contacts c where c.id in (select id from fiches)
+    union all
+    select null::bigint, null::integer, n.nom, 'formateur_du_jour', n.nom
+      from (select btrim(pe.prof_autre) as nom from pe where nullif(btrim(pe.prof_autre), '') is not null
+            union
+            select coalesce(nullif(btrim(pf.nom), ''), 'Formateur') from profs pf
+             where pf.id in (select id from profs_du_jour) and pf.organisme_id = organisme_de_lieu(l)
+               and not exists (select 1 from contacts c where c.prof_id = pf.id and _contact_disponible(c, l, _contact_jour()))) n
+    union all
+    select null::bigint, st.id, coalesce(_contact_nom_stagiaire(st.id), 'Délégué'), 'delegue', null::text
+      from stagiaires st
+     where st.promo_id = p and st.delegue is not null and st.id is distinct from p_auteur
+       and st.actif and st.efface_le is null and st.anonymise_le is null
+       and exists (select 1 from user_profiles up where up.stagiaire_id = st.id)
+  )
+  select * from tout order by annexe desc, nom, fiche_id, stagiaire_id;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public._contact_nom_fiche(c contacts, l integer)
+ RETURNS text
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  select coalesce((select pf.nom from profs pf where pf.id = c.prof_id and pf.organisme_id = organisme_de_lieu(l)), nullif(btrim(concat_ws(' ', c.prenom, c.nom)), ''),
+                  case when c.compte_email is null then c.role end,
+                  (select string_agg(distinct ti.nom, ', ' order by ti.nom) from affectations a join titres ti on ti.id = a.titre_id
+                    where lower(a.email) = c.compte_email
+                      and ((a.role = 'formateur' and a.promo_id in (select p.id from promos p where p.lieu_id = l))
+                           or (a.role = 'direction' and a.lieu_id = l))));
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.annuaire_centre()
+ RETURNS TABLE(id bigint, avec_compte boolean, nom_affiche text, titres jsonb, libelle text, pour_quoi text, note text, quand text, telephone text, email text, verifiee boolean, conge_du date, conge_au date, relais_id bigint, prof_id integer, ordre integer, moi boolean, ecrivable boolean, joignable boolean, prenom text, nom text, lieux_partages integer[], categorie text, depart_le date)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  with ctx as (
+    select lieu_courant() as l,
+           coalesce(geste_promo(promo_courante(), 'fiches_internes.ecrire'), false) as ecrit,
+           lower(auth.jwt() ->> 'email') as moi,
+           (now() at time zone 'Europe/Paris')::date as jour
+  ), f as (
+    select c.*, x.l as centre, x.moi as appelant,
+           (c.compte_email is null and c.lieu_id = x.l and x.ecrit) as peut_ecrire,
+           (c.compte_email is null or c.verifiee_le is not null) as verif,
+           (c.depart_le is not null and c.depart_le < x.jour) as parti
+      from ctx x
+      join contacts c on _contact_fiche_dans(c, x.l)
+     where x.l is not null
+  )
+  , r as (
+  select f.id,
+         f.compte_email is not null as avec_compte,
+         coalesce(pf.nom, nullif(btrim(concat_ws(' ', f.prenom, f.nom)), ''), t.noms) as nom_affiche,
+         coalesce(t.titres, '[]'::jsonb),
+         case when f.compte_email is null then f.role end,
+         case when f.verif then f.pour_quoi end,
+         f.note,
+         case when f.verif then f.quand end,
+         case when f.verif then f.phone end,
+         case when f.verif then f.email end,
+         f.verif,
+         f.conge_du, f.conge_au, f.relais_id, f.prof_id, f.sort_order as ordre,
+         coalesce(f.compte_email = f.appelant, false),
+         f.peut_ecrire,
+         f.compte_email is not null or f.email is not null,
+         case when f.peut_ecrire then f.prenom end,
+         case when f.peut_ecrire then f.nom end,
+         case when f.peut_ecrire then f.lieux_partages end,
+         case when f.peut_ecrire then f.category end,
+         case when f.peut_ecrire then f.depart_le end
+    from f
+    left join profs pf on pf.id = f.prof_id and pf.organisme_id = organisme_de_lieu(f.centre)
+    left join lateral (
+      select jsonb_agg(jsonb_build_object('nom', g.nom, 'niveau', g.niveau, 'promos', g.promos) order by g.nom collate "C") as titres,
+             string_agg(g.nom, ', ' order by g.nom collate "C") as noms
+        from (select ti.nom, ti.niveau,
+                     coalesce(jsonb_agg(distinct a.promo_id) filter (where a.promo_id is not null), '[]'::jsonb) as promos
+                from affectations a
+                join titres ti on ti.id = a.titre_id
+               where f.compte_email is not null and lower(a.email) = f.compte_email
+                 and ((a.role = 'formateur' and a.promo_id in (select p.id from promos p where p.lieu_id = f.centre))
+                      or (a.role = 'direction' and a.lieu_id = f.centre))
+               group by ti.id, ti.nom, ti.niveau) g
+    ) t on true
+   where not f.parti or f.peut_ecrire
+  )
+  select r.* from r order by r.ordre, r.nom_affiche collate "C", r.id;
 $function$
 ;
 -- 6. Les règles.

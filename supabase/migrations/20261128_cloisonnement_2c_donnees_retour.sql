@@ -22,7 +22,7 @@ begin
     from (values
       ('public.organisme_courant()', '80557e860ea35db33b09a78fa7163dd8'),
       ('public.promo_par_defaut()', '04cd24b01e27447ac90344c5855686ba'),
-      ('public.geste_promo(integer, text)', 'b47758268bfe5246de8355a67999695a'),
+      ('public.geste_promo(integer, text)', '7e2594a24ba4c92e3815017b1faf787a'),
       ('public.case_reseau(text)', '528823b88ef868a1171da6e711fe18b7'),
       ('public.inviter_compte(text, text, integer, integer, integer)', '579abafb8ea58fa58f7b06b7b5c7cfa3'),
       ('public.donner_titre(text, bigint, integer, integer[], integer)', '615f7ad5057aa5d30d18540d148a9ae5'),
@@ -31,8 +31,8 @@ begin
       ('public._affectations_titre()', 'bb1ce6be6fe8bc59d71804293fe9ef35'),
       ('public._contact_avant_ecriture()', '21a6c030e920c10e78365fd769b49003'),
       ('public._contact_fiche_dans(contacts, integer)', 'bc5ff169832449db51d58920e1461628'),
-      ('public._contact_relais_possibles(text)', 'ba162e23b31418c01c4cd90043bff4d7'),
-      ('public.ma_fiche_contact()', '170092ab99e924e628f5d2d8f3017856'),
+      ('public._contact_relais_possibles(text)', '957492f4d89eeb361f7d5c038b6a88fa'),
+      ('public.ma_fiche_contact()', '5ae788187dae3cf38e772a2d08436ef0'),
       ('public.etat_conservation()', '0f21ca4e6654286e53478610e92a2c33'),
       ('public.etat_conservation_centre(integer)', '921da66551d68d4bed4a12ac8d211941'),
       ('public.effacer_registre_qualite()', '26223d3fe517ae03f351f66765a4992c'),
@@ -57,7 +57,11 @@ begin
       ('public._organisme_ligne(integer, integer, integer)', '4cc098124e402a04edbbf083c66363c6'),
       ('public.ligne_lisible(integer, integer, integer)', '0404c05f4d53f019e0af602b549c7fa5'),
       ('public.effacement_lisible(integer, text)', '916210328d8a953c758d73ca555fa83d'),
-      ('public._registre_qualite_avant()', '16a69a577724ba70edf4feda7d6d426c')) x(f, attendu)
+      ('public._registre_qualite_avant()', '16a69a577724ba70edf4feda7d6d426c'),
+      ('public._contact_annexes(integer, integer, jsonb, integer)', '64e890c93f298cb60b47d615f3969c96'),
+      ('public._contact_nom_fiche(contacts, integer)', 'ff91809aed69fc55e38914995b6c4e29'),
+      ('public.annuaire_centre()', 'b08336e954cba215783019bf926bc134'),
+      ('public._profs_de_l_organisme()', '3dcf2696c7dde97258fd4f88625b8aaf')) x(f, attendu)
     left join pg_proc p on p.oid = to_regprocedure(x.f)
    where md5(replace(p.prosrc, chr(13), '')) is distinct from x.attendu;
   if v_liste is not null then
@@ -112,7 +116,8 @@ begin
                'fiches_effacees_sur_demande', 'autonomie_opposer', '_organisme_unique', '_organisme_ecriture', '_organisme_du_personnel',
                'organisme_de_compte', '_personnel_ailleurs', '_organisme_redacteur', '_organisme_de_cible', 'compte_dans_mon_organisme',
                'organisme_lisible', 'ressource_ecrivable', 'qcm_signalement_traitable', '_personnel_un_organisme',
-               '_effacements_journal_organisme', '_organisme_ligne', 'ligne_lisible', 'effacement_lisible', '_registre_qualite_avant'])
+               '_effacements_journal_organisme', '_organisme_ligne', 'ligne_lisible', 'effacement_lisible', '_registre_qualite_avant',
+               '_profs_de_l_organisme', '_contact_annexes', '_contact_nom_fiche', 'annuaire_centre'])
           union all
           select 'règle ' || r.tablename || '.' || r.policyname
             from pg_policies r
@@ -1184,9 +1189,125 @@ begin
 end;
 $function$
 ;
+CREATE OR REPLACE FUNCTION public._contact_annexes(l integer, p integer, p_jours jsonb, p_auteur integer)
+ RETURNS TABLE(fiche_id bigint, stagiaire_id integer, nom text, annexe text, non_prevenu text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  with demis as (
+    select (e ->> 'jour')::date as d, e ->> 'demi' as demi from jsonb_array_elements(coalesce(p_jours, '[]'::jsonb)) e
+  ), pe as (
+    select x.prof_id, x.prof_ids, x.prof_autre
+      from demis
+      join planning_entries x on x.promo_id = p and x.half_day = demis.demi
+                             and x.semaine_lundi = demis.d - (extract(isodow from demis.d)::integer - 1)
+                             and x.day_index = extract(isodow from demis.d)::integer - 1
+  ), profs_du_jour as (
+    select distinct u.id from pe cross join lateral unnest(array[pe.prof_id] || pe.prof_ids) u(id) where u.id is not null
+  ), fiches as (
+    select f as id from _contact_formateurs_du_jour(l, p, p_jours) f
+  ), tout as (
+    select c.id as fiche_id, null::integer as stagiaire_id, _contact_nom_fiche(c, l) as nom, 'formateur_du_jour' as annexe, null::text as non_prevenu
+      from contacts c where c.id in (select id from fiches)
+    union all
+    select null::bigint, null::integer, n.nom, 'formateur_du_jour', n.nom
+      from (select btrim(pe.prof_autre) as nom from pe where nullif(btrim(pe.prof_autre), '') is not null
+            union
+            select coalesce(nullif(btrim(pf.nom), ''), 'Formateur') from profs pf
+             where pf.id in (select id from profs_du_jour)
+               and not exists (select 1 from contacts c where c.prof_id = pf.id and _contact_disponible(c, l, _contact_jour()))) n
+    union all
+    select null::bigint, st.id, coalesce(_contact_nom_stagiaire(st.id), 'Délégué'), 'delegue', null::text
+      from stagiaires st
+     where st.promo_id = p and st.delegue is not null and st.id is distinct from p_auteur
+       and st.actif and st.efface_le is null and st.anonymise_le is null
+       and exists (select 1 from user_profiles up where up.stagiaire_id = st.id)
+  )
+  select * from tout order by annexe desc, nom, fiche_id, stagiaire_id;
+$function$
+;
+CREATE OR REPLACE FUNCTION public._contact_nom_fiche(c contacts, l integer)
+ RETURNS text
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  select coalesce((select pf.nom from profs pf where pf.id = c.prof_id), nullif(btrim(concat_ws(' ', c.prenom, c.nom)), ''),
+                  case when c.compte_email is null then c.role end,
+                  (select string_agg(distinct ti.nom, ', ' order by ti.nom) from affectations a join titres ti on ti.id = a.titre_id
+                    where lower(a.email) = c.compte_email
+                      and ((a.role = 'formateur' and a.promo_id in (select p.id from promos p where p.lieu_id = l))
+                           or (a.role = 'direction' and a.lieu_id = l))));
+$function$
+;
+CREATE OR REPLACE FUNCTION public.annuaire_centre()
+ RETURNS TABLE(id bigint, avec_compte boolean, nom_affiche text, titres jsonb, libelle text, pour_quoi text, note text, quand text, telephone text, email text, verifiee boolean, conge_du date, conge_au date, relais_id bigint, prof_id integer, ordre integer, moi boolean, ecrivable boolean, joignable boolean, prenom text, nom text, lieux_partages integer[], categorie text, depart_le date)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  with ctx as (
+    select lieu_courant() as l,
+           coalesce(geste_promo(promo_courante(), 'fiches_internes.ecrire'), false) as ecrit,
+           lower(auth.jwt() ->> 'email') as moi,
+           (now() at time zone 'Europe/Paris')::date as jour
+  ), f as (
+    select c.*, x.l as centre, x.moi as appelant,
+           (c.compte_email is null and c.lieu_id = x.l and x.ecrit) as peut_ecrire,
+           (c.compte_email is null or c.verifiee_le is not null) as verif,
+           (c.depart_le is not null and c.depart_le < x.jour) as parti
+      from ctx x
+      join contacts c on _contact_fiche_dans(c, x.l)
+     where x.l is not null
+  )
+  , r as (
+  select f.id,
+         f.compte_email is not null as avec_compte,
+         coalesce(pf.nom, nullif(btrim(concat_ws(' ', f.prenom, f.nom)), ''), t.noms) as nom_affiche,
+         coalesce(t.titres, '[]'::jsonb),
+         case when f.compte_email is null then f.role end,
+         case when f.verif then f.pour_quoi end,
+         f.note,
+         case when f.verif then f.quand end,
+         case when f.verif then f.phone end,
+         case when f.verif then f.email end,
+         f.verif,
+         f.conge_du, f.conge_au, f.relais_id, f.prof_id, f.sort_order as ordre,
+         coalesce(f.compte_email = f.appelant, false),
+         f.peut_ecrire,
+         f.compte_email is not null or f.email is not null,
+         case when f.peut_ecrire then f.prenom end,
+         case when f.peut_ecrire then f.nom end,
+         case when f.peut_ecrire then f.lieux_partages end,
+         case when f.peut_ecrire then f.category end,
+         case when f.peut_ecrire then f.depart_le end
+    from f
+    left join profs pf on pf.id = f.prof_id
+    left join lateral (
+      select jsonb_agg(jsonb_build_object('nom', g.nom, 'niveau', g.niveau, 'promos', g.promos) order by g.nom collate "C") as titres,
+             string_agg(g.nom, ', ' order by g.nom collate "C") as noms
+        from (select ti.nom, ti.niveau,
+                     coalesce(jsonb_agg(distinct a.promo_id) filter (where a.promo_id is not null), '[]'::jsonb) as promos
+                from affectations a
+                join titres ti on ti.id = a.titre_id
+               where f.compte_email is not null and lower(a.email) = f.compte_email
+                 and ((a.role = 'formateur' and a.promo_id in (select p.id from promos p where p.lieu_id = f.centre))
+                      or (a.role = 'direction' and a.lieu_id = f.centre))
+               group by ti.id, ti.nom, ti.niveau) g
+    ) t on true
+   where not f.parti or f.peut_ecrire
+  )
+  select r.* from r order by r.ordre, r.nom_affiche collate "C", r.id;
+$function$
+;
 
 -- 3. Les déclencheurs, les colonnes et les unicités d'avant.
 drop trigger personnel_un_organisme on public.affectations;
+drop trigger verif_profs_organisme on public.planning_entries;
+drop trigger verif_profs_organisme on public.passages;
+drop trigger verif_profs_organisme on public.emargement_formateurs;
+drop trigger verif_profs_organisme on public.epcf_evaluations;
 drop trigger effacements_journal_organisme on public.effacements_journal;
 alter table public.registre_qualite drop column organisme_id;
 alter table public.effacements_journal drop column organisme_id;
@@ -1198,6 +1319,7 @@ create trigger organisme_par_defaut before insert or update on public.ressources
 
 -- 4. Les fonctions nouvelles de l'étape 2c.
 drop function public._personnel_un_organisme();
+drop function public._profs_de_l_organisme();
 drop function public._effacements_journal_organisme();
 drop function public.ligne_lisible(integer, integer, integer);
 drop function public.effacement_lisible(integer, text);

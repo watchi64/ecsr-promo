@@ -2117,17 +2117,19 @@ test("les fichiers de l'étape 2b du cloisonnement : LF, sans tiret cadratin, lo
 
 const ETAPE_2C_ECRITE = existsSync(join(RACINE, ETAPES_CLOISONNEMENT["2c"].migration));
 
-test("les fichiers de l'étape 2c du cloisonnement : LF, sans tiret cadratin, lock_timeout, les vingt-deux fonctions remplacées (en-têtes de l'état d'avant, garde md5 de chacune), fonctions nouvelles aux droits explicites, seize règles remises avant le retrait de leurs fonctions, refus mot pour mot, aucun verrou consultatif, retour complet ; sabotage", { skip: !ETAPE_2C_ECRITE }, () => {
+test("les fichiers de l'étape 2c du cloisonnement : LF, sans tiret cadratin, lock_timeout, les vingt-cinq fonctions remplacées (en-têtes de l'état d'avant, garde md5 de chacune), fonctions nouvelles aux droits explicites, seize règles remises avant le retrait de leurs fonctions, refus mot pour mot, aucun verrou consultatif, retour complet ; sabotage", { skip: !ETAPE_2C_ECRITE }, () => {
   const REMPLACEES = ["organisme_courant()", "promo_par_defaut()", "geste_promo(integer, text)", "case_reseau(text)",
     "inviter_compte(text, text, integer, integer, integer)", "donner_titre(text, bigint, integer, integer[], integer)",
     "_orphelin_en_personnel(text, boolean, integer, text)", "_profil_formateur(text, integer, text)", "_affectations_titre()",
     "_contact_avant_ecriture()", "_contact_fiche_dans(contacts, integer)", "_contact_relais_possibles(text)", "ma_fiche_contact()",
     "etat_conservation()", "etat_conservation_centre(integer)", "effacer_registre_qualite()", "ouvrir_questionnaire(text, jsonb, boolean)",
     "resultats_questionnaire(text, jsonb)", "commentaires_questionnaire(text, jsonb)", "fiches_effacees_sur_demande(integer[])",
-    "autonomie_opposer(integer)", "_registre_qualite_avant()"];
+    "autonomie_opposer(integer)", "_registre_qualite_avant()", "_contact_annexes(integer, integer, jsonb, integer)",
+    "_contact_nom_fiche(contacts, integer)", "annuaire_centre()"];
   const NOUVELLES = ["_organisme_unique", "_organisme_ecriture", "_organisme_du_personnel", "organisme_de_compte", "_personnel_ailleurs",
     "_organisme_redacteur", "_organisme_de_cible", "_organisme_ligne", "compte_dans_mon_organisme", "organisme_lisible", "ligne_lisible",
-    "effacement_lisible", "ressource_ecrivable", "qcm_signalement_traitable", "_personnel_un_organisme", "_effacements_journal_organisme"];
+    "effacement_lisible", "ressource_ecrivable", "qcm_signalement_traitable", "_personnel_un_organisme", "_effacements_journal_organisme",
+    "_profs_de_l_organisme"];
   const OUVERTES = ["compte_dans_mon_organisme", "organisme_lisible", "ressource_ecrivable", "qcm_signalement_traitable", "ligne_lisible", "effacement_lisible"];
   const REGLES = ["user_profiles_lecture", "user_profiles_suppression", "conditions_acceptations_lecture", "effacements_journal_lecture",
     "registre_qualite_lecture", "registre_qualite_ajout", "registre_qualite_modification", "questionnaire_ouvertures_select", "profs_select_all",
@@ -2144,7 +2146,7 @@ test("les fichiers de l'étape 2c du cloisonnement : LF, sans tiret cadratin, lo
     assert.ok(!brut.includes("\r"), `${chemin} : fins de ligne LF`);
     if (chemin.startsWith("supabase/")) assert.match(brut, /^set local lock_timeout = '3s';$/m, `${chemin} : lock_timeout`);
   }
-  // Les vingt-deux, dans l'ordre, chacune gardée par son md5 ; le retour les remet dans le même ordre, avec le même en-tête.
+  // Les vingt-cinq, dans l'ordre, chacune gardée par son md5 ; le retour les remet dans le même ordre, avec le même en-tête.
   assert.deepEqual([...m.matchAll(/^CREATE OR REPLACE FUNCTION public\.(\w+)\(/gm)].map((x) => x[1]), REMPLACEES.map(nomDe));
   assert.deepEqual([...r.matchAll(/^CREATE OR REPLACE FUNCTION public\.(\w+)\(/gm)].map((x) => x[1]), REMPLACEES.map(nomDe));
   for (const [texte, nom] of [[m, "migration"], [r, "retour"]]) {
@@ -2188,6 +2190,15 @@ test("les fichiers de l'étape 2c du cloisonnement : LF, sans tiret cadratin, lo
   assert.equal((m.match(/raise exception 'Cette adresse ne peut pas être invitée ici\.' using errcode = '23514';/g) ?? []).length, 5);
   assert.ok(!m.includes("pg_advisory_xact_lock(hashtext"), "aucun verrou consultatif dans le déclencheur du personnel");
   assert.ok(m.includes("create trigger personnel_un_organisme before insert or update of email, role, promo_id, lieu_id, organisme_id on public.affectations"));
+  // Correctif 1 : une fiche profs d'un autre organisme refusée sur quatre tables ; déclencheurs retirés par le retour.
+  for (const t of ["planning_entries", "passages", "emargement_formateurs", "epcf_evaluations"]) {
+    assert.ok(m.includes(`create trigger verif_profs_organisme before insert or update on public.${t}
+`), `${t} : déclencheur des fiches profs`);
+    assert.ok(r.includes(`drop trigger verif_profs_organisme on public.${t};`), `${t} : déclencheur retiré par le retour`);
+  }
+  assert.equal((m.match(/raise exception 'Fiche formateur introuvable\.' using errcode = '23514';/g) ?? []).length, 1);
+  // Correctif 2 : l'écriture des contenus communs par le fondateur (hors aperçu, sur une promo donnée) dans les quatre gestes.
+  assert.equal((m.match(/coalesce\(\(est_fondateur\(\) and p is not null\) or /g) ?? []).length, 4);
   // Les unicités, colonnes et déclencheurs, et leur retour.
   assert.ok(m.includes("alter table public.profs drop constraint profs_nom_key;"));
   assert.ok(m.includes("create unique index profs_organisme_nom on public.profs (organisme_id, nom) nulls not distinct;"));

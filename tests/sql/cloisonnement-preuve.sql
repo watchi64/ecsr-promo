@@ -1617,6 +1617,8 @@ returns void language plpgsql as $cgpl$
 declare
   v_a text := pg_temp.clo_n('org_a'); v_b text := pg_temp.clo_n('org_b');
   v_prof_a text; v_prof_b text := pg_temp.clo_n('prof_b'); v_nom_a text; v_nom_b text; r record;
+  v_pb text := pg_temp.clo_n('promo_b'); v_stag text := pg_temp.clo_n('stag_b1');
+  v_prof_x text; v_nom_x text; v_prof_jour text; v_lundi text; v_seance text; v text; v_jours text;
 begin
   v_prof_a := pg_temp.calcul(format('select min(pf.id)::text from public.profs pf where pf.organisme_id = %s', v_a));
   v_nom_a := pg_temp.calcul(format('select nom from public.profs where id = %s', coalesce(v_prof_a, 'null')));
@@ -1648,6 +1650,47 @@ begin
     'OK 0 / OK 0 / ERREUR 42501');
   perform pg_temp.attendre('planning', 'le formateur de B crée une fiche profs dans B (témoin)',
     pg_temp.clo_ecrire_annule('form_b', $q$insert into public.profs (nom) values ('Preuve clo prof témoin B')$q$), 'OK 1');
+  -- Correctif 1 : une ligne de B ne cite jamais une fiche profs d'ECF (prof_id, prof_ids, evaluateur_prof_id), sur les quatre tables.
+  -- La fiche d'ECF choisie porte un autre nom que la fiche de B (qui reprend exprès le nom d'une fiche d'ECF).
+  v_prof_x := pg_temp.calcul(format('select min(pf.id)::text from public.profs pf where pf.organisme_id = %s and pf.nom is distinct from %L', v_a, v_nom_b));
+  v_nom_x := pg_temp.calcul(format('select nom from public.profs where id = %s', coalesce(v_prof_x, 'null')));
+  v_lundi := (date_trunc('week', current_date + 7))::date::text;
+  perform pg_temp.attendre('planning', 'correctif 1 : le formateur de B cite une fiche profs d''ECF dans son planning (prof_id, puis prof_ids), un passage, une évaluation EPCF : refusé (« Fiche formateur introuvable. », sans RETURNING) ; sa propre fiche : acceptée',
+    concat_ws(' / ',
+      pg_temp.clo_ecrire_annule('form_b', format($q$insert into public.planning_entries (semaine_lundi, day_index, half_day, slot, promo_id, prof_id) values (%L, 0, 'matin', 90, %s, %s)$q$, v_lundi, v_pb, coalesce(v_prof_x, 'null'))),
+      pg_temp.clo_ecrire_annule('form_b', format($q$insert into public.planning_entries (semaine_lundi, day_index, half_day, slot, promo_id, prof_ids) values (%L, 0, 'matin', 91, %s, array[%s])$q$, v_lundi, v_pb, coalesce(v_prof_x, 'null'))),
+      pg_temp.clo_ecrire_annule('form_b', format($q$insert into public.passages (date, stagiaire_id, type, resultat, promo_id, prof_id) values (current_date, %s, 'Salle', 'Effectué', %s, %s)$q$, v_stag, v_pb, coalesce(v_prof_x, 'null'))),
+      pg_temp.clo_ecrire_annule('form_b', format($q$insert into public.epcf_evaluations (stagiaire_id, trame, promo_id, evaluateur_prof_id) values (%s, 'salle', %s, %s)$q$, v_stag, v_pb, coalesce(v_prof_x, 'null'))),
+      pg_temp.clo_ecrire_annule('form_b', format($q$insert into public.planning_entries (semaine_lundi, day_index, half_day, slot, promo_id, prof_id, prof_ids) values (%L, 0, 'matin', 92, %s, %s, array[%s])$q$, v_lundi, v_pb, v_prof_b, v_prof_b))),
+    'ERREUR 23514 Fiche formateur introuvable. / ERREUR 23514 Fiche formateur introuvable. / ERREUR 23514 Fiche formateur introuvable. / ERREUR 23514 Fiche formateur introuvable. / OK 1');
+  -- emargement_formateurs : aucun droit d'écriture directe pour le formateur ; la signature passe par une fonction. Le déclencheur est
+  -- donc joué en propriétaire, sur une feuille de B.
+  v_seance := pg_temp.calcul(format($q$insert into public.emargement_seances (promo_id, jour, demi_journee, debut, fin, ouverte_par) values (%s, %L, 'matin', '08:30', '12:00', 'preuve') returning id::text$q$, v_pb, v_lundi));
+  perform pg_temp.attendre('planning', 'correctif 1 : emargement_formateurs, une signature de B citant une fiche profs d''ECF : refusée au formateur de B (aucun droit d''écriture), refusée au propriétaire par le déclencheur',
+    left(pg_temp.clo_ecrire_annule('form_b', format($q$insert into public.emargement_formateurs (seance_id, promo_id, nom, prof_id, trace, signe_par) values (%s, %s, 'Preuve', %s, 'M1 1L2 2', 'preuve')$q$, coalesce(v_seance, 'null'), v_pb, coalesce(v_prof_x, 'null'))), 12)
+      || ' / ' || pg_temp.clo_ecrire(null, format($q$insert into public.emargement_formateurs (seance_id, promo_id, nom, prof_id, trace, signe_par) values (%s, %s, 'Preuve', %s, 'M1 1L2 2', 'preuve')$q$, coalesce(v_seance, 'null'), v_pb, coalesce(v_prof_x, 'null'))),
+    'ERREUR 42501 / ERREUR 23514 Fiche formateur introuvable.');
+  -- Une ligne de planning de B qui citerait déjà une fiche d'ECF (posée en propriétaire, déclencheurs muets : donnée d'avant le
+  -- correctif) et une fiche de B du jour : le stagiaire de B, qui prévient d'une absence, ne voit jamais le nom de la fiche d'ECF.
+  v_prof_jour := pg_temp.calcul(format($q$insert into public.profs (nom, ordre, organisme_id) values ('Preuve clo prof du jour B', 991, %s) returning id::text$q$, v_b));
+  perform pg_temp.essai('set local session_replication_role = replica');
+  perform pg_temp.essai(format($q$insert into public.planning_entries (semaine_lundi, day_index, half_day, slot, promo_id, prof_ids) values (%L, 0, 'matin', 93, %s, array[%s, %s])$q$,
+    v_lundi, v_pb, coalesce(v_prof_x, 'null'), coalesce(v_prof_jour, 'null')));
+  perform pg_temp.essai('set local session_replication_role = origin');
+  v_jours := format('[{"jour": "%s", "demi": "matin"}]', v_lundi);
+  v := pg_temp.clo_lire('stag_b1', format($q$select (public.apercu_envoi('absence', %L) -> 'annexes' -> 'non_prevenus')::text$q$, v_jours));
+  perform pg_temp.attendre('planning', 'correctif 1 : apercu_envoi(absence) du stagiaire de B : la fiche de B du jour paraît parmi les non prévenus, jamais le nom de la fiche d''ECF',
+    left(v, 3) || (v like '%Preuve clo prof du jour B%')::text || '/' || (position(coalesce(v_nom_x, '?') in v) > 0)::text, 'OK true/false');
+  -- Une règle du centre de B (propriétaire) : la demande part à la fiche de la direction de B, sans choix du stagiaire.
+  perform pg_temp.calcul(format($q$insert into public.contact_regles (lieu_id, type, cible, fiche_id) values (%s, 'defaut', 'fiche', %s) returning 1$q$,
+    pg_temp.clo_n('lieu_b'), pg_temp.clo_n('fiche_b')));
+  v := pg_temp.clo_lire('stag_b1', format($q$select public.prevenir_absence(%L::date, %L::date, 'matin', null, null, 'transport', null, null, null)::text$q$, v_lundi, v_lundi));
+  perform pg_temp.attendre('planning', 'correctif 1 : prevenir_absence du stagiaire de B : la demande est écrite, ses destinataires portent la fiche de B du jour et jamais le nom de la fiche d''ECF',
+    left(v, 3) || pg_temp.calcul(format($q$select (count(*) filter (where nom = 'Preuve clo prof du jour B' or non_prevenu = 'Preuve clo prof du jour B') > 0)::text || '/'
+        || (count(*) filter (where nom = %L or non_prevenu = %L))::text from public.demande_destinataires where demande_id = %s$q$,
+      coalesce(v_nom_x, '?'), coalesce(v_nom_x, '?'), case when v ~ '^OK [0-9]+$' then substr(v, 4) else 'null' end)),
+    'OK true/0');
+  perform pg_temp.informer('planning : prevenir_absence du stagiaire de B', v);
   -- Règle 4 du contrôleur : une fois B créé, le formateur d'ECF sans en-tête crée encore une fiche sans organisme_id.
   perform pg_temp.attendre('planning', 'règle 4 : le formateur d''ECF, sans en-tête, crée une fiche profs sans organisme_id : acceptée, elle prend ECF',
     pg_temp.clo_ecrire('form_a_sans', $q$insert into public.profs (nom) values ('Preuve clo prof sans en-tête')$q$)
@@ -1711,6 +1754,17 @@ begin
     pg_temp.clo_lire('form_b', 'select count(*)::text from public.cours where not published and code is null')
       || ' / ' || pg_temp.clo_lire('form_a', 'select (count(*) = (select count(*) from public.cours c where not c.published and c.code is null))::text from public.cours where not published and code is null'),
     'OK 0 / OK true');
+
+  -- Correctif 2 (spec § 5.2) : l'écriture des contenus communs par le fondateur reste globale, en support sur B comprise.
+  perform pg_temp.attendre('contenus', 'correctif 2 : le fondateur en support sur B écrit une question de QCM, une option et un thème (annulés) ; le formateur de B toujours pas (question)',
+    left(pg_temp.clo_lire('fond_a', format($q$select (public.ouvrir_acces_support(%s, 'Support de la preuve des contenus', '1 hour')).organisme_id::text$q$, v_b)), 3)
+      || concat_ws(' / ',
+        pg_temp.clo_ecrire_annule('fond_a', format($q$insert into public.qcm_questions (qcm_id, enonce, ordre) values (%s, 'Preuve clo question du fondateur', 998)$q$, coalesce(v_qcm, 'null'))),
+        pg_temp.clo_ecrire_annule('fond_a', format($q$insert into public.qcm_options (question_id, texte, is_correct, ordre) values (%s, 'Preuve clo option du fondateur', false, 98)$q$, coalesce(v_q, 'null'))),
+        pg_temp.clo_ecrire_annule('fond_a', $q$insert into public.themes (titre) values ('Preuve clo thème du fondateur')$q$),
+        left(pg_temp.clo_ecrire_annule('form_b', format($q$insert into public.qcm_questions (qcm_id, enonce, ordre) values (%s, 'Preuve clo question de B', 997)$q$, coalesce(v_qcm, 'null'))), 12))
+      || ' ; ' || pg_temp.clo_lire('fond_a', 'select ''fermé'' from public.fermer_acces_support() f'),
+    'OK OK 1 / OK 1 / OK 1 / ERREUR 42501 ; OK fermé');
 
   -- Ressources : une carte d'ECF, une de B ; une carte commune lue par tous et écrite par le rédacteur seul.
   v_res_a := pg_temp.calcul(format('select min(id)::text from public.ressources where organisme_id = %s', v_a));
@@ -1917,6 +1971,54 @@ begin
   perform pg_temp.attendre('qualite', 'fermer_acces_support() par le fondateur', pg_temp.clo_lire('fond_a', 'select ''fermé'' from public.fermer_acces_support() f'), 'OK fermé');
 end $cgq$;
 
+-- Correctif 3 : une ligne d'un organisme dans chaque table classée de la matrice qui n'en aurait pas, posée en propriétaire (déclencheurs
+-- actifs) sur une fiche de stagiaire neuve de la promo donnée. Rend « n posées » et la liste des poses refusées (une table qui reste vide
+-- rougit ensuite le contrôle de non-vacuité de la matrice).
+create or replace function pg_temp.clo_mat_peupler(p_o text, p_promo text, p_lieu text, p_prof text, p_fiche text)
+returns text language plpgsql as $cmp$
+declare
+  v_s text; v_d text; v_ben text; v_seance text; v_env text; v_ok integer := 0; v_ko text; r record; v text;
+  v_lundi constant text := (date_trunc('week', current_date + 14))::date::text;
+begin
+  v_s := pg_temp.calcul(format($q$insert into public.stagiaires (prenom, nom, ordre, promo_id) values ('Preuve clo matrice %s', 'PREUVE', 994, %s) returning id::text$q$, p_o, p_promo));
+  v_d := pg_temp.calcul(format($q$insert into public.demandes (lieu_id, promo_id, auteur_stagiaire_id, auteur_nom, type, sujet, texte) values (%s, %s, %s, 'Preuve clo', 'absence', 'Preuve', 'Preuve clo matrice') returning id::text$q$, p_lieu, p_promo, v_s));
+  v_ben := pg_temp.calcul(format($q$insert into public.benevoles (prenom, lieu_id) values ('Preuve clo matrice %s', %s) returning id::text$q$, p_o, p_lieu));
+  v_seance := pg_temp.calcul(format($q$insert into public.emargement_seances (promo_id, jour, demi_journee, debut, fin, ouverte_par) values (%s, %L, 'aprem', '13:30', '17:00', 'preuve') returning id::text$q$, p_promo, v_lundi));
+  v_env := pg_temp.calcul(format($q$insert into public.contact_envois (demande_id, evenement) values (%s, 'nouvelle') returning id::text$q$, coalesce(v_d, 'null')));
+  for r in select * from (values
+      ('demande_destinataires', format($q$insert into public.demande_destinataires (demande_id, nom, principal) values (%s, 'Preuve clo', true)$q$, v_d)),
+      ('demande_messages', format($q$insert into public.demande_messages (demande_id, auteur_nom, texte) values (%s, 'Preuve clo', 'Preuve clo matrice')$q$, v_d)),
+      ('contact_jetons', format($q$insert into public.contact_jetons (hash, demande_id, fiche_id, action, expire_le, envoi_id) values (decode(md5('preuve clo %s'), 'hex'), %s, %s, 'voir', now() + interval '1 day', %s)$q$, p_o, v_d, coalesce(p_fiche, 'null'), coalesce(v_env, 'null'))),
+      ('contact_regles', format($q$insert into public.contact_regles (lieu_id, type, cible) values (%s, 'retard', 'formateurs_du_jour')$q$, p_lieu)),
+      ('absences_annoncees', format($q$insert into public.absences_annoncees (demande_id, stagiaire_id, promo_id, du, au, quand) values (%s, %s, %s, %L, %L, 'matin')$q$, v_d, v_s, p_promo, v_lundi, v_lundi)),
+      ('autonomie_oppositions', format('insert into public.autonomie_oppositions (stagiaire_id) values (%s)', v_s)),
+      ('autonomie_temps', format($q$insert into public.autonomie_temps (stagiaire_id, promo_id, jour, genre, ressource, secondes) values (%s, %s, current_date, 'cours', 'preuve', 60)$q$, v_s, p_promo)),
+      ('benevole_suivi', format($q$insert into public.benevole_suivi (benevole_id, semaine_lundi, day_index, half_day, lieu_id) values (%s, %L, 0, 'matin', %s)$q$, v_ben, v_lundi, p_lieu)),
+      ('cours_lectures', format($q$insert into public.cours_lectures (stagiaire_id, promo_id, cours_id, ouvert_le, vu_le) values (%s, %s, (select min(id::text)::uuid from public.cours where published), now(), now())$q$, v_s, p_promo)),
+      ('jury_resultats', format($q$insert into public.jury_resultats (stagiaire_id, promo_id, session_le, resultat) values (%s, %s, '2026-06-30', 'obtenu')$q$, v_s, p_promo)),
+      ('questionnaire_clotures', format('insert into public.questionnaire_clotures (lieu_id, annee) values (%s, 2021)', p_lieu)),
+      ('questionnaire_participations', format($q$insert into public.questionnaire_participations (cle, promo_id, stagiaire_id) values ('fin_stagiaire', %s, %s)$q$, p_promo, v_s)),
+      ('questionnaire_reponses', format($q$insert into public.questionnaire_reponses (cle, version, promo_id, reponses) values ('fin_stagiaire', 1, %s, '{}')$q$, p_promo)),
+      ('questionnaire_resultats_figes', format($q$insert into public.questionnaire_resultats_figes (cle, lieu_id, annee, seuil, questions, fige_le) values ('fin_formateur', %s, 2021, 3, '{}', current_date)$q$, p_lieu)),
+      ('dp_dossiers', format('insert into public.dp_dossiers (stagiaire_id, promo_id) values (%s, %s)', v_s, p_promo)),
+      ('epcf_livrets', format('insert into public.epcf_livrets (stagiaire_id, promo_id) values (%s, %s)', v_s, p_promo)),
+      ('epcf_evaluations', format($q$insert into public.epcf_evaluations (stagiaire_id, trame, promo_id, evaluateur_prof_id) values (%s, 'salle', %s, %s)$q$, v_s, p_promo, coalesce(p_prof, 'null'))),
+      ('emargement_lignes', format('insert into public.emargement_lignes (seance_id, promo_id, stagiaire_id) values (%s, %s, %s) on conflict do nothing', v_seance, p_promo, v_s)),
+      ('emargement_formateurs', format($q$insert into public.emargement_formateurs (seance_id, promo_id, nom, prof_id, trace, signe_par) values (%s, %s, 'Preuve clo matrice', %s, 'M1 1L2 2', 'preuve')$q$, v_seance, p_promo, coalesce(p_prof, 'null'))),
+      ('passages', format($q$insert into public.passages (date, stagiaire_id, type, resultat, promo_id, prof_id) values (current_date, %s, 'Salle', 'Effectué', %s, %s)$q$, v_s, p_promo, coalesce(p_prof, 'null'))),
+      ('planning_entries', format($q$insert into public.planning_entries (semaine_lundi, day_index, half_day, slot, promo_id, prof_id) values (%L, 1, 'matin', 94, %s, %s)$q$, v_lundi, p_promo, coalesce(p_prof, 'null'))),
+      ('planning_half_meta', format($q$insert into public.planning_half_meta (semaine_lundi, day_index, half_day, start_time, end_time, promo_id) values (%L, 1, 'matin', '08:30', '12:00', %s)$q$, v_lundi, p_promo)),
+      ('planning_jours_off', format('insert into public.planning_jours_off (semaine_lundi, day_index, promo_id) values (%L, 2, %s)', v_lundi, p_promo)),
+      ('qcm_attempts', format($q$insert into public.qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20, promo_id) values ((select min(id) from public.qcm), %s, 'entrainement', 1, 2, 10, %s)$q$, v_s, p_promo)),
+      ('qcm_examens', format('insert into public.qcm_examens (promo_id, qcm_id) select %1$s, q.id from public.qcm q where not exists (select 1 from public.qcm_examens e where e.promo_id = %1$s and e.qcm_id = q.id) order by q.id limit 1', p_promo)),
+      ('stagiaires_prive', format('insert into public.stagiaires_prive (stagiaire_id) values (%s)', v_s)),
+      ('themes_progression', format('insert into public.themes_progression (promo_id, theme_id) select %1$s, t.id from public.themes t where not exists (select 1 from public.themes_progression x where x.promo_id = %1$s and x.theme_id = t.id) order by t.id limit 1', p_promo))) x(tbl, req) loop
+    v := pg_temp.clo_ecrire(null, r.req);
+    if v like 'OK %' then v_ok := v_ok + 1; else v_ko := concat_ws(', ', v_ko, r.tbl || ' ' || left(v, 90)); end if;
+  end loop;
+  return format('%s : %s posées%s', p_o, v_ok, coalesce(' ; refusées : ' || v_ko, ''));
+end $cmp$;
+
 -- Groupe matrice (étape 2c, § 5.6) : pour chaque personnage des deux organismes, chaque table classée et chaque fonction de lecture de
 -- l'inventaire : aucune ligne de l'autre organisme lue ; aucune écriture (modification, suppression, sans RETURNING) vers une ligne de
 -- l'autre organisme. Les tables sont lues dans pg_tables (schéma public) : une table ni classée ni en exception fait rougir la preuve.
@@ -1935,6 +2037,10 @@ begin
   perform pg_temp.calcul(format($q$insert into public.auto_ecoles (nom, lieu_id) values ('Preuve clo auto-école B', %s) returning 1$q$, v_lb));
   perform pg_temp.calcul(format($q$insert into public.benevoles (prenom, lieu_id) values ('Preuve clo bénévole B', %s) returning 1$q$, v_lb));
   perform pg_temp.calcul(format($q$insert into public.evaluations (stagiaire_id, type, promo_id, note) values (%s, 'Contrôle', %s, 12) returning 1$q$, pg_temp.clo_n('stag_b1'), v_pb));
+  -- Correctif 3 : une ligne de chaque organisme dans chaque table classée qui n'en a pas (ECF : la promo 1 ; B : sa promo).
+  perform pg_temp.informer('matrice : lignes posées pour les deux organismes', pg_temp.clo_mat_peupler('A', pg_temp.clo_n('promo_a'), pg_temp.clo_n('lieu_a'),
+      pg_temp.calcul(format('select min(id)::text from public.profs where organisme_id = %s', v_a)), pg_temp.calcul(format('select min(id)::text from public.contacts where lieu_id = %s', pg_temp.clo_n('lieu_a'))))
+    || ' ; ' || pg_temp.clo_mat_peupler('B', v_pb, v_lb, pg_temp.clo_n('prof_b'), pg_temp.clo_n('fiche_b')));
 
   -- Le classement : toute table de public classée ou en exception, et rien de classé qui n'existe plus.
   select string_agg(x.tbl, ', ' order by x.tbl) into v_liste
@@ -1963,6 +2069,11 @@ begin
   end loop;
   perform pg_temp.informer('matrice : lignes de B par table', (select string_agg(tbl || '=' || coalesce(cardinality(lignes)::text, 'incalculable'), ', ' order by tbl)
     from pg_temp.clo_mat_lignes where org = v_b and coalesce(cardinality(lignes), -1) <> 0));
+  -- Correctif 3 : la matrice n'est jamais vide dans un sens : chaque table classée tient au moins une ligne d'ECF et une de B.
+  select string_agg(l.tbl || ' (' || case when l.org = v_a then 'ECF' else 'B' end || ')', ', ' order by l.tbl, l.org) into v_liste
+    from pg_temp.clo_mat_lignes l where coalesce(cardinality(l.lignes), 0) = 0;
+  perform pg_temp.attendre('matrice', 'chaque table classée tient au moins une ligne de chaque organisme (aucune lecture ni écriture jugée à vide) : tables vides',
+    coalesce(v_liste, 'aucune'), 'aucune');
 
   for p in select x.nom, case x.org when 'A' then v_b else v_a end as ailleurs, case x.org when 'A' then v_a else v_b end as chez
              from pg_temp.clo_perso x order by x.org, x.nom loop
@@ -2250,7 +2361,7 @@ begin
         || '/' || (select count(*) from pg_proc where pronamespace = 'public'::regnamespace and proname in ('_organisme_unique', '_organisme_ecriture',
              '_organisme_du_personnel', 'organisme_de_compte', '_personnel_ailleurs', '_organisme_redacteur', '_organisme_de_cible', 'compte_dans_mon_organisme',
              'organisme_lisible', 'ressource_ecrivable', 'qcm_signalement_traitable', '_personnel_un_organisme', '_effacements_journal_organisme',
-             '_organisme_ligne', 'ligne_lisible', 'effacement_lisible'))::text$q$), '0/1/0');
+             '_organisme_ligne', 'ligne_lisible', 'effacement_lisible', '_profs_de_l_organisme'))::text$q$), '0/1/0');
     perform pg_temp.attendre('retour', 'après les retours : empreinte regles identique à celle d''avant', v_ap_regles, v_av_regles);
     perform pg_temp.attendre('retour', 'après les retours : empreinte fonctions identique à celle d''avant', v_ap_fonctions, v_av_fonctions);
     perform pg_temp.attendre('retour', 'après les retours : empreinte droits identique à celle d''avant', v_ap_droits, v_av_droits);
