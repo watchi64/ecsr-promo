@@ -4,8 +4,8 @@
 // Entrées et sorties en snake_case, comme la table de cas (l'écran adapte).
 // Lancer : node tests/contact-rules.test.mjs
 
-import { enConge } from "./contact-annuaire-rules.js?v=20261126a";
-import { phraseDeRefus } from "./espaces-rules.js?v=20261126a";
+import { enConge } from "./contact-annuaire-rules.js?v=20261127a";
+import { phraseDeRefus } from "./espaces-rules.js?v=20261127a";
 
 // Ordre des fiches : identifiants numériques par valeur, sinon par points de code (l'ordre « C » de la base pour la table de cas).
 function comparer(a, b) {

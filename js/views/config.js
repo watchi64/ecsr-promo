@@ -15,25 +15,25 @@ import {
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   lirePersonnesEtTitres, lireTitresVisibles, donnerTitre, lireTitresOuverts, reglerTitresOuverts, lireJournalPresent,
   setMyAnonymousNotes,
-} from "../db.js?v=20261126a";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261126a";
-import { confirmer } from "../confirmer.js?v=20261126a";
-import { icon } from "../icons.js?v=20261126a";
-import { isAdmin, isEquipe, isFounder, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic, enVitrine, ecritSelonLaCase, gesteDefinitif } from "../auth-admin.js?v=20261126a";
-import { moduleVisible } from "../modules-etat.js?v=20261126a";
-import { renderModulesSection } from "./modules-reglage.js?v=20261126a";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261126a";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261126a";
-import { renderAutonomieReglage } from "../autonomie-etat.js?v=20261126a";
-import { pointsARetenir } from "../accueil-rules.js?v=20261126a";
-import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261126a";
-import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261126a";
-import { blocHabillage } from "../habillage-choix.js?v=20261126a";
-import { sectionMaFiche, sectionAlertes } from "./ma-fiche-contact.js?v=20261126a";
-import { nomBenevole } from "../planning-lecture.js?v=20261126a";
-import { dateFr } from "../dates.js?v=20261126a";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261126a";
-import { boutonVerrouOffert, PHRASE_JOURNAL_ABSENT } from "../titres-rules.js?v=20261126a";
+} from "../db.js?v=20261127a";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261127a";
+import { confirmer } from "../confirmer.js?v=20261127a";
+import { icon } from "../icons.js?v=20261127a";
+import { isAdmin, isEquipe, isFounder, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic, enVitrine, ecritSelonLaCase, gesteDefinitif } from "../auth-admin.js?v=20261127a";
+import { moduleVisible } from "../modules-etat.js?v=20261127a";
+import { renderModulesSection } from "./modules-reglage.js?v=20261127a";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261127a";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261127a";
+import { renderAutonomieReglage } from "../autonomie-etat.js?v=20261127a";
+import { pointsARetenir } from "../accueil-rules.js?v=20261127a";
+import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261127a";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261127a";
+import { blocHabillage } from "../habillage-choix.js?v=20261127a";
+import { sectionMaFiche, sectionAlertes } from "./ma-fiche-contact.js?v=20261127a";
+import { nomBenevole } from "../planning-lecture.js?v=20261127a";
+import { dateFr } from "../dates.js?v=20261127a";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261127a";
+import { boutonVerrouOffert, PHRASE_JOURNAL_ABSENT } from "../titres-rules.js?v=20261127a";
 
 // ====== SECTION Accès & invitations ======
 
