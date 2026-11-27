@@ -100,3 +100,19 @@ export function organismesProposes(liste, courantId) {
 export function organismeParDefaut(saisi, nomOrganisme) {
   return nomNet(saisi) || nomNet(nomOrganisme);
 }
+
+// L'organisme affiché rédige-t-il les contenus communs ? true, false, ou null quand on ne le sait pas (lecture ratée, fonction
+// absente, aucune ligne : `id` nul). La ligne vide de normaliserMonOrganisme porte `redacteur: false` : elle se lit « inconnu »,
+// jamais « non », sans quoi une panne retirerait les éditeurs à ECF.
+export function redacteurConnu(organisme) {
+  if (!organisme || typeof organisme !== "object" || !Number.isInteger(organisme.id)) return null;
+  return organisme.redacteur === true;
+}
+
+// Les gestes d'écriture des contenus communs (éditeur de cours, « Proposer avec l'IA », « Propositions IA ») sont-ils offerts ?
+// Fermés seulement quand l'organisme est connu comme non rédacteur (`redacteur === false`) et que la personne n'est pas le
+// fondateur hors aperçu : en accès support, il garde ces gestes, que la base lui laisse (règle n° 2 du contrôleur). Inconnu : comme
+// avant le cloisonnement. Ce n'est qu'un filtre de plus : le droit d'écran (case « Cours et QCM ») reste exigé par l'appelant.
+export function contenusEcrivables({ redacteur = null, fondateur = false } = {}) {
+  return fondateur === true || redacteur !== false;
+}

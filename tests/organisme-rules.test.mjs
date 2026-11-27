@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   texteBandeauSupport, motifSupportValide, MOTIF_SUPPORT_MIN, normaliserMonOrganisme, supportEnCours, etatBandeauSupport,
-  organismesProposes, organismeParDefaut,
+  organismesProposes, organismeParDefaut, redacteurConnu, contenusEcrivables,
 } from "../js/organisme-rules.js";
 import { phraseDeRefus } from "../js/espaces-rules.js";
 import { casesDeLEspace, selonLaCase } from "../js/titres-rules.js";
@@ -119,4 +119,29 @@ test("le fondateur hors aperçu garde les éditeurs des contenus communs, même 
   const cases = casesDeLEspace({ espace: "equipe", titres: [titreSansCours], promoId: 90, lieuId: 9, fondateur: false });
   assert.equal(cases.cours, 0);
   assert.equal(selonLaCase({ cases, droit: cases.cours === 2, ancien: true }), false);
+});
+
+// Relecture de la tâche 6 : les gestes d'écriture des contenus communs (éditeur de cours, « Proposer avec l'IA », « Propositions
+// IA » et son compte) suivent l'organisme affiché, en trois états. Inconnu (lecture ratée, base d'avant le cloisonnement) garde le
+// comportement d'aujourd'hui : un droit d'ECF ne disparaît jamais sur une panne.
+test("redacteurConnu : vrai, faux, ou inconnu (null) d'après la ligne de mon_organisme()", () => {
+  assert.equal(redacteurConnu(normaliserMonOrganisme({ id: 1, nom: "ECF BOUSCAREN", redacteur: true })), true);
+  assert.equal(redacteurConnu(normaliserMonOrganisme({ id: 2, nom: "Organisme B", redacteur: false })), false);
+  // Le piège : la ligne vide de normaliserMonOrganisme(null) porte redacteur: false ; elle se lit « inconnu », jamais « non ».
+  assert.equal(normaliserMonOrganisme(null).redacteur, false);
+  assert.equal(redacteurConnu(normaliserMonOrganisme(null)), null);
+  assert.equal(redacteurConnu(normaliserMonOrganisme({ nom: "sans id", redacteur: false })), null);
+  for (const v of [null, undefined, {}, { id: null, redacteur: false }]) assert.equal(redacteurConnu(v), null, JSON.stringify(v));
+});
+
+test("contenusEcrivables : seul un organisme connu comme non rédacteur ferme les gestes, jamais pour le fondateur hors aperçu", () => {
+  assert.equal(contenusEcrivables({ redacteur: true, fondateur: false }), true, "organisme rédacteur");
+  assert.equal(contenusEcrivables({ redacteur: false, fondateur: false }), false, "organisme non rédacteur");
+  assert.equal(contenusEcrivables({ redacteur: null, fondateur: false }), true, "inconnu : comme aujourd'hui");
+  // Règle n° 2 du contrôleur : le fondateur en accès support sur un organisme non rédacteur garde les éditeurs.
+  assert.equal(contenusEcrivables({ redacteur: false, fondateur: true }), true, "fondateur hors aperçu, en support");
+  assert.equal(contenusEcrivables({ redacteur: null, fondateur: true }), true);
+  assert.equal(contenusEcrivables(), true, "sans argument : inconnu");
+  // Une valeur abîmée n'est pas un « non » : seul false ferme.
+  assert.equal(contenusEcrivables({ redacteur: 0, fondateur: false }), true);
 });

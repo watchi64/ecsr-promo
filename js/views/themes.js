@@ -13,7 +13,7 @@ import {
   examenDemarrable, tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture,
   resumeExamen, examenCoteStagiaire, etatExamenFormateur,
 } from "../qcm-exam-rules.js?v=20261127b";
-import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic, ecritSelonLaCase } from "../auth-admin.js?v=20261127b";
+import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic, ecritSelonLaCase, ecritLesContenus } from "../auth-admin.js?v=20261127b";
 import { recordUndo } from "../undo.js?v=20261127b";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261127b";
 import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261127b";
@@ -715,7 +715,8 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
   // Questions proposées par l'IA : seulement pour un thème qui a un cours vérifié (la
   // seule source de l'IA). Les brouillons à relire sont rechargés avec l'éditeur ; les
   // brouillons écartés par le contrôle ne sont montrés qu'après la demande qui les a produits.
-  const iaPossible = ecritSelonLaCase("cours") && !!theme.numero && hasCours(theme);
+  // « Proposer avec l'IA » : un organisme qui rédige les contenus communs (ecritLesContenus), comme le droit de qcm-ia en base.
+  const iaPossible = ecritSelonLaCase("cours") && ecritLesContenus() && !!theme.numero && hasCours(theme);
   let brouillons = [];
   let ecartesRecents = [];
   let coursIaMd = null;
@@ -2054,7 +2055,8 @@ export async function renderThemes(container) {
   // Formateurs de la promo (isAdmin, formateur_courant en base) : les questions que l'IA a proposées
   // et que personne n'a relues. La table des brouillons n'est lisible que par eux (RLS) : la direction et le siège n'ont
   // pas ce sous-onglet, et la pastille « à traiter » ne les compte pas pour eux (elle lit la même table).
-  if (ecritSelonLaCase("cours")) {
+  // Cloisonnement : réservé à un organisme qui rédige les contenus communs (ecritLesContenus) ; la base ne montre les brouillons qu'à lui.
+  if (ecritSelonLaCase("cours") && ecritLesContenus()) {
     onglets.push({ key: "ia", label: "Propositions IA",
       render: (p, ctx) => { renderPropositionsIa(p, { themes, onOuvrirEditeur: ouvrirDepuisIa, isActive: ctx?.isActive }); } });
   }
