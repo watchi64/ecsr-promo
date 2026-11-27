@@ -2464,12 +2464,16 @@ begin
 -- Les tables questionnaire_* (Qualiopi Q3, en ligne le 09/11, après cette preuve) sont anonymes par construction : aucun
 -- compte connecté ne lit participations ni réponses (42501), et leur matrice vit dans tests/sql/questionnaires-preuve.sql.
 -- Elles sont donc hors de ce compte, de la contrainte du siège (8) et de la couverture (9).
+-- Les tables organismes et acces_fondateur (cloisonnement par organisme, migration 20261128_cloisonnement_1_fondations) sont hors
+-- de la couverture (9) pour la même raison : aucune écriture directe, lecture par des fonctions ou par le seul fondateur et le siège
+-- de l'organisme de la ligne ; leur matrice vit dans tests/sql/cloisonnement-preuve.sql (groupes fondations et support-journal).
   -- 9. Couverture : toute table de public sous RLS est dans la matrice ; aucune table de public n'est sans RLS (une
   --    table sans RLS serait lisible et modifiable par tous, la matrice ne la verrait pas) ; plus aucune règle ne cite
   --    les anciennes fonctions (vrai une fois l'étape 3 appliquée).
   select string_agg(x.t, ', ' order by x.t) into v_txt
     from (select format('%I.%I', ns.nspname, c.relname) as t from pg_class c join pg_namespace ns on ns.oid = c.relnamespace
-           where ns.nspname = 'public' and c.relkind in ('r', 'p') and c.relrowsecurity and c.relname not like 'questionnaire\_%') x
+           where ns.nspname = 'public' and c.relkind in ('r', 'p') and c.relrowsecurity and c.relname not like 'questionnaire\_%'
+             and c.relname not in ('organismes', 'acces_fondateur')) x
    where x.t not in (select m.tbl from matrice m);
   perform pg_temp.verifier('couverture', 'toute table de public sous RLS figure dans la matrice (une table ajoutée la fait rougir)',
     v_txt is null, coalesce('hors matrice : ' || v_txt, ''));

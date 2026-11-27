@@ -79,6 +79,18 @@
 //                              attendu sur ceux dont la migration manque ;
 //   suite-en-ligne             la même sans rien d'injecté, après l'application réelle (un groupe dont la migration manque est
 //                              sauté, avec une ligne d'information).
+//   cloisonnement [--etapes 1|1,2a|1,2a,2b|1,2a,2b,2c]  preuve du chantier « cloisonnement par organisme »
+//                              (tests/sql/cloisonnement-preuve.sql), jouée sur la base rejouer_suite.sh --production-2711 : les
+//                              migrations 20261128_cloisonnement_1, _2a, _2b, _2c demandées puis leurs retours (2c, 2b, 2a, 1) ;
+//                              sans --etapes, les étapes dont la migration et le retour existent déjà (la plus longue suite depuis
+//                              la 1), les autres neutralisées sans être lues ; une étape demandée dont un fichier manque arrête
+//                              l'assemblage ;
+//   cloisonnement-contre-epreuve  la même preuve sans aucune migration ni retour (neutralisés, non lus) : ROUGE attendu ;
+//   cloisonnement-en-ligne     la même sans rien d'injecté, après l'application réelle des migrations ;
+//   cloisonnement-sabotage     les quatre étapes, puis une règle volontairement relâchée (tests/sql/cloisonnement-sabotage.sql,
+//                              défaite par tests/sql/cloisonnement-sabotage-retour.sql avant le retour 2c) : ROUGE attendu. Les
+//                              deux fichiers du sabotage sont écrits par la tâche 5 du plan ; d'ici là le mode s'arrête en les
+//                              nommant (comme une étape demandée dont un fichier manque). Les autres modes les neutralisent.
 //
 // Option --compact (tous les modes) : retire du gabarit et des aides les lignes vides et les lignes de commentaire, pour
 // une requête plus courte à transmettre (R27). Les textes injectés (migrations, retours, requête d'empreinte) restent
@@ -216,6 +228,29 @@ const SUITES_SUITE = [[7], [7, 8], [7, 8, 9], [8], [8, 9], [9], [4, 9], [4]];
 const SUITE_PAR_DEFAUT = [7, 8, 9];
 const TOUS_SUITE = NUMEROS_SUITE.flatMap((n) => [ETAPES_SUITE[n].migration, ETAPES_SUITE[n].retour]);
 
+/** Chantier « cloisonnement par organisme » : quatre migrations (1 fondations, 2a noyau, 2b siège et titres, 2c données), chacune
+ *  avec son retour, dans une seule preuve. Les étapes se nomment par leur texte (« 1 », « 2a »...). */
+const GABARIT_CLOISONNEMENT = "tests/sql/cloisonnement-preuve.sql";
+export const ETAPES_CLOISONNEMENT = {
+  "1": { migration: "supabase/migrations/20261128_cloisonnement_1_fondations.sql",
+         retour: "supabase/migrations/20261128_cloisonnement_1_fondations_retour.sql" },
+  "2a": { migration: "supabase/migrations/20261128_cloisonnement_2a_noyau.sql",
+          retour: "supabase/migrations/20261128_cloisonnement_2a_noyau_retour.sql" },
+  "2b": { migration: "supabase/migrations/20261128_cloisonnement_2b_siege_titres.sql",
+          retour: "supabase/migrations/20261128_cloisonnement_2b_siege_titres_retour.sql" },
+  "2c": { migration: "supabase/migrations/20261128_cloisonnement_2c_donnees.sql",
+          retour: "supabase/migrations/20261128_cloisonnement_2c_donnees_retour.sql" },
+};
+/** La règle relâchée du mode sabotage (après la 2c) et ce qui la défait (avant le retour 2c) : écrites par la tâche 5. */
+export const SABOTAGE_CLOISONNEMENT = { migration: "tests/sql/cloisonnement-sabotage.sql",
+                                        retour: "tests/sql/cloisonnement-sabotage-retour.sql" };
+const NUMEROS_CLOISONNEMENT = ["1", "2a", "2b", "2c"];
+/** Les suites admises : chaque étape s'appuie sur la précédente. */
+const SUITES_CLOISONNEMENT = [["1"], ["1", "2a"], ["1", "2a", "2b"], ["1", "2a", "2b", "2c"]];
+const fichiersCloisonnement = (etapes) => etapes.flatMap((n) => [ETAPES_CLOISONNEMENT[n].migration, ETAPES_CLOISONNEMENT[n].retour]);
+const FICHIERS_SABOTAGE = [SABOTAGE_CLOISONNEMENT.migration, SABOTAGE_CLOISONNEMENT.retour];
+const TOUS_CLOISONNEMENT = [...fichiersCloisonnement(NUMEROS_CLOISONNEMENT), ...FICHIERS_SABOTAGE];
+
 /** Les modes : le gabarit et, soit les injections à neutraliser (preuve de l'étape 1), soit les étapes à injecter
  *  (preuve rôle par rôle, les autres étapes étant neutralisées). */
 export const MODES = {
@@ -261,6 +296,13 @@ export const MODES = {
   "suite": { gabarit: GABARIT_SUITE, suite: true, etapesAuChoix: true },
   "suite-contre-epreuve": { gabarit: GABARIT_SUITE, neutres: TOUS_SUITE, libelle: "suite-contre-epreuve (aucune migration injectee)" },
   "suite-en-ligne": { gabarit: GABARIT_SUITE, neutres: TOUS_SUITE, libelle: "suite-en-ligne (aucune migration injectee)" },
+  // Chantier « cloisonnement par organisme » : preuve unique, jouée sur la base rejouer_suite.sh --production-2711.
+  "cloisonnement": { gabarit: GABARIT_CLOISONNEMENT, cloisonnement: "plein", etapesAuChoix: true },
+  "cloisonnement-contre-epreuve": { gabarit: GABARIT_CLOISONNEMENT, neutres: TOUS_CLOISONNEMENT,
+                                    libelle: "cloisonnement-contre-epreuve (aucune migration injectee)" },
+  "cloisonnement-en-ligne": { gabarit: GABARIT_CLOISONNEMENT, neutres: TOUS_CLOISONNEMENT,
+                              libelle: "cloisonnement-en-ligne (aucune migration injectee)" },
+  "cloisonnement-sabotage": { gabarit: GABARIT_CLOISONNEMENT, cloisonnement: "sabotage" },
   "espaces-en-ligne": { gabarit: GABARIT_ESPACES,
                         neutres: [MIGRATION_ESPACES.migration, MIGRATION_ESPACES.retour, MIGRATION_ESPACES_2.migration, MIGRATION_ESPACES_2.retour,
                                   MIGRATION_ESPACES_3.migration, MIGRATION_ESPACES_3.retour],
@@ -334,7 +376,16 @@ export function decrireMode(mode, { etapes } = {}) {
   const d = MODES[mode];
   if (!d) throw new Error(`Mode inconnu « ${mode} » (modes : ${Object.keys(MODES).join(", ")}).`);
   if (etapes !== undefined && !d.etapesAuChoix) {
-    throw new Error(`--etapes ne vaut que pour le mode repetition, titres, gestion ou suite (mode demandé : ${mode}).`);
+    throw new Error(`--etapes ne vaut que pour le mode repetition, titres, gestion, suite ou cloisonnement (mode demandé : ${mode}).`);
+  }
+  if (d.cloisonnement) {
+    const demandees = etapes === undefined ? null : etapes.map(String);
+    if (demandees && !SUITES_CLOISONNEMENT.some((suite) => suite.join(",") === demandees.join(","))) {
+      throw new Error(`étapes refusées : « ${demandees.join(",")} » (attendu : 1, 1,2a, 1,2a,2b ou 1,2a,2b,2c ; chaque étape s'appuie sur la précédente).`);
+    }
+    // Les fichiers présents se jugent sur le disque, dans assemblerMode : ici, seulement ce que l'appelant a demandé.
+    return { gabarit: d.gabarit, cloisonnement: d.cloisonnement, etapesCloisonnement: demandees,
+             neutres: [], etapes: null, mode: null, requis: [] };
   }
   if (d.contact) {
     const n = d.contact;
@@ -633,6 +684,40 @@ export function assemblerMode(mode, racine = RACINE, { etapes, lire, compact = f
     libelle = injectees.length === 0 ? "titres (aucune etape injectee)"
       : `titres (${injectees.length === 1 ? "etape" : "etapes"} ${injectees.join(", ")} injectees)`;
   }
+  if (decrit.cloisonnement) {
+    // Étapes injectées : toutes (sabotage), celles qu'on a demandées (un fichier manquant arrête alors l'assemblage), sinon la plus
+    // longue suite depuis la 1 dont la migration et le retour existent ; les autres sont neutralisées, sans être lues.
+    const sabotage = decrit.cloisonnement === "sabotage";
+    const demandees = sabotage ? NUMEROS_CLOISONNEMENT : decrit.etapesCloisonnement;
+    const injectees = [];
+    if (demandees) {
+      for (const n of demandees) {
+        for (const chemin of fichiersCloisonnement([n])) {
+          if (lireFichier(chemin) == null) {
+            const pretes = NUMEROS_CLOISONNEMENT.slice(0, NUMEROS_CLOISONNEMENT.indexOf(n));
+            throw new Error(`Étape ${n} demandée (${mode}) : ${chemin} n'existe pas encore. En attendant : mode cloisonnement-contre-epreuve${pretes.length ? `, ou cloisonnement --etapes ${pretes.join(",")}` : ""}.`);
+          }
+        }
+        injectees.push(n);
+      }
+    } else {
+      for (const n of NUMEROS_CLOISONNEMENT) {
+        if (!fichiersCloisonnement([n]).every((chemin) => lireFichier(chemin) != null)) break;
+        injectees.push(n);
+      }
+    }
+    if (sabotage) {
+      for (const chemin of FICHIERS_SABOTAGE) {
+        if (lireFichier(chemin) == null) {
+          throw new Error(`Sabotage demandé (${mode}) : ${chemin} n'existe pas encore (écrit par la tâche 5 du plan, avec la migration 2c).`);
+        }
+      }
+    }
+    neutres = [...fichiersCloisonnement(NUMEROS_CLOISONNEMENT.filter((n) => !injectees.includes(n))), ...(sabotage ? [] : FICHIERS_SABOTAGE)];
+    libelle = sabotage ? "cloisonnement-sabotage (etapes 1, 2a, 2b, 2c et regle relachee injectees)"
+      : injectees.length === 0 ? "cloisonnement (aucune etape injectee)"
+      : `cloisonnement (${injectees.length === 1 ? "etape" : "etapes"} ${injectees.join(", ")} injectees)`;
+  }
   const gabarit = lireFichier(decrit.gabarit);
   if (gabarit == null) throw new Error(`Gabarit introuvable : ${decrit.gabarit}.`);
   return assembler(gabarit, lireFichier, { nom: decrit.gabarit, neutres, mode: libelle, compact });
@@ -640,10 +725,11 @@ export function assemblerMode(mode, racine = RACINE, { etapes, lire, compact = f
 
 /** Une liste d'étapes écrite en ligne de commande (« 1,2 ») ; la validité se juge dans decrireMode. */
 function lireListeEtapes(texte) {
-  if (!/^\d+(,\d+)*$/.test(texte ?? "")) {
-    throw new Error(`étapes refusées : « ${texte ?? ""} » (attendu : 1, 1,2 ou 1,2,3 ; chaque étape s'appuie sur la précédente).`);
+  if (!/^[0-9a-z]+(,[0-9a-z]+)*$/.test(texte ?? "")) {
+    throw new Error(`étapes refusées : « ${texte ?? ""} » (attendu : 1, 1,2 ou 1,2,3 ; 1,2a,2b pour le cloisonnement ; chaque étape s'appuie sur la précédente).`);
   }
-  return texte.split(",").map(Number);
+  // Une étape en chiffres seuls est un nombre (lot 4, titres, gestion, suite) ; « 2a » reste un texte (cloisonnement).
+  return texte.split(",").map((n) => (/^\d+$/.test(n) ? Number(n) : n));
 }
 
 /** La ligne de commande : rend le code de sortie (0 si le fichier est écrit, 1 sinon). */

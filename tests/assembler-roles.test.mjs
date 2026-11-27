@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  CAS_ROUTAGE, ETAPES, ETAPES_GESTION, ETAPES_SUITE, ETAPES_TITRES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, MIGRATION_ESPACES_4, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
+  CAS_ROUTAGE, ETAPES, ETAPES_CLOISONNEMENT, ETAPES_GESTION, ETAPES_SUITE, ETAPES_TITRES, MIGRATION_ESPACES, MIGRATION_ESPACES_2, MIGRATION_ESPACES_3, MIGRATION_ESPACES_4, NEUTRE, RACINE, SABOTAGE_CLOISONNEMENT, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
 } from "../outils/assembler_repetition_roles.mjs";
 
 // outils/assembler_repetition_roles.mjs fabrique le fichier SQL d'une répétition du lot 4 : le gabarit de la preuve,
@@ -862,7 +862,7 @@ test("titres : étapes refusées (hors 1 à 4, non consécutives), --etapes refu
     assert.throws(() => decrireMode("titres", { etapes: mauvaise }), /étapes refusées/, JSON.stringify(mauvaise));
   }
   for (const mode of ["titres-contre-epreuve", "titres-en-ligne"]) {
-    assert.throws(() => decrireMode(mode, { etapes: [1] }), /--etapes ne vaut que pour le mode repetition, titres, gestion ou suite/, mode);
+    assert.throws(() => decrireMode(mode, { etapes: [1] }), /--etapes ne vaut que pour le mode repetition, titres, gestion, suite ou cloisonnement/, mode);
   }
   assert.throws(() => decrireMode("repetition", { etapes: [1, 2, 3, 4] }), /étapes refusées/);
   assert.deepEqual(decrireMode("repetition", { etapes: [1, 2, 3] }).etapes, [1, 2, 3]);
@@ -1009,7 +1009,7 @@ test("gestion : étapes refusées (la 6 demande la 5, la 4 demande les deux), un
   assert.doesNotThrow(() => assemblerMode("gestion", RACINE, {
     lire: (c) => (c === GESTION_4.migration || c === GESTION_4.retour ? null : depotGestion(c)) }));
   for (const mode of ["gestion-contre-epreuve", "gestion-en-ligne"]) {
-    assert.throws(() => decrireMode(mode, { etapes: [5] }), /--etapes ne vaut que pour le mode repetition, titres, gestion ou suite/, mode);
+    assert.throws(() => decrireMode(mode, { etapes: [5] }), /--etapes ne vaut que pour le mode repetition, titres, gestion, suite ou cloisonnement/, mode);
   }
 });
 
@@ -1382,7 +1382,7 @@ test("suite : suites refusées (7,9 et les autres), fichier manquant d'une étap
     verifierInjections(r, duDisque);
   }
   for (const mode of ["suite-contre-epreuve", "suite-en-ligne"]) {
-    assert.throws(() => decrireMode(mode, { etapes: [7] }), /--etapes ne vaut que pour le mode repetition, titres, gestion ou suite/, mode);
+    assert.throws(() => decrireMode(mode, { etapes: [7] }), /--etapes ne vaut que pour le mode repetition, titres, gestion, suite ou cloisonnement/, mode);
   }
 });
 
@@ -1770,4 +1770,206 @@ test("la migration 8 (aperçu par titre) : fichiers propres, aides de l'aperçu 
   // Le retour : garde D5, lectures retirées, bloc inverse, puis les aides.
   assert.ok(r.indexOf("drop function public.titres_ajustables(integer);") < r.indexOf("-- debut du bloc genere"));
   assert.ok(r.indexOf("-- fin du bloc genere") < r.indexOf("drop function public.apercu_titre();"));
+});
+
+// --- Chantier « cloisonnement par organisme » : modes cloisonnement, -contre-epreuve, -en-ligne, -sabotage ------------------------
+
+const GABARIT_CLO = "tests/sql/cloisonnement-preuve.sql";
+const AIDES_CLO = "tests/sql/cloisonnement-aides.sql";
+const NUMEROS_CLO = ["1", "2a", "2b", "2c"];
+const FICHIERS_CLO = NUMEROS_CLO.flatMap((n) => [ETAPES_CLOISONNEMENT[n].migration, ETAPES_CLOISONNEMENT[n].retour]);
+const SABOTAGE_CLO = [SABOTAGE_CLOISONNEMENT.migration, SABOTAGE_CLOISONNEMENT.retour];
+// Les étapes 2a, 2b, 2c et le sabotage n'existent qu'avec leurs tâches (3, 4, 5) : des textes factices en mémoire.
+const FACTICES_CLO = Object.fromEntries([
+  ...["2a", "2b", "2c"].flatMap((n) => [
+    [ETAPES_CLOISONNEMENT[n].migration, `-- factice : cloisonnement migration ${n}\r\nselect '${n}';\r\n`],
+    [ETAPES_CLOISONNEMENT[n].retour, `-- factice : cloisonnement retour ${n}\r\nselect '-${n}';\r\n`]]),
+  [SABOTAGE_CLOISONNEMENT.migration, "-- factice : sabotage\nselect 'sabotage';\n"],
+  [SABOTAGE_CLOISONNEMENT.retour, "-- factice : retour du sabotage\nselect 'retour du sabotage';\n"]]);
+const depotClo = (chemin) => duDisque(chemin) ?? FACTICES_CLO[chemin] ?? null;
+const depotCloSans = (absents) => (chemin) => (absents.includes(chemin) ? null : depotClo(chemin));
+// L'ordre du gabarit : migrations 1, 2a, 2b, 2c, sabotage, retour du sabotage, retours 2c, 2b, 2a, 1.
+const ORDRE_CLO = [...NUMEROS_CLO.map((n) => ETAPES_CLOISONNEMENT[n].migration), ...SABOTAGE_CLO,
+  ...[...NUMEROS_CLO].reverse().map((n) => ETAPES_CLOISONNEMENT[n].retour)];
+const ETAPE_2A_ECRITE = existsSync(join(RACINE, ETAPES_CLOISONNEMENT["2a"].migration));
+
+test("cloisonnement sans --etapes, dépôt réel : l'étape 1 injectée octet pour octet, les étapes absentes et le sabotage neutralisés", () => {
+  const lus = [];
+  const r = assemblerMode("cloisonnement", RACINE, { lire: (c) => { lus.push(c); return duDisque(c); } });
+  assert.deepEqual(r.inclusions.map((x) => x.chemin), [AIDES, AIDES_TITRES, AIDES_CLO]);
+  assert.equal(r.injections[0].chemin, EMPREINTE);
+  assert.ok(r.injections.some((x) => x.chemin === ETAPES_CLOISONNEMENT["1"].migration));
+  assert.ok(r.injections.some((x) => x.chemin === ETAPES_CLOISONNEMENT["1"].retour));
+  verifierInjections(r, duDisque);
+  for (const c of SABOTAGE_CLO) assert.ok(r.neutralises.includes(c) && !lus.includes(c), `${c} : neutralisé et jamais lu hors du mode sabotage`);
+  assert.equal(r.neutralises.length + r.injections.length - 1, 10);
+  if (!ETAPE_2A_ECRITE) {
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ETAPES_CLOISONNEMENT["1"].migration, ETAPES_CLOISONNEMENT["1"].retour]);
+    assert.equal(r.mode, "cloisonnement (etape 1 injectees)");
+    assert.ok(r.texte.includes("\n'cloisonnement (etape 1 injectees)'\n"));
+  }
+});
+
+test("cloisonnement sans --etapes : la plus longue suite d'étapes présentes depuis la 1 ; une étape absente arrête la suite", () => {
+  const r = assemblerMode("cloisonnement", RACINE, { lire: depotClo });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...ORDRE_CLO.filter((c) => !SABOTAGE_CLO.includes(c))]);
+  assert.deepEqual([...r.neutralises].sort(), [...SABOTAGE_CLO].sort());
+  verifierInjections(r, depotClo);
+  assert.equal(r.mode, "cloisonnement (etapes 1, 2a, 2b, 2c injectees)");
+  // 2b et 2c présentes mais un fichier de la 2a absent : seule la 1 est injectée, jamais une suite trouée.
+  const trou = assemblerMode("cloisonnement", RACINE, { lire: depotCloSans([ETAPES_CLOISONNEMENT["2a"].retour]) });
+  assert.equal(trou.mode, "cloisonnement (etape 1 injectees)");
+  assert.equal(trou.injections.length, 3);
+  // Aucune étape : tout neutralisé, libellé qui le dit.
+  const rien = assemblerMode("cloisonnement", RACINE, { lire: depotCloSans([ETAPES_CLOISONNEMENT["1"].migration]) });
+  assert.equal(rien.mode, "cloisonnement (aucune etape injectee)");
+  assert.deepEqual(rien.injections.map((x) => x.chemin), [EMPREINTE]);
+});
+
+test("cloisonnement --etapes 1, 1,2a, 1,2a,2b, 1,2a,2b,2c : les étapes demandées injectées dans l'ordre du gabarit, les autres neutralisées et non lues", () => {
+  for (const [etapes, mode] of [[["1"], "cloisonnement (etape 1 injectees)"], [["1", "2a"], "cloisonnement (etapes 1, 2a injectees)"],
+    [["1", "2a", "2b"], "cloisonnement (etapes 1, 2a, 2b injectees)"], [["1", "2a", "2b", "2c"], "cloisonnement (etapes 1, 2a, 2b, 2c injectees)"]]) {
+    const lus = [];
+    const r = assemblerMode("cloisonnement", RACINE, { etapes, lire: (c) => { lus.push(c); return depotClo(c); } });
+    const injectes = etapes.flatMap((n) => [ETAPES_CLOISONNEMENT[n].migration, ETAPES_CLOISONNEMENT[n].retour]);
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...ORDRE_CLO.filter((c) => injectes.includes(c))], mode);
+    assert.equal(r.neutralises.length, 10 - injectes.length, mode);
+    for (const c of r.neutralises) assert.ok(!lus.includes(c), `${c} neutralisé donc non lu (${mode})`);
+    verifierInjections(r, depotClo);
+    assert.equal(r.mode, mode);
+  }
+  // La ligne de commande lit « 1 » comme un nombre : decrireMode l'accepte aussi.
+  assert.deepEqual(decrireMode("cloisonnement", { etapes: [1] }).etapesCloisonnement, ["1"]);
+  assert.deepEqual(decrireMode("cloisonnement", { etapes: [1, "2a"] }).etapesCloisonnement, ["1", "2a"]);
+  assert.equal(decrireMode("cloisonnement").etapesCloisonnement, null);
+});
+
+test("cloisonnement : une étape demandée dont un fichier manque arrête l'assemblage en le nommant ; étapes refusées ; --etapes refusé ailleurs", () => {
+  assert.throws(() => assemblerMode("cloisonnement", RACINE, { etapes: ["1", "2a"], lire: depotCloSans([ETAPES_CLOISONNEMENT["2a"].migration]) }),
+    /Étape 2a demandée \(cloisonnement\) : supabase\/migrations\/20261128_cloisonnement_2a_noyau\.sql n'existe pas encore.*cloisonnement-contre-epreuve.*cloisonnement --etapes 1\./s);
+  assert.throws(() => assemblerMode("cloisonnement", RACINE, { etapes: ["1", "2a", "2b"], lire: depotCloSans([ETAPES_CLOISONNEMENT["2b"].retour]) }),
+    /Étape 2b demandée \(cloisonnement\) : supabase\/migrations\/20261128_cloisonnement_2b_siege_titres_retour\.sql n'existe pas encore.*--etapes 1,2a\./s);
+  assert.throws(() => assemblerMode("cloisonnement", RACINE, { etapes: ["1"], lire: depotCloSans([ETAPES_CLOISONNEMENT["1"].retour]) }),
+    /Étape 1 demandée \(cloisonnement\) : supabase\/migrations\/20261128_cloisonnement_1_fondations_retour\.sql n'existe pas encore\. En attendant : mode cloisonnement-contre-epreuve\./);
+  for (const mauvaise of [[], ["2a"], ["1", "2b"], ["2a", "1"], ["1", "2a", "2b", "2c", "3"], [1, 2], ["1", "2"]]) {
+    assert.throws(() => decrireMode("cloisonnement", { etapes: mauvaise }), /étapes refusées.*1, 1,2a, 1,2a,2b ou 1,2a,2b,2c/, JSON.stringify(mauvaise));
+  }
+  for (const mode of ["cloisonnement-contre-epreuve", "cloisonnement-en-ligne", "cloisonnement-sabotage"]) {
+    assert.throws(() => decrireMode(mode, { etapes: ["1"] }), /--etapes ne vaut que pour le mode repetition, titres, gestion, suite ou cloisonnement/, mode);
+  }
+  // Les autres modes à étapes refusent une étape en lettres.
+  assert.throws(() => decrireMode("titres", { etapes: [1, "2a"] }), /étapes refusées/);
+  assert.throws(() => decrireMode("repetition", { etapes: [1, "2a"] }), /étapes refusées/);
+});
+
+test("cloisonnement-contre-epreuve et cloisonnement-en-ligne : les dix fichiers neutralisés et non lus, l'empreinte toujours là, libellés distincts", () => {
+  for (const mode of ["cloisonnement-contre-epreuve", "cloisonnement-en-ligne"]) {
+    const lus = [];
+    const r = assemblerMode(mode, RACINE, { lire: (c) => { lus.push(c); return depotClo(c); } });
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE], mode);
+    assert.deepEqual([...r.neutralises].sort(), [...FICHIERS_CLO, ...SABOTAGE_CLO].sort(), mode);
+    assert.ok([...FICHIERS_CLO, ...SABOTAGE_CLO].every((c) => !lus.includes(c)), mode + " : fichiers non lus");
+  }
+  assert.ok(decrireMode("cloisonnement-en-ligne").mode.startsWith("cloisonnement-en-ligne"));
+  assert.ok(!decrireMode("cloisonnement-contre-epreuve").mode.startsWith("cloisonnement-en-ligne"));
+});
+
+test("cloisonnement-sabotage : les quatre étapes et la règle relâchée injectées dans l'ordre du gabarit ; tant que la tâche 5 manque, refus qui nomme le fichier", () => {
+  const r = assemblerMode("cloisonnement-sabotage", RACINE, { lire: depotClo });
+  assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...ORDRE_CLO]);
+  assert.deepEqual(r.neutralises, []);
+  verifierInjections(r, depotClo);
+  assert.equal(r.mode, "cloisonnement-sabotage (etapes 1, 2a, 2b, 2c et regle relachee injectees)");
+  assert.ok(!r.mode.startsWith("cloisonnement-en-ligne"));
+  assert.throws(() => assemblerMode("cloisonnement-sabotage", RACINE, { lire: depotCloSans([SABOTAGE_CLOISONNEMENT.migration]) }),
+    /Sabotage demandé \(cloisonnement-sabotage\) : tests\/sql\/cloisonnement-sabotage\.sql n'existe pas encore \(écrit par la tâche 5/);
+  assert.throws(() => assemblerMode("cloisonnement-sabotage", RACINE, { lire: depotCloSans([SABOTAGE_CLOISONNEMENT.retour]) }),
+    /Sabotage demandé \(cloisonnement-sabotage\) : tests\/sql\/cloisonnement-sabotage-retour\.sql n'existe pas encore/);
+  // Sur le dépôt réel tant que les étapes 2a à 2c ne sont pas écrites : la première étape manquante est nommée.
+  if (!ETAPE_2A_ECRITE) {
+    assert.throws(() => assemblerMode("cloisonnement-sabotage"), /Étape 2a demandée \(cloisonnement-sabotage\) : supabase\/migrations\/20261128_cloisonnement_2a_noyau\.sql n'existe pas encore/);
+  }
+});
+
+test("cloisonnement : la ligne de commande lit --etapes 1,2a, écrit hors du dépôt, refuse une étape absente ou une suite impossible (code 1)", () => {
+  const dossier = mkdtempSync(join(tmpdir(), "assembler-clo-"));
+  try {
+    const un = join(dossier, "clo-1.sql");
+    const ok = spawnSync(process.execPath, [SCRIPT, "cloisonnement", "--etapes", "1", un], { encoding: "utf8" });
+    assert.equal(ok.status, 0, ok.stderr);
+    assert.equal(readFileSync(un, "utf8"), assemblerMode("cloisonnement", RACINE, { etapes: ["1"] }).texte);
+    assert.match(ok.stdout, /mode {8}cloisonnement \(etape 1 injectees\)/);
+    const impossible = spawnSync(process.execPath, [SCRIPT, "cloisonnement", "--etapes", "1,2b", join(dossier, "x.sql")], { encoding: "utf8" });
+    assert.equal(impossible.status, 1);
+    assert.match(impossible.stderr, /étapes refusées : « 1,2b »/);
+    const mal = spawnSync(process.execPath, [SCRIPT, "cloisonnement", "--etapes", "1,2A", join(dossier, "y.sql")], { encoding: "utf8" });
+    assert.equal(mal.status, 1);
+    assert.match(mal.stderr, /étapes refusées : « 1,2A »/);
+    if (!ETAPE_2A_ECRITE) {
+      const absente = spawnSync(process.execPath, [SCRIPT, "cloisonnement", "--etapes=1,2a", join(dossier, "z.sql")], { encoding: "utf8" });
+      assert.equal(absente.status, 1);
+      assert.match(absente.stderr, /Étape 2a demandée \(cloisonnement\)/);
+      assert.ok(!existsSync(join(dossier, "z.sql")));
+    }
+    const dedans = spawnSync(process.execPath, [SCRIPT, "cloisonnement-contre-epreuve", join(RACINE, ".superpowers", "clo.sql")], { encoding: "utf8" });
+    assert.equal(dedans.status, 1);
+    assert.match(dedans.stderr, /sortie dans le dépôt refusée/);
+  } finally {
+    rmSync(dossier, { recursive: true, force: true });
+  }
+});
+
+test("la preuve du cloisonnement : mode en ligne reconnu par préfixe, pas de $$, adresses fictives, aides sans marqueur, marqueurs dans l'ordre du jeu, aucun délimiteur partagé", () => {
+  const gabarit = texteDuDepot(GABARIT_CLO);
+  const aides = texteDuDepot(AIDES_CLO);
+  assert.ok(!/\$\$/.test(gabarit) && !/\$\$/.test(aides), "pas de $$");
+  const m = /v_mode like '([^'%]*)%'/.exec(gabarit);
+  assert.ok(m && decrireMode("cloisonnement-en-ligne").mode.startsWith(m[1]));
+  for (const adresse of [...(gabarit.match(/[\w.+-]+@[\w.-]+\.[a-z]+/g) ?? []), ...(aides.match(/[\w.+-]+@[\w.-]+\.[a-z]+/g) ?? [])]) {
+    assert.ok(adresse.toLowerCase().endsWith("@exemple.invalid"), `adresse de la preuve fictive : ${adresse}`);
+  }
+  assert.ok(!/@@/.test(aides), "aides sans marqueur");
+  const delimiteurs = new Set(gabarit.match(/\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/g));
+  for (const chemin of [...FICHIERS_CLO, ...SABOTAGE_CLO].filter((c) => existsSync(join(RACINE, c)))) {
+    for (const d of delimiteurs) assert.ok(!texteDuDepot(chemin).includes(d), `${chemin} : ${d} figure aussi dans le gabarit`);
+  }
+  const places = ORDRE_CLO.map((c) => gabarit.indexOf(`-- @@INJECTER ${c}@@`));
+  assert.ok(places.every((p) => p > 0), "tous les marqueurs présents");
+  assert.deepEqual([...places].sort((a, b) => a - b), places, "marqueurs dans l'ordre du jeu");
+});
+
+test("les fichiers de l'étape 1 du cloisonnement : aucun tiret cadratin, fins de ligne LF, lock_timeout, aucune fonction ni règle existante réécrite, droits explicites, retour complet", () => {
+  for (const chemin of [ETAPES_CLOISONNEMENT["1"].migration, ETAPES_CLOISONNEMENT["1"].retour, GABARIT_CLO, AIDES_CLO]) {
+    const brut = readFileSync(join(RACINE, chemin), "utf8");
+    assert.ok(!brut.includes(String.fromCharCode(0x2014)), `${chemin} : aucun tiret cadratin`);
+    assert.ok(!brut.includes("\r"), `${chemin} : fins de ligne LF`);
+    assert.ok(!/postgres(ql)?:\/\/[^\s"')]*:[^\s"')]*@/.test(brut), `${chemin} : aucune adresse de connexion avec mot de passe`);
+    if (chemin.startsWith("supabase/")) assert.match(brut, /^set local lock_timeout = '3s';$/m, `${chemin} : lock_timeout`);
+  }
+  const m = texteDuDepot(ETAPES_CLOISONNEMENT["1"].migration);
+  assert.ok(!/create or replace function/i.test(m), "aucune fonction existante remplacée");
+  assert.ok(!/(alter|drop) policy/i.test(m), "aucune règle existante touchée");
+  assert.deepEqual(m.match(/create policy \w+/g), ["create policy acces_fondateur_lecture"]);
+  const creees = [...m.matchAll(/^create function public\.(\w+)\(/gm)].map((x) => x[1]);
+  assert.equal(creees.length, 15);
+  for (const nom of creees) {
+    const def = new RegExp(`^create function public\\.${nom}\\([\\s\\S]*?^\\$function\\$;$`, "m").exec(m)[0];
+    assert.match(def, /^ security definer$/m, `${nom} : security definer`);
+    assert.match(def, /^ set search_path to 'public', 'pg_temp'$/m, `${nom} : chemin de recherche`);
+    assert.match(m, new RegExp(`revoke all on function public\\.${nom}\\([^)]*\\) from public, anon, authenticated, service_role;`), `${nom} : droits retirés`);
+  }
+  const ouvertes = [...m.matchAll(/^grant execute on function public\.(\w+)\(/gm)].map((x) => x[1]).sort();
+  assert.deepEqual(ouvertes, ["est_siege_de", "fermer_acces_support", "mon_organisme", "organismes_pour_support", "ouvrir_acces_support"]);
+  assert.match(m, /revoke all on public\.organismes from public, anon, authenticated;/);
+  assert.match(m, /revoke all on public\.acces_fondateur from public, anon, authenticated;/);
+  assert.deepEqual(m.match(/^grant (?!execute).*$/gm), ["grant select on public.acces_fondateur to authenticated;"]);
+  assert.ok(m.includes("raise exception 'Organisme introuvable pour cette ligne.' using errcode = '22023';"));
+  const r = texteDuDepot(ETAPES_CLOISONNEMENT["1"].retour);
+  for (const nom of creees) assert.match(r, new RegExp(`^drop function public\\.${nom}\\(`, "m"), `${nom} : retirée par le retour`);
+  for (const declencheur of ["organisme_par_defaut on public.lieux", "journal_droits_organisme on public.journal_droits", "rattachement_fondateur on public.user_profiles"]) {
+    assert.ok(r.includes(`drop trigger ${declencheur};`), `${declencheur} : retiré par le retour`);
+  }
+  assert.ok(r.indexOf("drop function public.ouvrir_acces_support") < r.indexOf("drop table public.acces_fondateur"), "la fonction qui rend une ligne du journal part avant la table");
+  assert.ok(r.indexOf("drop table public.acces_fondateur") < r.indexOf("drop function public.est_siege_de"), "la règle part avec la table, avant est_siege_de");
+  assert.ok(r.lastIndexOf("drop table public.organismes") > r.lastIndexOf("drop column organisme_id"), "organismes part en dernier");
 });
