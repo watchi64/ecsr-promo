@@ -16,6 +16,19 @@
 --                    ressources (et affectations siège, titres réseau) : chaque ligne prend l'organisme de son auteur, ECF ou
 --                    B ; le propriétaire et service_role prennent l'organisme unique tant que B n'existe pas ; ensuite, sans
 --                    contexte : refus « Organisme introuvable pour cette ligne. » (22023).
+--   equivalence-ecf  (étape 2a) avec ECF seul (B pas encore posé), chaque prédicat et geste du noyau (est_formateur,
+--                    est_direction, est_siege, peut_acceder_promo, mes_promos, promo_par_defaut, promo_courante, cases,
+--                    gestes, *_fixe, membre_stagiaire) rend, après les migrations, ce qu'il rendait avant l'étape 2a, pour chaque
+--                    personnage de titres-aides (poser_perso), le fondateur réel et l'anonyme, dans 14 contextes : 0 écart.
+--   noyau            (étape 2a) chaque personnage d'ECF et de B : est_formateur, est_direction, est_siege, peut_acceder_promo
+--                    vrais seulement chez soi ; le fondateur hors support : mes_promos() et promo_par_defaut() dans ECF,
+--                    aucun geste ni aucune case sur B ; le siège de B : gestes du réseau sur B, jamais sur ECF.
+--   apercu           (étape 2a, Review Focus 3) le fondateur en aperçu formateur, direction, stagiaire et siège : seulement
+--                    son organisme actif (ECF hors support, B en support) ; un en-tête x-promo-id de l'autre organisme ne
+--                    l'ouvre jamais (promo par défaut à la place).
+--   support          (étape 2a, Review Focus 2) support ouvert sur B : mes_promos(), est_siege(), prédicats et gestes sur B
+--                    seulement ; après fermeture et échéance (ligne antidatée) : retour à ECF, et un en-tête x-promo-id de B
+--                    rend la promo par défaut d'ECF, sans erreur.
 --   retour           les retours défont tout, dans l'ordre inverse (2c, 2b, 2a, 1) : l'empreinte (règles, fonctions, droits)
 --                    égale celle d'avant ; tables, colonnes, fonctions et déclencheurs du chantier disparus.
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides (tests/sql/roles-aides.sql,
@@ -488,6 +501,360 @@ begin
     'REFUS 22023');
 end $cgr$;
 
+-- Une lecture jouée par le propriétaire avec le contexte d'un personnage, sous un en-tête x-promo-id et un aperçu choisis (nuls :
+-- absents) : « OK <valeur> » ou « ERREUR <état> <message> ». Sert aux fonctions internes et aux en-têtes d'une autre promo.
+create or replace function pg_temp.clo_jouer(p_nom text, p_entete text, p_apercu text, p_sql text)
+returns text language plpgsql as $cjo$
+declare v text; r text;
+begin
+  perform pg_temp.contexte((select p.email from pg_temp.clo_perso p where p.nom = p_nom), p_entete, p_apercu);
+  begin
+    execute p_sql into v;
+    r := rtrim('OK ' || coalesce(v, 'nul'));
+  exception when others then
+    r := 'ERREUR ' || sqlstate || ' ' || sqlerrm;
+  end;
+  perform pg_temp.proprio();
+  return r;
+end $cjo$;
+
+-- Un identifiant posé, ou le littéral null (objet non posé : la requête rend alors faux ou nul, jamais une erreur de syntaxe).
+create or replace function pg_temp.clo_n(p_cle text)
+returns text language sql as $cn$
+  select case when pg_temp.clo(p_cle) ~ '^[0-9]+$' then pg_temp.clo(p_cle) else 'null' end;
+$cn$;
+
+-- Groupe equivalence-ecf : la requête du noyau, « nom=valeur » séparés par des virgules. Promos : la promo affichée, 1, 2, 7, nulle,
+-- inconnue ; centres : le centre affiché, ceux des promos 1, 2 et 7, nul, inconnu ; pages et gestes de _pages_du_niveau et des
+-- gestes (liste écrite en dur, celle de titres-preuve.sql).
+create or replace function pg_temp.requete_noyau()
+returns text language plpgsql as $crn$
+declare
+  r text[] := '{}'; x text; g text;
+  v_promos constant text[] := array['promo_courante()', '1', '2', '7', 'null::integer', '-1'];
+  v_lieux constant text[] := array['lieu_courant()', 'lieu_de_promo(1)', 'lieu_de_promo(2)', 'lieu_de_promo(7)', 'null::integer', '-1'];
+  v_pages_promo constant text[] := array['planning', 'emargement', 'stagiaires', 'notes', 'cours', 'ccp2', 'indicateurs', 'reglages'];
+  v_pages_centre constant text[] := array['promos', 'stagiaires', 'emargement', 'notes', 'equipe', 'reglages'];
+  v_pages_reseau constant text[] := array['cours', 'directions', 'reglages'];
+  v_gestes_promo constant text[] := array['planning.lire', 'planning.modifier', 'emargement.lire', 'emargement.tenir', 'stagiaires.lire',
+    'stagiaires.gerer', 'stagiaires.supprimer', 'anonymiser', 'benevoles.lire', 'benevoles.gerer', 'benevoles.purger', 'notes.lire',
+    'notes.saisir', 'contenus.lire_internes', 'contenus.rediger', 'referentiel.modifier', 'contenus.traiter', 'reglages.modifier',
+    'modules.modifier', 'promo.renommer', 'fiches_internes.ecrire'];
+  v_gestes_centre constant text[] := array['promos.gerer', 'reglages.modifier', 'donnees.purger', 'formateurs.nommer', 'promos.lire', 'equipe.lire'];
+  v_gestes_reseau constant text[] := array['centres.creer', 'directions.nommer', 'directions.lire', 'reglages.modifier'];
+begin
+  foreach x in array v_promos loop
+    r := r || format('%L || coalesce(public.est_formateur(%s)::text, ''nul'')', 'est_formateur(' || x || ')=', x)
+           || format('%L || coalesce(public.peut_acceder_promo(%s)::text, ''nul'')', 'peut_acceder_promo(' || x || ')=', x)
+           || format('%L || coalesce(public.formateur_fixe(%s)::text, ''nul'')', 'formateur_fixe(' || x || ')=', x)
+           || format('%L || coalesce(public.membre_stagiaire(%s)::text, ''nul'')', 'membre_stagiaire(' || x || ')=', x);
+    foreach g in array v_pages_promo loop
+      r := r || format('%L || coalesce(public.case_promo(%s, %L)::text, ''nul'')', 'case_promo(' || x || ',' || g || ')=', x, g);
+    end loop;
+    foreach g in array v_gestes_promo loop
+      r := r || format('%L || coalesce(public.geste_promo(%s, %L)::text, ''nul'')', 'geste_promo(' || x || ',' || g || ')=', x, g);
+    end loop;
+  end loop;
+  foreach x in array v_lieux loop
+    r := r || format('%L || coalesce(public.est_direction(%s)::text, ''nul'')', 'est_direction(' || x || ')=', x)
+           || format('%L || coalesce(public.direction_fixe(%s)::text, ''nul'')', 'direction_fixe(' || x || ')=', x);
+    foreach g in array v_pages_centre loop
+      r := r || format('%L || coalesce(public.case_centre(%s, %L)::text, ''nul'')', 'case_centre(' || x || ',' || g || ')=', x, g);
+    end loop;
+    foreach g in array v_gestes_centre loop
+      r := r || format('%L || coalesce(public.geste_centre(%s, %L)::text, ''nul'')', 'geste_centre(' || x || ',' || g || ')=', x, g);
+    end loop;
+  end loop;
+  r := r || array['''est_siege()='' || coalesce(public.est_siege()::text, ''nul'')',
+                  '''siege_fixe()='' || coalesce(public.siege_fixe()::text, ''nul'')'];
+  foreach g in array v_pages_reseau loop
+    r := r || format('%L || coalesce(public.case_reseau(%L)::text, ''nul'')', 'case_reseau(' || g || ')=', g);
+  end loop;
+  foreach g in array v_gestes_reseau loop
+    r := r || format('%L || coalesce(public.geste_reseau(%L)::text, ''nul'')', 'geste_reseau(' || g || ')=', g);
+  end loop;
+  r := r || array['''promo_courante()='' || coalesce(public.promo_courante()::text, ''nul'')',
+                  '''promo_par_defaut()='' || coalesce(public.promo_par_defaut()::text, ''nul'')',
+                  '''lieu_courant()='' || coalesce(public.lieu_courant()::text, ''nul'')',
+                  '''formateur_courant()='' || coalesce(public.formateur_courant()::text, ''nul'')',
+                  '''direction_courante()='' || coalesce(public.direction_courante()::text, ''nul'')',
+                  '''est_fondateur()='' || coalesce(public.est_fondateur()::text, ''nul'')',
+                  '''is_admin()='' || coalesce(public.is_admin()::text, ''nul'')',
+                  '''apercu_role()='' || coalesce(public.apercu_role(), ''nul'')',
+                  '''mes_promos()='' || coalesce((select string_agg(m.id || '':'' || m.par_defaut || '':'' || (m.stagiaire_id is not null)::text || '':'' || array_to_string(m.roles, ''+''), '';'' order by m.id) from public.mes_promos() m), ''aucune'')'];
+  return 'select ' || array_to_string(r, ' || '','' || ');
+end $crn$;
+
+-- La photo du noyau : les personnages de titres-aides (poser_perso), le fondateur réel et l'anonyme, chacun dans 14 contextes (sans
+-- en-tête, en-tête des promos 1, 2, 7 et d'une promo inconnue ; aperçu stagiaire, formateur, direction, siège sous l'en-tête 1 puis
+-- 2), joués par le propriétaire avec leur contexte. Les personnages sont posés dans une sous-transaction toujours annulée : la base
+-- ne garde rien, la photo (une ligne par personnage et contexte) survit dans la variable.
+create or replace function pg_temp.photo_noyau()
+returns text language plpgsql as $cph$
+declare
+  v_req text; v_res text := ''; p record; ctx record; v text;
+  v_fondateur text := (select lower(up.email) from public.user_profiles up where up.is_founder
+                        order by lower(up.email) like '%@exemple.invalid', lower(up.email) limit 1);
+begin
+  begin
+    v_req := pg_temp.requete_noyau();
+    perform pg_temp.poser_perso();
+    for p in select x.nom, x.email from (
+               select ordre, nom, email from pg_temp.perso
+               union all select 100, 'fondateur réel', v_fondateur
+               union all select 101, 'anonyme', null) x order by x.ordre loop
+      for ctx in
+        select h.e, null::text as a from (values (null::text), ('1'), ('2'), ('7'), ('999999')) h(e)
+        union all
+        select h.e, a.a from (values ('1'), ('2')) h(e) cross join (values ('stagiaire'), ('formateur'), ('direction'), ('siege')) a(a)
+      loop
+        v := pg_temp.valeur_proprio(p.email, ctx.e, ctx.a, v_req);
+        v_res := v_res || format('%s/%s/%s#%s', p.nom, coalesce(ctx.e, 'sans'), coalesce(ctx.a, 'aucun'), coalesce(v, 'nul')) || E'\n';
+      end loop;
+    end loop;
+    raise exception using errcode = 'P0001', message = 'photo du noyau prise';
+  exception when others then
+    if sqlstate <> 'P0001' or sqlerrm <> 'photo du noyau prise' then
+      v_res := 'ERREUR ' || sqlstate || ' ' || sqlerrm;
+    end if;
+  end;
+  perform pg_temp.proprio();
+  return v_res;
+end $cph$;
+
+-- Groupe equivalence-ecf : la photo prise après l'étape 1 (avant 2a) contre celle prise après toutes les migrations, ECF seul.
+create or replace function pg_temp.groupe_equivalence_ecf(p_avant text, p_apres text, p_etat_2a text)
+returns void language plpgsql as $cge$
+declare
+  la text[]; lb text[]; i integer; ta text[]; tb text[]; j integer;
+  v_ncmp integer := 0; v_necart integer := 0; v_ecarts text := '';
+begin
+  perform pg_temp.informer('equivalence-ecf', format('étape 2a %s ; photos de %s et %s lignes', coalesce(p_etat_2a, 'nulle'),
+    coalesce(array_length(string_to_array(rtrim(p_avant, E'\n'), E'\n'), 1), 0),
+    coalesce(array_length(string_to_array(rtrim(p_apres, E'\n'), E'\n'), 1), 0)));
+  perform pg_temp.verifier('equivalence-ecf', 'les deux photos se prennent sans erreur',
+    p_avant is not null and p_apres is not null and p_avant not like 'ERREUR %' and p_apres not like 'ERREUR %'
+      and position('#ERREUR' in p_avant) = 0 and position('#ERREUR' in p_apres) = 0,
+    left(coalesce(substring(p_avant from '[^\n]*#ERREUR[^\n]*'), substring(p_apres from '[^\n]*#ERREUR[^\n]*'),
+                  case when p_avant like 'ERREUR %' then p_avant when p_apres like 'ERREUR %' then p_apres end, ''), 300));
+  la := string_to_array(rtrim(coalesce(p_avant, ''), E'\n'), E'\n');
+  lb := string_to_array(rtrim(coalesce(p_apres, ''), E'\n'), E'\n');
+  perform pg_temp.attendre('equivalence-ecf', 'mêmes personnages et mêmes contextes avant et après (lignes)',
+    coalesce(array_length(lb, 1), 0)::text, coalesce(array_length(la, 1), 0)::text);
+  for i in 1 .. least(coalesce(array_length(la, 1), 0), coalesce(array_length(lb, 1), 0)) loop
+    if split_part(la[i], '#', 1) is distinct from split_part(lb[i], '#', 1) then
+      v_necart := v_necart + 1;
+      v_ecarts := v_ecarts || format('ligne %s : %s contre %s ; ', i, split_part(la[i], '#', 1), split_part(lb[i], '#', 1));
+      continue;
+    end if;
+    ta := string_to_array(split_part(la[i], '#', 2), ',');
+    tb := string_to_array(split_part(lb[i], '#', 2), ',');
+    if coalesce(array_length(ta, 1), 0) <> coalesce(array_length(tb, 1), 0) then
+      v_necart := v_necart + 1;
+      v_ecarts := v_ecarts || format('%s : %s contre %s valeurs ; ', split_part(la[i], '#', 1), array_length(ta, 1), array_length(tb, 1));
+      continue;
+    end if;
+    for j in 1 .. coalesce(array_length(ta, 1), 0) loop
+      v_ncmp := v_ncmp + 1;
+      if ta[j] is distinct from tb[j] then
+        v_necart := v_necart + 1;
+        if length(v_ecarts) < 600 then
+          v_ecarts := v_ecarts || format('%s : %s devient %s ; ', split_part(la[i], '#', 1), ta[j], split_part(tb[j], '=', 2));
+        end if;
+      end if;
+    end loop;
+  end loop;
+  perform pg_temp.verifier('equivalence-ecf', 'ECF seul : chaque prédicat et geste du noyau rend après les migrations ce qu''il rendait avant l''étape 2a (0 écart)',
+    v_necart = 0 and v_ncmp > 1000, left(format('%s écart(s) sur %s comparaisons ; %s', v_necart, v_ncmp, v_ecarts), 700));
+  perform pg_temp.informer('equivalence-ecf, comparaisons', format('%s comparaisons, %s écart(s)', v_ncmp, v_necart));
+end $cge$;
+
+-- Groupe noyau : chaque personnage, sur une promo et un centre de chaque organisme ; le fondateur hors support ; les gestes.
+create or replace function pg_temp.groupe_noyau()
+returns void language plpgsql as $cgn$
+declare
+  v_a text := pg_temp.clo('org_a'); v_b text := pg_temp.clo('org_b');
+  v_pa text := pg_temp.clo_n('promo_a'); v_pb text := pg_temp.clo_n('promo_b');
+  v_la text := pg_temp.clo_n('lieu_a'); v_lb text := pg_temp.clo_n('lieu_b');
+  v_req text; r record; v_promos_a text;
+begin
+  v_req := format($cgnq$select concat_ws('|', public.est_formateur(%1$s)::text || '/' || public.est_formateur(%2$s)::text,
+      public.est_direction(%3$s)::text || '/' || public.est_direction(%4$s)::text, public.est_siege()::text,
+      public.peut_acceder_promo(%1$s)::text || '/' || public.peut_acceder_promo(%2$s)::text)$cgnq$, v_pa, v_pb, v_la, v_lb);
+  for r in select * from (values
+      ('siege_a', 'false/false|false/false|true|false/false'),
+      ('dir_a', 'false/false|true/false|false|true/false'),
+      ('form_a', 'true/false|false/false|false|true/false'),
+      ('stag_a', 'false/false|false/false|false|true/false'),
+      ('fond_a', 'true/false|true/false|true|true/false'),
+      ('siege_b', 'false/false|false/false|true|false/false'),
+      ('dir_b', 'false/false|false/true|false|false/true'),
+      ('form_b', 'false/true|false/false|false|false/true'),
+      ('stag_b1', 'false/false|false/false|false|false/true'),
+      ('stag_b2', 'false/false|false/false|false|false/true')) x(nom, attendu) loop
+    perform pg_temp.attendre('noyau', format('%s (jeton et en-tête de sa promo) : est_formateur(promo ECF/B), est_direction(centre ECF/B), est_siege(), peut_acceder_promo(promo ECF/B) vrais seulement chez soi', r.nom),
+      pg_temp.clo_lire(r.nom, v_req), 'OK ' || r.attendu);
+  end loop;
+  -- Le fondateur hors support : ses promos, sa promo par défaut, ses gestes et ses cases.
+  v_promos_a := pg_temp.calcul(format('select string_agg(pr.id::text, '','' order by pr.id) from public.promos pr join public.lieux l on l.id = pr.lieu_id where l.organisme_id = %s', v_a));
+  perform pg_temp.attendre('noyau', 'fondateur hors support : mes_promos() = les promos d''ECF seulement',
+    pg_temp.clo_lire('fond_a', 'select string_agg(id::text, '','' order by id) from public.mes_promos()'), 'OK ' || v_promos_a);
+  perform pg_temp.attendre('noyau', 'fondateur hors support : promo_par_defaut() et promo_courante() sans en-tête dans ECF',
+    pg_temp.clo_lire('fond_a', 'select public.organisme_de_promo(public.promo_par_defaut())::text || ''/'' || public.organisme_de_promo(public.promo_courante())::text', true),
+    'OK ' || v_a || '/' || v_a);
+  perform pg_temp.attendre('noyau', 'fondateur hors support, promo et centre de B : aucun geste, aucune case, ni formateur_fixe, direction_fixe, membre_stagiaire',
+    pg_temp.clo_lire('fond_a', format($cgnq$select concat_ws('|', public.geste_promo(%1$s, 'stagiaires.supprimer')::text, public.geste_promo(%1$s, 'notes.saisir')::text,
+        public.geste_promo(%1$s, 'planning.lire')::text, public.geste_centre(%2$s, 'formateurs.nommer')::text, public.geste_centre(%2$s, 'promos.gerer')::text,
+        public.case_promo(%1$s, 'notes'), public.case_centre(%2$s, 'equipe'), public.formateur_fixe(%1$s)::text, public.direction_fixe(%2$s)::text,
+        public.membre_stagiaire(%1$s)::text)$cgnq$, v_pb, v_lb)),
+    'OK false|false|false|false|false|0|0|false|false|false');
+  perform pg_temp.attendre('noyau', 'fondateur hors support, promo et centre d''ECF : gestes et cases au plafond',
+    pg_temp.clo_lire('fond_a', format($cgnq$select concat_ws('|', public.geste_promo(%1$s, 'stagiaires.supprimer')::text, public.geste_promo(%1$s, 'notes.saisir')::text,
+        public.geste_promo(%1$s, 'planning.lire')::text, public.geste_centre(%2$s, 'formateurs.nommer')::text, public.geste_centre(%2$s, 'promos.gerer')::text,
+        public.case_promo(%1$s, 'notes'), public.case_centre(%2$s, 'equipe'), public.formateur_fixe(%1$s)::text, public.direction_fixe(%2$s)::text)$cgnq$, v_pa, v_la)),
+    'OK true|true|true|true|true|2|2|true|true');
+  -- Formateur et direction : leurs gestes chez eux seulement.
+  for r in select * from (values ('form_a', v_pa, v_pb), ('form_b', v_pb, v_pa)) x(nom, chez, ailleurs) loop
+    perform pg_temp.attendre('noyau', format('%s : notes.saisir sur sa promo, pas sur celle de l''autre organisme', r.nom),
+      pg_temp.clo_lire(r.nom, format('select public.geste_promo(%s, ''notes.saisir'')::text || ''/'' || public.geste_promo(%s, ''notes.saisir'')::text', r.chez, r.ailleurs)),
+      'OK true/false');
+  end loop;
+  for r in select * from (values ('dir_a', v_la, v_lb), ('dir_b', v_lb, v_la)) x(nom, chez, ailleurs) loop
+    perform pg_temp.attendre('noyau', format('%s : formateurs.nommer sur son centre, pas sur celui de l''autre organisme', r.nom),
+      pg_temp.clo_lire(r.nom, format('select public.geste_centre(%s, ''formateurs.nommer'')::text || ''/'' || public.geste_centre(%s, ''formateurs.nommer'')::text', r.chez, r.ailleurs)),
+      'OK true/false');
+  end loop;
+  -- Le siège : les gestes du réseau dans son organisme, jamais dans l'autre.
+  for r in select * from (values ('siege_a', v_a, v_b), ('siege_b', v_b, v_a)) x(nom, chez, ailleurs) loop
+    perform pg_temp.attendre('noyau', format('%s : geste_reseau(centres.creer), directions.lire, case_reseau(directions), siege_fixe() sur son organisme courant, qui est le sien ; est_siege_de(l''autre) faux', r.nom),
+      pg_temp.clo_lire(r.nom, format($cgnq$select concat_ws('|', public.geste_reseau('centres.creer')::text, public.geste_reseau('directions.lire')::text,
+          public.case_reseau('directions'), public.siege_fixe()::text, public.organisme_courant(), public.est_siege_de(%s)::text)$cgnq$, r.ailleurs), true),
+      'OK true|true|2|true|' || r.chez || '|false');
+  end loop;
+  -- Appliqué à l'autre organisme : sous l'en-tête d'une promo d'ECF, le siège de B reste dans B (aucune promo, aucun siège d'ECF).
+  perform pg_temp.attendre('noyau', 'siège de B sous l''en-tête x-promo-id d''une promo d''ECF : aucune promo, organisme courant B, est_siege_de(ECF) faux, ses gestes restent ceux de B',
+    pg_temp.clo_jouer('siege_b', v_pa, null, format($cgnq$select concat_ws('|', coalesce(public.promo_courante()::text, 'nul'), public.organisme_courant(),
+        public.est_siege_de(%s)::text, public.est_siege()::text, public.geste_reseau('centres.creer')::text)$cgnq$, v_a)),
+    'OK nul|' || v_b || '|false|true|true');
+end $cgn$;
+
+-- Groupe apercu : le fondateur en aperçu, hors support (organisme actif ECF) ou en support (B). p_support : l'organisme actif est B.
+create or replace function pg_temp.groupe_apercu(p_support boolean)
+returns void language plpgsql as $cga$
+declare
+  v_a text := pg_temp.clo('org_a'); v_b text := pg_temp.clo('org_b');
+  v_pa text := pg_temp.clo_n('promo_a'); v_pb text := pg_temp.clo_n('promo_b');
+  v_la text := pg_temp.clo_n('lieu_a'); v_lb text := pg_temp.clo_n('lieu_b');
+  v_ici text := case when p_support then v_b else v_a end;
+  v_ailleurs text := case when p_support then v_a else v_b end;
+  v_p_ici text := case when p_support then v_pb else v_pa end;
+  v_p_ailleurs text := case when p_support then v_pa else v_pb end;
+  v_l_ici text := case when p_support then v_lb else v_la end;
+  v_l_ailleurs text := case when p_support then v_la else v_lb end;
+  v_quand text := case when p_support then 'en support sur B' else 'hors support' end;
+  v_form text; e text;
+begin
+  -- Aperçu formateur : la promo affichée est toujours de l'organisme actif ; l'autre n'est jamais formateur.
+  v_form := format($cgaq$select concat_ws('|', public.est_formateur(%1$s)::text, public.est_formateur(%2$s)::text, (public.organisme_de_promo(public.promo_courante()) = %3$s)::text,
+      (public.promo_courante() = public.promo_par_defaut() or public.promo_courante() = %2$s)::text, (select m.id from public.mon_organisme() m))$cgaq$,
+    v_p_ailleurs, v_p_ici, v_ici);
+  perform pg_temp.attendre('apercu', format('fondateur %s, aperçu formateur, en-tête de sa promo : formateur de la promo de son organisme actif seulement, mon_organisme() = cet organisme', v_quand),
+    pg_temp.clo_jouer('fond_a', v_p_ici, 'formateur', v_form), 'OK false|true|true|true|' || v_ici);
+  -- La règle du contrôleur (hors support) : aperçu formateur, en-tête de la promo de B ; et son miroir en support.
+  perform pg_temp.attendre('apercu', format('fondateur %s, aperçu formateur, en-tête x-promo-id d''une promo de l''autre organisme : promo_courante() n''est pas cette promo (promo par défaut de l''organisme actif), mon_organisme() = l''organisme actif, est_formateur(cette promo) faux', v_quand),
+    pg_temp.clo_jouer('fond_a', v_p_ailleurs, 'formateur', format($cgaq$select concat_ws('|', (coalesce(public.promo_courante(), -1) <> %1$s)::text,
+        public.organisme_de_promo(public.promo_courante()), (public.promo_courante() = public.promo_par_defaut())::text,
+        (select m.id from public.mon_organisme() m), public.est_formateur(%1$s)::text, public.organisme_courant())$cgaq$, v_p_ailleurs)),
+    format('OK true|%s|true|%s|false|%s', v_ici, v_ici, v_ici));
+  -- Aperçu direction et stagiaire, en-tête de l'autre organisme : rien de lui.
+  perform pg_temp.attendre('apercu', format('fondateur %s, aperçu direction, en-tête d''une promo de l''autre organisme : est_direction(son centre) faux, le centre affiché est de l''organisme actif', v_quand),
+    pg_temp.clo_jouer('fond_a', v_p_ailleurs, 'direction', format($cgaq$select concat_ws('|', public.est_direction(%1$s)::text, public.est_direction(public.lieu_courant())::text,
+        public.organisme_de_lieu(public.lieu_courant()), public.direction_fixe(%1$s)::text, public.case_centre(%1$s, 'equipe'))$cgaq$, v_l_ailleurs)),
+    format('OK false|true|%s|false|0', v_ici));
+  perform pg_temp.attendre('apercu', format('fondateur %s, aperçu direction, en-tête de sa promo : direction du centre de l''organisme actif seulement', v_quand),
+    pg_temp.clo_jouer('fond_a', v_p_ici, 'direction', format('select public.est_direction(%s)::text || ''/'' || public.est_direction(%s)::text', v_l_ici, v_l_ailleurs)),
+    'OK true/false');
+  perform pg_temp.attendre('apercu', format('fondateur %s, aperçu stagiaire, en-tête d''une promo de l''autre organisme : membre_stagiaire(cette promo) faux, celui de la promo affichée vrai', v_quand),
+    pg_temp.clo_jouer('fond_a', v_p_ailleurs, 'stagiaire', format('select public.membre_stagiaire(%s)::text || ''/'' || public.membre_stagiaire(public.promo_courante())::text', v_p_ailleurs)),
+    'OK false/true');
+  -- Aperçu siège, sans en-tête puis sous l'en-tête d'une promo de l'autre organisme : siège de l'organisme actif seulement.
+  foreach e in array array[null, v_p_ailleurs] loop
+    perform pg_temp.attendre('apercu', format('fondateur %s, aperçu siège, %s : est_siege(), est_siege_de(organisme actif), est_siege_de(l''autre), organisme courant, case_reseau(directions), aucune promo',
+        v_quand, case when e is null then 'sans en-tête' else 'en-tête d''une promo de l''autre organisme' end),
+      pg_temp.clo_jouer('fond_a', e, 'siege', format($cgaq$select concat_ws('|', public.est_siege()::text, public.est_siege_de(%s)::text, public.est_siege_de(%s)::text,
+          public.organisme_courant(), public.case_reseau('directions'), coalesce(public.promo_courante()::text, 'nul'))$cgaq$, v_ici, v_ailleurs)),
+      format('OK true|true|false|%s|2|nul', v_ici));
+  end loop;
+end $cga$;
+
+-- Groupe support : un support ouvert sur B, puis fermé, puis une ligne antidatée dont l'échéance est passée (l'horloge de la
+-- transaction ne bouge pas : un support échu est une ligne dont ferme_le est déjà passé, jamais fermée en avance).
+create or replace function pg_temp.groupe_support()
+returns void language plpgsql as $cgs$
+declare
+  v_a text := pg_temp.clo('org_a'); v_b text := pg_temp.clo('org_b');
+  v_pa text := pg_temp.clo_n('promo_a'); v_pb text := pg_temp.clo_n('promo_b');
+  v_la text := pg_temp.clo_n('lieu_a'); v_lb text := pg_temp.clo_n('lieu_b');
+  v_promos_a text; v_promos_b text; v text;
+begin
+  v_promos_a := pg_temp.calcul(format('select string_agg(pr.id::text, '','' order by pr.id) from public.promos pr join public.lieux l on l.id = pr.lieu_id where l.organisme_id = %s', v_a));
+  v_promos_b := pg_temp.calcul(format('select string_agg(pr.id::text, '','' order by pr.id) from public.promos pr join public.lieux l on l.id = pr.lieu_id where l.organisme_id = %s', coalesce(v_b, 'null')));
+  perform pg_temp.attendre('support', 'le fondateur ouvre un support sur B (1 heure)',
+    pg_temp.clo_lire('fond_a', format($cgsq$select (public.ouvrir_acces_support(%s, 'Support de la preuve du noyau', '1 hour')).organisme_id::text$cgsq$, coalesce(v_b, 'null'))),
+    'OK ' || v_b);
+  perform pg_temp.attendre('support', 'en support : mes_promos() = les promos de B seulement (sa fiche stagiaire d''ECF comprise, plus listée)',
+    pg_temp.clo_lire('fond_a', 'select string_agg(id::text, '','' order by id) from public.mes_promos()'), 'OK ' || v_promos_b);
+  perform pg_temp.attendre('support', 'en support : est_siege() vrai, est_siege_de(B) vrai, est_siege_de(ECF) faux, organisme courant B',
+    pg_temp.clo_lire('fond_a', format('select concat_ws(''|'', public.est_siege()::text, public.est_siege_de(%s)::text, public.est_siege_de(%s)::text, public.organisme_courant())', v_b, v_a), true),
+    'OK true|true|false|' || v_b);
+  perform pg_temp.attendre('support', 'en support : est_formateur, est_direction, peut_acceder_promo (ECF/B) vrais sur B seulement',
+    pg_temp.clo_lire('fond_a', format($cgsq$select concat_ws('|', public.est_formateur(%1$s)::text || '/' || public.est_formateur(%2$s)::text,
+        public.est_direction(%3$s)::text || '/' || public.est_direction(%4$s)::text,
+        public.peut_acceder_promo(%1$s)::text || '/' || public.peut_acceder_promo(%2$s)::text)$cgsq$, v_pa, v_pb, v_la, v_lb)),
+    'OK false/true|false/true|false/true');
+  perform pg_temp.attendre('support', 'en support : promo_par_defaut() et promo_courante() sans en-tête = la promo de B',
+    pg_temp.clo_lire('fond_a', 'select public.promo_par_defaut()::text || ''/'' || public.promo_courante()::text'), 'OK ' || v_pb || '/' || v_pb);
+  perform pg_temp.attendre('support', 'en support, en-tête x-promo-id d''une promo d''ECF : promo_courante() = la promo de B, est_formateur(ECF) faux, aucun geste sur ECF',
+    pg_temp.clo_jouer('fond_a', v_pa, null, format($cgsq$select concat_ws('|', public.promo_courante(), public.est_formateur(%1$s)::text, public.geste_promo(%1$s, 'notes.saisir')::text,
+        public.membre_stagiaire(%1$s)::text)$cgsq$, v_pa)),
+    'OK ' || v_pb || '|false|false|false');
+  perform pg_temp.attendre('support', 'en support : gestes et cases sur B ouverts (promo, centre, réseau), sur ECF fermés',
+    pg_temp.clo_lire('fond_a', format($cgsq$select concat_ws('|', public.geste_promo(%1$s, 'stagiaires.supprimer')::text, public.geste_centre(%2$s, 'formateurs.nommer')::text,
+        public.geste_reseau('centres.creer')::text, public.case_reseau('directions'), public.siege_fixe()::text,
+        public.geste_promo(%3$s, 'stagiaires.supprimer')::text, public.geste_centre(%4$s, 'formateurs.nommer')::text, public.case_promo(%3$s, 'notes'), public.case_centre(%4$s, 'equipe'))$cgsq$,
+      v_pb, v_lb, v_pa, v_la)),
+    'OK true|true|true|2|true|false|false|0|0');
+  -- L'aperçu pendant le support (Review Focus 3).
+  perform pg_temp.groupe_apercu(true);
+  -- Fermeture, puis support échu : une ligne sur B ouverte il y a 2 heures, échue depuis une seconde (posée en propriétaire, sous le
+  -- marqueur que pose ouvrir_acces_support).
+  perform pg_temp.attendre('support', 'fermer_acces_support() par le fondateur',
+    pg_temp.clo_lire('fond_a', 'select ''fait'' from public.fermer_acces_support() f'), 'OK fait');
+  v := pg_temp.clo_ecrire(null, format($cgsq$with m as (select set_config('cloisonnement.journal_fondateur', 'oui', true) as x)
+      insert into public.acces_fondateur (email, organisme_id, ouvert_le, ferme_le, motif, ouvert_par)
+      select %L, %s, now() - interval '2 hours', now() - interval '1 second', 'Support échu de la preuve du noyau', 'preuve' from m$cgsq$,
+    (select email from pg_temp.clo_perso where nom = 'fond_a'), coalesce(v_b, 'null')));
+  perform set_config('cloisonnement.journal_fondateur', '', true);
+  perform pg_temp.attendre('support', 'ligne de support antidatée posée : échéance passée, aucun support ouvert',
+    v || ' ; ' || pg_temp.calcul(format($cgsq$select count(*) filter (where ferme_le > now())::text || '/' || count(*) filter (where motif = 'Support échu de la preuve du noyau' and ferme_le < now())::text
+      from public.acces_fondateur where email = %L and motif is not null$cgsq$, (select email from pg_temp.clo_perso where nom = 'fond_a'))),
+    'OK 1 ; 0/1');
+  perform pg_temp.attendre('support', 'après échéance : organisme actif, organisme courant et mon_organisme() sur ECF, sans échéance',
+    pg_temp.clo_lire('fond_a', 'select concat_ws(''|'', public.organisme_actif_fondateur(), public.organisme_courant(), (select concat_ws('':'', m.id, coalesce(m.support_jusqua::text, ''aucune'')) from public.mon_organisme() m))', true),
+    format('OK %s|%s|%s:aucune', v_a, v_a, v_a));
+  perform pg_temp.attendre('support', 'après échéance : mes_promos() = les promos d''ECF seulement',
+    pg_temp.clo_lire('fond_a', 'select string_agg(id::text, '','' order by id) from public.mes_promos()'), 'OK ' || v_promos_a);
+  perform pg_temp.attendre('support', 'après échéance, en-tête x-promo-id de la promo de B (session ouverte pendant le support) : promo_courante() = promo_par_defaut() d''ECF, sans erreur ; est_formateur(B) et est_siege_de(B) faux',
+    pg_temp.clo_jouer('fond_a', v_pb, null, format($cgsq$select concat_ws('|', (public.promo_courante() = public.promo_par_defaut())::text, public.organisme_de_promo(public.promo_courante()),
+        public.organisme_courant(), public.est_formateur(%1$s)::text, public.est_siege_de(%2$s)::text, public.est_siege_de(%3$s)::text)$cgsq$, v_pb, coalesce(v_b, 'null'), v_a)),
+    format('OK true|%s|%s|false|false|true', v_a, v_a));
+  perform pg_temp.attendre('support', 'après échéance : est_formateur, est_direction, peut_acceder_promo (ECF/B) vrais sur ECF seulement',
+    pg_temp.clo_lire('fond_a', format($cgsq$select concat_ws('|', public.est_formateur(%1$s)::text || '/' || public.est_formateur(%2$s)::text,
+        public.est_direction(%3$s)::text || '/' || public.est_direction(%4$s)::text,
+        public.peut_acceder_promo(%1$s)::text || '/' || public.peut_acceder_promo(%2$s)::text)$cgsq$, v_pa, v_pb, v_la, v_lb)),
+    'OK true/false|true/false|true/false');
+end $cgs$;
+
 do $clopreuve$
 declare
   v_mode constant text :=
@@ -500,6 +867,7 @@ declare
   v_av_regles text; v_av_fonctions text; v_av_droits text;
   v_ap_regles text; v_ap_fonctions text; v_ap_droits text;
   v_habillage text; v_fondateurs integer;
+  v_photo_avant text; v_photo_apres text;
 begin
   perform set_config('lock_timeout', '3s', true);
   v_en_ligne := v_mode like 'cloisonnement-en-ligne%';
@@ -535,6 +903,8 @@ begin
   );
   v_e1 := v_etat;
   perform pg_temp.etape('migration 1', v_etat, v_mode);
+  -- Photo du noyau avant l'étape 2a (ECF seul), comparée après toutes les migrations (groupe equivalence-ecf).
+  v_photo_avant := pg_temp.photo_noyau();
   v_etat := pg_temp.jouer('migration 2a',
 -- @@INJECTER supabase/migrations/20261128_cloisonnement_2a_noyau.sql@@
   );
@@ -556,8 +926,10 @@ begin
   v_sab := v_etat;
   perform pg_temp.etape('sabotage', v_etat, v_mode);
 
-  -- 3. Un seul organisme : fondations posées par la migration, remplissage sans B.
+  -- 3. Un seul organisme : fondations posées par la migration, noyau égal à l'ancien, remplissage sans B.
   perform pg_temp.groupe_fondations_existant(v_habillage, v_fondateurs);
+  v_photo_apres := pg_temp.photo_noyau();
+  perform pg_temp.groupe_equivalence_ecf(v_photo_avant, v_photo_apres, v_e2a);
   perform pg_temp.groupe_remplissage_seul();
 
   -- 4. L'organisme B et les personnages, puis les groupes qui les jouent.
@@ -565,6 +937,9 @@ begin
   perform pg_temp.informer('objets posés', (select string_agg(cle || '=' || coalesce(valeur, 'nul'), ', ' order by cle) from pg_temp.clo_obj));
   perform pg_temp.groupe_fondations_personnages();
   perform pg_temp.groupe_support_journal();
+  perform pg_temp.groupe_noyau();
+  perform pg_temp.groupe_apercu(false);
+  perform pg_temp.groupe_support();
   perform pg_temp.groupe_remplissage();
   perform pg_temp.groupe_fondations_final();
 

@@ -1792,6 +1792,7 @@ const depotCloSans = (absents) => (chemin) => (absents.includes(chemin) ? null :
 const ORDRE_CLO = [...NUMEROS_CLO.map((n) => ETAPES_CLOISONNEMENT[n].migration), ...SABOTAGE_CLO,
   ...[...NUMEROS_CLO].reverse().map((n) => ETAPES_CLOISONNEMENT[n].retour)];
 const ETAPE_2A_ECRITE = existsSync(join(RACINE, ETAPES_CLOISONNEMENT["2a"].migration));
+const ETAPE_2B_ECRITE = existsSync(join(RACINE, ETAPES_CLOISONNEMENT["2b"].migration));
 
 test("cloisonnement sans --etapes, dépôt réel : l'étape 1 injectée octet pour octet, les étapes absentes et le sabotage neutralisés", () => {
   const lus = [];
@@ -1807,6 +1808,10 @@ test("cloisonnement sans --etapes, dépôt réel : l'étape 1 injectée octet po
     assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ETAPES_CLOISONNEMENT["1"].migration, ETAPES_CLOISONNEMENT["1"].retour]);
     assert.equal(r.mode, "cloisonnement (etape 1 injectees)");
     assert.ok(r.texte.includes("\n'cloisonnement (etape 1 injectees)'\n"));
+  } else if (!ETAPE_2B_ECRITE) {
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ETAPES_CLOISONNEMENT["1"].migration, ETAPES_CLOISONNEMENT["2a"].migration,
+      ETAPES_CLOISONNEMENT["2a"].retour, ETAPES_CLOISONNEMENT["1"].retour]);
+    assert.equal(r.mode, "cloisonnement (etapes 1, 2a injectees)");
   }
 });
 
@@ -1991,4 +1996,43 @@ test("les fichiers de l'étape 1 du cloisonnement : aucun tiret cadratin, fins d
   assert.ok(r.indexOf("drop function public.ouvrir_acces_support") < r.indexOf("drop table public.acces_fondateur"), "la fonction qui rend une ligne du journal part avant la table");
   assert.ok(r.indexOf("drop table public.acces_fondateur") < r.indexOf("drop function public.est_siege_de"), "la règle part avec la table, avant est_siege_de");
   assert.ok(r.lastIndexOf("drop table public.organismes") > r.lastIndexOf("drop column organisme_id"), "organismes part en dernier");
+});
+
+test("les fichiers de l'étape 2a du cloisonnement : LF, sans tiret cadratin, lock_timeout, seulement les treize prédicats remplacés (security definer, chemin fixé, garde md5 de chacun), aucun droit ni règle touché, retour qui remet les mêmes", { skip: !ETAPE_2A_ECRITE }, () => {
+  const REMPLACEES = ["est_formateur(integer)", "est_direction(integer)", "est_siege()", "peut_acceder_promo(integer)", "promo_par_defaut()",
+    "promo_courante()", "case_promo(integer, text)", "case_centre(integer, text)", "case_reseau(text)", "siege_fixe()", "formateur_fixe(integer)",
+    "direction_fixe(integer)", "membre_stagiaire(integer)"];
+  const nomDe = (sig) => sig.slice(0, sig.indexOf("("));
+  const motif = (sig) => new RegExp(`\\('public\\.${sig.replace(/[()]/g, "\\$&")}', '[0-9a-f]{32}'\\)`);
+  for (const chemin of [ETAPES_CLOISONNEMENT["2a"].migration, ETAPES_CLOISONNEMENT["2a"].retour]) {
+    const brut = readFileSync(join(RACINE, chemin), "utf8");
+    assert.ok(!brut.includes(String.fromCharCode(0x2014)), `${chemin} : aucun tiret cadratin`);
+    assert.ok(!brut.includes("\r"), `${chemin} : fins de ligne LF (un retour chariot passerait dans le corps des fonctions)`);
+    assert.match(brut, /^set local lock_timeout = '3s';$/m, `${chemin} : lock_timeout`);
+    const code = brut.replace(/^--.*$/gm, "");
+    assert.ok(!/(create|alter|drop) policy|\bgrant\b|\brevoke\b|drop function|create function/i.test(code),
+      `${chemin} : aucune règle, aucun droit, aucune fonction créée ou retirée`);
+    assert.deepEqual([...brut.matchAll(/^create or replace function public\.(\w+)\(/gim)].map((x) => x[1]), REMPLACEES.map(nomDe),
+      `${chemin} : les treize, dans l'ordre`);
+    // La garde : un md5 pour chaque fonction remplacée, avant le premier remplacement.
+    const fin = brut.indexOf("end $garde$;");
+    assert.ok(brut.indexOf("do $garde$") >= 0 && fin > 0 && fin < brut.search(/^create or replace function/im), `${chemin} : garde avant les remplacements`);
+    const garde = brut.slice(brut.indexOf("do $garde$"), fin);
+    for (const sig of REMPLACEES) assert.match(garde, motif(sig), `${chemin} : md5 gardé pour ${sig}`);
+  }
+  const m = texteDuDepot(ETAPES_CLOISONNEMENT["2a"].migration);
+  for (const nom of REMPLACEES.map(nomDe)) {
+    const def = new RegExp(`^create or replace function public\\.${nom}\\([\\s\\S]*?^\\$function\\$;$`, "m").exec(m)[0];
+    assert.match(def, /^ stable security definer$/m, `${nom} : stable security definer`);
+    assert.match(def, /^ set search_path to 'public', 'pg_temp'$/m, `${nom} : chemin de recherche`);
+  }
+  // Les fonctions gardées telles quelles (leur sens suit les prédicats) : vérifiées par la garde, jamais réécrites.
+  for (const sig of ["mes_promos()", "geste_promo(integer, text)", "geste_centre(integer, text)", "geste_reseau(text)", "lieu_courant()"]) {
+    assert.match(m, motif(sig), `${sig} : md5 gardé`);
+  }
+  // Le retour remet les corps d'avant, tels que la base les rend (pg_get_functiondef), sans le vocabulaire de l'étape 1.
+  const r = texteDuDepot(ETAPES_CLOISONNEMENT["2a"].retour);
+  assert.equal((r.match(/^ STABLE SECURITY DEFINER$/gm) ?? []).length, 13);
+  assert.equal((r.match(/^ SET search_path TO 'public', 'pg_temp'$/gm) ?? []).length, 13);
+  assert.ok(!/fondateur_sur|organisme_/.test(r.slice(r.indexOf("end $garde$;"))), "le retour ne cite plus le vocabulaire de l'étape 1");
 });
