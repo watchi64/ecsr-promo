@@ -139,8 +139,12 @@ et de `stagiaires_prive` à 0 ligne), `multi-promo-preuve.sql` sans verdict (éc
 
 ### Empreinte des corps de fonctions
 
-`tests/sql/cloisonnement-empreinte-corps.sql` (lecture seule) rend `nom(signature)|md5` pour chaque fonction de l'inventaire du
-cloisonnement par organisme (spec 2026-11-27, § 5.2 et § 5.3) ; la sortie de départ est copiée dans son en-tête. Les gardes des
+`tests/sql/cloisonnement-empreinte-corps.sql` (lecture seule) rend `nom(signature)|md5` pour la liste nommée du cloisonnement par
+organisme (spec 2026-11-27, § 5.2 et § 5.3) plus toute fonction de `public` dont le corps appelle l'un des prédicats que le
+bornage remplacera (`fondateur_reel`, `est_fondateur`, `is_founder`, `peut_gerer_qualite`, `est_siege`, `case_reseau`,
+`geste_reseau`, `siege_fixe`, `est_formateur`, `est_direction`, `peut_acceder_promo`) et toutes les `effacer_*` et `_effacer_*` ;
+`regler_titres_ouverts` et les fonctions de `signalements_app` restent globales selon la spec mais sont listées pour leur md5. La
+sortie de départ (90 lignes) est copiée dans son en-tête. Les gardes des
 migrations du chantier y reprennent leurs md5 :
 `psql -h 127.0.0.1 -p 55447 -U postgres -d postgres -X -q -A -t -f tests/sql/cloisonnement-empreinte-corps.sql`.
 
