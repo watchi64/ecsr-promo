@@ -12,7 +12,8 @@
  *
  * Avant de rendre la main, quatre contrôles (le script s'arrête au premier rouge) :
  *   1. aucun fichier hors de la liste blanche (par construction, revérifié) ;
- *   2. tout ce que index.html et le manifeste citent est bien servi ;
+ *   2. tout ce que les pages HTML de la racine (index.html, demande.html, 404.html) et le
+ *      manifeste citent est bien servi ;
  *   3. tout import relatif d'un module JavaScript servi vise un fichier servi ;
  *   4. aucun motif de secret (clé secrète Supabase, jeton JWT, clé privée) dans un fichier servi.
  * Utilisé par .github/workflows/mise-en-ligne.yml. Tests : tests/deployer.test.mjs.
@@ -22,8 +23,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Ce que le navigateur reçoit : la page, son manifeste, la page d'erreur, la page d'installation, et quatre dossiers.
-export const FICHIERS_RACINE = ["index.html", "manifest.webmanifest", "404.html", "installer.html"];
+// Ce que le navigateur reçoit : la page, son manifeste, la page d'erreur, la page des liens
+// d'action des e-mails de l'espace contact (demande.html), la page d'installation, et quatre dossiers.
+export const FICHIERS_RACINE = ["index.html", "manifest.webmanifest", "404.html", "demande.html", "installer.html"];
 
 // Adresses courtes : copie d'une page sous un nom sans extension, écrite dans le dossier de sortie seulement (le bucket
 // ne sert pas « /installer » pour « installer.html » ; GitHub Pages le fait tout seul). Type posé à l'envoi
@@ -49,13 +51,15 @@ export function jetonIndex(html) {
   return m ? m[1] : null;
 }
 
-// Chemins locaux cités par index.html (src, href) et par le manifeste (icônes, start_url exclue).
+// Chemins locaux cités par une page HTML de la racine (src, href) et par le manifeste (icônes,
+// start_url exclue). Un lien vers la racine du site (« / », « ./ ») n'est pas un fichier.
 export function citationsIndex(html) {
   const out = [];
   for (const m of html.matchAll(/(?:src|href)\s*=\s*["']([^"'#]+)["']/g)) {
     const url = m[1].split("?")[0];
-    if (/^(https?:|data:|mailto:|tel:|\/\/)/.test(url) || url === "" || url === "./") continue;
-    out.push(url.replace(/^\.\//, ""));
+    if (/^(https?:|data:|mailto:|tel:|\/\/)/.test(url)) continue;
+    const local = url.replace(/^\.?\//, "");
+    if (local !== "") out.push(local);
   }
   return out;
 }
@@ -95,7 +99,7 @@ export function controler(racine, suivis) {
   for (const f of ["index.html", "manifest.webmanifest"]) if (!ensemble.has(f)) erreurs.push(`fichier indispensable absent : ${f}`);
   if (erreurs.length) return { servis, erreurs };
 
-  for (const page of FICHIERS_RACINE.filter((f) => f.endsWith(".html") && f !== "404.html" && ensemble.has(f))) {
+  for (const page of servis.filter((p) => !p.includes("/") && p.endsWith(".html"))) {
     for (const c of citationsIndex(lire(page))) if (!ensemble.has(c)) erreurs.push(`${page} cite ${c}, qui ne serait pas servi`);
   }
   for (const c of citationsManifeste(lire("manifest.webmanifest"))) if (!ensemble.has(c)) erreurs.push(`le manifeste cite ${c}, qui ne serait pas servi`);
