@@ -39,9 +39,35 @@
 --                    et journal_des_droits : rien de l'autre organisme ; apercu_titre() ignore un titre de B hors support.
 --   noms             (étape 2b, Review Focus 4) un centre et un titre réseau au nom d'un objet d'ECF créés par B : acceptés ;
 --                    les doublons (casse ignorée) dans un même organisme : refusés ; le nom d'un titre fixe reste réservé.
+--   personnel        (étape 2c, Review Focus 5, règles 2 et 3) inviter dans B le personnel d'ECF : refusé mot pour mot (« Cette adresse
+--                    ne peut pas être invitée ici. ») par inviter_compte (formateur, direction, siège), donner_titre et le déclencheur,
+--                    rien d'écrit ; un ancien stagiaire d'ECF invité dans B comme formateur : accepté (fiche profs d'ECF non reliée,
+--                    inviteur d'ECF remplacé) ; un ancien stagiaire d'ECF (fiche gardée) devenu siège ou formateur de B : sans en-tête,
+--                    organisme courant B, est_siege() vrai, mon_organisme() = B ; sous l'en-tête de sa promo d'ECF, rien du personnel
+--                    d'ECF ; aucun personnage ne lit un profil du personnel de l'autre organisme.
+--   annuaire         (étape 2c) partage d'une fiche avec un centre de l'autre organisme, fiche profs de l'autre organisme : refusés ;
+--                    le fondateur hors support ne partage pas une fiche de B ; annuaire_centre, ma_fiche_contact,
+--                    _contact_relais_possibles, _contact_fiche_dans : rien de l'autre organisme.
+--   planning         (étape 2c) fiches profs lues et écrites dans l'organisme (organisme_id d'un autre organisme écrit en clair refusé) ;
+--                    un même nom dans deux organismes, un doublon dans un organisme refusé ; règle 4 (ECF sans en-tête crée encore).
+--   contenus         (étape 2c) B lit cours et QCM publiés, n'écrit ni cours, ni question, ni option, ni image, ni thème, ni
+--                    compétence, ni QCM ; ECF (rédacteur) les écrit ; gestes des contenus et case_reseau(cours) ; Ressources : commune
+--                    (lue par tous, écrite par le rédacteur), d'ECF, de B ; règle 4.
+--   signalements     (étape 2c) un signalement de B lu et traité par l'équipe de B, jamais par le rédacteur d'ECF ; le fondateur
+--                    hors support ne le lit pas, en support oui ; instructions et brouillons de l'IA au rédacteur ; règle 4.
+--   qualite          (étape 2c, règle 1 : bornage complet) registre, ouvertures et résultats des questionnaires, etat_conservation,
+--                    etat_conservation_centre, effacer_*, autonomie_opposer, journal des effacements, conditions, profils : le
+--                    fondateur hors support ne lit ni ne modifie rien de B ; en support sur B, ceux de B ouverts, ceux d'ECF refusés.
+--   matrice          (étape 2c, § 5.6) chaque personnage des deux organismes (règle 3 comprise), chaque table de pg_tables (schéma
+--                    public) classée par une expression de l'organisme d'une ligne ou mise en exception justifiée (une table non
+--                    classée rougit), chaque fonction de lecture de l'inventaire : aucune ligne de l'autre organisme lue, aucune
+--                    modification ni suppression (sans RETURNING) d'une ligne de l'autre organisme.
 --   retour           les retours défont tout, dans l'ordre inverse (2c, 2b, 2a, 1) : l'empreinte (règles, fonctions, droits)
 --                    égale celle d'avant ; tables, colonnes, fonctions et déclencheurs du chantier disparus.
---                    Un retour joué trop tôt (retour 2a avec la 2b en place, retour 1 avec la 2a en place) est refusé par sa garde.
+--                    Un retour joué trop tôt (retour 2b avec la 2c en place, retour 2a avec la 2b en place, retour 1 avec la 2a en
+--                    place) est refusé par sa garde.
+--   sabotage         (mode cloisonnement-sabotage) une règle relâchée après la 2c (profs lisible par tous) : ROUGE attendu sur les
+--                    groupes planning et matrice seulement.
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides (tests/sql/roles-aides.sql,
 -- tests/sql/titres-aides.sql, tests/sql/cloisonnement-aides.sql), le libellé du mode, la requête d'empreinte, les migrations et
 -- leurs retours :
@@ -1165,6 +1191,863 @@ begin
     pg_temp.calcul('select count(*)::text from public.titres where lieu_id is null and not fixe and organisme_id is null'), '0');
 end $cgno$;
 
+-- Étape 2c : aides des groupes personnel, annuaire, planning, contenus, signalements, qualite et matrice.
+
+-- L'organisme d'une adresse du personnel, calculé par la preuve elle-même (sans les fonctions de l'étape 2c) : son affectation siège,
+-- sinon celui de ses affectations de direction et de formateur s'il n'y en a qu'un ; nul sinon (ou si les objets manquent).
+create or replace function pg_temp.clo_org_personnel(p_email text)
+returns integer language plpgsql as $cop$
+declare v integer;
+begin
+  select coalesce(
+    (select af.organisme_id from public.affectations af
+      where lower(af.email) = lower(p_email) and af.role = 'siege' and af.organisme_id is not null order by af.id limit 1),
+    (select min(x.o) from (select coalesce(public.organisme_de_lieu(af.lieu_id), public.organisme_de_promo(af.promo_id)) as o
+                             from public.affectations af
+                            where lower(af.email) = lower(p_email) and af.role in ('direction', 'formateur')) x
+      where x.o is not null having count(distinct x.o) = 1)) into v;
+  return v;
+exception when others then
+  return null;
+end $cop$;
+
+-- L'organisme d'un compte (spec § 5.2), calculé par la preuve : son personnel, sinon la promo de sa fiche de stagiaire la plus
+-- récente, sinon le personnel de qui l'a invité ; nul sinon.
+create or replace function pg_temp.clo_org_compte(p_email text)
+returns integer language plpgsql as $coc$
+declare v integer;
+begin
+  select coalesce(pg_temp.clo_org_personnel(p_email),
+    (select public.organisme_de_promo(s.promo_id) from public.user_profiles up join public.stagiaires s on s.id = up.stagiaire_id
+      where lower(up.email) = lower(p_email) order by s.id desc limit 1),
+    (select pg_temp.clo_org_personnel(up.invited_by_email) from public.user_profiles up
+      where lower(up.email) = lower(p_email) and up.invited_by_email is not null limit 1)) into v;
+  return v;
+exception when others then
+  return null;
+end $coc$;
+
+create or replace function pg_temp.clo_org_stagiaire(p_id bigint)
+returns integer language plpgsql as $cos$
+begin
+  return (select public.organisme_de_promo(s.promo_id) from public.stagiaires s where s.id = p_id);
+exception when others then
+  return null;
+end $cos$;
+
+create or replace function pg_temp.clo_org_demande(p_id bigint)
+returns integer language plpgsql as $cod2$
+begin
+  return (select coalesce(public.organisme_de_lieu(d.lieu_id), public.organisme_de_promo(d.promo_id)) from public.demandes d where d.id = p_id);
+exception when others then
+  return null;
+end $cod2$;
+
+-- L'organisme d'une cible du journal des effacements (« promo n », « stagiaire n », « lieu n[, année a] »).
+create or replace function pg_temp.clo_org_cible(p_cible text)
+returns integer language plpgsql as $coci$
+begin
+  if p_cible ~ '^promo [0-9]{1,9}$' then return public.organisme_de_promo(substr(p_cible, 7)::integer); end if;
+  if p_cible ~ '^stagiaire [0-9]{1,9}$' then return pg_temp.clo_org_stagiaire(substr(p_cible, 11)::bigint); end if;
+  if p_cible ~ '^lieu [0-9]{1,9}([^0-9]|$)' then return public.organisme_de_lieu(substring(p_cible from '^lieu ([0-9]{1,9})')::integer); end if;
+  return null;
+exception when others then
+  return null;
+end $coci$;
+
+-- L'organisme d'une entrée du registre qualité : son centre, sinon sa promo, sinon celui qu'elle porte (colonne de l'étape 2c, lue
+-- seulement si elle existe).
+create or replace function pg_temp.clo_org_registre(p_id bigint)
+returns integer language plpgsql as $cor$
+declare v integer;
+begin
+  begin
+    execute 'select coalesce(public.organisme_de_lieu(lieu_id), public.organisme_de_promo(promo_id), organisme_id) from public.registre_qualite where id = $1'
+      into v using p_id;
+  exception when undefined_column then
+    execute 'select coalesce(public.organisme_de_lieu(lieu_id), public.organisme_de_promo(promo_id)) from public.registre_qualite where id = $1'
+      into v using p_id;
+  end;
+  return v;
+exception when others then
+  return null;
+end $cor$;
+
+-- L'organisme d'une ligne du journal des effacements : sa cible, sinon celui qu'elle porte (colonne de l'étape 2c, si elle existe).
+create or replace function pg_temp.clo_org_effacement(p_id bigint)
+returns integer language plpgsql as $coe$
+declare v integer;
+begin
+  begin
+    execute 'select coalesce(pg_temp.clo_org_cible(cible), organisme_id) from public.effacements_journal where id = $1' into v using p_id;
+  exception when undefined_column then
+    execute 'select pg_temp.clo_org_cible(cible) from public.effacements_journal where id = $1' into v using p_id;
+  end;
+  return v;
+exception when others then
+  return null;
+end $coe$;
+
+-- L'organisme d'une fiche d'annuaire : son centre, sinon son compte.
+create or replace function pg_temp.clo_org_contact(p_id bigint)
+returns integer language plpgsql as $coct$
+begin
+  return (select coalesce(public.organisme_de_lieu(c.lieu_id), pg_temp.clo_org_compte(c.compte_email)) from public.contacts c where c.id = p_id);
+exception when others then
+  return null;
+end $coct$;
+
+-- Une écriture jouée par un personnage (jeton, en-tête de sa promo), toujours annulée (sous-transaction défaite) : « OK <lignes> » ou
+-- « ERREUR <état> <message> ». Sert aux écritures de la matrice : une écriture qui passerait ne change rien à la suite.
+create or replace function pg_temp.clo_ecrire_annule(p_nom text, p_sql text)
+returns text language plpgsql as $cea$
+declare n bigint; r text; v_email text; v_promo text;
+begin
+  select p.email, p.promo into v_email, v_promo from pg_temp.clo_perso p where p.nom = p_nom;
+  begin
+    perform pg_temp.incarner(v_email, v_promo, null);
+    execute p_sql;
+    get diagnostics n = row_count;
+    raise exception using errcode = 'P0001', message = 'clo annulé ' || n;
+  exception when others then
+    r := case when sqlstate = 'P0001' and sqlerrm like 'clo annulé %' then 'OK ' || substr(sqlerrm, 12)
+              else 'ERREUR ' || sqlstate || ' ' || sqlerrm end;
+  end;
+  perform pg_temp.proprio();
+  return r;
+end $cea$;
+
+-- Un personnage de plus (les groupes de l'étape 2c en ajoutent : anciens stagiaires d'ECF devenus personnel de B, personnages d'ECF
+-- sans en-tête).
+create or replace function pg_temp.clo_ajouter_perso(p_nom text, p_email text, p_org text, p_promo text, p_role text)
+returns void language sql as $cap$
+  insert into pg_temp.clo_perso (nom, email, org, promo, role) values (p_nom, p_email, p_org, p_promo, p_role)
+  on conflict (nom) do update set email = excluded.email, org = excluded.org, promo = excluded.promo, role = excluded.role;
+$cap$;
+
+-- Les lignes d'une table d'un organisme, vues par un personnage sous un en-tête x-promo-id choisi (nul : sans en-tête) : « n » (nombre
+-- de lignes lues dont l'organisme est p_org, selon l'expression de la matrice), ou « ERREUR ... ». Une lecture refusée (42501) compte 0.
+-- p_sauf : condition (alias t) des lignes qui ne comptent pas (la promo de stagiaire d'un ancien stagiaire de l'autre organisme).
+create or replace function pg_temp.clo_compter_entete(p_nom text, p_entete text, p_table text, p_org text, p_sauf text default null)
+returns text language plpgsql as $ccp$
+declare v text; v_expr text; n bigint;
+begin
+  select e.expr into v_expr from pg_temp.clo_mat_tables e where e.tbl = p_table;
+  v := pg_temp.clo_lire_entete(p_nom, p_entete, format('select coalesce(array_agg(t.ctid::text), ''{}'')::text from public.%I t', p_table));
+  if v like 'ERREUR 42501%' then return '0'; end if;
+  if v not like 'OK %' then return v; end if;
+  begin
+    execute format('select count(*) from public.%I t where t.ctid = any (%L::tid[]) and (%s) = %s and not coalesce(%s, false)',
+      p_table, substr(v, 4), v_expr, coalesce(p_org, 'null'), coalesce(p_sauf, 'false')) into n;
+  exception when others then
+    return 'incalculable (' || sqlstate || ')';
+  end;
+  return n::text;
+end $ccp$;
+
+-- La même, sous l'en-tête de la promo du personnage (clo_perso.promo).
+create or replace function pg_temp.clo_compter(p_nom text, p_table text, p_org text, p_sauf text default null)
+returns text language sql as $ccq$
+  select pg_temp.clo_compter_entete(p_nom, (select p.promo from pg_temp.clo_perso p where p.nom = p_nom), p_table, p_org, p_sauf);
+$ccq$;
+
+-- Une lecture jouée par un personnage (jeton, rôle authenticated) sous un en-tête x-promo-id choisi (nul : sans en-tête).
+create or replace function pg_temp.clo_lire_entete(p_nom text, p_entete text, p_sql text)
+returns text language plpgsql as $cle$
+declare v text; r text;
+begin
+  perform pg_temp.incarner((select p.email from pg_temp.clo_perso p where p.nom = p_nom), p_entete, null);
+  begin
+    execute p_sql into v;
+    r := rtrim('OK ' || coalesce(v, 'nul'));
+  exception when others then
+    r := 'ERREUR ' || sqlstate || ' ' || sqlerrm;
+  end;
+  perform pg_temp.proprio();
+  return r;
+end $cle$;
+
+-- Le classement des tables de public pour la matrice : l'expression de l'organisme d'une ligne (alias t), ou une exception justifiée.
+-- Une table de public absente des deux listes fait rougir la preuve (groupe matrice).
+create or replace function pg_temp.clo_mat_classement()
+returns void language plpgsql as $cmc$
+begin
+  drop table if exists pg_temp.clo_mat_tables;
+  create temp table clo_mat_tables (tbl text primary key, expr text not null);
+  insert into pg_temp.clo_mat_tables values
+    ('absences_annoncees', 'public.organisme_de_promo(t.promo_id)'),
+    ('affectations', 'coalesce(t.organisme_id, public.organisme_de_lieu(t.lieu_id), public.organisme_de_promo(t.promo_id))'),
+    ('agenda_events', 'public.organisme_de_promo(t.promo_id)'),
+    ('auto_ecoles', 'public.organisme_de_lieu(t.lieu_id)'),
+    ('autonomie_oppositions', 'pg_temp.clo_org_stagiaire(t.stagiaire_id)'),
+    ('autonomie_temps', 'public.organisme_de_promo(t.promo_id)'),
+    ('benevole_suivi', 'public.organisme_de_lieu(t.lieu_id)'),
+    ('benevoles', 'public.organisme_de_lieu(t.lieu_id)'),
+    ('conditions_acceptations', 'pg_temp.clo_org_compte(t.email)'),
+    ('contact_envois', 'pg_temp.clo_org_demande(t.demande_id)'),
+    ('contact_financements', 'public.organisme_de_lieu(t.lieu_id)'),
+    ('contact_jetons', 'pg_temp.clo_org_demande(t.demande_id)'),
+    ('contact_regles', 'public.organisme_de_lieu(t.lieu_id)'),
+    ('contact_reponses', 'public.organisme_de_lieu(t.lieu_id)'),
+    ('contacts', 'coalesce(public.organisme_de_lieu(t.lieu_id), pg_temp.clo_org_compte(t.compte_email))'),
+    ('cours_lectures', 'public.organisme_de_promo(t.promo_id)'),
+    ('demande_destinataires', 'pg_temp.clo_org_demande(t.demande_id)'),
+    ('demande_messages', 'pg_temp.clo_org_demande(t.demande_id)'),
+    ('demandes', 'coalesce(public.organisme_de_lieu(t.lieu_id), public.organisme_de_promo(t.promo_id))'),
+    ('dp_dossiers', 'public.organisme_de_promo(t.promo_id)'),
+    ('effacements_journal', 'pg_temp.clo_org_effacement(t.id)'),
+    ('emargement_formateurs', 'public.organisme_de_promo(t.promo_id)'),
+    ('emargement_lignes', 'public.organisme_de_promo(t.promo_id)'),
+    ('emargement_seances', 'public.organisme_de_promo(t.promo_id)'),
+    ('epcf_evaluations', 'public.organisme_de_promo(t.promo_id)'),
+    ('epcf_livrets', 'public.organisme_de_promo(t.promo_id)'),
+    ('evaluations', 'public.organisme_de_promo(t.promo_id)'),
+    ('evaluations_audit', 'public.organisme_de_promo(t.promo_id)'),
+    ('journal_droits', 't.organisme_id'),
+    ('jury_resultats', 'public.organisme_de_promo(t.promo_id)'),
+    ('lieux', 't.organisme_id'),
+    ('organismes', 't.id'),
+    ('passages', 'public.organisme_de_promo(t.promo_id)'),
+    ('passages_audit', 'public.organisme_de_promo(t.promo_id)'),
+    ('planning_entries', 'public.organisme_de_promo(t.promo_id)'),
+    ('planning_half_meta', 'public.organisme_de_promo(t.promo_id)'),
+    ('planning_jours_off', 'public.organisme_de_promo(t.promo_id)'),
+    ('profs', 't.organisme_id'),
+    ('promos', 'public.organisme_de_promo(t.id)'),
+    ('qcm_attempts', 'public.organisme_de_promo(t.promo_id)'),
+    ('qcm_examens', 'public.organisme_de_promo(t.promo_id)'),
+    ('qcm_signalements', 't.organisme_id'),
+    ('questionnaire_clotures', 'public.organisme_de_lieu(t.lieu_id)'),
+    ('questionnaire_ouvertures', 'coalesce(public.organisme_de_lieu(t.lieu_id), public.organisme_de_promo(t.promo_id))'),
+    ('questionnaire_participations', 'coalesce(public.organisme_de_lieu(t.lieu_id), public.organisme_de_promo(t.promo_id))'),
+    ('questionnaire_reponses', 'coalesce(public.organisme_de_lieu(t.lieu_id), public.organisme_de_promo(t.promo_id))'),
+    ('questionnaire_resultats_figes', 'coalesce(public.organisme_de_lieu(t.lieu_id), public.organisme_de_promo(t.promo_id))'),
+    ('registre_qualite', 'pg_temp.clo_org_registre(t.id)'),
+    ('ressources', 't.organisme_id'),
+    ('settings', 'public.organisme_de_promo(t.promo_id)'),
+    ('stagiaires', 'public.organisme_de_promo(t.promo_id)'),
+    ('stagiaires_prive', 'pg_temp.clo_org_stagiaire(t.stagiaire_id)'),
+    ('themes_progression', 'public.organisme_de_promo(t.promo_id)'),
+    ('titres', 'coalesce(t.organisme_id, public.organisme_de_lieu(t.lieu_id))'),
+    ('user_profiles', 'pg_temp.clo_org_compte(t.email)');
+  drop table if exists pg_temp.clo_mat_exceptions;
+  create temp table clo_mat_exceptions (tbl text primary key, raison text not null);
+  insert into pg_temp.clo_mat_exceptions values
+    ('acces_fondateur', 'journal du fondateur : lu par lui (spec § 5.1) et par le siège de l''organisme de la ligne (groupe support-journal)'),
+    ('chatbot_usage', 'compteur de l''assistant, lu par son seul titulaire (user_id = auth.uid()) : aucune donnée d''organisme'),
+    ('qcm_ia_usage', 'compteur de l''IA des QCM, lu par son seul titulaire (user_id = auth.uid()) : aucune donnée d''organisme'),
+    ('competences', 'contenu commun (spec § 2) : lu par tous, écrit par le rédacteur (groupe contenus)'),
+    ('cours', 'contenu commun : publié lu par tous, écrit par le rédacteur et le fondateur (groupe contenus)'),
+    ('cours_versions', 'contenu commun : versions des cours, lues et écrites par le rédacteur et le fondateur (groupe contenus)'),
+    ('cours_chunks', 'contenu commun : morceaux des cours pour l''assistant, aucune règle (service seulement)'),
+    ('qcm', 'contenu commun : lu par tous, écrit par le rédacteur (groupe contenus)'),
+    ('qcm_questions', 'contenu commun : lu par tous, écrit par le rédacteur (groupe contenus)'),
+    ('qcm_options', 'contenu commun : lu par tous, écrit par le rédacteur (groupe contenus)'),
+    ('themes', 'contenu commun : lu par tous, écrit par le rédacteur (groupe contenus)'),
+    ('qcm_ia_brouillons', 'contenu commun réservé au rédacteur (spec § 5.7 ; groupe signalements) : brouillons de questions, sans personne'),
+    ('qcm_signalement_instruction', 'contenu commun réservé au rédacteur (spec § 5.7 ; groupe signalements) : verdict sur la question, sans personne'),
+    ('questionnaire_questions', 'questions des questionnaires Qualiopi, communes à la plateforme : aucune réponse, aucune promo'),
+    ('signalements_app', '« Signaler un problème » : adressé au fondateur par nature, seule exception globale (spec § 2)'),
+    ('signalements_app_captures', 'captures des « Signaler un problème » : même exception que signalements_app');
+end $cmc$;
+
+-- Groupe personnel (étape 2c, Review Focus 5) : un membre du personnel appartient à un seul organisme ; un ancien stagiaire d'ECF peut
+-- devenir le personnel de B ; personne ne lit le personnel de l'autre organisme.
+create or replace function pg_temp.groupe_personnel()
+returns void language plpgsql as $cgpe$
+declare
+  v_a text := pg_temp.clo_n('org_a'); v_b text := pg_temp.clo_n('org_b');
+  v_pa text := pg_temp.clo_n('promo_a'); v_pb text := pg_temp.clo_n('promo_b');
+  v_la text := pg_temp.clo_n('lieu_a'); v_lb text := pg_temp.clo_n('lieu_b');
+  v_tb text := pg_temp.clo_n('titre_b');
+  v_prof_a text; v_dir_b text := (select email from pg_temp.clo_perso where nom = 'dir_b'); v_form_a text := (select email from pg_temp.clo_perso where nom = 'form_a');
+  v_s1 integer; v_s2 integer; r record; v text;
+  c_refus constant text := 'ERREUR 23514 Cette adresse ne peut pas être invitée ici.';
+begin
+  v_prof_a := pg_temp.calcul(format($q$select min(pf.id)::text from public.profs pf where pf.organisme_id = %s
+      and not exists (select 1 from public.user_profiles u where u.prof_id = pf.id)$q$, v_a));
+  -- Inviter dans B une adresse du personnel d'ECF : refusé, par chaque chemin, avant toute écriture.
+  perform pg_temp.attendre('personnel', 'la direction de B invite le formateur d''ECF comme formateur de sa promo : refus mot pour mot, rien d''écrit (affectations de l''adresse, profil)',
+    pg_temp.clo_lire('dir_b', format('select public.inviter_compte(%L, ''formateur'')::text', v_form_a))
+      || ' ; ' || pg_temp.calcul(format('select count(*)::text || ''/'' || (select concat_ws('':'', role, is_admin, coalesce(prof_id::text, ''nul''), coalesce(invited_by_email, ''nul'')) from public.user_profiles where email = %L) from public.affectations where lower(email) = %L', v_form_a, v_form_a)),
+    c_refus || ' ; 1/prof:t:nul:nul');
+  perform pg_temp.attendre('personnel', 'le siège de B invite la direction d''ECF à la direction d''un centre de B : refus mot pour mot, rien d''écrit',
+    pg_temp.clo_lire('siege_b', format('select public.inviter_compte(%L, ''direction'', null, null, %s)::text', (select email from pg_temp.clo_perso where nom = 'dir_a'), v_lb))
+      || ' ; ' || pg_temp.calcul(format('select count(*)::text from public.affectations where lower(email) = %L and lieu_id = %s', (select email from pg_temp.clo_perso where nom = 'dir_a'), v_lb)),
+    c_refus || ' ; 0');
+  perform pg_temp.attendre('personnel', 'le fondateur en support sur B invite le siège d''ECF comme siège de B : refus mot pour mot, rien d''écrit',
+    left(pg_temp.clo_lire('fond_a', format($q$select (public.ouvrir_acces_support(%s, 'Support de la preuve du personnel', '1 hour')).organisme_id::text$q$, v_b)), 3)
+      || pg_temp.clo_lire('fond_a', format('select public.inviter_compte(%L, ''siege'')::text', (select email from pg_temp.clo_perso where nom = 'siege_a')))
+      || ' ; ' || pg_temp.calcul(format('select count(*)::text from public.affectations where lower(email) = %L and organisme_id = %s', (select email from pg_temp.clo_perso where nom = 'siege_a'), v_b))
+      || ' ; ' || pg_temp.clo_lire('fond_a', 'select ''fermé'' from public.fermer_acces_support() f'),
+    'OK ' || c_refus || ' ; 0 ; OK fermé');
+  perform pg_temp.attendre('personnel', 'le siège de B donne son titre réseau au siège d''ECF : refus mot pour mot (hier : succès sans écriture), rien d''écrit',
+    pg_temp.clo_lire('siege_b', format('select public.donner_titre(%L, %s, null, null, null)::text', (select email from pg_temp.clo_perso where nom = 'siege_a'), v_tb))
+      || ' ; ' || pg_temp.calcul(format('select count(*)::text from public.affectations where lower(email) = %L and organisme_id = %s', (select email from pg_temp.clo_perso where nom = 'siege_a'), v_b)),
+    c_refus || ' ; 0');
+  perform pg_temp.attendre('personnel', 'déclencheur : une affectation de formateur sur la promo de B pour le formateur d''ECF, écrite en propriétaire, est refusée mot pour mot (23514)',
+    pg_temp.clo_ecrire(null, format('insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', %s)', v_form_a, v_pb)),
+    c_refus);
+  insert into public.user_profiles (email, role, is_admin) values ('preuve.clo.defense@exemple.invalid', 'prof', false);
+  perform pg_temp.attendre('personnel', '_affectations_titre (défense) : une affectation siège sur ECF portant le titre réseau de B est refusée (23514)',
+    pg_temp.clo_ecrire(null, format('insert into public.affectations (email, role, organisme_id, titre_id) values (''preuve.clo.defense@exemple.invalid'', ''siege'', %s, %s)', v_a, v_tb)),
+    'ERREUR 23514 titres: Ce titre appartient à un autre organisme.');
+
+  -- Un ancien stagiaire d'ECF (compte sans fiche, invité par le formateur d'ECF) invité dans B comme formateur : accepté. La fiche
+  -- profs d'ECF proposée n'est pas reliée ; l'adresse de qui l'avait invité dans ECF est remplacée par celle de la direction de B.
+  insert into public.user_profiles (email, role, is_admin, invited_by_email) values ('preuve.clo.ancien.a@exemple.invalid', 'stagiaire', false, v_form_a);
+  v := pg_temp.clo_lire('dir_b', format('select (public.inviter_compte(''preuve.clo.ancien.a@exemple.invalid'', ''formateur'', null, %s)) ->> ''transforme''', coalesce(v_prof_a, 'null')));
+  perform pg_temp.attendre('personnel', 'la direction de B invite comme formateur un ancien stagiaire d''ECF (sans fiche) : accepté, le compte devient du personnel de B (affectation sur la promo de B)',
+    v || ' ; ' || pg_temp.calcul(format($q$select string_agg(promo_id::text, ',') from public.affectations where email = 'preuve.clo.ancien.a@exemple.invalid'$q$)),
+    'OK true ; ' || v_pb);
+  perform pg_temp.attendre('personnel', 'cet ancien stagiaire : profil formateur, la fiche profs d''ECF proposée non reliée (elle reste libre), inviteur = la direction de B',
+    pg_temp.calcul(format($q$select concat_ws('|', role, is_admin, coalesce(prof_id::text, 'nul'), invited_by_email = %L,
+        (select count(*) from public.user_profiles u where u.prof_id = %s)) from public.user_profiles where email = 'preuve.clo.ancien.a@exemple.invalid'$q$, v_dir_b, coalesce(v_prof_a, 'null'))),
+    'prof|t|nul|t|0');
+  perform pg_temp.clo_ajouter_perso('ex_form_b', 'preuve.clo.ancien.a@exemple.invalid', 'B', v_pb, 'formateur');
+
+  -- Règle 3 du contrôleur : un ancien stagiaire d'ECF (sa fiche reste dans la promo d'ECF) devenu siège de B, puis un autre devenu
+  -- formateur de B (affectations posées en propriétaire, la fiche de stagiaire ne compte pas pour le personnel).
+  insert into public.stagiaires (prenom, nom, ordre, promo_id) values ('Preuve clo ex siège', 'PREUVE', 992, 1) returning id into v_s1;
+  insert into public.stagiaires (prenom, nom, ordre, promo_id) values ('Preuve clo ex formateur', 'PREUVE', 993, 1) returning id into v_s2;
+  insert into public.user_profiles (email, role, is_admin, stagiaire_id) values
+    ('preuve.clo.ex.siege.b@exemple.invalid', 'stagiaire', false, v_s1), ('preuve.clo.ex.form.b@exemple.invalid', 'stagiaire', false, v_s2);
+  perform pg_temp.attendre('personnel', 'un ancien stagiaire d''ECF (fiche dans la promo d''ECF) devient siège de B, puis un autre formateur de B : acceptés (la fiche de stagiaire n''est pas une affectation)',
+    pg_temp.clo_ecrire(null, format($q$insert into public.affectations (email, role, organisme_id) values ('preuve.clo.ex.siege.b@exemple.invalid', 'siege', %s)$q$, v_b))
+      || ' ; ' || pg_temp.clo_ecrire(null, format($q$insert into public.affectations (email, role, promo_id) values ('preuve.clo.ex.form.b@exemple.invalid', 'formateur', %s)$q$, v_pb)),
+    'OK 1 ; OK 1');
+  perform pg_temp.clo_ajouter_perso('ex_siege_b', 'preuve.clo.ex.siege.b@exemple.invalid', 'B', null, 'siege');
+  perform pg_temp.clo_ajouter_perso('ex_form_b2', 'preuve.clo.ex.form.b@exemple.invalid', 'B', null, 'formateur');
+  perform pg_temp.attendre('personnel', 'règle 3 : l''ancien stagiaire d''ECF devenu siège de B, sans en-tête : organisme courant B, est_siege() vrai, mon_organisme() = B, aucune promo, est_siege_de(ECF) faux',
+    pg_temp.clo_lire('ex_siege_b', format($q$select concat_ws('|', public.organisme_courant(), public.est_siege(), (select m.id from public.mon_organisme() m),
+        coalesce(public.promo_courante()::text, 'nul'), public.est_siege_de(%s))$q$, v_a), true),
+    format('OK %s|t|%s|nul|f', v_b, v_b));
+  perform pg_temp.attendre('personnel', 'règle 3 : l''ancien stagiaire d''ECF devenu formateur de B, sans en-tête : organisme courant B, promo courante et promo par défaut = la promo de B, mon_organisme() = B',
+    pg_temp.clo_lire('ex_form_b2', 'select concat_ws(''|'', public.organisme_courant(), public.promo_courante(), public.promo_par_defaut(), (select m.id from public.mon_organisme() m))', true),
+    format('OK %s|%s|%s|%s', v_b, v_pb, v_pb, v_b));
+  -- Sous l'en-tête de sa propre promo de stagiaire d'ECF : ses données de stagiaire seulement, rien du personnel d'ECF.
+  for r in select * from (values ('ex_siege_b', v_s1), ('ex_form_b2', v_s2)) x(nom, fiche) loop
+    perform pg_temp.attendre('personnel', format('règle 3 : %s sous l''en-tête de sa promo de stagiaire d''ECF : sa fiche (my_stagiaire_id), organisme courant ECF, aucun geste ni aucune case de personnel sur ECF', r.nom),
+      pg_temp.clo_jouer(r.nom, v_pa, null, format($q$select concat_ws('|', public.my_stagiaire_id(), public.organisme_courant(), public.est_siege(), public.est_formateur(%1$s),
+          public.geste_promo(%1$s, 'stagiaires.lire'), public.geste_promo(%1$s, 'notes.lire'), public.geste_promo(%1$s, 'planning.modifier'), public.case_promo(%1$s, 'notes'),
+          public.case_reseau('directions'), public.geste_reseau('directions.lire'))$q$, v_pa)),
+      format('OK %s|%s|f|f|f|f|f|0|0|f', r.fiche, v_a));
+    perform pg_temp.attendre('personnel', format('règle 3 : %s sous l''en-tête de sa promo de stagiaire d''ECF : 0 profil, 0 affectation, 0 fiche profs du personnel d''ECF hors de ce qu''un stagiaire lit', r.nom),
+      pg_temp.clo_compter_entete(r.nom, v_pa, 'user_profiles', v_a) || '/' || pg_temp.clo_compter_entete(r.nom, v_pa, 'affectations', v_a)
+        || '/' || pg_temp.clo_lire_entete(r.nom, v_pa, format('select count(*)::text from public.user_profiles u where u.stagiaire_id is not null and u.stagiaire_id <> %s', r.fiche)),
+      '0/0/OK 0');
+  end loop;
+
+  -- Personne ne lit un profil du personnel de l'autre organisme ; chacun lit celui du sien.
+  for r in select p.nom, case p.org when 'A' then v_b else v_a end as ailleurs, case p.org when 'A' then v_a else v_b end as chez
+             from pg_temp.clo_perso p where p.nom in ('siege_a', 'dir_a', 'form_a', 'stag_a', 'fond_a', 'siege_b', 'dir_b', 'form_b', 'stag_b1', 'ex_form_b', 'ex_siege_b', 'ex_form_b2') loop
+    v := pg_temp.clo_lire(r.nom, 'select coalesce(array_agg(email), ''{}'')::text from public.user_profiles where stagiaire_id is null');
+    perform pg_temp.attendre('personnel', format('%s : 0 profil du personnel de l''autre organisme lu', r.nom),
+      case when v like 'OK %' then pg_temp.calcul(format('select count(*)::text from unnest(%L::text[]) e where pg_temp.clo_org_compte(e) = %s', substr(v, 4), r.ailleurs)) else v end, '0');
+  end loop;
+  perform pg_temp.attendre('personnel', 'la direction de B lit le profil du formateur de B, celle d''ECF celui du formateur d''ECF (dir_b / dir_a)',
+    pg_temp.clo_lire('dir_b', format('select count(*)::text from public.user_profiles where email = %L', (select email from pg_temp.clo_perso where nom = 'form_b')))
+      || ' / ' || pg_temp.clo_lire('dir_a', format('select count(*)::text from public.user_profiles where email = %L', v_form_a)),
+    'OK 1 / OK 1');
+end $cgpe$;
+
+-- Groupe annuaire (étape 2c) : partage, relais et fiches de l'annuaire limités aux centres de l'organisme ; le fondateur, sur
+-- l'organisme de la fiche seulement.
+create or replace function pg_temp.groupe_annuaire()
+returns void language plpgsql as $cgan$
+declare
+  v_a text := pg_temp.clo_n('org_a'); v_b text := pg_temp.clo_n('org_b');
+  v_la text := pg_temp.clo_n('lieu_a'); v_lb text := pg_temp.clo_n('lieu_b');
+  v_lb2 text; v_fiche text; v_prof_a text; v text; r record;
+  v_dir_b text := (select email from pg_temp.clo_perso where nom = 'dir_b');
+  c_relais constant text := $q$select coalesce((select array_agg((r ->> 'id')::bigint) from jsonb_array_elements(f -> 'relais_possibles') r), '{}')::text from public.ma_fiche_contact() f$q$;
+begin
+  -- Un second centre de B, et une fiche sans compte de B (propriétaire, sans jeton : aucun contrôle de droit).
+  v_lb2 := pg_temp.calcul(format($q$insert into public.lieux (nom, organisme_id) values ('Preuve clo annuaire B2', %s) returning id::text$q$, v_b));
+  v_fiche := pg_temp.calcul(format($q$insert into public.contacts (prenom, nom, role, lieu_id) values ('Preuve', 'clo fiche B', 'Secrétariat', %s) returning id::text$q$, v_lb));
+  v_prof_a := pg_temp.calcul(format('select min(pf.id)::text from public.profs pf where pf.organisme_id = %s', v_a));
+  perform pg_temp.attendre('annuaire', 'la direction de B partage une fiche de son centre avec un centre d''ECF : refusé (« Centre inconnu. »)',
+    pg_temp.clo_ecrire('dir_b', format($q$insert into public.contacts (prenom, nom, role, lieu_id, lieux_partages) values ('Preuve', 'clo partage', 'Secrétariat', %s, array[%s])$q$, v_lb, v_la)),
+    'ERREUR P0001 contact: Centre inconnu.');
+  perform pg_temp.attendre('annuaire', 'la direction de B relie une fiche à une fiche profs d''ECF : refusé (absente du planning de ce centre)',
+    pg_temp.clo_ecrire('dir_b', format($q$insert into public.contacts (prenom, nom, role, lieu_id, prof_id) values ('Preuve', 'clo prof ECF', 'Formateur', %s, %s)$q$, v_lb, coalesce(v_prof_a, 'null'))),
+    'ERREUR 42501 contact: Ce formateur ne figure pas au planning de ce centre.');
+  -- Le fondateur (propriétaire avec son jeton : le déclencheur juge le jeton) : hors support, une fiche de B n'est pas la sienne.
+  perform pg_temp.attendre('annuaire', 'fondateur hors support : partager une fiche de B avec un autre centre de B est refusé (le contournement du fondateur ne vaut que sur son organisme actif)',
+    pg_temp.clo_ecrire('fond_a', format('update public.contacts set lieux_partages = array[%s] where id = %s', coalesce(v_lb2, 'null'), coalesce(v_fiche, 'null')), true),
+    'ERREUR 42501 contact: Vous ne pouvez partager une fiche qu''avec un centre où vous écrivez les fiches.');
+  perform pg_temp.attendre('annuaire', 'fondateur hors support : partager une fiche de B avec un centre d''ECF est refusé (« Centre inconnu. »)',
+    pg_temp.clo_ecrire('fond_a', format('update public.contacts set lieux_partages = array[%s] where id = %s', v_la, coalesce(v_fiche, 'null')), true),
+    'ERREUR P0001 contact: Centre inconnu.');
+  perform pg_temp.attendre('annuaire', 'fondateur en support sur B : partager la fiche de B avec l''autre centre de B est accepté',
+    left(pg_temp.clo_lire('fond_a', format($q$select (public.ouvrir_acces_support(%s, 'Support de la preuve de l''annuaire', '1 hour')).organisme_id::text$q$, v_b)), 3)
+      || pg_temp.clo_ecrire('fond_a', format('update public.contacts set lieux_partages = array[%s] where id = %s', coalesce(v_lb2, 'null'), coalesce(v_fiche, 'null')), true)
+      || ' ; ' || pg_temp.clo_lire('fond_a', 'select ''fermé'' from public.fermer_acces_support() f'),
+    'OK OK 1 ; OK fermé');
+  -- _contact_fiche_dans : une fiche de B dont la liste de partage porterait un centre d'ECF (donnée forgée) n'y paraît pas.
+  perform pg_temp.attendre('annuaire', '_contact_fiche_dans : une fiche de B dont le partage citerait un centre d''ECF ne paraît pas dans ce centre ; elle paraît dans le sien',
+    pg_temp.calcul(format($q$select public._contact_fiche_dans(jsonb_populate_record(c, jsonb_build_object('lieux_partages', jsonb_build_array(%1$s))), %1$s)::text
+        || '/' || public._contact_fiche_dans(c, %2$s)::text from public.contacts c where c.id = %3$s$q$, v_la, v_lb, coalesce(v_fiche, 'null'))),
+    'false/true');
+  -- annuaire_centre : aucune fiche de l'autre organisme ; chacun voit les siennes.
+  for r in select * from (values ('dir_a', v_b), ('form_a', v_b), ('dir_b', v_a), ('form_b', v_a), ('ex_form_b', v_a)) x(nom, ailleurs) loop
+    v := pg_temp.clo_lire(r.nom, 'select coalesce(array_agg(a.id), ''{}'')::text from public.annuaire_centre() a');
+    perform pg_temp.attendre('annuaire', format('%s : annuaire_centre() ne rend aucune fiche de l''autre organisme', r.nom),
+      case when v like 'OK %' then pg_temp.calcul(format('select count(*)::text from unnest(%L::bigint[]) x where pg_temp.clo_org_contact(x) = %s', substr(v, 4), r.ailleurs)) else v end, '0');
+  end loop;
+  perform pg_temp.attendre('annuaire', 'la direction de B voit dans annuaire_centre() la fiche sans compte de son centre et la sienne',
+    pg_temp.clo_lire('dir_b', format('select count(*)::text from public.annuaire_centre() a where a.id in (%s, %s)', coalesce(v_fiche, 'null'), pg_temp.clo_n('fiche_b'))),
+    'OK 2');
+  -- ma_fiche_contact et _contact_relais_possibles : les centres et les relais de son organisme seulement.
+  perform pg_temp.attendre('annuaire', 'ma_fiche_contact() de la direction de B : ses centres = son centre de B exactement',
+    pg_temp.clo_lire('dir_b', $q$select coalesce((select string_agg(c ->> 'id', ',') from jsonb_array_elements(f -> 'centres') c), 'aucun') from public.ma_fiche_contact() f$q$),
+    'OK ' || v_lb);
+  v := pg_temp.clo_lire('dir_b', c_relais);
+  perform pg_temp.attendre('annuaire', 'ma_fiche_contact() de la direction de B : aucun relais proposé n''est une fiche d''ECF',
+    case when v like 'OK %' then pg_temp.calcul(format('select count(*)::text from unnest(%L::bigint[]) x where pg_temp.clo_org_contact(x) = %s', substr(v, 4), v_a)) else v end, '0');
+  perform pg_temp.attendre('annuaire', '_contact_relais_possibles (direction de B, direction d''ECF) : aucune fiche de l''autre organisme',
+    pg_temp.calcul(format('select count(*)::text from public._contact_relais_possibles(%L) r where pg_temp.clo_org_contact(r.id) = %s', v_dir_b, v_a))
+      || '/' || pg_temp.calcul(format('select count(*)::text from public._contact_relais_possibles(%L) r where pg_temp.clo_org_contact(r.id) = %s', (select email from pg_temp.clo_perso where nom = 'dir_a'), v_b)),
+    '0/0');
+end $cgan$;
+
+-- Groupe planning (étape 2c) : les fiches profs lues et écrites dans l'organisme ; un même nom dans deux organismes.
+create or replace function pg_temp.groupe_planning()
+returns void language plpgsql as $cgpl$
+declare
+  v_a text := pg_temp.clo_n('org_a'); v_b text := pg_temp.clo_n('org_b');
+  v_prof_a text; v_prof_b text := pg_temp.clo_n('prof_b'); v_nom_a text; v_nom_b text; r record;
+begin
+  v_prof_a := pg_temp.calcul(format('select min(pf.id)::text from public.profs pf where pf.organisme_id = %s', v_a));
+  v_nom_a := pg_temp.calcul(format('select nom from public.profs where id = %s', coalesce(v_prof_a, 'null')));
+  v_nom_b := pg_temp.calcul(format('select nom from public.profs where id = %s', v_prof_b));
+  for r in select p.nom, case p.org when 'A' then v_b else v_a end as ailleurs from pg_temp.clo_perso p
+            where p.nom in ('siege_a', 'dir_a', 'form_a', 'stag_a', 'fond_a', 'siege_b', 'dir_b', 'form_b', 'stag_b1', 'ex_form_b') loop
+    perform pg_temp.attendre('planning', format('%s : aucune fiche profs de l''autre organisme lue', r.nom), pg_temp.clo_compter(r.nom, 'profs', r.ailleurs), '0');
+  end loop;
+  perform pg_temp.attendre('planning', 'le formateur et un stagiaire de B lisent les fiches profs de B, ceux d''ECF celles d''ECF (form_b / stag_b1 / form_a / stag_a : au moins une)',
+    (pg_temp.clo_compter('form_b', 'profs', v_b) ~ '^[1-9]')::text || '/' || (pg_temp.clo_compter('stag_b1', 'profs', v_b) ~ '^[1-9]')::text
+      || '/' || (pg_temp.clo_compter('form_a', 'profs', v_a) ~ '^[1-9]')::text || '/' || (pg_temp.clo_compter('stag_a', 'profs', v_a) ~ '^[1-9]')::text,
+    'true/true/true/true');
+  perform pg_temp.attendre('planning', 'la fiche profs de B porte le nom d''une fiche d''ECF (unicité propre à l''organisme)',
+    pg_temp.calcul(format('select (%L in (select nom from public.profs where organisme_id = %s))::text', v_nom_b, v_a)),
+    'true');
+  perform pg_temp.attendre('planning', 'un doublon de nom dans B, puis dans ECF : refusés (23505)',
+    left(pg_temp.clo_ecrire_annule('form_b', format('insert into public.profs (nom) values (%L)', v_nom_b)), 12)
+      || ' / ' || left(pg_temp.clo_ecrire_annule('form_a', format('insert into public.profs (nom) values (%L)', v_nom_a)), 12),
+    'ERREUR 23505 / ERREUR 23505');
+  perform pg_temp.attendre('planning', 'le formateur de B : modifier ou supprimer une fiche profs d''ECF ne touche rien ; en créer une avec l''organisme d''ECF écrit en clair est refusé (42501)',
+    pg_temp.clo_ecrire_annule('form_b', format('update public.profs set ordre = ordre where id = %s', coalesce(v_prof_a, 'null')))
+      || ' / ' || pg_temp.clo_ecrire_annule('form_b', format('delete from public.profs where id = %s', coalesce(v_prof_a, 'null')))
+      || ' / ' || left(pg_temp.clo_ecrire_annule('form_b', format('insert into public.profs (nom, organisme_id) values (''Preuve clo prof forgé'', %s)', v_a)), 12),
+    'OK 0 / OK 0 / ERREUR 42501');
+  perform pg_temp.attendre('planning', 'le formateur d''ECF : la fiche profs de B, ni modifiée ni supprimée ; une fiche avec l''organisme de B écrit en clair : refusée (42501)',
+    pg_temp.clo_ecrire_annule('form_a', format('update public.profs set ordre = ordre where id = %s', v_prof_b))
+      || ' / ' || pg_temp.clo_ecrire_annule('form_a', format('delete from public.profs where id = %s', v_prof_b))
+      || ' / ' || left(pg_temp.clo_ecrire_annule('form_a', format('insert into public.profs (nom, organisme_id) values (''Preuve clo prof forgé A'', %s)', v_b)), 12),
+    'OK 0 / OK 0 / ERREUR 42501');
+  perform pg_temp.attendre('planning', 'le formateur de B crée une fiche profs dans B (témoin)',
+    pg_temp.clo_ecrire_annule('form_b', $q$insert into public.profs (nom) values ('Preuve clo prof témoin B')$q$), 'OK 1');
+  -- Règle 4 du contrôleur : une fois B créé, le formateur d'ECF sans en-tête crée encore une fiche sans organisme_id.
+  perform pg_temp.attendre('planning', 'règle 4 : le formateur d''ECF, sans en-tête, crée une fiche profs sans organisme_id : acceptée, elle prend ECF',
+    pg_temp.clo_ecrire('form_a_sans', $q$insert into public.profs (nom) values ('Preuve clo prof sans en-tête')$q$)
+      || ' ; ' || pg_temp.org_de('profs', $q$nom = 'Preuve clo prof sans en-tête'$q$),
+    'OK 1 ; ' || v_a);
+end $cgpl$;
+
+-- Groupe contenus (étape 2c) : B lit les cours et les QCM publiés et n'écrit ni cours, ni question, ni option, ni image, ni thème,
+-- ni compétence, ni QCM ; ECF (rédacteur) les écrit. Ressources : commune, d'ECF, de B. Les écritures d'essai sont annulées.
+create or replace function pg_temp.groupe_contenus()
+returns void language plpgsql as $cgco$
+declare
+  v_a text := pg_temp.clo_n('org_a'); v_b text := pg_temp.clo_n('org_b');
+  v_pa text := pg_temp.clo_n('promo_a'); v_pb text := pg_temp.clo_n('promo_b');
+  v_cours text; v_qcm text; v_q text; v_theme text; v_theme_libre text; v_qcm_neuf text; v_res_a text; v_res_b text := pg_temp.clo_n('res_b');
+  v_ecritures text; r record; v text;
+begin
+  v_cours := pg_temp.calcul($q$select quote_literal(min(id::text)) from public.cours where published$q$);
+  v_qcm := pg_temp.calcul('select min(id)::text from public.qcm');
+  v_q := pg_temp.calcul('select min(id)::text from public.qcm_questions');
+  v_theme := pg_temp.calcul('select min(id)::text from public.themes');
+  v_theme_libre := pg_temp.calcul('select min(t.id)::text from public.themes t where not exists (select 1 from public.qcm q where q.theme_id = t.id)');
+  v_qcm_neuf := pg_temp.calcul('select (max(id) + 1000)::text from public.qcm');
+  -- Lecture des contenus publiés : tous.
+  for r in select * from (values ('form_b'), ('stag_b1'), ('dir_b'), ('siege_b'), ('form_a'), ('stag_a')) x(nom) loop
+    perform pg_temp.attendre('contenus', format('%s lit les cours publiés, les QCM et leurs questions', r.nom),
+      pg_temp.clo_lire(r.nom, 'select concat_ws(''|'', (select count(*) > 0 from public.cours where published), (select count(*) > 0 from public.qcm), (select count(*) > 0 from public.qcm_questions), (select count(*) > 0 from public.qcm_options))'),
+      'OK t|t|t|t');
+  end loop;
+  -- Les gestes des contenus : seulement dans l'organisme rédacteur.
+  perform pg_temp.attendre('contenus', 'formateur de B, sa promo : contenus.rediger, contenus.lire_internes, contenus.traiter, referentiel.modifier faux ; direction de B : contenus.lire_internes faux',
+    pg_temp.clo_lire('form_b', format($q$select concat_ws('|', public.geste_promo(%1$s, 'contenus.rediger'), public.geste_promo(%1$s, 'contenus.lire_internes'),
+        public.geste_promo(%1$s, 'contenus.traiter'), public.geste_promo(%1$s, 'referentiel.modifier'))$q$, v_pb), true)
+      || ' ; ' || pg_temp.clo_lire('dir_b', format($q$select public.geste_promo(%s, 'contenus.lire_internes')::text$q$, v_pb), true),
+    'OK f|f|f|f ; OK false');
+  perform pg_temp.attendre('contenus', 'formateur d''ECF, sa promo : les quatre gestes des contenus vrais (témoin)',
+    pg_temp.clo_lire('form_a', format($q$select concat_ws('|', public.geste_promo(%1$s, 'contenus.rediger'), public.geste_promo(%1$s, 'contenus.lire_internes'),
+        public.geste_promo(%1$s, 'contenus.traiter'), public.geste_promo(%1$s, 'referentiel.modifier'))$q$, v_pa), true),
+    'OK t|t|t|t');
+  perform pg_temp.attendre('contenus', 'case_reseau(cours) : siège de B 0, siège d''ECF au plafond ; geste_promo(nul, contenus.rediger) du siège de B faux',
+    pg_temp.clo_lire('siege_b', $q$select public.case_reseau('cours') || '|' || public.geste_promo(null, 'contenus.rediger')$q$, true)
+      || ' / ' || pg_temp.clo_lire('siege_a', $q$select public.case_reseau('cours') || '|' || public.geste_promo(null, 'contenus.rediger')$q$, true),
+    'OK 0|false / OK 2|true');
+  -- Les écritures (annulées) : refusées pour le formateur de B, acceptées pour le formateur d'ECF.
+  for r in select * from (values ('form_b', 'B'), ('form_a', 'A')) x(nom, o) loop
+    v_ecritures := concat_ws(' | ',
+      left(pg_temp.clo_ecrire_annule(r.nom, format('update public.cours set titre = titre where id = %s', coalesce(v_cours, 'null'))), 12),
+      left(pg_temp.clo_ecrire_annule(r.nom, format($q$insert into public.qcm_questions (qcm_id, enonce, ordre) values (%s, 'Preuve clo question', 999)$q$, coalesce(v_qcm, 'null'))), 12),
+      left(pg_temp.clo_ecrire_annule(r.nom, format($q$insert into public.qcm_options (question_id, texte, is_correct, ordre) values (%s, 'Preuve clo option', false, 99)$q$, coalesce(v_q, 'null'))), 12),
+      left(pg_temp.clo_ecrire_annule(r.nom, format('update public.themes set titre = titre where id = %s', coalesce(v_theme, 'null'))), 12),
+      left(pg_temp.clo_ecrire_annule(r.nom, $q$insert into public.competences (code, libelle, ordre) values ('PREUVE-CLO', 'Preuve clo compétence', 999)$q$), 12),
+      left(pg_temp.clo_ecrire_annule(r.nom, format($q$insert into public.qcm (id, theme_id, titre) values (%s, %s, 'Preuve clo QCM')$q$, coalesce(v_qcm_neuf, 'null'), coalesce(v_theme_libre, 'null'))), 12),
+      left(pg_temp.clo_ecrire_annule(r.nom, $q$insert into storage.objects (bucket_id, name) values ('cours-images', 'preuve-clo/cours.png')$q$), 12),
+      left(pg_temp.clo_ecrire_annule(r.nom, $q$insert into storage.objects (bucket_id, name) values ('qcm-images', 'preuve-clo/qcm.png')$q$), 12));
+    perform pg_temp.attendre('contenus', format('%s écrit : cours (modification) | question | option | thème (modification) | compétence | QCM | image de cours | image de QCM', r.nom),
+      v_ecritures,
+      case r.o when 'B' then 'OK 0 | ERREUR 42501 | ERREUR 42501 | OK 0 | ERREUR 42501 | ERREUR 42501 | ERREUR 42501 | ERREUR 42501'
+               else 'OK 1 | OK 1 | OK 1 | OK 1 | OK 1 | OK 1 | OK 1 | OK 1' end);
+  end loop;
+  perform pg_temp.attendre('contenus', 'formateur de B : aucun cours interne (non publié, sans code) lu ; formateur d''ECF : tous',
+    pg_temp.clo_lire('form_b', 'select count(*)::text from public.cours where not published and code is null')
+      || ' / ' || pg_temp.clo_lire('form_a', 'select (count(*) = (select count(*) from public.cours c where not c.published and c.code is null))::text from public.cours where not published and code is null'),
+    'OK 0 / OK true');
+
+  -- Ressources : une carte d'ECF, une de B ; une carte commune lue par tous et écrite par le rédacteur seul.
+  v_res_a := pg_temp.calcul(format('select min(id)::text from public.ressources where organisme_id = %s', v_a));
+  perform pg_temp.attendre('contenus', 'ressources : un stagiaire de B ne lit aucune carte d''ECF et lit celle de B ; un stagiaire d''ECF ne lit aucune carte de B',
+    pg_temp.clo_compter('stag_b1', 'ressources', v_a) || '/' || pg_temp.clo_lire('stag_b1', format('select count(*)::text from public.ressources where id = %s', v_res_b))
+      || '/' || pg_temp.clo_compter('stag_a', 'ressources', v_b),
+    '0/OK 1/0');
+  v := pg_temp.calcul(format('with m as (update public.ressources set organisme_id = null where id = %s returning 1) select count(*)::text from m', coalesce(v_res_a, 'null')));
+  perform pg_temp.attendre('contenus', 'ressources : une carte d''ECF marquée commune (organisme nul, propriétaire) le reste, un stagiaire de B la lit ; le formateur de B ne la modifie pas, celui d''ECF (rédacteur) oui',
+    v || ' ; ' || pg_temp.org_de('ressources', format('id = %s', coalesce(v_res_a, 'null')))
+      || ' ; ' || pg_temp.clo_lire('stag_b1', format('select count(*)::text from public.ressources where id = %s', coalesce(v_res_a, 'null')))
+      || ' ; ' || pg_temp.clo_ecrire_annule('form_b', format('update public.ressources set ordre = ordre where id = %s', coalesce(v_res_a, 'null')))
+      || ' ; ' || pg_temp.clo_ecrire_annule('form_a', format('update public.ressources set ordre = ordre where id = %s', coalesce(v_res_a, 'null'))),
+    '1 ; nul ; OK 1 ; OK 0 ; OK 1');
+  perform pg_temp.calcul(format('with m as (update public.ressources set organisme_id = %s where id = %s returning 1) select count(*)::text from m', v_a, coalesce(v_res_a, 'null')));
+  perform pg_temp.attendre('contenus', 'ressources, formateur de B : sa carte modifiée ; une carte d''ECF ni modifiée ni supprimée ; une carte avec l''organisme d''ECF écrit en clair refusée (42501)',
+    pg_temp.clo_ecrire_annule('form_b', format('update public.ressources set ordre = ordre where id = %s', v_res_b))
+      || ' / ' || pg_temp.clo_ecrire_annule('form_b', format('update public.ressources set ordre = ordre where id = %s', coalesce(v_res_a, 'null')))
+      || ' / ' || pg_temp.clo_ecrire_annule('form_b', format('delete from public.ressources where id = %s', coalesce(v_res_a, 'null')))
+      || ' / ' || left(pg_temp.clo_ecrire_annule('form_b', format($q$insert into public.ressources (titre, url, categorie, organisme_id) values ('Preuve clo carte forgée', 'https://exemple.invalid/f', 'docs', %s)$q$, v_a)), 12),
+    'OK 1 / OK 0 / OK 0 / ERREUR 42501');
+  -- Règle 4 du contrôleur.
+  perform pg_temp.attendre('contenus', 'règle 4 : le formateur d''ECF, sans en-tête, crée une carte Ressources sans organisme_id : acceptée, elle prend ECF',
+    pg_temp.clo_ecrire('form_a_sans', $q$insert into public.ressources (titre, url, categorie) values ('Preuve clo carte sans en-tête', 'https://exemple.invalid/s', 'docs')$q$)
+      || ' ; ' || pg_temp.org_de('ressources', $q$titre = 'Preuve clo carte sans en-tête'$q$),
+    'OK 1 ; ' || v_a);
+end $cgco$;
+
+-- Groupe signalements (étape 2c) : les signalements de QCM lus et traités par l'équipe de l'organisme de la ligne ; instructions et
+-- brouillons de l'IA au rédacteur seul.
+create or replace function pg_temp.groupe_signalements()
+returns void language plpgsql as $cgsg$
+declare
+  v_a text := pg_temp.clo_n('org_a'); v_b text := pg_temp.clo_n('org_b');
+  v_sig_b text := pg_temp.clo_n('sig_b'); v_sig_a text; v_brouillon text; v_q text; v_fiche_b text;
+begin
+  v_sig_a := pg_temp.calcul(format('select min(id)::text from public.qcm_signalements where organisme_id = %s', v_a));
+  v_q := pg_temp.calcul('select min(id)::text from public.qcm_questions');
+  v_fiche_b := pg_temp.clo_n('stag_b1');
+  perform pg_temp.attendre('signalements', 'le formateur d''ECF (rédacteur) ne lit pas le signalement de B (ni sa fiche de stagiaire) ; aucun signalement de B lu',
+    pg_temp.clo_lire('form_a', format('select count(*)::text from public.qcm_signalements where id = %s', v_sig_b)) || '/' || pg_temp.clo_compter('form_a', 'qcm_signalements', v_b),
+    'OK 0/0');
+  perform pg_temp.attendre('signalements', 'le formateur de B lit le signalement de son stagiaire, fiche comprise ; aucun signalement d''ECF',
+    pg_temp.clo_lire('form_b', format('select count(*)::text from public.qcm_signalements where id = %s and stagiaire_id = %s', v_sig_b, v_fiche_b)) || '/' || pg_temp.clo_compter('form_b', 'qcm_signalements', v_a),
+    'OK 1/0');
+  perform pg_temp.attendre('signalements', 'traitement : le formateur d''ECF ne modifie pas le signalement de B ; celui de B le modifie, mais ne le passe pas à ECF (42501) ; il ne supprime pas un signalement d''ECF',
+    pg_temp.clo_ecrire_annule('form_a', format('update public.qcm_signalements set statut = statut where id = %s', v_sig_b))
+      || ' / ' || pg_temp.clo_ecrire_annule('form_b', format('update public.qcm_signalements set statut = statut where id = %s', v_sig_b))
+      || ' / ' || left(pg_temp.clo_ecrire_annule('form_b', format('update public.qcm_signalements set organisme_id = %s where id = %s', v_a, v_sig_b)), 12)
+      || ' / ' || pg_temp.clo_ecrire_annule('form_b', format('delete from public.qcm_signalements where id = %s', coalesce(v_sig_a, 'null'))),
+    'OK 0 / OK 1 / ERREUR 42501 / OK 0');
+  perform pg_temp.attendre('signalements', 'fondateur hors support : le signalement de B non lu ; en support sur B : lu, et celui d''ECF non',
+    pg_temp.clo_lire('fond_a', format('select count(*)::text from public.qcm_signalements where id = %s', v_sig_b))
+      || ' ; ' || left(pg_temp.clo_lire('fond_a', format($q$select (public.ouvrir_acces_support(%s, 'Support de la preuve des signalements', '1 hour')).organisme_id::text$q$, v_b)), 3)
+      || pg_temp.clo_lire('fond_a', format('select count(*) filter (where id = %s) || ''/'' || count(*) filter (where id = %s) from public.qcm_signalements', v_sig_b, coalesce(v_sig_a, 'null')))
+      || ' ; ' || pg_temp.clo_lire('fond_a', 'select ''fermé'' from public.fermer_acces_support() f'),
+    'OK 0 ; OK OK 1/0 ; OK fermé');
+  perform pg_temp.attendre('signalements', 'un stagiaire de B signale avec l''organisme d''ECF écrit en clair : refusé (42501, sans RETURNING)',
+    left(pg_temp.clo_ecrire_annule('stag_b1', format($q$insert into public.qcm_signalements (question_id, email, stagiaire_id, motif, organisme_id) values (%s, lower(auth.jwt() ->> 'email'), %s, 'autre', %s)$q$, coalesce(v_q, 'null'), v_fiche_b, v_a)), 12),
+    'ERREUR 42501');
+  -- Règle 4 du contrôleur.
+  perform pg_temp.attendre('signalements', 'règle 4 : le stagiaire d''ECF, sans en-tête, signale une question sans organisme_id : accepté, le signalement prend ECF',
+    pg_temp.clo_ecrire('stag_a_sans', format($q$insert into public.qcm_signalements (question_id, email, motif, commentaire) values (%s, lower(auth.jwt() ->> 'email'), 'autre', 'Preuve clo sans en-tête')$q$, coalesce(v_q, 'null')))
+      || ' ; ' || pg_temp.org_de('qcm_signalements', $q$commentaire = 'Preuve clo sans en-tête'$q$),
+    'OK 1 ; ' || v_a);
+  -- Instructions et brouillons de l'IA : au rédacteur seul.
+  perform pg_temp.calcul(format($q$insert into public.qcm_signalement_instruction (signalement_id, verdict_auto, analyse_auto) values (%s, 'Preuve clo', 'Preuve clo analyse') returning 1$q$, v_sig_b));
+  v_brouillon := pg_temp.calcul(format($q$insert into public.qcm_ia_brouillons (qcm_id, demande_par_email, enonce) values ((select min(id) from public.qcm), 'preuve.clo@exemple.invalid', 'Preuve clo brouillon') returning id::text$q$));
+  perform pg_temp.attendre('signalements', 'qcm_signalement_instruction et qcm_ia_brouillons : le formateur de B n''en lit aucune ligne, celui d''ECF les lit',
+    pg_temp.clo_lire('form_b', 'select (select count(*) from public.qcm_signalement_instruction) || ''/'' || (select count(*) from public.qcm_ia_brouillons)')
+      || ' / ' || pg_temp.clo_lire('form_a', format('select (select count(*) > 0 from public.qcm_signalement_instruction) || ''/'' || (select count(*) from public.qcm_ia_brouillons where id = %s)', coalesce(v_brouillon, 'null'))),
+    'OK 0/0 / OK true/1');
+  perform pg_temp.attendre('signalements', 'le formateur de B n''accepte ni ne rejette un brouillon de l''IA ; is_admin() faux pour lui, vrai pour le formateur d''ECF',
+    left(pg_temp.clo_lire('form_b', format($q$select public.accepter_brouillon_ia(%s, 'Énoncé', null, null, '[{"texte":"a","is_correct":true},{"texte":"b"}]')::text$q$, coalesce(v_brouillon, 'null'))), 12)
+      || ' / ' || left(pg_temp.clo_lire('form_b', format('select public.rejeter_brouillon_ia(%s)::text', coalesce(v_brouillon, 'null'))), 12)
+      || ' / ' || pg_temp.clo_lire('form_b', 'select public.is_admin()::text') || ' / ' || pg_temp.clo_lire('form_a', 'select public.is_admin()::text'),
+    'ERREUR 42501 / ERREUR 42501 / OK false / OK true');
+end $cgsg$;
+
+-- Groupe qualite (étape 2c, règle 1 du contrôleur : bornage complet) : registre, ouvertures et résultats des questionnaires,
+-- etat_conservation, effacer_*, journal des effacements, conditions acceptées, profils : le fondateur hors support ne lit ni ne
+-- modifie rien de B ; en support sur B, ceux de B sont ouverts et ceux d'ECF refusés.
+create or replace function pg_temp.groupe_qualite()
+returns void language plpgsql as $cgq$
+declare
+  v_a text := pg_temp.clo_n('org_a'); v_b text := pg_temp.clo_n('org_b');
+  v_pa text := pg_temp.clo_n('promo_a'); v_pb text := pg_temp.clo_n('promo_b');
+  v_la text := pg_temp.clo_n('lieu_a'); v_lb text := pg_temp.clo_n('lieu_b');
+  v_fiche_b text := pg_temp.clo_n('stag_b1'); v_fiche_a text;
+  v_rq_a text; v_rq_b text; v_ej_a text; v_ej_b text; v_ca text; v_cb text; v_dir_a text; v_dir_b text; v_orph text;
+  v text; v_attendu text;
+  c_porte_b constant text := '{"promo_id": %s}';
+begin
+  v_fiche_a := pg_temp.calcul(format('select stagiaire_id::text from public.user_profiles where email = %L', (select email from pg_temp.clo_perso where nom = 'stag_a')));
+  v_dir_a := (select email from pg_temp.clo_perso where nom = 'dir_a');
+  v_dir_b := (select email from pg_temp.clo_perso where nom = 'dir_b');
+  -- Les lignes de chaque organisme (propriétaire).
+  v_rq_a := pg_temp.calcul(format($q$insert into public.registre_qualite (type, date_constat, origine, lieu_id, description) values ('alea', current_date, 'equipe', %s, 'Preuve clo registre A') returning id::text$q$, v_la));
+  v_rq_b := pg_temp.calcul(format($q$insert into public.registre_qualite (type, date_constat, origine, lieu_id, description) values ('alea', current_date, 'equipe', %s, 'Preuve clo registre B') returning id::text$q$, v_lb));
+  perform pg_temp.calcul(format($q$insert into public.questionnaire_ouvertures (cle, promo_id, ouvert, par_email) values ('fin_stagiaire', %s, true, 'preuve') on conflict do nothing returning 1$q$, v_pb));
+  perform pg_temp.calcul(format($q$insert into public.questionnaire_ouvertures (cle, promo_id, ouvert, par_email) values ('six_mois_stagiaire', %s, true, 'preuve') on conflict do nothing returning 1$q$, v_pa));
+  v_ej_a := pg_temp.calcul(format($q$insert into public.effacements_journal (type, cible, fait_par_email, details) values ('etape1', 'promo %s', 'preuve', '{}') returning id::text$q$, v_pa));
+  v_ej_b := pg_temp.calcul(format($q$insert into public.effacements_journal (type, cible, fait_par_email, details) values ('etape1', 'promo %s', 'preuve', '{}') returning id::text$q$, v_pb));
+  perform pg_temp.calcul(format($q$insert into public.effacements_journal (type, cible, fait_par_email, details) values ('demande', 'stagiaire %s', 'preuve', '{}') returning 1$q$, v_fiche_b));
+  v_ca := pg_temp.calcul(format($q$insert into public.conditions_acceptations (email, version) values (%L, 'preuve-clo') returning id::text$q$, (select email from pg_temp.clo_perso where nom = 'stag_a')));
+  v_cb := pg_temp.calcul(format($q$insert into public.conditions_acceptations (email, version) values (%L, 'preuve-clo') returning id::text$q$, (select email from pg_temp.clo_perso where nom = 'stag_b1')));
+  insert into public.user_profiles (email, role, is_admin, invited_by_email) values ('preuve.clo.invitee.b@exemple.invalid', 'stagiaire', false, v_dir_b);
+  v_orph := 'preuve.clo.invitee.b@exemple.invalid';
+
+  -- Hors support.
+  perform pg_temp.attendre('qualite', 'fondateur hors support : registre, ligne de B / ligne d''ECF lues ; ouvertures de questionnaires de B / d''ECF ; journal des effacements de B / d''ECF ; conditions acceptées de B / d''ECF',
+    pg_temp.clo_lire('fond_a', format($q$select concat_ws('|',
+        (select count(*) filter (where id = %s) || '/' || count(*) filter (where id = %s) from public.registre_qualite),
+        (select count(*) filter (where promo_id = %s) || '/' || count(*) filter (where promo_id = %s) from public.questionnaire_ouvertures),
+        (select count(*) filter (where id = %s) || '/' || count(*) filter (where id = %s) from public.effacements_journal),
+        (select count(*) filter (where id = %s) || '/' || count(*) filter (where id = %s) from public.conditions_acceptations))$q$,
+      coalesce(v_rq_b, 'null'), coalesce(v_rq_a, 'null'), v_pb, v_pa, coalesce(v_ej_b, 'null'), coalesce(v_ej_a, 'null'), coalesce(v_cb, 'null'), coalesce(v_ca, 'null'))),
+    'OK 0/1|0/1|0/1|0/1');
+  perform pg_temp.attendre('qualite', 'fondateur hors support : profils, la direction de B / celle d''ECF ; l''invitation en cours de B / supprimer cette invitation (annulé)',
+    pg_temp.clo_lire('fond_a', format('select count(*) filter (where email = %L) || ''/'' || count(*) filter (where email = %L) || ''/'' || count(*) filter (where email = %L) from public.user_profiles', v_dir_b, v_dir_a, v_orph))
+      || ' ; ' || pg_temp.clo_ecrire_annule('fond_a', format('delete from public.user_profiles where email = %L', v_orph)),
+    'OK 0/1/0 ; OK 0');
+  perform pg_temp.attendre('qualite', 'fondateur hors support, registre : modifier la ligne de B ne touche rien ; une entrée sur un centre de B ou avec l''organisme de B écrit en clair est refusée (42501) ; une entrée sans centre prend ECF',
+    pg_temp.clo_ecrire_annule('fond_a', format('update public.registre_qualite set description = description where id = %s', coalesce(v_rq_b, 'null')))
+      || ' / ' || left(pg_temp.clo_ecrire_annule('fond_a', format($q$insert into public.registre_qualite (type, date_constat, origine, lieu_id, description) values ('alea', current_date, 'equipe', %s, 'Preuve clo registre forgé')$q$, v_lb)), 12)
+      || ' / ' || left(pg_temp.clo_ecrire_annule('fond_a', format($q$insert into public.registre_qualite (type, date_constat, origine, description, organisme_id) values ('alea', current_date, 'equipe', 'Preuve clo registre forgé B', %s)$q$, v_b)), 12)
+      || ' / ' || pg_temp.clo_ecrire('fond_a', $q$insert into public.registre_qualite (type, date_constat, origine, description) values ('amelioration', current_date, 'equipe', 'Preuve clo registre sans centre A')$q$)
+      || ' ; ' || pg_temp.org_de('registre_qualite', $q$description = 'Preuve clo registre sans centre A'$q$),
+    'OK 0 / ERREUR 42501 / ERREUR 42501 / OK 1 ; ' || v_a);
+  perform pg_temp.attendre('qualite', 'fondateur hors support, questionnaires sur la promo de B : ouvrir (« Promo introuvable. »), résultats et commentaires refusés ; résultats sur une promo d''ECF lus',
+    pg_temp.clo_lire('fond_a', format($q$select public.ouvrir_questionnaire('fin_stagiaire', '{"promo_id": %s}', true)::text$q$, v_pb))
+      || ' / ' || pg_temp.clo_lire('fond_a', format($q$select (public.resultats_questionnaire('fin_stagiaire', '{"promo_id": %s}') ->> 'cle')$q$, v_pb))
+      || ' / ' || pg_temp.clo_lire('fond_a', format($q$select count(*)::text from public.commentaires_questionnaire('fin_stagiaire', '{"promo_id": %s}')$q$, v_pb))
+      || ' / ' || pg_temp.clo_lire('fond_a', format($q$select (public.resultats_questionnaire('fin_stagiaire', '{"promo_id": %s}') ->> 'cle')$q$, v_pa)),
+    'ERREUR P0001 questionnaire: Promo introuvable. / ERREUR P0001 questionnaire: Réservé à la gestion de la qualité. / ERREUR P0001 questionnaire: Réservé à l''éditeur. / OK fin_stagiaire');
+  v_attendu := pg_temp.calcul(format($q$select count(*) filter (where etat <> 'clos')::text from public.registre_qualite r
+      where coalesce(pg_temp.clo_org_registre(r.id), %s) = %s$q$, v_a, v_a));
+  perform pg_temp.attendre('qualite', 'fondateur hors support : etat_conservation() ne rend aucune promo ni aucun centre de B, et ne compte que le registre d''ECF (entrées à clore)',
+    pg_temp.clo_lire('fond_a', $q$select (select coalesce(array_agg((p ->> 'id')::integer), '{}') from jsonb_array_elements(e -> 'promos') p)::text || '#'
+        || (select coalesce(array_agg((p ->> 'lieu_id')::integer), '{}') from jsonb_array_elements(e -> 'portees_formateurs') p)::text || '#' || (e -> 'registre' ->> 'a_clore')
+        from (select public.etat_conservation() e) x$q$),
+    'OK ' || pg_temp.calcul(format($q$select coalesce(array_agg(pr.id order by pr.id), '{}')::text from public.promos pr where public.organisme_de_promo(pr.id) = %s$q$, v_a))
+      || '#' || substr(pg_temp.clo_lire('fond_a', $q$select (select coalesce(array_agg((p ->> 'lieu_id')::integer), '{}') from jsonb_array_elements(e -> 'portees_formateurs') p)::text from (select public.etat_conservation() e) x$q$), 4)
+      || '#' || coalesce(v_attendu, 'incalculable'));
+  perform pg_temp.attendre('qualite', 'fondateur hors support : etat_conservation() ne rend aucune portée de questionnaire d''un centre de B',
+    pg_temp.calcul(format('select count(*)::text from unnest(%L::integer[]) x where public.organisme_de_lieu(x) = %s',
+      substr(pg_temp.clo_lire('fond_a', $q$select (select coalesce(array_agg((p ->> 'lieu_id')::integer), '{}') from jsonb_array_elements(e -> 'portees_formateurs') p)::text from (select public.etat_conservation() e) x$q$), 4), v_b)),
+    '0');
+  perform pg_temp.attendre('qualite', 'fondateur hors support : etat_conservation_centre(centre de B) refusé, (centre d''ECF) lu',
+    pg_temp.clo_lire('fond_a', format('select (public.etat_conservation_centre(%s) ->> ''jour'') is not null', v_lb))
+      || ' / ' || pg_temp.clo_lire('fond_a', format('select ((public.etat_conservation_centre(%s) ->> ''jour'') is not null)::text', v_la)),
+    'ERREUR P0001 conservation: Réservé à la direction du centre. / OK true');
+  perform pg_temp.attendre('qualite', 'fondateur hors support, sur B : effacer_sur_demande, effacer_promo_etape1, effacer_promo_etape2, clore_annee_formateurs, effacer_commentaires_formateurs, figer_questionnaire_formateurs refusés',
+    concat_ws(' / ',
+      pg_temp.clo_lire('fond_a', format('select public.effacer_sur_demande(%s)::text', v_fiche_b)),
+      pg_temp.clo_lire('fond_a', format('select public.effacer_promo_etape1(%s)::text', v_pb)),
+      pg_temp.clo_lire('fond_a', format('select public.effacer_promo_etape2(%s)::text', v_pb)),
+      pg_temp.clo_lire('fond_a', format('select public.clore_annee_formateurs(%s, 2020)::text', v_lb)),
+      pg_temp.clo_lire('fond_a', format('select public.effacer_commentaires_formateurs(%s, 2020)::text', v_lb)),
+      pg_temp.clo_lire('fond_a', format('select public.figer_questionnaire_formateurs(%s, 2020)::text', v_lb))),
+    'ERREUR P0001 conservation: Cette fiche n''est pas dans votre périmètre. / ERREUR P0001 conservation: Cette promo n''est pas dans votre périmètre. / ERREUR P0001 conservation: Cette promo n''est pas dans votre périmètre. / ERREUR P0001 conservation: Ce lieu n''est pas dans votre périmètre. / ERREUR P0001 conservation: Ce lieu n''est pas dans votre périmètre. / ERREUR P0001 conservation: Ce lieu n''est pas dans votre périmètre.');
+  perform pg_temp.attendre('qualite', 'fondateur hors support : autonomie_opposer sur une fiche de B (« Fiche introuvable. »), rien d''écrit ; fiches_effacees_sur_demande(promo de B) vide',
+    pg_temp.clo_lire('fond_a', format('select public.autonomie_opposer(%s)::text', v_fiche_b))
+      || ' ; ' || pg_temp.calcul(format('select count(*)::text from public.autonomie_oppositions where stagiaire_id = %s', v_fiche_b))
+      || ' ; ' || pg_temp.clo_lire('fond_a', format('select count(*)::text from public.fiches_effacees_sur_demande(array[%s])', v_pb)),
+    'ERREUR P0001 autonomie: Fiche introuvable. ; 0 ; OK 0');
+  -- effacer_registre_qualite : deux entrées closes depuis 4 ans (propriétaire, déclencheur d'écriture du registre suspendu le temps de
+  -- les antidater), l'une d'ECF, l'autre de B ; le fondateur hors support n'efface que celle d'ECF.
+  execute 'alter table public.registre_qualite disable trigger registre_qualite_avant';
+  update public.registre_qualite set etat = 'clos', clos_le = now() - interval '4 years' where id::text in (v_rq_a, v_rq_b);
+  execute 'alter table public.registre_qualite enable trigger registre_qualite_avant';
+  perform pg_temp.attendre('qualite', 'fondateur hors support : effacer_registre_qualite() efface l''entrée échue d''ECF, jamais celle de B (description d''ECF / de B)',
+    left(pg_temp.clo_lire('fond_a', 'select public.effacer_registre_qualite()::text'), 3)
+      || pg_temp.calcul(format('select coalesce((select description from public.registre_qualite where id = %s), ''nul'') || '' / '' || coalesce((select description from public.registre_qualite where id = %s), ''nul'')', coalesce(v_rq_a, 'null'), coalesce(v_rq_b, 'null'))),
+    'OK nul / Preuve clo registre B');
+
+  -- En support sur B : ceux de B ouverts, ceux d'ECF refusés.
+  perform pg_temp.attendre('qualite', 'le fondateur ouvre un support sur B',
+    pg_temp.clo_lire('fond_a', format($q$select (public.ouvrir_acces_support(%s, 'Support de la preuve de la qualité', '1 hour')).organisme_id::text$q$, v_b)), 'OK ' || v_b);
+  perform pg_temp.attendre('qualite', 'fondateur en support sur B : registre, ouvertures, journal des effacements, conditions acceptées de B lus, ceux d''ECF non (B/ECF)',
+    pg_temp.clo_lire('fond_a', format($q$select concat_ws('|',
+        (select count(*) filter (where id = %s) || '/' || count(*) filter (where id = %s) from public.registre_qualite),
+        (select count(*) filter (where promo_id = %s) || '/' || count(*) filter (where promo_id = %s) from public.questionnaire_ouvertures),
+        (select count(*) filter (where id = %s) || '/' || count(*) filter (where id = %s) from public.effacements_journal),
+        (select count(*) filter (where id = %s) || '/' || count(*) filter (where id = %s) from public.conditions_acceptations))$q$,
+      coalesce(v_rq_b, 'null'), coalesce(v_rq_a, 'null'), v_pb, v_pa, coalesce(v_ej_b, 'null'), coalesce(v_ej_a, 'null'), coalesce(v_cb, 'null'), coalesce(v_ca, 'null'))),
+    'OK 1/0|1/0|1/0|1/0');
+  perform pg_temp.attendre('qualite', 'fondateur en support sur B : profils, la direction de B / celle d''ECF ; supprimer l''invitation en cours de B (annulé)',
+    pg_temp.clo_lire('fond_a', format('select count(*) filter (where email = %L) || ''/'' || count(*) filter (where email = %L) from public.user_profiles', v_dir_b, v_dir_a))
+      || ' ; ' || pg_temp.clo_ecrire_annule('fond_a', format('delete from public.user_profiles where email = %L', v_orph)),
+    'OK 1/0 ; OK 1');
+  perform pg_temp.attendre('qualite', 'fondateur en support sur B : une entrée du registre sans centre prend B ; ouvrir un questionnaire d''une promo d''ECF (« Promo introuvable. ») ; résultats de B lus',
+    pg_temp.clo_ecrire('fond_a', $q$insert into public.registre_qualite (type, date_constat, origine, description) values ('amelioration', current_date, 'equipe', 'Preuve clo registre sans centre B')$q$)
+      || ' ; ' || pg_temp.org_de('registre_qualite', $q$description = 'Preuve clo registre sans centre B'$q$)
+      || ' ; ' || pg_temp.clo_lire('fond_a', format($q$select public.ouvrir_questionnaire('six_mois_stagiaire', '{"promo_id": %s}', false)::text$q$, v_pa))
+      || ' ; ' || pg_temp.clo_lire('fond_a', format($q$select (public.resultats_questionnaire('fin_stagiaire', '{"promo_id": %s}') ->> 'cle')$q$, v_pb)),
+    'OK 1 ; ' || v_b || ' ; ERREUR P0001 questionnaire: Promo introuvable. ; OK fin_stagiaire');
+  perform pg_temp.attendre('qualite', 'fondateur en support sur B : etat_conservation_centre(centre d''ECF) refusé, (centre de B) lu ; effacer_sur_demande et autonomie_opposer sur une fiche d''ECF refusés',
+    pg_temp.clo_lire('fond_a', format('select (public.etat_conservation_centre(%s) ->> ''jour'') is not null', v_la))
+      || ' / ' || pg_temp.clo_lire('fond_a', format('select ((public.etat_conservation_centre(%s) ->> ''jour'') is not null)::text', v_lb))
+      || ' / ' || pg_temp.clo_lire('fond_a', format('select public.effacer_sur_demande(%s)::text', coalesce(v_fiche_a, 'null')))
+      || ' / ' || pg_temp.clo_lire('fond_a', format('select public.autonomie_opposer(%s)::text', coalesce(v_fiche_a, 'null'))),
+    'ERREUR P0001 conservation: Réservé à la direction du centre. / OK true / ERREUR P0001 conservation: Cette fiche n''est pas dans votre périmètre. / ERREUR P0001 autonomie: Fiche introuvable.');
+  perform pg_temp.attendre('qualite', 'fermer_acces_support() par le fondateur', pg_temp.clo_lire('fond_a', 'select ''fermé'' from public.fermer_acces_support() f'), 'OK fermé');
+end $cgq$;
+
+-- Groupe matrice (étape 2c, § 5.6) : pour chaque personnage des deux organismes, chaque table classée et chaque fonction de lecture de
+-- l'inventaire : aucune ligne de l'autre organisme lue ; aucune écriture (modification, suppression, sans RETURNING) vers une ligne de
+-- l'autre organisme. Les tables sont lues dans pg_tables (schéma public) : une table ni classée ni en exception fait rougir la preuve.
+create or replace function pg_temp.groupe_matrice()
+returns void language plpgsql as $cgm$
+declare
+  v_a text := pg_temp.clo_n('org_a'); v_b text := pg_temp.clo_n('org_b');
+  v_pb text := pg_temp.clo_n('promo_b'); v_lb text := pg_temp.clo_n('lieu_b');
+  v text; v_liste text; v_col text; v_lignes tid[]; v_fuites text; v_ecritures text; v_fonctions text; v_ailleurs text;
+  v_ma_promo integer; v_sauf text;
+  p record; t record; f record; n bigint;
+begin
+  -- Quelques lignes de plus dans B (propriétaire), pour que les personnages d'ECF aient de quoi ne pas lire.
+  perform pg_temp.calcul(format($q$insert into public.settings (key, value, promo_id) values ('preuve_clo', 'B', %s) returning 1$q$, v_pb));
+  perform pg_temp.calcul(format($q$insert into public.agenda_events (date_start, title, promo_id) values (current_date, 'Preuve clo agenda B', %s) returning 1$q$, v_pb));
+  perform pg_temp.calcul(format($q$insert into public.auto_ecoles (nom, lieu_id) values ('Preuve clo auto-école B', %s) returning 1$q$, v_lb));
+  perform pg_temp.calcul(format($q$insert into public.benevoles (prenom, lieu_id) values ('Preuve clo bénévole B', %s) returning 1$q$, v_lb));
+  perform pg_temp.calcul(format($q$insert into public.evaluations (stagiaire_id, type, promo_id, note) values (%s, 'Contrôle', %s, 12) returning 1$q$, pg_temp.clo_n('stag_b1'), v_pb));
+
+  -- Le classement : toute table de public classée ou en exception, et rien de classé qui n'existe plus.
+  select string_agg(x.tbl, ', ' order by x.tbl) into v_liste
+    from (select tablename::text as tbl from pg_tables where schemaname = 'public'
+          except select tbl from pg_temp.clo_mat_tables except select tbl from pg_temp.clo_mat_exceptions) x;
+  perform pg_temp.attendre('matrice', 'chaque table du schéma public est classée (expression de l''organisme d''une ligne, ou exception justifiée) : tables non classées',
+    coalesce(v_liste, 'aucune'), 'aucune');
+  select string_agg(x.tbl, ', ' order by x.tbl) into v_liste
+    from (select tbl from pg_temp.clo_mat_tables union all select tbl from pg_temp.clo_mat_exceptions
+          except select tablename::text from pg_tables where schemaname = 'public') x;
+  perform pg_temp.attendre('matrice', 'aucune table classée ou en exception qui n''existe plus', coalesce(v_liste, 'aucune'), 'aucune');
+  perform pg_temp.informer('matrice : exceptions', (select string_agg(tbl || ' (' || raison || ')', ' ; ' order by tbl) from pg_temp.clo_mat_exceptions));
+
+  -- Les lignes de chaque organisme, table par table (propriétaire).
+  drop table if exists pg_temp.clo_mat_lignes;
+  create temp table clo_mat_lignes (tbl text, org text, lignes tid[], primary key (tbl, org));
+  for t in select tbl, expr from pg_temp.clo_mat_tables order by tbl loop
+    foreach v in array array[v_a, v_b] loop
+      begin
+        execute format('select coalesce(array_agg(t.ctid), ''{}'') from public.%I t where (%s) = %s', t.tbl, t.expr, v) into v_lignes;
+      exception when others then
+        v_lignes := null;
+      end;
+      insert into pg_temp.clo_mat_lignes values (t.tbl, v, v_lignes) on conflict do nothing;
+    end loop;
+  end loop;
+  perform pg_temp.informer('matrice : lignes de B par table', (select string_agg(tbl || '=' || coalesce(cardinality(lignes)::text, 'incalculable'), ', ' order by tbl)
+    from pg_temp.clo_mat_lignes where org = v_b and coalesce(cardinality(lignes), -1) <> 0));
+
+  for p in select x.nom, case x.org when 'A' then v_b else v_a end as ailleurs, case x.org when 'A' then v_a else v_b end as chez
+             from pg_temp.clo_perso x order by x.org, x.nom loop
+    -- Un ancien stagiaire de l'autre organisme (règle 3) garde sa promo de stagiaire et son centre dans ses listes (spec § 5.7 :
+    -- son lien de stagiaire reste sur l'ancienne promo) : ces deux lignes-là ne comptent pas.
+    begin
+      v_ma_promo := (select s.promo_id from public.user_profiles up join public.stagiaires s on s.id = up.stagiaire_id
+                      where lower(up.email) = (select lower(x.email) from pg_temp.clo_perso x where x.nom = p.nom)
+                        and public.organisme_de_promo(s.promo_id)::text = p.ailleurs limit 1);
+    exception when others then
+      v_ma_promo := null;
+    end;
+    -- Lecture : aucune ligne de l'autre organisme.
+    v_fuites := null;
+    for t in select tbl from pg_temp.clo_mat_tables order by tbl loop
+      v_sauf := case when v_ma_promo is null then null
+                     when t.tbl = 'promos' then format('t.id = %s', v_ma_promo)
+                     when t.tbl = 'lieux' then format('t.id = public.lieu_de_promo(%s)', v_ma_promo) end;
+      -- Le profil d'un stagiaire de son propre organisme (un ancien stagiaire devenu personnel de l'autre, règle 3) : lu par l'équipe de
+      -- sa promo comme tout stagiaire ; il ne compte pas.
+      if t.tbl = 'user_profiles' then
+        v_sauf := format('t.stagiaire_id is not null and pg_temp.clo_org_stagiaire(t.stagiaire_id) = %s', p.chez);
+      end if;
+      v := pg_temp.clo_compter(p.nom, t.tbl, p.ailleurs, v_sauf);
+      if v <> '0' then
+        v_fuites := concat_ws(', ', v_fuites, t.tbl || ' (' || left(v, 60) || ')');
+      end if;
+    end loop;
+    perform pg_temp.attendre('matrice', format('%s : lecture de chaque table classée, aucune ligne de l''autre organisme%s', p.nom,
+      case when v_ma_promo is not null then ' (hors sa promo de stagiaire de l''autre organisme et son centre)' else '' end), coalesce(v_fuites, 'aucune'), 'aucune');
+    -- Écriture : modifier ou supprimer une ligne de l'autre organisme ne touche rien (0 ligne, ou refus 42501), sans RETURNING.
+    v_ecritures := null;
+    for t in select l.tbl, l.lignes from pg_temp.clo_mat_lignes l where l.org = p.ailleurs order by l.tbl loop
+      if t.lignes is null then
+        v_ecritures := concat_ws(', ', v_ecritures, t.tbl || ' (lignes incalculables)');
+        continue;
+      end if;
+      if cardinality(t.lignes) = 0 then continue; end if;
+      select a.attname into v_col from pg_attribute a
+       where a.attrelid = ('public.' || quote_ident(t.tbl))::regclass and a.attnum > 0 and not a.attisdropped
+         and a.attidentity = '' and a.attgenerated = ''
+       order by a.attnum limit 1;
+      v := pg_temp.clo_ecrire_annule(p.nom, format('update public.%I t set %I = t.%I where t.ctid = any (%L::tid[])', t.tbl, v_col, v_col, t.lignes));
+      if not (v = 'OK 0' or v like 'ERREUR 42501%') then
+        v_ecritures := concat_ws(', ', v_ecritures, t.tbl || ' modification (' || left(v, 60) || ')');
+      end if;
+      v := pg_temp.clo_ecrire_annule(p.nom, format('delete from public.%I t where t.ctid = any (%L::tid[])', t.tbl, t.lignes));
+      if not (v = 'OK 0' or v like 'ERREUR 42501%') then
+        v_ecritures := concat_ws(', ', v_ecritures, t.tbl || ' suppression (' || left(v, 60) || ')');
+      end if;
+    end loop;
+    perform pg_temp.attendre('matrice', format('%s : modification et suppression des lignes de l''autre organisme, table par table : rien de touché', p.nom), coalesce(v_ecritures, 'aucune'), 'aucune');
+    -- Fonctions de lecture de l'inventaire : rien de l'autre organisme (un refus compte pour rien).
+    v_fonctions := null;
+    for f in select * from (values
+        ('mes_promos()', 'select coalesce(array_agg(m.id::text), ''{}'')::text from public.mes_promos() m', 'public.organisme_de_promo(x::integer)'),
+        ('comptes_reseau()', 'select coalesce(array_agg(c.lieu_id::text), ''{}'')::text from public.comptes_reseau() c', 'public.organisme_de_lieu(x::integer)'),
+        ('roles_du_personnel()', 'select coalesce(array_agg(r.email), ''{}'')::text from public.roles_du_personnel() r', 'pg_temp.clo_org_compte(x)'),
+        ('annuaire_centre()', 'select coalesce(array_agg(a.id::text), ''{}'')::text from public.annuaire_centre() a', 'pg_temp.clo_org_contact(x::bigint)'),
+        ('ma_fiche_contact() centres', 'select coalesce((select array_agg(c ->> ''id'') from jsonb_array_elements(f -> ''centres'') c), ''{}'')::text from public.ma_fiche_contact() f', 'public.organisme_de_lieu(x::integer)'),
+        ('ma_fiche_contact() relais', 'select coalesce((select array_agg(c ->> ''id'') from jsonb_array_elements(f -> ''relais_possibles'') c), ''{}'')::text from public.ma_fiche_contact() f', 'pg_temp.clo_org_contact(x::bigint)'),
+        ('titres_visibles(nul)', 'select coalesce(array_agg(t.id::text), ''{}'')::text from public.titres_visibles(null) t', '(select coalesce(ti.organisme_id, public.organisme_de_lieu(ti.lieu_id)) from public.titres ti where ti.id = x::bigint)'),
+        ('personnes_et_titres(nul, nul)', 'select coalesce(array_agg(p.email), ''{}'')::text from public.personnes_et_titres(null, null) p', 'pg_temp.clo_org_compte(x)'),
+        ('etat_conservation() promos', 'select coalesce((select array_agg(p ->> ''id'') from jsonb_array_elements(e -> ''promos'') p), ''{}'')::text from (select public.etat_conservation() e) z', 'public.organisme_de_promo(x::integer)'),
+        ('etat_conservation() portées', 'select coalesce((select array_agg(p ->> ''lieu_id'') from jsonb_array_elements(e -> ''portees_formateurs'') p), ''{}'')::text from (select public.etat_conservation() e) z', 'public.organisme_de_lieu(x::integer)'),
+        ('questionnaires_a_remplir()', 'select coalesce(array_agg(coalesce(q.portee ->> ''promo_id'', ''lieu '' || (q.portee ->> ''lieu_id''))), ''{}'')::text from public.questionnaires_a_remplir() q', 'case when x like ''lieu %'' then public.organisme_de_lieu(substr(x, 6)::integer) else public.organisme_de_promo(x::integer) end'),
+        ('mon_organisme()', 'select coalesce(array_agg(m.id::text), ''{}'')::text from public.mon_organisme() m', 'x::integer'),
+        ('journal_des_droits(nul)', 'select coalesce(array_agg(coalesce(''promo '' || j.promo_id, ''lieu '' || j.lieu_id)), ''{}'')::text from public.journal_des_droits(null) j', 'pg_temp.clo_org_cible(x)')) y(fn, req, org) loop
+      v := pg_temp.clo_lire(p.nom, f.req);
+      if v like 'OK %' then
+        begin
+          execute format('select count(*) from unnest(%L::text[]) x where (%s) = %s and x is distinct from %L', substr(v, 4), f.org, p.ailleurs,
+            case when f.fn = 'mes_promos()' then v_ma_promo::text end) into n;
+          if n > 0 then v_fonctions := concat_ws(', ', v_fonctions, f.fn || ' (' || n || ')'); end if;
+        exception when others then
+          v_fonctions := concat_ws(', ', v_fonctions, f.fn || ' (incalculable ' || sqlstate || ')');
+        end;
+      elsif v not like 'ERREUR%' then
+        v_fonctions := concat_ws(', ', v_fonctions, f.fn || ' (' || left(v, 60) || ')');
+      end if;
+    end loop;
+    perform pg_temp.attendre('matrice', format('%s : fonctions de lecture de l''inventaire, rien de l''autre organisme', p.nom), coalesce(v_fonctions, 'aucune'), 'aucune');
+  end loop;
+end $cgm$;
+
 do $clopreuve$
 declare
   v_mode constant text :=
@@ -1258,6 +2141,18 @@ begin
   perform pg_temp.groupe_siege();
   perform pg_temp.groupe_titres();
   perform pg_temp.groupe_noms();
+  -- Étape 2c : deux personnages de plus (le formateur et le stagiaire d'ECF sans en-tête, règle 4), le classement des tables de la
+  -- matrice, puis les groupes ; la matrice en dernier (les groupes précédents ont posé les personnages de la règle 3).
+  perform pg_temp.clo_ajouter_perso('form_a_sans', (select email from pg_temp.clo_perso where nom = 'form_a'), 'A', null, 'formateur');
+  perform pg_temp.clo_ajouter_perso('stag_a_sans', (select email from pg_temp.clo_perso where nom = 'stag_a'), 'A', null, 'stagiaire');
+  perform pg_temp.clo_mat_classement();
+  perform pg_temp.groupe_personnel();
+  perform pg_temp.groupe_annuaire();
+  perform pg_temp.groupe_planning();
+  perform pg_temp.groupe_contenus();
+  perform pg_temp.groupe_signalements();
+  perform pg_temp.groupe_qualite();
+  perform pg_temp.groupe_matrice();
   perform pg_temp.groupe_fondations_final();
 
   -- 5. Les retours, dans l'ordre inverse (sabotage, 2c, 2b, 2a, 1).
@@ -1280,14 +2175,32 @@ begin
   v_txt_r1 :=
 -- @@INJECTER supabase/migrations/20261128_cloisonnement_1_fondations_retour.sql@@
   ;
+  -- Règle 6 du contrôleur : le retour 2b joué avec l'étape 2c encore en place est refusé par sa garde, et rien ne change.
+  if v_e2c = 'jouée' and v_txt_r2b <> 'select 1' then
+    select e.regles || '|' || e.fonctions || '|' || e.droits into v_r from pg_temp.empreinte() e;
+    v_r := pg_temp.jouer('retour 2b joué trop tôt', v_txt_r2b) || ' ; '
+      || (v_r = (select e.regles || '|' || e.fonctions || '|' || e.droits from pg_temp.empreinte() e))::text;
+    perform pg_temp.attendre('retour', 'le retour 2b joué avant celui de l''étape 2c (encore en place) est refusé par sa garde ; empreinte inchangée',
+      left(v_r, 36) || right(v_r, 7), 'ERREUR P0001 cloisonnement_2b_retour ; true');
+  end if;
+  -- Le retour 2c remet l'unicité globale de profs.nom : tant que deux organismes ont une fiche profs du même nom, sa garde le refuse.
+  -- Il ne se joue qu'avant la mise en service d'un autre organisme : ici, les noms des fiches des autres organismes sont d'abord
+  -- suffixés.
+  if v_e2c = 'jouée' and v_txt_r2c <> 'select 1' then
+    v_r := pg_temp.jouer('retour 2c joué avec des noms partagés', v_txt_r2c);
+    perform pg_temp.attendre('retour', 'le retour 2c joué quand deux organismes ont une fiche profs du même nom est refusé par sa garde',
+      left(v_r, 87), 'ERREUR P0001 cloisonnement_2c_retour : deux fiches profs portent le même nom (dans deux');
+    perform pg_temp.informer('avant le retour 2c', format('noms suffixés : %s fiche(s) profs d''un autre organisme qu''ECF',
+      pg_temp.calcul($q$with m as (update public.profs set nom = nom || ' (organisme ' || organisme_id || ')' where organisme_id <> 1 returning 1) select count(*)::text from m$q$)));
+  end if;
+  v_r := pg_temp.jouer('retour 2c', v_txt_r2c);
+  v_r2c := v_r;
+  perform pg_temp.etape('retour 2c', v_r, v_mode);
   if v_e2b = 'jouée' and v_txt_r2a <> 'select 1' then
     v_r := pg_temp.jouer('retour 2a joué trop tôt', v_txt_r2a);
     perform pg_temp.attendre('retour', 'le retour 2a joué avant celui de l''étape 2b (encore en place) est refusé par sa garde',
       left(v_r, 76), 'ERREUR P0001 cloisonnement_2a_retour : une étape plus tardive est en place (');
   end if;
-  v_r := pg_temp.jouer('retour 2c', v_txt_r2c);
-  v_r2c := v_r;
-  perform pg_temp.etape('retour 2c', v_r, v_mode);
   -- Le retour 2b remet les unicités globales de noms : tant que deux organismes ont un centre du même nom, sa garde le refuse. Il ne
   -- se joue qu'avant la mise en service d'un autre organisme : ici, les noms des objets des autres organismes sont d'abord suffixés.
   if v_e2b = 'jouée' and v_txt_r2b <> 'select 1' then
@@ -1330,6 +2243,14 @@ begin
     perform pg_temp.attendre('retour', 'après les retours : plus de déclencheur organisme_par_defaut, journal_droits_organisme ni rattachement_fondateur, plus d''index lieux_organisme_nom',
       pg_temp.calcul($q$select (select count(*) from pg_trigger where tgname in ('organisme_par_defaut', 'journal_droits_organisme', 'rattachement_fondateur'))::text
         || '/' || coalesce(to_regclass('public.lieux_organisme_nom')::text, 'sans index')$q$), '0/sans index');
+    perform pg_temp.attendre('retour', 'après les retours : plus de colonne organisme_id sur registre_qualite ni effacements_journal, profs_nom_key revenue, plus aucune fonction de l''étape 2c',
+      pg_temp.calcul($q$select (select count(*) from pg_attribute where attrelid in ('public.registre_qualite'::regclass, 'public.effacements_journal'::regclass)
+          and attname = 'organisme_id' and not attisdropped)::text
+        || '/' || (select count(*) from pg_constraint where conrelid = 'public.profs'::regclass and conname = 'profs_nom_key')::text
+        || '/' || (select count(*) from pg_proc where pronamespace = 'public'::regnamespace and proname in ('_organisme_unique', '_organisme_ecriture',
+             '_organisme_du_personnel', 'organisme_de_compte', '_personnel_ailleurs', '_organisme_redacteur', '_organisme_de_cible', 'compte_dans_mon_organisme',
+             'organisme_lisible', 'ressource_ecrivable', 'qcm_signalement_traitable', '_personnel_un_organisme', '_effacements_journal_organisme',
+             '_organisme_ligne', 'ligne_lisible', 'effacement_lisible'))::text$q$), '0/1/0');
     perform pg_temp.attendre('retour', 'après les retours : empreinte regles identique à celle d''avant', v_ap_regles, v_av_regles);
     perform pg_temp.attendre('retour', 'après les retours : empreinte fonctions identique à celle d''avant', v_ap_fonctions, v_av_fonctions);
     perform pg_temp.attendre('retour', 'après les retours : empreinte droits identique à celle d''avant', v_ap_droits, v_av_droits);

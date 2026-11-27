@@ -1816,6 +1816,9 @@ test("cloisonnement sans --etapes, dépôt réel : l'étape 1 injectée octet po
     assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ETAPES_CLOISONNEMENT["1"].migration, ETAPES_CLOISONNEMENT["2a"].migration,
       ETAPES_CLOISONNEMENT["2b"].migration, ETAPES_CLOISONNEMENT["2b"].retour, ETAPES_CLOISONNEMENT["2a"].retour, ETAPES_CLOISONNEMENT["1"].retour]);
     assert.equal(r.mode, "cloisonnement (etapes 1, 2a, 2b injectees)");
+  } else {
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ...ORDRE_CLO.filter((c) => !SABOTAGE_CLO.includes(c))]);
+    assert.equal(r.mode, "cloisonnement (etapes 1, 2a, 2b, 2c injectees)");
   }
 });
 
@@ -2110,4 +2113,99 @@ test("les fichiers de l'étape 2b du cloisonnement : LF, sans tiret cadratin, lo
       `retour ${etape} : garde de l'étape plus tardive`);
     assert.ok(garde.includes("dans_mon_organisme|organismes|organisme_id|acces_fondateur)\\M'"), `retour ${etape} : vocabulaire complet`);
   }
+});
+
+const ETAPE_2C_ECRITE = existsSync(join(RACINE, ETAPES_CLOISONNEMENT["2c"].migration));
+
+test("les fichiers de l'étape 2c du cloisonnement : LF, sans tiret cadratin, lock_timeout, les vingt-deux fonctions remplacées (en-têtes de l'état d'avant, garde md5 de chacune), fonctions nouvelles aux droits explicites, seize règles remises avant le retrait de leurs fonctions, refus mot pour mot, aucun verrou consultatif, retour complet ; sabotage", { skip: !ETAPE_2C_ECRITE }, () => {
+  const REMPLACEES = ["organisme_courant()", "promo_par_defaut()", "geste_promo(integer, text)", "case_reseau(text)",
+    "inviter_compte(text, text, integer, integer, integer)", "donner_titre(text, bigint, integer, integer[], integer)",
+    "_orphelin_en_personnel(text, boolean, integer, text)", "_profil_formateur(text, integer, text)", "_affectations_titre()",
+    "_contact_avant_ecriture()", "_contact_fiche_dans(contacts, integer)", "_contact_relais_possibles(text)", "ma_fiche_contact()",
+    "etat_conservation()", "etat_conservation_centre(integer)", "effacer_registre_qualite()", "ouvrir_questionnaire(text, jsonb, boolean)",
+    "resultats_questionnaire(text, jsonb)", "commentaires_questionnaire(text, jsonb)", "fiches_effacees_sur_demande(integer[])",
+    "autonomie_opposer(integer)", "_registre_qualite_avant()"];
+  const NOUVELLES = ["_organisme_unique", "_organisme_ecriture", "_organisme_du_personnel", "organisme_de_compte", "_personnel_ailleurs",
+    "_organisme_redacteur", "_organisme_de_cible", "_organisme_ligne", "compte_dans_mon_organisme", "organisme_lisible", "ligne_lisible",
+    "effacement_lisible", "ressource_ecrivable", "qcm_signalement_traitable", "_personnel_un_organisme", "_effacements_journal_organisme"];
+  const OUVERTES = ["compte_dans_mon_organisme", "organisme_lisible", "ressource_ecrivable", "qcm_signalement_traitable", "ligne_lisible", "effacement_lisible"];
+  const REGLES = ["user_profiles_lecture", "user_profiles_suppression", "conditions_acceptations_lecture", "effacements_journal_lecture",
+    "registre_qualite_lecture", "registre_qualite_ajout", "registre_qualite_modification", "questionnaire_ouvertures_select", "profs_select_all",
+    "profs_ecriture", "ressources_select_all", "ressources_ecriture", "qcm_signalements_insert", "qcm_signalements_lecture",
+    "qcm_signalements_modification", "qcm_signalements_suppression"];
+  const nomDe = (sig) => sig.slice(0, sig.indexOf("("));
+  const motif = (sig) => new RegExp(`\\('public\\.${sig.replace(/[()[\]]/g, "\\$&")}', '[0-9a-f]{32}'\\)`);
+  const m = texteDuDepot(ETAPES_CLOISONNEMENT["2c"].migration);
+  const r = texteDuDepot(ETAPES_CLOISONNEMENT["2c"].retour);
+  for (const chemin of [ETAPES_CLOISONNEMENT["2c"].migration, ETAPES_CLOISONNEMENT["2c"].retour, SABOTAGE_CLOISONNEMENT.migration,
+    SABOTAGE_CLOISONNEMENT.retour, GABARIT_CLO, "tests/sql/registre-qualite-preuve.sql"]) {
+    const brut = readFileSync(join(RACINE, chemin), "utf8");
+    assert.ok(!brut.includes(String.fromCharCode(0x2014)), `${chemin} : aucun tiret cadratin`);
+    assert.ok(!brut.includes("\r"), `${chemin} : fins de ligne LF`);
+    if (chemin.startsWith("supabase/")) assert.match(brut, /^set local lock_timeout = '3s';$/m, `${chemin} : lock_timeout`);
+  }
+  // Les vingt-deux, dans l'ordre, chacune gardée par son md5 ; le retour les remet dans le même ordre, avec le même en-tête.
+  assert.deepEqual([...m.matchAll(/^CREATE OR REPLACE FUNCTION public\.(\w+)\(/gm)].map((x) => x[1]), REMPLACEES.map(nomDe));
+  assert.deepEqual([...r.matchAll(/^CREATE OR REPLACE FUNCTION public\.(\w+)\(/gm)].map((x) => x[1]), REMPLACEES.map(nomDe));
+  for (const [texte, nom] of [[m, "migration"], [r, "retour"]]) {
+    const fin = texte.indexOf("end $garde$;");
+    assert.ok(texte.indexOf("do $garde$") >= 0 && fin > 0 && fin < texte.search(/^create function|^CREATE OR REPLACE FUNCTION|^alter policy/m), `${nom} : garde avant toute écriture`);
+    const garde = texte.slice(texte.indexOf("do $garde$"), fin);
+    for (const sig of REMPLACEES) assert.match(garde, motif(sig), `${nom} : md5 gardé pour ${sig}`);
+    for (const regle of REGLES) assert.match(garde, new RegExp(`\\('${regle}', '[0-9a-f]{32}/[0-9a-f]{32}'\\)`), `${nom} : texte gardé de la règle ${regle}`);
+  }
+  const garde2c = r.slice(r.indexOf("do $garde$"), r.indexOf("end $garde$;"));
+  for (const nom of NOUVELLES) assert.match(garde2c, new RegExp(`\\('public\\.${nom}\\(`), `retour : md5 gardé pour la fonction nouvelle ${nom}`);
+  const entete = (texte, nom) => {
+    const i = texte.indexOf(`CREATE OR REPLACE FUNCTION public.${nom}(`);
+    return texte.slice(i, texte.indexOf("$function$", i));
+  };
+  for (const nom of REMPLACEES.map(nomDe)) {
+    assert.equal(entete(m, nom), entete(r, nom), `${nom} : en-tête identique à celui d'avant`);
+    assert.match(entete(m, nom), /\n (STABLE )?SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\n/, `${nom} : security definer, chemin fixé`);
+  }
+  // Fonctions nouvelles : security definer, chemin fixé, droits retirés à tous, six booléens ouverts à authenticated (les règles).
+  assert.deepEqual([...m.matchAll(/^create function public\.(\w+)\(/gm)].map((x) => x[1]).sort(), [...NOUVELLES].sort());
+  const revoke = /^revoke all on function ([\s\S]*?)\n  from public, anon, authenticated, service_role;$/m.exec(m);
+  assert.ok(revoke, "un revoke de toutes les fonctions nouvelles");
+  for (const nom of NOUVELLES) {
+    const def = new RegExp(`^create function public\\.${nom}\\([\\s\\S]*?^\\$function\\$;$`, "m").exec(m)[0];
+    assert.match(def, /^ (stable )?security definer$/m, `${nom} : security definer`);
+    assert.match(def, /^ set search_path to 'public', 'pg_temp'$/m, `${nom} : chemin de recherche`);
+    assert.ok(revoke[1].includes(`public.${nom}(`), `${nom} : droits retirés`);
+    assert.match(r, new RegExp(`^drop function public\\.${nom}\\(`, "m"), `${nom} : retirée par le retour`);
+  }
+  const grant = /^grant execute on function ([\s\S]*?) to authenticated;$/m.exec(m);
+  assert.deepEqual([...grant[1].matchAll(/public\.(\w+)\(/g)].map((x) => x[1]).sort(), [...OUVERTES].sort());
+  assert.equal((m.match(/^grant /gm) ?? []).length, 1, "un seul grant");
+  assert.ok(!/\brevoke\b|\bgrant\b/.test(r.replace(/^--.*$/gm, "")), "le retour ne touche à aucun droit");
+  // Les seize règles, remises par le retour avant de retirer leurs fonctions ; aucune règle créée ni retirée.
+  assert.deepEqual([...m.matchAll(/^alter policy (\w+) on /gm)].map((x) => x[1]).sort(), [...REGLES].sort());
+  assert.deepEqual([...r.matchAll(/^alter policy (\w+) on /gm)].map((x) => x[1]).sort(), [...REGLES].sort());
+  assert.ok(r.lastIndexOf("alter policy") < r.indexOf("drop function public.compte_dans_mon_organisme"), "règles remises avant le retrait de leurs fonctions");
+  assert.ok(!/(create|drop) policy/i.test(m.replace(/^--.*$/gm, "") + r.replace(/^--.*$/gm, "")), "aucune règle créée ni retirée");
+  // Le refus mot pour mot : déclencheur, inviter_compte (trois branches), donner_titre ; aucun verrou consultatif nouveau.
+  assert.equal((m.match(/raise exception 'Cette adresse ne peut pas être invitée ici\.' using errcode = '23514';/g) ?? []).length, 5);
+  assert.ok(!m.includes("pg_advisory_xact_lock(hashtext"), "aucun verrou consultatif dans le déclencheur du personnel");
+  assert.ok(m.includes("create trigger personnel_un_organisme before insert or update of email, role, promo_id, lieu_id, organisme_id on public.affectations"));
+  // Les unicités, colonnes et déclencheurs, et leur retour.
+  assert.ok(m.includes("alter table public.profs drop constraint profs_nom_key;"));
+  assert.ok(m.includes("create unique index profs_organisme_nom on public.profs (organisme_id, nom) nulls not distinct;"));
+  assert.ok(r.includes("alter table public.profs add constraint profs_nom_key unique (nom);"));
+  assert.ok(m.includes("alter table public.registre_qualite add column organisme_id integer;"), "registre : colonne sans clé étrangère (forme du lot Q4)");
+  assert.ok(!/create trigger \w+ [^;]* on public\.registre_qualite/.test(m), "registre : aucun déclencheur de plus");
+  assert.ok(r.includes("alter table public.registre_qualite drop column organisme_id;") && r.includes("alter table public.effacements_journal drop column organisme_id;"));
+  assert.ok(m.includes("create trigger organisme_par_defaut before insert on public.ressources"));
+  assert.ok(r.includes("create trigger organisme_par_defaut before insert or update on public.ressources"));
+  // Le retour refuse de passer avant une étape plus tardive, et tant que deux fiches profs partagent un nom.
+  assert.ok(garde2c.includes("raise exception 'cloisonnement_2c_retour : une étape plus tardive est en place (%) : jouer d''abord son retour ; rien n''est changé'"));
+  assert.ok(garde2c.includes("deux fiches profs portent le même nom"));
+  // Le sabotage : une seule règle relâchée sur profs, défaite par son retour.
+  const sab = texteDuDepot(SABOTAGE_CLOISONNEMENT.migration).replace(/^--.*$/gm, "").trim();
+  const sabr = texteDuDepot(SABOTAGE_CLOISONNEMENT.retour).replace(/^--.*$/gm, "").trim();
+  assert.equal(sab, "create policy sabotage_profs_lisibles on public.profs for select to authenticated using (true);");
+  assert.equal(sabr, "drop policy sabotage_profs_lisibles on public.profs;");
+  // Le mode sabotage sur le dépôt réel : les quatre étapes et la règle relâchée, dans l'ordre du gabarit.
+  const s = assemblerMode("cloisonnement-sabotage", RACINE, { lire: duDisque });
+  assert.deepEqual(s.injections.map((x) => x.chemin), [EMPREINTE, ...ORDRE_CLO]);
 });

@@ -289,8 +289,10 @@ begin
     md5_qualite_avant = md5_qualite_apres, md5_qualite_avant || ' / ' || md5_qualite_apres);
 
   -- 3. Catalogue -----------------------------------------------------------------------------------------------------
+  -- organisme_id : ajoutée par le cloisonnement (20261128_cloisonnement_2c_donnees.sql, organisme d'une entrée sans promo ni centre),
+  -- hors du périmètre du lot Q4 ; seule colonne ignorée ici.
   select string_agg(attname, ',' order by attname) into t from pg_attribute
-   where attrelid = to_regclass('public.registre_qualite') and attnum > 0 and not attisdropped;
+   where attrelid = to_regclass('public.registre_qualite') and attnum > 0 and not attisdropped and attname <> 'organisme_id';
   perform pg_temp.cas('colonnes du registre',
     t = 'action_decidee,clos_le,cree_le,date_constat,date_reponse,description,efface_le,etat,id,issu_signalement,'
         || 'lieu_id,mesure_prevention,modifie_le,origine,promo_id,reponse,signalement_id,type', t);
