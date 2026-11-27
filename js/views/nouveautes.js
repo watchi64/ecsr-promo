@@ -4,13 +4,13 @@
 // La page n'est PAS dans la barre d'onglets : on y arrive par le lien
 // « Tout voir » d'Accueil, comme #/mon-suivi n'a pas d'onglet non plus.
 
-import { el, clear, formatLongDate } from "../utils.js?v=20261126a";
-import { nouveautesAffichables, marquerLues } from "../modules-etat.js?v=20261126a";
-import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261126a";
-import { hrefLien } from "../route-rules.js?v=20261126a";
-import { getEspace } from "../auth-admin.js?v=20261126a";
-import { ouSelonNavigation } from "../ou-trouver.js?v=20261126a";
-import { avecAdresse } from "../adresse.js?v=20261126a";
+import { el, clear, formatLongDate } from "../utils.js?v=20261127a";
+import { nouveautesAffichables, marquerLues } from "../modules-etat.js?v=20261127a";
+import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261127a";
+import { hrefLien } from "../route-rules.js?v=20261127a";
+import { getEspace } from "../auth-admin.js?v=20261127a";
+import { ouSelonNavigation } from "../ou-trouver.js?v=20261127a";
+import { avecAdresse } from "../adresse.js?v=20261127a";
 
 // Lien « Où le trouver ». Une partie de Mon espace se vise par l'adresse
 // (#/mon-suivi/dp) ; un sous-onglet de Notes, de Cours ou de Stagiaires, par la clé que

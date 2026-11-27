@@ -23,6 +23,15 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // Favicon plus lisible (27/11) : J clair sur fond vert profond, dans l'onglet du navigateur.
+  {
+    id: "2026-11-27-icone-onglet-lisible",
+    date: "2026-11-27",
+    pour: "tous",
+    titre: "Une icône d'onglet plus lisible",
+    resume: "Dans l'onglet du navigateur, la petite icône de Jalonya passe en clair sur fond sombre : elle se repère "
+          + "mieux parmi les autres onglets. L'icône de l'écran d'accueil du téléphone ne change pas.",
+  },
   // Nouveau nom de l'app (26/11) : onglet, icône installée, nom sous l'icône.
   {
     id: "2026-11-26-nom-jalonya",
