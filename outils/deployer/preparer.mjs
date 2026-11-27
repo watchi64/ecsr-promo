@@ -24,8 +24,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Ce que le navigateur reçoit : la page, son manifeste, la page d'erreur, la page des liens
-// d'action des e-mails de l'espace contact (demande.html), et quatre dossiers.
-export const FICHIERS_RACINE = ["index.html", "manifest.webmanifest", "404.html", "demande.html"];
+// d'action des e-mails de l'espace contact (demande.html), la page d'installation, et quatre dossiers.
+export const FICHIERS_RACINE = ["index.html", "manifest.webmanifest", "404.html", "demande.html", "installer.html"];
+
+// Adresses courtes : copie d'une page sous un nom sans extension, écrite dans le dossier de sortie seulement (le bucket
+// ne sert pas « /installer » pour « installer.html » ; GitHub Pages le fait tout seul). Type posé à l'envoi
+// (.github/workflows/mise-en-ligne.yml).
+export const ALIAS = { installer: "installer.html" };
 export const DOSSIERS_SERVIS = ["js/", "css/", "assets/", "vendor/"];
 
 // Un segment qui commence par « _ » (banc d'essai, aperçus) ou « . » ne part jamais.
@@ -150,6 +155,9 @@ function principal() {
       const dest = path.join(cible, p);
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.copyFileSync(path.join(racine, p), dest);
+    }
+    for (const [alias, page] of Object.entries(ALIAS)) {
+      if (servis.includes(page)) fs.copyFileSync(path.join(racine, page), path.join(cible, alias));
     }
     console.log(`[preparer] copiés dans ${path.relative(racine, cible) || cible}`);
   }

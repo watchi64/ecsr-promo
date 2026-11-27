@@ -1,6 +1,6 @@
 // États affichés par la fiche d'une personne (sommaire sur iPhone) et par la
 // liste de la page Stagiaires (chantier D, lot 2). Module pur : testé en node.
-import { pluriel } from "./nombres.js?v=20261127a";
+import { pluriel } from "./nombres.js?v=20261127b";
 
 // Les épreuves EPCF : CCP1 en salle et en véhicule, CCP2 (même liste que EPCF_TRAME_KEYS de js/epcf-trames.js).
 export const EPREUVES_EPCF = ["salle", "vehicule", "ccp2"];

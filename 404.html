@@ -12,6 +12,13 @@
   h1 { font-size: 1.4rem; margin: 0 0 .5rem; }
   a { color: #1A1612; font-weight: 600; }
 </style>
+<script>
+  // Adresse courte mal tapée (/installer/, /Installer) : vers la page d'installation, sous l'app (racine ou sous-chemin).
+  (function () {
+    var m = /^(.*\/)installer\/?$/i.exec(location.pathname);
+    if (m) location.replace(m[1] + "installer.html" + location.search);
+  })();
+</script>
 </head>
 <body>
 <main>
