@@ -2692,10 +2692,11 @@ def verifier_retour_arriere(page, res, sc):
 # (js/emargement-etat.js). Mes préférences (#/preferences)
 # n'en montre aucune : seulement « Mes préférences » (si un réglage est à montrer) et « Informations ».
 SECTIONS_REGLAGES = ("Ce que voient les stagiaires", "Promo", "Accès et invitations", "Émargement", "Travail en autonomie",
-                     "Titres à la carte", "Données personnelles")
+                     "Titres à la carte", "Accès support", "Données personnelles")
 # Travail en autonomie (lot 1 de l'e-learning, 13/11) : interrupteur du fondateur par promo, comme l'émargement (js/autonomie-etat.js).
 # Titres à la carte (étape 3 des titres, Task 32) : le verrou des titres non fixes, au fondateur seul.
-SECTIONS_DU_FONDATEUR = ("Émargement", "Travail en autonomie", "Titres à la carte")
+# Accès support (cloisonnement par organisme, 27/11) : ouvrir l'app sur un autre organisme, au fondateur hors aperçu seul (js/views/acces-support.js).
+SECTIONS_DU_FONDATEUR = ("Émargement", "Travail en autonomie", "Titres à la carte", "Accès support")
 # En dernier, « Apparence » : un renvoi vers Mes préférences, où se fait le choix des couleurs, pas une section de la promo (décision du 10/11).
 RENVOI_APPARENCE = "Apparence"
 # En tête, quand la personne a une fiche de contact (espace contact) : « Ma fiche de contact » (équipe, direction) ou « Mon téléphone » (stagiaire).
