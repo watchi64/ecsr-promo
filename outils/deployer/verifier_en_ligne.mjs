@@ -8,7 +8,8 @@
  *   - le jeton ?v= servi égale celui du index.html local (le commit déployé) ;
  *   - main.js et la feuille de style répondent 200 avec le bon type (un module JavaScript servi
  *     avec un mauvais type est refusé par le navigateur : écran blanc) ;
- *   - le manifeste, une icône et un PDF de référentiel répondent 200 ;
+ *   - le manifeste, une icône, un PDF de référentiel et la page des liens d'e-mail (demande.html,
+ *     son module et sa feuille) répondent 200 ;
  *   - ce qui doit rester privé ne répond pas 200 (notes, docs, migrations, tests, outils).
  *
  *   node outils/deployer/verifier_en_ligne.mjs                 adresse de deploiement/site.json
@@ -78,7 +79,8 @@ async function principal() {
 
   // 2. Ce qui doit répondre 200, avec le bon type.
   const publics = ["", "index.html", "manifest.webmanifest", `js/main.js?v=${attendu}`, `css/style.css?v=${attendu}`,
-    "assets/logo/icon-192.png", "assets/referentiels/REAC_TP_ECSR_2021.pdf", "404.html"];
+    "assets/logo/icon-192.png", "assets/referentiels/REAC_TP_ECSR_2021.pdf", "404.html",
+    "demande.html", `js/lien-demande.js?v=${attendu}`, `css/contact.css?v=${attendu}`];
   for (const p of publics) {
     const r = await obtenir(adresse + p);
     const type = typeAttendu(p || "/");

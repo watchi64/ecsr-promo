@@ -12,7 +12,8 @@
  *
  * Avant de rendre la main, quatre contrôles (le script s'arrête au premier rouge) :
  *   1. aucun fichier hors de la liste blanche (par construction, revérifié) ;
- *   2. tout ce que index.html et le manifeste citent est bien servi ;
+ *   2. tout ce que les pages HTML de la racine (index.html, demande.html, 404.html) et le
+ *      manifeste citent est bien servi ;
  *   3. tout import relatif d'un module JavaScript servi vise un fichier servi ;
  *   4. aucun motif de secret (clé secrète Supabase, jeton JWT, clé privée) dans un fichier servi.
  * Utilisé par .github/workflows/mise-en-ligne.yml. Tests : tests/deployer.test.mjs.
@@ -22,8 +23,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Ce que le navigateur reçoit : la page, son manifeste, la page d'erreur, et quatre dossiers.
-export const FICHIERS_RACINE = ["index.html", "manifest.webmanifest", "404.html"];
+// Ce que le navigateur reçoit : la page, son manifeste, la page d'erreur, la page des liens
+// d'action des e-mails de l'espace contact (demande.html), et quatre dossiers.
+export const FICHIERS_RACINE = ["index.html", "manifest.webmanifest", "404.html", "demande.html"];
 export const DOSSIERS_SERVIS = ["js/", "css/", "assets/", "vendor/"];
 
 // Un segment qui commence par « _ » (banc d'essai, aperçus) ou « . » ne part jamais.
@@ -44,13 +46,15 @@ export function jetonIndex(html) {
   return m ? m[1] : null;
 }
 
-// Chemins locaux cités par index.html (src, href) et par le manifeste (icônes, start_url exclue).
+// Chemins locaux cités par une page HTML de la racine (src, href) et par le manifeste (icônes,
+// start_url exclue). Un lien vers la racine du site (« / », « ./ ») n'est pas un fichier.
 export function citationsIndex(html) {
   const out = [];
   for (const m of html.matchAll(/(?:src|href)\s*=\s*["']([^"'#]+)["']/g)) {
     const url = m[1].split("?")[0];
-    if (/^(https?:|data:|mailto:|tel:|\/\/)/.test(url) || url === "" || url === "./") continue;
-    out.push(url.replace(/^\.\//, ""));
+    if (/^(https?:|data:|mailto:|tel:|\/\/)/.test(url)) continue;
+    const local = url.replace(/^\.?\//, "");
+    if (local !== "") out.push(local);
   }
   return out;
 }
@@ -90,7 +94,9 @@ export function controler(racine, suivis) {
   for (const f of ["index.html", "manifest.webmanifest"]) if (!ensemble.has(f)) erreurs.push(`fichier indispensable absent : ${f}`);
   if (erreurs.length) return { servis, erreurs };
 
-  for (const c of citationsIndex(lire("index.html"))) if (!ensemble.has(c)) erreurs.push(`index.html cite ${c}, qui ne serait pas servi`);
+  for (const page of servis.filter((p) => !p.includes("/") && p.endsWith(".html"))) {
+    for (const c of citationsIndex(lire(page))) if (!ensemble.has(c)) erreurs.push(`${page} cite ${c}, qui ne serait pas servi`);
+  }
   for (const c of citationsManifeste(lire("manifest.webmanifest"))) if (!ensemble.has(c)) erreurs.push(`le manifeste cite ${c}, qui ne serait pas servi`);
 
   for (const p of servis.filter((x) => x.endsWith(".js"))) {
