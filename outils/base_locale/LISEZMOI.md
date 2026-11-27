@@ -41,7 +41,7 @@ qu'elle fait est annulé. Modes : voir l'en-tête de `outils/assembler_repetitio
 ## Rejouer la suite
 
 ```
-bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3] [--autonomie 1|1,2] [--production]
+bash outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3] [--autonomie 1|1,2] [--production] [--production-2711]
 ```
 
 **L'état de la production (16/11) : `--production`**, dans l'ordre où elle l'a reçu : titres 1, 2, 3, contacts,
@@ -79,6 +79,70 @@ Verdicts de départ attendus après `reconstruire.sh` puis `rejouer_suite.sh` (s
 11372/0, espaces en ligne VERT 240/0, données en ligne VERT 59/0, EPCF VERT 17/0, profils VERT 32/0, questionnaires VERT
 207/0, registre qualité VERT 128/0, habillage VERT 20/0 (cette dernière suppose qu'aucun compte n'a choisi d'habillage). La preuve de la conservation (`tests/sql/conservation-preuve.sql`, avec `-v migration=... -v retour=...`) sort VERT 227/0 : le script
 rejoue aussi les droits de l'émargement du 23/10 (fonctions internes fermées à `authenticated`, deux fonctions absentes des clones créées).
+
+## L'état de la production du 27/11 : `--production-2711`
+
+```
+bash outils/base_locale/reconstruire.sh --port 55447
+bash outils/base_locale/rejouer_suite.sh --port 55447 --production-2711     # OK : suite rejouée (41 migrations)
+```
+
+`--production` (30 migrations, 16/11) puis, dans l'ordre vérifié par l'historique (fusion `eaffaf61` du 21/11 pour les contacts, le
+journal des titres et les conditions ; `4a661c28` du 23/11 et `b5535cd5` du 24/11 pour les EPCF du CCP2) : `20261115_contact_1_annuaire`,
+`_1b_fermeture`, `_2_demandes`, `_3_absences`, `20261115_contact_demo`, `20261116_contact_4_correctifs`,
+`20261118_contact_5_donnees_sensibles`, `20261112_titres_4_journal`, `20261121_conditions_version`, `20261123_epcf_ccp2`,
+`20261124_epcf_ccp2_reseau`. `20261121_conditions_version` ne lit aucune variable psql (sa garde exige la version publiée
+2026-11-14). Les droits propres à la production (registre, `epcf_moyennes`, émargement) sont posés après ces migrations. Ne se
+combine ni avec `--titres` ni avec `--avec-titres`.
+
+### Verdicts de départ, état du 27/11 (base `--production-2711`, port 55447)
+
+Chaque preuve jouée seule, en mode « en ligne » (migrations déjà appliquées), sur la base fraîchement rejouée.
+Les assemblages se jouent avec `node outils/assembler_repetition_roles.mjs <mode> <sortie hors du dépôt>` (l'assembleur refuse
+toute sortie dans le dépôt, y compris `.superpowers/`).
+
+| Preuve | Commande (mode) | Verdict |
+|---|---|---|
+| rôles | `assembler_repetition_roles.mjs en-ligne` | VERT 13674/0 |
+| espaces | `espaces-en-ligne` | VERT 240/0 |
+| données | `donnees-en-ligne` | VERT 59/0 |
+| titres | `titres-en-ligne` | VERT 416/0 |
+| gestion | `gestion-en-ligne` | VERT 345/0 |
+| suite des titres | `suite-en-ligne` | VERT 180/0 |
+| contact 1 à 5 | `contact-1-en-ligne` à `contact-5-en-ligne` | VERT 127/0, 165/0, 89/0, 43/0, 17/0 |
+| EPCF (seuil 3) | `assembler_preuve_epcf.mjs en-ligne` | VERT 17/0 |
+| comptes EPCF CCP2 | `assembler_preuve_comptes_epcf.mjs en-ligne` | VERT 26/0 |
+| EPCF CCP2 | `tests/sql/epcf-ccp2-preuve.sql` | VERT 4/0 |
+| profils | `assembler_preuve_profils.mjs en-ligne` | VERT 32/0 |
+| questionnaires | `questionnaires-preuve.sql` (`-v migration -v retour`) | VERT 207/0 |
+| registre qualité | `registre-qualite-preuve.sql` (`-v migration -v retour`) | VERT 128/0 |
+| conservation | `conservation-preuve.sql` (`-v migration -v retour`) | VERT 227/0 |
+| conservation de la direction | `conservation-direction-preuve.sql` (`-v migration -v retour -v retour_q5`) | VERT 93/0 |
+| conditions | `conditions-acceptations-preuve.sql` | VERT 12/0 |
+| TRUNCATE | `truncate-preuve.sql` | VERT 7/0 |
+| émargement | `emargement-preuve.sql` | VERT 71/0 |
+| habillage | `habillage-preuve.sql` | VERT 20/0 |
+| e-learning | `autonomie-preuve.sql` (`-v migration -v retour`) | VERT 146/0 |
+| jury | `assembler_preuve_jury.mjs en-ligne` | VERT 53/0 |
+| contacts du centre (13/11) | `assembler_preuve_contacts.mjs en-ligne` | ROUGE 33/10 |
+
+ROUGE de départ (la référence, non corrigé dans ce chantier) :
+
+- **contacts du centre (13/11)** : preuve de la migration `20261113_contacts_centre`, écrite avant le chantier « espace contact » ;
+  elle attend `lieu_id` facultatif, des contacts d'avant hors de Nîmes et une copie exacte à Montpellier, ce que les contacts 1 à 5
+  ont changé. Remplacée par les preuves `contact-1` à `contact-5` (VERTES).
+
+Preuves anciennes hors de la liste du chantier, non jouables telles quelles sur cette base (non corrigées, cause non instruite) :
+`signalements-app-preuve.sql` ROUGE 38/1 (« envoi F mal posé »), `confidentialite-preuve.sql` ROUGE 13/6 (lectures des évaluations
+et de `stagiaires_prive` à 0 ligne), `multi-promo-preuve.sql` sans verdict (échec d'une insertion dans `stagiaires`) et
+`qcm-ia-preuve.sql` sans verdict (« Réservé aux formateurs »).
+
+### Empreinte des corps de fonctions
+
+`tests/sql/cloisonnement-empreinte-corps.sql` (lecture seule) rend `nom(signature)|md5` pour chaque fonction de l'inventaire du
+cloisonnement par organisme (spec 2026-11-27, § 5.2 et § 5.3) ; la sortie de départ est copiée dans son en-tête. Les gardes des
+migrations du chantier y reprennent leurs md5 :
+`psql -h 127.0.0.1 -p 55447 -U postgres -d postgres -X -q -A -t -f tests/sql/cloisonnement-empreinte-corps.sql`.
 
 ## Production
 
