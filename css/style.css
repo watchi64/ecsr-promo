@@ -5778,6 +5778,7 @@ body.qcm-open { overflow: hidden; }
 }
 .nv-guide summary {
   cursor: pointer;
+  padding-block: 0.25rem;   /* cible d'au moins 24 px de haut à la souris (19 px sans) */
   font-size: 0.84rem;
   color: var(--text-muted);
 }
