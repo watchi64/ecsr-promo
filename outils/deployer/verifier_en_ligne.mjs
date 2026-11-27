@@ -31,7 +31,7 @@ export const PRIVES = [
 ];
 
 export function typeAttendu(chemin) {
-  if (/\.html$|\/$/.test(chemin)) return /^text\/html/;
+  if (/\.html$|\/$|^installer$/.test(chemin)) return /^text\/html/;
   if (/\.js(\?|$)/.test(chemin)) return /^(text|application)\/(x-)?javascript/;
   if (/\.css(\?|$)/.test(chemin)) return /^text\/css/;
   if (/\.webmanifest$/.test(chemin)) return /^application\/(manifest\+)?json/;
@@ -78,7 +78,8 @@ async function principal() {
 
   // 2. Ce qui doit répondre 200, avec le bon type.
   const publics = ["", "index.html", "manifest.webmanifest", `js/main.js?v=${attendu}`, `css/style.css?v=${attendu}`,
-    "assets/logo/icon-192.png", "assets/referentiels/REAC_TP_ECSR_2021.pdf", "404.html"];
+    "assets/logo/icon-192.png", "assets/referentiels/REAC_TP_ECSR_2021.pdf", "404.html",
+    "installer.html", "installer", "assets/installer/qr-installer.svg"];
   for (const p of publics) {
     const r = await obtenir(adresse + p);
     const type = typeAttendu(p || "/");

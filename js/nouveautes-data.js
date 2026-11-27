@@ -23,6 +23,20 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // Page d'installation (27/11) : app.jalonya.fr/installer, ouverte sans connexion.
+  {
+    id: "2026-11-27-installer-app",
+    date: "2026-11-27",
+    pour: "tous",
+    titre: "Installer l'app en un geste",
+    resume: "Une page dédiée installe Jalonya sur le téléphone ou l'ordinateur : un bouton sur Android et sur ordinateur, "
+          + "trois étapes illustrées sur iPhone. Elle s'ouvre sans connexion et peut se transmettre à toute la promo.",
+    guide: [
+      "Ouvrir {adresse}installer sur l'appareil à équiper (sur ordinateur, la page montre aussi un code à viser avec le téléphone).",
+      "Sur Android ou sur ordinateur, toucher « Installer l'app ». Sur iPhone, suivre les trois étapes dans Safari.",
+      "Ouvrir l'icône Jalonya et se connecter une fois. L'ancienne icône de l'app peut alors être supprimée.",
+    ],
+  },
   // Nouveau nom de l'app (26/11) : onglet, icône installée, nom sous l'icône.
   {
     id: "2026-11-26-nom-jalonya",

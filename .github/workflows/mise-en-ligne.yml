@@ -81,6 +81,9 @@ jobs:
           # 2. Les pages, revalidées à chaque visite ; index.html en dernier, quand tout ce qu'il cite est en place.
           s3 sync _site "s3://$BUCKET" --exclude "*" --include "*.html" --exclude "index.html" \
             --content-type "text/html; charset=utf-8" --cache-control "no-cache"
+          # Adresses courtes sans extension (ALIAS de preparer.mjs : /installer) : envoyées en 1 sans type de page, reprises ici.
+          s3 cp _site/installer "s3://$BUCKET/installer" \
+            --content-type "text/html; charset=utf-8" --cache-control "no-cache"
           s3 cp _site/index.html "s3://$BUCKET/index.html" \
             --content-type "text/html; charset=utf-8" --cache-control "no-cache"
           # 3. Retirer du bucket ce qui n'est plus servi (tout est déjà à jour : --size-only n'envoie rien).

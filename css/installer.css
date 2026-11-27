@@ -1,0 +1,56 @@
+/* Page d'installation (installer.html) : après css/style.css, dont elle reprend les jetons de couleur. */
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-size: 17px; line-height: 1.5;
+}
+.ins {
+  max-width: 34rem; margin: 0 auto;
+  padding: max(20px, env(safe-area-inset-top)) 18px max(28px, env(safe-area-inset-bottom));
+}
+.ins-tete { margin: 4px 0 18px; }
+.ins-logo { display: block; height: 40px; width: auto; }
+h1 { font-size: 1.75rem; font-weight: var(--poids-titre); line-height: 1.2; margin: 0 0 8px; }
+h2 { font-size: 1.1rem; font-weight: var(--poids-titre-semi); margin: 0 0 8px; }
+p { margin: 0 0 10px; }
+.ins-intro { color: var(--text-soft); margin-bottom: 22px; }
+.ins-bloc { margin-bottom: 22px; }
+
+.ins-bouton {
+  display: flex; align-items: center; justify-content: center; width: 100%; min-height: 56px;
+  padding: 12px 20px; border: 0; border-radius: 14px; background: var(--accent); color: var(--bg-elev);
+  font: inherit; font-size: 1.15rem; font-weight: 600; text-decoration: none; cursor: pointer;
+}
+.ins-bouton:hover { background: var(--accent-strong); }
+.ins-bouton:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+.ins-bouton:disabled { opacity: .6; cursor: default; }
+.ins-bouton[hidden] { display: none; }
+.ins-etat { margin-top: 12px; color: var(--text-soft); }
+.ins-etat:empty { display: none; }
+.ins-fait { font-weight: 600; }
+
+.ins-conseil {
+  background: var(--accent-soft); border-radius: 12px; padding: 12px 14px; color: var(--text);
+}
+.ins-adresse-texte { font-weight: 600; overflow-wrap: anywhere; }
+
+.ins-etapes { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.ins-etapes li {
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: 16px; padding: 14px;
+}
+.ins-num {
+  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin-right: 10px;
+  border-radius: 50%; background: var(--accent); color: var(--bg-elev); font-weight: 600; font-size: .95rem;
+  vertical-align: 1px;
+}
+.ins-schema { display: block; width: 100%; max-width: 300px; height: auto; margin: 6px auto 0; }
+
+.ins-carte {
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 16px;
+}
+.ins-carte p:last-child { margin-bottom: 0; }
+.ins-qr-ligne { display: flex; gap: 16px; align-items: center; }
+.ins-qr { flex: none; width: 132px; height: 132px; border-radius: 8px; }
+.ins-pied { margin-top: 22px; text-align: center; }
+.ins-pied a { color: var(--accent); font-weight: 600; text-decoration: underline; }
+[hidden] { display: none !important; }

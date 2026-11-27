@@ -88,5 +88,32 @@ console.log("deployer : OK");
   assert.equal(suivre("/ecsr-promo/assets/referentiels/REAC_TP_ECSR_2021.pdf"), "https://app.exemple.fr/assets/referentiels/REAC_TP_ECSR_2021.pdf");
   assert.equal(suivre("/ecsr-promo/index.html", "", "#/informations-legales"), "https://app.exemple.fr/index.html#/informations-legales");
   assert.match(page, /href="https:\/\/app\.exemple\.fr\/"/);
+  assert.equal(suivre("/ecsr-promo/installer"), "https://app.exemple.fr/installer");
   console.log("redirection : OK");
+}
+
+// Page d'installation : servie, ce qu'elle cite est servi, adresse courte /installer.
+{
+  const { ALIAS } = await import("../outils/deployer/preparer.mjs");
+  assert.ok(estServi("installer.html"));
+  assert.ok(reel.servis.includes("installer.html"));
+  assert.ok(reel.servis.includes("js/installer.js") && reel.servis.includes("assets/installer/qr-installer.svg"));
+  assert.equal(ALIAS.installer, "installer.html");
+  const avecPage = { ...base, "installer.html": '<script type="module" src="js/absent.js?v=1"></script>' };
+  assert.match(controler(depot(avecPage), Object.keys(avecPage)).erreurs.join("\n"), /installer\.html cite js\/absent\.js/);
+
+  // 404.html renvoie les variantes de /installer vers installer.html, à la racine comme sous un sous-chemin.
+  const page404 = fs.readFileSync(path.join(racine, "404.html"), "utf8");
+  const script = /<script>([\s\S]*?)<\/script>/.exec(page404)[1];
+  const suivre = (pathname, search = "") => {
+    let vers = null;
+    new Function("location", script)({ pathname, search, replace: (u) => { vers = u; } });
+    return vers;
+  };
+  assert.equal(suivre("/installer/"), "/installer.html");
+  assert.equal(suivre("/Installer"), "/installer.html");
+  assert.equal(suivre("/ecsr-promo/installer/", "?a=1"), "/ecsr-promo/installer.html?a=1");
+  assert.equal(suivre("/nexiste-pas"), null);
+  assert.equal(suivre("/installer-autre"), null);
+  console.log("installer : OK");
 }

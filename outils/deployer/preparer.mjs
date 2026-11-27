@@ -22,8 +22,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Ce que le navigateur reçoit : la page, son manifeste, la page d'erreur, et quatre dossiers.
-export const FICHIERS_RACINE = ["index.html", "manifest.webmanifest", "404.html"];
+// Ce que le navigateur reçoit : la page, son manifeste, la page d'erreur, la page d'installation, et quatre dossiers.
+export const FICHIERS_RACINE = ["index.html", "manifest.webmanifest", "404.html", "installer.html"];
+
+// Adresses courtes : copie d'une page sous un nom sans extension, écrite dans le dossier de sortie seulement (le bucket
+// ne sert pas « /installer » pour « installer.html » ; GitHub Pages le fait tout seul). Type posé à l'envoi
+// (.github/workflows/mise-en-ligne.yml).
+export const ALIAS = { installer: "installer.html" };
 export const DOSSIERS_SERVIS = ["js/", "css/", "assets/", "vendor/"];
 
 // Un segment qui commence par « _ » (banc d'essai, aperçus) ou « . » ne part jamais.
@@ -90,7 +95,9 @@ export function controler(racine, suivis) {
   for (const f of ["index.html", "manifest.webmanifest"]) if (!ensemble.has(f)) erreurs.push(`fichier indispensable absent : ${f}`);
   if (erreurs.length) return { servis, erreurs };
 
-  for (const c of citationsIndex(lire("index.html"))) if (!ensemble.has(c)) erreurs.push(`index.html cite ${c}, qui ne serait pas servi`);
+  for (const page of FICHIERS_RACINE.filter((f) => f.endsWith(".html") && f !== "404.html" && ensemble.has(f))) {
+    for (const c of citationsIndex(lire(page))) if (!ensemble.has(c)) erreurs.push(`${page} cite ${c}, qui ne serait pas servi`);
+  }
   for (const c of citationsManifeste(lire("manifest.webmanifest"))) if (!ensemble.has(c)) erreurs.push(`le manifeste cite ${c}, qui ne serait pas servi`);
 
   for (const p of servis.filter((x) => x.endsWith(".js"))) {
@@ -144,6 +151,9 @@ function principal() {
       const dest = path.join(cible, p);
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.copyFileSync(path.join(racine, p), dest);
+    }
+    for (const [alias, page] of Object.entries(ALIAS)) {
+      if (servis.includes(page)) fs.copyFileSync(path.join(racine, page), path.join(cible, alias));
     }
     console.log(`[preparer] copiés dans ${path.relative(racine, cible) || cible}`);
   }
