@@ -1159,3 +1159,11 @@ body[data-nav="v2"] .nav-fenetre .habillage-pastilles { padding: 0 6px 6px; }
   margin-top: 1.25rem;
 }
 .nav-repli-gestes .btn { min-height: 44px; min-width: 44px; }
+
+/* Accès support du fondateur (js/nav-shell.js, js/views/acces-support.js) : le bandeau permanent, sur le modèle du bandeau
+   d'émargement mais aux couleurs d'attente, qui passe à la ligne sur téléphone ; le formulaire de la section des Réglages. */
+.support-bandeau { border-color: var(--c-wait); background: var(--c-wait-soft); flex-wrap: wrap; }
+.support-bandeau p { flex: 1 1 14rem; min-width: 0; overflow-wrap: anywhere; }
+.support-form { display: grid; gap: 0.4rem; max-width: 32rem; margin-top: 0.75rem; }
+.support-form select, .support-form textarea { width: 100%; box-sizing: border-box; }
+.support-form .btn { justify-self: start; margin-top: 0.35rem; }

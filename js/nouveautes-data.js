@@ -23,6 +23,16 @@
 // compte », descriptions impersonnelles, « Chaque stagiaire peut… »).
 
 export const NOUVEAUTES = [
+  // Cloisonnement par organisme, étape 3 (date de la mise en ligne) : le nom de l'organisme sur les documents.
+  {
+    id: "2026-11-28-nom-organisme-documents",
+    date: "2026-11-28",
+    pour: "formateurs",
+    titre: "Le nom de votre organisme sur les documents",
+    resume: "Les feuilles d'émargement, les certificats et attestations et le livret EPCF impriment par défaut le nom de votre "
+          + "organisme de formation, tel que l'app le connaît. Un nom déjà saisi dans l'en-tête des documents ou dans un livret "
+          + "reste celui qui s'imprime.",
+  },
   // Page d'installation (27/11) : app.jalonya.fr/installer, ouverte sans connexion.
   {
     id: "2026-11-27-installer-app",

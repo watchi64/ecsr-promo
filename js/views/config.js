@@ -34,6 +34,7 @@ import { nomBenevole } from "../planning-lecture.js?v=20261127b";
 import { dateFr } from "../dates.js?v=20261127b";
 import { phraseDeRefus } from "../espaces-rules.js?v=20261127b";
 import { boutonVerrouOffert, PHRASE_JOURNAL_ABSENT } from "../titres-rules.js?v=20261127b";
+import { renderAccesSupportSection } from "./acces-support.js?v=20261127b";
 
 // ====== SECTION Accès & invitations ======
 
@@ -87,7 +88,7 @@ async function renderTitresCarteSection(rerender) {
     el("div", { class: "param-icon" }, icon.shield()),
     el("div", {},
       el("h3", {}, "Titres à la carte"),
-      el("p", { class: "muted" }, "Réglage réservé au fondateur, pour tout le réseau."))));
+      el("p", { class: "muted" }, "Réglage réservé au fondateur, commun à tous les organismes."))));
   const bloc = el("div", { class: "param-block" });
   if (ouvert == null) {
     bloc.appendChild(el("p", { class: "muted", role: "alert" }, "L'état du verrou n'a pas pu être lu."));
@@ -704,8 +705,12 @@ async function rerender(container) {
       renderPromoSection(() => rerender(container)),
       renderDonneesSection(() => rerender(container)),
     ]), 12000, titre);
-    // Le verrou des titres non fixes (fondateur seul) : sa lecture ne retient pas la page, son échec se dit dans sa section.
-    const titresCarte = await renderTitresCarteSection(() => rerender(container));
+    // Le verrou des titres non fixes et l'accès support (fondateur seul, hors aperçu) : leurs lectures ne retiennent pas la page,
+    // leur échec se dit dans leur section.
+    const [titresCarte, accesSupport] = await Promise.all([
+      renderTitresCarteSection(() => rerender(container)),
+      renderAccesSupportSection(() => rerender(container)),
+    ]);
     // La section « Modules de la promo » est construite ICI, après l'attente, et non dans le
     // tableau ci-dessus : elle montre l'état des modules tel qu'il est au moment de son
     // insertion. Construite avant l'attente, elle serait périmée si une écriture se terminait
@@ -731,7 +736,7 @@ async function rerender(container) {
     const grid = el("div", { class: "param-grid" });
     // Ce que voient les stagiaires d'abord (le réglage qui sert le plus), puis la promo et les accès,
     // l'interrupteur du fondateur, les données personnelles, et le renvoi vers Apparence (Mes préférences).
-    [modules, promo, acces, emargement, autonomie, titresCarte, donnees, renderApparenceRenvoi()].filter(Boolean).forEach((s) => grid.appendChild(s));
+    [modules, promo, acces, emargement, autonomie, titresCarte, accesSupport, donnees, renderApparenceRenvoi()].filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
     console.error(titre + " : erreur de chargement", e);

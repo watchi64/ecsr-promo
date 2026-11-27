@@ -36,11 +36,17 @@
 // la pastille de « Signaler un problème », que le tiroir contient, est affichée), et en phrase en tête du tiroir. La barre
 // ne les attend jamais : ils sont lus après le montage, relus à chaque page affichée (au plus toutes les 30 secondes),
 // et un compte illisible ne montre ni pastille ni erreur.
+// Accès support du fondateur (cloisonnement, spec 2026-11-27 § 5.4) : tant qu'il est ouvert, un bandeau permanent en haut de la
+// page (#support-bandeau, avant le contenu) dit « Accès support : <organisme>, jusqu'à HH h MM » avec « Fermer » ; reposé à chaque
+// montage de la coquille (aperçu compris : l'accès reste ouvert sous un aperçu). À l'échéance, l'app restée ouverte le dit et
+// propose « Recharger » : la base ne donne déjà plus l'organisme du support.
 
 import { el } from "./utils.js?v=20261127b";
 import { icon, deco } from "./icons.js?v=20261127b";
-import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261127b";
-import { getPromoCourante, getLieuxLus, listeDemandes } from "./db.js?v=20261127b";
+import { getProfile, fondateurHorsApercu, getCentre, isFounder } from "./auth-admin.js?v=20261127b";
+import { getPromoCourante, getLieuxLus, listeDemandes, lireMonOrganisme, rechargerApresEnregistrements } from "./db.js?v=20261127b";
+import { etatBandeauSupport } from "./organisme-rules.js?v=20261127b";
+import { fermerAccesSupportPuisRecharger } from "./views/acces-support.js?v=20261127b";
 import { compterNonLues } from "./contact-rules.js?v=20261127b";
 import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261127b";
 import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261127b";
@@ -642,6 +648,48 @@ export function monterCoquille({ espace, entrees, nom, initiales, actualiser }) 
   else if (focus) document.querySelector(focus)?.focus();
   relireATraiter({ force: true });
   relireMessages({ force: true });
+  poserBandeauSupport();
+}
+
+// --- Bandeau de l'accès support (fondateur) ---
+
+let minuteurSupport = null;
+let lectureSupport = 0;   // une lecture partie avant un remontage plus récent ne dessine rien
+
+// Lit l'organisme affiché (lireMonOrganisme ne lève jamais) et pose ou retire le bandeau. Rien pour qui n'est pas le fondateur.
+async function poserBandeauSupport() {
+  const mienne = ++lectureSupport;
+  if (!isFounder()) { dessinerBandeauSupport(null); return; }
+  const organisme = await lireMonOrganisme();
+  if (mienne === lectureSupport) dessinerBandeauSupport(organisme);
+}
+
+function dessinerBandeauSupport(organisme) {
+  clearTimeout(minuteurSupport);
+  minuteurSupport = null;
+  const etat = etatBandeauSupport(organisme, Date.now());
+  let bandeau = document.getElementById("support-bandeau");
+  if (!etat.visible) { if (bandeau) bandeau.remove(); return; }
+  const vue = document.getElementById("view");
+  if (!vue) return;
+  if (!bandeau) {
+    bandeau = el("div", { id: "support-bandeau", class: "em-bandeau support-bandeau", role: "status" });
+    // En tête du contenu, avant le bandeau d'émargement s'il est là.
+    const ancre = document.getElementById("emargement-bandeau") || vue;
+    ancre.parentNode.insertBefore(bandeau, ancre);
+  }
+  const bouton = el("button", { class: "btn small", type: "button" }, etat.echu ? "Recharger" : "Fermer");
+  bouton.addEventListener("click", () => {
+    if (etat.echu) { bouton.disabled = true; rechargerApresEnregistrements(); return; }
+    fermerAccesSupportPuisRecharger(bouton);
+  });
+  bandeau.replaceChildren(el("p", {}, el("strong", {}, etat.texte)), bouton);
+  bandeau.classList.toggle("support-bandeau-echu", etat.echu);
+  if (!etat.echu) {
+    // Redessiné à l'échéance (une demi-seconde après), pour passer à « terminé ». Au plus 2 heures : sous la borne de setTimeout.
+    const reste = organisme.supportJusqua.getTime() - Date.now() + 500;
+    minuteurSupport = setTimeout(() => dessinerBandeauSupport(organisme), Math.min(Math.max(500, reste), 2147483647));
+  }
 }
 
 // Allume l'entrée de la page affichée (entreeActive : alias compris), et « Plus » quand le

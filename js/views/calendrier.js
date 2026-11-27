@@ -106,7 +106,7 @@ function openEventModal(existing, onSaved) {
 
   const locInput = el("input", {
     type: "text",
-    placeholder: "Ex. Centre ECF Pau (facultatif)",
+    placeholder: "Ex. Centre de formation de Pau (facultatif)",
     value: existing?.location || "",
   });
 
