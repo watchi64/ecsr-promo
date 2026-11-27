@@ -12,7 +12,7 @@
 --     profs, ressources (nul vaudra « carte commune » à l'étape 2c) et qcm_signalements : tout l'existant sur l'organisme 1.
 --   * acces_fondateur, le journal du fondateur : une ligne de rattachement (sans fin ni motif) sur l'organisme 1 pour chaque compte
 --     is_founder ; les accès support (motif d'au moins 10 caractères, 2 heures au plus) ne s'écrivent que par
---     ouvrir_acces_support() ; aucune suppression, aucune modification sauf la fermeture anticipée d'un support (ferme_le avancé à
+--     ouvrir_acces_support() (déclencheur : toute autre insertion est refusée) ; aucune suppression, aucune modification sauf la fermeture anticipée d'un support (ferme_le avancé à
 --     maintenant), même pour le propriétaire. Lecture : le fondateur, et le siège de l'organisme de la ligne. Un compte qui devient
 --     fondateur après la migration reçoit aussitôt son rattachement (déclencheur sur user_profiles), sur l'organisme des
 --     rattachements existants, sinon sur l'organisme unique.
@@ -98,8 +98,10 @@ create table public.organismes (
   cree_le timestamptz not null default now()
 );
 alter table public.organismes enable row level security;
-revoke all on public.organismes from public, anon, authenticated;
-revoke all on sequence public.organismes_id_seq from public, anon, authenticated;
+-- service_role compris : sur Supabase, les droits par défaut du propriétaire du schéma donnent tout sur une table neuve à anon,
+-- authenticated et service_role.
+revoke all on public.organismes from public, anon, authenticated, service_role;
+revoke all on sequence public.organismes_id_seq from public, anon, authenticated, service_role;
 
 insert into public.organismes (nom, redacteur, habillage)
 select 'ECF BOUSCAREN', true,
@@ -152,13 +154,13 @@ create table public.acces_fondateur (
   motif text,
   ouvert_par text not null default lower(auth.jwt() ->> 'email'),
   constraint acces_fondateur_forme check ((ferme_le is null) = (motif is null)),
-  constraint acces_fondateur_motif check (motif is null or char_length(btrim(motif)) >= 10),
+  constraint acces_fondateur_motif check (motif is null or char_length(regexp_replace(motif, '^\s+|\s+$', '', 'g')) >= 10),
   constraint acces_fondateur_duree check (ferme_le is null or (ferme_le >= ouvert_le and ferme_le <= ouvert_le + interval '2 hours'))
 );
 create unique index acces_fondateur_un_rattachement on public.acces_fondateur (email) where ferme_le is null;
 alter table public.acces_fondateur enable row level security;
-revoke all on public.acces_fondateur from public, anon, authenticated;
-revoke all on sequence public.acces_fondateur_id_seq from public, anon, authenticated;
+revoke all on public.acces_fondateur from public, anon, authenticated, service_role;
+revoke all on sequence public.acces_fondateur_id_seq from public, anon, authenticated, service_role;
 
 insert into public.acces_fondateur (email, organisme_id, ouvert_par)
 select distinct lower(up.email), 1, 'système' from public.user_profiles up where up.is_founder;
@@ -347,7 +349,9 @@ end;
 $function$;
 
 -- Ouvre un accès support : fondateur seulement, motif d'au moins 10 caractères (blancs autour retirés), durée de plus de 0 et de
--- 2 heures au plus, un autre organisme que celui du rattachement. Ferme d'abord tout support encore ouvert.
+-- 2 heures au plus, un autre organisme que celui du rattachement. Ferme d'abord tout support encore ouvert, sous un verrou propre au
+-- fondateur (deux appels simultanés ne laissent jamais deux supports ouverts). Les blancs retirés du motif comprennent tabulations
+-- et retours à la ligne.
 create function public.ouvrir_acces_support(p_organisme integer, p_motif text, p_duree interval default '2 hours')
  returns public.acces_fondateur
  language plpgsql
@@ -356,7 +360,7 @@ create function public.ouvrir_acces_support(p_organisme integer, p_motif text, p
 as $function$
 declare
   v_moi text := lower(auth.jwt() ->> 'email');
-  v_motif text := btrim(p_motif);
+  v_motif text := regexp_replace(p_motif, '^\s+|\s+$', '', 'g');
   v_ligne acces_fondateur;
 begin
   if v_moi is null or not fondateur_reel() then
@@ -374,11 +378,15 @@ begin
   if exists (select 1 from acces_fondateur af where af.email = v_moi and af.ferme_le is null and af.organisme_id = p_organisme) then
     raise exception 'support: Vous êtes déjà rattaché à cet organisme.' using errcode = '22023';
   end if;
+  perform pg_advisory_xact_lock(hashtext('acces_fondateur:' || v_moi));
   update acces_fondateur af set ferme_le = now()
    where af.email = v_moi and af.motif is not null and af.ferme_le > now();
+  -- Le déclencheur du journal n'accepte une insertion que sous ce marqueur, posé le temps de l'insertion.
+  perform set_config('cloisonnement.journal_fondateur', 'oui', true);
   insert into acces_fondateur (email, organisme_id, ouvert_le, ferme_le, motif, ouvert_par)
   values (v_moi, p_organisme, now(), now() + p_duree, v_motif, v_moi)
   returning * into v_ligne;
+  perform set_config('cloisonnement.journal_fondateur', '', true);
   return v_ligne;
 end;
 $function$;
@@ -478,6 +486,15 @@ begin
   if tg_op in ('DELETE', 'TRUNCATE') then
     raise exception 'support: Le journal du fondateur ne s''efface pas.' using errcode = '42501';
   end if;
+  -- Insertion : seulement depuis ouvrir_acces_support() ou _rattachement_fondateur(), qui posent le marqueur le temps de leur
+  -- insertion. Aucun rôle de l'API n'a le droit d'insertion ; le marqueur arrête aussi une insertion directe que permettrait un
+  -- droit accordé un jour par erreur (PostgREST n'expose pas set_config).
+  if tg_op = 'INSERT' then
+    if coalesce(current_setting('cloisonnement.journal_fondateur', true), '') <> 'oui' then
+      raise exception 'support: Le journal du fondateur ne s''écrit que par ouvrir_acces_support().' using errcode = '42501';
+    end if;
+    return new;
+  end if;
   if old.motif is not null and old.ferme_le is not null and old.ferme_le > now() and new.ferme_le = now()
      and (new.id, new.email, new.organisme_id, new.ouvert_le, new.motif, new.ouvert_par)
          is not distinct from (old.id, old.email, old.organisme_id, old.ouvert_le, old.motif, old.ouvert_par) then
@@ -510,8 +527,10 @@ begin
       return null;
     end if;
   end if;
+  perform set_config('cloisonnement.journal_fondateur', 'oui', true);
   insert into acces_fondateur (email, organisme_id, ouvert_par)
   values (lower(new.email), v_o, coalesce(nullif(lower(auth.jwt() ->> 'email'), ''), 'système'));
+  perform set_config('cloisonnement.journal_fondateur', '', true);
   return null;
 end;
 $function$;
@@ -532,7 +551,7 @@ create trigger organisme_par_defaut before insert or update on public.titres
   for each row when (new.organisme_id is null and new.niveau = 'reseau' and not new.fixe) execute function public._organisme_par_defaut();
 create trigger journal_droits_organisme before insert on public.journal_droits
   for each row when (new.organisme_id is null) execute function public._journal_droits_organisme();
-create trigger acces_fondateur_journal before update or delete on public.acces_fondateur
+create trigger acces_fondateur_journal before insert or update or delete on public.acces_fondateur
   for each row execute function public._acces_fondateur_journal();
 create trigger acces_fondateur_journal_vidage before truncate on public.acces_fondateur
   for each statement execute function public._acces_fondateur_journal();

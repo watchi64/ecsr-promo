@@ -1960,8 +1960,27 @@ test("les fichiers de l'étape 1 du cloisonnement : aucun tiret cadratin, fins d
   }
   const ouvertes = [...m.matchAll(/^grant execute on function public\.(\w+)\(/gm)].map((x) => x[1]).sort();
   assert.deepEqual(ouvertes, ["est_siege_de", "fermer_acces_support", "mon_organisme", "organismes_pour_support", "ouvrir_acces_support"]);
-  assert.match(m, /revoke all on public\.organismes from public, anon, authenticated;/);
-  assert.match(m, /revoke all on public\.acces_fondateur from public, anon, authenticated;/);
+  // service_role compris : sur Supabase, les droits par défaut donnent tout sur une table ou une séquence neuve à service_role.
+  for (const objet of ["public.organismes", "sequence public.organismes_id_seq", "public.acces_fondateur", "sequence public.acces_fondateur_id_seq"]) {
+    assert.ok(m.includes(`revoke all on ${objet} from public, anon, authenticated, service_role;`), `${objet} : droits retirés à tous, service_role compris`);
+  }
+  // Le journal : insertion seulement sous le marqueur posé par ouvrir_acces_support et _rattachement_fondateur ; motif nettoyé de tout
+  // blanc (tabulations, retours à la ligne) dans la fonction comme dans la contrainte ; verrou du fondateur avant de fermer l'ancien support.
+  assert.match(m, /^create trigger acces_fondateur_journal before insert or update or delete on public\.acces_fondateur$/m);
+  assert.ok(m.includes("if coalesce(current_setting('cloisonnement.journal_fondateur', true), '') <> 'oui' then"));
+  for (const nom of ["ouvrir_acces_support", "_rattachement_fondateur"]) {
+    const def = new RegExp(`^create function public\\.${nom}\\([\\s\\S]*?^\\$function\\$;$`, "m").exec(m)[0];
+    const pose = def.indexOf("perform set_config('cloisonnement.journal_fondateur', 'oui', true);");
+    const ote = def.indexOf("perform set_config('cloisonnement.journal_fondateur', '', true);");
+    const insere = def.indexOf("insert into acces_fondateur");
+    assert.ok(pose > 0 && pose < insere && insere < ote, `${nom} : marqueur posé juste avant l'insertion, retiré juste après`);
+  }
+  const ouvrir = /^create function public\.ouvrir_acces_support\([\s\S]*?^\$function\$;$/m.exec(m)[0];
+  assert.ok(ouvrir.includes("v_motif text := regexp_replace(p_motif, '^\\s+|\\s+$', '', 'g');"), "motif nettoyé de tout blanc");
+  const verrou = ouvrir.indexOf("perform pg_advisory_xact_lock(hashtext('acces_fondateur:' || v_moi));");
+  assert.ok(verrou > 0 && verrou < ouvrir.indexOf("update acces_fondateur af set ferme_le = now()"), "verrou du fondateur avant la fermeture de l'ancien support");
+  assert.ok(m.includes("constraint acces_fondateur_motif check (motif is null or char_length(regexp_replace(motif, '^\\s+|\\s+$', '', 'g')) >= 10),"));
+  assert.ok(!/btrim\(/.test(m), "aucun btrim : il ne retire que les espaces");
   assert.deepEqual(m.match(/^grant (?!execute).*$/gm), ["grant select on public.acces_fondateur to authenticated;"]);
   assert.ok(m.includes("raise exception 'Organisme introuvable pour cette ligne.' using errcode = '22023';"));
   const r = texteDuDepot(ETAPES_CLOISONNEMENT["1"].retour);

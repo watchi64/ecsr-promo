@@ -74,6 +74,27 @@ begin
   return r;
 end $csv$;
 
+-- Une insertion jouée en service_role après lui avoir accordé insert et select sur acces_fondateur et sa séquence, dans une
+-- sous-transaction toujours annulée (le droit disparaît avec elle) : « OK <lignes> » ou « ERREUR <état> <message> ».
+create or replace function pg_temp.clo_service_avec_droit(p_sql text)
+returns text language plpgsql as $csd$
+declare n bigint; r text;
+begin
+  perform pg_temp.proprio();
+  begin
+    grant insert, select on public.acces_fondateur to service_role;
+    grant usage, select on sequence public.acces_fondateur_id_seq to service_role;
+    set local role service_role;
+    execute p_sql;
+    get diagnostics n = row_count;
+    raise exception using errcode = 'P0001', message = 'OK ' || n;
+  exception when others then
+    r := case when sqlstate = 'P0001' and sqlerrm like 'OK %' then sqlerrm else 'ERREUR ' || sqlstate || ' ' || sqlerrm end;
+  end;
+  perform pg_temp.proprio();
+  return r;
+end $csd$;
+
 -- L'organisme d'une ligne repérée par une condition, relu par le propriétaire (« nul » si nul, « aucune ligne » si rien).
 create or replace function pg_temp.org_de(p_table text, p_ou text)
 returns text language sql as $cod$
@@ -137,16 +158,21 @@ begin
     pg_temp.calcul(format($q$select string_agg(p.proname, ',' order by p.proname) from pg_proc p
       where p.pronamespace = 'public'::regnamespace and p.proname = any (%L::text[]) and has_function_privilege('authenticated', p.oid, 'execute')$q$, pg_temp.fonctions_etape_1())),
     'est_siege_de,fermer_acces_support,mon_organisme,organismes_pour_support,ouvrir_acces_support');
-  perform pg_temp.attendre('fondations', 'aucune fonction de l''étape 1 exécutable par anon',
-    pg_temp.calcul(format($q$select count(*)::text from pg_proc p
-      where p.pronamespace = 'public'::regnamespace and p.proname = any (%L::text[]) and has_function_privilege('anon', p.oid, 'execute')$q$, pg_temp.fonctions_etape_1())), '0');
-  perform pg_temp.attendre('fondations', 'organismes et acces_fondateur : sécurité de ligne active, aucune écriture pour anon ni authenticated, acces_fondateur lisible par authenticated seul',
+  perform pg_temp.attendre('fondations', 'aucune fonction de l''étape 1 exécutable par anon ni par service_role (anon/service_role)',
+    pg_temp.calcul(format($q$select count(*) filter (where has_function_privilege('anon', p.oid, 'execute'))::text || '/'
+        || count(*) filter (where has_function_privilege('service_role', p.oid, 'execute'))::text from pg_proc p
+      where p.pronamespace = 'public'::regnamespace and p.proname = any (%L::text[])$q$, pg_temp.fonctions_etape_1())), '0/0');
+  perform pg_temp.attendre('fondations', 'organismes et acces_fondateur : sécurité de ligne active ; aucune écriture pour anon, authenticated ni service_role ; aucun droit sur leurs séquences ; acces_fondateur lisible par authenticated seul ; organismes lisible par aucun (droits par défaut de Supabase simulés)',
     pg_temp.calcul($q$select concat_ws('|',
         (select string_agg(c.relname || '=' || c.relrowsecurity, ',' order by c.relname) from pg_class c where c.oid in ('public.organismes'::regclass, 'public.acces_fondateur'::regclass)),
-        (select count(*) from (values ('anon'), ('authenticated')) r(r) cross join (values ('public.organismes'), ('public.acces_fondateur')) t(t)
-          cross join (values ('insert'), ('update'), ('delete'), ('truncate')) d(d) where has_table_privilege(r.r, t.t, d.d)),
-        has_table_privilege('authenticated', 'public.acces_fondateur', 'select')::text, has_table_privilege('anon', 'public.acces_fondateur', 'select')::text)$q$),
-    'acces_fondateur=true,organismes=true|0|true|false');
+        (select count(*) from (values ('anon'), ('authenticated'), ('service_role')) r(r) cross join (values ('public.organismes'), ('public.acces_fondateur')) t(t)
+          cross join (values ('insert'), ('update'), ('delete'), ('truncate'), ('references'), ('trigger')) d(d) where has_table_privilege(r.r, t.t, d.d)),
+        (select count(*) from (values ('anon'), ('authenticated'), ('service_role')) r(r) cross join (values ('public.organismes_id_seq'), ('public.acces_fondateur_id_seq')) t(t)
+          cross join (values ('usage'), ('select'), ('update')) d(d) where has_sequence_privilege(r.r, t.t, d.d)),
+        has_table_privilege('authenticated', 'public.acces_fondateur', 'select')::text, has_table_privilege('anon', 'public.acces_fondateur', 'select')::text,
+        has_table_privilege('service_role', 'public.acces_fondateur', 'select')::text,
+        (select count(*) from (values ('anon'), ('authenticated'), ('service_role')) r(r) where has_table_privilege(r.r, 'public.organismes', 'select')))$q$),
+    'acces_fondateur=true,organismes=true|0|0|true|false|false|0');
 end $cgfe$;
 
 -- Groupe fondations, partie 2 : le vocabulaire et mon_organisme(), une fois l'organisme B posé.
@@ -220,7 +246,7 @@ returns void language plpgsql as $cgsj$
 declare
   v_a text := pg_temp.clo('org_a'); v_b text := pg_temp.clo('org_b');
   v_ouv constant text := 'select (public.ouvrir_acces_support(%s, %s, %s)).organisme_id::text';
-  r record; v text; v_s1 text; v_s2 text; v_s3 text; v_total text;
+  r record; v text; v_s1 text; v_s2 text; v_s3 text; v_total text; c_insertion text;
 begin
   perform pg_temp.attendre('support-journal', 'hors support, mon_organisme() du fondateur ne porte aucune échéance',
     pg_temp.clo_lire('fond_a', 'select coalesce(support_jusqua::text, ''aucune'') from public.mon_organisme()'), 'OK aucune');
@@ -228,6 +254,8 @@ begin
   for r in select * from (values
       ('motif de 5 caractères', v_b, '''court''', '''1 hour''::interval'),
       ('motif de 3 caractères entouré de blancs', v_b, '''      abc       ''', '''1 hour''::interval'),
+      ('motif de 3 caractères entouré de tabulations et de retours à la ligne', v_b, 'E''\t\t\tabc\n\n\n\n\n\r\n''', '''1 hour''::interval'),
+      ('motif de 11 tabulations et retours à la ligne', v_b, 'E''\t\t\t\t\t\n\n\n\n\r\n''', '''1 hour''::interval'),
       ('motif absent', v_b, 'null', '''1 hour''::interval'),
       ('durée de 3 heures', v_b, '''Assistance demandée par la preuve''', '''3 hours''::interval'),
       ('durée de 2 heures et 1 seconde', v_b, '''Assistance demandée par la preuve''', '''2 hours 1 second''::interval'),
@@ -298,6 +326,32 @@ begin
     v := pg_temp.clo_ecrire(null, r.req);
     perform pg_temp.verifier('support-journal', 'refusé même au propriétaire (42501) : ' || r.libelle, v like 'ERREUR 42501 %', v);
   end loop;
+  -- Insertion directe dans le journal : refusée à service_role (aucun droit : les droits par défaut de Supabase, simulés, sont
+  -- retirés par la migration) ; refusée par le déclencheur au propriétaire et à service_role même muni d'un droit d'insertion
+  -- (accordé ici le temps de l'essai, comme le ferait une erreur future).
+  c_insertion := format($q$insert into public.acces_fondateur (email, organisme_id, ouvert_le, ferme_le, motif, ouvert_par)
+    values (%L, %s, now() - interval '30 minutes', now() + interval '1 hour', 'Support forgé hors de la fonction', 'preuve')$q$,
+    (select email from pg_temp.clo_perso where nom = 'fond_a'), coalesce(v_b, 'null'));
+  v := pg_temp.clo_service(c_insertion);
+  perform pg_temp.verifier('support-journal', 'service_role n''insère pas dans le journal (42501, aucun droit)', v like 'ERREUR 42501 %', v);
+  v := pg_temp.clo_service($q$insert into public.organismes (nom, redacteur, habillage) values ('Organisme forgé', true, 'ecf')$q$)
+    || ' ; ' || pg_temp.clo_service($q$update public.organismes set redacteur = true$q$);
+  perform pg_temp.verifier('support-journal', 'service_role n''écrit pas les organismes (insertion, modification : 42501)', v like 'ERREUR 42501 % ; ERREUR 42501 %', v);
+  perform pg_temp.attendre('support-journal', 'le propriétaire n''insère pas dans le journal hors de ouvrir_acces_support (déclencheur, 42501)',
+    pg_temp.clo_ecrire(null, c_insertion), 'ERREUR 42501 support: Le journal du fondateur ne s''écrit que par ouvrir_acces_support().');
+  perform pg_temp.attendre('support-journal', 'service_role muni d''un droit d''insertion accordé par erreur : refusé par le déclencheur (42501)',
+    pg_temp.clo_service_avec_droit(c_insertion), 'ERREUR 42501 support: Le journal du fondateur ne s''écrit que par ouvrir_acces_support().');
+  perform pg_temp.attendre('support-journal', 'aucune ligne forgée dans le journal ni aucun organisme forgé',
+    pg_temp.calcul($q$select (select count(*) from public.acces_fondateur where motif = 'Support forgé hors de la fonction' or ouvert_par = 'preuve')::text
+      || '/' || (select count(*) from public.organismes where nom = 'Organisme forgé' or (redacteur and id <> 1))::text$q$), '0/0');
+  -- La contrainte du motif voit aussi les tabulations et retours à la ligne (marqueur posé à la main, comme le fait la fonction).
+  v := pg_temp.clo_ecrire(null, format($q$with m as (select set_config('cloisonnement.journal_fondateur', 'oui', true) as x)
+      insert into public.acces_fondateur (email, organisme_id, ferme_le, motif, ouvert_par)
+      select %L, %s, now() + interval '1 hour', E'\t\t\t\t\t\n\n\n\n\r\n', 'preuve' from m$q$,
+      (select email from pg_temp.clo_perso where nom = 'fond_a'), coalesce(v_b, 'null')));
+  perform set_config('cloisonnement.journal_fondateur', '', true);
+  perform pg_temp.verifier('support-journal', 'contrainte du motif : 11 tabulations et retours à la ligne refusés (23514, acces_fondateur_motif)',
+    v like 'ERREUR 23514 %acces_fondateur_motif%', v);
   -- Fermeture anticipée : acceptée (ferme_le avancé à maintenant), puis le fondateur revient à ECF.
   perform pg_temp.attendre('support-journal', 'fermeture anticipée d''un support par le propriétaire (ferme_le avancé à maintenant) : acceptée',
     pg_temp.clo_ecrire(null, format('update public.acces_fondateur set ferme_le = now() where id = %s', coalesce(v_s2, 'null'))), 'OK 1');
@@ -467,6 +521,13 @@ begin
     union all select 'qcm_signalements', id from public.qcm_signalements;
   v_habillage := coalesce((select s.value from public.settings s where s.promo_id is null and s.key = 'habillage_reseau' and s.value in ('ecsr', 'ecf')), 'ecsr');
   v_fondateurs := (select count(*) from public.user_profiles where is_founder);
+  -- Les droits par défaut de Supabase (le propriétaire du schéma donne tout à anon, authenticated et service_role sur toute table,
+  -- séquence et fonction neuves de public) n'existent pas sur la base locale : posés ici, dans la transaction annulée, pour que la
+  -- migration doive les retirer elle-même. Sans effet en mode en ligne (les objets existent déjà).
+  alter default privileges for role postgres in schema public grant all on tables to anon, authenticated, service_role;
+  alter default privileges for role postgres in schema public grant all on sequences to anon, authenticated, service_role;
+  alter default privileges for role postgres in schema public grant all on functions to anon, authenticated, service_role;
+  perform pg_temp.informer('droits par défaut de Supabase', 'simulés dans la transaction : alter default privileges pour postgres, schéma public, tables, séquences et fonctions à anon, authenticated, service_role');
 
   -- 2. Les migrations, dans l'ordre (neutralisées dans les modes sans elles), puis la règle relâchée du mode sabotage.
   v_etat := pg_temp.jouer('migration 1',
