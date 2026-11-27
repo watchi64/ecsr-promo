@@ -1,7 +1,8 @@
 -- Retour de 20261128_cloisonnement_2a_noyau : remet le corps d'avant (état de la production du 27/11) de chaque fonction que
 -- l'étape 2a a remplacée. Mêmes signatures, mêmes droits (create or replace). Rend exactement l'empreinte d'avant l'étape 2a
 -- (tests/sql/roles-empreinte.sql : règles, fonctions, droits).
--- Garde : chaque corps est celui que l'étape 2a a posé (md5, retours chariot retirés) ; sinon rien n'est changé.
+-- Garde : chaque corps est celui que l'étape 2a a posé (md5, retours chariot retirés) ; aucune étape plus tardive n'est en place
+-- (aucune autre fonction ni règle que celles des étapes 1 et 2a ne cite le vocabulaire du cloisonnement) ; sinon rien n'est changé.
 -- Ordre : après les retours des étapes 2c et 2b, avant celui de l'étape 1 (les corps de l'étape 2a appellent le vocabulaire
 -- de l'étape 1).
 -- Preuve : tests/sql/cloisonnement-preuve.sql, groupe retour.
@@ -33,6 +34,29 @@ begin
    where md5(replace(p.prosrc, chr(13), '')) is distinct from x.attendu;
   if v_liste is not null then
     raise exception 'cloisonnement_2a_retour : corps inattendu(s) : % ; rien n''est changé', v_liste;
+  end if;
+  -- Une étape plus tardive (2b, 2c) en place : une fonction ou une règle hors des étapes 1 et 2a cite le vocabulaire du cloisonnement.
+  select string_agg(x.objet, ', ' order by x.objet) into v_liste
+    from (select 'fonction ' || p.proname as objet
+            from pg_proc p
+           where p.pronamespace = 'public'::regnamespace
+             and p.prosrc ~ '\m(organisme_de_lieu|organisme_de_promo|organisme_actif_fondateur|fondateur_sur|organisme_courant|est_siege_de|organisme_redacteur_courant|mon_organisme|dans_mon_organisme|organismes|organisme_id|acces_fondateur)\M'
+             and p.proname <> all (array[
+               -- étape 1
+               'organisme_de_lieu', 'organisme_de_promo', 'organisme_actif_fondateur', 'fondateur_sur', 'organisme_courant', 'est_siege_de',
+               'organisme_redacteur_courant', 'mon_organisme', 'organismes_pour_support', 'ouvrir_acces_support', 'fermer_acces_support',
+               '_organisme_par_defaut', '_journal_droits_organisme', '_acces_fondateur_journal', '_rattachement_fondateur',
+               -- étape 2a
+               'est_formateur', 'est_direction', 'est_siege', 'peut_acceder_promo', 'promo_par_defaut', 'promo_courante', 'case_promo',
+               'case_centre', 'case_reseau', 'siege_fixe', 'formateur_fixe', 'direction_fixe', 'membre_stagiaire'])
+          union all
+          select 'règle ' || r.tablename || '.' || r.policyname
+            from pg_policies r
+           where r.schemaname in ('public', 'storage')
+             and coalesce(r.qual, '') || ' ' || coalesce(r.with_check, '') ~ '\m(organisme_de_lieu|organisme_de_promo|organisme_actif_fondateur|fondateur_sur|organisme_courant|est_siege_de|organisme_redacteur_courant|mon_organisme|dans_mon_organisme|organismes|organisme_id|acces_fondateur)\M'
+             and r.policyname <> 'acces_fondateur_lecture') x;
+  if v_liste is not null then
+    raise exception 'cloisonnement_2a_retour : une étape plus tardive est en place (%) : jouer d''abord son retour ; rien n''est changé', v_liste;
   end if;
 end $garde$;
 

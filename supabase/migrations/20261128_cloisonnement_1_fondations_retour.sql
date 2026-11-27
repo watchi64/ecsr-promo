@@ -3,8 +3,9 @@
 -- fonctions, droits). Les rattachements des centres, sièges, titres, fiches, cartes et signalements sont perdus avec les colonnes, et
 -- le journal du fondateur avec sa table : à ne jouer qu'avant toute mise en service d'un autre organisme qu'ECF, et après les
 -- retours des étapes 2c, 2b et 2a.
--- Garde : les objets de l'étape 1 sont tous là (sinon rien n'est changé). Aucun corps de fonction existant n'est remis : l'étape 1
--- n'en remplace aucun.
+-- Garde : les objets de l'étape 1 sont tous là, et aucune étape plus tardive n'est en place (aucune autre fonction ni règle que
+-- celles de l'étape 1 ne cite le vocabulaire du cloisonnement) ; sinon rien n'est changé. Aucun corps de fonction existant n'est
+-- remis : l'étape 1 n'en remplace aucun.
 -- Preuve : tests/sql/cloisonnement-preuve.sql, groupe retour.
 -- À appliquer en une seule transaction : psql -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261128_cloisonnement_1_fondations_retour.sql.
 
@@ -34,6 +35,27 @@ begin
    where to_regprocedure(f) is null;
   if v_liste is not null then
     raise exception 'cloisonnement_1_retour : fonction(s) absente(s) : % ; rien n''est changé', v_liste;
+  end if;
+  -- Une étape plus tardive (2a, 2b, 2c) en place : une fonction ou une règle hors de l'étape 1 cite le vocabulaire du cloisonnement
+  -- (les corps de l'étape 2a appellent fondateur_sur, organisme_courant... : les retirer les laisserait en panne).
+  select string_agg(x.objet, ', ' order by x.objet) into v_liste
+    from (select 'fonction ' || p.proname as objet
+            from pg_proc p
+           where p.pronamespace = 'public'::regnamespace
+             and p.prosrc ~ '\m(organisme_de_lieu|organisme_de_promo|organisme_actif_fondateur|fondateur_sur|organisme_courant|est_siege_de|organisme_redacteur_courant|mon_organisme|dans_mon_organisme|organismes|organisme_id|acces_fondateur)\M'
+             and p.proname <> all (array[
+               -- étape 1
+               'organisme_de_lieu', 'organisme_de_promo', 'organisme_actif_fondateur', 'fondateur_sur', 'organisme_courant', 'est_siege_de',
+               'organisme_redacteur_courant', 'mon_organisme', 'organismes_pour_support', 'ouvrir_acces_support', 'fermer_acces_support',
+               '_organisme_par_defaut', '_journal_droits_organisme', '_acces_fondateur_journal', '_rattachement_fondateur'])
+          union all
+          select 'règle ' || r.tablename || '.' || r.policyname
+            from pg_policies r
+           where r.schemaname in ('public', 'storage')
+             and coalesce(r.qual, '') || ' ' || coalesce(r.with_check, '') ~ '\m(organisme_de_lieu|organisme_de_promo|organisme_actif_fondateur|fondateur_sur|organisme_courant|est_siege_de|organisme_redacteur_courant|mon_organisme|dans_mon_organisme|organismes|organisme_id|acces_fondateur)\M'
+             and r.policyname <> 'acces_fondateur_lecture') x;
+  if v_liste is not null then
+    raise exception 'cloisonnement_1_retour : une étape plus tardive est en place (%) : jouer d''abord son retour ; rien n''est changé', v_liste;
   end if;
 end $garde$;
 

@@ -1812,6 +1812,10 @@ test("cloisonnement sans --etapes, dépôt réel : l'étape 1 injectée octet po
     assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ETAPES_CLOISONNEMENT["1"].migration, ETAPES_CLOISONNEMENT["2a"].migration,
       ETAPES_CLOISONNEMENT["2a"].retour, ETAPES_CLOISONNEMENT["1"].retour]);
     assert.equal(r.mode, "cloisonnement (etapes 1, 2a injectees)");
+  } else if (!existsSync(join(RACINE, ETAPES_CLOISONNEMENT["2c"].migration))) {
+    assert.deepEqual(r.injections.map((x) => x.chemin), [EMPREINTE, ETAPES_CLOISONNEMENT["1"].migration, ETAPES_CLOISONNEMENT["2a"].migration,
+      ETAPES_CLOISONNEMENT["2b"].migration, ETAPES_CLOISONNEMENT["2b"].retour, ETAPES_CLOISONNEMENT["2a"].retour, ETAPES_CLOISONNEMENT["1"].retour]);
+    assert.equal(r.mode, "cloisonnement (etapes 1, 2a, 2b injectees)");
   }
 });
 
@@ -2035,4 +2039,75 @@ test("les fichiers de l'étape 2a du cloisonnement : LF, sans tiret cadratin, lo
   assert.equal((r.match(/^ STABLE SECURITY DEFINER$/gm) ?? []).length, 13);
   assert.equal((r.match(/^ SET search_path TO 'public', 'pg_temp'$/gm) ?? []).length, 13);
   assert.ok(!/fondateur_sur|organisme_/.test(r.slice(r.indexOf("end $garde$;"))), "le retour ne cite plus le vocabulaire de l'étape 1");
+});
+
+test("les fichiers de l'étape 2b du cloisonnement : LF, sans tiret cadratin, lock_timeout, les vingt fonctions remplacées (en-têtes, volatilité et chemin de l'état d'avant, garde md5 de chacune), deux fonctions nouvelles aux droits explicites, deux règles, retour complet ; les retours 1 et 2a refusent de passer avant une étape plus tardive", { skip: !ETAPE_2B_ECRITE }, () => {
+  const REMPLACEES = ["_organisme_par_defaut()", "comptes_reseau()", "creer_centre(text)", "regler_habillage_reseau(text)", "habillage_par_defaut()",
+    "inviter_compte(text, text, integer, integer, integer)", "roles_du_personnel()", "_cases_appelant(text, integer)", "_refus_gestion(text, integer, jsonb)",
+    "_refus_titre(bigint, integer, text, text)", "donner_titre(text, bigint, integer, integer[], integer)", "retirer_titre(text, bigint, integer)",
+    "creer_titre(bigint, text, integer)", "ajuster_titre(bigint, integer, text, jsonb)", "supprimer_titre(bigint)", "titres_visibles(integer)",
+    "titres_ajustables(integer)", "personnes_et_titres(integer, integer)", "journal_des_droits(integer)", "apercu_titre()"];
+  const nomDe = (sig) => sig.slice(0, sig.indexOf("("));
+  const motif = (sig) => new RegExp(`\\('public\\.${sig.replace(/[()[\]]/g, "\\$&")}', '[0-9a-f]{32}'\\)`);
+  const m = texteDuDepot(ETAPES_CLOISONNEMENT["2b"].migration);
+  const r = texteDuDepot(ETAPES_CLOISONNEMENT["2b"].retour);
+  for (const chemin of [ETAPES_CLOISONNEMENT["2b"].migration, ETAPES_CLOISONNEMENT["2b"].retour, ETAPES_CLOISONNEMENT["2a"].retour,
+    ETAPES_CLOISONNEMENT["1"].retour, GABARIT_CLO]) {
+    const brut = readFileSync(join(RACINE, chemin), "utf8");
+    assert.ok(!brut.includes(String.fromCharCode(0x2014)), `${chemin} : aucun tiret cadratin`);
+    assert.ok(!brut.includes("\r"), `${chemin} : fins de ligne LF`);
+    if (chemin.startsWith("supabase/")) assert.match(brut, /^set local lock_timeout = '3s';$/m, `${chemin} : lock_timeout`);
+  }
+  // Les vingt, dans l'ordre, chacune gardée par son md5 avant le premier remplacement ; le retour les remet dans le même ordre.
+  assert.deepEqual([...m.matchAll(/^create or replace function public\.(\w+)\(/gm)].map((x) => x[1]), REMPLACEES.map(nomDe));
+  assert.deepEqual([...r.matchAll(/^CREATE OR REPLACE FUNCTION public\.(\w+)\(/gm)].map((x) => x[1]), REMPLACEES.map(nomDe));
+  for (const [texte, nom] of [[m, "migration"], [r, "retour"]]) {
+    const fin = texte.indexOf("end $garde$;");
+    assert.ok(texte.indexOf("do $garde$") >= 0 && fin > 0 && fin < texte.search(/^create or replace function|^CREATE OR REPLACE FUNCTION/m), `${nom} : garde avant les remplacements`);
+    const garde = texte.slice(texte.indexOf("do $garde$"), fin);
+    for (const sig of REMPLACEES) assert.match(garde, motif(sig), `${nom} : md5 gardé pour ${sig}`);
+  }
+  // Chaque fonction garde la signature, le type rendu, la volatilité, security definer et le chemin de recherche d'avant (ceux du retour).
+  const entete = (texte, nom, debut) => {
+    const i = texte.indexOf(`${debut} public.${nom}(`);
+    return texte.slice(i, texte.indexOf("$function$", i)).toLowerCase();
+  };
+  for (const nom of REMPLACEES.map(nomDe)) {
+    const em = entete(m, nom, "create or replace function");
+    assert.equal(em, entete(r, nom, "CREATE OR REPLACE FUNCTION"), `${nom} : en-tête identique à celui d'avant`);
+    assert.match(em, /\n security definer\n|\n stable security definer\n/, `${nom} : security definer`);
+    assert.match(em, /\n set search_path to 'public', 'pg_temp'\n/, `${nom} : chemin de recherche`);
+  }
+  // Fonctions nouvelles : security definer, chemin fixé, droits retirés à tous ; dans_mon_organisme ouverte à authenticated (les règles).
+  assert.deepEqual([...m.matchAll(/^create function public\.(\w+)\(/gm)].map((x) => x[1]), ["_habillage_reseau_miroir", "dans_mon_organisme"]);
+  for (const nom of ["_habillage_reseau_miroir", "dans_mon_organisme"]) {
+    const def = new RegExp(`^create function public\\.${nom}\\([\\s\\S]*?^\\$function\\$;$`, "m").exec(m)[0];
+    assert.match(def, /^ security definer$/m, `${nom} : security definer`);
+    assert.match(def, /^ set search_path to 'public', 'pg_temp'$/m, `${nom} : chemin de recherche`);
+    assert.match(m, new RegExp(`revoke all on function public\\.${nom}\\([^)]*\\) from public, anon, authenticated, service_role;`), `${nom} : droits retirés`);
+    assert.match(r, new RegExp(`^drop function public\\.${nom}\\(`, "m"), `${nom} : retirée par le retour`);
+  }
+  assert.deepEqual([...m.matchAll(/^grant (.*)$/gm)].map((x) => x[1]), ["execute on function public.dans_mon_organisme(integer, integer, integer) to authenticated;"]);
+  assert.ok(!/\brevoke\b|\bgrant\b/.test(r.replace(/^--.*$/gm, "")), "le retour ne touche à aucun droit (drop function emporte ceux des fonctions nouvelles)");
+  // Les deux règles réécrites, remises par le retour avant de retirer dans_mon_organisme.
+  assert.deepEqual([...m.matchAll(/^alter policy (\w+) on public\.(\w+)$/gm)].map((x) => `${x[1]}/${x[2]}`), ["lieux_lecture/lieux", "affectations_lecture/affectations"]);
+  assert.deepEqual([...r.matchAll(/^alter policy (\w+) on public\.(\w+) using/gm)].map((x) => `${x[1]}/${x[2]}`), ["lieux_lecture/lieux", "affectations_lecture/affectations"]);
+  assert.ok(r.indexOf("alter policy affectations_lecture") < r.indexOf("drop function public.dans_mon_organisme"), "règles remises avant de retirer leur fonction");
+  assert.ok(!/(create|drop) policy/i.test(m.replace(/^--.*$/gm, "") + r.replace(/^--.*$/gm, "")), "aucune règle créée ni retirée");
+  // Les noms et le verrou de creer_centre.
+  assert.ok(m.includes("alter table public.lieux drop constraint lieux_nom_key;"));
+  assert.ok(m.includes("create unique index titres_portee_nom on public.titres (organisme_id, lieu_id, lower(nom)) nulls not distinct;"));
+  assert.ok(m.includes("perform pg_advisory_xact_lock(2026110801, v_o);"));
+  assert.ok(r.includes("alter table public.lieux add constraint lieux_nom_key unique (nom);"));
+  assert.ok(r.includes("create unique index titres_portee_nom on public.titres (lieu_id, lower(nom)) nulls not distinct;"));
+  // La clé globale de l'habillage reste écrite pour l'organisme 1 (iPhone en cache).
+  assert.ok(m.includes("  if v_o = 1 then\n    if p_habillage is null then\n      delete from settings where promo_id is null and key = 'habillage_reseau';"));
+  // Les retours refusent de passer avant une étape plus tardive (règle du contrôleur).
+  for (const [etape, prefixe] of [["2b", "cloisonnement_2b_retour"], ["2a", "cloisonnement_2a_retour"], ["1", "cloisonnement_1_retour"]]) {
+    const texte = texteDuDepot(ETAPES_CLOISONNEMENT[etape].retour);
+    const garde = texte.slice(texte.indexOf("do $garde$"), texte.indexOf("end $garde$;"));
+    assert.ok(garde.includes(`raise exception '${prefixe} : une étape plus tardive est en place (%) : jouer d''abord son retour ; rien n''est changé'`),
+      `retour ${etape} : garde de l'étape plus tardive`);
+    assert.ok(garde.includes("dans_mon_organisme|organismes|organisme_id|acces_fondateur)\\M'"), `retour ${etape} : vocabulaire complet`);
+  }
 });

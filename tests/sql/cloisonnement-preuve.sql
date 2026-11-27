@@ -29,8 +29,19 @@
 --   support          (étape 2a, Review Focus 2) support ouvert sur B : mes_promos(), est_siege(), prédicats et gestes sur B
 --                    seulement ; après fermeture et échéance (ligne antidatée) : retour à ECF, et un en-tête x-promo-id de B
 --                    rend la promo par défaut d'ECF, sans erreur.
+--   siege            (étape 2b) le siège de B, celui d'ECF et le fondateur hors support : creer_centre() crée dans leur
+--                    organisme ; comptes_reseau(), lieux et affectations lus, roles_du_personnel() : leur organisme seulement ;
+--                    inviter_compte : direction sur un centre de leur organisme, siège dans l'organisme actif du fondateur
+--                    (support compris) ; l'habillage réglé par B ne change ni ECF ni la clé globale (miroir de l'organisme 1).
+--   titres           (étape 2b) le siège de B ne voit, ne donne, n'ajuste, ne supprime ni ne copie aucun titre réseau d'ECF (refus
+--                    « Titre introuvable. », rien d'écrit) ; un titre réseau de B donné crée une affectation siège sur B ; le
+--                    fondateur hors support ne retire pas le siège de B et ne touche pas aux titres de B ; personnes_et_titres
+--                    et journal_des_droits : rien de l'autre organisme ; apercu_titre() ignore un titre de B hors support.
+--   noms             (étape 2b, Review Focus 4) un centre et un titre réseau au nom d'un objet d'ECF créés par B : acceptés ;
+--                    les doublons (casse ignorée) dans un même organisme : refusés ; le nom d'un titre fixe reste réservé.
 --   retour           les retours défont tout, dans l'ordre inverse (2c, 2b, 2a, 1) : l'empreinte (règles, fonctions, droits)
 --                    égale celle d'avant ; tables, colonnes, fonctions et déclencheurs du chantier disparus.
+--                    Un retour joué trop tôt (retour 2a avec la 2b en place, retour 1 avec la 2a en place) est refusé par sa garde.
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides (tests/sql/roles-aides.sql,
 -- tests/sql/titres-aides.sql, tests/sql/cloisonnement-aides.sql), le libellé du mode, la requête d'empreinte, les migrations et
 -- leurs retours :
@@ -139,9 +150,10 @@ begin
       pg_temp.calcul(format('select count(*) filter (where x.organisme_id is distinct from 1)::text || ''/'' || count(*)::text from public.%I x join pg_temp.clo_avant a on a.tbl = %L and a.id = x.id', t, t)),
       '0/' || v_n);
   end loop;
-  perform pg_temp.attendre('fondations', 'organisme 1 : ECF BOUSCAREN, rédacteur, habillage égal à l''ancien réglage du réseau',
+  -- p_habillage nul : aucun habillage réglé (l'étape 2b rend organismes.habillage facultatif et y reprend la clé globale telle quelle).
+  perform pg_temp.attendre('fondations', 'organisme 1 : ECF BOUSCAREN, rédacteur, habillage égal à l''ancien réglage du réseau (nul s''il n''était pas réglé, une fois l''étape 2b en place)',
     pg_temp.calcul($q$select concat_ws('|', id, nom, redacteur::text, habillage) from public.organismes where id = 1$q$),
-    '1|ECF BOUSCAREN|true|' || p_habillage);
+    '1|ECF BOUSCAREN|true' || coalesce('|' || p_habillage, ''));
   perform pg_temp.verifier('fondations', 'au moins un compte fondateur (jamais un contrôle à vide)', p_fondateurs > 0, 'fondateurs : ' || p_fondateurs);
   perform pg_temp.attendre('fondations', 'un rattachement par fondateur, sur l''organisme 1, sans motif ni fin (fondateurs rattachés / rattachements / fondateurs)',
     pg_temp.calcul(pg_temp.requete_rattachements()), p_fondateurs || '/' || p_fondateurs || '/' || p_fondateurs);
@@ -154,8 +166,15 @@ begin
     pg_temp.calcul(pg_temp.requete_rattachements()), (p_fondateurs + 2) || '/' || (p_fondateurs + 2) || '/' || (p_fondateurs + 2));
   perform pg_temp.attendre('fondations', 'la migration n''ouvre aucun support',
     pg_temp.calcul($q$select count(*)::text from public.acces_fondateur where ferme_le is not null or motif is not null$q$), '0');
-  perform pg_temp.attendre('fondations', 'les titres fixes et les titres de promo ou de centre restent sans organisme',
-    pg_temp.calcul($q$select count(*)::text from public.titres where (fixe or niveau <> 'reseau') and organisme_id is not null$q$), '0');
+  -- L'étape 2b étend l'organisme à tous les titres du réseau non fixes (niveau promo ou centre compris) ; les titres fixes et ceux d'un
+  -- centre n'en portent jamais.
+  if pg_temp.calcul($q$select (to_regprocedure('public.dans_mon_organisme(integer, integer, integer)') is not null)::text$q$) = 'true' then
+    perform pg_temp.attendre('fondations', 'les titres fixes et les titres d''un centre restent sans organisme (étape 2b : les titres du réseau de tout niveau en portent un)',
+      pg_temp.calcul($q$select count(*)::text from public.titres where (fixe or lieu_id is not null) and organisme_id is not null$q$), '0');
+  else
+    perform pg_temp.attendre('fondations', 'les titres fixes et les titres de promo ou de centre restent sans organisme',
+      pg_temp.calcul($q$select count(*)::text from public.titres where (fixe or niveau <> 'reseau') and organisme_id is not null$q$), '0');
+  end if;
   perform pg_temp.attendre('fondations', 'les affectations de formateur et de direction restent sans organisme',
     pg_temp.calcul($q$select count(*)::text from public.affectations where role <> 'siege' and organisme_id is not null$q$), '0');
   perform pg_temp.attendre('fondations', 'unicité du nom de centre par organisme, casse ignorée (index lieux_organisme_nom)',
@@ -855,6 +874,297 @@ begin
     'OK true/false|true/false|true/false');
 end $cgs$;
 
+-- Une lecture jouée par le propriétaire avec le contexte d'un personnage, en aperçu (x-apercu-role) et sous un en-tête x-apercu-titre
+-- choisis : « OK <valeur> » ou « ERREUR <état> <message> » (apercu_titre lit ces en-têtes).
+create or replace function pg_temp.clo_jouer_titre(p_nom text, p_apercu text, p_titre text, p_sql text)
+returns text language plpgsql as $cjt$
+declare v text; r text;
+begin
+  perform pg_temp.contexte((select p.email from pg_temp.clo_perso p where p.nom = p_nom), null, p_apercu);
+  perform set_config('request.headers', jsonb_strip_nulls(jsonb_build_object('x-apercu-role', p_apercu, 'x-apercu-titre', p_titre))::text, true);
+  begin
+    execute p_sql into v;
+    r := rtrim('OK ' || coalesce(v, 'nul'));
+  exception when others then
+    r := 'ERREUR ' || sqlstate || ' ' || sqlerrm;
+  end;
+  perform pg_temp.proprio();
+  return r;
+end $cjt$;
+
+-- L'organisme d'une affectation, relu par le propriétaire (siège : sa colonne ; direction : son centre ; formateur : sa promo).
+create or replace function pg_temp.clo_org_affectation()
+returns text language sql as $coa$
+  select 'coalesce(a.organisme_id, public.organisme_de_lieu(a.lieu_id), public.organisme_de_promo(a.promo_id))';
+$coa$;
+
+-- Groupe siege (étape 2b) : le siège de B, celui d'ECF et le fondateur hors support ne voient, ne comptent et ne créent que dans leur
+-- organisme : comptes_reseau(), creer_centre(), lieux et affectations lus, roles_du_personnel(), inviter_compte (direction et siège),
+-- habillage du réseau.
+create or replace function pg_temp.groupe_siege()
+returns void language plpgsql as $cgsi$
+declare
+  v_a text := pg_temp.clo_n('org_a'); v_b text := pg_temp.clo_n('org_b');
+  v_la text := pg_temp.clo_n('lieu_a'); v_lb text := pg_temp.clo_n('lieu_b');
+  r record; v text; v_ids text; v_dirs text; v_lieu_cree text;
+begin
+  for r in select * from (values ('siege_a', v_a, v_b, 'A'), ('siege_b', v_b, v_a, 'B'), ('fond_a', v_a, v_b, 'F')) x(nom, chez, ailleurs, suffixe) loop
+    -- creer_centre : le centre naît dans l'organisme de l'appelant.
+    v := pg_temp.clo_lire(r.nom, format('select public.creer_centre(%L)::text', 'Preuve clo siège centre ' || r.suffixe));
+    v_lieu_cree := case when v ~ '^OK [0-9]+$' then substr(v, 4) else 'null' end;
+    perform pg_temp.attendre('siege', format('%s : creer_centre() crée le centre dans son organisme', r.nom),
+      left(v, 3) || pg_temp.calcul(format('select coalesce(organisme_id::text, ''nul'') from public.lieux where id = %s', v_lieu_cree)), 'OK ' || r.chez);
+    -- Les centres de son organisme, et eux seuls : comptes_reseau(), puis la table lieux.
+    v_ids := pg_temp.calcul(format('select coalesce(string_agg(id::text, '','' order by id), ''aucun'') from public.lieux where organisme_id = %s', r.chez));
+    perform pg_temp.attendre('siege', format('%s : comptes_reseau() rend les centres de son organisme, et eux seuls (le centre créé compris)', r.nom),
+      pg_temp.clo_lire(r.nom, 'select coalesce(string_agg(lieu_id::text, '','' order by lieu_id), ''aucun'') from public.comptes_reseau()'), 'OK ' || v_ids);
+    perform pg_temp.attendre('siege', format('%s : lieux lus = les centres de son organisme, et eux seuls', r.nom),
+      pg_temp.clo_lire(r.nom, 'select coalesce(string_agg(id::text, '','' order by id), ''aucun'') from public.lieux'), 'OK ' || v_ids);
+    -- Affectations : aucune ligne de l'autre organisme ; toutes les directions du sien.
+    v_ids := pg_temp.calcul(format('select coalesce(array_agg(a.id), ''{}'')::text from public.affectations a where %s = %s', pg_temp.clo_org_affectation(), r.ailleurs));
+    v_dirs := pg_temp.calcul(format('select count(*)::text from public.affectations a where a.role = ''direction'' and %s = %s', pg_temp.clo_org_affectation(), r.chez));
+    perform pg_temp.attendre('siege', format('%s : affectations lues, aucune de l''autre organisme / toutes les directions du sien', r.nom),
+      pg_temp.clo_lire(r.nom, format('select (count(*) filter (where id = any (%L::bigint[])))::text || ''/'' || (count(*) filter (where role = ''direction''))::text from public.affectations', v_ids)),
+      'OK 0/' || v_dirs);
+    -- roles_du_personnel() : les directions et sièges de son organisme, exactement.
+    v_ids := pg_temp.calcul(format($q$select coalesce(string_agg(x.e || ':' || x.r, ',' order by x.e, x.r), 'aucun') from (select distinct lower(a.email)::text as e, a.role::text as r
+        from public.affectations a where a.role in ('direction', 'siege') and %s = %s) x$q$, pg_temp.clo_org_affectation(), r.chez));
+    perform pg_temp.attendre('siege', format('%s : roles_du_personnel() nomme les directions et les sièges de son organisme, exactement (personne de l''autre)', r.nom),
+      pg_temp.clo_lire(r.nom, 'select coalesce(string_agg(email || '':'' || role, '','' order by email, role), ''aucun'') from public.roles_du_personnel()'), 'OK ' || v_ids);
+  end loop;
+
+  -- inviter_compte, branche direction : un centre de son organisme seulement (un centre de l'autre organisme est traité comme absent).
+  for r in select * from (values ('siege_a', v_la, v_lb, 'a'), ('siege_b', v_lb, v_la, 'b'), ('fond_a', v_la, v_lb, 'f')) x(nom, chez, ailleurs, suffixe) loop
+    perform pg_temp.attendre('siege', format('%s : inviter une direction sur un centre de l''autre organisme est refusé (« Le centre est requis. »), rien n''est écrit', r.nom),
+      pg_temp.clo_lire(r.nom, format('select public.inviter_compte(%L, ''direction'', null, null, %s)::text', 'preuve.clo.inv.dir.' || r.suffixe || '@exemple.invalid', r.ailleurs))
+        || ' ; ' || pg_temp.calcul(format('select count(*)::text from public.affectations where email = %L', 'preuve.clo.inv.dir.' || r.suffixe || '@exemple.invalid')),
+      'ERREUR P0001 invitation: Le centre est requis. ; 0');
+    perform pg_temp.attendre('siege', format('%s : inviter une direction sur un centre de son organisme est accepté', r.nom),
+      left(pg_temp.clo_lire(r.nom, format('select public.inviter_compte(%L, ''direction'', null, null, %s)::text', 'preuve.clo.inv.dir.' || r.suffixe || '@exemple.invalid', r.chez)), 3)
+        || pg_temp.calcul(format('select string_agg(lieu_id::text, '','') from public.affectations where email = %L', 'preuve.clo.inv.dir.' || r.suffixe || '@exemple.invalid')),
+      'OK ' || r.chez);
+  end loop;
+  -- inviter_compte, branche siège : le fondateur seul, sur son organisme actif (ECF hors support, B en support).
+  perform pg_temp.attendre('siege', 'fondateur hors support : le siège invité est celui d''ECF',
+    left(pg_temp.clo_lire('fond_a', $q$select public.inviter_compte('preuve.clo.inv.siege.f1@exemple.invalid', 'siege')::text$q$), 3)
+      || pg_temp.org_de('affectations', $q$email = 'preuve.clo.inv.siege.f1@exemple.invalid' and role = 'siege'$q$),
+    'OK ' || v_a);
+  perform pg_temp.attendre('siege', 'le siège de B ne nomme pas de siège (« Réservé au fondateur. »)',
+    pg_temp.clo_lire('siege_b', $q$select public.inviter_compte('preuve.clo.inv.siege.b1@exemple.invalid', 'siege')::text$q$),
+    'ERREUR 42501 invitation: Réservé au fondateur.');
+  perform pg_temp.attendre('siege', 'fondateur en support sur B : le siège invité est celui de B',
+    left(pg_temp.clo_lire('fond_a', format($q$select (public.ouvrir_acces_support(%s, 'Support de la preuve du siège', '1 hour')).organisme_id::text$q$, v_b)), 3)
+      || left(pg_temp.clo_lire('fond_a', $q$select public.inviter_compte('preuve.clo.inv.siege.f2@exemple.invalid', 'siege')::text$q$), 3)
+      || pg_temp.org_de('affectations', $q$email = 'preuve.clo.inv.siege.f2@exemple.invalid' and role = 'siege'$q$)
+      || ' ; ' || pg_temp.clo_lire('fond_a', 'select ''fermé'' from public.fermer_acces_support() f'),
+    'OK OK ' || v_b || ' ; OK fermé');
+
+  -- L'habillage du réseau : celui de l'organisme courant ; régler celui de B ne touche ni ECF ni la clé globale.
+  v := pg_temp.calcul(format($q$select concat_ws('|', coalesce((select habillage from public.organismes where id = %s), 'nul'),
+      coalesce((select value from public.settings where promo_id is null and key = 'habillage_reseau'), 'nul'))$q$, v_a));
+  perform pg_temp.attendre('siege', 'le siège de B règle l''habillage du réseau (ecf) : celui de B change ; celui d''ECF et la clé globale (habillage ECF | clé) restent',
+    pg_temp.clo_lire('siege_b', $q$select public.regler_habillage_reseau('ecf')::text$q$)
+      || ' ; ' || pg_temp.calcul(format('select coalesce(habillage, ''nul'') from public.organismes where id = %s', v_b))
+      || ' ; ' || pg_temp.calcul(format($q$select concat_ws('|', coalesce((select habillage from public.organismes where id = %s), 'nul'),
+          coalesce((select value from public.settings where promo_id is null and key = 'habillage_reseau'), 'nul'))$q$, v_a)),
+    'OK {"habillage": "ecf"} ; ecf ; ' || v);
+  perform pg_temp.attendre('siege', 'le siège d''ECF règle l''habillage du réseau (ecsr) : celui d''ECF et la clé globale (iPhone en cache) changent, celui de B reste ecf',
+    pg_temp.clo_lire('siege_a', $q$select public.regler_habillage_reseau('ecsr')::text$q$)
+      || ' ; ' || pg_temp.calcul(format($q$select concat_ws('|', (select habillage from public.organismes where id = %s),
+          (select value from public.settings where promo_id is null and key = 'habillage_reseau'), (select habillage from public.organismes where id = %s))$q$, v_a, v_b)),
+    'OK {"habillage": "ecsr"} ; ecsr|ecsr|ecf');
+  perform pg_temp.attendre('siege', 'habillage_par_defaut() : un stagiaire de B lit celui de B, un stagiaire d''ECF celui d''ECF (stag_b1 / stag_a)',
+    pg_temp.clo_lire('stag_b1', 'select coalesce(reseau, ''nul'') from public.habillage_par_defaut()') || ' / '
+      || pg_temp.clo_lire('stag_a', 'select coalesce(reseau, ''nul'') from public.habillage_par_defaut()'),
+    'OK ecf / OK ecsr');
+  perform pg_temp.attendre('siege', 'une valeur abîmée de la clé globale écrite en propriétaire se recopie sur ECF seulement, lue comme absente (déclencheur miroir) : ECF | B',
+    pg_temp.calcul($q$with m as (update public.settings set value = 'rose' where promo_id is null and key = 'habillage_reseau' returning 1) select count(*)::text from m$q$)
+      || ' ; ' || pg_temp.calcul(format('select concat_ws(''|'', coalesce((select habillage from public.organismes where id = %s), ''nul''), (select habillage from public.organismes where id = %s))', v_a, v_b)),
+    '1 ; nul|ecf');
+end $cgsi$;
+
+-- Groupe titres (étape 2b) : le siège de B ne voit, ne donne, n'ajuste, ne supprime ni ne copie aucun titre du réseau d'ECF ; le
+-- fondateur hors support ne touche ni aux titres ni aux sièges de B ; personnes_et_titres et journal_des_droits : rien de l'autre
+-- organisme ; un titre réseau de B donné crée une affectation siège sur B ; apercu_titre() n'accepte pas un titre de B hors support.
+create or replace function pg_temp.groupe_titres()
+returns void language plpgsql as $cgti$
+declare
+  v_a text := pg_temp.clo_n('org_a'); v_b text := pg_temp.clo_n('org_b');
+  v_la text := pg_temp.clo_n('lieu_a'); v_lb text := pg_temp.clo_n('lieu_b');
+  v_tb text := pg_temp.clo_n('titre_b');
+  v_titres_a text; v_titres_b text; v_ta text; v_tca text; v_siege_fixe text; v_dir_fixe text;
+  v_emails_a text; v_emails_b text; v_lieux_a text; v_lieux_b text; r record; v text;
+  c_introuvable constant text := 'ERREUR P0001 titres: Titre introuvable.';
+begin
+  -- Le verrou des titres non fixes (global) ouvert le temps de la preuve.
+  perform pg_temp.essai($q$insert into public.settings (key, value, promo_id) values ('titres_ouverts', 'oui', null)
+    on conflict (promo_id, key) do update set value = excluded.value$q$);
+  v_titres_a := pg_temp.calcul(format('select coalesce(array_agg(id order by id), ''{}'')::text from public.titres where lieu_id is null and not fixe and organisme_id = %s', v_a));
+  v_titres_b := pg_temp.calcul(format('select coalesce(array_agg(id order by id), ''{}'')::text from public.titres where lieu_id is null and not fixe and organisme_id = %s', v_b));
+  v_ta := coalesce(pg_temp.calcul(format('select min(id)::text from public.titres where niveau = ''reseau'' and not fixe and organisme_id = %s', v_a)), 'null');
+  v_tca := coalesce(pg_temp.calcul(format('select min(id)::text from public.titres where niveau = ''centre'' and lieu_id is null and not fixe and organisme_id = %s', v_a)), 'null');
+  v_siege_fixe := coalesce(pg_temp.calcul('select id::text from public.titres where fixe and niveau = ''reseau'''), 'null');
+  v_dir_fixe := coalesce(pg_temp.calcul('select id::text from public.titres where fixe and niveau = ''centre'''), 'null');
+  v_emails_a := pg_temp.calcul(format('select coalesce(array_agg(distinct lower(a.email)), ''{}'')::text from public.affectations a where %s = %s', pg_temp.clo_org_affectation(), v_a));
+  v_emails_b := pg_temp.calcul(format('select coalesce(array_agg(distinct lower(a.email)), ''{}'')::text from public.affectations a where %s = %s', pg_temp.clo_org_affectation(), v_b));
+  v_lieux_a := pg_temp.calcul(format('select coalesce(array_agg(id), ''{}'')::text from public.lieux where organisme_id = %s', v_a));
+  v_lieux_b := pg_temp.calcul(format('select coalesce(array_agg(id), ''{}'')::text from public.lieux where organisme_id = %s', v_b));
+  perform pg_temp.informer('titres du réseau', format('ECF %s ; B %s ; titre réseau d''ECF %s, titre de centre du réseau d''ECF %s', v_titres_a, v_titres_b, v_ta, v_tca));
+
+  -- Voir : au réseau, les titres fixes et ceux de son organisme ; dans un centre, de même ; le centre d'un autre organisme est fermé.
+  for r in select * from (values ('siege_a', v_titres_a, v_titres_b), ('siege_b', v_titres_b, v_titres_a)) x(nom, chez, ailleurs) loop
+    perform pg_temp.attendre('titres', format('%s : titres_visibles(réseau) rend les 3 titres fixes et les titres du réseau de son organisme, aucun de l''autre (fixes / siens / autres)', r.nom),
+      pg_temp.clo_lire(r.nom, format('select (count(*) filter (where fixe))::text || ''/'' || (count(*) filter (where id = any (%L::bigint[])))::text || ''/'' || (count(*) filter (where id = any (%L::bigint[])))::text from public.titres_visibles(null)', r.chez, r.ailleurs)),
+      'OK 3/' || pg_temp.calcul(format('select cardinality(%L::bigint[])::text', r.chez)) || '/0');
+    perform pg_temp.attendre('titres', format('%s : titres_ajustables(réseau) : aucun titre de l''autre organisme', r.nom),
+      pg_temp.clo_lire(r.nom, format('select (count(*) filter (where id = any (%L::bigint[])))::text from public.titres_ajustables(null)', r.ailleurs)), 'OK 0');
+  end loop;
+  perform pg_temp.attendre('titres', 'siège de B : les porteurs du titre fixe Siège sont comptés dans B seulement',
+    pg_temp.clo_lire('siege_b', format('select porteurs::text from public.titres_visibles(null) where id = %s', v_siege_fixe)),
+    'OK ' || pg_temp.calcul(format('select count(distinct lower(email))::text from public.affectations where titre_id = %s and organisme_id = %s', v_siege_fixe, v_b)));
+  for r in select * from (values ('dir_b', v_lb), ('siege_b', v_lb), ('dir_a', v_la)) x(nom, lieu) loop
+    perform pg_temp.attendre('titres', format('%s : titres_visibles(son centre) : aucun titre du réseau de l''autre organisme', r.nom),
+      pg_temp.clo_lire(r.nom, format('select (count(*) filter (where id = any (%L::bigint[])))::text from public.titres_visibles(%s)',
+        case when r.nom like '%_b' then v_titres_a else v_titres_b end, r.lieu)), 'OK 0');
+  end loop;
+  perform pg_temp.attendre('titres', 'siège de B : titres_visibles d''un centre d''ECF refusé (42501)',
+    pg_temp.clo_lire('siege_b', format('select count(*)::text from public.titres_visibles(%s)', v_la)), 'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+
+  -- Donner, ajuster, supprimer, copier un titre d'ECF : « Titre introuvable. », rien n'est écrit.
+  perform pg_temp.attendre('titres', 'siège de B : donner un titre réseau d''ECF est refusé (« Titre introuvable. »), aucune affectation',
+    pg_temp.clo_lire('siege_b', format($q$select public.donner_titre('preuve.clo.titre.cible@exemple.invalid', %s, null)::text$q$, v_ta))
+      || ' ; ' || pg_temp.calcul($q$select count(*)::text from public.affectations where email = 'preuve.clo.titre.cible@exemple.invalid'$q$),
+    c_introuvable || ' ; 0');
+  perform pg_temp.attendre('titres', 'direction de B : donner dans son centre un titre du réseau d''ECF (niveau centre) est refusé (« Titre introuvable. »)',
+    pg_temp.clo_lire('dir_b', format($q$select public.donner_titre('preuve.clo.titre.cible@exemple.invalid', %s, %s)::text$q$, v_tca, v_lb))
+      || ' ; ' || pg_temp.calcul($q$select count(*)::text from public.affectations where email = 'preuve.clo.titre.cible@exemple.invalid'$q$),
+    c_introuvable || ' ; 0');
+  v := pg_temp.calcul(format('select nom || ''|'' || cases::text from public.titres where id = %s', v_ta));
+  perform pg_temp.attendre('titres', 'siège de B : ajuster un titre réseau d''ECF est refusé (« Titre introuvable. »), nom et cases inchangés',
+    pg_temp.clo_lire('siege_b', format($q$select public.ajuster_titre(%s, null, 'Preuve clo renommé', '{}')::text$q$, v_ta))
+      || ' ; ' || (pg_temp.calcul(format('select nom || ''|'' || cases::text from public.titres where id = %s', v_ta)) = v)::text,
+    c_introuvable || ' ; true');
+  perform pg_temp.attendre('titres', 'siège de B : supprimer un titre réseau d''ECF est refusé (« Titre introuvable. »), le titre reste',
+    pg_temp.clo_lire('siege_b', format('select ''supprimé'' from public.supprimer_titre(%s) f', v_ta))
+      || ' ; ' || pg_temp.calcul(format('select count(*)::text from public.titres where id = %s', v_ta)),
+    c_introuvable || ' ; 1');
+  perform pg_temp.attendre('titres', 'siège de B : copier un titre réseau d''ECF (creer_titre depuis lui) est refusé (« Titre introuvable. »)',
+    pg_temp.clo_lire('siege_b', format($q$select public.creer_titre(%s, 'Preuve clo copie', null)::text$q$, v_ta)), c_introuvable);
+  -- Donner un titre réseau de B : l'affectation siège est sur B.
+  perform pg_temp.attendre('titres', 'siège de B : donner le titre réseau de B crée une affectation siège sur B (organisme | titre)',
+    left(pg_temp.clo_lire('siege_b', format($q$select public.donner_titre('preuve.clo.titre.b.nouveau@exemple.invalid', %s, null)::text$q$, v_tb)), 3)
+      || pg_temp.calcul($q$select string_agg(organisme_id || '|' || titre_id, ',') from public.affectations where email = 'preuve.clo.titre.b.nouveau@exemple.invalid' and role = 'siege'$q$),
+    'OK ' || v_b || '|' || v_tb);
+
+  -- Le fondateur hors support : ni les titres ni les sièges de B.
+  perform pg_temp.attendre('titres', 'fondateur hors support : retirer le titre fixe Siège au siège de B est refusé (« n''a pas ce titre ici »), l''affectation de B reste',
+    pg_temp.clo_lire('fond_a', format($q$select public.retirer_titre('preuve.clo.siege.b@exemple.invalid', %s, null)::text$q$, v_siege_fixe))
+      || ' ; ' || pg_temp.calcul($q$select count(*)::text from public.affectations where email = 'preuve.clo.siege.b@exemple.invalid' and role = 'siege'$q$),
+    'ERREUR P0001 titres: Cette personne n''a pas ce titre ici. ; 1');
+  perform pg_temp.attendre('titres', 'fondateur hors support : donner, ajuster ou supprimer le titre réseau de B est refusé (« Titre introuvable. »)',
+    pg_temp.clo_lire('fond_a', format($q$select public.donner_titre('preuve.clo.titre.cible@exemple.invalid', %s, null)::text$q$, v_tb)) || ' ; '
+      || pg_temp.clo_lire('fond_a', format($q$select public.ajuster_titre(%s, null, 'Preuve clo renommé', '{}')::text$q$, v_tb)) || ' ; '
+      || pg_temp.clo_lire('fond_a', format('select ''supprimé'' from public.supprimer_titre(%s) f', v_tb)),
+    c_introuvable || ' ; ' || c_introuvable || ' ; ' || c_introuvable);
+  perform pg_temp.attendre('titres', 'fondateur hors support : créer un titre dans un centre de B est refusé (42501)',
+    pg_temp.clo_lire('fond_a', format($q$select public.creer_titre(%s, 'Preuve clo titre fondateur', %s)::text$q$, v_dir_fixe, v_lb)),
+    'ERREUR 42501 titres: Réservé à l''équipe du centre.');
+
+  -- Lire les personnes et le journal : rien de l'autre organisme.
+  for r in select * from (values ('siege_a', v_a, v_emails_b, v_lieux_b, false), ('siege_b', v_b, v_emails_a, v_lieux_a, false),
+                                 ('fond_a', v_a, v_emails_b, v_lieux_b, true)) x(nom, chez, emails_ailleurs, lieux_ailleurs, tout) loop
+    perform pg_temp.attendre('titres', format('%s : personnes_et_titres(réseau) : aucune personne de l''autre organisme, au moins une du sien', r.nom),
+      pg_temp.clo_lire(r.nom, format('select (count(*) filter (where email = any (%L::text[])))::text || ''/'' || (count(*) > 0)::text from public.personnes_et_titres(null, null)', r.emails_ailleurs)),
+      'OK 0/true');
+    v := pg_temp.calcul(format($q$select count(*)::text from public.journal_droits j where j.organisme_id = %s and j.quand >= now() - interval '3 years'
+        and (%s or j.niveau in ('centre', 'reseau'))$q$, r.chez, r.tout::text));
+    perform pg_temp.attendre('titres', format('%s : journal_des_droits(réseau) = les lignes de son organisme (%s), aucune d''un centre de l''autre', r.nom,
+        case when r.tout then 'tous niveaux' else 'niveaux centre et réseau' end),
+      pg_temp.clo_lire(r.nom, format('select count(*)::text || ''/'' || (count(*) filter (where lieu_id = any (%L::integer[])))::text from public.journal_des_droits(null)', r.lieux_ailleurs)),
+      'OK ' || v || '/0');
+  end loop;
+  perform pg_temp.verifier('titres', 'le journal de B n''est pas vide (le contrôle ci-dessus ne passe pas à vide)',
+    pg_temp.calcul(format('select (count(*) > 0)::text from public.journal_droits where organisme_id = %s', v_b)) = 'true', '');
+
+  -- apercu_titre() (règle du contrôleur) : hors support, l'aperçu siège sur un titre réseau de B est ignoré (cases du siège fixe, jamais
+  -- celles du titre de B) ; sur un titre réseau d'ECF, il est retenu (le témoin : l'en-tête est bien lu).
+  perform pg_temp.attendre('titres', 'fondateur hors support, aperçu siège sur le titre réseau de B : apercu_titre() nul, case_reseau(directions) au plafond',
+    pg_temp.clo_jouer_titre('fond_a', 'siege', v_tb, $q$select concat_ws('|', coalesce(public.apercu_titre()::text, 'nul'), public.case_reseau('directions'))$q$),
+    'OK nul|2');
+  perform pg_temp.attendre('titres', 'fondateur hors support, aperçu siège sur un titre réseau d''ECF : apercu_titre() = ce titre (témoin)',
+    pg_temp.clo_jouer_titre('fond_a', 'siege', v_ta, 'select public.apercu_titre()::text'), 'OK ' || v_ta);
+end $cgti$;
+
+-- Groupe noms (étape 2b, Review Focus 4) : les noms de centres et de titres du réseau sont uniques dans un organisme, plus dans la base.
+create or replace function pg_temp.groupe_noms()
+returns void language plpgsql as $cgno$
+declare
+  v_a text := pg_temp.clo_n('org_a'); v_b text := pg_temp.clo_n('org_b');
+  v_la text := pg_temp.clo_n('lieu_a'); v_lb text := pg_temp.clo_n('lieu_b');
+  v_tb text := pg_temp.clo_n('titre_b');
+  v_nom text; v_titre text; v_tca text; v text; v_dir_fixe text;
+begin
+  -- Les objets de B posés par les aides portent déjà le nom d'un objet d'ECF.
+  perform pg_temp.attendre('noms', 'le centre de B porte le nom du centre de la promo 1 d''ECF (organismes distincts)',
+    pg_temp.calcul(format('select (select string_agg(organisme_id::text, '','' order by organisme_id) from public.lieux where lower(nom) = lower(l.nom)) from public.lieux l where l.id = %s', v_la)),
+    v_a || ',' || v_b);
+  perform pg_temp.attendre('noms', 'le titre réseau de B porte le nom d''un titre réseau d''ECF (organismes distincts)',
+    pg_temp.calcul(format('select (select string_agg(organisme_id::text, '','' order by organisme_id) from public.titres where lieu_id is null and lower(nom) = lower(t.nom)) from public.titres t where t.id = %s', v_tb)),
+    v_a || ',' || v_b);
+  -- Centre : un nom d'ECF (« Nîmes » en production) créé par le siège de B, puis les doublons.
+  v_nom := pg_temp.calcul(format($q$select l.nom from public.lieux l where l.organisme_id = %s
+      and not exists (select 1 from public.lieux m where m.organisme_id = %s and lower(m.nom) = lower(l.nom))
+      order by (l.nom = 'Nîmes') desc, l.id limit 1$q$, v_a, v_b));
+  perform pg_temp.informer('noms, centre', format('nom d''un centre d''ECF repris par B : %s', coalesce(v_nom, 'aucun')));
+  perform pg_temp.attendre('noms', 'le siège de B crée un centre au nom d''un centre d''ECF : accepté, dans B',
+    left(pg_temp.clo_lire('siege_b', format('select public.creer_centre(%L)::text', v_nom)), 3)
+      || pg_temp.calcul(format('select string_agg(organisme_id::text, '','' order by organisme_id) from public.lieux where lower(nom) = lower(%L)', v_nom)),
+    'OK ' || v_a || ',' || v_b);
+  perform pg_temp.attendre('noms', 'le siège de B recrée ce nom en capitales : refusé (doublon dans B)',
+    pg_temp.clo_lire('siege_b', format('select public.creer_centre(%L)::text', upper(v_nom))), 'ERREUR P0001 centre: Ce centre existe déjà.');
+  perform pg_temp.attendre('noms', 'le siège d''ECF recrée ce nom en minuscules : refusé (doublon dans ECF)',
+    pg_temp.clo_lire('siege_a', format('select public.creer_centre(%L)::text', lower(v_nom))), 'ERREUR P0001 centre: Ce centre existe déjà.');
+  perform pg_temp.attendre('noms', 'une insertion directe du même nom dans B (propriétaire) bute sur l''index lieux_organisme_nom (23505)',
+    pg_temp.essai(format('insert into public.lieux (nom, organisme_id) values (%L, %s)', lower(v_nom), v_b)), 'ERREUR 23505');
+  perform pg_temp.attendre('noms', 'le siège d''ECF crée un centre au nom d''un centre propre à B : accepté',
+    left(pg_temp.clo_lire('siege_a', $q$select public.creer_centre('Preuve clo siège centre B')::text$q$), 3)
+      || pg_temp.calcul($q$select string_agg(organisme_id::text, ',' order by organisme_id) from public.lieux where nom = 'Preuve clo siège centre B'$q$),
+    'OK ' || v_a || ',' || v_b);
+
+  -- Titre du réseau (niveau réseau) : un nom d'ECF créé par le siège de B, puis les doublons.
+  v_titre := pg_temp.calcul(format($q$select t.nom from public.titres t where t.organisme_id = %s and t.niveau = 'reseau' and not t.fixe
+      and not exists (select 1 from public.titres u where u.organisme_id = %s and lower(u.nom) = lower(t.nom))
+      order by t.id limit 1$q$, v_a, v_b));
+  perform pg_temp.informer('noms, titre', format('nom d''un titre réseau d''ECF repris par B : %s', coalesce(v_titre, 'aucun')));
+  perform pg_temp.attendre('noms', 'le siège de B crée un titre réseau au nom d''un titre réseau d''ECF : accepté, dans B',
+    left(pg_temp.clo_lire('siege_b', format('select public.creer_titre(%s, %L, null)::text', v_tb, v_titre)), 3)
+      || pg_temp.calcul(format('select string_agg(organisme_id::text, '','' order by organisme_id) from public.titres where lieu_id is null and lower(nom) = lower(%L)', v_titre)),
+    'OK ' || v_a || ',' || v_b);
+  perform pg_temp.attendre('noms', 'le siège de B recrée ce titre en capitales : refusé (doublon dans B)',
+    pg_temp.clo_lire('siege_b', format('select public.creer_titre(%s, %L, null)::text', v_tb, upper(v_titre))), 'ERREUR P0001 titres: Un titre de ce nom existe déjà ici.');
+  perform pg_temp.attendre('noms', 'le siège d''ECF recrée ce titre en minuscules : refusé (doublon dans ECF)',
+    pg_temp.clo_lire('siege_a', format('select public.creer_titre(%s, %L, null)::text',
+      coalesce(pg_temp.calcul(format('select min(id)::text from public.titres where organisme_id = %s and niveau = ''reseau''', v_a)), 'null'), lower(v_titre))),
+    'ERREUR P0001 titres: Un titre de ce nom existe déjà ici.');
+  perform pg_temp.attendre('noms', 'le nom d''un titre fixe reste réservé dans toute la base (siège de B)',
+    pg_temp.clo_lire('siege_b', format($q$select public.creer_titre(%s, 'formateur', null)::text$q$, v_tb)), 'ERREUR P0001 titres: Ce nom est réservé à un titre fixe.');
+  -- Titre du réseau de niveau centre : lui aussi appartient à un organisme (vu dans les centres de B, pas dans ceux d'ECF).
+  v_dir_fixe := coalesce(pg_temp.calcul('select id::text from public.titres where fixe and niveau = ''centre'''), 'null');
+  v_tca := pg_temp.calcul(format($q$select t.nom from public.titres t where t.organisme_id = %s and t.niveau = 'centre' and t.lieu_id is null and not t.fixe
+      and not exists (select 1 from public.titres u where u.organisme_id = %s and lower(u.nom) = lower(t.nom))
+      order by t.id limit 1$q$, v_a, v_b));
+  v := pg_temp.clo_lire('siege_b', format('select public.creer_titre(%s, %L, null)::text', v_dir_fixe, coalesce(v_tca, 'Preuve clo titre centre réseau B')));
+  perform pg_temp.attendre('noms', 'le siège de B crée un titre du réseau de niveau centre au nom d''un titre d''ECF : accepté, dans B',
+    left(v, 3) || pg_temp.calcul(format('select coalesce(organisme_id::text, ''nul'') from public.titres where id = %s', case when v ~ '^OK [0-9]+$' then substr(v, 4) else 'null' end)),
+    'OK ' || v_b);
+  perform pg_temp.attendre('noms', 'ce titre paraît dans un centre de B (direction de B), pas dans un centre d''ECF (direction d''ECF)',
+    pg_temp.clo_lire('dir_b', format('select count(*)::text from public.titres_visibles(%s) where id = %s', v_lb, case when v ~ '^OK [0-9]+$' then substr(v, 4) else 'null' end))
+      || ' / ' || pg_temp.clo_lire('dir_a', format('select count(*)::text from public.titres_visibles(%s) where id = %s', v_la, case when v ~ '^OK [0-9]+$' then substr(v, 4) else 'null' end)),
+    'OK 1 / OK 0');
+  perform pg_temp.attendre('noms', 'à la fin, aucun titre du réseau non fixe sans organisme (tous niveaux)',
+    pg_temp.calcul('select count(*)::text from public.titres where lieu_id is null and not fixe and organisme_id is null'), '0');
+end $cgno$;
+
 do $clopreuve$
 declare
   v_mode constant text :=
@@ -866,7 +1176,8 @@ declare
   v_r text; v_r1 text; v_r2a text; v_r2b text; v_r2c text; v_rsab text;
   v_av_regles text; v_av_fonctions text; v_av_droits text;
   v_ap_regles text; v_ap_fonctions text; v_ap_droits text;
-  v_habillage text; v_fondateurs integer;
+  v_habillage text; v_habillage_brut text; v_fondateurs integer;
+  v_txt_r2c text; v_txt_r2b text; v_txt_r2a text; v_txt_r1 text;
   v_photo_avant text; v_photo_apres text;
 begin
   perform set_config('lock_timeout', '3s', true);
@@ -887,7 +1198,8 @@ begin
     union all select 'profs', id from public.profs
     union all select 'ressources', id from public.ressources
     union all select 'qcm_signalements', id from public.qcm_signalements;
-  v_habillage := coalesce((select s.value from public.settings s where s.promo_id is null and s.key = 'habillage_reseau' and s.value in ('ecsr', 'ecf')), 'ecsr');
+  v_habillage_brut := (select s.value from public.settings s where s.promo_id is null and s.key = 'habillage_reseau' and s.value in ('ecsr', 'ecf'));
+  v_habillage := coalesce(v_habillage_brut, 'ecsr');
   v_fondateurs := (select count(*) from public.user_profiles where is_founder);
   -- Les droits par défaut de Supabase (le propriétaire du schéma donne tout à anon, authenticated et service_role sur toute table,
   -- séquence et fonction neuves de public) n'existent pas sur la base locale : posés ici, dans la transaction annulée, pour que la
@@ -927,7 +1239,9 @@ begin
   perform pg_temp.etape('sabotage', v_etat, v_mode);
 
   -- 3. Un seul organisme : fondations posées par la migration, noyau égal à l'ancien, remplissage sans B.
-  perform pg_temp.groupe_fondations_existant(v_habillage, v_fondateurs);
+  -- Étape 2b en place (organismes.habillage facultatif) : l'organisme 1 porte la clé globale telle quelle, nulle si elle n'était pas réglée.
+  perform pg_temp.groupe_fondations_existant(case when pg_temp.calcul($q$select (not a.attnotnull)::text from pg_attribute a
+      where a.attrelid = 'public.organismes'::regclass and a.attname = 'habillage'$q$) = 'true' then v_habillage_brut else v_habillage end, v_fondateurs);
   v_photo_apres := pg_temp.photo_noyau();
   perform pg_temp.groupe_equivalence_ecf(v_photo_avant, v_photo_apres, v_e2a);
   perform pg_temp.groupe_remplissage_seul();
@@ -941,6 +1255,9 @@ begin
   perform pg_temp.groupe_apercu(false);
   perform pg_temp.groupe_support();
   perform pg_temp.groupe_remplissage();
+  perform pg_temp.groupe_siege();
+  perform pg_temp.groupe_titres();
+  perform pg_temp.groupe_noms();
   perform pg_temp.groupe_fondations_final();
 
   -- 5. Les retours, dans l'ordre inverse (sabotage, 2c, 2b, 2a, 1).
@@ -949,24 +1266,50 @@ begin
   );
   v_rsab := v_r;
   perform pg_temp.etape('retour du sabotage', v_r, v_mode);
-  v_r := pg_temp.jouer('retour 2c',
+  -- Les textes des retours 2c, 2b, 2a et 1, lus dans l'ordre du jeu, puis joués ; un retour joué trop tôt (une étape plus tardive
+  -- encore en place) est refusé par sa garde, sans rien changer (règle du contrôleur, 27/11).
+  v_txt_r2c :=
 -- @@INJECTER supabase/migrations/20261128_cloisonnement_2c_donnees_retour.sql@@
-  );
+  ;
+  v_txt_r2b :=
+-- @@INJECTER supabase/migrations/20261128_cloisonnement_2b_siege_titres_retour.sql@@
+  ;
+  v_txt_r2a :=
+-- @@INJECTER supabase/migrations/20261128_cloisonnement_2a_noyau_retour.sql@@
+  ;
+  v_txt_r1 :=
+-- @@INJECTER supabase/migrations/20261128_cloisonnement_1_fondations_retour.sql@@
+  ;
+  if v_e2b = 'jouée' and v_txt_r2a <> 'select 1' then
+    v_r := pg_temp.jouer('retour 2a joué trop tôt', v_txt_r2a);
+    perform pg_temp.attendre('retour', 'le retour 2a joué avant celui de l''étape 2b (encore en place) est refusé par sa garde',
+      left(v_r, 76), 'ERREUR P0001 cloisonnement_2a_retour : une étape plus tardive est en place (');
+  end if;
+  v_r := pg_temp.jouer('retour 2c', v_txt_r2c);
   v_r2c := v_r;
   perform pg_temp.etape('retour 2c', v_r, v_mode);
-  v_r := pg_temp.jouer('retour 2b',
--- @@INJECTER supabase/migrations/20261128_cloisonnement_2b_siege_titres_retour.sql@@
-  );
+  -- Le retour 2b remet les unicités globales de noms : tant que deux organismes ont un centre du même nom, sa garde le refuse. Il ne
+  -- se joue qu'avant la mise en service d'un autre organisme : ici, les noms des objets des autres organismes sont d'abord suffixés.
+  if v_e2b = 'jouée' and v_txt_r2b <> 'select 1' then
+    v_r := pg_temp.jouer('retour 2b joué avec des noms partagés', v_txt_r2b);
+    perform pg_temp.attendre('retour', 'le retour 2b joué quand deux organismes ont un centre du même nom est refusé par sa garde',
+      left(v_r, 84), 'ERREUR P0001 cloisonnement_2b_retour : deux centres portent le même nom (dans deux o');
+    perform pg_temp.informer('avant le retour 2b', format('noms suffixés : %s centre(s), %s titre(s) du réseau d''un autre organisme qu''ECF',
+      pg_temp.calcul($q$with m as (update public.lieux set nom = nom || ' (organisme ' || organisme_id || ')' where organisme_id <> 1 returning 1) select count(*)::text from m$q$),
+      pg_temp.calcul($q$with m as (update public.titres set nom = nom || ' (organisme ' || organisme_id || ')' where organisme_id <> 1 returning 1) select count(*)::text from m$q$)));
+  end if;
+  v_r := pg_temp.jouer('retour 2b', v_txt_r2b);
   v_r2b := v_r;
   perform pg_temp.etape('retour 2b', v_r, v_mode);
-  v_r := pg_temp.jouer('retour 2a',
--- @@INJECTER supabase/migrations/20261128_cloisonnement_2a_noyau_retour.sql@@
-  );
+  if v_e2a = 'jouée' and v_r2a is null and v_txt_r1 <> 'select 1' then
+    v_r := pg_temp.jouer('retour 1 joué trop tôt', v_txt_r1);
+    perform pg_temp.attendre('retour', 'le retour 1 joué avant celui de l''étape 2a (encore en place) est refusé par sa garde',
+      left(v_r, 75), 'ERREUR P0001 cloisonnement_1_retour : une étape plus tardive est en place (');
+  end if;
+  v_r := pg_temp.jouer('retour 2a', v_txt_r2a);
   v_r2a := v_r;
   perform pg_temp.etape('retour 2a', v_r, v_mode);
-  v_r := pg_temp.jouer('retour 1',
--- @@INJECTER supabase/migrations/20261128_cloisonnement_1_fondations_retour.sql@@
-  );
+  v_r := pg_temp.jouer('retour 1', v_txt_r1);
   v_r1 := v_r;
   perform pg_temp.etape('retour 1', v_r, v_mode);
 
