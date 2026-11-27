@@ -95,6 +95,16 @@ export function etatBandeauSupport(organisme, maintenant = Date.now()) {
   };
 }
 
+// Au retour sur l'app (onglet de nouveau visible), le fondateur relit son organisme (js/nav-shell.js) : faut-il recharger le
+// contexte de promo ? Oui si l'organisme affiché ou l'échéance de l'accès support a changé (accès ouvert ou fermé depuis un autre
+// onglet ou appareil, échéance passée pendant que l'app était cachée). Une lecture sans réponse (`id` inconnu) ne décide rien.
+export function organismeAChange(avant, apres) {
+  if (!avant || !apres || !Number.isInteger(avant.id) || !Number.isInteger(apres.id)) return false;
+  if (avant.id !== apres.id) return true;
+  const fin = (o) => (o.supportJusqua instanceof Date && !Number.isNaN(o.supportJusqua.getTime()) ? o.supportJusqua.getTime() : null);
+  return fin(avant) !== fin(apres);
+}
+
 // Les organismes que l'écran du fondateur propose (lignes de organismes_pour_support()), sans celui qui est affiché, triés par nom.
 export function organismesProposes(liste, courantId) {
   if (!Array.isArray(liste)) return [];

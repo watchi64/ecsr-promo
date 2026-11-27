@@ -44,8 +44,8 @@
 import { el } from "./utils.js?v=20261127b";
 import { icon, deco } from "./icons.js?v=20261127b";
 import { getProfile, fondateurHorsApercu, getCentre, isFounder } from "./auth-admin.js?v=20261127b";
-import { getPromoCourante, getLieuxLus, listeDemandes, lireMonOrganisme, rechargerApresEnregistrements } from "./db.js?v=20261127b";
-import { etatBandeauSupport } from "./organisme-rules.js?v=20261127b";
+import { getPromoCourante, getLieuxLus, listeDemandes, lireMonOrganisme, rechargerApresEnregistrements, invalidateCache } from "./db.js?v=20261127b";
+import { etatBandeauSupport, organismeAChange } from "./organisme-rules.js?v=20261127b";
 import { fermerAccesSupportPuisRecharger, texteSupportEnGras } from "./views/acces-support.js?v=20261127b";
 import { compterNonLues } from "./contact-rules.js?v=20261127b";
 import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261127b";
@@ -655,13 +655,45 @@ export function monterCoquille({ espace, entrees, nom, initiales, actualiser }) 
 
 let minuteurSupport = null;
 let lectureSupport = 0;   // une lecture partie avant un remontage plus récent ne dessine rien
+let organismeVu = null;   // le dernier organisme lu pour le bandeau : comparé au retour sur l'app
+let ecouteRetour = false;
+let relectureAuRetour = false;
 
 // Lit l'organisme affiché (lireMonOrganisme ne lève jamais) et pose ou retire le bandeau. Rien pour qui n'est pas le fondateur.
 async function poserBandeauSupport() {
   const mienne = ++lectureSupport;
-  if (!isFounder()) { dessinerBandeauSupport(null); return; }
+  if (!ecouteRetour) {
+    ecouteRetour = true;
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) relireOrganismeAuRetour(); });
+  }
+  if (!isFounder()) { organismeVu = null; dessinerBandeauSupport(null); return; }
   const organisme = await lireMonOrganisme();
-  if (mienne === lectureSupport) dessinerBandeauSupport(organisme);
+  if (mienne !== lectureSupport) return;
+  organismeVu = organisme;
+  dessinerBandeauSupport(organisme);
+}
+
+// Retour sur l'app (onglet de nouveau visible), fondateur hors aperçu seulement : l'organisme mémorisé (10 minutes) peut être
+// périmé (accès support ouvert ou fermé depuis un autre onglet ou appareil, échéance passée pendant que l'app était cachée). On le
+// relit ; s'il a changé (organismeAChange), le contexte de promo se recharge comme après l'ouverture ou la fermeture du support.
+// Les autres comptes ne relisent rien.
+async function relireOrganismeAuRetour() {
+  if (relectureAuRetour || !fondateurHorsApercu()) return;
+  relectureAuRetour = true;
+  try {
+    const avant = organismeVu;
+    invalidateCache("mon_organisme");
+    const apres = await lireMonOrganisme();
+    if (organismeAChange(avant, apres)) {
+      await rechargerApresEnregistrements();
+      return;
+    }
+    organismeVu = apres;
+    lectureSupport++;
+    dessinerBandeauSupport(apres);
+  } finally {
+    relectureAuRetour = false;
+  }
 }
 
 function dessinerBandeauSupport(organisme) {

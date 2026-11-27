@@ -65,7 +65,9 @@
 --   retour           les retours défont tout, dans l'ordre inverse (2c, 2b, 2a, 1) : l'empreinte (règles, fonctions, droits)
 --                    égale celle d'avant ; tables, colonnes, fonctions et déclencheurs du chantier disparus.
 --                    Un retour joué trop tôt (retour 2b avec la 2c en place, retour 2a avec la 2b en place, retour 1 avec la 2a en
---                    place) est refusé par sa garde.
+--                    place) est refusé par sa garde. Les retours 2b et 2c refusent par leur phrase des noms partagés entre organismes
+--                    (centres, titres du réseau, fiches profs) ; les retours 2a et 1 refusent quand plus d'un organisme existe, sauf
+--                    forçage explicite (cloisonnement.retour_plusieurs_organismes = 'oui'), que la preuve pose après avoir vu le refus.
 --   sabotage         (mode cloisonnement-sabotage) une règle relâchée après la 2c (profs lisible par tous) : ROUGE attendu sur les
 --                    groupes planning et matrice seulement.
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides (tests/sql/roles-aides.sql,
@@ -2172,6 +2174,7 @@ declare
   v_ap_regles text; v_ap_fonctions text; v_ap_droits text;
   v_habillage text; v_habillage_brut text; v_fondateurs integer;
   v_txt_r2c text; v_txt_r2b text; v_txt_r2a text; v_txt_r1 text;
+  v_plusieurs boolean := false;
   v_photo_avant text; v_photo_apres text;
 begin
   perform set_config('lock_timeout', '3s', true);
@@ -2318,8 +2321,15 @@ begin
     v_r := pg_temp.jouer('retour 2b joué avec des noms partagés', v_txt_r2b);
     perform pg_temp.attendre('retour', 'le retour 2b joué quand deux organismes ont un centre du même nom est refusé par sa garde',
       left(v_r, 84), 'ERREUR P0001 cloisonnement_2b_retour : deux centres portent le même nom (dans deux o');
-    perform pg_temp.informer('avant le retour 2b', format('noms suffixés : %s centre(s), %s titre(s) du réseau d''un autre organisme qu''ECF',
-      pg_temp.calcul($q$with m as (update public.lieux set nom = nom || ' (organisme ' || organisme_id || ')' where organisme_id <> 1 returning 1) select count(*)::text from m$q$),
+    perform pg_temp.informer('avant le retour 2b', format('noms suffixés : %s centre(s) d''un autre organisme qu''ECF',
+      pg_temp.calcul($q$with m as (update public.lieux set nom = nom || ' (organisme ' || organisme_id || ')' where organisme_id <> 1 returning 1) select count(*)::text from m$q$)));
+    -- Les centres renommés, il reste le titre du réseau de B au nom d'un titre réseau d'ECF (groupe noms) : la garde le refuse par sa
+    -- phrase, jamais par une erreur d'index (vague finale, mineur 7).
+    perform pg_temp.attendre('retour', 'le retour 2b joué quand deux organismes ont un titre du réseau du même nom est refusé par sa garde (pas par l''index)',
+      (pg_temp.calcul($q$select count(*)::text from (select 1 from public.titres t where t.lieu_id is null group by lower(t.nom) having count(distinct t.organisme_id) > 1) d$q$) <> '0')::text
+        || ' ; ' || left(pg_temp.jouer('retour 2b joué avec des titres du même nom', v_txt_r2b), 87),
+      'true ; ERREUR P0001 cloisonnement_2b_retour : deux titres portent le même nom à la même portée');
+    perform pg_temp.informer('avant le retour 2b', format('noms suffixés : %s titre(s) du réseau d''un autre organisme qu''ECF',
       pg_temp.calcul($q$with m as (update public.titres set nom = nom || ' (organisme ' || organisme_id || ')' where organisme_id <> 1 returning 1) select count(*)::text from m$q$)));
   end if;
   v_r := pg_temp.jouer('retour 2b', v_txt_r2b);
@@ -2330,9 +2340,27 @@ begin
     perform pg_temp.attendre('retour', 'le retour 1 joué avant celui de l''étape 2a (encore en place) est refusé par sa garde',
       left(v_r, 75), 'ERREUR P0001 cloisonnement_1_retour : une étape plus tardive est en place (');
   end if;
+  -- Vague finale (mineur 3) : avec plus d'un organisme, les retours 2a et 1 refusent sans forçage explicite
+  -- (cloisonnement.retour_plusieurs_organismes = 'oui', documenté dans leur en-tête) ; la preuve le montre, puis force.
+  v_plusieurs := to_regclass('public.organismes') is not null and pg_temp.calcul('select (count(*) > 1)::text from public.organismes') = 'true';
+  if v_plusieurs and v_txt_r2a <> 'select 1' then
+    v_r := pg_temp.jouer('retour 2a avec deux organismes', v_txt_r2a);
+    perform pg_temp.attendre('retour', 'le retour 2a joué avec deux organismes en base (sans forçage) est refusé par sa garde',
+      v_r, 'ERREUR P0001 cloisonnement_2a_retour : plus d''un organisme : rien n''est changé');
+  end if;
+  if v_plusieurs then
+    perform set_config('cloisonnement.retour_plusieurs_organismes', 'oui', true);
+  end if;
   v_r := pg_temp.jouer('retour 2a', v_txt_r2a);
   v_r2a := v_r;
   perform pg_temp.etape('retour 2a', v_r, v_mode);
+  if v_plusieurs and v_txt_r1 <> 'select 1' then
+    perform set_config('cloisonnement.retour_plusieurs_organismes', '', true);
+    v_r := pg_temp.jouer('retour 1 avec deux organismes', v_txt_r1);
+    perform pg_temp.attendre('retour', 'le retour 1 joué avec deux organismes en base (sans forçage) est refusé par sa garde',
+      v_r, 'ERREUR P0001 cloisonnement_1_retour : plus d''un organisme : rien n''est changé');
+    perform set_config('cloisonnement.retour_plusieurs_organismes', 'oui', true);
+  end if;
   v_r := pg_temp.jouer('retour 1', v_txt_r1);
   v_r1 := v_r;
   perform pg_temp.etape('retour 1', v_r, v_mode);

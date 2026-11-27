@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   texteBandeauSupport, motifSupportValide, MOTIF_SUPPORT_MIN, normaliserMonOrganisme, supportEnCours, etatBandeauSupport,
-  organismesProposes, organismeParDefaut, redacteurConnu, contenusEcrivables, gestesDeLaBanqueQcm, separerHeureBandeau,
+  organismesProposes, organismeParDefaut, redacteurConnu, contenusEcrivables, gestesDeLaBanqueQcm, separerHeureBandeau, organismeAChange,
 } from "../js/organisme-rules.js";
 import { phraseDeRefus } from "../js/espaces-rules.js";
 import { casesDeLEspace, selonLaCase } from "../js/titres-rules.js";
@@ -174,4 +174,20 @@ test("separerHeureBandeau : l'heure finale à part (elle ne se coupe pas d'une l
   assert.deepEqual(separerHeureBandeau("Accès support à Organisme B terminé. Rechargez l'app pour revenir à votre organisme."),
     ["Accès support à Organisme B terminé. Rechargez l'app pour revenir à votre organisme.", ""]);
   assert.deepEqual(separerHeureBandeau(null), ["", ""]);
+});
+
+test("organismeAChange : au retour sur l'app, le fondateur recharge si l'organisme affiché ou l'échéance du support a changé", () => {
+  const ecf = normaliserMonOrganisme([{ id: 1, nom: "ECF BOUSCAREN", redacteur: true, habillage: null, support_jusqua: null }]);
+  const b = normaliserMonOrganisme([{ id: 2, nom: "Organisme B", redacteur: false, habillage: null, support_jusqua: "2026-11-28T14:05:00Z" }]);
+  const bProlonge = normaliserMonOrganisme([{ id: 2, nom: "Organisme B", redacteur: false, habillage: null, support_jusqua: "2026-11-28T15:05:00Z" }]);
+  const bMeme = normaliserMonOrganisme([{ id: 2, nom: "Organisme B", redacteur: false, habillage: null, support_jusqua: "2026-11-28T14:05:00Z" }]);
+  assert.equal(organismeAChange(ecf, b), true);          // accès ouvert ailleurs (autre onglet, autre appareil)
+  assert.equal(organismeAChange(b, ecf), true);          // accès fermé ailleurs, ou échéance passée
+  assert.equal(organismeAChange(b, bProlonge), true);    // un nouvel accès sur le même organisme : nouvelle échéance
+  assert.equal(organismeAChange(b, bMeme), false);
+  assert.equal(organismeAChange(ecf, normaliserMonOrganisme([{ id: 1, nom: "ECF BOUSCAREN", redacteur: true }])), false);
+  // Une lecture sans réponse (panne, fonction absente) ne décide rien : jamais de rechargement sur une panne.
+  assert.equal(organismeAChange(b, normaliserMonOrganisme(null)), false);
+  assert.equal(organismeAChange(normaliserMonOrganisme(null), b), false);
+  assert.equal(organismeAChange(null, b), false);
 });

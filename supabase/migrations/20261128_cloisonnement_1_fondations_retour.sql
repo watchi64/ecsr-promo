@@ -6,6 +6,9 @@
 -- Garde : les objets de l'étape 1 sont tous là, et aucune étape plus tardive n'est en place (aucune autre fonction ni règle que
 -- celles de l'étape 1 ne cite le vocabulaire du cloisonnement) ; sinon rien n'est changé. Aucun corps de fonction existant n'est
 -- remis : l'étape 1 n'en remplace aucun.
+-- Plus d'un organisme en base : refus (« plus d'un organisme : rien n'est changé »). Forçage explicite, à ne poser qu'en
+-- connaissance de cause (toute séparation entre organismes est perdue) : `set local cloisonnement.retour_plusieurs_organismes = 'oui';`
+-- dans la même transaction, avant ce fichier.
 -- Preuve : tests/sql/cloisonnement-preuve.sql, groupe retour.
 -- À appliquer en une seule transaction : psql -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261128_cloisonnement_1_fondations_retour.sql.
 
@@ -56,6 +59,11 @@ begin
              and r.policyname <> 'acces_fondateur_lecture') x;
   if v_liste is not null then
     raise exception 'cloisonnement_1_retour : une étape plus tardive est en place (%) : jouer d''abord son retour ; rien n''est changé', v_liste;
+  end if;
+  -- Plus d'un organisme : le retour effacerait la séparation (organismes, rattachements) ; refus, sauf forçage explicite (en-tête).
+  if (select count(*) from public.organismes) > 1
+     and coalesce(current_setting('cloisonnement.retour_plusieurs_organismes', true), '') <> 'oui' then
+    raise exception 'cloisonnement_1_retour : plus d''un organisme : rien n''est changé';
   end if;
 end $garde$;
 

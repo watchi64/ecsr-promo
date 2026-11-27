@@ -176,3 +176,33 @@ def organisme_redacteur(v):
     if not v.voit(texte("Propositions IA", SOUS_ONGLET)):
         v.constat("F", BLOQUE, "le sous-onglet « Propositions IA » manque chez ECF, organisme rédacteur", capture=True)
     v.terminer()
+
+
+@parcours("acces-support-ouvert-ailleurs", "Accès support ouvert depuis un autre onglet : l'app s'y range au retour (fondateur)",
+          role="fondateur", budget={"ordinateur": 1, "telephone": 2})
+def acces_support_ouvert_ailleurs(v):
+    """Retour sur l'app (onglet de nouveau visible) : sans changement, l'organisme est relu sans rechargement ; un accès support
+    ouvert entre-temps ailleurs (autre onglet, autre appareil) recharge l'app sous le bandeau de B."""
+    _ouvrir_reglages(v)
+    v.attendre(ETAT + ':has-text("%s")' % ECF, "« Vous travaillez dans votre organisme, ECF BOUSCAREN. »")
+    v.but("réglages sur ECF")
+
+    v.etape("retour sur l'app sans changement")
+    lus = "() => (window.__HARNESS_SUPPORT_APPELS || []).filter((a) => a.name === 'mon_organisme').length"
+    avant = v.page.evaluate(lus)
+    v.page.evaluate("() => { window.__robotSansRechargement = 1; document.dispatchEvent(new Event('visibilitychange')); }")
+    v.page.wait_for_function("(n) => (window.__HARNESS_SUPPORT_APPELS || []).filter((a) => a.name === 'mon_organisme').length > n",
+                             arg=avant, timeout=5000)
+    if v.page.evaluate("() => window.__robotSansRechargement") != 1 or v.voit(BANDEAU):
+        v.constat("E", BLOQUE, "le retour sur l'app recharge ou change l'écran alors que rien n'a changé", capture=True)
+
+    v.etape("accès ouvert ailleurs, puis retour sur l'app")
+    v.page.evaluate("""() => { sessionStorage.setItem('banc_support', JSON.stringify({ id: 2, fin: Date.now() + 7200e3 }));
+                                document.dispatchEvent(new Event('visibilitychange')); }""")
+    v.attendre(BANDEAU + " strong", "le bandeau de l'accès support, après rechargement", delai=10000)
+    lu = v.texte(BANDEAU + " strong").strip()
+    if not TEXTE_BANDEAU_B.match(lu):
+        v.constat("F", BLOQUE, "texte du bandeau inattendu : « %s »" % lu, capture=True)
+    if v.page.evaluate("() => window.__robotSansRechargement") == 1:
+        v.constat("E", BLOQUE, "l'app ne s'est pas rechargée sur l'organisme du support", capture=True)
+    v.terminer()

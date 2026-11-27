@@ -5,6 +5,9 @@
 -- (aucune autre fonction ni règle que celles des étapes 1 et 2a ne cite le vocabulaire du cloisonnement) ; sinon rien n'est changé.
 -- Ordre : après les retours des étapes 2c et 2b, avant celui de l'étape 1 (les corps de l'étape 2a appellent le vocabulaire
 -- de l'étape 1).
+-- Plus d'un organisme en base : refus (« plus d'un organisme : rien n'est changé »). Ce retour est fait pour la période où ECF est
+-- seul. Forçage explicite, à ne poser qu'en connaissance de cause (les autres organismes perdront leur séparation avec le retour
+-- de l'étape 1) : `set local cloisonnement.retour_plusieurs_organismes = 'oui';` dans la même transaction, avant ce fichier.
 -- Preuve : tests/sql/cloisonnement-preuve.sql, groupe retour.
 -- À appliquer en une seule transaction :
 --   psql -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261128_cloisonnement_2a_noyau_retour.sql
@@ -57,6 +60,11 @@ begin
              and r.policyname <> 'acces_fondateur_lecture') x;
   if v_liste is not null then
     raise exception 'cloisonnement_2a_retour : une étape plus tardive est en place (%) : jouer d''abord son retour ; rien n''est changé', v_liste;
+  end if;
+  -- Plus d'un organisme : le retour effacerait la séparation (organismes, rattachements) ; refus, sauf forçage explicite (en-tête).
+  if (select count(*) from public.organismes) > 1
+     and coalesce(current_setting('cloisonnement.retour_plusieurs_organismes', true), '') <> 'oui' then
+    raise exception 'cloisonnement_2a_retour : plus d''un organisme : rien n''est changé';
   end if;
 end $garde$;
 
