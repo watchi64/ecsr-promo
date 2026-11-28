@@ -5,13 +5,13 @@
 // changement (js/contact-annuaire-rules.js, listeFinancements) : un seul nom change à la fois, l'échange de deux noms que la base
 // refuserait n'est jamais demandé. La base décide de tout (droit, doublons) ; ses refus se disent par leur phrase.
 
-import { lireFinancements, reglerFinancements, lireAnnuaire, reglagesContact, reglerQuiRecoitQuoi, reglerReponses } from "../db.js?v=20261127b";
-import { el, clear, toast } from "../utils.js?v=20261127b";
-import { icon } from "../icons.js?v=20261127b";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261127b";
-import { jourParis, dateLongue } from "../dates.js?v=20261127b";
-import { listeFinancements, validerLibelleFinancement, fichesASupprimer } from "../contact-annuaire-rules.js?v=20261127b";
-import { TYPES_DEMANDE, phraseReglesCentre, phraseContact, reglagesModifiables } from "../contact-rules.js?v=20261127b";
+import { lireFinancements, reglerFinancements, lireAnnuaire, reglagesContact, reglerQuiRecoitQuoi, reglerReponses } from "../db.js?v=20261128a";
+import { el, clear, toast } from "../utils.js?v=20261128a";
+import { icon } from "../icons.js?v=20261128a";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261128a";
+import { jourParis, dateLongue } from "../dates.js?v=20261128a";
+import { listeFinancements, validerLibelleFinancement, fichesASupprimer } from "../contact-annuaire-rules.js?v=20261128a";
+import { TYPES_DEMANDE, phraseReglesCentre, phraseContact, reglagesModifiables } from "../contact-rules.js?v=20261128a";
 
 export const PHRASE_SANS_FICHE_A_SUPPRIMER = "Aucune fiche à supprimer.";
 export const PHRASE_FICHES_A_SUPPRIMER = "Ces personnes ont quitté le centre : supprimez leur fiche depuis la page Contacts.";

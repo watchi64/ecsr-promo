@@ -7,13 +7,13 @@
 import {
   listStagiaires, addStagiaire, updateStagiaire, updateStagiaireNom, setStagiaireActif,
   listUserProfiles, inviteUser,
-} from "../db.js?v=20261127b";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261127b";
-import { icon } from "../icons.js?v=20261127b";
-import { isEquipe, ecritSelonLaCase } from "../auth-admin.js?v=20261127b";
-import { messageInvitationReussie } from "../roles-rules.js?v=20261127b";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261127b";
-import { confirmer } from "../confirmer.js?v=20261127b";
+} from "../db.js?v=20261128a";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261128a";
+import { icon } from "../icons.js?v=20261128a";
+import { isEquipe, ecritSelonLaCase } from "../auth-admin.js?v=20261128a";
+import { messageInvitationReussie } from "../roles-rules.js?v=20261128a";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261128a";
+import { confirmer } from "../confirmer.js?v=20261128a";
 
 // Liste des personnes invitables de la section déjà à l'écran. Posée par la section d'invitation qui la montre (js/views/config.js ou
 // renderInvitationStagiaire), appelée après un ajout de stagiaire, qui n'actualise que le bloc « Stagiaires ».

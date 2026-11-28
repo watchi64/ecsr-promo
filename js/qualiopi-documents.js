@@ -20,19 +20,19 @@
 // Les tableaux par stagiaire comptent les mêmes stagiaires que lui : ceux en formation, et le document le dit ; seule la
 // liste nominative de l'effectif montre aussi les abandons.
 
-import { SOURCE } from "./qualiopi-referentiel.js?v=20261127b";
-import { jourDe, rempli, tableau, demandesDe, RAISON_EFFACEE, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261127b";
-import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261127b";
-import { ligneComparaison, METHODES, METHODES_PUBLIQUES, RESULTATS_JURY } from "./centre-stats.js?v=20261127b";
-import { estNotee, score20 } from "./notes-stats.js?v=20261127b";
-import { EPCF_TRAME_KEYS } from "./epcf-trames.js?v=20261127b";
-import { cellule, nombre, slug } from "./centre-csv.js?v=20261127b";
-import { compareByNom } from "./utils.js?v=20261127b";
-import { statutFiche } from "./effacement-rules.js?v=20261127b";
-import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261127b";
-import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261127b";
-import { fr1, pluriel } from "./nombres.js?v=20261127b";
-import { dateFr } from "./dates.js?v=20261127b";
+import { SOURCE } from "./qualiopi-referentiel.js?v=20261128a";
+import { jourDe, rempli, tableau, demandesDe, RAISON_EFFACEE, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261128a";
+import { TYPES, ORIGINES, ETATS, entreesPourPromo, entreesPourCentre, decompteRegistre, delaiMedianJours } from "./registre-rules.js?v=20261128a";
+import { ligneComparaison, METHODES, METHODES_PUBLIQUES, RESULTATS_JURY } from "./centre-stats.js?v=20261128a";
+import { estNotee, score20 } from "./notes-stats.js?v=20261128a";
+import { EPCF_TRAME_KEYS } from "./epcf-trames.js?v=20261128a";
+import { cellule, nombre, slug } from "./centre-csv.js?v=20261128a";
+import { compareByNom } from "./utils.js?v=20261128a";
+import { statutFiche } from "./effacement-rules.js?v=20261128a";
+import { dureeEnToutesLettres } from "./attestations-rules.js?v=20261128a";
+import { presenceDePromo, raisonAbsence } from "./qualiopi-presence.js?v=20261128a";
+import { fr1, pluriel } from "./nombres.js?v=20261128a";
+import { dateFr } from "./dates.js?v=20261128a";
 
 export const PHRASE_DE_GARDE = "Pièces issues de l'application Jalonya, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
 

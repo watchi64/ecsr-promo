@@ -7,8 +7,8 @@
  * ou le conseil d'ouvrir Chrome ou Edge. Sur ordinateur, ajoute le code QR pour passer au téléphone.
  * Règles (sans DOM) : js/installer-rules.js.
  */
-import { reconnaitre, modeAffichage, gesteManuel, estInstallee } from "./installer-rules.js?v=20261127b";
-import { adresseApp } from "./adresse.js?v=20261127b";
+import { reconnaitre, modeAffichage, gesteManuel, estInstallee } from "./installer-rules.js?v=20261128a";
+import { adresseApp } from "./adresse.js?v=20261128a";
 
 // L'événement arrive tôt, parfois avant la fin du chargement de ce module : on l'écoute tout de suite.
 let invitation = null;

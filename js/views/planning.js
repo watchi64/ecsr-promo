@@ -8,29 +8,29 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, getSalleAggregats,
   avantChangementPromo, absencesAnnonceesSemaine,
-} from "../db.js?v=20261127b";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom, shuffle } from "../utils.js?v=20261127b";
-import { confirmer, demander } from "../confirmer.js?v=20261127b";
-import { icon, deco } from "../icons.js?v=20261127b";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20261127b";
-import { getAdminEmail, monStagiaireId, ecritSelonLaCase, getEspace } from "../auth-admin.js?v=20261127b";
-import { marqueAbsence } from "../contact-absences-rules.js?v=20261127b";
-import { recordUndo } from "../undo.js?v=20261127b";
-import { getCurrentWho } from "../identity.js?v=20261127b";
-import { telLink } from "./benevoles.js?v=20261127b";
-import { meilleurResultat } from "../passage-rules.js?v=20261127b";
-import { formateurConnecte } from "../modules-etat.js?v=20261127b";
-import { libelleHeure, jourFerie } from "../emargement-rules.js?v=20261127b";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261127b";
+} from "../db.js?v=20261128a";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom, shuffle } from "../utils.js?v=20261128a";
+import { confirmer, demander } from "../confirmer.js?v=20261128a";
+import { icon, deco } from "../icons.js?v=20261128a";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20261128a";
+import { getAdminEmail, monStagiaireId, ecritSelonLaCase, getEspace } from "../auth-admin.js?v=20261128a";
+import { marqueAbsence } from "../contact-absences-rules.js?v=20261128a";
+import { recordUndo } from "../undo.js?v=20261128a";
+import { getCurrentWho } from "../identity.js?v=20261128a";
+import { telLink } from "./benevoles.js?v=20261128a";
+import { meilleurResultat } from "../passage-rules.js?v=20261128a";
+import { formateurConnecte } from "../modules-etat.js?v=20261128a";
+import { libelleHeure, jourFerie } from "../emargement-rules.js?v=20261128a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261128a";
 import {
   entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe, colonnesParalleles,
-} from "../planning-roles.js?v=20261127b";
+} from "../planning-roles.js?v=20261128a";
 import {
   DEFAULT_HALF_META, semaineEnGrille, jourParDefaut, lundiEnCours, vuePlanningInitiale,
-} from "../journee-rules.js?v=20261127b";
-import { nomsStagiaires, nomBenevole } from "../planning-lecture.js?v=20261127b";
-import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261127b";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261127b";
+} from "../journee-rules.js?v=20261128a";
+import { nomsStagiaires, nomBenevole } from "../planning-lecture.js?v=20261128a";
+import { grilleSemaine, bascule, CLE_VUE_PLANNING } from "./planning-grille.js?v=20261128a";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261128a";
 
 let stagiaires = [];
 let profs = [];

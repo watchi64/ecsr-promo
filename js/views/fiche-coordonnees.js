@@ -4,13 +4,13 @@
 // centre, « délégué », « suppléant » ou « aucun ». Le bloc se charge seul : une lecture qui échoue laisse sa phrase et « Réessayer »,
 // jamais la fiche vide. Équipe au vouvoiement, stagiaire au tutoiement.
 
-import { lireCoordonnees, lireFinancements, getStagiaire, reglerCoordonnees, reglerDelegue } from "../db.js?v=20261127b";
-import { el, clear, toast } from "../utils.js?v=20261127b";
-import { icon } from "../icons.js?v=20261127b";
-import { ecritSelonLaCase } from "../auth-admin.js?v=20261127b";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261127b";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261127b";
-import { validerMaFiche, peutModifierCoordonnees } from "../contact-annuaire-rules.js?v=20261127b";
+import { lireCoordonnees, lireFinancements, getStagiaire, reglerCoordonnees, reglerDelegue } from "../db.js?v=20261128a";
+import { el, clear, toast } from "../utils.js?v=20261128a";
+import { icon } from "../icons.js?v=20261128a";
+import { ecritSelonLaCase } from "../auth-admin.js?v=20261128a";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261128a";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261128a";
+import { validerMaFiche, peutModifierCoordonnees } from "../contact-annuaire-rules.js?v=20261128a";
 
 const LIBELLE_DELEGUE = { titulaire: "Délégué", suppleant: "Suppléant" };
 

@@ -5,7 +5,7 @@
 // Logique pure de la carte d'authentification : validation, traduction des
 // erreurs Supabase, lecture du jeton de récupération, description des modes.
 // Aucun DOM ici, aucun appel réseau : c'est ce qui rend ce fichier testable.
-// Formule neutre partout (ni « tu » ni « vous ») : personne n'est encore identifié sur cet écran.
+// Vouvoiement, comme toute l'app depuis le 10/11 et la charte Jalonya (textes repris le 27/11/2026).
 
 export const MDP_MIN = 8;
 
@@ -29,12 +29,12 @@ export function messageErreurAuth(brut) {
   const msg = brut ? String(brut) : "";
   if (!msg) return "Une erreur est survenue.";
   if (/Invalid login credentials/i.test(msg)) return "E-mail ou mot de passe incorrect.";
-  if (/User already registered/i.test(msg)) return "Cette adresse e-mail a déjà un compte : passer par l'onglet « Connexion ».";
+  if (/User already registered/i.test(msg)) return "Cette adresse e-mail a déjà un compte : utilisez l'onglet « Connexion ».";
   if (/non autorisé/i.test(msg) || /Database error/i.test(msg)) {
-    return "Cette adresse e-mail n'a pas été invitée. L'inscription demande d'abord une invitation de l'équipe de formation.";
+    return "Cette adresse e-mail n'a pas été invitée. Le compte se crée après une invitation de votre centre de formation.";
   }
   if (/For security purposes/i.test(msg) || /rate limit/i.test(msg)) {
-    return "Trop de demandes. Merci de patienter quelques minutes avant de réessayer.";
+    return "Trop de demandes. Patientez quelques minutes avant de réessayer.";
   }
   return msg;
 }
@@ -51,10 +51,11 @@ export function lireJetonRecuperation(search) {
 
 const MODES = {
   "signin": {
-    sousTitre: "Saisir l'adresse e-mail et le mot de passe du compte.",
+    titre: "Bienvenue",
+    sousTitre: "Connectez-vous avec l'adresse e-mail de votre compte.",
     bouton: "Se connecter",
     boutonEnCours: "Connexion…",
-    hint: "Pas encore de compte ? Passer par l'onglet « Créer un compte » (l'adresse e-mail doit avoir reçu une invitation).",
+    hint: "Pas encore de compte ? Il se crée sur invitation de votre centre de formation.",
     champs: { email: true, password: true, confirmation: false },
     autocomplete: "current-password",
     onglets: true,
@@ -62,10 +63,11 @@ const MODES = {
     retour: false,
   },
   "signup": {
-    sousTitre: "Créer le compte : l'adresse e-mail invitée par l'équipe de formation, puis un mot de passe au choix.",
+    titre: "Créer votre compte",
+    sousTitre: "Avec l'adresse e-mail qui a reçu l'invitation de votre centre de formation, puis un mot de passe de votre choix.",
     bouton: "Créer mon compte",
     boutonEnCours: "Création…",
-    hint: "Une invitation préalable est nécessaire : sans elle, l'inscription est refusée.",
+    hint: "Sans invitation de votre centre, la création du compte est refusée.",
     champs: { email: true, password: true, confirmation: false },
     autocomplete: "new-password",
     onglets: true,
@@ -73,7 +75,8 @@ const MODES = {
     retour: false,
   },
   "reset-request": {
-    sousTitre: "Saisir l'adresse e-mail du compte : un lien pour choisir un nouveau mot de passe y sera envoyé.",
+    titre: "Mot de passe oublié",
+    sousTitre: "Indiquez l'adresse e-mail de votre compte : un lien pour choisir un nouveau mot de passe y sera envoyé.",
     bouton: "Envoyer le lien",
     boutonEnCours: "Envoi…",
     hint: "Le lien est valable une heure.",
@@ -84,7 +87,8 @@ const MODES = {
     retour: true,
   },
   "reset-set": {
-    sousTitre: "Choisir un nouveau mot de passe (" + MDP_MIN + " caractères minimum).",
+    titre: "Nouveau mot de passe",
+    sousTitre: "Choisissez un nouveau mot de passe (" + MDP_MIN + " caractères au moins).",
     bouton: "Enregistrer",
     boutonEnCours: "Enregistrement…",
     hint: "",
@@ -95,6 +99,7 @@ const MODES = {
     retour: false,
   },
   "reset-error": {
+    titre: "Lien expiré",
     sousTitre: "Ce lien n'est plus valable : il a expiré ou il a déjà servi.",
     bouton: "Demander un nouveau lien",
     boutonEnCours: "…",

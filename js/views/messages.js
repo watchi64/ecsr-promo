@@ -3,14 +3,14 @@
 // fenêtre d'écriture. Un suivi s'ouvre à #/messages/<id> (js/views/demande.js). À l'ouverture, les e-mails en attente partent
 // (declencherEnvois). La direction lit aussi les demandes de son centre. Vouvoiement, des listes et jamais de tableau.
 
-import { listeDemandes, declencherEnvois } from "../db.js?v=20261127b";
-import { el, clear } from "../utils.js?v=20261127b";
-import { icon } from "../icons.js?v=20261127b";
-import { vueStagiaire, getCentre, getEspace } from "../auth-admin.js?v=20261127b";
-import { lireAdresse } from "../route-rules.js?v=20261127b";
-import { rangerDemandes, phraseContact } from "../contact-rules.js?v=20261127b";
-import { ligneDemande, renderDemande } from "./demande.js?v=20261127b";
-import { ouvrirEcrire } from "./contact-ecrire.js?v=20261127b";
+import { listeDemandes, declencherEnvois } from "../db.js?v=20261128a";
+import { el, clear } from "../utils.js?v=20261128a";
+import { icon } from "../icons.js?v=20261128a";
+import { vueStagiaire, getCentre, getEspace } from "../auth-admin.js?v=20261128a";
+import { lireAdresse } from "../route-rules.js?v=20261128a";
+import { rangerDemandes, phraseContact } from "../contact-rules.js?v=20261128a";
+import { ligneDemande, renderDemande } from "./demande.js?v=20261128a";
+import { ouvrirEcrire } from "./contact-ecrire.js?v=20261128a";
 
 const PHRASE_ECHEC_LECTURE = "Les messages n'ont pas pu être chargés.";
 
