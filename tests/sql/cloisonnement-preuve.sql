@@ -1803,7 +1803,10 @@ declare
   v_a text := pg_temp.clo_n('org_a'); v_b text := pg_temp.clo_n('org_b');
   v_sig_b text := pg_temp.clo_n('sig_b'); v_sig_a text; v_brouillon text; v_q text; v_fiche_b text;
 begin
-  v_sig_a := pg_temp.calcul(format('select min(id)::text from public.qcm_signalements where organisme_id = %s', v_a));
+  -- Témoin d'ECF : un signalement qu'aucun fondateur n'a déposé (chacun lit toujours les siens, par son adresse ; en production,
+  -- le fondateur a lui-même déposé des signalements, constat de la mise en ligne du 28/11).
+  v_sig_a := pg_temp.calcul(format('select min(s.id)::text from public.qcm_signalements s where s.organisme_id = %s and not exists '
+    '(select 1 from public.user_profiles p where p.is_founder and lower(p.email) = lower(s.email))', v_a));
   v_q := pg_temp.calcul('select min(id)::text from public.qcm_questions');
   v_fiche_b := pg_temp.clo_n('stag_b1');
   perform pg_temp.attendre('signalements', 'le formateur d''ECF (rédacteur) ne lit pas le signalement de B (ni sa fiche de stagiaire) ; aucun signalement de B lu',
