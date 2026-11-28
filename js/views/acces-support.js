@@ -8,16 +8,16 @@
 
 import {
   lireMonOrganisme, lireOrganismesSupport, ouvrirAccesSupport, fermerAccesSupport, compterMesPromos, rechargerApresEnregistrements,
-} from "../db.js?v=20261127b";
-import { el, toast } from "../utils.js?v=20261127b";
-import { icon } from "../icons.js?v=20261127b";
-import { confirmer } from "../confirmer.js?v=20261127b";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261127b";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261127b";
-import { fonctionAbsente } from "../questionnaires-erreurs.js?v=20261127b";
+} from "../db.js?v=20261128b";
+import { el, toast } from "../utils.js?v=20261128b";
+import { icon } from "../icons.js?v=20261128b";
+import { confirmer } from "../confirmer.js?v=20261128b";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261128b";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261128b";
+import { fonctionAbsente } from "../questionnaires-erreurs.js?v=20261128b";
 import {
   motifSupportValide, MOTIF_SUPPORT_MIN, organismesProposes, supportEnCours, texteBandeauSupport, separerHeureBandeau,
-} from "../organisme-rules.js?v=20261127b";
+} from "../organisme-rules.js?v=20261128b";
 
 export const PHRASE_MOTIF_COURT = `Le motif doit compter au moins ${MOTIF_SUPPORT_MIN} caractères.`;
 const PHRASE_SANS_PROMO = "Cet organisme n'a encore aucune promo : l'app ne peut pas s'y ouvrir. L'accès support a été refermé.";

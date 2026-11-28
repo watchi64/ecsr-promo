@@ -26,12 +26,12 @@ assert.equal(validerMotDePasse("motdepasse8", undefined), null);
 
 // Messages Supabase traduits (repris de l'ancien showGate).
 assert.equal(messageErreurAuth("Invalid login credentials"), "E-mail ou mot de passe incorrect.");
-assert.equal(messageErreurAuth("User already registered"), "Cette adresse e-mail a déjà un compte : passer par l'onglet « Connexion ».");
-assert.equal(messageErreurAuth("Database error saving new user"), "Cette adresse e-mail n'a pas été invitée. L'inscription demande d'abord une invitation de l'équipe de formation.");
+assert.equal(messageErreurAuth("User already registered"), "Cette adresse e-mail a déjà un compte : utilisez l'onglet « Connexion ».");
+assert.equal(messageErreurAuth("Database error saving new user"), "Cette adresse e-mail n'a pas été invitée. Le compte se crée après une invitation de votre centre de formation.");
 assert.equal(messageErreurAuth("For security purposes, you can only request this after 47 seconds"),
-  "Trop de demandes. Merci de patienter quelques minutes avant de réessayer.");
+  "Trop de demandes. Patientez quelques minutes avant de réessayer.");
 assert.equal(messageErreurAuth("Email rate limit exceeded"),
-  "Trop de demandes. Merci de patienter quelques minutes avant de réessayer.");
+  "Trop de demandes. Patientez quelques minutes avant de réessayer.");
 // Message inconnu : on le laisse passer tel quel plutot que de mentir.
 assert.equal(messageErreurAuth("Boom"), "Boom");
 assert.equal(messageErreurAuth(""), "Une erreur est survenue.");
@@ -48,6 +48,7 @@ assert.equal(lireJetonRecuperation(undefined), null);
 // Descripteurs de mode : cinq modes, chacun complet.
 for (const mode of ["signin", "signup", "reset-request", "reset-set", "reset-error"]) {
   const c = configMode(mode);
+  assert.equal(typeof c.titre, "string", mode + " : titre");
   assert.equal(typeof c.sousTitre, "string", mode + " : sousTitre");
   assert.equal(typeof c.bouton, "string", mode + " : bouton");
   assert.equal(typeof c.boutonEnCours, "string", mode + " : boutonEnCours");
@@ -87,5 +88,15 @@ assert.equal(configMode("reset-error").retour, true);
 assert.equal(configMode("signin").autocomplete, "current-password");
 assert.equal(configMode("signup").autocomplete, "new-password");
 assert.equal(configMode("reset-set").autocomplete, "new-password");
+
+// Un titre par mode : « Bienvenue » ne reste pas sur l'écran du mot de passe oublié.
+assert.equal(configMode("signin").titre, "Bienvenue");
+assert.equal(configMode("reset-request").titre, "Mot de passe oublié");
+assert.equal(configMode("reset-set").titre, "Nouveau mot de passe");
+// Vouvoiement : aucun texte de la porte à l'infinitif d'instruction (« Saisir… », « Passer par… »).
+for (const mode of ["signin", "signup", "reset-request", "reset-set", "reset-error"]) {
+  const c = configMode(mode);
+  for (const t of [c.titre, c.sousTitre, c.hint]) assert.ok(!/^(Saisir|Passer|Choisir|Créer le)/.test(t), mode + " : " + t);
+}
 
 console.log("gate-rules : OK");

@@ -15,18 +15,18 @@
 import {
   lireLieuxDuReseau, lireDirectionsDuReseau, retirerTitre, creerCentre, inviteUser,
   lirePersonnesEtTitres, lireTitresVisibles, lireTitresAjustables, lireJournalPresent, lireJournalDesDroits, donnerTitre, creerTitre, supprimerTitre,
-} from "../db.js?v=20261127b";
-import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261127b";
-import { icon } from "../icons.js?v=20261127b";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261127b";
-import { messageInvitationReussie } from "../roles-rules.js?v=20261127b";
-import { directionsParCentre } from "../siege-rules.js?v=20261127b";
-import { ouvrirFormulaire, sectionJournal, cellulesDeTitre, PHRASE_COMPTE_CREE } from "./direction-equipe.js?v=20261127b";
-import { ouvrirEditeurTitre } from "./titres-editeur.js?v=20261127b";
-import { gestesSurTitre, siegeFixePourLesGestes, titresDuCentreEnLecture, retraitDuSiegeOffert, LIBELLE_NIVEAU } from "../titres-rules.js?v=20261127b";
-import { ecritSelonLaCase, getMesTitres, getAdminEmail, fondateurHorsApercu } from "../auth-admin.js?v=20261127b";
-import { confirmer, demander } from "../confirmer.js?v=20261127b";
-import { pluriel } from "../nombres.js?v=20261127b";
+} from "../db.js?v=20261128b";
+import { el, clear, toast, tableauEnListe } from "../utils.js?v=20261128b";
+import { icon } from "../icons.js?v=20261128b";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261128b";
+import { messageInvitationReussie } from "../roles-rules.js?v=20261128b";
+import { directionsParCentre } from "../siege-rules.js?v=20261128b";
+import { ouvrirFormulaire, sectionJournal, cellulesDeTitre, PHRASE_COMPTE_CREE } from "./direction-equipe.js?v=20261128b";
+import { ouvrirEditeurTitre } from "./titres-editeur.js?v=20261128b";
+import { gestesSurTitre, siegeFixePourLesGestes, titresDuCentreEnLecture, retraitDuSiegeOffert, LIBELLE_NIVEAU } from "../titres-rules.js?v=20261128b";
+import { ecritSelonLaCase, getMesTitres, getAdminEmail, fondateurHorsApercu } from "../auth-admin.js?v=20261128b";
+import { confirmer, demander } from "../confirmer.js?v=20261128b";
+import { pluriel } from "../nombres.js?v=20261128b";
 
 export const PHRASE_ECHEC_DIRECTIONS = "Les directions des centres n'ont pas pu être chargées.";
 export const PHRASE_ADRESSE = "Adresse e-mail invalide.";

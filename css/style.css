@@ -144,12 +144,15 @@
   /* --- Gris de décor --- */
   --bg-survol: #ECEAE5;                              /* survol d'un en-tête de demi-journée */
 
-  /* --- Halos de focus, lueurs de l'écran de connexion, voile des fenêtres --- */
+  /* --- Halos de focus, voile des fenêtres --- */
   --halo-focus:        rgba(4, 120, 87, 0.12);
   --halo-focus-leger:  rgba(4, 120, 87, 0.1);
-  --lueur-1:           rgba(4, 120, 87, 0.15);
-  --lueur-2:           rgba(180, 83, 9, 0.08);
   --ombre-voile:       rgba(15, 20, 25, 0.4);
+  /* --- Écran de connexion (variante D choisie par Timy le 27/11/2026) : l'anthracite de mai 2026 et sa grille de
+     60 px, sans lueur. Le gris évite le vert profond en grande surface, que la charte Jalonya réserve à la barre. --- */
+  --sombre-porte:        #11161A;
+  --sombre-porte-grille: rgba(255, 255, 255, 0.045);
+  --ombre-porte:         0 16px 40px rgba(0, 0, 0, 0.28);
 
   /* --- Couleurs qui disent quelque chose : jamais redéfinies par un habillage --- */
   --c-stop-bord:  rgba(185, 28, 28, 0.35);           /* carte du tableau de bord : urgent */
@@ -298,6 +301,8 @@
   --barre-etat: #1A1612;
   /* Le logo Jalonya (connexion, barre du stagiaire) : en couleur par défaut ; un habillage peut le passer à l'encre. */
   --filtre-logo: none;
+  /* Le logo en négatif (crème et olive clair) de l'écran de connexion, sur l'anthracite : tel quel par défaut. */
+  --filtre-logo-sombre: none;
 
   /* --- Barre collante du haut --- */
   /* Sa hauteur : la barre de jours du Planning se colle juste dessous. La coquille de navigation pose
@@ -389,84 +394,81 @@ a { color: inherit; text-decoration: none; }
    Gate
    ============================================================ */
 
+/* Écran de connexion (variante D du 27/11/2026) : l'anthracite et la grille de mai 2026, le logo en négatif au-dessus d'une
+   carte claire, un pied de page discret. Sur téléphone comme sur ordinateur, chaque chose a une seule place. */
 .gate {
   position: fixed;
   inset: 0;
-  background: var(--bg-deep);
+  background: var(--sombre-porte);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding: 2rem 1.25rem;
   z-index: 100;
-  overflow: hidden;
-}
-
-.gate-bg {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 80% 50% at 30% 20%, var(--lueur-1), transparent 70%),
-    radial-gradient(ellipse 60% 40% at 80% 80%, var(--lueur-2), transparent 60%);
-  pointer-events: none;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .gate::before {
   content: "";
-  position: absolute;
+  position: fixed;
   inset: 0;
   background-image:
-    linear-gradient(transparent 95%, rgba(255,255,255,0.04) 95%),
-    linear-gradient(90deg, transparent 95%, rgba(255,255,255,0.04) 95%);
+    linear-gradient(transparent 95%, var(--sombre-porte-grille) 95%),
+    linear-gradient(90deg, transparent 95%, var(--sombre-porte-grille) 95%);
   background-size: 60px 60px;
   pointer-events: none;
 }
 
-.gate-card {
+.gate-col {
   position: relative;
-  background: var(--bg-elev);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  padding: 2.2rem;
-  max-width: 400px;
   width: 100%;
-  box-shadow: var(--shadow-3);
-  text-align: left;
+  max-width: 400px;
+  margin: auto 0;
 }
 
 .gate-logo {
   display: block;
-  width: 150px;
-  height: auto;
-  margin: 0 0 1.5rem;
-  filter: var(--filtre-logo);
+  height: 34px;
+  width: auto;
+  margin: 0 auto 1.6rem;
+  filter: var(--filtre-logo-sombre);
+}
+
+.gate-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 2rem;
+  box-shadow: var(--ombre-porte);
+  text-align: left;
 }
 
 .gate-card h1 {
-  margin: 0 0 0.35rem;
-  font-family: var(--font-display);
-  font-size: 2.4rem;
+  margin: 0 0 0.3rem;
+  font-size: 1.6rem;
   font-weight: var(--poids-titre);
-  letter-spacing: -0.02em;
-  line-height: 1;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
   color: var(--text);
 }
 
-.gate-card .muted { margin: 0 0 1.5rem; font-size: 0.9rem; }
+.gate-card .gate-sous-titre { margin: 0 0 1.3rem; font-size: 0.92rem; line-height: 1.45; color: var(--text-muted); }
 
-.gate-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
+.gate-form { display: flex; flex-direction: column; }
+
+.gate-champ { margin: 0 0 0.95rem; }
+.gate-champ label { display: block; margin: 0 0 0.35rem; font-size: 0.85rem; font-weight: 600; color: var(--text); }
 
 .gate-form input {
+  box-sizing: border-box;
   width: 100%;
-  padding: 0.8rem 0.95rem;
-  font-size: 0.95rem;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: var(--bg);
+  padding: 0.75rem 0.9rem;
   font-family: inherit;
+  font-size: 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--bg-elev);
   color: var(--text);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -474,10 +476,36 @@ a { color: inherit; text-decoration: none; }
 .gate-form input:focus {
   outline: none;
   border-color: var(--accent);
-  background: var(--bg-elev);
   box-shadow: 0 0 0 3px var(--halo-focus);
 }
 
+/* « Afficher » le mot de passe : posé dans le champ, à droite. */
+.gate-mdp { position: relative; }
+.gate-mdp input { padding-right: 5.6rem; }
+.gate-afficher {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-height: 36px;
+  padding: 0 0.7rem;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}
+.gate-afficher:hover { background: var(--bg-subtle); }
+.gate-afficher:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* « Mot de passe oublié ? » sous le champ du mot de passe, à droite, au même endroit sur tous les écrans. */
+.gate-ligne-oubli { display: flex; justify-content: flex-end; margin: -0.35rem 0 1.1rem; }
+.gate-ligne-oubli .gate-link { margin: 0; color: var(--accent); }
+
+.gate-form .btn { width: 100%; min-height: 46px; font-size: 0.98rem; font-weight: 600; }
 /* ============================================================
    Buttons
    ============================================================ */
@@ -2570,7 +2598,7 @@ body.p-dragging-active {
   accent-color: var(--accent);
 }
 
-/* === Tabs gate (Connexion / Créer un compte) === */
+/* === Onglets de la connexion (Connexion / Créer un compte) === */
 .gate-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2578,7 +2606,7 @@ body.p-dragging-active {
   background: var(--bg-subtle);
   padding: 4px;
   border-radius: var(--r-sm);
-  margin-bottom: 1rem;
+  margin: 0 0 1.3rem;
 }
 .gate-tab {
   background: transparent;
@@ -2595,42 +2623,53 @@ body.p-dragging-active {
 .gate-tab:hover { color: var(--text); }
 .gate-tab.active {
   background: var(--bg-elev);
-  color: var(--accent);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  color: var(--text);
+  box-shadow: var(--shadow-1);
 }
 
 .gate-hint {
-  margin-top: 0.9rem;
-  font-size: 0.78rem;
-  line-height: 1.4;
+  margin: 1.1rem 0 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+  text-align: center;
 }
+.gate-hint:empty { display: none; }
 
-/* Lien discret sous le bouton de la gate (oubli, retour). Bouton plutôt que
-   lien : aucune navigation, on change de mode dans la même carte. */
+/* Lien discret de la porte (oubli, retour, informations légales). Bouton plutôt que lien : aucune navigation, on change
+   de mode dans la même carte. Aussi employé par la déconnexion des conditions (js/legal.js). */
 .gate-link {
   background: none;
   border: none;
   padding: 0;
   margin-top: 0.7rem;
+  min-height: 24px;               /* cible de 24 px au moins sur ordinateur, 44 px sur téléphone (plus bas) */
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.86rem;
   color: var(--text-muted);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 .gate-link:hover { color: var(--accent); }
+#gate-retour { display: block; margin: 1.1rem auto 0; color: var(--accent); }
 
 /* « Réessayer » après une lecture des affectations ratée à l'ouverture : cible de 44 px, pleine largeur de la carte. */
 #gate .gate-reessayer { display: block; width: 100%; min-height: 44px; margin-top: 1rem; }
 
+#gate .error { margin: 1rem 0 0; }
 .gate-info {
-  margin-top: 0.9rem;
-  font-size: 0.85rem;
+  margin: 1rem 0 0;
+  font-size: 0.88rem;
   line-height: 1.45;
   color: var(--text);
 }
 
+/* Pied de la porte : le site et les informations légales, en crème sur l'anthracite. */
+.gate-pied { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 1.4rem; margin: 1.6rem 0 0; }
+.gate-pied a { display: inline-flex; align-items: center; min-height: 24px; }
+.gate-pied a, .gate-pied .gate-link { margin: 0; font-size: 0.84rem; color: var(--sur-sombre); text-decoration: underline; text-underline-offset: 3px; }
+.gate-pied a:hover, .gate-pied .gate-link:hover { color: var(--sur-sombre); text-decoration-thickness: 2px; }
 /* === État erreur Paramètres (timeout / réseau) === */
 .param-error {
   background: var(--bg-elev);
@@ -7225,7 +7264,6 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 }
 .legal-accord input { margin-top: 0.2rem; flex: 0 0 auto; width: 1.05rem; height: 1.05rem; }
 .legal-deconnexion { display: block; margin: 0.7rem auto 0; }
-.gate-legal { display: block; margin: 0.9rem auto 0; font-size: 0.8rem; }
 /* Les tableaux des pages légales (jusqu'à 5 colonnes) suivent ceux des cours : des cartes sur téléphone (lot 2B, tâche 1). */
 
 /* === Paramètres : données personnelles (effacement, durées de conservation) === */
@@ -7527,8 +7565,12 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 /* Porte de connexion sur téléphone : cibles de 44 px. C'est l'écran que voient un compte du siège ou sans promo, avec
    la phrase qui leur dit pourquoi ils n'entrent pas (lot 4, comptes réels). */
 @media (max-width: 760px) {
-  .gate-tab, .gate-form .btn, .gate-link { min-height: 44px; }
-  .gate-link { display: block; margin-left: auto; margin-right: auto; padding: 0 0.5rem; }
+  .gate-tab, .gate-form .btn, .gate-link, .gate-pied a { min-height: 44px; }
+  .gate-link, .gate-pied a { display: inline-flex; align-items: center; padding: 0 0.5rem; }
+  .gate-card { padding: 1.5rem; }
+  .gate-afficher { min-height: 44px; right: 2px; }
+  .gate-form input { padding-top: 0.85rem; padding-bottom: 0.85rem; }
+  #gate-retour { display: flex; width: fit-content; }
 }
 
 /* Page Stagiaires de la direction (lot 5, Task 9). */

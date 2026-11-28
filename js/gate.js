@@ -3,12 +3,11 @@
  * © 2026 Timy Studio. Tous droits réservés. Voir LICENSE.
  */
 // La carte d'authentification et ses modes. Sortie de main.js, qui redevient le
-// fichier du démarrage et des routes. Textes en formule neutre (ni « tu » ni « vous ») :
-// personne n'est encore identifié.
-import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20261127b";
-import { validerEmail, validerMotDePasse, messageErreurAuth, configMode, MDP_MIN } from "./gate-rules.js?v=20261127b";
-import { toast } from "./utils.js?v=20261127b";
-import { PHRASE_CONNEXION } from "./espaces-rules.js?v=20261127b";
+// fichier du démarrage et des routes. Textes vouvoyés, comme toute l'app (retouche du 27/11/2026).
+import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20261128b";
+import { validerEmail, validerMotDePasse, messageErreurAuth, configMode, MDP_MIN } from "./gate-rules.js?v=20261128b";
+import { toast } from "./utils.js?v=20261128b";
+import { PHRASE_CONNEXION } from "./espaces-rules.js?v=20261128b";
 
 // Refus décidé APRÈS une connexion réussie côté serveur (aucune promo, compte non invité) :
 // auth-admin.js émet « ecsr:refus-porte » (detail = le motif) juste avant de déconnecter. Un
@@ -50,17 +49,33 @@ export function showGate(mode = "signin") {
   const oubli = document.getElementById("gate-oubli");
   const retour = document.getElementById("gate-retour");
   const info = document.getElementById("gate-info");
+  const titre = document.getElementById("gate-titre");
+  const formulaire = document.getElementById("gate-formulaire");
+  const afficher = document.getElementById("gate-afficher");
+  // Chaque champ vit dans son bloc (étiquette + champ) : c'est le bloc qu'on cache, pas le champ seul.
+  const bloc = (champ) => champ.closest(".gate-champ") || champ;
+  const ligneOubli = document.getElementById("gate-ligne-oubli") || oubli;
 
   gate.classList.remove("hidden");
   document.getElementById("app").classList.add("hidden");
   // Mentions légales et conditions lisibles par tout visiteur, avant connexion.
   const legal = document.getElementById("gate-legal");
-  if (legal) legal.onclick = () => import("./legal.js?v=20261127b").then((m) => m.ouvrirInformationsLegales());
+  if (legal) legal.onclick = () => import("./legal.js?v=20261128b").then((m) => m.ouvrirInformationsLegales());
   // Lien direct …/#/informations-legales (envoyé aux élèves bénévoles, qui n'ont pas de
   // compte) : les textes s'ouvrent d'eux-mêmes par-dessus l'écran de connexion.
   if (legal && /informations-legales/.test(location.hash)) legal.onclick();
 
   let courant = mode;
+
+  // « Afficher » le mot de passe : le champ (et sa confirmation) passe en texte clair, le bouton dit « Masquer ».
+  function montrerMotDePasse(visible) {
+    passwordInput.type = visible ? "text" : "password";
+    confirmation.type = visible ? "text" : "password";
+    afficher.textContent = visible ? "Masquer" : "Afficher";
+    afficher.setAttribute("aria-pressed", visible ? "true" : "false");
+    afficher.setAttribute("aria-label", visible ? "Masquer le mot de passe" : "Afficher le mot de passe");
+  }
+  afficher.onclick = () => montrerMotDePasse(passwordInput.type === "password");
 
   function setMode(next) {
     courant = next;
@@ -68,23 +83,25 @@ export function showGate(mode = "signin") {
     tabs.classList.toggle("hidden", !c.onglets);
     tabSignin.classList.toggle("active", next === "signin");
     tabSignup.classList.toggle("active", next === "signup");
+    tabSignin.setAttribute("aria-selected", next === "signin" ? "true" : "false");
+    tabSignup.setAttribute("aria-selected", next === "signup" ? "true" : "false");
+    titre.textContent = c.titre;
     subtitle.textContent = c.sousTitre;
     submit.textContent = c.bouton;
-    emailInput.classList.toggle("hidden", !c.champs.email);
-    passwordInput.classList.toggle("hidden", !c.champs.password);
+    bloc(emailInput).classList.toggle("hidden", !c.champs.email);
+    bloc(passwordInput).classList.toggle("hidden", !c.champs.password);
     if (c.autocomplete) passwordInput.autocomplete = c.autocomplete;
     hint.textContent = c.hint;
-    confirmation.classList.toggle("hidden", !c.champs.confirmation);
-    oubli.classList.toggle("hidden", !c.lienOubli);
+    bloc(confirmation).classList.toggle("hidden", !c.champs.confirmation);
+    ligneOubli.classList.toggle("hidden", !c.lienOubli);
+    montrerMotDePasse(false);
     retour.classList.toggle("hidden", !c.retour);
     info.classList.add("hidden");
-    // « Nouveau » n'a de sens que sur l'ecran de reinitialisation : en creation
-    // de compte, il n'y a pas d'ancien mot de passe a remplacer.
-    passwordInput.placeholder = next === "signin"
-      ? "Mot de passe"
-      : next === "reset-set"
-        ? "Nouveau mot de passe (min. " + MDP_MIN + " caractères)"
-        : "Mot de passe (min. " + MDP_MIN + " caractères)";
+    // L'étiquette dit quel mot de passe ; l'indication dans le champ, la longueur attendue quand on en choisit un.
+    // « Nouveau » n'a de sens que sur l'écran de réinitialisation : en création de compte, il n'y a pas d'ancien mot de
+    // passe à remplacer.
+    document.getElementById("gate-password-libelle").textContent = next === "reset-set" ? "Nouveau mot de passe" : "Mot de passe";
+    passwordInput.placeholder = next === "signin" ? "" : MDP_MIN + " caractères au moins";
     error.classList.add("hidden");
     submit.disabled = false;
     // Le focus va au premier champ reellement visible du mode (email, sinon mot
@@ -123,7 +140,7 @@ export function showGate(mode = "signin") {
   }
 
   afficherConnexionEchouee = () => {
-    for (const element of [tabs, subtitle, document.querySelector("#gate .gate-form"), oubli, retour, hint, confirmation]) element?.classList.add("hidden");
+    for (const element of [tabs, subtitle, formulaire, retour, hint]) element?.classList.add("hidden");
     echec(PHRASE_CONNEXION);
     document.getElementById("gate-reessayer")?.remove();
     const bouton = document.createElement("button");
@@ -170,7 +187,7 @@ export function showGate(mode = "signin") {
     if (courant !== modeAppel) return;
     // Message identique quoi qu'il arrive : aucune énumération de comptes.
     info.textContent = "Si un compte existe pour cette adresse, un lien vient de partir. "
-                     + "Penser à regarder dans les courriers indésirables.";
+                     + "Pensez à regarder dans vos courriers indésirables.";
     info.classList.remove("hidden");
     submit.textContent = configMode("reset-request").bouton;
     submit.disabled = false;
@@ -241,16 +258,12 @@ export function showGate(mode = "signin") {
     }
   };
 
-  submit.onclick = handler;
-  const onEnter = (e) => {
-    if (e.key !== "Enter") return;
+  // Le bouton et la touche Entrée passent par l'envoi du formulaire ; rien ne part vers une adresse, le geste reste ici.
+  formulaire.onsubmit = (e) => {
     e.preventDefault();
     if (submit.disabled) return;
     handler();
   };
-  emailInput.onkeydown = onEnter;
-  passwordInput.onkeydown = onEnter;
-  confirmation.onkeydown = onEnter;
 }
 
 export function hideGate() {

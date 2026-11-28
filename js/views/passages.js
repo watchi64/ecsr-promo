@@ -1,12 +1,12 @@
-import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261127b";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe, nomLisible } from "../utils.js?v=20261127b";
-import { confirmer } from "../confirmer.js?v=20261127b";
-import { icon } from "../icons.js?v=20261127b";
-import { recordUndo } from "../undo.js?v=20261127b";
-import { TYPES, RESULTATS } from "../config.js?v=20261127b";
-import { monStagiaireId, selonPublic, ecritSelonLaCase } from "../auth-admin.js?v=20261127b";
-import { getCurrentWho } from "../identity.js?v=20261127b";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261127b";
+import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261128b";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe, nomLisible } from "../utils.js?v=20261128b";
+import { confirmer } from "../confirmer.js?v=20261128b";
+import { icon } from "../icons.js?v=20261128b";
+import { recordUndo } from "../undo.js?v=20261128b";
+import { TYPES, RESULTATS } from "../config.js?v=20261128b";
+import { monStagiaireId, selonPublic, ecritSelonLaCase } from "../auth-admin.js?v=20261128b";
+import { getCurrentWho } from "../identity.js?v=20261128b";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261128b";
 
 let stagiaires = [];
 let passages = [];

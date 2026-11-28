@@ -36,35 +36,35 @@
 import {
   lireDonneesQualiopi, lireReferentielCentre, getMesPromos, getPromoCourante,
   lireResultatsQuestionnaire, lireCommentairesQuestionnaire, lireOuverturesQuestionnaires, ouvrirQuestionnaire, lireRegistreQualite,
-} from "../db.js?v=20261127b";
-import { el, clear, isoDate, toast } from "../utils.js?v=20261127b";
-import { indicateursPromo } from "../centre-stats.js?v=20261127b";
-import { presenceDePromo, presenceDeLaFiche } from "../qualiopi-presence.js?v=20261127b";
-import { inventairePromo, tableau, satisfactionDe } from "../qualiopi-preuves.js?v=20261127b";
+} from "../db.js?v=20261128b";
+import { el, clear, isoDate, toast } from "../utils.js?v=20261128b";
+import { indicateursPromo } from "../centre-stats.js?v=20261128b";
+import { presenceDePromo, presenceDeLaFiche } from "../qualiopi-presence.js?v=20261128b";
+import { inventairePromo, tableau, satisfactionDe } from "../qualiopi-preuves.js?v=20261128b";
 import {
   modeleDossierFormation, modeleDossierCentre, inventaireCsv, nomFichierQualiopi, periodeEnMots, LIBELLES_NIVEAU, PHRASE_NIVEAU, PHRASE_DE_GARDE,
-} from "../qualiopi-documents.js?v=20261127b";
+} from "../qualiopi-documents.js?v=20261128b";
 import {
   REFERENTIEL_APPLIQUE, referentielDu, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, groupesParCritere,
   titreImpression,
-} from "../qualiopi-page-rules.js?v=20261127b";
+} from "../qualiopi-page-rules.js?v=20261128b";
 import {
   ficheResultats, fichesResultatsTexte, tableauFiche, copierTexte, noteProvisoire, promoTerminee, AUCUNE_FORMATION, obtentionDeLaFiche,
-} from "../qualiopi-resultats.js?v=20261127b";
-import { NOUVEAUTES } from "../nouveautes-data.js?v=20261127b";
-import { telecharger } from "./centre.js?v=20261127b";
-import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261127b";
+} from "../qualiopi-resultats.js?v=20261128b";
+import { NOUVEAUTES } from "../nouveautes-data.js?v=20261128b";
+import { telecharger } from "./centre.js?v=20261128b";
+import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261128b";
 import {
   QUESTIONNAIRES_GESTION, porteeGestion, anneesFormateur, libellePorteeFormateur, ouvertureDe, etatOuverture, actionsOuverture,
   messageOuverture, questionnairesAbsents, resumeReponses, satisfactionGlobale, lignesResultats, commentairesMontrables,
   messageLectureGestion, messageEchecOuverture,
-} from "../questionnaires-gestion-rules.js?v=20261127b";
-import { jourParis } from "../dates.js?v=20261127b";
-import { renderSubTabs } from "../subtabs.js?v=20261127b";
-import { aEffacer, aClore } from "../registre-rules.js?v=20261127b";
-import { renderRegistreQualite } from "./registre-qualite.js?v=20261127b";
-import { creerConservation } from "./conservation.js?v=20261127b";
-import { pluriel } from "../nombres.js?v=20261127b";
+} from "../questionnaires-gestion-rules.js?v=20261128b";
+import { jourParis } from "../dates.js?v=20261128b";
+import { renderSubTabs } from "../subtabs.js?v=20261128b";
+import { aEffacer, aClore } from "../registre-rules.js?v=20261128b";
+import { renderRegistreQualite } from "./registre-qualite.js?v=20261128b";
+import { creerConservation } from "./conservation.js?v=20261128b";
+import { pluriel } from "../nombres.js?v=20261128b";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 

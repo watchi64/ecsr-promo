@@ -5,15 +5,15 @@
 // revient à ce que la base a gardé. Les pastilles sont celles du lot 3 (js/habillage-choix.js, mode réglage : rien n'est appliqué à
 // l'écran de la personne qui règle).
 
-import { habillageParDefaut, lireHabillageCentre, reglerHabillageCentre, reglerHabillageReseau } from "../db.js?v=20261127b";
-import { getCentre, getMesTitres, fondateurHorsApercu } from "../auth-admin.js?v=20261127b";
-import { el, clear, toast } from "../utils.js?v=20261127b";
-import { icon } from "../icons.js?v=20261127b";
-import { blocHabillage } from "../habillage-choix.js?v=20261127b";
-import { donneesDuCentreVisibles } from "../titres-rules.js?v=20261127b";
-import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261127b";
-import { sectionDonneesCentre } from "./reglages-donnees.js?v=20261127b";
-import { sectionFinancements, sectionsContactDuCentre, sectionFichesASupprimer } from "./reglages-contact.js?v=20261127b";
+import { habillageParDefaut, lireHabillageCentre, reglerHabillageCentre, reglerHabillageReseau } from "../db.js?v=20261128b";
+import { getCentre, getMesTitres, fondateurHorsApercu } from "../auth-admin.js?v=20261128b";
+import { el, clear, toast } from "../utils.js?v=20261128b";
+import { icon } from "../icons.js?v=20261128b";
+import { blocHabillage } from "../habillage-choix.js?v=20261128b";
+import { donneesDuCentreVisibles } from "../titres-rules.js?v=20261128b";
+import { defautsHabillage, phraseDeRefus, phraseStatut, PHRASE_INDISPONIBLE } from "../espaces-rules.js?v=20261128b";
+import { sectionDonneesCentre } from "./reglages-donnees.js?v=20261128b";
+import { sectionFinancements, sectionsContactDuCentre, sectionFichesASupprimer } from "./reglages-contact.js?v=20261128b";
 
 export const PHRASE_ECHEC_LECTURE = "Le réglage n'a pas pu être chargé.";
 export const PHRASE_ECHEC_ECRITURE = "Le réglage n'a pas été enregistré. Réessayez dans un instant.";

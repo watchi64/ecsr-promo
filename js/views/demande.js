@@ -3,14 +3,14 @@
 // annuler ; les réponses toutes faites et les envois en échec pour l'équipe). Ouvrir la demande la marque lue. La base reste juge : ses
 // refus se disent par leur phrase. Équipe vouvoyée, stagiaire tutoyé. Aucun défilement de côté.
 
-import { detailDemande, marquerLue, repondre, prendreEnCompte, annulerDemande, relancerEnvoi, reglerJustificatif } from "../db.js?v=20261127b";
-import { el, clear, toast } from "../utils.js?v=20261127b";
-import { icon } from "../icons.js?v=20261127b";
-import { vueStagiaire, selonPublic } from "../auth-admin.js?v=20261127b";
-import { confirmer } from "../confirmer.js?v=20261127b";
-import { dateHeure } from "../dates.js?v=20261127b";
-import { TYPES_DEMANDE, etapesDemande, libelleDestinataire, phraseContact } from "../contact-rules.js?v=20261127b";
-import { libelleAbsence, libelleDesJours, mailtoJustificatif, adresseJustificatif, LIBELLES_MOTIF } from "../contact-absences-rules.js?v=20261127b";
+import { detailDemande, marquerLue, repondre, prendreEnCompte, annulerDemande, relancerEnvoi, reglerJustificatif } from "../db.js?v=20261128b";
+import { el, clear, toast } from "../utils.js?v=20261128b";
+import { icon } from "../icons.js?v=20261128b";
+import { vueStagiaire, selonPublic } from "../auth-admin.js?v=20261128b";
+import { confirmer } from "../confirmer.js?v=20261128b";
+import { dateHeure } from "../dates.js?v=20261128b";
+import { TYPES_DEMANDE, etapesDemande, libelleDestinataire, phraseContact } from "../contact-rules.js?v=20261128b";
+import { libelleAbsence, libelleDesJours, mailtoJustificatif, adresseJustificatif, LIBELLES_MOTIF } from "../contact-absences-rules.js?v=20261128b";
 
 const PHRASE_ECHEC_LECTURE = "Cette demande n'a pas pu être chargée.";
 const LIBELLES_ETAPE = { envoyee: "Envoyée", lue: "Lue", prise: "Prise en compte", annulee: "Annulée" };

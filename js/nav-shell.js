@@ -41,30 +41,30 @@
 // montage de la coquille (aperçu compris : l'accès reste ouvert sous un aperçu). À l'échéance, l'app restée ouverte le dit et
 // propose « Recharger » : la base ne donne déjà plus l'organisme du support.
 
-import { el } from "./utils.js?v=20261127b";
-import { icon, deco } from "./icons.js?v=20261127b";
-import { getProfile, fondateurHorsApercu, getCentre, isFounder } from "./auth-admin.js?v=20261127b";
-import { getPromoCourante, getLieuxLus, listeDemandes, lireMonOrganisme, rechargerApresEnregistrements, invalidateCache } from "./db.js?v=20261127b";
-import { etatBandeauSupport, organismeAChange } from "./organisme-rules.js?v=20261127b";
-import { fermerAccesSupportPuisRecharger, texteSupportEnGras } from "./views/acces-support.js?v=20261127b";
-import { compterNonLues } from "./contact-rules.js?v=20261127b";
-import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261127b";
-import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261127b";
-import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261127b";
-import { libellePastille } from "./nouveautes.js?v=20261127b";
+import { el } from "./utils.js?v=20261128b";
+import { icon, deco } from "./icons.js?v=20261128b";
+import { getProfile, fondateurHorsApercu, getCentre, isFounder } from "./auth-admin.js?v=20261128b";
+import { getPromoCourante, getLieuxLus, listeDemandes, lireMonOrganisme, rechargerApresEnregistrements, invalidateCache } from "./db.js?v=20261128b";
+import { etatBandeauSupport, organismeAChange } from "./organisme-rules.js?v=20261128b";
+import { fermerAccesSupportPuisRecharger, texteSupportEnGras } from "./views/acces-support.js?v=20261128b";
+import { compterNonLues } from "./contact-rules.js?v=20261128b";
+import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261128b";
+import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261128b";
+import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261128b";
+import { libellePastille } from "./nouveautes.js?v=20261128b";
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole, nomDuBoutonCompte,
-} from "./nav-rules.js?v=20261127b";
-import { chargerATraiter } from "./a-traiter.js?v=20261127b";
+} from "./nav-rules.js?v=20261128b";
+import { chargerATraiter } from "./a-traiter.js?v=20261128b";
 import {
   ENTREE_A_TRAITER, resumeATraiter, nomAvecATraiter, phraseATraiter, pointSurPlus, nomDePlus,
-} from "./a-traiter-rules.js?v=20261127b";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261127b";
-import { ouvrirMenuCompte } from "./menu-compte.js?v=20261127b";
-import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261127b";
-import { ouvrirSignalement } from "./signalement.js?v=20261127b";
-import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261127b";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261127b";
+} from "./a-traiter-rules.js?v=20261128b";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261128b";
+import { ouvrirMenuCompte } from "./menu-compte.js?v=20261128b";
+import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261128b";
+import { ouvrirSignalement } from "./signalement.js?v=20261128b";
+import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261128b";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261128b";
 
 // Barre latérale repliée en colonne d'icônes : choix mémorisé sur l'appareil.
 const CLE_REPLIEE = "ecsr_nav_repliee";

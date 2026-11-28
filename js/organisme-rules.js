@@ -5,7 +5,7 @@
 // - L'accès support du fondateur (js/views/acces-support.js, bandeau de js/nav-shell.js) : le motif, que la base exige d'au moins
 //   10 caractères une fois les blancs retirés, et le texte du bandeau, à l'heure de Paris.
 
-import { habillageValide } from "./habillage-regles.js?v=20261127b";
+import { habillageValide } from "./habillage-regles.js?v=20261128b";
 
 // Longueur minimale du motif, comme ouvrir_acces_support() (char_length après retrait des blancs autour).
 export const MOTIF_SUPPORT_MIN = 10;

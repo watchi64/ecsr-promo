@@ -3,9 +3,9 @@
 // d'émargement closes : une feuille close est figée et porte une ligne par stagiaire de sa
 // liste ; une demi-journée signée compte pour sa durée entière (décision de Timy du 24/10).
 
-import { dureeMinutes, jourFerie } from "./emargement-rules.js?v=20261127b";
-import { lundiDe, jourDe, dayIndexDe } from "./dates.js?v=20261127b";
-import { compareByNom } from "./utils.js?v=20261127b";
+import { dureeMinutes, jourFerie } from "./emargement-rules.js?v=20261128b";
+import { lundiDe, jourDe, dayIndexDe } from "./dates.js?v=20261128b";
+import { compareByNom } from "./utils.js?v=20261128b";
 
 export const LIBELLE_ORIGINE = {
   non_signe: "non signé",

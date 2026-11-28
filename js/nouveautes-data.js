@@ -33,6 +33,16 @@ export const NOUVEAUTES = [
           + "organisme de formation, tel que l'app le connaît. Un nom déjà saisi dans l'en-tête des documents ou dans un livret "
           + "reste celui qui s'imprime.",
   },
+  // Écran de connexion retouché (28/11) : variante D choisie par Timy (anthracite et grille, logo en négatif).
+  {
+    id: "2026-11-28-ecran-connexion",
+    date: "2026-11-28",
+    pour: "tous",
+    titre: "Un écran de connexion plus clair à lire",
+    resume: "L'écran de connexion retrouve son fond gris d'origine, avec le logo Jalonya au-dessus. Chaque champ porte "
+          + "son nom, un bouton « Afficher » permet de vérifier le mot de passe saisi, et le téléphone peut enregistrer "
+          + "le mot de passe. Les comptes et la façon de se connecter ne changent pas.",
+  },
   // Page d'installation (27/11) : app.jalonya.fr/installer, ouverte sans connexion.
   {
     id: "2026-11-27-installer-app",
